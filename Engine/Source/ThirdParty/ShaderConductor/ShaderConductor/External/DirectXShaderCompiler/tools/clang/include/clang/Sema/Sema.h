@@ -3793,6 +3793,7 @@ public:
   // HLSL Change Begins
   bool CheckHLSLUnaryExprOrTypeTraitOperand(QualType ExprType, SourceLocation Loc,
                                             UnaryExprOrTypeTrait ExprKind);
+  void DiagnoseHLSLDeclAttr(const Decl *D, const Attr *A);
   // HLSL Change Ends
 
   bool CheckUnaryExprOrTypeTraitOperand(Expr *E, UnaryExprOrTypeTrait ExprKind);
@@ -5511,8 +5512,7 @@ public:
 
   void LookupTemplateName(LookupResult &R, Scope *S, CXXScopeSpec &SS,
                           QualType ObjectType, bool EnteringContext,
-                          bool &MemberOfUnknownSpecialization,
-                          bool NextIsLess = false); // HLSL Change - additional special case flag
+                          bool &MemberOfUnknownSpecialization);
 
   TemplateNameKind isTemplateName(Scope *S,
                                   CXXScopeSpec &SS,
@@ -5521,8 +5521,7 @@ public:
                                   ParsedType ObjectType,
                                   bool EnteringContext,
                                   TemplateTy &Template,
-                                  bool &MemberOfUnknownSpecialization,
-                                  bool NextIsLess = false); // HLSL Change - additional special case flag
+                                  bool &MemberOfUnknownSpecialization);
 
   bool DiagnoseUnknownTemplateName(const IdentifierInfo &II,
                                    SourceLocation IILoc,
@@ -9009,7 +9008,6 @@ private:
 
   // HLSL Change Starts
   bool DiagnoseHLSLDecl(Declarator& D, DeclContext* DC, Expr *BitWidth, TypeSourceInfo* TInfo, bool isParameter);
-  bool DiagnoseHLSLLookup(const LookupResult &R);
   void TransferUnusualAttributes(Declarator& D, NamedDecl* NewDecl);
   // HLSL Change Ends
 
@@ -9083,6 +9081,8 @@ public:
   // HLSL Change Begin - adjust this from T* to T&-like
   CXXThisExpr *genereateHLSLThis(SourceLocation Loc, QualType ThisType,
                                 bool isImplicit);
+  ClassTemplateSpecializationDecl *
+  getHLSLDefaultSpecialization(ClassTemplateDecl *Decl);
   // HLSL Change End - adjust this from T* to T&-like
 };
 

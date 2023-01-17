@@ -145,15 +145,18 @@ uint32_t getElementSpirvBitwidth(const ASTContext &astContext, QualType type,
 /// Returns true if the two types can be treated as the same scalar
 /// type, which means they have the same canonical type, regardless of
 /// constnesss and literalness.
-bool canTreatAsSameScalarType(QualType type1, QualType type2);
+bool canTreatAsSameScalarType(QualType type1, QualType type2,
+                              bool dontConsolidateLiteralTypes = false);
 
 /// \brief Returns true if the two types are the same scalar or vector type,
 /// regardless of constness and literalness.
-bool isSameScalarOrVecType(QualType type1, QualType type2);
+bool isSameScalarOrVecType(QualType type1, QualType type2,
+                           bool dontConsolidateLiteralTypes = false);
 
 /// \brief Returns true if the two types are the same type, regardless of
 /// constness and literalness.
-bool isSameType(const ASTContext &, QualType type1, QualType type2);
+bool isSameType(const ASTContext &, QualType type1, QualType type2,
+                bool dontConsolidateLiteralTypes = false);
 
 /// Returns true if all members in structType are of the same element
 /// type and can be fit into a 4-component vector. Writes element type and
@@ -212,6 +215,9 @@ bool isAppendStructuredBuffer(QualType type);
 
 /// \brief Returns true if the given type is a ConsumeStructuredBuffer type.
 bool isConsumeStructuredBuffer(QualType type);
+
+/// \brief Returns true if the given type is a RWStructuredBuffer type.
+bool isRWStructuredBuffer(QualType type);
 
 /// \brief Returns true if the given type is a RW/Append/Consume
 /// StructuredBuffer type.

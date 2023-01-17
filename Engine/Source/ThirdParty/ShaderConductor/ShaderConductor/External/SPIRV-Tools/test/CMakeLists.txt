@@ -185,6 +185,9 @@ add_spvtools_unittest(
 endif()
 
 
+# UE Change Begin: Ignore diff files
+#add_subdirectory(diff)
+# UE Change End: Ignore diff files
 add_subdirectory(link)
 add_subdirectory(lint)
 add_subdirectory(opt)

@@ -122,6 +122,7 @@ public:
   DEFINE_VISIT_METHOD(SpirvDebugFunctionDeclaration)
   DEFINE_VISIT_METHOD(SpirvDebugFunction)
   DEFINE_VISIT_METHOD(SpirvDebugFunctionDefinition)
+  DEFINE_VISIT_METHOD(SpirvDebugEntryPoint)
   DEFINE_VISIT_METHOD(SpirvDebugLocalVariable)
   DEFINE_VISIT_METHOD(SpirvDebugGlobalVariable)
   DEFINE_VISIT_METHOD(SpirvDebugOperation)
@@ -142,6 +143,9 @@ public:
   DEFINE_VISIT_METHOD(SpirvReadClock)
   DEFINE_VISIT_METHOD(SpirvRayTracingTerminateOpKHR)
   DEFINE_VISIT_METHOD(SpirvIntrinsicInstruction)
+
+  DEFINE_VISIT_METHOD(SpirvEmitMeshTasksEXT)
+  DEFINE_VISIT_METHOD(SpirvSetMeshOutputsEXT)
 #undef DEFINE_VISIT_METHOD
 
   const SpirvCodeGenOptions &getCodeGenOptions() const { return spvOptions; }

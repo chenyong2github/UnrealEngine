@@ -321,6 +321,8 @@ def cross_compile_msl(shader, spirv, opt, iterations, paths):
         msl_args.append('1')
         msl_args.append('any16')
         msl_args.append('2')
+    if '.raw-tess-in.' in shader:
+        msl_args.append('--msl-raw-buffer-tese-input')
     if '.for-tess.' in shader:
         msl_args.append('--msl-vertex-for-tessellation')
     if '.fixed-sample-mask.' in shader:
@@ -340,6 +342,8 @@ def cross_compile_msl(shader, spirv, opt, iterations, paths):
         msl_args.append('32')
     if '.force-sample.' in shader:
         msl_args.append('--msl-force-sample-rate-shading')
+    if '.discard-checks.' in shader:
+        msl_args.append('--msl-check-discarded-frag-stores')
     if '.decoration-binding.' in shader:
         msl_args.append('--msl-decoration-binding')
     if '.mask-location-0.' in shader:
@@ -382,6 +386,10 @@ def shader_model_hlsl(shader):
             return '-Tps_5_1'
     elif '.comp' in shader:
         return '-Tcs_5_1'
+    elif '.mesh' in shader:
+        return '-Tms_6_5'
+    elif '.task' in shader:
+        return '-Tas_6_5'
     else:
         return None
 
@@ -405,6 +413,8 @@ def validate_shader_hlsl(shader, force_no_external_validation, paths):
     if '.nonuniformresource.' in shader:
         test_glslang = False
     if '.fxconly.' in shader:
+        test_glslang = False
+    if '.task' in shader or '.mesh' in shader:
         test_glslang = False
 
     hlsl_args = [paths.glslang, '--amb', '-e', 'main', '-D', '--target-env', 'vulkan1.1', '-V', shader]
@@ -537,7 +547,7 @@ def validate_shader(shader, vulkan, paths):
     else:
         subprocess.check_call([paths.glslang, shader])
 
-def cross_compile(shader, vulkan, spirv, invalid_spirv, eliminate, is_legacy, flatten_ubo, sso, flatten_dim, opt, push_ubo, iterations, paths):
+def cross_compile(shader, vulkan, spirv, invalid_spirv, eliminate, is_legacy, force_es, flatten_ubo, sso, flatten_dim, opt, push_ubo, iterations, paths):
     spirv_path = create_temporary()
     glsl_path = create_temporary(os.path.basename(shader))
 
@@ -576,6 +586,8 @@ def cross_compile(shader, vulkan, spirv, invalid_spirv, eliminate, is_legacy, fl
         extra_args += ['--remove-unused-variables']
     if is_legacy:
         extra_args += ['--version', '100', '--es']
+    if force_es:
+        extra_args += ['--version', '310', '--es']
     if flatten_ubo:
         extra_args += ['--flatten-ubo']
     if sso:
@@ -768,6 +780,9 @@ def shader_is_invalid_spirv(shader):
 def shader_is_legacy(shader):
     return '.legacy.' in shader
 
+def shader_is_force_es(shader):
+    return '.es.' in shader
+
 def shader_is_flatten_ubo(shader):
     return '.flatten.' in shader
 
@@ -791,6 +806,7 @@ def test_shader(stats, shader, args, paths):
     is_spirv = shader_is_spirv(shader[1])
     invalid_spirv = shader_is_invalid_spirv(shader[1])
     is_legacy = shader_is_legacy(shader[1])
+    force_es = shader_is_force_es(shader[1])
     flatten_ubo = shader_is_flatten_ubo(shader[1])
     sso = shader_is_sso(shader[1])
     flatten_dim = shader_is_flatten_dimensions(shader[1])
@@ -798,7 +814,7 @@ def test_shader(stats, shader, args, paths):
     push_ubo = shader_is_push_ubo(shader[1])
 
     print('Testing shader:', joined_path)
-    spirv, glsl, vulkan_glsl = cross_compile(joined_path, vulkan, is_spirv, invalid_spirv, eliminate, is_legacy, flatten_ubo, sso, flatten_dim, args.opt and (not noopt), push_ubo, args.iterations, paths)
+    spirv, glsl, vulkan_glsl = cross_compile(joined_path, vulkan, is_spirv, invalid_spirv, eliminate, is_legacy, force_es, flatten_ubo, sso, flatten_dim, args.opt and (not noopt), push_ubo, args.iterations, paths)
 
     # Only test GLSL stats if we have a shader following GL semantics.
     if stats and (not vulkan) and (not is_spirv) and (not desktop):

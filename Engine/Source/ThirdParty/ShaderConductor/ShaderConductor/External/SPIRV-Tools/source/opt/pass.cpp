@@ -21,11 +21,8 @@
 
 namespace spvtools {
 namespace opt {
-
 namespace {
-
-const uint32_t kTypePointerTypeIdInIdx = 1;
-
+constexpr uint32_t kTypePointerTypeIdInIdx = 1;
 }  // namespace
 
 Pass::Pass() : consumer_(nullptr), context_(nullptr), already_run_(false) {}
@@ -56,11 +53,11 @@ uint32_t Pass::GetPointeeTypeId(const Instruction* ptrInst) const {
 
 Instruction* Pass::GetBaseType(uint32_t ty_id) {
   Instruction* ty_inst = get_def_use_mgr()->GetDef(ty_id);
-  if (ty_inst->opcode() == SpvOpTypeMatrix) {
+  if (ty_inst->opcode() == spv::Op::OpTypeMatrix) {
     uint32_t vty_id = ty_inst->GetSingleWordInOperand(0);
     ty_inst = get_def_use_mgr()->GetDef(vty_id);
   }
-  if (ty_inst->opcode() == SpvOpTypeVector) {
+  if (ty_inst->opcode() == spv::Op::OpTypeVector) {
     uint32_t cty_id = ty_inst->GetSingleWordInOperand(0);
     ty_inst = get_def_use_mgr()->GetDef(cty_id);
   }
@@ -69,12 +66,12 @@ Instruction* Pass::GetBaseType(uint32_t ty_id) {
 
 bool Pass::IsFloat(uint32_t ty_id, uint32_t width) {
   Instruction* ty_inst = GetBaseType(ty_id);
-  if (ty_inst->opcode() != SpvOpTypeFloat) return false;
+  if (ty_inst->opcode() != spv::Op::OpTypeFloat) return false;
   return ty_inst->GetSingleWordInOperand(0) == width;
 }
 
 uint32_t Pass::GetNullId(uint32_t type_id) {
-  if (IsFloat(type_id, 16)) context()->AddCapability(SpvCapabilityFloat16);
+  if (IsFloat(type_id, 16)) context()->AddCapability(spv::Capability::Float16);
   analysis::TypeManager* type_mgr = context()->get_type_mgr();
   analysis::ConstantManager* const_mgr = context()->get_constant_mgr();
   const analysis::Type* type = type_mgr->GetType(type_id);
@@ -142,6 +139,16 @@ uint32_t Pass::GenerateCopy(Instruction* object_to_copy, uint32_t new_type_id,
     return ir_builder.AddCompositeConstruct(new_type_id, element_ids)
         ->result_id();
   } else {
+    // For copy between signed and unsigned integers, use OpBitcast
+    analysis::Integer* original_int_type = original_type->AsInteger();
+    analysis::Integer* new_int_type = new_type->AsInteger();
+    if (original_int_type != nullptr && new_int_type != nullptr &&
+        original_int_type->width() == new_int_type->width()) {
+      return ir_builder
+          .AddUnaryOp(new_type_id, spv::Op::OpBitcast,
+                      object_to_copy->result_id())
+          ->result_id();
+    }
     // If we do not have an aggregate type, then we have a problem.  Either we
     // found multiple instances of the same type, or we are copying to an
     // incompatible type.  Either way the code is illegal.

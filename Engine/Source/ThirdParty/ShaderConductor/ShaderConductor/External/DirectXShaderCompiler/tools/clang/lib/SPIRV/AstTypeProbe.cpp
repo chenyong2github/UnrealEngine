@@ -355,19 +355,6 @@ bool isResourceType(QualType type) {
   return hlsl::IsHLSLResourceType(type);
 }
 
-bool isUserDefinedRecordType(const ASTContext &astContext, QualType type) {
-  if (const auto *rt = type->getAs<RecordType>()) {
-    if (rt->getDecl()->getName() == "mips_slice_type" ||
-        rt->getDecl()->getName() == "sample_slice_type") {
-      return false;
-    }
-  }
-  return type->getAs<RecordType>() != nullptr && !isResourceType(type) &&
-         !isMatrixOrArrayOfMatrix(astContext, type) &&
-         !isScalarOrVectorType(type, nullptr, nullptr) &&
-         !isArrayType(type, nullptr, nullptr);
-}
-
 bool isOrContains16BitType(QualType type, bool enable16BitTypesOption) {
   // Primitive types
   {
@@ -553,7 +540,7 @@ uint32_t getElementSpirvBitwidth(const ASTContext &astContext, QualType type,
   llvm_unreachable("invalid type passed to getElementSpirvBitwidth");
 }
 
-bool canTreatAsSameScalarType(QualType type1, QualType type2) {
+bool canTreatAsSameScalarType(QualType type1, QualType type2, bool dontConsolidateLiteralTypes) {
   // Treat const int/float the same as const int/float
   type1.removeLocalConst();
   type2.removeLocalConst();
@@ -583,11 +570,13 @@ bool canTreatAsSameScalarType(QualType type1, QualType type2) {
          (type2->isSpecificBuiltinType(BuiltinType::LitFloat) &&
           type1->isFloatingType()) ||
          // Treat 'literal int' and 'int'/'uint' as the same
-         (type1->isSpecificBuiltinType(BuiltinType::LitInt) &&
+         (!dontConsolidateLiteralTypes &&
+          type1->isSpecificBuiltinType(BuiltinType::LitInt) &&
           type2->isIntegerType() &&
           // Disallow boolean types
           !type2->isSpecificBuiltinType(BuiltinType::Bool)) ||
-         (type2->isSpecificBuiltinType(BuiltinType::LitInt) &&
+         (!dontConsolidateLiteralTypes &&
+          type2->isSpecificBuiltinType(BuiltinType::LitInt) &&
           type1->isIntegerType() &&
           // Disallow boolean types
           !type1->isSpecificBuiltinType(BuiltinType::Bool));
@@ -741,11 +730,13 @@ bool isLitTypeOrVecOfLitType(QualType type) {
   return false;
 }
 
-bool isSameScalarOrVecType(QualType type1, QualType type2) {
+bool isSameScalarOrVecType(QualType type1, QualType type2,
+                           bool dontConsolidateLiteralTypes) {
   { // Scalar types
     QualType scalarType1 = {}, scalarType2 = {};
     if (isScalarType(type1, &scalarType1) && isScalarType(type2, &scalarType2))
-      return canTreatAsSameScalarType(scalarType1, scalarType2);
+      return canTreatAsSameScalarType(scalarType1, scalarType2,
+                                      dontConsolidateLiteralTypes);
   }
 
   { // Vector types
@@ -753,14 +744,17 @@ bool isSameScalarOrVecType(QualType type1, QualType type2) {
     uint32_t count1 = {}, count2 = {};
     if (isVectorType(type1, &elemType1, &count1) &&
         isVectorType(type2, &elemType2, &count2))
-      return count1 == count2 && canTreatAsSameScalarType(elemType1, elemType2);
+      return count1 == count2 &&
+             canTreatAsSameScalarType(elemType1, elemType2,
+                                      dontConsolidateLiteralTypes);
   }
 
   return false;
 }
 
-bool isSameType(const ASTContext &astContext, QualType type1, QualType type2) {
-  if (isSameScalarOrVecType(type1, type2))
+bool isSameType(const ASTContext &astContext, QualType type1, QualType type2,
+                bool dontConsolidateLiteralTypes) {
+  if (isSameScalarOrVecType(type1, type2, dontConsolidateLiteralTypes))
     return true;
 
   type1.removeLocalConst();
@@ -772,7 +766,7 @@ bool isSameType(const ASTContext &astContext, QualType type1, QualType type2) {
     if (isMxNMatrix(type1, &elemType1, &row1, &col1) &&
         isMxNMatrix(type2, &elemType2, &row2, &col2))
       return row1 == row2 && col1 == col2 &&
-             canTreatAsSameScalarType(elemType1, elemType2);
+             canTreatAsSameScalarType(elemType1, elemType2, dontConsolidateLiteralTypes);
   }
 
   { // Array types
@@ -780,7 +774,8 @@ bool isSameType(const ASTContext &astContext, QualType type1, QualType type2) {
       if (const auto *arrType2 = astContext.getAsConstantArrayType(type2))
         return hlsl::GetArraySize(type1) == hlsl::GetArraySize(type2) &&
                isSameType(astContext, arrType1->getElementType(),
-                          arrType2->getElementType());
+                          arrType2->getElementType(),
+                          dontConsolidateLiteralTypes);
   }
 
   { // Two structures with identical fields
@@ -800,7 +795,7 @@ bool isSameType(const ASTContext &astContext, QualType type1, QualType type2) {
         if (fieldTypes1.size() != fieldTypes2.size())
           return false;
         for (size_t i = 0; i < fieldTypes1.size(); ++i)
-          if (!isSameType(astContext, fieldTypes1[i], fieldTypes2[i]))
+          if (!isSameType(astContext, fieldTypes1[i], fieldTypes2[i], dontConsolidateLiteralTypes))
             return false;
         return true;
       }
@@ -960,6 +955,14 @@ bool isConsumeStructuredBuffer(QualType type) {
   return name == "ConsumeStructuredBuffer";
 }
 
+bool isRWStructuredBuffer(QualType type) {
+  if (const RecordType *recordType = type->getAs<RecordType>()) {
+    StringRef name = recordType->getDecl()->getName();
+    return name == "RWStructuredBuffer";
+  }
+  return false;
+}
+
 bool isRWAppendConsumeSBuffer(QualType type) {
   if (const RecordType *recordType = type->getAs<RecordType>()) {
     StringRef name = recordType->getDecl()->getName();
@@ -995,6 +998,14 @@ bool isOrContainsAKindOfStructuredOrByteBuffer(QualType type) {
     for (const auto *field : recordType->getDecl()->fields()) {
       if (isOrContainsAKindOfStructuredOrByteBuffer(field->getType()))
         return true;
+    }
+
+    if (const auto *cxxDecl = type->getAsCXXRecordDecl()) {
+      for (const auto &base : cxxDecl->bases()) {
+        if (isOrContainsAKindOfStructuredOrByteBuffer(base.getType())) {
+          return true;
+        }
+      }
     }
   }
   return false;

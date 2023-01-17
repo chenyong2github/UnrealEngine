@@ -5631,6 +5631,7 @@ ExprResult Sema::PerformContextualImplicitConversion(
                                      ExplicitConversions))
         return ExprError();
     // fall through 'OR_Deleted' case.
+      LLVM_FALLTHROUGH; // HLSL Change
     case OR_Deleted:
       // We'll complain below about a non-integral condition type.
       break;
@@ -8330,7 +8331,7 @@ void Sema::AddBuiltinOperatorCandidates(OverloadedOperatorKind Op,
   case OO_Plus: // '+' is either unary or binary
     if (Args.size() == 1)
       OpBuilder.addUnaryPlusPointerOverloads();
-    // Fall through.
+    LLVM_FALLTHROUGH; // HLSL Change
 
   case OO_Minus: // '-' is either unary or binary
     if (Args.size() == 1) {
@@ -8361,7 +8362,7 @@ void Sema::AddBuiltinOperatorCandidates(OverloadedOperatorKind Op,
   case OO_EqualEqual:
   case OO_ExclaimEqual:
     OpBuilder.addEqualEqualOrNotEqualMemberPointerOverloads();
-    // Fall through.
+    LLVM_FALLTHROUGH; // HLSL Change
 
   case OO_Less:
   case OO_Greater:
@@ -8395,12 +8396,12 @@ void Sema::AddBuiltinOperatorCandidates(OverloadedOperatorKind Op,
 
   case OO_Equal:
     OpBuilder.addAssignmentMemberPointerOrEnumeralOverloads();
-    // Fall through.
+    LLVM_FALLTHROUGH; // HLSL Change
 
   case OO_PlusEqual:
   case OO_MinusEqual:
     OpBuilder.addAssignmentPointerOverloads(Op == OO_Equal);
-    // Fall through.
+    LLVM_FALLTHROUGH; // HLSL Change
 
   case OO_StarEqual:
   case OO_SlashEqual:
@@ -11020,7 +11021,7 @@ static ExprResult FinishOverloadedCallExpr(Sema &SemaRef, Scope *S, Expr *Fn,
     SemaRef.Diag(Fn->getLocStart(),
          diag::err_ovl_no_viable_function_in_call)
       << ULE->getName() << Fn->getSourceRange();
-    CandidateSet->NoteCandidates(SemaRef, OCD_AllCandidates, Args);
+    CandidateSet->NoteCandidates(SemaRef, OCD_AllCandidates, Args, StringRef(), ULE->getLocStart()); // HLSL Change - add loc
     break;
   }
 

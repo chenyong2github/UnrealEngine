@@ -46,7 +46,7 @@ public:
   };
 
 public:
-  EmitTypeHandler(ASTContext *astCtx, SpirvContext &spvContext,
+  EmitTypeHandler(ASTContext &astCtx, SpirvContext &spvContext,
                   const SpirvCodeGenOptions &opts, FeatureManager &featureMgr,
                   std::vector<uint32_t> *debugVec,
                   std::vector<uint32_t> *decVec,
@@ -145,13 +145,13 @@ private:
   template <unsigned N>
   DiagnosticBuilder emitError(const char (&message)[N],
                               SourceLocation loc = {}) {
-    const auto diagId = astContext->getDiagnostics().getCustomDiagID(
+    const auto diagId = astContext.getDiagnostics().getCustomDiagID(
         clang::DiagnosticsEngine::Error, message);
-    return astContext->getDiagnostics().Report(loc, diagId);
+    return astContext.getDiagnostics().Report(loc, diagId);
   }
 
 private:
-  ASTContext *astContext;
+  ASTContext &astContext;
   SpirvContext &context;
   FeatureManager featureManager;
   std::vector<uint32_t> curTypeInst;
@@ -198,7 +198,7 @@ public:
   };
 
 public:
-  EmitVisitor(ASTContext *astCtx, SpirvContext &spvCtx,
+  EmitVisitor(ASTContext &astCtx, SpirvContext &spvCtx,
               const SpirvCodeGenOptions &opts, FeatureManager &featureMgr)
       : Visitor(opts, spvCtx), astContext(astCtx), featureManager(featureMgr),
         id(0),
@@ -286,6 +286,7 @@ public:
   bool visit(SpirvDebugFunctionDeclaration *) override;
   bool visit(SpirvDebugFunction *) override;
   bool visit(SpirvDebugFunctionDefinition *) override;
+  bool visit(SpirvDebugEntryPoint *) override;
   bool visit(SpirvDebugLocalVariable *) override;
   bool visit(SpirvDebugDeclare *) override;
   bool visit(SpirvDebugGlobalVariable *) override;
@@ -299,6 +300,8 @@ public:
   bool visit(SpirvDebugTypeTemplate *) override;
   bool visit(SpirvDebugTypeTemplateParameter *) override;
   bool visit(SpirvIntrinsicInstruction *) override;
+  bool visit(SpirvEmitMeshTasksEXT *) override;
+  bool visit(SpirvSetMeshOutputsEXT *) override;
 
   using Visitor::visit;
 
@@ -396,14 +399,14 @@ private:
   template <unsigned N>
   DiagnosticBuilder emitError(const char (&message)[N],
                               SourceLocation loc = {}) {
-    const auto diagId = astContext->getDiagnostics().getCustomDiagID(
+    const auto diagId = astContext.getDiagnostics().getCustomDiagID(
         clang::DiagnosticsEngine::Error, message);
-    return astContext->getDiagnostics().Report(loc, diagId);
+    return astContext.getDiagnostics().Report(loc, diagId);
   }
 
 private:
   // Object that holds Clang AST nodes.
-  ASTContext *astContext;
+  ASTContext &astContext;
   // Feature manager.
   FeatureManager featureManager;
   // The last result-id that's been used so far.

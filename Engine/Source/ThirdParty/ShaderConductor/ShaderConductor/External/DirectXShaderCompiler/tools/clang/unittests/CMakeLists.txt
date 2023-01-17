@@ -1,6 +1,13 @@
 add_custom_target(ClangUnitTests)
 set_target_properties(ClangUnitTests PROPERTIES FOLDER "Clang tests")
 
+# HLSL Change - rpath
+# Add LLVM_LIBRARY_OUTPUT_INTDIR to install rpath for unit tests. This allows
+# unit test binaries on Unix to be run directly even if they dlopen or
+# dynamically link against dxcompiler.
+set(CMAKE_INSTALL_RPATH "${LLVM_LIBRARY_OUTPUT_INTDIR};${CMAKE_INSTALL_RPATH}")
+# HLSL Change End - rpath
+
 # add_clang_unittest(test_dirname file1.cpp file2.cpp)
 #
 # Will compile the list of files together and link against the clang
@@ -53,9 +60,6 @@ endif (HLSL_INCLUDE_TESTS)
 
 if (SPIRV_BUILD_TESTS)
   add_subdirectory(SPIRV)
-if (ENABLE_DXIL2SPV)
-  add_subdirectory(Dxil2Spv)
-endif (ENABLE_DXIL2SPV)
 endif (SPIRV_BUILD_TESTS)
 
 # SPIRV Change Ends

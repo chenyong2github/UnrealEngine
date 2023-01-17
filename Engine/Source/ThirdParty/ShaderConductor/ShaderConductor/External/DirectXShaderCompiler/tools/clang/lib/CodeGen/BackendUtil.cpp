@@ -29,6 +29,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TimeProfiler.h" // HLSL Change
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
@@ -43,6 +44,7 @@
 #include <memory>
 #include "dxc/HLSL/DxilGenerationPass.h" // HLSL Change
 #include "dxc/HLSL/HLMatrixLowerPass.h"  // HLSL Change
+#include "dxc/Support/Global.h" // HLSL Change
 
 using namespace clang;
 using namespace llvm;
@@ -762,7 +764,17 @@ void clang::EmitBackendOutput(DiagnosticsEngine &Diags,
                               raw_pwrite_stream *OS) {
   EmitAssemblyHelper AsmHelper(Diags, CGOpts, TOpts, LOpts, M);
 
-  AsmHelper.EmitAssembly(Action, OS);
+  // HLSL Change - Support hierarchial time tracing.
+  TimeTraceScope TimeScope("Backend", StringRef(""));
+
+  try { // HLSL Change Starts
+    // Catch any fatal errors during optimization passes here
+    // so that future passes can be skipped.
+    AsmHelper.EmitAssembly(Action, OS);
+  } catch (const ::hlsl::Exception &hlslException) {
+    Diags.Report(Diags.getCustomDiagID(DiagnosticsEngine::Error, "%0\n"))
+        << StringRef(hlslException.what());
+  } // HLSL Change Ends
 
   // If an optional clang TargetInfo description string was passed in, use it to
   // verify the LLVM TargetMachine's DataLayout.

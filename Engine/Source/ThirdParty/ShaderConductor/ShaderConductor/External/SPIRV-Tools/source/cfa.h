@@ -81,7 +81,8 @@ class CFA {
   /// This function performs a depth first traversal from the \p entry
   /// BasicBlock and calls the pre/postorder functions when it needs to process
   /// the node in pre order, post order. It also calls the backedge function
-  /// when a back edge is encountered.
+  /// when a back edge is encountered. The backedge function can be empty.  The
+  /// runtime of the algorithm is improved if backedge is empty.
   ///
   /// @param[in] entry      The root BasicBlock of a CFG
   /// @param[in] successor_func  A function which will return a pointer to the
@@ -91,12 +92,11 @@ class CFA {
   /// @param[in] postorder  A function that will be called for every block in a
   ///                       CFG following postorder traversal semantics
   /// @param[in] backedge   A function that will be called when a backedge is
-  ///                       encountered during a traversal
+  ///                       encountered during a traversal.
   /// @param[in] terminal   A function that will be called to determine if the
   ///                       search should stop at the given node.
   /// NOTE: The @p successor_func and predecessor_func each return a pointer to
-  /// a
-  /// collection such that iterators to that collection remain valid for the
+  /// a collection such that iterators to that collection remain valid for the
   /// lifetime of the algorithm.
   static void DepthFirstTraversal(
       const BB* entry, get_blocks_func successor_func,
@@ -275,10 +275,16 @@ std::vector<std::pair<BB*, BB*>> CFA<BB>::CalculateDominators(
 
   std::vector<std::pair<bb_ptr, bb_ptr>> out;
   for (auto idom : idoms) {
+    // At this point if there is no dominator for the node, just make it
+    // reflexive.
+    auto dominator = std::get<1>(idom).dominator;
+    if (dominator == undefined_dom) {
+      dominator = std::get<1>(idom).postorder_index;
+    }
     // NOTE: performing a const cast for convenient usage with
     // UpdateImmediateDominators
     out.push_back({const_cast<BB*>(std::get<0>(idom)),
-                   const_cast<BB*>(postorder[std::get<1>(idom).dominator])});
+                   const_cast<BB*>(postorder[dominator])});
   }
 
   // Sort by postorder index to generate a deterministic ordering of edges.

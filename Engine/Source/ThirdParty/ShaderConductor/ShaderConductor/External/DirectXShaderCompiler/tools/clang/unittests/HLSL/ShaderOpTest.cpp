@@ -32,6 +32,7 @@
 
 #include <stdlib.h>
 #include <DirectXMath.h>
+#include <DirectXPackedVector.h>
 #include <intsafe.h>
 #include <strsafe.h>
 #include <xmllite.h>
@@ -39,6 +40,13 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 // Useful helper functions.
+
+uint16_t ConvertFloat32ToFloat16(float Value) throw() {
+  return DirectX::PackedVector::XMConvertFloatToHalf(Value);
+}
+float ConvertFloat16ToFloat32(uint16_t Value) throw() {
+  return DirectX::PackedVector::XMConvertHalfToFloat(Value);
+}
 
 static st::OutputStringFn g_OutputStrFn;
 static void * g_OutputStrFnCtx;
@@ -325,6 +333,14 @@ void ShaderOpTest::CreateDescriptorHeaps() {
         if (D.CounterName && *D.CounterName) {
           ShaderOpResourceData &CounterData = m_ResourceData[D.CounterName];
           pCounterResource = CounterData.Resource;
+        }
+        ShaderOpResource *R = m_pShaderOp->GetResourceByName(D.ResName);
+        // Ensure the TransitionTo state is set for UAV's that will be used as UAV's.
+        if (R && R->TransitionTo != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+          ShaderOpLogFmt(L"Resource '%S' used in UAV descriptor, but "
+                         L"TransitionTo not set to 'UNORDERED_ACCESS'",
+                         D.ResName);
+          CHECK_HR(E_FAIL);
         }
         m_pDevice->CreateUnorderedAccessView(pResource, pCounterResource,
                                              &D.UavDesc, cpuHandle);
@@ -780,7 +796,14 @@ void ShaderOpTest::CreateShaders() {
     CComPtr<ID3DBlob> pCode;
     HRESULT hr = S_OK;
     LPCSTR pText = m_pShaderOp->GetShaderText(&S);
-    if (S.Compiled) {
+    if (S.Callback) {
+       if (!m_ShaderCallbackFn) {
+         ShaderOpLogFmt(L"Callback required for shader, but not provided: %S\r\n", S.Name);
+         CHECK_HR(E_FAIL);
+       }
+       m_ShaderCallbackFn(S.Name, pText, (IDxcBlob **) &pCode, m_pShaderOp); 
+    }
+    else if (S.Compiled) {
       int textLen = (int)strlen(pText);
       int decodedLen = Base64DecodeGetRequiredLength(textLen);
       // Length is an approximation, so we can't creat the final blob yet.
@@ -891,15 +914,15 @@ void ShaderOpTest::RunCommandList() {
   ID3D12GraphicsCommandList *pList = m_CommandList.List.p;
   if (m_pShaderOp->IsCompute()) {
     pList->SetPipelineState(m_pPSO);
-    pList->SetComputeRootSignature(m_pRootSignature);
     SetDescriptorHeaps(pList, m_DescriptorHeaps);
+    pList->SetComputeRootSignature(m_pRootSignature);
     SetRootValues(pList, m_pShaderOp->IsCompute());
     pList->Dispatch(m_pShaderOp->DispatchX, m_pShaderOp->DispatchY,
                     m_pShaderOp->DispatchZ);
   } else {
     pList->SetPipelineState(m_pPSO);
-    pList->SetGraphicsRootSignature(m_pRootSignature);
     SetDescriptorHeaps(pList, m_DescriptorHeaps);
+    pList->SetGraphicsRootSignature(m_pRootSignature);
     SetRootValues(pList, m_pShaderOp->IsCompute());
 
     D3D12_VIEWPORT viewport;
@@ -1086,6 +1109,9 @@ void ShaderOpTest::SetDxcSupport(dxc::DxcDllSupport *pDxcSupport) {
 
 void ShaderOpTest::SetInitCallback(TInitCallbackFn InitCallbackFn) {
   m_InitCallbackFn = InitCallbackFn;
+}
+void ShaderOpTest::SetShaderCallback(TShaderCallbackFn ShaderCallbackFn) {
+  m_ShaderCallbackFn = ShaderCallbackFn;
 }
 
 void ShaderOpTest::SetupRenderTarget(ShaderOp *pShaderOp, ID3D12Device *pDevice,
@@ -2440,7 +2466,8 @@ void ShaderOpParser::ParseShader(IXmlReader *pReader, ShaderOpShader *pShader) {
   CHECK_HR(ReadAttrStr(pReader, L"EntryPoint", &pShader->EntryPoint));
   CHECK_HR(ReadAttrStr(pReader, L"Target", &pShader->Target));
   CHECK_HR(ReadAttrStr(pReader, L"Arguments", &pShader->Arguments));
-  CHECK_HR(ReadAttrBOOL(pReader, L"Compiled", &pShader->Compiled))
+  CHECK_HR(ReadAttrBOOL(pReader, L"Compiled", &pShader->Compiled));
+  CHECK_HR(ReadAttrBOOL(pReader, L"Callback", &pShader->Callback));
 
   ReadElementContentStr(pReader, &pShader->Text);
   bool hasText = pShader->Text && *pShader->Text;

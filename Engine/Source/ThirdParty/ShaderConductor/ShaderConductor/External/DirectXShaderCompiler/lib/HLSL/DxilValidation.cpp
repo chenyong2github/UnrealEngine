@@ -1466,6 +1466,11 @@ static bool ValidateStorageMasks(Instruction *I, DXIL::OpCode opcode, ConstantIn
     ValCtx.EmitInstrError(I, ValidationRule::InstrWriteMaskForTypedUAVStore);
   }
 
+  // write mask must be contiguous (.x .xy .xyz or .xyzw)
+  if (!((uMask == 0xf) || (uMask == 0x7) || (uMask == 0x3) || (uMask == 0x1))) {
+    ValCtx.EmitInstrError(I, ValidationRule::InstrWriteMaskGapForUAV);
+  }
+
   // If a bit is set in the uMask (expected values) that isn't set in stValMask (user provided values)
   // then the user failed to define some of the output values.
   if (uMask & ~stValMask)
@@ -2192,6 +2197,10 @@ static void ValidateDxilOperationCallInProfile(CallInst *CI,
     if ((pOverloadType->isIntegerTy(64)) && !pSM->IsSM66Plus())
       ValCtx.EmitInstrFormatError(CI, ValidationRule::SmOpcodeInInvalidFunction,
                                   {"64-bit atomic operations", "Shader Model 6.6+"});
+    Value *Handle = CI->getOperand(DXIL::OperandIndex::kAtomicBinOpHandleOpIdx);
+    if (!isa<CallInst>(Handle) ||
+        ValCtx.GetResourceFromVal(Handle).getResourceClass() != DXIL::ResourceClass::UAV)
+      ValCtx.EmitInstrError(CI, ValidationRule::InstrAtomicIntrinNonUAV);
   } break;
   case DXIL::OpCode::CreateHandle:
     if (ValCtx.isLibProfile) {
@@ -3180,11 +3189,34 @@ static void ValidateFunctionBody(Function *F, ValidationContext &ValCtx) {
       } break;
       case Instruction::AtomicCmpXchg:
       case Instruction::AtomicRMW: {
-        Type *T = cast<PointerType>(I.getOperand(AtomicRMWInst::getPointerOperandIndex())->getType())->getElementType();
+        Value *Ptr = I.getOperand(AtomicRMWInst::getPointerOperandIndex());
+        PointerType *ptrType = cast<PointerType>(Ptr->getType());
+        Type *elType = ptrType->getElementType();
         const ShaderModel *pSM = ValCtx.DxilMod.GetShaderModel();
-        if ((T->isIntegerTy(64)) && !pSM->IsSM66Plus())
+        if ((elType->isIntegerTy(64)) && !pSM->IsSM66Plus())
           ValCtx.EmitInstrFormatError(&I, ValidationRule::SmOpcodeInInvalidFunction,
                                       {"64-bit atomic operations", "Shader Model 6.6+"});
+
+        if (ptrType->getAddressSpace() != DXIL::kTGSMAddrSpace)
+          ValCtx.EmitInstrError(&I, ValidationRule::InstrAtomicOpNonGroupshared);
+
+        // Drill through GEP and bitcasts
+        while (true) {
+          if (GEPOperator *GEP = dyn_cast<GEPOperator>(Ptr)) {
+            Ptr = GEP->getPointerOperand();
+            continue;
+          }
+          if (BitCastInst *BC = dyn_cast<BitCastInst>(Ptr)) {
+            Ptr = BC->getOperand(0);
+            continue;
+          }
+          break;
+        }
+
+        if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Ptr)) {
+          if(GV->isConstant())
+            ValCtx.EmitInstrError(&I, ValidationRule::InstrAtomicConst);
+        }
       } break;
 
       }
@@ -4051,7 +4083,7 @@ static void ValidateSignatureElement(DxilSignatureElement &SE,
   case DXIL::SemanticInterpretationKind::NotInSig:
   case DXIL::SemanticInterpretationKind::Invalid:
     bAllowedInSig = false;
-    __fallthrough;
+    LLVM_FALLTHROUGH;
   case DXIL::SemanticInterpretationKind::NotPacked:
   case DXIL::SemanticInterpretationKind::Shadow:
     bShouldBeAllocated = false;
@@ -4095,7 +4127,7 @@ static void ValidateSignatureElement(DxilSignatureElement &SE,
     break;
   case DXIL::SemanticKind::Coverage:
     DXASSERT(!SE.IsInput() || !bAllowedInSig, "else internal inconsistency between semantic interpretation table and validation code");
-    __fallthrough;
+    LLVM_FALLTHROUGH;
   case DXIL::SemanticKind::InnerCoverage:
   case DXIL::SemanticKind::OutputControlPointID:
     if (compKind != CompType::Kind::U32 || SE.GetCols() != 1) {
@@ -4537,6 +4569,7 @@ static void ValidateEntrySignatures(ValidationContext &ValCtx,
           Ty = Ty->getPointerElementType();
         attrSize = (unsigned)std::min(DL.getTypeAllocSize(Ty), (uint64_t)UINT_MAX);
       }
+      LLVM_FALLTHROUGH;
     case DXIL::ShaderKind::Miss:
     case DXIL::ShaderKind::Callable:
       if (itPayload != F.arg_end()) {
@@ -5817,13 +5850,14 @@ HRESULT ValidateDxilBitcode(
     IFT(CreateMemoryStream(DxcGetThreadMallocNoRef(), &pOutputStream));
     pOutputStream->Reserve(pWriter->size());
     pWriter->write(pOutputStream);
+    DxilVersionedRootSignature desc;
     try {
-      const DxilVersionedRootSignatureDesc* pDesc = nullptr;
-      DeserializeRootSignature(SerializedRootSig.data(), SerializedRootSig.size(), &pDesc);
-      if (!pDesc) {
+      DeserializeRootSignature(SerializedRootSig.data(),
+                               SerializedRootSig.size(), desc.get_address_of());
+      if (!desc.get()) {
         return DXC_E_INCORRECT_ROOT_SIGNATURE;
       }
-      IFTBOOL(VerifyRootSignatureWithShaderPSV(pDesc,
+      IFTBOOL(VerifyRootSignatureWithShaderPSV(desc.get(),
                                                dxilModule.GetShaderModel()->GetKind(),
                                                pOutputStream->GetPtr(), pWriter->size(),
                                                DiagStream), DXC_E_INCORRECT_ROOT_SIGNATURE);

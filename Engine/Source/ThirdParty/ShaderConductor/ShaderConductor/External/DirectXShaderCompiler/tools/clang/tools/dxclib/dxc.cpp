@@ -76,10 +76,11 @@
 // SPIRV Change Starts
 #ifdef ENABLE_SPIRV_CODEGEN
 #include "spirv-tools/libspirv.hpp"
+#include "clang/SPIRV/FeatureManager.h"
 
 static bool DisassembleSpirv(IDxcBlob *binaryBlob, IDxcLibrary *library,
                              IDxcBlobEncoding **assemblyBlob, bool withColor,
-                             bool withByteOffset) {
+                             bool withByteOffset, spv_target_env target_env) {
   if (!binaryBlob)
     return true;
 
@@ -93,7 +94,7 @@ static bool DisassembleSpirv(IDxcBlob *binaryBlob, IDxcLibrary *library,
   memcpy(words.data(), binaryStr.data(), binaryStr.size());
 
   std::string assembly;
-  spvtools::SpirvTools spirvTools(SPV_ENV_VULKAN_1_1);
+  spvtools::SpirvTools spirvTools(target_env);
   uint32_t options = (SPV_BINARY_TO_TEXT_OPTION_FRIENDLY_NAMES |
                       SPV_BINARY_TO_TEXT_OPTION_INDENT);
   if (withColor)
@@ -265,30 +266,24 @@ static void WriteDxcExtraOuputs(IDxcResult *pResult) {
   }
 }
 
-static void WriteDxcRemarksToConsole(IDxcOperationResult *pCompileResult) {
-  CComPtr<IDxcResult> pResult;
-  if (SUCCEEDED(pCompileResult->QueryInterface(&pResult))) {
-    DXC_OUT_KIND kind = DXC_OUT_REMARKS;
-    if (!pResult->HasOutput(kind)) {
-      return;
-    }
+static void WriteDxcOutputToConsole(IDxcResult *pResult, DXC_OUT_KIND kind) {
+  if (!pResult->HasOutput(kind))
+    return;
 
-    CComPtr<IDxcBlob> pBlob;
-    IFT(pResult->GetOutput(kind, IID_PPV_ARGS(&pBlob), nullptr));
-    llvm::StringRef remarkRef((LPSTR)pBlob->GetBufferPointer(),
-                              pBlob->GetBufferSize());
-    std::istringstream remarkIStream(remarkRef);
-
-    // Printing remarks to console as comments
-    std::string remarkPrintStr;
-    llvm::raw_string_ostream remarkPrintStream(remarkPrintStr);
-    for (std::string line; std::getline(remarkIStream, line);) {
-      remarkPrintStream << "; " << line << "\r\n";
-    }
-    remarkPrintStream.flush();
-
-    WriteUtf8ToConsole(remarkPrintStr.data(), remarkPrintStr.size());
+  CComPtr<IDxcBlob> pBlob;
+  IFT(pResult->GetOutput(kind, IID_PPV_ARGS(&pBlob), nullptr));
+  llvm::StringRef outputString((LPSTR)pBlob->GetBufferPointer(),
+                          pBlob->GetBufferSize());
+  llvm::SmallVector<llvm::StringRef, 20> lines;
+  outputString.split(lines, "\n");
+  
+  std::string outputStr;
+  llvm::raw_string_ostream SS(outputStr);
+  for (auto line : lines) {
+    SS << "; " << line << "\n";
   }
+
+  WriteUtf8ToConsole(outputStr.data(), outputStr.size());
 }
 
 std::string getDependencyOutputFileName(llvm::StringRef inputFileName) {
@@ -386,10 +381,14 @@ int DxcContext::ActOnBlob(IDxcBlob *pBlob, IDxcBlob *pDebugBlob, LPCWSTR pDebugB
   if (m_Opts.GenSPIRV) {
     CComPtr<IDxcLibrary> pLibrary;
     IFT(m_dxcSupport.CreateInstance(CLSID_DxcLibrary, &pLibrary));
+    llvm::Optional<spv_target_env> target_env =
+        clang::spirv::FeatureManager::stringToSpvEnvironment(
+            m_Opts.SpirvOptions.targetEnv);
+    IFTBOOLMSG(target_env, E_INVALIDARG, "Cannot parse SPIR-V target env.");
 
     if (!DisassembleSpirv(pBlob, pLibrary, &pDisassembleResult,
                           m_Opts.ColorCodeAssembly,
-                          m_Opts.DisassembleByteOffset))
+                          m_Opts.DisassembleByteOffset, *target_env))
       return 1;
   } else {
 #endif // ENABLE_SPIRV_CODEGEN
@@ -530,7 +529,7 @@ HRESULT DxcContext::ReadFileIntoPartContent(hlsl::DxilFourCC fourCC, LPCWSTR fil
     CComPtr<IDxcBlob> pResult;
     CComHeapPtr<BYTE> pData;
     DWORD dataSize;
-    hlsl::ReadBinaryFile(fileName, (void**)&pData, &dataSize);
+    IFT(hlsl::ReadBinaryFile(fileName, (void**)&pData, &dataSize));
     DXASSERT(pData != nullptr, "otherwise ReadBinaryFile should throw an exception");
     hlsl::DxilContainerHeader *pHeader = hlsl::IsDxilContainerLike(pData.m_pData, dataSize);
     IFRBOOL(hlsl::IsValidDxilContainer(pHeader, dataSize), E_INVALIDARG);
@@ -863,12 +862,12 @@ int DxcContext::Compile() {
   else {
     WriteOperationErrorsToConsole(pCompileResult, m_Opts.OutputWarnings);
   }
+  
 
   HRESULT status;
   IFT(pCompileResult->GetStatus(&status));
   if (SUCCEEDED(status) || m_Opts.AstDump || m_Opts.OptDump ||
       m_Opts.DumpDependencies) {
-    WriteDxcRemarksToConsole(pCompileResult);
     CComPtr<IDxcBlob> pProgram;
     IFT(pCompileResult->GetResult(&pProgram));
     if (pProgram.p != nullptr) {
@@ -877,6 +876,18 @@ int DxcContext::Compile() {
       // Now write out extra parts
       CComPtr<IDxcResult> pResult;
       if (SUCCEEDED(pCompileResult->QueryInterface(&pResult))) {
+        WriteDxcOutputToConsole(pResult, DXC_OUT_REMARKS);
+        WriteDxcOutputToConsole(pResult, DXC_OUT_TIME_REPORT);
+        
+        if (m_Opts.TimeTrace == "-")
+          WriteDxcOutputToConsole(pResult, DXC_OUT_TIME_TRACE);
+        else if (!m_Opts.TimeTrace.empty()) {
+          CComPtr<IDxcBlob> pData;
+          CComPtr<IDxcBlobWide> pName;
+          IFT(pResult->GetOutput(DXC_OUT_TIME_TRACE, IID_PPV_ARGS(&pData), &pName));
+          WriteBlobToFile(pData, m_Opts.TimeTrace, m_Opts.DefaultTextCodePage);
+        }
+
         WriteDxcOutputToFile(DXC_OUT_ROOT_SIGNATURE, pResult, m_Opts.DefaultTextCodePage);
         WriteDxcOutputToFile(DXC_OUT_SHADER_HASH, pResult, m_Opts.DefaultTextCodePage);
         WriteDxcOutputToFile(DXC_OUT_REFLECTION, pResult, m_Opts.DefaultTextCodePage);
@@ -1359,7 +1370,10 @@ int dxc::main(int argc, const char **argv_) {
           ReadDxcOpts(optionTable, DxcFlags, argStrings, dxcOpts, errorStream);
       errorStream.flush();
       if (errorString.size()) {
-        fprintf(stderr, "dxc failed : %s\n", errorString.data());
+        if (optResult)
+          fprintf(stderr, "dxc failed : %s\n", errorString.data());
+        else
+          fprintf(stderr, "dxc warning : %s\n", errorString.data());
       }
       if (optResult != 0) {
         return optResult;

@@ -19,6 +19,7 @@
 
 #include "source/opt/aggressive_dead_code_elim_pass.h"
 #include "source/opt/amd_ext_to_khr.h"
+#include "source/opt/analyze_live_input_pass.h"
 // UE Change Begin: Added support for Android driver patch pass to fix platform specific issues
 #include "source/opt/android_driver_patch_pass.h"
 // UE Change End: Added support for Android driver patch pass to fix platform specific issues
@@ -40,9 +41,11 @@
 #include "source/opt/desc_sroa.h"
 #include "source/opt/eliminate_dead_constant_pass.h"
 #include "source/opt/eliminate_dead_functions_pass.h"
-#include "source/opt/eliminate_dead_input_components_pass.h"
+#include "source/opt/eliminate_dead_io_components_pass.h"
 #include "source/opt/eliminate_dead_members_pass.h"
+#include "source/opt/eliminate_dead_output_stores_pass.h"
 #include "source/opt/empty_pass.h"
+#include "source/opt/fix_func_call_arguments.h"
 #include "source/opt/fix_storage_class.h"
 #include "source/opt/flatten_decoration_pass.h"
 #include "source/opt/fold_spec_constant_op_and_composite_pass.h"
@@ -59,6 +62,7 @@
 #include "source/opt/inst_bindless_check_pass.h"
 #include "source/opt/inst_buff_addr_check_pass.h"
 #include "source/opt/inst_debug_printf_pass.h"
+#include "source/opt/interface_var_sroa.h"
 #include "source/opt/interp_fixup_pass.h"
 #include "source/opt/licm_pass.h"
 #include "source/opt/local_access_chain_convert_pass.h"

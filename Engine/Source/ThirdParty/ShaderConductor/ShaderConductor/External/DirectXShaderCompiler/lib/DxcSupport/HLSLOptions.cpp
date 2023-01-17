@@ -322,6 +322,26 @@ static bool handleVkShiftArgs(const InputArgList &args, OptSpecifier id,
   return true;
 }
 
+// Check if any options that are unsupported with SPIR-V are used.
+static bool hasUnsupportedSpirvOption(const InputArgList &args,
+                                      llvm::raw_ostream &errors) {
+  // Note: The options checked here are non-exhaustive. A thorough audit of
+  // available options and their current compatibility is needed to generate a
+  // complete list.
+  std::vector<OptSpecifier> unsupportedOpts = {OPT_Fd, OPT_Fre,
+                                               OPT_Qstrip_reflect, OPT_Gis};
+
+  for (const auto &id : unsupportedOpts) {
+    if (Arg *arg = args.getLastArg(id)) {
+      errors << "-" << arg->getOption().getName()
+             << " is not supported with -spirv";
+      return true;
+    }
+  }
+
+  return false;
+}
+
 namespace {
 
 /// Maximum size of OpString instruction minus two operands
@@ -329,7 +349,7 @@ static const uint32_t kDefaultMaximumSourceLength = 0xFFFDu;
 static const uint32_t kTestingMaximumSourceLength = 13u;
 
 }
-#endif
+#endif // ENABLE_SPIRV_CODEGEN
 // SPIRV Change Ends
 
 namespace hlsl {
@@ -500,55 +520,6 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
     opts.EnableFXCCompatMode = true;
   }
 
-  // If the HLSL version is 2021, allow the 2021 features by default.
-  // If the HLSL version is 2016 or 2018, allow them only
-  // when the individual option is enabled.
-  // If the HLSL version is 2015, dissallow these features
-  if (opts.HLSLVersion >= hlsl::LangStd::v2021) {
-    // Enable operator overloading in structs
-    opts.EnableOperatorOverloading = true;
-    // Enable template support
-    opts.EnableTemplates = true;
-    // Determine overload matching based on UDT names, not just types
-    opts.StrictUDTCasting = true;
-    // Experimental option to enable short-circuiting operators
-    opts.EnableShortCircuit = true;
-    // Enable bitfield support
-    opts.EnableBitfields = true;
-
-  } else {
-    opts.EnableOperatorOverloading = Args.hasFlag(OPT_enable_operator_overloading, OPT_INVALID, false);
-    opts.EnableTemplates = Args.hasFlag(OPT_enable_templates, OPT_INVALID, false);
-    opts.StrictUDTCasting = Args.hasFlag(OPT_strict_udt_casting, OPT_INVALID, false);
-    opts.EnableShortCircuit = Args.hasFlag(OPT_enable_short_circuit, OPT_INVALID, false);
-    opts.EnableBitfields = Args.hasFlag(OPT_enable_bitfields, OPT_INVALID, false);
-
-    if (opts.HLSLVersion <= hlsl::LangStd::v2015) {
-
-      if (opts.EnableOperatorOverloading)
-        errors << "/enable-operator-overloading is not supported with HLSL "
-                  "Version "
-               << (unsigned long)opts.HLSLVersion;
-      if (opts.EnableTemplates)
-        errors << "/enable-templates is not supported with HLSL Version "
-               << (unsigned long)opts.HLSLVersion;
-
-      if (opts.StrictUDTCasting)
-        errors << "/enable-udt-casting is not supported with HLSL Version "
-               << (unsigned long)opts.HLSLVersion;
-
-      if (opts.EnableShortCircuit)
-        errors << "/enable-short-circuit is not supported with HLSL Version "
-               << (unsigned long)opts.HLSLVersion;
-
-      if (opts.EnableBitfields)
-        errors << "/enable-bitfields is not supported with HLSL Version "
-               << (unsigned long)opts.HLSLVersion;
-
-      return 1;
-    }
-  }
-
   // AssemblyCodeHex not supported (Fx)
   // OutputLibrary not supported (Fl)
   opts.AssemblyCode = Args.getLastArgValue(OPT_Fc);
@@ -568,7 +539,40 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
   opts.UseInstructionNumbers = Args.hasFlag(OPT_Ni, OPT_INVALID, false);
   opts.UseInstructionByteOffsets = Args.hasFlag(OPT_No, OPT_INVALID, false);
   opts.UseHexLiterals = Args.hasFlag(OPT_Lx, OPT_INVALID, false);
-  opts.Preprocess = Args.getLastArgValue(OPT_P);
+  if (Args.hasFlag(OPT_P, OPT_INVALID, false)) {
+    // Default preprocess filename is InputName.i.
+    llvm::SmallString<128> Path(Args.getLastArgValue(OPT_INPUT));
+    llvm::sys::path::replace_extension(Path, "i");
+    // Try to get preprocess filename from Fi.
+    opts.Preprocess = Args.getLastArgValue(OPT_Fi, Path).str();
+    // Hack to support fxc style /P preprocess_filename.
+    // When there're more than 1 Input file, use the input which is after /P as
+    // preprocess.
+    if (!Args.hasArg(OPT_Fi)) {
+      std::vector<std::string> Inputs = Args.getAllArgValues(OPT_INPUT);
+      if (Inputs.size() > 1) {
+        llvm::opt::Arg *PArg = Args.getLastArg(OPT_P);
+        std::string LastInput = Inputs.back();
+        llvm::opt::Arg *PrevInputArg = nullptr;
+        for (llvm::opt::Arg *InputArg : Args.filtered(OPT_INPUT)) {
+          // Find Input after /P.
+          if ((PArg->getIndex() + 1) == InputArg->getIndex()) {
+            opts.Preprocess = InputArg->getValue();
+            if (LastInput == opts.Preprocess && PrevInputArg) {
+              // When InputArg is last Input, update it to other Input so
+              // Args.getLastArgValue(OPT_INPUT) get expect Input.
+              InputArg->getValues()[0] = PrevInputArg->getValues()[0];
+            }
+            errors << "Warning: -P " << opts.Preprocess
+                   << " is deprecated, please use -P -Fi " << opts.Preprocess
+                   << " instead.\n";
+            break;
+          }
+          PrevInputArg = InputArg;
+        }
+      }
+    }
+  }
   opts.AstDump = Args.hasFlag(OPT_ast_dump, OPT_INVALID, false);
   opts.WriteDependencies =
       Args.hasFlag(OPT_write_dependencies, OPT_INVALID, false);
@@ -775,6 +779,12 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
   opts.EnableLifetimeMarkers = Args.hasFlag(OPT_enable_lifetime_markers, OPT_INVALID,
                                             DXIL::CompareVersions(Major, Minor, 6, 6) >= 0) &&
                               !Args.hasFlag(OPT_disable_lifetime_markers, OPT_INVALID, false);
+  opts.ForceDisableLocTracking =
+      Args.hasFlag(OPT_fdisable_loc_tracking, OPT_INVALID, false);
+  opts.TimeReport = Args.hasFlag(OPT_ftime_report, OPT_INVALID, false);
+  opts.TimeTrace = Args.hasFlag(OPT_ftime_trace, OPT_INVALID, false) ? "-" : "";
+  if (Args.hasArg(OPT_ftime_trace_EQ))
+    opts.TimeTrace = Args.getLastArgValue(OPT_ftime_trace_EQ);
   opts.EnablePayloadQualifiers = Args.hasFlag(OPT_enable_payload_qualifiers, OPT_INVALID,
                                             DXIL::CompareVersions(Major, Minor, 6, 7) >= 0); 
 
@@ -956,6 +966,7 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
   opts.SpirvOptions.useGlLayout = Args.hasFlag(OPT_fvk_use_gl_layout, OPT_INVALID, false);
   opts.SpirvOptions.useDxLayout = Args.hasFlag(OPT_fvk_use_dx_layout, OPT_INVALID, false);
   opts.SpirvOptions.useScalarLayout = Args.hasFlag(OPT_fvk_use_scalar_layout, OPT_INVALID, false);
+  opts.SpirvOptions.useLegacyBufferMatrixOrder = Args.hasFlag(OPT_fspv_use_legacy_buffer_matrix_order, OPT_INVALID, false);
   // UE Change Begin: Use custom layout rules for UE5.
   opts.SpirvOptions.ue5Layout = Args.hasFlag(OPT_fvk_ue5_layout, OPT_INVALID, false);
   // UE Change End: Use custom layout rules for UE5.
@@ -982,6 +993,8 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
       Args.hasFlag(OPT_fspv_flatten_resource_arrays, OPT_INVALID, false);
   opts.SpirvOptions.reduceLoadSize =
       Args.hasFlag(OPT_fspv_reduce_load_size, OPT_INVALID, false);
+  opts.SpirvOptions.fixFuncCallArguments =
+      Args.hasFlag(OPT_fspv_fix_func_call_arguments, OPT_INVALID, false);
   opts.SpirvOptions.autoShiftBindings = Args.hasFlag(OPT_fvk_auto_shift_bindings, OPT_INVALID, false);
 
   if (!handleVkShiftArgs(Args, OPT_fvk_b_shift, "b", &opts.SpirvOptions.bShift, errors) ||
@@ -1002,6 +1015,8 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
   for (const Arg *A : Args.filtered(OPT_fspv_extension_EQ)) {
     opts.SpirvOptions.allowedExtensions.push_back(A->getValue());
   }
+
+  opts.SpirvOptions.printAll = Args.hasFlag(OPT_fspv_print_all, OPT_INVALID, false);
 
   opts.SpirvOptions.debugInfoFile = opts.SpirvOptions.debugInfoSource = false;
   opts.SpirvOptions.debugInfoLine = opts.SpirvOptions.debugInfoTool = false;
@@ -1034,6 +1049,7 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
         opts.SpirvOptions.debugInfoLine = true;
         opts.SpirvOptions.debugInfoRich = true;
       } else if (v == "vulkan") {
+        // For test purposes only
         opts.SpirvOptions.debugInfoFile = true;
         opts.SpirvOptions.debugInfoSource = false;
         opts.SpirvOptions.debugInfoLine = true;
@@ -1083,6 +1099,14 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
     }
   }
 
+  opts.SpirvOptions.entrypointName =
+      Args.getLastArgValue(OPT_fspv_entrypoint_name_EQ);
+
+  // Check for use of options not implemented in the SPIR-V backend.
+  if (Args.hasFlag(OPT_spirv, OPT_INVALID, false) &&
+      hasUnsupportedSpirvOption(Args, errors))
+    return 1;
+
 #else
   if (Args.hasFlag(OPT_spirv, OPT_INVALID, false) ||
       Args.hasFlag(OPT_fvk_invert_y, OPT_INVALID, false) ||
@@ -1091,9 +1115,12 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
       Args.hasFlag(OPT_fvk_use_gl_layout, OPT_INVALID, false) ||
       Args.hasFlag(OPT_fvk_use_dx_layout, OPT_INVALID, false) ||
       Args.hasFlag(OPT_fvk_use_scalar_layout, OPT_INVALID, false) ||
+      Args.hasFlag(OPT_fspv_use_legacy_buffer_matrix_order, OPT_INVALID, false) ||
       Args.hasFlag(OPT_fspv_flatten_resource_arrays, OPT_INVALID, false) ||
       Args.hasFlag(OPT_fspv_reduce_load_size, OPT_INVALID, false) ||
       Args.hasFlag(OPT_fspv_reflect, OPT_INVALID, false) ||
+      Args.hasFlag(OPT_fspv_fix_func_call_arguments, OPT_INVALID, false) ||
+      Args.hasFlag(OPT_fspv_print_all, OPT_INVALID, false) ||
       Args.hasFlag(OPT_Wno_vk_ignored_features, OPT_INVALID, false) ||
       Args.hasFlag(OPT_Wno_vk_emulated_features, OPT_INVALID, false) ||
       Args.hasFlag(OPT_fvk_auto_shift_bindings, OPT_INVALID, false) ||

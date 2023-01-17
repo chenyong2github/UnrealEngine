@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.17.2)
 if (POLICY CMP0048)
   cmake_policy(SET CMP0048 NEW)
 endif()
@@ -31,7 +31,15 @@ set(SPIRV_TOOLS "SPIRV-Tools")
 include(GNUInstallDirs)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_CXX_STANDARD 11)
+
+# Require at least C++11
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 11)
+endif()
+if(${CMAKE_CXX_STANDARD} LESS 11)
+  message(FATAL_ERROR "SPIRV-Tools requires C++11 or later, but is configured for C++${CMAKE_CXX_STANDARD})")
+endif()
+
 
 option(ENABLE_RTTI "Enables RTTI" OFF)
 option(SPIRV_ALLOW_TIMERS "Allow timers via clock_gettime on supported platforms" ON)
@@ -56,8 +64,12 @@ elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Android")
   set(SPIRV_TIMER_ENABLED ${SPIRV_ALLOW_TIMERS})
 elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "FreeBSD")
   add_definitions(-DSPIRV_FREEBSD)
+elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "OpenBSD")
+  add_definitions(-DSPIRV_OPENBSD)
 elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Fuchsia")
   add_definitions(-DSPIRV_FUCHSIA)
+elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "GNU")
+  add_definitions(-DSPIRV_GNU)
 else()
   message(FATAL_ERROR "Your platform '${CMAKE_SYSTEM_NAME}' is not supported!")
 endif()
@@ -196,7 +208,7 @@ function(spvtools_default_compile_options TARGET)
     if(NOT "${SPIRV_PERF}" STREQUAL "")
       target_compile_options(${TARGET} PRIVATE -fno-omit-frame-pointer)
     endif()
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
       set(SPIRV_USE_SANITIZER "" CACHE STRING
         "Use the clang sanitizer [address|memory|thread|...]")
       if(NOT "${SPIRV_USE_SANITIZER}" STREQUAL "")

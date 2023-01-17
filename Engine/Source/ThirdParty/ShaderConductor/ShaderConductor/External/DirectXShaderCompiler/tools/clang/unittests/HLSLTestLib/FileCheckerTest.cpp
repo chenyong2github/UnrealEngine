@@ -37,19 +37,17 @@
 #include "dxc/Support/Global.h"
 #include "dxc/Support/dxcapi.use.h"
 #include "dxc/dxctools.h"
+#include "dxc/Support/D3DReflection.h"
 #include "dxc/Support/HLSLOptions.h"
 #include "dxc/Support/Unicode.h"
 #include "dxc/Support/microcom.h"
 #include "dxc/DxilContainer/DxilContainer.h"
 
-#ifdef _WIN32 // Reflection unsupported
 #include "dxc/Test/D3DReflectionDumper.h"
 #include "dxc/DxilContainer/DxilRuntimeReflection.h"
 #include "dxc/Test/RDATDumper.h"
 
-#include "d3d12shader.h"
 using namespace hlsl::dump;
-#endif // WIN32 - Reflection unsupported
 
 using namespace std;
 using namespace hlsl_test;
@@ -107,14 +105,11 @@ FileRunCommandResult FileRunCommandPart::Run(dxc::DxcDllSupport &DllSupport, con
   else if (0 == _stricmp(Command.c_str(), "%opt")) {
     return RunOpt(DllSupport, Prior);
   }
+  else if (0 == _stricmp(Command.c_str(), "%listparts")) {
+    return RunListParts(DllSupport, Prior);
+  }
   else if (0 == _stricmp(Command.c_str(), "%D3DReflect")) {
-#ifdef _WIN32 // Reflection unsupported
     return RunD3DReflect(DllSupport, Prior);
-#else
-    FileRunCommandResult result = FileRunCommandResult::Success("Can't run D3DReflect on non-windows, so just assuming success");
-    result.AbortPipeline = true;
-    return result;
-#endif // WIN32 - Reflection unsupported
   }
   else if (0 == _stricmp(Command.c_str(), "%dxr")) {
     return RunDxr(DllSupport, Prior);
@@ -657,7 +652,71 @@ FileRunCommandResult FileRunCommandPart::RunOpt(dxc::DxcDllSupport &DllSupport, 
   return FileRunCommandResult::Success(BlobToUtf8(pOutputText));
 }
 
-#ifdef _WIN32 // Reflection unsupported
+FileRunCommandResult FileRunCommandPart::RunListParts(dxc::DxcDllSupport &DllSupport, const FileRunCommandResult *Prior) {
+  std::string args(strtrim(Arguments));
+  const char *inputPos = strstr(args.c_str(), "%s");
+  if (inputPos == nullptr && Prior == nullptr) {
+    return FileRunCommandResult::Error("Only supported patterns are input file as argument or prior "
+      "command with disassembly");
+  }
+
+  CComPtr<IDxcLibrary> pLibrary;
+  CComPtr<IDxcBlobEncoding> pSource;
+  CComPtr<IDxcAssembler> pAssembler;
+  CComPtr<IDxcOperationResult> pResult;
+  CComPtr<IDxcContainerReflection> containerReflection;
+  uint32_t partCount;
+  CComPtr<IDxcBlob> pContainerBlob;
+  HRESULT resultStatus;
+  std::ostringstream ss;
+
+  IFT(DllSupport.CreateInstance(CLSID_DxcLibrary, &pLibrary));
+  IFT(DllSupport.CreateInstance(CLSID_DxcAssembler, &pAssembler));
+
+  if (inputPos != nullptr) {
+    args.erase(inputPos - args.c_str(), strlen("%s"));
+    IFT(pLibrary->CreateBlobFromFile(CommandFileName, nullptr, &pSource));
+  }
+  else {
+    assert(Prior != nullptr && "else early check should have returned");
+    CComPtr<IDxcAssembler> pAssembler;
+    IFT(DllSupport.CreateInstance(CLSID_DxcAssembler, &pAssembler));
+    IFT(pLibrary->CreateBlobWithEncodingFromPinned(
+        Prior->StdOut.c_str(), Prior->StdOut.size(), CP_UTF8,
+        &pSource));
+  }
+
+  IFT(pAssembler->AssembleToContainer(pSource, &pResult));
+  IFT(pResult->GetStatus(&resultStatus));
+  if (FAILED(resultStatus)) {
+    CComPtr<IDxcBlobEncoding> pAssembleBlob;
+    IFT(pResult->GetErrorBuffer(&pAssembleBlob));
+    return FileRunCommandResult::Error(resultStatus, BlobToUtf8(pAssembleBlob));
+  }
+  IFT(pResult->GetResult(&pContainerBlob));
+
+  IFT(DllSupport.CreateInstance(CLSID_DxcContainerReflection, &containerReflection));
+  IFT(containerReflection->Load(pContainerBlob));
+  IFT(containerReflection->GetPartCount(&partCount));
+
+  ss << "Part count: " << partCount << "\n";
+
+  for (uint32_t i = 0; i < partCount; ++i) {
+    uint32_t kind;
+    IFT(containerReflection->GetPartKind(i, &kind));
+    CComPtr<IDxcBlob> pPart;
+    IFT(containerReflection->GetPartContent(i, &pPart));
+    // #0 - SFI0 (8 bytes)
+    ss << "#" << i << " - ";
+    ss << (char)(kind & 0xff) << (char)((kind >> 8) & 0xff) << (char)((kind >> 16) & 0xff) << (char)((kind >> 24) & 0xff);
+    ss << " (" << pPart->GetBufferSize() << " bytes)\n";
+  }
+
+  ss.flush();
+
+  return FileRunCommandResult::Success(ss.str());
+}
+
 FileRunCommandResult FileRunCommandPart::RunD3DReflect(dxc::DxcDllSupport &DllSupport, const FileRunCommandResult *Prior) {
   std::string args(strtrim(Arguments));
   if (args != "%s")
@@ -683,7 +742,7 @@ FileRunCommandResult FileRunCommandPart::RunD3DReflect(dxc::DxcDllSupport &DllSu
   IFT(DllSupport.CreateInstance(CLSID_DxcAssembler, &pAssembler));
 
   IFT(pLibrary->CreateBlobWithEncodingFromPinned(
-      (LPBYTE)Prior->StdOut.c_str(), Prior->StdOut.size(), CP_UTF8,
+      (LPCVOID)Prior->StdOut.c_str(), Prior->StdOut.size(), CP_UTF8,
       &pSource));
 
   IFT(pAssembler->AssembleToContainer(pSource, &pResult));
@@ -737,7 +796,6 @@ FileRunCommandResult FileRunCommandPart::RunD3DReflect(dxc::DxcDllSupport &DllSu
 
   return FileRunCommandResult::Success(ss.str());
 }
-#endif // _WIN32 - Reflection unsupported
 
 FileRunCommandResult FileRunCommandPart::RunDxr(dxc::DxcDllSupport &DllSupport, const FileRunCommandResult *Prior) {
   // Support piping stdin from prior if needed.

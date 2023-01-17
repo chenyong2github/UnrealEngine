@@ -124,7 +124,11 @@ bool DxilPromoteLocalResources::PromoteLocalResource(Function &F) {
     // No update.
     // Report error and break.
     if (allocaSize == Allocas.size()) {
-      F.getContext().emitError(dxilutil::kResourceMapErrorMsg);
+      //  TODO: Add test for this instance of the error: "local resource not
+      //  guaranteed to map to unique global resource." No test currently exists.
+      dxilutil::EmitErrorOnContext(
+          F.getContext(),
+          dxilutil::kResourceMapErrorMsg);
       break;
     }
     allocaSize = Allocas.size();
@@ -219,7 +223,12 @@ bool DxilPromoteStaticResources::PromoteStaticGlobalResources(
       Insts.clear();
     }
     if (!bUpdated) {
-      M.getContext().emitError(dxilutil::kResourceMapErrorMsg);
+      //  TODO: Add test for this instance of the error: "local resource not
+      //  guaranteed to map to unique global resource." No test currently
+      //  exists.
+      dxilutil::EmitErrorOnContext(
+          M.getContext(),
+          dxilutil::kResourceMapErrorMsg);
       break;
     }
     bModified = true;
@@ -538,8 +547,11 @@ void DxilMutateResourceToHandle::collectCandidates(Module &M) {
         // If result type of GEP not related to resource type, skip.
         Type *Ty = GEP->getType();
         Type *MTy = mutateToHandleTy(Ty);
-        if (MTy == Ty)
+        if (MTy == Ty) {
+          // Don't recurse, but still need to mutate GEP.
+          MutateValSet.insert(GEP);
           continue;
+        }
         newCandidates.emplace_back(GEP);
       } else if (PHINode *Phi = dyn_cast<PHINode>(U)) {
         // Propagate all operands.

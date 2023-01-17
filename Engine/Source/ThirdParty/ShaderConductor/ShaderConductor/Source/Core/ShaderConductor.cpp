@@ -613,7 +613,7 @@ namespace
         bool m_linkerSupport;
     };
 
-    class ScIncludeHandler : public IDxcIncludeHandler
+    class ScIncludeHandler final : public IDxcIncludeHandler
     {
     public:
         explicit ScIncludeHandler(std::function<Blob(const char* includeName)> loadCallback) : m_loadCallback(std::move(loadCallback))

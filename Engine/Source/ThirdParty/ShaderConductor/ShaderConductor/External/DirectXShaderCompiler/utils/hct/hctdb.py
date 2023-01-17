@@ -2135,7 +2135,8 @@ class db_dxil(object):
             {'n':'parameter0','t':'int','c':1},
             {'n':'parameter1','t':'int','c':1},
             {'n':'parameter2','t':'int','c':1}])
-        add_pass('dxil-annotate-with-virtual-regs', 'DxilAnnotateWithVirtualRegister', 'Annotates each instruction in the DXIL module with a virtual register number', [])
+        add_pass('dxil-annotate-with-virtual-regs', 'DxilAnnotateWithVirtualRegister', 'Annotates each instruction in the DXIL module with a virtual register number', [
+            {'n':'startInstruction','t':'int','c':1}])
         add_pass('dxil-dbg-value-to-dbg-declare', 'DxilDbgValueToDbgDeclare', 'Converts llvm.dbg.value uses to llvm.dbg.declare.', [])
         add_pass('hlsl-dxil-reduce-msaa-to-single', 'DxilReduceMSAAToSingleSample', 'HLSL DXIL Reduce all MSAA reads to single-sample reads', [])
         add_pass('hlsl-dxil-PIX-add-tid-to-as-payload', 'DxilPIXAddTidToAmplificationShaderPayload', 'HLSL DXIL Add flat thread id to payload from AS to MS', [
@@ -2165,6 +2166,7 @@ class db_dxil(object):
         add_pass('hlsl-dxil-precise', 'DxilPrecisePropagatePass', 'DXIL precise attribute propagate', [])
         add_pass('dxil-legalize-sample-offset', 'DxilLegalizeSampleOffsetPass', 'DXIL legalize sample offset', [])
         add_pass('dxil-gvn-hoist', 'DxilSimpleGVNHoist', 'DXIL simple gvn hoist', [])
+        add_pass('dxil-gvn-eliminate-region', 'DxilSimpleGVNEliminateRegion', 'DXIL simple eliminate region', [])
         add_pass('hlsl-hlensure', 'HLEnsureMetadata', 'HLSL High-Level Metadata Ensure', [])
         add_pass('multi-dim-one-dim', 'MultiDimArrayToOneDimArray', 'Flatten multi-dim array into one-dim array', [])
         add_pass('resource-handle', 'ResourceToHandle', 'Lower resource into handle', [])
@@ -2581,6 +2583,7 @@ class db_dxil(object):
         self.add_valrule("Instr.BarrierModeNoMemory", "sync must include some form of memory barrier - _u (UAV) and/or _g (Thread Group Shared Memory).  Only _t (thread group sync) is optional.")
         self.add_valrule("Instr.BarrierModeForNonCS", "sync in a non-Compute/Amplification/Mesh Shader must only sync UAV (sync_uglobal).")
         self.add_valrule("Instr.WriteMaskForTypedUAVStore", "store on typed uav must write to all four components of the UAV.")
+        self.add_valrule("Instr.WriteMaskGapForUAV", "UAV write mask must be contiguous, starting at x: .x, .xy, .xyz, or .xyzw.")
         self.add_valrule("Instr.ResourceKindForCalcLOD","lod requires resource declared as texture1D/2D/3D/Cube/CubeArray/1DArray/2DArray.")
         self.add_valrule("Instr.ResourceKindForSample", "sample/_l/_d requires resource declared as texture1D/2D/3D/Cube/1DArray/2DArray/CubeArray.")
         self.add_valrule("Instr.ResourceKindForSampleC", "samplec requires resource declared as texture1D/2D/Cube/1DArray/2DArray/CubeArray.")
@@ -2622,6 +2625,9 @@ class db_dxil(object):
         self.add_valrule("Instr.MultipleGetMeshPayload", "GetMeshPayload cannot be called multiple times.")
         self.add_valrule("Instr.NotOnceDispatchMesh", "DispatchMesh must be called exactly once in an Amplification shader.")
         self.add_valrule("Instr.NonDominatingDispatchMesh", "Non-Dominating DispatchMesh call.")
+        self.add_valrule("Instr.AtomicOpNonGroupshared", "Non-groupshared destination to atomic operation.")
+        self.add_valrule("Instr.AtomicIntrinNonUAV", "Non-UAV destination to atomic intrinsic.")
+        self.add_valrule("Instr.AtomicConst", "Constant destination to atomic.")
 
         # Some legacy rules:
         # - space is only supported for shader targets 5.1 and higher

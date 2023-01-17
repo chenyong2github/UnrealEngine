@@ -14,6 +14,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "dxc/Support/Global.h"
+#include "dxc/DXIL/DxilSemantic.h"
 #include "clang/AST/CanonicalType.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/HlslTypes.h"
@@ -96,7 +97,7 @@ bool IsHLSLNumericOrAggregateOfNumericType(clang::QualType type) {
   if (isa<RecordType>(Ty)) {
     if (IsHLSLVecMatType(type))
       return true;
-    return IsHLSLNumericUserDefinedType(type);
+    return IsHLSLCopyableAnnotatableRecord(type);
   } else if (type->isArrayType()) {
     return IsHLSLNumericOrAggregateOfNumericType(QualType(type->getArrayElementTypeNoTypeQual(), 0));
   }
@@ -110,14 +111,7 @@ bool IsHLSLNumericUserDefinedType(clang::QualType type) {
   const clang::Type *Ty = type.getCanonicalType().getTypePtr();
   if (const RecordType *RT = dyn_cast<RecordType>(Ty)) {
     const RecordDecl *RD = RT->getDecl();
-    if (isa<ClassTemplateSpecializationDecl>(RD)) {
-      return false;   // UDT are not templates
-    }
-    // TODO: avoid check by name
-    StringRef name = RD->getName();
-    if (name == "ByteAddressBuffer" ||
-        name == "RWByteAddressBuffer" ||
-        name == "RaytracingAccelerationStructure")
+    if (!IsUserDefinedRecordType(type))
       return false;
     for (auto member : RD->fields()) {
       if (!IsHLSLNumericOrAggregateOfNumericType(member->getType()))
@@ -128,15 +122,34 @@ bool IsHLSLNumericUserDefinedType(clang::QualType type) {
   return false;
 }
 
+// In some cases we need record types that are annotatable and trivially
+// copyable from outside the shader. This excludes resource types which may be
+// trivially copyable inside the shader, and builtin matrix and vector types
+// which can't be annotated. But includes UDTs of trivially copyable data and
+// the builtin trivially copyable raytracing structs.
+bool IsHLSLCopyableAnnotatableRecord(clang::QualType QT) {
+  return IsHLSLNumericUserDefinedType(QT) ||
+         IsHLSLBuiltinRayAttributeStruct(QT);
+}
+
+bool IsHLSLBuiltinRayAttributeStruct(clang::QualType QT) {
+  QT = QT.getCanonicalType();
+  const clang::Type *Ty = QT.getTypePtr();
+  if (const RecordType *RT = dyn_cast<RecordType>(Ty)) {
+    const RecordDecl *RD = RT->getDecl();
+    if (RD->getName() == "BuiltInTriangleIntersectionAttributes" || 
+        RD->getName() == "RayDesc")
+      return true;
+  }
+  return false;
+}
+
 // Aggregate types are arrays and user-defined structs
 bool IsHLSLAggregateType(clang::QualType type) {
   type = type.getCanonicalType();
   if (isa<clang::ArrayType>(type)) return true;
 
-  const RecordType *Record = dyn_cast<RecordType>(type);
-  return Record != nullptr
-    && !IsHLSLVecMatType(type) && !IsHLSLResourceType(type)
-    && !dyn_cast<ClassTemplateSpecializationDecl>(Record->getAsCXXRecordDecl());
+  return IsUserDefinedRecordType(type);
 }
 
 clang::QualType GetElementTypeOrType(clang::QualType type) {
@@ -529,7 +542,9 @@ bool IsHLSLResourceType(clang::QualType type) {
     if (name == "FeedbackTexture2D" || name == "FeedbackTexture2DArray")
       return true;
 
-    if (name == "RasterizerOrderedTexture2D")
+    if (name == "RasterizerOrderedTexture1D" || name == "RasterizerOrderedTexture2D" || name == "RasterizerOrderedTexture3D" ||
+        name == "RasterizerOrderedTexture1DArray" || name == "RasterizerOrderedTexture2DArray" ||
+        name == "RasterizerOrderedBuffer" || name == "RasterizerOrderedByteAddressBuffer" || name == "RasterizerOrderedStructuredBuffer")
       return true;
 
     if (name == "ByteAddressBuffer" || name == "RWByteAddressBuffer")
@@ -583,23 +598,71 @@ bool IsHLSLSubobjectType(clang::QualType type) {
   return GetHLSLSubobjectKind(type, kind, hgType);
 }
 
-bool IsUserDefinedRecordType(clang::QualType type) {
-  if (const auto *rt = type->getAs<RecordType>()) {
-    // HLSL specific types
-    if (hlsl::IsHLSLResourceType(type) || hlsl::IsHLSLVecMatType(type) ||
-        isa<ExtVectorType>(type.getTypePtr()) || type->isBuiltinType() ||
-        type->isArrayType()) {
+bool IsUserDefinedRecordType(clang::QualType QT) {
+  const clang::Type *Ty = QT.getCanonicalType().getTypePtr();
+  if (const RecordType *RT = dyn_cast<RecordType>(Ty)) {
+    const RecordDecl *RD = RT->getDecl();
+    if (RD->isImplicit())
       return false;
-    }
-
-    // SubpassInput or SubpassInputMS type
-    if (rt->getDecl()->getName() == "SubpassInput" ||
-        rt->getDecl()->getName() == "SubpassInputMS") {
-      return false;
-    }
+    if (auto TD = dyn_cast<ClassTemplateSpecializationDecl>(RD))
+      if (TD->getSpecializedTemplate()->isImplicit())
+        return false;
     return true;
   }
+  return false;
+}
 
+static bool HasTessFactorSemantic(const ValueDecl *decl) {
+  for (const UnusualAnnotation *it : decl->getUnusualAnnotations()) {
+    if (it->getKind() == UnusualAnnotation::UA_SemanticDecl) {
+      const SemanticDecl *sd = cast<SemanticDecl>(it);
+      StringRef semanticName;
+      unsigned int index = 0;
+      Semantic::DecomposeNameAndIndex(sd->SemanticName, &semanticName, &index);
+      const hlsl::Semantic *pSemantic = hlsl::Semantic::GetByName(semanticName);
+      if (pSemantic && pSemantic->GetKind() == hlsl::Semantic::Kind::TessFactor)
+        return true;
+    }
+  }
+  return false;
+}
+
+static bool HasTessFactorSemanticRecurse(const ValueDecl *decl, QualType Ty) {
+  if (Ty->isBuiltinType() || hlsl::IsHLSLVecMatType(Ty))
+    return false;
+
+  if (const RecordType *RT = Ty->getAsStructureType()) {
+    RecordDecl *RD = RT->getDecl();
+    for (FieldDecl *fieldDecl : RD->fields()) {
+      if (HasTessFactorSemanticRecurse(fieldDecl, fieldDecl->getType()))
+        return true;
+    }
+    return false;
+  }
+
+  if (Ty->getAsArrayTypeUnsafe())
+    return HasTessFactorSemantic(decl);
+
+  return false;
+}
+
+bool IsPatchConstantFunctionDecl(const clang::FunctionDecl *FD) {
+  // This checks whether the function is structurally capable of being a patch
+  // constant function, not whether it is in fact the patch constant function
+  // for the entry point of a compiled hull shader (which may not have been
+  // seen yet). So the answer is conservative.
+  if (!FD->getReturnType()->isVoidType()) {
+    // Try to find TessFactor in return type.
+    if (HasTessFactorSemanticRecurse(FD, FD->getReturnType()))
+      return true;
+  }
+  // Try to find TessFactor in out param.
+  for (const ParmVarDecl *param : FD->params()) {
+    if (param->hasAttr<HLSLOutAttr>()) {
+      if (HasTessFactorSemanticRecurse(param, param->getType()))
+        return true;
+    }
+  }
   return false;
 }
 
@@ -726,10 +789,14 @@ bool IsIncompleteHLSLResourceArrayType(clang::ASTContext &context,
                                        clang::QualType type) {
   if (type->isIncompleteArrayType()) {
     const IncompleteArrayType *IAT = context.getAsIncompleteArrayType(type);
-    QualType EltTy = IAT->getElementType();
-    if (IsHLSLResourceType(EltTy))
-      return true;
+    type = IAT->getElementType();
   }
+
+  while (type->isArrayType())
+    type = cast<ArrayType>(type)->getElementType();
+
+  if (IsHLSLResourceType(type))
+    return true;
   return false;
 }
 

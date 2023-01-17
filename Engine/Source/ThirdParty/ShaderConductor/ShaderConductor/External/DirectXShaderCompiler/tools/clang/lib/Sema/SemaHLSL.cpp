@@ -10,6 +10,7 @@
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
 
+#include "clang/AST/DeclBase.h"
 #include "clang/Basic/Diagnostic.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/DenseMap.h"
@@ -31,6 +32,7 @@
 #include "clang/Sema/Template.h"
 #include "clang/Sema/TemplateDeduction.h"
 #include "clang/Sema/SemaHLSL.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "dxc/Support/Global.h"
 #include "dxc/Support/WinIncludes.h"
@@ -707,6 +709,7 @@ BITWISE_ENUM_OPS(TYPE_CONVERSION_REMARKS)
 struct ArTypeInfo {
   ArTypeObjectKind ShapeKind;      // The shape of the type (basic, matrix, etc.)
   ArBasicKind EltKind;             // The primitive type of elements in this type.
+  const clang::Type *EltTy;        // Canonical element type ptr
   ArBasicKind ObjKind;             // The object type for this type (textures, buffers, etc.)
   UINT uRows;
   UINT uCols;
@@ -1857,7 +1860,16 @@ static void InitParamMods(const HLSL_INTRINSIC *pIntrinsic,
   }
 }
 
-static bool IsAtomicOperation(IntrinsicOp op) {
+static bool IsBuiltinTable(LPCSTR tableName) {
+  return tableName == kBuiltinIntrinsicTableName;
+}
+
+// Return true if the give <op> within the <tableName> namespace
+// maps to an atomic operation.
+// <acceptMethods> determines if atomic method operations will return true
+static bool IsAtomicOperation(LPCSTR tableName, IntrinsicOp op, bool acceptMethods=true) {
+  if (!IsBuiltinTable(tableName))
+    return false;
   switch (op) {
   case IntrinsicOp::IOP_InterlockedAdd:
   case IntrinsicOp::IOP_InterlockedAnd:
@@ -1870,6 +1882,7 @@ static bool IsAtomicOperation(IntrinsicOp op) {
   case IntrinsicOp::IOP_InterlockedMin:
   case IntrinsicOp::IOP_InterlockedOr:
   case IntrinsicOp::IOP_InterlockedXor:
+    return true;
   case IntrinsicOp::MOP_InterlockedAdd:
   case IntrinsicOp::MOP_InterlockedAnd:
   case IntrinsicOp::MOP_InterlockedCompareExchange:
@@ -1891,21 +1904,21 @@ static bool IsAtomicOperation(IntrinsicOp op) {
   case IntrinsicOp::MOP_InterlockedExchangeFloat:
   case IntrinsicOp::MOP_InterlockedCompareExchangeFloatBitwise:
   case IntrinsicOp::MOP_InterlockedCompareStoreFloatBitwise:
-    return true;
+    return acceptMethods;
   default:
     return false;
   }
 }
 
-static bool IsBuiltinTable(LPCSTR tableName) {
-  return tableName == kBuiltinIntrinsicTableName;
+static bool HasUnsignedOpcode(LPCSTR tableName, IntrinsicOp opcode) {
+  return IsBuiltinTable(tableName) && HasUnsignedIntrinsicOpcode(opcode);
 }
 
 static void AddHLSLIntrinsicAttr(FunctionDecl *FD, ASTContext &context,
                               LPCSTR tableName, LPCSTR lowering,
                               const HLSL_INTRINSIC *pIntrinsic) {
-  unsigned opcode = (unsigned)pIntrinsic->Op;
-  if (HasUnsignedOpcode(opcode) && IsBuiltinTable(tableName)) {
+  unsigned opcode = pIntrinsic->Op;
+  if (HasUnsignedOpcode(tableName, static_cast<IntrinsicOp>(opcode))) {
     QualType Ty = FD->getReturnType();
     if (pIntrinsic->iOverloadParamIndex != -1) {
       const FunctionProtoType *FT =
@@ -1964,13 +1977,11 @@ FunctionDecl *AddHLSLIntrinsicFunction(
   InitParamMods(pIntrinsic, paramMods);
 
   // Change dest address into reference type for atomic.
-  if (IsBuiltinTable(tableName)) {
-    if (IsAtomicOperation(static_cast<IntrinsicOp>(pIntrinsic->Op))) {
-      DXASSERT(functionArgTypeCount > kAtomicDstOperandIdx,
-               "else operation was misrecognized");
-      functionArgQualTypes[kAtomicDstOperandIdx] =
-          context.getLValueReferenceType(functionArgQualTypes[kAtomicDstOperandIdx]);
-    }
+  if (IsAtomicOperation(tableName, static_cast<IntrinsicOp>(pIntrinsic->Op))) {
+    DXASSERT(functionArgTypeCount > kAtomicDstOperandIdx,
+             "else operation was misrecognized");
+    functionArgQualTypes[kAtomicDstOperandIdx] =
+      context.getLValueReferenceType(functionArgQualTypes[kAtomicDstOperandIdx]);
   }
 
   for (size_t i = 1; i < functionArgTypeCount; i++) {
@@ -2582,13 +2593,13 @@ public:
     return _tableIndex != other._tableIndex; // More things could be compared but we only match end.
   }
 
-  const HLSL_INTRINSIC* operator*()
+  const HLSL_INTRINSIC* operator*() const
   {
     DXASSERT(_firstChecked, "otherwise deref without comparing to end");
     return _tableIntrinsic;
   }
 
-  LPCSTR GetTableName()
+  LPCSTR GetTableName() const
   {
     LPCSTR tableName = nullptr;
     if (FAILED(_tables[_tableIndex]->GetTableName(&tableName))) {
@@ -2597,7 +2608,7 @@ public:
     return tableName;
   }
 
-  LPCSTR GetLoweringStrategy()
+  LPCSTR GetLoweringStrategy() const
   {
     LPCSTR lowering = nullptr;
     if (FAILED(_tables[_tableIndex]->GetLoweringStrategy(_tableIntrinsic->Op, &lowering))) {
@@ -2642,17 +2653,17 @@ public:
     return _current != other._current || _tableIter.operator!=(other._tableIter);
   }
 
-  const HLSL_INTRINSIC* operator*()
+  const HLSL_INTRINSIC* operator*() const
   {
     return (_current != _end) ? _current : *_tableIter;
   }
 
-  LPCSTR GetTableName()
+  LPCSTR GetTableName() const
   {
     return (_current != _end) ? kBuiltinIntrinsicTableName : _tableIter.GetTableName();
   }
 
-  LPCSTR GetLoweringStrategy()
+  LPCSTR GetLoweringStrategy() const
   {
     return (_current != _end) ? "" : _tableIter.GetLoweringStrategy();
   }
@@ -4026,35 +4037,39 @@ public:
     return IsRayQueryBasicKind(GetTypeElementKind(type));
   }
 
-  void WarnMinPrecision(HLSLScalarType type, SourceLocation loc) {
+  void WarnMinPrecision(QualType Type, SourceLocation Loc) {
+     Type = Type->getCanonicalTypeUnqualified();
+     if (IsVectorType(m_sema, Type) || IsMatrixType(m_sema, Type)) {
+       Type = GetOriginalMatrixOrVectorElementType(Type);
+     }
     // TODO: enalbe this once we introduce precise master option
     bool UseMinPrecision = m_context->getLangOpts().UseMinPrecision;
-    if (type == HLSLScalarType_int_min12) {
-      const char *PromotedType =
-          UseMinPrecision ? HLSLScalarTypeNames[HLSLScalarType_int_min16]
-                          : HLSLScalarTypeNames[HLSLScalarType_int16];
-      m_sema->Diag(loc, diag::warn_hlsl_sema_minprecision_promotion)
-          << HLSLScalarTypeNames[type] << PromotedType;
-    } else if (type == HLSLScalarType_float_min10) {
-      const char *PromotedType =
-          UseMinPrecision ? HLSLScalarTypeNames[HLSLScalarType_float_min16]
-                          : HLSLScalarTypeNames[HLSLScalarType_float16];
-      m_sema->Diag(loc, diag::warn_hlsl_sema_minprecision_promotion)
-          << HLSLScalarTypeNames[type] << PromotedType;
+    if (Type == m_context->Min12IntTy) {
+      QualType PromotedType =
+          UseMinPrecision ? m_context->Min16IntTy
+                          : m_context->ShortTy;
+      m_sema->Diag(Loc, diag::warn_hlsl_sema_minprecision_promotion)
+          << Type << PromotedType;
+    } else if (Type == m_context->Min10FloatTy) {
+      QualType PromotedType =
+          UseMinPrecision ? m_context->Min16FloatTy
+                          : m_context->HalfTy;
+      m_sema->Diag(Loc, diag::warn_hlsl_sema_minprecision_promotion)
+          << Type << PromotedType;
     }
     if (!UseMinPrecision) {
-      if (type == HLSLScalarType_float_min16) {
-        m_sema->Diag(loc, diag::warn_hlsl_sema_minprecision_promotion)
-            << HLSLScalarTypeNames[type]
-            << HLSLScalarTypeNames[HLSLScalarType_float16];
-      } else if (type == HLSLScalarType_int_min16) {
-        m_sema->Diag(loc, diag::warn_hlsl_sema_minprecision_promotion)
-            << HLSLScalarTypeNames[type]
-            << HLSLScalarTypeNames[HLSLScalarType_int16];
-      } else if (type == HLSLScalarType_uint_min16) {
-        m_sema->Diag(loc, diag::warn_hlsl_sema_minprecision_promotion)
-            << HLSLScalarTypeNames[type]
-            << HLSLScalarTypeNames[HLSLScalarType_uint16];
+      if (Type == m_context->Min16FloatTy) {
+        m_sema->Diag(Loc, diag::warn_hlsl_sema_minprecision_promotion)
+            << Type
+            << m_context->HalfTy;
+      } else if (Type == m_context->Min16IntTy) {
+        m_sema->Diag(Loc, diag::warn_hlsl_sema_minprecision_promotion)
+            << Type
+            << m_context->ShortTy;
+      } else if (Type == m_context->Min16UIntTy) {
+        m_sema->Diag(Loc, diag::warn_hlsl_sema_minprecision_promotion)
+            << Type
+            << m_context->UnsignedShortTy;
       }
     }
   }
@@ -4115,15 +4130,16 @@ public:
     if (TryParseAny(nameIdentifier.data(), nameIdentifier.size(), &parsedType, &rowCount, &colCount, getSema()->getLangOpts())) {
       assert(parsedType != HLSLScalarType_unknown && "otherwise, TryParseHLSLScalarType should not have succeeded.");
       if (rowCount == 0 && colCount == 0) { // scalar
+        if (!DiagnoseHLSLScalarType(parsedType, R.getNameLoc()))
+          return false;
         TypedefDecl *typeDecl = LookupScalarTypeDef(parsedType);
-        if (!typeDecl) return false;
+        if (!typeDecl)
+          return false;
         R.addDecl(typeDecl);
-      }
-      else if (rowCount == 0) { // vector
+      } else if (rowCount == 0) { // vector
         TypedefDecl *qts = LookupVectorShorthandType(parsedType, colCount);
         R.addDecl(qts);
-      }
-      else { // matrix
+      } else { // matrix
         TypedefDecl* qts = LookupMatrixShorthandType(parsedType, rowCount, colCount);
         R.addDecl(qts);
       }
@@ -4292,6 +4308,22 @@ public:
 
     // Despite its name, getCanonicalTypeUnqualified will preserve const for array elements or something
     return QualType(type->getCanonicalTypeUnqualified()->getTypePtr(), 0);
+  }
+
+  /// <summary>Given a Clang type, return the QualType for its element, drilling through any array/vector/matrix.</summary>
+  QualType GetTypeElementType(QualType type)
+  {
+    type = GetStructuralForm(type);
+    ArTypeObjectKind kind = GetTypeObjectKind(type);
+    if (kind == AR_TOBJ_MATRIX || kind == AR_TOBJ_VECTOR) {
+      type = GetMatrixOrVectorElementType(type);
+    } else if (kind == AR_TOBJ_STRING) {
+      // return original type even if it's an array (string literal)
+    } else if (type->isArrayType()) {
+      const ArrayType* arrayType = type->getAsArrayTypeUnsafe();
+      type = GetTypeElementType(arrayType->getElementType());
+    }
+    return type;
   }
 
   /// <summary>Given a Clang type, return the ArBasicKind classification for its contents.</summary>
@@ -4632,14 +4664,14 @@ public:
   }
 
   /// <summary>Attempts to match Args to the signature specification in pIntrinsic.</summary>
-  /// <param name="pIntrinsic">Intrinsic function to match.</param>
+  /// <param name="cursor">Intrinsic function iterator.</param>
   /// <param name="objectElement">Type element on the class intrinsic belongs to; possibly null (eg, 'float' in 'Texture2D<float>').</param>
   /// <param name="Args">Invocation arguments to match.</param>
   /// <param name="argTypes">After exectuion, type of arguments.</param>
   /// <param name="badArgIdx">The first argument to mismatch if any</param>
   /// <remarks>On success, argTypes includes the clang Types to use for the signature, with the first being the return type.</remarks>
   bool MatchArguments(
-    const _In_ HLSL_INTRINSIC *pIntrinsic,
+    const IntrinsicDefIter &cursor,
     _In_ QualType objectElement,
     _In_ QualType functionTemplateTypeArg,
     _In_ ArrayRef<Expr *> Args, 
@@ -4647,10 +4679,12 @@ public:
     _Out_ size_t &badArgIdx);
 
   /// <summary>Validate object element on intrinsic to catch case like integer on Sample.</summary>
-  /// <param name="pIntrinsic">Intrinsic function to validate.</param>
+  /// <param name="tableName">Intrinsic function to validate.</param>
+  /// <param name="op">Intrinsic opcode to validate.</param>
   /// <param name="objectElement">Type element on the class intrinsic belongs to; possibly null (eg, 'float' in 'Texture2D<float>').</param>
   bool IsValidObjectElement(
-    _In_ const HLSL_INTRINSIC *pIntrinsic,
+    LPCSTR tableName,
+    _In_ IntrinsicOp op,
     _In_ QualType objectElement);
 
   // Returns the iterator with the first entry that matches the requirement
@@ -4749,20 +4783,9 @@ public:
         pIntrinsic->uNumArgs <= g_MaxIntrinsicParamCount + 1,
         "otherwise g_MaxIntrinsicParamCount needs to be updated for wider signatures");
 
-      // Some intrinsics only optionally exist in later language versions.
-      // To prevent collisions with existing functions or templates, exclude
-      // intrinsics when they aren't enabled.
-      if (IsBuiltinTable(tableName) && !m_sema->getLangOpts().EnableShortCircuit) {
-        if (pIntrinsic->Op == (UINT)IntrinsicOp::IOP_and ||
-            pIntrinsic->Op == (UINT)IntrinsicOp::IOP_or ||
-            pIntrinsic->Op == (UINT)IntrinsicOp::IOP_select) {
-          continue;
-        }
-      }
-
       std::vector<QualType> functionArgTypes;
       size_t badArgIdx;
-      bool argsMatch = MatchArguments(pIntrinsic, QualType(), QualType(), Args, &functionArgTypes, badArgIdx);
+      bool argsMatch = MatchArguments(cursor, QualType(), QualType(), Args, &functionArgTypes, badArgIdx);
       if (!functionArgTypes.size())
         return false;
 
@@ -5894,9 +5917,11 @@ ConcreteLiteralType(Expr *litExpr, ArBasicKind kind,
 }
 
 _Use_decl_annotations_ bool
-HLSLExternalSource::IsValidObjectElement(const HLSL_INTRINSIC *pIntrinsic,
+HLSLExternalSource::IsValidObjectElement(LPCSTR tableName, const IntrinsicOp op,
                                          QualType objectElement) {
-  IntrinsicOp op = static_cast<IntrinsicOp>(pIntrinsic->Op);
+  // Only meant to exclude builtins, assume others are fine
+  if (!IsBuiltinTable(tableName))
+    return true;
   switch (op) {
   case IntrinsicOp::MOP_Sample:
   case IntrinsicOp::MOP_SampleBias:
@@ -5930,13 +5955,19 @@ HLSLExternalSource::IsValidObjectElement(const HLSL_INTRINSIC *pIntrinsic,
 
 _Use_decl_annotations_
 bool HLSLExternalSource::MatchArguments(
-  const HLSL_INTRINSIC* pIntrinsic,
+  const IntrinsicDefIter &cursor,
   QualType objectElement,
   QualType functionTemplateTypeArg,
   ArrayRef<Expr *> Args,
   std::vector<QualType> *argTypesVector,
   size_t &badArgIdx)
 {
+  const HLSL_INTRINSIC* pIntrinsic = *cursor;
+  LPCSTR tableName = cursor.GetTableName();
+  IntrinsicOp builtinOp = IntrinsicOp::Num_Intrinsics;
+  if (IsBuiltinTable(tableName))
+    builtinOp = static_cast<IntrinsicOp>(pIntrinsic->Op);
+
   DXASSERT_NOMSG(pIntrinsic != nullptr);
   DXASSERT_NOMSG(argTypesVector != nullptr);
   std::vector<QualType> &argTypes = *argTypesVector;
@@ -6149,14 +6180,24 @@ bool HLSLExternalSource::MatchArguments(
       }
     }
 
+    ASTContext &actx = m_sema->getASTContext();
     // Usage
     if (pIntrinsicArg->qwUsage & AR_QUAL_OUT) {
-      if (pCallArg->getType().isConstQualified()) {
+      if (pType.isConstant(actx)) {
         // Can't use a const type in an out or inout parameter.
         badArgIdx = std::min(badArgIdx, iArg);
       }
     }
 
+    // Catch invalid atomic dest parameters
+    if (iArg == kAtomicDstOperandIdx &&
+        IsAtomicOperation(tableName, builtinOp, false /*acceptMethods*/)) {
+      // This produces an error for bitfields that is a bit confusing
+      // because it says uint can't cast to uint
+      if (pType.isConstant(actx) || pCallArg->getObjectKind() == OK_BitField) {
+        badArgIdx = std::min(badArgIdx, iArg);
+      }
+    }
     iArg++;
   }
 
@@ -6353,7 +6394,7 @@ bool HLSLExternalSource::MatchArguments(
         if (i == 0) {
           // [RW]ByteAddressBuffer.Load, default to uint
           pNewType = m_context->UnsignedIntTy;
-          if (pIntrinsic->Op != (UINT)hlsl::IntrinsicOp::MOP_Load)
+          if (builtinOp != hlsl::IntrinsicOp::MOP_Load)
             badArgIdx = std::min(badArgIdx, i);
         }
         else {
@@ -6745,6 +6786,7 @@ void HLSLExternalSource::CollectInfo(QualType type, ArTypeInfo* pTypeInfo)
   //       Try to inline that here, making it cheaper to use this function
   //       when retrieving multiple properties.
   pTypeInfo->ObjKind = GetTypeElementKind(type);
+  pTypeInfo->EltTy = GetTypeElementType(type)->getCanonicalTypeUnqualified()->getTypePtr();
   pTypeInfo->EltKind = pTypeInfo->ObjKind;
   pTypeInfo->ShapeKind = GetTypeObjectKind(type);
   GetRowsAndColsForAny(type, pTypeInfo->uRows, pTypeInfo->uCols);
@@ -7781,6 +7823,7 @@ bool HLSLExternalSource::IsTypeNumeric(QualType type, UINT* count)
     }
   default:
     DXASSERT(false, "unreachable");
+    return false;
   case AR_TOBJ_BASIC:
   case AR_TOBJ_MATRIX:
   case AR_TOBJ_VECTOR:
@@ -8036,24 +8079,28 @@ VectorMemberAccessError TryConsumeVectorDigit(const char*& memberText, uint32_t*
   switch (*memberText) {
   case 'r':
     rgbaStyle = true;
+    LLVM_FALLTHROUGH;
   case 'x':
     *value = 0;
     break;
 
   case 'g':
     rgbaStyle = true;
+    LLVM_FALLTHROUGH;
   case 'y':
     *value = 1;
     break;
 
   case 'b':
     rgbaStyle = true;
+    LLVM_FALLTHROUGH;
   case 'z':
     *value = 2;
     break;
 
   case 'a':
     rgbaStyle = true;
+    LLVM_FALLTHROUGH;
   case 'w':
     *value = 3;
     break;
@@ -8463,7 +8510,7 @@ clang::ExprResult HLSLExternalSource::PerformHLSLConversion(
         DXASSERT(false, "PerformHLSLConversion: Invalid source type for truncation cast");
       }
     }
-    __fallthrough;
+    LLVM_FALLTHROUGH;
 
     case ICK_HLSLVector_Conversion: {
       // 2. Do ShapeKind conversion if necessary
@@ -8865,6 +8912,18 @@ static bool ConvertComponent(ArTypeInfo TargetInfo, ArTypeInfo SourceInfo,
           ComponentConversion = ICK_Floating_Integral;
       }
     }
+  } else if (TargetInfo.EltTy != SourceInfo.EltTy) {
+    // Types are identical in HLSL, but not identical in clang,
+    // such as unsigned long vs. unsigned int.
+    // Add conversion based on the type.
+    if (IS_BASIC_AINT(TargetInfo.EltKind))
+      ComponentConversion = ICK_Integral_Conversion;
+    else if (IS_BASIC_FLOAT(TargetInfo.EltKind))
+      ComponentConversion = ICK_Floating_Conversion;
+    else {
+      DXASSERT(false, "unhandled case for conversion that's identical in HLSL, but not in clang");
+      return false;
+    }
   }
 
   return true;
@@ -9020,7 +9079,7 @@ bool HLSLExternalSource::CanConvert(
           break;
         }
       }
-    } else if (m_sema->getLangOpts().StrictUDTCasting &&
+    } else if (m_sema->getLangOpts().HLSLVersion >= hlsl::LangStd::v2021 &&
                (SourceInfo.ShapeKind == AR_TOBJ_COMPOUND ||
                 TargetInfo.ShapeKind == AR_TOBJ_COMPOUND) &&
                !TargetIsAnonymous) {
@@ -9093,7 +9152,7 @@ lSuccess:
         case ICK_Vector_Conversion:
         case ICK_Vector_Splat:
           DXASSERT(false, "We shouldn't be producing these implicit conversion kinds");
-
+          break;
         case ICK_Flat_Conversion:
         case ICK_HLSLVector_Splat:
           standard->First = ICK_Lvalue_To_Rvalue;
@@ -9401,7 +9460,7 @@ void HLSLExternalSource::CheckBinOpForHLSL(
   ArBasicKind resultElementKind = leftElementKind;
   {
     if (BinaryOperatorKindIsLogical(Opc)) {
-      if (m_sema->getLangOpts().EnableShortCircuit) {
+      if (m_sema->getLangOpts().HLSLVersion >= hlsl::LangStd::v2021) {
         // Only allow scalar types for logical operators &&, ||
         if (leftObjectKind != ArTypeObjectKind::AR_TOBJ_BASIC ||
             rightObjectKind != ArTypeObjectKind::AR_TOBJ_BASIC) {
@@ -9705,7 +9764,7 @@ clang::QualType HLSLExternalSource::CheckVectorConditional(
 
   QualType ResultTy = leftType;
 
-  if (m_sema->getLangOpts().EnableShortCircuit) {
+  if (m_sema->getLangOpts().HLSLVersion >= hlsl::LangStd::v2021) {
     // Only allow scalar.
     if (condObjectKind == AR_TOBJ_VECTOR || condObjectKind == AR_TOBJ_MATRIX) {
       SmallVector<char, 256> Buff;
@@ -9790,8 +9849,15 @@ clang::QualType HLSLExternalSource::CheckVectorConditional(
     return QualType();
   }
 
-  // Here, element kind is combined with dimensions for result type.
-  ResultTy = NewSimpleAggregateType(AR_TOBJ_INVALID, resultElementKind, 0, rowCount, colCount)->getCanonicalTypeInternal();
+  // Here, element kind is combined with dimensions for primitive types.
+  if (IS_BASIC_PRIMITIVE(resultElementKind)) {
+    ResultTy = NewSimpleAggregateType(AR_TOBJ_INVALID, resultElementKind, 0, rowCount, colCount)->getCanonicalTypeInternal();
+  } else {
+    DXASSERT(rowCount == 1 && colCount == 1,
+             "otherwise, attempting to construct vector or matrix with "
+             "non-primitive component type");
+    ResultTy = ResultTy.getUnqualifiedType();
+  }
 
   // Cast condition to RValue
   if (Cond.get()->isLValue())
@@ -9800,7 +9866,7 @@ clang::QualType HLSLExternalSource::CheckVectorConditional(
   // Convert condition component type to bool, using result component dimensions
   QualType boolType;
   // If short-circuiting, condition must be scalar.
-  if (m_sema->getLangOpts().EnableShortCircuit)
+  if (m_sema->getLangOpts().HLSLVersion >= hlsl::LangStd::v2021)
     boolType = NewSimpleAggregateType(AR_TOBJ_INVALID, AR_BASIC_BOOL, 0, 1, 1)->getCanonicalTypeInternal();
   else
     boolType = NewSimpleAggregateType(AR_TOBJ_INVALID, AR_BASIC_BOOL, 0, rowCount, colCount)->getCanonicalTypeInternal();
@@ -9979,7 +10045,7 @@ Sema::TemplateDeductionResult HLSLExternalSource::DeduceTemplateArgumentsForHLSL
   while (cursor != end)
   {
     size_t badArgIdx;
-    if (!MatchArguments(*cursor, objectElement, functionTemplateTypeArg, Args, &argTypes, badArgIdx))
+    if (!MatchArguments(cursor, objectElement, functionTemplateTypeArg, Args, &argTypes, badArgIdx))
     {
       ++cursor;
       continue;
@@ -10040,7 +10106,8 @@ Sema::TemplateDeductionResult HLSLExternalSource::DeduceTemplateArgumentsForHLSL
     DXASSERT_NOMSG(Specialization->getPrimaryTemplate()->getCanonicalDecl() ==
       FunctionTemplate->getCanonicalDecl());
 
-    if (IsBuiltinTable(tableName) && !IsValidObjectElement(*cursor, objectElement)) {
+    const HLSL_INTRINSIC* pIntrinsic = *cursor;
+    if (!IsValidObjectElement(tableName, static_cast<IntrinsicOp>(pIntrinsic->Op), objectElement)) {
       UINT numEles = GetNumElements(objectElement);
       std::string typeName(g_ArBasicTypeNames[GetTypeElementKind(objectElement)]);
       if (numEles > 1) typeName += std::to_string(numEles);
@@ -11039,6 +11106,64 @@ unsigned hlsl::CaculateInitListArraySizeForHLSL(
   }
 }
 
+// NRVO unsafe for a variety of cases in HLSL
+// - vectors/matrix with bool component types
+// - attributes not captured to QualType, such as precise and globallycoherent
+bool hlsl::ShouldSkipNRVO(clang::Sema& sema, clang::QualType returnType, clang::VarDecl *VD, clang::FunctionDecl *FD) {
+  // exclude vectors/matrix (not treated as record type)
+  // NRVO breaks on bool component type due to diff between
+  // i32 memory and i1 register representation
+  if (hlsl::IsHLSLVecMatType(returnType))
+    return true;
+  QualType ArrayEltTy = returnType;
+  while (const clang::ArrayType *AT =
+             sema.getASTContext().getAsArrayType(ArrayEltTy)) {
+    ArrayEltTy = AT->getElementType();
+  }
+  // exclude resource for globallycoherent.
+  if (hlsl::IsHLSLResourceType(ArrayEltTy))
+    return true;
+  // exclude precise.
+  if (VD->hasAttr<HLSLPreciseAttr>()) {
+    return true;
+  }
+  if (FD) {
+    // propagate precise the the VD.
+    if (FD->hasAttr<HLSLPreciseAttr>()) {
+      VD->addAttr(FD->getAttr<HLSLPreciseAttr>());
+      return true;
+    }
+
+    // Don't do NRVO if this is an entry function or a patch contsant function.
+    // With NVRO, writing to the return variable directly writes to the output
+    // argument instead of to an alloca which gets copied to the output arg in one
+    // spot. This causes many extra dx.storeOutput's to be emitted.
+    //
+    // Check if this is an entry function the easy way if we're a library
+    if (const HLSLShaderAttr *Attr = FD->getAttr<HLSLShaderAttr>()) {
+      return true;
+    }
+    // Check if it's an entry function the hard way
+    if (!FD->getDeclContext()->isNamespace() && FD->isGlobal()) {
+      // Check if this is an entry function by comparing name
+      if (FD->getName() == sema.getLangOpts().HLSLEntryFunction) {
+        return true;
+      }
+
+      // See if it's the patch constant function
+      if (sema.getLangOpts().HLSLProfile.size() &&
+        (sema.getLangOpts().HLSLProfile[0] == 'h' /*For 'hs'*/ ||
+         sema.getLangOpts().HLSLProfile[0] == 'l' /*For 'lib'*/))
+      {
+        if (hlsl::IsPatchConstantFunctionDecl(FD))
+          return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 bool hlsl::IsConversionToLessOrEqualElements(
   _In_ clang::Sema* self,
   const clang::ExprResult& sourceExpr,
@@ -11296,7 +11421,7 @@ bool FlattenedTypeIterator::considerLeaf()
     }
     break;
   case FlattenedIterKind::FK_IncompleteArray:
-    m_springLoaded = true; // fall through.
+    m_springLoaded = true; LLVM_FALLTHROUGH;
   default:
   case FlattenedIterKind::FK_Simple: {
     ArTypeObjectKind objectKind = m_source.GetTypeObjectKind(tracker.Type);
@@ -12008,6 +12133,26 @@ bool ValidateAttributeTargetIsFunction(Sema& S, Decl* D, const AttributeList &A)
   return false;
 }
 
+void Sema::DiagnoseHLSLDeclAttr(const Decl *D, const Attr *A) {
+  HLSLExternalSource *ExtSource = HLSLExternalSource::FromSema(this);
+  if (const HLSLGloballyCoherentAttr *HLSLGCAttr =
+          dyn_cast<HLSLGloballyCoherentAttr>(A)) {
+    const ValueDecl *TD = cast<ValueDecl>(D);
+    if (!TD->getType()->isDependentType()) {
+      QualType DeclType = TD->getType();
+      while (DeclType->isArrayType())
+        DeclType = QualType(DeclType->getArrayElementTypeNoTypeQual(), 0);
+      if (ExtSource->GetTypeObjectKind(DeclType) != AR_TOBJ_OBJECT ||
+          hlsl::GetResourceClassForType(getASTContext(), DeclType) !=
+              hlsl::DXIL::ResourceClass::UAV) {
+        Diag(A->getLocation(), diag::err_hlsl_varmodifierna)
+            << A << "non-UAV type";
+      }
+    }
+    return;
+  }
+}
+
 void hlsl::HandleDeclAttributeForHLSL(Sema &S, Decl *D, const AttributeList &A, bool& Handled)
 {
   DXASSERT_NOMSG(D != nullptr);
@@ -12173,6 +12318,7 @@ void hlsl::HandleDeclAttributeForHLSL(Sema &S, Decl *D, const AttributeList &A, 
 
   if (declAttr != nullptr)
   {
+    S.DiagnoseHLSLDeclAttr(D, declAttr);
     DXASSERT_NOMSG(Handled);
     D->addAttr(declAttr);
     return;
@@ -12355,6 +12501,36 @@ void hlsl::HandleDeclAttributeForHLSL(Sema &S, Decl *D, const AttributeList &A, 
     break;
   case AttributeList::AT_VKPostDepthCoverage:
     declAttr = ::new (S.Context) VKPostDepthCoverageAttr(A.getRange(), S.Context, A.getAttributeSpellingListIndex());
+    break;
+  case AttributeList::AT_VKEarlyAndLateTests:
+    declAttr = ::new (S.Context) VKEarlyAndLateTestsAttr(A.getRange(), S.Context, A.getAttributeSpellingListIndex());
+    break;
+  case AttributeList::AT_VKDepthUnchanged:
+    declAttr = ::new (S.Context) VKDepthUnchangedAttr(A.getRange(), S.Context, A.getAttributeSpellingListIndex());
+    break;
+  case AttributeList::AT_VKStencilRefUnchangedFront:
+    declAttr = ::new (S.Context) VKStencilRefUnchangedFrontAttr(
+        A.getRange(), S.Context, A.getAttributeSpellingListIndex());
+    break;
+  case AttributeList::AT_VKStencilRefGreaterEqualFront:
+    declAttr = ::new (S.Context) VKStencilRefGreaterEqualFrontAttr(
+        A.getRange(), S.Context, A.getAttributeSpellingListIndex());
+    break;
+  case AttributeList::AT_VKStencilRefLessEqualFront:
+    declAttr = ::new (S.Context) VKStencilRefLessEqualFrontAttr(
+        A.getRange(), S.Context, A.getAttributeSpellingListIndex());
+    break;
+  case AttributeList::AT_VKStencilRefUnchangedBack:
+    declAttr = ::new (S.Context) VKStencilRefUnchangedBackAttr(
+        A.getRange(), S.Context, A.getAttributeSpellingListIndex());
+    break;
+  case AttributeList::AT_VKStencilRefGreaterEqualBack:
+    declAttr = ::new (S.Context) VKStencilRefGreaterEqualBackAttr(
+        A.getRange(), S.Context, A.getAttributeSpellingListIndex());
+    break;
+  case AttributeList::AT_VKStencilRefLessEqualBack:
+    declAttr = ::new (S.Context) VKStencilRefLessEqualBackAttr(
+        A.getRange(), S.Context, A.getAttributeSpellingListIndex());
     break;
   case AttributeList::AT_VKShaderRecordNV:
     declAttr = ::new (S.Context) VKShaderRecordNVAttr(A.getRange(), S.Context, A.getAttributeSpellingListIndex());
@@ -12742,7 +12918,9 @@ bool Sema::DiagnoseHLSLDecl(Declarator &D, DeclContext *DC, Expr *BitWidth,
          "otherwise this is called without checking language first");
 
   // If we have a template declaration but haven't enabled templates, error.
-  if (DC->isDependentContext() && !getLangOpts().EnableTemplates) return false;
+  if (DC->isDependentContext() &&
+      getLangOpts().HLSLVersion < hlsl::LangStd::v2021)
+    return false;
 
   DeclSpec::SCS storage = D.getDeclSpec().getStorageClassSpec();
   assert(!DC->isClosure() && "otherwise parser accepted closure syntax instead of failing with a syntax error");
@@ -12781,6 +12959,9 @@ bool Sema::DiagnoseHLSLDecl(Declarator &D, DeclContext *DC, Expr *BitWidth,
   QualType qt = TInfo->getType();
   const Type* pType = qt.getTypePtrOrNull();
   HLSLExternalSource *hlslSource = HLSLExternalSource::FromSema(this);
+
+  if (!isFunction)
+    hlslSource->WarnMinPrecision(qt, D.getLocStart());
 
   // Early checks - these are not simple attribution errors, but constructs that
   // are fundamentally unsupported,
@@ -12839,6 +13020,7 @@ bool Sema::DiagnoseHLSLDecl(Declarator &D, DeclContext *DC, Expr *BitWidth,
     const FunctionProtoType *pFP = pType->getAs<FunctionProtoType>();
     if (pFP) {
       qt = pFP->getReturnType();
+      hlslSource->WarnMinPrecision(qt, D.getLocStart());
       pType = qt.getTypePtrOrNull();
 
       // prohibit string as a return type
@@ -12970,12 +13152,7 @@ bool Sema::DiagnoseHLSLDecl(Declarator &D, DeclContext *DC, Expr *BitWidth,
         result = false;
       }
       break;
-    case AttributeList::AT_HLSLGloballyCoherent:
-      if (!bIsObject) {
-        Diag(pAttr->getLoc(), diag::err_hlsl_varmodifierna)
-            << pAttr->getName() << "non-UAV type";
-        result = false;
-      }
+    case AttributeList::AT_HLSLGloballyCoherent: // Handled elsewhere
       break;
     case AttributeList::AT_HLSLUniform:
       if (!(isGlobal || isParameter)) {
@@ -13232,9 +13409,15 @@ bool Sema::DiagnoseHLSLDecl(Declarator &D, DeclContext *DC, Expr *BitWidth,
   // SPIRV change ends
 
   // Disallow bitfields where not enabled explicitly or by HV
-  if (BitWidth && !getLangOpts().EnableBitfields) {
-    Diag(BitWidth->getExprLoc(), diag::err_hlsl_bitfields);
-    result = false;
+  if (BitWidth) {
+    if (getLangOpts().HLSLVersion < hlsl::LangStd::v2021) {
+      Diag(BitWidth->getExprLoc(), diag::err_hlsl_bitfields);
+      result = false;
+    } else if (!D.UnusualAnnotations.empty()) {
+      Diag(BitWidth->getExprLoc(),
+           diag::err_hlsl_bitfields_with_annotation);
+      result = false;
+    }
   }
 
   // Validate unusual annotations.
@@ -13296,23 +13479,6 @@ bool Sema::DiagnoseHLSLDecl(Declarator &D, DeclContext *DC, Expr *BitWidth,
   }
 
   return result;
-}
-
-// Diagnose HLSL types on lookup
-bool Sema::DiagnoseHLSLLookup(const LookupResult &R) {
-  const DeclarationNameInfo declName = R.getLookupNameInfo();
-  IdentifierInfo* idInfo = declName.getName().getAsIdentifierInfo();
-  if (idInfo) {
-    StringRef nameIdentifier = idInfo->getName();
-    HLSLScalarType parsedType;
-    int rowCount, colCount;
-    if (TryParseAny(nameIdentifier.data(), nameIdentifier.size(), &parsedType, &rowCount, &colCount, getLangOpts())) {
-      HLSLExternalSource *hlslExternalSource = HLSLExternalSource::FromSema(this);
-      hlslExternalSource->WarnMinPrecision(parsedType, R.getNameLoc());
-      return hlslExternalSource->DiagnoseHLSLScalarType(parsedType, R.getNameLoc());
-    }
-  }
-  return true;
 }
 
 static QualType getUnderlyingType(QualType Type)
@@ -13422,30 +13588,26 @@ clang::QualType hlsl::GetOriginalMatrixOrVectorElementType(
 {
   // TODO: Determine if this is really the best way to get the matrix/vector specialization
   // without losing the AttributedType on the template parameter
-  if (const Type* pType = type.getTypePtrOrNull()) {
+  if (const Type* Ty = type.getTypePtrOrNull()) {
     // A non-dependent template specialization type is always "sugar",
     // typically for a RecordType.  For example, a class template
     // specialization type of @c vector<int> will refer to a tag type for
     // the instantiation @c std::vector<int, std::allocator<int>>.
-    if (const TemplateSpecializationType* pTemplate = pType->getAs<TemplateSpecializationType>()) {
+    if (const TemplateSpecializationType* pTemplate = Ty->getAs<TemplateSpecializationType>()) {
       // If we have enough arguments, pull them from the template directly, rather than doing
       // the extra lookups.
       if (pTemplate->getNumArgs() > 0)
         return pTemplate->getArg(0).getAsType();
 
       QualType templateRecord = pTemplate->desugar();
-      const Type *pTemplateRecordType = templateRecord.getTypePtr();
-      if (pTemplateRecordType) {
-        const TagType *pTemplateTagType = pTemplateRecordType->getAs<TagType>();
-        if (pTemplateTagType) {
-          const ClassTemplateSpecializationDecl *specializationDecl =
-              dyn_cast_or_null<ClassTemplateSpecializationDecl>(
-                  pTemplateTagType->getDecl());
-          if (specializationDecl) {
-            return specializationDecl->getTemplateArgs()[0].getAsType();
-          }
-        }
-      }
+      Ty = templateRecord.getTypePtr();
+    }
+    if (!Ty)
+      return QualType();
+    
+    if (const auto *TagTy = Ty->getAs<TagType>()) {
+      if (const auto *SpecDecl = dyn_cast_or_null<ClassTemplateSpecializationDecl>(TagTy->getDecl()))
+        return SpecDecl->getTemplateArgs()[0].getAsType();
     }
   }
   return QualType();
@@ -13967,4 +14129,31 @@ clang::QualType ApplyTypeSpecSignToParsedType(
 )
 {
     return HLSLExternalSource::FromSema(self)->ApplyTypeSpecSignToParsedType(type, TSS, Loc);
+}
+
+ClassTemplateSpecializationDecl *
+Sema::getHLSLDefaultSpecialization(ClassTemplateDecl *Decl) {
+  if (Decl->getTemplateParameters()->getMinRequiredArguments() == 0) {
+    void *InsertPos = nullptr;
+    TemplateArgumentListInfo EmptyArgs;
+    EmptyArgs.setLAngleLoc(Decl->getSourceRange().getEnd());
+    EmptyArgs.setRAngleLoc(Decl->getSourceRange().getEnd());
+    SmallVector<TemplateArgument, 2> Converted;
+    if (!CheckTemplateArgumentList(Decl, Decl->getSourceRange().getEnd(), EmptyArgs,
+                                   false, Converted)) {
+      ClassTemplateSpecializationDecl *DefaultSpec =
+          Decl->findSpecialization(Converted, InsertPos);
+      if (!DefaultSpec) {
+        DefaultSpec = ClassTemplateSpecializationDecl::Create(
+            getASTContext(), TagDecl::TagKind::TTK_Class,
+            getASTContext().getTranslationUnitDecl(), SourceLocation(),
+            SourceLocation(), Decl, Converted.data(), Converted.size(),
+            DefaultSpec);
+        Decl->AddSpecialization(DefaultSpec, InsertPos);
+        DefaultSpec->setImplicit(true);
+      }
+      return DefaultSpec;
+    }
+  }
+  return nullptr;
 }

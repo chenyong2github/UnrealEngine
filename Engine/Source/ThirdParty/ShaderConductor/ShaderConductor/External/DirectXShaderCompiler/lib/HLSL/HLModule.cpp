@@ -664,45 +664,6 @@ void HLModule::LoadHLShaderProperties(const MDOperand &MDO) {
   return;
 }
 
-MDNode *HLModule::DxilSamplerToMDNode(const DxilSampler &S) {
-  MDNode *MD = m_pMDHelper->EmitDxilSampler(S);
-  ValueAsMetadata *ResClass =
-      m_pMDHelper->Uint32ToConstMD((unsigned)DXIL::ResourceClass::Sampler);
-
-  return MDNode::get(m_Ctx, {ResClass, MD});
-}
-MDNode *HLModule::DxilSRVToMDNode(const DxilResource &SRV) {
-  MDNode *MD = m_pMDHelper->EmitDxilSRV(SRV);
-  ValueAsMetadata *ResClass =
-      m_pMDHelper->Uint32ToConstMD((unsigned)DXIL::ResourceClass::SRV);
-
-  return MDNode::get(m_Ctx, {ResClass, MD});
-}
-MDNode *HLModule::DxilUAVToMDNode(const DxilResource &UAV) {
-  MDNode *MD = m_pMDHelper->EmitDxilUAV(UAV);
-  ValueAsMetadata *ResClass =
-      m_pMDHelper->Uint32ToConstMD((unsigned)DXIL::ResourceClass::UAV);
-
-  return MDNode::get(m_Ctx, {ResClass, MD});
-}
-MDNode *HLModule::DxilCBufferToMDNode(const DxilCBuffer &CB) {
-  MDNode *MD = m_pMDHelper->EmitDxilCBuffer(CB);
-  ValueAsMetadata *ResClass =
-      m_pMDHelper->Uint32ToConstMD((unsigned)DXIL::ResourceClass::CBuffer);
-
-  return MDNode::get(m_Ctx, {ResClass, MD});
-}
-
-void HLModule::LoadDxilResourceBaseFromMDNode(MDNode *MD, DxilResourceBase &R) {
-  return m_pMDHelper->LoadDxilResourceBaseFromMDNode(MD, R);
-}
-void HLModule::LoadDxilResourceFromMDNode(llvm::MDNode *MD, DxilResource &R) {
-  return m_pMDHelper->LoadDxilResourceFromMDNode(MD, R);
-}
-void HLModule::LoadDxilSamplerFromMDNode(llvm::MDNode *MD, DxilSampler &S) {
-  return m_pMDHelper->LoadDxilSamplerFromMDNode(MD, S);
-}
-
 DxilResourceBase *
 HLModule::AddResourceWithGlobalVariableAndProps(llvm::Constant *GV,
                                                  DxilResourceProperties &RP) {
@@ -1214,7 +1175,10 @@ void HLModule::CreateElementGlobalVariableDebugInfo(
     unsigned sizeInBits, unsigned alignInBits, unsigned offsetInBits,
     StringRef eltName) {
   DIGlobalVariable *DIGV = dxilutil::FindGlobalVariableDebugInfo(GV, DbgInfoFinder);
-  DXASSERT_NOMSG(DIGV);
+  if (!DIGV) {
+    DXASSERT(DIGV, "DIGV Parameter must be non-null");
+    return;
+  }
   DIBuilder Builder(*GV->getParent());
   DITypeIdentifierMap EmptyMap;
 
@@ -1242,7 +1206,10 @@ void HLModule::UpdateGlobalVariableDebugInfo(
     llvm::GlobalVariable *GV, llvm::DebugInfoFinder &DbgInfoFinder,
     llvm::GlobalVariable *NewGV) {
   DIGlobalVariable *DIGV = dxilutil::FindGlobalVariableDebugInfo(GV, DbgInfoFinder);
-  DXASSERT_NOMSG(DIGV);
+  if (!DIGV) {
+    DXASSERT(DIGV, "DIGV Parameter must be non-null");
+    return;
+  }
   DIBuilder Builder(*GV->getParent());
   DITypeIdentifierMap EmptyMap;
   DIType *DITy = DIGV->getType().resolve(EmptyMap);

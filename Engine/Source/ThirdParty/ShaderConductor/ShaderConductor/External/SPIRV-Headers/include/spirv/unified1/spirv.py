@@ -26,7 +26,7 @@
 # the Binary Section of the SPIR-V specification.
 
 # Enumeration tokens for SPIR-V, in various styles:
-#   C, C++, C++11, JSON, Lua, Python, C#, D
+#   C, C++, C++11, JSON, Lua, Python, C#, D, Beef
 # 
 # - C will have tokens with a "Spv" prefix, e.g.: SpvSourceLanguageGLSL
 # - C++ will have tokens in the "spv" name space, e.g.: spv::SourceLanguageGLSL
@@ -36,6 +36,8 @@
 # - C# will use enum classes in the Specification class located in the "Spv" namespace,
 #     e.g.: Spv.Specification.SourceLanguage.GLSL
 # - D will have tokens under the "spv" module, e.g: spv.SourceLanguage.GLSL
+# - Beef will use enum classes in the Specification class located in the "Spv" namespace,
+#     e.g.: Spv.Specification.SourceLanguage.GLSL
 # 
 # Some tokens act like mask values, which can be OR'd together,
 # while others are mutually exclusive.  The mask-like ones have
@@ -57,6 +59,7 @@ spv = {
         'OpenCL_CPP' : 4,
         'HLSL' : 5,
         'CPP_for_OpenCL' : 6,
+        'SYCL' : 7,
     },
 
     'ExecutionModel' : {
@@ -81,6 +84,8 @@ spv = {
         'MissNV' : 5317,
         'CallableKHR' : 5318,
         'CallableNV' : 5318,
+        'TaskEXT' : 5364,
+        'MeshEXT' : 5365,
     },
 
     'AddressingModel' : {
@@ -145,11 +150,21 @@ spv = {
         'SignedZeroInfNanPreserve' : 4461,
         'RoundingModeRTE' : 4462,
         'RoundingModeRTZ' : 4463,
+        'EarlyAndLateFragmentTestsAMD' : 5017,
         'StencilRefReplacingEXT' : 5027,
+        'StencilRefUnchangedFrontAMD' : 5079,
+        'StencilRefGreaterFrontAMD' : 5080,
+        'StencilRefLessFrontAMD' : 5081,
+        'StencilRefUnchangedBackAMD' : 5082,
+        'StencilRefGreaterBackAMD' : 5083,
+        'StencilRefLessBackAMD' : 5084,
+        'OutputLinesEXT' : 5269,
         'OutputLinesNV' : 5269,
+        'OutputPrimitivesEXT' : 5270,
         'OutputPrimitivesNV' : 5270,
         'DerivativeGroupQuadsNV' : 5289,
         'DerivativeGroupLinearNV' : 5290,
+        'OutputTrianglesEXT' : 5298,
         'OutputTrianglesNV' : 5298,
         'PixelInterlockOrderedEXT' : 5366,
         'PixelInterlockUnorderedEXT' : 5367,
@@ -167,6 +182,8 @@ spv = {
         'NoGlobalOffsetINTEL' : 5895,
         'NumSIMDWorkitemsINTEL' : 5896,
         'SchedulerTargetFmaxMhzINTEL' : 5903,
+        'StreamingInterfaceINTEL' : 6154,
+        'NamedBarrierCountINTEL' : 6417,
     },
 
     'StorageClass' : {
@@ -197,6 +214,8 @@ spv = {
         'ShaderRecordBufferNV' : 5343,
         'PhysicalStorageBuffer' : 5349,
         'PhysicalStorageBufferEXT' : 5349,
+        'HitObjectAttributeNV' : 5385,
+        'TaskPayloadWorkgroupEXT' : 5402,
         'CodeSectionINTEL' : 5605,
         'DeviceOnlyINTEL' : 5936,
         'HostOnlyINTEL' : 5937,
@@ -409,6 +428,7 @@ spv = {
         'NoCapture' : 5,
         'NoWrite' : 6,
         'NoReadWrite' : 7,
+        'RuntimeAlignedINTEL' : 5940,
     },
 
     'Decoration' : {
@@ -466,6 +486,7 @@ spv = {
         'PassthroughNV' : 5250,
         'ViewportRelativeNV' : 5252,
         'SecondaryViewportRelativeNV' : 5256,
+        'PerPrimitiveEXT' : 5271,
         'PerPrimitiveNV' : 5271,
         'PerViewNV' : 5272,
         'PerTaskNV' : 5273,
@@ -477,6 +498,7 @@ spv = {
         'RestrictPointerEXT' : 5355,
         'AliasedPointer' : 5356,
         'AliasedPointerEXT' : 5356,
+        'HitObjectShaderRecordBufferNV' : 5386,
         'BindlessSamplerNV' : 5398,
         'BindlessImageNV' : 5399,
         'BoundSamplerNV' : 5400,
@@ -515,8 +537,12 @@ spv = {
         'PrefetchINTEL' : 5902,
         'StallEnableINTEL' : 5905,
         'FuseLoopsInFunctionINTEL' : 5907,
+        'MathOpDSPModeINTEL' : 5909,
         'AliasScopeINTEL' : 5914,
         'NoAliasINTEL' : 5915,
+        'InitiationIntervalINTEL' : 5917,
+        'MaxConcurrencyINTEL' : 5918,
+        'PipelineEnableINTEL' : 5919,
         'BufferLocationINTEL' : 5921,
         'IOPipeStorageINTEL' : 5944,
         'FunctionFloatingPointModeINTEL' : 6080,
@@ -567,6 +593,11 @@ spv = {
         'SubgroupLocalInvocationId' : 41,
         'VertexIndex' : 42,
         'InstanceIndex' : 43,
+        'CoreIDARM' : 4160,
+        'CoreCountARM' : 4161,
+        'CoreMaxIDARM' : 4162,
+        'WarpIDARM' : 4163,
+        'WarpMaxIDARM' : 4164,
         'SubgroupEqMask' : 4416,
         'SubgroupEqMaskKHR' : 4416,
         'SubgroupGeMask' : 4417,
@@ -614,6 +645,10 @@ spv = {
         'FragmentSizeNV' : 5292,
         'FragInvocationCountEXT' : 5293,
         'InvocationsPerPixelNV' : 5293,
+        'PrimitivePointIndicesEXT' : 5294,
+        'PrimitiveLineIndicesEXT' : 5295,
+        'PrimitiveTriangleIndicesEXT' : 5296,
+        'CullPrimitiveEXT' : 5299,
         'LaunchIdKHR' : 5319,
         'LaunchIdNV' : 5319,
         'LaunchSizeKHR' : 5320,
@@ -647,6 +682,7 @@ spv = {
         'SMCountNV' : 5375,
         'WarpIDNV' : 5376,
         'SMIDNV' : 5377,
+        'CullMaskKHR' : 6021,
     },
 
     'SelectionControlShift' : {
@@ -678,6 +714,8 @@ spv = {
         'MaxInterleavingINTEL' : 21,
         'SpeculatedIterationsINTEL' : 22,
         'NoFusionINTEL' : 23,
+        'LoopCountINTEL' : 24,
+        'MaxReinvocationDelayINTEL' : 25,
     },
 
     'LoopControlMask' : {
@@ -699,6 +737,8 @@ spv = {
         'MaxInterleavingINTEL' : 0x00200000,
         'SpeculatedIterationsINTEL' : 0x00400000,
         'NoFusionINTEL' : 0x00800000,
+        'LoopCountINTEL' : 0x01000000,
+        'MaxReinvocationDelayINTEL' : 0x02000000,
     },
 
     'FunctionControlShift' : {
@@ -895,6 +935,7 @@ spv = {
         'ShaderLayer' : 69,
         'ShaderViewportIndex' : 70,
         'UniformDecoration' : 71,
+        'CoreBuiltinsARM' : 4165,
         'FragmentShadingRateKHR' : 4422,
         'SubgroupBallotKHR' : 4423,
         'DrawParameters' : 4427,
@@ -943,6 +984,7 @@ spv = {
         'FragmentFullyCoveredEXT' : 5265,
         'MeshShadingNV' : 5266,
         'ImageFootprintNV' : 5282,
+        'MeshShadingEXT' : 5283,
         'FragmentBarycentricKHR' : 5284,
         'FragmentBarycentricNV' : 5284,
         'ComputeDerivativeGroupQuadsNV' : 5288,
@@ -990,6 +1032,8 @@ spv = {
         'FragmentShaderPixelInterlockEXT' : 5378,
         'DemoteToHelperInvocation' : 5379,
         'DemoteToHelperInvocationEXT' : 5379,
+        'RayTracingOpacityMicromapEXT' : 5381,
+        'ShaderInvocationReorderNV' : 5383,
         'BindlessTextureNV' : 5390,
         'SubgroupShuffleINTEL' : 5568,
         'SubgroupBufferBlockIOINTEL' : 5569,
@@ -1023,10 +1067,13 @@ spv = {
         'FPGAMemoryAccessesINTEL' : 5898,
         'FPGAClusterAttributesINTEL' : 5904,
         'LoopFuseINTEL' : 5906,
+        'FPGADSPControlINTEL' : 5908,
         'MemoryAccessAliasingINTEL' : 5910,
+        'FPGAInvocationPipeliningAttributesINTEL' : 5916,
         'FPGABufferLocationINTEL' : 5920,
         'ArbitraryPrecisionFixedPointINTEL' : 5922,
         'USMStorageClassesINTEL' : 5935,
+        'RuntimeAlignedAttributeINTEL' : 5939,
         'IOPipesINTEL' : 5943,
         'BlockingPipesINTEL' : 5945,
         'FPGARegINTEL' : 5948,
@@ -1038,7 +1085,9 @@ spv = {
         'DotProductInput4x8BitPackedKHR' : 6018,
         'DotProduct' : 6019,
         'DotProductKHR' : 6019,
+        'RayCullMaskKHR' : 6020,
         'BitInstructions' : 6025,
+        'GroupNonUniformRotateKHR' : 6026,
         'AtomicFloat32AddEXT' : 6033,
         'AtomicFloat64AddEXT' : 6034,
         'LongConstantCompositeINTEL' : 6089,
@@ -1060,6 +1109,7 @@ spv = {
         'CullNoOpaqueKHR' : 7,
         'SkipTrianglesKHR' : 8,
         'SkipAABBsKHR' : 9,
+        'ForceOpacityMicromap2StateEXT' : 10,
     },
 
     'RayFlagsMask' : {
@@ -1074,6 +1124,7 @@ spv = {
         'CullNoOpaqueKHR' : 0x00000080,
         'SkipTrianglesKHR' : 0x00000100,
         'SkipAABBsKHR' : 0x00000200,
+        'ForceOpacityMicromap2StateEXT' : 0x00000400,
     },
 
     'RayQueryIntersection' : {
@@ -1491,6 +1542,7 @@ spv = {
         'OpSubgroupAllKHR' : 4428,
         'OpSubgroupAnyKHR' : 4429,
         'OpSubgroupAllEqualKHR' : 4430,
+        'OpGroupNonUniformRotateKHR' : 4431,
         'OpSubgroupReadInvocationKHR' : 4432,
         'OpTraceRayKHR' : 4445,
         'OpExecuteCallableKHR' : 4446,
@@ -1527,7 +1579,42 @@ spv = {
         'OpFragmentMaskFetchAMD' : 5011,
         'OpFragmentFetchAMD' : 5012,
         'OpReadClockKHR' : 5056,
+        'OpHitObjectRecordHitMotionNV' : 5249,
+        'OpHitObjectRecordHitWithIndexMotionNV' : 5250,
+        'OpHitObjectRecordMissMotionNV' : 5251,
+        'OpHitObjectGetWorldToObjectNV' : 5252,
+        'OpHitObjectGetObjectToWorldNV' : 5253,
+        'OpHitObjectGetObjectRayDirectionNV' : 5254,
+        'OpHitObjectGetObjectRayOriginNV' : 5255,
+        'OpHitObjectTraceRayMotionNV' : 5256,
+        'OpHitObjectGetShaderRecordBufferHandleNV' : 5257,
+        'OpHitObjectGetShaderBindingTableRecordIndexNV' : 5258,
+        'OpHitObjectRecordEmptyNV' : 5259,
+        'OpHitObjectTraceRayNV' : 5260,
+        'OpHitObjectRecordHitNV' : 5261,
+        'OpHitObjectRecordHitWithIndexNV' : 5262,
+        'OpHitObjectRecordMissNV' : 5263,
+        'OpHitObjectExecuteShaderNV' : 5264,
+        'OpHitObjectGetCurrentTimeNV' : 5265,
+        'OpHitObjectGetAttributesNV' : 5266,
+        'OpHitObjectGetHitKindNV' : 5267,
+        'OpHitObjectGetPrimitiveIndexNV' : 5268,
+        'OpHitObjectGetGeometryIndexNV' : 5269,
+        'OpHitObjectGetInstanceIdNV' : 5270,
+        'OpHitObjectGetInstanceCustomIndexNV' : 5271,
+        'OpHitObjectGetWorldRayDirectionNV' : 5272,
+        'OpHitObjectGetWorldRayOriginNV' : 5273,
+        'OpHitObjectGetRayTMaxNV' : 5274,
+        'OpHitObjectGetRayTMinNV' : 5275,
+        'OpHitObjectIsEmptyNV' : 5276,
+        'OpHitObjectIsHitNV' : 5277,
+        'OpHitObjectIsMissNV' : 5278,
+        'OpReorderThreadWithHitObjectNV' : 5279,
+        'OpReorderThreadWithHintNV' : 5280,
+        'OpTypeHitObjectNV' : 5281,
         'OpImageSampleFootprintNV' : 5283,
+        'OpEmitMeshTasksEXT' : 5294,
+        'OpSetMeshOutputsEXT' : 5295,
         'OpGroupNonUniformPartitionNV' : 5296,
         'OpWritePackedPrimitiveIndices4x8NV' : 5299,
         'OpReportIntersectionKHR' : 5334,

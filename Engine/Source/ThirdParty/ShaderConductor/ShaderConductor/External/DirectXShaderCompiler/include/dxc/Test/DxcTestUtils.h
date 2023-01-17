@@ -119,6 +119,7 @@ private:
   FileRunCommandResult RunDxc(dxc::DxcDllSupport &DllSupport, const FileRunCommandResult *Prior);
   FileRunCommandResult RunDxv(dxc::DxcDllSupport &DllSupport, const FileRunCommandResult *Prior);
   FileRunCommandResult RunOpt(dxc::DxcDllSupport &DllSupport, const FileRunCommandResult *Prior);
+  FileRunCommandResult RunListParts(dxc::DxcDllSupport &DllSupport, const FileRunCommandResult *Prior);
   FileRunCommandResult RunD3DReflect(dxc::DxcDllSupport &DllSupport, const FileRunCommandResult *Prior);
   FileRunCommandResult RunDxr(dxc::DxcDllSupport &DllSupport, const FileRunCommandResult *Prior);
   FileRunCommandResult RunLink(dxc::DxcDllSupport &DllSupport, const FileRunCommandResult *Prior);
@@ -144,7 +145,7 @@ void ParseCommandPartsFromFile(LPCWSTR fileName, std::vector<FileRunCommandPart>
 class FileRunTestResult {
 public:
   std::string ErrorMessage;
-  int RunResult;
+  int RunResult = -1;
   static FileRunTestResult RunHashTestFromFileCommands(LPCWSTR fileName);
   static FileRunTestResult RunFromFileCommands(LPCWSTR fileName,
                                                PluginToolsPaths *pPluginToolsPaths = nullptr,

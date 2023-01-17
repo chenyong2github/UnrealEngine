@@ -11,9 +11,11 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/AST/Type.h"
 #include "clang/SPIRV/AstTypeProbe.h"
 #include "clang/SPIRV/SpirvBuilder.h"
 #include "clang/SPIRV/SpirvInstruction.h"
+#include <cstdint>
 
 namespace {
 /// Rounds the given value up to the given power of 2.
@@ -55,7 +57,8 @@ SpirvInstruction *RawBufferHandler::load16BitsAtBitOffset0(
   result = spvBuilder.createLoad(astContext.UnsignedIntTy, loadPtr, loc, range);
   // Only need to mask the lowest 16 bits of the loaded 32-bit uint.
   // OpUConvert can perform truncation in this case.
-  result = spvBuilder.createUnaryOp(spv::Op::OpUConvert, astContext.UnsignedShortTy, result, loc, range);
+  result = spvBuilder.createUnaryOp(
+      spv::Op::OpUConvert, astContext.UnsignedShortTy, result, loc, range);
   result = bitCastToNumericalOrBool(result, astContext.UnsignedShortTy,
                                     target16BitType, loc, range);
   result->setRValue();
@@ -123,8 +126,10 @@ SpirvInstruction *RawBufferHandler::load64BitsAtBitOffset0(
       spvBuilder.createLoad(astContext.UnsignedIntTy, ptr, loc, range);
 
   // Convert both word0 and word1 to 64-bit uints.
-  word0 = spvBuilder.createUnaryOp(spv::Op::OpUConvert, astContext.UnsignedLongLongTy, word0, loc, range);
-  word1 = spvBuilder.createUnaryOp(spv::Op::OpUConvert, astContext.UnsignedLongLongTy, word1, loc, range);
+  word0 = spvBuilder.createUnaryOp(
+      spv::Op::OpUConvert, astContext.UnsignedLongLongTy, word0, loc, range);
+  word1 = spvBuilder.createUnaryOp(
+      spv::Op::OpUConvert, astContext.UnsignedLongLongTy, word1, loc, range);
 
   // Shift word1 to the left by 32 bits.
   word1 = spvBuilder.createBinaryOp(spv::Op::OpShiftLeftLogical,
@@ -169,7 +174,8 @@ SpirvInstruction *RawBufferHandler::load16BitsAtBitOffset16(
   result = spvBuilder.createBinaryOp(spv::Op::OpShiftRightLogical,
                                      astContext.UnsignedIntTy, result,
                                      constUint16, loc, range);
-  result = spvBuilder.createUnaryOp(spv::Op::OpUConvert, astContext.UnsignedShortTy, result, loc, range);
+  result = spvBuilder.createUnaryOp(
+      spv::Op::OpUConvert, astContext.UnsignedShortTy, result, loc, range);
   result = bitCastToNumericalOrBool(result, astContext.UnsignedShortTy,
                                     target16BitType, loc, range);
   result->setRValue();
@@ -290,22 +296,43 @@ SpirvInstruction *RawBufferHandler::processTemplatedLoadFromBuffer(
   // Matrix types
   {
     QualType elemType = {};
-    uint32_t numRows = 0, numCols = 0;
+    uint32_t numRows = 0;
+    uint32_t numCols = 0;
     if (isMxNMatrix(targetType, &elemType, &numRows, &numCols)) {
-      llvm::SmallVector<SpirvInstruction *, 4> loadedElems;
+      // In DX, the default matrix orientation in ByteAddressBuffer is column
+      // major. If HLSL/DXIL support the `column_major` and `row_major`
+      // attributes in the future, we will have to check for them here and
+      // override the behavior.
+      //
+      // The assume buffer matrix order is controlled by the
+      // `-fspv-use-legacy-buffer-matrix-order` flag:
+      //   (a) false --> assume the matrix is stored column major
+      //   (b) true  --> assume the matrix is stored row major
+      //
+      // We provide (b) for compatibility with legacy shaders that depend on
+      // the previous, incorrect, raw buffer matrix order assumed by the SPIR-V
+      // codegen.
+      const bool isBufferColumnMajor =
+          !theEmitter.getSpirvOptions().useLegacyBufferMatrixOrder;
+      const uint32_t numElements = numRows * numCols;
+      llvm::SmallVector<SpirvInstruction *, 16> loadedElems(numElements);
+      for (uint32_t i = 0; i != numElements; ++i)
+        loadedElems[i] = processTemplatedLoadFromBuffer(buffer, index, elemType,
+                                                        bitOffset, range);
+
       llvm::SmallVector<SpirvInstruction *, 4> loadedRows;
       for (uint32_t i = 0; i < numRows; ++i) {
+        llvm::SmallVector<SpirvInstruction *, 4> loadedColumn;
         for (uint32_t j = 0; j < numCols; ++j) {
-          // TODO: This is currently doing a row_major matrix load. We must
-          // investigate whether we also need to implement it for column_major.
-          loadedElems.push_back(processTemplatedLoadFromBuffer(
-              buffer, index, elemType, bitOffset, range));
+          const uint32_t elementIndex =
+              isBufferColumnMajor ? (j * numRows + i) : (i * numCols + j);
+          loadedColumn.push_back(loadedElems[elementIndex]);
         }
         const auto rowType = astContext.getExtVectorType(elemType, numCols);
         loadedRows.push_back(spvBuilder.createCompositeConstruct(
-            rowType, loadedElems, loc, range));
-        loadedElems.clear();
+            rowType, loadedColumn, loc, range));
       }
+
       result = spvBuilder.createCompositeConstruct(targetType, loadedRows, loc,
                                                    range);
       result->setRValue();
@@ -401,13 +428,14 @@ void RawBufferHandler::store16BitsAtBitOffset0(SpirvInstruction *value,
                                            {constUint0, index}, loc, range);
   result = bitCastToNumericalOrBool(value, valueType,
                                     astContext.UnsignedShortTy, loc, range);
-  result = spvBuilder.createUnaryOp(spv::Op::OpUConvert, astContext.UnsignedIntTy, result, loc, range);
+  result = spvBuilder.createUnaryOp(
+      spv::Op::OpUConvert, astContext.UnsignedIntTy, result, loc, range);
   spvBuilder.createStore(ptr, result, loc, range);
 }
 
 void RawBufferHandler::store16BitsAtBitOffset16(SpirvInstruction *value,
-                                               SpirvInstruction *buffer,
-                                               SpirvInstruction *&index,
+                                                SpirvInstruction *buffer,
+                                                SpirvInstruction *&index,
                                                 const QualType valueType,
                                                 SourceRange range) {
   const auto loc = buffer->getSourceLocation();
@@ -534,12 +562,14 @@ void RawBufferHandler::storeArrayOfScalars(
       word = bitCastToNumericalOrBool(values[elemIndex], valueType,
                                       astContext.UnsignedShortTy, loc, range);
       // Zero-extend to 32 bits.
-      word = spvBuilder.createUnaryOp(spv::Op::OpUConvert, astContext.UnsignedIntTy, word, loc, range);
+      word = spvBuilder.createUnaryOp(
+          spv::Op::OpUConvert, astContext.UnsignedIntTy, word, loc, range);
       if (elemIndex + 1 < elemCount) {
         SpirvInstruction *msb = nullptr;
         msb = bitCastToNumericalOrBool(values[elemIndex + 1], valueType,
                                        astContext.UnsignedShortTy, loc, range);
-        msb = spvBuilder.createUnaryOp(spv::Op::OpUConvert, astContext.UnsignedIntTy, msb, loc, range);
+        msb = spvBuilder.createUnaryOp(
+            spv::Op::OpUConvert, astContext.UnsignedIntTy, msb, loc, range);
         msb = spvBuilder.createBinaryOp(spv::Op::OpShiftLeftLogical,
                                         astContext.UnsignedIntTy, msb,
                                         constUint16, loc, range);
@@ -556,7 +586,8 @@ void RawBufferHandler::storeArrayOfScalars(
       auto *ptr = spvBuilder.createAccessChain(astContext.UnsignedIntTy, buffer,
                                                {constUint0, index}, loc, range);
       spvBuilder.createStore(ptr, word, loc, range);
-      index = spvBuilder.createBinaryOp(spv::Op::OpIAdd, astContext.UnsignedIntTy,
+      index =
+          spvBuilder.createBinaryOp(spv::Op::OpIAdd, astContext.UnsignedIntTy,
                                     index, constUint1, loc, range);
     }
   } else if (storeWidth == 32u || storeWidth == 64u) {
@@ -593,14 +624,28 @@ QualType RawBufferHandler::serializeToScalarsOrStruct(
     QualType elemType = {};
     uint32_t numRows = 0, numCols = 0;
     if (isMxNMatrix(valueType, &elemType, &numRows, &numCols)) {
+      // Check if the destination buffer expects matrices in column major or row
+      // major order. In the future, we may also need to consider the
+      // `row_major` and `column_major` attribures. This is not handled by
+      // HLSL/DXIL at the moment, so we ignore them too.
+      const bool isBufferColumnMajor =
+          !theEmitter.getSpirvOptions().useLegacyBufferMatrixOrder;
       for (uint32_t i = 0; i < size; ++i) {
-        for (uint32_t j = 0; j < numRows; ++j) {
-          for (uint32_t k = 0; k < numCols; ++k) {
-            // TODO: This is currently doing a row_major matrix store. We must
-            // investigate whether we also need to implement it for
-            // column_major.
-            values->push_back(spvBuilder.createCompositeExtract(
-                elemType, values->front(), {j, k}, loc, range));
+        if (isBufferColumnMajor) {
+          // Access the matrix in the column major order.
+          for (uint32_t j = 0; j != numCols; ++j) {
+            for (uint32_t k = 0; k != numRows; ++k) {
+              values->push_back(spvBuilder.createCompositeExtract(
+                  elemType, values->front(), {k, j}, loc, range));
+            }
+          }
+        } else {
+          // Access the matrix in the row major order.
+          for (uint32_t j = 0; j != numRows; ++j) {
+            for (uint32_t k = 0; k != numCols; ++k) {
+              values->push_back(spvBuilder.createCompositeExtract(
+                  elemType, values->front(), {j, k}, loc, range));
+            }
           }
         }
         values->pop_front();
@@ -688,7 +733,8 @@ void RawBufferHandler::processTemplatedStoreToBuffer(
     auto serializedType =
         serializeToScalarsOrStruct(&elems, valueType, loc, range);
     if (isScalarType(serializedType)) {
-      storeArrayOfScalars(elems, buffer, index, serializedType, bitOffset, loc, range);
+      storeArrayOfScalars(elems, buffer, index, serializedType, bitOffset, loc,
+                          range);
     } else if (const auto *structType = serializedType->getAs<RecordType>()) {
       for (auto elem : elems)
         processTemplatedStoreToBuffer(elem, buffer, index, serializedType,

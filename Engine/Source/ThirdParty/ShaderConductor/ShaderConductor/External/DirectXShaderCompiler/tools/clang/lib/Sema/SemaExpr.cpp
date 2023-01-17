@@ -923,7 +923,7 @@ void Sema::checkVariadicArgument(const Expr *E, VariadicCallType CT) {
         E->getLocStart(), nullptr,
         PDiag(diag::warn_cxx98_compat_pass_non_pod_arg_to_vararg)
           << Ty << CT);
-    // Fall through.
+    LLVM_FALLTHROUGH; // HLSL Change
   case VAK_Valid:
     if (Ty->isRecordType()) {
       // This is unlikely to be what the user intended. If the class has a
@@ -2336,9 +2336,19 @@ Sema::ActOnIdExpression(Scope *S, CXXScopeSpec &SS,
       return BuildPossibleImplicitMemberExpr(SS, TemplateKWLoc,
                                              R, TemplateArgs);
   }
-
+  // HLSL Change Begin: Allow templates without empty argument list if default
+  // arguments are provided.
+  if (getLangOpts().HLSL && R.isSingleResult()) {
+    if (TemplateDecl *Template = dyn_cast<TemplateDecl>(R.getFoundDecl())) {
+      if (Template->getTemplateParameters()->getMinRequiredArguments() == 0) {
+        TemplateArgsBuffer.setLAngleLoc(NameLoc);
+        TemplateArgsBuffer.setRAngleLoc(NameLoc);
+        TemplateArgs = &TemplateArgsBuffer;
+      }
+    }
+  }
+  // HLSL Change End
   if (TemplateArgs || TemplateKWLoc.isValid()) {
-
     // In C++1y, if this is a variable template id, then check it
     // in BuildTemplateIdExpr().
     // The single lookup result must be a variable template declaration.
@@ -2996,7 +3006,7 @@ ExprResult Sema::BuildDeclarationNameExpr(
         valueKind = VK_RValue;
         break;
       }
-      // fallthrough
+      LLVM_FALLTHROUGH; // HLSL Change
 
     case Decl::ImplicitParam:
     case Decl::ParmVar: {
@@ -3077,7 +3087,7 @@ ExprResult Sema::BuildDeclarationNameExpr(
         valueKind = VK_LValue;
         break;
       }
-      // fallthrough
+      LLVM_FALLTHROUGH; // HLSL Change
 
     case Decl::CXXConversion:
     case Decl::CXXDestructor:
@@ -4275,7 +4285,7 @@ Sema::CreateBuiltinArraySubscriptExpr(Expr *Base, SourceLocation LLoc,
       // We need to make sure to preserve qualifiers on array types, since these
       // are in effect references.
       if (LHSTy.hasQualifiers())
-        ResultType.setLocalFastQualifiers(LHSTy.getLocalFastQualifiers());
+        ResultType.setLocalFastQualifiers(LHSTy.getQualifiers().getFastQualifiers());
     } else {
     // HLSL Change Ends
       Diag(LHSExp->getLocStart(), diag::ext_subscript_non_lvalue) <<
@@ -10402,7 +10412,7 @@ ExprResult Sema::CreateBuiltinBinOp(SourceLocation OpLoc,
   // HLSL Change Starts
   // Handle HLSL binary operands differently
   if ((getLangOpts().HLSL &&
-          (!getLangOpts().EnableOperatorOverloading ||
+          (getLangOpts().HLSLVersion < hlsl::LangStd::v2021 ||
            !hlsl::IsUserDefinedRecordType(LHSExpr->getType()))) ||
       !hlsl::DoesTypeDefineOverloadedOperator(
           LHSExpr->getType(), clang::BinaryOperator::getOverloadedOperator(Opc),
@@ -10482,6 +10492,7 @@ ExprResult Sema::CreateBuiltinBinOp(SourceLocation OpLoc,
     break;
   case BO_And:
     checkObjCPointerIntrospection(*this, LHS, RHS, OpLoc);
+    LLVM_FALLTHROUGH; // HLSL Change
   case BO_Xor:
   case BO_Or:
     ResultTy = CheckBitwiseOperands(LHS, RHS, OpLoc);
@@ -10524,6 +10535,7 @@ ExprResult Sema::CreateBuiltinBinOp(SourceLocation OpLoc,
   case BO_AndAssign:
   case BO_OrAssign: // fallthrough
 	  DiagnoseSelfAssignment(*this, LHS.get(), RHS.get(), OpLoc);
+          LLVM_FALLTHROUGH; // HLSL Change
   case BO_XorAssign:
     CompResultTy = CheckBitwiseOperands(LHS, RHS, OpLoc, true);
     CompLHSTy = CompResultTy;
@@ -10891,7 +10903,7 @@ ExprResult Sema::BuildBinOp(Scope *S, SourceLocation OpLoc,
   // simply checks whether it is a user-defined type with operator overloading
   // methods or not.
   if (getLangOpts().CPlusPlus &&
-      (!getLangOpts().HLSL || getLangOpts().EnableOperatorOverloading) &&
+      (!getLangOpts().HLSL || getLangOpts().HLSLVersion >= hlsl::LangStd::v2021) &&
       hlsl::IsUserDefinedRecordType(LHSExpr->getType()) &&
       hlsl::DoesTypeDefineOverloadedOperator(
           LHSExpr->getType(), clang::BinaryOperator::getOverloadedOperator(Opc),

@@ -204,7 +204,7 @@ public:
           } else if (Stmt* initStmt = dyn_cast<Stmt>(initExp)) {
             TraverseStmt(initStmt);
           }
-		}
+        }
       }
       // UE Change End: Keep track of visited global declarations
     }
@@ -570,16 +570,10 @@ void SetupCompilerCommon(CompilerInstance &compiler,
     compiler.getDiagnostics().setWarningsAsErrors(true);
   compiler.getDiagnostics().setIgnoreAllWarnings(!opts.OutputWarnings);
   compiler.getLangOpts().HLSLVersion = opts.HLSLVersion;
-  compiler.getLangOpts().StrictUDTCasting = opts.StrictUDTCasting;
   compiler.getLangOpts().UseMinPrecision = !opts.Enable16BitTypes;
   compiler.getLangOpts().EnableDX9CompatMode = opts.EnableDX9CompatMode;
   compiler.getLangOpts().EnableFXCCompatMode = opts.EnableFXCCompatMode;
-  compiler.getLangOpts().EnableTemplates = opts.EnableTemplates;
-  compiler.getLangOpts().EnableOperatorOverloading = opts.EnableOperatorOverloading;
-  compiler.getLangOpts().StrictUDTCasting = opts.StrictUDTCasting;
   compiler.getLangOpts().EnablePayloadAccessQualifiers = opts.EnablePayloadQualifiers;
-  compiler.getLangOpts().EnableShortCircuit = opts.EnableShortCircuit;
-  compiler.getLangOpts().EnableBitfields = opts.EnableBitfields;
 #ifdef ENABLE_SPIRV_CODEGEN
   compiler.getLangOpts().SPIRV = opts.GenSPIRV;
 #endif
@@ -698,7 +692,6 @@ HRESULT GenerateAST(DxcLangExtensionsHelper *pExtHelper, LPCSTR pFileName,
                     dxcutil::DxcArgsFileSystem *msfPtr, raw_ostream &w) {
   // Setup a compiler instance.
   CompilerInstance &compiler = astHelper.compiler;
-  compiler.getLangOpts().EnableTemplates = opts.EnableTemplates;
 
   std::unique_ptr<TextDiagnosticPrinter> diagPrinter =
       llvm::make_unique<TextDiagnosticPrinter>(w,

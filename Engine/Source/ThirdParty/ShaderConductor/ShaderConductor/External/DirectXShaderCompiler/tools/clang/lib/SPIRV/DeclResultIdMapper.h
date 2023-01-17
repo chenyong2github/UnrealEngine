@@ -18,6 +18,7 @@
 #include "clang/AST/Attr.h"
 #include "clang/SPIRV/FeatureManager.h"
 #include "clang/SPIRV/SpirvBuilder.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
@@ -425,6 +426,12 @@ public:
       const DeclaratorDecl *decl,
       const llvm::SmallVector<uint32_t, 4> *indices = nullptr);
 
+  /// \brief Returns the associated counter's (instr-ptr, is-alias-or-not)
+  /// pair for the given {RW|Append|Consume}StructuredBuffer variable. Creates
+  /// counter for RW buffer if not already created.
+  const CounterIdAliasPair *
+  createOrGetCounterIdAliasPair(const DeclaratorDecl *decl);
+
   /// \brief Returns all the associated counters for the given decl. The decl is
   /// expected to be a struct containing alias RW/Append/Consume structured
   /// buffers. Returns nullptr if it does not.
@@ -592,6 +599,25 @@ private:
   /// This method will write the location assignment into the module under
   /// construction.
   bool finalizeStageIOLocations(bool forInput);
+
+  /// Creates a variable of struct type with explicit layout decorations.
+  /// The sub-Decls in the given DeclContext will be treated as the struct
+  /// fields. The struct type will be named as typeName, and the variable
+  /// will be named as varName.
+  ///
+  /// This method should only be used for cbuffers/ContantBuffers, tbuffers/
+  /// TextureBuffers, and PushConstants. usageKind must be set properly
+  /// depending on the usage kind.
+  ///
+  /// If arraySize is 0, the variable will be created as a struct ; if arraySize
+  /// is > 0, the variable will be created as an array; if arraySize is -1, the
+  /// variable will be created as a runtime array.
+  ///
+  /// Panics if the DeclContext is neither HLSLBufferDecl or RecordDecl.
+  SpirvVariable *createStructOrStructArrayVarOfExplicitLayout(
+      const DeclContext *decl, llvm::ArrayRef<int> arraySize,
+      ContextUsageKind usageKind, llvm::StringRef typeName,
+      llvm::StringRef varName);
 
   /// Creates a variable of struct type with explicit layout decorations.
   /// The sub-Decls in the given DeclContext will be treated as the struct
@@ -792,6 +818,11 @@ private:
   llvm::DenseMap<const DeclaratorDecl *, CounterIdAliasPair> counterVars;
   llvm::DenseMap<const DeclaratorDecl *, CounterVarFields> fieldCounterVars;
 
+  /// Mapping from clang declarator to SPIR-V declaration instruction.
+  /// This is used to defer creation of counter for RWStructuredBuffer
+  /// until a Increment/DecrementCounter method is called on it.
+  llvm::DenseMap<const DeclaratorDecl *, SpirvInstruction *> declRWSBuffers;
+
   /// Mapping from cbuffer/tbuffer/ConstantBuffer/TextureBufer/push-constant
   /// to the SPIR-V type.
   llvm::DenseMap<const DeclContext *, const SpirvType *> ctBufferPCTypes;
@@ -902,7 +933,7 @@ bool DeclResultIdMapper::decorateStageIOLocations() {
     return true;
   }
   // Try both input and output even if input location assignment failed
-  return finalizeStageIOLocations(true) & finalizeStageIOLocations(false);
+  return (int) finalizeStageIOLocations(true) & (int) finalizeStageIOLocations(false);
 }
 
 bool DeclResultIdMapper::isInputStorageClass(const StageVar &v) {

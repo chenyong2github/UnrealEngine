@@ -458,6 +458,7 @@ unsigned OP::GetTypeSlot(Type *pType) {
     case 32:              return 7;
     case 64:              return 8;
     }
+    llvm_unreachable("Invalid Bits size");
   }
   case Type::PointerTyID: return 9;
   case Type::StructTyID:  return 10;
@@ -1050,7 +1051,7 @@ void OP::FixOverloadNames() {
       CallInst *CI = cast<CallInst>(*F.user_begin());
       DXIL::OpCode opCode = OP::GetDxilOpFuncCallInst(CI);
       llvm::Type *Ty = OP::GetOverloadType(opCode, &F);
-      if (isa<StructType>(Ty)) {
+      if (isa<StructType>(Ty) || isa<PointerType>(Ty)) {
         std::string funcName;
         if (OP::ConstructOverloadName(Ty, opCode, funcName).compare(F.getName()) != 0) {
           F.setName(funcName);

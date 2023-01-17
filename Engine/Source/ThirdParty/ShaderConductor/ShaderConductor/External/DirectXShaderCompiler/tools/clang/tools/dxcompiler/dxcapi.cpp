@@ -108,6 +108,9 @@ static HRESULT ThreadMallocDxcCreateInstance(
   else if (IsEqualCLSID(rclsid, CLSID_DxcContainerBuilder)) {
     hr = CreateDxcContainerBuilder(riid, ppv);
   }
+  else if (IsEqualCLSID(rclsid, CLSID_DxcContainerReflection)) {
+    hr = CreateDxcContainerReflection(riid, ppv);
+  }
   // UE Change Begin: Enable DxcRewriter as it's needed for Metal backend.
   else if (IsEqualCLSID(rclsid, CLSID_DxcRewriter)) {
     hr = CreateDxcRewriter(riid, ppv);
@@ -117,9 +120,6 @@ static HRESULT ThreadMallocDxcCreateInstance(
 #ifdef _WIN32
   else if (IsEqualCLSID(rclsid, CLSID_DxcDiaDataSource)) {
     hr = CreateDxcDiaDataSource(riid, ppv);
-  }
-  else if (IsEqualCLSID(rclsid, CLSID_DxcContainerReflection)) {
-    hr = CreateDxcContainerReflection(riid, ppv);
   }
   else if (IsEqualCLSID(rclsid, CLSID_DxcLinker)) {
     hr = CreateDxcLinker(riid, ppv);

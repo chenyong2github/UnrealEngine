@@ -20,6 +20,7 @@
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/Scope.h"
+#include "llvm/Support/TimeProfiler.h" // HLSL Change
 using namespace clang;
 
 /// \brief Parse a template declaration, explicit instantiation, or
@@ -237,6 +238,14 @@ Parser::ParseSingleDeclarationAfterTemplate(
       ConsumeToken();
     return nullptr;
   }
+
+  // HLSL Change Begin - Support hierarchial time tracing.
+  llvm::TimeTraceScope TimeScope("ParseTemplate", [&]() {
+    return DeclaratorInfo.getIdentifier() != nullptr
+               ? DeclaratorInfo.getIdentifier()->getName()
+               : "<unknown>";
+  });
+  // HLSL Change End - Support hierarchial time tracing.
 
   LateParsedAttrList LateParsedAttrs(true);
   if (DeclaratorInfo.isFunctionDeclarator())
@@ -1214,7 +1223,6 @@ ParsedTemplateArgument Parser::ParseTemplateArgument() {
   }
   
   // Try to parse a template template argument.
-  if (!getLangOpts().HLSL) // HLSL Change - HLSL does not support template template arguments
   {
     TentativeParsingAction TPA(*this);
 

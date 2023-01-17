@@ -1,8 +1,8 @@
 {
     "version" : {
         "major" : "1",
-        "minor" : "6",
-        "rev"   : "2112"
+        "minor" : "7",
+        "rev"   : "2212"
     },
-    "sha" : "2eae8d3d329ef88ce4cbd2ecdfb8ef0489e6316f"
+    "sha" : "bd1dc997f521357e462d7a310f9fd37979946e1d"
 }
