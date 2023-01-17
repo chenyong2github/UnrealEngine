@@ -177,13 +177,6 @@ TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePa
 		bShouldAllocateRawDataBuffer
 	);
 
-	// Honor setting from TextureImporter.RetainJpegFormat in Editor.ini if it exists
-	const bool bShouldImportRawCache = bShouldImportRaw;
-	if (GConfig->GetBool(TEXT("TextureImporter"), TEXT("RetainJpegFormat"), bShouldImportRaw, GEditorIni) && bShouldImportRawCache != bShouldImportRaw)
-	{
-		UE_LOG(LogInterchangeImport, Log, TEXT("JPEG file [%s]: Pipeline setting 'bPreferCompressedSourceData' has been overridden by Editor setting 'RetainJpegFormat'"), *Filename);
-	}
-
 	TArray64<uint8> RawData;
 	if (bShouldImportRaw)
 	{
