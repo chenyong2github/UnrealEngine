@@ -30,6 +30,7 @@ namespace UE::Cook { class FCookWorkerServer; }
 namespace UE::Cook { class FMPCollectorServerMessageContext; }
 namespace UE::Cook { class IMPCollector; }
 namespace UE::Cook { struct FCookWorkerProfileData; }
+namespace UE::Cook { struct FHeartbeatMessage; }
 namespace UE::Cook { struct FInitialConfigMessage; }
 namespace UE::Cook { struct FPackageData; }
 namespace UE::Cook { struct FRetractionResultsMessage; }
@@ -176,6 +177,14 @@ private:
 	/** Calls the configured LoadBalanceAlgorithm. Input Requests have been sorted by leaf to root load order. */
 	void LoadBalance(TConstArrayView<FWorkerId> SortedWorkers, TArrayView<FPackageData*> Requests,
 		TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph, TArray<FWorkerId>& OutAssignments);
+	/** Report whether it is time for a heartbeat message and update the timer data. */
+	void TickHeartbeat(bool bForceHeartbeat, double CurrentTimeSeconds, bool& bOutSendHeartbeat,
+		int32& OutHeartbeatNumber);
+	/** Reset the IdleHeartbeatFence when new idle-breaking data comes in. */
+	void ResetFinalIdleHeartbeatFence();
+	/** Log the occurrence of a heartbeat message from a CookWorker. */
+	void HandleHeartbeatMessage(FMPCollectorServerMessageContext& Context, bool bReadSuccessful,
+		FHeartbeatMessage&& Message);
 
 	/** Move the given worker from active workers to the list of workers shutting down. */
 	void AbortWorker(FWorkerId WorkerId, ECookDirectorThread TickThread);
@@ -213,6 +222,9 @@ private:
 	double WorkersStalledStartTimeSeconds = 0.;
 	double WorkersStalledWarnTimeSeconds = 0.;
 	double LastTickTimeSeconds = 0.;
+	double NextHeartbeatTimeSeconds = 0.;
+	int32 HeartbeatNumber = 0;
+	int32 FinalIdleHeartbeatFence = -1;
 	bool bWorkersInitialized = false;
 	bool bHasReducedMachineResources = false;
 	bool bIsFirstAssignment = true;

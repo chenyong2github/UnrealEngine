@@ -124,6 +124,12 @@ FCookDirector::FCookDirector(UCookOnTheFlyServer& InCOTFS, int32 CookProcessCoun
 		{
 			HandleRetractionMessage(Context, bReadSuccessful, MoveTemp(Message));
 		}, TEXT("HandleRetractionMessage")));
+	Register(new IMPCollectorCbServerMessage<FHeartbeatMessage>([this]
+	(FMPCollectorServerMessageContext& Context, bool bReadSuccessful, FHeartbeatMessage&& Message)
+		{
+			HandleHeartbeatMessage(Context, bReadSuccessful, MoveTemp(Message));
+		}, TEXT("HandleHeartbeatMessage")));
+
 	LastTickTimeSeconds = FPlatformTime::Seconds();
 
 	FCookStatsManager::CookStatsCallbacks.AddRaw(this, &FCookDirector::LogCookStats);
@@ -462,6 +468,10 @@ void FCookDirector::TickFromSchedulerThread()
 	bool bAnyIdle = bLocalWorkerIdle;
 	LastTickTimeSeconds = CurrentTime;
 	LocalWorkerProfileData->UpdateIdle(bLocalWorkerIdle, DeltaTime);
+	
+	bool bSendHeartbeat;
+	int32 LocalHeartbeatNumber;
+	TickHeartbeat(false /* bForceHeartbeat */, CurrentTime, bSendHeartbeat, LocalHeartbeatNumber);
 
 	TArray<TRefCountPtr<FCookWorkerServer>, TInlineAllocator<16>> WorkersWithMessage;
 	bool bAllWorkersConnected = false;
@@ -482,6 +492,10 @@ void FCookDirector::TickFromSchedulerThread()
 			if (RemoteWorker->HasMessages())
 			{
 				WorkersWithMessage.Add(RemoteWorker);
+			}
+			if (bSendHeartbeat)
+			{
+				RemoteWorker->SignalHeartbeat(ECookDirectorThread::SchedulerThread, LocalHeartbeatNumber);
 			}
 		}
 		for (TPair<FCookWorkerServer*, TRefCountPtr<FCookWorkerServer>>& Pair : ShuttingDownWorkers)
@@ -630,16 +644,40 @@ void FCookDirector::PumpCookComplete(bool& bCompleted)
 			for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
 			{
 				FCookWorkerServer& RemoteWorker = *Pair.Value;
-				// MPCOOKTODO: Messages sent from the CookWorkers about discovered packages might come in after
-				// the last message sent about completed saves. These discovered packages can cause the cook to fall
-				// back to incomplete. Don't send CookComplete messages to the CookWorkers until all CookWorkers have
-				// reported they are idle and have no further messages to send.
 				if (RemoteWorker.NumAssignments() > 0)
 				{
 					bAllIdle = false;
 					break;
 				}
 			}
+
+			if (bAllIdle && FinalIdleHeartbeatFence == -1)
+			{
+				bool bSendHeartbeat;
+				double CurrentTime = FPlatformTime::Seconds();
+				TickHeartbeat(true /* bForceHeartbeat */, CurrentTime, bSendHeartbeat, FinalIdleHeartbeatFence);
+
+				for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+				{
+					FCookWorkerServer& RemoteWorker = *Pair.Value;
+					RemoteWorker.SignalHeartbeat(ECookDirectorThread::SchedulerThread, FinalIdleHeartbeatFence);
+				}
+				bAllIdle = false;
+			}
+			else
+			{
+				for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+				{
+					FCookWorkerServer& RemoteWorker = *Pair.Value;
+					if (RemoteWorker.GetLastReceivedHeartbeatNumber() < FinalIdleHeartbeatFence)
+					{
+						bAllIdle = false;
+						SetWorkersStalled(true);
+						break;
+					}
+				}
+			}
+
 			if (bAllIdle)
 			{
 				for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
@@ -717,6 +755,9 @@ void FCookDirector::ShutdownCookSession()
 	bIsFirstAssignment = true;
 	bCookCompleteSent = false;
 	bWorkersActive = false;
+	HeartbeatNumber = 0;
+	NextHeartbeatTimeSeconds = 0.;
+	FinalIdleHeartbeatFence = -1;
 }
 
 void FCookDirector::Register(IMPCollector* Collector)
@@ -771,6 +812,53 @@ void FCookDirector::SetWorkersStalled(bool bInWorkersStalled)
 		}
 	}
 }
+
+void FCookDirector::TickHeartbeat(bool bForceHeartbeat, double CurrentTimeSeconds, bool& bOutSendHeartbeat,
+	int32& OutHeartbeatNumber)
+{
+	constexpr float HeartbeatPeriodSeconds = 30.f;
+
+	bOutSendHeartbeat = false;
+	OutHeartbeatNumber = HeartbeatNumber;
+	if (bForceHeartbeat)
+	{
+		bOutSendHeartbeat = true;
+	}
+	else if (NextHeartbeatTimeSeconds == 0.)
+	{
+		NextHeartbeatTimeSeconds = CurrentTimeSeconds + HeartbeatPeriodSeconds;
+	}
+	else if (CurrentTimeSeconds >= NextHeartbeatTimeSeconds)
+	{
+		bOutSendHeartbeat = true;
+	}
+
+	if (bOutSendHeartbeat)
+	{
+		checkf(HeartbeatNumber < MAX_int32, TEXT("Overflow"));
+		HeartbeatNumber++;
+		NextHeartbeatTimeSeconds = CurrentTimeSeconds + HeartbeatPeriodSeconds;
+	}
+}
+
+void FCookDirector::ResetFinalIdleHeartbeatFence()
+{
+	FinalIdleHeartbeatFence = -1;
+}
+
+void FCookDirector::HandleHeartbeatMessage(FMPCollectorServerMessageContext& Context, bool bReadSuccessful,
+	FHeartbeatMessage&& Message)
+{
+	if (!bReadSuccessful)
+	{
+		UE_LOG(LogCook, Error, TEXT("Corrupt HeartbeatMessage received from CookWorker %d. It will be ignored."),
+			Context.GetProfileId());
+		return;
+	}
+
+	Context.GetCookWorkerServer()->SetLastReceivedHeartbeatNumberInLock(Message.HeartbeatNumber);
+}
+
 
 FCookDirector::FPendingConnection::FPendingConnection(FPendingConnection&& Other)
 {

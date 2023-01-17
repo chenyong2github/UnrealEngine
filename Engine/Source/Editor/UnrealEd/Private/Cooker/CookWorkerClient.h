@@ -15,6 +15,7 @@ namespace UE::Cook { struct FAbortPackagesMessage; }
 namespace UE::Cook { struct FAssignPackagesMessage; }
 namespace UE::Cook { struct FDirectorConnectionInfo; }
 namespace UE::Cook { struct FDiscoveredPackage; }
+namespace UE::Cook { struct FHeartbeatMessage; }
 namespace UE::Cook { struct FInitialConfigMessage; }
 namespace UE::Cook { struct FPackageRemoteResult; }
 namespace UE::Cook { struct FRetractionRequestMessage; }
@@ -112,6 +113,8 @@ private:
 		FAbortPackagesMessage&& Message);
 	void HandleRetractionMessage(FMPCollectorClientMessageContext& Context, bool bReadSuccessful,
 		FRetractionRequestMessage&& Message);
+	void HandleHeartbeatMessage(FMPCollectorClientMessageContext& Context, bool bReadSuccessful,
+		FHeartbeatMessage&& Message);
 
 private:
 	TSharedPtr<FInternetAddr> DirectorAddr;

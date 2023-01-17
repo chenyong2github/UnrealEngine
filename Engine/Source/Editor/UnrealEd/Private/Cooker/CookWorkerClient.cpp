@@ -41,6 +41,11 @@ FCookWorkerClient::FCookWorkerClient(UCookOnTheFlyServer& InCOTFS)
 		{
 			HandleAbortPackagesMessage(Context, bReadSuccessful, MoveTemp(Message));
 		}, TEXT("HandleAbortPackagesMessage")));
+	Register(new IMPCollectorCbClientMessage<FHeartbeatMessage>([this]
+	(FMPCollectorClientMessageContext& Context, bool bReadSuccessful, FHeartbeatMessage&& Message)
+		{
+			HandleHeartbeatMessage(Context, bReadSuccessful, MoveTemp(Message));
+		}, TEXT("HandleHeartbeatMessage")));
 }
 
 FCookWorkerClient::~FCookWorkerClient()
@@ -716,6 +721,18 @@ void FCookWorkerClient::HandleRetractionMessage(FMPCollectorClientMessageContext
 	FRetractionResultsMessage ResultsMessage;
 	ResultsMessage.ReturnedPackages = MoveTemp(PackageNames);
 	SendMessage(ResultsMessage);
+}
+
+void FCookWorkerClient::HandleHeartbeatMessage(FMPCollectorClientMessageContext& Context, bool bReadSuccessful,
+	FHeartbeatMessage&& Message)
+{
+	if (!bReadSuccessful)
+	{
+		LogInvalidMessage(TEXT("HeartbeatMessage"));
+		return;
+	}
+
+	SendMessage(FHeartbeatMessage(Message.HeartbeatNumber));
 }
 
 } // namespace UE::Cook

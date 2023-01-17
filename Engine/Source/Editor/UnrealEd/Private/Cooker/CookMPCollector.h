@@ -64,11 +64,13 @@ public:
 	const ITargetPlatform* IntToPlatform(uint8 PlatformAsInt) const;
 	FWorkerId GetWorkerId() const { return WorkerId; }
 	int32 GetProfileId() const { return ProfileId; }
+	FCookWorkerServer* GetCookWorkerServer() { return Server; }
 
 private:
 	TConstArrayView<const ITargetPlatform*> Platforms;
 	FWorkerId WorkerId;
 	int32 ProfileId;
+	FCookWorkerServer* Server = nullptr;
 
 	friend class FCookWorkerServer;
 };

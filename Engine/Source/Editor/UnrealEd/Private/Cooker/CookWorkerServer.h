@@ -71,6 +71,8 @@ public:
 
 	/** Periodic Tick function to send and receive messages to the Client. */
 	void TickCommunication(ECookDirectorThread TickThread);
+	/** Called when the COTFS wants to send a heartbeat message to the Client. */
+	void SignalHeartbeat(ECookDirectorThread TickThread, int32 HeartbeatNumber);
 	/** Called when the COTFS Server has detected all packages are complete. Tell the CookWorker to flush messages and exit. */
 	void SignalCookComplete(ECookDirectorThread TickThread);
 	/**
@@ -91,6 +93,11 @@ public:
 	int32 NumAssignments() const;
 	/** Does this Server have any ReceivedMessages that need to be processed by the Scheduler thread? */
 	bool HasMessages() const;
+
+	/** Get the LastReceivedHeartbeatNumber. */
+	int32 GetLastReceivedHeartbeatNumber() const;
+	/** Set the LastReceivedHeartbeatNumber. Assumes lock is already entered; can only be called from with a HandleReceivedMessages callback */
+	void SetLastReceivedHeartbeatNumberInLock(int32 InHeartbeatNumber);
 
 private:
 	enum class EConnectStatus
@@ -177,6 +184,7 @@ private:
 	FTickState TickState;
 	uint32 CookWorkerProcessId = 0;
 	int32 ProfileId = 0;
+	int32 LastReceivedHeartbeatNumber = 0;
 	double ConnectStartTimeSeconds = 0.;
 	double ConnectTestStartTimeSeconds = 0.;
 	FWorkerId WorkerId = FWorkerId::Invalid();
@@ -351,6 +359,25 @@ private:
 	TArray<FReplicatedLogData> QueuedLogsBackBuffer;
 	bool bRegistered = false;
 
+	static FGuid MessageType;
+};
+
+/**
+ * Message from Director to CookWorker or CookWorker to Director that reports a heartbeat number, in addition to reporting the
+ * machine is still alive just by the presence of the message.
+ * The Director intiates a heartbeat message; the CookWorker always responds to a heartbeat message with its own heartbeat message
+ * in reply, with the same number.
+ */
+struct FHeartbeatMessage : public UE::CompactBinaryTCP::IMessage
+{
+public:
+	FHeartbeatMessage(int32 InHeartbeatNumber=-1);
+	virtual void Write(FCbWriter& Writer) const override;
+	virtual bool TryRead(FCbObjectView Object) override;
+	virtual FGuid GetMessageType() const override { return MessageType; }
+
+public:
+	int32 HeartbeatNumber;
 	static FGuid MessageType;
 };
 

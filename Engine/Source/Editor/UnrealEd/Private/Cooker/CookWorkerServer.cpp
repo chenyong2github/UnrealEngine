@@ -213,6 +213,18 @@ bool FCookWorkerServer::HasMessages() const
 	return !ReceiveMessages.IsEmpty();
 }
 
+int32 FCookWorkerServer::GetLastReceivedHeartbeatNumber() const
+{
+	FScopeLock CommunicationScopeLock(&CommunicationLock);
+	return LastReceivedHeartbeatNumber;
+
+}
+void FCookWorkerServer::SetLastReceivedHeartbeatNumberInLock(int32 InHeartbeatNumber)
+{
+	LastReceivedHeartbeatNumber = InHeartbeatNumber;
+}
+
+
 bool FCookWorkerServer::TryHandleConnectMessage(FWorkerConnectMessage& Message, FSocket* InSocket, TArray<UE::CompactBinaryTCP::FMarshalledMessage>&& OtherPacketMessages, ECookDirectorThread TickThread)
 {
 	FCommunicationScopeLock ScopeLock(this, TickThread, ETickAction::Tick);
@@ -296,6 +308,20 @@ void FCookWorkerServer::TickCommunication(ECookDirectorThread TickThread)
 			checkNoEntry();
 			return;
 		}
+	}
+}
+
+void FCookWorkerServer::SignalHeartbeat(ECookDirectorThread TickThread, int32 HeartbeatNumber)
+{
+	FCommunicationScopeLock ScopeLock(this, TickThread, ETickAction::Tick);
+
+	switch (ConnectStatus)
+	{
+	case EConnectStatus::Connected:
+		SendMessageInLock(FHeartbeatMessage(HeartbeatNumber));
+		break;
+	default:
+		break;
 	}
 }
 
@@ -522,6 +548,7 @@ void FCookWorkerServer::HandleReceiveMessagesInternal()
 			{
 				check(*Collector);
 				FMPCollectorServerMessageContext Context;
+				Context.Server = this;
 				Context.Platforms = OrderedSessionPlatforms;
 				Context.WorkerId = WorkerId;
 				Context.ProfileId = ProfileId;
@@ -629,6 +656,7 @@ void FCookWorkerServer::RecordResults(FPackageResultsMessage& Message)
 			COTFS.DemoteToIdle(*PackageData, ESendFlags::QueueAddAndRemove, Result.SuppressCookReason);
 		}
 	}
+	Director.ResetFinalIdleHeartbeatFence();
 }
 
 void FCookWorkerServer::LogInvalidMessage(const TCHAR* MessageTypeName)
@@ -654,6 +682,7 @@ void FCookWorkerServer::AddDiscoveredPackage(FDiscoveredPackage&& DiscoveredPack
 		PackageData.SetGenerated(true);
 		PackageData.SetWorkerAssignmentConstraint(GetWorkerId());
 	}
+	Director.ResetFinalIdleHeartbeatFence();
 	COTFS.QueueDiscoveredPackageData(PackageData, MoveTemp(DiscoveredPackage.Instigator));
 }
 
@@ -999,6 +1028,23 @@ void FLogMessagesMessageHandler::Serialize(const TCHAR* V, ELogVerbosity::Type V
 	const FName& Category, const double Time)
 {
 	Serialize(V, Verbosity, Category);
+}
+
+FGuid FHeartbeatMessage::MessageType(TEXT("C08FFAF07BF34DD3A2FFB8A287CDDE83"));
+
+FHeartbeatMessage::FHeartbeatMessage(int32 InHeartbeatNumber)
+	: HeartbeatNumber(InHeartbeatNumber)
+{
+}
+
+void FHeartbeatMessage::Write(FCbWriter& Writer) const
+{
+	Writer << "H" << HeartbeatNumber;
+}
+
+bool FHeartbeatMessage::TryRead(FCbObjectView Object)
+{
+	return LoadFromCompactBinary(Object["H"], HeartbeatNumber);
 }
 
 }
