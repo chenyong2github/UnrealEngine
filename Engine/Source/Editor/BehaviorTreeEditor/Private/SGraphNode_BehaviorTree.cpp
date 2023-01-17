@@ -632,7 +632,7 @@ void SGraphNode_BehaviorTree::PostChange(const UUserDefinedEnum* Changed, FEnumE
 void SGraphNode_BehaviorTree::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
 	SGraphNode::Tick( AllottedGeometry, InCurrentTime, InDeltaTime );
-	CachedPosition = FVector2D(AllottedGeometry.AbsolutePosition) / AllottedGeometry.Scale;
+	CachedPosition = AllottedGeometry.AbsolutePosition / AllottedGeometry.Scale;
 
 	UBehaviorTreeGraphNode* MyNode = Cast<UBehaviorTreeGraphNode>(GraphNode);
 	if (MyNode && MyNode->DebuggerUpdateCounter != DebuggerStateCounter)
@@ -710,7 +710,7 @@ void SGraphNode_BehaviorTree::Tick( const FGeometry& AllottedGeometry, const dou
 			// when it wasn't any of them, add node itself to triggers (e.g. parallel's main task)
 			if (DecoratorWidgets.Num() == 0)
 			{
-				TriggerOffsets.Add(FNodeBounds(FVector2D(0,0),GetDesiredSize()));
+				TriggerOffsets.Add(FNodeBounds(FVector2f(0.f,0.f),GetDesiredSize()));
 			}
 		}
 	}
@@ -1061,7 +1061,7 @@ void SGraphNode_BehaviorTree::GetOverlayBrushes(bool bSelected, const FVector2D 
 				for (int32 i = 0; i < TriggerOffsets.Num(); i++)
 				{
 					IPOverlayInfo.OverlayOffset.X = -IPOverlayInfo.Brush->ImageSize.X;
-					IPOverlayInfo.OverlayOffset.Y = TriggerOffsets[i].Position.Y + TriggerOffsets[i].Size.Y / 2 - IPOverlayInfo.Brush->ImageSize.Y / 2;
+					IPOverlayInfo.OverlayOffset.Y = TriggerOffsets[i].Position.Y + TriggerOffsets[i].Size.Y / 2.f - IPOverlayInfo.Brush->ImageSize.Y / 2.f;
 
 					IPOverlayInfo.AnimationEnvelope = FVector2D(10.f, 0.f);
 					Brushes.Add(IPOverlayInfo);

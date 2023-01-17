@@ -63,7 +63,7 @@ void SEnvQueryProfiler::Construct(const FArguments& InArgs)
 	VBox->AddSlot().VAlign(VAlign_Top)
 		[
 			SAssignNew(ListView, SListView< FEnvQueryProfilerStatDataPtr >)
-			.ItemHeight(24)
+			.ItemHeight(24.f)
 			.ListItemsSource(&StatData)
 			.OnGenerateRow(this, &SEnvQueryProfiler::OnGenerateRowForList)
 			.OnMouseButtonDoubleClick(this, &SEnvQueryProfiler::OnItemDoubleClicked)

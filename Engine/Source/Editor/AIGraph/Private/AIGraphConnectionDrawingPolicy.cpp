@@ -83,21 +83,23 @@ void FAIGraphConnectionDrawingPolicy::Internal_DrawLineWithArrow(const FVector2D
 	//@TODO: Should this be scaled by zoom factor?
 	const float LineSeparationAmount = 4.5f;
 
-	const FVector2D DeltaPos = EndAnchorPoint - StartAnchorPoint;
-	const FVector2D UnitDelta = DeltaPos.GetSafeNormal();
-	const FVector2D Normal = FVector2D(DeltaPos.Y, -DeltaPos.X).GetSafeNormal();
+	const FVector2f StartAnchorPointTemp(UE::Slate::CastToVector2f(StartAnchorPoint));
+	const FVector2f EndAnchorPointTemp(static_cast<float>(EndAnchorPoint.X), static_cast<float>(EndAnchorPoint.Y));
+	const FVector2f DeltaPos = EndAnchorPointTemp - StartAnchorPointTemp;
+	const FVector2f UnitDelta = DeltaPos.GetSafeNormal();
+	const FVector2f Normal = FVector2f(DeltaPos.Y, -DeltaPos.X).GetSafeNormal();
 
 	// Come up with the final start/end points
-	const FVector2D DirectionBias = Normal * LineSeparationAmount;
-	const FVector2D LengthBias = ArrowRadius.X * UnitDelta;
-	const FVector2D StartPoint = StartAnchorPoint + DirectionBias + LengthBias;
-	const FVector2D EndPoint = EndAnchorPoint + DirectionBias - LengthBias;
+	const FVector2f DirectionBias = Normal * LineSeparationAmount;
+	const FVector2f LengthBias = ArrowRadius.X * UnitDelta;
+	const FDeprecateSlateVector2D StartPoint = StartAnchorPointTemp + DirectionBias + LengthBias;
+	const FDeprecateSlateVector2D EndPoint = EndAnchorPointTemp + DirectionBias - LengthBias;
 
 	// Draw a line/spline
-	DrawConnection(WireLayerID, StartPoint, EndPoint, Params);
+	DrawConnection(WireLayerID, FVector2D(StartPoint), FVector2D(EndPoint), Params);
 
 	// Draw the arrow
-	const FVector2D ArrowDrawPos = EndPoint - ArrowRadius;
+	const FVector2f ArrowDrawPos = EndPoint - ArrowRadius;
 	const float AngleInRadians = static_cast<float>(FMath::Atan2(DeltaPos.Y, DeltaPos.X));
 
 	FSlateDrawElement::MakeRotatedBox(
@@ -107,7 +109,7 @@ void FAIGraphConnectionDrawingPolicy::Internal_DrawLineWithArrow(const FVector2D
 		ArrowImage,
 		ESlateDrawEffect::None,
 		AngleInRadians,
-		TOptional<FVector2D>(),
+		TOptional<FVector2f>(),
 		FSlateDrawElement::RelativeToElement,
 		Params.WireColor
 		);

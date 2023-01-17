@@ -29,7 +29,7 @@ public:
 	FMassDebuggerStyleSet(const FName& InStyleSetName)
 		: FSlateStyleSet(InStyleSetName)
 	{
-		const FVector2D Icon16x16(16.0f, 16.0f);
+		const FVector2f Icon16x16(16.0f, 16.0f);
 
 		SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 		SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));

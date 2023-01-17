@@ -355,7 +355,7 @@ void SVisualLoggerTimelinesContainer::OnFiltersSearchChanged(const FText& Filter
 void SVisualLoggerTimelinesContainer::GenerateReport()
 {
 	TSharedRef<SWindow> NewWindow = SNew(SWindow)
-		.ClientSize(FVector2D(720, 768))
+		.ClientSize(FVector2f(720.f, 768.f))
 		.Title(NSLOCTEXT("LogVisualizerReport", "WindowTitle", "Log Visualizer Report"))
 		[
 			SNew(SVisualLoggerReport, CachedSelectedTimelines, VisualLoggerView)

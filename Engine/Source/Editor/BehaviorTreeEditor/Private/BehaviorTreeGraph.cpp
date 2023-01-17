@@ -1210,7 +1210,7 @@ namespace BTAutoArrangeHelpers
 {
 	struct FNodeBoundsInfo
 	{
-		FVector2D SubGraphBBox;
+		FDeprecateSlateVector2D SubGraphBBox;
 		TArray<FNodeBoundsInfo> Children;
 	};
 
@@ -1229,7 +1229,7 @@ namespace BTAutoArrangeHelpers
 				if (GraphNode && BBoxTree.Children.Num() > 0)
 				{
 					AutoArrangeNodes(GraphNode, BBoxTree.Children[BBoxIndex], PosX, PosY + GraphNode->DEPRECATED_NodeWidget.Pin()->GetDesiredSize().Y * 2.5f);
-					GraphNode->DEPRECATED_NodeWidget.Pin()->MoveTo(FVector2D(BBoxTree.Children[BBoxIndex].SubGraphBBox.X / 2.f - GraphNode->DEPRECATED_NodeWidget.Pin()->GetDesiredSize().X / 2.f + PosX, PosY), NodeFilter);
+					GraphNode->DEPRECATED_NodeWidget.Pin()->MoveTo(FDeprecateSlateVector2D(BBoxTree.Children[BBoxIndex].SubGraphBBox.X / 2.f - GraphNode->DEPRECATED_NodeWidget.Pin()->GetDesiredSize().X / 2.f + PosX, PosY), NodeFilter);
 					PosX += BBoxTree.Children[BBoxIndex].SubGraphBBox.X + 20.f;
 					BBoxIndex++;
 				}

@@ -100,7 +100,7 @@ void FAssetTypeActions_BehaviorTree::PerformAssetDiff(UObject* OldAsset, UObject
 
 	const TSharedPtr<SWindow> Window = SNew(SWindow)
 		.Title(WindowTitle)
-		.ClientSize(FVector2D(1000,800));
+		.ClientSize(FVector2f(1000.f,800.f));
 
 	Window->SetContent(SNew(SBehaviorTreeDiff)
 		.BehaviorTreeOld(OldBehaviorTree)

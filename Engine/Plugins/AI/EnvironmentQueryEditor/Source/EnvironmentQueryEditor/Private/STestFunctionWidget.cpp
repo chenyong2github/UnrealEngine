@@ -27,7 +27,7 @@ int32 STestFunctionWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId,
-		AllottedGeometry.ToPaintGeometry(FVector2D(AllottedGeometry.Size.X, AllottedGeometry.Size.Y), FSlateLayoutTransform()),
+		AllottedGeometry.ToPaintGeometry(AllottedGeometry.GetLocalSize(), FSlateLayoutTransform()),
 		TimelineAreaBrush,
 		DrawEffects,
 		TimelineAreaBrush->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
@@ -49,7 +49,7 @@ int32 STestFunctionWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,
-			AllottedGeometry.ToPaintGeometry(FVector2D(FMath::TruncToInt(PreviewData.FilterLow * AllottedGeometry.Size.X), AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2D(0, 0))),
+			AllottedGeometry.ToPaintGeometry(FVector2f(FMath::TruncToFloat(PreviewData.FilterLow * AllottedGeometry.Size.X), AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2f(0.f, 0.f))),
 			WhiteBrush,
 			DrawEffects,
 			WhiteBrush->GetTint(InWidgetStyle) * FLinearColor(1.0f, 0.0f, 0.0f, 0.4f)
@@ -63,7 +63,7 @@ int32 STestFunctionWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,
-			AllottedGeometry.ToPaintGeometry(FVector2D(AllottedGeometry.Size.X, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2D(FMath::TruncToInt(PreviewData.FilterHigh * AllottedGeometry.Size.X), 0))),
+			AllottedGeometry.ToPaintGeometry(AllottedGeometry.GetLocalSize(), FSlateLayoutTransform(FVector2f(FMath::TruncToFloat(PreviewData.FilterHigh * AllottedGeometry.Size.X), 0.f))),
 			WhiteBrush,
 			DrawEffects,
 			WhiteBrush->GetTint(InWidgetStyle) * FLinearColor(1.0f, 0.0f, 0.0f, 0.5f)
@@ -171,7 +171,7 @@ int32 STestFunctionWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 		const float XPos = Idx * DeltaX;
 		const float YPos = (AllottedGeometry.Size.Y - 1) - (PreviewData.Samples[Idx] * AllottedGeometry.Size.Y);
 
-		LinePoints.Add(FVector2D(FMath::TruncToInt(XPos), FMath::TruncToInt(YPos)));
+		LinePoints.Add(FVector2D(FMath::TruncToFloat(XPos), FMath::TruncToFloat(YPos)));
 	}
 
 	FSlateDrawElement::MakeLines(

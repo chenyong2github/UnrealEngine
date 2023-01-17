@@ -26,7 +26,7 @@ int32 SEnvQueryLoadGraph::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId,
-		AllottedGeometry.ToPaintGeometry(FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform()),
+		AllottedGeometry.ToPaintGeometry(FVector2f(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform()),
 		TimelineAreaBrush,
 		DrawEffects,
 		TimelineAreaBrush->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()

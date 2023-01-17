@@ -11,6 +11,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
+#include "Types/SlateVector2.h"
 
 #include "BehaviorTreeEditorTypes.generated.h"
 
@@ -52,13 +53,13 @@ namespace ESubNode
 
 struct FNodeBounds
 {
-	FVector2D Position;
-	FVector2D Size;
+	FDeprecateSlateVector2D Position;
+	FDeprecateSlateVector2D Size;
 
-	FNodeBounds(FVector2D InPos, FVector2D InSize)
+	FNodeBounds(UE::Slate::FDeprecateVector2DParameter InPos, UE::Slate::FDeprecateVector2DParameter InSize)
+		: Position(InPos)
+		, Size(InSize)
 	{
-		Position = InPos;
-		Size = InSize;
 	}
 };
 

@@ -16,6 +16,7 @@
 #include "Styling/SlateColor.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Types/SlateVector2.h"
 
 class SBorder;
 class SGraphNode;
@@ -71,7 +72,7 @@ public:
 	/** shows red marker when search failed*/
 	EVisibility GetDebuggerSearchFailedMarkerVisibility() const;
 
-	FVector2D GetCachedPosition() const { return CachedPosition; }
+	UE::Slate::FDeprecateVector2DResult GetCachedPosition() const { return CachedPosition; }
 
 protected:
 	/** INotifyOnEnumChanged interface */
@@ -95,7 +96,7 @@ protected:
 	TArray<FNodeBounds> TriggerOffsets;
 
 	/** cached draw position */
-	FVector2D CachedPosition;
+	FDeprecateSlateVector2D CachedPosition;
 
 	TArray< TSharedPtr<SGraphNode> > DecoratorWidgets;
 	TArray< TSharedPtr<SGraphNode> > ServicesWidgets;

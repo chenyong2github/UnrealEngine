@@ -29,7 +29,7 @@ void FMassEntityEditorStyle::Initialize()
 		return;
 	}
 
-	const FVector2D Icon8x8(8.0f, 8.0f);
+	const FVector2f Icon8x8(8.0f, 8.0f);
 
 	StyleSet = MakeShared<FSlateStyleSet>(GetStyleSetName());
 

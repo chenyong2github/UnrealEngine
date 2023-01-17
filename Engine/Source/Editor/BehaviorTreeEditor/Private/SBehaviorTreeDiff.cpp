@@ -291,7 +291,7 @@ TSharedRef<SWidget> SBehaviorTreeDiff::GenerateDiffListWidget()
 			.FillHeight(1.f)
 			[
 				SAssignNew(DiffList, SListViewType)
-				.ItemHeight(24)
+				.ItemHeight(24.f)
 				.ListItemsSource(&DiffListSource)
 				.OnGenerateRow(this, &SBehaviorTreeDiff::OnGenerateRow)
 				.SelectionMode(ESelectionMode::Single)

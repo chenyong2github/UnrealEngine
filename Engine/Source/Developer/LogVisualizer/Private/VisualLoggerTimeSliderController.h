@@ -132,5 +132,5 @@ private:
 	bool bPanning;
 	/***/
 	TSharedPtr<SScrollBar> Scrollbar;
-	FVector2D SoftwareCursorPosition;
+	FVector2f SoftwareCursorPosition;
 };
