@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "BoneIndices.h"
+#include "Engine/AssetUserData.h"
+
+#include "DNAIndexMapping.generated.h"
 
 class IBehaviorReader;
 class USkeleton;
@@ -33,4 +36,10 @@ struct FDNAIndexMapping
 	void MapMorphTargets(const IBehaviorReader* DNABehavior, const USkeleton* Skeleton, const USkeletalMesh* SkeletalMesh);
 	void MapMaskMultipliers(const IBehaviorReader* DNABehavior, const USkeleton* Skeleton);
 
+};
+
+UCLASS(NotBlueprintable, hidecategories = (Object), deprecated)
+class UDEPRECATED_DNAIndexMapping : public UAssetUserData
+{
+	GENERATED_BODY()
 };
