@@ -5,7 +5,7 @@ D3DCommon.usf: Common defines for the d3d shader compiler
 =============================================================================*/
 
 // Update this GUID to invalidate D3D shaders and force a shader recompilation for D3D RHIs.
-// GUID: 8E6C30C5-AD0A-4C9D-8AB3-CD2C92A4EFBC
+// GUID: 55E9AB45-C918-4014-9500-D4912DBF9980
 
 #if SM6_PROFILE
 	#define COMPILER_SUPPORTS_WAVE_SIZE 1
