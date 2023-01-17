@@ -8,13 +8,13 @@
 #include "Misc/StringBuilder.h"
 #include "TestHarness.h"
 
-static_assert(TIsSame<typename FStringView::ElementType, TCHAR>::Value, "FStringView must use TCHAR.");
-static_assert(TIsSame<typename FAnsiStringView::ElementType, ANSICHAR>::Value, "FAnsiStringView must use ANSICHAR.");
-static_assert(TIsSame<typename FWideStringView::ElementType, WIDECHAR>::Value, "FWideStringView must use WIDECHAR.");
+static_assert(std::is_same_v<typename FStringView::ElementType, TCHAR>, "FStringView must use TCHAR.");
+static_assert(std::is_same_v<typename FAnsiStringView::ElementType, ANSICHAR>, "FAnsiStringView must use ANSICHAR.");
+static_assert(std::is_same_v<typename FWideStringView::ElementType, WIDECHAR>, "FWideStringView must use WIDECHAR.");
 
-static_assert(TIsSame<FStringView, TStringView<TCHAR>>::Value, "FStringView must be the same as TStringView<TCHAR>.");
-static_assert(TIsSame<FAnsiStringView, TStringView<ANSICHAR>>::Value, "FAnsiStringView must be the same as TStringView<ANSICHAR>.");
-static_assert(TIsSame<FWideStringView, TStringView<WIDECHAR>>::Value, "FWideStringView must be the same as TStringView<WIDECHAR>.");
+static_assert(std::is_same_v<FStringView, TStringView<TCHAR>>, "FStringView must be the same as TStringView<TCHAR>.");
+static_assert(std::is_same_v<FAnsiStringView, TStringView<ANSICHAR>>, "FAnsiStringView must be the same as TStringView<ANSICHAR>.");
+static_assert(std::is_same_v<FWideStringView, TStringView<WIDECHAR>>, "FWideStringView must be the same as TStringView<WIDECHAR>.");
 
 static_assert(TIsContiguousContainer<FStringView>::Value, "FStringView must be a contiguous container.");
 static_assert(TIsContiguousContainer<FAnsiStringView>::Value, "FAnsiStringView must be a contiguous container.");

@@ -279,7 +279,7 @@ namespace LowLevelTasks
 	inline void FScheduler::BusyWaitUntil(Conditional&& Cond, bool ForceAllowBackgroundWork)
 	{
 		static_assert(TIsInvocable<Conditional>::Value, "Conditional is not invocable");
-		static_assert(TIsSame<decltype(Cond()), bool>::Value, "Conditional must return a boolean");
+		static_assert(std::is_same_v<decltype(Cond()), bool>, "Conditional must return a boolean");
 		
 		if(!Cond())
 		{

@@ -138,7 +138,7 @@ static bool operator==(FNameEntryHeader A, FNameEntryHeader B)
 template<typename FromCharType, typename ToCharType>
 ToCharType* ConvertInPlace(FromCharType* Str, uint32 Len)
 {
-	static_assert(TIsSame<FromCharType, ToCharType>::Value, "Unsupported conversion");
+	static_assert(std::is_same_v<FromCharType, ToCharType>, "Unsupported conversion");
 	return Str;
 }
 

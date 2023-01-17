@@ -32,7 +32,7 @@ struct TContainerElementTypeCompatibility
 template <typename ElementType>
 struct TIsContainerElementTypeReinterpretable
 {
-	enum { Value = !TIsSame<typename TContainerElementTypeCompatibility<ElementType>::ReinterpretType, ElementType>::Value };
+	enum { Value = !std::is_same_v<typename TContainerElementTypeCompatibility<ElementType>::ReinterpretType, ElementType> };
 };
 
 /**
@@ -42,5 +42,5 @@ struct TIsContainerElementTypeReinterpretable
 template <typename ElementType>
 struct TIsContainerElementTypeCopyable
 {
-	enum { Value = !TIsSame<typename TContainerElementTypeCompatibility<ElementType>::CopyFromOtherType, ElementType>::Value };
+	enum { Value = !std::is_same_v<typename TContainerElementTypeCompatibility<ElementType>::CopyFromOtherType, ElementType> };
 };

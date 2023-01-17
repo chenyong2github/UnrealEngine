@@ -76,7 +76,7 @@ namespace ArrayViewPrivate
 
 	public:
 		static constexpr bool Value = 
-			!TIsSame<typename TContainerElementTypeCompatibility<NaturalElementType>::ReinterpretType, NaturalElementType>::Value
+			!std::is_same_v<typename TContainerElementTypeCompatibility<NaturalElementType>::ReinterpretType, NaturalElementType>
 			&&
 			TIsCompatibleElementType<typename TContainerElementTypeCompatibility<NaturalElementType>::ReinterpretType, ElementType>::Value;
 

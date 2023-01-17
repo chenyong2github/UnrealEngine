@@ -25,7 +25,7 @@ struct FFrameTime
 	/**
 	 * Implicit construction from a single integer, while disallowing implicit conversion from any other numeric type
 	 */
-	template<typename T, typename = typename TEnableIf<TIsSame<T, int32>::Value>::Type>
+	template<typename T, typename = typename TEnableIf<std::is_same_v<T, int32>>::Type>
 	FFrameTime(T /* int32 */ InFrameNumber);
 
 	/**

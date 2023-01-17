@@ -264,7 +264,7 @@ namespace Private
 		/** Check if the type at the provided index is the lookup type */
 		static bool IsSame(SIZE_T TypeIndex)
 		{
-			static constexpr bool bIsSameType[] = { TIsSame<Ts, LookupType>::Value... };
+			static constexpr bool bIsSameType[] = { std::is_same_v<Ts, LookupType>... };
 			check(TypeIndex < UE_ARRAY_COUNT(bIsSameType));
 			return bIsSameType[TypeIndex];
 		}

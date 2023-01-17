@@ -23,7 +23,7 @@ struct FFrameNumber
 	/**
 	 * Implicit construction from a signed integer frame number, whilst disallowing any construction from other types.
 	 */
-	template<typename T, typename U = typename TEnableIf<TIsSame<T, int32>::Value>::Type>
+	template<typename T, typename U = typename TEnableIf<std::is_same_v<T, int32>>::Type>
 	constexpr FFrameNumber(T /*int32*/ InValue)
 		: Value(InValue)
 	{}

@@ -478,7 +478,7 @@ namespace LowLevelTasks
 		checkSlow(!Runnable.IsSet());
 		
 		//if the Runnable returns an FTask* than enable symetric switching
-		if constexpr (TIsSame<FTask*, decltype(UE::Core::Private::IsInvocable::DeclVal<TRunnable>()())>::Value)
+		if constexpr (std::is_same_v<FTask*, decltype(UE::Core::Private::IsInvocable::DeclVal<TRunnable>()())>)
 		{
 			Runnable = [LocalRunnable = Forward<TRunnable>(InRunnable)](const bool bNotCanceled) -> FTask*
 			{

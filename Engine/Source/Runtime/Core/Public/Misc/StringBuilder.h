@@ -68,11 +68,11 @@ public:
 
 	/** Whether the given type can be appended to this builder using the append operator. */
 	template <typename AppendType>
-	using TCanAppend = TIsSame<BuilderType&, decltype(DeclVal<BuilderType&>() << DeclVal<AppendType>())>;
+	inline constexpr static bool TCanAppend_V = std::is_same_v<BuilderType&, decltype(DeclVal<BuilderType&>() << DeclVal<AppendType>())>;
 
 	/** Whether the given range type can have its elements appended to the builder using the append operator. */
 	template <typename RangeType>
-	using TCanAppendRange = TAnd<TIsContiguousContainer<RangeType>, TCanAppend<decltype(*::GetData(DeclVal<RangeType>()))>>;
+	inline constexpr static bool TCanAppendRange_V = TIsContiguousContainer<RangeType>::Value && TCanAppend_V<decltype(*::GetData(DeclVal<RangeType>()))>;
 
 				TStringBuilderBase() = default;
 	CORE_API	~TStringBuilderBase();
@@ -266,7 +266,7 @@ public:
 	 * @return The builder, to allow additional operations to be composed with this one.
 	 */
 	template <typename RangeType, typename DelimiterType,
-		std::enable_if_t<TAnd<TCanAppendRange<RangeType&&>, TCanAppend<DelimiterType&&>>::Value>* = nullptr>
+		std::enable_if_t<TCanAppendRange_V<RangeType&&> && TCanAppend_V<DelimiterType&&>>* = nullptr>
 	inline BuilderType& Join(RangeType&& InRange, DelimiterType&& InDelimiter)
 	{
 		bool bFirst = true;
@@ -299,7 +299,7 @@ public:
 	 * @return The builder, to allow additional operations to be composed with this one.
 	 */
 	template <typename RangeType, typename DelimiterType, typename QuoteType,
-		std::enable_if_t<TAnd<TCanAppendRange<RangeType>, TCanAppend<DelimiterType&&>, TCanAppend<QuoteType&&>>::Value>* = nullptr>
+		std::enable_if_t<TCanAppendRange_V<RangeType> && TCanAppend_V<DelimiterType&&> && TCanAppend_V<QuoteType&&>>* = nullptr>
 	inline BuilderType& JoinQuoted(RangeType&& InRange, DelimiterType&& InDelimiter, QuoteType&& InQuote)
 	{
 		bool bFirst = true;

@@ -563,9 +563,7 @@ namespace UE::Core::Private::Function
 		template <
 			typename FunctorType,
 			typename = typename TEnableIf<
-				TNot<
-					TIsSame<TFunctionRefBase, typename TDecay<FunctorType>::Type>
-				>::Value
+				!std::is_same_v<TFunctionRefBase, typename TDecay<FunctorType>::Type>
 			>::Type
 		>
 		TFunctionRefBase(FunctorType&& InFunc)

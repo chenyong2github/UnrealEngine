@@ -70,8 +70,9 @@ private:
 	};
 
 	template <typename CharRangeType>
-	struct TIsRangeOfTCHAR : TIsSame<TCHAR, TRangeElementType<CharRangeType>>
+	struct TIsRangeOfTCHAR
 	{
+		enum { Value = std::is_same_v<TCHAR, TRangeElementType<CharRangeType>> };
 	};
 
 	/** Trait testing whether a type is a contiguous range of characters, and not CharType[]. */

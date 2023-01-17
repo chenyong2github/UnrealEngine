@@ -702,7 +702,7 @@ namespace UE::Tasks
 
 		// a specialization for tasks that don't return results
 		template<typename TaskBodyType>
-		class TExecutableTaskBase<TaskBodyType, typename TEnableIf<TIsSame<TInvokeResult_T<TaskBodyType>, void>::Value>::Type> : public FTaskBase
+		class TExecutableTaskBase<TaskBodyType, typename TEnableIf<std::is_same_v<TInvokeResult_T<TaskBodyType>, void>>::Type> : public FTaskBase
 		{
 			UE_NONCOPYABLE(TExecutableTaskBase);
 

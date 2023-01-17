@@ -137,7 +137,7 @@ namespace LowLevelTasks
 			inline TTaskDelegateImpl(CallableT&& Callable, void* InlineData)
 			{
 				static_assert(TIsInvocable<TCallableType, ParamTypes...>::Value, "TCallableType is not invocable");
-				static_assert(TIsSame<ReturnType, decltype(Callable(UE::Core::Private::IsInvocable::DeclVal<ParamTypes>()...))>::Value, "TCallableType return type does not match");
+				static_assert(std::is_same_v<ReturnType, decltype(Callable(UE::Core::Private::IsInvocable::DeclVal<ParamTypes>()...))>, "TCallableType return type does not match");
 				static_assert(sizeof(TTaskDelegateImpl<TCallableType, false>) == sizeof(TTaskDelegateBase), "Size must match the Baseclass");
 				new (InlineData) TCallableType(Forward<CallableT>(Callable));
 			}
@@ -207,7 +207,7 @@ namespace LowLevelTasks
 			inline TTaskDelegateImpl(CallableT&& Callable, void* InlineData)
 			{
 				static_assert(TIsInvocable<TCallableType, ParamTypes...>::Value, "TCallableType is not invocable");
-				static_assert(TIsSame<ReturnType, decltype(Callable(UE::Core::Private::IsInvocable::DeclVal<ParamTypes>()...))>::Value, "TCallableType return type does not match");
+				static_assert(std::is_same_v<ReturnType, decltype(Callable(UE::Core::Private::IsInvocable::DeclVal<ParamTypes>()...))>, "TCallableType return type does not match");
 				static_assert(sizeof(TTaskDelegateImpl<TCallableType, true>) == sizeof(TTaskDelegateBase), "Size must match the Baseclass");
 				TCallableType** HeapPtr = reinterpret_cast<TCallableType**>(InlineData);
 				*HeapPtr = reinterpret_cast<TCallableType*>(TConcurrentLinearAllocator<FLowLevelTasksBlockAllocationTag>::template Malloc<alignof(TCallableType)>(sizeof(TCallableType)));

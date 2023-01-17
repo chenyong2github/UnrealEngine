@@ -14,13 +14,13 @@ TEST_CASE("Core::String::StringBuilder", "[Core][String][Smoke]")
 {
 	SECTION("Static")
 	{
-		STATIC_REQUIRE(TIsSame<typename FStringBuilderBase::ElementType, TCHAR>::Value);
-		STATIC_REQUIRE(TIsSame<typename FAnsiStringBuilderBase::ElementType, ANSICHAR>::Value);
-		STATIC_REQUIRE(TIsSame<typename FWideStringBuilderBase::ElementType, WIDECHAR>::Value);
+		STATIC_REQUIRE(std::is_same_v<typename FStringBuilderBase::ElementType, TCHAR>);
+		STATIC_REQUIRE(std::is_same_v<typename FAnsiStringBuilderBase::ElementType, ANSICHAR>);
+		STATIC_REQUIRE(std::is_same_v<typename FWideStringBuilderBase::ElementType, WIDECHAR>);
 
-		STATIC_REQUIRE(TIsSame<FStringBuilderBase, TStringBuilderBase<TCHAR>>::Value);
-		STATIC_REQUIRE(TIsSame<FAnsiStringBuilderBase, TStringBuilderBase<ANSICHAR>>::Value);
-		STATIC_REQUIRE(TIsSame<FWideStringBuilderBase, TStringBuilderBase<WIDECHAR>>::Value);
+		STATIC_REQUIRE(std::is_same_v<FStringBuilderBase, TStringBuilderBase<TCHAR>>);
+		STATIC_REQUIRE(std::is_same_v<FAnsiStringBuilderBase, TStringBuilderBase<ANSICHAR>>);
+		STATIC_REQUIRE(std::is_same_v<FWideStringBuilderBase, TStringBuilderBase<WIDECHAR>>);
 
 		STATIC_REQUIRE(TIsContiguousContainer<FStringBuilderBase>::Value);
 		STATIC_REQUIRE(TIsContiguousContainer<FAnsiStringBuilderBase>::Value);

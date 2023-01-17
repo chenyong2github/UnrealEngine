@@ -888,7 +888,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 			case 'S':
 			{
 				// The %S format represents a string which is the opposite of %s - wide if TCHAR is narrow, or narrow if TCHAR is wide
-				using OtherCharType = TChooseClass<TIsSame<TCHAR, ANSICHAR>::Value, WIDECHAR, ANSICHAR>::Result;
+				using OtherCharType = TChooseClass<std::is_same_v<TCHAR, ANSICHAR>, WIDECHAR, ANSICHAR>::Result;
 
 				ProcessStringArg<OtherCharType>(DestIter, Src, FieldLen, PrecisionLen, ArgPtr);
 				if (!DestIter)

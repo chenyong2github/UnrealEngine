@@ -1628,7 +1628,7 @@ public:
 	virtual class TConsoleVariableData<float>*		AsVariableFloat()	override { return AsImpl<float>(); }
 	virtual class TConsoleVariableData<FString>*	AsVariableString()	override { return AsImpl<FString>(); }
 
-	virtual bool		IsVariableInt() const override	{ return TIsSame<int32, T>::Value; }
+	virtual bool		IsVariableInt() const override	{ return std::is_same_v<int32, T>; }
 	virtual int32		GetInt()		const override	{ return GetImpl<int32>(); }
 	virtual float		GetFloat()		const override	{ return GetImpl<float>(); }
 	virtual FString		GetString()		const override	{ return GetImpl<FString>(); }
@@ -1682,27 +1682,27 @@ private:
 	EConsoleVariableFlags Flags = EConsoleVariableFlags::ECVF_Default;
 
 	template<class Y>
-	typename TEnableIf<!TIsSame<T, Y>::Value, Y>::Type GetImpl() const
+	typename TEnableIf<!std::is_same_v<T, Y>, Y>::Type GetImpl() const
 	{
 		check(false);
 		return Y();
 	}
 
 	template<class Y>
-	typename TEnableIf<TIsSame<T, Y>::Value, Y>::Type GetImpl() const
+	typename TEnableIf<std::is_same_v<T, Y>, Y>::Type GetImpl() const
 	{
 		return GetValueOnAnyThread();
 	}
 
 	template<class Y>
-	typename TEnableIf<!TIsSame<T, Y>::Value, TConsoleVariableData<Y>*>::Type AsImpl()
+	typename TEnableIf<!std::is_same_v<T, Y>, TConsoleVariableData<Y>*>::Type AsImpl()
 	{
 		check(false);
 		return nullptr;
 	}
 
 	template<class Y>
-	typename TEnableIf<TIsSame<T, Y>::Value, TConsoleVariableData<T>*>::Type AsImpl()
+	typename TEnableIf<std::is_same_v<T, Y>, TConsoleVariableData<T>*>::Type AsImpl()
 	{
 		return &Value;
 	}
