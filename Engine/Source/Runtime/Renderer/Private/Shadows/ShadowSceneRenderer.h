@@ -50,6 +50,8 @@ public:
 	 */
 	void PostInitDynamicShadowsSetup();
 
+	void PostSetupDebugRender();
+
 	/**
 	 */
 	void RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster);
@@ -86,8 +88,6 @@ private:
 	 * Select the budgeted set of distant lights to update this frame.
 	 */
 	void UpdateDistantLightPriorityRender();
-
-	void PostSetupDebugRender();
 
 	// TODO: void RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled);
 

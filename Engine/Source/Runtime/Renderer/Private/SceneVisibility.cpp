@@ -5276,6 +5276,8 @@ void FDeferredShadingSceneRenderer::BeginInitViews(FRDGBuilder& GraphBuilder, co
 	{
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 	}
+
+	WaitForPrepareDynamicShadowsTask(CurrentDynamicShadowsTaskData);
 }
 
 template<class T>

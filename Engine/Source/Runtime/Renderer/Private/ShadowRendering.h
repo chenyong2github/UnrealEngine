@@ -658,7 +658,7 @@ public:
 	/**
 	 * Adds a primitive to the shadow's subject list.
 	 */
-	bool AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSceneInfo, TArrayView<FViewInfo> ViewArray, bool bRecordShadowSubjectForMobileShading);
+	bool AddSubjectPrimitive(FDynamicShadowsTaskData& TaskData, FPrimitiveSceneInfo* PrimitiveSceneInfo, TArrayView<FViewInfo> ViewArray, bool bRecordShadowSubjectForMobileShading);
 
 	uint64 AddSubjectPrimitive_AnyThread(
 		const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact,
@@ -670,6 +670,7 @@ public:
 	void PresizeSubjectPrimitiveArrays(struct FAddSubjectPrimitiveStats const& Stats);
 
 	void FinalizeAddSubjectPrimitive(
+		FDynamicShadowsTaskData& TaskData,
 		struct FAddSubjectPrimitiveOp const& Op,
 		TArrayView<FViewInfo> ViewArray,
 		struct FFinalizeAddSubjectPrimitiveContext& Context);

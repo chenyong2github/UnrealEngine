@@ -197,7 +197,6 @@ void FShadowSceneRenderer::PostInitDynamicShadowsSetup()
 			}
 		}
 	}
-	PostSetupDebugRender();
 }
 
 void FShadowSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster)
@@ -276,7 +275,7 @@ void FShadowSceneRenderer::PostSetupDebugRender()
 		int32 NumDistant = 0;
 		for (FViewInfo& View : SceneRenderer.Views)
 		{
-			FViewElementPDI DebugPDI(&View, nullptr, &View.DynamicPrimitiveCollector);
+			FViewElementPDI DebugPDI(&View, nullptr, nullptr);
 
 			for (const FLocalLightShadowFrameSetup& LightSetup : LocalLights)
 			{			
