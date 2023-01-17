@@ -600,7 +600,7 @@ void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FScene* Scene, const TArrayVie
 
 void BuildNaniteDrawCommands(FScene* Scene, FPrimitiveSceneInfo* PrimitiveSceneInfo, FNaniteDrawListContext& DrawListContext)
 {
-	static const auto AllowComputeMaterials = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.AllowComputeMaterial"));
+	static const auto AllowComputeMaterials = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.AllowComputeMaterials"));
 	static const bool bAllowComputeMaterials = (AllowComputeMaterials && AllowComputeMaterials->GetValueOnAnyThread() != 0);
 
 	FPrimitiveSceneProxy* Proxy = PrimitiveSceneInfo->Proxy;

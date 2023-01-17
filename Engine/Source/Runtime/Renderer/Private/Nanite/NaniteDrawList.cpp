@@ -205,7 +205,7 @@ void FNaniteDrawListContext::Apply(FScene& Scene)
 {
 	check(IsInParallelRenderingThread());
 
-	static const auto AllowComputeMaterials = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.AllowComputeMaterial"));
+	static const auto AllowComputeMaterials = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.AllowComputeMaterials"));
 	const bool bAllowComputeMaterials = (AllowComputeMaterials && AllowComputeMaterials->GetValueOnRenderThread() != 0);
 
 	for (int32 MeshPass = 0; MeshPass < ENaniteMeshPass::Num; ++MeshPass)
