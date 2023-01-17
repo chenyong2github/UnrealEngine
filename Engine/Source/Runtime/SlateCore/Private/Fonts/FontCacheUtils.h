@@ -7,7 +7,7 @@
 #include "SlateGlobals.h"
 
 typedef FString KeyType;
-typedef FVector2D ValueType;
+typedef FVector2f ValueType;
 
 DECLARE_MEMORY_STAT_EXTERN(TEXT("Font Measure Memory"), STAT_SlateFontMeasureCacheMemory, STATGROUP_SlateMemory, SLATECORE_API);
 

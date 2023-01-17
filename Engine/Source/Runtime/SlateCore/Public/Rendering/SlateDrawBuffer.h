@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/GCObject.h"
 #include "HAL/CriticalSection.h"
+#include "Types/SlateVector2.h"
 
 #include <atomic>
 
@@ -88,5 +89,5 @@ private:
 	uint32 ResourceVersion;
 
 public:
-	FVector2D ViewOffset;
+	FDeprecateSlateVector2D ViewOffset;
 };

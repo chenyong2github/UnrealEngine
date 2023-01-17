@@ -56,20 +56,20 @@ FSlateFontMeasure::FSlateFontMeasure( const TSharedRef<class FSlateFontCache>& I
 
 }
 
-FVector2D FSlateFontMeasure::Measure( const FString& Text, const FSlateFontInfo& InFontInfo, float FontScale ) const
+UE::Slate::FDeprecateVector2DResult FSlateFontMeasure::Measure( const FString& Text, const FSlateFontInfo& InFontInfo, float FontScale ) const
 {
 	int32 DummyLastCharacterIndex;
 	return MeasureStringInternal( Text, 0, Text.Len(), InFontInfo, false, FontScale, INDEX_NONE, ELastCharacterIndexFormat::Unused, DummyLastCharacterIndex);
 }
 
-FVector2D FSlateFontMeasure::Measure( const FText& Text, const FSlateFontInfo& InFontInfo, float FontScale ) const
+UE::Slate::FDeprecateVector2DResult FSlateFontMeasure::Measure( const FText& Text, const FSlateFontInfo& InFontInfo, float FontScale ) const
 {
 	int32 DummyLastCharacterIndex;
 	const FString& String = Text.ToString();
 	return MeasureStringInternal( String, 0, String.Len(), InFontInfo, false, FontScale, INDEX_NONE, ELastCharacterIndexFormat::Unused, DummyLastCharacterIndex);
 }
 
-FVector2D FSlateFontMeasure::Measure( const FString& Text, int32 StartIndex, int32 EndIndex, const FSlateFontInfo& InFontInfo, bool IncludeKerningWithPrecedingChar, float FontScale ) const
+UE::Slate::FDeprecateVector2DResult FSlateFontMeasure::Measure( const FString& Text, int32 StartIndex, int32 EndIndex, const FSlateFontInfo& InFontInfo, bool IncludeKerningWithPrecedingChar, float FontScale ) const
 {
 	int32 DummyLastCharacterIndex;
 	return MeasureStringInternal( Text, StartIndex, EndIndex, InFontInfo, IncludeKerningWithPrecedingChar, FontScale, INDEX_NONE, ELastCharacterIndexFormat::Unused, DummyLastCharacterIndex);
@@ -137,7 +137,7 @@ int32 FSlateFontMeasure::FindCharacterIndexAtOffset( const FString& Text, int32 
 	return FoundLastCharacterIndex;
 }
 
-FVector2D FSlateFontMeasure::MeasureStringInternal( const FString& Text, int32 StartIndex, int32 EndIndex, const FSlateFontInfo& InFontInfo, bool IncludeKerningWithPrecedingChar, float FontScale, int32 StopAfterHorizontalOffset, ELastCharacterIndexFormat CharIndexFormat, int32& OutLastCharacterIndex ) const
+FVector2f FSlateFontMeasure::MeasureStringInternal( const FString& Text, int32 StartIndex, int32 EndIndex, const FSlateFontInfo& InFontInfo, bool IncludeKerningWithPrecedingChar, float FontScale, int32 StopAfterHorizontalOffset, ELastCharacterIndexFormat CharIndexFormat, int32& OutLastCharacterIndex ) const
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_Slate_MeasureStringInternal)
 	FCharacterList& CharacterList = FontCache->GetCharacterList( InFontInfo, FontScale );
@@ -148,7 +148,7 @@ FVector2D FSlateFontMeasure::MeasureStringInternal( const FString& Text, int32 S
 	const int32 TextRangeLength = EndIndex - StartIndex;
 	if ( Text.IsEmpty() || EndIndex - StartIndex <= 0 || EndIndex <= 0 || StartIndex < 0 || EndIndex <= StartIndex )
 	{
-		return FVector2D( 0, MaxHeight );
+		return FVector2f( 0.f, MaxHeight );
 	}
 
 #if USE_MEASURE_CACHING
@@ -160,7 +160,7 @@ FVector2D FSlateFontMeasure::MeasureStringInternal( const FString& Text, int32 S
 
 		if ( CurrentMeasureCache )
 		{
-			const FVector2D* CachedMeasurement = CurrentMeasureCache->AccessItem( Text );
+			const FVector2f* CachedMeasurement = CurrentMeasureCache->AccessItem( Text );
 			if( CachedMeasurement )
 			{
 				return *CachedMeasurement;
@@ -170,7 +170,7 @@ FVector2D FSlateFontMeasure::MeasureStringInternal( const FString& Text, int32 S
 #endif
 
 	// The size of the string
-	FVector2D Size(0,0);
+	FVector2f Size(0.f,0.f);
 	// Widest line encountered while drawing this text.
 	int32 MaxLineWidth = 0;
 	// The width of the current line so far.
