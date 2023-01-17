@@ -439,7 +439,16 @@ namespace Chaos
 		}
 
 		/**
-		 * Override the CCD condition for this mid-phase. Used by the MidPhase modifier and gets reset every frame.
+		 * @brief By default midphases are active. If IsActive is set to false,
+		 * this midphase will not generate a narrow phase.
+		 */
+		void SetIsActive(bool bIsActive)
+		{
+			Flags.bIsActive = bIsActive;
+		}
+
+		/**
+		 * @brief Override the CCD condition for this mid-phase. Used by the MidPhase modifier and gets reset every frame.
 		 */
 		void SetCCDIsActive(bool bCCDIsActive)
 		{
@@ -480,6 +489,7 @@ namespace Chaos
 			FFlags() : Bits(0) {}
 			struct
 			{
+				uint32 bIsActive : 1;    // True if this midphase should generate a narrow phase at all
 				uint32 bIsCCD : 1;       // True if CCD is supported by either particle
 				uint32 bIsCCDActive : 1; // True if CCD is active for this midphase on this frame. This can be changes by modifiers and resets to bIsCCD each frame.
 				uint32 bIsSleeping : 1;

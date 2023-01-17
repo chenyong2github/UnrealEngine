@@ -9,6 +9,11 @@
 
 namespace Chaos
 {
+	void FMidPhaseModifier::Disable()
+	{
+		MidPhase->SetIsActive(false);
+	}
+
 	void FMidPhaseModifier::DisableCCD()
 	{
 		MidPhase->SetCCDIsActive(false);
@@ -53,5 +58,30 @@ namespace Chaos
 	FMidPhaseModifierParticleRange FMidPhaseModifierAccessor::GetMidPhases(FGeometryParticleHandle* Particle)
 	{
 		return FMidPhaseModifierParticleRange(this, Particle);
+	}
+
+	FMidPhaseModifier FMidPhaseModifierAccessor::GetMidPhase(
+		FGeometryParticleHandle* Particle0,
+		FGeometryParticleHandle* Particle1)
+	{
+		// Put the particle with fewer collisions in spot 0
+		int32 Num0 = Particle0->ParticleCollisions().Num();
+		int32 Num1 = Particle1->ParticleCollisions().Num();
+		if (Num1 < Num0)
+		{
+			Swap(Particle0, Particle1);
+		}
+
+		// Loop over the mid-phases of the particle that has fewer of them,
+		// find the one that involves the other particle, if any.
+		for (FMidPhaseModifier& Modifier : GetMidPhases(Particle0))
+		{
+			if (Modifier.GetOtherParticle(Particle0) == Particle1)
+			{
+				return Modifier;
+			}
+		}
+
+		return FMidPhaseModifier();
 	}
 }

@@ -30,9 +30,21 @@ namespace Chaos
 			, Accessor(InAccessor)
 		{}
 
+		// Since a modifier can be invalid (ie, null midphase and/or accessor), make it
+		// castable to bool so that users can check validity.
+		bool IsValid() const
+		{
+			return
+				MidPhase != nullptr &&
+				Accessor != nullptr;
+		}
+
 		//
 		// Modifying functions
 		//
+
+		// Disable this midphase entirely
+		void Disable();
 
 		// Disable CCD for this pair
 		void DisableCCD();
@@ -141,6 +153,9 @@ namespace Chaos
 		// Get an object which allows for range iteration over the list of
 		// midphases for a particle
 		FMidPhaseModifierParticleRange GetMidPhases(FGeometryParticleHandle* Particle);
+
+		// Get a midphase modifier for a particular object pair
+		FMidPhaseModifier GetMidPhase(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1);
 	};
 
 	using FMidPhaseModifierCallback = TFunction<void(const FCollisionContactModifier&)>;

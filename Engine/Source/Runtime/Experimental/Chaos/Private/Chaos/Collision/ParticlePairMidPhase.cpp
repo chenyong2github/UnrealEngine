@@ -842,6 +842,7 @@ namespace Chaos
 		ShapePairDetectors.Reset();
 		MultiShapePairDetectors.Reset();
 
+		Flags.bIsActive = true;
 		Flags.bIsCCD = false;
 		Flags.bIsCCDActive = false;
 		Flags.bIsSleeping = false;
@@ -852,6 +853,7 @@ namespace Chaos
 	{
 		if (Flags.bIsModified)
 		{
+			Flags.bIsActive = true;
 			Flags.bIsCCDActive = Flags.bIsCCD;
 			Flags.bIsModified = false;
 		}
@@ -997,36 +999,39 @@ namespace Chaos
 			return;
 		}
 
-		// CullDistance is scaled by the size of the dynamic objects.
-		FReal CullDistance = InCullDistance * CullDistanceScale;
+		if (Flags.bIsActive)
+		{
+			// CullDistance is scaled by the size of the dynamic objects.
+			FReal CullDistance = InCullDistance * CullDistanceScale;
 
-		// Extend cull distance for sweep-enabled CCD collision
-		const bool bUseSweep = Flags.bIsCCD && ShouldEnableCCD(Dt);
-		if (bUseSweep)
-		{
-			const FReal VMax = (FConstGenericParticleHandle(GetParticle0())->V() - FConstGenericParticleHandle(GetParticle1())->V()).GetAbsMax();
-			CullDistance += VMax * Dt;
-		}
+			// Extend cull distance for sweep-enabled CCD collision
+			const bool bUseSweep = Flags.bIsCCD && ShouldEnableCCD(Dt);
+			if (bUseSweep)
+			{
+				const FReal VMax = (FConstGenericParticleHandle(GetParticle0())->V() - FConstGenericParticleHandle(GetParticle1())->V()).GetAbsMax();
+				CullDistance += VMax * Dt;
+			}
 
-		// Run collision detection on all potentially colliding shape pairs
-		NumActiveConstraints = 0;
-		if (Flags.bIsCCD)
-		{
-			for (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
+			// Run collision detection on all potentially colliding shape pairs
+			NumActiveConstraints = 0;
+			if (Flags.bIsCCD)
 			{
-				NumActiveConstraints += ShapePair.GenerateCollisionCCD(bUseSweep, CullDistance, Dt, Context);
+				for (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
+				{
+					NumActiveConstraints += ShapePair.GenerateCollisionCCD(bUseSweep, CullDistance, Dt, Context);
+				}
 			}
-		}
-		else
-		{
-			for (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
+			else
 			{
-				NumActiveConstraints += ShapePair.GenerateCollision(CullDistance, Dt, Context);
+				for (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
+				{
+					NumActiveConstraints += ShapePair.GenerateCollision(CullDistance, Dt, Context);
+				}
 			}
-		}
-		for (FMultiShapePairCollisionDetector& MultiShapePair : MultiShapePairDetectors)
-		{
-			NumActiveConstraints += MultiShapePair.GenerateCollisions(CullDistance, Dt, Context);
+			for (FMultiShapePairCollisionDetector& MultiShapePair : MultiShapePairDetectors)
+			{
+				NumActiveConstraints += MultiShapePair.GenerateCollisions(CullDistance, Dt, Context);
+			}
 		}
 
 		// Reset any modifications applied by the MidPhaseModifier.
