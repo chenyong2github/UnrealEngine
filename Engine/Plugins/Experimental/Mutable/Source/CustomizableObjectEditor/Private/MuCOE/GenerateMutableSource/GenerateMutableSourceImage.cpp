@@ -25,6 +25,7 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureSwitch.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureToChannels.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureTransform.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeTextureSaturate.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureVariation.h"
 #include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "MuCOE/UnrealToMutableTextureConversionUtils.h"
@@ -39,6 +40,7 @@
 #include "MuT/NodeImagePlainColour.h"
 #include "MuT/NodeImageProject.h"
 #include "MuT/NodeImageResize.h"
+#include "MuT/NodeImageSaturate.h"
 #include "MuT/NodeImageSwitch.h"
 #include "MuT/NodeImageSwizzle.h"
 #include "MuT/NodeImageTable.h"
@@ -766,6 +768,25 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 			TransformNode->SetRotation( RotationNode ); 
 		}
 	}
+
+	else if (const UCustomizableObjectNodeTextureSaturate* TypedNodeSaturate = Cast<UCustomizableObjectNodeTextureSaturate>(Node))
+	{
+		mu::Ptr<mu::NodeImageSaturate> SaturateNode = new mu::NodeImageSaturate();
+		Result = SaturateNode;
+	
+		if ( UEdGraphPin* BaseImagePin = FollowInputPin(*TypedNodeSaturate->GetBaseImagePin()) )
+		{
+			mu::NodeImagePtr ImageNode = GenerateMutableSourceImage(BaseImagePin, GenerationContext, MaxTextureSize);
+			SaturateNode->SetSource(ImageNode); 
+		}
+
+		if ( UEdGraphPin* FactorPin = FollowInputPin(*TypedNodeSaturate->GetFactorPin()))
+		{
+			mu::NodeScalarPtr FactorNode = GenerateMutableSourceFloat(FactorPin, GenerationContext);
+			SaturateNode->SetFactor(FactorNode); 
+		}
+	}
+	
 	// If the node is a plain colour node, generate an image out of it
 	else if (Pin->PinType.PinCategory == Helper_GetPinCategory(Schema->PC_Color))
 	{
