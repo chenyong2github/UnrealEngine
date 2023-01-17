@@ -2120,6 +2120,11 @@ void FStreamingManager::AsyncUpdate()
 					PendingPage.RequestBuffer = FIoBuffer(FIoBuffer::Wrap, Dst, PageStreamingState.BulkSize);
 					Batch.Read(BulkData, PageStreamingState.BulkOffset, PageStreamingState.BulkSize, AIOP_Low, PendingPage.RequestBuffer, PendingPage.Request);
 					bIssueIOBatch = true;
+					
+					if (bLegacyRequest)
+					{
+						NumLegacyRequestsIssued++;
+					}	
 #endif
 					TotalIORequestSizeMB += PageStreamingState.BulkSize * (1.0f / 1048576.0f);
 
@@ -2163,6 +2168,7 @@ void FStreamingManager::AsyncUpdate()
 #endif
 		}
 
+#if !WITH_EDITOR
 		// Issue warning if we end up taking the legacy path
 		if (NumLegacyRequestsIssued > 0)
 		{
@@ -2174,6 +2180,7 @@ void FStreamingManager::AsyncUpdate()
 				bHasWarned = true;
 			}
 		}
+#endif
 	}
 	
 	StatPrevUpdateTime = Time;
