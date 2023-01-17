@@ -6,6 +6,7 @@
 #include "Engine/Texture.h"
 
 #if SUPPORTS_APPLE_VISION_1_0
+	#include "Async/Async.h"
 	#import <Vision/Vision.h>
 
 	// For runtime checks so that clang doesn't warn on targets < our SDK version

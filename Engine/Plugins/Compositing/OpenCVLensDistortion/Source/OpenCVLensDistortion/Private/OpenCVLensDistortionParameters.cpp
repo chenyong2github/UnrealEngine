@@ -12,6 +12,8 @@
 #include "opencv2/imgproc.hpp"
 #include "PostOpenCVHeaders.h"
 // IWYU pragma: end_keep
+#else
+#include "IOpenCVLensDistortionModule.h"
 #endif
 
 

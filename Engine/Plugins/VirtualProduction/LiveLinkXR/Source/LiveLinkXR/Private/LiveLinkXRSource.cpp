@@ -12,6 +12,7 @@
 #include "LiveLinkXROpenXRExt.h"
 #include "LiveLinkXROpenXRExtModule.h"
 #include "LiveLinkXRConnectionSettings.h"
+#include "LiveLinkXRSourceSettings.h"
 #include "Misc/App.h"
 #include "Roles/LiveLinkTransformRole.h"
 #include "Roles/LiveLinkTransformTypes.h"

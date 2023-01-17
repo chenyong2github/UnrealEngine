@@ -2,6 +2,7 @@
 
 #include "Online/OnlineServicesEOSGSPlatformFactory.h"
 
+#include "EOSShared.h"
 #include "Online/OnlineServicesEOSGS.h"
 
 #include "Misc/ConfigCacheIni.h"

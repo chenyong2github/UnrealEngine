@@ -30,6 +30,7 @@ MDLSDK_INCLUDES_START
 #include "mi/neuraylib/itransaction.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "mi/neuraylib/istring.h"
+#include "Materials/MaterialExpressionChannelMaskParameter.h"
 #include "Materials/MaterialExpressionCosine.h"
 #include "Materials/MaterialExpressionCrossProduct.h"
 #include "Materials/MaterialExpressionDistance.h"

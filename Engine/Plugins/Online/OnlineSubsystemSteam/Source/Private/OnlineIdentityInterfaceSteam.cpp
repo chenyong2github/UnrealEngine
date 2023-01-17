@@ -3,6 +3,7 @@
 #include "OnlineIdentityInterfaceSteam.h"
 
 #include "Misc/ConfigCacheIni.h"
+#include "OnlineEncryptedAppTicketInterfaceSteam.h"
 #include "OnlineSubsystemSteam.h"
 #include "OnlineSubsystemSteamTypes.h"
 #include "OnlineError.h"

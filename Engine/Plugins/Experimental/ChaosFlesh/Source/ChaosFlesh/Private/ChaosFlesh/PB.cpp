@@ -3,6 +3,7 @@
 #include "ChaosFlesh/FleshCollectionUtility.h" // for LogChaosFlesh
 #include "ChaosFlesh/IFileStream.h"
 #include "HAL/PlatformFile.h"
+#include "HAL/PlatformFileManager.h"
 
 #ifdef USE_ZLIB
 #include "ChaosFlesh/ZIP.h"
