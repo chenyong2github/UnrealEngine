@@ -164,6 +164,11 @@ void FHoloLensWebSocket::Send(const void* Utf8Data, SIZE_T Size, bool bIsBinary)
 	}
 }
 
+void FHoloLensWebSocket::SetTextMessageMemoryLimit(uint64 TextMessageMemoryLimit) 
+{
+	UE_LOG(LogWebSockets, Warning, TEXT("SetTextMessageMemoryLimit not implemented for FHoloLensWebSocket."));
+}
+
 bool FHoloLensWebSocket::Tick(float DeltaTime)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHoloLensWebSocket_Tick);

@@ -23,11 +23,13 @@ public:
 	virtual bool IsConnected() override;
 	virtual void Send(const FString& Data) override;
 	virtual void Send(const void* Utf8Data, SIZE_T Size, bool bIsBinary) override;
+	virtual void SetTextMessageMemoryLimit(uint64 TextMessageMemoryLimit) override;
 
 	virtual FWebSocketConnectedEvent& OnConnected() override				{ return ConnectedEvent; }
 	virtual FWebSocketConnectionErrorEvent& OnConnectionError() override	{ return ConnectionErrorEvent; }
 	virtual FWebSocketClosedEvent& OnClosed() override						{ return ClosedEvent; }
 	virtual FWebSocketMessageEvent& OnMessage() override					{ return MessageEvent; }
+	virtual FWebSocketBinaryMessageEvent& OnBinaryMessage() override { return BinaryMessageEvent; }
 	virtual FWebSocketRawMessageEvent& OnRawMessage() override				{ return RawMessageEvent; }
 	virtual FWebSocketMessageSentEvent& OnMessageSent() override { return OnMessageSentEvent; }
 
@@ -50,6 +52,7 @@ private:
 	FWebSocketConnectionErrorEvent ConnectionErrorEvent;
 	FWebSocketClosedEvent ClosedEvent;
 	FWebSocketMessageEvent MessageEvent;
+	FWebSocketBinaryMessageEvent BinaryMessageEvent;
 	FWebSocketRawMessageEvent RawMessageEvent;
 	FWebSocketMessageSentEvent OnMessageSentEvent;
 
