@@ -6363,6 +6363,8 @@ namespace EPropertyChangeType
 	inline const Type Redirected		= 1 << 7;
 	// Array Item Moved Within the Array
 	inline const Type ArrayMove			= 1 << 8;
+	// Edit Condition State has changed
+	inline const Type ToggleEditable	= 1 << 9;
 };
 
 /**
