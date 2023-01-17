@@ -4679,20 +4679,8 @@ void FRendererModule::BeginRenderingViewFamilies(FCanvas* Canvas, TArrayView<FSc
 				uint64 SceneRenderStart = FPlatformTime::Cycles64();
 				const float StartDelayMillisec = FPlatformTime::ToMilliseconds64(SceneRenderStart - DrawSceneEnqueue);
 				CSV_CUSTOM_STAT_GLOBAL(DrawSceneCommand_StartDelay, StartDelayMillisec, ECsvCustomStatOp::Set);
-
-				// TODO:  There were some random uniform buffer crashes that resulted when rendering multiple view families
-				// in the function below.  Pass one at a time for now as a workaround (matches original Release 5.0 behavior),
-				// while we investigate.  The theory is that something in FSceneRenderer::RenderThreadBegin/End needs to run
-				// between scene renders to reset some state, but we don't know what.
-				TArray<FSceneRenderer*> SingleSceneRenderer;
-				SingleSceneRenderer.AddZeroed(1);
-
-				for (FSceneRenderer* SceneRenderer : LocalSceneRenderers)
-				{
-					SingleSceneRenderer[0] = SceneRenderer;
-					RenderViewFamilies_RenderThread(RHICmdList, SingleSceneRenderer);
-					FlushPendingDeleteRHIResources_RenderThread();
-				}
+				RenderViewFamilies_RenderThread(RHICmdList, LocalSceneRenderers);
+				FlushPendingDeleteRHIResources_RenderThread();
 			});
 
 		// Force kick the RT if we've got RT polling on.

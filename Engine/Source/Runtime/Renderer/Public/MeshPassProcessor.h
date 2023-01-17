@@ -534,7 +534,11 @@ public:
 
 		{
 			FRWScopeLock ReadLock(PersistentIdTableLock, SLT_ReadOnly);
-			return PersistentIdTable.GetByElementId(SetElementIndex).Key;
+			const auto& Result = PersistentIdTable.GetByElementId(SetElementIndex);
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+			checkf(Result.Value.RefNum && Result.Value.DebugSalt == DebugSalt, TEXT("Pipeline state ID used after release.  Call 'AddRefPersistentId' to ensure pipeline state doesn't get released while in use."));
+#endif
+			return Result.Key;
 		}
 	}
 
@@ -576,6 +580,14 @@ public:
 		return PersistentIdTable.Num();
 	}
 
+	/**
+	  * When ID table is frozen, items with a zero ref count aren't actually released, so if the same item gets used again,
+	  * its ID doesn't change.  Useful when re-creating draw commands in the middle of the frame, where you want to prevent
+	  * existing pipeline state IDs from changing, which may be referenced by in flight tasks.  Unfreezing the table will
+	  * clean up anything with a zero ref count.
+	  */
+	static void FreezeIdTable(bool bEnable);
+
 private:
 	union
 	{
@@ -593,15 +605,23 @@ private:
 	{
 		FRefCountedGraphicsMinimalPipelineState() : RefNum(0)
 		{
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+			DebugSalt = DebugSaltAllocationIndex++;
+#endif
 		}
 
 		FRefCountedGraphicsMinimalPipelineState(const FRefCountedGraphicsMinimalPipelineState&& Other) :
 			RefNum(Other.RefNum.load())
 		{
-
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+			DebugSalt = Other.DebugSalt;
+#endif
 		}
 
 		std::atomic<uint32> RefNum;
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+		int32 DebugSalt;
+#endif
 	};
 
 	static FRWLock PersistentIdTableLock;
@@ -609,7 +629,12 @@ private:
 	static PersistentTableType PersistentIdTable;
 	static bool NeedsShaderInitialisation;
 
+	static bool bIsIdTableFrozen;
+	static std::atomic<int32> ReffedItemCount;	// Number of items with a non-zero reference count
+
 #if MESH_DRAW_COMMAND_DEBUG_DATA
+	int32 DebugSalt;
+	static std::atomic<int32> DebugSaltAllocationIndex;
 	static std::atomic<int32> LocalPipelineIdTableSize;
 	static std::atomic<int32> CurrentLocalPipelineIdTableSize;
 #endif //MESH_DRAW_COMMAND_DEBUG_DATA

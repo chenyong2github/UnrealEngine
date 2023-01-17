@@ -4615,6 +4615,22 @@ void FSceneRenderer::ComputeViewVisibility(
 	STAT(int32 NumCulledPrimitives = 0);
 	STAT(int32 NumOccludedPrimitives = 0);
 
+	/**
+	  * UpdateStaticMeshes removes and re-creates cached FMeshDrawCommands.  If there are multiple scene renderers being run together,
+	  * we need allocated pipeline state IDs not to change, in case async tasks related to prior scene renderers are still in flight
+	  * (FSubmitNaniteMaterialPassCommandsAnyThreadTask or FDrawVisibleMeshCommandsAnyThreadTask).  So we freeze pipeline state IDs,
+	  * preventing them from being de-allocated even if their reference count temporarily goes to zero during calls to
+	  * RemoveCachedMeshDrawCommands followed by CacheMeshDrawCommands (or the Nanite equivalent).
+	  *
+	  * Note that on the first scene renderer, we do want to de-allocate items, so they can be permanently released if no longer in use
+	  * (for example, if there was an impactful change to a render proxy by game logic), but the assumption is that sequential renders
+	  * of the same scene from different views can't make such changes.
+	  */
+	if (!bIsFirstSceneRenderer)
+	{
+		FGraphicsMinimalPipelineStateId::FreezeIdTable(true);
+	}
+
 	UE::Tasks::FTask ComputeLightVisibilityTask = LaunchSceneRenderTask(UE_SOURCE_LOCATION, [this]
 	{
 		ComputeLightVisibility();
@@ -4938,6 +4954,12 @@ void FSceneRenderer::ComputeViewVisibility(
 	INC_DWORD_STAT_BY(STAT_ProcessedPrimitives,NumProcessedPrimitives);
 	INC_DWORD_STAT_BY(STAT_CulledPrimitives,NumCulledPrimitives);
 	INC_DWORD_STAT_BY(STAT_OccludedPrimitives,NumOccludedPrimitives);
+
+	// See comment where this is called above
+	if (!bIsFirstSceneRenderer)
+	{
+		FGraphicsMinimalPipelineStateId::FreezeIdTable(false);
+	}
 }
 
 void FDeferredShadingSceneRenderer::ComputeLightVisibility()

@@ -24,11 +24,14 @@ FRWLock FGraphicsMinimalPipelineStateId::PersistentIdTableLock;
 FGraphicsMinimalPipelineStateId::PersistentTableType FGraphicsMinimalPipelineStateId::PersistentIdTable;
 
 #if MESH_DRAW_COMMAND_DEBUG_DATA
+std::atomic<int32> FGraphicsMinimalPipelineStateId::DebugSaltAllocationIndex;
 std::atomic<int32> FGraphicsMinimalPipelineStateId::LocalPipelineIdTableSize(0);
 std::atomic<int32> FGraphicsMinimalPipelineStateId::CurrentLocalPipelineIdTableSize(0);
 #endif //MESH_DRAW_COMMAND_DEBUG_DATA
 
 bool FGraphicsMinimalPipelineStateId::NeedsShaderInitialisation = true;
+bool FGraphicsMinimalPipelineStateId::bIsIdTableFrozen = false;
+std::atomic<int32> FGraphicsMinimalPipelineStateId::ReffedItemCount(0);
 
 const FMeshDrawCommandSortKey FMeshDrawCommandSortKey::Default = { {0} };
 
@@ -474,6 +477,9 @@ void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForMissShader(
 FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPersistentId(const FGraphicsMinimalPipelineStateInitializer& InPipelineState)
 {
 	Experimental::FHashElementId TableId;
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+	int32 DebugSalt;
+#endif
 	auto hash = PersistentIdTable.ComputeHash(InPipelineState);
 	{
 		FRWScopeLock Lock(PersistentIdTableLock, SLT_ReadOnly);
@@ -496,11 +502,19 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPersistentId
 		
 		FRefCountedGraphicsMinimalPipelineState& Value = PersistentIdTable.GetByElementId(TableId).Value;
 
-		if (Value.RefNum == 0 && !NeedsShaderInitialisation)
+		if (Value.RefNum == 0)
 		{
-			NeedsShaderInitialisation = true;
+			if (!NeedsShaderInitialisation)
+			{
+				NeedsShaderInitialisation = true;
+			}
+			ReffedItemCount++;
 		}
 		Value.RefNum++;
+
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+		DebugSalt = Value.DebugSalt;
+#endif
 	}
 
 	checkf(TableId.GetIndex() < (MAX_uint32 >> 2), TEXT("Persistent FGraphicsMinimalPipelineStateId table overflow!"));
@@ -509,6 +523,9 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPersistentId
 	Ret.bValid = 1;
 	Ret.bComesFromLocalPipelineStateSet = 0;
 	Ret.SetElementIndex = TableId.GetIndex();
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+	Ret.DebugSalt = DebugSalt;
+#endif
 	return Ret;
 }
 
@@ -540,7 +557,46 @@ void FGraphicsMinimalPipelineStateId::RemovePersistentId(FGraphicsMinimalPipelin
 		--RefCountedStateInitializer.RefNum;
 		if (RefCountedStateInitializer.RefNum == 0)
 		{
-			PersistentIdTable.RemoveByElementId(Id.SetElementIndex);
+			ReffedItemCount--;
+			if (bIsIdTableFrozen == false)
+			{
+				PersistentIdTable.RemoveByElementId(Id.SetElementIndex);
+			}
+		}
+	}
+}
+
+void FGraphicsMinimalPipelineStateId::FreezeIdTable(bool bFreeze)
+{
+	if (bFreeze != bIsIdTableFrozen)
+	{
+		FRWScopeLock WriteLock(PersistentIdTableLock, SLT_Write);
+		bIsIdTableFrozen = bFreeze;
+
+		// When set back to false, do a pass through the table and clean up any zero ref items.  Zero ref items usually don't happen
+		// in practice given the context of how this function is used during calls to FPrimitiveSceneInfo::UpdateStaticMeshes where
+		// multiple scene renderers are running (i.e. nDisplay multi-view).  That function removes and re-creates draw commands for a
+		// set of render proxies, which we expect to produce the same set of pipeline cache IDs, given that no game logic can run
+		// to change any state in the render proxies between renders of the same scene.  We could assert, but cleaning up the zero
+		// reference items isn't an unreasonable option either (in case someone tries to use this function for other purposes)...
+		if (bFreeze == false)
+		{
+			// We can detect whether we need to scan the table for zero ref items, by checking whether the number of items with
+			// non-zero ref count equals the number of items in the table.
+			if (PersistentIdTable.Num() != ReffedItemCount)
+			{
+				// There's a bug in our reference counting if the reffed item count is more than the items actually in the table
+				check(PersistentIdTable.Num() > ReffedItemCount);
+
+				// Remove zero reffed items
+				for (auto PersistentIdIterator = PersistentIdTable.begin(); PersistentIdIterator != PersistentIdTable.end(); ++PersistentIdIterator)
+				{
+					if (PersistentIdTable.GetByElementId(PersistentIdIterator.GetElementId()).Value.RefNum == 0)
+					{
+						PersistentIdTable.RemoveByElementId(PersistentIdIterator.GetElementId());
+					}
+				}
+			}
 		}
 	}
 }
@@ -564,6 +620,9 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPipelineStat
 	checkf(TableIndex.GetIndex() < (MAX_uint32 >> 2), TEXT("One frame FGraphicsMinimalPipelineStateId table overflow!"));
 
 	Ret.SetElementIndex = TableIndex.GetIndex();
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+	Ret.DebugSalt = 0;		// Salt is ignored for pipelines from local pipeline state set, just initialize to zero
+#endif
 	return Ret;
 }
 
