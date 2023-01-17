@@ -599,6 +599,29 @@ FReply SAndroidWebBrowserWidget::OnMouseMove(const FGeometry& MyGeometry, const 
 	return Reply;
 }
 
+FReply SAndroidWebBrowserWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+//	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("SAndroidWebBrowserWidget::OnKeyDown: %d"), InKeyEvent.GetCharacter());
+	return JavaWebBrowser->SendKeyDown(InKeyEvent.GetCharacter()) ? FReply::Handled() : FReply::Unhandled();
+}
+
+FReply SAndroidWebBrowserWidget::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+//	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("SAndroidWebBrowserWidget::OnKeyUp: %d"), InKeyEvent.GetCharacter());
+	return JavaWebBrowser->SendKeyUp(InKeyEvent.GetCharacter()) ? FReply::Handled() : FReply::Unhandled();
+}
+
+FReply SAndroidWebBrowserWidget::OnKeyChar(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent)
+{
+//	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("SAndroidWebBrowserWidget::OnKeyChar: %d"), (int32)InCharacterEvent.GetCharacter());
+	if (JavaWebBrowser->SendKeyDown(InCharacterEvent.GetCharacter()))
+	{
+		JavaWebBrowser->SendKeyUp(InCharacterEvent.GetCharacter());
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
+}
+
 void SAndroidWebBrowserWidget::SetWebBrowserVisibility(bool InIsVisible)
 {
 	JavaWebBrowser->SetVisibility(InIsVisible);

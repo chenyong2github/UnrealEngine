@@ -113,17 +113,17 @@ FString FAndroidWebBrowserWindow::GetUrl() const
 
 bool FAndroidWebBrowserWindow::OnKeyDown(const FKeyEvent& InKeyEvent)
 {
-	return false;
+	return BrowserWidget->OnKeyDown(FGeometry(), InKeyEvent).IsEventHandled();
 }
 
 bool FAndroidWebBrowserWindow::OnKeyUp(const FKeyEvent& InKeyEvent)
 {
-	return false;
+	return BrowserWidget->OnKeyUp(FGeometry(), InKeyEvent).IsEventHandled();
 }
 
 bool FAndroidWebBrowserWindow::OnKeyChar(const FCharacterEvent& InCharacterEvent)
 {
-	return false;
+	return BrowserWidget->OnKeyChar(FGeometry(), InCharacterEvent).IsEventHandled();
 }
 
 FVector2D FAndroidWebBrowserWindow::ConvertMouseEventToLocal(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bIsPopup)

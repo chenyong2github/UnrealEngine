@@ -34,6 +34,8 @@ public:
 	void SendTouchDown(float x, float y);
 	void SendTouchUp(float x, float y);
 	void SendTouchMove(float x, float y);
+	bool SendKeyDown(int32 KeyCode);
+	bool SendKeyUp(int32 KeyCode);
 	void SetAndroid3DBrowser(bool InIsAndroid3DBrowser);
 	void SetVisibility(bool InIsVisible);
 	void Update(const int posX, const int posY, const int sizeX, const int sizeY);
@@ -55,6 +57,7 @@ private:
 	FJavaClassMethod CloseMethod;
 	FJavaClassMethod GoBackOrForwardMethod;
 	FJavaClassMethod SendTouchEventMethod;
+	FJavaClassMethod SendKeyEventMethod;
 	FJavaClassMethod SetAndroid3DBrowserMethod;
 	FJavaClassMethod SetVisibilityMethod;
 

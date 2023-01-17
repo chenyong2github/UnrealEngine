@@ -25,7 +25,7 @@
 class UMaterialExpressionTextureSample;
 class FWebBrowserTextureSamplePool;
 
-class SAndroidWebBrowserWidget : public SLeafWidget
+class SAndroidWebBrowserWidget : public SViewport
 {
 	SLATE_BEGIN_ARGS(SAndroidWebBrowserWidget)
 		: _InitialURL("about:blank")
@@ -66,6 +66,10 @@ public:
 	void SendTouchDown(FVector2D Position);
 	void SendTouchUp(FVector2D Position);
 	void SendTouchMove(FVector2D Position);
+
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply OnKeyChar(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent) override;
 
 	// WebViewClient callbacks
 

@@ -50,6 +50,7 @@ FJavaAndroidWebBrowser::FJavaAndroidWebBrowser(bool swizzlePixels, bool vulkanRe
 	, CloseMethod(GetClassMethod("Close", "()V"))
 	, GoBackOrForwardMethod(GetClassMethod("GoBackOrForward", "(I)V"))
 	, SendTouchEventMethod(GetClassMethod("SendTouchEvent", "(IFF)V"))
+	, SendKeyEventMethod(GetClassMethod("SendKeyEvent", "(ZI)Z"))
 	, SetAndroid3DBrowserMethod(GetClassMethod("SetAndroid3DBrowser", "(Z)V"))
 	, SetVisibilityMethod(GetClassMethod("SetVisibility", "(Z)V"))
 {
@@ -291,6 +292,16 @@ void FJavaAndroidWebBrowser::SendTouchUp(float x, float y)
 void FJavaAndroidWebBrowser::SendTouchMove(float x, float y)
 {
 	CallMethod<void>(SendTouchEventMethod, MOTIONEVENT_ACTION_MOVE, x, y);
+}
+
+bool FJavaAndroidWebBrowser::SendKeyDown(int32 KeyCode)
+{
+	return CallMethod<bool>(SendKeyEventMethod, true, KeyCode);
+}
+
+bool FJavaAndroidWebBrowser::SendKeyUp(int32 KeyCode)
+{
+	return CallMethod<bool>(SendKeyEventMethod, false, KeyCode);
 }
 
 void FJavaAndroidWebBrowser::SetAndroid3DBrowser(bool InIsAndroid3DBrowser)
