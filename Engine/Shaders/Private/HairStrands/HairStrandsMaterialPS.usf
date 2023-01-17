@@ -33,7 +33,7 @@ void Main(
 			FEvaluateOutput Out = (FEvaluateOutput)0;
 			if (SampleDepth > 0)
 			{
-				Out = Evaluate(SamplePixelCoord, SampleDepth, SamplePrimitiveId, SampleCoverage8bit, InPrimitiveId, MaterialPassParameters.bUpdateSampleCoverage > 0);
+				Out = Evaluate(SamplePixelCoord, SampleDepth, SamplePrimitiveId, SampleCoverage8bit, InPrimitiveId, MaterialPassParameters.bUpdateSampleCoverage > 0, MaterialPassParameters.bInterpolationEnabled);
 			}
 
 			// Note: Use the syntax _ over the syntax . as on certain platform the UAV buffers are 

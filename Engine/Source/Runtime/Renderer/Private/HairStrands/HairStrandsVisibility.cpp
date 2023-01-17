@@ -742,6 +742,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVisibilityMaterialPassUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxSampleCount)
 	SHADER_PARAMETER(uint32, NodeGroupSize)
 	SHADER_PARAMETER(uint32, bUpdateSampleCoverage)
+	SHADER_PARAMETER(uint32, bInterpolationEnabled)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, NodeIndex)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TotalNodeCounter)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, NodeCoord)
@@ -824,6 +825,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 	const FScene* Scene,
 	const FViewInfo* ViewInfo,
 	const bool bUpdateSampleCoverage,
+	const bool bInteroplationEnabled,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	FInstanceCullingManager& InstanceCullingManager,
 	const uint32 NodeGroupSize,
@@ -887,6 +889,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 			FVisibilityMaterialPassUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FVisibilityMaterialPassUniformParameters>();
 
 			UniformParameters->bUpdateSampleCoverage = bUpdateSampleCoverage ? 1 : 0;
+			UniformParameters->bInterpolationEnabled = bInteroplationEnabled ? 1 : 0;
 			UniformParameters->MaxResolution = Resolution;
 			UniformParameters->NodeGroupSize = NodeGroupSize;
 			UniformParameters->MaxSampleCount = MaxNodeCount;
@@ -4263,6 +4266,7 @@ void RenderHairStrandsVisibilityBuffer(
 					Scene,
 					&View,
 					false,
+					false,
 					MacroGroupDatas,
 					InstanceCullingManager,
 					VisibilityData.NodeGroupSize,
@@ -4370,6 +4374,7 @@ void RenderHairStrandsVisibilityBuffer(
 					Scene,
 					&View,
 					false,
+					true,
 					MacroGroupDatas,
 					InstanceCullingManager,
 					VisibilityData.NodeGroupSize,
@@ -4542,6 +4547,7 @@ void RenderHairStrandsVisibilityBuffer(
 							Scene,
 							&View,
 							bUpdateSampleCoverage,
+							true,
 							MacroGroupDatas,
 							InstanceCullingManager,
 							VisibilityData.NodeGroupSize,
@@ -4696,6 +4702,7 @@ void RenderHairStrandsVisibilityBuffer(
 							Scene,
 							&View,
 							bUpdateSampleCoverage,
+							true,
 							MacroGroupDatas,
 							InstanceCullingManager,
 							VisibilityData.NodeGroupSize,
