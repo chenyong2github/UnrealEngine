@@ -392,10 +392,6 @@ private:
 	double LastProgressDisplayTime = 0;
 	double LastDiagnosticsDisplayTime = 0;
 
-	/** Get dependencies for package */
-	const TArray<FName>& GetFullPackageDependencies(const FName& PackageName) const;
-	mutable TMap<FName, TArray<FName>> CachedFullPackageDependencies;
-
 	/** Cached copy of asset registry */
 	IAssetRegistry* AssetRegistry = nullptr;
 
@@ -898,11 +894,6 @@ private:
 	void BeginCookPackageWriters(FBeginCookContext& BeginContext);
 	void BeginCookDirector(FBeginCookContext& BeginContext);
 	void InitializeSession();
-	void PreGarbageCollectImpl(TArray<UPackage*>& GCKeepPackages, TArray<UE::Cook::FPackageData*>& GCKeepPackageDatas,
-		TArray<UObject*>& LocalGCKeepObjects);
-	void PostGarbageCollectImpl(TArray<UObject*>& LocalGCKeepObjects);
-	void GetDirectAndTransitiveResourceSize(FResourceSizeEx& OutDirectSize, FResourceSizeEx& OutTransitiveSize,
-		int64& OutNumDirectPackages, int64& OutNumTransitivePackages, TSet<UPackage*>&& DirectPackages);
 
 	//////////////////////////////////////////////////////////////////////////
 	// cook by the book specific functions

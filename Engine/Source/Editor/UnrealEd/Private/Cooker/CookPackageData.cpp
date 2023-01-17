@@ -2150,7 +2150,7 @@ void FPackageDatas::OnAssetRegistryGenerated(IAssetRegistry& InAssetRegistry)
 
 FString FPackageDatas::GetReferencerName() const
 {
-	return TEXT("FPackageDatas");
+	return TEXT("CookOnTheFlyServer");
 }
 
 void FPackageDatas::AddReferencedObjects(FReferenceCollector& Collector)
