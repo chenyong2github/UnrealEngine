@@ -53,7 +53,7 @@ public:
 
 private:
 	//todo this should be and make helper function to build the name in BP with a picker
-	UPROPERTY(EditAnywhere, Category="MVVM")
+	UPROPERTY(EditAnywhere, Category = "Viewmodel")
 	FName BindingName;
 };
 

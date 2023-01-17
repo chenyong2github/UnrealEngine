@@ -32,16 +32,16 @@ public:
 	virtual void Deinitialize() override;
 	//~ End UEngineSubsystem interface
 
-	UFUNCTION(BlueprintCallable, Category="MVVM", meta = (DisplayName = "Get View From User Widget"))
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel", meta = (DisplayName = "Get View From User Widget"))
 	UMVVMView* K2_GetViewFromUserWidget(const UUserWidget* UserWidget) const;
 
 	static UMVVMView* GetViewFromUserWidget(const UUserWidget* UserWidget);
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	bool DoesWidgetTreeContainedWidget(const UWidgetTree* WidgetTree, const UWidget* ViewWidget) const;
 
 	/** @return The list of all the AvailableBindings that are available for the Class. */
-	UFUNCTION(BlueprintCallable, Category = "MVVM", meta = (DisplayName = "Get Available Bindings"))
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel", meta = (DisplayName = "Get Available Bindings"))
 	TArray<FMVVMAvailableBinding> K2_GetAvailableBindings(const UClass* Class, const UClass* Accessor) const;
 
 	static TArray<FMVVMAvailableBinding> GetAvailableBindings(const UClass* Class, const UClass* Accessor);
@@ -53,7 +53,7 @@ public:
 	static TArray<FMVVMAvailableBinding> GetAvailableBindingsForStruct(const UScriptStruct* Struct);
 
 	/** @return The AvailableBinding from a BindingName. */
-	UFUNCTION(BlueprintCallable, Category = "MVVM", meta = (DisplayName = "Get Available Binding"))
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel", meta = (DisplayName = "Get Available Binding"))
 	FMVVMAvailableBinding K2_GetAvailableBinding(const UClass* Class, FMVVMBindingName BindingName, const UClass* Accessor) const;
 
 	static FMVVMAvailableBinding GetAvailableBinding(const UClass* Class, FMVVMBindingName BindingName, const UClass* Accessor);
@@ -61,7 +61,7 @@ public:
 	/** @return The AvailableBinding from a field. */
 	static FMVVMAvailableBinding GetAvailableBindingForField(UE::MVVM::FMVVMConstFieldVariant Variant, const UClass* Accessor);
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	UMVVMViewModelCollectionObject* GetGlobalViewModelCollection() const
 	{
 		return GlobalViewModelCollection;

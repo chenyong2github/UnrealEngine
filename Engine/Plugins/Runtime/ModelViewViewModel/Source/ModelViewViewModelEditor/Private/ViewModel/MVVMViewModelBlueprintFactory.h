@@ -23,6 +23,6 @@ public:
 
 private:
 	// The parent class of the created blueprint
-	UPROPERTY(EditAnywhere, Category="MVVM", meta=(AllowAbstract="true"))
+	UPROPERTY(EditAnywhere, Category = "Viewmodel", meta=(AllowAbstract="true"))
 	TSubclassOf<class UMVVMViewModelBase> ParentClass;
 };

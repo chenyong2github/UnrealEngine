@@ -14,11 +14,11 @@ struct FMVVMDeveloperProjectWidgetSettings
 	GENERATED_BODY()
 
 	/** Properties or functions name that should not be use for binding (read or write). */
-	UPROPERTY(EditAnywhere, config, Category=MVVM)
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
 	TSet<FName> DisallowedFieldNames;
 	
 	/** Properties or functions name that are displayed in the advanced category. */
-	UPROPERTY(EditAnywhere, config, Category=MVVM)
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
 	TSet<FName> AdvancedFieldNames;
 };
 
@@ -40,7 +40,7 @@ public:
 
 private:
 	/** Permission list for filtering which properties are visible in UI. */
-	UPROPERTY(EditAnywhere, config, Category=MVVM)
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
 	TMap<FSoftClassPath, FMVVMDeveloperProjectWidgetSettings> FieldSelectorPermissions;
 };
 

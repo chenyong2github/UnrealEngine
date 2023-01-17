@@ -29,31 +29,31 @@ class MODELVIEWVIEWMODELEDITOR_API UMVVMEditorSubsystem : public UEditorSubsyste
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, Category="MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	UMVVMBlueprintView* RequestView(UWidgetBlueprint* WidgetBlueprint) const;
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	UMVVMBlueprintView* GetView(const UWidgetBlueprint* WidgetBlueprint) const;
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	FName AddViewModel(UWidgetBlueprint* WidgetBlueprint, const UClass* ViewModel);
 	
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	void RemoveViewModel(UWidgetBlueprint* WidgetBlueprint, FName ViewModel);
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	bool VerifyViewModelRename(UWidgetBlueprint* WidgetBlueprint, FName ViewModel, FName NewViewModel, FText& OutError);
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	bool RenameViewModel(UWidgetBlueprint* WidgetBlueprint, FName ViewModel, FName NewViewModel, FText& OutError);
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	FMVVMBlueprintViewBinding& AddBinding(UWidgetBlueprint* WidgetBlueprint);
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	void RemoveBinding(UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding);
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	TArray<FMVVMAvailableBinding> GetChildViewModels(TSubclassOf<UObject> Class, TSubclassOf<UObject> Accessor);
 
 	void SetSourceToDestinationConversionFunction(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, const UFunction* ConversionFunction);
@@ -66,22 +66,22 @@ public:
 	void SetEnabledForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, bool bEnabled);
 	void SetCompileForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, bool bCompile);
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	bool IsValidConversionFunction(const UFunction* Function, const FMVVMBlueprintPropertyPath& Source, const FMVVMBlueprintPropertyPath& Destination) const;
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	bool IsSimpleConversionFunction(const UFunction* Function) const;
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	UEdGraph* GetConversionFunctionGraph(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination) const;
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	UFunction* GetConversionFunction(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination) const;
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	UK2Node_CallFunction* GetConversionFunctionNode(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination) const;
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	TArray<UFunction*> GetAvailableConversionFunctions(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintPropertyPath& Source, const FMVVMBlueprintPropertyPath& Destination) const;
 
 	FMVVMBlueprintPropertyPath GetPathForConversionFunctionArgument(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, FName ArgumentName, bool bSourceToDestination) const;

@@ -16,10 +16,10 @@ struct MODELVIEWVIEWMODEL_API FMVVMViewModelContext
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category="MVVM")
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category="Viewmodel")
 	TSubclassOf<UMVVMViewModelBase> ContextClass;
 
-	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category="MVVM")
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category="Viewmodel")
 	FName ContextName;
 
 public:
