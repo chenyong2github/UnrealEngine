@@ -2,6 +2,7 @@
 
 #include "InputTriggers.h"
 #include "EnhancedPlayerInput.h"
+#include "UObject/Object.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputTriggers)
 
