@@ -1499,6 +1499,8 @@ bool IsParallelDispatchEnabled(const FProjectedShadowInfo* ProjectedShadowInfo, 
 
 void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer::RenderShadowDepthMapAtlases);
+
 	const bool bNaniteEnabled = 
 		UseNanite(ShaderPlatform) &&
 		ViewFamily.EngineShowFlags.NaniteMeshes &&
@@ -1869,11 +1871,14 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 	}
 
 	// Move current persistent shadow state to previous and clear current.
-	// TODO: This could be very slow.
-	for (const FLightSceneInfoCompact& Light : Scene->Lights)
 	{
-		Light.LightSceneInfo->PrevPersistentShadows = Light.LightSceneInfo->PersistentShadows;
-		Light.LightSceneInfo->PersistentShadows.Empty();
+		TRACE_CPUPROFILER_EVENT_SCOPE(CopyPersistentLightState);
+		// TODO: This could be very slow.
+		for (const FLightSceneInfoCompact& Light : Scene->Lights)
+		{
+			Light.LightSceneInfo->PrevPersistentShadows = Light.LightSceneInfo->PersistentShadows;
+			Light.LightSceneInfo->PersistentShadows.Empty();
+		}
 	}
 
 	bShadowDepthRenderCompleted = true;

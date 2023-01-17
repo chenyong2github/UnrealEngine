@@ -28,6 +28,8 @@ IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FVirtualShadowMapUniformParameters, "Virt
 
 CSV_DEFINE_CATEGORY(VSM, false);
 
+DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Nanite Views (Primary)"), STAT_VSMNaniteViewsPrimary, STATGROUP_ShadowRendering);
+
 struct FShadowMapCacheData
 {
 	int32 PrevVirtualShadowMapId = INDEX_NONE;
@@ -1970,6 +1972,8 @@ void FVirtualShadowMapArray::LogStats(FRDGBuilder& GraphBuilder, const FViewInfo
 
 void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRenderingAllocator>& Views ) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CreateMipViews);
+
 	// strategy: 
 	// 1. Use the cull pass to generate copies of every node for every view needed.
 	// [2. Fabricate a HZB array?]
@@ -2529,6 +2533,9 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 	bCsvLogEnabled = FCsvProfiler::Get()->IsCapturing_Renderthread() && FCsvProfiler::Get()->IsCategoryEnabled(CSV_CATEGORY_INDEX(VSM));
 #endif
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualShadowMapArray::RenderVirtualShadowMapsNanite);
+	RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMaps(Nanite)");
+
 	const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& VirtualShadowMapShadows = SceneRenderer.SortedShadowsForShadowDepthPass.VirtualShadowMapShadows;
 	TArray<TSharedPtr<FVirtualShadowMapClipmap>, SceneRenderingAllocator>& VirtualShadowMapClipmaps = SceneRenderer.SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps;
 
@@ -2544,8 +2551,6 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 	SharedContext.Pipeline = Nanite::EPipeline::Shadows;
 
 	const TRefCountPtr<IPooledRenderTarget> PrevHZBPhysical = bVSMUseHZB ? CacheManager->PrevBuffers.HZBPhysical : nullptr;
-
-	RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMaps(Nanite)");
 
 	check(PhysicalPagePoolRDG != nullptr);
 
@@ -2567,18 +2572,22 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 
 	TArray<Nanite::FPackedView, SceneRenderingAllocator> VirtualShadowViews;
 
-	for (FProjectedShadowInfo* ProjectedShadowInfo : VirtualShadowMapShadows)
 	{
-		if (ProjectedShadowInfo->bShouldRenderVSM)
+		TRACE_CPUPROFILER_EVENT_SCOPE(AddRenderViews);
+
+		for (FProjectedShadowInfo* ProjectedShadowInfo : VirtualShadowMapShadows)
 		{
-			AddRenderViews(
-				ProjectedShadowInfo,
-				SceneRenderer.Views,
-				ShadowsLODScaleFactor,
-				PrevHZBPhysical.IsValid(),
-				bVSMUseHZB,
-				ProjectedShadowInfo->ShouldClampToNearPlane(),
-				VirtualShadowViews);
+			if (ProjectedShadowInfo->bShouldRenderVSM)
+			{
+				AddRenderViews(
+					ProjectedShadowInfo,
+					SceneRenderer.Views,
+					ShadowsLODScaleFactor,
+					PrevHZBPhysical.IsValid(),
+					bVSMUseHZB,
+					ProjectedShadowInfo->ShouldClampToNearPlane(),
+					VirtualShadowViews);
+			}
 		}
 	}
 
@@ -2586,6 +2595,8 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 	{
 		int32 NumPrimaryViews = VirtualShadowViews.Num();
 		CreateMipViews(VirtualShadowViews);
+
+		SET_DWORD_STAT(STAT_VSMNaniteViewsPrimary, NumPrimaryViews);
 
 		Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
 		CullingConfig.bUpdateStreaming = bUpdateNaniteStreaming;
@@ -2644,6 +2655,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite);
 	RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMaps(Non-Nanite)");
 
 	FGPUScene& GPUScene = Scene.GPUScene;

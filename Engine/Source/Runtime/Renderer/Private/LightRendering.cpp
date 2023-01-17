@@ -47,6 +47,8 @@ IMPLEMENT_TYPE_LAYOUT(FShadowProjectionShaderParameters);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDeferredLightUniformStruct, "DeferredLightUniforms");
 
+DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Light Projections (Local One Pass Fast)"), STAT_VSMLocalProjectionOnePassFast, STATGROUP_ShadowRendering);
+
 extern int32 GUseTranslucentLightingVolumes;
 
 static int32 GAllowDepthBoundsTest = 1;
@@ -1946,7 +1948,12 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						const FViewInfo& View = Views[ViewIndex];
 
 						// If the light elided the screen space shadow mask, sample directly from the packed shadow mask
-						const int32 VirtualShadowMapId = bElideScreenShadowMask ? VisibleLightInfo.GetVirtualShadowMapId(&View) : INDEX_NONE;
+						int32 VirtualShadowMapId = INDEX_NONE;
+						if (bElideScreenShadowMask)
+						{
+							INC_DWORD_STAT(STAT_VSMLocalProjectionOnePassFast);
+							VirtualShadowMapId = VisibleLightInfo.GetVirtualShadowMapId(&View);
+						}
 
 						RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, ViewCount > 1, "View%d", ViewIndex);
 						SCOPED_GPU_MASK(GraphBuilder.RHICmdList, View.GPUMask);

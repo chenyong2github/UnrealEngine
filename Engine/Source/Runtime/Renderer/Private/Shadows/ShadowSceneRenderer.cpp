@@ -67,6 +67,10 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Visible Shading Draws"), STAT_VSMNaniteBass
 DECLARE_DWORD_COUNTER_STAT(TEXT("Distant Light Count"), STAT_DistantLightCount, STATGROUP_ShadowRendering);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Distant Cached Count"), STAT_DistantCachedCount, STATGROUP_ShadowRendering);
 
+DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Light Projections (Directional)"), STAT_VSMDirectionalProjectionFull, STATGROUP_ShadowRendering);
+DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Light Projections (Local Full)"), STAT_VSMLocalProjectionFull, STATGROUP_ShadowRendering);
+DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Light Projections (Local One Pass Copy)"), STAT_VSMLocalProjectionOnePassCopy, STATGROUP_ShadowRendering);
+
 FShadowSceneRenderer::FShadowSceneRenderer(FDeferredShadingSceneRenderer& InSceneRenderer)
 	: SceneRenderer(InSceneRenderer)
 	, Scene(*InSceneRenderer.Scene)
@@ -201,6 +205,8 @@ void FShadowSceneRenderer::PostInitDynamicShadowsSetup()
 
 void FShadowSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FShadowSceneRenderer::RenderVirtualShadowMaps);
+
 	// Always process an existing query if it exists
 	FNaniteVisibilityResults VisibilityResults;
 	if (NaniteVisibilityQuery != nullptr)
@@ -406,6 +412,8 @@ void FShadowSceneRenderer::ApplyVirtualShadowMapProjectionForLight(
 			{
 				if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
 				{
+					INC_DWORD_STAT(STAT_VSMDirectionalProjectionFull);
+
 					// Project directional light virtual shadow map
 					RenderVirtualShadowMapProjection(
 						GraphBuilder,
@@ -421,6 +429,8 @@ void FShadowSceneRenderer::ApplyVirtualShadowMapProjectionForLight(
 				}
 				else if (bShouldUseVirtualShadowMapOnePassProjection)
 				{
+					INC_DWORD_STAT(STAT_VSMLocalProjectionOnePassCopy);
+
 					// Copy local light from one pass projection output
 					CompositeVirtualShadowMapFromMaskBits(
 						GraphBuilder,
@@ -435,6 +445,8 @@ void FShadowSceneRenderer::ApplyVirtualShadowMapProjectionForLight(
 				}
 				else
 				{
+					INC_DWORD_STAT(STAT_VSMLocalProjectionFull);
+
 					// Project local light virtual shadow map
 					RenderVirtualShadowMapProjection(
 						GraphBuilder,
