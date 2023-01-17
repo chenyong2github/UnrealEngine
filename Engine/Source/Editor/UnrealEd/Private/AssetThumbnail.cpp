@@ -1257,6 +1257,7 @@ bool FAssetThumbnailPool::LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo
 	const FObjectThumbnail* FoundThumbnail = ThumbnailTools::FindCachedThumbnail(AssetData.GetFullName());
 
 	// If we don't have a cached thumbnail, try to find it on disk
+	FThumbnailMap ThumbnailMap;
 	if (!FoundThumbnail)
 	{
 		FString PackageFilename;
@@ -1266,7 +1267,6 @@ bool FAssetThumbnailPool::LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo
 			TSet<FName> ObjectFullNames;
 			ObjectFullNames.Add(ObjectFullName);
 
-			FThumbnailMap ThumbnailMap;
 			ThumbnailTools::LoadThumbnailsFromPackage(PackageFilename, ObjectFullNames, ThumbnailMap);
 			FoundThumbnail = ThumbnailMap.Find(ObjectFullName);
 		}
