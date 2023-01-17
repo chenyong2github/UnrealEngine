@@ -749,16 +749,16 @@ namespace mu
 				// \todo: precalculated tables for softlight
 				switch (EBlendType(Args.blendType))
 				{
-				case EBlendType::BT_NORMAL_COMBINE: ImageNormalCombine(pNew.get(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
-				case EBlendType::BT_SOFTLIGHT: BufferLayerColour<SoftLightChannelMasked, SoftLightChannel, false>(pNew->GetData(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
-				case EBlendType::BT_HARDLIGHT: BufferLayerColour<HardLightChannelMasked, HardLightChannel, false>(pNew->GetData(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
-				case EBlendType::BT_BURN: BufferLayerColour<BurnChannelMasked, BurnChannel, false>(pNew->GetData(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
-				case EBlendType::BT_DODGE: BufferLayerColour<DodgeChannelMasked, DodgeChannel, false>(pNew->GetData(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
-				case EBlendType::BT_SCREEN: BufferLayerColour<ScreenChannelMasked, ScreenChannel, false>(pNew->GetData(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
-				case EBlendType::BT_OVERLAY: BufferLayerColour<OverlayChannelMasked, OverlayChannel, false>(pNew->GetData(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
-				case EBlendType::BT_LIGHTEN: BufferLayerColour<LightenChannelMasked, LightenChannel, false>(pNew->GetData(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
-				case EBlendType::BT_MULTIPLY: BufferLayerColour<MultiplyChannelMasked, MultiplyChannel, false>(pNew->GetData(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
-				case EBlendType::BT_BLEND: BufferLayerColour<BlendChannelMasked, BlendChannel, false>(pNew->GetData(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
+				case EBlendType::BT_NORMAL_COMBINE: ImageNormalCombine(pNew.get(), m_base.get(), m_mask.get(), m_col); break;
+				case EBlendType::BT_SOFTLIGHT: BufferLayerColour<SoftLightChannelMasked, SoftLightChannel>(pNew->GetData(), m_base.get(), m_mask.get(), m_col); break;
+				case EBlendType::BT_HARDLIGHT: BufferLayerColour<HardLightChannelMasked, HardLightChannel>(pNew->GetData(), m_base.get(), m_mask.get(), m_col); break;
+				case EBlendType::BT_BURN: BufferLayerColour<BurnChannelMasked, BurnChannel>(pNew->GetData(), m_base.get(), m_mask.get(), m_col); break;
+				case EBlendType::BT_DODGE: BufferLayerColour<DodgeChannelMasked, DodgeChannel>(pNew->GetData(), m_base.get(), m_mask.get(), m_col); break;
+				case EBlendType::BT_SCREEN: BufferLayerColour<ScreenChannelMasked, ScreenChannel>(pNew->GetData(), m_base.get(), m_mask.get(), m_col); break;
+				case EBlendType::BT_OVERLAY: BufferLayerColour<OverlayChannelMasked, OverlayChannel>(pNew->GetData(), m_base.get(), m_mask.get(), m_col); break;
+				case EBlendType::BT_LIGHTEN: BufferLayerColour<LightenChannelMasked, LightenChannel>(pNew->GetData(), m_base.get(), m_mask.get(), m_col); break;
+				case EBlendType::BT_MULTIPLY: BufferLayerColour<MultiplyChannelMasked, MultiplyChannel>(pNew->GetData(), m_base.get(), m_mask.get(), m_col); break;
+				case EBlendType::BT_BLEND: BufferLayerColour<BlendChannelMasked, BlendChannel>(pNew->GetData(), m_base.get(), m_mask.get(), m_col); break;
 				default: check(false);
 				}
 
@@ -771,14 +771,14 @@ namespace mu
 					switch (EBlendType(Args.blendType))
 					{
 					case EBlendType::BT_NORMAL_COMBINE: check(false); break;
-					case EBlendType::BT_SOFTLIGHT: BufferLayerColourFromAlpha<SoftLightChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_HARDLIGHT: BufferLayerColourFromAlpha<HardLightChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_BURN: BufferLayerColourFromAlpha<BurnChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_DODGE: BufferLayerColourFromAlpha<DodgeChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_SCREEN: BufferLayerColourFromAlpha<ScreenChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_OVERLAY: BufferLayerColourFromAlpha<OverlayChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_LIGHTEN: BufferLayerColourFromAlpha<LightenChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_MULTIPLY: BufferLayerColourFromAlpha<MultiplyChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_SOFTLIGHT: BufferLayerColourFromAlpha<SoftLightChannel>(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_HARDLIGHT: BufferLayerColourFromAlpha<HardLightChannel>(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_BURN: BufferLayerColourFromAlpha<BurnChannel>(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_DODGE: BufferLayerColourFromAlpha<DodgeChannel>(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_SCREEN: BufferLayerColourFromAlpha<ScreenChannel>(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_OVERLAY: BufferLayerColourFromAlpha<OverlayChannel>(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_LIGHTEN: BufferLayerColourFromAlpha<LightenChannel>(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_MULTIPLY: BufferLayerColourFromAlpha<MultiplyChannel>(pNew.get(), m_base.get(), m_col); break;
 					case EBlendType::BT_BLEND: check(false); break;
 					default: check(false);
 					}
@@ -787,15 +787,15 @@ namespace mu
 				{
 					switch (EBlendType(Args.blendType))
 					{
-					case EBlendType::BT_NORMAL_COMBINE: ImageNormalCombine(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_SOFTLIGHT: BufferLayerColour<SoftLightChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_HARDLIGHT: BufferLayerColour<HardLightChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_BURN: BufferLayerColour<BurnChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_DODGE: BufferLayerColour<DodgeChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_SCREEN: BufferLayerColour<ScreenChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_OVERLAY: BufferLayerColour<OverlayChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_LIGHTEN: BufferLayerColour<LightenChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-					case EBlendType::BT_MULTIPLY: BufferLayerColour<MultiplyChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_NORMAL_COMBINE: ImageNormalCombine(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_SOFTLIGHT: BufferLayerColour<SoftLightChannel>(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_HARDLIGHT: BufferLayerColour<HardLightChannel>(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_BURN: BufferLayerColour<BurnChannel>(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_DODGE: BufferLayerColour<DodgeChannel>(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_SCREEN: BufferLayerColour<ScreenChannel>(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_OVERLAY: BufferLayerColour<OverlayChannel>(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_LIGHTEN: BufferLayerColour<LightenChannel>(pNew.get(), m_base.get(), m_col); break;
+					case EBlendType::BT_MULTIPLY: BufferLayerColour<MultiplyChannel>(pNew.get(), m_base.get(), m_col); break;
 					case EBlendType::BT_BLEND: FillPlainColourImage(pNew.get(), m_col); break;
 					default: check(false);
 					}
@@ -823,15 +823,15 @@ namespace mu
 				switch (EBlendType(Args.blendTypeAlpha))
 				{
 				case EBlendType::BT_NORMAL_COMBINE: check(false); break;
-				case EBlendType::BT_SOFTLIGHT: BufferLayerColourInPlace<SoftLightChannelMasked, SoftLightChannel, false, 1>(pNew.get(), m_mask.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_HARDLIGHT: BufferLayerColourInPlace<HardLightChannelMasked, HardLightChannel, false, 1>(pNew.get(), m_mask.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_BURN: BufferLayerColourInPlace<BurnChannelMasked, BurnChannel, false, 1>(pNew.get(), m_mask.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_DODGE: BufferLayerColourInPlace<DodgeChannelMasked, DodgeChannel, false, 1>(pNew.get(), m_mask.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_SCREEN: BufferLayerColourInPlace<ScreenChannelMasked, ScreenChannel, false, 1>(pNew.get(), m_mask.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_OVERLAY: BufferLayerColourInPlace<OverlayChannelMasked, OverlayChannel, false, 1>(pNew.get(), m_mask.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_LIGHTEN: BufferLayerColourInPlace<LightenChannelMasked, LightenChannel, false, 1>(pNew.get(), m_mask.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_MULTIPLY: BufferLayerColourInPlace<MultiplyChannelMasked, MultiplyChannel, false, 1>(pNew.get(), m_mask.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_BLEND: BufferLayerColourInPlace<BlendChannelMasked, BlendChannel, false, 1>(pNew.get(), m_mask.get(), vec3f(m_col), bOnlyOneMip, 3); break;
+				case EBlendType::BT_SOFTLIGHT: BufferLayerColourInPlace<SoftLightChannelMasked, SoftLightChannel, 1>(pNew.get(), m_mask.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_HARDLIGHT: BufferLayerColourInPlace<HardLightChannelMasked, HardLightChannel, 1>(pNew.get(), m_mask.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_BURN: BufferLayerColourInPlace<BurnChannelMasked, BurnChannel, 1>(pNew.get(), m_mask.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_DODGE: BufferLayerColourInPlace<DodgeChannelMasked, DodgeChannel, 1>(pNew.get(), m_mask.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_SCREEN: BufferLayerColourInPlace<ScreenChannelMasked, ScreenChannel, 1>(pNew.get(), m_mask.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_OVERLAY: BufferLayerColourInPlace<OverlayChannelMasked, OverlayChannel, 1>(pNew.get(), m_mask.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_LIGHTEN: BufferLayerColourInPlace<LightenChannelMasked, LightenChannel, 1>(pNew.get(), m_mask.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_MULTIPLY: BufferLayerColourInPlace<MultiplyChannelMasked, MultiplyChannel, 1>(pNew.get(), m_mask.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_BLEND: BufferLayerColourInPlace<BlendChannelMasked, BlendChannel, 1>(pNew.get(), m_mask.get(), m_col, bOnlyOneMip, 3); break;
 				default: check(false);
 				}
 
@@ -841,15 +841,15 @@ namespace mu
 				switch (EBlendType(Args.blendTypeAlpha))
 				{
 				case EBlendType::BT_NORMAL_COMBINE: check(false); break;
-				case EBlendType::BT_SOFTLIGHT: BufferLayerColourInPlace<SoftLightChannel, false, 1>(pNew.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_HARDLIGHT: BufferLayerColourInPlace<HardLightChannel, false, 1>(pNew.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_BURN: BufferLayerColourInPlace<BurnChannel, false, 1>(pNew.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_DODGE: BufferLayerColourInPlace<DodgeChannel, false, 1>(pNew.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_SCREEN: BufferLayerColourInPlace<ScreenChannel, false, 1>(pNew.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_OVERLAY: BufferLayerColourInPlace<OverlayChannel, false, 1>(pNew.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_LIGHTEN: BufferLayerColourInPlace<LightenChannel, false, 1>(pNew.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_MULTIPLY: BufferLayerColourInPlace<MultiplyChannel, false, 1>(pNew.get(), vec3f(m_col), bOnlyOneMip, 3); break;
-				case EBlendType::BT_BLEND: BufferLayerColourInPlace<BlendChannel, false, 1>(pNew.get(), vec3f(m_col), bOnlyOneMip, 3); break;
+				case EBlendType::BT_SOFTLIGHT: BufferLayerColourInPlace<SoftLightChannel, 1>(pNew.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_HARDLIGHT: BufferLayerColourInPlace<HardLightChannel, 1>(pNew.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_BURN: BufferLayerColourInPlace<BurnChannel, 1>(pNew.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_DODGE: BufferLayerColourInPlace<DodgeChannel, 1>(pNew.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_SCREEN: BufferLayerColourInPlace<ScreenChannel, 1>(pNew.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_OVERLAY: BufferLayerColourInPlace<OverlayChannel, 1>(pNew.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_LIGHTEN: BufferLayerColourInPlace<LightenChannel, 1>(pNew.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_MULTIPLY: BufferLayerColourInPlace<MultiplyChannel, 1>(pNew.get(), m_col, bOnlyOneMip, 3); break;
+				case EBlendType::BT_BLEND: BufferLayerColourInPlace<BlendChannel, 1>(pNew.get(), m_col, bOnlyOneMip, 3); break;
 				default: check(false);
 				}
 			}

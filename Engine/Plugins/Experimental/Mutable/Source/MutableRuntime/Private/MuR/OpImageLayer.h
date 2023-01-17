@@ -9,7 +9,11 @@
 
 namespace mu
 {
-
+	inline bool IsAnyComponentLargerThan1( FVector4f v )
+	{
+		return (v[0] > 1) || (v[1] > 1) || (v[2] > 1) || (v[3] > 1);
+	}
+	
 
 	//---------------------------------------------------------------------------------------------
 	//! Apply a blending function to an image with a colour source
@@ -183,27 +187,42 @@ namespace mu
     }
 
 
+	template< unsigned (*BLEND_FUNC)(unsigned, unsigned) >
+	inline void BufferLayerColour(Image* Result, const Image* Base, FVector4f Col)
+	{
+		bool bIsClampNeeded = IsAnyComponentLargerThan1(Col);
+		if (bIsClampNeeded)
+		{
+			BufferLayerColour<BLEND_FUNC, true>(Result, Base, Col);
+		}
+		else
+		{
+			BufferLayerColour<BLEND_FUNC, false>(Result, Base, Col);
+		}
+	}
+
+
 	//---------------------------------------------------------------------------------------------
 	template< unsigned (*BLEND_FUNC)(unsigned, unsigned), bool CLAMP >
-	inline void BufferLayerColourFromAlpha(Image* pResult, const Image* pBase, vec3<float> col)
+	inline void BufferLayerColourFromAlpha(Image* Result, const Image* Base, FVector4f Col)
 	{
-		check(pResult->GetFormat() == pBase->GetFormat());
-		check(pResult->GetSizeX() == pBase->GetSizeX());
-		check(pResult->GetSizeY() == pBase->GetSizeY());
-		check(pResult->GetLODCount() == pBase->GetLODCount());
+		check(Result->GetFormat() == Base->GetFormat());
+		check(Result->GetSizeX() == Base->GetSizeX());
+		check(Result->GetSizeY() == Base->GetSizeY());
+		check(Result->GetLODCount() == Base->GetLODCount());
 
-		EImageFormat baseFormat = pBase->GetFormat();
+		EImageFormat baseFormat = Base->GetFormat();
 
-		uint8* pDestBuf = pResult->GetData();
-		const uint8* pBaseBuf = pBase->GetData();
+		uint8* pDestBuf = Result->GetData();
+		const uint8* pBaseBuf = Base->GetData();
 
 		unsigned top[3];
-		top[0] = (unsigned)(255 * col[0]);
-		top[1] = (unsigned)(255 * col[1]);
-		top[2] = (unsigned)(255 * col[2]);
+		top[0] = (unsigned)(255 * Col[0]);
+		top[1] = (unsigned)(255 * Col[1]);
+		top[2] = (unsigned)(255 * Col[2]);
 
 		// Generic implementation
-		int32 pixelCount = pBase->CalculatePixelCount();
+		int32 pixelCount = Base->CalculatePixelCount();
 
 		constexpr int PixelCountConcurrencyThreshold = 0xff;
 
@@ -348,6 +367,22 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
+	template< unsigned (*BLEND_FUNC)(unsigned, unsigned)>
+	inline void BufferLayerColourFromAlpha(Image* Result, const Image* Base, FVector4f Col)
+	{
+		bool bIsClampNeeded = IsAnyComponentLargerThan1(Col);
+		if (bIsClampNeeded)
+		{
+			BufferLayerColourFromAlpha<BLEND_FUNC,true>(Result, Base, Col);
+		}
+		else
+		{
+			BufferLayerColourFromAlpha<BLEND_FUNC,false>(Result, Base, Col);
+		}
+	}
+
+
+	//---------------------------------------------------------------------------------------------
 	template< unsigned (*BLEND_FUNC_MASKED)(unsigned,unsigned,unsigned),
 		unsigned (*BLEND_FUNC)(unsigned,unsigned),
 		bool CLAMP,
@@ -355,26 +390,21 @@ namespace mu
 		uint32 CHANNELS_TO_BLEND,
 		// Number of total channels in the base image
 		int32 BASE_CHANNEL_STRIDE >
-    inline void BufferLayerColourFormat( uint8* pStartDestBuf,
-		const Image* pBase,
-		const Image* pMask,
-		vec3<float> col,
-		uint32 BaseOffset,
-		bool bOnlyOneMip )
+    inline void BufferLayerColourFormat( uint8* StartDestBuf, const Image* Base, const Image* Mask, FVector4f Col, uint32 BaseOffset, bool bOnlyOneMip )
 	{
 		check(CHANNELS_TO_BLEND+BaseOffset<=BASE_CHANNEL_STRIDE);
 
 		unsigned top[3];
-		top[0] = (unsigned)(255 * col[0]);
-		top[1] = (unsigned)(255 * col[1]);
-		top[2] = (unsigned)(255 * col[2]);
+		top[0] = (unsigned)(255 * Col[0]);
+		top[1] = (unsigned)(255 * Col[1]);
+		top[2] = (unsigned)(255 * Col[2]);
 
-		uint8* pDestBuf = pStartDestBuf+ BaseOffset;
-        const uint8* pMaskBuf = pMask->GetData();
-        const uint8* pBaseBuf = pBase->GetData()+ BaseOffset;
-		EImageFormat maskFormat = pMask->GetFormat();
+		uint8* pDestBuf = StartDestBuf+ BaseOffset;
+        const uint8* pMaskBuf = Mask->GetData();
+        const uint8* pBaseBuf = Base->GetData()+ BaseOffset;
+		EImageFormat maskFormat = Mask->GetFormat();
 
-		int32 LODCount = pBase->GetLODCount();
+		int32 LODCount = Base->GetLODCount();
 
 		if (bOnlyOneMip)
 		{
@@ -386,7 +416,7 @@ namespace mu
 		constexpr uint32 NumColorChannels = FMath::Min(CHANNELS_TO_BLEND,3u);
         if ( isUncompressed )
         {
-            int32 pixelCount = pBase->CalculatePixelCount();
+            int32 pixelCount = Base->CalculatePixelCount();
             for ( int i=0; i<pixelCount; ++i )
             {
                 unsigned mask = pMaskBuf[i];
@@ -413,12 +443,12 @@ namespace mu
         }
         else if ( maskFormat==EImageFormat::IF_L_UBYTE_RLE )
         {
-            int rows = pBase->GetSizeY();
-            int width = pBase->GetSizeX();
+            int rows = Base->GetSizeY();
+            int width = Base->GetSizeX();
 
 			// debug test
-			ImagePtr TempDecodedMask = new Image(pMask->GetSizeX(), pMask->GetSizeY(), pMask->GetLODCount(), EImageFormat::IF_L_UBYTE);
-			UncompressRLE_L(pMask, TempDecodedMask.get());
+			ImagePtr TempDecodedMask = new Image(Mask->GetSizeX(), Mask->GetSizeY(), Mask->GetLODCount(), EImageFormat::IF_L_UBYTE);
+			UncompressRLE_L(Mask, TempDecodedMask.get());
 
             for (int32 lod=0;lod<LODCount; ++lod)
             {
@@ -442,7 +472,7 @@ namespace mu
                         ++pMaskBuf;
 
                         // Equal pixels
-						check(pDestBuf + BASE_CHANNEL_STRIDE * equal <= pStartDestBuf + pBase->GetDataSize());
+						check(pDestBuf + BASE_CHANNEL_STRIDE * equal <= StartDestBuf + Base->GetDataSize());
                         if ( equalPixel==255 )
                         {
                             for ( int i=0; i<equal; ++i )
@@ -505,7 +535,7 @@ namespace mu
                         pBaseBuf += BASE_CHANNEL_STRIDE *equal;
 
                         // Different pixels
-						check(pDestBuf + BASE_CHANNEL_STRIDE * different <= pStartDestBuf + pBase->GetDataSize());
+						check(pDestBuf + BASE_CHANNEL_STRIDE * different <= StartDestBuf + Base->GetDataSize());
                         for ( int i=0; i<different; ++i )
                         {
                             for ( int32 c=0; c<NumColorChannels; ++c )
@@ -554,53 +584,68 @@ namespace mu
 			  unsigned (*BLEND_FUNC)(unsigned,unsigned),
 			  bool CLAMP
 			  >
-    inline void BufferLayerColour( uint8* pDestBuf,
-								   const Image* pBase,
-								   const Image* pMask,
-								   vec3<float> col )
+    inline void BufferLayerColour( uint8* DestBuf, const Image* Base, const Image* Mask, FVector4f Col )
 	{
-		check(pBase->GetSizeX() == pMask->GetSizeX());
-		check(pBase->GetSizeY() == pMask->GetSizeY());
-		check(pMask->GetFormat() == EImageFormat::IF_L_UBYTE
+		check(Base->GetSizeX() == Mask->GetSizeX());
+		check(Base->GetSizeY() == Mask->GetSizeY());
+		check(Mask->GetFormat() == EImageFormat::IF_L_UBYTE
 			||
-			pMask->GetFormat() == EImageFormat::IF_L_UBYTE_RLE);
+			Mask->GetFormat() == EImageFormat::IF_L_UBYTE_RLE);
 
 		bool bValid =
-			(pBase->GetSizeX() == pMask->GetSizeX())
+			(Base->GetSizeX() == Mask->GetSizeX())
 			&&
-			(pBase->GetSizeY() == pMask->GetSizeY())
+			(Base->GetSizeY() == Mask->GetSizeY())
 			&&
-			(pMask->GetFormat() == EImageFormat::IF_L_UBYTE
+			(Mask->GetFormat() == EImageFormat::IF_L_UBYTE
 				||
-				pMask->GetFormat() == EImageFormat::IF_L_UBYTE_RLE);
+				Mask->GetFormat() == EImageFormat::IF_L_UBYTE_RLE);
 		if (!bValid)
 		{
 			return;
 		}
 
-		EImageFormat baseFormat = pBase->GetFormat();
+		EImageFormat baseFormat = Base->GetFormat();
 		if ( baseFormat==EImageFormat::IF_RGB_UBYTE )
 		{
-			BufferLayerColourFormat<BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, 3, 3>( pDestBuf, pBase, pMask, col, 0, false);
+			BufferLayerColourFormat<BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, 3, 3>( DestBuf, Base, Mask, Col, 0, false);
 		}
         else if ( baseFormat==EImageFormat::IF_RGBA_UBYTE )
         {
-            BufferLayerColourFormat<BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, 3, 4>( pDestBuf, pBase, pMask, col, 0, false);
+            BufferLayerColourFormat<BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, 3, 4>( DestBuf, Base, Mask, Col, 0, false);
         }
         else if ( baseFormat==EImageFormat::IF_BGRA_UBYTE )
         {
-            float temp = col[0];
-            col[0] = col[2];
-            col[2] = temp;
-            BufferLayerColourFormat<BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, 3, 4>( pDestBuf, pBase, pMask, col, 0, false);
+            float temp = Col[0];
+            Col[0] = Col[2];
+            Col[2] = temp;
+            BufferLayerColourFormat<BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, 3, 4>( DestBuf, Base, Mask, Col, 0, false);
         }
         else if ( baseFormat==EImageFormat::IF_L_UBYTE )
 		{
-			BufferLayerColourFormat<BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, 1, 1>( pDestBuf, pBase, pMask, col, 0, false);
+			BufferLayerColourFormat<BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, 1, 1>( DestBuf, Base, Mask, Col, 0, false);
 		}
 		else
 		{
 			checkf( false, TEXT("Unsupported format.") );
+		}
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	template< unsigned (*BLEND_FUNC_MASKED)(unsigned, unsigned, unsigned),
+		unsigned (*BLEND_FUNC)(unsigned, unsigned)
+	>
+	inline void BufferLayerColour(uint8* DestBuf, const Image* Base, const Image* Mask, FVector4f Col)
+	{
+		bool bIsClampNeeded = IsAnyComponentLargerThan1(Col);
+		if (bIsClampNeeded)
+		{
+			BufferLayerColour<BLEND_FUNC_MASKED, BLEND_FUNC, true>(DestBuf, Base, Mask, Col );
+		}
+		else
+		{
+			BufferLayerColour<BLEND_FUNC_MASKED, BLEND_FUNC, false>(DestBuf, Base, Mask, Col );
 		}
 	}
 
@@ -614,27 +659,25 @@ namespace mu
 		// Number of total channels in the base image
 		int32 BASE_CHANNEL_STRIDE>
 
-	inline void BufferLayerColourFormatInPlace(Image* pBase, vec3<float> col,
-		uint32 BaseChannelOffset,
-		bool bOnlyFirstLOD)
+	inline void BufferLayerColourFormatInPlace(Image* Base, FVector4f Col, uint32 BaseChannelOffset, bool bOnlyFirstLOD)
 	{
-		uint8* pBaseBuf = pBase->GetData() + BaseChannelOffset;
+		uint8* pBaseBuf = Base->GetData() + BaseChannelOffset;
 
 		uint32 top[4];
-		top[0] = (uint32)(255 * col[0]);
-		top[1] = (uint32)(255 * col[1]);
-		top[2] = (uint32)(255 * col[2]);
-		top[3] = (uint32)(255 * col[0]); // used for 1 channel blends to alpha
+		top[0] = (uint32)(255 * Col[0]);
+		top[1] = (uint32)(255 * Col[1]);
+		top[2] = (uint32)(255 * Col[2]);
+		top[3] = (uint32)(255 * Col[0]); // used for 1 channel blends to alpha
 
 		// Generic implementation
 		int32 PixelCount = 0;
 		if (bOnlyFirstLOD)
 		{
-			PixelCount = pBase->GetSizeX() * pBase->GetSizeY();
+			PixelCount = Base->GetSizeX() * Base->GetSizeY();
 		}
 		else
 		{
-			PixelCount = pBase->CalculatePixelCount();
+			PixelCount = Base->CalculatePixelCount();
 		}
 
 		ParallelFor(PixelCount,
@@ -662,36 +705,52 @@ namespace mu
 
 	//---------------------------------------------------------------------------------------------
 	template< unsigned (*BLEND_FUNC)(unsigned, unsigned), bool CLAMP, uint32 CHANNEL_COUNT >
-	inline void BufferLayerColourInPlace(Image* pBase, vec3<float> col, bool bOnlyOneMip, uint32 BaseOffset)
+	inline void BufferLayerColourInPlace(Image* Base, FVector4f Col, bool bOnlyOneMip, uint32 BaseOffset)
 	{
-		EImageFormat baseFormat = pBase->GetFormat();
+		EImageFormat baseFormat = Base->GetFormat();
 
 		if (baseFormat == EImageFormat::IF_RGB_UBYTE)
 		{
 			check(BaseOffset + CHANNEL_COUNT <= 3);
-			BufferLayerColourFormatInPlace< BLEND_FUNC, CLAMP, CHANNEL_COUNT, 3 >(pBase, col, BaseOffset, bOnlyOneMip);
+			BufferLayerColourFormatInPlace< BLEND_FUNC, CLAMP, CHANNEL_COUNT, 3 >(Base, Col, BaseOffset, bOnlyOneMip);
 		}
 		else if (baseFormat == EImageFormat::IF_RGBA_UBYTE)
 		{
 			check(BaseOffset + CHANNEL_COUNT <= 4);
-			BufferLayerColourFormatInPlace< BLEND_FUNC, CLAMP, CHANNEL_COUNT, 4 >(pBase, col, BaseOffset, bOnlyOneMip);
+			BufferLayerColourFormatInPlace< BLEND_FUNC, CLAMP, CHANNEL_COUNT, 4 >(Base, Col, BaseOffset, bOnlyOneMip);
 		}
 		else if (baseFormat == EImageFormat::IF_BGRA_UBYTE)
 		{
-			float temp = col[0];
-			col[0] = col[2];
-			col[2] = temp;
-			BufferLayerColourFormatInPlace< BLEND_FUNC, CLAMP, CHANNEL_COUNT, 4>(pBase, col, BaseOffset, bOnlyOneMip);
+			float temp = Col[0];
+			Col[0] = Col[2];
+			Col[2] = temp;
+			BufferLayerColourFormatInPlace< BLEND_FUNC, CLAMP, CHANNEL_COUNT, 4>(Base, Col, BaseOffset, bOnlyOneMip);
 		}
 
 		else if (baseFormat == EImageFormat::IF_L_UBYTE)
 		{
 			check(BaseOffset + CHANNEL_COUNT <= 1);
-			BufferLayerColourFormatInPlace< BLEND_FUNC, CLAMP, CHANNEL_COUNT, 1 >(pBase, col, BaseOffset, bOnlyOneMip);
+			BufferLayerColourFormatInPlace< BLEND_FUNC, CLAMP, CHANNEL_COUNT, 1 >(Base, Col, BaseOffset, bOnlyOneMip);
 		}
 		else
 		{
 			checkf(false, TEXT("Unsupported format."));
+		}
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	template< unsigned (*BLEND_FUNC)(unsigned, unsigned), uint32 CHANNEL_COUNT >
+	inline void BufferLayerColourInPlace(Image* Base, FVector4f Col, bool bOnlyOneMip, uint32 BaseOffset)
+	{
+		bool bIsClampNeeded = IsAnyComponentLargerThan1(Col);
+		if (bIsClampNeeded)
+		{
+			BufferLayerColourInPlace<BLEND_FUNC, true, CHANNEL_COUNT>(Base, Col, bOnlyOneMip, BaseOffset);
+		}
+		else
+		{
+			BufferLayerColourInPlace<BLEND_FUNC, false, CHANNEL_COUNT>(Base, Col, bOnlyOneMip, BaseOffset);
 		}
 	}
 
@@ -702,39 +761,55 @@ namespace mu
 		unsigned (*BLEND_FUNC)(unsigned, unsigned), 
 		bool CLAMP, 
 		int32 CHANNEL_COUNT >
-	inline void BufferLayerColourInPlace(Image* pBase, const Image* Mask, vec3<float> col, bool bOnlyOneMip, uint32 BaseOffset)
+	inline void BufferLayerColourInPlace(Image* Base, const Image* Mask, FVector4f Col, bool bOnlyOneMip, uint32 BaseOffset)
 	{
-		check(pBase->GetSizeX() == Mask->GetSizeX());
-		check(pBase->GetSizeY() == Mask->GetSizeY());
+		check(Base->GetSizeX() == Mask->GetSizeX());
+		check(Base->GetSizeY() == Mask->GetSizeY());
 
-		EImageFormat baseFormat = pBase->GetFormat();
+		EImageFormat baseFormat = Base->GetFormat();
 
 		if (baseFormat == EImageFormat::IF_RGB_UBYTE)
 		{
 			check(BaseOffset + CHANNEL_COUNT <= 3);
-			BufferLayerColourFormat< BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, CHANNEL_COUNT, 3 >(pBase->GetData(), pBase, Mask, col, BaseOffset, bOnlyOneMip);
+			BufferLayerColourFormat< BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, CHANNEL_COUNT, 3 >(Base->GetData(), Base, Mask, Col, BaseOffset, bOnlyOneMip);
 		}
 		else if (baseFormat == EImageFormat::IF_RGBA_UBYTE)
 		{
 			check(BaseOffset + CHANNEL_COUNT <= 4);
-			BufferLayerColourFormat< BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, CHANNEL_COUNT, 4 >(pBase->GetData(), pBase, Mask, col, BaseOffset, bOnlyOneMip);
+			BufferLayerColourFormat< BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, CHANNEL_COUNT, 4 >(Base->GetData(), Base, Mask, Col, BaseOffset, bOnlyOneMip);
 		}
 		else if (baseFormat == EImageFormat::IF_BGRA_UBYTE)
 		{
 			check(BaseOffset + CHANNEL_COUNT <= 4);
-			float temp = col[0];
-			col[0] = col[2];
-			col[2] = temp;
-			BufferLayerColourFormat< BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, CHANNEL_COUNT, 4 >(pBase->GetData(), pBase, Mask, col, BaseOffset, bOnlyOneMip);
+			float temp = Col[0];
+			Col[0] = Col[2];
+			Col[2] = temp;
+			BufferLayerColourFormat< BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, CHANNEL_COUNT, 4 >(Base->GetData(), Base, Mask, Col, BaseOffset, bOnlyOneMip);
 		}
 		else if (baseFormat == EImageFormat::IF_L_UBYTE)
 		{
 			check(BaseOffset + CHANNEL_COUNT <= 1);
-			BufferLayerColourFormat< BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, CHANNEL_COUNT, 1 >(pBase->GetData(), pBase, Mask, col, BaseOffset, bOnlyOneMip);
+			BufferLayerColourFormat< BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, CHANNEL_COUNT, 1 >(Base->GetData(), Base, Mask, Col, BaseOffset, bOnlyOneMip);
 		}
 		else
 		{
 			checkf(false, TEXT("Unsupported format."));
+		}
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	template< unsigned (*BLEND_FUNC_MASKED)(unsigned, unsigned, unsigned), unsigned (*BLEND_FUNC)(unsigned, unsigned), uint32 CHANNEL_COUNT >
+	inline void BufferLayerColourInPlace(Image* Base, const Image* Mask, FVector4f Col, bool bOnlyOneMip, uint32 BaseOffset)
+	{
+		bool bIsClampNeeded = IsAnyComponentLargerThan1(Col);
+		if (bIsClampNeeded)
+		{
+			BufferLayerColourInPlace<BLEND_FUNC_MASKED, BLEND_FUNC, true, CHANNEL_COUNT>(Base, Mask, Col, bOnlyOneMip, BaseOffset);
+		}
+		else
+		{
+			BufferLayerColourInPlace<BLEND_FUNC_MASKED, BLEND_FUNC, false, CHANNEL_COUNT>(Base, Mask, Col, bOnlyOneMip, BaseOffset);
 		}
 	}
 
