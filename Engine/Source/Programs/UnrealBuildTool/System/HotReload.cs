@@ -1063,16 +1063,17 @@ namespace UnrealBuildTool
 					}
 
 					// Update this action's list of prerequisite items too
-					for (int ItemIndex = 0; ItemIndex < NewAction.PrerequisiteItems.Count; ++ItemIndex)
+					List<FileItem> UpdatePrerequisiteItems = new List<FileItem>(NewAction.PrerequisiteItems);
+					for (int ItemIndex = 0; ItemIndex < UpdatePrerequisiteItems.Count; ++ItemIndex)
 					{
-						FileItem OriginalPrerequisiteItem = NewAction.PrerequisiteItems[ItemIndex];
+						FileItem OriginalPrerequisiteItem = UpdatePrerequisiteItems[ItemIndex];
 						string NewPrerequisiteItemFilePath = ReplaceBaseFileName(OriginalPrerequisiteItem.AbsolutePath, OriginalFileNameWithoutExtension, NewFileNameWithoutExtension);
 
 						if (OriginalPrerequisiteItem.AbsolutePath != NewPrerequisiteItemFilePath)
 						{
 							// OK, the prerequisite item's file name changed so we'll update it to point to our new file
 							FileItem NewPrerequisiteItem = FileItem.GetItemByPath(NewPrerequisiteItemFilePath);
-							NewAction.PrerequisiteItems[ItemIndex] = NewPrerequisiteItem;
+							UpdatePrerequisiteItems[ItemIndex] = NewPrerequisiteItem;
 
 							// Keep track of it so we can fix up dependencies in a second pass afterwards
 							AffectedOriginalFileItemAndNewFileItemMap.Add(OriginalPrerequisiteItem, NewPrerequisiteItem);
@@ -1093,34 +1094,39 @@ namespace UnrealBuildTool
 							}
 						}
 					}
+					NewAction.PrerequisiteItems = new SortedSet<FileItem>(UpdatePrerequisiteItems);
 				}
 
 				// Update this action's list of produced items too
-				for (int ItemIndex = 0; ItemIndex < NewAction.ProducedItems.Count; ++ItemIndex)
+				List<FileItem> UpdateProducedItems = new List<FileItem>(NewAction.ProducedItems);
+				for (int ItemIndex = 0; ItemIndex < UpdateProducedItems.Count; ++ItemIndex)
 				{
-					FileItem OriginalProducedItem = NewAction.ProducedItems[ItemIndex];
+					FileItem OriginalProducedItem = UpdateProducedItems[ItemIndex];
 
 					string NewProducedItemFilePath = ReplaceBaseFileName(OriginalProducedItem.AbsolutePath, OriginalFileNameWithoutExtension, NewFileNameWithoutExtension);
 					if (OriginalProducedItem.AbsolutePath != NewProducedItemFilePath)
 					{
 						// OK, the produced item's file name changed so we'll update it to point to our new file
 						FileItem NewProducedItem = FileItem.GetItemByPath(NewProducedItemFilePath);
-						NewAction.ProducedItems[ItemIndex] = NewProducedItem;
+						UpdateProducedItems[ItemIndex] = NewProducedItem;
 
 						// Keep track of it so we can fix up dependencies in a second pass afterwards
 						AffectedOriginalFileItemAndNewFileItemMap.Add(OriginalProducedItem, NewProducedItem);
 					}
 				}
+				NewAction.ProducedItems = new SortedSet<FileItem>(UpdateProducedItems);
 
 				// Fix up the list of items to delete too
-				for(int Idx = 0; Idx < NewAction.DeleteItems.Count; Idx++)
+				List<FileItem> UpdateDeleteItems = new List<FileItem>(NewAction.DeleteItems);
+				for (int Idx = 0; Idx < UpdateDeleteItems.Count; Idx++)
 				{
 					FileItem? NewItem;
-					if(AffectedOriginalFileItemAndNewFileItemMap.TryGetValue(NewAction.DeleteItems[Idx], out NewItem))
+					if(AffectedOriginalFileItemAndNewFileItemMap.TryGetValue(UpdateDeleteItems[Idx], out NewItem))
 					{
-						NewAction.DeleteItems[Idx] = NewItem;
+						UpdateDeleteItems[Idx] = NewItem;
 					}
 				}
+				NewAction.DeleteItems = new SortedSet<FileItem>(UpdateDeleteItems);
 
 				// The status description of the item has the file name, so we'll update it too
 				NewAction.StatusDescription = ReplaceBaseFileName(Action.StatusDescription, OriginalFileNameWithoutExtension, NewFileNameWithoutExtension);
@@ -1141,17 +1147,19 @@ namespace UnrealBuildTool
 			foreach (LinkedAction Action in Actions)
 			{
 				Action NewAction = new Action(Action.Inner);
-				for (int ItemIndex = 0; ItemIndex < NewAction.PrerequisiteItems.Count; ++ItemIndex)
+				List<FileItem> UpdatePrerequisiteItems = new List<FileItem>(NewAction.PrerequisiteItems);
+				for (int ItemIndex = 0; ItemIndex < UpdatePrerequisiteItems.Count; ++ItemIndex)
 				{
-					FileItem OriginalFileItem = NewAction.PrerequisiteItems[ItemIndex];
+					FileItem OriginalFileItem = UpdatePrerequisiteItems[ItemIndex];
 
 					FileItem? NewFileItem;
 					if (AffectedOriginalFileItemAndNewFileItemMap.TryGetValue(OriginalFileItem, out NewFileItem))
 					{
 						// OK, looks like we need to replace this file item because we've renamed the file
-						NewAction.PrerequisiteItems[ItemIndex] = NewFileItem;
+						UpdatePrerequisiteItems[ItemIndex] = NewFileItem;
 					}
 				}
+				NewAction.PrerequisiteItems = new SortedSet<FileItem>(UpdatePrerequisiteItems);
 				Action.Inner = NewAction;
 			}
 
@@ -1274,7 +1282,7 @@ namespace UnrealBuildTool
 
 						Action NewAction = new Action(Action.Inner);
 
-						NewAction.PrerequisiteItems.RemoveAll(x => x.Location == TargetInfoFile);
+						NewAction.PrerequisiteItems.RemoveWhere(x => x.Location == TargetInfoFile);
 						NewAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(HotReloadTargetInfoFile));
 
 						NewAction.CommandArguments = Arguments.Substring(0, FileNameIdx) + HotReloadTargetInfoFile + Arguments.Substring(FileNameEndIdx);

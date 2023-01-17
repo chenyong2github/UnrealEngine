@@ -682,7 +682,7 @@ namespace UnrealBuildTool
 				CompileAction.DependencyListFile = DependencyListFile;
 				CompileAction.PrerequisiteItems.Add(DependencyListFile);
 
-				CompileAction.ProducedItems.AddRange(CompiledISPCObjFiles);
+				CompileAction.ProducedItems.UnionWith(CompiledISPCObjFiles);
 
 				FileReference ResponseFileName = new FileReference(CompiledISPCObjFileNoISA.AbsolutePath + ".response");
 				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, Arguments.Select(x => Utils.ExpandVariables(x)));

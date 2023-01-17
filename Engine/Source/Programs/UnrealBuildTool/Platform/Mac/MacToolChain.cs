@@ -569,7 +569,7 @@ namespace UnrealBuildTool
 				OutputFiles.Add(OutputFileItem);
 
 				Action LipoAction = Graph.CreateAction(ActionType.Link);
-				LipoAction.PrerequisiteItems.AddRange(PerArchOutputFiles);
+				LipoAction.PrerequisiteItems.UnionWith(PerArchOutputFiles);
 				LipoAction.ProducedItems.Add(OutputFileItem);
 				LipoAction.WorkingDirectory = GetMacDevSrcRoot();
 				LipoAction.CommandPath = FileReference.Combine(Info.Clang.Directory, "lipo");
@@ -936,7 +936,7 @@ namespace UnrealBuildTool
 			LinkAction.ProducedItems.Add(OutputFile);
 
 			// Delete all items we produce
-			LinkAction.DeleteItems.AddRange(LinkAction.ProducedItems);
+			LinkAction.DeleteItems.UnionWith(LinkAction.ProducedItems);
 
 			return OutputFile;
 		}

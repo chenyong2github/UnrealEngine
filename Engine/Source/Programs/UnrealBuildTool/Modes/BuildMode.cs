@@ -587,7 +587,7 @@ namespace UnrealBuildTool
 								if (PrerequisiteAction.ActionType != ActionType.GatherModuleDependencies)
 								{
 									Action NewAction = new Action(PrerequisiteAction.Inner);
-									NewAction.PrerequisiteItems.AddRange(CompiledModuleInterfaces);
+									NewAction.PrerequisiteItems.UnionWith(CompiledModuleInterfaces);
 									PrerequisiteAction.Inner = NewAction;
 								}
 							}

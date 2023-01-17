@@ -146,17 +146,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Every file this action depends on.  These files need to exist and be up to date in order for this action to even be considered
 		/// </summary>
-		public List<FileItem> PrerequisiteItems { get; set; } = new List<FileItem>();
+		public SortedSet<FileItem> PrerequisiteItems { get; set; } = new SortedSet<FileItem>();
 
 		/// <summary>
 		/// The files that this action produces after completing
 		/// </summary>
-		public List<FileItem> ProducedItems { get; set; } = new List<FileItem>();
+		public SortedSet<FileItem> ProducedItems { get; set; } = new SortedSet<FileItem>();
 
 		/// <summary>
 		/// Items that should be deleted before running this action
 		/// </summary>
-		public List<FileItem> DeleteItems { get; set; } = new List<FileItem>();
+		public SortedSet<FileItem> DeleteItems { get; set; } = new SortedSet<FileItem>();
 
 		/// <summary>
 		/// For C++ source files, specifies a dependency list file used to check changes to header files
@@ -240,9 +240,9 @@ namespace UnrealBuildTool
 		public Action(IExternalAction InOther)
 		{
 			ActionType = InOther.ActionType;
-			PrerequisiteItems = new List<FileItem>(InOther.PrerequisiteItems);
-			ProducedItems = new List<FileItem>(InOther.ProducedItems);
-			DeleteItems = new List<FileItem>(InOther.DeleteItems);
+			PrerequisiteItems = new SortedSet<FileItem>(InOther.PrerequisiteItems);
+			ProducedItems = new SortedSet<FileItem>(InOther.ProducedItems);
+			DeleteItems = new SortedSet<FileItem>(InOther.DeleteItems);
 			DependencyListFile = InOther.DependencyListFile;
 			WorkingDirectory = InOther.WorkingDirectory;
 			CommandPath = InOther.CommandPath;
@@ -272,9 +272,9 @@ namespace UnrealBuildTool
 			bIsGCCCompiler = Reader.ReadBool();
 			bShouldOutputStatusDescription = Reader.ReadBool();
 			bProducesImportLibrary = Reader.ReadBool();
-			PrerequisiteItems = Reader.ReadList(() => Reader.ReadFileItem())!;
-			ProducedItems = Reader.ReadList(() => Reader.ReadFileItem())!;
-			DeleteItems = Reader.ReadList(() => Reader.ReadFileItem())!;
+			PrerequisiteItems = Reader.ReadSortedSet(() => Reader.ReadFileItem())!;
+			ProducedItems = Reader.ReadSortedSet(() => Reader.ReadFileItem())!;
+			DeleteItems = Reader.ReadSortedSet(() => Reader.ReadFileItem())!;
 			DependencyListFile = Reader.ReadFileItem();
 			bUseActionHistory = Reader.ReadBool();
 		}
@@ -296,9 +296,9 @@ namespace UnrealBuildTool
 			Writer.WriteBool(bIsGCCCompiler);
 			Writer.WriteBool(bShouldOutputStatusDescription);
 			Writer.WriteBool(bProducesImportLibrary);
-			Writer.WriteList(PrerequisiteItems, Item => Writer.WriteFileItem(Item));
-			Writer.WriteList(ProducedItems, Item => Writer.WriteFileItem(Item));
-			Writer.WriteList(DeleteItems, Item => Writer.WriteFileItem(Item));
+			Writer.WriteSortedSet(PrerequisiteItems, Item => Writer.WriteFileItem(Item));
+			Writer.WriteSortedSet(ProducedItems, Item => Writer.WriteFileItem(Item));
+			Writer.WriteSortedSet(DeleteItems, Item => Writer.WriteFileItem(Item));
 			Writer.WriteFileItem(DependencyListFile);
 			Writer.WriteBool(bUseActionHistory);
 		}
@@ -380,19 +380,19 @@ namespace UnrealBuildTool
 			string[]? PrerequisiteItems;
 			if (Object.TryGetStringArrayField("PrerequisiteItems", out PrerequisiteItems))
 			{
-				Action.PrerequisiteItems.AddRange(PrerequisiteItems.Select(x => FileItem.GetItemByPath(x)));
+				Action.PrerequisiteItems.UnionWith(PrerequisiteItems.Select(x => FileItem.GetItemByPath(x)));
 			}
 
 			string[]? ProducedItems;
 			if (Object.TryGetStringArrayField("ProducedItems", out ProducedItems))
 			{
-				Action.ProducedItems.AddRange(ProducedItems.Select(x => FileItem.GetItemByPath(x)));
+				Action.ProducedItems.UnionWith(ProducedItems.Select(x => FileItem.GetItemByPath(x)));
 			}
 
 			string[]? DeleteItems;
 			if (Object.TryGetStringArrayField("DeleteItems", out DeleteItems))
 			{
-				Action.DeleteItems.AddRange(DeleteItems.Select(x => FileItem.GetItemByPath(x)));
+				Action.DeleteItems.UnionWith(DeleteItems.Select(x => FileItem.GetItemByPath(x)));
 			}
 
 			string? DependencyListFile;

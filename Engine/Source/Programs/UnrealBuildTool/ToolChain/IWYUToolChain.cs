@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
@@ -113,7 +114,7 @@ namespace UnrealBuildTool
 
 				Action Action = CompileCPPFile(CompileEnvironment, SourceFile, OutputDir, ModuleName, Graph, GlobalArguments, new CPPOutput());
 
-				string CommandLineArgs = CommonCommandLineArgs + " -Xiwyu --write_json_path=\"" + Action.ProducedItems[0] + "\" ";
+				string CommandLineArgs = CommonCommandLineArgs + " -Xiwyu --write_json_path=\"" + Action.ProducedItems.First() + "\" ";
 				if (SourceFile.HasExtension(".cpp"))
 				{
 					List<FileItem>? InlinedFiles;
@@ -127,7 +128,7 @@ namespace UnrealBuildTool
 				}
 
 				Action.CommandArguments = CommandLineArgs + Action.CommandArguments;
-				IwyuFiles.Add(Action.ProducedItems[0]);
+				IwyuFiles.Add(Action.ProducedItems.First());
 			}
 
 			return new CPPOutput() { ObjectFiles = IwyuFiles };

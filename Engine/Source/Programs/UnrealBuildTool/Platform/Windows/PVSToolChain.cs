@@ -812,7 +812,7 @@ namespace UnrealBuildTool
 
 				AnalyzeAction.PrerequisiteItems.Add(ConfigFileItem);
 				AnalyzeAction.PrerequisiteItems.Add(PreprocessedFileItem);
-				AnalyzeAction.PrerequisiteItems.AddRange(InputFiles); // Add the InputFiles as PrerequisiteItems so that in SingleFileCompile mode the PVSAnalyze step is not filtered out
+				AnalyzeAction.PrerequisiteItems.UnionWith(InputFiles); // Add the InputFiles as PrerequisiteItems so that in SingleFileCompile mode the PVSAnalyze step is not filtered out
 				AnalyzeAction.ProducedItems.Add(OutputFileItem);
 				AnalyzeAction.DeleteItems.Add(OutputFileItem); // PVS Studio will append by default, so need to delete produced items
 				AnalyzeAction.bCanExecuteRemotely = false;
@@ -854,11 +854,11 @@ namespace UnrealBuildTool
 			AnalyzeAction.CommandArguments = $"\"{Unreal.UnrealBuildToolDllPath}\" -Mode=PVSGather -Input=\"{InputFileListItem.Location}\" -Output=\"{OutputFile}\" ";
 			AnalyzeAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 			AnalyzeAction.PrerequisiteItems.Add(InputFileListItem);
-			AnalyzeAction.PrerequisiteItems.AddRange(Makefile.OutputItems);
-			AnalyzeAction.PrerequisiteItems.AddRange(CompileSourceFiles);
+			AnalyzeAction.PrerequisiteItems.UnionWith(Makefile.OutputItems);
+			AnalyzeAction.PrerequisiteItems.UnionWith(CompileSourceFiles);
 			AnalyzeAction.ProducedItems.Add(FileItem.GetItemByFileReference(OutputFile));
 			AnalyzeAction.ProducedItems.Add(FileItem.GetItemByPath(OutputFile.FullName + "_does_not_exist")); // Force the gather step to always execute
-			AnalyzeAction.DeleteItems.AddRange(AnalyzeAction.ProducedItems);
+			AnalyzeAction.DeleteItems.UnionWith(AnalyzeAction.ProducedItems);
 
 			Makefile.OutputItems.AddRange(AnalyzeAction.ProducedItems);
 		}

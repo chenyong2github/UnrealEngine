@@ -391,6 +391,55 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Reads a sortedset of items
+		/// </summary>
+		/// <typeparam name="T">The element type for the sortedset</typeparam>
+		/// <param name="readElement">Delegate used to read a single element</param>
+		/// <returns>SortedSet of items</returns>
+		public SortedSet<T>? ReadSortedSet<T>(Func<T> readElement)
+		{
+			int count = ReadInt();
+			if (count < 0)
+			{
+				return null;
+			}
+			else
+			{
+				SortedSet<T> result = new SortedSet<T>();
+				for (int idx = 0; idx < count; idx++)
+				{
+					result.Add(readElement());
+				}
+				return result;
+			}
+		}
+
+		/// <summary>
+		/// Reads a sortedset of items
+		/// </summary>
+		/// <typeparam name="T">The element type for the sortedset</typeparam>
+		/// <param name="readElement">Delegate used to read a single element</param>
+		/// <param name="comparer">Comparison function for the set</param>
+		/// <returns>SortedSet of items</returns>
+		public SortedSet<T>? ReadSortedSet<T>(Func<T> readElement, IComparer<T> comparer)
+		{
+			int count = ReadInt();
+			if (count < 0)
+			{
+				return null;
+			}
+			else
+			{
+				SortedSet<T> result = new SortedSet<T>(comparer);
+				for (int idx = 0; idx < count; idx++)
+				{
+					result.Add(readElement());
+				}
+				return result;
+			}
+		}
+
+		/// <summary>
 		/// Reads a dictionary of items
 		/// </summary>
 		/// <typeparam name="TK">Type of the dictionary key</typeparam>

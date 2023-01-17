@@ -1661,7 +1661,7 @@ namespace UnrealBuildTool
 						AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
 						AggregateTimingInfoAction.bCanExecuteRemotely = false;
 						AggregateTimingInfoAction.bCanExecuteRemotelyWithSNDBS = false;
-						AggregateTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
+						AggregateTimingInfoAction.PrerequisiteItems.UnionWith(TimingJsonFiles);
 
 						FileItem AggregateOutputFile = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.cta"));
 						AggregateTimingInfoAction.ProducedItems.Add(AggregateOutputFile);
@@ -1686,7 +1686,7 @@ namespace UnrealBuildTool
 						AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
 						AggregateTimingInfoAction.bCanExecuteRemotely = false;
 						AggregateTimingInfoAction.bCanExecuteRemotelyWithSNDBS = false;
-						AggregateTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
+						AggregateTimingInfoAction.PrerequisiteItems.UnionWith(TimingJsonFiles);
 
 						AggregateTimingInfoAction.ProducedItems.Add(AggregateOutputFile);
 						AggregateTimingInfoAction.ProducedItems.Add(HeadersOutputFile);
@@ -1704,7 +1704,7 @@ namespace UnrealBuildTool
 						ArchiveTimingInfoAction.StatusDescription = $"Archiving {TimingJsonFiles.Count} Timing File(s)";
 						ArchiveTimingInfoAction.bCanExecuteRemotely = false;
 						ArchiveTimingInfoAction.bCanExecuteRemotelyWithSNDBS = false;
-						ArchiveTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
+						ArchiveTimingInfoAction.PrerequisiteItems.UnionWith(TimingJsonFiles);
 
 						ArchiveTimingInfoAction.ProducedItems.Add(ArchiveOutputFile);
 						Makefile.OutputItems.AddRange(ArchiveTimingInfoAction.ProducedItems);
@@ -1720,7 +1720,7 @@ namespace UnrealBuildTool
 							CompileScoreExtractorAction.StatusDescription = $"Extracting CompileScore";
 							CompileScoreExtractorAction.bCanExecuteRemotely = false;
 							CompileScoreExtractorAction.bCanExecuteRemotelyWithSNDBS = false;
-							CompileScoreExtractorAction.PrerequisiteItems.AddRange(TimingJsonFiles);
+							CompileScoreExtractorAction.PrerequisiteItems.UnionWith(TimingJsonFiles);
 							CompileScoreExtractorAction.CommandPath = ScoreDataExtractor;
 							CompileScoreExtractorAction.CommandArguments = $"-clang -verbosity 0 -timelinepack 1000000 -extract -i \"{NormalizeCommandLinePath(Makefile.ProjectIntermediateDirectory)}\" -o \"{NormalizeCommandLinePath(CompileScoreOutput)}\"";
 
@@ -1804,8 +1804,8 @@ namespace UnrealBuildTool
 				CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 				CompileAction.CommandPath = EnvVars.ResourceCompilerPath;
 				CompileAction.StatusDescription = Path.GetFileName(RCFile.AbsolutePath);
-				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
-				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
+				CompileAction.PrerequisiteItems.UnionWith(CompileEnvironment.ForceIncludeFiles);
+				CompileAction.PrerequisiteItems.UnionWith(CompileEnvironment.AdditionalPrerequisites);
 
 				// Resource tool can run remotely if possible
 				CompileAction.bCanExecuteRemotely = true;
@@ -2301,20 +2301,20 @@ namespace UnrealBuildTool
 			}
 			LinkAction.CommandArguments = $"@\"{ResponseFileName}\"";
 			LinkAction.CommandVersion = EnvVars.ToolChainVersion.ToString();
-			LinkAction.ProducedItems.AddRange(ProducedItems);
-			LinkAction.PrerequisiteItems.AddRange(PrerequisiteItems);
+			LinkAction.ProducedItems.UnionWith(ProducedItems);
+			LinkAction.PrerequisiteItems.UnionWith(PrerequisiteItems);
 			LinkAction.StatusDescription = Path.GetFileName(OutputFile.AbsolutePath);
 
 			// VS 15.3+ does not touch lib files if they do not contain any modifications, but we need to ensure the timestamps are updated to avoid repeatedly building them.
 			if (bBuildImportLibraryOnly || (LinkEnvironment.bHasExports && !bIsBuildingLibraryOrImportLibrary))
 			{
-				LinkAction.DeleteItems.AddRange(LinkAction.ProducedItems.Where(x => x.Location.HasExtension(".lib") || x.Location.HasExtension(".exp")));
+				LinkAction.DeleteItems.UnionWith(LinkAction.ProducedItems.Where(x => x.Location.HasExtension(".lib") || x.Location.HasExtension(".exp")));
 			}
 
 			// Delete PDB files for all produced items, since incremental updates are slower than full ones.
 			if (!LinkEnvironment.bUseIncrementalLinking)
 			{
-				LinkAction.DeleteItems.AddRange(LinkAction.ProducedItems.Where(x => x.Location.HasExtension(".pdb")));
+				LinkAction.DeleteItems.UnionWith(LinkAction.ProducedItems.Where(x => x.Location.HasExtension(".pdb")));
 			}
 
 			// Tell the action that we're building an import library here and it should conditionally be

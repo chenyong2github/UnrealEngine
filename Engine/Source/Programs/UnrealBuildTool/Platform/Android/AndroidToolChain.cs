@@ -1337,7 +1337,7 @@ namespace UnrealBuildTool
 				CompileAction.DependencyListFile = DependencyListFile;
 				CompileAction.PrerequisiteItems.Add(DependencyListFile);
 
-				CompileAction.ProducedItems.AddRange(CompiledISPCObjFiles);
+				CompileAction.ProducedItems.UnionWith(CompiledISPCObjFiles);
 
 				CompileAction.CommandArguments = String.Join(" ", Arguments);
 

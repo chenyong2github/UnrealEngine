@@ -709,7 +709,8 @@ namespace UnrealBuildTool
 					Arguments.Add("-pie");
 				}
 				else if (bSuppressPIE)
-				{ 					Arguments.Add("-Wl,-no-pie");
+				{
+					Arguments.Add("-Wl,-no-pie");
 				}
 			}
 
@@ -1462,7 +1463,7 @@ namespace UnrealBuildTool
 					RelinkAction.CommandDescription = "Relink";
 					RelinkAction.bCanExecuteRemotely = false;
 					RelinkAction.ProducedItems.Clear();
-					RelinkAction.PrerequisiteItems = new List<FileItem>(LinkAction.PrerequisiteItems);
+					RelinkAction.PrerequisiteItems = new SortedSet<FileItem>(LinkAction.PrerequisiteItems);
 					foreach (FileItem Dependency in EngineAndGameLibrariesFiles)
 					{
 						RelinkAction.PrerequisiteItems.Add(Dependency);

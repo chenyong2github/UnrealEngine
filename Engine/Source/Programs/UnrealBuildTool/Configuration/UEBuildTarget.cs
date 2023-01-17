@@ -2350,8 +2350,8 @@ namespace UnrealBuildTool
 				WriteMetadataAction.StatusDescription = StatusDescription;
 				WriteMetadataAction.bCanExecuteRemotely = false;
 				WriteMetadataAction.bUseActionHistory = false; // Different files for each target; do not want to invalidate based on this.
-				WriteMetadataAction.ProducedItems.AddRange(ProducedItems.Select(x => FileItem.GetItemByFileReference(x)));
-				WriteMetadataAction.PrerequisiteItems.AddRange(PrerequisiteItems);
+				WriteMetadataAction.ProducedItems.UnionWith(ProducedItems.Select(x => FileItem.GetItemByFileReference(x)));
+				WriteMetadataAction.PrerequisiteItems.UnionWith(PrerequisiteItems);
 
 				if (Info.Version == null && Info.VersionFile != null)
 				{

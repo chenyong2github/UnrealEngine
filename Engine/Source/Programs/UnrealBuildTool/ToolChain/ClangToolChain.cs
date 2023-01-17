@@ -243,7 +243,7 @@ namespace UnrealBuildTool
 					AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
 					AggregateTimingInfoAction.bCanExecuteRemotely = false;
 					AggregateTimingInfoAction.bCanExecuteRemotelyWithSNDBS = false;
-					AggregateTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
+					AggregateTimingInfoAction.PrerequisiteItems.UnionWith(TimingJsonFiles);
 
 					AggregateTimingInfoAction.ProducedItems.Add(AggregateOutputFile);
 					AggregateTimingInfoAction.ProducedItems.Add(HeadersOutputFile);
@@ -261,7 +261,7 @@ namespace UnrealBuildTool
 					ArchiveTimingInfoAction.StatusDescription = $"Archiving {TimingJsonFiles.Count} Timing File(s)";
 					ArchiveTimingInfoAction.bCanExecuteRemotely = false;
 					ArchiveTimingInfoAction.bCanExecuteRemotelyWithSNDBS = false;
-					ArchiveTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
+					ArchiveTimingInfoAction.PrerequisiteItems.UnionWith(TimingJsonFiles);
 
 					ArchiveTimingInfoAction.ProducedItems.Add(ArchiveOutputFile);
 					Makefile.OutputItems.AddRange(ArchiveTimingInfoAction.ProducedItems);
@@ -277,7 +277,7 @@ namespace UnrealBuildTool
 						CompileScoreExtractorAction.StatusDescription = $"Extracting CompileScore";
 						CompileScoreExtractorAction.bCanExecuteRemotely = false;
 						CompileScoreExtractorAction.bCanExecuteRemotelyWithSNDBS = false;
-						CompileScoreExtractorAction.PrerequisiteItems.AddRange(TimingJsonFiles);
+						CompileScoreExtractorAction.PrerequisiteItems.UnionWith(TimingJsonFiles);
 						CompileScoreExtractorAction.CommandPath = ScoreDataExtractor;
 						CompileScoreExtractorAction.CommandArguments = $"-clang -verbosity 0 -timelinepack 1000000 -extract -i \"{NormalizeCommandLinePath(Makefile.ProjectIntermediateDirectory)}\" -o \"{NormalizeCommandLinePath(CompileScoreOutput)}\"";
 
@@ -885,14 +885,14 @@ namespace UnrealBuildTool
 		protected virtual void GetCompileArguments_FileType(CppCompileEnvironment CompileEnvironment, FileItem SourceFile, DirectoryReference OutputDir, List<string> Arguments, Action CompileAction, CPPOutput CompileResult)
 		{
 			// Add the C++ source file and its included files to the prerequisite item list.
-			CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
-			CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
+			CompileAction.PrerequisiteItems.UnionWith(CompileEnvironment.ForceIncludeFiles);
+			CompileAction.PrerequisiteItems.UnionWith(CompileEnvironment.AdditionalPrerequisites);
 			CompileAction.PrerequisiteItems.Add(SourceFile);
 
 			List<FileItem>? InlinedFiles;
 			if (CompileEnvironment.FileInlineGenCPPMap.TryGetValue(SourceFile, out InlinedFiles))
 			{
-				CompileAction.PrerequisiteItems.AddRange(InlinedFiles);
+				CompileAction.PrerequisiteItems.UnionWith(InlinedFiles);
 			}
 
 			string Extension = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant();
@@ -1051,7 +1051,7 @@ namespace UnrealBuildTool
 			if (PreprocessDepends)
 			{
 				Action PrepassAction = Graph.CreateAction(ActionType.Compile);
-				PrepassAction.PrerequisiteItems.AddRange(CompileAction.PrerequisiteItems);
+				PrepassAction.PrerequisiteItems.UnionWith(CompileAction.PrerequisiteItems);
 				PrepassAction.PrerequisiteItems.Remove(CompilerResponseFileItem);
 				PrepassAction.CommandDescription = "Preprocess Depends";
 				PrepassAction.StatusDescription = CompileAction.StatusDescription;
@@ -1074,10 +1074,10 @@ namespace UnrealBuildTool
 				PreprocessFileArguments.Remove("-ftime-trace");
 				PreprocessFileArguments.Remove(GetOutputFileArgument(CompileAction.ProducedItems.First()));
 
-				PrepassAction.DeleteItems.AddRange(PrepassAction.ProducedItems);
+				PrepassAction.DeleteItems.UnionWith(PrepassAction.ProducedItems);
 
 				// Gets the target file so we can get the correct output path.
-				FileItem PreprocessTargetFile = PrepassAction.ProducedItems[0];
+				FileItem PreprocessTargetFile = PrepassAction.ProducedItems.First();
 
 				// Creates the path to the response file using the name of the output file and creates its contents.
 				FileReference PreprocessResponseFileName = new FileReference(PreprocessTargetFile.AbsolutePath + ".response");

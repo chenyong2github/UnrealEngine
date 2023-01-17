@@ -14,7 +14,7 @@ namespace UnrealBuildBase
 	/// Represents a file on disk that is used as an input or output of a build action. FileItem instances are unique for a given path. Use FileItem.GetItemByFileReference 
 	/// to get the FileItem for a specific path.
 	/// </summary>
-	public class FileItem
+	public class FileItem : IComparable<FileItem>, IEquatable<FileItem>
 	{
 		/// <summary>
 		/// The directory containing this file
@@ -267,6 +267,73 @@ namespace UnrealBuildBase
 		{
 			return AbsolutePath;
 		}
+
+		#region IComparable, IEquatbale
+		public int CompareTo(FileItem? other)
+		{
+			return FullName.CompareTo(other?.FullName);
+		}
+
+		public bool Equals(FileItem? other)
+		{
+			return FullName.Equals(other?.FullName);
+		}
+
+		public override bool Equals(object? obj)
+		{
+			if (ReferenceEquals(this, obj))
+			{
+				return true;
+			}
+
+			if (ReferenceEquals(obj, null))
+			{
+				return false;
+			}
+
+			return Equals((FileItem?)obj);
+		}
+
+		public override int GetHashCode()
+		{
+			return FullName.GetHashCode();
+		}
+
+		public static bool operator ==(FileItem? left, FileItem? right)
+		{
+			if (ReferenceEquals(left, null))
+			{
+				return ReferenceEquals(right, null);
+			}
+
+			return left.Equals(right);
+		}
+
+		public static bool operator !=(FileItem? left, FileItem? right)
+		{
+			return !(left == right);
+		}
+
+		public static bool operator <(FileItem? left, FileItem? right)
+		{
+			return ReferenceEquals(left, null) ? !ReferenceEquals(right, null) : left.CompareTo(right) < 0;
+		}
+
+		public static bool operator <=(FileItem? left, FileItem? right)
+		{
+			return ReferenceEquals(left, null) || left.CompareTo(right) <= 0;
+		}
+
+		public static bool operator >(FileItem? left, FileItem? right)
+		{
+			return !ReferenceEquals(left, null) && left.CompareTo(right) > 0;
+		}
+
+		public static bool operator >=(FileItem? left, FileItem? right)
+		{
+			return ReferenceEquals(left, null) ? ReferenceEquals(right, null) : left.CompareTo(right) >= 0;
+		}
+		#endregion
 	}
 
 	/// <summary>
