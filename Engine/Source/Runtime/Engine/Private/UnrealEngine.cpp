@@ -454,7 +454,7 @@ TAutoConsoleVariable<bool> CVarCsvAlwaysShowFrameCount(
 #if !UE_BUILD_SHIPPING
 class FDisplayCVarListExecHelper : public FSelfRegisteringExec
 {
-	virtual bool Exec_Dev(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		if (FParse::Command(&Cmd, TEXT("DisplayCVarList")))
 		{
@@ -4607,7 +4607,6 @@ static void BufferOverflowFunction(SIZE_T BufferSize, const ANSICHAR* Buffer)
 	UE_LOG(LogEngine, Log, TEXT("BufferOverflowFunction BufferSize=%d LocalBuffer=%s"),(int32)BufferSize, ANSI_TO_TCHAR(LocalBuffer));
 }
 
-#if UE_ALLOW_EXEC_COMMANDS
 bool UEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	// If we don't have a viewport specified to catch the stat commands, use to the game viewport
@@ -4616,10 +4615,6 @@ bool UEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		GStatProcessingViewportClient = GameViewport;
 	}
 
-	if (FExec::Exec( InWorld, Cmd, Ar ))
-	{
-		return true;
-	}
 
 	// See if any other subsystems claim the command.
 	if (StaticExec(InWorld, Cmd,Ar) == true)
@@ -4789,7 +4784,7 @@ bool UEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	{
 		return HandleProfileGPUCommand( Cmd, Ar );
 	}	
-#endif
+#endif // #if !UE_BUILD_SHIPPING
 
 #if WITH_DUMPGPU
 	else if (FParse::Command(&Cmd, TEXT("DUMPGPU")))
@@ -4798,48 +4793,16 @@ bool UEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	}
 #endif
 
-	else if ( FParse::Command(&Cmd,TEXT("SCALABILITY")) )
+#if	!(UE_BUILD_SHIPPING || UE_BUILD_TEST) && WITH_HOT_RELOAD
+	else if( FParse::Command(&Cmd,TEXT("HotReload")) )
 	{
-		Scalability::ProcessCommand(Cmd, Ar);
-		return true;
+		return HandleHotReloadCommand( Cmd, Ar );
 	}
-	else if(IConsoleManager::Get().ProcessUserConsoleInput(Cmd, Ar, InWorld))
-	{
-		// console variable interaction (get value, set value or get help)
-		return true;
-	}
-	else if (!IStreamingManager::HasShutdown() && IStreamingManager::Get().Exec( InWorld, Cmd,Ar ))
-	{
-		// The streaming manager has handled the exec command.
-	}
-	else if( FParse::Command(&Cmd, TEXT("DUMPTICKS")) )
-	{
-		return HandleDumpTicksCommand( InWorld, Cmd, Ar );
-	}
-	else if (FParse::Command(&Cmd, TEXT("CANCELASYNCLOAD")))
-	{
-		CancelAsyncLoading();
-		return true;
-	}
-#if USE_NETWORK_PROFILER
-	else if( FParse::Command(&Cmd,TEXT("NETPROFILE")) )
-	{
-		GNetworkProfiler.Exec( InWorld, Cmd, Ar );
-	}
-#endif
-	else 
-	{
-		return false;
-	}
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && WITH_HOT_RELOAD
 
-	return true;
-}
-#endif // UE_ALLOW_EXEC_COMMANDS
 
-bool UEngine::Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
-{
 #if !UE_BUILD_SHIPPING
-	if (FParse::Command(&Cmd, TEXT("DumpConsoleCommands")))
+	else if (FParse::Command(&Cmd, TEXT("DumpConsoleCommands")))
 	{
 		return HandleDumpConsoleCommandsCommand( Cmd, Ar, InWorld );
 	}
@@ -4867,6 +4830,7 @@ bool UEngine::Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	{
 		return HandleFreezeAllCommand( Cmd, Ar, InWorld );
 	}
+
 	else if( FParse::Command(&Cmd,TEXT("ToggleRenderingThread")) )
 	{
 		return HandleToggleRenderingThreadCommand( Cmd, Ar );
@@ -4891,6 +4855,12 @@ bool UEngine::Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	{
 		return HandleDumpMaterialStatsCommand( Cmd, Ar );	
 	}
+#if WITH_EDITOR
+	else if( FParse::Command(&Cmd,TEXT("DumpShaderCompileStats")) )
+	{
+		HandleDumpShaderCompileStatsCommand(Cmd, Ar);
+	}
+#endif
 	else if (FParse::Command(&Cmd, TEXT("DumpShaderPipelineStats")))
 	{
 		return HandleDumpShaderPipelineStatsCommand(Cmd, Ar);
@@ -5071,26 +5041,41 @@ bool UEngine::Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	}
 #endif // !UE_BUILD_SHIPPING
 
-#if	!(UE_BUILD_SHIPPING || UE_BUILD_TEST) && WITH_HOT_RELOAD
-	else if (FParse::Command(&Cmd, TEXT("HotReload")))
+	else if ( FParse::Command(&Cmd,TEXT("SCALABILITY")) )
 	{
-		return HandleHotReloadCommand(Cmd, Ar);
+		Scalability::ProcessCommand(Cmd, Ar);
+		return true;
 	}
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && WITH_HOT_RELOAD
-
-	return false;
-}
-
-bool UEngine::Exec_Editor(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
-{
-#if WITH_EDITOR
-	if (FParse::Command(&Cmd, TEXT("DumpShaderCompileStats")))
+	else if(IConsoleManager::Get().ProcessUserConsoleInput(Cmd, Ar, InWorld))
 	{
-		return HandleDumpShaderCompileStatsCommand(Cmd, Ar);
+		// console variable interaction (get value, set value or get help)
+		return true;
+	}
+	else if (!IStreamingManager::HasShutdown() && IStreamingManager::Get().Exec( InWorld, Cmd,Ar ))
+	{
+		// The streaming manager has handled the exec command.
+	}
+	else if( FParse::Command(&Cmd, TEXT("DUMPTICKS")) )
+	{
+		return HandleDumpTicksCommand( InWorld, Cmd, Ar );
+	}
+	else if (FParse::Command(&Cmd, TEXT("CANCELASYNCLOAD")))
+	{
+		CancelAsyncLoading();
+		return true;
+	}
+#if USE_NETWORK_PROFILER
+	else if( FParse::Command(&Cmd,TEXT("NETPROFILE")) )
+	{
+		GNetworkProfiler.Exec( InWorld, Cmd, Ar );
 	}
 #endif
+	else 
+	{
+		return false;
+	}
 
-	return false;
+	return true;
 }
 
 bool UEngine::HandleFlushLogCommand( const TCHAR* Cmd, FOutputDevice& Ar )
@@ -13050,7 +13035,7 @@ static class FCDODump : private FSelfRegisteringExec
 	}
 
 	/** Console commands, see embeded usage statement **/
-	virtual bool Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override
+	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override
 	{
 		if(FParse::Command(&Cmd,TEXT("CDODump")))
 		{

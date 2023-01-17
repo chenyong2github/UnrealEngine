@@ -77,30 +77,11 @@ FStaticSelfRegisteringExec::FStaticSelfRegisteringExec(bool (*InStaticExecFunc)(
 :	StaticExecFunc(InStaticExecFunc)
 {}
 
-#if UE_ALLOW_EXEC_COMMANDS
 bool FStaticSelfRegisteringExec::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	return (*StaticExecFunc)( InWorld, Cmd,Ar);
 }
-#endif // UE_ALLOW_EXEC_COMMANDS
 
-FStaticSelfRegisteringExec_Dev::FStaticSelfRegisteringExec_Dev(bool (*InStaticExecFunc)(UWorld* Inworld, const TCHAR* Cmd,FOutputDevice& Ar))
-	: StaticExecFunc(InStaticExecFunc)
-{}
-
-bool FStaticSelfRegisteringExec_Dev::Exec_Dev(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
-{
-	return (*StaticExecFunc)(InWorld, Cmd, Ar);
-}
-
-FStaticSelfRegisteringExec_Editor::FStaticSelfRegisteringExec_Editor(bool (*InStaticExecFunc)(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar))
-	: StaticExecFunc(InStaticExecFunc)
-{}
-
-bool FStaticSelfRegisteringExec_Editor::Exec_Editor(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
-{
-	return (*StaticExecFunc)(InWorld, Cmd, Ar);
-}
 
 // Remove old crash contexts
 

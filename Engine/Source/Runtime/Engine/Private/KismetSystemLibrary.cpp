@@ -36,7 +36,6 @@
 #include "KismetTraceUtils.h"
 #include "Engine/AssetManager.h"
 #include "RHI.h"
-#include "HAL/IConsoleManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "UObject/FieldPathProperty.h"
 #include "Commandlets/Commandlet.h"
@@ -446,23 +445,16 @@ void UKismetSystemLibrary::SetWindowTitle(const FText& Title)
 
 void UKismetSystemLibrary::ExecuteConsoleCommand(const UObject* WorldContextObject, const FString& Command, APlayerController* Player)
 {
+	// First, try routing through the primary player
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
-
-	// First, try routing through the console manager directly.
-	// This is needed in case the Exec commands have been compiled out, meaning that GEngine->Exec wouldn't route to anywhere.
-	if (IConsoleManager::Get().ProcessUserConsoleInput(*Command, *GLog, World) == false)
+	APlayerController* TargetPC = Player || !World ? Player : World->GetFirstPlayerController();
+	if (TargetPC)
 	{
-		APlayerController* TargetPC = Player || !World ? Player : World->GetFirstPlayerController();
-
-		// Second, try routing through the primary player
-		if (TargetPC)
-		{
-			TargetPC->ConsoleCommand(Command, true);
-		}
-		else
-		{
-			GEngine->Exec(World, *Command);
-		}
+		TargetPC->ConsoleCommand(Command, true);
+	}
+	else
+	{
+		GEngine->Exec(World, *Command);
 	}
 }
 
