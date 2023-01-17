@@ -120,7 +120,20 @@ void FMeshMaterialRenderItem::QueueMaterial(FCanvasRenderContext& RenderContext,
 			DynamicMeshBuilder.AddTriangles(Indices);
 		}
 
-		DynamicMeshBuilder.GetMeshElement(FMatrix::Identity, MaterialRenderProxy, SDPG_Foreground, true, false, 0, MeshBuilderResources, MeshElement);
+		FPrimitiveData PrimitiveData = MeshSettings->PrimitiveData != nullptr ? *MeshSettings->PrimitiveData : FPrimitiveData();
+		FPrimitiveUniformShaderParameters PrimitiveParams = FPrimitiveUniformShaderParametersBuilder{}
+			.Defaults()
+				.LocalToWorld(PrimitiveData.LocalToWorld)
+				.ActorWorldPosition(PrimitiveData.ActorPosition)
+				.WorldBounds(PrimitiveData.WorldBounds)
+				.LocalBounds(PrimitiveData.LocalBounds)
+				.PreSkinnedLocalBounds(PrimitiveData.PreSkinnedLocalBounds)
+				.CustomPrimitiveData(PrimitiveData.CustomPrimitiveData)
+				.ReceivesDecals(false)
+				.OutputVelocity(false)
+			.Build();
+
+		DynamicMeshBuilder.GetMeshElement(PrimitiveParams, MaterialRenderProxy, SDPG_Foreground, true, 0, MeshBuilderResources, MeshElement);
 
 		check(MeshBuilderResources.IsValidForRendering());
 		bMeshElementDirty = false;
@@ -148,6 +161,9 @@ void FMeshMaterialRenderItem::QueueMaterial(FCanvasRenderContext& RenderContext,
 
 void FMeshMaterialRenderItem::PopulateWithQuadData()
 {
+	// Pre-transform all vertices with the inverse of LocalToWorld to negate its effect during material baking 
+	const FMatrix44f WorldToLocal = (MeshSettings->PrimitiveData != nullptr) ? FMatrix44f(MeshSettings->PrimitiveData->LocalToWorld.Inverse()) : FMatrix44f::Identity;
+	
 	Vertices.Empty(4);
 	Indices.Empty(6);
 
@@ -164,13 +180,16 @@ void FMeshMaterialRenderItem::PopulateWithQuadData()
 		FDynamicMeshVertex* Vert = new(Vertices)FDynamicMeshVertex();
 		const int32 X = VertIndex & 1;
 		const int32 Y = (VertIndex >> 1) & 1;
-		Vert->Position.Set(ScaleX * X, ScaleY * Y, 0);
-		Vert->SetTangents(FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1));
+		Vert->Position = WorldToLocal.TransformPosition(FVector3f(ScaleX * X, ScaleY * Y, 0));
+		FVector3f TangentX = WorldToLocal.TransformVector(FVector3f(1, 0, 0));
+		FVector3f TangentZ = WorldToLocal.TransformVector(FVector3f(0, 1, 0));
+		FVector3f TangentY = WorldToLocal.TransformVector(FVector3f(0, 0, 1));
+		Vert->SetTangents(TangentX, TangentZ, TangentY);
 		FMemory::Memzero(&Vert->TextureCoordinate, sizeof(Vert->TextureCoordinate));
 		for (int32 TexcoordIndex = 0; TexcoordIndex < MAX_STATIC_TEXCOORDS; TexcoordIndex++)
 		{
 			Vert->TextureCoordinate[TexcoordIndex].Set(U + SizeU * X, V + SizeV * Y);
-		}		
+		}
 		Vert->Color = FColor::White;
 	}
 
@@ -181,6 +200,9 @@ void FMeshMaterialRenderItem::PopulateWithQuadData()
 
 void FMeshMaterialRenderItem::PopulateWithMeshData()
 {
+	// Pre-transform all vertices with the inverse of LocalToWorld to negate its effect during material baking 
+	const FMatrix44f WorldToLocal = (MeshSettings->PrimitiveData != nullptr) ? FMatrix44f(MeshSettings->PrimitiveData->LocalToWorld.Inverse()) : FMatrix44f::Identity;
+
 	const FMeshDescription* RawMesh = MeshSettings->MeshDescription;
 
 	FStaticMeshConstAttributes Attributes(*RawMesh);
@@ -205,7 +227,7 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 	const int32 NumTexcoords = [&]()
 	{
 		return FMath::Min(VertexInstanceUVs.GetNumChannels(), VertexPositionStoredUVChannel);
-	}();		
+	}();
 
 	// check if we should use NewUVs or original UV set
 	const bool bUseNewUVs = MeshSettings->CustomTextureCoordinates.Num() > 0;
@@ -238,22 +260,22 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 				{
 					// compute vertex position from original UV
 					const FVector2D& UV = FVector2D(VertexInstanceUVs.Get(SrcVertexInstanceID, MeshSettings->TextureCoordinateIndex));
-					Vert->Position.Set(UV.X * ScaleX, UV.Y * ScaleY, 0);
+					Vert->Position = WorldToLocal.TransformPosition(FVector3f(UV.X * ScaleX, UV.Y * ScaleY, 0));
 				}
 				else
 				{
 					const FVector2D& UV = MeshSettings->CustomTextureCoordinates[SrcVertIndex];
-					Vert->Position.Set(UV.X * ScaleX, UV.Y * ScaleY, 0);
+					Vert->Position = WorldToLocal.TransformPosition(FVector3f(UV.X * ScaleX, UV.Y * ScaleY, 0));
 				}
-				FVector3f TangentX = VertexInstanceTangents[SrcVertexInstanceID];
-				FVector3f TangentZ = VertexInstanceNormals[SrcVertexInstanceID];
+				FVector3f TangentX = WorldToLocal.TransformVector(VertexInstanceTangents[SrcVertexInstanceID]);
+				FVector3f TangentZ = WorldToLocal.TransformVector(VertexInstanceNormals[SrcVertexInstanceID]);
 				FVector3f TangentY = FVector3f::CrossProduct(TangentZ, TangentX).GetSafeNormal() * VertexInstanceBinormalSigns[SrcVertexInstanceID];
 				Vert->SetTangents(TangentX, TangentY, TangentZ);
 				for (int32 TexcoordIndex = 0; TexcoordIndex < NumTexcoords; TexcoordIndex++)
 				{
 					Vert->TextureCoordinate[TexcoordIndex] = VertexInstanceUVs.Get(SrcVertexInstanceID, TexcoordIndex);
 				}
-				
+
 				if (NumTexcoords < VertexPositionStoredUVChannel)
 				{
 					for (int32 TexcoordIndex = NumTexcoords; TexcoordIndex < VertexPositionStoredUVChannel; TexcoordIndex++)

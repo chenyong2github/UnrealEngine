@@ -912,6 +912,21 @@ void FDynamicMeshBuilder::GetMesh(
 
 void FDynamicMeshBuilder::GetMeshElement(const FMatrix& LocalToWorld, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriorityGroup, bool bDisableBackfaceCulling, bool bReceivesDecals, int32 ViewIndex, FMeshBuilderOneFrameResources& OneFrameResource, FMeshBatch& Mesh)
 {
+	FPrimitiveUniformShaderParameters PrimitiveParams = FPrimitiveUniformShaderParametersBuilder{}
+		.Defaults()
+			.LocalToWorld(LocalToWorld)
+			.ActorWorldPosition(LocalToWorld.GetOrigin())
+			.WorldBounds(FBoxSphereBounds(EForceInit::ForceInit))
+			.LocalBounds(FBoxSphereBounds(EForceInit::ForceInit))
+			.ReceivesDecals(bReceivesDecals)
+			.OutputVelocity(true)
+		.Build();
+
+	GetMeshElement(PrimitiveParams, MaterialRenderProxy, DepthPriorityGroup, bDisableBackfaceCulling, ViewIndex, OneFrameResource, Mesh);
+}
+
+void FDynamicMeshBuilder::GetMeshElement(const FPrimitiveUniformShaderParameters& PrimitiveParams, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriorityGroup, bool bDisableBackfaceCulling, int32 ViewIndex, FMeshBuilderOneFrameResources& OneFrameResource, FMeshBatch& Mesh)
+{
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDynamicMeshBuilder::GetMeshElement)
 
 	// Only draw non-empty meshes.
@@ -936,15 +951,6 @@ void FDynamicMeshBuilder::GetMeshElement(const FMatrix& LocalToWorld, const FMat
 
 			// Create the primitive uniform buffer.
 			OneFrameResource.PrimitiveUniformBuffer = new FDynamicMeshPrimitiveUniformBuffer();
-			FPrimitiveUniformShaderParameters PrimitiveParams = FPrimitiveUniformShaderParametersBuilder{}
-				.Defaults()
-					.LocalToWorld(LocalToWorld)
-					.ActorWorldPosition(LocalToWorld.GetOrigin())
-					.WorldBounds(FBoxSphereBounds(EForceInit::ForceInit))
-					.LocalBounds(FBoxSphereBounds(EForceInit::ForceInit))
-					.ReceivesDecals(bReceivesDecals)
-					.OutputVelocity(true)
-				.Build();
 
 			if (IsInGameThread())
 			{
@@ -976,7 +982,7 @@ void FDynamicMeshBuilder::GetMeshElement(const FMatrix& LocalToWorld, const FMat
 		BatchElement.NumPrimitives = bHasValidIndexBuffer ? (OneFrameResource.IndexBuffer->Indices.Num() / 3) : (bHasValidVertexBuffer ? OneFrameResource.VertexBuffer->Vertices.Num() / 3 : 0);
 		BatchElement.MinVertexIndex = 0;
 		BatchElement.MaxVertexIndex = bHasValidVertexBuffer ? OneFrameResource.VertexBuffer->Vertices.Num() - 1 : 0;
-		Mesh.ReverseCulling = LocalToWorld.Determinant() < 0.0f ? true : false;
+		Mesh.ReverseCulling = PrimitiveParams.LocalToRelativeWorld.Determinant() < 0.0f ? true : false;
 		Mesh.bDisableBackfaceCulling = bDisableBackfaceCulling;
 		Mesh.Type = PT_TriangleList;
 		Mesh.DepthPriorityGroup = DepthPriorityGroup;

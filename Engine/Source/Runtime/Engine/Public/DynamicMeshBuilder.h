@@ -20,6 +20,7 @@ class FMaterialRenderProxy;
 class FMeshBuilderOneFrameResources;
 class FMeshElementCollector;
 class FPrimitiveDrawInterface;
+class FPrimitiveUniformShaderParameters;
 struct FMeshBatch;
 
 /** The vertex type used for dynamic meshes. */
@@ -197,6 +198,7 @@ public:
 		FDynamicMeshDrawOffset const * const DrawOffset, int32 ViewIndex, FMeshElementCollector& Collector, const FHitProxyId HitProxyId = FHitProxyId());
 
 	ENGINE_API void GetMeshElement(const FMatrix& LocalToWorld, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriorityGroup, bool bDisableBackfaceCulling, bool bReceivesDecals, int32 ViewIndex, FMeshBuilderOneFrameResources& OneFrameResource, FMeshBatch& Mesh);
+	ENGINE_API void GetMeshElement(const FPrimitiveUniformShaderParameters& PrimitiveParams, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriorityGroup, bool bDisableBackfaceCulling, int32 ViewIndex, FMeshBuilderOneFrameResources& OneFrameResource, FMeshBatch& Mesh);
 
 	/**
 	 * Draws the mesh to the given primitive draw interface.
