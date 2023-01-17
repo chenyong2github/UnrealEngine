@@ -4140,6 +4140,17 @@ int32 FHLSLMaterialTranslator::ForceCast(int32 Code, EMaterialValueType DestType
 	}
 }
 
+int32 FHLSLMaterialTranslator::CastShadingModelToFloat(int32 Code)
+{
+	const EMaterialValueType SourceType = GetParameterType(Code);
+	if (SourceType != MCT_ShadingModel)
+	{
+		return Errorf(TEXT("Operation only supported for shading model"));
+	}
+
+	return AddCodeChunk(MCT_Float1, TEXT("((%s)(%s))"), HLSLTypeString(MCT_Float1), *GetParameterCode(Code));
+}
+
 int32 FHLSLMaterialTranslator::TruncateLWC(int32 Code)
 {
 	const int32 LWCTruncateMode = GetLWCTruncateMode();

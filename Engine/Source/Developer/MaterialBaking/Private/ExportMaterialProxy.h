@@ -250,6 +250,7 @@ public:
 		case MP_Opacity: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportOpacity; break;
 		case MP_OpacityMask: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportOpacityMask; break;
 		case MP_SubsurfaceColor: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportSubSurfaceColor; break;
+		case MP_ShadingModel: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportShadingModel; break;
 		case MP_CustomData0: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportClearCoat; break;
 		case MP_CustomData1: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportClearCoatRoughness; break;
 		case MP_CustomOutput:
@@ -379,7 +380,7 @@ public:
 				}
 				break;
 			case MP_ShadingModel:
-				return MaterialInterface->CompileProperty(&ProxyCompiler, MP_ShadingModel);
+				return CompileShadingModelEncoding(Compiler, MaterialInterface->CompileProperty(&ProxyCompiler, MP_ShadingModel));
 			case MP_CustomOutput:
 				 // NOTE: Currently we can assume input index is always 0, which it is for all custom outputs that are registered as material attributes
 				return CompileInputForCustomOutput(&ProxyCompiler, 0, ForceCast_Exact_Replicate);
@@ -600,6 +601,14 @@ private:
 		return Compiler->Add(
 			Compiler->Mul(NormalInput, Compiler->Constant(0.5f)), // [-1,1] * 0.5
 			Compiler->Constant(0.5f)); // [-0.5,0.5] + 0.5
+	}
+
+	static int32 CompileShadingModelEncoding(FMaterialCompiler* Compiler, int32 ShadingModelInput)
+	{
+		// [0,MSM_NUM] -> [0,1]
+		return Compiler->Div(
+			Compiler->CastShadingModelToFloat(ShadingModelInput),
+			Compiler->Constant(MSM_NUM));
 	}
 
 private:

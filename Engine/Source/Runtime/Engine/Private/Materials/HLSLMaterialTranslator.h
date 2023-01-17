@@ -740,6 +740,8 @@ protected:
 	virtual int32 ValidCast(int32 Code, EMaterialValueType DestType) override;
 	virtual int32 ForceCast(int32 Code, EMaterialValueType DestType, uint32 ForceCastFlags = 0) override;
 
+	virtual int32 CastShadingModelToFloat(int32 Code) override;
+
 	virtual int32 TruncateLWC(int32 Code) override;
 
 	/** Pushes a function onto the compiler's function stack, which indicates that compilation is entering a function. */
