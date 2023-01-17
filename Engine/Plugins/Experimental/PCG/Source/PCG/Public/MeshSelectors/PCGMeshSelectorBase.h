@@ -23,8 +23,8 @@ struct FPCGMeshInstanceList
 
 	FPCGMeshInstanceList() = default;
 	
-	FPCGMeshInstanceList(const TSoftObjectPtr<UStaticMesh>& InMesh, bool bInOverrideCollisionProfile, const FCollisionProfileName& InCollisionProfile, bool bInOverrideMaterials, const TArray<UMaterialInterface*>& InMaterialOverrides, const float InCullStartDistance, const float InCullEndDistance)
-		: Mesh(InMesh), bOverrideCollisionProfile(bInOverrideCollisionProfile), CollisionProfile(InCollisionProfile), bOverrideMaterials(bInOverrideMaterials), MaterialOverrides(InMaterialOverrides), CullStartDistance(InCullStartDistance), CullEndDistance(InCullEndDistance)
+	FPCGMeshInstanceList(const TSoftObjectPtr<UStaticMesh>& InMesh, bool bInOverrideCollisionProfile, const FCollisionProfileName& InCollisionProfile, bool bInOverrideMaterials, const TArray<UMaterialInterface*>& InMaterialOverrides, const float InCullStartDistance, const float InCullEndDistance, const bool bInIsLocalToWorldDeterminantNegative)
+		: Mesh(InMesh), bOverrideCollisionProfile(bInOverrideCollisionProfile), CollisionProfile(InCollisionProfile), bOverrideMaterials(bInOverrideMaterials), MaterialOverrides(InMaterialOverrides), CullStartDistance(InCullStartDistance), CullEndDistance(InCullEndDistance), bIsLocalToWorldDeterminantNegative(bInIsLocalToWorldDeterminantNegative)
 	{}
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
@@ -52,6 +52,10 @@ struct FPCGMeshInstanceList
 	/** Distance at which instances are culled. Use 0 to disable. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	float CullEndDistance = 0;
+
+	/** Whether the culling should be reversed or not (needed to support negative scales) */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bIsLocalToWorldDeterminantNegative = false;
 };
 
 UCLASS(Abstract, BlueprintType, Blueprintable, ClassGroup = (Procedural))
@@ -85,7 +89,8 @@ public:
 		bool bOverrideMaterials,
 		const TArray<UMaterialInterface*>& MaterialOverrides,
 		const float InCullStartDistance,
-		const float InCullEndDistance) const;
+		const float InCullEndDistance, 
+		const bool bInIsLocalToWorldDeterminantNegative) const;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

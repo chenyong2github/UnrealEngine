@@ -13,7 +13,8 @@ int32 UPCGMeshSelectorBase::FindOrAddInstanceList(
 	bool bOverrideMaterials,
 	const TArray<UMaterialInterface*>& MaterialOverrides,
 	const float InCullStartDistance,
-	const float InCullEndDistance) const
+	const float InCullEndDistance, 
+	const bool bInIsLocalToWorldDeterminantNegative) const
 {
 	for (int Index = 0; Index < OutInstanceLists.Num(); ++Index)
 	{
@@ -23,6 +24,11 @@ int32 UPCGMeshSelectorBase::FindOrAddInstanceList(
 		}
 
 		if (OutInstanceLists[Index].CullStartDistance != InCullStartDistance || OutInstanceLists[Index].CullEndDistance != InCullEndDistance)
+		{
+			continue;
+		}
+
+		if (OutInstanceLists[Index].bIsLocalToWorldDeterminantNegative != bInIsLocalToWorldDeterminantNegative)
 		{
 			continue;
 		}
@@ -40,6 +46,6 @@ int32 UPCGMeshSelectorBase::FindOrAddInstanceList(
 		return Index;
 	}
 
-	return OutInstanceLists.Emplace(Mesh, bOverrideCollisionProfile, CollisionProfile, bOverrideMaterials, MaterialOverrides, InCullStartDistance, InCullEndDistance);
+	return OutInstanceLists.Emplace(Mesh, bOverrideCollisionProfile, CollisionProfile, bOverrideMaterials, MaterialOverrides, InCullStartDistance, InCullEndDistance, bInIsLocalToWorldDeterminantNegative);
 }
 

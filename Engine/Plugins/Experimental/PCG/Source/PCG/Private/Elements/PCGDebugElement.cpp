@@ -114,14 +114,16 @@ namespace PCGDebugElement
 
 			const int NumCustomData = 8;
 
-			TArray<FTransform> Instances;
+			TArray<FTransform> ForwardInstances;
+			TArray<FTransform> ReverseInstances;
 			TArray<float> InstanceCustomData;
 
-			Instances.Reserve(Points.Num());
+			ForwardInstances.Reserve(Points.Num());
 			InstanceCustomData.Reserve(NumCustomData);
 
 			// First, create target instance transforms
 			const float PointScale = DebugSettings.PointScale;
+			const bool bIsAbsolute = DebugSettings.ScaleMethod == EPCGDebugVisScaleMethod::Absolute;
 			const bool bIsRelative = DebugSettings.ScaleMethod == EPCGDebugVisScaleMethod::Relative;
 			const bool bScaleWithExtents = DebugSettings.ScaleMethod == EPCGDebugVisScaleMethod::Extents;
 			const FVector MeshExtents = Mesh->GetBoundingBox().GetExtent();
@@ -129,6 +131,7 @@ namespace PCGDebugElement
 
 			for (const FPCGPoint& Point : Points)
 			{
+				TArray<FTransform>& Instances = ((bIsAbsolute || Point.Transform.GetDeterminant() >= 0) ? ForwardInstances : ReverseInstances);
 				FTransform& InstanceTransform = Instances.Add_GetRef(Point.Transform);
 				if (bIsRelative)
 				{
@@ -154,34 +157,45 @@ namespace PCGDebugElement
 			// Note: In the future we may consider enabling culling for performance reasons, but for now culling disabled.
 			Params.CullStartDistance = Params.CullEndDistance = 0;
 
-			UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent.Get(), Params);
-			check(ISMC);
-			
-			ISMC->ComponentTags.AddUnique(PCGHelpers::DefaultPCGDebugTag);
-			ISMC->NumCustomDataFloats = NumCustomData;
-			const int32 PreExistingInstanceCount = ISMC->GetInstanceCount();
-			ISMC->AddInstances(Instances, /*bShouldReturnIndices=*/false, /*bWorldSpace=*/true);
-
-			// Then get & assign custom data
-			for (int32 PointIndex = 0; PointIndex < Points.Num(); ++PointIndex)
+			for (int32 Direction = 0; Direction < 2; ++Direction)
 			{
-				const FPCGPoint& Point = Points[PointIndex];
-				InstanceCustomData.Add(Point.Density);
-				const FVector Extents = Point.GetExtents();
-				InstanceCustomData.Add(Extents[0]);
-				InstanceCustomData.Add(Extents[1]);
-				InstanceCustomData.Add(Extents[2]);
-				InstanceCustomData.Add(Point.Color[0]);
-				InstanceCustomData.Add(Point.Color[1]);
-				InstanceCustomData.Add(Point.Color[2]);
-				InstanceCustomData.Add(Point.Color[3]);
+				TArray<FTransform>& Instances = (Direction == 0 ? ForwardInstances : ReverseInstances);
 
-				ISMC->SetCustomData(PointIndex + PreExistingInstanceCount, InstanceCustomData);
+				if (Instances.IsEmpty())
+				{
+					continue;
+				}
 
-				InstanceCustomData.Reset();
+				Params.bIsLocalToWorldDeterminantNegative = (Direction != 0);
+				UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent.Get(), Params);
+				check(ISMC);
+
+				ISMC->ComponentTags.AddUnique(PCGHelpers::DefaultPCGDebugTag);
+				ISMC->NumCustomDataFloats = NumCustomData;
+				const int32 PreExistingInstanceCount = ISMC->GetInstanceCount();
+				ISMC->AddInstances(Instances, /*bShouldReturnIndices=*/false, /*bWorldSpace=*/true);
+
+				// Then get & assign custom data
+				for (int32 PointIndex = 0; PointIndex < Points.Num(); ++PointIndex)
+				{
+					const FPCGPoint& Point = Points[PointIndex];
+					InstanceCustomData.Add(Point.Density);
+					const FVector Extents = Point.GetExtents();
+					InstanceCustomData.Add(Extents[0]);
+					InstanceCustomData.Add(Extents[1]);
+					InstanceCustomData.Add(Extents[2]);
+					InstanceCustomData.Add(Point.Color[0]);
+					InstanceCustomData.Add(Point.Color[1]);
+					InstanceCustomData.Add(Point.Color[2]);
+					InstanceCustomData.Add(Point.Color[3]);
+
+					ISMC->SetCustomData(PointIndex + PreExistingInstanceCount, InstanceCustomData);
+
+					InstanceCustomData.Reset();
+				}
+
+				ISMC->UpdateBounds();
 			}
-
-			ISMC->UpdateBounds();
 		}
 #endif
 	}

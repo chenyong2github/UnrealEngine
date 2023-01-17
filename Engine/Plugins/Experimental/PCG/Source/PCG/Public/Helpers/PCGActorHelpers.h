@@ -28,6 +28,7 @@ struct FPCGISMCBuilderParameters
 	int32 NumCustomDataFloats = 0;
 	float CullStartDistance = 0;
 	float CullEndDistance = 0;
+	bool bIsLocalToWorldDeterminantNegative = false;
 };
 
 UCLASS(BlueprintType)

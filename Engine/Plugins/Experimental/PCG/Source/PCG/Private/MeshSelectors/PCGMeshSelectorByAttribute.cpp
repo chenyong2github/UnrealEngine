@@ -90,7 +90,8 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 			continue;
 		}
 
-		const int32 Index = FindOrAddInstanceList(OutMeshInstances, Mesh, bOverrideCollisionProfile, CollisionProfile, bOverrideMaterials, MaterialOverrides, CullStartDistance, CullEndDistance);
+		const bool bReverseTransform = (Point.Transform.GetDeterminant() < 0);
+		const int32 Index = FindOrAddInstanceList(OutMeshInstances, Mesh, bOverrideCollisionProfile, CollisionProfile, bOverrideMaterials, MaterialOverrides, CullStartDistance, CullEndDistance, bReverseTransform);
 		check(Index != INDEX_NONE);
 		
 		OutMeshInstances[Index].Instances.Emplace(Point);

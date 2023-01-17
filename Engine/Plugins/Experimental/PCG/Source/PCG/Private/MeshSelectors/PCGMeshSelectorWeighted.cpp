@@ -19,6 +19,7 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 	TArray<FPCGMeshInstanceList>& OutMeshInstances,
 	UPCGPointData* OutPointData) const
 {
+	TArray<FPCGMeshInstanceList> OutReverseMeshInstances;
 	TArray<int> CumulativeWeights;
 
 	int TotalWeight = 0;
@@ -31,7 +32,8 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 			continue;
 		}
 
-		FindOrAddInstanceList(OutMeshInstances, Entry.Mesh, Entry.bOverrideCollisionProfile, Entry.CollisionProfile, Entry.bOverrideMaterials, Entry.MaterialOverrides, Entry.CullStartDistance, Entry.CullEndDistance);
+		FindOrAddInstanceList(OutMeshInstances, Entry.Mesh, Entry.bOverrideCollisionProfile, Entry.CollisionProfile, Entry.bOverrideMaterials, Entry.MaterialOverrides, Entry.CullStartDistance, Entry.CullEndDistance, /*bReverseCulling=*/false);
+		FindOrAddInstanceList(OutReverseMeshInstances, Entry.Mesh, Entry.bOverrideCollisionProfile, Entry.CollisionProfile, Entry.bOverrideMaterials, Entry.MaterialOverrides, Entry.CullStartDistance, Entry.CullEndDistance, /*bReverseCulling=*/true);
 		TotalWeight += Entry.Weight;
 		CumulativeWeights.Add(TotalWeight);
 	}
@@ -100,7 +102,8 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 
 			if (RandomPick < OutMeshInstances.Num())
 			{
-				FPCGMeshInstanceList& InstanceList = OutMeshInstances[RandomPick];
+				const bool bNeedsReverseCulling = (Point.Transform.GetDeterminant() < 0);
+				FPCGMeshInstanceList& InstanceList = (bNeedsReverseCulling ? OutReverseMeshInstances[RandomPick] : OutMeshInstances[RandomPick]);
 				InstanceList.Instances.Emplace(Point);
 
 				const TSoftObjectPtr<UStaticMesh>& Mesh = InstanceList.Mesh;
@@ -122,6 +125,12 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 				}
 			}
 		}
+	}
+
+	// Collapse reverse entries to the OutMeshInstances
+	for (int32 OutIndex = 0; OutIndex < OutReverseMeshInstances.Num(); ++OutIndex)
+	{
+		OutMeshInstances.Emplace(MoveTemp(OutReverseMeshInstances[OutIndex]));
 	}
 }
 

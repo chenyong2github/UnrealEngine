@@ -199,10 +199,10 @@ void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context
 		Params.MaterialOverrides = InstanceList.MaterialOverrides;
 	}
 
+	Params.NumCustomDataFloats = PackedCustomData.NumCustomDataFloats;
 	Params.CullStartDistance = InstanceList.CullStartDistance;
 	Params.CullEndDistance = InstanceList.CullEndDistance;
-
-	Params.NumCustomDataFloats = PackedCustomData.NumCustomDataFloats;
+	Params.bIsLocalToWorldDeterminantNegative = InstanceList.bIsLocalToWorldDeterminantNegative;
 
 	UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent.Get(), Params);
 
