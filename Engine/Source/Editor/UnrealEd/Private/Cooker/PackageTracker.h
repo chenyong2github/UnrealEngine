@@ -217,12 +217,10 @@ public:
 	}
 	void AddExpectedNeverLoadPackages(TArrayView<FName> PackageNames)
 	{
-		FWriteScopeLock ScopeLock(Lock);
 		ExpectedNeverLoadPackages.Append(PackageNames);
 	}
 	void ClearExpectedNeverLoadPackages()
 	{
-		FWriteScopeLock ScopeLock(Lock);
 		ExpectedNeverLoadPackages.Empty();
 	}
 private:
