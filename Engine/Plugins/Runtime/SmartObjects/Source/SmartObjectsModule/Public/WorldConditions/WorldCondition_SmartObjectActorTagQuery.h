@@ -3,6 +3,7 @@
 #pragma once
 
 #include "WorldConditions/SmartObjectWorldConditionBase.h"
+#include "GameplayTagContainer.h"
 #include "WorldCondition_SmartObjectActorTagQuery.generated.h"
 
 USTRUCT()
