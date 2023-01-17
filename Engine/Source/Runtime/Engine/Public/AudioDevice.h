@@ -414,13 +414,12 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioDevicePostRender, const FAudioDevice
 
 class ENGINE_API FAudioDevice : public FExec
 {
-protected:
+public:
 
 	//Begin FExec Interface
-	virtual bool Exec_Dev(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar = *GLog) override;
+	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar = *GLog) override;
 	//End FExec Interface
 
-public:
 #if !UE_BUILD_SHIPPING
 	UAudioComponent* GetTestComponent(UWorld* InWorld);
 	void StopTestComponent();
