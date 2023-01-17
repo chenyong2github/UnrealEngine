@@ -148,7 +148,7 @@ class alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FUniformBufferBinding
 public:
 	FUniformBufferBinding() = default;
 
-	FORCEINLINE const FUniformBufferRHIRef& GetUniformBuffer() const
+	FORCEINLINE FRHIUniformBuffer* GetUniformBuffer() const
 	{
 		return UniformBuffer;
 	}
@@ -170,7 +170,7 @@ public:
 
 	FORCEINLINE operator bool() const
 	{
-		return UniformBuffer.IsValid();
+		return UniformBuffer != nullptr;
 	}
 
 protected:
@@ -180,7 +180,7 @@ protected:
 	{}
 
 private:
-	FUniformBufferRHIRef UniformBuffer;
+	FRHIUniformBuffer* UniformBuffer = nullptr;
 	EUniformBufferBindingFlags BindingFlags = EUniformBufferBindingFlags::Shader;
 };
 
@@ -207,7 +207,7 @@ public:
 #endif
 	}
 
-	FORCEINLINE TUniformBufferRef<TBufferStruct> GetUniformBuffer() const
+	FORCEINLINE TUniformBufferRef<TBufferStruct> GetUniformBufferRef() const
 	{
 		return TUniformBufferRef<TBufferStruct>(FUniformBufferBinding::GetUniformBuffer());
 	}

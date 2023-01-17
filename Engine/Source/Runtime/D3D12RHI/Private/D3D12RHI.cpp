@@ -495,6 +495,18 @@ void FD3D12DynamicRHI::RHIPerFrameRHIFlushComplete()
 			}
 		});
 	}
+
+	// Clear all bound resources since we are about to flush pending deletions.
+
+	for (uint32 AdapterIndex = 0; AdapterIndex < GetNumAdapters(); ++AdapterIndex)
+	{
+		FD3D12Adapter& Adapter = GetAdapter(AdapterIndex);
+
+		for (FD3D12Device* Device : Adapter.GetDevices())
+		{
+			Device->GetDefaultCommandContext().ClearState(FD3D12ContextCommon::EClearStateMode::All);
+		}
+	}
 }
 
 void FD3D12DynamicRHI::RHIAcquireThreadOwnership()

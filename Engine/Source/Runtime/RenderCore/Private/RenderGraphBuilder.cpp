@@ -572,6 +572,7 @@ FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName I
 	, BarrierValidation(&Passes, BuilderName)
 #endif
 	, TransientResourceAllocator(GRDGTransientResourceAllocator.Get())
+	, ExtendResourceLifetimeScope(RHICmdList)
 {
 	AddProloguePass();
 

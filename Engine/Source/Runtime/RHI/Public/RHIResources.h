@@ -45,6 +45,7 @@ public:
 	FRHIResource(ERHIResourceType InResourceType)
 		: ResourceType(InResourceType)
 		, bCommitted(true)
+		, bAllowExtendLifetime(true)
 #if RHI_ENABLE_RESOURCE_INFO
 		, bBeingTracked(false)
 #endif
@@ -78,7 +79,14 @@ private:
 	{
 		if (!AtomicFlags.MarkForDelete(std::memory_order_release))
 		{
-			PendingDeletes.ProduceItem(const_cast<FRHIResource*>(this));
+			if (bAllowExtendLifetime)
+			{
+				PendingDeletesWithLifetimeExtension.ProduceItem(const_cast<FRHIResource*>(this));
+			}
+			else
+			{
+				PendingDeletes.ProduceItem(const_cast<FRHIResource*>(this));
+			}
 		}
 	}
 
@@ -117,6 +125,12 @@ public:
 		verify(!AtomicFlags.MarkForDelete(std::memory_order_acquire));
 		CurrentlyDeleting = this;
 		delete this;
+	}
+
+	void DisableLifetimeExtension()
+	{
+		ensureMsgf(IsValid(), TEXT("Resource is already marked for deletion. This call is a no-op. DisableLifetimeExtension must be called while still holding a live reference."));
+		bAllowExtendLifetime = false;
 	}
 
 	inline ERHIResourceType GetType() const { return ResourceType; }
@@ -206,6 +220,11 @@ private:
 			return (LocalPacked & MarkedForDeleteBit) == 0 && (LocalPacked & NumRefsMask) != 0;
 		}
 
+		bool IsMarkedForDelete(std::memory_order MemoryOrder)
+		{
+			return (Packed.load(MemoryOrder) & MarkedForDeleteBit) != 0;
+		}
+
 		int32 GetNumRefs(std::memory_order MemoryOrder)
 		{
 			return Packed.load(MemoryOrder) & NumRefsMask;
@@ -215,21 +234,17 @@ private:
 
 	const ERHIResourceType ResourceType;
 	uint8 bCommitted : 1;
+	uint8 bAllowExtendLifetime : 1;
 #if RHI_ENABLE_RESOURCE_INFO
 	uint8 bBeingTracked : 1;
 	FName OwnerName;
 #endif
 
 	static UE::TConsumeAllMpmcQueue<FRHIResource*> PendingDeletes;
+	static UE::TConsumeAllMpmcQueue<FRHIResource*> PendingDeletesWithLifetimeExtension;
 	static FRHIResource* CurrentlyDeleting;
 
-	// Some APIs don't do internal reference counting, so we have to wait an extra couple of frames before deleting resources
-	// to ensure the GPU has completely finished with them. This avoids expensive fences, etc.
-	struct ResourcesToDelete
-	{
-		TArray<FRHIResource*>	Resources;
-		uint32					FrameDeleted{};
-	};
+	friend FRHICommandListImmediate;
 };
 
 enum class EClearBinding

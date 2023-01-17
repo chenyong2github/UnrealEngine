@@ -203,7 +203,6 @@ FUniformBufferRHIRef FD3D11DynamicRHI::RHICreateUniformBuffer(const void* Conten
 			else
 			{
 				NewUniformBuffer = new FD3D11UniformBuffer(this, Layout, nullptr, FRingAllocation(), bAllocatedFromPool);
-				NewUniformBuffer->AddRef();
 
 				void* CPUContent = nullptr;
 				
@@ -221,7 +220,6 @@ FUniformBufferRHIRef FD3D11DynamicRHI::RHICreateUniformBuffer(const void* Conten
 						D3D11RHI_IMMEDIATE_CONTEXT,
 						CPUContent,
 						NumBytes);
-					NewUniformBuffer->Release();
 					FMemory::Free(CPUContent);
 				});
 			}

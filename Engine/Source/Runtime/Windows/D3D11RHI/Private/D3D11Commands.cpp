@@ -374,7 +374,7 @@ void FD3D11DynamicRHI::RHISetBoundShaderState(FRHIBoundShaderState* BoundShaderS
 	{
 		for (int32 BindIndex = 0; BindIndex < MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE; ++BindIndex)
 		{
-			BoundUniformBuffers[Frequency][BindIndex].SafeRelease();
+			BoundUniformBuffers[Frequency][BindIndex] = nullptr;
 		}
 	}
 

@@ -619,14 +619,6 @@ void FD3D12CommandContext::ClearState(EClearStateMode Mode)
 	{
 		FMemory::Memzero(StaticUniformBuffers.GetData(), StaticUniformBuffers.Num() * sizeof(FRHIUniformBuffer*));
 	}
-
-	for (int i = 0; i < UE_ARRAY_COUNT(BoundUniformBufferRefs); i++)
-	{
-		for (int j = 0; j < UE_ARRAY_COUNT(BoundUniformBufferRefs[i]); j++)
-		{
-			BoundUniformBufferRefs[i][j] = NULL;
-		}
-	}
 }
 
 void FD3D12CommandContext::ConditionalClearShaderResource(FD3D12ResourceLocation* Resource)

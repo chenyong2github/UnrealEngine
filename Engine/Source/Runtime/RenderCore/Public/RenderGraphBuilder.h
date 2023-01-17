@@ -761,6 +761,8 @@ private:
 
 	IRHITransientResourceAllocator* TransientResourceAllocator = nullptr;
 
+	FRHICommandListScopedExtendResourceLifetime ExtendResourceLifetimeScope;
+
 	void MarkResourcesAsProduced(FRDGPass* Pass);
 
 	void Compile();

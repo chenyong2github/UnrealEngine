@@ -917,6 +917,7 @@ public:
 						.SetFlags(ETextureCreateFlags::UAV | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::HideInVisualizeTexture);
 
 					StagingSrcTexture = RHICreateTexture(Desc);
+					StagingSrcTexture->DisableLifetimeExtension();
 				}
 
 				FUnorderedAccessViewRHIRef StagingOutput = RHICreateUnorderedAccessView(StagingSrcTexture, /* MipLevel = */ 0);
@@ -950,6 +951,7 @@ public:
 					.SetFlags(ETextureCreateFlags::CPUReadback | ETextureCreateFlags::HideInVisualizeTexture);
 
 				StagingTexture = RHICreateTexture(Desc);
+				StagingTexture->DisableLifetimeExtension();
 
 				RHICmdList.Transition(FRHITransitionInfo(StagingTexture, ERHIAccess::Unknown, ERHIAccess::CopyDest));
 
@@ -1470,6 +1472,7 @@ public:
 				{
 					FTimeBucketMeasure TimeBucketMeasure(this, ETimingBucket::RHIReadbackCommands);
 					StagingBuffer = RHICreateStagingBuffer();
+					StagingBuffer->DisableLifetimeExtension();
 
 					static const FName FenceName(TEXT("DumpGPU.BufferFence"));
 					Fence = RHICreateGPUFence(FenceName);

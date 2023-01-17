@@ -99,11 +99,6 @@ static void BindUniformBuffer(FD3D12CommandContext& Context, FRHIShader* Shader,
 
 	Context.StateCache.SetConstantsFromUniformBuffer(ShaderFrequency, BufferIndex, InBuffer);
 
-	if (!GRHINeedsExtraDeletionLatency)
-	{
-		Context.BoundUniformBufferRefs[ShaderFrequency][BufferIndex] = InBuffer;
-	}
-
 	Context.BoundUniformBuffers[ShaderFrequency][BufferIndex] = InBuffer;
 	Context.DirtyUniformBuffers[ShaderFrequency] |= (1 << BufferIndex);
 }

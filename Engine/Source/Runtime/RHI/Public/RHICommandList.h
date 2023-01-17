@@ -942,6 +942,7 @@ protected:
 		ESubpassHint SubpassHint = ESubpassHint::None;
 		uint8 SubpassIndex = 0;
 		uint8 MultiViewCount = 0;
+		uint8 ExtendResourceLifetimeRefCount = 0;
 		bool HasFragmentDensityAttachment = false;
 
 		bool bInsideRenderPass = false;
@@ -968,6 +969,7 @@ protected:
 		TRefCountPtr<FFenceCandidate> FenceCandidate;
 		FGraphEventArray QueuedFenceCandidateEvents;
 		TArray<TRefCountPtr<FFenceCandidate>, FConcurrentLinearArrayAllocator> QueuedFenceCandidates;
+		TArray<FRHIResource*, FConcurrentLinearArrayAllocator> ExtendedLifetimeResources;
 
 		struct FGPUStats
 		{
@@ -1298,7 +1300,7 @@ FRHICOMMAND_MACRO_TPL(TRHIShader, FRHICommandSetShaderUniformBuffer)
 {
 	TRHIShader* Shader;
 	uint32 BaseIndex;
-	TRefCountPtr<FRHIUniformBuffer> UniformBuffer;
+	FRHIUniformBuffer* UniformBuffer;
 	FORCEINLINE_DEBUGGABLE FRHICommandSetShaderUniformBuffer(TRHIShader* InShader, uint32 InBaseIndex, FRHIUniformBuffer* InUniformBuffer)
 		: Shader(InShader)
 		, BaseIndex(InBaseIndex)
@@ -1904,40 +1906,9 @@ FRHICOMMAND_MACRO(FRHICommandSetStaticUniformBuffers)
 
 	FORCEINLINE_DEBUGGABLE FRHICommandSetStaticUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers)
 		: UniformBuffers(InUniformBuffers)
-	{
-		const int32 NumUniformBuffers = UniformBuffers.GetUniformBufferCount();
-		for (int32 Index = 0; Index < NumUniformBuffers; ++Index)
-		{
-			FRHIUniformBuffer* UniformBuffer = UniformBuffers.GetUniformBuffer(Index);
-			if (UniformBuffer)
-			{
-				UniformBuffer->AddRef();
-			}
-		}
-	}
-	~FRHICommandSetStaticUniformBuffers()
-	{
-		const int32 NumUniformBuffers = UniformBuffers.GetUniformBufferCount();
-		for (int32 Index = 0; Index < NumUniformBuffers; ++Index)
-		{
-			FRHIUniformBuffer* UniformBuffer = UniformBuffers.GetUniformBuffer(Index);
-			if (UniformBuffer)
-			{
-				UniformBuffer->Release();
-			}
-		}
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
+	{}
 
-struct FComputedGraphicsPipelineState
-{
-	FGraphicsPipelineStateRHIRef GraphicsPipelineState;
-	int32 UseCount;
-	FComputedGraphicsPipelineState()
-		: UseCount(0)
-	{
-	}
+	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
 struct FComputedUniformBuffer
@@ -2276,7 +2247,7 @@ FRHICOMMAND_UNNAMED(FRHICommandBuildAccelerationStructures)
 {
 	const TArrayView<const FRayTracingGeometryBuildParams> Params;
 	FRHIBufferRange ScratchBufferRange;
-	TRefCountPtr<FRHIBuffer> ScratchBuffer;
+	FRHIBuffer* ScratchBuffer;
 
 	explicit FRHICommandBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> InParams, const FRHIBufferRange& ScratchBufferRange)
 		: Params(InParams), ScratchBufferRange(ScratchBufferRange), ScratchBuffer(ScratchBufferRange.Buffer)
@@ -4330,6 +4301,7 @@ extern RHI_API ERHIAccess RHIGetDefaultResourceState(EBufferUsageFlags InUsage, 
 class RHI_API FRHICommandListImmediate : public FRHICommandList
 {
 	friend class FRHICommandListExecutor;
+	friend class FRHICommandListScopedExtendResourceLifetime;
 	friend struct FRHICommandBeginFrame;
 
 	static FGraphEventArray WaitOutstandingTasks;
@@ -4378,6 +4350,11 @@ class RHI_API FRHICommandListImmediate : public FRHICommandList
 	// Called on RHIBeginFrame. Updates the draw call counters / stats.
 	//
 	void ProcessStats();
+
+	//
+	// Called when all FRHICommandListScopedExtendResourceLifetime references are released to flush any deferred deletions.
+	//
+	int32 FlushExtendedLifetimeResourceDeletes();
 
 public:
 	void BeginScene();
@@ -4945,6 +4922,8 @@ public:
 		 
 		return GDynamicRHI->RHIFlushResources();
 	}
+
+	int32 FlushPendingDeletes();
 	
 	FORCEINLINE uint32 GetGPUFrameCycles()
 	{
@@ -4999,7 +4978,7 @@ public:
 		ImmediateFlush(EImmediateFlushType::FlushRHIThread); 
 		return GDynamicRHI->RHIIsRenderingSuspended();
 	}
-	
+
 	UE_DEPRECATED(5.1, "No longer used: FCompression::UncompressMemory should be used instead")
 	FORCEINLINE bool EnqueueDecompress(uint8_t* SrcBuffer, uint8_t* DestBuffer, int CompressedSize, void* ErrorCodeBuffer)
 	{
@@ -5133,6 +5112,27 @@ public:
 	{
 		RHICmdList.bExecuting = false;
 	}
+};
+
+class RHI_API FRHICommandListScopedExtendResourceLifetime
+{
+public:
+	FRHICommandListScopedExtendResourceLifetime(FRHICommandListImmediate& InRHICmdList)
+		: RHICmdList(InRHICmdList)
+	{
+		RHICmdList.PersistentState.ExtendResourceLifetimeRefCount++;
+	}
+
+	~FRHICommandListScopedExtendResourceLifetime()
+	{
+		if (--RHICmdList.PersistentState.ExtendResourceLifetimeRefCount == 0)
+		{
+			RHICmdList.FlushExtendedLifetimeResourceDeletes();
+		}
+	}
+
+private:
+	FRHICommandListImmediate& RHICmdList;
 };
 
 //

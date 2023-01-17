@@ -855,6 +855,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRender
 
 				// Release the old data (make sure it's not pending build anymore either)
 				RayTracingUpdateQueue->Remove(&RayTracingGeometry, MemoryEstimation);
+				RayTracingGeometry.RayTracingGeometryRHI->DisableLifetimeExtension();
 				RayTracingGeometry.ReleaseRHI();
 			}
 

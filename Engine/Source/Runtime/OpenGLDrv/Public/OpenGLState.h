@@ -459,7 +459,7 @@ struct FOpenGLRHIState final : public FOpenGLCommonState
 	enum { MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE = 14 };
 
 	/** Track the currently bound uniform buffers. */
-	FUniformBufferRHIRef BoundUniformBuffers[SF_NumStandardFrequencies][MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE];
+	FRHIUniformBuffer* BoundUniformBuffers[SF_NumStandardFrequencies][MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE];
 
 	/** Array to track if any real (not emulated) uniform buffers have been bound since the last draw call */
 	bool bAnyDirtyRealUniformBuffers[SF_NumStandardFrequencies];
@@ -511,6 +511,7 @@ struct FOpenGLRHIState final : public FOpenGLCommonState
 		FMemory::Memset( RenderTargets, 0, sizeof(RenderTargets) );	// setting all to 0 at start
 		FMemory::Memset( RenderTargetMipmapLevels, 0, sizeof(RenderTargetMipmapLevels) );	// setting all to 0 at start
 		FMemory::Memset( RenderTargetArrayIndex, 0, sizeof(RenderTargetArrayIndex) );	// setting all to 0 at start
+		FMemory::Memset(BoundUniformBuffers, 0, sizeof(BoundUniformBuffers));
 	}
 
 	~FOpenGLRHIState()
@@ -524,16 +525,7 @@ struct FOpenGLRHIState final : public FOpenGLCommonState
 	{
 		delete [] ShaderParameters;
 		ShaderParameters = NULL;
-
-		// Release references to bound uniform buffers.
-		for (int32 Frequency = 0; Frequency < SF_NumStandardFrequencies; ++Frequency)
-		{
-			for (int32 BindIndex = 0; BindIndex < MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE; ++BindIndex)
-			{
-				BoundUniformBuffers[Frequency][BindIndex].SafeRelease();
-			}
-		}
-
+		FMemory::Memset(BoundUniformBuffers, 0, sizeof(BoundUniformBuffers));
 		FOpenGLCommonState::CleanupResources();
 	}
 };

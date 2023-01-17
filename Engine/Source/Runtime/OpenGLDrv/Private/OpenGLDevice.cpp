@@ -215,6 +215,8 @@ void FOpenGLDynamicRHI::RHIPerFrameRHIFlushComplete()
 	BeginFrame_QueryBatchCleanup();
 
 	OpenGL_PollAllFences();
+
+	FMemory::Memset(PendingState.BoundUniformBuffers, 0, sizeof(PendingState.BoundUniformBuffers));
 }
 
 

@@ -18,7 +18,6 @@
 class FRHICommandListBase;
 class IRHIComputeContext;
 struct FComputedBSS;
-struct FComputedGraphicsPipelineState;
 struct FComputedUniformBuffer;
 struct FMemory;
 struct FRHICommandBeginDrawingViewport;

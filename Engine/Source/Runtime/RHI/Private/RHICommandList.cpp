@@ -1131,6 +1131,79 @@ void FRHICommandListExecutor::WaitOnRHIThreadFence(FGraphEventRef& Fence)
 	}
 }
 
+DECLARE_CYCLE_STAT(TEXT("Delete Resources"), STAT_DeleteResources, STATGROUP_RHICMDLIST);
+
+int32 FRHICommandListImmediate::FlushPendingDeletes()
+{
+	SCOPE_CYCLE_COUNTER(STAT_DeleteResources);
+	check(IsInRenderingThread());
+
+	TArray<FRHIResource*, FConcurrentLinearArrayAllocator> DeletedResources;
+
+	TArray<FRHIResource*, FConcurrentLinearArrayAllocator>& DeletedResourcesWithLifetimeExtension = PersistentState.ExtendResourceLifetimeRefCount > 0
+		? PersistentState.ExtendedLifetimeResources 
+		: DeletedResources;
+
+	FRHIResource::PendingDeletesWithLifetimeExtension.ConsumeAllLifo([&DeletedResourcesWithLifetimeExtension](FRHIResource* Resource)
+	{
+		DeletedResourcesWithLifetimeExtension.Emplace(Resource);
+	});
+
+	FRHIResource::PendingDeletes.ConsumeAllLifo([&DeletedResources](FRHIResource* Resource)
+	{
+		DeletedResources.Push(Resource);
+	});
+
+	const int32 NumDeletes = DeletedResources.Num();
+
+	EnqueueLambda([DeletedResources = MoveTemp(DeletedResources)](FRHICommandListImmediate& RHICmdList) mutable
+	{
+		SCOPED_NAMED_EVENT(STAT_FRHICommandListImmediate_DeleteResources, FColor::Magenta);
+
+		if (GDynamicRHI)
+		{
+			GDynamicRHI->RHIPerFrameRHIFlushComplete();
+		}
+
+		for (int32 i = DeletedResources.Num() - 1; i >= 0; i--)
+		{
+			FRHIResource* Resource = DeletedResources[i];
+			if (Resource->AtomicFlags.Deleteing())
+			{
+				FRHIResource::CurrentlyDeleting = Resource;
+				delete Resource;
+			}
+		}
+	});
+
+	return NumDeletes;
+}
+
+int32 FRHICommandListImmediate::FlushExtendedLifetimeResourceDeletes()
+{
+	int32 NumDeletes = PersistentState.ExtendedLifetimeResources.Num();
+
+	if (NumDeletes > 0)
+	{
+		EnqueueLambda([DeletedResources = MoveTemp(PersistentState.ExtendedLifetimeResources)](FRHICommandListImmediate& RHICmdList) mutable
+		{
+			SCOPED_NAMED_EVENT(STAT_FRHICommandListImmediate_DeleteExtendedLifetimeResources, FColor::Magenta);
+
+			for (int32 i = DeletedResources.Num() - 1; i >= 0; i--)
+			{
+				FRHIResource* Resource = DeletedResources[i];
+				if (Resource->AtomicFlags.Deleteing())
+				{
+					FRHIResource::CurrentlyDeleting = Resource;
+					delete Resource;
+				}
+			}
+		});
+	}
+
+	return NumDeletes;
+}
+
 void FRHICommandListImmediate::WaitForTasks()
 {
 	check(IsInRenderingThread());
