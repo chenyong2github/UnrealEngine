@@ -128,6 +128,39 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //!
     //---------------------------------------------------------------------------------------------
+	inline EImageFormat GetRGBOrRGBAFormat(EImageFormat InFormat)
+    {
+		InFormat = GetUncompressedFormat(InFormat);
+
+		if (InFormat == EImageFormat::IF_NONE)
+		{
+			return InFormat;
+		}
+
+		switch (InFormat)
+		{
+		case EImageFormat::IF_L_UBYTE: 
+		{
+			return EImageFormat::IF_RGB_UBYTE;
+		}
+		case EImageFormat::IF_RGB_UBYTE:
+		case EImageFormat::IF_RGBA_UBYTE:
+		case EImageFormat::IF_BGRA_UBYTE:
+		{
+			return InFormat;
+		}
+		default:
+		{
+			unimplemented();
+		}
+		}
+
+		return EImageFormat::IF_NONE;
+    }
+
+    //---------------------------------------------------------------------------------------------
+    //!
+    //---------------------------------------------------------------------------------------------
     inline bool IsCompressedFormat(EImageFormat f )
     {
         return f!=GetUncompressedFormat(f);

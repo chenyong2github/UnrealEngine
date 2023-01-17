@@ -905,7 +905,8 @@ namespace mu
             // This argument is required
             base = GenerateMissingImageCode( "Saturate image", EImageFormat::IF_RGB_UBYTE, node.m_errorContext );
         }
-        base = GenerateImageFormat( base, EImageFormat::IF_RGB_UBYTE );
+		
+        base = GenerateImageFormat(base, GetRGBOrRGBAFormat(base->GetImageDesc().m_format));
         base = GenerateImageSize
                 ( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->SetChild( op->op.args.ImageSaturate.base, base);
