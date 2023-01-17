@@ -16,6 +16,8 @@
 
 #define LOCTEXT_NAMESPACE "UNiagaraDataInterfaceDynamicMesh"
 
+//-OPT: Allocating triangles doesn't need to lock / unlock, use atomics / batches to improve performance on both CPU & GPU
+//-OPT: We need to be able to pass an GPU generated count for the number of triangles to mesh renderers to improve draw performance
 namespace NDIDynamicMeshLocal
 {
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
@@ -63,10 +65,54 @@ namespace NDIDynamicMeshLocal
 	static const FName SetVertexColorName("SetVertexColor");
 	static const FName SetVertexDataName("SetVertexData");
 
+	static const FName AppendTriangleName("AppendTriangle");
+
 	static constexpr EPixelFormat PixelFormatPosition = EPixelFormat::PF_R32_FLOAT;
 	static constexpr EPixelFormat PixelFormatTangentBasis = EPixelFormat::PF_R8G8B8A8_SNORM;
 	static constexpr EPixelFormat PixelFormatTexCoord = EPixelFormat::PF_G32R32F;
 	static constexpr EPixelFormat PixelFormatColor = EPixelFormat::PF_R8G8B8A8;
+
+	struct FVertexData
+	{
+		FVector3f		Position = FVector3f::ZeroVector;
+		FVector3f		TangentX = FVector3f::ZeroVector;
+		FVector3f		TangentY = FVector3f::ZeroVector;
+		FVector3f		TangentZ = FVector3f::ZeroVector;
+		FVector2f		TexCoord = FVector2f::ZeroVector;
+		FLinearColor	Color = FLinearColor::White;
+	};
+
+	struct FVMVertexInput
+	{
+		explicit FVMVertexInput(FVectorVMExternalFunctionContext& Context)
+			: Position(Context)
+			, TangentX(Context)
+			, TangentY(Context)
+			, TangentZ(Context)
+			, TexCoord(Context)
+			, Color(Context)
+		{
+		}
+
+		[[nodiscard]] FVertexData GetAndAdvance()
+		{
+			FVertexData Data;
+			Data.Position = Position.GetAndAdvance();
+			Data.TangentX = TangentX.GetAndAdvance();
+			Data.TangentY = TangentY.GetAndAdvance();
+			Data.TangentZ = TangentZ.GetAndAdvance();
+			Data.TexCoord = TexCoord.GetAndAdvance();
+			Data.Color = Color.GetAndAdvance();
+			return Data;
+		}
+
+		FNDIInputParam<FVector3f>		Position;
+		FNDIInputParam<FVector3f>		TangentX;
+		FNDIInputParam<FVector3f>		TangentY;
+		FNDIInputParam<FVector3f>		TangentZ;
+		FNDIInputParam<FVector2f>		TexCoord;
+		FNDIInputParam<FLinearColor>	Color;
+	};
 
 	struct FNDIInstanceMaterial
 	{
@@ -275,6 +321,13 @@ namespace NDIDynamicMeshLocal
 			FMemory::Memcpy(VertexData.GetData(), InstanceData.VertexData.GetData(), VertexData.Num());
 
 			MeshSections = InstanceData.Sections;
+
+			// Clamp material indices to avoid user error, we always have at least 1 material even if none are specified
+			const int32 NumMaterials = FMath::Max(InstanceData.Materials.Num() - 1, 0);
+			for (FNDIInstanceSection& Section : MeshSections)
+			{
+				Section.MaterialIndex = FMath::Clamp(Section.MaterialIndex, 0, NumMaterials);
+			}
 		}
 
 		bool			bGpuUsesDynamicAllocation = false;
@@ -607,13 +660,16 @@ namespace NDIDynamicMeshLocal
 					OutMaterials.Add(InstanceMaterial.Material);
 				}
 			}
+			if (OutMaterials.Num() == 0)
+			{
+				OutMaterials.Add(nullptr);
+			}
 		}
 		// INiagaraRenderableMesh Impl End
 
 		const FNDIProxy*				OwnerProxy = nullptr;
 		const FNiagaraSystemInstanceID	SystemInstanceID;
 	};
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -863,6 +919,37 @@ void UNiagaraDataInterfaceDynamicMesh::GetFunctions(TArray<FNiagaraFunctionSigna
 		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec2Def(), TEXT("TexCoord"));
 		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetColorDef(), TEXT("Color"));
 	}
+
+	{
+		FNiagaraFunctionSignature& Signature = OutFunctions.Add_GetRef(MutableSignature);
+		Signature.Name = AppendTriangleName;
+		Signature.Inputs.Emplace_GetRef(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Execute")).SetValue(true);
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("SectionIndex"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Position0"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TangentX0"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TangentY0"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TangentZ0"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec2Def(), TEXT("TexCoord0"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetColorDef(), TEXT("Color0"));
+
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Position1"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TangentX1"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TangentY1"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TangentZ1"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec2Def(), TEXT("TexCoord1"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetColorDef(), TEXT("Color1"));
+
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Position2"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TangentX2"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TangentY2"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TangentZ2"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetVec2Def(), TEXT("TexCoord2"));
+		Signature.Inputs.Emplace(FNiagaraTypeDefinition::GetColorDef(), TEXT("Color2"));
+
+		Signature.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("TriangleIndex"));
+
+		Signature.SetDescription(LOCTEXT("AppendTriangleDesc", "Appends a triangle to the section.  This assumes that triangles are stored sequentially in the section, no vertex sharing, etc."));
+	}
 }
 
 void UNiagaraDataInterfaceDynamicMesh::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc)
@@ -895,6 +982,8 @@ void UNiagaraDataInterfaceDynamicMesh::GetVMExternalFunction(const FVMExternalFu
 		{SetVertexTexCoordName, FVMExternalFunction::CreateStatic(UNiagaraDataInterfaceDynamicMesh::VMSetVertexTexCoord)},
 		{SetVertexColorName, FVMExternalFunction::CreateStatic(UNiagaraDataInterfaceDynamicMesh::VMSetVertexColor)},
 		{SetVertexDataName, FVMExternalFunction::CreateStatic(UNiagaraDataInterfaceDynamicMesh::VMSetVertexData)},
+
+		{AppendTriangleName, FVMExternalFunction::CreateStatic(UNiagaraDataInterfaceDynamicMesh::VMAppendTriangle)},
 	};
 
 	for (const auto& StaticBinding : StaticBindings)
@@ -1099,6 +1188,7 @@ bool UNiagaraDataInterfaceDynamicMesh::GetFunctionHLSL(const FNiagaraDataInterfa
 		SetVertexTexCoordName,
 		SetVertexColorName,
 		SetVertexDataName,
+		AppendTriangleName,
 	};
 
 	return ValidGpuFunctions.Contains(FunctionInfo.DefinitionName);
@@ -1783,6 +1873,77 @@ void UNiagaraDataInterfaceDynamicMesh::VMSetVertexData(FVectorVMExternalFunction
 			{
 				InstanceData->SetVertexColor(VertexIndex, Color);
 			}
+		}
+	}
+}
+
+void UNiagaraDataInterfaceDynamicMesh::VMAppendTriangle(FVectorVMExternalFunctionContext& Context)
+{
+	using namespace NDIDynamicMeshLocal;
+
+	VectorVM::FUserPtrHandler<FNDIInstanceData_GameThread> InstanceData(Context);
+	FNDIInputParam<bool>	InExecute(Context);
+	FNDIInputParam<int32>	InSectionIndex(Context);
+	FVMVertexInput			InVertex0(Context);
+	FVMVertexInput			InVertex1(Context);
+	FVMVertexInput			InVertex2(Context);
+	FNDIOutputParam<int32>	OutTriangleIndex(Context);
+
+	InstanceData->ModifyCpuData();
+
+	uint32* IndexBuffer = reinterpret_cast<uint32*>(InstanceData->IndexData.GetData());
+	const int32 NumVertices = InstanceData->NumVertices;
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+	{
+		const bool bExecute = InExecute.GetAndAdvance();
+		const int32 SectionIndex = InSectionIndex.GetAndAdvance();
+		const FVertexData Vertex0 = InVertex0.GetAndAdvance();
+		const FVertexData Vertex1 = InVertex1.GetAndAdvance();
+		const FVertexData Vertex2 = InVertex2.GetAndAdvance();
+		if (!bExecute || !InstanceData->Sections.IsValidIndex(SectionIndex))
+		{
+			continue;
+		}
+		int32 TriangleIndex = INDEX_NONE;
+		{
+			FScopeLock DataGuard(&InstanceData->CpuDataGuard);
+			FNDIInstanceSection& Section = InstanceData->Sections[SectionIndex];
+			if (Section.AllocatedTriangles >= Section.MaxTriangles)
+			{
+				OutTriangleIndex.SetAndAdvance(TriangleIndex);
+				continue;
+			}
+			TriangleIndex = Section.AllocatedTriangles++;
+			OutTriangleIndex.SetAndAdvance(TriangleIndex);
+		}
+
+		IndexBuffer[TriangleIndex * 3 + 0] = TriangleIndex * 3 + 0;
+		IndexBuffer[TriangleIndex * 3 + 1] = TriangleIndex * 3 + 1;
+		IndexBuffer[TriangleIndex * 3 + 2] = TriangleIndex * 3 + 2;
+
+		if (InstanceData->PositionOffset != INDEX_NONE)
+		{
+			InstanceData->SetVertexPosition(TriangleIndex * 3 + 0, Vertex0.Position);
+			InstanceData->SetVertexPosition(TriangleIndex * 3 + 1, Vertex1.Position);
+			InstanceData->SetVertexPosition(TriangleIndex * 3 + 2, Vertex2.Position);
+		}
+		if (InstanceData->TangentBasisOffset != INDEX_NONE)
+		{
+			InstanceData->SetVertexTangentBasis(TriangleIndex * 3 + 0, Vertex0.TangentX, Vertex0.TangentY, Vertex0.TangentZ);
+			InstanceData->SetVertexTangentBasis(TriangleIndex * 3 + 1, Vertex1.TangentX, Vertex1.TangentY, Vertex1.TangentZ);
+			InstanceData->SetVertexTangentBasis(TriangleIndex * 3 + 2, Vertex2.TangentX, Vertex2.TangentY, Vertex2.TangentZ);
+		}
+		if (InstanceData->TexCoordOffset != INDEX_NONE)
+		{
+			InstanceData->SetVertexTexCoord(TriangleIndex * 3 + 0, 0, Vertex0.TexCoord);
+			InstanceData->SetVertexTexCoord(TriangleIndex * 3 + 1, 0, Vertex1.TexCoord);
+			InstanceData->SetVertexTexCoord(TriangleIndex * 3 + 2, 0, Vertex2.TexCoord);
+		}
+		if (InstanceData->ColorOffset != INDEX_NONE)
+		{
+			InstanceData->SetVertexColor(TriangleIndex * 3 + 0, Vertex0.Color);
+			InstanceData->SetVertexColor(TriangleIndex * 3 + 1, Vertex1.Color);
+			InstanceData->SetVertexColor(TriangleIndex * 3 + 2, Vertex2.Color);
 		}
 	}
 }

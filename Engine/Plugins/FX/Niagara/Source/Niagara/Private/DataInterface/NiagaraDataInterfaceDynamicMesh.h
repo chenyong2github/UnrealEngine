@@ -155,4 +155,6 @@ public:
 	static void VMSetVertexTexCoord(FVectorVMExternalFunctionContext& Context);
 	static void VMSetVertexColor(FVectorVMExternalFunctionContext& Context);
 	static void VMSetVertexData(FVectorVMExternalFunctionContext& Context);
+
+	static void VMAppendTriangle(FVectorVMExternalFunctionContext& Context);
 };

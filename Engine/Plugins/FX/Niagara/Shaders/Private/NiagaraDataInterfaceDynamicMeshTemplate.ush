@@ -16,25 +16,29 @@ RWBuffer<uint>	{ParameterName}_VertexBuffer;
 
 ////////////////////////////////////////////////////////
 // Helper functions
+uint {ParameterName}_GetPositionOffsetUnsafe(int Vertex)				{ return (Vertex * 3) + {ParameterName}_PositionOffset; }
+uint {ParameterName}_GetTangentBasisOffsetUnsafe(int Vertex)			{ return (Vertex * 2) + {ParameterName}_TangentBasisOffset; }
+uint {ParameterName}_GetTexCoordOffsetUnsafe(int Vertex, int TexCoord)	{ return (Vertex * 2) + (TexCoord * 2) + {ParameterName}_TexCoordOffset; }
+uint {ParameterName}_GetColorOffsetUnsafe(int Vertex)					{ return Vertex + {ParameterName}_ColorOffset;}
 
 uint {ParameterName}_GetPositionOffset(int Vertex)
 {
-	return ({ParameterName}_PositionOffset != -1) && (Vertex >= 0) && (Vertex < {ParameterName}_NumVertices) ? (Vertex * 3) + {ParameterName}_PositionOffset : -1;
+	return ({ParameterName}_PositionOffset != -1) && (Vertex >= 0) && (Vertex < {ParameterName}_NumVertices) ? {ParameterName}_GetPositionOffsetUnsafe(Vertex) : -1;
 }
 
 uint {ParameterName}_GetTangentBasisOffset(int Vertex)
 {
-	return ({ParameterName}_TangentBasisOffset != -1) && (Vertex >= 0) && (Vertex < {ParameterName}_NumVertices) ? (Vertex * 2) + {ParameterName}_TangentBasisOffset : -1;
+	return ({ParameterName}_TangentBasisOffset != -1) && (Vertex >= 0) && (Vertex < {ParameterName}_NumVertices) ? {ParameterName}_GetTangentBasisOffsetUnsafe(Vertex) : -1;
 }
 
 uint {ParameterName}_GetTexCoordOffset(int Vertex, int TexCoord)
 {
-	return ({ParameterName}_TexCoordOffset != -1) && (Vertex >= 0) && (Vertex < {ParameterName}_NumVertices) && (TexCoord >= 0) && (TexCoord <= {ParameterName}_NumTexCoords) ? (Vertex * 2) + (TexCoord * 2) + {ParameterName}_TexCoordOffset : -1;
+	return ({ParameterName}_TexCoordOffset != -1) && (Vertex >= 0) && (Vertex < {ParameterName}_NumVertices) && (TexCoord >= 0) && (TexCoord <= {ParameterName}_NumTexCoords) ? {ParameterName}_GetTexCoordOffsetUnsafe(Vertex, TexCoord) : -1;
 }
 
 uint {ParameterName}_GetColorOffset(int Vertex)
 {
-	return ({ParameterName}_ColorOffset != -1) && (Vertex >= 0) && (Vertex < {ParameterName}_NumVertices) ? Vertex + {ParameterName}_ColorOffset : -1;
+	return ({ParameterName}_ColorOffset != -1) && (Vertex >= 0) && (Vertex < {ParameterName}_NumVertices) ? {ParameterName}_GetColorOffsetUnsafe(Vertex) : -1;
 }
 
 float4 {ParameterName}_UnpackTangent(uint Packed)
@@ -77,6 +81,35 @@ uint {ParameterName}_PackColor(float4 Color)
 	Packed |= uint(Color.b) << 16;
 	Packed |= uint(Color.a) << 24;
 	return Packed;
+}
+
+void {ParameterName}_SetVertexPositionUnsafe(int Vertex, float3 Position)
+{
+	uint Offset = {ParameterName}_GetPositionOffsetUnsafe(Vertex);
+	{ParameterName}_VertexBuffer[Offset + 0] = asuint(Position.x);
+	{ParameterName}_VertexBuffer[Offset + 1] = asuint(Position.y);
+	{ParameterName}_VertexBuffer[Offset + 2] = asuint(Position.z);
+}
+
+void {ParameterName}_SetVertexTangentBasisUnsafe(int Vertex, float3 TangentX, float3 TangentY, float3 TangentZ)
+{
+	uint Offset = {ParameterName}_GetTangentBasisOffsetUnsafe(Vertex);
+	uint TangentSign = dot(cross(TangentX, TangentZ), TangentY) < 0 ? 0x80 : 0x7f;
+	{ParameterName}_VertexBuffer[Offset + 0] = {ParameterName}_PackTangent(TangentX, TangentSign);
+	{ParameterName}_VertexBuffer[Offset + 1] = {ParameterName}_PackTangent(TangentZ, TangentSign);
+}
+
+void {ParameterName}_SetVertexTexCoordUnsafe(int Vertex, float2 TexCoord, int TexCoordIndex)
+{
+	uint Offset = {ParameterName}_GetTexCoordOffsetUnsafe(Vertex, TexCoordIndex);
+	{ParameterName}_VertexBuffer[Offset + 0] = asuint(TexCoord.x);
+	{ParameterName}_VertexBuffer[Offset + 1] = asuint(TexCoord.y);
+}
+
+void {ParameterName}_SetVertexColorUnsafe(int Vertex, float4 Color)
+{
+	uint Offset = {ParameterName}_GetColorOffsetUnsafe(Vertex);
+	{ParameterName}_VertexBuffer[Offset] = {ParameterName}_PackColor(Color);
 }
 
 ////////////////////////////////////////////////////////
@@ -195,6 +228,58 @@ void SetVertexData_{ParameterName}_UEImpureCall(in bool bExecute, in int Vertex,
 	else
 	{
 		//bSuccess = false;
+	}
+}
+
+void AppendTriangle_{ParameterName}_UEImpureCall(
+	in bool bExecute, in int SectionIndex,
+	in float3 Position0, in float3 TangentX0, in float3 TangentY0, in float3 TangentZ0, in float2 TexCoord0, in float4 Color0,
+	in float3 Position1, in float3 TangentX1, in float3 TangentY1, in float3 TangentZ1, in float2 TexCoord1, in float4 Color1,
+	in float3 Position2, in float3 TangentX2, in float3 TangentY2, in float3 TangentZ2, in float2 TexCoord2, in float4 Color2,
+	out int TriangleIndex
+)
+{
+	TriangleIndex = -1;
+	if (bExecute && (SectionIndex >= 0 && SectionIndex < {ParameterName}_NumSections))
+	{
+		int MaxTriangles = {ParameterName}_SectionBuffer[SectionIndex * 2 + 0];
+		InterlockedAdd({ParameterName}_SectionBuffer[SectionIndex * 2 + 1], 1, TriangleIndex);
+		if (TriangleIndex >= MaxTriangles)
+		{
+			InterlockedAdd({ParameterName}_SectionBuffer[SectionIndex * 2 + 1], -1);
+			TriangleIndex = -1;
+		}
+		else
+		{
+			{ParameterName}_IndexBuffer[TriangleIndex * 3 + 0] = (uint)TriangleIndex * 3 + 0;
+			{ParameterName}_IndexBuffer[TriangleIndex * 3 + 1] = (uint)TriangleIndex * 3 + 1;
+			{ParameterName}_IndexBuffer[TriangleIndex * 3 + 2] = (uint)TriangleIndex * 3 + 2;
+
+			if ( {ParameterName}_PositionOffset != -1 )
+			{
+				{ParameterName}_SetVertexPositionUnsafe(TriangleIndex * 3 + 0, Position0);
+				{ParameterName}_SetVertexPositionUnsafe(TriangleIndex * 3 + 1, Position1);
+				{ParameterName}_SetVertexPositionUnsafe(TriangleIndex * 3 + 2, Position2);
+			}
+			if ( {ParameterName}_TangentBasisOffset != -1 )
+			{
+				{ParameterName}_SetVertexTangentBasisUnsafe(TriangleIndex * 3 + 0, TangentX0, TangentY0, TangentZ0);
+				{ParameterName}_SetVertexTangentBasisUnsafe(TriangleIndex * 3 + 1, TangentX1, TangentY1, TangentZ1);
+				{ParameterName}_SetVertexTangentBasisUnsafe(TriangleIndex * 3 + 2, TangentX2, TangentY2, TangentZ2);
+			}
+			if ( {ParameterName}_TexCoordOffset != -1 )
+			{
+				{ParameterName}_SetVertexTexCoordUnsafe(TriangleIndex * 3 + 0, TexCoord0, 0);
+				{ParameterName}_SetVertexTexCoordUnsafe(TriangleIndex * 3 + 1, TexCoord1, 0);
+				{ParameterName}_SetVertexTexCoordUnsafe(TriangleIndex * 3 + 2, TexCoord2, 0);
+			}
+			if ( {ParameterName}_ColorOffset != -1 )
+			{
+				{ParameterName}_SetVertexColorUnsafe(TriangleIndex * 3 + 0, Color0);
+				{ParameterName}_SetVertexColorUnsafe(TriangleIndex * 3 + 1, Color1);
+				{ParameterName}_SetVertexColorUnsafe(TriangleIndex * 3 + 2, Color2);
+			}
+		}
 	}
 }
 
