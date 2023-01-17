@@ -1669,6 +1669,12 @@ void FRDGBuilder::Execute()
 			}
 		}
 
+		if (!ParallelSetupEvents.IsEmpty())
+		{
+			UE::Tasks::Wait(ParallelSetupEvents);
+			ParallelSetupEvents.Empty();
+		}
+
 		// We have to wait until after view creation to launch uploads because we can't lock / unlock while creating views simultaneously.
 		SubmitBufferUploadsTask = SubmitBufferUploads();
 
@@ -1714,12 +1720,6 @@ void FRDGBuilder::Execute()
 
 	CreatePassBarriers([&]
 	{
-		if (!ParallelSetupEvents.IsEmpty())
-		{
-			UE::Tasks::Wait(ParallelSetupEvents);
-			ParallelSetupEvents.Empty();
-		}
-
 		CreateUniformBuffersTask.Wait();
 
 		if (SubmitBufferUploadsTask.IsValid())
