@@ -9,10 +9,21 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeHash)
 
-#if WITH_EDITOR
-#endif
-
 #define LOCTEXT_NAMESPACE "WorldPartition"
+
+void URuntimeHashExternalStreamingObjectBase::ForEachStreamingCells(TFunctionRef<void(UWorldPartitionRuntimeCell&)> Func)
+{
+	TArray<UObject*> Objects;
+	GetObjectsWithOuter(this, Objects);
+
+	for (UObject* Object : Objects)
+	{
+		if (UWorldPartitionRuntimeCell* Cell = Cast<UWorldPartitionRuntimeCell>(Object))
+		{
+			Func(*Cell);
+		}
+	}
+}
 
 UWorldPartitionRuntimeHash::UWorldPartitionRuntimeHash(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

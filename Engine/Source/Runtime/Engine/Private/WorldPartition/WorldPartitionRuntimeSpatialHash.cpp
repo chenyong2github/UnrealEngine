@@ -975,24 +975,6 @@ void URuntimeSpatialHashExternalStreamingObject::OnStreamingObjectLoaded()
 	}
 }
 
-void URuntimeSpatialHashExternalStreamingObject::ForEachStreamingCells(TFunctionRef<void(UWorldPartitionRuntimeCell&)> Func)
-{
-	for (FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
-	{
-		for (FSpatialHashStreamingGridLevel& GridLevel : StreamingGrid.GridLevels)
-		{
-			for (FSpatialHashStreamingGridLayerCell& GridLayerCell : GridLevel.LayerCells)
-			{
-				for (UWorldPartitionRuntimeSpatialHashCell* Cell : GridLayerCell.GridCells)
-				{
-					Func(*Cell);
-				}
-			}
-		}
-	}
-
-}
-
 #if WITH_EDITOR
 void URuntimeSpatialHashExternalStreamingObject::PopulateGeneratorPackageForCook()
 {

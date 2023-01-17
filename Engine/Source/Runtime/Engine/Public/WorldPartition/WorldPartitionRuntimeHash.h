@@ -49,7 +49,7 @@ public:
 
 	virtual class UWorld* GetWorld() const override { return GetOwningWorld(); }
 
-	virtual void ForEachStreamingCells(TFunctionRef<void(UWorldPartitionRuntimeCell&)> Func) {};
+	virtual void ForEachStreamingCells(TFunctionRef<void(UWorldPartitionRuntimeCell&)> Func);
 	
 	virtual void OnStreamingObjectLoaded() {};
 
@@ -141,7 +141,6 @@ public:
 	bool IsCellRelevantFor(bool bClientOnlyVisible) const;
 	EWorldPartitionStreamingPerformance GetStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& CellToActivate) const;
 
-	virtual URuntimeHashExternalStreamingObjectBase* StoreToExternalStreamingObject(UObject* Outer) { return nullptr; }
 	virtual bool InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) { return false; }
 	virtual bool RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) { return false; }
 
