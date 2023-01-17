@@ -233,13 +233,8 @@ struct CORE_API FWindowsPlatformMisc
 	 */
 	static bool GetVSComnTools(int32 Version, FString& OutData);
 
-	/**
-	 * Returns the size of the cache line in bytes.
-	 *
-	 * @return The cache line size.
-	 */
+	UE_DEPRECATED(5.2, "Please use PLATFORM_CACHE_LINE_SIZE instead, runtime query of cache line size not supported")
 	static int32 GetCacheLineSize();
-
 	/**
 	* @return Windows path separator.
 	*/
