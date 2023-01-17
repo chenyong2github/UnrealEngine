@@ -828,6 +828,7 @@ protected:
 	virtual int32 ObjectRadius() override;
 	virtual int32 ObjectBounds() override;
 
+	virtual int32 ObjectLocalBounds(int32 OutputIndex) override;
 	virtual int32 PreSkinnedLocalBounds(int32 OutputIndex) override;
 
 	virtual int32 DistanceCullFade() override;

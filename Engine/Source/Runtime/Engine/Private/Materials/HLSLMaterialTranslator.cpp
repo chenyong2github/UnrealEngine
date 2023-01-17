@@ -5428,6 +5428,25 @@ int32 FHLSLMaterialTranslator::ObjectBounds()
 	return AddInlinedCodeChunk(MCT_Float3, TEXT("float3(GetPrimitiveData(Parameters).ObjectBoundsX, GetPrimitiveData(Parameters).ObjectBoundsY, GetPrimitiveData(Parameters).ObjectBoundsZ)"));
 }
 
+int32 FHLSLMaterialTranslator::ObjectLocalBounds(int32 OutputIndex)
+{
+	switch (OutputIndex)
+	{
+	case 0: // Half extents
+		return AddInlinedCodeChunk(MCT_Float3, TEXT("((GetPrimitiveData(Parameters).LocalObjectBoundsMax - GetPrimitiveData(Parameters).LocalObjectBoundsMin) / 2.0f)"));
+	case 1: // Full extents
+		return AddInlinedCodeChunk(MCT_Float3, TEXT("(GetPrimitiveData(Parameters).LocalObjectBoundsMax - GetPrimitiveData(Parameters).LocalObjectBoundsMin)"));
+	case 2: // Min point
+		return GetPrimitiveProperty(MCT_Float3, TEXT("ObjectLocalBounds"), TEXT("LocalObjectBoundsMin"));
+	case 3: // Max point
+		return GetPrimitiveProperty(MCT_Float3, TEXT("ObjectLocalBounds"), TEXT("LocalObjectBoundsMax"));
+	default:
+		check(false);
+	}
+
+	return INDEX_NONE; 
+}
+
 int32 FHLSLMaterialTranslator::PreSkinnedLocalBounds(int32 OutputIndex)
 {
 	switch (OutputIndex)
