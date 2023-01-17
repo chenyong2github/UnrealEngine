@@ -137,7 +137,7 @@ FMovieSceneKeyColorPicker::FMovieSceneKeyColorPicker(UMovieSceneSection* Section
 	FColorPickerArgs PickerArgs;
 	PickerArgs.bUseAlpha = false;
 	PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
-	PickerArgs.InitialColorOverride = InitialColor;
+	PickerArgs.InitialColor = InitialColor;
 	PickerArgs.ParentWidget = FSlateApplication::Get().GetActiveTopLevelWindow();
 
 	PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateRaw(this, &FMovieSceneKeyColorPicker::OnColorPickerPicked, RChannel, GChannel, BChannel, AChannel);

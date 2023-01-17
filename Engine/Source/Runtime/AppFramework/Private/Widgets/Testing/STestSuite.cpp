@@ -3463,7 +3463,7 @@ protected:
 		PickerArgs.bOnlyRefreshOnOk = false;
 		PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &SRichTextEditTest::SetFontColor);
 		PickerArgs.OnColorPickerCancelled = FOnColorPickerCancelled::CreateSP(this, &SRichTextEditTest::SetFontColor);
-		PickerArgs.InitialColorOverride = FontColor;
+		PickerArgs.InitialColor = FontColor;
 
 		OpenColorPicker(PickerArgs);
 

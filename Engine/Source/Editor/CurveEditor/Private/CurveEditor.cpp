@@ -1914,7 +1914,7 @@ void FCurveEditor::SetCurveColorsForSelected()
 
 	FColorPickerArgs PickerArgs;
 	PickerArgs.bUseAlpha = false;
-	PickerArgs.InitialColorOverride = FindCurve(*CurveModelIDs.CreateIterator())->GetColor();
+	PickerArgs.InitialColor = FindCurve(*CurveModelIDs.CreateIterator())->GetColor();
 	PickerArgs.OnColorCommitted.BindLambda([WeakSelf, CurveModelIDs](FLinearColor NewColor)
 	{
 		if (TSharedPtr<FCurveEditor> Self = WeakSelf.Pin())

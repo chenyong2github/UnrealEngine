@@ -307,7 +307,7 @@ private:
 		FColorPickerArgs PickerArgs;
 		PickerArgs.bUseAlpha = false;
 		PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
-		PickerArgs.InitialColorOverride = GetSourceTintColor();
+		PickerArgs.InitialColor = GetSourceTintColor();
 		PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &FTakeRecorderSourceTreeItem::OnColorPickerPicked);
 
 		OpenColorPicker(PickerArgs);

@@ -402,6 +402,7 @@ bool FCascadeEmitterCanvasClient::InputKey(const FInputKeyEventArgs& EventArgs)
 
 										}
 									}));
+								PickerArgs.bClampValue = true;
 								PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
 
 								OpenColorPicker(PickerArgs);

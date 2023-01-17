@@ -81,7 +81,7 @@ public:
 			PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
 			PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &SColorBoxWidget::OnSetColorFromColorPicker);
 			PickerArgs.OnColorPickerCancelled = FOnColorPickerCancelled::CreateSP(this, &SColorBoxWidget::OnColorPickerCancelled);
-			PickerArgs.InitialColorOverride = TreeItem->GetColor();
+			PickerArgs.InitialColor = TreeItem->GetColor();
 			PickerArgs.ParentWidget = ColorPickerParentWidget;
 			PickerArgs.OptionalOwningDetailsView = ColorPickerParentWidget;
 			FWidgetPath ParentWidgetPath;

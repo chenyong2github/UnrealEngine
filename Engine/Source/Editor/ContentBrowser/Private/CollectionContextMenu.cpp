@@ -612,7 +612,7 @@ void FCollectionContextMenu::ExecutePickColor()
 	FColorPickerArgs PickerArgs;
 	PickerArgs.bIsModal = true; // TODO: Allow live color updates via a proxy?
 	PickerArgs.ParentWidget = CollectionViewPtr;
-	PickerArgs.InitialColorOverride = InitialColor;
+	PickerArgs.InitialColor = InitialColor;
 	PickerArgs.OnColorCommitted.BindSP(this, &FCollectionContextMenu::OnColorCommitted);
 
 	OpenColorPicker(PickerArgs);

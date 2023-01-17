@@ -147,7 +147,7 @@ private:
 			PickerArgs.OnInteractivePickBegin = FSimpleDelegate::CreateSP(this, &SNiagaraColorParameterEditor::InteractivePickBegin);
 			PickerArgs.OnInteractivePickEnd = FSimpleDelegate::CreateSP(this, &SNiagaraColorParameterEditor::InteractivePickEnd);
 			PickerArgs.OnColorPickerWindowClosed = FOnWindowClosed::CreateSP(this, &SNiagaraColorParameterEditor::ColorPickerClosed);
-			PickerArgs.InitialColorOverride = ColorValue;
+			PickerArgs.InitialColor = ColorValue;
 			PickerArgs.ParentWidget = ColorBlock;
 		}
 

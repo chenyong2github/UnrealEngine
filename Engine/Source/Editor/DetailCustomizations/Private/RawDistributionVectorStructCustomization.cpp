@@ -488,7 +488,7 @@ void FReplaceVectorWithLinearColorBuilder::CreateColorPicker(const TSharedPtr<IP
 	PickerArgs.OnColorPickerCancelled = FOnColorPickerCancelled::CreateSP(this, &FReplaceVectorWithLinearColorBuilder::OnColorPickerCancelled, StructHandle);
 	PickerArgs.OnInteractivePickBegin = FSimpleDelegate::CreateSP(this, &FReplaceVectorWithLinearColorBuilder::OnColorPickerInteractiveBegin);
 	PickerArgs.OnInteractivePickEnd = FSimpleDelegate::CreateSP(this, &FReplaceVectorWithLinearColorBuilder::OnColorPickerInteractiveEnd);
-	PickerArgs.InitialColorOverride = OldColorValue;
+	PickerArgs.InitialColor = OldColorValue;
 	PickerArgs.ParentWidget = ColorPickerParentWidget;
 
 	OpenColorPicker(PickerArgs);

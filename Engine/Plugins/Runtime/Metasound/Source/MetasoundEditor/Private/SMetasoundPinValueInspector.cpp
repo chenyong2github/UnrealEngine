@@ -426,7 +426,7 @@ namespace Metasound
 			}
 
 			FColorPickerArgs PickerArgs = InitPickerArgs();
-			PickerArgs.InitialColorOverride = InInitColor;
+			PickerArgs.InitialColor = InInitColor;
 			PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &FMetasoundNumericDebugLineItem::OnColorCommitted, InIndex);
 
 			OpenColorPicker(PickerArgs);

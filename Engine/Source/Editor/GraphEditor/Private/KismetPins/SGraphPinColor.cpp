@@ -62,7 +62,7 @@ FReply SGraphPinColor::OnColorBoxClicked(const FGeometry& MyGeometry, const FPoi
 		PickerArgs.bIsModal = true;
 		PickerArgs.ParentWidget = DefaultValueWidget;
 		PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
-		PickerArgs.InitialColorOverride = GetColor();
+		PickerArgs.InitialColor = GetColor();
 		PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &SGraphPinColor::OnColorCommitted);
 		PickerArgs.bUseAlpha = true;
 

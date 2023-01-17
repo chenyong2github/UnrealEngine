@@ -95,7 +95,7 @@ FReply FZoneGraphTagInfoDetails::OnColorPressed(const FGeometry& MyGeometry, con
 	PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
 	PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &FZoneGraphTagInfoDetails::SetColor);
 	PickerArgs.OnColorPickerCancelled = FOnColorPickerCancelled::CreateSP(this, &FZoneGraphTagInfoDetails::OnColorPickerCancelled);
-	PickerArgs.InitialColorOverride = Color.Get(FColor(128, 128, 128));
+	PickerArgs.InitialColor = Color.Get(FColor(128, 128, 128));
 	OpenColorPicker(PickerArgs);
 
 	return FReply::Handled();

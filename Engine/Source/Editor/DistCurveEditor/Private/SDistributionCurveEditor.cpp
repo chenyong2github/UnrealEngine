@@ -653,6 +653,7 @@ void SDistributionCurveEditor::OnSetColor()
 	FLinearColor TempColor = InputColor;
 	FColorPickerArgs PickerArgs = FColorPickerArgs(InputColor, FOnLinearColorValueChanged::CreateLambda([&TempColor](FLinearColor NewValue){ TempColor = NewValue.ToFColorSRGB(); }));
 	PickerArgs.bIsModal = true;
+	PickerArgs.bClampValue = true;
 	PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
 
 	if (OpenColorPicker(PickerArgs))

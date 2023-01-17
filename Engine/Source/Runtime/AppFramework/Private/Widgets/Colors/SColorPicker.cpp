@@ -63,14 +63,10 @@ void SColorPicker::Construct( const FArguments& InArgs )
 	CurrentColorHSV = OldColor = TargetColorAttribute.Get().LinearRGBToHSV();
 	CurrentColorRGB = TargetColorAttribute.Get();
 	CurrentMode = EColorPickerModes::Wheel;
-	TargetFColors = InArgs._TargetFColors.Get();
-	TargetLinearColors = InArgs._TargetLinearColors.Get();
-	TargetColorChannels = InArgs._TargetColorChannels.Get();
 	bUseAlpha = InArgs._UseAlpha;
 	bOnlyRefreshOnMouseUp = InArgs._OnlyRefreshOnMouseUp.Get();
 	bOnlyRefreshOnOk = InArgs._OnlyRefreshOnOk.Get();
 	OnColorCommitted = InArgs._OnColorCommitted;
-	PreColorCommitted = InArgs._PreColorCommitted;
 	OnColorPickerCancelled = InArgs._OnColorPickerCancelled;
 	OnInteractivePickBegin = InArgs._OnInteractivePickBegin;
 	OnInteractivePickEnd = InArgs._OnInteractivePickEnd;
@@ -79,6 +75,7 @@ void SColorPicker::Construct( const FArguments& InArgs )
 	DisplayGamma = InArgs._DisplayGamma;
 	bClosedViaOkOrCancel = false;
 	bValidCreationOverrideExists = InArgs._OverrideColorPickerCreation;
+	bClampValue = InArgs._ClampValue;
 	OptionalOwningDetailsView = InArgs._OptionalOwningDetailsView.Get().IsValid() ? InArgs._OptionalOwningDetailsView.Get() : nullptr;
 
 	if ( InArgs._sRGBOverride.IsSet() )
@@ -98,9 +95,6 @@ void SColorPicker::Construct( const FArguments& InArgs )
 	bColorPickerIsInlineVersion = InArgs._DisplayInlineVersion;
 	bIsInteractive = false;
 	bPerfIsTooSlowToUpdate = false;
-	
-
-	BackupColors();
 
 	BeginAnimation(FLinearColor(ForceInit), CurrentColorHSV);
 
@@ -132,109 +126,6 @@ void SColorPicker::Construct( const FArguments& InArgs )
 
 /* SColorPicker implementation
  *****************************************************************************/
-
-void SColorPicker::BackupColors()
-{
-	OldTargetFColors.Empty();
-	for (int32 i = 0; i < TargetFColors.Num(); ++i)
-	{
-		OldTargetFColors.Add( *TargetFColors[i] );
-	}
-
-	OldTargetLinearColors.Empty();
-	for (int32 i = 0; i < TargetLinearColors.Num(); ++i)
-	{
-		OldTargetLinearColors.Add( *TargetLinearColors[i] );
-	}
-
-	OldTargetColorChannels.Empty();
-	for (int32 i = 0; i < TargetColorChannels.Num(); ++i)
-	{
-		// Remap the color channel as a linear color for ease
-		const FColorChannels& Channel = TargetColorChannels[i];
-		const FLinearColor Color( Channel.Red ? *Channel.Red : 0.f, Channel.Green ? *Channel.Green : 0.f, Channel.Blue ? *Channel.Blue : 0.f, Channel.Alpha ? *Channel.Alpha : 0.f );
-		OldTargetColorChannels.Add( Color );
-	}
-}
-
-
-void SColorPicker::RestoreColors()
-{
-	check(TargetFColors.Num() == OldTargetFColors.Num());
-
-	for (int32 i = 0; i < TargetFColors.Num(); ++i)
-	{
-		*TargetFColors[i] = OldTargetFColors[i];
-	}
-
-	check(TargetLinearColors.Num() == OldTargetLinearColors.Num());
-
-	for (int32 i = 0; i < TargetLinearColors.Num(); ++i)
-	{
-		*TargetLinearColors[i] = OldTargetLinearColors[i];
-	}
-
-	check(TargetColorChannels.Num() == OldTargetColorChannels.Num());
-
-	for (int32 i = 0; i < TargetColorChannels.Num(); ++i)
-	{
-		// Copy back out of the linear to the color channel
-		FColorChannels& Channel = TargetColorChannels[i];
-		const FLinearColor& OldChannel = OldTargetColorChannels[i];
-		if (Channel.Red)
-		{
-			*Channel.Red = OldChannel.R;
-		}
-		if (Channel.Green)
-		{
-			*Channel.Green = OldChannel.G;
-		}
-		if (Channel.Blue)
-		{
-			*Channel.Blue = OldChannel.B;
-		}
-		if (Channel.Alpha)
-		{
-			*Channel.Alpha = OldChannel.A;
-		}
-	}
-}
-
-
-void SColorPicker::SetColors(const FLinearColor& InColor)
-{
-	for (int32 i = 0; i < TargetFColors.Num(); ++i)
-	{
-		*TargetFColors[i] = InColor.ToFColor(true);
-	}
-
-	for (int32 i = 0; i < TargetLinearColors.Num(); ++i)
-	{
-		*TargetLinearColors[i] = InColor;
-	}
-
-	for (int32 i = 0; i < TargetColorChannels.Num(); ++i)
-	{
-		// Only set those channels who have a valid ptr
-		FColorChannels& Channel = TargetColorChannels[i];
-		if (Channel.Red)
-		{
-			*Channel.Red = InColor.R;
-		}
-		if (Channel.Green)
-		{
-			*Channel.Green = InColor.G;
-		}
-		if (Channel.Blue)
-		{
-			*Channel.Blue = InColor.B;
-		}
-		if (Channel.Alpha)
-		{
-			*Channel.Alpha = InColor.A;
-		}
-	}
-}
 
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -727,7 +618,6 @@ void SColorPicker::DiscardColor()
 	else
 	{	
 		SetNewTargetColorHSV(OldColor, true);
-		RestoreColors();
 	}
 }
 
@@ -786,9 +676,6 @@ void SColorPicker::UpdateColorPick()
 	bPerfIsTooSlowToUpdate = false;
 	FLinearColor OutColor = CurrentColorRGB;
 
-	PreColorCommitted.ExecuteIfBound(OutColor);
-
-	SetColors(OutColor);
 	OnColorCommitted.ExecuteIfBound(OutColor);
 	
 	// This callback is only necessary for wx backwards compatibility
@@ -911,7 +798,7 @@ TSharedRef<SWidget> SColorPicker::MakeColorSpinBox( EColorPickerChannels Channel
 	}
 
 	const int32 GradientHeight = 6;
-	const float HDRMaxValue = (TargetFColors.Num()) ? 1.f : FLT_MAX;
+	const float HDRMaxValue = bClampValue ? 1.f : FLT_MAX;
 	const FSlateFontInfo SmallLayoutFont = FAppStyle::Get().GetFontStyle("ColorPicker.Font");
 
 	// create gradient widget
@@ -1336,7 +1223,6 @@ void SColorPicker::HandleEyeDropperButtonComplete(bool bCancelled)
 	if (bCancelled)
 	{
 		SetNewTargetColorHSV(OldColor, true);
-		RestoreColors();
 	}
 
 	if (bOnlyRefreshOnMouseUp || bPerfIsTooSlowToUpdate)
@@ -1653,27 +1539,8 @@ bool OpenColorPicker(const FColorPickerArgs& Args)
 
 	// Consoles do not support opening new windows
 #if PLATFORM_DESKTOP
-	FLinearColor OldColor = Args.InitialColorOverride;
-
-	if (Args.ColorArray && Args.ColorArray->Num() > 0)
-	{
-		OldColor = FLinearColor(*(*Args.ColorArray)[0]);
-	}
-	else if (Args.LinearColorArray && Args.LinearColorArray->Num() > 0)
-	{
-		OldColor = *(*Args.LinearColorArray)[0];
-	}
-	else if (Args.ColorChannelsArray && Args.ColorChannelsArray->Num() > 0)
-	{
-		OldColor.R = (*Args.ColorChannelsArray)[0].Red ? *(*Args.ColorChannelsArray)[0].Red : 0.0f;
-		OldColor.G = (*Args.ColorChannelsArray)[0].Green ? *(*Args.ColorChannelsArray)[0].Green : 0.0f;
-		OldColor.B = (*Args.ColorChannelsArray)[0].Blue ? *(*Args.ColorChannelsArray)[0].Blue : 0.0f;
-		OldColor.A = (*Args.ColorChannelsArray)[0].Alpha ? *(*Args.ColorChannelsArray)[0].Alpha : 0.0f;
-	}
-	else
-	{
-		check(Args.OnColorCommitted.IsBound());
-	}
+	FLinearColor OldColor = Args.InitialColor;
+	ensureMsgf(Args.OnColorCommitted.IsBound(), TEXT("OnColorCommitted should be bound to set the color."));
 		
 	// Determine the position of the window so that it will spawn near the mouse, but not go off the screen.
 	FVector2D CursorPos = FSlateApplication::Get().GetCursorPos();
@@ -1726,15 +1593,11 @@ bool OpenColorPicker(const FColorPickerArgs& Args)
 
 	TSharedRef<SColorPicker> CreatedColorPicker = SNew(SColorPicker)
 		.TargetColorAttribute(OldColor)
-		.TargetFColors(Args.ColorArray ? *Args.ColorArray : TArray<FColor*>())
-		.TargetLinearColors(Args.LinearColorArray ? *Args.LinearColorArray : TArray<FLinearColor*>())
-		.TargetColorChannels(Args.ColorChannelsArray ? *Args.ColorChannelsArray : TArray<FColorChannels>())
 		.UseAlpha(Args.bUseAlpha)
 		.ExpandAdvancedSection(Args.bExpandAdvancedSection)
 		.OnlyRefreshOnMouseUp(Args.bOnlyRefreshOnMouseUp && !Args.bIsModal)
 		.OnlyRefreshOnOk(Args.bOnlyRefreshOnOk || Args.bIsModal)
 		.OnColorCommitted(Args.OnColorCommitted)
-		.PreColorCommitted(Args.PreColorCommitted)
 		.OnColorPickerCancelled(Args.OnColorPickerCancelled)
 		.OnInteractivePickBegin(Args.OnInteractivePickBegin)
 		.OnInteractivePickEnd(Args.OnInteractivePickEnd)

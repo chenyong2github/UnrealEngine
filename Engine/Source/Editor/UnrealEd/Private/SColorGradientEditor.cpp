@@ -655,7 +655,7 @@ void SColorGradientEditor::OpenGradientStopColorPicker()
 		ColorPickerArgs.bIsModal = false;
 		ColorPickerArgs.ParentWidget = SharedThis( this );
 		ColorPickerArgs.bUseAlpha = false;
-		ColorPickerArgs.InitialColorOverride = SelectedStop.GetColor( *CurveOwner );
+		ColorPickerArgs.InitialColor = SelectedStop.GetColor( *CurveOwner );
 		ColorPickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP( this, &SColorGradientEditor::OnSelectedStopColorChanged );
 		ColorPickerArgs.OnColorPickerCancelled  = FOnColorPickerCancelled::CreateSP( this, &SColorGradientEditor::OnCancelSelectedStopColorChange );
 		OpenColorPicker( ColorPickerArgs );

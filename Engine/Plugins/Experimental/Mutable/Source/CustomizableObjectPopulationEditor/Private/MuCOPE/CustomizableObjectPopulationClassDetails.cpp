@@ -1499,7 +1499,7 @@ FReply SPopulationClassConstraint::OnColorPreviewClicked(const FGeometry& MyGeom
 	args.bIsModal = true;
 	args.bUseAlpha = true;
 	args.bOnlyRefreshOnMouseUp = false;
-	args.InitialColorOverride = PopulationClass->Characteristics[CharactericticIndex].Constraints[ConstraintIndex].DiscreteColor;
+	args.InitialColor = PopulationClass->Characteristics[CharactericticIndex].Constraints[ConstraintIndex].DiscreteColor;
 	args.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &SPopulationClassConstraint::OnSetConstantColorFromColorPicker);
 
 	OpenColorPicker(args);

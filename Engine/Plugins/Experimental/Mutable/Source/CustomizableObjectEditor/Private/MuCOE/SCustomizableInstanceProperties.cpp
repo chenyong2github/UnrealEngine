@@ -1697,7 +1697,7 @@ FReply SCustomizableInstanceProperties::OnColorBlockMouseButtonDown(const FGeome
 	args.bIsModal = true;
 	args.bUseAlpha = false;
 	args.bOnlyRefreshOnMouseUp = false;
-	args.InitialColorOverride = col;
+	args.InitialColor = col;
 	args.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &SCustomizableInstanceProperties::OnSetColorFromColorPicker, ParamName);
 	OpenColorPicker(args);
 

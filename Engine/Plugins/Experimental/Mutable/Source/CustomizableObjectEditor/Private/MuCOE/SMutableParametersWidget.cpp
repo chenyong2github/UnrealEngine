@@ -437,7 +437,7 @@ FReply SMutableParametersWidget::OnColorBlockMouseButtonDown(const FGeometry& My
 	args.bIsModal = true;
 	args.bUseAlpha = false;
 	args.bOnlyRefreshOnMouseUp = false;
-	args.InitialColorOverride = col;
+	args.InitialColor = col;
 	args.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &SMutableParametersWidget::OnSetColorFromColorPicker, ParamIndex);
 	OpenColorPicker(args);
 

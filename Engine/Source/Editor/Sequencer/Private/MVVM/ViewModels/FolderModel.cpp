@@ -359,7 +359,7 @@ void FFolderModel::SetFolderColor()
 	FColorPickerArgs PickerArgs;
 	PickerArgs.bUseAlpha = false;
 	PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
-	PickerArgs.InitialColorOverride = InitialFolderColor.ReinterpretAsLinear();
+	PickerArgs.InitialColor = InitialFolderColor.ReinterpretAsLinear();
 	PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &FFolderModel::OnColorPickerPicked);
 	PickerArgs.OnColorPickerWindowClosed = FOnWindowClosed::CreateSP(this, &FFolderModel::OnColorPickerClosed);
 	PickerArgs.OnColorPickerCancelled  = FOnColorPickerCancelled::CreateSP(this, &FFolderModel::OnColorPickerCancelled );

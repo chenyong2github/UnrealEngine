@@ -897,7 +897,7 @@ FReply FCustomPrimitiveDataCustomization::OnMouseButtonDownColorBlock(const FGeo
 
 	FColorPickerArgs PickerArgs;
 	PickerArgs.bUseAlpha = true;
-	PickerArgs.InitialColorOverride = GetVectorColor(PrimIdx);
+	PickerArgs.InitialColor = GetVectorColor(PrimIdx);
 	PickerArgs.ParentWidget = ColorBlocks[PrimIdx];
 	PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
 	PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &FCustomPrimitiveDataCustomization::SetVectorColor, PrimIdx);

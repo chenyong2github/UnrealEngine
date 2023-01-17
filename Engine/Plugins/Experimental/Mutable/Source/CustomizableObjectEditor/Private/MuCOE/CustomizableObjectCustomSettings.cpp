@@ -725,7 +725,7 @@ FReply SCustomizableObjectCustomSettings::OnLightColorBlockMouseButtonDown(const
 	args.bIsModal = true;
 	args.bUseAlpha = false;
 	args.bOnlyRefreshOnMouseUp = false;
-	args.InitialColorOverride = GetLightColorValue();
+	args.InitialColor = GetLightColorValue();
 	args.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &SCustomizableObjectCustomSettings::OnSetLightColorFromColorPicker);
 
 	OpenColorPicker(args);

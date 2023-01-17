@@ -4079,6 +4079,7 @@ void FCascade::OnBackgroundColor()
 						PinnedParticleSystem->BackgroundColor = NewValue.ToFColorSRGB();
 					}
 				}));
+			PickerArgs.bClampValue = true;
 			PickerArgs.ParentWidget = PreviewViewport;
 			PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
 

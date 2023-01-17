@@ -2428,7 +2428,7 @@ void SMemTagTreeView::EditColorForSelectedMemTags()
 			//PickerArgs.OnInteractivePickBegin = FSimpleDelegate::CreateSP(this, &SMemTagTreeView::InteractivePickBegin);
 			//PickerArgs.OnInteractivePickEnd = FSimpleDelegate::CreateSP(this, &SMemTagTreeView::InteractivePickEnd);
 			//PickerArgs.OnColorPickerWindowClosed = FOnWindowClosed::CreateSP(this, &SMemTagTreeView::ColorPickerClosed);
-			PickerArgs.InitialColorOverride = EditableColorValue;
+			PickerArgs.InitialColor = EditableColorValue;
 			PickerArgs.ParentWidget = SharedThis(this);
 		}
 

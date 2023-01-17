@@ -64,7 +64,6 @@ struct FColorChannels
 	float* Alpha;
 };
 
-
 /**
  * Class for placing a color picker. If all you need is a standalone color picker,
  * use the functions OpenColorPicker and DestroyColorPicker, since they hold a static
@@ -77,9 +76,6 @@ public:
 
 	SLATE_BEGIN_ARGS(SColorPicker)
 		: _TargetColorAttribute(FLinearColor(ForceInit))
-		, _TargetFColors()
-		, _TargetLinearColors()
-		, _TargetColorChannels()
 		, _UseAlpha(true)
 		, _OnlyRefreshOnMouseUp(false)
 		, _OnlyRefreshOnOk(false)
@@ -95,39 +91,41 @@ public:
 		, _DisplayInlineVersion(false)
 		, _OverrideColorPickerCreation(false)
 		, _ExpandAdvancedSection(false)
+		, _ClampValue(false)
 		, _OptionalOwningDetailsView(nullptr)
 	{ }
-		
+
 		/** The color that is being targeted as a TAttribute */
 		SLATE_ATTRIBUTE(FLinearColor, TargetColorAttribute)
-		
+
 		/** An array of color pointers this color picker targets */
-		SLATE_ATTRIBUTE(TArray<FColor*>, TargetFColors)
+		SLATE_ARGUMENT_DEPRECATED(TArray<FColor*>, TargetFColors, 5.2, "TargetFColors is deprecated. Use OnColorCommitted to get the selected color.")
 		
 		/** An array of linear color pointers this color picker targets */
-		SLATE_ATTRIBUTE(TArray<FLinearColor*>, TargetLinearColors)
-		
+		SLATE_ARGUMENT_DEPRECATED(TArray<FLinearColor*>, TargetLinearColors, 5.2, "TargetLinearColors is deprecated. Use OnColorCommitted to get the selected color.")
+
 		/**
 		 * An array of color pointer structs this color picker targets
 		 * Only to keep compatibility with wx. Should be removed once wx is gone.
 		 */
-		SLATE_ATTRIBUTE(TArray<FColorChannels>, TargetColorChannels)
+		SLATE_ARGUMENT_DEPRECATED(TArray<FColorChannels>, TargetColorChannels, 5.2, "TargetColorChannels is deprecated. Use OnColorCommitted to get the selected color.")
 
 		/** Whether the ability to pick the alpha value is enabled */
 		SLATE_ATTRIBUTE(bool, UseAlpha)
-		
+
 		/** Prevents immediate refreshs for performance reasons. */
 		SLATE_ATTRIBUTE(bool, OnlyRefreshOnMouseUp)
 
 		/** Prevents multiple refreshes when requested. */
 		SLATE_ATTRIBUTE(bool, OnlyRefreshOnOk)
-		
+
 		/** The event called when the color is committed */
 		SLATE_EVENT(FOnLinearColorValueChanged, OnColorCommitted)
 
+		UE_DEPRECATED(5.2, "PreColorCommitted is deprecated. Use OnColorCommitted to update your values.")
 		/** The event called before the color is committed */
 		SLATE_EVENT(FOnLinearColorValueChanged, PreColorCommitted)
-		
+
 		/** The event called when the color picker cancel button is pressed */
 		SLATE_EVENT(FOnColorPickerCancelled, OnColorPickerCancelled)
 
@@ -157,6 +155,9 @@ public:
 
 		/** If true, the Advanced section will be expanded, regardless of the remembered state */
 		SLATE_ARGUMENT(bool, ExpandAdvancedSection)
+
+		/** The LinearColor is expected to be converted to a FColor, set the clamp channel value. */
+		SLATE_ARGUMENT(bool, ClampValue)
 
 		/** Allows a details view to own the color picker so refreshing another details view doesn't close it */
 		SLATE_ATTRIBUTE(TSharedPtr<SWidget>, OptionalOwningDetailsView)
@@ -203,12 +204,6 @@ protected:
 
 	/** Backup all the colors that are being modified */
 	void BackupColors();
-
-	/** Restore all the modified colors to their original state */
-	void RestoreColors();
-
-	/** Set all the colors to this new color */
-	void SetColors(const FLinearColor& InColor);
 
 	bool ApplyNewTargetColor(bool bForceUpdate = false);
 
@@ -403,27 +398,6 @@ private:
 	/** If true, then the performance is too bad to have auto-updating */
 	bool bPerfIsTooSlowToUpdate;
 
-	/** An array of color pointers this color picker targets */
-	TArray<FColor*> TargetFColors;
-	
-	/** An array of linear color pointers this color picker targets */
-	TArray<FLinearColor*> TargetLinearColors;
-	
-	/**
-	 * An array of color pointer structs this color picker targets
-	 * Only to keep compatibility with wx. Should be removed once wx is gone.
-	 */
-	TArray<FColorChannels> TargetColorChannels;
-
-	/** Backups of the TargetFColors */
-	TArray<FColor> OldTargetFColors;
-
-	/** Backups of the TargetLinearColors */
-	TArray<FLinearColor> OldTargetLinearColors;
-
-	/** Backups of the TargetColorChannels */
-	TArray<FLinearColor> OldTargetColorChannels;
-
 	/** Whether or not the color uses Alpha or not */
 	TAttribute<bool> bUseAlpha;
 
@@ -468,14 +442,14 @@ private:
 
 	/** Is true if the color picker creation behavior can be overridden */
 	bool bValidCreationOverrideExists;
+	
+	/** The current display gamma used to correct colors picked from the display. */
+	bool bClampValue;
 
 private:
 
 	/** Invoked when a new value is selected on the color wheel */
 	FOnLinearColorValueChanged OnColorCommitted;
-
-	/** Invoked before a new value is selected on the color wheel */
-	FOnLinearColorValueChanged PreColorCommitted;
 
 	/** Invoked when the color picker cancel button is pressed */
 	FOnColorPickerCancelled OnColorPickerCancelled;
@@ -522,24 +496,31 @@ struct FColorPickerArgs
 	/** Whether to open the color picker as a menu window. */
 	bool bOpenAsMenu = false;
 
+	/** Set true if values should be max to 1.0. HDR values may go over 1.0. */
+	bool bClampValue = false;
+
 	/** The current display gamma used to correct colors picked from the display. */
 	TAttribute<float> DisplayGamma = 2.2f;
 
 	/** If set overrides the global option for the desired setting of sRGB mode. */
 	TOptional<bool> sRGBOverride = TOptional<bool>();
 
+	UE_DEPRECATED(5.2, "ColorArray is deprecated. Use OnColorCommitted to update your values.")
 	/** An array of FColors to target. */
 	const TArray<FColor*>* ColorArray = nullptr;
 
+	UE_DEPRECATED(5.2, "LinearColorArray is deprecated. Use OnColorCommitted to update your values.")
 	/** An array of FLinearColors to target. */
 	const TArray<FLinearColor*>* LinearColorArray = nullptr;
 
+	UE_DEPRECATED(5.2, "ColorChannelsArray is deprecated. Use OnColorCommitted to update your values.")
 	/** An array of FColorChannels to target. (deprecated now that wx is gone?) */
 	const TArray<FColorChannels>* ColorChannelsArray = nullptr;
 
 	/** A delegate to be called when the color changes. */
 	FOnLinearColorValueChanged OnColorCommitted;
 
+	UE_DEPRECATED(5.2, "PreColorCommitted is deprecated. Use OnColorCommitted to update your values.")
 	/** A delegate to be called before the color change is committed. */
 	FOnLinearColorValueChanged PreColorCommitted;
 
@@ -555,8 +536,12 @@ struct FColorPickerArgs
 	/** A delegate to be called when a slider drag, color wheel drag or dropper grab finishes */
 	FSimpleDelegate OnInteractivePickEnd;
 
+	UE_DEPRECATED(5.2, "InitialColorOverride is deprecated. Use InitialColor to set the initial color.")
 	/** Overrides the initial color set on the color picker. */
 	FLinearColor InitialColorOverride = FLinearColor::White;
+
+	/** The initial color set on the color picker. */
+	FLinearColor InitialColor = FLinearColor::White;
 
 	/** Allows a details view to own the color picker so refreshing another details view doesn't close it */
 	TSharedPtr<SWidget> OptionalOwningDetailsView;
@@ -566,8 +551,13 @@ struct FColorPickerArgs
 
 	FColorPickerArgs(FLinearColor InInitialColor, FOnLinearColorValueChanged InOnColorCommitted)
 		: OnColorCommitted(MoveTemp(InOnColorCommitted))
-		, InitialColorOverride(InInitialColor)
+		, InitialColor(InInitialColor)
 	{}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FColorPickerArgs(const FColorPickerArgs&) = default;
+	FColorPickerArgs(FColorPickerArgs&&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
 /** Get a pointer to the static color picker, or nullptr if it does not exist. */

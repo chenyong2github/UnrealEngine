@@ -5571,7 +5571,7 @@ FReply FBlueprintGraphActionDetails::ColorBlock_OnMouseButtonDown(const FGeometr
 			PickerArgs.bIsModal = true;
 			PickerArgs.ParentWidget = ColorBlock;
 			PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
-			PickerArgs.InitialColorOverride = Metadata->InstanceTitleColor;
+			PickerArgs.InitialColor = Metadata->InstanceTitleColor;
 			PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateLambda([WeakSelf](FLinearColor NewValue)
 			{
 				if (TSharedPtr<FBlueprintGraphActionDetails> Self = WeakSelf.Pin())

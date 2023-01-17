@@ -476,7 +476,7 @@ FReply SWorldHierarchyItem::OnChangeColor()
 	{
 		FColorPickerArgs PickerArgs;
 		PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
-		PickerArgs.InitialColorOverride = WorldTreeItem->GetDrawColor();
+		PickerArgs.InitialColor = WorldTreeItem->GetDrawColor();
 		PickerArgs.bOnlyRefreshOnMouseUp = false;
 		PickerArgs.bOnlyRefreshOnOk = false;
 		PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &SWorldHierarchyItem::OnSetColorFromColorPicker);

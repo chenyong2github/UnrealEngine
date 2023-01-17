@@ -1230,6 +1230,7 @@ void SPropertyTreeViewImpl::CreateColorPickerWindow(const TSharedRef< class FPro
 
 	// Use the first address for the initial color
 	TOptional<FLinearColor> DefaultColor;
+	bool bClampValue = false;
 	if (ReadAddresses.Num())
 	{
 		const uint8* Addr = ReadAddresses.GetAddress(0);
@@ -1238,6 +1239,7 @@ void SPropertyTreeViewImpl::CreateColorPickerWindow(const TSharedRef< class FPro
 			if (CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_Color)
 			{
 				DefaultColor = *reinterpret_cast<const FColor*>(Addr);
+				bClampValue = true;
 			}
 			else
 			{
@@ -1253,6 +1255,7 @@ void SPropertyTreeViewImpl::CreateColorPickerWindow(const TSharedRef< class FPro
 		FColorPickerArgs PickerArgs = FColorPickerArgs(DefaultColor.GetValue(), FOnLinearColorValueChanged::CreateStatic(&UE::PropertyEditor::Private::CreateColorPickerWindow_SetColor, WeakPropertyHandle));
 		PickerArgs.ParentWidget = AsShared();
 		PickerArgs.bUseAlpha = bUseAlpha;
+		PickerArgs.bClampValue = bClampValue;
 		PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
 
 		OpenColorPicker(PickerArgs);

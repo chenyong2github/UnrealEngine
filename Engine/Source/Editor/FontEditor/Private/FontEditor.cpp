@@ -928,8 +928,9 @@ void FFontEditor::OnBackgroundColor()
 	PickerArgs.bIsModal = true;
 	PickerArgs.ParentWidget = FontPreview;
 	PickerArgs.bUseAlpha = true;
+	PickerArgs.bClampValue = true;
 	PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
-	PickerArgs.InitialColorOverride = FontPreviewWidget->GetPreviewBackgroundColor();
+	PickerArgs.InitialColor = FontPreviewWidget->GetPreviewBackgroundColor();
 	PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateLambda([WeakFontPreviewWidget](FLinearColor NewValue)
 		{
 			if (TSharedPtr<SFontEditorViewport> PinnedWidget = WeakFontPreviewWidget.Pin())
@@ -956,7 +957,7 @@ void FFontEditor::OnForegroundColor()
 	PickerArgs.ParentWidget = FontPreview;
 	PickerArgs.bUseAlpha = true;
 	PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
-	PickerArgs.InitialColorOverride = FontPreviewWidget->GetPreviewForegroundColor();
+	PickerArgs.InitialColor = FontPreviewWidget->GetPreviewForegroundColor();
 	PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateLambda([WeakFontPreviewWidget](FLinearColor NewValue)
 		{
 			if (TSharedPtr<SFontEditorViewport> PinnedWidget = WeakFontPreviewWidget.Pin())

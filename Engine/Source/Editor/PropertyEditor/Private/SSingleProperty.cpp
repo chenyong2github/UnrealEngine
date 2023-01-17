@@ -320,6 +320,7 @@ void SSingleProperty::CreateColorPickerWindow( const TSharedRef< class FProperty
 
 		// Use the first address for the initial color
 		TOptional<FLinearColor> DefaultColor;
+		bool bClampValue = false;
 		if( ReadAddresses.Num() ) 
 		{
 			const uint8* Addr = ReadAddresses.GetAddress(0);
@@ -328,6 +329,7 @@ void SSingleProperty::CreateColorPickerWindow( const TSharedRef< class FProperty
 				if( CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_Color )
 				{
 					DefaultColor = *reinterpret_cast<const FColor*>(Addr);
+					bClampValue = true;
 				}
 				else
 				{
@@ -342,6 +344,7 @@ void SSingleProperty::CreateColorPickerWindow( const TSharedRef< class FProperty
 			FColorPickerArgs PickerArgs = FColorPickerArgs(DefaultColor.GetValue(), FOnLinearColorValueChanged::CreateSP(this, &SSingleProperty::SetColorPropertyFromColorPicker));
 			PickerArgs.ParentWidget = AsShared();
 			PickerArgs.bUseAlpha = bUseAlpha;
+			PickerArgs.bClampValue = bClampValue;
 			PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
 
 			OpenColorPicker(PickerArgs);

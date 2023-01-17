@@ -107,7 +107,7 @@ FReply FVariantManagerColorPropertyNode::OnClickColorBlock(const FGeometry& MyGe
 		PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &FVariantManagerColorPropertyNode::OnSetColorFromColorPicker);
 	}
 
-	FVariantColorNodeImpl::GetCommonColorFromPropertyValues(PickerArgs.InitialColorOverride, PropertyValues);
+	FVariantColorNodeImpl::GetCommonColorFromPropertyValues(PickerArgs.InitialColor, PropertyValues);
 
 	OpenColorPicker(PickerArgs);
 

@@ -422,6 +422,7 @@ void SDetailsViewBase::CreateColorPickerWindow(const TSharedRef< FPropertyEditor
 	PropertyEditor->GetPropertyNode()->GetReadAddress(false, ReadAddresses, false);
 
 	TOptional<FLinearColor> DefaultColor;
+	bool bClampValue = false;
 	if (ReadAddresses.Num())
 	{
 		for (int32 ColorIndex = 0; ColorIndex < ReadAddresses.Num(); ++ColorIndex)
@@ -432,6 +433,7 @@ void SDetailsViewBase::CreateColorPickerWindow(const TSharedRef< FPropertyEditor
 				if (CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_Color)
 				{
 					DefaultColor = *reinterpret_cast<const FColor*>(Addr);
+					bClampValue = true;
 				}
 				else
 				{
@@ -451,6 +453,7 @@ void SDetailsViewBase::CreateColorPickerWindow(const TSharedRef< FPropertyEditor
 		FColorPickerArgs PickerArgs = FColorPickerArgs(DefaultColor.GetValue(), FOnLinearColorValueChanged::CreateStatic(&UE::PropertyEditor::Private::SDetailsViewBase_SetColor, WeakPropertyHandle));
 		PickerArgs.ParentWidget = AsShared();
 		PickerArgs.bUseAlpha = bUseAlpha;
+		PickerArgs.bClampValue = bClampValue;
 		PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
 		PickerArgs.OnColorPickerWindowClosed = FOnWindowClosed::CreateSP(this, &SDetailsViewBase::OnColorPickerWindowClosed);
 		PickerArgs.OptionalOwningDetailsView = AsShared();
