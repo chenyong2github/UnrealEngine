@@ -30,8 +30,11 @@ public:
 		return ReferencedTexture.GetReference();
 	}
 
+	void UpdateBindlessShaderResourceView();
+
 private:
 	friend class FRHICommandListImmediate;
+	friend class FDynamicRHI;
 
 	// Called only from FRHICommandListImmediate::UpdateTextureReference()
 	void SetReferencedTexture(FRHITexture* InTexture)
@@ -42,6 +45,9 @@ private:
 	}
 
 	TRefCountPtr<FRHITexture> ReferencedTexture;
+
+	// SRV to create a reusable slot for bindless handles for this texture reference
+	FShaderResourceViewRHIRef BindlessShaderResourceViewRHI;
 
 	// This pointer is set by the InitRHI() function on the FBlackTextureWithSRV global resource,
 	// to allow FRHITextureReference to use the global black texture when the reference is nullptr.

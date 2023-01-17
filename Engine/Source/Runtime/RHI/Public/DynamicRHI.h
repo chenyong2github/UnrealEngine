@@ -444,6 +444,8 @@ public:
 
 	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer);
 
+	virtual void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture);
+
 	struct FRHICalcTextureSizeResult
 	{
 		// The total size of the texture, in bytes.

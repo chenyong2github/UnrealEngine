@@ -8,6 +8,7 @@ FRHITextureReference::FRHITextureReference()
 {
 	check(DefaultTexture);
 	ReferencedTexture = DefaultTexture;
+	UpdateBindlessShaderResourceView();
 }
 
 FRHITextureReference::~FRHITextureReference() = default;
@@ -20,7 +21,11 @@ FRHITextureReference* FRHITextureReference::GetTextureReference()
 FRHIDescriptorHandle FRHITextureReference::GetDefaultBindlessHandle() const
 { 
 	check(ReferencedTexture);
-	return ReferencedTexture->GetDefaultBindlessHandle();
+
+	// If an SRV has been created, return its handle
+	return BindlessShaderResourceViewRHI.IsValid() ?
+		BindlessShaderResourceViewRHI->GetBindlessHandle() : 
+		ReferencedTexture->GetDefaultBindlessHandle();
 }
 
 void* FRHITextureReference::GetNativeResource() const
@@ -59,4 +64,12 @@ const FRHITextureDesc& FRHITextureReference::GetDesc() const
 {
 	check(ReferencedTexture);
 	return ReferencedTexture->GetDesc();
+}
+
+void FRHITextureReference::UpdateBindlessShaderResourceView()
+{
+	if (RHIGetBindlessResourcesConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled)
+	{
+		BindlessShaderResourceViewRHI = RHICreateShaderResourceView(ReferencedTexture.GetReference(), 0u);
+	}
 }

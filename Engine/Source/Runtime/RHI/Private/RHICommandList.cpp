@@ -2074,8 +2074,9 @@ void FRHICommandListImmediate::UpdateTextureReference(FRHITextureReference* Text
 
 	EnqueueLambda([TextureRef, NewTexture](auto&)
 	{
-		TextureRef->SetReferencedTexture(NewTexture);
+		GDynamicRHI->RHIUpdateTextureReference(TextureRef, NewTexture);
 	});
+
 	RHIThreadFence(true);
 	if (GetUsedMemory() > 256 * 1024)
 	{
