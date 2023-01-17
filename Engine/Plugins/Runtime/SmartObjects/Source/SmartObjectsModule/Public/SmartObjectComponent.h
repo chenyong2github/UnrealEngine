@@ -40,10 +40,6 @@ public:
 	void SetRegisteredHandle(const FSmartObjectHandle Value, const ESmartObjectRegistrationType InRegistrationType);
 	void InvalidateRegisteredHandle();
 
-	void OnRuntimeInstanceDestroyed();
-	void OnRuntimeInstanceBound(FSmartObjectRuntime& RuntimeInstance);
-	void OnRuntimeInstanceUnbound(FSmartObjectRuntime& RuntimeInstance);
-
 #if WITH_EDITORONLY_DATA
 	static FOnSmartObjectChanged& GetOnSmartObjectChanged() { return OnSmartObjectChanged; }
 #endif // WITH_EDITORONLY_DATA
@@ -54,7 +50,6 @@ protected:
 
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
-	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PostInitProperties() override;
 
@@ -65,10 +60,6 @@ protected:
 
 	void RegisterToSubsystem();
 
-	void BindTagsDelegates(FSmartObjectRuntime& RuntimeInstance, UAbilitySystemComponent& AbilitySystemComponent);
-	void UnbindComponentTagsDelegate();
-	void UnbindRuntimeInstanceTagsDelegate(FSmartObjectRuntime& RuntimeInstance);
-
 	UPROPERTY(EditAnywhere, Category = SmartObject, BlueprintReadWrite)
 	TObjectPtr<USmartObjectDefinition> DefinitionAsset;
 
@@ -77,15 +68,6 @@ protected:
 	FSmartObjectHandle RegisteredHandle;
 
 	ESmartObjectRegistrationType RegistrationType = ESmartObjectRegistrationType::None;
-
-	FDelegateHandle OnComponentTagsModifiedHandle;
-	bool bInstanceTagsDelegateBound = false;
-
-	/** 
-	 * Signals that binding to the runtime smart object instance is required upon this SmartObjectComponent's
-	 * BeginPlay. bPendingRuntimeInstanceBinding gets set to True if OnRuntimeInstanceBound is called before BeginPlay
-	 */
-	bool bPendingRuntimeInstanceBinding = false;
 
 	/** 
 	 * Controls whether a given SmartObject can be aggregated in SmartObjectPersistentCollections. SOs in collections

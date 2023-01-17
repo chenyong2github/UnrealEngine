@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -38,6 +38,7 @@ protected:
 	virtual EWorldConditionResult IsTrue(const FWorldConditionContext& Context) const override;
 	virtual void Deactivate(const FWorldConditionContext& Context) const override;
 
+	FWorldConditionContextDataRef SubsystemRef;
 	FWorldConditionContextDataRef SlotHandleRef;
 
 	/** Smart Object Slot's runtime tags needs to match this query for the condition to evaluate true. */

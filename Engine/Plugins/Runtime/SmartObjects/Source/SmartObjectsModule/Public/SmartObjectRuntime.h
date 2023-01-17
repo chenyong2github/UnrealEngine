@@ -10,7 +10,10 @@
 #include "WorldConditionQuery.h"
 #include "SmartObjectRuntime.generated.h"
 
+class USmartObjectComponent;
+
 /** Delegate fired when a given tag is added or removed. Tags on smart object are not using reference counting so count will be 0 or 1 */
+UE_DEPRECATED(5.2, "Tag changes are now broadcasted using FOnSmartObjectEvent.")
 DECLARE_DELEGATE_TwoParams(FOnSmartObjectTagChanged, const FGameplayTag, int32);
 
 /**
@@ -125,12 +128,13 @@ struct FSmartObjectRuntimeSlot
 public:
 	/* Provide default constructor to be able to compile template instantiation 'UScriptStruct::TCppStructOps<FSmartObjectSlotState>' */
 	/* Also public to pass void 'UScriptStruct::TCppStructOps<FSmartObjectSlotState>::ConstructForTests(void *)' */
-	FSmartObjectRuntimeSlot() : bEnabled(true) {}
+	FSmartObjectRuntimeSlot() : bSlotEnabled(true), bObjectEnabled(true) {}
 	
 	explicit FSmartObjectRuntimeSlot(const FSmartObjectHandle InRuntimeObjectHandle, const int32 InSlotIndex)
 		: RuntimeObjectHandle(InRuntimeObjectHandle)
 		, SlotIndex(IntCastChecked<uint8>(InSlotIndex))
-		, bEnabled(true)
+		, bSlotEnabled(true)
+		, bObjectEnabled(true)
 	{
 	}
 
@@ -138,7 +142,7 @@ public:
 	ESmartObjectSlotState GetState() const { return State; }
 
 	/** @return True if the slot can be claimed. */
-	bool CanBeClaimed() const { return bEnabled && State == ESmartObjectSlotState::Free; }
+	bool CanBeClaimed() const { return IsEnabled() && State == ESmartObjectSlotState::Free; }
 
 	/** @return reference to the slot event delegate. */
 	const FOnSmartObjectEvent& GetEventDelegate() const { return OnEvent; }
@@ -149,8 +153,8 @@ public:
 	/** @return the runtime gameplay tags of the slot. */
 	const FGameplayTagContainer& GetTags() const { return Tags; }
 
-	/** @return true of the slot is enabled. */
-	bool IsEnabled() const { return bEnabled; }
+	/** @return true if both the slot and its parent smart object are enabled. */
+	bool IsEnabled() const { return bSlotEnabled && bObjectEnabled; }
 
 	/** @return Handle of the owner runtime object. */
 	FSmartObjectHandle GetOwnerRuntimeObject() const { return RuntimeObjectHandle; }
@@ -194,7 +198,10 @@ protected:
 	uint8 SlotIndex = 0;
 
 	/** True if the slot is enabled */
-	uint8 bEnabled : 1;
+	uint8 bSlotEnabled : 1;
+
+	/** True if the parent smart object is enabled */
+	uint8 bObjectEnabled : 1;
 };
 
 using FSmartObjectSlotClaimState UE_DEPRECATED(5.2, "Deprecated struct. Please use FSmartObjectRuntimeSlot instead.") = FSmartObjectRuntimeSlot;
@@ -215,8 +222,12 @@ public:
 	/** Returns all tags assigned to the smart object instance */
 	const FGameplayTagContainer& GetTags() const { return Tags; }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Returns delegate that is invoked whenever a tag is added or removed */
+	UE_DEPRECATED(5.2, "Tag changes are now broadcasted using FOnSmartObjectEvent. Please use GetEventDelegate().")
 	FOnSmartObjectTagChanged& GetTagChangedDelegate() { return OnTagChangedDelegate; }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 
 	/** @return reference to the Smart Object event delegate. */
 	const FOnSmartObjectEvent& GetEventDelegate() const { return OnEvent; }
@@ -231,9 +242,9 @@ public:
 	/** @return True of the Smart Object is enabled. */
 	bool IsEnabled() const { return bEnabled; }
 
-	/** @return Weak pointer to owner actor if present. */
-	TWeakObjectPtr<AActor> GetOwnerActor() const { return OwnerActor; }
-	
+	/** @return Pointer to owner actor if present. */
+	AActor* GetOwnerActor() const;
+
 	/* Provide default constructor to be able to compile template instantiation 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>' */
 	/* Also public to pass void 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>::ConstructForTests(void *)' */
 	FSmartObjectRuntime() : bEnabled(true) {}
@@ -258,6 +269,10 @@ private:
 
 	void SetRegisteredHandle(const FSmartObjectHandle Value) { RegisteredHandle = Value; }
 
+	/** World condition runtime state. */
+	UPROPERTY(Transient)
+	mutable FWorldConditionQueryState PreconditionState;
+	
 	/** Runtime SlotHandles associated to each defined slot */
 	TArray<FSmartObjectSlotHandle> SlotHandles;
 
@@ -265,9 +280,9 @@ private:
 	UPROPERTY()
 	TObjectPtr<const USmartObjectDefinition> Definition = nullptr;
 
-	/** Actor that owns the Smart Object. May be empty if the Actor is not loaded. */
+	/** Component that owns the Smart Object. May be empty if the parent Actor is not loaded. */
 	UPROPERTY()
-	TWeakObjectPtr<AActor> OwnerActor;
+	TWeakObjectPtr<USmartObjectComponent> OwnerComponent;
 	
 	/** Instance specific transform */
 	FTransform Transform;
@@ -276,9 +291,11 @@ private:
 	FGameplayTagContainer Tags;
 
 	/** Delegate fired whenever a new tag is added or an existing one gets removed */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FOnSmartObjectTagChanged OnTagChangedDelegate;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	/**  Delegate that is fired when the Smart Object changes. */
+	/** Delegate that is fired when the Smart Object changes. */
 	FOnSmartObjectEvent OnEvent;
 
 	/** RegisteredHandle != FSmartObjectHandle::Invalid when registered with SmartObjectSubsystem */

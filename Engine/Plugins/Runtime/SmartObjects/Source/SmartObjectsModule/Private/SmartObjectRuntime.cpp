@@ -4,6 +4,7 @@
 
 #include "SmartObjectSubsystem.h"
 #include "MassEntityManager.h"
+#include "SmartObjectComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectRuntime)
 
@@ -20,12 +21,19 @@ FSmartObjectRuntime::FSmartObjectRuntime(const USmartObjectDefinition& InDefinit
 	SlotHandles.SetNum(NumSlotDefinitions);
 }
 
+AActor* FSmartObjectRuntime::GetOwnerActor() const
+{
+	USmartObjectComponent* Component = OwnerComponent.Get();
+	return Component != nullptr ? Component->GetOwner() : nullptr;
+}
+
+
 //----------------------------------------------------------------------//
 // FSmartObjectRuntimeSlot
 //----------------------------------------------------------------------//
 bool FSmartObjectRuntimeSlot::Claim(const FSmartObjectUserHandle& InUser)
 {
-	if (bEnabled && State == ESmartObjectSlotState::Free)
+	if (CanBeClaimed())
 	{
 		State = ESmartObjectSlotState::Claimed;
 		User = InUser;
