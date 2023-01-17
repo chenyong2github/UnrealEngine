@@ -1442,6 +1442,11 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 
 		case ENiagaraIterationSource::DataInterface:
 		{
+			if (SimStageData.AlternateIterationSource == nullptr)
+			{
+				return;
+			}
+
 			DispatchType = SimStageData.StageMetaData->GpuDispatchType;
 			DispatchCount = SimStageData.AlternateIterationSource->GetElementCount(Tick.SystemInstanceID);
 			DispatchNumThreads = SimStageData.StageMetaData->GpuDispatchNumThreads;
