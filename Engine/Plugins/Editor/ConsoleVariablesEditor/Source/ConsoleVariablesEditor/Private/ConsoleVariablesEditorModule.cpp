@@ -352,7 +352,8 @@ void FConsoleVariablesEditorModule::RegisterProjectSettings() const
 
 void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* ChangedVariable)
 {
-	if (IsEngineExitRequested())
+	// Note: We disable tracking during automation tests to prevent FindConsoleObject() related performance warnings.
+	if (IsEngineExitRequested() || GIsAutomationTesting)
 	{
 		return;
 	}
