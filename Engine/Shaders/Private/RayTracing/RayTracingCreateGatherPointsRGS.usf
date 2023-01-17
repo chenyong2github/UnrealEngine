@@ -21,7 +21,6 @@
 #include "RayTracingGatherPoints.ush"
 
 #include "../PathTracing/Light/PathTracingLightSampling.ush"
-#include "../PathTracing/Material/PathTracingMaterialSampling.ush"
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
 
 RaytracingAccelerationStructure TLAS;

@@ -11,11 +11,8 @@
 #include "RayTracingHitGroupCommon.ush"
 
 #include "../PathTracing/Light/PathTracingLightSampling.ush"
-#include "../PathTracing/Material/PathTracingMaterialSampling.ush"
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
 
-
-#define USE_PATHTRACING_MATERIALS 0
 
 RaytracingAccelerationStructure TLAS;
 RWTexture2D<float4> RWGlobalIlluminationUAV;
@@ -260,11 +257,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 						// Evaluate material
 						float3 MaterialThroughput;
 						float MaterialEvalPdf = 0.0;
-#if USE_PATHTRACING_MATERIALS
-						float3 MaterialWeight = 0;
-						EvalMaterial(Ray.Direction, LightRay.Direction, Payload, MaterialWeight, MaterialEvalPdf);
-						MaterialThroughput = MaterialWeight * MaterialEvalPdf;
-#else
+
 						half3 N = Payload.WorldNormal;
 						half3 V = -Ray.Direction;
 						half3 L = LightRay.Direction;
@@ -277,7 +270,6 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 							MaterialThroughput += LightingSample.Transmission;
 						}
 						MaterialEvalPdf = 1.0;
-#endif
 
 						// Record the contribution
 						float3 ExitantRadianceSample = LightRadianceOverPdf * MaterialThroughput * RayThroughput * SplitFactor / RayPdf;
@@ -298,14 +290,6 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 			{
 				float3 Direction;
 				float3 Throughput = 1.0;
-#if USE_PATHTRACING_MATERIALS
-				RandSample4 = RandomSequence_GenerateSample4D(RandSequence);
-
-				float PositionBiasSign;
-				float3 Weight = 0;
-				SampleMaterial(Ray.Direction, Payload, RandSample, Direction, Weight, MaterialPdf, PositionBiasSign);
-				Throughput = Weight * MaterialPdf;
-#else
 
 				float3 RandSample3 = RandomSequence_GenerateSample3D(RandSequence);
 
@@ -319,7 +303,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 				FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0, InitHairTransmittanceData() };
 				FDirectLighting LightingSample = EvaluateBxDF(GBufferData, N, V, L, NoL, ShadowTerms);
 				Throughput = LightingSample.Diffuse;
-#endif
+
 				if (MaterialPdf <= 0.0)
 				{
 					break;
