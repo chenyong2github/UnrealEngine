@@ -94,7 +94,6 @@ UComputeDataProvider* UOptimusGraphDataInterface::CreateDataProvider(TObjectPtr<
 	Provider->MeshComponent = Cast<UMeshComponent>(InBinding);
 	Provider->Variables = Variables;
 	Provider->ParameterBufferSize = ParameterBufferSize;
-	check(Provider->MeshComponent);
 	return Provider;
 }
 
