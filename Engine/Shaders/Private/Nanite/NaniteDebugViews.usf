@@ -170,11 +170,8 @@ void ExportDebugViewPS(
 			FInstanceDynamicData InstanceDynamicData	= CalculateInstanceDynamicData(NaniteView, InstanceData);
 			FCluster Cluster							= GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
-			bool IsNanitePixel = false;
-			bool IsDecalReceiver = false;
-			uint MaterialSlot = 0;
-			UnpackMaterialResolve(MaterialResolve[PixelPos], IsNanitePixel, IsDecalReceiver, MaterialSlot);
-			const uint MaterialEditorData = GetMaterialDepthId(MaterialSlot, MaterialEditorTable);
+			FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PixelPos]);
+			const uint MaterialEditorData = GetMaterialDepthId(ResolvedMaterial.MaterialSlot, MaterialEditorTable);
 
 			BRANCH
 			if (DebugViewMode == DEBUG_VIEW_WIREFRAME)

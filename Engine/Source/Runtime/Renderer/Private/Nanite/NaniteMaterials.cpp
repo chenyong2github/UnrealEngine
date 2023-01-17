@@ -840,7 +840,7 @@ void EmitDepthTargets(
 
 	FRDGTextureDesc MaterialResolveDesc = FRDGTextureDesc::Create2D(
 		SceneTexturesExtent,
-		PF_R16_UINT,
+		PF_R32_UINT,
 		FClearValueBinding::Transparent,
 		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV);
 

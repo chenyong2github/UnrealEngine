@@ -3567,7 +3567,16 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	// Copy lighting channels out of stencil before deferred decals which overwrite those values
-	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, SceneTextures.Stencil);
+	TArray<FRDGTextureRef, TInlineAllocator<2>> NaniteMaterialResolve;
+	if (bNaniteEnabled && Views.Num() > 0)
+	{
+		check(Views.Num() == NaniteRasterResults.Num());
+		for (const Nanite::FRasterResults& Results : NaniteRasterResults)
+		{
+			NaniteMaterialResolve.Add(Results.MaterialResolve);
+		}
+	}
+	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, SceneTextures.Stencil, NaniteMaterialResolve);
 
 	// Single layer water depth prepass. Needs to run before VSM page allocation.
 	const FSingleLayerWaterPrePassResult* SingleLayerWaterPrePassResult = nullptr;

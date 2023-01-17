@@ -57,12 +57,9 @@ void DepthDecode(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 		const float2 MaterialTileMinMax		= MaterialTileMinMaxFP / (float2)((1 << 14) - 1); // 14bit fixed point
 		const uint MaterialTileZMask		= BitFieldExtractU32(MaterialHTileEnc, 4u, 0u);
 
-		bool IsNanitePixel = false;
-		bool IsDecalReceiver = false;
-		uint ResolvedMaterialSlot = 0;
-		UnpackMaterialResolve(MaterialResolve[PixelPos.xy], IsNanitePixel, IsDecalReceiver, ResolvedMaterialSlot);
+		FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PixelPos.xy]);
 
-		const uint MaterialDepthId = GetMaterialDepthId(ResolvedMaterialSlot, MaterialDepthTable);
+		const uint MaterialDepthId = GetMaterialDepthId(ResolvedMaterial.MaterialSlot, MaterialDepthTable);
 		MaterialZDecoded[PixelPos.xy] = asfloat(MaterialDepthId);
 
 		// Raw, Packed Min/Max, ZMask, TileIndex

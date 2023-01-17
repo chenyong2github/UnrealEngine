@@ -68,12 +68,10 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 		uint PrevMaterialSlot = ~0u;
 		for(uint i = 0; i < 4; i++)
 		{
-			bool IsNanitePixel = false;
-			bool IsDecalReceiver = false;
-			uint MaterialSlot = 0;
-			UnpackMaterialResolve(MaterialResolveData[i], IsNanitePixel, IsDecalReceiver, MaterialSlot);
+			FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolveData[i]);
+			uint MaterialSlot = ResolvedMaterial.MaterialSlot;
 			
-			if (IsNanitePixel && MaterialSlot != PrevMaterialSlot)	// Skip if it is a material slot we have already processed
+			if (ResolvedMaterial.bIsNanitePixel && MaterialSlot != PrevMaterialSlot)	// Skip if it is a material slot we have already processed
 			{
 				bool bWrite = false;
 

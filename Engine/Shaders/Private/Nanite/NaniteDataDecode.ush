@@ -541,23 +541,38 @@ uint3 DecodeTriangleIndices(FCluster Cluster, uint TriIndex, bool bSwapI1I2)
 
 uint PackMaterialResolve(
 	uint MaterialSlot,
-	bool IsDecalReceiver)
+	bool bIsDecalReceiver,
+	bool bHasDistanceField,
+	uint LightingChannels)
 {
 	uint Packed = 0x1; // Is Nanite
-	Packed |= (BitFieldMaskU32(14, 1) & (MaterialSlot << 1u));
-	Packed |= CondMask(IsDecalReceiver, 1u << 15u, 0u);
+	Packed |= (BitFieldMaskU32(3, 1) & (LightingChannels << 1u)); // 3 bits for channels 0,1,2
+	Packed |= (BitFieldMaskU32(14, 4) & (MaterialSlot << 4u));
+	Packed |= select(bIsDecalReceiver, 1u << 18u, 0u);
+	Packed |= select(bHasDistanceField, 1u << 19u, 0u);
 	return Packed;
 }
 
-void UnpackMaterialResolve(
-	uint Packed,
-	out bool IsNanitePixel,
-	out bool IsDecalReceiver,
-	out uint MaterialSlot)
+struct FResolvedMaterial
 {
-	IsNanitePixel   = BitFieldExtractU32(Packed,  1,  0) != 0;
-	MaterialSlot    = BitFieldExtractU32(Packed, 14,  1);
-	IsDecalReceiver = BitFieldExtractU32(Packed,  1, 15) != 0;
+	bool bIsNanitePixel;
+	bool bIsDecalReceiver;
+	bool bHasDistanceField;
+	uint LightingChannels;
+	uint MaterialSlot;
+};
+
+FResolvedMaterial UnpackMaterialResolve(uint Packed)
+{
+	FResolvedMaterial Resolved;
+
+	Resolved.bIsNanitePixel		= BitFieldExtractU32(Packed,  1,  0) != 0;
+	Resolved.LightingChannels	= BitFieldExtractU32(Packed,  3,  1);
+	Resolved.MaterialSlot		= BitFieldExtractU32(Packed, 14,  4);
+	Resolved.bIsDecalReceiver	= BitFieldExtractU32(Packed,  1, 18) != 0;
+	Resolved.bHasDistanceField	= BitFieldExtractU32(Packed,  1, 19) != 0;
+
+	return Resolved;
 }
 
 void UnpackVisPixel(

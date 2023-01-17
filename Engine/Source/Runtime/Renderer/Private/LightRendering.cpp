@@ -53,7 +53,7 @@ static int32 GAllowDepthBoundsTest = 1;
 static FAutoConsoleVariableRef CVarAllowDepthBoundsTest(
 	TEXT("r.AllowDepthBoundsTest"),
 	GAllowDepthBoundsTest,
-	TEXT("If true, use enable depth bounds test when rendering defered lights.")
+	TEXT("If true, use enable depth bounds test when rendering deferred lights.")
 	);
 
 static int32 bAllowSimpleLights = 1;
@@ -2884,14 +2884,25 @@ public:
 	DECLARE_GLOBAL_SHADER(FCopyStencilToLightingChannelsPS);
 	SHADER_USE_PARAMETER_STRUCT(FCopyStencilToLightingChannelsPS, FGlobalShader);
 
+	class FNaniteCompositeDim : SHADER_PERMUTATION_BOOL("NANITE_COMPOSITE");
+	using FPermutationDomain = TShaderPermutationDomain<FNaniteCompositeDim>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float>, SceneStencilTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, NaniteMaterialResolve)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (!DoesPlatformSupportNanite(Parameters.Platform, false) && PermutationVector.Get<FNaniteCompositeDim>() != 0)
+		{
+			return false;
+		}
+
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
@@ -2905,7 +2916,11 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FCopyStencilToLightingChannelsPS, "/Engine/Private/DownsampleDepthPixelShader.usf", "CopyStencilToLightingChannelsPS", SF_Pixel);
 
-FRDGTextureRef FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTexture(FRDGBuilder& GraphBuilder, FRDGTextureSRVRef SceneStencilTexture)
+FRDGTextureRef FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTexture(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureSRVRef SceneStencilTexture,
+	const TArrayView<FRDGTextureRef> NaniteResolveTextures
+)
 {
 	bool bNeedToCopyStencilToTexture = false;
 
@@ -2933,6 +2948,8 @@ FRDGTextureRef FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTextur
 
 		const ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ENoAction;
 
+		const bool bNaniteComposite = NaniteResolveTextures.Num() == Views.Num();
+
 		for (int32 ViewIndex = 0, ViewCount = Views.Num(); ViewIndex < ViewCount; ++ViewIndex)
 		{
 			const FViewInfo& View = Views[ViewIndex];
@@ -2942,11 +2959,15 @@ FRDGTextureRef FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTextur
 			auto* PassParameters = GraphBuilder.AllocParameters<FCopyStencilToLightingChannelsPS::FParameters>();
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(LightingChannelsTexture, View.DecayLoadAction(LoadAction));
 			PassParameters->SceneStencilTexture = SceneStencilTexture;
+			PassParameters->NaniteMaterialResolve = bNaniteComposite ? NaniteResolveTextures[ViewIndex] : nullptr;
 			PassParameters->View = View.ViewUniformBuffer;
 
 			const FScreenPassTextureViewport Viewport(LightingChannelsTexture, View.ViewRect);
 
-			TShaderMapRef<FCopyStencilToLightingChannelsPS> PixelShader(View.ShaderMap);
+			FCopyStencilToLightingChannelsPS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FCopyStencilToLightingChannelsPS::FNaniteCompositeDim>(PassParameters->NaniteMaterialResolve != nullptr);
+			TShaderMapRef<FCopyStencilToLightingChannelsPS> PixelShader(View.ShaderMap, PermutationVector);
+
 			AddDrawScreenPass(GraphBuilder, {}, View, Viewport, Viewport, PixelShader, PassParameters);
 		}
 	}

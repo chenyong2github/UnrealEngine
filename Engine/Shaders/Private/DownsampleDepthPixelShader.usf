@@ -7,12 +7,14 @@
 #include "Common.ush"
 #include "DeferredShadingCommon.ush"
 #include "SceneTexturesCommon.ush"
+#include "Nanite/NaniteDataDecode.ush"
 
 // This must match EDownsampleDepthFilter
 #define DOWNSAMPLE_DEPTH_FILTER_POINT		0
 #define DOWNSAMPLE_DEPTH_FILTER_MAX			1
 #define DOWNSAMPLE_DEPTH_FILTER_CBMINMAX	2
 
+Texture2D<uint> NaniteMaterialResolve;
 Texture2D<float> DepthTexture;
 float2 DestinationTexelSize;
 float2 SourceMaxUV;
@@ -100,10 +102,27 @@ void CopyStencilToLightingChannelsPS(
 	)
 {
 	uint2 IntUV = (uint2)((float2)InUV.xy * (float2)View.BufferSizeAndInvSize.xy);
-	uint Stencil = SceneStencilTexture.Load(uint3(IntUV, 0)) STENCIL_COMPONENT_SWIZZLE;
-	uint ShiftedStencil = Stencil >> STENCIL_LIGHTING_CHANNELS_SHIFT;
-	// Flip the lowest channel bit, it was stored inverted so we can clear stencil to 0 as a default
-	uint LightingChannels = (ShiftedStencil & 0x6) | (~ShiftedStencil & 0x1);
-	uint HasDistanceFieldRepresentationMask = ((Stencil >> STENCIL_DISTANCE_FIELD_REPRESENTATION_BIT_ID) & 0x1) << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT;
+
+	uint LightingChannels = 0;
+	uint HasDistanceFieldRepresentationMask = 0;
+
+#if NANITE_COMPOSITE
+	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(NaniteMaterialResolve.Load(uint3(IntUV, 0)));
+	BRANCH
+	if (ResolvedMaterial.bIsNanitePixel)
+	{
+		LightingChannels = ResolvedMaterial.LightingChannels;
+		HasDistanceFieldRepresentationMask = (select(ResolvedMaterial.bHasDistanceField, 1u, 0u) << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT);
+	}
+	else
+#endif
+	{
+		const uint Stencil = SceneStencilTexture.Load(uint3(IntUV, 0)) STENCIL_COMPONENT_SWIZZLE;
+		const uint ShiftedStencil = Stencil >> STENCIL_LIGHTING_CHANNELS_SHIFT;
+		// Flip the lowest channel bit, it was stored inverted so we can clear stencil to 0 as a default
+		LightingChannels = (ShiftedStencil & 0x6) | (~ShiftedStencil & 0x1);
+		HasDistanceFieldRepresentationMask = ((Stencil >> STENCIL_DISTANCE_FIELD_REPRESENTATION_BIT_ID) & 0x1) << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT;
+	}
+
 	OutValue = LightingChannels | HasDistanceFieldRepresentationMask;
 }

@@ -916,7 +916,8 @@ private:
 
 	FRDGTextureRef CopyStencilToLightingChannelTexture(
 		FRDGBuilder& GraphBuilder, 
-		FRDGTextureSRVRef SceneStencilTexture);
+		FRDGTextureSRVRef SceneStencilTexture,
+		const TArrayView<FRDGTextureRef> NaniteResolveTextures);
 
 	bool ShouldRenderVolumetricFog() const;
 

@@ -137,10 +137,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 
 	FNaniteView NaniteView = GetNaniteView( 0 );
 
-	bool IsNanitePixel = false;
-	bool IsDecalReceiver = false;
-	uint ResolvedMaterialSlot = 0;
-	UnpackMaterialResolve(MaterialResolve[PixelPos], IsNanitePixel, IsDecalReceiver, ResolvedMaterialSlot);
+	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PixelPos]);
 
 	float3 Result = float3(0, 0, 0);
 	float3 OutlineColor = 1;
@@ -149,7 +146,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 	bool bDarkOutline = false;
 	bool bApplySobel = true;
 
-	if (VisibleClusterIndex != 0xFFFFFFFF && (!GetCompositeWithSceneDepth() | IsNanitePixel))
+	if (VisibleClusterIndex != 0xFFFFFFFF && (!GetCompositeWithSceneDepth() || ResolvedMaterial.bIsNanitePixel))
 	{
 		// Nanite Pixel
 
@@ -270,7 +267,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_DEPTH)
 		{
 			//const uint MaterialSlot = GetMaterialShadingSlot(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
-			const uint MaterialSlot = ResolvedMaterialSlot;
+			const uint MaterialSlot = ResolvedMaterial.MaterialSlot;
 			const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
 			Result = IntToColor(MaterialDepthId);
 		}
@@ -468,7 +465,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		}
 	}
 
-	if (bApplySobel && ShouldApplySobelFilter() && (!GetCompositeWithSceneDepth() | IsNanitePixel))
+	if (bApplySobel && ShouldApplySobelFilter() && (!GetCompositeWithSceneDepth() || ResolvedMaterial.bIsNanitePixel))
 	{
 		Result = ApplySobelFilter(PixelPos, DepthInt, Result, OutlineColor, bDarkOutline);
 	}
@@ -494,12 +491,9 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 
 	FNaniteView NaniteView = GetNaniteView(0);
 
-	bool IsNanitePixel = false;
-	bool IsDecalReceiver = false;
-	uint ResolvedMaterialSlot = 0;
-	UnpackMaterialResolve(MaterialResolve[PickingPos], IsNanitePixel, IsDecalReceiver, ResolvedMaterialSlot);
+	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PickingPos]);
 
-	if (VisibleClusterIndex != 0xFFFFFFFFu && IsNanitePixel)
+	if (VisibleClusterIndex != 0xFFFFFFFFu && ResolvedMaterial.bIsNanitePixel)
 	{
 		UlongType DbgPixel = DbgBuffer64[PickingPos];
 		uint DebugDepthInt;
@@ -526,9 +520,9 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		FeedbackResults.DepthInt			= DepthInt;
 		FeedbackResults.RasterSlot			= GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterSlotCount, bSecondaryRasterBin, MaterialSlotTable);
 		FeedbackResults.RasterMode			= DebugValueMax;
-		FeedbackResults.MaterialSlot		= ResolvedMaterialSlot;
+		FeedbackResults.MaterialSlot		= ResolvedMaterial.MaterialSlot;
 		FeedbackResults.MaterialIndex		= GetRelativeMaterialIndex(Cluster, TriIndex);
-		FeedbackResults.MaterialDepthId		= GetMaterialDepthId(ResolvedMaterialSlot, MaterialDepthTable);
+		FeedbackResults.MaterialDepthId		= GetMaterialDepthId(ResolvedMaterial.MaterialSlot, MaterialDepthTable);
 		FeedbackResults.MaterialCount		= GetMaterialCount(Cluster);
 		FeedbackResults.MaterialMode		= IsMaterialFastPath(Cluster) ? 0u : 1u;
 		FeedbackResults.HierarchyOffset		= InstanceData.NaniteHierarchyOffset;

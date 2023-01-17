@@ -70,9 +70,9 @@ void EmitMaterialDepthPS(
 	uint MaterialSlot = 0;
 
 #if MATERIAL_RESOLVE
-	bool IsNanitePixel = false;
-	bool IsDecalReceiver = false;
-	UnpackMaterialResolve(MaterialResolve[PixelPos], IsNanitePixel, IsDecalReceiver, MaterialSlot);
+	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PixelPos]);
+	const bool bIsNanitePixel = ResolvedMaterial.bIsNanitePixel;
+	MaterialSlot = ResolvedMaterial.MaterialSlot;
 #else
 	UlongType VisPixel  = VisBuffer64[PixelPos];
 
@@ -81,8 +81,8 @@ void EmitMaterialDepthPS(
 	uint TriIndex = 0;
 	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
 
-	const bool IsNanitePixel = VisibleClusterIndex != 0xFFFFFFFF;
-	if (IsNanitePixel)
+	const bool bIsNanitePixel = VisibleClusterIndex != 0xFFFFFFFF;
+	if (bIsNanitePixel)
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster, false );
@@ -91,7 +91,7 @@ void EmitMaterialDepthPS(
 	}
 #endif
 
-	if (IsNanitePixel)
+	if (bIsNanitePixel)
 	{
 		// Export material depth ID as SV_Depth.
 		const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
@@ -129,19 +129,25 @@ void EmitSceneDepthPS(
 
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
-#if VELOCITY_EXPORT || MATERIAL_RESOLVE
+	#if VELOCITY_EXPORT || MATERIAL_RESOLVE
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
-#endif
+	#endif
 
-#if MATERIAL_RESOLVE
-		const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-		const uint MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
-		const bool IsDecalReceiver = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
-		OutMaterialResolve = PackMaterialResolve(MaterialSlot, IsDecalReceiver);
-#endif
+	#if MATERIAL_RESOLVE
+		const FCluster ClusterData		= GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+		const uint MaterialSlot			= GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		const bool bIsDecalReceiver		= (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
+		const bool bHasDistanceField	= (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_DISTANCE_FIELD_REPRESENTATION) != 0;
+		OutMaterialResolve = PackMaterialResolve(
+			MaterialSlot,
+			bIsDecalReceiver,
+			bHasDistanceField,
+			GetPrimitive_LightingChannelMask_FromFlags(GetPrimitiveData(InstanceData.PrimitiveId).Flags)
+		);
+	#endif
 
-#if VELOCITY_EXPORT
+	#if VELOCITY_EXPORT
 		// Don't output velocity here for WPO clusters, as their velocity must be calculated in the base pass
 		const bool bWPOEnabled = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
 		const bool bOutputVelocity = !bWPOEnabled && (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0;
@@ -163,7 +169,7 @@ void EmitSceneDepthPS(
 		{
 			OutVelocity = 0;
 		}
-#endif
+	#endif
 
 		OutDepth = asfloat(DepthInt);
 	}
@@ -180,13 +186,10 @@ void EmitSceneStencilPS(
 {
 	const uint2 PixelPos = (uint2)SvPosition.xy;
 
-	bool IsNanitePixel = false;
-	bool IsDecalReceiver = false;
-	uint MaterialSlot = 0;
-	UnpackMaterialResolve(MaterialResolve[PixelPos], IsNanitePixel, IsDecalReceiver, MaterialSlot);
+	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PixelPos]);
 
 	BRANCH
-	if (IsNanitePixel && IsDecalReceiver)
+	if (ResolvedMaterial.bIsNanitePixel && ResolvedMaterial.bIsDecalReceiver)
 	{
 		UlongType VisPixel = VisBuffer64[PixelPos];
 		uint DepthInt = 0;
@@ -234,8 +237,9 @@ void EmitSceneDepthStencilPS
 		const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 		const uint MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
-		const bool IsDecalReceiver = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
-		
+		const bool bIsDecalReceiver = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
+		const bool bHasDistanceField = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_DISTANCE_FIELD_REPRESENTATION) != 0;
+
 #if VELOCITY_EXPORT
 		// Don't output velocity here for WPO clusters, as their velocity must be calculated in the base pass
 		const bool bWPOEnabled = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
@@ -261,7 +265,12 @@ void EmitSceneDepthStencilPS
 #endif
 
 		OutDepth = asfloat(DepthInt);
-		OutMaterialResolve = PackMaterialResolve(MaterialSlot, IsDecalReceiver);
+		OutMaterialResolve = PackMaterialResolve(
+			MaterialSlot,
+			bIsDecalReceiver,
+			bHasDistanceField,
+			GetPrimitive_LightingChannelMask_FromFlags(PrimitiveData.Flags)
+		);
 
 		if (bWriteCustomStencil)
 		{
@@ -269,10 +278,7 @@ void EmitSceneDepthStencilPS
 		}
 		else
 		{
-			OutStencil = CondMask(IsDecalReceiver, StencilDecal, StencilClear);
-
-			//@todo - proper support
-			OutStencil |= 1 << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT;
+			OutStencil = select(bIsDecalReceiver, StencilDecal, StencilClear);
 		}
 	}
 	else
@@ -435,12 +441,9 @@ void EmitEditorLevelInstanceDepthPS(
 
 #if USE_EDITOR_SHADERS
 	uint2 PixelPos = (uint2)(SvPosition.xy * OutputToInputScale + OutputToInputBias);
-	uint MaterialSlot = 0;
-	bool IsNanitePixel = false;
-	bool IsDecalReceiver = false;
-	UnpackMaterialResolve(MaterialResolve[PixelPos], IsNanitePixel, IsDecalReceiver, MaterialSlot);
+	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PixelPos]);
 	
-	if (!IsNanitePixel)
+	if (!ResolvedMaterial.bIsNanitePixel)
 	{
 		discard;
 	}
