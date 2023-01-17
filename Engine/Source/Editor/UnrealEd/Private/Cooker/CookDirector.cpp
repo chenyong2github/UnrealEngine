@@ -505,6 +505,7 @@ void FCookDirector::TickFromSchedulerThread()
 				WorkersWithMessage.Add(Pair.Value);
 			}
 		}
+		ReassignAbortedPackages(DeferredPackagesToReassign);
 	}
 	if (bAllWorkersConnected && (RetractionHandler.IsValid() || bAnyIdle))
 	{
@@ -1295,24 +1296,40 @@ void FCookDirector::AbortWorker(FWorkerId WorkerId, ECookDirectorThread TickThre
 			return;
 		}
 	}
-	TSet<FPackageData*> PackagesToReassign;
-	RemoteWorker->AbortAllAssignments(PackagesToReassign, TickThread);
+	TSet<FPackageData*> PackagesToReassignSet;
+	RemoteWorker->AbortAllAssignments(PackagesToReassignSet, TickThread);
 	if (!RemoteWorker->IsShuttingDown())
 	{
-		RemoteWorker->AbortWorker(PackagesToReassign, TickThread);
+		RemoteWorker->AbortWorker(PackagesToReassignSet, TickThread);
 	}
-	for (FPackageData* PackageData : PackagesToReassign)
+	TArray<FPackageData*> PackagesToReassign = PackagesToReassignSet.Array();
+
+	if (TickThread == ECookDirectorThread::SchedulerThread)
 	{
-		check(PackageData->IsInProgress()); // Packages that were assigned to a worker should be in the AssignedToWorker state
-		PackageData->SetWorkerAssignment(FWorkerId::Invalid());
-		PackageData->SendToState(UE::Cook::EPackageState::Request, ESendFlags::QueueAddAndRemove);
+		ReassignAbortedPackages(PackagesToReassign);
 	}
 	{
 		FScopeLock RemoteWorkersScopeLock(&CommunicationLock);
 		TRefCountPtr<FCookWorkerServer>& Existing = ShuttingDownWorkers.FindOrAdd(RemoteWorker.GetReference());
 		check(!Existing); // We should not be able to abort a worker twice because we removed it from RemoteWorkers above
 		Existing = MoveTemp(RemoteWorker);
+
+		if (TickThread != ECookDirectorThread::SchedulerThread)
+		{
+			DeferredPackagesToReassign.Append(PackagesToReassign);
+		}
 	}
+}
+
+void FCookDirector::ReassignAbortedPackages(TArray<FPackageData*>& PackagesToReassign)
+{
+	for (FPackageData* PackageData : PackagesToReassign)
+	{
+		check(PackageData->IsInProgress()); // Packages that were assigned to a worker should be in the AssignedToWorker state
+		PackageData->SetWorkerAssignment(FWorkerId::Invalid());
+		PackageData->SendToState(UE::Cook::EPackageState::Request, ESendFlags::QueueAddAndRemove);
+	}
+	PackagesToReassign.Empty();
 }
 
 void FCookDirector::ConstructReadonlyThreadVariables()

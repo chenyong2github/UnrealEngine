@@ -188,6 +188,9 @@ private:
 
 	/** Move the given worker from active workers to the list of workers shutting down. */
 	void AbortWorker(FWorkerId WorkerId, ECookDirectorThread TickThread);
+	/** Send the given packages from an aborted worker back to the CookOnTheFlyServer for reassignment. */
+	void ReassignAbortedPackages(TArray<FPackageData*>& PackagesToReassign);
+
 	/**
 	 * Periodically update whether (1) local server is done and (2) no results from cookworkers have come in.
 	 * Send warning when it goes on too long.
@@ -250,6 +253,7 @@ private:
 	// Data shared between SchedulerThread and CommunicationThread that can only be accessed inside CommunicationLock
 	TMap<int32, TRefCountPtr<FCookWorkerServer>> RemoteWorkers;
 	TMap<FCookWorkerServer*, TRefCountPtr<FCookWorkerServer>> ShuttingDownWorkers;
+	TArray<FPackageData*> DeferredPackagesToReassign;
 	TUniquePtr<FRetractionHandler> RetractionHandler;
 	bool bWorkersActive = false;
 
