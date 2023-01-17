@@ -4,6 +4,8 @@
 
 #include "PCGMeshSelectorBase.h"
 
+#include "Engine/CollisionProfile.h"
+
 #include "PCGMeshSelectorWeighted.generated.h"
 
 USTRUCT(BlueprintType)
@@ -24,7 +26,7 @@ struct PCG_API FPCGMeshSelectorWeightedEntry
 	bool bOverrideCollisionProfile = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FCollisionProfileName CollisionProfile;
+	FCollisionProfileName CollisionProfile = UCollisionProfile::NoCollision_ProfileName;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bOverrideMaterials = false;
@@ -61,4 +63,3 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	TArray<FPCGMeshSelectorWeightedEntry> MeshEntries;
 };
-

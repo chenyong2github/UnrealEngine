@@ -34,7 +34,7 @@ struct FPCGMeshInstanceList
 	bool bOverrideCollisionProfile = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FCollisionProfileName CollisionProfile;
+	FCollisionProfileName CollisionProfile = UCollisionProfile::NoCollision_ProfileName;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bOverrideMaterials = false;

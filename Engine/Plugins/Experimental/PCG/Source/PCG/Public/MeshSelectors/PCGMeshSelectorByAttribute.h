@@ -4,6 +4,8 @@
 
 #include "PCGMeshSelectorBase.h"
 
+#include "Engine/CollisionProfile.h"
+
 #include "PCGMeshSelectorByAttribute.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
@@ -27,7 +29,7 @@ public:
 	bool bOverrideCollisionProfile = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FCollisionProfileName CollisionProfile;
+	FCollisionProfileName CollisionProfile = UCollisionProfile::NoCollision_ProfileName;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bOverrideMaterials = false;
@@ -43,4 +45,3 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	float CullEndDistance = 0;
 };
-
