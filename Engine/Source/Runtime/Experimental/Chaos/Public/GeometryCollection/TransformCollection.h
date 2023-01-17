@@ -50,6 +50,7 @@ public:
 	static const FName ParentAttribute;
 	static const FName ChildrenAttribute;
 	static const FName ParticlesAttribute;
+	static const FName LevelAttribute;
 
 
 	/** Schema */

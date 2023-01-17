@@ -12,6 +12,7 @@ const FName FTransformCollection::TransformAttribute = "Transform";
 const FName FTransformCollection::ParentAttribute = "Parent";
 const FName FTransformCollection::ChildrenAttribute = "Children";
 const FName FTransformCollection::ParticlesAttribute = "Particles";
+const FName FTransformCollection::LevelAttribute = "Level";
 
 FTransformCollection::FTransformCollection()
 	: FManagedArrayCollection()

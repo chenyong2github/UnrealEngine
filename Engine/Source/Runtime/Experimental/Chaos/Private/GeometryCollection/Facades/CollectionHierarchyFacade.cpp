@@ -6,15 +6,15 @@
 namespace Chaos::Facades
 {
 	FCollectionHierarchyFacade::FCollectionHierarchyFacade(FManagedArrayCollection& InCollection)
-		: ParentAttribute(InCollection, "Parent", FTransformCollection::TransformGroup)
-	    , ChildrenAttribute(InCollection, "Children", FTransformCollection::TransformGroup)
-		, LevelAttribute(InCollection, "Level", FTransformCollection::TransformGroup)
+		: ParentAttribute(InCollection, FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup)
+	    , ChildrenAttribute(InCollection, FTransformCollection::ChildrenAttribute, FTransformCollection::TransformGroup)
+		, LevelAttribute(InCollection, FTransformCollection::LevelAttribute, FTransformCollection::TransformGroup)
 	{}
 
 	FCollectionHierarchyFacade::FCollectionHierarchyFacade(const FManagedArrayCollection& InCollection)
-		: ParentAttribute(InCollection, "Parent", FTransformCollection::TransformGroup)
-		, ChildrenAttribute(InCollection, "Children", FTransformCollection::TransformGroup)
-		, LevelAttribute(InCollection, "Level", FTransformCollection::TransformGroup)
+		: ParentAttribute(InCollection, FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup)
+		, ChildrenAttribute(InCollection, FTransformCollection::ChildrenAttribute, FTransformCollection::TransformGroup)
+		, LevelAttribute(InCollection, FTransformCollection::LevelAttribute, FTransformCollection::TransformGroup)
 	{}
 
 	bool FCollectionHierarchyFacade::IsValid() const
