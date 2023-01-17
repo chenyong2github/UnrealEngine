@@ -83,6 +83,9 @@ FMVVMEditorStyle::FMVVMEditorStyle()
 	Set("BindingMode.OneWayToSource", new IMAGE_BRUSH_SVG("Slate/BindingMode_OneWayToSource", Icon16x16));
 	Set("BindingMode.TwoWay", new IMAGE_BRUSH_SVG("Slate/BindingMode_TwoWay", Icon16x16));
 	Set("BindingMode.OneTime", new IMAGE_BRUSH_SVG("Slate/BindingMode_OneTime", Icon16x16));
+	Set("BindingMode.OneTimeOneWay", new IMAGE_BRUSH_SVG("Slate/BindingMode_OneTimeOneWayToSource", Icon16x16));
+	Set("BindingMode.OneTimeOneWayToSource", new IMAGE_BRUSH_SVG("Slate/BindingMode_OneTimeOneWay", Icon16x16));
+	Set("BindingMode.OneTimeTwoWay", new IMAGE_BRUSH_SVG("Slate/BindingMode_OneTimeTwoWay", Icon16x16));
 
 	Set("ConversionFunction.DestToSource", new IMAGE_BRUSH_SVG("Slate/ConversionFunction_DestToSource", Icon16x16));
 	Set("ConversionFunction.SourceToDest", new IMAGE_BRUSH_SVG("Slate/ConversionFunction_SourceToDest", Icon16x16));

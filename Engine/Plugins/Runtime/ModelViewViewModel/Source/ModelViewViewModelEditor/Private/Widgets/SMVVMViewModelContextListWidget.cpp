@@ -643,7 +643,7 @@ namespace UE::MVVM::Private
 		switch (BindingMode)
 		{
 		case EMVVMBindingMode::OneTimeToDestination:
-			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneTime");
+			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneTimeOneWay");
 		case EMVVMBindingMode::OneWayToDestination:
 			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWay");
 		case EMVVMBindingMode::OneWayToSource:

@@ -787,7 +787,7 @@ private:
 		switch (BindingMode)
 		{
 		case EMVVMBindingMode::OneTimeToDestination:
-			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneTime");
+			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneTimeOneWay");
 		case EMVVMBindingMode::OneWayToDestination:
 			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWayToSource");
 		case EMVVMBindingMode::OneWayToSource:

@@ -251,35 +251,41 @@ TSharedRef<SWidget> ConstructFieldPreSlot(const UWidgetBlueprint* WidgetBlueprin
 	if (Binding.IsValid())
 	{
 		const FSlateBrush* Brush = nullptr;
-		const FLinearColor ImageColor = FLinearColor(1.0f, 1.0f, 1.0, 0.5f);
-		if (Binding.HasNotify() && Binding.IsReadable() && Binding.IsWritable())
+		if (Binding.HasNotify())
 		{
-			Brush = FMVVMEditorStyle::Get().GetBrush("BindingMode.TwoWay");
+			if (Binding.IsReadable() && Binding.IsWritable())
+			{
+				Brush = FMVVMEditorStyle::Get().GetBrush("BindingMode.TwoWay");
+			}
+			else if (Binding.IsReadable())
+			{
+				Brush = FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWayToSource");
+			}
+			else if (Binding.IsWritable())
+			{
+				Brush = FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWay");
+			}
 		}
-		else if (Binding.HasNotify() && Binding.IsReadable())
+		else
 		{
-			Brush = FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWayToSource");
+			if (Binding.IsReadable() && Binding.IsWritable())
+			{
+				Brush = FMVVMEditorStyle::Get().GetBrush("BindingMode.OneTimeTwoWay");
+			}
+			else if (Binding.IsReadable())
+			{
+				Brush = FMVVMEditorStyle::Get().GetBrush("BindingMode.OneTimeOneWay");
+			}
+			else if (Binding.IsWritable())
+			{
+				Brush = FMVVMEditorStyle::Get().GetBrush("BindingMode.OneTimeOneWayToSource");
+			}
 		}
-		else if (Binding.IsWritable() && Binding.IsReadable())
-		{
-			ImageWidget = SNew(SLayeredImage, FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWay"), ImageColor)
-				.Image(FMVVMEditorStyle::Get().GetBrush("BindingMode.OneTime"))
-				.ColorAndOpacity(ImageColor);
-		}
-		else if (Binding.IsWritable())
-		{
-			Brush = FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWay");
-		}
-		else if (Binding.IsReadable())
-		{
-			Brush = FMVVMEditorStyle::Get().GetBrush("BindingMode.OneTime");
-		}
-
+		
 		if (Brush)
 		{
 			ImageWidget = SNew(SImage)
-				.Image(Brush)
-				.ColorAndOpacity(ImageColor);
+				.Image(Brush);
 		}
 	}
 
