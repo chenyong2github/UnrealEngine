@@ -368,7 +368,7 @@ void ScreenProbeCompactTracesCS(
 
 	if (ScreenProbeIndex < GetNumScreenProbes() 
 		&& ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x
-		&& all(TraceTexelCoord < ProbeTracingResolution))
+		&& all(TraceTexelCoord <= ProbeTracingResolution))
 	{
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
