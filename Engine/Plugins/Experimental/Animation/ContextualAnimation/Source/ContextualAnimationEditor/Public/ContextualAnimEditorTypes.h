@@ -71,7 +71,7 @@ struct FContextualAnimNewAnimSetData
 	FName RoleName = NAME_None;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	TObjectPtr<UAnimSequenceBase> Animation = nullptr;
+	TObjectPtr<class UAnimMontage> Animation = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bRequiresFlyingMode = false;
