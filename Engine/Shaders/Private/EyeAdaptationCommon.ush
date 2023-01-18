@@ -4,14 +4,14 @@
 
 #include "Common.ush"
 
-#if !EYE_ADAPTATION_DISABLED
+#if !EYE_ADAPTATION_DISABLED && !EYE_ADAPTATION_PREV_FRAME_EXPOSURE
 StructuredBuffer<float4> EyeAdaptationBuffer;
 
 float4 EyeAdaptationLookupBuffer(StructuredBuffer<float4> InEyeAdaptation)
 {
 	return InEyeAdaptation[0];
 }
-#endif // !EYE_ADAPTATION_DISABLED
+#endif // !EYE_ADAPTATION_DISABLED && !EYE_ADAPTATION_PREV_FRAME_EXPOSURE
 
 #if defined (EyeAdaptationStruct)
 	#if EYE_ADAPTATION_LOOSE_PARAMETERS
@@ -43,6 +43,9 @@ float EyeAdaptationLookup()
 	#endif
 #elif EYE_ADAPTATION_LOOSE_PARAMETERS
 	return EyeAdaptationLookupBuffer(EyeAdaptationBuffer).x;
+#elif EYE_ADAPTATION_PREV_FRAME_EXPOSURE
+	// fallback implementation if the EyeAdaptationBuffer is not available
+	return ResolvedView.PreExposure;
 #else
 	return 0.0f;
 #endif

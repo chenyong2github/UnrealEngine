@@ -9,6 +9,9 @@
 // Needed for VertexFactoryInterpolate to interpolate attributes from vertices to hit point
 #define NEEDS_VERTEX_FACTORY_INTERPOLATION 1
 
+// This should be good enough for path tracing and avoids having to bind an extra buffer
+#define EYE_ADAPTATION_PREV_FRAME_EXPOSURE 1
+
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 #include "/Engine/Private/RayTracing/RayTracingHitGroupCommon.ush"
