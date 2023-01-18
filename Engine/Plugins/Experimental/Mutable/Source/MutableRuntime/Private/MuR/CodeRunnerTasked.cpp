@@ -494,26 +494,13 @@ namespace mu
 
 			check(pNew->GetDataSize() == m_base->GetDataSize());
 
+			bool bOnlyOneMip = false;
 			if (m_blended->GetLODCount() < m_base->GetLODCount())
 			{
-				MUTABLE_CPUPROFILER_SCOPE(ImageLayer_MipBlendedEmergencyFix);
-
-				int32 levelCount = m_base->GetLODCount();
-				ImagePtr pDest = new Image(m_blended->GetSizeX(), m_blended->GetSizeY(), levelCount, m_blended->GetFormat());
-
-				SCRATCH_IMAGE_MIPMAP scratch;
-				FMipmapGenerationSettings settings{};
-
-				ImageMipmap_PrepareScratch(pDest.get(), m_blended.get(), levelCount, &scratch);
-				ImageMipmap(m_imageCompressionQuality, pDest.get(), m_blended.get(), levelCount,
-					&scratch, settings);
-
-				m_blended = pDest;
+				bOnlyOneMip = true;
 			}
 
 			bool bDone = false;
-
-			bool bOnlyOneMip = false;
 
 			bool bUseMaskFromBlendAlpha = (Args.flags & OP::ImageLayerArgs::F_USE_MASK_FROM_BLENDED);
 
@@ -628,6 +615,13 @@ namespace mu
 				case EBlendType::BT_BLEND: BufferLayerInPlace<BlendChannel, false, 1>(pNew.get(), m_blended.get(), bOnlyOneMip, 3, 3); break;
 				default: check(false);
 				}
+			}
+
+			if (bOnlyOneMip)
+			{
+				MUTABLE_CPUPROFILER_SCOPE(ImageLayer_MipFix);
+				FMipmapGenerationSettings DummyMipSettings{};
+				ImageMipmapInPlace(m_imageCompressionQuality, pNew.get(), DummyMipSettings);
 			}
 		}
 

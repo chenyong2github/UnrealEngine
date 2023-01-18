@@ -3614,7 +3614,16 @@ namespace mu
 			{
 				Ptr<const Image> pA = GetMemory().GetImage(FCacheAddress(args.base, item));
 
-				ImagePtr pResult = ImageInvert(pA.get());
+				ImagePtr pResult;
+				if (pA->IsUnique())
+				{
+					pResult = mu::CloneOrTakeOver<>(pA.get());
+					ImageInvertInPlace(pResult.get());
+				}
+				else
+				{
+					pResult = ImageInvert(pA.get());
+				}
 
 				GetMemory().SetImage(item, pResult);
 				break;
