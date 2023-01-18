@@ -191,7 +191,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 
 		auto ComputeCellHash = [](const FString& HLODLayerName, const FGuid CellGuid)
 		{
-			uint64 HLODLayerNameHash = FCrc::StrCrc32(*HLODLayerName);
+			uint32 HLODLayerNameHash = FCrc::StrCrc32(*HLODLayerName);
 			uint32 CellGuidHash = GetTypeHash(CellGuid);
 			return HashCombine(HLODLayerNameHash, CellGuidHash);
 		};
@@ -542,7 +542,7 @@ void GatherOutputStats(AWorldPartitionHLOD* InHLODActor)
 					if (Texture && Texture->GetPackage() == HLODPackage)
 					{
 						TexturesResourceSize += Texture->GetResourceSizeBytes(EResourceSizeMode::Exclusive);
-						return Texture->GetSurfaceWidth();
+						return FMath::RoundToInt64(Texture->GetSurfaceWidth());
 					}
 				}
 
@@ -600,7 +600,7 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 	{
 		FAutoScopedDurationTimer LoadTimeScope;
 		LevelStreaming = CreateLevelStreamingFromHLODActor(InHLODActor, bIsDirty);
-		LoadTimeMS = LoadTimeScope.GetTime() * 1000;
+		LoadTimeMS = FMath::RoundToInt(LoadTimeScope.GetTime() * 1000);
 	}
 
 	ON_SCOPE_EXIT
@@ -679,7 +679,7 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 			{
 				FAutoScopedDurationTimer BuildTimeScope;
 				HLODComponents = HLODBuilder->Build(HLODBuildContext);
-				BuildTimeMS = BuildTimeScope.GetTime() * 1000;
+				BuildTimeMS = FMath::RoundToInt(BuildTimeScope.GetTime() * 1000);
 			}
 
 			if (HLODModifier)
@@ -754,7 +754,7 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 	// Gather stats pertaining to the assets generated during this build
 	GatherOutputStats(InHLODActor);
 
-	TotalTimeMS = TotalTimeScope.GetTime() * 1000;
+	TotalTimeMS = FMath::RoundToInt(TotalTimeScope.GetTime() * 1000);
 
 	// Build timings stats
 	InHLODActor->SetStat(FWorldPartitionHLODStats::BuildTimeLoadMilliseconds, LoadTimeMS);

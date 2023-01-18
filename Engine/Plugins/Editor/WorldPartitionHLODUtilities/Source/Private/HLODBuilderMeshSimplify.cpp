@@ -108,8 +108,8 @@ TArray<UActorComponent*> UHLODBuilderMeshSimplify::Build(const FHLODBuildContext
 		return Bounds;
 	};
 
-	float ScreenSizePercent = ComputeBoundsScreenSize(FVector::ZeroVector, GetComponentsBounds().SphereRadius, FVector(0.0f, 0.0f, InHLODBuildContext.MinVisibleDistance), ProjectionMatrix);
-	UseSettings.ScreenSize = ScreenSizePercent * ScreenX;
+	float ScreenSizePercent = ComputeBoundsScreenSize(FVector::ZeroVector, static_cast<float>(GetComponentsBounds().SphereRadius), FVector(0.0f, 0.0f, InHLODBuildContext.MinVisibleDistance), ProjectionMatrix);
+	UseSettings.ScreenSize = FMath::RoundToInt(ScreenSizePercent * ScreenX);
 
 	TArray<UObject*> Assets;
 	FCreateProxyDelegate ProxyDelegate;

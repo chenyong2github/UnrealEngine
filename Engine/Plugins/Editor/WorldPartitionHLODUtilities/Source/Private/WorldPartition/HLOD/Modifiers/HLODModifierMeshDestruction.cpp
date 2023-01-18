@@ -125,7 +125,7 @@ public:
 		bool bFoundParam = Instance->GetStaticSwitchParameterValue(EnableInstanceDestroyingParamName, bEnableInstanceDestroying, ParamGUID);
 		if (bFoundParam && bEnableInstanceDestroying)
 		{
-			Instance->SetScalarParameterValueEditorOnly(FMaterialParameterInfo("NumInstances"), FMath::RoundUpToPowerOfTwo(DestructibleActorsSet.Num()));
+			Instance->SetScalarParameterValueEditorOnly(FMaterialParameterInfo("NumInstances"), static_cast<float>(FMath::RoundUpToPowerOfTwo(DestructibleActorsSet.Num())));
 			Instance->BasePropertyOverrides.TwoSided = false;
 			Instance->BasePropertyOverrides.bOverride_TwoSided = true;
 

@@ -52,7 +52,7 @@ struct ENGINE_API FMaterialProxySettings
 
 	// Expected minimum distance at which the mesh will be rendered
 	UPROPERTY(Category = Material, BlueprintReadWrite, EditAnywhere, meta = (ClampMin = "0", EditConditionHides, EditCondition = "TextureSizingType == ETextureSizingType::TextureSizingType_AutomaticFromMeshDrawDistance"))
-	float MeshMinDrawDistance;
+	double MeshMinDrawDistance;
 	
 	// Gutter space to take into account 
 	UPROPERTY(Category = Material, BlueprintReadWrite, AdvancedDisplay, EditAnywhere)
