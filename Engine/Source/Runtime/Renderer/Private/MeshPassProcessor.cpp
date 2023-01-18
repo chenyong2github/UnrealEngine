@@ -502,7 +502,8 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPersistentId
 		
 		FRefCountedGraphicsMinimalPipelineState& Value = PersistentIdTable.GetByElementId(TableId).Value;
 
-		if (Value.RefNum == 0)
+		// Needs to be atomic, so condition is only true on first increment
+		if (Value.RefNum.fetch_add(1) == 0)
 		{
 			if (!NeedsShaderInitialisation)
 			{
@@ -510,7 +511,6 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPersistentId
 			}
 			ReffedItemCount++;
 		}
-		Value.RefNum++;
 
 #if MESH_DRAW_COMMAND_DEBUG_DATA
 		DebugSalt = Value.DebugSalt;
