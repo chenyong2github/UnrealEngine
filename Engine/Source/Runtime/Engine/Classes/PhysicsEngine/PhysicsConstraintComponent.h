@@ -81,6 +81,7 @@ public:
 	virtual void CheckForErrors() override;
 	virtual void OnRegister() override;
 #endif // WITH_EDITOR
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void OnUnregister() override;
 	virtual void InitializeComponent() override;
 	//End ActorComponent interface

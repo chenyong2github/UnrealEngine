@@ -374,6 +374,12 @@ void UPhysicsConstraintComponent::OnRegister()
 }
 #endif
 
+void UPhysicsConstraintComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	TermComponentConstraint();
+}
+
 void UPhysicsConstraintComponent::OnUnregister()
 {
 	Super::OnUnregister();
