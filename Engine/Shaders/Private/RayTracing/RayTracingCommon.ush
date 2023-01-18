@@ -28,7 +28,7 @@
 #include "/Platform/Private/RayTracing.ush"
 #endif // OVERRIDE_RAYTRACING_USH
 
-#ifdef COMPILER_METAL
+#if COMPILER_METAL
 #include "/Engine/Private/RayTracing/RayTracingCommonMetal.ush"
 #endif // COMPILER_METAL
 
