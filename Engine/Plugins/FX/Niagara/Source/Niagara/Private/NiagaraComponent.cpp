@@ -2061,6 +2061,21 @@ FPrimitiveSceneProxy* UNiagaraComponent::CreateSceneProxy()
 	LLM_SCOPE(ELLMTag::Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraCreateSceneProxy);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
+    
+	if (Asset != nullptr)
+	{
+		// PSO request should have been handled by the Asset itself, so here we just ensure the request gets boosted
+		if (!bPSOPrecacheCalled)
+		{
+			PrecacheAssetPSOs(Asset);
+		}
+
+		if (IsPSOPrecaching())
+		{
+			UE_LOG(LogNiagara, Verbose, TEXT("Skipping CreateSceneProxy for UNiagaraComponent %s (UNiagaraSystem PSOs are still compiling)"), *GetFullName());
+			return nullptr;
+		}
+	}
 
 	// The constructor will set up the System renderers from the component.
 	FNiagaraSceneProxy* Proxy = new FNiagaraSceneProxy(this);

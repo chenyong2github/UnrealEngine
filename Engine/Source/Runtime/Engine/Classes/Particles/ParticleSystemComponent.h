@@ -449,6 +449,9 @@ public:
 #if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
 	mutable FParticlePerfStats* ParticlePerfStats = nullptr;
 #endif
+
+protected:
+	void PrecacheAssetPSOs(UFXSystemAsset* FXSystemAsset);
 };
 
 

@@ -1004,12 +1004,6 @@ void UNiagaraSystem::PrecachePSOs()
 		return;
 	}
 
-	struct VFsPerMaterialData
-	{
-		UMaterialInterface* MaterialInterface;
-		bool bDisableBackfaceCulling;
-		TArray<const FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
-	};
 	TArray<VFsPerMaterialData, TInlineAllocator<2>> VFsPerMaterials;
 
 	for (const FNiagaraEmitterHandle& EmitterHandle : GetEmitterHandles())
@@ -1052,17 +1046,7 @@ void UNiagaraSystem::PrecachePSOs()
 		}
 	}
 
-	FPSOPrecacheParams PreCachePSOParams;
-	PreCachePSOParams.SetMobility(EComponentMobility::Movable);
-
-	for (VFsPerMaterialData& VFsPerMaterial : VFsPerMaterials)
-	{
-		if (VFsPerMaterial.MaterialInterface)
-		{
-			PreCachePSOParams.bDisableBackFaceCulling = VFsPerMaterial.bDisableBackfaceCulling;
-			VFsPerMaterial.MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PreCachePSOParams);
-		}
-	}
+	LaunchPSOPrecaching(VFsPerMaterials);
 }
 
 

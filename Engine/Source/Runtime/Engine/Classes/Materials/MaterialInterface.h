@@ -560,7 +560,13 @@ public:
 		TArray<FMaterialPSOPrecacheRequestID> MaterialPSOPrecacheRequestIDs;
 		return PrecachePSOs(VertexFactoryTypes, PreCacheParams, MaterialPSOPrecacheRequestIDs);
 	}
-	FGraphEventArray PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const struct FPSOPrecacheParams& PreCacheParams, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs) 
+
+	FGraphEventArray PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const struct FPSOPrecacheParams& PreCacheParams, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs)
+	{
+		return PrecachePSOs(VertexFactoryTypes, PreCacheParams, EPSOPrecachePriority::Medium, OutMaterialPSORequestIDs);
+	}
+
+	FGraphEventArray PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const struct FPSOPrecacheParams& PreCacheParams, EPSOPrecachePriority PSOPrecachePriority, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs)
 	{ 
 		FPSOPrecacheVertexFactoryDataList VertexFactoryDataList;
 		VertexFactoryDataList.SetNum(VertexFactoryTypes.Num());
@@ -568,7 +574,7 @@ public:
 		{
 			VertexFactoryDataList[i].VertexFactoryType = VertexFactoryTypes[i];
 		}
-		return PrecachePSOs(VertexFactoryDataList, PreCacheParams, EPSOPrecachePriority::Medium, OutMaterialPSORequestIDs);
+		return PrecachePSOs(VertexFactoryDataList, PreCacheParams, PSOPrecachePriority, OutMaterialPSORequestIDs);
 	}
 	virtual FGraphEventArray PrecachePSOs(const FPSOPrecacheVertexFactoryDataList& VertexFactoryDataList, const struct FPSOPrecacheParams& PreCacheParams, EPSOPrecachePriority Priority, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs) { return FGraphEventArray(); }
 

@@ -145,6 +145,22 @@ void UFXSystemAsset::PostInitProperties()
 #endif
 }
 
+void UFXSystemAsset::LaunchPSOPrecaching(TArrayView<VFsPerMaterialData> VFsPerMaterials)
+{
+	FPSOPrecacheParams PreCachePSOParams;
+	PreCachePSOParams.SetMobility(EComponentMobility::Movable);
+
+	for (VFsPerMaterialData& VFsPerMaterial : VFsPerMaterials)
+	{
+		if (VFsPerMaterial.MaterialInterface)
+		{
+			PreCachePSOParams.PrimitiveType = (EPrimitiveType)VFsPerMaterial.PrimitiveType;
+			PreCachePSOParams.bDisableBackFaceCulling = VFsPerMaterial.bDisableBackfaceCulling;
+			PrecachePSOsEvents.Append(VFsPerMaterial.MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PreCachePSOParams,EPSOPrecachePriority::Medium, MaterialPSOPrecacheRequestIDs));
+		}
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 int32 GParticleLODBias = 0;
@@ -2634,12 +2650,6 @@ void UParticleSystem::PrecachePSOs()
 		return;
 	}
 
-	struct VFsPerMaterialData
-	{
-		UMaterialInterface* MaterialInterface;
-		EPrimitiveType PrimitiveType;
-		TArray<const FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
-	};
 	TArray<VFsPerMaterialData, TInlineAllocator<2>> VFsPerMaterials;
 
 	// No per component emitter materials known at this point in time
@@ -2685,17 +2695,7 @@ void UParticleSystem::PrecachePSOs()
 		}
 	}
 
-	FPSOPrecacheParams PreCachePSOParams;
-	PreCachePSOParams.SetMobility(EComponentMobility::Movable);
-
-	for (VFsPerMaterialData& VFsPerMaterial : VFsPerMaterials)
-	{
-		if (VFsPerMaterial.MaterialInterface)
-		{
-			PreCachePSOParams.PrimitiveType = VFsPerMaterial.PrimitiveType;
-			VFsPerMaterial.MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PreCachePSOParams);
-		}
-	}
+	LaunchPSOPrecaching(VFsPerMaterials);
 }
 
 void UParticleSystem::Serialize(FArchive& Ar)
@@ -3478,6 +3478,41 @@ bool UFXSystemComponent::RequiresLWCTileRecache(const FVector3f CurrentTile, con
 		bNeedsRecache = MaxMovement >= TileRecache;
 	}
 	return bNeedsRecache;
+}
+
+void UFXSystemComponent::PrecacheAssetPSOs(UFXSystemAsset* FXSystemAsset)
+{
+	if (!FApp::CanEverRender() || !IsComponentPSOPrecachingEnabled() || FXSystemAsset == nullptr)
+	{
+		return;
+	}
+
+	const FGraphEventArray& GraphEvents = FXSystemAsset->GetPrecachePSOsEvents();
+
+	check(IsInGameThread() || IsInParallelGameThread());
+
+	MaterialPSOPrecacheRequestIDs.Empty();
+	PSOPrecacheCompileEvent = nullptr;
+	bPSOPrecacheRequestBoosted = false;
+
+	// The asset will keep the Precache events alive, but these might be over. Avoid delaying scene proxy creation if everything is finished
+	bool bAllEventsDone = true;
+	for (FGraphEventRef GraphEvent : GraphEvents)
+	{
+		if (!GraphEvent->IsComplete())
+		{
+			bAllEventsDone = false;
+			break;
+		}
+	}
+
+	if (!bAllEventsDone)
+	{
+		MaterialPSOPrecacheRequestIDs.Append(FXSystemAsset->GetMaterialPSOPrecacheRequestIDs());
+		RequestRecreateRenderStateWhenPSOPrecacheFinished(GraphEvents);
+	}
+
+	bPSOPrecacheCalled = true;
 }
 
 FOnSystemPreActivationChange UParticleSystemComponent::OnSystemPreActivationChange;
