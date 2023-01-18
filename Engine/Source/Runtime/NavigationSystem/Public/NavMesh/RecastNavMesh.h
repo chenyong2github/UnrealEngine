@@ -315,8 +315,7 @@ struct FNavigationWallEdge
 };
 #endif //WITH_RECAST
 
-
-USTRUCT()
+USTRUCT(meta=(Deprecated = "5.2"))
 struct NAVIGATIONSYSTEM_API FRecastNavMeshGenerationProperties
 {
 	GENERATED_BODY()
@@ -1379,7 +1378,12 @@ public:
 	bool IsUsingActiveTilesGeneration(const UNavigationSystemV1& NavSys) const;
 
 	virtual void ConditionalConstructGenerator() override;
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS	
+	UE_DEPRECATED(5.2, "UpdateGenerationProperties is unused, it will be removed")
 	void UpdateGenerationProperties(const FRecastNavMeshGenerationProperties& GenerationProps);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS	
+	
 	bool ShouldGatherDataOnGameThread() const { return bDoFullyAsyncNavDataGathering == false; }
 	int32 GetTileNumberHardLimit() const { return TileNumberHardLimit; }
 
