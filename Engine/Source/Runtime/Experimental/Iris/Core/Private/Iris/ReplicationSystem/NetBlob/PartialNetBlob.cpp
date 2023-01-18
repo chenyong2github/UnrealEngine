@@ -203,6 +203,7 @@ bool FPartialNetBlob::SplitNetBlob(const FNetSerializationContext& Context, cons
 			}
 
 			CurrentPayloadBitCount = NewPayloadBitCount;
+			continue;
 		}
 
 		// Adjust the payload bit count to the final value

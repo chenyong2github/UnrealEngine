@@ -29,7 +29,7 @@ public:
 	uint32 GetMaxPartCount() const { return MaxPartCount; }
 	uint64 GetTotalMaxPayloadBitCount() const { return GetMaxPartBitCount()*uint64(GetMaxPartCount()); }
 
-private:
+protected:
 	/** How many bits a PartialNetBlob payload can hold at most. Cannot exceed 65535, but anything near the max packet size is discouraged as it is unlikely to fit. Keep it a power of two. */
 	UPROPERTY(Config)
 	uint32 MaxPartBitCount = 128*8;

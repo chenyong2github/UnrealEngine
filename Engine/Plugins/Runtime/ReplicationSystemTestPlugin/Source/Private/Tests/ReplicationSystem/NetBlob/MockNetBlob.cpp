@@ -84,6 +84,13 @@ void FMockNetBlob::Deserialize(FNetSerializationContext& Context)
 
 }
 
+// UMockSequentialPartialNetBlobHandlerConfig
+UMockSequentialPartialNetBlobHandlerConfig::UMockSequentialPartialNetBlobHandlerConfig()
+{
+	// Overriding MaxPartCount
+	MaxPartCount = 32768U;
+}
+
 // UMockNetBlobHandler
 UMockNetBlobHandler::UMockNetBlobHandler()
 : CallCounts({})

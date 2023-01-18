@@ -65,6 +65,15 @@ private:
 };
 
 UCLASS()
+class UMockSequentialPartialNetBlobHandlerConfig : public USequentialPartialNetBlobHandlerConfig
+{
+	GENERATED_BODY()
+
+public:
+	UMockSequentialPartialNetBlobHandlerConfig();
+};
+
+UCLASS()
 class UMockSequentialPartialNetBlobHandler final : public USequentialPartialNetBlobHandler
 {
 	GENERATED_BODY()

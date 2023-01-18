@@ -53,6 +53,29 @@ UE_NET_TEST_FIXTURE(FPartialNetBlobTestFixture, CanSplitNetBlobInNeedOfSplitting
 	UE_NET_ASSERT_EQ(MockNetBlobHandler->GetFunctionCallCounts().OnNetBlobReceived, ExpectedMockNetBlobReceiveCount);
 }
 
+UE_NET_TEST_FIXTURE(FPartialNetBlobTestFixture, CanSplitHugeNetBlob)
+{
+	FTestContext ServerContext;
+	SetupTestContext(ServerContext, Server);
+
+	constexpr uint32 PayloadBitCount = 384U*1024U*8U; // 384KiB
+	const TRefCountPtr<FNetBlob>& Blob = CreateUnreliableMockNetBlob(PayloadBitCount);
+
+	TArray<TRefCountPtr<FNetBlob>> PartialNetBlobs;
+	MockSequentialPartialNetBlobHandler->SplitNetBlob(Blob, PartialNetBlobs);
+	UE_NET_ASSERT_GE(PartialNetBlobs.Num(), 2);
+
+	for (const TRefCountPtr<FNetBlob>& PartialNetBlob : PartialNetBlobs)
+	{
+		ServerContext.SerializationContext.GetNetBlobReceiver()->OnNetBlobReceived(ServerContext.SerializationContext, PartialNetBlob);
+	}
+
+	const uint32 ExpectedPartialNetBlobReceiveCount = PartialNetBlobs.Num();
+	constexpr uint32 ExpectedMockNetBlobReceiveCount = 1U;
+	UE_NET_ASSERT_EQ(MockSequentialPartialNetBlobHandler->GetFunctionCallCounts().OnNetBlobReceived, ExpectedPartialNetBlobReceiveCount);
+	UE_NET_ASSERT_EQ(MockNetBlobHandler->GetFunctionCallCounts().OnNetBlobReceived, ExpectedMockNetBlobReceiveCount);
+}
+
 UE_NET_TEST_FIXTURE(FPartialNetBlobTestFixture, MissingFirstPartialNetBlobCausesError)
 {
 	FTestContext ServerContext;

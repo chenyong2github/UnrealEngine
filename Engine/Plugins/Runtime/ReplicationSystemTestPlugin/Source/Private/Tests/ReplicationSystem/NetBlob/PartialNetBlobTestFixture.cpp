@@ -30,7 +30,7 @@ void FPartialNetBlobTestFixture::RegisterNetBlobHandlers(FReplicationSystemTestN
 	{
 		FSequentialPartialNetBlobHandlerInitParams InitParams = {};
 		InitParams.ReplicationSystem = RepSys;
-		InitParams.Config = GetDefault<USequentialPartialNetBlobHandlerConfig>();
+		InitParams.Config = GetDefault<UMockSequentialPartialNetBlobHandlerConfig>();
 		UMockSequentialPartialNetBlobHandler* BlobHandler = NewObject<UMockSequentialPartialNetBlobHandler>();
 		BlobHandler->Init(InitParams);
 		const bool bPartialNetBlobHandlerWasRegistered = RegisterNetBlobHandler(RepSys, BlobHandler);
