@@ -11,6 +11,7 @@ public class UnrealRecoverySvc : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Concert",
+				"ConcertServer",
 				"ConcertSyncCore",
 				"ApplicationCore",					// for LaunchEngineLoop.cpp dependency
 				"Projects",							// for LaunchEngineLoop.cpp dependency
