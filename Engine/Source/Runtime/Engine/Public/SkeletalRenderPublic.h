@@ -353,6 +353,8 @@ protected:
 	/** Component ID to which belong this  mesh object  */
 	uint32 ComponentId;
 
+	FVector WorldScale = FVector::OneVector;
+
 #if RHI_ENABLE_RESOURCE_INFO
 	FName AssetPathName;
 #endif

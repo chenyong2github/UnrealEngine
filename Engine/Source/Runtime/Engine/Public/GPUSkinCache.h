@@ -139,6 +139,7 @@ public:
 		const FClothSimulData* SimData,
 		const FMatrix44f& ClothToLocal,
 		float ClothBlendWeight, 
+		FVector3f ClothScale,
 		uint32 RevisionNumber, 
 		int32 Section,
 		int32 LOD,

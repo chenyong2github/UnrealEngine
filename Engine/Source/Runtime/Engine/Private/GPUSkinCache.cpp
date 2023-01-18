@@ -349,6 +349,7 @@ public:
         float ClothBlendWeight = 0.0f;
 		uint32 ClothNumInfluencesPerVertex = 1;
         FMatrix44f ClothToLocal = FMatrix44f::Identity;
+		FVector3f WorldScale = FVector3f::OneVector;
 
 		// triangle index buffer (input for the RecomputeSkinTangents, might need special index buffer unique to position and normal, not considering UV/vertex color)
 		uint32 IndexBufferOffsetValue = 0;
@@ -655,6 +656,7 @@ public:
 		ClothBlendWeight.Bind(Initializer.ParameterMap, TEXT("ClothBlendWeight"));
 		ClothToLocal.Bind(Initializer.ParameterMap, TEXT("ClothToLocal"));
 		ClothNumInfluencesPerVertex.Bind(Initializer.ParameterMap, TEXT("ClothNumInfluencesPerVertex"));
+		WorldScale.Bind(Initializer.ParameterMap, TEXT("WorldScale"));
 	}
 
 	void SetParameters(
@@ -704,6 +706,7 @@ public:
 			SetShaderValue(RHICmdList, ShaderRHI, ClothBlendWeight, DispatchData.ClothBlendWeight);
 			SetShaderValue(RHICmdList, ShaderRHI, ClothToLocal, DispatchData.ClothToLocal);
 			SetShaderValue(RHICmdList, ShaderRHI, ClothNumInfluencesPerVertex, DispatchData.ClothNumInfluencesPerVertex);
+			SetShaderValue(RHICmdList, ShaderRHI, WorldScale, DispatchData.WorldScale);
 		}
 
 		SetShaderValue(RHICmdList, ShaderRHI, SkinCacheDebug, CVarGPUSkinCacheDebug.GetValueOnRenderThread());
@@ -751,6 +754,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, ClothBlendWeight)
 	LAYOUT_FIELD(FShaderParameter, ClothToLocal)
 	LAYOUT_FIELD(FShaderParameter, ClothNumInfluencesPerVertex)
+	LAYOUT_FIELD(FShaderParameter, WorldScale)
 };
 
 /** Compute shader that skins a batch of vertices. */
@@ -1457,7 +1461,8 @@ bool FGPUSkinCache::ProcessEntry(
 	const FSkeletalMeshVertexClothBuffer* ClothVertexBuffer, 
 	const FClothSimulData* SimData,
 	const FMatrix44f& ClothToLocal,
-	float ClothBlendWeight, 
+	float ClothBlendWeight,
+	FVector3f WorldScale,
 	uint32 RevisionNumber, 
 	int32 Section,
 	int32 LODIndex,
@@ -1643,6 +1648,7 @@ bool FGPUSkinCache::ProcessEntry(
 
         InOutEntry->DispatchData[Section].ClothBlendWeight = ClothBlendWeight;
         InOutEntry->DispatchData[Section].ClothToLocal = ClothToLocal;
+		InOutEntry->DispatchData[Section].WorldScale = WorldScale;
     }
     InOutEntry->DispatchData[Section].SkinType = ClothVertexBuffer && InOutEntry->DispatchData[Section].ClothPositionsAndNormalsBuffer ? 2 : (bMorph ? 1 : 0);
 

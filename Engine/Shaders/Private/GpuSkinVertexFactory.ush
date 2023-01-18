@@ -63,6 +63,8 @@ Buffer<float2> ClothSimulVertsPositionsNormals;
 float4x4 ClothToLocal;
 /** blend weight between simulated positions and original key-framed animation */
 float ClothBlendWeight;
+/** Scale of the owner actor */
+float3 WorldScale;
 #if GPUSKIN_APEX_CLOTH_PREVIOUS
 Buffer<float2> PreviousClothSimulVertsPositionsNormals;
 float4x4 PreviousClothToLocal;
@@ -452,9 +454,9 @@ float4 ClothingPosition(FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VE
                                          Influence.BaryCoordPos.y,
 										 1.0f - Influence.BaryCoordPos.x - Influence.BaryCoordPos.y);
 
-			float3 SimPosition = TriangleBary.x * (A + NA * Influence.BaryCoordPos.w)
-					           + TriangleBary.y * (B + NB * Influence.BaryCoordPos.w)
-					           + TriangleBary.z * (C + NC * Influence.BaryCoordPos.w);
+			float3 SimPosition = TriangleBary.x * (A + NA * Influence.BaryCoordPos.w * WorldScale.x)
+					           + TriangleBary.y * (B + NB * Influence.BaryCoordPos.w * WorldScale.y)
+					           + TriangleBary.z * (C + NC * Influence.BaryCoordPos.w * WorldScale.z);
 
 			AveragedSimulatedPosition += Weight * SimPosition;
 	    }
@@ -784,13 +786,13 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
                     SumWeights = 1.0f;	   
 			    }
 
-			    NormalPosition += Weight * (Influence.BaryCoordNormal.x * (A + NA * Influence.BaryCoordNormal.w)
-								          + Influence.BaryCoordNormal.y * (B + NB * Influence.BaryCoordNormal.w)
-								          + Influence.BaryCoordNormal.z * (C + NC * Influence.BaryCoordNormal.w));
+			    NormalPosition += Weight * (Influence.BaryCoordNormal.x * (A + NA * Influence.BaryCoordNormal.w * WorldScale.x)
+								          + Influence.BaryCoordNormal.y * (B + NB * Influence.BaryCoordNormal.w * WorldScale.y)
+								          + Influence.BaryCoordNormal.z * (C + NC * Influence.BaryCoordNormal.w * WorldScale.z));
 
-		        TangentPosition += Weight * (Influence.BaryCoordTangent.x * (A+NA*Influence.BaryCoordTangent.w)
-								           + Influence.BaryCoordTangent.y * (B+NB*Influence.BaryCoordTangent.w)
-								           + Influence.BaryCoordTangent.z * (C + NC * Influence.BaryCoordTangent.w));
+		        TangentPosition += Weight * (Influence.BaryCoordTangent.x * (A + NA * Influence.BaryCoordTangent.w * WorldScale.x)
+								           + Influence.BaryCoordTangent.y * (B + NB * Influence.BaryCoordTangent.w * WorldScale.y)
+								           + Influence.BaryCoordTangent.z * (C + NC * Influence.BaryCoordTangent.w * WorldScale.z));
 	        }
         }
 

@@ -978,6 +978,7 @@ public:
 		ClothToLocalParameter.Bind(ParameterMap, TEXT("ClothToLocal"));
 		PreviousClothToLocalParameter.Bind(ParameterMap, TEXT("PreviousClothToLocal"));
 		ClothBlendWeightParameter.Bind(ParameterMap, TEXT("ClothBlendWeight"));
+		WorldScaleParameter.Bind(ParameterMap, TEXT("WorldScale"));
 		GPUSkinApexClothParameter.Bind(ParameterMap, TEXT("GPUSkinApexCloth"));
 		GPUSkinApexClothStartIndexOffsetParameter.Bind(ParameterMap, TEXT("GPUSkinApexClothStartIndexOffset"));
 		ClothNumInfluencesPerVertexParameter.Bind(ParameterMap, TEXT("ClothNumInfluencesPerVertex"));
@@ -1007,6 +1008,7 @@ public:
 		ShaderBindings.Add(ClothSimulVertsPositionsNormalsParameter, ClothShaderData.GetClothBufferForReading(false).VertexBufferSRV);
 		ShaderBindings.Add(ClothToLocalParameter, ClothShaderData.GetClothToLocalForReading(false));
 		ShaderBindings.Add(ClothBlendWeightParameter,ClothShaderData.ClothBlendWeight);
+		ShaderBindings.Add(WorldScaleParameter, ClothShaderData.WorldScale);
 		ShaderBindings.Add(ClothNumInfluencesPerVertexParameter, ClothShaderData.NumInfluencesPerVertex);
 
 		// Mobile doesn't support motion blur, no need to feed the previous frame cloth data
@@ -1031,6 +1033,7 @@ protected:
 	LAYOUT_FIELD(FShaderParameter, ClothToLocalParameter);
 	LAYOUT_FIELD(FShaderParameter, PreviousClothToLocalParameter);
 	LAYOUT_FIELD(FShaderParameter, ClothBlendWeightParameter);
+	LAYOUT_FIELD(FShaderParameter, WorldScaleParameter);
 	LAYOUT_FIELD(FShaderResourceParameter, GPUSkinApexClothParameter);
 	LAYOUT_FIELD(FShaderParameter, GPUSkinApexClothStartIndexOffsetParameter);
 	LAYOUT_FIELD(FShaderParameter, ClothNumInfluencesPerVertexParameter);

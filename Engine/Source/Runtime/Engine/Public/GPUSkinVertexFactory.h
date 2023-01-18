@@ -540,6 +540,8 @@ public:
 		 * if ClothBlendWeight is 1.0, it shows only simulated positions and if it is 0.0, it shows only key-framed animation
 		 */
 		float ClothBlendWeight = 1.0f;
+		/** Scale of the owner actor */
+		FVector3f WorldScale = FVector3f::OneVector;
 		uint32 NumInfluencesPerVertex = 1;
 
 	private:

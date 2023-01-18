@@ -66,6 +66,7 @@ FSkeletalMeshObject::FSkeletalMeshObject(USkinnedMeshComponent* InMeshComponent,
 ,	StatId(InMeshComponent->GetSkinnedAsset()->GetStatID(true))
 ,	FeatureLevel(InFeatureLevel)
 ,	ComponentId(InMeshComponent->ComponentId.PrimIDValue)
+,	WorldScale(InMeshComponent->GetComponentScale())
 #if RHI_ENABLE_RESOURCE_INFO
 ,	AssetPathName(InMeshComponent->GetSkinnedAsset()->GetPathName())
 #endif
