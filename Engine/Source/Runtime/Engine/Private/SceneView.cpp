@@ -1745,6 +1745,26 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.PathTracingEnableDenoiser = Src.PathTracingEnableDenoiser;
 		}
 
+		if (Src.bOverride_PathTracingIncludeEmissive)
+		{
+			Dest.PathTracingIncludeEmissive = Src.PathTracingIncludeEmissive;
+		}
+
+		if (Src.bOverride_PathTracingIncludeDiffuse)
+		{
+			Dest.PathTracingIncludeDiffuse = Src.PathTracingIncludeDiffuse;
+		}
+
+		if (Src.bOverride_PathTracingIncludeSpecular)
+		{
+			Dest.PathTracingIncludeSpecular = Src.PathTracingIncludeSpecular;
+		}
+
+		if (Src.bOverride_PathTracingIncludeVolume)
+		{
+			Dest.PathTracingIncludeVolume = Src.PathTracingIncludeVolume;
+		}
+
 		if (Src.bOverride_DepthOfFieldBladeCount)
 		{
 			Dest.DepthOfFieldBladeCount = Src.DepthOfFieldBladeCount;

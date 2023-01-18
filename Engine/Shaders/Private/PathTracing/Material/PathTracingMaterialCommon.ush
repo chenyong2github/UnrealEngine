@@ -9,14 +9,25 @@ PathTracingMaterialCommon.usf: Brdf utility functions
 #include "../PathTracingCommon.ush"
 #include "/Engine/Private/BRDF.ush"
 
+float LobeColorToWeight(float3 C)
+{
+	// TODO: What is the best heuristic to use here?
+	// average seems to perform slightly better, but needs more careful testing
+#if 1
+	return C.x + C.y + C.z;
+#else
+	return max3(C.x, C.y, C.z);
+#endif
+}
+
 // Given two lobes that will roughly contribute colors A and B to the total (estimated for example using directional albedo)
 // return the probability of choosing lobe A
 float LobeSelectionProb(float3 A, float3 B)
 {
-	const float SumA = A.x + A.y + A.z;
-	const float SumB = B.x + B.y + B.z;
-	// use MIS routine to robustly compute SumA / (SumA + SumB) even when both are 0, or overflow, etc ...
-	return MISWeightBalanced(SumA, SumB);
+	const float Aw = LobeColorToWeight(A);
+	const float Bw = LobeColorToWeight(B);
+	// use MIS routine to robustly compute Aw / (Aw + Bw) even when both are 0, or overflow, etc ...
+	return MISWeightBalanced(Aw, Bw);
 }
 
 // Given three lobes that will roughly contribute colors A, B and C to the total (estimated for example using directional albedo)
@@ -24,13 +35,13 @@ float LobeSelectionProb(float3 A, float3 B)
 // The individual probabilities of each lobe can be estimated using LobeSelectionPdf.
 float2 LobeSelectionCdf(float3 A, float3 B, float3 C)
 {
-	const float SumA = A.x + A.y + A.z;
-	const float SumB = B.x + B.y + B.z;
-	const float SumC = C.x + C.y + C.z;
+	const float Aw = LobeColorToWeight(A);
+	const float Bw = LobeColorToWeight(B);
+	const float Cw = LobeColorToWeight(C);
 
 	// use MIS routine to robustly compute the ratios even when both are 0, or overflow, etc ...
-	const float ProbAB = MISWeightBalanced(SumA, SumB); // A or B
-	const float ProbLR = MISWeightBalanced(SumA + SumB, SumC); // AB or C
+	const float ProbAB = MISWeightBalanced(Aw, Bw); // A or B
+	const float ProbLR = MISWeightBalanced(Aw + Bw, Cw); // AB or C
 
 	// Now build CDF
 	return float2(ProbAB * ProbLR, ProbLR);
@@ -39,15 +50,15 @@ float2 LobeSelectionCdf(float3 A, float3 B, float3 C)
 // Same as above for choosing among 4 colored lobes
 float3 LobeSelectionCdf(float3 A, float3 B, float3 C, float3 D)
 {
-	const float SumA = A.x + A.y + A.z;
-	const float SumB = B.x + B.y + B.z;
-	const float SumC = C.x + C.y + C.z;
-	const float SumD = D.x + D.y + D.z;
+	const float Aw = LobeColorToWeight(A);
+	const float Bw = LobeColorToWeight(B);
+	const float Cw = LobeColorToWeight(C);
+	const float Dw = LobeColorToWeight(D);
 
 	// use MIS routine to robustly compute the ratios even when both are 0, or overflow, etc ...
-	const float ProbAB = MISWeightBalanced(SumA, SumB); // A or B
-	const float ProbCD = MISWeightBalanced(SumC, SumD); // C or D
-	const float ProbLR = MISWeightBalanced(SumA + SumB, SumC + SumD); // AB or CD
+	const float ProbAB = MISWeightBalanced(Aw, Bw); // A or B
+	const float ProbCD = MISWeightBalanced(Cw, Dw); // C or D
+	const float ProbLR = MISWeightBalanced(Aw + Bw, Cw + Dw); // AB or CD
 
 	// Now build CDF
 	return float3(ProbAB * ProbLR, ProbLR, (ProbLR + ProbCD) - ProbLR * ProbCD);
@@ -88,6 +99,12 @@ void AddLobeWithMIS(inout float3 Weight, inout float Pdf, float3 LobeWeight, flo
 
 // The following structs are used as return types for the Eval/Sample methods
 
+#define PATHTRACER_SCATTER_CAMERA   0 // this is used to mark camera rays until we have actually scattered
+#define PATHTRACER_SCATTER_DIFFUSE  1
+#define PATHTRACER_SCATTER_SPECULAR 2
+#define PATHTRACER_SCATTER_REFRACT  3
+#define PATHTRACER_SCATTER_VOLUME   4
+
 struct FMaterialSample
 {
 	float3 Direction;
@@ -95,6 +112,12 @@ struct FMaterialSample
 	float Pdf;
 	float PositionBiasSign;
 	float Roughness;
+	int   ScatterType;
+
+	void AddLobeWithMIS(float3 LobeWeight, float LobePdf, float LobeProb)
+	{
+		::AddLobeWithMIS(Weight, Pdf, LobeWeight, LobePdf, LobeProb);
+	}
 };
 
 FMaterialSample NullMaterialSample()
@@ -103,7 +126,7 @@ FMaterialSample NullMaterialSample()
 	return (FMaterialSample)0;
 }
 
-FMaterialSample CreateMaterialSample(float3 Direction, float3 Weight, float Pdf, float PositionBiasSign, float Roughness)
+FMaterialSample CreateMaterialSample(float3 Direction, float3 Weight, float Pdf, float PositionBiasSign, float Roughness, int ScatterType)
 {
 	FMaterialSample Result;
 	Result.Direction = Direction;
@@ -111,6 +134,7 @@ FMaterialSample CreateMaterialSample(float3 Direction, float3 Weight, float Pdf,
 	Result.Pdf = Pdf;
 	Result.PositionBiasSign = PositionBiasSign;
 	Result.Roughness = Roughness;
+	Result.ScatterType = ScatterType;
 	return Result;
 }
 
@@ -118,6 +142,11 @@ struct FMaterialEval
 {
 	float3 Weight;
 	float Pdf;
+
+	void AddLobeWithMIS(float3 LobeWeight, float LobePdf, float LobeProb)
+	{
+		::AddLobeWithMIS(Weight, Pdf, LobeWeight, LobePdf, LobeProb);
+	}
 };
 
 FMaterialEval NullMaterialEval()

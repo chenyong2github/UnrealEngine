@@ -337,6 +337,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(uint32, VisualizeDecalGrid)
 	SHADER_PARAMETER(uint32, EnableAtmosphere)
 	SHADER_PARAMETER(uint32, EnableFog)
+	SHADER_PARAMETER(uint32, EnabledLightingContributions) // PATHTRACER_CONTRIBUTION_*
+	SHADER_PARAMETER(uint32, ApplyDiffuseSpecularOverrides)
 	SHADER_PARAMETER(int32, MaxRaymarchSteps)
 	SHADER_PARAMETER(int32, MeshDecalsUseViewRay)
 	SHADER_PARAMETER(float, MaxPathIntensity)
@@ -386,6 +388,8 @@ struct FPathTracingConfig
 			PathTracingData.AbsorptionScale != Other.PathTracingData.AbsorptionScale ||
 			PathTracingData.EnableAtmosphere != Other.PathTracingData.EnableAtmosphere ||
 			PathTracingData.EnableFog != Other.PathTracingData.EnableFog ||
+			PathTracingData.ApplyDiffuseSpecularOverrides != Other.PathTracingData.ApplyDiffuseSpecularOverrides ||
+			PathTracingData.EnabledLightingContributions != Other.PathTracingData.EnabledLightingContributions ||
 			PathTracingData.DecalRoughnessCutoff != Other.PathTracingData.DecalRoughnessCutoff ||
 			PathTracingData.MeshDecalRoughnessCutoff != Other.PathTracingData.MeshDecalRoughnessCutoff ||
 			PathTracingData.MeshDecalBias != Other.PathTracingData.MeshDecalBias ||
@@ -570,6 +574,18 @@ static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, F
 	PathTracingData.MeshDecalsUseViewRay = CVarPathTracingMeshDecalsUseViewRay.GetValueOnRenderThread();
 
 	PathTracingData.MaxRaymarchSteps = CVarPathTracingMaxRaymarchSteps.GetValueOnRenderThread();
+
+	// NOTE: Diffuse and Specular show flags also modify the override colors, but we prefer to tie those to the lighting contribution mechanism below which is more principled
+	PathTracingData.ApplyDiffuseSpecularOverrides =
+		View.Family->EngineShowFlags.LightingOnlyOverride       != 0 ||
+		View.Family->EngineShowFlags.OverrideDiffuseAndSpecular != 0 ||
+		View.Family->EngineShowFlags.ReflectionOverride         != 0;
+
+	PathTracingData.EnabledLightingContributions = 0;
+	PathTracingData.EnabledLightingContributions |= (View.FinalPostProcessSettings.PathTracingIncludeEmissive != 0                                              ) ? PATHTRACER_CONTRIBUTION_EMISSIVE : 0;
+	PathTracingData.EnabledLightingContributions |= (View.FinalPostProcessSettings.PathTracingIncludeDiffuse  != 0 && View.Family->EngineShowFlags.Diffuse  != 0) ? PATHTRACER_CONTRIBUTION_DIFFUSE  : 0;
+	PathTracingData.EnabledLightingContributions |= (View.FinalPostProcessSettings.PathTracingIncludeSpecular != 0 && View.Family->EngineShowFlags.Specular != 0) ? PATHTRACER_CONTRIBUTION_SPECULAR : 0;
+	PathTracingData.EnabledLightingContributions |= (View.FinalPostProcessSettings.PathTracingIncludeVolume   != 0                                              ) ? PATHTRACER_CONTRIBUTION_VOLUME   : 0;
 }
 
 static bool ShouldCompilePathTracingShadersForProject(EShaderPlatform ShaderPlatform)
@@ -1699,6 +1715,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.Flags |= PATHTRACING_LIGHT_SKY;
 		DestLight.Flags |= Scene->SkyLight->bCastShadows ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
 		DestLight.Flags |= Scene->SkyLight->bCastVolumetricShadow ? PATHTRACER_FLAG_CAST_VOL_SHADOW_MASK : 0;
+		DestLight.SpecularScale = 1.0f;
 		DestLight.VolumetricScatteringIntensity = Scene->SkyLight->VolumetricScatteringIntensity;
 		DestLight.IESAtlasIndex = INDEX_NONE;
 		DestLight.MissShaderIndex = 0;
@@ -1750,6 +1767,8 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			DestLight.Normal = -LightParameters.Direction;
 			DestLight.dPdu = FVector3f::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
 			DestLight.dPdv = LightParameters.Tangent;
+			DestLight.Shaping = 0;
+			DestLight.SpecularScale = LightParameters.SpecularScale;
 			DestLight.Attenuation = LightParameters.InvRadius;
 			DestLight.FalloffExponent = 0;
 			DestLight.VolumetricScatteringIntensity = Light.LightSceneInfo->Proxy->GetVolumetricScatteringIntensity();
@@ -1816,6 +1835,8 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.Normal = -LightParameters.Direction;
 		DestLight.dPdu = FVector3f::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
 		DestLight.dPdv = LightParameters.Tangent;
+		DestLight.Shaping = 0;
+		DestLight.SpecularScale = LightParameters.SpecularScale;
 		DestLight.Attenuation = LightParameters.InvRadius;
 		DestLight.FalloffExponent = 0;
 		DestLight.VolumetricScatteringIntensity = Light.LightSceneInfo->Proxy->GetVolumetricScatteringIntensity();
@@ -1836,7 +1857,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			case LightType_Rect:
 			{
 				DestLight.Dimensions = FVector2f(2.0f * LightParameters.SourceRadius, 2.0f * LightParameters.SourceLength);
-				DestLight.Shaping = FVector2f(LightParameters.RectLightBarnCosAngle, LightParameters.RectLightBarnLength);
+				DestLight.Shaping = EncodeToF16x2(FVector2f(LightParameters.RectLightBarnCosAngle, LightParameters.RectLightBarnLength));
 				DestLight.FalloffExponent = LightParameters.FalloffExponent;
 				DestLight.Flags |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
 				DestLight.Flags |= PATHTRACING_LIGHT_RECT;
@@ -1867,7 +1888,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			case LightType_Spot:
 			{
 				DestLight.Dimensions = FVector2f(LightParameters.SourceRadius, LightParameters.SourceLength);
-				DestLight.Shaping = LightParameters.SpotAngles;
+				DestLight.Shaping = EncodeToF16x2(LightParameters.SpotAngles);
 				DestLight.FalloffExponent = LightParameters.FalloffExponent;
 				DestLight.Flags |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
 				DestLight.Flags |= PATHTRACING_LIGHT_SPOT;

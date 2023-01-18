@@ -63,7 +63,13 @@ FPathState LoadPathStateData(uint Index)
 	Output.SigmaT.x = f16tof32(Data.PackedRoughnessSigma.x >> 16);
 	Output.SigmaT.y = f16tof32(Data.PackedRoughnessSigma.y);
 	Output.SigmaT.z = f16tof32(Data.PackedRoughnessSigma.y >> 16);
-
+	// extract scatter type from sign bits of SigmaT
+	Output.FirstScatterType = 0;
+	Output.FirstScatterType |= asuint(Output.SigmaT.x) >> 31;
+	Output.FirstScatterType |= asuint(Output.SigmaT.y) >> 30;
+	Output.FirstScatterType |= asuint(Output.SigmaT.z) >> 29;
+	// remove sign bits from SigmaT (must be a positive value)
+	Output.SigmaT = abs(Output.SigmaT);
 	return Output;
 }
 
@@ -80,8 +86,13 @@ void StorePathStateData(FPathState PathState, uint Index)
 	Data.RayOrigin = PathState.Ray.Origin;
 	Data.RayDirection = PathState.Ray.Direction;
 	Data.PathThroughput = PathState.PathThroughput;
-	Data.PackedRoughnessSigma.x = f32tof16(PathState.PathRoughness) | (f32tof16(PathState.SigmaT.x) << 16);
-	Data.PackedRoughnessSigma.y = f32tof16(PathState.SigmaT.y) | (f32tof16(PathState.SigmaT.z) << 16);
+
+	float3 ScatterAndSigmaT = abs(PathState.SigmaT);
+	ScatterAndSigmaT.x = asfloat(((PathState.FirstScatterType & 1) << 31) | asuint(ScatterAndSigmaT.x));
+	ScatterAndSigmaT.y = asfloat(((PathState.FirstScatterType & 2) << 30) | asuint(ScatterAndSigmaT.y));
+	ScatterAndSigmaT.z = asfloat(((PathState.FirstScatterType & 4) << 29) | asuint(ScatterAndSigmaT.z));
+	Data.PackedRoughnessSigma.x = f32tof16(PathState.PathRoughness) | (f32tof16(ScatterAndSigmaT.x) << 16);
+	Data.PackedRoughnessSigma.y = f32tof16(ScatterAndSigmaT.y) | (f32tof16(ScatterAndSigmaT.z) << 16);
 	PathStateData[Index] = Data;
 }
 

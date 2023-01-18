@@ -1,13 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#ifndef USE_MATERIAL_CLOSEST_HIT_SHADER
-	#define USE_MATERIAL_CLOSEST_HIT_SHADER 1
-#endif
-
-#ifndef USE_MATERIAL_ANY_HIT_SHADER
-	#define USE_MATERIAL_ANY_HIT_SHADER 1
-#endif
-
 #define PATH_TRACING 1
 #define ENABLE_SKY_LIGHT 1      
 #define NEEDS_LIGHTMAP_COORDINATE 0
@@ -79,7 +71,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 {
 	PackedPayload.HitT = RayTCurrent();
 
-#if USE_MATERIAL_CLOSEST_HIT_SHADER
 	ResolvedView = ResolveView();
 
 	const float3 TranslatedWorldPosition = TranslatedWorldRayOrigin() + RayTCurrent() * WorldRayDirection();
@@ -104,12 +95,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		const float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
 		const bool bIsFrontFace = HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
 
-		// #dxr_todo: UE-72130 support world position offset 
-		// #if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
-		// CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, BasePassInterpolants.PixelPositionExcludingWPO);
-		// #else
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
-		// #endif
 	}
 
 	FPathTracingPayload Payload = (FPathTracingPayload)0;
@@ -123,12 +109,16 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE;
 #elif MATERIALBLENDING_ALPHAHOLDOUT
 	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT;
+	HLSL_STATIC_ASSERT(MATERIAL_SHADINGMODEL_UNLIT == 1, "Alpha holdout blend mode requires unlit shading model");
+	Payload.ShadingModelID = SHADINGMODELID_UNLIT;
 #elif MATERIALBLENDING_TRANSLUCENT
 	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_TRANSLUCENT;
 #elif MATERIALBLENDING_ADDITIVE
 	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ADDITIVE;
 #elif MATERIALBLENDING_MODULATE
 	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_MODULATE;
+	HLSL_STATIC_ASSERT(MATERIAL_SHADINGMODEL_UNLIT == 1, "Modulate blend mode requires unlit shading model");
+	Payload.ShadingModelID = SHADINGMODELID_UNLIT;
 #else
 	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
 #endif
@@ -168,10 +158,11 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	half  Metallic = GetMaterialMetallic(PixelMaterialInputs);
 	half  Specular = GetMaterialSpecular(PixelMaterialInputs);
 	half Roughness = GetMaterialRoughness(PixelMaterialInputs);
-#if MATERIALBLENDING_TRANSLUCENT && REFRACTION_USE_INDEX_OF_REFRACTION
-	Payload.Ior = GetRefractionIor(PixelMaterialInputs);
-#else
-	Payload.Ior = 0;
+	float Ior = 0.0;
+#if MATERIALBLENDING_TRANSLUCENT && REFRACTION_USE_INDEX_OF_REFRACTION && (MATERIAL_SHADINGMODEL_DEFAULT_LIT || MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT)
+	// NOTE: only default-lit and thin-translucent use ior, the other material models only support plain transparency
+	// This is an attempt to limit the complexity of the material eval/sample API which must take into account an extra lobe if supporting refraction
+	Ior = GetRefractionIor(PixelMaterialInputs);
 #endif
 
 #if !SIMPLIFIED_MATERIAL_SHADER
@@ -358,11 +349,12 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #endif
 
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-		if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
-		{
-			Payload.SetTransmittanceColor(GetThinTranslucentMaterialOutput0(MaterialParameters));
-		}
-		else
+	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
+	{
+		Payload.SetTransmittanceColor(GetThinTranslucentMaterialOutput0(MaterialParameters));
+		Payload.Ior = Ior;
+	}
+	else
 #endif
 
 #if MATERIAL_SHADINGMODEL_HAIR
@@ -445,6 +437,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		// Make the glass totally clear if no custom medium is set
 		Payload.SetTransmittanceColor(1.0);
 #endif
+		Payload.Ior = Ior;
 	}
 	else
 #endif
@@ -545,14 +538,14 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #endif
 
 	PackedPayload = PackPathTracingPayload(Payload);
-#endif // USE_MATERIAL_CLOSEST_HIT_SHADER
 }
+
+#if USE_MATERIAL_ANY_HIT_SHADER
 
 RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 	FPackedPathTracingPayload, PackedPayload,
 	FRayTracingIntersectionAttributes, Attributes)
 {
-#if USE_MATERIAL_ANY_HIT_SHADER
 
 #if MATERIALBLENDING_SOLID || MATERIALBLENDING_ALPHAHOLDOUT
 	// Continue traversal by simply returning from this shader
@@ -577,7 +570,6 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 	// For any other blending models, we have a few options:
 	if (PackedPayload.IsVisibilityRay())
 	{
-		// this case is used by the path tracer only currently
 		// We want to evaluate the material opacity and accumulate it
 		// Keep going and evaluate the material
 	}
@@ -617,12 +609,7 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 
 		MaterialParameters.CameraVector = -WorldRayDirection();
 
-		// #dxr_todo: UE-72130 support world position offset 
-		// #if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
-		// CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, BasePassInterpolants.PixelPositionExcludingWPO);
-		// #else
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
-		// #endif
 	}
 
 	// Now extract the relevant info from PixelMaterialInputs according to the blending mode
@@ -635,117 +622,132 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 	}
 #else
 	// If we got this far -- we have a blending mode that can produce partial opacity _and_ we want to
-	// know how much it contributes to the throughput along this ray. These cases are currently only
-	// exercised by the path tracer.
+	// know how much it contributes to the throughput along this ray (ie: this is a shadow ray).
 #if MATERIALBLENDING_MODULATE
-	// this material is the only one to lead to colored opacity
+	// Compute colored opacity
 	float3 Transparency = GetMaterialEmissive(PixelMaterialInputs);
 #elif MATERIALBLENDING_ALPHACOMPOSITE
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
 	float Transparency = 1 - Opacity;
-#elif MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-	// Assume Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT
-	float3 Transmission = GetThinTranslucentMaterialOutput0(MaterialParameters);
-	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
-
-#if REFRACTION_USE_INDEX_OF_REFRACTION && !SIMPLIFIED_MATERIAL_SHADER
-	float Ior = GetRefractionIor(PixelMaterialInputs);
-#else
-	float Ior = 0.0;
-#endif
-
-	float3 Transparency = 1 - Opacity;
-	float3 V = WorldRayDirection();
-	float3 N = normalize(MaterialParameters.WorldNormal);
-	float VoN = abs(dot(V, N));
-#if SIMPLIFIED_MATERIAL_SHADER
-	// simplified logic with no bending at the interface and no fresnel
-	Transparency *= pow(Transmission, 1.0 / VoN);
-#else
-	if (Opacity < 1.0)
-	{
-		float PathRoughness = PackedPayload.GetPathRoughness();
-		float Roughness = GetMaterialRoughness(PixelMaterialInputs);
-		if (PathRoughness <= Roughness)
-		{
-			// not using fast caustic approximation - treat as opaque
-			return;
-		}
-		// compute transmission through the slab (fresnel + absorption)
-		float3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
-		float  Metallic = GetMaterialMetallic(PixelMaterialInputs);
-		float  Specular = GetMaterialSpecular(PixelMaterialInputs);
-		float  F0 = F0RGBToF0(ComputeF0(Specular, BaseColor, Metallic));
-		Transparency *= ComputeThinSlabWeights(Transmission, VoN, Ior, F0).Transmitted;
-
-		// fake caustic approximation (see comments below)
-		Transparency *= (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
-	}
-#endif
-
 #elif MATERIALBLENDING_MASKED && MATERIAL_DITHER_OPACITY_MASK
 	// See MATERIAL_DITHER_OPACITY_MASK comment above
 	float Opacity = saturate(GetMaterialMaskInputRaw(PixelMaterialInputs));
 	float Transparency = 1 - Opacity;
 #elif MATERIALBLENDING_TRANSLUCENT
-	#if !SIMPLIFIED_MATERIAL_SHADER
-		float Opacity = GetMaterialOpacity(PixelMaterialInputs);
-		float Transparency = 1 - Opacity;
-	#else
-		// CPU Lightmass translucency behavior emulation
-		float3 Transparency = lerp(float3(1, 1, 1), GetMaterialBaseColor(PixelMaterialInputs), GetMaterialOpacity(PixelMaterialInputs));
-	#endif
-	
-	// Is refraction enabled?
-#if !SIMPLIFIED_MATERIAL_SHADER && MATERIAL_SHADINGMODEL_DEFAULT_LIT && REFRACTION_USE_INDEX_OF_REFRACTION
-	float Ior = GetRefractionIor(PixelMaterialInputs);
-	int ShadingModelID = GetMaterialShadingModel(PixelMaterialInputs);
-	if (Transparency > 0 && ShadingModelID == SHADINGMODELID_DEFAULT_LIT && Ior > 0.0)
-	{
-		// current hit has some refraction
-		float PathRoughness = PackedPayload.GetPathRoughness();
-		float Roughness = GetMaterialRoughness(PixelMaterialInputs);
-		if (PathRoughness <= Roughness)
-		{
-			// not using fast caustic approximation - treat as opaque
-			return;
-		}
-		// The heuristic used here is inspired by the following presentations:
-		//   - Kulla & Conty: Revisiting Physically Based Shading at Imageworks
-		//       https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf
-		//   - Colin Barré-Brisebois - Pica Pica & Nvidia Turing
-		//       https://www.ea.com/seed/news/siggraph-2018-picapica-nv-turing
+	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT || SIMPLIFIED_MATERIAL_SHADER
+	// We can get colored shadows either for thin translucent, or for GPULM which has backwards compatibility with some cpu lightmass tricks
+	float3 Transparency = 1 - Opacity;
+#else
+	float Transparency = 1 - Opacity;
+#endif
 
-		// fake caustics
+	uint ShadingModelID = GetMaterialShadingModel(PixelMaterialInputs);
+	
+#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+	if (ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
+	{
+		float3 Transmission = GetThinTranslucentMaterialOutput0(MaterialParameters);
+#if REFRACTION_USE_INDEX_OF_REFRACTION && !SIMPLIFIED_MATERIAL_SHADER
+		float Ior = GetRefractionIor(PixelMaterialInputs);
+#else
+		float Ior = 0.0;
+#endif
+		float3 V = WorldRayDirection();
 		float3 N = normalize(MaterialParameters.WorldNormal);
-		float Eta = Ior;
-		float VoN = abs(dot(WorldRayDirection(), N));
-		float3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
-		float  Metallic = GetMaterialMetallic(PixelMaterialInputs);
-		float  Specular = GetMaterialSpecular(PixelMaterialInputs);
-		float  F0 = F0RGBToF0(ComputeF0(Specular, BaseColor, Metallic));
-		float Fr = FresnelReflectance(VoN, Eta, F0);
-		Transparency *= pow(1 - Fr, 2) * (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
+		float VoN = abs(dot(V, N));
+#if SIMPLIFIED_MATERIAL_SHADER
+		// simplified logic with no bending at the interface and no fresnel
+		Transparency *= pow(Transmission, 1.0 / VoN);
+#else
+		if (Opacity < 1.0)
+		{
+			float PathRoughness = PackedPayload.GetPathRoughness();
+			float Roughness = GetMaterialRoughness(PixelMaterialInputs);
+			if (PathRoughness <= Roughness)
+			{
+				// not using fast caustic approximation - treat as opaque
+				return;
+			}
+			// compute transmission through the slab (fresnel + absorption)
+			float3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
+			float  Metallic = GetMaterialMetallic(PixelMaterialInputs);
+			float  Specular = GetMaterialSpecular(PixelMaterialInputs);
+			float  F0 = F0RGBToF0(ComputeF0(Specular, BaseColor, Metallic));
+			Transparency *= ComputeThinSlabWeights(Transmission, VoN, Ior, F0).Transmitted;
+
+			// fake caustic approximation (see comments below)
+			Transparency *= (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
+		}
+#endif
+	}
+	else
+#endif // MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+#if MATERIAL_SHADINGMODEL_DEFAULT_LIT
+	if (ShadingModelID == SHADINGMODELID_DEFAULT_LIT)
+	{
+#if SIMPLIFIED_MATERIAL_SHADER
+		// CPU Lightmass translucency behavior emulation
+		Transparency = lerp(float3(1, 1, 1), GetMaterialBaseColor(PixelMaterialInputs), Opacity);
+#elif REFRACTION_USE_INDEX_OF_REFRACTION
+		// Is refraction enabled?
+		float Ior = GetRefractionIor(PixelMaterialInputs);
+		if (Transparency > 0 && Ior > 0.0)
+		{
+			// current hit has some refraction
+			float PathRoughness = PackedPayload.GetPathRoughness();
+			float Roughness = GetMaterialRoughness(PixelMaterialInputs);
+			if (PathRoughness <= Roughness)
+			{
+				// not using fast caustic approximation - treat as opaque
+				return;
+			}
+			// The heuristic used here is inspired by the following presentations:
+			//   - Kulla & Conty: Revisiting Physically Based Shading at Imageworks
+			//       https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf
+			//   - Colin Barré-Brisebois - Pica Pica & Nvidia Turing
+			//       https://www.ea.com/seed/news/siggraph-2018-picapica-nv-turing
+
+			// fake caustics
+			float3 N = normalize(MaterialParameters.WorldNormal);
+			float Eta = Ior;
+			float VoN = abs(dot(WorldRayDirection(), N));
+			float3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
+			float  Metallic = GetMaterialMetallic(PixelMaterialInputs);
+			float  Specular = GetMaterialSpecular(PixelMaterialInputs);
+			float  F0 = F0RGBToF0(ComputeF0(Specular, BaseColor, Metallic));
+			float Fr = FresnelReflectance(VoN, Eta, F0);
+			Transparency *= pow(1 - Fr, 2) * (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
 
 #if HAVE_GetAbsorptionMediumMaterialOutput0
-		// Now track the optical thickness so that we can account for Beer's law along the shadow ray
-		// TODO: to support lights inside glass we would need to track an extra offset, but this is hopefully an uncommon scenario
-		float Distance = RayTCurrent();
-		float3 TransmittanceColor = GetAbsorptionMediumMaterialOutput0(MaterialParameters);
-		float3 LocalSigmaT = -log(max(TransmittanceColor, 1e-8f));
-		if (bIsFrontFace)
-		{
-			// remove contribution from the ray origin to the current hit (assuming the backside will be hit)
-			PackedPayload.SetTau(PackedPayload.GetTau() - LocalSigmaT * Distance);
-		}
-		else
-		{
-			// add contribution from ray origin to current hit (backside) - excess portion not covered by the ray will be removed by the front face hit
-			PackedPayload.SetTau(PackedPayload.GetTau() + LocalSigmaT * Distance);
-		}
+			// Does the material have any kind of volumetric absorption to apply?
+			// Now track the optical thickness so that we can account for Beer's law along the shadow ray
+			// TODO: to support lights inside glass we would need to track an extra offset, but this is hopefully an uncommon scenario
+			// TODO2: SingleLayerWater needs something similar, but it generally is setup with opaque or masked blend mode and water geometry does not cast shadows ...
+			float Distance = RayTCurrent();
+			float3 TransmittanceColor = GetAbsorptionMediumMaterialOutput0(MaterialParameters);
+			float3 LocalSigmaT = -log(max(TransmittanceColor, 1e-8f));
+			if (bIsFrontFace)
+			{
+				// remove contribution from the ray origin to the current hit (assuming the backside will be hit)
+				PackedPayload.SetTau(PackedPayload.GetTau() - LocalSigmaT * Distance);
+			}
+			else
+			{
+				// add contribution from ray origin to current hit (backside) - excess portion not covered by the ray will be removed by the front face hit
+				PackedPayload.SetTau(PackedPayload.GetTau() + LocalSigmaT * Distance);
+			}
 #endif // HAVE_GetAbsorptionMediumMaterialOutput0
+
+		}
+#endif // REFRACTION_USE_INDEX_OF_REFRACTION
 	}
-#endif // refraction enabled?
+#else // MATERIAL_SHADINGMODEL_DEFAULT_LIT
+	{
+		// base case for shadingmodel if/else
+	}
+#endif // MATERIAL_SHADINGMODEL_DEFAULT_LIT
+
 #else
 #error "Control flow does not account for all blending modes!"
 #endif
@@ -767,5 +769,6 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 
 #endif // !MATERIALBLENDING_SOLID && !MATERIALBLENDING_ALPHAHOLDOUT && !MATERIALBLENDING_ADDITIVE
 
-#endif // USE_MATERIAL_ANY_HIT_SHADER
 }
+
+#endif // USE_MATERIAL_ANY_HIT_SHADER

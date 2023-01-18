@@ -52,6 +52,8 @@ uint EnableEmissive;
 uint SamplerType;
 uint VisualizeLightGrid;
 uint VisualizeDecalGrid;
+uint ApplyDiffuseSpecularOverrides;
+uint EnabledLightingContributions;
 float DecalRoughnessCutoff;
 float MeshDecalRoughnessCutoff;
 float MeshDecalBias;
@@ -83,7 +85,83 @@ struct FPathState
 	float3 PathThroughput;          // 12 bytes
 	float PathRoughness;            //  2 bytes // half precision
 	float3 SigmaT; // Extinction    //  6 bytes // half precision 
+	uint FirstScatterType;          //  3 bits - packed in sign bits of SigmaT
 									// 80 bytes total (see FPathTracingPackedPathState)
+
+	bool HasMadeContributionScatter()
+	{
+		// The first scattering type that matters for the PATHTRACER_CONTRIBUTION_* flags is the first non-refractive one
+		// We choose to track camera and pure refracted paths together so that objects behind glass can be treated the same as directly visible objects.
+		return !(FirstScatterType == PATHTRACER_SCATTER_CAMERA ||
+			     FirstScatterType == PATHTRACER_SCATTER_REFRACT);
+	}
+
+	bool UpdateScatterType(uint ScatterType)
+	{
+		// Keep track of the first non-refractive scatter type, and leave it "locked" beyond this
+		// This ensures a particular pixel can only contribute to one lighting component.
+		// The reason to not split refractive events is that you typically want to treat refracted paths the same as camera paths.
+		// For example, when extracting just the diffuse component of a character wearing glasses, you would want the directly visible diffuse
+		// and refracted diffuse to be treated the same.
+		if (!HasMadeContributionScatter())
+		{
+			FirstScatterType = ScatterType;
+		}
+		switch (FirstScatterType)
+		{
+			// In these cases, only keep tracing if the corresponding lighting component is enabled
+			case PATHTRACER_SCATTER_DIFFUSE:  return (EnabledLightingContributions & PATHTRACER_CONTRIBUTION_DIFFUSE ) != 0;
+			case PATHTRACER_SCATTER_SPECULAR: return (EnabledLightingContributions & PATHTRACER_CONTRIBUTION_SPECULAR) != 0;
+			case PATHTRACER_SCATTER_VOLUME:   return (EnabledLightingContributions & PATHTRACER_CONTRIBUTION_VOLUME  ) != 0;
+		}
+		// In all other cases, keep tracing, we haven't made a final decision on what this path is yet
+		return true;
+	}
+
+	// The following functions allow us to scale down the contributions for lighting components before we have scattered
+	bool ShouldAccumulateEmissive()
+	{
+		return (HasMadeContributionScatter() || (EnabledLightingContributions & PATHTRACER_CONTRIBUTION_EMISSIVE) != 0);
+	}
+
+	bool ShouldAccumulateDiffuse()
+	{
+		return (HasMadeContributionScatter() || (EnabledLightingContributions & PATHTRACER_CONTRIBUTION_DIFFUSE) != 0);
+	}
+
+	bool ShouldAccumulateSpecular()
+	{
+		return (HasMadeContributionScatter() || (EnabledLightingContributions & PATHTRACER_CONTRIBUTION_SPECULAR) != 0);
+	}
+
+	bool ShouldAccumulateVolume()
+	{
+		return (HasMadeContributionScatter() || (EnabledLightingContributions & PATHTRACER_CONTRIBUTION_VOLUME) != 0);
+	}
+
+	float2 GetDiffuseSpecularScale(bool bIsVolumeSample)
+	{
+		float2 Result = 0.0;
+		if (bIsVolumeSample)
+		{
+			if (ShouldAccumulateVolume())
+			{
+				Result.x = 1.0;
+			}
+		}
+		else
+		{
+			if (ShouldAccumulateDiffuse())
+			{
+				Result.x = 1.0;
+			}
+			if (ShouldAccumulateSpecular())
+			{
+				Result.y = 1.0;
+			}
+		}
+		return Result;
+	}
 
 	void WritePixel(uint2 TextureIndex)
 	{
@@ -365,7 +443,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		}
 
 		// Unpack the payload
-		FPathTracingPayload HitPayload = UnpackPathTracingPayloadMaterial(PackedPayload, PathState.Ray, bIsCameraRay);
+		FPathTracingPayload HitPayload = UnpackPathTracingPayloadMaterial(PackedPayload, PathState.Ray, bIsCameraRay && ApplyDiffuseSpecularOverrides);
 
 		float DecalThroughput = 1.0f;
 		if (PathState.PathRoughness < MeshDecalRoughnessCutoff && HitPayload.IsDecalReceiver())
@@ -672,14 +750,14 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 	{
 		// dual spec
 		const float3 DualRoughnessData = Payload.GetDualRoughnessSpecular();
-		const FBxDFEnergyTerms Spec0 = ComputeGGXSpecEnergyTerms(DualRoughnessData.x, NoV, Payload.SpecularColor);
-		const FBxDFEnergyTerms Spec1 = ComputeGGXSpecEnergyTerms(DualRoughnessData.y, NoV, Payload.SpecularColor);
-		SpecE = lerp(Spec0.E, Spec1.E, DualRoughnessData.z);
+		const float3 SpecE0 = ComputeGGXSpecEnergyTermsRGB(DualRoughnessData.x, NoV, Payload.SpecularColor).E;
+		const float3 SpecE1 = ComputeGGXSpecEnergyTermsRGB(DualRoughnessData.y, NoV, Payload.SpecularColor).E;
+		SpecE = lerp(SpecE0, SpecE1, DualRoughnessData.z);
 	}
 	else
 	{
 		// single spec
-		SpecE = ComputeGGXSpecEnergyTerms(Payload.Roughness, NoV, Payload.SpecularColor).E;
+		SpecE = ComputeGGXSpecEnergyTermsRGB(Payload.Roughness, NoV, Payload.SpecularColor).E;
 	}
 
 	const float3 SSSLobeAlbedo = (1 - SpecE) * SSSColor;
@@ -876,6 +954,7 @@ FPathState CreatePathState(int2 PixelIndex)
 	Output.PathThroughput = 1.0;
 	Output.PathRoughness = 0;
 	Output.SigmaT = float3(StartingExtinctionCoefficient[0], StartingExtinctionCoefficient[1], StartingExtinctionCoefficient[2]);
+	Output.FirstScatterType = PATHTRACER_SCATTER_CAMERA;
 
 	return Output;
 }
@@ -892,8 +971,10 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 #endif
 	const bool bIsCameraRay = Bounce == 0;
 	const bool bIsLastBounce = Bounce == MaxBounces;
-	const bool bIncludeEmissive = (EnableDirectLighting != 0 || Bounce > 1) &&
-		(EnableEmissive != 0 || bIsCameraRay);
+	const bool bIncludeEmissive =
+		(EnableDirectLighting != 0 || Bounce > 1) &&
+		(EnableEmissive != 0 || bIsCameraRay) &&
+		PathState.ShouldAccumulateEmissive();
 
 	// number of directly visible lights for the first bounce
 	// after the first bounce, we don't need to include lights in the trace call
@@ -910,7 +991,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 		VolumeSegment);
 
 	// process the returned volume segment if we got one
-	if (VolumeSegment.IsValid() && VolumeMISMode != 0)
+	if (VolumeSegment.IsValid() && VolumeMISMode != 0 && PathState.ShouldAccumulateVolume())
 	{
 		const float3 Ro = PathState.Ray.Origin;
 		const float3 Rd = PathState.Ray.Direction;
@@ -965,7 +1046,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 
 				// prepare a minimal payload that describes the hit we need to shade
 				FPathTracingPayload VolPayload = CreateMediumHitPayload(EquiAngularT, TranslatedWorldPos, Result);
-				float4 LightRandValue = RandomSequence_GenerateSample4D(PathState.RandSequence);
+				float3 LightRandValue = RandomSequence_GenerateSample3D(PathState.RandSequence);
 
 				const bool bCastShadows = CastsVolumeShadow(LightSampleLightId);
 				const uint MissShaderIndex = GetLightMissShaderIndex(LightSampleLightId);
@@ -985,7 +1066,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 						if (any(LightSample.RadianceOverPdf > 0))
 						{
 							// Evaluate material
-							FMaterialEval MaterialEval = Medium_EvalMaterial(Rd, LightSample.Direction, VolPayload);
+							FMaterialEval MaterialEval = Medium_EvalMaterial(-Rd, LightSample.Direction, VolPayload, float2(1.0, 0.0));
 
 							// Record the contribution
 							float3 LightContrib = Contrib * LightSample.RadianceOverPdf * GetVolumetricScatteringIntensity(LightSampleLightId) * MaterialEval.Weight * MaterialEval.Pdf;
@@ -1000,7 +1081,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 				// now compute again with phase function MIS
 				if (MISMode != 1)
 				{
-					FMaterialSample MaterialSample = Medium_SampleMaterial(Rd, VolPayload, LightRandValue);
+					FMaterialSample MaterialSample = Medium_SampleMaterial(-Rd, VolPayload, LightRandValue);
 					if (MaterialSample.Pdf > 0)
 					{
 						FRayDesc MaterialRay;
@@ -1077,17 +1158,16 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	// Choose a random number for both Light sampling and BxDF sampling
 	float4 RandSample = RandomSequence_GenerateSample4D(PathState.RandSequence);
 
-	// Does this material require NEE? (will be false if MaterialPdf is always +inf)
-	const bool bIsNeeValid = IsNeeValidMaterial(Payload);
-
-	const bool bDoLightLoop = EnableDirectLighting != 0 || Bounce > 0;
-
 	const bool bIsVolumeSample = Payload.ShadingModelID == SHADINGMODELID_MEDIUM;
+
+	float2 DiffuseSpecularScale = PathState.GetDiffuseSpecularScale(bIsVolumeSample);
+
+	const bool bDoLightLoop = (EnableDirectLighting != 0 || Bounce > 0) && any(DiffuseSpecularScale > 0);
 
 	float LightPickingCdfSum = 0;
 
 	// If we are using Light sampling and the material can use it ...
-	if (MISMode != 0 && bIsNeeValid && SceneLightCount > 0 && bDoLightLoop)
+	if (MISMode != 0 && SceneLightCount > 0 && bDoLightLoop)
 	{
 		// Choose a light and sample it
 		float3 TranslatedWorldPos = Payload.TranslatedWorldPos;
@@ -1148,7 +1228,9 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 				if (any(LightSample.RadianceOverPdf > 0))
 				{
 					// Evaluate material
-					FMaterialEval MaterialEval = EvalMaterial(PathState.Ray.Direction, LightSample.Direction, Payload, false);
+					float2 LightDiffuseSpecularScale = DiffuseSpecularScale * float2(1.0, GetLightSpecularScale(LightId));
+
+					FMaterialEval MaterialEval = EvalMaterial(-PathState.Ray.Direction, LightSample.Direction, Payload, LightDiffuseSpecularScale);
 
 					// Record the contribution
 					float3 LightContrib = PathState.PathThroughput * LightSample.RadianceOverPdf * MaterialEval.Weight * MaterialEval.Pdf;
@@ -1163,7 +1245,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	}
 
 	// Sample material
-	FMaterialSample MaterialSample = SampleMaterial(PathState.Ray.Direction, Payload, RandSample, false);
+	FMaterialSample MaterialSample = SampleMaterial(-PathState.Ray.Direction, Payload, RandSample.xyz);
 
 	if (MaterialSample.Pdf < 0 || asuint(MaterialSample.Pdf) > 0x7F800000)
 	{
@@ -1185,6 +1267,12 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 		return false;
 	}
 
+	if (!PathState.UpdateScatterType(MaterialSample.ScatterType))
+	{
+		// path scattered for a non-enabled lighting component, we can exit immediately
+		return false;
+	}
+
 	// Russian roulette:
 	//   The probability of keeping the path should be roughly proportional to the weight at the current shade point,
 	//  but just using MaterialWeight would miss out on cases where the path throughput changes color (like in a cornell
@@ -1197,8 +1285,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	if (ContinuationProb < 1)
 	{
 		// If there is some chance we should terminate the ray, draw an extra random value
-		float RussianRouletteRand = RandSample.w; // SampleMaterial does not use this value at the moment
-		//RussianRouletteRand = RandomSequence_GenerateSample1D(RandSequence);
+		float RussianRouletteRand = RandSample.w;
 		if (RussianRouletteRand >= ContinuationProb)
 		{
 			// stochastically terminate the path
@@ -1268,9 +1355,24 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 			}
 
 			float3 LightContrib = PathState.PathThroughput * LightResult.Radiance;
-			if (bIsVolumeSample)
+			switch (MaterialSample.ScatterType)
 			{
-				LightContrib *= GetVolumetricScatteringIntensity(LightId);
+				case PATHTRACER_SCATTER_DIFFUSE:
+				{
+					LightContrib *= DiffuseSpecularScale.x;
+					break;
+				}
+				case PATHTRACER_SCATTER_SPECULAR:
+				case PATHTRACER_SCATTER_REFRACT:
+				{
+					LightContrib *= GetLightSpecularScale(LightId) * DiffuseSpecularScale.y;
+					break;
+				}
+				case PATHTRACER_SCATTER_VOLUME:
+				{
+					LightContrib *= GetVolumetricScatteringIntensity(LightId) * DiffuseSpecularScale.x;
+					break;
+				}
 			}
 
 			if (bUseMIS)

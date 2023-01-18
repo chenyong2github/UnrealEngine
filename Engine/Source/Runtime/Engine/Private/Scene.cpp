@@ -636,6 +636,11 @@ FPostProcessSettings::FPostProcessSettings()
 	PathTracingEnableReferenceDOF = 0;
 	PathTracingEnableReferenceAtmosphere = 0;
 	PathTracingEnableDenoiser = 1;
+
+	PathTracingIncludeEmissive = 1;
+	PathTracingIncludeDiffuse = 1;
+	PathTracingIncludeSpecular = 1;
+	PathTracingIncludeVolume = 1;
 	
 	bMobileHQGaussian = false;
 
@@ -844,6 +849,10 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_PathTracingEnableReferenceDOF(Settings.bOverride_PathTracingEnableReferenceDOF)
 	, bOverride_PathTracingEnableReferenceAtmosphere(Settings.bOverride_PathTracingEnableReferenceAtmosphere)
 	, bOverride_PathTracingEnableDenoiser(Settings.bOverride_PathTracingEnableDenoiser)
+	, bOverride_PathTracingIncludeEmissive(Settings.bOverride_PathTracingIncludeEmissive)
+	, bOverride_PathTracingIncludeDiffuse(Settings.bOverride_PathTracingIncludeDiffuse)
+	, bOverride_PathTracingIncludeSpecular(Settings.bOverride_PathTracingIncludeSpecular)
+	, bOverride_PathTracingIncludeVolume(Settings.bOverride_PathTracingIncludeVolume)
 
 	, bMobileHQGaussian(Settings.bMobileHQGaussian)
 	, BloomMethod(Settings.BloomMethod)
@@ -1039,6 +1048,10 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, PathTracingEnableReferenceDOF(Settings.PathTracingEnableReferenceDOF)
 	, PathTracingEnableReferenceAtmosphere(Settings.PathTracingEnableReferenceAtmosphere)
 	, PathTracingEnableDenoiser(Settings.PathTracingEnableDenoiser)
+	, PathTracingIncludeEmissive(Settings.PathTracingIncludeEmissive)
+	, PathTracingIncludeDiffuse(Settings.PathTracingIncludeDiffuse)
+	, PathTracingIncludeSpecular(Settings.PathTracingIncludeSpecular)
+	, PathTracingIncludeVolume(Settings.PathTracingIncludeVolume)
 
 	, ScreenPercentage_DEPRECATED(Settings.ScreenPercentage_DEPRECATED)
 

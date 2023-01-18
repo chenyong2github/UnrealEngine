@@ -12,9 +12,9 @@ PathTracingMedium.usf: Volumetric phase function
 #define USE_UNIFORM_PHASE_FUNCTION 0
 
 FMaterialSample Medium_SampleMaterial(
-	float3 IncomingDirection,
+	float3 V_World,
 	FPathTracingPayload Payload,
-	float4 RandSample)
+	float3 RandSample)
 {
 	const float3 RayleighWeight = Payload.BaseColor;
 	const float3 HGWeight = Payload.GetHGWeight();
@@ -23,7 +23,7 @@ FMaterialSample Medium_SampleMaterial(
 #if USE_UNIFORM_PHASE_FUNCTION
 	const float4 Result = UniformSampleSphere(RandSample.xy);
 	// uniform scattering
-	return CreateMaterialSample(Result.xyz, RayleighWeight + HGWeight, Result.w, 1.0, 1.0);
+	return CreateMaterialSample(Result.xyz, RayleighWeight + HGWeight, Result.w, 1.0, 1.0, PATHTRACER_SCATTER_VOLUME);
 #else
 	const float LobeProb = LobeSelectionProb(RayleighWeight, HGWeight);
 
@@ -33,19 +33,20 @@ FMaterialSample Medium_SampleMaterial(
 	const float SinTheta = sqrt(saturate(1.0 - CosTheta * CosTheta));
 	const float Phi = RandSample.y * (2.0 * PI);
 
-	FMaterialSample Result = NullMaterialSample();
-	Result.Direction = TangentToWorld(float3(cos(Phi) * SinTheta, sin(Phi) * SinTheta, CosTheta), -IncomingDirection);
-	Result.Roughness = 1.0;
-	AddLobeWithMIS(Result.Weight, Result.Pdf, RayleighWeight, RayleighPhase(CosTheta), LobeProb);
-	AddLobeWithMIS(Result.Weight, Result.Pdf, HGWeight      , HenyeyGreensteinPhase(G, CosTheta )  , 1.0 - LobeProb);
+	const float3 L_World = TangentToWorld(float3(cos(Phi) * SinTheta, sin(Phi) * SinTheta, CosTheta), V_World);
+
+	FMaterialSample Result = CreateMaterialSample(L_World, 0.0, 0.0, 1.0, 1.0, PATHTRACER_SCATTER_VOLUME);
+	Result.AddLobeWithMIS(RayleighWeight, RayleighPhase(CosTheta), LobeProb);
+	Result.AddLobeWithMIS(HGWeight      , HenyeyGreensteinPhase(G, CosTheta )  , 1.0 - LobeProb);
 	return Result;
 #endif
 }
 
 FMaterialEval Medium_EvalMaterial(
-	float3 IncomingDirection,
-	float3 OutgoingDirection,
-	FPathTracingPayload Payload
+	float3 V_World,
+	float3 L_World,
+	FPathTracingPayload Payload,
+	float2 DiffuseSpecularScale
 )
 {
 	const float3 RayleighWeight = Payload.BaseColor;
@@ -58,10 +59,11 @@ FMaterialEval Medium_EvalMaterial(
 #else
 	const float LobeProb = LobeSelectionProb(RayleighWeight, HGWeight);
 
-	const float CosTheta = -dot(IncomingDirection, OutgoingDirection);
+	const float CosTheta = dot(V_World, L_World);
 	FMaterialEval Result = NullMaterialEval();
-	AddLobeWithMIS(Result.Weight, Result.Pdf, RayleighWeight, RayleighPhase(CosTheta), LobeProb);
-	AddLobeWithMIS(Result.Weight, Result.Pdf, HGWeight      , HenyeyGreensteinPhase(G, CosTheta), 1.0 - LobeProb);
+	Result.AddLobeWithMIS(RayleighWeight, RayleighPhase(CosTheta), LobeProb);
+	Result.AddLobeWithMIS(HGWeight      , HenyeyGreensteinPhase(G, CosTheta), 1.0 - LobeProb);
+	Result.Weight *= DiffuseSpecularScale.x;
 	return Result;
 #endif
 }

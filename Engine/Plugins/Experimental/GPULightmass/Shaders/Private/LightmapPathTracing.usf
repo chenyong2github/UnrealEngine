@@ -35,6 +35,8 @@ Texture2D<float> RayGuidingCDFY;
 #include "/Engine/Private/PathTracing/Utilities/PathTracingRandomSequence.ush"
 #include "/Engine/Private/PathTracing/Light/PathTracingLightSampling.ush"
 #include "/Engine/Private/PathTracing/Material/PathTracingMaterialSampling.ush"
+#include "/Engine/Private/PathTracing/Material/PathTracingRadianceProbe.ush"
+
 
 #include "LightmapEncoding.ush"
 #include "LightmapCommon.ush"
@@ -542,15 +544,12 @@ void PathTracingKernel(
 		// Choose a random number for both Light sampling and BxDF sampling
 		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence);
 
-		// Does this material require NEE? (will be false if MaterialPdf is always +inf)
-		const bool bIsNeeValid = IsNeeValidMaterial(Payload);
-
 		const bool bDoLightLoop = EnableDirectLighting != 0 || Bounce > 0;
 
 		float LightPickingCdfSum = 0;
 
 		// If we are using Light sampling and the material can use it ...
-		if (MISMode != 0 && bIsNeeValid && SceneLightCount > 0 && bDoLightLoop)
+		if (MISMode != 0 && SceneLightCount > 0 && bDoLightLoop)
 		{
 			// Choose a light and sample it
 			float3 TranslatedWorldPos = Payload.TranslatedWorldPos;
@@ -608,7 +607,16 @@ void PathTracingKernel(
 					if (any(LightSample.RadianceOverPdf > 0))
 					{
 						// Evaluate material
-						FMaterialEval MaterialEval = EvalMaterial(Ray.Direction, LightSample.Direction, Payload, Bounce == 0);
+						FMaterialEval MaterialEval;
+						if (Bounce == 0)
+						{
+							MaterialEval = RadianceProbe_EvalMaterial(LightSample.Direction, Payload);
+						}
+						else
+						{
+							MaterialEval = EvalMaterial(-Ray.Direction, LightSample.Direction, Payload, float2(1.0, 0.0));
+						}
+							
 
 						// Record the contribution
 						float3 LightContrib = PathThroughput * LightSample.RadianceOverPdf * MaterialEval.Weight * MaterialEval.Pdf;						
@@ -658,7 +666,15 @@ void PathTracingKernel(
 		}
 	
 		// Sample material
-		FMaterialSample MaterialSample = SampleMaterial(Ray.Direction, Payload, RandSample, Bounce == 0);
+		FMaterialSample MaterialSample;
+		if (Bounce == 0)
+		{
+			MaterialSample = RadianceProbe_SampleMaterial(Payload, RandSample.xyz);
+		}
+		else
+		{
+			MaterialSample = SampleMaterial(-Ray.Direction, Payload, RandSample.xyz);
+		}
 
 		if (MaterialSample.Pdf < 0 || asuint(MaterialSample.Pdf) > 0x7F800000)
 		{
@@ -692,7 +708,7 @@ void PathTracingKernel(
 		if (ContinuationProb < 1)
 		{
 			// If there is some chance we should terminate the ray, draw an extra random value
-			float RussianRouletteRand = RandSample.w; // SampleMaterial does not use this value at the moment
+			float RussianRouletteRand = RandSample.w;
 			//RussianRouletteRand = RandomSequence_GenerateSample1D(RandSequence);
 			if (RussianRouletteRand >= ContinuationProb)
 			{

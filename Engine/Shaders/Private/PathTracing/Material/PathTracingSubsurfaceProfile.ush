@@ -11,157 +11,145 @@
 #pragma once
 
 #include "PathTracingMaterialCommon.ush"
-#include "PathTracingFresnel.ush"
 
-float2 SubsurfaceProfile_LobeCdf(float3 DiffuseColor, float3 SpecE, float SpecMix)
+struct FSubsurfaceProfileData {
+	float3x3 Basis;
+	float2 Alpha0;
+	float2 Alpha1;
+
+	float3 V;
+
+	FBxDFEnergyTermsRGB Spec0;
+	FBxDFEnergyTermsRGB Spec1;
+	float3 DiffuseWeight;
+
+	float2 LobeCdf;
+	float3 LobePdf;
+};
+
+FSubsurfaceProfileData CreateSubsurfaceProfileData(FPathTracingPayload Payload, float3 V_World)
 {
-	float3 DiffE = (1 - SpecE) * DiffuseColor;
+	FSubsurfaceProfileData Data = (FSubsurfaceProfileData)0;
 
-	float DiffuseProb = LobeSelectionProb(DiffE, SpecE);
-	return float2(DiffuseProb, DiffuseProb + (1 - DiffuseProb) * (1 - SpecMix));
+	const float3 DualRoughnessData = Payload.GetDualRoughnessSpecular();
+	Data.Basis = GetTangentBasis(Payload.WorldNormal);
+	Data.Alpha0 = GetGGXAlpha(DualRoughnessData.x);
+	Data.Alpha1 = GetGGXAlpha(DualRoughnessData.y);
+
+	Data.V = mul(Data.Basis, V_World);
+	const float NoV = saturate(Data.V.z);
+	Data.Spec0 = ComputeGGXSpecEnergyTermsRGB(DualRoughnessData.x, NoV, Payload.SpecularColor);
+	Data.Spec1 = ComputeGGXSpecEnergyTermsRGB(DualRoughnessData.y, NoV, Payload.SpecularColor);
+
+	const float3 SpecE = lerp(Data.Spec0.E, Data.Spec1.E, DualRoughnessData.z);
+	Data.DiffuseWeight = Payload.DiffuseColor * (1 - SpecE);
+	Data.LobeCdf = LobeSelectionCdf(Data.DiffuseWeight, Data.Spec0.E * (1 - DualRoughnessData.z), Data.Spec1.E * DualRoughnessData.z);
+	Data.LobePdf = LobeSelectionPdf(Data.LobeCdf);
+
+	return Data;
 }
 
 FMaterialEval SubsurfaceProfile_EvalMaterial(
-	float3 IncomingDirection,
-	float3 OutgoingDirection,
-	FPathTracingPayload Payload
+	float3 V_World,
+	float3 L_World,
+	FPathTracingPayload Payload,
+	float2 DiffuseSpecularScale
 )
 {
-	FMaterialEval Result = NullMaterialEval();
-
-	const float3 V_World = -IncomingDirection;
-	const float3 L_World = OutgoingDirection;
-	const float3 N_World = Payload.WorldNormal;
-
-	float3 DualRoughnessData = Payload.GetDualRoughnessSpecular();
-	float2 Alpha0 = 0;
-	float2 Alpha1 = 0;
-	const float3x3 Basis = GetGGXBasis(DualRoughnessData.x, Payload.WorldNormal, Alpha0);
-	GetGGXBasis(DualRoughnessData.y, Payload.WorldNormal, Alpha1);
+	const FSubsurfaceProfileData Data = CreateSubsurfaceProfileData(Payload, V_World);
+	const float3 DualRoughnessData = Payload.GetDualRoughnessSpecular();
 
 	// move vectors into right shading frame
-	const float3 V = mul(Basis, V_World);
-	const float3 L = mul(Basis, L_World);
+	const float3 V = Data.V;
+	const float3 L = mul(Data.Basis, L_World);
 	const float3 H = normalize(V + L);
-
-	const float NoV = saturate(V.z);
-	const FBxDFEnergyTerms Spec0 = ComputeGGXSpecEnergyTerms(DualRoughnessData.x, NoV, Payload.SpecularColor);
-	const FBxDFEnergyTerms Spec1 = ComputeGGXSpecEnergyTerms(DualRoughnessData.y, NoV, Payload.SpecularColor);
-	const float3 SpecE = lerp(Spec0.E, Spec1.E, DualRoughnessData.z);
-	const float2 LobeCdf = SubsurfaceProfile_LobeCdf(Payload.DiffuseColor, SpecE, DualRoughnessData.z);
-	const float3 LobeProb = float3(LobeCdf.x, LobeCdf.y - LobeCdf.x, 1 - LobeCdf.y);
-
-
 	const float NoL = saturate(L.z);
 	const float VoH = saturate(dot(V, H));
 
+	FMaterialEval Result = NullMaterialEval();
+
 	// Diffuse Lobe
-	AddLobeWithMIS(Result.Weight, Result.Pdf, Payload.DiffuseColor * (1 - SpecE) * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), NoL / PI, LobeProb.x);
+	Result.AddLobeWithMIS(Data.DiffuseWeight * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal) * DiffuseSpecularScale.x, NoL / PI, Data.LobePdf.x);
 
 	// Specular lobes
-	const float2 GGXResult0 = GGXEvalReflection(L, V, H, Alpha0);
-	const float2 GGXResult1 = GGXEvalReflection(L, V, H, Alpha1);
-	const float3 F = F_Schlick(Payload.SpecularColor, VoH);
-	AddLobeWithMIS(Result.Weight, Result.Pdf, (1 - DualRoughnessData.z) * F * GGXResult0.x * Spec0.W, GGXResult0.y, LobeProb.y);
-	AddLobeWithMIS(Result.Weight, Result.Pdf, (    DualRoughnessData.z) * F * GGXResult1.x * Spec1.W, GGXResult1.y, LobeProb.z);
+	const float2 GGXResult0 = GGXEvalReflection(L, V, H, Data.Alpha0);
+	const float2 GGXResult1 = GGXEvalReflection(L, V, H, Data.Alpha1);
+	const float3 F = F_Schlick(Payload.SpecularColor, VoH) * DiffuseSpecularScale.y;
+	Result.AddLobeWithMIS((1 - DualRoughnessData.z) * F * GGXResult0.x * Data.Spec0.W, GGXResult0.y, Data.LobePdf.y);
+	Result.AddLobeWithMIS((    DualRoughnessData.z) * F * GGXResult1.x * Data.Spec1.W, GGXResult1.y, Data.LobePdf.z);
 
 	return Result;
 }
 
 FMaterialSample SubsurfaceProfile_SampleMaterial(
-	float3 RayDirection,
+	float3 V_World,
 	FPathTracingPayload Payload,
-	float4 RandSample
+	float3 RandSample
 )
 {
-	float3 N = Payload.WorldNormal;
-	float3 V = -RayDirection;
-
-	float3 DualRoughnessData = Payload.GetDualRoughnessSpecular();
-	float2 Alpha0 = 0;
-	float2 Alpha1 = 0;
-	const float3x3 Basis = GetGGXBasis(DualRoughnessData.x, Payload.WorldNormal, Alpha0);
-	GetGGXBasis(DualRoughnessData.y, Payload.WorldNormal, Alpha1);
-
-	V = mul(Basis, V);
-
-	const float NoV = saturate(V.z);
-	const FBxDFEnergyTerms Spec0 = ComputeGGXSpecEnergyTerms(DualRoughnessData.x, NoV, Payload.SpecularColor);
-	const FBxDFEnergyTerms Spec1 = ComputeGGXSpecEnergyTerms(DualRoughnessData.y, NoV, Payload.SpecularColor);
-	const float3 SpecE = lerp(Spec0.E, Spec1.E, DualRoughnessData.z);
-	const float2 LobeCdf = SubsurfaceProfile_LobeCdf(Payload.DiffuseColor, SpecE, DualRoughnessData.z);
-	const float3 LobeProb = float3(LobeCdf.x, LobeCdf.y - LobeCdf.x, 1 - LobeCdf.y);
+	const FSubsurfaceProfileData Data = CreateSubsurfaceProfileData(Payload, V_World);
+	const float3 V = Data.V;
+	const float3 DualRoughnessData = Payload.GetDualRoughnessSpecular();
 
 	// Randomly choose to sample diffuse or specular
+	const bool bSampledDiffuse = RandSample.x < Data.LobeCdf.x;
 	float3 L = 0, H = 0;
 	float OutRoughness = 0;
-	if (RandSample.x < LobeCdf.x)
+	if (bSampledDiffuse)
 	{
-		RandSample.x /= LobeCdf.x;
+		RandSample.x /= Data.LobeCdf.x;
 
-		// Lambert
-		// TODO: evaluate CosineSampleHemisphereConcentric
-		float4 Result = CosineSampleHemisphere(RandSample.xy);
-
-		L = Result.xyz;
+		L = CosineSampleHemisphere(RandSample.xy).xyz;
 		H = normalize(L + V);
 		OutRoughness = 1.0;
 	}
-	else if (RandSample.x < LobeCdf.y)
-	{
-		RandSample.x -= LobeCdf.x;
-		RandSample.x /= LobeCdf.y - LobeCdf.x;
-
-
-		// #dxr_todo: Evaluate UniformSampleDiskConcentric
-		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha0, V).xyz;
-
-		L = reflect(-V, H);
-		if (L.z <= 0)
-		{
-			// invalid output direction, exit early
-			return NullMaterialSample();
-		}
-		OutRoughness = DualRoughnessData.x;
-	}
 	else
 	{
-		RandSample.x -= LobeCdf.y;
-		RandSample.x /= 1 - LobeCdf.y;
+		const bool bUseSpec0 = RandSample.x < Data.LobeCdf.y;
+		if (bUseSpec0)
+		{
+			RandSample.x -= Data.LobeCdf.x;
+			RandSample.x /= Data.LobeCdf.y - Data.LobeCdf.x;
+			OutRoughness = DualRoughnessData.x;
+		}
+		else
+		{
+			RandSample.x -= Data.LobeCdf.y;
+			RandSample.x /= 1.0 - Data.LobeCdf.y;
+			OutRoughness = DualRoughnessData.y;
+		}
 
 
 		// #dxr_todo: Evaluate UniformSampleDiskConcentric
-		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha1, V).xyz;
-
+		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), bUseSpec0 ? Data.Alpha0 : Data.Alpha1, V).xyz;
 		L = reflect(-V, H);
 		if (L.z <= 0)
 		{
 			// invalid output direction, exit early
 			return NullMaterialSample();
 		}
-		OutRoughness = DualRoughnessData.y;
 	}
 
-	// With a valid direction in hand -- now evaluate the BxDF (taking advantage of already computed terms)
-
-	const float3 L_World = normalize(mul(L, Basis));
-
-	const float NoL = saturate(L.z);
-	const float VoH = saturate(dot(V, H));
-
-	float3 OutWeight = 0;
-	float OutPdf = 0;
-
-	// Diffuse Lobe
-	AddLobeWithMIS(OutWeight, OutPdf, Payload.DiffuseColor * (1 - SpecE) * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), NoL / PI, LobeProb.x);
-
-	// Specular lobe
-	const float2 GGXResult0 = GGXEvalReflection(L, V, H, Alpha0);
-	const float2 GGXResult1 = GGXEvalReflection(L, V, H, Alpha1);
-	const float3 F = F_Schlick(Payload.SpecularColor, VoH);
-	AddLobeWithMIS(OutWeight, OutPdf, (1 - DualRoughnessData.z) * F * GGXResult0.x * Spec0.W, GGXResult0.y, LobeProb.y);
-	AddLobeWithMIS(OutWeight, OutPdf, (    DualRoughnessData.z) * F * GGXResult1.x * Spec1.W, GGXResult1.y, LobeProb.z);
-
 	// transform to world space
-	return CreateMaterialSample(L_World, OutWeight, OutPdf, 1.0, OutRoughness);
+	const float3 L_World = normalize(mul(L, Data.Basis));
+
+	FMaterialSample Result = CreateMaterialSample(L_World, 0.0, 0.0, 1.0, OutRoughness, PATHTRACER_SCATTER_DIFFUSE);
+	if (bSampledDiffuse)
+	{
+		// Diffuse Lobe
+		const float NoL = L.z;
+		Result.AddLobeWithMIS(Data.DiffuseWeight * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), NoL / PI, Data.LobePdf.x);
+	}
+	else 
+	{
+		const float VoH = saturate(dot(V, H));
+		// Specular lobes
+		const float2 GGXResult0 = GGXEvalReflection(L, V, H, Data.Alpha0);
+		const float2 GGXResult1 = GGXEvalReflection(L, V, H, Data.Alpha1);
+		const float3 F = F_Schlick(Payload.SpecularColor, VoH);
+		Result.AddLobeWithMIS((1 - DualRoughnessData.z) * F * GGXResult0.x * Data.Spec0.W, GGXResult0.y, Data.LobePdf.y);
+		Result.AddLobeWithMIS((    DualRoughnessData.z) * F * GGXResult1.x * Data.Spec1.W, GGXResult1.y, Data.LobePdf.z);
+		Result.ScatterType = PATHTRACER_SCATTER_SPECULAR;
+	}
+	return Result;
 }

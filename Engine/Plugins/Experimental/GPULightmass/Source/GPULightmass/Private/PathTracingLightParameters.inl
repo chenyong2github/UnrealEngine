@@ -113,7 +113,7 @@ void SetupPathTracingLightParameters(
 		DestLight.dPdv = (FVector3f)Light.Tangent;
 		DestLight.Color = FVector3f(Light.Color);
 		DestLight.Dimensions = FVector2f(Light.SourceRadius, Light.SourceLength);
-		DestLight.Shaping = FVector2f(Light.SpotAngles);
+		DestLight.Shaping = EncodeToF16x2(FVector2f(Light.SpotAngles));
 		DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
 		DestLight.FalloffExponent = Light.FalloffExponent;
 		DestLight.IESAtlasIndex = Light.IESAtlasIndex;
@@ -162,7 +162,7 @@ void SetupPathTracingLightParameters(
 
 		DestLight.Dimensions = FVector2f(Light.SourceWidth, Light.SourceHeight);
 		DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
-		DestLight.Shaping = FVector2f(FMath::Cos(FMath::DegreesToRadians(Light.BarnDoorAngle)), Light.BarnDoorLength);
+		DestLight.Shaping = EncodeToF16x2(FVector2f(FMath::Cos(FMath::DegreesToRadians(Light.BarnDoorAngle)), Light.BarnDoorLength));
 		DestLight.IESAtlasIndex = Light.IESAtlasIndex;
 
 		DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;

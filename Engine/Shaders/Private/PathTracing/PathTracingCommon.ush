@@ -224,6 +224,14 @@ struct FPathTracingPayload : FMinimalPayload
 	void SetHG(float3 Weight, float G) { CustomData0 = float4(Weight, G); }
 
 
+	// Methods used by the integrator
+
+	float GetBSDFOpacity()
+	{
+		// How much should the BSDF components by weighted?
+		return BlendingMode == RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE ? 1.0 : Opacity;
+	}
+
 	bool HasRefraction()
 	{
 		return Ior > 0.0;

@@ -34,6 +34,14 @@
 #define PATHTRACER_MASK_UNUSED	(PATHTRACER_MASK_EMPTY_SLOT1|PATHTRACER_MASK_EMPTY_SLOT2)	
 #define PATHTRACER_MASK_ALL									0xFF
 
+// Constants for light contribution types (AOV decomposition of the image)
+// Leaving all constants enabled creates the beauty image, but turning off some bits allows
+// the path tracer to create an image with only certain components enabled
+#define PATHTRACER_CONTRIBUTION_EMISSIVE                     1
+#define PATHTRACER_CONTRIBUTION_DIFFUSE                      2
+#define PATHTRACER_CONTRIBUTION_SPECULAR                     4
+#define PATHTRACER_CONTRIBUTION_VOLUME                       8
+
 // Constants for the path tracer light grid
 #define PATHTRACER_LIGHT_GRID_SINGULAR_MASK					0x80000000u
 #define PATHTRACER_LIGHT_GRID_LIGHT_COUNT_MASK				0x7FFFFFFFu

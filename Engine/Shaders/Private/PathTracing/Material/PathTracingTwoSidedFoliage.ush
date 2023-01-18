@@ -9,74 +9,84 @@
 #include "PathTracingDefaultLit.ush"
 #include "PathTracingEnergyConservation.ush"
 
-FMaterialSample TwoSidedFoliage_SampleMaterial(
-	float3 RayDirection,
-	FPathTracingPayload Payload,
-	float4 RandSample
-)
+struct FTwoSidedFoliageData
 {
-	const float NoV = saturate(-dot(RayDirection, Payload.WorldNormal));
-	const FBxDFEnergyTerms Spec = ComputeGGXSpecEnergyTerms(Payload.Roughness, NoV, Payload.SpecularColor);
+	float NoV;
+	FBxDFEnergyTermsRGB Spec;
+	float3 Back;
+
+	float ProbT;
+};
+
+FTwoSidedFoliageData PrepareTwoSidedFoliageData(FPathTracingPayload Payload, float3 V_World)
+{
+	FTwoSidedFoliageData Data = (FTwoSidedFoliageData)0;
+	Data.NoV = saturate(dot(V_World, Payload.WorldNormal));
+	Data.Spec = ComputeGGXSpecEnergyTermsRGB(Payload.Roughness, Data.NoV, Payload.SpecularColor);
 
 	// pick back lobe proportionally to its contribution relative to front side
-	const float3 Diff = (1 - Spec.E) * Payload.DiffuseColor;
-	const float3 Back = (1 - Spec.E) * Payload.SubsurfaceColor;
-	float TransmissionSelectionPdf = LobeSelectionProb(Back, Diff + Spec.E);
+	const float3 Diff = (1 - Data.Spec.E) * Payload.DiffuseColor;
+	Data.Back         = (1 - Data.Spec.E) * Payload.SubsurfaceColor;
+	Data.ProbT = LobeSelectionProb(Data.Back, Diff + Data.Spec.E);
 
-	if (RandSample.x < TransmissionSelectionPdf)
+	return Data;
+}
+
+FMaterialSample TwoSidedFoliage_SampleMaterial(
+	float3 V_World,
+	FPathTracingPayload Payload,
+	float3 RandSample
+)
+{
+	const FTwoSidedFoliageData Data = PrepareTwoSidedFoliageData(Payload, V_World);
+	if (RandSample.x < Data.ProbT)
 	{
-		RandSample.x /= TransmissionSelectionPdf;
+		RandSample.x /= Data.ProbT;
 
-		float3 N = Payload.WorldNormal;
+		const float3 N = Payload.WorldNormal;
+		const float4 SampledValue = CosineSampleHemisphere(RandSample.yz);
 
-		float4 SampledValue = CosineSampleHemisphere(RandSample.yz);
-
-		return CreateMaterialSample(TangentToWorld(SampledValue.xyz, -N), Back / TransmissionSelectionPdf, TransmissionSelectionPdf * SampledValue.w, -1.0, 1.0);
+		return CreateMaterialSample(TangentToWorld(SampledValue.xyz, -N), Payload.GetBSDFOpacity() * Data.Back / Data.ProbT, Data.ProbT * SampledValue.w, -1.0, 1.0, PATHTRACER_SCATTER_DIFFUSE);
 	}
 	else
 	{
-		RandSample.x -= TransmissionSelectionPdf;
-		RandSample.x /= 1.0 - TransmissionSelectionPdf;
+		RandSample.x -= Data.ProbT;
+		RandSample.x /= 1.0 - Data.ProbT;
 
-		FMaterialSample Result = DefaultLit_SampleMaterial(RayDirection, Payload, RandSample);
-		Result.Weight /= 1.0 - TransmissionSelectionPdf;
-		Result.Pdf *= 1.0 - TransmissionSelectionPdf;
+		FMaterialSample Result = DefaultLit_SampleMaterial(V_World, Payload, RandSample);
+		Result.Weight /= 1.0 - Data.ProbT;
+		Result.Pdf *= 1.0 - Data.ProbT;
 		return Result;
 	}
 }
 
 FMaterialEval TwoSidedFoliage_EvalMaterial(
-	float3 IncomingDirection,
-	float3 OutgoingDirection,
-	FPathTracingPayload Payload
+	float3 V_World,
+	float3 L_World,
+	FPathTracingPayload Payload,
+	float2 DiffuseSpecularScale
 )
 {
-	const float NoV = saturate(-dot(IncomingDirection, Payload.WorldNormal));
-	const FBxDFEnergyTerms Spec = ComputeGGXSpecEnergyTerms(Payload.Roughness, NoV, Payload.SpecularColor);
+	const FTwoSidedFoliageData Data = PrepareTwoSidedFoliageData(Payload, V_World);
 
-	// pick back lobe proportionally to its contribution relative to front side
-	const float3 Diff = (1 - Spec.E) * Payload.DiffuseColor;
-	const float3 Back = (1 - Spec.E) * Payload.SubsurfaceColor;
-	float TransmissionSelectionPdf = LobeSelectionProb(Back, Diff + Spec.E);
-
-	float3 N = Payload.WorldNormal;
-	float NoL = dot(N, OutgoingDirection);
+	const float3 N = Payload.WorldNormal;
+	const float NoL = dot(N, L_World);
 	if (NoL < 0.0)
 	{
 		// Diffuse transmission (the implementation in TwoSidedBxDF does not appear to be a real BxDF)
 
-		if (TransmissionSelectionPdf > 0)
+		if (Data.ProbT > 0)
 		{
 			float LambertPdf = -NoL / PI;
 
-			return CreateMaterialEval(Back / TransmissionSelectionPdf, TransmissionSelectionPdf * LambertPdf);
+			return CreateMaterialEval(Payload.GetBSDFOpacity() * Data.Back / Data.ProbT * DiffuseSpecularScale.x, Data.ProbT * LambertPdf);
 		}
 	}
-	else if (TransmissionSelectionPdf < 1)
+	else if (Data.ProbT < 1)
 	{
-		FMaterialEval Result = DefaultLit_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
-		Result.Weight /= 1.0 - TransmissionSelectionPdf;
-		Result.Pdf *= 1.0 - TransmissionSelectionPdf;
+		FMaterialEval Result = DefaultLit_EvalMaterial(V_World, L_World, Payload, DiffuseSpecularScale);
+		Result.Weight /= 1.0 - Data.ProbT;
+		Result.Pdf *= 1.0 - Data.ProbT;
 		return Result;
 	}
 	return NullMaterialEval();

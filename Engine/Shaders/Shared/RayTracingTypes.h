@@ -24,7 +24,8 @@ struct FPathTracingLight {
 	float3  dPdv;
 	float3  Color;
 	float2  Dimensions; // Radius,Length or RectWidth,RectHeight or Sin(Angle/2),0 depending on light type
-	float2  Shaping;    // Barndoor controls for RectLights, Cone angles for spots lights
+	uint    Shaping;    // Barndoor controls for RectLights, Cone angles for spots lights, encoded as f16x2
+	float   SpecularScale;
 	float   Attenuation;
 	float   FalloffExponent; // for non-inverse square decay lights only
 	float   VolumetricScatteringIntensity;  // scale for volume contributions
