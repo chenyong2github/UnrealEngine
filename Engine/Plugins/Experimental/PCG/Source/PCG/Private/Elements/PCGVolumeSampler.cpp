@@ -43,6 +43,16 @@ namespace PCGVolumeSampler
 		const int32 MinZ = FMath::CeilToInt(Bounds.Min.Z / VoxelSize.Z);
 		const int32 MaxZ = FMath::FloorToInt(Bounds.Max.Z / VoxelSize.Z);
 
+		if (MinX > MaxX || MinY > MaxY || MinZ > MaxZ)
+		{
+			if (Context)
+			{
+				PCGE_LOG_C(Verbose, Context, "Skipped - invalid cell bounds");
+			}
+
+			return;
+		}
+
 		const int32 NumIterations = (MaxX - MinX) * (MaxY - MinY) * (MaxZ - MinZ);
 
 		FPCGAsync::AsyncPointProcessing(Context, NumIterations, Points, [SpatialData, VoxelSize, MinX, MaxX, MinY, MaxY, MinZ, MaxZ](int32 Index, FPCGPoint& OutPoint)
