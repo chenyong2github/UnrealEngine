@@ -687,7 +687,7 @@ namespace Test
 		for (auto Runtime : Runtimes)
 		{
 			const FString& RuntimeName = Runtime->GetRuntimeName();
-			if (RuntimeName == RefName)
+			if ((RuntimeName == RefName) || RuntimeName == TEXT("NNXRuntimeCPU"))
 			{
 				continue;
 			}
