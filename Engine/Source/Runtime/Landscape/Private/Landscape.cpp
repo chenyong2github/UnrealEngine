@@ -1292,7 +1292,6 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	bUseDynamicMaterialInstance = false;
 #if WITH_EDITORONLY_DATA
 	bLockLocation = true;
-	bIsMovingToLevel = false;
 #endif // WITH_EDITORONLY_DATA
 	ComponentScreenSizeToUseSubSections = 0.65f;
 	LOD0ScreenSize = 0.5f;

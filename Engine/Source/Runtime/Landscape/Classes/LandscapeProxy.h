@@ -646,11 +646,6 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta = (DisplayName = "Desired Max Draw Distance"))
 	float LDMaxDrawDistance;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(transient)
-	uint32 bIsMovingToLevel:1;    // Check for the Move to Current Level case
-#endif // WITH_EDITORONLY_DATA
-
 	/** The Lightmass settings for this object. */
 	UPROPERTY(EditAnywhere, Category=Lightmass)
 	FLightmassPrimitiveSettings LightmassSettings;
@@ -837,8 +832,6 @@ public:
 	virtual void EditorApplyScale(const FVector& DeltaScale, const FVector* PivotLocation, bool bAltDown, bool bShiftDown, bool bCtrlDown) override;
 	virtual void EditorApplyMirror(const FVector& MirrorScale, const FVector& PivotLocation) override;
 	virtual void PostEditMove(bool bFinished) override;
-	virtual bool ShouldImport(FStringView ActorPropString, bool IsMovingLevel) override;
-	virtual bool ShouldExport() override;
 	//~ End AActor Interface
 	virtual uint32 GetDefaultGridSize(UWorld* InWorld) const override { return 1; }
 	virtual FGuid GetGridGuid() const override { return LandscapeGuid; }

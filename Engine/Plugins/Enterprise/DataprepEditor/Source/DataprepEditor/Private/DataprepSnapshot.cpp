@@ -528,6 +528,8 @@ public:
 		return Actor && SelectedActors.Contains(Actor);
 	}
 
+	virtual int32 GetObjectNumber() const override { return SelectedActors.Num(); }
+
 	/** Set of actors marked as selected so they get included in the copy */
 	TSet<const AActor*> SelectedActors;
 };

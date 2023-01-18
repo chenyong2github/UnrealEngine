@@ -38,6 +38,7 @@ public:
 	FExportObjectInnerContext(const bool bIgnoredValue) {};
 
 	virtual ~FExportObjectInnerContext() = default;
+	virtual int32 GetObjectNumber() const { return 0; }
 
 protected:
 	friend class UExporter;
@@ -73,6 +74,7 @@ public:
 	explicit FSelectedActorExportObjectInnerContext(const TArray<AActor*> InSelectedActors);
 
 	virtual bool IsObjectSelected(const UObject* InObj) const override;
+	virtual int32 GetObjectNumber() const override { return SelectedActors.Num(); }
 
 private:
 	void AddSelectedActor(const AActor* InActor);

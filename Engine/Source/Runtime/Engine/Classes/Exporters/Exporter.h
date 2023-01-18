@@ -226,8 +226,9 @@ class UExporter : public UObject
 	 * @param PortFlags - Flags controlling export behavior
 	 * @param bInSelectedOnly - true to export selected only
 	 * @param	ExportRootScope	The scope to create relative paths from, if the PPF_ExportsNotFullyQualified flag is passed in.  If NULL, the package containing the object will be used instead.
+	 * @return true if the export went successfully.
 	 */
-	ENGINE_API static void ExportToOutputDevice( const class FExportObjectInnerContext* Context, UObject* Object, UExporter* InExporter, FOutputDevice& Out, const TCHAR* FileType, int32 Indent, uint32 PortFlags=0, bool bInSelectedOnly=false, UObject* ExportRootScope = NULL);
+	ENGINE_API static bool ExportToOutputDevice( const class FExportObjectInnerContext* Context, UObject* Object, UExporter* InExporter, FOutputDevice& Out, const TCHAR* FileType, int32 Indent, uint32 PortFlags=0, bool bInSelectedOnly=false, UObject* ExportRootScope = NULL);
 
 	struct FExportToFileParams
 	{

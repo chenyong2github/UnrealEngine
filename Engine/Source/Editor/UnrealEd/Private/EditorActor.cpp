@@ -162,14 +162,18 @@ void UUnrealEdEngine::CopyActors(const TArray<AActor*>& InActorsToCopy, UWorld* 
 	// Export the actors.
 	FStringOutputDevice Ar;
 	const FSelectedActorExportObjectInnerContext Context(ActorsToCopy);
-	UExporter::ExportToOutputDevice(&Context, InWorld, NULL, Ar, TEXT("copy"), 0, PPF_DeepCompareInstances | PPF_ExportsNotFullyQualified);
-	if (DestinationData)
+	const bool bExportSucceeded = UExporter::ExportToOutputDevice(&Context, InWorld, NULL, Ar, TEXT("copy"), 0, PPF_DeepCompareInstances | PPF_ExportsNotFullyQualified);
+
+	if (bExportSucceeded)
 	{
-		*DestinationData = MoveTemp(Ar);
-	}
-	else
-	{
-		FPlatformApplicationMisc::ClipboardCopy(*Ar);
+		if (DestinationData)
+		{
+			*DestinationData = MoveTemp(Ar);
+		}
+		else
+		{
+			FPlatformApplicationMisc::ClipboardCopy(*Ar);
+		}
 	}
 }
 

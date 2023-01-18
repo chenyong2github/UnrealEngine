@@ -1228,89 +1228,95 @@ UObject* ULevelFactory::FactoryCreateText
 
 	// Pass 1: Sort out all the properties on the individual actors
 	bool bIsMoveToStreamingLevel =(FCString::Stricmp(Type, TEXT("move")) == 0);
-	for (auto& ActorMapElement : NewActorMap)
 	{
-		AActor* Actor = ActorMapElement.Key;
+		FScopedSlowTask SlowTask(NewActorMap.Num(), LOCTEXT("Importing Actors", "Importing Actors"));
+		SlowTask.MakeDialogDelayed(1.f);
 
-		// Import properties if the new actor is 
-		bool		bActorChanged = false;
-		const FString&	PropText = ActorMapElement.Value;
-		if ( Actor->ShouldImport(FStringView(PropText), bIsMoveToStreamingLevel) )
+		for (auto& ActorMapElement : NewActorMap)
 		{
-			Actor->PreEditChange(nullptr);
-			ImportObjectProperties( (uint8*)Actor, *PropText, Actor->GetClass(), Actor, Actor, Warn, 0, INDEX_NONE, NULL, &ExistingToNewMap );
-			bActorChanged = true;
+			AActor* Actor = ActorMapElement.Key;
 
-			if (GWorld == World)
+			// Import properties if the new actor is 
+			bool		bActorChanged = false;
+			const FString&	PropText = ActorMapElement.Value;
+			if ( Actor->ShouldImport(FStringView(PropText), bIsMoveToStreamingLevel) )
 			{
-				GEditor->SelectActor( Actor, true, false, true );
-			}
-		}
-		else // This actor is new, but rejected to import its properties, so just delete...
-		{
-			Actor->Destroy();
-			continue;
-		}
+				Actor->PreEditChange(nullptr);
+				ImportObjectProperties( (uint8*)Actor, *PropText, Actor->GetClass(), Actor, Actor, Warn, 0, INDEX_NONE, NULL, &ExistingToNewMap );
+				bActorChanged = true;
 
-		// If this is a newly imported brush, validate it.  If it's a newly imported dynamic brush, rebuild it first.
-		// Previously, this just called bspValidateBrush.  However, that caused the dynamic brushes which require a valid BSP tree
-		// to be built to break after being duplicated.  Calling RebuildBrush will rebuild the BSP tree from the imported polygons.
-		ABrush* Brush = Cast<ABrush>(Actor);
-		if( bActorChanged && Brush && Brush->Brush )
-		{
-			const bool bIsStaticBrush = Brush->IsStaticBrush();
-			if( !bIsStaticBrush )
-			{
-				FBSPOps::RebuildBrush( Brush->Brush );
-			}
-
-			FBSPOps::bspValidateBrush(Brush->Brush, true, false);
-		}
-
-		// Copy brushes' model pointers over to their BrushComponent, to keep compatibility with old T3Ds.
-		if( Brush && bActorChanged )
-		{
-			if( Brush->GetBrushComponent() ) // Should always be the case, but not asserting so that old broken content won't crash.
-			{
-				Brush->GetBrushComponent()->Brush = Brush->Brush;
-
-				// We need to avoid duplicating default/ builder brushes. This is done by destroying all brushes that are CSG_Active and are not
-				// the default brush in their respective levels.
-				if( Brush->IsStaticBrush() && Brush->BrushType==Brush_Default )
+				if (GWorld == World)
 				{
-					bool bIsDefaultBrush = false;
-					
-					// Iterate over all levels and compare current actor to the level's default brush.
-					for( int32 LevelIndex=0; LevelIndex<World->GetNumLevels(); LevelIndex++ )
+					GEditor->SelectActor( Actor, true, false, true );
+				}
+			}
+			else // This actor is new, but rejected to import its properties, so just delete...
+			{
+				Actor->Destroy();
+				continue;
+			}
+
+			// If this is a newly imported brush, validate it.  If it's a newly imported dynamic brush, rebuild it first.
+			// Previously, this just called bspValidateBrush.  However, that caused the dynamic brushes which require a valid BSP tree
+			// to be built to break after being duplicated.  Calling RebuildBrush will rebuild the BSP tree from the imported polygons.
+			ABrush* Brush = Cast<ABrush>(Actor);
+			if( bActorChanged && Brush && Brush->Brush )
+			{
+				const bool bIsStaticBrush = Brush->IsStaticBrush();
+				if( !bIsStaticBrush )
+				{
+					FBSPOps::RebuildBrush( Brush->Brush );
+				}
+
+				FBSPOps::bspValidateBrush(Brush->Brush, true, false);
+			}
+
+			// Copy brushes' model pointers over to their BrushComponent, to keep compatibility with old T3Ds.
+			if( Brush && bActorChanged )
+			{
+				if( Brush->GetBrushComponent() ) // Should always be the case, but not asserting so that old broken content won't crash.
+				{
+					Brush->GetBrushComponent()->Brush = Brush->Brush;
+
+					// We need to avoid duplicating default/ builder brushes. This is done by destroying all brushes that are CSG_Active and are not
+					// the default brush in their respective levels.
+					if( Brush->IsStaticBrush() && Brush->BrushType==Brush_Default )
 					{
-						ULevel* Level = World->GetLevel(LevelIndex);
-						if(Level->GetDefaultBrush() == Brush)
+						bool bIsDefaultBrush = false;
+						
+						// Iterate over all levels and compare current actor to the level's default brush.
+						for( int32 LevelIndex=0; LevelIndex<World->GetNumLevels(); LevelIndex++ )
 						{
-							bIsDefaultBrush = true;
-							break;
+							ULevel* Level = World->GetLevel(LevelIndex);
+							if(Level->GetDefaultBrush() == Brush)
+							{
+								bIsDefaultBrush = true;
+								break;
+							}
 						}
-					}
 
-					// Destroy actor if it's a builder brush but not the default brush in any of the currently loaded levels.
-					if( !bIsDefaultBrush )
-					{
-						World->DestroyActor( Brush );
+						// Destroy actor if it's a builder brush but not the default brush in any of the currently loaded levels.
+						if( !bIsDefaultBrush )
+						{
+							World->DestroyActor( Brush );
 
-						// Since the actor has been destroyed, skip the rest of this iteration of the loop.
-						continue;
+							// Since the actor has been destroyed, skip the rest of this iteration of the loop.
+							continue;
+						}
 					}
 				}
 			}
-		}
-		
-		// If the actor was imported . . .
-		if( bActorChanged )
-		{
-			// Let the actor deal with having been imported, if desired.
-			Actor->PostEditImport();
+			
+			// If the actor was imported . . .
+			if( bActorChanged )
+			{
+				// Let the actor deal with having been imported, if desired.
+				Actor->PostEditImport();
 
-			// Notify actor its properties have changed.
-			Actor->PostEditChange();
+				// Notify actor its properties have changed.
+				Actor->PostEditChange();
+			}
+			SlowTask.EnterProgressFrame();
 		}
 	}
 

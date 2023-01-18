@@ -163,7 +163,7 @@ bool UExporter::ExportToArchive( UObject* Object, UExporter* InExporter, FArchiv
 }
 
 
-void UExporter::ExportToOutputDevice(const FExportObjectInnerContext* Context, UObject* Object, UExporter* InExporter, FOutputDevice& Out, const TCHAR* FileType, int32 Indent, uint32 PortFlags, bool bInSelectedOnly, UObject* ExportRootScope)
+bool UExporter::ExportToOutputDevice(const FExportObjectInnerContext* Context, UObject* Object, UExporter* InExporter, FOutputDevice& Out, const TCHAR* FileType, int32 Indent, uint32 PortFlags, bool bInSelectedOnly, UObject* ExportRootScope)
 {
 	check(Object);
 	UExporter* Exporter = InExporter;
@@ -174,7 +174,7 @@ void UExporter::ExportToOutputDevice(const FExportObjectInnerContext* Context, U
 	if( !Exporter )
 	{
 		UE_LOG(LogExporter, Warning, TEXT("No %s exporter found for %s"), FileType, *Object->GetFullName() );
-		return;
+		return false;
 	}
 	check(Object->IsA(Exporter->SupportedClass));
 	int32 SavedIndent = Exporter->TextIndent;
@@ -196,8 +196,10 @@ void UExporter::ExportToOutputDevice(const FExportObjectInnerContext* Context, U
 		PortFlags |= PPF_Copy;
 	}
 
-	Exporter->ExportText( Context, Object, FileType, Out, GWarn, PortFlags );
+	const bool bSuccess = Exporter->ExportText( Context, Object, FileType, Out, GWarn, PortFlags );
 	Exporter->TextIndent = SavedIndent;
+
+	return bSuccess;
 }
 
 

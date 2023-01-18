@@ -14,6 +14,7 @@
 #include "Misc/OutputDeviceFile.h"
 #include "UObject/Object.h"
 #include "UObject/UObjectIterator.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Misc/TextBuffer.h"
 #include "UObject/Package.h"
 #include "Engine/EngineTypes.h"
@@ -521,9 +522,18 @@ bool ULevelExporterT3D::ExportText( const FExportObjectInnerContext* Context, UO
 
 	TextIndent += 3;
 
+	const int32 ActorNumberToCopy = bAllActors ? Level->Actors.Num() : Context->GetObjectNumber();
+	FScopedSlowTask SlowTask(ActorNumberToCopy, NSLOCTEXT("UnrealEd", "ExportingActors", "Exporting Actors"));
+	const bool bShowCancelButton = true;
+	SlowTask.MakeDialogDelayed(1.f, bShowCancelButton);
+
 	// loop through all of the actors just in this level
 	for (AActor* Actor : Level->Actors)
 	{
+		if (SlowTask.ShouldCancel())
+		{
+			break;
+		}
 		// Don't export the default physics volume, as it doesn't have a UModel associated with it
 		// and thus will not import properly.
 		if ( Actor == DefaultPhysicsVolume )
@@ -569,6 +579,8 @@ bool ULevelExporterT3D::ExportText( const FExportObjectInnerContext* Context, UO
 			{
 				GEditor->GetSelectedActors()->Deselect(Actor);
 			}
+
+			SlowTask.EnterProgressFrame();
 		}
 	}
 
@@ -606,7 +618,7 @@ bool ULevelExporterT3D::ExportText( const FExportObjectInnerContext* Context, UO
 	Ar.Logf( TEXT("%sEnd Map\r\n"), FCString::Spc(TextIndent) );
 
 
-	return 1;
+	return !SlowTask.ShouldCancel();
 }
 
 void ULevelExporterT3D::ExportComponentExtra(const FExportObjectInnerContext* Context, const TArray<UActorComponent*>& Components, FOutputDevice& Ar, uint32 PortFlags)

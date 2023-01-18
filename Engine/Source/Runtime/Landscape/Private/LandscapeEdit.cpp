@@ -6824,45 +6824,7 @@ void ULandscapeComponent::InitWeightmapData(TArray<ULandscapeLayerInfoObject*>& 
 	//  TODO: need to update layer system?
 }
 
-#define MAX_LANDSCAPE_EXPORT_COMPONENTS_NUM		16
-#define MAX_LANDSCAPE_PROP_TEXT_LENGTH			1024*1024*16
 
-bool ALandscapeProxy::ShouldExport()
-{
-	if (!bIsMovingToLevel && LandscapeComponents.Num() > MAX_LANDSCAPE_EXPORT_COMPONENTS_NUM)
-	{
-		// Prompt to save startup packages
-		if (EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(
-			NSLOCTEXT("UnrealEd", "LandscapeExport_Warning", "Landscape has large number({0}) of components, so it will use large amount memory to copy it to the clipboard. Do you want to proceed?"), FText::AsNumber(LandscapeComponents.Num()))))
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-bool ALandscapeProxy::ShouldImport(FStringView ActorPropString, bool IsMovingToLevel)
-{
-	bIsMovingToLevel = IsMovingToLevel;
-	if (!bIsMovingToLevel && ActorPropString.Len() > MAX_LANDSCAPE_PROP_TEXT_LENGTH)
-	{
-		// Prompt to save startup packages
-		if (EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(
-			NSLOCTEXT("UnrealEd", "LandscapeImport_Warning", "Landscape is about to import large amount memory ({0}MB) from the clipboard, which will take some time. Do you want to proceed?"), FText::AsNumber(ActorPropString.Len() >> 20))))
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-	return true;
-}
 
 bool ALandscapeStreamingProxy::IsValidLandscapeActor(ALandscape* Landscape)
 {

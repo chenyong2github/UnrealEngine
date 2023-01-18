@@ -3602,12 +3602,6 @@ void UEditorEngine::CopySelectedActorsToClipboard( UWorld* InWorld, bool bShould
 					delete Job;
 				}
 
-				// Clean-up flag for Landscape Proxy cases...
-				for( TActorIterator<ALandscapeProxy> ProxyIt(InWorld); ProxyIt; ++ProxyIt )
-				{
-					ProxyIt->bIsMovingToLevel = false;
-				}
-
 				BufferLevel->ClearLevelComponents();
 				InWorld->RemoveLevel( BufferLevel );
 				BufferLevel->OwningWorld = NULL;
