@@ -5,7 +5,14 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneConstrainedSection)
 
 
-IMovieSceneConstrainedSection::IMovieSceneConstrainedSection()
+IMovieSceneConstrainedSection::IMovieSceneConstrainedSection() : bDoNotRemoveChannel(false)
 {
 }
+
+
+void IMovieSceneConstrainedSection::SetDoNoRemoveChannel(bool bInDoNotRemoveChannel)
+{
+	bDoNotRemoveChannel = bInDoNotRemoveChannel;
+}
+
 

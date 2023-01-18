@@ -226,12 +226,12 @@ UTickableConstraint* UTickableTransformConstraint::Duplicate(UObject* NewOuter) 
 	UTickableTransformConstraint* Dup = DuplicateObject<UTickableTransformConstraint>(this, NewOuter);
 	if (ChildTRSHandle)
 	{
-		UTransformableHandle* HandleCopy = ChildTRSHandle->Duplicate(NewOuter);
+		UTransformableHandle* HandleCopy = ChildTRSHandle->Duplicate(Dup);
 		Dup->ChildTRSHandle = HandleCopy;
 	}
 	if (ParentTRSHandle)
 	{
-		UTransformableHandle* HandleCopy = ParentTRSHandle->Duplicate(NewOuter);
+		UTransformableHandle* HandleCopy = ParentTRSHandle->Duplicate(Dup);
 		Dup->ParentTRSHandle = HandleCopy;
 	}
 	Dup->SetupDependencies();

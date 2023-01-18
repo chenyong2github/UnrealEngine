@@ -77,7 +77,6 @@ struct FConstraintComponentData
 
 	UPROPERTY()
 	FName ConstraintName;
-	FConstraintAndActiveChannel* ConstraintAndActiveChannel;
 	UMovieScene3DTransformSection* Section;
 };
 

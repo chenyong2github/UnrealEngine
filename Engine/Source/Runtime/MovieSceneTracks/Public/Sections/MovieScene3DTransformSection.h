@@ -225,7 +225,7 @@ public:
 #if WITH_EDITOR
 	/* From UObject*/
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
-
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 #endif
 	/* From UMovieSection*/
 	
@@ -344,7 +344,7 @@ public:
 	/*
 	*  Remove Constraint channel
 	*/
-	virtual void RemoveConstraintChannel(const FName& InConstraintName) override;
+	virtual void RemoveConstraintChannel(const UTickableConstraint* InConstraint) override;
 
 	/*
 	*  Get The channels by value
@@ -354,7 +354,7 @@ public:
 	/*
 	*  Replace the constraint with the specified name with the new one
 	*/
-	virtual void ReplaceConstraint(const FName InName, UTickableConstraint* InConstraint)  override;
+	virtual void ReplaceConstraint(const FName InConstraintName, UTickableConstraint* InConstraint)  override;
 
 	/*
 	* Clear proxy if changed

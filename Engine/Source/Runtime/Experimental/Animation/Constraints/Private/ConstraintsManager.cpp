@@ -466,6 +466,7 @@ UTickableConstraint* FConstraintsManagerController::AddConstraintFromCopy(UTicka
 	}
 
 	UTickableConstraint* OurCopy = CopyOfConstraint->Duplicate(Manager);
+	OurCopy->SetActive(false); //always set false
 	if (AddConstraint(OurCopy))
 	{
 		return OurCopy;
@@ -488,6 +489,25 @@ int32 FConstraintsManagerController::GetConstraintIndex(const FName& InConstrain
 	} );
 }
 	
+bool FConstraintsManagerController::RemoveConstraint(UTickableConstraint* InConstraint, bool bDoNotCompensate) const
+{
+	const UConstraintsManager* Manager = FindManager();
+	if (!Manager)
+	{
+		return false;
+	}
+
+	int32 Index = Manager->Constraints.IndexOfByPredicate([InConstraint](const TObjectPtr<UTickableConstraint>& Constraint)
+		{
+			return 	(Constraint && Constraint == InConstraint);
+		});
+	if (Index == INDEX_NONE)
+	{
+		return false;
+	}
+	return RemoveConstraint(Index, bDoNotCompensate);
+}
+
 bool  FConstraintsManagerController::RemoveConstraint(const FName& InConstraintName, bool bDoNotCompensate) const
 {
 	const int32 Index = GetConstraintIndex(InConstraintName);

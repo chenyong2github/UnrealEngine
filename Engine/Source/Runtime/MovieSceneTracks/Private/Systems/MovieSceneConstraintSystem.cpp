@@ -16,41 +16,131 @@
 #include "Systems/MovieSceneComponentTransformSystem.h"
 #include "TransformConstraint.h"
 #include "TransformableHandle.h"
+#include "Sections/MovieSceneConstrainedSection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneConstraintSystem)
 
 class UTickableConstraint;
+
+
+UTickableConstraint* CreateConstraintIfNeeded(FConstraintsManagerController& Controller, FConstraintAndActiveChannel* ConstraintAndActiveChannel,const  FConstraintComponentData& ConstraintChannel)
+{
+	if (ConstraintAndActiveChannel->Constraint.IsPending())
+	{
+		ConstraintAndActiveChannel->Constraint.LoadSynchronous();
+	}
+	UTickableConstraint* Constraint = ConstraintAndActiveChannel->Constraint.Get();
+	if (!Constraint) //if constraint doesn't exist it probably got unspawned so recreate it and add it
+	{
+		Constraint = Controller.AddConstraintFromCopy(ConstraintAndActiveChannel->ConstraintCopyToSpawn);
+		ConstraintChannel.Section->ReplaceConstraint(ConstraintChannel.ConstraintName, Constraint);
+	}
+	else // it's possible that we have it but it's not in the manager, due to manager not being saved with it (due to spawning or undo/redo).
+	{
+		const TArray< TObjectPtr<UTickableConstraint>>& ConstraintsArray = Controller.GetConstraintsArray();
+		if (ConstraintsArray.Find(Constraint) == INDEX_NONE)
+		{
+			Controller.AddConstraint(Constraint);
+		}
+	}
+	return Constraint;
+}
+
 
 namespace UE::MovieScene
 {
 
 struct FPreAnimatedConstraint
 {
-	TWeakObjectPtr<UTickableConstraint> WeakConstraint;
+	FName ConstraintName;
+	bool bDeleteIt;
 	bool bPreviouslyEnabled;
+	TWeakObjectPtr<USceneComponent> SceneComponent;
+	TWeakObjectPtr<UMovieScene3DTransformSection> Section;
 };
 
 struct FPreAnimatedConstraintTraits : FBoundObjectPreAnimatedStateTraits
 {
-	using KeyType = TTuple<FObjectKey, FName>;
+	/** Key type that stores pre-animated state associated with the object and its constraint name */
+	struct FKeyType
+	{
+		FObjectKey Object;
+		FName ConstraintName;
+
+		/** Constructor that takes a BoundObject and ConstraintChannel component */
+		FKeyType(UObject* InObject, const FConstraintComponentData& ComponentData)
+			: Object(InObject)
+			, ConstraintName(ComponentData.ConstraintName)
+		{}
+
+		/** Hashing and equality required for storage within a map */
+		friend uint32 GetTypeHash(const FKeyType& InKey)
+		{
+			return HashCombine(GetTypeHash(InKey.Object), GetTypeHash(InKey.ConstraintName));
+		}
+		friend bool operator==(const FKeyType& A, const FKeyType& B)
+		{
+			return A.Object == B.Object && A.ConstraintName == B.ConstraintName;
+		}
+	};
+
+	using KeyType = FKeyType;
 	using StorageType = FPreAnimatedConstraint;
 
-	static FPreAnimatedConstraint CachePreAnimatedValue(UObject* InBoundObject, const FName& ConstraintName)
+	static FPreAnimatedConstraint CachePreAnimatedValue(UObject* InBoundObject, const FConstraintComponentData& ConstraintData)
 	{
 		USceneComponent* SceneComponent = CastChecked<USceneComponent>(InBoundObject);
 		FConstraintsManagerController& Controller = FConstraintsManagerController::Get(SceneComponent->GetWorld());
-
-		// @todo: I don't know how to store pre-animated values - do we need to enable/disable constraints or add/remove them?
-		//        Maybe we just need to also cache some other state other than Constraint->Active
-		UTickableConstraint* Constraint = Controller.GetConstraint(ConstraintName);
-		return FPreAnimatedConstraint{ Constraint, Constraint ? Constraint->Active : false };
+		if (FConstraintAndActiveChannel* ConstraintAndActiveChannel = ConstraintData.Section->GetConstraintChannel(ConstraintData.ConstraintName))
+		{
+			if (ConstraintAndActiveChannel->Constraint.IsPending())
+			{
+				ConstraintAndActiveChannel->Constraint.LoadSynchronous();
+			}
+			UTickableConstraint* Constraint = ConstraintAndActiveChannel->Constraint.Get();
+			const bool bIsActive = Constraint ? Constraint->Active : false;
+			const FName Name = Constraint ? Constraint->GetFName() : ConstraintData.ConstraintName;
+			//also need to create it
+			CreateConstraintIfNeeded(Controller, ConstraintAndActiveChannel, ConstraintData);
+			return FPreAnimatedConstraint{ Name, (Constraint == nullptr), bIsActive, SceneComponent, ConstraintData.Section };
+		}
+		return FPreAnimatedConstraint{ ConstraintData.ConstraintName, false,false, SceneComponent, ConstraintData.Section };
 	}
 
-	static void RestorePreAnimatedValue(const TTuple<FObjectKey, FName>& InKey, const FPreAnimatedConstraint& OldValue, const FRestoreStateParams& Params)
+	static void RestorePreAnimatedValue(const FKeyType& InKey, const FPreAnimatedConstraint& OldValue, const FRestoreStateParams& Params)
 	{
-		if (UTickableConstraint* Constraint = OldValue.WeakConstraint.Get())
+		if (USceneComponent* SceneComponent = OldValue.SceneComponent.Get())
 		{
-			Constraint->SetActive(OldValue.bPreviouslyEnabled);
+			if (FConstraintAndActiveChannel* ConstraintAndActiveChannel = OldValue.Section->GetConstraintChannel(OldValue.ConstraintName))
+			{				
+				if (ConstraintAndActiveChannel->Constraint.IsPending())
+				{
+					ConstraintAndActiveChannel->Constraint.LoadSynchronous();
+				}
+				UTickableConstraint* Constraint = ConstraintAndActiveChannel->Constraint.Get();
+				if (Constraint)
+				{
+					Constraint->SetActive(OldValue.bPreviouslyEnabled);
+
+					//we don't delete it since for some reason on first creation we get a restore state and so it immediately get's deleted
+					if (OldValue.bDeleteIt)
+					{
+						UMovieScene3DTransformSection* ConstrainedSection = OldValue.Section.Get();
+						if (ConstrainedSection)
+						{
+							ConstrainedSection->SetDoNoRemoveChannel(true);
+						}
+						FConstraintsManagerController& Controller = FConstraintsManagerController::Get(SceneComponent->GetWorld());
+						Controller.RemoveConstraint(Constraint, true);
+
+						if (ConstrainedSection)
+						{
+							ConstrainedSection->SetDoNoRemoveChannel(false);
+						}
+					}
+				
+				}
+			}
 		}
 	}
 };
@@ -97,10 +187,12 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 	if (CurrentPhase == ESystemPhase::Instantiation)
 	{
 		// Save pre-animated state
-		//TSharedPtr<FPreAnimatedConstraintStorage> PreAnimatedStorage = Linker->PreAnimatedState.GetOrCreateStorage<FPreAnimatedConstraintStorage>();
+		TSharedPtr<FPreAnimatedConstraintStorage> PreAnimatedStorage = Linker->PreAnimatedState.GetOrCreateStorage<FPreAnimatedConstraintStorage>();
 
-		//andrew, had to remove this, last parameter not the correct variadic type
-		//PreAnimatedStorage->BeginTrackingAndCachePreAnimatedValues(Linker, BuiltInComponents->BoundObject, TracksComponents->ConstraintName);	
+		FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+		PreAnimatedStorage->BeginTrackingAndCachePreAnimatedValues(Linker, BuiltInComponents->BoundObject, TracksComponents->ConstraintChannel);
+
 	}
 	else if (CurrentPhase == ESystemPhase::Evaluation)
 	{
@@ -115,40 +207,27 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 			void ForEachEntity(UObject* BoundObject, UE::MovieScene::FInstanceHandle InstanceHandle, const FConstraintComponentData& ConstraintChannel, FFrameTime FrameTime)
 			{
 				const FSequenceInstance& TargetInstance = InstanceRegistry->GetInstance(InstanceHandle);
+				if (FConstraintAndActiveChannel* ConstraintAndActiveChannel = ConstraintChannel.Section->GetConstraintChannel(ConstraintChannel.ConstraintName))
+				{
+					UTickableConstraint* Constraint = CreateConstraintIfNeeded(*Controller, ConstraintAndActiveChannel, ConstraintChannel);
 
-				if (ConstraintChannel.ConstraintAndActiveChannel->Constraint.IsPending())
-				{
-					ConstraintChannel.ConstraintAndActiveChannel->Constraint.LoadSynchronous();
-				}
-				UTickableConstraint* Constraint = ConstraintChannel.ConstraintAndActiveChannel->Constraint.Get();
-				if (!Constraint) //if constraint doesn't exist it probably got unspawned so recreate it and add it
-				{
-					UTickableConstraint* NewOne = Controller->AddConstraintFromCopy(ConstraintChannel.ConstraintAndActiveChannel->ConstraintCopyToSpawn);
-					Constraint = Controller->GetConstraint(ConstraintChannel.ConstraintName);
-					ConstraintChannel.Section->ReplaceConstraint(ConstraintChannel.ConstraintName, Constraint);
-				}
-				else // it's possible that we have it but it's not in the manager, due to manager not being saved with it (due to spawning or undo/redo).
-				{
-					const TArray< TObjectPtr<UTickableConstraint>>& ConstraintsArray = Controller->GetConstraintsArray();
-					if(ConstraintsArray.Find(Constraint) == INDEX_NONE)
+					if (Constraint)
 					{
-						Controller->AddConstraint(Constraint);
-					}
-				}
-				if (Constraint)
-				{
-					bool Result = false;
-					ConstraintChannel.ConstraintAndActiveChannel->ActiveChannel.Evaluate(FrameTime, Result);
-					Constraint->SetActive(Result);
-					Constraint->ResolveBoundObjects(TargetInstance.GetSequenceID(), *TargetInstance.GetPlayer());
-					if (UTickableTransformConstraint* TransformConstraint = Cast< UTickableTransformConstraint>(Constraint))
-					{
-						if (UTransformableComponentHandle* ComponentHandle = Cast<UTransformableComponentHandle>(TransformConstraint->ChildTRSHandle))
+						bool Result = false;
+						ConstraintAndActiveChannel->ActiveChannel.Evaluate(FrameTime, Result);
+						Constraint->SetActive(Result);
+						Constraint->ResolveBoundObjects(TargetInstance.GetSequenceID(), *TargetInstance.GetPlayer());
+						if (UTickableTransformConstraint* TransformConstraint = Cast< UTickableTransformConstraint>(Constraint))
 						{
-							FUpdateHandleForConstraint UpdateHandle;
-							UpdateHandle.Constraint = TransformConstraint;
-							UpdateHandle.TransformHandle = ComponentHandle;
-							System->DynamicOffsets.Add(UpdateHandle);
+							if (UTransformableComponentHandle* ComponentHandle = Cast<UTransformableComponentHandle>(TransformConstraint->ChildTRSHandle))
+							{
+								//bound component may change so need to update constraint
+								ComponentHandle->Component = Cast<USceneComponent>(BoundObject);
+								FUpdateHandleForConstraint UpdateHandle;
+								UpdateHandle.Constraint = TransformConstraint;
+								UpdateHandle.TransformHandle = ComponentHandle;
+								System->DynamicOffsets.Add(UpdateHandle);
+							}
 						}
 					}
 				}
@@ -179,6 +258,3 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 		DynamicOffsets.Reset();
 	}
 }
-
-
-

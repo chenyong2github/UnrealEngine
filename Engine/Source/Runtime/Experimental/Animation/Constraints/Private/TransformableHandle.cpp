@@ -543,7 +543,7 @@ void UTransformableComponentHandle::ResolveBoundObjects(FMovieSceneSequenceID Lo
 
 UTransformableHandle* UTransformableComponentHandle::Duplicate(UObject* NewOuter) const
 {
-	UTransformableComponentHandle* HandleCopy = DuplicateObject<UTransformableComponentHandle>(this, NewOuter, GetFName());
+	UTransformableComponentHandle* HandleCopy = DuplicateObject<UTransformableComponentHandle>(this, NewOuter);
 	HandleCopy->Component = Component;
 	HandleCopy->SocketName = SocketName;
 	return HandleCopy;

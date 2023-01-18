@@ -975,9 +975,28 @@ void UMovieSceneControlRigParameterSection::SetBlendType(EMovieSceneBlendType In
 void UMovieSceneControlRigParameterSection::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
-
 }
- 
+#if WITH_EDITOR
+void UMovieSceneControlRigParameterSection::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+	//if not duplicating for PIE clear out the soft object ptrs to the constraints we dont' want to hold pointers to the old constraints.
+	//also make the copy to spawn so we can duplicate it if it doesn't exist in the level
+	//to the old ones but make new duplicates
+	if (bDuplicateForPIE == false)
+	{
+		for (FConstraintAndActiveChannel& ConstraintChannel : ConstraintsChannels)
+		{
+			if (ConstraintChannel.Constraint.IsValid() && !ConstraintChannel.ConstraintCopyToSpawn)
+			{
+				ConstraintChannel.ConstraintCopyToSpawn = ConstraintChannel.Constraint->Duplicate(this);
+			}
+			ConstraintChannel.Constraint.Reset();
+		}
+	}
+}
+#endif
+
 void UMovieSceneControlRigParameterSection::PostEditImport()
 {
 	Super::PostEditImport();
@@ -1417,9 +1436,10 @@ bool UMovieSceneControlRigParameterSection::HasConstraintChannel(const FName& In
 FConstraintAndActiveChannel* UMovieSceneControlRigParameterSection::GetConstraintChannel(const FName& InConstraintName)
 {
 	const int32 Index = ConstraintsChannels.IndexOfByPredicate([InConstraintName](const FConstraintAndActiveChannel& InChannel)
-	{
-		return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : false;
-	});
+		{
+			return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : (InChannel.ConstraintCopyToSpawn ?
+			InChannel.ConstraintCopyToSpawn->GetFName() == InConstraintName : false);
+		});
 	return (Index != INDEX_NONE) ? &ConstraintsChannels[Index] : nullptr;	
 }
 
@@ -1467,11 +1487,15 @@ void UMovieSceneControlRigParameterSection::AddConstraintChannel(UTickableConstr
 	}
 }
 
-void UMovieSceneControlRigParameterSection::RemoveConstraintChannel(const FName& InConstraintName)
+void UMovieSceneControlRigParameterSection::RemoveConstraintChannel(const UTickableConstraint* InConstraint)
 {
-	const int32 Index = ConstraintsChannels.IndexOfByPredicate([InConstraintName](const FConstraintAndActiveChannel& InChannel)
+	if (bDoNotRemoveChannel == true)
 	{
-		return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : false;
+		return;
+	}
+	const int32 Index = ConstraintsChannels.IndexOfByPredicate([InConstraint](const FConstraintAndActiveChannel& InChannel)
+	{
+		return InChannel.Constraint.IsValid() ? InChannel.Constraint == InConstraint : false;
 	});
 
 	if (ConstraintsChannels.IsValidIndex(Index))

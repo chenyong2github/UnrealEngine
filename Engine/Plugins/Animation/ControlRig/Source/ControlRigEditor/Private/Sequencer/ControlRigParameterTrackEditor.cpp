@@ -2780,9 +2780,8 @@ void FControlRigParameterTrackEditor::HandleConstraintRemoved(IMovieSceneConstra
 								return;
 							}
 
-							const FName ConstraintName = Constraint->GetFName();
-							const FConstraintAndActiveChannel* ConstraintChannel = InSection->GetConstraintChannel(ConstraintName);
-							if (!ConstraintChannel)
+							const FConstraintAndActiveChannel* ConstraintChannel = InSection->GetConstraintChannel(Constraint->GetFName());
+							if (!ConstraintChannel || ConstraintChannel->Constraint != Constraint)
 							{
 								return;
 							}
@@ -2797,7 +2796,7 @@ void FControlRigParameterTrackEditor::HandleConstraintRemoved(IMovieSceneConstra
 									Section);
 							}
 
-							InSection->RemoveConstraintChannel(ConstraintName);
+							InSection->RemoveConstraintChannel(Constraint);
 						}
 						break;
 					case EConstraintsManagerNotifyType::ManagerUpdated:
@@ -4668,7 +4667,7 @@ bool FControlRigParameterSection::RequestDeleteCategory(const TArray<FName>& Cat
 		{
 			if (ParameterSection->TryModify())
 			{
-				ParameterSection->RemoveConstraintChannel(Channel);
+				ParameterSection->RemoveConstraintChannel(ConstraintChannel->Constraint.Get());
 				SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 				return true;
 			}

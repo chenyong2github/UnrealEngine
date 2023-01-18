@@ -231,6 +231,9 @@ public:
 	/** Remove the constraint at the given index. */
 	bool RemoveConstraint(const int32 InConstraintIndex, bool bDoNotCompensate = false) const;
 
+	/** Remove constraint by ptr*/
+	bool RemoveConstraint(UTickableConstraint* InConstraint, bool bDoNotCompensate = false) const;
+
 	/** Returns the constraint based on it's name within the manager's constraints array. */
 	UTickableConstraint* GetConstraint(const FName& InConstraintName) const;
 

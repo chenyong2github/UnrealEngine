@@ -280,7 +280,7 @@ public:
 	/*
 	*  Remove Constraint channel
 	*/
-	virtual void RemoveConstraintChannel(const FName& InConstraintName) override;
+	virtual void RemoveConstraintChannel(const UTickableConstraint* InConstraint) override;
 
 	/*
 	*  Get The channels
@@ -290,7 +290,7 @@ public:
 	/*
 	*  Replace the constraint with the specified name with the new one
 	*/
-	virtual void ReplaceConstraint(const FName InName, UTickableConstraint* InConstraint)  override;
+	virtual void ReplaceConstraint(const FName InConstraintName, UTickableConstraint* InConstraint)  override;
 
 	/*
 	*  What to do if the constraint object has been changed, for example by an undo or redo.
@@ -502,6 +502,10 @@ protected:
 	virtual void OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player) override;
 	virtual void GetReferencedBindings(TArray<FGuid>& OutBindings) override;
 	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
+
+#if WITH_EDITOR
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+#endif
 
 
 	// When true we do not set a key on the section, since it will be set because we changed the value

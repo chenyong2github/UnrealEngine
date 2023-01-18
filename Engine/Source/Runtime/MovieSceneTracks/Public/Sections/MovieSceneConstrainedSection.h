@@ -55,7 +55,7 @@ public:
 	/*
 	*  Remove Constraint channel
 	*/
-	virtual void RemoveConstraintChannel(const FName& InConstraintName) = 0;
+	virtual void RemoveConstraintChannel(const UTickableConstraint* InConstraint) = 0;
 
 	/*
 	*  Get The channels
@@ -65,7 +65,7 @@ public:
 	/*
 	*  Replace the constraint with the specified name with the new one
 	*/
-	virtual void ReplaceConstraint(const FName InName, UTickableConstraint* InConstraint) = 0;
+	virtual void ReplaceConstraint(const FName InConstraintName, UTickableConstraint* InConstraint) = 0;
 
 	/*
 	* Added Delegate
@@ -78,6 +78,11 @@ public:
 	 virtual void OnConstraintsChanged() {};
 
 	/*
+	*  SetToNotRemoveChannel when we are told a constraint is removed, we need this sometimes sincet his will be destructive
+	*/
+	 void SetDoNoRemoveChannel(bool bInDoNotRemoveChannel);
+
+	/*
 	*  Removed delegate that get's added by the track editor
 	*/
 	FDelegateHandle OnConstraintRemovedHandle;
@@ -86,6 +91,6 @@ public:
 protected:
 
 	FConstraintChannelAddedEvent OnConstraintChannelAdded;
-
+	bool bDoNotRemoveChannel = false;
 
 };

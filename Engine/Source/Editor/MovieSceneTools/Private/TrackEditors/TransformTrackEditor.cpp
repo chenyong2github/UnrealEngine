@@ -1540,9 +1540,8 @@ void F3DTransformTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSect
 									return;
 								}
 
-								const FName ConstraintName = Constraint->GetFName();
-								const FConstraintAndActiveChannel* ConstraintChannel = InSection->GetConstraintChannel(ConstraintName);
-								if (!ConstraintChannel)
+								const FConstraintAndActiveChannel* ConstraintChannel = InSection->GetConstraintChannel(Constraint->GetFName());
+								if (!ConstraintChannel || ConstraintChannel->Constraint != Constraint)
 								{
 									return;
 								}
@@ -1557,7 +1556,7 @@ void F3DTransformTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSect
 										Section);
 								}
 
-								InSection->RemoveConstraintChannel(ConstraintName);
+								InSection->RemoveConstraintChannel(Constraint);
 							}
 							break;
 						case EConstraintsManagerNotifyType::ManagerUpdated:
