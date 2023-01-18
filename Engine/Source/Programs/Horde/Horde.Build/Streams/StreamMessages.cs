@@ -273,7 +273,8 @@ namespace Horde.Build.Streams
 		/// <param name="templateRef">The template ref</param>
 		/// <param name="template">The actual template</param>
 		/// <param name="stepStates">The template step states</param>
-		public GetTemplateRefResponse(TemplateId id, ITemplateRef templateRef, ITemplate template, List<GetTemplateStepStateResponse>? stepStates)
+		/// <param name="schedulerTimeZone">The scheduler time zone</param>
+		public GetTemplateRefResponse(TemplateId id, ITemplateRef templateRef, ITemplate template, List<GetTemplateStepStateResponse>? stepStates, TimeZoneInfo schedulerTimeZone)
 			: base(template)
 		{
 			Id = id.ToString();
@@ -282,7 +283,7 @@ namespace Horde.Build.Streams
 			ShowUgsAlerts = templateRef.Config.ShowUgsAlerts;
 			NotificationChannel = templateRef.Config.NotificationChannel;
 			NotificationChannelFilter = templateRef.Config.NotificationChannelFilter;
-			Schedule = (templateRef.Schedule != null) ? new GetScheduleResponse(templateRef.Schedule) : null;
+			Schedule = (templateRef.Schedule != null) ? new GetScheduleResponse(templateRef.Schedule, schedulerTimeZone) : null;
 			ChainedJobs = (templateRef.Config.ChainedJobs != null && templateRef.Config.ChainedJobs.Count > 0) ? templateRef.Config.ChainedJobs : null;
 			StepStates = stepStates;
 			DefaultChange = templateRef.Config.DefaultChange;

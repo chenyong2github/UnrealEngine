@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using OpenTracing;
 using OpenTracing.Util;
+using TimeZoneConverter;
 
 namespace Horde.Build.Streams
 {
@@ -39,6 +40,7 @@ namespace Horde.Build.Streams
 		private readonly IJobStepRefCollection _jobStepRefCollection;
 		private readonly IUserCollection _userCollection;
 		private readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
+		private readonly TimeZoneInfo _timeZone;
 
 		/// <summary>
 		/// Constructor
@@ -51,6 +53,9 @@ namespace Horde.Build.Streams
 			_jobStepRefCollection = jobStepRefCollection;
 			_userCollection = userCollection;
 			_globalConfig = globalConfig;
+
+			string? timeZoneName = _globalConfig.Value.ServerSettings.ScheduleTimeZone;
+			_timeZone = (timeZoneName == null) ? TimeZoneInfo.Local : TZConvert.GetTimeZoneInfo(timeZoneName);
 		}
 
 		/// <summary>
@@ -180,7 +185,7 @@ namespace Horde.Build.Streams
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("CreateGetStreamResponse").StartActive();
 			scope.Span.SetTag("streamId", stream.Id);
-			
+
 			List<GetTemplateRefResponse> apiTemplateRefs = new List<GetTemplateRefResponse>();
 			foreach (KeyValuePair<TemplateId, ITemplateRef> pair in stream.Templates)
 			{
@@ -205,7 +210,7 @@ namespace Horde.Build.Streams
 					}
 
 					ITemplate? template = await _templateCollection.GetOrAddAsync(pair.Value.Config);
-					apiTemplateRefs.Add(new GetTemplateRefResponse(pair.Key, pair.Value, template, stepStates));
+					apiTemplateRefs.Add(new GetTemplateRefResponse(pair.Key, pair.Value, template, stepStates, _timeZone));
 				}
 			}
 

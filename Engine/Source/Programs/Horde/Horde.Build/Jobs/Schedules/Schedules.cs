@@ -85,7 +85,8 @@ namespace Horde.Build.Jobs.Schedules
 		/// Constructor
 		/// </summary>
 		/// <param name="schedule">Schedule to construct from</param>
-		public GetScheduleResponse(ITemplateSchedule schedule)
+		/// <param name="schedulerTimeZone">The scheduler time zone</param>
+		public GetScheduleResponse(ITemplateSchedule schedule, TimeZoneInfo schedulerTimeZone)
 		{
 			Enabled = schedule.Config.Enabled;
 			MaxActive = schedule.Config.MaxActive;
@@ -106,7 +107,7 @@ namespace Horde.Build.Jobs.Schedules
 			NextTriggerTimesUTC = new List<DateTime>();
 			for (int i = 0; i < 16; i++)
 			{
-				DateTime? nextTime = schedule.Config.GetNextTriggerTimeUtc(curTime, TimeZoneInfo.Utc);
+				DateTime? nextTime = schedule.Config.GetNextTriggerTimeUtc(curTime, schedulerTimeZone);
 				if (nextTime == null)
 				{
 					break;
