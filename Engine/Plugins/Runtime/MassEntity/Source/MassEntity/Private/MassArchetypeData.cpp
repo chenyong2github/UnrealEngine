@@ -944,13 +944,8 @@ void FMassArchetypeData::BatchMoveEntitiesToAnotherArchetype(const FMassArchetyp
 {
 	check(&NewArchetype != this);
 
-	// Sorting the subchunks info so that subchunks of a given chunk are processed "from the back". Otherwise removing 
-	// a subchunk from the front of the chunk would inevitably invalidate following subchunks' information.
+
 	TArray<FMassArchetypeEntityCollection::FArchetypeEntityRange> Subchunks(EntityCollection.GetRanges());
-	Subchunks.Sort([](const FMassArchetypeEntityCollection::FArchetypeEntityRange& A, const FMassArchetypeEntityCollection::FArchetypeEntityRange& B)
-		{
-			return A.ChunkIndex < B.ChunkIndex || (A.ChunkIndex == B.ChunkIndex && A.SubchunkStart > B.SubchunkStart);
-		});
 
 	const int32 InitialOutEntitiesCount = OutEntitesBeingMoved.Num();
 
@@ -985,16 +980,35 @@ void FMassArchetypeData::BatchMoveEntitiesToAnotherArchetype(const FMassArchetyp
 
 			NumberMoved += ResultSubChunk.Length;
 
-			// @todo consider adding a 'merge sequences' pass at the end of the function since we can end up with 
-			// ranges being right next to each other
 			if (OutNewRanges)
 			{
-				OutNewRanges->Add(ResultSubChunk);
+				// if the new ResultSubChunk is right next to the last stored one then merge them both
+				if (OutNewRanges->Num() && OutNewRanges->Last().IsAdjacentAfter(ResultSubChunk))
+				{
+					OutNewRanges->Last().Length += ResultSubChunk.Length;
+				}
+				else // just add
+				{
+					OutNewRanges->Add(ResultSubChunk);
+				}
 			}
 
 		} while (NumberMoved < EntityRange.Length);
 
-		BatchRemoveEntitiesInternal(EntityRange.ChunkIndex, EntityRange.SubchunkStart, EntityRange.Length);
+	}
+
+	// Sorting the subchunks info so that subchunks of a given chunk are processed "from the back". Otherwise removing 
+	// a subchunk from the front of the chunk would inevitably invalidate following subchunks' information.
+	// Note that we do this after already having added the entities to the new archetype to preserve the order of entites 
+	// as given by the input data.
+	Subchunks.Sort([](const FMassArchetypeEntityCollection::FArchetypeEntityRange& A, const FMassArchetypeEntityCollection::FArchetypeEntityRange& B)
+	{
+		return A.ChunkIndex < B.ChunkIndex || (A.ChunkIndex == B.ChunkIndex && A.SubchunkStart > B.SubchunkStart);
+	});
+
+	for (const FMassArchetypeEntityCollection::FArchetypeEntityRange& Subchunk : Subchunks)
+	{
+		BatchRemoveEntitiesInternal(Subchunk.ChunkIndex, Subchunk.SubchunkStart, Subchunk.Length);
 	}
 
 	for (int i = InitialOutEntitiesCount; i < OutEntitesBeingMoved.Num(); ++i)

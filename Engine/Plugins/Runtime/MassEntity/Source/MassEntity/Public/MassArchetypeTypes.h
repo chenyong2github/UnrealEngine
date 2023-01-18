@@ -69,6 +69,12 @@ public:
 		/** Note that we consider invalid-length chunks valid as long as ChunkIndex and SubchunkStart are valid */
 		bool IsSet() const { return ChunkIndex != INDEX_NONE && SubchunkStart >= 0; }
 
+		/** Checks if given InRange comes right after this instance */
+		bool IsAdjacentAfter(const FArchetypeEntityRange& Other) const
+		{
+			return ChunkIndex == Other.ChunkIndex && SubchunkStart + Length == Other.SubchunkStart;
+		}
+
 		bool operator==(const FArchetypeEntityRange& Other) const
 		{
 			return ChunkIndex == Other.ChunkIndex && SubchunkStart == Other.SubchunkStart && Length == Other.Length;
