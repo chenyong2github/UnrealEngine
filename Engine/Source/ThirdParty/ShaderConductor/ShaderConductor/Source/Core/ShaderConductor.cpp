@@ -157,6 +157,10 @@ static bool ParseSpirvCrossOptionMetal(spirv_cross::CompilerMSL::Options& opt, c
     // Allow user to enable decoration binding.
     PARSE_SPIRVCROSS_OPTION(define, "enable_decoration_binding", opt.enable_decoration_binding);
 
+// UE Change Begin: MetalRT Support
+    PARSE_SPIRVCROSS_OPTION(define, "raytracing_instance_descriptor_table_index", opt.raytracing_instance_descriptor_table_index);
+// UE Change End: MetalRT Support
+
     // Specify dimension of subpass input attachments.
     static const char* subpassInputDimIdent = "subpass_input_dimension";
     static const size_t subpassInputDimIdentLen = std::strlen(subpassInputDimIdent);
@@ -1466,7 +1470,7 @@ namespace
 			auto pls_outputs = remap_pls(PLSOutputs, res.stage_outputs, nullptr);
 			auto pls_inouts = remap_pls_inout(*glslCompiler, PLSInOuts, res.stage_outputs, res.subpass_inputs);
 
-			compiler->remap_pixel_local_storage(move(pls_inputs), move(pls_outputs), move(pls_inouts));
+			compiler->remap_pixel_local_storage(std::move(pls_inputs), std::move(pls_outputs), std::move(pls_inouts));
 			for (FBFArg & fetch : FBFArgs)
 			{
 				compiler->remap_ext_framebuffer_fetch(fetch.input_index, fetch.color_attachment, true);

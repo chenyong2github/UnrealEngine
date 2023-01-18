@@ -28,6 +28,10 @@
 #include "/Platform/Private/RayTracing.ush"
 #endif // OVERRIDE_RAYTRACING_USH
 
+#ifdef COMPILER_METAL
+#include "/Engine/Private/RayTracing/RayTracingCommonMetal.ush"
+#endif // COMPILER_METAL
+
 // Certain DXR system value intrinsics are explicitly disallowed in Unreal Engine entirely.
 // Supported cross-platform system value intrinsics:
 //                                  RayGen   Intersection   AnyHit  ClosestHit  Miss  Callable

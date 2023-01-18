@@ -136,6 +136,13 @@ FMetalRHIBuffer::FMetalRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EMeta
 	{
 		Usage |= BUF_Dynamic;
 	}
+#if METAL_RHI_RAYTRACING
+	if (EnumHasAnyFlags(Usage, BUF_AccelerationStructure))
+	{
+		AccelerationStructureHandle = GetMetalDeviceContext().GetDevice().NewAccelerationStructureWithSize(Size);
+		return;
+	}
+#endif
 	
 	const bool bIsStatic = EnumHasAnyFlags(Usage, BUF_Static);
 	const bool bIsDynamic = EnumHasAnyFlags(Usage, BUF_Dynamic);
@@ -319,6 +326,14 @@ FMetalRHIBuffer::~FMetalRHIBuffer()
 		METAL_INC_DWORD_STAT_BY(Type, MemFreed, Size, Usage);
 		SafeReleaseMetalObject(Data);
 	}
+
+#if METAL_RHI_RAYTRACING
+	if (EnumHasAnyFlags(Usage, BUF_AccelerationStructure))
+	{
+		SafeReleaseMetalObject(AccelerationStructureHandle);
+		AccelerationStructureHandle = nil;
+	}
+#endif // METAL_RHI_RAYTRACING
 }
 
 void FMetalRHIBuffer::AllocTransferBuffer(bool bOnRHIThread, uint32 InSize, EResourceLockMode LockMode)

@@ -1011,6 +1011,31 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 #endif
 
 	((FMetalDeviceContext&)ImmediateContext.GetInternalContext()).Init();
+
+#if METAL_RHI_RAYTRACING
+	if (ImmediateContext.Context->GetDevice().IsRayTracingSupported())
+	{
+		if (!FParse::Param(FCommandLine::Get(), TEXT("noraytracing")))
+		{
+			GRHISupportsRayTracing = RHISupportsRayTracing(GMaxRHIShaderPlatform);
+			GRHISupportsRayTracingShaders = RHISupportsRayTracingShaders(GMaxRHIShaderPlatform);
+
+			GRHISupportsRayTracingPSOAdditions = false;
+			GRHISupportsRayTracingAMDHitToken = false;
+
+			GRHISupportsInlineRayTracing = GRHISupportsRayTracing && RHISupportsInlineRayTracing(GMaxRHIShaderPlatform);
+		}
+		else
+		{
+			GRHISupportsRayTracing = false;
+		}
+
+		GRHISupportsRayTracingDispatchIndirect = true;
+		GRHIRayTracingAccelerationStructureAlignment = 16;
+		GRHIRayTracingScratchBufferAlignment = 4;
+		GRHIRayTracingInstanceDescriptorSize = uint32(sizeof(MTLAccelerationStructureUserIDInstanceDescriptor));
+	}
+#endif
 		
 	GDynamicRHI = this;
 	GIsMetalInitialized = true;

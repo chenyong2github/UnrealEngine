@@ -9287,8 +9287,6 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 
 	case OpConvertUToAccelerationStructureKHR:
 		SPIRV_CROSS_THROW("ConvertUToAccelerationStructure is not supported in MSL.");
-	case OpRayQueryGetIntersectionInstanceShaderBindingTableRecordOffsetKHR:
-		SPIRV_CROSS_THROW("BindingTableRecordOffset is not supported in MSL.");
 
 	case OpRayQueryInitializeKHR:
 	{
@@ -9371,6 +9369,12 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 	case OpRayQueryTerminateKHR:
 		flush_variable_declaration(ops[0]);
 		statement(to_expression(ops[0]), ".abort();");
+		break;
+	case OpRayQueryGetIntersectionInstanceShaderBindingTableRecordOffsetKHR:
+		if (MSL_RAY_QUERY_IS_CANDIDATE)                                                                          
+			emit_op(ops[0], ops[1], join(raytracing_instance_descriptor_var_name, "[", to_expression(ops[2]), ".get_candidate_instance_id()", "].intersectionFunctionTableOffset"), false);
+		else                                                                                                     
+			emit_op(ops[0], ops[1], join(raytracing_instance_descriptor_var_name, "[", to_expression(ops[2]), ".get_committed_instance_id()", "].intersectionFunctionTableOffset"), false);
 		break;
 #undef MSL_RAY_QUERY_GET_OP
 #undef MSL_RAY_QUERY_IS_CANDIDATE
@@ -12696,6 +12700,18 @@ void CompilerMSL::entry_point_args_builtin(string &ep_args)
 	if (needs_base_instance_arg == TriState::Yes)
 		ep_args += built_in_func_arg(BuiltInBaseInstance, !ep_args.empty());
 
+	// UE Change Begin: MetalRT Support
+	if (is_intersection_query())
+	{
+		if (!ep_args.empty())
+			ep_args += ", ";
+
+		// Bindg the Instance Descriptor for inline RT (to emulate CandidateInstanceContributionToHitGroupIndex)
+		ep_args += join("device MTLAccelerationStructureUserIDInstanceDescriptor* ", raytracing_instance_descriptor_var_name,
+								" [[buffer(", msl_options.raytracing_instance_descriptor_table_index, ")]]");
+	}
+	// UE Change End: MetalRT Support
+
 	if (capture_output_to_buffer)
 	{
 		// Add parameters to hold the indirect draw parameters and the shader output. This has to be handled
@@ -13317,7 +13333,7 @@ void CompilerMSL::fix_up_shader_inputs_outputs()
 		else if ((var.storage == StorageClassStorageBuffer || (var.storage == StorageClassUniform && ssbo)) &&
 		         !is_hidden_variable(var))
 		{
-			if (buffer_requires_array_length(var.self))
+			if (!is_intersection_query() && buffer_requires_array_length(var.self))
 			{
 				entry_func.fixup_hooks_in.push_back([this, &type, &var, var_id]() {
 					bool is_array_type = !type.array.empty();
@@ -15540,7 +15556,8 @@ string CompilerMSL::builtin_to_glsl(BuiltIn builtin, StorageClass storage)
 	case BuiltInInstanceId:
 		ensure_builtin(StorageClassInput, BuiltInInstanceId);
 		if (msl_options.enable_base_index_zero && msl_options.supports_msl_version(1, 1) &&
-		    (msl_options.ios_support_base_vertex_instance || msl_options.is_macos()))
+		    (msl_options.ios_support_base_vertex_instance || msl_options.is_macos())
+			&& !is_intersection_query()) // UE Change: MetalRT Support
 		{
 			if (builtin_declaration)
 			{
@@ -15680,6 +15697,13 @@ string CompilerMSL::builtin_to_glsl(BuiltIn builtin, StorageClass storage)
 		if (storage == StorageClassInput && current_function && (current_function->self == ir.default_entry_point))
 			return stage_in_var_name + "." + CompilerGLSL::builtin_to_glsl(builtin, storage);
 		break;
+
+	// UE Change Begin: MetalRT Support
+	case BuiltInInstanceCustomIndexKHR:
+		return "user_instance_id";
+	case BuiltInHitKindKHR:
+		return "front_facing";
+	// UE Change End: MetalRT Support
 
 	case BuiltInTessLevelOuter:
 		if (is_tesc_shader() && storage != StorageClassInput && current_function &&

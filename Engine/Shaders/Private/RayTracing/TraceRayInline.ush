@@ -29,6 +29,8 @@
 
 #if COMPILER_VULKAN
 #include "/Engine/Private/RayTracing/TraceRayInlineVulkan.ush"
+#elif COMPILER_METAL
+#include "/Engine/Private/RayTracing/TraceRayInlineMetal.ush"
 #endif // COMPILER_VULKAN
 
 #define PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_NORMALS 0

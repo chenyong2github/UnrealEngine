@@ -54,6 +54,11 @@ namespace UnrealBuildTool
 		[XmlConfigFile(Category = "BuildConfiguration", Name = "bSkipClangValidation")]
 		public bool bSkipClangValidation = false;
 
+		/// <summary>
+		/// Enables runtime ray tracing support.
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/MacTargetPlatform.MacTargetSettings", "bEnableRayTracing")]
+		public bool bEnableRayTracing = false;
 	}
 
 	/// <summary>
@@ -99,6 +104,11 @@ namespace UnrealBuildTool
 		public bool bSkipClangValidation
 		{
 			get { return Inner.bSkipClangValidation; }
+		}
+
+		public bool bEnableRayTracing
+		{
+			get { return Inner.bEnableRayTracing; }
 		}
 
 #pragma warning restore CS1591
@@ -514,6 +524,11 @@ namespace UnrealBuildTool
 		{
 			CompileEnvironment.Definitions.Add("PLATFORM_MAC=1");
 			CompileEnvironment.Definitions.Add("PLATFORM_APPLE=1");
+
+			if (Target.MacPlatform.bEnableRayTracing)
+			{
+				CompileEnvironment.Definitions.Add("RHI_RAYTRACING=1");
+			}
 
 			CompileEnvironment.Definitions.Add("WITH_TTS=0");
 			CompileEnvironment.Definitions.Add("WITH_SPEECH_RECOGNITION=0");

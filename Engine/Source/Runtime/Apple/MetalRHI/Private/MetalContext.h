@@ -343,5 +343,17 @@ private:
 
     /** Thread index owned by the RHI Thread. Monotonically increases every call to EndFrame() */
     uint32 FrameNumberRHIThread;
+
+#if METAL_RHI_RAYTRACING
+	FMetalRayTracingCompactionRequestHandler* RayTracingCompactionRequestHandler;
+
+	void InitializeRayTracing();
+	void CleanUpRayTracing();
+
+public:
+	void UpdateRayTracing();
+
+	inline FMetalRayTracingCompactionRequestHandler* GetRayTracingCompactionRequestHandler() const { return RayTracingCompactionRequestHandler; }
+#endif // METAL_RHI_RAYTRACING
 };
 

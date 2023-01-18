@@ -154,6 +154,13 @@ public:
     mtlpp::RenderCommandEncoder GetParallelRenderCommandEncoder(uint32 Index, mtlpp::ParallelRenderCommandEncoder& ParallelEncoder);
 	
 	void InsertTextureBarrier();
+
+#if METAL_RHI_RAYTRACING
+	// TODO: Crappy workaround for inline raytracing support.
+	inline void SetRayTracingInstanceBufferSRV(TRefCountPtr<FMetalShaderResourceView>& SRV) { InstanceBufferSRV = SRV; }
+
+	TRefCountPtr<FMetalShaderResourceView> InstanceBufferSRV;
+#endif
 	
 private:
     void ConditionalSwitchToRender(void);

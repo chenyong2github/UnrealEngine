@@ -215,6 +215,18 @@ public:
 		return TProperties::GetVariantPriority();
 	}
 
+	static FORCEINLINE bool SupportsRayTracing()
+	{
+		return true;
+	}
+
+	virtual bool UsesRayTracing() const override
+	{
+		bool bEnableRayTracing = false;
+		GConfig->GetBool(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("bEnableRayTracing"), bEnableRayTracing, GEngineIni);
+	 
+		return bEnableRayTracing;
+	}
 	//~ End ITargetPlatform Interface
 
 private:

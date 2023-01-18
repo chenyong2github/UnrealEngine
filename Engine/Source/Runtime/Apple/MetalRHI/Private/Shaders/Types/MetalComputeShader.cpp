@@ -24,6 +24,10 @@ FMetalComputeShader::FMetalComputeShader(TArrayView<const uint8> InCode, mtlpp::
 	FMetalCodeHeader Header;
 	Init(InCode, Header, InLibrary);
 
+#if METAL_RHI_RAYTRACING
+	RayTracingBindings = Header.RayTracing;
+#endif // METAL_RHI_RAYTRACING
+
 	NumThreadsX = FMath::Max((int32)Header.NumThreadsX, 1);
 	NumThreadsY = FMath::Max((int32)Header.NumThreadsY, 1);
 	NumThreadsZ = FMath::Max((int32)Header.NumThreadsZ, 1);

@@ -26,6 +26,11 @@ public:
 	int32 NumThreadsY;
 	int32 NumThreadsZ;
 
+#if METAL_RHI_RAYTRACING
+	/** Meta-data for function table binding indexes (UINT32_MAX if unavailable). */
+	FMetalRayTracingHeader RayTracingBindings;
+#endif // METAL_RHI_RAYTRACING
+
 private:
 	// the state object for a compute shader
 	FMetalShaderPipeline* Pipeline;

@@ -20,6 +20,10 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMetal, Display, All);
 
 class FMetalDeviceContext;
 
+#if METAL_RHI_RAYTRACING
+class FMetalRayTracingCompactionRequestHandler;
+#endif // METAL_RHI_RAYTRACING
+
 /** The interface which is implemented by the dynamically bound RHI. */
 class FMetalDynamicRHI : public FDynamicRHI
 {
@@ -165,6 +169,17 @@ public:
 	virtual void RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, FRHIUniformBuffer* UniformBufferRHI, const void* Contents) final override;
 
 	virtual uint16 RHIGetPlatformTextureMaxSampleCount() override;
+
+#if METAL_RHI_RAYTRACING
+	virtual FRayTracingAccelerationStructureSize RHICalcRayTracingSceneSize(uint32 MaxInstances, ERayTracingAccelerationStructureFlags Flags) final override;
+	virtual FRayTracingAccelerationStructureSize RHICalcRayTracingGeometrySize(const FRayTracingGeometryInitializer& Initializer) final override;
+
+	virtual FRayTracingGeometryRHIRef RHICreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer) final override;
+	virtual FRayTracingSceneRHIRef RHICreateRayTracingScene(FRayTracingSceneInitializer2 Initializer) final override;
+	virtual FRayTracingShaderRHIRef RHICreateRayTracingShader(TArrayView<const uint8> Code, const FSHAHash& Hash, EShaderFrequency ShaderFrequency) final override;
+	virtual FRayTracingPipelineStateRHIRef RHICreateRayTracingPipelineState(const FRayTracingPipelineStateInitializer& Initializer) final override;
+	virtual void RHITransferRayTracingGeometryUnderlyingResource(FRHIRayTracingGeometry* DestGeometry, FRHIRayTracingGeometry* SrcGeometry) final override;
+#endif // METAL_RHI_RAYTRACING
 
 private:
 	FTextureMemoryStats MemoryStats;

@@ -374,6 +374,14 @@ public:
 		CurrentIndex = (CurrentIndex + 1) % NumberOfBuffers;
 	}
 	
+#if METAL_RHI_RAYTRACING
+	bool IsAccelerationStructure() const
+	{
+		return EnumHasAnyFlags(Usage, BUF_AccelerationStructure);
+	}
+	mtlpp::AccelerationStructure AccelerationStructureHandle;
+#endif // METAL_RHI_RAYTRACING
+
 	/**
 	 * Whether to allocate the resource from private memory.
 	 */
@@ -489,6 +497,10 @@ public:
 
 	inline FMetalSurface*             GetSourceTexture() const { check(bTexture); return SourceTexture; }
 	inline FMetalTexture const&       GetTextureView  () const { check(bTexture); return TextureView;   }
+
+public:
+	// TODO: This is kinda awkward; should probably be refactored at some point.
+	TArray<TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>> ReferencedResources;
 
 private:
 	// Needed for RHIUpdateShaderResourceView
@@ -614,6 +626,10 @@ class FMetalComputeShader;
 class FMetalRHIStagingBuffer;
 class FMetalRHIRenderQuery;
 class FMetalSuballocatedUniformBuffer;
+#if METAL_RHI_RAYTRACING
+class FMetalRayTracingScene;
+class FMetalRayTracingGeometry;
+#endif // METAL_RHI_RAYTRACING
 
 template<class T>
 struct TMetalResourceTraits
@@ -715,3 +731,15 @@ struct TMetalResourceTraits<FRHIStagingBuffer>
 {
 	typedef FMetalRHIStagingBuffer TConcreteType;
 };
+#if METAL_RHI_RAYTRACING
+template<>
+struct TMetalResourceTraits<FRHIRayTracingScene>
+{
+	typedef FMetalRayTracingScene TConcreteType;
+};
+template<>
+struct TMetalResourceTraits<FRHIRayTracingGeometry>
+{
+	typedef FMetalRayTracingGeometry TConcreteType;
+};
+#endif // METAL_RHI_RAYTRACING

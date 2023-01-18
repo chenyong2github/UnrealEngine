@@ -42,6 +42,8 @@ const uint32 MetalBufferBytesSize = BufferOffsetAlignment * 2;
 const uint32 MetalBufferBytesSize = BufferOffsetAlignment * 32;
 #endif
 
+#define METAL_RHI_RAYTRACING (RHI_RAYTRACING)
+
 #include "MetalRHI.h"
 #include "MetalDynamicRHI.h"
 #include "RHI.h"

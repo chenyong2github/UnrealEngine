@@ -171,6 +171,28 @@ enum class EMetalComponentType : uint8
 	Max
 };
 
+struct FMetalRayTracingHeader
+{
+	uint32 InstanceIndexBuffer;
+
+	bool IsValid() const
+	{
+		return InstanceIndexBuffer != UINT32_MAX;
+	}
+
+	FMetalRayTracingHeader()
+		: InstanceIndexBuffer(UINT32_MAX)
+	{
+
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FMetalRayTracingHeader& Header)
+	{
+		Ar << Header.InstanceIndexBuffer;
+		return Ar;
+	}
+};
+
 struct FMetalAttribute
 {
 	uint32 Index;
@@ -217,7 +239,8 @@ struct FMetalCodeHeader
 	uint32 Version;
 	int8 SideTable;
 	bool bDeviceFunctionConstants;
-	
+	FMetalRayTracingHeader RayTracing;
+
 	FMetalCodeHeader()
 	: CompilerBuild(0)
 	, CompilerVersion(0)
@@ -271,7 +294,7 @@ inline FArchive& operator<<(FArchive& Ar, FMetalCodeHeader& Header)
 	Ar << Header.Version;
 	Ar << Header.SideTable;
 	Ar << Header.bDeviceFunctionConstants;
-
+	Ar << Header.RayTracing;
     return Ar;
 }
 

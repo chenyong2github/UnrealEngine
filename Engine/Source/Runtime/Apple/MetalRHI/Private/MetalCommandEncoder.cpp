@@ -232,6 +232,7 @@ FMetalCommandEncoder::FMetalCommandEncoder(FMetalCommandList& CmdList, EMetalCom
 {
 	for (uint32 Frequency = 0; Frequency < uint32(mtlpp::FunctionType::Kernel)+1; Frequency++)
 	{
+		FMemory::Memzero(ShaderBuffers[Frequency].ReferencedResources);
 		FMemory::Memzero(ShaderBuffers[Frequency].Bytes);
 		FMemory::Memzero(ShaderBuffers[Frequency].Offsets);
 		FMemory::Memzero(ShaderBuffers[Frequency].Lengths);
@@ -261,6 +262,9 @@ FMetalCommandEncoder::~FMetalCommandEncoder(void)
 	check(!IsRenderCommandEncoderActive());
 	check(!IsComputeCommandEncoderActive());
 	check(!IsBlitCommandEncoderActive());
+#if METAL_RHI_RAYTRACING
+	check(!IsAccelerationStructureCommandEncoderActive());
+#endif // METAL_RHI_RAYTRACING
 	
 	SafeReleaseMetalRenderPassDescriptor(RenderPassDesc);
 	RenderPassDesc = nil;
@@ -277,6 +281,7 @@ FMetalCommandEncoder::~FMetalCommandEncoder(void)
 			ShaderBuffers[Frequency].Buffers[i] = nil;
 		}
 		FMemory::Memzero(ShaderBuffers[Frequency].Bytes);
+		FMemory::Memzero(ShaderBuffers[Frequency].ReferencedResources);
 		FMemory::Memzero(ShaderBuffers[Frequency].Offsets);
 		FMemory::Memzero(ShaderBuffers[Frequency].Lengths);
 		FMemory::Memzero(ShaderBuffers[Frequency].Usage);
@@ -291,7 +296,11 @@ void FMetalCommandEncoder::Reset(void)
 {
     check(IsRenderCommandEncoderActive() == false
           && IsComputeCommandEncoderActive() == false
-          && IsBlitCommandEncoderActive() == false);
+          && IsBlitCommandEncoderActive() == false
+#if METAL_RHI_RAYTRACING
+		  && IsAccelerationStructureCommandEncoderActive() == false
+#endif // METAL_RHI_RAYTRACING
+		  );
 	
 	if(RenderPassDesc)
 	{
@@ -314,7 +323,14 @@ void FMetalCommandEncoder::Reset(void)
 		{
 			ShaderBuffers[Frequency].Buffers[i] = nil;
 		}
+#if METAL_RHI_RAYTRACING
+		for (uint32 i = 0; i < ML_MaxBuffers; i++)
+		{
+			ShaderBuffers[Frequency].AccelerationStructure[i] = nil;
+		}
+#endif // METAL_RHI_RAYTRACING
     	FMemory::Memzero(ShaderBuffers[Frequency].Bytes);
+		FMemory::Memzero(ShaderBuffers[Frequency].ReferencedResources);
 		FMemory::Memzero(ShaderBuffers[Frequency].Offsets);
 		FMemory::Memzero(ShaderBuffers[Frequency].Lengths);
 		FMemory::Memzero(ShaderBuffers[Frequency].Usage);
@@ -332,6 +348,7 @@ void FMetalCommandEncoder::ResetLive(void)
 		{
 			ShaderBuffers[Frequency].Buffers[i] = nil;
 		}
+		FMemory::Memzero(ShaderBuffers[Frequency].ReferencedResources);
 		FMemory::Memzero(ShaderBuffers[Frequency].Bytes);
 		FMemory::Memzero(ShaderBuffers[Frequency].Offsets);
 		FMemory::Memzero(ShaderBuffers[Frequency].Lengths);
@@ -373,7 +390,11 @@ void FMetalCommandEncoder::StartCommandBuffer(void)
 	check(!CommandBuffer || EncoderNum == 0);
 	check(IsRenderCommandEncoderActive() == false
           && IsComputeCommandEncoderActive() == false
-          && IsBlitCommandEncoderActive() == false);
+          && IsBlitCommandEncoderActive() == false
+#if METAL_RHI_RAYTRACING
+		  && IsAccelerationStructureCommandEncoderActive() == false
+#endif // METAL_RHI_RAYTRACING
+		  );
 
 	if (!CommandBuffer)
 	{
@@ -406,7 +427,11 @@ void FMetalCommandEncoder::CommitCommandBuffer(uint32 const Flags)
 	check(CommandBuffer);
 	check(IsRenderCommandEncoderActive() == false
           && IsComputeCommandEncoderActive() == false
-          && IsBlitCommandEncoderActive() == false);
+          && IsBlitCommandEncoderActive() == false
+#if METAL_RHI_RAYTRACING
+		  && IsAccelerationStructureCommandEncoderActive() == false
+#endif // METAL_RHI_RAYTRACING
+		  );
 
 	bool const bWait = (Flags & EMetalSubmitFlagsWaitOnCommandBuffer);
 	bool const bIsLastCommandBuffer = (Flags & EMetalSubmitFlagsLastCommandBuffer);
@@ -490,6 +515,13 @@ bool FMetalCommandEncoder::IsBlitCommandEncoderActive(void) const
 	return BlitCommandEncoder.GetPtr() != nil;
 }
 
+#if METAL_RHI_RAYTRACING
+bool FMetalCommandEncoder::IsAccelerationStructureCommandEncoderActive(void) const
+{
+	return AccelerationStructureCommandEncoder.GetPtr() != nil;
+}
+#endif // METAL_RHI_RAYTRACING
+
 bool FMetalCommandEncoder::IsImmediate(void) const
 {
 	return CommandList.IsImmediate();
@@ -539,6 +571,14 @@ mtlpp::BlitCommandEncoder& FMetalCommandEncoder::GetBlitCommandEncoder(void)
 	return BlitCommandEncoder;
 }
 
+#if METAL_RHI_RAYTRACING
+mtlpp::AccelerationStructureCommandEncoder& FMetalCommandEncoder::GetAccelerationStructureCommandEncoder(void)
+{
+	check(IsAccelerationStructureCommandEncoderActive());
+	return AccelerationStructureCommandEncoder;
+}
+#endif // METAL_RHI_RAYTRACING
+
 TRefCountPtr<FMetalFence> const& FMetalCommandEncoder::GetEncoderFence(void) const
 {
 	return EncoderFence;
@@ -551,7 +591,11 @@ void FMetalCommandEncoder::BeginParallelRenderCommandEncoding(uint32 NumChildren
 	check(IsImmediate());
 	check(RenderPassDesc);
 	check(CommandBuffer);
-	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
+	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false
+#if METAL_RHI_RAYTRACING
+		&& IsAccelerationStructureCommandEncoderActive() == false
+#endif // METAL_RHI_RAYTRACING
+	);
 	
 	FenceResources.Append(TransitionedResources);
 	
@@ -590,7 +634,11 @@ void FMetalCommandEncoder::BeginRenderCommandEncoding(void)
 {
 	check(RenderPassDesc);
 	check(CommandList.IsParallel() || CommandBuffer);
-	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
+	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false
+#if METAL_RHI_RAYTRACING
+	 && IsAccelerationStructureCommandEncoderActive() == false
+#endif // METAL_RHI_RAYTRACING
+	);
 	
 	FenceResources.Append(TransitionedResources);
 	
@@ -633,7 +681,11 @@ void FMetalCommandEncoder::BeginRenderCommandEncoding(void)
 void FMetalCommandEncoder::BeginComputeCommandEncoding(mtlpp::DispatchType DispatchType)
 {
 	check(CommandBuffer);
-	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
+	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false
+#if METAL_RHI_RAYTRACING
+	 && IsAccelerationStructureCommandEncoderActive() == false
+#endif // METAL_RHI_RAYTRACING
+	);
 	
 	FenceResources.Append(TransitionedResources);
 	TransitionedResources.Empty();
@@ -674,7 +726,11 @@ void FMetalCommandEncoder::BeginComputeCommandEncoding(mtlpp::DispatchType Dispa
 void FMetalCommandEncoder::BeginBlitCommandEncoding(void)
 {
 	check(CommandBuffer);
-	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
+	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false
+#if METAL_RHI_RAYTRACING
+	 && IsAccelerationStructureCommandEncoderActive() == false
+#endif // METAL_RHI_RAYTRACING
+	);
 	
 	FenceResources.Append(TransitionedResources);
 	TransitionedResources.Empty();
@@ -704,6 +760,41 @@ void FMetalCommandEncoder::BeginBlitCommandEncoding(void)
 	
 	EncoderFence = CommandList.GetCommandQueue().CreateFence(Label);
 }
+
+#if METAL_RHI_RAYTRACING
+void FMetalCommandEncoder::BeginAccelerationStructureCommandEncoding(void)
+{
+	check(CommandBuffer);
+	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false && IsAccelerationStructureCommandEncoderActive() == false);
+
+	FenceResources.Append(TransitionedResources);
+	TransitionedResources.Empty();
+
+
+	AccelerationStructureCommandEncoder = CommandBuffer.AccelerationStructureCommandEncoder();
+	EncoderNum++;
+
+	check(!EncoderFence);
+	NSString* Label = nil;
+
+	if(GetEmitDrawEvents())
+	{
+		Label = [NSString stringWithFormat:@"AccelerationStructureCommandEncoder: %@", [DebugGroups count] > 0 ? [DebugGroups lastObject] : (NSString*)CFSTR("InitialPass")];
+		AccelerationStructureCommandEncoder.SetLabel(Label);
+
+		if([DebugGroups count])
+		{
+			for (NSString* Group in DebugGroups)
+			{
+				AccelerationStructureCommandEncoder.PushDebugGroup(Group);
+				METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, AccelerationStructureCommandEncoder.PushDebugGroup(Group));
+			}
+		}
+	}
+
+	EncoderFence = CommandList.GetCommandQueue().CreateFence(Label);
+}
+#endif // METAL_RHI_RAYTRACING
 
 TRefCountPtr<FMetalFence> FMetalCommandEncoder::EndEncoding(void)
 {
@@ -934,6 +1025,16 @@ TRefCountPtr<FMetalFence> FMetalCommandEncoder::EndEncoding(void)
 			BlitCommandEncoder = nil;
 			EncoderFence = nullptr;
 		}
+#if METAL_RHI_RAYTRACING
+		else if(IsAccelerationStructureCommandEncoderActive())
+		{
+			UpdateFence(EncoderFence);
+
+			AccelerationStructureCommandEncoder.EndEncoding();
+			AccelerationStructureCommandEncoder = nil;
+			EncoderFence = nullptr;
+		}
+#endif // METAL_RHI_RAYTRACING
 	}
 	
 	for (uint32 Frequency = 0; Frequency < uint32(mtlpp::FunctionType::Kernel)+1; Frequency++)
@@ -942,6 +1043,12 @@ TRefCountPtr<FMetalFence> FMetalCommandEncoder::EndEncoding(void)
 		{
 			ShaderBuffers[Frequency].Buffers[i] = nil;
 		}
+#if METAL_RHI_RAYTRACING
+		for (uint32 i = 0; i < ML_MaxBuffers; i++)
+		{
+			ShaderBuffers[Frequency].AccelerationStructure[i] = nil;
+		}
+#endif // METAL_RHI_RAYTRACING
 		FMemory::Memzero(ShaderBuffers[Frequency].Bytes);
 		FMemory::Memzero(ShaderBuffers[Frequency].Offsets);
 		FMemory::Memzero(ShaderBuffers[Frequency].Lengths);
@@ -974,7 +1081,11 @@ void FMetalCommandEncoder::AddCompletionHandler(mtlpp::CommandBufferHandler Hand
 
 void FMetalCommandEncoder::UpdateFence(FMetalFence* Fence)
 {
-	check(IsRenderCommandEncoderActive() || IsComputeCommandEncoderActive() || IsBlitCommandEncoderActive());
+	check(IsRenderCommandEncoderActive() || IsComputeCommandEncoderActive() || IsBlitCommandEncoderActive()
+#if METAL_RHI_RAYTRACING
+		|| IsAccelerationStructureCommandEncoderActive()
+#endif // METAL_RHI_RAYTRACING
+	);
 	static bool bSupportsFences = CommandList.GetCommandQueue().SupportsFeature(EMetalFeaturesFences);
 	if ((bSupportsFences METAL_DEBUG_OPTION(|| CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation)) && Fence)
 	{
@@ -1020,7 +1131,11 @@ void FMetalCommandEncoder::UpdateFence(FMetalFence* Fence)
 
 void FMetalCommandEncoder::WaitForFence(FMetalFence* Fence)
 {
-	check(IsRenderCommandEncoderActive() || IsComputeCommandEncoderActive() || IsBlitCommandEncoderActive());
+	check(IsRenderCommandEncoderActive() || IsComputeCommandEncoderActive() || IsBlitCommandEncoderActive()
+#if METAL_RHI_RAYTRACING
+		|| IsAccelerationStructureCommandEncoderActive()
+#endif
+	);
 	static bool bSupportsFences = CommandList.GetCommandQueue().SupportsFeature(EMetalFeaturesFences);
 	if ((bSupportsFences METAL_DEBUG_OPTION(|| CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation)) && Fence)
 	{
@@ -1168,6 +1283,12 @@ void FMetalCommandEncoder::InsertDebugSignpost(ns::String const& String)
 			BlitCommandEncoder.InsertDebugSignpost(String);
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, BlitEncoderDebug.InsertDebugSignpost(String));
 		}
+#if METAL_RHI_RAYTRACING
+		else if (AccelerationStructureCommandEncoder)
+		{
+			AccelerationStructureCommandEncoder.InsertDebugSignpost(String);
+		}
+#endif // METAL_RHI_RAYTRACING
 	}
 }
 
@@ -1196,6 +1317,12 @@ void FMetalCommandEncoder::PushDebugGroup(ns::String const& String)
 			BlitCommandEncoder.PushDebugGroup(String);
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, BlitEncoderDebug.PushDebugGroup(String));
 		}
+#if METAL_RHI_RAYTRACING
+		else if (AccelerationStructureCommandEncoder)
+		{
+			AccelerationStructureCommandEncoder.PushDebugGroup(String);
+		}
+#endif
 	}
 }
 
@@ -1224,6 +1351,12 @@ void FMetalCommandEncoder::PopDebugGroup(void)
 			BlitCommandEncoder.PopDebugGroup();
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, BlitEncoderDebug.PopDebugGroup());
 		}
+#if METAL_RHI_RAYTRACING
+		else if (AccelerationStructureCommandEncoder)
+		{
+			AccelerationStructureCommandEncoder.PopDebugGroup();
+		}
+#endif
 	}
 }
 
@@ -1243,7 +1376,11 @@ FMetalCommandBufferStats* FMetalCommandEncoder::GetCommandBufferStats(void)
 
 void FMetalCommandEncoder::SetRenderPassDescriptor(mtlpp::RenderPassDescriptor RenderPass)
 {
-	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
+	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false
+#if METAL_RHI_RAYTRACING
+    && IsAccelerationStructureCommandEncoderActive() == false
+#endif
+	);
 	check(RenderPass);
 	
 	if(RenderPass.GetPtr() != RenderPassDesc.GetPtr())
@@ -1267,6 +1404,12 @@ void FMetalCommandEncoder::SetRenderPassDescriptor(mtlpp::RenderPassDescriptor R
 		{
 			ShaderBuffers[Frequency].Buffers[i] = nil;
 		}
+#if METAL_RHI_RAYTRACING
+		for (uint32 i = 0; i < ML_MaxBuffers; i++)
+		{
+			ShaderBuffers[Frequency].AccelerationStructure[i] = nil;
+		}
+#endif // METAL_RHI_RAYTRACING
 		FMemory::Memzero(ShaderBuffers[Frequency].Bytes);
 		FMemory::Memzero(ShaderBuffers[Frequency].Offsets);
 		FMemory::Memzero(ShaderBuffers[Frequency].Lengths);
@@ -1406,8 +1549,29 @@ void FMetalCommandEncoder::SetVisibilityResultMode(mtlpp::VisibilityResultMode c
 }
 	
 #pragma mark - Public Shader Resource Mutators -
+#if METAL_RHI_RAYTRACING
+void FMetalCommandEncoder::SetShaderAccelerationStructure(mtlpp::FunctionType const FunctionType, mtlpp::AccelerationStructure const& AccelerationStructure, NSUInteger const index)
+{
+	if (AccelerationStructure)
+	{
+		ShaderBuffers[uint32(FunctionType)].Bound |= (1 << index);
+	}
+	else
+	{
+		ShaderBuffers[uint32(FunctionType)].Bound &= ~(1 << index);
+	}
 
-void FMetalCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionType, FMetalBuffer const& Buffer, NSUInteger const Offset, NSUInteger const Length, NSUInteger index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format, NSUInteger const ElementRowPitch)
+	ShaderBuffers[uint32(FunctionType)].AccelerationStructure[index] = AccelerationStructure;
+	ShaderBuffers[uint32(FunctionType)].Buffers[index] = nil;
+	ShaderBuffers[uint32(FunctionType)].Bytes[index] = nil;
+	ShaderBuffers[uint32(FunctionType)].Offsets[index] = 0;
+	ShaderBuffers[uint32(FunctionType)].Usage[index] = mtlpp::ResourceUsage(0);
+
+	SetShaderBufferInternal(FunctionType, index);
+}
+#endif // METAL_RHI_RAYTRACING
+
+void FMetalCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionType, FMetalBuffer const& Buffer, NSUInteger const Offset, NSUInteger const Length, NSUInteger index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format, NSUInteger const ElementRowPitch, TArray<TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>> ReferencedResources)
 {
 	check(index < ML_MaxBuffers);
     if(GetMetalDeviceContext().SupportsFeature(EMetalFeaturesSetBufferOffset) && Buffer && (ShaderBuffers[uint32(FunctionType)].Bound & (1 << index)) && ShaderBuffers[uint32(FunctionType)].Buffers[index] == Buffer)
@@ -1418,6 +1582,7 @@ void FMetalCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionTyp
 		}
 		SetShaderBufferOffset(FunctionType, Offset, Length, index);
 		ShaderBuffers[uint32(FunctionType)].Usage[index] = Usage;
+		ShaderBuffers[uint32(FunctionType)].ReferencedResources[index] = ReferencedResources;
 		ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(index, Length, GMetalBufferFormats[Format].DataFormat, ElementRowPitch);
 	}
     else
@@ -1432,6 +1597,10 @@ void FMetalCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionTyp
 		}
 		ShaderBuffers[uint32(FunctionType)].Buffers[index] = Buffer;
 		ShaderBuffers[uint32(FunctionType)].Bytes[index] = nil;
+#if METAL_RHI_RAYTRACING
+		ShaderBuffers[uint32(FunctionType)].AccelerationStructure[index] = nil;
+#endif // METAL_RHI_RAYTRACING
+		ShaderBuffers[uint32(FunctionType)].ReferencedResources[index] = ReferencedResources;
 		ShaderBuffers[uint32(FunctionType)].Offsets[index] = Offset;
 		ShaderBuffers[uint32(FunctionType)].Usage[index] = Usage;
 		ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(index, Length, GMetalBufferFormats[Format].DataFormat, ElementRowPitch);
@@ -1459,6 +1628,10 @@ void FMetalCommandEncoder::SetShaderData(mtlpp::FunctionType const FunctionType,
 	}
 	
 	ShaderBuffers[uint32(FunctionType)].Buffers[Index] = nil;
+#if METAL_RHI_RAYTRACING
+	ShaderBuffers[uint32(FunctionType)].AccelerationStructure[Index] = nil;
+#endif // METAL_RHI_RAYTRACINGs
+	ShaderBuffers[uint32(FunctionType)].ReferencedResources[Index].Empty();
 	ShaderBuffers[uint32(FunctionType)].Bytes[Index] = Data;
 	ShaderBuffers[uint32(FunctionType)].Offsets[Index] = Offset;
 	ShaderBuffers[uint32(FunctionType)].Usage[Index] = mtlpp::ResourceUsage::Read;
@@ -1506,6 +1679,10 @@ void FMetalCommandEncoder::SetShaderBytes(mtlpp::FunctionType const FunctionType
 			FMemory::Memcpy(((uint8*)Buffer.GetContents()), Bytes, Length);
 			ShaderBuffers[uint32(FunctionType)].Buffers[Index] = Buffer;
 		}
+#if METAL_RHI_RAYTRACING
+		ShaderBuffers[uint32(FunctionType)].AccelerationStructure[Index] = nil;
+#endif // METAL_RHI_RAYTRACING
+		ShaderBuffers[uint32(FunctionType)].ReferencedResources[Index].Empty();
 		ShaderBuffers[uint32(FunctionType)].Bytes[Index] = nil;
 		ShaderBuffers[uint32(FunctionType)].Offsets[Index] = 0;
 		ShaderBuffers[uint32(FunctionType)].Usage[Index] = mtlpp::ResourceUsage::Read;
@@ -1515,6 +1692,10 @@ void FMetalCommandEncoder::SetShaderBytes(mtlpp::FunctionType const FunctionType
 	{
 		ShaderBuffers[uint32(FunctionType)].Bound &= ~(1 << Index);
 		
+#if METAL_RHI_RAYTRACING
+		ShaderBuffers[uint32(FunctionType)].AccelerationStructure[Index] = nil;
+#endif // METAL_RHI_RAYTRACING
+		ShaderBuffers[uint32(FunctionType)].ReferencedResources[Index].Empty();
 		ShaderBuffers[uint32(FunctionType)].Buffers[Index] = nil;
 		ShaderBuffers[uint32(FunctionType)].Bytes[Index] = nil;
 		ShaderBuffers[uint32(FunctionType)].Offsets[Index] = 0;
@@ -1814,7 +1995,63 @@ void FMetalCommandEncoder::SetShaderBufferInternal(mtlpp::FunctionType Function,
 		FMemory::Memcpy(((uint8*)Binding.Buffers[Index].GetContents()) + Offset, Bytes, Len);
 	}
 	
+	TArray<TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>> ReferencedResources = ShaderBuffers[uint32(Function)].ReferencedResources[Index];
+	switch (Function)
+	{
+	case mtlpp::FunctionType::Kernel:
+		for (TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>& ReferencedResource : ReferencedResources)
+		{
+			ComputeCommandEncoder.UseResource(
+				ReferencedResource.Key,
+				ReferencedResource.Value
+			);
+		}
+		break;
+	case mtlpp::FunctionType::Vertex:
+		for (TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>& ReferencedResource : ReferencedResources)
+		{
+			RenderCommandEncoder.UseResource(
+				ReferencedResource.Key,
+				ReferencedResource.Value,
+				mtlpp::RenderStages::Vertex
+			);
+		}
+		break;
+	case mtlpp::FunctionType::Fragment:
+		for (TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>& ReferencedResource : ReferencedResources)
+		{
+			RenderCommandEncoder.UseResource(
+				ReferencedResource.Key,
+				ReferencedResource.Value,
+				mtlpp::RenderStages::Fragment
+			);
+		}
+		break;
+	default:
+		checkNoEntry();
+		break;
+	};
+
 	ns::AutoReleased<FMetalBuffer>& Buffer = Binding.Buffers[Index];
+#if METAL_RHI_RAYTRACING
+	ns::AutoReleased<mtlpp::AccelerationStructure>& AS = ShaderBuffers[uint32(Function)].AccelerationStructure[Index];
+	if (AS)
+	{
+		switch (Function)
+		{
+		case mtlpp::FunctionType::Kernel:
+			ShaderBuffers[uint32(Function)].Bound |= (1 << Index);
+			check(ComputeCommandEncoder);
+			ComputeCommandEncoder.UseResource(AS, mtlpp::ResourceUsage::Read);
+			ComputeCommandEncoder.SetAccelerationStructure(AS, Index);
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
+	}
+	else
+#endif // METAL_RHI_RAYTRACING
 	if (Buffer)
 	{
 #if METAL_DEBUG_OPTIONS

@@ -1459,6 +1459,20 @@ void FMetalRenderPass::CommitDispatchResourceTables(void)
 		CurrentEncoder.SetShaderSideTable(mtlpp::FunctionType::Kernel, ComputeShader->SideTableBinding);
 		State.SetShaderBuffer(EMetalShaderStages::Compute, nil, nil, 0, 0, ComputeShader->SideTableBinding, mtlpp::ResourceUsage(0));
 	}
+
+#if METAL_RHI_RAYTRACING
+	// TODO: Crappy workaround for inline raytracing support.
+	if (ComputeShader->RayTracingBindings.InstanceIndexBuffer != UINT32_MAX && InstanceBufferSRV.IsValid())
+	{
+		FMetalResourceMultiBuffer* SourceBuffer = InstanceBufferSRV->GetSourceBuffer();
+		check(SourceBuffer);
+		FMetalBuffer CurBuffer = SourceBuffer->GetCurrentBufferOrNil();
+		check(CurBuffer);
+
+		CurrentEncoder.SetShaderBuffer(mtlpp::FunctionType::Kernel, CurBuffer, InstanceBufferSRV->Offset, CurBuffer.GetLength(), ComputeShader->RayTracingBindings.InstanceIndexBuffer, mtlpp::ResourceUsage::Read);
+		State.SetShaderBuffer(EMetalShaderStages::Compute, CurBuffer, nil, InstanceBufferSRV->Offset, CurBuffer.GetLength(), ComputeShader->RayTracingBindings.InstanceIndexBuffer, mtlpp::ResourceUsage::Read);
+	}
+#endif //METAL_RHI_RAYTRACING
 }
 
 void FMetalRenderPass::CommitAsyncDispatchResourceTables(void)
@@ -1473,6 +1487,20 @@ void FMetalRenderPass::CommitAsyncDispatchResourceTables(void)
 		PrologueEncoder.SetShaderSideTable(mtlpp::FunctionType::Kernel, ComputeShader->SideTableBinding);
 		State.SetShaderBuffer(EMetalShaderStages::Compute, nil, nil, 0, 0, ComputeShader->SideTableBinding, mtlpp::ResourceUsage(0));
 	}
+
+#if METAL_RHI_RAYTRACING
+	// TODO: Crappy workaround for inline raytracing support.
+	if (ComputeShader->RayTracingBindings.InstanceIndexBuffer != UINT32_MAX && InstanceBufferSRV.IsValid())
+	{
+		FMetalResourceMultiBuffer* SourceBuffer = InstanceBufferSRV->GetSourceBuffer();
+		check(SourceBuffer);
+		FMetalBuffer CurBuffer = SourceBuffer->GetCurrentBufferOrNil();
+		check(CurBuffer);
+
+		PrologueEncoder.SetShaderBuffer(mtlpp::FunctionType::Kernel, CurBuffer, InstanceBufferSRV->Offset, CurBuffer.GetLength(), ComputeShader->RayTracingBindings.InstanceIndexBuffer, mtlpp::ResourceUsage::Read);
+		State.SetShaderBuffer(EMetalShaderStages::Compute, CurBuffer, nil, InstanceBufferSRV->Offset, CurBuffer.GetLength(), ComputeShader->RayTracingBindings.InstanceIndexBuffer, mtlpp::ResourceUsage::Read);
+	}
+#endif //METAL_RHI_RAYTRACING
 }
 
 void FMetalRenderPass::PrepareToRender(uint32 PrimitiveType)

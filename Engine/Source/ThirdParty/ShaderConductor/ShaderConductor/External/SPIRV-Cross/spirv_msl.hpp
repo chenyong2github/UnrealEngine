@@ -319,6 +319,9 @@ public:
 		uint32_t shader_input_buffer_index = 22;
 		uint32_t shader_index_buffer_index = 21;
 		uint32_t shader_patch_input_buffer_index = 20;
+		// UE Change Begin: MetalRT Support
+		uint32_t raytracing_instance_descriptor_table_index = 19;
+		// UE Change End: MetalRT Support
 		uint32_t shader_input_wg_index = 0;
 		uint32_t device_index = 0;
 		uint32_t enable_frag_output_mask = 0xffffffff;
@@ -1173,6 +1176,9 @@ protected:
 	std::string patch_output_buffer_var_name = "spvPatchOut";
 	std::string tess_factor_buffer_var_name = "spvTessLevel";
 	std::string index_buffer_var_name = "spvIndices";
+	// UE Change Begin: MetalRT Support
+	std::string raytracing_instance_descriptor_var_name = "mtlInstanceDescriptor";
+	// UE Change End: MetalRT Support
 	spv::Op previous_instruction_opcode = spv::OpNop;
 
 	// Must be ordered since declaration is in a specific order.

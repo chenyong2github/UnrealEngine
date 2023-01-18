@@ -76,8 +76,20 @@ public:
 	 * @param Index The index to modify.
 	 * @param Usage The resource usage flags.
 	 * @param Format The UAV pixel format.
+	 * @param ReferencedResources The resources indirectly used by the bound buffer.
 	 */
-	void SetShaderBuffer(EMetalShaderStages const Frequency, FMetalBuffer const& Buffer, FMetalBufferData* const Bytes, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format = PF_Unknown, NSUInteger const ElementRowPitch = 0);
+	void SetShaderBuffer(EMetalShaderStages const Frequency, FMetalBuffer const& Buffer, FMetalBufferData* const Bytes, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format = PF_Unknown, NSUInteger const ElementRowPitch = 0, TArray<TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>> ReferencedResources = {});
+
+#if METAL_RHI_RAYTRACING
+	/*
+	 * Set a global acceleration structure for the specified shader frequency at the given bind point index.
+	 * @param Frequency The shader frequency to modify.
+	 * @param AccelerationStructure The acceleration structure to bind or nil to clear.
+	 * @param Index The index to modify.
+	 * @param BLAS The resources indirectly used by the bound buffer.
+	 */
+	void SetShaderBuffer(EMetalShaderStages const Frequency, mtlpp::AccelerationStructure const& AccelerationStructure, NSUInteger const Index, TArray<TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>> BLAS);
+#endif
 	
 	/*
 	 * Set a global texture for the specified shader frequency at the given bind point index.
@@ -178,7 +190,7 @@ private:
 #pragma mark - Private Type Declarations -
 	struct FMetalBufferBinding
 	{
-		FMetalBufferBinding() : Bytes(nil), Offset(0), Length(0), Usage((mtlpp::ResourceUsage)0) {}
+		FMetalBufferBinding() : Bytes(nil), Offset(0), Length(0), Usage((mtlpp::ResourceUsage)0), ReferencedResources{} {}
 		/** The bound buffers or nil. */
 		ns::AutoReleased<FMetalBuffer> Buffer;
 		/** Optional bytes buffer used instead of an FMetalBuffer */
@@ -191,6 +203,12 @@ private:
 		NSUInteger ElementRowPitch;
 		/** The bound buffer usage or 0 */
 		mtlpp::ResourceUsage Usage;
+#if METAL_RHI_RAYTRACING
+		/** The bound acceleration structure or nil. */
+		ns::AutoReleased<mtlpp::AccelerationStructure> AccelerationStructure;
+#endif // METAL_RHI_RAYTRACING
+		/** The resources referenced by this binding (e.g. BLAS referenced by a TLAS) */
+		TArray<TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>> ReferencedResources;
 	};
 	
 	/** A structure of arrays for the current buffer binding settings. */

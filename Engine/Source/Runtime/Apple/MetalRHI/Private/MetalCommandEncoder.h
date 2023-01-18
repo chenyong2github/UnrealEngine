@@ -175,6 +175,11 @@ public:
 	/** @returns True if and only if there is an active blit command encoder, otherwise false. */
 	bool IsBlitCommandEncoderActive(void) const;
 	
+#if METAL_RHI_RAYTRACING
+	/** @returns True if and only if there is an active acceleration structure command encoder, otherwise false. */
+	bool IsAccelerationStructureCommandEncoderActive(void) const;
+#endif // METAL_RHI_RAYTRACING
+
 	/**
 	 * True iff the command-encoder submits immediately to the command-queue, false if it performs any buffering.
 	 * @returns True iff the command-list submits immediately to the command-queue, false if it performs any buffering.
@@ -207,6 +212,11 @@ public:
 	
 	/** @returns The active blit command encoder or nil if there isn't one. */
 	mtlpp::BlitCommandEncoder& GetBlitCommandEncoder(void);
+
+#if METAL_RHI_RAYTRACING
+	/** @returns The active acceleration structure command encoder or nil if there isn't one. */
+	mtlpp::AccelerationStructureCommandEncoder& GetAccelerationStructureCommandEncoder(void);
+#endif // METAL_RHI_RAYTRACING
 	
 	/** @returns The MTLFence for the current encoder or nil if there isn't one. */
 	TRefCountPtr<FMetalFence> const& GetEncoderFence(void) const;
@@ -229,6 +239,11 @@ public:
 	
 	/** Begins encoding compute commands into the current command buffer. No other encoder may be active. */
 	void BeginComputeCommandEncoding(mtlpp::DispatchType Type = mtlpp::DispatchType::Serial);
+
+#if METAL_RHI_RAYTRACING
+	/** Begins encoding acceleration structure commands into the current command buffer. No other encoder may be active. */
+	void BeginAccelerationStructureCommandEncoding(void);
+#endif // METAL_RHI_RAYTRACING
 	
 	/** Begins encoding blit commands into the current command buffer. No other encoder may be active. */
 	void BeginBlitCommandEncoding(void);
@@ -393,6 +408,15 @@ public:
 	void SetVisibilityResultMode(mtlpp::VisibilityResultMode const Mode, NSUInteger const Offset);
 	
 #pragma mark - Public Shader Resource Mutators -
+#if METAL_RHI_RAYTRACING
+	/*
+	 * Set a global acceleration structure for the specified shader frequency at the given bind point index.
+	 * @param FunctionType The shader function to modify.
+	 * @param AccelerationStructure The acceleration structure to bind or nil to clear.
+	 * @param Index The index to modify.
+	 */
+	void SetShaderAccelerationStructure(mtlpp::FunctionType const FunctionType, mtlpp::AccelerationStructure const& AccelerationStructure, NSUInteger const Index);
+#endif // METAL_RHI_RAYTRACING
 	
 	/*
 	 * Set a global buffer for the specified shader frequency at the given bind point index.
@@ -403,8 +427,9 @@ public:
 	 * @param Index The index to modify.
 	 * @param Usage The resource usage mask.
 	 * @param Format The Pixel format to reinterpret the resource as.
+	 * @param ReferencedResources Resources indirectly used by the bound buffer.
 	 */
-	void SetShaderBuffer(mtlpp::FunctionType const FunctionType, FMetalBuffer const& Buffer, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format = PF_Unknown, NSUInteger const ElementRowPitch = 0);
+	void SetShaderBuffer(mtlpp::FunctionType const FunctionType, FMetalBuffer const& Buffer, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format = PF_Unknown, NSUInteger const ElementRowPitch = 0, TArray<TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>> ReferencedResources = {});
 	
 	/*
 	 * Set an FMetalBufferData to the specified shader frequency at the given bind point index.
@@ -521,6 +546,11 @@ private:
 		FMetalBufferData* SideTable;
         /** The bound buffers or nil. */
 		ns::AutoReleased<FMetalBuffer> Buffers[ML_MaxBuffers];
+		TArray<TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>> ReferencedResources[ML_MaxBuffers];
+#if METAL_RHI_RAYTRACING
+		/** The bound acceleration structure or nil. */
+		ns::AutoReleased<mtlpp::AccelerationStructure> AccelerationStructure[ML_MaxBuffers];
+#endif // METAL_RHI_RAYTRACING
         /** The bound buffers or nil. */
         FMetalBufferData* Bytes[ML_MaxBuffers];
         /** The bound buffer offsets or 0. */
@@ -578,6 +608,9 @@ public:
 	mtlpp::RenderCommandEncoder RenderCommandEncoder;
 	mtlpp::ComputeCommandEncoder ComputeCommandEncoder;
 	mtlpp::BlitCommandEncoder BlitCommandEncoder;
+#if METAL_RHI_RAYTRACING
+	mtlpp::AccelerationStructureCommandEncoder AccelerationStructureCommandEncoder;
+#endif // METAL_RHI_RAYTRACING
 	TArray<mtlpp::RenderCommandEncoder> ChildRenderCommandEncoders;
 	FMetalCommandBufferMarkers CommandBufferMarkers;
 	

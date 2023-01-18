@@ -272,7 +272,8 @@ bool DoCompileMetalShader(
 	TMap<FString, TArray<FMetalResourceTableEntry>> IABs;
 
 	FString PreprocessedShader = InPreprocessedShader;
-	
+	bool bUsingInlineRayTracing = Input.Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing);
+
 #if PLATFORM_MAC || PLATFORM_WINDOWS
 	{
 		std::string EntryPointNameAnsi(TCHAR_TO_UTF8(*Input.EntryPointName));
@@ -282,7 +283,15 @@ bool DoCompileMetalShader(
 		// Initialize compilation options for ShaderConductor
 		CrossCompiler::FShaderConductorOptions Options;
 
-		Options.TargetEnvironment = CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_1;
+		// Inline RayTracing requires Vulkan 1.2 environment
+		if (bUsingInlineRayTracing)
+		{
+			Options.TargetEnvironment = CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_2;
+		}
+		else
+		{
+			Options.TargetEnvironment = CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_1;
+		}
 
 		// Enable HLSL 2021 if specified
 		if (Input.Environment.CompilerFlags.Contains(CFLAG_HLSL2021))
@@ -347,6 +356,7 @@ bool DoCompileMetalShader(
 		CrossCompiler::FHlslccHeaderWriter CCHeaderWriter;
 
 		FString ALNString;
+		FString RTString;
 		uint32 IABOffsetIndex = 0;
 		uint64 BufferIndices = 0xffffffffffffffff;
 
@@ -752,6 +762,21 @@ bool DoCompileMetalShader(
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 				
+				for (auto const& Binding : ReflectionBindings.AccelerationStructures)
+				{
+					check(BufferIndices);
+					uint32 Index = FPlatformMath::CountTrailingZeros64(BufferIndices);
+
+					BufferIndices &= ~(1ull << (uint64)Index);
+
+					OutputData.InvariantBuffers |= (1 << Index);
+
+					CCHeaderWriter.WriteSRV(UTF8_TO_TCHAR(Binding->name), Index);
+
+					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
+					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+				}
+
 				for (auto const& Binding : ReflectionBindings.UniformBuffers)
 				{
 					check(BufferIndices);
@@ -968,6 +993,15 @@ bool DoCompileMetalShader(
 
 		if (Result)
 		{
+			if (bUsingInlineRayTracing)
+			{
+				// For inline raytracing, we only need the scene Instance Descriptors (to emulate a missing intrinsic).
+				uint32_t RayTracingInstanceIndexBuffer = FPlatformMath::CountTrailingZeros64(BufferIndices);
+				BufferIndices &= ~(1ull << (uint64)RayTracingInstanceIndexBuffer);
+				TargetDesc.CompileFlags.SetDefine(TEXT("raytracing_instance_descriptor_table_index"), RayTracingInstanceIndexBuffer);
+				RTString = FString::Printf(TEXT("// @RayTracingInstanceIndexBuffer: %u\n\n"), RayTracingInstanceIndexBuffer);
+			}
+
 			SideTableIndex = FPlatformMath::CountTrailingZeros64(BufferIndices);
 			BufferIndices &= ~(1ull << (uint64)SideTableIndex);
 
@@ -1108,6 +1142,7 @@ bool DoCompileMetalShader(
 			CCHeaderWriter.WriteCompilerInfo();
 
 			FString MetaData = CCHeaderWriter.ToString();
+			MetaData += RTString;
 			MetaData += TEXT("\n\n");
 			if (ALNString.Len())
 			{

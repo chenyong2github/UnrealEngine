@@ -401,6 +401,10 @@ FMetalDeviceContext::FMetalDeviceContext(mtlpp::Device MetalDevice, uint32 InDev
 	
 	PSOManager = new FMetalPipelineStateCacheManager();
 	
+#if METAL_RHI_RAYTRACING
+	InitializeRayTracing();
+#endif
+
 	METAL_GPUPROFILE(FMetalProfiler::CreateProfiler(this));
 	
 	InitFrame(true, 0, 0);
@@ -414,6 +418,10 @@ FMetalDeviceContext::~FMetalDeviceContext()
 	delete PSOManager;
     
     delete UniformBufferAllocator;
+
+#if METAL_RHI_RAYTRACING
+	CleanUpRayTracing();
+#endif
 	
 #if PLATFORM_MAC
     mtlpp::Device::RemoveDeviceObserver(GMetalDeviceObserver);
@@ -433,6 +441,10 @@ void FMetalDeviceContext::BeginFrame()
 	
 	// Wait for the frame semaphore on the immediate context.
 	dispatch_semaphore_wait(CommandBufferSemaphore, DISPATCH_TIME_FOREVER);
+
+#if METAL_RHI_RAYTRACING
+	UpdateRayTracing();
+#endif // METAL_RHI_RAYTRACING
 }
 
 #if METAL_DEBUG_OPTIONS

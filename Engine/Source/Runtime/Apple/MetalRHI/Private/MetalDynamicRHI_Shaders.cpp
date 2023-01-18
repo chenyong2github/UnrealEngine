@@ -49,6 +49,18 @@ FComputeShaderRHIRef FMetalDynamicRHI::RHICreateComputeShader(TArrayView<const u
 	}
 }
 
+#if METAL_RHI_RAYTRACING
+FRayTracingShaderRHIRef FMetalDynamicRHI::RHICreateRayTracingShader(TArrayView<const uint8> Code, const FSHAHash& Hash, EShaderFrequency ShaderFrequency)
+{
+	@autoreleasepool {
+	switch (ShaderFrequency)
+		{
+			default: checkNoEntry(); 				return nullptr;
+		}
+	}
+}
+#endif // METAL_RHI_RAYTRACING
+
 FRHIShaderLibraryRef FMetalDynamicRHI::RHICreateShaderLibrary(EShaderPlatform Platform, FString const& FilePath, FString const& Name)
 {
 	FString METAL_MAP_EXTENSION(TEXT(".metalmap"));

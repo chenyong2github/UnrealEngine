@@ -88,12 +88,14 @@ struct FHlslccMetalHeader : public CrossCompiler::FHlslccHeader
 	
 	TMap<uint8, TArray<uint8>> ArgumentBuffers;
 	int8 SideTable;
+	uint32 RayTracingInstanceIndexBuffer;
 	uint32 Version;
 };
 
 FHlslccMetalHeader::FHlslccMetalHeader(uint32 const InVersion)
 {
 	SideTable = -1;
+	RayTracingInstanceIndexBuffer = UINT_MAX;
 	Version = InVersion;
 }
 
@@ -109,6 +111,7 @@ static const ANSICHAR* Str##Prefix = "// @" #Str ": "; \
 static const int32 Str##PrefixLen = FCStringAnsi::Strlen(Str##Prefix)
 	DEF_PREFIX_STR(ArgumentBuffers);
 	DEF_PREFIX_STR(SideTable);
+	DEF_PREFIX_STR(RayTracingInstanceIndexBuffer);
 #undef DEF_PREFIX_STR
 	
 	const ANSICHAR* SideTableString = FCStringAnsi::Strstr(ShaderSource, SideTablePrefix);
@@ -144,6 +147,21 @@ static const int32 Str##PrefixLen = FCStringAnsi::Strlen(Str##Prefix)
 		}
 	}
 	
+	const ANSICHAR* RayTracingInstanceIndexBufferString = FCStringAnsi::Strstr(ShaderSource, RayTracingInstanceIndexBufferPrefix);
+	if (RayTracingInstanceIndexBufferString)
+	{
+		ShaderSource += RayTracingInstanceIndexBufferPrefixLen;
+		if (!CrossCompiler::ParseIntegerNumber(ShaderSource, RayTracingInstanceIndexBuffer))
+		{
+			return false;
+		}
+
+		if (*ShaderSource && !CrossCompiler::Match(ShaderSource, '\n'))
+		{
+			return false;
+		}
+	}
+
 	const ANSICHAR* ArgumentTable = FCStringAnsi::Strstr(ShaderSource, ArgumentBuffersPrefix);
 	if (ArgumentTable)
 	{
@@ -502,6 +520,12 @@ void BuildMetalShaderOutput(
 	Header.NumThreadsY = CCHeader.NumThreads[1];
 	Header.NumThreadsZ = CCHeader.NumThreads[2];
 	
+	// TODO: Should be for inline RT only.
+	if (Frequency == SF_Compute)
+	{
+		Header.RayTracing.InstanceIndexBuffer = CCHeader.RayTracingInstanceIndexBuffer;
+	}
+
 	Header.bDeviceFunctionConstants = (FCStringAnsi::Strstr(USFSource, "#define __METAL_DEVICE_CONSTANT_INDEX__ 1") != nullptr);
 	Header.SideTable = CCHeader.SideTable;
 	Header.Bindings.ArgumentBufferMasks = CCHeader.ArgumentBuffers;
@@ -1020,6 +1044,12 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 	else
 	{
 		AdditionalDefines.SetDefine(TEXT("COMPILER_SUPPORTS_ATTRIBUTES"), (uint32)1);
+	}
+
+	bool bUsesInlineRayTracing = Input.Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing);
+	if (bUsesInlineRayTracing)
+	{
+		AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_INLINE_RAY_TRACING"), 1);
 	}
 
 	AdditionalDefines.SetDefine(TEXT("COMPILER_SUPPORTS_DUAL_SOURCE_BLENDING_SLOT_DECORATION"), (uint32)1);
