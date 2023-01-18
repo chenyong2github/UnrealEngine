@@ -180,7 +180,7 @@ private:
 	void GenerateAllTreeElements();
 
 	/** Support GenerateAllTreeElements by generating the elements recursively */
-	void GenerateElementRecursive(mu::OP::ADDRESS InParentAddress, const mu::FProgram& InProgram);
+	void GenerateElementRecursive( const int32& InStateIndex, mu::OP::ADDRESS InParentAddress, const mu::FProgram& InProgram);
 
 	
 	/** The addresses of the root operations. Cached when this object gets loaded on the Construct method of this slate */
@@ -639,6 +639,25 @@ private:
 	/** Called when any parameter value has changed, with the parameter index as argument.  */
 	void OnPreviewParameterValueChanged( int32 ParamIndex );
 
+	/*
+	* Element state recalculation 
+	*/
+	
+	/** FLag that determines if the expansion of elements should require the computation of the state of it's child elements.
+	 * Useful to avoid unnecessary calls for state resting of movable branches like the children of operations that are repeated
+	 * in the tree slate */
+	bool bShouldRecalculateStates = false;
+	
+	/** Provided an element of the tree view return all the children of it (direct and indirect). The search will stop (depth)
+	 * if a children is found to not be expanded. This way we avoid infinite searches (since we do not stop at duplicates).
+	 * @note It DOES NOT check for visibility by asking the TreeView. It only gets the elements that could be seen in theory.
+	 * @note This method will return expanded and not expanded children but only the expanded children will get it's children searched and therefore
+	 * provided by this method. In conclusion, only the elements that could be seen by the view will get provide.
+	 * @param InInfo The element whose children we want to grab. It can be expanded or not.
+	 * @param OutChildren A collection of children elements. Only the elements that could be seen in the tree view (expanded and the root element of an
+	 * unexpanded branch) wll get added to this collection.
+	 */
+	void GetVisibleChildren(TSharedPtr<FMutableCodeTreeElement> InInfo, TSet<TSharedPtr<FMutableCodeTreeElement>>& OutChildren);
 	
 
 	/*
@@ -715,7 +734,7 @@ public:
 class FMutableCodeTreeElement : public TSharedFromThis<FMutableCodeTreeElement>
 {
 public:
-	FMutableCodeTreeElement(int32 InIndexOnTree ,const TSharedPtr<mu::Model, ESPMode::ThreadSafe>& InModel, mu::OP::ADDRESS InOperation, const FString& InCaption,const FSlateColor InLabelColor, const TSharedPtr<FMutableCodeTreeElement>* InDuplicatedOf = nullptr)
+	FMutableCodeTreeElement(int32 InIndexOnTree  , const int32& InMutableStateIndex ,const TSharedPtr<mu::Model, ESPMode::ThreadSafe>& InModel, mu::OP::ADDRESS InOperation, const FString& InCaption,const FSlateColor InLabelColor, const TSharedPtr<FMutableCodeTreeElement>* InDuplicatedOf = nullptr)
 	{
 		MutableModel = InModel;
 		MutableOperation = InOperation;
@@ -726,60 +745,59 @@ public:
 		{
 			DuplicatedOf = *InDuplicatedOf;
 		}
-
-		// Check what type of operation is (state constant or dynamic resource)
+		
+		// Process the data that can be extracted from the current state
+		SetElementCurrentState(InMutableStateIndex);
+	}
+	
+	void SetElementCurrentState(const int32& InStateIndex)
+	{
+		// Skip operation if state is the same
+		if (InStateIndex == CurrentMutableStateIndex)
 		{
-			// If duplicated then grab the already processed data on the original operation
-			if (InDuplicatedOf)
-			{
-				bIsDynamicResource = DuplicatedOf->bIsDynamicResource;
-				bIsStateConstant = DuplicatedOf->bIsStateConstant;
+			return;
+		}
 
-				// All required data has been processed so an early exit is required
-				return;
-			}
-			
-			// Iterate over all states and try to locate the operation
-			const mu::FProgram& MutableProgram = InModel->GetPrivate()->m_program;
-			for (const mu::FProgram::FState& CurrentState : MutableProgram.m_states)
+		// Check for an out of bounds value
+		check(MutableModel)
+		mu::FProgram& MutableProgram = MutableModel->GetPrivate()->m_program;
+		check (InStateIndex >= 0 && InStateIndex < MutableProgram.m_states.Num());
+		
+		CurrentMutableStateIndex = InStateIndex;
+		const mu::FProgram::FState& CurrentState = MutableProgram.m_states[CurrentMutableStateIndex];
+		
+		// Check if it is a dynamic resource
+		for (auto& DynamicResource : CurrentState.m_dynamicResources)
+		{
+			// If the operation gets located then mark it as dynamic resource
+			if (DynamicResource.Key == MutableOperation)
 			{
-				// Check if it is a dynamic resource
-				for (auto& DynamicResource : CurrentState.m_dynamicResources)
-				{
-					// If the operation gets located then mark it as dynamic resource
-					if (DynamicResource.Key == MutableOperation)
-					{
-						bIsDynamicResource = true;
-						break;
-					}
-				}
-				
-				// Early exit: A dynamic resource can not be at the same time a state constant
-				if (bIsDynamicResource)
-				{
-					return;
-				}
-				
-				// Check if it is a state constant
-				bIsStateConstant = CurrentState.m_updateCache.Contains(MutableOperation);
+				bIsDynamicResource = true;
+				break;
 			}
 		}
+		// Early exit: A dynamic resource can not be at the same time a state constant
+		if (bIsDynamicResource)
+		{
+			return;
+		}
 		
+		// Check if it is a state constant
+		bIsStateConstant = CurrentState.m_updateCache.Contains(MutableOperation);
 	}
 
+	int32 GetStateIndex() const
+	{
+		return CurrentMutableStateIndex;
+	}
+	
 public:
 
 	/** */
 	TSharedPtr<mu::Model, ESPMode::ThreadSafe> MutableModel;
-
+	
 	/** Mutable Graph Node represented in this tree row. */
 	mu::OP::ADDRESS MutableOperation;
-
-	/** If true means that it will not update when a runtime parameter on the state gets updated */
-	bool bIsStateConstant = false;
-
-	/** If true then the mesh or image of this operation may change during the state update */
-	bool bIsDynamicResource = false;
 
 	/** Label representing this operation. */
 	FString Caption;
@@ -796,4 +814,29 @@ public:
 	
 	/** The current position of this element on the tree view. Used for navigation */
 	int32 IndexOnTree;
+	
+	/*
+	 * Dynamic data : Can and will change during the standard operation of the tree view object.
+	 */
+
+	/** If true means that it will not update when a runtime parameter on the state gets updated */
+	bool bIsStateConstant = false;
+
+	/** If true then the mesh or image of this operation may change during the state update */
+	bool bIsDynamicResource = false;
+
+	/** Flag that reflects the expanded state of the element in the tree view. It is used in order to know when an element
+	 * should or should not has it's set state index updated (and the data that comes with it).
+	 * @note It does not mean the element can be seen at the moment in the view, just that, in case of expansion of a parent
+	 * element then this could be part of the view (if inside view space).
+	 */
+	bool bIsExpanded = false;
+
+private:
+	/** Represents as part of what state this element is currently part of. Will change for elements that are children
+	 * of duplicated elements (duplicated) since children of duplicated elements are still unique and therefore they can
+	 * be present in more than one state (but can just appear in one state at any given time)
+	 */
+	int32 CurrentMutableStateIndex = -1;	
+
 };

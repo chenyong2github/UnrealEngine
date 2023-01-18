@@ -72,6 +72,41 @@ public:
 		);
 	}
 
+	FLinearColor OnGetExtraDataBoxColor() const
+	{
+		if (RowItem->bIsDynamicResource)
+		{
+			return DynamicResourceBoxColor;
+		}
+		else if (RowItem->bIsStateConstant)
+		{
+			return StateConstantBoxColor;
+		}
+		else
+		{
+			return ExtraDataBackgroundBoxDefaultColor;
+		}
+	}
+
+	FText OnGetExtraDataText() const
+	{
+		// DEBUG :Uncomment the next line in order to debug the current state being used by the element
+		// return FText::FromString(FString::FromInt(RowItem->GetStateIndex()));
+		
+		if (RowItem->bIsDynamicResource)
+		{
+			return  DynamicResourceText;
+		}
+		else if (RowItem->bIsStateConstant)
+		{
+			return StateConstantText;
+		}
+		else
+		{
+			return FText::FromString(FString(""));
+		}
+	}
+
 	/** Method intended with the generation of the wanted objects for each column*/
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
 	{
@@ -180,11 +215,15 @@ public:
 			// Prepare the text shown on the UI side of the operation tree
 			FString MainLabel = FString::Printf(TEXT("%s %d : %s"), *RowItem->Caption, int32(RowItem->MutableOperation), *OpName);
 
-#if UE_BUILD_DEBUG
-			FString IndexOnTree = FString::FromInt(RowItem->IndexOnTree);
-			IndexOnTree.Append(TEXT("- "));
-			MainLabel.InsertAt(0,IndexOnTree);
-#endif
+			// DEBUG : 
+			// FString IndexOnTree = FString::FromInt(RowItem->IndexOnTree);
+			// IndexOnTree.Append(TEXT("- "));
+			// MainLabel.InsertAt(0,IndexOnTree);
+
+			// DEBUG : 
+			// FString RowStateIndex = FString::FromInt(RowItem->GetStateIndex());
+			// RowStateIndex.Append(TEXT(" st "));
+			// MainLabel.InsertAt(0,RowStateIndex);
 
 			
 			if (RowItem->DuplicatedOf)
@@ -249,20 +288,6 @@ public:
 		// Second column showing some extra data related with the operation being displayed
 		if (ColumnName == MutableCodeTreeViewColumns::AdditionalDataColumnID)
 		{
-			// Determine what text will be shown on the extra data column alongside with the background color used for it
-			FText OperationExtraData = FText::FromString(FString(""));
-			const FSlateColor* OperationDataBoxColor = &ExtraDataBackgroundBoxDefaultColor;
-			if (RowItem->bIsDynamicResource)
-			{
-				OperationExtraData = DynamicResourceText;
-				OperationDataBoxColor = &DynamicResourceBoxColor;
-			}
-			else if (RowItem->bIsStateConstant)
-			{
-				OperationExtraData = StateConstantText;
-				OperationDataBoxColor = &StateConstantBoxColor;
-			}
-			
 			TSharedRef<SHorizontalBox> RowContainer =  SNew(SHorizontalBox)
 			
 			+ SHorizontalBox::Slot()
@@ -270,31 +295,19 @@ public:
 			[
 				SNew(SHorizontalBox)
 
-				// Cheap way of doing a fixed space with a color
 				+SHorizontalBox::Slot()
-				.AutoWidth()
+				.MaxWidth(4.0f)
 				[
-					 SNew(SOverlay)
-					 +SOverlay::Slot()
-					 [
-						SNew(SMutableColorPreviewBox)
-						.BoxColor(*OperationDataBoxColor)
-					 ]
-
-					 // Hacky way of setting a fixed size for the color box
-					 + SOverlay::Slot()
-					 [
-						SNew(STextBlock)
-						.Text(EmptyText)
-					 ]
+					SNew(SColorBlock)
+					.Color(this,&SMutableCodeTreeRow::OnGetExtraDataBoxColor)
 				]
 
 				+ SHorizontalBox::Slot()
 				.Padding(4,1)
-				.FillWidth(0.9f)
+				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.Text(OperationExtraData)
+					.Text(this,&SMutableCodeTreeRow::OnGetExtraDataText)
 				]
 			];
 			
@@ -368,13 +381,13 @@ private:
 	const FText StateConstantText = FText::FromString(FString("const"));
 	
 	/** Color used on the extra data column when no extra data is shown */
-	const FSlateColor ExtraDataBackgroundBoxDefaultColor =  FSlateColor(TransparentColor);
+	const FLinearColor ExtraDataBackgroundBoxDefaultColor =  TransparentColor;
 
 	/** Color shown on the extra data column when the resource is found to be Dynamic */
-	const FSlateColor DynamicResourceBoxColor = FSlateColor(FLinearColor(0,0,1,0.8));
+	const FLinearColor DynamicResourceBoxColor = FLinearColor(0,0,1,0.8);
 
 	/** Color shown on the extra data column when the resource is found to be State Constant */
-	const FSlateColor StateConstantBoxColor = FSlateColor(FLinearColor(1,0,0,0.8));
+	const FLinearColor StateConstantBoxColor = FLinearColor(1,0,0,0.8);
 };
 
 
@@ -703,7 +716,14 @@ void SMutableCodeViewer::Construct(const FArguments& InArgs, const TSharedPtr<mu
 	];
 	
 	// Set the tree expanded by default
+	// It does not recalculate states since the expansion of the instance will NOT expand duplicates witch means the widget position
+	// of the children of duplicated (or the original of an operation with duplicates) will not change.
 	TreeExpandInstance();
+
+	// Enable the recalculation of states once the tree has already been initially expanded since now we do not control
+	// how the user is point to interact with the view.
+	bShouldRecalculateStates = true;
+	// Now, on expansion or contraction the states will get recalculated
 } 
 
 
@@ -1136,8 +1156,8 @@ void SMutableCodeViewer::GenerateAllTreeElements()
 
 		const FSlateColor LabelColor = ColorPerComputationalCost[StaticCast<uint8>(GetOperationTypeComputationalCost(
 			ModelPrivate->m_program.GetOpType(State.m_root)))];
-		
-		RootNodes.Add(MakeShareable(new FMutableCodeTreeElement(ItemCache.Num(), MutableModel, State.m_root, Caption,LabelColor)));
+
+		RootNodes.Add(MakeShareable(new FMutableCodeTreeElement(ItemCache.Num(),StateIndex, MutableModel, State.m_root, Caption,LabelColor)));
 
 		// Iterate over each root node and generate all the elements in a human readable pattern (Z Pattern)
 
@@ -1146,16 +1166,16 @@ void SMutableCodeViewer::GenerateAllTreeElements()
 
 		// Add the element to the cache so we keep the indices straight.
 		ItemCache.Add(Key, RootNodes.Last());
-		GenerateElementRecursive(State.m_root,Program);
+		GenerateElementRecursive(StateIndex,State.m_root,Program);
 	}
 	
 }
 
-void SMutableCodeViewer::GenerateElementRecursive(mu::OP::ADDRESS InParentAddress,  const mu::FProgram& InProgram)
+void SMutableCodeViewer::GenerateElementRecursive(const int32& InStateIndex, mu::OP::ADDRESS InParentAddress,  const mu::FProgram& InProgram)
 {
 	// This will be used to add operations
 	uint32 ChildIndex = 0;
-	auto AddOpFunc = [this, InParentAddress, &InProgram, &ChildIndex](mu::OP::ADDRESS ChildAddress, const FString& Caption)
+	auto AddOpFunc = [this, InParentAddress, &InProgram, &ChildIndex, &InStateIndex](mu::OP::ADDRESS ChildAddress, const FString& Caption)
 		{
 			if (ChildAddress)
 			{
@@ -1173,7 +1193,7 @@ void SMutableCodeViewer::GenerateElementRecursive(mu::OP::ADDRESS InParentAddres
 					const FSlateColor LabelColor = ColorPerComputationalCost[StaticCast<uint8>(GetOperationTypeComputationalCost(InProgram.GetOpType(ChildAddress)))];
 
 					// No caption for the generic tree
-					const TSharedPtr<FMutableCodeTreeElement> Item = MakeShareable(new FMutableCodeTreeElement(ItemCache.Num(), MutableModel, ChildAddress, Caption, LabelColor, MainItemPtr));
+					const TSharedPtr<FMutableCodeTreeElement> Item = MakeShareable(new FMutableCodeTreeElement(ItemCache.Num(),InStateIndex, MutableModel, ChildAddress, Caption, LabelColor, MainItemPtr));
 
 					// Cache this element for later access
 					ItemCache.Add(Key, Item);
@@ -1183,7 +1203,7 @@ void SMutableCodeViewer::GenerateElementRecursive(mu::OP::ADDRESS InParentAddres
 					{
 						MainItemPerOp.Add(ChildAddress, Item);
 
-						GenerateElementRecursive(ChildAddress, InProgram);
+						GenerateElementRecursive(InStateIndex,ChildAddress, InProgram);
 					}
 				}
 			}
@@ -1362,12 +1382,7 @@ void SMutableCodeViewer::GetChildrenForInfo(TSharedPtr<FMutableCodeTreeElement> 
 		return;
 	}
 
-	// If this is a duplicated of another row, don't provide its children.
-	//if (InInfo->DuplicatedOf)
-	//{
-	//	return;
-	//}
-
+	check(MutableModel);
 	const mu::FProgram& Program = MutableModel->GetPrivate()->m_program;
 
 	mu::OP::ADDRESS ParentAddress = InInfo->MutableOperation;
@@ -1397,14 +1412,30 @@ void SMutableCodeViewer::GetChildrenForInfo(TSharedPtr<FMutableCodeTreeElement> 
 
 void SMutableCodeViewer::OnExpansionChanged(TSharedPtr<FMutableCodeTreeElement> InItem, bool bInExpanded)
 {
+	// Update expanded state of the provided element
+	InItem->bIsExpanded = bInExpanded;
+	
 	// If an element gets expanded then contract (if found) the other element that uses the same address
 	if (bInExpanded)
 	{
 		const mu::OP::ADDRESS MutableOperation = InItem->MutableOperation;
-		const TSharedPtr<FMutableCodeTreeElement>* ExpandedElement = ExpandedElements.Find(MutableOperation);
-		if (ExpandedElement)
+		const TSharedPtr<FMutableCodeTreeElement>* PreviouslyExpandedElement = ExpandedElements.Find(MutableOperation);
+		if (PreviouslyExpandedElement)
 		{
-			TreeView->SetItemExpansion(*ExpandedElement, false);
+			TreeView->SetItemExpansion(*PreviouslyExpandedElement, false);
+		}
+
+		// Only do this if in a situation where it may be required (do not do it if the tree has not been interacted with yet)
+		if (bShouldRecalculateStates)
+		{
+			// Find all the children (recursive) of this item.
+			TSet<TSharedPtr<FMutableCodeTreeElement>> FoundChildren;
+			GetVisibleChildren(InItem, FoundChildren);
+			for (const TSharedPtr<FMutableCodeTreeElement>& Child : FoundChildren)
+			{
+				// For each of the children found set it's state to be the one found on the expanded element
+				Child->SetElementCurrentState(InItem->GetStateIndex());
+			}
 		}
 		
 		// Cache this element as one currently expanded
@@ -1417,6 +1448,53 @@ void SMutableCodeViewer::OnExpansionChanged(TSharedPtr<FMutableCodeTreeElement> 
 	}
 }
 
+void SMutableCodeViewer::GetVisibleChildren(TSharedPtr<FMutableCodeTreeElement> InInfo, TSet<TSharedPtr<FMutableCodeTreeElement>>& OutChildren)
+{
+	check(MutableModel);
+	const mu::FProgram MutableProgram = MutableModel->GetPrivate()->m_program;
+	
+	TArray<TSharedPtr<FMutableCodeTreeElement>> ToSearchForChildren;
+	ToSearchForChildren.Add(InInfo);
+	while (!ToSearchForChildren.IsEmpty())
+	{
+		// Grab the first element in order to check for it's children
+		const TSharedPtr<FMutableCodeTreeElement> ToCheck = ToSearchForChildren[0];
+		ToSearchForChildren.RemoveAt(0);
+		
+		const mu::OP::ADDRESS ParentAddress = ToCheck->MutableOperation;
+	
+		// Generic case for unnamed children traversal.
+		uint32 ChildIndex = 0;
+		mu::ForEachReference(MutableProgram, ParentAddress, [this, ParentAddress, &ChildIndex, &OutChildren, &ToSearchForChildren ](mu::OP::ADDRESS ChildAddress)
+		{
+			if (ChildAddress)
+			{
+				const FItemCacheKey Key = { ParentAddress, ChildAddress, ChildIndex };
+				const TSharedPtr<FMutableCodeTreeElement> CachedItem = *ItemCache.Find(Key);
+
+				// Since we have already generated all elements CachedItem should be therefore always a valid pointer
+				check (CachedItem);
+				
+				// If the address has not been yet found then save it as one of the children affected
+				if (!OutChildren.Contains(CachedItem))
+				{
+					OutChildren.Add(CachedItem);
+
+					// And if the children is found to be expanded then also process it later to later return only the
+					// elements that are expanded in the tree view (using data manually set on each tree element)
+					if (CachedItem->bIsExpanded )
+					{
+						// Add for processing
+						ToSearchForChildren.Add(CachedItem);
+					}
+				}
+			}
+			++ChildIndex;
+		});
+	}
+	
+	UE_LOG(LogTemp,Warning,TEXT("Found a total of %i children elements "),OutChildren.Num());
+}
 
 
 void SMutableCodeViewer::OnSelectionChanged(TSharedPtr<FMutableCodeTreeElement> InNode, ESelectInfo::Type InSelectInfo)
