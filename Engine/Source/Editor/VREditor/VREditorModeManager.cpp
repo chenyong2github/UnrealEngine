@@ -197,6 +197,7 @@ void FVREditorModeManager::StartVREditorMode( const bool bForceWithoutHMD )
 			check(VRMode != nullptr);
 			VRMode->OnVRModeEntryComplete().AddRaw(this, &FVREditorModeManager::HandleModeEntryComplete);
 			ExtensionCollection->AddExtension(VRMode);
+			CurrentVREditorMode = VRMode;
 		}
 
 		// Tell the level editor we want to be notified when selection changes
@@ -204,10 +205,11 @@ void FVREditorModeManager::StartVREditorMode( const bool bForceWithoutHMD )
 			FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>( "LevelEditor" );
 			LevelEditor.OnMapChanged().AddRaw( this, &FVREditorModeManager::OnMapChanged );
 		}
-	
-		CurrentVREditorMode = VRMode;
-		CurrentVREditorMode->SetActuallyUsingVR( !bForceWithoutHMD );
-		CurrentVREditorMode->Enter();
+
+		VRMode->SetActuallyUsingVR( !bForceWithoutHMD );
+		VRMode->Enter();
+		// Note: Enter() may, in the case of early init failure, re-enter CloseVREditor,
+		// causing CurrentVREditorMode to be nullified/invalidated beyond this point
 
 		if (FEngineAnalytics::IsAvailable())
 		{

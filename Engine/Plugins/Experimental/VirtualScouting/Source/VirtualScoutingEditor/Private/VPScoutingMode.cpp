@@ -8,9 +8,11 @@
 #include "Editor.h"
 #endif
 
+#include "Framework/Notifications/NotificationManager.h"
 #include "IOpenXRHMDModule.h"
 #include "IVREditorModule.h"
 #include "IXRTrackingSystem.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 
 #define LOCTEXT_NAMESPACE "VirtualScouting"
@@ -125,12 +127,28 @@ bool UVPScoutingMode::ValidateSettings()
 	{
 		if (PropagateAlpha->GetInt() != 0)
 		{
-			UE_LOG(LogVirtualScouting, Error, TEXT("r.PostProcessing.PropagateAlpha must be set to 0 (and requires an engine restart)"));
+			InvalidSettingNotification(LOCTEXT("InvalidCvarPropagateAlpha", "r.PostProcessing.PropagateAlpha must be set to 0 (and requires an engine restart)"));
 			bSettingsValid = false;
 		}
 	}
 
 	return bSettingsValid;
+}
+
+
+void UVPScoutingMode::InvalidSettingNotification(const FText& ErrorDetails)
+{
+	FText NotificationHeading = LOCTEXT("InvalidSettingNotificationTitle", "Unable to initialize Virtual Scouting");
+
+	UE_LOG(LogVirtualScouting, Error, TEXT("%s: %s"), *NotificationHeading.ToString(), *ErrorDetails.ToString());
+
+	FNotificationInfo Info(NotificationHeading);
+	Info.SubText = ErrorDetails;
+	TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+	if (Notification)
+	{
+		Notification->SetCompletionState(SNotificationItem::CS_Fail);
+	}
 }
 
 

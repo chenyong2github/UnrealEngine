@@ -24,4 +24,6 @@ public:
 
 protected:
 	bool ValidateSettings();
+
+	void InvalidSettingNotification(const FText& ErrorDetails);
 };

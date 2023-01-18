@@ -387,7 +387,11 @@ void UVREditorMode::Exit(const bool bShouldDisableStereo)
 	const FSavedEditorState& SavedEditorState = static_cast<const FSavedEditorState&>(SavedEditorStateChecked());
 
 	{
-		GetLevelViewportPossessedForVR().RemoveAllPreviews(false);
+		if (TSharedPtr<SLevelViewport> VrViewport = GetVrLevelViewport())
+		{
+			VrViewport->RemoveAllPreviews(false);
+		}
+
 		GEditor->SelectNone(true, true, false);
 		GEditor->NoteSelectionChange();
 		FVREditorActionCallbacks::ChangeEditorModes(FBuiltinEditorModes::EM_Default);

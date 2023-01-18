@@ -26,6 +26,7 @@ public class VirtualScoutingEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 			{
 				"OpenXRHMD",
+				"Slate",
 				"UnrealEd",
 				"VREditor",
 				"VirtualScoutingOpenXR",
