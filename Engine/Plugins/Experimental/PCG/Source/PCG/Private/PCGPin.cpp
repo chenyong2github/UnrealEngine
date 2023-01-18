@@ -149,7 +149,7 @@ bool UPCGPin::BreakAllIncompatibleEdges()
 		UPCGEdge* Edge = Edges[EdgeIndex];
 		UPCGPin* OtherPin = Edge->GetOtherPin(this);
 
-		bool bRemoveEdge = !IsCompatible(OtherPin) || (!Properties.bAllowMultipleConnections && bHasAValidEdge);
+		bool bRemoveEdge = !IsCompatible(OtherPin) || (!AllowMultipleConnections() && bHasAValidEdge);
 
 		if (bRemoveEdge)
 		{
@@ -244,7 +244,13 @@ bool UPCGPin::IsCompatible(const UPCGPin* OtherPin) const
 	return !!(Properties.AllowedTypes & OtherPin->Properties.AllowedTypes);
 }
 
+bool UPCGPin::AllowMultipleConnections() const
+{
+	// Always allow multiple connection on output pin
+	return IsOutputPin() || Properties.bAllowMultipleConnections;
+}
+
 bool UPCGPin::CanConnect(const UPCGPin* OtherPin) const
 {
-	return OtherPin && (Properties.bAllowMultipleConnections || Edges.IsEmpty());
+	return OtherPin && (Edges.IsEmpty() || AllowMultipleConnections());
 }
