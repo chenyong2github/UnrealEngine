@@ -95,11 +95,6 @@ namespace AutomationScripts
 				if (!Unreal.IsEngineInstalled())
 				{
 					CrashReportPlatforms.Add(EditorPlatform);
-					if (Params.EditorTargets.Contains("UnrealHeaderTool") == false)
-					{
-						Agenda.AddTargets(new string[] { "UnrealHeaderTool" }, EditorPlatform, EditorConfiguration, InAddArgs:ProgramArchitecture);
-						Agenda.AddTargets(new string[] { "UnrealHeaderTool" }, EditorPlatform, EditorConfiguration, Params.CodeBasedUprojectPath, InAddArgs: ProgramArchitecture);
-					}
 					if (Params.EditorTargets.Contains("ShaderCompileWorker") == false)
 					{
 						Agenda.AddTargets(new string[] { "ShaderCompileWorker" }, EditorPlatform, EditorConfiguration, InAddArgs: ProgramArchitecture);

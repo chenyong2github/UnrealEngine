@@ -87,7 +87,6 @@ namespace AutomationScripts.Automation
 		{
 			LogInformation("Running Step:- RebuildHLOD::BuildNecessaryTargets");
 			UnrealBuild.BuildAgenda Agenda = new UnrealBuild.BuildAgenda();
-            Agenda.AddTarget("UnrealHeaderTool", UnrealBuildTool.UnrealTargetPlatform.Win64, UnrealBuildTool.UnrealTargetConfiguration.Development);
 			Agenda.AddTarget("ShaderCompileWorker", UnrealBuildTool.UnrealTargetPlatform.Win64, UnrealBuildTool.UnrealTargetConfiguration.Development);			
 			Agenda.AddTarget(CommandletTargetName, UnrealBuildTool.UnrealTargetPlatform.Win64, UnrealBuildTool.UnrealTargetConfiguration.Development);
 

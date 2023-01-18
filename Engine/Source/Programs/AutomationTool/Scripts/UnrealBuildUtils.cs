@@ -28,22 +28,6 @@ public class UnrealBuildUtils : CommandUtils
 			});
 	}
 
-	/// <summary>
-	/// Builds UnrealHeaderTool for the specified platform.
-	/// </summary>
-	/// <param name="Command"></param>
-	/// <param name="InPlatform"></param>
-	public static void BuildUnrealHeaderTool(BuildCommand Command, UnrealBuildTool.UnrealTargetPlatform InPlatform)
-	{
-		BuildProduct(Command, new UnrealBuild.BuildTarget()
-		{
-			UprojectPath = null,
-			TargetName = "UnrealHeaderTool",
-			Platform = InPlatform,
-			Config = UnrealBuildTool.UnrealTargetConfiguration.Development,
-		});
-	}
-
 	private static void BuildProduct(BuildCommand Command, UnrealBuild.BuildTarget Target)
 	{
 		if (Target == null)

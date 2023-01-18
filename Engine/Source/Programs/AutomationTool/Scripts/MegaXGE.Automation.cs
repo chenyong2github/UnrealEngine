@@ -38,22 +38,6 @@ class MegaXGE : BuildCommand
 
 		var Agenda = new UnrealBuild.BuildAgenda();
 
-		// we need to always build UHT when we use mega XGE
-		var ProgramTargets = new string[] 
-		{
-			"UnrealHeaderTool",
-		};
-		Agenda.AddTargets(ProgramTargets, UnrealTargetPlatform.Win64, UnrealTargetConfiguration.Development);
-		if (Clean)
-		{
-			LogSetProgress(ShowProgress, "Cleaning previous builds...");
-			foreach (var CurTarget in ProgramTargets)
-			{
-				string Args = String.Format("{0} {1} {2}", CurTarget, UnrealTargetPlatform.Win64.ToString(), UnrealTargetConfiguration.Development.ToString());
-				RunAndLog(CmdEnv, CleanToolLocation, Args);
-			}
-		}
-
 		LogInformation("*************************");
 		for (int Arg = 1; Arg < 100; Arg++)
 		{
