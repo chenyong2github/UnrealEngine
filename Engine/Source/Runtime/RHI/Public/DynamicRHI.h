@@ -1619,6 +1619,31 @@ inline bool appIsPoolTexture(FRHITexture* TextureRHI) { return false; }
 */
 inline void appDumpTextureMemoryStats(const TCHAR* /*Message*/) {}
 
+/** Structs that describe how intensively a GPU is being used. */
+struct FRHIGPUUsageFractions
+{
+	// Fraction on how much much the GPU clocks has been scaled down by driver for energy savings.
+	float ClockScaling = 1.0f;
+
+	// Fraction of GPU resource dedicated for our own process at current clock scaling.
+	float CurrentProcess = 0.0f;
+
+	// Fraction of GPU resource dedicated for other processes at current clock scaling.
+	float ExternalProcesses = 0.0f;
+
+	// Remaining fraction of GPU resource that is idle.
+	inline float GetUnused()
+	{
+		return FMath::Clamp(1.0f - CurrentProcess - ExternalProcesses, 0.0f, 1.0f);
+	}
+};
+
+/** Get how much the GPU is getting used.
+*
+* Requires GRHISupportsGPUUsage=true before use.
+*/
+typedef FRHIGPUUsageFractions (*RHIGetGPUUsageType)(uint32);
+extern RHI_API RHIGetGPUUsageType RHIGetGPUUsage;
 
 /** Defines the interface of a module implementing a dynamic RHI. */
 class IDynamicRHIModule : public IModuleInterface

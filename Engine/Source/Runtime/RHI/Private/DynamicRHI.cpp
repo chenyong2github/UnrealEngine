@@ -34,6 +34,7 @@ static_assert(sizeof(FRayTracingGeometryInstance) <= 104,
 
 // Globals.
 FDynamicRHI* GDynamicRHI = NULL;
+RHIGetGPUUsageType RHIGetGPUUsage = nullptr;
 
 static TAutoConsoleVariable<int32> CVarWarnOfBadDrivers(
 	TEXT("r.WarnOfBadDrivers"),

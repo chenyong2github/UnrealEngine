@@ -236,6 +236,9 @@ extern RHI_API bool GRHISupportsGPUTimestampBubblesRemoval;
 /** true if RHIGetGPUFrameCycles removes CPu generated bubbles. */
 extern RHI_API bool GRHISupportsFrameCyclesBubblesRemoval;
 
+/** true if RHIGetGPUUsage() is supported. */
+extern RHI_API bool GRHISupportsGPUUsage;
+
 /** true if the GPU supports hidden surface removal in hardware. */
 extern RHI_API bool GHardwareHiddenSurfaceRemoval;
 

@@ -1247,6 +1247,7 @@ bool GSupportsPixelLocalStorage = false;
 bool GSupportsTimestampRenderQueries = false;
 bool GRHISupportsGPUTimestampBubblesRemoval = false;
 bool GRHISupportsFrameCyclesBubblesRemoval = false;
+bool GRHISupportsGPUUsage = false;
 bool GHardwareHiddenSurfaceRemoval = false;
 bool GRHISupportsAsyncTextureCreation = false;
 bool GRHISupportsQuadTopology = false;
