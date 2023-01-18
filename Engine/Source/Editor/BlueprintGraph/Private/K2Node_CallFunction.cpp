@@ -1532,6 +1532,15 @@ FText UK2Node_CallFunction::GetTooltipText() const
 			// FText::Format() is slow, so we cache this to save on performance
 			CachedTooltip.SetCachedText(FText::Format(LOCTEXT("CallFunction_SubtitledTooltip", "{DefaultTooltip}\n\n{ClientString}"), Args), this);
 		} 
+		else if (Function->HasMetaData(FBlueprintMetadata::MD_Latent))
+		{
+			Args.Add(
+				TEXT("LatentString"),
+				NSLOCTEXT("K2Node", "LatentFunction", "Latent. This node will complete at a later time. Latent nodes can only be placed in event graphs.")
+			);
+			// FText::Format() is slow, so we cache this to save on performance
+			CachedTooltip.SetCachedText(FText::Format(LOCTEXT("CallFunction_SubtitledTooltip", "{DefaultTooltip}\n\n{LatentString}"), Args), this);
+		}
 		else
 		{
 			CachedTooltip.SetCachedText(BaseTooltip, this);

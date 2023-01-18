@@ -61,8 +61,11 @@ UK2Node_BaseAsyncTask::UK2Node_BaseAsyncTask(const FObjectInitializer& ObjectIni
 
 FText UK2Node_BaseAsyncTask::GetTooltipText() const
 {
-	const FString FunctionToolTipText = UK2Node_CallFunction::GetDefaultTooltipForFunction(GetFactoryFunction());
-	return FText::FromString(FunctionToolTipText);
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("FunctionTooltip"), FText::FromString(UK2Node_CallFunction::GetDefaultTooltipForFunction(GetFactoryFunction())));
+	Args.Add(TEXT("LatentString"), NSLOCTEXT("K2Node", "LatentFunction", "Latent. This node will complete at a later time. Latent nodes can only be placed in event graphs."));
+	
+	return FText::Format(LOCTEXT("AsyncTaskTooltip", "{FunctionTooltip}\n\n{LatentString}"), Args);
 }
 
 FText UK2Node_BaseAsyncTask::GetNodeTitle(ENodeTitleType::Type TitleType) const
@@ -553,6 +556,11 @@ bool UK2Node_BaseAsyncTask::HasExternalDependencies(TArray<class UStruct*>* Opti
 FName UK2Node_BaseAsyncTask::GetCornerIcon() const
 {
 	return TEXT("Graph.Latent.LatentIcon");
+}
+
+FText UK2Node_BaseAsyncTask::GetToolTipHeading() const
+{
+	return LOCTEXT("LatentFunc", "Latent");
 }
 
 FText UK2Node_BaseAsyncTask::GetMenuCategory() const
