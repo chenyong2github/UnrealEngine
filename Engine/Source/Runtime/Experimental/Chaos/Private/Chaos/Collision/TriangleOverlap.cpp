@@ -35,8 +35,8 @@ namespace Chaos
 		// Edge plane normals and signed distances to each segment point
 		// Mask to compare the distance of the triangle edge plane to the capsule radius.
 		constexpr static int32 AllEdges = 0b1111;
+		const VectorRegister4Float PlaneCA = VectorNormalize(VectorCross(CA, Normal));
 		{
-			VectorRegister4Float PlaneCA = VectorNormalize(VectorCross(CA, Normal));
 			FRealSingle EdgeX1 = VectorDot3Scalar(AX1, PlaneCA);
 			FRealSingle EdgeX2 = VectorDot3Scalar(AX2, PlaneCA);
 			FRealSingle Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
@@ -51,9 +51,9 @@ namespace Chaos
 			if (Edge > 0.0f)
 			{
 				VectorRegister4Float OtherNormal = VectorCross(AX1, CA);
-				PlaneCA = VectorNormalize(VectorCross(CA, OtherNormal));
-				EdgeX1 = VectorDot3Scalar(AX1, PlaneCA);
-				EdgeX2 = VectorDot3Scalar(AX2, PlaneCA);
+				VectorRegister4Float OtherPlaneCA = VectorNormalize(VectorCross(CA, OtherNormal));
+				EdgeX1 = VectorDot3Scalar(AX1, OtherPlaneCA);
+				EdgeX2 = VectorDot3Scalar(AX2, OtherPlaneCA);
 				Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
 				if (Edge > Radius)
 				{
@@ -61,9 +61,9 @@ namespace Chaos
 				}
 
 				OtherNormal = VectorCross(AX2, CA);
-				PlaneCA = VectorNormalize(VectorCross(CA, OtherNormal));
-				EdgeX1 = VectorDot3Scalar(AX1, PlaneCA);
-				EdgeX2 = VectorDot3Scalar(AX2, PlaneCA);
+				OtherPlaneCA = VectorNormalize(VectorCross(CA, OtherNormal));
+				EdgeX1 = VectorDot3Scalar(AX1, OtherPlaneCA);
+				EdgeX2 = VectorDot3Scalar(AX2, OtherPlaneCA);
 				Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
 				if (Edge > Radius)
 				{
@@ -71,8 +71,8 @@ namespace Chaos
 				}
 			}
 		}
+		const VectorRegister4Float PlaneAB = VectorNormalize(VectorCross(AB, Normal));
 		{
-			VectorRegister4Float PlaneAB = VectorNormalize(VectorCross(AB, Normal));
 			FRealSingle EdgeX1 = VectorDot3Scalar(BX1, PlaneAB);
 			FRealSingle EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, B), PlaneAB);
 			FRealSingle Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
@@ -84,9 +84,9 @@ namespace Chaos
 			if (Edge > 0.0f)
 			{
 				VectorRegister4Float OtherNormal = VectorCross(BX1, AB);
-				PlaneAB = VectorNormalize(VectorCross(AB, OtherNormal));
-				EdgeX1 = VectorDot3Scalar(BX1, PlaneAB);
-				EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, B), PlaneAB);
+				VectorRegister4Float OtherPlaneAB = VectorNormalize(VectorCross(AB, OtherNormal));
+				EdgeX1 = VectorDot3Scalar(BX1, OtherPlaneAB);
+				EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, B), OtherPlaneAB);
 				Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
 				if (Edge > Radius)
 				{
@@ -94,9 +94,9 @@ namespace Chaos
 				}
 
 				OtherNormal = VectorCross(VectorSubtract(X2, B), AB);
-				PlaneAB = VectorNormalize(VectorCross(AB, OtherNormal));
-				EdgeX1 = VectorDot3Scalar(BX1, PlaneAB);
-				EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, B), PlaneAB);
+				OtherPlaneAB = VectorNormalize(VectorCross(AB, OtherNormal));
+				EdgeX1 = VectorDot3Scalar(BX1, OtherPlaneAB);
+				EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, B), OtherPlaneAB);
 				Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
 				if (Edge > Radius)
 				{
@@ -104,8 +104,8 @@ namespace Chaos
 				}
 			}
 		}
+		const VectorRegister4Float PlaneBC = VectorNormalize(VectorCross(BC, Normal));
 		{
-			VectorRegister4Float PlaneBC = VectorNormalize(VectorCross(BC, Normal));
 			FRealSingle EdgeX1 = VectorDot3Scalar(CX1, PlaneBC);
 			FRealSingle EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, C), PlaneBC);
 			FRealSingle Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
@@ -117,9 +117,9 @@ namespace Chaos
 			if (Edge > 0.0f)
 			{
 				VectorRegister4Float OtherNormal = VectorCross(CX1, BC);
-				PlaneBC = VectorNormalize(VectorCross(BC, OtherNormal));
-				EdgeX1 = VectorDot3Scalar(CX1, PlaneBC);
-				EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, C), PlaneBC);
+				VectorRegister4Float OtherPlaneBC = VectorNormalize(VectorCross(BC, OtherNormal));
+				EdgeX1 = VectorDot3Scalar(CX1, OtherPlaneBC);
+				EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, C), OtherPlaneBC);
 				Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
 				if (Edge > Radius)
 				{
@@ -127,9 +127,9 @@ namespace Chaos
 				}
 
 				OtherNormal = VectorCross(VectorSubtract(X2, C), BC);
-				PlaneBC = VectorNormalize(VectorCross(BC, OtherNormal));
-				EdgeX1 = VectorDot3Scalar(CX1, PlaneBC);
-				EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, C), PlaneBC);
+				OtherPlaneBC = VectorNormalize(VectorCross(BC, OtherNormal));
+				EdgeX1 = VectorDot3Scalar(CX1, OtherPlaneBC);
+				EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, C), OtherPlaneBC);
 				Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
 				if (Edge > Radius)
 				{
@@ -151,15 +151,15 @@ namespace Chaos
 		}
 
 		// Triangle Vertices
-		FRealSingle SqrRadius = Radius * Radius;
+		const FRealSingle SqrRadius = Radius * Radius;
 		{
 			VectorRegister4Float TimeA = VectorClamp(VectorDivide(VectorDot3(X2X1, AX1), SqrX2X1), VectorZeroFloat(), VectorOneFloat());
 			TimeA = VectorBitwiseNotAnd(ZeroMask, TimeA);
 			const VectorRegister4Float PA = VectorMultiplyAdd(X1, VectorSubtract(VectorOneFloat(), TimeA), VectorMultiply(X2, TimeA));
-
-			if (VectorDot3Scalar(VectorSubtract(PA, A), CentroidA) > 0.0f)
+			const VectorRegister4Float APA = VectorSubtract(PA, A);
+			FRealSingle BetweenSeg = VectorDot3Scalar(VectorCross(PlaneAB, APA), VectorCross(PlaneCA, APA));
+			if (BetweenSeg < 0.0f && VectorDot3Scalar(APA, CentroidA) > 0.0f)
 			{
-				const VectorRegister4Float APA = VectorSubtract(PA, A);
 				if (VectorDot3Scalar(APA, APA) > SqrRadius)
 				{
 					return false;
@@ -170,10 +170,10 @@ namespace Chaos
 			VectorRegister4Float TimeB = VectorClamp(VectorDivide(VectorDot3(X2X1, VectorSubtract(X1, B)), SqrX2X1), VectorZeroFloat(), VectorOneFloat());
 			TimeB = VectorBitwiseNotAnd(ZeroMask, TimeB);
 			const VectorRegister4Float PB = VectorMultiplyAdd(X1, VectorSubtract(VectorOneFloat(), TimeB), VectorMultiply(X2, TimeB));
-
-			if (VectorDot3Scalar(VectorSubtract(PB, B), CentroidB) > 0.0f)
+			const VectorRegister4Float BPB = VectorSubtract(PB, B);
+			FRealSingle BetweenSeg = VectorDot3Scalar(VectorCross(PlaneAB, BPB), VectorCross(PlaneBC, BPB));
+			if (BetweenSeg < 0.0f && VectorDot3Scalar(BPB, CentroidB) > 0.0f)
 			{
-				const VectorRegister4Float BPB = VectorSubtract(PB, B);
 				if (VectorDot3Scalar(BPB, BPB) > SqrRadius)
 				{
 					return false;
@@ -184,10 +184,10 @@ namespace Chaos
 			VectorRegister4Float TimeC = VectorClamp(VectorDivide(VectorDot3(X2X1, VectorSubtract(X1, C)), SqrX2X1), VectorZeroFloat(), VectorOneFloat());
 			TimeC = VectorBitwiseNotAnd(ZeroMask, TimeC);
 			const VectorRegister4Float PC = VectorMultiplyAdd(X1, VectorSubtract(VectorOneFloat(), TimeC), VectorMultiply(X2, TimeC));
-
-			if (VectorDot3Scalar(VectorSubtract(PC, C), CentroidC) > 0.0f)
+			const VectorRegister4Float CPC = VectorSubtract(PC, C);
+			FRealSingle BetweenSeg = VectorDot3Scalar(VectorCross(PlaneBC, CPC), VectorCross(PlaneCA, CPC));
+			if (BetweenSeg < 0.0f && VectorDot3Scalar(CPC, CentroidC) > 0.0f)
 			{
-				const VectorRegister4Float CPC = VectorSubtract(PC, C);
 				if (VectorDot3Scalar(CPC, CPC) > SqrRadius)
 				{
 					return false;

@@ -6,6 +6,7 @@
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Sphere.h"
+#include "Chaos/GeometryQueries.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/ImplicitObjectScaled.h"
@@ -128,6 +129,29 @@ namespace ChaosTest
 					const FRigidTransform3 QueryTM(FVec3(-2.5, -2.5, 0.0), FQuat::Identity);
 					bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
 					EXPECT_TRUE(bResult);
+				}
+			}
+			{
+				const FVec3 X1 = { 10.0, -1.0, 0.0 };
+				const FVec3 X2 = { 11.0, 1.0, 0.0 };
+				const FReal Radius = 0.1;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+				bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+				EXPECT_FALSE(bResult);
+			}
+			{
+				const FVec3 X1 = { -11.0, 2.0, 0.0 };
+				const FVec3 X2 = { -9.0, -8.0, 0.0 };
+				const FReal Radius = 0.01;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				FMTDInfo MTDInfo;
+				{
+					const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+					EXPECT_FALSE(bResult);
+					bool bResultMTD = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0, &MTDInfo);
+					EXPECT_EQ(bResult, bResultMTD);
 				}
 			}
 			{
@@ -1075,6 +1099,250 @@ namespace ChaosTest
 					EXPECT_FALSE(bResult);
 				}
 
+			}
+		}
+		{
+			FTriangleMeshImplicitObject::ParticlesType TrimeshParticles(
+				{
+					{100.0, 0.0, 0.0},
+					{86.0, -75.0, 0.0},
+					{50.0, -130.0, 0.0},
+				});
+
+			TArray<TVec3<int32>> Indices(
+				{
+					{0, 1, 2},
+				});
+
+			TArray<uint16> Materials;
+			for (int32 i = 0; i < Indices.Num(); ++i)
+			{
+				Materials.Emplace(0);
+			}
+
+			TUniquePtr<FTriangleMeshImplicitObject> TriangleMesh = MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(TrimeshParticles), MoveTemp(Indices), MoveTemp(Materials));
+			
+				// Capsule test
+			{
+				const FVec3 X1 = { 66.0, -99.0, 0.0 };
+				const FVec3 X2 = { 67.0, -98.0, 0.0 };
+				const FReal Radius = 1.0;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+				bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+				EXPECT_TRUE(bResult);
+			}
+			{
+				const FVec3 X1 = { 80.0, -92.0, 0.0 };
+				const FVec3 X2 = { 85.0, -88.0, 0.0 };
+				const FReal Radius = 1.0;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+				bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+				EXPECT_FALSE(bResult);
+			}
+			{
+				const FVec3 X1 = { 40.0, -127.0, 0.0 };
+				const FVec3 X2 = { 55.0, -137.0, 0.0 };
+				const FReal Radius = 1.0;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+				bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+				EXPECT_FALSE(bResult);
+			}
+			{
+				const FVec3 X1 = { 0.0, -110.0, 0.0 };
+				const FVec3 X2 = { 100.0, -160.0, 0.0 };
+				const FReal Radius = 1.0;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+				bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+				EXPECT_FALSE(bResult);
+			}
+			{
+				const FVec3 X1 = { 56.0, -138.0, 0.0 };
+				const FVec3 X2 = { 55.0, -137.0, 0.0 };
+				const FReal Radius = 1.0;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+				bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+				EXPECT_FALSE(bResult);
+			}
+			{
+				const FVec3 X1 = { 48.0, -130.0, 0.0 };
+				const FVec3 X2 = { 47.0, -131.0, 0.0 };
+				const FReal Radius = 1.0;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+				bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+				EXPECT_FALSE(bResult);
+			}
+			{
+				const FVec3 X1 = { 101.5, 0.0, 0.0 };
+				const FVec3 X2 = { 106.0, 0.0, 0.0 };
+				const FReal Radius = 1.0;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+				bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+				EXPECT_FALSE(bResult);
+			}
+			{
+				const FVec3 X1 = { 95.0, 0.0, 0.0 };
+				const FVec3 X2 = { 98.0, 0.0, 0.0 };
+				const FReal Radius = 1.0;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+				bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+				EXPECT_FALSE(bResult);
+			}
+			{
+				const FVec3 X1 = { 95.0, 0.0, 0.0 };
+				const FVec3 X2 = { 94, 0.0, 0.0 };
+				const FReal Radius = 1.0;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+				bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+				EXPECT_FALSE(bResult);
+			}
+			{
+				// Sphere test
+				const FVec3 X = { 66.0, -99.0, 0.0 };
+				const FReal Radius = 1.0;
+				const Chaos::FSphere Sphere = Chaos::FSphere(X, Radius);
+				{
+					const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Sphere, QueryTM, 0.0);
+					// EXPECT_TRUE(bResult); // TODO Enable test
+				}
+			}
+			{
+				const TBox<FReal, 3> Box = TBox<FReal, 3>({ -0.5, -0.5, -0.5 }, { 0.5, 0.5, 0.5 });
+				{
+					const FRigidTransform3 QueryTM(FVec3(66.0, -99.0, 0.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0);
+					EXPECT_TRUE(bResult);
+				}
+			}
+		}
+		{
+			FTriangleMeshImplicitObject::ParticlesType TrimeshParticles(
+				{
+					{100.0, 0.0, 0.0},
+					{86.0, -75.0, 0.0},
+					{60.0, -110.0, 0.0},
+				});
+
+			TArray<TVec3<int32>> Indices(
+				{
+					{0, 1, 2},
+				});
+
+			TArray<uint16> Materials;
+			for (int32 i = 0; i < Indices.Num(); ++i)
+			{
+				Materials.Emplace(0);
+			}
+
+			TUniquePtr<FTriangleMeshImplicitObject> TriangleMesh = MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(TrimeshParticles), MoveTemp(Indices), MoveTemp(Materials));
+			{
+				// Capsule test
+				const FVec3 X1 = { 66.0, -99.0, 0.0 };
+				const FVec3 X2 = { 67.0, -98.0, 0.0 };
+				const FReal Radius = 1.0;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				{
+					const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+					EXPECT_TRUE(bResult);
+				}
+			}
+			{
+				// Sphere test
+				const FVec3 X = { 66.0, -99.0, 0.0 };
+				const FReal Radius = 1.0;
+				const Chaos::FSphere Sphere = Chaos::FSphere(X, Radius);
+				{
+					const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Sphere, QueryTM, 0.0);
+					// EXPECT_TRUE(bResult); // TODO Enable test
+				}
+			}
+			{
+				const TBox<FReal, 3> Box = TBox<FReal, 3>({ -0.5, -0.5, -0.5 }, { 0.5, 0.5, 0.5 });
+				{
+					const FRigidTransform3 QueryTM(FVec3(66.0, -99.0, 0.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0);
+					EXPECT_TRUE(bResult);
+				}
+			}
+		}
+		{
+			FTriangleMeshImplicitObject::ParticlesType TrimeshParticles(
+				{
+					{0.0, 0.0, 0.0},
+					{-200.0, 100.0, 0.0},
+					{-200.0, -100.0, 0.0},
+				});
+
+			TArray<TVec3<int32>> Indices(
+				{
+					{0, 1, 2},
+				});
+
+			TArray<uint16> Materials;
+			for (int32 i = 0; i < Indices.Num(); ++i)
+			{
+				Materials.Emplace(0);
+			}
+
+			TUniquePtr<FTriangleMeshImplicitObject> TriangleMesh = MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(TrimeshParticles), MoveTemp(Indices), MoveTemp(Materials));
+			{
+				// Capsule test
+				const FVec3 X1 = { 0.0, -100.0, 100.0 };
+				FVec3 X2 = { 0.0, 100.0, 100.0 };
+				const FReal Radius = 101.0;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				{
+					const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+					EXPECT_TRUE(bResult);
+				}
+			}
+		}
+		{
+			FTriangleMeshImplicitObject::ParticlesType TrimeshParticles(
+				{
+					{0.0, 0.0, 0.0},
+					{100, -100, 0.0},
+					{-200.0, -400.0, 0.0},
+				});
+
+			TArray<TVec3<int32>> Indices(
+				{
+					{0, 1, 2},
+				});
+
+			TArray<uint16> Materials;
+			for (int32 i = 0; i < Indices.Num(); ++i)
+			{
+				Materials.Emplace(0);
+			}
+
+			TUniquePtr<FTriangleMeshImplicitObject> TriangleMesh = MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(TrimeshParticles), MoveTemp(Indices), MoveTemp(Materials));
+			{
+				{
+					// Capsule test
+					const FVec3 X1 = { -100, 0, 0 };
+					const FVec3 X2 = { -200, 0, 0 };
+					const FReal Radius = 99.0f;
+					// This capsule will not touch a vertex, but will intersect an edge
+					const FCapsule Capsule = FCapsule(X1, X2, Radius); 
+					{
+						const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+						bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+						EXPECT_TRUE(bResult);
+					}
+				}
 			}
 		}
 	}
