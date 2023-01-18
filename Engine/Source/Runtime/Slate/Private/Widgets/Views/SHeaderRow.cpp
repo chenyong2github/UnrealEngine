@@ -145,8 +145,9 @@ public:
 			];
 		}
 
-		if( Column.HeaderMenuContent.Widget != SNullWidget::NullWidget ||
-			Column.OnGetMenuContent.IsBound())
+		if( ComboVisibility != EHeaderComboVisibility::Never &&
+			(Column.HeaderMenuContent.Widget != SNullWidget::NullWidget ||
+			Column.OnGetMenuContent.IsBound()))
 		{
 			// Add Drop down menu button (only if menu content has been specified)
 			Box->AddSlot()
@@ -281,6 +282,11 @@ public:
 			}
 		}
 
+		if (ComboVisibility == EHeaderComboVisibility::Never)
+		{
+			return EVisibility::Collapsed;
+		}
+
 		return EVisibility::Visible;
 	}
 
@@ -304,14 +310,17 @@ private:
 	
 	const FSlateBrush* GetComboButtonBorderBrush() const
 	{
-		if ( ComboButton.IsValid() && ( ComboButton->IsHovered() || ComboButton->IsOpen() ) )
+		if (ComboVisibility != EHeaderComboVisibility::Never)
 		{
-			return &Style->MenuDropdownHoveredBorderBrush;
-		}
+			if ( ComboButton.IsValid() && ( ComboButton->IsHovered() || ComboButton->IsOpen() ) )
+			{
+				return &Style->MenuDropdownHoveredBorderBrush;
+			}
 
-		if ( IsHovered() || ComboVisibility == EHeaderComboVisibility::Always )
-		{
-			return &Style->MenuDropdownNormalBorderBrush;
+			if ( IsHovered() || ComboVisibility == EHeaderComboVisibility::Always )
+			{
+				return &Style->MenuDropdownNormalBorderBrush;
+			}
 		}
 
 		return FStyleDefaults::GetNoBrush();
@@ -347,6 +356,11 @@ private:
 				return FLinearColor::White;
 			}
 			break;
+
+		case EHeaderComboVisibility::Never:
+			{
+				return FLinearColor::White;
+			}
 
 		default:
 			break;
