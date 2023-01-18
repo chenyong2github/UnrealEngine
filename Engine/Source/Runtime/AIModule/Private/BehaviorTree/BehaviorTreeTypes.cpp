@@ -186,8 +186,21 @@ FBehaviorTreeInstance::FBehaviorTreeInstance()
 }
 
 FBehaviorTreeInstance::FBehaviorTreeInstance(const FBehaviorTreeInstance& Other)
-{ 
-	*this = Other; 
+	: RootNode(Other.RootNode)
+	, ActiveNode(Other.ActiveNode)
+	, InstanceIdIndex(Other.InstanceIdIndex)
+	, ActiveNodeType(Other.ActiveNodeType)
+	, DeactivationNotify(Other.DeactivationNotify)
+{
+	ActiveAuxNodes = Other.ActiveAuxNodes;
+	ParallelTasks = Other.ParallelTasks;
+	InstanceMemory = Other.InstanceMemory;
+
+#if DO_ENSURE
+	bIteratingNodes = Other.bIteratingNodes;
+	ParallelTaskIndex = Other.ParallelTaskIndex;
+#endif // DO_ENSURE
+
 	IncMemoryStats();
 	INC_DWORD_STAT(STAT_AI_BehaviorTree_NumInstances);
 }
@@ -197,6 +210,49 @@ FBehaviorTreeInstance::FBehaviorTreeInstance(int32 MemorySize)
 	InstanceMemory.AddZeroed(MemorySize);
 	IncMemoryStats();
 	INC_DWORD_STAT(STAT_AI_BehaviorTree_NumInstances);
+}
+
+FBehaviorTreeInstance::FBehaviorTreeInstance(FBehaviorTreeInstance&& Other)
+	: RootNode(Other.RootNode)
+	, ActiveNode(Other.ActiveNode)
+	, InstanceIdIndex(Other.InstanceIdIndex)
+	, ActiveNodeType(Other.ActiveNodeType)
+	, DeactivationNotify(Other.DeactivationNotify)
+{
+	ActiveAuxNodes = MoveTemp(Other.ActiveAuxNodes);
+	ParallelTasks = MoveTemp(Other.ParallelTasks);
+	InstanceMemory = MoveTemp(Other.InstanceMemory);
+
+#if DO_ENSURE
+	bIteratingNodes = Other.bIteratingNodes;
+	ParallelTaskIndex = Other.ParallelTaskIndex;
+#endif // DO_ENSURE
+
+	IncMemoryStats();
+	INC_DWORD_STAT(STAT_AI_BehaviorTree_NumInstances);
+}
+
+FBehaviorTreeInstance& FBehaviorTreeInstance::operator=(FBehaviorTreeInstance&& Other)
+{
+	RootNode = Other.RootNode;
+	ActiveNode = Other.ActiveNode;
+	InstanceIdIndex = Other.InstanceIdIndex;
+	ActiveNodeType = Other.ActiveNodeType;
+	DeactivationNotify = Other.DeactivationNotify;
+
+	ActiveAuxNodes = MoveTemp(Other.ActiveAuxNodes);
+	ParallelTasks = MoveTemp(Other.ParallelTasks);
+	InstanceMemory = MoveTemp(Other.InstanceMemory);
+
+#if DO_ENSURE
+	bIteratingNodes = Other.bIteratingNodes;
+	ParallelTaskIndex = Other.ParallelTaskIndex;
+#endif // DO_ENSURE
+
+	IncMemoryStats();
+	INC_DWORD_STAT(STAT_AI_BehaviorTree_NumInstances);
+
+	return *this;
 }
 
 FBehaviorTreeInstance::~FBehaviorTreeInstance()

@@ -2603,7 +2603,7 @@ bool UBehaviorTreeComponent::PushInstance(UBehaviorTree& TreeAsset)
 	const bool bLoaded = BTManager->LoadTree(TreeAsset, RootNode, InstanceMemorySize);
 	if (bLoaded)
 	{
-		FBehaviorTreeInstance NewInstance;
+		FBehaviorTreeInstance& NewInstance = InstanceStack.AddDefaulted_GetRef();
 		NewInstance.InstanceIdIndex = UpdateInstanceId(&TreeAsset, ActiveNode, InstanceStack.Num() - 1);
 		NewInstance.RootNode = RootNode;
 		NewInstance.ActiveNode = NULL;
@@ -2622,7 +2622,6 @@ bool UBehaviorTreeComponent::PushInstance(UBehaviorTree& TreeAsset)
 		NewInstance.SetInstanceMemory(InstanceInfo.InstanceMemory);
 		NewInstance.Initialize(*this, *RootNode, NodeInstanceIndex, bFirstTime ? EBTMemoryInit::Initialize : EBTMemoryInit::RestoreSubtree);
 
-		InstanceStack.Push(NewInstance);
 
 		const int32 InstanceIndex = InstanceStack.Num() - 1;
 		ActiveInstanceIdx = IntCastChecked<uint16>(InstanceIndex);

@@ -26,6 +26,7 @@ class AIMODULE_API UBTDecorator_BlackboardBase : public UBTDecorator
 	virtual FName GetNodeIconName() const override;
 #endif
 
+public:
 	/** get name of selected blackboard key */
 	FName GetSelectedBlackboardKey() const;
 

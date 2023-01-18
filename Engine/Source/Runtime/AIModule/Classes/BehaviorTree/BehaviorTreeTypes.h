@@ -324,7 +324,16 @@ struct FBehaviorTreeInstance
 	FBTInstanceDeactivation DeactivationNotify;
 
 	AIMODULE_API FBehaviorTreeInstance();
+
+	UE_DEPRECATED(5.2, "Copying FBehaviorTreeInstance constructor has been deprecated in favor of move-constructor")
 	AIMODULE_API FBehaviorTreeInstance(const FBehaviorTreeInstance& Other);
+
+	UE_DEPRECATED(5.2, "Copying FBehaviorTreeInstance assignement operator has been deprecated in favor of move assignement operator")
+	AIMODULE_API FBehaviorTreeInstance& operator=(const FBehaviorTreeInstance& Other) = default;
+
+	AIMODULE_API FBehaviorTreeInstance(FBehaviorTreeInstance&& Other);
+	AIMODULE_API FBehaviorTreeInstance& operator=(FBehaviorTreeInstance&& Other);
+
 	AIMODULE_API FBehaviorTreeInstance(int32 MemorySize);
 	AIMODULE_API ~FBehaviorTreeInstance();
 
