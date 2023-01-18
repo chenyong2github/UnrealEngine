@@ -2,6 +2,7 @@
 
 #include "GeometryCollection/GeometryCollectionComponent.h"
 
+#include "AI/Navigation/NavCollisionBase.h"
 #include "AI/NavigationSystemHelpers.h"
 #include "Async/ParallelFor.h"
 #include "Chaos/ChaosPhysicalMaterial.h"
@@ -307,6 +308,8 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, bNotifyCrumblings(false)
 	, bStoreVelocities(false)
 	, bShowBoneColors(false)
+	, bUseRootProxyForNavigation(false)
+	, bUpdateNavigationInTick(true) 
 #if WITH_EDITORONLY_DATA 
 	, bEnableRunTimeDataCollection(false)
 	, RunTimeDataCollectionGuid(FGuid::NewGuid())
@@ -924,6 +927,29 @@ bool UGeometryCollectionComponent::DoCustomNavigableGeometryExport(FNavigableGeo
 		// No geometry data so skip export - geometry collections don't have other geometry sources
 		// so return false here to skip non-custom export for this component as well.
 		return false;
+	}
+
+	if (bUseRootProxyForNavigation)
+	{
+		if (const UStaticMesh* ProxyMesh = Cast<UStaticMesh>(RestCollection->RootProxy.TryLoad()))
+		{
+			const FTransform& CompToWorld = GetComponentToWorld();
+			const FVector Scale3D = CompToWorld.GetScale3D();
+			if (!Scale3D.IsZero())
+			{
+				if (const UNavCollisionBase* NavCollision = ProxyMesh->GetNavCollision())
+				{
+					const bool bHasData = NavCollision->ExportGeometry(CompToWorld, GeomExport);
+					if (bHasData)
+					{
+						// skip default export
+						return false;
+					}
+				}
+			}
+		}
+
+		return true;
 	}
 
 	TArray<FVector> OutVertexBuffer;
@@ -2316,14 +2342,17 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 				MarkRenderDynamicDataDirty();
 				bRenderStateDirty = false;
 
-				const UWorld* MyWorld = GetWorld();
-				if (MyWorld && MyWorld->IsGameWorld())
+				if (bUpdateNavigationInTick)
 				{
-					//cycle every 0xff frames
-					//@todo - Need way of seeing if the collection is actually changing
-					if (bNavigationRelevant && bRegistered && (((GFrameCounter + NavmeshInvalidationTimeSliceIndex) & 0xff) == 0))
+					const UWorld* MyWorld = GetWorld();
+					if (MyWorld && MyWorld->IsGameWorld())
 					{
-						UpdateNavigationData();
+						//cycle every 0xff frames
+						//@todo - Need way of seeing if the collection is actually changing
+						if (bNavigationRelevant && bRegistered && (((GFrameCounter + NavmeshInvalidationTimeSliceIndex) & 0xff) == 0))
+						{
+							UpdateNavigationData();
+						}
 					}
 				}
 			}
