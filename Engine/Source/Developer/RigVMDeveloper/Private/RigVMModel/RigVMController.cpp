@@ -6379,8 +6379,8 @@ bool URigVMController::SetNodeSelection(const TArray<FName>& InNodeNames, bool b
 		{
 			if(Graph->SelectedNodes.Remove(PreviouslySelectedNode) > 0)
 			{
-				Notify(ERigVMGraphNotifType::NodeDeselected, Graph->FindNodeByName(PreviouslySelectedNode));
 				bSelectedSomething = true;
+				break;
 			}
 		}
 	}
@@ -6393,7 +6393,6 @@ bool URigVMController::SetNodeSelection(const TArray<FName>& InNodeNames, bool b
 			Graph->SelectedNodes.AddUnique(InNodeName);
 			if (PreviousNum != Graph->SelectedNodes.Num())
 			{
-				Notify(ERigVMGraphNotifType::NodeSelected, NodeToSelect);
 				bSelectedSomething = true;
 			}
 		}

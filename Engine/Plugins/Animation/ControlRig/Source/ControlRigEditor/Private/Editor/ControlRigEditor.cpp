@@ -3078,6 +3078,7 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 
 	switch (InNotifType)
 	{
+		case ERigVMGraphNotifType::NodeSelectionChanged:
 		case ERigVMGraphNotifType::NodeSelected:
 		case ERigVMGraphNotifType::NodeDeselected:
 		{
@@ -3085,6 +3086,14 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 			{
 				TSharedPtr<SGraphEditor> GraphEd = GetGraphEditor(RigGraph);
 				URigVMNode* Node = Cast<URigVMNode>(InSubject);
+				if (InNotifType == ERigVMGraphNotifType::NodeSelectionChanged)
+				{
+					const TArray<FName> SelectedNodes = InGraph->GetSelectNodes();
+					if (!SelectedNodes.IsEmpty())
+					{
+						Node = Cast<URigVMNode>(InGraph->FindNodeByName(SelectedNodes.Last()));	
+					}
+				}
 
 				if (GraphEd.IsValid() && Node != nullptr)
 				{
@@ -3093,12 +3102,9 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 					if (!RigGraph->bIsSelecting)
 					{
 						TGuardValue<bool> SelectingGuard(RigGraph->bIsSelecting, true);
-						if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
+						if (UEdGraphNode* EdNode = RigGraph->FindNodeForModelNodeName(Node->GetFName()))
 						{
-							if (UEdGraphNode* EdNode = RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()))
-							{
-								GraphEd->SetNodeSelection(EdNode, InNotifType == ERigVMGraphNotifType::NodeSelected);
-							}
+							GraphEd->SetNodeSelection(EdNode, InNotifType == ERigVMGraphNotifType::NodeSelected);
 						}
 					}
 				}
@@ -3195,7 +3201,6 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 			}
 			break;
 		}
-		case ERigVMGraphNotifType::NodeSelectionChanged:
 		default:
 		{
 			break;
