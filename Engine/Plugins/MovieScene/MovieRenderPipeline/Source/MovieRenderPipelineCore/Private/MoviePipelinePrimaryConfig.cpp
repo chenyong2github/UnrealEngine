@@ -52,10 +52,6 @@ void UMoviePipelinePrimaryConfig::InitializeTransientSettings()
 		AllSettingClasses.RemoveSwap(ExistingSetting->GetClass());
 	}
 
-#if WITH_EDITOR
-	Modify();
-#endif
-
 	// Now we can initialize an instance of every remaining setting that we don't have.
 	for (const UClass* SettingClass : AllSettingClasses)
 	{

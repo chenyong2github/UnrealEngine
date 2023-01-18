@@ -6,6 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class UMoviePipelineConfigBase;
+class UMoviePipelineQueue;
 class SMoviePipelineQueueEditor;
 class SWindow;
 class UMoviePipelineExecutorJob;
@@ -52,10 +53,17 @@ private:
 	bool IsDetailsViewEnabled() const;
 
 	TSharedRef<SWidget> OnGenerateSavedQueuesMenu();
+	FText GetQueueMenuButtonText() const;
 	bool OpenSaveDialog(const FString& InDefaultPath, const FString& InNewNameSuggestion, FString& OutPackageName);
 	bool GetSavePresetPackageName(const FString& InExistingName, FString& OutName);
+	void OnSaveAsset();
 	void OnSaveAsAsset();
-	void OnImportSavedQueueAssest(const FAssetData& InPresetAsset);
+	void SaveTransientQueueToAsset(UMoviePipelineQueue* DestinationQueue) const;
+	void OnImportSavedQueueAsset(const FAssetData& InPresetAsset) const;
+	void LoadQueue(UMoviePipelineQueue* SavedQueue) const;
+	bool IsQueueDirty() const;
+	UMoviePipelineQueue* GetQueueOrigin() const;
+	FString GetQueueOriginName() const;
 
 private:
 	/** Allocates a transient preset so that the user can use the pipeline without saving it to an asset first. */

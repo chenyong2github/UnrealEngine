@@ -6,7 +6,24 @@
 #include "MoviePipelineBlueprintLibrary.h"
 #include "MovieRenderPipelineCoreModule.h"
 
+#include "UObject/UObjectGlobals.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineQueue)
+
+UMoviePipelineQueue::UMoviePipelineQueue()
+	: QueueSerialNumber(0)
+	, bIsDirty(false)
+{
+	// Ensure instances are always transactional
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		SetFlags(RF_Transactional);
+	}
+
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnObjectModified.AddUObject(this, &UMoviePipelineQueue::OnAnyObjectModified);
+#endif
+}
 
 UMoviePipelineExecutorJob* UMoviePipelineQueue::AllocateNewJob(TSubclassOf<UMoviePipelineExecutorJob> InJobType)
 {
@@ -93,6 +110,10 @@ void UMoviePipelineQueue::CopyFrom(UMoviePipelineQueue* InQueue)
 		return;
 	}
 
+	// The copy should reflect the input queue's origin (ie, the queue asset it was originally based off of). Setting
+	// the origin to the input queue would change the meaning of what the origin is.
+	QueueOrigin = InQueue->QueueOrigin;
+
 #if WITH_EDITOR
 	Modify();
 #endif
@@ -136,7 +157,27 @@ void UMoviePipelineQueue::SetJobIndex(UMoviePipelineExecutorJob* InJob, int32 In
 	QueueSerialNumber++;
 }
 
+void UMoviePipelineQueue::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
+
+	// Reset dirty state after saving
+	bIsDirty = false;
+}
+
 #if WITH_EDITOR
+void UMoviePipelineQueue::OnAnyObjectModified(UObject* InModifiedObject)
+{
+	// Mark as dirty if this queue or any of its owned objects have been modified
+	if (InModifiedObject)
+	{
+		if (InModifiedObject->IsIn(this) || (InModifiedObject == this))
+		{
+			bIsDirty = true;
+		}
+	}
+}
+
 void UMoviePipelineExecutorJob::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
