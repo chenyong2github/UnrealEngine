@@ -344,14 +344,19 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindOrCreateParentItem(const ISceneOu
 	}
 
 	// If we get here return world item
-	if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(RepresentingWorld.Get()))
+	if (UWorld* RepresentingWorldPtr = RepresentingWorld.Get())
 	{
-		return *ParentItem;
+		if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(RepresentingWorldPtr))
+		{
+			return *ParentItem;
+		}
+		else
+		{
+			return bCreate ? Mode->CreateItemFor<FWorldTreeItem>(RepresentingWorldPtr, true) : nullptr;
+		}
 	}
-	else
-	{
-		return bCreate ? Mode->CreateItemFor<FWorldTreeItem>(RepresentingWorld.Get(), true) : nullptr;
-	}
+
+	return nullptr;
 }
 
 void FActorHierarchy::CreateComponentItems(const AActor* Actor, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const
