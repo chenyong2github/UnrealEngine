@@ -170,7 +170,7 @@ bool FPCGTransformPointsElement::ExecuteInternal(FPCGContext* Context) const
 			}
 			else
 			{
-				SourceTransform = SourceAttribute->GetValue(InPoint.MetadataEntry);
+				SourceTransform = SourceAttribute->GetValueFromItemKey(InPoint.MetadataEntry);
 			}
 
 			FTransform FinalTransform = SourceTransform;
