@@ -48,6 +48,7 @@ struct FDMXFixtureTypeFunctionsEditorSettings
 };
 
 /** Struct to describe a single fader, so it can be stored in the config */
+struct UE_DEPRECATED(5.2, "FDMXOutputConsoleFaderDescriptor is no longer supported. Please see FDMXControlConsoleEditorModule") FDMXOutputConsoleFaderDescriptor;
 USTRUCT()
 struct FDMXOutputConsoleFaderDescriptor
 {
@@ -117,7 +118,7 @@ struct FDMXMonitorSourceDescriptor
 
 /** Settings that holds editor configurations. Not accessible in Project Settings. TODO: Idealy rename to UDMXEditorConfiguration */
 UCLASS(Config = DMXEditor, DefaultConfig, meta = (DisplayName = "DMXEditor"))
-class UDMXEditorSettings : public UObject
+class DMXEDITOR_API UDMXEditorSettings : public UObject
 {
 	GENERATED_BODY()
 
@@ -125,7 +126,6 @@ class UDMXEditorSettings : public UObject
 public:
 	UPROPERTY(Config)
 	FString LastGDTFImportPath;
-
 
 	// MVR
 public:
@@ -143,13 +143,15 @@ public:
 	UPROPERTY(Config)
 	FDMXFixtureTypeFunctionsEditorSettings FixtureTypeFunctionsEditorSettings;
 
-
-	// Output Console
+	// Output Console (DEPRECATED 5.1)
 public:
+#if WITH_EDITORONLY_DATA
 	/** Stores the faders specified in Output Console */
-	UPROPERTY(Config)
-	TArray<FDMXOutputConsoleFaderDescriptor> OutputConsoleFaders;
-	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UPROPERTY(Config, Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated since Console is now saved in the new DMXControlConsolePreset, upgrade path is in DMXControlConsoleModule."))
+	TArray<FDMXOutputConsoleFaderDescriptor> OutputConsoleFaders_DEPRECATED;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif // WITH_EDITORONLY_DATA
 
 	// Channels Monitor
 public:
@@ -160,7 +162,6 @@ public:
 	/** Source for the channels monitor */
 	UPROPERTY(Config)
 	FDMXMonitorSourceDescriptor ChannelsMonitorSource;
-
 
 	// Activity Monitor
 public:

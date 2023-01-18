@@ -11,6 +11,7 @@ class UDMXControlConsoleFaderGroup;
 class UDMXEntityFixturePatch;
 class UDMXLibrary;
 
+struct EVisibility;
 class FReply;
 class SVerticalBox;
 

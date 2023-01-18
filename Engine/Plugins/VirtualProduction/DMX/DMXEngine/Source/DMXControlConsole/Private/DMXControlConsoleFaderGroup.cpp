@@ -9,7 +9,6 @@
 #include "DMXControlConsoleRawFader.h"
 #include "DMXSubsystem.h"
 #include "Library/DMXEntityFixturePatch.h"
-#include "Library/DMXEntityFixtureType.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleFaderGroup"
@@ -87,21 +86,23 @@ void UDMXControlConsoleFaderGroup::GenerateFromFixturePatch(UDMXEntityFixturePat
 
 	Modify();
 
-	FixturePatch = InFixturePatch;
-	FaderGroupName = FixturePatch->GetDisplayName();
+	SoftFixturePatchPtr = InFixturePatch;
+	CachedWeakFixturePatch = InFixturePatch;
+
+	FaderGroupName = InFixturePatch->GetDisplayName();
 
 #if WITH_EDITOR
-	EditorColor = FixturePatch->EditorColor;
+	EditorColor = InFixturePatch->EditorColor;
 #endif // WITH_EDITOR
 	
 	ClearFaders();
 
-	const TMap<FDMXAttributeName, FDMXFixtureFunction> FunctionsMap = FixturePatch->GetAttributeFunctionsMap();
+	const TMap<FDMXAttributeName, FDMXFixtureFunction> FunctionsMap = InFixturePatch->GetAttributeFunctionsMap();
 	for (const TTuple<FDMXAttributeName, FDMXFixtureFunction>& FunctionTuple : FunctionsMap)
 	{
 		const FDMXFixtureFunction FixtureFunction = FunctionTuple.Value;
-		const int32 UniverseID = FixturePatch->GetUniverseID();
-		const int32 StartingChannel = FixturePatch->GetStartingChannel();
+		const int32 UniverseID = InFixturePatch->GetUniverseID();
+		const int32 StartingChannel = InFixturePatch->GetStartingChannel();
 
 		AddFixturePatchFunctionFader(FixtureFunction, UniverseID, StartingChannel);
 	}
@@ -111,7 +112,7 @@ void UDMXControlConsoleFaderGroup::GenerateFromFixturePatch(UDMXEntityFixturePat
 
 bool UDMXControlConsoleFaderGroup::HasFixturePatch() const
 {
-	return FixturePatch != nullptr;
+	return GetFixturePatch() != nullptr;
 }
 
 TMap<int32, TMap<int32, uint8>> UDMXControlConsoleFaderGroup::GetUniverseToFragmentMap() const
@@ -134,6 +135,11 @@ TMap<int32, TMap<int32, uint8>> UDMXControlConsoleFaderGroup::GetUniverseToFragm
 		}
 
 		const UDMXControlConsoleRawFader* RawFader = Cast<UDMXControlConsoleRawFader>(Fader);
+		if (!RawFader)
+		{
+			continue;
+		}
+		
 		TMap<int32, uint8>& FragmentMapRef = UniverseToFragmentMap.FindOrAdd(RawFader->GetUniverseID());
 
 		TArray<uint8> ByteArray;
@@ -166,12 +172,29 @@ TMap<FDMXAttributeName, int32> UDMXControlConsoleFaderGroup::GetAttributeMap() c
 		}
 
 		const UDMXControlConsoleFixturePatchFunctionFader* FixturePatchFunctionFader = Cast<UDMXControlConsoleFixturePatchFunctionFader>(Fader);
+		if (!FixturePatchFunctionFader)
+		{
+			continue;
+		}
+		
 		const FDMXAttributeName& AttributeName = FixturePatchFunctionFader->GetAttributeName();
 		const uint32 Value = FixturePatchFunctionFader->GetValue();
 		AttributeMap.Add(AttributeName, Value);
 	}
 
 	return AttributeMap;
+}
+
+void UDMXControlConsoleFaderGroup::Reset()
+{
+	FaderGroupName = GetName();
+
+	SoftFixturePatchPtr.Reset();
+	CachedWeakFixturePatch.Reset();
+
+	EditorColor = FLinearColor::White;
+
+	ClearFaders();
 }
 
 void UDMXControlConsoleFaderGroup::Destroy()
@@ -194,11 +217,13 @@ void UDMXControlConsoleFaderGroup::ForceRefresh()
 	bForceRefresh = false;
 }
 
-void UDMXControlConsoleFaderGroup::PostInitProperties()
+void UDMXControlConsoleFaderGroup::PostLoad()
 {
-	Super::PostInitProperties();
+	Super::PostLoad();
 
 	FaderGroupName = GetName();
+
+	CachedWeakFixturePatch = Cast<UDMXEntityFixturePatch>(SoftFixturePatchPtr.ToSoftObjectPath().TryLoad());
 }
 
 #if WITH_EDITOR
@@ -207,14 +232,9 @@ void UDMXControlConsoleFaderGroup::PostEditChangeProperty(FPropertyChangedEvent&
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
-	if (PropertyName == GetFixturePatchPropertyName() &&
-		PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive &&
-		HasFixturePatch())
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, SoftFixturePatchPtr))
 	{
-		FixturePatch = nullptr;
-		EditorColor = FLinearColor::White;
-
-		ClearFaders();
+		CachedWeakFixturePatch = Cast<UDMXEntityFixturePatch>(SoftFixturePatchPtr.ToSoftObjectPath().TryLoad());
 	}
 }
 #endif // WITH_EDITOR

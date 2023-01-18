@@ -4,17 +4,11 @@
 
 #include "CoreMinimal.h"
 
-#include "Editor/EditorEngine.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/GCObject.h"
-
 #include "Widgets/SCompoundWidget.h"
 
-class FDMXControlConsoleEditorSelection;
 class SDMXControlConsoleEditorFaderGroupRowView;
 class SDMXControlConsoleEditorFixturePatchVerticalBox;
 class SDMXControlConsoleEditorPresetWidget;
-class UDMXControlConsoleFaderGroup;
 class UDMXControlConsoleFaderGroupRow;
 class UDMXControlConsole;
 

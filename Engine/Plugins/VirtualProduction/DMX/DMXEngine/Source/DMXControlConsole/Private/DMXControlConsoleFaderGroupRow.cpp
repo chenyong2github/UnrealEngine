@@ -4,8 +4,6 @@
 
 #include "DMXControlConsole.h"
 #include "DMXControlConsoleFaderGroup.h"
-#include "Library/DMXEntityFixturePatch.h"
-#include "Library/DMXLibrary.h"
 
 
 UDMXControlConsoleFaderGroup* UDMXControlConsoleFaderGroupRow::AddFaderGroup(const int32 Index = 0)

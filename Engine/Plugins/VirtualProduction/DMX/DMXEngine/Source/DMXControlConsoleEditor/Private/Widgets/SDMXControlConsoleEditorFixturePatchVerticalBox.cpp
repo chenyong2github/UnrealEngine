@@ -161,7 +161,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::GenerateFaderGroupFromFixt
 	SelectionHandler->ClearFadersSelection(FaderGroup);
 
 	const FScopedTransaction FaderGroupTransaction(LOCTEXT("FaderGroupTransaction", "Generate Fader Group from Fixture Patch"));
-	FaderGroup->PreEditChange(UDMXControlConsoleFaderGroup::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroup::GetFixturePatchPropertyName()));
+	FaderGroup->PreEditChange(UDMXControlConsoleFaderGroup::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroup::GetSoftFixturePatchPtrPropertyName()));
 
 	FaderGroup->GenerateFromFixturePatch(FixturePatch);
 
@@ -288,7 +288,7 @@ FReply SDMXControlConsoleEditorFixturePatchVerticalBox::OnAddAllPatchesClicked()
 	{
 		const FScopedTransaction AddAllPatchesTransaction(LOCTEXT("AddAllPatchesTransaction", "Generate from Library"));
 		ControlConsole->PreEditChange(nullptr);
-		ControlConsole->GenarateFromDMXLibrary();
+		ControlConsole->GenerateFromDMXLibrary();
 		ControlConsole->PostEditChange();
 	}
 

@@ -76,6 +76,11 @@ void SDMXControlConsoleEditorFaderGroupRowView::AddFaderGroup(UDMXControlConsole
 		return;
 	}
 
+	if (!FaderGroupsHorizontalBox.IsValid())
+	{
+		return;
+	}
+
 	const int32 Index = FaderGroup->GetIndex();
 
 	TSharedRef<SDMXControlConsoleEditorFaderGroupView> FaderGroupWidget = SNew(SDMXControlConsoleEditorFaderGroupView, FaderGroup);

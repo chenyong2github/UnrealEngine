@@ -10,7 +10,6 @@ template<typename NumericType> class SDMXControlConsoleEditorSpinBoxVertical;
 
 struct FSlateColor;
 class SInlineEditableTextBlock;
-class STextBlock;
 
 
 /** Individual fader UI class */

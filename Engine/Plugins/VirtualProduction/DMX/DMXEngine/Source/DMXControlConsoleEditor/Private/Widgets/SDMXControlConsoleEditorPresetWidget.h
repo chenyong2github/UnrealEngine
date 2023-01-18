@@ -9,8 +9,6 @@ class UDMXControlConsolePreset;
 
 struct FAssetData;
 class FReply;
-class SAssetPickerButton;
-class SDlgPickAssetPath;
 
 
 /** Widget to handle saving/loading of Control Console's data */
@@ -30,17 +28,14 @@ public:
 	TWeakObjectPtr<UObject> GetSelectedPreset() const;
 
 private:
-	/** Saves current selected Control Console Preset data */
-	void SaveSelectedPreset();
-
-	/** Called to save Control Console's data on the selected Control Console Preset */
-	FReply OnSaveClicked();
-
 	/** Called to create a new Control Console Preset */
 	FReply OnCreateNewClicked();
 
 	/** Called when a new Control Console Preset asset is selected in AssetPickerButton */
 	void OnPresetSelected(const FAssetData& AssetData);
+
+	/** Called when a Preset is saved */
+	void OnPresetSaved(const UDMXControlConsolePreset* Preset);
 
 	/** Current selected Control Console Preset */
 	TWeakObjectPtr<UDMXControlConsolePreset> SelectedControlConsolePreset;

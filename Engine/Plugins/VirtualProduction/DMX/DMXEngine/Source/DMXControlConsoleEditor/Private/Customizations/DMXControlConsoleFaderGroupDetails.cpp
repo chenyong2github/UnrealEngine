@@ -13,6 +13,7 @@
 #include "DetailWidgetRow.h"
 #include "IPropertyUtilities.h"
 #include "PropertyHandle.h"
+#include "ScopedTransaction.h"
 #include "Layout/Visibility.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -28,15 +29,10 @@ void FDMXControlConsoleFaderGroupDetails::CustomizeDetails(IDetailLayoutBuilder&
 
 	IDetailCategoryBuilder& FaderGroupCategory = InDetailLayout.EditCategory("DMX Fader Group", FText::GetEmpty());
 
-	FixturePatchHandle = InDetailLayout.GetProperty(UDMXControlConsoleFaderGroup::GetFixturePatchPropertyName());
-	InDetailLayout.HideProperty(FixturePatchHandle);
-
 	const TSharedPtr<IPropertyHandle> FaderGroupNameHandle = InDetailLayout.GetProperty(UDMXControlConsoleFaderGroup::GetFaderGroupNamePropertyName());
 	InDetailLayout.HideProperty(FaderGroupNameHandle);
 	const TSharedPtr<IPropertyHandle> EditorColorHandle = InDetailLayout.GetProperty(UDMXControlConsoleFaderGroup::GetEditorColorPropertyName());
 	InDetailLayout.HideProperty(EditorColorHandle);
-	const TSharedPtr<IPropertyHandle> FadersHandle = InDetailLayout.GetProperty(UDMXControlConsoleFaderGroup::GetFadersPropertyName());
-	InDetailLayout.HideProperty(FadersHandle);
 
 	FaderGroupCategory.AddProperty(FaderGroupNameHandle);
 	FaderGroupCategory.AddProperty(EditorColorHandle)
@@ -120,10 +116,22 @@ bool FDMXControlConsoleFaderGroupDetails::DoSelectedFaderGroupsHaveAnyFixturePat
 
 FReply FDMXControlConsoleFaderGroupDetails::OnClearButtonClicked()
 {
-	if (FixturePatchHandle.IsValid())
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
+	for (const TWeakObjectPtr<UObject>& SelectedFaderGroupObject : SelectedFaderGroupsObjects)
 	{
-		FixturePatchHandle->NotifyPostChange(EPropertyChangeType::Interactive);
-		ForceRefresh();
+		UDMXControlConsoleFaderGroup* SelectedFaderGroup = Cast<UDMXControlConsoleFaderGroup>(SelectedFaderGroupObject);
+		if (!SelectedFaderGroup || !SelectedFaderGroup->HasFixturePatch())
+		{
+			continue;
+		}
+
+		const FScopedTransaction FaderGroupFixturePatchClearTransaction(LOCTEXT("FaderGroupFixturePatchClearTransaction", "Clear Fixture Patch"));
+		SelectedFaderGroup->PreEditChange(nullptr);
+
+		SelectedFaderGroup->Reset();
+
+		SelectedFaderGroup->PostEditChange();
 	}
 
 	return FReply::Handled();

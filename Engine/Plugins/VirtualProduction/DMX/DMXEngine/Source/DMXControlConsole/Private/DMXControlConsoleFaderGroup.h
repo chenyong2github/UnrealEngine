@@ -58,7 +58,7 @@ public:
 	void GenerateFromFixturePatch(UDMXEntityFixturePatch* InFixturePatch);
 
 	/** Gets current binded Fixture Patch reference, if valid */
-	UDMXEntityFixturePatch* GetFixturePatch() const { return FixturePatch.Get(); }
+	UDMXEntityFixturePatch* GetFixturePatch() const { return CachedWeakFixturePatch.Get(); }
 
 	/** Gets wheter this Fader Group is binded to a Fixture Patch */
 	bool HasFixturePatch() const;
@@ -68,6 +68,9 @@ public:
 
 	/** Gets an AttributeName to values map for the current list of Fixture Patch Function Faders */
 	TMap<FDMXAttributeName, int32> GetAttributeMap() const;
+
+	/** Resets this Fader Group to its default parameters */
+	void Reset();
 
 	/** Destroys this Fader Group */
 	void Destroy();
@@ -81,15 +84,15 @@ public:
 	// Property Name getters
 	FORCEINLINE static FName GetFadersPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, Faders); }
 	FORCEINLINE static FName GetFaderGroupNamePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, FaderGroupName); }
-	FORCEINLINE static FName GetFixturePatchPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, FixturePatch); }
+	FORCEINLINE static FName GetSoftFixturePatchPtrPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, SoftFixturePatchPtr); }
 	FORCEINLINE static FName GetEditorColorPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, EditorColor); }
 
 protected:
 	//~ Begin UObject interface
-	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif // WITH_EDITOR
+#endif
 	//~ End UObject interface
 
 private:	
@@ -97,19 +100,23 @@ private:
 	void GetNextAvailableUniverseAndAddress(int32& OutUniverse, int32& OutAddress) const;
 
 	/** Name identifier of this Fader Group */
-	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "1"), Category = "DMX Fader Group")
+	UPROPERTY(EditAnywhere, Category = "DMX Fader Group")
 	FString FaderGroupName;
 
 	/** Fixture Patch this Fader Group is based on */
-	UPROPERTY(VisibleAnywhere, meta = (DisplayPriority = "3"), Category = "DMX Fixture Patch")
-	TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch;
+	UPROPERTY()
+	TSoftObjectPtr<UDMXEntityFixturePatch> SoftFixturePatchPtr;
+
+	/** Cached fixture patch for faster access */
+	UPROPERTY(Transient)
+	TWeakObjectPtr<UDMXEntityFixturePatch> CachedWeakFixturePatch;
 	
 	/** Faders array of this Fader Group */
-	UPROPERTY(EditAnywhere, Category = "DMX Fader Group")
+	UPROPERTY()
 	TArray<TObjectPtr<UDMXControlConsoleFaderBase>> Faders;
 
 	/** Color for Fader Group representation on the Editor */
-	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "2"), Category = "DMX Fader Group")
+	UPROPERTY(EditAnywhere, Category = "DMX Fader Group")
 	FLinearColor EditorColor = FLinearColor::White;
 
 	/** Shows wheter this Fader Group needs to be refreshed or not */

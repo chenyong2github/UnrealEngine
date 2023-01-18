@@ -7,14 +7,9 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SComboBox.h"
-
-enum class EDMXPortSelectorMode : uint8;
-class SDMXPortSelector;
 
 class SCheckBox;
 class SHorizontalBox;
-class STextBlock;
 
 
 /** Widget to select Ports to monitor */

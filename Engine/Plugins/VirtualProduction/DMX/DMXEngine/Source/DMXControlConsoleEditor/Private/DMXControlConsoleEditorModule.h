@@ -9,6 +9,7 @@ class FSpawnTabArgs;
 class SDockTab;
 
 
+/** Editor Module for DMXControlConsole */
 class FDMXControlConsoleEditorModule
 	: public IDMXControlConsoleEditorModule
 {

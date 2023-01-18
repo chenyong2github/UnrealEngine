@@ -5,13 +5,10 @@
 #include "DMXControlConsoleFaderGroupRow.h"
 
 #include "CoreMinimal.h"
-#include "UObject/GCObject.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "Widgets/SCompoundWidget.h"
 
 class SDMXControlConsoleEditorFaderGroupView;
-class SDMXControlConsoleEditorView;
 
 class SHorizontalBox;
 

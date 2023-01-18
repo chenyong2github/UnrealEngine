@@ -3,7 +3,6 @@
 #include "DMXControlConsoleFaderBase.h"
 
 #include "DMXControlConsoleFaderGroup.h"
-#include "Library/DMXEntityFixtureType.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleFaderBase"

@@ -5,13 +5,8 @@
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 
-class FDMXControlConsoleEditorManager;
-class UDMXControlConsoleFaderGroup;
-class UDMXLibrary;
-
 struct EVisibility;
 class FReply;
-class IPropertyHandle;
 class IPropertyUtilities;
 
 
@@ -48,9 +43,6 @@ private:
 
 	/** Gets visibility attribute of the Clear button */
 	EVisibility GetClearButtonVisibility() const;
-
-	/** Property Handle for FixturePatch property of the current customized Fader Group */
-	TSharedPtr<IPropertyHandle> FixturePatchHandle;
 
 	/** Property Utilities for this Details Customization layout */
 	TSharedPtr<IPropertyUtilities> PropertyUtilities;

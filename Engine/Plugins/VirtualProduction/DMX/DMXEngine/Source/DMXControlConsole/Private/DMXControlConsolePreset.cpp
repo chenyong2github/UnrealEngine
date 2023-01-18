@@ -14,7 +14,7 @@ void UDMXControlConsolePreset::SetControlConsole(UDMXControlConsole* InControlCo
 		return;
 	}
 
-	//Before the first save Control Console is in the Transient Package
+	// Before the first save Control Console is in the Transient Package
 	if (InControlConsole->GetPackage() == GetTransientPackage())
 	{
 		ControlConsole = InControlConsole;
@@ -26,6 +26,18 @@ void UDMXControlConsolePreset::SetControlConsole(UDMXControlConsole* InControlCo
 
 	ControlConsole->Rename(nullptr, this);
 	ControlConsole->SetFlags(RF_Public | RF_Standalone | RF_Transactional);
+}
+
+void UDMXControlConsolePreset::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+#if WITH_EDITOR
+	if (Ar.IsSaving() && Ar.IsPersistent())
+	{
+		OnControlConsolePresetSaved.Broadcast(this);
+	}
+#endif // WITH_EDITOR
 }
 
 #undef LOCTEXT_NAMESPACE

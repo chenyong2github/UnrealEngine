@@ -10,7 +10,6 @@
 
 #include "DMXControlConsole.generated.h"
 
-class FDMXOutputPort;
 class UDMXControlConsoleFaderGroup;
 class UDMXControlConsoleFaderGroupRow;
 class UDMXLibrary;
@@ -38,19 +37,24 @@ public:
 	TArray<UDMXControlConsoleFaderGroup*> GetAllFaderGroups() const;
 
 	/** Generates sorted Fader Groups based on the DMX Control Console's current DMX Library */
-	void GenarateFromDMXLibrary();
+	void GenerateFromDMXLibrary();
 
 	/** Gets this DMX Control Console's DMXLibrary */
 	UDMXLibrary* GetDMXLibrary() const { return DMXLibrary.Get(); }
 
-	/** Sends DMX on this DMX Control Console */
-	void SendDMX();
+	/** Sends DMX on this DMX Control Console on tick */
+	void StartSendingDMX();
 
-	/** Stops DMX on this DMX Control Console */
-	void StopDMX();
+	/** Stops DMX on this DMX Control Console on tick */
+	void StopSendingDMX();
 
 	/** Gets if DMX is sending DMX data or not */
-	bool IsSendingDMX() const { return bIsSendingDMX; }
+	bool IsSendingDMX() const { return bSendDMX; }
+
+#if WITH_EDITOR
+	/** Sets if the console can send DMX in Editor */
+	void SetSendDMXInEditorEnabled(bool bSendDMXInEditorEnabled) { bSendDMXInEditor = bSendDMXInEditorEnabled; }
+#endif // WITH_EDITOR 
 
 	/** Updates DMX Output Ports */
 	void UpdateOutputPorts(const TArray<FDMXOutputPortSharedRef> InOutputPorts);
@@ -63,12 +67,9 @@ public:
 	FORCEINLINE static FName GetFaderGroupRowsPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsole, FaderGroupRows); }
 
 protected:
-	//~ Begin of UObject interface
-	virtual void PostInitProperties() override;
-	//~ End of UObject interface
-
 	// ~ Begin FTickableGameObject interface
 	virtual void Tick(float InDeltaTime) override;
+	virtual bool IsTickable() const override { return true; }
 	virtual bool IsTickableInEditor() const override { return true; }
 	virtual ETickableTickType GetTickableTickType() const override;
 	virtual TStatId GetStatId() const override;
@@ -89,9 +90,11 @@ private:
 	/** Output ports to output dmx to */
 	TArray<FDMXOutputPortSharedRef> OutputPorts;
 
-	/** Shows if DMX is playing on this DMX Control Console or not */
-	bool bIsSendingDMX = false;
+	/** True when this object is ticking */
+	bool bSendDMX = false;
 
-	/** Shows wheter this ControlConsole needs to be refreshed or not */
-	bool bForceRefresh = false;
+#if WITH_EDITOR
+	/** True if the Control Console ticks in Editor */
+	bool bSendDMXInEditor = true;
+#endif // WITH_EDITOR
 };

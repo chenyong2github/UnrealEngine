@@ -2,6 +2,7 @@
 
 #include "DMXControlConsoleEditorModule.h"
 
+#include "DMXControlConsoleEditorFromLegacyUpgradeHandler.h"
 #include "DMXControlConsoleEditorManager.h"
 #include "DMXEditorModule.h"
 #include "Commands/DMXControlConsoleEditorCommands.h"
@@ -23,6 +24,9 @@ void FDMXControlConsoleEditorModule::StartupModule()
 {
 	FDMXControlConsoleEditorCommands::Register();
 	RegisterControlConsoleActions();
+
+	// Try UpgradePath if configurations settings have data from previous Control Console versions
+	FDMXControlConsoleEditorFromLegacyUpgradeHandler::TryUpgradePathFromLegacy();
 
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 		ControlConsoleTabName, 

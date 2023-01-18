@@ -4,10 +4,8 @@
 
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
-#include "DMXProtocolCommon.h"
 #include "IO/DMXOutputPort.h"
 #include "Library/DMXEntityFixturePatch.h"
-#include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXLibrary.h"
 
 #include "Algo/Sort.h"
@@ -44,7 +42,7 @@ void UDMXControlConsole::DeleteFaderGroupRow(const TObjectPtr<UDMXControlConsole
 	FaderGroupRows.Remove(FaderGroupRow);
 }
 
-void UDMXControlConsole::GenarateFromDMXLibrary()
+void UDMXControlConsole::GenerateFromDMXLibrary()
 {
 	if (!DMXLibrary.IsValid())
 	{
@@ -131,14 +129,14 @@ void UDMXControlConsole::GenarateFromDMXLibrary()
 	}
 }
 
-void UDMXControlConsole::SendDMX()
+void UDMXControlConsole::StartSendingDMX()
 {
-	bIsSendingDMX = true;
+	bSendDMX = true;
 }
 
-void UDMXControlConsole::StopDMX()
+void UDMXControlConsole::StopSendingDMX()
 {
-	bIsSendingDMX = false;
+	bSendDMX = false;
 }
 
 void UDMXControlConsole::UpdateOutputPorts(const TArray<FDMXOutputPortSharedRef> InOutputPorts)
@@ -156,20 +154,20 @@ void UDMXControlConsole::Reset()
 	ClearFaderGroupRows();
 }
 
-void UDMXControlConsole::PostInitProperties()
-{
-	Super::PostInitProperties();
-
-	bIsSendingDMX = false;
-}
-
 void UDMXControlConsole::Tick(float InDeltaTime)
 {
-	if (!IsSendingDMX())
+	if (!bSendDMX)
 	{
 		return;
 	}
 
+#if WITH_EDITOR
+	if (!bSendDMXInEditor && !GIsPlayInEditorWorld)
+	{
+		return;
+	}
+#endif
+	
 	const TArray<UDMXControlConsoleFaderGroup*> FaderGroups = GetAllFaderGroups();
 	for (const UDMXControlConsoleFaderGroup* FaderGroup : FaderGroups)
 	{

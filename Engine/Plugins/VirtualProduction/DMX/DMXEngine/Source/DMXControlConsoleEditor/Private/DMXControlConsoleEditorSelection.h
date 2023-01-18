@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 class FDMXControlConsoleEditorManager;
 class UDMXControlConsoleFaderBase;

@@ -8,9 +8,6 @@
 
 class SDMXControlConsoleEditorPortSelector;
 
-struct EVisibility;
-class FReply;
-class IDetailsView;
 class IPropertyUtilities;
 
 

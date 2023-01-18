@@ -2,20 +2,15 @@
 
 #include "SDMXControlConsoleEditorView.h"
 
-#include "DMXEditorModule.h"
 #include "DMXControlConsole.h"
 #include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
-#include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
-#include "DMXControlConsolePreset.h"
 #include "Commands/DMXControlConsoleEditorCommands.h"
 #include "Customizations/DMXControlConsoleDetails.h"
 #include "Customizations/DMXControlConsoleFaderGroupDetails.h"
-#include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityReference.h"
-#include "Library/DMXLibrary.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "Views/SDMXControlConsoleEditorFaderGroupRowView.h"
 #include "Widgets/SDMXControlConsoleEditorAddButton.h"
@@ -329,6 +324,11 @@ void SDMXControlConsoleEditorView::OnFaderGroupRowAdded()
 void SDMXControlConsoleEditorView::AddFaderGroupRow(UDMXControlConsoleFaderGroupRow* FaderGroupRow)
 {
 	if (!ensureMsgf(FaderGroupRow, TEXT("Invalid fader group row, can't add new fader group row view correctly.")))
+	{
+		return;
+	}
+
+	if (!FaderGroupRowsVerticalBox.IsValid())
 	{
 		return;
 	}

@@ -2,7 +2,6 @@
 
 #include "SDMXControlConsoleEditorAddButton.h"
 
-#include "Layout/Visibility.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateColor.h"
 #include "Widgets/Images/SImage.h"

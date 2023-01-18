@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/GCObject.h"
 #include "Widgets/SCompoundWidget.h"
 
 #include "Widgets/Input/SButton.h"

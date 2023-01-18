@@ -18,12 +18,33 @@ class DMXCONTROLCONSOLE_API UDMXControlConsolePreset
 	GENERATED_BODY()
 
 public:
+#if WITH_EDITOR
+	DECLARE_EVENT_OneParam(UDMXControlConsolePreset, FDMXControlConsolePresetEvent, const UDMXControlConsolePreset*)
+#endif // WITH_EDITOR
+
+	/** Gets the Preset's Control Console reference */
 	UDMXControlConsole* GetControlConsole() const { return ControlConsole.IsValid() ? ControlConsole.Get() : nullptr; }
 
+	/** Sets the Preset's Control Console reference */
 	void SetControlConsole(UDMXControlConsole* InControlConsole);
+
+	/** Gets a reference to OnControlConsolePresetSaved delegate */
+#if WITH_EDITOR
+	FDMXControlConsolePresetEvent& GetOnControlConsolePresetSaved() { return OnControlConsolePresetSaved; }
+#endif // WITH_EDITOR
+
+protected:
+	//~ Begin UObject interface
+	virtual void Serialize(FArchive& Ar) override;
+	//~ End UObject interface
 
 private:
 	/** Control Console reference */
 	UPROPERTY(VisibleAnywhere, Category = "DMX Control Console Preset")
 	TWeakObjectPtr<UDMXControlConsole> ControlConsole;
+
+	/** Called when the preset asset is saved */
+#if WITH_EDITOR
+	FDMXControlConsolePresetEvent OnControlConsolePresetSaved;
+#endif // WITH_EDITOR
 };

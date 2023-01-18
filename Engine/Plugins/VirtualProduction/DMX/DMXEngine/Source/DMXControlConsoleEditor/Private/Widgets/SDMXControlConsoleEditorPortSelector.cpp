@@ -2,14 +2,13 @@
 
 #include "SDMXControlConsoleEditorPortSelector.h"
 
-#include "IO/DMXInputPort.h"
 #include "IO/DMXOutputPort.h"
 #include "IO/DMXPortManager.h"
 
 #include "SlateOptMacros.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/Input/SComboBox.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXControlConsoleEditorPortSelector"

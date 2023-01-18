@@ -11,8 +11,6 @@ class FDMXControlConsoleEditorSelection;
 class UDMXControlConsole;
 class UDMXControlConsolePreset;
 
-class FUICommandList;
-
 
 /** Manages lifetime and provides access to the DMX Control Console */
 class FDMXControlConsoleEditorManager final
@@ -31,7 +29,7 @@ public:
 	}
 	//~ End FGCObject interface
 
-	/** Gets a reference to DMX Editor's DMX Control Console */
+	/** Gets a reference to DMX Editor's DMX Control Console manager */
 	static FDMXControlConsoleEditorManager& Get();
 
 	/** Gets a reference to the DMX Control Console */
@@ -40,8 +38,17 @@ public:
 	/** Gets a reference to the Selection Handler*/
 	TSharedRef<FDMXControlConsoleEditorSelection> GetSelectionHandler();
 
-	/** Creates a new Control Console Preset asset at the given path */
-	UDMXControlConsolePreset* CreateNewPreset(const FString& InAssetPath, const FString& InAssetName);
+	/** Gets the default Control Console Preset from configuration settings */
+	UDMXControlConsolePreset* GetDefaultControlConsolePreset() const;
+
+	/** Sets the default Control Console Preset in configuration settings */
+	void SetDefaultControlConsolePreset(const FSoftObjectPath& PresetAssetPath);
+
+	/** Creates a new Control Console in the Transient Package */
+	UDMXControlConsole* CreateNewTransientConsole();
+
+	/** Creates a new Control Console Preset asset at the given path. With no Control Console provided, it uses the current Control Console */
+	UDMXControlConsolePreset* CreateNewPreset(const FString& InAssetPath, const FString& InAssetName, UDMXControlConsole* InControlConsole = nullptr);
 
 	/** Loads Control Console's data from the given Preset */
 	void LoadFromPreset(const UDMXControlConsolePreset* Preset);

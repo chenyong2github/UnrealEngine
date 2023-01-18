@@ -11,10 +11,7 @@ class SDMXControlConsoleEditorFaderGroup;
 class UDMXControlConsoleFaderBase;
 class UDMXControlConsoleFaderGroup;
 
-class FDelegateHandle;
-struct FSlateBrush;
 class ITableRow;
-class SButton;
 template <typename ItemType> class SListView;
 class STableViewBase;
 

@@ -8,7 +8,6 @@
 #include "Widgets/SCompoundWidget.h"
 
 struct FSlateBrush;
-class SBorder;
 
 
 /** A Fixture Patch Row to show/select a Fixture Patch from a DMX Library */

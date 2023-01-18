@@ -4,15 +4,13 @@
 
 #include "DMXControlConsole.h"
 #include "DMXControlConsoleEditorManager.h"
+#include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsolePreset.h"
 
 #include "AssetRegistry/AssetData.h"
 #include "Dialogs/DlgPickAssetPath.h"
-#include "Layout/Visibility.h"
-#include "Misc/MessageDialog.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateColor.h"
-#include "UObject/SavePackage.h"
 #include "Widgets/SAssetPickerButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -27,39 +25,6 @@ void SDMXControlConsoleEditorPresetWidget::Construct(const FArguments& InArgs)
 	ChildSlot
 		[
 			SNew(SHorizontalBox)
-
-			// 'Save Preset' button
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.f,0.f)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SButton)
-				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
-				.ToolTipText(LOCTEXT("ControlConsoleSaveButton", "Save Preset"))
-				.ContentPadding(2.0f)
-				.OnClicked(this, &SDMXControlConsoleEditorPresetWidget::OnSaveClicked)
-				.ForegroundColor(FSlateColor::UseForeground())
-				[
-					SNew(SHorizontalBox)
-
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SImage)
-						.Image(FAppStyle::GetBrush("Icons.Save"))
-					]
-
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(8.f, 0.f, 0.f, 0.f)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("SaveButtonText", "Save"))
-					]
-				]
-			]
 
 			// 'Create New Preset' button
 			+ SHorizontalBox::Slot()
@@ -89,7 +54,7 @@ void SDMXControlConsoleEditorPresetWidget::Construct(const FArguments& InArgs)
 					.Padding(8.f, 0.f, 0.f, 0.f)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("CreateNewPresetText", "Create Preset"))
+						.Text(LOCTEXT("CreateNewPresetText", "Create New Preset"))
 					]
 				]
 			]
@@ -105,40 +70,14 @@ void SDMXControlConsoleEditorPresetWidget::Construct(const FArguments& InArgs)
 				.OnAssetSelected(this, &SDMXControlConsoleEditorPresetWidget::OnPresetSelected)
 			]
 		];
+
+	SelectedControlConsolePreset = FDMXControlConsoleEditorManager::Get().GetDefaultControlConsolePreset();
+	FDMXControlConsoleEditorManager::Get().LoadFromPreset(SelectedControlConsolePreset.Get());
 }
 
 TWeakObjectPtr<UObject> SDMXControlConsoleEditorPresetWidget::GetSelectedPreset() const
 {
 	return SelectedControlConsolePreset.IsValid() ? SelectedControlConsolePreset.Get() : nullptr;
-}
-
-void SDMXControlConsoleEditorPresetWidget::SaveSelectedPreset()
-{
-	if (!SelectedControlConsolePreset.IsValid())
-	{
-		return;
-	}
-
-	UPackage* Package = SelectedControlConsolePreset->GetPackage();
-	if (!Package || !Package->IsDirty())
-	{
-		return;
-	}
-
-	const FString PackageName = Package->GetName();
-	const FString PackageFileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
-
-	FSavePackageArgs SaveArgs;
-	SaveArgs.TopLevelFlags = RF_Standalone | RF_Public | RF_Transactional;
-	SaveArgs.SaveFlags = SAVE_Async;
-	UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs);
-}
-
-FReply SDMXControlConsoleEditorPresetWidget::OnSaveClicked()
-{
-	SaveSelectedPreset();
-
-	return FReply::Handled();
 }
 
 FReply SDMXControlConsoleEditorPresetWidget::OnCreateNewClicked()
@@ -157,10 +96,9 @@ FReply SDMXControlConsoleEditorPresetWidget::OnCreateNewClicked()
 		SelectedControlConsolePreset = ControlConsoleManager.CreateNewPreset(AssetPath.ToString(), AssetName.ToString());
 		if (SelectedControlConsolePreset.IsValid())
 		{
+			SelectedControlConsolePreset->GetOnControlConsolePresetSaved().AddSP(this, &SDMXControlConsoleEditorPresetWidget::OnPresetSaved);
 			ControlConsoleManager.LoadFromPreset(SelectedControlConsolePreset.Get());
 		}
-
-		SaveSelectedPreset();
 	}
 
 	return FReply::Handled();
@@ -168,20 +106,38 @@ FReply SDMXControlConsoleEditorPresetWidget::OnCreateNewClicked()
 
 void SDMXControlConsoleEditorPresetWidget::OnPresetSelected(const FAssetData& AssetData)
 {
-	if (SelectedControlConsolePreset.IsValid() && 
-		SelectedControlConsolePreset->GetPackage()->IsDirty())
-	{
-		const FText SaveMsg = LOCTEXT("PresetSaveMsg", "Do you want to save the current Preset?");
-		if (FMessageDialog::Open(EAppMsgType::YesNo, SaveMsg) == EAppReturnType::Yes)
-		{
-			SaveSelectedPreset();
-		}
-	}
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	SelectionHandler->ClearSelection();
+
+	FDMXControlConsoleEditorManager& ControlConsoleEditorManager = FDMXControlConsoleEditorManager::Get();
 
 	UDMXControlConsolePreset* ControlConsolePreset = Cast<UDMXControlConsolePreset>(AssetData.GetAsset());
 	SelectedControlConsolePreset = ControlConsolePreset;
+	if (!SelectedControlConsolePreset.IsValid())
+	{
+		ControlConsoleEditorManager.CreateNewTransientConsole();
 
-	FDMXControlConsoleEditorManager::Get().LoadFromPreset(ControlConsolePreset);
+		return;
+	}
+
+	ControlConsoleEditorManager.LoadFromPreset(ControlConsolePreset);
+
+	// If selected asset's package is not dirty, the asset's path gets registered in DMXControlConsole configuration settings
+	UPackage* Package = SelectedControlConsolePreset->GetPackage();
+	if (Package && !Package->IsDirty())
+	{
+		ControlConsoleEditorManager.SetDefaultControlConsolePreset(AssetData.GetSoftObjectPath());
+	}
+}
+
+void SDMXControlConsoleEditorPresetWidget::OnPresetSaved(const UDMXControlConsolePreset* Preset)
+{
+	if (!Preset || SelectedControlConsolePreset != Preset)
+	{
+		return;
+	}
+
+	FDMXControlConsoleEditorManager::Get().SetDefaultControlConsolePreset(Preset->GetPathName());
 }
 
 #undef LOCTEXT_NAMESPACE
