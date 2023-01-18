@@ -309,7 +309,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 
 			// now that we have a UProject file (or not), update the FileCollection RootDirectory to point to it
-			ProjectFile.FileCollection.RootDirectory = UProjectFileLocation == null ? (Unreal.EngineDirectory) : UProjectFileLocation.Directory;
+			ProjectFile.FileCollection.SetUProjectLocation(UProjectFileLocation);
 
 			return UProjectFileLocation;
 		}
@@ -2047,7 +2047,8 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		public XcodeFileCollection(XcodeProjectFile ProjectFile)
 		{
 			ProjectDirectory = ProjectFile.ProjectFilePath.Directory;
-			RootDirectory = ProjectFile.UnrealData.UProjectFileLocation == null ? (Unreal.EngineDirectory) : ProjectFile.UnrealData.UProjectFileLocation.Directory;
+			RootDirectory = Unreal.EngineDirectory;
+			SetUProjectLocation(ProjectFile.UnrealData.UProjectFileLocation);
 		}
 
 		public XcodeFileCollection(XcodeFileCollection Other)
@@ -2067,6 +2068,11 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				Groups.Add(Key, new XcodeFileGroup(Other.Groups[Key]));
 			}
 
+		}
+
+		public void SetUProjectLocation(FileReference? UProjectLocation)
+		{
+			RootDirectory = UProjectLocation == null || UProjectLocation.ContainsName("Programs", 0) ? (Unreal.EngineDirectory) : UProjectLocation!.Directory;
 		}
 
 		public void ProcessFile(XcodeSourceFile File, bool bIsForBuild)
