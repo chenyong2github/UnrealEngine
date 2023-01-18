@@ -302,6 +302,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	/** Serializes the internal path and also handles save/PIE fixups. Call this from the archiver overrides */
 	void SerializePath(FArchive& Ar);
 
+	/** Serializes the internal path without any save/PIE fixups. Only call this directly if you know what you are doing */
+	void SerializePathWithoutFixup(FArchive& Ar);
+
 	/** Fixes up path for saving, call if saving with a method that skips SerializePath. This can modify the path, it will return true if it was modified */
 	bool PreSavePath(bool* bReportSoftObjectPathRedirects = nullptr);
 

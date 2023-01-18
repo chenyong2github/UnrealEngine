@@ -11,6 +11,11 @@ struct FAssetData;
 
 struct ENGINE_API FWorldPartitionActorDescUtils
 {
+	/** @return The asset registry tag name for ActorMetaDataClass */
+	static FName ActorMetaDataClassTagName();
+	/** @return The asset registry tag name for ActorMetaData */
+	static FName ActorMetaDataTagName();
+
 	/** 
 	 * Checks if the provided asset data contains a valid actor descriptor.
 	 * @param InAssetData	The asset data to look into.
@@ -38,6 +43,13 @@ struct ENGINE_API FWorldPartitionActorDescUtils
 	 * @param OutTags		Output tags to output into.
 	 */
 	static void AppendAssetDataTagsFromActor(const AActor* InActor, TArray<UObject::FAssetRegistryTag>& OutTags);
+
+	/** 
+	 * Return the actor descriptor data.
+	 * @param InActorDesc	The actor descriptor that will generate the data.
+	 * @return				The actor descriptor data.
+	 */
+	static FString GetAssetDataFromActorDescriptor(TUniquePtr<FWorldPartitionActorDesc>& InActorDesc);
 
 	/** 
 	 * Update an actor descriptor with new values coming from the provided actor.

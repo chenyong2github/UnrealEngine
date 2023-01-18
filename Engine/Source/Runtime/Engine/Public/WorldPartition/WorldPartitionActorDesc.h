@@ -70,6 +70,7 @@ class ENGINE_API FWorldPartitionActorDesc
 	friend struct FWorldPartitionReferenceImpl;
 	friend struct FWorldPartitionActorDescUtils;
 	friend struct FWorldPartitionActorDescUnitTestAcccessor;
+	friend class FAssetRootPackagePatcher;
 
 public:
 	virtual ~FWorldPartitionActorDesc() {}

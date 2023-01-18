@@ -267,31 +267,7 @@ void FSoftObjectPath::SerializePath(FArchive& Ar)
 
 	if (bSerializeInternals)
 	{
-		if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_ADDED_SOFT_OBJECT_PATH)
-		{
-			FString Path;
-			Ar << Path;
-
-			if (Ar.UEVer() < VER_UE4_KEEP_ONLY_PACKAGE_NAMES_IN_STRING_ASSET_REFERENCES_MAP)
-			{
-				Path = FPackageName::GetNormalizedObjectPath(Path);
-			}
-
-			SetPath(MoveTemp(Path));
-		}
-		else if( Ar.IsLoading() && Ar.UEVer() < EUnrealEngineObjectUE5Version::FSOFTOBJECTPATH_REMOVE_ASSET_PATH_FNAMES)
-		{
-			FName AssetPathName;
-			Ar << AssetPathName;
-			AssetPath = WriteToString<FName::StringBufferSize>(AssetPathName).ToView();
-
-			Ar << SubPathString;
-		}
-		else
-		{
-			Ar << AssetPath;
-			Ar << SubPathString;
-		}
+		SerializePathWithoutFixup(Ar);
 	}
 
 #if WITH_EDITOR
@@ -310,7 +286,7 @@ void FSoftObjectPath::SerializePath(FArchive& Ar)
 				PreSavePath(nullptr);
 			}
 		}
-		if (Ar.GetPortFlags()&PPF_DuplicateForPIE)
+		if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
 		{
 			// Remap unique ID if necessary
 			// only for fixing up cross-level references, inter-level references handled in FDuplicateDataReader
@@ -318,6 +294,35 @@ void FSoftObjectPath::SerializePath(FArchive& Ar)
 		}
 	}
 #endif // WITH_EDITOR
+}
+
+void FSoftObjectPath::SerializePathWithoutFixup(FArchive& Ar)
+{
+	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_ADDED_SOFT_OBJECT_PATH)
+	{
+		FString Path;
+		Ar << Path;
+
+		if (Ar.UEVer() < VER_UE4_KEEP_ONLY_PACKAGE_NAMES_IN_STRING_ASSET_REFERENCES_MAP)
+		{
+			Path = FPackageName::GetNormalizedObjectPath(Path);
+		}
+
+		SetPath(MoveTemp(Path));
+	}
+	else if (Ar.IsLoading() && Ar.UEVer() < EUnrealEngineObjectUE5Version::FSOFTOBJECTPATH_REMOVE_ASSET_PATH_FNAMES)
+	{
+		FName AssetPathName;
+		Ar << AssetPathName;
+		AssetPath = WriteToString<FName::StringBufferSize>(AssetPathName).ToView();
+
+		Ar << SubPathString;
+	}
+	else
+	{
+		Ar << AssetPath;
+		Ar << SubPathString;
+	}
 }
 
 bool FSoftObjectPath::operator==(FSoftObjectPath const& Other) const

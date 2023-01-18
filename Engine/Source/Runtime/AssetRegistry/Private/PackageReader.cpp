@@ -1031,6 +1031,66 @@ namespace UE::AssetRegistry
 		return ClassPathName;
 	}
 
+	bool FDeserializePackageData::DoSerialize(FArchive& BinaryArchive, const FPackageFileSummary& PackageFileSummary, EReadPackageDataMainErrorCode& OutError)
+	{
+		// To avoid large patch sizes, we have frozen cooked package format at the format before VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS
+		const bool bPreDependencyFormat = PackageFileSummary.GetFileVersionUE() < VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS || !!(PackageFileSummary.GetPackageFlags() & PKG_FilterEditorOnly);
+
+		// Load offsets to optionally-read data
+		if (bPreDependencyFormat)
+		{
+			DependencyDataOffset = INDEX_NONE;
+		}
+		else
+		{
+			BinaryArchive << DependencyDataOffset;
+		}
+
+		// Load the object count
+		ObjectCount = 0;
+		BinaryArchive << ObjectCount;
+		const int64 PackageFileSize = BinaryArchive.TotalSize();
+		const int32 MinBytesPerObject = 1;
+		if (BinaryArchive.IsError() || ObjectCount < 0 || PackageFileSize < BinaryArchive.Tell() + ObjectCount * MinBytesPerObject)
+		{
+			OutError = EReadPackageDataMainErrorCode::InvalidObjectCount;
+			return false;
+		}
+
+		return true;
+	}
+
+	bool FDeserializeObjectPackageData::DoSerialize(FArchive& BinaryArchive, EReadPackageDataMainErrorCode& OutError)
+	{
+		const int32 MinBytesPerTag = 1;
+		const int64 PackageFileSize = BinaryArchive.TotalSize();
+
+		BinaryArchive << ObjectPath;
+		BinaryArchive << ObjectClassName;
+		// @todo make sure this is a full path name
+		BinaryArchive << TagCount;
+		if (BinaryArchive.IsError() || TagCount < 0 || PackageFileSize < BinaryArchive.Tell() + TagCount * MinBytesPerTag)
+		{
+			OutError = EReadPackageDataMainErrorCode::InvalidTagCount;
+			return false;
+		}		
+
+		return true;
+	}
+
+	bool FDeserializeTagData::DoSerialize(FArchive& BinaryArchive, EReadPackageDataMainErrorCode& OutError)
+	{
+		BinaryArchive << Key;
+		BinaryArchive << Value;
+		if (BinaryArchive.IsError())
+		{
+			OutError = EReadPackageDataMainErrorCode::InvalidTag;
+			return false;
+		}
+
+		return true;
+	}
+
 	// See the corresponding WritePackageData defined in SavePackageUtilities.cpp in CoreUObject module
 	bool ReadPackageDataMain(FArchive& BinaryArchive, const FString& PackageName, const FPackageFileSummary& PackageFileSummary, int64& OutDependencyDataOffset,
 		TArray<FAssetData*>& OutAssetDataList, EReadPackageDataMainErrorCode& OutError, const TArray<FObjectImport>* InImports, const TArray<FObjectExport>* InExports)
@@ -1041,35 +1101,20 @@ namespace UE::AssetRegistry
 		const int64 PackageFileSize = BinaryArchive.TotalSize();
 		const bool bIsMapPackage = (PackageFileSummary.GetPackageFlags() & PKG_ContainsMap) != 0;
 
-		// To avoid large patch sizes, we have frozen cooked package format at the format before VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS
-		bool bPreDependencyFormat = PackageFileSummary.GetFileVersionUE() < VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS || !!(PackageFileSummary.GetPackageFlags() & PKG_FilterEditorOnly);
-
-		// Load offsets to optionally-read data
-		if (bPreDependencyFormat)
+		FDeserializePackageData DeserializePackageData;
+		if (!DeserializePackageData.DoSerialize(BinaryArchive, PackageFileSummary, OutError))
 		{
-			OutDependencyDataOffset = INDEX_NONE;
-		}
-		else
-		{
-			BinaryArchive << OutDependencyDataOffset;
-		}
-
-		// Load the object count
-		int32 ObjectCount = 0;
-		BinaryArchive << ObjectCount;
-		const int32 MinBytesPerObject = 1;
-		if (BinaryArchive.IsError() || ObjectCount < 0 || PackageFileSize < BinaryArchive.Tell() + ObjectCount * MinBytesPerObject)
-		{
-			OutError = EReadPackageDataMainErrorCode::InvalidObjectCount;
 			return false;
 		}
+
+		OutDependencyDataOffset = DeserializePackageData.DependencyDataOffset;
 
 		// Worlds that were saved before they were marked public do not have asset data so we will synthesize it here to make sure we see all legacy umaps
 		// We will also do this for maps saved after they were marked public but no asset data was saved for some reason. A bug caused this to happen for some maps.
 		if (bIsMapPackage)
 		{
 			const bool bLegacyPackage = PackageFileSummary.GetFileVersionUE() < VER_UE4_PUBLIC_WORLDS;
-			const bool bNoMapAsset = (ObjectCount == 0);
+			const bool bNoMapAsset = (DeserializePackageData.ObjectCount == 0);
 			if (bLegacyPackage || bNoMapAsset)
 			{
 				FString AssetName = FPackageName::GetLongPackageAssetName(PackageName);
@@ -1077,41 +1122,29 @@ namespace UE::AssetRegistry
 			}
 		}
 
-		const int32 MinBytesPerTag = 1;
 		// UAsset files usually only have one asset, maps and redirectors have multiple
-		for (int32 ObjectIdx = 0; ObjectIdx < ObjectCount; ++ObjectIdx)
+		for (int32 ObjectIdx = 0; ObjectIdx < DeserializePackageData.ObjectCount; ++ObjectIdx)
 		{
-			FString ObjectPath;
-			FString ObjectClassName;
-			int32 TagCount = 0;
-			BinaryArchive << ObjectPath;
-			BinaryArchive << ObjectClassName;
-			// @todo make sure this is a full path name
-			BinaryArchive << TagCount;
-			if (BinaryArchive.IsError() || TagCount < 0 || PackageFileSize < BinaryArchive.Tell() + TagCount * MinBytesPerTag)
+			FDeserializeObjectPackageData ObjectPackageData;
+			if (!ObjectPackageData.DoSerialize(BinaryArchive, OutError))
 			{
-				OutError = EReadPackageDataMainErrorCode::InvalidTagCount;
 				return false;
 			}
 
 			FAssetDataTagMap TagsAndValues;
-			TagsAndValues.Reserve(TagCount);
+			TagsAndValues.Reserve(ObjectPackageData.TagCount);
 
-			for (int32 TagIdx = 0; TagIdx < TagCount; ++TagIdx)
+			for (int32 TagIdx = 0; TagIdx < ObjectPackageData.TagCount; ++TagIdx)
 			{
-				FString Key;
-				FString Value;
-				BinaryArchive << Key;
-				BinaryArchive << Value;
-				if (BinaryArchive.IsError())
+				FDeserializeTagData TagData;
+				if (!TagData.DoSerialize(BinaryArchive, OutError))
 				{
-					OutError = EReadPackageDataMainErrorCode::InvalidTag;
 					return false;
 				}
 
-				if (!Key.IsEmpty() && !Value.IsEmpty())
+				if (!TagData.Key.IsEmpty() && !TagData.Value.IsEmpty())
 				{
-					TagsAndValues.Add(FName(*Key), Value);
+					TagsAndValues.Add(FName(*TagData.Key), TagData.Value);
 				}
 			}
 
@@ -1119,42 +1152,42 @@ namespace UE::AssetRegistry
 			// Here we simply skip over them
 			if (bIsMapPackage && PackageFileSummary.GetFileVersionUE() < VER_UE4_PUBLIC_WORLDS)
 			{
-				if (ObjectPath != FPackageName::GetLongPackageAssetName(PackageName))
+				if (ObjectPackageData.ObjectPath != FPackageName::GetLongPackageAssetName(PackageName))
 				{
 					continue;
 				}
 			}
 
 			// if we have an object path that starts with the package then this asset is outer-ed to another package
-			const bool bFullObjectPath = ObjectPath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive);
+			const bool bFullObjectPath = ObjectPackageData.ObjectPath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive);
 
 			// if we do not have a full object path already, build it
 			if (!bFullObjectPath)
 			{
 				// if we do not have a full object path, ensure that we have a top level object for the package and not a sub object
-				if (!ensureMsgf(!ObjectPath.Contains(TEXT("."), ESearchCase::CaseSensitive), TEXT("Cannot make FAssetData for sub object %s in package %s!"), *ObjectPath, *PackageName))
+				if (!ensureMsgf(!ObjectPackageData.ObjectPath.Contains(TEXT("."), ESearchCase::CaseSensitive), TEXT("Cannot make FAssetData for sub object %s in package %s!"), *ObjectPackageData.ObjectPath, *PackageName))
 				{
-					UE_ASSET_LOG(LogAssetRegistry, Warning, *PackageName, TEXT("Cannot make FAssetData for sub object %s!"), *ObjectPath);
+					UE_ASSET_LOG(LogAssetRegistry, Warning, *PackageName, TEXT("Cannot make FAssetData for sub object %s!"), *ObjectPackageData.ObjectPath);
 					continue;
 				}
-				ObjectPath = PackageName + TEXT(".") + ObjectPath;
+				ObjectPackageData.ObjectPath = PackageName + TEXT(".") + ObjectPackageData.ObjectPath;
 			}
 			// Previously export couldn't have its outer as an import
 			else if (PackageFileSummary.GetFileVersionUE() < VER_UE4_NON_OUTER_PACKAGE_IMPORT)
 			{
-				UE_ASSET_LOG(LogAssetRegistry, Warning, *PackageName, TEXT("Package has invalid export %s, resave source package!"), *ObjectPath);
+				UE_ASSET_LOG(LogAssetRegistry, Warning, *PackageName, TEXT("Package has invalid export %s, resave source package!"), *ObjectPackageData.ObjectPath);
 				continue;
 			}
 
 			// Create a new FAssetData for this asset and update it with the gathered data
-			if (!ObjectClassName.IsEmpty() && FPackageName::IsShortPackageName(ObjectClassName))
+			if (!ObjectPackageData.ObjectClassName.IsEmpty() && FPackageName::IsShortPackageName(ObjectPackageData.ObjectClassName))
 			{
 				int64 CurrentPos = BinaryArchive.Tell();
-				ObjectClassName = ReconstructFullClassPath(BinaryArchive, PackageName, PackageFileSummary,
-					ObjectClassName, InImports, InExports);
+				ObjectPackageData.ObjectClassName = ReconstructFullClassPath(BinaryArchive, PackageName, PackageFileSummary,
+					ObjectPackageData.ObjectClassName, InImports, InExports);
 				BinaryArchive.Seek(CurrentPos);
 			}
-			OutAssetDataList.Add(new FAssetData(PackageName, ObjectPath, FTopLevelAssetPath(ObjectClassName), MoveTemp(TagsAndValues), PackageFileSummary.ChunkIDs, PackageFileSummary.GetPackageFlags()));
+			OutAssetDataList.Add(new FAssetData(PackageName, ObjectPackageData.ObjectPath, FTopLevelAssetPath(ObjectPackageData.ObjectClassName), MoveTemp(TagsAndValues), PackageFileSummary.ChunkIDs, PackageFileSummary.GetPackageFlags()));
 		}
 
 		return true;

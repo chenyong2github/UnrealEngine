@@ -16,6 +16,16 @@
 static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
 static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
 
+FName FWorldPartitionActorDescUtils::ActorMetaDataClassTagName()
+{
+	return NAME_ActorMetaDataClass;
+}
+
+FName FWorldPartitionActorDescUtils::ActorMetaDataTagName()
+{
+	return NAME_ActorMetaData;
+}
+
 bool FWorldPartitionActorDescUtils::IsValidActorDescriptorFromAssetData(const FAssetData& InAssetData)
 {
 	return InAssetData.FindTag(NAME_ActorMetaDataClass) && InAssetData.FindTag(NAME_ActorMetaData);
@@ -126,10 +136,15 @@ void FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(const AActor* I
 	const FString ActorMetaDataClass = GetParentNativeClass(InActor->GetClass())->GetPathName();
 	OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaDataClass, ActorMetaDataClass, UObject::FAssetRegistryTag::TT_Hidden));
 
-	TArray<uint8> SerializedData;
-	ActorDesc->SerializeTo(SerializedData);
-	const FString ActorMetaData = FBase64::Encode(SerializedData);
+	const FString ActorMetaData = GetAssetDataFromActorDescriptor(ActorDesc);
 	OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaData, ActorMetaData, UObject::FAssetRegistryTag::TT_Hidden));
+}
+
+FString FWorldPartitionActorDescUtils::GetAssetDataFromActorDescriptor(TUniquePtr<FWorldPartitionActorDesc>& InActorDesc)
+{
+	TArray<uint8> SerializedData;
+	InActorDesc->SerializeTo(SerializedData);
+	return FBase64::Encode(SerializedData);
 }
 
 void FWorldPartitionActorDescUtils::UpdateActorDescriptorFromActor(const AActor* InActor, TUniquePtr<FWorldPartitionActorDesc>& OutActorDesc)

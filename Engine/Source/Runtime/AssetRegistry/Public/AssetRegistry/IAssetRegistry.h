@@ -4,6 +4,7 @@
 
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetIdentifier.h"
+#include "AssetRegistry/AssetDataTagMap.h"
 #include "Containers/Array.h"
 #include "Containers/BitArray.h"
 #include "Containers/StringFwd.h"
@@ -775,6 +776,32 @@ namespace AssetRegistry
 		InvalidTagCount = 2,
 		InvalidTag = 3,
 	};
+
+	struct ASSETREGISTRY_API FDeserializePackageData
+	{
+		int64 DependencyDataOffset = INDEX_NONE;
+		int32 ObjectCount = 0;
+
+		bool DoSerialize(FArchive& BinaryArchive, const FPackageFileSummary& PackageFileSummary, EReadPackageDataMainErrorCode& OutError);
+	};
+
+	struct ASSETREGISTRY_API FDeserializeObjectPackageData
+	{
+		FString ObjectPath;
+		FString ObjectClassName;
+		int32 TagCount = 0;
+
+		bool DoSerialize(FArchive& BinaryArchive, EReadPackageDataMainErrorCode& OutError);
+	};
+
+	struct ASSETREGISTRY_API FDeserializeTagData
+	{
+		FString Key;
+		FString Value;
+
+		bool DoSerialize(FArchive& BinaryArchive, EReadPackageDataMainErrorCode& OutError);
+	};
+
 	// Functions to read and write the data used by the AssetRegistry in each package; the format of this data is separate from the format of the data in the asset registry
 	// WritePackageData is declared in AssetRegistryInterface.h, in the CoreUObject module, because it is needed by SavePackage in CoreUObject
 	ASSETREGISTRY_API bool ReadPackageDataMain(FArchive& BinaryArchive, const FString& PackageName, const FPackageFileSummary& PackageFileSummary,

@@ -266,10 +266,10 @@ public:
 	 *
 	 * @param OutSize must be at least GetNameLength()
 	 */
-	void GetUnterminatedName(TCHAR* OutName, uint32 OutSize) const;
+	CORE_API void GetUnterminatedName(TCHAR* OutName, uint32 OutSize) const;
 
 	/** Copy null-terminated name to TCHAR buffer without allocating. */
-	void GetName(TCHAR(&OutName)[NAME_SIZE]) const;
+	CORE_API void GetName(TCHAR(&OutName)[NAME_SIZE]) const;
 
 	/** Copy null-terminated name to ANSICHAR buffer without allocating. Entry must not be wide. */
 	CORE_API void GetAnsiName(ANSICHAR(&OutName)[NAME_SIZE]) const;
@@ -341,7 +341,6 @@ private:
  */
 struct FNameEntrySerialized
 {
-	FNameEntryId Index;
 	bool bIsWide = false;
 
 	union
