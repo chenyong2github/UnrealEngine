@@ -42,6 +42,7 @@ namespace AutomationTool
 		/// <summary>
 		/// If true we will let UBT build UHT
 		/// </summary>
+		[Obsolete]
 		public bool AlwaysBuildUHT { get; set; }
 
 		public void AddBuildProduct(string InFile)
@@ -123,7 +124,7 @@ namespace AutomationTool
 
 			ClearExportedXGEXML();
 
-			string UHTArg = this.AlwaysBuildUHT ? "" : "-nobuilduht";
+			string UHTArg = "";
 
 			CommandUtils.RunUBT(CommandUtils.CmdEnv, UnrealBuildToolDll: UnrealBuildToolDll, Project: UprojectPath, Target: TargetName, Platform: Platform, Config: Config, AdditionalArgs: String.Format("-Manifest={0} {1} -NoHotReload -xgeexport {2}", CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFile.FullName), UHTArg, AddArgs));
 
@@ -190,10 +191,6 @@ namespace AutomationTool
 			}
 			AddArgs += " -NoUBTMakefiles";
 			AddArgs += " " + InAddArgs;
-			if (!TargetName.Equals("UnrealHeaderTool", StringComparison.InvariantCultureIgnoreCase))
-			{
-				AddArgs += " -nobuilduht";
-			}
 
 			PrepareUBT();
 			using (IScope Scope = GlobalTracer.Instance.BuildSpan("Compile").StartActive())

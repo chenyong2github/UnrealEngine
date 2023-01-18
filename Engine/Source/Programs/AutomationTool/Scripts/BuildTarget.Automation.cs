@@ -139,7 +139,6 @@ namespace AutomationTool
 			if (!SingleBuild || (ContainsEditor && !NoTools))
 			{
 				UnrealBuild Build = new UnrealBuild(this);
-				Build.AlwaysBuildUHT = true;
 
 				UnrealBuild.BuildAgenda Agenda = new UnrealBuild.BuildAgenda();
 
