@@ -25,7 +25,7 @@ UEnhancedInputDeveloperSettings::UEnhancedInputDeveloperSettings(const FObjectIn
 	, DefaultWorldInputClass(UEnhancedPlayerInput::StaticClass())
 	, bEnableDefaultMappingContexts(true)
 	, bShouldOnlyTriggerLastActionInChord(true)
-	, bEnableWorldSubsystem(true)
+	, bEnableWorldSubsystem(false)
 	, bShouldLogAllWorldSubsystemInputs(false)
 {
 	PlatformSettings.Initialize(UEnhancedInputPlatformSettings::StaticClass());

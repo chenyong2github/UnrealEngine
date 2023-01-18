@@ -73,7 +73,7 @@ public:
 	uint8 bShouldOnlyTriggerLastActionInChord : 1;
 	
 	/** If true, then the world subsystem will be created. */
-	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input|World Subsystem")
+	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input|World Subsystem", meta=(DisplayName="Enable World Subsystem (Experimental)"))
 	uint8 bEnableWorldSubsystem : 1;
 	
 	/**
