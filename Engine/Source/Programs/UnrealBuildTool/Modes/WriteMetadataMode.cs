@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace UnrealBuildTool
 {
@@ -65,14 +66,14 @@ namespace UnrealBuildTool
 		/// <param name="Receipt"></param>
 		/// <param name="FileToManifest"></param>
 		/// <param name="FileToLoadOrderManifest"></param>
-		public WriteMetadataTargetInfo(FileReference? ProjectFile, FileReference? VersionFile, BuildVersion? Version, FileReference? ReceiptFile, TargetReceipt? Receipt, Dictionary<FileReference, ModuleManifest> FileToManifest, Dictionary<FileReference, LoadOrderManifest>? FileToLoadOrderManifest)
+		public WriteMetadataTargetInfo(FileReference? ProjectFile, FileReference? VersionFile, BuildVersion? Version, FileReference? ReceiptFile, TargetReceipt? Receipt, Dictionary<FileReference, ModuleManifest>? FileToManifest, Dictionary<FileReference, LoadOrderManifest>? FileToLoadOrderManifest)
 		{
 			this.ProjectFile = ProjectFile;
 			this.VersionFile = VersionFile;
 			this.Version = Version;
 			this.ReceiptFile = ReceiptFile;
 			this.Receipt = Receipt;
-			this.FileToManifest = FileToManifest;
+			this.FileToManifest = FileToManifest ?? new Dictionary<FileReference, ModuleManifest>();
 			this.FileToLoadOrderManifest = FileToLoadOrderManifest ?? new Dictionary<FileReference, LoadOrderManifest>();
 		}
 	}
