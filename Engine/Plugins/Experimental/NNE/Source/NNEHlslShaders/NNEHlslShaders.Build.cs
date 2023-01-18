@@ -8,16 +8,10 @@ public class NNEHlslShaders : ModuleRules
 	{
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(
-			new string[] {
-				"Core",
-				"CoreUObject",
-				"Engine"
-			}
-		);
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"Core",
+				"Engine",
 				"Projects",
 				"RenderCore",
 				"RHI",

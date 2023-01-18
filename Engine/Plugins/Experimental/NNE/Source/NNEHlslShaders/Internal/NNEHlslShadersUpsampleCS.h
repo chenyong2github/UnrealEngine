@@ -35,6 +35,6 @@ namespace UE::NNEHlslShaders::Internal
 			SHADER_PARAMETER(uint32, ThreadCountX)
 		END_SHADER_PARAMETER_STRUCT()
 
-			static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
+		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
 	};
 } // UE::NNEHlslShaders::Internal

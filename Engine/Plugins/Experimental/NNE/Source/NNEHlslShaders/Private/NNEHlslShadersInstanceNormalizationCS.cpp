@@ -6,7 +6,7 @@
 
 namespace UE::NNEHlslShaders::Internal
 {
-	namespace
+	namespace InstNormUtils
 	{
 		FIntVector GetGroupSize(EInstanceNormalizationAlgorithm Algorithm)
 		{
@@ -36,7 +36,7 @@ namespace UE::NNEHlslShaders::Internal
 
 	FIntVector TInstanceNormalizationCS::GetGroupCount(const TInstanceNormalizationCS::FParameters& Parameters, EInstanceNormalizationAlgorithm Algorithm)
 	{
-		int ThreadGroupCountValueY = FMath::DivideAndRoundUp((int32)Parameters.NxC, GetGroupSize(Algorithm).Y);
+		int ThreadGroupCountValueY = FMath::DivideAndRoundUp((int32)Parameters.NxC, InstNormUtils::GetGroupSize(Algorithm).Y);
 
 		return {1, ThreadGroupCountValueY, 1};
 	}

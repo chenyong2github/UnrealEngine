@@ -5,7 +5,7 @@
 
 namespace UE::NNEHlslShaders::Internal
 {
-	namespace
+	namespace ConvUtils
 	{
 
 	TArray<int32> GetXBlockShape(TArrayView<const int32> GroupShape, TArrayView<const uint32> WShape, TArrayView<const int32> Dilations, TArrayView<const int32> Strides)
@@ -101,7 +101,7 @@ namespace UE::NNEHlslShaders::Internal
 		return Result;
 	}
 
-	} // namespace
+	} // namespace ConvUtils
 
 	void FConvCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -117,7 +117,7 @@ namespace UE::NNEHlslShaders::Internal
 		check(Strides.Num() == 0 || Strides.Num() == WShape.Num() - 2);
 		check(Pads.Num() == 0 || Pads.Num() == 2 * (WShape.Num() - 2));
 
-		TArray<int32> Padding = GetPadding(XShape, WShape, AutoPad, Dilations, Strides, Pads);
+		TArray<int32> Padding = ConvUtils::GetPadding(XShape, WShape, AutoPad, Dilations, Strides, Pads);
 
 		TArray<int32> Result;
 		Result.SetNumUninitialized(XShape.Num());
@@ -151,11 +151,11 @@ namespace UE::NNEHlslShaders::Internal
 
 		int32 NumDimensions = XShape.Num() - 2;
 
-		TArray<int32> Padding = GetPadding(XShape, WShape, AutoPad, Dilations, Strides, Pads);
+		TArray<int32> Padding = ConvUtils::GetPadding(XShape, WShape, AutoPad, Dilations, Strides, Pads);
 		TArray<int32> GroupShape = GetGroupShape(GroupSize, NumDimensions);
 		TArray<int32> YShape = GetOutputShape(XShape, WShape, AutoPad, Dilations, Strides, Pads);
-		TArray<int32> GridShape = GetGridShape(YShape, GroupShape);
-		TArray<int32> XBlockShape = GetXBlockShape(GroupShape, WShape, Dilations, Strides);
+		TArray<int32> GridShape = ConvUtils::GetGridShape(YShape, GroupShape);
+		TArray<int32> XBlockShape = ConvUtils::GetXBlockShape(GroupShape, WShape, Dilations, Strides);
 		
 		int32 GroupStride = 1;
 		int32 GroupThreadStride = 1;
@@ -217,7 +217,7 @@ namespace UE::NNEHlslShaders::Internal
 			NumThreadsPerGroup *= GroupShape[i];
 		}
 
-		TArray<int32> XBlockShape = GetXBlockShape(GroupShape, WShape, Dilations, Strides);
+		TArray<int32> XBlockShape = ConvUtils::GetXBlockShape(GroupShape, WShape, Dilations, Strides);
 		int32 NumXBlockElements = 1;
 		for (int32 i = 0; i < NumDimensions; i++)
 		{
@@ -239,7 +239,7 @@ namespace UE::NNEHlslShaders::Internal
 	{
 		check(NumDimensions > 0);
 
-		int32 NumThreadsPerGroup = GetNumThreadsPerGroup(GroupSize);
+		int32 NumThreadsPerGroup = ConvUtils::GetNumThreadsPerGroup(GroupSize);
 
 		int32 Power = (int32)FMath::Log2((float)NumThreadsPerGroup);
 		int32 MinPowerPerDim = (int32)((float)Power / (float)NumDimensions);
@@ -279,7 +279,7 @@ namespace UE::NNEHlslShaders::Internal
 		
 		for (int32 i = 0; i < (int32)EConvGroupSize::MAX; i++)
 		{
-			if (GetNumThreadsPerGroup((EConvGroupSize)i) >= WChannelSize) 
+			if (ConvUtils::GetNumThreadsPerGroup((EConvGroupSize)i) >= WChannelSize)
 			{
 				return (EConvGroupSize)i;
 			}

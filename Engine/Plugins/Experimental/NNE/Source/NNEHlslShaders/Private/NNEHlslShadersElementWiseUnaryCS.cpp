@@ -46,7 +46,7 @@ namespace UE::NNEHlslShaders::Internal
 		OP(Exp,         TEXT("exp(X)"));
 		OP(Floor,       TEXT("floor(X)"));
 		OP(IsInf,       TEXT("isinf(X)"));
-		OP(IsNan,       TEXT("isnan(X)"));//TODO check shader there is a warning saying input can neither be Nan on PC FXC
+		OP(IsNan,       TEXT("isnan(X)"));//Note: There is a warning on PC FXC about input that can neither be Nan.
 		OP(HardSigmoid, TEXT("hardSigmoid(X)"));
 		OP(HardSwish,   TEXT("hardSwish(X)"));
 		OP(LeakyRelu,   TEXT("leakyRelu(X)"));
