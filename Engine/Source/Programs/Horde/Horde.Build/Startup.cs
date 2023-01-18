@@ -617,8 +617,8 @@ namespace Horde.Build
 					break;
 			}
 
-			authBuilder.AddScheme<JwtBearerOptions, HordeJwtBearerHandler>(HordeJwtBearerHandler.AuthenticationScheme, options => { });
-			schemes.Add(HordeJwtBearerHandler.AuthenticationScheme);
+			authBuilder.AddScheme<JwtBearerOptions, HordeServerJwtBearerHandler>(HordeServerJwtBearerHandler.AuthenticationScheme, options => { });
+			schemes.Add(HordeServerJwtBearerHandler.AuthenticationScheme);
 
 			services.AddAuthorization(options =>
 				{
