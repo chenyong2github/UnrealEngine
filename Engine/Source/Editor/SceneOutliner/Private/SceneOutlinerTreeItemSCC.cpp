@@ -16,7 +16,18 @@
 FSceneOutlinerTreeItemSCC::FSceneOutlinerTreeItemSCC(FSceneOutlinerTreeItemPtr InTreeItemPtr)
 {
 	TreeItemPtr = InTreeItemPtr;
+}
 
+FSceneOutlinerTreeItemSCC::~FSceneOutlinerTreeItemSCC()
+{
+	FUncontrolledChangelistsModule& UncontrolledChangelistModule = FUncontrolledChangelistsModule::Get();
+	UncontrolledChangelistModule.OnUncontrolledChangelistModuleChanged.Remove(UncontrolledChangelistChangedHandle);
+	
+	DisconnectSourceControl();
+}
+
+void FSceneOutlinerTreeItemSCC::Initialize()
+{
 	if (TreeItemPtr.IsValid())
 	{
 		ExternalPackageName = SceneOutliner::FSceneOutlinerHelpers::GetExternalPackageName(*TreeItemPtr.Get());
@@ -54,19 +65,17 @@ FSceneOutlinerTreeItemSCC::FSceneOutlinerTreeItemSCC(FSceneOutlinerTreeItemPtr I
 	}
 
 	FUncontrolledChangelistsModule& UncontrolledChangelistModule = FUncontrolledChangelistsModule::Get();
-	UncontrolledChangelistChangedHandle = UncontrolledChangelistModule.OnUncontrolledChangelistModuleChanged.AddRaw(this, &FSceneOutlinerTreeItemSCC::HandleUncontrolledChangelistsStateChanged);
+
+	UncontrolledChangelistChangedHandle = UncontrolledChangelistModule.OnUncontrolledChangelistModuleChanged.AddLambda([this, WeakThis = AsWeak()]()
+	{
+		if (WeakThis.IsValid())
+		{
+			HandleUncontrolledChangelistsStateChanged();
+		}
+	});
 
 	// Call the delegate to update the initial uncontrolled state
-	HandleUncontrolledChangelistsStateChanged();
-
-}
-
-FSceneOutlinerTreeItemSCC::~FSceneOutlinerTreeItemSCC()
-{
-	FUncontrolledChangelistsModule& UncontrolledChangelistModule = FUncontrolledChangelistsModule::Get();
-	UncontrolledChangelistModule.OnUncontrolledChangelistModuleChanged.Remove(UncontrolledChangelistChangedHandle);
-
-	DisconnectSourceControl();
+	HandleUncontrolledChangelistsStateChanged();	
 }
 
 FSourceControlStatePtr FSceneOutlinerTreeItemSCC::GetSourceControlState()
@@ -84,9 +93,23 @@ void FSceneOutlinerTreeItemSCC::ConnectSourceControl()
 	check(!ExternalPackageFileName.IsEmpty());
 
 	ISourceControlModule& SCCModule = ISourceControlModule::Get();
-	SourceControlProviderChangedDelegateHandle = SCCModule.RegisterProviderChanged(FSourceControlProviderChanged::FDelegate::CreateRaw(this, &FSceneOutlinerTreeItemSCC::HandleSourceControlProviderChanged));
-	SourceControlStateChangedDelegateHandle = SCCModule.GetProvider().RegisterSourceControlStateChanged_Handle(FSourceControlStateChanged::FDelegate::CreateRaw(this, &FSceneOutlinerTreeItemSCC::HandleSourceControlStateChanged, EStateCacheUsage::Use));
 
+	SourceControlProviderChangedDelegateHandle = SCCModule.RegisterProviderChanged(FSourceControlProviderChanged::FDelegate::CreateLambda([this, WeakThis = AsWeak()](ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider)
+	{
+		if (WeakThis.IsValid())
+		{
+			HandleSourceControlProviderChanged(OldProvider, NewProvider);
+		}
+	}));
+	
+	SourceControlStateChangedDelegateHandle = SCCModule.GetProvider().RegisterSourceControlStateChanged_Handle(FSourceControlStateChanged::FDelegate::CreateLambda([this, WeakThis = AsWeak()]()
+	{
+		if (WeakThis.IsValid())
+		{
+			HandleSourceControlStateChanged(EStateCacheUsage::Use);
+		}
+	}));
+	
 	// Check if there is already a cached state for this item
 	FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(ExternalPackageFileName, EStateCacheUsage::Use);
 	if (SourceControlState.IsValid() && !SourceControlState->IsUnknown())
@@ -129,7 +152,14 @@ void FSceneOutlinerTreeItemSCC::HandleSourceControlStateChanged(EStateCacheUsage
 void FSceneOutlinerTreeItemSCC::HandleSourceControlProviderChanged(ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider)
 {
 	OldProvider.UnregisterSourceControlStateChanged_Handle(SourceControlStateChangedDelegateHandle);
-	SourceControlStateChangedDelegateHandle = NewProvider.RegisterSourceControlStateChanged_Handle(FSourceControlStateChanged::FDelegate::CreateRaw(this, &FSceneOutlinerTreeItemSCC::HandleSourceControlStateChanged, EStateCacheUsage::Use));
+
+	SourceControlStateChangedDelegateHandle = NewProvider.RegisterSourceControlStateChanged_Handle(FSourceControlStateChanged::FDelegate::CreateLambda([this, WeakThis = AsWeak()]()
+	{
+		if (WeakThis.IsValid())
+		{
+			HandleSourceControlStateChanged(EStateCacheUsage::Use);
+		}
+	}));
 	
 	BroadcastNewState(nullptr);
 
@@ -151,7 +181,7 @@ void FSceneOutlinerTreeItemSCC::HandleUncontrolledChangelistsStateChanged()
 
 	for (const TSharedRef<FUncontrolledChangelistState>& UncontrolledChangelistStateRef : UncontrolledChangelistStates)
 	{
-		if(UncontrolledChangelistStateRef->GetFilenames().Contains(ExternalPackageFileName))
+		if (UncontrolledChangelistStateRef->GetFilenames().Contains(ExternalPackageFileName))
 		{
 			UncontrolledChangelistState = UncontrolledChangelistStateRef;
 			break;
@@ -159,7 +189,7 @@ void FSceneOutlinerTreeItemSCC::HandleUncontrolledChangelistsStateChanged()
 	}
 
 	// Broadcast the delegate if our uncontrolled status was changed
-	if(UncontrolledChangelistState != PrevUncontrolledChangelistState)
+	if (UncontrolledChangelistState != PrevUncontrolledChangelistState)
 	{
 		OnUncontrolledChangelistsStateChanged.ExecuteIfBound(UncontrolledChangelistState);
 	}

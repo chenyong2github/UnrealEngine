@@ -10,10 +10,22 @@ void SSourceControlWidget::Construct(const FArguments& InArgs, TSharedPtr<FScene
 	check(InItemSourceControl.IsValid());
 
 	ItemSourceControl = InItemSourceControl;
-
-	ItemSourceControl->OnSourceControlStateChanged.BindSP(this, &SSourceControlWidget::UpdateSourceControlState);
-	ItemSourceControl->OnUncontrolledChangelistsStateChanged.BindSP(this, &SSourceControlWidget::UpdateUncontrolledChangelistState);
-
+	
+	ItemSourceControl->OnSourceControlStateChanged.BindLambda([this, WeakThis = AsWeak()](FSourceControlStatePtr SourceControlState)
+	{
+		if (WeakThis.IsValid())
+		{
+			UpdateSourceControlState(SourceControlState);
+		}
+	});
+	
+	ItemSourceControl->OnUncontrolledChangelistsStateChanged.BindLambda([this, WeakThis = AsWeak()](TSharedPtr<FUncontrolledChangelistState> UncontrolledChangelistState)
+	{
+		if (WeakThis.IsValid())
+		{
+			UpdateUncontrolledChangelistState(UncontrolledChangelistState);
+		}
+	});
 	
 	SImage::Construct(
 		SImage::FArguments()

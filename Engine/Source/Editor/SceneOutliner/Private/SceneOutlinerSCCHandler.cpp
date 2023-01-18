@@ -19,6 +19,7 @@ TSharedPtr<FSceneOutlinerTreeItemSCC> FSceneOutlinerSCCHandler::GetItemSourceCon
 	if (!Result)
 	{
 		Result = &ItemSourceControls.Add(InItem, MakeShared<FSceneOutlinerTreeItemSCC>(InItem));
+		(*Result)->Initialize();
 	}
 	
 	check(Result);

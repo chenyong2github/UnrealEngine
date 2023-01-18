@@ -20,6 +20,9 @@ public:
 
 	~FSceneOutlinerTreeItemSCC();
 
+	// Actually attempt to connect to Revision Control and get the item's status
+	void Initialize();
+
 	FSourceControlStatePtr GetSourceControlState();
 
 	FSourceControlStatePtr RefreshSourceControlState();
