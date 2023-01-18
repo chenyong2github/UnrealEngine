@@ -82,18 +82,12 @@ namespace Chaos::Softs
 	FPropertyCollectionAdapter::FPropertyCollectionAdapter(const TSharedPtr<FManagedArrayCollection>& InManagedArrayCollection)
 		: FPropertyCollectionConstAdapter(InManagedArrayCollection, NoInit)
 	{
-		Construct();
 		Initialize();
 	}
-
-	void FPropertyCollectionAdapter::Construct()
+	
+	FPropertyCollectionAdapter::FPropertyCollectionAdapter(const TSharedPtr<FManagedArrayCollection>& InManagedArrayCollection, ENoInit)
+		: FPropertyCollectionConstAdapter(InManagedArrayCollection, NoInit)
 	{
-		// ClothProperty Group
-		GetManagedArrayCollection()->AddAttribute<FString>(KeyName, PropertyGroup);
-		GetManagedArrayCollection()->AddAttribute<FVector3f>(LowValueName, PropertyGroup);
-		GetManagedArrayCollection()->AddAttribute<FVector3f>(HighValueName, PropertyGroup);
-		GetManagedArrayCollection()->AddAttribute<FString>(StringValueName, PropertyGroup);
-		GetManagedArrayCollection()->AddAttribute<uint8>(FlagsName, PropertyGroup);
 	}
 
 	void FPropertyCollectionAdapter::EnableFlag(int32 KeyIndex, EPropertyFlag Flag, bool bEnable)
@@ -118,7 +112,24 @@ namespace Chaos::Softs
 		return KeyIndex;
 	}
 
-	int32 FPropertyCollectionAdapter::AddProperty(const FString& Key, bool bEnabled, bool bAnimatable)
+	FPropertyCollectionMutableAdapter::FPropertyCollectionMutableAdapter(const TSharedPtr<FManagedArrayCollection>& InManagedArrayCollection)
+		: FPropertyCollectionAdapter(InManagedArrayCollection, NoInit)
+	{
+		Construct();
+		Initialize();
+	}
+
+	void FPropertyCollectionMutableAdapter::Construct()
+	{
+		// ClothProperty Group
+		GetManagedArrayCollection()->AddAttribute<FString>(KeyName, PropertyGroup);
+		GetManagedArrayCollection()->AddAttribute<FVector3f>(LowValueName, PropertyGroup);
+		GetManagedArrayCollection()->AddAttribute<FVector3f>(HighValueName, PropertyGroup);
+		GetManagedArrayCollection()->AddAttribute<FString>(StringValueName, PropertyGroup);
+		GetManagedArrayCollection()->AddAttribute<uint8>(FlagsName, PropertyGroup);
+	}
+
+	int32 FPropertyCollectionMutableAdapter::AddProperty(const FString& Key, bool bEnabled, bool bAnimatable)
 	{
 		const int32 Index = GetManagedArrayCollection()->AddElements(1, PropertyGroup);
 		const uint8 Flags = (bEnabled ? (uint8)EPropertyFlag::Enabled : 0) | (bAnimatable ? (uint8)EPropertyFlag::Animatable : 0);
@@ -137,7 +148,7 @@ namespace Chaos::Softs
 		return Index;
 	}
 
-	int32 FPropertyCollectionAdapter::AddProperties(const TArray<FString>& Keys, bool bEnabled, bool bAnimatable)
+	int32 FPropertyCollectionMutableAdapter::AddProperties(const TArray<FString>& Keys, bool bEnabled, bool bAnimatable)
 	{
 		if (const int32 NumProperties = Keys.Num())
 		{
@@ -162,4 +173,19 @@ namespace Chaos::Softs
 		}
 		return INDEX_NONE;
 	}
+
+	void FPropertyCollectionMutableAdapter::Append(const TSharedPtr<const FManagedArrayCollection>& InManagedArrayCollection)
+	{
+		TArray<FName> GroupsToSkip = InManagedArrayCollection->GroupNames();
+		GroupsToSkip.RemoveSingleSwap(PropertyGroup);
+
+		InManagedArrayCollection->CopyTo(GetManagedArrayCollection().Get(), GroupsToSkip);
+	}
+
+	void FPropertyCollectionMutableAdapter::Copy(const TSharedPtr<const FManagedArrayCollection>& InManagedArrayCollection)
+	{
+		GetManagedArrayCollection()->Reset();
+		Append(InManagedArrayCollection);
+	}
+
 }  // End namespace Chaos
