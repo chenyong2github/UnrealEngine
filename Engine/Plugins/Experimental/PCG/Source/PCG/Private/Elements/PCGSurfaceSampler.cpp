@@ -98,6 +98,7 @@ namespace PCGSurfaceSampler
 
 		Ratio = TargetPointCount / (FVector::FReal)CellCount;
 
+		InputBoundsMinZ = InputBounds.Min.Z;
 		InputBoundsMaxZ = InputBounds.Max.Z;
 
 		return true;
@@ -129,7 +130,17 @@ namespace PCGSurfaceSampler
 
 		FPCGProjectionParams ProjectionParams{};
 
-		FPCGAsync::AsyncPointProcessing(Context, LoopData.CellCount, SampledPoints, [&LoopData, SampledData, InBoundingShape, InSurface, &ProjectionParams](int32 Index, FPCGPoint& OutPoint)
+		// Drop points slightly by an epsilon otherwise point can be culled. If the sampler has a volume connected as the Bounding Shape,
+		// the volume will call through to PCGHelpers::IsInsideBounds() which is a one sided test and points at the top of the volume
+		// will fail it. TODO perhaps the one-sided check can be isolated to component-bounds
+		const FVector::FReal ZMultiplier = 1.0 - UE_DOUBLE_SMALL_NUMBER;
+		// Try to use a multiplier instead of a simply offset to combat loss of precision in floats. However if MaxZ is very small,
+		// then multiplier will not work, so just use an offset.
+		FVector::FReal SampleZ = (FMath::Abs(LoopData.InputBoundsMaxZ) > UE_DOUBLE_SMALL_NUMBER) ? LoopData.InputBoundsMaxZ * ZMultiplier : -UE_DOUBLE_SMALL_NUMBER;
+		// Make sure we're still in bounds though!
+		SampleZ = FMath::Max(SampleZ, LoopData.InputBoundsMinZ);
+
+		FPCGAsync::AsyncPointProcessing(Context, LoopData.CellCount, SampledPoints, [&LoopData, SampledData, InBoundingShape, InSurface, &ProjectionParams, SampleZ](int32 Index, FPCGPoint& OutPoint)
 		{
 			const FIntVector2 Indices = LoopData.ComputeCellIndices(Index);
 
@@ -149,8 +160,8 @@ namespace PCGSurfaceSampler
 
 			const float RandX = RandomSource.FRand();
 			const float RandY = RandomSource.FRand();
-			
-			const FVector TentativeLocation = FVector(CurrentX + RandX * InnerCellSize.X, CurrentY + RandY * InnerCellSize.Y, LoopData.InputBoundsMaxZ);
+
+			const FVector TentativeLocation = FVector(CurrentX + RandX * InnerCellSize.X, CurrentY + RandY * InnerCellSize.Y, SampleZ);
 			const FBox LocalBound(-LoopData.PointExtents, LoopData.PointExtents);
 
 			// Firstly project onto elected generating shape to move to final position.

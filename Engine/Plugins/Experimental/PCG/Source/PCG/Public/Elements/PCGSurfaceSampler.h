@@ -114,6 +114,7 @@ namespace PCGSurfaceSampler
 		float Ratio;
 		int Seed;
 
+		FVector::FReal InputBoundsMinZ;
 		FVector::FReal InputBoundsMaxZ;
 	};
 
