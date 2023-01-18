@@ -8,7 +8,9 @@
 #include "Containers/Map.h"
 #include "Internationalization/CulturePointer.h"
 #include "Templates/UniquePtr.h"
+#include "Templates/PimplPtr.h"
 
+class FCultureFilter;
 class FInternationalization;
 
 #if UE_ENABLE_ICU
@@ -98,8 +100,7 @@ private:
 	TMap<FString, FString> CultureMappings;
 
 	bool bHasInitializedAllowedCultures;
-	TSet<FString> EnabledCultures;
-	TSet<FString> DisabledCultures;
+	TPimplPtr<FCultureFilter> AllowedCulturesFilter;
 
 	TMap<FString, FCultureRef> CachedCultures;
 	FCriticalSection CachedCulturesCS;

@@ -5,6 +5,7 @@
 #include "Misc/ScopeLock.h"
 #include "Misc/Paths.h"
 #include "Internationalization/Culture.h"
+#include "Internationalization/CultureFilter.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Cultures/LeetCulture.h"
 #include "Internationalization/Cultures/KeysCulture.h"
@@ -12,6 +13,7 @@
 #include "Misc/CoreStats.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/App.h"
+#include "Algo/Transform.h"
 
 #if UE_ENABLE_ICU
 
@@ -459,75 +461,11 @@ void FICUInternationalization::ConditionalInitializeAllowedCultures()
 
 	bHasInitializedAllowedCultures = true;
 
-	// Get our current build config string so we can compare it against the config entries
-	FString BuildConfigString;
-	{
-		EBuildConfiguration BuildConfig = FApp::GetBuildConfiguration();
-		if (BuildConfig == EBuildConfiguration::DebugGame)
-		{
-			// Treat DebugGame and Debug as the same for loc purposes
-			BuildConfig = EBuildConfiguration::Debug;
-		}
+	TSet<FString> AvailableCulturesSet;
+	AvailableCulturesSet.Reserve(AllAvailableCulturesMap.Num());
+	Algo::Transform(AllAvailableCulturesMap, AvailableCulturesSet, &TTuple<FString, int32>::Key);
 
-		if (BuildConfig != EBuildConfiguration::Unknown)
-		{
-			BuildConfigString = LexToString(BuildConfig);
-		}
-	}
-
-	// An array of potentially semicolon separated mapping entries: Culture[;BuildConfig[,BuildConfig,BuildConfig]]
-	// No build config(s) implies all build configs
-	auto ProcessCulturesArray = [this, &BuildConfigString](const TArray<FString>& InCulturesArray, TSet<FString>& OutCulturesSet)
-	{
-		OutCulturesSet.Reserve(InCulturesArray.Num());
-		for (const FString& CultureStr : InCulturesArray)
-		{
-			FString CultureName;
-			FString CultureBuildConfigsStr;
-			if (CultureStr.Split(TEXT(";"), &CultureName, &CultureBuildConfigsStr, ESearchCase::CaseSensitive))
-			{
-				// Check to see if any of the build configs matches our current build config
-				TArray<FString> CultureBuildConfigs;
-				if (CultureBuildConfigsStr.ParseIntoArray(CultureBuildConfigs, TEXT(",")))
-				{
-					bool bIsValidBuildConfig = false;
-					for (const FString& CultureBuildConfig : CultureBuildConfigs)
-					{
-						if (BuildConfigString == CultureBuildConfig)
-						{
-							bIsValidBuildConfig = true;
-							break;
-						}
-					}
-
-					if (!bIsValidBuildConfig)
-					{
-						continue;
-					}
-				}
-			}
-			else
-			{
-				CultureName = CultureStr;
-			}
-
-			if (AllAvailableCulturesMap.Contains(CultureName))
-			{
-				OutCulturesSet.Add(MoveTemp(CultureName));
-			}
-			else
-			{
-				UE_LOG(LogICUInternationalization, Warning, TEXT("Culture '%s' is unknown and has been ignored when parsing the enabled/disabled culture list."), *CultureName);
-			}
-		}
-		OutCulturesSet.Compact();
-	};
-
-	const TArray<FString> EnabledCulturesArray = LoadInternationalizationConfigArray(TEXT("EnabledCultures"));
-	ProcessCulturesArray(EnabledCulturesArray, EnabledCultures);
-
-	const TArray<FString> DisabledCulturesArray = LoadInternationalizationConfigArray(TEXT("DisabledCultures"));
-	ProcessCulturesArray(DisabledCulturesArray, DisabledCultures);
+	AllowedCulturesFilter = MakePimpl<FCultureFilter>(&AvailableCulturesSet);
 }
 
 bool FICUInternationalization::IsCultureRemapped(const FString& Name, FString* OutMappedCulture)
@@ -550,7 +488,7 @@ bool FICUInternationalization::IsCultureAllowed(const FString& Name)
 	// Make sure we've loaded the allowed cultures lists (the config system may not have been available when we were first initialized)
 	ConditionalInitializeAllowedCultures();
 
-	return (EnabledCultures.Num() == 0 || EnabledCultures.Contains(Name)) && !DisabledCultures.Contains(Name);
+	return AllowedCulturesFilter->IsCultureAllowed(Name);
 }
 
 void FICUInternationalization::RefreshCultureDisplayNames(const TArray<FString>& InPrioritizedDisplayCultureNames)
@@ -570,8 +508,7 @@ void FICUInternationalization::RefreshCachedConfigData()
 	ConditionalInitializeCultureMappings();
 
 	bHasInitializedAllowedCultures = false;
-	EnabledCultures.Reset();
-	DisabledCultures.Reset();
+	AllowedCulturesFilter.Reset();
 	ConditionalInitializeAllowedCultures();
 }
 

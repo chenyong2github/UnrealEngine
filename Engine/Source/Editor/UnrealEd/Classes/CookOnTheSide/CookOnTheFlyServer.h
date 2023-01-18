@@ -1001,8 +1001,10 @@ private:
 	/** Write a MapDependencyGraph to a metadata file in the sandbox for the given platform. */
 	void WriteMapDependencyGraph(const ITargetPlatform* TargetPlatform, TMap<FName, TSet<FName>>& MapDependencyGraph);
 
+	void InitializeAllCulturesToCook(TConstArrayView<FString> CookCultures);
+	void CompileDLCLocalization(FBeginCookContext& BeginContext);
 	/** Find localization dependencies for all packages, used to add required localization files as soft references. */
-	void GenerateLocalizationReferences(TConstArrayView<FString> CookCultures);
+	void GenerateLocalizationReferences();
 	void RegisterLocalizationChunkDataGenerator();
 
 	//////////////////////////////////////////////////////////////////////////

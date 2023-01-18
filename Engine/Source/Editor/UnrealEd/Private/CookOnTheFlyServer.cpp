@@ -136,6 +136,7 @@
 #include "UObject/SavePackage.h"
 #include "UObject/UObjectArray.h"
 #include "UObject/UObjectIterator.h"
+#include "UserGeneratedContentLocalization.h"
 #include "ZenStoreWriter.h"
 
 #define LOCTEXT_NAMESPACE "Cooker"
@@ -9366,6 +9367,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	// Functions in this section are not dependent upon each other and can be ordered arbitrarily or for async performance
 	BeginCookStartShaderCodeLibrary(BeginContext); // start shader code library cooking asynchronously; we block on it later
 	RefreshPlatformAssetRegistries(BeginContext.TargetPlatforms); // Required by BeginCookSandbox stage
+	InitializeAllCulturesToCook(BeginContext.StartupOptions->CookCultures);
 
 	// Clear the sandbox directory, or preserve it and populate iterative cooks
 	// Clear in-memory CookedPackages, or preserve them and cook iteratively in-process
@@ -9382,7 +9384,8 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	BeginCookEDLCookInfo(BeginContext);
 	BeginCookPackageWriters(BeginContext);
 	GenerateInitialRequests(BeginContext);
-	GenerateLocalizationReferences(BeginContext.StartupOptions->CookCultures);
+	CompileDLCLocalization(BeginContext);
+	GenerateLocalizationReferences();
 	InitializePollables();
 	RecordDLCPackagesFromBaseGame(BeginContext);
 	RegisterCookByTheBookDelegates();
@@ -11091,15 +11094,10 @@ const UE::Cook::FCookSavePackageContext* UCookOnTheFlyServer::FindSaveContext(co
 	return nullptr;
 }
 
-
-void UCookOnTheFlyServer::GenerateLocalizationReferences(TConstArrayView<FString> CookCultures)
+void UCookOnTheFlyServer::InitializeAllCulturesToCook(TConstArrayView<FString> CookCultures)
 {
-	CookByTheBookOptions->SourceToLocalizedPackageVariants.Reset();
 	CookByTheBookOptions->AllCulturesToCook.Reset();
 
-	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-
-	// Find all the localized packages and map them back to their source package
 	TArray<FString> AllCulturesToCook(CookCultures);
 	for (const FString& CultureName : CookCultures)
 	{
@@ -11111,7 +11109,41 @@ void UCookOnTheFlyServer::GenerateLocalizationReferences(TConstArrayView<FString
 	}
 	AllCulturesToCook.Sort();
 
-	UE_LOG(LogCook, Display, TEXT("Discovering localized assets for cultures: %s"), *FString::Join(AllCulturesToCook, TEXT(", ")));
+	CookByTheBookOptions->AllCulturesToCook = MoveTemp(AllCulturesToCook);
+}
+
+void UCookOnTheFlyServer::CompileDLCLocalization(FBeginCookContext& BeginContext)
+{
+	if (!IsCookingDLC() || !GetDefault<UUserGeneratedContentLocalizationSettings>()->bCompileDLCLocalizationDuringCook)
+	{
+		return;
+	}
+
+	// Used to validate that we're not loading/compiling invalid cultures during the compile step below
+	FUserGeneratedContentLocalizationDescriptor DefaultUGCLocDescriptor;
+	DefaultUGCLocDescriptor.InitializeFromProject();
+
+	// Also filter the validation list by the cultures we're cooking against
+	DefaultUGCLocDescriptor.CulturesToGenerate.RemoveAll([this](const FString& Culture)
+	{
+		return !CookByTheBookOptions->AllCulturesToCook.Contains(Culture);
+	});
+
+	// Compile UGC localization (if available) for this DLC plugin
+	const FString InputContentDirectory = GetContentDirectoryForDLC();
+	for (const FBeginCookContextPlatform& PlatformContext : BeginContext.PlatformContexts)
+	{
+		const FString OutputContentDirectory = ConvertToFullSandboxPath(InputContentDirectory, /*bForWrite*/true, PlatformContext.TargetPlatform->PlatformName());
+		UserGeneratedContentLocalization::CompileLocalization(CookByTheBookOptions->DlcName, InputContentDirectory, OutputContentDirectory, GetDefault<UUserGeneratedContentLocalizationSettings>()->bValidateDLCLocalizationDuringCook ? &DefaultUGCLocDescriptor : nullptr);
+	}
+}
+
+void UCookOnTheFlyServer::GenerateLocalizationReferences()
+{
+	CookByTheBookOptions->SourceToLocalizedPackageVariants.Reset();
+
+	// Find all the localized packages and map them back to their source package
+	UE_LOG(LogCook, Display, TEXT("Discovering localized assets for cultures: %s"), *FString::Join(CookByTheBookOptions->AllCulturesToCook, TEXT(", ")));
 
 	TArray<FString> RootPaths;
 	FPackageName::QueryRootContentPaths(RootPaths);
@@ -11119,10 +11151,10 @@ void UCookOnTheFlyServer::GenerateLocalizationReferences(TConstArrayView<FString
 	FARFilter Filter;
 	Filter.bRecursivePaths = true;
 	Filter.bIncludeOnlyOnDiskAssets = false;
-	Filter.PackagePaths.Reserve(AllCulturesToCook.Num() * RootPaths.Num());
+	Filter.PackagePaths.Reserve(CookByTheBookOptions->AllCulturesToCook.Num() * RootPaths.Num());
 	for (const FString& RootPath : RootPaths)
 	{
-		for (const FString& CultureName : AllCulturesToCook)
+		for (const FString& CultureName : CookByTheBookOptions->AllCulturesToCook)
 		{
 			FString LocalizedPackagePath = RootPath / TEXT("L10N") / CultureName;
 			Filter.PackagePaths.Add(*LocalizedPackagePath);
@@ -11140,8 +11172,6 @@ void UCookOnTheFlyServer::GenerateLocalizationReferences(TConstArrayView<FString
 		TArray<FName>& LocalizedPackageNames = CookByTheBookOptions->SourceToLocalizedPackageVariants.FindOrAdd(SourcePackageName);
 		LocalizedPackageNames.AddUnique(LocalizedPackageName);
 	}
-
-	CookByTheBookOptions->AllCulturesToCook = MoveTemp(AllCulturesToCook);
 }
 
 void UCookOnTheFlyServer::RegisterLocalizationChunkDataGenerator()

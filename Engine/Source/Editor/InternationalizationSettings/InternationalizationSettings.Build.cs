@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 				    "Engine",
 				    "Slate",
 					"SlateCore",
+					"AppFramework",
 				    "PropertyEditor",
 				    "SharedSettingsWidgets",
                     "Localization",

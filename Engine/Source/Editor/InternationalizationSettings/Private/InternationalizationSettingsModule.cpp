@@ -4,6 +4,7 @@
 
 #include "Delegates/Delegate.h"
 #include "InternationalizationSettingsModelDetails.h"
+#include "UserGeneratedContentLocalizationDescriptorDetails.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 
@@ -21,6 +22,7 @@ void FInternationalizationSettingsModule::StartupModule()
 {
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout("InternationalizationSettingsModel", FOnGetDetailCustomizationInstance::CreateStatic(&FInternationalizationSettingsModelDetails::MakeInstance));
+	PropertyModule.RegisterCustomPropertyTypeLayout("UserGeneratedContentLocalizationDescriptor", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FUserGeneratedContentLocalizationDescriptorDetails::MakeInstance));
 }
 
 void FInternationalizationSettingsModule::ShutdownModule()
@@ -29,5 +31,6 @@ void FInternationalizationSettingsModule::ShutdownModule()
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.UnregisterCustomPropertyTypeLayout("InternationalizationSettingsModel");
+		PropertyModule.UnregisterCustomPropertyTypeLayout("UserGeneratedContentLocalizationDescriptor");
 	}
 }

@@ -23,6 +23,8 @@ public class Localization : ModuleRules
 				"InputCore",
 				"SourceControl",
 				"Json",
+				"JsonUtilities",
+				"Projects",
 			}
 		);
 
