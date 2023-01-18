@@ -357,22 +357,13 @@ typedef TOpenGLShaderProxy<FRHIComputeShader, FOpenGLComputeShader> FOpenGLCompu
 
 
 template <typename T>
-struct TIsGLProxyObject
-{
-	enum { Value = false };
-};
+constexpr bool TIsGLProxyObject_V = false;
 
 template<typename TRHIType, typename TOGLResourceType>
-struct TIsGLProxyObject<TOpenGLResourceProxy<TRHIType, TOGLResourceType>>
-{
-	enum { Value = true };
-};
+constexpr bool TIsGLProxyObject_V<TOpenGLResourceProxy<TRHIType, TOGLResourceType>> = true;
 
 template<typename TRHIType, typename TOGLResourceType>
-struct TIsGLProxyObject<TOpenGLShaderProxy<TRHIType, TOGLResourceType>>
-{
-	enum { Value = true };
-};
+constexpr bool TIsGLProxyObject_V<TOpenGLShaderProxy<TRHIType, TOGLResourceType>> = true;
 
 typedef void (*BufferBindFunction)( GLenum Type, GLuint Buffer );
 
@@ -1478,12 +1469,12 @@ struct TIsGLResourceWithFence
 };
 
 template<typename T>
-static typename TEnableIf<!TIsGLResourceWithFence<T>::Value>::Type CheckRHITFence(T* Resource) {}
-
-template<typename T>
-static typename TEnableIf<TIsGLResourceWithFence<T>::Value>::Type CheckRHITFence(T* Resource)
+static void CheckRHITFence(T* Resource)
 {
-	Resource->CreationFence.WaitFenceRenderThreadOnly();
+	if constexpr (TIsGLResourceWithFence<T>::Value)
+	{
+		Resource->CreationFence.WaitFenceRenderThreadOnly();
+	}
 }
 
 /** Given a pointer to a RHI texture that was created by the OpenGL RHI, returns a pointer to the FOpenGLTexture it encapsulates. */

@@ -332,31 +332,34 @@ public:
 	virtual void Shutdown();
 	virtual const TCHAR* GetName() override { return TEXT("OpenGL"); }
 
+	template<typename TRHIType>
+	static FORCEINLINE typename TOpenGLResourceTraits<TRHIType>::TConcreteType* ResourceCastProxy(TRHIType* Resource)
+	{
+		static_assert(TIsGLProxyObject_V<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>, "Wrong type past");
+		return static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
+	}
+
 	// If using a Proxy object return the contained GL object rather than the proxy itself.
 	template<typename TRHIType>
-	static FORCEINLINE typename TEnableIf<TIsGLProxyObject<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>::Value, typename TOpenGLResourceTraits<TRHIType>::TConcreteType::ContainedGLType*>::Type ResourceCast(TRHIType* Resource)
-	{	
-		auto GLProxy = static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
-		// rhi resource can be null.
-		return GLProxy ? GLProxy->GetGLResourceObject() : nullptr;
+	static FORCEINLINE auto* ResourceCast(TRHIType* Resource)
+	{
+		if constexpr (TIsGLProxyObject_V<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>)
+		{
+			auto GLProxy = static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
+			// rhi resource can be null.
+			return GLProxy ? GLProxy->GetGLResourceObject() : nullptr;
+		}
+		else
+		{
+			CheckRHITFence(static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource));
+			return static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
+		}
 	}
 
 	template<typename TRHIType>
-	static FORCEINLINE typename TEnableIf<TIsGLProxyObject<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>::Value, typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>::Type ResourceCastProxy(TRHIType* Resource)
+	static FORCEINLINE typename TOpenGLResourceTraits<TRHIType>::TConcreteType* ResourceCast_Unfenced(TRHIType* Resource)
 	{
-		return static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
-	}
-
-	template<typename TRHIType>
-	static FORCEINLINE typename TEnableIf<!TIsGLProxyObject<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>::Value, typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>::Type ResourceCast(TRHIType* Resource)
-	{
-		CheckRHITFence(static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource));
-		return static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
-	}
-
-	template<typename TRHIType>
-	static FORCEINLINE typename TEnableIf<!TIsGLProxyObject<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>::Value, typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>::Type ResourceCast_Unfenced(TRHIType* Resource)
-	{
+		static_assert(!TIsGLProxyObject_V<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>, "Wrong type passed");
 		return static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
 	}
 
