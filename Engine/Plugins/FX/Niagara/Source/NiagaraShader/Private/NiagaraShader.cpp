@@ -1040,12 +1040,6 @@ FNiagaraShader::FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializ
 	{
 		bShouldBindEverything &= ExternalConstantBufferParam[0].IsBound() == false;
 		bShouldBindEverything &= ExternalConstantBufferParam[1].IsBound() == false;
-
-		for (const FNiagaraDataInterfaceGPUParamInfo& DataInterfaceParamInfo : InitializerParameters->ScriptParametersMetadata->DataInterfaceParamInfo)
-		{
-			UNiagaraDataInterfaceBase* CDODataInterface = ShaderModule->RequestDefaultDataInterface(*DataInterfaceParamInfo.DIClassName);
-			bShouldBindEverything &= CDODataInterface && CDODataInterface->UseLegacyShaderBindings() == false;
-		}
 	}
 
 	// Bind parameters
@@ -1071,20 +1065,9 @@ FNiagaraShader::FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializ
 		}
 
 		DataInterfaceParamRef.DIType = TIndexedPtr<UNiagaraDataInterfaceBase>(CDODataInterface);
-		if (CDODataInterface->UseLegacyShaderBindings() == true)
-		{
-			DataInterfaceParamRef.Parameters = CDODataInterface->CreateComputeParameters();
-			if (DataInterfaceParamRef.Parameters != nullptr)
-			{
-				CDODataInterface->BindParameters(DataInterfaceParamRef.Parameters, DataInterfaceParamInfo, Initializer.ParameterMap);
-			}
-		}
-		else
-		{
-			DataInterfaceParamRef.Parameters = CDODataInterface->CreateShaderStorage(DataInterfaceParamInfo, Initializer.ParameterMap);
-			checkf(DataInterfaceParamRef.Parameters == nullptr || CDODataInterface->GetShaderStorageType() != nullptr, TEXT("DataInterface(%s) provides shader storage but did not implement GetShaderStorageType"), *GetNameSafe(CDODataInterface->GetClass()));
-			checkf(DataInterfaceParamRef.Parameters == nullptr || CDODataInterface->GetShaderStorageType()->Interface == ETypeLayoutInterface::NonVirtual, TEXT("DataInterface(%s) shader storage is either abstract or virtual which is not allowed"), *GetNameSafe(CDODataInterface->GetClass()));
-		}
+		DataInterfaceParamRef.Parameters = CDODataInterface->CreateShaderStorage(DataInterfaceParamInfo, Initializer.ParameterMap);
+		checkf(DataInterfaceParamRef.Parameters == nullptr || CDODataInterface->GetShaderStorageType() != nullptr, TEXT("DataInterface(%s) provides shader storage but did not implement GetShaderStorageType"), *GetNameSafe(CDODataInterface->GetClass()));
+		checkf(DataInterfaceParamRef.Parameters == nullptr || CDODataInterface->GetShaderStorageType()->Interface == ETypeLayoutInterface::NonVirtual, TEXT("DataInterface(%s) shader storage is either abstract or virtual which is not allowed"), *GetNameSafe(CDODataInterface->GetClass()));
 	}
 }
 
@@ -1114,14 +1097,7 @@ bool operator<<(FArchive& Ar, FNiagaraDataInterfaceGeneratedFunction& DIFunction
 void FNiagaraDataInterfaceParamRef::WriteFrozenParameters(FMemoryImageWriter& Writer, const TMemoryImagePtr<FNiagaraDataInterfaceParametersCS>& InParameters) const
 {
 	const UNiagaraDataInterfaceBase* Base = DIType.Get(Writer.TryGetPrevPointerTable());
-	if (Base->UseLegacyShaderBindings())
-	{
-		InParameters.WriteMemoryImageWithDerivedType(Writer, Base->GetComputeParametersTypeDesc());
-	}
-	else
-	{
-		InParameters.WriteMemoryImageWithDerivedType(Writer, Base->GetShaderStorageType());
-	}
+	InParameters.WriteMemoryImageWithDerivedType(Writer, Base->GetShaderStorageType());
 }
 
 bool FNiagaraDataInterfaceGPUParamInfo::IsUserParameter() const
