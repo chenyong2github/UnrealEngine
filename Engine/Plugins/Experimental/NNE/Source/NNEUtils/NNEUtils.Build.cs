@@ -4,11 +4,11 @@
 using UnrealBuildTool;
 using System.IO;
 
-public class NNXUtils : ModuleRules
+public class NNEUtils : ModuleRules
 {
-	public NNXUtils(ReadOnlyTargetRules Target) : base(Target)
+	public NNEUtils(ReadOnlyTargetRules Target) : base(Target)
 	{
-		ShortName = "NNXUtils"; // Shorten to avoid path-too-long errors
+		ShortName = "NNEUtils"; // Shorten to avoid path-too-long errors
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicIncludePaths.AddRange(

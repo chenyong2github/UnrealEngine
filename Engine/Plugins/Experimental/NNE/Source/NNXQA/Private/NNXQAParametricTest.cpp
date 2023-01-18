@@ -8,7 +8,7 @@
 #include "NNECoreAttributeMap.h"
 #include "NNXQAUtils.h"
 #include "NNXQAJsonUtils.h"
-#include "NNXModelBuilder.h"
+#include "NNEUtilsModelBuilder.h"
 #include "HAL/IConsoleManager.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
@@ -22,6 +22,7 @@
 namespace NNX 
 {
 using FSymbolicTensorShape = UE::NNECore::FSymbolicTensorShape;
+using FTensor = UE::NNECore::Internal::FTensor;
 	
 namespace Test
 {
@@ -496,12 +497,12 @@ namespace Test
 		else
 		{
 			// Operator test, create model in memory
-			if (!CreateONNXModelForOperator(false, TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, TestSetup.Weights, TestSetup.WeightsData,TestSetup.AttributeMap, ONNXModel))
+			if (!UE::NNEUtils::Internal::CreateONNXModelForOperator(false, TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, TestSetup.Weights, TestSetup.WeightsData,TestSetup.AttributeMap, ONNXModel))
 			{
 				UE_LOG(LogNNX, Error, TEXT("Failed to create static model for test '%s'. Test ABORTED!"), *TestSetup.TargetName);
 				return false;
 			}
-			if (!CreateONNXModelForOperator(true, TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, TestSetup.Weights, TestSetup.WeightsData, TestSetup.AttributeMap, ONNXModelVariadic))
+			if (!UE::NNEUtils::Internal::CreateONNXModelForOperator(true, TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, TestSetup.Weights, TestSetup.WeightsData, TestSetup.AttributeMap, ONNXModelVariadic))
 			{
 				UE_LOG(LogNNX, Error, TEXT("Failed to create variadic model for test '%s'. Test ABORTED!"), *TestSetup.TargetName);
 				return false;

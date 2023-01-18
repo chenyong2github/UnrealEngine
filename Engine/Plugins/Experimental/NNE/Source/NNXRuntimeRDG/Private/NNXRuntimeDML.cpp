@@ -3,7 +3,7 @@
 #include "NNXRuntimeRDG.h"
 #include "NNXInferenceModel.h"
 #include "NNXRuntimeFormat.h"
-#include "NNXModelOptimizer.h"
+#include "NNEUtilsModelOptimizer.h"
 #include "NNXOperator.h"
 
 #include "NNECoreAttributeMap.h"
@@ -855,7 +855,7 @@ public:
 			return {};
 		}
 
-		TUniquePtr<IModelOptimizer> Optimizer = CreateONNXToNNXModelOptimizer();
+		TUniquePtr<IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
 
 		FNNIModelRaw InputModel;
 		InputModel.Data = FileData;

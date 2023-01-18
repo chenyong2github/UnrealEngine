@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NNXRuntimeCPU.h"
 #include "NNXRuntimeCPUUtils.h"
-#include "NNXModelOptimizer.h"
+#include "NNEUtilsModelOptimizer.h"
 #include "NNECoreAttributeMap.h"
 #include "NNEProfilingTimer.h"
 #include "RedirectCoutAndCerrToUeLog.h"
@@ -33,7 +33,7 @@ TArray<uint8> FRuntimeCPU::CreateModelData(FString FileType, TConstArrayView<uin
 		return {};
 	}
 
-	TUniquePtr<IModelOptimizer> Optimizer = CreateONNXToONNXModelOptimizer();
+	TUniquePtr<IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToONNXModelOptimizer();
 
 	FNNIModelRaw InputModel;
 	InputModel.Data = FileData;

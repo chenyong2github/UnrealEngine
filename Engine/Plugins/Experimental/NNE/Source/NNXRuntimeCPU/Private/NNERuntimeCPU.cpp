@@ -3,7 +3,7 @@
 #include "NNERuntimeCPU.h"
 #include "NNERuntimeCPUModel.h"
 #include "NNERuntimeCPUUtils.h"
-#include "NNXModelOptimizer.h"
+#include "NNEUtilsModelOptimizer.h"
 #include "NNXModelOptimizerInterface.h"
 #include "NNECoreAttributeMap.h"
 #include "NNECoreModelData.h"
@@ -27,7 +27,7 @@ TArray<uint8> UNNERuntimeCPUImpl::CreateModelData(FString FileType, TConstArrayV
 		return {};
 	}
 
-	TUniquePtr<IModelOptimizer> Optimizer = CreateONNXToONNXModelOptimizer();
+	TUniquePtr<IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToONNXModelOptimizer();
 
 	FNNIModelRaw InputModel;
 	InputModel.Data = FileData;

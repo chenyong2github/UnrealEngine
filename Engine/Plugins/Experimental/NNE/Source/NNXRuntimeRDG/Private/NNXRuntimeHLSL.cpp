@@ -14,7 +14,7 @@
 #include "NNECoreAttributeMap.h"
 #include "NNERuntimeRDGModelHLSL.h"
 #include "NNXInferenceModel.h"
-#include "NNXModelOptimizer.h"
+#include "NNEUtilsModelOptimizer.h"
 #include "NNXRuntimeFormat.h"
 #include "NNXRuntimeHLSLHelper.h"
 #include "NNXRuntimeRDG.h"
@@ -74,7 +74,7 @@ public:
 			return {};
 		}
 
-		TUniquePtr<NNX::IModelOptimizer> Optimizer = NNX::CreateONNXToNNXModelOptimizer();
+		TUniquePtr<NNX::IModelOptimizer> Optimizer = NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
 		Optimizer->AddValidator(MakeShared<NNX::FModelValidatorHlsl>());
 
 		FNNIModelRaw InputModel;

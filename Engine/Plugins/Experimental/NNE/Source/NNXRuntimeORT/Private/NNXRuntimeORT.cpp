@@ -6,7 +6,7 @@
 
 #include "NNEProfilingTimer.h"
 #include "NNXRuntimeORTUtils.h"
-#include "NNXModelOptimizer.h"
+#include "NNEUtilsModelOptimizer.h"
 #include "NNECoreAttributeMap.h"
 #include "RedirectCoutAndCerrToUeLog.h"
 
@@ -75,7 +75,7 @@ TArray<uint8> FRuntimeORT::CreateModelData(FString FileType, TConstArrayView<uin
 		return {};
 	}
 
-	TUniquePtr<IModelOptimizer> Optimizer = CreateONNXToONNXModelOptimizer();
+	TUniquePtr<IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToONNXModelOptimizer();
 
 	FNNIModelRaw InputModel;
 	InputModel.Data = FileData;

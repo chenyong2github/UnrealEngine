@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNXModelOptimizer.h"
+#include "NNEUtilsModelOptimizer.h"
+#include "NNECore.h"
+#include "NNEUtilsModelBuilder.h"
 #include "NNXModelOptimizerInterface.h"
-#include "NNXCore.h"
 #include "NNXRuntimeFormat.h"
-#include "NNXModelBuilder.h"
+
 
 #ifdef PLATFORM_NNX_MICROSOFT
 // Prevent some of false-positives when doing static analysis
@@ -26,7 +27,7 @@ NNX_THIRD_PARTY_INCLUDES_START
 NNX_THIRD_PARTY_INCLUDES_END
 
 
-#define Print(Format, ...) UE_LOG(LogNNX, Display, Format, __VA_ARGS__)
+#define Print(Format, ...) UE_LOG(LogNNE, Display, Format, __VA_ARGS__)
 
 class FModelGraphPrinter
 {
@@ -35,7 +36,7 @@ public:
 	FModelGraphPrinter(Ort::IModelGraph* InGraph)
 		: Graph(InGraph)
 	{
-		UE_LOG(LogNNX, Display, TEXT("Visiting model:%s"), ANSI_TO_TCHAR(Graph->GetGraphInfo().name));
+		UE_LOG(LogNNE, Display, TEXT("Visiting model:%s"), ANSI_TO_TCHAR(Graph->GetGraphInfo().name));
 
 		Storage.SetNum(2048);
 	}
@@ -127,7 +128,7 @@ public:
 		}
 		else
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Unsupported attribute value type"));
+			UE_LOG(LogNNE, Warning, TEXT("Unsupported attribute value type"));
 		}
 	}
 
@@ -166,7 +167,7 @@ public:
 		}
 
 		Str.AppendChar('\0');
-		UE_LOG(LogNNX, Display, TEXT("%s"), ANSI_TO_TCHAR(Str.GetData()));
+		UE_LOG(LogNNE, Display, TEXT("%s"), ANSI_TO_TCHAR(Str.GetData()));
 		Str.Reset();
 		
 		if (DataSize)
@@ -196,29 +197,29 @@ public:
 				{
 					if (Tensor.dataType == Ort::GraphTensorDataType::kFloat)
 					{
-						UE_LOG(LogNNX, Display, TEXT("      %f"), ((float*) Storage.GetData())[ec]);
+						UE_LOG(LogNNE, Display, TEXT("      %f"), ((float*) Storage.GetData())[ec]);
 					}
                     else if (Tensor.dataType == Ort::GraphTensorDataType::kInt32)
 					{
-						UE_LOG(LogNNX, Display, TEXT("      %d"), ((int32*) Storage.GetData())[ec]);
+						UE_LOG(LogNNE, Display, TEXT("      %d"), ((int32*) Storage.GetData())[ec]);
 					}
 					else if (Tensor.dataType == Ort::GraphTensorDataType::kUInt32)
 					{
-						UE_LOG(LogNNX, Display, TEXT("      %u"), ((uint32*) Storage.GetData())[ec]);
+						UE_LOG(LogNNE, Display, TEXT("      %u"), ((uint32*) Storage.GetData())[ec]);
 					}
                     else if (Tensor.dataType == Ort::GraphTensorDataType::kInt64)
 					{
-						UE_LOG(LogNNX, Display, TEXT("      %lld"), ((int64*)Storage.GetData())[ec]);
+						UE_LOG(LogNNE, Display, TEXT("      %lld"), ((int64*)Storage.GetData())[ec]);
 					}
 					else if (Tensor.dataType == Ort::GraphTensorDataType::kUInt64)
 					{
-						UE_LOG(LogNNX, Display, TEXT("      %llu"), ((uint64*) Storage.GetData())[ec]);
+						UE_LOG(LogNNE, Display, TEXT("      %llu"), ((uint64*) Storage.GetData())[ec]);
 					}
 				}
 			}
 			else 
 			{
-                UE_LOG(LogNNX, Warning, TEXT("Failed to read tensor data :%s"), Tensor.name);
+                UE_LOG(LogNNE, Warning, TEXT("Failed to read tensor data :%s"), Tensor.name);
 			}
 		}
 	}
@@ -261,8 +262,10 @@ ENNETensorDataType GetDataTypeFromGraphTensor(Ort::GraphTensorDataType TensorDat
 
 #undef CASE
 
-namespace NNX
+namespace UE::NNEUtils::Internal
 {
+using namespace NNX;
+
 class FModelOptimizerBase : public IModelOptimizer
 {
 protected:
@@ -273,14 +276,14 @@ protected:
 	{
 		if (InputModel.Format != ENNXInferenceFormat::ONNX)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Optimizer %s is expecting ONNX input format."), *GetName());
+			UE_LOG(LogNNE, Warning, TEXT("Optimizer %s is expecting ONNX input format."), *GetName());
 			return false;
 		}
 
 		OrtStatusPtr Status = OrtValidateModelFromMemory(InputModel.Data.GetData(), InputModel.Data.Num());
 		if (Status)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Input ONNX model is invalid: %s, Model won't be optimized"), ANSI_TO_TCHAR(Ort::GetApi().GetErrorMessage(Status)));
+			UE_LOG(LogNNE, Warning, TEXT("Input ONNX model is invalid: %s, Model won't be optimized"), ANSI_TO_TCHAR(Ort::GetApi().GetErrorMessage(Status)));
 			return false;
 		}
 		
@@ -313,7 +316,7 @@ public:
 			check(Validator.IsValid());
 			if (!Validator->ValidateModel(ModelToValidate, Options))
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Model validator %s detected an error."), *(Validator->GetName()));
+				UE_LOG(LogNNE, Warning, TEXT("Model validator %s detected an error."), *(Validator->GetName()));
 				bIsModelValid = false;
 			}
 		}
@@ -324,7 +327,7 @@ public:
 	{
 		if (!IsModelValid(OptimizedModel, Options))
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Model is not valid, skipping optimization passes."));
+			UE_LOG(LogNNE, Warning, TEXT("Model is not valid, skipping optimization passes."));
 			return false;
 		}
 		
@@ -334,12 +337,12 @@ public:
 			
 			if (!Pass->ApplyPass(OptimizedModel, Options))
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Error while executing model optimisation pass %s."), *(Pass->GetName()));
+				UE_LOG(LogNNE, Warning, TEXT("Error while executing model optimisation pass %s."), *(Pass->GetName()));
 				return false;
 			}
 			if (!IsModelValid(OptimizedModel, Options))
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Model validation failed after optimisation pass %s."), *(Pass->GetName()));
+				UE_LOG(LogNNE, Warning, TEXT("Model validation failed after optimisation pass %s."), *(Pass->GetName()));
 				return false;
 			}
 		}
@@ -376,14 +379,14 @@ public:
 		ENNXInferenceFormat FormatType = InputModel.Format;
 		if (FormatType != ENNXInferenceFormat::ONNX)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Unsupported format type for validator %s"), *GetName());
+			UE_LOG(LogNNE, Warning, TEXT("Unsupported format type for validator %s"), *GetName());
 			return false;
 		}
 
 		OrtStatusPtr Status = OrtValidateModelFromMemory(InputModel.Data.GetData(), InputModel.Data.Num());
 		if (Status)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to validate ONNX model: %s"), ANSI_TO_TCHAR(Ort::GetApi().GetErrorMessage(Status)));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to validate ONNX model: %s"), ANSI_TO_TCHAR(Ort::GetApi().GetErrorMessage(Status)));
 			return false;
 		}
 
@@ -396,7 +399,7 @@ class FModelOptimizerONNXToONNX : public FModelOptimizerBase
 public:
 	virtual FString GetName() const override
 	{
-		return TEXT("NNXModelOptimizerFromONNXToONNX");
+		return TEXT("NNEModelOptimizerFromONNXToONNX");
 	}
 
 	//TODO jira 167591: investigate if it is possible to optimize ONNX model and serialize it back as ONNX.
@@ -406,7 +409,7 @@ public:
 
 static void OnOrtLog(const char* LogMsg)
 {
-	UE_LOG(LogNNX, Warning, TEXT("%s"), ANSI_TO_TCHAR(LogMsg));
+	UE_LOG(LogNNE, Warning, TEXT("%s"), ANSI_TO_TCHAR(LogMsg));
 }
 
 class FModelOptimizerONNXToORT : public FModelOptimizerBase
@@ -414,7 +417,7 @@ class FModelOptimizerONNXToORT : public FModelOptimizerBase
 public:
 	virtual FString GetName() const override
 	{
-		return TEXT("NNXModelOptimizerONNXToORT");
+		return TEXT("NNEModelOptimizerONNXToORT");
 	}
 
 	virtual bool Optimize(const FNNIModelRaw& InputModel, FNNIModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options) override
@@ -446,7 +449,7 @@ protected:
 		TUniquePtr<Ort::IModelGraph> Graph(OrtOptimizeModelFromMemory(ONNXData.GetData(), ONNXData.Num(), Opts));
 		if (!Graph)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to load ONNX model from memory"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to load ONNX model from memory"));
 		}
 
 		//auto Printer = MakeUnique<FModelGraphPrinter>(Graph.Get());
@@ -456,12 +459,12 @@ protected:
 	}
 };
 
-class FModelOptimizerONNXToNNXRT : public FModelOptimizerONNXToORT
+class FModelOptimizerONNXToNNERT : public FModelOptimizerONNXToORT
 {
 public:
 	virtual FString GetName() const override
 	{
-		return TEXT("FNNXModelOptimizerONNXToNNX");
+		return TEXT("FNNEModelOptimizerONNXToNNE");
 	}
 	
 	virtual bool Optimize(const FNNIModelRaw& InputModel, FNNIModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options) override
@@ -475,9 +478,9 @@ public:
 
 		TUniquePtr<Ort::IModelGraph> Graph = ConvertONNXToORTModelGraph(InputModel.Data);
 		
-		if (!BuildNNXFormat(Graph.Get(), OptimizedModel.Data))
+		if (!BuildNNEFormat(Graph.Get(), OptimizedModel.Data))
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Error while building ORT ModelGraph."));
+			UE_LOG(LogNNE, Warning, TEXT("Error while building ORT ModelGraph."));
 			return false;
 		}
 
@@ -487,9 +490,9 @@ public:
 	}
 
 private:
-	bool BuildNNXFormat(Ort::IModelGraph* Graph, TArray<uint8>& NNXData)
+	bool BuildNNEFormat(Ort::IModelGraph* Graph, TArray<uint8>& NNEData)
 	{
-		TUniquePtr<NNX::IMLModelBuilder>	Builder(NNX::CreateNNXModelBuilder());
+		TUniquePtr<IModelBuilder>	Builder(CreateNNEModelBuilder());
 
 		Ort::GraphInfo GraphInfo = Graph->GetGraphInfo();
 
@@ -571,7 +574,7 @@ private:
 				else
 				{
 					//TODO: better error reporting add type (example: sparse tensor) and name of the actual node if any (not the op name but the node one)
-					UE_LOG(LogNNX, Warning, TEXT("Unsupported attribute type for attribute '%s' in node '%s'"), ANSI_TO_TCHAR(AttrInfo.name), ANSI_TO_TCHAR(NodeInfo.opName));
+					UE_LOG(LogNNE, Warning, TEXT("Unsupported attribute type for attribute '%s' in node '%s'"), ANSI_TO_TCHAR(AttrInfo.name), ANSI_TO_TCHAR(NodeInfo.opName));
 				}
 			}
 
@@ -626,18 +629,18 @@ private:
 			}
 		}
 
-		return Builder->End(NNXData);
+		return Builder->End(NNEData);
 	}
 };
 
 /** Create a model optimizer */
-NNXUTILS_API TUniquePtr<IModelOptimizer> CreateModelOptimizer(ENNXInferenceFormat InputFormat, ENNXInferenceFormat OutputFormat)
+NNEUTILS_API TUniquePtr<IModelOptimizer> CreateModelOptimizer(ENNXInferenceFormat InputFormat, ENNXInferenceFormat OutputFormat)
 {
 	if (InputFormat == ENNXInferenceFormat::ONNX)
 	{
 		if (OutputFormat == ENNXInferenceFormat::NNXRT)
 		{
-			return MakeUnique<FModelOptimizerONNXToNNXRT>();
+			return MakeUnique<FModelOptimizerONNXToNNERT>();
 		}
 		else if (OutputFormat == ENNXInferenceFormat::ONNX)
 		{
@@ -659,4 +662,4 @@ NNXUTILS_API TUniquePtr<IModelOptimizer> CreateModelOptimizer(ENNXInferenceForma
 	return nullptr;
 }
 
-} // namespace NNX
+} // namespace UE::NNEUtils::Internal

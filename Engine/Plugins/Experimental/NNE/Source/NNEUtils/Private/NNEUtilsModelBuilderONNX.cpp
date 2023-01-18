@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNXCore.h"
-#include "NNXModelBuilder.h"
+#include "NNEUtilsModelBuilder.h"
 #include "NNXRuntimeFormat.h"
 #include "NNECoreAttributeMap.h"
 
@@ -21,12 +21,12 @@ NNX_THIRD_PARTY_INCLUDES_START
 
 NNX_THIRD_PARTY_INCLUDES_END
 
-namespace NNX
+namespace UE::NNEUtils::Internal
 {
 
-inline onnx::ValueInfoProto* OnnxTensorCast(IMLModelBuilder::HTensor& Handle)
+inline onnx::ValueInfoProto* OnnxTensorCast(IModelBuilder::HTensor& Handle)
 {
-	if (Handle.Type == IMLModelBuilder::HandleType::Tensor)
+	if (Handle.Type == IModelBuilder::HandleType::Tensor)
 	{
 		return reinterpret_cast<onnx::ValueInfoProto*>(Handle.Ptr);
 	}
@@ -34,9 +34,9 @@ inline onnx::ValueInfoProto* OnnxTensorCast(IMLModelBuilder::HTensor& Handle)
 	return nullptr;
 }
 
-inline onnx::NodeProto* OnnxOperatorCast(IMLModelBuilder::HOperator& Handle)
+inline onnx::NodeProto* OnnxOperatorCast(IModelBuilder::HOperator& Handle)
 {
-	if (Handle.Type == IMLModelBuilder::HandleType::Operator)
+	if (Handle.Type == IModelBuilder::HandleType::Operator)
 	{
 		return reinterpret_cast<onnx::NodeProto*>(Handle.Ptr);
 	}
@@ -49,7 +49,7 @@ inline onnx::NodeProto* OnnxOperatorCast(IMLModelBuilder::HOperator& Handle)
  * NOTE:
  * - We plan to use this only for generating simple networks for testing operators and simple models
  */
-class FMLModelBuilderONNX : public IMLModelBuilder
+class FMLModelBuilderONNX : public IModelBuilder
 {
 	static constexpr const char* kOnnxDomain = onnx::ONNX_DOMAIN;
 
@@ -308,7 +308,7 @@ private:
 //
 //
 //
-void BuildShapeForModel(bool ConvertToVariadicShape, const FTensorShape& InShape, TArray<int32>& OutShape)
+void BuildShapeForModel(bool ConvertToVariadicShape, const NNECore::FTensorShape& InShape, TArray<int32>& OutShape)
 {
 	OutShape.Empty();
 	for (int32 Idx = 0; Idx < InShape.Rank(); ++Idx)
@@ -325,7 +325,7 @@ void BuildShapeForModel(bool ConvertToVariadicShape, const FTensorShape& InShape
 //
 //
 //
-NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName,
+NNEUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName,
 	TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors,
 	TConstArrayView<FTensor> InWeightTensors, TConstArrayView<TArray<char>> InWeightTensorsData,
 	const UE::NNECore::FAttributeMap& Attributes, FNNIModelRaw& Model)
@@ -340,37 +340,37 @@ NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, cons
 		// Pad current implementation is opset 2 (next version is 11)
 		OpsetVersion = 9;
 	}
-	TUniquePtr<IMLModelBuilder> Builder(CreateONNXModelBuilder(IrVersion, OpsetVersion));
+	TUniquePtr<IModelBuilder> Builder(CreateONNXModelBuilder(IrVersion, OpsetVersion));
 
 	Builder->Begin();
 
 	TArray<int32> ShapeForModel;
-	TArray<IMLModelBuilder::HTensor> InputTensors;
+	TArray<IModelBuilder::HTensor> InputTensors;
 	
 	for (int32 Idx = 0; Idx < InInputTensors.Num(); ++Idx)
 	{
 		const FTensor& Desc = InInputTensors[Idx];
 		BuildShapeForModel(UseVariadicShapeForModel, Desc.GetShape(), ShapeForModel);
-		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.GetName(), Desc.GetDataType(), ShapeForModel);
+		IModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.GetName(), Desc.GetDataType(), ShapeForModel);
 
 		InputTensors.Emplace(Tensor);
 		Builder->AddInput(Tensor);
 	}
 
-	TArray<IMLModelBuilder::HTensor> OutputTensors;
+	TArray<IModelBuilder::HTensor> OutputTensors;
 
 	for (int32 Idx = 0; Idx < InOutputTensors.Num(); ++Idx)
 	{
 		const FTensor& Desc = InOutputTensors[Idx];
 		BuildShapeForModel(UseVariadicShapeForModel, Desc.GetShape(), ShapeForModel);
-		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.GetName(), Desc.GetDataType(), ShapeForModel);
+		IModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.GetName(), Desc.GetDataType(), ShapeForModel);
 
 		OutputTensors.Emplace(Tensor);
 		Builder->AddOutput(Tensor);
 	}
 
 	checkf(InWeightTensors.Num() == InWeightTensorsData.Num(), TEXT("Invalid weight tensors data"));
-	TArray<IMLModelBuilder::HTensor> WeightTensors;
+	TArray<IModelBuilder::HTensor> WeightTensors;
 
 	for (int32 Idx = 0; Idx < InWeightTensors.Num(); ++Idx)
 	{
@@ -378,7 +378,7 @@ NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, cons
 		const TArray<char>& Data = InWeightTensorsData[Idx];
 		check(Data.Num() == Desc.GetDataSize());
 		BuildShapeForModel(false, Desc.GetShape(), ShapeForModel);
-		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.GetName(), Desc.GetDataType(), ShapeForModel, Data.GetData(), Data.Num());
+		IModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.GetName(), Desc.GetDataType(), ShapeForModel, Data.GetData(), Data.Num());
 
 		WeightTensors.Emplace(Tensor);
 	}
@@ -415,9 +415,9 @@ NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, cons
 }
 
 /** Return instance of ONNX model builder */
-NNXUTILS_API IMLModelBuilder* CreateONNXModelBuilder(int64 IrVersion, int64 OpsetVersion)
+NNEUTILS_API IModelBuilder* CreateONNXModelBuilder(int64 IrVersion, int64 OpsetVersion)
 {
 	return new FMLModelBuilderONNX(IrVersion, OpsetVersion);
 }
 
-} // namespace NNX
+} // namespace UE::NNEUtils::Internal

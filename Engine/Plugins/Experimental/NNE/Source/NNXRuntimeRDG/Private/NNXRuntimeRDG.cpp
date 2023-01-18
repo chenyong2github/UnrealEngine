@@ -3,7 +3,7 @@
 #include "NNXRuntimeRDG.h"
 #include "NNXInferenceModel.h"
 #include "NNXRuntimeFormat.h"
-#include "NNXModelOptimizer.h"
+#include "NNEUtilsModelOptimizer.h"
 
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"

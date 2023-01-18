@@ -23,7 +23,7 @@ public class NNXQA : ModuleRules
 				"Json",
 				"CoreUObject",
 				"NNXCore",
-				"NNXUtils"
+				"NNEUtils"
 			}
 		);
 

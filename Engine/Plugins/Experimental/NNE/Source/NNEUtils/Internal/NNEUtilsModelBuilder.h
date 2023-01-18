@@ -8,11 +8,11 @@ namespace UE::NNECore { class FAttributeMap; }
 struct FNNEAttributeValue;
 struct FNNIModelRaw;
 
-namespace NNX
+namespace UE::NNEUtils::Internal
 {
-using FTensor = UE::NNECore::Internal::FTensor;
+using FTensor = NNECore::Internal::FTensor;
 
-class IMLModelBuilder
+class IModelBuilder
 {
 public:
 
@@ -45,7 +45,7 @@ public:
 		return HOperator{ OperatorPtr, HandleType::Operator };
 	}
 
-	virtual ~IMLModelBuilder() = default;
+	virtual ~IModelBuilder() = default;
 
 	/** Initialize the model builder */
 	virtual bool Begin(const FString& Name = TEXT("main")) = 0;
@@ -84,12 +84,12 @@ static constexpr int64 OnnxOpsetVersion = 15;
 /**
  * Create an instance of ONNX model builder that creates ONNX models in memory
  */
-NNXUTILS_API IMLModelBuilder* CreateONNXModelBuilder(int64 IrVersion = OnnxIrVersion, int64 OpsetVersion = OnnxOpsetVersion);
+NNEUTILS_API IModelBuilder* CreateONNXModelBuilder(int64 IrVersion = OnnxIrVersion, int64 OpsetVersion = OnnxOpsetVersion);
 
 /**
  * Utility functions to create single layer NN for operator testing with optional attributes
  */
-NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName, 
+NNEUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName, 
 	TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors,
 	TConstArrayView<FTensor> InWeightTensors, TConstArrayView<TArray<char>> InWeightTensorsData,
 	const UE::NNECore::FAttributeMap& Attributes, FNNIModelRaw& ModelData);
@@ -97,7 +97,7 @@ NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, cons
 /**
  * Create an instance of NNX model builder that creates NNX model/format in memory
  */
-NNXUTILS_API IMLModelBuilder* CreateNNXModelBuilder();
+NNEUTILS_API IModelBuilder* CreateNNEModelBuilder();
 
-} // NNX
+} // UE::NNEUtils::Internal
 

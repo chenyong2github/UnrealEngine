@@ -1,19 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNXModelBuilder.h"
-#include "NNXRuntimeFormat.h"
-#include "NNXCore.h"
+#include "NNEUtilsModelBuilder.h"
+#include "NNECore.h"
 #include "NNECoreAttributeMap.h"
+#include "NNXRuntimeFormat.h"
 
 #include "Misc/StringBuilder.h"
 #include "Serialization/MemoryWriter.h"
 
-#define Print(Format, ...) UE_LOG(LogNNX, Display, Format, __VA_ARGS__)
+#define Print(Format, ...) UE_LOG(LogNNE, Display, Format, __VA_ARGS__)
 
-namespace NNX
+namespace UE::NNEUtils::Internal
 {
 
-class FMLModelPrinterNNX
+class FModelPrinterNNE
 {
 public:
 
@@ -58,9 +58,9 @@ public:
 	}
 };
 
-inline int NNXTensorCast(IMLModelBuilder::HTensor& Handle)
+inline int NNETensorCast(IModelBuilder::HTensor& Handle)
 {
-	if (Handle.Type == IMLModelBuilder::HandleType::Tensor)
+	if (Handle.Type == IModelBuilder::HandleType::Tensor)
 	{
 		return int(reinterpret_cast<int64>(Handle.Ptr));
 	}
@@ -68,9 +68,9 @@ inline int NNXTensorCast(IMLModelBuilder::HTensor& Handle)
 	return -1;
 }
 
-inline int NNXOperatorCast(IMLModelBuilder::HOperator& Handle)
+inline int NNEOperatorCast(IModelBuilder::HOperator& Handle)
 {
-	if (Handle.Type == IMLModelBuilder::HandleType::Operator)
+	if (Handle.Type == IModelBuilder::HandleType::Operator)
 	{
 		return int(reinterpret_cast<int64>(Handle.Ptr));
 	}
@@ -79,13 +79,13 @@ inline int NNXOperatorCast(IMLModelBuilder::HOperator& Handle)
 }
 
 /**
- * NNX format builder, create NNX format in memory
+ * NNE format builder, create NNE format in memory
  */
-class FMLModelBuilderNNX : public IMLModelBuilder
+class FModelBuilderNNE : public IModelBuilder
 {
 public:
 
-	FMLModelBuilderNNX()
+	FModelBuilderNNE()
 	{
 
 	}
@@ -98,7 +98,7 @@ public:
 	virtual bool End(TArray<uint8>& Data) override
 	{
 		// This is for debugging purposes
-		FMLModelPrinterNNX Printer;
+		FModelPrinterNNE Printer;
 
 		Printer.Visit(Format);
 
@@ -111,7 +111,7 @@ public:
 
 	virtual HTensor AddTensor(const FString& Name, ENNETensorDataType DataType, TArrayView<const int32> Shape, const void* Data, uint64 DataSize)
 	{
-		TArray<int32, TInlineAllocator<FTensorShape::MaxRank>> NNIShape;
+		TArray<int32, TInlineAllocator<NNECore::FTensorShape::MaxRank>> NNIShape;
 		for (int i = 0; i < Shape.Num(); ++i)
 		{
 			//ORT Graph return 0 for variable dimensions, NNI use -1.
@@ -126,17 +126,17 @@ public:
 	/** Add model input */
 	virtual bool AddInput(HTensor Tensor) override
 	{
-		int Idx = NNXTensorCast(Tensor);
+		int Idx = NNETensorCast(Tensor);
 		
 		if (Idx < 0 || Idx >= Format.Tensors.Num())
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to add input tensor, invalid tensor index"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to add input tensor, invalid tensor index"));
 			return false;
 		}
 		
 		if (Format.Tensors[Idx].Type != EMLFormatTensorType::None)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to add input tensor, tensor usage already set up"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to add input tensor, tensor usage already set up"));
 			return false;
 		}
 		
@@ -148,17 +148,17 @@ public:
 	/** Add model output */
 	virtual bool AddOutput(HTensor Tensor) override
 	{
-		int Idx = NNXTensorCast(Tensor);
+		int Idx = NNETensorCast(Tensor);
 
 		if (Idx < 0 || Idx >= Format.Tensors.Num())
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to add output tensor, invalid tensor index"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to add output tensor, invalid tensor index"));
 			return false;
 		}
 
 		if (Format.Tensors[Idx].Type != EMLFormatTensorType::None)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to add output tensor, tensor usage already set up"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to add output tensor, tensor usage already set up"));
 			return false;
 		}
 
@@ -183,12 +183,12 @@ public:
 	/** Add operator input */
 	virtual bool AddOperatorInput(HOperator Op, HTensor Tensor) override
 	{
-		int OpIdx = NNXOperatorCast(Op);
-		int TensorIdx = NNXTensorCast(Tensor);
+		int OpIdx = NNEOperatorCast(Op);
+		int TensorIdx = NNETensorCast(Tensor);
 		
 		if (TensorIdx < 0 || TensorIdx >= Format.Tensors.Num())
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to add operator input tensor, invalid tensor index"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to add operator input tensor, invalid tensor index"));
 			return false;
 		}
 
@@ -200,18 +200,18 @@ public:
 	/** Add operator output */
 	virtual bool AddOperatorOutput(HOperator Op, HTensor Tensor) override
 	{
-		int OpIdx = NNXOperatorCast(Op);
-		int TensorIdx = NNXTensorCast(Tensor);
+		int OpIdx = NNEOperatorCast(Op);
+		int TensorIdx = NNETensorCast(Tensor);
 		
 		if (TensorIdx < 0 || TensorIdx >= Format.Tensors.Num())
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to add operator output tensor, invalid tensor index"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to add operator output tensor, invalid tensor index"));
 			return false;
 		}
 
 		if (Format.Tensors[TensorIdx].Type == EMLFormatTensorType::Input)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to add output tensor, tensor usage already set up to input"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to add output tensor, tensor usage already set up to input"));
 			return false;
 		}
 
@@ -228,7 +228,7 @@ public:
 	/** Add operator attribute */
 	virtual bool AddOperatorAttribute(HOperator Op, const FString& Name, const FNNEAttributeValue& Value) override
 	{
-		int OpIdx = NNXOperatorCast(Op);
+		int OpIdx = NNEOperatorCast(Op);
 
 		FMLFormatAttributeDesc& Attribute = Format.Operators[OpIdx].Attributes.Emplace_GetRef();
 		Attribute.Name = Name;
@@ -286,9 +286,9 @@ private:
 	TMap<FString, int>		TensorMap;	
 };
 
-NNXUTILS_API IMLModelBuilder* CreateNNXModelBuilder()
+NNEUTILS_API IModelBuilder* CreateNNEModelBuilder()
 {
-	return new FMLModelBuilderNNX();
+	return new FModelBuilderNNE();
 }
 
-} // namespace NNX
+} // namespace UE::NNEUtils::Internal
