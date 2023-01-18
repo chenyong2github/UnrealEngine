@@ -65,7 +65,8 @@ struct FRootInstanceHandle : FInstanceHandle
 };
 
 #if UE_MOVIESCENE_ENTITY_DEBUG
-template<> struct TComponentDebugType<FInstanceHandle> { static const EComponentDebugType Type = EComponentDebugType::InstanceHandle; };
+template<> struct TComponentDebugType<FInstanceHandle>     { static const EComponentDebugType Type = EComponentDebugType::InstanceHandle; };
+template<> struct TComponentDebugType<FRootInstanceHandle> { static const EComponentDebugType Type = EComponentDebugType::InstanceHandle; };
 #endif
 
 

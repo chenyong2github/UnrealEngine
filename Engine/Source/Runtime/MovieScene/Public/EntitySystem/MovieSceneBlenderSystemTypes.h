@@ -8,6 +8,7 @@
 #include "Templates/Casts.h"
 #include "Templates/SubclassOf.h"
 #include "Templates/TypeHash.h"
+#include "EntitySystem/MovieSceneComponentDebug.h"
 
 class UMovieSceneBlenderSystem;
 class UMovieSceneEntitySystemLinker;
@@ -89,3 +90,9 @@ struct FMovieSceneBlendChannelID
 	uint16 ChannelID;
 };
 
+#if UE_MOVIESCENE_ENTITY_DEBUG
+namespace UE::MovieScene
+{
+	template<> struct TComponentDebugType<FMovieSceneBlendChannelID> { static const EComponentDebugType Type = EComponentDebugType::BlendChannelID; };
+}
+#endif
