@@ -4,6 +4,7 @@
 #include "SmartObjectDefinition.h"
 #include "SmartObjectTypes.h"
 #include "SmartObjectVisualizationContext.h"
+#include "SceneManagement.h" // FPrimitiveDrawInterface
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectSlotEntryAnnotation)
 
