@@ -225,6 +225,25 @@ void UGeometryScriptLibrary_MeshQueryFunctions::GetTrianglePositions(UDynamicMes
 	});
 }
 
+UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetInterpolatedTrianglePosition(UDynamicMesh* TargetMesh, int32 TriangleID, FVector BarycentricCoords, bool& bIsValidTriangle, FVector& InterpolatedPosition)
+{
+	InterpolatedPosition = FVector::Zero();
+	bIsValidTriangle = SimpleMeshQuery<bool>(TargetMesh, false, [&](const FDynamicMesh3& Mesh) 
+	{
+		if (Mesh.IsTriangle(TriangleID))
+		{
+			FVector A,B,C;
+			Mesh.GetTriVertices<FVector>(TriangleID, A, B, C);
+			InterpolatedPosition = BarycentricCoords.X*A + BarycentricCoords.Y*B + BarycentricCoords.Z*C;
+			return true;
+		}
+		return false;
+	});
+	return TargetMesh;
+}
+
+
+
 FVector UGeometryScriptLibrary_MeshQueryFunctions::GetTriangleFaceNormal(UDynamicMesh* TargetMesh, int32 TriangleID, bool& bIsValidTriangle)
 {
 	return SimpleMeshQuery<FVector>(TargetMesh, FVector::ZeroVector, [&](const FDynamicMesh3& Mesh) {
@@ -233,6 +252,28 @@ FVector UGeometryScriptLibrary_MeshQueryFunctions::GetTriangleFaceNormal(UDynami
 	});
 }
 
+
+UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::ComputeTriangleBarycentricCoords(UDynamicMesh* TargetMesh, int32 TriangleID, bool& bIsValidTriangle, FVector Point, FVector& Vertex1, FVector& Vertex2, FVector& Vertex3, FVector& BarycentricCoords)
+{
+	BarycentricCoords = SimpleMeshQuery<FVector>(TargetMesh, FVector::Zero(), [&](const FDynamicMesh3& Mesh) {
+		bIsValidTriangle = Mesh.IsTriangle(TriangleID);
+		if (bIsValidTriangle)
+		{
+			Mesh.GetTriVertices(TriangleID, Vertex1, Vertex2, Vertex3);
+			if ( VectorUtil::NormalDirection(Vertex1, Vertex2, Vertex3).SquaredLength() > FMathd::ZeroTolerance )
+			{
+				FVector BaryCoords = VectorUtil::BarycentricCoords(Point, Vertex1, Vertex2, Vertex3);
+				// Point may not be inside the triangle in which case the coords are invalid, but we want to return something that won't cause later interpolations to explode...
+				BaryCoords.X = FMathd::Clamp(BaryCoords.X, 0, 1);
+				BaryCoords.Y = FMathd::Clamp(BaryCoords.Y, 0, 1);
+				BaryCoords.Z = FMathd::Clamp(BaryCoords.Z, 0, 1);
+				return BaryCoords;
+			}
+		}
+		return FVector::Zero();
+	});
+	return TargetMesh;
+}
 
 
 int32 UGeometryScriptLibrary_MeshQueryFunctions::GetVertexCount( UDynamicMesh* TargetMesh )
@@ -368,8 +409,195 @@ void UGeometryScriptLibrary_MeshQueryFunctions::GetTriangleUVs(UDynamicMesh* Tar
 	});
 }
 
+UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetInterpolatedTriangleUV(UDynamicMesh* TargetMesh, UPARAM(DisplayName = "UV Channel") int32 UVSetIndex, int32 TriangleID, FVector BarycentricCoords, bool& bHaveValidUVs, FVector2D& InterpolatedUV)
+{
+	InterpolatedUV = FVector2D::Zero();
+	bHaveValidUVs = SimpleMeshUVSetQuery<bool>(TargetMesh, UVSetIndex, bHaveValidUVs, false, 
+		[&](const FDynamicMesh3& Mesh, const FDynamicMeshUVOverlay& UVSet) 
+	{
+		if (Mesh.IsTriangle(TriangleID) && UVSet.IsSetTriangle(TriangleID))
+		{
+			FVector2f A, B, C;
+			UVSet.GetTriElements(TriangleID, A, B, C);
+			InterpolatedUV = BarycentricCoords.X*(FVector2D)A + BarycentricCoords.Y*(FVector2D)B + BarycentricCoords.Z*(FVector2D)C;
+			return true;
+		}
+		return false;
+	});
+	return TargetMesh;
+}
 
 
+bool UGeometryScriptLibrary_MeshQueryFunctions::GetHasTriangleNormals( UDynamicMesh* TargetMesh )
+{
+	return SimpleMeshQuery<bool>(TargetMesh, false, [&](const FDynamicMesh3& Mesh) {
+		return (Mesh.HasAttributes() && Mesh.Attributes()->PrimaryNormals() != nullptr);
+	});
+}
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetTriangleNormals(UDynamicMesh* TargetMesh, int32 TriangleID, FVector& Normal1, FVector& Normal2, FVector& Normal3, bool& bTriHasValidNormals)
+{
+	bTriHasValidNormals = SimpleMeshQuery<bool>(TargetMesh, false, [&](const FDynamicMesh3& Mesh) 
+	{
+		if (Mesh.HasAttributes())
+		{
+			if (const FDynamicMeshNormalOverlay* Normals = Mesh.Attributes()->PrimaryNormals())
+			{
+				if ( Normals->IsSetTriangle(TriangleID) )
+				{
+					FVector3f A,B,C;
+					Normals->GetTriElements(TriangleID, A,B,C);
+					Normal1 = (FVector)A;
+					Normal2 = (FVector)B;
+					Normal3 = (FVector)C;
+					return true;
+				}
+			}
+		}
+		return false;
+	});
+	return TargetMesh;
+}
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetInterpolatedTriangleNormal(UDynamicMesh* TargetMesh, int32 TriangleID, FVector BarycentricCoords, bool& bTriHasValidNormals, FVector& InterpolatedNormal)
+{
+	bTriHasValidNormals = false;
+	InterpolatedNormal = SimpleMeshQuery<FVector>(TargetMesh, FVector::UnitZ(), [&](const FDynamicMesh3& Mesh)
+	{
+		if (Mesh.HasAttributes())
+		{
+			if (const FDynamicMeshNormalOverlay* Normals = Mesh.Attributes()->PrimaryNormals())
+			{
+				if ( Normals->IsSetTriangle(TriangleID) )
+				{
+					bTriHasValidNormals = true;
+					FVector3f A,B,C;
+					Normals->GetTriElements(TriangleID, A,B,C);
+					return BarycentricCoords.X*(FVector)A + BarycentricCoords.Y*(FVector)B + BarycentricCoords.Z*(FVector)C;
+				}
+			}
+		}
+		return FVector::UnitZ();
+	});
+	return TargetMesh;
+}
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetTriangleNormalTangents(UDynamicMesh* TargetMesh, int32 TriangleID, 
+	bool& bTriHasValidElements, FGeometryScriptTriangle& NormalsTri, FGeometryScriptTriangle& TangentsTri, FGeometryScriptTriangle& BiTangentsTri)
+{
+	bTriHasValidElements = SimpleMeshQuery<bool>(TargetMesh, false, [&](const FDynamicMesh3& Mesh) 
+	{
+		if (Mesh.HasAttributes() && Mesh.Attributes()->HasTangentSpace() )
+		{
+			const FDynamicMeshNormalOverlay* Normals = Mesh.Attributes()->PrimaryNormals();
+			const FDynamicMeshNormalOverlay* Tangents = Mesh.Attributes()->PrimaryTangents();
+			const FDynamicMeshNormalOverlay* BiTangents = Mesh.Attributes()->PrimaryBiTangents();
+			if ( Normals->IsSetTriangle(TriangleID) && Tangents->IsSetTriangle(TriangleID) && BiTangents->IsSetTriangle(TriangleID) )
+			{
+				FVector3f A,B,C;
+				Normals->GetTriElements(TriangleID, A,B,C);
+				NormalsTri.Vector0 = (FVector)A; NormalsTri.Vector1 = (FVector)B; NormalsTri.Vector2 = (FVector)C;
+				Tangents->GetTriElements(TriangleID, A,B,C);
+				TangentsTri.Vector0 = (FVector)A; TangentsTri.Vector1 = (FVector)B; TangentsTri.Vector2 = (FVector)C;
+				BiTangents->GetTriElements(TriangleID, A,B,C);
+				BiTangentsTri.Vector0 = (FVector)A; BiTangentsTri.Vector1 = (FVector)B; BiTangentsTri.Vector2 = (FVector)C;
+				return true;
+			}
+		}
+		return false;
+	});
+	return TargetMesh;
+}
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetInterpolatedTriangleNormalTangents(UDynamicMesh* TargetMesh, int32 TriangleID, FVector BarycentricCoords, 
+	bool& bTriHasValidElements, FVector& InterpolatedNormal, FVector& InterpolatedTangent, FVector& InterpolatedBiTangent)
+{
+	bTriHasValidElements = SimpleMeshQuery<bool>(TargetMesh, false, [&](const FDynamicMesh3& Mesh)
+	{
+		if (Mesh.HasAttributes() && Mesh.Attributes()->HasTangentSpace() )
+		{
+			const FDynamicMeshNormalOverlay* Normals = Mesh.Attributes()->PrimaryNormals();
+			const FDynamicMeshNormalOverlay* Tangents = Mesh.Attributes()->PrimaryTangents();
+			const FDynamicMeshNormalOverlay* BiTangents = Mesh.Attributes()->PrimaryBiTangents();
+			if ( Normals->IsSetTriangle(TriangleID) && Tangents->IsSetTriangle(TriangleID) && BiTangents->IsSetTriangle(TriangleID) )
+			{
+				FVector3f A,B,C;
+				Normals->GetTriElements(TriangleID, A,B,C);
+				InterpolatedNormal = BarycentricCoords.X*(FVector)A + BarycentricCoords.Y*(FVector)B + BarycentricCoords.Z*(FVector)C;
+				Tangents->GetTriElements(TriangleID, A,B,C);
+				InterpolatedTangent = BarycentricCoords.X*(FVector)A + BarycentricCoords.Y*(FVector)B + BarycentricCoords.Z*(FVector)C;
+				BiTangents->GetTriElements(TriangleID, A,B,C);
+				InterpolatedBiTangent = BarycentricCoords.X*(FVector)A + BarycentricCoords.Y*(FVector)B + BarycentricCoords.Z*(FVector)C;
+				return true;
+			}
+		}
+		return false;
+	});
+	return TargetMesh;
+}
+
+
+
+bool UGeometryScriptLibrary_MeshQueryFunctions::GetHasVertexColors( UDynamicMesh* TargetMesh )
+{
+	return SimpleMeshQuery<bool>(TargetMesh, false, [&](const FDynamicMesh3& Mesh) {
+		return (Mesh.HasAttributes() && Mesh.Attributes()->PrimaryColors() != nullptr);
+	});
+}
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetTriangleVertexColors(UDynamicMesh* TargetMesh, int32 TriangleID, FLinearColor& Color1, FLinearColor& Color2, FLinearColor& Color3, bool& bHaveValidVertexColors)
+{
+	bHaveValidVertexColors = SimpleMeshQuery<bool>(TargetMesh, false, [&](const FDynamicMesh3& Mesh) 
+	{
+		if (Mesh.HasAttributes())
+		{
+			if (const FDynamicMeshColorOverlay* Colors = Mesh.Attributes()->PrimaryColors())
+			{
+				if ( Colors->IsSetTriangle(TriangleID) )
+				{
+					FVector4f A,B,C;
+					Colors->GetTriElements(TriangleID, A,B,C);
+					Color1 = (FLinearColor)A;
+					Color2 = (FLinearColor)B;
+					Color3 = (FLinearColor)C;
+					return true;
+				}
+			}
+		}
+		return false;
+	});
+	return TargetMesh;
+}
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetInterpolatedTriangleVertexColor(UDynamicMesh* TargetMesh, int32 TriangleID, FVector BarycentricCoords, FLinearColor DefaultColor, bool& bHaveValidVertexColors, FLinearColor& InterpolatedColor)
+{
+	bHaveValidVertexColors = false;
+	InterpolatedColor = SimpleMeshQuery<FLinearColor>(TargetMesh, DefaultColor, [&](const FDynamicMesh3& Mesh) 
+	{
+		if (Mesh.HasAttributes())
+		{
+			if (const FDynamicMeshColorOverlay* Colors = Mesh.Attributes()->PrimaryColors())
+			{
+				if ( Colors->IsSetTriangle(TriangleID) )
+				{
+					FVector4f A,B,C;
+					Colors->GetTriElements(TriangleID, A,B,C);
+					FVector4f Interpolated = BarycentricCoords.X*A + BarycentricCoords.Y*B + BarycentricCoords.Z*C;
+					bHaveValidVertexColors = true;
+					return (FLinearColor)Interpolated;
+				}
+			}
+		}
+		return DefaultColor;
+	});
+	return TargetMesh;
+}
 
 
 bool UGeometryScriptLibrary_MeshQueryFunctions::GetHasMaterialIDs( UDynamicMesh* TargetMesh )
