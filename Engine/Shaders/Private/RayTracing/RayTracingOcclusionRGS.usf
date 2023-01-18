@@ -716,7 +716,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 	{
 		// the channel assignment is documented in ShadowRendering.cpp (look for Light Attenuation channel assignment)
 		const float HairShadow = OcclusionToShadow(HairOcclusion, RequestedSamplePerPixel);
-		const float FadedShadow = Square(HairShadow);
+		const float FadedShadow = HairShadow;
 		const float4 OutColor = EncodeLightAttenuation(FadedShadow.xxxx);
 		RWSubPixelOcclusionMaskUAV[PixelCoord] = OutColor;
 	}
@@ -756,8 +756,8 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 
 		// 0 is shadowed, 1 is unshadowed
 		// RETURN_COLOR not needed unless writing to SceneColor;
-		float FadedShadow = lerp(1.0f, Square(Shadow), ShadowFadeFraction);
-		float FadedSSSShadow = lerp(1.0f, Square(SSSTransmission), ShadowFadeFraction);
+		float FadedShadow = lerp(1.0f, Shadow, ShadowFadeFraction);
+		float FadedSSSShadow = lerp(1.0f, SSSTransmission, ShadowFadeFraction);
 
 		// the channel assignment is documented in ShadowRendering.cpp (look for Light Attenuation channel assignment)
 		float4 OutColor;

@@ -338,7 +338,7 @@ void Main(
 
 	// 0 is shadowed, 1 is unshadowed
 	// RETURN_COLOR not needed unless writing to SceneColor;
-	float FadedShadow = lerp(1.0f, Square(Shadow), ShadowFadeFraction * PerObjectDistanceFadeFraction);
+	float FadedShadow = lerp(1.0f, Shadow, ShadowFadeFraction * PerObjectDistanceFadeFraction);
 
 #if FORWARD_SHADING || SHADING_PATH_MOBILE 
 	float LightInfluenceMask = GetLightInfluenceMask(TranslateWorldPosition);
@@ -347,7 +347,7 @@ void Main(
 	// Write into all channels, the write mask will constrain to the correct one
 	OutColor = EncodeLightAttenuation(FadedShadow);
 #else
-	float FadedSSSShadow = lerp(1.0f, Square(SSSTransmission), ShadowFadeFraction * PerObjectDistanceFadeFraction);
+	float FadedSSSShadow = lerp(1.0f, SSSTransmission, ShadowFadeFraction * PerObjectDistanceFadeFraction);
 
 	// the channel assignment is documented in ShadowRendering.cpp (look for Light Attenuation channel assignment)
 	OutColor = EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, FadedShadow, FadedSSSShadow));
@@ -436,7 +436,7 @@ void MainOnePassPointLightPS(
 	Shadow = saturate( (Shadow - 0.5) * ShadowSharpen + 0.5 );
 #endif
 
-	float FadedShadow = lerp(1.0f, Square(Shadow), ShadowFadeFraction);
+	float FadedShadow = lerp(1.0f, Shadow, ShadowFadeFraction);
 
 #if FORWARD_SHADING
 	float LightInfluenceMask = GetLightInfluenceMask(TranslateWorldPosition);

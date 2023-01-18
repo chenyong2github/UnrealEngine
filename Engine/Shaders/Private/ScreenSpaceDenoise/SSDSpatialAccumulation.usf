@@ -1282,8 +1282,8 @@ void MainCS(
 
 				// 0 is shadowed, 1 is unshadowed
 				// RETURN_COLOR not needed unless writing to SceneColor;
-				float FadedShadow = lerp(1.0f, Square(Shadow), ShadowFadeFraction);
-				float FadedSSSShadow = lerp(1.0f, Square(SSSTransmission), ShadowFadeFraction);
+				float FadedShadow = lerp(1.0f, Shadow, ShadowFadeFraction);
+				float FadedSSSShadow = lerp(1.0f, SSSTransmission, ShadowFadeFraction);
 
 				// the channel assignment is documented in ShadowRendering.cpp (look for Light Attenuation channel assignment)
 				float4 OutColor;
