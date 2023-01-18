@@ -152,15 +152,14 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	ShaderPropertiesString += FString::Printf(TEXT("_%d"), SettingValue);
 
 #if WITH_EDITOR
-	#define ADD_PROPERTY_TO_SHADERPLATFORM_FUNCTIONMAP(SettingName) \
-		FGenericDataDrivenShaderPlatformInfo::PropertyToShaderPlatformFunctionMap.FindOrAdd(#SettingName) = [](const FStaticShaderPlatform Platform)->bool{ return Infos[Platform].SettingName;};
+	#define ADD_PROPERTY_TO_SHADERPLATFORM_FUNCTIONMAP(SettingName, FunctionName) \
+	FGenericDataDrivenShaderPlatformInfo::PropertyToShaderPlatformFunctionMap.FindOrAdd(#SettingName) = &FunctionName;
 #else
-	#define ADD_PROPERTY_TO_SHADERPLATFORM_FUNCTIONMAP(SettingName)
+	#define ADD_PROPERTY_TO_SHADERPLATFORM_FUNCTIONMAP(SettingName, FunctionName)
 #endif
 
 #define GET_SECTION_BOOL_HELPER(SettingName)	\
 	Info.SettingName = GetSectionBool(Section, #SettingName, Info.SettingName);	\
-	ADD_PROPERTY_TO_SHADERPLATFORM_FUNCTIONMAP(SettingName)	\
 	ADD_TO_PROPERTIES_STRING(SettingName, Info.SettingName)
 
 #define GET_SECTION_INT_HELPER(SettingName)	\
@@ -174,6 +173,13 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 #define GET_SECTION_BINDLESS_SUPPORT_HELPER(SettingName) \
 	Info.SettingName = GetSectionBindlessSupport(Section, #SettingName, Info.SettingName); \
 	ADD_TO_PROPERTIES_STRING(SettingName, Info.SettingName)
+
+	// These properties will be exposed to the MaterialEditor that use the ShaderPlatformInfo Node
+	// If you remove/rename a property be sure to address this in UMaterialExpressionDataDrivenShaderPlatformInfoSwitch serialization
+	// If you add a property that you think needs to be exposed to materials, it is enough to just call the macro here with the property name and the function it will call
+	ADD_PROPERTY_TO_SHADERPLATFORM_FUNCTIONMAP(IsMobile, GetIsMobile);
+	ADD_PROPERTY_TO_SHADERPLATFORM_FUNCTIONMAP(IsPC, GetIsPC);
+	ADD_PROPERTY_TO_SHADERPLATFORM_FUNCTIONMAP(IsConsole, GetIsConsole);
 
 	GET_SECTION_BOOL_HELPER(bIsMobile);
 	GET_SECTION_BOOL_HELPER(bIsMetalMRT);

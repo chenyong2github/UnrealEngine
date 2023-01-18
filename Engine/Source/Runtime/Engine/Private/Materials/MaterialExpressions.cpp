@@ -9663,18 +9663,8 @@ UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::UMaterialExpressionDataDr
 : Super(ObjectInitializer)
 {
 #if WITH_EDITORONLY_DATA
-	// Structure to hold one-time initialization
-	struct FConstructorStatics
-	{
-		FText NAME_Utility;
-		FConstructorStatics()
-			: NAME_Utility(LOCTEXT("Utility", "Utility"))
-		{
-		}
-	};
-	static FConstructorStatics ConstructorStatics;
-
-	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+	FText NAME_Utility(LOCTEXT("Utility", "Utility"));
+	MenuCategories.Add(NAME_Utility);
 	bCollapsed = false;
 	bContainsInvalidProperty = false;
 #endif // WITH_EDITORONLY_DATA
@@ -9746,11 +9736,11 @@ int32 UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::Compile(class FMate
 		bool bCheckProperty = FGenericDataDrivenShaderPlatformInfo::PropertyToShaderPlatformFunctionMap[DDSPIInput.InputName.ToString()](ShaderPlatform);
 		if (DDSPIInput.PropertyCondition == EDataDrivenShaderPlatformInfoCondition::COND_True)
 		{
-			bCheck = bCheck && bCheckProperty;
+			bCheck &= bCheckProperty;
 		}
 		else
 		{
-			bCheck = bCheck && !bCheckProperty;
+			bCheck &= !bCheckProperty;
 		}
 	}
 
@@ -9770,7 +9760,7 @@ int32 UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::Compile(class FMate
 
 void UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(FString(TEXT("DataDrivenShaderPlatformInfo Switch")));
+	OutCaptions.Add(FString(TEXT("ShaderPlatformInfo Switch")));
 }
 
 bool UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::IsInputConnectionRequired(int32 InputIndex) const
@@ -9846,7 +9836,8 @@ bool UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::IsResultMaterialAttr
 	for (FExpressionInput* ExpressionInput : ExpressionInputs)
 	{
 		// If there is a loop anywhere in this expression's inputs then we can't risk checking them
-		if (ExpressionInput->Expression && !ExpressionInput->Expression->ContainsInputLoop() && ExpressionInput->Expression->IsResultMaterialAttributes(ExpressionInput->OutputIndex))
+		TObjectPtr<class UMaterialExpression> Expression = ExpressionInput->Expression;
+		if (Expression && !Expression->ContainsInputLoop() && ExpressionInput->Expression->IsResultMaterialAttributes(ExpressionInput->OutputIndex))
 		{
 			return true;
 		}
