@@ -324,6 +324,11 @@ namespace Horde.Build
 		public AuthMethod AuthMethod { get; set; } = AuthMethod.Anonymous;
 
 		/// <summary>
+		/// Audience for OIDC validation
+		/// </summary>
+		public string? OidcAudience { get; set; }
+		
+		/// <summary>
 		/// Issuer for tokens from the auth provider
 		/// </summary>
 		public string? OidcAuthority { get; set; }

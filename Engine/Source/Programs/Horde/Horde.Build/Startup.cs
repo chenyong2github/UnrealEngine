@@ -620,6 +620,13 @@ namespace Horde.Build
 			authBuilder.AddScheme<JwtBearerOptions, HordeServerJwtBearerHandler>(HordeServerJwtBearerHandler.AuthenticationScheme, options => { });
 			schemes.Add(HordeServerJwtBearerHandler.AuthenticationScheme);
 
+			if (settings.OidcAuthority != null && settings.OidcAudience != null)
+			{
+				HordeJwtBearerHandler hordeJwtBearer = new(settings);  
+				hordeJwtBearer.AddHordeJwtBearerConfiguration(authBuilder);  
+				schemes.Add(HordeJwtBearerHandler.AuthenticationScheme);				
+			}
+
 			services.AddAuthorization(options =>
 				{
 					options.DefaultPolicy = new AuthorizationPolicyBuilder(schemes.ToArray())
