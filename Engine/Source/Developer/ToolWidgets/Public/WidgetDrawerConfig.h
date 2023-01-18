@@ -24,7 +24,7 @@ struct FWidgetDrawerConfig
 	TSharedPtr<SWidget> CustomWidget;
 	FText ButtonText;
 	FText ToolTipText;
-	const FSlateBrush* Icon;
+	const FSlateBrush* Icon = nullptr;
 
 	bool operator==(const FName& OtherId) const
 	{
