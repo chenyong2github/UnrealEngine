@@ -128,6 +128,11 @@ STableTreeView::STableTreeView()
 
 STableTreeView::~STableTreeView()
 {
+	if (bRunInAsyncMode)
+	{
+		checkf(bIsCloseScheduled, TEXT("TableTreeView running in async mode was closed but OnClose() was not called. This can lead to a crash. Call OnClose() from the owner tab/window."))
+	}
+
 	// Remove ourselves from the Insights manager.
 	if (FInsightsManager::Get().IsValid())
 	{
@@ -2989,9 +2994,15 @@ FGraphEventRef STableTreeView::StartApplyFiltersTask(FGraphEventRef Prerequisite
 
 void STableTreeView::OnClose()
 {
-	if (bIsUpdateRunning && !bIsCloseScheduled && InProgressAsyncOperationEvent.IsValid() && !InProgressAsyncOperationEvent->IsComplete())
+	if (bIsCloseScheduled)
 	{
-		bIsCloseScheduled = true;
+		return;
+	}
+
+	bIsCloseScheduled = true;
+
+	if (bIsUpdateRunning && InProgressAsyncOperationEvent.IsValid() && !InProgressAsyncOperationEvent->IsComplete())
+	{
 		CancelCurrentAsyncOp();
 
 		FGraphEventArray Prerequisites;

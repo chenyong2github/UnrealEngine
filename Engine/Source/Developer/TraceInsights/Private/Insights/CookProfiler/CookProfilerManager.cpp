@@ -227,6 +227,11 @@ bool FCookProfilerManager::CanSpawnTab_PackageTableTreeView(const FSpawnTabArgs&
 
 void FCookProfilerManager::OnPackageTableTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
+	if (PackageTableTreeView.IsValid())
+	{
+		PackageTableTreeView->OnClose();
+	}
+
 	PackageTableTreeView.Reset();
 }
 
@@ -234,6 +239,11 @@ void FCookProfilerManager::OnPackageTableTreeViewTabClosed(TSharedRef<SDockTab> 
 
 void FCookProfilerManager::OnWindowClosedEvent()
 {
+	if (PackageTableTreeView.IsValid())
+	{
+		PackageTableTreeView->OnClose();
+	}
+
 	TSharedPtr<FTabManager> TimingTabManagerSharedPtr = TimingTabManager.Pin();
 
 	if (TimingTabManagerSharedPtr.IsValid())

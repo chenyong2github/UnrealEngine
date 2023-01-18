@@ -254,6 +254,11 @@ bool FTaskGraphProfilerManager::CanSpawnTab_TaskTableTreeView(const FSpawnTabArg
 
 void FTaskGraphProfilerManager::OnTaskTableTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
+	if (TaskTableTreeView.IsValid())
+	{
+		TaskTableTreeView->OnClose();
+	}
+
 	TaskTableTreeView.Reset();
 }
 
