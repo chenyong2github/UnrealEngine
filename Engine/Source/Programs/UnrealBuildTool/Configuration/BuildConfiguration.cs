@@ -120,8 +120,8 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// If true, do not build UHT, assume it is already built.
 		/// </summary>
-		[CommandLine("-NoBuildUHT")]
-		[XmlConfigFile(Category = "UEBuildConfiguration")]
+		[Obsolete]
+		[XmlConfigFile(Category = "UEBuildConfiguration", Deprecated = true)]
 		public bool bDoNotBuildUHT = false;
 
 		/// <summary>
@@ -141,26 +141,23 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// If true, the Debug version of UnrealHeaderTool will be built and run instead of the Development version.
 		/// </summary>
-		[XmlConfigFile(Category = "UEBuildConfiguration")]
+		[Obsolete]
+		[XmlConfigFile(Category = "UEBuildConfiguration", Deprecated = true)]
 		public bool bForceDebugUnrealHeaderTool = false;
 
 		/// <summary>
 		/// If true, use C# UHT internal to UBT
 		/// </summary>
-		[XmlConfigFile(Category = "UEBuildConfiguration")]
+		[Obsolete]
+		[XmlConfigFile(Category = "UEBuildConfiguration", Deprecated = true)]
 		public bool bUseBuiltInUnrealHeaderTool = true;
 
 		/// <summary>
 		/// If true, generate warnings when C++ UHT is used
 		/// </summary>
-		[XmlConfigFile(Category = "UEBuildConfiguration")]
+		[Obsolete]
+		[XmlConfigFile(Category = "UEBuildConfiguration", Deprecated = true)]
 		public bool bWarnOnCppUnrealHeaderTool = true;
-
-		/// <summary>
-		/// If true, force C++ version UHT to run as just a warning
-		/// </summary>
-		[CommandLine("-UseCppUHT")]
-		public bool bUseCppUHT = false;
 
 		/// <summary>
 		/// Whether to skip compiling rules assemblies and just assume they are valid

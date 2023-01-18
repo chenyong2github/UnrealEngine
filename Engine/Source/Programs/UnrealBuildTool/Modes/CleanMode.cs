@@ -76,40 +76,6 @@ namespace UnrealBuildTool
 				Logger.LogInformation("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 			}
 
-			// Also add implicit descriptors for cleaning UnrealBuildTool
-			if (!BuildConfiguration.bDoNotBuildUHT)
-			{
-				const string UnrealHeaderToolTarget = "UnrealHeaderTool";
-
-				// Get a list of project files to clean UHT for
-				List<FileReference?> ProjectFiles = new List<FileReference?>();
-				foreach (TargetDescriptor TargetDesc in TargetDescriptors)
-				{
-					if (TargetDesc.Name != UnrealHeaderToolTarget && !RemoteMac.HandlesTargetPlatform(TargetDesc.Platform))
-					{
-						if (ProjectFiles.Count == 0)
-						{
-							ProjectFiles.Add(null);
-						}
-						if (TargetDesc.ProjectFile != null && !ProjectFiles.Contains(TargetDesc.ProjectFile))
-						{
-							ProjectFiles.Add(TargetDesc.ProjectFile);
-						}
-					}
-				}
-
-				// Add descriptors for cleaning UHT with all these projects
-				if (ProjectFiles.Count > 0)
-				{
-					UnrealTargetConfiguration Configuration = BuildConfiguration.bForceDebugUnrealHeaderTool ? UnrealTargetConfiguration.Debug : UnrealTargetConfiguration.Development;
-					string Architecture = UEBuildPlatform.GetBuildPlatform(BuildHostPlatform.Current.Platform).GetDefaultArchitecture(null);
-					foreach (FileReference? ProjectFile in ProjectFiles)
-					{
-						TargetDescriptors.Add(new TargetDescriptor(ProjectFile, UnrealHeaderToolTarget, BuildHostPlatform.Current.Platform, Configuration, Architecture, null));
-					}
-				}
-			}
-
 			// Output the list of targets that we're cleaning
 			Logger.LogInformation("Cleaning {TargetNames} binaries...", StringUtils.FormatList(TargetDescriptors.Select(x => x.Name).Distinct()));
 
