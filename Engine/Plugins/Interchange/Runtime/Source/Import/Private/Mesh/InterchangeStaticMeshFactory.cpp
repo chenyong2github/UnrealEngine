@@ -51,7 +51,7 @@ UClass* UInterchangeStaticMeshFactory::GetFactoryClass() const
 }
 
 
-UObject* UInterchangeStaticMeshFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeStaticMeshFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
 	UStaticMesh* StaticMesh = nullptr;
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
@@ -108,7 +108,7 @@ UObject* UInterchangeStaticMeshFactory::CreateEmptyAsset(const FCreateAssetParam
 	return StaticMesh;
 }
 
-UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeStaticMeshFactory::ImportAssetObject_Async(const FImportAssetObjectParams& Arguments)
 {
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
@@ -523,10 +523,10 @@ void UInterchangeStaticMeshFactory::SetupSourceModelsSettings(UStaticMesh& Stati
 #endif // WITH_EDITORONLY_DATA
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets */
-void UInterchangeStaticMeshFactory::BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeStaticMeshFactory::SetupObject_GameThread(const FSetupObjectParams& Arguments)
 {
 	check(IsInGameThread());
-	Super::BeginPreCompletedCallback(Arguments);
+	Super::SetupObject_GameThread(Arguments);
 
 	// TODO: make sure this works at runtime
 #if WITH_EDITORONLY_DATA
@@ -544,7 +544,7 @@ void UInterchangeStaticMeshFactory::BeginPreCompletedCallback(const FImportPreCo
 }
 
 
-TArray<UInterchangeStaticMeshFactory::FMeshPayload> UInterchangeStaticMeshFactory::GetMeshPayloads(const FCreateAssetParams& Arguments, const TArray<FString>& MeshUids) const
+TArray<UInterchangeStaticMeshFactory::FMeshPayload> UInterchangeStaticMeshFactory::GetMeshPayloads(const FImportAssetObjectParams& Arguments, const TArray<FString>& MeshUids) const
 {
 	TArray<FMeshPayload> Payloads;
 	Payloads.Reserve(MeshUids.Num());
@@ -627,7 +627,7 @@ TArray<UInterchangeStaticMeshFactory::FMeshPayload> UInterchangeStaticMeshFactor
 }
 
 
-bool UInterchangeStaticMeshFactory::AddConvexGeomFromVertices(const FCreateAssetParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, FKAggregateGeom& AggGeom)
+bool UInterchangeStaticMeshFactory::AddConvexGeomFromVertices(const FImportAssetObjectParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, FKAggregateGeom& AggGeom)
 {
 	FStaticMeshConstAttributes Attributes(MeshDescription);
 	TVertexAttributesRef<const FVector3f> VertexPositions = Attributes.GetVertexPositions();
@@ -651,7 +651,7 @@ bool UInterchangeStaticMeshFactory::AddConvexGeomFromVertices(const FCreateAsset
 }
 
 
-bool UInterchangeStaticMeshFactory::DecomposeConvexMesh(const FCreateAssetParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, UBodySetup* BodySetup)
+bool UInterchangeStaticMeshFactory::DecomposeConvexMesh(const FImportAssetObjectParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, UBodySetup* BodySetup)
 {
 #if WITH_EDITOR
 
@@ -781,7 +781,7 @@ static FVector3f GetTriangleNormal(const FTransform& Transform, TVertexAttribute
 }
 
 
-bool UInterchangeStaticMeshFactory::AddBoxGeomFromTris(const FCreateAssetParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, FKAggregateGeom& AggGeom)
+bool UInterchangeStaticMeshFactory::AddBoxGeomFromTris(const FImportAssetObjectParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, FKAggregateGeom& AggGeom)
 {
 	// Maintain an array of the planes we have encountered so far.
 	// We are expecting two instances of three unique plane orientations, one for each side of the box.
@@ -898,7 +898,7 @@ bool UInterchangeStaticMeshFactory::AddBoxGeomFromTris(const FCreateAssetParams&
 }
 
 
-bool UInterchangeStaticMeshFactory::AddSphereGeomFromVertices(const FCreateAssetParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, FKAggregateGeom& AggGeom)
+bool UInterchangeStaticMeshFactory::AddSphereGeomFromVertices(const FImportAssetObjectParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, FKAggregateGeom& AggGeom)
 {
 	FStaticMeshConstAttributes Attributes(MeshDescription);
 	TVertexAttributesRef<const FVector3f> VertexPositions = Attributes.GetVertexPositions();
@@ -970,7 +970,7 @@ bool UInterchangeStaticMeshFactory::AddSphereGeomFromVertices(const FCreateAsset
 }
 
 
-bool UInterchangeStaticMeshFactory::AddCapsuleGeomFromVertices(const FCreateAssetParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, FKAggregateGeom& AggGeom)
+bool UInterchangeStaticMeshFactory::AddCapsuleGeomFromVertices(const FImportAssetObjectParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, FKAggregateGeom& AggGeom)
 {
 	FStaticMeshConstAttributes Attributes(MeshDescription);
 	TVertexAttributesRef<const FVector3f> VertexPositions = Attributes.GetVertexPositions();
@@ -1038,7 +1038,7 @@ bool UInterchangeStaticMeshFactory::AddCapsuleGeomFromVertices(const FCreateAsse
 }
 
 
-bool UInterchangeStaticMeshFactory::ImportBoxCollision(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshLodDataNode* LodDataNode)
+bool UInterchangeStaticMeshFactory::ImportBoxCollision(const FImportAssetObjectParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshLodDataNode* LodDataNode)
 {
 	using namespace UE::Interchange;
 
@@ -1086,7 +1086,7 @@ bool UInterchangeStaticMeshFactory::ImportBoxCollision(const FCreateAssetParams&
 }
 
 
-bool UInterchangeStaticMeshFactory::ImportCapsuleCollision(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshLodDataNode* LodDataNode)
+bool UInterchangeStaticMeshFactory::ImportCapsuleCollision(const FImportAssetObjectParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshLodDataNode* LodDataNode)
 {
 	using namespace UE::Interchange;
 
@@ -1134,7 +1134,7 @@ bool UInterchangeStaticMeshFactory::ImportCapsuleCollision(const FCreateAssetPar
 }
 
 
-bool UInterchangeStaticMeshFactory::ImportSphereCollision(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshLodDataNode* LodDataNode)
+bool UInterchangeStaticMeshFactory::ImportSphereCollision(const FImportAssetObjectParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshLodDataNode* LodDataNode)
 {
 	using namespace UE::Interchange;
 
@@ -1183,7 +1183,7 @@ bool UInterchangeStaticMeshFactory::ImportSphereCollision(const FCreateAssetPara
 }
 
 
-bool UInterchangeStaticMeshFactory::ImportConvexCollision(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshLodDataNode* LodDataNode)
+bool UInterchangeStaticMeshFactory::ImportConvexCollision(const FImportAssetObjectParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshLodDataNode* LodDataNode)
 {
 	using namespace UE::Interchange;
 
@@ -1273,7 +1273,7 @@ bool UInterchangeStaticMeshFactory::ImportConvexCollision(const FCreateAssetPara
 }
 
 
-bool UInterchangeStaticMeshFactory::GenerateKDopCollision(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh)
+bool UInterchangeStaticMeshFactory::GenerateKDopCollision(const FImportAssetObjectParams& Arguments, UStaticMesh* StaticMesh)
 {
 #if WITH_EDITOR
 
@@ -1427,7 +1427,7 @@ bool UInterchangeStaticMeshFactory::GenerateKDopCollision(const FCreateAssetPara
 }
 
 
-bool UInterchangeStaticMeshFactory::ImportSockets(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshFactoryNode* FactoryNode)
+bool UInterchangeStaticMeshFactory::ImportSockets(const FImportAssetObjectParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshFactoryNode* FactoryNode)
 {
 	TArray<FString> SocketUids;
 	FactoryNode->GetSocketUids(SocketUids);

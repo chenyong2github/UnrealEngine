@@ -15,7 +15,7 @@ UClass* UInterchangeDatasmithSceneFactory::GetFactoryClass() const
 }
 
 
-UObject* UInterchangeDatasmithSceneFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeDatasmithSceneFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
 	UDatasmithScene* DatasmithScene = nullptr;
 
@@ -57,7 +57,7 @@ UObject* UInterchangeDatasmithSceneFactory::CreateEmptyAsset(const FCreateAssetP
 	return DatasmithScene;
 }
 
-UObject* UInterchangeDatasmithSceneFactory::CreateAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeDatasmithSceneFactory::ImportAssetObject_Async(const FImportAssetObjectParams& Arguments)
 {
  #if !WITH_EDITORONLY_DATA
  	UE_LOG(LogInterchangeDatasmith, Error, TEXT("Cannot import datasmith scene asset in runtime, this is an editor only feature."));
@@ -119,7 +119,7 @@ UObject* UInterchangeDatasmithSceneFactory::CreateAsset(const FCreateAssetParams
 #endif //WITH_EDITORONLY_DATA
 }
 
-void UInterchangeDatasmithSceneFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeDatasmithSceneFactory::SetupObject_GameThread(const FSetupObjectParams& Arguments)
 {
 
 }

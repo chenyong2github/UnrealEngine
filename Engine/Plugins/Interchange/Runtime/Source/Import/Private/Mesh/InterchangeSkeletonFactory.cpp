@@ -17,7 +17,7 @@ UClass* UInterchangeSkeletonFactory::GetFactoryClass() const
 	return USkeleton::StaticClass();
 }
 
-UObject* UInterchangeSkeletonFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeSkeletonFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
 	UObject* Skeleton = nullptr;
 
@@ -59,7 +59,7 @@ UObject* UInterchangeSkeletonFactory::CreateEmptyAsset(const FCreateAssetParams&
 	return Skeleton;
 }
 
-UObject* UInterchangeSkeletonFactory::CreateAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeSkeletonFactory::ImportAssetObject_Async(const FImportAssetObjectParams& Arguments)
 {
 #if !WITH_EDITORONLY_DATA
 

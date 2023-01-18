@@ -18,7 +18,7 @@ UClass* UInterchangeLightActorFactory::GetFactoryClass() const
 	return ALight::StaticClass();
 }
 
-UObject* UInterchangeLightActorFactory::CreateSceneObject(const UInterchangeFactoryBase::FCreateSceneObjectsParams& CreateSceneObjectsParams)
+UObject* UInterchangeLightActorFactory::ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams)
 {
 	ALight * SpawnedActor = Cast<ALight>(UE::Interchange::ActorHelper::SpawnFactoryActor(CreateSceneObjectsParams));
 

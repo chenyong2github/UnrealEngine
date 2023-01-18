@@ -73,7 +73,7 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 				//In case Some factory code cannot run outside of the main thread we offer this callback to finish the work before calling post edit change (building the asset)
 				if (bCallPostImportGameThreadCallback && ObjectInfo.Factory)
 				{
-					UInterchangeFactoryBase::FImportPreCompletedCallbackParams Arguments;
+					UInterchangeFactoryBase::FSetupObjectParams Arguments;
 					Arguments.ImportedObject = ImportedObject;
 					Arguments.SourceData = AsyncHelper->SourceDatas[SourceIndex];
 					Arguments.FactoryNode = ObjectInfo.FactoryNode;
@@ -83,7 +83,7 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 					Arguments.Pipelines = AsyncHelper->Pipelines;
 					Arguments.OriginalPipelines = AsyncHelper->OriginalPipelines;
 					Arguments.bIsReimport = ObjectInfo.bIsReimport;
-					ObjectInfo.Factory->BeginPreCompletedCallback(Arguments);
+					ObjectInfo.Factory->SetupObject_GameThread(Arguments);
 				}
 
 				if (ImportedObject == nullptr || !IsValid(ImportedObject))
@@ -155,7 +155,7 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 				//Its possible the build of the asset to be asynchronous, the factory must handle is own asset correctly
 				if (bCallPostImportGameThreadCallback && ObjectInfo.Factory)
 				{
-					UInterchangeFactoryBase::FImportPreCompletedCallbackParams Arguments;
+					UInterchangeFactoryBase::FSetupObjectParams Arguments;
 					Arguments.ImportedObject = ImportedObject;
 					Arguments.SourceData = AsyncHelper->SourceDatas[SourceIndex];
 					Arguments.FactoryNode = ObjectInfo.FactoryNode;
@@ -164,7 +164,7 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 					Arguments.Pipelines = AsyncHelper->Pipelines;
 					Arguments.OriginalPipelines = AsyncHelper->OriginalPipelines;
 					Arguments.bIsReimport = ObjectInfo.bIsReimport;
-					ObjectInfo.Factory->EndPreCompletedCallback(Arguments);
+					ObjectInfo.Factory->FinalizeObject_GameThread(Arguments);
 				}
 			}
 		}

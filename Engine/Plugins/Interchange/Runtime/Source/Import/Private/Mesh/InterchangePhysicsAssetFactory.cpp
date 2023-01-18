@@ -16,7 +16,7 @@ UClass* UInterchangePhysicsAssetFactory::GetFactoryClass() const
 	return UPhysicsAsset::StaticClass();
 }
 
-UObject* UInterchangePhysicsAssetFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangePhysicsAssetFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
 	UObject* PhysicsAsset = nullptr;
 
@@ -58,7 +58,7 @@ UObject* UInterchangePhysicsAssetFactory::CreateEmptyAsset(const FCreateAssetPar
 	return PhysicsAsset;
 }
 
-UObject* UInterchangePhysicsAssetFactory::CreateAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangePhysicsAssetFactory::ImportAssetObject_Async(const FImportAssetObjectParams& Arguments)
 {
 #if !WITH_EDITORONLY_DATA
 
@@ -89,7 +89,7 @@ UObject* UInterchangePhysicsAssetFactory::CreateAsset(const FCreateAssetParams& 
 	if (!ExistingAsset)
 	{
 		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
-		//The UObject should have been create by calling CreateEmptyAsset on the main thread.
+		//The UObject should have been create by calling ImportAssetObject_GameThread on the main thread.
 		check(IsInGameThread());
 		PhysicsAssetObject = NewObject<UObject>(Arguments.Parent, PhysicsAssetClass, *Arguments.AssetName, RF_Public | RF_Standalone);
 	}

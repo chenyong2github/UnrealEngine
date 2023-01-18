@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "InterchangeTaskCreateAsset.h"
+#include "InterchangeTaskImportObject.h"
 
 #include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
@@ -121,9 +121,9 @@ namespace UE
 	}//ns Interchange
 }//ns UE
 
-void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::FTaskCreatePackage::DoTask")
+	TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::FTaskImportObject_GameThread::DoTask")
 #if INTERCHANGE_TRACE_ASYNCHRONOUS_TASK_ENABLED
 	INTERCHANGE_TRACE_ASYNCHRONOUS_TASK(CreatePackage)
 #endif
@@ -169,7 +169,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 			PackageName = Pkg->GetPathName();
 			AssetName = ReimportObject->GetName();
 			//Import Asset describe by the node
-			UInterchangeFactoryBase::FCreateAssetParams CreateAssetParams;
+			UInterchangeFactoryBase::FImportAssetObjectParams CreateAssetParams;
 			CreateAssetParams.AssetName = AssetName;
 			CreateAssetParams.AssetNode = FactoryNode;
 			CreateAssetParams.Parent = Pkg;
@@ -179,7 +179,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 			CreateAssetParams.ReimportObject = ReimportObject;
 			FactoryNode->SetCustomReferenceObject(FSoftObjectPath(ReimportObject));
 			//We call CreateEmptyAsset to ensure any resource use by an existing UObject is released on the game thread
-			Factory->CreateEmptyAsset(CreateAssetParams);
+			Factory->ImportAssetObject_GameThread(CreateAssetParams);
 		}
 		else
 		{
@@ -219,7 +219,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		Pkg->SetPackageFlags(PKG_NewlyCreated);
 
 		//Import Asset describe by the node
-		UInterchangeFactoryBase::FCreateAssetParams CreateAssetParams;
+		UInterchangeFactoryBase::FImportAssetObjectParams CreateAssetParams;
 		CreateAssetParams.AssetName = AssetName;
 		CreateAssetParams.AssetNode = FactoryNode;
 		CreateAssetParams.Parent = Pkg;
@@ -231,7 +231,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		}
 		CreateAssetParams.ReimportObject = ReimportObject;
 		//Make sure the asset UObject is created with the correct type on the main thread
-		UObject* NodeAsset = Factory->CreateEmptyAsset(CreateAssetParams);
+		UObject* NodeAsset = Factory->ImportAssetObject_GameThread(CreateAssetParams);
 		if (NodeAsset)
 		{
 			if (!NodeAsset->HasAnyInternalFlags(EInternalObjectFlags::Async))
@@ -260,7 +260,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 	}
 }
 
-void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+void UE::Interchange::FTaskImportObject_Async::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 #if INTERCHANGE_TRACE_ASYNCHRONOUS_TASK_ENABLED
 	INTERCHANGE_TRACE_ASYNCHRONOUS_TASK(CreateAsset)
@@ -343,7 +343,7 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 	{
 		UInterchangeTranslatorBase* Translator = AsyncHelper->Translators[SourceIndex];
 		//Import Asset describe by the node
-		UInterchangeFactoryBase::FCreateAssetParams CreateAssetParams;
+		UInterchangeFactoryBase::FImportAssetObjectParams CreateAssetParams;
 		CreateAssetParams.AssetName = AssetName;
 		CreateAssetParams.AssetNode = FactoryNode;
 		CreateAssetParams.Parent = Pkg;
@@ -355,7 +355,7 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 		}
 		CreateAssetParams.ReimportObject = ReimportObject;
 
-		NodeAsset = Factory->CreateAsset(CreateAssetParams);
+		NodeAsset = Factory->ImportAssetObject_Async(CreateAssetParams);
 	}
 	if (NodeAsset)
 	{

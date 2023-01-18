@@ -15,7 +15,7 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeSkeletalMeshActorFactory)
 
 
-UObject* UInterchangeSkeletalMeshActorFactory::CreateSceneObject(const UInterchangeFactoryBase::FCreateSceneObjectsParams& CreateSceneObjectsParams)
+UObject* UInterchangeSkeletalMeshActorFactory::ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams)
 {
 	ASkeletalMeshActor* SpawnedActor = Cast<ASkeletalMeshActor>(UE::Interchange::ActorHelper::SpawnFactoryActor(CreateSceneObjectsParams));
 
@@ -46,7 +46,7 @@ void UInterchangeSkeletalMeshActorFactory::SetupSkeletalMeshActor(const UInterch
 	SkeletalMeshComponent->UnregisterComponent();
 }
 
-void UInterchangeSkeletalMeshActorFactory::EndPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeSkeletalMeshActorFactory::FinalizeObject_GameThread(const FSetupObjectParams& Arguments)
 {
 	// Set the skeletal mesh on the component in the post import callback, once the skeletal mesh has been fully imported.
 

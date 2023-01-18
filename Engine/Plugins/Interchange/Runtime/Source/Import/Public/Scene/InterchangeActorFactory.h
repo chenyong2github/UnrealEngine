@@ -20,12 +20,7 @@ public:
 
 	virtual UClass* GetFactoryClass() const override;
 
-	virtual UObject* CreateSceneObject(const UInterchangeFactoryBase::FCreateSceneObjectsParams& CreateSceneObjectsParams) override;
-
-	virtual bool CanExecuteOnAnyThread() const override
-	{
-		return false;
-	}
+	virtual UObject* ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams) override;
 
 	// Interchange factory base interface end
 	//////////////////////////////////////////////////////////////////////////

@@ -20,21 +20,17 @@ public:
 
 	virtual UClass* GetFactoryClass() const override;
 	virtual EInterchangeFactoryAssetType GetFactoryAssetType() override { return EInterchangeFactoryAssetType::Animations; }
-	virtual UObject* CreateEmptyAsset(const FCreateAssetParams& Arguments) override;
-	virtual UObject* CreateAsset(const FCreateAssetParams& Arguments) override;
-	virtual void BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) override;
-	virtual void EndPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) override;
-	virtual bool CanExecuteOnAnyThread() const override
-	{
-		//Currently we cannot use the anim sequence controller outside of the game thread
-		return false;
-	}
+	virtual UObject* ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments) override;
+	virtual void SetupObject_GameThread(const FSetupObjectParams& Arguments) override;
+	virtual void FinalizeObject_GameThread(const FSetupObjectParams& Arguments) override;
 
 	// Interchange factory base interface end
 	//////////////////////////////////////////////////////////////////////////
 
 private:
 	const UInterchangeTranslatorBase* Translator = nullptr;
+
+	UObject* ImportObjectSourceData(const FImportAssetObjectParams& Arguments);
 };
 
 

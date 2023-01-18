@@ -116,7 +116,7 @@ namespace UE
 					return 0; // Consider 0 as the default output to connect to since most expressions have a single output
 				}
 
-				void SetupFunctionCallExpression(const UInterchangeFactoryBase::FCreateAssetParams& Arguments, const UInterchangeMaterialExpressionFactoryNode& ExpressionNode, UMaterialExpressionMaterialFunctionCall* FunctionCallExpression)
+				void SetupFunctionCallExpression(const UInterchangeFactoryBase::FImportAssetObjectParams& Arguments, const UInterchangeMaterialExpressionFactoryNode& ExpressionNode, UMaterialExpressionMaterialFunctionCall* FunctionCallExpression)
 				{
 					FInterchangeImportMaterialAsyncHelper& AsyncHelper = FInterchangeImportMaterialAsyncHelper::GetInstance();
 					if (const UInterchangeMaterialFunctionCallExpressionFactoryNode* FunctionCallFactoryNode = Cast<UInterchangeMaterialFunctionCallExpressionFactoryNode>(&ExpressionNode))
@@ -139,7 +139,7 @@ namespace UE
 					AsyncHelper.UpdateFromFunctionResource(FunctionCallExpression);
 				}
 
-				void SetupTextureExpression(const UInterchangeFactoryBase::FCreateAssetParams& Arguments, const UInterchangeMaterialExpressionFactoryNode* ExpressionNode, UMaterialExpressionTextureBase* TextureExpression)
+				void SetupTextureExpression(const UInterchangeFactoryBase::FImportAssetObjectParams& Arguments, const UInterchangeMaterialExpressionFactoryNode* ExpressionNode, UMaterialExpressionTextureBase* TextureExpression)
 				{
 					using namespace UE::Interchange::Materials::Standard::Nodes::TextureSample;
 
@@ -179,7 +179,7 @@ namespace UE
 				class FMaterialExpressionBuilder
 				{
 				public:
-					FMaterialExpressionBuilder(UMaterial* InMaterial, UMaterialFunction* InMaterialFunction, const UInterchangeFactoryBase::FCreateAssetParams& InArguments)
+					FMaterialExpressionBuilder(UMaterial* InMaterial, UMaterialFunction* InMaterialFunction, const UInterchangeFactoryBase::FImportAssetObjectParams& InArguments)
 						: Material(InMaterial)
 						, MaterialFunction(InMaterialFunction)
 						, Arguments(InArguments)
@@ -327,7 +327,7 @@ namespace UE
 
 					UMaterial* Material = nullptr;
 					UMaterialFunction* MaterialFunction = nullptr;
-					const UInterchangeFactoryBase::FCreateAssetParams& Arguments;
+					const UInterchangeFactoryBase::FImportAssetObjectParams& Arguments;
 					TMap<FString, UMaterialExpression*> Expressions;
 				};
 #endif // #if WITH_EDITOR
@@ -341,7 +341,7 @@ UClass* UInterchangeMaterialFactory::GetFactoryClass() const
 	return UMaterialInterface::StaticClass();
 }
 
-UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeMaterialFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
 	UObject* Material = nullptr;
 
@@ -417,7 +417,7 @@ UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams&
 	return Material;
 }
 
-UObject* UInterchangeMaterialFactory::CreateAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeMaterialFactory::ImportAssetObject_Async(const FImportAssetObjectParams& Arguments)
 {
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
@@ -505,10 +505,10 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const FCreateAssetParams& Argu
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-void UInterchangeMaterialFactory::BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeMaterialFactory::SetupObject_GameThread(const FSetupObjectParams& Arguments)
 {
 	check(IsInGameThread());
-	Super::BeginPreCompletedCallback(Arguments);
+	Super::SetupObject_GameThread(Arguments);
 
 	if (ensure(Arguments.ImportedObject && Arguments.SourceData))
 	{
@@ -573,7 +573,7 @@ bool UInterchangeMaterialFactory::SetSourceFilename(const UObject* Object, const
 }
 
 #if WITH_EDITOR
-void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FCreateAssetParams& Arguments, const UInterchangeBaseMaterialFactoryNode* BaseMaterialFactoryNode)
+void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FImportAssetObjectParams& Arguments, const UInterchangeBaseMaterialFactoryNode* BaseMaterialFactoryNode)
 {
 	using namespace UE::Interchange::Materials;
 	using namespace UE::Interchange::MaterialFactory::Internal;
@@ -1148,7 +1148,7 @@ UClass* UInterchangeMaterialFunctionFactory::GetFactoryClass() const
 	return UMaterialFunctionInterface::StaticClass();
 }
 
-UObject* UInterchangeMaterialFunctionFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeMaterialFunctionFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
 	UObject* Material = nullptr;
 
@@ -1196,7 +1196,7 @@ UObject* UInterchangeMaterialFunctionFactory::CreateEmptyAsset(const FCreateAsse
 	return Material;
 }
 
-UObject* UInterchangeMaterialFunctionFactory::CreateAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeMaterialFunctionFactory::ImportAssetObject_Async(const FImportAssetObjectParams& Arguments)
 {
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
@@ -1262,9 +1262,9 @@ UObject* UInterchangeMaterialFunctionFactory::CreateAsset(const FCreateAssetPara
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-void UInterchangeMaterialFunctionFactory::BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeMaterialFunctionFactory::SetupObject_GameThread(const FSetupObjectParams& Arguments)
 {
-	Super::BeginPreCompletedCallback(Arguments);
+	Super::SetupObject_GameThread(Arguments);
 
 #if WITH_EDITORONLY_DATA
 	if (ensure(Arguments.ImportedObject && Arguments.SourceData))
@@ -1287,7 +1287,7 @@ void UInterchangeMaterialFunctionFactory::BeginPreCompletedCallback(const FImpor
 }
 
 #if WITH_EDITOR
-void UInterchangeMaterialFunctionFactory::SetupMaterial(UMaterialFunction* MaterialFunction, const FCreateAssetParams& Arguments, const UInterchangeMaterialFunctionFactoryNode* MaterialFunctionFactoryNode)
+void UInterchangeMaterialFunctionFactory::SetupMaterial(UMaterialFunction* MaterialFunction, const FImportAssetObjectParams& Arguments, const UInterchangeMaterialFunctionFactoryNode* MaterialFunctionFactoryNode)
 {
 	using namespace UE::Interchange::MaterialFactory::Internal;
 	using namespace UE::Interchange::Materials;

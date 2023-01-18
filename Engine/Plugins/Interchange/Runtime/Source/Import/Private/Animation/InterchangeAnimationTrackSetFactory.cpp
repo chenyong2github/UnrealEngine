@@ -560,7 +560,7 @@ UClass* UInterchangeAnimationTrackSetFactory::GetFactoryClass() const
 	return ULevelSequence::StaticClass();
 }
 
-UObject* UInterchangeAnimationTrackSetFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeAnimationTrackSetFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 
@@ -612,11 +612,11 @@ UObject* UInterchangeAnimationTrackSetFactory::CreateEmptyAsset(const FCreateAss
 
 	LevelSequence->PreEditChange(nullptr);
 
-	return LevelSequence;
+	return ImportObjectSourceData(Arguments);
 #endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
 }
 
-UObject* UInterchangeAnimationTrackSetFactory::CreateAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeAnimationTrackSetFactory::ImportObjectSourceData(const FImportAssetObjectParams& Arguments)
 {
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 	// TODO: Can we import ULevelSequence at runtime
@@ -706,15 +706,15 @@ UObject* UInterchangeAnimationTrackSetFactory::CreateAsset(const FCreateAssetPar
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-void UInterchangeAnimationTrackSetFactory::BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeAnimationTrackSetFactory::SetupObject_GameThread(const FSetupObjectParams& Arguments)
 {
 	check(IsInGameThread());
-	Super::BeginPreCompletedCallback(Arguments);
+	Super::SetupObject_GameThread(Arguments);
 
 	// TODO: Talk with sequence team about adding AssetImportData to ULevelSequence for re-import 
 }
 
-void UInterchangeAnimationTrackSetFactory::EndPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeAnimationTrackSetFactory::FinalizeObject_GameThread(const FSetupObjectParams& Arguments)
 {
 	check(IsInGameThread());
 	if (ULevelSequence* LevelSequence = Cast<ULevelSequence>(Arguments.ImportedObject))
@@ -726,7 +726,7 @@ void UInterchangeAnimationTrackSetFactory::EndPreCompletedCallback(const FImport
 		// Note: Sequencer team is aware of the issue and will look their design in a future release
 		UMovieSceneSignedObject::ResetImplicitScopedModifyDefer();
 	}
-	Super::EndPreCompletedCallback(Arguments);
+	Super::FinalizeObject_GameThread(Arguments);
 }
 
 #undef LOCTEXT_NAMESPACE

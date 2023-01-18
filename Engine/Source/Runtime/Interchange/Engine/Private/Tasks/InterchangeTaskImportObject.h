@@ -16,9 +16,9 @@ namespace UE
 	{
 
 		/**
-		 * This task create package, Cook::PackageTracker::NotifyUObjectCreated is not thread safe, so we need to create the packages on the main thread
+		 * This task create UPackage and UObject, Cook::PackageTracker::NotifyUObjectCreated is not thread safe, so we need to create the packages on the main thread
 		 */
-		class FTaskCreatePackage
+		class FTaskImportObject_GameThread
 		{
 		private:
 			FString PackageBasePath;
@@ -28,7 +28,7 @@ namespace UE
 			const UClass* FactoryClass;
 
 		public:
-			FTaskCreatePackage(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, UInterchangeFactoryBaseNode* InFactoryNode, const UClass* InFactoryClass)
+			FTaskImportObject_GameThread(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, UInterchangeFactoryBaseNode* InFactoryNode, const UClass* InFactoryClass)
 				: PackageBasePath(InPackageBasePath)
 				, SourceIndex(InSourceIndex)
 				, WeakAsyncHelper(InAsyncHelper)
@@ -41,12 +41,6 @@ namespace UE
 
 			ENamedThreads::Type GetDesiredThread() const
 			{
-				// This is no longer true now that we have to construct a factory here
-				//if (WeakAsyncHelper.IsValid() && WeakAsyncHelper.Pin()->TaskData.ReimportObject)
-				//{
-				//	//When doing a reimport the package already exist, so we can get it outside of the main thread
-				//	return ENamedThreads::AnyBackgroundThreadNormalTask;
-				//}
 				return ENamedThreads::GameThread;
 			}
 
@@ -57,35 +51,33 @@ namespace UE
 
 			TStatId GetStatId() const
 			{
-				RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskCreatePackage, STATGROUP_TaskGraphTasks);
+				RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskImportObject_GameThread, STATGROUP_TaskGraphTasks);
 			}
 
 			void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
 		};
 
-		class FTaskCreateAsset
+		class FTaskImportObject_Async
 		{
 		private:
 			FString PackageBasePath;
 			int32 SourceIndex;
 			TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
 			UInterchangeFactoryBaseNode* FactoryNode;
-			bool bCanRunOnAnyThread;
 
 		public:
-			FTaskCreateAsset(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, UInterchangeFactoryBaseNode* InFactoryNode, bool bInCanRunOnAnyThread)
+			FTaskImportObject_Async(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, UInterchangeFactoryBaseNode* InFactoryNode)
 				: PackageBasePath(InPackageBasePath)
 				, SourceIndex(InSourceIndex)
 				, WeakAsyncHelper(InAsyncHelper)
 				, FactoryNode(InFactoryNode)
-				, bCanRunOnAnyThread(bInCanRunOnAnyThread)
 			{
 				check(FactoryNode);
 			}
 
 			ENamedThreads::Type GetDesiredThread() const
 			{
-				return bCanRunOnAnyThread ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::GameThread;
+				return ENamedThreads::AnyBackgroundThreadNormalTask;
 			}
 
 			static ESubsequentsMode::Type GetSubsequentsMode()
@@ -95,7 +87,7 @@ namespace UE
 
 			TStatId GetStatId() const
 			{
-				RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskCreateAsset, STATGROUP_TaskGraphTasks);
+				RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskImportObject_Async, STATGROUP_TaskGraphTasks);
 			}
 
 			void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);

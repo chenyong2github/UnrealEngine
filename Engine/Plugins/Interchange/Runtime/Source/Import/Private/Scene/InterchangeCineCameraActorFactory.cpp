@@ -19,7 +19,7 @@ UClass* UInterchangeCineCameraActorFactory::GetFactoryClass() const
 	return ACineCameraActor::StaticClass();
 }
 
-UObject* UInterchangeCineCameraActorFactory::CreateSceneObject(const UInterchangeFactoryBase::FCreateSceneObjectsParams& CreateSceneObjectsParams)
+UObject* UInterchangeCineCameraActorFactory::ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams)
 {
 	ACineCameraActor* SpawnedActor = Cast<ACineCameraActor>(UE::Interchange::ActorHelper::SpawnFactoryActor(CreateSceneObjectsParams));
 

@@ -65,7 +65,7 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 		FString NodeDisplayName = FactoryNode->GetDisplayLabel();
 		SanitizeObjectName(NodeDisplayName);
 
-		UInterchangeFactoryBase::FCreateSceneObjectsParams CreateSceneObjectsParams;
+		UInterchangeFactoryBase::FImportSceneObjectsParams CreateSceneObjectsParams;
 		CreateSceneObjectsParams.ObjectName = NodeDisplayName;
 		CreateSceneObjectsParams.FactoryNode = FactoryNode;
 		CreateSceneObjectsParams.Level = GWorld->GetCurrentLevel();
@@ -75,7 +75,7 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 			CreateSceneObjectsParams.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
 		}
 
-		UObject* SceneObject = Factory->CreateSceneObject(CreateSceneObjectsParams);
+		UObject* SceneObject = Factory->ImportSceneObject_GameThread(CreateSceneObjectsParams);
 		if (SceneObject)
 		{
 			FScopeLock Lock(&AsyncHelper->ImportedSceneObjectsPerSourceIndexLock);

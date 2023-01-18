@@ -305,7 +305,6 @@ protected:
 	UE_DEPRECATED(5.2, "This function is replace by ExecutePipeline.")
 	virtual void ExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)
 	{
-		ExecutePipeline(BaseNodeContainer, SourceDatas);
 	}
 
 	/**
@@ -313,6 +312,9 @@ protected:
 	 */
 	virtual void ExecutePipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		ExecutePreImportPipeline(BaseNodeContainer, SourceDatas);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/**

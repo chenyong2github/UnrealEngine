@@ -21,7 +21,7 @@ public:
 
 	virtual UClass* GetFactoryClass() const override;
 
-	virtual UObject* CreateSceneObject(const FCreateSceneObjectsParams& Arguments) override;
+	virtual UObject* ImportSceneObject_GameThread(const FImportSceneObjectsParams& Arguments) override;
 
 	// Interchange factory base interface end
 	//////////////////////////////////////////////////////////////////////////

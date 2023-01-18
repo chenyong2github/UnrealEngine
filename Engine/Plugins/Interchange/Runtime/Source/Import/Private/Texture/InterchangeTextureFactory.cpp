@@ -1457,7 +1457,7 @@ UClass* UInterchangeTextureFactory::GetFactoryClass() const
 	return UTexture::StaticClass();
 }
 
-UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeTextureFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
 	using namespace  UE::Interchange::Private::InterchangeTextureFactory;
 
@@ -1534,7 +1534,7 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 }
 
 // The payload fetching and the heavy operations are done here
-UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeTextureFactory::ImportAssetObject_Async(const FImportAssetObjectParams& Arguments)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UInterchangeTextureFactory::CreateAsset);
 
@@ -1666,7 +1666,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-void UInterchangeTextureFactory::BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeTextureFactory::SetupObject_GameThread(const FSetupObjectParams& Arguments)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UInterchangeTextureFactory::BeginPreCompletedCallback);
 
@@ -1730,7 +1730,7 @@ void UInterchangeTextureFactory::BeginPreCompletedCallback(const FImportPreCompl
 		}
 	}
 
-	Super::BeginPreCompletedCallback(Arguments);
+	Super::SetupObject_GameThread(Arguments);
 
 	//TODO make sure this work at runtime
 #if WITH_EDITORONLY_DATA

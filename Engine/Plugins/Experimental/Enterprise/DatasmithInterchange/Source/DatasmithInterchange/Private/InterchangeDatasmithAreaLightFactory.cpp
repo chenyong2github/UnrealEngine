@@ -29,7 +29,7 @@ UClass* UInterchangeDatasmithAreaLightFactory::GetFactoryClass() const
 	return LightShapeBlueprint->GeneratedClass;
 }
 
-UObject* UInterchangeDatasmithAreaLightFactory::CreateSceneObject(const UInterchangeFactoryBase::FCreateSceneObjectsParams& CreateSceneObjectsParams)
+UObject* UInterchangeDatasmithAreaLightFactory::ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams)
 {
 	//using namespace UE::Interchange::ActorHelper;
 

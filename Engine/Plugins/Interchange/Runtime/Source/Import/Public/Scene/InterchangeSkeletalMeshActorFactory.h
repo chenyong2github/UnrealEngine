@@ -24,14 +24,9 @@ public:
 
 	virtual UClass* GetFactoryClass() const override;
 
-	virtual UObject* CreateSceneObject(const UInterchangeFactoryBase::FCreateSceneObjectsParams& CreateSceneObjectsParams) override;
+	virtual UObject* ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams) override;
 
-	virtual bool CanExecuteOnAnyThread() const override
-	{
-		return false;
-	}
-
-	virtual void EndPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) override;
+	virtual void FinalizeObject_GameThread(const FSetupObjectParams& Arguments) override;
 
 	// Interchange factory base interface end
 	//////////////////////////////////////////////////////////////////////////

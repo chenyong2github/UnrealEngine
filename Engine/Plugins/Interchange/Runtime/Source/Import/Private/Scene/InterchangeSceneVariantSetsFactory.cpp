@@ -294,7 +294,7 @@ UClass* UInterchangeSceneVariantSetsFactory::GetFactoryClass() const
 	return ULevelVariantSets::StaticClass();
 }
 
-UObject* UInterchangeSceneVariantSetsFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeSceneVariantSetsFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 
@@ -350,11 +350,11 @@ UObject* UInterchangeSceneVariantSetsFactory::CreateEmptyAsset(const FCreateAsse
 		return nullptr;
 	}
 
-	return LevelVariantSets;
+	return ImportObjectSourceData(Arguments);
 #endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
 }
 
-UObject* UInterchangeSceneVariantSetsFactory::CreateAsset(const FCreateAssetParams& Arguments)
+UObject* UInterchangeSceneVariantSetsFactory::ImportObjectSourceData(const FImportAssetObjectParams& Arguments)
 {
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 	// TODO: Can we import ULevelVariantSets at runtime
@@ -441,10 +441,10 @@ UObject* UInterchangeSceneVariantSetsFactory::CreateAsset(const FCreateAssetPara
 #endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
 }
 
-void UInterchangeSceneVariantSetsFactory::BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeSceneVariantSetsFactory::SetupObject_GameThread(const FSetupObjectParams& Arguments)
 {
 	check(IsInGameThread());
-	Super::BeginPreCompletedCallback(Arguments);
+	Super::SetupObject_GameThread(Arguments);
 
 	// TODO: Need to add an AssetImportData property to ULevelVariantSets
 }

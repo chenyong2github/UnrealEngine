@@ -9,8 +9,8 @@
 #include "InterchangeManager.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTaskCompletion.h"
-#include "InterchangeTaskCreateAsset.h"
 #include "InterchangeTaskCreateSceneObjects.h"
+#include "InterchangeTaskImportObject.h"
 #include "InterchangeTaskPipeline.h"
 #include "InterchangeTranslatorBase.h"
 #include "Misc/Paths.h"
@@ -245,7 +245,6 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 		const int32 SourceIndex = TaskData.SourceIndex;
 		const UClass* const FactoryClass = TaskData.FactoryClass;
 		UInterchangeFactoryBaseNode* FactoryNode = TaskData.Nodes[0];
-		const bool bFactoryCanRunOnAnyThread = FactoryClass->GetDefaultObject<UInterchangeFactoryBase>()->CanExecuteOnAnyThread();
 
 		if (TaskData.bIsSceneNode)
 		{
@@ -293,15 +292,15 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 			if (ensureMsgf(!CreatedTasksAssetNames.Contains(AssetFullPath),
 				TEXT("Found multiple task data with the same asset name (%s). Only one will be executed."), *AssetFullPath))
 			{
-				//Add create package task has a prerequisite of FTaskCreateAsset. Create package task is a game thread task
+				//Add create package task has a prerequisite of FTaskImportObject_Async. Create package task is a game thread task
 				FGraphEventArray CreatePackagePrerequistes;
 				int32 CreatePackageTaskIndex = AsyncHelper->CreatePackageTasks.Add(
-					TGraphTask<FTaskCreatePackage>::CreateTask(&(TaskData.Prerequisites)).ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, FactoryNode, FactoryClass)
+					TGraphTask<FTaskImportObject_GameThread>::CreateTask(&(TaskData.Prerequisites)).ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, FactoryNode, FactoryClass)
 				);
 				CreatePackagePrerequistes.Add(AsyncHelper->CreatePackageTasks[CreatePackageTaskIndex]);
 
 				int32 CreateTaskIndex = AsyncHelper->CreateAssetTasks.Add(
-					TGraphTask<FTaskCreateAsset>::CreateTask(&(CreatePackagePrerequistes)).ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, FactoryNode, bFactoryCanRunOnAnyThread)
+					TGraphTask<FTaskImportObject_Async>::CreateTask(&(CreatePackagePrerequistes)).ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, FactoryNode)
 				);
 
 				CreatedTasksAssetNames.Add(AssetFullPath);

@@ -35,7 +35,7 @@ AActor* UE::Interchange::ActorHelper::GetSpawnedParentActor(const UInterchangeBa
 	return  ParentActor;
 }
 
-AActor* UE::Interchange::ActorHelper::SpawnFactoryActor(const UInterchangeFactoryBase::FCreateSceneObjectsParams& CreateSceneObjectsParams)
+AActor* UE::Interchange::ActorHelper::SpawnFactoryActor(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams)
 {
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.Name = FName(*CreateSceneObjectsParams.ObjectName);

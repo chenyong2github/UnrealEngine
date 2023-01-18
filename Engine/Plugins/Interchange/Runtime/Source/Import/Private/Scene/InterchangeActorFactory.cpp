@@ -14,7 +14,7 @@ UClass* UInterchangeActorFactory::GetFactoryClass() const
 	return AActor::StaticClass();
 }
 
-UObject* UInterchangeActorFactory::CreateSceneObject(const UInterchangeFactoryBase::FCreateSceneObjectsParams& CreateSceneObjectsParams)
+UObject* UInterchangeActorFactory::ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams)
 {
 	AActor* SpawnedActor = UE::Interchange::ActorHelper::SpawnFactoryActor(CreateSceneObjectsParams);
 
