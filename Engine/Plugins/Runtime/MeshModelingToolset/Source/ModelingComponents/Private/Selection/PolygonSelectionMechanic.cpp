@@ -4,6 +4,7 @@
 #include "Engine/World.h"
 #include "Selection/GroupTopologySelector.h"
 #include "Selection/PersistentMeshSelection.h"
+#include "Selections/GeometrySelection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PolygonSelectionMechanic)
 
@@ -60,15 +61,189 @@ void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 }
 
 
-void UPolygonSelectionMechanic::GetSelection(UPersistentMeshSelection& SelectionOut, const FCompactMaps* CompactMapsToApply) const
+void UPolygonSelectionMechanic::GetSelection_AsGroupTopology(UE::Geometry::FGeometrySelection& SelectionOut, const FCompactMaps* CompactMapsToApply) const
 {
-	SelectionOut.SetSelection(*Topology, PersistentSelection, CompactMapsToApply);
+	const FGroupTopologySelection& CurSelection = PersistentSelection;
+	if (SelectionOut.TopologyType != EGeometryTopologyType::Polygroup)
+	{
+		return;
+	}
+	if (SelectionOut.ElementType == EGeometryElementType::Vertex)
+	{
+		for (int32 CornerID : CurSelection.SelectedCornerIDs)
+		{
+			int32 VertexID = Topology->GetCornerVertexID(CornerID);
+			if (CompactMapsToApply != nullptr)
+			{
+				VertexID = CompactMapsToApply->GetVertexMapping(VertexID);
+			}
+			SelectionOut.Selection.Add( FGeoSelectionID(VertexID, CornerID).Encoded() );
+		}
+	}
+	else if (SelectionOut.ElementType == EGeometryElementType::Edge)
+	{
+		// TODO: not sure how we can apply compact maps here because mapping does not included compacted edges? are edges even compacted?
+		if ( CompactMapsToApply == nullptr )
+		{
+			for (int32 GroupEdgeID : CurSelection.SelectedEdgeIDs)
+			{
+				const TArray<int>& GroupEdge = Topology->GetGroupEdgeEdges(GroupEdgeID);
+				FMeshTriEdgeID TriEdgeID = Topology->GetMesh()->GetTriEdgeIDFromEdgeID(GroupEdge[0]);
+				SelectionOut.Selection.Add( FGeoSelectionID(TriEdgeID.Encoded(), GroupEdgeID).Encoded() );
+			}
+		}
+	}
+	else if (SelectionOut.ElementType == EGeometryElementType::Face)
+	{
+		for (int32 GroupID : CurSelection.SelectedGroupIDs)
+		{
+			const FGroupTopology::FGroup* GroupFace = Topology->FindGroupByID(GroupID);
+			if ( GroupFace )
+			{
+				FGeoSelectionID ID = FGeoSelectionID(GroupFace->Triangles[0], GroupFace->GroupID);
+				SelectionOut.Selection.Add(ID.Encoded());
+			}
+		}
+	}
 }
 
-void UPolygonSelectionMechanic::LoadSelection(const UPersistentMeshSelection& SelectionIn)
+
+void UPolygonSelectionMechanic::GetSelection_AsTriangleTopology(UE::Geometry::FGeometrySelection& SelectionOut, const FCompactMaps* CompactMapsToApply) const
 {
-	SelectionIn.ExtractIntoSelectionObject(*Topology, PersistentSelection);
+	// note: this is currently the same code as GetSelection_AsGroupTopology() except for the topology-type verification check
+
+	const FGroupTopologySelection& CurSelection = PersistentSelection;
+	if (SelectionOut.TopologyType != EGeometryTopologyType::Triangle)
+	{
+		return;
+	}
+	if (SelectionOut.ElementType == EGeometryElementType::Vertex)
+	{
+		for (int32 CornerID : CurSelection.SelectedCornerIDs)
+		{
+			int32 VertexID = Topology->GetCornerVertexID(CornerID);
+			if (CompactMapsToApply != nullptr)
+			{
+				VertexID = CompactMapsToApply->GetVertexMapping(VertexID);
+			}
+			SelectionOut.Selection.Add( FGeoSelectionID::MeshVertex(VertexID).Encoded() );
+		}
+	}
+	else if (SelectionOut.ElementType == EGeometryElementType::Edge)
+	{
+		// TODO: not sure how we can apply compact maps here because mapping does not included compacted edges? are edges even compacted?
+		if ( CompactMapsToApply == nullptr )
+		{
+			for (int32 GroupEdgeID : CurSelection.SelectedEdgeIDs)
+			{
+				const TArray<int>& GroupEdge = Topology->GetGroupEdgeEdges(GroupEdgeID);
+				FMeshTriEdgeID TriEdgeID = Topology->GetMesh()->GetTriEdgeIDFromEdgeID(GroupEdge[0]);
+				SelectionOut.Selection.Add( FGeoSelectionID::MeshEdge(TriEdgeID).Encoded() );
+			}
+		}
+	}
+	else if (SelectionOut.ElementType == EGeometryElementType::Face)
+	{
+		for (int32 GroupID : CurSelection.SelectedGroupIDs)
+		{
+			const FGroupTopology::FGroup* GroupFace = Topology->FindGroupByID(GroupID);
+			if ( GroupFace )
+			{
+				SelectionOut.Selection.Add( FGeoSelectionID::MeshTriangle(GroupFace->Triangles[0]).Encoded() );
+			}
+		}
+	}
 }
+
+
+void UPolygonSelectionMechanic::SetSelection_AsGroupTopology(const UE::Geometry::FGeometrySelection& Selection)
+{
+	if (Selection.TopologyType != EGeometryTopologyType::Polygroup)
+	{
+		return;
+	}
+	if (Selection.ElementType == EGeometryElementType::Vertex)
+	{
+		for (uint64 ElementID : Selection.Selection)
+		{
+			int32 VertexID = FGeoSelectionID(ElementID).GeometryID;
+			int32 CornerID = Topology->GetCornerIDFromVertexID(VertexID);
+			if (CornerID != IndexConstants::InvalidID)
+			{
+				PersistentSelection.SelectedCornerIDs.Add(CornerID);
+			}
+		}
+	}
+	else if (Selection.ElementType == EGeometryElementType::Edge)
+	{
+		for (uint64 ElementID : Selection.Selection)
+		{
+			FMeshTriEdgeID TriEdgeID(FGeoSelectionID(ElementID).GeometryID);
+			int32 GroupEdgeID = Topology->FindGroupEdgeID(TriEdgeID);
+			if (GroupEdgeID != IndexConstants::InvalidID)
+			{
+				PersistentSelection.SelectedEdgeIDs.Add(GroupEdgeID);
+			}
+		}
+	}
+	else if (Selection.ElementType == EGeometryElementType::Face)
+	{
+		for (uint64 ElementID : Selection.Selection)
+		{
+			int32 TriangleID = FGeoSelectionID(ElementID).GeometryID;
+			int32 GroupID = Topology->GetGroupID(TriangleID);
+			if (Topology->FindGroupByID(GroupID) != nullptr)
+			{
+				PersistentSelection.SelectedGroupIDs.Add(GroupID);
+			}
+		}
+	}
+}
+
+void UPolygonSelectionMechanic::SetSelection_AsTriangleTopology(const UE::Geometry::FGeometrySelection& Selection)
+{
+	if (Selection.TopologyType != EGeometryTopologyType::Triangle)
+	{
+		return;
+	}
+	if (Selection.ElementType == EGeometryElementType::Vertex)
+	{
+		for (uint64 ElementID : Selection.Selection)
+		{
+			int32 VertexID = FGeoSelectionID(ElementID).GeometryID;
+			int32 CornerID = Topology->GetCornerIDFromVertexID(VertexID);
+			if (CornerID != IndexConstants::InvalidID)
+			{
+				PersistentSelection.SelectedCornerIDs.Add(CornerID);
+			}
+		}
+	}
+	else if (Selection.ElementType == EGeometryElementType::Edge)
+	{
+		for (uint64 ElementID : Selection.Selection)
+		{
+			FMeshTriEdgeID TriEdgeID(FGeoSelectionID(ElementID).GeometryID);
+			int32 GroupEdgeID = Topology->FindGroupEdgeID(TriEdgeID);
+			if (GroupEdgeID != IndexConstants::InvalidID)
+			{
+				PersistentSelection.SelectedEdgeIDs.Add(GroupEdgeID);
+			}
+		}
+	}
+	else if (Selection.ElementType == EGeometryElementType::Face)
+	{
+		for (uint64 ElementID : Selection.Selection)
+		{
+			int32 TriangleID = FGeoSelectionID(ElementID).GeometryID;
+			int32 GroupID = Topology->GetGroupID(TriangleID);
+			if (Topology->FindGroupByID(GroupID) != nullptr)
+			{
+				PersistentSelection.SelectedGroupIDs.Add(GroupID);
+			}
+		}
+	}
+}
+
 
 bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 {

@@ -16,8 +16,6 @@
 #include "DynamicMeshBuilder.h"
 #include "ToolSetupUtil.h"
 
-#include "Selection/PersistentMeshSelection.h"
-
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometrySelectionManager)
 
 static TAutoConsoleVariable<int32> CVarGeometrySelectionManager_FullSelectionHoverHighlights(
@@ -669,7 +667,33 @@ void UGeometrySelectionManager::EndTrackedSelectionChange()
 }
 
 
+bool UGeometrySelectionManager::SetSelectionForComponent(UPrimitiveComponent* Component, const FGeometrySelection& NewSelection)
+{
+	for (TSharedPtr<FGeometrySelectionTarget> Target : ActiveTargetReferences)
+	{
+		if (Target->TargetIdentifier.TargetObject == Component)
+		{
+			FGeometrySelection InitialSelection = Target->Selection;
+			FGeometrySelectionDelta AfterDelta;
+			Target->Selector->UpdateSelectionFromSelection(
+				NewSelection, true, *Target->SelectionEditor, 
+				FGeometrySelectionUpdateConfig{EGeometrySelectionChangeType::Replace}, &AfterDelta);
+			if ( AfterDelta.IsEmpty() == false )
+			{
+				TUniquePtr<FGeometrySelectionReplaceChange> NewSelectionChange = MakeUnique<FGeometrySelectionReplaceChange>();
+				NewSelectionChange->Identifier = Target->Selector->GetIdentifier();
+				NewSelectionChange->After = Target->Selection;
+				NewSelectionChange->Before = InitialSelection;
+				GetTransactionsAPI()->AppendChange(this, MoveTemp(NewSelectionChange), LOCTEXT("NewSelection", "New Selection"));
 
+				bSelectionRenderCachesDirty = true;
+				OnSelectionModified.Broadcast();
+			}
+			return true;
+		}
+	}
+	return false;
+}
 
 
 bool UGeometrySelectionManager::UpdateSelectionPreviewViaRaycast(
@@ -1179,57 +1203,6 @@ void UGeometrySelectionManager::DebugRender(IToolsContextRenderAPI* RenderAPI)
 }
 
 
-
-UPersistentMeshSelection* UGeometrySelectionManager::GetActiveSingleSelectionConverted_Legacy(UPrimitiveComponent* ForComponent)
-{
-	OldSelection = nullptr;
-
-	if (HasSelection() == false)
-	{
-		return nullptr;
-	}
-
-	for (TSharedPtr<FGeometrySelectionTarget> Target : ActiveTargetReferences)
-	{
-		if (Target->TargetIdentifier.TargetObject == ForComponent)
-		{
-			const FGeometrySelection& GeoSelection = Target->Selection;
-
-			OldSelection = NewObject<UPersistentMeshSelection>(this);
-			FGenericMeshSelection Selection;
-			Selection.SourceComponent = ForComponent;
-
-			if (GeoSelection.TopologyType == EGeometryTopologyType::Triangle)
-			{
-				Selection.TopologyType = FGenericMeshSelection::ETopologyType::FTriangleGroupTopology;
-				if (GeoSelection.ElementType == EGeometryElementType::Face)
-				{
-					for (uint64 tid : GeoSelection.Selection)
-					{
-						Selection.FaceIDs.Add((int32)tid);
-					}
-				}
-			}
-			else
-			{
-				Selection.TopologyType = FGenericMeshSelection::ETopologyType::FGroupTopology;
-				if (GeoSelection.ElementType == EGeometryElementType::Face)
-				{
-					for (uint64 EncodedID : GeoSelection.Selection)
-					{
-						FGeoSelectionID SelectionID(EncodedID);
-						Selection.FaceIDs.Add((int32)SelectionID.TopologyID);
-					}
-				}
-			}
-
-			
-			OldSelection->SetSelection(Selection);
-		}
-	}
-
-	return OldSelection;
-}
 
 
 #undef LOCTEXT_NAMESPACE

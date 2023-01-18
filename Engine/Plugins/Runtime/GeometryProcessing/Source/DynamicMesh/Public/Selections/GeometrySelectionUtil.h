@@ -193,6 +193,29 @@ DYNAMICMESH_API bool ConvertPolygroupSelectionToTopologySelection(
 
 
 /**
+ * Convert Triangle IDs to target Selection type
+ */
+DYNAMICMESH_API bool InitializeSelectionFromTriangles(
+	const UE::Geometry::FDynamicMesh3& Mesh,
+	const FGroupTopology* GroupTopology,
+	TArrayView<const int> Triangles,
+	FGeometrySelection& SelectionOut);
+
+
+/**
+ * Convert Selection from one type to another, based on geometry/topology types in FromSelectionIn and ToSelectionOut.
+ * Not all conversion types are necessarily supported
+ * (currently only Triangles -> All Others is working)
+ * @return true if conversion is supported and was computed successfully
+ */
+DYNAMICMESH_API bool ConvertSelection(
+	const UE::Geometry::FDynamicMesh3& Mesh,
+	const FGroupTopology* GroupTopology,
+	const FGeometrySelection& FromSelectionIn,
+	FGeometrySelection& ToSelectionOut);
+
+
+/**
  * Select all elements of the provided Mesh and GroupTopology that pass the provided SelectionIDPredicate, 
  * and store in the output AllSelection. The type of elements selected is defined by the existing configured
  * type of the AllSelection parameter. 

@@ -102,8 +102,9 @@ struct MODELINGCOMPONENTS_API FGenericMeshSelection
 /**
  * UPersistentMeshSelection is a UObject wrapper for a FGenericMeshSelection
  */
-UCLASS()
-class MODELINGCOMPONENTS_API UPersistentMeshSelection : public UObject
+//UE_DEPRECATED(5.2, "UPersistentMeshSelection and related functions are deprecated")
+UCLASS(Deprecated)
+class MODELINGCOMPONENTS_API UDEPRECATED_PersistentMeshSelection : public UObject
 {
 	GENERATED_BODY()
 

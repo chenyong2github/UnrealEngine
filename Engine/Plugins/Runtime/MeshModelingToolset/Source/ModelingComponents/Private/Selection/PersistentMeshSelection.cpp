@@ -12,7 +12,7 @@
 using namespace UE::Geometry;
 
 
-void UPersistentMeshSelection::SetSelection(const FGroupTopology& TopologyIn, const FGroupTopologySelection& SelectionIn,
+void UDEPRECATED_PersistentMeshSelection::SetSelection(const FGroupTopology& TopologyIn, const FGroupTopologySelection& SelectionIn,
 											const FCompactMaps* CompactMaps)
 {
 	FGenericMeshSelection& Data = this->Selection;
@@ -81,7 +81,7 @@ void UPersistentMeshSelection::SetSelection(const FGroupTopology& TopologyIn, co
 }
 
 
-void UPersistentMeshSelection::ExtractIntoSelectionObject(const FGroupTopology& TopologyIn, FGroupTopologySelection& SelectionOut) const
+void UDEPRECATED_PersistentMeshSelection::ExtractIntoSelectionObject(const FGroupTopology& TopologyIn, FGroupTopologySelection& SelectionOut) const
 {
 	const FGenericMeshSelection& Data = this->Selection;
 

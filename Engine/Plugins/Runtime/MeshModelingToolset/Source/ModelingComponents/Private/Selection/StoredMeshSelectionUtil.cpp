@@ -13,11 +13,22 @@
 using namespace UE::Geometry;
 
 
+bool UE::Geometry::HaveAvailableGeometrySelection(const FToolBuilderState& SceneState)
+{
+	UGeometrySelectionManager* SelectionManager = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGeometrySelectionManager>();
+	return (SelectionManager != nullptr && SelectionManager->HasSelection());
+}
 
 
 bool UE::Geometry::GetCurrentGeometrySelectionForTarget(const FToolBuilderState& SceneState, UToolTarget* Target, FGeometrySelection& SelectionOut)
 {
-	UGeometrySelectionManager* SelectionManager = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGeometrySelectionManager>();
+	return GetCurrentGeometrySelectionForTarget(SceneState.ToolManager, Target, SelectionOut);
+}
+
+
+bool UE::Geometry::GetCurrentGeometrySelectionForTarget(UInteractiveToolManager* ToolManager, UToolTarget* Target, FGeometrySelection& SelectionOut)
+{
+	UGeometrySelectionManager* SelectionManager = ToolManager->GetContextObjectStore()->FindContext<UGeometrySelectionManager>();
 	if (SelectionManager == nullptr)
 	{
 		return false;
@@ -33,118 +44,56 @@ bool UE::Geometry::GetCurrentGeometrySelectionForTarget(const FToolBuilderState&
 }
 
 
-const UPersistentMeshSelection* UE::Geometry::GetCurrentToolInputSelection(const FToolBuilderState& SceneState, UToolTarget* Target)
+bool UE::Geometry::SetToolOutputGeometrySelectionForTarget(UInteractiveTool* Tool, UToolTarget* Target, const FGeometrySelection& OutputSelection)
 {
-	UGeometrySelectionManager* SelectionManager = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGeometrySelectionManager>();
+	UGeometrySelectionManager* SelectionManager = Tool->GetToolManager()->GetContextObjectStore()->FindContext<UGeometrySelectionManager>();
 	if (SelectionManager == nullptr)
 	{
-		return nullptr;
+		return false;
 	}
 	IPrimitiveComponentBackedTarget* TargetInterface = Cast<IPrimitiveComponentBackedTarget>(Target);
 	if (TargetInterface == nullptr)
 	{
-		return nullptr;
+		return false;
 	}
+	return SelectionManager->SetSelectionForComponent(TargetInterface->GetOwnerComponent(), OutputSelection);
+}
 
-	UPersistentMeshSelection* ActiveSelection = SelectionManager->GetActiveSingleSelectionConverted_Legacy(TargetInterface->GetOwnerComponent());
-	if (ActiveSelection == nullptr)
-	{
-		return nullptr;
-	}
 
-	if (TargetInterface->GetOwnerComponent() != ActiveSelection->GetTargetComponent())
-	{
-		return nullptr;
-	}
 
-	return ActiveSelection;
+
+
+
+
+const UDEPRECATED_PersistentMeshSelection* UE::Geometry::GetCurrentToolInputSelection(const FToolBuilderState& SceneState, UToolTarget* Target)
+{
+	ensureMsgf(false, TEXT("This path no longer functions and will be removed"));
+	return nullptr;
 }
 
 
 
 bool UE::Geometry::GetStoredSelectionAsTriangles(
-	const UPersistentMeshSelection* Selection,
+	const UDEPRECATED_PersistentMeshSelection* Selection,
 	const FDynamicMesh3& Mesh,
 	TArray<int32>& TrianglesOut)
 {
-	// don't support UV selection currently - unclear how reproducible this is?
-	if (Selection->GetSelectionType() == FGenericMeshSelection::ETopologyType::FUVGroupTopology)
-	{
-		return false;
-	}
-
-	if (Selection->GetSelection().FaceIDs.Num() == 0)
-	{
-		return false;
-	}
-
-	if (Selection->GetSelectionType() == FGenericMeshSelection::ETopologyType::FGroupTopology)
-	{
-		TSet<int32> SelectedGroups;
-		for (int32 gid : Selection->GetSelection().FaceIDs)
-		{
-			SelectedGroups.Add(gid);
-		}
-
-		for (int32 tid : Mesh.TriangleIndicesItr())
-		{
-			int32 gid = Mesh.GetTriangleGroup(tid);
-			if (SelectedGroups.Contains(gid))
-			{
-				TrianglesOut.Add(tid);
-			}
-		}
-	}
-	else if (Selection->GetSelectionType() == FGenericMeshSelection::ETopologyType::FTriangleGroupTopology)
-	{
-		for (int gid : Selection->GetSelection().FaceIDs)
-		{
-			if (Mesh.IsTriangle(gid))
-			{
-				TrianglesOut.Add(gid);
-			}
-		}
-	}
-
-	return true;
+	return false;
 }
-
-
 
 
 void UE::Geometry::ClearActiveToolSelection(UInteractiveToolManager* ToolManager)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UDEPRECATED_PersistentMeshSelectionManager* SelectionManager = FindPersistentMeshSelectionManager(ToolManager);
-	if (SelectionManager != nullptr)
-	{
-		SelectionManager->ClearActiveSelection();
-	}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 
-bool UE::Geometry::SetToolOutputSelection(UInteractiveTool* Tool, UPersistentMeshSelection* Selection)
+bool UE::Geometry::SetToolOutputSelection(UInteractiveTool* Tool, UDEPRECATED_PersistentMeshSelection* Selection)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UDEPRECATED_PersistentMeshSelectionManager* SelectionManager = FindPersistentMeshSelectionManager(Tool->GetToolManager());
-	if (SelectionManager == nullptr)
-	{
-		return false;
-	}
-
-	if (Selection != nullptr)
-	{
-		SelectionManager->SetNewActiveSelection(Selection);
-	}
-	else
-	{
-		SelectionManager->ClearActiveSelection();
-	}
-
-	return true;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	return false;
 }
+
+
+
 
 
 

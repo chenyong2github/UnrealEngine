@@ -7,7 +7,7 @@
 #include "Selections/GeometrySelection.h"
 
 struct FToolBuilderState;
-class UPersistentMeshSelection;
+class UDEPRECATED_PersistentMeshSelection;
 class UToolTarget;
 class UInteractiveTool;
 class UInteractiveToolManager;
@@ -21,44 +21,72 @@ namespace UE
 {
 namespace Geometry
 {
+	/**
+	 * @return true if there is currently any geometry selection available in the SceneState
+	 */
+	MODELINGCOMPONENTS_API bool HaveAvailableGeometrySelection(const FToolBuilderState& SceneState);
+
+	/**
+	 * Given a FToolBuilderState, find an available FGeometrySelection for the given ToolTarget (via the UGeometrySelectionManager in the ContextObjectStore)
+	 * @param SelectionOut non-empty selection will be returned here
+	 * @return true if a non-empty selection was found
+	 */
+	MODELINGCOMPONENTS_API bool GetCurrentGeometrySelectionForTarget(const FToolBuilderState& SceneState, UToolTarget* Target,
+		FGeometrySelection& SelectionOut);
+
+	/**
+	 * Find an available FGeometrySelection for the given ToolTarget (via the UGeometrySelectionManager in the ContextObjectStore)
+	 * @param SelectionOut non-empty selection will be returned here
+	 * @return true if a non-empty selection was found
+	 */
+	MODELINGCOMPONENTS_API bool GetCurrentGeometrySelectionForTarget(UInteractiveToolManager* ToolManager, UToolTarget* Target,
+		FGeometrySelection& SelectionOut);
+
+	/**
+	 * Allow a Tool to return an "output" FGeometrySelection for the given ToolTarget (presumably on Tool Shutdown)
+	 * Target must be an "active" selection target in the current UGeometrySelectionManager.
+	 * This function will emit a selection-change transaction and should in most cases be nested inside a tool-shutdown transaction.
+	 * @return true if the selection could be set, ie Target was valid
+	 */
+	MODELINGCOMPONENTS_API bool SetToolOutputGeometrySelectionForTarget(UInteractiveTool* Tool, UToolTarget* Target, const FGeometrySelection& OutputSelection);
+
+
+
 
 	/**
 	 * Given a FToolBuilderState, determine if an Input Selection exists that is applicable to the ToolTarget
 	 * @return Selection if found, or nullptr if not
 	 */
-	MODELINGCOMPONENTS_API const UPersistentMeshSelection* GetCurrentToolInputSelection(const FToolBuilderState& SceneState, UToolTarget* Target);
-
-	/**
-	* Given a FToolBuilderState, find geometry selection for the given ToolTarget
-	* @param SelectionOut non-empty selection will be returned here
-	* @return true if a non-empty selection was found
-	*/
-	MODELINGCOMPONENTS_API bool GetCurrentGeometrySelectionForTarget(const FToolBuilderState& SceneState, UToolTarget* Target,
-		FGeometrySelection& SelectionOut);
+	UE_DEPRECATED(5.2, "PersistentMeshSelection and related functions are deprecated. GetCurrentToolInputSelection now returns nullptr.")
+	MODELINGCOMPONENTS_API const UDEPRECATED_PersistentMeshSelection* GetCurrentToolInputSelection(const FToolBuilderState& SceneState, UToolTarget* Target);
 
 	/**
 	 * Convert the given Seletion to a list of Triangles of the specified Mesh. 
-	 * This will attempt to convert the different selection types represented by UPersistentMeshSelection
+	 * This will attempt to convert the different selection types represented by PersistentMeshSelection
 	 * (eg group topology, UV island, etc) to triangle indices in TrianglesOut
 	 * @return true if a list of triangles could be created.
 	 */
+	UE_DEPRECATED(5.2, "PersistentMeshSelection and related functions are deprecated. GetStoredSelectionAsTriangles now always returns an empty TrianglesOut list.")
 	MODELINGCOMPONENTS_API bool GetStoredSelectionAsTriangles(
-		const UPersistentMeshSelection* Selection,
+		const UDEPRECATED_PersistentMeshSelection* Selection,
 		const FDynamicMesh3& Mesh,
 		TArray<int32>& TrianglesOut );
 
+
 	/**
 	 * Set the active output selection of a Tool, which (if supported) will be persist between Tools
-	 * via a UPersistentMeshSelectionManager context object. Passing a null Selection will clear any active selection.
+	 * via a PersistentMeshSelectionManager context object. Passing a null Selection will clear any active selection.
 	 * @return true if the selection was saved
 	 */
+	UE_DEPRECATED(5.2, "PersistentMeshSelection and related functions are deprecated. SetToolOutputSelection is now ignored.")
 	MODELINGCOMPONENTS_API bool SetToolOutputSelection(
 		UInteractiveTool* Tool,
-		UPersistentMeshSelection* Selection);
+		UDEPRECATED_PersistentMeshSelection* Selection);
 
 	/**
 	 * Clear any currently-active stored Tool selection
 	 */
+	UE_DEPRECATED(5.2, "PersistentMeshSelection and related functions are deprecated. ClearActiveToolSelection no longer has any effect.")
 	MODELINGCOMPONENTS_API void ClearActiveToolSelection(UInteractiveToolManager* ToolManager);
 
 

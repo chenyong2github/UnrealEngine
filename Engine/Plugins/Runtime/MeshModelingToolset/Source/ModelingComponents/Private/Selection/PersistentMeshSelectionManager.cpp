@@ -33,20 +33,20 @@ void UDEPRECATED_PersistentMeshSelectionManager::Shutdown()
 
 bool UDEPRECATED_PersistentMeshSelectionManager::HasActiveSelection()
 {
-	return (ActiveSelection != nullptr);
+	return (ActiveSelection_DEPRECATED != nullptr);
 }
 
-UPersistentMeshSelection* UDEPRECATED_PersistentMeshSelectionManager::GetActiveSelection()
+UDEPRECATED_PersistentMeshSelection* UDEPRECATED_PersistentMeshSelectionManager::GetActiveSelection()
 {
-	return ActiveSelection;
+	return ActiveSelection_DEPRECATED;
 }
 
-void UDEPRECATED_PersistentMeshSelectionManager::SetNewActiveSelection(UPersistentMeshSelection* Selection)
+void UDEPRECATED_PersistentMeshSelectionManager::SetNewActiveSelection(UDEPRECATED_PersistentMeshSelection* Selection)
 {
 	TUniquePtr<FPersistentMeshSelectionChange> SelectionChange = MakeUnique<FPersistentMeshSelectionChange>();
-	if (ActiveSelection != nullptr)
+	if (ActiveSelection_DEPRECATED != nullptr)
 	{
-		SelectionChange->From = ActiveSelection->GetSelection();
+		SelectionChange->From = ActiveSelection_DEPRECATED->GetSelection();
 	}
 	if (Selection != nullptr)
 	{
@@ -55,21 +55,21 @@ void UDEPRECATED_PersistentMeshSelectionManager::SetNewActiveSelection(UPersiste
 	ParentContext->ToolManager->GetContextTransactionsAPI()->AppendChange(this, MoveTemp(SelectionChange),
 		LOCTEXT("SelectionChange", "Selection Change"));
 
-	ActiveSelection = Selection;
+	ActiveSelection_DEPRECATED = Selection;
 	OnSelectionModified();
 }
 
 
-void UDEPRECATED_PersistentMeshSelectionManager::SetNewActiveSelectionInternal(UPersistentMeshSelection* Selection)
+void UDEPRECATED_PersistentMeshSelectionManager::SetNewActiveSelectionInternal(UDEPRECATED_PersistentMeshSelection* Selection)
 {
-	ActiveSelection = Selection;
+	ActiveSelection_DEPRECATED = Selection;
 	OnSelectionModified();
 }
 
 
 void UDEPRECATED_PersistentMeshSelectionManager::ClearActiveSelection()
 {
-	if (ActiveSelection == nullptr)
+	if (ActiveSelection_DEPRECATED == nullptr)
 	{
 		return;
 	}
@@ -82,17 +82,17 @@ void UDEPRECATED_PersistentMeshSelectionManager::ClearActiveSelection()
 
 void UDEPRECATED_PersistentMeshSelectionManager::OnSelectionModified()
 {
-	if (ActiveSelection != nullptr && SelectionDisplay == nullptr)
+	if (ActiveSelection_DEPRECATED != nullptr && SelectionDisplay == nullptr)
 	{
 		SelectionDisplay = NewObject<UPreviewGeometry>(ParentContext);
-		SelectionDisplay->CreateInWorld(ActiveSelection->GetTargetComponent()->GetWorld(), FTransform::Identity);
+		SelectionDisplay->CreateInWorld(ActiveSelection_DEPRECATED->GetTargetComponent()->GetWorld(), FTransform::Identity);
 	}
 	if (SelectionDisplay == nullptr)
 	{
 		return;
 	}
 
-	const FGenericMeshSelection* SelectionData = (ActiveSelection != nullptr) ? &ActiveSelection->GetSelection() : nullptr;
+	const FGenericMeshSelection* SelectionData = (ActiveSelection_DEPRECATED != nullptr) ? &ActiveSelection_DEPRECATED->GetSelection() : nullptr;
 
 	bool bShowLines = (SelectionData != nullptr) && (SelectionData->HasRenderableLines());
 
@@ -103,7 +103,7 @@ void UDEPRECATED_PersistentMeshSelectionManager::OnSelectionModified()
 		//const float ROIBorderDepthBias = 0.1f * (float)(WorldBounds.DiagonalLength() * 0.01);
 		const float ROIBorderDepthBias = 0.01f;
 
-		FTransform3d Transform(ActiveSelection->GetTargetComponent()->GetComponentToWorld());
+		FTransform3d Transform(ActiveSelection_DEPRECATED->GetTargetComponent()->GetComponentToWorld());
 
 		const TArray<UE::Geometry::FSegment3d>& Lines = SelectionData->RenderEdges;
 		SelectionDisplay->CreateOrUpdateLineSet(TEXT("SelectionEdges"),  Lines.Num(),
@@ -190,7 +190,7 @@ void FPersistentMeshSelectionChange::Apply(UObject* Object)
 	UDEPRECATED_PersistentMeshSelectionManager* SelectionManager = Cast<UDEPRECATED_PersistentMeshSelectionManager>(Object);
 	if (SelectionManager)
 	{
-		UPersistentMeshSelection* NewSelection = NewObject<UPersistentMeshSelection>(SelectionManager);
+		UDEPRECATED_PersistentMeshSelection* NewSelection = NewObject<UDEPRECATED_PersistentMeshSelection>(SelectionManager);
 		NewSelection->SetSelection(To);
 		SelectionManager->SetNewActiveSelectionInternal(NewSelection);
 	}
@@ -201,7 +201,7 @@ void FPersistentMeshSelectionChange::Revert(UObject* Object)
 	UDEPRECATED_PersistentMeshSelectionManager* SelectionManager = Cast<UDEPRECATED_PersistentMeshSelectionManager>(Object);
 	if (SelectionManager)
 	{
-		UPersistentMeshSelection* NewSelection = NewObject<UPersistentMeshSelection>(SelectionManager);
+		UDEPRECATED_PersistentMeshSelection* NewSelection = NewObject<UDEPRECATED_PersistentMeshSelection>(SelectionManager);
 		NewSelection->SetSelection(From);
 		SelectionManager->SetNewActiveSelectionInternal(NewSelection);
 	}

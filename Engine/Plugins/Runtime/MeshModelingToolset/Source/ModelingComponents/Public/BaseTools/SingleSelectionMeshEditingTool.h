@@ -7,7 +7,7 @@
 #include "SingleSelectionMeshEditingTool.generated.h"
 
 class USingleSelectionMeshEditingTool;
-class UPersistentMeshSelection;
+class UDEPRECATED_PersistentMeshSelection;
 
 /**
  * USingleSelectionMeshEditingToolBuilder is a base tool builder for single
@@ -33,6 +33,7 @@ public:
 	virtual void InitializeNewTool(USingleSelectionMeshEditingTool* Tool, const FToolBuilderState& SceneState) const;
 
 	/** @return true if this Tool would like access to an available Input Selection object */
+	UE_DEPRECATED(5.2, "UPersistentMeshSelection and related functions are deprecated")
 	virtual bool WantsInputSelectionIfAvailable() const { return false; }
 
 protected:
@@ -58,6 +59,8 @@ protected:
 	UPROPERTY()
 	TWeakObjectPtr<UWorld> TargetWorld = nullptr;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	//
 	// Mesh Selection support
 	//
@@ -68,21 +71,24 @@ public:
 	 * to allow the Tool to configure it's behavior based on the Selection (which may or may-not exist).
 	 * If the Tool requires a Selection, this needs to be handled at the Builder level.
 	 */
-	virtual void SetInputSelection(const UPersistentMeshSelection* SelectionIn)
+	UE_DEPRECATED(5.2, "UPersistentMeshSelection and related functions are deprecated")
+	virtual void SetInputSelection(const UDEPRECATED_PersistentMeshSelection* SelectionIn)
 	{
-		InputSelection = SelectionIn;
+		InputSelection_DEPRECATED = SelectionIn;
 	}
 
 	/** @return true if an InputSelection is available */
+	UE_DEPRECATED(5.2, "UPersistentMeshSelection and related functions are deprecated")
 	virtual bool HasInputSelection() const
 	{
-		return InputSelection != nullptr;
+		return InputSelection_DEPRECATED != nullptr;
 	}
 
 	/** @return the input Selection, or nullptr if one was not configured */
-	virtual const UPersistentMeshSelection* GetInputSelection() const
+	UE_DEPRECATED(5.2, "UPersistentMeshSelection and related functions are deprecated")
+	virtual const UDEPRECATED_PersistentMeshSelection* GetInputSelection() const
 	{
-		return InputSelection;
+		return InputSelection_DEPRECATED;
 	}
 
 protected:
@@ -90,7 +96,9 @@ protected:
 	/**
 	 * (optional) Mesh Selection provided on Tool Input. This should never be modified after the Tool's Setup() is called
 	 */
+	UE_DEPRECATED(5.2, "UPersistentMeshSelection and related functions are deprecated")
 	UPROPERTY()
-	TObjectPtr<const UPersistentMeshSelection> InputSelection = nullptr;
+	TObjectPtr<const UDEPRECATED_PersistentMeshSelection> InputSelection_DEPRECATED = nullptr;
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };

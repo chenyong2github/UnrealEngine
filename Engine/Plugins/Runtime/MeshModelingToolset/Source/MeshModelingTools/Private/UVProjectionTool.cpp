@@ -11,6 +11,7 @@
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "ModelingToolTargetUtil.h"
 #include "Selection/StoredMeshSelectionUtil.h"
+#include "Selections/GeometrySelectionUtil.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
@@ -32,14 +33,14 @@ using namespace UE::Geometry;
  * ToolBuilder
  */
 
-USingleSelectionMeshEditingTool* UUVProjectionToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
+USingleTargetWithSelectionTool* UUVProjectionToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
 	return NewObject<UUVProjectionTool>(SceneState.ToolManager);
 }
 
 bool UUVProjectionToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return USingleSelectionMeshEditingToolBuilder::CanBuildTool(SceneState) && 
+	return USingleTargetWithSelectionToolBuilder::CanBuildTool(SceneState) && 
 		SceneState.TargetManager->CountSelectedAndTargetableWithPredicate(SceneState, GetTargetRequirements(),
 			[](UActorComponent& Component) { return ToolBuilderUtil::ComponentTypeCouldHaveUVs(Component); }) > 0;
 }
@@ -267,6 +268,12 @@ void UUVProjectionTool::OnShutdown(EToolShutdownType ShutdownType)
 		{
 			UE::ToolTarget::CommitDynamicMeshUVUpdate(Target, NewDynamicMesh);
 		}
+
+		if (HasGeometrySelection())
+		{
+			UE::Geometry::SetToolOutputGeometrySelectionForTarget(this, Target, GetGeometrySelection());
+		}
+
 		GetToolManager()->EndUndoTransaction();
 	}
 
@@ -324,9 +331,11 @@ void UUVProjectionTool::InitializeMesh()
 
 	// initialize triangle ROI if one exists
 	TriangleROI = MakeShared<TArray<int32>, ESPMode::ThreadSafe>();
-	if (USingleSelectionMeshEditingTool::HasInputSelection())
+	if (HasGeometrySelection())
 	{
-		UE::Geometry::GetStoredSelectionAsTriangles(GetInputSelection(), *InputMesh, *TriangleROI);
+		const FGeometrySelection& InputSelection = GetGeometrySelection();
+		UE::Geometry::EnumerateSelectionTriangles(InputSelection, *InputMesh, 
+			[&](int32 TriangleID) { TriangleROI->Add(TriangleID); });
 		TriangleROISet.Append(*TriangleROI);
 	}
 	VertexROI = MakeShared<TArray<int32>, ESPMode::ThreadSafe>();

@@ -132,17 +132,13 @@ public:
 	TSharedPtr<FUICommandInfo> BeginGenerateStaticMeshLODAssetTool;
 	TSharedPtr<FUICommandInfo> BeginISMEditorTool;
 
-	TSharedPtr<FUICommandInfo> BeginPolyModelTool_FaceSelect;
-	TSharedPtr<FUICommandInfo> BeginPolyModelTool_EdgeSelect;
-	TSharedPtr<FUICommandInfo> BeginPolyModelTool_VertexSelect;
-	TSharedPtr<FUICommandInfo> BeginPolyModelTool_AllSelect;
-	TSharedPtr<FUICommandInfo> BeginPolyModelTool_LoopSelect;
-	TSharedPtr<FUICommandInfo> BeginPolyModelTool_RingSelect;
-
-	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Extrude;
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Inset;
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Outset;
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_CutFaces;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_InsertEdgeLoop;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_PushPull;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Bevel;
+	
 
 
 	// old selection state actions

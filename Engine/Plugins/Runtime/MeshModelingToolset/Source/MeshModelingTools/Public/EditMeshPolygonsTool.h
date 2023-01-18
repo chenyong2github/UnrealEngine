@@ -11,7 +11,7 @@
 #include "InteractiveToolBuilder.h"
 #include "InteractiveToolQueryInterfaces.h" // IInteractiveToolNestedAcceptCancelAPI
 #include "Operations/GroupTopologyDeformer.h"
-#include "BaseTools/SingleSelectionMeshEditingTool.h"
+#include "BaseTools/SingleTargetWithSelectionTool.h"
 
 #include "GeometryBase.h"
 
@@ -24,7 +24,6 @@ class UCombinedTransformGizmo;
 class UDragAlignmentMechanic;
 class UMeshOpPreviewWithBackgroundCompute; 
 class FMeshVertexChangeBuilder;
-class UPersistentMeshSelection;
 class UEditMeshPolygonsTool;
 class UPolyEditActivityContext;
 class UPolyEditInsertEdgeActivity;
@@ -42,16 +41,16 @@ class UTransformProxy;
  * ToolBuilder
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UEditMeshPolygonsToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLS_API UEditMeshPolygonsToolBuilder : public USingleTargetWithSelectionToolBuilder
 {
 	GENERATED_BODY()
 public:
 	bool bTriangleMode = false;
 
-	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
-	virtual void InitializeNewTool(USingleSelectionMeshEditingTool* Tool, const FToolBuilderState& SceneState) const override;
+	virtual USingleTargetWithSelectionTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual void InitializeNewTool(USingleTargetWithSelectionTool* Tool, const FToolBuilderState& SceneState) const override;
 
-	virtual bool WantsInputSelectionIfAvailable() const { return true; }
+	virtual bool RequiresInputSelection() const override { return false; }
 };
 
 
@@ -141,7 +140,10 @@ enum class EEditMeshPolygonsToolActions
 	PokeSingleFace,
 	SplitSingleEdge,
 	FlipSingleEdge,
-	CollapseSingleEdge
+	CollapseSingleEdge,
+
+	// for external use
+	BevelAuto
 };
 
 UCLASS()
@@ -151,7 +153,7 @@ class MESHMODELINGTOOLS_API UEditMeshPolygonsActionModeToolBuilder : public UEdi
 public:
 	EEditMeshPolygonsToolActions StartupAction = EEditMeshPolygonsToolActions::Extrude;
 
-	virtual void InitializeNewTool(USingleSelectionMeshEditingTool* Tool, const FToolBuilderState& SceneState) const override;
+	virtual void InitializeNewTool(USingleTargetWithSelectionTool* Tool, const FToolBuilderState& SceneState) const override;
 };
 
 UENUM()
@@ -172,7 +174,7 @@ class MESHMODELINGTOOLS_API UEditMeshPolygonsSelectionModeToolBuilder : public U
 public:
 	EEditMeshPolygonsToolSelectionMode SelectionMode = EEditMeshPolygonsToolSelectionMode::Faces;
 
-	virtual void InitializeNewTool(USingleSelectionMeshEditingTool* Tool, const FToolBuilderState& SceneState) const override;
+	virtual void InitializeNewTool(USingleTargetWithSelectionTool* Tool, const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -480,7 +482,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UEditMeshPolygonsTool : public USingleSelectionMeshEditingTool,
+class MESHMODELINGTOOLS_API UEditMeshPolygonsTool : public USingleTargetWithSelectionTool,
 	public IToolActivityHost, 
 	public IMeshVertexCommandChangeTarget,
 	public IInteractiveToolNestedAcceptCancelAPI
@@ -493,8 +495,6 @@ public:
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 	void EnableTriangleMode();
-
-	virtual void SetWorld(UWorld* World) { this->TargetWorld = World; }
 
 	// used by undo/redo
 	void RebuildTopologyWithGivenExtraCorners(const TSet<int32>& Vids);
@@ -533,6 +533,8 @@ public:
 
 	virtual void RequestAction(EEditMeshPolygonsToolActions ActionType);
 
+	virtual void RequestSingleShotAction(EEditMeshPolygonsToolActions ActionType);
+
 	void SetActionButtonsVisibility(bool bVisible);
 
 protected:
@@ -545,8 +547,6 @@ protected:
 	// use it if the user tries to run the tool on a mesh that has too many edges for us to render, to avoid
 	// hanging the editor.
 	bool bToolDisabled = false;
-
-	TObjectPtr<UWorld> TargetWorld = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
@@ -622,7 +622,6 @@ protected:
 
 	void ResetUserMessage();
 
-	bool IsToolInputSelectionUsable(const UPersistentMeshSelection* InputSelection);
 	bool bSelectionStateDirty = false;
 	void OnSelectionModifiedEvent();
 
@@ -653,11 +652,12 @@ protected:
 	float UVScaleFactor = 1.0f;
 
 	EEditMeshPolygonsToolActions PendingAction = EEditMeshPolygonsToolActions::NoAction;
+	bool bTerminateOnPendingActionComplete = false;
 
 	int32 ActivityTimestamp = 1;
 
 	void StartActivity(TObjectPtr<UInteractiveToolActivity> Activity);
-	void EndCurrentActivity(EToolShutdownType ShutdownType = EToolShutdownType::Cancel);
+	void EndCurrentActivity(EToolShutdownType ShutdownType);
 	void SetActionButtonPanelsVisible(bool bVisible);
 
 	// Emit an undoable change to CurrentMesh and update related structures (preview, spatial, etc)

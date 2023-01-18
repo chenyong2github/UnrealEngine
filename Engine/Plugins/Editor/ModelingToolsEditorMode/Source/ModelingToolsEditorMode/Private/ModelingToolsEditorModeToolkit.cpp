@@ -676,6 +676,14 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_Delete);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_Disconnect);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_Extrude);
+
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_PushPull);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_InsertEdgeLoop);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_CutFaces);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Inset);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Outset);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Bevel);
+		
 	}
 	else if (PaletteIndex == PrimitiveTabName)
 	{
@@ -820,23 +828,23 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPatchTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginShapeSprayTool);
 	}
-	else if (PaletteIndex == PolyEditTabName)
-	{
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_FaceSelect);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_EdgeSelect);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_VertexSelect);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_AllSelect);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_LoopSelect);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_RingSelect);
-		ToolbarBuilder.AddSeparator();
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Extrude);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Inset);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Outset);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_CutFaces);
-		ToolbarBuilder.AddSeparator();
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSubdividePolyTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyEditTool);
-	}
+	//else if (PaletteIndex == PolyEditTabName)
+	//{
+	//	ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_FaceSelect);
+	//	ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_EdgeSelect);
+	//	ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_VertexSelect);
+	//	ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_AllSelect);
+	//	ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_LoopSelect);
+	//	ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_RingSelect);
+	//	ToolbarBuilder.AddSeparator();
+	//	ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Extrude);
+	//	ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Inset);
+	//	ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Outset);
+	//	ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_CutFaces);
+	//	ToolbarBuilder.AddSeparator();
+	//	ToolbarBuilder.AddToolBarButton(Commands.BeginSubdividePolyTool);
+	//	ToolbarBuilder.AddToolBarButton(Commands.BeginPolyEditTool);
+	//}
 	else
 	{
 		TArray<IModelingModeToolExtension*> Extensions = IModularFeatures::Get().GetModularFeatureImplementations<IModelingModeToolExtension>(

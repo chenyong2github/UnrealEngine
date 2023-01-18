@@ -6,6 +6,7 @@
 #include "ToolSetupUtil.h"
 #include "ModelingToolTargetUtil.h"
 #include "Selections/GeometrySelectionUtil.h"
+#include "Selection/StoredMeshSelectionUtil.h"
 #include "ToolSceneQueriesUtil.h"
 #include "MeshQueries.h"
 
@@ -268,16 +269,28 @@ void UExtrudeMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
 		{
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("ExtrudeSelection", "Extrude Selection"));
 
+			TArray<int32> SelectOutputTriangles;
+
 			// this function computes the final Extrude on full Mesh and cleans it up
-			auto ComputeFinalResult = [this](FDynamicMesh3& EditMesh) -> bool
+			auto ComputeFinalResult = [this, &SelectOutputTriangles](FDynamicMesh3& EditMesh) -> bool
 			{
 				TSharedPtr<FSharedConstDynamicMesh3> FullMeshShared = MakeShared<FSharedConstDynamicMesh3>(&EditMesh);
 				TUniquePtr<FLinearExtrusionOp> FinalOp = OperatorFactory->MakeNewExtrudeOp(FullMeshShared, this->ExtrudeROI);
+				SelectOutputTriangles = this->ExtrudeROI;
 				bool bResult = FinalOp->CalculateResultInPlace(EditMesh, nullptr);
 				if (EditMesh.IsCompact() == false)
 				{
-					EditMesh.CompactInPlace();
+					FCompactMaps CompactMaps;
+					EditMesh.CompactInPlace(&CompactMaps);
+					if (CompactMaps.TriangleMapIsSet())
+					{
+						for (int32& tid : SelectOutputTriangles)
+						{
+							tid = CompactMaps.GetTriangleMapping(tid);
+						}
+					}
 				}
+
 				FullMeshShared->ReleaseSharedObject();
 				return bResult;
 			};
@@ -312,6 +325,19 @@ void UExtrudeMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
 				const bool bModifiedTopology = true;
 				UE::ToolTarget::CommitDynamicMeshUpdate(UseTarget, CurrentMesh, bModifiedTopology);
 			}
+
+			// Construct and send output triangle selection, assume selection system will convert to correct type.
+			// (todo: maybe be smarter about this, as for (eg) an input vertex selection, it will grow the selection...)
+			// Note that we cannot do this before we commit/complete the mesh update, as the selection system needs a chance
+			// to respond to the mesh change. Possibly should use UE::Geometry::InitializeSelectionFromTriangles() here...need to ProcessMesh() then though
+			FGeometrySelection OutputSelection;
+			OutputSelection.InitializeTypes(EGeometryElementType::Face, EGeometryTopologyType::Triangle);
+			for (int32 tid : SelectOutputTriangles)
+			{
+				OutputSelection.Selection.Add( FGeoSelectionID::MeshTriangle(tid).Encoded() );
+			}
+			UE::Geometry::SetToolOutputGeometrySelectionForTarget(this, UseTarget, OutputSelection);
+
 
 			GetToolManager()->EndUndoTransaction();
 		}

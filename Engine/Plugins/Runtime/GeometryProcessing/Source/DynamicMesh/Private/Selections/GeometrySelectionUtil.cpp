@@ -9,6 +9,8 @@
 #include "SegmentTypes.h"
 #include "GroupTopology.h"
 #include "Selections/MeshConnectedComponents.h"
+#include "Selections/MeshEdgeSelection.h"
+#include "Selections/MeshVertexSelection.h"
 #include "Algo/Find.h"
 
 
@@ -852,6 +854,149 @@ bool UE::Geometry::ConvertPolygroupSelectionToTopologySelection(
 	}
 
 	return true;
+}
+
+
+
+bool UE::Geometry::InitializeSelectionFromTriangles(
+	const UE::Geometry::FDynamicMesh3& Mesh,
+	const FGroupTopology* GroupTopology,
+	TArrayView<const int> Triangles,
+	FGeometrySelection& SelectionOut)
+{
+	if (SelectionOut.TopologyType == EGeometryTopologyType::Triangle)
+	{
+		if (SelectionOut.ElementType == EGeometryElementType::Vertex)
+		{
+			for (int32 tid : Triangles)
+			{
+				if (Mesh.IsTriangle(tid))
+				{
+					FIndex3i TriVertices = Mesh.GetTriangle(tid);
+					SelectionOut.Selection.Add(FGeoSelectionID::MeshVertex(TriVertices.A).Encoded() );
+					SelectionOut.Selection.Add(FGeoSelectionID::MeshVertex(TriVertices.B).Encoded());
+					SelectionOut.Selection.Add(FGeoSelectionID::MeshVertex(TriVertices.C).Encoded());
+				}
+			}
+		}
+		else if (SelectionOut.ElementType == EGeometryElementType::Edge)
+		{
+			for (int32 tid : Triangles)
+			{
+				if (Mesh.IsTriangle(tid))
+				{
+					FIndex3i TriEdges = Mesh.GetTriEdges(tid);
+					SelectionOut.Selection.Add(FGeoSelectionID::MeshEdge(Mesh.GetTriEdgeIDFromEdgeID(TriEdges.A)).Encoded());
+					SelectionOut.Selection.Add(FGeoSelectionID::MeshEdge(Mesh.GetTriEdgeIDFromEdgeID(TriEdges.B)).Encoded());
+					SelectionOut.Selection.Add(FGeoSelectionID::MeshEdge(Mesh.GetTriEdgeIDFromEdgeID(TriEdges.C)).Encoded());
+				}
+			}
+		}
+		else if (SelectionOut.ElementType == EGeometryElementType::Face)
+		{
+			for (int32 tid : Triangles)
+			{
+				if (Mesh.IsTriangle(tid))
+				{
+					SelectionOut.Selection.Add(FGeoSelectionID::MeshTriangle(tid).Encoded());
+				}
+			}
+		}
+		else
+		{
+			return false;
+		}
+		return true;
+	}
+	else if (SelectionOut.TopologyType == EGeometryTopologyType::Polygroup)
+	{
+		if (!ensure(GroupTopology != nullptr))
+		{
+			return false;
+		}
+
+		if (SelectionOut.ElementType == EGeometryElementType::Vertex)
+		{
+			FMeshVertexSelection VertSelection(&Mesh);
+			VertSelection.SelectTriangleVertices(Triangles);
+			for (int32 vid : VertSelection)
+			{
+				int32 CornerID = GroupTopology->GetCornerIDFromVertexID(vid);
+				if (CornerID != IndexConstants::InvalidID)
+				{
+					const FGroupTopology::FCorner& Corner = GroupTopology->Corners[CornerID];
+					FGeoSelectionID ID = FGeoSelectionID(Corner.VertexID, CornerID);
+					SelectionOut.Selection.Add(ID.Encoded());
+				}
+			}
+		}
+		else if (SelectionOut.ElementType == EGeometryElementType::Edge)
+		{
+			FMeshEdgeSelection EdgeSelection(&Mesh);
+			EdgeSelection.SelectTriangleEdges(Triangles);
+			for (int32 eid : EdgeSelection)
+			{
+				int32 GroupEdgeID = GroupTopology->FindGroupEdgeID(eid);
+				if (GroupEdgeID != IndexConstants::InvalidID)
+				{
+					const FGroupTopology::FGroupEdge& GroupEdge = GroupTopology->Edges[GroupEdgeID];
+					FMeshTriEdgeID MeshEdgeID = Mesh.GetTriEdgeIDFromEdgeID(GroupEdge.Span.Edges[0]);
+					FGeoSelectionID ID = FGeoSelectionID(MeshEdgeID.Encoded(), GroupEdgeID);
+					SelectionOut.Selection.Add(ID.Encoded());
+				}
+			}
+		}
+		else if (SelectionOut.ElementType == EGeometryElementType::Face)
+		{
+			for (int32 tid : Triangles)
+			{
+				if (Mesh.IsTriangle(tid))
+				{
+					int32 GroupID = GroupTopology->GetGroupID(tid);
+					const FGroupTopology::FGroup* GroupFace = GroupTopology->FindGroupByID(GroupID);
+					if ( GroupFace )
+					{
+						FGeoSelectionID ID = FGeoSelectionID(GroupFace->Triangles[0], GroupFace->GroupID);
+						SelectionOut.Selection.Add(ID.Encoded());
+					}
+				}
+			}
+		}
+		else
+		{
+			return false;
+		}
+		return true;
+	}
+	return false;
+}
+
+
+bool UE::Geometry::ConvertSelection(
+	const UE::Geometry::FDynamicMesh3& Mesh,
+	const FGroupTopology* GroupTopology,
+	const FGeometrySelection& FromSelectionIn,
+	FGeometrySelection& ToSelectionOut)
+{
+	if (FromSelectionIn.IsSameType(ToSelectionOut))
+	{
+		ToSelectionOut.Selection = FromSelectionIn.Selection;
+		return true;
+	}
+
+	if (FromSelectionIn.TopologyType == EGeometryTopologyType::Triangle && FromSelectionIn.ElementType == EGeometryElementType::Face)
+	{
+		TArray<int32> Triangles;
+		for (uint64 ElemID : FromSelectionIn.Selection)
+		{
+			Triangles.Add( FGeoSelectionID(ElemID).GeometryID );
+		}
+		return InitializeSelectionFromTriangles(Mesh, GroupTopology, Triangles, ToSelectionOut);
+	}
+
+	// todo: support more conversions
+
+	return false;
 }
 
 

@@ -64,7 +64,6 @@ void FBaseDynamicMeshSelector::InvalidateOnMeshChange(FDynamicMeshChangeInfo Cha
 	NotifyGeometryModified();
 }
 
-
 void FBaseDynamicMeshSelector::Shutdown()
 {
 	if (TargetMesh.IsValid())
@@ -168,7 +167,24 @@ void FBaseDynamicMeshSelector::UpdateSelectionFromSelection(
 		return;
 	}
 
-	check(false);		// todo: convert selection
+	bool bConverted = false;
+	GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& Mesh) 
+	{ 
+		FGeometrySelection TempSelection;
+		TempSelection.InitializeTypes(SelectionEditor.GetElementType(), SelectionEditor.GetTopologyType());
+		bConverted = UE::Geometry::ConvertSelection(Mesh, GetGroupTopology(), FromSelection, TempSelection);		// todo do not always need group topology here...
+		if ( bConverted )
+		{
+			UE::Geometry::UpdateSelectionWithNewElements(&SelectionEditor, UpdateConfig.ChangeType,
+				TempSelection.Selection.Array(), SelectionDelta);
+		}
+	});
+	if (bConverted)
+	{
+		return;
+	}
+
+	ensure(false);		// todo: support this type of convert selection
 }
 
 

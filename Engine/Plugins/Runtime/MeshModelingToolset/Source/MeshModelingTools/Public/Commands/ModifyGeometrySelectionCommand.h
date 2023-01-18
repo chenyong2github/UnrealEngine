@@ -30,7 +30,9 @@ public:
 	};
 	virtual EModificationType GetModificationType() const { return EModificationType::SelectAll; }
 
-	virtual bool IsModifySelectionCommand() const { return true; }
+	virtual bool AllowEmptySelection() const override { return GetModificationType() == EModificationType::SelectAll || GetModificationType() == EModificationType::Invert; }
+
+	virtual bool IsModifySelectionCommand() const override { return true; }
 	virtual FText GetCommandShortString() const override;
 
 	virtual bool CanExecuteCommandForSelection(UGeometrySelectionEditCommandArguments* Arguments) override;

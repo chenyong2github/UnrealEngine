@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BaseTools/SingleSelectionMeshEditingTool.h"
+#include "BaseTools/SingleTargetWithSelectionTool.h"
 #include "MeshOpPreviewHelpers.h"
 #include "ToolDataVisualizer.h"
 #include "ParameterizationOps/UVProjectionOp.h"
@@ -28,13 +28,13 @@ class UUVProjectionTool;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UUVProjectionToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLS_API UUVProjectionToolBuilder : public USingleTargetWithSelectionToolBuilder
 {
 	GENERATED_BODY()
 public:
-	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual USingleTargetWithSelectionTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 
-	virtual bool WantsInputSelectionIfAvailable() const override { return true; }
+	virtual bool RequiresInputSelection() const override { return false; }
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 };
 
@@ -202,7 +202,7 @@ public:
  * UV projection tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UUVProjectionTool : public USingleSelectionMeshEditingTool
+class MESHMODELINGTOOLS_API UUVProjectionTool : public USingleTargetWithSelectionTool
 {
 	GENERATED_BODY()
 

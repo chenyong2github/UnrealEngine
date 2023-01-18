@@ -31,6 +31,11 @@ const FToolTargetTypeRequirements& USingleTargetWithSelectionToolBuilder::GetTar
 
 bool USingleTargetWithSelectionToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
+	if (RequiresInputSelection() && UE::Geometry::HaveAvailableGeometrySelection(SceneState) == false )
+	{
+		return false;
+	}
+
 	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1;
 }
 

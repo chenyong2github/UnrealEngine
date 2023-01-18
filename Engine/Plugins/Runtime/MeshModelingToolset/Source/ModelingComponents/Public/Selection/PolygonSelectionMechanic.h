@@ -5,6 +5,8 @@
 #include "MeshTopologySelectionMechanic.h"
 #include "PolygonSelectionMechanic.generated.h"
 
+namespace UE::Geometry { struct FGeometrySelection; }
+
 // DEPRECATED: Use UMeshTopologySelectionMechanicProperties
 UCLASS(Deprecated)
 class MODELINGCOMPONENTS_API UDEPRECATED_PolygonSelectionMechanicProperties : public UMeshTopologySelectionMechanicProperties
@@ -48,16 +50,25 @@ public:
 	virtual bool UpdateSelection(const FRay& WorldRay, FVector3d& LocalHitPositionOut, FVector3d& LocalHitNormalOut) override;
 
 	/**
-	 * Gives the current selection as a storable selection object. Can optionally apply the passed-in
-	 * compact maps to the object if the topology in the mechanic was not updated after compacting.
+	 * Convert the Active Selection to a PolyGroup-topology FGeometrySelection, with optional CompactMaps
 	 */
-	void GetSelection(UPersistentMeshSelection& SelectionOut, const FCompactMaps* CompactMapsToApply = nullptr) const;
+	void GetSelection_AsGroupTopology(UE::Geometry::FGeometrySelection& SelectionOut, const FCompactMaps* CompactMapsToApply = nullptr) const;
 
 	/**
-	 * Sets the current selection using the given storable selection object. The topology in the
-	 * mechanic must already be initialized for this to work.
+	 * Convert the Active Selection to a Triangle-topology FGeometrySelection, with optional CompactMaps
 	 */
-	void LoadSelection(const UPersistentMeshSelection& Selection);
+	void GetSelection_AsTriangleTopology(UE::Geometry::FGeometrySelection& SelectionOut, const FCompactMaps* CompactMapsToApply = nullptr) const;
+
+
+	/**
+	 * Initialize the Active Selection based on the provided PolyGroup-topology FGeometrySelection
+	 */
+	void SetSelection_AsGroupTopology(const UE::Geometry::FGeometrySelection& Selection);
+
+	/**
+	 * Initialize the Active Selection based on the provided Triangle-topology FGeometrySelection
+	 */
+	void SetSelection_AsTriangleTopology(const UE::Geometry::FGeometrySelection& Selection);
 
 
 	UE_DEPRECATED(5.2, "Use GetTopologySelector in base class")

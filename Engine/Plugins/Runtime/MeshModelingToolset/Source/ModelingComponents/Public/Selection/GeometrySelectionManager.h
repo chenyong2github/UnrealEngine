@@ -13,7 +13,6 @@ class IGeometrySelector;
 class UInteractiveToolsContext;
 class IToolsContextRenderAPI;
 class IToolsContextTransactionsAPI;
-class UPersistentMeshSelection;
 class UGeometrySelectionEditCommand;
 class UGeometrySelectionEditCommandArguments;
 
@@ -208,6 +207,15 @@ public:
 	virtual void EndTrackedSelectionChange();
 
 
+	/**
+	 * Directly set the current Selection for the specified Component to NewSelection.
+	 * This function allows external code to construct explicit selections, eg for a Tool or Command to emit a new Selection.
+	 * Component must already be an active target, ie set via AddActiveTarget.
+	 * If the selection of the Target would be modified, a selection-change transaction will be emitted.
+	 */
+	virtual bool SetSelectionForComponent(UPrimitiveComponent* Component, const FGeometrySelection& NewSelection);
+
+
 	DECLARE_MULTICAST_DELEGATE(FModelingSelectionInteraction_SelectionModified);
 	/**
 	 * OnSelectionModified is broadcast if the selection is modified via the above functions.
@@ -325,14 +333,6 @@ public:
 	/** Visualize the active selection using PDI drawing */
 	virtual void DebugRender(IToolsContextRenderAPI* RenderAPI);
 
-	/**
-	 * Convert the active selection to a UPersistentMeshSelection. 
-	 * SelectionManager will hold a reference to UPersistentMeshSelection to prevent it from being garbage collected,
-	 * but only until the next call to GetActiveSingleSelectionConverted_Legacy()
-	 * This function will be removed in future when UPersistentMeshSelection is no longer needed.
-	 */
-	UPersistentMeshSelection* GetActiveSingleSelectionConverted_Legacy(UPrimitiveComponent* ForComponent);
-
 
 protected:
 
@@ -428,13 +428,6 @@ protected:
 	UE::Geometry::FGeometrySelectionDelta InitialTrackedDelta;
 	UE::Geometry::FGeometrySelectionDelta ActiveTrackedDelta;
 	bool bSelectionModifiedDuringTrackedChange = false;
-
-
-	// legacy / to-deprecate/remove
-	
-	// this is to support GetActiveSingleSelectionConverted_Legacy, which will eventually be removed
-	UPROPERTY()
-	TObjectPtr<UPersistentMeshSelection> OldSelection;
 
 };
 
