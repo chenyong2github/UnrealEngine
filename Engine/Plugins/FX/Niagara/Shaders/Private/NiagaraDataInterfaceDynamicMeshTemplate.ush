@@ -68,18 +68,20 @@ float4 {ParameterName}_UnpackColor(uint Packed)
 	Unpacked.y = (Packed >> 8) & 0xff;
 	Unpacked.z = (Packed >> 16) & 0xff;
 	Unpacked.w = (Packed >> 24) & 0xff;
-	return Unpacked * 255.0f;
+	Unpacked = Unpacked FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
+	return Unpacked / 255.0f;
 }
 
 uint {ParameterName}_PackColor(float4 Color)
 {
+	Color = Color FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
 	Color = clamp((Color * 255.0f) + 0.5f, 0.0f, 255.0f);
 
 	uint Packed;
-	Packed  = uint(Color.r) << 0;
-	Packed |= uint(Color.g) << 8;
-	Packed |= uint(Color.b) << 16;
-	Packed |= uint(Color.a) << 24;
+	Packed  = uint(Color.x) << 0;
+	Packed |= uint(Color.y) << 8;
+	Packed |= uint(Color.z) << 16;
+	Packed |= uint(Color.w) << 24;
 	return Packed;
 }
 

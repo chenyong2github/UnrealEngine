@@ -377,6 +377,13 @@ namespace NDIDynamicMeshLocal
 		FShaderResourceViewRHIRef	VertexBufferTexCoordSRV;
 		FShaderResourceViewRHIRef	VertexBufferColorSRV;
 
+		FRDGBufferRef				RDGTransientSectionBuffer = nullptr;
+		FRDGBufferUAVRef			RDGTransientSectionBufferUAV = nullptr;
+		FRDGBufferRef				RDGTransientIndexBuffer = nullptr;
+		FRDGBufferUAVRef			RDGTransientIndexBufferUAV = nullptr;
+		FRDGBufferRef				RDGTransientVertexBuffer = nullptr;
+		FRDGBufferUAVRef			RDGTransientVertexBufferUAV = nullptr;
+
 		bool						bGpuUsesDynamicAllocation = true;
 		bool						bNeedsClearIndexBuffer = true;
 		bool						bNeedsGpuSectionUpdate = false;
@@ -514,24 +521,40 @@ namespace NDIDynamicMeshLocal
 		virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override { checkNoEntry(); }
 		virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
 
-		virtual void PreStage(const FNDIGpuComputePreStageContext& Context)
+		virtual void PreStage(const FNDIGpuComputePreStageContext& Context) override
 		{
 			FNDIInstanceData_RenderThread& InstanceData = InstanceData_RT.FindChecked(Context.GetSystemInstanceID());
 			const FNiagaraSimStageData& SimStageData = Context.GetSimStageData();
 			if (SimStageData.bFirstStage)
 			{
 				FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+
+				// Do we need to register our graph resources
+				// Note: We are assuming they will be used we could possibly defer until later on
+				if (InstanceData.RDGTransientSectionBuffer == nullptr)
+				{
+					InstanceData.RDGTransientSectionBuffer		= GraphBuilder.RegisterExternalBuffer(InstanceData.SectionPooledBuffer);
+					InstanceData.RDGTransientSectionBufferUAV	= GraphBuilder.CreateUAV(InstanceData.RDGTransientSectionBuffer, EPixelFormat::PF_R32_UINT);
+					InstanceData.RDGTransientIndexBuffer		= GraphBuilder.RegisterExternalBuffer(InstanceData.IndexPooledBuffer);
+					InstanceData.RDGTransientIndexBufferUAV		= GraphBuilder.CreateUAV(InstanceData.RDGTransientIndexBuffer, EPixelFormat::PF_R32_UINT);
+					InstanceData.RDGTransientVertexBuffer		= GraphBuilder.RegisterExternalBuffer(InstanceData.VertexPooledBuffer);
+					InstanceData.RDGTransientVertexBufferUAV	= GraphBuilder.CreateUAV(InstanceData.RDGTransientVertexBuffer, EPixelFormat::PF_R32_UINT);
+
+					Context.GetRDGExternalAccessQueue().Add(InstanceData.RDGTransientIndexBuffer, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask);
+					Context.GetRDGExternalAccessQueue().Add(InstanceData.RDGTransientVertexBuffer, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask);
+				}
+
 				if (InstanceData.bNeedsClearIndexBuffer)
 				{
 					InstanceData.bNeedsClearIndexBuffer = false;
-					AddClearUAVPass(Context.GetGraphBuilder(), GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(InstanceData.IndexPooledBuffer), EPixelFormat::PF_R32_UINT), 0);
+					AddClearUAVPass(Context.GetGraphBuilder(), InstanceData.RDGTransientIndexBufferUAV, 0);
 				}
 
 				if (InstanceData.bNeedsGpuSectionUpdate && InstanceData.NumSections > 0)
 				{
 					AddCopyBufferPass(
 						GraphBuilder,
-						GraphBuilder.RegisterExternalBuffer(InstanceData.SectionPooledBuffer),
+						InstanceData.RDGTransientSectionBuffer,
 						GraphBuilder.RegisterExternalBuffer(InstanceData.SectionDefaultPooledBuffer)
 					);
 				}
@@ -540,6 +563,20 @@ namespace NDIDynamicMeshLocal
 			{
 				//InstanceData.bNeedsClearIndexBuffer = true;
 				InstanceData.bNeedsGpuSectionUpdate = true;
+			}
+		}
+
+		virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override
+		{
+			if (Context.IsFinalPostSimulate())
+			{
+				FNDIInstanceData_RenderThread& InstanceData = InstanceData_RT.FindChecked(Context.GetSystemInstanceID());
+				InstanceData.RDGTransientSectionBuffer = nullptr;
+				InstanceData.RDGTransientSectionBufferUAV = nullptr;
+				InstanceData.RDGTransientIndexBuffer = nullptr;
+				InstanceData.RDGTransientIndexBufferUAV = nullptr;
+				InstanceData.RDGTransientVertexBuffer = nullptr;
+				InstanceData.RDGTransientVertexBufferUAV = nullptr;
 			}
 		}
 
@@ -1219,9 +1256,9 @@ void UNiagaraDataInterfaceDynamicMesh::SetShaderParameters(const FNiagaraDataInt
 	ShaderParameters->TangentBasisOffset	= InstanceData.TangentBasisOffset >> 2;
 	ShaderParameters->TexCoordOffset		= InstanceData.TexCoordOffset >> 2;
 	ShaderParameters->ColorOffset			= InstanceData.ColorOffset >> 2;
-	ShaderParameters->SectionBuffer			= GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(InstanceData.SectionPooledBuffer), EPixelFormat::PF_R32_UINT);
-	ShaderParameters->IndexBuffer			= GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(InstanceData.IndexPooledBuffer), EPixelFormat::PF_R32_UINT);
-	ShaderParameters->VertexBuffer			= GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(InstanceData.VertexPooledBuffer), EPixelFormat::PF_R32_UINT);
+	ShaderParameters->SectionBuffer			= InstanceData.RDGTransientSectionBufferUAV;
+	ShaderParameters->IndexBuffer			= InstanceData.RDGTransientIndexBufferUAV;
+	ShaderParameters->VertexBuffer			= InstanceData.RDGTransientVertexBufferUAV;
 }
 
 FNiagaraRenderableMeshPtr UNiagaraDataInterfaceDynamicMesh::GetRenderableMesh(FNiagaraSystemInstanceID SystemInstanceID)
