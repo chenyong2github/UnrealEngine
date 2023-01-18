@@ -2323,7 +2323,7 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 			// 	}
 			// }
 			
-			if (RestCollection->HasVisibleGeometry() || DynamicCollection->IsDirty())
+			if (RestCollection->HasVisibleGeometry() && DynamicCollection->IsDirty())
 			{
 				// #todo review: When we've made changes to ISMC, we need to move this function call to SetRenderDynamicData_Concurrent
 				RefreshEmbeddedGeometry();
@@ -2810,13 +2810,13 @@ void UGeometryCollectionComponent::SendRenderDynamicData_Concurrent()
 					}
 				);
 			}
-		}
+		}		
+	}
 
-		// mark collection clean now that we have rendered
-		if (DynamicCollection)
-		{
-			DynamicCollection->MakeClean();
-		}			
+	// mark collection clean now that we have rendered
+	if (DynamicCollection)
+	{
+		DynamicCollection->MakeClean();
 	}
 }
 
