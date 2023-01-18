@@ -110,11 +110,7 @@ namespace Horde.Build.Issues.Handlers
 					GetUnitTestNames(stepEvent.EventData, keys);
 					GetScreenshotTestNames(stepEvent.EventData, keys);
 
-					if (keys.Count == 0)
-					{
-						stepEvent.Ignored = true;
-					}
-					else
+					if (keys.Count > 0)
 					{
 						stepEvent.Fingerprint = new NewIssueFingerprint(Type, keys, null, null);
 					}
