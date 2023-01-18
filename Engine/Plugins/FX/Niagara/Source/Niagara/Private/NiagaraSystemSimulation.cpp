@@ -1221,6 +1221,8 @@ void FNiagaraSystemSimulation::Tick_GameThread_Internal(float DeltaSeconds, cons
 	const bool bUpdateTickGroups = !bIsSolo;
 
 	// Update instances
+	const bool bSupportsLargeWorldCoordinates = System->SupportsLargeWorldCoordinates();
+
 	int32 SystemIndex = 0;
 	FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
 	check(WorldManager != nullptr);
@@ -1254,9 +1256,27 @@ void FNiagaraSystemSimulation::Tick_GameThread_Internal(float DeltaSeconds, cons
 
 		// Perform instance tick
 		Instance->Tick_GameThread(DeltaSeconds);
+
 #if NIAGARA_SYSTEMSIMULATION_DEBUGGING
 		NiagaraSystemSimulationLocal::DebugKillInstanceOnTick(Instance);
 #endif
+
+		// Has the actor position changed to the point where we need to reset the LWC tile
+		if (bSupportsLargeWorldCoordinates)
+		{
+			if ( SystemInstances.IsValidIndex(SystemIndex) && (SystemInstances[SystemIndex] == Instance) )
+			{
+				if (USceneComponent* SceneComponent = Instance->GetAttachComponent())
+				{
+					if (UFXSystemComponent::RequiresLWCTileRecache(Instance->GetLWCTile(), SceneComponent->GetComponentLocation()))
+					{
+						//-OPT: For safety we reset everything, but if everything is local space we may not need to, or we could rebase.
+						UE_LOG(LogNiagara, Warning, TEXT("NiagaraComponent(%s - %s) required LWC tile recache and was reset."), *GetFullNameSafe(SceneComponent), *GetFullNameSafe(System));
+						Instance->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
+					}
+				}
+			}
+		}
 
 		// Ticking the instance can result in it being removed, completing + reactivating or transferring
 		if (SystemInstances.IsValidIndex(SystemIndex) && (SystemInstances[SystemIndex] == Instance))

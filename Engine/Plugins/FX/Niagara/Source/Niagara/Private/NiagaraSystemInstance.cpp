@@ -2335,21 +2335,6 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 		return;
 	}
 
-	// Has the actor position changed to the point where we need to reset the LWC tile
-	if (GetSystem()->SupportsLargeWorldCoordinates())
-	{
-		if (USceneComponent* SceneComponent = AttachComponent.Get())
-		{
-			if (UFXSystemComponent::RequiresLWCTileRecache(LWCTile, SceneComponent->GetComponentLocation()))
-			{
-				//-OPT: For safety we reset everything, but if everything is local space we may not need to, or we could rebase.
-				UE_LOG(LogNiagara, Warning, TEXT("NiagaraComponent(%s - %s) required LWC tile recache and was reset."), *GetFullNameSafe(SceneComponent), *GetFullNameSafe(Asset.Get()));
-				Reset(EResetMode::ResetAll);
-				return;
-			}
-		}
-	}
-
 	CachedDeltaSeconds = DeltaSeconds;
 	FixedBounds_CNC = FixedBounds_GT;
 
