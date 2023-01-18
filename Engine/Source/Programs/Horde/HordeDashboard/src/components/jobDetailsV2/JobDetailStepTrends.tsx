@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import { ContextualMenu, Dialog, DialogType, IconButton, IIconProps, Spinner, SpinnerSize, Stack, Text, Toggle } from '@fluentui/react';
-import { IChartProps, ICustomizedCalloutData, ILineChartDataPoint, LineChart } from '@fluentui/react-charting';
+import { IChartProps, ILineChartDataPoint } from '@fluentui/react-charting';
 import { observer } from 'mobx-react-lite';
 import moment from 'moment';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -9,6 +9,9 @@ import backend from '../../backend';
 import { GetBatchResponse, GetJobTimingResponse, GetLabelResponse, GetLabelStateResponse, GetLabelTimingInfoResponse, GetNodeResponse, GetStepResponse, GetStepTimingInfoResponse, GetTemplateRefResponse, JobData, JobQuery, JobTimingsQuery, StepData } from '../../backend/Api';
 import { JobLabel } from '../../backend/JobDetails';
 import TemplateCache from '../../backend/TemplateCache';
+import { HChartHoverCard } from '../../base/components/HordeFluentCharting/HHoverCard/HHoverCard';
+import { HLineChart } from '../../base/components/HordeFluentCharting/HLineChart/HLineChart';
+import { IHCustomizedCalloutData } from '../../base/components/HordeFluentCharting/HLineChart/HLineChart.types';
 import { ISideRailLink } from '../../base/components/SideRail';
 import { msecToElapsed } from '../../base/utilities/timeUtils';
 import { hordeClasses } from '../../styles/Styles';
@@ -406,7 +409,7 @@ function preventChartScroll(this: Document, e: WheelEvent) {
    e.returnValue = false
 }
 
-export const StepTrendsPanel: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({ jobDetails }) => {
+export const StepTrendsPanel: React.FC<{ jobDetails: JobDetailsV2}> = observer(({ jobDetails}) => {
    const query = useQuery();
 
    const stepId = query.get("step") ? query.get("step")! : undefined;
@@ -419,15 +422,15 @@ export const StepTrendsPanel: React.FC<{ jobDetails: JobDetailsV2 }> = observer(
          dataView?.clear();
       };
    }, [dataView]);
-
+   
    dataView.subscribe();
 
    if (jobDetails?.jobData) {
-      dataView.initialize(jobDetails.jobData?.preflightChange ? undefined : [sideRail]);
+      dataView.initialize(jobDetails.jobData?.preflightChange ? undefined : [sideRail]);       
    } else {
       jobDetails?.subscribe();
    }
-
+   
    if (jobDetails.jobData == null || !jobDetails?.viewsReady || jobDetails.jobData.preflightChange) {
       return null;
    }
@@ -1216,7 +1219,7 @@ const StepTrendsPanelInner: React.FC<{ jobDetails: JobDetailsV2; dataView: Trend
    let titleText = 'Trends';
    if (filteredChartState && filteredChartState?.chartProps) {
       if (filteredChartState.chartProps?.lineChartData?.length) {
-         placeholderDiv = <LineChart
+         placeholderDiv = <HLineChart
             data={filteredChartState.chartProps}
             hideLegend={false}
             legendProps={{ canSelectMultipleLegends: true, allowFocusOnLegends: false, enabledWrapLines: true }}
@@ -1225,16 +1228,21 @@ const StepTrendsPanelInner: React.FC<{ jobDetails: JobDetailsV2; dataView: Trend
             margins={{ top: 20, bottom: 35, left: filteredChartState.leftMargin, right: 45 }}
             yAxisTickCount={5}
             yMaxValue={filteredChartState.yMaxValue}
-            onRenderCalloutPerDataPoint={(props?: ICustomizedCalloutData) => {
-               // This is currently disabled, due to package updates and incompatibility with 
-               // custom LineChart component hoisted out
-               // of react charting, which had some customizations for the callout
-               // namely comparison with next data point, and more importantly a way to 
-               // tell which y data point the user is hovering over... without that
-               // all matching x's are rendered and no way to customize (a failing of the fluent charting package)
-               // Trends data and rendering need to be redone, and already spent too much time trying to figure out
-               // how to make this work without the customization on the component, so here we are:
-               return <div />
+            onRenderCalloutPerDataPoint={(props: (IHCustomizedCalloutData | undefined)[] | undefined) => {
+               if (!props || (!props[0] && !props[1])) {
+                  return null;
+               }
+
+               let hoverPoint1 = props[0];
+               let hoverPoint2 = props[1];
+
+               let dataPoint1 = hoverPoint1 ? hoverPoint1.values.find((point: { legend: string | number; y: string | number }) => point.y === hoverPoint1!.hoverYValue) : undefined;
+               let dataPoint2 = hoverPoint2 ? hoverPoint2.values.find((point: { legend: string | number; y: string | number }) => point.y === hoverPoint2!.hoverYValue) : undefined;
+
+               if (hoverPoint1 && dataPoint1) {
+                  return <HChartHoverCard props1={hoverPoint1} dataPoint1={dataPoint1} props2={hoverPoint2} dataPoint2={dataPoint2} />
+               }
+               return null;
             }}
          />
       }
