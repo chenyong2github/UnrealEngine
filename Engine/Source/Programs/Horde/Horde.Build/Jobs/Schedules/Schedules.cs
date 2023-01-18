@@ -72,6 +72,11 @@ namespace Horde.Build.Jobs.Schedules
 		public DateTimeOffset LastTriggerTime { get; set; }
 
 		/// <summary>
+		/// Next trigger times for schedule
+		/// </summary>
+		public List<DateTime> NextTriggerTimesUTC { get; set; }
+
+		/// <summary>
 		/// List of active jobs
 		/// </summary>
 		public List<JobId> ActiveJobs { get; set; }
@@ -96,6 +101,21 @@ namespace Horde.Build.Jobs.Schedules
 			LastTriggerChange = schedule.LastTriggerChange;
 			LastTriggerTime = schedule.LastTriggerTimeUtc;
 			ActiveJobs = new List<JobId>(schedule.ActiveJobs);
+
+			DateTime curTime = schedule.LastTriggerTimeUtc;
+			NextTriggerTimesUTC = new List<DateTime>();
+			for (int i = 0; i < 16; i++)
+			{
+				DateTime? nextTime = schedule.Config.GetNextTriggerTimeUtc(curTime, TimeZoneInfo.Utc);
+				if (nextTime == null)
+				{
+					break;
+				}
+				
+				curTime = nextTime.Value;
+				NextTriggerTimesUTC.Add(curTime);
+			}
+
 		}
 	}
 
