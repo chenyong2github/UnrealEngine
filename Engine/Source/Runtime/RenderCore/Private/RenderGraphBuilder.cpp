@@ -631,6 +631,129 @@ const TRefCountPtr<IPooledRenderTarget>& FRDGBuilder::ConvertToExternalTexture(F
 	return GetPooledTexture(Texture);
 }
 
+FRHIUniformBuffer* FRDGBuilder::ConvertToExternalUniformBuffer(FRDGUniformBufferRef UniformBuffer)
+{
+	if (!UniformBuffer->bExternal)
+	{
+		UniformBuffer->GetParameters().Enumerate([this](const FRDGParameter& Param)
+		{
+			auto ConvertTexture = [](FRDGBuilder* Builder, FRDGTextureRef Texture)
+			{
+				if (Texture && !Texture->IsExternal())
+				{
+					Builder->ConvertToExternalTexture(Texture);
+				}
+			};
+			auto ConvertBuffer = [](FRDGBuilder* Builder, FRDGBufferRef Buffer)
+			{
+				if (Buffer && !Buffer->IsExternal())
+				{
+					Builder->ConvertToExternalBuffer(Buffer);
+				}
+			};
+
+			switch (Param.GetType())
+			{
+			case UBMT_RDG_TEXTURE:
+			{
+				ConvertTexture(this, Param.GetAsTexture());
+			}
+			break;
+			case UBMT_RDG_TEXTURE_ACCESS:
+			{
+				ConvertTexture(this, Param.GetAsTextureAccess().GetTexture());
+			}
+			break;
+			case UBMT_RDG_TEXTURE_ACCESS_ARRAY:
+			{
+				const FRDGTextureAccessArray& Array = Param.GetAsTextureAccessArray();
+				for (int Index = 0; Index < Array.Num(); ++Index)
+				{
+					ConvertTexture(this, Array[Index].GetTexture());
+				}
+			}
+			break;
+			case UBMT_RDG_TEXTURE_SRV:
+			{
+				ConvertTexture(this, Param.GetAsTextureSRV()->Desc.Texture);
+				InitRHI(Param.GetAsView());
+			}
+			break;
+			case UBMT_RDG_TEXTURE_UAV:
+			{
+				ConvertTexture(this, Param.GetAsTextureUAV()->Desc.Texture);
+				InitRHI(Param.GetAsView());
+			}
+			break;
+			case UBMT_RDG_BUFFER_ACCESS:
+			{
+				ConvertBuffer(this, Param.GetAsBufferAccess().GetBuffer());
+			}
+			break;
+			case UBMT_RDG_BUFFER_ACCESS_ARRAY:
+			{
+				const FRDGBufferAccessArray& Array = Param.GetAsBufferAccessArray();
+				for (int Index = 0; Index < Array.Num(); ++Index)
+				{
+					ConvertBuffer(this, Array[Index].GetBuffer());
+				}
+			}
+			break;
+			case UBMT_RDG_BUFFER_SRV:
+			{
+				ConvertBuffer(this, Param.GetAsBufferSRV()->Desc.Buffer);
+				InitRHI(Param.GetAsView());
+			}
+			break;
+			case UBMT_RDG_BUFFER_UAV:
+			{
+				ConvertBuffer(this, Param.GetAsBufferUAV()->Desc.Buffer);
+				InitRHI(Param.GetAsView());
+			}
+			break;
+			case UBMT_RDG_UNIFORM_BUFFER:
+			{
+				FRDGUniformBufferRef Buffer = Param.GetAsUniformBuffer().GetUniformBuffer();
+				if (Buffer)
+				{
+					ConvertToExternalUniformBuffer(Buffer);
+				}
+			}
+			break;
+
+			// Non-RDG cases
+			case UBMT_INT32:
+			case UBMT_UINT32:
+			case UBMT_FLOAT32:
+			case UBMT_TEXTURE:
+			case UBMT_SRV:
+			case UBMT_UAV:
+			case UBMT_SAMPLER:
+			case UBMT_NESTED_STRUCT:
+			case UBMT_INCLUDED_STRUCT:
+			case UBMT_REFERENCED_STRUCT:
+			case UBMT_RENDER_TARGET_BINDING_SLOTS:
+			break;
+
+			default:
+				check(0);
+			}
+		});
+	}
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateConvertToExternalUniformBuffer(UniformBuffer));
+	if (!UniformBuffer->bExternal)
+	{
+		UniformBuffer->bExternal = true;
+		UniformBuffer->bQueuedForCreate = true;
+
+		// It's safe to reset the access to false because validation won't allow this call during execution.
+		IF_RDG_ENABLE_DEBUG(GRDGAllowRHIAccess = true);
+		UniformBuffer->InitRHI();
+		IF_RDG_ENABLE_DEBUG(GRDGAllowRHIAccess = false);
+	}
+	return UniformBuffer->GetRHIUnchecked();
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SHADER_PARAMETER_STRUCT(FAccessModePassParameters, )

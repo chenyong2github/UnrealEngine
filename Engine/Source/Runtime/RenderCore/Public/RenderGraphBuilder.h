@@ -281,6 +281,12 @@ public:
 	 */
 	const TRefCountPtr<IPooledRenderTarget>& ConvertToExternalTexture(FRDGTextureRef Texture);
 	const TRefCountPtr<FRDGPooledBuffer>& ConvertToExternalBuffer(FRDGBufferRef Buffer);
+	/** For a graph-created uniform buffer, this forces immediate allocation of the underlying resource, effectively promoting it
+	 *  to an external resource. This will increase memory pressure, but allows access to the RHI resource.
+	 *  Graph resources that are referenced in the buffer will be converted to external.
+	 *  This is primarily used as an aid for porting code incrementally to RDG.
+	 */
+	FRHIUniformBuffer* ConvertToExternalUniformBuffer(FRDGUniformBufferRef UniformBuffer);
 
 	/** Performs an immediate query for the underlying pooled resource. This is only allowed for external or extracted resources. */
 	const TRefCountPtr<IPooledRenderTarget>& GetPooledTexture(FRDGTextureRef Texture) const;

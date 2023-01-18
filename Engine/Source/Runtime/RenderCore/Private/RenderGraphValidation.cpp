@@ -396,6 +396,14 @@ void FRDGUserValidation::ValidateConvertToExternalResource(FRDGViewableResource*
 		Resource->Name);
 }
 
+void FRDGUserValidation::ValidateConvertToExternalUniformBuffer(FRDGUniformBuffer* UniformBuffer)
+{
+	check(UniformBuffer);
+	checkf(!bHasExecuteBegun,
+		TEXT("Unable to convert uniform buffer %s to external because passes in the graph have already executed."),
+		UniformBuffer->GetLayoutName());
+}
+
 void FRDGUserValidation::RemoveUnusedWarning(FRDGViewableResource* Resource)
 {
 	check(Resource);

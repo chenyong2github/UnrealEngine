@@ -193,6 +193,11 @@ public:
 		return ParameterStruct;
 	}
 
+	FORCEINLINE const TCHAR* GetLayoutName() const
+	{
+		return *ParameterStruct.GetLayout().GetDebugName();
+	}
+
 #if RDG_ENABLE_DEBUG
 	void MarkResourceAsUsed() override;
 #else
@@ -228,6 +233,7 @@ private:
 	TRefCountPtr<FRHIUniformBuffer> UniformBufferRHI;
 	FRDGUniformBufferHandle Handle;
 	bool bQueuedForCreate = false;
+	bool bExternal = false;
 
 	friend FRDGBuilder;
 	friend FRDGUniformBufferRegistry;

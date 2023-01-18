@@ -85,6 +85,7 @@ public:
 	void ValidateExtractBuffer(FRDGBufferRef Buffer, TRefCountPtr<FRDGPooledBuffer>* OutBufferPtr);
 
 	void ValidateConvertToExternalResource(FRDGViewableResource* Resource);
+	void ValidateConvertToExternalUniformBuffer(FRDGUniformBuffer* UniformBuffer);
 
 	/** Tracks and validates the addition of a new pass to the graph.
 	 *  @param bSkipPassAccessMarking Skips marking the pass as a producer or incrementing the pass access. Useful when
