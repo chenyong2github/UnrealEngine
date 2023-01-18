@@ -210,7 +210,8 @@ DetermineLocalDataCachePath(const TCHAR* ConfigSection, FString& DataPath)
 			FString SettingPath;
 			if (FParse::Value(*Setting, TEXT("Path="), SettingPath))
 			{
-				SettingPath = SettingPath.TrimQuotes();
+				SettingPath.TrimQuotesInline();
+				SettingPath.ReplaceEscapedCharWithCharInline();
 				if (!SettingPath.IsEmpty())
 				{
 					DataPath = SettingPath;
