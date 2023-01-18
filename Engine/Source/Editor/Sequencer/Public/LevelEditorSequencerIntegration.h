@@ -31,6 +31,7 @@ struct FLevelEditorSequencerIntegrationOptions
 		, bForceRefreshDetails(true)
 		, bAttachOutlinerColumns(true)
 		, bActivateSequencerEdMode(true)
+		, bSyncBindingsToActorLabels(true)
 	{}
 
 	bool bRequiresLevelEvents : 1;
@@ -38,6 +39,7 @@ struct FLevelEditorSequencerIntegrationOptions
 	bool bForceRefreshDetails : 1;
 	bool bAttachOutlinerColumns : 1;
 	bool bActivateSequencerEdMode : 1;
+	bool bSyncBindingsToActorLabels : 1;
 };
 
 

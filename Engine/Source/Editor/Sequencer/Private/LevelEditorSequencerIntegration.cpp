@@ -333,6 +333,11 @@ void FLevelEditorSequencerIntegration::OnActorLabelChanged(AActor* ChangedActor)
 {
 	for (const FSequencerAndOptions& SequencerAndOptions : BoundSequencers)
 	{
+		if (!SequencerAndOptions.Options.bSyncBindingsToActorLabels)
+		{
+			continue;
+		}
+		
 		TSharedPtr<FSequencer> Pinned = SequencerAndOptions.Sequencer.Pin();
 		if (Pinned.IsValid())
 		{
