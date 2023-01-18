@@ -2,6 +2,7 @@
 
 #include "EnhancedInputDeveloperSettings.h"
 #include "EnhancedInputPlatformSettings.h"
+#include "EnhancedPlayerInput.h"
 #include "HAL/IConsoleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputDeveloperSettings)
@@ -20,7 +21,12 @@ namespace UE::EnhancedInput::Private
 }
 
 UEnhancedInputDeveloperSettings::UEnhancedInputDeveloperSettings(const FObjectInitializer& Initializer)
-	: Super(Initializer)
+	: Super(Initializer)	
+	, DefaultWorldInputClass(UEnhancedPlayerInput::StaticClass())
+	, bEnableDefaultMappingContexts(true)
+	, bShouldOnlyTriggerLastActionInChord(true)
+	, bEnableWorldSubsystem(true)
+	, bShouldLogAllWorldSubsystemInputs(false)
 {
 	PlatformSettings.Initialize(UEnhancedInputPlatformSettings::StaticClass());
 }
