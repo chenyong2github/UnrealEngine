@@ -80,20 +80,23 @@ void FGPUTextureTransferModule::ShutdownModule()
 
 UE::GPUTextureTransfer::TextureTransferPtr FGPUTextureTransferModule::GetTextureTransfer()
 {
+	if (FApp::CanEverRender())
+	{
 #if DVP_SUPPORTED_PLATFORM
-	UE::GPUTextureTransfer::ERHI SupportedRHI = ConvertRHI(RHIGetInterfaceType());
-	if (SupportedRHI == UE::GPUTextureTransfer::ERHI::Invalid) 
-	{
-		UE_LOG(LogGPUTextureTransfer, Error, TEXT("The current RHI is not supported with GPU Texture Transfer."));
-		return nullptr;
-	}
+		UE::GPUTextureTransfer::ERHI SupportedRHI = ConvertRHI(RHIGetInterfaceType());
+		if (SupportedRHI == UE::GPUTextureTransfer::ERHI::Invalid) 
+		{
+			UE_LOG(LogGPUTextureTransfer, Error, TEXT("The current RHI is not supported with GPU Texture Transfer."));
+			return nullptr;
+		}
 	
-	const uint8 RHIIndex = static_cast<uint8>(SupportedRHI);
-	if (TransferObjects[RHIIndex])
-	{
-		return TransferObjects[RHIIndex];
-	}
+		const uint8 RHIIndex = static_cast<uint8>(SupportedRHI);
+		if (TransferObjects[RHIIndex])
+		{
+			return TransferObjects[RHIIndex];
+		}
 #endif
+	}
 	return nullptr;
 }
 
