@@ -33,7 +33,6 @@ public class NNX_ONNXRuntime : ModuleRules
 				System.IO.Path.Combine(ModuleDirectory, "../Deps/gsl"),
 				System.IO.Path.Combine(ModuleDirectory, "../Deps/json/single_include"),
 				System.IO.Path.Combine(ModuleDirectory, "../Deps/mp11/include"),
-				System.IO.Path.Combine(ModuleDirectory, "../Deps/optional-lite/include"),
 				System.IO.Path.Combine(ModuleDirectory, "../Deps/SafeInt"),
 				System.IO.Path.Combine(ModuleDirectory, "../Deps/wil/include"),
 			}
