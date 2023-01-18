@@ -114,11 +114,12 @@ private:
 struct FMediaSectionExecutionToken
 	: FMediaSectionBaseExecutionToken
 {
-	FMediaSectionExecutionToken(UMediaSource* InMediaSource, FMovieSceneObjectBindingID InMediaSourceProxy, int32 InMediaSourceProxyIndex, FTimespan InCurrentTime, FTimespan InFrameDuration)
+	FMediaSectionExecutionToken(UMediaSource* InMediaSource, FMovieSceneObjectBindingID InMediaSourceProxy, int32 InMediaSourceProxyIndex, float InProxyTextureBlend, FTimespan InCurrentTime, FTimespan InFrameDuration)
 		: FMediaSectionBaseExecutionToken(InMediaSource, InMediaSourceProxy, InMediaSourceProxyIndex)
 		, CurrentTime(InCurrentTime)
 		, FrameDuration(InFrameDuration)
 		, PlaybackRate(1.0f)
+		, ProxyTextureBlend(InProxyTextureBlend)
 	{ }
 
 	virtual void Execute(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) override
@@ -141,6 +142,7 @@ struct FMediaSectionExecutionToken
 				(PlayerProxy);
 			if (PlayerProxyInterface != nullptr)
 			{
+				PlayerProxyInterface->ProxySetTextureBlend(SectionData.GetProxyTextureIndex(), ProxyTextureBlend);
 				// Can we control the player?
 				if (PlayerProxyInterface->IsExternalControlAllowed() == false)
 				{
@@ -265,6 +267,7 @@ private:
 	FTimespan CurrentTime;
 	FTimespan FrameDuration;
 	float PlaybackRate;
+	float ProxyTextureBlend;
 };
 
 
@@ -297,6 +300,7 @@ FMovieSceneMediaSectionTemplate::FMovieSceneMediaSectionTemplate(const UMovieSce
 		Params.SectionEndFrame = InSection.GetRange().GetUpperBoundValue();
 	}
 
+	Params.ProxyTextureBlend = InSection.TextureBlend;
 	Params.ProxyTextureIndex = InSection.TextureIndex;
 }
 
@@ -336,6 +340,9 @@ void FMovieSceneMediaSectionTemplate::Evaluate(const FMovieSceneEvaluationOperan
 		const double FrameDurationInSeconds = FMath::Max(FrameRate.AsSeconds(FFrameTime(1)), (Context.GetRange().Size<FFrameTime>()) / Context.GetFrameRate());
 		const int64 FrameDurationTicks = FrameDurationInSeconds * ETimespan::TicksPerSecond;
 
+		float ProxyTextureBlend = 1.0f;
+		Params.ProxyTextureBlend.Evaluate(Context.GetTime(), ProxyTextureBlend);
+
 		#if MOVIESCENEMEDIATEMPLATE_TRACE_EVALUATION
 			GLog->Logf(ELogVerbosity::Log, TEXT("Evaluating frame %i+%f, FrameRate %i/%i, FrameTicks %d, FrameDurationTicks %d"),
 				Context.GetTime().GetFrame().Value,
@@ -347,7 +354,7 @@ void FMovieSceneMediaSectionTemplate::Evaluate(const FMovieSceneEvaluationOperan
 			);
 		#endif
 
-		ExecutionTokens.Add(FMediaSectionExecutionToken(MediaSource, Params.MediaSourceProxy, Params.MediaSourceProxyIndex, FTimespan(FrameTicks), FTimespan(FrameDurationTicks)));
+		ExecutionTokens.Add(FMediaSectionExecutionToken(MediaSource, Params.MediaSourceProxy, Params.MediaSourceProxyIndex, ProxyTextureBlend, FTimespan(FrameTicks), FTimespan(FrameDurationTicks)));
 	}
 }
 

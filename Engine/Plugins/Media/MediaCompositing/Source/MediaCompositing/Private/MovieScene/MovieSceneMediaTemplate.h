@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Channels/MovieSceneFloatChannel.h"
 #include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Evaluation/MovieScenePropertyTemplate.h"
 #include "MovieSceneObjectBindingID.h"
@@ -50,6 +51,9 @@ struct FMovieSceneMediaSectionParams
 	
 	UPROPERTY()
 	FFrameNumber StartFrameOffset;
+
+	UPROPERTY()
+	FMovieSceneFloatChannel ProxyTextureBlend;
 
 	UPROPERTY()
 	int32 ProxyTextureIndex;

@@ -16,6 +16,7 @@
 FMovieSceneMediaData::FMovieSceneMediaData()
 	: bOverrideMediaPlayer(false)
 	, MediaPlayer(nullptr)
+	, ProxyTextureIndex(0)
 	, SeekOnOpenTime(FTimespan::MinValue())
 { }
 
@@ -46,7 +47,7 @@ void FMovieSceneMediaData::SeekOnOpen(FTimespan Time)
 }
 
 
-void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InPlayerProxy, int32 ProxyTextureIndex)
+void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InPlayerProxy, int32 InProxyTextureIndex)
 {
 	// Ensure we don't already have a media player set. Setup should only be called once
 	check(!MediaPlayer);
@@ -65,6 +66,7 @@ void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InP
 	MediaPlayer->OnMediaEvent().AddRaw(this, &FMovieSceneMediaData::HandleMediaPlayerEvent);
 	MediaPlayer->AddToRoot();
 	ProxyMediaTexture.Reset();
+	ProxyTextureIndex = InProxyTextureIndex;
 
 	// Do we have a valid proxy object?
 	if ((InPlayerProxy != nullptr) && (InPlayerProxy->Implements<UMediaPlayerProxyInterface>()))
