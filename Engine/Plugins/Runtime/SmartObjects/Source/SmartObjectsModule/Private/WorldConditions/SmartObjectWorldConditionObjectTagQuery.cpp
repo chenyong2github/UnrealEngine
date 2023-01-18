@@ -27,50 +27,16 @@ bool FSmartObjectWorldConditionObjectTagQuery::Initialize(const UWorldConditionS
 		return false;
 	}
 
-	SubsystemRef = SmartObjectSchema->GetSubsystemRef();
+	// @todo: update to event based once SO instance emits events.
+	bCanCacheResult	= false;
 	ObjectHandleRef = SmartObjectSchema->GetSmartObjectHandleRef();
-	bCanCacheResult = Schema.GetContextDataTypeByRef(ObjectHandleRef) == EWorldConditionContextDataType::Persistent;
-
-	return true;
-}
-
-bool FSmartObjectWorldConditionObjectTagQuery::Activate(const FWorldConditionContext& Context) const
-{
-	// @todo SO: replace const_cast by mutable data in the context once supported
-	USmartObjectSubsystem* SmartObjectSubsystem = const_cast<USmartObjectSubsystem*>(Context.GetContextDataPtr<USmartObjectSubsystem>(SubsystemRef));
-	check(SmartObjectSubsystem);
-
-	// Use a callback to listen changes to persistent data.
-	if (Context.GetContextDataType(ObjectHandleRef) == EWorldConditionContextDataType::Persistent)
-	{
-		if (const FSmartObjectHandle* ObjectHandle = Context.GetContextDataPtr<FSmartObjectHandle>(ObjectHandleRef))
-		{
-			if (FOnSmartObjectEvent* Delegate = SmartObjectSubsystem->GetEventDelegate(*ObjectHandle))
-			{
-				FStateType& State = Context.GetState(*this);
-				State.DelegateHandle = Delegate->AddLambda([InvalidationHandle = Context.GetInvalidationHandle(*this)](const FSmartObjectEventData& Event)
-				{
-					if (Event.Reason == ESmartObjectChangeReason::OnTagAdded
-						|| Event.Reason == ESmartObjectChangeReason::OnTagRemoved)
-					{
-						InvalidationHandle.InvalidateResult();
-					}
-				});
-				
-				return true;
-			}
-		}
-		// Failed to find the data.
-		return false;
-	}
-
-	// Dynamic data, do not expect input to be valid on Activate().
-	return true;
+	
+	return false;
 }
 
 EWorldConditionResult FSmartObjectWorldConditionObjectTagQuery::IsTrue(const FWorldConditionContext& Context) const
 {
-	const USmartObjectSubsystem* SmartObjectSubsystem = Context.GetContextDataPtr<USmartObjectSubsystem>(SubsystemRef);
+	const USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(Context.GetWorld());
 	check(SmartObjectSubsystem);
 
 	if (const FSmartObjectHandle* ObjectHandle = Context.GetContextDataPtr<FSmartObjectHandle>(ObjectHandleRef))
@@ -80,27 +46,6 @@ EWorldConditionResult FSmartObjectWorldConditionObjectTagQuery::IsTrue(const FWo
 	}
 
 	return EWorldConditionResult::IsFalse;
-}
-
-void FSmartObjectWorldConditionObjectTagQuery::Deactivate(const FWorldConditionContext& Context) const
-{
-	// @todo SO: replace const_cast by mutable data in the context once supported
-	USmartObjectSubsystem* SmartObjectSubsystem = const_cast<USmartObjectSubsystem*>(Context.GetContextDataPtr<USmartObjectSubsystem>(SubsystemRef));
-	check(SmartObjectSubsystem);
-
-	FStateType& State = Context.GetState(*this);
-
-	if (State.DelegateHandle.IsValid())
-	{
-		if (const FSmartObjectHandle* ObjectHandle = Context.GetContextDataPtr<FSmartObjectHandle>(ObjectHandleRef))
-		{
-			if (FOnSmartObjectEvent* Delegate = SmartObjectSubsystem->GetEventDelegate(*ObjectHandle))
-			{
-				Delegate->Remove(State.DelegateHandle);
-			}
-		}
-		State.DelegateHandle.Reset();
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

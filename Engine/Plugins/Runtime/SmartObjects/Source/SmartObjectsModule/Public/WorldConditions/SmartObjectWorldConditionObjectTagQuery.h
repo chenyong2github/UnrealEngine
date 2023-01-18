@@ -31,14 +31,10 @@ protected:
 #endif
 	virtual const UStruct* GetRuntimeStateType() const override { return FStateType::StaticStruct(); }
 	virtual bool Initialize(const UWorldConditionSchema& Schema) override;
-	virtual bool Activate(const FWorldConditionContext& Context) const override;
 	virtual EWorldConditionResult IsTrue(const FWorldConditionContext& Context) const override;
-	virtual void Deactivate(const FWorldConditionContext& Context) const override;
 
-	FWorldConditionContextDataRef SubsystemRef;
 	FWorldConditionContextDataRef ObjectHandleRef;
 
-public:	
 	/** Smart Object's runtime tags needs to match this query for the condition to evaluate true. */
 	UPROPERTY(EditAnywhere, Category="Default")
 	FGameplayTagQuery TagQuery;

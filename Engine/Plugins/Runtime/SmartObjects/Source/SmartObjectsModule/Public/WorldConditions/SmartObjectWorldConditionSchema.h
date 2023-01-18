@@ -30,9 +30,6 @@ public:
 	/** Context data reference for accessing SmartObject Slot handle. */
 	FWorldConditionContextDataRef GetSlotHandleRef() const { return SlotHandleRef; }
 
-	/** Context data reference for accessing SmartObject subsystem. */
-	FWorldConditionContextDataRef GetSubsystemRef() const { return SubsystemRef; }
-
 protected:
 
 	virtual bool IsStructAllowed(const UScriptStruct* InScriptStruct) const override;
@@ -44,5 +41,4 @@ private:
 	FWorldConditionContextDataRef SmartObjectActorRef;
 	FWorldConditionContextDataRef SmartObjectHandleRef;
 	FWorldConditionContextDataRef SlotHandleRef;
-	FWorldConditionContextDataRef SubsystemRef;
 };

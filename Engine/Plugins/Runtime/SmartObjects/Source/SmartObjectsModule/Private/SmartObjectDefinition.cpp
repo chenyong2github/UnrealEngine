@@ -5,8 +5,6 @@
 #include "SmartObjectTypes.h"
 #if WITH_EDITOR
 #include "UObject/ObjectSaveContext.h"
-#include "WorldConditions/WorldCondition_SmartObjectActorTagQuery.h"
-#include "WorldConditions/SmartObjectWorldConditionObjectTagQuery.h"
 #endif
 
 
@@ -138,7 +136,7 @@ const USmartObjectBehaviorDefinition* USmartObjectDefinition::GetBehaviorDefinit
 const USmartObjectBehaviorDefinition* USmartObjectDefinition::GetBehaviorDefinitionByType(const TArray<USmartObjectBehaviorDefinition*>& BehaviorDefinitions,
 																				 const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)
 {
-	USmartObjectBehaviorDefinition* const* BehaviorDefinition = BehaviorDefinitions.FindByPredicate([&DefinitionClass](const USmartObjectBehaviorDefinition* SlotBehaviorDefinition)
+	USmartObjectBehaviorDefinition* const* BehaviorDefinition = BehaviorDefinitions.FindByPredicate([&DefinitionClass](USmartObjectBehaviorDefinition* SlotBehaviorDefinition)
 		{
 			return SlotBehaviorDefinition != nullptr && SlotBehaviorDefinition->GetClass()->IsChildOf(*DefinitionClass);
 		});
@@ -233,7 +231,7 @@ void USmartObjectDefinition::UpdateSlotReferences()
 			
 			for (TFieldIterator<FProperty> It(ScriptStruct); It; ++It)
 			{
-				if (const FStructProperty* StructProp = CastField<FStructProperty>(*It))
+				if (FStructProperty* StructProp = CastField<FStructProperty>(*It))
 				{
 					if (StructProp->Struct == TBaseStructure<FSmartObjectSlotReference>::Get())
 					{
@@ -258,29 +256,6 @@ void USmartObjectDefinition::PostLoad()
 	{
 		WorldConditionSchemaClass = GetDefault<USmartObjectSettings>()->DefaultWorldConditionSchemaClass;
 	}
-
-	if (!Preconditions.SchemaClass)
-	{
-		Preconditions.SchemaClass = WorldConditionSchemaClass;
-	}
-
-#if WITH_EDITOR
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (!ObjectTagFilter.IsEmpty())
-	{
-		FWorldCondition_SmartObjectActorTagQuery NewActorTagQueryCondition;
-		NewActorTagQueryCondition.TagQuery = ObjectTagFilter;
-		Preconditions.EditableConditions.Emplace(0, EWorldConditionOperator::And, FConstStructView::Make(NewActorTagQueryCondition));
-		ObjectTagFilter.Clear();
-		UE_ASSET_LOG(LogSmartObject, Warning, this, TEXT("Deprecated object tag filter has been replaced by a %s precondition to validate tags on the smart object actor."
-			" If the intent was to validate against instance runtime tags then the condition should be replaced by %s."),
-			*FWorldCondition_SmartObjectActorTagQuery::StaticStruct()->GetName(),
-			*FSmartObjectWorldConditionObjectTagQuery::StaticStruct()->GetName());
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif	
-
-	Preconditions.Initialize(*this);
 	
 	for (FSmartObjectSlotDefinition& Slot : Slots)
 	{

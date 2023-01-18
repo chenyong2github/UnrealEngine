@@ -15,7 +15,6 @@ USmartObjectWorldConditionSchema::USmartObjectWorldConditionSchema(const FObject
 	SmartObjectActorRef = AddContextDataDesc(TEXT("SmartObjectActor"), AActor::StaticClass(), EWorldConditionContextDataType::Persistent);
 	SmartObjectHandleRef = AddContextDataDesc(TEXT("SmartObjectHandle"), FSmartObjectHandle::StaticStruct(), EWorldConditionContextDataType::Persistent);
 	SlotHandleRef = AddContextDataDesc(TEXT("SlotHandle"), FSmartObjectSlotHandle::StaticStruct(), EWorldConditionContextDataType::Persistent);
-	SubsystemRef = AddContextDataDesc(TEXT("Subsystem"), USmartObjectSubsystem::StaticClass(), EWorldConditionContextDataType::Persistent);
 }
 
 bool USmartObjectWorldConditionSchema::IsStructAllowed(const UScriptStruct* InScriptStruct) const

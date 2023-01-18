@@ -9,7 +9,7 @@
 #include "SmartObjectSubsystem.h"
 #include "SmartObjectComponent.h"
 #include "SmartObjectTestTypes.h"
-#include "WorldConditions/SmartObjectWorldConditionObjectTagQuery.h"
+#include "MassEntityUtils.h"
 
 #define LOCTEXT_NAMESPACE "AITestSuite_SmartObjectsTest"
 
@@ -723,25 +723,22 @@ IMPLEMENT_AI_INSTANT_TEST(FUserTagsFilterPolicyOverride, "System.AI.SmartObjects
 
 struct FInstanceTagsFilter : FSmartObjectTestBase
 {
-	virtual bool SetupDefinition() override
+	virtual bool SetUp() override
 	{
-		if (!FSmartObjectTestBase::SetupDefinition())
+		if (!FSmartObjectTestBase::SetUp())
 		{
 			return false;
 		}
 
 		// Tags setup looks like:
-		// Object:	FSmartObjectWorldConditionObjectTagQuery:	NoMatch(TestTag1)
+		// Object:	ObjectTagFilter:	NoMatch(TestTag1)
 
-		FWorldConditionQueryDefinition& ConditionQueryDefinition = Definition->GetMutablePreconditions();
-		FSmartObjectWorldConditionObjectTagQuery NewCondition;
-		NewCondition.TagQuery = FGameplayTagQuery::BuildQuery(
+		// Set first slot user tag filter
+		Definition->SetObjectTagFilter(FGameplayTagQuery::BuildQuery(
 			FGameplayTagQueryExpression()
 			.NoTagsMatch()
-			.AddTag(FNativeGameplayTags::Get().TestTag1));
-		ConditionQueryDefinition.EditableConditions.Emplace(0, EWorldConditionOperator::And, FConstStructView::Make(NewCondition));
-		ConditionQueryDefinition.SchemaClass = Definition->GetWorldConditionSchemaClass();
-		ConditionQueryDefinition.Initialize(*Definition);
+			.AddTag(FNativeGameplayTags::Get().TestTag1)
+		));
 
 		return true;
 	}
@@ -788,19 +785,18 @@ struct FInstanceTagsFilter : FSmartObjectTestBase
 		// (Slot 1 & 2 & 3) = 3 matching slots / object
 		AITEST_EQUAL("Results.Num() for 1 objects with instance tags (InstanceTags=TestTag1)", ResultsAfter.Num(), (SOList.Num()-1) * 3);
 
-		// Find candidate slots from deactivated object
+		// Find candidate slots from deactivate object
 		TArray<FSmartObjectSlotHandle> SlotHandlesAfter;
 		Subsystem->FindSlots(ObjectToDeactivate, TestFilter, SlotHandlesAfter);
 		AITEST_EQUAL("Num slot handles from deactivated object", SlotHandlesAfter.Num(), 0);
 
-		// @todo SO: enable back the following two tests once Claim & Use methods get updated to allow precondition evaluation. 
-		// // Try to claim 3rd slot with previously valid stored results
-		// const FSmartObjectClaimHandle ThirdClaimHandle = Subsystem->Claim(ObjectToDeactivate, SlotHandles[2]);
-		// AITEST_FALSE("ThirdClaimHandle.IsValid()", ThirdClaimHandle.IsValid());
-		//
-		// // Try to use previously claimed 1st slot with previously valid claim handle
-		// const USmartObjectBehaviorDefinition* BehaviorDefinitionAfter = Subsystem->Use<USmartObjectBehaviorDefinition>(SecondClaimHandle);
-		// AITEST_NULL("Behavior definition pointer for second slot after deactivation", BehaviorDefinitionAfter);
+		// Try to claim 3rd slot with previously valid stored results
+		const FSmartObjectClaimHandle ThirdClaimHandle = Subsystem->Claim(ObjectToDeactivate, SlotHandles[2]);
+		AITEST_FALSE("ThirdClaimHandle.IsValid()", ThirdClaimHandle.IsValid());
+
+		// Try to use previously claimed 1st slot with previously valid claim handle
+		const USmartObjectBehaviorDefinition* BehaviorDefinitionAfter = Subsystem->Use<USmartObjectBehaviorDefinition>(SecondClaimHandle);
+		AITEST_NULL("Behavior definition pointer for second slot after deactivation", BehaviorDefinitionAfter);
 
 		// Release all valid claim handles
 		const bool bFirstSlotReleaseSuccess = Subsystem->Release(FirstClaimHandle);
