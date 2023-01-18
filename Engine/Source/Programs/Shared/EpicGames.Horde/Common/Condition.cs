@@ -632,13 +632,39 @@ namespace EpicGames.Horde.Common
 	public class ConditionCbConverter : CbConverterBase<Condition>
 	{
 		/// <inheritdoc/>
-		public override Condition Read(CbField field) => Condition.TryParse(field.AsUtf8String().ToString());
+		public override Condition Read(CbField field)
+		{
+			if (field.IsNull())
+			{
+				return null!;
+			}
+			else
+			{
+				return Condition.TryParse(field.AsUtf8String().ToString());
+			}
+		}
 
 		/// <inheritdoc/>
-		public override void Write(CbWriter writer, Condition value) => writer.WriteUtf8StringValue(value.Text);
+		public override void Write(CbWriter writer, Condition value)
+		{
+			if (value == null)
+			{
+				writer.WriteNullValue();
+			}
+			else
+			{
+				writer.WriteUtf8StringValue(value.Text);
+			}
+		}
 
 		/// <inheritdoc/>
-		public override void WriteNamed(CbWriter writer, Utf8String name, Condition value) => writer.WriteUtf8String(name, value.Text);
+		public override void WriteNamed(CbWriter writer, Utf8String name, Condition value)
+		{
+			if (value != null)
+			{
+				writer.WriteUtf8String(name, value.Text);
+			}
+		}
 	}
 
 	/// <summary>

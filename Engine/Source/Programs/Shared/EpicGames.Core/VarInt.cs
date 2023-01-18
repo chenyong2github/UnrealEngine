@@ -96,6 +96,17 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Measure the length in bytes (1-9) of an encoded variable-length integer.
+		/// </summary>
+		/// <param name="b">First byte of the encoded integer.</param>
+		/// <returns>The number of bytes used to encode the integer, in the range 1-9.</returns>
+		public static int Measure(byte b)
+		{
+			b = (byte)~b;
+			return BitOperations.LeadingZeroCount(b) - 23;
+		}
+
+		/// <summary>
 		/// Measure the number of bytes required to encode the input.
 		/// </summary>
 		/// <param name="value"></param>
