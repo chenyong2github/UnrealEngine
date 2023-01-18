@@ -3,6 +3,7 @@
 #include "SharedMemoryMediaOutput.h"
 
 #include "MediaOutput.h"
+#include "Engine/RendererSettings.h"
 #include "SharedMemoryMediaCapture.h"
 #include "SharedMemoryMediaTypes.h"
 
@@ -25,7 +26,9 @@ EPixelFormat USharedMemoryMediaOutput::GetRequestedPixelFormat() const
 {
 	// We are copying to a shared cross gpu texture allocated outside the MF, so this PF needs to be valid but is not relevant.
 	// @todo is there a way to not have the MF render target allocated since we're not using it ?
-	return EPixelFormat::PF_A8;
+
+	static const auto CVarDefaultBackBufferPixelFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultBackBufferPixelFormat"));
+	return EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnGameThread()));
 }
 
 EMediaCaptureConversionOperation USharedMemoryMediaOutput::GetConversionOperation(EMediaCaptureSourceType InSourceType) const

@@ -276,6 +276,9 @@ protected:
 	/** Zero latency option to wait for the cross gpu texture rendered on the same frame. May adversely affect fps. Only applicable when bUseFrameNumbers is true */
 	bool bZeroLatency = true;
 
+	/** Counter of running tasks used to detect when to release resources */
+	std::atomic<int32> RunningTasksCount{ 0 };
+
 	/** State of each Mode */
 	struct FModeState
 	{

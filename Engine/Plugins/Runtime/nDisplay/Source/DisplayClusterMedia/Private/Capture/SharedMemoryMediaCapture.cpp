@@ -116,7 +116,7 @@ void USharedMemoryMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProce
 
 	// Since FlushRenderingCommands was already called by StopCapture, we can safely release all the resources
 
-	// ... if we don't have any running tasks.
+	// Wait for any pending tasks to finish, which could be trying to use the resources as well.
 	while (RunningTasksCount > 0)
 	{
 		FPlatformProcess::SleepNoStats(SpinWaitTimeSeconds);
@@ -198,16 +198,23 @@ void USharedMemoryMediaCapture::OnCustomCapture_RenderingThread(
 		if (!SharedCrossGpuTextures[Idx].IsValid())
 		{
 			const FGuid Guid = FGuid::NewGuid();
-
+						
 			SharedCrossGpuTextures[Idx] = PlatformData->CreateSharedCrossGpuTexture(
-				InSourceTexture->Desc.Format, 
+				InSourceTexture->Desc.Format,
+				EnumHasAnyFlags(InSourceTexture->Desc.Flags, TexCreate_SRGB),
 				CopyInfo.Size.X, 
 				CopyInfo.Size.Y, 
 				Guid, 
 				Idx
 			);
 
-			check(SharedCrossGpuTextures[Idx].IsValid());
+			if (!SharedCrossGpuTextures[Idx].IsValid())
+			{
+				UE_LOG(LogDisplayClusterMedia, Error, TEXT("Unable to create cross GPU texture of the requested type."));
+
+				SetState(EMediaCaptureState::Error);
+				return;
+			}
 
 			SharedCrossGpuTextureGuids[Idx] = Guid;
 			UE_LOG(LogDisplayClusterMedia, Verbose, TEXT("Created SharedGpuTextureGuid[%d] = %s"), Idx, *SharedCrossGpuTextureGuids[Idx].ToString());

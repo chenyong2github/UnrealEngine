@@ -5,11 +5,67 @@
 #include "ID3D12DynamicRHI.h"
 
 #include "DisplayClusterMediaLog.h"
-
+#include "Misc/EnumClassFlags.h"
 
 // This should run when the module starts and register the creation function for this rhi platform.
 bool FSharedMemoryMediaPlatformWindowsD3D12::bRegistered = FSharedMemoryMediaPlatformFactory::Get()->RegisterPlatformForRhi(
 	ERHIInterfaceType::D3D12, &FSharedMemoryMediaPlatformWindowsD3D12::CreateInstance);
+
+namespace UE::FSharedMemoryMediaPlatformWindowsD3D12
+{
+	DXGI_FORMAT FindSharedResourceDXGIFormat(DXGI_FORMAT InFormat, bool bSRGB)
+	{
+		if (bSRGB)
+		{
+			switch (InFormat)
+			{
+			case DXGI_FORMAT_B8G8R8X8_TYPELESS:    return DXGI_FORMAT_B8G8R8X8_UNORM_SRGB;
+			case DXGI_FORMAT_B8G8R8A8_TYPELESS:    return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+			case DXGI_FORMAT_R8G8B8A8_TYPELESS:    return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			case DXGI_FORMAT_BC1_TYPELESS:         return DXGI_FORMAT_BC1_UNORM_SRGB;
+			case DXGI_FORMAT_BC2_TYPELESS:         return DXGI_FORMAT_BC2_UNORM_SRGB;
+			case DXGI_FORMAT_BC3_TYPELESS:         return DXGI_FORMAT_BC3_UNORM_SRGB;
+			case DXGI_FORMAT_BC7_TYPELESS:         return DXGI_FORMAT_BC7_UNORM_SRGB;
+			};
+		}
+		else
+		{
+			switch (InFormat)
+			{
+			case DXGI_FORMAT_B8G8R8X8_TYPELESS:    return DXGI_FORMAT_B8G8R8X8_UNORM;
+			case DXGI_FORMAT_B8G8R8A8_TYPELESS: return DXGI_FORMAT_B8G8R8A8_UNORM;
+			case DXGI_FORMAT_R8G8B8A8_TYPELESS: return DXGI_FORMAT_R8G8B8A8_UNORM;
+			case DXGI_FORMAT_BC1_TYPELESS:      return DXGI_FORMAT_BC1_UNORM;
+			case DXGI_FORMAT_BC2_TYPELESS:      return DXGI_FORMAT_BC2_UNORM;
+			case DXGI_FORMAT_BC3_TYPELESS:      return DXGI_FORMAT_BC3_UNORM;
+			case DXGI_FORMAT_BC7_TYPELESS:      return DXGI_FORMAT_BC7_UNORM;
+			};
+		}
+		switch (InFormat)
+		{
+		case DXGI_FORMAT_R32G32B32A32_TYPELESS: return DXGI_FORMAT_R32G32B32A32_UINT;
+		case DXGI_FORMAT_R32G32B32_TYPELESS:    return DXGI_FORMAT_R32G32B32_UINT;
+		case DXGI_FORMAT_R16G16B16A16_TYPELESS: return DXGI_FORMAT_R16G16B16A16_UNORM;
+		case DXGI_FORMAT_R32G32_TYPELESS:       return DXGI_FORMAT_R32G32_UINT;
+		case DXGI_FORMAT_R10G10B10A2_TYPELESS:  return DXGI_FORMAT_R10G10B10A2_UNORM;
+		case DXGI_FORMAT_R16G16_TYPELESS:       return DXGI_FORMAT_R16G16_UNORM;
+		case DXGI_FORMAT_R8G8_TYPELESS:         return DXGI_FORMAT_R8G8_UNORM;
+		case DXGI_FORMAT_R8_TYPELESS:           return DXGI_FORMAT_R8_UNORM;
+
+		case DXGI_FORMAT_BC4_TYPELESS:         return DXGI_FORMAT_BC4_UNORM;
+		case DXGI_FORMAT_BC5_TYPELESS:         return DXGI_FORMAT_BC5_UNORM;
+
+
+
+		case DXGI_FORMAT_R24G8_TYPELESS: return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		case DXGI_FORMAT_R32_TYPELESS: return DXGI_FORMAT_R32_FLOAT;
+		case DXGI_FORMAT_R16_TYPELESS: return DXGI_FORMAT_R16_UNORM;
+			// Changing Depth Buffers to 32 bit on Dingo as D24S8 is actually implemented as a 32 bit buffer in the hardware
+		case DXGI_FORMAT_R32G8X24_TYPELESS: return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+		}
+		return InFormat;
+	}
+}
 
 TSharedPtr<FSharedMemoryMediaPlatform, ESPMode::ThreadSafe> FSharedMemoryMediaPlatformWindowsD3D12::CreateInstance()
 {
@@ -38,16 +94,20 @@ FSharedMemoryMediaPlatformWindowsD3D12::~FSharedMemoryMediaPlatformWindowsD3D12(
 	}
 }
 
-FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::CreateSharedCrossGpuTexture(EPixelFormat Format, int32 Width, int32 Height, const FGuid& Guid, uint32 BufferIdx)
+FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::CreateSharedCrossGpuTexture(EPixelFormat Format, bool bSrgb, int32 Width, int32 Height, const FGuid& Guid, uint32 BufferIdx)
 {
+	using namespace UE::FSharedMemoryMediaPlatformWindowsD3D12;
+
 	check(BufferIdx < UE::SharedMemoryMedia::SenderNumBuffers);
 	check(SharedHandle[BufferIdx] == INVALID_HANDLE_VALUE);
 
 	ID3D12Device* D3D12Device = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
 	check(D3D12Device);
 
+	const DXGI_FORMAT DxgiFormat = FindSharedResourceDXGIFormat(DXGI_FORMAT(GPixelFormats[Format].PlatformFormat), bSrgb);
+
 	D3D12_RESOURCE_DESC SharedCrossGpuTextureDesc = CD3DX12_RESOURCE_DESC::Tex2D(
-		DXGI_FORMAT(GPixelFormats[Format].PlatformFormat),
+		DxgiFormat,
 		Width,
 		Height,
 		1, // arraySize
@@ -70,6 +130,16 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::CreateSharedCrossGpuTextu
 		nullptr, // pOptimizedClearValue
 		IID_PPV_ARGS(&SharedGpuResource)
 	);
+
+	if (FAILED(HResult))
+	{
+		UE_LOG(LogDisplayClusterMedia, Error, TEXT(
+			"D3D12Device->CreateCommittedResource failed when creating a cross GPU texture:\n"
+			"0x%X - %s. Texture was %dx%d, EPixelFormat %d and DXGI type %d"),
+			HResult, *GetD3D12ComErrorDescription(HResult), Width, Height, Format, DxgiFormat);
+
+		return nullptr;
+	}
 
 	check(HResult == S_OK);
 	check(SharedGpuResource);
@@ -107,6 +177,8 @@ void FSharedMemoryMediaPlatformWindowsD3D12::ReleaseSharedCrossGpuTexture(uint32
 
 FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::OpenSharedCrossGpuTextureByGuid(const FGuid& Guid, FSharedMemoryMediaTextureDescription& OutTextureDescription)
 {
+	using namespace UE::FSharedMemoryMediaPlatformWindowsD3D12;
+
 	ID3D12Device* D3D12Device = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
 	check(D3D12Device);
 
@@ -147,15 +219,28 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::OpenSharedCrossGpuTexture
 
 		OutTextureDescription.Height = SharedGpuTextureDesc.Height;
 		OutTextureDescription.Width = SharedGpuTextureDesc.Width;
+		OutTextureDescription.Format = EPixelFormat::PF_Unknown;
 
 		// Find EPixelFormat from platform format
 		for (int32 FormatIdx = 0; FormatIdx < PF_MAX; FormatIdx++)
 		{
-			if (GPixelFormats[FormatIdx].PlatformFormat == SharedGpuTextureDesc.Format)
+			constexpr bool SrgbOptions[2] = { false, true };
+
+			for (const bool bSrgb : SrgbOptions)
 			{
-				OutTextureDescription.Format = EPixelFormat(FormatIdx);
-				OutTextureDescription.BytesPerPixel = GPixelFormats[FormatIdx].BlockBytes;
-				OutTextureDescription.Stride = OutTextureDescription.Width * OutTextureDescription.BytesPerPixel;
+				const DXGI_FORMAT ResultingPlatformFormat = FindSharedResourceDXGIFormat(DXGI_FORMAT(GPixelFormats[FormatIdx].PlatformFormat), bSrgb);
+
+				if (ResultingPlatformFormat == SharedGpuTextureDesc.Format)
+				{
+					OutTextureDescription.Format = EPixelFormat(FormatIdx);
+					OutTextureDescription.BytesPerPixel = GPixelFormats[FormatIdx].BlockBytes;
+					OutTextureDescription.Stride = OutTextureDescription.Width * OutTextureDescription.BytesPerPixel;
+					break;
+				}
+			}
+
+			if (OutTextureDescription.Format != EPixelFormat::PF_Unknown)
+			{
 				break;
 			}
 		}

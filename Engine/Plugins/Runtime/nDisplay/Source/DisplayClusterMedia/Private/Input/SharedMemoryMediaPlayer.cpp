@@ -117,6 +117,12 @@ void FSharedMemoryMediaPlayer::Close()
 	// We flush rendering commands so that we can safely release the resources
 	FlushRenderingCommands();
 
+	// Wait for any pending tasks to finish, which could be trying to use the resources as well.
+	while (RunningTasksCount > 0)
+	{
+		FPlatformProcess::SleepNoStats(SpinWaitTimeSeconds);
+	}
+
 	// Release resources related to the indexed textures
 	for (int32 BufferIdx = 0; BufferIdx < NUMSHAREDMEM; ++BufferIdx)
 	{
@@ -790,10 +796,19 @@ void FSharedMemoryMediaPlayer::JustInTimeSampleRender()
 	}
 
 	// spawn async task that will wait on FrameAckFence, ack the frame to the Media Capture, and flag that it is clear for re-use
+
+	RunningTasksCount++;
+
 	UE::Tasks::Launch(UE_SOURCE_LOCATION,
 		[SharedMemoryData, ExpectedFrameNumber, SharedMemoryIdx, this]()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(SharedMemoryMediaFrameAckTask);
+
+			// Decrement RunningTasksCount when the task exits
+			ON_SCOPE_EXIT
+			{
+				RunningTasksCount--;
+			};
 
 			do
 			{

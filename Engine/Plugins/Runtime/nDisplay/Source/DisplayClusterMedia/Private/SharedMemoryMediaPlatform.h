@@ -16,7 +16,7 @@ class FSharedMemoryMediaPlatform
 public:
 
 	/** Creates a cross gpu texture */
-	virtual FTextureRHIRef CreateSharedCrossGpuTexture(EPixelFormat Format, int32 Width, int32 Height, const FGuid& Guid, uint32 BufferIdx)
+	virtual FTextureRHIRef CreateSharedCrossGpuTexture(EPixelFormat Format, bool bSrgb, int32 Width, int32 Height, const FGuid& Guid, uint32 BufferIdx)
 	{
 		return nullptr;
 	}
