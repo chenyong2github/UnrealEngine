@@ -693,6 +693,11 @@ void FArchive::SerializeCompressed(void* V, int64 Length, FName CompressionForma
 	SerializeCompressedNew(V,Length,CompressionFormatCannotChange,CompressionFormatCannotChange,Flags,bTreatBufferAsFileReader,nullptr);
 }
 
+void FArchive::SerializeCompressedNew(void* V, int64 Length)
+{
+	SerializeCompressedNew(V,Length,NAME_Oodle,NAME_Zlib);
+}
+
 void FArchive::SerializeCompressedNew(void* V, int64 Length, FName CompressionFormatToEncode, FName CompressionFormatToDecodeOldV1Files,  ECompressionFlags Flags, bool bTreatBufferAsFileReader, int64 * OutPartialReadLength)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FArchive::SerializeCompressed);

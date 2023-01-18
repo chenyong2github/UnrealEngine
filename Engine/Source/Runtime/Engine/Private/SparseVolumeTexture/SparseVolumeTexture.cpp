@@ -323,7 +323,7 @@ void UStaticSparseVolumeTexture::GenerateOrLoadDDCRuntimeData()
 		Ar << UncompressedSize;
 
 		uint8* DecompressionBuffer = reinterpret_cast<uint8*>(FMemory::Malloc(UncompressedSize));
-		Ar.SerializeCompressed(DecompressionBuffer, UncompressedSize, NAME_Zlib);
+		Ar.SerializeCompressedNew(DecompressionBuffer, UncompressedSize);
 
 		FLargeMemoryReader LargeMemReader(DecompressionBuffer, UncompressedSize, ELargeMemoryReaderFlags::Persistent | ELargeMemoryReaderFlags::TakeOwnership);
 
@@ -347,7 +347,7 @@ void UStaticSparseVolumeTexture::GenerateOrLoadDDCRuntimeData()
 			FMemoryWriter CompressedArchive(DerivedData, true);
 
 			CompressedArchive << UncompressedSize; // needed for allocating decompression buffer
-			CompressedArchive.SerializeCompressed(LargeMemWriter.GetData(), UncompressedSize, NAME_Zlib);
+			CompressedArchive.SerializeCompressedNew(LargeMemWriter.GetData(), UncompressedSize);
 
 			GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData, GetPathName());
 		}
@@ -657,7 +657,7 @@ void UAnimatedSparseVolumeTexture::GenerateOrLoadDDCRuntimeData(int32 FrameIndex
 		Ar << UncompressedSize;
 
 		uint8* DecompressionBuffer = reinterpret_cast<uint8*>(FMemory::Malloc(UncompressedSize));
-		Ar.SerializeCompressed(DecompressionBuffer, UncompressedSize, NAME_Zlib);
+		Ar.SerializeCompressedNew(DecompressionBuffer, UncompressedSize);
 
 		FLargeMemoryReader LargeMemReader(DecompressionBuffer, UncompressedSize, ELargeMemoryReaderFlags::Persistent | ELargeMemoryReaderFlags::TakeOwnership);
 
@@ -681,7 +681,7 @@ void UAnimatedSparseVolumeTexture::GenerateOrLoadDDCRuntimeData(int32 FrameIndex
 			FMemoryWriter CompressedArchive(DerivedData, true);
 
 			CompressedArchive << UncompressedSize; // needed for allocating decompression buffer
-			CompressedArchive.SerializeCompressed(LargeMemWriter.GetData(), UncompressedSize, NAME_Zlib);
+			CompressedArchive.SerializeCompressedNew(LargeMemWriter.GetData(), UncompressedSize);
 
 			GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData, GetPathName());
 		}

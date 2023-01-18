@@ -1724,13 +1724,9 @@ public:
 
 	/**
 	 * Serializes and compresses/ uncompresses data. This is a shared helper function for compression support. 
-	 
-	 // @@ old comment ? remove me ?
-	 The data is saved in a way compatible with FIOSystem::LoadCompressedData.
-
 	 *
-	 * prefer SerializeCompressedNew instead.
-	 *
+	 * Do not use SerializeCompressed in new code, prefer SerializeCompressedNew instead.
+	 * SerializeCompressedNew can be dropped in to any existing use of SerializeCompressed.
 	 *
 	 * @param	V		Data pointer to serialize data from/ to
 	 * @param	Length	Length of source data if we're saving, unused otherwise
@@ -1745,6 +1741,10 @@ public:
 	 * Serializes and compresses/ uncompresses data. This is a shared helper function for compression support. 
 	 *
 	 * call SerializeCompressedNew instead of SerializeCompressed
+	 * Typically you should not serializing data compressed if it will be packaged or stored in the DDC.
+	 * Prefer to allow the package/iostore system to do the compression for you instead.
+	 *
+	 * SerializeCompressedNew can read existing data written by old SerializeCompressed calls.
 	 *
 	 * @param	V		Data pointer to serialize data from/ to
 	 * @param	Length	Length of source data if we're saving, unused otherwise
@@ -1758,6 +1758,17 @@ public:
 		ECompressionFlags Flags=COMPRESS_NoFlags, bool bTreatBufferAsFileReader=false,
 		int64 * OutPartialReadLength=nullptr);
 		
+	/**
+	 * Serializes and compresses/ uncompresses data with default compressor choices.
+	 *
+	 * Default compressors are Oodle for new data and Zlib when loading legacy data.
+	 *
+	 * @param	V		Data pointer to serialize data from/ to
+	 * @param	Length	Length of source data if we're saving, unused otherwise
+	 */
+	void SerializeCompressedNew(void* V, int64 Length);
+
+
 	using FArchiveState::IsByteSwapping;
 
 	/** Used to do byte swapping on small items. This does not happen usually, so we don't want it inline. */
