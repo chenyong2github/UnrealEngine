@@ -27,9 +27,9 @@ const mi_page_t _mi_page_empty = {
   0,       // used
   0,       // xblock_size
   NULL,    // local_free
-// BEGIN EPIC MOD  - Fix compilation on Clang 10
-  ATOMIC_VAR_INIT((uintptr_t)0), // xthread_free
-  ATOMIC_VAR_INIT((uintptr_t)0), // xheap
+// BEGIN EPIC MOD  - Fix ATOMIC_VAR_INIT deprecation in LLVM/Clang 15
+  (uintptr_t)0, // xthread_free
+  (uintptr_t)0, // xheap
 // END EPIC MOD
   NULL, NULL
   #if MI_INTPTR_SIZE==8
@@ -110,7 +110,9 @@ mi_decl_cache_align const mi_heap_t _mi_heap_empty = {
   NULL,
   MI_SMALL_PAGES_EMPTY,
   MI_PAGE_QUEUES_EMPTY,
-  ATOMIC_VAR_INIT(NULL),
+// BEGIN EPIC MOD  - Fix ATOMIC_VAR_INIT deprecation in LLVM/Clang 15
+  NULL,
+// END EPIC MOD
   0,                // tid
   0,                // cookie
   { 0, 0 },         // keys
@@ -150,7 +152,9 @@ mi_heap_t _mi_heap_main = {
   &tld_main,
   MI_SMALL_PAGES_EMPTY,
   MI_PAGE_QUEUES_EMPTY,
-  ATOMIC_VAR_INIT(NULL),
+// BEGIN EPIC MOD  - Fix ATOMIC_VAR_INIT deprecation in LLVM/Clang 15
+  NULL,
+// END EPIC MOD
   0,                // thread id
   0,                // initial cookie
   { 0, 0 },         // the key of the main heap can be fixed (unlike page keys that need to be secure!)

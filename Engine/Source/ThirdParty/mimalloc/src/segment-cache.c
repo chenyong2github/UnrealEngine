@@ -21,7 +21,9 @@ terms of the MIT license. A copy of the license can be found in the file
 #define MI_CACHE_FIELDS     (16)
 #define MI_CACHE_MAX        (MI_BITMAP_FIELD_BITS*MI_CACHE_FIELDS)       // 1024 on 64-bit
 
-#define BITS_SET()          ATOMIC_VAR_INIT(UINTPTR_MAX)
+// BEGIN EPIC MOD - Remove ATOMIC_VAR_INIT as it is deprecated in LLVM/Clang 15.0.1
+#define BITS_SET()          UINTPTR_MAX
+// END EPIC MOD
 #define MI_CACHE_BITS_SET   MI_INIT16(BITS_SET)
 
 typedef struct mi_cache_slot_s {
