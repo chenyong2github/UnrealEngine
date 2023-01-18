@@ -730,11 +730,12 @@ void FClothConstraints::SetLongRangeAttachmentProperties(
 	}
 }
 
-void FClothConstraints::SetMaximumDistanceProperties(Softs::FSolverReal MaxDistancesMultiplier)
+void FClothConstraints::SetMaximumDistanceProperties(Softs::FSolverReal MeshScale)
 {
 	if (MaximumDistanceConstraints)
 	{
-		MaximumDistanceConstraints->SetTransformScale(MaxDistancesMultiplier);
+		constexpr Softs::FSolverReal MaxDistancesMultiplier = (Softs::FSolverReal)1.;
+		MaximumDistanceConstraints->SetScale(MaxDistancesMultiplier, MeshScale);
 	}
 }
 
@@ -760,12 +761,13 @@ void FClothConstraints::SetSelfCollisionProperties(Softs::FSolverReal SelfCollis
 	}
 }
 
-void FClothConstraints::SetBackstopProperties(bool bEnabled, Softs::FSolverReal BackstopDistancesMultiplier)
+void FClothConstraints::SetBackstopProperties(bool bEnabled, Softs::FSolverReal MeshScale)
 {
 	if (BackstopConstraints)
 	{
 		BackstopConstraints->SetEnabled(bEnabled);
-		BackstopConstraints->SetTransformScale(BackstopDistancesMultiplier);
+		constexpr Softs::FSolverReal BackstopDistancesMultiplier = (Softs::FSolverReal)1.;
+		BackstopConstraints->SetScale(BackstopDistancesMultiplier, MeshScale);
 	}
 }
 
