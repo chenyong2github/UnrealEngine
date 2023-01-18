@@ -83,7 +83,7 @@ public:
 	UPROPERTY(config, EditAnywhere, NoClear, Category=CaptureSettings, DisplayName="Image Output Format", meta=(MetaClass="/Script/MovieSceneCapture.MovieSceneImageCaptureProtocolBase", HideViewOptions, ShowDisplayNames))
 	FSoftClassPath ImageCaptureProtocolType;
 	
-	/** The type of capture protocol to use for audio data. Requires experimental audio mixer (launch editor via with -audiomixer). */
+	/** The type of capture protocol to use for audio data. */
 	UPROPERTY(config, EditAnywhere, NoClear, Category=CaptureSettings, DisplayName="Audio Output Format", meta=(MetaClass="/Script/MovieSceneCapture.MovieSceneAudioCaptureProtocolBase", HideViewOptions, ShowDisplayNames))
 	FSoftClassPath AudioCaptureProtocolType;
 
