@@ -209,6 +209,7 @@ namespace Horde.Build.Tests
 		public IJob CreateJob(StreamId streamId, int change, string name, IGraph graph, TimeSpan time = default, bool promoteByDefault = true, bool updateIssues = true)
 		{
 			JobId jobId = JobId.GenerateNewId();
+			DateTime utcNow = DateTime.UtcNow;
 
 			List<IJobStepBatch> batches = new List<IJobStepBatch>();
 			for (int groupIdx = 0; groupIdx < graph.Groups.Count; groupIdx++)
@@ -226,7 +227,7 @@ namespace Horde.Build.Tests
 					step.SetupGet(x => x.Id).Returns(stepId);
 					step.SetupGet(x => x.NodeIdx).Returns(nodeIdx);
 					step.SetupGet(x => x.LogId).Returns(logFile.Id);
-					step.SetupGet(x => x.StartTimeUtc).Returns(DateTime.UtcNow + time);
+					step.SetupGet(x => x.StartTimeUtc).Returns(utcNow + time);
 
 					steps.Add(step.Object);
 				}
@@ -245,6 +246,7 @@ namespace Horde.Build.Tests
 			job.SetupGet(x => x.Name).Returns(name);
 			job.SetupGet(x => x.StreamId).Returns(streamId);
 			job.SetupGet(x => x.TemplateId).Returns(new TemplateId("test-template"));
+			job.SetupGet(x => x.CreateTimeUtc).Returns(utcNow);
 			job.SetupGet(x => x.Change).Returns(change);
 			job.SetupGet(x => x.Batches).Returns(batches);
 			job.SetupGet(x => x.ShowUgsBadges).Returns(promoteByDefault);
@@ -267,7 +269,7 @@ namespace Horde.Build.Tests
 
 			JobStepRefId jobStepRefId = new JobStepRefId(job.Id, batch.Id, step.Id);
 			string nodeName = _graph.Groups[batch.GroupIdx].Nodes[step.NodeIdx].Name;
-			await JobStepRefCollection.InsertOrReplaceAsync(jobStepRefId, "TestJob", nodeName, job.StreamId, job.TemplateId, job.Change, step.LogId, null, null, outcome, job.UpdateIssues, null, null, 0.0f, 0.0f, step.StartTimeUtc!.Value, step.StartTimeUtc);
+			await JobStepRefCollection.InsertOrReplaceAsync(jobStepRefId, "TestJob", nodeName, job.StreamId, job.TemplateId, job.Change, step.LogId, null, null, outcome, job.UpdateIssues, null, null, 0.0f, 0.0f, job.CreateTimeUtc, step.StartTimeUtc!.Value, step.StartTimeUtc);
 		}
 
 		async Task AddEvent(IJob job, int batchIdx, int stepIdx, object data, EventSeverity severity = EventSeverity.Error)

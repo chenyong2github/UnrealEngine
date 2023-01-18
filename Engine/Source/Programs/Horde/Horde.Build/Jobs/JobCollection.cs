@@ -416,6 +416,7 @@ namespace Horde.Build.Jobs
 				_telemetrySink.SendEvent("State.Job", new
 				{
 					Id = newJob.Id,
+					StreamId = newJob.StreamId,
 					Arguments = newJob.Arguments,
 					AutoSubmit = newJob.AutoSubmit,
 					Change = newJob.Change,
@@ -424,6 +425,7 @@ namespace Horde.Build.Jobs
 					GraphHash = newJob.GraphHash,
 					Name = newJob.Name,
 					PreflightChange = newJob.PreflightChange,
+					PreflightDescription = newJob.PreflightDescription,
 					Priority = newJob.Priority,
 					StartedByUserId = newJob.StartedByUserId,
 					TemplateId = newJob.TemplateId
