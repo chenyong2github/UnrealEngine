@@ -6,6 +6,7 @@
 #include "Tickable.h"
 #include "Delegates/DelegateCombinations.h"
 #include "RHI.h"
+#include "Slate/SlateTextures.h"
 #include "BinkMediaPlayer.generated.h"
 
 extern BINKMEDIAPLAYER_API unsigned bink_gpu_api;

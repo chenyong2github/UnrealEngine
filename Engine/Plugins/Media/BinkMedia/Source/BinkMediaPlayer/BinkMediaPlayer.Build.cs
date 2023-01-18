@@ -9,7 +9,7 @@ public class BinkMediaPlayer : ModuleRules
 {
     public BinkMediaPlayer(ReadOnlyTargetRules Target) : base(Target)
     {
-		bAllowConfidentialPlatformDefines = true;
+	bAllowConfidentialPlatformDefines = true;
 
         PublicDependencyModuleNames.Add("Core");
         PublicDependencyModuleNames.Add("CoreUObject");
@@ -20,28 +20,29 @@ public class BinkMediaPlayer : ModuleRules
         PublicDependencyModuleNames.Add("MoviePlayer");
         //PublicDependencyModuleNames.Add("MediaAssets");
         PublicDependencyModuleNames.Add("Projects");
+	//PublicDependencyModuleNames.Add("PixelStreaming");
 
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "BinkMediaPlayerSDK");
+	AddEngineThirdPartyPrivateStaticDependencies(Target, "BinkMediaPlayerSDK");
 
         if (Target.bBuildEditor == true)
         {
-			PublicDependencyModuleNames.Add("Slate");
-			PublicDependencyModuleNames.Add("SlateCore");
-			PublicDependencyModuleNames.Add("DesktopWidgets");
-			PublicDefinitions.Add("BINKPLUGIN_UE4_EDITOR=1");
-            PrivateDependencyModuleNames.AddRange(new string[] { "PropertyEditor", "DesktopPlatform", "SourceControl", "EditorStyle", "UnrealEd" });
+		PublicDependencyModuleNames.Add("Slate");
+		PublicDependencyModuleNames.Add("SlateCore");
+		PublicDependencyModuleNames.Add("DesktopWidgets");
+		PublicDefinitions.Add("BINKPLUGIN_UE4_EDITOR=1");
+		PrivateDependencyModuleNames.AddRange(new string[] { "PropertyEditor", "DesktopPlatform", "SourceControl", "EditorStyle", "UnrealEd" });
         }
         else
         {
-            PublicDefinitions.Add("BINKPLUGIN_UE4_EDITOR=0");
+		PublicDefinitions.Add("BINKPLUGIN_UE4_EDITOR=0");
         }
 
-		//RuntimeDependencies.Add("$(ProjectDir)/Content/Movies/..."); // For chunked streaming
+	//RuntimeDependencies.Add("$(ProjectDir)/Content/Movies/..."); // For chunked streaming
 
-		if (Target.Platform == UnrealTargetPlatform.Android)
-		{
-			string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
-			AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "BinkMediaPlayer_APL.xml"));
-		}
+	if (Target.Platform == UnrealTargetPlatform.Android)
+	{
+		string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
+		AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "BinkMediaPlayer_APL.xml"));
 	}
+    }
 }

@@ -282,6 +282,11 @@ void UBinkMediaPlayer::PostEditChangeProperty( FPropertyChangedEvent& PropertyCh
 
 bool UBinkMediaPlayer::Open(const FString& Url) 
 {
+	if (!BinkInitialize())
+	{
+		return false;
+	}
+
 	if (Url.IsEmpty() || IsPlaying()) 
 	{
 		return false;

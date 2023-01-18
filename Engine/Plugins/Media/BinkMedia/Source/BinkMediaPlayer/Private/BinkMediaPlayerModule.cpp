@@ -121,6 +121,7 @@ struct FBinkMoviePlayerSettingsDetails : public IDetailCustomization {
 unsigned bink_gpu_api;
 unsigned bink_gpu_api_hdr;
 EPixelFormat bink_force_pixel_format = PF_Unknown;
+static bool bink_initialized = false;
 
 #ifdef BINK_NDA_GPU_ALLOC
 extern void* BinkAllocGpu(UINTa Amt, U32 Align);
@@ -141,6 +142,27 @@ static void *BinkAllocCpu(UINTa Amt, U32 Align) { return FMemory::Malloc(Amt, Al
 static void BinkFreeCpu(void * ptr) { FMemory::Free(ptr); }
 #endif
 
+bool BinkInitialize() {
+	if (bink_initialized)
+	{
+		return true;
+	}
+
+	// TODO: make this an INI setting and/or configurable in Project Settings
+	//BinkPluginTurnOnGPUAssist();
+
+	static BINKPLUGININITINFO InitInfo = { 0 };
+	InitInfo.queue = 0;
+	InitInfo.physical_device = 0;
+	InitInfo.alloc = BinkAllocCpu;
+	InitInfo.free = BinkFreeCpu;
+	InitInfo.gpu_alloc = BinkAllocGpu;
+	InitInfo.gpu_free = BinkFreeGpu;
+	bink_gpu_api = BinkRHI;
+
+	bink_initialized = (bool)BinkPluginInit(0, &InitInfo, bink_gpu_api);
+	return bink_initialized;
+}
 
 FString BinkUE4CookOnTheFlyPath(FString path, const TCHAR *filename) 
 {
@@ -162,19 +184,7 @@ struct FBinkMediaPlayerModule : IModuleInterface, FTickableGameObject
 			return;
 		}
 
-		// TODO: make this an INI setting and/or configurable in Project Settings
-		//BinkPluginTurnOnGPUAssist();
-
-		static BINKPLUGININITINFO InitInfo = { 0 };
-		InitInfo.queue = 0;
-		InitInfo.physical_device = 0;
-		InitInfo.alloc = BinkAllocCpu;
-		InitInfo.free = BinkFreeCpu;
-		InitInfo.gpu_alloc = BinkAllocGpu;
-		InitInfo.gpu_free = BinkFreeGpu;
-		bink_gpu_api = BinkRHI;
-
-		bPluginInitialized = (bool)BinkPluginInit(0, &InitInfo, bink_gpu_api);
+		bPluginInitialized = BinkInitialize();
 
 		if (!bPluginInitialized)
 		{

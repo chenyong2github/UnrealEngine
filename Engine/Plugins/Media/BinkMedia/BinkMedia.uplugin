@@ -18,7 +18,7 @@
 	[
 		{
 			"Name" : "BinkMediaPlayer",
-			"Type" : "RuntimeNoCommandlet",
+			"Type" : "Runtime",
 			"LoadingPhase" : "PreLoadingScreen",
 			"TargetDenyList": [ "Server" ],
 			"PlatformDenyList": [ 
