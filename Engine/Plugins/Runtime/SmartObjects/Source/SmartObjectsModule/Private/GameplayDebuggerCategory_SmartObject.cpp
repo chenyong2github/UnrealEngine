@@ -61,24 +61,6 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 			// Using small dummy shape to display tags
 			AddShape(FGameplayDebuggerShape::MakePoint(Location, /*Radius*/ 1.0f, FColorList::White, TagsAsString));
 		}
-
-		// Slot tags
-		TArray<FSmartObjectSlotHandle> Slots;
-		Subsystem->GetAllSlots(LookupEntry.Key, Slots);
-		for (FSmartObjectSlotHandle SlotHandle : Slots)
-		{
-			const FGameplayTagContainer& SlotTags = Subsystem->GetSlotTags(SlotHandle);
-			const TOptional<FVector> SlotLocation = Subsystem->GetSlotLocation(SlotHandle);
-			if (SlotLocation.IsSet())
-			{
-				TagsAsString = SlotTags.ToStringSimple();
-				if (!TagsAsString.IsEmpty())
-				{
-					// Using small dummy shape to display tags
-					AddShape(FGameplayDebuggerShape::MakePoint(SlotLocation.GetValue(), /*Radius*/ 1.0f, FColorList::White, TagsAsString));
-				}
-			}
-		}
 	}
 
 
@@ -88,7 +70,8 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 	const FColor FreeColor = FColorList::SeaGreen;
 	const FColor ClaimedColor = FColorList::Gold;
 	const FColor OccupiedColor = FColorList::Red;
-	const FColor DisabledColor = FColorList::Grey;
+	const FColor SlotDisabledColor = FColorList::LightGrey;
+	const FColor ObjectDisabledColor = FColorList::DimGrey;
 
 	const TMap<FSmartObjectSlotHandle, FSmartObjectRuntimeSlot>& Entries = Subsystem->DebugGetRuntimeSlots();
 	for (auto& LookupEntry : Entries)
@@ -97,6 +80,7 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 		const FSmartObjectRuntimeSlot& SlotState = LookupEntry.Value;
 
 		FSmartObjectSlotView View = Subsystem->GetSlotView(LookupEntry.Key);
+		const FSmartObjectRuntime* ObjectRuntime = SmartObjectInstances.Find(SlotState.GetOwnerRuntimeObject());
 
 		const FSmartObjectSlotTransform& SlotTransform = View.GetStateData<FSmartObjectSlotTransform>();
 		FTransform Transform = SlotTransform.GetTransform();
@@ -117,7 +101,7 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 		FColor StateColor = FColor::Silver;
 		if (!SlotState.IsEnabled())
 		{
-			StateColor = DisabledColor;
+			StateColor = (ObjectRuntime != nullptr && !ObjectRuntime->IsEnabled()) ? ObjectDisabledColor : SlotDisabledColor;
 		}
 		else
 		{
@@ -140,6 +124,13 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 		AddShape(FGameplayDebuggerShape::MakeCircle(Pos, FVector::UpVector, DebugCircleRadius, DebugColor));
 		AddShape(FGameplayDebuggerShape::MakeCircle(Pos, FVector::UpVector, 0.75f * DebugCircleRadius, /* Thickness */5.f, StateColor));
 		AddShape(FGameplayDebuggerShape::MakeArrow(Pos, Pos + Dir * 2.0f * DebugCircleRadius, DebugArrowHeadSize, DebugArrowThickness, DebugColor));
+		
+		FString TagsAsString = SlotState.GetTags().ToStringSimple();
+		if (!TagsAsString.IsEmpty())
+		{
+			// Using small dummy shape to display tags
+			AddShape(FGameplayDebuggerShape::MakePoint(Pos, /*Radius*/ 1.0f, FColorList::White, TagsAsString));
+		}
 	}
 }
 

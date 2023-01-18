@@ -174,6 +174,24 @@ public:
 	FSmartObjectContainer& GetMutableSmartObjectContainer() { return SmartObjectContainer; }
 
 	/**
+	 * Enables or disables the entire smart object represented by the provided handle.
+	 * Delegate 'OnEvent' is broadcasted with ESmartObjectChangeReason::OnEnabled/ESmartObjectChangeReason::OnDisabled if state changed.
+	 * @param Handle Handle to the smart object.
+	 * @param bEnabled If true enables the smart object, disables otherwise.
+	 * @return True when associated smart object is found and set (or already set) to desired state; false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	bool SetEnabled(const FSmartObjectHandle Handle, const bool bEnabled);
+
+	/**
+	 * Enables or disables all smart objects associated to the provided actor (multiple components).
+	 * @param SmartObjectActor Smart object(s) parent actor.
+	 * @param bEnabled If true enables, disables otherwise.
+	 * @return True if all (at least one) smartobject components are found with their associated runtime and values set (or alredy set) to desired state; false otherwise.
+	 */
+	bool SetSmartObjectActorEnabled(const AActor& SmartObjectActor, bool bEnabled);
+
+	/**
 	 * Registers to the runtime simulation all SmartObject components for a given actor.
 	 * @param SmartObjectActor Actor owning the components to register
 	 * @return true when components are found and all successfully registered, false otherwise
@@ -518,6 +536,13 @@ public:
 	void RemoveTagFromInstance(const FSmartObjectHandle Handle, const FGameplayTag& Tag);
 
 	/**
+	 * Returns pointer to the smart object instance event delegate.
+	 * @param SmartObjectHandle Handle to the smart object.
+	 * @return Pointer to object's delegate, or nullptr if instance doesn't exists.
+	 */
+	FOnSmartObjectEvent* GetEventDelegate(const FSmartObjectHandle SmartObjectHandle);
+	
+	/**
 	 * Returns the list of tags associated to the smart object slot represented by the provided handle.
 	 * @param SlotHandle Handle to the smart object slot.
 	 * @return Container of tags associated to the smart object instance, or empty container if slot was not valid.
@@ -680,7 +705,6 @@ protected:
 
 	void AddTagToInstance(FSmartObjectRuntime& SmartObjectRuntime, const FGameplayTag& Tag);
 	void RemoveTagFromInstance(FSmartObjectRuntime& SmartObjectRuntime, const FGameplayTag& Tag);
-	void UpdateRuntimeInstanceStatus(FSmartObjectRuntime& SmartObjectRuntime, const ESmartObjectChangeReason Reason);
 	void OnSlotChanged(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRuntimeSlot& Slot, const FSmartObjectSlotHandle SlotHandle, const ESmartObjectChangeReason Reason, const FGameplayTag ChangedTag = FGameplayTag()) const;
 
 	/** Goes through all defined slots of smart object represented by SmartObjectRuntime and finds the ones matching the filter. */
@@ -704,9 +728,8 @@ protected:
 
 	/**
 	 * Registers a collection entry to the simulation and creates its associated runtime instance.
-	 * This method must be used only when the associated actor component is not available (e.g. not loaded).
 	 */
-	FSmartObjectRuntime* AddCollectionEntryToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition, AActor* OwnerActor, const bool bCommitChanges = true);
+	FSmartObjectRuntime* AddCollectionEntryToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition, USmartObjectComponent* OwnerComponent, const bool bCommitChanges = true);
 
 	/**
 	 * Registers a collection entry to the simulation and creates its associated runtime instance.
@@ -714,9 +737,6 @@ protected:
 	 * @param CollectionEntry The associated collection entry that got created to add the component to the simulation.
 	 */
 	FSmartObjectRuntime* AddComponentToSimulation(USmartObjectComponent& SmartObjectComponent, const FSmartObjectCollectionEntry& CollectionEntry, const bool bCommitChanges = true);
-
-	/** Notifies SmartObjectComponent that it has been bound to a runtime instance, and sets SmartObjectComponent-related properties of SmartObjectRuntime */
-	void BindComponentToSimulationInternal(USmartObjectComponent& SmartObjectComponent, FSmartObjectRuntime& SmartObjectRuntime);
 
 	/**
 	 * Unbinds a smartobject component from an existing instance in the simulation.
@@ -739,6 +759,33 @@ protected:
 
 	/** Destroy SmartObjectRuntime contents as Handle's representation. */
 	void DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, FSmartObjectRuntime& SmartObjectRuntime, FMassEntityManager& EntityManagerRef);
+
+	/**
+	 * Fills the provided context data with the smartobject actor and handle associated to 'SmartObjectRuntime' and the subsystem. 
+	 * @param ConditionContextData The context data to fill
+	 * @param SmartObjectRuntime The runtime instance of the SmartObject for which the context must be filled 
+	 */
+	void SetupConditionContextCommonData(FWorldConditionContextData& ConditionContextData, const FSmartObjectRuntime& SmartObjectRuntime) const;
+
+	/**
+	 * Use the provided context data that is expected to be already filled by calling 'SetupConditionContextCommonData'
+	 * and adds the slot related part. It then evaluates all conditions associated to the specified slot.  
+	 * @param ConditionContextData The context data to fill and use for conditions evaluation
+	 * @param SlotHandle Handle to the smart object slot
+	 * @param Slot Runtime struct associated to the smart object slot
+	 * @return True if all conditions are met; false otherwise
+	 * @see SetupDefaultConditionsContext
+	 */
+	UE_NODISCARD bool EvaluateSlotConditions(FWorldConditionContextData& ConditionContextData, const FSmartObjectSlotHandle& SlotHandle, const FSmartObjectRuntimeSlot& Slot) const;\
+
+	/**
+	 * Use the provided context data that is expected to be already filled by calling 'SetupConditionContextCommonData'
+	 * and evaluates all conditions associated to the specified object.
+	 * @param ConditionContextData The context data to use for conditions evaluation
+	 * @param SmartObjectRuntime Runtime data representing the smart object for which the conditions must be evaluated
+	 * @return True if all conditions are met; false otherwise
+	 */
+	UE_NODISCARD bool EvaluateObjectConditions(const FWorldConditionContextData& ConditionContextData, const FSmartObjectRuntime& SmartObjectRuntime) const;
 
 	/**
 	 * Name of the Space partition class to use.

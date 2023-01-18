@@ -21,10 +21,11 @@ bool FSmartObjectWorldConditionSlotTagQuery::Initialize(const UWorldConditionSch
 	const USmartObjectWorldConditionSchema* SmartObjectSchema = Cast<USmartObjectWorldConditionSchema>(&Schema);
 	if (!SmartObjectSchema)
 	{
-		UE_LOG(LogSmartObject, Error, TEXT("SmartObjectWorldConditionObjectTagQuery: Expecting schema based on SmartObjectWorldConditionSchema."));
+		UE_LOG(LogSmartObject, Error, TEXT("SmartObjectWorldConditionSlotTagQuery: Expecting schema based on SmartObjectWorldConditionSchema."));
 		return false;
 	}
 
+	SubsystemRef = SmartObjectSchema->GetSubsystemRef();
 	SlotHandleRef = SmartObjectSchema->GetSlotHandleRef();
 	bCanCacheResult	= Schema.GetContextDataTypeByRef(SlotHandleRef) == EWorldConditionContextDataType::Persistent;
 	
@@ -33,7 +34,8 @@ bool FSmartObjectWorldConditionSlotTagQuery::Initialize(const UWorldConditionSch
 
 bool FSmartObjectWorldConditionSlotTagQuery::Activate(const FWorldConditionContext& Context) const
 {
-	USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(Context.GetWorld());
+	// @todo SO: replace const_cast by mutable data in the context once supported
+	USmartObjectSubsystem* SmartObjectSubsystem = const_cast<USmartObjectSubsystem*>(Context.GetContextDataPtr<USmartObjectSubsystem>(SubsystemRef));
 	check(SmartObjectSubsystem);
 
 	// Use a callback to listen changed to persistent data.
@@ -67,7 +69,7 @@ bool FSmartObjectWorldConditionSlotTagQuery::Activate(const FWorldConditionConte
 
 EWorldConditionResult FSmartObjectWorldConditionSlotTagQuery::IsTrue(const FWorldConditionContext& Context) const
 {
-	const USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(Context.GetWorld());
+	const USmartObjectSubsystem* SmartObjectSubsystem = Context.GetContextDataPtr<USmartObjectSubsystem>(SubsystemRef);
 	check(SmartObjectSubsystem);
 
 	if (const FSmartObjectSlotHandle* SlotHandle = Context.GetContextDataPtr<FSmartObjectSlotHandle>(SlotHandleRef))
@@ -81,7 +83,8 @@ EWorldConditionResult FSmartObjectWorldConditionSlotTagQuery::IsTrue(const FWorl
 
 void FSmartObjectWorldConditionSlotTagQuery::Deactivate(const FWorldConditionContext& Context) const
 {
-	USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(Context.GetWorld());
+	// @todo SO: replace const_cast by mutable data in the context once supported
+	USmartObjectSubsystem* SmartObjectSubsystem = const_cast<USmartObjectSubsystem*>(Context.GetContextDataPtr<USmartObjectSubsystem>(SubsystemRef));
 	check(SmartObjectSubsystem);
 
 	FStateType& State = Context.GetState(*this);

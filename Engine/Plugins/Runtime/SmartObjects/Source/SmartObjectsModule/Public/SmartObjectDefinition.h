@@ -112,13 +112,22 @@ public:
 	 */
 	const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const FSmartObjectSlotIndex& SlotIndex, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass) const;
 
+	/** @return Preconditions that must pass for the object to be found/used. */
+	const FWorldConditionQueryDefinition& GetPreconditions() const { return Preconditions; }
+
+	/** @return mutable Preconditions that must pass for the object to be found/used. */
+	FWorldConditionQueryDefinition& GetMutablePreconditions() { return Preconditions; }
+
 	/** @return a view on all the slot definitions */
 	TConstArrayView<FSmartObjectSlotDefinition> GetSlots() const { return Slots; }
 
+	/** @return slot definition stored at a given index */
 	const FSmartObjectSlotDefinition& GetSlot(const int32 Index) const { return Slots[Index]; }
+
+	/** @return mutable slot definition stored at a given index */
 	FSmartObjectSlotDefinition& GetMutableSlot(const int32 Index) { return Slots[Index]; }
 
-	/** @return True if specified slot index is valie. */
+	/** @return True if specified slot index is valid. */
 	bool IsValidSlotIndex(const int32 SlotIndex) const { return Slots.IsValidIndex(SlotIndex); } 
 
 #if WITH_EDITOR
@@ -162,10 +171,12 @@ public:
 	void SetUserTagFilter(const FGameplayTagQuery& InUserTagFilter) { UserTagFilter = InUserTagFilter; }
 
 	/** Returns the tag query to run on the runtime tags of a smart object instance to accept it */
-	const FGameplayTagQuery& GetObjectTagFilter() const { return ObjectTagFilter; }
+	UE_DEPRECATED(5.2, "Use FWorldCondition_SmartObjectActorTagQuery or FSmartObjectWorldConditionObjectTagQuery in Preconditions instead.")
+	const FGameplayTagQuery& GetObjectTagFilter() const { static FGameplayTagQuery Dummy; return Dummy; }
 
 	/** Sets the tag query to run on the runtime tags of a smart object instance to accept it */
-	void SetObjectTagFilter(const FGameplayTagQuery& InObjectTagFilter) { ObjectTagFilter = InObjectTagFilter; }
+	UE_DEPRECATED(5.2, "Use FWorldCondition_SmartObjectActorTagQuery or FSmartObjectWorldConditionObjectTagQuery in Preconditions instead.")
+	void SetObjectTagFilter(const FGameplayTagQuery& InObjectTagFilter) {}
 
 	/** Returns the list of tags describing the activity associated to this definition */
 	const FGameplayTagContainer& GetActivityTags() const { return ActivityTags; }
@@ -196,11 +207,11 @@ public:
 	/** Provides a description of the definition */
 	friend FString LexToString(const USmartObjectDefinition& Definition)
 	{
-		return FString::Printf(TEXT("NumSlots=%d NumDefs=%d HasUserFilter=%s HasObjectFilter=%s"),
+		return FString::Printf(TEXT("NumSlots=%d NumDefs=%d HasUserFilter=%s HasPreConditions=%s"),
 			Definition.Slots.Num(),
 			Definition.DefaultBehaviorDefinitions.Num(),
 			*LexToString(!Definition.UserTagFilter.IsEmpty()),
-			*LexToString(!Definition.ObjectTagFilter.IsEmpty()));
+			*LexToString(Definition.Preconditions.IsValid()));
 	}
 
 	/** Returns result of the last validation if `Validate` was called; unset otherwise. */
@@ -252,10 +263,18 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
 	FGameplayTagQuery UserTagFilter;
 
+#if WITH_EDITORONLY_DATA
 	/** This object is available if instance tags match this query; always available if query is empty. */
-	UPROPERTY(EditDefaultsOnly, Category = "SmartObject", meta = (DisplayName = "Object Activation Tag Filter"))
+	UE_DEPRECATED(5.2, "FWorldCondition_SmartObjectActorTagQuery or FSmartObjectWorldConditionObjectTagQuery used in Preconditions instead.")
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use FWorldCondition_SmartObjectActorTagQuery or FSmartObjectWorldConditionObjectTagQuery in Preconditions instead."))
 	FGameplayTagQuery ObjectTagFilter;
+#endif // WITH_EDITORONLY_DATA
 
+	/** Preconditions that must pass for the object to be found/used. */
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
+	FWorldConditionQueryDefinition Preconditions;
+
+private:
 	/** Tags identifying this Smart Object's use case. Can be used while looking for objects supporting given activity */
 	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
 	FGameplayTagContainer ActivityTags;
