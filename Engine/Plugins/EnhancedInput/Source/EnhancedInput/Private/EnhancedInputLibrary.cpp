@@ -9,13 +9,20 @@
 #include "UObject/UObjectIterator.h"
 #include "GameFramework/Actor.h"
 #include "EnhancedInputModule.h"	// For LogEnhancedInput
+#include "EnhancedInputDeveloperSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputLibrary)
 
 void UEnhancedInputLibrary::ForEachSubsystem(TFunctionRef<void(IEnhancedInputSubsystemInterface*)> SubsystemPredicate)
 {
-	// TODO: World subsystem for enhanced input, so that you bind to actions without an owning player controller
-	// This is useful for widgets, main menu situations, or just stuff that isn't dependant on a player.
+	// World subsystem
+	if (GetDefault<UEnhancedInputDeveloperSettings>()->bEnableWorldSubsystem)
+	{
+		for (TObjectIterator<UEnhancedInputWorldSubsystem> It; It; ++It)
+		{
+			SubsystemPredicate(Cast<IEnhancedInputSubsystemInterface>(*It));
+		}
+	}
 
 	// Players
 	for (TObjectIterator<UEnhancedInputLocalPlayerSubsystem> It; It; ++It)

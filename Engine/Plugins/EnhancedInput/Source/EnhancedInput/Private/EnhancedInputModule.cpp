@@ -12,6 +12,7 @@
 #include "GameFramework/PlayerController.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
+#include "EnhancedInputDeveloperSettings.h"
 
 #define LOCTEXT_NAMESPACE "EnhancedInput"
 
@@ -284,12 +285,28 @@ void FEnhancedInputModule::ShutdownModule()
 
 void FEnhancedInputModule::Tick(float DeltaTime)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEnhancedInputModule::Tick);
+
 	// This may tick multiple times per frame? See MIDIDevice module.
 	if (LastFrameNumberWeTicked == GFrameCounter)
 	{
 		return;
 	}
 	LastFrameNumberWeTicked = GFrameCounter;
+
+	/* 
+	* Tick the World subsystems 
+	* The Enhanced Input local player subsystem will have their Player Input's ticked by their owning 
+	* Player Controller in APlayerController::TickPlayerInput, but because the world subsystem has no
+	* owning controller we need to tick it here.
+	*/
+	if (GetDefault<UEnhancedInputDeveloperSettings>()->bEnableWorldSubsystem)
+	{
+		for (TObjectIterator<UEnhancedInputWorldSubsystem> It; It; ++It)
+		{
+			(*It)->TickPlayerInput(DeltaTime);
+		}
+	}	
 
 	UEnhancedInputLibrary::ForEachSubsystem([DeltaTime](IEnhancedInputSubsystemInterface* Subsystem)
 		{

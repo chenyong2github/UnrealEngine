@@ -42,6 +42,23 @@ void UEnhancedInputLocalPlayerSubsystem::ControlMappingsRebuiltThisFrame()
 // *
 // **************************************************************************************************
 
+bool UEnhancedInputWorldSubsystem::ShouldCreateSubsystem(UObject* Outer) const
+{
+	if (!FSlateApplication::IsInitialized())
+	{
+		return false;
+	}
+
+	// Getting setting on whether to turn off subsystem or not
+	const bool bShouldCreate = GetDefault<UEnhancedInputDeveloperSettings>()->bEnableWorldSubsystem;
+	if (!bShouldCreate)
+	{
+		UE_LOG(LogWorldSubsystemInput, Log, TEXT("UEnhancedInputDeveloperSettings::bEnableWorldSubsystem is false, the world subsystem will not be created!"));
+	}
+
+	return bShouldCreate && Super::ShouldCreateSubsystem(Outer);
+}
+
 void UEnhancedInputWorldSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -59,14 +76,15 @@ void UEnhancedInputWorldSubsystem::Initialize(FSubsystemCollectionBase& Collecti
 	PlayerInput = NewObject<UEnhancedPlayerInput>(this, PlayerInputClass, TEXT("EIWorldSubsystem_PlayerInput0"));	
 	ensureMsgf(PlayerInput, TEXT("UEnhancedInputWorldSubsystem::Initialize failed to create PlayerInput! This subsystem will not tick!"));
 	
-	if (FSlateApplication::IsInitialized())
+	if (ensure(FSlateApplication::IsInitialized()))
 	{
 		InputPreprocessor = MakeShared<FEnhancedInputWorldProcessor>();
-		InputPreprocessor->SetSubsystemWorld(GetWorld());
-		FSlateApplication::Get().RegisterInputPreProcessor(InputPreprocessor, 0);
+		FSlateApplication::Get().RegisterInputPreProcessor(InputPreprocessor);
 	}
 	
-	StartConsumingInput();
+	// Add any default mapping contexts
+	AddDefaultMappingContexts();
+	RequestRebuildControlMappings();
 }
 
 void UEnhancedInputWorldSubsystem::Deinitialize()
@@ -81,47 +99,26 @@ void UEnhancedInputWorldSubsystem::Deinitialize()
 	InputPreprocessor.Reset();
 	CurrentInputStack.Empty();
 	PlayerInput = nullptr;
+
+	RemoveDefaultMappingContexts();
 }
 
-bool UEnhancedInputWorldSubsystem::ShouldCreateSubsystem(UObject* Outer) const
+bool UEnhancedInputWorldSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
-	if (!FSlateApplication::IsInitialized())
-	{
-		return false;
-	}
-	
-	// Getting setting on whether to turn off subsystem or not
-	const bool bShouldCreate = GetDefault<UEnhancedInputDeveloperSettings>()->bEnableWorldSubsystem;
-	if (!bShouldCreate)
-	{
-		UE_LOG(LogWorldSubsystemInput, Log, TEXT("UEnhancedInputDeveloperSettings::bEnableWorldSubsystem is false, the world subsystem will not be created!"));
-	}
-	
-	return bShouldCreate && Super::ShouldCreateSubsystem(Outer);
+	// The world subsystem shouldn't be used in the editor
+	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE;
 }
 
-ETickableTickType UEnhancedInputWorldSubsystem::GetTickableTickType() const
+void UEnhancedInputWorldSubsystem::TickPlayerInput(float DeltaTime)
 {
-	return IsTemplate() ? ETickableTickType::Never : ETickableTickType::Always;
-}
-
-void UEnhancedInputWorldSubsystem::Tick(float DeltaTime)
-{
-	if (!ensure(PlayerInput))
-	{
-		return;
-	}
-
-	FModifyContextOptions Options;
-	Options.bForceImmediately = true;
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEnhancedInputWorldSubsystem::TickPlayerInput);
 	
-	// Rebuild the control mappings and tick any forced input that may have been injected
-	RequestRebuildControlMappings(Options);
-	TickForcedInput(DeltaTime);
-
 	static TArray<UInputComponent*> InputStack;
+	InputStack.Reset();
+
 	// Build the input stack
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UEnhancedInputWorldSubsystem::TickPlayerInput::BuildInputStack);
 		for (int32 i = 0; i < CurrentInputStack.Num(); ++i)
 		{
 			if (UInputComponent* IC = CurrentInputStack[i].Get())
@@ -137,14 +134,7 @@ void UEnhancedInputWorldSubsystem::Tick(float DeltaTime)
 	
 	// Process input stack on the player input
 	PlayerInput->Tick(DeltaTime);
-	PlayerInput->ProcessInputStack(InputStack, DeltaTime, GetWorld()->IsPaused());
-
-	InputStack.Reset();
-}
-
-UEnhancedPlayerInput* UEnhancedInputWorldSubsystem::GetPlayerInput() const
-{
-	return PlayerInput;
+	PlayerInput->ProcessInputStack(InputStack, DeltaTime, GetWorld()->IsPaused());	
 }
 
 void UEnhancedInputWorldSubsystem::AddActorInputComponent(AActor* Actor)
@@ -199,37 +189,19 @@ bool UEnhancedInputWorldSubsystem::RemoveActorInputComponent(AActor* Actor)
     return false;
 }
 
-void UEnhancedInputWorldSubsystem::StartConsumingInput()
-{
-	bIsCurrentlyConsumingInput = true;
-	
-	AddDefaultMappingContexts();
-
-	RequestRebuildControlMappings();
-}
-
-void UEnhancedInputWorldSubsystem::StopConsumingInput()
-{
-	bIsCurrentlyConsumingInput = false;
-
-	RemoveDefaultMappingContexts();
-
-	RequestRebuildControlMappings();
-}
-
 bool UEnhancedInputWorldSubsystem::InputKey(const FInputKeyParams& Params)
 {
 	if (PlayerInput)
 	{
-		if (bIsCurrentlyConsumingInput)
+
+#if !UE_BUILD_SHIPPING
+		if (GetDefault<UEnhancedInputDeveloperSettings>()->bShouldLogAllWorldSubsystemInputs)
 		{
-			if (GetDefault<UEnhancedInputDeveloperSettings>()->bShouldLogAllWorldSubsystemInputs)
-			{
-				UE_LOG(LogWorldSubsystemInput, Log, TEXT("EI %s World Subsystem InputKey : [%s]"), LexToString(GetWorld()->WorldType), *Params.Key.ToString());
-			}
-			return PlayerInput->InputKey(Params);
+			UE_LOG(LogWorldSubsystemInput, VeryVerbose, TEXT("EI %s World Subsystem InputKey : [%s]"), LexToString(GetWorld()->WorldType), *Params.Key.ToString());
 		}
-		return false;
+#endif
+
+		return PlayerInput->InputKey(Params);
 	}
 
 	ensureAlwaysMsgf(false, TEXT("Attempting to input a key to the EnhancedInputWorldSubsystem, but there is no Player Input!"));
@@ -265,6 +237,11 @@ void UEnhancedInputWorldSubsystem::RemoveDefaultMappingContexts()
 			}
 		}
 	}
+}
+
+UEnhancedPlayerInput* UEnhancedInputWorldSubsystem::GetPlayerInput() const
+{
+	return PlayerInput;
 }
 
 void UEnhancedInputWorldSubsystem::ShowDebugInfo(UCanvas* Canvas)
