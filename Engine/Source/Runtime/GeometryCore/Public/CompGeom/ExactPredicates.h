@@ -213,7 +213,7 @@ RealType InSphere3(const TVector<RealType>& A, const TVector<RealType>& B, const
 	double PC[3]{ (double)C.X, (double)C.Y, (double)C.Z };
 	double PD[3]{ (double)D.X, (double)D.Y, (double)D.Z };
 	double PE[3]{ (double)E.X, (double)E.Y, (double)E.Z };
-	if constexpr (TIsSame<RealType, double>::Value)
+	if constexpr (std::is_same_v<RealType, double>)
 	{
 		return InSphere(PA, PB, PC, PD, PE);
 	}

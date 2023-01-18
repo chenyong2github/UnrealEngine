@@ -62,7 +62,7 @@ public:
 	}
 
 	// Conversion from other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TLumenCardOBB(const TLumenCardOBB<FArg>& From)
 	{
 		Origin = UE::Math::TVector<T>(From.Origin);
