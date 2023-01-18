@@ -35,7 +35,7 @@ class COMMONUI_API UCommonRichTextBlock : public URichTextBlock
 	GENERATED_BODY()
 
 public:
-	ETextTransformPolicy GetTextTransformPolicy() const { return TextTransformPolicy; }
+	ETextTransformPolicy GetTextTransformPolicy() const { return GetTransformPolicy(); }
 	TSubclassOf<UCommonTextStyle> GetDefaultTextStyleClass() const { return DefaultTextStyleOverrideClass; }
 	float GetMobileTextBlockScale() const { return MobileTextBlockScale; }
 

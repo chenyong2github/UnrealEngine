@@ -482,14 +482,14 @@ void UCommonRichTextBlock::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading() && bDisplayAllCaps_DEPRECATED)
 	{
-		TextTransformPolicy = ETextTransformPolicy::ToUpper;
+		SetTextTransformPolicy(ETextTransformPolicy::ToUpper);
 		bDisplayAllCaps_DEPRECATED = false;
 	}
 }
 
 void UCommonRichTextBlock::SetText(const FText& InText)
 {
-	Text = InText;
+	Super::SetText(InText);
 	if (MyRichTextBlock.IsValid())
 	{
 		if (CommonUIUtils::ShouldDisplayMobileUISizes())
@@ -530,8 +530,8 @@ bool UCommonRichTextBlock::CanEditChange(const FProperty* InProperty) const
 
 	if (DefaultTextStyleOverrideClass)
 	{
-		if (PropertyName.IsEqual(GET_MEMBER_NAME_CHECKED(UCommonRichTextBlock, DefaultTextStyleOverride)) ||
-			PropertyName.IsEqual(GET_MEMBER_NAME_CHECKED(UCommonRichTextBlock, MinDesiredWidth)))
+		if (PropertyName.IsEqual(TEXT("DefaultTextStyleOverride")) ||
+			PropertyName.IsEqual(TEXT("MinDesiredWidth")))
 		{
 			return false;
 		}

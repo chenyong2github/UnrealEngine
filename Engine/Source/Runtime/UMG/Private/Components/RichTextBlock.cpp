@@ -46,6 +46,7 @@ FORCEINLINE TSharedPtr< ObjectType > MakeShareableDeferredCleanup(ObjectType* In
 	return MakeShareable(InObject, [](ObjectType* ObjectToDelete) { BeginCleanup(new FDeferredDeletor<ObjectType>(ObjectToDelete)); });
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 URichTextBlock::URichTextBlock(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -53,6 +54,7 @@ URichTextBlock::URichTextBlock(const FObjectInitializer& ObjectInitializer)
 	TextTransformPolicy = ETextTransformPolicy::None;
 	TextOverflowPolicy = ETextOverflowPolicy::Clip;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void URichTextBlock::ReleaseSlateResources(bool bReleaseChildren)
 {
@@ -71,12 +73,12 @@ TSharedRef<SWidget> URichTextBlock::RebuildWidget()
 	CreateDecorators(CreatedDecorators);
 
 	TSharedRef<FRichTextLayoutMarshaller> Marshaller = FRichTextLayoutMarshaller::Create(CreateMarkupParser(), CreateMarkupWriter(), CreatedDecorators, StyleInstance.Get());
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyRichTextBlock =
 		SNew(SRichTextBlock)
 		.TextStyle(bOverrideDefaultStyle ? &DefaultTextStyleOverride : &DefaultTextStyle)
 		.Marshaller(Marshaller);
-	
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return MyRichTextBlock.ToSharedRef();
 }
 
@@ -86,12 +88,13 @@ void URichTextBlock::SynchronizeProperties()
 
 	if (MyRichTextBlock.IsValid())
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		MyRichTextBlock->SetText(Text);
 		MyRichTextBlock->SetTransformPolicy(TextTransformPolicy);
 		MyRichTextBlock->SetMinDesiredWidth(MinDesiredWidth);
 
 		MyRichTextBlock->SetOverflowPolicy(TextOverflowPolicy);
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Super::SynchronizeTextLayoutProperties(*MyRichTextBlock);
 	}
 }
@@ -121,6 +124,7 @@ void URichTextBlock::UpdateStyleData()
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FText URichTextBlock::GetText() const
 {
 	if (MyRichTextBlock.IsValid())
@@ -200,6 +204,7 @@ const FTextBlockStyle& URichTextBlock::GetCurrentDefaultTextStyle() const
 		return DefaultTextStyle;
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 URichTextBlockDecorator* URichTextBlock::GetDecoratorByClass(TSubclassOf<URichTextBlockDecorator> DecoratorClass)
 {
@@ -239,6 +244,7 @@ TSharedPtr< IRichTextMarkupWriter > URichTextBlock::CreateMarkupWriter()
 	return FDefaultRichTextMarkupWriter::Create();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void URichTextBlock::BeginDefaultStyleOverride()
 {
 	if (!bOverrideDefaultStyle)
@@ -248,6 +254,7 @@ void URichTextBlock::BeginDefaultStyleOverride()
 		DefaultTextStyleOverride = DefaultTextStyle;
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR
 
@@ -261,6 +268,7 @@ void URichTextBlock::OnCreationFromPalette()
 	//Decorators.Add(NewObject<URichTextBlockDecorator>(this, NAME_None, RF_Transactional));
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void URichTextBlock::ValidateCompiledDefaults(IWidgetCompilerLog& CompileLog) const
 {
 	Super::ValidateCompiledDefaults(CompileLog);
@@ -273,9 +281,11 @@ void URichTextBlock::ValidateCompiledDefaults(IWidgetCompilerLog& CompileLog) co
 			FText::AsCultureInvariant(TextStyleSet->GetPathName())));
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif //if WITH_EDITOR
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void URichTextBlock::SetDefaultTextStyle(const FTextBlockStyle& InDefaultTextStyle)
 {
 	BeginDefaultStyleOverride();
@@ -298,10 +308,13 @@ void URichTextBlock::ClearAllDefaultStyleOverrides()
 		ApplyUpdatedDefaultTextStyle();
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 UMaterialInstanceDynamic* URichTextBlock::GetDefaultDynamicMaterial()
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TObjectPtr<UObject>& MaterialObject = bOverrideDefaultStyle ? DefaultTextStyleOverride.Font.FontMaterial : DefaultTextStyle.Font.FontMaterial;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (UMaterialInterface* Material = Cast<UMaterialInterface>(MaterialObject.Get()))
 	{
@@ -311,9 +324,11 @@ UMaterialInstanceDynamic* URichTextBlock::GetDefaultDynamicMaterial()
 		{
 			BeginDefaultStyleOverride();
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			DynamicMaterial = UMaterialInstanceDynamic::Create(Material, this);
 			DefaultTextStyleOverride.Font.FontMaterial = DynamicMaterial;
-			
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 			ApplyUpdatedDefaultTextStyle();
 		}
 
@@ -340,6 +355,7 @@ void URichTextBlock::SetDecorators(const TArray<TSubclassOf<URichTextBlockDecora
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void URichTextBlock::SetDefaultColorAndOpacity(FSlateColor InColorAndOpacity)
 {
 	BeginDefaultStyleOverride();
@@ -375,6 +391,7 @@ void URichTextBlock::SetDefaultStrikeBrush(FSlateBrush& InStrikeBrush)
 	DefaultTextStyleOverride.StrikeBrush = InStrikeBrush;
 	ApplyUpdatedDefaultTextStyle();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void URichTextBlock::SetJustification(ETextJustify::Type InJustification)
 {
@@ -385,6 +402,7 @@ void URichTextBlock::SetJustification(ETextJustify::Type InJustification)
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void URichTextBlock::SetMinDesiredWidth(float InMinDesiredWidth)
 {
 	MinDesiredWidth = InMinDesiredWidth;
@@ -393,6 +411,7 @@ void URichTextBlock::SetMinDesiredWidth(float InMinDesiredWidth)
 		MyRichTextBlock->SetMinDesiredWidth(InMinDesiredWidth);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void URichTextBlock::SetAutoWrapText(bool InAutoTextWrap)
 {
@@ -403,6 +422,7 @@ void URichTextBlock::SetAutoWrapText(bool InAutoTextWrap)
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void URichTextBlock::SetTextTransformPolicy(ETextTransformPolicy InTransformPolicy)
 {
 	TextTransformPolicy = InTransformPolicy;
@@ -422,6 +442,26 @@ void URichTextBlock::SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy)
 	}
 }
 
+const FTextBlockStyle& URichTextBlock::GetDefaultTextStyleOverride() const
+{
+	return DefaultTextStyleOverride;
+}
+
+float URichTextBlock::GetMinDesiredWidth() const
+{
+	return MinDesiredWidth;
+}
+
+ETextTransformPolicy URichTextBlock::GetTransformPolicy() const
+{
+	return TextTransformPolicy;
+}
+
+ETextOverflowPolicy URichTextBlock::GetOverflowPolicy() const
+{
+	return TextOverflowPolicy;
+}
+
 void URichTextBlock::ApplyUpdatedDefaultTextStyle()
 {
 	if (MyRichTextBlock.IsValid())
@@ -429,6 +469,7 @@ void URichTextBlock::ApplyUpdatedDefaultTextStyle()
 		MyRichTextBlock->SetTextStyle(bOverrideDefaultStyle ? DefaultTextStyleOverride : DefaultTextStyle);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void URichTextBlock::RefreshTextLayout()
 {

@@ -39,6 +39,44 @@ UCLASS()
 class UMG_API URichTextBlock : public UTextLayoutWidget
 {
 	GENERATED_BODY()
+protected:
+	UE_DEPRECATED(5.2, "Direct access to Text is deprecated. Please use the getter or setter.")
+	/** The text to display */
+	UPROPERTY(EditAnywhere, Category = Content, BlueprintSetter = "SetText", BlueprintGetter = "GetText", Getter, Setter, meta = (MultiLine = "true"))
+	FText Text;
+
+	UE_DEPRECATED(5.2, "Direct access to TextStyleSet is deprecated. Please use the getter or setter.")
+	/**  */
+	UPROPERTY(EditAnywhere, Category = Appearance, BlueprintSetter = "SetTextStyleSet", BlueprintGetter = "GetTextStyleSet", Getter, Setter, meta = (RequiredAssetDataTags = "RowStructure=/Script/UMG.RichTextStyleRow"))
+	TObjectPtr<UDataTable> TextStyleSet;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = Appearance)
+	TArray<TSubclassOf<URichTextBlockDecorator>> DecoratorClasses;
+
+	/** True to specify the default text style for this rich text inline, overriding any default provided in the style set table */
+	UPROPERTY(EditAnywhere, Category = Appearance)
+	bool bOverrideDefaultStyle = false;
+
+	UE_DEPRECATED(5.2, "Direct access to TextOverflowPolicy is deprecated. Please use the getter or setter.")
+	/** Text style to apply by default to text in this block */
+	UPROPERTY(EditAnywhere, Category = Appearance, BlueprintSetter = "SetDefaultTextStyle", Setter = "SetDefaultTextStyle", Getter, meta = (EditCondition = bOverrideDefaultStyle))
+	FTextBlockStyle DefaultTextStyleOverride;
+
+	UE_DEPRECATED(5.2, "Direct access to MinDesiredWidth is deprecated. Please use the getter or setter.")
+	/** The minimum desired size for the text */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = "SetMinDesiredWidth", Getter, Setter, Category = Appearance)
+	float MinDesiredWidth;
+
+	UE_DEPRECATED(5.2, "Direct access to TextTransformPolicy is deprecated. Please use the getter or setter.")
+	/** The text transformation policy to apply to this text block */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = "SetTextTransformPolicy", Getter = "GetTransformPolicy", Setter, Category = Appearance, meta = (DisplayName = "Transform Policy"))
+	ETextTransformPolicy TextTransformPolicy;
+
+	UE_DEPRECATED(5.2, "Direct access to TextOverflowPolicy is deprecated. Please use the getter or setter.")
+	/** Sets what happens to text that is clipped and doesn't fit within the clip rect for this widget */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = "SetTextOverflowPolicy", Getter = "GetOverflowPolicy", Setter, Category = Clipping, AdvancedDisplay, meta = (DisplayName = "Overflow Policy"))
+	ETextOverflowPolicy TextOverflowPolicy;
 
 public:
 	/**  
@@ -200,39 +238,12 @@ protected:
 	void BeginDefaultStyleOverride();
 	virtual void ApplyUpdatedDefaultTextStyle();
 
+	const FTextBlockStyle& GetDefaultTextStyleOverride() const;
+	float GetMinDesiredWidth() const;
+	ETextTransformPolicy GetTransformPolicy() const;
+	ETextOverflowPolicy GetOverflowPolicy() const;
+
 protected:
-	/** The text to display */
-	UPROPERTY(EditAnywhere, Category=Content, meta=( MultiLine="true" ))
-	FText Text;
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category=Appearance, meta=(RequiredAssetDataTags = "RowStructure=/Script/UMG.RichTextStyleRow"))
-	TObjectPtr<UDataTable> TextStyleSet;
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category=Appearance)
-	TArray<TSubclassOf<URichTextBlockDecorator>> DecoratorClasses;
-
-	/** True to specify the default text style for this rich text inline, overriding any default provided in the style set table */
-	UPROPERTY(EditAnywhere, Category = Appearance)
-	bool bOverrideDefaultStyle = false;
-
-	/** Text style to apply by default to text in this block */
-	UPROPERTY(EditAnywhere, Category=Appearance, meta = (EditCondition = bOverrideDefaultStyle))
-	FTextBlockStyle DefaultTextStyleOverride;
-
-	/** The minimum desired size for the text */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)
-	float MinDesiredWidth;
-
-	/** The text transformation policy to apply to this text block */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, meta=(DisplayName="Transform Policy"))
-	ETextTransformPolicy TextTransformPolicy;
-
-	/** Sets what happens to text that is clipped and doesn't fit within the clip rect for this widget */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clipping, AdvancedDisplay, meta = (DisplayName = "Overflow Policy"))
-	ETextOverflowPolicy TextOverflowPolicy;
-
 	UPROPERTY(Transient)
 	FTextBlockStyle DefaultTextStyle;
 
