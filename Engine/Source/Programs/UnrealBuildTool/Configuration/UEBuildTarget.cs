@@ -2171,13 +2171,9 @@ namespace UnrealBuildTool
 						}
 					}
 
-					WriteMetadataTargetInfo VersionInfo = new WriteMetadataTargetInfo(null, VersionFile, Receipt.Version, null, null, null, null);
-					FileReference VersionInfoFile = FileReference.Combine(VersionFile.IsUnderDirectory(Unreal.EngineDirectory) ? EngineIntermediateDirectory : ProjectIntermediateDirectory, "VersionMetadata.dat");
-					CreateWriteMetadataAction(MakefileBuilder, VersionFile.GetFileName(), VersionInfoFile, VersionInfo, EnginePrereqItems);
-
-					WriteMetadataTargetInfo EngineInfo = new WriteMetadataTargetInfo(null, VersionFile, null, null, null, EngineFileToManifest, null);
-					FileReference EngineInfoFile = FileReference.Combine(EngineIntermediateDirectory, "EngineMetadata.dat");
-					CreateWriteMetadataAction(MakefileBuilder, $"{TargetName}.modules", EngineInfoFile, EngineInfo, EnginePrereqItems);
+					WriteMetadataTargetInfo EngineInfo = new WriteMetadataTargetInfo(null, VersionFile, Receipt.Version, null, null, EngineFileToManifest, null);
+					FileReference EngineInfoFile = FileReference.Combine(ProjectIntermediateDirectory, "EngineMetadata.dat");
+					CreateWriteMetadataAction(MakefileBuilder, VersionFile.GetFileName(), EngineInfoFile, EngineInfo, EnginePrereqItems);
 
 					WriteMetadataTargetInfo TargetInfo = new WriteMetadataTargetInfo(ProjectFile, VersionFile, null, ReceiptFileName, Receipt, TargetFileToManifest, FileNameToLoadOrderManifest);
 					FileReference TargetInfoFile = FileReference.Combine(ProjectIntermediateDirectory, "TargetMetadata.dat");
