@@ -272,7 +272,7 @@ void USmartObjectDefinition::PostLoad()
 		NewActorTagQueryCondition.TagQuery = ObjectTagFilter;
 		Preconditions.EditableConditions.Emplace(0, EWorldConditionOperator::And, FConstStructView::Make(NewActorTagQueryCondition));
 		ObjectTagFilter.Clear();
-		UE_LOG(LogSmartObject, Warning, TEXT("Deprecated object tag filter has been replaced by a %s precondition to validate tags on the smart object actor."
+		UE_ASSET_LOG(LogSmartObject, Warning, this, TEXT("Deprecated object tag filter has been replaced by a %s precondition to validate tags on the smart object actor."
 			" If the intent was to validate against instance runtime tags then the condition should be replaced by %s."),
 			*FWorldCondition_SmartObjectActorTagQuery::StaticStruct()->GetName(),
 			*FSmartObjectWorldConditionObjectTagQuery::StaticStruct()->GetName());
