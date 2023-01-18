@@ -2444,7 +2444,7 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 	#if STRATA_ENABLED
 	{
 		#ifdef StrataStruct
-			#define StrataSceneTexture StrataStructure
+			#define StrataSceneTexture StrataStruct
 		#else
 			#define StrataSceneTexture Strata
 		#endif
