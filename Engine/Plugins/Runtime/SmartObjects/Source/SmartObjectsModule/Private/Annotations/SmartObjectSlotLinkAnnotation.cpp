@@ -24,9 +24,9 @@ void FSmartObjectSlotLinkAnnotation::DrawVisualization(FSmartObjectVisualization
 	if (Transform.IsSet() && TargetTransform.IsSet())
 	{
 		FLinearColor Color = FLinearColor::White;
-		if (!VisContext.bIsSlotSelected)
+		if (VisContext.bIsSlotSelected)
 		{
-			Color.A *= 0.5f;
+			Color = VisContext.SelectedColor;
 		}
 		VisContext.DrawArrow(Transform.GetValue().GetLocation(), TargetTransform.GetValue().GetLocation(), Color, 15.0f, 15.0f, /*DepthPrioGroup*/0, /*Thickness*/1.0f, /*DepthBias*/2.0);
 	}

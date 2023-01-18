@@ -65,6 +65,9 @@ struct SMARTOBJECTSMODULE_API FSmartObjectVisualizationContext
 	/** True, if the slot is currently selected */
 	bool bIsSlotSelected = false;
 
+	/** True, if the annotation is currently selected */
+	bool bIsAnnotationSelected = false;
+	
 	/** Current view to draw to. */
 	const FSceneView* View = nullptr;
 
@@ -76,6 +79,9 @@ struct SMARTOBJECTSMODULE_API FSmartObjectVisualizationContext
 
 	/** Pointer to valid engine small font. */
 	const UFont* Font = nullptr;
+
+	/** Color for a selection, cached from UEditorStyleSettings. */
+	FLinearColor SelectedColor = FLinearColor::White;
 };
 
 #endif // UE_ENABLE_DEBUG_DRAWING

@@ -13,6 +13,10 @@ class SEditorViewport;
 class AActor;
 class USmartObjectDefinition;
 class FScopedTransaction;
+namespace UE::SmartObjects::Editor
+{
+	struct FSelectedItem;
+};
 
 class FSmartObjectAssetEditorViewportClient	: public FEditorViewportClient
 {
@@ -76,8 +80,11 @@ private:
 	UE::Widget::EWidgetMode WidgetMode = UE::Widget::WM_Translate;
 
 	/** Currently active transform widget coord system. */
-	ECoordSystem WidgetCoordSystemSpace = COORD_Local;
+	ECoordSystem WidgetCoordSystemSpace = COORD_World;
 
+	/** Cached widget location (updated from slots and annotations before manipulating the gizmo) */
+	mutable FVector CachedWidgetLocation = FVector::ZeroVector;
+	
 	/** Currently selected slots. @todo: Make view model and move this there. */
-	TArray<FGuid> Selection;
+	TArray<UE::SmartObjects::Editor::FSelectedItem> Selection;
 };
