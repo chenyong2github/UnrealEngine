@@ -366,7 +366,6 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	virtual void InitAnim(bool bForceReinit) override;
 	virtual bool IsWindEnabled() const override { return true; }
 	virtual void SetAnimClass(class UClass* NewClass) override;
-	virtual void OnClearAnimScriptInstance() override;
 	//~ End SkeletalMeshComponent Interface
 
 	// return true if currently preview animation asset is on

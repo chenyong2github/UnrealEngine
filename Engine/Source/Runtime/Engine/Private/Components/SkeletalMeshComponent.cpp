@@ -997,12 +997,10 @@ void USkeletalMeshComponent::ClearAnimScriptInstance()
 		HandleExistingParallelEvaluationTask(bBlockOnTask, bPerformPostAnimEvaluation);
 
 		AnimScriptInstance->EndNotifyStates();
-		AnimScriptInstance->MarkAsGarbage();
 	}
 	AnimScriptInstance = nullptr;
 	ResetLinkedAnimInstances();
 	ClearCachedAnimProperties();
-	OnClearAnimScriptInstance();
 }
 
 void USkeletalMeshComponent::ClearCachedAnimProperties()
