@@ -4450,16 +4450,16 @@ void UGeometryCollectionComponent::SetAnchoredByIndex(int32 Index, bool bAnchore
 	}
 }
 
-void UGeometryCollectionComponent::SetAnchoredByBox(FBox WorldSpaceBox, bool bAnchored)
+void UGeometryCollectionComponent::SetAnchoredByBox(FBox WorldSpaceBox, bool bAnchored, int32 MaxLevel)
 {
-	SetAnchoredByTransformedBox(WorldSpaceBox, FTransform::Identity, bAnchored);
+	SetAnchoredByTransformedBox(WorldSpaceBox, FTransform::Identity, bAnchored, MaxLevel);
 }
 
-void UGeometryCollectionComponent::SetAnchoredByTransformedBox(FBox Box, FTransform Transform, bool bAnchored)
+void UGeometryCollectionComponent::SetAnchoredByTransformedBox(FBox Box, FTransform Transform, bool bAnchored, int32 MaxLevel)
 {
 	if (PhysicsProxy)
 	{
-		PhysicsProxy->SetAnchoredByTransformedBox_External(Box, Transform, bAnchored);
+		PhysicsProxy->SetAnchoredByTransformedBox_External(Box, Transform, bAnchored, MaxLevel);
 	}
 }
 void UGeometryCollectionComponent::RemoveAllAnchors()

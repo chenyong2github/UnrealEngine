@@ -28,6 +28,7 @@
 #include "GeometryCollection/GeometryCollectionSizeSpecificUtility.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 #include "Modules/ModuleManager.h"
 #include "Chaos/PullPhysicsDataImp.h"
 #include "Chaos/PBDRigidsEvolution.h"
@@ -1818,30 +1819,42 @@ void FGeometryCollectionPhysicsProxy::SetAnchoredByIndex_External(int32 Index, b
 	}
 }
 
-void FGeometryCollectionPhysicsProxy::SetAnchoredByTransformedBox_External(const FBox& Box, const FTransform& Transform, bool bAnchored)
+void FGeometryCollectionPhysicsProxy::SetAnchoredByTransformedBox_External(const FBox& Box, const FTransform& Transform, bool bAnchored, int32 MaxLevel)
 {
 	check(IsInGameThread());
 	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
 	{
 		Chaos::FAABB3 BoundsToCheck(Box.Min, Box.Max);
 		Chaos::FRigidTransform3 BoxTransform(Transform);
-		RBDSolver->EnqueueCommandImmediate([this, BoundsToCheck, BoxTransform, bAnchored, RBDSolver]()
+		RBDSolver->EnqueueCommandImmediate([this, BoundsToCheck, BoxTransform, bAnchored, MaxLevel, RBDSolver]()
 			{
 				using namespace Chaos;
 				TSet<FPBDRigidClusteredParticleHandle*> TopParentHandles;
 
+				Facades::FCollectionHierarchyFacade HierarchyFacade(PhysicsThreadCollection);
+				const int32 MaxLevelToCheck = (HierarchyFacade.HasLevelAttribute()) ? MaxLevel : INDEX_NONE;
+
 				FPBDRigidsEvolution* Evolution = RBDSolver->GetEvolution();
-				for (FClusterHandle* ParticleHandle : GetSolverParticleHandles())
+				for (int32 TransformIndex = 0; TransformIndex < SolverParticleHandles.Num(); TransformIndex++)
 				{
-					if (ParticleHandle)
+					if (FClusterHandle * ParticleHandle = SolverParticleHandles[TransformIndex])
 					{
-						const FVec3 PositionInBoxSpace = BoxTransform.InverseTransformPosition(ParticleHandle->X());
-						if (BoundsToCheck.Contains(PositionInBoxSpace))
+						bool bCheckBounds = true;
+						if (MaxLevelToCheck > INDEX_NONE)
 						{
-							SetParticleAnchored_Internal(Evolution, ParticleHandle, bAnchored);
-							if (Chaos::FPBDRigidClusteredParticleHandle* TopParentHandle = GetTopActiveClusteredParent_Internal(ParticleHandle))
+							const int32 InitialLevel = HierarchyFacade.GetInitialLevel(TransformIndex);
+							bCheckBounds = (InitialLevel <= MaxLevelToCheck);
+						}
+						if (bCheckBounds)
+						{
+							const FVec3 PositionInBoxSpace = BoxTransform.InverseTransformPosition(ParticleHandle->X());
+							if (BoundsToCheck.Contains(PositionInBoxSpace))
 							{
-								TopParentHandles.Add(TopParentHandle);
+								SetParticleAnchored_Internal(Evolution, ParticleHandle, bAnchored);
+								if (Chaos::FPBDRigidClusteredParticleHandle* TopParentHandle = GetTopActiveClusteredParent_Internal(ParticleHandle))
+								{
+									TopParentHandles.Add(TopParentHandle);
+								}
 							}
 						}
 					}

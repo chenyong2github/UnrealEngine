@@ -55,6 +55,15 @@ namespace Chaos::Facades
 		return GetRootIndices(ParentAttribute);
 	}
 
+	int32 FCollectionHierarchyFacade::GetInitialLevel(int32 TransformIndex) const
+	{
+		if (HasLevelAttribute())
+		{
+			return LevelAttribute.Get()[TransformIndex];
+		}
+		return INDEX_NONE;
+	}
+
 	void FCollectionHierarchyFacade::GenerateLevelAttribute()
 	{
 		check(!IsConst());

@@ -45,6 +45,12 @@ namespace Chaos::Facades
 		TArray<int32> GetRootIndices() const;
 
 		/** 
+		* Get initial level of a specific transform index 
+		* If the attribute is missing return INDEX_NONE
+		*/
+		int32 GetInitialLevel(int32 TransformIndex) const;
+
+		/** 
 		* Update level attribute for all elements (and create it if it is missing ) 
 		* @Param PersistencePolicy whether to make the attribute persistent or keep the existing state
 		*/ 

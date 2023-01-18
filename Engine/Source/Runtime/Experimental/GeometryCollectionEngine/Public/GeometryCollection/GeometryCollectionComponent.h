@@ -560,13 +560,13 @@ public:
 	* Set all pieces within a world space bounding box to be anchored or not 
 	*/
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetAnchoredByBox(FBox WorldSpaceBox, bool bAnchored);
+	void SetAnchoredByBox(FBox WorldSpaceBox, bool bAnchored, int32 MaxLevel = -1);
 
 	/**
 	* Set all pieces within a world transformed bounding box to be anchored or not
 	*/
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetAnchoredByTransformedBox(FBox Box, FTransform Transform, bool bAnchored);
+	void SetAnchoredByTransformedBox(FBox Box, FTransform Transform, bool bAnchored, int32 MaxLevel = -1);
 
 	/**
 	* this will remove anchors on all the pieces ( including the static and kinematic initial states ones ) of the geometry colection
