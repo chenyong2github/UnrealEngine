@@ -70,13 +70,13 @@ public:
 	virtual UEnhancedPlayerInput* GetPlayerInput() const override;
 	//~ End IEnhancedInputSubsystemInterface
 
-	/** Pushes this input component onto the stack to be processed by this subsystem's tick function */
+	/** Adds this Actor's input component onto the stack to be processed by this subsystem's tick function */
 	UFUNCTION(BlueprintCallable, Category = "Input|World")
-	void PushInputComponent(AActor* Actor);
+	void AddActorInputComponent(AActor* Actor);
 
-	/** Removes this input component onto the stack to be processed by this subsystem's tick function */
+	/** Removes this Actor's input component from the stack to be processed by this subsystem's tick function */
 	UFUNCTION(BlueprintCallable, Category = "Input|World")
-	bool PopInputComponent(AActor* Actor);
+	bool RemoveActorInputComponent(AActor* Actor);
 	
 	/** Start the consumption of input messages in this subsystem. This is required to have any Input Action delegates be fired. */
 	UFUNCTION(BlueprintCallable, Category = "Input|World")

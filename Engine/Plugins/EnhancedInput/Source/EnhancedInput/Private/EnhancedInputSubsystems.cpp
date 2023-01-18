@@ -147,7 +147,7 @@ UEnhancedPlayerInput* UEnhancedInputWorldSubsystem::GetPlayerInput() const
 	return PlayerInput;
 }
 
-void UEnhancedInputWorldSubsystem::PushInputComponent(AActor* Actor)
+void UEnhancedInputWorldSubsystem::AddActorInputComponent(AActor* Actor)
 {
 	if (Actor)
 	{
@@ -182,7 +182,7 @@ void UEnhancedInputWorldSubsystem::PushInputComponent(AActor* Actor)
 	}
 }
 
-bool UEnhancedInputWorldSubsystem::PopInputComponent(AActor* Actor)
+bool UEnhancedInputWorldSubsystem::RemoveActorInputComponent(AActor* Actor)
 {
 	if (Actor) 
 	{
