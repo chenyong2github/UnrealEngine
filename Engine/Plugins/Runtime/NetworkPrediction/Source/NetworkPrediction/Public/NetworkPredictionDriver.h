@@ -521,12 +521,12 @@ struct FNetworkPredictionDriverBase
 
 	static void CallSetHiddenForInterpolationFallback(AActor* Driver, bool bHide)
 	{
-		Driver->SetHidden(bHide);
+		Driver->SetActorHiddenInGame(bHide);
 	}
 
 	static void CallSetHiddenForInterpolationFallback(UActorComponent* Driver, bool bHide)
 	{
-		Driver->GetOwner()->SetHidden(bHide);
+		Driver->GetOwner()->SetActorHiddenInGame(bHide);
 	}	
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
