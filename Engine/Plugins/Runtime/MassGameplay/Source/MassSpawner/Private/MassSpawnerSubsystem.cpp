@@ -19,27 +19,28 @@
 //----------------------------------------------------------------------//
 //  UMassSpawnerSubsystem
 //----------------------------------------------------------------------//
-void UMassSpawnerSubsystem::Initialize(FSubsystemCollectionBase& Collection) 
+UMassSpawnerSubsystem::UMassSpawnerSubsystem()
+	: TemplateRegistryInstance(this)
+{
+
+}
+
+void UMassSpawnerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {	
 	Super::Initialize(Collection);
 
-	// making sure UMassSimulationSubsystem gets created before the MassSpawnerSubsystem
+	// making sure UMassSimulationSubsystem gets created before the MassSpawnerSubsystem, since UMassSimulationSubsystem
+	// is where the EntityManager gets created for the runtime MassGameplay simulation
 	Collection.InitializeDependency<UMassSimulationSubsystem>();
 
 	UWorld* World = GetWorld();
 	check(World);
-	SimulationSystem = UWorld::GetSubsystem<UMassSimulationSubsystem>(World);
 	EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World).AsShared();
 }
 
 void UMassSpawnerSubsystem::Deinitialize() 
 {
 	EntityManager.Reset();
-}
-
-void UMassSpawnerSubsystem::PostInitialize()
-{
-	TemplateRegistryInstance = NewObject<UMassEntityTemplateRegistry>(this);
 }
 
 void UMassSpawnerSubsystem::SpawnEntities(const FMassEntityTemplate& EntityTemplate, const uint32 NumberToSpawn, TArray<FMassEntityHandle>& OutEntities)
@@ -60,12 +61,7 @@ void UMassSpawnerSubsystem::SpawnEntities(FMassEntityTemplateID TemplateID, cons
 {
 	check(TemplateID.IsValid());
 
-	if (!ensureMsgf(TemplateRegistryInstance, TEXT("UMassSpawnerSubsystem didn\'t get its OnPostWorldInit call yet!")))
-	{
-		return;
-	}
-
-	const FMassEntityTemplate* EntityTemplate = TemplateRegistryInstance->FindTemplateFromTemplateID(TemplateID);
+	const FMassEntityTemplate* EntityTemplate = TemplateRegistryInstance.FindTemplateFromTemplateID(TemplateID);
 	checkf(EntityTemplate && EntityTemplate->IsValid(), TEXT("SpawnEntities: TemplateID must have been registered!"));
 
 	DoSpawning(*EntityTemplate, NumberToSpawn, SpawnData, InitializerClass, OutEntities);
@@ -75,12 +71,7 @@ void UMassSpawnerSubsystem::SpawnFromConfig(FStructView Config, const int32 NumT
 {
 	check(Config.IsValid());
 
-	if (!ensureMsgf(TemplateRegistryInstance, TEXT("UMassSpawnerSubsystem didn\'t get its OnPostWorldInit call yet!")))
-	{
-		return;
-	}
-	
-	const FMassEntityTemplate* EntityTemplate = TemplateRegistryInstance->FindOrBuildStructTemplate(Config);
+	const FMassEntityTemplate* EntityTemplate = TemplateRegistryInstance.FindOrBuildStructTemplate(Config);
 	checkf(EntityTemplate && EntityTemplate->IsValid(), TEXT("SpawnFromConfig: TemplateID must have been registered!"));
 
 	TArray<FMassEntityHandle> Entities;
@@ -89,16 +80,11 @@ void UMassSpawnerSubsystem::SpawnFromConfig(FStructView Config, const int32 NumT
 
 void UMassSpawnerSubsystem::RegisterCollection(TArrayView<FInstancedStruct> Collection)
 {
-	if (!ensureMsgf(TemplateRegistryInstance, TEXT("UMassSpawnerSubsystem didn't get its OnPostWorldInit called yet!")))
-	{
-		return;
-	}
-
 	for (FInstancedStruct& Entry : Collection)
 	{
 		if (Entry.IsValid())
 		{
-			TemplateRegistryInstance->FindOrBuildStructTemplate(Entry);
+			TemplateRegistryInstance.FindOrBuildStructTemplate(Entry);
 		}
 	}
 }
@@ -107,14 +93,8 @@ void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID Template
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassSpawnerSubsystem_DestroyEntities")
 
-	if (!ensureMsgf(TemplateRegistryInstance, TEXT("UMassSpawnerSubsystem didn\'t get its OnPostWorldInit call yet!")))
-	{
-		return;
-	}
-
 	check(EntityManager);
-	check(SimulationSystem);
-	checkf(!SimulationSystem->IsDuringMassProcessing()
+	checkf(!EntityManager->IsProcessing()
 		, TEXT("%s called while MassEntity processing in progress. This is unsupported and dangerous!"), ANSI_TO_TCHAR(__FUNCTION__));
 
 	UWorld* World = GetWorld();
@@ -195,11 +175,5 @@ void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate
 const FMassEntityTemplate* UMassSpawnerSubsystem::GetMassEntityTemplate(FMassEntityTemplateID TemplateID) const
 {
 	check(TemplateID.IsValid());
-
-	if (!ensureMsgf(TemplateRegistryInstance, TEXT("UMassSpawnerSubsystem didn\'t get its OnPostWorldInit call yet!")))
-	{
-		return nullptr;
-	}
-
-	return TemplateRegistryInstance->FindTemplateFromTemplateID(TemplateID);
+	return TemplateRegistryInstance.FindTemplateFromTemplateID(TemplateID);
 }

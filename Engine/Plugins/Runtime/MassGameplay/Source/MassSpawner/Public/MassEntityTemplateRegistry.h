@@ -198,17 +198,14 @@ protected:
 
 /** @todo document 
  */
-UCLASS()
-class MASSSPAWNER_API UMassEntityTemplateRegistry : public UObject
+struct MASSSPAWNER_API FMassEntityTemplateRegistry
 {
-	GENERATED_BODY()
-public:
 	// @todo consider TFunction instead
 	DECLARE_DELEGATE_ThreeParams(FStructToTemplateBuilderDelegate, const UWorld* /*World*/, const FConstStructView /*InStructInstance*/, FMassEntityTemplateBuildContext& /*BuildContext*/);
 
-	UMassEntityTemplateRegistry() = default;
-	virtual void BeginDestroy() override;
-	virtual UWorld* GetWorld() const override;
+	explicit FMassEntityTemplateRegistry(UObject* InOwner = nullptr);
+	
+	UWorld* GetWorld() const;
 
 	static FStructToTemplateBuilderDelegate& FindOrAdd(const UScriptStruct& DataType);
 
@@ -238,7 +235,14 @@ protected:
 	 */
 	TMap<uint32, FMassEntityTemplateID> LookupTemplateIDMap;
 
-	UPROPERTY(Transient)
 	TMap<FMassEntityTemplateID, FMassEntityTemplate> TemplateIDToTemplateMap;
+
+	TWeakObjectPtr<UObject> Owner;
 };
 
+
+UCLASS(deprecated, meta = (DeprecationMessage = "UMassEntityTemplateRegistry is deprecated starting UE5.2. Use FMassEntityTemplateRegistry instead"))
+class MASSSPAWNER_API UDEPRECATED_MassEntityTemplateRegistry : public UObject
+{
+	GENERATED_BODY()
+};

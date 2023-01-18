@@ -38,7 +38,7 @@ namespace FTemplateRegistryHelpers
 		UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(InWorld);
 		if (ensure(SpawnerSystem))
 		{
-			UMassEntityTemplateRegistry& Registry = SpawnerSystem->GetTemplateRegistryInstance();
+			FMassEntityTemplateRegistry& Registry = SpawnerSystem->GetMutableTemplateRegistryInstance();
 			Registry.DebugReset();
 		}
 	}
@@ -52,34 +52,27 @@ namespace FTemplateRegistryHelpers
 }
 
 //----------------------------------------------------------------------//
-// UMassEntityTemplateRegistry 
+// FMassEntityTemplateRegistry 
 //----------------------------------------------------------------------//
-TMap<const UScriptStruct*, UMassEntityTemplateRegistry::FStructToTemplateBuilderDelegate> UMassEntityTemplateRegistry::StructBasedBuilders;
+TMap<const UScriptStruct*, FMassEntityTemplateRegistry::FStructToTemplateBuilderDelegate> FMassEntityTemplateRegistry::StructBasedBuilders;
 
-void UMassEntityTemplateRegistry::BeginDestroy()
+FMassEntityTemplateRegistry::FMassEntityTemplateRegistry(UObject* InOwner)
+	: Owner(InOwner)
 {
-	// force release of memory owned by individual templates (especially the hosted InstancedScriptStructs).
-	TemplateIDToTemplateMap.Reset();
-
-	Super::BeginDestroy();
 }
 
-UWorld* UMassEntityTemplateRegistry::GetWorld() const 
+UWorld* FMassEntityTemplateRegistry::GetWorld() const 
 {
-	const UObject* Outer = GetOuter();
-	return Outer ? Outer->GetWorld() : nullptr;
+	return Owner.IsValid() ? Owner->GetWorld() : nullptr;
 }
 
-UMassEntityTemplateRegistry::FStructToTemplateBuilderDelegate& UMassEntityTemplateRegistry::FindOrAdd(const UScriptStruct& DataType)
+FMassEntityTemplateRegistry::FStructToTemplateBuilderDelegate& FMassEntityTemplateRegistry::FindOrAdd(const UScriptStruct& DataType)
 {
 	return StructBasedBuilders.FindOrAdd(&DataType);
 }
 
-const FMassEntityTemplate* UMassEntityTemplateRegistry::FindOrBuildStructTemplate(const FConstStructView StructInstance)
+const FMassEntityTemplate* FMassEntityTemplateRegistry::FindOrBuildStructTemplate(const FConstStructView StructInstance)
 {
-	// thou shall not call this function on CDO
-	check(HasAnyFlags(RF_ClassDefaultObject) == false);
-
 	const UScriptStruct* Type = StructInstance.GetScriptStruct();
 	check(Type);
 	// 1. Check if we already have the template stored.
@@ -122,13 +115,13 @@ const FMassEntityTemplate* UMassEntityTemplateRegistry::FindOrBuildStructTemplat
 
 		BuildTemplateImpl(*Builder, StructInstance, *NewTemplate);
 	}
-	UE_CVLOG_UELOG(Builder == nullptr, this, LogMassSpawner, Warning, TEXT("Attempting to build a MassAgentTemplate for struct type %s while template builder has not been registered for this type")
+	UE_CVLOG_UELOG(Builder == nullptr, Owner.Get(), LogMassSpawner, Warning, TEXT("Attempting to build a MassAgentTemplate for struct type %s while template builder has not been registered for this type")
 		, *GetNameSafe(Type));
 
 	return NewTemplate;
 }
 
-bool UMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuilderDelegate& Builder, const FConstStructView StructInstance, FMassEntityTemplate& OutTemplate)
+bool FMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuilderDelegate& Builder, const FConstStructView StructInstance, FMassEntityTemplate& OutTemplate)
 {
 	UWorld* World = GetWorld();
 	FMassEntityTemplateBuildContext Context(OutTemplate);
@@ -137,7 +130,7 @@ bool UMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuild
 	{
 		InitializeEntityTemplate(OutTemplate);
 
-		UE_VLOG(this, LogMassSpawner, Log, TEXT("Created entity template for %s:\n%s"), *GetNameSafe(StructInstance.GetScriptStruct())
+		UE_VLOG(Owner.Get(), LogMassSpawner, Log, TEXT("Created entity template for %s:\n%s"), *GetNameSafe(StructInstance.GetScriptStruct())
 			, *OutTemplate.DebugGetDescription(UE::Mass::Utils::GetEntityManager(World)));
 
 		return true;
@@ -145,7 +138,7 @@ bool UMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuild
 	return false;
 }
 
-void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& InOutTemplate) const
+void FMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& InOutTemplate) const
 {
 	UWorld* World = GetWorld();
 	check(World);
@@ -159,7 +152,7 @@ void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& 
 	InOutTemplate.SetArchetype(ArchetypeHandle);
 }
 
-void UMassEntityTemplateRegistry::DebugReset()
+void FMassEntityTemplateRegistry::DebugReset()
 {
 #if WITH_MASSGAMEPLAY_DEBUG
 	LookupTemplateIDMap.Reset();
@@ -167,17 +160,17 @@ void UMassEntityTemplateRegistry::DebugReset()
 #endif // WITH_MASSGAMEPLAY_DEBUG
 }
 
-const FMassEntityTemplate* UMassEntityTemplateRegistry::FindTemplateFromTemplateID(FMassEntityTemplateID TemplateID) const 
+const FMassEntityTemplate* FMassEntityTemplateRegistry::FindTemplateFromTemplateID(FMassEntityTemplateID TemplateID) const 
 {
 	return TemplateIDToTemplateMap.Find(TemplateID);
 }
 
-FMassEntityTemplate* UMassEntityTemplateRegistry::FindMutableTemplateFromTemplateID(FMassEntityTemplateID TemplateID) 
+FMassEntityTemplate* FMassEntityTemplateRegistry::FindMutableTemplateFromTemplateID(FMassEntityTemplateID TemplateID) 
 {
 	return TemplateIDToTemplateMap.Find(TemplateID);
 }
 
-FMassEntityTemplate& UMassEntityTemplateRegistry::CreateTemplate(const uint32 HashLookup, FMassEntityTemplateID TemplateID)
+FMassEntityTemplate& FMassEntityTemplateRegistry::CreateTemplate(const uint32 HashLookup, FMassEntityTemplateID TemplateID)
 {
 	checkSlow(!LookupTemplateIDMap.Contains(HashLookup));
 	LookupTemplateIDMap.Add(HashLookup, TemplateID);
@@ -187,7 +180,7 @@ FMassEntityTemplate& UMassEntityTemplateRegistry::CreateTemplate(const uint32 Ha
 	return NewTemplate;
 }
 
-void UMassEntityTemplateRegistry::DestroyTemplate(const uint32 HashLookup, FMassEntityTemplateID TemplateID)
+void FMassEntityTemplateRegistry::DestroyTemplate(const uint32 HashLookup, FMassEntityTemplateID TemplateID)
 {
 	LookupTemplateIDMap.Remove(HashLookup);
 	TemplateIDToTemplateMap.Remove(TemplateID);

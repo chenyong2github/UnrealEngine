@@ -85,7 +85,7 @@ const FMassEntityTemplate& FMassEntityConfig::GetOrCreateEntityTemplate(const UW
 
 	UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(&World);
 	check(SpawnerSystem);
-	UMassEntityTemplateRegistry& TemplateRegistry = SpawnerSystem->GetTemplateRegistryInstance();
+	FMassEntityTemplateRegistry& TemplateRegistry = SpawnerSystem->GetMutableTemplateRegistryInstance();
 
 	// Build new template
 	// TODO: Add methods to FMassEntityTemplateBuildContext to indicate dependency vs setup.
@@ -118,8 +118,7 @@ void FMassEntityConfig::DestroyEntityTemplate(const UWorld& World, const UObject
 
 	UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(&World);
 	check(SpawnerSystem);
-	UMassEntityTemplateRegistry& TemplateRegistry = SpawnerSystem->GetTemplateRegistryInstance();
-
+	FMassEntityTemplateRegistry& TemplateRegistry = SpawnerSystem->GetMutableTemplateRegistryInstance();
 
 	for (const UMassEntityTraitBase* Trait : CombinedTraits)
 	{
@@ -146,7 +145,7 @@ const FMassEntityTemplate* FMassEntityConfig::GetEntityTemplateInternal(const UW
 {
 	UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(&World);
 	check(SpawnerSystem);
-	const UMassEntityTemplateRegistry& TemplateRegistry = SpawnerSystem->GetTemplateRegistryInstance();
+	const FMassEntityTemplateRegistry& TemplateRegistry = SpawnerSystem->GetTemplateRegistryInstance();
 
 	// Combine all the features into one array
 	// @todo this is an inefficient way assuming given template is expected to have already been created. Figure out a way to cache it.
