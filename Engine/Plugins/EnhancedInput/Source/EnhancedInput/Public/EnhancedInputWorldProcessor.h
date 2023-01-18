@@ -31,11 +31,6 @@ public:
 	virtual const TCHAR* GetDebugName() const { return TEXT("EnhancedInputWorldPreprocessor"); }
 	//~ End IInputProcessor interface
 
-	// Setter for the the world variable
-	void SetSubsystemWorld(UWorld* World) { WorldFromSubsystem = World; }
-	// Getter for the the world variable
-	UWorld* GetSubsystemWorld() const { return WorldFromSubsystem; }
-
 protected:
 
 	void UpdateCachedPointerPosition(const FPointerEvent& MouseEvent);
@@ -54,10 +49,6 @@ protected:
 	
 	/** The value of the mouse cursor from the most recent mouse event */
 	FVector2D CachedCursorDelta = FVector2D::ZeroVector;
-
-private:
-	UWorld* WorldFromSubsystem = nullptr;
-
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
