@@ -427,7 +427,7 @@ FRecastNavMeshGenerationProperties::FRecastNavMeshGenerationProperties(const ARe
 	
 	// @todo: Handle navmesh resolution if FRecastNavMeshGenerationProperties is used.
 	CellSize = RecastNavMesh.GetCellSize(ENavigationDataResolution::Default);
-	CellHeight = RecastNavMesh.CellHeight;
+	CellHeight = RecastNavMesh.GetCellHeight(ENavigationDataResolution::Default);
 	AgentRadius = RecastNavMesh.AgentRadius;
 	AgentHeight = RecastNavMesh.AgentHeight;
 	AgentMaxSlope = RecastNavMesh.AgentMaxSlope;
@@ -640,6 +640,15 @@ void ARecastNavMesh::PostLoad()
 			SetCellSize((ENavigationDataResolution)i, CellSize);
 		}
 	}
+
+	// If needed, initialize CellHeight from the deprecated value.
+	if (NavMeshVersion < NAVMESHVER_TILE_RESOLUTIONS_CELLHEIGHT)
+	{
+		for (int i = 0; i < (uint8)ENavigationDataResolution::MAX; ++i)
+		{
+			SetCellHeight((ENavigationDataResolution)i, CellHeight);
+		}
+	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	for (uint8 Index = 0; Index < (uint8)ENavigationDataResolution::MAX; Index++)
@@ -738,14 +747,16 @@ void ARecastNavMesh::PostInitProperties()
 
 				NavMeshResolutionParams[i].CellSize = DefaultObjectCellSize;
 			}
-		}
 
-		if (CellHeight != DefOb->CellHeight)
-		{
-			UE_LOG(LogNavigation, Warning, TEXT("%s param: CellHeight(%f) differs from config settings, forcing value %f so it can be used with voxel cache!"),
-				*GetNameSafe(this), CellHeight, DefOb->CellHeight);
+			const float CurrentCellHeight = NavMeshResolutionParams[i].CellHeight;
+			const float DefaultObjectCellHeight = DefOb->NavMeshResolutionParams[i].CellHeight;
+			if (CurrentCellHeight != DefaultObjectCellHeight)
+			{
+				UE_LOG(LogNavigation, Warning, TEXT("%s param: CellHeight(%f) differs from config settings, forcing value %f so it can be used with voxel cache!"),
+					*GetNameSafe(this), CurrentCellHeight, DefaultObjectCellHeight);
 
-			CellHeight = DefOb->CellHeight;
+				NavMeshResolutionParams[i].CellHeight = DefaultObjectCellHeight;
+			}
 		}
 
 		if (AgentMaxSlope != DefOb->AgentMaxSlope)
@@ -3094,6 +3105,7 @@ void ARecastNavMesh::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 		if (CategoryName == NAME_Generation)
 		{
 			const FName PropName = PropertyChangedChainEvent.Property->GetFName();
+			bool bRebuild = false;
 			
 			if (PropName == GET_MEMBER_NAME_CHECKED(FNavMeshResolutionParam, CellSize))
 			{
@@ -3125,17 +3137,31 @@ void ARecastNavMesh::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 					CellSize = NavMeshResolutionParams[(uint8)ENavigationDataResolution::Default].CellSize;
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-					// update config
-					FillConfig(NavDataConfig);
-
-					UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-					if (!HasAnyFlags(RF_ClassDefaultObject)
-						&& NavSys && NavSys->GetIsAutoUpdateEnabled()
-						&& PropName != GET_MEMBER_NAME_CHECKED(ARecastNavMesh, MaxSimultaneousTileGenerationJobsCount))
-					{
-						RebuildAll();
-					}
+					bRebuild = true;
 				}
+			}
+			else if (PropName == GET_MEMBER_NAME_CHECKED(FNavMeshResolutionParam, CellHeight))
+			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				// Update the deprecated CellHeight to fit the default resolution CellHeight
+				CellHeight = NavMeshResolutionParams[(uint8)ENavigationDataResolution::Default].CellHeight;
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+				bRebuild = true;
+			}
+
+			if (bRebuild)
+			{
+				// update config
+				FillConfig(NavDataConfig);
+
+				const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+				if (!HasAnyFlags(RF_ClassDefaultObject)
+					&& NavSys && NavSys->GetIsAutoUpdateEnabled()
+					&& PropName != GET_MEMBER_NAME_CHECKED(ARecastNavMesh, MaxSimultaneousTileGenerationJobsCount))
+				{
+					RebuildAll();
+				}				
 			}
 		}
 	}
@@ -3300,8 +3326,8 @@ void ARecastNavMesh::UpdateGenerationProperties(const FRecastNavMeshGenerationPr
 	TileSizeUU = GenerationProps.TileSizeUU;
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	CellSize = GenerationProps.CellSize;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	CellHeight = GenerationProps.CellHeight;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	AgentRadius = GenerationProps.AgentRadius;
 	AgentHeight = GenerationProps.AgentHeight;
 	AgentMaxSlope = GenerationProps.AgentMaxSlope;

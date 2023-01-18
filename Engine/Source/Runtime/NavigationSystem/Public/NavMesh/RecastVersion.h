@@ -22,6 +22,7 @@
 #define NAVMESHVER_OPTIM_FIX_SERIALIZE_PARAMS	21 // Fix, serialize params that used to be in the tile and are now in the navmesh.
 #define NAVMESHVER_MAXTILES_COUNT_SKIP_INCLUSION 22
 #define NAVMESHVER_TILE_RESOLUTIONS				23 // Addition of a tile resolution index to the tile header.
+#define NAVMESHVER_TILE_RESOLUTIONS_CELLHEIGHT	24 // Addition of CellHeight in the resolution params, deprecating the original CellHeight.
 
-#define NAVMESHVER_LATEST				NAVMESHVER_TILE_RESOLUTIONS
+#define NAVMESHVER_LATEST				NAVMESHVER_TILE_RESOLUTIONS_CELLHEIGHT
 #define NAVMESHVER_MIN_COMPATIBLE		NAVMESHVER_LWCOORDS_OPTIMIZATION

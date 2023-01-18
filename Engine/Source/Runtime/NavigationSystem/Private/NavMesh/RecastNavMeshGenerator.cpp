@@ -4560,6 +4560,7 @@ void FRecastNavMeshGenerator::SetupTileConfig(const ENavigationDataResolution Ti
 	check(GetOwner());
 	ensure(GetConfig().cs == GetOwner()->GetCellSize(ENavigationDataResolution::Default));
 	const float CellSize = GetOwner()->GetCellSize(TileResolution);
+	const float CellHeight = GetOwner()->GetCellHeight(TileResolution);
 	
 	// Update all settings that depends directly on indirectly of the CellSize
 	OutConfig.TileResolution = TileResolution;
@@ -4578,13 +4579,18 @@ void FRecastNavMeshGenerator::SetupTileConfig(const ENavigationDataResolution Ti
 
 	OutConfig.regionChunkSize = FMath::Max(1, OutConfig.tileSize / FMath::Max(1, DestNavMesh->LayerChunkSplits));
 	OutConfig.TileCacheChunkSize = FMath::Max(1, OutConfig.tileSize / FMath::Max(1, DestNavMesh->RegionChunkSplits));
+
+	// Update all settings that depends directly on indirectly of the CellHeight
+	OutConfig.ch = CellHeight;
+	OutConfig.walkableHeight = DestNavMesh->bMarkLowHeightAreas ? 1 : FMath::CeilToInt(DestNavMesh->AgentHeight / CellHeight);
+	OutConfig.walkableClimb = FMath::CeilToInt(DestNavMesh->AgentMaxStepHeight / CellHeight);
 }
 
 void FRecastNavMeshGenerator::ConfigureBuildProperties(FRecastBuildConfig& OutConfig)
 {
 	// @TODO those variables should be tweakable per navmesh actor
 	const float CellSize = DestNavMesh->GetCellSize(ENavigationDataResolution::Default);
-	const float CellHeight = DestNavMesh->CellHeight;
+	const float CellHeight = DestNavMesh->GetCellHeight(ENavigationDataResolution::Default);
 	const float AgentHeight = DestNavMesh->AgentHeight;
 	const float AgentMaxSlope = DestNavMesh->AgentMaxSlope;
 	const float AgentMaxClimb = DestNavMesh->AgentMaxStepHeight;
@@ -6911,10 +6917,11 @@ void FRecastNavMeshGenerator::GrabDebugSnapshot(struct FVisualLogEntry* Snapshot
 
 								if (Verts.Num())
 								{
+									const float CellHeight = NavData->GetCellHeight(ENavigationDataResolution::Default);
 									Snapshot->AddElement(
 										Verts,
-										InConvexNavAreaData.MinZ - NavData->CellHeight,
-										InConvexNavAreaData.MaxZ + NavData->CellHeight,
+										InConvexNavAreaData.MinZ - CellHeight,
+										InConvexNavAreaData.MaxZ + CellHeight,
 										CategoryName, NavAreaVerbosity, PolygonColor.WithAlpha(255));
 								}
 							};
@@ -7044,8 +7051,9 @@ void FRecastNavMeshGenerator::ExportNavigationData(const FString& FileName) cons
 								GrowConvexHull(NavData->AgentRadius, Points, ConvexVerts);
 								if (ConvexVerts.Num())
 								{
-									ExportInfo.Convex.MinZ -= NavData->CellHeight;
-									ExportInfo.Convex.MaxZ += NavData->CellHeight;
+									const float CellHeight = NavData->GetCellHeight(ENavigationDataResolution::Default);
+									ExportInfo.Convex.MinZ -= CellHeight;
+									ExportInfo.Convex.MaxZ += CellHeight;
 
 									ExportInfo.Convex.Points = UE::LWC::ConvertArrayType<FVector>(ConvexVerts);
 

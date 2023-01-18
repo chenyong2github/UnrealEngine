@@ -596,11 +596,15 @@ struct NAVIGATIONSYSTEM_API FNavMeshResolutionParam
 {
 	GENERATED_BODY()
 
-	bool IsValid() const { return CellSize > 0.f; }
+	bool IsValid() const { return CellSize > 0.f && CellHeight > 0.f; }
 	
 	/** horizontal size of voxelization cell */
 	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "1.0", ClampMax = "1024.0"))
 	float CellSize = 25.f;
+
+	/** vertical size of voxelization cell */
+	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "1.0", ClampMax = "1024.0"))
+	float CellHeight = 10.f;
 };
 
 UCLASS(config=Engine, defaultconfig, hidecategories=(Input,Rendering,Tags,Transformation,Actor,Layers,Replication), notplaceable)
@@ -722,7 +726,8 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	float CellSize;
 
 	/** vertical size of voxelization cell */
-	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "1.0", ClampMax = "1024.0"))
+	UE_DEPRECATED(5.2, "Set the CellHeight for the required navmesh resolutions in NavMeshResolutionParams.")
+	UPROPERTY(config)
 	float CellHeight;
 
 	/** Resolution params 
@@ -1059,6 +1064,12 @@ public:
 	/** Set the CellSize for the given resolution. */
 	void SetCellSize(const ENavigationDataResolution Resolution, const float Size) { NavMeshResolutionParams[(uint8)Resolution].CellSize = Size; }
 
+	/** Get the CellHeight for the given resolution. */
+	float GetCellHeight(const ENavigationDataResolution Resolution) const { return NavMeshResolutionParams[(uint8)Resolution].CellHeight; }
+
+	/** Set the CellHeight for the given resolution. */
+	void SetCellHeight(const ENavigationDataResolution Resolution, const float Height) { NavMeshResolutionParams[(uint8)Resolution].CellHeight = Height; }
+	
 	/** Returns the tile size in world units. */
 	float GetTileSizeUU() const;
 	
