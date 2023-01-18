@@ -26,6 +26,30 @@ enum class ENiagaraGpuDispatchType : uint8
 };
 
 UENUM()
+enum class ENiagaraDirectDispatchElementType : uint8
+{
+	/**
+	Number of elements is the number of threads launched in that dimension.
+	Threads that are out of bounds due to shader thread group size will be automatically clipped (i.e. code will not run).
+	For example, if GroupSize = 64,1,1 and NumElements = 32,1,1 only the first 32 threads will run the code.
+	*/
+	NumThreads,
+	/**
+	Number of elements is the number of threads launched in that dimension.
+	Threads that are out of bounds due to shader thread group size will not be clipped and your code will execute.
+	You are responsible for ensuring you do not make invalid access from these OOB threads.
+	For example, if GroupSize = 64,1,1 and NumElements = 32,1,1 you code will execute 64 times.
+	Use this path if you need to add group sync's within you graph code.
+	*/
+	NumThreadsNoClipping,
+	/**
+	Number of elements refers to the number of groups to launch.
+	For example, if you defined NumElements as 3,1,1 and GroupSize was 64,1,1 you are effectively launching 192 threads.
+	*/
+	NumGroups,
+};
+
+UENUM()
 enum class ENiagaraSimStageExecuteBehavior : uint8
 {
 	/** The stage will run every frame. */
@@ -126,6 +150,9 @@ public:
 	/** Dispatch type set for this stage. */
 	UPROPERTY()
 	ENiagaraGpuDispatchType GpuDispatchType;
+
+	UPROPERTY()
+	ENiagaraDirectDispatchElementType GpuDirectDispatchElementType = ENiagaraDirectDispatchElementType::NumThreads;
 
 	/** When in custom mode this is the num threads. */
 	UPROPERTY()

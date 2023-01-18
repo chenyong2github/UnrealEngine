@@ -24,6 +24,7 @@ struct FNiagaraSimulationStageCompilationData
 	FIntPoint                       ParticleIterationStateRange = FIntPoint::ZeroValue;
 	bool                            bGpuDispatchForceLinear = false;
 	ENiagaraGpuDispatchType         DirectDispatchType = ENiagaraGpuDispatchType::OneD;
+	ENiagaraDirectDispatchElementType DirectDispatchElementType = ENiagaraDirectDispatchElementType::NumThreads;
 	bool                            bOverrideGpuDispatchNumThreads = false;
 	FIntVector                      OverrideGpuDispatchNumThreads = FIntVector(1, 1, 1);
 };

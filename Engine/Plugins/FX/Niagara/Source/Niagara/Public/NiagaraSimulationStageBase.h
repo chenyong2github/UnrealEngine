@@ -135,6 +135,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	ENiagaraGpuDispatchType DirectDispatchType = ENiagaraGpuDispatchType::OneD;
 
+	/** Customizes what the element count means for a direct dispatch. */
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
+	ENiagaraDirectDispatchElementType DirectDispatchElementType = ENiagaraDirectDispatchElementType::NumThreads;
+
 	/**
 	Integer binding to override the number of elements the stage will execute along X.
 	For example, if you want to iterate over a custom source such as triangles on a mesh you can

@@ -1240,6 +1240,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			SimulationStageMetaData.bWritesParticles = true;
 			SimulationStageMetaData.bPartialParticleUpdate = false;
 			SimulationStageMetaData.GpuDispatchType = ENiagaraGpuDispatchType::OneD;
+			SimulationStageMetaData.GpuDirectDispatchElementType = ENiagaraDirectDispatchElementType::NumThreads;
 			SimulationStageMetaData.GpuDispatchNumThreads = FNiagaraShader::GetDefaultThreadGroupSize(ENiagaraGpuDispatchType::OneD);
 		}
 
@@ -1310,6 +1311,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					TranslationStages[Index].ParticleIterationStateRange = CompileSimStageData.ParticleIterationStateRange;
 					TranslationStages[Index].bGpuDispatchForceLinear = CompileSimStageData.bGpuDispatchForceLinear;
 					TranslationStages[Index].DirectDispatchType = CompileSimStageData.DirectDispatchType;
+					TranslationStages[Index].DirectDispatchElementType = CompileSimStageData.DirectDispatchElementType;
 					TranslationStages[Index].bOverrideGpuDispatchNumThreads = CompileSimStageData.bOverrideGpuDispatchNumThreads;
 					TranslationStages[Index].OverrideGpuDispatchNumThreads = CompileSimStageData.OverrideGpuDispatchNumThreads;
 
@@ -1416,6 +1418,8 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					else if (SimulationStageMetaData.IterationSourceType == ENiagaraIterationSource::DirectSet)
 					{
 						SimulationStageMetaData.GpuDispatchType = TranslationStages[Index].DirectDispatchType;
+						SimulationStageMetaData.GpuDirectDispatchElementType = TranslationStages[Index].DirectDispatchElementType;
+						SimulationStageMetaData.GpuDispatchNumThreads = FNiagaraShader::GetDefaultThreadGroupSize(TranslationStages[Index].DirectDispatchType);
 					}
 
 					// Increment source stage index
@@ -3495,14 +3499,28 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		// Iteration Direct Value
 		else if (TranslationStage.IterationSourceType == ENiagaraIterationSource::DirectSet)
 		{
-			HlslOutput += TEXT(
-				"	const uint MaxInstances = SimulationStage_GetInstanceCount();\n"
-				"	const bool bValidInstance = all(GDispatchThreadId < DispatchThreadIdBounds);\n"
-				"	const bool bRunUpdateLogic = bValidInstance;\n"
-				"	const bool bRunSpawnLogic = false;\n"
-				"	GLinearThreadId = bValidInstance ? GLinearThreadId : MaxInstances;\n"
-				"	GSpawnStartInstance = MaxInstances;\n"
-			);
+			if (TranslationStage.DirectDispatchElementType == ENiagaraDirectDispatchElementType::NumThreads)
+			{
+				HlslOutput += TEXT(
+					"	const uint MaxInstances = SimulationStage_GetInstanceCount();\n"
+					"	const bool bValidInstance = all(GDispatchThreadId < DispatchThreadIdBounds);\n"
+					"	const bool bRunUpdateLogic = bValidInstance;\n"
+					"	const bool bRunSpawnLogic = false;\n"
+					"	GLinearThreadId = bValidInstance ? GLinearThreadId : MaxInstances;\n"
+					"	GSpawnStartInstance = MaxInstances;\n"
+				);
+			}
+			else
+			{
+				HlslOutput += TEXT(
+					"	const uint MaxInstances = SimulationStage_GetInstanceCount();\n"
+					"	const bool bValidInstance = all(GDispatchThreadId < DispatchThreadIdBounds);\n"
+					"	const bool bRunUpdateLogic = true;\n"
+					"	const bool bRunSpawnLogic = false;\n"
+					"	GLinearThreadId = bValidInstance ? GLinearThreadId : MaxInstances;\n"
+					"	GSpawnStartInstance = MaxInstances;\n"
+				);
+			}
 		}
 		else
 		{

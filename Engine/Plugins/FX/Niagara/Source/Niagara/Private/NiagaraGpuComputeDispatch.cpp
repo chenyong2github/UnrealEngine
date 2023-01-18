@@ -1449,6 +1449,12 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 					UE_LOG(LogNiagara, Fatal, TEXT("FNiagaraGpuComputeDispatch: Unknown DispatchType(%d)"), DispatchType);
 					break;
 			}
+
+			// If we are dispatch groups, not threads, then we need to * by the thread group size
+			if (SimStageData.StageMetaData->GpuDirectDispatchElementType == ENiagaraDirectDispatchElementType::NumGroups)
+			{
+				DispatchCount *= DispatchNumThreads;
+			}
 			break;
 		}
 

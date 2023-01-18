@@ -389,6 +389,7 @@ public:
 	bool bPartialParticleUpdate = false;
 	bool bGpuDispatchForceLinear = false;
 	ENiagaraGpuDispatchType DirectDispatchType = ENiagaraGpuDispatchType::OneD;
+	ENiagaraDirectDispatchElementType DirectDispatchElementType = ENiagaraDirectDispatchElementType::NumThreads;
 	bool bOverrideGpuDispatchNumThreads = false;
 	bool bShouldUpdateInitialAttributeValues = false;
 	FIntVector OverrideGpuDispatchNumThreads = FIntVector(1, 1, 1);
