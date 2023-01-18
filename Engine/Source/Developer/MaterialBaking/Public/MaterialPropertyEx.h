@@ -10,7 +10,7 @@
 #include "UObject/UnrealNames.h"
 
 /** Structure extending EMaterialProperty to allow detailed information about custom output */
-struct FMaterialPropertyEx
+struct MATERIALBAKING_API FMaterialPropertyEx
 {
 	FMaterialPropertyEx(EMaterialProperty Type = MP_MAX, const FName& CustomOutput = NAME_None)
 		: Type(Type)
@@ -47,11 +47,17 @@ struct FMaterialPropertyEx
 		return !Other.IsCustomOutput() ? GetTypeHash(Other.Type) : GetTypeHash(Other.CustomOutput);
 	}
 
-	MATERIALBAKING_API FString ToString() const;
+	FString ToString() const;
 
 	/** The material property */
 	EMaterialProperty Type;
 
 	/** The name of a specific custom output. Only used if property is MP_CustomOutput */
 	FName CustomOutput;
+
+	/** The identifier for custom output Clear Coat Bottom Normal (used by shading model Clear Coat) */
+	static const FMaterialPropertyEx ClearCoatBottomNormal;
+
+	/** The identifier for custom output Transmittance Color (used by shading model Thin Translucent) */
+	static const FMaterialPropertyEx TransmittanceColor;
 };

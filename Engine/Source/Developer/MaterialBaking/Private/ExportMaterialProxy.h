@@ -393,8 +393,12 @@ public:
 			case MP_ShadingModel:
 				return CompileShadingModelEncoding(Compiler, MaterialInterface->CompileProperty(&ProxyCompiler, MP_ShadingModel));
 			case MP_CustomOutput:
-				 // NOTE: Currently we can assume input index is always 0, which it is for all custom outputs that are registered as material attributes
-				return CompileInputForCustomOutput(&ProxyCompiler, 0, ForceCast_Exact_Replicate);
+				if (const FMaterialCustomOutputAttributeDefintion* CustomAttribute = FMaterialAttributeDefinitionMap::GetCustomAttribute(CustomOutputToCompile))
+				{
+					constexpr int32 InputIndex = 0; // Assume input index is always 0, which it is for all custom outputs that are registered as material attributes
+					return CompileInputForCustomOutput(&ProxyCompiler, CustomAttribute, InputIndex, ForceCast_Exact_Replicate);
+				}
+				break;
 			default:
 				return Compiler->Constant(1.0f);
 			}
@@ -556,14 +560,13 @@ public:
 	}
 
 private:
-	int32 CompileInputForCustomOutput(FMaterialCompiler* Compiler, int32 InputIndex, uint32 ForceCastFlags) const
+	int32 CompileInputForCustomOutput(FMaterialCompiler* Compiler, const FMaterialCustomOutputAttributeDefintion* CustomAttribute, int32 InputIndex, uint32 ForceCastFlags) const
 	{
-		FGuid AttributeID = FMaterialAttributeDefinitionMap::GetCustomAttributeID(CustomOutputToCompile);
-		check(AttributeID.IsValid());
+		check(CustomAttribute);
 
-		UMaterialExpressionCustomOutput* Expression = GetCustomOutputExpressionToCompile();
+		UMaterialExpressionCustomOutput* Expression = GetCustomOutputExpression(CustomAttribute->FunctionName);
 		FExpressionInput* ExpressionInput = Expression ? Expression->GetInput(InputIndex) : nullptr;
-		int32 Result = INDEX_NONE;
+		int32 Result;
 
 		if (ExpressionInput)
 		{
@@ -571,7 +574,7 @@ private:
 		}
 		else
 		{
-			Result = FMaterialAttributeDefinitionMap::CompileDefaultExpression(Compiler, AttributeID);
+			Result = CustomAttribute->CompileDefaultValue(Compiler);
 		}
 
 		if (CustomOutputToCompile == TEXT("ClearCoatBottomNormal"))
@@ -581,18 +584,18 @@ private:
 
 		if (ForceCastFlags & MFCF_ForceCast)
 		{
-			Result = Compiler->ForceCast(Result, FMaterialAttributeDefinitionMap::GetValueType(AttributeID), ForceCastFlags);
+			Result = Compiler->ForceCast(Result, CustomAttribute->ValueType, ForceCastFlags);
 		}
 
 		return Result;
 	}
 
-	UMaterialExpressionCustomOutput* GetCustomOutputExpressionToCompile() const
+	UMaterialExpressionCustomOutput* GetCustomOutputExpression(const FString& FunctionName) const
 	{
 		for (UMaterialExpression* Expression : Material->GetExpressions())
 		{
 			UMaterialExpressionCustomOutput* CustomOutputExpression = Cast<UMaterialExpressionCustomOutput>(Expression);
-			if (CustomOutputExpression && CustomOutputExpression->GetDisplayName() == CustomOutputToCompile)
+			if (CustomOutputExpression && CustomOutputExpression->GetFunctionName() == FunctionName)
 			{
 				return CustomOutputExpression;
 			}

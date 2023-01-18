@@ -32,7 +32,7 @@ public:
 		EMaterialValueType InValueType, const FVector4& InDefaultValue, EShaderFrequency InShaderFrequency,
 		int32 InTexCoordIndex = INDEX_NONE, bool bInIsHidden = false, MaterialAttributeBlendFunction InBlendFunction = nullptr);
 
-	ENGINE_API int32 CompileDefaultValue(FMaterialCompiler* Compiler);
+	ENGINE_API int32 CompileDefaultValue(FMaterialCompiler* Compiler) const;
 
 	bool operator==(const FMaterialAttributeDefintion& Other) const
 	{
@@ -136,6 +136,9 @@ public:
 
 	/** Returns the first custom attribute ID that has the specificed attribute name */
 	static FGuid GetCustomAttributeID(const FString& AttributeName);
+
+	/** Returns the first custom attribute definition that has the specificed attribute name */
+	static const FMaterialCustomOutputAttributeDefintion* GetCustomAttribute(const FString& AttributeName);
 
 	/** Returns a list of registered custom attributes */
 	static void GetCustomAttributeList(TArray<FMaterialCustomOutputAttributeDefintion>& CustomAttributeList);

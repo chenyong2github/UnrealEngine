@@ -3,6 +3,9 @@
 #include "MaterialPropertyEx.h"
 #include "UObject/NameTypes.h"
 
+const FMaterialPropertyEx FMaterialPropertyEx::ClearCoatBottomNormal(TEXT("ClearCoatBottomNormal"));
+const FMaterialPropertyEx FMaterialPropertyEx::TransmittanceColor(TEXT("TransmittanceColor"));
+
 FString FMaterialPropertyEx::ToString() const
 {
 	if (!IsCustomOutput())
