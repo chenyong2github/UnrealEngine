@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "HAL/Platform.h"
 #include "Logging/LogMacros.h"
-#include "Misc/CoreMisc.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
@@ -19,14 +18,10 @@ ICMP_API DECLARE_LOG_CATEGORY_EXTERN(LogIcmp, Display, All);
  * Module for Icmp service utilities
  */
 class FIcmpModule : 
-	public IModuleInterface, public FSelfRegisteringExec
+	public IModuleInterface
 {
 
 public:
-
-	// FSelfRegisteringExec
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-
 	/**
 	 * Singleton-like access to this module's interface.  This is just for convenience!
 	 * Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.

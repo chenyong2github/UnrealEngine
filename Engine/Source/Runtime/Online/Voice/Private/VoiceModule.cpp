@@ -61,17 +61,6 @@ void FVoiceModule::ShutdownModule()
 #endif
 }
 
-bool FVoiceModule::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
-{
-	// Ignore any execs that don't start with Voice
-	if (FParse::Command(&Cmd, TEXT("Voice")))
-	{
-		return false;
-	}
-
-	return false;
-}
-
 TSharedPtr<IVoiceCapture> FVoiceModule::CreateVoiceCapture(const FString& DeviceName, int32 SampleRate, int32 NumChannels)
 {
 #if PLATFORM_SUPPORTS_VOICE_CAPTURE

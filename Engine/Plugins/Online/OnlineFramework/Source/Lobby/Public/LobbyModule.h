@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
-#include "Misc/CoreMisc.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
@@ -20,13 +19,10 @@ DECLARE_STATS_GROUP(TEXT("Lobby"), STATGROUP_Lobby, STATCAT_Advanced);
  * Module for lobbies via online beacon
  */
 class FLobbyModule : 
-	public IModuleInterface, public FSelfRegisteringExec
+	public IModuleInterface
 {
 
 public:
-
-	// FSelfRegisteringExec
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 	/**
 	 * Singleton-like access to this module's interface.  This is just for convenience!

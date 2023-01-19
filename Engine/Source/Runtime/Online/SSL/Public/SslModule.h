@@ -4,7 +4,6 @@
 
 #include "HAL/Platform.h"
 #include "Misc/AssertionMacros.h"
-#include "Misc/CoreMisc.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
@@ -17,23 +16,10 @@ class UWorld;
  * Module for SSL/TLS certificate management
  */
 class FSslModule : 
-	public IModuleInterface, public FSelfRegisteringExec
+	public IModuleInterface
 {
 
 public:
-
-	// FSelfRegisteringExec
-
-	/**
-	 * Handle exec commands starting with "SSL"
-	 *
-	 * @param InWorld	the world context
-	 * @param Cmd		the exec command being executed
-	 * @param Ar		the archive to log results to
-	 *
-	 * @return true if the handler consumed the input, false to continue searching handlers
-	 */
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 	// FSslModule
 

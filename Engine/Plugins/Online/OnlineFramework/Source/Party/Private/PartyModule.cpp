@@ -18,16 +18,3 @@ void FPartyModule::ShutdownModule()
 {
 }
 
-bool FPartyModule::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
-{
-	// Ignore any execs that don't start with Party
-	if (FParse::Command(&Cmd, TEXT("Party")))
-	{
-		// this is where we can implement "Party XYZABC" commands
-		return false;
-	}
-
-	return false;
-}
-
-

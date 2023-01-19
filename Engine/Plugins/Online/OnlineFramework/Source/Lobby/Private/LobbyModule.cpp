@@ -18,15 +18,3 @@ void FLobbyModule::ShutdownModule()
 {
 }
 
-bool FLobbyModule::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
-{
-	// Ignore any execs that don't start with Lobby
-	if (FParse::Command(&Cmd, TEXT("Lobby")))
-	{
-		return false;
-	}
-
-	return false;
-}
-
-

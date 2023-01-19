@@ -21,19 +21,6 @@ FSslModule::FSslModule()
 {
 }
 
-bool FSslModule::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
-{
-	bool bResult = false;
-
-	// Ignore any execs that don't start with HTTP
-	if (FParse::Command(&Cmd, TEXT("SSL")))
-	{
-		bResult = false;
-	}
-
-	return bResult;
-}
-
 void FSslModule::StartupModule()
 {	
 	Singleton = this;

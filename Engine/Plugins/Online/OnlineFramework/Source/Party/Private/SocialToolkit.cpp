@@ -1239,11 +1239,6 @@ void USocialToolkit::HandlePartyRequestToJoinRemoved(const FUniqueNetId& LocalUs
 	}
 }
 
-bool USocialToolkit::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out)
-{
-	return false;
-}
-
 #if WITH_EDITOR
 void USocialToolkit::Debug_OnStartRandomizeUserPresence(uint8 NumRandomUser, float TickerTimer)
 {

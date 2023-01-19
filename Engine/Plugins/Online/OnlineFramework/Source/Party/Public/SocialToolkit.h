@@ -79,9 +79,6 @@ public:
 	ULocalPlayer& GetOwningLocalPlayer() const;
 	const TArray<USocialUser*>& GetAllUsers() const { return AllUsers; }
 
-	// FExec
-	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out) override;
-
 	/** Finds a SocialUser given a unique net ID from any OSS */
 	USocialUser* FindUser(const FUniqueNetIdRepl& UserId) const;
 
