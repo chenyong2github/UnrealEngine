@@ -98,9 +98,8 @@ public:
 	virtual bool End(TArray<uint8>& Data) override
 	{
 		// This is for debugging purposes
-		FModelPrinterNNE Printer;
-
-		Printer.Visit(Format);
+		//FModelPrinterNNE Printer;
+		//Printer.Visit(Format);
 
 		FMemoryWriter Writer(Data);
 

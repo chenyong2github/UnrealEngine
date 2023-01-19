@@ -3,11 +3,11 @@
 using UnrealBuildTool;
 using System.IO;
 
-public class NNXRuntimeORT : ModuleRules
+public class NNERuntimeORT : ModuleRules
 {
-	public NNXRuntimeORT( ReadOnlyTargetRules Target ) : base( Target )
+	public NNERuntimeORT( ReadOnlyTargetRules Target ) : base( Target )
 	{
-		ShortName = "NNXRuntimeORT"; // Shorten to avoid path-too-long errors
+		ShortName = "NNERuntimeORT"; // Shorten to avoid path-too-long errors
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicIncludePaths.AddRange(
@@ -30,6 +30,7 @@ public class NNXRuntimeORT : ModuleRules
 			(
 			new string[] {
 				// ORT-related
+				"CoreUObject",
 				"ORTHelper",
 				//"ONNXRuntime",
 				"NNEOnnxruntimeEditor",

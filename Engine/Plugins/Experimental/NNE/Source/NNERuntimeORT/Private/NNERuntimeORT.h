@@ -1,0 +1,50 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "NNECoreRuntime.h"
+#include "NNECoreRuntimeCPU.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectBaseUtility.h"
+
+#include "NNERuntimeORT.generated.h"
+
+namespace Ort { struct Env; }
+
+UCLASS()
+class UNNERuntimeORTCpuImpl : public UObject, public INNERuntime, public INNERuntimeCPU
+{
+	GENERATED_BODY()
+
+public:
+	static FGuid GUID;
+	static int32 Version;
+
+	TUniquePtr<Ort::Env> ORTEnvironment;
+	UNNERuntimeORTCpuImpl() {};
+	virtual ~UNNERuntimeORTCpuImpl() {}
+
+	void Init();
+
+	virtual FString GetRuntimeName() const override { return TEXT("NNERuntimeORTCpuEditor"); };
+	virtual bool IsPlatformSupported(const ITargetPlatform* TargetPlatform) const override { return true; };
+
+	virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const override;
+	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData) override;
+
+	virtual bool CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelData) const override;
+	virtual TUniquePtr<UE::NNECore::IModelCPU> CreateModelCPU(TObjectPtr<UNNEModelData> ModelData) override;
+};
+
+UCLASS()
+class UNNERuntimeORTDmlImpl : public UNNERuntimeORTCpuImpl
+{
+	GENERATED_BODY()
+
+	virtual FString GetRuntimeName() const override { return TEXT("NNERuntimeORTDmlEditor"); };
+	virtual bool CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelData) const override;
+	virtual TUniquePtr<UE::NNECore::IModelCPU> CreateModelCPU(TObjectPtr<UNNEModelData> ModelData) override;
+};

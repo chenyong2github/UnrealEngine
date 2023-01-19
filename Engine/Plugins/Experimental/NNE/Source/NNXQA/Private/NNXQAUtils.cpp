@@ -640,6 +640,40 @@ namespace Test
 		return bTestSuceeded;
 	}
 
+	bool RunTestInferenceAndCompareToRef(const FTests::FTestSetup& TestSetup, const FString& RuntimeName, const FNNIModelRaw& ONNXModel,
+		TArrayView<TArray<char>> RefOutputMemBuffers, TArrayView<UE::NNECore::Internal::FTensor> RefOutputTensors)
+	{
+		TArray<TArray<char>> OutputMemBuffers;
+		TArray<UE::NNECore::Internal::FTensor> OutputTensors;
+
+		const float AbsoluteTolerance = TestSetup.GetAbsoluteToleranceForRuntime(RuntimeName);
+		const float RelativeTolerance = TestSetup.GetRelativeToleranceForRuntime(RuntimeName);
+		bool bTestSuceeded = true;
+
+		if (!RunTestInferenceCPU(ONNXModel, TestSetup, RuntimeName, OutputTensors, OutputMemBuffers))
+		{
+			UE_LOG(LogNNX, Error, TEXT("Error running inference for engine %s."), *RuntimeName);
+			return false;
+		}
+
+		if (OutputTensors.Num() == RefOutputTensors.Num())
+		{
+			for (int i = 0; i < OutputTensors.Num(); ++i)
+			{
+				bTestSuceeded &= VerifyTensorResult(
+					RefOutputTensors[i], RefOutputMemBuffers[i],
+					OutputTensors[i], OutputMemBuffers[i],
+					AbsoluteTolerance, RelativeTolerance);
+			}
+		}
+		else
+		{
+			UE_LOG(LogNNX, Error, TEXT("Expecting %d output tensor(s), got %d."), RefOutputTensors.Num(), OutputTensors.Num());
+			bTestSuceeded = false;
+		}
+		return bTestSuceeded;
+	}
+
 	bool CompareONNXModelInferenceAcrossRuntimes(const FNNIModelRaw& ONNXModel, const FNNIModelRaw& ONNXModelVariadic, const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter)
 	{
 		FString CurrentPlatform = UGameplayStatics::GetPlatformName();
@@ -677,34 +711,23 @@ namespace Test
 		}
 		if (!bAllTestsSucceeded)
 		{
-			UE_LOG(LogNNX, Error, TEXT("Expecting output from test setup are no match by reference engine."));
+			UE_LOG(LogNNX, Error, TEXT("Expecting output from test setup are no matched by reference runtime."));
 		}
 
 		// Test against other runtime
-		TArray<IRuntime*> Runtimes;
-
-		Runtimes = GetAllRuntimes();
-		for (auto Runtime : Runtimes)
+		//NNX Registry
+		for (auto Runtime : GetAllRuntimes())
 		{
 			const FString& RuntimeName = Runtime->GetRuntimeName();
-			if ((RuntimeName == RefName) || RuntimeName == TEXT("NNXRuntimeCPU"))
+			if (RuntimeName == TEXT("NNXRuntimeCPU"))
 			{
 				continue;
 			}
-
 			if (!RuntimeFilter.IsEmpty() && !RuntimeFilter.Contains(RuntimeName))
 			{
 				continue;
 			}
-
-			if (RuntimeName == "NNXRuntimeORTCuda")
-			{
-				//TODO Reactivate tests for NNXRuntimeORTCuda runtime. Skipped for now as we wait for legal approval for the dlls.
-				continue;
-			}
-
 			FString TestResult;
-
 			if (TestSetup.AutomationExcludedRuntime.Contains(RuntimeName) ||
 				TestSetup.AutomationExcludedPlatformRuntimeCombination.Contains(TPair<FString, FString>(CurrentPlatform, RuntimeName)))
 			{
@@ -736,6 +759,52 @@ namespace Test
 
 			UE_LOG(LogNNX, Display, TEXT("  %s tests: %s"), *RuntimeName, *TestResult);
 		}
+
+		//NNE Registry
+		for (auto Runtime : UE::NNECore::GetAllRuntimes())
+		{
+			const FString& RuntimeName = Runtime->GetRuntimeName();
+			if (RuntimeName == RefName)
+			{
+				continue;
+			}
+			if (!RuntimeFilter.IsEmpty() && !RuntimeFilter.Contains(RuntimeName))
+			{
+				continue;
+			}
+			FString TestResult;
+			if (TestSetup.AutomationExcludedRuntime.Contains(RuntimeName) ||
+				TestSetup.AutomationExcludedPlatformRuntimeCombination.Contains(TPair<FString, FString>(CurrentPlatform, RuntimeName)))
+			{
+				TestResult = TEXT("skipped (by config)");
+			}
+			else
+			{
+				bool bShouldRunVariadicTest = (ONNXModelVariadic.Format != ENNXInferenceFormat::Invalid);
+				bShouldRunVariadicTest &= !(RuntimeName == "NNEXRuntimeDML");
+
+				bool bTestSuceeded = RunTestInferenceAndCompareToRef(TestSetup, Runtime->GetRuntimeName(), ONNXModel, RefOutputMemBuffers, RefOutputTensors);
+
+				if (bShouldRunVariadicTest)
+				{
+					if (!bTestSuceeded)
+					{
+						UE_LOG(LogNNX, Error, TEXT("Failed running static test."));
+					}
+					bool bVariadicTestSuceeded = RunTestInferenceAndCompareToRef(TestSetup, Runtime->GetRuntimeName(), ONNXModelVariadic, RefOutputMemBuffers, RefOutputTensors);
+					if (!bVariadicTestSuceeded)
+					{
+						bTestSuceeded = false;
+						UE_LOG(LogNNX, Error, TEXT("Failed running variadic test."));
+					}
+				}
+				TestResult = bTestSuceeded ? TEXT("SUCCESS") : TEXT("FAILED");
+				bAllTestsSucceeded &= bTestSuceeded;
+			}
+
+			UE_LOG(LogNNX, Display, TEXT("  %s tests: %s"), *RuntimeName, *TestResult);
+		}
+		
 		return bAllTestsSucceeded;
 	}
 	FTests::FTestSetup& FTests::AddTest(const FString & Category, const FString & ModelOrOperatorName, const FString & TestSuffix)

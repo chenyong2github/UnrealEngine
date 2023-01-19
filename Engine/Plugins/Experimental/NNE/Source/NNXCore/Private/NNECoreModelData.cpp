@@ -102,7 +102,6 @@ TConstArrayView<uint8> UNNEModelData::GetModelData(const FString& RuntimeName)
 	TArray<uint8>* LocalData = ModelData.Find(RuntimeName);
 	if (LocalData)
 	{
-		UE_LOG(LogNNX, Display, TEXT("UNNEModelData: Using locally cached model data"));
 		return TConstArrayView<uint8>(LocalData->GetData(), LocalData->Num());
 	}
 
@@ -111,9 +110,7 @@ TConstArrayView<uint8> UNNEModelData::GetModelData(const FString& RuntimeName)
 	if (RemoteData.GetSize() > 0)
 	{
 		ModelData.Add(RuntimeName, TArray<uint8>((uint8*)RemoteData.GetData(), RemoteData.GetSize()));
-
-		UE_LOG(LogNNX, Display, TEXT("UNNEModelData: Using remote cached model data"));
-
+		
 		TArray<uint8>* CachedRemoteData = ModelData.Find(RuntimeName);
 		return TConstArrayView<uint8>(CachedRemoteData->GetData(), CachedRemoteData->Num());
 	}
@@ -126,7 +123,6 @@ TConstArrayView<uint8> UNNEModelData::GetModelData(const FString& RuntimeName)
 	}
 
 	// Cache the model and put it into ddc
-	UE_LOG(LogNNX, Display, TEXT("UNNEModelData: Caching created model data"));
 	ModelData.Add(RuntimeName, CreatedData);
 
 	FSharedBuffer SharedBuffer = MakeSharedBufferFromArray(MoveTemp(CreatedData));
@@ -140,7 +136,6 @@ TConstArrayView<uint8> UNNEModelData::GetModelData(const FString& RuntimeName)
 	TArray<uint8>* Data = ModelData.Find(RuntimeName);
 	if (Data)
 	{
-		UE_LOG(LogTemp, Display, TEXT("UNNEModelData: Using cooked model data"));
 		return TConstArrayView<uint8>(Data->GetData(), Data->Num());
 	}
 	return {};
