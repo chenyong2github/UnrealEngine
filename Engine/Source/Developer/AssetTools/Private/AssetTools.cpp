@@ -1962,10 +1962,10 @@ FString UAssetToolsImpl::GenerateAdvancedCopyDestinationPackageName(const FStrin
 	return DestinationPackageName;
 }
 
-bool UAssetToolsImpl::FlattenAdvancedCopyDestinations(const TArray<TMap<FString, FString>> PackagesAndDestinations, TMap<FString, FString>& FlattenedPackagesAndDestinations) const
+bool UAssetToolsImpl::FlattenAdvancedCopyDestinations(const TArray<TMap<FString, FString>>& PackagesAndDestinations, TMap<FString, FString>& FlattenedPackagesAndDestinations) const
 {
 	FString CopyErrors;
-	for (TMap<FString, FString> PackageAndDestinationMap : PackagesAndDestinations)
+	for (const TMap<FString, FString>& PackageAndDestinationMap : PackagesAndDestinations)
 	{
 		for (auto It = PackageAndDestinationMap.CreateConstIterator(); It; ++It)
 		{
@@ -2293,14 +2293,34 @@ bool UAssetToolsImpl::AdvancedCopyPackages(
 	return false;
 }
 
-bool UAssetToolsImpl::AdvancedCopyPackages(const FAdvancedCopyParams& CopyParams, const TArray<TMap<FString, FString>> PackagesAndDestinations) const
+bool UAssetToolsImpl::AdvancedCopyPackages(const FAdvancedCopyParams& CopyParams, const TArray<TMap<FString, FString>>& PackagesAndDestinations) const
 {
+	bool bResult = false;
+	FDuplicatedObjects DuplicatedObjects;
+	
 	TMap<FString, FString> FlattenedDestinationMap;
 	if (FlattenAdvancedCopyDestinations(PackagesAndDestinations, FlattenedDestinationMap))
 	{
-		return AdvancedCopyPackages(FlattenedDestinationMap, CopyParams.bShouldForceSave, CopyParams.bCopyOverAllDestinationOverlaps, /*OutDuplicatedObjects=*/nullptr, EMessageSeverity::Info);
+		bResult = AdvancedCopyPackages(FlattenedDestinationMap, CopyParams.bShouldForceSave, CopyParams.bCopyOverAllDestinationOverlaps, &DuplicatedObjects, EMessageSeverity::Info);
 	}
-	return false;
+
+	if (CopyParams.OnCopyComplete.IsBound())
+	{
+		TArray<FAssetRenameData> AllCopiedAssets;
+		for (const TMap<TSoftObjectPtr<UObject>, TSoftObjectPtr<UObject>>& PerPackageCopies : DuplicatedObjects)
+		{
+			for (const TPair<TSoftObjectPtr<UObject>, TSoftObjectPtr<UObject>>& AssetSourceAndCopy : PerPackageCopies)
+			{
+				const TSoftObjectPtr<UObject>& CopiedAsset = AssetSourceAndCopy.Value;
+				FAssetRenameData& AssetRenameData = AllCopiedAssets.Emplace_GetRef(TWeakObjectPtr(CopiedAsset.Get()), CopiedAsset.GetLongPackageName(), CopiedAsset.GetAssetName());
+				AssetRenameData.OldObjectPath = AssetSourceAndCopy.Key.ToSoftObjectPath();
+				AssetRenameData.NewObjectPath = CopiedAsset.ToSoftObjectPath();
+			}
+		}
+		CopyParams.OnCopyComplete.Execute(bResult, AllCopiedAssets);
+	}
+	
+	return bResult;
 }
 
 bool UAssetToolsImpl::RenameAssets(const TArray<FAssetRenameData>& AssetsAndNames)
@@ -5240,6 +5260,11 @@ void UAssetToolsImpl::ConvertVirtualTextures(const TArray<UTexture2D *>& Texture
 
 void UAssetToolsImpl::BeginAdvancedCopyPackages(const TArray<FName>& InputNamesToCopy, const FString& TargetPath) const
 {
+	BeginAdvancedCopyPackages(InputNamesToCopy, TargetPath, FAdvancedCopyCompletedEvent());
+}
+
+void UAssetToolsImpl::BeginAdvancedCopyPackages(const TArray<FName>& InputNamesToCopy, const FString& TargetPath, const FAdvancedCopyCompletedEvent& OnCopyComplete) const
+{
 	// Packages must be saved for the migration to work
 	const bool bPromptUserToSave = true;
 	const bool bSaveMapPackages = true;
@@ -5251,13 +5276,13 @@ void UAssetToolsImpl::BeginAdvancedCopyPackages(const TArray<FName>& InputNamesT
 		{
 			// Open a dialog asking the user to wait while assets are being discovered
 			SDiscoveringAssetsDialog::OpenDiscoveringAssetsDialog(
-				SDiscoveringAssetsDialog::FOnAssetsDiscovered::CreateUObject(this, &UAssetToolsImpl::PerformAdvancedCopyPackages, InputNamesToCopy, TargetPath)
+				SDiscoveringAssetsDialog::FOnAssetsDiscovered::CreateUObject(this, &UAssetToolsImpl::PerformAdvancedCopyPackages, InputNamesToCopy, TargetPath, OnCopyComplete)
 			);
 		}
 		else
 		{
 			// Assets are already discovered, perform the migration now
-			PerformAdvancedCopyPackages(InputNamesToCopy, TargetPath);
+			PerformAdvancedCopyPackages(InputNamesToCopy, TargetPath, OnCopyComplete);
 		}
 	}
 }
@@ -5297,13 +5322,14 @@ TArray<FName> UAssetToolsImpl::ExpandAssetsAndFoldersToJustAssets(TArray<FName> 
 	return ExpandedAssetArray;
 }
 
-void UAssetToolsImpl::PerformAdvancedCopyPackages(TArray<FName> SelectedAssetAndFolderNames, FString TargetPath) const
+void UAssetToolsImpl::PerformAdvancedCopyPackages(TArray<FName> SelectedAssetAndFolderNames, FString TargetPath, FAdvancedCopyCompletedEvent OnCopyComplete) const
 {	
 	TargetPath.RemoveFromEnd(TEXT("/"));
 
 	//TArray<FName> ExpandedAssets = ExpandAssetsAndFoldersToJustAssets(SelectedAssetAndFolderNames);
 	FAdvancedCopyParams CopyParams = FAdvancedCopyParams(SelectedAssetAndFolderNames, TargetPath);
 	CopyParams.bShouldCheckForDependencies = true;
+	CopyParams.OnCopyComplete = OnCopyComplete;
 
 	// Suppress UI if we're running in unattended mode
 	if (FApp::IsUnattended())
@@ -5419,7 +5445,7 @@ void UAssetToolsImpl::InitAdvancedCopyFromCopyParams(FAdvancedCopyParams CopyPar
 	}
 }
 
-void UAssetToolsImpl::AdvancedCopyPackages_ReportConfirmed(FAdvancedCopyParams CopyParams, TArray<TMap<FString, FString>> DestinationMap) const
+void UAssetToolsImpl::AdvancedCopyPackages_ReportConfirmed(const FAdvancedCopyParams& CopyParams, const TArray<TMap<FString, FString>>& DestinationMap) const
 {
 	TArray<UAdvancedCopyCustomization*> CustomizationsToUse = CopyParams.GetCustomizationsToUse();
 	for (int32 CustomizationIndex = 0; CustomizationIndex < CustomizationsToUse.Num(); CustomizationIndex++)

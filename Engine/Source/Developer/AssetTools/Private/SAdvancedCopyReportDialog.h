@@ -72,7 +72,7 @@ class SAdvancedCopyReportDialog : public SCompoundWidget
 {
 public:
 	typedef TArray<TMap<FString, FString>> FCopyDestinationMap;
-	DECLARE_DELEGATE_TwoParams(FOnReportConfirmed, FAdvancedCopyParams, FCopyDestinationMap)
+	DECLARE_DELEGATE_TwoParams(FOnReportConfirmed, const FAdvancedCopyParams&, const FCopyDestinationMap&)
 
 	SLATE_BEGIN_ARGS(SAdvancedCopyReportDialog){}
 
