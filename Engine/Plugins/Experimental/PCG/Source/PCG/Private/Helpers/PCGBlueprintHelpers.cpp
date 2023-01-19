@@ -184,3 +184,8 @@ TArray<FPCGLandscapeLayerWeight> UPCGBlueprintHelpers::GetInterpolatedPCGLandsca
 
 	return Result;
 }
+
+int64 UPCGBlueprintHelpers::GetTaskId(FPCGContext& Context)
+{
+	return static_cast<int64>(Context.TaskId);
+}

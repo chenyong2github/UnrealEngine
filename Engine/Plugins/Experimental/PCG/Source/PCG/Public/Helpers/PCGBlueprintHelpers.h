@@ -76,6 +76,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Helpers", meta = (ScriptMethod))
 	static TArray<FPCGLandscapeLayerWeight> GetInterpolatedPCGLandscapeLayerWeights(UObject* WorldContextObject, const FVector& Location);
+
+	UFUNCTION(BLueprintCallable, Category = "PCG|Helpers", meta = (ScriptMethod))
+	static int64 GetTaskId(UPARAM(ref) FPCGContext& Context);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
