@@ -56,12 +56,12 @@ TArray<FBuildDependencyAccessData> FPackageBuildDependencyTracker::GetAccessData
 
 FPackageBuildDependencyTracker::FPackageBuildDependencyTracker()
 {
-	ObjectHandleReadHandle = AddObjectHandleReadCallback(FObjectHandleReadDelegate::CreateStatic(StaticOnObjectHandleRead));
+	ObjectHandleReadHandle = UE::CoreUObject::AddObjectHandleReadCallback(StaticOnObjectHandleRead);
 }
 
 FPackageBuildDependencyTracker::~FPackageBuildDependencyTracker()
 {
-	RemoveObjectHandleReadCallback(ObjectHandleReadHandle);
+	UE::CoreUObject::RemoveObjectHandleReadCallback(ObjectHandleReadHandle);
 }
 
 void FPackageBuildDependencyTracker::StaticOnObjectHandleRead(UObject* ReadObject)

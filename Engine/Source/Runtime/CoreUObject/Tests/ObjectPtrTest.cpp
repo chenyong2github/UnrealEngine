@@ -337,18 +337,18 @@ TEST_CASE("CoreUObject::TObjectPtr::GetPathName", "[CoreUObject][ObjectPtr]")
 
 #if UE_WITH_OBJECT_HANDLE_TRACKING
 	int ResolveCount = 0;
-	auto ResolveDelegate = FObjectHandleReferenceResolvedDelegate::CreateLambda([&ResolveCount](const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object)
+	auto ResolveDelegate = [&ResolveCount](const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object)
 		{
 			++ResolveCount;
-		});
-	auto Handle = AddObjectHandleReferenceResolvedCallback(ResolveDelegate);
+		};
+	auto Handle = UE::CoreUObject::AddObjectHandleReferenceResolvedCallback(ResolveDelegate);
 #endif
 
 	ON_SCOPE_EXIT
 	{
 		TestPackage1->RemoveFromRoot();
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-		RemoveObjectHandleReferenceResolvedCallback(Handle);
+	UE::CoreUObject::RemoveObjectHandleReferenceResolvedCallback(Handle);
 #endif
 	};
 
@@ -548,11 +548,15 @@ TEST_CASE("CoreUObject::TObjectPtr::GetTypeHash")
 {
 	int ResolveCount = 0;
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-	auto ResolveDelegate = FObjectHandleReferenceResolvedDelegate::CreateLambda([&ResolveCount](const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object)
+	auto ResolveDelegate = [&ResolveCount](const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object)
 		{
 			++ResolveCount;
-		});
-	auto Handle = AddObjectHandleReferenceResolvedCallback(ResolveDelegate);
+		};
+	auto Handle = UE::CoreUObject::AddObjectHandleReferenceResolvedCallback(ResolveDelegate);
+	ON_SCOPE_EXIT
+	{
+		UE::CoreUObject::RemoveObjectHandleReferenceResolvedCallback(Handle);
+	};
 #endif
 
 	UPackage* TestPackageA = NewObject<UPackage>(nullptr, TEXT("/Engine/PackageA"), RF_Transient);

@@ -105,8 +105,8 @@ private:
 		if (!bCallbacksInstalled)
 		{
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-			ResolvedCallbackHandle = AddObjectHandleReferenceResolvedCallback(FObjectHandleReferenceResolvedDelegate::CreateStatic(OnRefResolved));
-			HandleReadCallbackHandle = AddObjectHandleReadCallback(FObjectHandleReadDelegate::CreateStatic(OnRefRead));
+			ResolvedCallbackHandle = UE::CoreUObject::AddObjectHandleReferenceResolvedCallback(OnRefResolved);
+			HandleReadCallbackHandle = UE::CoreUObject::AddObjectHandleReadCallback(OnRefRead);
 			// TODO We should unhook these handles somewhere, but i don't want to refactor the test, it's not as if they were
 			// being unhooked before.  So...
 #endif
@@ -115,8 +115,8 @@ private:
 	}
 
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-	static FDelegateHandle ResolvedCallbackHandle;
-	static FDelegateHandle HandleReadCallbackHandle;
+	static UE::CoreUObject::FObjectHandleTrackingCallbackId ResolvedCallbackHandle;
+	static UE::CoreUObject::FObjectHandleTrackingCallbackId HandleReadCallbackHandle;
 #endif
 	static thread_local uint32 NumResolves;
 	static thread_local uint32 NumFailedResolves;

@@ -218,12 +218,15 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::Null Behavior"
 	UObjectPtrTestClass* TestObject = nullptr;
 
 	uint32 ResolveCount = 0;
-	auto ResolveDelegate = FObjectHandleReferenceResolvedDelegate::CreateLambda([&ResolveCount](const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object)
+	auto ResolveDelegate = [&ResolveCount](const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object)
 		{
 			++ResolveCount;
-		});
-	auto Handle = AddObjectHandleReferenceResolvedCallback(ResolveDelegate);
-
+		};
+	auto Handle = UE::CoreUObject::AddObjectHandleReferenceResolvedCallback(ResolveDelegate);
+	ON_SCOPE_EXIT
+	{
+		UE::CoreUObject::RemoveObjectHandleReferenceResolvedCallback(Handle);
+	};
 	//compare against all flavours of nullptr, should not try and resolve this pointer
 	CHECK(Ptr == nullptr); CHECK(ResolveCount == 0u);
 	CHECK(nullptr == Ptr); CHECK(ResolveCount == 0u);
@@ -335,8 +338,6 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::Null Behavior"
 	CHECK_FALSE(TestObject == Ptr); CHECK(ResolveCount == 0u);
 	CHECK(Ptr != TestObject); CHECK(ResolveCount == 0u);
 	CHECK(TestObject != Ptr); CHECK(ResolveCount == 0u);
-
-	RemoveObjectHandleReferenceResolvedCallback(Handle);
 }
 
 #endif

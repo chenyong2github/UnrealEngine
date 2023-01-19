@@ -47,7 +47,7 @@ private:
 	FName LastReferencer = NAME_None;
 	FBuildDependencyAccessData LastAccessData{ NAME_None, nullptr };
 	TSet<FBuildDependencyAccessData>* LastReferencerSet = nullptr;
-	FDelegateHandle ObjectHandleReadHandle;
+	UE::CoreUObject::FObjectHandleTrackingCallbackId ObjectHandleReadHandle;
 	static FPackageBuildDependencyTracker Singleton;
 };
 
