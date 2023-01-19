@@ -511,6 +511,6 @@ namespace EpicGames.OIDC
 		[Required] public Uri RedirectUri { get; set; } = null!;
 		[Required] public bool LoadClaimsFromUserProfile { get; set; } = false;
 
-		public string Scopes { get; set; } = "openid profile offline_access";
+		public string Scopes { get; set; } = "openid profile offline_access email";
 	}
 }
