@@ -1286,6 +1286,8 @@ public:
 
 	TArray<FVisibleCellInfo>& GetVisibleCellsForNode(const UReplicationGraphNode* GridNode);
 
+	void CleanupNodeCaches(const UReplicationGraphNode* Node);
+
 private:
 
 	// Stored list of dormant actors in a previous cell when it's been left - this is for

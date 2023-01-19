@@ -2661,8 +2661,7 @@ void UNetReplicationGraphConnection::AddConnectionGraphNode(UReplicationGraphNod
 void UNetReplicationGraphConnection::RemoveConnectionGraphNode(UReplicationGraphNode* Node)
 {
 	ConnectionGraphNodes.RemoveSingleSwap(Node);
-	NodesVisibleCells.Remove(Node);
-	PrevDormantActorListPerNode.Remove(Node);
+	CleanupNodeCaches(Node);
 }
 
 bool UNetReplicationGraphConnection::PrepareForReplication()
@@ -2866,6 +2865,12 @@ void UNetReplicationGraphConnection::RemoveActorFromAllPrevDormantActorLists(AAc
 TArray<UNetReplicationGraphConnection::FVisibleCellInfo>& UNetReplicationGraphConnection::GetVisibleCellsForNode(const UReplicationGraphNode* GridNode)
 {
 	return NodesVisibleCells.FindOrAdd(GridNode);
+}
+
+void UNetReplicationGraphConnection::CleanupNodeCaches(const UReplicationGraphNode* Node)
+{
+	NodesVisibleCells.Remove(Node);
+	PrevDormantActorListPerNode.Remove(Node);
 }
 
 void UNetReplicationGraphConnection::GetClientVisibleLevelNames(TSet<FName>& OutLevelNames) const
