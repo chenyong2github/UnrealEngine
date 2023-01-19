@@ -14,16 +14,9 @@
 	"CanContainContent" : false,
 	"IsBetaVersion" : false,
 	"Installed" : false,
-	"CanBeUsedWithUnrealHeaderTool" : true,
-	"SupportedPrograms": [ "UnrealHeaderTool" ],
 	
 	"Modules" :
 	[
-		{
-			"Name" : "ScriptGeneratorPlugin",
-			"Type" : "Program",
-			"LoadingPhase" : "PostConfigInit"
-		},
 		{
 			"Name" : "ScriptPlugin",
 			"Type" : "Runtime",
