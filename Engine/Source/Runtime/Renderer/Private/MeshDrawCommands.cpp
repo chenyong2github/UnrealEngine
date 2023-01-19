@@ -1429,9 +1429,7 @@ void FParallelMeshDrawCommandPass::BuildRenderingCommands(
 			if (VisibleMeshDrawCommand.PrimitiveIdInfo.bIsDynamicPrimitive)
 			{
 				uint32 PrimitiveIndex = VisibleMeshDrawCommand.PrimitiveIdInfo.DrawPrimitiveId & ~GPrimIDDynamicFlag;
-				checkf(TaskContext.View->DynamicPrimitiveCollector.IsPrimitiveProcessed(PrimitiveIndex, GPUScene),
-					TEXT("Dynamic Primitive index %u has not been fully processed. It may be an invalid index for the collector or it has a pending GPU write."),
-					PrimitiveIndex);
+				TaskContext.View->DynamicPrimitiveCollector.CheckPrimitiveProcessed(PrimitiveIndex, GPUScene);
 			}
 		}
 #endif

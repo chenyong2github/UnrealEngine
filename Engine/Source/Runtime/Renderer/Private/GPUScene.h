@@ -92,7 +92,7 @@ public:
 	/**
 	 * Determines if the specified primitive has been sufficiently processed and its data can be read
 	 */
-	bool IsPrimitiveProcessed(uint32 PrimitiveIndex, const FGPUScene& GPUScene) const;
+	void CheckPrimitiveProcessed(uint32 PrimitiveIndex, const FGPUScene& GPUScene) const;
 #endif // DO_CHECK
 
 private:
