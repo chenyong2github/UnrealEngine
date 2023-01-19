@@ -590,6 +590,10 @@ public:
 
 	// When enabled the RepGraph tells clients to destroy dormant dynamic actors when they go out of relevancy.
 	bool bDestroyDormantDynamicActors = true;
+	// How many frames dormant actors should be outside relevancy range to be destroyed
+	int32 DestroyDormantDynamicActorsCellTTL = 1;
+	// Optimization to spread cost over multiple frames
+	int32 ReplicatedDormantDestructionInfosPerFrame = MAX_int32;
 
 protected:
 
@@ -1267,6 +1271,20 @@ public:
 	FActorRepListRefView& GetPrevDormantActorListForNode(const UReplicationGraphNode* GridNode);
 
 	void RemoveActorFromAllPrevDormantActorLists(AActor* InActor);
+	
+	struct FVisibleCellInfo
+	{
+		FIntPoint Location = {};
+		int32 Lifetime = 0;
+
+		// For FindByKey
+		friend bool operator==(const FVisibleCellInfo& Cell, const FIntPoint& Point)
+		{
+			return Cell.Location == Point;
+		}
+	};
+
+	TArray<FVisibleCellInfo>& GetVisibleCellsForNode(const UReplicationGraphNode* GridNode);
 
 private:
 
@@ -1274,6 +1292,9 @@ private:
 	// the dormant dynamic actor destruction feature.
 	TMap<TObjectKey<UReplicationGraphNode>, FActorRepListRefView> PrevDormantActorListPerNode;
 
+	// History of visible cells per graph node used for defering dormant dynamic actors cleanup
+	TMap<TObjectKey<UReplicationGraphNode>, TArray<FVisibleCellInfo>> NodesVisibleCells;
+	
 	friend UReplicationGraph;
 
 	/** Holds relevant data when parsing deleted actors that could be sent to a viewer */
