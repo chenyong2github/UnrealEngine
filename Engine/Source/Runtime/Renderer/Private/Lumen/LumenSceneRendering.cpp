@@ -525,6 +525,14 @@ DECLARE_GPU_STAT(UpdateLumenSceneBuffers);
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FLumenCardPassUniformParameters, "LumenCardPass", SceneTextures);
 
+bool ShouldCompileLumenMeshCardShaders(const FMeshMaterialShaderPermutationParameters& Parameters)
+{
+	return Parameters.MaterialParameters.MaterialDomain == MD_Surface
+		&& Parameters.VertexFactoryType->SupportsLumenMeshCards()
+		&& IsOpaqueOrMaskedBlendMode(Parameters.MaterialParameters.BlendMode)
+		&& DoesPlatformSupportLumenGI(Parameters.Platform);
+}
+
 class FLumenCardVS : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(FLumenCardVS, MeshMaterial);
@@ -533,8 +541,7 @@ protected:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		//@todo DynamicGI - filter
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
+		return ShouldCompileLumenMeshCardShaders(Parameters);
 	}
 
 	FLumenCardVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -560,8 +567,7 @@ public:
 			return false;
 		}
 
-		//@todo DynamicGI - filter
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
+		return ShouldCompileLumenMeshCardShaders(Parameters);
 	}
 
 	FLumenCardPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)

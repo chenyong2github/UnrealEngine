@@ -468,6 +468,7 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(Nanite::FVertexFactory, "/Engine/Private/Nanite/Na
 	| EVertexFactoryFlags::SupportsNaniteRendering
 	| EVertexFactoryFlags::SupportsPSOPrecaching
 	| EVertexFactoryFlags::SupportsRayTracing
+	| EVertexFactoryFlags::SupportsLumenMeshCards
 );
 
 #if WITH_EDITOR
@@ -2265,4 +2266,5 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FNaniteVertexFactory, "/Engine/Private/Nanite/Nani
 	| EVertexFactoryFlags::SupportsNaniteRendering
 	| EVertexFactoryFlags::SupportsComputeShading
 	| EVertexFactoryFlags::SupportsManualVertexFetch
+	| EVertexFactoryFlags::SupportsLumenMeshCards
 );
