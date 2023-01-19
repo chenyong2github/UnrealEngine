@@ -7,7 +7,10 @@
 #include "UObject/UObjectIterator.h"
 
 #include "Blueprint/UserWidget.h"
-#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanel.h"	
+#include "Components/GridPanel.h"
+#include "Components/HorizontalBox.h"
+#include "Components/VerticalBox.h"
 
 UUMGEditorProjectSettings::UUMGEditorProjectSettings()
 {
@@ -20,6 +23,12 @@ UUMGEditorProjectSettings::UUMGEditorProjectSettings()
 	bUseEditorConfigPaletteFiltering = false;
 
 	bUseWidgetTemplateSelector = false;
+	CommonRootWidgetClasses = {
+		UHorizontalBox::StaticClass(),
+		UVerticalBox::StaticClass(),
+		UGridPanel::StaticClass(),
+		UCanvasPanel::StaticClass()
+	};
 	DefaultRootWidget = nullptr;
 	FavoriteWidgetParentClasses.Add(UUserWidget::StaticClass());
 }

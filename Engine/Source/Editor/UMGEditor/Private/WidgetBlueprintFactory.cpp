@@ -15,9 +15,6 @@
 #include "Kismet2/SClassPickerDialog.h"
 #include "ClassViewerFilter.h"
 #include "Components/CanvasPanel.h"
-#include "Components/HorizontalBox.h"
-#include "Components/VerticalBox.h"
-#include "Components/GridPanel.h"
 
 #define LOCTEXT_NAMESPACE "UWidgetBlueprintFactory"
 
@@ -114,10 +111,23 @@ bool UWidgetBlueprintFactory::ConfigureProperties()
 		Options.Mode = EClassViewerMode::ClassPicker;
 		Options.bShowNoneOption = true;
 
-		Options.ExtraPickerCommonClasses.Add(UHorizontalBox::StaticClass());
-		Options.ExtraPickerCommonClasses.Add(UVerticalBox::StaticClass());
-		Options.ExtraPickerCommonClasses.Add(UGridPanel::StaticClass());
-		Options.ExtraPickerCommonClasses.Add(UCanvasPanel::StaticClass());
+		TArray<TSoftClassPtr<UPanelWidget>> CommonRootWidgetClasses = GetDefault <UUMGEditorProjectSettings>()->CommonRootWidgetClasses;
+		for (int32 Index = 0; Index < CommonRootWidgetClasses.Num(); ++Index)
+		{
+			UClass* PanelWidgetClass = CommonRootWidgetClasses[Index].LoadSynchronous();
+			if (PanelWidgetClass && PanelWidgetClass->IsChildOf(UPanelWidget::StaticClass()))
+			{
+				if (!Options.ExtraPickerCommonClasses.Contains(PanelWidgetClass))
+				{
+					Options.ExtraPickerCommonClasses.Add(PanelWidgetClass);
+				}
+			}
+		}
+
+		if (Options.ExtraPickerCommonClasses.Num() == 0)
+		{
+			Options.ExtraPickerCommonClasses.Add(UCanvasPanel::StaticClass());
+		}
 
 		TSharedPtr<FWidgetClassFilter> Filter = MakeShareable(new FWidgetClassFilter);
 		Options.ClassFilters.Add(Filter.ToSharedRef());

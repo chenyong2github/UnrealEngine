@@ -168,6 +168,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Designer)
 	bool bUseWidgetTemplateSelector;
 
+	/** This list populates the common class section of the root widget selection dialog */
+	UPROPERTY(EditAnywhere, config, Category = Designer, meta = (EditCondition = "bUseWidgetTemplateSelector"))
+	TArray<TSoftClassPtr<UPanelWidget>> CommonRootWidgetClasses;
+
 	/** The panel widget to place at the root of all newly constructed widget blueprints. Can be empty. */
 	UPROPERTY(EditAnywhere, config, Category = Designer)
 	TSubclassOf<UPanelWidget> DefaultRootWidget;
