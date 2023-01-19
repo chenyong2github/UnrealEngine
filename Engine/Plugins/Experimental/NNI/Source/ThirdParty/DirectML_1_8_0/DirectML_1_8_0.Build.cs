@@ -9,35 +9,27 @@ public class DirectML_1_8_0 : ModuleRules
     public DirectML_1_8_0(ReadOnlyTargetRules Target) : base(Target)
     {
 		Type = ModuleType.External;
-		// Win64
+		
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			// PublicSystemIncludePaths
-			string IncPath = Path.Combine(ModuleDirectory, "include/");
-			PublicSystemIncludePaths.Add(IncPath);
-			// PublicAdditionalLibraries
 			string PlatformDir = Target.Platform.ToString();
+			string BinDirPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "bin", PlatformDir));
 			string LibDirPath = Path.Combine(ModuleDirectory, "lib", PlatformDir);
-			string[] LibFileNames = new string[] {
-				"DirectML",
-			};
-			foreach(string LibFileName in LibFileNames)
-			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, LibFileName + ".lib"));
-			}
-			// PublicDelayLoadDLLs
-			string DLLFileName = LibFileNames[0] + ".dll";
-			PublicDelayLoadDLLs.Add(DLLFileName);
-			// RuntimeDependencies
-			string BinaryThirdPartyDirPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "bin", PlatformDir));
-			string DLLFullPath = Path.Combine(BinaryThirdPartyDirPath, DLLFileName);
-			RuntimeDependencies.Add(DLLFullPath);
+			string IncDirPath = Path.Combine(ModuleDirectory, "include/");
+			string LibFileName = "DirectML";
+			string DllFileName = LibFileName + ".dll";
+			string DllFullPath = Path.Combine(BinDirPath, DllFileName);
+
+			PublicSystemIncludePaths.Add(IncDirPath);
+			PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, LibFileName + ".lib"));
+			PublicDelayLoadDLLs.Add(DllFileName);
+			RuntimeDependencies.Add("$(BinaryOutputDir)/DirectML.dll", DllFullPath);
 
 			// PublicDefinitions
 			PublicDefinitions.Add("DIRECTML_USE_DLLS");
 			PublicDefinitions.Add("WITH_DIRECTML");
 			PublicDefinitions.Add("DIRECTML_PLATFORM_PATH=Source/ThirdParty/DirectML_1_8_0/bin/" + PlatformDir);
-			PublicDefinitions.Add("DIRECTML_DLL_NAME=" + DLLFileName);
+			PublicDefinitions.Add("DIRECTML_DLL_NAME=" + DllFileName);
 		}
 	}
 }
