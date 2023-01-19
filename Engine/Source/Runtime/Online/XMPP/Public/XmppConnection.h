@@ -175,6 +175,11 @@ public:
 		return !operator==(Other);
 	}
 
+	friend uint32 GetTypeHash(const FXmppUserJid& A)
+	{
+		return HashCombine(HashCombine(GetTypeHash(A.Id), GetTypeHash(A.Domain)), GetTypeHash(A.Resource));
+	}
+
 	/** full jid path <id@domain/resource> */
 	FString GetFullPath() const
 	{
