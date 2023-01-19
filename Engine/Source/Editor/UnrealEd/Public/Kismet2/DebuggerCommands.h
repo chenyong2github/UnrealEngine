@@ -104,10 +104,14 @@ public:
 	TSharedPtr<FUICommandInfo> LateJoinSession;
 	TSharedPtr<FUICommandInfo> PossessEjectPlayer;
 	TSharedPtr<FUICommandInfo> ShowCurrentStatement;
+	TSharedPtr<FUICommandInfo> GetMouseControl;
+
+	/** BP Debugging controls */
+	TSharedPtr<FUICommandInfo> AbortExecution;
+	TSharedPtr<FUICommandInfo> ContinueExecution;
 	TSharedPtr<FUICommandInfo> StepInto;
 	TSharedPtr<FUICommandInfo> StepOver;
 	TSharedPtr<FUICommandInfo> StepOut;
-	TSharedPtr<FUICommandInfo> GetMouseControl;
 
 protected:
 

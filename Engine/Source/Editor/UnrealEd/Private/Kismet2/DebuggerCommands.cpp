@@ -90,10 +90,7 @@ namespace DebuggerCommands
 {
 	static bool bAllowPlayWorldFeature = true;
 	static FAutoConsoleVariableRef AllowPlayWorldFeatureCVar(TEXT("Editor.AllowPlayWorldFeature"), bAllowPlayWorldFeature, TEXT("When true play world is allowed."));
-	static bool AllowPlayWorldFeature()
-	{
-		return bAllowPlayWorldFeature;
-	}
+	static bool AllowPlayWorldFeature();
 }
 
 void SGlobalPlayWorldActions::Construct(const FArguments& InArgs)
@@ -172,6 +169,8 @@ public:
 	static void SingleFrameAdvance_Clicked();
 
 	static void ShowCurrentStatement_Clicked();
+	static void AbortExecution_Clicked();
+	static void ContinueExecution_Clicked();
 	static void StepInto_Clicked();
 	static void StepOver_Clicked();
 	static void StepOut_Clicked();
@@ -191,6 +190,7 @@ public:
 	static bool CanShowLateJoinButton();
 
 	static bool IsStoppedAtBreakpoint();
+	static bool IsStoppedAtBreakpoint_InEngineMode();
 
 	static bool CanShowNonPlayWorldOnlyActions();
 	static bool CanShowVulkanNonPlayWorldOnlyActions();
@@ -239,6 +239,13 @@ protected:
 	static bool IsReadyToLaunchOnDevice(FString DeviceId);
 };
 
+namespace DebuggerCommands
+{
+	bool AllowPlayWorldFeature()
+	{
+		return bAllowPlayWorldFeature && !FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint_InEngineMode();
+	}
+}
 
 /**
  * Called to leave K2 debugging mode
@@ -350,6 +357,8 @@ void FPlayWorldCommands::RegisterCommands()
 	UI_COMMAND(TogglePlayPauseOfPlaySession, "Toggle Play/Pause", "Resume playing if paused, or pause if playing", EUserInterfaceActionType::Button, FInputChord(EKeys::Pause));
 	UI_COMMAND(PossessEjectPlayer, "Possess or Eject Player", "Possesses or ejects the player from the camera", EUserInterfaceActionType::Button, FInputChord(EKeys::F8));
 	UI_COMMAND(ShowCurrentStatement, "Locate", "Locate the currently active node", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(AbortExecution, "Abort", "Abort the execution", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ContinueExecution, "Continue", "Continue the execution", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt | EModifierKey::Shift, EKeys::F10));
 	UI_COMMAND(StepInto, "Step Into", "Step Into the next node to be executed", EUserInterfaceActionType::Button, PLATFORM_MAC ? FInputChord(EModifierKey::Control, EKeys::F11) : FInputChord(EKeys::F11));
 	UI_COMMAND(StepOver, "Step Over", "Step to the next node to be executed in the current graph", EUserInterfaceActionType::Button, FInputChord(EKeys::F10));
 	UI_COMMAND(StepOut, "Step Out", "Step Out to the next node to be executed in the parent graph", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt | EModifierKey::Shift, EKeys::F11));
@@ -522,7 +531,7 @@ void FPlayWorldCommands::BindGlobalPlayWorldCommands()
 		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetMouseControlExecute),
 		FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::HasPlayWorld),
 		FIsActionChecked(),
-		FIsActionChecked::CreateStatic(&FInternalPlayWorldCommandCallbacks::HasPlayWorld)
+		FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::HasPlayWorld)
 	);
 
 	// Toggle PIE/SIE, Eject (PIE->SIE), and Possess (SIE->PIE)
@@ -538,28 +547,42 @@ void FPlayWorldCommands::BindGlobalPlayWorldCommands()
 		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::ShowCurrentStatement_Clicked),
 		FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint),
 		FIsActionChecked(),
-		FIsActionChecked::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint)
+		FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint)
 	);
 
+	ActionList.MapAction(Commands.AbortExecution,
+		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::AbortExecution_Clicked),
+		FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint_InEngineMode),
+		FIsActionChecked(),
+		FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint_InEngineMode)
+	);
+
+	ActionList.MapAction(Commands.ContinueExecution,
+		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::ContinueExecution_Clicked),
+		FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint),
+		FIsActionChecked(),
+		FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint)
+	);
+	
 	ActionList.MapAction(Commands.StepInto,
 		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::StepInto_Clicked),
 		FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint),
 		FIsActionChecked(),
-		FIsActionChecked::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint)
+		FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint)
 	);
 
 	ActionList.MapAction(Commands.StepOver,
 		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::StepOver_Clicked),
 		FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint),
 		FIsActionChecked(),
-		FIsActionChecked::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint)
+		FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint)
 	);
 
 	ActionList.MapAction(Commands.StepOut,
 		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::StepOut_Clicked),
 		FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint),
 		FIsActionChecked(),
-		FIsActionChecked::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint)
+		FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint)
 	);
 
 	AddPIEPreviewDeviceActions(Commands, ActionList);
@@ -660,6 +683,12 @@ void FPlayWorldCommands::BuildToolbar(FToolMenuSection& InSection, bool bInclude
 	FToolMenuEntry ShowCurrentStatementEntry = FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().ShowCurrentStatement, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("ShowCurrentStatement")));
 	ShowCurrentStatementEntry.StyleNameOverride = FName("Toolbar.BackplateLeft");
 
+	FToolMenuEntry ContinueEntry = FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().ContinueExecution, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("ContinueExecution")));
+	ContinueEntry.StyleNameOverride = FName("Toolbar.BackplateCenter");
+
+	FToolMenuEntry AbortEntry = FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().AbortExecution, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("AbortExecution")));
+	AbortEntry.StyleNameOverride = FName("Toolbar.BackplateCenter");
+	
 	FToolMenuEntry StepIntoEntry = FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().StepInto, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StepInto")));
 	StepIntoEntry.StyleNameOverride = FName("Toolbar.BackplateCenter");
 
@@ -670,11 +699,10 @@ void FPlayWorldCommands::BuildToolbar(FToolMenuSection& InSection, bool bInclude
 	StepOutEntry.StyleNameOverride = FName("Toolbar.BackplateRight");
 
 	InSection.AddEntry(ShowCurrentStatementEntry);
-
-	InSection.AddEntry(StepIntoEntry);
-	
-	InSection.AddEntry(StepOverEntry);
-	
+	InSection.AddEntry(ContinueEntry);
+	InSection.AddEntry(AbortEntry);
+	InSection.AddEntry(StepIntoEntry);	
+	InSection.AddEntry(StepOverEntry);	
 	InSection.AddEntry(StepOutEntry);
 
 	if (bIncludeLaunchButtonAndOptions)
@@ -935,6 +963,11 @@ void FPlayWorldCommandCallbacks::StartPlayFromHere()
 
 void FPlayWorldCommandCallbacks::StartPlayFromHere(const TOptional<FVector>& Location, const TOptional<FRotator>& Rotation, const TSharedPtr<IAssetViewport>& ActiveLevelViewport)
 {
+	if (FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return;
+	}
+
 	// Is a PIE session already running?  If so we close it first
 	if (GUnrealEd->PlayWorld != NULL)
 	{
@@ -959,6 +992,11 @@ void FPlayWorldCommandCallbacks::StartPlayFromHere(const TOptional<FVector>& Loc
 
 void FPlayWorldCommandCallbacks::ResumePlaySession_Clicked()
 {
+	if (FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return;
+	}
+
 	if (HasPlayWorld())
 	{
 		LeaveDebuggingMode();
@@ -971,6 +1009,11 @@ void FPlayWorldCommandCallbacks::ResumePlaySession_Clicked()
 
 void FPlayWorldCommandCallbacks::PausePlaySession_Clicked()
 {
+	if (FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return;
+	}
+
 	if (HasPlayWorld())
 	{
 		GUnrealEd->SetPIEWorldsPaused(true);
@@ -993,6 +1036,11 @@ void FPlayWorldCommandCallbacks::PausePlaySession_Clicked()
 
 void FPlayWorldCommandCallbacks::SingleFrameAdvance_Clicked()
 {
+	if (FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return;
+	}
+
 	if (HasPlayWorld())
 	{
 		FInternalPlayWorldCommandCallbacks::SingleFrameAdvance_Clicked();
@@ -1093,6 +1141,11 @@ FSlateIcon FInternalPlayWorldCommandCallbacks::GetPossessEjectImage()
 
 bool FInternalPlayWorldCommandCallbacks::CanLateJoin()
 {
+	if (FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return false;
+	}
+
 	return HasPlayWorld();
 }
 
@@ -1104,6 +1157,11 @@ bool FInternalPlayWorldCommandCallbacks::CanShowLateJoinButton()
 
 void FInternalPlayWorldCommandCallbacks::Simulate_Clicked()
 {
+	if (IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return;
+	}
+
 	// Is a simulation session already running?  If so, do nothing
 	if (HasPlayWorld() && GUnrealEd->bIsSimulatingInEditor)
 	{
@@ -1139,6 +1197,11 @@ void FInternalPlayWorldCommandCallbacks::Simulate_Clicked()
 
 bool FInternalPlayWorldCommandCallbacks::Simulate_CanExecute()
 {
+	if (IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return false;
+	}
+
 	// Can't simulate while already simulating; PIE is fine as we toggle to simulate
 	return !(HasPlayWorld() && GUnrealEd->bIsSimulatingInEditor) && !GEditor->IsLightingBuildCurrentlyRunning();
 }
@@ -1366,6 +1429,11 @@ FSlateIcon FInternalPlayWorldCommandCallbacks::GetRepeatLastPlayIcon()
 
 void FInternalPlayWorldCommandCallbacks::PlayInViewport_Clicked()
 {
+	if (IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return;
+	}
+
 	TRACE_BOOKMARK(TEXT("PIE"));
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
@@ -1413,6 +1481,11 @@ void FInternalPlayWorldCommandCallbacks::PlayInViewport_Clicked()
 
 bool FInternalPlayWorldCommandCallbacks::PlayInViewport_CanExecute()
 {
+	if (IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return false;
+	}
+
 	// Disallow PIE when compiling in the editor
 	if (GEditor->bIsCompiling)
 	{
@@ -1426,6 +1499,11 @@ bool FInternalPlayWorldCommandCallbacks::PlayInViewport_CanExecute()
 
 void FInternalPlayWorldCommandCallbacks::PlayInEditorFloating_Clicked()
 {
+	if (IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return;
+	}
+
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 
 	SetLastExecutedPlayMode(PlayMode_InEditorFloating);
@@ -1467,11 +1545,21 @@ void FInternalPlayWorldCommandCallbacks::PlayInEditorFloating_Clicked()
 
 bool FInternalPlayWorldCommandCallbacks::PlayInEditorFloating_CanExecute()
 {
+	if (IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return false;
+	}
+
 	return (!HasPlayWorld() || !GUnrealEd->bIsSimulatingInEditor) && !GEditor->IsLightingBuildCurrentlyRunning();
 }
 
 void FInternalPlayWorldCommandCallbacks::PlayInVR_Clicked()
 {
+	if (IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return;
+	}
+
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 
 	SetLastExecutedPlayMode(PlayMode_InVR);
@@ -1509,6 +1597,10 @@ void FInternalPlayWorldCommandCallbacks::PlayInVR_Clicked()
 
 bool FInternalPlayWorldCommandCallbacks::PlayInVR_CanExecute()
 {
+	if (IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return false;
+	}
 	return (!HasPlayWorld() || !GUnrealEd->bIsSimulatingInEditor) && !GEditor->IsLightingBuildCurrentlyRunning() && GEngine && GEngine->XRSystem.IsValid();
 }
 
@@ -1531,6 +1623,11 @@ void FInternalPlayWorldCommandCallbacks::PlayInNewProcess_Clicked(EPlayModeType 
 {
 	check(PlayModeType == PlayMode_InNewProcess || PlayModeType == PlayMode_InMobilePreview
 		|| PlayModeType == PlayMode_InTargetedMobilePreview || PlayModeType == PlayMode_InVulkanPreview);
+
+	if (IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return;
+	}
 
 	SetLastExecutedPlayMode(PlayModeType);
 	FRequestPlaySessionParams SessionParams;
@@ -1580,7 +1677,7 @@ void FInternalPlayWorldCommandCallbacks::PlayInNewProcess_Clicked(EPlayModeType 
 
 bool FInternalPlayWorldCommandCallbacks::PlayInNewProcess_CanExecute()
 {
-	return true;
+	return !IsStoppedAtBreakpoint_InEngineMode();
 }
 
 
@@ -1597,6 +1694,11 @@ bool FInternalPlayWorldCommandCallbacks::PlayInModeIsChecked(EPlayModeType PlayM
 
 bool FInternalPlayWorldCommandCallbacks::PlayInLocation_CanExecute(EPlayModeLocations Location)
 {
+	if (IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return false;
+	}
+
 	switch (Location)
 	{
 	case PlayLocation_CurrentCameraLocation:
@@ -1694,6 +1796,11 @@ FText FInternalPlayWorldCommandCallbacks::GetResumePlaySessionToolTip()
 
 void FInternalPlayWorldCommandCallbacks::SingleFrameAdvance_Clicked()
 {
+	if (IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return;
+	}
+
 	// We want to function just like Single stepping where we will stop at a breakpoint if one is encountered but we also want to stop after 1 tick if a breakpoint is not encountered.
 	FKismetDebugUtilities::RequestSingleStepIn();
 	if (HasPlayWorld())
@@ -1707,6 +1814,11 @@ void FInternalPlayWorldCommandCallbacks::SingleFrameAdvance_Clicked()
 
 void FInternalPlayWorldCommandCallbacks::StopPlaySession_Clicked()
 {
+	if (IsStoppedAtBreakpoint_InEngineMode())
+	{
+		return;
+	}
+
 	if (HasPlayWorld())
 	{
 		GEditor->RequestEndPlayMap();
@@ -1731,35 +1843,42 @@ void FInternalPlayWorldCommandCallbacks::ShowCurrentStatement_Clicked()
 	}
 }
 
-
-void FInternalPlayWorldCommandCallbacks::StepInto_Clicked()
+void FInternalPlayWorldCommandCallbacks::ContinueExecution_Clicked()
 {
-	FKismetDebugUtilities::RequestSingleStepIn();
-	if (HasPlayWorld())
+	if (FKismetDebugUtilities::GetCurrentDebuggingWorld())
 	{
 		LeaveDebuggingMode();
 		GUnrealEd->PlaySessionSingleStepped();
 	}
+	else
+	{
+		const bool bIsResumingPlay = !FKismetDebugUtilities::IsSingleStepping();
+		FSlateApplication::Get().LeaveDebuggingMode(!bIsResumingPlay);
+	}
+}
+
+void FInternalPlayWorldCommandCallbacks::AbortExecution_Clicked()
+{
+	FKismetDebugUtilities::RequestAbortingExecution();
+	ContinueExecution_Clicked();
+}
+
+void FInternalPlayWorldCommandCallbacks::StepInto_Clicked()
+{
+	FKismetDebugUtilities::RequestSingleStepIn();
+	ContinueExecution_Clicked();
 }
 
 void FInternalPlayWorldCommandCallbacks::StepOver_Clicked()
 {
 	FKismetDebugUtilities::RequestStepOver();
-	if (HasPlayWorld())
-	{
-		LeaveDebuggingMode();
-		GUnrealEd->PlaySessionSingleStepped();
-	}
+	ContinueExecution_Clicked();
 }
 
 void FInternalPlayWorldCommandCallbacks::StepOut_Clicked()
 {
 	FKismetDebugUtilities::RequestStepOut();
-	if (HasPlayWorld())
-	{
-		LeaveDebuggingMode();
-		GUnrealEd->PlaySessionSingleStepped();
-	}
+	ContinueExecution_Clicked();
 }
 
 void FInternalPlayWorldCommandCallbacks::TogglePlayPause_Clicked()
@@ -1853,6 +1972,11 @@ void FInternalPlayWorldCommandCallbacks::SetNetPlayMode(int32 Value)
 bool FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint()
 {
 	return GIntraFrameDebuggingGameThread;
+}
+
+bool FInternalPlayWorldCommandCallbacks::IsStoppedAtBreakpoint_InEngineMode()
+{
+	return GIntraFrameDebuggingGameThread && FKismetDebugUtilities::GetCurrentDebuggingWorld() == nullptr;
 }
 
 

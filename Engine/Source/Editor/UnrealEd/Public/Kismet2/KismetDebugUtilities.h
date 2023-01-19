@@ -205,11 +205,17 @@ public:
 
 	static void OnScriptException(const UObject* ActiveObject, const FFrame& StackFrame, const FBlueprintExceptionInfo& Info);
 
-	/** Returns the current instruction; if a PIE/SIE session is started but paused; otherwise NULL */
+	/** Returns the current instruction; if a debugging session has started; otherwise none */
 	static class UEdGraphNode* GetCurrentInstruction();
 
-	/** Returns the most recent hit breakpoint; if a PIE/SIE session is started but paused; otherwise NULL */
+	/** Returns the most recent hit breakpoint; if a debugging session has started; otherwise none */
 	static class UEdGraphNode* GetMostRecentBreakpointHit();
+
+	/** Returns the most recent hit breakpoint; if a debugging session has started in PIE/SIE; otherwise none */
+	static UWorld* GetCurrentDebuggingWorld();
+
+	/** Request abort the current frame execution */
+	static void RequestAbortingExecution();
 
 	/** Request an attempt to single-step to the next node */
 	static void RequestSingleStepIn();

@@ -47,6 +47,13 @@
 
 #define LOCTEXT_NAMESPACE "BlueprintDebugging"
 
+enum class EKismetDebuggingMode : uint8
+{
+	None,
+	Engine, // for Blutility
+	World,  // for PIE
+};
+
 /** Per-thread data for use by FKismetDebugUtilities functions */
 class FKismetDebugUtilitiesData : public TThreadSingleton<FKismetDebugUtilitiesData>
 {
@@ -56,11 +63,13 @@ public:
 		, CurrentInstructionPointer(nullptr)
 		, MostRecentBreakpointInstructionPointer(nullptr)
 		, MostRecentStoppedNode(nullptr)
+		, CurrentDebuggingWorld(nullptr)
 		, TargetGraphStackDepth(INDEX_NONE)
 		, MostRecentBreakpointGraphStackDepth(INDEX_NONE)
 		, MostRecentBreakpointInstructionOffset(INDEX_NONE)
 		, StackFrameAtIntraframeDebugging(nullptr)
 		, TraceStackSamples(FKismetDebugUtilities::MAX_TRACE_STACK_SAMPLES)
+		, CurrentDebuggingMode(EKismetDebuggingMode::None)
 		, bIsSingleStepping(false)
 		, bIsSteppingOut(false)
 	{
@@ -71,11 +80,13 @@ public:
 		TargetGraphNodes.Empty();
 		CurrentInstructionPointer = nullptr;
 		MostRecentStoppedNode = nullptr;
+		CurrentDebuggingWorld = nullptr;
 
 		TargetGraphStackDepth = INDEX_NONE;
 		MostRecentBreakpointGraphStackDepth = INDEX_NONE;
 		MostRecentBreakpointInstructionOffset = INDEX_NONE;
 		StackFrameAtIntraframeDebugging = nullptr;
+		CurrentDebuggingMode = EKismetDebuggingMode::None;
 
 		bIsSingleStepping = false;
 		bIsSteppingOut = false;
@@ -92,6 +103,9 @@ public:
 	
 	// The last node that we decided to break on for any reason (e.g. breakpoint, exception, or step operation):
 	TWeakObjectPtr< class UEdGraphNode > MostRecentStoppedNode;
+
+	// The PlayWorld that generated
+	TWeakObjectPtr<UWorld> CurrentDebuggingWorld;
 
 	// The target graph call stack depth. INDEX_NONE if not active
 	int32 TargetGraphStackDepth;
@@ -113,6 +127,9 @@ public:
 	// This data is used for the 'marching ants' display in the blueprint editor
 	TSimpleRingBuffer<FKismetTraceSample> TraceStackSamples;
 
+	// The type of current debugging 
+	EKismetDebuggingMode CurrentDebuggingMode;
+
 	// This flag controls whether we're trying to 'step in' to a function
 	bool bIsSingleStepping;
 
@@ -131,6 +148,16 @@ void FKismetDebugUtilities::EndOfScriptExecution(const FBlueprintContextTracker&
 		FKismetDebugUtilitiesData& Data = FKismetDebugUtilitiesData::Get();
 
 		Data.Reset();
+	}
+}
+
+void FKismetDebugUtilities::RequestAbortingExecution()
+{
+	check(IsInGameThread());
+	FKismetDebugUtilitiesData& Data = FKismetDebugUtilitiesData::Get();
+	if (Data.StackFrameAtIntraframeDebugging)
+	{
+		const_cast<FFrame*>(Data.StackFrameAtIntraframeDebugging)->bAbortingExecution = true;
 	}
 }
 
@@ -658,11 +685,13 @@ void FKismetDebugUtilities::CheckBreakConditions(UEdGraphNode* NodeStoppedAt, bo
 void FKismetDebugUtilities::AttemptToBreakExecution(UBlueprint* BlueprintObj, const UObject* ActiveObject, const FFrame& StackFrame, const FBlueprintExceptionInfo& Info, UEdGraphNode* NodeStoppedAt, int32 DebugOpcodeOffset)
 {
 	checkSlow(BlueprintObj->GetObjectBeingDebugged() == ActiveObject);
+	check(IsInGameThread());
 
 	FKismetDebugUtilitiesData& Data = FKismetDebugUtilitiesData::Get();
 
 	// Cannot have re-entrancy while processing a breakpoint; return from this call stack before resuming execution!
-	check( !GIntraFrameDebuggingGameThread );
+	check(!GIntraFrameDebuggingGameThread);
+	check(Data.CurrentDebuggingMode == EKismetDebuggingMode::None);
 	
 	TGuardValue<bool> SignalGameThreadBeingDebugged(GIntraFrameDebuggingGameThread, true);
 	TGuardValue<const FFrame*> ResetStackFramePointer(Data.StackFrameAtIntraframeDebugging, &StackFrame);
@@ -731,16 +760,22 @@ void FKismetDebugUtilities::AttemptToBreakExecution(UBlueprint* BlueprintObj, co
 	// under automation and this was preventing debugging on automation test bp's.
 	if ((GUnrealEd->PlayWorld != NULL) && NodeStoppedAt)
 	{
+		Data.CurrentDebuggingMode = EKismetDebuggingMode::World;
+		Data.CurrentDebuggingWorld = GUnrealEd->PlayWorld;
+
 		// Pause the simulation
 		GUnrealEd->PlayWorld->bDebugPauseExecution = true;
 		GUnrealEd->PlayWorld->bDebugFrameStepExecution = false;
 		bShouldInStackDebug = true;
 	}
+	else if (NodeStoppedAt)
+	{
+		Data.CurrentDebuggingMode = EKismetDebuggingMode::Engine;
+	}
 	else
 	{
+		Data.CurrentDebuggingMode = EKismetDebuggingMode::None;
 		bShouldInStackDebug = false;
-		//@TODO: Determine exactly what behavior we want for breakpoints hit when not in PIE/SIE
-		//ensureMsgf(false, TEXT("Breakpoints placed in a function instead of the event graph are not supported yet"));
 	}
 
 	// Now enter within-the-frame debugging mode
@@ -753,6 +788,9 @@ void FKismetDebugUtilities::AttemptToBreakExecution(UBlueprint* BlueprintObj, co
 		CallStackViewer::UpdateDisplayedCallstack(ScriptStack);
 		FSlateApplication::Get().EnterDebuggingMode();
 	}
+
+	Data.CurrentDebuggingMode = EKismetDebuggingMode::None;
+	Data.CurrentDebuggingWorld.Reset();
 }
 
 UEdGraphNode* FKismetDebugUtilities::GetCurrentInstruction()
@@ -765,7 +803,7 @@ UEdGraphNode* FKismetDebugUtilities::GetCurrentInstruction()
 	}
 	else
 	{
-		return NULL;
+		return nullptr;
 	}
 }
 
@@ -779,7 +817,22 @@ UEdGraphNode* FKismetDebugUtilities::GetMostRecentBreakpointHit()
 	}
 	else
 	{
-		return NULL;
+		return nullptr;
+	}
+}
+
+UWorld* FKismetDebugUtilities::GetCurrentDebuggingWorld()
+{
+	// If paused at the end of the frame, or while not paused, there is no 'current instruction' to speak of
+	// It only has meaning during intraframe debugging.
+	if (GIntraFrameDebuggingGameThread)
+	{
+		const FKismetDebugUtilitiesData& Data = FKismetDebugUtilitiesData::Get();
+		return Data.CurrentDebuggingMode == EKismetDebuggingMode::World ? Data.CurrentDebuggingWorld.Get() : nullptr;
+	}
+	else
+	{
+		return nullptr;
 	}
 }
 

@@ -5293,6 +5293,10 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 
 		Set( "PlayWorld.ShowCurrentStatement", new IMAGE_BRUSH_SVG( "Starship/MainToolbar/DebugFindNode", Icon40x40 ) );
 		Set( "PlayWorld.ShowCurrentStatement.Small", new IMAGE_BRUSH_SVG( "Starship/MainToolbar/DebugFindNode", Icon20x20 ) );
+		Set( "PlayWorld.AbortExecution", new IMAGE_BRUSH_SVG("Starship/MainToolbar/DebugAbortExecution", Icon40x40));
+		Set( "PlayWorld.AbortExecution.Small", new IMAGE_BRUSH_SVG("Starship/MainToolbar/DebugAbortExecution", Icon20x20));
+		Set( "PlayWorld.ContinueExecution", new IMAGE_BRUSH_SVG("Starship/MainToolbar/DebugContinueExecution", Icon40x40));
+		Set( "PlayWorld.ContinueExecution.Small", new IMAGE_BRUSH_SVG("Starship/MainToolbar/DebugContinueExecution", Icon20x20));
 		Set( "PlayWorld.StepOut", new IMAGE_BRUSH_SVG("Starship/MainToolbar/DebugStepOut", Icon40x40));
 		Set( "PlayWorld.StepOut.Small", new IMAGE_BRUSH_SVG("Starship/MainToolbar/DebugStepOut", Icon20x20));
 		Set( "PlayWorld.StepInto", new IMAGE_BRUSH_SVG( "Starship/MainToolbar/DebugStepInto", Icon40x40 ) );
