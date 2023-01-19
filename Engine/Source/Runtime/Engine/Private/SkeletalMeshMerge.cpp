@@ -232,7 +232,7 @@ bool FSkeletalMeshMerge::FinalizeMesh()
 		for (int32 LODIdx = 0; LODIdx < MaxNumLODs; LODIdx++)
 		{
 			const FSkeletalMeshLODInfo* LODInfoPtr = MergeMesh->GetLODInfo(LODIdx);
-			bool bUseFullPrecisionUVs = LODInfoPtr ? LODInfoPtr->BuildSettings.bUseFullPrecisionUVs : GVertexElementTypeSupport.IsSupported(VET_Half2) ? false : true;
+			bool bUseFullPrecisionUVs = LODInfoPtr ? LODInfoPtr->BuildSettings.bUseFullPrecisionUVs : false;
 			if (!bUseFullPrecisionUVs)
 			{
 				GENERATE_LOD_MODEL(TGPUSkinVertexFloat16Uvs, PerLODNumUVSets[LODIdx]);

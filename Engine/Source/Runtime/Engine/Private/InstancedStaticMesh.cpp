@@ -2343,7 +2343,7 @@ void UInstancedStaticMeshComponent::FlushInstanceUpdateCommands(bool bFlushInsta
 
 	if (PerInstanceRenderData)
 	{
-		FStaticMeshInstanceData RenderInstanceData = FStaticMeshInstanceData(GVertexElementTypeSupport.IsSupported(VET_Half2));
+		FStaticMeshInstanceData RenderInstanceData = FStaticMeshInstanceData(/*bInUseHalfFloat = */ true);
 		BuildRenderData(RenderInstanceData, PerInstanceRenderData->HitProxies);
 		PerInstanceRenderData->UpdateFromPreallocatedData(RenderInstanceData);
 	}
@@ -4312,7 +4312,7 @@ void UInstancedStaticMeshComponent::InitPerInstanceRenderData(bool InitializeFro
 	else
 	{
 		TArray<TRefCountPtr<HHitProxy>> HitProxies;
-		FStaticMeshInstanceData InstanceBufferData = FStaticMeshInstanceData(GVertexElementTypeSupport.IsSupported(VET_Half2));
+		FStaticMeshInstanceData InstanceBufferData = FStaticMeshInstanceData(/*bInUseHalfFloat = */ true);
 		
 		if (InitializeFromCurrentData)
 		{

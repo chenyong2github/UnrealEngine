@@ -449,9 +449,6 @@ extern RHI_API int32 GDrawUPVertexCheckCount;
  */
 extern RHI_API int32 GDrawUPIndexCheckCount;
 
-/** true for each VET that is supported. One-to-one mapping with EVertexElementType */
-extern RHI_API class FVertexElementTypeSupportInfo GVertexElementTypeSupport;
-
 #include "MultiGPU.h" // IWYU pragma: export
 
 /** Whether the next frame should profile the GPU. */
@@ -728,18 +725,6 @@ inline EShaderPlatform GetFeatureLevelShaderPlatform(const FStaticFeatureLevel I
 {
 	return GShaderPlatformForFeatureLevel[InFeatureLevel];
 }
-
-/** Info for supporting the vertex element types */
-class FVertexElementTypeSupportInfo
-{
-public:
-	FVertexElementTypeSupportInfo() { for(int32 i=0; i<VET_MAX; i++) ElementCaps[i]=true; }
-	FORCEINLINE bool IsSupported(EVertexElementType ElementType) { return ElementCaps[ElementType]; }
-	FORCEINLINE void SetSupported(EVertexElementType ElementType,bool bIsSupported) { ElementCaps[ElementType]=bIsSupported; }
-private:
-	/** cap bit set for each VET. One-to-one mapping based on EVertexElementType */
-	bool ElementCaps[VET_MAX];
-};
 
 struct FVertexElement
 {

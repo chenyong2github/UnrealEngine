@@ -323,8 +323,7 @@ protected:
 	{
 		// build new instance buffer
 		FRandomStream RandomStream = FRandomStream(InstancingRandomSeed);
-		bool bHalfFloat = GVertexElementTypeSupport.IsSupported(VET_Half2);
-		BuiltInstanceData = MakeUnique<FStaticMeshInstanceData>(bHalfFloat);
+		BuiltInstanceData = MakeUnique<FStaticMeshInstanceData>(/*bInUseHalfFloat = */true);
 		
 		int32 NumInstances = Result->InstanceReorderTable.Num();
 		int32 NumRenderInstances = Result->SortedInstances.Num();
@@ -2823,7 +2822,7 @@ void UHierarchicalInstancedStaticMeshComponent::ApplyEmpty()
 	InstanceUpdateCmdBuffer.Reset();
 	if (PerInstanceRenderData.IsValid())
 	{
-		TUniquePtr<FStaticMeshInstanceData> BuiltInstanceData = MakeUnique<FStaticMeshInstanceData>(GVertexElementTypeSupport.IsSupported(VET_Half2));
+		TUniquePtr<FStaticMeshInstanceData> BuiltInstanceData = MakeUnique<FStaticMeshInstanceData>(/*bInUseHalfFloat = */true);
 		PerInstanceRenderData->UpdateFromPreallocatedData(*BuiltInstanceData);
 		PerInstanceRenderData->HitProxies.Empty();
 		MarkRenderStateDirty();

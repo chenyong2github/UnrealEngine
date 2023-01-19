@@ -1971,9 +1971,6 @@ void USkeletalMesh::ExecuteBuildInternal(FSkinnedAssetBuildContext& Context)
 	// rebuild render data from imported model
 	CacheDerivedData(&Context);
 
-	// Do not need to fix up 16-bit UVs here, as we assume all editor platforms support them.
-	ensure(GVertexElementTypeSupport.IsSupported(VET_Half2));
-
 	GetSamplingInfoInternal().BuildRegions(this);
 	GetSamplingInfoInternal().BuildWholeMesh(this);
 
@@ -4437,7 +4434,6 @@ void USkeletalMesh::ClearAllCachedCookedPlatformData()
 static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuffix)
 {
 	TArray<FSkeletalMeshLODInfo>& LODInfos = SkeletalMesh->GetLODInfoArray();
-	const bool bIs16BitfloatBufferSupported = GVertexElementTypeSupport.IsSupported(VET_Half2);
 	for (int32 LODIndex = 0; LODIndex < SkeletalMesh->GetLODNum(); ++LODIndex)
 	{
 		check(LODInfos.IsValidIndex(LODIndex));
@@ -4470,7 +4466,7 @@ FString USkeletalMesh::BuildDerivedDataKey(const ITargetPlatform* TargetPlatform
 		const FSkeletalMeshLODInfo* BaseLODInfo = GetLODInfo(0);
 		bool bUseFullPrecisionUVs = BaseLODInfo ? BaseLODInfo->BuildSettings.bUseFullPrecisionUVs : false;
 		KeySuffix += GetImportedModel()->GetIdString();
-		KeySuffix += (bUseFullPrecisionUVs || !GVertexElementTypeSupport.IsSupported(VET_Half2)) ? "1" : "0";
+		KeySuffix += bUseFullPrecisionUVs ? "1" : "0";
 
 		//Dummy call to update the FSkeletalMeshLODModel::BuildStringID members.
 		GetImportedModel()->GetLODModelIdString();

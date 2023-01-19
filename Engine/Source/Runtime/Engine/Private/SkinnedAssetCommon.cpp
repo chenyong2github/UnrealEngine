@@ -80,8 +80,6 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FSkeletalMeshBuildSetting
 
 FGuid FSkeletalMeshLODInfo::ComputeDeriveDataCacheKey(const FSkeletalMeshLODGroupSettings* SkeletalMeshLODGroupSettings)
 {
-	const bool bIs16BitfloatBufferSupported = GVertexElementTypeSupport.IsSupported(VET_Half2);
-
 	// Serialize the LOD info members, the BuildSettings and the ReductionSettings into a temporary array.
 	TArray<uint8> TempBytes;
 	TempBytes.Reserve(64);
@@ -117,10 +115,6 @@ FGuid FSkeletalMeshLODInfo::ComputeDeriveDataCacheKey(const FSkeletalMeshLODGrou
 		RealReductionSettings = SkeletalMeshLODGroupSettings->GetReductionSettings();
 	}
 
-	if (!BuildSettings.bUseFullPrecisionUVs && !bIs16BitfloatBufferSupported)
-	{
-		BuildSettings.bUseFullPrecisionUVs = true;
-	}
 	SerializeBuildSettingsForDDC(Ar, BuildSettings);
 	SerializeReductionSettingsForDDC(Ar, RealReductionSettings);
 

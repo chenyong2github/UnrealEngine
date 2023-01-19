@@ -2082,18 +2082,11 @@ void FSkeletalMeshBuildSettingsLayout::OnUseFullPrecisionUVsChanged(ECheckBoxSta
 	const bool bUseFullPrecisionUVs = (NewState == ECheckBoxState::Checked) ? true : false;
 	if (BuildSettings.bUseFullPrecisionUVs != bUseFullPrecisionUVs)
 	{
-		if (!bUseFullPrecisionUVs && !GVertexElementTypeSupport.IsSupported(VET_Half2))
-		{
-			UE_LOG(LogSkeletalMeshPersonaMeshDetail, Warning, TEXT("16 bit UVs not supported. Reverting to 32 bit UVs"));
-		}
-		else
-		{
-			FText TransactionText = FText::Format(LOCTEXT("PersonaChangedOnFullPrecisionUVsLOD", "LOD{0} build settings: use full precision UVs changed"), LODIndex);
-			FScopedTransaction Transaction(TransactionText);
-			ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+		FText TransactionText = FText::Format(LOCTEXT("PersonaChangedOnFullPrecisionUVsLOD", "LOD{0} build settings: use full precision UVs changed"), LODIndex);
+		FScopedTransaction Transaction(TransactionText);
+		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
 
-			BuildSettings.bUseFullPrecisionUVs = bUseFullPrecisionUVs;
-		}
+		BuildSettings.bUseFullPrecisionUVs = bUseFullPrecisionUVs;
 	}
 }
 void FSkeletalMeshBuildSettingsLayout::OnUseBackwardsCompatibleF16TruncUVsChanged(ECheckBoxState NewState)

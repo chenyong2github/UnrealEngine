@@ -1922,7 +1922,7 @@ struct FAsyncGrassBuilder : public FGrassBuilderBase
 		, RequireCPUAccess(GrassVariety.bKeepInstanceBufferCPUCopy)
 
 		// output
-		, InstanceBuffer(/*bSupportsVertexHalfFloat*/ GVertexElementTypeSupport.IsSupported(VET_Half2))
+		, InstanceBuffer(/*bSupportsVertexHalfFloat*/ true)
 		, ClusterTree()
 		, OutOcclusionLayerNum(0)
 	{		

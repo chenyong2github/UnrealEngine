@@ -18,7 +18,7 @@ FStaticMeshVertexBuffer::FStaticMeshVertexBuffer() :
 	TexcoordDataPtr(nullptr),
 	NumTexCoords(0),
 	NumVertices(0),
-	bUseFullPrecisionUVs(!GVertexElementTypeSupport.IsSupported(VET_Half2)),
+	bUseFullPrecisionUVs(false),
 	bUseHighPrecisionTangentBasis(false)
 {}
 
@@ -108,17 +108,9 @@ void FStaticMeshVertexBuffer::Init(const FStaticMeshVertexBuffer& InVertexBuffer
 			check(GetNumTexCoords() == InVertexBuffer.GetNumTexCoords());
 			const uint8* InData = InVertexBuffer.TexcoordDataPtr;
 
-			// convert half float data to full float if the HW requires it.
-			if (!GetUseFullPrecisionUVs() && !GVertexElementTypeSupport.IsSupported(VET_Half2))
-			{
-				ConvertHalfTexcoordsToFloat(InData);
-			}
-			else
-			{
-				TexcoordData->ResizeBuffer(NumVertices * GetNumTexCoords());
-				TexcoordDataPtr = TexcoordData->GetDataPointer();
-				FMemory::Memcpy(TexcoordDataPtr, InData, TexcoordData->GetStride() * NumVertices * GetNumTexCoords());
-			}
+			TexcoordData->ResizeBuffer(NumVertices * GetNumTexCoords());
+			TexcoordDataPtr = TexcoordData->GetDataPointer();
+			FMemory::Memcpy(TexcoordDataPtr, InData, TexcoordData->GetStride() * NumVertices * GetNumTexCoords());
 		}
 	}
 }
@@ -232,12 +224,6 @@ void FStaticMeshVertexBuffer::Serialize(FArchive& Ar, bool bNeedsCPUAccess)
 
 			// Make a copy of the vertex data pointer.
 			TexcoordDataPtr = NumVertices ? TexcoordData->GetDataPointer() : nullptr;
-
-			// convert half float data to full float if the HW requires it.
-			if (NumVertices && !GetUseFullPrecisionUVs() && !GVertexElementTypeSupport.IsSupported(VET_Half2))
-			{
-				ConvertHalfTexcoordsToFloat(nullptr);
-			}
 		}
 	}
 }
@@ -254,7 +240,7 @@ void FStaticMeshVertexBuffer::SerializeMetaData(FArchive& Ar)
 void FStaticMeshVertexBuffer::ClearMetaData()
 {
 	NumTexCoords = NumVertices = 0;
-	bUseFullPrecisionUVs = !GVertexElementTypeSupport.IsSupported(VET_Half2);
+	bUseFullPrecisionUVs = false;
 	bUseHighPrecisionTangentBasis = false;
 	TangentsStride = TexcoordStride = 0;
 }

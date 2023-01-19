@@ -2694,7 +2694,7 @@ static FString BuildStaticMeshDerivedDataKeySuffix(const ITargetPlatform* Target
 		FMemoryWriter Ar(TempBytes, /*bIsPersistent=*/ true);
 		SerializeBuildSettingsForDDC(Ar, SrcModel.BuildSettings);
 
-		ANSICHAR Flag[2] = { (SrcModel.BuildSettings.bUseFullPrecisionUVs || !GVertexElementTypeSupport.IsSupported(VET_Half2)) ? '1' : '0', '\0' };
+		ANSICHAR Flag[2] = { SrcModel.BuildSettings.bUseFullPrecisionUVs ? '1' : '0', '\0' };
 		Ar.Serialize(Flag, 1);
 
 		FMeshReductionSettings FinalReductionSettings = LODGroup.GetSettings(SrcModel.ReductionSettings, LODIndex);
