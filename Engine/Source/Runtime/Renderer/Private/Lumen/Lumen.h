@@ -5,6 +5,7 @@
 #include "EngineDefines.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Math/Vector.h"
+#include "RHIShaderPlatform.h"
 
 class FScene;
 class FSceneView;
