@@ -55,13 +55,21 @@ public:
 		EventFailed
 	};
 
+	enum class EFlags : uint32
+	{
+		None					= 0,
+		PrioritizeGameThread	= 1 << 0
+	};
+
+	FRIEND_ENUM_CLASS_FLAGS(EFlags);
+
 	FSemaphore() = delete;
-	explicit FSemaphore(int32 InitialCount)
+	explicit FSemaphore(int32 InitialCount, EFlags Options)
 		: WaitEvent(EEventMode::ManualReset)
 		, Counter(InitialCount)
 		, DebugCount(0)
 	{
-
+		bPrioritizeGameThread = EnumHasAnyFlags(Options, EFlags::PrioritizeGameThread);
 	}
 
 	~FSemaphore()
@@ -72,8 +80,15 @@ public:
 	/** Will block until the calling thread can pass through the semaphore. Note that it might return an error if the WaitEvent fails */
 	EAcquireResult Acquire()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSemaphore::Acquire);
+
 		CriticalSection.Lock();
 		DebugCount++;
+
+		if (bPrioritizeGameThread && IsInGameThread())
+		{
+			return AcquireFromGameThread();
+		}
 
 		while (Counter-- <= 0)
 		{
@@ -106,12 +121,39 @@ public:
 	}
 
 private:
+
+	inline EAcquireResult AcquireFromGameThread()
+	{
+		if (Counter-- > 0)
+		{
+			CriticalSection.Unlock();
+		}
+		else
+		{
+			WaitEvent->Reset();
+
+			CriticalSection.Unlock();
+
+			if (!WaitEvent->Wait())
+			{
+				--DebugCount;
+				return EAcquireResult::EventFailed;
+			}
+		}
+
+		return EAcquireResult::Success;
+	}
+
 	FEventRef WaitEvent;
 	FCriticalSection CriticalSection;
 
 	std::atomic<int32> Counter;
 	std::atomic<int32> DebugCount;
+
+	bool bPrioritizeGameThread;
 };
+
+ENUM_CLASS_FLAGS(FSemaphore::EFlags);
 
 /** Structure to make it easy to acquire/release a FSemaphore for a given scope */
 struct FSemaphoreScopeLock
@@ -895,7 +937,7 @@ bool FSourceControlBackend::TryApplySettingsFromConfigFiles(const FString& Confi
 
 		if (MaxLimit != INDEX_NONE)
 		{
-			ConcurrentConnectionLimit = MakeUnique<FSemaphore>(MaxLimit);
+			ConcurrentConnectionLimit = MakeUnique<FSemaphore>(MaxLimit, FSemaphore::EFlags::PrioritizeGameThread);
 			UE_LOG(LogVirtualization, Log, TEXT("[%s] Limted to %d concurrent revision control connections"), *GetDebugName(), MaxLimit);
 		}
 		else
