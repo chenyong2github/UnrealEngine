@@ -25,7 +25,7 @@ namespace MenuExtension_PoseAsset
 		{
 			if (UAnimSequence* SourceAnimation = PoseAsset->SourceAnimation)
 			{
-				if (!PoseAsset->SourceAnimationRawDataGUID.IsValid() || PoseAsset->SourceAnimationRawDataGUID != SourceAnimation->GetRawDataGuid())
+				if (!PoseAsset->SourceAnimationRawDataGUID.IsValid() || PoseAsset->SourceAnimationRawDataGUID != SourceAnimation->GenerateGuidFromModel())
 				{
 					if (PoseAsset->GetSkeleton()->IsCompatibleForEditor(SourceAnimation->GetSkeleton()))
 					{
