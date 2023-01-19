@@ -734,6 +734,10 @@ export class Backend {
         return new Promise<ScheduleData>((resolve, reject) => {
 
             this.backend.get(`/api/v1/schedules/${id}`).then((value) => {
+                const data = value.data as ScheduleData;
+                data.nextTriggerTimesUTC.forEach((d, index) => {
+                    data.nextTriggerTimesUTC[index] = new Date(d as any as string);
+                });
                 resolve(value.data as ScheduleData);
             }).catch(reason => {
                 reject(reason);

@@ -141,7 +141,7 @@ export enum JobStepBatchError {
 	ExecutionError = "ExecutionError",
 
 	/** The change that the job is running against is invalid. */
-	UnknownShelf  = "UnknownShelf"
+	UnknownShelf = "UnknownShelf"
 
 }
 
@@ -1724,6 +1724,9 @@ export type GetScheduleResponse = {
 
 	/** Last time that the schedule was triggered */
 	lastTriggerTime: Date | string;
+
+	/// Next trigger times for schedule
+	nextTriggerTimesUTC: Date[];
 
 	/** List of active jobs */
 	activeJobs: string[];
@@ -4405,16 +4408,16 @@ export type GetSuiteTestDataResponse = {
 
 /// Test details
 export type GetTestDataDetailsResponse = {
-	
+
 	/// The corresponding test ref	
 	id: string;
-	
+
 	/// The test documents for this ref	
 	testDataIds: string[];
-	
+
 	/// Suite test data		
 	suiteTests?: GetSuiteTestDataResponse[];
-	
+
 }
 
 /// Testt data ref
