@@ -8,6 +8,9 @@ through a single struct, allowing for a more readable code
 
 #include "ShaderOutputCommon.ush"
 
+// TEMP: For initial debugging
+#include "Visualization.ush"
+
 #if PIXELSHADEROUTPUT_MRT0
 	#if DUAL_SOURCE_COLOR_BLENDING_ENABLED && MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING
 		RWTexture2D<float4> OutTarget0UAV; // DUAL_SOURCE_BLENDING_SLOT(0)
@@ -80,9 +83,56 @@ through a single struct, allowing for a more readable code
 // .xy = min, .zw = max
 uint4 ViewRect;
 
-[numthreads(16, 16, 1)]
-void MainCS(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_GroupID)
+uint FloatToUInt(float Value, float Scale)
 {
+	return (uint)floor(Value * Scale + 0.5f);
+}
+
+uint Pack_R10G10B10A2_UNorm(precise float4 Input)
+{
+	uint Output;
+	Output =
+	(
+		(FloatToUInt(saturate(Input.x), 1023))			|
+		(FloatToUInt(saturate(Input.y), 1023) << 10)	|
+		(FloatToUInt(saturate(Input.z), 1023) << 20)	|
+		(FloatToUInt(saturate(Input.w),    3) << 30)
+	);
+
+	return Output;
+}
+
+uint Pack_B8G8R8A8_UNorm(precise float4 Input)
+{
+	uint Output;
+	Output =
+	(
+		(FloatToUInt(saturate(Input.z), 255))			|
+		(FloatToUInt(saturate(Input.y), 255) << 8)		|
+		(FloatToUInt(saturate(Input.x), 255) << 16)		|
+		(FloatToUInt(saturate(Input.w), 255) << 24)
+	);
+
+	return Output;
+}
+
+[numthreads(8, 8, 1)]
+void MainCS(uint ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_GroupID, uint3 DTID : SV_DispatchThreadID)
+{
+	const uint2 PixelCoord = DTID.xy;
+	const float2 HalfPixelOffset = float2(0.5, 0.5);
+	const float2 PixelPos = float2(PixelCoord) + HalfPixelOffset;
+
+#if IS_NANITE_PASS
+	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(Nanite.MaterialResolve[PixelPos]);
+	if (!ResolvedMaterial.bIsNanitePixel)
+	{
+		return;
+	}
+
+	const uint MaterialDepthId = GetMaterialDepthId(ResolvedMaterial.MaterialSlot, Nanite.MaterialDepthTable);
+#endif
+
 #if PIXELSHADEROUTPUT_INTERPOLANTS || PIXELSHADEROUTPUT_BASEPASS
 #if IS_NANITE_PASS
 	FNaniteFullscreenVSToPS NaniteInterpolants = (FNaniteFullscreenVSToPS)0;
@@ -93,11 +143,14 @@ void MainCS(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_GroupID)
 
 #if IS_NANITE_PASS && (PIXELSHADEROUTPUT_INTERPOLANTS || PIXELSHADEROUTPUT_BASEPASS)
 	FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
-	Interpolants.ViewIndex = NaniteInterpolants.ViewIndex;
+	Interpolants.ViewIndex = NaniteInterpolants.ViewIndex; // TODO: NANITE_MATERIAL_MULTIVIEW
 #endif
 
 	FPixelShaderIn PixelShaderIn = (FPixelShaderIn)0;
 	FPixelShaderOut PixelShaderOut = (FPixelShaderOut)0;
+
+	PixelShaderIn.SvPosition = float4(PixelPos.x, PixelPos.y, 0.0f, 1.0f);
+	PixelShaderIn.bIsFrontFace = false;//bIsFrontFace;
 
 #if PIXELSHADEROUTPUT_BASEPASS
 	FBasePassInterpolantsVSToPS BasePassInterpolants = (FBasePassInterpolantsVSToPS)0;
@@ -105,4 +158,79 @@ void MainCS(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_GroupID)
 #endif
 
 	// TODO: Work in progress / experimental
+#if PIXELSHADEROUTPUT_MRT0 // scene color?
+	OutTarget0UAV[PixelPos] = PixelShaderOut.MRT[0];
+#endif
+
+#if PIXELSHADEROUTPUT_MRT1 // world normal?
+	OutTarget1UAV[PixelPos] = PixelShaderOut.MRT[1];
+#endif
+
+#if PIXELSHADEROUTPUT_MRT2
+	//OutTarget2UAV[PixelPos] = float4(IntToColor(MaterialDepthId), PixelShaderOut.MRT[2].w);
+	OutTarget2UAV[PixelPos] = PixelShaderOut.MRT[2].w;
+#endif
+
+#if PIXELSHADEROUTPUT_MRT3
+	//OutTarget3UAV[PixelPos] = Pack_B8G8R8A8_UNorm(PixelShaderOut.MRT[3]);
+	OutTarget3UAV[PixelPos] = PixelShaderOut.MRT[3];
+#endif
+
+#if STRATA_OPAQUE_DEFERRED
+
+	// In this case, here is the gbuffer pattern
+	// MRT0 is pixel color
+	// MRT1 is velocity if enabled or precomputed shadow if velocity if disabled and precomputed shadow enabled
+	// MRT2 is precomputed shadow if both velocity and prec shadow are enabled.
+	// After, Strata output are appended (3 uint output)
+
+#if PIXELSHADEROUTPUT_MRT3
+	StrataOutput4UAV[PixelPos] = PixelShaderOut.StrataOutput[0];
+	StrataOutput5UAV[PixelPos] = PixelShaderOut.StrataOutput[1];
+	StrataOutput6UAV[PixelPos] = PixelShaderOut.StrataOutput[2];
+	StrataOutput7UAV[PixelPos] = PixelShaderOut.StrataTopLayerData;
+#elif PIXELSHADEROUTPUT_MRT2
+	StrataOutput3UAV[PixelPos] = PixelShaderOut.StrataOutput[0];
+	StrataOutput4UAV[PixelPos] = PixelShaderOut.StrataOutput[1];
+	StrataOutput5UAV[PixelPos] = PixelShaderOut.StrataOutput[2];
+	StrataOutput6UAV[PixelPos] = PixelShaderOut.StrataTopLayerData;
+#elif PIXELSHADEROUTPUT_MRT1
+	StrataOutput2UAV[PixelPos] = PixelShaderOut.StrataOutput[0];
+	StrataOutput3UAV[PixelPos] = PixelShaderOut.StrataOutput[1];
+	StrataOutput4UAV[PixelPos] = PixelShaderOut.StrataOutput[2];
+	StrataOutput5UAV[PixelPos] = PixelShaderOut.StrataTopLayerData;
+#else
+	StrataOutput1UAV[PixelPos] = PixelShaderOut.StrataOutput[0];
+	StrataOutput2UAV[PixelPos] = PixelShaderOut.StrataOutput[1];
+	StrataOutput3UAV[PixelPos] = PixelShaderOut.StrataOutput[2];
+	StrataOutput4UAV[PixelPos] = PixelShaderOut.StrataTopLayerData;
+#endif
+
+#else // STRATA_OPAQUE_DEFERRED
+
+#if PIXELSHADEROUTPUT_MRT4
+	OutTarget4UAV[PixelPos] = PixelShaderOut.MRT[4];
+#endif
+
+#if PIXELSHADEROUTPUT_MRT5
+	OutTarget5UAV[PixelPos] = PixelShaderOut.MRT[5];
+#endif
+
+#if PIXELSHADEROUTPUT_MRT6
+	OutTarget6UAV[PixelPos] = PixelShaderOut.MRT[6];
+#endif
+
+#if PIXELSHADEROUTPUT_MRT7
+	OutTarget7UAV[PixelPos] = PixelShaderOut.MRT[7];
+#endif
+
+#endif // STRATA_OPAQUE_DEFERRED
+
+#if PIXELSHADEROUTPUT_COVERAGE || PIXELSHADEROUTPUT_A2C
+	// TODO: OutCoverage = PixelShaderOut.Coverage;
+#endif 
+
+#if OUTPUT_PIXEL_DEPTH_OFFSET
+	// TODO: OutDepth = PixelShaderOut.Depth;
+#endif 
 }

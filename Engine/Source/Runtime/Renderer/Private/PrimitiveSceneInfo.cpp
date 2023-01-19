@@ -564,6 +564,8 @@ void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FScene* Scene, const TArrayVie
 	const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
 	if (bNaniteEnabled)
 	{
+		static const bool bAllowComputeMaterials = NaniteComputeMaterialsSupported();
+
 		TArray<FNaniteDrawListContext, TInlineAllocator<1>> DrawListContexts;
 
 		if (GNaniteDrawCommandCacheMultithreaded && FApp::ShouldUseThreadingForPerformance())
@@ -595,13 +597,27 @@ void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FScene* Scene, const TArrayVie
 				Context.Apply(*Scene);
 			}
 		}
+
+		if (bAllowComputeMaterials)
+		{
+			// Base Pass
+			{
+				const FNaniteShadingPipelines& ShadingPipelines = Scene->NaniteShadingPipelines[ENaniteMeshPass::BasePass];
+				Nanite::BuildShadingCommands(*Scene, ShadingPipelines, Scene->NaniteShadingCommands[ENaniteMeshPass::BasePass]);
+			}
+
+			// Lumen Cards
+			{
+				const FNaniteShadingPipelines& ShadingPipelines = Scene->NaniteShadingPipelines[ENaniteMeshPass::LumenCardCapture];
+				Nanite::BuildShadingCommands(*Scene, ShadingPipelines, Scene->NaniteShadingCommands[ENaniteMeshPass::LumenCardCapture]);
+			}
+		}
 	}
 }
 
 void BuildNaniteDrawCommands(FScene* Scene, FPrimitiveSceneInfo* PrimitiveSceneInfo, FNaniteDrawListContext& DrawListContext)
 {
-	static const auto AllowComputeMaterials = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.AllowComputeMaterials"));
-	static const bool bAllowComputeMaterials = (AllowComputeMaterials && AllowComputeMaterials->GetValueOnAnyThread() != 0);
+	static const bool bAllowComputeMaterials = NaniteComputeMaterialsSupported();
 
 	FPrimitiveSceneProxy* Proxy = PrimitiveSceneInfo->Proxy;
 	if (Proxy->IsNaniteMesh())

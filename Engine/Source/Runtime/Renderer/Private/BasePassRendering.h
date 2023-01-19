@@ -294,8 +294,6 @@ public:
 	}
 };
 
-// BEGIN COMPUTE
-
 /**
  * The base type for compute shaders that render the emissive color, and light-mapped/ambient lighting of a mesh.
  * The base type is shared between the versions with and without sky light.
@@ -330,6 +328,15 @@ public:
 		LightMapPolicyType::ComputeParametersType::Bind(Initializer.ParameterMap);
 		ReflectionCaptureBuffer.Bind(Initializer.ParameterMap, TEXT("ReflectionCapture"));
 
+		Target0.Bind(Initializer.ParameterMap, TEXT("OutTarget0UAV"), SPF_Optional);
+		Target1.Bind(Initializer.ParameterMap, TEXT("OutTarget1UAV"), SPF_Optional);
+		Target2.Bind(Initializer.ParameterMap, TEXT("OutTarget2UAV"), SPF_Optional);
+		Target3.Bind(Initializer.ParameterMap, TEXT("OutTarget3UAV"), SPF_Optional);
+		Target4.Bind(Initializer.ParameterMap, TEXT("OutTarget4UAV"), SPF_Optional);
+		Target5.Bind(Initializer.ParameterMap, TEXT("OutTarget5UAV"), SPF_Optional);
+		Target6.Bind(Initializer.ParameterMap, TEXT("OutTarget6UAV"), SPF_Optional);
+		Target7.Bind(Initializer.ParameterMap, TEXT("OutTarget7UAV"), SPF_Optional);
+
 		// These parameters should only be used nested in the base pass uniform buffer
 		check(!Initializer.ParameterMap.ContainsParameterAllocation(FFogUniformParameters::StaticStructMetadata.GetShaderVariableName()));
 		check(!Initializer.ParameterMap.ContainsParameterAllocation(FReflectionUniformParameters::StaticStructMetadata.GetShaderVariableName()));
@@ -347,8 +354,29 @@ public:
 		const TBasePassShaderElementData<LightMapPolicyType>& ShaderElementData,
 		FMeshDrawSingleShaderBindings& ShaderBindings) const;
 
+	void SetTargetUAVParameters(
+		FRHIComputeCommandList& RHICmdList,
+		FRHIComputeShader* ComputeShader,
+		FRHIUnorderedAccessView* Target0UAV,
+		FRHIUnorderedAccessView* Target1UAV,
+		FRHIUnorderedAccessView* Target2UAV,
+		FRHIUnorderedAccessView* Target3UAV,
+		FRHIUnorderedAccessView* Target4UAV,
+		FRHIUnorderedAccessView* Target5UAV,
+		FRHIUnorderedAccessView* Target6UAV,
+		FRHIUnorderedAccessView* Target7UAV
+	);
+
 private:
 	LAYOUT_FIELD(FShaderUniformBufferParameter, ReflectionCaptureBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, Target0);
+	LAYOUT_FIELD(FShaderResourceParameter, Target1);
+	LAYOUT_FIELD(FShaderResourceParameter, Target2);
+	LAYOUT_FIELD(FShaderResourceParameter, Target3);
+	LAYOUT_FIELD(FShaderResourceParameter, Target4);
+	LAYOUT_FIELD(FShaderResourceParameter, Target5);
+	LAYOUT_FIELD(FShaderResourceParameter, Target6);
+	LAYOUT_FIELD(FShaderResourceParameter, Target7);
 };
 
 /**
@@ -405,7 +433,7 @@ public:
 			|| ((bProjectSupportsStationarySkylight || IsForwardShadingEnabled(Parameters.Platform)) && Parameters.MaterialParameters.ShadingModels.IsLit());
 		
 		return bCacheShaders
-			&& (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM6))
+			&& (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
 			&& Parameters.VertexFactoryType->SupportsComputeShading()
 			&& TBasePassComputeShaderBaseType<LightMapPolicyType>::ShouldCompilePermutation(Parameters)
 			&& IsGBufferLayoutSupportedForMaterial(GBufferLayout, Parameters);
@@ -428,8 +456,6 @@ public:
 	/** Default constructor. */
 	TBasePassCS() {}
 };
-
-// END COMPUTE
 
 /**
  * The base type for pixel shaders that render the emissive color, and light-mapped/ambient lighting of a mesh.

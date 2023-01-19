@@ -31,6 +31,7 @@
 // Instantiate the common policies
 template class TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>;
 template class TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>;
+template class TBasePassComputeShaderPolicyParamType<FUniformLightMapPolicy>;
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarSelectiveBasePassOutputs(

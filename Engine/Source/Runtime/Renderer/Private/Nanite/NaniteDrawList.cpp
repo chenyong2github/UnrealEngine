@@ -205,8 +205,7 @@ void FNaniteDrawListContext::Apply(FScene& Scene)
 {
 	check(IsInParallelRenderingThread());
 
-	static const auto AllowComputeMaterials = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.AllowComputeMaterials"));
-	const bool bAllowComputeMaterials = (AllowComputeMaterials && AllowComputeMaterials->GetValueOnRenderThread() != 0);
+	static const bool bAllowComputeMaterials = NaniteComputeMaterialsSupported();
 
 	for (int32 MeshPass = 0; MeshPass < ENaniteMeshPass::Num; ++MeshPass)
 	{
@@ -717,6 +716,7 @@ void BuildNaniteMaterialPassCommands(
 		FNaniteMaterialPassCommand PassCommand(MeshDrawCommand);
 		const int32 MaterialId = Iter.GetElementId().GetIndex();
 
+		PassCommand.MaterialId = FNaniteCommandInfo::GetMaterialId(MaterialId);
 		PassCommand.MaterialDepth = FNaniteCommandInfo::GetDepthId(MaterialId);
 		PassCommand.MaterialSlot  = Command.Value.MaterialSlot;
 

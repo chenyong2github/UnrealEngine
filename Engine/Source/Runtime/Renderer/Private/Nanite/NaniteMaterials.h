@@ -112,6 +112,7 @@ struct FNaniteMaterialPassCommand
 {
 	FNaniteMaterialPassCommand(const FMeshDrawCommand& InMeshDrawCommand)
 	: MeshDrawCommand(InMeshDrawCommand)
+	, MaterialId(~uint32(0))
 	, MaterialDepth(0.0f)
 	, MaterialSlot(INDEX_NONE)
 	, SortKey(MeshDrawCommand.CachedPipelineId.GetId())
@@ -124,6 +125,7 @@ struct FNaniteMaterialPassCommand
 	}
 
 	FMeshDrawCommand MeshDrawCommand;
+	uint32 MaterialId = ~uint32(0);
 	float MaterialDepth = 0.0f;
 	int32 MaterialSlot = INDEX_NONE;
 	uint64 SortKey = 0;
@@ -420,6 +422,12 @@ public:
 		return MaterialSlotAllocator.GetMaxSize();
 	}
 
+	// TODO: Temp! Do not use - deprecated
+	const TRefCountPtr<FRDGPooledBuffer>& GetMaterialDepthDataBuffer() const
+	{
+		return MaterialDepthDataBuffer;
+	}
+
 private:
 	FNaniteMaterialEntryMap EntryMap;
 
@@ -445,6 +453,8 @@ private:
 	TRefCountPtr<FRDGPooledBuffer> MaterialEditorDataBuffer;
 #endif
 };
+
+struct FNaniteShadingCommand;
 
 inline void LockIfValid(FRHICommandListBase& RHICmdList, FNaniteMaterialCommands::FUploader* Uploader)
 {
@@ -481,7 +491,6 @@ void EmitDepthTargets(
 	FRDGTextureRef& OutMaterialResolve,
 	bool bStencilMask
 );
-
 
 void EmitCustomDepthStencilTargets(
 	FRDGBuilder& GraphBuilder,
@@ -521,6 +530,12 @@ void DrawLumenMeshCapturePass(
 	FRDGTextureRef NormalAtlasTexture,
 	FRDGTextureRef EmissiveAtlasTexture,
 	FRDGTextureRef DepthAtlasTexture
+);
+
+void BuildShadingCommands(
+	const FScene& Scene,
+	const FNaniteShadingPipelines& ShadingPipelines,
+	TArray<TPimplPtr<FNaniteShadingCommand>>& ShadingCommands
 );
 
 EGBufferLayout GetGBufferLayoutForMaterial(const FMaterial& Material);

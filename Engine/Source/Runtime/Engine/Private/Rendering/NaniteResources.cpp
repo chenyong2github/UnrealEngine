@@ -54,11 +54,11 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Random Data Instances"), STAT_InstanceHasRa
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Local Bounds Instances"), STAT_InstanceHasLocalBounds, STATGROUP_Nanite);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Hierarchy Offset Instances"), STAT_InstanceHasHierarchyOffset, STATGROUP_Nanite);
 
-// TODO: Work in progress / experimental - do not use
+// TODO: Heavily work in progress / experimental - do not use!
 static TAutoConsoleVariable<int32> CVarNaniteAllowComputeMaterials(
 	TEXT("r.Nanite.AllowComputeMaterials"),
 	0, // Off by default
-	TEXT("Whether to enable support for Nanite compute materials"),
+	TEXT("Whether to enable support for (highly experimental) Nanite compute materials"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 int32 GNaniteOptimizedRelevance = 1;
@@ -2183,9 +2183,9 @@ void FVertexFactoryResource::InitRHI()
 		VertexFactory = new FVertexFactory(ERHIFeatureLevel::SM5);
 		VertexFactory->InitResource();
 
-		if (CVarNaniteAllowComputeMaterials.GetValueOnRenderThread() != 0)
+		if (NaniteComputeMaterialsSupported())
 		{
-			VertexFactory2 = new FNaniteVertexFactory(ERHIFeatureLevel::SM6);
+			VertexFactory2 = new FNaniteVertexFactory(ERHIFeatureLevel::SM5);
 			VertexFactory2->InitResource();
 		}
 	}
@@ -2200,7 +2200,7 @@ void FVertexFactoryResource::ReleaseRHI()
 		delete VertexFactory;
 		VertexFactory = nullptr;
 
-		if (CVarNaniteAllowComputeMaterials.GetValueOnRenderThread() != 0)
+		if (NaniteComputeMaterialsSupported())
 		{
 			delete VertexFactory2;
 			VertexFactory2 = nullptr;
@@ -2230,10 +2230,8 @@ void FNaniteVertexFactory::InitRHI()
 
 bool FNaniteVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	static const bool bAllowComputeMaterials = CVarNaniteAllowComputeMaterials.GetValueOnAnyThread() != 0;
-
 	bool bShouldCompile =
-		bAllowComputeMaterials &&
+		NaniteComputeMaterialsSupported() &&
 		Parameters.ShaderType->GetFrequency() == SF_Compute &&
 		(Parameters.MaterialParameters.bIsUsedWithNanite || Parameters.MaterialParameters.bIsSpecialEngineMaterial) &&
 		Nanite::IsSupportedMaterialDomain(Parameters.MaterialParameters.MaterialDomain) &&

@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "GBufferInfo.h"
+#include "RenderUtils.h"
 #include "HAL/IConsoleManager.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
@@ -178,7 +179,17 @@ FGBufferBinding FindGBufferBindingByName(const FGBufferInfo& GBufferInfo, const 
 
 		Binding.Index = Index;
 		Binding.Format = PixelFormat;
-		Binding.Flags = TexCreate_ShaderResource | TexCreate_RenderTargetable | (Target.bIsSrgb ? TexCreate_SRGB : TexCreate_None);
+		Binding.Flags = TexCreate_ShaderResource | TexCreate_RenderTargetable;
+		
+		if (Target.bIsSrgb)
+		{
+			Binding.Flags |= TexCreate_SRGB;
+		}
+
+		if (NaniteComputeMaterialsSupported())
+		{
+			Binding.Flags |= TexCreate_UAV;
+		}
 	}
 
 	return Binding;
@@ -245,7 +256,7 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 	int32 TargetVelocity = -1;
 	int32 TargetSeparatedMainDirLight = -1;
 
-	// Strata ouputs material data through UAV. Only SceneColor, PrecalcShadow & Velocity data are still emitted through RenderTargets
+	// Strata outputs material data through UAV. Only SceneColor, PrecalcShadow & Velocity data are still emitted through RenderTargets
 	const bool bStrata = RenderCore_IsStrataEnabled();
 	if (bStrata)
 	{
@@ -267,7 +278,7 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 			TargetSeparatedMainDirLight = Info.NumTargets++;
 		}
 
-		// this value isn't correct, becuase it doesn't resepect the scene color format cvar, but it's ignored anyways
+		// this value isn't correct, because it doesn't respect the scene color format cvar, but it's ignored anyways
 		// so it's ok for now
 		Info.Targets[TargetLighting].Init(GBT_Unorm_11_11_10, TEXT("Lighting"), false, true, true, true);
 		Info.Slots[GBS_SceneColor] = FGBufferItem(GBS_SceneColor, GBC_Raw_Float_11_11_10, GBCH_Both);
@@ -401,7 +412,7 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 		check(0);
 	}
 
-	// this value isn't correct, becuase it doesn't resepect the scene color format cvar, but it's ignored anyways
+	// this value isn't correct, because it doesn't respect the scene color format cvar, but it's ignored anyways
 	// so it's ok for now
 	Info.Slots[GBS_SceneColor] = FGBufferItem(GBS_SceneColor, GBC_Raw_Float_11_11_10, GBCH_Both);
 	Info.Slots[GBS_SceneColor].Packing[0] = FGBufferPacking(TargetLighting, 0, 0);

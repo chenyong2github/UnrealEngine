@@ -382,6 +382,8 @@ RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform, bool bCh
 
 RENDERCORE_API bool NaniteAtomicsSupported();
 
+RENDERCORE_API bool NaniteComputeMaterialsSupported();
+
 RENDERCORE_API bool DoesRuntimeSupportNanite(EShaderPlatform ShaderPlatform, bool bCheckForAtomicSupport, bool bCheckForProjectSetting);
 
 /**

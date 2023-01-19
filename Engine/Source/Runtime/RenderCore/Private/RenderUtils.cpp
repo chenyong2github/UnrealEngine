@@ -1243,6 +1243,13 @@ bool NaniteAtomicsSupported()
 	return bAtomicsSupported;
 }
 
+bool NaniteComputeMaterialsSupported()
+{
+	static const auto AllowComputeMaterials = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.AllowComputeMaterials"));
+	static const bool bAllowComputeMaterials = (AllowComputeMaterials && AllowComputeMaterials->GetValueOnAnyThread() != 0);
+	return bAllowComputeMaterials;
+}
+
 bool DoesRuntimeSupportNanite(EShaderPlatform ShaderPlatform, bool bCheckForAtomicSupport, bool bCheckForProjectSetting)
 {
 	// Does the platform support Nanite?

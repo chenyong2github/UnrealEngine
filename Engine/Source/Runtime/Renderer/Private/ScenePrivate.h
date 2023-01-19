@@ -2675,6 +2675,9 @@ public:
 	FNaniteRasterPipelines  NaniteRasterPipelines[ENaniteMeshPass::Num];
 	FNaniteShadingPipelines NaniteShadingPipelines[ENaniteMeshPass::Num];
 
+	// TODO: Heavily work in progress / experimental - do not use!
+	TArray<TPimplPtr<FNaniteShadingCommand>> NaniteShadingCommands[ENaniteMeshPass::Num];
+
 	/** Nanite material visibility references. These are stored on the scene as they are computed at FPrimitiveSceneInfo::AddToScene time. */
 	FNaniteVisibility NaniteVisibility[ENaniteMeshPass::Num];
 
