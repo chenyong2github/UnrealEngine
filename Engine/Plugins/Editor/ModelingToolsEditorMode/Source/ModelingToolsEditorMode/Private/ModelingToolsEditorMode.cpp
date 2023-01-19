@@ -379,7 +379,7 @@ void UModelingToolsEditorMode::Enter()
 	SceneSnappingManager = UE::Geometry::FindModelingSceneSnappingManager(GetToolManager());
 
 	// register selection manager, if this feature is enabled in the mode settings
-	if (ModelingModeSettings && ModelingModeSettings->bEnablePersistentSelections)
+	if (ModelingModeSettings && ModelingModeSettings->bEnableMeshSelections)
 	{
 		// set up SelectionManager and register known factory types
 		SelectionManager = NewObject<UGeometrySelectionManager>(GetToolManager());

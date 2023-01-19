@@ -145,9 +145,14 @@ public:
 	// Selection
 	//
 
-	/** If true, Mesh Selection System (Experimental) will be enabled. */
-	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|Selection", meta = (DisplayName="Enable Mesh Selection UI"))
+	// old preference that should be ignored now
+	UPROPERTY()
 	bool bEnablePersistentSelections = false;
+
+	/** Enable/Disable new Mesh Selection System (Experimental). */
+	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|Selection", meta = (DisplayName="Enable Mesh Selection UI"))
+	bool bEnableMeshSelections = true;
+
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(UModelingToolsEditorModeSettingsModified, UObject*, FProperty*);
 	UModelingToolsEditorModeSettingsModified OnModified;
