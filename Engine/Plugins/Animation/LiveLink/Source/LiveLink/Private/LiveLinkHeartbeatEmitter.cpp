@@ -23,6 +23,8 @@ FLiveLinkHeartbeatEmitter::FLiveLinkHeartbeatEmitter()
 
 }
 
+FLiveLinkHeartbeatEmitter::~FLiveLinkHeartbeatEmitter() = default;
+
 void FLiveLinkHeartbeatEmitter::StartHeartbeat(const FMessageAddress& RecipientAddress, const TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe>& MessageEndpoint)
 {
 	if (!bIsRunning)

@@ -21,6 +21,10 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SocialManager)
 
+#if PARTY_PLATFORM_SESSIONS_XBL 
+#include "Misc/Base64.h"
+#endif
+
 static TAutoConsoleVariable<bool> CVarForceDisconnectedToPartyService(
 	TEXT("SocialUI.ForceDisconnectedToPartyService"),
 	false,

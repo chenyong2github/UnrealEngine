@@ -23,6 +23,7 @@ class FLiveLinkHeartbeatEmitter : public FRunnable
 {
 public:
 	FLiveLinkHeartbeatEmitter();
+	~FLiveLinkHeartbeatEmitter();
 
 	/**
 	 * Start sending a heartbeat to the specified Recipient by using the given MessageEndpoint.
