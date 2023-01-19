@@ -2661,6 +2661,8 @@ void UNetReplicationGraphConnection::AddConnectionGraphNode(UReplicationGraphNod
 void UNetReplicationGraphConnection::RemoveConnectionGraphNode(UReplicationGraphNode* Node)
 {
 	ConnectionGraphNodes.RemoveSingleSwap(Node);
+	NodesVisibleCells.Remove(Node);
+	PrevDormantActorListPerNode.Remove(Node);
 }
 
 bool UNetReplicationGraphConnection::PrepareForReplication()
