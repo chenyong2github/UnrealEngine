@@ -4,6 +4,8 @@
 
 #include "Containers/Array.h"
 
+class FMessageLog;
+
 namespace UE {
 namespace Trace {
 

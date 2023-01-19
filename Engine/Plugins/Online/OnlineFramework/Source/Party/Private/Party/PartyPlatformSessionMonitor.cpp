@@ -10,9 +10,12 @@
 #include "SocialToolkit.h"
 #include "SocialManager.h"
 
-
 #include "OnlineSessionSettings.h"
 #include "OnlineSubsystemUtils.h"
+
+#if PARTY_PLATFORM_SESSIONS_XBL
+#include "Misc/Base64.h"
+#endif
 
 static bool IsTencentPlatform()
 {
