@@ -68,11 +68,13 @@ FCheckScope::FCheckScope(const ANSICHAR* Msg)
 #else
 	, bIgnoreDebugger(false)
 #endif
+	, bCriticalError(GIsCriticalError)
 {
 #if !UE_BUILD_SHIPPING
 	GIgnoreDebugger = true;
 #endif
 	GError = DeviceError;
+	GIsCriticalError = true; //set to true to disable printf of error message which causes Horde to flag the lines as an error
 }
 
 FCheckScope::FCheckScope()
@@ -86,6 +88,7 @@ FCheckScope::~FCheckScope()
 	GIgnoreDebugger = bIgnoreDebugger;
 #endif
 	GError = DeviceError->GetDeviceError();
+	GIsCriticalError = bCriticalError;
 	delete DeviceError;
 }
 

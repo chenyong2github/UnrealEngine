@@ -22,6 +22,7 @@ struct FCheckScope
 private:
 	FCheckScopeOutputDeviceError* DeviceError;
 	bool bIgnoreDebugger;
+	bool bCriticalError;
 }; 
 
 }
