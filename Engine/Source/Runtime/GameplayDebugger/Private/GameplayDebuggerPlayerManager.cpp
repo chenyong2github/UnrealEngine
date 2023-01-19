@@ -197,7 +197,7 @@ void AGameplayDebuggerPlayerManager::RegisterReplicator(AGameplayDebuggerCategor
 	FGameplayDebuggerPlayerData NewData;
 	NewData.Replicator = &Replicator;
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 	if (bIsLocal)
 	{
 		APlayerController* OwnerPC = Replicator.GetReplicationOwner();
@@ -219,14 +219,14 @@ void AGameplayDebuggerPlayerManager::RegisterReplicator(AGameplayDebuggerCategor
 		NewData.Controller = nullptr;
 		NewData.InputComponent = nullptr;
 	}
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 	PlayerData.Add(NewData);
 }
 
 void AGameplayDebuggerPlayerManager::RefreshInputBindings(AGameplayDebuggerCategoryReplicator& Replicator)
 {
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 	for (int32 Idx = 0; Idx < PlayerData.Num(); Idx++)
 	{
 		FGameplayDebuggerPlayerData& TestData = PlayerData[Idx];
@@ -239,7 +239,7 @@ void AGameplayDebuggerPlayerManager::RefreshInputBindings(AGameplayDebuggerCateg
 			TestData.Controller->BindInput(*TestData.InputComponent);
 		}
 	}
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 }
 
 AGameplayDebuggerCategoryReplicator* AGameplayDebuggerPlayerManager::GetReplicator(const APlayerController& OwnerPC) const

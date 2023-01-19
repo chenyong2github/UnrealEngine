@@ -2,9 +2,9 @@
 
 #pragma once
 
-#if WITH_GAMEPLAY_DEBUGGER
-
 #include "CoreMinimal.h"
+
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 #include "GameplayDebuggerCategory.h"
 
 class AActor;
@@ -52,4 +52,4 @@ protected:
 	bool WrapStringAccordingToViewport(const FString& iStr, FString& oStr, FGameplayDebuggerCanvasContext& CanvasContext, float ViewportWitdh);
 };
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

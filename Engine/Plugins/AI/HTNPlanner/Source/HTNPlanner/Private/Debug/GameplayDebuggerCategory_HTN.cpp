@@ -2,7 +2,7 @@
 
 #include "Debug/GameplayDebuggerCategory_HTN.h"
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 
 FGameplayDebuggerCategory_HTN::FGameplayDebuggerCategory_HTN()
 {
@@ -22,4 +22,4 @@ void FGameplayDebuggerCategory_HTN::DrawData(APlayerController* OwnerPC, FGamepl
 
 }
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

@@ -2,9 +2,9 @@
 
 #pragma once
 
-#if WITH_GAMEPLAY_DEBUGGER
-
 #include "CoreMinimal.h"
+
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 #include "GameplayDebuggerCategory.h"
 #include "NavMesh/NavMeshRenderingComponent.h"
 
@@ -63,4 +63,4 @@ protected:
 	TWeakObjectPtr<const APawn> PrevDebugActorReference;
 };
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

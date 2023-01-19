@@ -55,11 +55,20 @@ namespace UnrealBuildTool.Rules
 			{
 				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER_CORE=1");
 				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER=" + (Target.bUseGameplayDebugger ? 1 : 0));
+				if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+				{
+					PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER_MENU=1");
+				}
+				else
+				{
+					PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER_MENU=0");
+				}				
 			}
 			else
 			{
 				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER_CORE=0");
 				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER=0");
+				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER_MENU=0");
 			}
 		}
 	}

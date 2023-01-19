@@ -2,9 +2,9 @@
 
 #pragma once
 
-#if WITH_GAMEPLAY_DEBUGGER
-
 #include "CoreMinimal.h"
+
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 #include "GameplayDebuggerCategory.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "EnvironmentQuery/EnvQueryDebugHelpers.h"
@@ -22,7 +22,7 @@ public:
 	virtual void DrawData(APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext) override;
 	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy(const UPrimitiveComponent* InComponent, FDebugDrawDelegateHelper*& OutDelegateHelper) override;
 
-	static TSharedRef<FGameplayDebuggerCategory> MakeInstance();
+	AIMODULE_API static TSharedRef<FGameplayDebuggerCategory> MakeInstance();
 
 protected:
 #if USE_EQS_DEBUGGER
@@ -51,4 +51,4 @@ protected:
 	int32 ShownQueryIndex;
 };
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

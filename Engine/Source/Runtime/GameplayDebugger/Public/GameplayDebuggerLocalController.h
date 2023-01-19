@@ -30,7 +30,7 @@ class UGameplayDebuggerLocalController : public UObject
 	/** remove from world */
 	void Cleanup();
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 	/** Whether the Debug Draw rendering is allowed for this replicator */
 	void SetDebugDrawEnabled(const bool bInDebugDrawEnabled) { bDebugDrawEnabled = bInDebugDrawEnabled; }
 
@@ -42,8 +42,9 @@ class UGameplayDebuggerLocalController : public UObject
 
 	/** checks if key is bound by any action */
 	bool GAMEPLAYDEBUGGER_API IsKeyBound(const FName KeyName) const;
-#endif // WITH_GAMEPLAY_DEBUGGER
 
+	static void SetConsoleCommandsEnabled(const bool bEnabled) { bConsoleCommandsEnabled = bEnabled; }
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU	
 protected:
 	UPROPERTY()
 	TObjectPtr<AGameplayDebuggerCategoryReplicator> CachedReplicator;
@@ -74,7 +75,7 @@ protected:
 	int32 NumCategorySlots;
 	int32 NumCategories;
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 	friend struct FGameplayDebuggerConsoleCommands;
 
 	TSet<FName> UsedBindings;
@@ -96,6 +97,8 @@ protected:
 	FTimerHandle SelectActorTickHandle;
 
 	bool bDebugDrawEnabled = true;
+	
+	static bool bConsoleCommandsEnabled;
 
 	void OnActivationPressed();
 	void OnActivationReleased();
@@ -148,7 +151,7 @@ protected:
 	
 	/** build DataPackMap for replication details */
 	void RebuildDataPackMap();
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 	/** called when known category set has changed */
 	void OnCategoriesChanged();

@@ -10,10 +10,10 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AIPerceptionComponent)
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 #include "GameplayDebuggerTypes.h"
 #include "GameplayDebuggerCategory.h"
-#endif
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 
 
@@ -841,7 +841,7 @@ void UAIPerceptionComponent::SetSenseEnabled(TSubclassOf<UAISense> SenseClass, c
 //----------------------------------------------------------------------//
 // debug
 //----------------------------------------------------------------------//
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 void UAIPerceptionComponent::DescribeSelfToGameplayDebugger(FGameplayDebuggerCategory* DebuggerCategory) const
 {
 	if (DebuggerCategory == nullptr)
@@ -880,7 +880,7 @@ void UAIPerceptionComponent::DescribeSelfToGameplayDebugger(FGameplayDebuggerCat
 		}
 	}
 }
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 #if ENABLE_VISUAL_LOG
 void UAIPerceptionComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const

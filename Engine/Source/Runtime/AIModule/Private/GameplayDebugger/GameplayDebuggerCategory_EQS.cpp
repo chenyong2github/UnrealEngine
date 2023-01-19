@@ -3,7 +3,7 @@
 #include "GameplayDebugger/GameplayDebuggerCategory_EQS.h"
 #include "GameFramework/Pawn.h"
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 
 #include "GameFramework/PlayerController.h"
 #include "CanvasItem.h"
@@ -473,4 +473,4 @@ void FGameplayDebuggerCategory_EQS::ToggleDetailView()
 	bShowDetails = !bShowDetails;
 }
 
-#endif // ENABLE_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

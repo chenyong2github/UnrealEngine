@@ -35,6 +35,12 @@
 #include "Editor.h"
 #endif // WITH_EDITOR
 
+#if WITH_GAMEPLAY_DEBUGGER
+bool UGameplayDebuggerLocalController::bConsoleCommandsEnabled = true;
+#elif WITH_GAMEPLAY_DEBUGGER_MENU
+bool UGameplayDebuggerLocalController::bConsoleCommandsEnabled = false;
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
+
 UGameplayDebuggerLocalController::UGameplayDebuggerLocalController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	bSimulateMode = false;
@@ -48,14 +54,14 @@ UGameplayDebuggerLocalController::UGameplayDebuggerLocalController(const FObject
 	bActivateOnPIEEnd = false;
 #endif // WITH_EDITOR
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 	ActiveRowIdx = 0;
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
 		HUDFont = NewObject<UFont>(this, TEXT("HUDFont"), RF_NoFlags, GEngine->GetSmallFont());
 		HUDFont->LegacyFontSize = UGameplayDebuggerUserSettings::GetFontSize(); //FGameplayDebuggerTweakables::FontSize;
 	}
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 }
 
 void UGameplayDebuggerLocalController::Initialize(AGameplayDebuggerCategoryReplicator& Replicator, AGameplayDebuggerPlayerManager& Manager)
@@ -64,7 +70,7 @@ void UGameplayDebuggerLocalController::Initialize(AGameplayDebuggerCategoryRepli
 	CachedPlayerManager = &Manager;
 	bSimulateMode = FGameplayDebuggerAddonBase::IsSimulateInEditor() || Replicator.IsEditorWorldReplicator();
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 	UDebugDrawService::Register(bSimulateMode ? TEXT("DebugAI") : TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UGameplayDebuggerLocalController::OnDebugDraw));
 
 #if WITH_EDITOR
@@ -124,7 +130,7 @@ void UGameplayDebuggerLocalController::Initialize(AGameplayDebuggerCategoryRepli
 	PaddingBottom = SettingsCDO->DebugCanvasPaddingBottom;
 
 	bEnableTextShadow = SettingsCDO->bDebugCanvasEnableTextShadow;
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 	FGameplayDebuggerAddonManager& AddonManager = FGameplayDebuggerAddonManager::GetCurrent();
 	AddonManager.OnCategoriesChanged.AddUObject(this, &UGameplayDebuggerLocalController::OnCategoriesChanged);
@@ -185,7 +191,7 @@ void UGameplayDebuggerLocalController::OnCategoriesChanged()
 	DataPackMap.Reset();
 }
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 void UGameplayDebuggerLocalController::OnDebugDraw(class UCanvas* Canvas, class APlayerController* PC)
 {
 	if (CachedReplicator && CachedReplicator->IsEnabled() && bDebugDrawEnabled)
@@ -901,6 +907,11 @@ struct FGameplayDebuggerConsoleCommands
 private:
 	static UGameplayDebuggerLocalController* GetController(UWorld* InWorld)
 	{
+		if (!UGameplayDebuggerLocalController::bConsoleCommandsEnabled)
+		{
+			return nullptr;
+		}
+
 		UGameplayDebuggerLocalController* Controller = nullptr;
 
 		APlayerController* LocalPC = GEngine->GetFirstLocalPlayerController(InWorld);
@@ -1105,4 +1116,4 @@ FAutoConsoleCommandWithWorldAndArgs FGameplayDebuggerConsoleCommands::SetFontSiz
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FGameplayDebuggerConsoleCommands::SetFontSize)
 );
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

@@ -2,8 +2,9 @@
 
 #pragma once
 
-#if WITH_GAMEPLAY_DEBUGGER
+#include "CoreMinimal.h"
 
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 #include "GameplayDebuggerCategory.h"
 
 class ABotObjectiveGraph;
@@ -21,4 +22,4 @@ public:
 protected:
 };
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

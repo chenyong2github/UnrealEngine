@@ -2,9 +2,9 @@
 
 #pragma once
 
-#if WITH_GAMEPLAY_DEBUGGER
-
 #include "CoreMinimal.h"
+
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 #include "GameplayDebuggerCategory.h"
 
 class APlayerController;
@@ -19,7 +19,7 @@ public:
 	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy(const UPrimitiveComponent* InComponent, FDebugDrawDelegateHelper*& OutDelegateHelper) override;
 	virtual void OnDataPackReplicated(int32 DataPackId) override;
 
-	static TSharedRef<FGameplayDebuggerCategory> MakeInstance();
+	AIMODULE_API static TSharedRef<FGameplayDebuggerCategory> MakeInstance();
 
 	struct FRepData
 	{
@@ -53,4 +53,4 @@ protected:
 	FRepAgentData AgentDataPack;
 };
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

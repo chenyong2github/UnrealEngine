@@ -2,9 +2,9 @@
 
 #pragma once
 
-#if WITH_GAMEPLAY_DEBUGGER
-
 #include "CoreMinimal.h"
+
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 #include "GameplayDebuggerCategory.h"
 
 class AActor;
@@ -17,7 +17,7 @@ public:
 
 	virtual void CollectData(APlayerController* OwnerPC, AActor* DebugActor) override;
 
-	static TSharedRef<FGameplayDebuggerCategory> MakeInstance();
+	AIMODULE_API static TSharedRef<FGameplayDebuggerCategory> MakeInstance();
 };
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

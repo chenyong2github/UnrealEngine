@@ -2,8 +2,9 @@
 
 #pragma once
 
-#if WITH_GAMEPLAY_DEBUGGER
+#include "CoreMinimal.h"
 
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 #include "GameplayDebuggerCategory.h"
 #include "MLAdapterTypes.h"
 
@@ -38,4 +39,4 @@ protected:
 	FMLAdapter::FAgentID CachedAgentID;
 };
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

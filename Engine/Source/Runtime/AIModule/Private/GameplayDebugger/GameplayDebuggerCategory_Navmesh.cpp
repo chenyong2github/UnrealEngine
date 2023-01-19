@@ -3,7 +3,7 @@
 #include "GameplayDebugger/GameplayDebuggerCategory_Navmesh.h"
 #include "GameFramework/Pawn.h"
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 
 #include "NavigationSystem.h"
 #include "GameFramework/PlayerController.h"
@@ -330,4 +330,4 @@ FDebugRenderSceneProxy* FGameplayDebuggerCategory_Navmesh::CreateDebugSceneProxy
 	return NavMeshSceneProxy;
 }
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

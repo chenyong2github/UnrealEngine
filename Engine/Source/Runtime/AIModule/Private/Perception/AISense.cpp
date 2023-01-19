@@ -17,10 +17,10 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AISense)
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 #include "GameplayDebuggerTypes.h"
 #include "GameplayDebuggerCategory.h"
-#endif
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 const float UAISense::SuspendNextUpdate = FLT_MAX;
 
@@ -140,7 +140,7 @@ FString UAISenseConfig::GetSenseName() const
 	return CachedSenseName;
 }
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 static FString DescribeColorHelper(const FColor& Color)
 {
 	const int32 MaxColors = GColorList.GetColorsNum();
@@ -164,7 +164,7 @@ void UAISenseConfig::DescribeSelfToGameplayDebugger(const UAIPerceptionComponent
 			);
 	}
 }
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 //----------------------------------------------------------------------//
 // 
@@ -200,7 +200,7 @@ void UAISenseConfig_Sight::PostEditChangeChainProperty(FPropertyChangedChainEven
 }
 #endif // WITH_EDITOR
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 void UAISenseConfig_Sight::DescribeSelfToGameplayDebugger(const UAIPerceptionComponent* PerceptionComponent, FGameplayDebuggerCategory* DebuggerCategory) const
 {
 	if (PerceptionComponent == nullptr || DebuggerCategory == nullptr)
@@ -239,7 +239,7 @@ void UAISenseConfig_Sight::DescribeSelfToGameplayDebugger(const UAIPerceptionCom
 		DebuggerCategory->AddShape(FGameplayDebuggerShape::MakeSegment(RootLocation + (BodyFacing * NearClippingRadius), RootLocation + (RightDirection * NearClippingRadius), SightRangeColor));
 	}
 }
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 //----------------------------------------------------------------------//
 // UAISenseConfig_Hearing
@@ -256,7 +256,7 @@ TSubclassOf<UAISense> UAISenseConfig_Hearing::GetSenseImplementation() const
 	return *Implementation; 
 }
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 void UAISenseConfig_Hearing::DescribeSelfToGameplayDebugger(const UAIPerceptionComponent* PerceptionComponent, FGameplayDebuggerCategory* DebuggerCategory) const
 {
 	if (PerceptionComponent == nullptr || DebuggerCategory == nullptr)
@@ -283,7 +283,7 @@ void UAISenseConfig_Hearing::DescribeSelfToGameplayDebugger(const UAIPerceptionC
 		DebuggerCategory->AddShape(FGameplayDebuggerShape::MakeCylinder(OwnerLocation, HearingRange, 25.0f, HearingRangeColor));
 	}
 }
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 //----------------------------------------------------------------------//
 // UAISenseConfig_Prediction

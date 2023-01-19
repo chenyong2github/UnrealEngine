@@ -2,9 +2,9 @@
 
 #pragma once
 
-#if WITH_GAMEPLAY_DEBUGGER
-
 #include "CoreMinimal.h"
+
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 #include "GameplayDebuggerCategory.h"
 
 class AActor;
@@ -27,7 +27,7 @@ public:
 	virtual void DrawData(APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext) override;
 	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy(const UPrimitiveComponent* InComponent, FDebugDrawDelegateHelper*& OutDelegateHelper) override;
 
-	static TSharedRef<FGameplayDebuggerCategory> MakeInstance();
+	AIMODULE_API static TSharedRef<FGameplayDebuggerCategory> MakeInstance();
 
 protected:
 	void CollectPathData(AAIController* DebugAI);
@@ -91,4 +91,4 @@ private:
 	double LastPathUpdateTime;
 };
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

@@ -8,7 +8,7 @@
 // show server's state on client.
 // 
 // It should be compiled and used only when module is included, so every category class
-// needs be placed in #if WITH_GAMEPLAY_DEBUGGER block.
+// needs be placed in #if WITH_GAMEPLAY_DEBUGGER block (or WITH_GAMEPLAY_DEBUGGER_MENU when using WITH_GAMEPLAY_DEBUGGER_CORE).
 // 
 // 
 // Server side category :

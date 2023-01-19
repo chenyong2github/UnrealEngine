@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "GameplayDebuggerCategory_NavLocalGrid.h"
+#include "GameplayDebugger/GameplayDebuggerCategory_NavLocalGrid.h"
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 
 #include "GameFramework/PlayerController.h"
 #include "AIController.h"
@@ -435,4 +435,4 @@ void FGameplayDebuggerCategory_NavLocalGrid::OnDataPackReplicated(int32 DataPack
 	MarkRenderStateDirty();
 }
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

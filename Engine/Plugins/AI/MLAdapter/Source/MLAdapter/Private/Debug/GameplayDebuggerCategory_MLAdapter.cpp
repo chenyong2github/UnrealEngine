@@ -9,7 +9,7 @@
 #include "Sensors/MLAdapterSensor.h"
 #include "Actuators/MLAdapterActuator.h"
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER_MENU
 #include "GameplayDebuggerCategoryReplicator.h"
 
 //----------------------------------------------------------------------//
@@ -186,5 +186,5 @@ void FGameplayDebuggerCategory_MLAdapter::OnBeginAgentRemove(UMLAdapterAgent& Ag
 	}
 }
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
