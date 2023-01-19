@@ -149,7 +149,7 @@ public:
 /**
  *
  */
-class FComparableImage
+class SCREENSHOTCOMPARISONTOOLS_API FComparableImage
 {
 public:
 	int32 Width = 0;
@@ -176,6 +176,28 @@ public:
 			Bytes[Offset + 2],
 			Bytes[Offset + 3]);
 	}
+
+	/**
+	 * Populate image by loading an file
+	 *
+	 * @param ImagePath Path for the image file to load
+	 * @param OutError Contains the error message if load fails
+	 * 
+	 * @return true if success
+	*/
+	bool LoadFile(const FString& ImagePath, FText& OutError);
+
+	/**
+	 * Populate image by loading compressed data
+	 *
+	 * @param CompressedData The memory address of the start of the compressed data.
+	 * @param CompressedSize The size of the compressed data parsed.
+	 * @param ImageExtension File extension of the image format
+	 * @param OutError Contains the error message if load fails
+	 * 
+	 * @return true if success
+	*/
+	bool LoadCompressedData(const void* CompressedData, int64 CompressedSize, const FString& ImageExtension, FText& OutError);
 };
 
 /**
@@ -429,7 +451,4 @@ public:
 	 */
 	double CompareStructuralSimilarity(const FString& ImagePathA, const FString& ImagePathB, EStructuralSimilarityComponent InCompareComponent, const FString& OutDeltaPath);
 	double CompareStructuralSimilarity(const FComparableImage* ImageA, const FComparableImage* ImageB, EStructuralSimilarityComponent InCompareComponent, const FString& OutDeltaPath);
-
-private:
-	TSharedPtr<FComparableImage> Open(const FString& ImagePath, FText& OutError);
 };
