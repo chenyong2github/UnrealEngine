@@ -330,6 +330,9 @@ FString UOptimusNode_ComputeKernelBase::GetCookedKernelSource(
 	Source.ReplaceInline(TEXT("\r"), TEXT(""));
 #endif
 
+	FString ShaderPathName = InObjectPathName;
+	Optimus::ConvertObjectPathToShaderFilePath(ShaderPathName);
+
 	const bool bHasKernelKeyword = Source.Contains(TEXT("KERNEL"));
 	
 	const FString KernelFunc = FString::Printf(
@@ -345,7 +348,7 @@ FString UOptimusNode_ComputeKernelBase::GetCookedKernelSource(
 				"#line 1 \"%s\"\n"
 				"%s\n\n"
 				"%s { __kernel_func(DTid.x); }\n"
-				), *InObjectPathName, *Source, *KernelFunc);
+				), *ShaderPathName, *Source, *KernelFunc);
 	}
 	else
 	{
@@ -357,7 +360,7 @@ FString UOptimusNode_ComputeKernelBase::GetCookedKernelSource(
 			"#line 1 \"%s\"\n"
 			"%s\n"
 			"}\n"
-			), *KernelFunc, *InObjectPathName, *Source);
+			), *KernelFunc, *ShaderPathName, *Source);
 	}
 }
 

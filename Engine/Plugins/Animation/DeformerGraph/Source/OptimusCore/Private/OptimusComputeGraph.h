@@ -22,7 +22,7 @@ public:
 	void PostLoad() override;
 
 	// UComputeGraph overrides
-	void OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileOutputMessages) override;
+	void OnKernelCompilationComplete(int32 InKernelIndex, FComputeKernelCompileResults const& InCompileResults) override;
 
 protected:
 	// Lookup into Graphs array from the UComputeGraph kernel index. 

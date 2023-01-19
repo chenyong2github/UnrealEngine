@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ComputeFramework/ComputeKernelCompileResult.h"
 #include "Engine/EngineTypes.h"
 #include "RenderResource.h"
 #include "RenderingThread.h"
@@ -362,8 +363,8 @@ public:
 	bool IsCompilationFinished() const;
 
 	// Accessors.
-	const TArray<FString>& GetCompileOutputMessages() const { return CompileOutputMessages; }
-	void SetCompileOutputMessages(TArray<FString> const& InCompileOutputMessages) { CompileOutputMessages = InCompileOutputMessages; }
+	FComputeKernelCompileResults const& GetCompilationResults() const { return CompilationResults; }
+	void SetCompilationResults(FComputeKernelCompileResults const& InCompilationResults) { CompilationResults = InCompilationResults; }
 
 	ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }
 
@@ -465,7 +466,7 @@ protected:
 #endif // WITH_EDITOR
 
 private:
-	TArray<FString> CompileOutputMessages;
+	FComputeKernelCompileResults CompilationResults;
 
 	/** 
 	 * Game thread tracked shader map, which is ref counted and manages shader map lifetime. 

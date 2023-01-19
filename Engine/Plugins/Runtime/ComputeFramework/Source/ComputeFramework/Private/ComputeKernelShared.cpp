@@ -60,8 +60,11 @@ bool FComputeKernelResource::ShouldCache(EShaderPlatform InPlatform, const FShad
 
 void FComputeKernelResource::NotifyCompilationFinished(FString const& ResultMessage)
 {
-	UE_LOG(LogComputeFramework, Display, TEXT("%s"), *ResultMessage);
-	CompileOutputMessages.Add(ResultMessage);
+	UE_LOG(LogComputeFramework, Log, TEXT("%s"), *ResultMessage);
+	FComputeKernelCompileMessage Message;
+	Message.Type = FComputeKernelCompileMessage::EMessageType::Info;
+	Message.Text = ResultMessage;
+	CompilationResults.Messages.Add(Message);
 	OnCompilationCompleteDelegate.ExecuteIfBound(this);
 }
 
@@ -83,7 +86,7 @@ void FComputeKernelResource::RemoveOutstandingCompileId(const int32 InOldOutstan
 {
 	if (0 <= OutstandingCompileShaderMapIds.Remove(InOldOutstandingCompileShaderMapId))
 	{
-		UE_LOG(LogComputeFramework, Log, TEXT("RemoveOutstandingCompileId %p %d"), this, InOldOutstandingCompileShaderMapId);
+		UE_LOG(LogComputeFramework, Verbose, TEXT("RemoveOutstandingCompileId %p %d"), this, InOldOutstandingCompileShaderMapId);
 	}
 }
 
@@ -244,7 +247,7 @@ void FComputeKernelResource::SetupResource(
 	ShaderPermutationVector = InShaderPermutationVector;
 	ShaderParameterMetadataAllocations = MoveTemp(InShaderParameterMetadataAllocations);
 	ShaderParameterMetadata = InShaderParameterMetadata;
-	CompileOutputMessages.Reset();
+	CompilationResults.Messages.Reset();
 #if WITH_EDITOR
 	AssetPath = InAssetPath;
 #endif
@@ -334,12 +337,7 @@ bool FComputeKernelResource::CacheShaders(const FComputeKernelShaderMapId& InSha
 			{
 #if WITH_EDITOR
 				FComputeKernelShaderMap::LoadFromDerivedDataCache(this, InShaderMapId, InPlatform, GameThreadShaderMap);
-				if (GameThreadShaderMap && GameThreadShaderMap->IsValid())
-				{
-					FString Message = FString::Printf(TEXT("Loaded shaders for %s from DDC."), *GetFriendlyName());
-					CompileOutputMessages.Add(Message);
-				}
-				else
+				if (GameThreadShaderMap == nullptr || !GameThreadShaderMap->IsValid())
 				{
 					UE_LOG(LogComputeFramework, Log, TEXT("Loading shader for kernel %s from DDC failed. Shader needs recompile."), *GetFriendlyName());
 				}
@@ -360,7 +358,7 @@ bool FComputeKernelResource::CacheShaders(const FComputeKernelShaderMapId& InSha
 		UE_LOG(LogComputeFramework, Display, TEXT("Found existing compiling shader for kernel %s, linking to other GameThreadShaderMap 0x%08X%08X"), *GetFriendlyName(), (int)((int64)(GameThreadShaderMap.GetReference()) >> 32), (int)((int64)(GameThreadShaderMap.GetReference())));
 #endif
 		OutstandingCompileShaderMapIds.AddUnique(GameThreadShaderMap->GetCompilingId());
-		UE_LOG(LogComputeFramework, Log, TEXT("CacheShaders AddUniqueExisting %p %d"), this, GameThreadShaderMap->GetCompilingId());
+		UE_LOG(LogComputeFramework, Verbose, TEXT("CacheShaders AddUniqueExisting %p %d"), this, GameThreadShaderMap->GetCompilingId());
 
 		GameThreadShaderMap = nullptr;
 		bSucceeded = true;
@@ -421,7 +419,7 @@ void FComputeKernelResource::FinishCompilation()
 	{
 		for (int32 i = 0; i < ShaderMapIdsToFinish.Num(); i++)
 		{
-			UE_LOG(LogComputeFramework, Log, TEXT("FinishCompilation()[%d] %s id %d!"), i, *GetFriendlyName(), ShaderMapIdsToFinish[i]);
+			UE_LOG(LogComputeFramework, Verbose, TEXT("FinishCompilation()[%d] %s id %d!"), i, *GetFriendlyName(), ShaderMapIdsToFinish[i]);
 		}
 	
 		// Block until the shader maps that we will save have finished being compiled
@@ -500,7 +498,7 @@ bool FComputeKernelResource::BeginCompileShaderMap(const FComputeKernelShaderMap
 	}
 	else
 	{
-		UE_LOG(LogComputeFramework, Log, TEXT("BeginCompileShaderMap AddUnique %p %d"), this, NewShaderMap->GetCompilingId());
+		UE_LOG(LogComputeFramework, Verbose, TEXT("BeginCompileShaderMap AddUnique %p %d"), this, NewShaderMap->GetCompilingId());
 		OutstandingCompileShaderMapIds.AddUnique(NewShaderMap->GetCompilingId());
 		
 		// Async compile, use nullptr to detect it if used

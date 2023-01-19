@@ -334,7 +334,7 @@ void FComputeKernelShaderMap::Compile(
 		{
 			// Assign a unique identifier so that shaders from this shader map can be associated with it after a deferred compile
 			CompilingId = FShaderCommonCompileJob::GetNextJobId();
-			UE_LOG(LogComputeFramework, Log, TEXT("CompilingId = %p %d"), InKernel, CompilingId);
+			UE_LOG(LogComputeFramework, Verbose, TEXT("CompilingId = %p %d"), InKernel, CompilingId);
 			InKernel->AddCompileId(CompilingId);
 
 			// Setup the compilation environment.
@@ -394,7 +394,7 @@ void FComputeKernelShaderMap::Compile(
   
 			if (!Kernel)
 			{
-				UE_LOG(LogComputeFramework, Log, TEXT("		%u Shaders"), NumShaders);
+				UE_LOG(LogComputeFramework, Verbose, TEXT("		%u Shaders"), NumShaders);
 			}
 
 			// Register this shader map in the global ComputeKernel->shadermap map
@@ -491,7 +491,7 @@ bool FComputeKernelShaderMap::TryToAddToExistingCompilationTask(FComputeKernelRe
 	{
 		CorrespondingKernels->AddUnique(InKernel);
 
-		UE_LOG(LogComputeFramework, Log, TEXT("TryToAddToExistingCompilationTask %p %d"), InKernel, GetCompilingId());
+		UE_LOG(LogComputeFramework, Verbose, TEXT("TryToAddToExistingCompilationTask %p %d"), InKernel, GetCompilingId());
 
 #if DEBUG_INFINITESHADERCOMPILE
 		UE_LOG(LogTemp, Display, TEXT("Added shader map 0x%08X%08X from ComputeKernel 0x%08X%08X"), (int)((int64)(this) >> 32), (int)((int64)(this)), (int)((int64)(InKernel) >> 32), (int)((int64)(InKernel)));

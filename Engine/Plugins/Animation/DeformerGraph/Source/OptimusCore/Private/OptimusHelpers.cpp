@@ -110,3 +110,22 @@ FName Optimus::GetTypeName(UScriptStruct* InStructType, bool bInShouldGetUniqueN
 	return FName(*InStructType->GetStructCPPName());
 }
 
+void Optimus::ConvertObjectPathToShaderFilePath(FString& InOutPath)
+{
+	// Shader compiler recognizes "/UObject/..." path as special. 
+	// It doesn't validate file suffix etc.
+	InOutPath = TEXT("/UObject") + InOutPath;
+	// Shader compilation result parsing will break if it finds ':' where it doesn't expect.
+	InOutPath.ReplaceCharInline(TEXT(':'), TEXT('@'));
+}
+
+bool Optimus::ConvertShaderFilePathToObjectPath(FString& InOutPath)
+{
+	if (!InOutPath.RemoveFromStart(TEXT("/UObject")))
+	{
+		return false;
+	}
+
+	InOutPath.ReplaceCharInline(TEXT('@'), TEXT(':'));
+	return true;
+}

@@ -3,12 +3,15 @@
 #include "OptimusComputeGraph.h"
 
 #include "Components/MeshComponent.h"
+#include "ComputeFramework/ComputeKernelCompileResult.h"
+#include "HAL/FileManager.h"
 #include "Internationalization/Regex.h"
 #include "IOptimusComputeKernelProvider.h"
 #include "IOptimusShaderTextProvider.h"
 #include "IOptimusValueProvider.h"
 #include "OptimusDeformer.h"
 #include "OptimusCoreModule.h"
+#include "OptimusHelpers.h"
 #include "OptimusNode.h"
 #include "OptimusObjectVersion.h"
 #include "Misc/UObjectToken.h"
@@ -35,50 +38,64 @@ void UOptimusComputeGraph::PostLoad()
 	}
 }
 
-static EOptimusDiagnosticLevel ProcessCompilationMessage(UOptimusDeformer* InOwner,	UOptimusNode const* InKernelNode, FString const& InMessage)
+static EOptimusDiagnosticLevel ProcessCompilationMessage(UOptimusDeformer* InOwner,	UOptimusNode const* InKernelNode, FString const& InKernelFriendlyName, FComputeKernelCompileMessage const& InMessage)
 {
 	FOptimusCompilerDiagnostic Diagnostic;
 
-	// "/Engine/Generated/ComputeFramework/Kernel_LinearBlendSkinning.usf(19,39-63):  error X3013: 'DI000_ReadNumVertices': no matching 1 parameter function"	
-	// "OptimusNode_ComputeKernel_2(1,42):  error X3004: undeclared identifier 'a'"
-
-	// TODO: Parsing diagnostics rightfully belongs at the shader compiler level, especially if the shader compiler is rewriting.
-	static const FRegexPattern MessagePattern(TEXT(R"(^\s*(.*?)\((\d+),(\d+)(-(\d+))?\):\s*(error|warning)\s+[A-Z0-9]+:\s*(.*)$)"));
-	FRegexMatcher Matcher(MessagePattern, InMessage);
-
-	if (!Matcher.FindNext())
+	if (InMessage.Type == FComputeKernelCompileMessage::EMessageType::Error)
+	{
+		Diagnostic.Level = EOptimusDiagnosticLevel::Error;
+	}
+	else if (InMessage.Type == FComputeKernelCompileMessage::EMessageType::Warning)
+	{
+		Diagnostic.Level = EOptimusDiagnosticLevel::Warning;
+	}
+	else if (InMessage.Type == FComputeKernelCompileMessage::EMessageType::Info)
 	{
 		Diagnostic.Level = EOptimusDiagnosticLevel::Info;
-		Diagnostic.Message = FText::FromString(InMessage);
-		//Diagnostic.Object = InKernelNode;
 	}
-	else
+
+	Diagnostic.Line = InMessage.Line;
+	Diagnostic.ColumnStart = InMessage.ColumnStart;
+	Diagnostic.ColumnEnd = InMessage.ColumnEnd;
+
+	// If error path is a UObject, then stpre a reference to the related object.
+	FString Path = InMessage.VirtualFilePath;
+	if (Optimus::ConvertShaderFilePathToObjectPath(Path))
 	{
-		const FString SeverityStr = Matcher.GetCaptureGroup(6);
-		if (SeverityStr == TEXT("warning"))
-		{
-			Diagnostic.Level = EOptimusDiagnosticLevel::Warning;
-		}
-		else if (SeverityStr == TEXT("error"))
-		{
-			Diagnostic.Level = EOptimusDiagnosticLevel::Error;
-		}
-
-		const FString Path = Matcher.GetCaptureGroup(1);
 		Diagnostic.Object = StaticFindObject(nullptr, nullptr, *Path, true);
-
-		const FString MessageStr = Matcher.GetCaptureGroup(7);
-		const bool bShowPathInMessage = Diagnostic.Object == nullptr;
-		Diagnostic.Message = FText::FromString(bShowPathInMessage ? FString::Printf(TEXT("%s: %s"), *Path, *MessageStr) : MessageStr);
-
-		const int32 LineNumber = FCString::Atoi(*Matcher.GetCaptureGroup(2));
-		const int32 ColumnStart = FCString::Atoi(*Matcher.GetCaptureGroup(3));
-		const FString ColumnEndStr = Matcher.GetCaptureGroup(5);
-		const int32 ColumnEnd = ColumnEndStr.IsEmpty() ? ColumnStart : FCString::Atoi(*ColumnEndStr);
-		Diagnostic.Line = LineNumber;
-		Diagnostic.ColumnStart = ColumnStart;
-		Diagnostic.ColumnEnd = ColumnEnd;
+		if (UObject const* ObjectPtr = Diagnostic.Object.Get())
+		{
+			// Special case path display if object is the current kernel.
+			Path = (ObjectPtr == InKernelNode) ? InKernelFriendlyName : ObjectPtr->GetName();
+		}
 	}
+	
+	// If error path is a real file, then store its absolute path on disk.
+	if (!InMessage.RealFilePath.IsEmpty())
+	{
+		Diagnostic.AbsoluteFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*InMessage.RealFilePath);
+	}
+
+	FString Message;
+	if (!Path.IsEmpty())
+	{
+		Message = Path;
+		if (InMessage.Line != -1)
+		{
+			if (InMessage.ColumnStart == InMessage.ColumnEnd)
+			{
+				Message += FString::Printf(TEXT(" (%d,%d)"), InMessage.Line, InMessage.ColumnStart);
+			}
+			else
+			{
+				Message += FString::Printf(TEXT(" (%d,%d-%d)"), InMessage.Line, InMessage.ColumnStart, InMessage.ColumnEnd);
+			}
+		}
+		Message += TEXT(": ");
+	}
+	Message += InMessage.Text;
+	Diagnostic.Message = FText::FromString(Message);
 
 	if (InOwner)
 	{
@@ -88,7 +105,7 @@ static EOptimusDiagnosticLevel ProcessCompilationMessage(UOptimusDeformer* InOwn
 	return Diagnostic.Level;
 }
 
-void UOptimusComputeGraph::OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileOutputMessages)
+void UOptimusComputeGraph::OnKernelCompilationComplete(int32 InKernelIndex, FComputeKernelCompileResults const& InCompileResults)
 {
 	// Find the Optimus objects from the raw kernel index.
 	if (KernelToNode.IsValidIndex(InKernelIndex))
@@ -98,11 +115,12 @@ void UOptimusComputeGraph::OnKernelCompilationComplete(int32 InKernelIndex, cons
 		// Make sure the node hasn't been GC'd.
 		if (UOptimusNode* Node = const_cast<UOptimusNode*>(KernelToNode[InKernelIndex].Get()))
 		{
+			FString FriendlyName = Owner->GetName() / GetFName().GetPlainNameString() / Node->GetDisplayName().ToString();
 			EOptimusDiagnosticLevel DiagnosticLevel = EOptimusDiagnosticLevel::None;
 
-			for (FString const& CompileOutputMessage : InCompileOutputMessages)
+			for (FComputeKernelCompileMessage const& CompileOutputMessage : InCompileResults.Messages)
 			{
-				EOptimusDiagnosticLevel MessageDiagnosticLevel = ProcessCompilationMessage(Owner, Node, CompileOutputMessage);
+				EOptimusDiagnosticLevel MessageDiagnosticLevel = ProcessCompilationMessage(Owner, Node, FriendlyName, CompileOutputMessage);
 				if (MessageDiagnosticLevel > DiagnosticLevel)
 				{
 					DiagnosticLevel = MessageDiagnosticLevel;

@@ -17,7 +17,7 @@ public:
 	void SetSource(const FString& InText);
 
 	// Begin UComputeSource interface.
-	FString GetSource() const override { return SourceText; }
+	FString GetSource() const override;
 	// End UComputeSource interface.
 
 	// Begin IOptimusShaderTextProvider interface.

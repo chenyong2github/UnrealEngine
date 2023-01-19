@@ -92,4 +92,9 @@ namespace Optimus
 
 	/** Helper function to remove guids from member property names for user defined structs	*/
 	OPTIMUSCORE_API FName GetMemberPropertyShaderName(UScriptStruct* InStruct, const FProperty* InMemberProperty);
+
+	/** Helpers to convert UObject path to a virtual shader paths. */
+	void ConvertObjectPathToShaderFilePath(FString& InOutPath);
+	/** Helpers to convert a virtual shader path back to a UObject path. Returns false if the virtual shader path wasn't recognized as a UObject path. */
+	bool ConvertShaderFilePathToObjectPath(FString& InOutPath);
 }

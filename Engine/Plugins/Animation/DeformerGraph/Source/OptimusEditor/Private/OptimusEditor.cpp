@@ -45,6 +45,8 @@
 #include "SkeletalRenderPublic.h"
 #include "ToolMenus.h"
 #include "OptimusShaderText.h"
+#include "ISourceCodeAccessModule.h"
+#include "ISourceCodeAccessor.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusEditor"
@@ -327,40 +329,54 @@ void FOptimusEditor::OnCompileMessage(FOptimusCompilerDiagnostic const& Diagnost
 
 	if (Diagnostic.Line != INDEX_NONE)
 	{
-		// Create message with line number.
-		TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(
-			Severity,
-			FText::Format(LOCTEXT("CompileMessageWithLine", "{0} (line {1})"), Diagnostic.Message, FText::AsNumber(Diagnostic.Line)));
+		TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(Severity,	Diagnostic.Message);
 
 		if (UObject const* TokenObject = Diagnostic.Object.Get())
 		{
-			// Add activation which opens a text editor tab for the text provider.
-			auto Activation = [Event = OnSelectedNodesChanged(), TabManagerPtr = GetTabManager(), TokenObject](const TSharedRef<class IMessageToken>&)
+			// Add activation which opens in text editor tab.
+			// Could improve by putting cursor at correct location.
+			Message->AddToken(FActionToken::Create(
+				LOCTEXT("OpenInShaderTextEditor", "Open in shader text editor."),
+				FText::FromString(TokenObject->GetName()),
+				FOnActionTokenExecuted::CreateLambda([Event = OnSelectedNodesChanged(), TabManagerPtr = GetTabManager(), TokenObject]
+					{
+						TabManagerPtr->TryInvokeTab(FOptimusEditorShaderTextEditorTabSummoner::TabId);
+						UObject* MutableTokenObject = const_cast<UObject*>(TokenObject);
+						Event.Broadcast({ MutableTokenObject });
+					})
+			));
+		}
+		else if (!Diagnostic.AbsoluteFilePath.IsEmpty())
+		{
+			// Add activation which opens an external text editor.
+			if (ISourceCodeAccessModule* SourceCodeAccessModule = FModuleManager::LoadModulePtr<ISourceCodeAccessModule>("SourceCodeAccess"))
 			{
-				TabManagerPtr->TryInvokeTab(FOptimusEditorShaderTextEditorTabSummoner::TabId);
-
-				UObject* MutableTokenObject = const_cast<UObject*>(TokenObject);
-				Event.Broadcast({ MutableTokenObject });
-			};
-			Message->AddToken(FUObjectToken::Create(TokenObject)->OnMessageTokenActivated(FOnMessageTokenActivated::CreateLambda(Activation)));
+				Message->AddToken(FActionToken::Create(
+					LOCTEXT("OpenInExternalEditor", "Open in external text editor."),
+					FText::FromString(Diagnostic.AbsoluteFilePath),
+					FOnActionTokenExecuted::CreateLambda([SourceCodeAccessModule, Path = Diagnostic.AbsoluteFilePath, Line = Diagnostic.Line, Column = Diagnostic.ColumnStart]
+						{
+							SourceCodeAccessModule->GetAccessor().OpenFileAtLine(Path, Line, Column);
+						})
+				));
+			}
 		}
 
-		CompilerResultsListing->AddMessage(Message);
+		CompilerResultsListing->AddMessage(Message, false);
 	}
 	else
 	{
-		// Create message.
 		TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(Severity, Diagnostic.Message);
 
 		if (UObject const* TokenObject = Diagnostic.Object.Get())
 		{
 			// Add a dummy activation since default behavior opens content browser.
-			// Could improve this to select node?
+			// Could improve this to select node in deformer graph view?
 			static auto DummyActivation = [](const TSharedRef<class IMessageToken>&) {};
 			Message->AddToken(FUObjectToken::Create(TokenObject)->OnMessageTokenActivated(FOnMessageTokenActivated::CreateLambda(DummyActivation)));
 		}
 	
-		CompilerResultsListing->AddMessage(Message);
+		CompilerResultsListing->AddMessage(Message, false);
 	}
 
 	// Add to diagnostic list which is referenced by syntax highlighters.
@@ -836,7 +852,7 @@ void FOptimusEditor::HandlePreviewMeshChanged(
 void FOptimusEditor::CreateMessageLog()
 {
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
-	const FName LogName("LogComputeKernelShaderCompiler");
+	const FName LogName("LogOptimusCompiler");
 	if (MessageLogModule.IsRegisteredLogListing(LogName))
 	{
 		CompilerResultsListing = MessageLogModule.GetLogListing(LogName);

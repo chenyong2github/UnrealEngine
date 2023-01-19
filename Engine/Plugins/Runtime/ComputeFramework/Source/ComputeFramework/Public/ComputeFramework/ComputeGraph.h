@@ -12,11 +12,12 @@
 
 #include "ComputeGraph.generated.h"
 
+enum EShaderPlatform : uint16;
 class FArchive;
+struct FComputeKernelCompileResults;
 struct FComputeKernelDefinitionSet;
 struct FComputeKernelPermutationVector;
 class FComputeKernelResource;
-class UComputeKernelSource;
 class FComputeGraphRenderProxy;
 class ITargetPlatform;
 class FShaderParametersMetadata;
@@ -24,7 +25,7 @@ struct FShaderParametersMetadataAllocations;
 class UComputeDataInterface;
 class UComputeDataProvider;
 class UComputeKernel;
-enum EShaderPlatform : uint16;
+class UComputeKernelSource;
 
 /** 
  * Description of a single edge in a UComputeGraph. 
@@ -102,7 +103,7 @@ public:
 	virtual ~UComputeGraph();
 
 	/** Called each time that a single kernel shader compilation is completed. */
-	virtual void OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileOutputMessages) {}
+	virtual void OnKernelCompilationComplete(int32 InKernelIndex, FComputeKernelCompileResults const& InCompileResults) {}
 
 	/** 
 	 * Returns true if graph is valid. 
