@@ -682,6 +682,14 @@ static FAutoConsoleVariableRef CVarEnableMutableLiveUpdate(
 	ECVF_Default);
 
 
+int32 FCustomizableObjectSystemPrivate::EnableReuseInstanceTextures = 0;
+
+static FAutoConsoleVariableRef CVarEnableMutableReuseInstanceTextures(
+	TEXT("mutable.EnableReuseInstanceTextures"), FCustomizableObjectSystemPrivate::EnableReuseInstanceTextures,
+	TEXT("If set to 1 or greater and set in the corresponding setting in the current Mutable state, Mutable can reuse instance UTextures (only uncompressed and not streaming, so set the options in the state) and their resources between updates when they are modified. If geometry or state is changed they cannot be reused."),
+	ECVF_Default);
+
+
 /** Update the given Instance Skeletal Meshes and call its callbacks. */
 void UpdateSkeletalMesh(UCustomizableObjectInstance* CustomizableObjectInstance)
 {
@@ -2115,12 +2123,13 @@ namespace impl
 
 		CandidateInstance->CommitMinMaxLOD();
 
+		FString StateName = CandidateInstance->GetCustomizableObject()->GetStateName(CandidateInstance->GetState());
+		const FParameterUIData* StateData = CandidateInstance->GetCustomizableObject()->StateUIDataMap.Find(StateName);
+
 		bool bLiveUpdateMode = false;
 
 		if (SystemPrivateData->EnableMutableLiveUpdate)
 		{
-			FString StateName = CandidateInstance->GetCustomizableObject()->GetStateName(CandidateInstance->GetState());
-			const FParameterUIData* StateData = CandidateInstance->GetCustomizableObject()->StateUIDataMap.Find(StateName);
 			bLiveUpdateMode = StateData ? StateData->bLiveUpdateMode : false;
 		}
 
@@ -2128,6 +2137,22 @@ namespace impl
 		{
 			UE_LOG(LogMutable, Warning, TEXT("Instance LiveUpdateMode does not yet support progressive streaming of Mutable textures. Disabling LiveUpdateMode for this update."));
 			bLiveUpdateMode = false;
+		}
+
+		bool bReuseInstanceTextures = false;
+
+		if (SystemPrivateData->EnableReuseInstanceTextures)
+		{
+			if (Operation->bNeverStream)
+			{
+				bReuseInstanceTextures = StateData ? StateData->bReuseInstanceTextures : false;
+				bReuseInstanceTextures |= CandidateInstancePrivateData->HasCOInstanceFlags(ReuseTextures);
+			}
+			else
+			{
+				UE_LOG(LogMutable, Warning, TEXT("Instance texture reuse requires that the current Mutable state is in non-streaming mode. Change it in the Mutable graph base node in the state definition."));
+				bReuseInstanceTextures = false;
+			}
 		}
 
 		FCustomizableObjectSystemPrivate* CustomizableObjectSystemPrivateData = System->GetPrivate();
@@ -2151,6 +2176,7 @@ namespace impl
 		CurrentOperationData->CurrentMaxLOD = Operation->InstanceDescriptorRuntimeHash.GetMaxLOD();
 		CurrentOperationData->bNeverStream = Operation->bNeverStream;
 		CurrentOperationData->bLiveUpdateMode = bLiveUpdateMode;
+		CurrentOperationData->bReuseInstanceTextures = bReuseInstanceTextures;
 		CurrentOperationData->InstanceID = bLiveUpdateMode ? CandidateInstancePrivateData->LiveUpdateModeInstanceID : 0;
 		CurrentOperationData->MipsToSkip = Operation->MipsToSkip;
 		CurrentOperationData->MutableParameters = Parameters;

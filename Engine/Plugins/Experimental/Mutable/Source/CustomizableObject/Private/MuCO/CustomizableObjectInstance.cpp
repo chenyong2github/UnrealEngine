@@ -4589,7 +4589,7 @@ void UCustomizableInstancePrivateData::AdditionalAssetsAsyncLoaded(UCustomizable
 }
 
 
-void UpdateTextureRegionsMutable(UTexture2D* Texture, int32 MipIndex, const FUpdateTextureRegion2D& Region, uint32 SrcPitch, FByteBulkData* BulkData)
+void UpdateTextureRegionsMutable(UTexture2D* Texture, int32 MipIndex, uint32 NumMips, const FUpdateTextureRegion2D& Region, uint32 SrcPitch, const FByteBulkData* BulkData)
 {
 	if (Texture->GetResource())
 	{
@@ -4599,6 +4599,7 @@ void UpdateTextureRegionsMutable(UTexture2D* Texture, int32 MipIndex, const FUpd
 			int32 MipIndex;
 			FUpdateTextureRegion2D Region;
 			uint32 SrcPitch;
+			uint32 NumMips;
 		};
 
 		FUpdateTextureRegionsData* RegionData = new FUpdateTextureRegionsData;
@@ -4607,19 +4608,30 @@ void UpdateTextureRegionsMutable(UTexture2D* Texture, int32 MipIndex, const FUpd
 		RegionData->MipIndex = MipIndex;
 		RegionData->Region = Region;
 		RegionData->SrcPitch = SrcPitch;
-
+		RegionData->NumMips = NumMips;
 
 		ENQUEUE_RENDER_COMMAND(UpdateTextureRegionsMutable)(
 			[RegionData, BulkData](FRHICommandList& CmdList)
 			{
+				check(int32(RegionData->NumMips) >= RegionData->Texture2DResource->GetCurrentMipCount());
+				int32 MipDifference = RegionData->NumMips - RegionData->Texture2DResource->GetCurrentMipCount();
+				check(MipDifference >= 0);
 				int32 CurrentFirstMip = RegionData->Texture2DResource->GetCurrentFirstMip();
 				uint8* SrcData = (uint8*)BulkData->LockReadOnly();
 
-				if (RegionData->MipIndex >= CurrentFirstMip)
+				//uint32 Size = RegionData->SrcPitch / (sizeof(uint8) * 4);
+				//UE_LOG(LogMutable, Warning, TEXT("UpdateTextureRegionsMutable MipIndex = %d, FirstMip = %d, size = %d"),
+				//	RegionData->MipIndex, CurrentFirstMip, Size);
+
+				//checkf(Size <= RegionData->Texture2DResource->GetSizeX(),
+				//	TEXT("UpdateTextureRegionsMutable incorrect size. %d, %d. NumMips=%d"), 
+				//	Size, RegionData->Texture2DResource->GetSizeX(), RegionData->Texture2DResource->GetCurrentMipCount());
+
+				if (RegionData->MipIndex >= CurrentFirstMip + MipDifference)
 				{
 					RHIUpdateTexture2D(
 						RegionData->Texture2DResource->GetTexture2DRHI(),
-						RegionData->MipIndex - CurrentFirstMip,
+						RegionData->MipIndex - CurrentFirstMip - MipDifference,
 						RegionData->Region,
 						RegionData->SrcPitch,
 						SrcData);
@@ -4631,11 +4643,14 @@ void UpdateTextureRegionsMutable(UTexture2D* Texture, int32 MipIndex, const FUpd
 	}
 }
 
+
 void UCustomizableInstancePrivateData::ReuseTexture(UTexture2D* Texture)
 {
 	if (Texture->GetPlatformData())
 	{
-		for (uint32 i = 0; i < (uint32)Texture->GetPlatformData()->Mips.Num(); i++)
+		uint32 NumMips = Texture->GetPlatformData()->Mips.Num();
+
+		for (uint32 i = 0; i < NumMips; i++)
 		{
 			FTexture2DMipMap& Mip = Texture->GetPlatformData()->Mips[i];
 
@@ -4650,7 +4665,10 @@ void UCustomizableInstancePrivateData::ReuseTexture(UTexture2D* Texture)
 				Region.Width = Mip.SizeX;
 				Region.Height = Mip.SizeY;
 
-				UpdateTextureRegionsMutable(Texture, i, Region, Mip.SizeX * sizeof(uint8) * 4, &Mip.BulkData);
+				check(int32(Region.Width) <= Texture->GetSizeX());
+				check(int32(Region.Height) <= Texture->GetSizeY());
+
+				UpdateTextureRegionsMutable(Texture, i, NumMips, Region, Mip.SizeX * sizeof(uint8) * 4, &Mip.BulkData);
 			}
 		}
 	}
@@ -4677,7 +4695,7 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 	UpdateContext->State = OperationData->State;
 
 	const bool bUseCurrentMinLODAsBaseLOD = HasCOInstanceFlags(ReduceLODs);
-	const bool bReuseTextures = HasCOInstanceFlags(ReuseTextures);
+	const bool bReuseTextures = OperationData->bReuseInstanceTextures;
 
 	const FInstanceUpdateData::FLOD& FirstLOD = OperationData->InstanceUpdateData.LODs[OperationData->CurrentMinLOD];
 	const int32 NumComponents = FirstLOD.ComponentCount;
@@ -4847,8 +4865,27 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 
 									if (ReusedTexture && (*ReusedTexture).IsValid() && !(*ReusedTexture)->HasAnyFlags(RF_BeginDestroyed))
 									{
-										Texture = (*ReusedTexture).Get();
-										check(Texture != nullptr);
+										// Only uncompressed textures can be reused. This also fixes an issue in the editor where textures supposedly 
+										// uncompressed by their state, are still compressed because the CO has not been compiled at maximum settings
+										// and the uncompressed setting cannot be applied to them.
+										EPixelFormat PixelFormat = (*ReusedTexture)->GetPixelFormat();
+
+										if (PixelFormat == EPixelFormat::PF_R8G8B8A8)
+										{
+											Texture = (*ReusedTexture).Get();
+											check(Texture != nullptr);
+										}
+										else
+										{
+											ReusedTexture = nullptr;
+											Texture = CreateTexture();
+
+#if WITH_EDITOR
+											UE_LOG(LogMutable, Warning,
+												TEXT("Tried to reuse an uncompressed texture with name %s. Make sure the selected Mutable state disables texture compression/streaming, that one of the state's runtime parameters affects the texture and that the CO is compiled with max. optimization settings."),
+												*Texture->GetName());
+#endif
+										}
 									}
 									else
 									{

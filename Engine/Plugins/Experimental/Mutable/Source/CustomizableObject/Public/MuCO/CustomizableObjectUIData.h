@@ -265,13 +265,17 @@ struct FParameterUIData
 	bool bLiveUpdateMode = false;
 
 	UPROPERTY(BlueprintReadWrite, Category = CustomizableObject)
+	bool bReuseInstanceTextures = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = CustomizableObject)
 	TMap<FString, FString> ForcedParameterValues;
 
 	bool operator ==(const FParameterUIData& Other) const
 	{
 		if (Name != Other.Name || ParamUIMetadata != Other.ParamUIMetadata || Type != Other.Type 
 			|| ArrayIntegerParameterOption != Other.ArrayIntegerParameterOption || IntegerParameterGroupType != Other.IntegerParameterGroupType 
-			|| bLiveUpdateMode != Other.bLiveUpdateMode || !ForcedParameterValues.OrderIndependentCompareEqual(Other.ForcedParameterValues)
+			|| bLiveUpdateMode != Other.bLiveUpdateMode || bReuseInstanceTextures != Other.bReuseInstanceTextures
+			|| !ForcedParameterValues.OrderIndependentCompareEqual(Other.ForcedParameterValues)
 			)
 		{
 			return false;
@@ -289,6 +293,7 @@ struct FParameterUIData
 		Ar << UIData.IntegerParameterGroupType;
 		Ar << UIData.bDontCompressRuntimeTextures;
 		Ar << UIData.bLiveUpdateMode;
+		Ar << UIData.bReuseInstanceTextures;
 		Ar << UIData.ForcedParameterValues;
 
 		return Ar;

@@ -423,6 +423,7 @@ struct FMutableOperationData
 	bool bNeverStream = false;
 	/** When this option is enabled it will reuse the Mutable core instance and its temp data between updates.  */
 	bool bLiveUpdateMode = false;
+	bool bReuseInstanceTextures = false;
 	/** This option comes from the operation request. It is used to reduce the number of mipmaps that mutable must generate for images.  */
 	int32 MipsToSkip = 0;
 
@@ -495,6 +496,7 @@ public:
 
 	static int32 EnableMutableProgressiveMipStreaming;
 	static int32 EnableMutableLiveUpdate;
+	static int32 EnableReuseInstanceTextures;
 	static int32 EnableMutableAnimInfoDebugging;
 
 	/** */
