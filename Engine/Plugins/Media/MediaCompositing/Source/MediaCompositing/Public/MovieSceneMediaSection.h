@@ -4,10 +4,8 @@
 
 #include "MovieSceneSection.h"
 
-#include "Channels/MovieSceneChannelProxy.h"
 #include "MediaSource.h"
 #include "MovieSceneObjectBindingID.h"
-#include "Sections/MovieSceneFloatSection.h"
 
 #include "MovieSceneMediaSection.generated.h"
 
@@ -74,10 +72,6 @@ public:
 	/** True if the object bound to this track has a media player proxy. */
 	UPROPERTY(Transient)
 	bool bHasMediaPlayerProxy;
-
-	/** If using an object like a MediaPlate, then this determines the blend value for our texture. */
-	UPROPERTY()
-	FMovieSceneFloatChannel TextureBlend;
 
 public:
 

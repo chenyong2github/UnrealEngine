@@ -275,6 +275,7 @@ private:
  *****************************************************************************/
 
 FMovieSceneMediaSectionTemplate::FMovieSceneMediaSectionTemplate(const UMovieSceneMediaSection& InSection, const UMovieSceneMediaTrack& InTrack)
+	: MediaSection(&InSection)
 {
 	Params.MediaSource = InSection.GetMediaSource();
 	Params.MediaSourceProxy = InSection.GetMediaSourceProxy();
@@ -300,7 +301,6 @@ FMovieSceneMediaSectionTemplate::FMovieSceneMediaSectionTemplate(const UMovieSce
 		Params.SectionEndFrame = InSection.GetRange().GetUpperBoundValue();
 	}
 
-	Params.ProxyTextureBlend = InSection.TextureBlend;
 	Params.ProxyTextureIndex = InSection.TextureIndex;
 }
 
@@ -340,8 +340,7 @@ void FMovieSceneMediaSectionTemplate::Evaluate(const FMovieSceneEvaluationOperan
 		const double FrameDurationInSeconds = FMath::Max(FrameRate.AsSeconds(FFrameTime(1)), (Context.GetRange().Size<FFrameTime>()) / Context.GetFrameRate());
 		const int64 FrameDurationTicks = FrameDurationInSeconds * ETimespan::TicksPerSecond;
 
-		float ProxyTextureBlend = 1.0f;
-		Params.ProxyTextureBlend.Evaluate(Context.GetTime(), ProxyTextureBlend);
+		float ProxyTextureBlend = MediaSection->EvaluateEasing(Context.GetTime());
 
 		#if MOVIESCENEMEDIATEMPLATE_TRACE_EVALUATION
 			GLog->Logf(ELogVerbosity::Log, TEXT("Evaluating frame %i+%f, FrameRate %i/%i, FrameTicks %d, FrameDurationTicks %d"),

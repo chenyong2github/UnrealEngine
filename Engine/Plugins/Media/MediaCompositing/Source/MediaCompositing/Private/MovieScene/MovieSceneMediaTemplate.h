@@ -101,4 +101,7 @@ private:
 
 	UPROPERTY()
 	FMovieSceneMediaSectionParams Params;
+
+	UPROPERTY()
+	TObjectPtr<const UMovieSceneMediaSection> MediaSection;
 };

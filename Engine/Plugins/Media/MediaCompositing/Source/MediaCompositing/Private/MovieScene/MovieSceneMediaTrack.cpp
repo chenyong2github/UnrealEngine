@@ -27,6 +27,8 @@ UMovieSceneMediaTrack::UMovieSceneMediaTrack(const FObjectInitializer& ObjectIni
 	EvalOptions.bEvaluateInPreroll = true;
 	EvalOptions.bEvaluateInPostroll = true;
 
+	SupportedBlendTypes.Add(EMovieSceneBlendType::Absolute);
+
 #if WITH_EDITORONLY_DATA
 	TrackTint = FColor(0, 0, 0, 200);
 	bSupportsDefaultSections = false;

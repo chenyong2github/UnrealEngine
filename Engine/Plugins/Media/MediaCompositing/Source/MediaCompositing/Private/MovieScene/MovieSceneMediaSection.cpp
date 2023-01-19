@@ -35,17 +35,7 @@ UMovieSceneMediaSection::UMovieSceneMediaSection(const FObjectInitializer& Objec
 #endif
 
 	EvalOptions.CompletionMode = EMovieSceneCompletionMode::RestoreState;
-	TextureBlend.SetDefault(1.0f);
-
-#if WITH_EDITOR
-
-	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(TextureBlend, FMovieSceneChannelMetaData(), TMovieSceneExternalValue<float>::Make());
-
-#else
-
-	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(TextureBlend);
-
-#endif
+	BlendType = EMovieSceneBlendType::Absolute;
 }
 
 void UMovieSceneMediaSection::PostInitProperties()
