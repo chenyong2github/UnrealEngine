@@ -1431,15 +1431,16 @@ void UCookOnTheFlyServer::SetSaveBusy(bool bInBusy)
 			TArray<UObject*> ExpectedObjects;
 			TSet<UPackage*> ExpectedPackages;
 			FPackageDataQueue& SaveQueue = PackageDatas->GetSaveQueue();
-			const TArray<FPendingCookedPlatformData>& PendingCookedPlatformDatas = PackageDatas->GetPendingCookedPlatformDatas();
 			TArray<UClass*> CompilationUsers({ UMaterialInterface::StaticClass(), FindObject<UClass>(nullptr, TEXT("/Script/Niagara.NiagaraScript")) });
 
-			for (const FPendingCookedPlatformData& Data : PendingCookedPlatformDatas)
+			PackageDatas->ForEachPendingCookedPlatformData(
+			[&CompilationUsers, &ExpectedObjects, &ExpectedPackages, &NonExpectedObjects, &NonExpectedPackages]
+			(const FPendingCookedPlatformData& Data)
 			{
 				UObject* Object = Data.Object.Get();
 				if (!Object)
 				{
-					continue;
+					return;
 				}
 				bool bCompilationUser = false;
 				for (UClass* CompilationUserClass : CompilationUsers)
@@ -1460,7 +1461,7 @@ void UCookOnTheFlyServer::SetSaveBusy(bool bInBusy)
 					NonExpectedObjects.Add(Object);
 					NonExpectedPackages.Add(Object->GetPackage());
 				}
-			}
+			});
 			TArray<UPackage*> RemovePackages;
 			for (UPackage* Package : ExpectedPackages)
 			{
@@ -1506,7 +1507,8 @@ void UCookOnTheFlyServer::SetSaveBusy(bool bInBusy)
 				UE_LOG(LogCook, Display, TEXT("    <None>"));
 			}
 
-			UE_LOG(LogCook, Display, TEXT("%d objects that have not yet returned true from IsCachedCookedPlatformDataLoaded:"), PackageDatas->GetPendingCookedPlatformDatas().Num());
+			UE_LOG(LogCook, Display, TEXT("%d objects that have not yet returned true from IsCachedCookedPlatformDataLoaded:"),
+				PackageDatas->GetPendingCookedPlatformDataNum());
 			DisplayCount = 0;
 			for (TArray<UObject*>* ObjectArray : {  &NonExpectedObjects, &ExpectedObjects })
 			{
@@ -3292,7 +3294,8 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCachePostMove(UE::Cook::FGenerat
 	{
 		UObject* FirstPendingObject = nullptr;
 		FString FirstPendingObjectName;
-		for (const FPendingCookedPlatformData& Pending : PackageDatas->GetPendingCookedPlatformDatas())
+		PackageDatas->ForEachPendingCookedPlatformData([&PackageData, &FirstPendingObject, &FirstPendingObjectName]
+		(const FPendingCookedPlatformData& Pending)
 		{
 			if (&Pending.PackageData == &PackageData)
 			{
@@ -3303,7 +3306,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCachePostMove(UE::Cook::FGenerat
 					FirstPendingObjectName = MoveTemp(ObjectName);
 				}
 			}
-		}
+		});
 		UE_LOG(LogCook, Warning, TEXT("CookPackageSplitter created or moved objects during %s that are not yet ready to save. This will cause an error if garbage collection runs before the package is saved.\n")
 			TEXT("Change the splitter's %s to construct new objects and declare existing objects that will be moved from other packages.\n")
 			TEXT("SplitterObject: %s%s\n")
@@ -3623,7 +3626,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::CallBeginCacheOnObjects(UE::Cook::FPa
 		else
 		{
 			bool bNeedsResourceRelease = CurrentAsyncCache != nullptr;
-			PackageDatas->GetPendingCookedPlatformDatas().Emplace(Obj, TargetPlatform, PackageData, bNeedsResourceRelease, *this);
+			PackageDatas->AddPendingCookedPlatformData(FPendingCookedPlatformData(Obj, TargetPlatform, PackageData, bNeedsResourceRelease, *this));
 		}
 
 		if (Timer.IsTimeUp())
@@ -3701,7 +3704,8 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 	else 
 	{
 		// This is a slower but more general flow that can handle releasing whether or not we called SavePackage
-		// Note that even after we return from this function, some objects with pending IsCachedCookedPlatformDataLoaded calls may still exist for this Package in PackageDatas->GetPendingCookedPlatformDatas(),
+		// Note that even after we return from this function, some objects with pending IsCachedCookedPlatformDataLoaded
+		// calls may still exist for this Package in PendingCookedPlatformDatas
 		// and this PackageData may therefore still have GetNumPendingCookedPlatformData > 0
 		if (!IsCookingInEditor()) // ClearAllCachedCookedPlatformData calls are only used when not in editor.
 		{
@@ -3713,7 +3717,8 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 
 				// Find all pending BeginCacheForCookedPlatformData for this FPackageData
 				TMap<UObject*, TArray<FPendingCookedPlatformData*>> PendingObjects;
-				for (FPendingCookedPlatformData& PendingCookedPlatformData : PackageDatas->GetPendingCookedPlatformDatas())
+				PackageDatas->ForEachPendingCookedPlatformData(
+				[&PendingObjects, &PackageData](FPendingCookedPlatformData& PendingCookedPlatformData)
 				{
 					if (&PendingCookedPlatformData.PackageData == &PackageData && !PendingCookedPlatformData.PollIsComplete())
 					{
@@ -3722,7 +3727,7 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 						check(!PendingCookedPlatformData.bHasReleased); // bHasReleased should be false since PollIsComplete returned false
 						PendingObjects.FindOrAdd(Object).Add(&PendingCookedPlatformData);
 					}
-				}
+				});
 
 				TArray<UObject*> ObjectsToClear;
 				TArray<FWeakObjectPtr>* CachedObjects = &PackageData.GetCachedObjectsInOuter();
@@ -4163,7 +4168,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 				{
 					// PrepareSave might block on pending CookedPlatformDatas, and it might block on resources held by other
 					// CookedPlatformDatas. Calling PollPendingCookedPlatformDatas should handle pumping all of those.
-					if (!PackageDatas->GetPendingCookedPlatformDatas().Num())
+					if (!PackageDatas->GetPendingCookedPlatformDataNum())
 					{
 						// We're waiting on something other than pendingcookedplatformdatas; this loop does not yet handle
 						// updating anything else, so break out
@@ -4659,7 +4664,8 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 	// completed.
 	{
 		TMap<FPackageData*, UPackage*> UniquePendingPackages;
-		for (FPendingCookedPlatformData& PendingData : PackageDatas->GetPendingCookedPlatformDatas())
+		PackageDatas->ForEachPendingCookedPlatformData(
+		[&UniquePendingPackages](const FPendingCookedPlatformData& PendingData)
 		{
 			if (UObject* Object = PendingData.Object.Get())
 			{	
@@ -4668,7 +4674,7 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 					UniquePendingPackages.Add(&PendingData.PackageData, Package);
 				}	
 			}
-		}
+		});
 
 		GCKeepPackages.Reserve(GCKeepPackages.Num() + UniquePendingPackages.Num());
 		for (const TPair<FPackageData*,UPackage*>& Pair : UniquePendingPackages)
@@ -4679,7 +4685,8 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 	}
 
 	// Prevent GC of any objects on which we are still waiting for IsCachedCookedPlatformData
-	for (UE::Cook::FPendingCookedPlatformData& Pending : PackageDatas->GetPendingCookedPlatformDatas())
+	PackageDatas->ForEachPendingCookedPlatformData(
+	[this](UE::Cook::FPendingCookedPlatformData& Pending)
 	{
 		if (!Pending.PollIsComplete())
 		{
@@ -4687,7 +4694,7 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 			check(Object); // Otherwise PollIsComplete would have returned true
 			GCKeepObjects.Add(Object);
 		}
-	}
+	});
 
 	const bool bPartialGC = IsCookFlagSet(ECookInitializationFlags::EnablePartialGC);
 	if (bGarbageCollectTypeSoft || bPartialGC)

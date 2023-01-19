@@ -1142,7 +1142,7 @@ private:
 	/**
 	 * Frees all the memory used to call BeginCacheForCookedPlatformData on all the objects in PackageData.
 	 * If the calls were incomplete because the PackageData's save was cancelled, handles canceling them and
-	 * leaving any required CancelManagers in GetPendingCookedPlatformDatas
+	 * leaving any required CancelManagers in PendingCookedPlatformDatas
 	 * 
 	 * @param bCompletedSave If false, data that can not be efficiently recomputed will be preserved to try
 	 *        the save again. If true, all data will be wiped.
@@ -1151,7 +1151,7 @@ private:
 	void ReleaseCookedPlatformData(UE::Cook::FPackageData& PackageData, UE::Cook::EReleaseSaveReason ReleaseSaveReason);
 
 	/**
-	 * Poll the GetPendingCookedPlatformDatas and release their resources when they are complete.
+	 * Poll the PendingCookedPlatformDatas and release their resources when they are complete.
 	 * This is done inside of PumpSaveQueue, but is also required after a cancelled cook so that references to
 	 * the pending objects will be eventually dropped.
 	 */

@@ -1905,9 +1905,11 @@ FPendingCookedPlatformData::FPendingCookedPlatformData(UObject* InObject, const 
 FPendingCookedPlatformData::FPendingCookedPlatformData(FPendingCookedPlatformData&& Other)
 	: Object(Other.Object), TargetPlatform(Other.TargetPlatform), PackageData(Other.PackageData)
 	, CookOnTheFlyServer(Other.CookOnTheFlyServer), CancelManager(Other.CancelManager), ClassName(Other.ClassName)
-	, bHasReleased(Other.bHasReleased), bNeedsResourceRelease(Other.bNeedsResourceRelease)
+	, UpdatePeriodMultiplier(Other.UpdatePeriodMultiplier), bHasReleased(Other.bHasReleased)
+	, bNeedsResourceRelease(Other.bNeedsResourceRelease)
 {
 	Other.Object = nullptr;
+	Other.bHasReleased = true;
 }
 
 FPendingCookedPlatformData::~FPendingCookedPlatformData()
@@ -2602,7 +2604,7 @@ void FPackageDatas::GetCookedPackagesForPlatform(const ITargetPlatform* Platform
 void FPackageDatas::Clear()
 {
 	FWriteScopeLock ExistenceWriteLock(ExistenceLock);
-	PendingCookedPlatformDatas.Empty(); // These destructors will dereference PackageDatas
+	PendingCookedPlatformDataLists.Empty(); // These destructors will dereference PackageDatas
 	RequestQueue.Empty();
 	SaveQueue.Empty();
 	PackageNameToPackageData.Empty();
@@ -2635,14 +2637,23 @@ void FPackageDatas::OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatfor
 	}
 }
 
-TArray<FPendingCookedPlatformData>& FPackageDatas::GetPendingCookedPlatformDatas()
+constexpr int32 PendingPlatformDataReservationSize = 128;
+constexpr int32 PendingPlatformDataMaxUpdatePeriod = 16;
+
+void FPackageDatas::AddPendingCookedPlatformData(FPendingCookedPlatformData&& Data)
 {
-	return PendingCookedPlatformDatas;
+	if (PendingCookedPlatformDataLists.IsEmpty())
+	{
+		PendingCookedPlatformDataLists.Emplace();
+		PendingCookedPlatformDataLists.Last().Reserve(PendingPlatformDataReservationSize );
+	}
+	PendingCookedPlatformDataLists.First().Add(MoveTemp(Data));
+	++PendingCookedPlatformDataNum;
 }
 
 void FPackageDatas::PollPendingCookedPlatformDatas(bool bForce, double& LastCookableObjectTickTime)
 {
-	if (PendingCookedPlatformDatas.Num() == 0)
+	if (PendingCookedPlatformDataNum == 0)
 	{
 		return;
 	}
@@ -2659,6 +2670,22 @@ void FPackageDatas::PollPendingCookedPlatformDatas(bool bForce, double& LastCook
 			return;
 		}
 	}
+	LastPollAsyncTime = CurrentTime;
+
+	// PendingPlatformDataLists is a rotating list of lists of PendingPlatformDatas
+	// The first list contains all of the PendingPlatformDatas that we should poll on this tick
+	// The nth list is all of the PendingPlatformDatas that we should poll after N more ticks
+	// Each poll period we pull the front list off and all other lists move frontwards by 1.
+	// New PendingPlatformDatas are inserted into the first list, to be polled in the next poll period
+	// When a PendingPlatformData signals it is not ready after polling, we increase its poll period
+	// exponentially - we double it.
+	// A poll period of N times the default poll period means we insert it into the Nth list in
+	// PendingPlatformDataLists.
+	FPendingCookedPlatformDataContainer List = PendingCookedPlatformDataLists.PopFrontValue();
+	if (!bForce && List.IsEmpty())
+	{
+		return;
+	}
 
 	GShaderCompilingManager->ProcessAsyncResults(true /* bLimitExecutionTime */,
 		false /* bBlockOnGlobalShaderCompletion */);
@@ -2670,20 +2697,51 @@ void FPackageDatas::PollPendingCookedPlatformDatas(bool bForce, double& LastCook
 		LastCookableObjectTickTime = CurrentTime;
 	}
 
-	FPendingCookedPlatformData* Datas = PendingCookedPlatformDatas.GetData();
-	for (int Index = 0; Index < PendingCookedPlatformDatas.Num();)
+	if (!bForce)
 	{
-		if (Datas[Index].PollIsComplete())
+		for (FPendingCookedPlatformData& Data : List)
 		{
-			PendingCookedPlatformDatas.RemoveAtSwap(Index, 1 /* Count */, false /* bAllowShrinking */);
-		}
-		else
-		{
-			++Index;
+			if (Data.PollIsComplete())
+			{
+				// We are destructing all elements of List after the for loop is done; we leave
+				// the completed Data on List to be destructed.
+				--PendingCookedPlatformDataNum;
+			}
+			else
+			{
+				Data.UpdatePeriodMultiplier = FMath::Clamp(Data.UpdatePeriodMultiplier*2, 1, PendingPlatformDataMaxUpdatePeriod);
+				int32 ContainerIndex = Data.UpdatePeriodMultiplier - 1;
+				while (PendingCookedPlatformDataLists.Num() <= ContainerIndex)
+				{
+					PendingCookedPlatformDataLists.Emplace();
+					PendingCookedPlatformDataLists.Last().Reserve(PendingPlatformDataReservationSize);
+				}
+				PendingCookedPlatformDataLists[ContainerIndex].Add(MoveTemp(Data));
+			}
 		}
 	}
-
-	LastPollAsyncTime = CurrentTime;
+	else
+	{
+		// When called with bForce, we poll all PackageDatas in all lists, and do not update
+		// any PollPeriods.
+		PendingCookedPlatformDataLists.AddFront(MoveTemp(List));
+		for (FPendingCookedPlatformDataContainer& ForceList : PendingCookedPlatformDataLists)
+		{
+			for (int32 Index = 0; Index < ForceList.Num(); )
+			{
+				FPendingCookedPlatformData& Data = ForceList[Index];
+				if (Data.PollIsComplete())
+				{
+					ForceList.RemoveAtSwap(Index, 1, false /* bAllowShrinking */);
+					--PendingCookedPlatformDataNum;
+				}
+				else
+				{
+					++Index;
+				}
+			}
+		}
+	}
 }
 
 TArray<FPackageData*>::RangedForIteratorType FPackageDatas::begin()
@@ -2702,10 +2760,10 @@ void FPackageDatas::RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPla
 	{
 		PackageData->RemapTargetPlatforms(Remap);
 	}
-	for (FPendingCookedPlatformData& CookedPlatformData : PendingCookedPlatformDatas)
+	ForEachPendingCookedPlatformData([&Remap](FPendingCookedPlatformData& CookedPlatformData)
 	{
 		CookedPlatformData.RemapTargetPlatforms(Remap);
-	}
+	});
 }
 
 void FPackageDatas::DebugInstigator(FPackageData& PackageData)

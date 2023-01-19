@@ -853,6 +853,8 @@ struct FPendingCookedPlatformData
 	FPendingCookedPlatformDataCancelManager* CancelManager;
 	/* Saved copy of the ClassName to use for resource releasing. */
 	FName ClassName;
+	/** Polling performance field: how many UpdatePeriods should we wait before polling again. */
+	int32 UpdatePeriodMultiplier = 1;
 	/** Flag for whether we have executed the release. */
 	bool bHasReleased;
 	/**
@@ -982,6 +984,8 @@ public:
 	FPackageDataQueue PreloadingQueue;
 	FPackageDataQueue EntryQueue;
 };
+
+typedef TArray<FPendingCookedPlatformData> FPendingCookedPlatformDataContainer;
 
 /*
  * Class that manages the list of all PackageDatas for a CookOnTheFlyServer. PackageDatas is an associative
@@ -1180,8 +1184,21 @@ public:
 	/** Remove all request data about the given platform from all PackageDatas and other memory used by *this. */
 	void OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform);
 
-	/** Return the container that tracks pending calls to BeginCacheForCookedPlatformData. */
-	TArray<FPendingCookedPlatformData>& GetPendingCookedPlatformDatas();
+	/** Enumerate PendingPlatformDatas: the list of pending calls to BeginCacheForCookedPlatformData. */
+	template <typename FunctionType>
+	void ForEachPendingCookedPlatformData(const FunctionType& Function)
+	{
+		for (FPendingCookedPlatformDataContainer& Container : PendingCookedPlatformDataLists)
+		{
+			for (FPendingCookedPlatformData& Data : Container)
+			{
+				Function(Data);
+			}
+		}
+	}
+	int32 GetPendingCookedPlatformDataNum() const { return PendingCookedPlatformDataNum; }
+	void AddPendingCookedPlatformData(FPendingCookedPlatformData&& Data);
+
 	/**
 	 * Iterate over all elements in PendingCookedPlatformDatas and check whether they have completed,
 	 * releasing their resources and pending count if so.
@@ -1217,7 +1234,8 @@ private:
 	FPackageDataMonitor Monitor;
 	TMap<FName, FPackageData*> PackageNameToPackageData;
 	TMap<FName, FPackageData*> FileNameToPackageData;
-	TArray<FPendingCookedPlatformData> PendingCookedPlatformDatas;
+	TRingBuffer<FPendingCookedPlatformDataContainer> PendingCookedPlatformDataLists;
+	int32 PendingCookedPlatformDataNum = 0;
 	FRequestQueue RequestQueue;
 	TFastPointerSet<FPackageData*> AssignedToWorkerSet;
 	FLoadPrepareQueue LoadPrepareQueue;
