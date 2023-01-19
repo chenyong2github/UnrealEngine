@@ -158,8 +158,6 @@ private:
 class CHAOS_API FXPBDEdgeSpringConstraints final : public FXPBDSpringConstraints
 {
 public:
-	static constexpr int32 Valence = 2;
-
 	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
 	{
 		return IsXPBDEdgeSpringStiffnessEnabled(PropertyCollection, false);
@@ -169,11 +167,9 @@ public:
 		const FSolverParticles& Particles,
 		int32 ParticleOffset,
 		int32 ParticleCount,
-		const TArray<TVector<int32, 2>>& InConstraints,
+		const TArray<TVec3<int32>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& DampingMultipliers,
-		const FSolverVec2& InStiffness,
-		const FSolverVec2& InDampingRatio,
 		const FPropertyCollectionConstAdapter& PropertyCollection,
 		bool bTrimKinematicConstraints = false)
 		: FXPBDSpringConstraints(
@@ -213,8 +209,6 @@ private:
 class CHAOS_API FXPBDBendingSpringConstraints : public FXPBDSpringConstraints
 {
 public:
-	static constexpr int32 Valence = 4;
-
 	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
 	{
 		return IsXPBDBendingSpringStiffnessEnabled(PropertyCollection, false);
@@ -224,11 +218,9 @@ public:
 		const FSolverParticles& Particles,
 		int32 ParticleOffset,
 		int32 ParticleCount,
-		const TArray<TVector<int32, 4>>& InConstraints,
+		const TArray<TVec2<int32>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& DampingMultipliers,
-		const FSolverVec2& InStiffness,
-		const FSolverVec2& InDampingRatio,
 		const FPropertyCollectionConstAdapter& PropertyCollection,
 		bool bTrimKinematicConstraints = false)
 		: FXPBDSpringConstraints(

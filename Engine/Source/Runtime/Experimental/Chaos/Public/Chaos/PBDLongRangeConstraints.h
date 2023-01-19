@@ -28,7 +28,8 @@ public:
 		const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& ScaleMultipliers,
-		const FPropertyCollectionConstAdapter& PropertyCollection)
+		const FPropertyCollectionConstAdapter& PropertyCollection,
+		FSolverReal MeshScale)
 		: FPBDLongRangeConstraintsBase(
 			Particles,
 			InParticleOffset,
@@ -37,7 +38,9 @@ public:
 			StiffnessMultipliers,
 			ScaleMultipliers,
 			FSolverVec2(GetWeightedFloatTetherStiffness(PropertyCollection)),
-			FSolverVec2(GetWeightedFloatTetherScale(PropertyCollection)))  // Scale clamping done in constructor
+			FSolverVec2(GetWeightedFloatTetherScale(PropertyCollection)),  // Scale clamping done in constructor
+			FPBDStiffness::DefaultPBDMaxStiffness,
+			MeshScale)
 	{}
 
 	FPBDLongRangeConstraints(
@@ -48,7 +51,8 @@ public:
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& ScaleMultipliers,
 		const FSolverVec2& InStiffness = FSolverVec2::UnitVector,
-		const FSolverVec2& InScale = FSolverVec2::UnitVector)
+		const FSolverVec2& InScale = FSolverVec2::UnitVector,
+		FSolverReal MeshScale = (FSolverReal)1.)
 		: FPBDLongRangeConstraintsBase(
 			Particles,
 			InParticleOffset,
@@ -57,14 +61,15 @@ public:
 			StiffnessMultipliers,
 			ScaleMultipliers,
 			InStiffness,
-			InScale)
+			InScale,
+			MeshScale)
 	{}
 
 	virtual ~FPBDLongRangeConstraints() override {}
 
 	using Base::SetProperties;
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection, FSolverReal MeshScale)
 	{
 		if (IsTetherStiffnessMutable(PropertyCollection))
 		{
@@ -72,7 +77,7 @@ public:
 		}
 		if (IsTetherScaleMutable(PropertyCollection))
 		{
-			TetherScale.SetWeightedValue(FSolverVec2(GetWeightedFloatTetherScale(PropertyCollection)).ClampAxes(MinTetherScale, MaxTetherScale));
+			TetherScale.SetWeightedValue(FSolverVec2(GetWeightedFloatTetherScale(PropertyCollection)).ClampAxes(MinTetherScale, MaxTetherScale) * MeshScale);
 		}
 	}
 

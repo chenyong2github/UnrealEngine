@@ -40,7 +40,8 @@ public:
 		const TConstArrayView<FRealSingle>& ScaleMultipliers,
 		const FSolverVec2& InStiffness = FSolverVec2::UnitVector,
 		const FSolverVec2& InScale = FSolverVec2::UnitVector,
-		FSolverReal MaxStiffness = FPBDStiffness::DefaultPBDMaxStiffness);
+		FSolverReal MaxStiffness = FPBDStiffness::DefaultPBDMaxStiffness,
+		FSolverReal MeshScale = (FSolverReal)1.);
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // For ScaleIndices and ScaleTable
 	virtual ~FPBDLongRangeConstraintsBase() {}

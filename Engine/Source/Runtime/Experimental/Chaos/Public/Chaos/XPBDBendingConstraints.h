@@ -36,6 +36,7 @@ public:
 		TArray<TVec4<int32>>&& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers,
+		const TConstArrayView<FRealSingle>& DampingMultipliers,
 		const FPropertyCollectionConstAdapter& PropertyCollection,
 		bool bTrimKinematicConstraints = false)
 		: Base(
@@ -50,7 +51,12 @@ public:
 			FSolverVec2(GetWeightedFloatXPBDBucklingStiffness(PropertyCollection, MaxStiffness)),
 			bTrimKinematicConstraints,
 			MaxStiffness)
-		, DampingRatio(FSolverVec2(GetWeightedFloatXPBDBendingElementDamping(PropertyCollection, 0.f)).ClampAxes(MinDamping, MaxDamping))
+		, DampingRatio(
+			FSolverVec2(GetWeightedFloatXPBDBendingElementDamping(PropertyCollection, 0.f)).ClampAxes(MinDamping, MaxDamping),
+			DampingMultipliers,
+			TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+			ParticleOffset,
+			ParticleCount)
 	{
 		Lambdas.Init((FSolverReal)0., Constraints.Num());
 		InitColor(InParticles, ParticleOffset, ParticleCount);

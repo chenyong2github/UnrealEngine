@@ -47,8 +47,6 @@ private:
 class CHAOS_API FPBDEdgeSpringConstraints final : public FPBDSpringConstraints
 {
 public:
-	static constexpr int32 Valence = 2;
-
 	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
 	{
 		return IsEdgeSpringStiffnessEnabled(PropertyCollection, false);
@@ -58,7 +56,7 @@ public:
 		const FSolverParticles& Particles,
 		int32 ParticleOffset,
 		int32 ParticleCount,
-		const TArray<TVector<int32, Valence>>& InConstraints,
+		const TArray<TVec3<int32>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const FPropertyCollectionConstAdapter& PropertyCollection,
 		bool bTrimKinematicConstraints = false)
@@ -89,8 +87,6 @@ private:
 class CHAOS_API FPBDBendingSpringConstraints final : public FPBDSpringConstraints
 {
 public:
-	static constexpr int32 Valence = 4;
-
 	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
 	{
 		return IsBendingSpringStiffnessEnabled(PropertyCollection, false);
@@ -100,7 +96,7 @@ public:
 		const FSolverParticles& Particles,
 		int32 ParticleOffset,
 		int32 ParticleCount,
-		const TArray<TVector<int32, Valence>>& InConstraints,
+		const TArray<TVec2<int32>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const FPropertyCollectionConstAdapter& PropertyCollection,
 		bool bTrimKinematicConstraints = false)

@@ -45,11 +45,17 @@ namespace Chaos
 
 		// Softs solver constraint classes
 		class FPBDSpringConstraints;
+		class FPBDEdgeSpringConstraints;
+		class FPBDBendingSpringConstraints;
 		class FXPBDSpringConstraints;
+		class FXPBDEdgeSpringConstraints;
+		class FXPBDBendingSpringConstraints;
 		class FPBDBendingConstraints;
 		class FXPBDBendingConstraints;
 		class FPBDAxialSpringConstraints;
 		class FXPBDAxialSpringConstraints;
+		class FPBDAreaSpringConstraints;
+		class FXPBDAreaSpringConstraints;
 		class FPBDVolumeConstraint;
 		class FPBDLongRangeConstraints;
 		class FXPBDLongRangeConstraints;
