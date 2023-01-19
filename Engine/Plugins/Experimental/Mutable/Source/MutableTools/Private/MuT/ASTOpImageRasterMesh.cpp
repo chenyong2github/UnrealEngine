@@ -181,8 +181,7 @@ namespace mu
 		pRes->type = ImageSizeExpression::ISET_CONSTANT;
 		pRes->size[0] = sizeX ? sizeX : 256;
 		pRes->size[1] = sizeY ? sizeY : 256;
-
-		return nullptr;
+		return pRes;
 	}
 
 
