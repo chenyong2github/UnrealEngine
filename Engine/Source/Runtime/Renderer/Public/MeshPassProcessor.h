@@ -2037,6 +2037,7 @@ public:
 		ERasterizerCullMode MeshCullMode,
 		EPrimitiveType PrimitiveType,
 		EMeshPassFeatures MeshPassFeatures, 
+		bool bRequired,
 		TArray<FPSOPrecacheData>& PSOInitializers);
 
 protected:

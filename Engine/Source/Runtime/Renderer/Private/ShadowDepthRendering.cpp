@@ -1947,6 +1947,9 @@ void FShadowDepthPassMeshProcessor::CollectPSOInitializersInternal(
 			ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop, RenderTargetsInfo);
 	}
 
+	// Only mark PSOs from directional light as required by default
+	bool bRequired = InShadowDepthType.bDirectionalLight;
+
 	AddGraphicsPipelineStateInitializer(
 		VertexFactoryData,
 		MaterialResource,
@@ -1957,6 +1960,7 @@ void FShadowDepthPassMeshProcessor::CollectPSOInitializersInternal(
 		MeshCullMode,
 		PT_TriangleList,
 		bUsePositionOnlyVS ? EMeshPassFeatures::PositionAndNormalOnly : EMeshPassFeatures::Default,
+		bRequired,
 		PSOInitializers);
 }
 

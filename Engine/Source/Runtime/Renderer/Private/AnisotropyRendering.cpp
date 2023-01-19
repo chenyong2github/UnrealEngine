@@ -272,6 +272,7 @@ void FAnisotropyMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig
 			MeshCullMode,
 			(EPrimitiveType)PreCacheParams.PrimitiveType,
 			EMeshPassFeatures::Default,
+			true /*bRequired*/,
 			PSOInitializers);
 	}
 }

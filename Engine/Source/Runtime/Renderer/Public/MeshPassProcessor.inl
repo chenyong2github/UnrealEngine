@@ -201,6 +201,7 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 	ERasterizerCullMode MeshCullMode,
 	EPrimitiveType PrimitiveType,
 	EMeshPassFeatures MeshPassFeatures, 
+	bool bRequired,
 	TArray<FPSOPrecacheData>& PSOInitializers)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshPassProcessor::AddGraphicsPipelineStateInitializer);
@@ -250,6 +251,7 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 	ApplyTargetsInfo(PipelineStateInitializer, RenderTargetsInfo);
 
 	FPSOPrecacheData PSOPrecacheData;
+	PSOPrecacheData.bRequired = bRequired;
 	PSOPrecacheData.Type = FPSOPrecacheData::EType::Graphics;
 	PSOPrecacheData.GraphicsPSOInitializer = PipelineStateInitializer;
 #if PSO_PRECACHING_VALIDATE

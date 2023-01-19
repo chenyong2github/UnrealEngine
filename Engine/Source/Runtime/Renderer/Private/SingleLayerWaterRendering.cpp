@@ -1612,6 +1612,7 @@ void FSingleLayerWaterPassMeshProcessor::CollectPSOInitializers(const FSceneText
 			MeshCullMode,
 			(EPrimitiveType)PreCacheParams.PrimitiveType,
 			EMeshPassFeatures::Default, 
+			true /*bRequired*/,
 			PSOInitializers);
 	}
 }
@@ -1890,6 +1891,7 @@ void FSingleLayerWaterDepthPrepassMeshProcessor::CollectPSOInitializersInternal(
 		MeshCullMode,
 		(EPrimitiveType)PreCacheParams.PrimitiveType,
 		bPositionOnly ? EMeshPassFeatures::PositionOnly : EMeshPassFeatures::Default,
+		true /*bRequired*/,
 		PSOInitializers);
 }
 

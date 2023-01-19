@@ -395,6 +395,7 @@ void FMeshDecalMeshProcessor::CollectPSOInitializers(
 			MeshCullMode,
 			PT_TriangleList,
 			EMeshPassFeatures::Default,
+			true /*bRequired*/,
 			PSOInitializers);
 	}
 }

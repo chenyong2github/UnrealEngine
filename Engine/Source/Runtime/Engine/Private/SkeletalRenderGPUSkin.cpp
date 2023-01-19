@@ -2017,25 +2017,31 @@ void FSkeletalMeshObjectGPUSkin::GetUsedVertexFactoryData(
 	FGPUSkinDataType GPUSkinDataType;
 	InitGPUSkinVertexFactoryComponents(&GPUSkinDataType, VertexBuffers, nullptr /*FGPUBaseSkinVertexFactory*/);
 
-	// TODO: optimize types to add based on if SkinCache is used and allowed for given Mesh (UE-164762)
-	VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(&FGPUSkinPassthroughVertexFactory::StaticType));
-
-	// Add GPU skin cloth vertex factory type is needed
-	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(InFeatureLevel);
-	const bool bClothEnabled = FGPUBaseSkinAPEXClothVertexFactory::IsClothEnabled(ShaderPlatform);
-	if (bClothEnabled && RenderSection.HasClothingData())
+	bool bIsSkinCacheAllowed = SkinnedMeshComponent ? SkinnedMeshComponent->IsSkinCacheAllowed(LODIndex) : false;
+	bool bHasMeshDeformer = SkinnedMeshComponent ? SkinnedMeshComponent->GetMeshDeformerInstance() != nullptr && LODIndex <= SkinnedMeshComponent->GetMeshDeformerMaxLOD() : false;
+	if (bIsSkinCacheAllowed || bHasMeshDeformer)
 	{
-		VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(GetVertexFactoryTypeCloth(LODRenderData, InFeatureLevel)));
+		VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(&FGPUSkinPassthroughVertexFactory::StaticType));
 	}
 	else
 	{
-		// Add GPU skin vertex factory type
-		VertexFactoryDataList.AddUnique(GetVertexFactoryData(LODRenderData, GPUSkinDataType, InFeatureLevel));
-
-		if (bHasMorphTargets)
+		// Add GPU skin cloth vertex factory type is needed
+		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(InFeatureLevel);
+		const bool bClothEnabled = FGPUBaseSkinAPEXClothVertexFactory::IsClothEnabled(ShaderPlatform);
+		if (bClothEnabled && RenderSection.HasClothingData())
 		{
-			InitMorphVertexFactoryComponents(&GPUSkinDataType, nullptr);
+			VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(GetVertexFactoryTypeCloth(LODRenderData, InFeatureLevel)));
+		}
+		else
+		{
+			// Add GPU skin vertex factory type
 			VertexFactoryDataList.AddUnique(GetVertexFactoryData(LODRenderData, GPUSkinDataType, InFeatureLevel));
+
+			if (bHasMorphTargets)
+			{
+				InitMorphVertexFactoryComponents(&GPUSkinDataType, nullptr);
+				VertexFactoryDataList.AddUnique(GetVertexFactoryData(LODRenderData, GPUSkinDataType, InFeatureLevel));
+			}
 		}
 	}
 }

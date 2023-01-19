@@ -1001,6 +1001,7 @@ void FDistortionMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig
 		MeshCullMode,
 		(EPrimitiveType)PreCacheParams.PrimitiveType,
 		EMeshPassFeatures::Default,
+		true /*bRequired*/,
 		PSOInitializers);
 }
 

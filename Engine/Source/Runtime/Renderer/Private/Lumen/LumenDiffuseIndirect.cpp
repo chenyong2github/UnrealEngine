@@ -184,6 +184,11 @@ float Lumen::GetMaxTraceDistance(const FViewInfo& View)
 	return FMath::Clamp(View.FinalPostProcessSettings.LumenMaxTraceDistance * GLumenTraceDistanceScale, .01f, Lumen::MaxTraceDistance);
 }
 
+bool Lumen::ShouldPrecachePSOs(EShaderPlatform Platform)
+{
+	return DoesPlatformSupportLumenGI(Platform) && CVarLumenGlobalIllumination.GetValueOnAnyThread();
+}
+
 void FHemisphereDirectionSampleGenerator::GenerateSamples(int32 TargetNumSamples, int32 InPowerOfTwoDivisor, int32 InSeed, bool bInFullSphere, bool bInCosineDistribution)
 {
 	int32 NumThetaSteps = FMath::Max(FMath::TruncToInt(FMath::Sqrt(TargetNumSamples / ((float)PI))), 1);

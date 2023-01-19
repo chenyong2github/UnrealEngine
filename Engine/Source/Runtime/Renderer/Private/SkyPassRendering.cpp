@@ -212,6 +212,7 @@ void FSkyPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& S
 		MeshCullMode,
 		(EPrimitiveType)PreCacheParams.PrimitiveType,
 		EMeshPassFeatures::Default,
+		true /*bRequired*/,
 		PSOInitializers);
 }
 

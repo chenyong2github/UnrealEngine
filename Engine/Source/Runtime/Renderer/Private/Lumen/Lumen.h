@@ -102,6 +102,8 @@ namespace Lumen
 	bool ShouldRenderRadiosityHardwareRayTracing(const FSceneViewFamily& ViewFamily);
 	bool ShouldVisualizeHardwareRayTracing(const FSceneViewFamily& ViewFamily);
 
+	bool ShouldPrecachePSOs(EShaderPlatform Platform);
+
 	int32 GetMaxTranslucentSkipCount();
 	bool UseHardwareInlineRayTracing(const FSceneViewFamily& ViewFamily);
 

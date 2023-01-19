@@ -270,6 +270,7 @@ void FLumenTranslucencyRadianceCacheMarkMeshProcessor::CollectPSOInitializers(co
 		MeshCullMode,
 		(EPrimitiveType)PreCacheParams.PrimitiveType,
 		EMeshPassFeatures::Default,
+		true /*bRequired*/,
 		PSOInitializers);
 }
 

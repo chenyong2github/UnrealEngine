@@ -539,6 +539,7 @@ void FNaniteMeshProcessor::CollectPSOInitializersForSkyLight(
 			CM_None,
 			PT_TriangleList,
 			EMeshPassFeatures::Default,
+			true /*bRequired*/,
 			PSOInitializers);
 	}
 }

@@ -73,6 +73,15 @@ static TAutoConsoleVariable<int32> CVarStencilForLODDither(
 	TEXT("Forces a full prepass when enabled."),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarPSOPrecacheDitheredLODFadingOutMaskPass(
+	TEXT("r.PSOPrecache.DitheredLODFadingOutMaskPass"),
+	0,
+	TEXT("Precache PSOs for DitheredLODFadingOutMaskPass.\n") \
+	TEXT(" 0: No PSOs are compiled for this pass (default).\n") \
+	TEXT(" 1: PSOs are compiled for all primitives which render to depth pass.\n"),
+	ECVF_ReadOnly
+);
+
 extern bool IsHMDHiddenAreaMaskActive();
 
 FDepthPassInfo GetDepthPassInfo(const FScene* Scene)
@@ -847,6 +856,7 @@ void FDepthPassMeshProcessor::CollectPSOInitializersInternal(
 		MeshCullMode,
 		PrimitiveType,
 		bPositionOnly ? EMeshPassFeatures::PositionOnly : EMeshPassFeatures::Default,
+		true /*bRequired*/,
 		PSOInitializers);
 }
 
@@ -1008,6 +1018,12 @@ void FDepthPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig&
 	if (Material.IsDefaultMaterial())
 	{
 		CollectDefaultMaterialPSOInitializers(SceneTexturesConfig, Material, VertexFactoryData, PSOInitializers);
+		return;
+	}
+
+	// PSO precaching enabled for DitheredLODFadingOutMaskPass
+	if (MeshPassType == EMeshPass::DitheredLODFadingOutMaskPass && CVarPSOPrecacheDitheredLODFadingOutMaskPass.GetValueOnAnyThread() == 0)
+	{
 		return;
 	}
 

@@ -99,6 +99,15 @@ static TAutoConsoleVariable<int32> CVarPSOPrecacheLightMapPolicyMode(
 	ECVF_ReadOnly
 );
 
+static TAutoConsoleVariable<int32> CVarPSOPrecacheTranslucencyAllPass(
+	TEXT("r.PSOPrecache.TranslucencyAllPass"),
+	0,
+	TEXT("Precache PSOs for TranslucencyAll pass.\n") \
+	TEXT(" 0: No PSOs are compiled for this pass (default).\n") \
+	TEXT(" 1: PSOs are compiled for all primitives which render to a translucency pass.\n"),
+	ECVF_ReadOnly
+);
+
 // Scene color alpha is used during scene captures and planar reflections.  1 indicates background should be shown, 0 indicates foreground is fully present.
 static const float kSceneColorClearAlpha = 1.0f;
 
@@ -1681,6 +1690,7 @@ void FBasePassMeshProcessor::CollectPSOInitializersForLMPolicy(
 		MeshCullMode,
 		PrimitiveType,
 		EMeshPassFeatures::Default,
+		true /*bRequired*/,
 		PSOInitializers);
 }
 
@@ -2274,6 +2284,12 @@ void FBasePassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& 
 		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
 		&& ShouldIncludeMaterialInDefaultOpaquePass(Material);
 	if (!bShouldDraw || !PreCacheParams.bRenderInMainPass)
+	{
+		return;
+	}
+
+	// PSO precaching enabled for TranslucencyAll
+	if (MeshPassType == EMeshPass::TranslucencyAll && CVarPSOPrecacheTranslucencyAllPass.GetValueOnAnyThread() == 0)
 	{
 		return;
 	}

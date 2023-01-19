@@ -728,6 +728,7 @@ void FCustomDepthPassMeshProcessor::CollectPSOInitializers(
 		MeshCullMode,
 		PT_TriangleList,
 		bPositionOnly ? EMeshPassFeatures::PositionOnly : EMeshPassFeatures::Default,
+		true /*bRequired*/,
 		PSOInitializers);
 }
 

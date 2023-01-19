@@ -874,6 +874,7 @@ namespace RuntimeVirtualTexture
 				MeshCullMode,
 				PT_TriangleList,
 				EMeshPassFeatures::Default,
+				true /*bRequired*/,
 				PSOInitializers);
 		}
 
@@ -914,7 +915,9 @@ namespace RuntimeVirtualTexture
 				const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
 				const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
 
-				// TODO: collect from component data & store in PreCacheParams to reduce PSO precache count
+				// Tried checking which virtual textures are used on primitive component at PSO level, but if only those types are precached
+				// then quite a few hitches can be seen - if we want to reduce the amount of PSOs to precache here then better investigation
+				// is needed what types should be compiled (currently there are around 300+ PSOs coming from virtual textures after level loading)
 				CollectPSOInitializers<FMaterialPolicy_BaseColor>(VertexFactoryData, Material, MeshFillMode, MeshCullMode, OutputAttributeMask, ERuntimeVirtualTextureMaterialType::BaseColor, PSOInitializers);
 				CollectPSOInitializers<FMaterialPolicy_BaseColorNormalRoughness>(VertexFactoryData, Material, MeshFillMode, MeshCullMode, OutputAttributeMask, ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Roughness, PSOInitializers);
 				CollectPSOInitializers<FMaterialPolicy_BaseColorNormalSpecular>(VertexFactoryData, Material, MeshFillMode, MeshCullMode, OutputAttributeMask, ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular, PSOInitializers);

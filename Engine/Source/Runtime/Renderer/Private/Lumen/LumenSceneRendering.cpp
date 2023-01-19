@@ -728,7 +728,7 @@ void FLumenCardMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig&
 	LLM_SCOPE_BYTAG(Lumen);
 
 	if (!PreCacheParams.bRenderInMainPass || !PreCacheParams.bAffectDynamicIndirectLighting ||
-		!DoesPlatformSupportLumenGI(GetFeatureLevelShaderPlatform(FeatureLevel)))
+		!Lumen::ShouldPrecachePSOs(GetFeatureLevelShaderPlatform(FeatureLevel)))
 	{
 		return;
 	}
@@ -770,6 +770,7 @@ void FLumenCardMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig&
 			MeshCullMode,
 			(EPrimitiveType)PreCacheParams.PrimitiveType,
 			EMeshPassFeatures::Default, 
+			true /*bRequired*/,
 			PSOInitializers);
 	}
 }
@@ -923,7 +924,8 @@ void FLumenCardNaniteMeshProcessor::CollectPSOInitializers(
 		return;
 	}
 
-	if (!Nanite::IsSupportedBlendMode(Material) || Material.GetMaterialDomain())
+	if (!Nanite::IsSupportedBlendMode(Material) || Material.GetMaterialDomain() ||
+		!Lumen::ShouldPrecachePSOs(GetFeatureLevelShaderPlatform(FeatureLevel)))
 	{
 		return;
 	}
@@ -962,6 +964,7 @@ void FLumenCardNaniteMeshProcessor::CollectPSOInitializers(
 		MeshCullMode,
 		(EPrimitiveType)PreCacheParams.PrimitiveType,
 		EMeshPassFeatures::Default,
+		true /*bRequired*/,
 		PSOInitializers);
 }
 

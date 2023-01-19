@@ -1715,7 +1715,7 @@ void UStaticMeshComponent::UpdatePreCulledData(int32 LODIndex, const TArray<uint
 
 bool UStaticMeshComponent::ShouldCreateNaniteProxy() const
 {
-	if (bDisallowNanite || bForceDisableNanite || GetScene() == nullptr)
+	if (bDisallowNanite || bForceDisableNanite)
 	{
 		// Regardless of the static mesh asset supporting Nanite, this component does not want Nanite to be used
 		return false;

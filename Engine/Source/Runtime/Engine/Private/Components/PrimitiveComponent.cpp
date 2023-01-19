@@ -4166,7 +4166,8 @@ void UPrimitiveComponent::SetupPrecachePSOParams(FPSOPrecacheParams& Params)
 	Params.bAffectDynamicIndirectLighting = bAffectDynamicIndirectLighting;
 	Params.bCastShadow = CastShadow;
 	// Custom depth can be toggled at runtime with PSO precache call so assume it might be needed when depth pass is needed
-	Params.bRenderCustomDepth = bRenderInDepthPass;
+	// Ideally precache those with lower priority and don't wait on these (UE-174426)
+	Params.bRenderCustomDepth = bRenderCustomDepth;// bRenderInDepthPass;
 	Params.bCastShadowAsTwoSided = bCastShadowAsTwoSided;
 	Params.SetMobility(Mobility);	
 	Params.SetStencilWriteMask(FRendererStencilMaskEvaluation::ToStencilMask(CustomDepthStencilWriteMask));

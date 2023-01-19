@@ -856,6 +856,7 @@ bool FVelocityMeshProcessor::CollectPSOInitializersInternal(
 		MeshCullMode,
 		PT_TriangleList,
 		EMeshPassFeatures::Default,
+		true /*bRequired*/,
 		PSOInitializers);
 
 	return true;
