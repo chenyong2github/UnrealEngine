@@ -590,6 +590,97 @@ void ReadSparseBitArray(FNetBitStreamReader* Reader, uint32* OutData, uint32 Bit
 	}
 }
 
+template<typename WriteSparseUint32Func>
+void WriteSparseBitArrayDelta(FNetBitStreamWriter* Writer, const uint32* Data, const uint32* OldData, uint32 BitCount, WriteSparseUint32Func&& WriteSparseUint32Function)
+{
+	checkSlow(BitCount <= SerializeSparseArrayMaxBitCount);
+
+	using StorageWordType = FNetBitArrayBase::StorageWordType;
+	const uint32 WordBitCount = FNetBitArrayBase::WordBitCount;
+	const uint32 WordCount = FNetBitArrayView::CalculateRequiredWordCount(BitCount);
+	const StorageWordType LastWordMask = ~StorageWordType(0) >> (uint32(-int32(BitCount)) & (WordBitCount - 1));
+	const uint32 LastWordIt = WordCount - 1;
+
+	StorageWordType DeltaData[Private::SerializeSparseArrayMaxWordCount];
+
+	// Build mask
+	uint32 DirtyWordMask = uint32(0);
+	{
+		for (uint32 WordIt = 0, CurrentBitMask = 1U; WordIt < WordCount; ++WordIt, CurrentBitMask <<= 1)
+		{
+			const StorageWordType CurrentWord = (Data[WordIt] ^ OldData[WordIt]) & ((WordIt == LastWordIt) ? LastWordMask : ~0U);
+			DirtyWordMask |= CurrentWord ? CurrentBitMask : 0U;
+			DeltaData[WordIt] = CurrentWord;
+		}
+	}
+
+	// Write Mask
+	Writer->WriteBits(DirtyWordMask, WordCount);
+
+	// Encode dirty words
+	{
+		// Full words
+		uint32 CurrentMaskBit = 1U;
+		uint32 WordIt = 0U;
+		uint32 RemainingBits = BitCount;
+
+		while (RemainingBits >= 32U)
+		{
+			if (DirtyWordMask & CurrentMaskBit)
+			{
+				WriteSparseUint32Function(Writer, DeltaData[WordIt], 32U);
+			}
+			++WordIt;
+			CurrentMaskBit <<= 1;
+			RemainingBits -= 32U;
+		}
+		// Last word
+		if (RemainingBits && (DirtyWordMask & CurrentMaskBit))
+		{
+			const StorageWordType CurrentWord = DeltaData[WordIt] & LastWordMask;
+			WriteSparseUint32Function(Writer, CurrentWord, RemainingBits);
+		}
+	}
+}
+
+template<typename ReadSparseUint32Func>
+void ReadSparseBitArrayDelta(FNetBitStreamReader* Reader, uint32* OutData, const uint32* OldData, uint32 BitCount, ReadSparseUint32Func&& ReadSparseUint32Function)
+{
+	checkSlow(BitCount <= SerializeSparseArrayMaxBitCount);
+
+	using StorageWordType = FNetBitArrayBase::StorageWordType;
+
+	const uint32 WordBitCount = FNetBitArrayBase::WordBitCount;
+	const uint32 WordCount = FNetBitArrayView::CalculateRequiredWordCount(BitCount);
+	const StorageWordType LastWordMask = ~StorageWordType(0) >> (uint32(-int32(BitCount)) & (WordBitCount - 1U));
+	const uint32 LastWordIt = WordCount - 1U;
+
+	// Read mask
+	uint32 DirtyWordMask = Reader->ReadBits(WordCount);
+
+	// Read and decode dirty words
+	uint32 CurrentMaskBit = 1U;
+	uint32 WordIt = 0U;
+	uint32 RemainingBits = BitCount;
+
+	while (RemainingBits >= 32U)
+	{
+		const StorageWordType ReadValue = DirtyWordMask & CurrentMaskBit ? ReadSparseUint32Function(Reader, 32U) : 0U;
+		OutData[WordIt] = OldData[WordIt] ^ ReadValue;
+
+		CurrentMaskBit += CurrentMaskBit;
+		RemainingBits -= 32U;
+		++WordIt;
+	}
+
+	// Last word, make sure we do not overwrite existing data
+	if (RemainingBits > 0U)
+	{
+		const StorageWordType ReadValue = DirtyWordMask & CurrentMaskBit ? ReadSparseUint32Function(Reader, RemainingBits) : 0U;
+		OutData[WordIt] = (OutData[WordIt] & ~LastWordMask) | ((OldData[WordIt] ^ ReadValue) & LastWordMask);
+	}
+}
+
 }
 
 void WriteSparseBitArray(FNetBitStreamWriter* Writer, const uint32* Data, uint32 BitCount, ESparseBitArraySerializationHint Hint)
@@ -664,6 +755,40 @@ void ReadSparseBitArray(FNetBitStreamReader* Reader, uint32* OutData, uint32 Bit
 	}
 }
 
+void WriteSparseBitArrayDelta(FNetBitStreamWriter* Writer, const uint32* Data, const uint32* OldData, uint32 BitCount)
+{
+	// Support large bit arrays
+	uint32 RemainingBits = BitCount;
+	while (RemainingBits >= Private::SerializeSparseArrayMaxBitCount)
+	{
+		Private::WriteSparseBitArrayDelta(Writer, Data, OldData, Private::SerializeSparseArrayMaxBitCount, Private::WriteSparseUint32UsingIndices);
+		RemainingBits -= Private::SerializeSparseArrayMaxBitCount;
+		Data += Private::SerializeSparseArrayMaxWordCount;
+		OldData += Private::SerializeSparseArrayMaxWordCount;
+	}
+	if (RemainingBits)
+	{
+		Private::WriteSparseBitArrayDelta(Writer, Data, OldData, RemainingBits, Private::WriteSparseUint32UsingIndices);
+	}
+}
+
+void ReadSparseBitArrayDelta(FNetBitStreamReader* Reader, uint32* OutData, const uint32* OldData, uint32 BitCount)
+{
+	// Support large bit arrays
+	uint32 RemainingBits = BitCount;
+	while (RemainingBits >= Private::SerializeSparseArrayMaxBitCount)
+	{
+		Private::ReadSparseBitArrayDelta(Reader, OutData, OldData, Private::SerializeSparseArrayMaxBitCount, Private::ReadSparseUint32UsingIndices);
+		RemainingBits -= Private::SerializeSparseArrayMaxBitCount;
+		OutData += Private::SerializeSparseArrayMaxWordCount;
+		OldData += Private::SerializeSparseArrayMaxWordCount;
+	}
+	if (RemainingBits)
+	{
+		Private::ReadSparseBitArrayDelta(Reader, OutData, OldData, RemainingBits, Private::ReadSparseUint32UsingIndices);
+	}
+}
+
 const uint32 NetBitStreamSentinelValue = 0xBAADDEADU;
 void WriteSentinelBits(FNetBitStreamWriter* Writer, uint32 BitCount)
 {
@@ -677,6 +802,5 @@ bool ReadAndVerifySentinelBits(FNetBitStreamReader* Reader, const TCHAR* ErrorSt
 	const uint32 ExpectedValue = (NetBitStreamSentinelValue & CompareMask);
 	return ensureAlwaysMsgf(!Reader->IsOverflown() &&  ExpectedValue == ReadValue, TEXT("ReadAndVerifySentinelBits %s failed OverFlow %u Got 0x%u != 0x%u"), ErrorString, Reader->IsOverflown() ? 1U : 0U, ReadValue, ExpectedValue);
 }
-
 
 }

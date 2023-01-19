@@ -19,6 +19,9 @@ public:
 
 	typedef void (*WriteSparseBitArrayFunc)(FNetBitStreamWriter* Writer, const uint32* Data, uint32 BitCount, ESparseBitArraySerializationHint Hint);
 	typedef void (*ReadSparseBitArrayFunc)(FNetBitStreamReader* Reader, uint32* OutData, uint32 BitCount, ESparseBitArraySerializationHint Hint);
+
+	typedef void (*WriteSparseBitArrayDeltaFunc)(FNetBitStreamWriter* Writer, const uint32* Data, const uint32* BaseData, uint32 BitCount);
+	typedef void (*ReadSparseBitArrayDeltaFunc)(FNetBitStreamReader* Reader, uint32* OutData, const uint32* BaseData, uint32 BitCount);
 	
 protected:
 	class FChangeMaskBuffer
@@ -75,6 +78,58 @@ protected:
 			Offset += FNetBitArrayView::CalculateRequiredWordCount(BitCount) + 2U;
 		}
 	}
+
+	template <typename T>
+	bool ValidateDeltaTestData(const T& DeltaTestData, const T& BaseTestData)
+	{
+		const uint32 TestDataWordCount = UE_ARRAY_COUNT(DeltaTestData);
+		if (TestDataWordCount != UE_ARRAY_COUNT(BaseTestData))
+		{
+			return false;
+		}
+
+		bool bResult = true;
+		SIZE_T Offset = 0;
+
+		while (Offset + 2U < TestDataWordCount)
+		{
+			const FWordType BitCount = DeltaTestData[Offset];
+			const FWordType Invert = DeltaTestData[Offset + 1];
+
+			if (BitCount != BaseTestData[Offset])
+			{
+				return false;
+			}
+
+			Offset += FNetBitArrayView::CalculateRequiredWordCount(BitCount) + 2U;
+		}
+
+		return Offset == TestDataWordCount;
+	}
+
+
+	template<typename FunctorT, typename T> void ForAllEntriesDelta(FunctorT&& Functor, const T& DeltaTestData, const T& BaseTestData) const
+	{
+		const uint32 TestDataWordCount = UE_ARRAY_COUNT(DeltaTestData);
+
+		check(TestDataWordCount == UE_ARRAY_COUNT(BaseTestData));
+
+		bool bResult = true;
+		SIZE_T Offset = 0;
+
+		while (Offset + 2U < TestDataWordCount)
+		{
+			const FWordType BitCount = DeltaTestData[Offset];
+			const FWordType Invert = BaseTestData[Offset + 1];
+			const FWordType* DeltaData = &DeltaTestData[Offset + 2];
+			const FWordType* BaseData = &BaseTestData[Offset + 2];
+
+			Functor(BitCount, Invert, DeltaData, BaseData);
+
+			Offset += FNetBitArrayView::CalculateRequiredWordCount(BitCount) + 2U;
+		}
+	}
+
 
 	FChangeMaskBuffer WriteBuffer;
 	FChangeMaskBuffer TempChangeMaskData;
@@ -205,7 +260,7 @@ UE_NET_TEST_FIXTURE(FCompressedChangeMaskTest, WriteAndReadChangeMasks)
 		// Read changemask
 		ReadFunc(&Reader, TempChangeMaskData.GetBuffer(), BitCount, Invert ? ESparseBitArraySerializationHint::ContainsMostlyOnes : ESparseBitArraySerializationHint::None);
 
-		UE_NET_ASSERT_EQ(true, Reader.IsOverflown() == false);
+		UE_NET_ASSERT_FALSE(Reader.IsOverflown());
 		UE_NET_ASSERT_EQ(Writer.GetPosBits(), Reader.GetPosBits());
 
 		// Verify change mask
@@ -218,5 +273,88 @@ UE_NET_TEST_FIXTURE(FCompressedChangeMaskTest, WriteAndReadChangeMasks)
 	ForAllEntries(TestWriteAndReadFunc, FullTestData);
 	ForAllEntries(TestWriteAndReadFunc, VeryLargeChangeMaskTestData);
 }
+
+UE_NET_TEST_FIXTURE(FCompressedChangeMaskTest, WriteAndReadSparseBitArrayDelta)
+{
+	WriteSparseBitArrayDeltaFunc WriteFunc = WriteSparseBitArrayDelta;
+	ReadSparseBitArrayDeltaFunc ReadFunc = ReadSparseBitArrayDelta;
+
+	// Test some basic scenarios for delta
+
+	const FCompressedChangeMaskTest::FWordType BaseTestData[] =
+	{
+		// Set one bit in each word
+		/* BitCount */ 33U, /* Invert */ 0U, /* Data */ 0x0U, 0x0U,
+		// Set highest bit
+		/* BitCount */ 32U, /* Invert */ 0U, /* Data */ 0x1U,
+		// Set many bit
+		/* BitCount */ 33U, /* Invert */ 0U, /* Data */ 0x0U, 0x0U,
+		// Clear single bit
+		/* BitCount */ 32U, /* Invert */ 0U, /* Data */ 0xFFFFFFFFU,
+		// Test inverted clear single bit (invert does not make much sense as we delta using xor
+		/* BitCount */ 32U, /* Invert */ 1U, /* Data */ 0xFFFFFFFFU,
+		// Test no change
+		/* BitCount */ 33U, /* Invert */ 0U, /* Data */ 0x0U, 0x0U,
+		// Test no change
+		/* BitCount */ 33U, /* Invert */ 0U, /* Data */ 0xFFFFFFFFU, 0x1U, 
+		// Test all changed
+		/* BitCount */ 33U, /* Invert */ 0U, /* Data */ 0x0U, 0x0U,
+		// Test all changed
+		/* BitCount */ 33U, /* Invert */ 0U, /* Data */ 0xFFFFFFFFU, 0x1U, 
+	};
+
+	const FCompressedChangeMaskTest::FWordType DeltaTestData[] =
+	{
+		// Set one bit in each word
+		/* BitCount */ 33U, /* Invert */ 0U, /* Data */ 0x1U, 0x1U,
+		// Set highest bit
+		/* BitCount */ 32U, /* Invert */ 0U, /* Data */ 0x1U | 0x8U,
+		// Set many bit
+		/* BitCount */ 33U, /* Invert */ 0U, /* Data */ 0xFFFFFFFFU, 0x0U,
+		// Clear single bit
+		/* BitCount */ 32U, /* Invert */ 0U, /* Data */ 0xFFFFFFFEU,
+		// Test inverted clear single bit (invert does not make much sense as we delta using xor
+		/* BitCount */ 32U, /* Invert */ 1U, /* Data */ 0xFFFFFFFFU & 0xFFFFFFFEU,
+		// Test no change
+		/* BitCount */ 33U, /* Invert */ 0U, /* Data */ 0x0U, 0x0U,
+		// Test no change
+		/* BitCount */ 33U, /* Invert */ 0U, /* Data */ 0xFFFFFFFFU, 0x1U, 
+		// Test all changed
+		/* BitCount */ 33U, /* Invert */ 0U, /* Data */ 0xFFFFFFFFU, 0x1U,
+		// Test all changed
+		/* BitCount */ 33U, /* Invert */ 0U, /* Data */ 0x0U, 0x0U,
+	};
+
+
+	UE_NET_ASSERT_TRUE(ValidateDeltaTestData(DeltaTestData, BaseTestData));	
+
+	auto&& TestWriteAndReadFunc = [this, WriteFunc, ReadFunc](FWordType BitCount, FWordType Invert, const FWordType* Data, const FWordType* BaseData)
+	{		
+		Writer.InitBytes(WriteBuffer.GetBuffer(), WriteBuffer.GetBufferCapacity());
+		WriteFunc(&Writer, Data, BaseData, BitCount);
+		Writer.CommitWrites();
+
+		UE_NET_ASSERT_FALSE(Writer.IsOverflown());
+
+		Reader.InitBits(WriteBuffer.GetBuffer(), Writer.GetPosBits());
+
+		// Init changemask
+		FNetBitArrayView RcvdChangeMask((FWordType*)TempChangeMaskData.GetBuffer(), BitCount, FNetBitArrayView::ResetOnInit);
+
+		// Read changemask
+		ReadFunc(&Reader, TempChangeMaskData.GetBuffer(), BaseData, BitCount);
+
+		UE_NET_ASSERT_FALSE(Reader.IsOverflown());
+		UE_NET_ASSERT_EQ(Writer.GetPosBits(), Reader.GetPosBits());
+
+		// Verify change mask
+		const FNetBitArrayView OriginalChangeMask = MakeNetBitArrayView(Data, BitCount);
+
+		UE_NET_ASSERT_TRUE(OriginalChangeMask == RcvdChangeMask);
+	};
+
+	ForAllEntriesDelta(TestWriteAndReadFunc, DeltaTestData, BaseTestData);
+}
+
 
 }

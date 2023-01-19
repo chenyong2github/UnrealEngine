@@ -180,6 +180,17 @@ IRISCORE_API void WriteSparseBitArray(FNetBitStreamWriter* Writer, const uint32*
  */
 IRISCORE_API void ReadSparseBitArray(FNetBitStreamReader* Reader,  uint32* OutData, uint32 BitCount, ESparseBitArraySerializationHint Hint = ESparseBitArraySerializationHint::None);
 
+/** 
+ * Write sparse BitArray which is expected to contain mostly 0`s, if the array contains mostly 1`s passing the hint ESparseBitArraySerializationHint::ContainsMostlyOnes can be provided to flip the data before writing 
+ * Note: BitCount and hint is not Written so the write must be matched by a corresponding Read
+ */
+IRISCORE_API void WriteSparseBitArrayDelta(FNetBitStreamWriter* Writer, const uint32* Data, const uint32* OldData, uint32 BitCount);
+
+/** 
+ * Read sparse BitArray which is expected to contain mostly 0`s, if the array contains mostly 1`s passing the hint ESparseBitArraySerializationHint::ContainsMostlyOnes can be provided to flip the read data
+ */
+IRISCORE_API void ReadSparseBitArrayDelta(FNetBitStreamReader* Reader,  uint32* OutData, const uint32* OldData, uint32 BitCount);
+
 /**
  * Write sentinelBits from predefined sentinel value
  */
