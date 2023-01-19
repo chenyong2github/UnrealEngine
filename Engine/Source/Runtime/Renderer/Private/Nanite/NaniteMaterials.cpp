@@ -979,14 +979,14 @@ void DispatchBasePass(
 					ShadingCommand.ComputeShader->SetTargetUAVParameters(
 						RHICmdList,
 						ComputeShaderRHI,
-						ShadingPassParameters->OutTarget0UAV->GetRHI(),
-						ShadingPassParameters->OutTarget1UAV->GetRHI(),
-						ShadingPassParameters->OutTarget2UAV->GetRHI(),
-						ShadingPassParameters->OutTarget3UAV->GetRHI(),
-						ShadingPassParameters->OutTarget4UAV->GetRHI(),
-						ShadingPassParameters->OutTarget5UAV->GetRHI(),
-						ShadingPassParameters->OutTarget6UAV->GetRHI(),
-						ShadingPassParameters->OutTarget7UAV->GetRHI()
+						ShadingPassParameters->OutTarget0UAV ? ShadingPassParameters->OutTarget0UAV->GetRHI() : nullptr,
+						ShadingPassParameters->OutTarget1UAV ? ShadingPassParameters->OutTarget1UAV->GetRHI() : nullptr,
+						ShadingPassParameters->OutTarget2UAV ? ShadingPassParameters->OutTarget2UAV->GetRHI() : nullptr,
+						ShadingPassParameters->OutTarget3UAV ? ShadingPassParameters->OutTarget3UAV->GetRHI() : nullptr,
+						ShadingPassParameters->OutTarget4UAV ? ShadingPassParameters->OutTarget4UAV->GetRHI() : nullptr,
+						ShadingPassParameters->OutTarget5UAV ? ShadingPassParameters->OutTarget5UAV->GetRHI() : nullptr,
+						ShadingPassParameters->OutTarget6UAV ? ShadingPassParameters->OutTarget6UAV->GetRHI() : nullptr,
+						ShadingPassParameters->OutTarget7UAV ? ShadingPassParameters->OutTarget7UAV->GetRHI() : nullptr
 					);
 
 					const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(ViewSize, 8);
