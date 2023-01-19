@@ -1752,7 +1752,7 @@ bool FObjectReplicator::CanSkipUpdate(FReplicationFlags RepFlags)
 			SendingRepState.LastChangelistIndex == RepChangelistState.HistoryEnd &&
 			Connection->ResendAllDataState == EResendAllDataState::None &&
 			!OwningChannel->bForceCompareProperties &&
-			(!GbPushModelSkipUndirtiedFastArrays || (RepChangelistState.CustomDeltaChangeIndex == SendingRepState.CustomDeltaChangeIndex)) &&
+			(!GbPushModelSkipUndirtiedFastArrays || ((RepChangelistState.CustomDeltaChangeIndex == SendingRepState.CustomDeltaChangeIndex) && !SendingRepState.HasAnyPendingRetirements())) &&
 			!RepChangelistState.HasAnyDirtyProperties())
 		))
 	{

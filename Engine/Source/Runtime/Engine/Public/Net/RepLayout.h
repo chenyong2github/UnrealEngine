@@ -572,6 +572,8 @@ public:
 	 */
 	static TStaticBitArray<COND_Max> BuildConditionMapFromRepFlags(const FReplicationFlags InFlags);
 
+	bool HasAnyPendingRetirements() const;
+
 	/** Whether or not FRepLayout::OpenAcked has been called with this FRepState. */
 	bool bOpenAckedCalled;
 

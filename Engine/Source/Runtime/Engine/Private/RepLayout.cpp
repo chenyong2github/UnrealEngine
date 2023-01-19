@@ -7148,6 +7148,19 @@ TStaticBitArray<COND_Max> FSendingRepState::BuildConditionMapFromRepFlags(const 
 	return ConditionMap;
 }
 
+bool FSendingRepState::HasAnyPendingRetirements() const
+{
+	for (const FPropertyRetirement& PropRet : Retirement)
+	{
+		if (PropRet.Next != nullptr)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void FRepLayout::RebuildConditionalProperties(
 	FSendingRepState* RESTRICT RepState,
 	const FReplicationFlags& RepFlags) const
