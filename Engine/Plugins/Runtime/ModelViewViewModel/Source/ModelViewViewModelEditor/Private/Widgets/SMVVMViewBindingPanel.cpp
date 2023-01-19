@@ -52,7 +52,7 @@ void SBindingsPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluep
 	}
 	else
 	{
-		WidgetBlueprint->OnExtensionAdded.AddRaw(this, &SBindingsPanel::HandleExtensionAdded);
+		WidgetBlueprint->OnExtensionAdded.AddSP(this, &SBindingsPanel::HandleExtensionAdded);
 	}
 
 	{
