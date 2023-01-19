@@ -109,7 +109,7 @@ namespace FOodleCompressedArray
 		return true;
 	}
 
-	bool CORE_API DecompressToExistingBuffer(void* InDestinationBuffer, TArray<uint8> const& InCompressed)
+	bool CORE_API DecompressToExistingBuffer(void* InDestinationBuffer, int64 InDestinationBufferSize, TArray<uint8> const& InCompressed)
 	{
 		int32 DecompressedSize, CompressedSize;
 		int32 OffsetToCompressedData = PeekSizes(InCompressed, CompressedSize, DecompressedSize);
@@ -117,13 +117,21 @@ namespace FOodleCompressedArray
 		{
 			return false;
 		}
+		// DestinationBuffer provided is not large enough to hold decompressed data :
+		if ( DecompressedSize > InDestinationBufferSize )
+		{
+			return false;
+		}
 
 		// If we have a valid header, then if we don't have the actual data, it's corrupted data.
-		check(OffsetToCompressedData + CompressedSize <= InCompressed.Num());
+		if ( OffsetToCompressedData + CompressedSize > InCompressed.Num() )
+		{
+			return false;
+		}
 
 		return FOodleDataCompression::Decompress(InDestinationBuffer, DecompressedSize, InCompressed.GetData() + OffsetToCompressedData, CompressedSize);
 	}
-	bool CORE_API DecompressToExistingBuffer64(void* InDestinationBuffer, TArray64<uint8> const& InCompressed)
+	bool CORE_API DecompressToExistingBuffer64(void* InDestinationBuffer, int64 InDestinationBufferSize, TArray64<uint8> const& InCompressed)
 	{
 		int64 DecompressedSize, CompressedSize;
 		int32 OffsetToCompressedData = PeekSizes64(InCompressed, CompressedSize, DecompressedSize);
@@ -131,9 +139,17 @@ namespace FOodleCompressedArray
 		{
 			return false;
 		}
-
+		// DestinationBuffer provided is not large enough to hold decompressed data :
+		if ( DecompressedSize > InDestinationBufferSize )
+		{
+			return false;
+		}
+		
 		// If we have a valid header, then if we don't have the actual data, it's corrupted data.
-		check(OffsetToCompressedData + CompressedSize <= InCompressed.Num());
+		if ( OffsetToCompressedData + CompressedSize > InCompressed.Num() )
+		{
+			return false;
+		}
 
 		return FOodleDataCompression::Decompress(InDestinationBuffer, DecompressedSize, InCompressed.GetData() + OffsetToCompressedData, CompressedSize);
 	}

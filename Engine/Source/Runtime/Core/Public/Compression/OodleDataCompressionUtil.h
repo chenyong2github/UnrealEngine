@@ -142,15 +142,15 @@ namespace FOodleCompressedArray
 	/**
 	* Decompresses a compressed TArray to a buffer that has already been allocated.
 	* 
-	* @param InDestinationBUffer		The buffer to contain the decompressed data. This buffer must be at
-	*									least as large as the decompressed size specified by PeekSizes. If
-	*									it's not, memory corruption will occur.
+	* @param InDestinationBuffer		The buffer to contain the decompressed data.
+	* @param InDestinationBufferSize	Allocated size of InDestinationBuffer; if it is not large enough to hold the decompressed data
+	*									(as reported by PeekSizes), this function will return false.
 	* @param InCompressed				A TArray created by one of the FOodleCompressedArray compression functions.
 	* @return							Success or failure. Failure is usually because the FCompressedArray doesn't
 	*									actually contain any data, but might fail because 64 bit is needed.
 	*/
-	bool CORE_API DecompressToExistingBuffer(void* InDestinationBuffer, TArray<uint8> const& InCompressed);
-	bool CORE_API DecompressToExistingBuffer64(void* InDestinationBuffer, TArray64<uint8> const& InCompressed);
+	bool CORE_API DecompressToExistingBuffer(void* InDestinationBuffer, int64 InDestinationBufferSize,  TArray<uint8> const& InCompressed);
+	bool CORE_API DecompressToExistingBuffer64(void* InDestinationBuffer, int64 InDestinationBufferSize, TArray64<uint8> const& InCompressed);
 
 	/**
 	* Decompresses a compressed TArray to a buffer that will be allocated by this function.
@@ -210,7 +210,7 @@ namespace FOodleCompressedArray
 		}
 
 		OutDecompressed.SetNum(DecompressedSize / sizeof(T));
-		return DecompressToExistingBuffer(OutDecompressed.GetData(), InCompressed);
+		return DecompressToExistingBuffer(OutDecompressed.GetData(),DecompressedSize, InCompressed);
 	}
 	template <class T>
 	static bool DecompressToTArray64(TArray64<T>& OutDecompressed, TArray64<uint8> const& InCompressed)
@@ -228,7 +228,7 @@ namespace FOodleCompressedArray
 		}
 
 		OutDecompressed.SetNum(DecompressedSize / sizeof(T));
-		return DecompressToExistingBuffer64(OutDecompressed.GetData(), InCompressed);
+		return DecompressToExistingBuffer64(OutDecompressed.GetData(),DecompressedSize, InCompressed);
 	}
 };
 
