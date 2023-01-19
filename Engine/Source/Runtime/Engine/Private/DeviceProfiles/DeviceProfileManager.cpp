@@ -169,7 +169,7 @@ TMap<FName, FString> UDeviceProfileManager::GatherDeviceProfileCVars(const FStri
 
 	EPlatformMemorySizeBucket MemBucket = FPlatformMemory::GetMemorySizeBucket();
 	// if caching (for another platfomr), then we use the DP's PreviewMemoryBucket, instead of querying for it
-	if (GatherMode == EDeviceProfileMode::DPM_CacheValues)
+	if (GatherMode == EDeviceProfileMode::DPM_CacheValues || GatherMode == EDeviceProfileMode::DPM_CacheValuesIgnoreMatchingRules )
 	{
 #if ALLOW_OTHER_PLATFORM_CONFIG
 		// caching is not done super early, so we can assume DPs have been found now
@@ -183,8 +183,10 @@ TMap<FName, FString> UDeviceProfileManager::GatherDeviceProfileCVars(const FStri
 		// use the DP's platform's configs, NOT the running platform
 		ConfigSystem = FConfigCacheIni::ForPlatform(*Profile->DeviceType);
 		MemBucket = Profile->GetPreviewMemorySizeBucket();
-
-		FragmentsSelected = FindMatchingFragments(DeviceProfileName, ConfigSystem);
+		if(GatherMode == EDeviceProfileMode::DPM_CacheValues)
+		{
+			FragmentsSelected = FindMatchingFragments(DeviceProfileName, ConfigSystem);
+		}
 #else
 		checkNoEntry();
 #endif
@@ -338,6 +340,57 @@ TMap<FName, FString> UDeviceProfileManager::GatherDeviceProfileCVars(const FStri
 	}
 
 	return DeviceProfileCVars;
+}
+
+TMap<FName, TSet<FString>> UDeviceProfileManager::GetAllReferencedDeviceProfileCVars(UDeviceProfile* DeviceProfile)
+{
+	FConfigCacheIni* ConfigSystem = GConfig;
+
+#if ALLOW_OTHER_PLATFORM_CONFIG
+	// use the DP's platform's configs, NOT the running platform
+	ConfigSystem = FConfigCacheIni::ForPlatform(*DeviceProfile->DeviceType);
+#endif
+
+	TMap<FName, FString> DeviceProfileCVars = GatherDeviceProfileCVars(DeviceProfile->GetName(), EDeviceProfileMode::DPM_CacheValuesIgnoreMatchingRules);
+
+	// gather all referenced fragments, note that this just a dumb traverse of the the matched rules so it may contain
+	// fragments that a device cannot ultimately select.
+	TArray<FString> AllReferencedMatchedFragments = FindAllReferencedFragmentsFromMatchedRules(DeviceProfile->GetName(), ConfigSystem);
+
+	TMap<FName, TSet<FString>> AllCVarsAndValues;
+
+	for (const auto& Pair : DeviceProfileCVars)
+	{
+		AllCVarsAndValues.FindOrAdd(Pair.Key).Add(Pair.Value);
+	}
+
+	for (const FString& Fragment : AllReferencedMatchedFragments)
+	{
+		TArray<FString> FragmentCVars;
+		GetFragmentCVars(Fragment, TEXT("CVars"), FragmentCVars, ConfigSystem);
+		for (const FString& FragCVar : FragmentCVars)
+		{
+			FString CVarKey, CVarValue;
+			if (FragCVar.Split(TEXT("="), &CVarKey, &CVarValue))
+			{
+				if (CVarKey.StartsWith(TEXT("sg.")))
+				{
+					TMap<FString, FString> ScalabilityCVars;
+					ExpandScalabilityCVar(ConfigSystem, CVarKey, CVarValue, ScalabilityCVars, true);
+					for (const auto& ScalabilityPair : ScalabilityCVars)
+					{
+						AllCVarsAndValues.FindOrAdd(*ScalabilityPair.Key).Add(ScalabilityPair.Value);
+					}
+				}
+				else
+				{
+					AllCVarsAndValues.FindOrAdd(FName(CVarKey)).Add(CVarValue);
+				}
+			}
+		}
+	}
+
+	return AllCVarsAndValues;
 }
 
 void UDeviceProfileManager::SetDeviceProfileCVars(const FString& DeviceProfileName)

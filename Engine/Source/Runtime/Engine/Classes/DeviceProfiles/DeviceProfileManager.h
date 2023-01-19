@@ -231,6 +231,7 @@ public:
 	{
 		DPM_SetCVars,
 		DPM_CacheValues,
+		DPM_CacheValuesIgnoreMatchingRules, // GatherDeviceProfileCVars will not return any matching rules cvars. Used when entire matching rules state is applied later (see GetAllReferencedDeviceProfileCVars).
 	};
 
 	/**
@@ -238,6 +239,10 @@ public:
 	 */
 	static TMap<FName, FString> GatherDeviceProfileCVars(const FString& DeviceProfileName, EDeviceProfileMode GatherMode);
 
+	/**
+	 * Gather all the cvars from the static device profile and then add all of the possible cvars+values from the dynamic/matched rule fragments.
+	 */
+	static TMap<FName, TSet<FString>> GetAllReferencedDeviceProfileCVars(UDeviceProfile* DeviceProfile);
 
 private:
 	/**
@@ -267,6 +272,9 @@ private:
 
 	/** Read and process all of the fragment matching rules. Returns an array containing the names of fragments selected. */
 	static TArray<FSelectedFragmentProperties> FindMatchingFragments(const FString& ParentDP, class FConfigCacheIni* PreviewConfigSystem);
+
+	/** Read and discover all of the possible fragments referenced by the matching rules. Returns an array containing the names of fragments selected. */
+	static TArray<FString> FindAllReferencedFragmentsFromMatchedRules(const FString& ParentDP, FConfigCacheIni* ConfigSystem);
 
 	/** Convert a FSelectedFragmentProperties array to a string */
 	static const FString FragmentPropertyArrayToFragmentString(const TArray<FSelectedFragmentProperties>& FragmentProperties, bool bEnabledOnly, bool bIncludeTags, bool bAlphaSort);

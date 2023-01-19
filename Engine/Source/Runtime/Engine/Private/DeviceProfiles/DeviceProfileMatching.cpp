@@ -316,15 +316,8 @@ static bool EvaluateMatch(IDeviceProfileSelectorModule* DPSelectorModule, const 
 		{
 			SelectedFragmentsOUT += TEXT(",");
 		}
-		if (rule.AppendFragments.Contains(TEXT("[clear]")))
-		{
-			SelectedFragmentsOUT.Empty();
-			SelectedFragmentsOUT += rule.AppendFragments.Replace(TEXT("[clear]"), TEXT(""));
-		}
-		else
-		{
-			SelectedFragmentsOUT += rule.AppendFragments;
-		}
+
+		SelectedFragmentsOUT += rule.AppendFragments;
 	}
 
 	if (!rule.SetUserVar.IsEmpty())
@@ -581,34 +574,38 @@ public:
 
 	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
 	{
-		if (IsRunningCookCommandlet())
-		{
-			UE_LOG(LogInit, Warning, TEXT("DeviceProfileMatching: Error while parsing Matching Rules (%s) : %s"), *Stage, V);
-		}
-		else
-		{
-			UE_LOG(LogInit, Error, TEXT("DeviceProfileMatching: Error while parsing Matching Rules (%s) : %s"), *Stage, V);
-		}
+		UE_LOG(LogInit, Error, TEXT("DeviceProfileMatching: Error while parsing Matching Rules (%s) : %s"), *Stage, V);
 		NumErrors++;
 	}
 };
 
-static bool DPHasMatchingRules(const FString& ParentDP, FConfigCacheIni* ConfigSystem)
-{
-	FString SectionSuffix = *FString::Printf(TEXT(" %s"), *UDeviceProfile::StaticClass()->GetName());
-	FString CurrentSectionName = ParentDP + SectionSuffix;
-	FString ArrayName(TEXT("MatchingRules"));
-	TArray<FString> MatchingRulesArray;
-	return ConfigSystem->GetArray(*CurrentSectionName, *ArrayName, MatchingRulesArray, GDeviceProfilesIni) != 0;
-}
 
-static FString LoadAndProcessMatchingRulesFromConfig(const FString& ParentDP, IDeviceProfileSelectorModule* DPSelector, FConfigCacheIni* ConfigSystem)
+static TArray<FString> GetMatchedRulesArray(const FString& ParentDP, FConfigCacheIni* ConfigSystem)
 {
 	FString SectionSuffix = *FString::Printf(TEXT(" %s"), *UDeviceProfile::StaticClass()->GetName());
 	FString CurrentSectionName = ParentDP + SectionSuffix;
 	FString ArrayName(TEXT("MatchingRules"));
 	TArray<FString> MatchingRulesArray;
 	ConfigSystem->GetArray(*CurrentSectionName, *ArrayName, MatchingRulesArray, GDeviceProfilesIni);
+
+	return MatchingRulesArray;
+}
+
+static bool DPHasMatchingRules(const FString& ParentDP, FConfigCacheIni* ConfigSystem)
+{
+	return GetMatchedRulesArray(ParentDP, ConfigSystem).Num() > 0;
+}
+
+static FDPMatchingRulestruct ParseToRuleStruct(const FString& RuleText, FDeviceProfileMatchingErrorContext& DPMatchingErrorOutput)
+{
+	FDPMatchingRulestruct RuleStruct;
+	FDPMatchingRulestruct::StaticStruct()->ImportText(*RuleText, &RuleStruct, nullptr, EPropertyPortFlags::PPF_None, &DPMatchingErrorOutput, FDPMatchingRulestruct::StaticStruct()->GetName(), true);
+	return RuleStruct;
+}
+
+static FString LoadAndProcessMatchingRulesFromConfig(const FString& ParentDP, IDeviceProfileSelectorModule* DPSelector, FConfigCacheIni* ConfigSystem)
+{
+	const TArray<FString> MatchingRulesArray = GetMatchedRulesArray(ParentDP, ConfigSystem);
 
 	FRulePropertiesContainer RuleProperties;
 	FString SelectedFragments;
@@ -618,8 +615,7 @@ static FString LoadAndProcessMatchingRulesFromConfig(const FString& ParentDP, ID
 	{
 		DPMatchingErrorOutput.Stage = FString::Printf(TEXT("%s rule #%d"), *ParentDP, Count);
 		Count++;
-		FDPMatchingRulestruct RuleStruct;
-		FDPMatchingRulestruct::StaticStruct()->ImportText(*RuleText, &RuleStruct, nullptr, EPropertyPortFlags::PPF_None, &DPMatchingErrorOutput, FDPMatchingRulestruct::StaticStruct()->GetName(), true);
+		FDPMatchingRulestruct RuleStruct = ParseToRuleStruct(RuleText, DPMatchingErrorOutput);
 		static const FString NoName("<unnamed>");
 		const FString& RuleName = RuleStruct.RuleName.IsEmpty() ? NoName : RuleStruct.RuleName;
 		EvaluateMatch(DPSelector, RuleName, RuleStruct, RuleProperties, SelectedFragments, &DPMatchingErrorOutput);
@@ -650,6 +646,50 @@ static FString RemoveAllWhiteSpace(const FString& StringIN)
 		}
 	}
 	return Ret;
+}
+
+ static void FindAllReferencedMatchedFragments(FString& AllAppendableFragments, const FDPMatchingRulestructBase* RuleStruct, FDeviceProfileMatchingErrorContext& DPMatchingErrorOutput)
+ {
+	if (!RuleStruct)
+		return;
+
+	FindAllReferencedMatchedFragments(AllAppendableFragments, RuleStruct->GetOnTrue(), DPMatchingErrorOutput);
+	FindAllReferencedMatchedFragments(AllAppendableFragments, RuleStruct->GetOnFalse(), DPMatchingErrorOutput);
+
+	if (!AllAppendableFragments.IsEmpty() && !RuleStruct->AppendFragments.IsEmpty())
+	{
+		AllAppendableFragments += TEXT(",");
+	}
+	AllAppendableFragments += RuleStruct->AppendFragments;
+ }
+
+TArray<FString> UDeviceProfileManager::FindAllReferencedFragmentsFromMatchedRules(const FString& ParentDP, FConfigCacheIni* ConfigSystem)
+{
+	TArray<FString> MatchingRulesArray = GetMatchedRulesArray(ParentDP, ConfigSystem);
+
+	FDeviceProfileMatchingErrorContext DPMatchingErrorOutput;
+	int Count = 0;
+	FString AllAppendableFragments;
+	for (const FString& RuleText : MatchingRulesArray)
+	{
+		DPMatchingErrorOutput.Stage = FString::Printf(TEXT("%s rule #%d"), *ParentDP, Count++);
+		FDPMatchingRulestruct RuleStruct = ParseToRuleStruct(RuleText, DPMatchingErrorOutput);
+		static const FString NoName("<unnamed>");
+		FindAllReferencedMatchedFragments(AllAppendableFragments, &RuleStruct, DPMatchingErrorOutput);
+	}
+	UE_CLOG(DPMatchingErrorOutput.NumErrors > 0, LogInit, Error, TEXT("DeviceProfileMatching: %d Error(s) encountered while processing FindAllReferencedFragments for %s"), DPMatchingErrorOutput.NumErrors, *ParentDP);
+
+	AllAppendableFragments = RemoveAllWhiteSpace(AllAppendableFragments);
+	TArray<FSelectedFragmentProperties> AllFragmentsSeen = FragmentStringToFragmentProperties(AllAppendableFragments);
+	TArray<FString> UniqueMatchedFragments;
+
+	// Return a unique list of the referenced fragments (including tagged/disabled)
+	for (const FSelectedFragmentProperties& FragmentProperties : AllFragmentsSeen)
+	{ 
+		UniqueMatchedFragments.AddUnique(FragmentProperties.Fragment);
+	}
+
+	return UniqueMatchedFragments;
 }
 
 TArray<FSelectedFragmentProperties> UDeviceProfileManager::FindMatchingFragments(const FString& ParentDP, FConfigCacheIni* ConfigSystem)

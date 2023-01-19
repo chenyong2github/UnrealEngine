@@ -264,15 +264,19 @@ FSupportedQualityLevelArray FPerQualityLevelProperty<StructType, ValueType, _Bas
 		return (DeviceProfile->DeviceType == InPlatformName);
 	});
 
+	const FName CVarFName(CVarName);
 	// iterate through the DP sections to find the ones relevant to the platform
 	for (TObjectPtr<UDeviceProfile>& DeviceProfile : DeviceProfiles)
 	{
-		const TMap<FString, FString>& ExpandedCVars = DeviceProfile->GetAllExpandedCVars();
-		const FString* const CVarValue = ExpandedCVars.Find(CVarName);
-		if (CVarValue)
+		const TMap<FName, TSet<FString>> AllPossibleCVars = UDeviceProfileManager::GetAllReferencedDeviceProfileCVars(DeviceProfile);
+		const TSet<FString>* CVarValues = AllPossibleCVars.Find(CVarFName);
+		if (CVarValues)
 		{
-			int32 Result = FCString::Atoi(*(* CVarValue));
-			CookingQualitLevelInfo.Add(Result);
+			for(const FString& CVarValue : *CVarValues)
+			{
+				int32 Result = FCString::Atoi(*CVarValue);
+				CookingQualitLevelInfo.Add(Result);
+			}
 		}
 	}
 
