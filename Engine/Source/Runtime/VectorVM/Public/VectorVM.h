@@ -346,6 +346,7 @@ namespace VectorVM
 		FORCEINLINE const T Get() { return *Register; }
 		FORCEINLINE T* GetDest() { return Register; }
 		FORCEINLINE void Advance() { Register += AdvanceOffset; }
+		FORCEINLINE void Advance(int32 Count) { Register += AdvanceOffset * Count; }
 		FORCEINLINE const T GetAndAdvance()
 		{
 			T* Ret = Register;

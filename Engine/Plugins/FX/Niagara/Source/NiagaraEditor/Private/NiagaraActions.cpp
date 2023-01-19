@@ -22,6 +22,11 @@
 #include "Widgets/SNiagaraParameterName.h"
 #include "Widgets/SToolTip.h"
 
+#include "NiagaraDataChannel.h"
+#include "NiagaraDataChannelDefinitions.h"
+#include "DataInterface/NiagaraDataInterfaceDataChannelRead.h"
+#include "DataInterface/NiagaraDataInterfaceDataChannelWrite.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraActions)
 
 #define LOCTEXT_NAMESPACE "NiagaraActions"
@@ -677,5 +682,118 @@ void INiagaraDataInterfaceNodeActionProvider::GetNodeContextMenuActions(UClass* 
 		}
 	}
 }
+
+////////////////////////
+
+void FNiagaraDataInterfaceNodeActionProvider_DataChannelWrite::GetNodeContextMenuActionsImpl(UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature) const
+{
+	//For all functions except "Num", add a context menu to initialized to a specific data channel.
+	if (Signature.Name == TEXT("Num"))
+	{
+		return;
+	}
+
+	const TArray<UNiagaraDataChannelDefinitions*>& ChannelDefs = UNiagaraDataChannelDefinitions::GetDataChannelDefinitions(false, true);
+	if (ChannelDefs.Num() > 0)
+	{
+		return;
+	}
+
+	FToolMenuSection& Section = Menu->AddSection("DataChannelWrite", LOCTEXT("DataChannelWriteHeader", "Data Channel Write"));
+
+	TWeakObjectPtr<UNiagaraNodeFunctionCall> WeakFuncNode = CastChecked<UNiagaraNodeFunctionCall>(Context->Node);
+
+	auto CreateNodeContextMenu = [WeakFuncNode](UToolMenu* InNewToolMenu)
+	{
+		FToolMenuSection& SubSection = InNewToolMenu->AddSection("InitForDataChannelSection", LOCTEXT("DataChannels", "Data Channels"));
+
+		const TArray<UNiagaraDataChannelDefinitions*>& DataChannelDefs = UNiagaraDataChannelDefinitions::GetDataChannelDefinitions(false, true);
+		for (const UNiagaraDataChannelDefinitions* Def : DataChannelDefs)
+		{
+			for (TObjectPtr<const UNiagaraDataChannel> Channel : Def->DataChannels)
+			{
+				TWeakObjectPtr<const UNiagaraDataChannel> WeakChannel = Channel;
+				auto CreateDataChannelActionEntry = [WeakFuncNode, WeakChannel]()
+				{
+					if (UNiagaraNodeFunctionCall* Node = WeakFuncNode.Get())
+					{
+						if (const UNiagaraDataChannel* ChannelPtr = WeakChannel.Get())
+						{
+							TConstArrayView<FNiagaraVariable> ChannelVars = ChannelPtr->GetVariables();
+							for (const FNiagaraVariable& Var : ChannelVars)
+							{
+								FNiagaraVariable SWCVar(FNiagaraTypeHelper::GetSWCStruct(Var.GetType().GetScriptStruct()), Var.GetName());
+								Node->AddParameter(SWCVar, Node->Pins.Last());
+							}
+						}
+					}
+				};
+				SubSection.AddMenuEntry(NAME_None, FText::FromName(Channel->GetChannelName()), FText::FromName(Channel->GetChannelName()), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"),
+					FUIAction(FExecuteAction::CreateLambda(CreateDataChannelActionEntry), FCanExecuteAction()));
+			}
+		}
+	};
+
+	Section.AddSubMenu("InitForDataChannelMenu", LOCTEXT("InitForDataChannel", "Init For Data Channel..."), LOCTEXT("InitForDataChannelTooltip", "Initializes this node to write to all members of a given data channel."),
+		FNewToolMenuDelegate::CreateLambda(CreateNodeContextMenu));
+}
+
+
+void FNiagaraDataInterfaceNodeActionProvider_DataChannelRead::GetNodeContextMenuActionsImpl(UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature) const
+{
+	//For all functions except "Num", add a context menu to initialized to a specific data channel.
+	if (Signature.Name == TEXT("Num"))
+	{
+		return;
+	}
+
+	const TArray<UNiagaraDataChannelDefinitions*>& ChannelDefs = UNiagaraDataChannelDefinitions::GetDataChannelDefinitions(false, true);
+	if (ChannelDefs.Num() > 0)
+	{
+		return;
+	}
+
+	FToolMenuSection& Section = Menu->AddSection("DataChannelRead", LOCTEXT("DataChannelReadHeader", "Data Channel Read"));
+
+	TWeakObjectPtr<UNiagaraNodeFunctionCall> WeakFuncNode = CastChecked<UNiagaraNodeFunctionCall>(Context->Node);
+
+	auto CreateNodeContextMenu = [WeakFuncNode](UToolMenu* InNewToolMenu)
+	{
+		FToolMenuSection& SubSection = InNewToolMenu->AddSection("InitForDataChannelSection", LOCTEXT("DataChannels", "Data Channels"));
+
+		const TArray<UNiagaraDataChannelDefinitions*>& DataChannelDefs = UNiagaraDataChannelDefinitions::GetDataChannelDefinitions(false, true);
+		for (const UNiagaraDataChannelDefinitions* Def : DataChannelDefs)
+		{
+			for (TObjectPtr<const UNiagaraDataChannel> Channel : Def->DataChannels)
+			{
+				TWeakObjectPtr<const UNiagaraDataChannel> WeakChannel = Channel;
+				auto CreateDataChannelActionEntry = [WeakFuncNode, WeakChannel]()
+				{
+					if (UNiagaraNodeFunctionCall* Node = WeakFuncNode.Get())
+					{
+						Node->RemoveAllDynamicPins();
+						if (const UNiagaraDataChannel* ChannelPtr = WeakChannel.Get())
+						{
+							TConstArrayView<FNiagaraVariable> ChannelVars = ChannelPtr->GetVariables();
+							for (const FNiagaraVariable& Var : ChannelVars)
+							{
+								FNiagaraVariable SWCVar(FNiagaraTypeHelper::GetSWCStruct(Var.GetType().GetScriptStruct()), Var.GetName());
+								Node->AddParameter(SWCVar, Node->Pins.Last());
+							}
+						}
+					}
+				};
+
+				SubSection.AddMenuEntry(NAME_None, FText::FromName(Channel->GetChannelName()), FText::FromName(Channel->GetChannelName()), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"), 
+					FUIAction(FExecuteAction::CreateLambda(CreateDataChannelActionEntry), FCanExecuteAction()));
+			}
+		}
+	};
+
+	Section.AddSubMenu("InitForDataChannelMenu", LOCTEXT("InitForDataChannel", "Init For Data Channel..."),	LOCTEXT("InitForDataChannelTooltip", "Initializes this node to read to all members of a given data channel."),
+		FNewToolMenuDelegate::CreateLambda(CreateNodeContextMenu));
+}
+
+
 
 #undef LOCTEXT_NAMESPACE

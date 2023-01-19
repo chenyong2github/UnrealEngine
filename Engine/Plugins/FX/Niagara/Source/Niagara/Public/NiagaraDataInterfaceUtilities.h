@@ -18,6 +18,11 @@ namespace FNiagaraDataInterfaceUtilities
 		UNiagaraDataInterface*	DataInterface = nullptr;
 	};
 
+	struct FDataInterfaceSearchOptions
+	{
+		bool bIncludeInternal = false;
+	};
+
 	// Finds all VM function calls made using the data interface that equals this one (i.e. A->Equals(B))
 	// The same function call made be made multiple times across different scripts so you may see the same function multiple times
 	// The action should return True to continue iteration or False to stop
@@ -43,13 +48,13 @@ namespace FNiagaraDataInterfaceUtilities
 
 	// Loops over all data interfaces inside the SystemInstance
 	// The action should return True to continue iteration or False to stop
-	NIAGARA_API void ForEachDataInterface(FNiagaraSystemInstance* SystemInstance, TFunction<bool(const FNiagaraVariableBase Variable, UNiagaraDataInterface* DataInterface)> Action);
+	NIAGARA_API void ForEachDataInterface(FNiagaraSystemInstance* SystemInstance, TFunction<bool(const FNiagaraVariableBase Variable, UNiagaraDataInterface* DataInterface)> Action, FDataInterfaceSearchOptions SearchOptions = FDataInterfaceSearchOptions());
 	// Loops over all data interfaces inside the SystemInstance
 	// The action should return True to continue iteration or False to stop
-	NIAGARA_API void ForEachDataInterface(FNiagaraSystemInstance* SystemInstance, TFunction<bool(const FDataInterfaceUsageContext&)> Action);
+	NIAGARA_API void ForEachDataInterface(FNiagaraSystemInstance* SystemInstance, TFunction<bool(const FDataInterfaceUsageContext&)> Action, FDataInterfaceSearchOptions SearchOptions = FDataInterfaceSearchOptions());
 	// Loops over all data interfaces inside the NiagaraSystem
 	// The action should return True to continue iteration or False to stop
-	NIAGARA_API void ForEachDataInterface(UNiagaraSystem* NiagaraSystem, TFunction<bool(const FDataInterfaceUsageContext&)> Action);
+	NIAGARA_API void ForEachDataInterface(UNiagaraSystem* NiagaraSystem, TFunction<bool(const FDataInterfaceUsageContext&)> Action, FDataInterfaceSearchOptions SearchOptions = FDataInterfaceSearchOptions());
 }
 
 #if WITH_EDITOR

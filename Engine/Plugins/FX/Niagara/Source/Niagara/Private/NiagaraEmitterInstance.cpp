@@ -1015,6 +1015,10 @@ void FNiagaraEmitterInstance::PostTick()
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEmitterPostTick);
 
+	//We reset the spawn infos to it's minimum size for script spawning.
+	//It can exceed this size as external DIs etc can inject additional spawn infos.
+	SpawnInfos.SetNum(CachedEmitterCompiledData->SpawnAttributes.Num());
+
 	if (EventInstanceData.IsValid())
 	{
 		//Clear refs to event data buffers.

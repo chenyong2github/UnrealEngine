@@ -330,6 +330,9 @@ private:
 		StackIssueGenerators.Add(StructName) = Generator;
 	}
 
+	void OnAssetCreated(UObject* DeletedObject);
+	void OnAssetDeleted(UObject* DeletedObject);
+
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
@@ -360,6 +363,9 @@ private:
 
 	FDelegateHandle PreviewPlatformChangedHandle;
 	FDelegateHandle PreviewFeatureLevelChangedHandle;
+
+	FDelegateHandle OnAssetCreatedHandle;
+	FDelegateHandle OnAssetDeletedHandle;
 
 	USequencerSettings* SequencerSettings;
 

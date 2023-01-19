@@ -33,6 +33,11 @@
 #include "Engine/StaticMesh.h"
 #include "UObject/UObjectGlobals.h"
 
+#include "DataInterface/NiagaraDataInterfaceDataChannelCommon.h"
+#include "DataInterface/NiagaraDataInterfaceDataChannelWrite.h"
+#include "DataInterface/NiagaraDataInterfaceDataChannelRead.h"
+#include "DataInterface/NiagaraDataInterfaceDataChannelSpawn.h"
+
 #if PLATFORM_WINDOWS
 #include "NiagaraOpenVDB.h"
 #endif
@@ -93,6 +98,44 @@ void INiagaraModule::OnUseGlobalFXBudgetChanged(IConsoleVariable* Variable)
 		//FFXBudget::SetEnabled(true);
 		UE_LOG(LogNiagara, Warning, TEXT("Niagara has enabled fx.Niagara.UseGlobalFXBudget but fx.Budget.Enabled is false so global FX budgetting will still be disabled. Consider also enabling fx.Budget.Enabled."));
 	}
+}
+
+bool INiagaraModule::bDataChannelsEnabled = false;
+
+static FAutoConsoleVariableRef CVarDataChannelEnabled(
+	TEXT("fx.Niagara.DataChannels.Enabled"),
+	INiagaraModule::bDataChannelsEnabled,
+	TEXT("If true, Niagara Data Channels will be enabled. \n"),
+	FConsoleVariableDelegate::CreateStatic(&INiagaraModule::OnDataChannelsEnabledChanged),
+	ECVF_Default
+);
+
+void INiagaraModule::OnDataChannelsEnabledChanged(IConsoleVariable* Variable)
+{
+	if(DataChannelsEnabled())
+	{
+		ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable | ENiagaraTypeRegistryFlags::AllowParameter;
+		FNiagaraTypeRegistry::Register(UNiagaraDataInterfaceDataChannelWrite::StaticClass(), Flags);
+		FNiagaraTypeRegistry::Register(UNiagaraDataInterfaceDataChannelRead::StaticClass(), Flags);
+		FNiagaraTypeRegistry::Register(UNiagaraDataInterfaceDataChannelSpawn::StaticClass(), Flags);
+
+		FNiagaraWorldManager::ForAllWorldManagers(
+			[](FNiagaraWorldManager& WorldMan)
+			{
+				WorldMan.GetDataChannelManager().Init();
+			});
+	}
+// 	else TODO: for completeness we could add the ability to unregister types 
+// 	{
+// 		FNiagaraTypeRegistry::Unregister(UNiagaraDataInterfaceDataChannelWrite::StaticClass());
+// 		FNiagaraTypeRegistry::Register(UNiagaraDataInterfaceDataChannelRead::StaticClass());
+// 		FNiagaraTypeRegistry::Register(UNiagaraDataInterfaceDataChannelSpawn::StaticClass());
+// 	}
+
+	//Re-init everything for now.
+	//Can be more targeted if needed.
+	FNiagaraSystemUpdateContext Context;
+	Context.AddAll(true);
 }
 
 // these two globals are intended to help ensure that a global variable is accessible to natvis (as defined in Niagara.natvis)
@@ -516,6 +559,8 @@ void INiagaraModule::ShutdownModule()
 	ShutdownRenderingResources();
 
 	FNiagaraTypeRegistry::TearDown();
+
+	FNDIDataChannelLayoutManager::TearDown();
 
 #if WITH_EDITOR
 	FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
@@ -1364,20 +1409,24 @@ bool FNiagaraTypeDefinition::Serialize(FArchive& Ar)
 		}
 #endif
 
-		if (UScriptStruct* StructDef = GetScriptStruct())
+		if(!IsEnum())
 		{
-			if (Flags & TF_SerializedAsLWC)
+			if (UScriptStruct* StructDef = GetScriptStruct())
 			{
-				ClassStructOrEnum = FNiagaraTypeHelper::GetSWCStruct(StructDef);
+				if (Flags & TF_SerializedAsLWC)
+				{
+					ClassStructOrEnum = FNiagaraTypeHelper::GetSWCStruct(StructDef);
 
-				Flags &= ~TF_SerializedAsLWC;
+					Flags &= ~TF_SerializedAsLWC;
+				}
+	#if WITH_EDITORONLY_DATA
+				else if((Flags & TF_AllowLWC) == 0)
+				{	
+					//If the type doesn't allow LWC we should convert down to SWC.
+					ClassStructOrEnum = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(static_cast<UScriptStruct*>(ClassStructOrEnum), ENiagaraStructConversion::Simulation);
+				}
+	#endif
 			}
-#if WITH_EDITORONLY_DATA
-			else
-			{
-				ClassStructOrEnum = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(static_cast<UScriptStruct*>(ClassStructOrEnum), ENiagaraStructConversion::UserFacing);
-			}
-#endif
 		}
 	}
 

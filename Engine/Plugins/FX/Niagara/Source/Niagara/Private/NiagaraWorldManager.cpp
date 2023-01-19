@@ -5,7 +5,7 @@
 #include "NiagaraModule.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraTypes.h"
-#include "NiagaraEvents.h"
+#include "NiagaraDataChannel.h"
 #include "NiagaraSettings.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraSystemInstance.h"
@@ -302,6 +302,7 @@ FNiagaraWorldManager::FNiagaraWorldManager()
 	: World(nullptr)
 	, ActiveNiagaraTickGroup(-1)
 	, bAppHasFocus(true)
+	, DataChannelManager(this)
 {
 }
 
@@ -337,6 +338,8 @@ void FNiagaraWorldManager::Init(UWorld* InWorld)
 	//Ideally we'd do this here but it's too early in the init process and the world does not have a Scene yet.
 	//Possibly a later hook we can use.
 	//PrimePoolForAllSystems();
+
+	DataChannelManager.Init();
 
 #if WITH_NIAGARA_DEBUGGER
 	NiagaraDebugHud.Reset(new FNiagaraDebugHud(World));
@@ -440,6 +443,8 @@ void FNiagaraWorldManager::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 
 	Collector.AddReferencedObjects(CullProxyMap);
+
+	DataChannelManager.AddReferencedObjects(Collector);
 }
 
 FString FNiagaraWorldManager::GetReferencerName() const
@@ -604,10 +609,19 @@ void FNiagaraWorldManager::OnComputeDispatchInterfaceDestroyed_Internal(FNiagara
 	}
 }
 
+void FNiagaraWorldManager::OnWorldBeginTearDown()
+{
+	bIsTearingDown = true;
+	ComponentPool->Cleanup(World);
+	DataChannelManager.Cleanup();
+}
+
 void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResources)
 {
 	DeferredMethods.ExecuteAndClear();
 	ComponentPool->Cleanup(World);
+
+	DataChannelManager.Cleanup();
 
 	for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
 	{
@@ -703,6 +717,17 @@ void FNiagaraWorldManager::RefreshOwnerAllowsScalability()
 	}
 }
 
+void FNiagaraWorldManager::WaitForAsyncWork()
+{
+	for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
+	{
+		for (TPair<UNiagaraSystem*, FNiagaraSystemSimulationRef>& SimPair : SystemSimulations[TG])
+		{
+			SimPair.Value->WaitForInstancesTickComplete();
+		}
+	}
+}
+
 void FNiagaraWorldManager::OnWorldInit(UWorld* World, const UWorld::InitializationValues IVS)
 {
 	FNiagaraWorldManager*& NewManager = WorldManagers.FindOrAdd(World);
@@ -748,7 +773,7 @@ void FNiagaraWorldManager::OnWorldBeginTearDown(UWorld* World)
 	FNiagaraWorldManager** Manager = WorldManagers.Find(World);
 	if (Manager)
 	{
-		(*Manager)->bIsTearingDown = true;
+		(*Manager)->OnWorldBeginTearDown();
 	}
 // 	FNiagaraWorldManager** Manager = WorldManagers.Find(World);
 // 	if (Manager)
@@ -1047,9 +1072,12 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 
 	DeltaSeconds *= DebugPlaybackRate;
 
+	//Tick DataChannel Manager.
+	DataChannelManager.Tick(DeltaSeconds, TickGroup);
+
 	// We do book keeping in the first tick group
 	if ( TickGroup == NiagaraFirstTickGroup )
-	{		
+	{
 		// Update playback mode
 		DebugPlaybackMode = RequestedDebugPlaybackMode;
 

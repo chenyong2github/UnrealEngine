@@ -10,6 +10,7 @@
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Engine/Texture2D.h"
 #endif
+#include "NiagaraCore.h"
 
 #include "NiagaraTypes.generated.h"
 
@@ -254,10 +255,10 @@ struct FNiagaraStructConversionStep
 	GENERATED_USTRUCT_BODY();
 	
 	UPROPERTY()
-	int32 SourceBytes = 0;
+	int32 LWCBytes = 0;
 
 	UPROPERTY()
-	int32 SourceOffset = 0;
+	int32 LWCOffset = 0;
 	
 	UPROPERTY()
 	int32 SimulationBytes = 0;
@@ -269,10 +270,21 @@ struct FNiagaraStructConversionStep
 	ENiagaraStructConversionType ConversionType = ENiagaraStructConversionType::CopyOnly;
 
 	FNiagaraStructConversionStep();
-	FNiagaraStructConversionStep(int32 InSourceBytes, int32 InSourceOffset, int32 InSimulationBytes, int32 InSimulationOffset, ENiagaraStructConversionType InConversionType);
+	FNiagaraStructConversionStep(int32 InLWCBytes, int32 InLWCOffset, int32 InSimulationBytes, int32 InSimulationOffset, ENiagaraStructConversionType InConversionType);
 
-	void CopyToSim(uint8* DestinationData, const uint8* SourceData) const;
-	void CopyFromSim(uint8* DestinationData, const uint8* SourceData) const;
+	void CopyToSim(const uint8* LWCData, uint8* SimulationData, int32 Count, int32 LWCStride, int32 SimulationStride) const;
+	void CopyFromSim(uint8* LWCData, const uint8* SimulationData, int32 Count, int32 LWCStride, int32 SimulationStride) const;
+
+	template<typename DstType, typename SrcType>
+	void CopyInternal(uint8* DestinationData, int32 DestStride, int32 DestOffset, const uint8* SourceData, int32 SourceStride, int32 SourceOffset, int32 Count)const
+	{
+		for (int32 i = 0; i < Count; ++i)
+		{
+			DstType* Dst = (DstType*)((DestinationData + i * DestStride) + DestOffset);
+			const SrcType* Src = (const SrcType*)((SourceData + i * SourceStride) + SourceOffset);			
+			*Dst = DstType(*Src);
+		}
+	}
 };
 
 /** Can convert struct data from custom structs containing LWC data such as FVector3d into struct data suitable for Niagara simulations and vice versa. */
@@ -280,14 +292,24 @@ USTRUCT()
 struct NIAGARA_API FNiagaraLwcStructConverter
 {
 	GENERATED_USTRUCT_BODY();
-	
-	void ConvertDataToSimulation(uint8* DestinationData, const uint8* SourceData) const;
-	void ConvertDataFromSimulation(uint8* DestinationData, const uint8* SourceData) const;
+
+	FNiagaraLwcStructConverter(){}
+	FNiagaraLwcStructConverter(UScriptStruct* LWCStruct, UScriptStruct* SWCStruct)
+		: LWCSize(LWCStruct ? LWCStruct->GetStructureSize() : 0)
+		, SWCSize(SWCStruct ? SWCStruct->GetStructureSize() : 0)
+	{
+	}
+	void ConvertDataToSimulation(uint8* DestinationData, const uint8* SourceData, int32 Count = 1) const;
+	void ConvertDataFromSimulation(uint8* DestinationData, const uint8* SourceData, int32 Count = 1) const;
 	
 	void AddConversionStep(int32 InSourceBytes, int32 InSourceOffset, int32 InSimulationBytes, int32 InSimulationOffset, ENiagaraStructConversionType ConversionType);
-	bool IsValid() const { return ConversionSteps.Num() > 0; }
+	bool IsValid() const { return ConversionSteps.Num() > 0 && LWCSize > 0 && SWCSize > 0; }
 	
 private:
+	UPROPERTY()
+	int32 LWCSize = 0;
+	UPROPERTY()
+	int32 SWCSize = 0;
 	UPROPERTY()
 	TArray<FNiagaraStructConversionStep> ConversionSteps;
 };
@@ -774,11 +796,38 @@ struct NIAGARA_API FNiagaraTypeDefinition
 		/// indicates that the ClassStructOrEnum property has been serialized as the LWC struct (see FNiagaraTypeHelper)
 		/// instead of the Transient SWC version of the struct
 		TF_SerializedAsLWC	= 0x02,
+
+		/// indicates this type allows LWC types and should not attempt to convert to SWC.
+		TF_AllowLWC		= 0x04,
 	};
 
 public:
 
 	// Construct blank raw type definition 
+	FORCEINLINE FNiagaraTypeDefinition(UObject* Object)
+		: ClassStructOrEnum(Object), Flags(TF_None), Size(INDEX_NONE), Alignment(INDEX_NONE)
+#if WITH_EDITORONLY_DATA
+		, Struct_DEPRECATED(nullptr), Enum_DEPRECATED(nullptr)
+#endif
+	{
+		if(UClass* Class = Cast<UClass>(Object))
+		{
+			*this = FNiagaraTypeDefinition(Class);
+		}
+		else if (UScriptStruct* Struct = Cast<UScriptStruct>(Object))
+		{
+			*this = FNiagaraTypeDefinition(Struct, EAllowUnfriendlyStruct::Deny);
+		}
+		else if(UEnum* Enum = Cast<UEnum>(Object))
+		{
+			*this = FNiagaraTypeDefinition(Enum);
+		}
+		else
+		{
+			check(0);
+		}
+	}
+
 	FORCEINLINE FNiagaraTypeDefinition(UClass *ClassDef)
 		: ClassStructOrEnum(ClassDef), UnderlyingType(UT_Class), Flags(TF_None), Size(INDEX_NONE), Alignment(INDEX_NONE)
 #if WITH_EDITORONLY_DATA
@@ -806,6 +855,10 @@ public:
 	{
 		checkSlow(ClassStructOrEnum != nullptr);
 		ensureAlwaysMsgf(AllowUnfriendlyStruct == EAllowUnfriendlyStruct::Allow || FNiagaraTypeHelper::IsNiagaraFriendlyTopLevelStruct(StructDef, ENiagaraStructConversion::UserFacing), TEXT("Struct(%s) is not supported."), *StructDef->GetName());
+		if(AllowUnfriendlyStruct == EAllowUnfriendlyStruct::Allow)
+		{
+			Flags |= TF_AllowLWC;
+		}
 	}
 	FORCEINLINE FNiagaraTypeDefinition(UScriptStruct* StructDef) : FNiagaraTypeDefinition(StructDef, EAllowUnfriendlyStruct::Deny) {}
 
@@ -815,6 +868,19 @@ public:
 		, Struct_DEPRECATED(nullptr), Enum_DEPRECATED(nullptr)
 #endif
 	{
+	}
+
+	FORCEINLINE FNiagaraTypeDefinition(FProperty* Property, EAllowUnfriendlyStruct AllowUnfriendlyStruct)
+	{
+		if (Property->IsA(FFloatProperty::StaticClass())) { *this = FNiagaraTypeDefinition::GetFloatDef(); }
+		else if (Property->IsA(FUInt16Property::StaticClass())) { *this = FNiagaraTypeDefinition::GetHalfDef(); }
+		else if (Property->IsA(FIntProperty::StaticClass())) { *this = FNiagaraTypeDefinition::GetIntDef(); }
+		else if (Property->IsA(FBoolProperty::StaticClass())) { *this = FNiagaraTypeDefinition::GetBoolDef(); }
+		else if (FStructProperty* StructProp = CastField<FStructProperty>(Property)) { *this = FNiagaraTypeDefinition(StructProp->Struct, AllowUnfriendlyStruct); }
+		else
+		{
+			checkf(0, TEXT("Invalid Type"))
+		}
 	}
 
 	// Construct a blank raw type definition
@@ -885,7 +951,7 @@ public:
 			{
 				NameText = FText::Format(NSLOCTEXT("NiagaraTypeDefinition", "FlagFormatNameText", "Static {0}"), NameText);
 			}
-			else
+			else if (!AllowsLWC())
 			{
 				NameText = FText::Format(NSLOCTEXT("NiagaraTypeDefinition", "UnknownNameText", "Unknown Flag Type {0}"), NameText);
 			}
@@ -943,9 +1009,9 @@ public:
 
 	bool IsEnum() const { return UnderlyingType == UT_Enum; }
 
-	bool IsStatic() const {
-		return (GetFlags() & TF_Static) != 0;
-	}
+	bool IsStatic() const { return (GetFlags() & TF_Static) != 0; }
+
+	bool AllowsLWC() const { return (GetFlags() & TF_AllowLWC) != 0; }
 
 	void SetFlags(FTypeFlags InFlags)
 	{
@@ -1339,6 +1405,11 @@ public:
 		return Get().RegisteredIndexTypes;
 	}
 
+	static const TArray<FNiagaraTypeDefinition>& GetSimulationTypes()
+	{
+		return Get().RegisteredSimulationTypes;
+	}
+
 	static UNiagaraDataInterfaceBase* GetDefaultDataInterfaceByName(const FString& DIClassName);
 
 	static void ClearUserDefinedRegistry()
@@ -1389,10 +1460,18 @@ public:
 	{
 		FNiagaraTypeRegistry& Registry = Get();
 
+		FNiagaraTypeDefinition SimType = NewType;
+		if (UScriptStruct* Struct = NewType.GetScriptStruct())
+		{
+			SimType = FNiagaraTypeDefinition(FNiagaraTypeHelper::GetSWCStruct(Struct), FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Deny);			
+		}
+
 		FRWScopeLock Lock(Registry.RegisteredTypesLock, SLT_Write);
 
 		//TODO: Make this a map of type to a more verbose set of metadata? Such as the hlsl defs, offset table for conversions etc.
 		Registry.RegisteredTypeIndexMap.Add(GetTypeHash(NewType), Registry.RegisteredTypes.AddUnique(NewType));
+
+		Registry.RegisteredSimulationTypes.AddUnique(SimType);
 
 		if (EnumHasAnyFlags(Flags, ENiagaraTypeRegistryFlags::AllowUserVariable))
 		{
@@ -1524,6 +1603,7 @@ private:
 	TArray<FNiagaraTypeDefinition> RegisteredUserDefinedTypes;
 	TArray<FNiagaraTypeDefinition> RegisteredNumericTypes;
 	TArray<FNiagaraTypeDefinition> RegisteredIndexTypes;
+	TArray<FNiagaraTypeDefinition> RegisteredSimulationTypes;
 
 
 	TMap<uint32, int32> RegisteredTypeIndexMap;
@@ -1602,6 +1682,11 @@ struct FNiagaraVariableBase
 		, TypeDef_DEPRECATED(InType)
 #endif
 		{}
+
+	FORCEINLINE FNiagaraVariableBase(const FNiagaraVariableCommonReference& VariableRef)
+		: Name(VariableRef.Name)
+		, TypeDefHandle(FNiagaraTypeDefinition(VariableRef.UnderlyingType))
+	{}
 
 	/** Check if Name and Type definition are the same. The actual stored value is not checked here.*/
 	bool operator==(const FNiagaraVariableBase& Other)const
@@ -1736,7 +1821,7 @@ struct TStructOpsTypeTraits<FNiagaraVariableBase> : public TStructOpsTypeTraitsB
 	};
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FNiagaraVariable : public FNiagaraVariableBase
 {
 	GENERATED_USTRUCT_BODY()

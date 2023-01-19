@@ -1635,6 +1635,7 @@ void FNiagaraSystemViewModel::NotifyDataObjectChanged(TArray<UObject*> ChangedOb
 	}
 
 	bool bRefreshCurveSelectionViewModel = false;
+	bool bRefreshSystemDICompiledData = false;
 	if(ChangedObjects.Num() != 0)
 	{
 		for(UObject* ChangedObject : ChangedObjects)
@@ -1643,6 +1644,7 @@ void FNiagaraSystemViewModel::NotifyDataObjectChanged(TArray<UObject*> ChangedOb
 			if (ChangedDataInterface)
 			{
 				UpdateCompiledDataInterfaces(ChangedDataInterface);
+				bRefreshSystemDICompiledData = true;
 			}
 
 
@@ -1670,6 +1672,11 @@ void FNiagaraSystemViewModel::NotifyDataObjectChanged(TArray<UObject*> ChangedOb
 	else
 	{
 		bRefreshCurveSelectionViewModel = true;
+	}
+
+	if(bRefreshSystemDICompiledData)
+	{
+		System->OnCompiledDataInterfaceChanged();		
 	}
 
 	if (bRefreshCurveSelectionViewModel)

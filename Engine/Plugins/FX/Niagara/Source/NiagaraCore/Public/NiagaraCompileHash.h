@@ -66,6 +66,11 @@ private:
 	TArray<uint8> DataHash;
 };
 
+FORCEINLINE uint32 GetTypeHash(const FNiagaraCompileHash& Hash)
+{
+	return Hash.GetTypeHash();
+}
+
 inline bool operator==(const FSHAHash& Lhs, const FNiagaraCompileHash& Rhs)
 {
 	return Rhs.operator==(Lhs);

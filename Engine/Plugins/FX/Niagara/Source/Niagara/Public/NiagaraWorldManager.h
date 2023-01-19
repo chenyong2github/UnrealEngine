@@ -21,6 +21,7 @@
 #include "NiagaraScalabilityManager.h"
 #include "NiagaraDebuggerCommon.h"
 #include "NiagaraDeferredMethodQueue.h"
+#include "NiagaraDataChannelManager.h"
 
 #include "NiagaraWorldManager.generated.h"
 
@@ -123,6 +124,7 @@ public:
 	/** Called before we run end of frame updates, allows us to wait on async work. */
 	void PreSendAllEndOfFrameUpdates();
 
+	void OnWorldBeginTearDown();
 	void OnWorldCleanup(bool bSessionEnded, bool bCleanupResources);
 	void OnPostWorldCleanup(bool bSessionEnded, bool bCleanupResources);
 
@@ -215,6 +217,11 @@ public:
 
 	NIAGARA_API static void SetScalabilityCullingMode(ENiagaraScalabilityCullingMode NewMode);
 	NIAGARA_API static ENiagaraScalabilityCullingMode GetScalabilityCullingMode() { return ScalabilityCullingMode; }
+
+	FNiagaraDataChannelManager& GetDataChannelManager(){ return DataChannelManager; }
+
+	/** Waits for all currently in flight async work to be completed. */
+	void WaitForAsyncWork();
 
 private:
 	// Callback function registered with global world delegates to instantiate world manager when a game world is created
@@ -327,6 +334,8 @@ private:
 
 	/** A global flag for all scalability culling */
 	static ENiagaraScalabilityCullingMode ScalabilityCullingMode;
+
+	FNiagaraDataChannelManager DataChannelManager;
 };
 
 

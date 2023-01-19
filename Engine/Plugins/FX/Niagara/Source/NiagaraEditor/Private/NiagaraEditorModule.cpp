@@ -45,11 +45,15 @@
 #include "PropertyEditorModule.h"
 #include "NiagaraSettings.h"
 #include "NiagaraShaderModule.h"
+
 #include "NiagaraDataInterfaceCurve.h"
 #include "NiagaraDataInterfaceVector2DCurve.h"
 #include "NiagaraDataInterfaceVectorCurve.h"
 #include "NiagaraDataInterfaceVector4Curve.h"
 #include "NiagaraDataInterfaceColorCurve.h"
+#include "DataInterface/NiagaraDataInterfaceDataChannelRead.h"
+#include "DataInterface/NiagaraDataInterfaceDataChannelWrite.h"
+
 #include "ViewModels/NiagaraScriptViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
@@ -152,6 +156,11 @@
 #include "NiagaraRibbonRendererProperties.h"
 #include "NiagaraSpriteRendererProperties.h"
 #include "Misc/ScopedSlowTask.h"
+
+#include "NiagaraActions.h"
+
+#include "NiagaraDataChannelDefinitions.h"
+#include "NiagaraDataChannel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEditorModule)
 
@@ -832,6 +841,14 @@ void FNiagaraEditorModule::OnPreExit()
 		}
 	}
 	ClearObjectPool();
+	
+	INiagaraDataInterfaceNodeActionProvider::Unregister<UNiagaraDataInterfaceDataChannelWrite>();
+	INiagaraDataInterfaceNodeActionProvider::Unregister<UNiagaraDataInterfaceDataChannelRead>();
+
+	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	AssetRegistry.OnInMemoryAssetCreated().Remove(OnAssetCreatedHandle);
+	AssetRegistry.OnInMemoryAssetDeleted().Remove(OnAssetDeletedHandle);
 }
 
 void FNiagaraEditorModule::PostGarbageCollect()
@@ -1247,6 +1264,10 @@ void FNiagaraEditorModule::StartupModule()
 #endif
 
 	GraphDataCache = MakeUnique<FNiagaraGraphDataCache>();
+	
+	//Register node action providers for data interface functions.
+	INiagaraDataInterfaceNodeActionProvider::Register<UNiagaraDataInterfaceDataChannelWrite, FNiagaraDataInterfaceNodeActionProvider_DataChannelWrite>();
+	INiagaraDataInterfaceNodeActionProvider::Register<UNiagaraDataInterfaceDataChannelRead, FNiagaraDataInterfaceNodeActionProvider_DataChannelRead>();
 }
 
 void FNiagaraEditorModule::ShutdownModule()
@@ -1429,6 +1450,11 @@ void FNiagaraEditorModule::OnPostEngineInit()
 	Debugger->Init();
 	SNiagaraDebugger::RegisterTabSpawner();
 #endif
+
+	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	OnAssetCreatedHandle = AssetRegistry.OnInMemoryAssetCreated().AddRaw(this, &FNiagaraEditorModule::OnAssetCreated);
+	OnAssetDeletedHandle = AssetRegistry.OnInMemoryAssetDeleted().AddRaw(this, &FNiagaraEditorModule::OnAssetDeleted);
 }
 
 void FNiagaraEditorModule::OnDeviceProfileManagerUpdated()
@@ -1931,6 +1957,22 @@ bool FNiagaraEditorModule::DeferredDestructObjects(float InDeltaTime)
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FNiagaraEditorModule_DeferredDestructObjects);
 	EnqueuedForDeferredDestruction.Empty();
 	return false;
+}
+
+void FNiagaraEditorModule::OnAssetCreated(UObject* CreatedObject)
+{
+	if (UNiagaraDataChannelDefinitions* DataChannelDef = Cast<UNiagaraDataChannelDefinitions>(CreatedObject))
+	{
+		UNiagaraDataChannelDefinitions::OnAssetCreated(DataChannelDef);
+	}
+}
+
+void FNiagaraEditorModule::OnAssetDeleted(UObject* DeletedObject)
+{
+	if (UNiagaraDataChannelDefinitions* DataChannelDef = Cast<UNiagaraDataChannelDefinitions>(DeletedObject))
+	{
+		UNiagaraDataChannelDefinitions::OnAssetDeleted(DataChannelDef);
+	}
 }
 
 UNiagaraParameterCollection* FNiagaraEditorModule::FindCollectionForVariable(const FString& VariableName)

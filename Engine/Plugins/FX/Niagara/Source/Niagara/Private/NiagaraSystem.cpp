@@ -39,6 +39,8 @@
 #include "UObject/UObjectThreadContext.h"
 #include "ShaderCompiler.h"
 #include "PipelineStateCache.h"
+#include "NiagaraDataChannel.h"
+#include "NiagaraDataChannelDefinitions.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSystem)
 
@@ -1971,6 +1973,21 @@ void UNiagaraSystem::UpdatePostCompileDIInfo()
 			}
 		}
 	}
+	
+	ReferencedDataChannelDefinitions.Reset();
+
+	//We must include internal DIs in this search so they get correctly PostCompiled.
+	FNiagaraDataInterfaceUtilities::FDataInterfaceSearchOptions SearchOptions;
+	SearchOptions.bIncludeInternal = true;
+	FNiagaraDataInterfaceUtilities::ForEachDataInterface(this, [](const FNiagaraDataInterfaceUtilities::FDataInterfaceUsageContext& Context)
+	{
+		if (Context.DataInterface)
+		{
+			Context.DataInterface->PostCompile();
+		}
+		return true;
+	}
+	, SearchOptions);
 }
 
 void UNiagaraSystem::UpdateDITickFlags()
@@ -2026,6 +2043,24 @@ void UNiagaraSystem::UpdateHasGPUEmitters()
 		}
 	}
 }
+
+#if WITH_EDITORONLY_DATA
+
+void UNiagaraSystem::RegisterDataChannelUse(const UNiagaraDataChannel* DataChannel)
+{
+	if(UNiagaraDataChannelDefinitions* DefinitionsAsset = DataChannel->GetTypedOuter<UNiagaraDataChannelDefinitions>())
+	{
+		ReferencedDataChannelDefinitions.AddUnique(DefinitionsAsset);
+	}
+}
+
+void UNiagaraSystem::OnCompiledDataInterfaceChanged()
+{
+	UpdatePostCompileDIInfo();
+	UpdateDITickFlags();
+}
+
+#endif
 
 bool UNiagaraSystem::IsValidInternal() const
 {

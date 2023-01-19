@@ -436,3 +436,21 @@ void INiagaraDataInterfaceNodeActionProvider::GetNodeContextMenuActions(UToolMen
 		(*Provider)->GetNodeContextMenuActionsImpl(Menu, Context, Signature);
 	}
 }
+
+////////////////////////////////
+/// Actions for engine data interfaces.
+/////////////////////////////////
+
+class FNiagaraDataInterfaceNodeActionProvider_DataChannelWrite : public INiagaraDataInterfaceNodeActionProvider
+{
+public:
+
+	virtual void GetNodeContextMenuActionsImpl(UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature) const override;
+};
+
+class FNiagaraDataInterfaceNodeActionProvider_DataChannelRead : public INiagaraDataInterfaceNodeActionProvider
+{
+public:
+
+	virtual void GetNodeContextMenuActionsImpl(UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature) const override;
+};

@@ -46,6 +46,9 @@ enum class ENiagaraScriptTemplateSpecification : uint8;
 struct FNiagaraGraphCachedDataBase;
 #endif
 
+class UNiagaraDataChannel;
+class UNiagaraDataChannelDefinitions;
+
 USTRUCT()
 struct FNiagaraEmitterCompiledData
 {
@@ -762,6 +765,12 @@ public:
 
 	/** Resets internal data leaving it in a state which would have minimal cost to exist in headless builds (servers) */
 	void ResetToEmptySystem();
+
+	/** Registers that this System uses the passed DI. No symmetrical unregister as this is cleared and rebuilt on compile. */
+	void RegisterDataChannelUse(const UNiagaraDataChannel* DataChannel);
+
+	/** Updates any post compile data based upon data interfaces. */
+	void OnCompiledDataInterfaceChanged();
 #endif
 
 private:
@@ -942,6 +951,9 @@ protected:
 
 	UPROPERTY()
 	TArray<FName> UserDINamesReadInSystemScripts;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UNiagaraDataChannelDefinitions>> ReferencedDataChannelDefinitions;
 
 	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. Please note that some indices may have the top bit set (kStartNewOverlapGroupBit)
 	* to indicate synchronization points in parallel execution, so mask it out before using the values as indices in the emitters array.

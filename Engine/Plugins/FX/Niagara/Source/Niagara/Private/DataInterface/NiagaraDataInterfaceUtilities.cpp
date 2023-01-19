@@ -155,7 +155,7 @@ void ForEachGpuFunctionEqualsImpl(class UNiagaraDataInterface* DataInterface, cl
 	);
 }
 
-void ForEachDataInterface(const FNiagaraParameterStore& ParameterStore, TFunction<bool(const FNiagaraVariableBase Variable, UNiagaraDataInterface* DataInterface)> Action)
+void ForEachDataInterface(const FNiagaraParameterStore& ParameterStore, TFunction<bool(const FNiagaraVariableBase Variable, UNiagaraDataInterface* DataInterface)> Action, FDataInterfaceSearchOptions SearchOptions)
 {
 	const TArray<UNiagaraDataInterface*>& DataInterfaces = ParameterStore.GetDataInterfaces();
 	for (const FNiagaraVariableWithOffset& Variable : ParameterStore.ReadParameterVariables())
@@ -165,7 +165,7 @@ void ForEachDataInterface(const FNiagaraParameterStore& ParameterStore, TFunctio
 			continue;
 		}
 
-		if (Variable.IsInNameSpace(FNiagaraConstants::InternalNamespaceString))
+		if (SearchOptions.bIncludeInternal == false && Variable.IsInNameSpace(FNiagaraConstants::InternalNamespaceString))
 		{
 			continue;
 		}
@@ -177,7 +177,7 @@ void ForEachDataInterface(const FNiagaraParameterStore& ParameterStore, TFunctio
 	}
 }
 
-void ForEachDataInterface(FDataInterfaceUsageContext& UsageContext, const FNiagaraParameterStore& ParameterStore, TFunction<bool(const FDataInterfaceUsageContext&)> Action)
+void ForEachDataInterface(FDataInterfaceUsageContext& UsageContext, const FNiagaraParameterStore& ParameterStore, TFunction<bool(const FDataInterfaceUsageContext&)> Action, FDataInterfaceSearchOptions SearchOptions)
 {
 	const TArray<UNiagaraDataInterface*>& DataInterfaces = ParameterStore.GetDataInterfaces();
 	for (const FNiagaraVariableWithOffset& Variable : ParameterStore.ReadParameterVariables())
@@ -187,7 +187,7 @@ void ForEachDataInterface(FDataInterfaceUsageContext& UsageContext, const FNiaga
 			continue;
 		}
 
-		if (Variable.IsInNameSpace(FNiagaraConstants::InternalNamespaceString))
+		if (SearchOptions.bIncludeInternal == false && Variable.IsInNameSpace(FNiagaraConstants::InternalNamespaceString))
 		{
 			continue;
 		}
@@ -362,7 +362,7 @@ void FNiagaraDataInterfaceUtilities::ForEachGpuFunction(class UNiagaraDataInterf
 	}
 }
 
-void FNiagaraDataInterfaceUtilities::ForEachDataInterface(FNiagaraSystemInstance* SystemInstance, TFunction<bool(const FNiagaraVariableBase Variable, UNiagaraDataInterface* DataInterface)> Action)
+void FNiagaraDataInterfaceUtilities::ForEachDataInterface(FNiagaraSystemInstance* SystemInstance, TFunction<bool(const FNiagaraVariableBase Variable, UNiagaraDataInterface* DataInterface)> Action, FDataInterfaceSearchOptions SearchOptions)
 {
 	if ( SystemInstance == nullptr )
 	{
@@ -375,10 +375,10 @@ void FNiagaraDataInterfaceUtilities::ForEachDataInterface(FNiagaraSystemInstance
 		return;
 	}
 
-	ForEachDataInterface(*SystemInstance->GetOverrideParameters(), Action);
+	ForEachDataInterface(*SystemInstance->GetOverrideParameters(), Action, SearchOptions);
 
-	ForEachDataInterface(SystemSimulation->GetSpawnExecutionContext()->Parameters, Action);
-	ForEachDataInterface(SystemSimulation->GetUpdateExecutionContext()->Parameters, Action);
+	ForEachDataInterface(SystemSimulation->GetSpawnExecutionContext()->Parameters, Action, SearchOptions);
+	ForEachDataInterface(SystemSimulation->GetUpdateExecutionContext()->Parameters, Action, SearchOptions);
 
 	for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter : SystemInstance->GetEmitters())
 	{
@@ -387,22 +387,22 @@ void FNiagaraDataInterfaceUtilities::ForEachDataInterface(FNiagaraSystemInstance
 			continue;
 		}
 
-		ForEachDataInterface(Emitter->GetSpawnExecutionContext().Parameters, Action);
-		ForEachDataInterface(Emitter->GetUpdateExecutionContext().Parameters, Action);
+		ForEachDataInterface(Emitter->GetSpawnExecutionContext().Parameters, Action, SearchOptions);
+		ForEachDataInterface(Emitter->GetUpdateExecutionContext().Parameters, Action, SearchOptions);
 		for (int32 i=0; i < Emitter->GetEventExecutionContexts().Num(); i++)
 		{
-			ForEachDataInterface(Emitter->GetEventExecutionContexts()[i].Parameters, Action);
+			ForEachDataInterface(Emitter->GetEventExecutionContexts()[i].Parameters, Action, SearchOptions);
 		}
 
 		FVersionedNiagaraEmitterData* EmitterData = Emitter->GetCachedEmitterData();
 		if (EmitterData && EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim && Emitter->GetGPUContext())
 		{
-			ForEachDataInterface(Emitter->GetGPUContext()->CombinedParamStore, Action);
+			ForEachDataInterface(Emitter->GetGPUContext()->CombinedParamStore, Action, SearchOptions);
 		}
 	}
 }
 
-void FNiagaraDataInterfaceUtilities::ForEachDataInterface(FNiagaraSystemInstance* SystemInstance, TFunction<bool(const FDataInterfaceUsageContext&)> Action)
+void FNiagaraDataInterfaceUtilities::ForEachDataInterface(FNiagaraSystemInstance* SystemInstance, TFunction<bool(const FDataInterfaceUsageContext&)> Action, FDataInterfaceSearchOptions SearchOptions)
 {
 	if (SystemInstance == nullptr)
 	{
@@ -417,10 +417,10 @@ void FNiagaraDataInterfaceUtilities::ForEachDataInterface(FNiagaraSystemInstance
 
 	FDataInterfaceUsageContext UsageContext;
 	UsageContext.OwnerObject = SystemSimulation->GetSystem();
-	ForEachDataInterface(UsageContext, *SystemInstance->GetOverrideParameters(), Action);
+	ForEachDataInterface(UsageContext, *SystemInstance->GetOverrideParameters(), Action, SearchOptions);
 
-	ForEachDataInterface(UsageContext, SystemSimulation->GetSpawnExecutionContext()->Parameters, Action);
-	ForEachDataInterface(UsageContext, SystemSimulation->GetUpdateExecutionContext()->Parameters, Action);
+	ForEachDataInterface(UsageContext, SystemSimulation->GetSpawnExecutionContext()->Parameters, Action, SearchOptions);
+	ForEachDataInterface(UsageContext, SystemSimulation->GetUpdateExecutionContext()->Parameters, Action, SearchOptions);
 
 	for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter : SystemInstance->GetEmitters())
 	{
@@ -430,22 +430,22 @@ void FNiagaraDataInterfaceUtilities::ForEachDataInterface(FNiagaraSystemInstance
 		}
 		UsageContext.OwnerObject = Emitter->GetCachedEmitter().Emitter;
 
-		ForEachDataInterface(UsageContext, Emitter->GetSpawnExecutionContext().Parameters, Action);
-		ForEachDataInterface(UsageContext, Emitter->GetUpdateExecutionContext().Parameters, Action);
+		ForEachDataInterface(UsageContext, Emitter->GetSpawnExecutionContext().Parameters, Action, SearchOptions);
+		ForEachDataInterface(UsageContext, Emitter->GetUpdateExecutionContext().Parameters, Action, SearchOptions);
 		for (int32 i = 0; i < Emitter->GetEventExecutionContexts().Num(); i++)
 		{
-			ForEachDataInterface(UsageContext, Emitter->GetEventExecutionContexts()[i].Parameters, Action);
+			ForEachDataInterface(UsageContext, Emitter->GetEventExecutionContexts()[i].Parameters, Action, SearchOptions);
 		}
 
 		FVersionedNiagaraEmitterData* EmitterData = Emitter->GetCachedEmitterData();
 		if (EmitterData && EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim && Emitter->GetGPUContext())
 		{
-			ForEachDataInterface(UsageContext, Emitter->GetGPUContext()->CombinedParamStore, Action);
+			ForEachDataInterface(UsageContext, Emitter->GetGPUContext()->CombinedParamStore, Action, SearchOptions);
 		}
 	}
 }
 
-void FNiagaraDataInterfaceUtilities::ForEachDataInterface(UNiagaraSystem* NiagaraSystem, TFunction<bool(const FDataInterfaceUsageContext&)> Action)
+void FNiagaraDataInterfaceUtilities::ForEachDataInterface(UNiagaraSystem* NiagaraSystem, TFunction<bool(const FDataInterfaceUsageContext&)> Action, FDataInterfaceSearchOptions SearchOptions)
 {
 	if (NiagaraSystem == nullptr)
 	{
@@ -464,7 +464,7 @@ void FNiagaraDataInterfaceUtilities::ForEachDataInterface(UNiagaraSystem* Niagar
 
 		if (const FNiagaraScriptExecutionParameterStore* ParameterStore = SystemScript->GetExecutionReadyParameterStore(ENiagaraSimTarget::CPUSim))
 		{
-			ForEachDataInterface(UsageContext, *ParameterStore, Action);
+			ForEachDataInterface(UsageContext, *ParameterStore, Action, SearchOptions);
 		}
 	}
 
@@ -487,7 +487,7 @@ void FNiagaraDataInterfaceUtilities::ForEachDataInterface(UNiagaraSystem* Niagar
 					return;
 				}
 
-				ForEachDataInterface(UsageContext, *ParameterStore, Action);
+				ForEachDataInterface(UsageContext, *ParameterStore, Action, SearchOptions);
 			}
 		);
 	}

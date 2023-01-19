@@ -118,6 +118,9 @@ public:
 	FORCEINLINE static bool UseGlobalFXBudget() { return bUseGlobalFXBudget; }
 	static void OnUseGlobalFXBudgetChanged(IConsoleVariable* Variable);
 
+	FORCEINLINE static bool DataChannelsEnabled() { return bDataChannelsEnabled; }
+	static void OnDataChannelsEnabledChanged(IConsoleVariable* Variable);
+
 	FORCEINLINE static float GetGlobalSpawnCountScale() { return EngineGlobalSpawnCountScale; }
 	FORCEINLINE static float GetGlobalSystemCountScale() { return EngineGlobalSystemCountScale; }
 
@@ -250,7 +253,7 @@ public:
 	static int32 EngineEffectsQuality;
 
 	static bool bUseGlobalFXBudget;
-
+	static bool bDataChannelsEnabled;
 
 private:
 	static FNiagaraVariable Engine_WorldDeltaTime;
