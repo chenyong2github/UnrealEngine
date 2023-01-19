@@ -37,7 +37,6 @@ namespace UE::AssetRegistry::Impl { struct FClassInheritanceContext; }
 namespace UE::AssetDependencyGatherer::Private { class FRegisteredAssetDependencyGatherer; }
 #endif
 
-#if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR
 namespace UE::AssetRegistry::Premade
 {
 
@@ -68,7 +67,6 @@ private:
 };
 
 }
-#endif
 
 namespace UE::AssetRegistry
 {
@@ -143,8 +141,8 @@ public:
 	void ScanModifiedAssetFiles(Impl::FEventContext& EventContext, Impl::FClassInheritanceContext& InheritanceContext,
 		const TArray<FString>& InFilePaths);
 	void Serialize(FArchive& Ar, Impl::FEventContext& EventContext);
-	void InitializeState(Impl::FEventContext& EventContext, const FAssetRegistryState& InState, FAssetRegistryState::EInitializationMode Mode);
-	void AppendState(Impl::FEventContext& EventContext, const FAssetRegistryState& InState);
+	void AppendState(Impl::FEventContext& EventContext, const FAssetRegistryState& InState,
+		FAssetRegistryState::EInitializationMode Mode = FAssetRegistryState::EInitializationMode::Append);
 	void GetAllocatedSize(bool bLogDetailed, SIZE_T& StateSize, SIZE_T& StaticSize, SIZE_T& SearchSize) const;
 	bool IsLoadingAssets() const;
 	void SetManageReferences(const TMultiMap<FAssetIdentifier, FAssetIdentifier>& ManagerMap,
@@ -341,7 +339,7 @@ private:
 	void ConsumeOrDeferPreloadedPremade(UAssetRegistryImpl& UARI, Impl::FEventContext& EventContext);
 	/** Moves a premade asset registry state into this AR */
 	void LoadPremadeAssetRegistry(Impl::FEventContext& Context,
-		Premade::ELoadResult LoadResult, FAssetRegistryState&& ARState, FAssetRegistryState::EInitializationMode Mode);
+		Premade::ELoadResult LoadResult, FAssetRegistryState&& ARState);
 
 private:
 
@@ -454,9 +452,7 @@ private:
 	/** Class names that return true for IsAsset but which should not be treated as assets in cooked packages */
 	TSet<FTopLevelAssetPath> SkipCookedClasses;
 #endif
-#if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR
 	UE::AssetRegistry::Premade::FAsyncConsumer AsyncConsumer;
-#endif
 	friend struct UE::AssetRegistry::Premade::FAsyncConsumer;
 	friend struct Impl::FClassInheritanceContext;
 };
