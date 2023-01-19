@@ -475,6 +475,23 @@ private:
 		virtual void TryParse(const FString& Text, FSourceFileParseContext& Context) const override;
 	};
 
+	class FStructuredLogMacroDescriptor final : public FMacroDescriptor
+	{
+	public:
+		enum class EFlags : int32
+		{
+			None = 0,
+			Namespace = 1,
+		};
+
+		FStructuredLogMacroDescriptor(const TCHAR* Name, EFlags Flags);
+
+		virtual void TryParse(const FString& Text, FSourceFileParseContext& Context) const override;
+
+	private:
+		EFlags Flags;
+	};
+
 	class FIniNamespaceDescriptor : public FPreProcessorDescriptor
 	{
 	public:
