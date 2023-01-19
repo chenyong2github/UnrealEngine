@@ -10486,7 +10486,7 @@ bool URigVMController::AddArgumentForPin(URigVMPin* InPin, URigVMPin* InToLinkPi
 					PermutationTypes.Emplace(ArgTypes);
 				}
 
-				check(CancelUndoBracket());
+				verify(CancelUndoBracket());
 			}
 			TypeToPermutations.Emplace(PermutationTypes);
 		}
@@ -16400,7 +16400,7 @@ bool URigVMController::PrepareTemplatePinForType(URigVMPin* InPin, const TArray<
 			return true;
 		}
 
-		check(CancelUndoBracket());
+		verify(CancelUndoBracket());
 		for (int32 i=0; i<InconsistentLinks.Num(); ++i)
 		{
 			TSoftObjectPtr<URigVMGraph> GraphPtr(InconsistentLinksGraph[i]);
@@ -16490,7 +16490,7 @@ bool URigVMController::PrepareTemplatePinForType(URigVMPin* InPin, const TArray<
 
 				Actions.Append(Wrapper.GetAction()->SubActions);
 			}
-			check(CancelUndoBracket());
+			verify(CancelUndoBracket());
 
 			for (TPair<FString, FString>& Pair : InconsistentLinks)
 			{
