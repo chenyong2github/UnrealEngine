@@ -74,13 +74,18 @@ public:
 	FSlateFileDlgWindow(FSlateFileDialogsStyle *InStyleSet);
 
 	bool OpenFileDialog(const void* ParentWindowHandle, const FString& DialogTitle, const FString& DefaultPath,
-		const FString& DefaultFile, const FString& FileTypes, uint32 Flags, TArray<FString>& OutFilenames, int32& OutFilterIndex);
+		const FString& DefaultFile, const FString& FileTypes, uint32 Flags, TArray<FString>& OutFilenames, int32& OutFilterIndex,
+		int32 DefaultFilterIndex = 0);
 
 	bool OpenFileDialog(const void* ParentWindowHandle, const FString& DialogTitle, const FString& DefaultPath,
 		const FString& DefaultFile, const FString& FileTypes, uint32 Flags, TArray<FString>& OutFilenames);
 
 	bool OpenDirectoryDialog(const void* ParentWindowHandle, const FString& DialogTitle, const FString& DefaultPath,
 		FString& OutFoldername);
+
+	bool SaveFileDialog(const void* ParentWindowHandle, const FString& DialogTitle, const FString& DefaultPath,
+		const FString& DefaultFile, const FString& FileTypes, uint32 Flags, TArray<FString>& OutFilenames, int32& OutFilterIndex,
+		int32 DefaultFilterIndex = 0);
 
 	bool SaveFileDialog(const void* ParentWindowHandle, const FString& DialogTitle, const FString& DefaultPath,
 		const FString& DefaultFile, const FString& FileTypes, uint32 Flags, TArray<FString>& OutFilenames);
@@ -148,6 +153,7 @@ public:
 	FSlateFileDlgWindow::EResult GetResponse() { return UserResponse; }
 	void SetOutNames(TArray<FString>* Ptr) { OutNames = Ptr; }
 	void SetOutFilterIndex(int32* InOutFilterIndex) { OutFilterIndex = InOutFilterIndex; }
+	void SetDefaultFilterIndex(int32 DefaultFilterIndex) { FilterIndex = DefaultFilterIndex; }
 	void SetDefaultFile(FString DefaultFile);
 
 private:	

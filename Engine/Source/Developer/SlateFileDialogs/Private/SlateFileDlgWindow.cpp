@@ -259,7 +259,8 @@ namespace
 }
 
 bool FSlateFileDlgWindow::OpenFileDialog(const void* ParentWindowHandle, const FString& DialogTitle, const FString& DefaultPath,
-		const FString& DefaultFile, const FString& FileTypes, uint32 Flags, TArray<FString>& OutFilenames, int32& OutFilterIndex)
+		const FString& DefaultFile, const FString& FileTypes, uint32 Flags, TArray<FString>& OutFilenames, int32& OutFilterIndex,
+		int32 DefaultFilterIndex)
 {
 	FString StartDirectory = DefaultPath;
 	TrimFilenameFromPath(StartDirectory);
@@ -284,6 +285,7 @@ bool FSlateFileDlgWindow::OpenFileDialog(const void* ParentWindowHandle, const F
 
 	DialogWidget->SetOutNames(&OutFilenames);
 	DialogWidget->SetOutFilterIndex(&OutFilterIndex);
+	DialogWidget->SetDefaultFilterIndex(DefaultFilterIndex);
 
 	ModalWindow->SetContent( DialogWidget.ToSharedRef() );
 
@@ -352,10 +354,9 @@ bool FSlateFileDlgWindow::OpenDirectoryDialog(const void* ParentWindowHandle, co
 
 
 bool FSlateFileDlgWindow::SaveFileDialog(const void* ParentWindowHandle, const FString& DialogTitle, const FString& DefaultPath,
-	const FString& DefaultFile, const FString& FileTypes, uint32 Flags, TArray<FString>& OutFilenames)
+	const FString& DefaultFile, const FString& FileTypes, uint32 Flags, TArray<FString>& OutFilenames, int32& OutFilterIndex,
+	int32 DefaultFilterIndex)
 {
-	int32 DummyIndex;
-
 	FString StartDirectory = DefaultPath;
 	TrimFilenameFromPath(StartDirectory);
 
@@ -380,7 +381,8 @@ bool FSlateFileDlgWindow::SaveFileDialog(const void* ParentWindowHandle, const F
 		.StyleSet(StyleSet);
 
 	DialogWidget->SetOutNames(&OutFilenames);
-	DialogWidget->SetOutFilterIndex(&DummyIndex);
+	DialogWidget->SetOutFilterIndex(&OutFilterIndex);
+	DialogWidget->SetDefaultFilterIndex(DefaultFilterIndex);
 	DialogWidget->SetDefaultFile(DefaultFile);
 
 	ModalWindow->SetContent( DialogWidget.ToSharedRef() );
@@ -388,6 +390,13 @@ bool FSlateFileDlgWindow::SaveFileDialog(const void* ParentWindowHandle, const F
 	FSlateApplication::Get().AddModalWindow(ModalWindow, GetParentWindowWidget(ParentWindowHandle));
 
 	return (DialogWidget->GetResponse() == EResult::Accept && OutFilenames.Num() > 0);
+}
+
+bool FSlateFileDlgWindow::SaveFileDialog(const void* ParentWindowHandle, const FString& DialogTitle, const FString& DefaultPath,
+	const FString& DefaultFile, const FString& FileTypes, uint32 Flags, TArray<FString>& OutFilenames)
+{
+	int32 DummyIndex;
+	return SaveFileDialog(ParentWindowHandle, DialogTitle, DefaultPath, DefaultFile, FileTypes, Flags, OutFilenames, DummyIndex);
 }
 
 void FSlateFileDlgWindow::TrimFilenameFromPath(FString &InPath)
