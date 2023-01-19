@@ -24,6 +24,10 @@ protected:
 	{
 	}
 
+	double ComputeSizeCriterionValue(double InDeltaU, double ChordLength) const
+	{
+		return  (ChordLength > UE_DOUBLE_KINDA_SMALL_NUMBER) ? InDeltaU * Size / ChordLength : UE_DOUBLE_BIG_NUMBER;
+	}
 
 public:
 
@@ -50,7 +54,7 @@ public:
 		return 0;
 	}
 
-	void ApplyOnParameters(const TArray<double>& TabU, const TArray<FCurvePoint>& tabPt, TArray<double>& tabDeltaU, TFunction<void(double, double&)> Compare) const;
+	void ApplyOnParameters(const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points, TArray<double>& DeltaUMax, TArray<double>& DeltaUMins, TFunction<void(double, double&, double&)> UpdateDeltaU) const;
 };
 
 class FMinSizeCriterion : public FSizeCriterion
@@ -70,6 +74,11 @@ public:
 	}
 
 	virtual void ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const override;
+
+	/**
+	 * MinSizeCrtierion sets DeltaUMin.
+	 * @see FCriterion::UpdateWithUMinValue
+	 */
 	virtual void UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const override;
 };
 
@@ -89,6 +98,11 @@ public:
 	}
 
 	virtual void ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const override;
+
+	/**
+	 * MaxSizeCriterion sets DeltaUMax.
+	 * @see FCriterion::UpdateWithUMaxValue
+	 */
 	virtual void UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const override;
 };
 

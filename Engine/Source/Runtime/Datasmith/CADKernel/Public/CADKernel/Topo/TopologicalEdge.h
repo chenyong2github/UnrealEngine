@@ -458,8 +458,6 @@ public:
 		CrossingPointDeltaUMaxs.Init(2.0 * (GetEndCurvilinearCoordinates() - GetStartCurvilinearCoordinates()), Size - 1);
 	}
 
-	void ChooseFinalDeltaUs();
-
 	const TArray<double>& GetCrossingPointUs() const
 	{
 		return CrossingPointUs;

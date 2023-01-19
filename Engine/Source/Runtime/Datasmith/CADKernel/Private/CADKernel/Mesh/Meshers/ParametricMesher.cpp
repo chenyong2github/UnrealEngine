@@ -84,31 +84,44 @@ void FParametricMesher::MeshEntities(TArray<FTopologicalShapeEntity*>& InEntitie
 		Face->ResetMarkers();
 	}
 
+	PreMeshingTasks();
 	MeshEntities();
 }
 
-void FParametricMesher::MeshEntities()
+void FParametricMesher::PreMeshingTasks()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ParametricMesher::PreMeshingTasks);
+
 	FTimePoint StartTime = FChrono::Now();
 	FTimePoint ApplyCriteriaStartTime = FChrono::Now();
 
 	FProgress ProgressBar(Faces.Num() * 2, TEXT("Meshing Entities : Apply Surface Criteria"));
 
-	// ============================================================================================================
-	//      Apply Surface Criteria
-	// ============================================================================================================
-
 	for (FTopologicalFace* Face : Faces)
 	{
 		FProgress _(1, TEXT("Meshing Entities : Apply Surface Criteria"));
 
-		if(Face == nullptr || Face->IsDeleted())
+		if (Face == nullptr || Face->IsDeleted() || Face->IsMeshed())
 		{
 			continue;
 		}
 
 		ApplyFaceCriteria(*Face);
+		Face->ComputeSurfaceSideProperties();
 	}
+
+#ifdef CADKERNEL_DEV
+	MesherReport.Chronos.ApplyCriteriaDuration = FChrono::Elapse(ApplyCriteriaStartTime);
+#endif
+}
+
+void FParametricMesher::MeshEntities()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(ParametricMesher::MeshEntities);
+
+	FTimePoint StartTime = FChrono::Now();
+
+	FProgress ProgressBar(Faces.Num() * 2, TEXT("Meshing Entities : Find quad surfaces"));
 
 #ifdef CADKERNEL_DEV
 	MesherReport.Chronos.ApplyCriteriaDuration = FChrono::Elapse(ApplyCriteriaStartTime);
@@ -117,7 +130,7 @@ void FParametricMesher::MeshEntities()
 	FTimePoint MeshingStartTime = FChrono::Now();
 
 	// ============================================================================================================
-	//      Find quad surfaces 
+	//      Find and sort quad surfaces 
 	// ============================================================================================================
 
 	TArray<FCostToFace> QuadTrimmedSurfaceSet;
@@ -149,7 +162,6 @@ void FParametricMesher::MeshEntities()
 	MesherReport.Chronos.GlobalDuration = FChrono::Elapse(StartTime);
 #endif
 
-	//Chronos.PrintTimeElapse();
 }
 
 void FParametricMesher::ApplyFaceCriteria(FTopologicalFace& Face)
@@ -166,9 +178,6 @@ void FParametricMesher::ApplyFaceCriteria(FTopologicalFace& Face)
 	}
 
 	Grid.ApplyCriteria(GetMeshModel().GetCriteria());
-
-	Face.ChooseFinalDeltaUs();
-	Face.SetApplyCriteria();
 }
 
 void FParametricMesher::ApplyEdgeCriteria(FTopologicalEdge& Edge)
@@ -198,9 +207,8 @@ void FParametricMesher::ApplyEdgeCriteria(FTopologicalEdge& Edge)
 		Criterion->ApplyOnEdgeParameters(Edge, CrossingPointUs, Points3D);
 	}
 
-	Edge.ChooseFinalDeltaUs();
-	Edge.SetApplyCriteria();
-	ActiveEdge.SetApplyCriteria();
+	Edge.SetApplyCriteriaMarker();
+	ActiveEdge.SetApplyCriteriaMarker();
 }
 
 void FParametricMesher::Mesh(FTopologicalFace& Face)
@@ -780,20 +788,12 @@ void FParametricMesher::GenerateEdgeElements(FTopologicalEdge& Edge)
 
 void FParametricMesher::IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArray<FTopologicalFace*>& OtherSurfaces) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ParametricMesher::IsolateQuadFace);
+
 	TArray<FTopologicalFace*> FlatQuadsAndTriangles;
 	FlatQuadsAndTriangles.Reserve(Faces.Num());
 	QuadSurfaces.Reserve(Faces.Num() * 2);
 	OtherSurfaces.Reserve(Faces.Num());
-
-	for (FTopologicalFace* Face : Faces)
-	{
-		if (Face == nullptr || Face->IsDeleted() || Face->IsMeshed())
-		{
-			continue;
-		}
-
-		Face->ComputeSurfaceSideProperties();
-	}
 
 	for (FTopologicalFace* FacePtr : Faces)
 	{
@@ -843,36 +843,34 @@ void FParametricMesher::IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArra
 #ifdef DEBUG_ISOLATEQUADFACE
 	if (QuadSurfaces.Num() > 0)
 	{
-		Open3DDebugSession(TEXT("Quad Entities"));
+		F3DDebugSession A(TEXT("Quad Entities"));
 		for (const FCostToFace& Quad : QuadSurfaces)
 		{
-			//FGraphicSession _(FString::Printf(TEXT("Face %d %f"), Quad.Face.GetId(), Quad.Cost));
-			Display(Quad.Face);
+			F3DDebugSession _(FString::Printf(TEXT("Face %d %f"), Quad.Face->GetId(), Quad.Cost));
+			Display(*Quad.Face);
 		}
-		Close3DDebugSession();
 	}
 
 	if (FlatQuadsAndTriangles.Num() > 0)
 	{
-		Open3DDebugSession(TEXT("Flat Quads & Triangles"));
-		for (const TSharedPtr<FTopologicalFace>& Face : FlatQuadsAndTriangles)
+		F3DDebugSession A(TEXT("Flat Quads & Triangles"));
+		for (const FTopologicalFace* Face : FlatQuadsAndTriangles)
 		{
-			//FGraphicSession _(FString::Printf(TEXT("Face %d %f"), Face.GetId()));
-			Display(Face);
+			F3DDebugSession _(FString::Printf(TEXT("Face %d"), Face->GetId()));
+			Display(*Face);
 		}
-		Close3DDebugSession();
 	}
 
 	if (OtherSurfaces.Num() > 0)
 	{
-		Open3DDebugSession(TEXT("Other Entities"));
-		for (const TSharedPtr<FTopologicalFace>& Face : OtherSurfaces)
+		F3DDebugSession A(TEXT("Other Entities"));
+		for (const FTopologicalFace* Face : OtherSurfaces)
 		{
-			//FGraphicSession _(FString::Printf(TEXT("Face %d %f"), Face.GetId()));
-			Display(StaticCastSharedPtr<FTopologicalFace>(Face));
+			F3DDebugSession _(FString::Printf(TEXT("Face %d"), Face->GetId()));
+			Display(*Face);
 		}
-		Close3DDebugSession();
 	}
+	Wait();
 #endif
 }
 
@@ -1039,9 +1037,9 @@ void FParametricMesher::LinkQuadSurfaceForMesh(TArray<FCostToFace>& QuadTrimmedS
 
 void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfaceSet)
 {
-	// Processed3 : Surfaces that have to be meshed are set Processed3
-	// Processed1 : Surfaces added in CandidateSurfacesForMesh
-	// Processed2 : Surfaces added in SecondChoiceOfCandidateSurfacesForMesh
+	// Marker3 : Surfaces that have to be meshed are set Marker3
+	// Marker1 : Surfaces added in CandidateSurfacesForMesh
+	// Marker2 : Surfaces added in SecondChoiceOfCandidateSurfacesForMesh
 
 	FMessage::Printf(EVerboseLevel::Debug, TEXT("Start MeshSurfaceByFront\n"));
 
@@ -1065,17 +1063,19 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 	TFunction<void(FTopologicalFace&)> MeshFace = [&](FTopologicalFace& Face)
 	{
 #ifdef DISPLAYDEBUGMESHFACEBYFACESTEP
-		Open3DDebugSession(TEXT("Surface " + Utils::ToFString(Face->GetId()));
-		Display(Face);
-		Close3DDebugSession();
+		{
+			F3DDebugSession A(FString::Printf(TEXT("Surface %d"), Face.GetId()));
+			Display(Face);
+		}
 #endif
 		Mesh(Face);
 
 #ifdef DISPLAYDEBUGMESHFACEBYFACESTEP
-		Open3DDebugSession(TEXT("Mesh " + Utils::ToFString(Face.GetId()));
-		DisplayMesh((FFaceMesh&)Face.GetOrCreateMesh(GetMeshModel()));
-		Close3DDebugSession();
-		//Wait();
+		{
+			F3DDebugSession A(FString::Printf(TEXT("Mesh %d"), Face.GetId()));
+			DisplayMesh(*Face.GetOrCreateMesh(GetMeshModel()));
+			//Wait();
+		}
 #endif
 
 		if (Face.HasMarker1())
@@ -1087,12 +1087,13 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 			SecondChoiceOfCandidateFacesForMesh.RemoveSingle(&Face);
 		}
 
-		const TSharedPtr<FTopologicalLoop> Loop = Face.GetLoops()[0];
+		const TSharedPtr<FTopologicalLoop>& Loop = Face.GetLoops()[0];
 		for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
 		{
-			const TSharedPtr<FTopologicalEdge> Edge = OrientedEdge.Entity;
-			Edge->SetMarker1(); // tmp for debug
-			for (FTopologicalEdge* NextEdge : Edge->GetTwinEntities())
+			const FTopologicalEdge& Edge = *OrientedEdge.Entity;
+			Edge.SetMarker1();
+
+			for (FTopologicalEdge* NextEdge : Edge.GetTwinEntities())
 			{
 				if (NextEdge->HasMarker1())
 				{
@@ -1113,9 +1114,11 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 				{
 					continue;
 				}
+
 				int32 SideIndex = NextFace->GetSideIndex(*NextEdge);
 				if (SideIndex == -1)
 				{
+					// The face is not a quad
 					continue;
 				}
 

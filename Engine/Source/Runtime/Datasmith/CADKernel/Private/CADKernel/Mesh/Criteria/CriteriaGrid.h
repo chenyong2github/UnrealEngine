@@ -4,7 +4,6 @@
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
-#include "CADKernel/Math/Point.h"
 
 namespace UE::CADKernel
 {

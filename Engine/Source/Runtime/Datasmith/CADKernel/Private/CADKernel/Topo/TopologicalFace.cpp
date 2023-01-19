@@ -314,7 +314,10 @@ bool FTopologicalFace::HasSameBoundariesAs(const FTopologicalFace* OtherFace) co
 
 bool FTopologicalFace::IsADuplicatedFace() const
 {
-	ensureCADKernel(!GetLoops().Num());
+	if (!GetLoops().Num())
+	{
+		return false;
+	}
 
 	// Find in the adjacent faces of the first (surface or non manifold) edge, a face with the same loops
 	
@@ -494,25 +497,6 @@ void FTopologicalFace::InitDeltaUs()
 	CrossingPointDeltaMins[EIso::IsoV].Init(DOUBLE_SMALL_NUMBER, CrossingCoordinates[EIso::IsoV].Num() - 1);
 	CrossingPointDeltaMaxs[EIso::IsoV].Init(HUGE_VALUE, CrossingCoordinates[EIso::IsoV].Num() - 1);
 }
-
-void FTopologicalFace::ChooseFinalDeltaUs()
-{
-	TFunction<void(const TArray<double>&, TArray<double>&)> ChooseFinalDeltas = [](const TArray<double>& DeltaUMins, TArray<double>& DeltaUMaxs)
-	{
-		int32 Index = 0;
-		for (; Index < DeltaUMins.Num(); ++Index)
-		{
-			if (DeltaUMins[Index] > DeltaUMaxs[Index])
-			{
-				DeltaUMaxs[Index] = DeltaUMins[Index];
-			}
-		}
-	};
-
-	ChooseFinalDeltas(CrossingPointDeltaMins[EIso::IsoU], CrossingPointDeltaMaxs[EIso::IsoU]);
-	ChooseFinalDeltas(CrossingPointDeltaMins[EIso::IsoV], CrossingPointDeltaMaxs[EIso::IsoV]);
-}
-
 
 // Quad ==============================================================================================================================================================================================================================
 

@@ -337,9 +337,6 @@ public:
 
 	void InitDeltaUs();
 
-	void ChooseFinalDeltaUs();
-
-
 	const TArray<double>& GetCuttingCoordinatesAlongIso(EIso Iso) const
 	{
 		return MeshCuttingCoordinates[Iso];
@@ -477,6 +474,8 @@ private:
 	FSurfaceCurvature Curvatures;
 	EQuadType QuadType = EQuadType::Unset;
 
+	double EstimatedMinimalElementLength = DOUBLE_BIG_NUMBER;
+
 public:
 	void ComputeQuadCriteria();
 	double GetQuadCriteria();
@@ -580,6 +579,19 @@ public:
 			}
 			return (int32)StartSideIndices.Num() - 1;
 		}
+	}
+
+	void SetEstimatedMinimalElementLength(double Value)
+	{
+		EstimatedMinimalElementLength = Value;
+	}
+
+	/**
+	 * @return the minimal size of the mesh elements according to meshing criteria
+	 */
+	double GetEstimatedMinimalElementLength() const
+	{
+		return EstimatedMinimalElementLength;
 	}
 
 };

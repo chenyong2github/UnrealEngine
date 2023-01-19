@@ -70,10 +70,26 @@ FCriteriaGrid::FCriteriaGrid(FTopologicalFace& InFace)
 void FCriteriaGrid::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Criteria) const
 {
 	TArray<double>& DeltaUMaxArray = Face.GetCrossingPointDeltaMaxs(EIso::IsoU);
-	TArray<double>& DeltaUMiniArray = Face.GetCrossingPointDeltaMins(EIso::IsoU);
+	TArray<double>& DeltaUMinArray = Face.GetCrossingPointDeltaMins(EIso::IsoU);
 	TArray<double>& DeltaVMaxArray = Face.GetCrossingPointDeltaMaxs(EIso::IsoV);
 	TArray<double>& DeltaVMinArray = Face.GetCrossingPointDeltaMins(EIso::IsoV);
 	FSurfaceCurvature& SurfaceCurvature = Face.GetCurvatures();
+
+	double ElementLengthMin = DOUBLE_BIG_NUMBER;
+
+	TFunction<void(const double, const double, const double)> ElementLength = [&](const double CoordNextMinusCoord, const double Length, const double DeltaMax)
+	{
+		if (CoordNextMinusCoord < DOUBLE_SMALL_NUMBER)
+		{
+			return Length;
+		}
+		const double ElemLength = Length * DeltaMax / CoordNextMinusCoord;
+		if (ElementLengthMin > ElemLength)
+		{
+			ElementLengthMin = ElemLength;
+		}
+		return ElemLength;
+	};
 
 	for (int32 IndexV = 0; IndexV < GetCoordinateCount(EIso::IsoV) - 1; ++IndexV)
 	{
@@ -89,17 +105,28 @@ void FCriteriaGrid::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Criteria
 
 			// Evaluate Sag
 			double LengthU;
-			double SagU = FCriterion::EvaluateSag(Point_U0_Vm, Point_U1_Vm, Point_Um_Vm, LengthU);
+			const double SagU = FCriterion::EvaluateSag(Point_U0_Vm, Point_U1_Vm, Point_Um_Vm, LengthU);
 			double LengthV;
-			double SagV = FCriterion::EvaluateSag(Point_Um_V0, Point_Um_V1, Point_Um_Vm, LengthV);
+			const double SagV = FCriterion::EvaluateSag(Point_Um_V0, Point_Um_V1, Point_Um_Vm, LengthV);
 			double LengthUV;
-			double SagUV = FCriterion::EvaluateSag(Point_U0_V0, Point_U1_V1, Point_Um_Vm, LengthUV);
+			const double SagUV = FCriterion::EvaluateSag(Point_U0_V0, Point_U1_V1, Point_Um_Vm, LengthUV);
+
+			double& DeltaUMin = DeltaUMinArray[IndexU];
+			double& DeltaUMax = DeltaUMaxArray[IndexU];
+			double& DeltaVMin = DeltaVMinArray[IndexV];
+			double& DeltaVMax = DeltaVMaxArray[IndexV];
+
+			const double UNextMinusU = GetCoordinate(EIso::IsoU, IndexU + 1) - GetCoordinate(EIso::IsoU, IndexU);
+			const double VNextMinusV = GetCoordinate(EIso::IsoV, IndexV + 1) - GetCoordinate(EIso::IsoV, IndexV);
 
 			for (const TSharedPtr<FCriterion>& Criterion : Criteria)
 			{
-				Criterion->UpdateDelta((GetCoordinate(EIso::IsoU, IndexU + 1) - GetCoordinate(EIso::IsoU, IndexU)), SagU, SagUV, SagV, LengthU, LengthUV, DeltaUMaxArray[IndexU], DeltaUMiniArray[IndexU], SurfaceCurvature[EIso::IsoU]);
-				Criterion->UpdateDelta((GetCoordinate(EIso::IsoV, IndexV + 1) - GetCoordinate(EIso::IsoV, IndexV)), SagV, SagUV, SagU, LengthV, LengthUV, DeltaVMaxArray[IndexV], DeltaVMinArray[IndexV], SurfaceCurvature[EIso::IsoV]);
+				Criterion->UpdateDelta(UNextMinusU, SagU, SagUV, SagV, LengthU, LengthUV, DeltaUMax, DeltaUMin, SurfaceCurvature[EIso::IsoU]);
+				Criterion->UpdateDelta(VNextMinusV, SagV, SagUV, SagU, LengthV, LengthUV, DeltaVMax, DeltaVMin, SurfaceCurvature[EIso::IsoV]);
 			}
+
+			ElementLength(UNextMinusU, LengthU, DeltaUMax);
+			ElementLength(VNextMinusV, LengthV, DeltaVMax);
 		}
 	}
 
@@ -115,6 +142,9 @@ void FCriteriaGrid::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Criteria
 		DeltaVMaxArray[0] = (DeltaVMaxArray[0] + DeltaVMaxArray[1] * 2) * AThird;
 		DeltaVMaxArray.Last() = (DeltaVMaxArray.Last() + DeltaVMaxArray[DeltaVMaxArray.Num() - 2] * 2) * AThird;
 	}
+
+	Face.SetEstimatedMinimalElementLength(ElementLengthMin);
+	Face.SetApplyCriteriaMarker();
 }
 
 void FCriteriaGrid::Display() const

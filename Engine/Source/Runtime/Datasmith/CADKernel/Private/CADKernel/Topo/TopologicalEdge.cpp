@@ -693,17 +693,6 @@ TSharedRef<FEdgeMesh> FTopologicalEdge::GetOrCreateMesh(FModelMesh& ShellMesh)
 	return Mesh.ToSharedRef();
 }
 
-void FTopologicalEdge::ChooseFinalDeltaUs()
-{
-	for (int32 Index = 0; Index < CrossingPointDeltaUMins.Num(); ++Index)
-	{
-		if (CrossingPointDeltaUMins[Index] > CrossingPointDeltaUMaxs[Index])
-		{
-			CrossingPointDeltaUMaxs[Index] = CrossingPointDeltaUMins[Index];
-		}
-	}
-}
-
 TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(TArray<FOrientedEdge>& Edges, const TSharedRef<FTopologicalVertex> StartVertex, const TSharedRef<FTopologicalVertex> EndVertex)
 {
 	// Make merged 2d Nurbs ===================================================

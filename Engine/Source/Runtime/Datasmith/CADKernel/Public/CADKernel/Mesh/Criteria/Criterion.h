@@ -112,16 +112,26 @@ public:
 
 	static double DefaultValue(ECriterion type);
 
-	virtual void UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const
+	/**
+	 * According to the criterion, either DeltaUMin or DeltaUMax is set e.g MinSizeCrtierion sets DeltaUMin when MaxSizeCriterion sets DeltaUMax.
+	 * The implicit rule is that DeltaUMin is predominant over DeltaUMax i.e.: 
+	 *	    UpdateWithUMaxValue: 
+	 *			DeltaUMax = Max(DeltaUMin, Min(DeltaUMax, NewDeltaUMax))
+	 *
+	 *		 UpdateWithUMinValue: 
+	 *			DeltaUMin = Max(DeltaUMin, NewDeltaUMin)
+	 *			DeltaUMax = Max(DeltaUMax, NewDeltaUMin)
+	 */
+	virtual void UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutDeltaUMax, double& OutDeltaUMin, FIsoCurvature& SurfaceCurvature) const
 	{
 		// the component according to U of the sag along the diagonal = (diagonal sag - V Sag) * U Length / diag length
-		double DiagonalSagU = FMath::Abs(InDiagonalSag - InVSag) * ChordLength / DiagonalLength;
+		const double DiagonalSagU = FMath::Abs(InDiagonalSag - InVSag) * ChordLength / DiagonalLength;
 		InUSag = FMath::Max(InUSag, DiagonalSagU);
 
 		if (InUSag > DOUBLE_SMALL_NUMBER)
 		{
-			double DeltaUMax = ComputeDeltaU(ChordLength, InDeltaU, InUSag);
-			OutSagDeltaUMax = (OutSagDeltaUMax < DeltaUMax) ? OutSagDeltaUMax : DeltaUMax;
+			const double CriterionDeltaUMax = ComputeDeltaU(ChordLength, InDeltaU, InUSag);
+			UpdateWithUMaxValue(CriterionDeltaUMax, OutDeltaUMax, OutDeltaUMin);
 		}
 	}
 
@@ -133,6 +143,40 @@ protected:
 		return 0.0;
 	};
 
+	/**
+	 * DeltaUMax = Max(DeltaUMin, Min(DeltaUMax, NewDeltaUMax))
+	 */
+	void UpdateWithUMaxValue(double NewMaxValue, double& OutDeltaUMax, const double& OutDeltaUMin) const 
+	{
+		if (NewMaxValue < OutDeltaUMax)
+		{
+			if (NewMaxValue < OutDeltaUMin)
+			{
+				OutDeltaUMax = OutDeltaUMin;
+			}
+			else
+			{
+				OutDeltaUMax = NewMaxValue;
+			}
+		}
+	}
+
+	/**
+	 * DeltaUMin = Max(DeltaUMin, NewDeltaUMin)
+	 * DeltaUMin cannot be smaller than DeltaUMax, so:
+	 *    DeltaUMax = Max(DeltaUMax, NewDeltaUMin)
+	 */
+	void UpdateWithUMinValue(double NewMinValue, double& OutDeltaUMax, double& OutDeltaUMin) const
+	{
+		if (OutDeltaUMin < NewMinValue)
+		{
+			OutDeltaUMin = NewMinValue;
+		}
+		if (OutDeltaUMax < NewMinValue)
+		{
+			OutDeltaUMax = NewMinValue;
+		}
+	}
 };
 
 } // namespace UE::CADKernel

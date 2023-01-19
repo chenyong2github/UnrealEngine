@@ -17,6 +17,7 @@ namespace UE::CADKernel
 void FCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const
 {
 	TArray<double>& DeltaUMaxs = Edge.GetDeltaUMaxs();
+	TArray<double>& DeltaUMins = Edge.GetDeltaUMins();
 
 	double NumericPrecision = Edge.GetTolerance3D();
 	NumericPrecision /= 10;
@@ -29,31 +30,24 @@ void FCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<doub
 	int32 PreviousIndex = 0;
 	for (int32 Index = 1; Index < Coordinates.Num(); Index++)
 	{
-		int32 MiddleIndex = PreviousIndex + Index;
+		const int32 MiddleIndex = PreviousIndex + Index;
+		const double DeltaU = Coordinates[Index] - Coordinates[PreviousIndex];
+
+		const FPoint Start = Points[2 * PreviousIndex].Point;
+		const FPoint End = Points[2 * Index].Point;
+		const FPoint Middle = Points[MiddleIndex].Point;
+
 		double ChordLength;
-		double Sag = EvaluateSag(Points[2 * PreviousIndex].Point, Points[2 * Index].Point, Points[MiddleIndex].Point, ChordLength);
-
-		double AiAm = Points[2 * PreviousIndex].Point.Distance(Points[MiddleIndex].Point);
-		double AmAi2 = Points[2 * Index].Point.Distance(Points[MiddleIndex].Point);
-		double AiAi2 = Points[2 * PreviousIndex].Point.Distance(Points[2 * Index].Point);
-
-		double DeltaU = Coordinates[Index] - Coordinates[PreviousIndex];
+		const double SagFromStart = EvaluateSag(Start, End, Middle, ChordLength);
+		const double SagFromEnd = EvaluateSag(End, Start, Middle, ChordLength);
+		const double Sag = FMath::Max(SagFromStart, SagFromEnd);
 
 		if (ChordLength > NumericPrecision && Sag > DOUBLE_SMALL_NUMBER)
 		{
-			double DeltaUMax = ComputeDeltaU(ChordLength, DeltaU, Sag);
-			if (DeltaUMax < DeltaUMaxs[PreviousIndex]) DeltaUMaxs[PreviousIndex] = DeltaUMax;
+			const double NewDeltaUMax = ComputeDeltaU(ChordLength, DeltaU, Sag);
+			UpdateWithUMaxValue(NewDeltaUMax, DeltaUMaxs[PreviousIndex], DeltaUMins[PreviousIndex]);
 		}
 
-		Sag = EvaluateSag(Points[2 * Index].Point, Points[2 * PreviousIndex].Point, Points[MiddleIndex].Point, ChordLength);
-		if (ChordLength > NumericPrecision && Sag > DOUBLE_SMALL_NUMBER)
-		{
-			double DeltaUMax = ComputeDeltaU(ChordLength, DeltaU, Sag);
-			if (DeltaUMax < DeltaUMaxs[PreviousIndex])
-			{
-				DeltaUMaxs[PreviousIndex] = DeltaUMax;
-			}
-		}
 		PreviousIndex = Index;
 	}
 }

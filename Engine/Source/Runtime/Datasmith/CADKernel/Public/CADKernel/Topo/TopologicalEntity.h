@@ -41,7 +41,7 @@ public:
 		return ((States & EHaveStates::IsApplyCriteria) == EHaveStates::IsApplyCriteria);
 	}
 
-	virtual void SetApplyCriteria() const
+	virtual void SetApplyCriteriaMarker() const
 	{
 		States |= EHaveStates::IsApplyCriteria;
 	}

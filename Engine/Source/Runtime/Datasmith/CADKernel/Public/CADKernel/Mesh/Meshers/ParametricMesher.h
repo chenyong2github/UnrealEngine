@@ -99,6 +99,10 @@ public:
 
 protected:
 
+	/**
+	 * ApplyFaceCriteria, ComputeSurfaceSideProperties
+	 */
+	void PreMeshingTasks();
 	void MeshEntities();
 
 
