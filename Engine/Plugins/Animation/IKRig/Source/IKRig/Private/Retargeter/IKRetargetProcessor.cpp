@@ -1469,7 +1469,7 @@ FVector FPoleVectorMatcher::GetChainNormal(
 UIKRetargetProcessor::UIKRetargetProcessor()
 {
 	const FName LogName = FName("IKRetarget_",GetUniqueID());
-	Log.SetLogTarget(LogName);
+	Log.SetLogTarget(LogName, LOCTEXT("IKRetargetLogName", "IK Retarget Log"));
 }
 
 void UIKRetargetProcessor::Initialize(

@@ -13,7 +13,7 @@
 UIKRigProcessor::UIKRigProcessor()
 {
 	const FName LogName = FName("IKRig_",GetUniqueID());
-	Log.SetLogTarget(LogName);
+	Log.SetLogTarget(LogName, LOCTEXT("IKRigLogName", "IK Rig Log"));
 }
 
 void UIKRigProcessor::Initialize(

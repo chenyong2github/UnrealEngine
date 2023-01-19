@@ -10,7 +10,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogIKRig, Warning, All);
 struct IKRIG_API FIKRigLogger
 {
 	/** Set the name of the log to output messages to */
-	void SetLogTarget(const FName InLogName);
+	void SetLogTarget(const FName InLogName, const FText& LogLabel);
 	/** Get the name this log is currently outputting to */
 	FName GetLogTarget() const;
 	/** Log a warning message to display to user. */

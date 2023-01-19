@@ -14,7 +14,8 @@ public class IKRig : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"AnimationCore",
-				"PBIK",
+				"PBIK", 
+				"MessageLog",
 			});
 
 		PublicDependencyModuleNames.AddRange(

@@ -12,22 +12,11 @@ void SIKRigOutputLog::Construct(
 {
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 
-	if (MessageLogModule.IsRegisteredLogListing(InLogName))
-	{
-		MessageLogListing = MessageLogModule.GetLogListing(InLogName);
-	}
-	else
-	{
-		FMessageLogInitializationOptions InitOptions;
-		InitOptions.bShowFilters = false;
-		InitOptions.bShowPages = false;
-		InitOptions.bAllowClear = false;
-		InitOptions.bShowInLogWindow = false;
-		InitOptions.bDiscardDuplicates = true;
-		MessageLogModule.RegisterLogListing(InLogName, FText::FromString("IK Rig Log"), InitOptions);
-		MessageLogListing = MessageLogModule.GetLogListing(InLogName);
-	}
-
+	// we have to ensure that the log is already registered at this point because otherwise GetLogListing will register
+	// it without the proper initialization settings required to filter these logs out of the main Message Log UI
+	ensure(MessageLogModule.IsRegisteredLogListing(InLogName));
+	
+	MessageLogListing = MessageLogModule.GetLogListing(InLogName);
 	OutputLogWidget = MessageLogModule.CreateLogListingWidget( MessageLogListing.ToSharedRef() );
 	
 	ChildSlot
