@@ -655,11 +655,7 @@ UObject* UMaterialParameterCollectionFactoryNew::FactoryCreateNew(UClass* Class,
 	
 	if (MaterialParameterCollection)
 	{
-		for (TObjectIterator<UWorld> It; It; ++It)
-		{
-			UWorld* CurrentWorld = *It;
-			CurrentWorld->AddParameterCollectionInstance(MaterialParameterCollection, true);
-		}
+		MaterialParameterCollection->SetupWorldParameterCollectionInstances();
 	}
 
 	return MaterialParameterCollection;

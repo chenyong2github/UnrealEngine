@@ -47,15 +47,18 @@ void UMaterialParameterCollection::PostLoad()
 	}
 
 	CreateBufferStruct();
+	SetupWorldParameterCollectionInstances();
+	UpdateDefaultResource(true);
+}
 
+void UMaterialParameterCollection::SetupWorldParameterCollectionInstances()
+{
 	// Create an instance for this collection in every world
 	for (TObjectIterator<UWorld> It; It; ++It)
 	{
 		UWorld* CurrentWorld = *It;
 		CurrentWorld->AddParameterCollectionInstance(this, true);
 	}
-
-	UpdateDefaultResource(true);
 }
 
 void UMaterialParameterCollection::BeginDestroy()

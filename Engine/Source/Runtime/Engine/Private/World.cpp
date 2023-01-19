@@ -1359,7 +1359,7 @@ UWorld* UWorld::GetWorld() const
 
 void UWorld::SetupParameterCollectionInstances()
 {
-	QUICK_SCOPE_CYCLE_COUNTER(Stat_World_SetupParameterCollectionInstances);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_World_SetupParameterCollectionInstances);
 
 	// Create an instance for each parameter collection in memory
 	for (UMaterialParameterCollection* CurrentCollection : TObjectRange<UMaterialParameterCollection>())
@@ -1372,6 +1372,8 @@ void UWorld::SetupParameterCollectionInstances()
 
 void UWorld::AddParameterCollectionInstance(UMaterialParameterCollection* Collection, bool bUpdateScene)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_World_AddParameterCollectionInstance);
+
 	int32 ExistingIndex = INDEX_NONE;
 
 	for (int32 InstanceIndex = 0; InstanceIndex < ParameterCollectionInstances.Num(); InstanceIndex++)
@@ -2937,7 +2939,7 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 		{
 			if (!bConsiderTimeLimit)
 			{
-				QUICK_SCOPE_CYCLE_COUNTER(UWorld_AddToWorld_WaitFor_AsyncPreRegisterLevelStreamingTasks);
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_World_AddToWorld_WaitFor_AsyncPreRegisterLevelStreamingTasks);
 
 				for (TSharedPtr<FAsyncPreRegisterDDCRequest>& Request : AsyncPreRegisterDDCRequests)
 				{
@@ -3506,7 +3508,7 @@ UWorld* UWorld::GetDuplicatedWorldForPIE(UWorld* InWorld, UPackage* InPIEackage,
 UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningWorld)
 {
 #if WITH_EDITOR
-	QUICK_SCOPE_CYCLE_COUNTER(UWorld_DuplicateWorldForPIE);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_World_DuplicateWorldForPIE);
 	FScopeCycleCounterUObject Context(OwningWorld);
 
 	FName PackageFName(*PackageName);
@@ -3601,7 +3603,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 			&& PIELevel->Model == EditorLevel->Model
 			&& PIELevel->ModelComponents.Num() == EditorLevel->ModelComponents.Num() )
 		{
-			QUICK_SCOPE_CYCLE_COUNTER(UWorld_DuplicateWorldForPIE_UpdateModelComponents);
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_World_DuplicateWorldForPIE_UpdateModelComponents);
 
 			PIELevel->Model->ClearLocalMaterialIndexBuffersData();
 			for (int32 ComponentIndex = 0; ComponentIndex < PIELevel->ModelComponents.Num(); ++ComponentIndex)
