@@ -9,6 +9,8 @@
 #include "IAssetViewport.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
+#else
+#include "Engine/Engine.h"
 #endif
 
 static const FName LevelEditorName("LevelEditor");
