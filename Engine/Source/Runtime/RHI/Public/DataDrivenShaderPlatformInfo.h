@@ -79,6 +79,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bCompileSignalProcessingPipeline : 1;
 	uint32 bSupportsMeshShadersTier0 : 1;
 	uint32 bSupportsMeshShadersTier1 : 1;
+	uint32 bSupportsMeshShadersWithClipDistance : 1;
 	uint32 MaxMeshShaderThreadGroupSize : 10;
 	uint32 bSupportsPerPixelDBufferMask : 1;
 	uint32 bIsHlslcc : 1;
@@ -572,6 +573,12 @@ public:
 	{
 		check(IsValid(Platform));
 		return Infos[Platform].bSupportsMeshShadersTier1;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsMeshShadersWithClipDistance(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return Infos[Platform].bSupportsMeshShadersWithClipDistance;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const uint32 GetMaxMeshShaderThreadGroupSize(const FStaticShaderPlatform Platform)
