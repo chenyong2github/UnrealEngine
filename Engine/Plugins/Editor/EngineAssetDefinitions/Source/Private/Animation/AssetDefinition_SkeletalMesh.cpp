@@ -363,8 +363,7 @@ namespace MenuExtension_SkeletalMesh
     
     	if ( ObjectsToSync.Num() > 0 )
     	{
-    		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-    		ContentBrowserModule.Get().SyncBrowserToAssets(ObjectsToSync);
+    		IAssetTools::Get().SyncBrowserToAssets(ObjectsToSync);
     	}
     }
     

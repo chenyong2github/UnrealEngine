@@ -21,7 +21,7 @@ class USoundBase;
 struct FAssetData;
 
 class
-// UE_DEPRECATED(5.2, "The AssetDefinition system is replacing AssetTypeActions and UAssetDefinition_SoundBase replaced FAssetTypeActions_SoundBase.  Please convert your FAssetTypeActions_SoundBase subclass to subclass from UAssetDefinition_SoundBase instead.")
+// UE_DEPRECATED(5.2, "The AssetDefinition system is replacing AssetTypeActions and UAssetDefinition_SoundBase replaced this.  Please see the Conversion Guide in AssetDefinition.h")
 AUDIOEDITOR_API
 FAssetTypeActions_SoundBase : public FAssetTypeActions_Base
 {

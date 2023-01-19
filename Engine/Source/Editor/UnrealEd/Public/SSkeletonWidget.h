@@ -439,7 +439,12 @@ public:
 	SLATE_END_ARGS()
 
 	void UNREALED_API Construct(const FArguments& InArgs);
-	SReplaceMissingSkeletonDialog() : UserResponse(EAppReturnType::Cancel){}
+	
+	SReplaceMissingSkeletonDialog()
+		: UserResponse(EAppReturnType::Cancel)
+		, bWasSkeletonReplaced(false)
+	{
+	}
 
 	bool UNREALED_API ShowModal();
 

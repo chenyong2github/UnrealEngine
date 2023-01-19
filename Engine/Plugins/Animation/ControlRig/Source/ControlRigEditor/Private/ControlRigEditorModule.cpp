@@ -913,76 +913,59 @@ void FControlRigEditorModule::AddControlRigExtenderToToolMenu(FName InToolMenuNa
 	);
 }
 
-void FControlRigEditorModule::ExtendAnimSequenceMenu()
+static void ExecuteOpenLevelSequence(const FToolMenuContext& InContext)
 {
-	TArray<UToolMenu*> MenusToExtend;
-	MenusToExtend.Add(UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.AnimSequence"));
-
-	for (UToolMenu* Menu : MenusToExtend)
+	if (const UContentBrowserAssetContextMenuContext* CBContext = InContext.FindContext<UContentBrowserAssetContextMenuContext>())
 	{
-		if (Menu == nullptr)
+		if (UAnimSequence* AnimSequence = CBContext->LoadFirstSelectedObject<UAnimSequence>())
+        {
+       		FControlRigEditorModule::OpenLevelSequence(AnimSequence);
+        }
+	}
+}
+
+static bool CanExecuteOpenLevelSequence(const FToolMenuContext& InContext)
+{
+	if (const UContentBrowserAssetContextMenuContext* CBContext = InContext.FindContext<UContentBrowserAssetContextMenuContext>())
+	{
+		if (CBContext->SelectedAssets.Num() != 1)
 		{
-			continue;
+			return false;
 		}
 
-		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-		Section.AddDynamicEntry("ControlRigOpenLevelSequence", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
-			{
-				UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
-				if (Context)
-				{
-					TArray<UObject*> SelectedObjects = Context->GetSelectedObjects();
-					if (SelectedObjects.Num() > 0)
-					{
-						InSection.AddMenuEntry(
-							"OpenLevelSequence",
-							LOCTEXT("OpenLevelSequence", "Open Level Sequence"),
-							LOCTEXT("CreateControlRig_ToolTip", "Opens a Level Sequence if it is driving this Anim Sequence."),
-							FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor.TabIcon"),
-							FUIAction(
-								FExecuteAction::CreateLambda([SelectedObjects]()
-									{
-										for (UObject* SelectedObject : SelectedObjects)
-										{
-											UAnimSequence* AnimSequence = Cast<UAnimSequence>(SelectedObject);
-											if (AnimSequence)
-											{
-												FControlRigEditorModule::OpenLevelSequence(AnimSequence);
-												return; //just open up the first valid one, can't have more than one open.
-											}
-										}
-									}),
-								FCanExecuteAction::CreateLambda([SelectedObjects]()
-									{
-										for (UObject* SelectedObject : SelectedObjects)
-										{
-											UAnimSequence* AnimSequence = Cast<UAnimSequence>(SelectedObject);
-											if (AnimSequence)
-											{
-												if (IInterface_AssetUserData* AnimAssetUserData = Cast< IInterface_AssetUserData >(AnimSequence))
-												{
-													UAnimSequenceLevelSequenceLink* AnimLevelLink = AnimAssetUserData->GetAssetUserData< UAnimSequenceLevelSequenceLink >();
-													if (AnimLevelLink)
-													{
-														ULevelSequence* LevelSequence = AnimLevelLink->ResolveLevelSequence();
-														if (LevelSequence)
-														{
-															return true;
-														}
-													}
-												}
-											}
-										}
-										return false;
-									})
+		const FAssetData& SelectedAnimSequence = CBContext->SelectedAssets[0];
 
-								)
-						);
-							
-					}
-				}
-			}));
+		FString PathToLevelSequence;
+		if (SelectedAnimSequence.GetTagValue<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequenceLevelSequenceLink, PathToLevelSequence), PathToLevelSequence))
+		{
+			if (!FSoftObjectPath(PathToLevelSequence).IsNull())
+			{
+				return true;
+			}
+		}
 	}
+
+	return false;
+}
+
+void FControlRigEditorModule::ExtendAnimSequenceMenu()
+{
+	UToolMenu* Menu = UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UAnimSequence::StaticClass());
+
+	FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+	Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			{
+				const TAttribute<FText> Label = LOCTEXT("OpenLevelSequence", "Open Level Sequence");
+				const TAttribute<FText> ToolTip =LOCTEXT("CreateControlRig_ToolTip", "Opens a Level Sequence if it is driving this Anim Sequence.");
+				const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor.TabIcon");
+
+				FToolUIAction UIAction;
+				UIAction.ExecuteAction = FToolMenuExecuteAction::CreateStatic(&ExecuteOpenLevelSequence);
+				UIAction.CanExecuteAction = FToolMenuCanExecuteAction::CreateStatic(&CanExecuteOpenLevelSequence);
+				InSection.AddMenuEntry("OpenLevelSequence", Label, ToolTip, Icon, UIAction);
+			}
+		}));
 }
 
 void FControlRigEditorModule::HandleNewBlueprintCreated(UBlueprint* InBlueprint)

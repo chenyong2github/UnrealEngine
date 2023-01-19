@@ -1116,7 +1116,7 @@ public:
 	 * Parent Asset related function. Used by editor
 	 */
 	void SetParentAsset(UAnimationAsset* InParentAsset);
-	bool HasParentAsset() { return ParentAsset != nullptr;  }
+	bool HasParentAsset() const { return ParentAsset != nullptr; }
 	bool RemapAsset(UAnimationAsset* SourceAsset, UAnimationAsset* TargetAsset);
 	// we have to update whenever we have anything loaded
 	void UpdateParentAsset();
@@ -1138,6 +1138,7 @@ public:
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
 #endif // WITH_EDITOR
 

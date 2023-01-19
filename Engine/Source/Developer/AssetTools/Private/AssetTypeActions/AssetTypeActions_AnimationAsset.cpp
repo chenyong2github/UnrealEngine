@@ -23,43 +23,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_AnimationAsset::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
-{
-	auto AnimAssets = GetTypedWeakObjectPtrs<UAnimationAsset>(InObjects);
-
-	Section.AddMenuEntry(
-		"AnimSequenceBase_OpenInNewWindow",
-		LOCTEXT("AnimSequenceBase_OpenInNewWindow", "Open In New Window"),
-		LOCTEXT("AnimSequenceBase_OpenInNewWindowTooltip", "Will always open asset in a new window, and not re-use existing window. (Shift+Double-Click)"),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.OpenInExternalEditor"),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimationAsset::ExecuteOpenInNewWindow, AnimAssets),
-			FCanExecuteAction()
-		)
-	);
-
-	Section.AddMenuEntry(
-		"AnimSequenceBase_FindSkeleton",
-		LOCTEXT("AnimSequenceBase_FindSkeleton", "Find Skeleton"),
-		LOCTEXT("AnimSequenceBase_FindSkeletonTooltip", "Finds the skeleton for the selected assets in the content browser."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Find"),
-		FUIAction(
-			FExecuteAction::CreateSP( this, &FAssetTypeActions_AnimationAsset::ExecuteFindSkeleton, AnimAssets ),
-			FCanExecuteAction()
-			)
-		);
-
-	Section.AddMenuEntry(
-		"AnimSequenceBase_ReplaceSkeleton",
-		LOCTEXT("AnimSequenceBase_ReplaceSkeleton", "Replace Skeleton"),
-		LOCTEXT("AnimSequenceBase_ReplaceSkeletonTooltip", "Associate a different skeleton with the selected animation assets in the content browser."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.RetargetManager"),
-		FUIAction(
-			FExecuteAction::CreateSP( this, &FAssetTypeActions_AnimationAsset::ExecuteReplaceSkeleton, AnimAssets ),
-			FCanExecuteAction()
-			)
-		);
-}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 UThumbnailInfo* FAssetTypeActions_AnimationAsset::GetThumbnailInfo(UObject* Asset) const
 {
@@ -248,5 +212,7 @@ bool FAssetTypeActions_AnimationAsset::ReplaceMissingSkeleton(TArray<TObjectPtr<
 	const bool bWasSkeletonReplaced = PickSkeletonWindow.Get()->ShowModal();
 	return bWasSkeletonReplaced;
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

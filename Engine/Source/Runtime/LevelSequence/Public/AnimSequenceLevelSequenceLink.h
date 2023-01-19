@@ -16,7 +16,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = Property)
 	FGuid SkelTrackGuid;
 
-	UPROPERTY(BlueprintReadWrite, Category = Property)
+	UPROPERTY(BlueprintReadWrite, AssetRegistrySearchable, Category = Property)
 	FSoftObjectPath PathToLevelSequence;
 
 	void SetLevelSequence(ULevelSequence* InLevelSequence);

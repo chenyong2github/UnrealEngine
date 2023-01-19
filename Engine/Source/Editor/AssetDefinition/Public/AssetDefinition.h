@@ -284,6 +284,10 @@ enum class EIncludeClassInFilter : uint8
 
 /**
  * Asset Definitions represent top level assets that are known to the editor.
+ *
+ * -- Conversion Guide --
+ *
+ * 
  */
 UCLASS(Abstract)
 class ASSETDEFINITION_API UAssetDefinition : public UObject

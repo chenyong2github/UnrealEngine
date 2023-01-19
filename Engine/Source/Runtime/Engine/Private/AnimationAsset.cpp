@@ -722,6 +722,18 @@ void UAnimationAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
+void UAnimationAsset::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	Super::GetAssetRegistryTags(OutTags);
+	
+	for (const UAssetUserData* UserData : AssetUserData)
+	{
+		UserData->GetAssetRegistryTags(OutTags);
+	}
+	
+	OutTags.Add( FAssetRegistryTag("HasParentAsset", HasParentAsset() ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Hidden) );
+}
+
 EDataValidationResult UAnimationAsset::IsDataValid(TArray<FText>& ValidationErrors)
 {
 	EDataValidationResult Result = UObject::IsDataValid(ValidationErrors);

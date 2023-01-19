@@ -7,7 +7,9 @@
 #include "Engine/DataAsset.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
-class ASSETTOOLS_API FAssetTypeActions_DataAsset : public FAssetTypeActions_Base
+class
+// UE_DEPRECATED(5.2, "The AssetDefinition system is replacing AssetTypeActions and UAssetDefinition_DataAsset replaced this.  Please see the Conversion Guide in AssetDefinition.h")
+ASSETTOOLS_API FAssetTypeActions_DataAsset : public FAssetTypeActions_Base
 {
 public:
 	// IAssetTypeActions Implementation

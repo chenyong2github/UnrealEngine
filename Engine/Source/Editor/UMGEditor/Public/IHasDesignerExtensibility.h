@@ -11,7 +11,18 @@
 class UMGEDITOR_API IDesignerExtensionFactory
 {
 public:
+	virtual ~IDesignerExtensionFactory() { }
 	virtual TSharedRef<FDesignerExtension> CreateDesignerExtension() const = 0;
+};
+
+class FDesignerExtensibilityManager;
+
+/** Indicates that a class has a designer that is extensible */
+class IHasDesignerExtensibility
+{
+public:
+	virtual ~IHasDesignerExtensibility() { }
+	virtual TSharedPtr<FDesignerExtensibilityManager> GetDesignerExtensibilityManager() = 0;
 };
 
 /**
@@ -57,11 +68,3 @@ private:
 	TArray<TSharedRef<FDesignerExtension>> ExternalExtensions;
 	TArray<TSharedRef<IDesignerExtensionFactory>> ExternalExtensionFactories;
 };
-
-/** Indicates that a class has a designer that is extensible */
-class IHasDesignerExtensibility
-{
-public:
-	virtual TSharedPtr<FDesignerExtensibilityManager> GetDesignerExtensibilityManager() = 0;
-};
-

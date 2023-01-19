@@ -25,12 +25,12 @@ class IInterface_AssetUserData
 
 	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass)
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	template<typename T>
