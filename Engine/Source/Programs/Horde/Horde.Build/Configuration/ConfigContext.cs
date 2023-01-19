@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Configuration
 {
@@ -45,6 +46,11 @@ namespace Horde.Build.Configuration
 		public Dictionary<Uri, IConfigFile> Files { get; } = new Dictionary<Uri, IConfigFile>();
 
 		/// <summary>
+		/// Logger for config messages
+		/// </summary>
+		public ILogger Logger { get; }
+
+		/// <summary>
 		/// Uri of the current file
 		/// </summary>
 		public Uri CurrentFile => (IncludeStack.Count > 0) ? IncludeStack.Peek().Uri : null!;
@@ -57,11 +63,12 @@ namespace Horde.Build.Configuration
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConfigContext(JsonSerializerOptions jsonOptions, IReadOnlyDictionary<string, IConfigSource> sources)
+		public ConfigContext(JsonSerializerOptions jsonOptions, IReadOnlyDictionary<string, IConfigSource> sources, ILogger logger)
 		{
 			JsonOptions = jsonOptions;
 			Sources = sources;
 			ScopeStack.Push("$");
+			Logger = logger;
 		}
 
 		/// <summary>

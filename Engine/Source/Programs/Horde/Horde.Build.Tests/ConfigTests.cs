@@ -73,7 +73,7 @@ namespace Horde.Build.Tests
 			Dictionary<string, IConfigSource> sources = new Dictionary<string, IConfigSource>();
 			sources["memory"] = source;
 
-			ConfigContext options = new ConfigContext(_jsonOptions, sources);
+			ConfigContext options = new ConfigContext(_jsonOptions, sources, NullLogger.Instance);
 
 			ConfigObject result = await ConfigType.ReadAsync<ConfigObject>(fooUri, options, cancellationToken);
 			Assert.AreEqual(result.TestString, "hello");
@@ -107,7 +107,7 @@ namespace Horde.Build.Tests
 			Dictionary<string, IConfigSource> sources = new Dictionary<string, IConfigSource>();
 			sources["file"] = source;
 
-			ConfigContext context = new ConfigContext(_jsonOptions, sources);
+			ConfigContext context = new ConfigContext(_jsonOptions, sources, NullLogger.Instance);
 
 			ConfigObject result = await ConfigType.ReadAsync<ConfigObject>(fooUri, context, cancellationToken);
 			Assert.AreEqual(result.TestString, "hello");

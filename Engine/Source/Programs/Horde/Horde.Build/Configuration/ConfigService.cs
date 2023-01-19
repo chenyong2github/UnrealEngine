@@ -323,7 +323,7 @@ namespace Horde.Build.Configuration
 			}
 
 			// Read the config files
-			ConfigContext context = new ConfigContext(_jsonOptions, _sources);
+			ConfigContext context = new ConfigContext(_jsonOptions, _sources, _logger);
 			try
 			{
 				ConfigSnapshot snapshot = new ConfigSnapshot();

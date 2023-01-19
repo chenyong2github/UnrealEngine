@@ -12,6 +12,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 using JsonObject = System.Text.Json.Nodes.JsonObject;
 
@@ -219,6 +220,7 @@ namespace Horde.Build.Configuration
 				string? path = (string?)jsonNode;
 
 				Uri uri = ConfigType.CombinePaths(context.CurrentFile, path!);
+				context.Logger.LogInformation("Including config file {Uri}", uri);
 				IConfigFile file = await ReadFileAsync(uri, context, cancellationToken);
 
 				context.IncludeStack.Push(file);
