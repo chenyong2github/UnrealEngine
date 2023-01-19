@@ -75,9 +75,6 @@ public:
 	TArray<FBoneReference> BoneReferences;
 
 	UPROPERTY(Transient)
-	TArray<uint16> BoneIndices;
-
-	UPROPERTY(Transient)
 	TArray<uint16> BoneIndicesWithParents;
 
 	// cost added to the continuing pose from databases that uses this schema
@@ -97,8 +94,6 @@ public:
 	TArray<FPoseSearchSchemaColorPreset> ColorPresets;
 	
 	bool IsValid () const;
-
-	int32 GetNumBones () const { return BoneIndices.Num(); }
 
 	float GetSamplingInterval() const { return 1.0f / SampleRate; }
 

@@ -111,7 +111,7 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 	check(History && Schema);
 
 	static constexpr FBoneIndexType RootBoneIdx = 0xFFFF;
-	const FBoneIndexType BoneIndexType = SchemaBoneIdx >= 0 ? Schema->BoneIndices[SchemaBoneIdx] : RootBoneIdx;
+	const FBoneIndexType BoneIndexType = SchemaBoneIdx >= 0 && Schema->BoneReferences[SchemaBoneIdx].HasValidSetup() ? Schema->BoneReferences[SchemaBoneIdx].BoneIndex : RootBoneIdx;
 
 	// @todo: use an hashmap if we end up having too many entries
 	const FCachedEntry* Entry = CachedEntries.FindByPredicate([SampleTime, BoneIndexType](const FSearchContext::FCachedEntry& Entry)

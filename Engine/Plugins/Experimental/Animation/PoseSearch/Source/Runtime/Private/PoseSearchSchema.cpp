@@ -10,47 +10,36 @@ bool UPoseSearchSchema::IsValid() const
 {
 	bool bValid = Skeleton != nullptr;
 
-	for (const FBoneReference& BoneRef : BoneReferences)
-	{
-		bValid &= BoneRef.HasValidSetup();
-	}
-
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel: Channels)
 	{
 		bValid &= Channel != nullptr;
 	}
-
-	bValid &= (BoneReferences.Num() == BoneIndices.Num());
 
 	return bValid;
 }
 
 void UPoseSearchSchema::ResolveBoneReferences()
 {
-	// Initialize references to obtain bone indices
-	for (FBoneReference& BoneRef : BoneReferences)
-	{
-		BoneRef.Initialize(Skeleton);
-	}
-
-	// Fill out bone index array
-	BoneIndices.SetNum(BoneReferences.Num());
-	for (int32 BoneRefIdx = 0; BoneRefIdx != BoneReferences.Num(); ++BoneRefIdx)
-	{
-		BoneIndices[BoneRefIdx] = BoneReferences[BoneRefIdx].BoneIndex;
-	}
-
-	// Build separate index array with parent indices guaranteed to be present. Sort for EnsureParentsPresent.
-	BoneIndicesWithParents = BoneIndices;
-	BoneIndicesWithParents.Sort();
-
+	BoneIndicesWithParents.Reset();
 	if (Skeleton)
 	{
+		// Initialize references to obtain bone indices and fill out bone index array
+		for (FBoneReference& BoneRef : BoneReferences)
+		{
+			BoneRef.Initialize(Skeleton);
+			if (BoneRef.HasValidSetup())
+			{
+				BoneIndicesWithParents.Add(BoneRef.BoneIndex);
+			}
+		}
+
+		// Build separate index array with parent indices guaranteed to be present. Sort for EnsureParentsPresent.
+		BoneIndicesWithParents.Sort();
 		FAnimationRuntime::EnsureParentsPresent(BoneIndicesWithParents, Skeleton->GetReferenceSkeleton());
 	}
 
 	// BoneIndicesWithParents should at least contain the root to support mirroring root motion
-	if (BoneIndicesWithParents.Num() == 0)
+	if (BoneIndicesWithParents.IsEmpty())
 	{
 		BoneIndicesWithParents.Add(0);
 	}

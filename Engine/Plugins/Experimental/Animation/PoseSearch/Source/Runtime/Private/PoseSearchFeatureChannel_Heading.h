@@ -44,11 +44,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	EInputQueryPose InputQueryPose = EInputQueryPose::UseContinuingPose;
 
-	// if UseSampleTimeOffsetRootBone is true, this UPoseSearchFeatureChannel_Position will calculate the position of Bone from the pose SampleTimeOffset seconds away from the current time pose root bone
-	// if false the calculated position of Bone will be in component space from the pose SampleTimeOffset seconds away
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	bool bUseSampleTimeOffsetRootBone = true;
-
 	// UPoseSearchFeatureChannel interface
 	virtual void InitializeSchema(UPoseSearchSchema* Schema) override;
 	virtual void FillWeights(TArray<float>& Weights) const override;

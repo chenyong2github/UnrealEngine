@@ -259,6 +259,8 @@ FPoseSearchPoseMetadata FAssetIndexer::GetMetadata(int32 SampleIdx) const
 	return Metadata;
 }
 
+// returns the transform in character space for the bone indexed by Schema->BoneReferences[SchemaBoneIdx] 
+// at SampleTime-OriginTime seconds ahead (or behind) the pose at OriginTime
 FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped)
 {
 	// @todo: use an hashmap if we end up having too many entries
@@ -295,12 +297,28 @@ FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float Or
 
 		float CurrentTime = Sample.ClipTime;
 		float PreviousTime = CurrentTime - SamplingContext->FiniteDelta;
-
-		check(Sample.Clip->IsLoopable() || PreviousTime <= Sample.Clip->GetPlayLength());
+		
+		const bool bLoopable = Sample.Clip->IsLoopable();
+		const float PlayLength = Sample.Clip->GetPlayLength();
+		if (!bLoopable)
+		{
+			// if not loopable we clamp the pose at time zero or PlayLength
+			if (PreviousTime < 0.f)
+			{
+				PreviousTime = 0.f;
+				CurrentTime = FMath::Min(SamplingContext->FiniteDelta, PlayLength);
+			}
+			else if (CurrentTime > PlayLength)
+			{
+				CurrentTime = PlayLength;
+				PreviousTime = FMath::Max(PlayLength - SamplingContext->FiniteDelta, 0.f);
+			}
+		}
 
 		FDeltaTimeRecord DeltaTimeRecord;
 		DeltaTimeRecord.Set(PreviousTime, CurrentTime - PreviousTime);
-		FAnimExtractContext ExtractionCtx(static_cast<double>(CurrentTime), true, DeltaTimeRecord, Sample.Clip->IsLoopable());
+		// no need to extract root motion here, since we use the precalculated Sample.RootTransform as root transform for the Entry
+		FAnimExtractContext ExtractionCtx(static_cast<double>(CurrentTime), false, DeltaTimeRecord, bLoopable);
 
 		Sample.Clip->ExtractPose(ExtractionCtx, Entry->AnimPoseData);
 
@@ -320,10 +338,18 @@ FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float Or
 		Entry->Clamped = Sample.bClamped;
 	}
 
+	FTransform BoneTransform;
 	const FBoneReference& BoneReference = IndexingContext.Schema->BoneReferences[SchemaBoneIdx];
-	FCompactPoseBoneIndex CompactBoneIndex = BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneReference.BoneIndex));
+	if (BoneReference.HasValidSetup())
+	{
+		FCompactPoseBoneIndex CompactBoneIndex = BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneReference.BoneIndex));
+		BoneTransform = Entry->ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIndex) * MirrorTransform(Entry->RootTransform);
+	}
+	else
+	{
+		BoneTransform = MirrorTransform(Entry->RootTransform);
+	}
 
-	const FTransform BoneTransform = Entry->ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIndex) * MirrorTransform(Entry->RootTransform);
 	Clamped = Entry->Clamped;
 
 	return BoneTransform;

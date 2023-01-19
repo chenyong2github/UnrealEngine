@@ -55,6 +55,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	EInputQueryPose InputQueryPose = EInputQueryPose::UseContinuingPose;
 
+	// if bUseCharacterSpaceVelocities is true, velocities will be calculated as from the positions in character space, otherwise they will be calculated using global space positions
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	bool bUseCharacterSpaceVelocities = true;
+
 	// UPoseSearchFeatureChannel interface
 	virtual void InitializeSchema(UPoseSearchSchema* Schema) override;
 	virtual void FillWeights(TArray<float>& Weights) const override;
