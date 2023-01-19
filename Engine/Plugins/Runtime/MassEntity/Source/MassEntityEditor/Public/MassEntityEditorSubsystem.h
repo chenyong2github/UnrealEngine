@@ -28,6 +28,11 @@ public:
 
 	FOnPreTick& GetOnPreTickDelegate() { return OnPreTickDelegate; }
 
+	/** Registers a dynamic processor. This needs to be a fully formed processor and will be slotted in during the next tick. */
+	void RegisterDynamicProcessor(UMassProcessor& Processor);
+	/** Removes a previously registered dynamic processor of throws an assert if not found. */
+	void UnregisterDynamicProcessor(UMassProcessor& Processor);
+
 protected:
 	// USubsystem interface begin
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -49,4 +54,6 @@ protected:
 
 	/** Gets broadcast right before issuing FMassProcessingPhaseManager's phases execution */
 	FOnPreTick OnPreTickDelegate;
+	
+	bool IsProcessing{ false };
 };

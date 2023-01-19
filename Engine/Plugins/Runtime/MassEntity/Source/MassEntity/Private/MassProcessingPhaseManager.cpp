@@ -139,10 +139,19 @@ void FMassProcessingPhase::Initialize(FMassProcessingPhaseManager& InPhaseManage
 //----------------------------------------------------------------------//
 // FPhaseProcessorConfigurator
 //----------------------------------------------------------------------//
-void FMassPhaseProcessorConfigurationHelper::Configure(const TSharedPtr<FMassEntityManager>& EntityManager, FMassProcessorDependencySolver::FResult* OutOptionalResult)
+void FMassPhaseProcessorConfigurationHelper::Configure(TArrayView<UMassProcessor*> DynamicProcessors,
+	const TSharedPtr<FMassEntityManager>& EntityManager, FMassProcessorDependencySolver::FResult* OutOptionalResult)
 {
 	FMassRuntimePipeline TmpPipeline;
 	TmpPipeline.CreateFromArray(PhaseConfig.ProcessorCDOs, ProcessorOuter);
+	for (UMassProcessor* Processor : DynamicProcessors)
+	{
+		checkf(Processor != nullptr, TEXT("Dynamic processor provided to MASS is null."));
+		if (Processor->GetProcessingPhase() == Phase)
+		{
+			TmpPipeline.AppendProcessor(*Processor);
+		}
+	}
 
 	TArray<FMassProcessorOrderInfo> SortedProcessors;
 	FMassProcessorDependencySolver Solver(TmpPipeline.GetMutableProcessors(), bIsGameRuntime);
@@ -218,9 +227,9 @@ void FMassProcessingPhaseManager::Initialize(UObject& InOwner, TConstArrayView<F
 			// Runtime processing graph are initialized at runtime base on the actual archetypes instantiated at call time.
 			FMassProcessorDependencySolver::FResult Result;
 			Result.DependencyGraphFileName = DependencyGraphFileName;
-			FMassPhaseProcessorConfigurationHelper Configurator(*PhaseProcessor, ProcessingPhasesConfig[PhaseAsInt], InOwner);
+			FMassPhaseProcessorConfigurationHelper Configurator(*PhaseProcessor, ProcessingPhasesConfig[PhaseAsInt], InOwner, EMassProcessingPhase(PhaseAsInt));
 			Configurator.bIsGameRuntime = false;
-			Configurator.Configure(/*EntityManager=*/nullptr, &Result);
+			Configurator.Configure({}, /*EntityManager=*/nullptr, &Result);
 		}
 #endif // WITH_EDITOR
 	}
@@ -352,22 +361,24 @@ void FMassProcessingPhaseManager::OnPhaseStart(const FMassProcessingPhase& Phase
 	const int32 PhaseAsInt = int32(Phase.Phase);
 	if (Owner.IsValid()
 		&& ensure(Phase.Phase != EMassProcessingPhase::MAX)
-		&& ProcessingGraphBuildStates[PhaseAsInt].bNewArchetypes
+		&& (ProcessingGraphBuildStates[PhaseAsInt].bNewArchetypes || ProcessingGraphBuildStates[PhaseAsInt].bProcessorsNeedRebuild)
 		// if not a valid index then we're not able to recalculate dependencies 
 		&& ensure(ProcessingPhasesConfig.IsValidIndex(PhaseAsInt)))
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass Rebuild Phase Graph");
 
 		FPhaseGraphBuildState& GraphBuildState = ProcessingGraphBuildStates[PhaseAsInt];
-		if (GraphBuildState.bInitialized == false || FMassProcessorDependencySolver::IsResultUpToDate(GraphBuildState.LastResult, EntityManager) == false)
+		if (GraphBuildState.bInitialized == false 
+			|| ProcessingGraphBuildStates[PhaseAsInt].bProcessorsNeedRebuild
+			|| FMassProcessorDependencySolver::IsResultUpToDate(GraphBuildState.LastResult, EntityManager) == false)
 		{
 			UMassCompositeProcessor* PhaseProcessor = ProcessingPhases[PhaseAsInt].PhaseProcessor;
 			check(PhaseProcessor);
 
 			GraphBuildState.LastResult.Reset();
 
-			FMassPhaseProcessorConfigurationHelper Configurator(*PhaseProcessor, ProcessingPhasesConfig[PhaseAsInt], *Owner.Get());
-			Configurator.Configure(EntityManager, &GraphBuildState.LastResult);
+			FMassPhaseProcessorConfigurationHelper Configurator(*PhaseProcessor, ProcessingPhasesConfig[PhaseAsInt], *Owner.Get(), Phase.Phase);
+			Configurator.Configure(DynamicProcessors, EntityManager, &GraphBuildState.LastResult);
 
 			GraphBuildState.bInitialized = true;
 
@@ -383,6 +394,7 @@ void FMassProcessingPhaseManager::OnPhaseStart(const FMassProcessingPhase& Phase
 #endif // WITH_MASSENTITY_DEBUG
 		}
 
+		ProcessingGraphBuildStates[PhaseAsInt].bProcessorsNeedRebuild = false;
 		ProcessingGraphBuildStates[PhaseAsInt].bNewArchetypes = false;
 	}
 }
@@ -409,6 +421,26 @@ void FMassProcessingPhaseManager::OnPhaseEnd(FMassProcessingPhase& Phase)
 FString FMassProcessingPhaseManager::GetName() const
 {
 	return GetNameSafe(Owner.Get()) + TEXT("_MassProcessingPhaseManager");
+}
+
+void FMassProcessingPhaseManager::RegisterDynamicProcessor(UMassProcessor& Processor)
+{
+	DynamicProcessors.Add(&Processor);
+	ProcessingGraphBuildStates[uint32(Processor.GetProcessingPhase())].bProcessorsNeedRebuild = true;
+}
+
+void FMassProcessingPhaseManager::UnregisterDynamicProcessor(UMassProcessor& Processor)
+{
+	int32 Index;
+	if (DynamicProcessors.Find(&Processor, Index))
+	{
+		DynamicProcessors.RemoveAt(Index);
+		ProcessingGraphBuildStates[uint32(Processor.GetProcessingPhase())].bProcessorsNeedRebuild = true;
+	}
+	else
+	{
+		checkf(false, TEXT("Unable to remove Processor '%s', as it was never added or already removed."), *Processor.GetName());
+	}
 }
 
 void FMassProcessingPhaseManager::OnNewArchetype(const FMassArchetypeHandle& NewArchetype)

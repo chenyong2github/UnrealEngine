@@ -132,10 +132,21 @@ void UMassSimulationSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	StartSimulation(InWorld);
 }
 
+void UMassSimulationSubsystem::RegisterDynamicProcessor(UMassProcessor& Processor)
+{
+	checkf(!IsDuringMassProcessing(), TEXT("Unable to add dynamic processors to Mass during processing."));
+	PhaseManager.RegisterDynamicProcessor(Processor);
+}
+
+void UMassSimulationSubsystem::UnregisterDynamicProcessor(UMassProcessor& Processor)
+{
+	checkf(!IsDuringMassProcessing(), TEXT("Unable to remove dynamic processors to Mass during processing."));
+	PhaseManager.UnregisterDynamicProcessor(Processor);
+}
+
 void UMassSimulationSubsystem::RebuildTickPipeline()
 {
 	TConstArrayView<FMassProcessingPhaseConfig> ProcessingPhasesConfig = GET_MASS_CONFIG_VALUE(GetProcessingPhasesConfig());
-
 	FString DependencyGraphFileName;
 
 #if WITH_EDITOR

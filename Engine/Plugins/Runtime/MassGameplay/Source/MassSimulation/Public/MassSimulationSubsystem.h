@@ -28,6 +28,9 @@ public:
 	FMassProcessingPhase::FOnPhaseEvent& GetOnProcessingPhaseFinished(const EMassProcessingPhase Phase);
 	static FOnSimulationStarted& GetOnSimulationStarted() { return OnSimulationStarted; }
 
+	void RegisterDynamicProcessor(UMassProcessor& Processor);
+	void UnregisterDynamicProcessor(UMassProcessor& Processor);
+
 	bool IsSimulationStarted() const { return bSimulationStarted; }
 
 	/** @return whether hosted EntityManager is currently, actively being used for processing purposes. Equivalent to calling FMassEntityManager.IsProcessing() */

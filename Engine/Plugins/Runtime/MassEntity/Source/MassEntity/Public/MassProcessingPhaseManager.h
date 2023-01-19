@@ -95,16 +95,18 @@ private:
 
 struct MASSENTITY_API FMassPhaseProcessorConfigurationHelper
 {
-	FMassPhaseProcessorConfigurationHelper(UMassCompositeProcessor& InOutPhaseProcessor, const FMassProcessingPhaseConfig& InPhaseConfig, UObject& InProcessorOuter)
-		: PhaseProcessor(InOutPhaseProcessor), PhaseConfig(InPhaseConfig), ProcessorOuter(InProcessorOuter)
+	FMassPhaseProcessorConfigurationHelper(UMassCompositeProcessor& InOutPhaseProcessor, const FMassProcessingPhaseConfig& InPhaseConfig, UObject& InProcessorOuter, EMassProcessingPhase InPhase)
+		: PhaseProcessor(InOutPhaseProcessor), PhaseConfig(InPhaseConfig), ProcessorOuter(InProcessorOuter), Phase(InPhase)
 	{
 	}
 
-	void Configure(const TSharedPtr<FMassEntityManager>& EntityManager = TSharedPtr<FMassEntityManager>(), FMassProcessorDependencySolver::FResult* OutOptionalResult = nullptr);
+	void Configure(TArrayView<UMassProcessor*> DynamicProcessors, const TSharedPtr<FMassEntityManager>& EntityManager = TSharedPtr<FMassEntityManager>(), 
+		FMassProcessorDependencySolver::FResult* OutOptionalResult = nullptr);
 
 	UMassCompositeProcessor& PhaseProcessor;
 	const FMassProcessingPhaseConfig& PhaseConfig;
 	UObject& ProcessorOuter;
+	EMassProcessingPhase Phase;
 	bool bInitializeCreatedProcessors = true;
 	bool bIsGameRuntime = true;
 };
@@ -157,6 +159,11 @@ public:
 
 	FString GetName() const;
 
+	/** Registers a dynamic processor. This needs to be a fully formed processor and will be slotted in during the next tick. */
+	void RegisterDynamicProcessor(UMassProcessor& Processor);
+	/** Removes a previously registered dynamic processor of throws an assert if not found. */
+	void UnregisterDynamicProcessor(UMassProcessor& Processor);
+
 protected:
 	// FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -192,12 +199,14 @@ protected:
 	{
 		FMassProcessorDependencySolver::FResult LastResult;
 		bool bNewArchetypes = true;
+		bool bProcessorsNeedRebuild = true;
 		bool bInitialized = false;
 	};
 
 	FMassProcessingPhase ProcessingPhases[(uint8)EMassProcessingPhase::MAX];
 	FPhaseGraphBuildState ProcessingGraphBuildStates[(uint8)EMassProcessingPhase::MAX];
 	TArray<FMassProcessingPhaseConfig> ProcessingPhasesConfig;
+	TArray<UMassProcessor*> DynamicProcessors;
 
 	TSharedPtr<FMassEntityManager> EntityManager;
 

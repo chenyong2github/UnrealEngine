@@ -123,6 +123,8 @@ void UMassEntityEditorSubsystem::StopAndCleanUp()
 
 void UMassEntityEditorSubsystem::Tick(float DeltaTime)
 {
+	IsProcessing = true;
+
 	if (CompletionEvent.IsValid())
 	{
 		CompletionEvent->Wait();
@@ -136,4 +138,18 @@ void UMassEntityEditorSubsystem::Tick(float DeltaTime)
 		CompletionEvent = TGraphTask<UE::Mass::FMassEditorPhaseTickTask>::CreateTask(&Prerequisites)
 			.ConstructAndDispatchWhenReady(PhaseManager, EMassProcessingPhase(PhaseIndex), DeltaTime);
 	}
+
+	IsProcessing = false;
+}
+
+void UMassEntityEditorSubsystem::RegisterDynamicProcessor(UMassProcessor& Processor)
+{
+	checkf(!IsProcessing, TEXT("Unable to add dynamic processors to Mass during processing."));
+	PhaseManager->RegisterDynamicProcessor(Processor);
+}
+
+void UMassEntityEditorSubsystem::UnregisterDynamicProcessor(UMassProcessor& Processor)
+{
+	checkf(!IsProcessing, TEXT("Unable to remove dynamic processors to Mass during processing."));
+	PhaseManager->UnregisterDynamicProcessor(Processor);
 }

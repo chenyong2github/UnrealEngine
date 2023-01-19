@@ -61,10 +61,10 @@ void UMassEntitySettings::BuildPhases()
 
 			FMassProcessorDependencySolver::FResult Result;
 			Result.DependencyGraphFileName = PhaseDumpDependencyGraphFileName;
-			FMassPhaseProcessorConfigurationHelper Configurator(*PhaseConfig.PhaseProcessor, PhaseConfig, *this);
+			FMassPhaseProcessorConfigurationHelper Configurator(*PhaseConfig.PhaseProcessor, PhaseConfig, *this, EMassProcessingPhase(i));
 			Configurator.bInitializeCreatedProcessors = false;
 			Configurator.bIsGameRuntime = false;
-			Configurator.Configure(/*EntityManager=*/nullptr, &Result);
+			Configurator.Configure({}, /*EntityManager=*/nullptr, &Result);
 
 			if (Result.PrunedProcessorClasses.Num() > 0)
 			{
