@@ -2,6 +2,7 @@
 
 #include "SmartObjectHashGrid.h"
 #include "DebugRenderSceneProxy.h"
+#include "Math/ColorList.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectHashGrid)
 

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "SmartObjectDebugRenderingComponent.h"
-#include "GameFramework/Actor.h"
 #include "SmartObjectSubsystemRenderingActor.generated.h"
 
 /** Rendering component for SmartObjectRendering actor. */

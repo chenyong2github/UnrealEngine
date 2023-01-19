@@ -2,17 +2,15 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
 #include "MovieSceneScriptingChannel.h"
-#include "Channels/MovieSceneChannelTraits.h"
-#include "Channels/MovieSceneChannelHandle.h"
 #include "Sections/MovieSceneActorReferenceSection.h"
-#include "KeysAndChannels/MovieSceneScriptingChannel.h"
 #include "KeyParams.h"
-#include "MovieScene.h"
 
 #include "MovieSceneScriptingActorReference.generated.h"
+
+class UMovieSceneScriptingChannel;
+class UMovieSceneScriptingKey;
+template <typename ChannelType, typename ScriptingKeyType, typename ScriptingKeyValueType> struct TMovieSceneScriptingChannel;
 
 /**
 * Exposes a Sequencer Actor Reference type key to Python/Blueprints.

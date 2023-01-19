@@ -4,7 +4,9 @@
 
 #include "IDetailCustomization.h"
 
-#include "LiveLinkControllerBase.h"
+#include "UObject/WeakObjectPtr.h"
+
+class ULiveLinkControllerBase;
 
 class IDetailLayoutBuilder;
 

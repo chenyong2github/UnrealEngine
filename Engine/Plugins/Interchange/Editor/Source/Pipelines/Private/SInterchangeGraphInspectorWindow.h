@@ -2,15 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "Input/Reply.h"
-#include "Nodes/InterchangeBaseNode.h"
-#include "Nodes/InterchangeBaseNodeContainer.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Nodes/InterchangeBaseNode.h" // IWYU pragma: keep
 #include "Widgets/Views/STreeView.h"
+
+class SBox;
+class UInterchangeBaseNode;
 
 class IDetailsView;
 class UInterchangeBaseNodeContainer;

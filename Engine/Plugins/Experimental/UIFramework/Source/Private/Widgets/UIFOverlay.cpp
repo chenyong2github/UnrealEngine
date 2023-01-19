@@ -4,17 +4,11 @@
 #include "Types/UIFWidgetTree.h"
 #include "UIFLog.h"
 #include "UIFModule.h"
-#include "UIFPlayerComponent.h"
 
 #include "Components/Spacer.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 
-#include "Engine/ActorChannel.h"
-#include "Engine/Engine.h"
-#include "Engine/NetDriver.h"
-#include "GameFramework/Actor.h"
-#include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
 #include "UObject/Package.h"
 

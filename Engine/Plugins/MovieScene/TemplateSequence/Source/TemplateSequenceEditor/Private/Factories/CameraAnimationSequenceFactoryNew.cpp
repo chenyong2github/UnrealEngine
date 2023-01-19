@@ -4,9 +4,6 @@
 #include "CameraAnimationSequence.h"
 #include "CineCameraActor.h"
 #include "Factories/TemplateSequenceFactoryUtil.h"
-#include "MovieScene.h"
-#include "MovieSceneToolsProjectSettings.h"
-#include "Misc/TemplateSequenceEditorUtil.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CameraAnimationSequenceFactoryNew)
 

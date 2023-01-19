@@ -2,9 +2,9 @@
 
 #include "CameraAnimationSequenceCustomization.h"
 #include "CineCameraActor.h"
+#include "Customizations/TemplateSequenceCustomizationBase.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styles/TemplateSequenceEditorStyle.h"
-#include "TemplateSequence.h"
 
 #define LOCTEXT_NAMESPACE "CameraAnimationSequenceCustomization"
 

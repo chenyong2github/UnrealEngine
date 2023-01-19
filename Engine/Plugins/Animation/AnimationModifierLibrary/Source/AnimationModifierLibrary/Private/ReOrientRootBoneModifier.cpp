@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ReOrientRootBoneModifier.h"
-#include "AnimationBlueprintLibrary.h"
+#include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimData/IAnimationDataController.h"
 #include "AnimationUtils.h"
+#include "Animation/Skeleton.h"
+#include "EngineLogs.h"
 
 #define LOCTEXT_NAMESPACE "ReOrientRootBoneModifier"
 

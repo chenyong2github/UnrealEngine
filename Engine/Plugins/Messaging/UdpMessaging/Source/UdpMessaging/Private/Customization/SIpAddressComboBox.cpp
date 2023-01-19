@@ -4,11 +4,10 @@
 
 #if WITH_EDITOR
 
-#include "Styling/AppStyle.h"
-#include "IPAddress.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "SocketSubsystem.h" 
-#include "Widgets/Input/SEditableComboBox.h"
-#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SEditableText.h"
 
 namespace UE::UdpMessaging::Private
 {

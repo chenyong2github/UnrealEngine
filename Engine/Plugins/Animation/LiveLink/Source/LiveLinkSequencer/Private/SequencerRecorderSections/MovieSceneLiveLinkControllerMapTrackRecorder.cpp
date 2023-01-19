@@ -5,7 +5,9 @@
 #include "LiveLinkComponentController.h"
 #include "LiveLinkControllerBase.h"
 #include "LiveLinkSequencerSettings.h"
+#include "MovieSceneLiveLinkControllerTrackRecorder.h"
 #include "UObject/UObjectIterator.h"
+#include "TrackRecorders/MovieSceneTrackRecorderSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkControllerMapTrackRecorder)
 

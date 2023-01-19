@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAudioMeter.h"
-#include "Rendering/DrawElements.h"
 #include "Framework/Application/SlateApplication.h"
-#include "DSP/Dsp.h"
 #include "Fonts/FontMeasure.h"
+#include "Rendering/SlateRenderer.h"
 
 SAudioMeter::SAudioMeter()
 {

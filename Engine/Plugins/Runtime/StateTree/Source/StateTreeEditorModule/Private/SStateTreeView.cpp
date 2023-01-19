@@ -2,31 +2,17 @@
 
 #include "SStateTreeView.h"
 
-#include "Framework/Commands/Commands.h"
-#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "ScopedTransaction.h"
 
-#include "Templates/SharedPointer.h"
-#include "Styling/AppStyle.h"
-#include "EditorFontGlyphs.h"
-#include "StateTreeEditorStyle.h"
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SScrollBorder.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "SPositiveActionButton.h"
 #include "SStateTreeViewRow.h"
-#include "StateTree.h"
 
 #include "StateTreeViewModel.h"
 #include "StateTreeState.h"
+#include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 

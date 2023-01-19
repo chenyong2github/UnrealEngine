@@ -2,8 +2,6 @@
 
 #include "PlanarCutPlugin.h"
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
 
 
 DEFINE_LOG_CATEGORY(LogPlanarCut);

@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "LiveLinkRole.h"
-#include "LiveLinkTypes.h"
 #include "IPropertyTypeCustomization.h"
 #include "SLiveLinkSubjectRepresentationPicker.h"
 

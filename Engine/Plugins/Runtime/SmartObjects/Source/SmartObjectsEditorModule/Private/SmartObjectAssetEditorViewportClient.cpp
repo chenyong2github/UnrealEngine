@@ -1,16 +1,16 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmartObjectAssetEditorViewportClient.h"
-#include "ComponentVisualizer.h"
-#include "SmartObjectComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "UnrealEdGlobals.h"
+#include "PreviewScene.h"
 #include "SmartObjectAssetToolkit.h"
 #include "SmartObjectAssetEditorSettings.h"
 #include "SmartObjectComponentVisualizer.h"
-#include "Editor/UnrealEdEngine.h"
 #include "ScopedTransaction.h"
+#include "SmartObjectDefinition.h"
+#include "SmartObjectTypes.h"
 #include "SmartObjectAnnotation.h"
+
 
 #define LOCTEXT_NAMESPACE "SmartObjectAssetToolkit"
 

@@ -6,6 +6,7 @@
 #include "AbcImportSettings.h"
 #include "AbcImportUtilities.h"
 #include "GeometryCache.h"
+#include "GeometryCacheMeshData.h"
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
 

@@ -2,16 +2,12 @@
 
 #include "LiveLinkTimedDataInput.h"
 
-#include "HAL/IConsoleManager.h"
 #include "ILiveLinkModule.h"
 #include "ITimeManagementModule.h"
 #include "LiveLinkClient.h"
-#include "LiveLinkLog.h"
 #include "LiveLinkSettings.h"
 #include "LiveLinkSourceSettings.h"
-#include "LiveLinkTypes.h"
 #include "TimedDataInputCollection.h"
-#include "UObject/UObjectGlobals.h"
 
 #if WITH_EDITOR
 #include "Styling/SlateStyle.h"

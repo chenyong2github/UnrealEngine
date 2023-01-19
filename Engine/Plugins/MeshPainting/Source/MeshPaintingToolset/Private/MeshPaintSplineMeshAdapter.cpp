@@ -2,8 +2,10 @@
 
 #include "MeshPaintSplineMeshAdapter.h"
 
+#include "Spatial/SpatialInterfaces.h"
 #include "StaticMeshResources.h"
 #include "Components/SplineMeshComponent.h"
+#include "Util/DynamicVector.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForSplineMeshes

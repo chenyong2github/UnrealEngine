@@ -4,7 +4,6 @@
 #include "Chaos/CacheManagerActor.h"
 #include "Chaos/CacheCollection.h"
 #include "MovieScene.h"
-#include "Chaos/Sequencer/MovieSceneChaosCacheSection.h"
 #include "MovieSceneChaosCacheTemplate.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneChaosCacheTrack)

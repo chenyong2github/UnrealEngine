@@ -1,20 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeBindingExtension.h"
-#include "Algo/Accumulate.h"
 #include "Blueprint/StateTreeNodeBlueprintBase.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailWidgetRow.h"
 #include "EdGraphSchema_K2.h"
 #include "Features/IModularFeatures.h"
-#include "IDetailChildrenBuilder.h"
 #include "IPropertyAccessEditor.h"
-#include "PropertyNode.h"
 #include "StateTreeAnyEnum.h"
 #include "StateTreeCompiler.h"
-#include "StateTreeEvaluatorBase.h"
-#include "StateTreePropertyBindingCompiler.h"
+#include "StateTreeEditorPropertyBindings.h"
 #include "StateTreePropertyHelpers.h"
+#include "StateTreeNodeBase.h"
+#include "Styling/AppStyle.h"
+#include "UObject/EnumProperty.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 

@@ -2,8 +2,8 @@
 #include "NodeProcess.h"
 #include "Misc/Paths.h"
 
+#include "NodeProcessRunnableThread.h"
 #include <iostream>
-#include <stdlib.h>
 #include <string>
 
 TSharedPtr<FNodeProcessManager> FNodeProcessManager::NodeProcessManager;

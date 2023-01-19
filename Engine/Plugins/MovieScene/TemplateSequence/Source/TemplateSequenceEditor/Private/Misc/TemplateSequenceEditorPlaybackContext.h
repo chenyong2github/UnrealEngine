@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtr.h"
 
 class UWorld;

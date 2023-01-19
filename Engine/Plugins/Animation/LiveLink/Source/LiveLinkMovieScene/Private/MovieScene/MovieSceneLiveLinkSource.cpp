@@ -2,6 +2,7 @@
 
 #include "MovieSceneLiveLinkSource.h"
 #include "Features/IModularFeatures.h"
+#include "ILiveLinkClient.h"
 
 FMovieSceneLiveLinkSource::FMovieSceneLiveLinkSource()
 	: Client(nullptr)

@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/StateTreeCompileAllCommandlet.h"
+#include "Modules/ModuleManager.h"
 #include "StateTree.h"
 #include "PackageHelperFunctions.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
 #include "SourceControlHelpers.h"
 #include "StateTreeEditor.h"

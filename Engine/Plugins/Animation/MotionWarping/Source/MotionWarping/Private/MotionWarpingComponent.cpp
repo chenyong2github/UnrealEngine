@@ -2,9 +2,9 @@
 
 #include "MotionWarpingComponent.h"
 
-#include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
+#include "Animation/AnimSequence.h"
 #include "Animation/AnimationPoseData.h"
 #include "BonePose.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -13,10 +13,8 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "AnimNotifyState_MotionWarping.h"
-#include "HAL/IConsoleManager.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
-#include "RootMotionModifier.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MotionWarpingComponent)
 

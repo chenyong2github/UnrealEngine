@@ -3,19 +3,15 @@
 #include "LiveLinkSubject.h"
 
 #include "ITimeManagementModule.h"
-#include "LiveLinkFramePreProcessor.h"
-#include "LiveLinkFrameTranslator.h"
 #include "LiveLinkClient.h"
 #include "LiveLinkLog.h"
 #include "LiveLinkRole.h"
 #include "LiveLinkRoleTrait.h"
 #include "LiveLinkSettings.h"
+#include "LiveLinkSubjectSettings.h"
 #include "Misc/App.h"
-#include "Templates/Sorting.h"
-#include "Templates/SubclassOf.h"
+#include "LiveLinkTimedDataInput.h"
 #include "TimedDataInputCollection.h"
-#include "TimeSynchronizationSource.h"
-#include "UObject/Class.h"
 
 
 FLiveLinkSubject::FSubjectEvaluationStatistics::FSubjectEvaluationStatistics()

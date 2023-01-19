@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreMinimal.h"
-#include "Dom/JsonObject.h"
-#include "MSAssetImportData.h"
-#include "AssetRegistry/AssetData.h"
-#include "Engine/StaticMeshActor.h"
-#include "Materials/MaterialInstanceConstant.h"
-#include "BridgeDragDropHelper.h"
+#include "Templates/SharedPointer.h"
+
+class AStaticMeshActor;
+class FJsonObject;
+class UMaterialInstanceConstant;
+struct FAssetData;
+struct FUAssetData;
+struct FUAssetMeta;
 
 struct FProgressiveData
 {

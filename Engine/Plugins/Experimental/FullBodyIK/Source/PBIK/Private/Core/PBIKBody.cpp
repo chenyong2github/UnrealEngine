@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Core/PBIKBody.h"
+#include "Core/PBIKConstraint.h"
 #include "Core/PBIKSolver.h"
 
 namespace PBIK

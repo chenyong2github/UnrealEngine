@@ -1,14 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "User/SocialUserList.h"
-#include "User/SocialUser.h"
 #include "SocialToolkit.h"
 #include "Party/PartyMember.h"
-#include "Stats/Stats.h"
 
-#include "Containers/Ticker.h"
-#include "SocialSettings.h"
-#include "Algo/Transform.h"
 #include "SocialManager.h"
 #include "Party/SocialParty.h"
 

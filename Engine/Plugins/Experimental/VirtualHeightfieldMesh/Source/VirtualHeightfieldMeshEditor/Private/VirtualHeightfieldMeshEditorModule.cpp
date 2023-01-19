@@ -6,9 +6,7 @@
 #include "HeightfieldMinMaxTextureAssetTypeActions.h"
 #include "HeightfieldMinMaxTextureBuild.h"
 #include "HeightfieldMinMaxTextureThumbnailRenderer.h"
-#include "Interfaces/IPluginManager.h"
 #include "PropertyEditorModule.h"
-#include "ThumbnailRendering/ThumbnailManager.h"
 #include "VirtualHeightfieldMeshDetailsCustomization.h"
 
 /** Concrete implementation of the IVirtualHeightfieldMeshEditorModule interface. */

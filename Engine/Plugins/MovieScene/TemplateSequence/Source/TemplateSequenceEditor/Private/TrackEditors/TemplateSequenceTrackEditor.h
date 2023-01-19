@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ContentBrowserDelegates.h"
-#include "Misc/Guid.h"
 #include "MovieSceneTrackEditor.h"
-#include "Sections/TemplateSequenceSection.h"
 #include "TrackEditors/SubTrackEditorBase.h"
+
+class UTemplateSequenceSection;
+enum class ETemplateSectionPropertyScaleType;
+struct FBuildEditWidgetParams;
+struct FMovieScenePropertyBinding;
 
 struct FAssetData;
 class FMenuBuilder;

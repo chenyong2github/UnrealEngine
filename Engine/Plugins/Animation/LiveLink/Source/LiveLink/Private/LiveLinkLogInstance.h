@@ -3,12 +3,13 @@
 #pragma once
 
 #include "LiveLinkLog.h"
-#include "Logging/TokenizedMessage.h"
-#include "HAL/CriticalSection.h"
+
+class FTokenizedMessage;
+class IMessageLogListing;
+namespace EMessageSeverity { enum Type : int; }
 
 
 #if WITH_EDITOR
-#include "IMessageLogListing.h"
 #endif
 
 

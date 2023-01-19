@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AssetTypeActions_WaveTableBank.h"
 
-#include "Templates/SharedPointer.h"
 #include "WaveTableBank.h"
 #include "WaveTableBankEditor.h"
 

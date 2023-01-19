@@ -4,11 +4,7 @@
 #include "ContextualAnimSceneInstance.h"
 #include "ContextualAnimSceneAsset.h"
 #include "ContextualAnimation.h"
-#include "ContextualAnimSceneActorComponent.h"
-#include "ContextualAnimUtilities.h"
 #include "Engine/Engine.h"
-#include "Engine/World.h"
-#include "GameFramework/Actor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimManager)
 

@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCacheStreamingManager.h"
-#include "HAL/PlatformFile.h"
-#include "HAL/PlatformFileManager.h"
-#include "Misc/ScopeLock.h"
-#include "HAL/IConsoleManager.h"
 #include "GeometryCacheComponent.h"
 #include "GeometryCache.h"
 #include "GeometryCacheTrackStreamable.h"
-#include "GeometryCacheCodecBase.h"
 #include "GeometryCacheModule.h"
+#include "Misc/ScopeRWLock.h"
 #include "StreamingGeometryCacheData.h"
 #include "Async/Async.h"
 

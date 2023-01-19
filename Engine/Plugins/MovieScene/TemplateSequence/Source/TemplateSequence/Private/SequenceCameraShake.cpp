@@ -1,23 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequenceCameraShake.h"
-#include "Algo/IndexOf.h"
-#include "Camera/CameraActor.h"
-#include "Camera/CameraComponent.h"
-#include "Camera/PlayerCameraManager.h"
+#include "CameraAnimationSequence.h"
 #include "CameraAnimationSequencePlayer.h"
-#include "CineCameraActor.h"
-#include "Containers/ArrayView.h"
-#include "Engine/World.h"
-#include "EntitySystem/MovieSceneBoundSceneComponentInstantiator.h"
-#include "EntitySystem/MovieSceneEntitySystem.h"
-#include "EntitySystem/MovieScenePropertySystemTypes.h"
-#include "GameFramework/WorldSettings.h"
-#include "MovieSceneFwd.h"
-#include "MovieSceneTimeHelpers.h"
-#include "EntitySystem/MovieSceneEntitySystemTask.h"
-#include "EntitySystem/MovieSceneEntitySystemLinker.h"
-#include "MovieSceneTracksComponentTypes.h"
+#include "EntitySystem/MovieSceneEntityManager.h"
+#include "MovieScene.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SequenceCameraShake)
 

@@ -4,12 +4,11 @@
 
 #include "Chaos/Adapters/CacheAdapter.h"
 #include "Chaos/CacheCollection.h"
+#include "Chaos/CacheEvents.h"
 #include "Chaos/ChaosCache.h"
-#include "Chaos/ChaosCachingPlugin.h"
 #include "ChaosSolversModule.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/Texture2D.h"
-#include "Engine/World.h"
 #include "PBDRigidsSolver.h"
 #include "Features/IModularFeatures.h"
 #include "Algo/Find.h"
@@ -18,14 +17,11 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
-#include "Editor/EditorEngine.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "Styling/CoreStyle.h"
-#include "Styling/ISlateStyle.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Kismet2/ComponentEditorUtils.h"
-#include "GeometryCollection/GeometryCollectionComponent.h"
+#else
+#include "Engine/World.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "ChaosCacheManager"

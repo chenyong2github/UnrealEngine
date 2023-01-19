@@ -8,7 +8,6 @@
 #include "UObject/UObjectIterator.h"
 #include "Containers/Ticker.h"
 #include "GameFramework/GameStateBase.h"
-#include "Misc/CoreDelegates.h"
 #include "UnrealClient.h"
 
 

@@ -1,16 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AbcImportUtilities.h"
+#include "AbcImportLogger.h"
 #include "Math/TransformCalculus2D.h"
-#include "Stats/StatsMisc.h"
 
 #include "AbcFile.h"
+#include "AbcImportSettings.h"
 #include "AbcImporter.h"
 #include "AbcPolyMesh.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Containers/ArrayView.h"
+#include "Async/ParallelFor.h"
 #include "MaterialDomain.h"
+#include "MeshUtilities.h"
+#include "GeometryCacheMeshData.h"
 #include "Materials/Material.h"
+#include "Logging/TokenizedMessage.h"
+#include "RenderMath.h"
 #include "UObject/Package.h"
 
 #if PLATFORM_WINDOWS
@@ -18,16 +23,13 @@
 #endif
 
 #if PLATFORM_WINDOWS
+#include "RenderMath.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
 
 THIRD_PARTY_INCLUDES_START
-#include <Alembic/Abc/All.h>
-#include <Alembic/Abc/IObject.h>
-#include <Alembic/AbcCoreAbstract/TimeSampling.h>
 #include <Alembic/AbcCoreFactory/All.h>
 #include <Alembic/AbcCoreOgawa/All.h>
-#include <Alembic/AbcGeom/All.h>
 #include <Imath/ImathVec.h>
 THIRD_PARTY_INCLUDES_END
 

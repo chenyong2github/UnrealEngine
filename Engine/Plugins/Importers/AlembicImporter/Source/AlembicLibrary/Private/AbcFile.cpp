@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AbcFile.h"
+#include "AbcImportSettings.h"
 #include "AssetRegistry/AssetData.h"
+#include "Async/ParallelFor.h"
 #include "Materials/Material.h"
-#include "Misc/App.h"
-#include "Misc/ScopeLock.h"
+#include "MeshUtilities.h"
 #include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
 
 #include "AbcImporter.h"
 #include "AbcTransform.h"
@@ -14,12 +16,9 @@
 #include "AbcImportUtilities.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Materials/MaterialInterface.h"
 #include "Logging/TokenizedMessage.h"
 #include "AbcImportLogger.h"
 
-#include "HAL/Event.h"
-#include "HAL/Platform.h"
 
 
 #if PLATFORM_WINDOWS
@@ -27,7 +26,6 @@
 #endif
 
 THIRD_PARTY_INCLUDES_START
-#include <Alembic/AbcGeom/All.h>
 #include <Alembic/Abc/ArchiveInfo.h>
 #include "Materials/MaterialInstance.h"
 THIRD_PARTY_INCLUDES_END
@@ -36,7 +34,6 @@ THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
-#include <atomic>
 
 #define LOCTEXT_NAMESPACE "AbcFile"
 

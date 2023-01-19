@@ -4,6 +4,7 @@
 
 #include "ConcertLogGlobal.h"
 #include "ConcertSyncSessionDatabase.h"
+#include "HistoryEdition/HistoryAnalysis.h"
 
 namespace UE::ConcertSyncCore
 {

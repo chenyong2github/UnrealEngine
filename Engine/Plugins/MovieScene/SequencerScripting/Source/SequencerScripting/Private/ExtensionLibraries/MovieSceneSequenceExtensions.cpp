@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ExtensionLibraries/MovieSceneSequenceExtensions.h"
+#include "MovieSceneBindingProxy.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
+#include "MovieScenePossessable.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
 #include "MovieSceneFolder.h"
-#include "Algo/Find.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
+#include "MovieSceneSpawnable.h"
+#include "SequencerScriptingRange.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSequenceExtensions)
 

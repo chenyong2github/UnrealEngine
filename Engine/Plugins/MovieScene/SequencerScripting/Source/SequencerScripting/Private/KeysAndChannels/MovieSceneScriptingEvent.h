@@ -2,15 +2,8 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
 #include "MovieSceneScriptingChannel.h"
-#include "Channels/MovieSceneChannelTraits.h"
-#include "Channels/MovieSceneChannelHandle.h"
-#include "Sections/MovieSceneEventSection.h"
 #include "KeyParams.h"
-#include "MovieScene.h"
-#include "Channels/MovieSceneEvent.h"
 #include "Channels/MovieSceneEventChannel.h"
 
 #include "MovieSceneScriptingEvent.generated.h"

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "EntitySystem/MovieScenePropertySystemTypes.h"
 #include "CoreTypes.h"
 #include "UObject/NameTypes.h"

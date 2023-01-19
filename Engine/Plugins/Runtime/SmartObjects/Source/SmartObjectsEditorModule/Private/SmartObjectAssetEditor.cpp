@@ -2,6 +2,7 @@
 
 #include "SmartObjectAssetEditor.h"
 
+#include "PreviewScene.h"
 #include "SmartObjectAssetToolkit.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectAssetEditor)

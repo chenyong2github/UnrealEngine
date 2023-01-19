@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "JacobianSolver.h"
+#include "FBIKConstraint.h"
 #include "FBIKUtil.h"
 #include "FullBodyIK.h"
+#include "HAL/LowLevelMemTracker.h"
 
 //////////////////////////////////////////////////////////////////
 //// utility functions

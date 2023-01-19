@@ -2,13 +2,13 @@
 
 #include "TemplateSequenceCustomization.h"
 #include "ClassViewerModule.h"
+#include "Customizations/TemplateSequenceCustomizationBase.h"
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "DragAndDrop/ClassDragDropOp.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "Styles/TemplateSequenceEditorStyle.h"
-#include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "TemplateSequenceCustomization"
 

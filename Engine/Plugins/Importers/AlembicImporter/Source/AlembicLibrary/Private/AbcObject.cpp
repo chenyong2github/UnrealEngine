@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AbcObject.h"
-#include "AbcImportUtilities.h"
 
 IAbcObject::IAbcObject(const Alembic::Abc::IObject& InObject, const FAbcFile* InFile, IAbcObject* InParent) : Parent(InParent), File(InFile), Object(InObject), bConstant(false), MinTime(TNumericLimits<float>::Max())
 , MaxTime(TNumericLimits<float>::Min()), StartFrameIndex(0), NumSamples(0)

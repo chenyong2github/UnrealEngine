@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSessionSettings.h"
-#include "OnlineSubsystem.h"
+#include "OnlineSubsystem.h" // IWYU pragma: keep
 #include "Interfaces/OnlineSessionInterface.h"
 #include "Logging/LogScopedVerbosityOverride.h"
 

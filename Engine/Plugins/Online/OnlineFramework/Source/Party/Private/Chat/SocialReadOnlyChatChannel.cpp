@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chat/SocialReadOnlyChatChannel.h"
-#include "User/SocialUser.h"
-#include "SocialToolkit.h"
-#include "Chat/SocialChatManager.h"
+#include "Interfaces/OnlinePartyInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SocialReadOnlyChatChannel)
 

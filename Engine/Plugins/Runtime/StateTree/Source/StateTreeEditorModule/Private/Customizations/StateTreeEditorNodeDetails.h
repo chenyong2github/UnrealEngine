@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UnrealClient.h"
-#include "Types/SlateStructs.h"
 #include "IPropertyTypeCustomization.h"
-#include "UObject/ObjectKey.h"
 #include "Widgets/Views/STreeView.h"
+
+struct FObjectKey;
+struct FOptionalSize;
 
 class IPropertyHandle;
 class SWidget;

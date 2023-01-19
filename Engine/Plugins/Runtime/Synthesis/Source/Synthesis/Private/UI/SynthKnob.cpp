@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/SynthKnob.h"
-#include "Blueprint/WidgetLayoutLibrary.h"
-#include "Components/CanvasPanelSlot.h"
+#include "UI/SSynthKnob.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SynthKnob)
 

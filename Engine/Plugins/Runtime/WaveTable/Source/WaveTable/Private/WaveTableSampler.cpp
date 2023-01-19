@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WaveTableSampler.h"
 
+#include "Math/Vector2D.h"
 #include "WaveTable.h"
-#include "DSP/Dsp.h"
 #include "DSP/FloatArrayMath.h"
 
 

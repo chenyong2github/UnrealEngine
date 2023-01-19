@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "IDetailCustomization.h"
-#include "DetailLayoutBuilder.h"
+
+class FReply;
 
 class BlendSettingsCustomization : public IDetailCustomization
 

@@ -6,7 +6,7 @@ public class GeometryAlgorithms : ModuleRules
 {	
 	public GeometryAlgorithms(ReadOnlyTargetRules Target) : base(Target)
 	{
-		IWYUSupport = IWYUSupport.None;
+		IWYUSupport = IWYUSupport.KeepAsIsForNow;
 
         PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 

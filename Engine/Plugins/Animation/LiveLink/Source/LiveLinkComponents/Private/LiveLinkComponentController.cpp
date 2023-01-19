@@ -2,16 +2,14 @@
 
 #include "LiveLinkComponentController.h"
 
+#include "ILiveLinkClient.h"
 #include "ILiveLinkComponentModule.h"
 #include "LiveLinkComponentPrivate.h"
 #include "LiveLinkComponentSettings.h"
 #include "LiveLinkControllerBase.h"
 
-#include "Engine/World.h"
 #include "Features/IModularFeatures.h"
-#include "GameFramework/Actor.h"
-#include "HAL/IConsoleManager.h"
-#include "Logging/LogMacros.h"
+#include "Modules/ModuleManager.h"
 #include "UObject/EnterpriseObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UObjectIterator.h"
@@ -21,6 +19,9 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Kismet2/ComponentEditorUtils.h"
+#else
+#include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
 #endif // WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "LiveLinkController"

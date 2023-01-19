@@ -3,7 +3,6 @@
 #pragma once
 
 #include "TemplateSequenceActions.h"
-#include "AssetTypeCategories.h"
 
 class FCameraAnimationSequenceActions : public FTemplateSequenceActions
 {

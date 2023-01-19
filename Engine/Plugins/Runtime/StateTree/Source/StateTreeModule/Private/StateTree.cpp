@@ -1,16 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTree.h"
+#include "Misc/PackageName.h"
 #include "StateTreeLinker.h"
-#include "StateTreeNodeBase.h"
-#include "StateTreeSchema.h"
 #include "StateTreeTaskBase.h"
 #include "StateTreeEvaluatorBase.h"
 #include "AssetRegistry/AssetData.h"
 #include "Misc/ScopeRWLock.h"
 #include "StateTreeDelegates.h"
 #include "Logging/LogScopedVerbosityOverride.h"
-#include "StructUtilsTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTree)
 

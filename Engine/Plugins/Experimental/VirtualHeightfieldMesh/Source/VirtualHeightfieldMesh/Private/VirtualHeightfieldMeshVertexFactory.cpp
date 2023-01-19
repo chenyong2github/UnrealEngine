@@ -2,15 +2,9 @@
 
 #include "VirtualHeightfieldMeshVertexFactory.h"
 
-#include "Engine/Engine.h"
-#include "EngineGlobals.h"
 #include "MaterialDomain.h"
-#include "Materials/Material.h"
 #include "MeshDrawShaderBindings.h"
 #include "MeshMaterialShader.h"
-#include "RHIStaticStates.h"
-#include "ShaderParameters.h"
-#include "ShaderParameterUtils.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualHeightfieldMeshVertexFactoryParameters, "VHM");

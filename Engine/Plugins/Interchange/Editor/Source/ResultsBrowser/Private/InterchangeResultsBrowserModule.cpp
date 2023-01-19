@@ -2,14 +2,12 @@
 
 #include "InterchangeResultsBrowserModule.h"
 
-#include "CoreMinimal.h"
 #include "Engine/Engine.h"
-#include "Framework/Docking/TabManager.h"
 #include "InterchangeResultsBrowserStyle.h"
 #include "InterchangeManager.h"
+#include "Misc/CoreDelegates.h"
 #include "SInterchangeResultsBrowserWindow.h"
 #include "Styling/SlateIconFinder.h"
-#include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 

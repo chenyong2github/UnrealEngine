@@ -1,12 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "SWebBrowser.h"
-#include "UI/BrowserBinding.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Docking/TabManager.h"
+#include "IWebBrowserSingleton.h"
+#include "Internationalization/Text.h"
+
+class FMenuBuilder;
+class FSpawnTabArgs;
+class FToolBarBuilder;
+class SDockTab;
+class SWebBrowser;
+class SWindow;
+class UBrowserBinding;
 
 
 class FBridgeUIManagerImpl;

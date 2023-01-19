@@ -2,16 +2,14 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Delegates/IDelegateInstance.h"
 #include "IMessageTransport.h"
-#include "INetworkMessagingExtension.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
-#include "IMessageAttachment.h"
-#include "Templates/SharedPointer.h"
 #include "Async/Future.h"
 #include "Containers/Ticker.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/Guid.h"
+
+struct FMessageTransportStatistics;
 
 class FArrayReader;
 class FUdpReassembledMessage;

@@ -2,8 +2,9 @@
 
 #include "AudioSlider.h"
 #include "AudioWidgets.h"
+#include "Modules/ModuleManager.h"
 #include "SAudioSlider.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Styling/StyleColors.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioSlider)
 

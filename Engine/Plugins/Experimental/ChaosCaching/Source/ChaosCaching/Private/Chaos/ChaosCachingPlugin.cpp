@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/ChaosCachingPlugin.h"
+#include "Chaos/Adapters/CacheAdapter.h"
 #include "Chaos/Adapters/GeometryCollectionComponentCacheAdapter.h"
 #include "Chaos/Adapters/StaticMeshComponentCacheAdapter.h"
 #include "Chaos/Sequencer/ChaosCacheObjectSpawner.h"
 #include "ILevelSequenceModule.h"
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
 
 IMPLEMENT_MODULE(IChaosCachingPlugin, ChaosCaching)
 

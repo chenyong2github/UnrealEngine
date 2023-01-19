@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "StateTreeTypes.h"
 #include "IDetailPropertyExtensionHandler.h"
+
+enum class EStateTreePropertyUsage : uint8;
 
 class IPropertyHandle;
 class IDetailLayoutBuilder;

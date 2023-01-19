@@ -3,7 +3,6 @@
 #include "MotionTrajectoryLibrary.h"
 #include "MotionTrajectory.h"
 #include "GameFramework/Actor.h"
-#include "Components/SceneComponent.h"
 #include "Algo/Find.h"
 #include "GameFramework/Actor.h"
 

@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetDefinition_LevelSequence.h"
-#include "Engine/Engine.h"
-#include "LevelSequence.h"
 #include "LevelSequenceEditorToolkit.h"
 #include "LevelSequenceEditorStyle.h"
 

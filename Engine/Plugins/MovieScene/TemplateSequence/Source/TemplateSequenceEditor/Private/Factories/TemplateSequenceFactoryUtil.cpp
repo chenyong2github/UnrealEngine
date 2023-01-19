@@ -5,6 +5,7 @@
 #include "ILevelSequenceModule.h"
 #include "Modules/ModuleManager.h"
 #include "MovieScene.h"
+#include "MovieSceneCommonHelpers.h"
 #include "MovieSceneToolsProjectSettings.h"
 #include "Sections/MovieSceneBoolSection.h"
 #include "TemplateSequence.h"

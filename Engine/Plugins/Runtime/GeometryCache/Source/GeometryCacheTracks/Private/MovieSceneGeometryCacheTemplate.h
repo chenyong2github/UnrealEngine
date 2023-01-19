@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Evaluation/MovieSceneEvalTemplate.h"
 #include "MovieSceneGeometryCacheSection.h"
 #include "MovieSceneGeometryCacheTemplate.generated.h"

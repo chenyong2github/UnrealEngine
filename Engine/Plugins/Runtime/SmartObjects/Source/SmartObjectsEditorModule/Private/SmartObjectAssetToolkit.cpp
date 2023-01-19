@@ -1,14 +1,13 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmartObjectAssetToolkit.h"
+#include "AdvancedPreviewScene.h"
 #include "AssetEditorModeManager.h"
-#include "BaseGizmos/TransformGizmoUtil.h"
-#include "EdModeInteractiveToolsContext.h"
+#include "Engine/StaticMesh.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
 #include "SmartObjectAssetEditorViewportClient.h"
-#include "SmartObjectComponent.h"
-#include "Tools/UAssetEditor.h"
+#include "SmartObjectDefinition.h"
 #include "Viewports.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Text/STextBlock.h"

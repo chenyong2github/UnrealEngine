@@ -2,21 +2,17 @@
 
 #include "AssetTools/CameraAnimationSequenceActions.h"
 #include "AssetTools/TemplateSequenceActions.h"
-#include "AssetToolsModule.h"
 #include "CameraAnimationSequence.h"
 #include "Customizations/CameraAnimationSequenceCustomization.h"
 #include "Customizations/TemplateSequenceCustomization.h"
+#include "Customizations/TemplateSequenceCustomizationBase.h"
 #include "ISequencerModule.h"
 #include "ISettingsModule.h"
 #include "Misc/MovieSceneSequenceEditor_TemplateSequence.h"
 #include "Misc/TemplateSequenceEditorSettings.h"
-#include "Modules/ModuleManager.h"
 #include "SequencerSettings.h"
 #include "Styles/TemplateSequenceEditorStyle.h"
-#include "TemplateSequence.h"
 #include "TrackEditors/TemplateSequenceTrackEditor.h"
-#include "UObject/Class.h"
-#include "UObject/GCObject.h"
 
 #define LOCTEXT_NAMESPACE "TemplateSequenceEditor"
 

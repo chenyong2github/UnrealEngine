@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "Input/Reply.h"
+
+class FReply;
 
 /** UI customization for UVirtualHeightfieldMeshComponent */
 class FVirtualHeightfieldMeshComponentDetailsCustomization : public IDetailCustomization

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
 #include "Serialization/JsonSerializerMacros.h"
 
 #include "QosRegionManager.h"

@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/Synth2DSliderStyle.h"
-#include "Interfaces/IPluginManager.h"
-#include "SynthesisModule.h"
-#include "CoreMinimal.h"
+#include "Styling/SlateStyle.h"
 #include "UI/SynthSlateStyle.h"
-#include "HAL/FileManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Synth2DSliderStyle)
 

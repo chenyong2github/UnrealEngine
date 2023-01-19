@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tracks/TemplateSequenceTrack.h"
-#include "IMovieSceneTracksModule.h"
+#include "MovieScene.h"
 #include "TemplateSequence.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Sections/TemplateSequenceSection.h"
-#include "Compilation/IMovieSceneTemplateGenerator.h"
-#include "Evaluation/MovieSceneEvaluationTrack.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TemplateSequenceTrack)
 

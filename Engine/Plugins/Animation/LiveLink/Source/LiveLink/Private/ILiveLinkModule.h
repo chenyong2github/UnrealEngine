@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "Modules/ModuleInterface.h"
-#include "Containers/Array.h"
 #include "Modules/ModuleManager.h"
 
 #ifndef WITH_LIVELINK_DISCOVERY_MANAGER_THREAD

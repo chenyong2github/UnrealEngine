@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ClockOffsetEstimatorRamp.h"
+#include "CoreGlobals.h"
 
 
 double FClockOffsetEstimatorRamp::GetEstimatedOffset() const

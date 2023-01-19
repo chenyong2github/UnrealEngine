@@ -3,14 +3,11 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "UObject/GCObject.h"
 
-#include "Input/Reply.h"
-#include "LiveLinkPreset.h"
-#include "LiveLinkSourceFactory.h"
-#include "Types/SlateEnums.h"
-#include "UObject/WeakObjectPtrTemplates.h"
+
+class ULiveLinkPreset;
+template <typename T> class TSubclassOf;
 
 class FMenuBuilder;
 class FLiveLinkClient;

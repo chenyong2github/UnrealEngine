@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OnlineSubsystem.h"
 #include "Online.h"
-#include "Interfaces/OnlineIdentityInterface.h"
-#include "Misc/AutomationTest.h"
 #include "Utils/OnlineErrors.data.h"
 #include "Misc/CommandLine.h"
 #include "Utils/OnlineTestCommon.h"

@@ -2,16 +2,18 @@
 
 #include "SContextualAnimViewport.h"
 #include "ContextualAnimViewportClient.h"
+#include "Editor/UnrealEdTypes.h"
 #include "SContextualAnimViewportToolbar.h"
 #include "ContextualAnimAssetEditorCommands.h"
 #include "ContextualAnimEditorStyle.h"
 #include "ContextualAnimAssetEditorToolkit.h"
 #include "ContextualAnimViewModel.h"
-#include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Viewports.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "ContextualAnimViewport"
 

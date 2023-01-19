@@ -2,7 +2,6 @@
 
 #include "PCGEditorGraphNodeInput.h"
 
-#include "EdGraph/EdGraphPin.h"
 #include "PCGNode.h"
 #include "PCGPin.h"
 

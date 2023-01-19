@@ -3,6 +3,7 @@
 #include "LiveLinkSequencerFilters.h"
 #include "MovieScene/MovieSceneLiveLinkTrack.h"
 #include "LiveLinkComponent.h"
+#include "SequencerTrackFilterBase.h"
 #include "Styling/SlateIconFinder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkSequencerFilters)

@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCacheTracksModule.h"
-#include "GeometryCacheModule.h"
 #if WITH_EDITOR
 #include "GeometryCacheSequencerModule.h"
+#else
+#include "GeometryCacheModule.h"
 #endif // WITH_EDITOR
 
 IMPLEMENT_MODULE(FGeometryCacheTracksModule, GeometryCacheTracks)

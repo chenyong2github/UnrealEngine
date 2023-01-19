@@ -5,7 +5,6 @@
 #if WITH_EDITOR
 #include "Modules/ModuleManager.h"
 #include "MeshUtilities.h"
-#include "MeshBuild.h"
 #include "OverlappingCorners.h"
 #include "GeometryCacheTrackStreamable.h"
 

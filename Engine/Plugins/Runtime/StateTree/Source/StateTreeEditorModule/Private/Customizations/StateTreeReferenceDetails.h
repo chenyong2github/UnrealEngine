@@ -3,7 +3,6 @@
 #pragma once
 
 #include "IPropertyTypeCustomization.h"
-#include "StateTreeReference.h"
 
 class IPropertyHandle;
 class UStateTree;

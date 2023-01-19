@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "Types/SlateEnums.h"
 #include "IDetailCustomization.h"
-#include "Input/Reply.h"
+#include "UObject/WeakObjectPtr.h"
+
+class SWidget;
 
 class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;

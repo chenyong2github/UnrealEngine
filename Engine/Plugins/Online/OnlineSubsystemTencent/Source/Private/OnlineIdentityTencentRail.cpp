@@ -6,6 +6,9 @@
 
 #include "RailSdkWrapper.h"
 #include "OnlineAsyncTasksTencent.h"
+#include "OnlineIdentityTencent.h"
+#include "OnlineSubsystemTencent.h"
+#include "OnlineSubsystemTencentPrivate.h"
 
 // FUserOnlineAccountTencent
 

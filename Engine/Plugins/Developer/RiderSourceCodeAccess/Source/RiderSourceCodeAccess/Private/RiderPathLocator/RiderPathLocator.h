@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Set.h"
 #include "Misc/Paths.h"
+
+template <typename OptionalType> struct TOptional;
 
 struct FVersion
 {	

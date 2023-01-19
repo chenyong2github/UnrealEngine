@@ -4,11 +4,8 @@
 #include "StateTree.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeConditionBase.h"
-#include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
 #include "StateTreeDelegates.h"
-#include "CoreMinimal.h"
-#include "UObject/Field.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeState)
 

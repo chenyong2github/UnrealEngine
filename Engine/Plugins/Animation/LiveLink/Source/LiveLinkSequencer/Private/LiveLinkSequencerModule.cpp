@@ -2,27 +2,20 @@
 
 #include "Interfaces/IPluginManager.h"
 
-#include "Editor.h"
-#include "Styling/AppStyle.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Features/IModularFeatures.h"
-#include "Framework/Application/SlateApplication.h"
+#include "ILiveLinkClient.h"
 #include "ISequencerModule.h"
 #include "ITakeRecorderModule.h"
-#include "LevelEditor.h"
-#include "Misc/CoreDelegates.h"
+#include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
-#include "LiveLinkRole.h"
-#include "LiveLinkRoleTrait.h"
 #include "LiveLinkSequencerPrivate.h"
 #include "MovieSceneLiveLinkControllerMapTrackRecorder.h"
-#include "PropertyEditorModule.h"
 #include "Sequencer/LiveLinkPropertyTrackEditor.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "Styling/SlateTypes.h"
 #include "TakeRecorderSource/TakeRecorderLiveLinkSource.h"
-#include "Templates/SubclassOf.h"
-#include "Widgets/Docking/SDockTab.h"
+#include "TakeRecorderSources.h"
 
 LLM_DEFINE_TAG(LiveLink_LiveLinkSequencer);
 DEFINE_LOG_CATEGORY(LogLiveLinkSequencer);

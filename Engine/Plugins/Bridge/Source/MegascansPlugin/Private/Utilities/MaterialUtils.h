@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreMinimal.h"
-#include "MSAssetImportData.h"
-#include "GameFramework/Actor.h"
-#include "Engine/StaticMeshActor.h"
 
-#include "Materials/MaterialInstanceConstant.h"
+#include "Containers/Array.h"
+
+class AStaticMeshActor;
+class UMaterialInstanceConstant;
+struct FUAssetMeta;
 
 class FMaterialUtils
 {

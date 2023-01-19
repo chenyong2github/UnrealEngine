@@ -2,14 +2,9 @@
 
 #include "MeshVertexPaintingTool.h"
 #include "InteractiveToolManager.h"
-#include "ToolBuilderUtil.h"
-#include "SceneManagement.h" // for FPrimitiveDrawInterface
-#include "ToolContextInterfaces.h"
 #include "Components/MeshComponent.h"
-#include "Math/UnrealMathUtility.h"
 #include "IMeshPaintComponentAdapter.h"
 #include "ComponentReregisterContext.h"
-#include "MeshPaintAdapterFactory.h"
 #include "ToolDataVisualizer.h"
 #include "MeshPaintHelpers.h"
 #include "BaseGizmos/BrushStampIndicator.h"

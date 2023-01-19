@@ -2,13 +2,11 @@
 
 #pragma once
 
+#include "Engine/BlueprintGeneratedClass.h"
 #include "LevelSequence.h"
 #include "MovieSceneSequenceEditor.h"
 #include "LevelSequenceDirector.h"
-#include "EdGraphSchema_K2.h"
 #include "Kismet2/KismetEditorUtilities.h"
-#include "Tracks/MovieSceneEventTrack.h"
-#include "K2Node_FunctionEntry.h"
 
 struct FMovieSceneSequenceEditor_LevelSequence : FMovieSceneSequenceEditor
 {

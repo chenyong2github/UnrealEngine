@@ -2,11 +2,10 @@
 
 #include "LiveLinkPreset.h"
 
+#include "LiveLinkPresetTypes.h"
 #include "Misc/CoreDelegates.h"
 #include "Engine/Engine.h"
-#include "Engine/LatentActionManager.h"
 #include "Features/IModularFeatures.h"
-#include "HAL/IConsoleManager.h"
 #include "LatentActions.h"
 #include "LiveLinkClient.h"
 #include "LiveLinkLog.h"

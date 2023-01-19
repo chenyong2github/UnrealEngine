@@ -3,7 +3,6 @@
 #include "Blueprint/StateTreeNodeBlueprintBase.h"
 #include "AIController.h"
 #include "StateTreeExecutionContext.h"
-#include "StateTreeLinker.h"
 #include "VisualLogger/VisualLogger.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeNodeBlueprintBase)

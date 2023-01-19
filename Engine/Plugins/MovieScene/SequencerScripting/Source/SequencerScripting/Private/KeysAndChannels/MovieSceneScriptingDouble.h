@@ -2,17 +2,18 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
+#include "Channels/MovieSceneChannelData.h"
 #include "MovieSceneScriptingChannel.h"
-#include "Channels/MovieSceneChannelTraits.h"
 #include "Channels/MovieSceneDoubleChannel.h"
-#include "Channels/MovieSceneChannelHandle.h"
-#include "KeysAndChannels/MovieSceneScriptingChannel.h"
 #include "KeyParams.h"
-#include "MovieScene.h"
 
 #include "MovieSceneScriptingDouble.generated.h"
+
+class UMovieSceneScriptingChannel;
+class UMovieSceneScriptingKey;
+enum ERichCurveTangentMode : int;
+enum ERichCurveTangentWeightMode : int;
+template <typename ChannelType, typename ScriptingKeyType, typename ScriptingKeyValueType> struct TMovieSceneScriptingChannel;
 
 /**
 * Exposes a Sequencer double type key to Python/Blueprints.

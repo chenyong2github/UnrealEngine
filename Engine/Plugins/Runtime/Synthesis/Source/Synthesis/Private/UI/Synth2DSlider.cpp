@@ -2,7 +2,6 @@
 
 #include "UI/Synth2DSlider.h"
 #include "UI/SSynth2DSlider.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Synth2DSlider)
 

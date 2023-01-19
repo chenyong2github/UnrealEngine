@@ -4,13 +4,9 @@
 #include "Interfaces/OnlineUserInterface.h"
 #include "SocialManager.h"
 #include "SocialQuery.h"
-#include "SocialSettings.h"
-#include "User/SocialUser.h"
 #include "User/SocialUserList.h"
 #include "Chat/SocialChatManager.h"
-#include "Stats/Stats.h"
 
-#include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
 #include "Engine/LocalPlayer.h"
 

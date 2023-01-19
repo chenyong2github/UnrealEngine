@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
-#include "Misc/Crc.h"
-#include "UObject/ObjectMacros.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "IMessageContext.h"
-#include "IMessageAttachment.h"
+#include "Misc/Crc.h"
+#include "Misc/DateTime.h"
 #include "UdpMessagingTestTypes.generated.h"
 
 USTRUCT()

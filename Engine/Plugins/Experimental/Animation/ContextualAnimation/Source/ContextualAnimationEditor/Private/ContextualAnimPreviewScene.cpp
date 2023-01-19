@@ -3,7 +3,6 @@
 #include "ContextualAnimPreviewScene.h"
 #include "Components/StaticMeshComponent.h"
 #include "ContextualAnimAssetEditorToolkit.h"
-#include "GameFramework/WorldSettings.h"
 #include "EngineUtils.h"
 
 FContextualAnimPreviewScene::FContextualAnimPreviewScene(ConstructionValues CVS, const TSharedRef<FContextualAnimAssetEditorToolkit>& EditorToolkit)

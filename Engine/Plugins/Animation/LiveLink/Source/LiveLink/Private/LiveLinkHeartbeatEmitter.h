@@ -6,7 +6,8 @@
 #include "HAL/ThreadSafeBool.h"
 
 #include "IMessageContext.h"
-#include "MessageEndpoint.h"
+
+class FMessageEndpoint;
 
 class  FEvent;
 class  FRunnableThread;

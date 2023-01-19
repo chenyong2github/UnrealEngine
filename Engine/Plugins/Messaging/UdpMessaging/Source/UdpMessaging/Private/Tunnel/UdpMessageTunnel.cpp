@@ -3,8 +3,6 @@
 #include "Tunnel/UdpMessageTunnel.h"
 #include "UdpMessagingPrivate.h"
 
-#include "Misc/ScopeLock.h"
-#include "Common/TcpSocketBuilder.h"
 #include "Common/TcpListener.h"
 #include "Common/UdpSocketBuilder.h"
 #include "Serialization/ArrayReader.h"

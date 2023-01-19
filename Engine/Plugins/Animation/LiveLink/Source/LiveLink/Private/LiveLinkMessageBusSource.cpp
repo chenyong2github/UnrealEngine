@@ -4,7 +4,6 @@
 
 #include "ILiveLinkClient.h"
 #include "ILiveLinkModule.h"
-#include "LiveLinkClient.h"
 #include "LiveLinkHeartbeatEmitter.h"
 #include "LiveLinkLog.h"
 #if WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
@@ -12,9 +11,9 @@
 #endif
 #include "LiveLinkMessageBusSourceSettings.h"
 #include "LiveLinkMessages.h"
+#include "LiveLinkRole.h"
 #include "LiveLinkRoleTrait.h"
 #include "LiveLinkSettings.h"
-#include "LiveLinkTypes.h"
 
 #include "MessageEndpointBuilder.h"
 #include "Misc/App.h"

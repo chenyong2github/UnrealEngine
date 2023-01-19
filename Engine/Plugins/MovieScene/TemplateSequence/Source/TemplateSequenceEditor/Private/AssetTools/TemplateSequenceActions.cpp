@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTools/TemplateSequenceActions.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
 #include "TemplateSequence.h"
 #include "TemplateSequenceEditorToolkit.h"
 

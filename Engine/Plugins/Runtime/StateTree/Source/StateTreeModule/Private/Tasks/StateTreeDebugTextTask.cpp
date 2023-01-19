@@ -2,7 +2,6 @@
 
 #include "StateTreeDebugTextTask.h"
 #include "StateTreeExecutionContext.h"
-#include "StateTreeLinker.h"
 #include "GameFramework/Actor.h"
 #include "DrawDebugHelpers.h"
 

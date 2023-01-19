@@ -2,14 +2,8 @@
 
 #include "LiveLinkSubjectNameDetailCustomization.h"
 
-#include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "Editor.h"
-#include "IDetailChildrenBuilder.h"
 #include "IPropertyUtilities.h"
-#include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
-#include "SLiveLinkSubjectRepresentationPicker.h"
 
 
 #define LOCTEXT_NAMESPACE "LiveLinkSubjectNameDetailCustomization"

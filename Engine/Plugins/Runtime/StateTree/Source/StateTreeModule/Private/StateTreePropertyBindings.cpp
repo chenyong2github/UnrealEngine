@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "StateTreePropertyBindings.h"
-#include "StateTreeTypes.h"
+#include "UObject/EnumProperty.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreePropertyBindings)
 

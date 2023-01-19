@@ -1,16 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreMinimal.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
-#include "DynamicMeshEditor.h"
-#include "DynamicMesh/DynamicMeshAABBTree3.h"
-#include "Selections/MeshConnectedComponents.h"
-#include "DynamicMesh/MeshTransforms.h"
-#include "MeshConstraints.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "Spatial/PointHashGrid3.h"
-#include "Math/RandomStream.h"
+
+namespace UE::Geometry { enum class EEdgeRefineFlags; }
 
 struct FPlanarCells;
 struct FInternalSurfaceMaterials;

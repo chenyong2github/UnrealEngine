@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "UObject/Object.h"
 #include "SmartObjectAssetEditorSettings.generated.h"
 
 /**

@@ -1,18 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CameraAnimationSequenceSubsystem.h"
-#include "Components/SceneComponent.h"
 #include "Engine/World.h"
-#include "EntitySystem/BuiltInComponentTypes.h"
-#include "EntitySystem/MovieSceneEntityManager.h"
+#include "EntitySystem/MovieSceneComponentRegistry.h"
 #include "EntitySystem/MovieSceneEntityMutations.h"
-#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneEntitySystemRunner.h"
-#include "EntitySystem/MovieSceneEntitySystemTask.h"
+#include "EntitySystem/MovieSceneInstanceRegistry.h"
 #include "EntitySystem/MovieSceneRootInstantiatorSystem.h"
-#include "EntitySystem/MovieSceneBoundSceneComponentInstantiator.h"
 #include "IMovieScenePlayer.h"
-#include "MovieSceneCommonHelpers.h"
 #include "Systems/MovieScenePropertyInstantiator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CameraAnimationSequenceSubsystem)

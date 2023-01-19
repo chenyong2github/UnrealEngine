@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "JacobianIK.h"
+#include "FBIKConstraint.h"
 #include "FBIKUtil.h"
-#include "FullBodyIK.h"
 
 // in the future, we expose rotation axis 
 namespace JacobianIK

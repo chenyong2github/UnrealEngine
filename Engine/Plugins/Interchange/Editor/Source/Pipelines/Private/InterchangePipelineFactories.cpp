@@ -2,17 +2,12 @@
 
 #include "InterchangePipelineFactories.h"
 
-#include "AssetTypeCategories.h"
-#include "ClassViewerModule.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "InterchangeBlueprintPipelineBase.h"
-#include "InterchangePipelineBase.h"
 #include "InterchangePythonPipelineBase.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "Misc/MessageDialog.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/MetaData.h"
 
 /**
  * UInterchangeBlueprintPipelineBaseFactory implementation

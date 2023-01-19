@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSubsystemTencent.h"
+
+#if WITH_TENCENTSDK
 #include "Interfaces/IMessageSanitizerInterface.h"
 #include "OnlineAsyncTaskManagerTencent.h"
 #include "Interfaces/OnlineEntitlementsInterface.h"
@@ -16,11 +18,25 @@
 #include "Internationalization/Internationalization.h"
 #include "OnlineSessionTencent.h"
 #include "OnlineSubsystemNames.h"
-#include "Stats/Stats.h"
 #include "Trace/Trace.inl"
 
-
-#if WITH_TENCENTSDK
+#if WITH_TENCENT_RAIL_SDK
+#include "Features/IModularFeatures.h"
+#include "Interfaces/OnlinePlayTimeLimit.h"
+#include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
+#include "OnlineExternalUITencent.h"
+#include "OnlineFriendsTencent.h"
+#include "OnlineMessageSanitizerTencent.h"
+#include "OnlinePlayTimeLimitTencent.h"
+#include "OnlinePresenceTencent.h"
+#include "OnlinePurchaseTencent.h"
+#include "OnlineSessionTencentRail.h"
+#include "OnlineStoreTencent.h"
+#include "OnlineSubsystemTencentPrivate.h"
+#include "OnlineUserTencent.h"
+#include "PlayTimeLimitImpl.h"
+#endif
 
 IOnlineSessionPtr FOnlineSubsystemTencent::GetSessionInterface() const
 {

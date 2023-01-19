@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioGameplayVolume.h"
-#include "Async/TaskGraphInterfaces.h"
 #include "AudioGameplayVolumeProxy.h"
 #include "AudioGameplayVolumeComponent.h"
 #include "Components/BrushComponent.h"

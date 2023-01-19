@@ -2,14 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Types/SlateStructs.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "LevelEditorViewport.h"
-#include "Misc/FrameRate.h"
+
+namespace ETextCommit { enum Type : int; }
+struct FOptionalSize;
 
 class FLevelSequenceEditorToolkit;
 class FAssetEditorViewportLayout;

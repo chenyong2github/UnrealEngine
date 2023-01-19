@@ -2,10 +2,6 @@
 
 #include "ContextualAnimSelectionCriterion.h"
 #include "ContextualAnimSceneAsset.h"
-#include "Engine/World.h"
-#include "DrawDebugHelpers.h"
-#include "UObject/ObjectSaveContext.h"
-#include "SceneManagement.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimSelectionCriterion)
 

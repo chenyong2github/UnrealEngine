@@ -5,6 +5,11 @@
 #if WITH_TENCENTSDK
 #if WITH_TENCENT_RAIL_SDK
 
+#include "Interfaces/OnlineIdentityInterface.h"
+#include "OnlineAsyncTasksTencent.h"
+#include "OnlineError.h"
+#include "OnlineSubsystemTencent.h"
+
 // FOnlineUserTencent
 
 #define TENCENT_MAX_USERS_PER_QUERY 25

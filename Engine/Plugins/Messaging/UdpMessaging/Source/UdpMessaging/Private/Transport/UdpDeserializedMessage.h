@@ -2,12 +2,8 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/Array.h"
 #include "IMessageContext.h"
 #include "Misc/DateTime.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 class FUdpReassembledMessage;
 class IMessageAttachment;

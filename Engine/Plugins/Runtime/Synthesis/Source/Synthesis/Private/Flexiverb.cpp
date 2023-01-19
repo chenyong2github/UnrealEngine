@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Flexiverb.h"
+#include "DSP/AllPassFilter.h"
+#include "DSP/OnePole.h"
 
 namespace Audio
 {

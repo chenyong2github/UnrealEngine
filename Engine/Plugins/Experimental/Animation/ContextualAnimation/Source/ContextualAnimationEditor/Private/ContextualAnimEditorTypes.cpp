@@ -2,7 +2,6 @@
 
 #include "ContextualAnimEditorTypes.h"
 #include "ContextualAnimSceneAsset.h"
-#include "Animation/AnimMontage.h"
 #include "PropertyHandle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimEditorTypes)

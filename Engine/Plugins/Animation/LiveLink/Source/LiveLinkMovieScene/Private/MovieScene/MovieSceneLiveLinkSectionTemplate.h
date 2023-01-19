@@ -4,13 +4,14 @@
 
 #include "Evaluation/MovieScenePropertyTemplate.h"
 
-#include "MovieScene/MovieSceneLiveLinkStructProperties.h"
-#include "MovieScene/IMovieSceneLiveLinkPropertyHandler.h"
 #include "LiveLinkPresetTypes.h"
-#include "LiveLinkRole.h"
-#include "LiveLinkTypes.h"
 
 #include "MovieSceneLiveLinkSectionTemplate.generated.h"
+
+class IMovieSceneLiveLinkPropertyHandler;
+struct FLiveLinkPropertyData;
+struct FLiveLinkSubSectionData;
+struct FQualifiedFrameTime;
 
 class UMovieSceneLiveLinkSection;
 class UMovieScenePropertyTrack;

@@ -3,6 +3,8 @@
 
 #include "SynthComponents/SynthComponentToneGenerator.h"
 #include "AudioDevice.h"
+#include "Sound/SoundSourceBusSend.h"
+#include "Sound/SoundSubmixSend.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SynthComponentToneGenerator)
 

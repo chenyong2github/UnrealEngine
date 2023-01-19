@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "HAL/IConsoleManager.h"
-#include "Templates/UniquePtr.h"
+#include "Templates/SharedPointer.h"
 
 class FAutoConsoleCommand;
 class FLiveLinkClient;

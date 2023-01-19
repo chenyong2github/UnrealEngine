@@ -2,14 +2,14 @@
 
 #include "WorldPartitionSmartObjectCollectionBuilder.h"
 
-#include "EngineUtils.h"
 #include "FileHelpers.h"
-#include "SmartObjectPersistentCollection.h"
+#include "HAL/PlatformFile.h"
 #include "SmartObjectComponent.h"
-#include "WorldPartition/WorldPartition.h"
+#include "PackageSourceControlHelper.h"
 #include "SmartObjectSubsystem.h"
 #include "UObject/SavePackage.h"
 
+#include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionSmartObjectCollectionBuilder)

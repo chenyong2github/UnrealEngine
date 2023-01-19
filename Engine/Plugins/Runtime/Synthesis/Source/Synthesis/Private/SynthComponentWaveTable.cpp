@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SynthComponents/SynthComponentWaveTable.h"
-#include "AudioDecompress.h"
-#include "AudioDevice.h"
-#include "DSP/SampleRateConverter.h"
-#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SynthComponentWaveTable)
 

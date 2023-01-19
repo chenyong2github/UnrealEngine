@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/StatsMisc.h"
+#include "Containers/Array.h"
 
 /**
 	Ring buffer with a given capacity, i.e., a fixed size stack that overwrites old values

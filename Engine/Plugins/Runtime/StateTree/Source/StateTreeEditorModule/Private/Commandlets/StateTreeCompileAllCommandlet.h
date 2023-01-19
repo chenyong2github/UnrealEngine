@@ -1,10 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "Commandlets/Commandlet.h"
-#include "ISourceControlProvider.h"
 #include "StateTreeCompileAllCommandlet.generated.h"
+
+class ISourceControlProvider;
 
 class UStateTree;
 

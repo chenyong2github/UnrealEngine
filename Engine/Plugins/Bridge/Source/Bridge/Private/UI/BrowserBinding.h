@@ -1,23 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "WebJSFunction.h"
-#include "SWebBrowser.h"
-#include "Widgets/SWindow.h"
-#include "NodePort.h"
-#include "NodeProcess.h"
-#include "Misc/FileHelper.h"
 
-#include "TCPServer.h"
-#include "BridgeDragDropHelper.h"
 
-#include "IWebBrowserWindow.h"
-#include "DragAndDrop/AssetDragDropOp.h"
-#include "IPlacementModeModule.h"
-#include "ActorFactories/ActorFactoryBasicShape.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "BrowserBinding.generated.h"
+
+class FAssetDragDropOp;
+class SWebBrowser;
+class SWindow;
+struct FWebJSFunction;
 
 DECLARE_DELEGATE_TwoParams(FOnDialogSuccess, FString, FString);
 DECLARE_DELEGATE_TwoParams(FOnDialogFail, FString, FString);

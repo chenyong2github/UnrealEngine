@@ -4,6 +4,7 @@
 
 #include "Evaluation/MovieSceneBaseCacheTemplate.h"
 #include "Chaos/Sequencer/MovieSceneChaosCacheSection.h"
+#include "Evaluation/MovieSceneEvalTemplate.h"
 #include "MovieSceneChaosCacheTemplate.generated.h"
 
 USTRUCT()

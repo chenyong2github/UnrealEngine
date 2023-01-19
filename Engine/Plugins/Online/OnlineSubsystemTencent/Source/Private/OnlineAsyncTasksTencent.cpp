@@ -11,11 +11,13 @@
 #include "OnlineSessionTencentRail.h"
 #include "OnlinePresenceTencent.h"
 #include "OnlineSubsystemTencent.h"
+#include "OnlineSubsystemTencentPrivate.h"
 #include "MetadataKeysRail.h"
 #include "OnlineSubsystemSessionSettings.h"
 #include "OnlineFriendsTencent.h"
 #include "OnlinePurchaseTencent.h"
 #include "OnlineUserTencent.h"
+#include "PlayTimeLimitImpl.h"
 
 using namespace rail;
 

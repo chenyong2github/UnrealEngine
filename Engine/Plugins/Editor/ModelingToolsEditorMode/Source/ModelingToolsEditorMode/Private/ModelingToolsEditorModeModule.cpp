@@ -6,7 +6,6 @@
 #include "ModelingToolsManagerActions.h"
 #include "ModelingToolsEditorModeStyle.h"
 
-#include "Misc/CoreDelegates.h"
 
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"

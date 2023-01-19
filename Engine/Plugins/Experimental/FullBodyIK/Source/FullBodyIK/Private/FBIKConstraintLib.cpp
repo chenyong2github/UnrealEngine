@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FBIKConstraintLib.h"
-#include "FullBodyIK.h"
 #include "FBIKConstraintOption.h"
+#include "Misc/TVariantMeta.h"
 #include "Rigs/RigHierarchy.h"
 
 // in the future, we expose rotation axis 

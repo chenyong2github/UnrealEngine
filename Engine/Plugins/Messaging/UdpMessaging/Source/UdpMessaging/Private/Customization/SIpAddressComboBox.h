@@ -3,11 +3,13 @@
 #pragma once
 
 #if WITH_EDITOR
-#include "CoreMinimal.h"
 
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SComboBox.h"
-#include "Widgets/Input/SEditableText.h"
+
+class SEditableText;
+namespace ESelectInfo { enum Type : int; }
+namespace ETextCommit { enum Type : int; }
+template <typename OptionType> class SComboBox;
 
 class SEditableTextBox;
 

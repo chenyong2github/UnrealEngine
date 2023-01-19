@@ -2,6 +2,7 @@
 
 #include "ImportVertexColorOptions.h"
 
+#include "DetailsViewArgs.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
@@ -11,6 +12,7 @@
 #include "Components/StaticMeshComponent.h"
 
 #include "MeshPaintHelpers.h"
+#include "Widgets/Text/STextBlock.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ImportVertexColorOptions)
 

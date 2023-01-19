@@ -2,19 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
-#include "MovieSceneObjectBindingID.h"
-#include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneCachedEntityFilterResult.h"
-#include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
 #include "EntitySystem/MovieSceneEntitySystem.h"
-#include "EntitySystem/MovieScenePropertyBinding.h"
-#include "Evaluation/MovieSceneEvaluationOperand.h"
-#include "UObject/ObjectMacros.h"
-#include "Sections/TemplateSequenceSection.h"
 #include "TemplateSequenceSystem.generated.h"
+
+enum class ETemplateSectionPropertyScaleType;
 
 UCLASS(MinimalAPI)
 class UTemplateSequenceSystem : public UMovieSceneEntitySystem

@@ -1,9 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmartObjectTestingActor.h"
-#include "DebugRenderSceneProxy.h"
-#include "SmartObjectDebugSceneProxy.h"
-#include "Debug/DebugDrawService.h"
+#include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectTestingActor)
 

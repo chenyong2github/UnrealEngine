@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Templates/Casts.h"
 #include "UObject/WeakObjectPtr.h"
 #include "EditorUndoClient.h"
+
+struct FPropertyChangedEvent;
 
 class UStateTreeEditorData;
 class UStateTreeState;

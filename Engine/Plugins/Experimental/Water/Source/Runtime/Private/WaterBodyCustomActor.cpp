@@ -2,7 +2,6 @@
 
 #include "WaterBodyCustomActor.h"
 
-#include "Async/TaskGraphInterfaces.h"
 #include "WaterBodyCustomComponent.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 

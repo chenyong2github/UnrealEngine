@@ -1,9 +1,7 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "PropertyHandle.h"
-#include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
 
 class IPropertyHandle;

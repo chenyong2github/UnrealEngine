@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ExtensionLibraries/MovieSceneFolderExtensions.h"
+#include "MovieSceneBindingProxy.h"
 #include "MovieSceneFolder.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"

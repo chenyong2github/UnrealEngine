@@ -2,10 +2,9 @@
 
 #include "MovieScene/MovieSceneLiveLinkTransformHandler.h"
 
-#include "Algo/Transform.h"
-#include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneChannelData.h"
 #include "Misc/ScopedSlowTask.h"
-#include "LiveLinkMovieScenePrivate.h"
+#include "MovieScene/MovieSceneLiveLinkStructProperties.h"
 
 
 namespace LiveLinkTransformHandlerUtils

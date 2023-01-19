@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ToolMenuContext.h"
-#include "LevelSequenceEditorToolkit.h"
+#include "UObject/Package.h"
 #include "LevelSequenceEditorMenuContext.generated.h"
+
+class FLevelSequenceEditorToolkit;
 
 UCLASS()
 class ULevelSequenceEditorMenuContext : public UObject

@@ -4,15 +4,11 @@
 
 #include "Curves/CurveFloat.h"
 #include "CurveEditor.h"
-#include "CurveModel.h"
 #include "Fonts/FontMeasure.h"
-#include "Framework/Application/SlateApplication.h"
+#include "Rendering/SlateRenderer.h"
 #include "SCurveEditorPanel.h"
-#include "SGraphActionMenu.h"
-#include "Styling/AppStyle.h"
-#include "Views/SInteractiveCurveEditorView.h"
+#include "Styling/CoreStyle.h"
 #include "WaveTableTransform.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "WaveTableEditor"
 

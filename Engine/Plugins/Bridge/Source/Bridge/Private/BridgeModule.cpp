@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "IBridgeModule.h"
 #include "UI/BridgeUIManager.h"
-#include "Misc/Paths.h"
-#include "CoreMinimal.h"
 #include "NodeProcess.h"
 #include "NodeProcessRunnableThread.h"
 

@@ -2,24 +2,17 @@
 
 #include "Party/PartyPlatformSessionMonitor.h"
 
+#include "Interfaces/OnlineSessionDelegates.h"
 #include "Party/SocialParty.h"
+#include "Online/OnlineSessionNames.h"
 #include "Party/PartyMember.h"
+#include "OnlineSubsystemNames.h"
 #include "SocialToolkit.h"
 #include "SocialManager.h"
-#include "SocialSettings.h"
-#include "Containers/Ticker.h"
-#include "User/SocialUser.h"
 
-#include "HAL/IConsoleManager.h"
-#include "Misc/Base64.h"
 
-#include "Interfaces/OnlineFriendsInterface.h"
-#include "OnlineSubsystemSessionSettings.h"
 #include "OnlineSessionSettings.h"
 #include "OnlineSubsystemUtils.h"
-#include "Containers/Ticker.h"
-#include "Engine/LocalPlayer.h"
-#include "Stats/Stats.h"
 
 static bool IsTencentPlatform()
 {

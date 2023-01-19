@@ -3,7 +3,11 @@
 #include "LiveLinkBlueprintLibrary.h"
 #include "Features/IModularFeatures.h"
 #include "ILiveLinkClient.h"
+#include "ILiveLinkSource.h"
 #include "Misc/App.h"
+#include "LiveLinkRole.h"
+#include "Roles/LiveLinkAnimationBlueprintStructs.h"
+#include "Roles/LiveLinkBasicTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkBlueprintLibrary)
 

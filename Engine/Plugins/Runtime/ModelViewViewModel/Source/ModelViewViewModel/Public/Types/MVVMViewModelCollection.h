@@ -3,10 +3,8 @@
 #pragma once
 
 #include "Types/MVVMViewModelContext.h"
-
+#include "Types/MVVMViewModelContextInstance.h" // IWYU pragma: keep
 #include "MVVMViewModelCollection.generated.h"
-
-struct FMVVMViewModelContextInstance;
 
 class UMVVMViewModelBase;
 
@@ -92,5 +90,4 @@ private:
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
-#include "Types/MVVMViewModelContextInstance.h"
 #endif

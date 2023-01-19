@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreMinimal.h"
-#include "Engine/StreamableManager.h"
 
-#include "Materials/MaterialInstanceConstant.h"
-#include "MSAssetImportData.h"
-#include "AssetRegistry/AssetData.h"
+#include "Templates/SharedPointer.h"
+
+struct FAssetData;
+struct FUAssetMeta;
 
 enum EImportState
 {

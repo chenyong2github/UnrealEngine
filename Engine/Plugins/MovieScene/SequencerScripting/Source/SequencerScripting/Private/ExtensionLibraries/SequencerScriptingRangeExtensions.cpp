@@ -2,10 +2,6 @@
 
 #include "ExtensionLibraries/SequencerScriptingRangeExtensions.h"
 #include "SequencerScriptingRange.h"
-#include "MovieSceneSequence.h"
-#include "MovieSceneSection.h"
-#include "MovieScene.h"
-#include "Algo/Find.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SequencerScriptingRangeExtensions)
 

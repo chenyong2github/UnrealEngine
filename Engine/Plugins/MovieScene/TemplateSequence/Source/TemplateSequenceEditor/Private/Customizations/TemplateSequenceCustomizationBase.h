@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "ISequencer.h"
 #include "SequencerCustomizationManager.h"
+
+class UActorFactory;
+enum class EMovieSceneDataChangeType;
 
 class UTemplateSequence;
 

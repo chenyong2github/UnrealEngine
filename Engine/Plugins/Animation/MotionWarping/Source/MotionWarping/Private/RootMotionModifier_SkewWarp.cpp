@@ -3,8 +3,6 @@
 #include "RootMotionModifier_SkewWarp.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Character.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "MotionWarpingComponent.h"
 

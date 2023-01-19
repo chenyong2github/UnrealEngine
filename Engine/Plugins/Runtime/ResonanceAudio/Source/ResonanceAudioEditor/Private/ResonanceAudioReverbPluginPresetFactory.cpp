@@ -3,11 +3,10 @@
 //
 
 #include "ResonanceAudioReverbPluginPresetFactory.h"
+#include "ResonanceAudioConstants.h"
 #include "ResonanceAudioReverb.h"
 
 #include "AudioAnalytics.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ResonanceAudioReverbPluginPresetFactory)
 

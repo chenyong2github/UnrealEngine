@@ -3,10 +3,7 @@
 #include "LiveLinkTimecodeProvider.h"
 
 #include "Features/IModularFeatures.h"
-#include "HAL/PlatformTime.h"
 #include "ILiveLinkClient.h"
-#include "Misc/App.h"
-#include "Misc/ScopeLock.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkTimecodeProvider)
 

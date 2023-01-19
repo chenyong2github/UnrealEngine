@@ -2,24 +2,19 @@
 
 #include "TemplateSequence.h"
 #include "AssetRegistry/AssetData.h"
-#include "Engine/Engine.h"
 #include "Engine/World.h"
-#include "Components/ActorComponent.h"
-#include "GameFramework/Actor.h"
-#include "Modules/ModuleInterface.h"
+#include "Misc/PackageName.h"
 #include "Modules/ModuleManager.h"
 #include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
-#include "MovieSceneTrack.h"
+#include "MovieScenePossessable.h"
 #include "Tracks/MovieSceneSkeletalAnimationTrack.h"
+#include "MovieSceneSpawnable.h"
 #include "Tracks/MovieSceneSpawnTrack.h"
 
 #include "TemplateSequenceActor.h"
 #include "TemplateSequencePlayer.h"
 
-#include "Compilation/MovieSceneCompiledDataManager.h"
-#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
-#include "Evaluation/MovieScenePlayback.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TemplateSequence)
 

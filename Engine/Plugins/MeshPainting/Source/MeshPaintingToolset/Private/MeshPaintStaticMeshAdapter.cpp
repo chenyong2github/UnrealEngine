@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshPaintStaticMeshAdapter.h"
+#include "Spatial/MeshAABBTree3.h"
 #include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshResources.h"
-#include "MeshPaintHelpers.h"
 #include "ComponentReregisterContext.h"
-#include "MeshPaintingToolsetTypes.h"
 #include "Engine/StaticMesh.h"
-#include "IndexTypes.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForStaticMeshes

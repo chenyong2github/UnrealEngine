@@ -2,6 +2,7 @@
 
 #include "UI/SynthSlateStyle.h"
 #include "Interfaces/IPluginManager.h"
+#include "Styling/SlateStyle.h"
 #include "SynthesisModule.h"
 #include "Internationalization/Regex.h"
 #include "HAL/FileManager.h"

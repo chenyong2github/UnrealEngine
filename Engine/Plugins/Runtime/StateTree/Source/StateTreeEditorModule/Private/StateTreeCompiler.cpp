@@ -2,15 +2,11 @@
 
 #include "StateTreeCompiler.h"
 #include "StateTree.h"
+#include "StateTreeAnyEnum.h"
 #include "StateTreeEditorData.h"
-#include "StateTreeTypes.h"
-#include "Conditions/StateTreeCommonConditions.h"
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
 #include "StateTreeConditionBase.h"
-#include "StateTreeState.h"
-#include "StateTreeExecutionContext.h"
-#include "StateTreePropertyBindingCompiler.h"
 
 namespace UE::StateTree::Compiler
 {

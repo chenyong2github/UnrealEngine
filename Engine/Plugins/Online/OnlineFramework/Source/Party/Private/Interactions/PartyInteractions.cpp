@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Interactions/PartyInteractions.h"
-#include "User/SocialUser.h"
 #include "SocialToolkit.h"
 
 #include "Party/SocialParty.h"
 #include "Party/PartyMember.h" 
-#include "Interfaces/OnlinePartyInterface.h"
 #include "Engine/LocalPlayer.h"
 
 #define LOCTEXT_NAMESPACE "PartyInteractions"

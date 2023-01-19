@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SLiveLinkSubjectRepresentationGraphPin.h"
-#include "SLiveLinkSubjectRepresentationPicker.h"
-#include "K2Node_CallFunction.h"
-#include "K2Node_VariableSet.h"
-#include "UObject/PropertyPortFlags.h"
-#include "Widgets/Input/SComboButton.h"
+#include "EdGraph/EdGraphSchema.h"
 
 #define LOCTEXT_NAMESPACE "SubjectRepresentation"
 

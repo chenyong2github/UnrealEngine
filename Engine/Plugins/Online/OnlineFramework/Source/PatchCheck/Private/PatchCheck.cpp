@@ -3,8 +3,6 @@
 #include "PatchCheck.h"
 #include "PatchCheckModule.h"
 
-#include "Misc/ConfigCacheIni.h"
-#include "Misc/CommandLine.h"
 #include "Misc/App.h"
 #include "Online.h"
 

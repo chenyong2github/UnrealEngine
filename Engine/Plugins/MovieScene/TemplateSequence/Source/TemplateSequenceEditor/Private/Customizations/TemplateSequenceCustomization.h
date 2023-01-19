@@ -4,6 +4,10 @@
 
 #include "TemplateSequenceCustomizationBase.h"
 
+class FSequencerCustomizationBuilder;
+class SWidget;
+enum class ESequencerDropResult;
+
 class FToolBarBuilder;
 
 /**

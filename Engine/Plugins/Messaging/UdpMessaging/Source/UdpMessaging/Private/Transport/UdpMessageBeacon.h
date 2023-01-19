@@ -2,16 +2,14 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
 #include "Misc/SingleThreadRunnable.h"
-#include "Misc/Timespan.h"
 #include "HAL/Runnable.h"
-#include "Shared/UdpMessageSegment.h"
-#include "Templates/SharedPointer.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Containers/Queue.h"
+
+enum class EUdpMessageSegments : uint8;
 
 class FEvent;
 class FInternetAddr;

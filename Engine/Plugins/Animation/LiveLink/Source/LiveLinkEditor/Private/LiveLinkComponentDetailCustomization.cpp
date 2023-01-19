@@ -2,12 +2,10 @@
 
 #include "LiveLinkComponentDetailCustomization.h"
 
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "EditorFontGlyphs.h"
-#include "IDetailGroup.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "LiveLinkComponentController.h"
 #include "LiveLinkControllerBase.h"
 #include "LiveLinkEditorPrivate.h"
 #include "ScopedTransaction.h"

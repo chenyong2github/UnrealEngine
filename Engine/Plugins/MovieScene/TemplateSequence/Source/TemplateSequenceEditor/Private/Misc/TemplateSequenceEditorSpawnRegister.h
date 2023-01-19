@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "MovieSceneSpawnable.h"
 #include "Misc/LevelSequenceEditorSpawnRegister.h"
 
 /** Movie scene spawn register that knows how to handle spawning objects (actors) for a template sequence  */

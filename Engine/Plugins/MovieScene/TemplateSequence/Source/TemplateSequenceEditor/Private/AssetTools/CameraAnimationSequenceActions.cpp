@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CameraAnimationSequenceActions.h"
+#include "AssetTools/TemplateSequenceActions.h"
 #include "CameraAnimationSequence.h"
-#include "CineCameraActor.h"
 #include "TemplateSequenceEditorToolkit.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"

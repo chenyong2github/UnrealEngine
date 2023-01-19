@@ -2,14 +2,8 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
-#include "Curves/KeyHandle.h"
-#include "Curves/RichCurve.h"
-#include "Channels/MovieSceneChannel.h"
 #include "Channels/MovieSceneChannelHandle.h"
 #include "Channels/MovieSceneChannelTraits.h"
-#include "KeyParams.h"
 #include "SequencerScriptingRange.h"
 #include "SequenceTimeUnit.h"
 #include "ExtensionLibraries/MovieSceneSequenceExtensions.h"

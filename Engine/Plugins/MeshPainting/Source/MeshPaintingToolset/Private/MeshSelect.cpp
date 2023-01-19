@@ -2,15 +2,11 @@
 
 
 #include "MeshSelect.h"
-#include "InputState.h"
+#include "BaseBehaviors/InputBehaviorModifierStates.h"
 #include "InteractiveToolManager.h"
+#include "BaseBehaviors/SingleClickBehavior.h"
 #include "ToolContextInterfaces.h"
-#include "MeshPaintHelpers.h"
-#include "Components/MeshComponent.h"
 #include "IMeshPaintComponentAdapter.h"
-#include "MeshPaintAdapterFactory.h"
-#include "EngineUtils.h"
-#include "Editor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshSelect)
 

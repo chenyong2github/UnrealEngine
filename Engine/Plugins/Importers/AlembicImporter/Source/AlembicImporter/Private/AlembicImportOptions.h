@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
 #include "Widgets/SWindow.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Text/STextBlock.h"
+
+class FAbcPolyMesh;
+class ITableRow;
+class SButton;
+class STableViewBase;
+enum class ECheckBoxState : uint8;
 
 // Forward declares
 class UAbcImportSettings;

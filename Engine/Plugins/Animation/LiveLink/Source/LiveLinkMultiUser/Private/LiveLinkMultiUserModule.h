@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Modules/ModuleManager.h"
+#include "Modules/ModuleInterface.h"
 
 /**
  * Implements a simple LiveLink Multiuser module to register our own transaction filter.

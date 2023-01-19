@@ -1,20 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Party/SocialParty.h"
+#include "OnlineSessionSettings.h"
 #include "Party/PartyMember.h"
 #include "Party/PartyPlatformSessionMonitor.h"
 
-#include "SocialSettings.h"
 #include "SocialManager.h"
 #include "SocialToolkit.h"
-#include "User/SocialUser.h"
 
 #include "PartyBeaconClient.h"
 #include "OnlineSubsystemUtils.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
-#include "Interfaces/OnlinePartyInterface.h"
 #include "Misc/ConfigCacheIni.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SocialParty)

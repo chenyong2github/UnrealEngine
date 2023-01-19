@@ -2,23 +2,12 @@
 
 #include "Transport/UdpMessageProcessor.h"
 #include "Algo/AllOf.h"
-#include "Algo/Transform.h"
-#include "HAL/IConsoleManager.h"
-#include "INetworkMessagingExtension.h"
-#include "Interfaces/IPv4/IPv4Endpoint.h"
-#include "Misc/AssertionMacros.h"
-#include "UdpMessagingPrivate.h"
 
 #include "Common/UdpSocketSender.h"
-#include "HAL/Event.h"
-#include "HAL/RunnableThread.h"
-#include "IMessageAttachment.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/ArrayWriter.h"
-#include "Sockets.h"
-#include "Math/UnrealMathUtility.h"
-#include "UObject/Class.h"
 
+#include "UdpCircularQueue.h"
 #include "UdpMessagingTracing.h"
 #include "Shared/UdpMessagingSettings.h"
 #include "Transport/UdpMessageBeacon.h"
@@ -26,6 +15,7 @@
 #include "Transport/UdpReassembledMessage.h"
 #include "Transport/UdpSerializedMessage.h"
 #include "Transport/UdpSerializeMessageTask.h"
+#include "UdpMessageSegment.h"
 
 
 /* FUdpMessageHelloSender static initialization

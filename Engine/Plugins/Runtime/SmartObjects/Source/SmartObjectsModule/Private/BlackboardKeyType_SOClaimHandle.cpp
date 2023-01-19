@@ -2,7 +2,6 @@
 
 #include "BlackboardKeyType_SOClaimHandle.h"
 
-#include "BehaviorTree/BlackboardComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BlackboardKeyType_SOClaimHandle)
 

@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
-#include "LiveLinkRole.h"
-#include "LiveLinkTypes.h"
 #include "SLiveLinkSubjectRepresentationPicker.h"
 
 class FLiveLinkSubjectKeyDetailCustomization : public IPropertyTypeCustomization

@@ -3,8 +3,7 @@
 #include "Conditions/StateTreeCommonConditions.h"
 
 #include "StateTreeExecutionContext.h"
-#include "StateTreePropertyBindings.h"
-#include "StateTreeLinker.h"
+#include "UObject/EnumProperty.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeCommonConditions)
 

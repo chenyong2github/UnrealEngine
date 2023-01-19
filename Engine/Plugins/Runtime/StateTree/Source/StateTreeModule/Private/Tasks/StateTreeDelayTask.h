@@ -5,6 +5,9 @@
 #include "StateTreeTaskBase.h"
 #include "StateTreeDelayTask.generated.h"
 
+enum class EStateTreeRunStatus : uint8;
+struct FStateTreeTransitionResult;
+
 USTRUCT()
 struct STATETREEMODULE_API FStateTreeDelayTaskInstanceData
 {

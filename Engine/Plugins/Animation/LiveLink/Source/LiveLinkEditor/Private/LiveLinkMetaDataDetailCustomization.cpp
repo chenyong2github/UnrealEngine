@@ -7,13 +7,8 @@
 #include "CommonFrameRates.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "Editor.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailGroup.h"
-#include "IPropertyUtilities.h"
-#include "IPropertyTypeCustomization.h"
-#include "Misc/QualifiedFrameTime.h"
-#include "PropertyHandle.h"
 
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"

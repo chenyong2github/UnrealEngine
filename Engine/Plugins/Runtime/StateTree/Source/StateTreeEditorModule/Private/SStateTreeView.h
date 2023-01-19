@@ -2,9 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "StateTreeViewModel.h"
-#include "Widgets/Views/STreeView.h"
+#include "Widgets/SCompoundWidget.h"
+
+class FStateTreeViewModel;
+class ITableRow;
+class SScrollBar;
+class STableViewBase;
+namespace ESelectInfo { enum Type : int; }
+struct FPropertyChangedEvent;
+template <typename ItemType> class STreeView;
 
 class UStateTreeEditorData;
 class UStateTreeState;

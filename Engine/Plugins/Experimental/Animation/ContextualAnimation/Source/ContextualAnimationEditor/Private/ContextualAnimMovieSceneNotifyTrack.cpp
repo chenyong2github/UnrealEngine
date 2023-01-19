@@ -2,11 +2,9 @@
 
 #include "ContextualAnimMovieSceneNotifyTrack.h"
 #include "ContextualAnimMovieSceneNotifySection.h"
-#include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "ContextualAnimViewModel.h"
-#include "ContextualAnimMovieSceneSequence.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 

@@ -5,9 +5,7 @@
 #include "KeyframeTrackEditor.h"
 #include "MovieScene/MovieSceneLiveLinkTrack.h"
 
-#include "ILiveLinkClient.h"
 //mz for serialization
-#include "Serializers/MovieSceneLiveLinkSerialization.h"
 
 /** A property track editor for Live Link properties. */
 class FLiveLinkPropertyTrackEditor

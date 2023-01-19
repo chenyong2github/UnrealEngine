@@ -2,9 +2,8 @@
 
 #include "SourceEffects/SourceEffectConvolutionReverb.h"
 
-#include "Async/Async.h"
 #include "DSP/FloatArrayMath.h"
-#include "SynthesisModule.h"
+#include "EffectConvolutionReverb.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectConvolutionReverb)
 

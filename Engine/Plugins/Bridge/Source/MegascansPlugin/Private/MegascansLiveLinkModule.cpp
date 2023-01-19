@@ -4,9 +4,7 @@
 #include "BridgeDragDropHelper.h"
 #include "UI/MaterialBlendingDetails.h"
 
-#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
-#include "PropertyEditorDelegates.h"
 
 
 

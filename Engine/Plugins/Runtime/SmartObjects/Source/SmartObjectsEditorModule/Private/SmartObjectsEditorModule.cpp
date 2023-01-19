@@ -2,6 +2,7 @@
 
 #include "SmartObjectsEditorModule.h"
 
+#include "PropertyEditorModule.h"
 #include "SmartObjectComponent.h"
 #include "SmartObjectComponentVisualizer.h"
 #include "SmartObjectAssetTypeActions.h"

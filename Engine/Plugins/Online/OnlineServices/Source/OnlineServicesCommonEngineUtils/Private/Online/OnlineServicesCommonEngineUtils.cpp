@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Online/OnlineServicesCommonEngineUtils.h"
+#include "Online/CoreOnline.h"
 
 #if WITH_ENGINE
 #include "Engine/GameEngine.h"

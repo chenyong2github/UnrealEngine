@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AbcImportSettings.h"
-#include "Serialization/Archive.h"
-#include "UObject/Class.h"
 #include "UObject/Package.h"
 #include "UObject/ReleaseObjectVersion.h"
 

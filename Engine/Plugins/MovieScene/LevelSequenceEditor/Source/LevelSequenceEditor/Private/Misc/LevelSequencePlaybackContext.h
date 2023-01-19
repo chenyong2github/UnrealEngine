@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
-#include "Delegates/Delegate.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
 #include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
+
+class SWidget;
 
 class ALevelSequenceActor;
 class IMovieScenePlaybackClient;

@@ -2,9 +2,8 @@
 
 #include "SmartObjectSubsystemRenderingActor.h"
 
-#include "SmartObjectDebugSceneProxy.h"
+#include "Engine/World.h"
 #include "SmartObjectSubsystem.h"
-#include "Debug/DebugDrawService.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectSubsystemRenderingActor)
 

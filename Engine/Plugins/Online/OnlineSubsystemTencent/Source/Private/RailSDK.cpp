@@ -5,6 +5,9 @@
 #if WITH_TENCENTSDK
 #if WITH_TENCENT_RAIL_SDK
 
+#include "Containers/StringConv.h"
+#include "Containers/UnrealString.h"
+#include "RailSdkWrapper.h"
 
 FString LexToString(const rail::RailSystemState State)
 {

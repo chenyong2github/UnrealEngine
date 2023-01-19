@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/SSynth2DSlider.h"
-#include "Rendering/DrawElements.h"
 #include "Framework/Application/SlateApplication.h"
 
 void SSynth2DSlider::Construct(const SSynth2DSlider::FArguments& InDeclaration)

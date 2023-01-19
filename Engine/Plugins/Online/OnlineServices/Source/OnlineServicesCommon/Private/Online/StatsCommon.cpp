@@ -2,8 +2,7 @@
 
 #include "Online/StatsCommon.h"
 
-#include "Online/Auth.h"
-#include "Online/OnlineServicesCommon.h"
+#include "Online/OnlineUtils.h"
 
 namespace UE::Online {
 

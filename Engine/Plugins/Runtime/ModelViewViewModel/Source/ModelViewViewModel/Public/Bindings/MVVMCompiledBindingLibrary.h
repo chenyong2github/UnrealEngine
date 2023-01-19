@@ -2,7 +2,7 @@
 
 #pragma once
 
-
+#include "FieldNotification/FieldId.h" // IWYU pragma: keep
 #include "MVVMCompiledBindingLibrary.generated.h"
 
 namespace UE::FieldNotification { struct FFieldId; }
@@ -324,7 +324,6 @@ private:
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
-#include "FieldNotification/FieldId.h"
 #include "Templates/ValueOrError.h"
 #include "Types/MVVMFieldContext.h"
 #include "Types/MVVMFieldVariant.h"

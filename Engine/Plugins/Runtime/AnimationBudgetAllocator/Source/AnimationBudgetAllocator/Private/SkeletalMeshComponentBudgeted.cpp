@@ -3,7 +3,6 @@
 #include "SkeletalMeshComponentBudgeted.h"
 #include "AnimationBudgetAllocator.h"
 #include "AnimationBudgetAllocatorCVars.h"
-#include "Async/TaskGraphInterfaces.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Engine/World.h"
 #include "ProfilingDebugging/CsvProfiler.h"

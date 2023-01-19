@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCacheThumbnailRenderer.h"
-#include "Misc/App.h"
-#include "ShowFlags.h"
 #include "SceneView.h"
 #include "GeometryCacheThumbnailScene.h"
 #include "GeometryCache.h"

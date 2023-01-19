@@ -2,8 +2,10 @@
 
 #include "SmartObjectRenderingComponent.h"
 #include "DebugRenderSceneProxy.h"
+#include "Engine/CollisionProfile.h"
 #include "SmartObjectComponent.h"
 #include "ObjectEditorUtils.h"
+#include "PrimitiveViewRelevance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectRenderingComponent)
 

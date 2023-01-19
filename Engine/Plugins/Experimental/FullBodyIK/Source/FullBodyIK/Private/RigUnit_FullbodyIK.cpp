@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_FullbodyIK.h"
+#include "Drawing/ControlRigDrawInterface.h"
 #include "FBIKUtil.h"
 #include "FBIKConstraintLib.h"
 #include "Engine/Engine.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "RigVMCore/RigVMRegistry.h"
 #include "Units/RigUnitContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_FullbodyIK)
@@ -547,6 +549,7 @@ FRigUnit_FullbodyIK_Execute()
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
+#include "Stats/StatsHierarchical.h"
 #include "Units/RigUnitTest.h"
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_FullbodyIK)

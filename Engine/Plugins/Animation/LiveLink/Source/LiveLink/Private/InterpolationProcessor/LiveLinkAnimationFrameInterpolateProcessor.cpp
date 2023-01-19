@@ -3,7 +3,6 @@
 #include "InterpolationProcessor/LiveLinkAnimationFrameInterpolateProcessor.h"
 #include "Roles/LiveLinkAnimationRole.h"
 
-#include "Roles/LiveLinkAnimationBlueprintStructs.h"
 #include "Roles/LiveLinkAnimationTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkAnimationFrameInterpolateProcessor)

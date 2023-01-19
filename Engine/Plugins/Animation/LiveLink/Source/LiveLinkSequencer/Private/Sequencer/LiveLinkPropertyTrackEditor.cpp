@@ -2,10 +2,7 @@
 
 #include "LiveLinkPropertyTrackEditor.h"
 
-#include "Features/IModularFeatures.h"
-#include "Framework/Application/SlateApplication.h"
 #include "ISequencerSection.h"
-#include "Misc/QualifiedFrameTime.h"
 #include "MovieScene/MovieSceneLiveLinkSection.h"
 #include "Styling/SlateIconFinder.h"
 #include "LevelSequence.h"

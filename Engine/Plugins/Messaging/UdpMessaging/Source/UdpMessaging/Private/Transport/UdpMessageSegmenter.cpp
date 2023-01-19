@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Transport/UdpMessageSegmenter.h"
-#include "HAL/Platform.h"
 #include "UdpMessagingPrivate.h"
-#include "Serialization/Archive.h"
 
 #include "Transport/UdpSerializedMessage.h"
 

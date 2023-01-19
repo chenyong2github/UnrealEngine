@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Online/CoreOnline.h"
-#include "Online/OnlineServicesCommon.h"
-#include "Online/OnlineConfig.h"
-#include "Online/OnlineAsyncOp.h"
 #include "Online/OnlineComponent.h"
 
 #define TEST_ASYNC_OP_CONTINUATION_SYNTAX 1
@@ -530,7 +526,6 @@ void TestLoadConfigSyntax(UE::Online::IOnlineConfigProvider& ConfigProvider)
 #if TEST_TOLOGSTRING_SYNTAX
 
 #include "Online/OnlineUtils.h"
-#include "Online/AuthCommon.h"
 
 namespace {
 

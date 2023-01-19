@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Utilities/MaterialUtils.h"
+#include "Engine/StaticMeshActor.h"
 #include "Utilities/MiscUtils.h"
 #include "MSSettings.h"
 
@@ -10,17 +11,16 @@
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 #include "EditorAssetLibrary.h"
-#include "AssetRegistry/IAssetRegistry.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/Selection.h"
 
 #include "Engine/Level.h"
 #include "Components/StaticMeshComponent.h"
-#include "Editor/EditorEngine.h"
 
-#include "EngineGlobals.h"
 #include "Editor.h"
+#include "Materials/MaterialInstanceConstant.h"
+#include "Misc/Paths.h"
+#include "Selection.h"
 
 UMaterialInstanceConstant *FMaterialUtils::CreateInstanceMaterial(const FString &MasterMaterialPath, const FString &InstanceDestination, const FString &AssetName)
 {

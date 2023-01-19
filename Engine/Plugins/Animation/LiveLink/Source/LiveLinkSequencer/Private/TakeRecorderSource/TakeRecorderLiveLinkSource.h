@@ -3,8 +3,6 @@
 #pragma once
 
 #include "TakeRecorderSource.h"
-#include "UObject/SoftObjectPtr.h"
-#include "Templates/SubclassOf.h"
 #include "TakeRecorderLiveLinkSource.generated.h"
 
 class UMovieSceneLiveLinkTrackRecorder;

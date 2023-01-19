@@ -4,7 +4,6 @@
 #include "EditorFramework/AssetImportData.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "GeometryCache.h"
-#include "ToolMenus.h"
 
 FText FAssetTypeActions_GeometryCache::GetName() const
 {

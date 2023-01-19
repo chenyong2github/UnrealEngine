@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_PBIK.h"
+#include "RigVMCore/RigVMRegistry.h"
 #include "Units/RigUnitContext.h"
+#include "Rigs/RigHierarchy.h"
+#include "Rigs/RigHierarchyElements.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_PBIK)
 

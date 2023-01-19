@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IGeometryCacheStreamer.h"
-#include "Async/TaskGraphInterfaces.h"
 #include "Containers/Ticker.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "GeometryCacheMeshData.h"
 #include "GeometryCacheModule.h"
 #include "GeometryCacheStreamerSettings.h"
-#include "HAL/PlatformProcess.h"
 #include "IGeometryCacheStream.h"
-#include "Stats/Stats.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "GeometryCacheStreamer"

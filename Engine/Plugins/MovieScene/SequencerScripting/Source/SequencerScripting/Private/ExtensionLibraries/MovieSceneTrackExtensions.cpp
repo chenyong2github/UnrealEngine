@@ -2,7 +2,6 @@
 
 #include "ExtensionLibraries/MovieSceneTrackExtensions.h"
 #include "MovieSceneNameableTrack.h"
-#include "MovieSceneTrack.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneTrackExtensions)
 

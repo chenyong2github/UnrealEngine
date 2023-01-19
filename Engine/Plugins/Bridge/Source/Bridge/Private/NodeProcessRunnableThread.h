@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreMinimal.h"
 #include "HAL/Runnable.h"
-#include "HAL/RunnableThread.h"
-#include "HAL/PlatformProcess.h"
+
+class FRunnableThread;
 
 class NodeProcessRunnableThread : public FRunnable
 {

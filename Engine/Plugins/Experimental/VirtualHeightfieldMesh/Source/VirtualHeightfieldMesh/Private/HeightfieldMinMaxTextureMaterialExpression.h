@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Materials/MaterialExpression.h"
 #include "HeightfieldMinMaxTextureMaterialExpression.generated.h"
 

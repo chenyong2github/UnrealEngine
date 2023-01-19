@@ -3,10 +3,11 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
-#include "IMessageContext.h"
 #include "LiveLinkMessageBusFinder.h"
 #include "Misc/App.h"
-#include "Widgets/Views/SListView.h"
+
+namespace ESelectInfo { enum Type : int; }
+template <typename ItemType> class SListView;
 
 struct FLiveLinkPongMessage;
 struct FMessageAddress;

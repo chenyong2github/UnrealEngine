@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UnrealClient.h"
 #include "IPropertyTypeCustomization.h"
-#include "StateTreeTypes.h"
+
+enum class EStateTreeTransitionType : uint8;
+template <typename OptionalType> struct TOptional;
 
 class IPropertyHandle;
 class SWidget;

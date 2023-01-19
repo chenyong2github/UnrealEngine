@@ -4,7 +4,6 @@
 
 #include "ILiveLinkSource.h"
 
-#include "CoreMinimal.h"
 
 #include "LiveLinkVirtualSource.generated.h"
 

@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/Array.h"
 #include "Misc/Guid.h"
-#include "Serialization/Archive.h"
-#include "IMessageContext.h"
 
 #include "Algo/Transform.h"
+
+enum class EMessageFlags : uint32;
 
 /**
  * Enumerates message segment types.

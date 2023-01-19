@@ -4,7 +4,7 @@
 
 #include "K2Node_CallFunction.h"
 #include "KismetCompiler.h"
-#include "Misc/AssertionMacros.h"
+#include "LiveLinkRole.h"
 #include "VirtualSubjects/LiveLinkBlueprintVirtualSubject.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_UpdateVirtualSubjectDataTyped)

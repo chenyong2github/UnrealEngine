@@ -2,18 +2,12 @@
 
 #pragma once
 
-#include "InputCoreTypes.h"
-#include "Input/Reply.h"
 #include "InterchangePipelineBase.h"
 #include "InterchangePipelineConfigurationBase.h"
-#include "InterchangeSourceData.h"
 #include "Styling/SlateBrush.h"
-#include "Styling/SlateColor.h"
-#include "UObject/GCObject.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
+
+class SBox;
 
 struct FPropertyAndParent;
 struct FSlateBrush;

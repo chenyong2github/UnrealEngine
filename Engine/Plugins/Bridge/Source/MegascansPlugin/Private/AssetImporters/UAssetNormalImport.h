@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreMinimal.h"
-#include "Dom/JsonObject.h"
-#include "MSAssetImportData.h"
+#include "Templates/SharedPointer.h"
+
+class FJsonObject;
 
 
 

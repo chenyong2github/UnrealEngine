@@ -1,14 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "CodecV1.h"
+#include "GeometryCacheCodecBase.h"
 #include "GeometryCacheMeshData.h"
+#include "RingBuffer.h"
 #include "Serialization/MemoryWriter.h"
-#include "GeometryCacheStreamingManager.h"
-#include "GeometryCacheTrackStreamable.h"
 #include "GeometryCacheModule.h"
-#include "Misc/FileHelper.h"
-#include "HuffmanBitStream.h"
-#include "CodecV1Test.h"
-#include "Stats/StatsMisc.h"
 #include "Async/ParallelFor.h"
 
 #define V1_MAGIC 123

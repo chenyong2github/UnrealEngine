@@ -4,6 +4,10 @@
 #include "OnlineAsyncTaskManagerTencent.h"
 #include "OnlineSubsystemTencent.h"
 
+#if WITH_TENCENT_RAIL_SDK
+#include "RailSdkWrapper.h"
+#endif
+
 /* Returns a bool indicating whether or not any words were replaced in the InOut string. */
 static bool FilterProfanity(FString& InOutString)
 {

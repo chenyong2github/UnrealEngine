@@ -2,17 +2,16 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
+#include "Channels/MovieSceneChannelData.h"
 #include "MovieSceneScriptingChannel.h"
-#include "Channels/MovieSceneChannelTraits.h"
 #include "Channels/MovieSceneByteChannel.h"
-#include "Channels/MovieSceneChannelHandle.h"
-#include "KeysAndChannels/MovieSceneScriptingChannel.h"
 #include "KeyParams.h"
-#include "MovieScene.h"
 
 #include "MovieSceneScriptingByte.generated.h"
+
+class UMovieSceneScriptingChannel;
+class UMovieSceneScriptingKey;
+template <typename ChannelType, typename ScriptingKeyType, typename ScriptingKeyValueType> struct TMovieSceneScriptingChannel;
 
 /**
 * Exposes a Sequencer byte/enum type key to Python/Blueprints.

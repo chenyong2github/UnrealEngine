@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "Interfaces/IPv4/IPv4Address.h"
-#include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Logging/LogMacros.h"
 
 

@@ -2,12 +2,9 @@
 
 #include "MotionTrajectoryCharacterMovement.h"
 
-#include "Animation/AnimInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "GameFramework/Pawn.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/Controller.h"
-#include "KismetAnimationLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MotionTrajectoryCharacterMovement)
 

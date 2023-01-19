@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineAsyncTaskManager.h"
-#include "Misc/ScopeLock.h"
-#include "Stats/Stats.h"
 #include "HAL/Event.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/IConsoleManager.h"
-#include "HAL/LowLevelMemTracker.h"
 #include "OnlineSubsystem.h"
+#include "Stats/StatsTrace.h"
 
 int32 FOnlineAsyncTaskManager::InvocationCount = 0;
 

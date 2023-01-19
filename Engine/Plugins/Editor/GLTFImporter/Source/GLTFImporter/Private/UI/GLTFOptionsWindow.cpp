@@ -3,7 +3,6 @@
 #include "GLTFOptionsWindow.h"
 
 #include "DetailsViewArgs.h"
-#include "HAL/PlatformProcess.h"
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"

@@ -2,10 +2,7 @@
 
 #include "UI/SynthKnobStyle.h"
 #include "Interfaces/IPluginManager.h"
-#include "SynthesisModule.h"
-#include "Internationalization/Regex.h"
-#include "CoreMinimal.h"
-#include "HAL/FileManager.h"
+#include "Styling/SlateStyle.h"
 #include "UI/SynthSlateStyle.h"
 #include "Brushes/SlateDynamicImageBrush.h"
 

@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/Array.h"
+#include "CoreGlobals.h"
 
 #define HUFFMAN_USE_UNALIGNED_READ	(PLATFORM_SUPPORTS_UNALIGNED_LOADS && PLATFORM_LITTLE_ENDIAN)
 #define MINIMUM_BITS_AFTER_REFILL	56																// Minimum number of bits guaranteed to be available in the internal buffer after a buffer refill.

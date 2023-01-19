@@ -7,6 +7,7 @@
 #if WITH_TENCENTSDK
 #if WITH_TENCENT_RAIL_SDK
 
+#include "Interfaces/OnlineExternalUIInterface.h"
 
 class FOnlineSubsystemTencent;
 
@@ -66,5 +67,4 @@ typedef TSharedPtr<FOnlineExternalUITencent, ESPMode::ThreadSafe> FOnlineExterna
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
-#include "Interfaces/OnlineExternalUIInterface.h"
 #endif

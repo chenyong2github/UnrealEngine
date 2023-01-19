@@ -3,12 +3,12 @@
 #include "NiagaraRendererGeometryCache.h"
 
 #include "Engine/World.h"
+#include "GeometryCache.h"
 #include "GeometryCacheStreamingManager.h"
-#include "NiagaraConstants.h"
-#include "NiagaraDataSet.h"
+#include "GeometryCacheComponent.h"
 #include "NiagaraGeometryCacheRendererProperties.h"
+#include "NiagaraEmitterInstance.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraEmitter.h"
 #include "Async/Async.h"
 
 static float GNiagaraGeometryComponentRenderPoolInactiveTimeLimit = 5;

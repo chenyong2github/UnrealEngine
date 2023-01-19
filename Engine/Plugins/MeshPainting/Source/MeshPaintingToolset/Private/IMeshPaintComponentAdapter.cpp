@@ -2,11 +2,10 @@
 
 #include "IMeshPaintComponentAdapter.h"
 
+#include "Engine/Texture.h"
 #include "Engine/World.h"
 #include "Components/MeshComponent.h"
 #include "MeshPaintingToolsetTypes.h"
-#include "Materials/MaterialExpressionTextureBase.h"
-#include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"

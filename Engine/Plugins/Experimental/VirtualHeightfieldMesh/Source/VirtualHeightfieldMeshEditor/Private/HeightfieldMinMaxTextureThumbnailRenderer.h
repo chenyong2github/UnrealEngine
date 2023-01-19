@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ThumbnailRendering/TextureThumbnailRenderer.h"
 #include "HeightfieldMinMaxTextureThumbnailRenderer.generated.h"
 

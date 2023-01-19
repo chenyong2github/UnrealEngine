@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Interfaces/OnlineIdentityInterface.h"
-#include "HAL/PlatformMisc.h"
 
 FString ToDebugString(IOnlineIdentity::EPrivilegeResults PrivilegeResults)
 {

@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chat/SocialPartyChatRoom.h"
+#include "Chat/SocialChatRoom.h"
 #include "SocialToolkit.h"
-#include "User/SocialUser.h"
-#include "Chat/SocialChatManager.h"
 #include "Party/SocialParty.h"
 #include "Party/PartyMember.h"
 #include "SocialManager.h"

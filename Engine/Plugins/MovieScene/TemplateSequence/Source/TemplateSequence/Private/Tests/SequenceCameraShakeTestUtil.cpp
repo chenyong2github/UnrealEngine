@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequenceCameraShakeTestUtil.h"
-#include "Camera/PlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
-#include "Kismet/GameplayStatics.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SequenceCameraShakeTestUtil)
 

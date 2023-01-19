@@ -2,18 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "ILiveLinkSubject.h"
-#include "LiveLinkClient.h"
-#include "LiveLinkSourceFactory.h"
+#include "ILiveLinkClient.h"
 #include "LiveLinkSubject.h"
 #include "LiveLinkSubjectSettings.h"
-#include "LiveLinkTimedDataInput.h"
-#include "LiveLinkTypes.h"
 #include "LiveLinkVirtualSubject.h"
-#include "Templates/SubclassOf.h"
 #include "UObject/GCObject.h"
+
+class FLiveLinkSourceCollection;
 
 class FLiveLinkSubject;
 class ILiveLinkSource;

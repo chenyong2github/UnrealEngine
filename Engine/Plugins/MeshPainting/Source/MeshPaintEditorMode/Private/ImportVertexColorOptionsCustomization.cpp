@@ -3,7 +3,6 @@
 #include "ImportVertexColorOptionsCustomization.h"
 #include "ImportVertexColorOptions.h"
 
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Widgets/Input/SNumericEntryBox.h"

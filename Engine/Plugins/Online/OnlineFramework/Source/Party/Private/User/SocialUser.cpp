@@ -2,25 +2,17 @@
 
 #include "User/SocialUser.h"
 
+#include "Interactions/SocialInteractionHandle.h"
 #include "SocialQuery.h"
-#include "SocialSettings.h"
-#include "SocialToolkit.h"
+#include "OnlineSubsystemNames.h"
 #include "SocialManager.h"
-#include "User/ISocialUserList.h"
 #include "Party/SocialParty.h"
 #include "Party/PartyMember.h"
 
-#include "Containers/Ticker.h"
-#include "Misc/Base64.h"
 #include "Misc/CommandLine.h"
 
 #include "OnlineSubsystemUtils.h"
 #include "Interfaces/OnlineUserInterface.h"
-#include "Interfaces/OnlineIdentityInterface.h"
-#include "Interfaces/OnlineFriendsInterface.h"
-#include "Interfaces/OnlinePartyInterface.h"
-#include "Interfaces/OnlinePresenceInterface.h"
-#include "Interfaces/OnlineExternalUIInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SocialUser)
 

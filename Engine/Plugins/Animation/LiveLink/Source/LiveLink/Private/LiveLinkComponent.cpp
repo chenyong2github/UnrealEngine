@@ -3,9 +3,9 @@
 #include "LiveLinkComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Features/IModularFeatures.h"
-#include "GameFramework/Actor.h"
-#include "Misc/App.h"
+#include "ILiveLinkClient.h"
 #include "Roles/LiveLinkAnimationRole.h"
+#include "Roles/LiveLinkAnimationBlueprintStructs.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkComponent)
 

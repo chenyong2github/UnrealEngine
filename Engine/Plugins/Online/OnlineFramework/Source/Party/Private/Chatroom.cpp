@@ -2,7 +2,6 @@
 
 #include "Chatroom.h"
 #include "Engine/GameInstance.h"
-#include "GameFramework/OnlineReplStructs.h"
 #include "TimerManager.h"
 #include "Engine/LocalPlayer.h"
 #include "OnlineSubsystemUtils.h"

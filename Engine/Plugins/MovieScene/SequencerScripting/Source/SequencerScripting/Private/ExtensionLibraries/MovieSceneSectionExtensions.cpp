@@ -1,14 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ExtensionLibraries/MovieSceneSectionExtensions.h"
-#include "SequencerScriptingRange.h"
-#include "MovieSceneSection.h"
-#include "MovieSceneSequence.h"
-#include "MovieScene.h"
-#include "Channels/MovieSceneBoolChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
-#include "Channels/MovieSceneChannelHandle.h"
+#include "Evaluation/MovieSceneSequenceTransform.h"
 #include "KeysAndChannels/MovieSceneScriptingBool.h"
+#include "Evaluation/MovieSceneTimeTransform.h"
 #include "KeysAndChannels/MovieSceneScriptingByte.h"
 #include "KeysAndChannels/MovieSceneScriptingInteger.h"
 #include "KeysAndChannels/MovieSceneScriptingFloat.h"
@@ -18,7 +14,8 @@
 #include "KeysAndChannels/MovieSceneScriptingActorReference.h"
 #include "KeysAndChannels/MovieSceneScriptingObjectPath.h"
 #include "Sections/MovieSceneSubSection.h"
-#include "UObject/Package.h"
+#include "Trace/Trace.inl"
+#include "UObject/Package.h" // IWYU pragma: keep
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSectionExtensions)
 

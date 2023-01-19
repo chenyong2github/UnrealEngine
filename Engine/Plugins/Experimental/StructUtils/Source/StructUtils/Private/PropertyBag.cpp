@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertyBag.h"
-#include "Serialization/CustomVersion.h"
-#include "StructView.h"
-#include "Hash/CityHash.h"
-#include "Misc/Guid.h"
+#include "UObject/EnumProperty.h"
 #include "UObject/Package.h"
 #include "UObject/TextProperty.h"
 

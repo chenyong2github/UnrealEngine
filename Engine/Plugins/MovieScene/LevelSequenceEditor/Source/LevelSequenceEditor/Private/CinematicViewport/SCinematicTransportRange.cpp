@@ -1,16 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CinematicViewport/SCinematicTransportRange.h"
-#include "Rendering/DrawElements.h"
+#include "MVVM/SharedList.h"
 #include "SequencerKeyCollection.h"
 #include "SequencerSettings.h"
-#include "MovieSceneSequence.h"
+#include "Misc/QualifiedFrameTime.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Styling/AppStyle.h"
 #include "Styles/LevelSequenceEditorStyle.h"
-#include "MovieScene.h"
 #include "ISequencer.h"
-#include "CommonMovieSceneTools.h"
 #include "TimeToPixel.h"
 
 #define LOCTEXT_NAMESPACE "SCinematicTransportRange"

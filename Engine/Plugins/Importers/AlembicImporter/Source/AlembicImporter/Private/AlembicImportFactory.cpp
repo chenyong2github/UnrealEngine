@@ -1,23 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AlembicImportFactory.h"
+#include "AbcPolyMesh.h"
 #include "AssetImportTask.h"
+#include "Animation/AnimSequence.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/AssetUserData.h"
-#include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Editor.h"
-#include "EditorFramework/AssetImportData.h"
 #include "HAL/FileManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IMainFrameModule.h"
-#include "Math/UnrealMathUtility.h"
 
 #include "AlembicImportOptions.h"
-#include "AlembicLibraryModule.h"
 #include "AbcImporter.h"
 #include "AbcImportLogger.h"
-#include "AbcImportSettings.h"
 #include "AbcAssetImportData.h"
 
 #include "GeometryCache.h"
@@ -25,8 +22,8 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #include "AI/Navigation/NavCollisionBase.h"
-#include "Editor/EditorPerProjectUserSettings.h"
 #include "ImportUtils/StaticMeshImportUtils.h"
+#include "Subsystems/ImportSubsystem.h"
 #include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlembicImportFactory)

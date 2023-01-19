@@ -2,13 +2,13 @@
 
 #include "LiveLinkDebugView.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "LiveLinkClient.h"
 #include "LiveLinkSettings.h"
 
 #include "Brushes/SlateColorBrush.h"
-#include "Layout/Visibility.h"
-#include "Styling/CoreStyle.h"
 #include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/Views/SListView.h"
 
 namespace
 {

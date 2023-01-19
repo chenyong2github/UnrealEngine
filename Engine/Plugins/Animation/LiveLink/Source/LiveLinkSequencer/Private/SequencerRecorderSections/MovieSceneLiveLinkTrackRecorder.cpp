@@ -2,20 +2,17 @@
 
 #include "MovieSceneLiveLinkTrackRecorder.h"
 
+#include "Channels/MovieSceneChannelTraits.h"
 #include "TakeRecorderSettings.h"
-#include "Recorder/TakeRecorderParameters.h"
-#include "Engine/Engine.h"
-#include "Engine/TimecodeProvider.h"
 #include "Features/IModularFeatures.h"
+#include "HAL/IConsoleManager.h"
 #include "ILiveLinkClient.h"
+#include "LiveLinkRole.h"
 #include "LiveLinkSequencerPrivate.h"
-#include "Modules/ModuleManager.h"
+#include "Misc/App.h"
 #include "MovieSceneFolder.h"
-#include "MovieScene/MovieSceneLiveLinkSection.h"
 #include "MovieScene/MovieSceneLiveLinkTrack.h"
-#include "Roles/LiveLinkAnimationTypes.h"
-#include "SequenceRecorderUtils.h"
-#include "TakeRecorderSource/TakeRecorderLiveLinkSource.h"
+#include "Trace/Trace.inl"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkTrackRecorder)
 

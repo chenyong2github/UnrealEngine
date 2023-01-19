@@ -3,17 +3,16 @@
 #include "MeshPaintSkeletalMeshAdapter.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkinnedAssetCommon.h"
-#include "MeshPaintHelpers.h"
-#include "MeshPaintingToolsetTypes.h"
-#include "ComponentReregisterContext.h"
+#include "InterchangeGenericAssetsPipelineSharedSettings.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "Rendering/SkeletalMeshLODModel.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
-#include "IndexTypes.h"
 #include "InterchangeAssetImportData.h"
 #include "InterchangeGenericAssetsPipeline.h"
-#include "InterchangeGenericMeshPipeline.h"
 #include "InterchangePythonPipelineBase.h"
+#include "RenderingThread.h"
+#include "Spatial/MeshAABBTree3.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMeshPaintSkeletalMeshAdapter, Log, All);
 //////////////////////////////////////////////////////////////////////////

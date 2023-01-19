@@ -1,10 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmartObjectSlotReferenceDetails.h"
-#include "PropertyHandle.h"
-#include "IDetailChildrenBuilder.h"
 #include "DetailWidgetRow.h"
-#include "PropertyCustomizationHelpers.h"
+#include "SmartObjectTypes.h"
 #include "Widgets/Input/SComboButton.h"
 #include "DetailLayoutBuilder.h"
 #include "SmartObjectDefinition.h"

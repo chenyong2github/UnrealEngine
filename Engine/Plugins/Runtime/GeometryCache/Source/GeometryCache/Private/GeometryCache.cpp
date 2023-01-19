@@ -2,18 +2,14 @@
 
 #include "GeometryCache.h"
 #include "EditorFramework/AssetImportData.h"
-#include "Materials/MaterialInterface.h"
 #include "GeometryCacheMeshData.h"
 #include "GeometryCacheTrack.h"
-#include "Hash/CityHash.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/AnimPhysObjectVersion.h"
 #include "Interfaces/ITargetPlatform.h"
-#include "Logging/LogMacros.h"
+#include "UObject/RenderingObjectVersion.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "Logging/LogCategory.h"
-#include "Logging/LogVerbosity.h" 
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCache)
 

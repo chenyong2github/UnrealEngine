@@ -3,6 +3,7 @@
 
 #include "SynthComponents/SynthComponentMonoWaveTable.h"
 #include "DSP/FloatArrayMath.h"
+#include "SynthesisModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SynthComponentMonoWaveTable)
 

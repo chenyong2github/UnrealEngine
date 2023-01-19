@@ -3,8 +3,6 @@
 #pragma once
 
 #include "Online/LobbiesCommonTypes.h"
-#include "Online/OnlineAsyncOpHandle.h"
-#include "Online/OnlineMeta.h"
 
 namespace UE::Online {
 

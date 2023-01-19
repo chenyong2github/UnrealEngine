@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeTransitionDetails.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
-#include "IDetailPropertyRow.h"
 #include "IDetailChildrenBuilder.h"
 #include "StateTreeState.h"
 #include "Widgets/Text/STextBlock.h"

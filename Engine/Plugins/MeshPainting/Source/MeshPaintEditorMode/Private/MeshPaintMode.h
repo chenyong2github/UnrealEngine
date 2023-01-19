@@ -3,16 +3,6 @@
 #pragma once
 
 #include "Tools/UEdMode.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Containers/ArrayView.h"
-#include "LevelEditorViewport.h"	// For FTrackingTransaction
-#include "UnrealEdMisc.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/Commands/UICommandInfo.h"
-#include "Framework/Commands/UICommandList.h"
-#include "IMeshPaintComponentAdapter.h"
-#include "MeshPaintHelpers.h"
 #include "MeshVertexPaintingTool.h"
 #include "Tools/LegacyEdModeInterfaces.h"
 #include "MeshPaintMode.generated.h"

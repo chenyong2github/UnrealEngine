@@ -1,26 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SocialManager.h"
+#include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
+#include "Interactions/SocialInteractionMacros.h"
 #include "SocialToolkit.h"
-#include "SocialSettings.h"
+#include "Online/OnlineSessionNames.h"
 #include "SocialDebugTools.h"
 
 #include "Interactions/CoreInteractions.h"
 #include "Interactions/PartyInteractions.h"
-#include "Party/PartyTypes.h"
+#include "OnlineSessionSettings.h"
 #include "Party/SocialParty.h"
+#include "OnlineSubsystemNames.h"
 #include "Party/PartyMember.h"
 #include "Party/PartyPlatformSessionMonitor.h"
-#include "User/SocialUser.h"
 
-#include "OnlineSubsystem.h"
-#include "Interfaces/OnlineIdentityInterface.h"
-#include "Interfaces/OnlinePartyInterface.h"
 #include "OnlineSubsystemUtils.h"
 #include "Engine/LocalPlayer.h"
-#include "OnlineSubsystemSessionSettings.h"
-#include "Misc/Base64.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SocialManager)
 

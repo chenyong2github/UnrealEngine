@@ -2,24 +2,15 @@
 
 #include "InterchangeEditorPipelineDetails.h"
 
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "Editor.h"
 #include "IDetailGroup.h"
 #include "InterchangePipelineBase.h"
 #include "Nodes/InterchangeBaseNode.h"
-#include "PropertyHandle.h"
 #include "ScopedTransaction.h"
-#include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "InterchangeEditorPipelineDetails"
 

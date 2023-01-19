@@ -2,7 +2,7 @@
 
 #include "Online/SocialCommon.h"
 
-#include "Online/OnlineServicesCommon.h"
+#include "Online/OnlineUtils.h"
 
 namespace UE::Online {
 

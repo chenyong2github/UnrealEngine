@@ -1,14 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AbcPolyMesh.h"
+#include "AbcImportSettings.h"
 #include "AbcImportUtilities.h"
 
 #include "AbcFile.h"
-#include "Modules/ModuleManager.h"
-#include "MeshUtilities.h"
 
 THIRD_PARTY_INCLUDES_START
-#include <Alembic/AbcCoreAbstract/TimeSampling.h>
 #include <Alembic/AbcGeom/Visibility.h>
 THIRD_PARTY_INCLUDES_END
 

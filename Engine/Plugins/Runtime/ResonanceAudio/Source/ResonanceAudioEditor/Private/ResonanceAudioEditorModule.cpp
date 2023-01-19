@@ -4,9 +4,10 @@
 
 #include "ResonanceAudioEditorModule.h"
 
-#include "AssetToolsModule.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Interfaces/IPluginManager.h"
 #include "ISettingsModule.h"
+#include "Misc/Paths.h"
 #include "ResonanceAudioReverbPluginPresetFactory.h"
 #include "ResonanceAudioSettings.h"
 #include "ResonanceAudioSpatializationSourceSettingsFactory.h"

@@ -4,7 +4,6 @@
 
 #if UE_WITH_MVVM_DEBUGGING
 
-#include "FieldNotification/FieldId.h"
 #include "View/MVVMView.h"
 
 #define LOCTEXT_NAMESPACE "MVVMDebugging"

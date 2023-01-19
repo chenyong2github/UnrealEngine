@@ -2,14 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SButton.h"
 #include "Widgets/SWindow.h"
-#include "Widgets/Text/STextBlock.h"
-#include "IDetailCustomization.h"
 
 #include "ImportVertexColorOptions.generated.h"
+
+class SButton;
 
 UCLASS()
 class UImportVertexColorOptions : public UObject

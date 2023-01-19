@@ -4,9 +4,9 @@
 
 #include "Algo/Find.h"
 #include "Algo/ForEach.h"
-#include "Algo/Reverse.h"
 #include "Algo/Transform.h"
 #include "Online/OnlineErrorDefinitions.h"
+#include "Online/OnlineResult.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogOnlineSchema, Log, All);
 

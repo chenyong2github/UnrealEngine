@@ -3,8 +3,8 @@
 #pragma once
 
 #include "Async/TaskGraphInterfaces.h"
-#include "Stats/Stats.h"
-#include "Templates/SharedPointer.h"
+
+struct TStatId;
 
 class FEvent;
 class FUdpSerializedMessage;

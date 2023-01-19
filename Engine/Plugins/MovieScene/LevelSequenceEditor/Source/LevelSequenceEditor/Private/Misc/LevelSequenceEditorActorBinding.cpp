@@ -1,20 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequenceEditorActorBinding.h"
+#include "ISceneOutliner.h"
 #include "ISequencer.h"
 #include "LevelSequence.h"
-#include "Engine/Selection.h"
+#include "MovieScenePossessable.h"
 #include "Styling/SlateIconFinder.h"
-#include "SceneOutlinerPublicTypes.h"
 #include "SceneOutlinerModule.h"
 #include "ActorTreeItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Engine/Engine.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Modules/ModuleManager.h"
 #include "Editor.h"
-#include "Widgets/Layout/SBox.h"
-#include "MovieScene.h"
+#include "Selection.h"
 
 #define LOCTEXT_NAMESPACE "LevelSequenceEditorActorBinding"
 

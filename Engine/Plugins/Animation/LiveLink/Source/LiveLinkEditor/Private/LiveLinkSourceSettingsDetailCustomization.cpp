@@ -3,13 +3,12 @@
 #include "LiveLinkSourceSettingsDetailCustomization.h"
 
 #include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
 #include "ILiveLinkClient.h"
+#include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubjectSettings.h"
-#include "PropertyHandle.h"
 
-#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkSourceSettingsDetailCustomization"

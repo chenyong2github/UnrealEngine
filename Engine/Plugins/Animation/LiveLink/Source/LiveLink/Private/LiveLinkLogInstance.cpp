@@ -4,12 +4,9 @@
 
 #include "LiveLinkClient.h"
 
-#include "HAL/IConsoleManager.h"
-#include "HAL/PlatformTime.h"
-#include "Misc/DateTime.h"
-#include "Misc/ScopeLock.h"
 
 #if WITH_EDITOR
+#include "IMessageLogListing.h"
 #include "MessageLogModule.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"

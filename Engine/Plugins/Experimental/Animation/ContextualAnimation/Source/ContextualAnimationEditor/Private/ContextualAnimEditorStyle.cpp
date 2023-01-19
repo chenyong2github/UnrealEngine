@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContextualAnimEditorStyle.h"
+#include "Brushes/SlateBoxBrush.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Slate/SlateGameResources.h"
 #include "Interfaces/IPluginManager.h"
+#include "Misc/Paths.h"
+#include "Rendering/SlateRenderer.h"
+#include "Styling/SlateStyle.h"
 
 TSharedPtr< FSlateStyleSet > FContextualAnimEditorStyle::StyleInstance = NULL;
 

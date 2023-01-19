@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LiveLinkSettings.h"
+#include "LiveLinkRole.h"
 #include "LiveLinkSubjectSettings.h"
-#include "Roles/LiveLinkAnimationRole.h"
-#include "Roles/LiveLinkBasicRole.h"
+#include "LiveLinkSourceSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkSettings)
 

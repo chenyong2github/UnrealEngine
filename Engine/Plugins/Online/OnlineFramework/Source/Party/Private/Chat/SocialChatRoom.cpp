@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chat/SocialChatRoom.h"
+#include "Chat/SocialChatChannel.h"
 #include "SocialToolkit.h"
-#include "User/SocialUser.h"
-#include "Chat/SocialChatManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SocialChatRoom)
 

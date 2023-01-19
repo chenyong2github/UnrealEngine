@@ -1,15 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SmartObjectContainerRenderingComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "SmartObjectContainerRenderingComponent.h"
+#include "PrimitiveViewRelevance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectContainerRenderingComponent)
 
 #if WITH_EDITORONLY_DATA
+#include "Engine/CollisionProfile.h"
 #include "SceneManagement.h"
 #include "DebugRenderSceneProxy.h"
+#include "Math/ColorList.h"
 #include "SmartObjectPersistentCollection.h"
-#include "ObjectEditorUtils.h"
 #else
 #include "Engine/CollisionProfile.h"
 #endif

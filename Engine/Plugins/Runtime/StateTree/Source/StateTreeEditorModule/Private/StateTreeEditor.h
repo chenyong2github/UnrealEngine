@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/IToolkitHost.h"
 #include "EditorUndoClient.h"
-#include "Toolkits/AssetEditorToolkit.h"
 #include "IStateTreeEditor.h"
-#include "StateTreeViewModel.h"
+
+class FSpawnTabArgs;
+class IMessageToken;
+class UStateTreeState;
 
 class IDetailsView;
 class UStateTree;

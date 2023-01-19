@@ -2,7 +2,7 @@
 
 #include "GeometryCacheMeshData.h"
 #include "GeometryCacheModule.h"
-#include "Hash/CityHash.h"
+#include "UObject/GeometryObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCacheMeshData)
 

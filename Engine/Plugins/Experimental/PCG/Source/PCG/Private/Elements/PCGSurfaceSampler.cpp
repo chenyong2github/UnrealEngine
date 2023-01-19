@@ -8,7 +8,6 @@
 #include "PCGEdge.h"
 #include "PCGGraph.h"
 #include "PCGHelpers.h"
-#include "PCGInputOutputSettings.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"

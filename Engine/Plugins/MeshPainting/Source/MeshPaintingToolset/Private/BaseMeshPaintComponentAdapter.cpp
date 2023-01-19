@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BaseMeshPaintComponentAdapter.h"
-#include "MeshAdapter.h"
+#include "Distance/DistLine3Segment3.h"
 #include "Spatial/MeshAABBTree3.h"
-#include "Templates/UniquePtr.h"
+#include "Distance/DistLine3Triangle3.h"
+#include "Distance/DistSegment3Triangle3.h"
 
 bool FBaseMeshPaintComponentAdapter::Initialize()
 {

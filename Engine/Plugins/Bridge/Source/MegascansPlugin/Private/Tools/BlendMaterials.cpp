@@ -1,35 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Tools/BlendMaterials.h"
+#include "AssetRegistry/AssetData.h"
 #include "EditorAssetLibrary.h"
+#include "Misc/Paths.h"
 #include "Utilities/MiscUtils.h"
+#include "Modules/ModuleManager.h"
 #include "Utilities/MaterialUtils.h"
 #include "MSSettings.h"
 
-#include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Engine/Texture.h"
 #include "Misc/PackageName.h"
 #include "MaterialEditingLibrary.h"
 
 #include "Misc/MessageDialog.h"
-#include "Internationalization/Text.h"
-#include "Containers/Array.h"
 
-#include "HAL/IConsoleManager.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/IAssetRegistry.h"
 
-#include "UObject/SoftObjectPath.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
 #include "Engine/Texture.h"
 
 #include "Engine/AssetManager.h"
-#include "UObject/Linker.h"
-#include "PackageTools.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Misc/DateTime.h"
 
 TSharedPtr<FMaterialBlend> FMaterialBlend::MaterialBlendInst;
 

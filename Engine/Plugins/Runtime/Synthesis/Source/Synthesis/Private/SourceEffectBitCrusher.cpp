@@ -2,8 +2,6 @@
 
 #include "SourceEffects/SourceEffectBitCrusher.h"
 
-#include "Algo/Transform.h"
-#include "IAudioModulation.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectBitCrusher)
 

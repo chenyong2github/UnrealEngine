@@ -2,7 +2,6 @@
 
 #include "WaveTableModule.h"
 
-#include "WaveTableLogging.h"
 #include "Modules/ModuleManager.h"
 
 namespace WaveTable

@@ -7,7 +7,6 @@
 
 #include "Editor.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Internationalization/LocKeyFuncs.h"
 #include "ToolMenus.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/MessageDialog.h"

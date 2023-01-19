@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h" // IWYU pragma: keep
 
 #if PLATFORM_WINDOWS
+#include "Math/Matrix.h"
 #include "Windows/WindowsHWrapper.h"
+#include "UObject/ObjectMacros.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
 
@@ -19,18 +21,14 @@ THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
-#include "GeometryCache.h"
-#include "GeometryCacheTrackFlipbookAnimation.h"
-#include "GeometryCacheTrackTransformAnimation.h"
-#include "GeometryCacheTrackStreamable.h"
-#include "GeometryCacheMeshData.h"
-#include "GeometryCacheComponent.h"
-
-#include "Async/ParallelFor.h"
-#include "MeshUtilities.h"
-
-#include "AbcImportLogger.h"
-#include "AbcImportSettings.h"
+class IMeshUtilities;
+namespace Alembic::Abc::v12 { class IObject; }
+namespace Alembic::AbcCoreAbstract::v12 { class MetaData; }
+namespace Alembic::AbcGeom::v12 { class IPolyMeshSchema; }
+struct FAbcConversionSettings;
+struct FGeometryCacheMeshData;
+struct FSoftSkinVertex;
+template <class ElementType> class TDoubleLinkedList;
 
 class FAbcFile;
 class FAbcPolyMesh;

@@ -1,11 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Customizations/SmartObjectDefinitionDetails.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "IDetailChildrenBuilder.h"
-#include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
 #include "PropertyCustomizationHelpers.h"
 
 #define LOCTEXT_NAMESPACE "SmartObjectEditor"

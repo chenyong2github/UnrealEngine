@@ -3,7 +3,6 @@
 #include "VirtualHeightfieldMeshComponent.h"
 
 #include "Components/RuntimeVirtualTextureComponent.h"
-#include "Engine/World.h"
 #include "HeightfieldMinMaxTexture.h"
 #include "SceneInterface.h"
 #include "VirtualHeightfieldMeshEnable.h"

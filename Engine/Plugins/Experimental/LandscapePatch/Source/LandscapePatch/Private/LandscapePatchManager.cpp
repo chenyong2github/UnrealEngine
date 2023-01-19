@@ -2,7 +2,6 @@
 
 #include "LandscapePatchManager.h"
 
-#include "Async/TaskGraphInterfaces.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"

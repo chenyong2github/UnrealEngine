@@ -3,8 +3,13 @@
 #pragma once
 
 #include "User/ISocialUserList.h"
-#include "UObject/GCObject.h"
 #include "Containers/Ticker.h"
+
+class IOnlinePartyRequestToJoinInfo;
+class UPartyMember;
+class USocialParty;
+class USocialToolkit;
+enum class EPartyRequestToJoinRemovedReason : uint8;
 
 class USocialUser;
 

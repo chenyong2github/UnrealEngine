@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "SequencerTrackFilterBase.h"
 #include "SequencerTrackFilterExtension.h"
 #include "LiveLinkSequencerFilters.generated.h"
 

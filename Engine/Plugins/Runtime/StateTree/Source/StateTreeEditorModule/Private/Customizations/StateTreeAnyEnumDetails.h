@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UnrealClient.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "IPropertyTypeCustomization.h"
+
+class SWidget;
 
 class IPropertyHandle;
 

@@ -4,23 +4,10 @@
 #include "ConcertSyncSettings.h"
 #include "ConcertVersion.h"
 
-#include "Misc/Paths.h"
 #include "Misc/PackageName.h"
-#include "Misc/EngineVersion.h"
-#include "Serialization/CustomVersion.h"
 #include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
-#include "UObject/Object.h"
 #include "UObject/Package.h"
-#include "UObject/LinkerLoad.h"
-#include "UObject/UnrealType.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/LazyObjectPtr.h"
-#include "UObject/SoftObjectPtr.h"
-#include "UObject/SoftObjectPath.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/PropertyPortFlags.h"
-#include "Internationalization/TextPackageNamespaceUtil.h"
 
 static const FName SkipAssetsMarker = TEXT("SKIPASSETS");
 

@@ -1,18 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SMSWindow.h"
-#include "Utilities/MiscUtils.h"
 
-#include "Widgets/SCompoundWidget.h"
-#include "UObject/GCObject.h"
-#include "Widgets/Input/SComboBox.h"
+#include "DetailsViewArgs.h"
 #include "PropertyEditorModule.h"
+#include "Framework/Application/SlateApplication.h"
 #include "IDetailsView.h"
-#include "Widgets/SBoxPanel.h"
+#include "MSSettings.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "UObject/UObjectGlobals.h"
-#include "Math/Vector2D.h"
 #include "EditorAssetLibrary.h"
+#include "Materials/Material.h"
 #include "Modules/ModuleManager.h"
+#include "Widgets/SWindow.h"
 
 
 #define LOCTEXT_NAMESPACE "MegascansSettings"

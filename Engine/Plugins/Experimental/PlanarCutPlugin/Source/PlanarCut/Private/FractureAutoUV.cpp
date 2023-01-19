@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "FractureAutoUV.h"
-#include "PlanarCutPlugin.h"
 
+#include "Distance/DistLine3Segment3.h"
 #include "GeometryMeshConversion.h"
 
-#include "Async/ParallelFor.h"
 
+#include "Distance/DistLine3Triangle3.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 
-#include "DynamicMesh/DynamicMesh3.h"
+#include "Distance/DistSegment3Triangle3.h"
 #include "DynamicMesh/MeshNormals.h"
-#include "MeshWeights.h"
+#include "Generators/MeshShapeGenerator.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
 #include "Sampling/MeshImageBakingCache.h"
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
@@ -24,14 +24,11 @@
 #include "DisjointSet.h"
 
 #include "Image/ImageOccupancyMap.h"
-#include "VectorUtil.h"
-#include "FrameTypes.h"
+#include "Spatial/FastWinding.h"
 #include "Util/ProgressCancel.h"
 
-#include "Templates/PimplPtr.h"
 
 #if WITH_EDITOR
-#include "Misc/ScopedSlowTask.h"
 #endif
 
 using namespace UE::Geometry;

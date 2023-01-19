@@ -2,11 +2,7 @@
 
 #include "SynthesisModule.h"
 
-#include "CoreMinimal.h"
-#include "HAL/LowLevelMemTracker.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Stats/Stats.h"
 #include "UI/SynthSlateStyle.h"
 
 DEFINE_LOG_CATEGORY(LogSynthesis);

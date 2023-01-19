@@ -2,6 +2,7 @@
 
 #include "FBIKUtil.h"
 #include "Rigs/RigHierarchy.h"
+#include "Rigs/RigHierarchyDefines.h"
 
 // in the future, we expose rotation axis 
 namespace FBIKUtil

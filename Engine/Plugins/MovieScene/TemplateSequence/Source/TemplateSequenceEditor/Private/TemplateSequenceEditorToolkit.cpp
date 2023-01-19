@@ -1,15 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TemplateSequenceEditorToolkit.h"
-#include "ClassViewerFilter.h"
-#include "ClassViewerModule.h"
-#include "DragAndDrop/ActorDragDropGraphEdOp.h"
-#include "DragAndDrop/AssetDragDropOp.h"
-#include "DragAndDrop/ClassDragDropOp.h"
-#include "Engine/Selection.h"
-#include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "ISequencer.h"
 #include "ISequencerModule.h"
 #include "LevelEditor.h"
 #include "LevelEditorSequencerIntegration.h"
@@ -17,10 +9,9 @@
 #include "Misc/TemplateSequenceEditorSpawnRegister.h"
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
-#include "SequencerSettings.h"
+#include "Selection.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Text/STextBlock.h"
+#include "TemplateSequence.h"
 
 #define LOCTEXT_NAMESPACE "TemplateSequenceEditor"
 

@@ -2,7 +2,6 @@
 
 #include "HeightfieldMinMaxTextureFactory.h"
 
-#include "AssetTypeCategories.h"
 #include "HeightfieldMinMaxTexture.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HeightfieldMinMaxTextureFactory)

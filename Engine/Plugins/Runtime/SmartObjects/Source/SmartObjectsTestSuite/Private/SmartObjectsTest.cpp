@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "AITestsCommon.h"
 #include "GameplayTagsManager.h"
-#include "Engine/World.h"
 #include "MassExecutor.h"
 #include "MassEntityManager.h"
-#include "SmartObjectSubsystem.h"
 #include "SmartObjectComponent.h"
 #include "SmartObjectTestTypes.h"
 #include "WorldConditions/SmartObjectWorldConditionObjectTagQuery.h"

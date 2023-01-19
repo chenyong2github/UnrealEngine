@@ -1,12 +1,11 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmartObjectComponentVisualizer.h"
+#include "Engine/Engine.h"
 #include "SmartObjectComponent.h"
+#include "SceneManagement.h"
 #include "SmartObjectAnnotation.h"
-#include "DebugRenderSceneProxy.h"
-#include "SmartObjectAssetToolkit.h"
 #include "SmartObjectVisualizationContext.h"
-#include "CanvasTypes.h"
 #include "Settings/EditorStyleSettings.h"
 
 IMPLEMENT_HIT_PROXY(HSmartObjectSlotProxy, HComponentVisProxy);

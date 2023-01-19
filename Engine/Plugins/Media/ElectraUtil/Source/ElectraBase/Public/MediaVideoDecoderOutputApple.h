@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+// HEADER_UNIT_SKIP - Missing defines around platform specific code
+
 #include "MediaVideoDecoderOutput.h"
 
 #include "Templates/RefCounting.h"

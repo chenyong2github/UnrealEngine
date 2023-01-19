@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Online/OnlineConfig.h"
-#include "Logging/LogMacros.h"
 #include "Misc/AsciiSet.h"
-#include "Misc/Char.h"
+#include "Misc/ConfigCacheIni.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogOnlineServicesConfig, Log, VeryVerbose);
 

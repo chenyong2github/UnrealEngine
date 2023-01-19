@@ -2,15 +2,11 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/Array.h"
-#include "Delegates/Delegate.h"
-#include "Templates/SharedPointer.h"
-#include "Serialization/Archive.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "IMessageContext.h"
-#include "UdpMessagingSettings.h"
+
+enum class EUdpMessageFormat : uint8;
 
 /**
  * Enumerates possibly states of a serialized message.

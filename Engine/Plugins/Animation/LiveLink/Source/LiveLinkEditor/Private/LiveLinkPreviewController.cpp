@@ -9,8 +9,8 @@
 #include "LiveLinkClientReference.h"
 #include "LiveLinkCustomVersion.h"
 #include "LiveLinkInstance.h"
-#include "LiveLinkRemapAsset.h"
 #include "Roles/LiveLinkAnimationRole.h"
+#include "Roles/LiveLinkAnimationTypes.h"
 #include "Roles/LiveLinkTransformRole.h"
 #include "Roles/LiveLinkTransformTypes.h"
 

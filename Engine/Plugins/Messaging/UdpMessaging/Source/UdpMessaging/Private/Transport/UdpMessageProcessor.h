@@ -2,29 +2,21 @@
 
 #pragma once
 
-#include "Algo/RemoveIf.h"
-#include "CoreTypes.h"
-#include "Common/UdpSocketReceiver.h"
-#include "Containers/Map.h"
 #include "Containers/Queue.h"
 
-#include "GenericPlatform/GenericPlatformMisc.h"
 #include "HAL/Runnable.h"
-#include "IMessageContext.h"
-#include "IMessageTransport.h"
 
 #include "INetworkMessagingExtension.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
-#include "Misc/DateTime.h"
-#include "Misc/Guid.h"
 #include "Misc/SingleThreadRunnable.h"
-#include "Misc/Timespan.h"
-#include "Templates/SharedPointer.h"
 
 #include "UdpMessageSegmenter.h"
 #include "UdpMessagingPrivate.h"
-#include "Shared/UdpMessageSegment.h"
 #include "Transport/UdpCircularQueue.h"
+
+class IMessageContext;
+namespace FUdpMessageSegment { struct FDataChunk; }
+namespace FUdpMessageSegment { struct FHeader; }
 
 class FArrayReader;
 class FEvent;

@@ -3,8 +3,6 @@
 
 #include "AudioAnalytics.h"
 #include "SynthComponents/EpicSynth1Component.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EpicSynth1PresetBank)
 

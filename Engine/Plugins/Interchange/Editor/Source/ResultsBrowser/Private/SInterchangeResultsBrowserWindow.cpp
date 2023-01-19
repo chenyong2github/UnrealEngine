@@ -2,16 +2,14 @@
 
 #include "SInterchangeResultsBrowserWindow.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "Misc/PackageName.h"
-#include "Styling/AppStyle.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IDocumentation.h"
-#include "Modules/ModuleManager.h"
+#include "InterchangeResultsContainer.h"
 #include "Styling/SlateIconFinder.h"
-#include "Widgets/Images/SImage.h"
+#include "Misc/Paths.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Layout/SSpacer.h"
 

@@ -2,11 +2,9 @@
 
 #include "Controllers/LiveLinkLightController.h"
 
-#include "Components/LightComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Controllers/LiveLinkTransformController.h"
 #include "GameFramework/Actor.h"
-#include "ILiveLinkClient.h"
 #include "LiveLinkComponentController.h"
 #include "Roles/LiveLinkLightRole.h"
 #include "Roles/LiveLinkLightTypes.h"
@@ -15,7 +13,6 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkLightController)
 
 #if WITH_EDITOR
-#include "Kismet2/ComponentEditorUtils.h"
 #endif
 
 

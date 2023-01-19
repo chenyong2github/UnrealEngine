@@ -6,7 +6,6 @@
 #include "IMotionController.h"
 #include "LiveLinkClient.h"
 
-#include "Roles/LiveLinkBasicRole.h"
 #include "Roles/LiveLinkTransformRole.h"
 #include "Roles/LiveLinkTransformTypes.h"
 

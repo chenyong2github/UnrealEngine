@@ -2,19 +2,17 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
+#include "Channels/MovieSceneChannelData.h"
 #include "MovieSceneScriptingChannel.h"
-#include "Algo/Transform.h"
-#include "Channels/MovieSceneChannelTraits.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneDoubleChannel.h"
-#include "Channels/MovieSceneChannelHandle.h"
-#include "KeysAndChannels/MovieSceneScriptingChannel.h"
 #include "KeyParams.h"
-#include "MovieScene.h"
 
 #include "MovieSceneScriptingFloat.generated.h"
+
+class UMovieSceneScriptingChannel;
+class UMovieSceneScriptingKey;
+template <typename ChannelType, typename ScriptingKeyType, typename ScriptingKeyValueType> struct TMovieSceneScriptingChannel;
 
 /**
 * Exposes a Sequencer float type key to Python/Blueprints.

@@ -3,7 +3,6 @@
 #pragma once
 
 #if WITH_EDITOR
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 
 class IPropertyHandle;

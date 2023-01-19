@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SocialTypes.h"
-#include "OnlineSubsystemUtils.h"
+#include "OnlineSubsystem.h"
+#include "PartyModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SocialTypes)
 

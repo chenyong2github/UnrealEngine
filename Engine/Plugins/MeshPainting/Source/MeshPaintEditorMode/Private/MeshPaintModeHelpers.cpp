@@ -4,22 +4,20 @@
 
 #include "ComponentReregisterContext.h"
 
-#include "MeshPaintModeSettings.h"
-#include "IMeshPaintComponentAdapter.h"
-#include "MeshPaintAdapterFactory.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/Texture2D.h"
+#include "IDesktopPlatform.h"
 #include "SceneView.h"
+#include "InteractiveToolManager.h"
 #include "StaticMeshComponentLODInfo.h"
-#include "StaticMeshResources.h"
-#include "StaticMeshAttributes.h"
 
+#include "InterchangeGenericAssetsPipelineSharedSettings.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
-#include "Math/GenericOctree.h"
+#include "Rendering/SkeletalMeshLODModel.h"
 #include "Utils.h"
 
 #include "Framework/Application/SlateApplication.h"
@@ -27,30 +25,20 @@
 #include "EditorViewportClient.h"
 #include "Interfaces/IMainFrameModule.h"
 
-#include "Modules/ModuleManager.h"
 #include "DesktopPlatformModule.h"
-#include "EditorDirectories.h"
 #include "PackageTools.h"
-#include "FileHelpers.h"
-#include "ISourceControlModule.h"
 
-#include "Editor.h"
 #include "LevelEditor.h"
 #include "IAssetViewport.h"
 #include "EditorViewportClient.h"
-#include "LevelEditorViewport.h"
 
 #include "Factories/FbxSkeletalMeshImportData.h"
 
-#include "Async/ParallelFor.h"
 #include "Rendering/SkeletalMeshModel.h"
-#include "MeshPaintHelpers.h"
 #include "MeshPaintMode.h"
-#include "MeshVertexPaintingTool.h"
 #include "MeshTexturePaintingTool.h"
 #include "InterchangeAssetImportData.h"
 #include "InterchangeGenericAssetsPipeline.h"
-#include "InterchangeGenericMeshPipeline.h"
 #include "InterchangePythonPipelineBase.h"
 
 

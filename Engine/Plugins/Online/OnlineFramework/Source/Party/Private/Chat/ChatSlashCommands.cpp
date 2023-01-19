@@ -2,9 +2,6 @@
 
 #include "Chat/ChatSlashCommands.h"
 #include "Chat/SocialChatManager.h"
-#include "SocialToolkit.h"
-#include "User/ISocialUserList.h"
-#include "User/SocialUserList.h"
 #include "SocialManager.h"
 
 

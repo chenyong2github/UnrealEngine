@@ -2,7 +2,6 @@
 
 #include "ContextualAnimMovieSceneSection.h"
 #include "ContextualAnimMovieSceneTrack.h"
-#include "Animation/AnimSequenceBase.h"
 #include "ContextualAnimViewModel.h"
 #include "ContextualAnimSceneAsset.h"
 

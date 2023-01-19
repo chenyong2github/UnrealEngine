@@ -3,10 +3,7 @@
 #pragma once
 
 #include "AudioMixer.h"
-#include "Containers/SortedMap.h"
-#include "CoreMinimal.h"
 #include "DSP/AudioChannelFormatConverter.h"
-#include "DSP/BufferVectorOperations.h"
 
 namespace Audio
 {

@@ -4,6 +4,8 @@
 
 #include "LevelSequenceActorSpawner.h"
 
+struct FNewSpawnable;
+
 class FLevelSequenceEditorActorSpawner : public FLevelSequenceActorSpawner
 {
 public:

@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
 #include "Containers/ArrayBuilder.h"
 

@@ -2,7 +2,6 @@
 
 #include "OnlineMessageSanitizerNull.h"
 #include "OnlineSubsystem.h"
-#include "Stats/Stats.h"
 
 FMessageSanitizerNull::FMessageSanitizerNull()
 	: RequestId(0)

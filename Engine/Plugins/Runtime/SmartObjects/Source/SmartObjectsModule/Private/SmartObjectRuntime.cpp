@@ -2,8 +2,6 @@
 
 #include "SmartObjectRuntime.h"
 
-#include "SmartObjectSubsystem.h"
-#include "MassEntityManager.h"
 #include "SmartObjectComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectRuntime)

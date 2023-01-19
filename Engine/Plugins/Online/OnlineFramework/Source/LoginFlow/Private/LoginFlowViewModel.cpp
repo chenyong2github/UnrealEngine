@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LoginFlowViewModel.h"
-#include "OnlineSubsystem.h"
-#include "Interfaces/OnlinePurchaseInterface.h"
 
 #include "HAL/PlatformProcess.h"
+#include "Internationalization/Text.h"
 
 class FLoginFlowViewModelFactory;
 class FLoginFlowViewModelFactoryFactory;

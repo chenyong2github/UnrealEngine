@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Map.h"
 #include "HAL/CriticalSection.h"
-#include "Containers/Array.h"
 #include "Containers/Queue.h"
-#include "Containers/Set.h"
 
 class IAsyncReadRequest;
 class IBulkDataIORequest;

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNotifyState_MotionWarping.h"
-#include "GameFramework/Actor.h"
 #include "MotionWarpingComponent.h"
 #include "RootMotionModifier_SkewWarp.h"
 
@@ -10,7 +9,6 @@
 #if WITH_EDITOR
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
-#include "UObject/ObjectSaveContext.h"
 #endif
 
 UAnimNotifyState_MotionWarping::UAnimNotifyState_MotionWarping(const FObjectInitializer& ObjectInitializer)

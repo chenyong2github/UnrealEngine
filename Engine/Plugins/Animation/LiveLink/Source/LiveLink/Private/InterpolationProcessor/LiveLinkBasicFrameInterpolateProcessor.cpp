@@ -2,9 +2,7 @@
 
 #include "InterpolationProcessor/LiveLinkBasicFrameInterpolateProcessor.h"
 
-#include "LiveLinkClient.h"
 #include "Roles/LiveLinkBasicRole.h"
-#include "Roles/LiveLinkBasicTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkBasicFrameInterpolateProcessor)
 

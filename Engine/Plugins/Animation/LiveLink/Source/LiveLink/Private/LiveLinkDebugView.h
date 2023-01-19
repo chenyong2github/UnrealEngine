@@ -3,7 +3,10 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
+
+class ITableRow;
+class STableViewBase;
+template <typename ItemType> class SListView;
 
 class FLiveLinkClient;
 struct FSlateColorBrush;

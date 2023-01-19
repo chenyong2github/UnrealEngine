@@ -2,9 +2,7 @@
 
 #include "DetailCustomizations/ContextualAnimSceneAssetDetailCustom.h"
 #include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
-#include "PropertyEditorModule.h"
 #include "Widgets/Input/SButton.h"
 #include "Misc/MessageDialog.h"
 #include "ContextualAnimSceneAsset.h"

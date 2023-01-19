@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Materials/MaterialRelevance.h"
 #include "PrimitiveSceneProxy.h"
+
+class FMeshElementCollector;
+union FVirtualTextureProducerHandle;
 
 /** Scene proxy responsible for rendering of a Virtual Heightfield Mesh. */
 class FVirtualHeightfieldMeshSceneProxy final : public FPrimitiveSceneProxy

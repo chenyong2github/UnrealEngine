@@ -2,9 +2,8 @@
 
 #include "Online/LobbiesCommon.h"
 
-#include "Online/Auth.h"
-#include "Online/OnlineServicesCommon.h"
 #include "Online/LobbiesCommonTests.h"
+#include "Online/OnlineUtils.h"
 
 namespace UE::Online {
 

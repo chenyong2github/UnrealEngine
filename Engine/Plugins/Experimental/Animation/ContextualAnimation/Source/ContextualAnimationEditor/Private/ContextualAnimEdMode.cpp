@@ -8,7 +8,6 @@
 #include "ContextualAnimViewportClient.h"
 #include "ContextualAnimAssetEditorToolkit.h"
 #include "ContextualAnimViewModel.h"
-#include "Animation/AnimMontage.h"
 #include "AnimNotifyState_IKWindow.h"
 #include "SceneView.h"
 #include "SkeletalDebugRendering.h"

@@ -3,11 +3,8 @@
 #pragma once
 
 #include "AssetTypeActions/AssetTypeActions_Blueprint.h"
-#include "AssetTypeActions_Base.h"
 #include "ClassViewerFilter.h"
 #include "Factories/Factory.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 
 #include "InterchangePipelineFactories.generated.h"
 

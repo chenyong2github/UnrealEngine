@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPredictionModule.h"
-#include "Misc/CoreDelegates.h"
 #include "NetworkPredictionTrace.h"
 #include "String/ParseTokens.h"
 #include "NetworkPredictionModelDefRegistry.h"

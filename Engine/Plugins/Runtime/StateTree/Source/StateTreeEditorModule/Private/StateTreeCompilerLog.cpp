@@ -2,7 +2,6 @@
 
 #include "StateTreeCompilerLog.h"
 #include "IMessageLogListing.h"
-#include "Logging/LogCategory.h"
 #include "Misc/UObjectToken.h"
 #include "StateTreeState.h"
 

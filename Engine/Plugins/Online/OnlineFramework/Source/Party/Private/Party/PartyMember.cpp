@@ -2,12 +2,10 @@
 
 #include "Party/PartyMember.h"
 #include "Party/SocialParty.h"
-#include "User/SocialUser.h"
 #include "SocialManager.h"
 #include "SocialToolkit.h"
 
 #include "OnlineSubsystemUtils.h"
-#include "Interfaces/OnlinePartyInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PartyMember)
 

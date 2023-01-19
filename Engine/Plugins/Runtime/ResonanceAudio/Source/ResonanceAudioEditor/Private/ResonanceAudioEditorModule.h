@@ -5,7 +5,6 @@
 #pragma once
 
 #include "IResonanceAudioEditorModule.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogResonanceAudioEditor, Warning, All);
 

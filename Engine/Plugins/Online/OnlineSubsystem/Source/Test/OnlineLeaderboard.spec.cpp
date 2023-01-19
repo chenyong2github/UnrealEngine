@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OnlineSubsystem.h"
 #include "Online.h"
 #include "Interfaces/OnlineLeaderboardInterface.h"
-#include "Misc/AutomationTest.h"
-#include "Utils/OnlineErrors.data.h"
 #include "Utils/OnlineTestCommon.h"
 
 BEGIN_DEFINE_SPEC(FOnlineLeaderboardSpec, "OnlineLeaderboardInterface", EAutomationTestFlags::EngineFilter | EAutomationTestFlags::ApplicationContextMask)

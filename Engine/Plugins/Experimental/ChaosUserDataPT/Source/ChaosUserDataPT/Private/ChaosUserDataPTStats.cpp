@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosUserDataPTStats.h"
+#include "Stats/Stats.h"
 
 namespace Chaos
 {

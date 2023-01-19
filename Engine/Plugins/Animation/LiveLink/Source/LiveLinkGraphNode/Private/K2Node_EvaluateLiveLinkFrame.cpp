@@ -4,16 +4,11 @@
 
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "BlueprintNodeSpawner.h"
-#include "EdGraphSchema_K2.h"
-#include "EditorCategoryUtils.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_IfThenElse.h"
-#include "Kismet2/BlueprintEditorUtils.h"
 #include "KismetCompiler.h"
 #include "LiveLinkRole.h"
-#include "LiveLinkTypes.h"
 #include "LiveLinkBlueprintLibrary.h"
-#include "UObject/PropertyPortFlags.h"
 #include "Styling/AppStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_EvaluateLiveLinkFrame)

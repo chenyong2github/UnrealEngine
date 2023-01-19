@@ -2,15 +2,14 @@
 
 #include "SAudioSlider.h"
 #include "AudioDefines.h"
-#include "Brushes/SlateImageBrush.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "DSP/Dsp.h"
-#include "Fonts/FontMeasure.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Rendering/DrawElements.h"
-#include "Styling/SlateStyle.h"
-#include "Styling/StyleColors.h"
-#include "Styling/SlateStyleMacros.h"
-#include "Styling/SlateStyleRegistry.h"
+#include "Curves/CurveFloat.h"
+#include "SAudioTextBox.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SSlider.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/SOverlay.h"
 
 // SAudioSliderBase
 const FVector2D SAudioSliderBase::NormalizedLinearSliderRange = FVector2D(0.0f, 1.0f);

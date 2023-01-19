@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreMinimal.h"
-#include "NodeProcessRunnableThread.h"
 
-#include "HAL/PlatformMisc.h"
 #include "HAL/PlatformProcess.h"
+#include "Templates/SharedPointer.h"
+
+class NodeProcessRunnableThread;
 
 class FNodeProcessManager
 {

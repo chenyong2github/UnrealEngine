@@ -2,15 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ILevelSequenceEditorToolkit.h"
-#include "Misc/Guid.h"
-#include "UObject/GCObject.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Styling/ISlateStyle.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
-#include "Framework/Docking/TabManager.h"
-#include "Toolkits/AssetEditorToolkit.h"
+
+class FSpawnTabArgs;
 
 struct FFrameNumber;
 

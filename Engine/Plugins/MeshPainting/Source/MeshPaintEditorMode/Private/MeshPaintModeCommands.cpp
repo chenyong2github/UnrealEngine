@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshPaintModeCommands.h"
-#include "Framework/Commands/UIAction.h"
 #include "MeshPaintMode.h"
-#include "SingleSelectionTool.h"
-#include "MeshVertexPaintingTool.h"
 
 #define LOCTEXT_NAMESPACE "MeshPaintEditorModeCommands"
 

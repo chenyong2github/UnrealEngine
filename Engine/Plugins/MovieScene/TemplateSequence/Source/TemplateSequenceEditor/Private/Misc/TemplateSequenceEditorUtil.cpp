@@ -2,11 +2,8 @@
 
 #include "Misc/TemplateSequenceEditorUtil.h"
 #include "ISequencer.h"
-#include "Misc/AssertionMacros.h"
-#include "Templates/Casts.h"
+#include "MovieSceneSpawnable.h"
 #include "TemplateSequence.h"
-#include "UObject/Class.h"
-#include "UObject/UnrealType.h"
 
 FTemplateSequenceEditorUtil::FTemplateSequenceEditorUtil(UTemplateSequence* InTemplateSequence, ISequencer& InSequencer)
 	: TemplateSequence(InTemplateSequence)

@@ -1,14 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "InterchangePipelineConfigurationGeneric.h"
 
-#include "CoreMinimal.h"
 #include "Framework/Application/SlateApplication.h"
-#include "InterchangeSourceData.h"
 #include "Interfaces/IMainFrameModule.h"
-#include "Misc/Paths.h"
 #include "SInterchangePipelineConfigurationDialog.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 #include "Widgets/SWindow.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangePipelineConfigurationGeneric)

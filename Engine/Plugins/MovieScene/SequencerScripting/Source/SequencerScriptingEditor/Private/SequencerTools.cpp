@@ -1,28 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerTools.h"
+#include "Animation/AnimSequence.h"
 #include "Engine/SkeletalMesh.h"
-#include "SequencerScriptingEditor.h"
-#include "MovieSceneCapture.h"
-#include "MovieSceneCaptureDialogModule.h"
 #include "AutomatedLevelSequenceCapture.h"
-#include "MovieSceneTimeHelpers.h"
-#include "UObject/Stack.h"
-#include "UObject/Package.h"
+#include "Channels/MovieSceneBoolChannel.h"
 #include "LevelSequenceActor.h"
-#include "LevelSequencePlayer.h"
+#include "Channels/MovieSceneEvent.h"
 #include "FbxExporter.h"
-#include "FbxImporter.h"
+#include "Channels/MovieSceneFloatChannel.h"
 #include "MovieSceneToolsUserSettings.h"
+#include "Channels/MovieSceneIntegerChannel.h"
 #include "MovieSceneToolHelpers.h"
+#include "Engine/World.h"
 #include "MovieSceneEventUtils.h"
+#include "INodeAndChannelMappings.h"
 #include "MovieSceneSequenceEditor.h"
+#include "LevelSequence.h"
 #include "Sections/MovieSceneEventSectionBase.h"
 #include "CineCameraActor.h"
-#include "CineCameraComponent.h"
-#include "MovieSceneCommonHelpers.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Animation/AnimSequenceBase.h"
+#include "MovieScenePossessable.h"
 #include "ScopedTransaction.h"
 #include "Exporters/AnimSeqExportOption.h"
 
@@ -31,11 +29,12 @@
 #include "BlueprintActionMenuItem.h"
 #include "EdGraphSchema_K2.h"
 
-#include "AssetRegistry/AssetData.h"
 #include "LevelSequenceAnimSequenceLink.h"
 #include "AnimSequenceLevelSequenceLink.h"
 
 #include "Compilation/MovieSceneCompiledDataManager.h"
+#include "MovieSceneSpawnable.h"
+#include "SequencerScriptingRange.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SequencerTools)
 

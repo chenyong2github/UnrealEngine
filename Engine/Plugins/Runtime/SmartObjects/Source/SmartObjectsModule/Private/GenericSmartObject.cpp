@@ -2,8 +2,6 @@
 
 #include "GenericSmartObject.h"
 #include "UObject/ConstructorHelpers.h"
-#include "Components/ArrowComponent.h"
-#include "Components/SceneComponent.h"
 #include "Engine/Texture2D.h"
 #include "Components/BillboardComponent.h"
 #include "SmartObjectRenderingComponent.h"

@@ -1,18 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ScriptMacros.h"
-#include "GeometryCacheCodecBase.h"
 #include "ICodecEncoder.h"
 #include "ICodecDecoder.h"
-#include "Serialization/MemoryWriter.h"
-#include "Serialization/BufferReader.h"
-#include "HuffmanBitStream.h"
 #include "HuffmanTable.h"
-#include "RingBuffer.h"
-#include "PackedNormal.h"
+#include "Math/Vector.h"
+
+struct FPackedNormal;
+template <class T, size_t N> class FRingBuffer;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogGeoCaStreamingCodecV1, Verbose, All);
 

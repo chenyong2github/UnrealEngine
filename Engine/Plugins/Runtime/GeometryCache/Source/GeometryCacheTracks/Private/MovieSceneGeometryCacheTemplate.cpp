@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneGeometryCacheTemplate.h"
-#include "Compilation/MovieSceneCompilerRules.h"
+#include "Evaluation/MovieSceneExecutionTokens.h"
 #include "GeometryCacheComponent.h"
-#include "Evaluation/MovieSceneEvaluation.h"
-#include "IMovieScenePlayer.h"
-#include "UObject/ObjectKey.h"
+#include "GeometryCache.h"
 #include "GeometryCacheComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneGeometryCacheTemplate)

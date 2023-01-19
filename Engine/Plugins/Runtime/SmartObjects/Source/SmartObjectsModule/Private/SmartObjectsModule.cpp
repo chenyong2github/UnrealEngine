@@ -2,9 +2,8 @@
 
 #include "SmartObjectsModule.h"
 
-#include "Modules/ModuleManager.h"
-#include "SmartObjectTypes.h"
 #include "ShowFlags.h"
+#include "SmartObjectTypes.h" // IWYU pragma: keep
 #include "UObject/CoreRedirects.h"
 
 #if WITH_GAMEPLAY_DEBUGGER && WITH_SMARTOBJECT_DEBUG

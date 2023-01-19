@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/ChaosCache.h"
-#include "Chaos/ChaosCachingPlugin.h"
-#include "Components/PrimitiveComponent.h"
+#include "Chaos/CacheEvents.h"
 #include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/TransformCollection.h"
 #include "UObject/Package.h"
-#include "UObject/UE5MainStreamObjectVersion.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 

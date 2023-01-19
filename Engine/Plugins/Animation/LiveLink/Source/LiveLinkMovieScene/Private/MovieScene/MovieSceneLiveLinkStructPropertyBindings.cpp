@@ -3,6 +3,7 @@
 #include "MovieScene/MovieSceneLiveLinkStructPropertyBindings.h"
 
 #include "LiveLinkMovieScenePrivate.h"
+#include "UObject/EnumProperty.h"
 
 //------------------------------------------------------------------------------
 // FLiveLinkStructPropertyBindings implementation.

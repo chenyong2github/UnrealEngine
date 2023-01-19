@@ -1,19 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineHotfixManager.h"
+#include "HttpModule.h"
 #include "Online.h"
 #include "OnlineSubsystemUtils.h"
-#include "GenericPlatform/GenericPlatformFile.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
-#include "Http.h"
 
 #include "Logging/LogSuppressionInterface.h"
 
-#include "Misc/NetworkVersion.h"
 
 #include "Misc/PackageName.h"
-#include "Misc/CommandLine.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/FileHelper.h"
 #include "Misc/CoreDelegates.h"

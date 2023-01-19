@@ -3,8 +3,7 @@
 #include "SourceEffects/SourceEffectRingModulation.h"
 #include "AudioBusSubsystem.h"
 #include "AudioMixerDevice.h"
-#include "AudioMixerBus.h"
-#include "DSP/MultithreadedPatching.h"
+#include "Sound/AudioBus.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectRingModulation)
 

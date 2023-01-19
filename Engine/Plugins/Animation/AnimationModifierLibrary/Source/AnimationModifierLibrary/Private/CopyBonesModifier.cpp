@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CopyBonesModifier.h"
-#include "AnimationBlueprintLibrary.h"
+#include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimData/IAnimationDataController.h"
+#include "EngineLogs.h"
 
 #define LOCTEXT_NAMESPACE "CopyBonesModifier"
 

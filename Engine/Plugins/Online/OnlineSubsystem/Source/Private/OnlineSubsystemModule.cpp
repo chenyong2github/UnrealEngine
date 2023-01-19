@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSubsystemModule.h"
-#include "Misc/CommandLine.h"
-#include "Modules/ModuleManager.h"
 #include "Misc/ConfigCacheIni.h"
-#include "OnlineSubsystem.h"
 #include "OnlineSubsystemImpl.h"
 #include "OnlineDelegates.h"
+#include "OnlineSubsystemNames.h"
 
 IMPLEMENT_MODULE( FOnlineSubsystemModule, OnlineSubsystem );
 

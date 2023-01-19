@@ -6,6 +6,9 @@
 #include "OnlineSubsystem.h"
 #include "Containers/Ticker.h"
 #include "Interfaces/OnlineSessionInterface.h"
+#include "SocialTypes.h"
+
+struct FUniqueNetIdRepl;
 
 class USocialManager;
 class USocialUser;

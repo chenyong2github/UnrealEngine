@@ -2,14 +2,10 @@
 
 #include "Interactions/CoreInteractions.h"
 
-#include "SocialToolkit.h"
+#include "OnlineSubsystemNames.h"
 #include "SocialManager.h"
-#include "User/SocialUser.h"
 #include "Chat/SocialChatManager.h"
 
-#include "OnlineSubsystem.h"
-#include "Interfaces/OnlineFriendsInterface.h"
-#include "Interfaces/OnlinePresenceInterface.h"
 
 #define LOCTEXT_NAMESPACE "UserInteractions"
 

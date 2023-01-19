@@ -2,10 +2,20 @@
 
 #include "MovieScene/MovieSceneLiveLinkSubSectionProperties.h"
 
+#include "Channels/MovieSceneBoolChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
-#include "MovieScene/MovieSceneLiveLinkBufferData.h"
 
+#include "Channels/MovieSceneByteChannel.h"
 #include "LiveLinkMovieScenePrivate.h"
+#include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneIntegerChannel.h"
+#include "Channels/MovieSceneStringChannel.h"
+#include "LiveLinkRole.h"
+#include "MovieScene/IMovieSceneLiveLinkPropertyHandler.h"
+#include "MovieScene/MovieSceneLiveLinkStructProperties.h"
+#include "MovieScene/MovieSceneLiveLinkStructPropertyBindings.h"
+#include "MovieScene/MovieSceneLiveLinkSubSection.h"
+#include "UObject/EnumProperty.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkSubSectionProperties)
 

@@ -1,17 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/LevelSequencePlaybackContext.h"
+#include "Engine/Level.h"
 #include "Misc/LevelSequenceEditorSettings.h"
+#include "LevelSequence.h"
 #include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"
 #include "Engine/NetDriver.h"
-#include "Engine/World.h"
 
-#include "Delegates/Delegate.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
@@ -20,8 +16,6 @@
 
 #include "MovieSceneCaptureDialogModule.h"
 #include "LevelSequenceEditorModule.h"
-#include "Styling/AppStyle.h"
-#include "Engine/Engine.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "LevelSequencePlaybackContext"

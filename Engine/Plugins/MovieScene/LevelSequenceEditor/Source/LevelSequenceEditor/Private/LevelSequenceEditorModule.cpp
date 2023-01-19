@@ -1,17 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequenceEditorModule.h"
-#include "Modules/ModuleManager.h"
-#include "UObject/Class.h"
-#include "LevelSequence.h"
+#include "Blueprint/BlueprintSupport.h"
 #include "Factories/Factory.h"
-#include "AssetRegistry/AssetData.h"
 #include "AssetToolsModule.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
-#include "IAssetTypeActions.h"
+#include "IAssetTools.h"
 #include "LevelSequenceEditorCommands.h"
 #include "Misc/LevelSequenceEditorSettings.h"
 #include "Misc/LevelSequenceEditorHelpers.h"
@@ -22,12 +17,8 @@
 #include "CameraRig_Rail.h"
 #include "IPlacementModeModule.h"
 #include "ISettingsModule.h"
-#include "ViewportTypeDefinition.h"
 #include "LevelEditor.h"
-#include "LevelSequencePlayer.h"
 #include "LevelSequenceActor.h"
-#include "PropertyEditorModule.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "CinematicViewport/CinematicViewportLayoutEntity.h"
 #include "ISequencerModule.h"
@@ -37,7 +28,6 @@
 #include "SequencerSettings.h"
 #include "Misc/MovieSceneSequenceEditor_LevelSequence.h"
 #include "BlueprintAssetHandler.h"
-#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "LevelSequenceEditor"
 

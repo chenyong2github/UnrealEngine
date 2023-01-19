@@ -2,8 +2,9 @@
 #pragma once
 
 #if WITH_EDITOR
-#include "GeometryCacheCodecBase.h"
 #include "GeometryCacheMeshData.h"
+
+class UGeometryCacheTrackStreamable;
 
 class IMeshUtilities;
 

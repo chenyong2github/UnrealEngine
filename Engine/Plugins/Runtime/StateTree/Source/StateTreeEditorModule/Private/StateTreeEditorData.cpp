@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeEditorData.h"
+#include "StateTree.h"
 #include "StateTreeConditionBase.h"
 #include "StateTreeDelegates.h"
 #include "StateTreeEvaluatorBase.h"

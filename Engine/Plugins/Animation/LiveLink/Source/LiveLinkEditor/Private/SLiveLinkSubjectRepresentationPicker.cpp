@@ -2,29 +2,22 @@
 
 #include "SLiveLinkSubjectRepresentationPicker.h"
 
-#include "AssetRegistry/AssetData.h"
-#include "Styling/AppStyle.h"
 #include "Features/IModularFeatures.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "ILiveLinkClient.h"
 #include "LiveLinkEditorPrivate.h"
 #include "LiveLinkPreset.h"
+#include "LiveLinkPresetTypes.h"
 #include "Misc/FeedbackContext.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Styling/SlateIconFinder.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SBox.h"
 #include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STableRow.h"
 
 
 #define LOCTEXT_NAMESPACE "SLiveLinkSubjectRepresentationPicker"

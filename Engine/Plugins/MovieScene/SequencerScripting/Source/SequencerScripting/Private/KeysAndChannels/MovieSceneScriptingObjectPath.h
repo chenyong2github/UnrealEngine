@@ -2,19 +2,16 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
+#include "Channels/MovieSceneChannelData.h"
 #include "MovieSceneScriptingChannel.h"
-#include "Channels/MovieSceneChannelTraits.h"
-#include "Channels/MovieSceneChannelHandle.h"
 #include "Channels/MovieSceneObjectPathChannel.h"
-#include "KeysAndChannels/MovieSceneScriptingChannel.h"
 #include "KeyParams.h"
-#include "MovieScene.h"
-#include "MovieSceneSection.h"
-#include "MovieSceneSequence.h"
 
 #include "MovieSceneScriptingObjectPath.generated.h"
+
+class UMovieSceneScriptingChannel;
+class UMovieSceneScriptingKey;
+template <typename ChannelType, typename ScriptingKeyType, typename ScriptingKeyValueType> struct TMovieSceneScriptingChannel;
 
 /**
 * Exposes a Sequencer Object Path type key to Python/Blueprints.

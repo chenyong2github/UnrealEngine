@@ -4,9 +4,6 @@
 #include "ContextualAnimMovieSceneTrack.h"
 #include "ContextualAnimMovieSceneSection.h"
 #include "ContextualAnimViewModel.h"
-#include "SequencerSectionPainter.h"
-#include "Fonts/FontMeasure.h"
-#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "FContextualAnimMovieSceneTrackEditor"
 

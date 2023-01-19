@@ -6,6 +6,10 @@
 #include "Stats/Stats2.h"
 #include "Tickable.h"
 
+enum class EStatFlags : uint8;
+struct FStatGroup_STATGROUP_Tickables;
+struct TStatIdData;
+
 class AActor;
 class APawn;
 class FConversationEditor;

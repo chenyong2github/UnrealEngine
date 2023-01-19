@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SynthComponents/SynthComponentGranulator.h"
-#include "UObject/Package.h"
 #include "AudioDevice.h"
+#include "Sound/SoundSourceBusSend.h"
+#include "Sound/SoundSubmixSend.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SynthComponentGranulator)
 

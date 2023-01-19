@@ -1,19 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SocialChatManager.h"
-#include "User/SocialUser.h"
-#include "SocialToolkit.h"
 
-#include "SocialPrivateMessageChannel.h"
-#include "SocialChatRoom.h"
-#include "OnlineSubsystemUtils.h"
-#include "SocialReadOnlyChatChannel.h"
-#include "SocialChatChannel.h"
-#include "SocialManager.h"
-#include "Party/SocialParty.h"
-#include "Interfaces/OnlineGroupsInterface.h"
+#include "Chat/SocialChatRoom.h"
+#include "Chat/SocialGroupChannel.h"
+#include "Chat/SocialPrivateMessageChannel.h"
 #include "SocialPartyChatRoom.h"
-#include "ChatSlashCommands.h"
+#include "Chat/SocialReadOnlyChatChannel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SocialChatManager)
 

@@ -1,16 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeAnyEnumDetails.h"
-#include "Framework/Commands/UIAction.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
-#include "IPropertyUtilities.h"
 #include "StateTreePropertyHelpers.h"
-#include "StateTreePropertyBindings.h"
 #include "StateTreeAnyEnum.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"

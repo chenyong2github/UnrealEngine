@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Camera/CameraTypes.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "SequenceCameraShakeTestUtil.generated.h"
+
+struct FMinimalViewInfo;
+struct FPostProcessSettings;
 
 UCLASS(BlueprintType)
 class USequenceCameraShakeTestUtil : public UBlueprintFunctionLibrary

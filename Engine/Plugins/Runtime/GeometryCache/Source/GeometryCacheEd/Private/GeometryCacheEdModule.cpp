@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCacheEdModule.h"
-#include "AssetToolsModule.h"
 #include "AssetTypeActions_GeometryCache.h"
-#include "ComponentAssetBroker.h"
 #include "GeometryCache.h"
 #include "GeometryCacheAssetBroker.h"
 #include "GeometryCacheComponent.h"
@@ -11,7 +9,6 @@
 #include "GeometryCacheThumbnailRenderer.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraGeometryCacheRendererProperties.h"
-#include "ThumbnailRendering/ThumbnailManager.h"
 
 IMPLEMENT_MODULE(FGeometryCacheEdModule, GeometryCacheEd)
 

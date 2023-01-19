@@ -5,8 +5,6 @@
 #include "BuoyancyTypes.h" // IWYU pragma: keep
 #include "Chaos/SimCallbackObject.h"
 #include "Chaos/GeometryParticlesfwd.h"
-#include "GameFramework/Actor.h"
-#include "PhysicsInterfaceDeclaresCore.h"
 #include "BuoyancyManager.generated.h"
 
 namespace EEndPlayReason { enum Type : int; }

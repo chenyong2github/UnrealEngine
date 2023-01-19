@@ -2,7 +2,6 @@
 
 #include "SmartObjectDefinition.h"
 #include "SmartObjectSettings.h"
-#include "SmartObjectTypes.h"
 #if WITH_EDITOR
 #include "UObject/ObjectSaveContext.h"
 #include "WorldConditions/WorldCondition_SmartObjectActorTagQuery.h"

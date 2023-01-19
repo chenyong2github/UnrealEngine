@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SourceEffects/SourceEffectEQ.h"
-#include "Audio.h"
-#include "AudioDevice.h"
+#include "DSP/Filter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectEQ)
 

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterBodyExclusionVolume.h"
-#include "Async/TaskGraphInterfaces.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "Engine/World.h"
 #include "UObject/UObjectIterator.h"

@@ -4,8 +4,8 @@
 
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
-#include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Modules/ModuleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MotionTrajectory)
 

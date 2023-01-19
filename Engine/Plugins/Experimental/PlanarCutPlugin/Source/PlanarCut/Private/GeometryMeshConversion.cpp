@@ -1,29 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "GeometryMeshConversion.h"
 
+#include "Curve/GeneralPolygon2.h"
 #include "PlanarCut.h"
 
+#include "Distance/DistLine3Segment3.h"
 #include "PlanarCutPlugin.h"
 
-#include "Async/ParallelFor.h"
-#include "Spatial/FastWinding.h"
-#include "Spatial/PointHashGrid3.h"
+#include "Distance/DistLine3Triangle3.h"
 #include "Spatial/MeshSpatialSort.h"
+#include "Distance/DistSegment3Triangle3.h"
 #include "VertexConnectedComponents.h"
-#include "Util/IndexUtil.h"
-#include "Arrangement2d.h"
-#include "MeshAdapter.h"
-#include "FrameTypes.h"
-#include "Polygon2.h"
 #include "CompGeom/PolygonTriangulation.h"
-#include "Quaternion.h"
 
 #include "GeometryCollection/GeometryCollectionAlgo.h"
-#include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 
 #include "DisjointSet.h"
 
-#include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMeshEditor.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Selections/MeshConnectedComponents.h"
@@ -33,15 +26,10 @@
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "MeshBoundaryLoops.h"
 #include "QueueRemesher.h"
-#include "DynamicMesh/DynamicVertexAttribute.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMesh/MeshTangents.h"
 #include "ConstrainedDelaunay2.h"
-#include "Util/ProgressCancel.h"
 
-#include "StaticMeshOperations.h"
-#include "MeshDescriptionToDynamicMesh.h"
-#include "DynamicMeshToMeshDescription.h"
 
 #include "Algo/Rotate.h"
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Online/Connectivity.h"
+#include "CoreGlobals.h"
 
 namespace UE::Online {
 

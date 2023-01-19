@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HistoryEdition/ActivityDependencyEdge.h"
+#include "CoreGlobals.h"
 
 FString UE::ConcertSyncCore::LexToString(EActivityDependencyReason Reason)
 {

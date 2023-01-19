@@ -4,6 +4,9 @@
 
 #include "TemplateSequenceCustomizationBase.h"
 
+class FSequencerCustomizationBuilder;
+class SWidget;
+
 class FToolBarBuilder;
 
 /**

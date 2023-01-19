@@ -3,7 +3,6 @@
 
 #include "ILiveLinkClient.h"
 #include "LiveLinkMessageBusSource.h"
-#include "LiveLinkMessageBusFinder.h"
 
 #include "SLiveLinkMessageBusSourceFactory.h"
 

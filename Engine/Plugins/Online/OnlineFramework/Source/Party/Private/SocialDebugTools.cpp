@@ -2,14 +2,10 @@
 
 #include "SocialDebugTools.h"
 
-#include "OnlineSubsystem.h"
+#include "OnlineSubsystemNames.h"
 #include "OnlineSubsystemUtils.h"
-#include "Interfaces/OnlineIdentityInterface.h"
 #include "Interfaces/OnlineUserInterface.h"
-#include "Interfaces/OnlineFriendsInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
-#include "Interfaces/OnlinePartyInterface.h"
-#include "Party/SocialParty.h"
 #include "Party/PartyMember.h"
 #include "SocialManager.h"
 

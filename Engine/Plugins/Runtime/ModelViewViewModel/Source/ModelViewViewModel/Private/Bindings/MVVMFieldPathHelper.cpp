@@ -3,13 +3,11 @@
 #include "Bindings/MVVMFieldPathHelper.h"
 
 #include "Bindings/MVVMBindingHelper.h"
-#include "FieldNotification/IFieldValueChanged.h"
 #include "Misc/MemStack.h"
 #include "MVVMSubsystem.h"
 #include "Templates/ValueOrError.h"
 #include "Types/MVVMAvailableBinding.h"
 #include "Types/MVVMFieldContext.h"
-#include "Types/MVVMViewModelContextInstance.h"
 
 #define LOCTEXT_NAMESPACE "MVVMFieldPathHelper"
 

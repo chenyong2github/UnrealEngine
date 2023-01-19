@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Interfaces/OnlineSessionInterface.h"
-#include "OnlineSubsystem.h"
+#include "Interfaces/OnlineSessionDelegates.h"
+#include "OnlineSubsystem.h" // IWYU pragma: keep
 #include "OnlineError.h"
 
 const TCHAR* ToLogString(EOnSessionParticipantLeftReason LeaveReason)

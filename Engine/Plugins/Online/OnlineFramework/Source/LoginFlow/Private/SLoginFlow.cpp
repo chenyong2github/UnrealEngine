@@ -7,9 +7,8 @@
 #include "IWebBrowserPopupFeatures.h"
 #include "IWebBrowserDialog.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Misc/ScopeLock.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SWindow.h"
 
 class SLoginFlowImpl 
 	: public SLoginFlow

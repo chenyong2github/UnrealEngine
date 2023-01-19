@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ILiveLinkSource.h"
-#include "ILiveLinkClient.h"
+#include "LiveLinkPresetTypes.h"
 
 
 

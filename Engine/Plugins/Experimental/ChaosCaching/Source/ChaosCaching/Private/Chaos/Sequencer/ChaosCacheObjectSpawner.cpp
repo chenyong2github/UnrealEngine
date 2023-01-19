@@ -1,8 +1,7 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/Sequencer/ChaosCacheObjectSpawner.h"
 #include "Chaos/CacheManagerActor.h"
-#include "MovieSceneSpawnable.h"
 #include "UObject/Package.h"
 #include "Engine/World.h"
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ISequencerEditorObjectBinding.h"
+#include "Templates/SharedPointer.h"
 
 class ISequencer;
 class AActor;

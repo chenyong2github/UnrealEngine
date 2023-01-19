@@ -7,7 +7,6 @@
 #include "Templates/ValueOrError.h"
 #include "View/MVVMView.h"
 #include "Types/MVVMAvailableBinding.h"
-#include "Types/MVVMViewModelContextInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMSubsystem)
 

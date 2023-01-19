@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "LevelSequence.h"
 #include "AssetDefinitionDefault.h"
 

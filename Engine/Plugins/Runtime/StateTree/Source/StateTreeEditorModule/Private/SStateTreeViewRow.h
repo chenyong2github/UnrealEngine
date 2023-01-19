@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "StateTreeState.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
+
+class STableViewBase;
+class UStateTreeState;
+enum class EStateTreeTransitionTrigger : uint8;
 
 class UStateTreeEditorData;
 class SStateTreeView;

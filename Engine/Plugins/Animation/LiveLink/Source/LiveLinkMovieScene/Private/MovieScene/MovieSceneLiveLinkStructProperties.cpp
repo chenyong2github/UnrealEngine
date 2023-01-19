@@ -5,6 +5,7 @@
 #include "MovieScene/MovieSceneLiveLinkEnumHandler.h"
 #include "MovieScene/MovieSceneLiveLinkPropertyHandler.h"
 #include "MovieScene/MovieSceneLiveLinkTransformHandler.h"
+#include "UObject/EnumProperty.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkStructProperties)
 

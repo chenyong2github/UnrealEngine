@@ -4,10 +4,8 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
-#include "MeshPaintHelpers.h"
-#include "MeshPaintingToolsetTypes.h"
-#include "ComponentReregisterContext.h"
-#include "IndexTypes.h"
+#include "RenderingThread.h"
+#include "Spatial/MeshAABBTree3.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMeshPaintGeometryCollectionComponentAdapter, Log, All);
 //////////////////////////////////////////////////////////////////////////

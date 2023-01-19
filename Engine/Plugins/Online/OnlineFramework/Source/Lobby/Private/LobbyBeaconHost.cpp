@@ -3,7 +3,6 @@
 #include "LobbyBeaconHost.h"
 #include "GameFramework/GameModeBase.h"
 #include "Engine/NetConnection.h"
-#include "Engine/World.h"
 #include "Interfaces/OnlineSessionInterface.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/GameSession.h"

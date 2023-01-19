@@ -3,6 +3,7 @@
 #include "TemplateSequenceCustomizationBase.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/Actor.h"
+#include "ISequencer.h"
 #include "Misc/TemplateSequenceEditorUtil.h"
 #include "ScopedTransaction.h"
 #include "TemplateSequence.h"

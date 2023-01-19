@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeEditorModule.h"
-#include "AssetToolsModule.h"
 #include "AssetTypeActions_StateTree.h"
 #include "Blueprint/StateTreeConditionBlueprintBase.h"
 #include "Blueprint/StateTreeEvaluatorBlueprintBase.h"
@@ -14,20 +13,14 @@
 #include "Customizations/StateTreeStateLinkDetails.h"
 #include "Customizations/StateTreeStateParametersDetails.h"
 #include "Customizations/StateTreeTransitionDetails.h"
-#include "IAssetTools.h"
-#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "StateTree.h"
 #include "StateTreeCompiler.h"
-#include "StateTreeCompilerLog.h"
-#include "StateTreeConditionBase.h"
 #include "StateTreeDelegates.h"
 #include "StateTreeEditor.h"
 #include "StateTreeEditorCommands.h"
 #include "StateTreeEditorStyle.h"
-#include "StateTreeEvaluatorBase.h"
 #include "StateTreeNodeClassCache.h"
-#include "StateTreeTaskBase.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 

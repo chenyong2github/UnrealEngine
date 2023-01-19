@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SLiveLinkSubjectNameGraphPin.h"
-#include "SLiveLinkSubjectRepresentationPicker.h"
-#include "K2Node_CallFunction.h"
-#include "K2Node_VariableSet.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "K2Node_EvaluateLiveLinkFrame.h"
 
 

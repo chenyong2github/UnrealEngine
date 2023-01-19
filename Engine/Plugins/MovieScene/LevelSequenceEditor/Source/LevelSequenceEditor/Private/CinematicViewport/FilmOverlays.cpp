@@ -1,11 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CinematicViewport/FilmOverlays.h"
-#include "Rendering/DrawElements.h"
-#include "Widgets/SBoxPanel.h"
-#include "Styling/SlateTypes.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SHeader.h"
 #include "Widgets/Layout/SGridPanel.h"
@@ -14,9 +9,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Styling/AppStyle.h"
 #include "Styles/LevelSequenceEditorStyle.h"
-#include "Widgets/Input/NumericTypeInterface.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "FilmOverlayToolkit.h"

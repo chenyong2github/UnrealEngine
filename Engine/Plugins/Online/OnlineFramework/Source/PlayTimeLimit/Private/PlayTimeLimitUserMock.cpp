@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PlayTimeLimitUserMock.h"
+#include "HAL/PlatformTime.h"
 #include "PlayTimeLimitImpl.h"
 
 #if ALLOW_PLAY_LIMIT_MOCK

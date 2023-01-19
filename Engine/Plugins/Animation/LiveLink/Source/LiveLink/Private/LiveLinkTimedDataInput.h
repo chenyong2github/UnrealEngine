@@ -4,9 +4,7 @@
 
 #include "ITimedDataInput.h"
 
-#include "CoreMinimal.h"
 #include "ClockOffsetEstimatorRamp.h"
-#include "Math/NumericLimits.h"
 
 class FLiveLinkClient;
 enum class ELiveLinkSourceMode : uint8;

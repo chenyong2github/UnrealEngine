@@ -2,7 +2,6 @@
 
 #include "LiveLinkTest.h"
 #include "InterpolationProcessor/LiveLinkBasicFrameInterpolateProcessor.h"
-#include "Roles/LiveLinkBasicRole.h"
 #include "Misc/AutomationTest.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkTest)

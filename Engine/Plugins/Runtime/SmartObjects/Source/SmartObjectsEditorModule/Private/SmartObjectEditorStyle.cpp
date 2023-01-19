@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmartObjectEditorStyle.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Styling/SlateStyleRegistry.h"
 
 TUniquePtr<FSmartObjectEditorStyle> FSmartObjectEditorStyle::Instance(nullptr);

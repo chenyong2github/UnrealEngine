@@ -3,7 +3,7 @@
 #include "GeometryCacheStreamBase.h"
 #include "Async/Async.h"
 #include "GeometryCacheMeshData.h"
-#include "Misc/ScopeLock.h"
+#include "Misc/ScopeRWLock.h"
 
 enum class EStreamReadRequestStatus
 {

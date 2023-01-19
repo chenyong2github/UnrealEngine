@@ -2,16 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HAL/Runnable.h"
-#include "HAL/RunnableThread.h"
 #include "HAL/ThreadSafeBool.h"
-#include "HAL/CriticalSection.h"
-#include "Templates/Atomic.h"
 
-#include "MessageEndpoint.h"
-#include "LiveLinkMessages.h"
 #include "LiveLinkMessageBusFinder.h"
+
+class IMessageContext;
 
 class FLiveLinkMessageBusSource;
 

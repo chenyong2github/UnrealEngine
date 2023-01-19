@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneGeometryCacheSection.h"
-#include "Logging/MessageLog.h"
+#include "GeometryCache.h"
 #include "MovieScene.h"
-#include "UObject/SequencerObjectVersion.h"
+#include "GeometryCacheComponent.h"
 #include "MovieSceneTimeHelpers.h"
 #include "MovieSceneGeometryCacheTemplate.h"
-#include "Misc/FrameRate.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneGeometryCacheSection)
 

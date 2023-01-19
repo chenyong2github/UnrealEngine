@@ -4,12 +4,12 @@
 
 #include "IDetailCustomization.h"
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "LiveLinkComponentController.h"
-#include "LiveLinkRole.h"
-#include "Styling/SlateColor.h"
-#include "Templates/SubclassOf.h"
+#include "UObject/WeakObjectPtr.h"
+
+class ULiveLinkComponentController;
+class ULiveLinkRole;
+struct EVisibility;
+template <class TClass> class TSubclassOf;
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;

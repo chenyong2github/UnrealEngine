@@ -3,8 +3,10 @@
 #include "SourceEffects/SourceEffectFilter.h"
 #include "AudioBusSubsystem.h"
 #include "AudioMixerDevice.h"
-#include "DSP/Dsp.h"
+#include "DSP/BufferVectorOperations.h"
 #include "DSP/FloatArrayMath.h"
+#include "AudioMixerDevice.h"
+#include "Sound/AudioBus.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectFilter)
 

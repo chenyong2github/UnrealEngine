@@ -2,6 +2,7 @@
 
 #include "ContextualAnimation.h"
 #include "ContextualAnimManager.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "ContextualAnimationModule"
 

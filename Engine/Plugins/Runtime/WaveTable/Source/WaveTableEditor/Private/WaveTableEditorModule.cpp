@@ -2,8 +2,8 @@
 #include "WaveTableEditorModule.h"
 
 #include "AssetTypeActions_WaveTableBank.h"
+#include "CurveDrawInfo.h"
 #include "ICurveEditorModule.h"
-#include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 #include "WaveTableCurveEditorViewStacked.h"
 #include "WaveTableTransformLayout.h"

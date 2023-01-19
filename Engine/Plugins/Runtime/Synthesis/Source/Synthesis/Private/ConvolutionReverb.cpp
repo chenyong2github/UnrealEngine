@@ -2,10 +2,8 @@
 
 #include "ConvolutionReverb.h"
 
-#include "AudioMixerDevice.h"
-#include "CoreMinimal.h"
+#include "DSP/AlignedBlockBuffer.h"
 #include "DSP/FloatArrayMath.h"
-#include "DSP/ConvolutionAlgorithm.h"
 #include "DSP/SampleRateConverter.h"
 #include "SubmixChannelFormatConverter.h"
 #include "SynthesisModule.h"

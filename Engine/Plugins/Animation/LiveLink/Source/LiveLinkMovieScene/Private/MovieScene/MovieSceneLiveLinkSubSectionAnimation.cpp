@@ -2,17 +2,16 @@
 
 #include "MovieScene/MovieSceneLiveLinkSubSectionAnimation.h"
 
+#include "Channels/MovieSceneBoolChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
-#include "Channels/MovieSceneChannelTraits.h"
-#include "Engine/Engine.h"
-#include "Engine/TimecodeProvider.h"
-#include "LiveLinkCustomVersion.h"
-#include "LiveLinkTypes.h"
-#include "MovieSceneCommonHelpers.h"
-#include "MovieScene/MovieSceneLiveLinkBufferData.h"
+#include "Channels/MovieSceneByteChannel.h"
 #include "Roles/LiveLinkAnimationRole.h"
+#include "Channels/MovieSceneIntegerChannel.h"
 #include "Roles/LiveLinkAnimationTypes.h"
-#include "Templates/SharedPointer.h"
+#include "Channels/MovieSceneStringChannel.h"
+#include "MovieScene/MovieSceneLiveLinkStructProperties.h"
+#include "MovieScene/MovieSceneLiveLinkSubSection.h"
+#include "MovieScene/MovieSceneLiveLinkTransformHandler.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkSubSectionAnimation)
 

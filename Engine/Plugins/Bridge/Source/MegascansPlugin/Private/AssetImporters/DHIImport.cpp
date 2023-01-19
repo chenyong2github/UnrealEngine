@@ -1,49 +1,39 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AssetImporters/DHIImport.h"
-#include "MSAssetImportData.h"
+#include "Engine/Blueprint.h"
+#include "HAL/PlatformFile.h"
 #include "Utilities/MiscUtils.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/ScopedSlowTask.h"
 #include "EditorAssetLibrary.h"
-#include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "Interfaces/IPluginManager.h"
 #include "Interfaces/IProjectManager.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
-#include "Internationalization/Text.h"
-#include "UObject/Object.h"
 
 #include "Misc/FileHelper.h"
-#include "HAL/FileManager.h"
-#include "AssetRegistry/AssetRegistryHelpers.h"
 
-#include "Engine/AssetManager.h"
+#include "Modules/ModuleManager.h"
 #include "UObject/Linker.h"
 #include "PackageTools.h"
 
 #include "Kismet2/KismetEditorUtilities.h"
 #include "UObject/PackageReload.h"
-#include "Misc/DateTime.h"
 
-#include "Editor/EditorEngine.h"
 #include "Editor.h"
 
 #include "Kismet/GameplayStatics.h"
 #include "JsonObjectConverter.h"
 
-#include "Engine/World.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "HAL/PlatformApplicationMisc.h"
 
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Utilities/VersionInfoHandler.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/SBoxPanel.h"
+#include "Widgets/SWindow.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SComboBox.h"
-#include "Input/Reply.h"
 #include "Widgets/Layout/SScrollBox.h"
 
 #define LOCTEXT_NAMESPACE "DHIImport"

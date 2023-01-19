@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContextualAnimSceneAsset.h"
-#include "AnimationRuntime.h"
 #include "Animation/AnimMontage.h"
-#include "Animation/AnimationPoseData.h"
-#include "Animation/AnimTypes.h"
+#include "BonePose.h"
 #include "ContextualAnimUtilities.h"
 #include "ContextualAnimSelectionCriterion.h"
 #include "UObject/ObjectSaveContext.h"
-#include "Containers/ArrayView.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimSceneAsset)
 

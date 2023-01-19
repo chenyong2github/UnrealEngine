@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AlembicLibraryModule.h"
-#include "AbcImporter.h"
 #include "AbcImportSettingsCustomization.h"
-#include "HAL/LowLevelMemTracker.h"
 #include "PropertyEditorModule.h"
 
 LLM_DEFINE_TAG(Alembic);

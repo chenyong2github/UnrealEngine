@@ -2,9 +2,9 @@
 
 #include "Online/SessionsLAN.h"
 
-#include "Misc/Guid.h"
-#include "Online/OnlineServicesCommon.h"
+#include "Online/LANBeacon.h"
 #include "Online/OnlineServicesCommonEngineUtils.h"
+#include "Online/NboSerializer.h"
 #include "SocketSubsystem.h"
 #include "UObject/CoreNet.h"
 #include "Online/NboSerializerCommonSvc.h"

@@ -3,10 +3,11 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 #include "LiveLinkTypes.h"
-#include "Types/SlateEnums.h"
+
+namespace ETextCommit { enum Type : int; }
+struct FPropertyChangedEvent;
 
 class IDetailsView;
 class FLiveLinkClient;

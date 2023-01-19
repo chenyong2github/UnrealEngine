@@ -1,21 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sequencer/ChaosCacheTrackEditor.h"
-#include "CommonMovieSceneTools.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "GameFramework/Actor.h"
-#include "Chaos/ChaosCache.h"
 #include "Chaos/CacheManagerActor.h"
 #include "Chaos/CacheCollection.h"
 #include "LevelSequence.h"
 #include "Chaos/Sequencer/MovieSceneChaosCacheTrack.h"
 #include "Chaos/Sequencer/MovieSceneChaosCacheSection.h"
+#include "Rendering/SlateRenderer.h"
 #include "SequencerSectionPainter.h"
+#include "ScopedTransaction.h"
 #include "SequencerUtilities.h"
 #include "Styling/SlateIconFinder.h"
 #include "TimeToPixel.h"
+#include "Widgets/SBoxPanel.h"
 
 namespace ChaosCacheEditorConstants
 {

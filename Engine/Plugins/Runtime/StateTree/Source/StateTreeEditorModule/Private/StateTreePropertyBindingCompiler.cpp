@@ -2,9 +2,8 @@
 #include "StateTreePropertyBindingCompiler.h"
 #include "IPropertyAccessEditor.h"
 #include "PropertyPathHelpers.h"
-#include "StateTreeTypes.h"
-#include "StateTreePropertyBindings.h"
 #include "StateTreeCompiler.h"
+#include "StateTreeEditorPropertyBindings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreePropertyBindingCompiler)
 

@@ -2,11 +2,18 @@
 
 #pragma once
 
+#include "FBIKConstraint.h"
 #include "Units/Highlevel/RigUnit_HighlevelBase.h"
 #include "FBIKConstraintOption.h"
 #include "FBIKDebugOption.h"
 #include "FBIKShared.h"
+#include "Misc/TVariantMeta.h"
+#include "RigVMCore/RigVMFunction.h"
+#include "RigVMCore/RigVMMemoryStorage.h"
 #include "RigUnit_FullbodyIK.generated.h"
+
+struct FControlRigExecuteContext;
+struct FRigVMStructUpgradeInfo;
 
 USTRUCT()
 struct FFBIKEndEffector

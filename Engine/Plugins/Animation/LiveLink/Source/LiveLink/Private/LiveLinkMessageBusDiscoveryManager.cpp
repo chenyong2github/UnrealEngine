@@ -2,13 +2,11 @@
 
 #include "LiveLinkMessageBusDiscoveryManager.h"
 
-#include "Async/Async.h"
+#include "HAL/RunnableThread.h"
 #include "ILiveLinkClient.h"
-#include "LiveLinkMessageBusSource.h"
+#include "LiveLinkMessages.h"
 #include "LiveLinkSettings.h"
-#include "HAL/PlatformTime.h"
 #include "MessageEndpointBuilder.h"
-#include "Misc/ScopeLock.h"
 
 LLM_DEFINE_TAG(LiveLink_LiveLinkMessageBusDiscoveryManager);
 

@@ -3,6 +3,10 @@
 #include "MotionExtractorUtilities.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimationPoseData.h"
+#include "Animation/AttributesRuntime.h"
+#include "BonePose.h"
+#include "EngineLogs.h"
+#include "MotionExtractorTypes.h"
 
 namespace UE::Anim::MotionExtractorUtility
 {

@@ -4,13 +4,10 @@
 
 #include "IDetailCustomization.h"
 
-#include "CoreMinimal.h"
 
-#include "LiveLinkTypes.h"
-#include "LiveLinkVirtualSubject.h"
-#include "Styling/SlateColor.h"
-#include "Types/SlateEnums.h"
 #include "Widgets/Views/SListView.h"
+
+class ULiveLinkVirtualSubject;
 
 
 class ILiveLinkClient;

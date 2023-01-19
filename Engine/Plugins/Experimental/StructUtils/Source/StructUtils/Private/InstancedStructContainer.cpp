@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "InstancedStructContainer.h"
-#include "StructUtilsTypes.h"
-#include "Serialization/PropertyLocalizationDataGathering.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedStructContainer)
+
+class FPropertyLocalizationDataGatherer;
+enum class EPropertyLocalizationGathererTextFlags : uint8;
 
 // From InstancedStruct.cpp to support localization.
 namespace UE::StructUtils::Private

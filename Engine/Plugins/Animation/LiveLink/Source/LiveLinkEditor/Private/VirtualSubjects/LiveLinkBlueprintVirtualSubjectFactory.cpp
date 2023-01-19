@@ -4,19 +4,17 @@
 
 #include "AssetToolsModule.h"
 #include "ClassViewerFilter.h"
-#include "ClassViewerModule.h"
 #include "Editor.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "IAssetTools.h"
-#include "Input/Reply.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
-#include "Modules/ModuleManager.h"
+#include "LiveLinkRole.h"
 #include "VirtualSubjects/LiveLinkBlueprintVirtualSubject.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/Text/STextBlock.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkBlueprintVirtualSubjectFactory)
 

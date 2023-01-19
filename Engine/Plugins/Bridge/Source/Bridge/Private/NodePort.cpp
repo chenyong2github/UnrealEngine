@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NodePort.h"
-#include "UI/BridgeUIManager.h"
+#include "Misc/FileHelper.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NodePort)
 

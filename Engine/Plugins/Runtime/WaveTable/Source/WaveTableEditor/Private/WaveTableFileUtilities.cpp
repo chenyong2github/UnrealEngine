@@ -2,14 +2,9 @@
 #include "WaveTableFileUtilities.h"
 
 #include "Factories/SoundFactory.h"
-#include "HAL/Platform.h"
 #include "Sound/SoundWave.h"
-#include "UObject/SoftObjectPath.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/Package.h"
 #include "Utils.h"
-#include "WaveTableSampler.h"
 
 
 namespace WaveTable

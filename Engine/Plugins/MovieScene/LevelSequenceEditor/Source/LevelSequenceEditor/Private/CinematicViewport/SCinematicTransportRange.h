@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Math/Color.h"
-#include "Misc/FrameNumber.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+struct FCaptureLostEvent;
 
 class FPaintArgs;
 class FSlateWindowElementList;

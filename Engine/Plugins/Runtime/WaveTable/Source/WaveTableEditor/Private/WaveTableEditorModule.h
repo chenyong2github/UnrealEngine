@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AssetTypeActions_Base.h"
-#include "Containers/Array.h"
-#include "Logging/LogMacros.h"
-#include "Modules/ModuleManager.h"
+#include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+
+class FAssetTypeActions_Base;
 
 
 DECLARE_LOG_CATEGORY_EXTERN(LogWaveTableEditor, Log, All);

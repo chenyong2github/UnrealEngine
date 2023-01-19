@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+// HEADER_UNIT_SKIP - Missing defines around platform specific includes
+
 #include "MediaVideoDecoderOutput.h"
 
 #include "Templates/RefCounting.h"
 #include "Containers/Array.h"
-#include "Pixelformat.h"
+#include "PixelFormat.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 

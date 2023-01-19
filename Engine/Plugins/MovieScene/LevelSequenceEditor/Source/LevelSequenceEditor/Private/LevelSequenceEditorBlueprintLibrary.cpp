@@ -6,15 +6,12 @@
 #include "IKeyArea.h"
 #include "LevelSequence.h"
 
-#include "Modules/ModuleManager.h"
-#include "LevelEditor.h"
 #include "LevelEditorViewport.h"
+#include "MovieSceneBindingProxy.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
-#include "MovieSceneCommonHelpers.h"
+#include "MovieSceneObjectBindingID.h"
 #include "MovieSceneSequencePlayer.h"
-#include "MovieSceneSection.h"
-#include "Channels/MovieSceneChannelProxy.h"
 
 //For custom colors on channels, stored in editor pref's
 #include "CurveEditorSettings.h"

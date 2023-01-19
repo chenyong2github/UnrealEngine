@@ -2,7 +2,9 @@
 
 #include "Online/OnlineServicesCommon.h"
 
-#include "Online/AuthCommon.h"
+#include "Online/IOnlineComponent.h"
+#include "Online/OnlineAsyncOpCache_Meta.inl"
+#include "Online/OnlineExecHandler.h"
 
 DEFINE_LOG_CATEGORY(LogOnlineServices);
 

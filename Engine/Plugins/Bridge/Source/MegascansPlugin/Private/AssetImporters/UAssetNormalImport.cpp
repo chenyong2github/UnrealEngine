@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AssetImporters/UAssetNormalImport.h"
+#include "Dom/JsonObject.h"
 #include "Utilities/MiscUtils.h"
+#include "Misc/Paths.h"
 #include "Utilities/MaterialUtils.h"
-#include "MSSettings.h"
-#include "Materials/MaterialInstanceConstant.h"
 
-#include "Misc/FileHelper.h"
-#include "Misc/ScopedSlowTask.h"
 
 
 

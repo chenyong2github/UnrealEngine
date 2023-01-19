@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FBIKShared.h"
-#include "Rigs/RigHierarchyContainer.h"
-#include "FBIKUtil.h"
+#include "FBIKConstraint.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FBIKShared)
 

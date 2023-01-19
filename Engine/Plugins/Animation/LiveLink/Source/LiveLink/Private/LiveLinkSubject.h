@@ -5,18 +5,14 @@
 #include "ILiveLinkSubject.h"
 
 #include "Containers/Queue.h"
-#include "ILiveLinkSource.h"
 #include "ITimedDataInput.h"
-#include "LiveLinkClient.h"
 #include "LiveLinkFrameInterpolationProcessor.h"
 #include "LiveLinkFramePreProcessor.h"
-#include "LiveLinkFrameTranslator.h"
-#include "LiveLinkRefSkeleton.h"
-#include "LiveLinkRole.h"
 #include "LiveLinkSourceSettings.h"
-#include "LiveLinkSubjectSettings.h"
-#include "LiveLinkTimedDataInput.h"
-#include "LiveLinkTypes.h"
+
+class FLiveLinkTimedDataInput;
+class ULiveLinkSubjectSettings;
+struct FLiveLinkSubjectTimeSyncData;
 
 
 struct FLiveLinkInterpolationInfo;

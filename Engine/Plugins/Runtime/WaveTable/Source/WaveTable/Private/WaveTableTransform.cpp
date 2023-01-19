@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WaveTableTransform.h"
 
+#include "Curves/CurveFloat.h"
 #include "DSP/FloatArrayMath.h"
 #include "WaveTableImporter.h"
-#include "WaveTableSampler.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaveTableTransform)
 

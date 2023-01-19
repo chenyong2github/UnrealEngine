@@ -2,11 +2,9 @@
 
 #include "TemplateSequenceActor.h"
 #include "TemplateSequence.h"
-#include "MovieSceneSequenceTickManager.h"
 #include "Engine/World.h"
-#include "Logging/MessageLog.h"
-#include "Misc/UObjectToken.h"
 #include "Net/UnrealNetwork.h"
+#include "TemplateSequencePlayer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TemplateSequenceActor)
 

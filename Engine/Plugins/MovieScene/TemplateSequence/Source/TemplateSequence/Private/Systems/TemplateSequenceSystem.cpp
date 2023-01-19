@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Systems/TemplateSequenceSystem.h"
-#include "Compilation/MovieSceneCompiledDataManager.h"
-#include "EntitySystem/MovieSceneComponentPtr.h"
-#include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
+#include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneEntityBuilder.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
+#include "EntitySystem/MovieSceneInstanceRegistry.h"
 #include "EntitySystem/MovieSceneSpawnablesSystem.h"
-#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
-#include "IMovieScenePlaybackClient.h"
 #include "IMovieScenePlayer.h"
 #include "MovieSceneTracksComponentTypes.h"
 #include "Sections/TemplateSequenceSection.h"
@@ -20,7 +18,6 @@
 #include "Systems/MovieSceneComponentTransformSystem.h"
 #include "Systems/MovieSceneFloatPropertySystem.h"
 #include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
-#include "TemplateSequence.h"
 #include "TemplateSequenceComponentTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TemplateSequenceSystem)

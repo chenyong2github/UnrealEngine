@@ -4,7 +4,9 @@
 
 #include "HeightfieldMinMaxTexture.h"
 #include "HeightfieldMinMaxTextureBuild.h"
+#include "PackageSourceControlHelper.h"
 #include "UObject/SavePackage.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 #include "VirtualHeightfieldMeshComponent.h"
 

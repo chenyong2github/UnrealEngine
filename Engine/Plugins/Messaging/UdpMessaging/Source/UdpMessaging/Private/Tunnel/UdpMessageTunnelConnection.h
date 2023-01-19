@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Queue.h"
 #include "HAL/Runnable.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Misc/DateTime.h"
-#include "Templates/SharedPointer.h"
 
 #include "IUdpMessageTunnelConnection.h"
 

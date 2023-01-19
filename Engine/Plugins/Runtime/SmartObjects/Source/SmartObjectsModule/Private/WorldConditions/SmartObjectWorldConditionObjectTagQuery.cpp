@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldConditions/SmartObjectWorldConditionObjectTagQuery.h"
-#include "GameplayTagContainer.h"
-#include "WorldConditionSchema.h"
-#include "WorldConditionContext.h"
 #include "SmartObjectSubsystem.h"
-#include "WorldConditions/SmartObjectWorldConditionSchema.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectWorldConditionObjectTagQuery)
 

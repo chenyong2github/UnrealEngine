@@ -6,7 +6,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public Media(ReadOnlyTargetRules Target) : base(Target)
 		{
-			IWYUSupport = IWYUSupport.None;
+			IWYUSupport = IWYUSupport.KeepAsIsForNow;
 
 			PublicDependencyModuleNames.AddRange(
 				new string[]

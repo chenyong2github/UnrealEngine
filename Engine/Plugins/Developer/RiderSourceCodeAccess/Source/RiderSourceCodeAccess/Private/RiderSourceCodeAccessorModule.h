@@ -2,7 +2,10 @@
 
 #pragma once
 
-#include "ISourceCodeAccessModule.h"
+#include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+
+class ISourceCodeAccessor;
 
 class FRiderSourceCodeAccessModule : public IModuleInterface
 {

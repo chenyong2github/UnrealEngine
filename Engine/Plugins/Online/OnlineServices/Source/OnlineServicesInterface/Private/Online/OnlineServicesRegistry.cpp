@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Online/OnlineServicesRegistry.h"
+#include "Online/OnlineServices.h"
 #include "Online/OnlineServicesDelegates.h"
 
 #include "Misc/ConfigCacheIni.h"

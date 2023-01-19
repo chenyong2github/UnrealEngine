@@ -2,22 +2,18 @@
 
 #include "LiveLinkClientPanel.h"
 
-#include "Templates/SharedPointer.h"
 
+#include "DetailsViewArgs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SNullWidget.h"
-#include "Widgets/SOverlay.h"
-#include "Widgets/Layout/SSplitter.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
-#include "Widgets/Images/SImage.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Widgets/Input/SButton.h"
+#include "IDetailsView.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/STextEntryPopup.h"
-#include "Widgets/Views/SListView.h"
+#include "LiveLinkRole.h"
 #include "SWarningOrErrorBox.h"
 
-#include "ILiveLinkSource.h"
 #include "LiveLinkClientCommands.h"
 #include "LiveLinkClient.h"
 #include "LiveLinkClientPanelToolbar.h"
@@ -25,17 +21,15 @@
 #include "LiveLinkSettings.h"
 #include "LiveLinkSourceFactory.h"
 #include "LiveLinkSourceSettings.h"
-#include "LiveLinkSubjectSettings.h"
 #include "SLiveLinkDataView.h"
 
 #include "Editor.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "EditorFontGlyphs.h"
-#include "Styling/AppStyle.h"
 #include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
-#include "UObject/UObjectHash.h"
+#include "Widgets/Views/STreeView.h"
 
 
 #define LOCTEXT_NAMESPACE "LiveLinkClientPanel"

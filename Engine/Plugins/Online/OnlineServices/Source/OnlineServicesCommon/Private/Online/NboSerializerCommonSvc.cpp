@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Online/NboSerializerCommonSvc.h"
+#include "Online/NboSerializer.h"
+#include "Online/SessionsCommon.h"
 
 /**
  * Serializes data in network byte order form into a buffer

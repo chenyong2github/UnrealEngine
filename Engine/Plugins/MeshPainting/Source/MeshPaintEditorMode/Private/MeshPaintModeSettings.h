@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "MeshPaintHelpers.h"
+#include "MeshPaintingToolsetTypes.h"
+#include "UObject/Package.h"
 #include "MeshPaintModeSettings.generated.h"
 
 

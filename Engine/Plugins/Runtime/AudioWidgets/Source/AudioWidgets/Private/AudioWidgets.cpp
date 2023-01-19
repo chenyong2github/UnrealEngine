@@ -2,6 +2,8 @@
 
 #include "AudioWidgets.h"
 #include "AdvancedWidgetsModule.h"
+#include "AudioWidgetsStyle.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FAudioWidgetsModule"
 

@@ -5,9 +5,8 @@
 #include "LiveLinkMessages.h"
 #include "LiveLinkSettings.h"
 
-#include "GenericPlatform/GenericPlatformProcess.h"
-#include "HAL/Event.h"
 #include "HAL/RunnableThread.h"
+#include "MessageEndpoint.h"
 
 
 bool FLiveLinkHeartbeatEmitter::FHeartbeatRecipient::operator==(const FLiveLinkHeartbeatEmitter::FHeartbeatRecipient& other) const

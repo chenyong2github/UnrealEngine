@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MaterialBlendingDetails.h"
-#include "MSSettings.h"
 
-#include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"

@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SContextualAnimNewAnimSetDialog.h"
+#include "DetailsViewArgs.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "IStructureDetailsView.h"
-#include "UObject/StructOnScope.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "ContextualAnimEditorTypes.h"

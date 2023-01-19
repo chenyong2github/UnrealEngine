@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "ComponentVisualizerManager.h"
 #include "EditorViewportClient.h"
 
 class FSmartObjectAssetToolkit;

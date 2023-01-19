@@ -2,7 +2,6 @@
 
 #include "StateTreeDelayTask.h"
 #include "StateTreeExecutionContext.h"
-#include "StateTreeLinker.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeDelayTask)
 

@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeStateLinkDetails.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
 #include "StateTree.h"
-#include "StateTreeState.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeDelegates.h"
 #include "Widgets/Input/SComboButton.h"

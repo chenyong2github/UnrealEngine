@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/Adapters/StaticMeshComponentCacheAdapter.h"
-#include "Chaos/ParticleHandle.h"
+#include "Chaos/Adapters/CacheAdapter.h"
 #include "Engine/World.h"
+#include "Physics/Experimental/PhysInterface_Chaos.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
-#include "Physics/PhysicsInterfaceScene.h"
 #include "PBDRigidsSolver.h"
 #include "Chaos/ChaosCache.h"
 #include "Components/StaticMeshComponent.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 
 
 namespace Chaos

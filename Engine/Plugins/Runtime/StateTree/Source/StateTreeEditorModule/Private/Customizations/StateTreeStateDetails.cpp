@@ -1,16 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeStateDetails.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "IDetailChildrenBuilder.h"
-#include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
 #include "PropertyCustomizationHelpers.h"
 #include "IPropertyUtilities.h"
 #include "StateTreeEditorData.h"
-#include "StateTreeViewModel.h"
-#include "StateTree.h"
+#include "StateTreeSchema.h"
 
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"

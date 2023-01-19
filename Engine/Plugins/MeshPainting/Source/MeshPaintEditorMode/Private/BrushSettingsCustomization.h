@@ -3,10 +3,10 @@
 #pragma once
 
 #include "IDetailCustomization.h"
-#include "IPropertyTypeCustomization.h"
-#include "IDetailRootObjectCustomization.h"
-#include "PropertyRestriction.h"
-#include "Widgets/SWidget.h"
+
+class FPropertyRestriction;
+class FReply;
+class IPropertyHandle;
 
 class SHorizontalBox;
 class UMeshVertexPaintingToolProperties;

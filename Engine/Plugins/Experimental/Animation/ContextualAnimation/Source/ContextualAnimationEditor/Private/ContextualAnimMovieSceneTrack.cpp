@@ -3,7 +3,7 @@
 #include "ContextualAnimMovieSceneTrack.h"
 #include "ContextualAnimMovieSceneSection.h"
 #include "ContextualAnimMovieSceneSequence.h"
-#include "ContextualAnimViewModel.h"
+#include "MovieScene.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimMovieSceneTrack)
 

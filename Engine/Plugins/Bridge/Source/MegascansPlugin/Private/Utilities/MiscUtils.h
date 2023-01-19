@@ -1,14 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreMinimal.h"
-#include "MSSettings.h"
 #include  "MSAssetImportData.h"
 
 
-#include "Dom/JsonObject.h"
 #include "MSAssetImportData.h"
-#include "UObject/Object.h"
-#include "Materials/MaterialInstanceConstant.h"
+
+class FJsonObject;
+class UMaterialInstanceConstant;
 
 
 

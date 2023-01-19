@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "TemplateSequence.h"
-#include "UObject/GCObject.h"
-#include "Styling/ISlateStyle.h"
 #include "Toolkits/AssetEditorToolkit.h"
+
+class UTemplateSequence;
+enum class EMapChangeType : uint8;
 
 class FToolBarBuilder;
 class FTemplateSequenceEditorPlaybackContext;

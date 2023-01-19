@@ -2,13 +2,15 @@
 
 #pragma once
 
+#include "UObject/GCObject.h"
 #include "Widgets/SCompoundWidget.h"
 
-#include "LiveLinkTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STreeView.h"
 #include "EditorUndoClient.h"
+
+namespace ESelectInfo { enum Type : int; }
+namespace ETextCommit { enum Type : int; }
+struct FPropertyChangedEvent;
+template <typename ItemType> class STreeView;
 
 class ITableRow;
 class FLiveLinkClient;

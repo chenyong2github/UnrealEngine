@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioWidgetsSlateTypes.h"
-#include "Brushes/SlateImageBrush.h"
+#include "Brushes/SlateNoResource.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "Styling/StyleColors.h"
 

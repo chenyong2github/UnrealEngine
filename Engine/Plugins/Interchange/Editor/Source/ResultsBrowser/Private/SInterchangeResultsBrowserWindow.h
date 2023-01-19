@@ -2,17 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "Input/Reply.h"
-#include "InterchangeResultsContainer.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
+#include "InterchangeResult.h" // IWYU pragma: keep
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/SListView.h" // IWYU pragma: keep
+
+class STableViewBase;
+class UInterchangeResultsContainer;
 
 
 class SInterchangeResultsBrowserWindow : public SCompoundWidget

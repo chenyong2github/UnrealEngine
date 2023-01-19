@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chat/SocialGroupChannel.h"
-#include "User/SocialUser.h"
 #include "SocialToolkit.h"
-#include "SocialTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SocialGroupChannel)
 

@@ -2,24 +2,20 @@
 
 #include "SLiveLinkDataView.h"
 
+#include "DetailsViewArgs.h"
 #include "LiveLinkMetaDataDetailCustomization.h"
+#include "IDetailsView.h"
 #include "LiveLinkClient.h"
-#include "LiveLinkTypes.h"
 #include "LiveLinkRole.h"
 
-#include "ClassViewerModule.h"
 #include "IStructureDetailsView.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSpinBox.h"
-#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/SNullWidget.h"
 
 
 #define LOCTEXT_NAMESPACE "LiveLinkDataView"

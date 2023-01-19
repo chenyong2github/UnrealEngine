@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/Array.h"
-#include "Containers/BitArray.h"
 #include "Templates/SharedPointer.h"
 #include "Misc/DateTime.h"
+
+struct FTimespan;
 
 // IMessageContext forward declaration
 enum class EMessageFlags : uint32;

@@ -4,7 +4,6 @@
 #include "Factories/TemplateSequenceFactoryUtil.h"
 #include "GameFramework/Actor.h"
 #include "Kismet2/SClassPickerDialog.h"
-#include "MovieScene.h"
 #include "TemplateSequence.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TemplateSequenceFactoryNew)

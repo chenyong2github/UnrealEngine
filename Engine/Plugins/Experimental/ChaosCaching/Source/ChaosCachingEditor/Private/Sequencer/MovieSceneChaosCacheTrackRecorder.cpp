@@ -1,16 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sequencer/MovieSceneChaosCacheTrackRecorder.h"
 #include "Chaos/CacheManagerActor.h"
 #include "Chaos/Sequencer/MovieSceneChaosCacheSection.h"
 #include "Chaos/Sequencer/MovieSceneChaosCacheTrack.h"
 #include "TakeRecorderSettings.h"
-#include "Recorder/TakeRecorderParameters.h"
-#include "Engine/TimecodeProvider.h"
 #include "Misc/App.h"
-#include "MovieSceneFolder.h"
-#include "Tracks/MovieSceneActorReferenceTrack.h"
-#include "LevelSequence.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneChaosCacheTrackRecorder"
 

@@ -3,9 +3,10 @@
 #include "ExtensionLibraries/MovieSceneBindingExtensions.h"
 #include "ExtensionLibraries/MovieSceneSequenceExtensions.h"
 #include "MovieSceneBindingProxy.h"
+#include "MovieScenePossessable.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
-#include "Algo/Find.h"
+#include "MovieSceneSpawnable.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneBindingExtensions)
 

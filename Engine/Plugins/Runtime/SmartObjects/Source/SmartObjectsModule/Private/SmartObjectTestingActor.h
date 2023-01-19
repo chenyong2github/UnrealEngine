@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "GameFramework/Actor.h"
 #include "SmartObjectDebugRenderingComponent.h"
 #include "SmartObjectSubsystem.h"
 #include "SmartObjectTestingActor.generated.h"

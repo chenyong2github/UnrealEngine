@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailCustomizations/ContextualAnimNotifySectionDetailCustom.h"
+#include "Animation/AnimTypes.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
-#include "DetailWidgetRow.h"
-#include "PropertyEditorModule.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "ContextualAnimMovieSceneNotifySection.h"
+#include "IDetailPropertyRow.h"
 
 TSharedRef<IDetailCustomization> FContextualAnimNotifySectionDetailCustom::MakeInstance()
 {

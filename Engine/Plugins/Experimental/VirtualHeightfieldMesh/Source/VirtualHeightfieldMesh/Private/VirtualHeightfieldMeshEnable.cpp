@@ -3,8 +3,6 @@
 #include "VirtualHeightfieldMeshEnable.h"
 
 #include "Components/RuntimeVirtualTextureComponent.h"
-#include "CoreGlobals.h"
-#include "HAL/IConsoleManager.h"
 #include "UObject/UObjectIterator.h"
 #include "VirtualHeightfieldMeshComponent.h"
 #include "VT/RuntimeVirtualTextureVolume.h"

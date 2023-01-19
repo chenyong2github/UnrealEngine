@@ -7,7 +7,6 @@
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneStringChannel.h"
-#include "LiveLinkMovieScenePrivate.h"
 
 
 namespace LiveLinkPropertyHandlerUtils

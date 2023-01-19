@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SubmixEffects/SubmixEffectStereoToQuad.h"
-#include "Sound/SoundEffectPreset.h"
 #include "DSP/Dsp.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SubmixEffectStereoToQuad)

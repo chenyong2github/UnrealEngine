@@ -3,15 +3,11 @@
 #include "StateTreeTest.h"
 #include "AITestsCommon.h"
 #include "StateTreeEditorData.h"
-#include "StateTreeState.h"
 #include "StateTreeCompiler.h"
 #include "Conditions/StateTreeCommonConditions.h"
-#include "StateTree.h"
 #include "StateTreeTestTypes.h"
-#include "StateTreeExecutionContext.h"
 #include "Engine/World.h"
 #include "Async/ParallelFor.h"
-#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeTest)
 

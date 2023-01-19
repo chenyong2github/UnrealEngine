@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/TemplateSequenceSection.h"
+#include "Channels/MovieSceneChannelData.h"
 #include "TemplateSequence.h"
 #include "Channels/MovieSceneChannelProxy.h"
+#include "EntitySystem/BuiltInComponentTypes.h"
 #include "TemplateSequenceComponentTypes.h"
+#include "EntitySystem/MovieSceneEntityBuilder.h"
 #include "Evaluation/MovieSceneRootOverridePath.h"
-#include "EntitySystem/MovieSceneSequenceInstance.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneInstanceRegistry.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TemplateSequenceSection)
 

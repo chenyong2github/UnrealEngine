@@ -10,6 +10,8 @@ public class ResonanceAudio : ModuleRules
 
 	public ResonanceAudio(ReadOnlyTargetRules Target) : base(Target)
 	{
+		IWYUSupport = IWYUSupport.KeepAsIsForNow;
+
 		PrivatePCHHeaderFile = "Private/ResonanceAudioPrivatePCH.h";
 
 		string ResonanceAudioPath = ModuleDirectory + "/Private/ResonanceAudioLibrary";

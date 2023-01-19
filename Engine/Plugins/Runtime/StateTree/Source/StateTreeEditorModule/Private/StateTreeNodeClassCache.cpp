@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeNodeClassCache.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
+#include "Blueprint/BlueprintSupport.h"
 #include "Misc/FeedbackContext.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
@@ -11,7 +10,6 @@
 #include "Engine/Blueprint.h"
 #include "Editor.h"
 #include "AssetRegistry/ARFilter.h"
-#include "ObjectEditorUtils.h"
 #include "Logging/MessageLog.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 

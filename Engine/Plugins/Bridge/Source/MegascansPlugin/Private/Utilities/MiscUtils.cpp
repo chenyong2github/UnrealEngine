@@ -1,51 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Utilities/MiscUtils.h"
+#include "Engine/StaticMeshActor.h"
 #include "Utilities/MaterialUtils.h"
 
-#include "Serialization/JsonSerializer.h"
+#include "MSSettings.h"
 #include "Misc/Paths.h"
 #include "HAL/PlatformFileManager.h"
-#include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/FileManager.h"
 
-#include "Modules/ModuleManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/IAssetRegistry.h"
-#include "UObject/Package.h"
 
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
-#include "Engine/Selection.h"
 
-#include "Factories/MaterialInstanceConstantFactoryNew.h"
 
-#include "Engine/StaticMesh.h"
 
-#include "Misc/MessageDialog.h"
-#include "Internationalization/Text.h"
 
-#include "PackageTools.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "Misc/FileHelper.h"
 #include "FileHelpers.h"
 
 #include "EditorAssetLibrary.h"
-#include "AssetRegistry/AssetData.h"
 #include "JsonObjectConverter.h"
-#include "Serialization/JsonReader.h"
 #include "InstancedFoliageActor.h"
 #include "FoliageType_InstancedStaticMesh.h"
-#include "Engine/World.h"
-#include "Editor/EditorEngine.h"
 
-#include "EngineGlobals.h"
 #include "Editor.h"
 
-#include "UObject/SoftObjectPath.h"
-#include "Engine/StreamableManager.h"
-#include "Engine/AssetManager.h"
-#include "Engine/Texture.h"
 
-#include "HAL/IConsoleManager.h"
 
 #include "Tools/BlendMaterials.h"
 

@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioRadialSlider.h"
+#include "AudioDefines.h"
 #include "AudioWidgets.h"
+#include "Modules/ModuleManager.h"
 #include "SAudioRadialSlider.h"
+#include "Styling/StyleColors.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioRadialSlider)
 

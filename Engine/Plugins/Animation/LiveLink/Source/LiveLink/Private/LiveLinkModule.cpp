@@ -2,12 +2,17 @@
 
 #include "LiveLinkModule.h"
 
+#include "Brushes/SlateImageBrush.h"
 #include "Interfaces/IPluginManager.h"
+#include "LiveLinkDebugCommand.h"
 #include "LiveLinkLogInstance.h"
+#include "LiveLinkHeartbeatEmitter.h"
 #include "LiveLinkPreset.h"
+#include "LiveLinkMessageBusDiscoveryManager.h"
 #include "LiveLinkSettings.h"
 #include "Misc/CommandLine.h"
 #include "Misc/CoreDelegates.h"
+#include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 
 LLM_DEFINE_TAG(LiveLink);

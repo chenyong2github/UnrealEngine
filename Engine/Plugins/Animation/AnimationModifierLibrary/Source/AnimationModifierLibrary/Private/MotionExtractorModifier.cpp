@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MotionExtractorModifier.h"
+#include "Animation/Skeleton.h"
 #include "MotionExtractorUtilities.h"
 #include "Animation/AnimSequence.h"
-#include "Animation/AnimationPoseData.h"
+#include "AnimationBlueprintLibrary.h"
+#include "EngineLogs.h"
+#include "MotionExtractorTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MotionExtractorModifier)
 

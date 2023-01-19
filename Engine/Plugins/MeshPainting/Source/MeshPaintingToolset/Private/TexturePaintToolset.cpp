@@ -4,10 +4,11 @@
 
 #include "Editor.h"
 #include "Components/StaticMeshComponent.h"
-#include "StaticMeshResources.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
+#include "Materials/MaterialInterface.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
 #include "IMeshPaintComponentAdapter.h"
@@ -17,8 +18,8 @@
 #include "CanvasItem.h"
 #include "MaterialShared.h"
 #include "MeshPaintingToolsetTypes.h"
+#include "RenderingThread.h"
 #include "TextureResource.h"
-#include "PixelFormat.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TexturePaintToolset)
 

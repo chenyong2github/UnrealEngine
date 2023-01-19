@@ -5,6 +5,12 @@
 #if WITH_TENCENTSDK
 #if WITH_TENCENT_RAIL_SDK
 
+#include "Interfaces/OnlineIdentityInterface.h"
+#include "Interfaces/OnlineUserInterface.h"
+#include "OnlineIdentityTencent.h"
+#include "OnlinePresenceTencent.h"
+#include "OnlineSubsystemTencent.h"
+
 FOnlineFriendTencent::FOnlineFriendTencent(FOnlineSubsystemTencent* InTencentSubsystem, const FUniqueNetIdRailRef InUserId)
 	: TencentSubsystem(InTencentSubsystem)
 	, UserId(InUserId)

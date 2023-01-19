@@ -5,6 +5,7 @@
 #include "IConcertClientTransactionBridge.h"
 #include "IConcertSyncClientModule.h"
 #include "LiveLinkControllerBase.h"
+#include "UObject/Package.h"
 
 
 namespace LiveLinkMultiUserUtils

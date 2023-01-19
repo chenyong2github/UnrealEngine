@@ -2,17 +2,12 @@
 
 #include "InterchangeEditorPipelinesModule.h"
 
-#include "AssetToolsModule.h"
-#include "CoreMinimal.h"
-#include "Engine/Engine.h"
 #include "InterchangeEditorPipelineDetails.h"
 #include "InterchangeEditorPipelineStyle.h"
 #include "InterchangeManager.h"
 #include "InterchangePipelineBase.h"
 #include "InterchangePipelineFactories.h"
-#include "InterchangePythonPipelineBase.h"
 #include "Misc/CoreDelegates.h"
-#include "Modules/ModuleManager.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "PropertyEditorModule.h"
 

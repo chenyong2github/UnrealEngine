@@ -2,12 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "LiveLinkRole.h"
 #include "SGraphPin.h"
 #include "SLiveLinkSubjectRepresentationPicker.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SLiveLinkSubjectNameGraphPin : public SGraphPin
 {

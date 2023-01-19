@@ -8,7 +8,6 @@
 #include "EdGraph/EdGraph.h"
 #include "Engine/SkeletalMesh.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "Input/Reply.h"
 #include "Interfaces/ITargetPlatform.h"

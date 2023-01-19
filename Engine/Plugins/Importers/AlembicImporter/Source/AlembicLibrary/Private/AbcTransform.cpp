@@ -3,10 +3,8 @@
 #include "AbcTransform.h"
 #include "AbcImportUtilities.h"
 
-#include "AbcFile.h"
 
 THIRD_PARTY_INCLUDES_START
-#include <Alembic/AbcCoreAbstract/TimeSampling.h>
 #include <Alembic/AbcGeom/Visibility.h>
 THIRD_PARTY_INCLUDES_END
 

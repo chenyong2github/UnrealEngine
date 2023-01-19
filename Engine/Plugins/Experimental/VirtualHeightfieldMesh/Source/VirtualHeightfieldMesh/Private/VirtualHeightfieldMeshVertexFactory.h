@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHI.h"
-#include "RenderResource.h"
-#include "UniformBuffer.h"
 #include "VertexFactory.h"
-#include "Containers/DynamicRHIResourceArray.h"
 #include "SceneManagement.h"
+
+class FShaderParameterMap;
+struct FShaderCompilerEnvironment;
 
 /**
  * Uniform buffer to hold parameters specific to this vertex factory. Only set up once.

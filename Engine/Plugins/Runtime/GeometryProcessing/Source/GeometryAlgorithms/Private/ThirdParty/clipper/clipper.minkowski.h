@@ -20,7 +20,7 @@
 #include <cstdlib>
 #include <vector>
 #include <string>
-#include "ThirdParty/clipper/clipper.core.h"
+#include "ThirdParty/clipper/clipper.engine.h"
 
 namespace Clipper2Lib 
 {

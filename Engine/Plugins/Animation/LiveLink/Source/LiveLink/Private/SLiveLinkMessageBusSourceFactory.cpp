@@ -2,13 +2,12 @@
 
 #include "SLiveLinkMessageBusSourceFactory.h"
 
-#include "ILiveLinkClient.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "ILiveLinkModule.h"
+#include "Widgets/Views/SListView.h"
 #if WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
 #include "LiveLinkMessageBusDiscoveryManager.h"
 #endif
-#include "LiveLinkMessageBusFinder.h"
-#include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkMessageBusSourceEditor"
 

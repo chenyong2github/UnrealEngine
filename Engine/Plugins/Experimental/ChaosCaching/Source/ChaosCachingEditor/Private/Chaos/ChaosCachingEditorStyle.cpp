@@ -2,10 +2,10 @@
 
 #include "ChaosCachingEditorStyle.h"
 
-#include "Styling/SlateTypes.h"
-#include "Styling/CoreStyle.h"
-#include "Styling/AppStyle.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyleMacros.h"
+#include "Misc/Paths.h"
+#include "Styling/SlateStyleRegistry.h"
 
 FName FChaosCachingEditorStyle::StyleName("ChaosCachingEditorStyle");
 

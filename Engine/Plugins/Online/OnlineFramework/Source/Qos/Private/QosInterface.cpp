@@ -2,6 +2,7 @@
 
 #include "QosInterface.h"
 #include "QosModule.h"
+#include "QosRegionManager.h"
 
 //static 
 TSharedRef<FQosInterface> FQosInterface::Get()

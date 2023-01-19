@@ -4,6 +4,7 @@
 
 #if WITH_TENCENT_RAIL_SDK
 
+#include "OnlineSubsystemTencent.h"
 #include "RailSdkWrapper.h"
 
 FOnlinePlayTimeLimitUserTencentRail::~FOnlinePlayTimeLimitUserTencentRail()

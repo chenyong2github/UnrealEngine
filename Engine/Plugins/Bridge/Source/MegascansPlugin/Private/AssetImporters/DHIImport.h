@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreMinimal.h"
-#include "Dom/JsonObject.h"
-#include "Utilities/VersionInfoHandler.h"
-#include "Widgets/SWindow.h"
+#include "Templates/SharedPointer.h"
+
+class FJsonObject;
+class SWindow;
+struct FImportTimeData;
+struct FScriptContainerElement;
 
 struct FDHIData
 {

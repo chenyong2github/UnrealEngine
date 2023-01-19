@@ -2,14 +2,10 @@
 
 #include "Chaos/CacheCollectionCustomization.h"
 #include "Chaos/CacheCollection.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
-#include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Chaos/ChaosCache.h"
 
 #define LOCTEXT_NAMESPACE "CacheCollectionDetails"

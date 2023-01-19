@@ -2,14 +2,12 @@
 
 #include "View/MVVMViewClass.h"
 #include "Types/MVVMFieldContext.h"
-#include "Types/MVVMViewModelContextInstance.h"
 #include "View/MVVMView.h"
 
 #include "Bindings/MVVMFieldPathHelper.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/Engine.h"
 #include "MVVMMessageLog.h"
-#include "MVVMViewModelBase.h"
 #include "MVVMSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewClass)

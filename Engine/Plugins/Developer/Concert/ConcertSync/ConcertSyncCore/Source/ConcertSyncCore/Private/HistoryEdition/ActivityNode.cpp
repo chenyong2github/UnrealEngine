@@ -4,6 +4,8 @@
 
 #include "HistoryEdition/ActivityDependencyEdge.h"
 #include "HistoryEdition/ActivityDependencyGraph.h"
+#include "HistoryEdition/ActivityGraphIDs.h"
+#include "Misc/Optional.h"
 
 bool UE::ConcertSyncCore::FActivityNode::DependsOnNode(FActivityNodeID NodeId, TOptional<EActivityDependencyReason> WithReason, TOptional<EDependencyStrength> WithStrength) const
 {

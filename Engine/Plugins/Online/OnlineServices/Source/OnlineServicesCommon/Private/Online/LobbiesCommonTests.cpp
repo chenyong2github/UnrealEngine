@@ -2,12 +2,9 @@
 
 #include "LobbiesCommonTests.h"
 
-#include "Algo/Transform.h"
-#include "Containers/Ticker.h"
 #include "Misc/AutomationTest.h"
 #include "Online/LobbiesCommon.h"
-#include "Online/Auth.h"
-#include "Online/OnlineAsyncOp.h"
+#include "Online/OnlineUtils.h"
 
 namespace UE::Online {
 

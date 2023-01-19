@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "InstancedStruct.h"
 #include "StructView.h"
-#include "StructUtilsTypes.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
 #include "Engine/PackageMapClient.h"
 #include "Engine/NetConnection.h"

@@ -3,7 +3,6 @@
 #include "Party/PartyTypes.h"
 #include "Party/SocialParty.h"
 #include "Party/PartyMember.h"
-#include "OnlineSubsystemUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PartyTypes)
 

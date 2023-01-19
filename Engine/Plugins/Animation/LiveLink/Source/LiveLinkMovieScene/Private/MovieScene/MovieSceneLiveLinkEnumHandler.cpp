@@ -4,7 +4,9 @@
 
 #include "Channels/MovieSceneByteChannel.h"
 
-#include "LiveLinkMovieScenePrivate.h"
+#include "Channels/MovieSceneChannelData.h"
+#include "MovieScene/MovieSceneLiveLinkStructProperties.h"
+#include "UObject/EnumProperty.h"
 
 
 //------------------------------------------------------------------------------

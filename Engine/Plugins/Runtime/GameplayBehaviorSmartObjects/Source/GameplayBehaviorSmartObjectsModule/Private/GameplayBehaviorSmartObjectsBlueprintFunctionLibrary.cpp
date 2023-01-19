@@ -4,7 +4,6 @@
 
 #include "AI/AITask_UseGameplayBehaviorSmartObject.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
-#include "GameFramework/Actor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayBehaviorSmartObjectsBlueprintFunctionLibrary)
 

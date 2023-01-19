@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreMinimal.h"
 #include "MSAssetImportData.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(MSLiveLinkLog, Log, All);

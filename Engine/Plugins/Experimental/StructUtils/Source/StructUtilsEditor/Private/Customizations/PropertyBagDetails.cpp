@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertyBagDetails.h"
-#include "InstancedStructDetails.h"
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
 #include "IPropertyUtilities.h"
-#include "IDetailPropertyRow.h"
 #include "IDetailChildrenBuilder.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "UObject/EnumProperty.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
@@ -15,10 +13,8 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
 #include "Engine/UserDefinedStruct.h"
-#include "Kismet2/BlueprintEditorUtils.h"
 #include "SPinTypeSelector.h"
 #include "PropertyBag.h"
-#include "Styling/AppStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PropertyBagDetails)
 

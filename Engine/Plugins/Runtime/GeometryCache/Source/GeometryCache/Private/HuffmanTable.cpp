@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HuffmanTable.h"
-#include "HuffmanBitStream.h"
 
 /**
 To read the algorithmic docs you need to understand the following terms

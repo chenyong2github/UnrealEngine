@@ -3,11 +3,7 @@
 #include "HeightfieldMinMaxRender.h"
 
 #include "GlobalShader.h"
-#include "RendererInterface.h"
-#include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
-#include "RHIStaticStates.h"
-#include "ShaderParameterStruct.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
 /** Shader for MinMax downsample passes. */

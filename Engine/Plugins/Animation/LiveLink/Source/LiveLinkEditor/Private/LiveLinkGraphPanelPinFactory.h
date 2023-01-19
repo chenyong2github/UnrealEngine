@@ -2,13 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "EdGraphUtilities.h"
 #include "EdGraphSchema_K2.h"
-#include "SGraphPin.h"
 
-#include "LiveLinkRole.h"
 #include "SLiveLinkSubjectNameGraphPin.h"
 #include "SLiveLinkSubjectRepresentationGraphPin.h"
 

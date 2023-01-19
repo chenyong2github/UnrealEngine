@@ -3,10 +3,10 @@
 #include "SubmixEffects/SubmixEffectMultiBandCompressor.h"
 
 #include "AudioBusSubsystem.h"
-#include "AudioDeviceManager.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSubmix.h"
 #include "DSP/FloatArrayMath.h"
+#include "Sound/AudioBus.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SubmixEffectMultiBandCompressor)
 

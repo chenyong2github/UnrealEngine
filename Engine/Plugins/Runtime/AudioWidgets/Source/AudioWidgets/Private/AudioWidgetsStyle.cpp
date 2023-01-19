@@ -2,10 +2,11 @@
 
 #include "AudioWidgetsStyle.h"
 #include "AudioWidgetsSlateTypes.h"
-#include "Brushes/SlateImageBrush.h"
+#include "Brushes/SlateNoResource.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
+#include "Misc/Paths.h"
 #include "Styling/StyleColors.h"
-#include "Styling/SlateTypes.h"
+#include "Styling/SlateStyleRegistry.h"
 
 FName FAudioWidgetsStyle::StyleName("AudioWidgetsStyle");
 

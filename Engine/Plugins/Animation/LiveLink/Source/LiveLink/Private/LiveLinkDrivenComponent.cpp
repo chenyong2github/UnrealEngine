@@ -3,7 +3,6 @@
 #include "LiveLinkDrivenComponent.h"
 
 #include "ILiveLinkClient.h"
-#include "LiveLinkTypes.h"
 
 #include "GameFramework/Actor.h"
 

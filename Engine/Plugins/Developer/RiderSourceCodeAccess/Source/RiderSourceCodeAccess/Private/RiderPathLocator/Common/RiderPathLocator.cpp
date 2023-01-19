@@ -1,12 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RiderPathLocator/RiderPathLocator.h"
-#include "Dom/JsonObject.h"
 #include "Interfaces/IPluginManager.h"
-#include "Internationalization/Regex.h"
 #include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
 TArray<FInstallInfo> FRiderPathLocator::GetInstallInfosFromToolbox(const FString& ToolboxPath, const FString& Pattern)

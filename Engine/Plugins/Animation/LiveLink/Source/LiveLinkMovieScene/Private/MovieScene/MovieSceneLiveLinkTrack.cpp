@@ -2,9 +2,9 @@
 
 #include "MovieScene/MovieSceneLiveLinkTrack.h"
 
-#include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "MovieScene/MovieSceneLiveLinkSection.h"
+#include "MovieScene/MovieSceneLiveLinkStructProperties.h" // IWYU pragma: keep
 #include "MovieSceneLiveLinkSectionTemplate.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkTrack)

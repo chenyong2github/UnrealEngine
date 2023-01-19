@@ -2,7 +2,6 @@
 
 #include "AssetTypeActions_StateTree.h"
 #include "StateTree.h"
-#include "IStateTreeEditor.h"
 #include "StateTreeEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"

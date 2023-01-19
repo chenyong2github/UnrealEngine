@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "PropertyCustomizationHelpers.h"
+#include "IPropertyTypeCustomization.h"
+
+struct EVisibility;
 
 class UAbcImportSettings;
 

@@ -1,16 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "InterchangeOpenFileDialog.h"
 
-#include "Containers/UnrealString.h"
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IDesktopPlatform.h"
-#include "InterchangeFilePickerBase.h"
 #include "InterchangeManager.h"
-#include "InterchangeTranslatorBase.h"
 #include "ObjectTools.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeOpenFileDialog)
 

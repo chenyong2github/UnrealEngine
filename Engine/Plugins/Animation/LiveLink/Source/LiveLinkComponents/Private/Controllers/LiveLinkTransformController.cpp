@@ -2,11 +2,8 @@
 
 #include "Controllers/LiveLinkTransformController.h"
 
-#include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
-#include "ILiveLinkClient.h"
 #include "LiveLinkComponentController.h"
-#include "LiveLinkCustomVersion.h"
 #include "LiveLinkComponentPrivate.h"
 #include "Roles/LiveLinkTransformRole.h"
 #include "Roles/LiveLinkTransformTypes.h"
@@ -16,7 +13,6 @@
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
-#include "Kismet2/ComponentEditorUtils.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #endif
 

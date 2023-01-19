@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteDisplacedMesh.h"
-#include "Async/TaskGraphInterfaces.h"
 #include "Engine/Texture2D.h"
 #include "Engine/StaticMeshSourceData.h"
 #include "NaniteDisplacedMeshLog.h"

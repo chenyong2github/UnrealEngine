@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "Widgets/SBoxPanel.h"
 #include "IDetailCustomization.h"
+
+class SHorizontalBox;
 
 /** Customization for importing vertex colors from a texture see SImportVertexColorOptions */
 class FImportVertexColorOptionsCustomization : public IDetailCustomization

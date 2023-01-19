@@ -2,7 +2,6 @@
 
 #include "Chaos/ChaosCachingEditorPlugin.h"
 #include "Chaos/ChaosCachingEditorStyle.h"
-#include "AssetToolsModule.h"
 #include "Chaos/Adapters/CacheAdapter.h"
 #include "Chaos/AssetTypeActions_ChaosCacheCollection.h"
 #include "Chaos/CacheCollectionCustomization.h"
@@ -13,21 +12,20 @@
 #include "Chaos/CacheCollection.h"
 #include "Components/PrimitiveComponent.h"
 #include "Features/IModularFeatures.h"
+#include "ISceneOutliner.h"
 #include "Sequencer/TakeRecorderChaosCacheSource.h"
-#include "CoreMinimal.h"
-#include "Engine/Selection.h"
-#include "Kismet2/ComponentEditorUtils.h"
-#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "LevelEditor.h"
 #include "ISequencerModule.h"
+#include "ScopedTransaction.h"
 #include "Sequencer/ChaosCacheTrackEditor.h"
 #include "ITakeRecorderModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "SceneOutlinerPublicTypes.h"
 #include "ActorTreeItem.h"
 #include "SceneOutlinerModule.h"
+#include "Selection.h"
+#include "TakeRecorderSources.h"
 
 IMPLEMENT_MODULE(IChaosCachingEditorPlugin, ChaosCachingEditor)
 

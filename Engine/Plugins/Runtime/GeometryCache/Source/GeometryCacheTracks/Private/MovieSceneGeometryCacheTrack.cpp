@@ -2,11 +2,7 @@
 
 #include "MovieSceneGeometryCacheTrack.h"
 #include "GeometryCacheComponent.h"
-#include "MovieSceneGeometryCacheSection.h"
-#include "Compilation/MovieSceneCompilerRules.h"
-#include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "MovieSceneGeometryCacheTemplate.h"
-#include "Compilation/IMovieSceneTemplateGenerator.h"
 #include "MovieSceneGeometryCacheTemplate.h"
 #include "MovieScene.h"
 

@@ -4,14 +4,12 @@
 #include "AnimationUtils.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
-#include "Containers/ArrayView.h"
 #include "AnimNotifyState_MotionWarping.h"
 #include "ContextualAnimUtilities.h"
 #include "RootMotionModifier.h"
 #include "ContextualAnimSelectionCriterion.h"
 #include "ContextualAnimSceneActorComponent.h"
 #include "ContextualAnimSceneAsset.h"
-#include "GameFramework/Character.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimTypes)
 

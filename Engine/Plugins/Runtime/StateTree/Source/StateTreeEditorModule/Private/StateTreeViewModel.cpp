@@ -1,18 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeViewModel.h"
-#include "Templates/SharedPointer.h"
 #include "StateTree.h"
 #include "StateTreeEditorData.h"
-#include "StateTreeState.h"
-#include "StateTreeTaskBase.h"
 #include "StateTreeDelegates.h"
 #include "Editor.h"
-#include "EditorSupportDelegates.h"
 #include "ScopedTransaction.h"
-#include "Modules/ModuleManager.h"
-#include "StateTreeEditorModule.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"

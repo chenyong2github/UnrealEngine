@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Interfaces/OnlinePartyInterface.h"
-#include "OnlineSubsystem.h"
+#include "OnlineSubsystem.h" // IWYU pragma: keep
 #include "Policies/CondensedJsonPrintPolicy.h"
-#include "Serialization/JsonTypes.h"
-#include "Dom/JsonValue.h"
-#include "Dom/JsonObject.h"
-#include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
 DEFINE_LOG_CATEGORY(LogOnlineParty);

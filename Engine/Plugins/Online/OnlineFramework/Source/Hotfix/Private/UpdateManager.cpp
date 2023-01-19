@@ -1,22 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UpdateManager.h"
-#include "Algo/Transform.h"
 #include "Misc/CommandLine.h"
-#include "Containers/Ticker.h"
-#include "HAL/IConsoleManager.h"
-#include "UObject/Package.h"
 #include "Engine/GameInstance.h"
-#include "TimerManager.h"
-#include "Engine/LocalPlayer.h"
 #include "Misc/CoreDelegates.h"
 #include "InstallBundleManagerInterface.h"
 #include "InstallBundleUtils.h"
-#include "Stats/Stats.h"
 
+#include "OnlineError.h"
 #include "OnlineHotfixManager.h"
 #include "Engine/World.h"
 
+#include "PatchCheck.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UpdateManager)

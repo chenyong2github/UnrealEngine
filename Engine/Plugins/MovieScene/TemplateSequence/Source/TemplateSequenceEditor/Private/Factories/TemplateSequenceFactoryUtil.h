@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Templates/SubclassOf.h"
 #include "UObject/ObjectMacros.h"
+
+template <typename T> class TSubclassOf;
 
 class UMovieSceneSequence;
 class UObject;

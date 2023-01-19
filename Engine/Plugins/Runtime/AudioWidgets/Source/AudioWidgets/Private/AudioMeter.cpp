@@ -3,7 +3,6 @@
 #include "AudioMeter.h"
 #include "SAudioMeter.h"
 #include "UObject/UObjectGlobals.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioMeter)
 

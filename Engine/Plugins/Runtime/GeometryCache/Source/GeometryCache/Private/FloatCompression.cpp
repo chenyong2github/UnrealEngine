@@ -3,8 +3,6 @@
 
 #include "FloatCompression.h"
 #include "HuffmanTable.h"
-#include "Serialization/BitReader.h"
-#include "Serialization/BitWriter.h"
 
 //#include "RequiredProgramMainCPPInclude.h"
 

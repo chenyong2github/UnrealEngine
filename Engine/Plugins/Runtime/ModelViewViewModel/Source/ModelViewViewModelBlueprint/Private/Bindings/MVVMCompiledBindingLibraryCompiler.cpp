@@ -4,9 +4,7 @@
 
 #include "Bindings/MVVMBindingHelper.h"
 #include "Engine/Engine.h"
-#include "FieldNotification/IClassDescriptor.h"
 #include "MVVMSubsystem.h"
-#include "FieldNotification/IFieldValueChanged.h"
 #include "Misc/TVariantMeta.h"
 #include <limits> // IWYU pragma: keep
 

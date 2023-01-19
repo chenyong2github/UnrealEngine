@@ -4,6 +4,7 @@
 #include "HAL/Platform.h"
 
 #if PLATFORM_WINDOWS
+#include "Misc/CommandLine.h"
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <ShellAPI.h>
@@ -12,6 +13,8 @@
 
 #if WITH_TENCENTSDK
 #if WITH_TENCENT_RAIL_SDK
+#include "Misc/Paths.h"
+#include "OnlineSubsystem.h"
 
 #if PLATFORM_64BITS
 #define RAIL_SDK_MODULE_NAME	TEXT("rail_api64.dll")

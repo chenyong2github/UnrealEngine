@@ -2,9 +2,8 @@
 #include "WaveTableImporter.h"
 
 #include "DSP/FloatArrayMath.h"
-#include "HAL/Platform.h"
 #include "WaveTable.h"
-#include "WaveTableSampler.h"
+#include "WaveTableSettings.h"
 
 namespace WaveTable
 {

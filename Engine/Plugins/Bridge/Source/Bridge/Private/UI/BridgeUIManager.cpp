@@ -1,31 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "UI/BridgeUIManager.h"
+#include "Misc/FileHelper.h"
 #include "UI/BridgeStyle.h"
 #include "LevelEditor.h"
-#include "Modules/ModuleManager.h"
 #include "NodePort.h"
 #include "NodeProcess.h"
-#include "Serialization/JsonReader.h"
-#include "JsonObjectConverter.h"
-#include "Interfaces/IPluginManager.h"
 
 // WebBrowser
 #include "SWebBrowser.h"
+#include "Serialization/JsonSerializer.h"
 #include "WebBrowserModule.h"
-#include "IWebBrowserSingleton.h"
-#include "IWebBrowserCookieManager.h"
 // Widgets
 #include "Framework/Application/SlateApplication.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SWindow.h"
-#include "Widgets/Layout/SScrollBox.h"
+#include "ToolMenu.h"
 #include "ToolMenus.h"
+#include "ToolMenuEntry.h"
 #include "ToolMenuSection.h"
 #include "Misc/MessageDialog.h"
 #include "ContentBrowserDataMenuContexts.h"
+#include "UI/BrowserBinding.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "Bridge"
 #define LEVELEDITOR_MODULE_NAME TEXT("LevelEditor")

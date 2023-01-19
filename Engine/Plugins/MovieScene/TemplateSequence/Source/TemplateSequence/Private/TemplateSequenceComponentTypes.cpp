@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TemplateSequenceComponentTypes.h"
-#include "EntitySystem/MovieSceneComponentRegistry.h"
 #include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 

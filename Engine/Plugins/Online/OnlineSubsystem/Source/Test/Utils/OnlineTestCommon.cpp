@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineTestCommon.h"
+#include "Interfaces/OnlineAchievementsInterface.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Interfaces/OnlineMessageInterface.h"
 
 FOnlineTestCommon::FOnlineTestCommon()
 {

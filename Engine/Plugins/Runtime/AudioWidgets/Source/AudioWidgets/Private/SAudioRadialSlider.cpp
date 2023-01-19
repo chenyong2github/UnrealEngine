@@ -2,9 +2,12 @@
 
 #include "SAudioRadialSlider.h"
 
+#include "AudioDefines.h"
 #include "DSP/Dsp.h"
+#include "SAudioTextBox.h"
 #include "Widgets/SRadialSlider.h"
-#include "Styling/SlateStyleRegistry.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/SOverlay.h"
 
 const FVector2D SAudioRadialSlider::NormalizedLinearSliderRange = FVector2D(0.0f, 1.0f);
 

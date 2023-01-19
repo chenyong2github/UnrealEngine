@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RiderPathLocator/RiderPathLocator.h"
-
-#include "Internationalization/Regex.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "Serialization/JsonSerializer.h"
-#include "Runtime/Launch/Resources/Version.h"
+#include "HAL/Platform.h"
 
 #if PLATFORM_WINDOWS
 
+#include "RiderPathLocator/RiderPathLocator.h"
+#include "Internationalization/Regex.h"
+#include "Misc/FileHelper.h"
+#include "Serialization/JsonSerializer.h"
+#include "Runtime/Launch/Resources/Version.h"
 #include "Windows/WindowsPlatformMisc.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 THIRD_PARTY_INCLUDES_START

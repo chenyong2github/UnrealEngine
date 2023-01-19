@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Paper2DEditorModule.h"
-#include "Misc/CoreDelegates.h"
 #include "Paper2DEditorLog.h"
 #include "EditorModeRegistry.h"
 #include "Subsystems/ImportSubsystem.h"

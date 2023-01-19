@@ -3,14 +3,13 @@
 #include "GeometryCacheComponent.h"
 #include "GeometryCache.h"
 #include "Logging/MessageLog.h"
-#include "ContentStreaming.h"
 
 #include "GeometryCacheSceneProxy.h"
 
 #include "GeometryCacheTrack.h"
-#include "GeometryCacheMeshData.h"
 #include "GeometryCacheStreamingManager.h"
 #include "GeometryCacheModule.h"
+#include "RenderingThread.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCacheComponent)
 

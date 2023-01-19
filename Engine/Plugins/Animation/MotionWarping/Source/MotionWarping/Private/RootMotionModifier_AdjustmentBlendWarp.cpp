@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RootMotionModifier_AdjustmentBlendWarp.h"
-#include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
 #include "AnimationUtils.h"
-#include "AnimationRuntime.h"
+#include "BonePose.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Character.h"
-#include "GameFramework/CharacterMovementComponent.h"
 #include "MotionWarpingComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RootMotionModifier_AdjustmentBlendWarp)

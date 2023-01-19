@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SharedStruct.h"
-#include "InstancedStruct.h"
 #include "StructView.h"
-#include "StructUtilsTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SharedStruct)
 

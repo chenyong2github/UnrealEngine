@@ -1,15 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCacheCodecV1.h"
-#include "GeometryCacheMeshData.h"
 #include "Serialization/MemoryWriter.h"
 #include "GeometryCacheStreamingManager.h"
 #include "GeometryCacheTrackStreamable.h"
 #include "GeometryCacheModule.h"
 #include "CodecV1.h"
 
-#include "ICodecEncoder.h"
-#include "ICodecDecoder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCacheCodecV1)
 

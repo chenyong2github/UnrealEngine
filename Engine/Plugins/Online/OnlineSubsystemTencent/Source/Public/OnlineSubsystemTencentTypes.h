@@ -11,6 +11,7 @@
 
 #if WITH_TENCENT_RAIL_SDK
 
+#include "OnlineKeyValuePair.h"
 #include "RailSDK.h"
 
 template <typename ValueType>
@@ -267,9 +268,3 @@ public:
 };
 
 #endif //WITH_TENCENTSDK
-
-
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "OnlineKeyValuePair.h"
-#endif

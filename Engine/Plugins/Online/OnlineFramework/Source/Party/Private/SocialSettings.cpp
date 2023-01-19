@@ -2,8 +2,10 @@
 
 #include "SocialSettings.h"
 #include "HAL/IConsoleManager.h"
+#include "OnlineSubsystem.h"
 #include "SocialManager.h"
 #include "Misc/CommandLine.h"
+#include "OnlineSubsystemNames.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SocialSettings)
 

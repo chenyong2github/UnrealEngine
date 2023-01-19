@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "K2Node_EvaluateLiveLinkFrame.h"
 
 #include "K2Node_EvaluateLiveLinkCustom.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 UCLASS()
 class UK2Node_EvaluateLiveLinkFrameWithSpecificRole : public UK2Node_EvaluateLiveLinkFrame

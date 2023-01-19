@@ -3,16 +3,12 @@
 #include "Sequencer/TakeRecorderChaosCacheSource.h"
 
 #include "Chaos/CacheManagerActor.h"
-#include "Chaos/Sequencer/MovieSceneChaosCacheSection.h"
 #include "Chaos/Sequencer/MovieSceneChaosCacheTrack.h"
+#include "Engine/World.h"
 #include "Sequencer/MovieSceneChaosCacheTrackRecorder.h"
 
 #include "LevelSequence.h"
 #include "MovieSceneFolder.h"
-#include "Channels/MovieSceneFloatChannel.h"
-#include "Channels/MovieSceneChannelTraits.h"
-#include "Framework/Notifications/NotificationManager.h" 
-#include "Widgets/Notifications/SNotificationList.h"
 
 
 #define LOCTEXT_NAMESPACE "TakeRecorderChaosCacheSource"

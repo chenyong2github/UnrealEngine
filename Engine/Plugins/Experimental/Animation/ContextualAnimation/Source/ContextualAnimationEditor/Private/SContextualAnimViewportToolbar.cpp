@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SContextualAnimViewportToolbar.h"
+#include "Framework/Commands/UICommandList.h"
 #include "SContextualAnimViewport.h"
 #include "PreviewProfileController.h"
 #include "ContextualAnimAssetEditorCommands.h"

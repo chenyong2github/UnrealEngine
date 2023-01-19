@@ -4,6 +4,8 @@
 
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
+#include "LiveLinkControllerBase.h"
+#include "PropertyHandle.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkControllerBaseDetailsCustomization"
 

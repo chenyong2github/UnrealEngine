@@ -2,9 +2,8 @@
 
 #include "Chat/SocialPrivateMessageChannel.h"
 
-#include "User/SocialUser.h"
+#include "Chat/SocialChatMessage.h"
 #include "SocialToolkit.h"
-#include "Chat/SocialChatManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SocialPrivateMessageChannel)
 

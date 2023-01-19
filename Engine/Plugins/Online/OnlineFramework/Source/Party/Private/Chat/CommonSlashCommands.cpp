@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chat/CommonSlashCommands.h"
-#include "Chat/SocialChatChannel.h"
 #include "Chat/SocialChatManager.h"
-#include "SocialToolkit.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Channel Changing Slash Command

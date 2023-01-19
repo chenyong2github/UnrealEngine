@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshPaintModeToolkit.h"
+#include "EdModeInteractiveToolsContext.h"
 #include "MeshPaintMode.h"
+#include "InteractiveToolManager.h"
 
 #define LOCTEXT_NAMESPACE "MeshPaintModeToolkit"
 

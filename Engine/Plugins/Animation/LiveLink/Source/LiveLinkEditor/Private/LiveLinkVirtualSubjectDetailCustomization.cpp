@@ -3,12 +3,11 @@
 #include "LiveLinkVirtualSubjectDetailCustomization.h"
 
 #include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "ILiveLinkClient.h"
-#include "GuidStructCustomization.h"
+#include "LiveLinkVirtualSubject.h"
 #include "ScopedTransaction.h"
-#include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkVirtualSubjectDetailsCustomization"

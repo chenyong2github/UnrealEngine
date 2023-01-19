@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StructUtilsModule.h"
-#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "StructUtils"
 

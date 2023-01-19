@@ -3,20 +3,8 @@
 #include "TakeRecorderLiveLinkSource.h"
 #include "MovieSceneLiveLinkTrackRecorder.h"
 #include "LevelSequence.h"
-#include "Editor.h"
-#include "Modules/ModuleManager.h"
-#include "Sections/MovieSceneAudioSection.h"
-#include "Tracks/MovieSceneAudioTrack.h"
-#include "SequenceRecorderUtils.h"
-#include "Sound/SoundWave.h"
-#include "MovieSceneFolder.h"
-#include "MovieScene/MovieSceneLiveLinkTrack.h"
-#include "Misc/PackageName.h"
-#include "AssetRegistry/AssetData.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "TakeMetaData.h"
-#include "Features/IModularFeatures.h"
-#include "ILiveLinkClient.h"
+#include "TakeRecorderSources.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderLiveLinkSource)
 

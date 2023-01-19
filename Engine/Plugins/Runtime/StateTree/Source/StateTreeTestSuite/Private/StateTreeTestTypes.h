@@ -6,8 +6,10 @@
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeConditionBase.h"
 #include "StateTreeExecutionContext.h"
-#include "StateTreeLinker.h"
 #include "StateTreeTestTypes.generated.h"
+
+class UStateTree;
+struct FStateTreeInstanceData;
 
 
 struct FTestStateTreeExecutionContext : public FStateTreeExecutionContext

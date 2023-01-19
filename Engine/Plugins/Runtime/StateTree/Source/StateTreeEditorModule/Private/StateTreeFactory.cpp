@@ -9,7 +9,6 @@
 #include "StateTreeEditorData.h"
 #include "StateTreeEditor.h"
 #include "StateTreeCompiler.h"
-#include "StateTreeCompilerLog.h"
 #include "StateTreeDelegates.h"
 #include "Modules/ModuleManager.h"
 

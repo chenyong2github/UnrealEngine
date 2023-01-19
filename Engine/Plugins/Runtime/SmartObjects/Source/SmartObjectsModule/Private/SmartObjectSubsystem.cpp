@@ -1,19 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmartObjectSubsystem.h"
-#include "SmartObjectDefinition.h"
+#include "Math/ColorList.h"
 #include "SmartObjectComponent.h"
-#include "SmartObjectPersistentCollection.h"
 #include "EngineUtils.h"
 #include "MassCommandBuffer.h"
-#include "MassEntityManager.h"
 #include "MassEntitySubsystem.h"
 #include "SmartObjectHashGrid.h"
 #include "VisualLogger/VisualLogger.h"
-#include "ProfilingDebugging/CpuProfilerTrace.h"
-#include "WorldConditionQuery.h"
-#include "WorldConditionContext.h"
-#include "WorldConditions/SmartObjectWorldConditionSchema.h"
 #include "Engine/LevelStreaming.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectSubsystem)
@@ -23,7 +17,6 @@
 #endif
 
 #if WITH_SMARTOBJECT_DEBUG
-#include "MassExecutor.h"
 #endif
 
 #if WITH_EDITOR

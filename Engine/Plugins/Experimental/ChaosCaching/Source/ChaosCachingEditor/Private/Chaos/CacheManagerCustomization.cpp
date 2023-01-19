@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/CacheManagerCustomization.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "PropertyCustomizationHelpers.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Chaos/CacheManagerActor.h"
 #include "IDetailChildrenBuilder.h"
+#include "Widgets/Input/SComboBox.h"
 
 #define LOCTEXT_NAMESPACE "CacheManagerDetails"
 

@@ -4,13 +4,13 @@
 
 #include "IDetailCustomization.h"
 
-#include "CoreMinimal.h"
 
 #include "LiveLinkClientReference.h"
-#include "LiveLinkTypes.h"
-#include "LiveLinkSourceSettings.h"
-#include "Styling/SlateColor.h"
-#include "UObject/WeakObjectPtrTemplates.h"
+#include "Misc/Guid.h"
+#include "UObject/WeakObjectPtr.h"
+
+class ULiveLinkSourceSettings;
+struct FSlateColor;
 
 
 /**

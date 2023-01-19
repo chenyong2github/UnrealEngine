@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LiveLinkTimeSynchronizationSource.h"
-#include "LiveLinkClient.h"
 #include "LiveLinkLog.h"
 #include "Features/IModularFeatures.h"
-#include "Math/NumericLimits.h"
+#include "LiveLinkSourceSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkTimeSynchronizationSource)
 

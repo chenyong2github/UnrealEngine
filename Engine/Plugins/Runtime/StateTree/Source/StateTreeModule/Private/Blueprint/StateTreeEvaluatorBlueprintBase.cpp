@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Blueprint/StateTreeEvaluatorBlueprintBase.h"
+#include "Blueprint/StateTreeNodeBlueprintBase.h"
 #include "StateTreeExecutionContext.h"
 #include "BlueprintNodeHelpers.h"
 

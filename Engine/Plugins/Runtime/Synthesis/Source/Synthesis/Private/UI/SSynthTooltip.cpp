@@ -3,6 +3,8 @@
 #include "UI/SSynthTooltip.h"
 #include "Widgets/SToolTip.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/Text/STextBlock.h"
 
 SSynthTooltip::~SSynthTooltip()
 {
