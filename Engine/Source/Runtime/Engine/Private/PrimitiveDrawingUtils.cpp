@@ -1642,18 +1642,14 @@ void ApplyViewModeOverrides(
 
 			if (bTextureMapped == false)
 			{
-				// Tessellated geometry cannot use engine debug LevelColorationLitMaterial as it doesn't support tessellation
-				if (!bMaterialModifiesMeshPosition)
-				{
-					FMaterialRenderProxy* RenderProxy = GEngine->LevelColorationLitMaterial->GetRenderProxy();
-					auto LightingOnlyMaterialInstance = new FColoredMaterialRenderProxy(
-						RenderProxy,
-						GEngine->LightingOnlyBrightness
-					);
+				FMaterialRenderProxy* RenderProxy = GEngine->LevelColorationLitMaterial->GetRenderProxy();
+				auto LightingOnlyMaterialInstance = new FColoredMaterialRenderProxy(
+					RenderProxy,
+					GEngine->LightingOnlyBrightness
+				);
 
-					Mesh.MaterialRenderProxy = LightingOnlyMaterialInstance;
-					Collector.RegisterOneFrameMaterialProxy(LightingOnlyMaterialInstance);
-				}
+				Mesh.MaterialRenderProxy = LightingOnlyMaterialInstance;
+				Collector.RegisterOneFrameMaterialProxy(LightingOnlyMaterialInstance);
 			}
 			else
 			{
