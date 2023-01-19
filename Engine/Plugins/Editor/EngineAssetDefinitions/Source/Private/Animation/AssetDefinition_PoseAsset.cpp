@@ -25,12 +25,15 @@ namespace MenuExtension_PoseAsset
 		{
 			if (UAnimSequence* SourceAnimation = PoseAsset->SourceAnimation)
 			{
-				if (!PoseAsset->SourceAnimationRawDataGUID.IsValid() || PoseAsset->SourceAnimationRawDataGUID != SourceAnimation->GenerateGuidFromModel())
+				if (IAnimationDataModel* SourceAnimationDataModel = SourceAnimation->GetDataModel())
 				{
-					if (PoseAsset->GetSkeleton()->IsCompatibleForEditor(SourceAnimation->GetSkeleton()))
+					if (!PoseAsset->SourceAnimationRawDataGUID.IsValid() || PoseAsset->SourceAnimationRawDataGUID != SourceAnimationDataModel->GenerateGuid())
 					{
-						PoseAsset->Modify();
-						PoseAsset->UpdatePoseFromAnimation(SourceAnimation);
+						if (PoseAsset->GetSkeleton()->IsCompatibleForEditor(SourceAnimation->GetSkeleton()))
+						{
+							PoseAsset->Modify();
+							PoseAsset->UpdatePoseFromAnimation(SourceAnimation);
+						}
 					}
 				}
 			}
