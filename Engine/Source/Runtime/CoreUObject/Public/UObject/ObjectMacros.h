@@ -25,10 +25,12 @@ typedef	uint64 ScriptPointerType;
 #error "not supported in UE"
 #endif
 
+#ifndef USE_COMPILED_IN_NATIVES
 #if HACK_HEADER_GENERATOR 
 #define USE_COMPILED_IN_NATIVES	0
 #else
 #define USE_COMPILED_IN_NATIVES	1
+#endif
 #endif
 
 /** Set this to 0 to disable UObject thread safety features */
