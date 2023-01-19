@@ -10,9 +10,14 @@
 #include "UObject/Object.h"
 #include "UObject/UObjectBaseUtility.h"
 
-#include "NNERuntimeORT.generated.h"
+#include "NNXThirdPartyWarningDisabler.h"
+NNX_THIRD_PARTY_INCLUDES_START
+#undef check
+#undef TEXT
+#include "core/session/onnxruntime_cxx_api.h"
+NNX_THIRD_PARTY_INCLUDES_END
 
-namespace Ort { struct Env; }
+#include "NNERuntimeORT.generated.h"
 
 UCLASS()
 class UNNERuntimeORTCpuImpl : public UObject, public INNERuntime, public INNERuntimeCPU
