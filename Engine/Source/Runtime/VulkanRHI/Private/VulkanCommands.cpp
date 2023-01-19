@@ -783,11 +783,6 @@ uint32 FVulkanDynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 	return GGPUFrameTime;
 }
 
-void FVulkanDynamicRHI::RHIExecuteCommandList(FRHICommandList* CmdList)
-{
-	VULKAN_SIGNAL_UNIMPLEMENTED();
-}
-
 void FVulkanCommandListContext::RHISetDepthBounds(float MinDepth, float MaxDepth)
 {
 	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();

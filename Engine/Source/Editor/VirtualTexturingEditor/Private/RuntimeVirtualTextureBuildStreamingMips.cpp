@@ -56,8 +56,7 @@ namespace
 				StagingTextures[Layer] = RHICreateTexture(Desc);
 			}
 
-			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-			Fence = RHICmdList.CreateGPUFence(TEXT("Runtime Virtual Texture Build"));
+			Fence = RHICreateGPUFence(TEXT("Runtime Virtual Texture Build"));
 		}
 
 		virtual void ReleaseRHI() override

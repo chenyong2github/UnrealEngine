@@ -2932,11 +2932,6 @@ void FOpenGLDynamicRHI::RHISetMultipleViewports(uint32 Count, const FViewportBou
 	UE_LOG(LogRHI, Fatal,TEXT("OpenGL Render path does not support multiple Viewports!"));
 }
 
-void FOpenGLDynamicRHI::RHIExecuteCommandList(FRHICommandList*)
-{
-	check(0);
-}
-
 void FOpenGLDynamicRHI::RHIEnableDepthBoundsTest(bool bEnable)
 {
 	if (FOpenGL::SupportsDepthBoundsTest())

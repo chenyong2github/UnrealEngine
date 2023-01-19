@@ -131,13 +131,6 @@ FRenderQueryRHIRef FMetalDynamicRHI::RHICreateRenderQuery(ERenderQueryType Query
 	}
 }
 
-FRenderQueryRHIRef FMetalDynamicRHI::RHICreateRenderQuery_RenderThread(class FRHICommandListImmediate& RHICmdList, ERenderQueryType QueryType)
-{
-	@autoreleasepool {
-		return GDynamicRHI->RHICreateRenderQuery(QueryType);
-	}
-}
-
 bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64& OutNumPixels, bool bWait, uint32 GPUIndex)
 {
 	@autoreleasepool {

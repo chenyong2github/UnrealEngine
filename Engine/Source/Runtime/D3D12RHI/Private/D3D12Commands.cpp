@@ -1945,11 +1945,6 @@ uint32 FD3D12DynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 	return GGPUFrameTime;
 }
 
-void FD3D12DynamicRHI::RHIExecuteCommandList(FRHICommandList* CmdList)
-{
-	check(0); // this path has gone stale and needs updated methods, starting at ERCT_SetScissorRect
-}
-
 
 void FD3D12CommandContext::RHISetDepthBounds(float MinDepth, float MaxDepth)
 {

@@ -600,10 +600,6 @@ public:
 	{
 
 	}
-	virtual void RHIExecuteCommandList(FRHICommandList* CmdList) final override
-	{
-
-	}
 	virtual void RHIEnableDepthBoundsTest(bool bEnable) final override
 	{
 	}

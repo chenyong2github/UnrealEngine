@@ -106,12 +106,12 @@ void FNiagaraGPUProfiler::EndDispatch(FRHICommandList& RHICmdList)
 	RHICmdList.EndRenderQuery(DispatchTimer.EndQuery.GetQuery());
 }
 
-bool FNiagaraGPUProfiler::ProcessFrame(FRHICommandListImmediate& RHICmdList, FGpuFrameData& ReadFrame)
+bool FNiagaraGPUProfiler::ProcessFrame(FRHICommandListImmediate& /*RHICmdList*/, FGpuFrameData& ReadFrame)
 {
 	// Frame ready to process?
 	//-OPT: We can just look at the last write stage end timer here, but that relies on the batcher always executing
 	uint64 DummyEndTime;
-	if (!RHICmdList.GetRenderQueryResult(ReadFrame.EndQuery.GetQuery(), DummyEndTime, false))
+	if (!RHIGetRenderQueryResult(ReadFrame.EndQuery.GetQuery(), DummyEndTime, false))
 	{
 		return false;
 	}
@@ -131,8 +131,8 @@ bool FNiagaraGPUProfiler::ProcessFrame(FRHICommandListImmediate& RHICmdList, FGp
 			
 		uint64 StartMicroseconds = 0;
 		uint64 EndMicroseconds = 0;
-		ensure(RHICmdList.GetRenderQueryResult(DispatchTimer.StartQuery.GetQuery(), StartMicroseconds, false));
-		ensure(RHICmdList.GetRenderQueryResult(DispatchTimer.EndQuery.GetQuery(), EndMicroseconds, false));
+		ensure(RHIGetRenderQueryResult(DispatchTimer.StartQuery.GetQuery(), StartMicroseconds, false));
+		ensure(RHIGetRenderQueryResult(DispatchTimer.EndQuery.GetQuery(), EndMicroseconds, false));
 		DispatchTimer.StartQuery.ReleaseQuery();
 		DispatchTimer.EndQuery.ReleaseQuery();
 

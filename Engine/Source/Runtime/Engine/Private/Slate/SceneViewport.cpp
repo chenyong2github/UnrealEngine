@@ -1875,7 +1875,7 @@ void FSceneViewport::BeginRenderFrame(FRHICommandListImmediate& RHICmdList)
 	else if( IsValidRef( ViewportRHI ) ) 
 	{
 		// Get the backbuffer render target to render directly to it
-		RenderTargetTextureRenderThreadRHI = RHICmdList.GetViewportBackBuffer(ViewportRHI);
+		RenderTargetTextureRenderThreadRHI = RHIGetViewportBackBuffer(ViewportRHI);
 		RenderThreadSlateTexture->SetRHIRef(RenderTargetTextureRenderThreadRHI, RenderTargetTextureRenderThreadRHI->GetSizeX(), RenderTargetTextureRenderThreadRHI->GetSizeY());
 	}
 }

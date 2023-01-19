@@ -1532,11 +1532,6 @@ uint32 FD3D11DynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 	return GGPUFrameTime;
 }
 
-void FD3D11DynamicRHI::RHIExecuteCommandList(FRHICommandList* CmdList)
-{
-	check(0); // this path has gone stale and needs updated methods, starting at ERCT_SetScissorRect
-}
-
 // NVIDIA Depth Bounds Test interface
 void FD3D11DynamicRHI::EnableDepthBoundsTest(bool bEnable,float MinDepth,float MaxDepth)
 {

@@ -178,13 +178,6 @@ void FD3D11DynamicRHI::RHIEndOcclusionQueryBatch()
 	RequestedOcclusionQueriesInBatch = 0;
 }
 
-FRenderQueryRHIRef FD3D11DynamicRHI::RHICreateRenderQuery_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	ERenderQueryType QueryType)
-{
-	return RHICreateRenderQuery(QueryType);
-}
-
 FRenderQueryRHIRef FD3D11DynamicRHI::RHICreateRenderQuery(ERenderQueryType QueryType)
 {
 	TRefCountPtr<ID3D11Query> Query;

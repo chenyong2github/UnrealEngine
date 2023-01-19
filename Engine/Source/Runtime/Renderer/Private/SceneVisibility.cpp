@@ -1408,8 +1408,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 							{
 								//int32 RefCount = PastQuery.GetReference()->GetRefCount();
 								// NOTE: RHIGetOcclusionQueryResult should never fail when using a blocking call, rendering artifacts may show up.
-								//if (RHICmdList.GetRenderQueryResult(PastQuery, NumSamples, true))
-								if (GDynamicRHI->RHIGetRenderQueryResult(PastQuery, NumSamples, true))
+								if (RHIGetRenderQueryResult(PastQuery, NumSamples, true))
 								{
 									// we render occlusion without MSAA
 									uint32 NumPixels = (uint32)NumSamples;

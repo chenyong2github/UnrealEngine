@@ -148,13 +148,6 @@ FVertexShaderRHIRef FD3D11DynamicRHI::RHICreateVertexShader(TArrayView<const uin
 	return Shader;
 }
 
-FVertexShaderRHIRef FD3D11DynamicRHI::CreateVertexShader_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	TArrayView<const uint8> Code, const FSHAHash& Hash)
-{
-	return RHICreateVertexShader(Code, Hash);
-}
-
 FGeometryShaderRHIRef FD3D11DynamicRHI::RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 { 
 	FShaderCodeReader ShaderCode(Code);
@@ -180,13 +173,6 @@ FGeometryShaderRHIRef FD3D11DynamicRHI::RHICreateGeometryShader(TArrayView<const
 	}
 
 	return Shader;
-}
-
-FGeometryShaderRHIRef FD3D11DynamicRHI::CreateGeometryShader_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	TArrayView<const uint8> Code, const FSHAHash& Hash)
-{
-	return RHICreateGeometryShader(Code, Hash);
 }
 
 FPixelShaderRHIRef FD3D11DynamicRHI::RHICreatePixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
@@ -216,13 +202,6 @@ FPixelShaderRHIRef FD3D11DynamicRHI::RHICreatePixelShader(TArrayView<const uint8
 	return Shader;
 }
 
-FPixelShaderRHIRef FD3D11DynamicRHI::CreatePixelShader_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	TArrayView<const uint8> Code, const FSHAHash& Hash)
-{
-	return RHICreatePixelShader(Code, Hash);
-}
-
 FComputeShaderRHIRef FD3D11DynamicRHI::RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 { 
 	FShaderCodeReader ShaderCode(Code);
@@ -248,13 +227,6 @@ FComputeShaderRHIRef FD3D11DynamicRHI::RHICreateComputeShader(TArrayView<const u
 	}
 
 	return Shader;
-}
-
-FComputeShaderRHIRef FD3D11DynamicRHI::CreateComputeShader_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	TArrayView<const uint8> Code, const FSHAHash& Hash)
-{
-	return RHICreateComputeShader(Code, Hash);
 }
 
 void FD3D11DynamicRHI::RHISetMultipleViewports(uint32 Count, const FViewportBounds* Data) 

@@ -201,7 +201,7 @@ public:
 		{
 			if (StartResultMicroseconds[GPUIndex] == InvalidQueryResult)
 			{
-				if (!RHICmdList.GetRenderQueryResult(StartQuery.GetQuery(), StartResultMicroseconds[GPUIndex], false, GPUIndex))
+				if (!RHIGetRenderQueryResult(StartQuery.GetQuery(), StartResultMicroseconds[GPUIndex], false, GPUIndex))
 				{
 					StartResultMicroseconds[GPUIndex] = InvalidQueryResult;
 				}
@@ -209,7 +209,7 @@ public:
 
 			if (EndResultMicroseconds[GPUIndex] == InvalidQueryResult)
 			{
-				if (!RHICmdList.GetRenderQueryResult(EndQuery.GetQuery(), EndResultMicroseconds[GPUIndex], false, GPUIndex))
+				if (!RHIGetRenderQueryResult(EndQuery.GetQuery(), EndResultMicroseconds[GPUIndex], false, GPUIndex))
 				{
 					EndResultMicroseconds[GPUIndex] = InvalidQueryResult;
 				}

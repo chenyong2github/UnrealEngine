@@ -77,16 +77,14 @@ template<typename ObjectRefType> struct TGPUsyncedDataDeleter : public IMediaClo
 
 	void Retire(const ObjectRefType& Object)
 	{
-		FRHICommandListImmediate& CommandList = FRHICommandListExecutor::GetImmediateCommandList();
-
 		// Prep "retirement package"
 		FRetiringObjectInfo Info;
 		Info.Object = Object;
-		Info.GPUFence = CommandList.CreateGPUFence(TEXT("MediaTextureResourceReuseFence"));
+		Info.GPUFence = RHICreateGPUFence(TEXT("MediaTextureResourceReuseFence"));
 		Info.RetireTime = FPlatformTime::Seconds();
 
 		// Insert fence. We assume that GPU-workload-wise this marks the spot usage of the sample is done
-		CommandList.WriteGPUFence(Info.GPUFence);
+		FRHICommandListExecutor::GetImmediateCommandList().WriteGPUFence(Info.GPUFence);
 
 		// Recall for later checking...
 		FScopeLock Lock(&CS);

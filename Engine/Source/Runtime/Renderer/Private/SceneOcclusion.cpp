@@ -386,7 +386,7 @@ FRHIRenderQuery* FFrameBasedOcclusionQueryPool::AllocateQuery()
 	}
 
 	// If all fails, create a new query
-	FRenderQueryRHIRef NewQuery = GDynamicRHI->RHICreateRenderQuery(RQT_Occlusion);
+	FRenderQueryRHIRef NewQuery = RHICreateRenderQuery(RQT_Occlusion);
 	if (NewQuery)
 	{
 		CurrentFrame.Queries.Add(MoveTemp(NewQuery));

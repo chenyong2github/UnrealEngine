@@ -289,7 +289,7 @@ namespace UE::MediaCapture::Private
 					SourceTexture = Viewport->GetRenderTargetTexture();
 					if (!SourceTexture.IsValid() && Viewport->GetViewportRHI())
 					{
-						SourceTexture = RHICmdList.GetViewportBackBuffer(Viewport->GetViewportRHI());
+						SourceTexture = RHIGetViewportBackBuffer(Viewport->GetViewportRHI());
 					}
 				}
 				else
@@ -297,7 +297,7 @@ namespace UE::MediaCapture::Private
 				if (Viewport->GetViewportRHI())
 				{
 					// Standalone and packaged
-					SourceTexture = RHICmdList.GetViewportBackBuffer(Viewport->GetViewportRHI());
+					SourceTexture = RHIGetViewportBackBuffer(Viewport->GetViewportRHI());
 				}
 			}
 

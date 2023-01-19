@@ -1644,7 +1644,7 @@ void FViewport::EndRenderFrame(FRHICommandListImmediate& RHICmdList, bool bPrese
 
 FRHIGPUMask FViewport::GetGPUMask(FRHICommandListImmediate& RHICmdList) const
 {
-	return FRHIGPUMask::FromIndex(RHICmdList.GetViewportNextPresentGPUIndex(GetViewportRHI()));
+	return FRHIGPUMask::FromIndex(RHIGetViewportNextPresentGPUIndex(GetViewportRHI()));
 }
 
 void APostProcessVolume::PostUnregisterAllComponents()

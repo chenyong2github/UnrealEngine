@@ -582,7 +582,7 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 			// flushes the RHI thread to make sure all RHICmdList.EndRenderQuery() commands got executed.
 			RHICmdList.SubmitCommandsHint();
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-			RHICmdList.GetRenderQueryResult(TimerQueries[0].GetQuery(), OldAbsTime, true);
+			RHIGetRenderQueryResult(TimerQueries[0].GetQuery(), OldAbsTime, true);
 
 			for(uint32 Iteration = 0; Iteration < IterationCount; ++Iteration)
 			{
@@ -598,7 +598,7 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 					uint32 QueryIndex = 1 + Iteration * MethodCount + MethodId;
 
 					uint64 AbsTime;
-					RHICmdList.GetRenderQueryResult(TimerQueries[QueryIndex].GetQuery(), AbsTime, true);
+					RHIGetRenderQueryResult(TimerQueries[QueryIndex].GetQuery(), AbsTime, true);
 
 					uint64 RelTime = FMath::Max(AbsTime - OldAbsTime, 1ull);
 

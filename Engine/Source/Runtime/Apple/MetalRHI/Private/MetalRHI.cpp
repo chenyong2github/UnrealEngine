@@ -1333,11 +1333,6 @@ uint32 FMetalDynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 	return GGPUFrameTime;
 }
 
-void FMetalDynamicRHI::RHIExecuteCommandList(FRHICommandList* RHICmdList)
-{
-	NOT_SUPPORTED("RHIExecuteCommandList");
-}
-
 IRHICommandContext* FMetalDynamicRHI::RHIGetDefaultContext()
 {
 	return &ImmediateContext;

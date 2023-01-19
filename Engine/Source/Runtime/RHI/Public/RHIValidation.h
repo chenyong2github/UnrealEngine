@@ -1205,12 +1205,6 @@ public:
 		RHI->RHIPerFrameRHIFlushComplete();
 	}
 
-	// FlushType: Wait RHI Thread
-	virtual void RHIExecuteCommandList(FRHICommandList* CmdList) override final
-	{
-		return RHI->RHIExecuteCommandList(CmdList);
-	}
-
 	/**
 	* Provides access to the native device. Generally this should be avoided but is useful for third party plugins.
 	*/
@@ -1333,39 +1327,6 @@ public:
 	virtual void UnlockBuffer_BottomOfPipe(class FRHICommandListBase& RHICmdList, FRHIBuffer* Buffer) override final
 	{
 		RHI->UnlockBuffer_BottomOfPipe(RHICmdList, Buffer);
-	}
-
-	virtual FVertexShaderRHIRef CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
-	{
-		return RHI->CreateVertexShader_RenderThread(RHICmdList, Code, Hash);
-	}
-
-	virtual FPixelShaderRHIRef CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
-	{
-		return RHI->CreatePixelShader_RenderThread(RHICmdList, Code, Hash);
-	}
-
-	virtual FGeometryShaderRHIRef CreateGeometryShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
-	{
-		check(RHISupportsGeometryShaders(GMaxRHIShaderPlatform));
-		return RHI->CreateGeometryShader_RenderThread(RHICmdList, Code, Hash);
-	}
-
-	virtual FMeshShaderRHIRef CreateMeshShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
-	{
-		check(RHISupportsMeshShadersTier0(GMaxRHIShaderPlatform));
-		return RHI->CreateMeshShader_RenderThread(RHICmdList, Code, Hash);
-	}
-
-	virtual FAmplificationShaderRHIRef CreateAmplificationShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
-	{
-		check(RHISupportsMeshShadersTier0(GMaxRHIShaderPlatform));
-		return RHI->CreateAmplificationShader_RenderThread(RHICmdList, Code, Hash);
-	}
-
-	virtual FComputeShaderRHIRef CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
-	{
-		return RHI->CreateComputeShader_RenderThread(RHICmdList, Code, Hash);
 	}
 
 	virtual void* LockTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail, bool bNeedsDefaultRHIFlush = true) override final
@@ -1495,12 +1456,6 @@ public:
 		}
 		return SRV;
 	}
-	
-	virtual FRenderQueryRHIRef RHICreateRenderQuery_RenderThread(class FRHICommandListImmediate& RHICmdList, ERenderQueryType QueryType) override final
-	{
-		return RHI->RHICreateRenderQuery_RenderThread(RHICmdList, QueryType);
-	}
-
 
 	virtual void* RHILockTextureCubeFace_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail) override final
 	{

@@ -1987,7 +1987,7 @@ bool FMLInferenceModelDml::InitCompiledOp(TConstArrayView<int32> OpInputIndices,
 
 			if (TensorDataSize)
 			{
-				UploadFence = RHICmdList.CreateGPUFence(TEXT("FMLInferenceModel_UploadFence"));
+				UploadFence = RHICreateGPUFence(TEXT("FMLInferenceModel_UploadFence"));
 				
 				FRHIBuffer*		UploadBuff = CreateRHIBuffer(RHICmdList, TensorDataSize, BUF_ShaderResource | BUF_Dynamic | BUF_FastVRAM, ERHIAccess::CopySrc, TEXT("FMLInferenceModel_UploadBuffer"));
 				uint8*			UploadBuffPtr = static_cast<uint8*>(RHICmdList.LockBuffer(UploadBuff, 0, TensorDataSize, RLM_WriteOnly_NoOverwrite));

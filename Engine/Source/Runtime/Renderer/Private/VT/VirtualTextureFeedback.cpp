@@ -41,7 +41,7 @@ public:
 	{
 		if (!Fences[Index])
 		{
-			Fences[Index] = RHICmdList.CreateGPUFence(FName(""));
+			Fences[Index] = RHICreateGPUFence(FName(""));
 		}
 		Fences[Index]->Clear();
 	}
@@ -130,7 +130,7 @@ public:
 	bool Poll(FRHICommandListImmediate& RHICmdList, int32 Index)
 	{
 		uint64 Dummy;
-		return RHICmdList.GetRenderQueryResult(Fences[Index], Dummy, false, RHICmdList.GetGPUMask().ToIndex());
+		return RHIGetRenderQueryResult(Fences[Index], Dummy, false, RHICmdList.GetGPUMask().ToIndex());
 	}
 
 	FGPUFenceRHIRef GetMapFence(int32 Index)

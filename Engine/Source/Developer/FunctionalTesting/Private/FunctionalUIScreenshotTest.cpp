@@ -45,7 +45,7 @@ void GetBackbufferInfo(const FViewport* InViewport, EPixelFormat* OutPixelFormat
 	{
 		FViewportRHIRef ViewportRHI = InViewport->GetViewportRHI();
 		check(ViewportRHI.IsValid());
-		FTexture2DRHIRef BackbufferTexture = RHICmdList.GetViewportBackBuffer(ViewportRHI);
+		FTexture2DRHIRef BackbufferTexture = RHIGetViewportBackBuffer(ViewportRHI);
 		check(BackbufferTexture.IsValid());
 		*OutPixelFormat = BackbufferTexture->GetFormat();
 		*OutIsSRGB = (BackbufferTexture->GetFlags() & TexCreate_SRGB) == TexCreate_SRGB;
@@ -163,7 +163,7 @@ void ReadBackbuffer(const FViewport* InViewport, TArray<FColor>* OutPixels)
 		[InViewport, OutPixels](FRHICommandListImmediate& RHICmdList)
 	{
 		FViewportRHIRef ViewportRHI = InViewport->GetViewportRHI();
-		FTexture2DRHIRef BackbufferTexture = RHICmdList.GetViewportBackBuffer(ViewportRHI);
+		FTexture2DRHIRef BackbufferTexture = RHIGetViewportBackBuffer(ViewportRHI);
 		RHICmdList.ReadSurfaceData(
 			BackbufferTexture,
 			FIntRect(0, 0, BackbufferTexture->GetSizeX(), BackbufferTexture->GetSizeY()),

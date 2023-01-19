@@ -926,9 +926,6 @@ public:
 
 	}
 
-	// FlushType: Wait RHI Thread
-	virtual void RHIExecuteCommandList(FRHICommandList* CmdList) = 0;
-
 	/**
 	* Provides access to the native device. Generally this should be avoided but is useful for third party plugins.
 	*/
@@ -1026,12 +1023,7 @@ public:
 	virtual FTexture2DRHIRef AsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus);
 	virtual ETextureReallocationStatus FinalizeAsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D, bool bBlockUntilCompleted);
 	virtual ETextureReallocationStatus CancelAsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D, bool bBlockUntilCompleted);
-	virtual FVertexShaderRHIRef CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash);
-	virtual FMeshShaderRHIRef CreateMeshShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash);
-	virtual FAmplificationShaderRHIRef CreateAmplificationShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash);
-	virtual FPixelShaderRHIRef CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash);
-	virtual FGeometryShaderRHIRef CreateGeometryShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash);
-	virtual FComputeShaderRHIRef CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash);
+
 	virtual void* LockTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail, bool bNeedsDefaultRHIFlush = true);
 	virtual void UnlockTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture, uint32 MipIndex, bool bLockWithinMiptail, bool bNeedsDefaultRHIFlush = true);
 
@@ -1057,8 +1049,6 @@ public:
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewWriteMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewFMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D);
-	virtual FRenderQueryRHIRef RHICreateRenderQuery_RenderThread(class FRHICommandListImmediate& RHICmdList, ERenderQueryType QueryType);
-
 	
 	virtual void* RHILockTextureCubeFace_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail);
 	virtual void RHIUnlockTextureCubeFace_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, bool bLockWithinMiptail);
@@ -1187,34 +1177,92 @@ FORCEINLINE TRHI* GetDynamicRHI()
 	return CastDynamicRHI<TRHI>(GDynamicRHI);
 }
 
+FORCEINLINE FPixelShaderRHIRef RHICreatePixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+{
+	LLM_SCOPE(ELLMTag::Shaders);
+	return GDynamicRHI->RHICreatePixelShader(Code, Hash);
+}
+
+FORCEINLINE FVertexShaderRHIRef RHICreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+{
+	LLM_SCOPE(ELLMTag::Shaders);
+	return GDynamicRHI->RHICreateVertexShader(Code, Hash);
+}
+
+FORCEINLINE FMeshShaderRHIRef RHICreateMeshShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+{
+	LLM_SCOPE(ELLMTag::Shaders);
+	return GDynamicRHI->RHICreateMeshShader(Code, Hash);
+}
+
+FORCEINLINE FAmplificationShaderRHIRef RHICreateAmplificationShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+{
+	LLM_SCOPE(ELLMTag::Shaders);
+	return GDynamicRHI->RHICreateAmplificationShader(Code, Hash);
+}
+
+FORCEINLINE FGeometryShaderRHIRef RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+{
+	LLM_SCOPE(ELLMTag::Shaders);
+	return GDynamicRHI->RHICreateGeometryShader(Code, Hash);
+}
+
+FORCEINLINE FComputeShaderRHIRef RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+{
+	LLM_SCOPE(ELLMTag::Shaders);
+	return GDynamicRHI->RHICreateComputeShader(Code, Hash);
+}
+
+UE_DEPRECATED(5.2, "Compute fences are deprecated. Use RHI transitions instead.")
+FORCEINLINE FComputeFenceRHIRef RHICreateComputeFence(const FName& Name)
+{
+	return GDynamicRHI->RHICreateComputeFence(Name);
+}
+
+FORCEINLINE FGPUFenceRHIRef RHICreateGPUFence(const FName& Name)
+{
+	return GDynamicRHI->RHICreateGPUFence(Name);
+}
+
+FORCEINLINE FStagingBufferRHIRef RHICreateStagingBuffer()
+{
+	return GDynamicRHI->RHICreateStagingBuffer();
+}
+
 FORCEINLINE FSamplerStateRHIRef RHICreateSamplerState(const FSamplerStateInitializerRHI& Initializer)
 {
+	LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateSamplerState"));
 	return GDynamicRHI->RHICreateSamplerState(Initializer);
 }
 
 FORCEINLINE FRasterizerStateRHIRef RHICreateRasterizerState(const FRasterizerStateInitializerRHI& Initializer)
 {
+	LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateRasterizerState"));
 	return GDynamicRHI->RHICreateRasterizerState(Initializer);
 }
 
 FORCEINLINE FDepthStencilStateRHIRef RHICreateDepthStencilState(const FDepthStencilStateInitializerRHI& Initializer)
 {
+	LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateDepthStencilState"));
 	return GDynamicRHI->RHICreateDepthStencilState(Initializer);
 }
 
 FORCEINLINE FBlendStateRHIRef RHICreateBlendState(const FBlendStateInitializerRHI& Initializer)
 {
+	LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateBlendState"));
 	return GDynamicRHI->RHICreateBlendState(Initializer);
 }
 
 FORCEINLINE FBoundShaderStateRHIRef RHICreateBoundShaderState(FRHIVertexDeclaration* VertexDeclaration, FRHIVertexShader* VertexShader, FRHIPixelShader* PixelShader, FRHIGeometryShader* GeometryShader)
 {
+	LLM_SCOPE(ELLMTag::Shaders);
 	return GDynamicRHI->RHICreateBoundShaderState(VertexDeclaration, VertexShader, PixelShader, GeometryShader);
 }
 
 /** Before using this directly go through PipelineStateCache::GetAndOrCreateGraphicsPipelineState() */
 FORCEINLINE FGraphicsPipelineStateRHIRef RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer)
 {
+	LLM_SCOPE(ELLMTag::Shaders);
 	return GDynamicRHI->RHICreateGraphicsPipelineState(Initializer);
 }
 
@@ -1226,7 +1274,13 @@ FORCEINLINE FVertexDeclarationRHIRef RHICreateVertexDeclaration(const FVertexDec
 
 FORCEINLINE FComputePipelineStateRHIRef RHICreateComputePipelineState(FRHIComputeShader* ComputeShader)
 {
+	LLM_SCOPE(ELLMTag::Shaders);
 	return GDynamicRHI->RHICreateComputePipelineState(ComputeShader);
+}
+
+FORCEINLINE FRenderQueryRHIRef RHICreateRenderQuery(ERenderQueryType QueryType)
+{
+	return GDynamicRHI->RHICreateRenderQuery(QueryType);
 }
 
 #if RHI_RAYTRACING
@@ -1463,11 +1517,13 @@ FORCEINLINE uint32 RHIGetGPUFrameCycles(uint32 GPUIndex = 0)
 
 FORCEINLINE FViewportRHIRef RHICreateViewport(void* WindowHandle, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat)
 {
+	LLM_SCOPE(ELLMTag::RenderTargets);
 	return GDynamicRHI->RHICreateViewport(WindowHandle, SizeX, SizeY, bIsFullscreen, PreferredPixelFormat);
 }
 
 FORCEINLINE void RHIResizeViewport(FRHIViewport* Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat)
 {
+	LLM_SCOPE(ELLMTag::RenderTargets);
 	GDynamicRHI->RHIResizeViewport(Viewport, SizeX, SizeY, bIsFullscreen, PreferredPixelFormat);
 }
 
@@ -1488,6 +1544,7 @@ FORCEINLINE void RHIHandleDisplayChange()
 
 FORCEINLINE void RHITick(float DeltaTime)
 {
+	LLM_SCOPE_BYNAME(TEXT("RHIMisc/RHITick"));
 	GDynamicRHI->RHITick(DeltaTime);
 }
 
