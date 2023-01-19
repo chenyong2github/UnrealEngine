@@ -9,6 +9,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "NiagaraStackEditorData.h"
 
+struct FNiagaraHierarchyIdentity;
 class UEdGraph;
 class UEdGraphPin;
 class UNiagaraGraph;
@@ -46,6 +47,8 @@ namespace FNiagaraStackGraphUtilities
 	UEdGraphPin* GetParameterMapOutputPin(UNiagaraNode& Node);
 
 	void GetOrderedModuleNodes(UNiagaraNodeOutput& OutputNode, TArray<UNiagaraNodeFunctionCall*>& ModuleNodes);
+	TArray<UNiagaraNodeFunctionCall*> GetAllModuleNodes(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+	TArray<UNiagaraNodeFunctionCall*> GetAllModuleNodes(UNiagaraGraph* Graph);
 
 	UNiagaraNodeFunctionCall* GetPreviousModuleNode(UNiagaraNodeFunctionCall& CurrentNode);
 
@@ -53,7 +56,7 @@ namespace FNiagaraStackGraphUtilities
 
 	UNiagaraNodeOutput* GetEmitterOutputNodeForStackNode(UNiagaraNode& StackNode);
 
-	NIAGARAEDITOR_API ENiagaraScriptUsage GetOutputNodeUsage(UNiagaraNode& StackNode);
+	NIAGARAEDITOR_API ENiagaraScriptUsage GetOutputNodeUsage(const UNiagaraNode& StackNode);
 
 	const UNiagaraNodeOutput* GetEmitterOutputNodeForStackNode(const UNiagaraNode& StackNode);
 
@@ -93,15 +96,15 @@ namespace FNiagaraStackGraphUtilities
 	};
 
 	/* Returns the input pins for the given function call node. Try not to use this method if possible and use the version that accepts a FCompileConstantResolver parameter. This method should only be used if the current context is completely outside of any system or emitter (e.g. inside the graph editor itself) and constants cannot be resolved at all. */
-	void GetStackFunctionInputPins(UNiagaraNodeFunctionCall& FunctionCallNode, TArray<const UEdGraphPin*>& OutInputPins, ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled = false);
+	void GetStackFunctionInputPins(const UNiagaraNodeFunctionCall& FunctionCallNode, TArray<const UEdGraphPin*>& OutInputPins, ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled = false);
 
 	/* Returns the input pins for the given function call node. */
-	void GetStackFunctionInputPins(UNiagaraNodeFunctionCall& FunctionCallNode, TArray<const UEdGraphPin*>& OutInputPins, TSet<const UEdGraphPin*>& OutHiddenPins, FCompileConstantResolver ConstantResolver, ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled = false);
-	void GetStackFunctionInputPins(UNiagaraNodeFunctionCall& FunctionCallNode, TArray<const UEdGraphPin*>& OutInputPins, FCompileConstantResolver ConstantResolver, ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled = false);
+	void GetStackFunctionInputPins(const UNiagaraNodeFunctionCall& FunctionCallNode, TArray<const UEdGraphPin*>& OutInputPins, TSet<const UEdGraphPin*>& OutHiddenPins, FCompileConstantResolver ConstantResolver, ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled = false);
+	void GetStackFunctionInputPins(const UNiagaraNodeFunctionCall& FunctionCallNode, TArray<const UEdGraphPin*>& OutInputPins, FCompileConstantResolver ConstantResolver, ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled = false);
 
 	/* Returns the input pins for the given function call node.  Bypasses the module level caching of this data and generates it each call. */
 	void GetStackFunctionInputPinsWithoutCache(
-		UNiagaraNodeFunctionCall& FunctionCallNode,
+		const UNiagaraNodeFunctionCall& FunctionCallNode,
 		TConstArrayView<FNiagaraVariable> StaticVars,
 		TArray<const UEdGraphPin*>& OutInputPins,
 		const FCompileConstantResolver& ConstantResolver,
@@ -109,10 +112,26 @@ namespace FNiagaraStackGraphUtilities
 		bool bIgnoreDisabled,
 		bool bFilterForCompilation);
 
+	TArray<UNiagaraNodeOutput*> GetAllOutputNodes(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+	
+	struct FMatchingFunctionInputData
+	{
+		FName InputName;
+		FNiagaraTypeDefinition Type;
+		FNiagaraVariableMetaData MetaData;
+		UNiagaraNodeFunctionCall* FunctionCallNode = nullptr;
+		TArray<FGuid> ChildrenInputGuids;
+	};
+
+	UNiagaraNodeFunctionCall* FindModuleNode(FGuid ModuleNodeGuid, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+	TOptional<FMatchingFunctionInputData> FindInputData(FNiagaraHierarchyIdentity ModuleInputIdentity, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+	TOptional<FMatchingFunctionInputData> FindInputData(const UNiagaraNodeFunctionCall& FunctionCallNode, FGuid InputGuid, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel, bool bIncludeChildrenInputs = true);
+	TArray<FGuid> GetChildrenInputGuids(const UNiagaraNodeFunctionCall& FunctionCallNode, FName ParentInputName);
+	
 	/* Module script calls do not have direct inputs, but rely on the parameter map being initialized correctly. This utility function resolves which of the module's parameters are reachable during compilation and returns a list of pins on the parameter map node that do not have to be compiled. */
 	TArray<UEdGraphPin*> GetUnusedFunctionInputPins(UNiagaraNodeFunctionCall& FunctionCallNode, FCompileConstantResolver ConstantResolver);
 
-	void GetStackFunctionStaticSwitchPins(UNiagaraNodeFunctionCall& FunctionCallNode, TArray<UEdGraphPin*>& OutInputPins, TSet<UEdGraphPin*>& OutHiddenPins, FCompileConstantResolver& ConstantResolver);
+	void GetStackFunctionStaticSwitchPins(const UNiagaraNodeFunctionCall& FunctionCallNode, TArray<UEdGraphPin*>& OutInputPins, TSet<UEdGraphPin*>& OutHiddenPins, FCompileConstantResolver& ConstantResolver);
 
 	void GetStackFunctionOutputVariables(UNiagaraNodeFunctionCall& FunctionCallNode, FCompileConstantResolver ConstantResolver, TArray<FNiagaraVariable>& OutOutputVariables, TArray<FNiagaraVariable>& OutOutputVariablesWithOriginalAliasesIntact);
 

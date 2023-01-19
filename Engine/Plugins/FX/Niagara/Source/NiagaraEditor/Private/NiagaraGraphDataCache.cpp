@@ -26,7 +26,7 @@ FNiagaraGraphDataCache::FNiagaraGraphDataCache()
 }
 
 void FNiagaraGraphDataCache::GetStackFunctionInputPinsInternal(
-	UNiagaraNodeFunctionCall& FunctionCallNode,
+	const UNiagaraNodeFunctionCall& FunctionCallNode,
 	const UNiagaraGraph* CalledGraph,
 	TConstArrayView<FNiagaraVariable> StaticVars,
 	TArray<const UEdGraphPin*>& OutInputPins,
@@ -96,7 +96,7 @@ void FNiagaraGraphDataCache::GetStackFunctionInputPinsInternal(
 	}
 }
 
-void FNiagaraGraphDataCache::GetStackFunctionInputPins(UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<const UEdGraphPin*>& OutInputPins, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled)
+void FNiagaraGraphDataCache::GetStackFunctionInputPins(const UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<const UEdGraphPin*>& OutInputPins, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled)
 {
 	if (const UNiagaraGraph* CalledGraph = FunctionCallNode.GetCalledGraph())
 	{
@@ -104,7 +104,7 @@ void FNiagaraGraphDataCache::GetStackFunctionInputPins(UNiagaraNodeFunctionCall&
 	}
 }
 
-void FNiagaraGraphDataCache::GetStackFunctionInputPins(UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<const UEdGraphPin*>& OutInputPins, TSet<const UEdGraphPin*>& OutHiddenPins, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled)
+void FNiagaraGraphDataCache::GetStackFunctionInputPins(const UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<const UEdGraphPin*>& OutInputPins, TSet<const UEdGraphPin*>& OutHiddenPins, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled)
 {
 	if (const UNiagaraGraph* CalledGraph = FunctionCallNode.GetCalledGraph())
 	{
