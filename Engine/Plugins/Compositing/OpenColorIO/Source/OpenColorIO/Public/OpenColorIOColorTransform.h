@@ -32,8 +32,8 @@ public:
 	virtual ~UOpenColorIOColorTransform() {};
 
 public:
-	bool Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDestinationColorSpace);
-	bool Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection);
+	bool Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDestinationColorSpace, const TMap<FString, FString>& InContextKeyValues = {});
+	bool Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection, const TMap<FString, FString>& InContextKeyValues = {});
 
 	/**
 	 * Cache resource shaders for cooking on the given shader platform.
@@ -205,6 +205,9 @@ private:
 	TArray<FOpenColorIOTransformResource> LoadedTransformResources;
 	
 	FOpenColorIOTransformResource* ColorTransformResources[ERHIFeatureLevel::Num];
+
+	/** Key-value string pairs used to define the processor's context. */
+	TMap<FString, FString> ContextKeyValues;
 
 	FRenderCommandFence ReleaseFence;
 
