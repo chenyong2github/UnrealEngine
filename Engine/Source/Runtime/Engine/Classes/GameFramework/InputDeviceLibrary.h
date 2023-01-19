@@ -5,22 +5,33 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
-#include "PlatformInputDeviceMapperLibrary.generated.h"
+#include "InputDeviceLibrary.generated.h"
 
 enum class EInputDeviceConnectionState : uint8;
+class APlayerController;
+
+ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogInputDevices, Log, All);
 
 /**
- * A static BP library that exposes the functionality of IPlatformInputDeviceMapper to blueprints.
+ * A static BP library that exposes Input Device data to blueprints
  *
  * @see IPlatformInputDeviceMapper
  * @note Keep any function comments up to date with those in GenericPlatformInputDeviceMapper.h!
  */
 UCLASS()
-class ENGINE_API UPlatformInputDeviceMapperLibrary : public UBlueprintFunctionLibrary
+class ENGINE_API UInputDeviceLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
 public:
+
+	/** Get the player controller who has the given Platform User ID. */
+	UFUNCTION(BlueprintCallable, Category = "Input Devices")
+	static APlayerController* GetPlayerControllerFromPlatformUser(const FPlatformUserId UserId);
+
+	/** Get the player controller who owns the given input device id */
+	UFUNCTION(BlueprintCallable, Category = "Input Devices")
+	static APlayerController* GetPlayerControllerFromInputDevice(const FInputDeviceId DeviceId);
 
 	/**
 	 * Populates the OutInputDevices array with any InputDeviceID's that are mapped to the given platform user
