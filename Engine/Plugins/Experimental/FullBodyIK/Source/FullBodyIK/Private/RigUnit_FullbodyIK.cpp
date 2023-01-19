@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_FullbodyIK.h"
-#include "Drawing/ControlRigDrawInterface.h"
 #include "FBIKUtil.h"
 #include "FBIKConstraintLib.h"
 #include "Engine/Engine.h"
