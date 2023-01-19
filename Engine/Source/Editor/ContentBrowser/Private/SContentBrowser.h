@@ -373,7 +373,10 @@ private:
 	FText GetLockMenuText() const;
 
 	/** Gets icon for the lock button */
-	const FSlateBrush* GetLockIcon() const;
+	FSlateIcon GetLockIcon() const;
+
+	/** Gets brush for the lock button */
+	const FSlateBrush* GetLockIconBrush() const;
 
 	/** Gets the visibility state of the asset tree */
 	EVisibility GetSourcesViewVisibility() const;

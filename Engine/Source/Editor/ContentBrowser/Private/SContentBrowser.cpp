@@ -459,56 +459,56 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 					SNew(SBorder)
 					.Padding(FMargin(0))
 					.BorderImage(FAppStyle::GetBrush("Brushes.Recessed"))
-					[
-						SAssignNew(PathFavoriteSplitterPtr, SSplitter)
-						.Clipping(EWidgetClipping::ClipToBounds)
-						.PhysicalSplitterHandleSize(2.0f)
-						.HitDetectionSplitterHandleSize(8.0f)
-						.Orientation(EOrientation::Orient_Vertical)
-						.MinimumSlotHeight(26.0f)
+						[
+							SAssignNew(PathFavoriteSplitterPtr, SSplitter)
+							.Clipping(EWidgetClipping::ClipToBounds)
+							.PhysicalSplitterHandleSize(2.0f)
+							.HitDetectionSplitterHandleSize(8.0f)
+							.Orientation(EOrientation::Orient_Vertical)
+							.MinimumSlotHeight(26.0f)
 						.Visibility(this, &SContentBrowser::GetSourcesViewVisibility)
 
 						+ SSplitter::Slot()
 						.SizeRule(this, &SContentBrowser::GetFavoritesAreaSizeRule)
 						.MinSize(this, &SContentBrowser::GetFavoritesAreaMinSize)
-						.Value(0.2f)
-						[
-							SNew(SBorder)
-							.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
-							.Padding(0.0f, 2.0f, 0.0f, 0.0f)
+							.Value(0.2f)
 							[
-								CreateFavoritesView(Config)
+								SNew(SBorder)
+								.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+								.Padding(0.0f, 2.0f, 0.0f, 0.0f)
+								[
+									CreateFavoritesView(Config)
+								]
 							]
-						]
 								
 						+ SSplitter::Slot()
 						.SizeRule(this, &SContentBrowser::GetPathAreaSizeRule)
-						.MinSize(29.0f)
-						.Value(0.8f)
-						[
-							SNew(SBorder)
-							.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
-							.Padding(0.0f, 2.0f, 0.0f, 0.0f)
+							.MinSize(29.0f)
+							.Value(0.8f)
 							[
-								CreatePathView(Config)
+								SNew(SBorder)
+								.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+								.Padding(0.0f, 2.0f, 0.0f, 0.0f)
+								[
+									CreatePathView(Config)
+								]
 							]
-						]
 
 						+ SSplitter::Slot()
 						.SizeRule(this, &SContentBrowser::GetCollectionsAreaSizeRule)
 						.MinSize(29.0f)
-						.Value(0.4f)
-						[
-							SNew(SBorder)
-							.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
-							.Padding(0.0f, 2.0f, 0.0f, 0.0f)
+							.Value(0.4f)
 							[
-								CreateDockedCollectionsView(Config)
+								SNew(SBorder)
+								.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+								.Padding(0.0f, 2.0f, 0.0f, 0.0f)
+								[
+									CreateDockedCollectionsView(Config)
+								]
 							]
 						]
 					]
 				]
-			]
 
 			// Asset View
 			+ SSplitter::Slot()
@@ -533,23 +533,17 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 	{
 		// Select the specified collection by default
 		FSourcesData DefaultSourcesData( Config->SelectedCollectionName );
-		TArray<FString> SelectedPaths;
 		AssetViewPtr->SetSourcesData( DefaultSourcesData );
 	}
 	else
 	{
 		// Select /Game by default
-		const FString DefaultInvariantPath = TEXT("/Game");
+		const FName DefaultInvariantPath(TEXT("/Game"));
 		FName DefaultVirtualPath;
-		IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(FStringView(DefaultInvariantPath), DefaultVirtualPath);
+		IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(DefaultInvariantPath, DefaultVirtualPath);
 
 		FSourcesData DefaultSourcesData(DefaultVirtualPath);
-		TArray<FString> SelectedPaths;
-		TArray<FString> SelectedFavoritePaths;
-		SelectedPaths.Add(DefaultVirtualPath.ToString());
-		PathViewPtr->SetSelectedPaths(SelectedPaths);
 		AssetViewPtr->SetSourcesData(DefaultSourcesData);
-		FavoritePathViewPtr->SetSelectedPaths(SelectedFavoritePaths);
 	}
 
 	// Set the initial history data
@@ -757,7 +751,7 @@ TSharedRef<SWidget> SContentBrowser::CreateLockButton(const FContentBrowserConfi
 			.Visibility(this, &SContentBrowser::GetLockButtonVisibility)
 			[
 				SNew(SImage)
-				.Image(this, &SContentBrowser::GetLockIcon)
+				.Image(this, &SContentBrowser::GetLockIconBrush)
 				.ColorAndOpacity(FSlateColor::UseStyle())
 			];
 	}
@@ -1253,8 +1247,11 @@ void SContentBrowser::ExtendViewOptionsMenu(const FContentBrowserConfig* Config)
 							"ToggleLock",
 							TAttribute<FText>(ContentBrowser.ToSharedRef(), &SContentBrowser::GetLockMenuText),
 							LOCTEXT("LockToggleTooltip", "Toggle lock. If locked, this browser will ignore Find in Content Browser requests."),
-							TAttribute<FSlateIcon>(),
-							FUIAction(FExecuteAction::CreateLambda([ContentBrowser = Context->OwningContentBrowser]() { ContentBrowser.Pin()->ToggleLockClicked(); })));
+							TAttribute<FSlateIcon>(ContentBrowser.ToSharedRef(), &SContentBrowser::GetLockIcon),
+							FUIAction(
+								FExecuteAction::CreateLambda([ContentBrowser = Context->OwningContentBrowser]() { ContentBrowser.Pin()->ToggleLockClicked(); })
+							)
+						);
 					}
 
 					if (bShowSourcesView)
@@ -1269,7 +1266,8 @@ void SContentBrowser::ExtendViewOptionsMenu(const FContentBrowserConfig* Config)
 								FExecuteAction::CreateLambda([ContentBrowser = Context->OwningContentBrowser]() { ContentBrowser.Pin()->SourcesViewExpandClicked(); }),
 								FCanExecuteAction(),
 								FIsActionChecked::CreateLambda([ContentBrowser = Context->OwningContentBrowser]() { return ContentBrowser.Pin()->bSourcesViewExpanded; })),
-							EUserInterfaceActionType::ToggleButton);
+							EUserInterfaceActionType::ToggleButton
+						);
 					}
 				}
 			}
@@ -3055,14 +3053,20 @@ FText SContentBrowser::GetLockMenuText() const
 	return IsLocked() ? LOCTEXT("ContentBrowserLockMenu_Unlock", "Unlock Content Browser") : LOCTEXT("ContentBrowserLockMenu_Lock", "Lock Content Browser");
 }
 
-const FSlateBrush* SContentBrowser::GetLockIcon() const
+FSlateIcon SContentBrowser::GetLockIcon() const
+{
+	static const FSlateIcon Unlocked = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Unlock");
+	static const FSlateIcon Locked = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Lock");
+	return IsLocked() ? Locked : Unlocked;
+}
+
+const FSlateBrush* SContentBrowser::GetLockIconBrush() const
 {
 	static const FName Unlock = "Icons.Unlock";
 	static const FName Lock = "Icons.Lock";
 
 	return FAppStyle::Get().GetBrush(IsLocked() ? Lock : Unlock);
 }
-
 
 EVisibility SContentBrowser::GetSourcesViewVisibility() const
 {

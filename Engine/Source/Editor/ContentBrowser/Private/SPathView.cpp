@@ -136,7 +136,6 @@ SPathView::~SPathView()
 void SPathView::Construct( const FArguments& InArgs )
 {
 	EditorConfig = InArgs._EditorConfig;
-
 	OnItemSelectionChanged = InArgs._OnItemSelectionChanged;
 	bAllowContextMenu = InArgs._AllowContextMenu;
 	OnGetItemContextMenu = InArgs._OnGetItemContextMenu;
@@ -419,11 +418,32 @@ void SPathView::SetPluginPathFilterActive(const TSharedRef<FContentBrowserPlugin
 	{
 		PluginPathFilters->Remove(Filter);
 	}
+
+	if (EditorConfig != nullptr)
+	{
+		if (bActive)
+		{
+			EditorConfig->PluginFilters.Add(Filter->GetName());
+		}
+		else
+		{
+			EditorConfig->PluginFilters.Remove(Filter->GetName());
+		}
+		
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
+}
+
+void SPathView::SetSelectedPaths(const TArray<FName>& Paths)
+{
+	TArray<FString> PathStrings;
+	Algo::Transform(Paths, PathStrings, [](const FName& Name) { return Name.ToString(); });
+	SetSelectedPaths(PathStrings);
 }
 
 void SPathView::SetSelectedPaths(const TArray<FString>& Paths)
 {
-	if ( !ensure(TreeViewPtr.IsValid()) )
+	if (!ensure(TreeViewPtr.IsValid()))
 	{
 		return;
 	}
@@ -449,10 +469,8 @@ void SPathView::SetSelectedPaths(const TArray<FString>& Paths)
 	LastSelectedPaths.Empty();
 	TreeViewPtr->ClearSelection();
 
-	for (int32 PathIdx = 0; PathIdx < Paths.Num(); ++PathIdx)
+	for (const FString& Path : Paths)
 	{
-		const FString& Path = Paths[PathIdx];
-
 		TArray<FName> PathItemList;
 		{
 			TArray<FString> PathItemListStr;
@@ -465,31 +483,29 @@ void SPathView::SetSelectedPaths(const TArray<FString>& Paths)
 			}
 		}
 
-		if ( PathItemList.Num() )
+		if (PathItemList.Num())
 		{
 			// There is at least one element in the path
 			TArray<TSharedPtr<FTreeItem>> TreeItems;
 
 			// Find the first item in the root items list
-			for ( int32 RootItemIdx = 0; RootItemIdx < TreeRootItems.Num(); ++RootItemIdx )
+			for (const TSharedPtr<FTreeItem>& TreeItem : TreeRootItems)
 			{
-				if ( TreeRootItems[RootItemIdx]->GetItem().GetItemName() == PathItemList[0] )
+				if (TreeItem->GetItem().GetItemName() == PathItemList[0])
 				{
 					// Found the first item in the path
-					TreeItems.Add(TreeRootItems[RootItemIdx]);
+					TreeItems.Add(TreeItem);
 					break;
 				}
 			}
 
 			// If found in the root items list, try to find the childmost item matching the path
-			if ( TreeItems.Num() > 0 )
+			if (TreeItems.Num() > 0)
 			{
-				for ( int32 PathItemIdx = 1; PathItemIdx < PathItemList.Num(); ++PathItemIdx )
+				for (const FName& PathItemName : PathItemList)
 				{
-					const FName PathItemName = PathItemList[PathItemIdx];
 					const TSharedPtr<FTreeItem> ChildItem = TreeItems.Last()->GetChild(PathItemName);
-
-					if ( ChildItem.IsValid() )
+					if (ChildItem.IsValid())
 					{
 						// Update tree items list
 						TreeItems.Add(ChildItem);
@@ -521,6 +537,13 @@ void SPathView::SetSelectedPaths(const TArray<FString>& Paths)
 		{
 			// No path items... skip
 		}
+	}
+
+	if (EditorConfig != nullptr)
+	{
+		EditorConfig->SelectedPaths = LastSelectedPaths.Array();
+
+		UContentBrowserConfig::Get()->SaveEditorConfig();
 	}
 }
 
@@ -1075,14 +1098,9 @@ void SPathView::SaveSettings(const FString& IniFilename, const FString& IniSecti
 	FString SelectedPathsString;
 	TArray< TSharedPtr<FTreeItem> > PathItems = TreeViewPtr->GetSelectedItems();
 
-	if (EditorConfig != nullptr)
-	{
-		EditorConfig->SelectedPaths.Reset(PathItems.Num());
-	}
-
 	for (const TSharedPtr<FTreeItem>& Item : PathItems)
 	{
-		if ( SelectedPathsString.Len() > 0 )
+		if (SelectedPathsString.Len() > 0)
 		{
 			SelectedPathsString += TEXT(",");
 		}
@@ -1090,11 +1108,6 @@ void SPathView::SaveSettings(const FString& IniFilename, const FString& IniSecti
 		FName InvariantPath;
 		IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(Item->GetItem().GetVirtualPath(), InvariantPath);
 		InvariantPath.AppendString(SelectedPathsString);
-
-		if (EditorConfig != nullptr)
-		{
-			EditorConfig->SelectedPaths.Add(InvariantPath);
-		}
 	}
 
 	GConfig->SetString(*IniSection, *(InstanceName + TEXT(".SelectedPaths")), *SelectedPathsString, IniFilename);
@@ -1102,11 +1115,6 @@ void SPathView::SaveSettings(const FString& IniFilename, const FString& IniSecti
 	FString PluginFiltersString;
 	if (PluginPathFilters.IsValid())
 	{
-		if (EditorConfig != nullptr)
-		{
-			EditorConfig->PluginFilters.Reset(PluginPathFilters->Num());
-		}
-
 		for (int32 FilterIdx = 0; FilterIdx < PluginPathFilters->Num(); ++FilterIdx)
 		{
 			if (PluginFiltersString.Len() > 0)
@@ -1116,11 +1124,6 @@ void SPathView::SaveSettings(const FString& IniFilename, const FString& IniSecti
 
 			TSharedPtr<FContentBrowserPluginFilter> Filter = StaticCastSharedPtr<FContentBrowserPluginFilter>(PluginPathFilters->GetFilterAtIndex(FilterIdx));
 			PluginFiltersString += Filter->GetName();
-
-			if (EditorConfig != nullptr)
-			{
-				EditorConfig->PluginFilters.Add(Filter->GetName());
-			}
 		}
 		GConfig->SetString(*IniSection, *(InstanceName + TEXT(".PluginFilters")), *PluginFiltersString, IniFilename);
 	}
@@ -1129,36 +1132,43 @@ void SPathView::SaveSettings(const FString& IniFilename, const FString& IniSecti
 void SPathView::LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString)
 {
 	// Selected Paths
-	FString SelectedPathsString;
-	if ( GConfig->GetString(*IniSection, *(SettingsString + TEXT(".SelectedPaths")), SelectedPathsString, IniFilename) )
+	TArray<FName> NewSelectedPaths;
+	if (EditorConfig != nullptr)
 	{
-		TArray<FString> NewSelectedPaths;
-		SelectedPathsString.ParseIntoArray(NewSelectedPaths, TEXT(","), /*bCullEmpty*/true);
-
-		UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
-		const bool bDiscoveringAssets = ContentBrowserData->IsDiscoveringItems();
-
-		// Replace each path in NewSelectedPaths with virtual version of that path
-		for (FString& Path : NewSelectedPaths)
+		NewSelectedPaths = EditorConfig->SelectedPaths;
+	}
+	else 
+	{
+		FString SelectedPathsString;
+		if (GConfig->GetString(*IniSection, *(SettingsString + TEXT(".SelectedPaths")), SelectedPathsString, IniFilename))
 		{
-			FNameBuilder PathBuffer;
-			IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(Path, PathBuffer);
-			Path = PathBuffer;
+			TArray<FString> ParsedPaths;
+			SelectedPathsString.ParseIntoArray(ParsedPaths, TEXT(","), /*bCullEmpty*/true);
+
+			Algo::Transform(ParsedPaths, NewSelectedPaths, [](const FString& Str) { return *Str; });
 		}
+	}
 
+	// Replace each path in NewSelectedPaths with virtual version of that path
+	for (FName& Path : NewSelectedPaths)
+	{
+		IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(Path, Path);
+	}
 
+	{
 		// Batch the selection changed event
 		FScopedSelectionChangedEvent ScopedSelectionChangedEvent(SharedThis(this));
 
 		bPendingInitialPathsNeedsSelectionClear = false;
 
-		if ( bDiscoveringAssets )
+		UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
+		if (ContentBrowserData->IsDiscoveringItems())
 		{
 			// Determine if any of the items already exist
 			bool bFoundAnyItemInTree = false;
-			for (const FString& Path : NewSelectedPaths)
+			for (const FName& Path : NewSelectedPaths)
 			{
-				if (TSharedPtr<FTreeItem> FoundItem = FindTreeItem(*Path))
+				if (TSharedPtr<FTreeItem> FoundItem = FindTreeItem(Path))
 				{
 					bFoundAnyItemInTree = true;
 					break;
@@ -1180,10 +1190,9 @@ void SPathView::LoadSettings(const FString& IniFilename, const FString& IniSecti
 
 			// If the selected paths is empty, the path was "All assets"
 			// This should handle that case properly
-			for (int32 PathIdx = 0; PathIdx < NewSelectedPaths.Num(); ++PathIdx)
+			for (const FName& Path : NewSelectedPaths)
 			{
-				const FName Path = *NewSelectedPaths[PathIdx];
-				if ( !ExplicitlyAddPathToSelection(Path) )
+				if (!ExplicitlyAddPathToSelection(Path))
 				{
 					// If we could not initially select these paths, but are still discovering assets, add them to a pending list to select them later
 					PendingInitialPaths.Add(Path);
@@ -1200,17 +1209,24 @@ void SPathView::LoadSettings(const FString& IniFilename, const FString& IniSecti
 	// Plugin Filters
 	if (PluginPathFilters.IsValid())
 	{
-		FString PluginFiltersString;
-		if (GConfig->GetString(*IniSection, *(SettingsString + TEXT(".PluginFilters")), PluginFiltersString, IniFilename))
+		TArray<FString> NewSelectedFilters;
+		if (EditorConfig != nullptr)
 		{
-			TArray<FString> NewSelectedFilters;
-			PluginFiltersString.ParseIntoArray(NewSelectedFilters, TEXT(","), /*bCullEmpty*/ true);
-
-			for (const TSharedRef<FContentBrowserPluginFilter>& Filter : AllPluginPathFilters)
+			NewSelectedFilters = EditorConfig->PluginFilters;
+		}
+		else
+		{
+			FString PluginFiltersString;
+			if (GConfig->GetString(*IniSection, *(SettingsString + TEXT(".PluginFilters")), PluginFiltersString, IniFilename))
 			{
-				bool bFilterActive = NewSelectedFilters.Contains(Filter->GetName());
-				SetPluginPathFilterActive(Filter, bFilterActive);
+				PluginFiltersString.ParseIntoArray(NewSelectedFilters, TEXT(","), /*bCullEmpty*/ true);
 			}
+		}
+
+		for (const TSharedRef<FContentBrowserPluginFilter>& Filter : AllPluginPathFilters)
+		{
+			bool bFilterActive = NewSelectedFilters.Contains(Filter->GetName());
+			SetPluginPathFilterActive(Filter, bFilterActive);
 		}
 	}
 }
@@ -1368,6 +1384,13 @@ void SPathView::TreeSelectionChanged( TSharedPtr< FTreeItem > TreeItem, ESelectI
 			{
 				OnItemSelectionChanged.Execute(FContentBrowserItem(), SelectInfo);
 			}
+		}
+
+		if (EditorConfig != nullptr)
+		{
+			EditorConfig->SelectedPaths = LastSelectedPaths.Array();
+
+			UContentBrowserConfig::Get()->SaveEditorConfig();
 		}
 	}
 

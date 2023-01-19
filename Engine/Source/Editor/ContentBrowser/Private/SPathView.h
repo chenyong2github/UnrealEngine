@@ -137,6 +137,9 @@ public:
 	virtual void Construct( const FArguments& InArgs );
 
 	/** Selects the closest matches to the supplied paths in the tree. "/" delimited */
+	void SetSelectedPaths(const TArray<FName>& Paths);
+
+	/** Selects the closest matches to the supplied paths in the tree. "/" delimited */
 	void SetSelectedPaths(const TArray<FString>& Paths);
 
 	/** Clears selection of all paths */
