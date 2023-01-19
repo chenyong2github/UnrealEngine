@@ -4,6 +4,8 @@
 
 #include "SbTree.h"
 #include "Common/Utils.h"
+#include "Model/AllocationItem.h"
+#include "Model/AllocationsProvider.h"
 #include "TraceServices/Containers/Allocators.h"
 
 #include <limits>

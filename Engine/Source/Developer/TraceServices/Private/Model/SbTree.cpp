@@ -3,8 +3,8 @@
 #include "SbTree.h"
 
 #include "Misc/FileHelper.h"
+#include "Model/AllocationItem.h"
 #include "TraceServices/Containers/Allocators.h"
-#include "Model/AllocationsProvider.h"
 
 #include <limits>
 

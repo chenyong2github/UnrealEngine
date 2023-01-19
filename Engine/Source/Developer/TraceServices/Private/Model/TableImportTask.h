@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "AllocationsProvider.h"
-#include "Common/StringStore.h"
 #include "CoreMinimal.h"
+
+// TraceServices
+#include "Common/StringStore.h"
 #include "Model/Tables.h"
 #include "TraceServices/Model/TableImport.h"
 

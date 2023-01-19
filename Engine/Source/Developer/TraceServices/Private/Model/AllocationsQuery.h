@@ -2,17 +2,19 @@
 
 #pragma once
 
-#include "AllocationsProvider.h"
 #include "CallstacksProvider.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Containers/Queue.h"
 #include "HAL/PlatformAtomics.h"
+#include "TraceServices/Model/AllocationsProvider.h"
 
 #include <atomic>
 
 namespace TraceServices
 {
 
+struct FAllocationItem;
+class FAllocationsProvider;
 class ILinearAllocator;
 
 struct FAllocationsImpl

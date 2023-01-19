@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "AllocationsProvider.h"
 #include "CoreMinimal.h"
 #include "TraceServices/Containers/Tables.h"
 
@@ -10,6 +9,7 @@ class FTokenizedMessage;
 
 namespace TraceServices
 {
+
 class FImportTableRow;
 
 class ITableImportData

@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "AllocationsProvider.h"
 //#include "Common/PagedArray.h"
+#include "TraceServices/Model/AllocationsProvider.h"
 
 namespace TraceServices
 {
 
+struct FAllocationItem;
 class ILinearAllocator;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
