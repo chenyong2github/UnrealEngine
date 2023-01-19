@@ -286,13 +286,13 @@ bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter
 			if (bConnected)
 			{
 				UE_LOG_REF(LogCategory, Display, TEXT("Trace started (connected to trace server %s)."), GetDest());
+				TraceType.store(FTraceAuxiliary::EConnectionType::Network);
 			}
 			else
 			{
 				UE_LOG_REF(LogCategory, Error, TEXT("Trace failed to connect (trace server: %s)!"), Parameter ? Parameter : TEXT(""));
 			}
 
-			TraceType.store(FTraceAuxiliary::EConnectionType::Network);
 		}
 
 		else if (Type == ETraceConnectType::File)
@@ -301,13 +301,13 @@ bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter
 			if (bConnected)
 			{
 				UE_LOG_REF(LogCategory, Display, TEXT("Trace started (writing to file \"%s\")."), GetDest());
+				TraceType.store(FTraceAuxiliary::EConnectionType::File);
 			}
 			else
 			{
 				UE_LOG_REF(LogCategory, Error, TEXT("Trace failed to connect (file: \"%s\")!"), Parameter ? Parameter : TEXT(""));
 			}
 
-			TraceType.store(FTraceAuxiliary::EConnectionType::File);
 		}
 
 		if (bConnected)

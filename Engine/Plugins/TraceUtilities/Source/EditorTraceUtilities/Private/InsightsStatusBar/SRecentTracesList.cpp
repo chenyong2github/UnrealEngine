@@ -98,7 +98,8 @@ void SRecentTracesListEntry::Construct(const FArguments& InArgs, TSharedPtr<FTra
 
 FReply SRecentTracesListEntry::OpenContainingFolder()
 {
-	FPlatformProcess::ExploreFolder(*TraceInfo->FilePath);
+	FString FullPath(FPaths::ConvertRelativePathToFull(TraceInfo->FilePath));
+	FPlatformProcess::ExploreFolder(*FullPath);
 
 	return FReply::Handled();
 }

@@ -85,14 +85,14 @@ private:
 	EVisibility GetStartTraceIconVisibility() const;
 	EVisibility GetStopTraceIconVisibility() const;
 
-	void StartTracing();
+	bool StartTracing();
 
 	TSharedRef<SWidget> MakeTraceMenu();
 	void Channels_BuildMenu(FMenuBuilder& MenuBuilder);
 	void Traces_BuildMenu(FMenuBuilder& MenuBuilder);
 
-	static void SendSnapshotNotification();
-	static void SendTraceStartedNotification();
+	void LogMessage(const FText& Text);
+	void ShowNotification(const FText& Text, const FText& SubText);
 
 	void SetTraceChannels(const TCHAR* InChannels);
 	bool IsPresetSet(const TCHAR* InChannels) const;
@@ -147,4 +147,5 @@ private:
 	TSharedPtr<FUICommandList> CommandList;
 
 	TArray<TSharedPtr<FTraceFileInfo>> Traces;
+	FName LogListingName;
 };
