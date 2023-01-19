@@ -30,9 +30,9 @@ public class NNEUtils : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"NNX_ONNXRuntime",
-				"NNX_ONNX_1_11_0",
-				"NNX_ONNXRuntimeProto_1_11_0",
+				"NNEOnnxruntime",
+				"NNEOnnx",
+				"NNEOnnxProto",
 				"ORTHelper",
 				}
 			);
