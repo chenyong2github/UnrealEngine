@@ -162,16 +162,6 @@ ERawImageFormat::Type FJpegImageWrapper::GetSupportedRawFormat(const ERawImageFo
 	};
 }
 
-bool FJpegImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow)
-{
-	check((InFormat == ERGBFormat::RGBA || InFormat == ERGBFormat::BGRA || InFormat == ERGBFormat::Gray) && InBitDepth == 8);
-
-	bool bResult = FImageWrapperBase::SetRaw(InRawData, InRawSize, InWidth, InHeight, InFormat, InBitDepth, InBytesPerRow);
-
-	return bResult;
-}
-
-
 void FJpegImageWrapper::Compress(int32 Quality)
 {
 	if (Quality == 0)
@@ -378,6 +368,7 @@ void FJpegImageWrapper::UncompressTurbo(const ERGBFormat InFormat, int32 InBitDe
 	RawData.AddUninitialized(Width * Height * Channels);
 	const int PixelFormat = ConvertTJpegPixelFormat(InFormat);
 	const int Flags = TJFLAG_NOREALLOC | TJFLAG_FASTDCT;
+	// @todo Oodle : evaluate whether TJFLAG_FASTDCT quality loss is worth the speed gained
 
 	if (tjDecompress2(Decompressor, CompressedData.GetData(), CompressedData.Num(), RawData.GetData(), Width, 0, Height, PixelFormat, Flags) != 0)
 	{

@@ -72,6 +72,7 @@ bool FIcnsImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int
 	check(InBytesPerRow == 0);
 
 #if PLATFORM_MAC
+	// CanSetRawFormat returns false, this will always fail, remove?
 	return FImageWrapperBase::SetRaw(InRawData, InRawSize, InWidth, InHeight, InFormat, InBitDepth, InBytesPerRow);
 #else
 	return false;
