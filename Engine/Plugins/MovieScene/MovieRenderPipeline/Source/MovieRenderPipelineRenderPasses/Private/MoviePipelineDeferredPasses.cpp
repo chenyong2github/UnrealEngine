@@ -128,6 +128,13 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	Super::SetupImpl(InPassInitSettings);
 	LLM_SCOPE_BYNAME(TEXT("MoviePipeline/DeferredPassSetup"));
 
+	if (bAddDefaultLayer && (GetNumStencilLayers() == 0))
+	{
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("The 'Add Default Layer' deferred rendering option requires at least one Actor or Data Layer to be specified."));
+		GetPipeline()->Shutdown(true);
+		return;
+	}
+
 	{
 		TSoftObjectPtr<UMaterialInterface> StencilMatRef = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(StencilLayerMaterialAsset));
 		StencilLayerMaterial = StencilMatRef.LoadSynchronous();
