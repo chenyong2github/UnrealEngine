@@ -576,13 +576,11 @@ inline void GenerateFinalOutput(TRefCountPtr<TBlob>& CompressedData,
 		BuildResourceTableTokenStream(GenericSRT.UnorderedAccessViewMap, GenericSRT.MaxBoundResourceTable, SRT.UnorderedAccessViewMap);
 	}
 
-	if (GD3DAllowRemoveUnused != 0 && Input.Target.Frequency == SF_Pixel && Input.bCompilingForShaderPipeline && bProcessingSecondTime)
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_ForceRemoveUnusedInterpolators) && Input.Target.Frequency == SF_Pixel && Input.bCompilingForShaderPipeline && bProcessingSecondTime)
+
 	{
 		Output.bSupportsQueryingUsedAttributes = true;
-		if (GD3DAllowRemoveUnused == 1)
-		{
-			Output.UsedAttributes = ShaderInputs;
-		}
+		Output.UsedAttributes = ShaderInputs;
 	}
 
 	// Generate the final Output

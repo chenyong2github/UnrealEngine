@@ -44,5 +44,3 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	FShaderCompilerOutput& Output);
 
 bool ValidateResourceCounts(uint32 NumSRVs, uint32 NumSamplers, uint32 NumUAVs, uint32 NumCBs, TArray<FString>& OutFilteredErrors);
-
-extern int32 GD3DAllowRemoveUnused;
