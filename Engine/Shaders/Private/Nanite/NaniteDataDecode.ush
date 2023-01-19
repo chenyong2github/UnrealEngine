@@ -539,6 +539,48 @@ uint3 DecodeTriangleIndices(FCluster Cluster, uint TriIndex, bool bSwapI1I2)
 	return Indices;
 }
 
+struct FNaniteMaterialFlags
+{
+	bool bWorldPositionOffset;
+	bool bPixelDepthOffset;
+	bool bPixelDiscard;
+	bool bDynamicTessellation;
+};
+
+FNaniteMaterialFlags UnpackMaterialFlags(uint Packed)
+{
+	FNaniteMaterialFlags MaterialFlags;
+	MaterialFlags.bWorldPositionOffset	= (Packed & NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET) != 0u;
+	MaterialFlags.bPixelDepthOffset		= (Packed & NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET) != 0u;
+	MaterialFlags.bPixelDiscard			= (Packed & NANITE_MATERIAL_FLAG_PIXEL_DISCARD) != 0u;
+	MaterialFlags.bDynamicTessellation	= (Packed & NANITE_MATERIAL_FLAG_DYNAMIC_TESSELLATION) != 0u;
+	return MaterialFlags;
+}
+
+bool IsMaterialVertexProgrammable(FNaniteMaterialFlags MaterialFlags)
+{
+	return MaterialFlags.bWorldPositionOffset;
+}
+
+bool IsMaterialPixelProgrammable(FNaniteMaterialFlags MaterialFlags)
+{
+	return MaterialFlags.bPixelDepthOffset || MaterialFlags.bPixelDiscard;
+}
+
+bool IsMaterialProgrammable(FNaniteMaterialFlags MaterialFlags)
+{
+	return IsMaterialVertexProgrammable(MaterialFlags) || IsMaterialPixelProgrammable(MaterialFlags);
+}
+
+struct FResolvedMaterial
+{
+	bool bIsNanitePixel;
+	bool bIsDecalReceiver;
+	bool bHasDistanceField;
+	uint LightingChannels;
+	uint MaterialSlot;
+};
+
 uint PackMaterialResolve(
 	uint MaterialSlot,
 	bool bIsDecalReceiver,
@@ -552,15 +594,6 @@ uint PackMaterialResolve(
 	Packed |= select(bHasDistanceField, 1u << 19u, 0u);
 	return Packed;
 }
-
-struct FResolvedMaterial
-{
-	bool bIsNanitePixel;
-	bool bIsDecalReceiver;
-	bool bHasDistanceField;
-	uint LightingChannels;
-	uint MaterialSlot;
-};
 
 FResolvedMaterial UnpackMaterialResolve(uint Packed)
 {

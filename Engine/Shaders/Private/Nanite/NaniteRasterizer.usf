@@ -51,7 +51,7 @@ float2 HardwareViewportSize;
 // .x = count of SW clusters in bin
 // .y = count of HW clusters in bin
 // .z = offset of contiguous cluster range in global buffer
-// .w = unused (TODO: PROG_RASTER - HW vs SW offsets)
+// .w = material bit flags
 StructuredBuffer<uint4> RasterizerBinHeaders;
 
 StructuredBuffer<uint2> RasterizerBinData;

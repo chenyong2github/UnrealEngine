@@ -25,8 +25,13 @@
 // .x = count of SW clusters in bin
 // .y = count of HW clusters in bin
 // .z = offset of contiguous cluster range in global buffer
-// .w = unused (TODO: PROG_RASTER) separate bin for HW?
+// .w = material bit flags
 RWStructuredBuffer<uint4> OutRasterizerBinHeaders;
+
+FNaniteMaterialFlags GetRasterizerBinMaterialFlags(uint BinIndex)
+{
+	return UnpackMaterialFlags(OutRasterizerBinHeaders[BinIndex].w);
+}
 
 uint2 GetRasterizerBinCount(uint BinIndex)
 {

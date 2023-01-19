@@ -911,6 +911,33 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualTargetParameters, VirtualShadowMap)
 END_SHADER_PARAMETER_STRUCT()
 
+static uint32 GetMaterialBitFlags(const FMaterial& RasterMaterial, bool bForceDisableWPO)
+{
+	uint32 MaterialBitFlags = 0x00000000u;
+
+	if (!bForceDisableWPO && RasterMaterial.MaterialUsesWorldPositionOffset_RenderThread())
+	{
+		MaterialBitFlags |= NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET;
+	}
+
+	if (RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread())
+	{
+		MaterialBitFlags |= NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET;
+	}
+
+	if (RasterMaterial.IsMasked())
+	{
+		MaterialBitFlags |= NANITE_MATERIAL_FLAG_PIXEL_DISCARD;
+	}
+
+	if (false)
+	{
+		MaterialBitFlags |= NANITE_MATERIAL_FLAG_DYNAMIC_TESSELLATION;
+	}
+
+	return MaterialBitFlags;
+}
+
 static bool IsVertexProgrammable(const FMaterialShaderParameters& MaterialParameters, bool bPermutationPrimitiveShader)
 {
 	// Always use the programmable version of prim shaders if programmable raster is enabled for this pass (i.e. has raster bins).
@@ -919,9 +946,9 @@ static bool IsVertexProgrammable(const FMaterialShaderParameters& MaterialParame
 	return bPermutationPrimitiveShader || MaterialParameters.bHasVertexPositionOffsetConnected;
 }
 
-static bool IsVertexProgrammable(const FMaterial& RasterMaterial, bool bMaterialUsesWorldPositionOffset, bool bUsePrimitiveShader, bool bForceDisableWPO)
+static bool IsVertexProgrammable(uint32 MaterialBitFlags, bool bUsePrimitiveShader)
 {
-	return bUsePrimitiveShader || (!bForceDisableWPO && bMaterialUsesWorldPositionOffset);
+	return bUsePrimitiveShader || (MaterialBitFlags & NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET) != 0u;
 }
 
 static bool IsPixelProgrammable(const FMaterialShaderParameters& MaterialParameters)
@@ -929,9 +956,10 @@ static bool IsPixelProgrammable(const FMaterialShaderParameters& MaterialParamet
 	return MaterialParameters.bIsMasked || MaterialParameters.bHasPixelDepthOffsetConnected;
 }
 
-static bool IsPixelProgrammable(const FMaterial& RasterMaterial, bool bMaterialUsesPixelDepthOffset)
+static bool IsPixelProgrammable(uint32 MaterialBitFlags)
 {
-	return RasterMaterial.IsMasked() || bMaterialUsesPixelDepthOffset;
+	return (MaterialBitFlags & NANITE_MATERIAL_FLAG_PIXEL_DISCARD) != 0u ||
+		   (MaterialBitFlags & NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET) != 0u;
 }
 
 static bool ShouldCompileProgrammablePermutation(const FMaterialShaderParameters& MaterialParameters, bool bPermutationVertexProgrammable, bool bPermutationPixelProgrammable, bool bPermutationPrimitiveShader)
@@ -1600,7 +1628,7 @@ void CollectRasterPSOInitializersForDefaultMaterial(
 
 void CollectRasterPSOInitializersForPipeline(
 	const FSceneTexturesConfig& SceneTexturesConfig,
-	const FMaterial& Material,
+	const FMaterial& RasterMaterial,
 	const FPSOPrecacheParams& PreCacheParams,
 	EShaderPlatform ShaderPlatform,
 	EPipeline Pipeline,
@@ -1612,7 +1640,7 @@ void CollectRasterPSOInitializersForPipeline(
 	const bool bHasVirtualShadowMapArray = Pipeline == EPipeline::Shadows; // true during shadow pass
 	const bool bVisualizeActive = false; // no precache for visualization modes
 	const bool bUseAutoCullingShader = UseAutoCullingShader(bUsePrimitiveShader);
-	const bool bForceDisableWPO = false; // no precache for force disable WPI
+	const bool bForceDisableWPO = false; // no precache for force disable WPO
 		
 	FHWRasterizeVS::FPermutationDomain PermutationVectorVS;
 	FHWRasterizeMS::FPermutationDomain PermutationVectorMS;
@@ -1621,27 +1649,28 @@ void CollectRasterPSOInitializersForPipeline(
 	SetupProgrammableRasterizePermutationVectors(RasterMode, bUseMeshShader, bUsePrimitiveShader, bUseAutoCullingShader, bVisualizeActive, bHasVirtualShadowMapArray,
 		PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS);
 
-	if (Material.IsDefaultMaterial())
+	if (RasterMaterial.IsDefaultMaterial())
 	{
-		CollectRasterPSOInitializersForDefaultMaterial(Material, bUseMeshShader, bUsePrimitiveShader, PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS, PSOInitializers);
+		CollectRasterPSOInitializersForDefaultMaterial(RasterMaterial, bUseMeshShader, bUsePrimitiveShader, PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS, PSOInitializers);
 	}
 	else
 	{
-		const bool bVertexProgrammable = IsVertexProgrammable(Material, Material.MaterialUsesWorldPositionOffset_GameThread(), bUsePrimitiveShader, bForceDisableWPO);
-		const bool bPixelProgrammable = IsPixelProgrammable(Material, Material.MaterialUsesPixelDepthOffset_GameThread());
+		const uint32 MaterialBitFlags = GetMaterialBitFlags(RasterMaterial, bForceDisableWPO);
+		const bool bVertexProgrammable = IsVertexProgrammable(MaterialBitFlags, bUsePrimitiveShader);
+		const bool bPixelProgrammable = IsPixelProgrammable(MaterialBitFlags);
 
 		const FMeshPassProcessor::FMeshDrawingPolicyOverrideSettings OverrideSettings = FMeshPassProcessor::ComputeMeshOverrideSettings(PreCacheParams);
-		ERasterizerCullMode MeshCullMode = FMeshPassProcessor::ComputeMeshCullMode(Material, OverrideSettings);
+		ERasterizerCullMode MeshCullMode = FMeshPassProcessor::ComputeMeshCullMode(RasterMaterial, OverrideSettings);
 		const bool bIsTwoSided = MeshCullMode == CM_None;
 
-		CollectRasterPSOInitializersForPermutation(Material, bVertexProgrammable, bPixelProgrammable, bUseMeshShader, bUsePrimitiveShader, bIsTwoSided,
+		CollectRasterPSOInitializersForPermutation(RasterMaterial, bVertexProgrammable, bPixelProgrammable, bUseMeshShader, bUsePrimitiveShader, bIsTwoSided,
 			PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS, PSOInitializers);
 	}
 }
 
 void CollectRasterPSOInitializers(
 	const FSceneTexturesConfig& SceneTexturesConfig,
-	const FMaterial& Material,
+	const FMaterial& RasterMaterial,
 	const FPSOPrecacheParams& PreCacheParams,
 	EShaderPlatform ShaderPlatform,
 	TArray<FPSOPrecacheData>& PSOInitializers)
@@ -1652,8 +1681,8 @@ void CollectRasterPSOInitializers(
 	}
 
 	// Collect for primary & shadows
-	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, EPipeline::Primary, PSOInitializers);
-	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, EPipeline::Shadows, PSOInitializers);
+	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, RasterMaterial, PreCacheParams, ShaderPlatform, EPipeline::Primary, PSOInitializers);
+	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, RasterMaterial, PreCacheParams, ShaderPlatform, EPipeline::Shadows, PSOInitializers);
 }
 
 
@@ -2480,7 +2509,7 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 	}
 }
 
-static void AddPass_Binning(
+static FBinningData AddPass_Binning(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FSharedContext& SharedContext,
@@ -2495,112 +2524,118 @@ static void AddPass_Binning(
 	bool bMainPass,
 	bool bVirtualTextureTarget,
 	bool bUsePrimOrMeshShader,
-	FBinningData& BinningData
+	const TConstArrayView<FUintVector4> HeaderBufferData
 )
 {
-	const bool bProgrammableRaster = (RenderFlags & NANITE_RENDER_FLAG_PROGRAMMABLE_RASTER) != 0;
+	FBinningData BinningData = {};
+	BinningData.BinCount = HeaderBufferData.Num();
 
-	BinningData.BinCount = bProgrammableRaster ? Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetBinCount() : 0u;
-
-	if (BinningData.BinCount == 0)
+	if (BinningData.BinCount > 0)
 	{
-		return;
-	}
-
-	BinningData.HeaderBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * 4, FMath::RoundUpToPowerOfTwo(FMath::Max(BinningData.BinCount, 1u))), TEXT("Nanite.RasterizerBinHeaders"));
-	BinningData.IndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(BinningData.BinCount * NANITE_RASTERIZER_ARG_COUNT), TEXT("Nanite.RasterizerBinIndirectArgs"));
-
-	const uint32 MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
-
-	// Support a max of 3 unique materials per visible cluster (i.e. if all clusters are fast path and use full range, never run out of space).
-	const uint32 MaxClusterIndirections = MaxVisibleClusters * 3u;
-	check(MaxClusterIndirections > 0);
-	BinningData.DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * 2, FMath::RoundUpToPowerOfTwo(MaxClusterIndirections)), TEXT("Nanite.RasterizerBinData"));
-
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(BinningData.HeaderBuffer), 0);
-
-	FRasterBinBuild_CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRasterBinBuild_CS::FParameters>();
-
-	PassParameters->GPUSceneParameters		= GPUSceneParameters;
-	PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
-	PassParameters->ClusterPageData			= GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
-	PassParameters->MaterialSlotTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
-	PassParameters->InClusterCountSWHW		= GraphBuilder.CreateSRV(ClusterCountSWHW);
-	PassParameters->InClusterOffsetSWHW		= GraphBuilder.CreateSRV(ClusterOffsetSWHW, PF_R32_UINT);
-	PassParameters->IndirectArgs			= ClusterClassifyArgs;
-	PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(TotalPrevDrawClustersBuffer);
-	PassParameters->OutRasterizerBinHeaders = GraphBuilder.CreateUAV(BinningData.HeaderBuffer);
-
-	PassParameters->PageConstants = PageConstants;
-	PassParameters->RenderFlags = RenderFlags;
-	PassParameters->MaxVisibleClusters = MaxVisibleClusters;
-	PassParameters->RegularMaterialRasterSlotCount = Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetRegularBinCount();
-	PassParameters->bUsePrimOrMeshShader = bUsePrimOrMeshShader;
-
-	// Classify SW & HW Clusters
-	{
-		FRasterBinBuild_CS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FRasterBinBuild_CS::FIsPostPass>(!bMainPass);
-		PermutationVector.Set<FRasterBinBuild_CS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
-		PermutationVector.Set<FRasterBinBuild_CS::FBuildPassDim>(NANITE_RASTER_BIN_CLASSIFY);
-
-		auto ComputeShader = SharedContext.ShaderMap->GetShader<FRasterBinBuild_CS>(PermutationVector);
-
-		FComputeShaderUtils::AddPass(
+		BinningData.HeaderBuffer = CreateStructuredBuffer(
 			GraphBuilder,
-			RDG_EVENT_NAME("RasterBinClassify"),
-			ComputeShader,
-			PassParameters,
-			PassParameters->IndirectArgs,
-			0
+			TEXT("Nanite.RasterizerBinHeaders"),
+			sizeof(FUintVector4),
+			FMath::RoundUpToPowerOfTwo(FMath::Max(BinningData.BinCount, 1u)),
+			HeaderBufferData.GetData(),
+			sizeof(FUintVector4) * HeaderBufferData.Num(),
+			ERDGInitialDataFlags::None
 		);
-	}
 
-	// Reserve Bin Ranges
-	{
-		FRDGBufferRef RangeAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Nanite.RangeAllocatorBuffer"));
-		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(RangeAllocatorBuffer), 0);
+		BinningData.IndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(BinningData.BinCount * NANITE_RASTERIZER_ARG_COUNT), TEXT("Nanite.RasterizerBinIndirectArgs"));
 
-		FRasterBinReserve_CS::FParameters* ReservePassParameters = GraphBuilder.AllocParameters<FRasterBinReserve_CS::FParameters>();
-		ReservePassParameters->OutRasterizerBinArgsSWHW = GraphBuilder.CreateUAV(BinningData.IndirectArgs);
-		ReservePassParameters->OutRasterizerBinHeaders = GraphBuilder.CreateUAV(BinningData.HeaderBuffer);
-		ReservePassParameters->OutRangeAllocator = GraphBuilder.CreateUAV(RangeAllocatorBuffer);
-		ReservePassParameters->RasterBinCount = BinningData.BinCount;
-		ReservePassParameters->RenderFlags = RenderFlags;
+		const uint32 MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
 
-		auto ComputeShader = SharedContext.ShaderMap->GetShader<FRasterBinReserve_CS>();
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("RasterBinReserve"),
-			ComputeShader,
-			ReservePassParameters,
-			FComputeShaderUtils::GetGroupCountWrapped(BinningData.BinCount, 64)
-		);
-	}
+		// Support a max of 3 unique materials per visible cluster (i.e. if all clusters are fast path and use full range, never run out of space).
+		const uint32 MaxClusterIndirections = MaxVisibleClusters * 3u;
+		check(MaxClusterIndirections > 0);
+		BinningData.DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * 2, FMath::RoundUpToPowerOfTwo(MaxClusterIndirections)), TEXT("Nanite.RasterizerBinData"));
 
-	PassParameters->OutRasterizerBinData = GraphBuilder.CreateUAV(BinningData.DataBuffer);
-	PassParameters->OutRasterizerBinArgsSWHW = GraphBuilder.CreateUAV(BinningData.IndirectArgs);
+		FRasterBinBuild_CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRasterBinBuild_CS::FParameters>();
 
-	// Scatter SW & HW Clusters
-	{
+		PassParameters->GPUSceneParameters		= GPUSceneParameters;
+		PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
+		PassParameters->ClusterPageData			= GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
+		PassParameters->MaterialSlotTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
+		PassParameters->InClusterCountSWHW		= GraphBuilder.CreateSRV(ClusterCountSWHW);
+		PassParameters->InClusterOffsetSWHW		= GraphBuilder.CreateSRV(ClusterOffsetSWHW, PF_R32_UINT);
+		PassParameters->IndirectArgs			= ClusterClassifyArgs;
+		PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(TotalPrevDrawClustersBuffer);
 		PassParameters->OutRasterizerBinHeaders = GraphBuilder.CreateUAV(BinningData.HeaderBuffer);
 
-		FRasterBinBuild_CS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FRasterBinBuild_CS::FIsPostPass>(!bMainPass);
-		PermutationVector.Set<FRasterBinBuild_CS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
-		PermutationVector.Set<FRasterBinBuild_CS::FBuildPassDim>(NANITE_RASTER_BIN_SCATTER);
+		PassParameters->PageConstants = PageConstants;
+		PassParameters->RenderFlags = RenderFlags;
+		PassParameters->MaxVisibleClusters = MaxVisibleClusters;
+		PassParameters->RegularMaterialRasterSlotCount = Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetRegularBinCount();
+		PassParameters->bUsePrimOrMeshShader = bUsePrimOrMeshShader;
 
-		auto ComputeShader = SharedContext.ShaderMap->GetShader<FRasterBinBuild_CS>(PermutationVector);
+		// Classify SW & HW Clusters
+		{
+			FRasterBinBuild_CS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FRasterBinBuild_CS::FIsPostPass>(!bMainPass);
+			PermutationVector.Set<FRasterBinBuild_CS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
+			PermutationVector.Set<FRasterBinBuild_CS::FBuildPassDim>(NANITE_RASTER_BIN_CLASSIFY);
 
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("RasterBinScatter"),
-			ComputeShader,
-			PassParameters,
-			PassParameters->IndirectArgs,
-			0
-		);
+			auto ComputeShader = SharedContext.ShaderMap->GetShader<FRasterBinBuild_CS>(PermutationVector);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("RasterBinClassify"),
+				ComputeShader,
+				PassParameters,
+				PassParameters->IndirectArgs,
+				0
+			);
+		}
+
+		// Reserve Bin Ranges
+		{
+			FRDGBufferRef RangeAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Nanite.RangeAllocatorBuffer"));
+			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(RangeAllocatorBuffer), 0);
+
+			FRasterBinReserve_CS::FParameters* ReservePassParameters = GraphBuilder.AllocParameters<FRasterBinReserve_CS::FParameters>();
+			ReservePassParameters->OutRasterizerBinArgsSWHW = GraphBuilder.CreateUAV(BinningData.IndirectArgs);
+			ReservePassParameters->OutRasterizerBinHeaders = GraphBuilder.CreateUAV(BinningData.HeaderBuffer);
+			ReservePassParameters->OutRangeAllocator = GraphBuilder.CreateUAV(RangeAllocatorBuffer);
+			ReservePassParameters->RasterBinCount = BinningData.BinCount;
+			ReservePassParameters->RenderFlags = RenderFlags;
+
+			auto ComputeShader = SharedContext.ShaderMap->GetShader<FRasterBinReserve_CS>();
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("RasterBinReserve"),
+				ComputeShader,
+				ReservePassParameters,
+				FComputeShaderUtils::GetGroupCountWrapped(BinningData.BinCount, 64)
+			);
+		}
+
+		PassParameters->OutRasterizerBinData = GraphBuilder.CreateUAV(BinningData.DataBuffer);
+		PassParameters->OutRasterizerBinArgsSWHW = GraphBuilder.CreateUAV(BinningData.IndirectArgs);
+
+		// Scatter SW & HW Clusters
+		{
+			PassParameters->OutRasterizerBinHeaders = GraphBuilder.CreateUAV(BinningData.HeaderBuffer);
+
+			FRasterBinBuild_CS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FRasterBinBuild_CS::FIsPostPass>(!bMainPass);
+			PermutationVector.Set<FRasterBinBuild_CS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
+			PermutationVector.Set<FRasterBinBuild_CS::FBuildPassDim>(NANITE_RASTER_BIN_SCATTER);
+
+			auto ComputeShader = SharedContext.ShaderMap->GetShader<FRasterBinBuild_CS>(PermutationVector);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("RasterBinScatter"),
+				ComputeShader,
+				PassParameters,
+				PassParameters->IndirectArgs,
+				0
+			);
+		}
 	}
+
+	return BinningData;
 }
 
 FBinningData AddPass_Rasterize(
@@ -2653,45 +2688,14 @@ FBinningData AddPass_Rasterize(
 	}
 
 	const bool bUseMeshShader = UseMeshShader(ShaderPlatform, SharedContext.Pipeline);
-
 	const bool bUsePrimitiveShader = UsePrimitiveShader() && !bUseMeshShader;
+	const bool bUseProgrammableRaster = (RenderFlags & NANITE_RENDER_FLAG_PROGRAMMABLE_RASTER) != 0;
 
-	// Rasterizer Binning
-	FBinningData BinningData = {};
-	AddPass_Binning(
-		GraphBuilder,
-		Scene,
-		SharedContext,
-		PageConstants,
-		RenderFlags,
-		VisibleClustersSWHW,
-		ClusterOffsetSWHW,
-		ClusterCountSWHW,
-		ClusterClassifyArgs,
-		TotalPrevDrawClustersBuffer,
-		GPUSceneParameters,
-		bMainPass,
-		VirtualShadowMapArray != nullptr,
-		bUsePrimitiveShader || bUseMeshShader,
-		BinningData
-	);
-
-	const bool bProgrammableRaster = BinningData.BinCount > 0;
-	if (bProgrammableRaster)
+	const uint32 RasterBinCount = bUseProgrammableRaster ? Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetBinCount() : 0u;
+	if (RasterBinCount > 0)
 	{
 		RenderFlags |= NANITE_RENDER_FLAG_HAS_RASTER_BIN;
 	}
-
-	if (BinningData.DataBuffer == nullptr)
-	{
-		BinningData.DataBuffer = DummyBuffer8;
-	}
-	if (BinningData.HeaderBuffer == nullptr)
-	{
-		BinningData.HeaderBuffer = DummyBuffer16;
-	}
-
-	FRDGBufferRef BinIndirectArgs = bProgrammableRaster ? BinningData.IndirectArgs : IndirectArgs;
 
 	const ERasterScheduling Scheduling = RasterContext.RasterScheduling;
 
@@ -2767,7 +2771,10 @@ FBinningData AddPass_Rasterize(
 
 	auto& RasterizerPasses = GraphBuilder.AllocArray<FRasterizerPass>();
 
-	if (bProgrammableRaster)
+	TArray<FUintVector4, SceneRenderingAllocator> HeaderBufferData;
+	HeaderBufferData.SetNumZeroed(RasterBinCount);
+
+	if ((RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u)
 	{
 		const FNaniteRasterPipelineMap& Pipelines = RasterPipelines.GetRasterPipelineMap();
 		const FNaniteRasterBinIndexTranslator BinIndexTranslator = RasterPipelines.GetBinIndexTranslator();
@@ -2798,10 +2805,14 @@ FBinningData AddPass_Rasterize(
 			RasterizerPass.PixelMaterialProxy	= FixedMaterialProxy;
 			RasterizerPass.ComputeMaterialProxy	= FixedMaterialProxy;
 
-			const FMaterial& RasterMaterial 	= RasterizerPass.RasterPipeline.RasterMaterial->GetIncompleteMaterialWithFallback(Scene.GetFeatureLevel());
+			FUintVector4& HeaderEntry = HeaderBufferData[RasterizerPass.RasterizerBin];
+			uint32& MaterialBitFlags = HeaderEntry.W;
 
-			RasterizerPass.bVertexProgrammable 	= IsVertexProgrammable(RasterMaterial, RasterMaterial.MaterialUsesWorldPositionOffset_RenderThread(), bUsePrimitiveShader, RasterEntry.bForceDisableWPO);;
-			RasterizerPass.bPixelProgrammable 	= IsPixelProgrammable(RasterMaterial, RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread());;
+			const FMaterial& RasterMaterial = RasterizerPass.RasterPipeline.RasterMaterial->GetIncompleteMaterialWithFallback(Scene.GetFeatureLevel());
+			MaterialBitFlags = GetMaterialBitFlags(RasterMaterial, RasterEntry.bForceDisableWPO);
+
+			RasterizerPass.bVertexProgrammable = IsVertexProgrammable(MaterialBitFlags, bUsePrimitiveShader);
+			RasterizerPass.bPixelProgrammable  = IsPixelProgrammable(MaterialBitFlags);
 
 			if (RasterizerPass.bVertexProgrammable || RasterizerPass.bPixelProgrammable)
 			{
@@ -2853,7 +2864,7 @@ FBinningData AddPass_Rasterize(
 
 					ProgrammableRasterProxy = ProgrammableRasterProxy->GetFallback(Scene.GetFeatureLevel());
 				}
-#if !UE_BUILD_SHIPPING
+			#if !UE_BUILD_SHIPPING
 				if (ProgrammableRasterProxy != nullptr)
 				{
 					const FMaterial* Material = ProgrammableRasterProxy->GetMaterialNoFallback(Scene.GetFeatureLevel());
@@ -2862,7 +2873,7 @@ FBinningData AddPass_Rasterize(
 						GGlobalResources.GetFeedbackManager()->ReportMaterialPerformanceWarning(ProgrammableRasterProxy->GetMaterialName());
 					}
 				}
-#endif
+			#endif
 			}
 
 			// Note: The indirect args offset is in bytes
@@ -2888,6 +2899,37 @@ FBinningData AddPass_Rasterize(
 
 		FixedFunctionPassIndex = 0;
 	}
+
+	// Rasterizer Binning
+	FBinningData BinningData = AddPass_Binning(
+		GraphBuilder,
+		Scene,
+		SharedContext,
+		PageConstants,
+		RenderFlags,
+		VisibleClustersSWHW,
+		ClusterOffsetSWHW,
+		ClusterCountSWHW,
+		ClusterClassifyArgs,
+		TotalPrevDrawClustersBuffer,
+		GPUSceneParameters,
+		bMainPass,
+		VirtualShadowMapArray != nullptr,
+		bUsePrimitiveShader || bUseMeshShader,
+		HeaderBufferData
+	);
+
+	if (BinningData.DataBuffer == nullptr)
+	{
+		BinningData.DataBuffer = DummyBuffer8;
+	}
+
+	if (BinningData.HeaderBuffer == nullptr)
+	{
+		BinningData.HeaderBuffer = DummyBuffer16;
+	}
+
+	FRDGBufferRef BinIndirectArgs = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u ? BinningData.IndirectArgs : IndirectArgs;
 
 	for (FRasterizerPass& RasterizerPass : RasterizerPasses)
 	{
