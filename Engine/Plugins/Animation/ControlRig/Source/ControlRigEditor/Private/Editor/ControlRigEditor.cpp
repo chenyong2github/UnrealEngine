@@ -4384,6 +4384,7 @@ void FControlRigEditor::UpdateControlRig()
 				ControlRig->Initialize(true);
  			}
 
+ 			PreviewInstance = Cast<UAnimPreviewInstance>(AnimInstance->GetSourceAnimInstance());
 			ControlRig->PreviewInstance = PreviewInstance;
 
 #if WITH_EDITOR
