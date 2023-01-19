@@ -28,9 +28,6 @@ public class SwitchboardListener : ModuleRules
 			);
 
 			PublicSystemLibraries.Add("Pdh.lib");
-
-			// Add PresentMon as a Runtime Dependency to avoid it from being filtered out when generating the release binaries.
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/PresentMon/Win64/PresentMon-1.8.0-x64.exe");
 		}
 
 		PrivateIncludePathModuleNames.AddRange(
