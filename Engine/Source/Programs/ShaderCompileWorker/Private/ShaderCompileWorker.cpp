@@ -200,16 +200,6 @@ static FORCENOINLINE void ProcessCompilationJob(const FShaderCompilerInput& Inpu
 		ExitWithoutCrash(FSCWErrorCode::CantCompileForSpecificFormat, FString::Printf(TEXT("Can't compile shaders for format %s"), *Input.ShaderFormat.ToString()));
 	}
 
-	// Apply the console variable values from the input environment before calling the platform shader compiler
-	for (const auto& Pair : Input.Environment.ShaderFormatCVars)
-	{
-		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*Pair.Key);
-		if (CVar)
-		{
-			CVar->Set(*Pair.Value, ECVF_SetByCode);
-		}
-	}
-
 #if PLATFORM_WINDOWS
 	FString ExceptionMsg;
 	FString ExceptionCallstack;

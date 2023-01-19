@@ -523,7 +523,6 @@ struct FShaderCompilerEnvironment
 	TMap<FString, FResourceTableEntry> ResourceTableMap;
 	TMap<FString, FUniformBufferEntry> UniformBufferMap;
 	TMap<FString, FString> RemoteServerData;
-	TMap<FString, FString> ShaderFormatCVars;
 
 	const ITargetPlatform* TargetPlatform = nullptr;
 
@@ -579,7 +578,6 @@ struct FShaderCompilerEnvironment
 		Ar << ResourceTableMap;
 		Ar << UniformBufferMap;
 		Ar << RemoteServerData;
-		Ar << ShaderFormatCVars;
 		Ar << FullPrecisionInPS;
 	}
 
@@ -620,7 +618,6 @@ struct FShaderCompilerEnvironment
 		Definitions.Merge(Other.Definitions);
 		RenderTargetOutputFormatsMap.Append(Other.RenderTargetOutputFormatsMap);
 		RemoteServerData.Append(Other.RemoteServerData);
-		ShaderFormatCVars.Append(Other.ShaderFormatCVars);
 		FullPrecisionInPS |= Other.FullPrecisionInPS;
 	}
 
