@@ -71,8 +71,12 @@ public:
 		return RegistrationName;
 	}
 
+	/** Returns the default desired tab display name that was specified for this widget */
+	FText GetTabDisplayName() const;
+
 private:
 	bool IsWidgetEnabled() const;
+
 	void ChangeTabWorld(UWorld* World, EMapChangeType MapChangeType);
 
 private:

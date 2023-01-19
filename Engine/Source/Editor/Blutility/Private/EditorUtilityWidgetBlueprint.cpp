@@ -147,6 +147,18 @@ void UEditorUtilityWidgetBlueprint::RegenerateCreatedTab(UBlueprint* RecompiledB
 	}
 }
 
+
+FText UEditorUtilityWidgetBlueprint::GetTabDisplayName() const
+{
+	const UEditorUtilityWidget* EditorUtilityWidget = GeneratedClass->GetDefaultObject<UEditorUtilityWidget>();
+
+	if (EditorUtilityWidget && !EditorUtilityWidget->GetTabDisplayName().IsEmpty())
+	{
+		return EditorUtilityWidget->GetTabDisplayName();
+	}
+	return FText::FromString(FName::NameToDisplayString(GetName(), false));
+}
+
 void UEditorUtilityWidgetBlueprint::ChangeTabWorld(UWorld* World, EMapChangeType MapChangeType)
 {
 	if (MapChangeType == EMapChangeType::TearDownWorld)

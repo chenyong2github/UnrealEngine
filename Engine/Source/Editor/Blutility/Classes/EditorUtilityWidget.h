@@ -43,9 +43,19 @@ public:
 		return bAutoRunDefaultAction;
 	}
 
+	/** Returns the default desired tab display name that was specified for this widget */
+	FText GetTabDisplayName() const
+	{
+		return TabDisplayName;
+	}
+
 	virtual bool IsEditorUtility() const override { return true; }
 
 protected:
+	/** The display name for tabs spawned with this widget */
+	UPROPERTY(Category = Config, EditDefaultsOnly, BlueprintReadWrite, AssetRegistrySearchable)
+	FText TabDisplayName;
+
 	UPROPERTY(Category = Config, EditDefaultsOnly, BlueprintReadWrite, AssetRegistrySearchable)
 	FString HelpText;
 

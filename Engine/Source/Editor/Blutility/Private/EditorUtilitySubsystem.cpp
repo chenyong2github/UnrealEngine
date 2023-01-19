@@ -224,7 +224,7 @@ void UEditorUtilitySubsystem::RegisterTabAndGetID(class UEditorUtilityWidgetBlue
 	if (InBlueprint && !IsRunningCommandlet())
 	{
 		FName RegistrationName = NewTabID.IsNone() ? FName(*(InBlueprint->GetPathName() + LOCTEXT("ActiveTabSuffix", "_ActiveTab").ToString())) : FName(*(InBlueprint->GetPathName() + NewTabID.ToString()));
-		FText DisplayName = FText::FromString(FName::NameToDisplayString(InBlueprint->GetName(), false));
+		FText DisplayName = InBlueprint->GetTabDisplayName();
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 		if (TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager())
 		{
@@ -253,10 +253,13 @@ bool UEditorUtilitySubsystem::SpawnRegisteredTabByID(FName NewTabID)
 			{
 				TSharedPtr<SDockTab> NewDockTab = LevelEditorTabManager->TryInvokeTab(NewTabID);
 				IBlutilityModule* BlutilityModule = FModuleManager::GetModulePtr<IBlutilityModule>("Blutility");
-				UEditorUtilityWidgetBlueprint* WidgetToSpawn = *RegisteredTabs.Find(NewTabID);
-				check(WidgetToSpawn);
-				BlutilityModule->AddLoadedScriptUI(WidgetToSpawn);
-				return true;
+				UEditorUtilityWidgetBlueprint** WidgetToSpawn = RegisteredTabs.Find(NewTabID);
+				if (WidgetToSpawn)
+				{
+					check(*WidgetToSpawn);
+					BlutilityModule->AddLoadedScriptUI(*WidgetToSpawn);
+					return true;
+				}
 			}
 		}
 	}
@@ -294,6 +297,29 @@ bool UEditorUtilitySubsystem::CloseTabByID(FName NewTabID)
 				FoundTab->RequestCloseTab();
 				return true;
 			}
+		}
+	}
+
+	return false;
+}
+
+bool UEditorUtilitySubsystem::UnregisterTabByID(FName TabID)
+{
+	if (!IsRunningCommandlet())
+	{
+		const FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		const TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+		const TSharedPtr<SDockTab> FoundTab = LevelEditorTabManager->FindExistingLiveTab(TabID);
+		if (FoundTab)
+		{
+			FoundTab->RequestCloseTab();
+		}
+
+		if (RegisteredTabs.Contains(TabID) && LevelEditorTabManager->HasTabSpawner(TabID))
+		{
+			RegisteredTabs.Remove(TabID);
+			LevelEditorTabManager->UnregisterTabSpawner(TabID);
+			return true;
 		}
 	}
 

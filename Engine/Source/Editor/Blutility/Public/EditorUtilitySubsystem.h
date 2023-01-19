@@ -96,6 +96,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	bool CloseTabByID(FName NewTabID);
 
+	/** Given an ID for a tab, try to close and unregister a tab that was registered through this subsystem */
+	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
+	bool UnregisterTabByID(FName TabID);
+
 	/** Given an editor utility widget blueprint, get the widget it creates. This will return a null pointer if the widget is not currently in a tab.*/
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	UEditorUtilityWidget* FindUtilityWidgetFromBlueprint(class UEditorUtilityWidgetBlueprint* InBlueprint);
