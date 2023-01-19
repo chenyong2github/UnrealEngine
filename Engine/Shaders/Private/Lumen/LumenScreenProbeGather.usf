@@ -729,6 +729,10 @@ void ScreenProbeTileClassificationBuildListsCS(
 	//@todo - parallel version
 	if (GroupThreadId == 0)
 	{
+		#if PERMUTATION_OVERFLOW_TILE		
+		const uint TileCount = Strata.BSDFTileCountBuffer[0];
+		#endif
+
 		UNROLL
 		for (uint i = 0; i < TILE_CLASSIFICATION_NUM; i++)
 		{
@@ -741,7 +745,9 @@ void ScreenProbeTileClassificationBuildListsCS(
 			uint2 TileCoordinate = GroupId * 8 + ThreadOffset;
 
 			#if PERMUTATION_OVERFLOW_TILE
-			const bool bIsValid = (TileCoordinate.x + TileCoordinate.y * Strata.OverflowTileCount.x) < Strata.BSDFTileCountBuffer[0];
+			const bool bIsInOverflowRect = all(TileCoordinate < Strata.OverflowTileCount);
+			const uint TileIndex = TileCoordinate.x + TileCoordinate.y * Strata.OverflowTileCount.x;
+			const bool bIsValid = bIsInOverflowRect && TileIndex < TileCount;
 			#else
 			const bool bIsValid = all(TileCoordinate < ViewportTileDimensions);
 			#endif
