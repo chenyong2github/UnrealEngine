@@ -682,8 +682,7 @@ FLWCMatrix GetInstanceToWorld(FMaterialVertexParameters Parameters)
 FLWCMatrix GetPrevInstanceToWorld(FMaterialVertexParameters Parameters)
 {
 #if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY || IS_NANITE_PASS
-	// todo: return Parameters.PrevFrameLocalToWorld when we have fixed precision issue of PrevLocalToWorld in GetInstanceSceneData()
-	return Parameters.InstanceLocalToWorld;
+	return Parameters.PrevFrameLocalToWorld;
 #else
 	return GetPrimitiveData(Parameters).PreviousLocalToWorld;
 #endif

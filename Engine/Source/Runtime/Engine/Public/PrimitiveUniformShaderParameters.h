@@ -34,6 +34,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(FMatrix44f,	RelativeWorldToLocal)									// Rarely needed
 	SHADER_PARAMETER(FMatrix44f,	PreviousLocalToRelativeWorld)							// Used to calculate velocity
 	SHADER_PARAMETER(FMatrix44f,	PreviousRelativeWorldToLocal)							// Rarely used when calculating velocity, if material uses vertex offset along with world->local transform
+	SHADER_PARAMETER(FMatrix44f,	WorldToPreviousWorld)									// Used when calculating instance prev local->world for static instances that do not store it (calculated via doubles to resolve precision issues)
 	SHADER_PARAMETER_EX(FVector3f,	InvNonUniformScale,  EShaderPrecisionModifier::Half)	// Often needed
 	SHADER_PARAMETER(float,			ObjectBoundsX)											// Only needed for editor/development
 	SHADER_PARAMETER(FVector4f,		ObjectRelativeWorldPositionAndRadius)					// Needed by some materials
@@ -370,27 +371,30 @@ public:
 
 		{
 			// Inverse on FMatrix44f can generate NaNs if the source matrix contains large scaling, so do it in double precision.
+			// Also use double precision to calculate WorldToPreviousWorld to prevent precision issues at far distances
 			FMatrix LocalToRelativeWorld = FLargeWorldRenderScalar::MakeToRelativeWorldMatrixDouble(TilePositionOffset, AbsoluteLocalToWorld);
+			FMatrix PrevLocalToRelativeWorld = FLargeWorldRenderScalar::MakeClampedToRelativeWorldMatrixDouble(TilePositionOffset, AbsolutePreviousLocalToWorld);
+			FMatrix RelativeWorldToLocal = LocalToRelativeWorld.Inverse();
+
 			Parameters.LocalToRelativeWorld = FMatrix44f(LocalToRelativeWorld);
-			Parameters.RelativeWorldToLocal = FMatrix44f(LocalToRelativeWorld.Inverse());
+			Parameters.RelativeWorldToLocal = FMatrix44f(RelativeWorldToLocal);
+			Parameters.WorldToPreviousWorld = FMatrix44f(RelativeWorldToLocal * PrevLocalToRelativeWorld);
+
+			if (bHasPreviousLocalToWorld)
+			{
+				Parameters.PreviousLocalToRelativeWorld = FMatrix44f(PrevLocalToRelativeWorld);
+				Parameters.PreviousRelativeWorldToLocal = FMatrix44f(PrevLocalToRelativeWorld.Inverse());
+			}
+			else
+			{
+				Parameters.PreviousLocalToRelativeWorld = Parameters.LocalToRelativeWorld;
+				Parameters.PreviousRelativeWorldToLocal = Parameters.RelativeWorldToLocal;
+			}
 		}
 
 		Parameters.ActorRelativeWorldPosition = FVector3f(AbsoluteActorWorldPosition - TilePositionOffset);	//LWC_TODO: Precision loss
 		const FVector3f ObjectRelativeWorldPositionAsFloat = FVector3f(AbsoluteObjectWorldPosition - TilePositionOffset);
 		Parameters.ObjectRelativeWorldPositionAndRadius = FVector4f(ObjectRelativeWorldPositionAsFloat, ObjectRadius);
-
-		if (bHasPreviousLocalToWorld)
-		{
-			// Inverse on FMatrix44f can generate NaNs if the source matrix contains large scaling, so do it in double precision.
-			FMatrix PrevLocalToRelativeWorld = FLargeWorldRenderScalar::MakeClampedToRelativeWorldMatrixDouble(TilePositionOffset, AbsolutePreviousLocalToWorld);
-			Parameters.PreviousLocalToRelativeWorld = FMatrix44f(PrevLocalToRelativeWorld);
-			Parameters.PreviousRelativeWorldToLocal = FMatrix44f(PrevLocalToRelativeWorld.Inverse());
-		}
-		else
-		{
-			Parameters.PreviousLocalToRelativeWorld = Parameters.LocalToRelativeWorld;
-			Parameters.PreviousRelativeWorldToLocal = Parameters.RelativeWorldToLocal;
-		}
 
 		if (!bHasInstanceLocalBounds)
 		{
@@ -562,7 +566,7 @@ extern ENGINE_API TGlobalResource<FIdentityPrimitiveUniformBuffer> GIdentityPrim
 struct FPrimitiveSceneShaderData
 {
 	// Must match PRIMITIVE_SCENE_DATA_STRIDE in SceneData.ush
-	enum { DataStrideInFloat4s = 42 };
+	enum { DataStrideInFloat4s = 41 };
 
 	TStaticArray<FVector4f, DataStrideInFloat4s> Data;
 
