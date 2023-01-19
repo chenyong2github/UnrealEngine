@@ -6,6 +6,8 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
 #include "StreamReader.h"
+#include "TraceAnalysisModule.h"
+#include "Logging/MessageLog.h"
 #include "Templates/UnrealTemplate.h"
 #include "Trace/DataStream.h"
 
@@ -14,7 +16,8 @@ namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 FAnalysisProcessor::FImpl::FImpl(IInDataStream& InDataStream, TArray<IAnalyzer*>&& InAnalyzers)
-: AnalysisEngine(Forward<TArray<IAnalyzer*>>(InAnalyzers))
+: Log(FTraceAnalysisModule::GetMessageLogName())
+, AnalysisEngine(Forward<TArray<IAnalyzer*>>(InAnalyzers), &Log)
 , DataStream(InDataStream)
 , StopEvent(FPlatformProcess::GetSynchEventFromPool(true))
 , UnpausedEvent(FPlatformProcess::GetSynchEventFromPool(true))
@@ -100,6 +103,13 @@ void FAnalysisProcessor::FImpl::PauseAnalysis(bool bState)
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////
+FMessageLog* FAnalysisProcessor::FImpl::GetLog() 
+{
+	// MessageLog is not thread safe, so it's not safe to return it while
+	// messages could be pushed to the log.
+	return bComplete ? &Log : nullptr;
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -107,6 +117,7 @@ bool FAnalysisProcessor::IsActive() const	{ return (Impl != nullptr) ? Impl->IsA
 void FAnalysisProcessor::Stop()				{ if (Impl != nullptr) { Impl->StopAnalysis(); } }
 void FAnalysisProcessor::Wait()				{ if (Impl != nullptr) { Impl->WaitOnAnalysis(); } }
 void FAnalysisProcessor::Pause(bool bState) { if (Impl != nullptr) { Impl->PauseAnalysis(bState); } }
+FMessageLog* FAnalysisProcessor::GetLog() { return Impl->GetLog(); }	
 
 ////////////////////////////////////////////////////////////////////////////////
 FAnalysisProcessor::FAnalysisProcessor(FAnalysisProcessor&& Rhs)

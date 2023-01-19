@@ -4,6 +4,7 @@
 
 #include "Engine.h"
 #include "HAL/Runnable.h"
+#include "Logging/MessageLog.h"
 #include "Trace/Analysis.h"
 
 class FEvent;
@@ -24,8 +25,10 @@ public:
 	void				StopAnalysis();
 	void				WaitOnAnalysis();
 	void				PauseAnalysis(bool bState);
+	FMessageLog*		GetLog();
 
 private:
+	FMessageLog			Log;
 	FAnalysisEngine		AnalysisEngine;
 	IInDataStream&		DataStream;
 	FEvent*				StopEvent;

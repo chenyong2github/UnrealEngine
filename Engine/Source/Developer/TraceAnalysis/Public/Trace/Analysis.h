@@ -32,6 +32,12 @@ public:
 	 * @param bState Pause if true, resume if false. */
 	void Pause(bool bState);
 
+
+	/**
+	 * Gets the message log. Must be called after analysis has finished.
+	 */
+	FMessageLog* GetLog();
+
 						~FAnalysisProcessor();
 						FAnalysisProcessor() = default;
 						FAnalysisProcessor(FAnalysisProcessor&& Rhs);

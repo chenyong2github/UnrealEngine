@@ -46,6 +46,7 @@ public:
 	virtual bool IsAnalysisComplete() const override { return !Processor.IsActive(); }
 	virtual double GetDurationSeconds() const override { Lock.ReadAccessCheck(); return DurationSeconds; }
 	virtual void UpdateDurationSeconds(double Duration) override { Lock.WriteAccessCheck(); DurationSeconds = FMath::Max(Duration, DurationSeconds); }
+	virtual FMessageLog* GetLog() const override;
 
 	virtual ILinearAllocator& GetLinearAllocator() override { return Allocator; }
 	virtual const TCHAR* StoreString(const TCHAR* String) override { return StringStore.Store(String); }

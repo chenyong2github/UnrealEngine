@@ -4,6 +4,8 @@
 
 #include "Containers/ContainersFwd.h"
 
+class FMessageLog;
+
 namespace UE {
 namespace Trace {
 
@@ -14,7 +16,7 @@ class FStreamReader;
 class FAnalysisEngine
 {
 public:
-						FAnalysisEngine(TArray<IAnalyzer*>&& Analyzers);
+						FAnalysisEngine(TArray<IAnalyzer*>&& Analyzers, FMessageLog* InLog);
 						~FAnalysisEngine();
 	void				Begin();
 	void				End();

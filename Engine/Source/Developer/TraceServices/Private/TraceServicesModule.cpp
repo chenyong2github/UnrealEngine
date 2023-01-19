@@ -102,6 +102,9 @@ void FTraceServicesModule::StartupModule()
 {
 	LLM_SCOPE_BYTAG(Insights_TraceServices);
 
+	// Load the analysis module.
+	IModuleInterface& TraceAnalysisModule = FModuleManager::LoadModuleChecked<IModuleInterface>("TraceAnalysis");
+	
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &TimingProfilerModule);
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &CsvProfilerModule);
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &CountersModule);

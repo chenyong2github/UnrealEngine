@@ -8,6 +8,7 @@
 #include "Templates/SharedPointer.h"
 
 class FName;
+class FMessageLog;
 
 namespace UE {
 namespace Trace {
@@ -54,6 +55,7 @@ public:
 	virtual bool IsAnalysisComplete() const = 0;
 	virtual double GetDurationSeconds() const = 0;
 	virtual void UpdateDurationSeconds(double Duration) = 0;
+	virtual FMessageLog* GetLog() const = 0;
 
 	virtual void BeginRead() const = 0;
 	virtual void EndRead() const = 0;

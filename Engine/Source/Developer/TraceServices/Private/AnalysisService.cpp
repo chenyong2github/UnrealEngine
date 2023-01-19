@@ -129,6 +129,11 @@ void FAnalysisSession::Wait() const
 	Processor.Wait();
 }
 
+FMessageLog* FAnalysisSession::GetLog() const
+{
+	return Processor.GetLog();
+}
+
 void FAnalysisSession::AddAnalyzer(UE::Trace::IAnalyzer* Analyzer)
 {
 	Analyzers.Add(Analyzer);
