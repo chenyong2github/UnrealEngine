@@ -20,10 +20,10 @@
 
 /*
 * TODO:
-* - Reduce StagingAuxiliaryDataBuffer memory usage
-*	- Limit size of buffer and throttle updates
+* - StagingAuxiliaryDataBuffer
 *	- Keep track of how many pages/clusters are streamed-in per resource
 *		and allocate less staging memory than the very conservative (Data.NumClusters * NANITE_MAX_CLUSTER_TRIANGLES)
+*	- Warn user if GNaniteRayTracingMaxStagingBufferSizeMB is not large enough for a specific mesh cut
 * 
 * - Defragment AuxiliaryDataBuffer
 * 
@@ -78,6 +78,16 @@ static FAutoConsoleVariableRef CVarNaniteRayTracingMaxBuiltPrimitivesPerFrame(
 	TEXT("r.RayTracing.Nanite.MaxBuiltPrimitivesPerFrame"),
 	GNaniteRayTracingMaxBuiltPrimitivesPerFrame,
 	TEXT("Limit number of BLAS built per frame based on a budget defined in terms of maximum number of triangles."),
+	ECVF_RenderThreadSafe
+);
+
+static int32 GNaniteRayTracingMaxStagingBufferSizeMB = 1024;
+static FAutoConsoleVariableRef CVarNaniteRayTracingMaxStagingBufferSizeMB(
+	TEXT("r.RayTracing.Nanite.MaxStagingBufferSizeMB"),
+	GNaniteRayTracingMaxStagingBufferSizeMB,
+	TEXT("Limit the size of the staging buffer used during stream out (lower values can cause updates to be throttled)\n")
+	TEXT("Default   = 1024 MB.\n")
+	TEXT("Max value = 2048 MB."),
 	ECVF_RenderThreadSafe
 );
 
@@ -332,6 +342,9 @@ namespace Nanite
 
 	void FRayTracingManager::ProcessUpdateRequests(FRDGBuilder& GraphBuilder, FShaderResourceViewRHIRef GPUScenePrimitiveBufferSRV)
 	{
+		// D3D12 limits resources to 2048MB.
+		GNaniteRayTracingMaxStagingBufferSizeMB = FMath::Min(GNaniteRayTracingMaxStagingBufferSizeMB, 2048);
+
 		if (GNaniteRayTracingForceUpdateVisible)
 		{
 			UpdateRequests.Append(VisibleGeometries);
@@ -347,12 +360,41 @@ namespace Nanite
 
 		TSet<uint32> ToUpdate;
 
+		uint32 NumMeshDataEntries = 0;
+		uint32 NumAuxiliaryDataEntries = 0;
+		uint32 NumSegmentMappingEntries = 0;
+
 		for (uint32 GeometryId : VisibleGeometries)
 		{
 			if (UpdateRequests.Contains(GeometryId))
 			{
+				FInternalData& Data = *Geometries[GeometryId];
+
+				const uint64 NewNumAuxiliaryDataEntries = NumAuxiliaryDataEntries + CalculateAuxiliaryDataSizeInUints(Data.NumClusters * NANITE_MAX_CLUSTER_TRIANGLES);
+				const uint64 NewAuxiliaryDataBufferSize = NewNumAuxiliaryDataEntries * sizeof(uint32);
+
+				if (NewAuxiliaryDataBufferSize >= (uint64)GNaniteRayTracingMaxStagingBufferSizeMB * 1024ull * 1024ull)
+				{
+					break;
+				}
+
+				check(NewAuxiliaryDataBufferSize <= (1u << 31)); // D3D12 limits resources to 2048MB.
+
 				UpdateRequests.Remove(GeometryId);
 				ToUpdate.Add(GeometryId);
+
+				check(!Data.bUpdating);
+				Data.bUpdating = true;
+
+				check(Data.BaseMeshDataOffset == -1);
+				Data.BaseMeshDataOffset = NumMeshDataEntries;
+
+				check(Data.StagingAuxiliaryDataOffset == INDEX_NONE);
+				Data.StagingAuxiliaryDataOffset = NumAuxiliaryDataEntries;
+
+				NumMeshDataEntries += (3 + 2 * Data.NumSegments); // one entry per mesh
+				NumAuxiliaryDataEntries = NewNumAuxiliaryDataEntries;
+				NumSegmentMappingEntries += Data.SegmentMapping.Num();
 			}
 		}
 
@@ -371,36 +413,17 @@ namespace Nanite
 		// Upload geometry data
 		FRDGBufferRef RequestBuffer = nullptr;
 		FRDGBufferRef SegmentMappingBuffer = nullptr;
-
-		uint32 MeshDataSize = 0;
-		uint32 StagingAuxiliaryDataSize = 0;
 		
 		{
-			uint32 NumsSegmentMappingEntries = 0;
-			for (auto GeometryId : ToUpdate)
-			{
-				FInternalData& Data = *Geometries[GeometryId];
-				NumsSegmentMappingEntries += Data.SegmentMapping.Num();
-			}
-
 			FRDGUploadData<FStreamOutRequest> UploadData(GraphBuilder, ToUpdate.Num());
-			FRDGUploadData<uint32> SegmentMappingUploadData(GraphBuilder, NumsSegmentMappingEntries);
+			FRDGUploadData<uint32> SegmentMappingUploadData(GraphBuilder, NumSegmentMappingEntries);
 
 			uint32 Index = 0;
 			uint32 SegmentMappingOffset = 0;
 
 			for (auto GeometryId : ToUpdate)
 			{
-				FInternalData& Data = *Geometries[GeometryId];
-
-				check(!Data.bUpdating);
-				Data.bUpdating = true;
-
-				check(Data.BaseMeshDataOffset == -1);
-				Data.BaseMeshDataOffset = MeshDataSize;
-
-				check(Data.StagingAuxiliaryDataOffset == INDEX_NONE);
-				Data.StagingAuxiliaryDataOffset = StagingAuxiliaryDataSize;
+				const FInternalData& Data = *Geometries[GeometryId];
 
 				FStreamOutRequest& Request = UploadData[Index];
 				Request.PrimitiveId = Data.PrimitiveId;
@@ -416,9 +439,6 @@ namespace Nanite
 					++SegmentMappingOffset;
 				}
 
-				MeshDataSize += (3 + 2 * Data.NumSegments); // one entry per mesh
-				StagingAuxiliaryDataSize += CalculateAuxiliaryDataSizeInUints(Data.NumClusters * NANITE_MAX_CLUSTER_TRIANGLES);
-
 				ReadbackData.Entries.Add(GeometryId);
 
 				++Index;
@@ -431,16 +451,16 @@ namespace Nanite
 			SegmentMappingBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("NaniteRayTracing.SegmentMappingBuffer"), SegmentMappingUploadData);
 		}
 
-		FRDGBufferRef MeshDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), FMath::Max(MeshDataSize, 32U)), TEXT("NaniteStreamOut.MeshDataBuffer"));
+		FRDGBufferRef MeshDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), FMath::Max(NumMeshDataEntries, 32U)), TEXT("NaniteStreamOut.MeshDataBuffer"));
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(MeshDataBuffer), 0);
 
 		FRDGBufferRef StagingAuxiliaryDataBufferRDG;
 
 		{
-			const uint32 NumAuxiliaryDataEntries = FMath::Max(StagingAuxiliaryDataSize, MinAuxiliaryBufferEntries);
+			const uint32 BufferNumAuxiliaryDataEntries = FMath::Max(NumAuxiliaryDataEntries, MinAuxiliaryBufferEntries);
 			const bool bCopy = false;
 			const bool bAllowShrinking = true;
-			StagingAuxiliaryDataBufferRDG = ResizeBufferIfNeeded(GraphBuilder, StagingAuxiliaryDataBuffer, sizeof(uint32), NumAuxiliaryDataEntries, TEXT("NaniteRayTracing.StagingAuxiliaryDataBuffer"), bCopy, bAllowShrinking);
+			StagingAuxiliaryDataBufferRDG = ResizeBufferIfNeeded(GraphBuilder, StagingAuxiliaryDataBuffer, sizeof(uint32), BufferNumAuxiliaryDataEntries, TEXT("NaniteRayTracing.StagingAuxiliaryDataBuffer"), bCopy, bAllowShrinking);
 			StagingAuxiliaryDataBuffer = GraphBuilder.ConvertToExternalBuffer(StagingAuxiliaryDataBufferRDG);
 
 			SET_MEMORY_STAT(STAT_NaniteRayTracingStagingAuxiliaryDataBuffer, StagingAuxiliaryDataBufferRDG->GetSize());
@@ -485,7 +505,7 @@ namespace Nanite
 				MeshDataReadbackBuffer->EnqueueCopy(RHICmdList, MeshDataBuffer->GetRHI(), 0u);
 			});
 
-			ReadbackData.MeshDataSize = MeshDataSize;
+			ReadbackData.NumMeshDataEntries = NumMeshDataEntries;
 
 			ReadbackBuffersWriteIndex = (ReadbackBuffersWriteIndex + 1u) % MaxReadbackBuffers;
 			ReadbackBuffersNumPending = FMath::Min(ReadbackBuffersNumPending + 1u, MaxReadbackBuffers);
@@ -584,7 +604,7 @@ namespace Nanite
 			{
 				ReadbackBuffersNumPending--;
 
-				const uint32* MeshDataReadbackBufferPtr = (const uint32*)ReadbackData.MeshDataReadbackBuffer->Lock(ReadbackData.MeshDataSize * sizeof(uint32));
+				const uint32* MeshDataReadbackBufferPtr = (const uint32*)ReadbackData.MeshDataReadbackBuffer->Lock(ReadbackData.NumMeshDataEntries * sizeof(uint32));
 
 				for (int32 GeometryIndex = 0; GeometryIndex < ReadbackData.Entries.Num(); ++GeometryIndex)
 				{

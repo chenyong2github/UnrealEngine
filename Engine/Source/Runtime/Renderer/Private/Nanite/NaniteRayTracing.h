@@ -116,7 +116,7 @@ namespace Nanite
 		struct FReadbackData
 		{
 			FRHIGPUBufferReadback* MeshDataReadbackBuffer = nullptr;
-			uint32 MeshDataSize = 0;
+			uint32 NumMeshDataEntries = 0;
 
 			TArray<uint32> Entries;
 		};
