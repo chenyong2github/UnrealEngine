@@ -5,7 +5,7 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraDataChannelManager.h"
 #include "DataInterface/NiagaraDataInterfaceDataChannelWrite.h"
-#include "NiagaraGPUComputeDispatchInterface.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraWorldManager.h"
 
 

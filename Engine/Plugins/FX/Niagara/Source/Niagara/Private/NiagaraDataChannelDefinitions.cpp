@@ -115,7 +115,7 @@ void UNiagaraDataChannelDefinitions::PostEditChangeProperty(FPropertyChangedEven
 					//Re-initialize any UNiagaraSystems that are using this channel.
 					auto AddSystemsForDIUsingChannel = [&](auto* DI)
 					{
-						UNiagaraSystem* System = DI ? DI->GetTypedOuter<UNiagaraSystem>() : nullptr;
+						UNiagaraSystem* System = DI ? DI->template GetTypedOuter<UNiagaraSystem>() : nullptr;
 						if (DI && System && DI->Channel.ChannelName == DataChannel->GetChannelName())
 						{
 							SysUpdateContext.Add(System, true);
