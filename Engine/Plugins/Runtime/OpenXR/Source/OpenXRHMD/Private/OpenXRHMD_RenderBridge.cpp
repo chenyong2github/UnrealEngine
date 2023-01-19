@@ -24,23 +24,34 @@ bool FOpenXRRenderBridge::Present(int32& InOutSyncInterval)
 class FD3D11RenderBridge : public FOpenXRRenderBridge
 {
 public:
-	FD3D11RenderBridge(XrInstance InInstance, XrSystemId InSystem)
-		: Binding()
+	FD3D11RenderBridge(XrInstance InInstance)
+		: FOpenXRRenderBridge(InInstance)
+		, Binding()
 	{
-		PFN_xrGetD3D11GraphicsRequirementsKHR GetD3D11GraphicsRequirementsKHR;
 		XR_ENSURE(xrGetInstanceProcAddr(InInstance, "xrGetD3D11GraphicsRequirementsKHR", (PFN_xrVoidFunction*)&GetD3D11GraphicsRequirementsKHR));
+	}
 
+	virtual uint64 GetGraphicsAdapterLuid(XrSystemId InSystem) override
+	{
 		XrGraphicsRequirementsD3D11KHR Requirements;
 		Requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_D3D11_KHR;
 		Requirements.next = nullptr;
-		if (XR_ENSURE(GetD3D11GraphicsRequirementsKHR(InInstance, InSystem, &Requirements)))
+		if (XR_ENSURE(GetD3D11GraphicsRequirementsKHR(Instance, InSystem, &Requirements)))
 		{
-			AdapterLuid = reinterpret_cast<uint64&>(Requirements.adapterLuid);
+			return reinterpret_cast<uint64&>(Requirements.adapterLuid);
 		}
+		return 0;
 	}
 
-	virtual void* GetGraphicsBinding() override
+	virtual void* GetGraphicsBinding(XrSystemId InSystem) override
 	{
+		DXGI_ADAPTER_DESC AdapterDesc;
+		GetID3D11DynamicRHI()->RHIGetAdapter()->GetDesc(&AdapterDesc);
+		if (reinterpret_cast<uint64&>(AdapterDesc.AdapterLuid) != GetGraphicsAdapterLuid(InSystem))
+		{
+			return nullptr;
+		}
+
 		Binding.type = XR_TYPE_GRAPHICS_BINDING_D3D11_KHR;
 		Binding.next = nullptr;
 		Binding.device = GetID3D11DynamicRHI()->RHIGetDevice();
@@ -53,33 +64,44 @@ public:
 	}
 
 private:
+	PFN_xrGetD3D11GraphicsRequirementsKHR GetD3D11GraphicsRequirementsKHR;
 	XrGraphicsBindingD3D11KHR Binding;
 };
 
-FOpenXRRenderBridge* CreateRenderBridge_D3D11(XrInstance InInstance, XrSystemId InSystem) { return new FD3D11RenderBridge(InInstance, InSystem); }
+FOpenXRRenderBridge* CreateRenderBridge_D3D11(XrInstance InInstance) { return new FD3D11RenderBridge(InInstance); }
 #endif
 
 #ifdef XR_USE_GRAPHICS_API_D3D12
 class FD3D12RenderBridge : public FOpenXRRenderBridge
 {
 public:
-	FD3D12RenderBridge(XrInstance InInstance, XrSystemId InSystem)
-		: Binding()
+	FD3D12RenderBridge(XrInstance InInstance)
+		: FOpenXRRenderBridge(InInstance)
+		, Binding()
 	{
-		PFN_xrGetD3D12GraphicsRequirementsKHR GetD3D12GraphicsRequirementsKHR;
 		XR_ENSURE(xrGetInstanceProcAddr(InInstance, "xrGetD3D12GraphicsRequirementsKHR", (PFN_xrVoidFunction*)&GetD3D12GraphicsRequirementsKHR));
+	}
 
+	virtual uint64 GetGraphicsAdapterLuid(XrSystemId InSystem) override
+	{
 		XrGraphicsRequirementsD3D12KHR Requirements;
 		Requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_D3D12_KHR;
 		Requirements.next = nullptr;
-		if (XR_ENSURE(GetD3D12GraphicsRequirementsKHR(InInstance, InSystem, &Requirements)))
+		if (XR_ENSURE(GetD3D12GraphicsRequirementsKHR(Instance, InSystem, &Requirements)))
 		{
-			AdapterLuid = reinterpret_cast<uint64&>(Requirements.adapterLuid);
+			return reinterpret_cast<uint64&>(Requirements.adapterLuid);
 		}
+		return 0;
 	}
 
-	virtual void* GetGraphicsBinding() override
+	virtual void* GetGraphicsBinding(XrSystemId InSystem) override
 	{
+		LUID AdapterLuid = GetID3D12DynamicRHI()->RHIGetDevice(0)->GetAdapterLuid();
+		if (reinterpret_cast<uint64&>(AdapterLuid) != GetGraphicsAdapterLuid(InSystem))
+		{
+			return nullptr;
+		}
+
 		Binding.type = XR_TYPE_GRAPHICS_BINDING_D3D12_KHR;
 		Binding.next = nullptr;
 		Binding.device = GetID3D12DynamicRHI()->RHIGetDevice(0);
@@ -93,28 +115,32 @@ public:
 	}
 
 private:
+	PFN_xrGetD3D12GraphicsRequirementsKHR GetD3D12GraphicsRequirementsKHR;
 	XrGraphicsBindingD3D12KHR Binding;
 };
 
-FOpenXRRenderBridge* CreateRenderBridge_D3D12(XrInstance InInstance, XrSystemId InSystem) { return new FD3D12RenderBridge(InInstance, InSystem); }
+FOpenXRRenderBridge* CreateRenderBridge_D3D12(XrInstance InInstance) { return new FD3D12RenderBridge(InInstance); }
 #endif
 
 #ifdef XR_USE_GRAPHICS_API_OPENGL
 class FOpenGLRenderBridge : public FOpenXRRenderBridge
 {
 public:
-	FOpenGLRenderBridge(XrInstance InInstance, XrSystemId InSystem)
-		: Binding()
+	FOpenGLRenderBridge(XrInstance InInstance)
+		: FOpenXRRenderBridge(InInstance)
+		, Binding()
 	{
-		PFN_xrGetOpenGLGraphicsRequirementsKHR GetOpenGLGraphicsRequirementsKHR;
 		XR_ENSURE(xrGetInstanceProcAddr(InInstance, "xrGetOpenGLGraphicsRequirementsKHR", (PFN_xrVoidFunction*)&GetOpenGLGraphicsRequirementsKHR));
+	}
 
+	virtual void* GetGraphicsBinding(XrSystemId InSystem) override
+	{
 		XrGraphicsRequirementsOpenGLKHR Requirements;
 		Requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_KHR;
 		Requirements.next = nullptr;
 		Requirements.minApiVersionSupported = 0;
 		Requirements.maxApiVersionSupported = 0;
-		XR_ENSURE(GetOpenGLGraphicsRequirementsKHR(InInstance, InSystem, &Requirements));
+		XR_ENSURE(GetOpenGLGraphicsRequirementsKHR(Instance, InSystem, &Requirements));
 
 		IOpenGLDynamicRHI* RHI = GetIOpenGLDynamicRHI();
 		XrVersion RHIVersion = XR_MAKE_VERSION(RHI->RHIGetGLMajorVersion(), RHI->RHIGetGLMinorVersion(), 0);
@@ -127,10 +153,7 @@ public:
 		{
 			UE_LOG(LogHMD, Warning, TEXT("The OpenGL API version has not been tested with the OpenXR runtime"));
 		}
-	}
 
-	virtual void* GetGraphicsBinding() override
-	{
 #if PLATFORM_WINDOWS
 		Binding.type = XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR;
 		Binding.next = nullptr;
@@ -147,22 +170,23 @@ public:
 	}
 
 private:
+	PFN_xrGetOpenGLGraphicsRequirementsKHR GetOpenGLGraphicsRequirementsKHR;
 #if PLATFORM_WINDOWS
 	XrGraphicsBindingOpenGLWin32KHR Binding;
 #endif
 };
 
-FOpenXRRenderBridge* CreateRenderBridge_OpenGL(XrInstance InInstance, XrSystemId InSystem) { return new FOpenGLRenderBridge(InInstance, InSystem); }
+FOpenXRRenderBridge* CreateRenderBridge_OpenGL(XrInstance InInstance) { return new FOpenGLRenderBridge(InInstance); }
 #endif
 
 #ifdef XR_USE_GRAPHICS_API_OPENGL_ES
 class FOpenGLESRenderBridge : public FOpenXRRenderBridge
 {
 public:
-	FOpenGLESRenderBridge(XrInstance InInstance, XrSystemId InSystem)
-		: Binding()
+	FOpenGLESRenderBridge(XrInstance InInstance)
+		: FOpenXRRenderBridge(InInstance)
+		, Binding()
 	{
-		PFN_xrGetOpenGLESGraphicsRequirementsKHR GetOpenGLESGraphicsRequirementsKHR;
 		XR_ENSURE(xrGetInstanceProcAddr(InInstance, "xrGetOpenGLESGraphicsRequirementsKHR", (PFN_xrVoidFunction*)&GetOpenGLESGraphicsRequirementsKHR));
 
 		XrGraphicsRequirementsOpenGLESKHR Requirements;
@@ -187,7 +211,7 @@ public:
 #endif
 	}
 
-	virtual void* GetGraphicsBinding() override
+	virtual void* GetGraphicsBinding(XrSystemId InSystem) override
 	{
 #if PLATFORM_ANDROID
 		IOpenGLDynamicRHI* RHI = GetIOpenGLDynamicRHI();
@@ -207,32 +231,35 @@ public:
 	}
 
 private:
+	PFN_xrGetOpenGLESGraphicsRequirementsKHR GetOpenGLESGraphicsRequirementsKHR;
 #if PLATFORM_ANDROID
 	XrGraphicsBindingOpenGLESAndroidKHR Binding;
 #endif
 };
 
-FOpenXRRenderBridge* CreateRenderBridge_OpenGLES(XrInstance InInstance, XrSystemId InSystem) { return new FOpenGLESRenderBridge(InInstance, InSystem); }
+FOpenXRRenderBridge* CreateRenderBridge_OpenGLES(XrInstance InInstance) { return new FOpenGLESRenderBridge(InInstance); }
 #endif
 
 #ifdef XR_USE_GRAPHICS_API_VULKAN
 class FVulkanRenderBridge : public FOpenXRRenderBridge
 {
 public:
-	FVulkanRenderBridge(XrInstance InInstance, XrSystemId InSystem)
-		: Binding()
-		, Instance(InInstance)
-		, System(InSystem)
+	FVulkanRenderBridge(XrInstance InInstance)
+		: FOpenXRRenderBridge(InInstance)
+		, Binding()
 	{
-		PFN_xrGetVulkanGraphicsRequirementsKHR GetVulkanGraphicsRequirementsKHR;
 		XR_ENSURE(xrGetInstanceProcAddr(InInstance, "xrGetVulkanGraphicsRequirementsKHR", (PFN_xrVoidFunction*)&GetVulkanGraphicsRequirementsKHR));
+		XR_ENSURE(xrGetInstanceProcAddr(InInstance, "xrGetVulkanGraphicsDeviceKHR", (PFN_xrVoidFunction*)&GetVulkanGraphicsDeviceKHR));
+	}
 
+	virtual void* GetGraphicsBinding(XrSystemId InSystem) override
+	{
 		XrGraphicsRequirementsVulkanKHR Requirements;
 		Requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR;
 		Requirements.next = nullptr;
 		Requirements.minApiVersionSupported = 0;
 		Requirements.maxApiVersionSupported = 0;
-		XR_ENSURE(GetVulkanGraphicsRequirementsKHR(InInstance, InSystem, &Requirements));
+		XR_ENSURE(GetVulkanGraphicsRequirementsKHR(Instance, InSystem, &Requirements));
 
 		IVulkanDynamicRHI* VulkanRHI = GetIVulkanDynamicRHI();
 		const uint32 VulkanVersion = VulkanRHI->RHIGetVulkanVersion();
@@ -253,14 +280,12 @@ public:
 			UE_LOG(LogHMD, Warning, TEXT("The Vulkan API version has not been tested with the OpenXR runtime"));
 		}
 
-		PFN_xrGetVulkanGraphicsDeviceKHR GetVulkanGraphicsDeviceKHR;
-		XR_ENSURE(xrGetInstanceProcAddr(Instance, "xrGetVulkanGraphicsDeviceKHR", (PFN_xrVoidFunction*)&GetVulkanGraphicsDeviceKHR));
-		XR_ENSURE(GetVulkanGraphicsDeviceKHR(Instance, System, VulkanRHI->RHIGetVkInstance(), &Gpu));
-	}
-
-	virtual void* GetGraphicsBinding() override
-	{
-		IVulkanDynamicRHI* VulkanRHI = GetIVulkanDynamicRHI();
+		VkPhysicalDevice Gpu;
+		XR_ENSURE(GetVulkanGraphicsDeviceKHR(Instance, InSystem, VulkanRHI->RHIGetVkInstance(), &Gpu));
+		if (Gpu != VulkanRHI->RHIGetVkPhysicalDevice())
+		{
+			return nullptr;
+		}
 
 		Binding.type = XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR;
 		Binding.next = nullptr;
@@ -272,14 +297,11 @@ public:
 		return &Binding;
 	}
 
-	virtual uint64 GetGraphicsAdapterLuid() override
+	virtual uint64 GetGraphicsAdapterLuid(XrSystemId InSystem) override
 	{
-		if (!AdapterLuid)
-		{
-			AdapterLuid = GetIVulkanDynamicRHI()->RHIGetGraphicsAdapterLUID(Gpu);
-		}
-
-		return AdapterLuid;
+		VkPhysicalDevice Gpu;
+		XR_ENSURE(GetVulkanGraphicsDeviceKHR(Instance, InSystem, GetIVulkanDynamicRHI()->RHIGetVkInstance(), &Gpu));
+		return GetIVulkanDynamicRHI()->RHIGetGraphicsAdapterLUID(Gpu);
 	}
 
 	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint8& OutActualFormat, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags CreateFlags, const FClearValueBinding& ClearValueBinding) override final
@@ -288,11 +310,10 @@ public:
 	}
 
 private:
+	PFN_xrGetVulkanGraphicsRequirementsKHR GetVulkanGraphicsRequirementsKHR;
+	PFN_xrGetVulkanGraphicsDeviceKHR GetVulkanGraphicsDeviceKHR;
 	XrGraphicsBindingVulkanKHR Binding;
-	XrInstance Instance;
-	XrSystemId System;
-	VkPhysicalDevice Gpu;
 };
 
-FOpenXRRenderBridge* CreateRenderBridge_Vulkan(XrInstance InInstance, XrSystemId InSystem) { return new FVulkanRenderBridge(InInstance, InSystem); }
+FOpenXRRenderBridge* CreateRenderBridge_Vulkan(XrInstance InInstance) { return new FVulkanRenderBridge(InInstance); }
 #endif

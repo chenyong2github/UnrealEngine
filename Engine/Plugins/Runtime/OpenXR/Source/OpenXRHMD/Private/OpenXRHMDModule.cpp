@@ -34,7 +34,6 @@ IMPLEMENT_MODULE( FOpenXRHMDModule, OpenXRHMD )
 FOpenXRHMDModule::FOpenXRHMDModule()
 	: LoaderHandle(nullptr)
 	, Instance(XR_NULL_HANDLE)
-	, System(XR_NULL_SYSTEM_ID)
 	, RenderBridge(nullptr)
 { }
 
@@ -44,11 +43,6 @@ FOpenXRHMDModule::~FOpenXRHMDModule()
 
 TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > FOpenXRHMDModule::CreateTrackingSystem()
 {
-	if (!InitInstanceAndSystem())
-	{
-		return nullptr;
-	}
-
 	if (!RenderBridge && !FParse::Param(FCommandLine::Get(), TEXT("xrtrackingonly")))
 	{
 		if (!InitRenderBridge())
@@ -59,7 +53,7 @@ TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > FOpenXRHMDModule::Cre
 	auto ARModule = FModuleManager::LoadModulePtr<IOpenXRARModule>("OpenXRAR");
 	auto ARSystem = ARModule->CreateARSystem();
 
-	auto OpenXRHMD = FSceneViewExtensions::NewExtension<FOpenXRHMD>(Instance, System, RenderBridge, EnabledExtensions, ExtensionPlugins, ARSystem);
+	auto OpenXRHMD = FSceneViewExtensions::NewExtension<FOpenXRHMD>(Instance, RenderBridge, EnabledExtensions, ExtensionPlugins, ARSystem);
 	if (OpenXRHMD->IsInitialized())
 	{
 		ARModule->SetTrackingSystem(OpenXRHMD);
@@ -74,7 +68,7 @@ void FOpenXRHMDModule::ShutdownModule()
 {
 	if (Instance)
 	{
-		DestroyInstance();
+		XR_ENSURE(xrDestroyInstance(Instance));
 	}
 
 	if (LoaderHandle)
@@ -98,14 +92,36 @@ uint64 FOpenXRHMDModule::GetGraphicsAdapterLuid()
 			return 0;
 		}
 	}
-	return RenderBridge->GetGraphicsAdapterLuid();
+
+	FConfigFile* EngineIni = GConfig->FindConfigFile(GEngineIni);
+	XrSystemId System = GetSystemId();
+	if (!System)
+	{
+		int64 AdapterLuid = 0;
+		EngineIni->GetInt64(TEXT("OpenXR.Settings"), TEXT("GraphicsAdapter"), AdapterLuid);
+		return reinterpret_cast<uint64&>(AdapterLuid);
+	}
+
+	uint64 AdapterLuid = RenderBridge->GetGraphicsAdapterLuid(System);
+	if (AdapterLuid)
+	{
+		// Remember this luid so we use the right adapter, even when we startup without an HMD connected
+		EngineIni->SetInt64(TEXT("OpenXR.Settings"), TEXT("GraphicsAdapter"), reinterpret_cast<int64&>(AdapterLuid));
+	}
+	return AdapterLuid;
 }
 
 TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > FOpenXRHMDModule::GetVulkanExtensions()
 {
 #ifdef XR_USE_GRAPHICS_API_VULKAN
-	if (InitInstanceAndSystem() && IsExtensionEnabled(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME))
+	if (InitInstance() && IsExtensionEnabled(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME))
 	{
+		XrSystemId System = GetSystemId();
+		if (!System)
+		{
+			return nullptr;
+		}
+
 		if (!VulkanExtensions.IsValid())
 		{
 			VulkanExtensions = MakeShareable(new FOpenXRHMD::FVulkanExtensions(Instance, System));
@@ -118,21 +134,25 @@ TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > FOpenXRHM
 
 FString FOpenXRHMDModule::GetDeviceSystemName()
 {
-	if (InitInstanceAndSystem())
+	if (InitInstance())
 	{
-		XrSystemProperties SystemProperties;
-		SystemProperties.type = XR_TYPE_SYSTEM_PROPERTIES;
-		SystemProperties.next = nullptr;
-		xrGetSystemProperties(Instance, System, &SystemProperties);
+		XrSystemId System = GetSystemId();
+		if (System)
+		{
+			XrSystemProperties SystemProperties;
+			SystemProperties.type = XR_TYPE_SYSTEM_PROPERTIES;
+			SystemProperties.next = nullptr;
+			XR_ENSURE(xrGetSystemProperties(Instance, System, &SystemProperties));
 
-		return FString(UTF8_TO_TCHAR(SystemProperties.systemName));
+			return FString(UTF8_TO_TCHAR(SystemProperties.systemName));
+		}
 	}
 	return FString("");
 }
 
 bool FOpenXRHMDModule::IsStandaloneStereoOnlyDevice()
 {
-	if (InitInstanceAndSystem())
+	if (InitInstance())
 	{
 		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 		{
@@ -251,7 +271,7 @@ bool FOpenXRHMDModule::InitRenderBridge()
 	for (IOpenXRExtensionPlugin* Plugin : ExtModules)
 	{
 		// We are taking ownership of the CustomRenderBridge instance here.
-		TRefCountPtr<FOpenXRRenderBridge> CustomRenderBridge = Plugin->GetCustomRenderBridge(Instance, System);
+		TRefCountPtr<FOpenXRRenderBridge> CustomRenderBridge = Plugin->GetCustomRenderBridge(Instance);
 		if (CustomRenderBridge)
 		{
 			// We pick the first
@@ -265,7 +285,7 @@ bool FOpenXRHMDModule::InitRenderBridge()
 		return false;
 	}
 
-	if (!InitInstanceAndSystem())
+	if (!InitInstance())
 	{
 		return false;
 	}
@@ -275,35 +295,35 @@ bool FOpenXRHMDModule::InitRenderBridge()
 #ifdef XR_USE_GRAPHICS_API_D3D11
 	if (RHIType == ERHIInterfaceType::D3D11 && IsExtensionEnabled(XR_KHR_D3D11_ENABLE_EXTENSION_NAME))
 	{
-		RenderBridge = CreateRenderBridge_D3D11(Instance, System);
+		RenderBridge = CreateRenderBridge_D3D11(Instance);
 	}
 	else
 #endif
 #ifdef XR_USE_GRAPHICS_API_D3D12
 	if (RHIType == ERHIInterfaceType::D3D12 && IsExtensionEnabled(XR_KHR_D3D12_ENABLE_EXTENSION_NAME))
 	{
-		RenderBridge = CreateRenderBridge_D3D12(Instance, System);
+		RenderBridge = CreateRenderBridge_D3D12(Instance);
 	}
 	else
 #endif
 #if defined(XR_USE_GRAPHICS_API_OPENGL_ES) && defined(XR_USE_PLATFORM_ANDROID)
 	if (RHIType == ERHIInterfaceType::OpenGL && IsExtensionEnabled(XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME))
 	{
-		RenderBridge = CreateRenderBridge_OpenGLES(Instance, System);
+		RenderBridge = CreateRenderBridge_OpenGLES(Instance);
 	}
 	else
 #endif
 #ifdef XR_USE_GRAPHICS_API_OPENGL
 	if (RHIType == ERHIInterfaceType::OpenGL && IsExtensionEnabled(XR_KHR_OPENGL_ENABLE_EXTENSION_NAME))
 	{
-		RenderBridge = CreateRenderBridge_OpenGL(Instance, System);
+		RenderBridge = CreateRenderBridge_OpenGL(Instance);
 	}
 	else
 #endif
 #ifdef XR_USE_GRAPHICS_API_VULKAN
 	if (RHIType == ERHIInterfaceType::Vulkan && IsExtensionEnabled(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME))
 	{
-		RenderBridge = CreateRenderBridge_Vulkan(Instance, System);
+		RenderBridge = CreateRenderBridge_Vulkan(Instance);
 	}
 	else
 #endif
@@ -473,25 +493,12 @@ bool FOpenXRHMDModule::GetOptionalExtensions(TArray<const ANSICHAR*>& OutExtensi
 	return true;
 }
 
-bool FOpenXRHMDModule::InitInstanceAndSystem()
-{
-	if (!Instance && !InitInstance())
-	{
-		return false;
-	}
-
-	if (!System && !InitSystem())
-	{
-		return false;
-	}
-
-	return true;
-}
-
 bool FOpenXRHMDModule::InitInstance()
 {
-	// This should only ever be called if we don't already have an instance.
-	check(!Instance);
+	if (Instance)
+	{
+		return true;
+	}
 
 #if PLATFORM_ANDROID
 	// TODO: Allow OpenXR on non-Oculus Android platforms
@@ -731,8 +738,10 @@ bool FOpenXRHMDModule::InitInstance()
 	return true;
 }
 
-bool FOpenXRHMDModule::InitSystem()
+XrSystemId FOpenXRHMDModule::GetSystemId() const
 {
+	XrSystemId System = XR_NULL_SYSTEM_ID;
+
 	XrSystemGetInfo SystemInfo;
 	SystemInfo.type = XR_TYPE_SYSTEM_GET_INFO;
 	SystemInfo.next = nullptr;
@@ -745,9 +754,8 @@ bool FOpenXRHMDModule::InitSystem()
 	XrResult Result = xrGetSystem(Instance, &SystemInfo, &System);
 	if (XR_FAILED(Result))
 	{
-		DestroyInstance();
-		UE_LOG(LogHMD, Log, TEXT("Failed to get an OpenXR system, result is %s. Please check that your runtime supports VR headsets."), OpenXRResultToString(Result));
-		return false;
+		UE_LOG(LogHMD, VeryVerbose, TEXT("Failed to get an OpenXR system, result is %s"), OpenXRResultToString(Result));
+		return XR_NULL_SYSTEM_ID;
 	}
 
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
@@ -755,13 +763,7 @@ bool FOpenXRHMDModule::InitSystem()
 		Module->PostGetSystem(Instance, System);
 	}
 
-	return true;
-}
-
-void FOpenXRHMDModule::DestroyInstance()
-{
-	XR_ENSURE(xrDestroyInstance(Instance));
-	Instance = XR_NULL_HANDLE;
+	return System;
 }
 
 FName FOpenXRHMDModule::ResolvePathToName(XrPath Path)

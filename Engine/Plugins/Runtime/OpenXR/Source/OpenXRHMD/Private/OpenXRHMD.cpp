@@ -6,6 +6,7 @@
 #include "OpenXRHMD_Swapchain.h"
 #include "OpenXRCore.h"
 #include "IOpenXRExtensionPlugin.h"
+#include "IOpenXRHMDModule.h"
 
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
@@ -41,7 +42,11 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
+#include "Misc/MessageDialog.h"
+#include "UnrealEdMisc.h"
 #endif
+
+#define LOCTEXT_NAMESPACE "OpenXR"
 
 #define OPENXR_PAUSED_IDLE_FPS 10
 static const int64 OPENXR_SWAPCHAIN_WAIT_TIMEOUT = 100000000ll;		// 100ms in nanoseconds.
@@ -464,6 +469,11 @@ FString FOpenXRHMD::GetVersionString() const
 		XR_VERSION_MAJOR(InstanceProperties.runtimeVersion),
 		XR_VERSION_MINOR(InstanceProperties.runtimeVersion),
 		XR_VERSION_PATCH(InstanceProperties.runtimeVersion));
+}
+
+bool FOpenXRHMD::IsHMDConnected()
+{
+	return IOpenXRHMDModule::Get().GetSystemId() != XR_NULL_SYSTEM_ID;
 }
 
 bool FOpenXRHMD::IsHMDEnabled() const
@@ -1176,7 +1186,7 @@ bool CheckPlatformDepthExtensionSupport(const XrInstanceProperties& InstanceProp
 	return true;
 }
 
-FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, TArray<const char*> InEnabledExtensions, TArray<IOpenXRExtensionPlugin*> InExtensionPlugins, IARSystemSupport* ARSystemSupport)
+FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, TArray<const char*> InEnabledExtensions, TArray<IOpenXRExtensionPlugin*> InExtensionPlugins, IARSystemSupport* ARSystemSupport)
 	: FHeadMountedDisplayBase(ARSystemSupport)
 	, FHMDSceneViewExtension(AutoRegister)
 	, FOpenXRAssetManager(InInstance, this)
@@ -1197,7 +1207,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, InputModule(nullptr)
 	, ExtensionPlugins(std::move(InExtensionPlugins))
 	, Instance(InInstance)
-	, System(InSystem)
+	, System(XR_NULL_SYSTEM_ID)
 	, Session(XR_NULL_HANDLE)
 	, LocalSpace(XR_NULL_HANDLE)
 	, StageSpace(XR_NULL_HANDLE)
@@ -1223,82 +1233,10 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	bHiddenAreaMaskSupported = IsExtensionEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME) &&
 		!FCStringAnsi::Strstr(InstanceProperties.runtimeName, "Oculus");
 	bViewConfigurationFovSupported = IsExtensionEnabled(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
-
-	// Retrieve system properties and check for hand tracking support
-	XrSystemHandTrackingPropertiesEXT HandTrackingSystemProperties = { XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT };
-	SystemProperties = XrSystemProperties{ XR_TYPE_SYSTEM_PROPERTIES, &HandTrackingSystemProperties };
-	XR_ENSURE(xrGetSystemProperties(Instance, System, &SystemProperties));
-	bSupportsHandTracking = HandTrackingSystemProperties.supportsHandTracking == XR_TRUE;
-	SystemProperties.next = nullptr;
-
-	// Some runtimes aren't compliant with their number of layers supported.
-	// We support a fallback by emulating non-facelocked layers
-	bNativeWorldQuadLayerSupport = SystemProperties.graphicsProperties.maxLayerCount >= XR_MIN_COMPOSITION_LAYERS_SUPPORTED;
-
+	bSupportsHandTracking = IsExtensionEnabled(XR_EXT_HAND_TRACKING_EXTENSION_NAME);
 	bSpaceAccellerationSupported = IsExtensionEnabled(XR_EPIC_SPACE_ACCELERATION_NAME);
 
 	ReconfigureForShaderPlatform(GMaxRHIShaderPlatform);
-
-	// Enumerate the viewport configurations
-	uint32 ConfigurationCount;
-	TArray<XrViewConfigurationType> ViewConfigTypes;
-	XR_ENSURE(xrEnumerateViewConfigurations(Instance, System, 0, &ConfigurationCount, nullptr));
-	ViewConfigTypes.SetNum(ConfigurationCount);
-	// Fill the initial array with valid enum types (this will fail in the validation layer otherwise).
-	for (auto & TypeIter : ViewConfigTypes)
-		TypeIter = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO;
-	XR_ENSURE(xrEnumerateViewConfigurations(Instance, System, ConfigurationCount, &ConfigurationCount, ViewConfigTypes.GetData()));
-
-	// Select the first view configuration returned by the runtime that is supported.
-	// This is the view configuration preferred by the runtime.
-	for (XrViewConfigurationType ViewConfigType : ViewConfigTypes)
-	{
-		if (SupportedViewConfigurations.Contains(ViewConfigType))
-		{
-			SelectedViewConfigurationType = ViewConfigType;
-			break;
-		}
-	}
-
-	// If there is no supported view configuration type, use the first option as a last resort.
-	if (!ensure(SelectedViewConfigurationType != XR_VIEW_CONFIGURATION_TYPE_MAX_ENUM))
-	{
-		UE_LOG(LogHMD, Error, TEXT("No compatible view configuration type found, falling back to runtime preferred type."));
-		SelectedViewConfigurationType = ViewConfigTypes[0];
-	}
-
-	// Enumerate the views we will be simulating with.
-	EnumerateViews(PipelinedFrameStateGame);
-
-	for (const XrViewConfigurationView& Config : PipelinedFrameStateGame.ViewConfigs)
-	{
-		const float WidthDensityMax = float(Config.maxImageRectWidth) / Config.recommendedImageRectWidth;
-		const float HeightDensitymax = float(Config.maxImageRectHeight) / Config.recommendedImageRectHeight;
-		const float PerViewPixelDensityMax = FMath::Min(WidthDensityMax, HeightDensitymax);
-		RuntimePixelDensityMax = FMath::Min(RuntimePixelDensityMax, PerViewPixelDensityMax);
-	}
-
-	// Enumerate environment blend modes and select the best one.
-	{
-		TArray<XrEnvironmentBlendMode> BlendModes = RetrieveEnvironmentBlendModes();
-
-		// Select the first blend mode returned by the runtime that is supported.
-		// This is the environment blend mode preferred by the runtime.
-		for (XrEnvironmentBlendMode BlendMode : BlendModes)
-		{
-			if (IsEnvironmentBlendModeSupported(BlendMode))
-			{
-				SelectedEnvironmentBlendMode = BlendMode;
-				break;
-			}
-		}
-
-		// If there is no supported environment blend mode, use the first option as a last resort.
-		if (!ensure(SelectedEnvironmentBlendMode != XR_ENVIRONMENT_BLEND_MODE_MAX_ENUM))
-		{
-			SelectedEnvironmentBlendMode = BlendModes[0];
-		}
-	}
 
 #if PLATFORM_HOLOLENS || PLATFORM_ANDROID
 	bool bStartInVR = false;
@@ -1318,9 +1256,6 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	XrPath UserHead = XR_NULL_PATH;
 	XR_ENSURE(xrStringToPath(Instance, "/user/head", &UserHead));
 	ensure(DeviceSpaces.Emplace(XR_NULL_HANDLE, UserHead) == HMDDeviceId);
-
-	// Give the all frame states the same initial values.
-	PipelinedFrameStateRHI = PipelinedFrameStateRendering = PipelinedFrameStateGame;
 
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
@@ -1669,6 +1604,19 @@ bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMD
 }
 #endif
 
+#if WITH_EDITOR
+// Show a warning that the editor will require a restart
+void ShowRestartWarning(const FText& Title)
+{
+	if (EAppReturnType::Ok == FMessageDialog::Open(EAppMsgType::OkCancel,
+		LOCTEXT("EditorRestartMsg", "The OpenXR runtime requires switching to a different GPU adapter, this requires an editor restart. Do you wish to restart now (you will be prompted to save any changes)?"),
+		&Title))
+	{
+		FUnrealEdMisc::Get().RestartEditor(false);
+	}
+}
+#endif
+
 bool FOpenXRHMD::OnStereoStartup()
 {
 	FWriteScopeLock Lock(SessionHandleMutex);
@@ -1676,9 +1624,102 @@ bool FOpenXRHMD::OnStereoStartup()
 	check(Session == XR_NULL_HANDLE);
 	bIsExitingSessionByxrRequestExitSession = false;  // clear in case we requested exit for a previous session, but it ended in some other way before that happened.
 
+	System = IOpenXRHMDModule::Get().GetSystemId();
+	if (!System)
+	{
+		UE_LOG(LogHMD, Error, TEXT("Failed to get an OpenXR system, please check that you have a VR headset connected."));
+		return false;
+	}
+
+	// Retrieve system properties and check for hand tracking support
+	XrSystemHandTrackingPropertiesEXT HandTrackingSystemProperties = { XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT };
+	SystemProperties = XrSystemProperties{ XR_TYPE_SYSTEM_PROPERTIES, &HandTrackingSystemProperties };
+	XR_ENSURE(xrGetSystemProperties(Instance, System, &SystemProperties));
+	bSupportsHandTracking = HandTrackingSystemProperties.supportsHandTracking == XR_TRUE;
+
+	// Some runtimes aren't compliant with their number of layers supported.
+	// We support a fallback by emulating non-facelocked layers
+	bNativeWorldQuadLayerSupport = SystemProperties.graphicsProperties.maxLayerCount >= XR_MIN_COMPOSITION_LAYERS_SUPPORTED;
+
+	// Enumerate the viewport configurations
+	uint32 ConfigurationCount;
+	TArray<XrViewConfigurationType> ViewConfigTypes;
+	XR_ENSURE(xrEnumerateViewConfigurations(Instance, System, 0, &ConfigurationCount, nullptr));
+	ViewConfigTypes.SetNum(ConfigurationCount);
+	// Fill the initial array with valid enum types (this will fail in the validation layer otherwise).
+	for (auto& TypeIter : ViewConfigTypes)
+		TypeIter = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO;
+	XR_ENSURE(xrEnumerateViewConfigurations(Instance, System, ConfigurationCount, &ConfigurationCount, ViewConfigTypes.GetData()));
+
+	// Select the first view configuration returned by the runtime that is supported.
+	// This is the view configuration preferred by the runtime.
+	for (XrViewConfigurationType ViewConfigType : ViewConfigTypes)
+	{
+		if (SupportedViewConfigurations.Contains(ViewConfigType))
+		{
+			SelectedViewConfigurationType = ViewConfigType;
+			break;
+		}
+	}
+
+	// If there is no supported view configuration type, use the first option as a last resort.
+	if (!ensure(SelectedViewConfigurationType != XR_VIEW_CONFIGURATION_TYPE_MAX_ENUM))
+	{
+		UE_LOG(LogHMD, Error, TEXT("No compatible view configuration type found, falling back to runtime preferred type."));
+		SelectedViewConfigurationType = ViewConfigTypes[0];
+	}
+
+	// Enumerate the views we will be simulating with.
+	EnumerateViews(PipelinedFrameStateGame);
+
+	for (const XrViewConfigurationView& Config : PipelinedFrameStateGame.ViewConfigs)
+	{
+		const float WidthDensityMax = float(Config.maxImageRectWidth) / Config.recommendedImageRectWidth;
+		const float HeightDensitymax = float(Config.maxImageRectHeight) / Config.recommendedImageRectHeight;
+		const float PerViewPixelDensityMax = FMath::Min(WidthDensityMax, HeightDensitymax);
+		RuntimePixelDensityMax = FMath::Min(RuntimePixelDensityMax, PerViewPixelDensityMax);
+	}
+
+	// Enumerate environment blend modes and select the best one.
+	{
+		TArray<XrEnvironmentBlendMode> BlendModes = RetrieveEnvironmentBlendModes();
+
+		// Select the first blend mode returned by the runtime that is supported.
+		// This is the environment blend mode preferred by the runtime.
+		for (XrEnvironmentBlendMode BlendMode : BlendModes)
+		{
+			if (IsEnvironmentBlendModeSupported(BlendMode))
+			{
+				SelectedEnvironmentBlendMode = BlendMode;
+				break;
+			}
+		}
+
+		// If there is no supported environment blend mode, use the first option as a last resort.
+		if (!ensure(SelectedEnvironmentBlendMode != XR_ENVIRONMENT_BLEND_MODE_MAX_ENUM))
+		{
+			SelectedEnvironmentBlendMode = BlendModes[0];
+		}
+	}
+
+	// Give the all frame states the same initial values.
+	PipelinedFrameStateRHI = PipelinedFrameStateRendering = PipelinedFrameStateGame;
+
 	XrSessionCreateInfo SessionInfo;
 	SessionInfo.type = XR_TYPE_SESSION_CREATE_INFO;
-	SessionInfo.next = RenderBridge.IsValid() ? RenderBridge->GetGraphicsBinding() : nullptr;
+	SessionInfo.next = nullptr;
+	if (RenderBridge.IsValid())
+	{
+		SessionInfo.next = RenderBridge->GetGraphicsBinding(System);
+		if (!SessionInfo.next)
+		{
+			UE_LOG(LogHMD, Warning, TEXT("Failed to get an OpenXR graphics binding, editor restart required."));
+#if WITH_EDITOR
+			ShowRestartWarning(LOCTEXT("EditorRestartMsg_Title", "Editor Restart Required"));
+#endif
+			return false;
+		}
+	}
 	SessionInfo.createFlags = 0;
 	SessionInfo.systemId = System;
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)

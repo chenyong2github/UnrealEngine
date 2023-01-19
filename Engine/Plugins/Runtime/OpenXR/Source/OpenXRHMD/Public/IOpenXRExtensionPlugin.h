@@ -172,7 +172,7 @@ public:
 	* Optionally provide a custom render bridge for the OpenXR plugin.
 	* Note: this returns a pointer to a new instance allocated with "new".  Calling code is responsible for eventually deleting it.
 	*/
-	virtual class FOpenXRRenderBridge* GetCustomRenderBridge(XrInstance InInstance, XrSystemId InSystem)
+	virtual class FOpenXRRenderBridge* GetCustomRenderBridge(XrInstance InInstance)
 	{
 		return nullptr;
 	}

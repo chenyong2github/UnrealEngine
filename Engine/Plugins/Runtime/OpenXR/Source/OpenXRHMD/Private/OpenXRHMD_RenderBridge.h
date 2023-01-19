@@ -16,15 +16,15 @@ class FRHICommandListImmediate;
 class FOpenXRRenderBridge : public FXRRenderBridge
 {
 public:
-	FOpenXRRenderBridge()
-		: AdapterLuid(0)
+	FOpenXRRenderBridge(XrInstance InInstance)
+		: Instance(InInstance)
 		, OpenXRHMD(nullptr)
 	{ }
 
 	void SetOpenXRHMD(FOpenXRHMD* InHMD) { OpenXRHMD = InHMD; }
-	virtual uint64 GetGraphicsAdapterLuid() { return AdapterLuid; }
+	virtual uint64 GetGraphicsAdapterLuid(XrSystemId InSystem) { return 0; };
+	virtual void* GetGraphicsBinding(XrSystemId InSystem) = 0;
 
-	virtual void* GetGraphicsBinding() = 0;
 	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint8& OutActualFormat, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags CreateFlags, const FClearValueBinding& ClearValueBinding) = 0;
 
 	FXRSwapChainPtr CreateSwapchain(XrSession InSession, FRHITexture2D* Template, ETextureCreateFlags CreateFlags)
@@ -71,27 +71,27 @@ public:
 	}
 
 protected:
-	uint64 AdapterLuid;
 	bool bNativePresent_RenderThread = true;
 	bool bNativePresent_RHIThread = true;
 	
+	XrInstance Instance;
 	FOpenXRHMD* OpenXRHMD;
 
 private:
 };
 
 #ifdef XR_USE_GRAPHICS_API_D3D11
-FOpenXRRenderBridge* CreateRenderBridge_D3D11(XrInstance InInstance, XrSystemId InSystem);
+FOpenXRRenderBridge* CreateRenderBridge_D3D11(XrInstance InInstance);
 #endif
 #ifdef XR_USE_GRAPHICS_API_D3D12
-FOpenXRRenderBridge* CreateRenderBridge_D3D12(XrInstance InInstance, XrSystemId InSystem);
+FOpenXRRenderBridge* CreateRenderBridge_D3D12(XrInstance InInstance);
 #endif
 #ifdef XR_USE_GRAPHICS_API_OPENGL_ES
-FOpenXRRenderBridge* CreateRenderBridge_OpenGLES(XrInstance InInstance, XrSystemId InSystem);
+FOpenXRRenderBridge* CreateRenderBridge_OpenGLES(XrInstance InInstance);
 #endif
 #ifdef XR_USE_GRAPHICS_API_OPENGL
-FOpenXRRenderBridge* CreateRenderBridge_OpenGL(XrInstance InInstance, XrSystemId InSystem);
+FOpenXRRenderBridge* CreateRenderBridge_OpenGL(XrInstance InInstance);
 #endif
 #ifdef XR_USE_GRAPHICS_API_VULKAN
-FOpenXRRenderBridge* CreateRenderBridge_Vulkan(XrInstance InInstance, XrSystemId InSystem);
+FOpenXRRenderBridge* CreateRenderBridge_Vulkan(XrInstance InInstance);
 #endif

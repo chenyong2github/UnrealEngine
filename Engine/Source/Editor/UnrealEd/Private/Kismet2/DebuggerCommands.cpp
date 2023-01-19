@@ -1601,7 +1601,8 @@ bool FInternalPlayWorldCommandCallbacks::PlayInVR_CanExecute()
 	{
 		return false;
 	}
-	return (!HasPlayWorld() || !GUnrealEd->bIsSimulatingInEditor) && !GEditor->IsLightingBuildCurrentlyRunning() && GEngine && GEngine->XRSystem.IsValid();
+	return (!HasPlayWorld() || !GUnrealEd->bIsSimulatingInEditor) && !GEditor->IsLightingBuildCurrentlyRunning() &&
+		GEngine && GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDConnected();
 }
 
 void SetLastExecutedPIEPreviewDevice(FString PIEPreviewDevice)

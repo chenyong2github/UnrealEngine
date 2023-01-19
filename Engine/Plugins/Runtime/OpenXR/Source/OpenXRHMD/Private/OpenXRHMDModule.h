@@ -39,7 +39,7 @@ public:
 	virtual bool IsLayerAvailable(const FString& Name) const override { return EnabledLayers.Contains(Name); }
 	virtual bool IsLayerEnabled(const FString& Name) const override { return EnabledLayers.Contains(Name); }
 	virtual XrInstance GetInstance() const override { return Instance; }
-	virtual XrSystemId GetSystemId() const override { return System; }
+	virtual XrSystemId GetSystemId() const override;
 
 	virtual FName ResolvePathToName(XrPath Path) override;
 	virtual XrPath ResolveNameToPath(FName Name) override;
@@ -47,7 +47,6 @@ public:
 private:
 	void* LoaderHandle;
 	XrInstance Instance;
-	XrSystemId System;
 	TSet<FString> AvailableExtensions;
 	TSet<FString> AvailableLayers;
 	TArray<const char*> EnabledExtensions;
@@ -61,13 +60,10 @@ private:
 	TSortedMap<XrPath, FName> PathToName;
 	TSortedMap<FName, XrPath, FDefaultAllocator, FNameFastLess> NameToPath;
 
-	void DestroyInstance();
 	bool EnumerateExtensions();
 	bool EnumerateLayers();
 	bool InitRenderBridge();
-	bool InitInstanceAndSystem();
 	bool InitInstance();
-	bool InitSystem();
 	PFN_xrGetInstanceProcAddr GetDefaultLoader();
 	bool EnableExtensions(const TArray<const ANSICHAR*>& RequiredExtensions, const TArray<const ANSICHAR*>& OptionalExtensions, TArray<const ANSICHAR*>& OutExtensions);
 	bool GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensions);

@@ -261,7 +261,7 @@ public:
 	virtual bool HasValidTrackingPosition() override { return IsTracking(HMDDeviceId); }
 
 	/** IHeadMountedDisplay interface */
-	virtual bool IsHMDConnected() override { return true; }
+	virtual bool IsHMDConnected() override;
 	virtual bool DoesSupportPositionalTracking() const override { return true; }
 	virtual bool IsHMDEnabled() const override;
 	virtual void EnableHMD(bool allow = true) override;
@@ -339,7 +339,7 @@ private:
 
 public:
 	/** Constructor */
-	FOpenXRHMD(const FAutoRegister&, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, TArray<const char*> InEnabledExtensions, TArray<class IOpenXRExtensionPlugin*> InExtensionPlugins, IARSystemSupport* ARSystemSupport);
+	FOpenXRHMD(const FAutoRegister&, XrInstance InInstance, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, TArray<const char*> InEnabledExtensions, TArray<class IOpenXRExtensionPlugin*> InExtensionPlugins, IARSystemSupport* ARSystemSupport);
 
 	void SetInputModule(IOpenXRInputModule* InInputModule)
 	{
