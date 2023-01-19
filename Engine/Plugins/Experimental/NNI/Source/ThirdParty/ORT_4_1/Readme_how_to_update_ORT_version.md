@@ -314,7 +314,7 @@ This new code zipped as `${ORT_TEMP}/ort_compressed.zip` can be manually copied 
 3. Package game for Linux from Windows to make sure it compiles on Linux.
 4. Run the Static Analysis. How to run "UE4 Static Analysis Win64 (MSVC)" locally:
 	1. Sync the latest green commit to minimize non-NNI errors/warnings.
-	2. Add `PS5`, `Stadia`, `WinGDK`, and `XboxOneGDK/XSX` to the UE filter for this branch (`UGS` -> `Options` -> `uSync Filter...` -> `Current Workspace`)
+	2. Add `PS5`, `WinGDK`, and `XboxOneGDK/XSX` to the UE filter for this branch (`UGS` -> `Options` -> `uSync Filter...` -> `Current Workspace`)
 	3. Set the default value of the following to false:
 		- `WithFortniteGame`
 		- `WithFortniteClient`

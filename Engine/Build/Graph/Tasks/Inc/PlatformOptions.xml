@@ -27,7 +27,7 @@
 <Property Name="ShowExplicitFlags" Value="true" />
 
 <Property Name="AllEditorPlatforms" Value="Mac+Win64+Linux" />
-<Property Name="AllTargetPlatforms" Value="Android+HoloLens+iOS+Mac+PS4+PS5+Stadia+Switch+tvOS+Win64+WinGDK+XboxOneGDK+XB1+XSX" />
+<Property Name="AllTargetPlatforms" Value="Android+HoloLens+iOS+Mac+PS4+PS5+Switch+tvOS+Win64+WinGDK+XboxOneGDK+XB1+XSX" />
 
 <Option Name="EditorPlatforms" DefaultValue="" Description="Alternative to 'WithFooEditor', a list of editors to build and test. Win64+Mac etc"/>
 <Option Name="TargetPlatforms" DefaultValue="" Description="Alternative to 'WithFoo', a list of Platforms to build and test. PS4+XSX etc"/>
@@ -41,7 +41,7 @@
 
 <!-- No means of reliably running these tests atm -->
 <Option Name="EditorPlatformsToSkipTests" DefaultValue="" Restrict=".*" Description="List of editor platforms that editor tests won't be run on" />
-<Option Name="TargetPlatformsToSkipTests" DefaultValue="HoloLens+IOS+Linux+Stadia+TVOS" Restrict=".*" Description="List of target platforms that target tests won't be run on" />
+<Option Name="TargetPlatformsToSkipTests" DefaultValue="HoloLens+IOS+Linux+TVOS" Restrict=".*" Description="List of target platforms that target tests won't be run on" />
 <Option Name="CookedEditorPlatformsToSkipTests" DefaultValue="" Restrict=".*" Description="List of editor cooked platforms that editor tests won't be run on" />
 <Option Name="PlatformsToSkipTests" DefaultValue="" Restrict=".*" Description="List of platforms that all tests won't be run on. Overrides Editor/TargetPlatformsToSkipTests when non-empty." />
 
@@ -62,7 +62,6 @@
 	<Option Name="WithMac" DefaultValue="false" Description="Build and test Mac"/>
 	<Option Name="WithPS4" DefaultValue="false" Description="Build and test PS4"/>
 	<Option Name="WithPS5" DefaultValue="false" Description="Build and test PS5"/>
-	<Option Name="WithStadia" DefaultValue="false" Description="Build and test Stadia"/>
 	<Option Name="WithSwitch" DefaultValue="false" Description="Build and test Switch"/>
 	<Option Name="WithTvOS" DefaultValue="false" Description="Build and test TvOS"/>
 	<Option Name="WithWin64" DefaultValue="false" Description="Build and test Win64"/>
@@ -94,7 +93,6 @@
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Mac+" If="$(WithMac)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)PS4+" If="$(WithPS4)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)PS5+" If="$(WithPS5)" />
-		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Stadia+" If="$(WithStadia)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Switch+" If="$(WithSwitch)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)TVOS+" If="$(WithTVOS)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Win64+" If="$(WithWin64)" />

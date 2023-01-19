@@ -27,7 +27,7 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
-				// Engine does not currently ship with Mac or Stadia binaries for WebRTC so use fallback
+				// Engine does not currently ship with Mac binaries for WebRTC so use fallback
 				
 				PrivateDependencyModuleNames.Add("LibVpx");
 				
