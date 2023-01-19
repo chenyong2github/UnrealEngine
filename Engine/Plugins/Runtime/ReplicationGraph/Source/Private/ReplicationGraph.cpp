@@ -2691,7 +2691,7 @@ bool UNetReplicationGraphConnection::PrepareForReplication()
 			TArray<FVisibleCellInfo>& CellInfos = NodeCellInfoPair.Value;
 			for (int32 Index = 0; Index < CellInfos.Num(); ++Index)
 			{
-				if (CellInfos[Index].Lifetime < 0)
+				if (--CellInfos[Index].Lifetime < 0)
 				{
 					CellInfos.RemoveAtSwap(Index--);
 				}
