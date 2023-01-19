@@ -728,7 +728,10 @@ void UAnimationAsset::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) c
 	
 	for (const UAssetUserData* UserData : AssetUserData)
 	{
-		UserData->GetAssetRegistryTags(OutTags);
+		if (UserData)
+		{
+			UserData->GetAssetRegistryTags(OutTags);	
+		}
 	}
 	
 	OutTags.Add( FAssetRegistryTag("HasParentAsset", HasParentAsset() ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Hidden) );
