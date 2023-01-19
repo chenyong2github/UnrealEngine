@@ -559,6 +559,14 @@ private:
 				Writer.AddString(ANSITEXTVIEW("$text"), ToString(Record.GetVerbosity()));
 				Writer.EndObject();
 			}
+			if (const TCHAR* TextNamespace = Record.GetTextNamespace())
+			{
+				Writer.AddString(ANSITEXTVIEW("_ns"), TextNamespace);
+			}
+			if (const TCHAR* TextKey = Record.GetTextKey())
+			{
+				Writer.AddString(ANSITEXTVIEW("_key"), TextKey);
+			}
 			for (const FCbField& Field : Record.GetFields())
 			{
 				Writer.AddField(Field.GetName(), Field);

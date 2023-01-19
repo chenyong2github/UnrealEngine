@@ -135,7 +135,6 @@ struct FOutputDeviceRedirectorState
 
 	/** A queue of items logged by non-primary threads. */
 	TDepletableMpmcQueue<FOutputDeviceItem, FOutputDeviceLinearAllocator> BufferedItems;
-	uint8 BufferedItemsPadding[CalculateRedirectorCacheLinePadding(sizeof(BufferedItems))]{};
 
 	/** Array of output devices to redirect to from the primary thread. */
 	TArray<FOutputDevice*> BufferedOutputDevices;
