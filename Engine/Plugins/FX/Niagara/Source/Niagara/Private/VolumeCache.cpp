@@ -192,16 +192,22 @@ bool FOpenVDBCacheData::LoadFile(FString Path, int frame)
 			if (DenseResolution == FIntVector(-1, -1, -1))
 			{
 				DenseResolution = Size;
-			} 
+			}
 			else if (DenseResolution != Size)
 			{
 				UE_LOG(LogVolumeCache, Warning, TEXT("Grids are not the same size: %s"), *FullPath);
 				return false;
-			}			
+			}
 
 			OpenVDBGrids.Add(frame, ColorGrid);
 
-			// load to dense buffer			
+			// if dense vdb buffer doesn't match current resolution, re initialize it	
+			if (DenseGridPtr->bbox().dim() != openvdb::Coord(DenseResolution.X - 1, DenseResolution.Y - 1, DenseResolution.Z - 1))
+			{
+				Init(DenseResolution);
+			}
+
+			// load to dense buffer	
 			openvdb::tools::CopyToDense<Vec4Tree, Vec4Dense> Copier(ColorGrid->tree(), *DenseGridPtr);
 			Copier.copy();
 		}
@@ -287,19 +293,17 @@ bool FOpenVDBCacheData::Fill3DTexture(int frame, FTextureRHIRef TextureToFill)
 
 		if (TextureToFill->GetSizeXYZ() != DenseResolution)
 		{
-			UE_LOG(LogVolumeCache, Warning, TEXT("Target texture resolution %s doesn't match OpenVDB grid resolution %s.  Regenerate your cache"), *TextureToFill->GetSizeXYZ().ToString(), *DenseResolution.ToString());
+			UE_LOG(LogVolumeCache, Warning, TEXT("Target texture resolution %s doesn't match OpenVDB grid resolution %s."), *TextureToFill->GetSizeXYZ().ToString(), *DenseResolution.ToString());
 		}
-		else
-		{
-			const FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, DenseResolution.X, DenseResolution.Y, DenseResolution.Z);
-			const SIZE_T MemorySize = static_cast<SIZE_T>(UpdateRegion.Width) * static_cast<SIZE_T>(UpdateRegion.Height) * static_cast<SIZE_T>(UpdateRegion.Depth) * static_cast<SIZE_T>(FormatSize);
 
-			FUpdateTexture3DData TheData = RHIBeginUpdateTexture3D(TextureToFill, 0, UpdateRegion);
+		const FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, DenseResolution.X, DenseResolution.Y, DenseResolution.Z);
+		const SIZE_T MemorySize = static_cast<SIZE_T>(UpdateRegion.Width) * static_cast<SIZE_T>(UpdateRegion.Height) * static_cast<SIZE_T>(UpdateRegion.Depth) * static_cast<SIZE_T>(FormatSize);
 
-			FMemory::Memcpy(TheData.Data, DataPtr, MemorySize);
+		FUpdateTexture3DData TheData = RHIBeginUpdateTexture3D(TextureToFill, 0, UpdateRegion);
 
-			RHIEndUpdateTexture3D(TheData);
-		}
+		FMemory::Memcpy(TheData.Data, DataPtr, MemorySize);
+
+		RHIEndUpdateTexture3D(TheData);		
 
 		return true;
 	}

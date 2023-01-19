@@ -675,6 +675,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheWriteFrame(UObject* Storag
 
 				OpenVDBSimCacheData->FrameRangeStart = FMath::Min(FrameIndex, OpenVDBSimCacheData->FrameRangeStart);
 				OpenVDBSimCacheData->FrameRangeEnd = FMath::Max(FrameIndex, OpenVDBSimCacheData->FrameRangeEnd);
+				OpenVDBSimCacheData->Resolution = InstanceData_GT->Size;
 #endif
 			}
 			else
@@ -734,21 +735,22 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheReadFrame(UObject* Storage
 {
 	FRenderTargetVolumeRWInstanceData_GameThread* InstanceData_GT = reinterpret_cast<FRenderTargetVolumeRWInstanceData_GameThread*>(OptionalPerInstanceData);
 
-	if (NDIRenderTargetVolumeLocal::GSimCacheUseOpenVDB)
+	if (Cast<UVolumeCache>(StorageObject))
 	{
 #if PLATFORM_WINDOWS
 		UVolumeCache *OpenVDBSimCacheData = CastChecked<UVolumeCache>(StorageObject);
 
 		TSharedPtr<FVolumeCacheData> VolumeCacheData = OpenVDBSimCacheData->GetData();
 
-		const int FrameIndex = Interp >= 0.5f ? FrameB : FrameA;
-		OpenVDBSimCacheData->LoadFile(FrameIndex);
-
 		InstanceData_GT->Size = OpenVDBSimCacheData->Resolution;
 		InstanceData_GT->Format = PF_FloatRGBA;
+		InstanceData_GT->Filter = TextureFilter::TF_Default;
 
 		PerInstanceTick(InstanceData_GT, SystemInstance, 0.0f);
 		PerInstanceTickPostSimulate(InstanceData_GT, SystemInstance, 0.0f);
+
+		const int FrameIndex = Interp >= 0.5f ? FrameB : FrameA;
+		OpenVDBSimCacheData->LoadFile(FrameIndex);
 
 		//  write to the volume texture
 		if (InstanceData_GT->TargetTexture)
