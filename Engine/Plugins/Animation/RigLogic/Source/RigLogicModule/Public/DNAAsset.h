@@ -51,8 +51,8 @@ public:
 	TSharedPtr<IGeometryReader> GetGeometryReader();
 #endif
 
-	UPROPERTY()
-	FString DNAFileName; 
+	UPROPERTY(VisibleAnywhere, Category = ImportSettings)
+	FString DnaFileName;
 
 	bool Init(const FString& Filename);
 	void Serialize(FArchive& Ar) override;

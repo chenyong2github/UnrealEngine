@@ -212,7 +212,7 @@ bool UDNAAsset::Init(const FString& DNAFilename)
 		UE_LOG(LogDNAAsset, Warning, TEXT("%s"), ANSI_TO_TCHAR(rl4::Status::get().message));
 	}
 
-	this->DNAFileName = DNAFilename; //memorize for re-import
+	DnaFileName = DNAFilename; //memorize for re-import
 	
 	if (!FPaths::FileExists(DNAFilename))
 	{
