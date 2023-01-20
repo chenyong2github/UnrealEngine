@@ -13,6 +13,9 @@
 
 #include "HAL/ThreadHeartBeat.h"
 
+#include "Windows/IDXGISwapchainProvider.h"
+#include "Features/IModularFeatures.h"
+
 static const uint32 WindowsDefaultNumBackBuffers = 3;
 
 extern FD3D12Texture* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFormat, uint32 SizeX, uint32 SizeY, IDXGISwapChain* SwapChain, uint32 BackBufferIndex, TRefCountPtr<ID3D12Resource> BackBufferResourceOverride);
@@ -63,6 +66,27 @@ void FD3D12Viewport::Init()
 {
 	FD3D12Adapter* Adapter = GetParentAdapter();
 	IDXGIFactory2* Factory2 = Adapter->GetDXGIFactory2();
+
+	TArray<IDXGISwapchainProvider*> DXGISwapchainProviderModules = IModularFeatures::Get().GetModularFeatureImplementations<IDXGISwapchainProvider>(IDXGISwapchainProvider::GetModularFeatureName());
+	IDXGISwapchainProvider* DXGISwapchainProvider = nullptr;
+	for (IDXGISwapchainProvider* ProviderModule : DXGISwapchainProviderModules)
+	{
+		if (ProviderModule->SupportsRHI(ERHIInterfaceType::D3D12))
+		{
+			DXGISwapchainProvider = ProviderModule;
+			break;
+		}
+	}
+
+	if (DXGISwapchainProvider)
+	{
+		static bool bCustomSwapchainLogged = false;
+		if (!bCustomSwapchainLogged)
+		{
+			UE_LOG(LogD3D12RHI, Log, TEXT("Found a custom swapchain provider: '%s'."), DXGISwapchainProvider->GetName());
+			bCustomSwapchainLogged = true;
+		}
+	}
 
 	bAllowTearing = false;
 	if (GD3D12UseAllowTearing)
@@ -148,7 +172,11 @@ void FD3D12Viewport::Init()
 				SwapChainDesc1.Width = SizeX;
 				SwapChainDesc1.Height = SizeY;
 
-				VERIFYD3D12RESULT(Factory2->CreateSwapChainForHwnd(CommandQueue, WindowHandle, &SwapChainDesc1, nullptr, nullptr, SwapChain1.GetInitReference()));
+				HRESULT hr = DXGISwapchainProvider ?
+					DXGISwapchainProvider->CreateSwapChainForHwnd(Factory2, CommandQueue, WindowHandle, &SwapChainDesc1, nullptr, nullptr, SwapChain1.GetInitReference()) :
+					Factory2->CreateSwapChainForHwnd(CommandQueue, WindowHandle, &SwapChainDesc1, nullptr, nullptr, SwapChain1.GetInitReference());
+
+				VERIFYD3D12RESULT(hr);
 			}
 			else
 			{
@@ -176,7 +204,11 @@ void FD3D12Viewport::Init()
 			SwapChainDesc.Flags = SwapChainFlags;
 
 			TRefCountPtr<IDXGISwapChain> SwapChain;
-			HRESULT hr = Factory2->CreateSwapChain(CommandQueue, &SwapChainDesc, SwapChain.GetInitReference());
+			
+			HRESULT hr = DXGISwapchainProvider ?
+				DXGISwapchainProvider->CreateSwapChain(Factory2, CommandQueue, &SwapChainDesc, SwapChain.GetInitReference()) :
+				Factory2->CreateSwapChain(CommandQueue, &SwapChainDesc, SwapChain.GetInitReference());
+			
 			if (FAILED(hr))
 			{
 				UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create swapchain with the following parameters:"));
@@ -185,6 +217,7 @@ void FD3D12Viewport::Init()
 				UE_LOG(LogD3D12RHI, Warning, TEXT("\tWindows handle: 0x%x (IsWindow: %s)"), WindowHandle, IsWindow(WindowHandle) ? TEXT("true") : TEXT("false"));
 				UE_LOG(LogD3D12RHI, Warning, TEXT("\tFullscreen: %s"), bIsFullscreen ? TEXT("true") : TEXT("false"));
 				UE_LOG(LogD3D12RHI, Warning, TEXT("\tSwapchain flags: %d"), SwapChainFlags);
+				UE_LOG(LogD3D12RHI, Warning, TEXT("\tCustom swapchain provider: %s"), DXGISwapchainProvider ? DXGISwapchainProvider->GetName() : TEXT("none"));
 
 				VERIFYD3D12RESULT(hr);
 			}

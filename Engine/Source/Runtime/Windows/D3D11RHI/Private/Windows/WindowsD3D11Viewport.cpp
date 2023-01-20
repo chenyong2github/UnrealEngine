@@ -11,6 +11,9 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <dwmapi.h>
 
+#include "Windows/IDXGISwapchainProvider.h"
+#include "Features/IModularFeatures.h"
+
 #ifndef DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
 #define DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING  2048
 #endif
@@ -57,6 +60,27 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	D3DRHI->InitD3DDevice();
 
 	PixelFormat = InD3DRHI->GetDisplayFormat(InPreferredPixelFormat);
+
+	TArray<IDXGISwapchainProvider*> DXGISwapchainProviderModules = IModularFeatures::Get().GetModularFeatureImplementations<IDXGISwapchainProvider>(IDXGISwapchainProvider::GetModularFeatureName());
+	IDXGISwapchainProvider* DXGISwapchainProvider = nullptr;
+	for (IDXGISwapchainProvider* ProviderModule : DXGISwapchainProviderModules)
+	{
+		if (ProviderModule->SupportsRHI(ERHIInterfaceType::D3D11))
+		{
+			DXGISwapchainProvider = ProviderModule;
+			break;
+		}
+	}
+
+	if (DXGISwapchainProvider)
+	{
+		static bool bCustomSwapchainLogged = false;
+		if (!bCustomSwapchainLogged)
+		{
+			UE_LOG(LogD3D11RHI, Log, TEXT("Found a custom swapchain provider: '%s'."), DXGISwapchainProvider->GetName());
+			bCustomSwapchainLogged = true;
+		}
+	}
 
 	// Create a backbuffer/swapchain for each viewport
 	TRefCountPtr<IDXGIDevice> DXGIDevice;
@@ -146,7 +170,11 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 				SwapChainDesc1.Flags = GSwapChainFlags;
 
 				IDXGISwapChain1* SwapChain1 = nullptr;
-				VERIFYD3D11RESULT_EX((Factory2->CreateSwapChainForHwnd(D3DRHI->GetDevice(), WindowHandle, &SwapChainDesc1, nullptr, nullptr, &SwapChain1)), D3DRHI->GetDevice());
+				HRESULT CreateSwapChainForHwndResult = DXGISwapchainProvider ?
+					DXGISwapchainProvider->CreateSwapChainForHwnd(Factory2, D3DRHI->GetDevice(), WindowHandle, &SwapChainDesc1, nullptr, nullptr, &SwapChain1) :
+					Factory2->CreateSwapChainForHwnd(D3DRHI->GetDevice(), WindowHandle, &SwapChainDesc1, nullptr, nullptr, &SwapChain1);
+
+				VERIFYD3D11RESULT_EX(CreateSwapChainForHwndResult, D3DRHI->GetDevice());
 				SwapChain = SwapChain1;
 			}
 			else
@@ -180,7 +208,9 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			SwapChainDesc.Scaling = GSwapScaling;
 
 			IDXGISwapChain1* SwapChain1 = nullptr;
-			HRESULT CreateSwapChainForHwndResult = Factory2->CreateSwapChainForHwnd(D3DRHI->GetDevice(), WindowHandle, &SwapChainDesc, &FSSwapChainDesc, nullptr, &SwapChain1);
+			HRESULT CreateSwapChainForHwndResult = DXGISwapchainProvider ?
+				DXGISwapchainProvider->CreateSwapChainForHwnd(Factory2, D3DRHI->GetDevice(), WindowHandle, &SwapChainDesc, &FSSwapChainDesc, nullptr, &SwapChain1) :
+				Factory2->CreateSwapChainForHwnd(D3DRHI->GetDevice(), WindowHandle, &SwapChainDesc, &FSSwapChainDesc, nullptr, &SwapChain1);
 			if(SUCCEEDED(CreateSwapChainForHwndResult))
 			{
 				SwapChain1->QueryInterface(IID_PPV_ARGS(SwapChain.GetInitReference()));
@@ -234,7 +264,9 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			SwapChainDesc.SwapEffect = GSwapEffect;
 			SwapChainDesc.Flags = GSwapChainFlags;
 
-			HRESULT CreateSwapChainResult = D3DRHI->GetFactory()->CreateSwapChain(D3DRHI->GetDevice(), &SwapChainDesc, SwapChain.GetInitReference());
+			HRESULT CreateSwapChainResult = DXGISwapchainProvider ?
+				DXGISwapchainProvider->CreateSwapChain(D3DRHI->GetFactory(), D3DRHI->GetDevice(), &SwapChainDesc, SwapChain.GetInitReference()) :
+				D3DRHI->GetFactory()->CreateSwapChain(D3DRHI->GetDevice(), &SwapChainDesc, SwapChain.GetInitReference());
 			if (CreateSwapChainResult == E_INVALIDARG)
 			{
 				const TCHAR* D3DFormatString = GetD3D11TextureFormatString(SwapChainDesc.BufferDesc.Format);
