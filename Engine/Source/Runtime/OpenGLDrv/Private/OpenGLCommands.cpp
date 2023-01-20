@@ -2813,6 +2813,19 @@ void FOpenGLDynamicRHI::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* G
 
 	auto& PsoInit = FallbackGraphicsState->Initializer;
 
+	if (PsoInit.bFromPSOFileCache)
+	{
+		// If we're from the PSO cache we're just preparing the PSO and do not need to set the state.
+		RHICreateBoundShaderState_internal(
+			PsoInit.BoundShaderState.VertexDeclarationRHI,
+			PsoInit.BoundShaderState.VertexShaderRHI,
+			PsoInit.BoundShaderState.PixelShaderRHI,
+			PsoInit.BoundShaderState.GetGeometryShader(),
+			PsoInit.bFromPSOFileCache
+		);
+		return;
+	}
+
 	RHISetBoundShaderState(
 		RHICreateBoundShaderState_internal(
 			PsoInit.BoundShaderState.VertexDeclarationRHI,

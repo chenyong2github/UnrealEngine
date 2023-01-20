@@ -1010,9 +1010,6 @@ public:
 	void InitializeGLTextureInternal(FOpenGLTexture* Texture, void const* BulkDataPtr, uint64 BulkDataSize);
 private:
 
-	void RegisterSharedShaderCodeDelegates();
-	void UnregisterSharedShaderCodeDelegates();
-
 	void SetupRecursiveResources();
 
 	void ApplyTextureStage(FOpenGLContextState& ContextState, GLint TextureIndex, const FTextureStage& TextureStage, FOpenGLSamplerState* SamplerState);

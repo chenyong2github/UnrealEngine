@@ -393,8 +393,9 @@ struct FOpenGLBindlessSamplerInfo
 };
 
 // unique identifier for a program. (composite of shader keys)
-struct FOpenGLProgramKey
+class FOpenGLProgramKey
 {
+public:
 	FOpenGLProgramKey() {}
 
 	friend bool operator == (const FOpenGLProgramKey& A, const FOpenGLProgramKey& B)
@@ -405,6 +406,11 @@ struct FOpenGLProgramKey
 			bHashMatch = A.ShaderHashes[i] == B.ShaderHashes[i];
 		}
 		return bHashMatch;
+	}
+
+	friend bool operator != (const FOpenGLProgramKey& A, const FOpenGLProgramKey& B)
+	{
+		return !(A==B);
 	}
 
 	friend uint32 GetTypeHash(const FOpenGLProgramKey& Key)

@@ -16,13 +16,26 @@
 #include "GlobalShader.h"
 #include "SceneUtils.h"
 #include "PsoLruCache.h"
+#include "OpenGLBinaryProgramUtils.h"
+#include <Serialization/StaticMemoryReader.h>
+#include "ProfilingDebugging/ScopedTimers.h"
+#include <Async/MappedFileHandle.h>
 
 #if PLATFORM_ANDROID
 #include "Android/AndroidPlatformMisc.h"
 #endif
-
-static const uint32 GBinaryProgramFileVersion = 4;
  
+static bool GMemoryMapGLProgramCache = true;
+static FAutoConsoleVariableRef CVarMemoryMapGLProgramCache(
+	TEXT("r.OpenGL.MemoryMapGLProgramCache"),
+	GMemoryMapGLProgramCache,
+	TEXT("If true enabled memory mapping of the GL program binary cache. (default)\n")
+	TEXT("If false then upon opening the binary cache all programs are loaded into memory.\n")
+	TEXT("When enabled this can reduce RSS pressure when combined with program LRU. (see r.OpenGL.EnableProgramLRUCache).")
+	,
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
 TAutoConsoleVariable<int32> FOpenGLProgramBinaryCache::CVarPBCEnable(
 	TEXT("r.ProgramBinaryCache.Enable"),
 #if PLATFORM_ANDROID
@@ -36,25 +49,17 @@ TAutoConsoleVariable<int32> FOpenGLProgramBinaryCache::CVarPBCEnable(
 
 TAutoConsoleVariable<int32> FOpenGLProgramBinaryCache::CVarRestartAndroidAfterPrecompile(
 	TEXT("r.ProgramBinaryCache.RestartAndroidAfterPrecompile"),
-	1,	// Enabled by default on Android.
-	TEXT("If true, Android apps will restart after precompiling the binary program cache. Enabled by default only on Android"),
+	0,
+	TEXT("If true, Android apps will restart after precompiling the binary program cache."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarUseExistingBinaryFileCache(
-	TEXT("r.OpenGL.UseExistingBinaryFileCache"),
-	1,
-	TEXT("When generating a new binary cache (such as when Shader Pipeline Cache Version Guid changes) use the existing binary file cache to speed up generation of the new cache.\n")
-	TEXT("0: Always rebuild binary file cache when Pipeline Cache Version Guid changes.\n")
-	TEXT("1: When Pipeline Cache Version Guid changes re-use programs from the existing binary cache where possible (default)."),
-	ECVF_RenderThreadSafe);
-
-static int32 GMaxShaderLibProcessingTimeMS = 10;
-static FAutoConsoleVariableRef CVarMaxShaderLibProcessingTime(
-	TEXT("r.OpenGL.MaxShaderLibProcessingTime"),
-	GMaxShaderLibProcessingTimeMS,
-	TEXT("The maximum time per frame to process shader library requests in milliseconds.\n")
-	TEXT("default 10ms. Note: Driver compile time for a single program may exceed this limit."),
+static int32 GMaxBinaryProgramLoadTimeMS = 3;
+static FAutoConsoleVariableRef CVarMaxBinaryProgramLoadTime(
+	TEXT("r.OpenGL.MaxBinaryProgramLoadTime"),
+	GMaxBinaryProgramLoadTimeMS,
+	TEXT("The maximum time per frame to transfer programs from the binary program cache to the GL RHI. in milliseconds.\n")
+	TEXT("default 3ms. Note: Driver compile time for programs may exceed this limit if you're not using the LRU."),
 	ECVF_RenderThreadSafe
 );
 
@@ -62,26 +67,90 @@ namespace UE
 {
 	namespace OpenGL
 	{
+		bool CanMemoryMapGLProgramCache()
+		{
+			return FPlatformProperties::SupportsMemoryMappedFiles() && GMemoryMapGLProgramCache;
+		}
+
+		extern void OnGLProgramLoadedFromBinaryCache(const FOpenGLProgramKey& ProgramKey, TUniqueObj<FOpenGLProgramBinary>&& ProgramBinaryData);
+
 		bool AreBinaryProgramsCompressed()
 		{
-			static const auto CVarStoreCompressedBinaries = IConsoleManager::Get().FindConsoleVariable(TEXT("r.OpenGL.StoreCompressedProgramBinaries"));
-			return CVarStoreCompressedBinaries->GetInt() != 0;
-		}		
+			static const auto StoreCompressedBinariesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.OpenGL.StoreCompressedProgramBinaries"));
+			return StoreCompressedBinariesCVar->GetInt() != 0;
+		}
+
+		static const uint32 GBinaryProgramFileVersion = 5;
+		struct FBinaryCacheFileHeader
+		{
+			uint32 Version = 0;
+			FGuid BinaryCacheGuid;
+			bool bCacheUsesCompressedBinaries;
+			uint32 ProgramCount;
+
+			static FBinaryCacheFileHeader CreateHeader(const FGuid& BinaryCacheGuidIn, uint32 NumPrograms)
+			{
+				FBinaryCacheFileHeader NewHeader;
+				NewHeader.Version = GBinaryProgramFileVersion;
+				NewHeader.BinaryCacheGuid = BinaryCacheGuidIn;
+				NewHeader.bCacheUsesCompressedBinaries = UE::OpenGL::AreBinaryProgramsCompressed();
+				NewHeader.ProgramCount = NumPrograms;
+				return NewHeader;
+			}
+
+			friend FArchive& operator<<(FArchive& Ar, FBinaryCacheFileHeader& Header)
+			{
+				Ar << Header.Version;
+				check(Ar.IsLoading() || Header.Version == GBinaryProgramFileVersion); // This should always be correct when saving.
+				if (Header.Version == GBinaryProgramFileVersion)
+				{
+					Ar << Header.BinaryCacheGuid;
+					Ar << Header.bCacheUsesCompressedBinaries;
+					Ar << Header.ProgramCount;
+				}
+
+				return Ar;
+			}
+
+			bool IsValid() const
+			{
+				return Version == GBinaryProgramFileVersion;
+			}
+		};
 	}
 }
 
+// This contains the mapping for a binary program cache file.
+// It also contains a list of programs that the cache contains.
+class FOpenGLProgramBinaryMapping : public FThreadSafeRefCountedObject
+{
+public:
+	FOpenGLProgramBinaryMapping(TUniquePtr<IMappedFileHandle> MappedCacheFileIn, TUniquePtr<IMappedFileRegion> MappedRegionIn, uint32 ProgramCountIfKnown) : MappedCacheFile(MoveTemp(MappedCacheFileIn)), MappedRegion(MoveTemp(MappedRegionIn)) { Content.Reserve(ProgramCountIfKnown); }
+
+	TArrayView<const uint8> GetView(uint32 FileOffset, uint32 NumBytes) const
+	{
+		check(FileOffset + NumBytes <= MappedRegion->GetMappedSize());
+		return TArrayView<const uint8>(MappedRegion->GetMappedPtr() + FileOffset, NumBytes);
+	}
+
+	void AddProgramKey(const class FOpenGLProgramKey& KeyIn) { check(!Content.Contains(KeyIn)); Content.Add(KeyIn); }
+	bool HasValidMapping() const { return MappedRegion.IsValid() && MappedCacheFile.IsValid(); }
+private:
+	TUniquePtr<IMappedFileHandle> MappedCacheFile;
+	TUniquePtr<IMappedFileRegion> MappedRegion;
+	TSet<FOpenGLProgramKey> Content;
+};
+
+
 static FCriticalSection GProgramBinaryFileCacheCS;
 
-FOpenGLProgramBinaryCache::FPreviousGLProgramBinaryCacheInfo::FPreviousGLProgramBinaryCacheInfo() : NumberOfOldEntriesReused(0) {}
-FOpenGLProgramBinaryCache::FPreviousGLProgramBinaryCacheInfo::FPreviousGLProgramBinaryCacheInfo(FOpenGLProgramBinaryCache::FPreviousGLProgramBinaryCacheInfo&&) = default;
-FOpenGLProgramBinaryCache::FPreviousGLProgramBinaryCacheInfo& FOpenGLProgramBinaryCache::FPreviousGLProgramBinaryCacheInfo::operator = (FOpenGLProgramBinaryCache::FPreviousGLProgramBinaryCacheInfo&&) = default;
-FOpenGLProgramBinaryCache::FPreviousGLProgramBinaryCacheInfo::~FPreviousGLProgramBinaryCacheInfo() = default;
+// guards the container that collects scanned programs and send to RHIT
+static FCriticalSection GPendingGLProgramCreateRequestsCS;
 
 FOpenGLProgramBinaryCache* FOpenGLProgramBinaryCache::CachePtr = nullptr;
 
 FOpenGLProgramBinaryCache::FOpenGLProgramBinaryCache(const FString& InCachePath)
 	: CachePath(InCachePath)
-	, BinaryCacheAsyncReadFileHandle(nullptr)
 	, BinaryCacheWriteFileHandle(nullptr)
 	, BinaryFileState(EBinaryFileState::Uninitialized)
 {
@@ -97,6 +166,13 @@ FOpenGLProgramBinaryCache::FOpenGLProgramBinaryCache(const FString& InCachePath)
 	// Some devices report binary compatibility errors after minor OS updates even though the GL driver version has not changed.
 	const FString BuildNumber = FAndroidMisc::GetDeviceBuildNumber();
 	HashString.Append(BuildNumber);
+
+	// Optional configrule variable for triggering a rebuild of the cache.
+	const FString* ConfigRulesGLProgramKey = FAndroidMisc::GetConfigRulesVariable(TEXT("OpenGLProgramCacheKey"));
+	if (ConfigRulesGLProgramKey && !ConfigRulesGLProgramKey->IsEmpty())
+	{
+		HashString.Append(*ConfigRulesGLProgramKey);
+	}
 #endif
 
 	FSHAHash VersionHash;
@@ -107,10 +183,6 @@ FOpenGLProgramBinaryCache::FOpenGLProgramBinaryCache(const FString& InCachePath)
 
 FOpenGLProgramBinaryCache::~FOpenGLProgramBinaryCache()
 {
-	if (BinaryCacheAsyncReadFileHandle)
-	{
-		delete BinaryCacheAsyncReadFileHandle;
-	}
 	if (BinaryCacheWriteFileHandle)
 	{
 		delete BinaryCacheWriteFileHandle;
@@ -211,7 +283,11 @@ static FAutoConsoleVariableRef CVarNumRemoteProgramCompileServices(
 void FOpenGLProgramBinaryCache::OnShaderPipelineCacheOpened(FString const& Name, EShaderPlatform Platform, uint32 Count, const FGuid& VersionGuid, FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext)
 {
 	UE_LOG(LogRHI, Log, TEXT("Scanning Binary program cache, using Shader Pipeline Cache version %s"), *VersionGuid.ToString());
-	ScanProgramCacheFile(VersionGuid);
+
+	FScopeLock Lock(&GProgramBinaryFileCacheCS);
+	check(CurrentShaderPipelineCacheVersionGuid == FGuid());
+	CurrentShaderPipelineCacheVersionGuid = VersionGuid;
+	ScanProgramCacheFile();
 	if (IsBuildingCache_internal())
 	{
 #if PLATFORM_ANDROID
@@ -224,97 +300,60 @@ void FOpenGLProgramBinaryCache::OnShaderPipelineCacheOpened(FString const& Name,
 	}
 }
 
+void FOpenGLProgramBinaryCache::Reset()
+{
+	check(!BinaryCacheWriteFileHandle);
+	BinaryFileState = EBinaryFileState::Uninitialized;
+ 	ProgramsWrittenToOutputCache.Empty();
+}
+
 void FOpenGLProgramBinaryCache::OnShaderPipelineCachePrecompilationComplete(uint32 Count, double Seconds, const FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext)
 {
+	FScopeLock Lock(&GProgramBinaryFileCacheCS);
+
 #if PLATFORM_ANDROID
 	FAndroidOpenGL::StopRemoteCompileServices();
 #endif
 
 	UE_LOG(LogRHI, Log, TEXT("OnShaderPipelineCachePrecompilationComplete: %d shaders"), Count);
 
-	// Want to ignore any subsequent Shader Pipeline Cache opening/closing, eg when loading modules
-	FShaderPipelineCache::GetCacheOpenedDelegate().Remove(OnShaderPipelineCacheOpenedDelegate);
-	FShaderPipelineCache::GetPrecompilationCompleteDelegate().Remove(OnShaderPipelineCachePrecompilationCompleteDelegate);
-	OnShaderPipelineCacheOpenedDelegate.Reset();
-	OnShaderPipelineCachePrecompilationCompleteDelegate.Reset();
+	const bool bFinishedBuildingCache = IsBuildingCache_internal();
+	check(bFinishedBuildingCache || BinaryFileState == EBinaryFileState::ValidCacheFile);
 
-	check(IsBuildingCache_internal() || BinaryFileState == EBinaryFileState::ValidCacheFile);
-
-	if (IsBuildingCache_internal())
+	if (bFinishedBuildingCache)
 	{
 		CloseWriteHandle();
 
-#if PLATFORM_ANDROID
-		FAndroidMisc::bNeedsRestartAfterPSOPrecompile = true;
-		if (CVarRestartAndroidAfterPrecompile.GetValueOnAnyThread() == 1)
+		if(!ProgramsWrittenToOutputCache.IsEmpty())
 		{
+#if PLATFORM_ANDROID
+			if (CVarRestartAndroidAfterPrecompile.GetValueOnAnyThread() == 1)
+			{
+				FAndroidMisc::bNeedsRestartAfterPSOPrecompile = true;
 #if USE_ANDROID_JNI
-			extern void AndroidThunkCpp_RestartApplication(const FString & IntentString);
-			AndroidThunkCpp_RestartApplication(TEXT(""));
+				extern void AndroidThunkCpp_RestartApplication(const FString & IntentString);
+				AndroidThunkCpp_RestartApplication(TEXT(""));
+#endif
+			}
 #endif
 		}
-#endif
-		OpenAsyncReadHandle();
-		BinaryFileState = EBinaryFileState::ValidCacheFile;
+		// Reset state and scan the file we just produced.
+		Reset();
+		ScanProgramCacheFile();
+
+		// unset current cache.
+		CurrentShaderPipelineCacheVersionGuid = FGuid();
 	}
 }
 
-// contains runtime and file information for a single program entry in the cache file.
-struct FGLProgramBinaryFileCacheEntry
-{
-	struct FGLProgramBinaryFileCacheFileInfo
-	{
-		// contains location info for a program in the binary cache file
-		FOpenGLProgramKey ShaderHasheSet;
-		uint32 ProgramOffset;
-		uint32 ProgramSize;
-
-		FGLProgramBinaryFileCacheFileInfo() : ProgramOffset(0), ProgramSize(0) { }
-
-		friend bool operator == (const FGLProgramBinaryFileCacheFileInfo& A, const FGLProgramBinaryFileCacheFileInfo& B)
-		{
-			return A.ShaderHasheSet == B.ShaderHasheSet && A.ProgramOffset == B.ProgramOffset && A.ProgramSize == B.ProgramSize;
-		}
-	} FileInfo;
-
-	// program read request.
-	TWeakPtr<IAsyncReadRequest, ESPMode::ThreadSafe> ReadRequest;
-	// read data
-	TArray<uint8> ProgramBinaryData;
-	// debugging use only, index of program as encountered during scan, -1 if new.
-	int32 ProgramIndex;
-
-	enum class EGLProgramState : uint8
-	{
-		Unset,
-		ProgramStored, // program exists in binary cache but has not yet been loaded
-		ProgramLoading,	// program has started async loading.
-		ProgramLoaded,	// program has loaded and is ready for GL object creation.
-		ProgramAvailable, // program has loaded from binary cache and is available for use with GL.
-		ProgramComplete // program has been either added by rhi or handed over to rhi after being made available to it.
-	};
-	EGLProgramState GLProgramState;
-
-	// if != 0 then prepared runtime GL program name:
-	GLuint GLProgramId;
-
-	FGLProgramBinaryFileCacheEntry() : ProgramIndex(-1), GLProgramState(EGLProgramState::Unset), GLProgramId(0) { }
-
-	friend uint32 GetTypeHash(const FGLProgramBinaryFileCacheEntry& Key)
-	{
-		return FCrc::MemCrc32(&Key, sizeof(Key));
-	}
-};
-
-static FCriticalSection GPendingGLProgramCreateRequestsCS;
-
 // Scan the binary cache file and build a record of all programs.
-void FOpenGLProgramBinaryCache::ScanProgramCacheFile(const FGuid& ShaderPipelineCacheVersionGuid)
+void FOpenGLProgramBinaryCache::ScanProgramCacheFile()
 {
+	//FScopedDurationTimeLogger Timer(TEXT("ScanProgramCacheFile"));
+
 	UE_LOG(LogRHI, Log, TEXT("OnShaderScanProgramCacheFile"));
-	FScopeLock Lock(&GProgramBinaryFileCacheCS);
 	FString ProgramCacheFilename = GetProgramBinaryCacheFilePath();
-	FString ProgramCacheFilenameTemp = GetProgramBinaryCacheFilePath() + TEXT(".scan");
+	FString ProgramCacheFilenameTemp = ProgramCacheFilename + TEXT(".scan");
 
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
@@ -327,149 +366,104 @@ void FOpenGLProgramBinaryCache::ScanProgramCacheFile(const FGuid& ShaderPipeline
 	PlatformFile.DeleteFile(*ProgramCacheFilenameTemp);
 	PlatformFile.MoveFile(*ProgramCacheFilenameTemp, *ProgramCacheFilename);
 
-	TUniquePtr<FArchive> FileReader(IFileManager::Get().CreateFileReader(*ProgramCacheFilenameTemp));
-	if (FileReader)
+	TUniquePtr<FArchive> BinaryProgramReader = nullptr;
+	BinaryProgramReader = TUniquePtr<FArchive>( IFileManager::Get().CreateFileReader(*ProgramCacheFilenameTemp) );
+
+	if (BinaryProgramReader)
 	{
-		UE_LOG(LogRHI, Log, TEXT("OnShaderScanProgramCacheFile : Opened %s"), *ProgramCacheFilenameTemp);
-		FArchive& Ar = *FileReader;
-		uint32 Version = 0;
-		Ar << Version;
-		if (Version == GBinaryProgramFileVersion)
+		FArchive& Ar = *BinaryProgramReader;
+		UE::OpenGL::FBinaryCacheFileHeader BinaryCacheHeader;
+		Ar << BinaryCacheHeader;
+		if (BinaryCacheHeader.IsValid())
 		{
-			FGuid BinaryCacheGuid;
-			Ar << BinaryCacheGuid;
-			bool bCacheUsesCompressedBinaries;
-			Ar << bCacheUsesCompressedBinaries;
-
 			const bool bUseCompressedProgramBinaries = UE::OpenGL::AreBinaryProgramsCompressed();
-			bBinaryFileIsValid = (bUseCompressedProgramBinaries == bCacheUsesCompressedBinaries);
-			bBinaryFileIsValidAndGuidMatch = bBinaryFileIsValid && (!ShaderPipelineCacheVersionGuid.IsValid() || ShaderPipelineCacheVersionGuid == BinaryCacheGuid);
+			bBinaryFileIsValid = (bUseCompressedProgramBinaries == BinaryCacheHeader.bCacheUsesCompressedBinaries);
+			bBinaryFileIsValidAndGuidMatch = bBinaryFileIsValid && (!CurrentShaderPipelineCacheVersionGuid.IsValid() || CurrentShaderPipelineCacheVersionGuid == BinaryCacheHeader.BinaryCacheGuid);
 
-			if (CVarUseExistingBinaryFileCache.GetValueOnAnyThread() == 0 && bBinaryFileIsValidAndGuidMatch == false)
+			if (bBinaryFileIsValidAndGuidMatch)
 			{
-				// If we dont want to use the existing binary cache and the guids have changed then rebuild the binary file.
-				bBinaryFileIsValid = false;
-			}
-		}
-
-		if (bBinaryFileIsValid)
-		{
-			const uint32 ProgramBinaryStart = Ar.Tell();
-
-			// Search the file for the end record.
-			bool bFoundEndRecord = false;
-			int32 ProgramIndex = 0;
-			while (!Ar.AtEnd())
-			{
-				check(bFoundEndRecord == false); // There should be no additional data after the eof record.
-
-				FOpenGLProgramKey ProgramKey;
-				uint32 ProgramBinarySize = 0;
-				Ar << ProgramKey;
-				Ar << ProgramBinarySize;
-				uint32 ProgramBinaryOffset = Ar.Tell();
-				if (ProgramBinarySize == 0)
+				int32 ProgramIndex = 0;
+				FScopeLock Lock(&GPendingGLProgramCreateRequestsCS);
+				ScannedBinaryPrograms.Reserve(BinaryCacheHeader.ProgramCount);
+				if (BinaryCacheHeader.ProgramCount > 0)
 				{
-					if (ProgramKey == FOpenGLProgramKey())
+					TRefCountPtr<FOpenGLProgramBinaryMapping> CurrentMapping;
+					// success
 					{
-						bFoundEndRecord = true;
-					}
-					else
-					{
-						// Note: This should not happen with new code. We can no longer write out records with 0 program size. see AppendProgramBinaryFile.
-						UE_LOG(LogRHI, Warning, TEXT("FOpenGLProgramBinaryCache::ScanProgramCacheFile : encountered 0 sized program during binary program cache scan"));
-					}
-				}
-				Ar.Seek(ProgramBinaryOffset + ProgramBinarySize);
-			}
-
-			if (bFoundEndRecord)
-			{
-				Ar.Seek(ProgramBinaryStart);
-				while (!Ar.AtEnd())
-				{
-					FOpenGLProgramKey ProgramKey;
-					uint32 ProgramBinarySize = 0;
-					Ar << ProgramKey;
-					Ar << ProgramBinarySize;
-
-					if (ProgramBinarySize > 0)
-					{
-						FGLProgramBinaryFileCacheEntry* NewEntry = new FGLProgramBinaryFileCacheEntry();
-						NewEntry->FileInfo.ShaderHasheSet = ProgramKey;
-						NewEntry->ProgramIndex = ProgramIndex++;
-
-						uint32 ProgramBinaryOffset = Ar.Tell();
-						NewEntry->FileInfo.ProgramSize = ProgramBinarySize;
-						NewEntry->FileInfo.ProgramOffset = ProgramBinaryOffset;
-
-						if (bBinaryFileIsValidAndGuidMatch)
+						TUniquePtr<IMappedFileHandle> MappedCacheFile;
+						TUniquePtr<IMappedFileRegion> MappedRegion;
+						if(UE::OpenGL::CanMemoryMapGLProgramCache())
 						{
-							ProgramEntryContainer.Emplace(TUniquePtr<FGLProgramBinaryFileCacheEntry>(NewEntry));
-
-							// check to see if any of the shaders are already loaded and so we should serialize the binary
-							bool bAllShadersLoaded = true;
-							for (int32 i = 0; i < CrossCompiler::NUM_SHADER_STAGES && bAllShadersLoaded; i++)
+							MappedCacheFile = TUniquePtr<IMappedFileHandle>(FPlatformFileManager::Get().GetPlatformFile().OpenMapped(*ProgramCacheFilenameTemp));
+							if (ensure(MappedCacheFile.IsValid()))
 							{
-								bAllShadersLoaded = ProgramKey.ShaderHashes[i] == FSHAHash() || ShaderIsLoaded(ProgramKey.ShaderHashes[i]);
+								MappedRegion = TUniquePtr<IMappedFileRegion>(MappedCacheFile->MapRegion());
+								check(MappedRegion.IsValid());
 							}
-							if (bAllShadersLoaded)
+						}
+						CurrentMapping = new FOpenGLProgramBinaryMapping(MoveTemp(MappedCacheFile), MoveTemp(MappedRegion), BinaryCacheHeader.ProgramCount);
+					}
+
+					UE_LOG(LogRHI, Log, TEXT("OnShaderScanProgramCacheFile : %s %s"), CurrentMapping->HasValidMapping() ? TEXT("mapped") : TEXT("opened"), *ProgramCacheFilenameTemp);
+
+					MappedCacheFiles.Add(CurrentShaderPipelineCacheVersionGuid, CurrentMapping);
+					while (!Ar.AtEnd())
+					{
+						FOpenGLProgramKey ProgramKey;
+						uint32 ProgramBinarySize = 0;
+						Ar << ProgramKey;
+						Ar << ProgramBinarySize;
+						check(ProgramKey != FOpenGLProgramKey());
+						if (ensure(ProgramBinarySize > 0))
+						{
+							ProgramIndex++;
+							uint32 ProgramBinaryOffset = Ar.Tell();
+							CurrentMapping->AddProgramKey(ProgramKey);
+
+							UE_LOG(LogRHI, VeryVerbose, TEXT(" scan found PSO %s - %d"), *ProgramKey.ToString(), ProgramBinarySize);
+
+							if(CurrentMapping->HasValidMapping())
 							{
-								FPlatformMisc::LowLevelOutputDebugStringf(TEXT("*** All shaders for %s already loaded\n"), *ProgramKey.ToString());
-								NewEntry->ProgramBinaryData.AddUninitialized(ProgramBinarySize);
-								Ar.Serialize(NewEntry->ProgramBinaryData.GetData(), ProgramBinarySize);
-								NewEntry->GLProgramState = FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramLoaded;
-								CompleteLoadedGLProgramRequest_internal(NewEntry);
+								ScannedBinaryPrograms.Emplace(ProgramKey, TUniqueObj<FOpenGLProgramBinary>(CurrentMapping->GetView(ProgramBinaryOffset, ProgramBinarySize)));
+								Ar.Seek(ProgramBinaryOffset + ProgramBinarySize);
 							}
 							else
 							{
-								NewEntry->GLProgramState = FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramStored;
+								check(!UE::OpenGL::CanMemoryMapGLProgramCache());
+								TArray<uint8> ProgramBytes;
+								ProgramBytes.SetNumUninitialized(ProgramBinarySize);
+								Ar.Serialize(ProgramBytes.GetData(), ProgramBinarySize);
+								ScannedBinaryPrograms.Emplace(ProgramKey, TUniqueObj<FOpenGLProgramBinary>(MoveTemp(ProgramBytes)));
 							}
-							AddProgramFileEntryToMap(NewEntry);
 						}
-						else
-						{
-							check(!PreviousBinaryCacheInfo.ProgramToOldBinaryCacheMap.Contains(ProgramKey));
-							PreviousBinaryCacheInfo.ProgramToOldBinaryCacheMap.Emplace(ProgramKey, TUniquePtr<FGLProgramBinaryFileCacheEntry>(NewEntry));
-						}
-						Ar.Seek(ProgramBinaryOffset + ProgramBinarySize);
 					}
-				}
 
-				if (bBinaryFileIsValidAndGuidMatch)
-				{
-					UE_LOG(LogRHI, Log, TEXT("Program Binary cache: Found %d cached programs, end record found: %d"), ProgramIndex, (uint32)bFoundEndRecord);
-					FileReader->Close();
+					UE_LOG(LogRHI, VeryVerbose, TEXT("Program Binary cache: Found %d cached programs"), ProgramIndex);
+					UE_CLOG(ProgramIndex != BinaryCacheHeader.ProgramCount, LogRHI, Error, TEXT("Program Binary cache: Mismatched program count! expected: %d"), BinaryCacheHeader.ProgramCount);
+
+					BinaryProgramReader->Close();
 					// Rename the file back after a successful scan.
 					PlatformFile.MoveFile(*ProgramCacheFilename, *ProgramCacheFilenameTemp);
+					BinaryFileState = EBinaryFileState::ValidCacheFile;
 				}
 				else
 				{
-					UE_LOG(LogRHI, Log, TEXT("Program Binary cache: ShaderPipelineCache changed, regenerating for new pipeline cache. Existing cache contains %d programs, using it to populate."), PreviousBinaryCacheInfo.ProgramToOldBinaryCacheMap.Num());
-					// Not closing the scan source file, we're using it to move shaders from the old cache.
-					PreviousBinaryCacheInfo.OldCacheArchive = MoveTemp(FileReader);
-					PreviousBinaryCacheInfo.OldCacheFilename = ProgramCacheFilenameTemp;
+					// failed to find sentinel record, the file was not finalized.
+					UE_LOG(LogRHI, Warning, TEXT("ScanProgramCacheFile - incomplete or empty binary cache file encountered. Rebuilding binary program cache."));
+					BinaryProgramReader->Close();
+					bBinaryFileIsValid = false;
+					bBinaryFileIsValidAndGuidMatch = false;
+					PlatformFile.DeleteFile(*ProgramCacheFilenameTemp);
 				}
 			}
 			else
 			{
-				// failed to find sentinel record, the file was not finalized.
-				UE_LOG(LogRHI, Warning, TEXT("ScanProgramCacheFile - incomplete binary cache file encountered. Rebuilding binary program cache."));
-				FileReader->Close();
-				bBinaryFileIsValid = false;
-				bBinaryFileIsValidAndGuidMatch = false;
+				UE_LOG(LogRHI, Log, TEXT("OnShaderScanProgramCacheFile : binary file found but is invalid (%s, %s)"), *CurrentShaderPipelineCacheVersionGuid.ToString(), *BinaryCacheHeader.BinaryCacheGuid.ToString());
 			}
 		}
-
-		if (!bBinaryFileIsValid)
+		else
 		{
 			UE_LOG(LogRHI, Log, TEXT("OnShaderScanProgramCacheFile : binary file version invalid"));
-		}
-
-		if (bBinaryFileIsValidAndGuidMatch)
-		{
-			OpenAsyncReadHandle();
-			BinaryFileState = EBinaryFileState::ValidCacheFile;
 		}
 	}
 	else
@@ -477,34 +471,16 @@ void FOpenGLProgramBinaryCache::ScanProgramCacheFile(const FGuid& ShaderPipeline
 		UE_LOG(LogRHI, Log, TEXT("OnShaderScanProgramCacheFile : Failed to open %s"), *ProgramCacheFilename);
 	}
 
-	if (!bBinaryFileIsValid)
-	{
-		// Attempt to remove any existing binary cache or temp files (eg for different driver version)
-		UE_LOG(LogRHI, Log, TEXT("Deleting binary program cache folder: %s"), *CachePath);
-		PlatformFile.DeleteDirectoryRecursively(*CachePath);
-
-		// Create
-		if (!PlatformFile.CreateDirectoryTree(*CachePath))
-		{
-			UE_LOG(LogRHI, Warning, TEXT("Failed to create directory for a program binary cache. Cache will be disabled: %s"), *CachePath);
-			return;
-		}
-	}
-
-	if (!bBinaryFileIsValid || !bBinaryFileIsValidAndGuidMatch)
+	if (!bBinaryFileIsValidAndGuidMatch)
 	{
 		if (OpenWriteHandle())
 		{
-			BinaryFileState = bBinaryFileIsValid && !bBinaryFileIsValidAndGuidMatch ? EBinaryFileState::BuildingCacheFileWithMove : EBinaryFileState::BuildingCacheFile;
-
-			// save header
+			BinaryFileState = EBinaryFileState::BuildingCacheFile;
+			// save header, 0 program count indicates an unfinished file.
+			// The header is overwritten at the end of the process.
+			UE::OpenGL::FBinaryCacheFileHeader OutHeader = UE::OpenGL::FBinaryCacheFileHeader::CreateHeader(CurrentShaderPipelineCacheVersionGuid, 0);
 			FArchive& Ar = *BinaryCacheWriteFileHandle;
-			uint32 Version = GBinaryProgramFileVersion;
-			Ar << Version;
-			FGuid BinaryCacheGuid = ShaderPipelineCacheVersionGuid;
-			Ar << BinaryCacheGuid;
-			bool bWritingCompressedBinaries = (UE::OpenGL::AreBinaryProgramsCompressed());
-			Ar << bWritingCompressedBinaries;
+			Ar << OutHeader;
 		}
 		else
 		{
@@ -516,41 +492,12 @@ void FOpenGLProgramBinaryCache::ScanProgramCacheFile(const FGuid& ShaderPipeline
 	}
 }
 
-// add the GLProgramBinaryFileCacheEntry into the runtime lookup containers.
-void FOpenGLProgramBinaryCache::AddProgramFileEntryToMap(FGLProgramBinaryFileCacheEntry* NewEntry)
-{
-	const FOpenGLProgramKey& ProgramKey = NewEntry->FileInfo.ShaderHasheSet;
-	check(!ProgramToBinaryMap.Contains(ProgramKey));
-	ProgramToBinaryMap.Add(ProgramKey, NewEntry);
-
-	UE_LOG(LogRHI, Verbose, TEXT("AddProgramFileEntryToMap : Adding program: %s"), *ProgramKey.ToString());
-
-	for (int i = 0; i < CrossCompiler::NUM_NON_COMPUTE_SHADER_STAGES; ++i)
-	{
-		const FSHAHash& ShaderHash = ProgramKey.ShaderHashes[i];
-
-		if (ShaderHash != FSHAHash())
-		{
-			if (ShaderToProgramsMap.Contains(ShaderHash))
-			{
-				ShaderToProgramsMap[ShaderHash].Add(NewEntry);
-			}
-			else
-			{
-				ShaderToProgramsMap.Add(ShaderHash, NewEntry);
-			}
-		}
-	}
-}
-
 bool FOpenGLProgramBinaryCache::OpenWriteHandle()
 {
 	check(BinaryCacheWriteFileHandle == nullptr);
-	check(BinaryCacheAsyncReadFileHandle == nullptr);
 
 	// perform file writing to a file temporary filename so we don't attempt to use the file later if the write session is interrupted
-	FString ProgramCacheFilename = GetProgramBinaryCacheFilePath();
-	FString ProgramCacheFilenameWrite = ProgramCacheFilename + TEXT(".write");
+	const FString ProgramCacheFilenameWrite = GetProgramBinaryCacheFilePath() + TEXT(".write");
 
 	BinaryCacheWriteFileHandle = IFileManager::Get().CreateFileWriter(*ProgramCacheFilenameWrite, EFileWrite::FILEWRITE_None);
 
@@ -561,27 +508,27 @@ bool FOpenGLProgramBinaryCache::OpenWriteHandle()
 
 void FOpenGLProgramBinaryCache::CloseWriteHandle()
 {
-	if (BinaryFileState == EBinaryFileState::BuildingCacheFileWithMove)
-	{
-		UE_LOG(LogRHI, Log, TEXT("FOpenGLProgramBinaryCache: Deleting previous binary program cache (%s), reused %d programs from a total of %d."), *PreviousBinaryCacheInfo.OldCacheFilename, PreviousBinaryCacheInfo.NumberOfOldEntriesReused, ProgramToBinaryMap.Num());
-
-		// clean up references to old cache.
-		PreviousBinaryCacheInfo.OldCacheArchive->Close();
-		PreviousBinaryCacheInfo.OldCacheArchive = nullptr;
-		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-		PlatformFile.DeleteFile(*PreviousBinaryCacheInfo.OldCacheFilename);
-		PreviousBinaryCacheInfo.OldCacheFilename.Empty();
-		PreviousBinaryCacheInfo.ProgramToOldBinaryCacheMap.Empty();
-	}
-
 	check(BinaryCacheWriteFileHandle != nullptr);
 
-	AppendProgramBinaryFileEofEntry(*BinaryCacheWriteFileHandle);
 	bool bArchiveFailed = BinaryCacheWriteFileHandle->IsError() || BinaryCacheWriteFileHandle->IsCriticalError();
+
+	// Overwrite the header with the final program count. This indicates a successful write.
+	if(!bArchiveFailed)
+	{
+		FArchive& Ar = *BinaryCacheWriteFileHandle;
+		Ar.Seek(0);
+		UE::OpenGL::FBinaryCacheFileHeader OutHeader = UE::OpenGL::FBinaryCacheFileHeader::CreateHeader(CurrentShaderPipelineCacheVersionGuid, ProgramsWrittenToOutputCache.Num());
+		Ar << OutHeader;
+		bArchiveFailed = BinaryCacheWriteFileHandle->IsError() || BinaryCacheWriteFileHandle->IsCriticalError();
+	}
 
 	BinaryCacheWriteFileHandle->Close();
 	delete BinaryCacheWriteFileHandle;
 	BinaryCacheWriteFileHandle = nullptr;
+
+	const FString ProgramCacheFilename = GetProgramBinaryCacheFilePath();
+	const FString ProgramCacheFilenameWrite = ProgramCacheFilename + TEXT(".write");
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
 	if (bArchiveFailed)
 	{
@@ -590,71 +537,24 @@ void FOpenGLProgramBinaryCache::CloseWriteHandle()
 	}
 
 	// rename the temp filename back to the final filename
-	FString ProgramCacheFilename = GetProgramBinaryCacheFilePath();
-	FString ProgramCacheFilenameWrite = ProgramCacheFilename + TEXT(".write");
-	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	PlatformFile.DeleteFile(*ProgramCacheFilename); // file should never exist, but for safety
 	PlatformFile.MoveFile(*ProgramCacheFilename, *ProgramCacheFilenameWrite);
 }
 
-void FOpenGLProgramBinaryCache::OpenAsyncReadHandle()
-{
-	check(BinaryCacheAsyncReadFileHandle == nullptr);
-
-	FString ProgramCacheFilename = GetProgramBinaryCacheFilePath();
-	BinaryCacheAsyncReadFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*ProgramCacheFilename);
-	checkf(BinaryCacheAsyncReadFileHandle, TEXT("Could not opan an async file")); // this generally cannot fail because it is async
-}
-
-/* dead code, needs removal
-void FOpenGLProgramBinaryCache::CloseAsyncReadHandle()
-{
-	// wait for any pending reads.
-	{
-		FScopeLock Lock(&GPendingGLProgramCreateRequestsCS);
-		for (FGLProgramBinaryFileCacheEntry* CreateRequest : PendingGLProgramCreateRequests)
-		{
-			TSharedPtr<IAsyncReadRequest, ESPMode::ThreadSafe> ReadRequest = CreateRequest->ReadRequest.Pin();
-			if (ReadRequest.IsValid())
-			{
-				ReadRequest->WaitCompletion();
-				CreateRequest->ReadRequest = nullptr;
-			}
-		}
-	}
-
-	delete BinaryCacheAsyncReadFileHandle;
-	BinaryCacheAsyncReadFileHandle = nullptr;
-}*/
-
 // Called when a new program has been created by OGL RHI, creates the binary cache if it's invalid and then appends the new program details to the file and runtime containers.
-void FOpenGLProgramBinaryCache::AppendGLProgramToBinaryCache(const FOpenGLProgramKey& ProgramKey, GLuint Program, TArray<uint8>& CachedProgramBinaryOUT)
+FOpenGLProgramBinary FOpenGLProgramBinaryCache::CreateAndCacheProgramBinary_Internal(const FOpenGLProgramKey& ProgramKey, GLuint Program)
 {
-	if (IsBuildingCache_internal() == false)
-	{
-		return;
-	}
-
-	FScopeLock Lock(&GProgramBinaryFileCacheCS);
-
-	AddUniqueGLProgramToBinaryCache(ProgramKey, Program, CachedProgramBinaryOUT);
-}
-
-// Add the program to the binary cache if it does not already exist.
-void FOpenGLProgramBinaryCache::AddUniqueGLProgramToBinaryCache(const FOpenGLProgramKey& ProgramKey, GLuint Program, TArray<uint8>& CachedProgramBinaryOUT)
-{
+	FOpenGLProgramBinary CachedProgramBinary;
 	// Add to runtime and disk.
-	const FOpenGLProgramKey& ProgramHash = ProgramKey;
-
-	// Check we dont already have this: Something could be in the cache but still reach this point if OnSharedShaderCodeRequest(s) have not occurred.
-	if (!ProgramToBinaryMap.Contains(ProgramHash))
+	if (!ProgramsWrittenToOutputCache.Contains(ProgramKey))
 	{
 		uint32 ProgramBinaryOffset = 0, ProgramBinarySize = 0;
 
 		FOpenGLProgramKey SerializedProgramKey = ProgramKey;
-		if (ensure(UE::OpenGL::GetProgramBinaryFromGLProgram(Program, CachedProgramBinaryOUT)))
+		CachedProgramBinary = UE::OpenGL::GetProgramBinaryFromGLProgram(Program);
+		if (ensure(CachedProgramBinary.IsValid()))
 		{
-			AddProgramBinaryDataToBinaryCache(CachedProgramBinaryOUT, ProgramKey);
+			AddProgramBinaryDataToBinaryCache(ProgramKey, CachedProgramBinary);
 		}
 		else
 		{
@@ -666,69 +566,49 @@ void FOpenGLProgramBinaryCache::AddUniqueGLProgramToBinaryCache(const FOpenGLPro
 			// Panic!
 		}
 	}
+	return CachedProgramBinary;
 }
 
-void FOpenGLProgramBinaryCache::CacheProgramBinary(const FOpenGLProgramKey& ProgramKey, TArray<uint8>& CachedProgramBinary)
+void FOpenGLProgramBinaryCache::CacheProgramBinary(const FOpenGLProgramKey& ProgramKey, const FOpenGLProgramBinary& BinaryProgramData)
 {
 	if (CachePtr)
 	{
-		if (CachePtr->IsBuildingCache_internal() == false)
-		{
-			return;
-		}
-
 		FScopeLock Lock(&GProgramBinaryFileCacheCS);
 
-		if (!CachePtr->ProgramToBinaryMap.Contains(ProgramKey))
+		if (!CachePtr->ProgramsWrittenToOutputCache.Contains(ProgramKey))
 		{
-			CachePtr->AddProgramBinaryDataToBinaryCache(CachedProgramBinary, ProgramKey);
+			CachePtr->AddProgramBinaryDataToBinaryCache(ProgramKey, BinaryProgramData);
 		}
 	}
 }
 
 // Serialize out the program binary data and add to runtime structures.
-void FOpenGLProgramBinaryCache::AddProgramBinaryDataToBinaryCache(TArray<uint8>& BinaryProgramData, const FOpenGLProgramKey& ProgramKey)
+void FOpenGLProgramBinaryCache::AddProgramBinaryDataToBinaryCache(const FOpenGLProgramKey& ProgramKey, const FOpenGLProgramBinary& BinaryProgramData)
 {
-	FScopeLock Lock(&GProgramBinaryFileCacheCS);
+	check(IsBuildingCache_internal());
+
 	FArchive& Ar = *BinaryCacheWriteFileHandle;
 	// Serialize to output file:
 	FOpenGLProgramKey SerializedProgramKey = ProgramKey;
-	uint32 ProgramBinarySize = (uint32)BinaryProgramData.Num();
+	const TArrayView<const uint8> BinaryProgramDataView = BinaryProgramData.GetDataView();
+	uint32 ProgramBinarySize = (uint32)BinaryProgramDataView.Num();
+	const uint8* ProgramBinaryBytes = BinaryProgramDataView.GetData();
 	Ar << SerializedProgramKey;
 	uint32 ProgramBinaryOffset = Ar.Tell();
 	Ar << ProgramBinarySize;
-	Ar.Serialize(BinaryProgramData.GetData(), ProgramBinarySize);
+	Ar.Serialize(const_cast<uint8*>(ProgramBinaryBytes), ProgramBinarySize);
 	if (UE::OpenGL::AreBinaryProgramsCompressed())
 	{
 		static uint32 TotalUncompressed = 0;
 		static uint32 TotalCompressed = 0;
 
-		UE::OpenGL::FCompressedProgramBinaryHeader* Header = (UE::OpenGL::FCompressedProgramBinaryHeader*)BinaryProgramData.GetData();
+		const UE::OpenGL::FCompressedProgramBinaryHeader* Header = (UE::OpenGL::FCompressedProgramBinaryHeader*)ProgramBinaryBytes;
 		TotalUncompressed += Header->UncompressedSize;
-		TotalCompressed += BinaryProgramData.Num();
+		TotalCompressed += ProgramBinarySize;
 
 		UE_LOG(LogRHI, Verbose, TEXT("AppendProgramBinaryFile: total Uncompressed: %d, total Compressed %d, Total saved so far: %d"), TotalUncompressed, TotalCompressed, TotalUncompressed - TotalCompressed);
 	}
-
-	FGLProgramBinaryFileCacheEntry* NewIndexEntry = new FGLProgramBinaryFileCacheEntry();
-	ProgramEntryContainer.Emplace(TUniquePtr<FGLProgramBinaryFileCacheEntry>(NewIndexEntry));
-
-	// Store the program file descriptor in the runtime program/shader container:
-	NewIndexEntry->GLProgramState = FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramStored;
-	NewIndexEntry->FileInfo.ProgramOffset = ProgramBinaryOffset;
-	NewIndexEntry->FileInfo.ProgramSize = ProgramBinarySize;
-	NewIndexEntry->ProgramIndex = ProgramToBinaryMap.Num();
-	NewIndexEntry->FileInfo.ShaderHasheSet = ProgramKey;
-	AddProgramFileEntryToMap(NewIndexEntry);
-}
-
-void FOpenGLProgramBinaryCache::AppendProgramBinaryFileEofEntry(FArchive& Ar)
-{
-	// write out an all zero record that signifies eof.
-	FOpenGLProgramKey SerializedProgramKey;
-	Ar << SerializedProgramKey;
-	uint32 ProgramBinarySize = 0;
-	Ar << ProgramBinarySize;
+	ProgramsWrittenToOutputCache.Add(ProgramKey);
 }
 
 void FOpenGLProgramBinaryCache::Shutdown()
@@ -740,121 +620,35 @@ void FOpenGLProgramBinaryCache::Shutdown()
 	}
 }
 
-void FOpenGLProgramBinaryCache::CacheProgram(GLuint Program, const FOpenGLProgramKey& ProgramKey, TArray<uint8>& CachedProgramBinaryOUT)
+bool FOpenGLProgramBinaryCache::DoesOutputCacheContain(const FOpenGLProgramKey& ProgramKey)
 {
 	if (CachePtr)
 	{
-		CachePtr->AppendGLProgramToBinaryCache(ProgramKey, Program, CachedProgramBinaryOUT);
-	}
-}
-
-bool FOpenGLProgramBinaryCache::UseCachedProgram(GLuint& ProgramOUT, const FOpenGLProgramKey& ProgramKey, TArray<uint8>& CachedProgramBinaryOUT)
-{
-	if (CachePtr)
-	{
-		return CachePtr->UseCachedProgram_internal(ProgramOUT, ProgramKey, CachedProgramBinaryOUT);
+		FScopeLock Lock(&GProgramBinaryFileCacheCS);
+		return CachePtr->DoesOutputCacheContain_Internal(ProgramKey);
 	}
 	return false;
 }
 
-
-namespace UE
+bool FOpenGLProgramBinaryCache::DoesOutputCacheContain_Internal(const FOpenGLProgramKey& ProgramKey) const
 {
-	namespace OpenGL
-	{
-		extern bool CreateGLProgramFromBinary(GLuint& GLProgramIDOUT, const TArray<uint8>& ProgramBinaryData);
-		extern void OnGLProgramLoadedFromBinaryCache(const FOpenGLProgramKey& ProgramKey, TArray<uint8>&& ProgramBinaryData);
-	}
+	return ProgramsWrittenToOutputCache.Contains(ProgramKey);
 }
 
-bool FOpenGLProgramBinaryCache::UseCachedProgram_internal(GLuint& ProgramOUT, const FOpenGLProgramKey& ProgramKey, TArray<uint8>& CachedProgramBinaryOUT)
+FOpenGLProgramBinary FOpenGLProgramBinaryCache::CreateAndCacheProgramBinary(const FOpenGLProgramKey& ProgramKey, GLuint Program )
 {
-	SCOPE_CYCLE_COUNTER(STAT_OpenGLUseCachedProgramTime);
-
-	FGLProgramBinaryFileCacheEntry** ProgramBinRefPtr = nullptr;
-
-	FScopeLock Lock(&GProgramBinaryFileCacheCS);
-
-	ProgramBinRefPtr = ProgramToBinaryMap.Find(ProgramKey);
-
-	if (ProgramBinRefPtr)
+	FOpenGLProgramBinary ProgramBinary;
+	if (CachePtr)
 	{
-		FGLProgramBinaryFileCacheEntry* FoundProgram = *ProgramBinRefPtr;
-		check(FoundProgram->FileInfo.ShaderHasheSet == ProgramKey);
-
-		TSharedPtr<IAsyncReadRequest, ESPMode::ThreadSafe> LocalReadRequest = FoundProgram->ReadRequest.Pin();
-		bool bHasReadRequest = LocalReadRequest.IsValid();
-		check(!bHasReadRequest);
-
-		// by this point the program must be either available or no attempt to load from shader library has occurred.
-		checkf(FoundProgram->GLProgramState == FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramStored
-			|| FoundProgram->GLProgramState == FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramAvailable,
-			TEXT("Unexpected program state:  (%s) == %d"), *ProgramKey.ToString(), (int32)FoundProgram->GLProgramState);
-
-		if (FoundProgram->GLProgramState == FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramAvailable)
-		{
-			UE_LOG(LogRHI, Log, TEXT("UseCachedProgram : Program (%s) GLid = %x is ready!"), *ProgramKey.ToString(), FoundProgram->GLProgramId);
-			ProgramOUT = FoundProgram->GLProgramId;
-
-			// GLProgram has been handed over.
-			FoundProgram->GLProgramId = 0;
-			FoundProgram->GLProgramState = FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramComplete;
-			return true;
-		}
-		else
-		{
-			UE_LOG(LogRHI, Log, TEXT("UseCachedProgram : %s was not ready when needed!! (state %d)"), *ProgramKey.ToString(), (uint32)FoundProgram->GLProgramState);
-		}
+		FScopeLock Lock(&GProgramBinaryFileCacheCS);
+		ProgramBinary = CachePtr->CreateAndCacheProgramBinary_Internal(ProgramKey, Program);
 	}
-	else if (BinaryFileState == EBinaryFileState::BuildingCacheFileWithMove)
-	{
-		// We're building the new cache using the original cache to warm:
-		TUniquePtr<FGLProgramBinaryFileCacheEntry>* FoundExistingBinary = PreviousBinaryCacheInfo.ProgramToOldBinaryCacheMap.Find(ProgramKey);
-		if (FoundExistingBinary)
-		{
-			TUniquePtr<FGLProgramBinaryFileCacheEntry>& ExistingBinary = *FoundExistingBinary;
-			// read old binary:
-			CachedProgramBinaryOUT.SetNumUninitialized(ExistingBinary->FileInfo.ProgramSize);
-			PreviousBinaryCacheInfo.OldCacheArchive->Seek(ExistingBinary->FileInfo.ProgramOffset);
-			PreviousBinaryCacheInfo.OldCacheArchive->Serialize(CachedProgramBinaryOUT.GetData(), ExistingBinary->FileInfo.ProgramSize);
-			bool bSuccess = UE::OpenGL::CreateGLProgramFromBinary(ProgramOUT, CachedProgramBinaryOUT);
-			if (!bSuccess)
-			{
-				UE_LOG(LogRHI, Log, TEXT("[%s, %d, %d]"), *ProgramKey.ToString(), ProgramOUT, CachedProgramBinaryOUT.Num());
-				RHIGetPanicDelegate().ExecuteIfBound(FName("FailedBinaryProgramCreateFromOldCache"));
-				UE_LOG(LogRHI, Fatal, TEXT("UseCachedProgram : Failed to create GL program from binary data while BuildingCacheFileWithMove! [%s]"), *ProgramKey.ToString());
-			}
-			// Now write to new cache, we're returning true here so no attempt will be made to add it back to the cache later.
-			AddProgramBinaryDataToBinaryCache(CachedProgramBinaryOUT, ProgramKey);
-
-			PreviousBinaryCacheInfo.NumberOfOldEntriesReused++;
-			return true;
-		}
-	}
-	return false;
+	return ProgramBinary;
 }
-
-// void FOpenGLProgramBinaryCache::CompilePendingShaders(const FOpenGLLinkedProgramConfiguration& Config)
-// {
-// 	VERIFY_GL_SCOPE();
-// 
-// 	// Find the existing compiled shader in the cache.
-// 	FScopeLock Lock(&GCompiledShaderCacheCS);
-// 	for (int32 StageIdx = 0; StageIdx < UE_ARRAY_COUNT(Config.Shaders); ++StageIdx)
-// 	{
-// 		TSharedPtr<FOpenGLCompiledShaderValue> FoundShader = GetOpenGLCompiledShaderCache().FindRef(Config.Shaders[StageIdx].ShaderKey);
-// 		if (FoundShader && FoundShader->bHasCompiled == false)
-// 		{
-// 			TArray<ANSICHAR> GlslCode = FoundShader->GetUncompressedShader();
-// 			CompileCurrentShader(Config.Shaders[StageIdx].Resource, GlslCode);
-// 			FoundShader->bHasCompiled = true;
-// 		}
-// 	}
-// }
 
 FString FOpenGLProgramBinaryCache::GetProgramBinaryCacheFilePath() const
 {
-	FString ProgramFilename = CachePath + TEXT("/") + CacheFilename;
+	FString ProgramFilename = CachePath + TEXT("/") + CacheFilename + TEXT("_")+CurrentShaderPipelineCacheVersionGuid.ToString();
 	return ProgramFilename;
 }
 
@@ -863,48 +657,49 @@ void FOpenGLProgramBinaryCache::CheckPendingGLProgramCreateRequests()
 	if (CachePtr)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_OpenGLShaderCreateShaderLibRequests);
+		check(IsInRenderingThread() || IsInRHIThread());
+		FScopeLock Lock(&GPendingGLProgramCreateRequestsCS);
 		CachePtr->CheckPendingGLProgramCreateRequests_internal();
 	}
 }
 
+// Move programs encountered during the scan to the GL RHI program container.
+// GMaxBinaryProgramLoadTimeMS attempts to reduce hitching, if we're not using the LRU then we still create GL programs and require more time.
 void FOpenGLProgramBinaryCache::CheckPendingGLProgramCreateRequests_internal()
 {
-	check(IsInRenderingThread() || IsInRHIThread());
-	FScopeLock Lock(&GPendingGLProgramCreateRequestsCS);
-	//UE_LOG(LogRHI, Log, TEXT("CheckPendingGLProgramCreateRequests : PendingGLProgramCreateRequests = %d"), PendingGLProgramCreateRequests.Num());
-
-	if (PendingGLProgramCreateRequests.Num() > 0)
+	if (ScannedBinaryPrograms.Num() > 0)
 	{
-		float TimeRemainingS = (float)GMaxShaderLibProcessingTimeMS / 1000.0f;
+		//FScopedDurationTimeLogger Timer(TEXT("CheckPendingGLProgramCreateRequests"));
+		float TimeRemainingS = (float)GMaxBinaryProgramLoadTimeMS / 1000.0f;
 		double StartTime = FPlatformTime::Seconds();
 		int32 Count = 0;
-		while (PendingGLProgramCreateRequests.Num() && TimeRemainingS > 0.0f)
+
+		for (auto It = ScannedBinaryPrograms.CreateIterator(); It && TimeRemainingS > 0.0f; ++It)
 		{
-			CompleteLoadedGLProgramRequest_internal(PendingGLProgramCreateRequests.Pop());
+			UE::OpenGL::OnGLProgramLoadedFromBinaryCache(It->Key, MoveTemp(It->Value));
 			TimeRemainingS -= (float)(FPlatformTime::Seconds() - StartTime);
 			StartTime = FPlatformTime::Seconds();
 			Count++;
+			It.RemoveCurrent();
 		}
-		float TimeTaken = (float)GMaxShaderLibProcessingTimeMS - (TimeRemainingS * 1000.0f);
-		UE_CLOG(TimeTaken > 2.0f, LogRHI, Log, TEXT("CheckPendingGLProgramCreateRequests : iter count = %d, time taken = %f ms (remaining %d)"), Count, TimeTaken, PendingGLProgramCreateRequests.Num());
+		float TimeTaken = (float)GMaxBinaryProgramLoadTimeMS - (TimeRemainingS * 1000.0f);
+		if (TimeRemainingS < 0.0f)
+		{
+			UE_LOG(LogRHI, Warning, TEXT("CheckPendingGLProgramCreateRequests : iter count = %d, time taken = %f ms (remaining %d)"), Count, TimeTaken, ScannedBinaryPrograms.Num());
+		}
+		else
+		{
+			UE_LOG(LogRHI, Verbose, TEXT("CheckPendingGLProgramCreateRequests : iter count = %d, time taken = %f ms (remaining %d)"), Count, TimeTaken, ScannedBinaryPrograms.Num());
+		}
 	}
-}
-
-
-
-void FOpenGLProgramBinaryCache::CompleteLoadedGLProgramRequest_internal(FGLProgramBinaryFileCacheEntry* PendingGLCreate)
-{
-	check(PendingGLCreate->GLProgramState == FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramLoaded);
-	FOpenGLProgramKey& ProgramKey = PendingGLCreate->FileInfo.ShaderHasheSet;
-	UE::OpenGL::OnGLProgramLoadedFromBinaryCache(ProgramKey, MoveTemp(PendingGLCreate->ProgramBinaryData));
-	// Ownership transfered to OpenGLProgramsCache.
-	PendingGLCreate->GLProgramState = FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramComplete;
 }
 
 bool FOpenGLProgramBinaryCache::CheckSinglePendingGLProgramCreateRequest(const FOpenGLProgramKey& ProgramKey)
 {
 	if (CachePtr)
 	{
+		check(IsInRenderingThread() || IsInRHIThread());
+		FScopeLock Lock(&GPendingGLProgramCreateRequestsCS);
 		return CachePtr->CheckSinglePendingGLProgramCreateRequest_internal(ProgramKey);
 	}
 	return false;
@@ -913,139 +708,11 @@ bool FOpenGLProgramBinaryCache::CheckSinglePendingGLProgramCreateRequest(const F
 // Any pending program must complete in this case.
 bool FOpenGLProgramBinaryCache::CheckSinglePendingGLProgramCreateRequest_internal(const FOpenGLProgramKey& ProgramKey)
 {
-	FGLProgramBinaryFileCacheEntry** ProgramBinRefPtr = nullptr;
-	FScopeLock ProgramBinaryCacheLock(&GProgramBinaryFileCacheCS);
-	ProgramBinRefPtr = CachePtr->ProgramToBinaryMap.Find(ProgramKey);
-	if (ProgramBinRefPtr)
-	{
-		FGLProgramBinaryFileCacheEntry* ProgramEntry = *ProgramBinRefPtr;
-		TSharedPtr<IAsyncReadRequest, ESPMode::ThreadSafe> LocalReadRequest = ProgramEntry->ReadRequest.Pin();
-		if (LocalReadRequest.IsValid())
-		{
-			ensure(ProgramEntry->GLProgramState == FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramLoading);
-			LocalReadRequest->WaitCompletion();
-			ProgramEntry->ReadRequest = nullptr;
-			ProgramEntry->GLProgramState = FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramLoaded;
-			CompleteLoadedGLProgramRequest_internal(ProgramEntry);
-		}
-		else
-		{
-			FScopeLock Lock(&GPendingGLProgramCreateRequestsCS);
-			if (ProgramEntry->GLProgramState == FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramLoaded)
-			{
-				int32 PendingRequestIndex = -1;
-				if (ensure(PendingGLProgramCreateRequests.Find(ProgramEntry, PendingRequestIndex)))
-				{
-					CompleteLoadedGLProgramRequest_internal(ProgramEntry);
-					PendingGLProgramCreateRequests.RemoveAtSwap(PendingRequestIndex);
-				}
-			}
-		}
+	TUniqueObj<FOpenGLProgramBinary> ProgFound;
+	if (ScannedBinaryPrograms.RemoveAndCopyValue(ProgramKey, ProgFound))
+	{		
+		UE::OpenGL::OnGLProgramLoadedFromBinaryCache(ProgramKey, MoveTemp(ProgFound));
 		return true;
 	}
 	return false;
-}
-
-bool OnExternalReadCallback(const TSharedPtr<IAsyncReadRequest, ESPMode::ThreadSafe>& AsyncReadRequest, FGLProgramBinaryFileCacheEntry* ProgramBinEntry, TArray<FGLProgramBinaryFileCacheEntry*>& PendingGLProgramCreateRequests, double RemainingTime)
-{
-	if (!AsyncReadRequest->WaitCompletion(RemainingTime))
-	{
-		return false;
-	}
-
-	FScopeLock ProgramBinaryCacheLock(&GProgramBinaryFileCacheCS);
-
-	if (ProgramBinEntry->GLProgramState == FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramLoading)
-	{
-		// Async load complete.
-		ProgramBinEntry->GLProgramState = FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramLoaded;
-		FOpenGLProgramKey& ProgramKey = ProgramBinEntry->FileInfo.ShaderHasheSet;
-
-		{
-			// Add this program to the create queue.
-			FScopeLock Lock(&GPendingGLProgramCreateRequestsCS);
-			PendingGLProgramCreateRequests.Add(ProgramBinEntry);
-		}
-	}
-
-	return true;
-}
-
-void FOpenGLProgramBinaryCache::BeginProgramReadRequest(FGLProgramBinaryFileCacheEntry* ProgramBinEntry, FArchive* Ar)
-{
-	check(ProgramBinEntry);
-
-	TSharedPtr<IAsyncReadRequest, ESPMode::ThreadSafe> LocalReadRequest = ProgramBinEntry->ReadRequest.Pin();
-	bool bHasReadRequest = LocalReadRequest.IsValid();
-
-	if (ensure(!bHasReadRequest))
-	{
-		check(ProgramBinEntry->ProgramBinaryData.Num() == 0);
-		check(ProgramBinEntry->GLProgramState == FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramStored);
-
-		int64 ReadSize = ProgramBinEntry->FileInfo.ProgramSize;
-		int64 ReadOffset = ProgramBinEntry->FileInfo.ProgramOffset;
-
-		if (ensure(ReadSize > 0))
-		{
-			ProgramBinEntry->ProgramBinaryData.SetNumUninitialized(ReadSize);
-			ProgramBinEntry->GLProgramState = FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramLoading;
-			LocalReadRequest = MakeShareable(BinaryCacheAsyncReadFileHandle->ReadRequest(ReadOffset, ReadSize, AIOP_Normal, nullptr, ProgramBinEntry->ProgramBinaryData.GetData()));
-			ProgramBinEntry->ReadRequest = LocalReadRequest;
-			bHasReadRequest = true;
-
-			FExternalReadCallback ExternalReadCallback = [ProgramBinEntry, LocalReadRequest, this](double ReaminingTime)
-			{
-				return OnExternalReadCallback(LocalReadRequest, ProgramBinEntry, PendingGLProgramCreateRequests, ReaminingTime);
-			};
-
-			if (!Ar || !Ar->AttachExternalReadDependency(ExternalReadCallback))
-			{
-				// Archive does not support async loading
-				// do a blocking load
-				ExternalReadCallback(0.0);
-			}
-		}
-	}
-}
-
-void FOpenGLProgramBinaryCache::OnShaderLibraryRequestShaderCode(const FSHAHash& Hash, FArchive* Ar)
-{
-	if (CachePtr)
-	{
-		CachePtr->OnShaderLibraryRequestShaderCode_internal(Hash, Ar);
-	}
-}
-
-void FOpenGLProgramBinaryCache::OnShaderLibraryRequestShaderCode_internal(const FSHAHash& Hash, FArchive* Ar)
-{
-	FScopeLock Lock(&GProgramBinaryFileCacheCS);
-	FGLShaderToPrograms& FoundShaderToBinary = ShaderToProgramsMap.FindOrAdd(Hash);
-	if (!FoundShaderToBinary.bLoaded)
-	{
-		FoundShaderToBinary.bLoaded = true;
-
-		// if the binary cache is valid, look to see if we now have any complete programs to stream in.
-		// otherwise, we'll do this check bLoaded shaders when the binary cache loads.
-		if (BinaryFileState == EBinaryFileState::ValidCacheFile)
-		{
-			for (struct FGLProgramBinaryFileCacheEntry* ProgramBinEntry : FoundShaderToBinary.AssociatedPrograms)
-			{
-				const FOpenGLProgramKey& ProgramKey = ProgramBinEntry->FileInfo.ShaderHasheSet;
-				if (ProgramBinEntry->GLProgramState == FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramStored)
-				{
-					bool bAllShadersLoaded = true;
-					for (int32 i = 0; i < CrossCompiler::NUM_NON_COMPUTE_SHADER_STAGES && bAllShadersLoaded; i++)
-					{
-						bAllShadersLoaded = ProgramKey.ShaderHashes[i] == FSHAHash() || ShaderIsLoaded(ProgramKey.ShaderHashes[i]);
-					}
-
-					if (bAllShadersLoaded)
-					{
-						FOpenGLProgramBinaryCache::BeginProgramReadRequest(ProgramBinEntry, Ar);
-					}
-				}
-			}
-		}
-	}
 }
