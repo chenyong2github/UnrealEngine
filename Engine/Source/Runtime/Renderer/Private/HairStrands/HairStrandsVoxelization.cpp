@@ -203,7 +203,7 @@ static void AddVirtualVoxelInjectOpaquePass(
 	const FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
 
 	check(VoxelResources.Parameters.Common.IndirectDispatchGroupSize == 64);
-	const uint32 ArgsOffset = sizeof(uint32) * 3 * Parameters->MacroGroupId;
+	const uint32 ArgsOffset = sizeof(FRHIDispatchIndirectParameters) * Parameters->MacroGroupId;
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder, 
@@ -903,7 +903,7 @@ static void AddAllocateVoxelPagesPass(
 				Parameters->PageIndexResolutionAndOffsetBuffer = PageIndexResolutionAndOffsetBufferSRV;
 				Parameters->IndirectBufferArgs = PageIndexAllocationIndirectBufferArgs;
 
-				const uint32 ArgsOffset = sizeof(uint32) * 3 * MacroGroup.MacroGroupId;
+				const uint32 ArgsOffset = sizeof(FRHIDispatchIndirectParameters) * MacroGroup.MacroGroupId;
 
 				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::AllocateVoxelPage"), ComputeShader, Parameters, 
 					PageIndexAllocationIndirectBufferArgs,

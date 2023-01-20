@@ -271,7 +271,7 @@ Texture2D<uint> 	ShadowMaskBitsTexture;
 Texture2D<float4> 	RayMarchMaskTexture;
 float4				ShadowChannelMask;
 #endif
-Buffer<uint4>		IndirectArgsBuffer;
+Buffer<uint>		IndirectArgsBuffer;
 RWBuffer<uint>		OutTransmittanceMask;
 
 FHairTransmittanceMask ComputeTransmittanceVoxel(

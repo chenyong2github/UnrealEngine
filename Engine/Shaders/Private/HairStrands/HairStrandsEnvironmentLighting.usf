@@ -829,7 +829,7 @@ void MainVS(
 
 #if LIGHTING_PS
 
-Buffer<uint4> IndirectArgsBuffer;
+Buffer<uint> IndirectArgsBuffer;
 
 void MainPS(
 	float4 SVPos : SV_POSITION,

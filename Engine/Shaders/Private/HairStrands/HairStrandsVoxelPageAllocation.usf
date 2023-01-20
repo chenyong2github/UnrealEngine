@@ -740,9 +740,7 @@ void VoxelIndPageClearBufferGenCS(uint GroupIndex : SV_GroupIndex, uint3 Dispatc
 	const uint DispatchX = TotalAllocatedPageCount % MaxGroupCountPerDim;
 	const uint DispatchY = ceil(TotalAllocatedPageCount / float(MaxGroupCountPerDim));
 
-	OutIndirectArgsBuffer[0] = DispatchX;
-	OutIndirectArgsBuffer[1] = DispatchY;
-	OutIndirectArgsBuffer[2] = ceil(VoxelCountPerPage / float(IND_CLEAR_GROUP_SIZE_Z));
+	WriteDispatchIndirectArgs(OutIndirectArgsBuffer, 0, DispatchX, DispatchY, ceil(VoxelCountPerPage / float(IND_CLEAR_GROUP_SIZE_Z)));
 }
 
 #endif
