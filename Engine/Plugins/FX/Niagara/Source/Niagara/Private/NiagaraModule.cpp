@@ -1423,7 +1423,7 @@ bool FNiagaraTypeDefinition::Serialize(FArchive& Ar)
 				else if((Flags & TF_AllowLWC) == 0)
 				{	
 					//If the type doesn't allow LWC we should convert down to SWC.
-					ClassStructOrEnum = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(static_cast<UScriptStruct*>(ClassStructOrEnum), ENiagaraStructConversion::Simulation);
+					ClassStructOrEnum = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(static_cast<UScriptStruct*>(ClassStructOrEnum), ENiagaraStructConversion::UserFacing);
 				}
 	#endif
 			}
