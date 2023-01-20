@@ -210,6 +210,14 @@ public:
 	 */
 	static UPackage* FindOrCreatePackageForAssetType(const FName LongPackageName, UClass* AssetClass);
 
+	/**
+	 * Utility function that gathers all async compilable objects from given packages
+	 * and flush them to make sure there is no remaining async work trying to load data
+	 * from said packages.
+	 * @param Packages List of packages from which to gather compilable assets to flush.
+	 */
+	static void FlushAsyncCompilation(TArrayView<UPackage* const> Packages);
+
 private:
 	static void RestoreStandaloneOnReachableObjects();
 

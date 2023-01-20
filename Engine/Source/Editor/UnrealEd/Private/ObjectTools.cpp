@@ -159,53 +159,6 @@ void ReloadEditorWorldForReferenceReplacementIfNecessary(TArray< TWeakObjectPtr<
 	}
 }
 
-// Note that the contents of this namespace are a copy of code from PackageTools.cpp submitted as part of a 
-// release hot fix. In UE 5.2 we should merge the two sets of code and place them in a common utility file.
-namespace UE::Private
-{
-
-/**
- * Utility function that checks each UObject inside of the given UPackage to see if it is waiting
- * on async compilation.
- *
- * @return true if the package contains at least one UObject that has compilation work running, otherwise false.
- */
-static bool IsPackageCompiling(const UPackage* Package)
-{
-	bool bIsCompiling = false;
-	ForEachObjectWithPackage(Package, [&bIsCompiling](const UObject* Object)
-		{
-			const IInterface_AsyncCompilation* AsyncCompilationIF = Cast<IInterface_AsyncCompilation>(Object);
-			if (AsyncCompilationIF != nullptr && AsyncCompilationIF->IsCompiling())
-			{
-				bIsCompiling = true;
-				return false;
-			}
-			else
-			{
-				return true;
-			}
-		});
-
-	return bIsCompiling;
-}
-
-/**
- * Utility function that checks the provided package to see if it contains
- * any assets that currently have async compilation work running.
- * If there are assets that are waiting on async compilation work then we
- * wait on all currently outstanding work to finish before returning.
- */
-static void FlushAsyncCompilation(const UPackage* Package)
-{
-	if (UE::Private::IsPackageCompiling(Package))
-	{
-		FAssetCompilingManager::Get().FinishAllCompilation();
-	}
-}
-
-} // namespace UE::Private
-
 namespace ObjectTools
 {
 	/** Returns true if the specified object can be displayed in a content browser */
@@ -4214,8 +4167,8 @@ namespace ObjectTools
 			// Look for a thumbnail for this asset before we rename it
 			FObjectThumbnail* Thumbnail = ThumbnailTools::GetThumbnailForObject(Object);
 
-			//
-			UE::Private::FlushAsyncCompilation(Object->GetPackage());
+			// Make sure there is no async compilation outstanding in the package we're going to unload
+			UPackageTools::FlushAsyncCompilation( { Object->GetPackage() });
 
 			FString OldObjectFullName = Object->GetFullName();
 			FString OldObjectPathName = Object->GetPathName();

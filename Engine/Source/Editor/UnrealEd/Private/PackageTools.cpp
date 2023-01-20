@@ -74,19 +74,11 @@ TSet<UPackage*>* UPackageTools::PackagesBeingUnloaded = nullptr;
 TSet<UObject*> UPackageTools::ObjectsThatHadFlagsCleared;
 FDelegateHandle UPackageTools::ReachabilityCallbackHandle;
 
-namespace
-{
-
-/**
- * Utility function that gathers all async compilable objects from given packages
- * and flush them to make sure there is no remaining async work trying to load data
- * from said packages.
- */
-static void FlushAsyncCompilation(const TSet<UPackage*>& PackagesToUnload)
+void UPackageTools::FlushAsyncCompilation(TArrayView<UPackage* const> InPackages)
 {
 	TArray<UObject*> ObjectsToFinish;
 
-	for (const UPackage* Package : PackagesToUnload)
+	for (const UPackage* Package : InPackages)
 	{
 		ForEachObjectWithPackage(Package, [&ObjectsToFinish](UObject* Object)
 		{
@@ -104,8 +96,6 @@ static void FlushAsyncCompilation(const TSet<UPackage*>& PackagesToUnload)
 		FAssetCompilingManager::Get().FinishCompilationForObjects(ObjectsToFinish);
 	}
 }
-
-} // anonymous namespace
 
 UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -417,7 +407,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 
 			// We need to make sure that there is no async compilation work running for the packages that we are about to unload
 			// so that it is safe to call ::ResetLoaders
-			FlushAsyncCompilation(PackagesToUnload);
+			FlushAsyncCompilation(PackagesToUnload.Array());
 
 			// Now try to clean up assets in all packages to unload.
 			int32 PackageIndex = 0;
