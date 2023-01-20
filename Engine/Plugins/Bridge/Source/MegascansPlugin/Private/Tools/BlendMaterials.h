@@ -6,13 +6,6 @@
 struct FAssetData;
 struct FUAssetMeta;
 
-enum EImportState
-{
-    Instance,
-    Albedo,
-    Normal
-};
-
 class FMaterialBlend
 {
 private:
