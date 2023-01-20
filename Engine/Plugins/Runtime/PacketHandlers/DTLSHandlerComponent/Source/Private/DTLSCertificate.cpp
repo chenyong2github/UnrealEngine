@@ -3,6 +3,7 @@
 #include "DTLSCertificate.h"
 #include "CoreGlobals.h"
 #include "Misc/ScopeExit.h"
+#include "HAL/FileManager.h"
 
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
@@ -11,6 +12,7 @@ THIRD_PARTY_INCLUDES_START
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/ossl_typ.h>
+#include <openssl/pem.h>
 #include <openssl/rsa.h>
 THIRD_PARTY_INCLUDES_END
 #undef UI
@@ -45,6 +47,97 @@ void FDTLSCertificate::FreeCertificate()
 	}
 
 	Fingerprint.Reset();
+}
+
+bool FDTLSCertificate::ExportCertificate(const FString& CertPath)
+{
+	if (Certificate)
+	{
+		if (!CertPath.IsEmpty())
+		{
+			BIO* CertificateBio = BIO_new(BIO_s_mem());
+			PEM_write_bio_X509(CertificateBio, Certificate);
+
+			TArray<uint8> MemBuffer;
+			uint64 MemBufferSize = BIO_number_written(CertificateBio);
+			MemBuffer.AddUninitialized(MemBufferSize);
+
+			BIO_read(CertificateBio, MemBuffer.GetData(), MemBufferSize);
+			BIO_free(CertificateBio);
+			CertificateBio = nullptr;
+
+			TUniquePtr<FArchive> ExportAr(IFileManager::Get().CreateFileWriter(*CertPath));
+
+			if (ExportAr.IsValid())
+			{
+				ExportAr->Serialize(MemBuffer.GetData(), MemBuffer.Num());
+				return true;
+			}
+			else
+			{
+				UE_LOG(LogDTLSHandler, Error, TEXT("ExportCertificate: Unable to create file writer for: %s"), *CertPath);
+			}
+		}
+		else
+		{
+			UE_LOG(LogDTLSHandler, Error, TEXT("ExportCertificate: Empty cert path"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogDTLSHandler, Error, TEXT("ExportCertificate: Cert not valid"));
+	}
+
+	return false;
+}
+
+bool FDTLSCertificate::ImportCertificate(const FString& CertPath)
+{
+	if (Certificate == nullptr)
+	{
+		if (!CertPath.IsEmpty())
+		{
+			TUniquePtr<FArchive> ImportAr(IFileManager::Get().CreateFileReader(*CertPath));
+			if (ImportAr.IsValid())
+			{
+				const int64 MemBufferSize = ImportAr->TotalSize();
+
+				TArray<uint8> MemBuffer;
+				MemBuffer.AddUninitialized(MemBufferSize + 1);
+				ImportAr->Serialize(MemBuffer.GetData(), MemBufferSize);
+				MemBuffer[MemBufferSize] = '\0';
+
+				BIO* CertificateBio = BIO_new_mem_buf(MemBuffer.GetData(), -1);
+				Certificate = PEM_read_bio_X509(CertificateBio, nullptr, 0, nullptr);
+
+				BIO_free(CertificateBio);
+				CertificateBio = nullptr;
+
+				if (Certificate)
+				{
+					return GenerateFingerprint();
+				}
+				else
+				{
+					UE_LOG(LogDTLSHandler, Error, TEXT("ImportCertificate: Unable to read valid x509 certifcate"));
+				}
+			}
+			else
+			{
+				UE_LOG(LogDTLSHandler, Error, TEXT("ImportCertificate: Unable to create file reader for: %s"), *CertPath);
+			}
+		}
+		else
+		{
+			UE_LOG(LogDTLSHandler, Error, TEXT("ImportCertificate: Empty cert path"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogDTLSHandler, Error, TEXT("ImportCertificate: Cert already exists"));
+	}
+
+	return false;
 }
 
 bool FDTLSCertificate::GenerateCertificate(const FTimespan& Lifetime)
@@ -120,18 +213,23 @@ bool FDTLSCertificate::GenerateCertificate(const FTimespan& Lifetime)
 		return bSuccess;
 	}
 
+	bSuccess = GenerateFingerprint();
+
+	return bSuccess;
+}
+
+bool FDTLSCertificate::GenerateFingerprint()
+{
 	Fingerprint.Reset();
 
 	uint32 HashLen = FDTLSFingerprint::Length;
 
-	ResultCode = X509_digest(Certificate, EVP_sha256(), Fingerprint.Data, &HashLen);
+	int32 ResultCode = X509_digest(Certificate, EVP_sha256(), Fingerprint.Data, &HashLen);
 	if (ResultCode <= 0)
 	{
 		UE_LOG(LogDTLSHandler, Error, TEXT("Failed to hash cert: %d"), ResultCode);
-		return bSuccess;
+		return false;
 	}
 
-	bSuccess = true;
-
-	return bSuccess;
+	return true;
 }

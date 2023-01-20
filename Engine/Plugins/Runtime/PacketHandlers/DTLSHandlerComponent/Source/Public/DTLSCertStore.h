@@ -47,6 +47,25 @@ public:
 	TSharedPtr<FDTLSCertificate> GetCert(const FString& Identifier) const;
 
 	/**
+	 * Import a certificate from file
+	 *
+	 * @Param CertPath path to certificate file
+	 *
+	 * @return shared pointer to certificate, valid if import succeeded
+	 */
+	TSharedPtr<FDTLSCertificate> ImportCert(const FString& CertPath) const;
+
+	/**
+	 * Import a certificate from file and store internally
+	 *
+	 * @Param CertPath path to certificate file
+	 * @Param Identifier name to use when storing certificate for later use
+	 *
+	 * @return shared pointer to certificate, valid if import succeeded
+	 */
+	TSharedPtr<FDTLSCertificate> ImportCert(const FString& CertPath, const FString& Identifier);
+
+	/**
 	 * Remove a certificate using unique identifier
 	 *
 	 * @Param Identifier unique identifier used when cert was added

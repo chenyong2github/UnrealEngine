@@ -45,12 +45,6 @@ public class HTTP : ModuleRules
 			}
 			);
 
-		PrivateDependencyModuleNames.AddRange(
-			new string[] {
-				"SSL",
-			}
-			);
-
 		if (bPlatformSupportsCurl)
 		{
 			PrivateDependencyModuleNames.AddRange(
@@ -88,7 +82,12 @@ public class HTTP : ModuleRules
 
 		if (bPlatformRequiresOpenSSL)
 		{
+			PrivateDependencyModuleNames.Add("SSL");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
+		}
+		else
+		{
+			PrivateDefinitions.Add("WITH_SSL=0");
 		}
 
 		if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS || Target.Platform == UnrealTargetPlatform.Mac)

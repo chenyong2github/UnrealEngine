@@ -86,8 +86,7 @@ public class ElectraHTTPStream : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"ElectraBase",
-				"SSL",
+				"ElectraBase"
 			});
 
 		// When Curl is used we need to make sure there is no conflict with its use in the engine's HTTP module
@@ -140,10 +139,15 @@ public class ElectraHTTPStream : ModuleRules
 		}
 
 		PublicDefinitions.Add("ELECTRA_HTTPSTREAM_REQUIRES_SECURE_CONNECTIONS=" + (bPlatformRequiresSecureConnections ? "1" : "0"));
-
+		
 		if (bPlatformRequiresOpenSSL)
 		{
+			PrivateDependencyModuleNames.Add("SSL");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
+		}
+		else
+		{
+			PrivateDefinitions.Add("WITH_SSL=0");
 		}
 
 		// Apple
