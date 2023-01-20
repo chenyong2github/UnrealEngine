@@ -221,6 +221,7 @@ struct alignas(PLATFORM_CACHE_LINE_SIZE) FWorkerContext
 private:
 	template <typename ProcessorType, typename CollectorType>
 	friend class TFastReferenceCollector;
+	friend class FSlowAROManager;
 	
 	// This is set by GC when processing references from the current referencing object
 	UObject* ReferencingObject = nullptr;
@@ -536,9 +537,10 @@ public:
 
 StoleContext:
 		// Process initial references first
+		Context.ReferencingObject = FGCObject::GGCObjectReferencer;
 		for (UObject** InitialReference : Context.InitialNativeReferences)
 		{
-			Dispatcher.HandleKillableReference(*InitialReference, ETokenlessId::Collector, EGCTokenType::Native);
+			Dispatcher.HandleKillableReference(*InitialReference, ETokenlessId::InitialReference, EGCTokenType::Native);
 		}
 
 		TConstArrayView<UObject*> CurrentObjects = Context.InitialObjects;
