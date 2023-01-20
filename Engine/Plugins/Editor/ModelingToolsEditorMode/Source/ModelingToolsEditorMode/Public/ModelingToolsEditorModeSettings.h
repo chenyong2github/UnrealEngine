@@ -325,4 +325,31 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|Tool Assets")
 	TArray<FModelingModeAssetCollectionSet> BrushAlphaSets;
+
+
+
+public:
+
+	// saved-state for various mode settings that are configured via UI toggles/etc, and not exposed in settings dialog
+
+	UPROPERTY(config)
+	int32 LastMeshSelectionDragMode = 0;
+
+public:
+
+	// saved-state for various mode settings that does not persist between editor runs
+
+	UPROPERTY()
+	int32 LastMeshSelectionElementType = 0;
+
+	UPROPERTY()
+	int32 LastMeshSelectionTopologyMode = 0;
+
+	UPROPERTY()
+	bool bLastMeshSelectionVolumeToggle = false;
+
+	UPROPERTY()
+	bool bLastMeshSelectionStaticMeshToggle = false;
+
+
 };

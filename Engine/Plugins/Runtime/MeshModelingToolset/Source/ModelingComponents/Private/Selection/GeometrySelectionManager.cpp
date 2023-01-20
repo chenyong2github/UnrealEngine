@@ -567,6 +567,50 @@ void UGeometrySelectionManager::UpdateSelectionViaRaycast(
 }
 
 
+void UGeometrySelectionManager::UpdateSelectionViaConvex(
+	const FConvexVolume& ConvexVolume,
+	const FGeometrySelectionUpdateConfig& UpdateConfig,
+	FGeometrySelectionUpdateResult& ResultOut )
+{
+	ResultOut.bSelectionModified = false;
+
+	if (ActiveTargetReferences.Num() == 0)
+	{
+		return;
+	}
+
+	// currently only going to support one object, not sure how to support more yet...
+	FGeometrySelectionTarget* Target = ActiveTargetReferences[0].Get();
+
+	IGeometrySelector::FWorldShapeQueryInfo ShapeQueryInfo;
+	ShapeQueryInfo.Convex = ConvexVolume;
+	IToolsContextQueriesAPI* QueryAPI = this->ToolsContext->ToolManager->GetContextQueriesAPI();
+	QueryAPI->GetCurrentViewState(ShapeQueryInfo.CameraState);
+
+	Target->Selector->UpdateSelectionViaShape(
+		ShapeQueryInfo, *Target->SelectionEditor, UpdateConfig, ResultOut );
+
+	if (ResultOut.bSelectionModified)
+	{
+		TUniquePtr<FGeometrySelectionDeltaChange> DeltaChange = MakeUnique<FGeometrySelectionDeltaChange>();
+		DeltaChange->Identifier = Target->SelectionIdentifer;
+		DeltaChange->Delta = ResultOut.SelectionDelta;
+
+		GetTransactionsAPI()->BeginUndoTransaction(LOCTEXT("UpdateSelectionViaConvex", "Change Selection"));
+		GetTransactionsAPI()->AppendChange(this, MoveTemp(DeltaChange), LOCTEXT("UpdateSelectionViaConvex", "Change Selection"));
+		GetTransactionsAPI()->EndUndoTransaction();
+
+		bSelectionRenderCachesDirty = true;
+		OnSelectionModified.Broadcast();
+	}
+	else if (ResultOut.bSelectionMissed && UpdateConfig.ChangeType == EGeometrySelectionChangeType::Replace)
+	{
+		ClearSelection();
+	}
+}
+
+
+
 bool UGeometrySelectionManager::CanBeginTrackedSelectionChange() const
 {
 	return ActiveTargetReferences.Num() > 0 && bInTrackedSelectionChange == false;

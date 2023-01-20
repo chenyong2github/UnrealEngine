@@ -301,6 +301,9 @@ void MakeSubMenu_Selection_DragMode(FModelingToolsEditorModeToolkit* Toolkit, FM
 			FExecuteAction::CreateLambda([SelectionInteraction, DragMode]
 			{
 				SelectionInteraction->SetActiveDragMode(DragMode);
+				UModelingToolsModeCustomizationSettings* ModelingEditorSettings = GetMutableDefault<UModelingToolsModeCustomizationSettings>();
+				ModelingEditorSettings->LastMeshSelectionDragMode = static_cast<int>(DragMode);
+				ModelingEditorSettings->SaveConfig();
 			}),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateLambda([SelectionInteraction, DragMode]()
@@ -319,10 +322,11 @@ void MakeSubMenu_Selection_DragMode(FModelingToolsEditorModeToolkit* Toolkit, FM
 		LOCTEXT("Selection_DragInput_Path_Tooltip", "Path Drag Input"),
 		FSlateIcon(), MakeDragModeOptionAction(EModelingSelectionInteraction_DragMode::PathInteraction), NAME_None, EUserInterfaceActionType::ToggleButton);
 
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Selection_DragInput_Marquee", "Rectangle"), 
-		LOCTEXT("Selection_DragInput_Marquee_Tooltip", "Rectangle Marquee"),
-		FSlateIcon(), MakeDragModeOptionAction(EModelingSelectionInteraction_DragMode::RectangleMarqueeInteraction), NAME_None, EUserInterfaceActionType::ToggleButton);
+	// marquee mode is not functional yet, so this is disabled
+	//MenuBuilder.AddMenuEntry(
+	//	LOCTEXT("Selection_DragInput_Marquee", "Rectangle"), 
+	//	LOCTEXT("Selection_DragInput_Marquee_Tooltip", "Rectangle Marquee"),
+	//	FSlateIcon(), MakeDragModeOptionAction(EModelingSelectionInteraction_DragMode::RectangleMarqueeInteraction), NAME_None, EUserInterfaceActionType::ToggleButton);
 
 }
 
@@ -334,6 +338,9 @@ void MakeSubMenu_Selection_MeshType(FModelingToolsEditorModeToolkit* Toolkit, FM
 		FExecuteAction::CreateLambda([ModelingMode]
 		{
 			ModelingMode->bEnableVolumeElementSelection = ! ModelingMode->bEnableVolumeElementSelection;
+
+			UModelingToolsModeCustomizationSettings* ModelingEditorSettings = GetMutableDefault<UModelingToolsModeCustomizationSettings>();
+			ModelingEditorSettings->bLastMeshSelectionVolumeToggle = ModelingMode->bEnableVolumeElementSelection;
 		}),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([ModelingMode]()
@@ -344,6 +351,9 @@ void MakeSubMenu_Selection_MeshType(FModelingToolsEditorModeToolkit* Toolkit, FM
 		FExecuteAction::CreateLambda([ModelingMode]
 		{
 			ModelingMode->bEnableStaticMeshElementSelection = ! ModelingMode->bEnableStaticMeshElementSelection;
+
+			UModelingToolsModeCustomizationSettings* ModelingEditorSettings = GetMutableDefault<UModelingToolsModeCustomizationSettings>();
+			ModelingEditorSettings->bLastMeshSelectionStaticMeshToggle = ModelingMode->bEnableStaticMeshElementSelection;
 		}),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([ModelingMode]()

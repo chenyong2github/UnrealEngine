@@ -177,6 +177,15 @@ UModelingToolsEditorMode::~UModelingToolsEditorMode()
 
 bool UModelingToolsEditorMode::ProcessEditDelete()
 {
+	if (SelectionManager && SelectionManager->HasSelection())
+	{
+		if ( UDeleteGeometrySelectionCommand* DeleteCommand = Cast<UDeleteGeometrySelectionCommand>(ModelingModeCommands[0]) )
+		{
+			SelectionManager->ExecuteSelectionCommand(DeleteCommand);
+			return true;
+		}
+	}
+
 	if (UEdMode::ProcessEditDelete())
 	{
 		return true;
@@ -751,36 +760,6 @@ void UModelingToolsEditorMode::Enter()
 	
 
 	// set up selection type toggles
-	auto RegisterSelectionTopologyType = [this](UGeometrySelectionManager::EMeshTopologyMode TopoMode, TSharedPtr<FUICommandInfo> UICommand)
-	{
-		Toolkit->GetToolkitCommands()->MapAction(UICommand,
-			FExecuteAction::CreateLambda([this, TopoMode]() { GetSelectionManager()->SetMeshTopologyMode(TopoMode); }),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([this, TopoMode]() { return GetSelectionManager()->GetMeshTopologyMode() == TopoMode; }),
-			EUIActionRepeatMode::RepeatDisabled);
-	};
-	if (GetSelectionManager() != nullptr)
-	{
-		RegisterSelectionTopologyType(UGeometrySelectionManager::EMeshTopologyMode::None, ToolManagerCommands.BeginSelectionAction_ToObjectType);
-		RegisterSelectionTopologyType(UGeometrySelectionManager::EMeshTopologyMode::Triangle, ToolManagerCommands.BeginSelectionAction_ToTriangleType);
-		RegisterSelectionTopologyType(UGeometrySelectionManager::EMeshTopologyMode::Polygroup, ToolManagerCommands.BeginSelectionAction_ToPolygroupType);
-	}
-
-	auto RegisterSelectionElementType = [this](UE::Geometry::EGeometryElementType ElementMode, TSharedPtr<FUICommandInfo> UICommand)
-	{
-		Toolkit->GetToolkitCommands()->MapAction(UICommand,
-			FExecuteAction::CreateLambda([this, ElementMode]() { GetSelectionManager()->SetSelectionElementType(ElementMode); }),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([this, ElementMode]() { return GetSelectionManager()->GetSelectionElementType() == ElementMode; }),
-			EUIActionRepeatMode::RepeatDisabled);
-	};
-	if (GetSelectionManager() != nullptr)
-	{
-		RegisterSelectionElementType(UE::Geometry::EGeometryElementType::Vertex, ToolManagerCommands.BeginSelectionAction_ToVertexType);
-		RegisterSelectionElementType(UE::Geometry::EGeometryElementType::Edge, ToolManagerCommands.BeginSelectionAction_ToEdgeType);
-		RegisterSelectionElementType(UE::Geometry::EGeometryElementType::Face, ToolManagerCommands.BeginSelectionAction_ToFaceType);
-	}
-
 
 	auto RegisterSelectionMode = [this](UGeometrySelectionManager::EMeshTopologyMode TopoMode, UE::Geometry::EGeometryElementType ElementMode, TSharedPtr<FUICommandInfo> UICommand)
 	{
@@ -790,6 +769,11 @@ void UModelingToolsEditorMode::Enter()
 				GetSelectionManager()->SetMeshTopologyMode(TopoMode); 
 				GetSelectionManager()->SetSelectionElementType(ElementMode);
 				GetToolManager()->GetContextTransactionsAPI()->EndUndoTransaction();
+
+				UModelingToolsModeCustomizationSettings* ModelingEditorSettings = GetMutableDefault<UModelingToolsModeCustomizationSettings>();
+				ModelingEditorSettings->LastMeshSelectionTopologyMode = static_cast<int>(TopoMode);
+				ModelingEditorSettings->LastMeshSelectionElementType = static_cast<int>(ElementMode);
+				ModelingEditorSettings->SaveConfig();
 			}),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateLambda([this, TopoMode, ElementMode]() { return GetSelectionManager()->GetMeshTopologyMode() == TopoMode && GetSelectionManager()->GetSelectionElementType() == ElementMode; }),
@@ -930,9 +914,36 @@ void UModelingToolsEditorMode::Enter()
 	SelectionModifiedEventHandle = GetModeManager()->GetSelectedActors()->SelectionChangedEvent.AddLambda(
 		[this](const UObject* Object)  { UpdateSelectionManagerOnEditorSelectionChange(); } );
 
+	// restore various settings
+	const UModelingToolsModeCustomizationSettings* ModelingEditorSettings = GetDefault<UModelingToolsModeCustomizationSettings>();
+	if (SelectionManager)
+	{
+		UE::Geometry::EGeometryElementType LastElementType = static_cast<UE::Geometry::EGeometryElementType>(ModelingEditorSettings->LastMeshSelectionElementType);
+		if (LastElementType == UE::Geometry::EGeometryElementType::Edge || LastElementType == UE::Geometry::EGeometryElementType::Face || LastElementType == UE::Geometry::EGeometryElementType::Vertex)
+		{
+			SelectionManager->SetSelectionElementType(LastElementType);
+		}
+		UGeometrySelectionManager::EMeshTopologyMode LastTopologyMode = static_cast<UGeometrySelectionManager::EMeshTopologyMode>(ModelingEditorSettings->LastMeshSelectionTopologyMode);
+		if (LastTopologyMode == UGeometrySelectionManager::EMeshTopologyMode::None || LastTopologyMode == UGeometrySelectionManager::EMeshTopologyMode::Triangle || LastTopologyMode == UGeometrySelectionManager::EMeshTopologyMode::Polygroup)
+		{
+			SelectionManager->SetMeshTopologyMode(LastTopologyMode);
+		}
+
+		bEnableStaticMeshElementSelection = ModelingEditorSettings->bLastMeshSelectionStaticMeshToggle;
+		bEnableVolumeElementSelection = ModelingEditorSettings->bLastMeshSelectionVolumeToggle;
+	}
+	if ( SelectionInteraction )
+	{
+		EModelingSelectionInteraction_DragMode LastDragMode = static_cast<EModelingSelectionInteraction_DragMode>(ModelingEditorSettings->LastMeshSelectionDragMode);
+		if ( LastDragMode == EModelingSelectionInteraction_DragMode::NoDragInteraction || LastDragMode == EModelingSelectionInteraction_DragMode::PathInteraction )
+		{
+			SelectionInteraction->SetActiveDragMode(LastDragMode);
+		}
+	}
+
+
 	// initialize SelectionManager w/ active selection
 	UpdateSelectionManagerOnEditorSelectionChange(true);
-
 }
 
 void UModelingToolsEditorMode::RegisterUVEditor()
@@ -1225,6 +1236,40 @@ void UModelingToolsEditorMode::UpdateSelectionManagerOnEditorSelectionChange(boo
 		GetToolManager()->GetContextTransactionsAPI()->EndUndoTransaction();
 	}
 }
+
+
+bool UModelingToolsEditorMode::BoxSelect(FBox& InBox, bool InSelect) 
+{
+	// not handling yet
+	return false;
+}
+
+bool UModelingToolsEditorMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect)
+{
+	if (SelectionManager && SelectionManager->HasActiveTargets())
+	{
+		UE::Geometry::FGeometrySelectionUpdateConfig UpdateConfig;
+		UpdateConfig.ChangeType = UE::Geometry::EGeometrySelectionChangeType::Replace;
+		if ( InViewportClient->IsShiftPressed() )
+		{
+			UpdateConfig.ChangeType = UE::Geometry::EGeometrySelectionChangeType::Add;
+		}
+		else if ( InViewportClient->IsCtrlPressed() && InViewportClient->IsAltPressed() == false )
+		{
+			UpdateConfig.ChangeType = UE::Geometry::EGeometrySelectionChangeType::Remove;
+		}			
+
+		UE::Geometry::FGeometrySelectionUpdateResult Result;
+		SelectionManager->UpdateSelectionViaConvex(
+			InFrustum, UpdateConfig, Result);
+
+		return true;	// always consume marquee even if it missed, as the miss will usually just be a mistake
+	}
+
+	// not handling yet
+	return false;
+}
+
 
 
 void UModelingToolsEditorMode::CreateToolkit()

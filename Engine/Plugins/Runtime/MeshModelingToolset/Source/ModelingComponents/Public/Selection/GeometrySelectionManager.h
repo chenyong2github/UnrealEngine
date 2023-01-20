@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ConvexVolume.h"
 #include "Selections/GeometrySelection.h"
 #include "Selection/GeometrySelector.h"
 #include "Selection/GeometrySelectionChanges.h"
@@ -167,6 +168,18 @@ public:
 		const FGeometrySelectionUpdateConfig& UpdateConfig,
 		FGeometrySelectionUpdateResult& ResultOut
 	);
+
+
+	/**
+	 * Use the given ConvexVolume to update the active element selection based on UpdateConfig.
+	 * @param ResultOut information on any element selection modifications is returned here
+	 */
+	virtual void UpdateSelectionViaConvex(
+		const FConvexVolume& ConvexVolume,
+		const FGeometrySelectionUpdateConfig& UpdateConfig,
+		FGeometrySelectionUpdateResult& ResultOut
+	);
+
 
 
 	//

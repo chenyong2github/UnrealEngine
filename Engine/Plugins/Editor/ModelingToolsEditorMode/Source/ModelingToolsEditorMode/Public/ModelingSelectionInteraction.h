@@ -201,7 +201,7 @@ protected:
 
 
 protected:
-	EModelingSelectionInteraction_DragMode ActiveDragMode = EModelingSelectionInteraction_DragMode::PathInteraction;
+	EModelingSelectionInteraction_DragMode ActiveDragMode = EModelingSelectionInteraction_DragMode::NoDragInteraction;
 	void UpdateActiveDragMode();
 
 	UPROPERTY()

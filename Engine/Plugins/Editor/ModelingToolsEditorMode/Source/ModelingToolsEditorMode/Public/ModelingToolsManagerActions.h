@@ -141,14 +141,7 @@ public:
 	
 
 
-	// old selection state actions
-	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToVertexType;
-	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToEdgeType;
-	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToFaceType;
-	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToObjectType;
-	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToTriangleType;
-	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToPolygroupType;
-
+	// selection state actions
 	TSharedPtr<FUICommandInfo> MeshSelectionModeAction_NoSelection;
 	TSharedPtr<FUICommandInfo> MeshSelectionModeAction_MeshTriangles;
 	TSharedPtr<FUICommandInfo> MeshSelectionModeAction_MeshVertices;

@@ -349,6 +349,175 @@ void FBaseDynamicMeshSelector::GetSelectionPreviewForRaycast(
 
 
 
+void FBaseDynamicMeshSelector::UpdateSelectionViaShape(
+	const FWorldShapeQueryInfo& ShapeInfo,
+	FGeometrySelectionEditor& SelectionEditor,
+	const FGeometrySelectionUpdateConfig& UpdateConfig,
+	FGeometrySelectionUpdateResult& ResultOut )
+{
+	ResultOut.bSelectionModified = false;
+	ResultOut.bSelectionMissed = true;
+
+	FTransformSRT3d WorldTransform = GetWorldTransformFunc();
+	TArray<uint64> InsideElements;
+
+	// todo: this should be made more efficient using BVHs...
+
+	if ( SelectionEditor.GetTopologyType() == EGeometryTopologyType::Triangle )
+	{
+		if ( SelectionEditor.GetElementType() == EGeometryElementType::Vertex )
+		{
+			GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& Mesh) 
+			{
+				TArray<uint64> InsidePoints;
+				for ( int32 vid : Mesh.VertexIndicesItr() )
+				{
+					FVector3d WorldPos = WorldTransform.TransformPosition(Mesh.GetVertex(vid));
+					if ( ShapeInfo.Convex.IntersectPoint(WorldPos) )
+					{
+						InsideElements.Add( FGeoSelectionID::MeshVertex(vid).Encoded() );
+					}
+				}
+			});
+		}
+		else if ( SelectionEditor.GetElementType() == EGeometryElementType::Edge )
+		{
+			GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& Mesh) 
+			{
+				TArray<uint64> InsideEdges;
+				for ( int32 eid : Mesh.EdgeIndicesItr() )
+				{
+					FVector3d A,B;
+					Mesh.GetEdgeV(eid, A,B);
+					A = WorldTransform.TransformPosition(A);
+					B = WorldTransform.TransformPosition(B);
+					bool bFullyContained = false;
+					if ( ShapeInfo.Convex.IntersectLineSegment(A,B) )
+					{
+						bFullyContained = ShapeInfo.Convex.IntersectPoint(A) && ShapeInfo.Convex.IntersectPoint(B);
+						if (bFullyContained)
+						{
+							InsideElements.Add( FGeoSelectionID::MeshEdge( Mesh.GetTriEdgeIDFromEdgeID(eid) ).Encoded() );
+						}
+					}
+				}
+			});
+		}
+		else if (SelectionEditor.GetElementType() == EGeometryElementType::Face)
+		{
+			GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& Mesh) 
+			{
+				TArray<uint64> InsideFaces;
+				for ( int32 tid : Mesh.TriangleIndicesItr() )
+				{
+					FVector3d A,B,C;
+					Mesh.GetTriVertices(tid, A,B,C);
+					A = WorldTransform.TransformPosition(A);
+					B = WorldTransform.TransformPosition(B);
+					C = WorldTransform.TransformPosition(C);
+					bool bFullyContained = false;
+					if ( ShapeInfo.Convex.IntersectTriangle(A,B,C, bFullyContained) )
+					{
+						if (bFullyContained)
+						{
+							InsideElements.Add( FGeoSelectionID::MeshTriangle(tid).Encoded() );
+						}
+					}
+				}
+			});
+		}
+	}
+	else if ( SelectionEditor.GetTopologyType() == EGeometryTopologyType::Polygroup )
+	{
+		const FGroupTopology* UseGroupTopology = GetGroupTopology();
+
+		if ( SelectionEditor.GetElementType() == EGeometryElementType::Vertex )
+		{
+			GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& Mesh) 
+			{
+				for (const FGroupTopology::FCorner& Corner : UseGroupTopology->Corners)
+				{
+					FVector3d WorldPos = WorldTransform.TransformPosition(Mesh.GetVertex(Corner.VertexID));
+					if ( ShapeInfo.Convex.IntersectPoint(WorldPos) )
+					{
+						InsideElements.Add( FGeoSelectionID(Corner.VertexID, UseGroupTopology->GetCornerIDFromVertexID(Corner.VertexID)).Encoded() );
+					}				
+				}
+			});
+
+		}
+		else if (SelectionEditor.GetElementType() == EGeometryElementType::Edge)
+		{
+			GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& Mesh) 
+			{
+				int32 NumEdges = UseGroupTopology->Edges.Num();
+				for ( int32 GroupEdgeID = 0; GroupEdgeID < NumEdges; ++GroupEdgeID)
+				{
+					const FGroupTopology::FGroupEdge& Edge = UseGroupTopology->Edges[GroupEdgeID];
+					bool bAllInside = true;
+					for (int32 eid : Edge.Span.Edges)
+					{
+						FVector3d A,B;
+						Mesh.GetEdgeV(eid, A,B);
+						A = WorldTransform.TransformPosition(A);
+						B = WorldTransform.TransformPosition(B);
+						bool bFullyContained = false;
+						bool bIntersects = ShapeInfo.Convex.IntersectLineSegment(A,B);
+						bFullyContained = bIntersects && ShapeInfo.Convex.IntersectPoint(A) && ShapeInfo.Convex.IntersectPoint(B);
+						if ( bFullyContained == false || bFullyContained == false)
+						{
+							bAllInside = false;
+							break;
+						}
+					}
+					if (bAllInside)
+					{
+						FMeshTriEdgeID EdgeTriID = Mesh.GetTriEdgeIDFromEdgeID(Edge.Span.Edges[0]);
+						InsideElements.Add( FGeoSelectionID( EdgeTriID.Encoded(), GroupEdgeID).Encoded());
+					}
+				}
+			});
+		}
+		else if (SelectionEditor.GetElementType() == EGeometryElementType::Face)
+		{
+			GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& Mesh) 
+			{
+				for (const FGroupTopology::FGroup& Group : UseGroupTopology->Groups)
+				{
+					bool bAllInside = true;
+					for (int32 tid : Group.Triangles)
+					{
+						FVector3d A,B,C;
+						Mesh.GetTriVertices(tid, A,B,C);
+						A = WorldTransform.TransformPosition(A);
+						B = WorldTransform.TransformPosition(B);
+						C = WorldTransform.TransformPosition(C);
+						bool bFullyContained = false;
+						bool bIntersects = ShapeInfo.Convex.IntersectTriangle(A,B,C, bFullyContained);
+						if ( bIntersects == false || bFullyContained == false)
+						{
+							bAllInside = false;
+							break;
+						}
+					}
+					if (bAllInside)
+					{
+						InsideElements.Add( FGeoSelectionID(Group.Triangles[0], Group.GroupID).Encoded());
+					}
+				}
+			});
+		}
+	}
+
+	if (InsideElements.Num() > 0 )
+	{
+		ResultOut.bSelectionModified = UpdateSelectionWithNewElements(&SelectionEditor, UpdateConfig.ChangeType, InsideElements, &ResultOut.SelectionDelta);
+		ResultOut.bSelectionMissed = false;
+	}
+}
+
+
+
 void FBaseDynamicMeshSelector::GetSelectionFrame(const FGeometrySelection& Selection, FFrame3d& SelectionFrame, bool bTransformToWorld)
 {
 	if (Selection.TopologyType == EGeometryTopologyType::Polygroup)

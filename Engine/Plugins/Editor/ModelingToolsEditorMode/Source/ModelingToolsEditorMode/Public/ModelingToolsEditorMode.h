@@ -22,7 +22,7 @@ class UGeometrySelectionManager;
 class UInteractiveCommand;
 
 UCLASS(Transient)
-class UModelingToolsEditorMode : public UBaseLegacyWidgetEdMode
+class UModelingToolsEditorMode : public UBaseLegacyWidgetEdMode, public ILegacyEdModeSelectInterface
 {
 	GENERATED_BODY()
 public:
@@ -64,6 +64,12 @@ public:
 	//////////////////
 	// End of UEdMode interface
 	//////////////////
+
+
+	// ILegacyEdModeSelectInterface
+	virtual bool BoxSelect(FBox& InBox, bool InSelect = true) override;
+	virtual bool FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect) override;
+
 
 
 	//

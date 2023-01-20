@@ -99,6 +99,16 @@ public:
 		const FWorldRayQueryInfo& RayInfo,
 		FGeometrySelectionEditor& PreviewEditor) override;
 
+
+
+	virtual void UpdateSelectionViaShape(	
+		const FWorldShapeQueryInfo& ShapeInfo,
+		FGeometrySelectionEditor& SelectionEditor,
+		const FGeometrySelectionUpdateConfig& UpdateConfig,
+		FGeometrySelectionUpdateResult& ResultOut 
+	) override;
+
+
 	virtual FTransform GetLocalToWorldTransform() const
 	{
 		return (FTransform)GetWorldTransformFunc();

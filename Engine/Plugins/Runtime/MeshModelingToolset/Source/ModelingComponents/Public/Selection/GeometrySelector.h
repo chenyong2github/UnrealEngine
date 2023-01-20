@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Components/PrimitiveComponent.h"
+#include "ConvexVolume.h"
 #include "Selections/GeometrySelection.h"
 #include "FrameTypes.h"
 #include "InputState.h"
@@ -344,6 +345,27 @@ public:
 		const FWorldRayQueryInfo& RayInfo,
 		FGeometrySelectionEditor& PreviewEditor
 	) = 0;
+
+
+
+	struct FWorldShapeQueryInfo
+	{
+		FConvexVolume Convex;
+		FViewCameraState CameraState;
+	};
+
+	/**
+	 * Update the active selection based on a world-space Shape.
+	 * Uses the provided SelectionEditor and UpdateConfig to do the update
+	 * Information about any changes actually made to the selection via the SelectionEditor are returned in ResultOut
+	 */
+	virtual void UpdateSelectionViaShape(	
+		const FWorldShapeQueryInfo& ShapeInfo,
+		FGeometrySelectionEditor& SelectionEditor,
+		const FGeometrySelectionUpdateConfig& UpdateConfig,
+		FGeometrySelectionUpdateResult& ResultOut 
+	) = 0;
+
 
 	/**
 	 * @return the World transform for the Selector's target object
