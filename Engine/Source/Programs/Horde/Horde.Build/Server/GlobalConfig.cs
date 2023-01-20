@@ -10,6 +10,7 @@ using System.Security.Claims;
 using System.Text.Json.Serialization;
 using EpicGames.Core;
 using EpicGames.Horde.Common;
+using EpicGames.Horde.Compute;
 using EpicGames.Perforce;
 using EpicGames.Serialization;
 using Horde.Build.Acls;
@@ -138,6 +139,7 @@ namespace Horde.Build.Server
 		private readonly Dictionary<ProjectId, ProjectConfig> _projectLookup = new Dictionary<ProjectId, ProjectConfig>();
 		private readonly Dictionary<StreamId, StreamConfig> _streamLookup = new Dictionary<StreamId, StreamConfig>();
 		private readonly Dictionary<ToolId, ToolConfig> _toolLookup = new Dictionary<ToolId, ToolConfig>();
+		private readonly Dictionary<ClusterId, ComputeClusterConfig> _computeClusterLookup = new Dictionary<ClusterId, ComputeClusterConfig>();
 
 		/// <summary>
 		/// Called after the config file has been read
@@ -168,6 +170,13 @@ namespace Horde.Build.Server
 				tool.PostLoad(this);
 			}
 
+			_computeClusterLookup.Clear();
+			foreach (ComputeClusterConfig computeCluster in Compute)
+			{
+				_computeClusterLookup.Add(computeCluster.Id, computeCluster);
+				computeCluster.PostLoad(this);
+			}
+
 			Storage.PostLoad(this);
 		}
 
@@ -194,6 +203,14 @@ namespace Horde.Build.Server
 		/// <param name="config">Configuration for the stream</param>
 		/// <returns>True if the stream configuration was found</returns>
 		public bool TryGetTool(ToolId toolId, [NotNullWhen(true)] out ToolConfig? config) => _toolLookup.TryGetValue(toolId, out config);
+
+		/// <summary>
+		/// Attempts to get compute cluster configuration from this object
+		/// </summary>
+		/// <param name="clusterId">Compute cluster id</param>
+		/// <param name="config">Receives the cluster configuration on success</param>
+		/// <returns>True on success</returns>
+		public bool TryGetComputeCluster(ClusterId clusterId, [NotNullWhen(true)] out ComputeClusterConfig? config) => _computeClusterLookup.TryGetValue(clusterId, out config);
 
 		/// <summary>
 		/// Authorizes a user to perform a given action
@@ -293,9 +310,15 @@ namespace Horde.Build.Server
 	public class ComputeClusterConfig
 	{
 		/// <summary>
+		/// The owning global config instance
+		/// </summary>
+		[JsonIgnore]
+		public GlobalConfig GlobalConfig { get; private set; } = null!;
+
+		/// <summary>
 		/// Name of the partition
 		/// </summary>
-		public string Id { get; set; } = "default";
+		public ClusterId Id { get; set; } = new ClusterId("default");
 
 		/// <summary>
 		/// Name of the namespace to use
@@ -313,9 +336,33 @@ namespace Horde.Build.Server
 		public string ResponseBucketId { get; set; } = "responses";
 
 		/// <summary>
+		/// Filter for agents to include
+		/// </summary>
+		public Condition? Condition { get; set; }
+
+		/// <summary>
 		/// Access control list
 		/// </summary>
 		public AclConfig? Acl { get; set; }
+
+		/// <summary>
+		/// Callback post loading this config file
+		/// </summary>
+		/// <param name="globalConfig">The global config instance</param>
+		public void PostLoad(GlobalConfig globalConfig)
+		{
+			GlobalConfig = globalConfig;
+		}
+
+		/// <summary>
+		/// Authorizes a user to perform a given action
+		/// </summary>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to validate</param>
+		public bool Authorize(AclAction action, ClaimsPrincipal user)
+		{
+			return Acl?.Authorize(action, user) ?? GlobalConfig.Authorize(action, user);
+		}
 	}
 
 	/// <summary>

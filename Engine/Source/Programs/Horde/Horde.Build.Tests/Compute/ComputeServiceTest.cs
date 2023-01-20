@@ -8,7 +8,6 @@ using EpicGames.Horde.Compute;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Horde.Build.Agents.Pools;
-using Horde.Build.Projects;
 using Horde.Build.Server;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -31,7 +30,7 @@ namespace Horde.Build.Tests.Compute
 		{
 			_clusterConfig = new();
 			_namespaceId = new (_clusterConfig.NamespaceId);
-			_clusterId = new (_clusterConfig.Id);
+			_clusterId = _clusterConfig.Id;
 		}
 
 		[TestInitialize]

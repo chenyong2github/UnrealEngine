@@ -39,10 +39,17 @@ namespace EpicGames.Horde.Compute
 		class AddComputeTaskRequest
 		{
 			public Requirements? Requirements { get; set; }
-			public int RemotePort { get; set; }
+			public int? RemotePort { get; set; }
 			public string Nonce { get; set; } = String.Empty;
 			public string AesKey { get; set; } = String.Empty;
 			public string AesIv { get; set; } = String.Empty;
+		}
+
+		class AddComputeTasksRequest
+		{
+			public Requirements? Requirements { get; set; }
+			public int RemotePort { get; set; }
+			public List<AddComputeTaskRequest> Tasks { get; set; } = new List<AddComputeTaskRequest>();
 		}
 
 		abstract class RequestInfo : IDisposable
@@ -160,7 +167,7 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		public void Start()
 		{
-			_listener = new TcpListener(IPAddress.Any, 0);
+			_listener = new TcpListener(IPAddress.IPv6Any, 0);
 			_listener.Start();
 			_listenTask = Task.Run(() => ListenAsync(_listener, _cancellationSource.Token));
 		}
@@ -183,29 +190,33 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Adds a new remote request
 		/// </summary>
+		/// <param name="clusterId">Cluster to execute the request</param>
 		/// <param name="requirements">Requirements for the agent</param>
 		/// <param name="handler">Handler for the connection</param>
-		public async Task<IComputeRequest<TResult>> AddRequestAsync<TResult>(Requirements? requirements, Func<ComputeChannel, CancellationToken, Task<TResult>> handler)
+		public async Task<IComputeRequest<TResult>> AddRequestAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<ComputeChannel, CancellationToken, Task<TResult>> handler)
 		{
 			RequestInfo<TResult> requestInfo = new RequestInfo<TResult>(handler, _cancellationSource.Token);
-			await AddRequestAsync(requirements, requestInfo);
+			await AddRequestAsync(clusterId, requirements, requestInfo);
 			return requestInfo;
 		}
 
-		async Task AddRequestAsync(Requirements? requirements, RequestInfo requestInfo)
+		async Task AddRequestAsync(ClusterId clusterId, Requirements? requirements, RequestInfo requestInfo)
 		{
 			try
 			{
 				HttpClient client = _createHttpClient();
 
-				AddComputeTaskRequest request = new AddComputeTaskRequest();
+				AddComputeTaskRequest task = new AddComputeTaskRequest();
+				task.Nonce = StringUtils.FormatHexString(requestInfo.Nonce.Span);
+				task.AesKey = StringUtils.FormatHexString(requestInfo.AesKey.Span);
+				task.AesIv = StringUtils.FormatHexString(requestInfo.AesIv.Span);
+
+				AddComputeTasksRequest request = new AddComputeTasksRequest();
 				request.Requirements = requirements;
 				request.RemotePort = ((IPEndPoint)_listener!.LocalEndpoint).Port;
-				request.Nonce = StringUtils.FormatHexString(requestInfo.Nonce.Span);
-				request.AesKey = StringUtils.FormatHexString(requestInfo.AesKey.Span);
-				request.AesIv = StringUtils.FormatHexString(requestInfo.AesIv.Span);
+				request.Tasks.Add(task);
 
-				using (HttpResponseMessage response = await client.PostAsync("api/v2/compute", request, _cancellationSource.Token))
+				using (HttpResponseMessage response = await client.PostAsync($"api/v2/compute/{clusterId}", request, _cancellationSource.Token))
 				{
 					response.EnsureSuccessStatusCode();
 					_requests.Add(requestInfo.Nonce, requestInfo);

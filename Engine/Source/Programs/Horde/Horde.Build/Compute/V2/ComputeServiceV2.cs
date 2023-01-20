@@ -12,12 +12,15 @@ using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Agents;
 using Horde.Build.Agents.Leases;
 using Horde.Build.Agents.Pools;
+using Horde.Build.Server;
 using Horde.Build.Tasks;
 using Horde.Build.Utilities;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.TagHelpers;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Compute.V2
 {
@@ -59,8 +62,14 @@ namespace Horde.Build.Compute.V2
 			}
 		}
 
+		class ClusterInfo
+		{
+			public Dictionary<IoHash, RequestQueue> Queues { get; } = new Dictionary<IoHash, RequestQueue>();
+		}
+
 		readonly object _lockObject = new object();
-		readonly Dictionary<IoHash, RequestQueue> _queues = new Dictionary<IoHash, RequestQueue>();
+		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
+		readonly Dictionary<ClusterId, ClusterInfo> _clusters = new Dictionary<ClusterId, ClusterInfo>();
 		readonly ILogger _logger;
 
 		/// <inheritdoc/>
@@ -72,33 +81,42 @@ namespace Horde.Build.Compute.V2
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="logger"></param>
-		public ComputeServiceV2(ILogger<ComputeServiceV2> logger)
+		public ComputeServiceV2(IOptionsMonitor<GlobalConfig> globalConfig, ILogger<ComputeServiceV2> logger)
 		{
+			_globalConfig = globalConfig;
 			_logger = logger;
 		}
 
 		/// <summary>
 		/// Adds a new compute request
 		/// </summary>
+		/// <param name="clusterId">The compute cluster id</param>
 		/// <param name="requirements">Requirements for the agent to serve the request</param>
 		/// <param name="ip">IP address to connect to</param>
 		/// <param name="port">Remote port to connect to</param>
 		/// <param name="nonce">Cryptographic nonce used to identify the request</param>
 		/// <param name="aesKey">Key for AES encryption on the compute channel</param>
 		/// <param name="aesIv">Initialization vector for AES encryption</param>
-		public void AddRequest(Requirements requirements, string ip, int port, ReadOnlyMemory<byte> nonce, ReadOnlyMemory<byte> aesKey, ReadOnlyMemory<byte> aesIv)
+		public void AddRequest(ClusterId clusterId, Requirements requirements, string ip, int port, ReadOnlyMemory<byte> nonce, ReadOnlyMemory<byte> aesKey, ReadOnlyMemory<byte> aesIv)
 		{
 			CbObject obj = CbSerializer.Serialize(requirements);
 			IoHash hash = IoHash.Compute(obj.GetView().Span);
 			lock (_lockObject)
 			{
+				ClusterInfo? cluster;
+				if (!_clusters.TryGetValue(clusterId, out cluster))
+				{
+					cluster = new ClusterInfo();
+					_clusters.Add(clusterId, cluster);
+				}
+
 				RequestQueue? queue;
-				if (!_queues.TryGetValue(hash, out queue))
+				if (!cluster.Queues.TryGetValue(hash, out queue))
 				{
 					queue = new RequestQueue(hash, requirements);
-					_queues.Add(hash, queue);
+					cluster.Queues.Add(hash, queue);
 				}
+
 				queue.Requests.Enqueue(new Request(ip, port, nonce, aesKey, aesIv));
 			}
 		}
@@ -113,19 +131,43 @@ namespace Horde.Build.Compute.V2
 
 				lock (_lockObject)
 				{
-					foreach ((IoHash hash, RequestQueue queue) in _queues)
-					{
-						if (agent.MeetsRequirements(queue.Requirements))
-						{
-							request = queue.Requests.Dequeue();
-							requestQueue = queue;
+					ClusterId? removeClusterId = null;
 
-							if (queue.Requests.Count == 0)
-							{
-								_queues.Remove(hash);
-							}
-							break;
+					GlobalConfig globalConfig = _globalConfig.CurrentValue;
+					foreach ((ClusterId clusterId, ClusterInfo clusterInfo) in _clusters)
+					{
+						ComputeClusterConfig? clusterConfig;
+						if (!globalConfig.TryGetComputeCluster(clusterId, out clusterConfig))
+						{
+							removeClusterId ??= clusterId;
 						}
+						else if (clusterConfig.Condition == null || agent.SatisfiesCondition(clusterConfig.Condition))
+						{
+							foreach ((IoHash hash, RequestQueue queue) in clusterInfo.Queues)
+							{
+								if (agent.MeetsRequirements(queue.Requirements))
+								{
+									request = queue.Requests.Dequeue();
+									requestQueue = queue;
+
+									if (queue.Requests.Count == 0)
+									{
+										clusterInfo.Queues.Remove(hash);
+									}
+									break;
+								}
+							}
+
+							if (clusterInfo.Queues.Count == 0)
+							{
+								removeClusterId ??= clusterId;
+							}
+						}
+					}
+
+					if (removeClusterId != null)
+					{
+						_clusters.Remove(removeClusterId.Value);
 					}
 				}
 

@@ -2,17 +2,16 @@
 
 using EpicGames.Core;
 using EpicGames.Serialization;
-using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+
+#pragma warning disable CA5401
 
 namespace EpicGames.Horde.Compute
 {

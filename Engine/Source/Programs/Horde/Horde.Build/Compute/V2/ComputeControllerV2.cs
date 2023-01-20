@@ -3,12 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Horde.Common;
 using EpicGames.Horde.Compute;
-using EpicGames.Horde.Compute.Impl;
 using Horde.Build.Acls;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
@@ -31,22 +27,43 @@ namespace Horde.Build.Compute.V2
 		/// <summary>
 		/// Port to connect on
 		/// </summary>
-		public int RemotePort { get; set; } = 4000;
+		public int? RemotePort { get; set; }
 
 		/// <summary>
-		/// Base-64 encoded cryptographic nonce to identify the request
+		/// Cryptographic nonce to identify the request, as a hex string
 		/// </summary>
 		public string Nonce { get; set; } = String.Empty;
 
 		/// <summary>
-		/// Base-64 encoded AES key for the channel
+		/// AES key for the channel, as a hex string
 		/// </summary>
 		public string AesKey { get; set; } = String.Empty;
 
 		/// <summary>
-		/// Base-64 encoded AES IV for the channel
+		/// AES IV for the channel, as a hex string
 		/// </summary>
 		public string AesIv { get; set; } = String.Empty;
+	}
+
+	/// <summary>
+	/// Request a machine to execute compute requests
+	/// </summary>
+	public class AddComputeTasksRequest
+	{
+		/// <summary>
+		/// Condition to identify machines that can execute the request
+		/// </summary>
+		public Requirements? Requirements { get; set; }
+
+		/// <summary>
+		/// Port to connect on
+		/// </summary>
+		public int RemotePort { get; set; }
+
+		/// <summary>
+		/// List of tasks to add
+		/// </summary>
+		public List<AddComputeTaskRequest> Tasks { get; set; } = new List<AddComputeTaskRequest>();
 	}
 
 	/// <summary>
@@ -72,22 +89,23 @@ namespace Horde.Build.Compute.V2
 		/// <summary>
 		/// Add tasks to be executed remotely
 		/// </summary>
+		/// <param name="clusterId">Id of the compute cluster</param>
 		/// <param name="request">The request parameters</param>
 		/// <returns></returns>
 		[HttpPost]
 		[Authorize]
-		[Route("/api/v2/compute")]
-		public ActionResult AddTasksAsync([FromBody] AddComputeTaskRequest request)
+		[Route("/api/v2/compute/{clusterId}")]
+		public ActionResult AddTasksAsync(ClusterId clusterId, [FromBody] AddComputeTasksRequest request)
 		{
-			if(!_globalConfig.Value.Authorize(AclAction.AddComputeTasks, User))
+			ComputeClusterConfig? clusterConfig;
+			if (!_globalConfig.Value.TryGetComputeCluster(clusterId, out clusterConfig))
 			{
-				return Forbid(AclAction.AddComputeTasks);
+				return NotFound(clusterId);
 			}
-
-			Requirements requirements = request.Requirements ?? new Requirements();
-			byte[] nonce = StringUtils.ParseHexString(request.Nonce);
-			byte[] aesKey = StringUtils.ParseHexString(request.AesKey);
-			byte[] aesIv = StringUtils.ParseHexString(request.AesIv);
+			if(!clusterConfig.Authorize(AclAction.AddComputeTasks, User))
+			{
+				return Forbid(AclAction.AddComputeTasks, clusterId);
+			}
 
 			IPAddress? remoteIp = HttpContext.Connection.RemoteIpAddress;
 			if (remoteIp == null)
@@ -95,7 +113,17 @@ namespace Horde.Build.Compute.V2
 				return BadRequest("Missing remote IP address");
 			}
 
-			_computeService.AddRequest(requirements, remoteIp.ToString(), request.RemotePort, nonce, aesKey, aesIv);
+			foreach (AddComputeTaskRequest taskRequest in request.Tasks)
+			{
+				Requirements requirements = taskRequest.Requirements ?? request.Requirements ?? new Requirements();
+
+				int port = taskRequest.RemotePort ?? request.RemotePort;
+				byte[] nonce = StringUtils.ParseHexString(taskRequest.Nonce);
+				byte[] aesKey = StringUtils.ParseHexString(taskRequest.AesKey);
+				byte[] aesIv = StringUtils.ParseHexString(taskRequest.AesIv);
+
+				_computeService.AddRequest(clusterId, requirements, remoteIp.ToString(), port, nonce, aesKey, aesIv);
+			}
 			return Ok();
 		}
 	}

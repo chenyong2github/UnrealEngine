@@ -23,10 +23,10 @@ namespace Horde.Agent.Commands
 	[Command("ComputeV2", "Executes a command through the Horde Compute API")]
 	class ComputeCommandV2 : Command
 	{
-		/// <summary>
-		/// Condition for 
-		/// </summary>
-		[CommandLine("-Condition")]
+		[CommandLine("-Cluster=", Description = "Cluster to execute on")]
+		public ClusterId ClusterId { get; set; } = new ClusterId("default");
+
+		[CommandLine("-Condition=", Description = "Match the agent to run on")]
 		public string? Condition { get; set; }
 
 		readonly AgentSettings _settings;
@@ -43,12 +43,12 @@ namespace Horde.Agent.Commands
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
 			ServerProfile profile = _settings.GetCurrentServerProfile();
-			logger.LogInformation("Server: {Server}", profile.Name);
+			logger.LogInformation("Connecting to server: {Server}", profile.Name);
 
 			await using ComputeClient client = new ComputeClient(CreateHttpClient, logger);
 			client.Start();
 
-			IComputeRequest<object?> request = await client.AddRequestAsync(null, TestCommandAsync);
+			IComputeRequest<object?> request = await client.AddRequestAsync(ClusterId, null, TestCommandAsync);
 			await request.Result;
 
 			return 0;

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Compute;
 using EpicGames.Horde.Storage;
 using Horde.Build.Acls;
 using Horde.Build.Agents;
@@ -67,6 +68,15 @@ namespace Horde.Build.Utilities
 		protected ActionResult Forbid(AclAction action, AgentId agentId)
 		{
 			return Forbid(action, "agent {AgentId}", agentId);
+		}
+
+		/// <summary>
+		/// Returns a 403 (forbidden) response with the given action and object
+		/// </summary>
+		[NonAction]
+		protected ActionResult Forbid(AclAction action, ClusterId clusterId)
+		{
+			return Forbid(action, "cluster {ClusterId}", clusterId);
 		}
 
 		/// <summary>
@@ -157,6 +167,15 @@ namespace Horde.Build.Utilities
 		protected ActionResult NotFound(AgentId agentId, LeaseId leaseId)
 		{
 			return NotFound("Lease {LeaseId} not found for agent {AgentId}", leaseId, agentId);
+		}
+
+		/// <summary>
+		/// Returns a 404 response for the given object
+		/// </summary>
+		[NonAction]
+		protected ActionResult NotFound(ClusterId clusterId)
+		{
+			return NotFound("Cluster {ClusterId} not found", clusterId);
 		}
 
 		/// <summary>

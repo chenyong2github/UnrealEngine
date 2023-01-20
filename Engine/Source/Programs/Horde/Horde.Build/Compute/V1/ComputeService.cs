@@ -104,7 +104,7 @@ namespace Horde.Build.Compute.V1
 
 			public ClusterInfo(ComputeClusterConfig config)
 			{
-				Id = new ClusterId(config.Id);
+				Id = config.Id;
 				NamespaceId = new NamespaceId(config.NamespaceId);
 				RequestBucketId = new BucketId(config.RequestBucketId);
 				ResponseBucketId = new BucketId(config.ResponseBucketId);
@@ -232,7 +232,7 @@ namespace Horde.Build.Compute.V1
 
 		ComputeClusterConfig? GetCluster(ClusterId clusterId)
 		{
-			return _globalConfig.CurrentValue.Compute.FirstOrDefault(x => new ClusterId(x.Id) == clusterId);
+			return _globalConfig.CurrentValue.Compute.FirstOrDefault(x => x.Id == clusterId);
 		}
 
 		/// <inheritdoc/>
