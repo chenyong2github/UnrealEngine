@@ -15,6 +15,7 @@
 #include "FolderTreeItem.h"
 #include "ComponentTreeItem.h"
 #include "ActorDescTreeItem.h"
+#include "EditorModeManager.h"
 #include "WorldTreeItem.h"
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
@@ -223,19 +224,12 @@ void FActorMode::ChooseRepresentingWorld()
 
 	if (RepresentingWorld == nullptr)
 	{
-		// still no world so fallback to old logic where we just prefer PIE over Editor
+		// If there is still no world, we query the Level Editor, which prefers the PIE world over the Editor world
+		TWeakPtr<ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 
-		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		if (TSharedPtr<ILevelEditor> LevelEditorPin = LevelEditor.Pin())
 		{
-			if (Context.WorldType == EWorldType::PIE)
-			{
-				RepresentingWorld = Context.World();
-				break;
-			}
-			else if (Context.WorldType == EWorldType::Editor)
-			{
-				RepresentingWorld = Context.World();
-			}
+			RepresentingWorld = LevelEditorPin->GetEditorModeManager().GetWorld();
 		}
 	}
 }
