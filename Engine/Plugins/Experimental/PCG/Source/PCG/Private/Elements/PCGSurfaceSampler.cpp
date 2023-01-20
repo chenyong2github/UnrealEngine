@@ -380,6 +380,9 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		PCGSurfaceSampler::FSurfaceSamplerSettings LoopData;
 		if (!LoopData.Initialize(Settings, Context, InputBounds))
 		{
+			Outputs.RemoveAt(GenerationIndex);
+			GeneratingShapes.RemoveAt(GenerationIndex);
+			--GenerationIndex;
 			continue;
 		}
 
