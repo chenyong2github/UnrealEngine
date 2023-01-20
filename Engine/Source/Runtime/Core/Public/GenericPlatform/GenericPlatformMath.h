@@ -245,8 +245,6 @@ struct FGenericPlatformMath
 	{
 		return TruncToDouble(F);
 	}
-	
-	RESOLVE_FLOAT_AMBIGUITY(TruncToFloat);
 
 	/**
 	 * Converts a float to a nearest less or equal integer.
@@ -301,8 +299,6 @@ struct FGenericPlatformMath
 		return FloorToDouble(F);
 	}
 
-	RESOLVE_FLOAT_AMBIGUITY(FloorToFloat);
-
 	/**
 	 * Converts a float to the nearest integer. Rounds up when the fraction is .5
 	 * @param F		Floating point value to convert
@@ -348,8 +344,6 @@ struct FGenericPlatformMath
 	{
 		return RoundToDouble(F);
 	}
-
-	RESOLVE_FLOAT_AMBIGUITY(RoundToFloat);
 
 	/**
 	* Converts a float to the nearest greater or equal integer.
@@ -403,8 +397,6 @@ struct FGenericPlatformMath
 		return CeilToDouble(F);
 	}
 
-	RESOLVE_FLOAT_AMBIGUITY(CeilToFloat);
-
 	/**
 	 * Converts a double to nearest int64 with ties rounding to nearest even
 	 * May incur a performance penalty. Asserts on platforms that do not support this mode.
@@ -446,8 +438,6 @@ struct FGenericPlatformMath
 		return Value - TruncToDouble(Value);
 	}
 
-	RESOLVE_FLOAT_AMBIGUITY(Fractional);
-
 	/**
 	* Returns the fractional part of a float.
 	* @param Value	Floating point value to convert
@@ -463,8 +453,6 @@ struct FGenericPlatformMath
 	{
 		return Value - FloorToDouble(Value);
 	}
-
-	RESOLVE_FLOAT_AMBIGUITY(Frac);
 
 	/**
 	* Breaks the given value into an integral and a fractional part.
@@ -491,16 +479,13 @@ struct FGenericPlatformMath
 	// Returns e^Value
 	static FORCEINLINE float Exp( float Value ) { return expf(Value); }
 	static FORCEINLINE double Exp(double Value) { return exp(Value); }
-	RESOLVE_FLOAT_AMBIGUITY(Exp);
 
 	// Returns 2^Value
 	static FORCEINLINE float Exp2( float Value ) { return powf(2.f, Value); /*exp2f(Value);*/ }
 	static FORCEINLINE double Exp2(double Value) { return pow(2.0, Value); /*exp2(Value);*/ }
-	RESOLVE_FLOAT_AMBIGUITY(Exp2);
 
 	static FORCEINLINE float Loge( float Value ) {	return logf(Value); }
 	static FORCEINLINE double Loge(double Value) { return log(Value); }
-	RESOLVE_FLOAT_AMBIGUITY(Loge);
 
 	static FORCEINLINE float LogX( float Base, float Value ) { return Loge(Value) / Loge(Base); }
 	static FORCEINLINE double LogX(double Base, double Value) { return Loge(Value) / Loge(Base); }
@@ -510,7 +495,6 @@ struct FGenericPlatformMath
 	static FORCEINLINE float Log2( float Value ) { return Loge(Value) * 1.4426950f; }	
 	// 1.0 / Loge(2) = 1.442695040888963387
 	static FORCEINLINE double Log2(double Value) { return Loge(Value) * 1.442695040888963387; }
-	RESOLVE_FLOAT_AMBIGUITY(Log2);
 
 	/**
 	 * Returns the floating-point remainder of X / Y
@@ -528,31 +512,24 @@ struct FGenericPlatformMath
 
 	static FORCEINLINE float Sin( float Value ) { return sinf(Value); }
 	static FORCEINLINE double Sin( double Value ) { return sin(Value); }
-	RESOLVE_FLOAT_AMBIGUITY(Sin);
 
 	static FORCEINLINE float Asin( float Value ) { return asinf( (Value<-1.f) ? -1.f : ((Value<1.f) ? Value : 1.f) ); }
 	static FORCEINLINE double Asin( double Value ) { return asin( (Value<-1.0) ? -1.0 : ((Value<1.0) ? Value : 1.0) ); }
-	RESOLVE_FLOAT_AMBIGUITY(Asin);
 
 	static FORCEINLINE float Sinh(float Value) { return sinhf(Value); }
 	static FORCEINLINE double Sinh(double Value) { return sinh(Value); }
-	RESOLVE_FLOAT_AMBIGUITY(Sinh);
 
 	static FORCEINLINE float Cos( float Value ) { return cosf(Value); }
 	static FORCEINLINE double Cos( double Value ) { return cos(Value); }
-	RESOLVE_FLOAT_AMBIGUITY(Cos);
 
 	static FORCEINLINE float Acos( float Value ) { return acosf( (Value<-1.f) ? -1.f : ((Value<1.f) ? Value : 1.f) ); }
 	static FORCEINLINE double Acos( double Value ) { return acos( (Value<-1.0) ? -1.0 : ((Value<1.0) ? Value : 1.0) ); }
-	RESOLVE_FLOAT_AMBIGUITY(Acos);
 
 	static FORCEINLINE float Tan( float Value ) { return tanf(Value); }
 	static FORCEINLINE double Tan( double Value ) { return tan(Value); }
-	RESOLVE_FLOAT_AMBIGUITY(Tan);
 
 	static FORCEINLINE float Atan( float Value ) { return atanf(Value); }
 	static FORCEINLINE double Atan( double Value ) { return atan(Value); }
-	RESOLVE_FLOAT_AMBIGUITY(Atan);
 
 	static CORE_API float Atan2( float Y, float X );
 	static CORE_API double Atan2( double Y, double X );
@@ -560,7 +537,6 @@ struct FGenericPlatformMath
 
 	static FORCEINLINE float Sqrt( float Value ) { return sqrtf(Value); }
 	static FORCEINLINE double Sqrt( double Value ) { return sqrt(Value); }
-	RESOLVE_FLOAT_AMBIGUITY(Sqrt);
 
 	static FORCEINLINE float Pow( float A, float B ) { return powf(A,B); }
 	static FORCEINLINE double Pow( double A, double B ) { return pow(A,B); }
@@ -569,12 +545,10 @@ struct FGenericPlatformMath
 	/** Computes a fully accurate inverse square root */
 	static FORCEINLINE float InvSqrt( float F ) { return 1.0f / sqrtf( F ); }
 	static FORCEINLINE double InvSqrt( double F ) { return 1.0 / sqrt( F ); }
-	RESOLVE_FLOAT_AMBIGUITY(InvSqrt);
 
 	/** Computes a faster but less accurate inverse square root */
 	static FORCEINLINE float InvSqrtEst( float F ) { return InvSqrt( F ); }
 	static FORCEINLINE double InvSqrtEst( double F ) { return InvSqrt( F ); }
-	RESOLVE_FLOAT_AMBIGUITY(InvSqrtEst);
 
 	/** Return true if value is NaN (not a number). */
 	static FORCEINLINE bool IsNaN( float A ) 

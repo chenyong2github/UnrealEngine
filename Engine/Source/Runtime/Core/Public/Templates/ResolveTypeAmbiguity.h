@@ -25,8 +25,6 @@
  * 
  * 	static float Sin( float Value ) { return sinf(Value); }
  *	static double Sin( double Value ) { return sin(Value); }
- *  // Disallows any other type for the 'Value' argument, such as Sin(int32).
- *	RESOLVE_FLOAT_AMBIGUITY(Sin);
  *
  *	static float Fmod(float X, float Y);
  *	static double Fmod(double X, double Y);
@@ -36,18 +34,19 @@
  */
 
 
-// Assuming that a float and/or double version of a function are declared, this deprecates all other types as ambiguous and falls back to the float variant.
-#define RESOLVE_FLOAT_AMBIGUITY(Func) \
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.") \
-	static FORCEINLINE float Func(T&& Value) { return Func((float)Value); }
-
-
 // Mixing any signed integral types with any other signed integral type results in same type as "X * Y", which is promoted to the type of the result of mixed arithmetic between the types
 #define MIX_SIGNED_INTS_2_ARGS_ACTUAL(Func, OptionalMarkup) \
-	template<typename Arg1, typename Arg2, TEMPLATE_REQUIRES(!std::is_same_v<Arg1, Arg2> && \
-																std::is_signed_v<Arg1> && std::is_integral_v<Arg1> && \
-																std::is_signed_v<Arg2> && std::is_integral_v<Arg2> \
-																)> \
+	template < \
+		typename Arg1, \
+		typename Arg2 \
+		UE_CONSTRAINTS_BEGIN \
+			UE_CONSTRAINT( \
+				!std::is_same_v<Arg1, Arg2> && \
+				std::is_signed_v<Arg1> && std::is_integral_v<Arg1> && \
+				std::is_signed_v<Arg2> && std::is_integral_v<Arg2> \
+			) \
+		UE_CONSTRAINTS_END \
+	> \
 	static OptionalMarkup FORCEINLINE auto Func(Arg1 X, Arg2 Y) -> decltype(X * Y) \
 	{ \
 		using ArgType = decltype(X * Y); \
@@ -59,16 +58,23 @@
 
 // Mixing any signed integral types with any other signed integral type results in same type as "X * Y", which is promoted to the type of the result of mixed arithmetic between the types
 #define MIX_SIGNED_TYPES_3_ARGS_ACTUAL(Func, OptionalMarkup) \
-	template<typename Arg1, typename Arg2, typename Arg3, TEMPLATE_REQUIRES(TAnd< \
-																				( \
-																					!std::is_same_v<Arg1, Arg2>> || \
-																					!std::is_same_v<Arg2, Arg3>> || \
-																					!std::is_same_v<Arg1, Arg3>> \
-																				) && \
-																				std::is_signed_v<Arg1> && std::is_integral_v<Arg1> && \
-																				std::is_signed_v<Arg2> && std::is_integral_v<Arg2> && \
-																				std::is_signed_v<Arg3> && std::is_integral_v<Arg3> \
-																			)> \
+	template < \
+		typename Arg1, \
+		typename Arg2, \
+		typename Arg3 \
+		UE_CONSTRAINTS_BEGIN \
+			UE_CONSTRAINT( \
+				( \
+					!std::is_same_v<Arg1, Arg2>> || \
+					!std::is_same_v<Arg2, Arg3>> || \
+					!std::is_same_v<Arg1, Arg3>> \
+				) && \
+				std::is_signed_v<Arg1> && std::is_integral_v<Arg1> && \
+				std::is_signed_v<Arg2> && std::is_integral_v<Arg2> && \
+				std::is_signed_v<Arg3> && std::is_integral_v<Arg3> \
+			) \
+		UE_CONSTRAINTS_END \
+	> \
 	static OptionalMarkup FORCEINLINE auto Func(Arg1 X, Arg2 Y, Arg3 Z) -> decltype(X * Y * Z) \
 	{ \
 		using ArgType = decltype(X * Y * Z); \
@@ -79,55 +85,34 @@
 #define MIX_SIGNED_INTS_3_ARGS_CONSTEXPR(Func)		MIX_SIGNED_INTS_3_ARGS_ACTUAL(Func, CONSTEXPR)
 
 
-// Cannot know whether the type of e.g. Fmod(int, int) should be float or double.
-#define REMOVE_AMBIGUOUS_FLOAT_2_ARGS(Func) \
-	template<typename Arg1, typename Arg2, TEMPLATE_REQUIRES(TAnd< \
-																TNot<TIsFloatingPoint<Arg1>>,\
-																TNot<TIsFloatingPoint<Arg2>> \
-																>::Value)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity, expected a floating point type.") \
-	static FORCEINLINE float Func(Arg1 X, Arg2 Y) \
-	{ \
-		return Func((float)X, (float)Y); \
-	}
-
 // Mixing float and double types with any other type results in same type as "X * Y", which is promoted to the floating point type with the highest precision of the argument types.
 #define MIX_FLOATS_2_ARGS(Func) \
-	template<typename Arg1, typename Arg2, TEMPLATE_REQUIRES( (std::is_floating_point_v<Arg1> || std::is_floating_point_v<Arg2>) && \
-																!std::is_same_v<Arg1, Arg2> \
-															)> \
+	template < \
+		typename Arg1, \
+		typename Arg2 \
+		UE_CONSTRAINTS_BEGIN \
+			UE_CONSTRAINT((std::is_floating_point_v<Arg1> || std::is_floating_point_v<Arg2>) && !std::is_same_v<Arg1, Arg2>) \
+		UE_CONSTRAINTS_END \
+	> \
 	static FORCEINLINE auto Func(Arg1 X, Arg2 Y) -> decltype(X * Y) \
 	{ \
 		using ArgType = decltype(X * Y); \
 		return Func((ArgType)X, (ArgType)Y); \
 	}
 
-// Cannot know whether the type of e.g. Fmod(int, int) should be float or double.
-#define REMOVE_AMBIGUOUS_FLOAT_3_ARGS(Func) \
-	template<typename Arg1, typename Arg2, typename Arg3, TEMPLATE_REQUIRES(TAnd< \
-																				TNot<TIsFloatingPoint<Arg1>>, \
-																				TNot<TIsFloatingPoint<Arg2>>, \
-																				TNot<TIsFloatingPoint<Arg3>> \
-																				>::Value \
-																			)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity, expected a floating point type.") \
-	static FORCEINLINE float Func(Arg1 X, Arg2 Y, Arg3 Z) \
-	{ \
-		return Func((float)X, (float)Y, (float)Z); \
-	}
-
 // Mixing float and double types with any other type results in same type as "X * Y", which is promoted to the floating point type with the highest precision of the argument types.
 #define MIX_FLOATS_3_ARGS(Func) \
-	template<typename Arg1, typename Arg2, typename Arg3, TEMPLATE_REQUIRES( \
-																				( \
-																					std::is_floating_point_v<Arg1> || \
-																					std::is_floating_point_v<Arg2> || \
-																					std::is_floating_point_v<Arg3> \
-																				) && \
-																				( \
-																					!std::is_same_v<Arg1, Arg2> || \
-																					!std::is_same_v<Arg2, Arg3> || \
-																					!std::is_same_v<Arg1, Arg3> \
-																				) \
-																			)> \
+	template < \
+		typename Arg1, \
+		typename Arg2, \
+		typename Arg3 \
+		UE_CONSTRAINTS_BEGIN \
+			UE_CONSTRAINT( \
+				(std::is_floating_point_v<Arg1> || std::is_floating_point_v<Arg2> || std::is_floating_point_v<Arg3>) && \
+				(!std::is_same_v<Arg1, Arg2> || !std::is_same_v<Arg2, Arg3> || !std::is_same_v<Arg1, Arg3>) \
+			) \
+		UE_CONSTRAINTS_END \
+	> \
 	static FORCEINLINE auto Func(Arg1 X, Arg2 Y, Arg3 Z) -> decltype(X * Y * Z) \
 	{ \
 		using ArgType = decltype(X * Y * Z); \
@@ -139,70 +124,45 @@
 // Otherwise promotes to the highest precision floating point type of the arugments.
 
 #define RESOLVE_FLOAT_AMBIGUITY_2_ARGS(Func) \
-	REMOVE_AMBIGUOUS_FLOAT_2_ARGS(Func); \
 	MIX_FLOATS_2_ARGS(Func);
 
 #define RESOLVE_FLOAT_AMBIGUITY_3_ARGS(Func) \
-	REMOVE_AMBIGUOUS_FLOAT_3_ARGS(Func); \
 	MIX_FLOATS_3_ARGS(Func);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Assuming that a float and/or double version of a function are declared, this deprecates all other types as ambiguous and falls back to the float variant (returning ReturnType type)
-#define RESOLVE_FLOAT_TO_TYPE_AMBIGUITY(Func, ReturnType) \
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.") \
-	static FORCEINLINE ReturnType Func(T&& Value) { return Func((float)Value); }
-
-#define REMOVE_AMBIGUOUS_FLOAT_TO_TYPE_2_ARGS(Func, ReturnType) \
-	template<typename Arg1, typename Arg2, TEMPLATE_REQUIRES(TAnd< \
-																TNot<TIsFloatingPoint<Arg1>>,\
-																TNot<TIsFloatingPoint<Arg2>> \
-																>::Value)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity, expected a floating point type.") \
-	static FORCEINLINE ReturnType Func(Arg1 X, Arg2 Y) \
-	{ \
-		return Func((float)X, (float)Y); \
-	}
-
 // Mixing float and double types with any other type results in same type as "X * Y", which is promoted to the floating point type with the highest precision of the argument types.
 #define MIX_FLOATS_TO_TYPE_2_ARGS(Func, ReturnType) \
-	template<typename Arg1, typename Arg2, TEMPLATE_REQUIRES( \
-																(std::is_floating_point_v<Arg1> || std::is_floating_point_v<Arg2>) && \
-																!std::is_same_v<Arg1, Arg2> \
-															)> \
+	template < \
+		typename Arg1, \
+		typename Arg2 \
+		UE_CONSTRAINTS_BEGIN \
+			UE_CONSTRAINT( \
+				(std::is_floating_point_v<Arg1> || std::is_floating_point_v<Arg2>) && \
+				!std::is_same_v<Arg1, Arg2> \
+			) \
+		UE_CONSTRAINTS_END \
+	> \
 	static FORCEINLINE ReturnType Func(Arg1 X, Arg2 Y) \
 	{ \
 		using ArgType = decltype(X * Y); \
 		return Func((ArgType)X, (ArgType)Y); \
 	}
 
-// Cannot know whether the type of e.g. Fmod(int, int) should be float or double.
-#define REMOVE_AMBIGUOUS_FLOAT_TO_TYPE_3_ARGS(Func, ReturnType) \
-	template<typename Arg1, typename Arg2, typename Arg3, TEMPLATE_REQUIRES(TAnd< \
-																				TNot<TIsFloatingPoint<Arg1>>, \
-																				TNot<TIsFloatingPoint<Arg2>>, \
-																				TNot<TIsFloatingPoint<Arg3>> \
-																				>::Value \
-																			)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity, expected a floating point type.") \
-	static FORCEINLINE ReturnType Func(Arg1 X, Arg2 Y) \
-	{ \
-		return Func((float)X, (float)Y); \
-	}
-
 // Mixing float and double types with any other type results in same type as "X * Y", which is promoted to the floating point type with the highest precision of the argument types.
 #define MIX_FLOATS_TO_TYPE_3_ARGS(Func, ReturnType) \
-	template<typename Arg1, typename Arg2, typename Arg3, TEMPLATE_REQUIRES( \
-																				( \
-																					std::is_floating_point_v<Arg1> || \
-																					std::is_floating_point_v<Arg2> || \
-																					std::is_floating_point_v<Arg3> \
-																				) && \
-																				( \
-																					!std::is_same_v<Arg1, Arg2> || \
-																					!std::is_same_v<Arg1, Arg3> || \
-																					!std::is_same_v<Arg2, Arg3> \
-																				) \
-																			)> \
+	template < \
+		typename Arg1, \
+		typename Arg2, \
+		typename Arg3 \
+		UE_CONSTRAINTS_BEGIN \
+			UE_CONSTRAINT( \
+				(std::is_floating_point_v<Arg1> || std::is_floating_point_v<Arg2> || std::is_floating_point_v<Arg3>) && \
+				(!std::is_same_v<Arg1, Arg2> || !std::is_same_v<Arg1, Arg3> || !std::is_same_v<Arg2, Arg3>) \
+			) \
+		UE_CONSTRAINTS_END \
+	> \
 	static FORCEINLINE ReturnType Func(Arg1 X, Arg2 Y, Arg3 Z) \
 	{ \
 		using ArgType = decltype(X * Y * Z); \
@@ -214,14 +174,11 @@
 // Otherwise promotes to the highest precision floating point type of the arugments.
 
 #define RESOLVE_FLOAT_TO_TYPE_AMBIGUITY_2_ARGS(Func, ReturnType) \
-	REMOVE_AMBIGUOUS_FLOAT_TO_TYPE_2_ARGS(Func, ReturnType); \
 	MIX_FLOATS_TO_TYPE_2_ARGS(Func, ReturnType);
 
 #define RESOLVE_FLOAT_TO_TYPE_AMBIGUITY_3_ARGS(Func, ReturnType) \
-	REMOVE_AMBIGUOUS_FLOAT_TO_TYPE_3_ARGS(Func, ReturnType); \
 	MIX_FLOATS_TO_TYPE_3_ARGS(Func, ReturnType);
 
 // nicer names for the bool version
-#define RESOLVE_FLOAT_PREDICATE_AMBIGUITY(Func) RESOLVE_FLOAT_TO_TYPE_AMBIGUITY(Func, bool)
 #define RESOLVE_FLOAT_PREDICATE_AMBIGUITY_2_ARGS(Func) RESOLVE_FLOAT_TO_TYPE_AMBIGUITY_2_ARGS(Func, bool)
 #define RESOLVE_FLOAT_PREDICATE_AMBIGUITY_3_ARGS(Func) RESOLVE_FLOAT_TO_TYPE_AMBIGUITY_3_ARGS(Func, bool)
