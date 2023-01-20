@@ -233,6 +233,16 @@ namespace UE::Online {
 
 	TOnlineResult<FSetPresenceSession> FSessionsCommon::SetPresenceSession(FSetPresenceSession::Params&& Params)
 	{
+		return SetPresenceSessionImpl(MoveTemp(Params));
+	}
+
+	TOnlineResult<FClearPresenceSession> FSessionsCommon::ClearPresenceSession(FClearPresenceSession::Params&& Params)
+	{
+		return ClearPresenceSessionImpl(MoveTemp(Params));
+	}
+
+	TOnlineResult<FSetPresenceSession> FSessionsCommon::SetPresenceSessionImpl(FSetPresenceSession::Params&& Params)
+	{
 		CHECK_PARAMS_ID_HANDLE(Params.LocalAccountId, FSetPresenceSession)
 		CHECK_PARAMS_ID_HANDLE(Params.SessionId, FSetPresenceSession);
 
@@ -242,7 +252,7 @@ namespace UE::Online {
 		return TOnlineResult<FSetPresenceSession>(FSetPresenceSession::Result{ });
 	}
 
-	TOnlineResult<FClearPresenceSession> FSessionsCommon::ClearPresenceSession(FClearPresenceSession::Params&& Params)
+	TOnlineResult<FClearPresenceSession> FSessionsCommon::ClearPresenceSessionImpl(FClearPresenceSession::Params&& Params)
 	{
 		CHECK_PARAMS_ID_HANDLE(Params.LocalAccountId, FClearPresenceSession);
 
@@ -935,7 +945,7 @@ namespace UE::Online {
 
 		if (bIsPresenceSession)
 		{
-			SetPresenceSession({ LocalAccountId, SessionId });
+			SetPresenceSessionImpl({ LocalAccountId, SessionId });
 		}
 	}
 
@@ -968,7 +978,7 @@ namespace UE::Online {
 		{
 			if (IsPresenceSessionResult.GetOkValue().bIsPresenceSession)
 			{
-				ClearPresenceSession({ LocalAccountId });
+				ClearPresenceSessionImpl({ LocalAccountId });
 			}
 		}
 

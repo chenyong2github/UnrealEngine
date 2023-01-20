@@ -284,6 +284,9 @@ protected:
 
 	// FSessionsCommon internal interface
 
+	virtual TOnlineResult<FSetPresenceSession> SetPresenceSessionImpl(FSetPresenceSession::Params&& Params);
+	virtual TOnlineResult<FClearPresenceSession> ClearPresenceSessionImpl(FClearPresenceSession::Params&& Params);
+
 	virtual TFuture<TOnlineResult<FCreateSession>> CreateSessionImpl(const FCreateSession::Params& Params);
 	virtual TOptional<FOnlineError> CheckParams(const FCreateSession::Params& Params) const;
 	virtual TOptional<FOnlineError> CheckState(const FCreateSession::Params& Params) const;
