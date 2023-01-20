@@ -410,10 +410,15 @@ namespace Horde.Build.Configuration
 		async Task WriteSnapshotAsync(ConfigSnapshot snapshot)
 		{
 			ReadOnlyMemory<byte> data = SerializeSnapshot(snapshot);
-			_logger.LogInformation("Publishing new config snapshot ({Size})", data.Length);
+
+			IoHash hash = IoHash.Compute(data.Span);
+			_logger.LogInformation("Publishing new config snapshot (hash: {Hash}, server: {Server}, size: {Size})", hash.ToString(), Program.Version.ToString(), data.Length);
+			_logger.LogInformation("Dependencies for config revision {Hash}: {@Info}", hash.ToString(), snapshot.Dependencies);
+
 			await _redisService.GetDatabase().StringSetAsync(_snapshotKey, data);
 			await _redisService.PublishAsync(_updateChannel, RedisValue.EmptyString);
-			_logger.LogInformation("Published new config snapshot: {@Info}", GetSnapshotInfo(data.Span, snapshot)); 
+
+			_logger.LogInformation("Published new config snapshot (hash: {Hash}, server: {Server}, size: {Size})", hash.ToString(), Program.Version.ToString(), data.Length);
 		}
 
 		async Task<ReadOnlyMemory<byte>> ReadSnapshotDataAsync()

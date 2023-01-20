@@ -317,7 +317,7 @@ namespace Horde.Build.Configuration
 			}
 			else
 			{
-				_logger.LogInformation("Reading {Uri}@{Change} from Perforce", uri, change);
+				_logger.LogInformation("Reading {Uri} at CL {Change} from Perforce", uri, change);
 				using (IPerforceConnection perforce = await ConnectAsync(uri.Host, cancellationToken))
 				{
 					PerforceResponse<PrintRecord<byte[]>> response = await perforce.TryPrintDataAsync($"{uri.AbsolutePath}@{change}", cancellationToken);
