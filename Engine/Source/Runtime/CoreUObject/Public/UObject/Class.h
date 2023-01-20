@@ -656,11 +656,6 @@ public:
 	}
 #endif // WITH_EDITORONLY_DATA
 
-#if HACK_HEADER_GENERATOR
-	// Required by UHT makefiles for internal data serialization.
-	friend struct FStructArchiveProxy;
-#endif // HACK_HEADER_GENERATOR
-
 	/** Sets the UnresolvedScriptProperties array */
 	void SetUnresolvedScriptProperties(FUnresolvedScriptPropertiesArray& InUnresolvedProperties)
 	{
@@ -1502,16 +1497,6 @@ public:
 
 public:
 	EStructFlags StructFlags;
-
-
-#if HACK_HEADER_GENERATOR
-	int32 StructMacroDeclaredLineNumber;
-
-	// Required by UHT makefiles for internal data serialization.
-	friend struct FScriptStructArchiveProxy;
-
-	static COREUOBJECT_API ICppStructOps* FindDeferredCppStructOps(FTopLevelAssetPath StructName);
-#endif
 
 protected:
 	/** true if we have performed PrepareCppStructOps **/
@@ -2656,7 +2641,7 @@ public:
 	/** List of network relevant fields (functions) */
 	TArray<UField*> NetFields;
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR 
+#if WITH_EDITOR
 	// Editor only properties
 	void GetHideFunctions(TArray<FString>& OutHideFunctions) const;
 	bool IsFunctionHidden(const TCHAR* InFunction) const;
@@ -3330,10 +3315,6 @@ public:
 	 */
 	void SetUpRuntimeReplicationData();
 
-#if HACK_HEADER_GENERATOR
-	void SetUpUhtReplicationData();
-#endif  // HACK_HEADER_GENERATOR
-
 	/**
 	 * Helper function for determining if the given class is compatible with structured archive serialization
 	 */
@@ -3389,11 +3370,6 @@ protected:
 	 * @return		the CDO for this class
 	 **/
 	virtual UObject* CreateDefaultObject();
-
-#if HACK_HEADER_GENERATOR
-	// Required by UHT makefiles for internal data serialization.
-	friend struct FClassArchiveProxy;
-#endif // HACK_HEADER_GENERATOR
 };
 
 // @todo: BP2CPP_remove

@@ -246,21 +246,6 @@ void FStructProperty::AddReferencedObjects(FReferenceCollector& Collector)
 	Super::AddReferencedObjects(Collector);
 }
 
-#if HACK_HEADER_GENERATOR
-
-bool FStructProperty::HasNoOpConstructor() const
-{
-	Struct->PrepareCppStructOps();
-	UScriptStruct::ICppStructOps* CppStructOps = Struct->GetCppStructOps();
-	if (CppStructOps && CppStructOps->HasNoopConstructor())
-	{
-		return true;
-	}
-	return false;
-}
-
-#endif
-
 FString FStructProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
 {
 	return Struct->GetStructCPPName(CPPExportFlags);

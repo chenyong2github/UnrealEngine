@@ -8,7 +8,6 @@
 #include "SceneTypes.h"
 #include "Modules/ModuleInterface.h"
 #include "Engine/TextureStreamingTypes.h"
-#include "UObject/ErrorException.h"
 #include "Engine/Texture.h"
 
 #include "LightMap.h"

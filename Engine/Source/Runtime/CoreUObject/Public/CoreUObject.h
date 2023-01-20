@@ -7,7 +7,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 
 
 #include "Core.h"
-#include "UObject/ErrorException.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/ScriptInterface.h"
 #include "UObject/Script.h"

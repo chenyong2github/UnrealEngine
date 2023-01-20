@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "Misc/ConfigCacheIni.h"
-#include "UObject/ErrorException.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 #include "UObject/Package.h"

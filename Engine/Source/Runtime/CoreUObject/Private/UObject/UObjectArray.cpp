@@ -81,7 +81,7 @@ FUObjectArray::FUObjectArray()
 : ObjFirstGCIndex(0)
 , ObjLastNonGCIndex(INDEX_NONE)
 , MaxObjectsNotConsideredByGC(0)
-, OpenForDisregardForGC(!HACK_HEADER_GENERATOR)
+, OpenForDisregardForGC(true)
 , PrimarySerialNumber(START_SERIAL_NUMBER)
 {
 	GCoreObjectArrayForDebugVisualizers = &GUObjectArray.ObjObjects;

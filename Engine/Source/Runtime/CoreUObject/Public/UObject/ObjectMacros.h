@@ -26,11 +26,7 @@ typedef	uint64 ScriptPointerType;
 #endif
 
 #ifndef USE_COMPILED_IN_NATIVES
-#if HACK_HEADER_GENERATOR 
-#define USE_COMPILED_IN_NATIVES	0
-#else
 #define USE_COMPILED_IN_NATIVES	1
-#endif
 #endif
 
 /** Set this to 0 to disable UObject thread safety features */
@@ -41,7 +37,7 @@ typedef	uint64 ScriptPointerType;
 #define USTRUCT_ISCHILDOF_STRUCTARRAY 2 // stores an array of parents per struct and uses this to compare - faster than 1 and thread-safe but can have issues with BP reinstancing and hot reload
 
 // USTRUCT_FAST_ISCHILDOF_IMPL sets which implementation of IsChildOf to use.
-#if UE_EDITOR || HACK_HEADER_GENERATOR
+#if UE_EDITOR
 	// On editor, we use the outerwalk implementation because BP reinstancing and hot reload
 	// mess up the struct array
 	#define USTRUCT_FAST_ISCHILDOF_IMPL USTRUCT_ISCHILDOF_OUTERWALK

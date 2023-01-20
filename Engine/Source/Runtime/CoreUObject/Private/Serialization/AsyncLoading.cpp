@@ -250,7 +250,6 @@ struct FEDLBootNotificationManager
 		FireCompletedCompiledInImports(AsyncLoadingThread, true);
 		FlushAsyncLoading();
 #endif
-#if !HACK_HEADER_GENERATOR
 		check(!GIsInitialLoad && IsInGameThread());
 		FScopeLock Lock(&EDLBootNotificationManagerLock);
 		for (auto& Pair : PathToState)
@@ -276,7 +275,6 @@ struct FEDLBootNotificationManager
 			}
 			UE_LOG(LogStreaming, Fatal, TEXT("Initial load is complete, but we still have %d imports to fire (listed above)."), PathsToFire.Num());
 		}
-#endif
 		Disable();
 	}
 

@@ -14,7 +14,6 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/StringBuilder.h"
-#include "UObject/ErrorException.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectAllocator.h"
 #include "UObject/UObjectHash.h"
@@ -839,11 +838,7 @@ void UStruct::Link(FArchive& Ar, bool bRelinkExistingProperties)
 					if (StructProp != NULL && StructProp->Struct == this)
 					{
 						//we won't support this, too complicated
-					#if HACK_HEADER_GENERATOR
-						FError::Throwf(TEXT("'Struct recursion via arrays is unsupported for properties."));
-					#else
 						UE_LOG(LogClass, Fatal, TEXT("'Struct recursion via arrays is unsupported for properties."));
-					#endif
 					}
 				}
 			}
@@ -2498,9 +2493,6 @@ bool FindConstructorUninitialized(UStruct* BaseClass,uint8* Data,uint8* Defaults
 UScriptStruct::UScriptStruct( EStaticConstructor, int32 InSize, int32 InAlignment, EObjectFlags InFlags )
 	: UStruct( EC_StaticConstructor, InSize, InAlignment, InFlags )
 	, StructFlags(STRUCT_NoFlags)
-#if HACK_HEADER_GENERATOR
-	, StructMacroDeclaredLineNumber(INDEX_NONE)
-#endif
 	, bPrepareCppStructOpsCompleted(false)
 	, CppStructOps(NULL)
 {
@@ -2509,9 +2501,6 @@ UScriptStruct::UScriptStruct( EStaticConstructor, int32 InSize, int32 InAlignmen
 UScriptStruct::UScriptStruct(const FObjectInitializer& ObjectInitializer, UScriptStruct* InSuperStruct, ICppStructOps* InCppStructOps, EStructFlags InStructFlags, SIZE_T ExplicitSize, SIZE_T ExplicitAlignment )
 	: UStruct(ObjectInitializer, InSuperStruct, InCppStructOps ? InCppStructOps->GetSize() : ExplicitSize, InCppStructOps ? InCppStructOps->GetAlignment() : ExplicitAlignment )
 	, StructFlags(EStructFlags(InStructFlags | (InCppStructOps ? STRUCT_Native : STRUCT_NoFlags)))
-#if HACK_HEADER_GENERATOR
-	, StructMacroDeclaredLineNumber(INDEX_NONE)
-#endif
 	, bPrepareCppStructOpsCompleted(false)
 	, CppStructOps(InCppStructOps)
 {
@@ -2521,9 +2510,6 @@ UScriptStruct::UScriptStruct(const FObjectInitializer& ObjectInitializer, UScrip
 UScriptStruct::UScriptStruct(const FObjectInitializer& ObjectInitializer)
 	: UStruct(ObjectInitializer)
 	, StructFlags(STRUCT_NoFlags)
-#if HACK_HEADER_GENERATOR
-	, StructMacroDeclaredLineNumber(INDEX_NONE)
-#endif
 	, bPrepareCppStructOpsCompleted(false)
 	, CppStructOps(NULL)
 {
@@ -2555,13 +2541,6 @@ void UScriptStruct::DeferCppStructOps(FTopLevelAssetPath Target, ICppStructOps* 
 	DeferredStructOps.Add(Target, InCppStructOps);
 }
 
-#if HACK_HEADER_GENERATOR
-UScriptStruct::ICppStructOps* UScriptStruct::FindDeferredCppStructOps(FTopLevelAssetPath StructName)
-{
-	return GetDeferredCppStructOps().FindRef(StructName);
-}
-#endif
-
 FTopLevelAssetPath UScriptStruct::GetFlattenedStructPathName() const
 {
 	return FTopLevelAssetPath(GetPackage()->GetFName(), GetFName());
@@ -2592,9 +2571,7 @@ void UScriptStruct::PrepareCppStructOps()
 			bPrepareCppStructOpsCompleted = true;
 			return;
 		}
-#if !HACK_HEADER_GENERATOR
 		StructFlags = EStructFlags(StructFlags | STRUCT_Native);
-#endif
 		
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		// test that the constructor is initializing everything
@@ -3697,14 +3674,12 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAutomationTestAttemptToFindUninitializedScript
 bool FAutomationTestAttemptToFindUninitializedScriptStructMembers::RunTest(const FString& Parameters)
 {
 	// This test fails when running tests under UHT because there is no TestUninitializedScriptStructMembersTest, so just skip it in that config.
-#if !HACK_HEADER_GENERATOR
 	if (UObjectInitialized())
 	{
 		FStructUtils::AttemptToFindUninitializedScriptStructMembers();
 		return !HasAnyErrors();
 	}
 	else
-#endif
 	{
 		return true;
 	}
@@ -3906,11 +3881,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAutomationTestAttemptToFindShortTypeNamesInMet
 bool FAutomationTestAttemptToFindShortTypeNamesInMetaData::RunTest(const FString& Parameters)
 {
 	// This test is not necessary when running under UHT so just skip it in that config.
-#if !HACK_HEADER_GENERATOR
 	return FStructUtils::AttemptToFindShortTypeNamesInMetaData() == 0;
-#else
-	return true;
-#endif
 }
 
 #endif // WITH_EDITORONLY_DATA
@@ -4496,39 +4467,6 @@ static int32 GValidateReplicatedProperties = 1;
 #endif
 
 static FAutoConsoleVariable CVarValidateReplicatedPropertyRegistration(TEXT("net.ValidateReplicatedPropertyRegistration"), GValidateReplicatedProperties, TEXT("Warns if replicated properties were not registered in GetLifetimeReplicatedProps."));
-
-#if HACK_HEADER_GENERATOR
-void UClass::SetUpUhtReplicationData()
-{
-	if (!HasAnyClassFlags(CLASS_ReplicationDataIsSetUp) && PropertyLink != NULL)
-	{
-        ClassReps.Empty();
-		if (UClass* SuperClass = GetSuperClass())
-		{
-			SuperClass->SetUpUhtReplicationData();
-			ClassReps = SuperClass->ClassReps;
-			FirstOwnedClassRep = ClassReps.Num();
-		}
-		else
-		{
-			FirstOwnedClassRep = 0;
-		}
-
-		for (TFieldIterator<FProperty> It(this, EFieldIteratorFlags::ExcludeSuper); It; ++It)
-		{
-			if (It->PropertyFlags & CPF_Net)
-			{
-				It->RepIndex = (uint16)ClassReps.Num();
-				new (ClassReps) FRepRecord(*It, 0);
-			}
-		}
-		check(ClassReps.Num() <= 65535);
-
-		ClassFlags |= CLASS_ReplicationDataIsSetUp;
-		ClassReps.Shrink();
-	}
-}
-#endif
 
 void UClass::SetUpRuntimeReplicationData()
 {
@@ -6174,7 +6112,7 @@ bool UClass::IsShortTypeName(FStringView InClassPath)
 }
 
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR
+#if WITH_EDITOR
 void UClass::GetHideFunctions(TArray<FString>& OutHideFunctions) const
 {
 	static const FName NAME_HideFunctions(TEXT("HideFunctions"));
@@ -6270,7 +6208,7 @@ bool UClass::IsClassGroupName(const TCHAR* InGroupName) const
 	return false;
 }
 
-#endif // WITH_EDITOR || HACK_HEADER_GENERATOR
+#endif // WITH_EDITOR
 
 
 #if WITH_EDITORONLY_DATA

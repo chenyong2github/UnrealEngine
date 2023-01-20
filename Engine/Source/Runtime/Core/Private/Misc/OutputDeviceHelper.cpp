@@ -63,10 +63,8 @@ void FOutputDeviceHelper::AppendFormatLogLine(
 	}
 	else if (GPrintLogVerbosity && Verbosity != ELogVerbosity::Log)
 	{
-#if !HACK_HEADER_GENERATOR
 		Format.Append(ToString(Verbosity));
 		Format.Append(WIDETEXT(": "));
-#endif
 	}
 
 	if (Message)

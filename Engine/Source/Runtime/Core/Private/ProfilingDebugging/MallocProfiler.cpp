@@ -1224,7 +1224,7 @@ FMallocProfilerBufferedFileWriter::~FMallocProfilerBufferedFileWriter()
 
 void FMallocProfilerBufferedFileWriter::Serialize( void* V, int64 Length )
 {
-#if (ALLOW_DEBUG_FILES && !HACK_HEADER_GENERATOR)
+#if ALLOW_DEBUG_FILES
 	// Copy to buffered memory array if GConfig hasn't been set up yet.
 	// This isn't the best solution, but due to complexity of the engine initialization order is the safest.
 	const bool bIsIniReady = GConfig && GConfig->IsReadyForUse();

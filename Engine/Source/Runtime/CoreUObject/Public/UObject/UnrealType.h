@@ -1190,11 +1190,6 @@ public:
 
 	ELifetimeCondition GetBlueprintReplicationCondition() const { return BlueprintReplicationCondition; }
 	void SetBlueprintReplicationCondition(ELifetimeCondition InBlueprintReplicationCondition) { BlueprintReplicationCondition = InBlueprintReplicationCondition; }
-
-#if HACK_HEADER_GENERATOR
-	// Required by UHT makefiles for internal data serialization.
-	friend struct FPropertyArchiveProxy;
-#endif // HACK_HEADER_GENERATOR
 };
 
 
@@ -2559,11 +2554,6 @@ public:
 	}
 
 	uint32 GetValueTypeHashInternal(const void* Src) const override;
-
-#if HACK_HEADER_GENERATOR
-	// Required by UHT makefiles for internal data serialization.
-	friend struct FBoolPropertyArchiveProxy;
-#endif // HACK_HEADER_GENERATOR
 };
 
 /*-----------------------------------------------------------------------------
@@ -5863,18 +5853,6 @@ public:
 
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const;
-
-public:
-
-#if HACK_HEADER_GENERATOR
-	/**
-	 * Some native structs, like FIntPoint, FIntRect, FVector2D, FVector, FPlane, FRotator, FCylinder have a default constructor that does nothing and require EForceInit
-	 * Since it is name-based, this is not a fast routine intended to be used for header generation only
-	 * 
-	 * @return	true if this struct requires the EForceInit constructor to initialize
-	 */
-	bool HasNoOpConstructor() const;
-#endif
 };
 
 /*-----------------------------------------------------------------------------

@@ -732,13 +732,7 @@ void FGenericPlatformMisc::RaiseException(uint32 ExceptionCode)
 	/** This is the last place to gather memory stats before exception. */
 	FGenericCrashContext::SetMemoryStats(FPlatformMemory::GetStats());
 
-#if HACK_HEADER_GENERATOR && !PLATFORM_EXCEPTIONS_DISABLED
-	// We want Unreal Header Tool to throw an exception but in normal runtime code 
-	// we don't support exception handling
-	throw(ExceptionCode);
-#else	
 	*((uint32*)3) = ExceptionCode;
-#endif
 }
 
 template<typename CharType>

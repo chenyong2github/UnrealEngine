@@ -265,11 +265,6 @@ private:
 	/** This is used by the reinstancer to re-class and re-archetype the current instances of a class before recompiling */
 	void SetClass(UClass* NewClass);
 #endif
-
-#if HACK_HEADER_GENERATOR
-	// Required by UHT makefiles for internal data serialization.
-	friend struct FObjectBaseArchiveProxy;
-#endif // HACK_HEADER_GENERATOR
 };
 
 /**

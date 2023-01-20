@@ -115,18 +115,10 @@
 	#define ENABLE_PGO_PROFILE 0
 #endif
 
-/**
- * Unreal Header Tool requires extra data stored in the structure of a few core files. This enables some ifdef hacks to make this work. 
- * Set via UBT, do not modify directly
- */
-#ifndef HACK_HEADER_GENERATOR
-	#define HACK_HEADER_GENERATOR 0
-#endif
-
 /** Whether we are compiling with automation worker functionality.  Note that automation worker defaults to enabled in
     UE_BUILD_TEST configuration, so that it can be used for performance testing on devices */
 #ifndef WITH_AUTOMATION_WORKER
-	#define WITH_AUTOMATION_WORKER !(UE_BUILD_SHIPPING || HACK_HEADER_GENERATOR)
+	#define WITH_AUTOMATION_WORKER !UE_BUILD_SHIPPING
 #endif
 
 /**

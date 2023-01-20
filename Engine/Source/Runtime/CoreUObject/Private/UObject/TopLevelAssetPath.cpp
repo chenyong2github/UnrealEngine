@@ -14,11 +14,6 @@
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectThreadContext.h"
 
-// The reason behind HACK_HEADER_GENERATOR is that without it UHT is going to 'see' cppstructops for TopLevelAssetPath
-// and will not generate temp FTopLevelAssetPath struct for codegen purposes where it can access all of its members
-// which are public in the temp struct and private in the actual FTopLevelAssetPath.
-// If UHT compiles with UE_IMPLEMENT_STRUCT("/Script/CoreUObject", TopLevelAssetPath) the generated code will fail to compile trying to access private struct members
-#if !HACK_HEADER_GENERATOR
 template<>
 struct TStructOpsTypeTraits<FTopLevelAssetPath> : public TStructOpsTypeTraitsBase2<FTopLevelAssetPath>
 {
@@ -30,7 +25,6 @@ struct TStructOpsTypeTraits<FTopLevelAssetPath> : public TStructOpsTypeTraitsBas
 	};
 };
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", TopLevelAssetPath)
-#endif
 
 void FTopLevelAssetPath::AppendString(FStringBuilderBase& Builder) const
 {

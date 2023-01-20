@@ -427,24 +427,6 @@ DECLARE_ALL_CAST_FLAGS
 #undef DECLARE_CAST_BY_FLAG_CAST
 #undef DECLARE_CAST_BY_FLAG_FWD
 
-
-#if HACK_HEADER_GENERATOR
-// Singleton class to get the cast flag for a given class name.
-struct COREUOBJECT_API ClassCastFlagMap
-{
-	static ClassCastFlagMap& Get();
-
-	// Get Mapped name -> cast flag. Returns CASTCLASS_None if name is not found.
-	EClassCastFlags GetCastFlag(const FString& ClassName) const;
-
-private:
-	ClassCastFlagMap();
-	TMap<FString, EClassCastFlags> CastFlagMap;
-};
-#endif // HACK_HEADER_GENERATOR
-
-
-
 namespace UECasts_Private
 {
 	template <typename T>

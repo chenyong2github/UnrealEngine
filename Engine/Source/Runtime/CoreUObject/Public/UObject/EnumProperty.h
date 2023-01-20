@@ -111,9 +111,6 @@ public:
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 
-#if HACK_HEADER_GENERATOR
-public:
-#endif
 	FNumericProperty* UnderlyingProp; // The property which represents the underlying type of the enum
 	UEnum* Enum; // The enum represented by this property
 };
