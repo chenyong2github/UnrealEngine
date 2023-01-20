@@ -53,13 +53,19 @@ BuildLibCxx()
       -DCMAKE_TOOLCHAIN_FILE="/tmp/__cmake_toolchain.cmake" \
       -DCMAKE_MAKE_PROGRAM=$(which make) \
       -DPYTHON_EXECUTABLE=$(which python) \
+      -DPython3_EXECUTABLE=$(which python3) \
+      -DLLVM_INCLUDE_BENCHMARKS=OFF \
+      -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
       -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
       -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=TRUE \
       -DCMAKE_BUILD_TYPE=Release \
+      -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF \
       -DLLVM_ENABLE_PROJECTS="libcxx;libcxxabi" \
       -DLIBCXX_ENABLE_SHARED=OFF \
-      -DLIBCXXABI_ENABLE_SHARED=ON \
+      -DLIBCXXABI_ENABLE_SHARED=OFF \
+      -DLIBCXX_ENABLE_STATIC=ON \
       -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
+      -DLIBCXXABI_INSTALL_SHARED_LIBRARY=OFF \
       -DLIBCXX_CXX_ABI_LIBRARY=c++abi \
       -DLIBCXX_ENABLE_FILESYSTEM=ON \
       ${LLVM_DIR}/llvm
@@ -69,8 +75,8 @@ BuildLibCxx()
     make install-cxx-headers
 
     mkdir -p ${INSTALL_DIR}/lib/Linux/${ARCH}
-    cp lib/libc++.a ${INSTALL_DIR}/lib/Linux/${ARCH}
-    cp lib/libc++abi.a ${INSTALL_DIR}/lib/Linux/${ARCH}
+    cp -v lib/libc++.a ${INSTALL_DIR}/lib/Linux/${ARCH}
+    cp -v lib/libc++abi.a ${INSTALL_DIR}/lib/Linux/${ARCH}
 
     popd
 }

@@ -6,7 +6,9 @@ SCRIPT_DIR=$(cd "$(dirname "$BASH_SOURCE")" ; pwd)
 SCRIPT_NAME=$(basename "$BASH_SOURCE")
 
 # https://stackoverflow.com/questions/23513045/how-to-check-if-a-process-is-running-inside-docker-container
-if ! $(grep -q "/docker/" /proc/1/cgroup); then
+# https://unix.stackexchange.com/questions/607695/how-to-check-if-its-docker-or-host-machine-inside-bash-script
+# cgroups 2 busted the first way, attempting a new way here but may break again in the future
+if ! [ -f "/.dockerenv" ]; then
 
   ##############################################################################
   # host commands

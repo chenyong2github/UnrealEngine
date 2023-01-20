@@ -1,7 +1,7 @@
 @REM @echo off
 
-set TOOLCHAIN_VERSION=v20
-set LLVM_VERSION=13.0.1
+set TOOLCHAIN_VERSION=v21
+set LLVM_VERSION=15.0.1
 
 set SVN_BINARY=%CD%\..\..\..\..\Binaries\ThirdParty\svn\Win64\svn.exe
 set CMAKE_BINARY=%CD%\..\..\..\..\Extras\ThirdPartyNotUE\CMake\bin\cmake.exe
@@ -31,7 +31,7 @@ pushd %TEMP%\clang-build-%LLVM_VERSION%
 
 unzip -o %ROOT_DIR:\=/%/%FILENAME%-windows.zip -d OUTPUT
 
-set GIT_LLVM_RELEASE_HASH=43ff75f2c3feef64f9d73328230d34dac8832a91
+set GIT_LLVM_RELEASE_HASH=b73d2c8c720a8c8e6e73b11be4e27afa6cb75bdf
 
 git clone https://github.com/llvm/llvm-project source
 pushd source
