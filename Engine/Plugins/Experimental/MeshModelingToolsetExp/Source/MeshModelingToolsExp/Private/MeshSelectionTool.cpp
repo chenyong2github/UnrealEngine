@@ -22,6 +22,8 @@
 #include "Properties/MeshUVChannelProperties.h"
 #include "PropertySets/PolygroupLayersProperties.h"
 #include "Polygroups/PolygroupUtil.h"
+#include "Selection/StoredMeshSelectionUtil.h"
+#include "Selections/GeometrySelectionUtil.h"
 
 #include "Algo/MaxElement.h"
 
@@ -38,7 +40,21 @@ UMeshSurfacePointTool* UMeshSelectionToolBuilder::CreateNewTool(const FToolBuild
 {
 	UMeshSelectionTool* SelectionTool = NewObject<UMeshSelectionTool>(SceneState.ToolManager);
 	SelectionTool->SetWorld(SceneState.World);
+
 	return SelectionTool;
+}
+
+void UMeshSelectionToolBuilder::InitializeNewTool(UMeshSurfacePointTool* Tool, const FToolBuilderState& SceneState) const
+{
+	UMeshSurfacePointMeshEditingToolBuilder::InitializeNewTool(Tool, SceneState);
+	if (UMeshSelectionTool* SelectionTool = Cast<UMeshSelectionTool>(Tool))
+	{
+		UE::Geometry::FGeometrySelection Selection;
+		if (UE::Geometry::GetCurrentGeometrySelectionForTarget(SceneState, SelectionTool->GetTarget(), Selection))
+		{
+			SelectionTool->SetGeometrySelection(MoveTemp(Selection));
+		}
+	}
 }
 
 /*
@@ -169,6 +185,16 @@ void UMeshSelectionTool::Setup()
 	MeshStatisticsProperties = NewObject<UMeshStatisticsProperties>(this);
 	AddToolPropertySource(MeshStatisticsProperties);
 
+	// initialize our selection from input selection, if available 
+	if (InputGeometrySelection.IsEmpty() == false)
+	{
+		TArray<int32> AddFaces;
+		UE::Geometry::EnumerateSelectionTriangles(InputGeometrySelection, *Mesh, 
+			[&](int32 TriangleID) { AddFaces.Add(TriangleID); });
+		Selection->AddIndices(EMeshSelectionElementType::Face, AddFaces);
+		OnExternalSelectionChange();
+	}
+
 	RecalculateBrushRadius();
 	UpdateVisualization(true);
 
@@ -193,10 +219,41 @@ UMeshSelectionToolActionPropertySet* UMeshSelectionTool::CreateEditActions()
 
 void UMeshSelectionTool::ApplyShutdownAction(EToolShutdownType ShutdownType)
 {
-	if (bHaveModifiedMesh && ShutdownType == EToolShutdownType::Accept)
+	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshSelectionToolTransactionName", "Edit Mesh"));
-		UE::ToolTarget::CommitDynamicMeshUpdate(Target, *PreviewMesh->GetMesh(), true);
+
+		TArray<int32> SelectedFaces = Selection->GetElements(EMeshSelectionElementType::Face);
+
+		if (bHaveModifiedMesh )
+		{
+			FDynamicMesh3 ResultMesh(*PreviewMesh->GetMesh());
+			if (ResultMesh.IsCompact() == false)
+			{
+				FCompactMaps CompactMaps;
+				ResultMesh.CompactInPlace(&CompactMaps);
+				for (int32& tid : SelectedFaces)
+				{
+					tid = CompactMaps.GetTriangleMapping(tid);
+				}
+			}
+
+			UE::ToolTarget::CommitDynamicMeshUpdate(Target, ResultMesh, true);
+		}
+
+		if (SelectionType == EMeshSelectionElementType::Face)
+		{
+			if ( SelectedFaces.Num() > 0 )
+			{
+				FGeometrySelection OutputSelection;
+				for ( int32 tid : SelectedFaces )
+				{
+					OutputSelection.Selection.Add( FGeoSelectionID::MeshTriangle(tid).Encoded() );
+				}
+				UE::Geometry::SetToolOutputGeometrySelectionForTarget(this, GetTarget(), OutputSelection);
+			}
+		}
+
 		GetToolManager()->EndUndoTransaction();
 	}
 	else if (ShutdownType == EToolShutdownType::Cancel)
@@ -226,6 +283,11 @@ void UMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
 }
 
 
+
+void UMeshSelectionTool::SetGeometrySelection(UE::Geometry::FGeometrySelection&& SelectionIn)
+{
+	InputGeometrySelection = SelectionIn;
+}
 
 
 void UMeshSelectionTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
@@ -1007,6 +1069,10 @@ void UMeshSelectionTool::ApplyAction(EMeshSelectionToolActions ActionType)
 			SelectAll();
 			break;
 	
+		case EMeshSelectionToolActions::SelectAllByMaterial:
+			SelectAllByMaterial();
+			break;
+
 		case EMeshSelectionToolActions::ClearSelection:
 			ClearSelection();
 			break;
@@ -1092,6 +1158,48 @@ void UMeshSelectionTool::SelectAll()
 	TUniquePtr<FToolCommandChange> SelectionChange = EndChange();
 
 	GetToolManager()->EmitObjectChange(Selection, MoveTemp(SelectionChange), LOCTEXT("SelectAll", "Select All"));
+
+	OnExternalSelectionChange();
+}
+
+
+void UMeshSelectionTool::SelectAllByMaterial()
+{
+	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
+
+	if (Selection->Faces.Num() == 0|| Mesh->HasAttributes() == false || Mesh->Attributes()->HasMaterialID() == false)
+	{
+		SelectAll();
+		return;
+	}
+
+	BeginChange(true);
+	
+	TSet<int32> SelectedMaterialIDs;
+	const FDynamicMeshMaterialAttribute* MaterialIDs = Mesh->Attributes()->GetMaterialID();
+	for (int tid : Mesh->TriangleIndicesItr())
+	{
+		if ( SelectedTriangles[tid] )
+		{
+			SelectedMaterialIDs.Add( MaterialIDs->GetValue(tid) );
+		}
+	}
+
+	TArray<int32> AddFaces;
+	for (int tid : Mesh->TriangleIndicesItr())
+	{
+		if ( SelectedTriangles[tid] == false && SelectedMaterialIDs.Contains(MaterialIDs->GetValue(tid)) )
+		{
+			AddFaces.Add(tid);
+		}
+	}
+	
+	ActiveSelectionChange->Add(AddFaces);
+	Selection->AddIndices(EMeshSelectionElementType::Face, AddFaces);
+	
+	TUniquePtr<FToolCommandChange> SelectionChange = EndChange();
+
+	GetToolManager()->EmitObjectChange(Selection, MoveTemp(SelectionChange), LOCTEXT("ExpandToMaterial", "Select Materials"));
 
 	OnExternalSelectionChange();
 }
