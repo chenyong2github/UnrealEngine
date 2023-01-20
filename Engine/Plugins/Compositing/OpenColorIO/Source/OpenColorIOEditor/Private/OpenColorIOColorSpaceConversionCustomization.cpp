@@ -83,6 +83,8 @@ void FOpenColorIOColorConversionSettingsCustomization::CustomizeChildren(TShared
 					{
 						TransformPicker[OCIO_Src]->SetConfiguration(ColorSpaceConversion->ConfigurationSource);
 						TransformPicker[OCIO_Dst]->SetConfiguration(ColorSpaceConversion->ConfigurationSource);
+
+						ColorSpaceConversion->OnConversionSettingsChanged().Broadcast();
 					}));
 			}
 			else if (ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FOpenColorIOColorConversionSettings, SourceColorSpace))
@@ -175,6 +177,8 @@ void FOpenColorIOColorConversionSettingsCustomization::OnSourceColorSpaceChanged
 	TransformPicker[OCIO_Dst]->SetRestrictions(NewColorSpace, NewDisplayView);
 
 	ApplySelectionToConfiguration();
+
+	ColorSpaceConversion->OnConversionSettingsChanged().Broadcast();
 }
 
 void FOpenColorIOColorConversionSettingsCustomization::OnDestinationColorSpaceChanged(const FOpenColorIOColorSpace& NewColorSpace, const FOpenColorIODisplayView& NewDisplayView)
@@ -185,6 +189,8 @@ void FOpenColorIOColorConversionSettingsCustomization::OnDestinationColorSpaceCh
 	TransformPicker[OCIO_Src]->SetRestrictions(NewColorSpace, NewDisplayView);
 
 	ApplySelectionToConfiguration();
+
+	ColorSpaceConversion->OnConversionSettingsChanged().Broadcast();
 }
 
 void FOpenColorIOColorConversionSettingsCustomization::ApplyConfigurationToSelection()
@@ -254,6 +260,8 @@ void FOpenColorIOColorConversionSettingsCustomization::OnConfigurationReset()
 {
 	TransformPicker[OCIO_Src]->SetConfiguration(nullptr);
 	TransformPicker[OCIO_Dst]->SetConfiguration(nullptr);
+
+	ColorSpaceConversion->OnConversionSettingsChanged().Broadcast();
 }
 
 #undef LOCTEXT_NAMESPACE

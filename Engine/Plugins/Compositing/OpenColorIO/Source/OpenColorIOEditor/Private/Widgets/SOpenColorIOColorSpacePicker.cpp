@@ -84,7 +84,8 @@ void SOpenColorIOColorSpacePicker::SetConfiguration(TWeakObjectPtr<UOpenColorIOC
 	Configuration = NewConfiguration;
 
 	// Invalidate current color space selection
-	SetCurrentColorSpace(FOpenColorIOColorSpace());
+	ColorSpaceSelection.Reset();
+	DisplayViewSelection.Reset();
 }
 
 void SOpenColorIOColorSpacePicker::SetRestrictions(const FOpenColorIOColorSpace& InRestrictedColorSpace, const FOpenColorIODisplayView& InRestricedDisplayView)

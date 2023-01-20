@@ -123,6 +123,7 @@ struct OPENCOLORIO_API FOpenColorIOColorConversionSettings
 	GENERATED_BODY()
 
 public:
+	DECLARE_MULTICAST_DELEGATE(FOnConversionSettingsChange);
 
 	/** Default constructor. */
 	FOpenColorIOColorConversionSettings();
@@ -147,6 +148,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorSpace)
 	EOpenColorIOViewTransformDirection DisplayViewDirection = EOpenColorIOViewTransformDirection::Forward;
 
+	/** Delegate triggered upon changes to the settings. */
+	FOnConversionSettingsChange& OnConversionSettingsChanged() { return ConversionSettingsChanged; }
 public:
 
 	/**
@@ -165,9 +168,24 @@ public:
 	*/
 	void ValidateColorSpaces();
 
+	bool operator==(const FOpenColorIOColorConversionSettings& Other) const { return Equals(Other); }
+	bool operator!=(const FOpenColorIOColorConversionSettings& Other) const { return !Equals(Other); }
+
+	/** Determines if this ColorConversionSettings is the same as another.*/
+	bool Equals(const FOpenColorIOColorConversionSettings& Other) const
+	{
+		return ConfigurationSource    == Other.ConfigurationSource
+			&& SourceColorSpace       == Other.SourceColorSpace
+			&& DestinationColorSpace  == Other.DestinationColorSpace
+			&& DestinationDisplayView == Other.DestinationDisplayView
+			&& DisplayViewDirection   == Other.DisplayViewDirection;
+	}
+
 private:
 	/** Whether or not these settings are of the display-view type. */
 	bool IsDisplayView() const;
+
+	FOnConversionSettingsChange ConversionSettingsChanged;
 };
 
 /**
