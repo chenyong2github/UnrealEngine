@@ -154,8 +154,12 @@ void FDiffPackageWriter::WritePackageData(const FPackageInfo& Info, FLargeMemory
 	PreviousPackageData.HeaderSize = PreviousInnerData.HeaderSize;
 	PreviousPackageData.StartOffset = PreviousInnerData.StartOffset;
 
+	check(ExportsCallstacks.IsValid());
+
 	if (bDiffCallstack)
 	{
+		Writer.GetCallstacks().Append(*ExportsCallstacks);
+
 		TMap<FName, FArchiveDiffStats> PackageDiffStats;
 		const TCHAR* CutoffString = TEXT("UEditorEngine::Save()");
 		Writer.CompareWith(PreviousPackageData, *Info.LooseFilePath, Info.HeaderSize, CutoffString,
@@ -166,6 +170,9 @@ void FDiffPackageWriter::WritePackageData(const FPackageInfo& Info, FLargeMemory
 	}
 	else
 	{
+		Writer.GetCallstacks().Append(*ExportsCallstacks, Info.HeaderSize);
+		ExportsDiffMapOffset = Info.HeaderSize;
+
 		bIsDifferent = !Writer.GenerateDiffMap(PreviousPackageData, Info.HeaderSize, MaxDiffsToLog, DiffMap);
 	}
 
@@ -185,6 +192,43 @@ TUniquePtr<FLargeMemoryWriter> FDiffPackageWriter::CreateLinkerArchive(FName Pac
 	{
 		return TUniquePtr<FLargeMemoryWriter>(new FArchiveStackTrace(Asset, *PackageName.ToString(),
 			false /* bInCollectCallstacks */));
+	}
+}
+
+TUniquePtr<FLargeMemoryWriter> FDiffPackageWriter::CreateLinkerExportsArchive(FName PackageName, UObject* Asset)
+{
+	// When cooking, exports are serialized into a separate archive. The serialization callstack offsets
+	// and stack traces are collected into a separate callstack collection and appended to the overall
+	// callstacks for the entire package. DiffOnly cooks saves a package twice. The first pass collects
+	// the serialization offsets without the stack traces and then creates a FArchiveDiffMap. In the second
+	// pass, the diff map is used to collect offsets AND the entire stack trace for mismatching package data.
+	// In the first pass, callstack offsets will be relative to the export archive and adjusted when appending
+	// the callstacks to the overall package callstacks. In the second pass, the offset (ExportsDiffMapOffset) is
+	// known and the callstack will be relative to the beginning of the package.
+	
+	ExportsCallstacks = MakeUnique<FArchiveCallstacks>(Asset);
+	const int64 PreAllocateBytes = 0;
+	const bool bIsPersistent = true;
+
+	if (bDiffCallstack)
+	{
+		return MakeUnique<FArchiveStackTraceMemoryWriter>(
+			*ExportsCallstacks,
+			&DiffMap,
+			ExportsDiffMapOffset,
+			PreAllocateBytes,
+			bIsPersistent,
+			*PackageName.ToString());
+	}
+	else
+	{
+		return MakeUnique<FArchiveStackTraceMemoryWriter>(
+			*ExportsCallstacks,
+			nullptr,
+			0,
+			PreAllocateBytes, 
+			bIsPersistent, 
+			*PackageName.ToString());
 	}
 }
 

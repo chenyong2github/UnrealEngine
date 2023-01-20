@@ -46,6 +46,7 @@ public:
 		return Inner->GetExportsFooterSize();
 	}
 	virtual TUniquePtr<FLargeMemoryWriter> CreateLinkerArchive(FName PackageName, UObject* Asset) override;
+	virtual TUniquePtr<FLargeMemoryWriter> CreateLinkerExportsArchive(FName PackageName, UObject* Asset) override;
 	virtual bool IsPreSaveCompleted() const override
 	{
 		return bDiffCallstack;
@@ -113,10 +114,12 @@ private:
 	void ConditionallyDumpObjects();
 
 	FArchiveDiffMap DiffMap;
+	TUniquePtr<FArchiveCallstacks> ExportsCallstacks;
 	FBeginPackageInfo BeginInfo;
 	TUniquePtr<ICookedPackageWriter> Inner;
 	FString DumpObjListParams;
 	FString PackageFilter;
+	int64 ExportsDiffMapOffset = 0;
 	int32 MaxDiffsToLog = 5;
 	bool bSaveForDiff = false;
 	bool bIgnoreHeaderDiffs = false;

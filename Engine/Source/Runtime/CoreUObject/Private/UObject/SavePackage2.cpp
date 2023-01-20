@@ -23,6 +23,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/SecureHash.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "Serialization/ArchiveProxy.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 #include "Serialization/ArchiveStackTrace.h"
 #include "Serialization/EditorBulkData.h"
@@ -1865,16 +1866,30 @@ ESavePackageResult WritePackageTextHeader(FStructuredArchive::FRecord& Structure
 	return ReturnSuccessOrCancel();
 }
 
-[[nodiscard]] ESavePackageResult WriteCookedExports(TArray64<uint8>& ExportsBuffer, FSaveContext& SaveContext)
+[[nodiscard]] ESavePackageResult WriteCookedExports(FArchive& ExportsArchive, FSaveContext& SaveContext)
 {
+	// Used to make any serialized offset during export serialization relative to the beginning of the export.
+	struct FExportProxyArchive
+		: public FArchiveProxy
+	{
+		FExportProxyArchive(FArchive& Inner)
+			: FArchiveProxy(Inner)
+			, Offset(Inner.Tell()) { }
+
+		virtual void Seek(int64 Pos) { InnerArchive.Seek(Offset + Pos); }
+		virtual int64 Tell() { return InnerArchive.Tell() - Offset; }
+		virtual int64 TotalSize() { return InnerArchive.TotalSize() - Offset; }
+		
+		int64 Offset;
+	};
+
 	SCOPED_SAVETIMER(UPackage_Save_SaveExports);
 
 	check(SaveContext.GetLinker() && SaveContext.GetLinker()->IsCooking());
 	FLinkerSave& Linker = *SaveContext.GetLinker();
 	FScopedSlowTask SlowTask((float)Linker.ExportMap.Num(), FText(), SaveContext.IsUsingSlowTask());
-	TArray64<uint8> ExportBuffer;
 
-	for (int32 i = 0; i < Linker.ExportMap.Num(); i++)
+	for (int32 ExportIndex = 0; ExportIndex < Linker.ExportMap.Num(); ExportIndex++)
 	{
 		if (GWarn->ReceivedUserCancel())
 		{
@@ -1882,7 +1897,7 @@ ESavePackageResult WritePackageTextHeader(FStructuredArchive::FRecord& Structure
 		}
 		SlowTask.EnterProgressFrame();
 
-		FObjectExport& Export = Linker.ExportMap[i];
+		FObjectExport& Export = Linker.ExportMap[ExportIndex];
 		if (Export.Object == nullptr)
 		{
 			continue;
@@ -1891,14 +1906,11 @@ ESavePackageResult WritePackageTextHeader(FStructuredArchive::FRecord& Structure
 		SCOPED_SAVETIMER(UPackage_Save_SaveExport);
 		SCOPED_SAVETIMER_TEXT(*WriteToString<128>(GetClassTraceScope(Export.Object), TEXT("_SaveSerialize")));
 
-		Export.SerialOffset = ExportsBuffer.Num();
-		Linker.CurrentlySavingExport = FPackageIndex::FromExport(i);
+		Export.SerialOffset = ExportsArchive.Tell();
+		Linker.CurrentlySavingExport = FPackageIndex::FromExport(ExportIndex);
 
-		// Use a separate archive for each export to enable rearranging the exports according to the load/dependency order. Seeks/Tell
-		// during export serialize will be relative to the beginning of the export buffer.
-		ExportBuffer.Reset();
-		FMemoryWriter64 ExportArchive(ExportBuffer, false, false, SaveContext.GetPackage()->GetFName());
-		TGuardValue<FArchive*> GuardSaver(Linker.Saver, &ExportArchive);
+		FExportProxyArchive Ar(ExportsArchive);
+		TGuardValue<FArchive*> GuardSaver(Linker.Saver, &Ar);
 
 		if (Export.Object->HasAnyFlags(RF_ClassDefaultObject))
 		{
@@ -1919,8 +1931,7 @@ ESavePackageResult WritePackageTextHeader(FStructuredArchive::FRecord& Structure
 		}
 
 		Linker.CurrentlySavingExport = FPackageIndex();
-		Export.SerialSize = ExportBuffer.Num(); 
-		ExportsBuffer.Append(ExportBuffer);
+		Export.SerialSize = ExportsArchive.Tell() - Export.SerialOffset;
 	}
 
 	return Linker.IsError() ? ESavePackageResult::Error : ReturnSuccessOrCancel();
@@ -2641,9 +2652,10 @@ ESavePackageResult SaveHarvestedRealms(FSaveContext& SaveContext, ESaveRealm Har
 		if (Linker.IsCooking())
 		{
 			// Write the exports into a seperate archive
-			TArray64<uint8> ExportsBuffer;
-			ExportsBuffer.Reserve(4 << 10);
-			SaveContext.Result = WriteCookedExports(ExportsBuffer, SaveContext);
+			TUniquePtr<FLargeMemoryWriter> ExportsArchive = SaveContext.GetPackageWriter()->CreateLinkerExportsArchive(
+				SaveContext.GetPackage()->GetFName(), SaveContext.GetAsset());
+			ExportsArchive->SetSerializeContext(SaveContext.GetSerializeContext());
+			SaveContext.Result = WriteCookedExports(*ExportsArchive, SaveContext);
 
 			if (SaveContext.Result == ESavePackageResult::Success)
 			{
@@ -2652,7 +2664,11 @@ ESavePackageResult SaveHarvestedRealms(FSaveContext& SaveContext, ESaveRealm Har
 				check(DataResourceSize >= 0);
 
 				Linker.Summary.TotalHeaderSize += DataResourceSize;
-				Linker.Serialize(ExportsBuffer.GetData(), ExportsBuffer.Num()); 
+				{
+					// Disables writing stack trace data when appending the exports data
+					FArchiveStackTraceDisabledScope _; 
+					Linker.Serialize(ExportsArchive->GetData(), ExportsArchive->TotalSize());
+				}
 
 				// Adjust the export offsets with the total header size
 				for (FObjectExport& Export : Linker.ExportMap)

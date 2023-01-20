@@ -14,6 +14,12 @@ TUniquePtr<FLargeMemoryWriter> IPackageWriter::CreateLinkerArchive(FName Package
 	return TUniquePtr<FLargeMemoryWriter>(new FLargeMemoryWriter(0, bIsPersistent, *PackageName.ToString()));
 }
 
+TUniquePtr<FLargeMemoryWriter> IPackageWriter::CreateLinkerExportsArchive(FName PackageName, UObject* Asset)
+{
+	const bool bPersistent = true;
+	return MakeUnique<FLargeMemoryWriter>(0, bPersistent, *PackageName.ToString());
+}
+
 static FSharedBuffer IoBufferToSharedBuffer(const FIoBuffer& InBuffer)
 {
 	InBuffer.EnsureOwned();
