@@ -18,6 +18,7 @@ class UNeuralNetwork;
 class UMLDeformerAsset;
 class USkeleton;
 class IPropertyHandle;
+class UNearestNeighborOptimizedNetwork;
 
 NEARESTNEIGHBORMODEL_API DECLARE_LOG_CATEGORY_EXTERN(LogNearestNeighborModel, Log, All);
 
@@ -157,6 +158,7 @@ public:
 	virtual void PostLoad() override;
 
 	// UMLDeformerModel overrides.
+	virtual void Serialize(FArchive& Archive) override;
 	virtual bool DoesSupportQualityLevels() const override { return false; }
 	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;
 	virtual UMLDeformerInputInfo* CreateInputInfo() override;
@@ -232,6 +234,15 @@ public:
 	void InitInputInfo();
 
 	void ResetMorphBuffers();
+
+	virtual int32 GetNumFloatsPerBone() const { return NearestNeighborNumFloatsPerBone; }
+	virtual int32 GetNumFloatsPerCurve() const { return NearestNeighborNumFloatsPerCurve; }
+
+	bool DoesUseOptimizedNetwork() const;
+	UNearestNeighborOptimizedNetwork* GetOptimizedNetwork() const { return OptimizedNetwork.Get(); }
+	int32 GetOptimizedNetworkNumOutputs() const;
+	void SetOptimizedNetwork(UNearestNeighborOptimizedNetwork* InOptimizedNetwork);
+	bool LoadOptimizedNetwork(const FString& OnnxPath);
 
 #if WITH_EDITORONLY_DATA
 	TObjectPtr<UAnimSequence> GetNearestNeighborSkeletons(int32 PartId);
@@ -373,6 +384,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Cache")
 	bool bRecomputePCA = true;
 #endif
+
+	static constexpr int32 NearestNeighborNumFloatsPerBone = 3;
+	static constexpr int32 NearestNeighborNumFloatsPerCurve = 0;
 	
 public:
 #if WITH_EDITORONLY_DATA
@@ -406,4 +420,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nearest Neighbors", META = (ClampMin = "0", ClampMax = "1"))
 	float NearestNeighborOffsetWeight = 1.0f;
+
+	UPROPERTY()
+	TObjectPtr<UNearestNeighborOptimizedNetwork> OptimizedNetwork = nullptr;
 };

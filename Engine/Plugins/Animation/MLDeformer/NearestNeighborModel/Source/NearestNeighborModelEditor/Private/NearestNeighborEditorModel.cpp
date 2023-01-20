@@ -90,6 +90,44 @@ namespace UE::NearestNeighborModel
 		}
 	}
 
+	bool FNearestNeighborEditorModel::LoadTrainedNetwork() const
+	{
+		UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
+		if (NearestNeighborModel)
+		{
+			const FString OnnxFile = GetTrainedNetworkOnnxFile();
+			UNeuralNetwork* Network = LoadNeuralNetworkFromOnnx(OnnxFile);
+			if (Network)
+			{
+				if (NearestNeighborModel->DoesUseOptimizedNetwork())
+				{
+					Model->SetNeuralNetwork(Network);
+					return NearestNeighborModel->LoadOptimizedNetwork(OnnxFile);
+				}
+				else
+				{
+					Model->SetNeuralNetwork(Network);
+					return true;
+				}
+			}
+			else
+			{
+				return false;
+			}
+		}
+		return false;
+	}
+
+	bool FNearestNeighborEditorModel::IsTrained() const
+	{
+		const UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
+		if (NearestNeighborModel)
+		{
+			return NearestNeighborModel->DoesUseOptimizedNetwork() ? NearestNeighborModel->GetOptimizedNetwork() != nullptr : NearestNeighborModel->GetNeuralNetwork() != nullptr;
+		}
+		return false;
+	}
+
 	FString FNearestNeighborEditorModel::GetTrainedNetworkOnnxFile() const
 	{
 		const UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
@@ -144,14 +182,10 @@ namespace UE::NearestNeighborModel
 					NearestNeighborActor->SetMeshOffsetFactor(Offset);
 				}
 			}
-			const UMLDeformerComponent* MLDeformerComponent = GetTestMLDeformerComponent();
-			if (MLDeformerComponent)
+			const UNearestNeighborModelInstance* ModelInstance = static_cast<UNearestNeighborModelInstance*>(GetTestMLDeformerModelInstance());
+			if (ModelInstance)
 			{
-				const UNearestNeighborModelInstance* ModelInstance = static_cast<UNearestNeighborModelInstance*>(MLDeformerComponent->GetModelInstance());
-				if (ModelInstance)
-				{
-					NNViz->SetNearestNeighborIds(ModelInstance->GetNearestNeighborIds());
-				}
+				NNViz->SetNearestNeighborIds(ModelInstance->GetNearestNeighborIds());
 			}
 		}
 	}
@@ -371,7 +405,7 @@ namespace UE::NearestNeighborModel
 			return EUpdateResult::SUCCESS;
 		}
 
-		UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
+		const UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
 		if(NeuralNetwork && NeuralNetwork->IsLoaded())
 		{
 			const FString SavePath = GetTrainedNetworkOnnxFile();
@@ -467,7 +501,7 @@ namespace UE::NearestNeighborModel
 		UNearestNeighborModel *NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
 		check(NearestNeighborModel != nullptr);
 
-		UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
+		const UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
 		if(NeuralNetwork && NeuralNetwork->IsLoaded())
 		{
 			const FString SavePath = GetTrainedNetworkOnnxFile();
@@ -643,6 +677,16 @@ namespace UE::NearestNeighborModel
 		MorphTargetUpdateResult = EUpdateResult::SUCCESS;
 
 		UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
+		// Convert NNI network to  optimized network
+		const UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
+		if (NearestNeighborModel->DoesUseOptimizedNetwork() && NeuralNetwork != nullptr && NearestNeighborModel->GetOptimizedNetwork() == nullptr)
+		{
+			const FString SavePath = GetTrainedNetworkOnnxFile();
+			UE_LOG(LogNearestNeighborModel, Display, TEXT("Saving to %s"), *SavePath);
+			NeuralNetwork->Save(SavePath);
+			LoadTrainedNetwork();
+		}
+
 		if (!NearestNeighborModel->IsClothPartDataValid())
 		{
 			MorphTargetUpdateResult |= NearestNeighborModel->UpdateClothPartData();
@@ -797,31 +841,18 @@ namespace UE::NearestNeighborModel
 		}
 	}
 
-	UMLDeformerComponent* FNearestNeighborEditorModel::GetTestMLDeformerComponent()
+	UMLDeformerComponent* FNearestNeighborEditorModel::GetTestMLDeformerComponent() const
 	{
-		UMLDeformerComponent* MLDeformerComponent = nullptr;
-		FMLDeformerEditorActor* TestActor = FindEditorActor(ActorID_Test_MLDeformed);
-		if (TestActor)
-		{
-			AActor* Actor = TestActor->GetActor();
-			if (Actor)
-			{
-				MLDeformerComponent = Actor->FindComponentByClass<UMLDeformerComponent>();
-			}
-		}
-		return MLDeformerComponent;
+		return FindMLDeformerComponent(ActorID_Test_MLDeformed);
 	}
 
-	void FNearestNeighborEditorModel::InitTestMLDeformerPreviousWeights()
+
+	void FNearestNeighborEditorModel::InitTestMLDeformerPreviousWeights() 
 	{
-		UMLDeformerComponent* MLDeformerComponent = GetTestMLDeformerComponent();
-		if (MLDeformerComponent)
+		UNearestNeighborModelInstance* ModelInstance = static_cast<UNearestNeighborModelInstance*>(GetTestMLDeformerModelInstance());
+		if (ModelInstance)
 		{
-			UNearestNeighborModelInstance* ModelInstance = static_cast<UNearestNeighborModelInstance*>(MLDeformerComponent->GetModelInstance());
-			if (ModelInstance)
-			{
-				ModelInstance->InitPreviousWeights();
-			}
+			ModelInstance->InitPreviousWeights();
 		}
 	}
 
@@ -829,14 +860,9 @@ namespace UE::NearestNeighborModel
 	{
 		const UNearestNeighborModel *NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
 
-		const UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
-		const UMLDeformerComponent* MLDeformerComponent = GetTestMLDeformerComponent();
-		if(NeuralNetwork && NeuralNetwork->IsLoaded() && MLDeformerComponent && MLDeformerComponent->GetModelInstance())
+		if (NearestNeighborModel->DoesUseOptimizedNetwork())
 		{
-			const int32 NeuralNetworkInferenceHandle = MLDeformerComponent->GetModelInstance()->GetNeuralNetworkInferenceHandle();
-			const FNeuralTensor& OutputTensor = NeuralNetwork->GetOutputTensorForContext(NeuralNetworkInferenceHandle);
-			const int32 NumNetworkWeights = OutputTensor.Num();
-
+			const int32 NumNetworkWeights = NearestNeighborModel->GetOptimizedNetworkNumOutputs();
 			const int32 NumPCACoeffs = NearestNeighborModel->GetTotalNumPCACoeffs();
 			if (NumNetworkWeights != NumPCACoeffs)
 			{
@@ -844,6 +870,24 @@ namespace UE::NearestNeighborModel
 				return EUpdateResult::WARNING;
 			}
 		}
+		else
+		{
+			const UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
+			const UMLDeformerComponent* MLDeformerComponent = GetTestMLDeformerComponent();
+			if(NeuralNetwork && NeuralNetwork->IsLoaded() && MLDeformerComponent && MLDeformerComponent->GetModelInstance())
+			{
+				const int32 NeuralNetworkInferenceHandle = MLDeformerComponent->GetModelInstance()->GetNeuralNetworkInferenceHandle();
+				const FNeuralTensor& OutputTensor = NeuralNetwork->GetOutputTensorForContext(NeuralNetworkInferenceHandle);
+				const int32 NumNetworkWeights = OutputTensor.Num();
+				const int32 NumPCACoeffs = NearestNeighborModel->GetTotalNumPCACoeffs();
+				if (NumNetworkWeights != NumPCACoeffs)
+				{
+					UE_LOG(LogNearestNeighborModel, Warning, TEXT("Network output dimension %d is not equal to number of morph targets %d. Network needs to be re-trained and no deformation will be applied."), NumNetworkWeights, NumPCACoeffs);
+					return EUpdateResult::WARNING;
+				}
+			}
+		}
+
 		return EUpdateResult::SUCCESS;
 	}
 
@@ -852,6 +896,17 @@ namespace UE::NearestNeighborModel
 		const UNearestNeighborModel *NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
 		const UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
 		return NeuralNetwork && NeuralNetwork->IsLoaded();
+	}
+
+	UMLDeformerModelInstance* FNearestNeighborEditorModel::GetTestMLDeformerModelInstance() const
+	{
+		UMLDeformerModelInstance* ModelInstance = nullptr;
+		const UMLDeformerComponent* MLDeformerComponent = FindMLDeformerComponent(ActorID_Test_MLDeformed);
+		if (MLDeformerComponent)
+		{
+			ModelInstance = MLDeformerComponent->GetModelInstance();
+		}
+		return ModelInstance;
 	}
 }	// namespace UE::NearestNeighborModel
 

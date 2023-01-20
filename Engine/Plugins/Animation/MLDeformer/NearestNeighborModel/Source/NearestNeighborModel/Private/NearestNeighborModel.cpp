@@ -3,6 +3,8 @@
 #include "NearestNeighborModel.h"
 #include "NearestNeighborModelInputInfo.h"
 #include "NearestNeighborModelInstance.h"
+#include "NearestNeighborOptimizedNetwork.h"
+#include "NearestNeighborOptimizedNetworkLoader.h"
 #include "MLDeformerComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "GeometryCache.h"
@@ -29,6 +31,16 @@ namespace UE::NearestNeighborModel
 }
 IMPLEMENT_MODULE(UE::NearestNeighborModel::FNearestNeighborModelModule, NearestNeighborModel)
 
+namespace UE::NearestNeighborModel
+{
+	bool bNearestNeighborModelUseOptimizedNetwork = true;
+	FAutoConsoleVariableRef CVarNearestNeighborModelUseOptimizedNetwork(
+		TEXT("p.NearestNeighborModel.UseOptimizedNetwork"),
+		bNearestNeighborModelUseOptimizedNetwork,
+		TEXT("Whether to use the optimized network.")
+	);
+
+}
 
 UNearestNeighborModel::UNearestNeighborModel(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -50,6 +62,28 @@ UMLDeformerInputInfo* UNearestNeighborModel::CreateInputInfo()
 UMLDeformerModelInstance* UNearestNeighborModel::CreateModelInstance(UMLDeformerComponent* Component)
 {
 	return NewObject<UNearestNeighborModelInstance>(Component);
+}
+
+void UNearestNeighborModel::Serialize(FArchive& Archive)
+{
+	Super::Serialize(Archive);
+	if (Archive.IsCooking())
+	{
+		if (DoesUseOptimizedNetwork())
+		{
+			if (GetNeuralNetwork() != nullptr)
+			{
+				SetNeuralNetwork(nullptr);
+			}
+		}
+		else
+		{
+			if (GetOptimizedNetwork() != nullptr)
+			{
+				SetOptimizedNetwork(nullptr);
+			}
+		}
+	}
 }
 
 void UNearestNeighborModel::PostLoad()
@@ -419,4 +453,68 @@ bool UNearestNeighborModel::CheckPCAData(int32 PartId) const
 	const FClothPartData& Data = ClothPartData[PartId];
 	return Data.VertexMap.Num() > 0 && Data.PCABasis.Num() == Data.VertexMap.Num() * 3 * Data.PCACoeffNum;
 }
+
+void UNearestNeighborModel::SetOptimizedNetwork(UNearestNeighborOptimizedNetwork* InOptimizedNetwork)
+{
+	GetNeuralNetworkModifyDelegate().Broadcast();
+	OptimizedNetwork = InOptimizedNetwork;
+}
+
+bool UNearestNeighborModel::DoesUseOptimizedNetwork() const
+{
+	return UE::NearestNeighborModel::bNearestNeighborModelUseOptimizedNetwork;
+}
+
+/**
+ * Get derived class default object (CDO)
+ * @return A pointer to a CDO of the derived python class. 
+ */
+template<class T>
+T* GetDerivedCDO()
+{
+	TArray<UClass*> Classes;
+	GetDerivedClasses(T::StaticClass(), Classes);
+	if (Classes.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	T* Object = Cast<T>(Classes.Last()->GetDefaultObject());
+	return Object;
+}
+
+bool UNearestNeighborModel::LoadOptimizedNetwork(const FString& OnnxPath)
+{
+	const FString OnnxFile = FPaths::ConvertRelativePathToFull(OnnxPath);
+	if (FPaths::FileExists(OnnxFile))
+	{
+		UE_LOG(LogNearestNeighborModel, Display, TEXT("Loading Onnx file '%s'..."), *OnnxFile);
+		UNearestNeighborOptimizedNetwork* Result = NewObject<UNearestNeighborOptimizedNetwork>(this, UNearestNeighborOptimizedNetwork::StaticClass());
+
+		UNearestNeighborOptimizedNetworkLoader* Loader = GetDerivedCDO<UNearestNeighborOptimizedNetworkLoader>();
+		if (Loader == nullptr)
+		{
+			return false;
+		}
+		Loader->SetOptimizedNetwork(Result);
+		const bool bSuccess = Loader->LoadOptimizedNetwork(OnnxFile);
+		if (bSuccess)
+		{
+			SetOptimizedNetwork(Result);
+			return true;
+		}
+	}
+	else
+	{
+		UE_LOG(LogMLDeformer, Error, TEXT("Onnx file '%s' does not exist!"), *OnnxFile);
+	}
+
+	return false;
+}
+
+int32 UNearestNeighborModel::GetOptimizedNetworkNumOutputs() const
+{
+	return OptimizedNetwork ? OptimizedNetwork->GetNumOutputs() : 0;
+}
+
 #undef LOCTEXT_NAMESPACE

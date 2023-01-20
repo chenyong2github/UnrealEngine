@@ -5,6 +5,8 @@
 #include "NeuralTensor.h"
 #include "NearestNeighborModelInstance.generated.h"
 
+class UNearestNeighborOptimizedNetworkInstance;
+
 UCLASS()
 class NEARESTNEIGHBORMODEL_API UNearestNeighborModelInstance
     : public UMLDeformerMorphModelInstance
@@ -16,6 +18,7 @@ public:
     virtual void Init(USkeletalMeshComponent* SkelMeshComponent) override;
     virtual void Execute(float ModelWeight) override;
     virtual bool SetupInputs() override;
+    virtual FString CheckCompatibility(USkeletalMeshComponent* InSkelMeshComponent, bool LogIssues=false) override;
 
 #if WITH_EDITORONLY_DATA
     const TArray<uint32>& GetNearestNeighborIds() const { return NearestNeighborIds; }
@@ -24,6 +27,9 @@ public:
 #endif
 
     void InitPreviousWeights();
+    void InitOptimizedNetworkInstance();
+    void GetInputDataPointer(float*& OutInputData, int32& OutNumInputFloats) const;
+    void GetOutputDataPointer(float*& OutOutputData, int32& OutNumOutputFloats) const;
 
 protected:
     virtual int64 SetBoneTransforms(float* OutputBuffer, int64 OutputBufferSize, int64 StartIndex) override;
@@ -31,7 +37,7 @@ protected:
 
 private:
     void RunNearestNeighborModel(float ModelWeight);
-    int32 FindNearestNeighbor(const FNeuralTensor& PCACoeffTensor, int32 PartId);
+    int32 FindNearestNeighbor(const float* PCAData, int32 PartId);
     void UpdateWeight(TArray<float>& MorphWeights, int32 Index, float W);
 
 #if WITH_EDITORONLY_DATA
@@ -39,4 +45,7 @@ private:
 #endif
 
     TArray<float> PreviousWeights;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UNearestNeighborOptimizedNetworkInstance> OptimizedNetworkInstance = nullptr;
 };

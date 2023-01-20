@@ -10,7 +10,9 @@ class UMLDeformerAsset;
 class USkeletalMesh;
 class UGeometryCache;
 class UMLDeformerComponent;
+class UMLDeformerOptimizedNetwork;
 class UNearestNeighborModel;
+class UNearestNeighborModelInstance;
 class UNearestNeighborModelVizSettings;
 
 namespace UE::NearestNeighborModel
@@ -40,6 +42,8 @@ namespace UE::NearestNeighborModel
 
 		virtual void InitInputInfo(UMLDeformerInputInfo* InputInfo) override;
 		virtual ETrainingResult Train() override;
+		virtual bool IsTrained() const override;
+		virtual bool LoadTrainedNetwork() const override;
 		virtual void OnPropertyChanged(FPropertyChangedEvent& PropertyChangedEvent) override;
 		virtual void OnPostTraining(ETrainingResult TrainingResult, bool bUsePartiallyTrainedWhenAborted) override;
 		virtual FString GetTrainedNetworkOnnxFile() const override;
@@ -72,11 +76,11 @@ namespace UE::NearestNeighborModel
 
 		void OnMorphTargetUpdate();
 		uint8 GetMorphTargetUpdateResult() { return MorphTargetUpdateResult; }
-		UMLDeformerComponent* GetTestMLDeformerComponent();
+		UMLDeformerComponent* GetTestMLDeformerComponent() const;
+		UMLDeformerModelInstance* GetTestMLDeformerModelInstance() const;
 		void InitTestMLDeformerPreviousWeights();
 		uint8 WarnIfNetworkInvalid();
 		bool IsNeuralNetworkLoaded();
-
 
 	protected:
 		virtual void CreateNearestNeighborActors(UWorld* World, int32 StartIndex = 0);
