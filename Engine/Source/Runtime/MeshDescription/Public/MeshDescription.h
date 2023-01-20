@@ -1336,7 +1336,7 @@ public:
 	void Empty();
 
 	/** Returns true if there is no bulk data available */
-	bool IsEmpty() const { return BulkData.GetPayloadSize() == 0; }
+	bool IsEmpty() const { return !BulkData.HasPayloadData(); }
 
 	/** Return unique ID string for this bulk data */
 	FString GetIdString() const;

@@ -2114,7 +2114,7 @@ void FMeshDescriptionBulkData::LoadMeshDescription( FMeshDescription& MeshDescri
 
 	MeshDescription.Empty();
 
-	if (BulkData.GetPayloadSize() > 0)
+	if (BulkData.HasPayloadData())
 	{
 #if WITH_EDITOR
 		// TODO: Remove this once VirtualizedBulkData can be shown to be thread safe
@@ -2143,7 +2143,8 @@ void FMeshDescriptionBulkData::UpdateMeshDescriptionFormat()
 	{
 		return;
 	}
-	if (BulkData.GetPayloadSize() == 0)
+
+	if (!BulkData.HasPayloadData())
 	{
 		return;
 	}
@@ -2230,7 +2231,7 @@ FString FMeshDescriptionBulkData::GetIdString() const
 
 FGuid FMeshDescriptionBulkData::GetHash() const
 {
-	if (BulkData.GetPayloadSize() > 0)
+	if (BulkData.HasPayloadData())
 	{
 		return UE::Serialization::IoHashToGuid(BulkData.GetPayloadId());
 	}
@@ -2240,7 +2241,7 @@ FGuid FMeshDescriptionBulkData::GetHash() const
 
 void FMeshDescriptionBulkData::UseHashAsGuid()
 {
-	if (BulkData.GetPayloadSize() > 0)
+	if (BulkData.HasPayloadData())
 	{
 		bGuidIsHash = true;
 
