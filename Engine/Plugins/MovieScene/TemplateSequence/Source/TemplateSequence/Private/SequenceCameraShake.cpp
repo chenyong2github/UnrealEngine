@@ -127,6 +127,11 @@ void USequenceCameraShakePattern::TeardownShakePatternImpl()
 
 void USequenceCameraShakePattern::UpdateCamera(FFrameTime NewPosition, const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& OutResult)
 {
+	if (!ensure(Sequence))
+	{
+		return;
+	}
+
 	using namespace UE::MovieScene;
 
 	check(CameraStandIn);
