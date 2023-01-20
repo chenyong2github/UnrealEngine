@@ -56,7 +56,7 @@ void UUIFrameworkColorBlock::LocalOnUMGWidgetCreated()
 {
 	UImage* Image = CastChecked<UImage>(LocalGetUMGWidget());
 
-	FSlateBrush TmpBrush = Image->Brush;
+	FSlateBrush TmpBrush = Image->GetBrush();
 	TmpBrush.ImageSize = FVector2D(DesiredSize);
 	TmpBrush.TintColor = Color;
 
