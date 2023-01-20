@@ -34,6 +34,7 @@ UEditorPerProjectUserSettings::UEditorPerProjectUserSettings(const FObjectInitia
 	bPreviewFeatureLevelActive = false;
 	bPreviewFeatureLevelWasDefault = true;
 	PreviewDeviceProfileName = NAME_None;
+	bShowSelectionSubcomponents = true;
 }
 
 void UEditorPerProjectUserSettings::PostInitProperties()

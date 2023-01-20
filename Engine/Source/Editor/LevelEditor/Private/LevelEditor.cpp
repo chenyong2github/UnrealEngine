@@ -1583,6 +1583,13 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		);
 
 	ActionList.MapAction(
+		Commands.ShowSelectionSubcomponents,
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::OnToggleShowSelectionSubcomponents),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::OnGetShowSelectionSubcomponents)
+	);
+
+	ActionList.MapAction(
 		Commands.AllowTranslucentSelection,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OnAllowTranslucentSelection ),
 		FCanExecuteAction(),

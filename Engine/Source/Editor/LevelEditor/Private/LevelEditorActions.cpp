@@ -2590,9 +2590,23 @@ bool FLevelEditorActionCallbacks::OnGetTransformWidgetVisibility()
 	return GLevelEditorModeTools().GetShowWidget();
 }
 
+void FLevelEditorActionCallbacks::OnToggleShowSelectionSubcomponents()
+{
+	UEditorPerProjectUserSettings* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
+	Settings->bShowSelectionSubcomponents = !Settings->bShowSelectionSubcomponents;
+	Settings->PostEditChange();
+
+	GUnrealEd->RedrawAllViewports();
+}
+
+bool FLevelEditorActionCallbacks::OnGetShowSelectionSubcomponents()
+{
+	return GetDefault<UEditorPerProjectUserSettings>()->bShowSelectionSubcomponents == true;
+}
+
 void FLevelEditorActionCallbacks::OnAllowTranslucentSelection()
 {
-	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
+	UEditorPerProjectUserSettings* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
 
 	// Toggle 'allow select translucent'
 	Settings->bAllowSelectTranslucent = !Settings->bAllowSelectTranslucent;
@@ -3724,6 +3738,8 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( AllowGroupSelection, "Allow Group Selection", "Allows actor groups to be selected", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control|EModifierKey::Shift, EKeys::G) );
 	UI_COMMAND( StrictBoxSelect, "Strict Box Selection", "When enabled an object must be entirely encompassed by the selection box when marquee box selecting", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	UI_COMMAND( TransparentBoxSelect, "Box Select Occluded Objects", "When enabled, marquee box select operations will also select objects that are occluded by other objects.", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND( ShowSelectionSubcomponents, "Show Subcomponents", "Toggles the visibility of the subcomponents related to the current selection", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	
 	UI_COMMAND( DrawBrushMarkerPolys, "Draw Brush Polys", "Draws semi-transparent polygons around a brush when selected", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	UI_COMMAND( OnlyLoadVisibleInPIE, "Only Load Visible Levels in Game Preview", "If enabled, when game preview starts, only visible levels will be loaded", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	UI_COMMAND( ToggleSocketSnapping, "Enable Socket Snapping", "Enables or disables snapping to sockets", EUserInterfaceActionType::ToggleButton, FInputChord() ); 

@@ -147,6 +147,10 @@ class UEditorPerProjectUserSettings : public UObject
 	UPROPERTY(config)
 	uint32 bAllowSelectTranslucent:1;
 
+	/** If this is true, all of an actors' components will be drawn when the actor or one of its component is selected */
+	UPROPERTY(config)
+	uint32 bShowSelectionSubcomponents:1;
+
 	UPROPERTY()
 	TObjectPtr<class UBlueprintPaletteFavorites> BlueprintFavorites;
 	

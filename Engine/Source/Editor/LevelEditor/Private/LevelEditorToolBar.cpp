@@ -1699,6 +1699,7 @@ void FLevelEditorToolBar::RegisterQuickSettingsMenu()
 		Section.AddMenuEntry( FLevelEditorCommands::Get().StrictBoxSelect );
 		Section.AddMenuEntry( FLevelEditorCommands::Get().TransparentBoxSelect );
 		Section.AddMenuEntry( FLevelEditorCommands::Get().ShowTransformWidget );
+		Section.AddMenuEntry( FLevelEditorCommands::Get().ShowSelectionSubcomponents );
 	}
 
 	{

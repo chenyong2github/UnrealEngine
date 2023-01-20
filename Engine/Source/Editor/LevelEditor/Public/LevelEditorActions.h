@@ -574,6 +574,7 @@ public:
 	TSharedPtr< FUICommandInfo > ShowTransformWidget;
 	TSharedPtr< FUICommandInfo > AllowTranslucentSelection;
 	TSharedPtr< FUICommandInfo > AllowGroupSelection;
+	TSharedPtr< FUICommandInfo > ShowSelectionSubcomponents;
 
 	TSharedPtr< FUICommandInfo > StrictBoxSelect;
 	TSharedPtr< FUICommandInfo > TransparentBoxSelect;
@@ -1187,6 +1188,8 @@ public:
 	 */ 
 	static void OnToggleTransformWidgetVisibility();
 	static bool OnGetTransformWidgetVisibility();
+	static void OnToggleShowSelectionSubcomponents();
+	static bool OnGetShowSelectionSubcomponents();
 	static void OnAllowTranslucentSelection();
 	static bool OnIsAllowTranslucentSelectionEnabled();	
 	static void OnAllowGroupSelection();
