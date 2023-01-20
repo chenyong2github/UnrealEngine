@@ -1118,7 +1118,7 @@ namespace AutomationTool
 			string Args = null;
 			if (XGETool != null) 
 			{
-				Args = "\"" + TaskFilePath + "\" /Rebuild /NoLogo /ShowAgent /ShowTime";
+				Args = "\"" + TaskFilePath + "\" /Rebuild /NoLogo /ShowAgent /ShowTime /Title=\"UnrealBuildTool Compile\"";
 				if (ParseParam("StopOnErrors"))
 				{
 					Args += " /StopOnErrors";

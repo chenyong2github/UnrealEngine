@@ -643,6 +643,7 @@ namespace UnrealBuildTool
 					bXGENoWatchdogThread ? "/no_watchdog_thread" : "")
 				);
 			XGEStartInfo.UseShellExecute = false;
+			XGEStartInfo.Arguments += " /Title=\"UnrealBuildTool Compile\"";
 
 			// Use the IDE-integrated Incredibuild monitor to display progress.
 			XGEStartInfo.Arguments += " /UseIdeMonitor";
