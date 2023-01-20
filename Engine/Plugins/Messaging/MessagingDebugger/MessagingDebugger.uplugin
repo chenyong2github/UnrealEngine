@@ -10,10 +10,7 @@
 	"Category" : "Messaging",
 	"EnabledByDefault" : false,
 	"IsBetaVersion": true,
-	"SupportedPrograms" : 
-	[
-		"UnrealFrontend"
-	],
+
 	"Modules" :
 	[
 		{

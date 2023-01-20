@@ -81,7 +81,6 @@ public class UnrealFrontend : ModuleRules
 				"Sockets",
 				"UdpMessaging",
                 "TcpMessaging",
-				"MessagingDebugger",
 			}
 		);
 

@@ -117,7 +117,7 @@ void FUserInterfaceCommand::InitializeSlateApplication( const FString& LayoutIni
 
 	FGlobalTabmanager::Get()->SetApplicationTitle(NSLOCTEXT("UnrealFrontend", "AppTitle", "Unreal Frontend"));
 
-	// load debug tools
+	// load widget reflector
 	const bool bAllowDebugTools = FParse::Param(FCommandLine::Get(), TEXT("DebugTools"));
 
 	if (bAllowDebugTools)
@@ -127,8 +127,6 @@ void FUserInterfaceCommand::InitializeSlateApplication( const FString& LayoutIni
 		{
 			SlateReflectorModule->RegisterTabSpawner(UserInterfaceCommand::DeveloperTools);
 		}
-
-		FModuleManager::Get().LoadModule("MessagingDebugger");
 	}
 
 	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(10.0f, 10.0f);
@@ -143,20 +141,18 @@ void FUserInterfaceCommand::InitializeSlateApplication( const FString& LayoutIni
 					FTabManager::NewStack()
 						->AddTab(FName("DeviceOutputLog"), ETabState::OpenedTab)
 						->AddTab(FName("DeviceManager"), ETabState::OpenedTab)
+						->AddTab(FName("MessagingDebugger"), ETabState::ClosedTab)
 						->AddTab(FName("SessionFrontend"), ETabState::OpenedTab)
 						->AddTab(FName("ProjectLauncher"), ETabState::OpenedTab)
 				)
 		)
 		->AddArea
 		(
-			FTabManager::NewArea(1024.0f * DPIScaleFactor, 600.0f * DPIScaleFactor)
+			FTabManager::NewArea(600.0f * DPIScaleFactor, 600.0f * DPIScaleFactor)
 				->SetWindow(FVector2D(10.0f * DPIScaleFactor, 10.0f * DPIScaleFactor), false)
 				->Split
 				(
-					FTabManager::NewStack()
-						->AddTab(FName("WidgetReflector"), bAllowDebugTools ? ETabState::OpenedTab : ETabState::ClosedTab)
-						->AddTab(FName("MessagingDebugger"), bAllowDebugTools ? ETabState::OpenedTab : ETabState::ClosedTab)
-
+					FTabManager::NewStack()->AddTab("WidgetReflector", bAllowDebugTools ? ETabState::OpenedTab : ETabState::ClosedTab)
 				)
 		);
 
