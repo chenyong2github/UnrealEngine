@@ -79,6 +79,8 @@ public:
 
 		FNetRefHandleManager& NetRefHandleManager = ReplicationSystemInternal.GetNetRefHandleManager();
 
+		const uint32 MaxObjectCount =  NetRefHandleManager.GetMaxActiveObjectCount();
+
 		// $IRIS TODO: Need object ID range. Currently abusing hardcoded values from FNetRefHandleManager
 		FDirtyNetObjectTracker& DirtyNetObjectTracker = ReplicationSystemInternal.GetDirtyNetObjectTracker();
 		FDirtyNetObjectTrackerInitParams DirtyNetObjectTrackerInitParams;
@@ -86,7 +88,7 @@ public:
 			DirtyNetObjectTrackerInitParams.NetRefHandleManager = &NetRefHandleManager;
 			DirtyNetObjectTrackerInitParams.ReplicationSystemId = ReplicationSystemId;
 			DirtyNetObjectTrackerInitParams.NetObjectIndexRangeStart = 1;
-			DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd = NetRefHandleManager.GetMaxActiveObjectCount() - 1U;
+			DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd = MaxObjectCount - 1U;
 
 			DirtyNetObjectTracker.Init(DirtyNetObjectTrackerInitParams);
 		}
@@ -96,7 +98,7 @@ public:
 			FReplicationStateStorageInitParams InitParams;
 			InitParams.ReplicationSystem = ReplicationSystem;
 			InitParams.NetRefHandleManager = &NetRefHandleManager;
-			InitParams.MaxObjectCount = DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd + 1U;
+			InitParams.MaxObjectCount = MaxObjectCount;
 			InitParams.MaxConnectionCount = ReplicationSystemInternal.GetConnections().GetMaxConnectionCount();
 			InitParams.MaxDeltaCompressedObjectCount = Params.MaxDeltaCompressedObjectCount;
 			StateStorage.Init(InitParams);
@@ -105,7 +107,7 @@ public:
 		FNetObjectGroups& Groups = ReplicationSystemInternal.GetGroups();
 		{
 			FNetObjectGroupInitParams InitParams = {};
-			InitParams.MaxObjectCount = DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd + 1U;
+			InitParams.MaxObjectCount = MaxObjectCount;
 			InitParams.MaxGroupCount = Params.MaxNetObjectGroupCount;
 
 			Groups.Init(InitParams);
@@ -119,10 +121,17 @@ public:
 			Registry.Init(InitParams);
 		}		
 
+		FNetCullDistanceOverrides& NetCullDistanceOverrides = ReplicationSystemInternal.GetNetCullDistanceOverrides();
+		{
+			FNetCullDistanceOverridesInitParams InitParams;
+			InitParams.MaxObjectCount = MaxObjectCount;
+			NetCullDistanceOverrides.Init(InitParams);
+		}
+
 		FWorldLocations& WorldLocations = ReplicationSystemInternal.GetWorldLocations();
 		{
 			FWorldLocationsInitParams InitParams;
-			InitParams.MaxObjectCount = DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd + 1U;
+			InitParams.MaxObjectCount = MaxObjectCount;
 			WorldLocations.Init(InitParams);
 		}
 	
@@ -131,7 +140,7 @@ public:
 		{
 			FDeltaCompressionBaselineInvalidationTrackerInitParams InitParams;
 			InitParams.BaselineManager = &DeltaCompressionBaselineManager;
-			InitParams.MaxObjectCount = DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd + 1U;
+			InitParams.MaxObjectCount = MaxObjectCount;
 			DeltaCompressionBaselineInvalidationTracker.Init(InitParams);
 		}
 		{
@@ -140,7 +149,7 @@ public:
 			InitParams.Connections = &ReplicationSystemInternal.GetConnections();
 			InitParams.NetRefHandleManager = &NetRefHandleManager;
 			InitParams.ReplicationStateStorage = &StateStorage;
-			InitParams.MaxObjectCount = DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd + 1U;
+			InitParams.MaxObjectCount = MaxObjectCount;
 			InitParams.MaxDeltaCompressedObjectCount = Params.MaxDeltaCompressedObjectCount;
 			InitParams.ReplicationSystem = ReplicationSystem;
 			DeltaCompressionBaselineManager.Init(InitParams);
@@ -154,7 +163,7 @@ public:
 			InitParams.NetRefHandleManager = &NetRefHandleManager;
 			InitParams.Groups = &Groups;
 			InitParams.BaselineInvalidationTracker = &ReplicationSystemInternal.GetDeltaCompressionBaselineInvalidationTracker();
-			InitParams.MaxObjectCount = DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd + 1U;
+			InitParams.MaxObjectCount = MaxObjectCount;
 			InitParams.MaxGroupCount = Params.MaxNetObjectGroupCount;
 			ReplicationFiltering.Init(InitParams);
 		}
@@ -169,7 +178,7 @@ public:
 			InitParams.ReplicationFiltering = &ReplicationFiltering;
 			InitParams.NetObjectGroups = &Groups;
 			InitParams.BaselineInvalidationTracker = &ReplicationSystemInternal.GetDeltaCompressionBaselineInvalidationTracker();
-			InitParams.MaxObjectCount = DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd + 1U;
+			InitParams.MaxObjectCount = MaxObjectCount;
 			InitParams.MaxConnectionCount = ReplicationSystemInternal.GetConnections().GetMaxConnectionCount();
 			ReplicationConditionals.Init(InitParams);
 		}
@@ -180,7 +189,7 @@ public:
 			InitParams.ReplicationSystem = ReplicationSystem;
 			InitParams.Connections = &ReplicationSystemInternal.GetConnections();
 			InitParams.NetRefHandleManager = &NetRefHandleManager;
-			InitParams.MaxObjectCount = DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd + 1U;
+			InitParams.MaxObjectCount = MaxObjectCount;
 			ReplicationPrioritization.Init(InitParams);
 		}
 
@@ -1189,9 +1198,47 @@ void UReplicationSystem::AddReferencedObjects(UObject* InThis, FReferenceCollect
 	Super::AddReferencedObjects(InThis, Collector);
 }
 
+const UE::Net::FNetCullDistanceOverrides& UReplicationSystem::GetNetCullDistanceOverrides() const
+{
+	return Impl->ReplicationSystemInternal.GetNetCullDistanceOverrides();
+}
+
 const UE::Net::FWorldLocations& UReplicationSystem::GetWorldLocations() const
 {
 	return Impl->ReplicationSystemInternal.GetWorldLocations();
+}
+
+void UReplicationSystem::SetCullDistanceSqrOverride(FNetRefHandle Handle, float DistSqr)
+{
+	const UE::Net::Private::FInternalNetRefIndex ObjectInternalIndex = Impl->ReplicationSystemInternal.GetNetRefHandleManager().GetInternalIndex(Handle);
+	if (ObjectInternalIndex == UE::Net::Private::FNetRefHandleManager::InvalidInternalIndex)
+	{
+		return;
+	}
+
+	return Impl->ReplicationSystemInternal.GetNetCullDistanceOverrides().SetCullDistanceSqr(ObjectInternalIndex, DistSqr);
+}
+
+void UReplicationSystem::ClearCullDistanceSqrOverride(FNetRefHandle Handle)
+{
+	const UE::Net::Private::FInternalNetRefIndex ObjectInternalIndex = Impl->ReplicationSystemInternal.GetNetRefHandleManager().GetInternalIndex(Handle);
+	if (ObjectInternalIndex == UE::Net::Private::FNetRefHandleManager::InvalidInternalIndex)
+	{
+		return;
+	}
+
+	Impl->ReplicationSystemInternal.GetNetCullDistanceOverrides().ClearCullDistanceSqr(ObjectInternalIndex);
+}
+
+float UReplicationSystem::GetCullDistanceSqrOverride(FNetRefHandle Handle, float DefaultValue) const
+{
+	const UE::Net::Private::FInternalNetRefIndex ObjectInternalIndex = Impl->ReplicationSystemInternal.GetNetRefHandleManager().GetInternalIndex(Handle);
+	if (ObjectInternalIndex == UE::Net::Private::FNetRefHandleManager::InvalidInternalIndex)
+	{
+		return DefaultValue;
+	}
+
+	return Impl->ReplicationSystemInternal.GetNetCullDistanceOverrides().GetCullDistanceSqr(ObjectInternalIndex, DefaultValue);
 }
 
 namespace UE::Net

@@ -6,6 +6,7 @@
 #include "Containers/Array.h"
 #include "Iris/ReplicationState/ReplicationStateStorage.h"
 #include "Iris/ReplicationSystem/DirtyNetObjectTracker.h"
+#include "Iris/ReplicationSystem/NetCullDistanceOverrides.h"
 #include "Iris/ReplicationSystem/NetRefHandleManager.h"
 #include "Iris/ReplicationSystem/ChangeMaskCache.h"
 #include "Iris/ReplicationSystem/Conditionals/ReplicationConditionals.h"
@@ -83,6 +84,8 @@ public:
 
 	FNetTokenStore& GetNetTokenStore() { return NetTokenStore; }
 
+	FNetCullDistanceOverrides& GetNetCullDistanceOverrides() { return NetCullDistanceOverrides; }
+
 	FWorldLocations& GetWorldLocations() { return WorldLocations; }
 
 	FDeltaCompressionBaselineManager& GetDeltaCompressionBaselineManager() { return DeltaCompressionBaselineManager; }
@@ -110,6 +113,7 @@ private:
 	FNetBlobManager NetBlobManager;
 	FNetTokenStore NetTokenStore;
 	FStringTokenStore StringTokenStore;
+	FNetCullDistanceOverrides NetCullDistanceOverrides;
 	FWorldLocations WorldLocations;
 	FDeltaCompressionBaselineManager DeltaCompressionBaselineManager;
 	FDeltaCompressionBaselineInvalidationTracker DeltaCompressionBaselineInvalidationTracker;

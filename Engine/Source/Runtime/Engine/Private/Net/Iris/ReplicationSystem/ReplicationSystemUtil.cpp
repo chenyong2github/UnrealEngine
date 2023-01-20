@@ -583,7 +583,53 @@ void FReplicationSystemUtil::SetStaticPriority(const AActor* Actor, float Priori
 	});
 }
 
+void FReplicationSystemUtil::SetCullDistanceSqrOverride(const AActor* Actor, float CullDistSqr)
+{
+	FNetHandle ActorHandle = GetNetHandle(Actor);
+	if (!ActorHandle.IsValid())
+	{
+		return;
+	}
+	
+	ReplicationSystemUtil::ForEachReplicationSystem([ActorHandle, CullDistSqr](UReplicationSystem* ReplicationSystem)
+	{
+		if (ReplicationSystem->IsServer())
+		{
+			if (UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
+			{
+				FNetRefHandle RefHandle = Bridge->GetReplicatedRefHandle(ActorHandle);
+				if (RefHandle.IsValid())
+				{
+					ReplicationSystem->SetCullDistanceSqrOverride(RefHandle, CullDistSqr);
+				}
+			}
+		}
+	});
+}
 
+void FReplicationSystemUtil::ClearCullDistanceSqrOverride(const AActor* Actor)
+{
+	FNetHandle ActorHandle = GetNetHandle(Actor);
+	if (!ActorHandle.IsValid())
+	{
+		return;
+	}
+	
+	ReplicationSystemUtil::ForEachReplicationSystem([ActorHandle](UReplicationSystem* ReplicationSystem)
+	{
+		if (ReplicationSystem->IsServer())
+		{
+			if (UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
+			{
+				FNetRefHandle RefHandle = Bridge->GetReplicatedRefHandle(ActorHandle);
+				if (RefHandle.IsValid())
+				{
+					ReplicationSystem->ClearCullDistanceSqrOverride(RefHandle);
+				}
+			}
+		}
+	});
+}
 
 }
 

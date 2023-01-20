@@ -121,6 +121,12 @@ struct FReplicationSystemUtil
 	 * @see ReplicationSystem.h for details
 	 */
 	ENGINE_API static void SetStaticPriority(const AActor* Actor, float Priority);
+
+	/** Set the squared cull distance for an actor. This will cause affected code to ignore the NetCullDistanceSquared property. */
+	ENGINE_API static void SetCullDistanceSqrOverride(const AActor* Actor, float CullDistSqr);
+
+	/** Clears any previously set squared cull distance for an actor. This will cause affected code to respect the NetCullDistanceSquared property. */
+	ENGINE_API static void ClearCullDistanceSqrOverride(const AActor* Actor);
 };
 
 }

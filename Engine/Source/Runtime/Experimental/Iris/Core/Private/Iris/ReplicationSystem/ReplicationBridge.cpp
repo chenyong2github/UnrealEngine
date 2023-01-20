@@ -368,6 +368,9 @@ void UReplicationBridge::InternalDestroyNetObject(FNetRefHandle Handle)
 
 	if (const FInternalNetRefIndex ObjectInternalIndex = NetRefHandleManager->GetInternalIndex(Handle))
 	{
+		FNetCullDistanceOverrides& NetCullDistanceOverrides = ReplicationSystem->GetReplicationSystemInternal()->GetNetCullDistanceOverrides();
+		NetCullDistanceOverrides.ClearCullDistanceSqr(ObjectInternalIndex);
+
 		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(ObjectInternalIndex);
 
 		if (ObjectData.bTearOff && NetRefHandleManager->GetNetObjectRefCount(ObjectInternalIndex) > 0U)

@@ -11,6 +11,7 @@
 
 namespace UE::Net
 {
+	class FNetCullDistanceOverrides;
 	class FWorldLocations;
 }
 
@@ -34,7 +35,7 @@ public:
 	UPROPERTY(Config)
 	float MaxCullDistance = 20000.0f;
 
-	/** Objects without a NetCullDistanceSquared property will assume to have this value but squared. */
+	/** Objects without a NetCullDistanceSquared property will assume to have this value but squared unless there's a cull distance override. */
 	UPROPERTY(Config)
 	float DefaultCullDistance = 15000.0f;
 
@@ -173,6 +174,7 @@ private:
 	uint32 FrameIndex = 0;
 
 	const UE::Net::FWorldLocations* WorldLocations = nullptr;
+	const UE::Net::FNetCullDistanceOverrides* NetCullDistanceOverrides = nullptr;
 };
 
 

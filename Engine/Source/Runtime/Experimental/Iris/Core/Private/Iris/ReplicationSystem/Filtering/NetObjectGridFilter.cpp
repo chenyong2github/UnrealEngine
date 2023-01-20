@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Iris/ReplicationSystem/Filtering/NetObjectGridFilter.h"
+#include "Iris/ReplicationSystem/NetCullDistanceOverrides.h"
 #include "Iris/ReplicationSystem/RepTag.h"
 #include "Iris/ReplicationSystem/ReplicationProtocol.h"
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
@@ -18,6 +19,7 @@ void UNetObjectGridFilter::Init(FNetObjectFilterInitParams& Params)
 	PerConnectionInfos.SetNum(Params.MaxConnectionCount + 1);
 
 	WorldLocations = &Params.ReplicationSystem->GetWorldLocations();
+	NetCullDistanceOverrides = &Params.ReplicationSystem->GetNetCullDistanceOverrides();
 }
 
 void UNetObjectGridFilter::AddConnection(uint32 ConnectionId)
@@ -388,7 +390,12 @@ void UNetObjectGridFilter::UpdatePositionAndCullDistance(const UNetObjectGridFil
 	}
 
 	// Optionally update cull distance
-	if (PerObjectInfo.CullDistanceSqrStateOffset != InvalidStateOffset)
+	if (NetCullDistanceOverrides->HasCullDistanceOverride(PerObjectInfo.ObjectIndex))
+	{
+		const float CullDistanceSqr = NetCullDistanceOverrides->GetCullDistanceSqr(PerObjectInfo.ObjectIndex);
+		PerObjectInfo.CullDistance = FPlatformMath::Sqrt(CullDistanceSqr);
+	}
+	else if (PerObjectInfo.CullDistanceSqrStateOffset != InvalidStateOffset)
 	{
 		const UE::Net::FReplicationInstanceProtocol::FFragmentData& FragmentData = FragmentDatas[PerObjectInfo.CullDistanceSqrStateIndex];
 		const uint8* CullDistanceSqrAddress = FragmentData.ExternalSrcBuffer + PerObjectInfo.CullDistanceSqrStateOffset;

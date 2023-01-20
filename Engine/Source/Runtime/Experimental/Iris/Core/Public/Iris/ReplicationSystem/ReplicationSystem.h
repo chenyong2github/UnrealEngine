@@ -23,6 +23,7 @@ class UReplicationSystem;
 namespace UE::Net
 {
 	class FNetBitArray;
+	class FNetCullDistanceOverrides;
 	enum class ENetFilterStatus : uint32;
 	class FNetObjectAttachment;
 	enum class ENetObjectDeltaCompressionStatus : unsigned;
@@ -462,6 +463,13 @@ public:
 	IRISCORE_API void MarkDirty(FNetRefHandle Handle);
 
 	/**
+	 * Retrieve the NetCullDistanceOverrides instance which holds cull distances for objects that have explicitly overriden it.
+	 * @return The NetCullDistanceOverrides instance.
+	 * @see UE::Net::FNetCullDistanceOverrides
+	 */
+	IRISCORE_API const UE::Net::FNetCullDistanceOverrides& GetNetCullDistanceOverrides() const;
+
+	/**
 	 * Retrieve the WorldLocations instance which holds world locations for all objects that support it. 
 	 * @return The WorldLocations instance.
 	 * @see UE::Net::FWorldLocations
@@ -489,6 +497,15 @@ public:
 	IRISCORE_API UObject* GetConnectionUserData(uint32 ConnectionId) const;
 
 	IRISCORE_API int32 GetPIEInstanceID() const { return PIEInstanceID; }
+
+	/** Set the squared cull distance for an object. This can be used by prioritizers and filters like UNetObjectGridFilter for example. For Actors this will override, not overwrite, the NetCullDistanceSquared property. */
+	IRISCORE_API void SetCullDistanceSqrOverride(FNetRefHandle Handle, float DistSqr);
+
+	/** Clears any previously set squared cull distance for an object. For Actors this will cause affected code to respect the NetCullDistanceSquared property. */
+	IRISCORE_API void ClearCullDistanceSqrOverride(FNetRefHandle Handle);
+
+	/** Returns the previously set squared cull distance for an object, or DefaultValue if it wasn't or the Handle isn't valid. */
+	IRISCORE_API float GetCullDistanceSqrOverride(FNetRefHandle Handle, float DefaultValue = -1.0f) const;
 
 public:
 	// For internal use and not exported.
