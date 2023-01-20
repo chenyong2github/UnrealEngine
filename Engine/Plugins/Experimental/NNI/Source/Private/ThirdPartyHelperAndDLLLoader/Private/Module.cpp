@@ -11,7 +11,7 @@
 void FThirdPartyHelperAndDLLLoaderModule::StartupModule()
 {
 #ifdef PLATFORM_WIN64
-#ifdef WITH_EDITOR
+#if WITH_EDITOR
 
 	TSharedPtr<IPlugin> NNEPlugin = IPluginManager::Get().FindPlugin(TEXT("NNE"));
 	if (NNEPlugin.IsValid() && NNEPlugin->IsEnabled())
