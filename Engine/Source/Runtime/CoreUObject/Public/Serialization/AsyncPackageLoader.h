@@ -248,7 +248,7 @@ void IsTimeLimitExceededPrint(
 	double InTickStartTime,
 	double CurrentTime,
 	double LastTestTime,
-	float InTimeLimit,
+	double InTimeLimit,
 	const TCHAR* InLastTypeOfWorkPerformed = nullptr,
 	UObject* InLastObjectWorkWasPerformedOn = nullptr);
 

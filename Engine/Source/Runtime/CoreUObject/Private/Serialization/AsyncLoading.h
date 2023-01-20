@@ -512,7 +512,7 @@ struct FAsyncPackage : public FGCObject
 	}
 
 	/** Creates GC clusters from loaded objects */
-	EAsyncPackageState::Type CreateClusters(double InTickStartTime, bool bInUseTimeLimit, float& InOutTimeLimit);
+	EAsyncPackageState::Type CreateClusters(double InTickStartTime, bool bInUseTimeLimit, double InOutTimeLimit);
 
 	/** Returns true if this package is a dependency to the explicit request id RequestID. */
 	bool IsDependencyOf(int32 RequestID);
@@ -828,7 +828,7 @@ public:
 	*
 	* @return true if we finished calling PostLoad on all loaded objects and no new ones were created, false otherwise
 	*/
-	EAsyncPackageState::Type PostLoadDeferredObjects(double InTickStartTime, bool bInUseTimeLimit, float& InOutTimeLimit);
+	EAsyncPackageState::Type PostLoadDeferredObjects(double InTickStartTime, bool bInUseTimeLimit, double InOutTimeLimit);
 
 	/** Close any linkers that have been open as a result of synchronous load during async loading */
 	void CloseDelayedLinkers();
