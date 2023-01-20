@@ -1620,7 +1620,7 @@ uint32 ULandscapeHeightfieldCollisionComponent::ComputeCollisionHash() const
 	Hash = HashCombine(GetTypeHash(CollisionScale), Hash);
 
 	FTransform ComponentTransform = GetComponentToWorld();
-	Hash = FCrc::MemCrc32(&ComponentTransform, sizeof(ComponentTransform));
+	Hash = FCrc::MemCrc32(&ComponentTransform, sizeof(ComponentTransform), Hash);
 
 	const void* HeightBuffer = CollisionHeightData.LockReadOnly();
 	Hash = FCrc::MemCrc32(HeightBuffer, CollisionHeightData.GetBulkDataSize(), Hash);
