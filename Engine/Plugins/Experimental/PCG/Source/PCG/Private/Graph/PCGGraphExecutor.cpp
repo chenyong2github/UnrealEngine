@@ -746,7 +746,11 @@ void FPCGGraphExecutor::Execute()
 		// keep a cache of intermediate results.
 		if (ReadyTasks.Num() == 0 && ActiveTasks.Num() == 0 && SleepingTasks.Num() == 0 && Tasks.Num() == 0)
 		{
-			check(TaskSuccessors.IsEmpty());
+			if (!ensure(TaskSuccessors.IsEmpty()))
+			{
+				TaskSuccessors.Reset();
+			}
+			
 			ClearResults();
 
 #if WITH_EDITOR
