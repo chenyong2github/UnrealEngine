@@ -35,33 +35,28 @@ FCurveEditorDragOperation_Marquee::FCurveEditorDragOperation_Marquee(FCurveEdito
 
 void FCurveEditorDragOperation_Marquee::OnBeginDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent)
 {
+	RealInitialPosition = CurrentPosition;
+
 	Marquee = FSlateRect(
-		FMath::Min(InitialPosition.X, CurrentPosition.X),
-		FMath::Min(InitialPosition.Y, CurrentPosition.Y),
-		FMath::Max(InitialPosition.X, CurrentPosition.X),
-		FMath::Max(InitialPosition.Y, CurrentPosition.Y)
+		FMath::Min(RealInitialPosition.X, CurrentPosition.X),
+		FMath::Min(RealInitialPosition.Y, CurrentPosition.Y),
+		FMath::Max(RealInitialPosition.X, CurrentPosition.X),
+		FMath::Max(RealInitialPosition.Y, CurrentPosition.Y)
 		);
 }
 
 void FCurveEditorDragOperation_Marquee::OnDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent)
 {
 	Marquee = FSlateRect(
-		FMath::Min(InitialPosition.X, CurrentPosition.X),
-		FMath::Min(InitialPosition.Y, CurrentPosition.Y),
-		FMath::Max(InitialPosition.X, CurrentPosition.X),
-		FMath::Max(InitialPosition.Y, CurrentPosition.Y)
+		FMath::Min(RealInitialPosition.X, CurrentPosition.X),
+		FMath::Min(RealInitialPosition.Y, CurrentPosition.Y),
+		FMath::Max(RealInitialPosition.X, CurrentPosition.X),
+		FMath::Max(RealInitialPosition.Y, CurrentPosition.Y)
 		);
 }
 
 void FCurveEditorDragOperation_Marquee::OnEndDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent)
 {
-	Marquee = FSlateRect(
-		FMath::Min(InitialPosition.X, CurrentPosition.X),
-		FMath::Min(InitialPosition.Y, CurrentPosition.Y),
-		FMath::Max(InitialPosition.X, CurrentPosition.X),
-		FMath::Max(InitialPosition.Y, CurrentPosition.Y)
-		);
-
 	TArray<FCurvePointHandle> AllPoints;
 
 	if (LockedToView)

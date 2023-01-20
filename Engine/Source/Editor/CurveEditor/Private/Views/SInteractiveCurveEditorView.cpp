@@ -571,8 +571,12 @@ bool SInteractiveCurveEditorView::GetPointsWithinWidgetRange(const FSlateRect& W
 		return false;
 	}
 
+	FVector2D LinePoints[2];
+	FVector Start, End, StartToEnd;
+	FBox WidgetRectangleBox(FVector(WidgetRectangle.Left, WidgetRectangle.Top, 0), FVector(WidgetRectangle.Right, WidgetRectangle.Bottom, 0));
+
 	// Iterate through all of our points and see which points the marquee overlaps. Both of these coordinate systems
-	// are in screen space pixels.
+	// are in screen space pixels.  Also check tangent lines
 	bool bFound = false;
 	for (const FCurveDrawParams& DrawParams : CachedDrawParams)
 	{
@@ -587,6 +591,21 @@ bool SInteractiveCurveEditorView::GetPointsWithinWidgetRange(const FSlateRect& W
 			{
 				OutPoints->Add(FCurvePointHandle(DrawParams.GetID(), Point.Type, Point.KeyHandle));
 				bFound = true;
+			}
+			else if (Point.LineDelta.X != 0.f || Point.LineDelta.Y != 0.f) //if tangent hit test line
+			{
+				LinePoints[0] = Point.ScreenPosition + Point.LineDelta.GetSafeNormal() * (DrawInfo.ScreenSize.X * .5f);
+				LinePoints[1] = Point.ScreenPosition + Point.LineDelta;
+
+				Start = FVector(LinePoints[0].X, LinePoints[0].Y, 0);
+				End = FVector(LinePoints[1].X, LinePoints[1].Y, 0);
+				StartToEnd = End - Start;
+
+				if (FMath::LineBoxIntersection(WidgetRectangleBox, Start, End, StartToEnd))
+				{
+					OutPoints->Add(FCurvePointHandle(DrawParams.GetID(), Point.Type, Point.KeyHandle));
+					bFound = true;
+				}
 			}
 		}
 	}

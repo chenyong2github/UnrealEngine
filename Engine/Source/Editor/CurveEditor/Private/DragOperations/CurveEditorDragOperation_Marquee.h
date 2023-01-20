@@ -34,4 +34,6 @@ private:
 	FCurveEditor* CurveEditor;
 	/** When valid, marquee selection should only occur inside this view; all geometries are in local space */
 	SCurveEditorView* LockedToView;
+	/** Real Initial Position do to the delayed drag*/
+	FVector2D RealInitialPosition;
 };
