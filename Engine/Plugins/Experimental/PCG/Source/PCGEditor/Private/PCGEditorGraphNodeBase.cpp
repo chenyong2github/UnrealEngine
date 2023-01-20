@@ -285,28 +285,29 @@ void UPCGEditorGraphNodeBase::ReconstructNode()
 		return;
 	}
 
-	// Remove all current pins
-	TArray<UEdGraphPin*> OldPins = Pins;
-
-	for (UEdGraphPin* OldPin : OldPins)
-	{
-		OldPin->BreakAllPinLinks();
-		RemovePin(OldPin);
-	}
-	check(Pins.IsEmpty());
+	// Store copy of old pins
+	TArray<UEdGraphPin*> OldPins = MoveTemp(Pins);
+	Pins.Reset();
 
 	// Generate new pins
 	AllocateDefaultPins();
 
-	// Generate new links
-	// TODO: we should either keep a map in the PCGEditorGraph or do this elsewhere
-	// TODO: this will not work if we have non-PCG nodes in the graph
-	if (PCGNode)
+	// Transfer persistent data from old to new pins
+	for (UEdGraphPin* OldPin : OldPins)
 	{
-		UPCGEditorGraph* PCGEditorGraph = CastChecked<UPCGEditorGraph>(GetGraph());
-		PCGEditorGraph->CreateLinks(this, /*bCreateInbound=*/true, /*bCreateOutbound=*/true);
+		const FName& OldPinName = OldPin->PinName;
+		if (UEdGraphPin** NewPin = Pins.FindByPredicate([&OldPinName](UEdGraphPin* InPin) { return InPin->PinName == OldPinName; }))
+		{
+			(*NewPin)->MovePersistentDataFromOldPin(*OldPin);
+		}
 	}
-	
+
+	// Remove old pins
+	for (UEdGraphPin* OldPin : OldPins)
+	{
+		RemovePin(OldPin);
+	}
+
 	// Notify editor
 	OnNodeChangedDelegate.ExecuteIfBound();
 }
