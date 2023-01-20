@@ -293,11 +293,12 @@ void UInputDeviceSubsystem::Tick(float InDeltaTime)
 	for (auto It = ActiveProperties.CreateIterator(); It; ++It)
 	{
 		FActiveDeviceProperty& ActiveProp = *It;
-		if (!ActiveProp.Property)
+		if (!ActiveProp.Property.IsValid())
 		{
-			// Something has gone wrong if we get here... maybe the Property has been GC'd ?
-			// This is really just an emergency handling case
-			ensure(false);
+			// The property may have been GC'd if the world has changed and it was an instanced property
+			// on an actor in that world
+			It.RemoveCurrent();
+			PropertiesPendingRemoval.Remove(ActiveProp.PropertyHandle);
 			continue;
 		}
 		
@@ -405,7 +406,7 @@ UInputDeviceProperty* UInputDeviceSubsystem::GetActiveDeviceProperty(const FInpu
 		// just returns its FInputDevicePropertyHandle's GetTypeHash
 		if (const FActiveDeviceProperty* ExistingProp = ActiveProperties.FindByHash(Handle.GetTypeHash(), Handle))
 		{
-			return ExistingProp->Property;
+			return ExistingProp->Property.Get();
 		}
 	}
 	
@@ -438,7 +439,7 @@ void UInputDeviceSubsystem::RemoveAllDeviceProperties()
 {
 	for (FActiveDeviceProperty& ActiveProperty : ActiveProperties)
 	{
-		if (ActiveProperty.Property)
+		if (ActiveProperty.Property.IsValid())
 		{
 			ActiveProperty.Property->ResetDeviceProperty(ActiveProperty.PlatformUser, ActiveProperty.DeviceId);
 		}		

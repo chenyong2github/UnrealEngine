@@ -68,7 +68,7 @@ struct ENGINE_API FActiveDeviceProperty
 
 	/** The active device property */
 	UPROPERTY()
-	TObjectPtr<UInputDeviceProperty> Property = nullptr;
+	TWeakObjectPtr<UInputDeviceProperty> Property = nullptr;
 
 	/** How long this property has been evaluated for. DeltaTime is added to this on tick */
 	double EvaluatedDuration = 0.0;
