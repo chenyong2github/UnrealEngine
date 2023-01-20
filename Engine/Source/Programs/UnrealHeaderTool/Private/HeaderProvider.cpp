@@ -87,7 +87,7 @@ FUnrealSourceFile* FHeaderProvider::Resolve(const FUnrealSourceFile& ParentSourc
 
 		// There is questionable compatibility hack where a source file will always be exported
 		// regardless of having types when it is being included by the SAME package.
-		if (Cache && Cache->GetPackage() == ParentSourceFile.GetPackage())
+		if (Cache && &Cache->GetPackageDef() == &ParentSourceFile.GetPackageDef())
 		{
 			Cache->MarkReferenced();
 		}

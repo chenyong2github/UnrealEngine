@@ -94,6 +94,47 @@ extern std::atomic<int> GSourcesParsing;
 extern std::atomic<int> GSourcesCompleted;
 extern std::atomic<int> GSourcesStalled;
 
+// Singleton class to get the cast flag for a given class name.
+struct ClassCastFlagMap
+{
+	static ClassCastFlagMap& Get();
+
+	// Get Mapped name -> cast flag. Returns CASTCLASS_None if name is not found.
+	EClassCastFlags GetCastFlag(const FString& ClassName) const;
+
+private:
+	ClassCastFlagMap();
+	TMap<FString, EClassCastFlags> CastFlagMap;
+};
+
+
+//////////////////////////////////////////////////////////////////////////
+// ClassCastFlagMap
+
+ClassCastFlagMap::ClassCastFlagMap()
+{
+// Define macro to be applied to all cast class declarations.
+#define DECLARE_CAST_BY_FLAG(ClassName) CastFlagMap.Add(FString(#ClassName), CASTCLASS_##ClassName);
+
+// Now apply the macro to the whole list.
+DECLARE_ALL_CAST_FLAGS;
+
+#undef DECLARE_CAST_BY_FLAG
+}
+
+ClassCastFlagMap& ClassCastFlagMap::Get()
+{
+	static ClassCastFlagMap TheInstance;
+	return TheInstance;
+}
+
+EClassCastFlags ClassCastFlagMap::GetCastFlag(const FString& ClassName) const
+{
+	const EClassCastFlags* ValuePtr = CastFlagMap.Find(ClassName);
+	return ValuePtr ? *ValuePtr : CASTCLASS_None;
+}
+
+
 /*-----------------------------------------------------------------------------
 	Utility functions.
 -----------------------------------------------------------------------------*/
@@ -1881,10 +1922,6 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 
 		StructDef.GetSuperStructInfo().Struct = BaseStructDef->AsStruct();
 		StructDef.SetStructFlags(EStructFlags(BaseStructDef->GetStructFlags() & STRUCT_Inherit));
-		if (StructDef.GetScriptStructSafe() != nullptr && BaseStructDef->GetScriptStructSafe())
-		{
-			StructDef.GetScriptStructSafe()->SetSuperStruct(BaseStructDef->GetScriptStructSafe());
-		}
 	}
 
 	Scope->AddType(StructDef);
@@ -9328,6 +9365,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseStructDeclaration(c
 			{
 				LogError(TEXT("The 'HasDefaults' struct specifier is only valid in the NoExportTypes.h file"));
 			}
+			StructDef->SetScriptStructExportFlags(STRUCTEXPORT_HasDefaults);
 			break;
 
 		case EStructSpecifier::HasNoOpConstructor:
@@ -9335,6 +9373,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseStructDeclaration(c
 			{
 				LogError(TEXT("The 'HasNoOpConstructor' struct specifier is only valid in the NoExportTypes.h file"));
 			}
+			StructDef->SetScriptStructExportFlags(STRUCTEXPORT_HasNoOpConstructor);
 			break;
 
 		case EStructSpecifier::IsAlwaysAccessible:
@@ -9342,6 +9381,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseStructDeclaration(c
 			{
 				LogError(TEXT("The 'IsAlwaysAccessible' struct specifier is only valid in the NoExportTypes.h file"));
 			}
+			StructDef->SetScriptStructExportFlags(STRUCTEXPORT_IsAlwaysAccessible);
 			break;
 
 		case EStructSpecifier::IsCoreType:
@@ -9349,6 +9389,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseStructDeclaration(c
 			{
 				LogError(TEXT("The 'IsCoreType' struct specifier is only valid in the NoExportTypes.h file"));
 			}
+			StructDef->SetScriptStructExportFlags(STRUCTEXPORT_IsCoreType);
 			break;
 		}
 	}

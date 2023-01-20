@@ -260,14 +260,6 @@ public:
 	}
 
 	/**
-	 * Gets package this file is in.
-	 */
-	UPackage* GetPackage() const
-	{
-		return PackageDef.GetPackage();
-	}
-
-	/**
 	 * Gets filename.
 	 */
 	const FString& GetFilename() const

@@ -141,7 +141,7 @@ bool FUnrealSourceFile::HasChanged() const
 
 FString FUnrealSourceFile::GetFileDefineName() const
 {
-	const FString API = FPackageName::GetShortName(GetPackage()).ToUpper();
+	const FString API = GetPackageDef().GetShortUpperName();
 	return FString::Printf(TEXT("%s_%s_generated_h"), *API, *GetStrippedFilename());
 }
 

@@ -53,6 +53,14 @@ enum EPropertyHeaderExportFlags
 	PROPEXPORT_Protected	=0x00000004,	// property should be exported as protected
 };
 
+enum EScriptStructExportFlags
+{
+	STRUCTEXPORT_HasDefaults		= 0x00000001,
+	STRUCTEXPORT_HasNoOpConstructor = 0x00000002,
+	STRUCTEXPORT_IsAlwaysAccessible = 0x00000004,
+	STRUCTEXPORT_IsCoreType			= 0x00000008,
+};
+
 struct EPointerType
 {
 	enum Type

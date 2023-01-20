@@ -10,8 +10,6 @@
 #include "BaseParser.h"
 #include "ParserHelper.h"
 
-#define UHT_ENABLE_ENGINE_TYPE_CHECKS 0
-
 // Forward declarations.
 class FHeaderParser;
 class FScope;
@@ -228,9 +226,6 @@ protected:
 		checkf(false, TEXT("You can not perform remapping of meta data values on this type"));
 		return nullptr;
 	}
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-	virtual void CheckFindMetaData(const FName& Key, const FString* ValuePtr) const = 0;
-#endif
 
 private:
 	FName GetMetaDataKey(const TCHAR* Key, int32 NameIndex, EFindName FindName) const;
@@ -417,11 +412,6 @@ public:
 	virtual void OnPostParsePropertyFlagsChanged(FUnrealPropertyDefinitionInfo& PropertyDef) {}
 
 	/**
-	 * Create UObject engine types.
-	 */
-	void CreateUObjectEngineTypes(ECreateEngineTypesPhase Phase);
-
-	/**
 	 * Perform any post parsing finalization and validation
 	 */
 	void PostParseFinalize(EPostParseFinalizePhase Phase);
@@ -606,20 +596,6 @@ protected:
 	virtual void ValidateMetaDataFormat(const FName InKey, ECheckedMetadataSpecifier InCheckedMetadataSpecifier, const FString& InValue) const;
 
 	/**
-	 * Create UObject engine types
-	 */
-	virtual void CreateUObjectEngineTypesInternal(ECreateEngineTypesPhase Phase) 
-	{
-		if (Phase == ECreateEngineTypesPhase::Phase1)
-		{
-			if (Outer != nullptr && Outer->AsPackage() == nullptr)
-			{
-				CreateUObjectEngineTypes(Phase);
-			}
-		}
-	}
-
-	/**
 	 * Perform any post parsing finalization and validation
 	 */
 	virtual void PostParseFinalizeInternal(EPostParseFinalizePhase Phase) {}
@@ -662,32 +638,6 @@ public:
 		return this;
 	}
 
-	/**
-	 * Return the Engine instance associated with the compiler instance
-	 */
-	FProperty* GetProperty() const
-	{
-		check(Property);
-		return Property;
-	}
-
-	/**
-	 * Return the Engine instance associated with the compiler instance, does not check the pointer, can be null
-	 */
-	FProperty* GetPropertySafe() const
-	{
-		return Property;
-	}
-
-	/**
-	 * Sets the engine type
-	 */
-	void SetProperty(FProperty* InProperty)
-	{
-		check(Property == nullptr || Property == InProperty);
-		Property = InProperty;
-	}
-
 	void ExportCppDeclaration(FOutputDevice& Out, EExportedDeclaration::Type DeclarationType, const TCHAR* ArrayDimOverride = NULL, uint32 AdditionalExportCPPFlags = 0, bool bSkipParameterName = false) const;
 
 	FString GetCPPMacroType(FString& ExtendedTypeText) const;
@@ -697,18 +647,12 @@ public:
 	 */
 	virtual FString GetName() const override
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetPropertySafe() == nullptr || GetPropertySafe()->GetName() == GetNameCPP());
-#endif
 		return GetNameCPP();
 	}
 
 	/** Returns the logical name of this object */
 	virtual FName GetFName() const override
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetPropertySafe() == nullptr || GetPropertySafe()->GetFName() == Name);
-#endif
 		return Name;
 	}
 
@@ -773,9 +717,6 @@ public:
 	FString GetNameWithDeprecated() const
 	{
 		FString OutName = HasAnyPropertyFlags(CPF_Deprecated) ? GetName() + TEXT("_DEPRECATED") : GetName();
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetPropertySafe() == nullptr || GetPropertySafe()->GetNameCPP() == OutName);
-#endif
 		return OutName;
 	}
 
@@ -794,33 +735,16 @@ public:
 	 */
 	EPropertyFlags GetPropertyFlags() const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetPropertySafe() == nullptr || (GetPropertySafe()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
-#endif
 		return PropertyBase.PropertyFlags;
 	}
 
 	void SetPropertyFlags(EPropertyFlags NewFlags)
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetPropertySafe() == nullptr || (GetPropertySafe()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
-#endif
-		if (FProperty* LocalProperty = GetPropertySafe())
-		{
-			LocalProperty->PropertyFlags |= NewFlags;
-		}
 		PropertyBase.PropertyFlags |= NewFlags;
 	}
 
 	void ClearPropertyFlags(EPropertyFlags NewFlags)
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetPropertySafe() == nullptr || (GetPropertySafe()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
-#endif
-		if (FProperty* LocalProperty = GetPropertySafe())
-		{
-			LocalProperty->PropertyFlags &= ~NewFlags;
-		}
 		PropertyBase.PropertyFlags &= ~NewFlags;
 	}
 
@@ -837,10 +761,6 @@ public:
 	 */
 	bool HasAnyPropertyFlags(uint64 FlagsToCheck) const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check((FlagsToCheck & CPF_ComputedFlags) == 0);
-		check(GetPropertySafe() == nullptr || (GetPropertySafe()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
-#endif
 		return (PropertyBase.PropertyFlags & FlagsToCheck) != 0;
 	}
 
@@ -856,19 +776,11 @@ public:
 	 */
 	bool HasAllPropertyFlags(uint64 FlagsToCheck) const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check((FlagsToCheck & CPF_ComputedFlags) == 0);
-		check(GetPropertySafe() == nullptr || (GetPropertySafe()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
-#endif
 		return (PropertyBase.PropertyFlags & FlagsToCheck) == FlagsToCheck;
 	}
 
 	bool HasSpecificPropertyFlags(uint64 FlagsToCheck, uint64 ExpectedFlags)
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check((FlagsToCheck & CPF_ComputedFlags) == 0);
-		check(GetPropertySafe() == nullptr || (GetPropertySafe()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
-#endif
 		return (PropertyBase.PropertyFlags & FlagsToCheck) == ExpectedFlags;
 	}
 
@@ -890,9 +802,6 @@ public:
 	bool IsEditorOnlyProperty() const
 	{
 		bool bResult = HasAnyPropertyFlags(CPF_DevelopmentAssets);
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetPropertySafe() == nullptr || bResult == GetPropertySafe()->IsEditorOnlyProperty());
-#endif
 		return bResult;
 	}
 
@@ -905,9 +814,6 @@ public:
 	bool ContainsInstancedObjectProperty() const
 	{
 		bool bResult = HasAnyPropertyFlags(CPF_ContainsInstancedReference | CPF_InstancedReference);
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetPropertySafe() == nullptr || bResult == GetPropertySafe()->ContainsInstancedObjectProperty());
-#endif
 		return bResult;
 	}
 
@@ -1208,9 +1114,6 @@ public:
 	 */
 	FName GetRepNotifyFunc() const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetPropertySafe() == nullptr || PropertyBase.RepNotifyName == GetPropertySafe()->RepNotifyFunc);
-#endif
 		return PropertyBase.RepNotifyName;
 	}
 
@@ -1224,7 +1127,6 @@ public:
 	 */
 	virtual void AddMetaData(TMap<FName, FString>&& InMetaData) override
 	{
-		check(Property == nullptr);
 		GetMetaDataMap().Append(MoveTemp(InMetaData));
 	}
 
@@ -1245,18 +1147,6 @@ public:
 	virtual void ConcurrentPostParseFinalize() override;
 
 protected:
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-	virtual void CheckFindMetaData(const FName& Key, const FString* ValuePtr) const
-	{
-		if (FProperty* LocalProperty = GetPropertySafe())
-		{
-			const FString* CheckPtr = LocalProperty->FindMetaData(Key);
-			check((CheckPtr == nullptr && ValuePtr == nullptr) || (CheckPtr != nullptr && ValuePtr != nullptr && *CheckPtr == *ValuePtr));
-		}
-	}
-#endif
-
-	virtual void CreateUObjectEngineTypesInternal(ECreateEngineTypesPhase Phase) override;
 
 	/**
 	 * Perform any post parsing finalization and validation
@@ -1270,7 +1160,6 @@ private:
 	FString TypePackageName;
 	TSharedPtr<FUnrealPropertyDefinitionInfo> KeyPropDef;
 	TSharedPtr<FUnrealPropertyDefinitionInfo> ValuePropDef;
-	FProperty* Property = nullptr;
 	int32 ParsePosition;
 	EVariableCategory VariableCategory = EVariableCategory::Member;
 	EAccessSpecifier AccessSpecifier = ACCESS_Public;
@@ -1294,23 +1183,6 @@ public:
 	}
 
 	/**
-	 * Return the Engine instance associated with the compiler instance
-	 */
-	UObject* GetObject() const
-	{
-		check(Object);
-		return Object;
-	}
-
-	/**
-	 * Return the Engine instance associated with the compiler instance without the check that it is set
-	 */
-	UObject* GetObjectSafe() const
-	{
-		return Object;
-	}
-
-	/**
 	 * Return the engine class name
 	 */
 	virtual const FString& GetEngineClassName(bool bRootClassName = false) const
@@ -1320,37 +1192,17 @@ public:
 	}
 
 	/**
-	 * Set the Engine instance associated with the compiler instance
-	 */
-	virtual void SetObject(UObject* InObject)
-	{
-		check(InObject != nullptr);
-		check(Object == nullptr);
-		Object = InObject;
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(Object->GetFName() == Name);
-		check(Object->GetInternalFlags() == InternalObjectFlags);
-#endif
-	}
-
-	/**
 	 * Returns the name of this object (with no path information)
 	 */
 	virtual FString GetName() const override
 	{
 		FString Result = GetFName().ToString();
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetObjectSafe() == nullptr || GetObjectSafe()->GetName() == Result);
-#endif
 		return Result;
 	}
 
 	/** Returns the logical name of this object */
 	virtual FName GetFName() const override
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetObjectSafe() == nullptr || GetObjectSafe()->GetFName() == Name);
-#endif
 		return Name;
 	}
 
@@ -1394,9 +1246,6 @@ public:
 	 */
 	EInternalObjectFlags GetInternalFlags() const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetObjectSafe() == nullptr || GetObjectSafe()->GetInternalFlags() == InternalObjectFlags);
-#endif
 		return InternalObjectFlags;
 	}
 
@@ -1406,13 +1255,6 @@ public:
 	void SetInternalFlags(EInternalObjectFlags FlagsToSet)
 	{
 		InternalObjectFlags |= FlagsToSet;
-		if (UObject* Obj = GetObjectSafe())
-		{
-			Obj->SetInternalFlags(FlagsToSet);
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-			check(Obj->GetInternalFlags() == InternalObjectFlags);
-#endif
-		}
 	}
 
 	/**
@@ -1421,13 +1263,6 @@ public:
 	void ClearInternalFlags(EInternalObjectFlags FlagsToClear)
 	{
 		InternalObjectFlags &= ~FlagsToClear;
-		if (UObject* Obj = GetObjectSafe())
-		{
-			Obj->ClearInternalFlags(FlagsToClear);
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-			check(Obj->GetInternalFlags() == InternalObjectFlags);
-#endif
-		}
 	}
 
 	/**
@@ -1438,9 +1273,6 @@ public:
 	 */
 	bool HasAnyInternalFlags(EInternalObjectFlags FlagsToCheck) const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetObjectSafe() == nullptr || GetObjectSafe()->GetInternalFlags() == InternalObjectFlags);
-#endif
 		return EnumHasAnyFlags(InternalObjectFlags, FlagsToCheck);
 	}
 
@@ -1489,40 +1321,8 @@ protected:
 		, Name(InName)
 	{ }
 
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-	virtual void CheckFindMetaData(const FName& Key, const FString* ValuePtr) const override
-	{
-		if (UObject* Obj = GetObjectSafe())
-		{
-			TMap<FName, FString>* PackageMap = GetUObjectMetaDataMap();
-			const FString* CheckPtr = PackageMap ? PackageMap->Find(Key) : nullptr;
-			check((CheckPtr == nullptr && ValuePtr == nullptr) || (CheckPtr != nullptr && ValuePtr != nullptr && *CheckPtr == *ValuePtr));
-		}
-	}
-#endif
-
-	UMetaData* GetUObjectMetaData() const
-	{
-		if (UObject* Obj = GetObjectSafe())
-		{
-			UPackage* Package = Obj->GetPackage();
-			check(Package);
-			UMetaData* Metadata = Package->GetMetaData();
-			check(Metadata);
-			return Metadata;
-		}
-		return nullptr;
-	}
-
-	TMap<FName, FString>* GetUObjectMetaDataMap() const
-	{
-		UMetaData* Metadata = GetUObjectMetaData();
-		return Metadata ? Metadata->ObjectMetaDataMap.Find(GetObject()) : nullptr;
-	}
-
 private:
 	TMap<FName, FString> MetaData;
-	UObject* Object = nullptr;
 	FName Name = NAME_None;
 	EInternalObjectFlags InternalObjectFlags = EInternalObjectFlags::None;
 };
@@ -1540,22 +1340,6 @@ public:
 	virtual FUnrealPackageDefinitionInfo* AsPackage() override
 	{
 		return this;
-	}
-
-	/**
-	 * Return the Engine instance associated with the compiler instance
-	 */
-	UPackage* GetPackage() const
-	{
-		return static_cast<UPackage*>(GetObject());
-	}
-
-	/**
-	 * Return the Engine instance associated with the compiler instance
-	 */
-	UPackage* GetPackageSafe() const
-	{
-		return static_cast<UPackage*>(GetObjectSafe());
 	}
 
 	/**
@@ -1617,11 +1401,24 @@ public:
 	}
 
 	/**
+	 * Get the short name of the package.
+	 */
+	const FString& GetShortName() const
+	{
+		return ShortName;
+	}
+
+	/**
 	 * Get the short name of the package uppercased.
 	 */
 	const FString& GetShortUpperName() const
 	{
 		return ShortUpperName;
+	}
+
+	uint32 GetPackageFlags() const
+	{
+		return PackageFlags;
 	}
 
 	/**
@@ -1654,10 +1451,6 @@ public:
 	}
 
 protected:
-	/**
-	 * Create UObject engine types
-	 */
-	virtual void CreateUObjectEngineTypesInternal(ECreateEngineTypesPhase Phase) override;
 
 	/**
 	 * Perform any post parsing finalization and validation
@@ -1671,8 +1464,10 @@ private:
 	FString SingletonName;
 	FString SingletonNameChopped;
 	FString ExternDecl;
+	FString ShortName;
 	FString ShortUpperName;
 	FString API;
+	uint32 PackageFlags = 0;
 	bool bWriteClassesH = false;
 };
 
@@ -1697,22 +1492,6 @@ public:
 	virtual FUnrealFieldDefinitionInfo* AsField() override
 	{
 		return this;
-	}
-
-	/**
-	 * Return the Engine instance associated with the compiler instance
-	 */
-	UField* GetField() const
-	{
-		return static_cast<UField*>(GetObject());
-	}
-
-	/**
-	 * Return the Engine instance associated with the compiler instance without the check that it is set
-	 */
-	UField* GetFieldSafe() const
-	{
-		return static_cast<UField*>(GetObjectSafe());
 	}
 
 	/**
@@ -1862,30 +1641,11 @@ public:
 	}
 
 	/**
-	 * Return the Engine instance associated with the compiler instance
-	 */
-	UEnum* GetEnum() const
-	{
-		return static_cast<UEnum*>(GetObject());
-	}
-
-	/**
-	 * Return the Engine instance associated with the compiler instance but does not check to see if it is set
-	 */
-	UEnum* GetEnumSafe() const
-	{
-		return static_cast<UEnum*>(GetObjectSafe());
-	}
-
-	/**
 	 * Test if the enum contains and of the given flags
 	 */
 	bool HasAnyEnumFlags(EEnumFlags InFlags) const
 	{
 		bool bResults = EnumHasAnyFlags(EnumFlags, InFlags);
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetEnumSafe() == nullptr || GetEnumSafe()->HasAnyEnumFlags(InFlags) == bResults);
-#endif
 		return bResults;
 	}
 
@@ -1909,9 +1669,6 @@ public:
 	 */
 	int32 NumEnums() const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetEnumSafe() == nullptr || GetEnumSafe()->NumEnums() == Names.Num());
-#endif
 		return Names.Num();
 	}
 
@@ -1922,9 +1679,6 @@ public:
 	int64 GetValueByIndex(int32 Index) const
 	{
 		check(Names.IsValidIndex(Index));
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetEnumSafe() == nullptr || GetEnumSafe()->GetValueByIndex(Index) == Names[Index].Value);
-#endif
 		return Names[Index].Value;
 	}
 
@@ -1944,9 +1698,6 @@ public:
 	 */
 	UEnum::ECppForm GetCppForm() const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetEnumSafe() == nullptr || GetEnumSafe()->GetCppForm() == CppForm);
-#endif
 		return CppForm;
 	}
 
@@ -1955,9 +1706,6 @@ public:
 	 */
 	const FString& GetCppType() const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetEnumSafe() == nullptr || GetEnumSafe()->CppType == CppType);
-#endif
 		return CppType;
 	}
 
@@ -1967,10 +1715,6 @@ public:
 	void SetCppType(FString&& InCppType)
 	{
 		CppType = MoveTemp(InCppType);
-		if (GetEnumSafe() != nullptr)
-		{
-			GetEnumSafe()->CppType = CppType;
-		}
 	}
 
 	/**
@@ -1994,13 +1738,6 @@ public:
 		Names = InNames;
 		check(CppForm == InCppForm);
 		EnumFlags = InFlags;
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		if (UEnum* Enum = GetEnumSafe())
-		{
-			Enum->SetEnums(InNames, InCppForm, InFlags, false /*bAddMaxKeyIfMissing*/);
-			check(Enum->GetCppForm() == InCppForm);
-		}
-#endif
 		return true;
 	}
 
@@ -2037,10 +1774,6 @@ public:
 	}
 
 protected:
-	/**
-	 * Create the shell of the UObject.  Only invoked if the object has not been set
-	 */
-	virtual void CreateUObjectEngineTypesInternal(ECreateEngineTypesPhase Phase) override;
 
 	virtual FString GetMetaDataIndexName(int32 NameIndex) const
 	{
@@ -2087,24 +1820,6 @@ public:
 
 	virtual TSharedRef<FScope> GetScope() override;
 
-	virtual void SetObject(UObject* InObject) override;
-
-	/**
-	 * Return the Engine instance associated with the compiler instance
-	 */
-	UStruct* GetStruct() const
-	{
-		return static_cast<UStruct*>(GetObject());
-	}
-
-	/**
-	 * Return the Engine instance associated with the compiler instance without the null check
-	 */
-	UStruct* GetStructSafe() const
-	{
-		return static_cast<UStruct*>(GetObjectSafe());
-	}
-
 	/**
 	 * @return true if this object is of the specified type.
 	 */
@@ -2125,13 +1840,6 @@ public:
 	virtual const TCHAR* GetPrefixCPP() const
 	{
 		const TCHAR* ReturnValue = TEXT("F");
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		if (UStruct* Struct = GetStructSafe())
-		{
-			const TCHAR* EngineValue = Struct->GetPrefixCPP();
-			check(FCString::Strcmp(EngineValue, ReturnValue) == 0);
-		}
-#endif
 		return ReturnValue;
 	}
 
@@ -2147,11 +1855,6 @@ public:
 	{
 		return FString::Printf(TEXT("%s%s"), (bForceInterface ? TEXT("I") : GetPrefixCPP()), *GetName());
 	}
-
-	/**
-	 * Create the underlying properties for the structure
-	 */
-	void CreatePropertyEngineTypes();
 
 	/**
 	 * Add a new property to the structure
@@ -2330,11 +2033,6 @@ protected:
 	FUnrealStructDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName, FUnrealObjectDefinitionInfo& InOuter);
 
 	/**
-	 * Create UObject engine types
-	 */
-	virtual void CreateUObjectEngineTypesInternal(ECreateEngineTypesPhase Phase) override;
-
-	/**
 	 * Perform any post parsing finalization and validation
 	 */
 	virtual void PostParseFinalizeInternal(EPostParseFinalizePhase Phase) override;
@@ -2390,22 +2088,6 @@ public:
 	}
 
 	/**
-	 * Return the Engine instance associated with the compiler instance
-	 */
-	UScriptStruct* GetScriptStruct() const
-	{
-		return static_cast<UScriptStruct*>(GetObject());
-	}
-
-	/**
-	 * Return the Engine instance associated with the compiler instance without the null check
-	 */
-	UScriptStruct* GetScriptStructSafe() const
-	{
-		return static_cast<UScriptStruct*>(GetObjectSafe());
-	}
-
-	/**
 	 * Return the super script struct
 	 */
 	FUnrealScriptStructDefinitionInfo* GetSuperScriptStruct() const;
@@ -2415,9 +2097,6 @@ public:
 	 */
 	EStructFlags GetStructFlags() const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetScriptStructSafe() == nullptr || (GetScriptStructSafe()->StructFlags & ~STRUCT_ComputedFlags) == StructFlags);
-#endif
 		return StructFlags;
 	}
 
@@ -2426,13 +2105,6 @@ public:
 	 */
 	void SetStructFlags(EStructFlags FlagsToSet)
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		if (UScriptStruct* Struct = GetScriptStructSafe())
-		{
-			check((Struct->StructFlags & ~STRUCT_ComputedFlags) == StructFlags);
-			Struct->StructFlags = EStructFlags(int32(Struct->StructFlags) | int32(FlagsToSet));
-		}
-#endif
 		StructFlags = EStructFlags(int32(StructFlags) | int32(FlagsToSet));
 	}
 
@@ -2441,14 +2113,7 @@ public:
 	 */
 	void ClearStructFlags(EStructFlags FlagsToClear)
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetScriptStructSafe() == nullptr || (GetScriptStructSafe()->StructFlags & ~STRUCT_ComputedFlags) == StructFlags);
-#endif
 		StructFlags = EStructFlags(int32(StructFlags) & int32(~FlagsToClear));
-		if (UScriptStruct* Struct = GetScriptStructSafe())
-		{
-			Struct->StructFlags = EStructFlags(int32(Struct->StructFlags) & int32(~FlagsToClear));
-		}
 	}
 
 	/**
@@ -2461,14 +2126,6 @@ public:
 	 */
 	bool HasAnyStructFlags(EStructFlags FlagsToCheck) const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		if (GetScriptStructSafe())
-		{
-			int32 a = GetScriptStructSafe()->StructFlags & ~STRUCT_ComputedFlags;
-			check(StructFlags == a);
-		}
-		check(GetScriptStructSafe() == nullptr || (GetScriptStructSafe()->StructFlags & ~STRUCT_ComputedFlags) == StructFlags);
-#endif
 		return EnumHasAnyFlags(StructFlags, FlagsToCheck);
 	}
 
@@ -2480,9 +2137,6 @@ public:
 	 */
 	bool HasAllStructFlags(EStructFlags FlagsToCheck) const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetScriptStructSafe() == nullptr || (GetScriptStructSafe()->StructFlags & ~STRUCT_ComputedFlags) == StructFlags);
-#endif
 		return EnumHasAllFlags(StructFlags, FlagsToCheck);
 	}
 
@@ -2495,11 +2149,24 @@ public:
 	 */
 	bool HasSpecificStructFlags(EStructFlags FlagsToCheck, EStructFlags ExpectedFlags) const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetScriptStructSafe() == nullptr || (GetScriptStructSafe()->StructFlags & ~STRUCT_ComputedFlags) == StructFlags);
-#endif
 		return (StructFlags & FlagsToCheck) == ExpectedFlags;
 	}
+
+	void SetScriptStructExportFlags(EScriptStructExportFlags NewFlags)
+	{
+		ScriptStructExportFlags = EScriptStructExportFlags(int32(ScriptStructExportFlags) | int32(NewFlags));
+	}
+
+	void ClearScriptStructExportFlags(EScriptStructExportFlags ClearFlags)
+	{
+		ScriptStructExportFlags = EScriptStructExportFlags(int32(ScriptStructExportFlags) & int32(~ClearFlags));
+	}
+
+	bool HasAnyScriptStructExportFlags(EScriptStructExportFlags FlagsToCheck) const
+	{
+		return EnumHasAnyFlags(ScriptStructExportFlags, FlagsToCheck);
+	}
+
 
 	/**
 	 * If it is native, it is assumed to have defaults because it has a constructor
@@ -2507,7 +2174,7 @@ public:
 	 */
 	bool HasDefaults() const
 	{
-		return UScriptStruct::FindDeferredCppStructOps(GetStructPathName()) != nullptr;
+		return HasAnyScriptStructExportFlags(STRUCTEXPORT_HasDefaults);
 	}
 
 
@@ -2529,10 +2196,6 @@ public:
 	virtual void OnPostParsePropertyFlagsChanged(FUnrealPropertyDefinitionInfo& PropertyDef) override;
 
 protected:
-	/**
-	 * Create UObject engine types
-	 */
-	virtual void CreateUObjectEngineTypesInternal(ECreateEngineTypesPhase Phase) override;
 
 	/**
 	 * Perform any post parsing finalization and validation
@@ -2545,6 +2208,7 @@ private:
 
 	int32 MacroDeclaredLineNumber = INDEX_NONE;
 	EStructFlags StructFlags = STRUCT_NoFlags;
+	EScriptStructExportFlags ScriptStructExportFlags = (EScriptStructExportFlags)0;
 };
 
 /**
@@ -2594,29 +2258,10 @@ public:
 	}
 
 	/**
-	 * Return the Engine instance associated with the compiler instance
-	 */
-	UFunction* GetFunction() const
-	{
-		return static_cast<UFunction*>(GetObject());
-	}
-
-	/**
-	 * Return the Engine instance associated with the compiler instance without the check to see if it is set
-	 */
-	UFunction* GetFunctionSafe() const
-	{
-		return static_cast<UFunction*>(GetObjectSafe());
-	}
-
-	/**
 	 * Return the function flags
 	 */
 	EFunctionFlags GetFunctionFlags() const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetFunctionSafe() == nullptr || GetFunctionSafe()->FunctionFlags == FunctionData.FunctionFlags);
-#endif
 		return FunctionData.FunctionFlags;
 	}
 
@@ -2625,13 +2270,6 @@ public:
 	 */
 	void SetFunctionFlags(EFunctionFlags FlagsToSet)
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetFunctionSafe() == nullptr || GetFunctionSafe()->FunctionFlags == FunctionData.FunctionFlags);
-#endif
-		if (GetFunctionSafe())
-		{
-			GetFunctionSafe()->FunctionFlags |= FlagsToSet;
-		}
 		FunctionData.FunctionFlags |= FlagsToSet;
 	}
 
@@ -2645,9 +2283,6 @@ public:
 	 */
 	bool HasAnyFunctionFlags(EFunctionFlags FlagsToCheck) const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetFunctionSafe() == nullptr || GetFunctionSafe()->FunctionFlags == FunctionData.FunctionFlags);
-#endif
 		return EnumHasAnyFlags(FunctionData.FunctionFlags, FlagsToCheck);
 	}
 
@@ -2659,9 +2294,6 @@ public:
 	 */
 	bool HasAllFunctionFlags(EFunctionFlags FlagsToCheck) const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetFunctionSafe() == nullptr || GetFunctionSafe()->FunctionFlags == FunctionData.FunctionFlags);
-#endif
 		return EnumHasAllFlags(FunctionData.FunctionFlags, FlagsToCheck);
 	}
 
@@ -2674,9 +2306,6 @@ public:
 	 */
 	bool HasSpecificFunctionFlags(EFunctionFlags FlagsToCheck, EFunctionFlags ExpectedFlags) const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetFunctionSafe() == nullptr || GetFunctionSafe()->FunctionFlags == FunctionData.FunctionFlags);
-#endif
 		EFunctionFlags Flags = FunctionData.FunctionFlags;
 		return (Flags & FlagsToCheck) == ExpectedFlags;
 	}
@@ -2756,10 +2385,6 @@ public:
 	}
 
 protected:
-	/**
-	 * Create UObject engine types
-	 */
-	virtual void CreateUObjectEngineTypesInternal(ECreateEngineTypesPhase Phase) override;
 
 	/**
 	 * Perform any post parsing finalization and validation
@@ -2834,31 +2459,6 @@ public:
 
 	virtual uint32 GetHash(FUnrealTypeDefinitionInfo& ReferencingDef, bool bIncludeNoExport = true) const override;
 
-	/**
-	 * Return the Engine instance associated with the compiler instance
-	 */
-	UClass* GetClass() const
-	{
-		return static_cast<UClass*>(GetObject());
-	}
-
-	/**
-	 * Return the Engine instance associated with the compiler instance without null check
-	 */
-	UClass* GetClassSafe() const
-	{
-		return static_cast<UClass*>(GetObjectSafe());
-	}
-
-	/**
-	 * Set the Engine instance associated with the compiler instance
-	 */
-	virtual void SetObject(UObject* InObject) override
-	{
-		FUnrealStructDefinitionInfo::SetObject(InObject);
-		CastChecked<UClass>(InObject)->ClassFlags |= ClassFlags;
-	}
-
 	FUnrealClassDefinitionInfo* GetSuperClass() const;
 
 	/**
@@ -2906,9 +2506,6 @@ public:
 	 */
 	EClassFlags GetClassFlags() const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetClassSafe() == nullptr || (GetClassSafe()->ClassFlags & CLASS_SaveInCompiledInClasses) == (ClassFlags & CLASS_SaveInCompiledInClasses));
-#endif
 		return ClassFlags;
 	}
 
@@ -2917,14 +2514,7 @@ public:
 	 */
 	void SetClassFlags(EClassFlags FlagsToSet)
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetClassSafe() == nullptr || (GetClassSafe()->ClassFlags & CLASS_SaveInCompiledInClasses) == (ClassFlags & CLASS_SaveInCompiledInClasses));
-#endif
 		ClassFlags |= FlagsToSet;
-		if (UClass* Class = GetClassSafe())
-		{
-			Class->ClassFlags |= FlagsToSet;
-		}
 	}
 
 	/**
@@ -2932,14 +2522,7 @@ public:
 	 */
 	void ClearClassFlags(EClassFlags FlagsToClear)
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetClassSafe() == nullptr || (GetClassSafe()->ClassFlags & CLASS_SaveInCompiledInClasses) == (ClassFlags & CLASS_SaveInCompiledInClasses));
-#endif
 		ClassFlags &= ~FlagsToClear;
-		if (UClass* Class = GetClassSafe())
-		{
-			Class->ClassFlags &= ~FlagsToClear;
-		}
 	}
 
 	/**
@@ -2951,9 +2534,6 @@ public:
 	 */
 	bool HasAnyClassFlags(EClassFlags FlagsToCheck) const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetClassSafe() == nullptr || (GetClassSafe()->ClassFlags & CLASS_SaveInCompiledInClasses) == (ClassFlags & CLASS_SaveInCompiledInClasses));
-#endif
 		return EnumHasAnyFlags(ClassFlags, FlagsToCheck);
 	}
 
@@ -2965,9 +2545,6 @@ public:
 	 */
 	bool HasAllClassFlags(EClassFlags FlagsToCheck) const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetClassSafe() == nullptr || (GetClassSafe()->ClassFlags & CLASS_SaveInCompiledInClasses) == (ClassFlags & CLASS_SaveInCompiledInClasses));
-#endif
 		return EnumHasAllFlags(ClassFlags, FlagsToCheck);
 	}
 
@@ -3013,9 +2590,6 @@ public:
 	 */
 	EClassCastFlags GetClassCastFlags() const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetClassSafe() == nullptr || GetClassSafe()->ClassCastFlags == ClassCastFlags);
-#endif
 		return ClassCastFlags;
 	}
 
@@ -3024,14 +2598,7 @@ public:
 	 */
 	void SetClassCastFlags(EClassCastFlags FlagsToSet)
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetClassSafe() == nullptr || GetClassSafe()->ClassCastFlags == ClassCastFlags);
-#endif
 		ClassCastFlags |= FlagsToSet;
-		if (UClass* Class = GetClassSafe())
-		{
-			Class->ClassCastFlags |= FlagsToSet;
-		}
 	}
 
 	/**
@@ -3115,10 +2682,6 @@ public:
 	void SetClassWithin(FUnrealClassDefinitionInfo* InClassWithin)
 	{
 		ClassWithin = InClassWithin;
-		if (UClass* Class = GetClassSafe())
-		{
-			Class->ClassWithin = ClassWithin->GetClass();
-		}
 	}
 
 	/**
@@ -3158,9 +2721,6 @@ public:
 	 */
 	FName GetClassConfigName() const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetClassSafe() == nullptr || GetClassSafe()->ClassConfigName == ClassConfigName);
-#endif
 		return ClassConfigName;
 	}
 
@@ -3169,14 +2729,7 @@ public:
 	 */
 	void SetClassConfigName(FName InClassConfigName)
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetClassSafe() == nullptr || GetClassSafe()->ClassConfigName == ClassConfigName);
-#endif
 		ClassConfigName = InClassConfigName;
-		if (UClass* Class = GetClassSafe())
-		{
-			Class->ClassConfigName = InClassConfigName;
-		}
 	}
 
 	/**
@@ -3184,9 +2737,6 @@ public:
 	 */
 	int32 GetPropertiesSize() const
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetClassSafe() == nullptr || GetClassSafe()->PropertiesSize == PropertiesSize);
-#endif
 		return PropertiesSize;
 	}
 
@@ -3195,14 +2745,7 @@ public:
 	 */
 	void SetPropertiesSize(int32 InPropertiesSize)
 	{
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetClassSafe() == nullptr || GetClassSafe()->PropertiesSize == PropertiesSize);
-#endif
 		PropertiesSize = InPropertiesSize;
-		if (UClass* Class = GetClassSafe())
-		{
-			Class->PropertiesSize = InPropertiesSize;
-		}
 	}
 
 	/**
@@ -3479,10 +3022,6 @@ public:
 	FString GetNameWithPrefix(EEnforceInterfacePrefix EnforceInterfacePrefix = EEnforceInterfacePrefix::None) const;
 
 protected:
-	/**
-	 * Create UObject engine types
-	 */
-	virtual void CreateUObjectEngineTypesInternal(ECreateEngineTypesPhase Phase) override;
 
 	/**
 	 * Perform any post parsing finalization and validation

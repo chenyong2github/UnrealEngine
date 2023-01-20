@@ -42,14 +42,6 @@ struct FPropertyTraits
 	static TSharedRef<FUnrealPropertyDefinitionInfo> CreateProperty(const FPropertyBase& VarProperty, FUnrealTypeDefinitionInfo& Outer, const FName& Name, EVariableCategory VariableCategory, EAccessSpecifier AccessSpecifier, const TCHAR* Dimensions, FUnrealSourceFile& SourceFile, int LineNumber, int ParsePosition);
 
 	/**
-	 * Given a property, create the underlying engine types
-	 * 
-	 * @param PropDef The property in question
-	 * @param ObjectFlags The flags associated with the property
-	 */
-	static FProperty* CreateEngineType(TSharedRef<FUnrealPropertyDefinitionInfo> PropDefRef);
-
-	/**
 	 * Test to see if the property can be used in a blueprint
 	 * 
 	 * @param PropDef The property in question

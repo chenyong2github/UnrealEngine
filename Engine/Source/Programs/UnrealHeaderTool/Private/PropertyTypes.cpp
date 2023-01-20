@@ -352,15 +352,6 @@ namespace
 	};
 
 	template<typename TraitsType>
-	struct CreateEngineTypeDispatch
-	{
-		FProperty* operator()(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-		{
-			return TraitsType::CreateEngineType(PropDef, Scope, Name, ObjectFlags);
-		}
-	};
-
-	template<typename TraitsType>
 	struct IsSupportedByBlueprintDispatch
 	{
 		bool operator()(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -424,12 +415,6 @@ namespace
 	void CreatePropertyHelper(FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		return PropertyTypeDispatch<CreatePropertyDispatch, bHandleContainers, void>(PropDef);
-	}
-
-	template <bool bHandleContainers>
-	FProperty* CreateEngineTypeHelper(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		return PropertyTypeDispatch<CreateEngineTypeDispatch, bHandleContainers, FProperty*>(PropDef, Scope, std::ref(Name), ObjectFlags);
 	}
 
 	bool IsSupportedByBlueprintSansContainers(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -572,15 +557,6 @@ struct FPropertyTypeTraitsByte : public FPropertyTypeTraitsNumericBase
 		}
 	}
 
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		FByteProperty* Result = new FByteProperty(Scope, Name, ObjectFlags);
-		Result->Enum = VarProperty.EnumDef ? VarProperty.EnumDef->GetEnum() : nullptr;
-		check(VarProperty.IntType == EIntType::Sized);
-		return Result;
-	}
-
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 	{
 		return true;
@@ -640,14 +616,6 @@ struct FPropertyTypeTraitsInt8 : public FPropertyTypeTraitsNumericBase
 	{
 	}
 
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		FInt8Property* Result = new FInt8Property(Scope, Name, ObjectFlags);
-		check(VarProperty.IntType == EIntType::Sized);
-		return Result;
-	}
-
 	static FString GetEngineClassName(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		return FInt8Property::StaticClass()->GetName();
@@ -663,14 +631,6 @@ struct FPropertyTypeTraitsInt16 : public FPropertyTypeTraitsNumericBase
 {
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		FInt16Property* Result = new FInt16Property(Scope, Name, ObjectFlags);
-		check(VarProperty.IntType == EIntType::Sized);
-		return Result;
 	}
 
 	static FString GetEngineClassName(const FUnrealPropertyDefinitionInfo& PropDef)
@@ -701,13 +661,6 @@ struct FPropertyTypeTraitsInt : public FPropertyTypeTraitsNumericBase
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		PropDef.SetUnsized(VarProperty.IntType == EIntType::Unsized);
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		FIntProperty* Result = new FIntProperty(Scope, Name, ObjectFlags);
-		return Result;
 	}
 
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -743,14 +696,6 @@ struct FPropertyTypeTraitsInt64 : public FPropertyTypeTraitsNumericBase
 	{
 	}
 
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		FInt64Property* Result = new FInt64Property(Scope, Name, ObjectFlags);
-		check(VarProperty.IntType == EIntType::Sized);
-		return Result;
-	}
-
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 	{
 		return true;
@@ -773,14 +718,6 @@ struct FPropertyTypeTraitsUInt16 : public FPropertyTypeTraitsNumericBase
 	{
 	}
 
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		FUInt16Property* Result = new FUInt16Property(Scope, Name, ObjectFlags);
-		check(VarProperty.IntType == EIntType::Sized);
-		return Result;
-	}
-
 	static FString GetEngineClassName(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		return FUInt16Property::StaticClass()->GetName();
@@ -800,12 +737,6 @@ struct FPropertyTypeTraitsUInt32 : public FPropertyTypeTraitsNumericBase
 		PropDef.SetUnsized(VarProperty.IntType == EIntType::Unsized);
 	}
 
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FUInt32Property* Result = new FUInt32Property(Scope, Name, ObjectFlags);
-		return Result;
-	}
-
 	static FString GetEngineClassName(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		return FUInt32Property::StaticClass()->GetName();
@@ -821,14 +752,6 @@ struct FPropertyTypeTraitsUInt64 : public FPropertyTypeTraitsNumericBase
 {
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		FUInt64Property* Result = new FUInt64Property(Scope, Name, ObjectFlags);
-		check(VarProperty.IntType == EIntType::Sized);
-		return Result;
 	}
 
 	static FString GetEngineClassName(const FUnrealPropertyDefinitionInfo& PropDef)
@@ -857,12 +780,6 @@ struct FPropertyTypeTraitsFloat : public FPropertyTypeTraitsNumericBase
 
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FFloatProperty* Result = new FFloatProperty(Scope, Name, ObjectFlags);
-		return Result;
 	}
 
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -898,12 +815,6 @@ struct FPropertyTypeTraitsDouble : public FPropertyTypeTraitsNumericBase
 	{
 	}
 
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FDoubleProperty* Result = new FDoubleProperty(Scope, Name, ObjectFlags);
-		return Result;
-	}
-
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 	{
 		return true;
@@ -937,12 +848,6 @@ struct FPropertyTypeTraitsLargeWorldCoordinatesReal : public FPropertyTypeTraits
 	{
 	}
 
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FLargeWorldCoordinatesRealProperty* Result = new FLargeWorldCoordinatesRealProperty(Scope, Name, ObjectFlags);
-		return Result;
-	}
-
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 	{
 		return true;
@@ -972,15 +877,6 @@ struct FPropertyTypeTraitsBooleanBase : public FPropertyTypeTraitsBase
 {
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-	}
-
-	template <typename SizeType, bool bIsNativeBool>
-	static FProperty* CreateEngineTypeHelper(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FBoolProperty* Result = new FBoolProperty(Scope, Name, ObjectFlags);
-		bool bActsLikeNativeBool = bIsNativeBool || PropDef.GetVariableCategory() == EVariableCategory::Return;
-		Result->SetBoolSize(bActsLikeNativeBool ? sizeof(bool) : sizeof(SizeType), bActsLikeNativeBool);
-		return Result;
 	}
 
 	static FString GetCPPTypeHelper(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags, bool bIsNativeBool, const TCHAR* SizeText)
@@ -1028,11 +924,6 @@ struct FPropertyTypeTraitsBooleanBase : public FPropertyTypeTraitsBase
 
 struct FPropertyTypeTraitsBool : public FPropertyTypeTraitsBooleanBase
 {
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		return CreateEngineTypeHelper<bool, true>(PropDef, Scope, Name, ObjectFlags);
-	}
-
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
 	{
 		return GetCPPTypeHelper(PropDef, ExtendedTypeText, CPPExportFlags, true, TEXT("bool"));
@@ -1046,11 +937,6 @@ struct FPropertyTypeTraitsBool : public FPropertyTypeTraitsBooleanBase
 
 struct FPropertyTypeTraitsBool8 : public FPropertyTypeTraitsBooleanBase
 {
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		return CreateEngineTypeHelper<uint8, false>(PropDef, Scope, Name, ObjectFlags);
-	}
-
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
 	{
 		return GetCPPTypeHelper(PropDef, ExtendedTypeText, CPPExportFlags, false, TEXT("uint8"));
@@ -1064,11 +950,6 @@ struct FPropertyTypeTraitsBool8 : public FPropertyTypeTraitsBooleanBase
 
 struct FPropertyTypeTraitsBool16 : public FPropertyTypeTraitsBooleanBase
 {
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		return CreateEngineTypeHelper<uint16, false>(PropDef, Scope, Name, ObjectFlags);
-	}
-
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
 	{
 		return GetCPPTypeHelper(PropDef, ExtendedTypeText, CPPExportFlags, false, TEXT("uint16"));
@@ -1082,11 +963,6 @@ struct FPropertyTypeTraitsBool16 : public FPropertyTypeTraitsBooleanBase
 
 struct FPropertyTypeTraitsBool32 : public FPropertyTypeTraitsBooleanBase
 {
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		return CreateEngineTypeHelper<uint32, false>(PropDef, Scope, Name, ObjectFlags);
-	}
-
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
 	{
 		return GetCPPTypeHelper(PropDef, ExtendedTypeText, CPPExportFlags, false, TEXT("uint32"));
@@ -1100,11 +976,6 @@ struct FPropertyTypeTraitsBool32 : public FPropertyTypeTraitsBooleanBase
 
 struct FPropertyTypeTraitsBool64 : public FPropertyTypeTraitsBooleanBase
 {
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		return CreateEngineTypeHelper<uint64, false>(PropDef, Scope, Name, ObjectFlags);
-	}
-
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
 	{
 		return GetCPPTypeHelper(PropDef, ExtendedTypeText, CPPExportFlags, false, TEXT("uint64"));
@@ -1184,23 +1055,6 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 
 		PropDef.SetValuePropDef(FPropertyTraits::CreateProperty(UnderlyingProperty, PropDef, TEXT("UnderlyingType"), 
 			PropDef.GetVariableCategory(), ACCESS_Public, PropDef.GetArrayDimensions(), PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition()));
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-
-		if (VarProperty.EnumDef->GetCppForm() != UEnum::ECppForm::EnumClass)
-		{
-			check(VarProperty.Type == EPropertyType::CPT_Byte);
-			return FPropertyTypeTraitsByte::CreateEngineType(PropDef, Scope, Name, ObjectFlags);
-		}
-
-		FEnumProperty* Result = new FEnumProperty(Scope, Name, ObjectFlags);
-		PropDef.SetProperty(Result);
-		Result->UnderlyingProp = CastFieldChecked<FNumericProperty>(FPropertyTraits::CreateEngineType(PropDef.GetValuePropDefRef()));
-		Result->Enum = VarProperty.EnumDef->GetEnum();
-		return Result;
 	}
 
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -1345,25 +1199,6 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 		return Detector.Changes();
 	}
 
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.ClassDef);
-		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
-		{
-			FClassProperty* Result = new FClassProperty(Scope, Name, ObjectFlags);
-			Result->MetaClass = VarProperty.MetaClassDef ? VarProperty.MetaClassDef->GetClass() : nullptr;
-			Result->PropertyClass = VarProperty.ClassDef->GetClass();
-			return Result;
-		}
-		else
-		{
-			FObjectProperty* Result = new FObjectProperty(Scope, Name, ObjectFlags);
-			Result->PropertyClass = VarProperty.ClassDef->GetClass();
-			return Result;
-		}
-	}
-
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 	{
 		return true;
@@ -1436,15 +1271,6 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 
 struct FPropertyTypeTraitsWeakObjectReference : public FPropertyTypeTraitsObjectBase
 {
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.ClassDef);
-		FWeakObjectProperty* Result = new FWeakObjectProperty(Scope, Name, ObjectFlags);
-		Result->PropertyClass = VarProperty.ClassDef->GetClass();
-		return Result;
-	}
-
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 	{
 		return bMemberVariable;
@@ -1490,15 +1316,6 @@ struct FPropertyTypeTraitsWeakObjectReference : public FPropertyTypeTraitsObject
 
 struct FPropertyTypeTraitsLazyObjectReference : public FPropertyTypeTraitsObjectBase
 {
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.ClassDef);
-		FLazyObjectProperty* Result = new FLazyObjectProperty(Scope, Name, ObjectFlags);
-		Result->PropertyClass = VarProperty.ClassDef->GetClass();
-		return Result;
-	}
-
 	static FString GetEngineClassName(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		return FLazyObjectProperty::StaticClass()->GetName();
@@ -1547,25 +1364,6 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 			}
 		}
 		return Detector.Changes();
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.ClassDef);
-		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
-		{
-			FClassPtrProperty* Result = new FClassPtrProperty(Scope, Name, ObjectFlags);
-			Result->MetaClass = VarProperty.MetaClassDef ? VarProperty.MetaClassDef->GetClass() : nullptr;
-			Result->PropertyClass = VarProperty.ClassDef->GetClass();
-			return Result;
-		}
-		else
-		{
-			FObjectPtrProperty* Result = new FObjectPtrProperty(Scope, Name, ObjectFlags);
-			Result->PropertyClass = VarProperty.ClassDef->GetClass();
-			return Result;
-		}
 	}
 
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -1637,25 +1435,6 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 
 struct FPropertyTypeTraitsSoftObjectReference : public FPropertyTypeTraitsObjectBase
 {
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.ClassDef);
-		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
-		{
-			FSoftClassProperty* Result = new FSoftClassProperty(Scope, Name, ObjectFlags);
-			Result->MetaClass = VarProperty.MetaClassDef ? VarProperty.MetaClassDef->GetClass() : nullptr;
-			Result->PropertyClass = VarProperty.ClassDef->GetClass();
-			return Result;
-		}
-		else
-		{
-			FSoftObjectProperty* Result = new FSoftObjectProperty(Scope, Name, ObjectFlags);
-			Result->PropertyClass = VarProperty.ClassDef->GetClass();
-			return Result;
-		}
-	}
-
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 	{
 		return true;
@@ -1730,16 +1509,6 @@ struct FPropertyTypeTraitsInterface : public FPropertyTypeTraitsBase
 	static FPropertyFlagsChanges PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
 	{
 		return FPropertyTypeTraitsObjectBase::PostParseFinalize(PropDef, AddedFlags);
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.ClassDef);
-		check(VarProperty.ClassDef->HasAnyClassFlags(CLASS_Interface));
-		FInterfaceProperty* Result = new  FInterfaceProperty(Scope, Name, ObjectFlags);
-		Result->InterfaceClass = VarProperty.ClassDef->GetClass();
-		return Result;
 	}
 
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -1822,12 +1591,6 @@ struct FPropertyTypeTraitsName : public FPropertyTypeTraitsBase
 	{
 	}
 
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FNameProperty* Result = new FNameProperty(Scope, Name, ObjectFlags);
-		return Result;
-	}
-
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 	{
 		return true;
@@ -1865,12 +1628,6 @@ struct FPropertyTypeTraitsString : public FPropertyTypeTraitsBase
 
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FStrProperty* Result = new FStrProperty(Scope, Name, ObjectFlags);
-		return Result;
 	}
 
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -1947,12 +1704,6 @@ struct FPropertyTypeTraitsText : public FPropertyTypeTraitsBase
 
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FTextProperty* Result = new FTextProperty(Scope, Name, ObjectFlags);
-		return Result;
 	}
 
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -2227,14 +1978,6 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 		return Detector.Changes();
 	}
 
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		FStructProperty* Result = new FStructProperty(Scope, Name, ObjectFlags);
-		Result->Struct = PropDef.GetPropertyBase().ScriptStructDef->GetScriptStruct();
-		return Result;
-	}
-
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
@@ -2254,7 +1997,7 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		// Core type structs don't need to forward declare in UHT as every generated.h indirectly includes CoreMinimal.h
-		if (UScriptStruct::ICppStructOps* CppStructOps = UScriptStruct::FindDeferredCppStructOps(PropDef.GetPropertyBase().ScriptStructDef->GetStructPathName()); CppStructOps != nullptr && CppStructOps->IsUECoreType())
+		if (PropDef.GetPropertyBase().ScriptStructDef->HasAnyScriptStructExportFlags(STRUCTEXPORT_IsCoreType))
 		{
 			return FString();
 		}
@@ -2282,16 +2025,6 @@ struct FPropertyTypeTraitsDelegate : public FPropertyTypeTraitsBase
 		VarProperty.PropertyFlags |= CPF_InstancedReference & (~VarProperty.DisallowFlags);
 		AddedFlags |= Detector.Changes().Added;
 		return Detector.Changes();
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.FunctionDef);
-
-		FDelegateProperty* Result = new FDelegateProperty(Scope, Name, ObjectFlags);
-		Result->SignatureFunction = VarProperty.FunctionDef->GetFunction();
-		return Result;
 	}
 
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -2369,24 +2102,6 @@ struct FPropertyTypeTraitsMulticastDelegate : public FPropertyTypeTraitsBase
 		VarProperty.PropertyFlags |= CPF_InstancedReference & (~VarProperty.DisallowFlags);
 		AddedFlags |= Detector.Changes().Added;
 		return Detector.Changes();
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-
-		if (VarProperty.FunctionDef->GetFunctionType() == EFunctionType::SparseDelegate)
-		{
-			FMulticastSparseDelegateProperty* Result = new FMulticastSparseDelegateProperty(Scope, Name, ObjectFlags);
-			Result->SignatureFunction = VarProperty.FunctionDef->GetFunction();
-			return Result;
-		}
-		else
-		{
-			FMulticastInlineDelegateProperty* Result = new FMulticastInlineDelegateProperty(Scope, Name, ObjectFlags);
-			Result->SignatureFunction = VarProperty.FunctionDef->GetFunction();
-			return Result;
-		}
 	}
 
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -2470,16 +2185,6 @@ struct FPropertyTypeTraitsFieldPath : public FPropertyTypeTraitsBase
 {
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		FFieldPathProperty* Result = new FFieldPathProperty(Scope, Name, ObjectFlags);
-		FFieldClass** FieldClass = FFieldClass::GetNameToFieldClassMap().Find(VarProperty.FieldClassName);
-		check(FieldClass);
-		Result->PropertyClass = *FieldClass;
-		return Result;
 	}
 
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -2603,13 +2308,6 @@ struct FPropertyTypeTraitsStaticArray : public FPropertyTypeTraitsBase
 		return PostParseFinalizeHelper<false>(PropDef, AddedFlags);
 	}
 
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FProperty* Property = CreateEngineTypeHelper<false>(PropDef, Scope, Name, ObjectFlags);
-		Property->ArrayDim = 2;
-		return Property;
-	}
-
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 	{
 		return IsSupportedByBlueprintSansContainers(PropDef, bMemberVariable);
@@ -2668,16 +2366,6 @@ struct FPropertyTypeTraitsDynamicArray : public FPropertyTypeTraitsBase
 
 		PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(VarProperty.PropertyFlags, PropDef.GetPropertyBase().MetaData, ValuePropDef);
 		return Detector.Changes();
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-
-		FArrayProperty* Array = new FArrayProperty(Scope, Name, ObjectFlags);
-		PropDef.SetProperty(Array);
-		Array->Inner = FPropertyTraits::CreateEngineType(PropDef.GetValuePropDefRef());
-		return Array;
 	}
 
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -2754,16 +2442,6 @@ struct FPropertyTypeTraitsSet : public FPropertyTypeTraitsBase
 
 		PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(VarProperty.PropertyFlags, PropDef.GetPropertyBase().MetaData, ValuePropDef);
 		return Detector.Changes();
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-
-		FSetProperty* Set = new FSetProperty(Scope, Name, ObjectFlags);
-		PropDef.SetProperty(Set);
-		Set->ElementProp = FPropertyTraits::CreateEngineType(PropDef.GetValuePropDefRef());
-		return Set;
 	}
 
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -2858,17 +2536,6 @@ struct FPropertyTypeTraitsMap : public FPropertyTypeTraitsBase
 		return Detector.Changes();
 	}
 
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-
-		FMapProperty* Map = new FMapProperty(Scope, Name, ObjectFlags);
-		PropDef.SetProperty(Map);
-		Map->KeyProp = FPropertyTraits::CreateEngineType(PropDef.GetKeyPropDefRef());
-		Map->ValueProp = FPropertyTraits::CreateEngineType(PropDef.GetValuePropDefRef());
-		return Map;
-	}
-
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 	{
 		return
@@ -2956,58 +2623,6 @@ TSharedRef<FUnrealPropertyDefinitionInfo> FPropertyTraits::CreateProperty(const 
 		PropDef.ValidateMetaDataFormat(PropDef.GetPropertyBase().MetaData);
 	}
 	return PropDefRef;
-}
-
-FProperty* FPropertyTraits::CreateEngineType(TSharedRef<FUnrealPropertyDefinitionInfo> PropDefRef)
-{
-	FUnrealPropertyDefinitionInfo& PropDef = *PropDefRef;
-	FUnrealTypeDefinitionInfo* Outer = PropDef.GetOuter();
-	check(Outer);
-
-	EObjectFlags ObjectFlags = RF_Public;
-	if (PropDef.GetVariableCategory() == EVariableCategory::Member && PropDef.GetAccessSpecifier() == ACCESS_Private)
-	{
-		ObjectFlags = RF_NoFlags;
-	}
-
-	// Create the property and attach to the definition
-	FFieldVariant Scope = Outer->AsProperty() ? FFieldVariant(Outer->AsProperty()->GetProperty()) : FFieldVariant(Outer->AsObject()->GetObject());
-	FProperty* Property = CreateEngineTypeHelper<true>(PropDef, Scope, PropDef.GetFName(), ObjectFlags);
-	PropDef.SetProperty(Property);
-
-	// Perform some final initialization from the property base data
-	Property->PropertyFlags = PropDef.GetPropertyBase().PropertyFlags;
-
-	// Special initialization for member variables
-	if (PropDef.GetVariableCategory() == EVariableCategory::Member)
-	{
-		if (PropDef.HasAnyPropertyFlags(CPF_RepNotify))
-		{
-			Property->RepNotifyFunc = PropDef.GetPropertyBase().RepNotifyName;
-		}
-	}
-
-	// Add the meta data to the property
-	for (TPair<FName, FString>& KVP : PropDef.GetMetaDataMap())
-	{
-		Property->SetMetaData(KVP.Key, FString(KVP.Value));
-	}
-
-	// If we are parent to a struct
-	if (FUnrealStructDefinitionInfo* StructDef = UHTCast<FUnrealStructDefinitionInfo>(Outer))
-	{
-
-		// Add to the end of the properties slist
-		FField** Prev = &StructDef->GetStruct()->ChildProperties;
-		for (; *Prev != nullptr; Prev = &(*Prev)->Next)
-		{
-			// No body
-		}
-		check(*Prev == nullptr);
-		Property->Next = nullptr;
-		*Prev = Property;
-	}
-	return Property;
 }
 
 bool FPropertyTraits::IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)

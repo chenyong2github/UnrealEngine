@@ -16,7 +16,6 @@ enum class EGeneratedCodeVersion : uint8;
 class FFeedbackContext;
 class UPackage;
 struct FManifestModule;
-class IScriptGeneratorPluginInterface;
 class FStringOutputDevice;
 class FUnrealSourceFile;
 class FScope;

@@ -34,7 +34,7 @@ public class UnrealHeaderToolTarget : TargetRules
 		// This app is a console application, not a Windows app (sets entry point to main(), instead of WinMain())
 		bIsBuildingConsoleApplication = true;
 
-        GlobalDefinitions.Add("HACK_HEADER_GENERATOR=1");
+		GlobalDefinitions.Add("USE_COMPILED_IN_NATIVES=0");
         GlobalDefinitions.Add("FNAME_WRITE_PROTECT_PAGES=0");
         GlobalDefinitions.Add("USE_LOCALIZED_PACKAGE_CACHE=0");
 		GlobalDefinitions.Add("STATS=0");

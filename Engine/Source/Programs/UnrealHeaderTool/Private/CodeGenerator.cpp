@@ -1704,7 +1704,7 @@ FString GetEventStructParamsName(FUnrealObjectDefinitionInfo& OuterDef, const TC
 	}
 	else if (FUnrealPackageDefinitionInfo* PackageDef = UHTCast<FUnrealPackageDefinitionInfo>(OuterDef))
 	{
-		OuterName = PackageDef->GetPackage()->GetName();
+		OuterName = PackageDef->GetName();
 		OuterName.ReplaceInline(TEXT("/"), TEXT("_"), ESearchCase::CaseSensitive);
 	}
 	else
@@ -1894,10 +1894,9 @@ bool IsDelegateFunction(FUnrealFieldDefinitionInfo& FieldDef)
 
 void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& Out, const TCHAR* InDeclarations, const TArray<FGeneratedCPP*>& ExportedSorted, uint32 Hash)
 {
-	UPackage* Package = PackageDef.GetPackage();
 	const FString& SingletonName = GetPackageSingletonNameFuncAddr(PackageDef, nullptr);
 
-	FString PackageName = Package->GetName();
+	FString PackageName = PackageDef.GetName();
 	PackageName.ReplaceInline(TEXT("/"), TEXT("_"), ESearchCase::CaseSensitive);
 	FString BodyHashFn = FString::Printf(TEXT("Z_UPackage_%s_BodyHash"), *PackageName);
 	FString DeclarationsHashFn = FString::Printf(TEXT("Z_UPackage_%s_DeclarationsHash"), *PackageName);
@@ -1971,10 +1970,10 @@ void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& 
 	}
 
 	Out.Logf(TEXT("\t\t\tstatic const UECodeGen_Private::FPackageParams PackageParams = {\r\n"));
-	Out.Logf(TEXT("\t\t\t\t%s,\r\n"), *CreateUTF8LiteralString(Package->GetName()));
+	Out.Logf(TEXT("\t\t\t\t%s,\r\n"), *CreateUTF8LiteralString(PackageDef.GetName()));
 	Out.Logf(TEXT("\t\t\t\t%s,\r\n"), SingletonArray);
 	Out.Logf(TEXT("\t\t\t\t%s,\r\n"), SingletonCount);
-	Out.Logf(TEXT("\t\t\t\tPKG_CompiledIn | 0x%08X,\r\n"), Package->GetPackageFlags() & (PKG_ClientOptional | PKG_ServerSideOnly | PKG_EditorOnly | PKG_Developer | PKG_UncookedOnly));
+	Out.Logf(TEXT("\t\t\t\tPKG_CompiledIn | 0x%08X,\r\n"), PackageDef.GetPackageFlags() & (PKG_ClientOptional | PKG_ServerSideOnly | PKG_EditorOnly | PKG_Developer | PKG_UncookedOnly));
 	Out.Logf(TEXT("\t\t\t\t0x%08X,\r\n"), Hash);
 	Out.Logf(TEXT("\t\t\t\t0x%08X,\r\n"), DeclarationsHash);
 	Out.Logf(TEXT("\t\t\t\t%s\r\n"), *MetaDataParams);
@@ -1988,7 +1987,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& 
 	Out.Logf(TEXT("\tstatic FRegisterCompiledInInfo Z_CompiledInDeferPackage_UPackage_%s(%s, TEXT(\"%s\"), Z_Registration_Info_UPackage_%s, CONSTRUCT_RELOAD_VERSION_INFO(FPackageReloadVersionInfo, 0x%08X, 0x%08X));\r\n"),
 		*PackageName,
 		*SingletonName,
-		*Package->GetName(),
+		*PackageDef.GetName(),
 		*PackageName,
 		Hash,
 		DeclarationsHash
@@ -5878,13 +5877,13 @@ void FNativeClassHeaderGenerator::GenerateSourceFile(FGeneratedCPP& GeneratedCPP
 				if (FUnrealEnumDefinitionInfo* EnumDef = UHTCast<FUnrealEnumDefinitionInfo>(FieldDef))
 				{
 					// Is this ever not the case?
-					if (EnumDef->GetOuter()->GetObject()->IsA(UPackage::StaticClass()))
+					if (EnumDef->GetOuter()->AsPackage() != nullptr)
 					{
 						GeneratedFunctionDeclarations.Log(EnumDef->GetExternDecl(true));
 						Generator.ExportGeneratedEnumInitCode(GeneratedCPPText, ReferenceGatherers, SourceFile, *EnumDef);
 							EnumRegs.Add(EnumDef);
-						}
 					}
+				}
 				else if (FUnrealScriptStructDefinitionInfo* ScriptStructDef = UHTCast<FUnrealScriptStructDefinitionInfo>(FieldDef))
 				{
 					if (ScriptStructDef->HasAnyStructFlags(STRUCT_NoExport))
@@ -6219,8 +6218,7 @@ void FNativeClassHeaderGenerator::Generate(
 	TArray<FGeneratedCPP>& GeneratedCPPs
 )
 {
-	UPackage* Package = PackageDef.GetPackage();
-	FString PackageName = FPackageName::GetShortName(Package);
+	FString PackageName = PackageDef.GetShortName();
 	const FManifestModule& Module = PackageDef.GetModule();
 	const bool bWriteClassesH = PackageDef.GetWriteClassesH();
 	const bool bAllowSaveExportedHeaders = Module.SaveExportedHeaders;
@@ -6665,56 +6663,6 @@ void FNativeClassHeaderGenerator::ExportUpdatedHeaders(FString&& PackageName, TA
 	}
 }
 
-/** Get all script plugins based on ini setting */
-void GetScriptPlugins(TArray<IScriptGeneratorPluginInterface*>& ScriptPlugins)
-{
-	if (!GManifest.IsGameTarget)
-	{
-		UE_LOG(LogCompile, Log, TEXT("Script generator plugins only enabled in game targets."));
-	}
-
-	ScriptPlugins = IModularFeatures::Get().GetModularFeatureImplementations<IScriptGeneratorPluginInterface>(TEXT("ScriptGenerator"));
-	UE_LOG(LogCompile, Log, TEXT("Found %d script generator plugins."), ScriptPlugins.Num());
-
-	// Check if we can use these plugins and initialize them
-	for (int32 PluginIndex = ScriptPlugins.Num() - 1; PluginIndex >= 0; --PluginIndex)
-	{
-		IScriptGeneratorPluginInterface* ScriptGenerator = ScriptPlugins[PluginIndex];
-		bool bSupportedPlugin = ScriptGenerator->SupportsTarget(GManifest.TargetName);
-		if (bSupportedPlugin)
-		{
-			// Find the right output directory for this plugin base on its target (Engine-side) plugin name.
-			FString GeneratedCodeModuleName = ScriptGenerator->GetGeneratedCodeModuleName();
-			const FManifestModule* GeneratedCodeModule = NULL;
-			FString OutputDirectory;
-			FString IncludeBase;
-			for (const FManifestModule& Module : GManifest.Modules)
-			{
-				if (Module.Name == GeneratedCodeModuleName)
-				{
-					GeneratedCodeModule = &Module;
-				}
-			}
-			if (GeneratedCodeModule)
-			{
-				UE_LOG(LogCompile, Log, TEXT("Initializing script generator \'%s\'"), *ScriptGenerator->GetGeneratorName());
-				ScriptGenerator->Initialize(GManifest.RootLocalPath, GManifest.RootBuildPath, GeneratedCodeModule->GeneratedIncludeDirectory, GeneratedCodeModule->IncludeBase);
-			}
-			else
-			{
-				// Can't use this plugin
-				UE_LOG(LogCompile, Log, TEXT("Unable to determine output directory for %s. Cannot export script glue with \'%s\'"), *GeneratedCodeModuleName, *ScriptGenerator->GetGeneratorName());
-				bSupportedPlugin = false;
-			}
-		}
-		if (!bSupportedPlugin)
-		{
-			UE_LOG(LogCompile, Log, TEXT("Script generator \'%s\' not supported for target: %s"), *ScriptGenerator->GetGeneratorName(), *GManifest.TargetName);
-			ScriptPlugins.RemoveAt(PluginIndex);
-		}
-	}
-}
-
 /**
  * Tries to resolve super classes for classes defined in the given class
  */
@@ -7048,7 +6996,6 @@ void DefineTypes(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 			FResults::Try([PackageDef, &SourceFile = *SourceFile]()
 			{
 				TArray<TSharedRef<FUnrealTypeDefinitionInfo>>& AllClasses = PackageDef->GetAllClasses();
-				UPackage* Package = PackageDef->GetPackage();
 
 				for (TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : SourceFile.GetDefinedClasses())
 				{
@@ -7314,33 +7261,6 @@ void PostParseFinalize(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 	FResults::WaitForErrorTasks();
 }
 
-void CreateEngineTypes(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
-{
-	auto CreateEngineTypes = [&PackageDefs](ECreateEngineTypesPhase Phase)
-	{
-		for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
-		{
-			FResults::Try([PackageDef, Phase]()
-				{
-					PackageDef->CreateUObjectEngineTypes(Phase);
-				});
-		}
-
-		for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
-		{
-			FResults::Try([PackageDef, Phase]()
-				{
-					PackageDef->CreateUObjectEngineTypes(Phase);
-				});
-		}
-	};
-
-	CreateEngineTypes(ECreateEngineTypesPhase::Phase1);
-	CreateEngineTypes(ECreateEngineTypesPhase::Phase2);
-	CreateEngineTypes(ECreateEngineTypesPhase::Phase3);
-	FResults::WaitForErrorTasks();
-}
-
 void Export(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, TArray<FUnrealSourceFile*>& OrderedSourceFiles)
 {
 	TArray<FGeneratedCPP> GeneratedCPPs;
@@ -7358,90 +7278,6 @@ void Export(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, TArray<FUnrealSo
 	}
 	
 	FResults::WaitForErrorTasks();
-}
-
-// Exports the class to all available plugins
-void ExportClassToScriptPlugins(const TMap<UClass*, FUnrealSourceFile*>& SourceFileLookup, UClass* Class, const FManifestModule& Module, IScriptGeneratorPluginInterface& ScriptPlugin)
-{
-	check(SourceFileLookup.Find(Class) != nullptr);
-	FUnrealSourceFile* const * SourceFile = SourceFileLookup.Find(Class);
-	if (SourceFile == nullptr)
-	{
-		const FString Empty = TEXT("");
-		ScriptPlugin.ExportClass(Class, Empty, Empty, false);
-	}
-	else
-	{
-		ScriptPlugin.ExportClass(Class, (*SourceFile)->GetFilename(), (*SourceFile)->GetGeneratedFilename(), (*SourceFile)->HasChanged());
-	}
-}
-
-// Exports class tree to all available plugins
-void ExportClassTreeToScriptPlugins(const TMap<UClass*, FUnrealSourceFile*>& SourceFileLookup, const FClassTree* Node, const FManifestModule& Module, IScriptGeneratorPluginInterface& ScriptPlugin)
-{
-	for (int32 ChildIndex = 0; ChildIndex < Node->NumChildren(); ++ChildIndex)
-	{
-		const FClassTree* ChildNode = Node->GetChild(ChildIndex);
-		ExportClassToScriptPlugins(SourceFileLookup, ChildNode->GetClass(), Module, ScriptPlugin);
-	}
-
-	for (int32 ChildIndex = 0; ChildIndex < Node->NumChildren(); ++ChildIndex)
-	{
-		const FClassTree* ChildNode = Node->GetChild(ChildIndex);
-		ExportClassTreeToScriptPlugins(SourceFileLookup, ChildNode, Module, ScriptPlugin);
-	}
-}
-
-void ExportToScriptPlugins(TArray<IScriptGeneratorPluginInterface*>& ScriptPlugins, TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, FString& ExternalDependencies)
-{
-	TMap<UClass*, FUnrealSourceFile*> SourceFileLookup;
-	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
-	{
-		for (TSharedRef<FUnrealTypeDefinitionInfo> TypeDef : PackageDef->GetAllClasses())
-		{
-			UClass* Class = UHTCastChecked<FUnrealClassDefinitionInfo>(TypeDef).GetClass();
-			SourceFileLookup.Add(Class, &TypeDef->GetUnrealSourceFile());
-		}
-	}
-
-	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
-	{
-		const FManifestModule& Module = PackageDef->GetModule();
-
-		FClassTree ClassTree(UObject::StaticClass());
-		for (TSharedRef<FUnrealTypeDefinitionInfo> TypeDef : PackageDef->GetAllClasses())
-		{
-			ClassTree.AddClass(UHTCastChecked<FUnrealClassDefinitionInfo>(TypeDef).GetClass());
-		}
-		ClassTree.Validate();
-
-		for (IScriptGeneratorPluginInterface* Plugin : ScriptPlugins)
-		{
-			if (Plugin->ShouldExportClassesForModule(Module.Name, Module.ModuleType, Module.GeneratedIncludeDirectory))
-			{
-				ExportClassToScriptPlugins(SourceFileLookup, ClassTree.GetClass(), Module, *Plugin);
-				ExportClassTreeToScriptPlugins(SourceFileLookup, &ClassTree, Module, *Plugin);
-			}
-		}
-	}
-
-	for (IScriptGeneratorPluginInterface* ScriptGenerator : ScriptPlugins)
-	{
-		ScriptGenerator->FinishExport();
-	}
-
-	// Get a list of external dependencies from each enabled plugin
-	for (IScriptGeneratorPluginInterface* ScriptPlugin : ScriptPlugins)
-	{
-		TArray<FString> PluginExternalDependencies;
-		ScriptPlugin->GetExternalDependencies(PluginExternalDependencies);
-
-		for (const FString& PluginExternalDependency : PluginExternalDependencies)
-		{
-			ExternalDependencies += PluginExternalDependency + LINE_TERMINATOR;
-		}
-	}
-	return;
 }
 
 void WriteExternalDependencies(const FString& ExternalDependencies)
@@ -7500,7 +7336,6 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	double TotalPrepareModuleTime = FResults::TimedTry([&PackageDefs, &ModuleInfoPath]() { PrepareModules(PackageDefs, ModuleInfoPath); });
 
 	FString ExternalDependencies;
-	TArray<IScriptGeneratorPluginInterface*> ScriptPlugins;
 
 	double TotalPreparseTime = FResults::TimedTry([&PackageDefs, &ModuleInfoPath]() { PreparseSources(PackageDefs, ModuleInfoPath); });
 	double TotalDefineTypesTime = FResults::TimedTry([&PackageDefs]() { DefineTypes(PackageDefs); });
@@ -7521,9 +7356,6 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 
 	TotalTopologicalSortTime += FResults::TimedTry([&OrderedSourceFiles]() { TopologicalSort(OrderedSourceFiles); }); // Sort again to include new dependencies
 	double TotalCodeGenTime = FResults::TimedTry([&PackageDefs, &OrderedSourceFiles]() { Export(PackageDefs, OrderedSourceFiles); });
-	double TotalCheckForScriptPluginsTime = FResults::TimedTry([&ScriptPlugins]() { GetScriptPlugins(ScriptPlugins); });
-	double TotalCreateEngineTypesTime = ScriptPlugins.IsEmpty() ? 0.0 : FResults::TimedTry([&PackageDefs]() { CreateEngineTypes(PackageDefs); });
-	double TotalPluginTime = ScriptPlugins.IsEmpty() ? 0.0 : FResults::TimedTry([&ScriptPlugins, &PackageDefs, &ExternalDependencies]() { ExportToScriptPlugins(ScriptPlugins, PackageDefs, ExternalDependencies); });
 	double TotalWriteExternalDependenciesTime = FResults::TimedTry([&ExternalDependencies]() { WriteExternalDependencies(ExternalDependencies); });
 	double TotalSummaryTime = FResults::TimedTry([&PackageDefs]() { GenerateSummary(PackageDefs); });
 
@@ -7567,9 +7399,6 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	UE_LOG(LogCompile, Log, TEXT("Parsing took %.3f seconds"), TotalParseTime);
 	UE_LOG(LogCompile, Log, TEXT("Post parse finalization took %.3f seconds"), TotalPostParseFinalizeTime);
 	UE_LOG(LogCompile, Log, TEXT("Code generation took %.3f seconds"), TotalCodeGenTime);
-	UE_LOG(LogCompile, Log, TEXT("Check for script plugins took %.3f seconds"), TotalCheckForScriptPluginsTime);
-	UE_LOG(LogCompile, Log, TEXT("Create engine types took % .3f seconds"), TotalCreateEngineTypesTime);
-	UE_LOG(LogCompile, Log, TEXT("ScriptPlugin overhead was %.3f seconds"), TotalPluginTime);
 	UE_LOG(LogCompile, Log, TEXT("Write external dependencies overhead was %.3f seconds"), TotalWriteExternalDependenciesTime);
 	UE_LOG(LogCompile, Log, TEXT("Summary generation took %.3f seconds"), TotalSummaryTime);
 	UE_LOG(LogCompile, Log, TEXT("Macroize time was %.3f CPU seconds"), GMacroizeTime);
@@ -7615,7 +7444,6 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 
 void ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef)
 {
-	UPackage* Package = ClassDef.GetPackageDef().GetPackage();
 	const FString& ClassName = ClassDef.GetNameCPP();
 	FString ClassNameStripped = GetClassNameWithPrefixRemoved(*ClassName);
 	const FString& BaseClassName = ClassDef.GetSuperStructInfo().Name;
@@ -7671,7 +7499,6 @@ void ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef)
 
 void ProcessParsedEnum(FUnrealEnumDefinitionInfo& EnumDef)
 {
-	UPackage* Package = EnumDef.GetPackageDef().GetPackage();
 	const FString& EnumName = EnumDef.GetNameCPP();
 
 	if (TSharedRef<FUnrealTypeDefinitionInfo>* Existing = GTypeDefinitionInfoMap.FindByName(*EnumName))

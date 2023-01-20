@@ -96,7 +96,8 @@ struct EPackageOverrideType
 /**
  * The public interface to script generator plugins.
  */
-class IScriptGeneratorPluginInterface : public IModuleInterface, public IModularFeature
+class UE_DEPRECATED(5.2, "C++ UHT is no longer supported.  Please port any script generators to use C# UHT")
+IScriptGeneratorPluginInterface : public IModuleInterface, public IModularFeature
 {
 public:
 
