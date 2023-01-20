@@ -217,12 +217,18 @@ const TArray<UNiagaraDataChannelDefinitions*>& UNiagaraDataChannelDefinitions::G
 		bAssetRegistryScanBegun = true;
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 		IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-		AssetRegistryOnLoadCompleteHandle = AssetRegistry.OnFilesLoaded().AddStatic(&UNiagaraDataChannelDefinitions::OnAssetRegistryLoadComplete);
-		AssetRegistry.SearchAllAssets(true);
-		if(bRequired)
+		if (AssetRegistry.IsLoadingAssets())
 		{
-			AssetRegistry.WaitForCompletion();
+			AssetRegistryOnLoadCompleteHandle = AssetRegistry.OnFilesLoaded().AddStatic(&UNiagaraDataChannelDefinitions::OnAssetRegistryLoadComplete);
+			if (bRequired)
+			{
+				AssetRegistry.WaitForCompletion();
+			}
 		}
+		else
+		{
+			OnAssetRegistryLoadComplete();
+		}		
 	}
 
 	if(bAssetRegistryScanComplete == false && bInformUser)
