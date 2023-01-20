@@ -10,6 +10,7 @@
 #include "Engine/StaticMesh.h"
 #include "Logging/LogMacros.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "Engine/World.h"
 
 #define LOCTEXT_NAMESPACE "ActorDeferredScriptManager"
 
@@ -28,16 +29,54 @@ void FActorDeferredScriptManager::Shutdown()
 		FAssetCompilingManager::Get().OnAssetPostCompileEvent().Remove(OnAssetChangeDelegateHandle);
 		OnAssetChangeDelegateHandle.Reset();
 	}
+
+	if (OnWorldCleanupDelegateHandle.IsValid())
+	{
+		FWorldDelegates::OnWorldCleanup.Remove(OnWorldCleanupDelegateHandle);
+		OnWorldCleanupDelegateHandle.Reset();
+	}
 }
 
 FActorDeferredScriptManager::FActorDeferredScriptManager()
 	: Notification(GetAssetNameFormat())
 {
+	OnWorldCleanupDelegateHandle = FWorldDelegates::OnWorldCleanup.AddRaw(this, &FActorDeferredScriptManager::OnWorldCleanup);
 }
 
 FName FActorDeferredScriptManager::GetStaticAssetTypeName()
 {
 	return TEXT("UE-ActorConstructionScripts");
+}
+
+void FActorDeferredScriptManager::OnWorldCleanup(class UWorld* InWorld, bool bInSessionEnded, bool bInCleanupResources)
+{
+	int32 RemovedCount = 
+		PendingConstructionScriptActors.RemoveAll(
+			[InWorld](TWeakObjectPtr<AActor>& InActor)
+			{
+				AActor* Actor = InActor.Get();
+				if (Actor == nullptr)
+				{
+					UE_LOG(LogActorDeferredScriptManager, VeryVerbose, TEXT("Removed an actor from deferred construction script because its not valid anymore"));
+					return true;
+				}
+				else if (Actor->GetWorld() == InWorld)
+				{
+					UE_LOG(LogActorDeferredScriptManager, VeryVerbose, TEXT("Removed %s from deferred construction script because its world is being cleaned up"), *InActor->GetPathName());
+					return true;
+				}
+
+				return false;
+			}
+		);
+
+	if (RemovedCount > 0)
+	{
+		// Whenever an actor is removed, reset the count so we go over all actors on next ProcessAsyncTasks
+		NumLeftToProcess = PendingConstructionScriptActors.Num();
+
+		UpdateCompilationNotification();
+	}
 }
 
 void FActorDeferredScriptManager::AddActor(AActor* InActor)

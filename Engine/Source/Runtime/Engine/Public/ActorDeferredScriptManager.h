@@ -47,6 +47,7 @@ private:
 	void UpdateCompilationNotification();
 
 	void OnAssetPostCompile(const TArray<FAssetCompileData>& CompiledAssets);
+	void OnWorldCleanup(class UWorld* InWorld, bool bInSessionEnded, bool bInCleanupResources);
 
 	void EnsureEventRegistered();
 
@@ -58,6 +59,9 @@ private:
 
 	/** We need to monitor when static meshes have finished compiling to only work when necessary */
 	FDelegateHandle OnAssetChangeDelegateHandle;
+
+	/** We need to monitor when worlds are cleaned up to avoid triggering any construction script past this point */
+	FDelegateHandle OnWorldCleanupDelegateHandle;
 
 	/** Where to start on the next ProcessAsyncTasks iteration. */
 	int32 NextIndexToProcess = 0;
