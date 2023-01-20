@@ -13,6 +13,13 @@ public class LowLevelTests : TestModuleRules
 				"CoreUObject"
 			});
 
+		if (Target.bBuildWithEditorOnlyData)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] { "DesktopPlatform" }
+				);
+		}
+
 		UpdateBuildGraphPropertiesFile(new Metadata("Self"), false);
 	}
 }
