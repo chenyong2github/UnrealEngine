@@ -112,6 +112,31 @@ private:
 	void OnShowAssetSettings();
 	void SelectNewAssetPath() const;
 
+	// Presets
+	FSoftObjectPath CurrentPreset;
+	TSharedPtr<FString> ActiveNamedPreset;
+	TArray<TSharedPtr<FString>> AvailablePresetsForTool;
+	TSharedPtr<SEditableComboBox<TSharedPtr<FString>>> PresetComboBox;
+
+	FString GetCurrentPresetPath() { return CurrentPreset.GetAssetPathString(); }
+	void HandlePresetAssetChanged(const FAssetData& InAssetData);
+	bool HandleFilterPresetAsset(const FAssetData& InAssetData);
+	void LoadActivePreset();
+	void SaveActivePreset();
+	
+	TSharedRef<SWidget> MakePresetComboWidget(TSharedPtr<FString> InItem);
+	bool IsPresetEnabled() const;
+	void OnPresetChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
+	void OnPresetRenamed(const FText&, ETextCommit::Type);
+	FReply OnAddPreset();
+	FReply OnRemovePreset();
+	FText GetPresetComboBoxContent() const;
+	TSharedPtr<FString> GetPresetString() const;
+	FString GetRawPresetString() const;
+	void BuildPresetComboList();
+	void ClearPresetComboList();
+
+
 	TArray<TSharedPtr<FString>> AssetLODModes;
 	TSharedPtr<STextBlock> AssetLODModeLabel;
 	TSharedPtr<STextComboBox> AssetLODMode;

@@ -18,6 +18,8 @@
 #include "SSimpleButton.h"
 #include "Tools/UEdMode.h"
 #include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Input/SEditableComboBox.h"
+#include "Widgets/Input/STextEntryPopup.h"
 #include "Framework/MultiBox/SToolBarButtonBlock.h"
 #include "ModelingWidgets/ModelingCustomizationUtil.h"
 
@@ -37,6 +39,10 @@
 #include "Dialogs/DlgPickPath.h"
 #include "ModelingModeAssetUtils.h"
 
+// for presets
+#include "PresetAsset.h"
+#include "PropertyCustomizationHelpers.h"
+
 #include "LevelEditorViewport.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/STextComboBox.h"
@@ -54,7 +60,31 @@ static TAutoConsoleVariable<int32> CVarEnablePolyModeling(
 	TEXT("modeling.EnablePolyModel"),
 	0,
 	TEXT("Enable prototype PolyEdit tab"));
+static TAutoConsoleVariable<int32> CVarEnableToolPresets(
+	TEXT("modeling.EnablePresets"),
+	0,
+	TEXT("Enable tool preset features and UX"));
 
+namespace FModelingToolsEditorModeToolkitLocals
+{
+	typedef TFunction<void(UPresetAsset& Preset, UInteractiveTool& Tool)> PresetAndToolFunc;
+
+	void ExecuteWithPresetAndTool(UEdMode& EdMode, EToolSide ToolSide, FSoftObjectPath& PresetPath, PresetAndToolFunc Function)
+	{
+		UPresetAsset* Preset = nullptr;		
+		UInteractiveTool* Tool = EdMode.GetToolManager()->GetActiveTool(EToolSide::Left);
+
+		if (PresetPath.IsAsset())
+		{
+			Preset = Cast<UPresetAsset>(PresetPath.TryLoad());
+		}
+		if (!Preset || !Tool)
+		{
+			return;
+		}
+		Function(*Preset, *Tool);
+	}
+}
 
 
 FModelingToolsEditorModeToolkit::FModelingToolsEditorModeToolkit()
@@ -405,6 +435,73 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 		];
 	}
 
+	bool bEnableToolPresets = (CVarEnableToolPresets.GetValueOnGameThread() > 0);
+
+	if(bEnableToolPresets)
+	{
+		BuildPresetComboList();
+		Content->AddSlot().HAlign(HAlign_Fill).VAlign(VAlign_Fill).AutoHeight()[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().HAlign(HAlign_Right).Padding(0, 2, 2, 2).AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("PresetLabel", "Preset"))
+			]
+			+ SHorizontalBox::Slot().HAlign(HAlign_Fill).Padding(0, 0, 2, 0).FillWidth(1.0f)
+			[
+				SNew(SVerticalBox)			
+				+ SVerticalBox::Slot().AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().HAlign(HAlign_Fill).Padding(0, 2, 2, 2).FillWidth(1.0f)
+					[
+						SNew(SObjectPropertyEntryBox)
+						.AllowedClass(UPresetAsset::StaticClass())
+						.ObjectPath_Lambda([this]() {return FModelingToolsEditorModeToolkit::GetCurrentPresetPath(); })
+						.OnShouldFilterAsset(this, &FModelingToolsEditorModeToolkit::HandleFilterPresetAsset)
+						.OnObjectChanged(this, &FModelingToolsEditorModeToolkit::HandlePresetAssetChanged)
+					]
+				]
+				+ SVerticalBox::Slot().Padding(0, 2, 2, 2).AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().HAlign(HAlign_Fill).Padding(0, 2, 2, 2).FillWidth(1.0f)
+					[
+						SAssignNew(PresetComboBox, SEditableComboBox<TSharedPtr<FString>>)
+						.OptionsSource(&AvailablePresetsForTool)
+						.OnGenerateWidget(this, &FModelingToolsEditorModeToolkit::MakePresetComboWidget)
+						.OnSelectionChanged(this, &FModelingToolsEditorModeToolkit::OnPresetChanged)
+						//.OnComboBoxOpening(this, &FModelingToolsEditorModeToolkit::BuildPresetComboList)
+						.OnGetEditableText(this, &FModelingToolsEditorModeToolkit::GetRawPresetString)
+						.OnSelectionRenamed(this, &FModelingToolsEditorModeToolkit::OnPresetRenamed)
+						.OnAddClicked(this, &FModelingToolsEditorModeToolkit::OnAddPreset)
+						.OnRemoveClicked(this, &FModelingToolsEditorModeToolkit::OnRemovePreset)
+						.IsEnabled(this, &FModelingToolsEditorModeToolkit::IsPresetEnabled)
+						.ContentPadding(2)
+						.Content()
+						[
+							SNew(STextBlock)
+							.Text(this, &FModelingToolsEditorModeToolkit::GetPresetComboBoxContent)
+							.ToolTipText(this, &FModelingToolsEditorModeToolkit::GetPresetComboBoxContent)
+						]
+					]
+					+ SHorizontalBox::Slot().HAlign(HAlign_Right).Padding(0, 2, 2, 2).AutoWidth()
+					[
+						SNew(SSimpleButton)
+						.OnClicked_Lambda([this]() { LoadActivePreset(); return FReply::Handled(); })
+					.Icon(FAppStyle::Get().GetBrush("Icons.Load"))
+					]
+					+ SHorizontalBox::Slot().HAlign(HAlign_Right).Padding(0, 2, 2, 2).AutoWidth()
+					[
+						SNew(SSimpleButton)
+						.OnClicked_Lambda([this]() { SaveActivePreset(); return FReply::Handled(); })
+					.Icon(FAppStyle::Get().GetBrush("Icons.Save"))
+					]
+				]
+			]
+		];
+	}
+
 	TSharedPtr<SExpandableArea> AssetConfigPanel = SNew(SExpandableArea)
 		.HeaderPadding(FMargin(2.0f))
 		.Padding(FMargin(2.f))
@@ -428,6 +525,246 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 
 }
 
+TSharedRef<SWidget> FModelingToolsEditorModeToolkit::MakePresetComboWidget(TSharedPtr<FString> InItem)
+{
+	return
+		SNew(STextBlock)
+		.Text(FText::FromString(*InItem));
+}
+
+bool FModelingToolsEditorModeToolkit::IsPresetEnabled() const
+{
+	return CurrentPreset.IsAsset();
+}
+
+void FModelingToolsEditorModeToolkit::OnPresetRenamed(const FText& NewPresetName, ETextCommit::Type CommitType)
+{
+	FModelingToolsEditorModeToolkitLocals::ExecuteWithPresetAndTool(*OwningEditorMode, EToolSide::Left, CurrentPreset,
+		[this, NewPresetName] (UPresetAsset& Preset, UInteractiveTool& Tool) {
+		FPropertyStore PresetValuesToRename;
+		if (!Preset.StoredProperties.Contains(Tool.GetClass()->GetName()))
+		{
+			return;
+		}
+		if (Preset.StoredProperties[Tool.GetClass()->GetName()].Store.Contains(*GetPresetString()))
+		{
+			Preset.StoredProperties[Tool.GetClass()->GetName()].Store.RemoveAndCopyValue(*GetPresetString(), PresetValuesToRename);
+			Preset.StoredProperties[Tool.GetClass()->GetName()].Store.Add(NewPresetName.ToString(), PresetValuesToRename);
+			BuildPresetComboList();
+			ActiveNamedPreset = *AvailablePresetsForTool.FindByPredicate([this, NewPresetName](TSharedPtr<FString>& Value) { return Value->Equals(NewPresetName.ToString()); });
+
+			Preset.MarkPackageDirty();
+		}
+	});
+}
+
+FReply FModelingToolsEditorModeToolkit::OnAddPreset()
+{
+	FModelingToolsEditorModeToolkitLocals::ExecuteWithPresetAndTool(*OwningEditorMode, EToolSide::Left, CurrentPreset,
+		[this] (UPresetAsset& Preset, UInteractiveTool& Tool) {
+
+		FString NewPresetName = FString::Printf(TEXT("NewPreset_%d"), Preset.StoredProperties.FindOrAdd(Tool.GetClass()->GetName()).Store.Num());
+		FPropertyStore PresetValuesToCreate;
+		Preset.StoredProperties[Tool.GetClass()->GetName()].Store.Add(NewPresetName, PresetValuesToCreate);
+		BuildPresetComboList();
+		ActiveNamedPreset = *AvailablePresetsForTool.FindByPredicate([this, NewPresetName](TSharedPtr<FString>& Value) { return Value->Equals(NewPresetName); });
+
+		Preset.MarkPackageDirty();
+	});
+	return FReply::Handled();
+}
+
+FReply FModelingToolsEditorModeToolkit::OnRemovePreset()
+{
+	FModelingToolsEditorModeToolkitLocals::ExecuteWithPresetAndTool(*OwningEditorMode, EToolSide::Left, CurrentPreset,
+		[this] (UPresetAsset& Preset, UInteractiveTool& Tool) {
+		if (!Preset.StoredProperties.Contains(Tool.GetClass()->GetName()))
+		{
+			return;
+		}
+		FPropertyStore PresetValuesToRename;
+		if (Preset.StoredProperties[Tool.GetClass()->GetName()].Store.Contains(*GetPresetString()))
+		{
+			Preset.StoredProperties[Tool.GetClass()->GetName()].Store.RemoveAndCopyValue(*GetPresetString(), PresetValuesToRename);
+			ActiveNamedPreset.Reset();
+			BuildPresetComboList();
+
+			Preset.MarkPackageDirty();
+		}
+	});
+	return FReply::Handled();
+}
+
+void FModelingToolsEditorModeToolkit::OnPresetChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
+{
+	ActiveNamedPreset = NewSelection;
+}
+
+
+FText FModelingToolsEditorModeToolkit::GetPresetComboBoxContent() const
+{
+	TSharedPtr<FString> CurrentPresetValue = GetPresetString();
+	if (CurrentPresetValue)
+	{
+		return FText::FromString(*CurrentPresetValue.Get());
+	}
+	else
+	{
+		return FText::GetEmpty();
+	}
+}
+
+
+TSharedPtr<FString> FModelingToolsEditorModeToolkit::GetPresetString() const
+{
+	return ActiveNamedPreset;
+}
+
+FString FModelingToolsEditorModeToolkit::GetRawPresetString() const
+{
+	return GetPresetString() ? *GetPresetString() : TEXT("");
+}
+
+void FModelingToolsEditorModeToolkit::BuildPresetComboList()
+{
+	FModelingToolsEditorModeToolkitLocals::ExecuteWithPresetAndTool(*OwningEditorMode, EToolSide::Left, CurrentPreset,
+		[this] (UPresetAsset& Preset, UInteractiveTool& Tool) {
+
+		AvailablePresetsForTool.Empty();
+		if (!Preset.StoredProperties.Contains(Tool.GetClass()->GetName()))
+		{
+			PresetComboBox->RefreshOptions();
+			PresetComboBox->ClearSelection();
+			return;
+		}
+		TArray<FString> PresetsForTool;
+		Preset.StoredProperties[Tool.GetClass()->GetName()].Store.GenerateKeyArray(PresetsForTool);
+		AvailablePresetsForTool.Reserve(PresetsForTool.Num());
+		for (FString& PresetEntry : PresetsForTool)
+		{
+			AvailablePresetsForTool.Add(MakeShared<FString>(PresetEntry));
+		}
+		PresetComboBox->RefreshOptions();
+		PresetComboBox->ClearSelection();
+	});
+}
+
+void FModelingToolsEditorModeToolkit::ClearPresetComboList()
+{
+	ActiveNamedPreset.Reset();
+	AvailablePresetsForTool.Empty();
+	PresetComboBox->RefreshOptions();
+	PresetComboBox->ClearSelection();
+}
+
+void FModelingToolsEditorModeToolkit::HandlePresetAssetChanged(const FAssetData& InAssetData)
+{
+	CurrentPreset.SetPath(InAssetData.GetObjectPathString());
+	if (CurrentPreset.IsAsset())
+	{
+		BuildPresetComboList();
+	}
+	else
+	{
+		CurrentPreset.Reset();
+	}
+}
+
+bool FModelingToolsEditorModeToolkit::HandleFilterPresetAsset(const FAssetData& InAssetData)
+{
+#if 1
+	return false;
+#else 
+    // This was the "old" approach, where only presets valid for the current tool were shown. But this precluded selecting
+    // other assets and *adding* the current tool to them, so the filtering was removed. However, the logic may prove useful,
+    // so this is just keeping it around for a little while longer just in case.
+
+	UPresetAsset* PresetAsset = Cast<UPresetAsset>(InAssetData.GetAsset());
+	if (PresetAsset) 
+	{
+		bool bMatchingToolName = false;
+		if (OwningEditorMode->GetToolManager()->HasActiveTool(EToolSide::Left))
+		{
+			bMatchingToolName |= PresetAsset->StoredProperties.Contains(OwningEditorMode->GetToolManager()->GetActiveTool(EToolSide::Left)->GetClass()->GetName());
+		}
+		if (OwningEditorMode->GetToolManager()->HasActiveTool(EToolSide::Right))
+		{
+			bMatchingToolName |= PresetAsset->StoredProperties.Contains(OwningEditorMode->GetToolManager()->GetActiveTool(EToolSide::Right)->GetClass()->GetName());
+		}
+		return !bMatchingToolName;
+	}
+
+	return true;
+#endif
+}
+
+void FModelingToolsEditorModeToolkit::LoadActivePreset()
+{
+	FModelingToolsEditorModeToolkitLocals::ExecuteWithPresetAndTool(*OwningEditorMode, EToolSide::Left, CurrentPreset,
+	[this](UPresetAsset& Preset, UInteractiveTool& Tool) {
+		if (!Preset.StoredProperties.Contains(Tool.GetClass()->GetName()))
+		{
+			return;
+		}
+
+		TArray<UObject*> PropertySets = Tool.GetToolProperties();
+		TArray<TObjectPtr<UObject>>& PropertyStore = Preset.StoredProperties[Tool.GetClass()->GetName()].Store.FindOrAdd(*ActiveNamedPreset).Properties;
+
+		for (UObject* PropertySet : PropertySets)
+		{
+			UObject* StoredPropertySet = nullptr;
+			for (UObject* PotentialStoredPropertySet : PropertyStore)
+			{
+				if (PotentialStoredPropertySet && PotentialStoredPropertySet->GetClass() == PropertySet->GetClass())
+				{
+					StoredPropertySet = PotentialStoredPropertySet;
+				}
+			}
+			if(StoredPropertySet != nullptr)
+			{
+				for (FProperty* Prop : TFieldRange<FProperty>(PropertySet->GetClass()))
+				{
+					void* DestValue = Prop->ContainerPtrToValuePtr<void>(PropertySet);
+					void* SrcValue = Prop->ContainerPtrToValuePtr<void>(StoredPropertySet);
+					if (!Prop->Identical(DestValue, SrcValue))
+					{
+						Prop->CopySingleValue(DestValue, SrcValue);
+						Tool.OnPropertyModified(PropertySet, Prop);
+					}
+				}
+			}
+		}
+	});
+}
+
+void FModelingToolsEditorModeToolkit::SaveActivePreset()
+{
+
+	FModelingToolsEditorModeToolkitLocals::ExecuteWithPresetAndTool(*OwningEditorMode, EToolSide::Left, CurrentPreset,
+	[this](UPresetAsset& Preset, UInteractiveTool& Tool) {
+		TArray<UObject*> PropertySets = Tool.GetToolProperties();
+		TArray<TObjectPtr<UObject>>& PropertyStore = Preset.StoredProperties.FindOrAdd(Tool.GetClass()->GetName()).Store.FindOrAdd(*ActiveNamedPreset).Properties;
+		PropertyStore.Empty();
+
+		for (UObject* PropertySet : PropertySets)
+		{
+			UObject* StoredPropertySet = NewObject<UObject>(&Preset, PropertySet->GetClass());
+			StoredPropertySet->ClearFlags(EObjectFlags::RF_Transient);
+			if (StoredPropertySet != nullptr)
+			{
+				for (FProperty* Prop : TFieldRange<FProperty>(PropertySet->GetClass()))
+				{
+					void* SrcValue = Prop->ContainerPtrToValuePtr<void>(PropertySet);
+					void* DestValue = Prop->ContainerPtrToValuePtr<void>(StoredPropertySet);
+					Prop->CopySingleValue(DestValue, SrcValue);
+				}
+			}
+			PropertyStore.Add(StoredPropertySet);
+		}	
+
+		Preset.MarkPackageDirty();
+	});
+}
 
 void FModelingToolsEditorModeToolkit::InitializeAfterModeSetup()
 {
@@ -1114,6 +1451,8 @@ void FModelingToolsEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Man
 			Viewport->Invalidate();
 		}
 	}
+
+	BuildPresetComboList();
 }
 
 void FModelingToolsEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
@@ -1139,6 +1478,8 @@ void FModelingToolsEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manag
 	// re-enable LOD level picker
 	AssetLODMode->SetEnabled(true);
 	AssetLODModeLabel->SetEnabled(true);
+
+	ClearPresetComboList();
 }
 
 void FModelingToolsEditorModeToolkit::OnActiveViewportChanged(TSharedPtr<IAssetViewport> OldViewport, TSharedPtr<IAssetViewport> NewViewport)
