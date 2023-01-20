@@ -64,6 +64,7 @@ const FName FInsightsManagerTabs::LoadingProfilerTabId(TEXT("LoadingProfiler"));
 const FName FInsightsManagerTabs::NetworkingProfilerTabId(TEXT("NetworkingProfiler"));
 const FName FInsightsManagerTabs::MemoryProfilerTabId(TEXT("MemoryProfiler"));
 const FName FInsightsManagerTabs::AutomationWindowTabId(TEXT("AutomationWindow"));
+const FName FInsightsManagerTabs::MessageLogTabId(TEXT("MessageLog"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FAvailabilityCheck
@@ -1088,6 +1089,26 @@ void FInsightsManager::ScheduleCommand(const FString& InCmd)
 
 void FInsightsManager::OnSessionAnalysisCompleted()
 {
+	// Report any errors or warning that occurred
+	FMessageLog* Log = Session->GetLog();
+	if (Log)
+	{
+		if (const int32 NumErrors = Log->NumMessages(EMessageSeverity::Error); NumErrors > 0)
+		{
+			Log->Notify(FText::Format(NSLOCTEXT("TraceAnalysis", "FinishedWithErrors", "Analysis finished with {0} error(s)"),
+				FText::AsNumber(NumErrors)));
+		}
+		else if (const int32 NumWarnings = Log->NumMessages(EMessageSeverity::Warning); NumWarnings > 0)
+		{
+			Log->Notify(FText::Format(NSLOCTEXT("TraceAnalysis", "FinishedWithWarnings", "Analysis finished with {0} warning(s)"),
+				FText::AsNumber(NumWarnings)));
+		}
+		else
+		{
+			Log->Notify(NSLOCTEXT("TraceAnalysis", "Finished", "Analysis finished."));
+		}
+	}
+	
 	if (!SessionAnalysisCompletedCmd.IsEmpty())
 	{
 		FOutputDevice& Ar = *GLog;

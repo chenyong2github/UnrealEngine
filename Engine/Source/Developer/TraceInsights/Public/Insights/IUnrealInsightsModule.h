@@ -39,6 +39,7 @@ struct TRACEINSIGHTS_API FInsightsManagerTabs
 	static const FName NetworkingProfilerTabId;
 	static const FName MemoryProfilerTabId;
 	static const FName AutomationWindowTabId;
+	static const FName MessageLogTabId;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
