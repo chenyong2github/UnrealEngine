@@ -3018,7 +3018,7 @@ void UEngine::InitializeObjectReferences()
 	LoadSpecialMaterial(TEXT("InvalidLightmapSettingsMaterialName"), InvalidLightmapSettingsMaterialName.ToString(), InvalidLightmapSettingsMaterial, false);
 	LoadSpecialMaterial(TEXT("ArrowMaterialName"), ArrowMaterialName.ToString(), ArrowMaterial, false);
 
-#if !UE_BUILD_SHIPPING
+#if !UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR
 	ArrowMaterialYellow = UMaterialInstanceDynamic::Create(ArrowMaterial, nullptr);
 	ArrowMaterialYellow->SetVectorParameterValue("GizmoColor", FLinearColor::Yellow);
 
