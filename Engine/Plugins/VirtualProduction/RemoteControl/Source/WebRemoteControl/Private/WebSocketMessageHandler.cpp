@@ -1002,12 +1002,16 @@ void FWebSocketMessageHandler::ProcessChangedProperties()
 			{
 				const int64 SequenceNumber = GetSequenceNumber(ClientToEventsPair.Key);
 
-				TArray<uint8> WorkingBuffer;
-				if (ClientToEventsPair.Value.Num() && WritePropertyChangeEventPayload(Preset, { ClassToEventsPair.Value }, SequenceNumber, WorkingBuffer))
+				//Check if multiple booleans properties want to be sent and send them since multiple booleans have problem with the common workflow.
+				if(!TrySendMultipleBoolProperties(Preset, ClientToEventsPair.Key, ClassToEventsPair.Value, SequenceNumber))
 				{
-					TArray<uint8> Payload;
-					WebRemoteControlUtils::ConvertToUTF8(WorkingBuffer, Payload);
-					Server->Send(ClientToEventsPair.Key, Payload);
+					TArray<uint8> WorkingBuffer;
+					if (ClientToEventsPair.Value.Num() && WritePropertyChangeEventPayload(Preset, { ClassToEventsPair.Value }, SequenceNumber, WorkingBuffer))
+					{
+						TArray<uint8> Payload;
+						WebRemoteControlUtils::ConvertToUTF8(WorkingBuffer, Payload);
+						Server->Send(ClientToEventsPair.Key, Payload);
+					}
 				}
 			}
 		}
@@ -1784,6 +1788,35 @@ bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPre
 	}
 
 	return bHasProperty;
+}
+
+bool FWebSocketMessageHandler::TrySendMultipleBoolProperties(URemoteControlPreset* InPreset,
+	const FGuid& InTargetClientId, const TSet<FGuid>& InModifiedPropertyIds, int64 InSequenceNumber)
+{
+	bool bFound = false;
+	int32 NumberSent = 0;
+	if(InModifiedPropertyIds.Num() > 1)
+	{
+		if (TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InModifiedPropertyIds.Array()[0]).Pin())
+		{
+			if(RCProperty->GetProperty()->IsA<FBoolProperty>())
+			{
+				bFound = true;
+				for(FGuid ModifiedPropertyId : InModifiedPropertyIds)
+				{
+					TArray<uint8> BoolsWorkingBuffer;
+					if(WritePropertyChangeEventPayload(InPreset, { ModifiedPropertyId }, InSequenceNumber, BoolsWorkingBuffer))
+					{
+						TArray<uint8> Payload;
+						WebRemoteControlUtils::ConvertToUTF8(BoolsWorkingBuffer, Payload);
+						Server->Send(InTargetClientId, Payload);
+						++NumberSent;
+					}
+				}
+			}
+		}
+	}
+	return bFound && (NumberSent == InModifiedPropertyIds.Num());
 }
 
 

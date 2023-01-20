@@ -208,6 +208,16 @@ private:
 	bool WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TSet<FGuid>& InModifiedPropertyIds, int64 InSequenceNumber, TArray<uint8>& OutBuffer);
 
 	/**
+	 * Check if multiple booleans properties want to be sent over to a client, and send a message for each of those properties. This is needed because multiple booleans have problems with the common workflow.
+	 * @param InPreset The current preset
+	 * @param InTargetClientId Client Id to send the message
+	 * @param InModifiedPropertyIds Set of modified properties already divided by type
+	 * @param InSequenceNumber SequenceNumber of the client
+	 * @return True if multiple booleans property are found and sent, false if they are not found or if not all of them are sent.
+	 */
+	bool TrySendMultipleBoolProperties(URemoteControlPreset* InPreset, const FGuid& InTargetClientId, const TSet<FGuid>& InModifiedPropertyIds, int64 InSequenceNumber);
+	
+	/**
 	 * Write the provided list of controller events to a buffer.
 	 */
 	bool WriteControllerChangeEventPayload(URemoteControlPreset* InPreset, const TSet<FGuid>& InModifiedControllerIds, int64 InSequenceNumber, TArray<uint8>& OutBuffer);
