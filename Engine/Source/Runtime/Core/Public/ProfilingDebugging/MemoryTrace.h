@@ -7,7 +7,7 @@
 #include "Trace/Trace.h"
 
 #if !defined(UE_MEMORY_TRACE_AVAILABLE)
-#   define UE_MEMORY_TRACE_AVAILABLE 0
+#	define UE_MEMORY_TRACE_AVAILABLE 0
 #endif
 
 #if !defined(UE_MEMORY_TRACE_LATE_INIT)
@@ -59,9 +59,11 @@ enum class EMemoryTraceHeapAllocationFlags : uint8
 };
 ENUM_CLASS_FLAGS(EMemoryTraceHeapAllocationFlags);
 
+////////////////////////////////////////////////////////////////////////////////
 #if UE_MEMORY_TRACE_ENABLED
 
-////////////////////////////////////////////////////////////////////////////////
+#define UE_MEMORY_TRACE(x) x
+
 CORE_API UE_TRACE_CHANNEL_EXTERN(MemAllocChannel);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -132,8 +134,10 @@ CORE_API void MemoryTrace_ReallocFree(uint64 Address, HeapId RootHeap = EMemoryT
  */
 CORE_API void MemoryTrace_ReallocAlloc(uint64 Address, uint64 NewSize, uint32 Alignment, HeapId RootHeap = EMemoryTraceRootHeap::SystemMemory);
 
-#else
+////////////////////////////////////////////////////////////////////////////////
+#else // UE_MEMORY_TRACE_ENABLED
 
+#define UE_MEMORY_TRACE(x)
 inline HeapId MemoryTrace_RootHeapSpec(const TCHAR* Name, EMemoryTraceHeapFlags Flags = EMemoryTraceHeapFlags::None) { return ~0; };
 inline HeapId MemoryTrace_HeapSpec(HeapId ParentId, const TCHAR* Name, EMemoryTraceHeapFlags Flags = EMemoryTraceHeapFlags::None) { return ~0; }
 inline void MemoryTrace_MarkAllocAsHeap(uint64 Address, HeapId Heap) {}
