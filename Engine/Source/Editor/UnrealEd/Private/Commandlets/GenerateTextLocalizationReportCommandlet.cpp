@@ -157,7 +157,8 @@ bool UGenerateTextLocalizationReportCommandlet::ProcessWordCountReport(const FSt
 	}
 
 	// Load the manifest and all archives
-	FLocTextHelper LocTextHelper(SourcePath, ManifestName, ArchiveName, FString(), CulturesToGenerate, MakeShareable(new FLocFileSCCNotifies(SourceControlInfo)));
+	FLocTextHelper LocTextHelper(SourcePath, ManifestName, ArchiveName, FString(), CulturesToGenerate, GatherManifestHelper->GetLocFileNotifies(), GatherManifestHelper->GetPlatformSplitMode());
+	LocTextHelper.SetCopyrightNotice(GatherManifestHelper->GetCopyrightNotice());
 	{
 		FText LoadError;
 		if (!LocTextHelper.LoadAll(ELocTextHelperLoadFlags::LoadOrCreate, &LoadError))

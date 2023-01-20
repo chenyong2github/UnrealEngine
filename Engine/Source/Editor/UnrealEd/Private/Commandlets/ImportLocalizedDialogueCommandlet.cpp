@@ -136,7 +136,8 @@ int32 UImportLocalizedDialogueCommandlet::Main(const FString& Params)
 	}
 
 	// Load the manifest and all archives
-	FLocTextHelper LocTextHelper(SourcePath, ManifestName, ArchiveName, NativeCulture, CulturesToGenerate, MakeShareable(new FLocFileSCCNotifies(SourceControlInfo)));
+	FLocTextHelper LocTextHelper(SourcePath, ManifestName, ArchiveName, NativeCulture, CulturesToGenerate, GatherManifestHelper->GetLocFileNotifies(), GatherManifestHelper->GetPlatformSplitMode());
+	LocTextHelper.SetCopyrightNotice(GatherManifestHelper->GetCopyrightNotice());
 	{
 		FText LoadError;
 		if (!LocTextHelper.LoadAll(ELocTextHelperLoadFlags::LoadOrCreate, &LoadError))

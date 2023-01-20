@@ -753,23 +753,23 @@ bool FPortableObjectFormatDOM::FromString( const FString& InStr, FText* OutError
 	return true;
 }
 
-void FPortableObjectFormatDOM::CreateNewHeader()
+void FPortableObjectFormatDOM::CreateNewHeader(  const FString& InCopyrightNotice )
 {
 	// Reference: http://www.gnu.org/software/gettext/manual/gettext.html#Header-Entry
 	// Reference: http://www.gnu.org/software/gettext/manual/html_node/Header-Entry.html
 
 	//Hard code some header entries for now in the following format
 	/*
-	# Engine English translation
-	# Copyright Epic Games, Inc. All Rights Reserved.
+	# {ProjectName} {LanguageName} translation
+	# {CopyrightNotice}
 	#
 	msgid ""
 	msgstr ""
-	"Project-Id-Version: Engine\n"
+	"Project-Id-Version: {ProjectName}\n"
 	"POT-Creation-Date: 2014-1-31 04:16+0000\n"
 	"PO-Revision-Date: 2014-1-31 04:16+0000\n"
 	"Language-Team: \n"
-	"Language: en-us\n"
+	"Language: {LanguageCode}\n"
 	"MIME-Version: 1.0\n"
 	"Content-Type: text/plain; charset=UTF-8\n"
 	"Content-Transfer-Encoding: 8bit\n"
@@ -790,7 +790,10 @@ void FPortableObjectFormatDOM::CreateNewHeader()
 	Header.SetEntryValue( TEXT("Plural-Forms"), Language.GetPluralForms() );
 
 	Header.Comments.Add( FString::Printf(TEXT("%s %s translation."), *GetProjectName(), *Language.EnglishName() ) );
-	Header.Comments.Add( TEXT("Copyright Epic Games, Inc. All Rights Reserved.") );
+	if (!InCopyrightNotice.IsEmpty())
+	{
+		Header.Comments.Add(InCopyrightNotice);
+	}
 	Header.Comments.Add( FString(TEXT("")) );
 }
 

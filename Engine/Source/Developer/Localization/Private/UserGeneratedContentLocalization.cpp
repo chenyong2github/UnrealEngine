@@ -232,6 +232,8 @@ bool ExportLocalization(TArrayView<const TSharedRef<IPlugin>> Plugins, const FEx
 				ConfigSection.Add(TEXT("ArchiveName"), FString::Printf(TEXT("%s.archive"), *Plugin->GetName()));
 				ConfigSection.Add(TEXT("PortableObjectName"), FString::Printf(TEXT("%s.po"), *Plugin->GetName()));
 
+				ConfigSection.Add(TEXT("CopyrightNotice"), ExportOptions.CopyrightNotice);
+
 				ConfigSection.Add(TEXT("NativeCulture"), ExportOptions.UGCLocDescriptor.NativeCulture);
 				for (const FString& CultureToGenerate : CulturesToGenerate)
 				{

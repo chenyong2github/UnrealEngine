@@ -219,6 +219,7 @@ int32 UGenerateGatherArchiveCommandlet::Main( const FString& Params )
 
 	// Load the manifest and all archives
 	FLocTextHelper LocTextHelper(DestinationPath, ManifestName, ArchiveName, NativeCulture, CulturesToGenerate, GatherManifestHelper->GetLocFileNotifies(), GatherManifestHelper->GetPlatformSplitMode());
+	LocTextHelper.SetCopyrightNotice(GatherManifestHelper->GetCopyrightNotice());
 	{
 		FText LoadError;
 		if (!LocTextHelper.LoadAll(ELocTextHelperLoadFlags::LoadOrCreate, &LoadError))

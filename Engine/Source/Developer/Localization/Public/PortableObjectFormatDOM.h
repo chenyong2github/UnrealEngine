@@ -346,7 +346,7 @@ public:
 	bool FromString( const FString& InStr, FText* OutErrorMsg = nullptr );
 
 	/** Creates a header entry based on the project and language info. */
-	void CreateNewHeader();
+	void CreateNewHeader( const FString& InCopyrightNotice = FString() );
 
 	/**
 	 * Sets a header entry value.

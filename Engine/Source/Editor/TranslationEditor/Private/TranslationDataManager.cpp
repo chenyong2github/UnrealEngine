@@ -29,6 +29,7 @@
 #include "LocalizationConfigurationScript.h"
 #include "Serialization/JsonInternationalizationArchiveSerializer.h"
 #include "Serialization/JsonInternationalizationManifestSerializer.h"
+#include "GeneralProjectSettings.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogTranslationEditor, Log, All);
@@ -890,7 +891,7 @@ bool FTranslationDataManager::SaveSelectedTranslations(TArray<UTranslationUnit*>
 				FPortableObjectFormatDOM PortableObjectDom;
 				PortableObjectDom.SetProjectName(ManifestAndArchiveName);
 				PortableObjectDom.SetLanguage(CultureName);
-				PortableObjectDom.CreateNewHeader();
+				PortableObjectDom.CreateNewHeader(GetDefault<UGeneralProjectSettings>()->CopyrightNotice);
 				PortableObjectPipeline::UpdatePOFileHeaderForSettings(PortableObjectDom, LocalizationTarget->Settings.ExportSettings.CollapseMode, LocalizationTarget->Settings.ExportSettings.POFormat);
 
 				TArray<UTranslationUnit*>& TranslationsArray = DataManager->GetAllTranslationsArray();

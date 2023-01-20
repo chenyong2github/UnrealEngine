@@ -161,6 +161,7 @@ int32 UInternationalizationExportCommandlet::Main(const FString& Params)
 	{
 		// Load the manifest and all archives
 		FLocTextHelper LocTextHelper(DestinationPath, ManifestName, ArchiveName, NativeCultureName, CulturesToGenerate, GatherManifestHelper->GetLocFileNotifies(), GatherManifestHelper->GetPlatformSplitMode());
+		LocTextHelper.SetCopyrightNotice(GatherManifestHelper->GetCopyrightNotice());
 		{
 			FText LoadError;
 			if (!LocTextHelper.LoadAll(ELocTextHelperLoadFlags::LoadOrCreate, &LoadError))
@@ -185,6 +186,7 @@ int32 UInternationalizationExportCommandlet::Main(const FString& Params)
 
 		// Load the manifest and all archives
 		FLocTextHelper LocTextHelper(SourcePath, ManifestName, ArchiveName, NativeCultureName, CulturesToGenerate, GatherManifestHelper->GetLocFileNotifies(), GatherManifestHelper->GetPlatformSplitMode());
+		LocTextHelper.SetCopyrightNotice(GatherManifestHelper->GetCopyrightNotice());
 		{
 			FText LoadError;
 			if (!LocTextHelper.LoadAll(ELocTextHelperLoadFlags::LoadOrCreate, &LoadError))

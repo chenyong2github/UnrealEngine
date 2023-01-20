@@ -524,6 +524,16 @@ TSharedPtr<ILocFileNotifies> FLocTextHelper::GetLocFileNotifies() const
 	return LocFileNotifies;
 }
 
+void FLocTextHelper::SetCopyrightNotice(const FString& InCopyrightNotice)
+{
+	CopyrightNotice = InCopyrightNotice;
+}
+
+const FString& FLocTextHelper::GetCopyrightNotice() const
+{
+	return CopyrightNotice;
+}
+
 const FString& FLocTextHelper::GetNativeCulture() const
 {
 	return NativeCulture;

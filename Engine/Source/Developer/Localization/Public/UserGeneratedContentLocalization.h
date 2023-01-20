@@ -140,6 +140,9 @@ struct FExportLocalizationOptions
 
 	/** The category to use for the exported localization target (only used when bUpdatePluginDescriptor is true) */
 	ELocalizedTextSourceCategory LocalizationCategory = ELocalizedTextSourceCategory::Game;
+
+	/** An optional copyright notice to insert into the exported files */
+	FString CopyrightNotice;
 };
 
 enum class ELoadLocalizationResult : uint8

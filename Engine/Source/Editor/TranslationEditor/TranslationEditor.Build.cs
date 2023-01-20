@@ -29,6 +29,7 @@ public class TranslationEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"EngineSettings",
                 "InputCore",
 				"Json",
                 "PropertyEditor",

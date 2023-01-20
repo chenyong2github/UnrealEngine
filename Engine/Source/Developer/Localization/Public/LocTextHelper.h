@@ -321,6 +321,16 @@ public:
 	TSharedPtr<ILocFileNotifies> GetLocFileNotifies() const;
 
 	/**
+	 * Set the optional copyright notice to insert into files that support it.
+	 */
+	void SetCopyrightNotice(const FString& InCopyrightNotice);
+
+	/**
+	 * @return Get the optional copyright notice to insert into files that support it.
+	 */
+	const FString& GetCopyrightNotice() const;
+
+	/**
 	 * @return Get the culture code of the native culture (eg, en), or an empty string if the native culture is unknown.
 	 */
 	const FString& GetNativeCulture() const;
@@ -964,6 +974,9 @@ private:
 
 	/** Interface for allowing source control integration (may be null) */
 	TSharedPtr<ILocFileNotifies> LocFileNotifies;
+
+	/** Optional copyright notice to insert into files that support it */
+	FString CopyrightNotice;
 
 	/** Loaded manifest */
 	TSharedPtr<FInternationalizationManifest> Manifest;

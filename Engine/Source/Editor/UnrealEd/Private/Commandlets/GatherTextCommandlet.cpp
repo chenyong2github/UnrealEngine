@@ -9,6 +9,7 @@
 #include "UObject/Package.h"
 #include "UObject/GCObjectScopeGuard.h"
 #include "SourceControlHelpers.h"
+#include "GeneralProjectSettings.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGatherTextCommandlet, Log, All);
 
@@ -168,8 +169,15 @@ int32 UGatherTextCommandlet::ProcessGatherConfig(const FString& GatherTextConfig
 		LocalizationTargetName = FPaths::GetBaseFilename(ManifestName);
 	}
 
+	FString CopyrightNotice;
+	if (!GetStringFromConfig(TEXT("CommonSettings"), TEXT("CopyrightNotice"), CopyrightNotice, GatherTextConfigPath))
+	{
+		CopyrightNotice = GetDefault<UGeneralProjectSettings>()->CopyrightNotice;
+	}
+
 	// Basic helper that can be used only to gather a new manifest for writing
 	TSharedRef<FLocTextHelper> CommandletGatherManifestHelper = MakeShared<FLocTextHelper>(LocalizationTargetName, MakeShared<FLocFileSCCNotifies>(CommandletSourceControlInfo), PlatformSplitMode);
+	CommandletGatherManifestHelper->SetCopyrightNotice(CopyrightNotice);
 	CommandletGatherManifestHelper->LoadManifest(ELocTextHelperLoadFlags::Create);
 
 	const FString GatherTextStepPrefix = TEXT("GatherTextStep");

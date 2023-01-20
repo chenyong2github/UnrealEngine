@@ -340,7 +340,7 @@ namespace
 		}
 
 		NewPortableObject.SetProjectName(FPaths::GetBaseFilename(InPOFilePath));
-		NewPortableObject.CreateNewHeader();
+		NewPortableObject.CreateNewHeader(InLocTextHelper.GetCopyrightNotice());
 		UpdatePOFileHeaderForSettings(NewPortableObject, InTextCollapseMode, InPOFormat);
 
 		// Add each manifest entry to the PO file
