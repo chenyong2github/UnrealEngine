@@ -60,6 +60,11 @@ void SWorldPartitionEditor::Reconstruct()
 	ContentParent->SetContent(ConstructContentWidget());
 }
 
+void SWorldPartitionEditor::FocusBox(const FBox& Box) const
+{
+	GridView->FocusBox(Box);
+}
+
 void SWorldPartitionEditor::OnBrowseWorld(UWorld* InWorld)
 {
 	World = InWorld;

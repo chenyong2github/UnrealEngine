@@ -62,6 +62,7 @@ struct ENGINE_API IWorldPartitionEditor
 {
 	virtual void Refresh() {}
 	virtual void Reconstruct() {}
+	virtual void FocusBox(const FBox& Box) const {}
 };
 
 class ENGINE_API ISourceControlHelper

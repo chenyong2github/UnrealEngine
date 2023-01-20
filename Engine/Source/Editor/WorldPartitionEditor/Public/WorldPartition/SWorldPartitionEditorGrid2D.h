@@ -98,7 +98,7 @@ protected:
 		ArrangedChildren.AddWidget(AllottedGeometry.MakeChild(ChildSlot.GetWidget(), FVector2D::ZeroVector, AllottedGeometry.GetLocalSize()));
 	}
 
-	void FocusBox(const FBox& Box) const;
+	virtual void FocusBox(const FBox& Box) const override;
 
 	mutable float Scale;
 	mutable FVector2D Trans;

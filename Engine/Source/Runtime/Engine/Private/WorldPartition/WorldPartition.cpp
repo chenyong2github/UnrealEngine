@@ -792,14 +792,19 @@ void UWorldPartition::OnPostBugItGoCalled(const FVector& Loc, const FRotator& Ro
 #if WITH_EDITOR
 	if (GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetBugItGoLoadRegion())
 	{
+		const FVector LoadExtent(UWorldPartition::LoadingRangeBugItGo, UWorldPartition::LoadingRangeBugItGo, HALF_WORLD_MAX);
+		const FBox LoadCellsBox(Loc - LoadExtent, Loc + LoadExtent);
+
 		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
 		if (!WorldPartitionEditorModule.GetDisableLoadingInEditor())
 		{
-			const FVector LoadExtent(UWorldPartition::LoadingRangeBugItGo, UWorldPartition::LoadingRangeBugItGo, HALF_WORLD_MAX);
-			const FBox LoadCellsBox(Loc - LoadExtent, Loc + LoadExtent);
-
 			UWorldPartitionEditorLoaderAdapter* EditorLoaderAdapter = CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, LoadCellsBox, TEXT("BugItGo"));
 			EditorLoaderAdapter->GetLoaderAdapter()->Load();
+		}
+
+		if (WorldPartitionEditor)
+		{
+			WorldPartitionEditor->FocusBox(LoadCellsBox);
 		}
 	}
 #endif

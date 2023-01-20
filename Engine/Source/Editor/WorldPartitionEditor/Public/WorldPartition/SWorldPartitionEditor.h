@@ -23,6 +23,7 @@ public:
 	// IWorldPartitionEditor interface
 	virtual void Refresh() override;
 	virtual void Reconstruct() override;
+	virtual void FocusBox(const FBox& Box) const override;
 
 private:
 	void OnBrowseWorld(UWorld* InWorld);

@@ -64,6 +64,7 @@ public:
 	bool GetObserverView(FVector& Location, FRotator& Rotation) const;
 
 	void Refresh();
+	virtual void FocusBox(const FBox& Box) const {}
 
 	UWorld* World = nullptr;
 	UWorldPartition* WorldPartition = nullptr;
