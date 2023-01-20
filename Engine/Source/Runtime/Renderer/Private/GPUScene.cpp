@@ -217,8 +217,12 @@ void FGPUScenePrimitiveCollector::CheckPrimitiveProcessed(uint32 PrimitiveIndex,
 	{
 		checkf(PrimitiveIndex < uint32(UploadData->PrimitiveData.Num()), TEXT("Dynamic Primitive index %u has not been fully processed. The specified index is out of range [0,%d)."), PrimitiveIndex, UploadData->PrimitiveData.Num());
 
+		// Early out to avoid the HasPendingGPUWrite check for cases where it cannot happen anyway.
 		const FMeshBatchDynamicPrimitiveData& SourceData = UploadData->PrimitiveData[PrimitiveIndex].SourceData;
-		checkf(!SourceData.DataWriterGPU.IsBound() || SourceData.DataWriterGPUPass == EGPUSceneGPUWritePass::None, TEXT("Dynamic Primitive index %u has not been fully processed. The primitive doesn't have a pending GPU write and has been uploaded or written to by the GPU already."), PrimitiveIndex);
+		if (!SourceData.DataWriterGPU.IsBound() || SourceData.DataWriterGPUPass == EGPUSceneGPUWritePass::None)
+		{
+			return;
+		}
 	}
 
 	// If the GPU scene still has a pending deferred write for the primitive, then it has not been fully processed yet
