@@ -294,6 +294,14 @@ void FMassProcessingPhaseManager::AddReferencedObjects(FReferenceCollector& Coll
 			Collector.AddReferencedObject(Phase.PhaseProcessor);
 		}
 	}
+
+	for (UMassProcessor* DynamicProcessor : DynamicProcessors)
+	{
+		if (DynamicProcessor)
+		{
+			Collector.AddReferencedObject(DynamicProcessor);
+		}
+	}
 }
 
 void FMassProcessingPhaseManager::EnableTickFunctions(const UWorld& World)

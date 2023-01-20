@@ -109,6 +109,12 @@ struct MASSENTITY_API FMassPhaseProcessorConfigurationHelper
 	EMassProcessingPhase Phase;
 	bool bInitializeCreatedProcessors = true;
 	bool bIsGameRuntime = true;
+
+	UE_DEPRECATED(5.2, "This flavor of Configure has been deprecated. Use the one requiring the first parameter to be an array view of additional processors")
+	void Configure(const TSharedPtr<FMassEntityManager>& EntityManager = TSharedPtr<FMassEntityManager>(), FMassProcessorDependencySolver::FResult* OutOptionalResult = nullptr)
+	{
+		Configure({}, EntityManager, OutOptionalResult);
+	}
 };
 
 /** 
