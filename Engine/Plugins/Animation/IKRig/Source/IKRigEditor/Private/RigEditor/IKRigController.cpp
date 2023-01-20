@@ -7,15 +7,12 @@
 #include "IKRigProcessor.h"
 #include "IKRigSolver.h"
 
-#include "UObject/Package.h"
 #include "Engine/SkeletalMesh.h"
 #include "ScopedTransaction.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(IKRigController)
 
 #define LOCTEXT_NAMESPACE "IKRigController"
-
-TMap<UIKRigDefinition*, UIKRigController*> UIKRigController::Controllers;
 
 UIKRigController* UIKRigController::GetController(const UIKRigDefinition* InIKRigDefinition)
 {
@@ -24,14 +21,14 @@ UIKRigController* UIKRigController::GetController(const UIKRigDefinition* InIKRi
 		return nullptr;
 	}
 
-	if (!Controllers.Contains(InIKRigDefinition))
+	if (!InIKRigDefinition->Controller)
 	{
 		UIKRigController* Controller = NewObject<UIKRigController>();
 		Controller->Asset = const_cast<UIKRigDefinition*>(InIKRigDefinition);
-		Controllers.Add(Controller->Asset, Controller);
+		Controller->Asset->Controller = Controller;
 	}
 
-	return Controllers[InIKRigDefinition];
+	return Cast<UIKRigController>(InIKRigDefinition->Controller);
 }
 
 UIKRigDefinition* UIKRigController::GetAsset() const

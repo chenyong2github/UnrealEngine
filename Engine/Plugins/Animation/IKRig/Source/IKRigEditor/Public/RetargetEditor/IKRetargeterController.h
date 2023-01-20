@@ -40,9 +40,6 @@ private:
 	// The actual asset that this Controller modifies. This is the only field this class should have.
 	UIKRetargeter* Asset = nullptr;
 
-	// Static global map of assets to their associated controller
-	static TMap<UIKRetargeter*, UIKRetargeterController*> Controllers;
-
 	//
 	// GENERAL PUBLIC/SCRIPTING API
 	//
@@ -51,7 +48,7 @@ public:
 	
 	/** Use this to get the controller for the given retargeter asset */
 	UFUNCTION(BlueprintCallable, Category=IKRetargeter)
-	static UIKRetargeterController* GetController(UIKRetargeter* InRetargeterAsset);
+	static UIKRetargeterController* GetController(const UIKRetargeter* InRetargeterAsset);
 	
 	// Set the IK Rig to use as the source or target (to copy animation FROM/TO) 
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)

@@ -14,23 +14,21 @@
 
 #define LOCTEXT_NAMESPACE "IKRetargeterController"
 
-TMap<UIKRetargeter*, UIKRetargeterController*> UIKRetargeterController::Controllers;
-
-UIKRetargeterController* UIKRetargeterController::GetController(UIKRetargeter* InRetargeterAsset)
+UIKRetargeterController* UIKRetargeterController::GetController(const UIKRetargeter* InRetargeterAsset)
 {
 	if (!InRetargeterAsset)
 	{
 		return nullptr;
 	}
 
-	if (!Controllers.Contains(InRetargeterAsset))
+	if (!InRetargeterAsset->Controller)
 	{
 		UIKRetargeterController* Controller = NewObject<UIKRetargeterController>();
 		Controller->Asset = const_cast<UIKRetargeter*>(InRetargeterAsset);
-		Controllers.Add(Controller->Asset, Controller);
+		Controller->Asset->Controller = Controller;
 	}
 
-	return Controllers[InRetargeterAsset];
+	return Cast<UIKRetargeterController>(InRetargeterAsset->Controller);
 }
 
 UIKRetargeter* UIKRetargeterController::GetAsset() const
