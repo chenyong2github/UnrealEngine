@@ -26,8 +26,8 @@ FPixelStreamingSignallingConnection::FPixelStreamingSignallingConnection(const F
 	RegisterHandler("offer", [this](FJsonObjectPtr JsonMsg) { OnSessionDescription(JsonMsg); });
 	RegisterHandler("answer", [this](FJsonObjectPtr JsonMsg) { OnSessionDescription(JsonMsg); });
 	RegisterHandler("iceCandidate", [this](FJsonObjectPtr JsonMsg) { OnIceCandidate(JsonMsg); });
-	RegisterHandler("ping", [this](FJsonObjectPtr JsonMsg) { /* nothing */ });
-	RegisterHandler("pong", [this](FJsonObjectPtr JsonMsg) { /* nothing */ });
+	RegisterHandler("ping", [this](FJsonObjectPtr JsonMsg) { OnPing(JsonMsg); });
+	RegisterHandler("pong", [this](FJsonObjectPtr JsonMsg) { OnPong(JsonMsg); });
 	RegisterHandler("playerCount", [this](FJsonObjectPtr JsonMsg) { OnPlayerCount(JsonMsg); });
 	RegisterHandler("playerConnected", [this](FJsonObjectPtr JsonMsg) { OnPlayerConnected(JsonMsg); });
 	RegisterHandler("playerDisconnected", [this](FJsonObjectPtr JsonMsg) { OnPlayerDisconnected(JsonMsg); });
@@ -65,6 +65,7 @@ void FPixelStreamingSignallingConnection::Connect(FString InUrl, bool bIsReconne
 	OnConnectionErrorHandle = WebSocket->OnConnectionError().AddLambda([this](const FString& Error) { OnConnectionError(Error); });
 	OnClosedHandle = WebSocket->OnClosed().AddLambda([this](int32 StatusCode, const FString& Reason, bool bWasClean) { OnClosed(StatusCode, Reason, bWasClean); });
 	OnMessageHandle = WebSocket->OnMessage().AddLambda([this](const FString& Msg) { OnMessage(Msg); });
+	OnBinaryMessageHandle = WebSocket->OnBinaryMessage().AddLambda([this](const void* Data, int32 Count, bool bIsLastFragment) { OnBinaryMessage((const uint8*)Data, Count, bIsLastFragment); });
 
 	if (bIsReconnect)
 	{
@@ -100,6 +101,7 @@ void FPixelStreamingSignallingConnection::Disconnect()
 	WebSocket->OnConnectionError().Remove(OnConnectionErrorHandle);
 	WebSocket->OnClosed().Remove(OnClosedHandle);
 	WebSocket->OnMessage().Remove(OnMessageHandle);
+	WebSocket->OnBinaryMessage().Remove(OnBinaryMessageHandle);
 
 	WebSocket->Close();
 	WebSocket = nullptr;
@@ -300,6 +302,15 @@ void FPixelStreamingSignallingConnection::OnConnected()
 	}
 }
 
+void FPixelStreamingSignallingConnection::OnPing(const FJsonObjectPtr& Json)
+{
+	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("Streamer got pinged."));
+}
+void FPixelStreamingSignallingConnection::OnPong(const FJsonObjectPtr& Json)
+{
+	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("Streamer got ponged."));
+}
+
 void FPixelStreamingSignallingConnection::OnConnectionError(const FString& Error)
 {
 	UE_LOG(LogPixelStreamingSS, Log, TEXT("Failed to connect to SS %s - signalling server may not be up yet. Message: \"%s\""), *Url, *Error);
@@ -367,6 +378,14 @@ void FPixelStreamingSignallingConnection::OnMessage(const FString& Msg)
 	{
 		UE_LOG(LogPixelStreamingSS, Error, TEXT("Unsupported message `%s` received from SS"), *MsgType);
 	}
+}
+
+void FPixelStreamingSignallingConnection::OnBinaryMessage(const uint8* Data, int32 Length, bool bIsLastFragment)
+{
+	FUTF8ToTCHAR Convert((const ANSICHAR*)Data, Length);
+	const TCHAR* PayloadChars = Convert.Get();
+	FString Msg = FString(Convert.Length(), PayloadChars);
+	OnMessage(Msg);
 }
 
 void FPixelStreamingSignallingConnection::RegisterHandler(const FString& messageType, const TFunction<void(FJsonObjectPtr)>& handler)

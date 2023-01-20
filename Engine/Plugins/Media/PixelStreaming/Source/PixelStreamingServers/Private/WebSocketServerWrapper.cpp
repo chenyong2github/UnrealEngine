@@ -38,13 +38,10 @@ namespace UE::PixelStreamingServers
 	{
 		// Convert FString into uint8 array.
 		FTCHARToUTF8 UTF8String(*Message);
-		int32 MessageSize = UTF8String.Length();
-		TArray<uint8> MessageArr;
-		MessageArr.SetNum(MessageSize);
-		FMemory::Memcpy(MessageArr.GetData(), UTF8String.Get(), MessageSize);
 		
 		// Send the uint8 buffer
-		return SocketConnection->Send(MessageArr.GetData(), MessageSize, false);
+		// Note: Due to how this socket connection is implemented, only binary messages are supported
+		return SocketConnection->Send((const uint8*) UTF8String.Get(), UTF8String.Length(), false);
 	}
 
 	void FWebSocketConnection::SetCallbacks()
