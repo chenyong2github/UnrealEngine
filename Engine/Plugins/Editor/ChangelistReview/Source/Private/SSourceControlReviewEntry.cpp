@@ -210,7 +210,7 @@ bool SSourceControlReviewEntry::CanDiff() const
 void SSourceControlReviewEntry::TryBindUAssetDiff()
 {
 	UObject* ReviewAsset = nullptr;
-	if (UPackage* ReviewFilePkg = LoadPackage(nullptr, *ChangelistFileData.ReviewFileName, LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
+	if (UPackage* ReviewFilePkg = LoadPackage(nullptr, ChangelistFileData.ReviewFileTempPath, LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
 	{
 		ReviewAsset = FindObject<UObject>(ReviewFilePkg, *ChangelistFileData.AssetName);
 		if(ReviewAsset && ReviewAsset->IsA<UObjectRedirector>())
@@ -219,9 +219,9 @@ void SSourceControlReviewEntry::TryBindUAssetDiff()
 		}
 	}
 	UObject* PreviousAsset = nullptr;
-	if (!ChangelistFileData.PreviousFileName.IsEmpty())
+	if (!ChangelistFileData.PreviousFileTempPath.IsEmpty())
 	{
-		if (UPackage* PreviousFilePkg = LoadPackage(nullptr, *ChangelistFileData.PreviousFileName, LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
+		if (UPackage* PreviousFilePkg = LoadPackage(nullptr, ChangelistFileData.PreviousFileTempPath, LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
 		{
 			if (ChangelistFileData.PreviousAssetName.IsEmpty())
 			{
@@ -291,7 +291,7 @@ void SSourceControlReviewEntry::TryBindTextDiff()
 	{
 		const FString& DiffCommand = GetDefault<UEditorLoadingSavingSettings>()->TextDiffToolPath.FilePath;
 		const FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
-		AssetToolsModule.Get().CreateDiffProcess(DiffCommand, ChangelistFileData.PreviousFileName, ChangelistFileData.ReviewFileName);
+		AssetToolsModule.Get().CreateDiffProcess(DiffCommand, ChangelistFileData.PreviousFileTempPath.GetLocalFullPath(), ChangelistFileData.ReviewFileTempPath.GetLocalFullPath());
 	});
 }
 

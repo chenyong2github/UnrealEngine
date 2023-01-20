@@ -39,31 +39,18 @@ namespace SourceControlReview
 
 	struct FChangelistFileData
 	{
-		FChangelistFileData()
-		{
-		}
-
-		FChangelistFileData(const FString& InAssetName, const FString& InReviewFilePkgName,
-							const FString& InReviewFileRevisionNum, const FString& InPreviousFilePkgName,
-							const FString& InPreviousFileRevisionNum)
-			: AssetName(InAssetName)
-			, ReviewFileName(InReviewFilePkgName)
-			, ReviewFileRevisionNum(InReviewFileRevisionNum)
-			, PreviousAssetName() // assume no rename by default
-			, PreviousFileName(InPreviousFilePkgName)
-			, PreviousFileRevisionNum(InPreviousFileRevisionNum)
-		{
-		}
+		FChangelistFileData() = default;
 
 		bool IsDataValidForEntry() const
 		{
-			return FileSourceControlAction != ESourceControlAction::Unset && !ReviewFileName.IsEmpty() &&
-				(!PreviousFileName.IsEmpty() || FileSourceControlAction == ESourceControlAction::Add || FileSourceControlAction == ESourceControlAction::Branch);
+			return FileSourceControlAction != ESourceControlAction::Unset && !ReviewFileTempPath.IsEmpty() &&
+				(!PreviousFileTempPath.IsEmpty() || FileSourceControlAction == ESourceControlAction::Add || FileSourceControlAction == ESourceControlAction::Branch);
 		}
 
 		FString AssetName;
 
-		FString ReviewFileName;
+		// path where the temporary asset was downloaded to
+		FPackagePath ReviewFileTempPath;
 
 		FString ReviewFileRevisionNum;
 
@@ -71,13 +58,16 @@ namespace SourceControlReview
 
 		FString PreviousAssetName;
 
-		FString PreviousFileName;
+		// path where the temporary asset was downloaded to
+		FPackagePath PreviousFileTempPath;
 
 		FString PreviousFileRevisionNum;
 
 		FString RelativeFilePath;
 
 		FString AssetFilePath;
+		
+		FString AssetDepotPath;
 
 		int32 ChangelistNum = INDEX_NONE;
 
@@ -191,6 +181,8 @@ private:
 	 * Removes CurrentChangelistInfo.SharedPath from the beginning of FullCLPath
 	 */
 	FString TrimSharedPath(FString FullCLPath) const;
+	
+	void FixupRedirectors();
 
 	static SHeaderRow::FColumn::FArguments HeaderColumn(FName HeaderName);
 
@@ -204,7 +196,6 @@ private:
 	uint32 FilesToLoad = 0;
 	uint32 FilesLoaded = 0;
 	TArray<TSharedPtr<FChangelistFileData>> ChangelistFiles;
-	TMap<FString, TWeakPtr<FChangelistFileData>> RedirectorsFound;
 	TSharedPtr<FGetChangelistDetails> GetChangelistDetailsCommand;
 	TArray<TSharedPtr<SourceControlReview::FChangelistLightInfo>> CLHistory;
 	bool bUncommittedChangelistNum = false;
