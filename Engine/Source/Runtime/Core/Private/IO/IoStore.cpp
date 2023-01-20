@@ -1836,10 +1836,14 @@ void FIoStoreWriterContextImpl::Flush()
 	}
 
 	AllEntries.Empty();
-	for (TSharedPtr<FIoStoreWriter> IoStoreWriter : IoStoreWriters)
-	{
-		IoStoreWriter->Finalize();
-	}
+
+	// Classically there were so few writers that this didn't need to be multi threaded, but it
+	// involves writing files, and with content on demand this ends up being thousands of iterations. 
+	// 10x speedup in testing.
+	double FinalizeStart = FPlatformTime::Seconds();	
+	ParallelFor(TEXT("IoStoreWriter::Finalize.PF"), IoStoreWriters.Num(), 1, [this](int Index){ IoStoreWriters[Index]->Finalize(); });
+	double FinalizeEnd = FPlatformTime::Seconds();
+	UE_LOG(LogIoStore, Display, TEXT("Finalize took %.1f seconds for %d writers"), FinalizeEnd - FinalizeStart, IoStoreWriters.Num());
 }
 
 void FIoStoreWriterContextImpl::BeginCompressionThreadFunc()
