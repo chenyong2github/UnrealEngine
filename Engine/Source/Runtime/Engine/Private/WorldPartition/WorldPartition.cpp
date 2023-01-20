@@ -1496,7 +1496,8 @@ bool UWorldPartition::IsStreamingCompleted(EWorldPartitionRuntimeCellState Query
 
 void UWorldPartition::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
 {
-	if (GetWorld()->IsGameWorld())
+	// Discard Cell's LevelStreaming notification when once WorldPartition is unitialized (can happen for instanced WorldPartition)
+	if (GetWorld()->IsGameWorld() && IsInitialized())
 	{
 		if (IsStreamingEnabled())
 		{
@@ -1508,7 +1509,8 @@ void UWorldPartition::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
 
 void UWorldPartition::OnCellHidden(const UWorldPartitionRuntimeCell* InCell)
 {
-	if (GetWorld()->IsGameWorld())
+	// Discard Cell's LevelStreaming notification when once WorldPartition is unitialized (can happen for instanced WorldPartition)
+	if (GetWorld()->IsGameWorld() && IsInitialized())
 	{
 		if (IsStreamingEnabled())
 		{
