@@ -366,7 +366,7 @@ bool FUncontrolledChangelistsModule::OnRevert(const TArray<FString>& InFilenames
 		return true;
 	}
 
-	bSuccess = SourceControlHelpers::ApplyOperationAndReloadPackages(InFilenames, InFilenames, ExecuteRevertOperation);
+	bSuccess = SourceControlHelpers::ApplyOperationAndReloadPackages(InFilenames, ExecuteRevertOperation);
 
 	UpdateStatus();
 

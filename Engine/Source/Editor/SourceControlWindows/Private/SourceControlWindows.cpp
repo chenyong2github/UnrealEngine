@@ -178,31 +178,21 @@ static bool SaveDirtyPackages()
 	return bSaved;
 }
 
-bool FSourceControlWindows::SyncAllPackages()
+bool FSourceControlWindows::SyncLatest()
 {
 	bool bSaved = SaveDirtyPackages();
 
 	// if properly saved or confirmation given, find all packages and use source control to update them.
 	if (bSaved)
 	{
-		TArray<FString> PackageNames;
-		if (SourceControlHelpers::ListAllPackages(PackageNames))
-		{
-			// sync those packages if any were found
-			if (PackageNames.Num() > 0)
-			{
-				AssetViewUtils::SyncPackagesFromSourceControl(PackageNames);
-			}
-
-			return true;
-		}
+		AssetViewUtils::SyncLatestFromSourceControl();
 	}
 
 	return false;
 }
 
 
-bool FSourceControlWindows::CanSyncAllPackages()
+bool FSourceControlWindows::CanSyncLatest()
 {
 	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
 

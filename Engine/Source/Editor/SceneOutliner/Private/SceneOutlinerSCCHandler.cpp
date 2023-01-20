@@ -371,8 +371,7 @@ void FSceneOutlinerSCCHandler::ExecuteSCCRevert()
 {
 	TArray<FString> PackageNames;
 	GetSelectedPackageNames(PackageNames);
-
-	FSourceControlWindows::PromptForRevert(PackageNames, true);
+	FSourceControlWindows::PromptForRevert(PackageNames, /*bReloadWorld=*/true);
 }
 
 void FSceneOutlinerSCCHandler::ExecuteSCCHistory()

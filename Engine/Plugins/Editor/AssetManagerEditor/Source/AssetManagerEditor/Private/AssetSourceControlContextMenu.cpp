@@ -773,21 +773,19 @@ void FAssetSourceControlContextMenuState::ExecuteSCCRevert() const
 {
 	TArray<FString> PackageNames;
 	GetSelectedPackageNames(PackageNames);
-
-	bool bReloadAll = false;
+	bool bReloadWorld = false;
 	for (const FString& PackageName : PackageNames)
 	{
 		if (UPackage* Package = FindPackage(nullptr, *PackageName))
 		{
 			if (Package->ContainsMap())
 			{
-				bReloadAll = true;
+				bReloadWorld = true;
 				break;
 			}
 		}
 	}
-
-	FSourceControlWindows::PromptForRevert(PackageNames, bReloadAll);
+	FSourceControlWindows::PromptForRevert(PackageNames, bReloadWorld);
 }
 
 void FAssetSourceControlContextMenuState::ExecuteSCCRevertWritable() const
@@ -848,7 +846,7 @@ void FAssetSourceControlContextMenuState::ExecuteSCCRevertWritable() const
 		return true;
 	};
 
-	SourceControlHelpers::ApplyOperationAndReloadPackages(PackageNames, PackageNames, RevertOperation);
+	SourceControlHelpers::ApplyOperationAndReloadPackages(PackageNames, RevertOperation);
 
 	// Tell UncontrolledCL to refresh to pick up changes to files it was watching.
 	FUncontrolledChangelistsModule& UncontrolledChangelistsModule = FUncontrolledChangelistsModule::Get();

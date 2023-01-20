@@ -160,7 +160,7 @@ void FSourceControlCommands::RevertAllModifiedFiles_Clicked()
 	FText Title = LOCTEXT("RevertAllModifiedFiles_Title", "Revert all local changes");
 	if (FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, Message, &Title) == EAppReturnType::Yes)
 	{
-		FSourceControlWindows::RevertAllChangesAndReloadAllPackages();
+		FSourceControlWindows::RevertAllChangesAndReloadWorld();
 	}
 }
 
@@ -388,9 +388,9 @@ const FSlateBrush* FSourceControlMenuHelpers::GetSourceControlSyncStatusIcon()
 
 FReply FSourceControlMenuHelpers::OnSourceControlSyncClicked()
 {
-	if (FSourceControlWindows::CanSyncAllPackages())
+	if (FSourceControlWindows::CanSyncLatest())
 	{
-		FSourceControlWindows::SyncAllPackages();
+		FSourceControlWindows::SyncLatest();
 	}
 
 	return FReply::Handled();

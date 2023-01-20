@@ -280,6 +280,64 @@ protected:
 };
 
 /**
+ * Operation used to determine the files that would be affected by a sync operation
+ */
+class FSyncPreview : public FSourceControlOperationBase
+{
+public:
+	// ISourceControlOperation interface
+	virtual FName GetName() const override
+	{
+		return "SyncPreview";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_SyncPreview", "Previewing File Sync from revision control...");
+	}
+
+	void SetRevision(const FString& InRevision)
+	{
+		Revision = InRevision;
+	}
+
+	const FString& GetRevision() const
+	{
+		return Revision;
+	}
+
+	void SetHeadRevisionFlag(const bool bInHeadRevision)
+	{
+		bHeadRevision = bInHeadRevision;
+	}
+
+	bool IsHeadRevisionFlagSet() const
+	{
+		return bHeadRevision;
+	}
+
+	void SetAffectedFiles(TArray<FString>&& InAffectedFiles)
+	{
+		AffectedFiles = MoveTemp(InAffectedFiles);
+	}
+
+	const TArray<FString>& GetAffectedFiles() const
+	{
+		return AffectedFiles;
+	}
+	
+protected:
+	/** Target Revision to which the sync preview refers to */
+	FString Revision;
+
+	/** Flag abstracting if the operation aims to preview a sync to head */
+	bool bHeadRevision = false;
+
+	/** Array of files that would be affected by the sync operation */
+	TArray<FString> AffectedFiles;
+};
+
+/**
  * Operation used to sync files to the state they are in source control
  */
 class FSync : public FSourceControlOperationBase

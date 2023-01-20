@@ -1449,7 +1449,7 @@ FString AssetViewUtils::GetPackagePathWithinRoot(const FString& PackageName)
 	return RelativePathToAsset;
 }
 
-int32 AssetViewUtils::GetPackageLengthForCooking(const FString& PackageName, bool IsInternalBuild)
+int32 AssetViewUtils::GetPackageLengthForCooking(const FString& PackageName, bool bIsInternalBuild)
 {
 	FString RelativePathToAsset;
 	if (!FPackageName::TryConvertLongPackageNameToFilename(PackageName, RelativePathToAsset, FPackageName::GetAssetPackageExtension()))
@@ -1485,13 +1485,13 @@ int32 AssetViewUtils::GetPackageLengthForCooking(const FString& PackageName, boo
 
 		if (FString ExternalPluginCookedRootPath = CVarExternalPluginCookedRootPath->GetValueOnGameThread(); ExternalPluginCookedRootPath.Len() > 0)
 		{
-			IsInternalBuild = false;
+			bIsInternalBuild = false;
 			AbsoluteTargetPath = MoveTemp(ExternalPluginCookedRootPath);
 			AbsoluteTargetPath /= FString();
 		}
 	}
 
-	if (IsInternalBuild)
+	if (bIsInternalBuild)
 	{
 		// We assume a constant size for the build machine base path for things that reside within the UE source tree
 		const FString AbsoluteUERootPath = FPaths::ConvertRelativePathToFull(FPaths::RootDir());
@@ -1704,13 +1704,15 @@ void ShowSyncDependenciesDialog(const TArray<FString>& InDependencies, TArray<FS
 	}
 }
 
-void AssetViewUtils::SyncPackagesFromSourceControl(const TArray<FString>& PackageNames)
+void AssetViewUtils::SyncPackagesFromSourceControl(const TArray<FString>& PackageNames, bool bIsSyncLatestOperation)
 {
 	if (PackageNames.Num() > 0)
 	{
-		// Warn about any packages that are being synced without also getting the newest version of their dependencies...
 		TArray<FString> PackageNamesToSync = PackageNames;
+
+		if (!bIsSyncLatestOperation)
 		{
+			// Warn about any packages that are being synced without also getting the newest version of their dependencies...
 			TArray<FString> OutOfDateDependencies;
 			GetOutOfDatePackageDependencies(PackageNamesToSync, OutOfDateDependencies);
 
@@ -1744,7 +1746,20 @@ void AssetViewUtils::SyncPackagesFromSourceControl(const TArray<FString>& Packag
 		}
 
 		// Sync everything...
-		SCCProvider.Execute(ISourceControlOperation::Create<FSync>(), PackageFilenames);
+		TSharedRef<FSync> Operation = ISourceControlOperation::Create<FSync>();
+		if (bIsSyncLatestOperation)
+		{
+			Operation->SetHeadRevisionFlag(true);
+			if (SCCProvider.Execute(Operation) != ECommandResult::Succeeded)
+			{
+				UE_LOG(LogAssetViewTools, Warning, TEXT("Error while syncing latest revision"));
+				return;
+			}
+		}
+		else
+		{
+			SCCProvider.Execute(Operation, PackageFilenames);
+		}
 
 		// Syncing may have deleted some packages, so we need to unload those rather than re-load them...
 		// Note: we will store the package using weak pointers here otherwise we might have garbage collection issues after the ReloadPackages call
@@ -1774,6 +1789,11 @@ void AssetViewUtils::SyncPackagesFromSourceControl(const TArray<FString>& Packag
 		}
 
 		// Hot-reload the new packages...
+		if (bIsSyncLatestOperation)
+		{
+			UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
+			LoadedPackages.Add(EditorWorld->GetPackage());
+		}
 		UPackageTools::ReloadPackages(LoadedPackages);
 
 		// Restore the camera views after a map reload if necessary...
@@ -1803,6 +1823,49 @@ void AssetViewUtils::SyncPackagesFromSourceControl(const TArray<FString>& Packag
 
 		// Re-cache the SCC state...
 		SCCProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), PackageFilenames);
+	}
+}
+
+void AssetViewUtils::SyncLatestFromSourceControl()
+{
+	TArray<FString> PackageNames;
+	TArray<FString> PackageFilenames;
+
+	ISourceControlProvider& SCCProvider = ISourceControlModule::Get().GetProvider();
+	TSharedRef<FSyncPreview> PreviewOperation = ISourceControlOperation::Create<FSyncPreview>();
+	PreviewOperation->SetHeadRevisionFlag(true);
+	ECommandResult::Type OperationResult =  SCCProvider.Execute(PreviewOperation);
+
+	if (OperationResult == ECommandResult::Succeeded)
+	{
+		PackageFilenames = PreviewOperation->GetAffectedFiles();
+
+		for (const FString& PackageFilename : PackageFilenames)
+		{
+			FString PackageName;
+			if (FPackageName::TryConvertFilenameToLongPackageName(PackageFilename, PackageName))
+			{
+				PackageNames.Add(PackageName);
+			}
+		}
+
+		SyncPackagesFromSourceControl(PackageNames, /*IsSyncLatestOperation=*/true);
+	}
+	else
+	{
+		// Likely the source control provider does not support sync previews. Proceed to syncing all paths under source control
+		TArray<FString> SourceControlLocations;
+
+		if (ISourceControlModule::Get().UsesCustomProjectDir())
+		{
+			SourceControlLocations.Add(ISourceControlModule::Get().GetSourceControlProjectDir());
+		}
+		else
+		{
+			SourceControlLocations = SourceControlHelpers::GetSourceControlLocations(/*bContentOnly=*/true);
+		}
+
+		SyncPathsFromSourceControl(SourceControlLocations);
 	}
 }
 

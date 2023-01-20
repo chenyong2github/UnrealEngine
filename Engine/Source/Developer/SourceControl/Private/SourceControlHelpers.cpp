@@ -24,6 +24,8 @@
 #include "Editor.h"
 #include "PackageTools.h"
 #include "ObjectTools.h"
+#include "FileHelpers.h"
+#include "LevelEditorViewport.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "SourceControlHelpers"
@@ -907,14 +909,12 @@ bool USourceControlHelpers::RevertFile(const FString& InFile, bool bSilent)
 }
 
 #if WITH_EDITOR
-bool USourceControlHelpers::ApplyOperationAndReloadPackages(const TArray<FString>& InPackagesToApplyOperation, const TArray<FString>& InPackagesToReload, 
-	const TFunctionRef<bool(const TArray<FString>&)>& InOperation, bool bAllowReloadWorld)
+bool USourceControlHelpers::ApplyOperationAndReloadPackages(const TArray<FString>& InFilenames,	const TFunctionRef<bool(const TArray<FString>&)>& InOperation, bool bReloadWorld)
 {
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	TArray<UPackage*> LoadedPackages;
-	TArray<FString> PackageNamesToApplyOperation;
-	TArray<FString> PackageFilenamesToApplyOperation;
-	TArray<FString> PackageNamesToReload;
+	TArray<FString> PackageNames;
+	TArray<FString> PackageFilenames;
 	TArray<FString> FilteredActorPackages;
 	bool bSuccess = false;
 
@@ -929,56 +929,59 @@ bool USourceControlHelpers::ApplyOperationAndReloadPackages(const TArray<FString
 	};
 
 	// Normalize packagenames and filenames
-	for (const FString& Filename : InPackagesToApplyOperation)
+	for (const FString& Filename : InFilenames)
 	{
 		FString Result;
 		
 		if (FPackageName::TryConvertFilenameToLongPackageName(Filename, Result))
 		{
-			PackageNamesToApplyOperation.Add(MoveTemp(Result));
+			PackageNames.Add(MoveTemp(Result));
 		}
 		else
 		{
-			PackageNamesToApplyOperation.Add(Filename);
-		}
-	}
-
-	for (const FString& Filename : InPackagesToReload)
-	{
-		FString Result;
-
-		if (FPackageName::TryConvertFilenameToLongPackageName(Filename, Result))
-		{
-			PackageNamesToReload.Add(MoveTemp(Result));
-		}
-		else
-		{
-			PackageNamesToReload.Add(Filename);
+			PackageNames.Add(Filename);
 		}
 	}
 
 	// Remove packages if they are loaded actors or world
-	PackageNamesToReload.RemoveAll([&FilteredActorPackages, &LoadedPackages, bAllowReloadWorld, &DetachLinker](const FString& PackageName) -> bool
+	bool bWorldFound = false;
+	PackageNames.RemoveAll([&FilteredActorPackages, &LoadedPackages, bReloadWorld, &DetachLinker, &bWorldFound](const FString& PackageName) -> bool
 	{
 		UPackage* Package = FindPackage(NULL, *PackageName);
 		
 		if (Package != nullptr)
 		{
-			if (UWorld* World = UWorld::FindWorldInPackage(Package); World && !bAllowReloadWorld)
+			if (UWorld* World = UWorld::FindWorldInPackage(Package); World)
 			{
-				FilteredActorPackages.Emplace(PackageName);
-				return true; // remove the package
+				if (!bReloadWorld)
+				{
+					FilteredActorPackages.Emplace(PackageName);
+					return true; // remove the package
+				}
+				else
+				{
+					bWorldFound = true;
+				}
 			}
 			else if (AActor* Actor = AActor::FindActorInPackage(Package))
 			{
-				if (bAllowReloadWorld)
+				if (bReloadWorld)
 				{
 					DetachLinker(Package);
-					return true;
-				}
 
-				FilteredActorPackages.Emplace(PackageName);
-				return true; // remove the package
+					if (!bWorldFound && Actor->GetWorld())
+					{
+						bWorldFound = true;
+						LoadedPackages.Add(Actor->GetWorld()->GetPackage());
+					}
+
+					return false;
+				}
+				else if (Actor->IsPackageExternal())
+				{
+					FilteredActorPackages.Emplace(PackageName);
+					return true; // remove the package
+				}				
 			}
 
 			LoadedPackages.Add(Package);
@@ -1004,10 +1007,10 @@ bool USourceControlHelpers::ApplyOperationAndReloadPackages(const TArray<FString
 		DetachLinker(Package);
 	}
 
-	PackageFilenamesToApplyOperation = SourceControlHelpers::PackageFilenames(PackageNamesToApplyOperation);
+	PackageFilenames = SourceControlHelpers::PackageFilenames(PackageNames);
 
 	// Apply Operation
-	bSuccess = InOperation(PackageFilenamesToApplyOperation);
+	bSuccess = InOperation(PackageFilenames);
 
 	// Reverting may have deleted some packages, so we need to delete those and unload them rather than re-load them...
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -1033,6 +1036,22 @@ bool USourceControlHelpers::ApplyOperationAndReloadPackages(const TArray<FString
 		return false; // keep package
 	});
 
+	struct FCameraView
+	{
+		FVector Location;
+		FRotator Rotation;
+	};
+	TMap<FLevelEditorViewportClient*, FCameraView> CameraViews;
+
+	if (bReloadWorld)
+	{
+		// As we're reloading the world, we retain the camera views so they can be restored after the reload.
+		for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+		{
+			CameraViews.Add(LevelVC, { LevelVC->GetViewLocation(), LevelVC->GetViewRotation() });
+		}
+	}
+
 	// Hot-reload the new packages...
 	FText OutReloadErrorMsg;
 	const bool bInteractive = true;
@@ -1042,6 +1061,22 @@ bool USourceControlHelpers::ApplyOperationAndReloadPackages(const TArray<FString
 		UE_LOG(LogSourceControl, Warning, TEXT("%s"), *OutReloadErrorMsg.ToString());
 	}
 
+	if (bReloadWorld)
+	{
+		// Restore the camera views after a world reload if necessary...
+		for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+		{
+			const FCameraView& CameraView = CameraViews.FindChecked(LevelVC);
+			LevelVC->SetViewLocation(CameraView.Location);
+			if (!LevelVC->IsOrtho())
+			{
+				LevelVC->SetViewRotation(CameraView.Rotation);
+			}
+			LevelVC->Invalidate();
+			FEditorDelegates::OnEditorCameraMoved.Broadcast(CameraView.Location, CameraView.Rotation, LevelVC->ViewportType, LevelVC->ViewIndex);
+		}
+	}
+
 	// Delete and Unload assets...
 	if(ObjectTools::DeleteObjectsUnchecked(ObjectsToDelete) != ObjectsToDelete.Num())
 	{ 
@@ -1049,7 +1084,7 @@ bool USourceControlHelpers::ApplyOperationAndReloadPackages(const TArray<FString
 	}
 	
 	// Re-cache the SCC state...
-	if (bAllowReloadWorld)
+	if (bReloadWorld)
 	{
 		auto UpdateCommand = ISourceControlOperation::Create<FUpdateStatus>();
 		UpdateCommand->SetCheckingAllFiles(true);
@@ -1058,7 +1093,7 @@ bool USourceControlHelpers::ApplyOperationAndReloadPackages(const TArray<FString
 	}
 	else
 	{
-		SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), PackageFilenamesToApplyOperation, EConcurrency::Asynchronous);
+		SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), PackageFilenames, EConcurrency::Asynchronous);
 	}
 
 	return bSuccess;
@@ -1087,74 +1122,56 @@ TArray<FString> USourceControlHelpers::GetSourceControlLocations(const bool bCon
 	return SourceControlLocations;
 }
 
-// TODO: Move outside of helpers
-bool USourceControlHelpers::ListAllPackages(TArray<FString>& OutPackageNames)
+bool USourceControlHelpers::ListRevertablePackages(TArray<FString>& OutRevertablePackageNames)
 {
-	// determine source control locations
-	TArray<FString> SourceControlLocations;
+	if (!ISourceControlModule::Get().IsEnabled() || !ISourceControlModule::Get().GetProvider().IsAvailable())
+	{
+		return false;
+	}
 
+	// update status for all packages
+	TArray<FString> Filenames;
 	if (ISourceControlModule::Get().UsesCustomProjectDir())
 	{
-		SourceControlLocations.Add(ISourceControlModule::Get().GetSourceControlProjectDir());
+		FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
+		Filenames.Add(SourceControlProjectDir);
 	}
 	else
 	{
-		GetSourceControlLocations(/*bContentOnly=*/true);
+		Filenames = GetSourceControlLocations();
+	}
+	
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	FSourceControlOperationRef Operation = ISourceControlOperation::Create<FUpdateStatus>();
+	if (SourceControlProvider.Execute(Operation, Filenames) != ECommandResult::Succeeded)
+	{
+		return false;
 	}
 
-	// find packages in those locations
-	for (const FString& SourceControlLocation : SourceControlLocations)
+	// Get a list of all the revertable packages	
+	TMap<FString, FSourceControlStatePtr> PackageStates;
+	FEditorFileUtils::FindAllSubmittablePackageFiles(PackageStates, true);
+
+	for (auto& PackageState : PackageStates)
 	{
-		TArray<FString> PackageRelativePaths;
-		if (FPackageName::FindPackagesInDirectory(PackageRelativePaths, FPaths::ConvertRelativePathToFull(SourceControlLocation)))
-		{
-			OutPackageNames.Reserve(OutPackageNames.Num() + PackageRelativePaths.Num());
-			for (const FString& Path : PackageRelativePaths)
-			{
-				FString PackageName;
-				FString FailureReason;
-				if (FPackageName::TryConvertFilenameToLongPackageName(Path, PackageName, &FailureReason))
-				{
-					OutPackageNames.Add(PackageName);
-				}
-				else
-				{
-					FMessageLog("SourceControl").Error(FText::FromString(FailureReason));
-				}
-			}
-		}
+		const FString PackageName = PackageState.Key;
+		OutRevertablePackageNames.Add(PackageName);
 	}
 
 	return true;
 }
 
-// TODO: Move outside of helpers
-bool USourceControlHelpers::RevertAndReloadAllPackages(const TArray<FString>& InFilenames)
+bool USourceControlHelpers::RevertAllChangesAndReloadWorld()
 {
 	TArray<FString> PackagesToReload;
-	ListAllPackages(PackagesToReload);
+	ListRevertablePackages(PackagesToReload);
 
-	if (InFilenames.Num() > 0)
-	{
-		RevertAndReloadPackages(InFilenames, PackagesToReload, /*bRevertAll=*/false, /*bAllowReloadWorld=*/true);
-		return true;
-	}
-
-	return false;
-}
-
-// TODO: Move outside of helpers
-bool USourceControlHelpers::RevertAllChangesAndReloadAllPackages()
-{
-	TArray<FString> PackagesToReload;
-	ListAllPackages(PackagesToReload);
-
-	RevertAndReloadPackages(TArray<FString>(), PackagesToReload, /*bRevertAll=*/true, /*bAllowReloadWorld=*/true);
+	RevertAndReloadPackages(PackagesToReload, /*bRevertAll=*/true, /*bReloadWorld=*/true);
 
 	return true;
 }
 
-bool USourceControlHelpers::RevertAndReloadPackages(const TArray<FString>& InPackagesToRevert, const TArray<FString>& InPackagesToReload, bool bRevertAll, bool bAllowReloadWorld)
+bool USourceControlHelpers::RevertAndReloadPackages(const TArray<FString>& InPackagesToRevert, bool bRevertAll, bool bReloadWorld)
 {
 	auto RevertOperation = [bRevertAll](const TArray<FString>& InPackagesToRevert) -> bool
 	{
@@ -1179,7 +1196,7 @@ bool USourceControlHelpers::RevertAndReloadPackages(const TArray<FString>& InPac
 		return SourceControlProvider.Execute(RevertOperation, InPackagesToRevert, EConcurrency::Synchronous, OperationCompleteCallback) == ECommandResult::Succeeded;
 	};
 
-	return ApplyOperationAndReloadPackages(InPackagesToRevert, InPackagesToReload, RevertOperation, bAllowReloadWorld);
+	return ApplyOperationAndReloadPackages(InPackagesToRevert,RevertOperation, bReloadWorld);
 }
 #endif //!WITH_EDITOR
 

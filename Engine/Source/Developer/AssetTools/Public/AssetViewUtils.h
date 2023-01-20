@@ -197,7 +197,7 @@ namespace AssetViewUtils
 	ASSETTOOLS_API FString GetPackagePathWithinRoot(const FString& PackageName);
 
 	/** Returns the length of the computed cooked package name and path whether it's run on a build machine or locally */
-	ASSETTOOLS_API int32 GetPackageLengthForCooking(const FString& PackageName, bool IsInternalBuild);
+	ASSETTOOLS_API int32 GetPackageLengthForCooking(const FString& PackageName, bool bIsInternalBuild);
 
 	/** Checks to see whether the path is within the size restrictions for cooking */
 	ASSETTOOLS_API bool IsValidPackageForCooking(const FString& PackageName, FText& OutErrorMessage);
@@ -208,11 +208,14 @@ namespace AssetViewUtils
 	/** Gets the maximum path length for a cooked file. Changes behavior based on whether the editor experimental setting for long paths is enabled. */
 	ASSETTOOLS_API int32 GetMaxCookPathLen();
 
-	/** Syncs the specified packages from source control, other than any level assets which are currently being edited */
-	ASSETTOOLS_API void SyncPackagesFromSourceControl(const TArray<FString>& PackageNames);
+	/** Syncs the specified packages from source control, other than any level assets which are currently being edited.*/
+	ASSETTOOLS_API void SyncPackagesFromSourceControl(const TArray<FString>& PackageNames, bool bIsSyncLatestOperation = false);
 
 	/** Syncs the content from the specified paths from source control, other than any level assets which are currently being edited */
 	ASSETTOOLS_API void SyncPathsFromSourceControl(const TArray<FString>& ContentPaths);
+
+	/** Syncs latest from source control and attempts to reload the world */
+	ASSETTOOLS_API void SyncLatestFromSourceControl();
 
 	/** Show an error notification toast if the given error message is not empty */
 	ASSETTOOLS_API void ShowErrorNotifcation(const FText& InErrorMsg);
