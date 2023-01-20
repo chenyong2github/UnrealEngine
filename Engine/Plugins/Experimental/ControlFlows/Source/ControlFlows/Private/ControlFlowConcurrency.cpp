@@ -48,17 +48,17 @@ void FConcurrencySubFlowContainer::Cancel()
 
 FSimpleDelegate& FConcurrencySubFlowContainer::OnComplete()
 {
-	return SubFlow->OnComplete();
+	return SubFlow->OnCompleteDelegate_Internal;
 }
 
 FSimpleDelegate& FConcurrencySubFlowContainer::OnExecutedWithoutAnyNodes()
 {
-	return SubFlow->OnExecutedWithoutAnyNodes();
+	return SubFlow->OnExecutedWithoutAnyNodesDelegate_Internal;
 }
 
 FSimpleDelegate& FConcurrencySubFlowContainer::OnCancelled()
 {
-	return SubFlow->OnCancelled();
+	return SubFlow->OnCancelledDelegate_Internal;
 }
 
 const FString& FConcurrencySubFlowContainer::GetDebugName()

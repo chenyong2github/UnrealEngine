@@ -93,9 +93,9 @@ void FControlFlowTask_BranchLegacy::Execute()
 
 		TSharedRef<FControlFlow> FlowToExecute = GetOrAddBranch(SelectedBranch);
 
-		FlowToExecute->OnComplete().BindSP(SharedThis(this), &FControlFlowTask_BranchLegacy::HandleBranchCompleted);
-		FlowToExecute->OnExecutedWithoutAnyNodes().BindSP(SharedThis(this), &FControlFlowTask_BranchLegacy::HandleBranchCompleted);
-		FlowToExecute->OnCancelled().BindSP(SharedThis(this), &FControlFlowTask_BranchLegacy::HandleBranchCancelled);
+		FlowToExecute->OnCompleteDelegate_Internal.BindSP(SharedThis(this), &FControlFlowTask_BranchLegacy::HandleBranchCompleted);
+		FlowToExecute->OnExecutedWithoutAnyNodesDelegate_Internal.BindSP(SharedThis(this), &FControlFlowTask_BranchLegacy::HandleBranchCompleted);
+		FlowToExecute->OnCancelledDelegate_Internal.BindSP(SharedThis(this), &FControlFlowTask_BranchLegacy::HandleBranchCancelled);
 
 		FlowToExecute->ExecuteFlow();
 	}
@@ -132,9 +132,9 @@ void FControlFlowSimpleSubTask::Execute()
 {
 	if (TaskPopulator.IsBound() && GetTaskFlow().IsValid())
 	{
-		GetTaskFlow()->OnComplete().BindSP(SharedThis(this), &FControlFlowSimpleSubTask::CompletedSubTask);
-		GetTaskFlow()->OnExecutedWithoutAnyNodes().BindSP(SharedThis(this), &FControlFlowSimpleSubTask::CompletedSubTask);
-		GetTaskFlow()->OnCancelled().BindSP(SharedThis(this), &FControlFlowSimpleSubTask::CancelledSubTask);
+		GetTaskFlow()->OnCompleteDelegate_Internal.BindSP(SharedThis(this), &FControlFlowSimpleSubTask::CompletedSubTask);
+		GetTaskFlow()->OnExecutedWithoutAnyNodesDelegate_Internal.BindSP(SharedThis(this), &FControlFlowSimpleSubTask::CompletedSubTask);
+		GetTaskFlow()->OnCancelledDelegate_Internal.BindSP(SharedThis(this), &FControlFlowSimpleSubTask::CancelledSubTask);
 
 		TaskPopulator.Execute(GetTaskFlow().ToSharedRef());
 
@@ -179,9 +179,7 @@ void FControlFlowSimpleSubTask::CancelledSubTask()
 FControlFlowTask_LoopDeprecated::FControlFlowTask_LoopDeprecated(FControlFlowLoopComplete& TaskCompleteDelegate, const FString& TaskName, TSharedRef<FControlFlow> FlowOwner)
 	: FControlFlowSimpleSubTask(TaskName, FlowOwner)
 	, TaskCompleteDecider(TaskCompleteDelegate)
-{
-
-}
+{}
 
 void FControlFlowTask_LoopDeprecated::Execute()
 {
@@ -193,9 +191,9 @@ void FControlFlowTask_LoopDeprecated::Execute()
 		}
 		else
 		{
-			GetTaskFlow()->OnComplete().BindSP(SharedThis(this), &FControlFlowTask_LoopDeprecated::CompletedLoop);
-			GetTaskFlow()->OnExecutedWithoutAnyNodes().BindSP(SharedThis(this), &FControlFlowTask_LoopDeprecated::CompletedLoop);
-			GetTaskFlow()->OnCancelled().BindSP(SharedThis(this), &FControlFlowTask_LoopDeprecated::CancelledLoop);
+			GetTaskFlow()->OnCompleteDelegate_Internal.BindSP(SharedThis(this), &FControlFlowTask_LoopDeprecated::CompletedLoop);
+			GetTaskFlow()->OnExecutedWithoutAnyNodesDelegate_Internal.BindSP(SharedThis(this), &FControlFlowTask_LoopDeprecated::CompletedLoop);
+			GetTaskFlow()->OnCancelledDelegate_Internal.BindSP(SharedThis(this), &FControlFlowTask_LoopDeprecated::CancelledLoop);
 
 			GetTaskPopulator().Execute(GetTaskFlow().ToSharedRef());
 
@@ -255,9 +253,9 @@ void FControlFlowTask_Branch::Execute()
 			SelectedBranchFlow = BranchDefinitions->FindChecked(SelectedBranchKey);
 			SelectedBranchFlow->Activity = Activity;
 
-			SelectedBranchFlow->OnComplete().BindSP(SharedThis(this), &FControlFlowTask_Branch::HandleBranchCompleted);
-			SelectedBranchFlow->OnExecutedWithoutAnyNodes().BindSP(SharedThis(this), &FControlFlowTask_Branch::HandleBranchCompleted);
-			SelectedBranchFlow->OnCancelled().BindSP(SharedThis(this), &FControlFlowTask_Branch::HandleBranchCancelled);
+			SelectedBranchFlow->OnCompleteDelegate_Internal.BindSP(SharedThis(this), &FControlFlowTask_Branch::HandleBranchCompleted);
+			SelectedBranchFlow->OnExecutedWithoutAnyNodesDelegate_Internal.BindSP(SharedThis(this), &FControlFlowTask_Branch::HandleBranchCompleted);
+			SelectedBranchFlow->OnCancelledDelegate_Internal.BindSP(SharedThis(this), &FControlFlowTask_Branch::HandleBranchCancelled);
 
 			ensureAlwaysMsgf(!BranchDefinitions->IsAnyBranchRunning(), TEXT("Did you call ExecuteFlow() on a Branch? Do not do this! You only need to call ExecuteFlow once per FControlFlowStatics::Create!"));
 
