@@ -4,14 +4,13 @@
 #include "VisualLogger/VisualLoggerTypes.h"
 #include "MassDebugger.h"
 
-DEFINE_ENUM_TO_STRING(EMassEntityTemplateIDType, "/Script/MassSpawner");
 
 //----------------------------------------------------------------------//
 //  FMassEntityTemplateID
 //----------------------------------------------------------------------//
 FString FMassEntityTemplateID::ToString() const
 {
-	return FString::Printf(TEXT("[%s %d]"), *EnumToString(Type), Hash);
+	return FString::Printf(TEXT("[%d]"), Hash);
 }
 
 //----------------------------------------------------------------------//

@@ -12,25 +12,14 @@
 
 struct FMassEntityView;
 
-
-UENUM()
-enum class EMassEntityTemplateIDType : uint8
-{
-	None,
-	ScriptStruct,
-	Class,
-	Instance
-};
-
 //ID of the template an entity is using
 USTRUCT()
 struct MASSSPAWNER_API FMassEntityTemplateID
 {
 	GENERATED_BODY()
 
-	FMassEntityTemplateID(uint32 InHash, EMassEntityTemplateIDType InType)
-	: Hash(InHash)
-	, Type(InType)
+	explicit FMassEntityTemplateID(uint32 InHash)
+		: Hash(InHash)
 	{}
 
 	FMassEntityTemplateID() = default;
@@ -38,29 +27,23 @@ struct MASSSPAWNER_API FMassEntityTemplateID
 	uint32 GetHash() const { return Hash; }
 	void SetHash(uint32 InHash) { Hash = InHash; }
 
-	EMassEntityTemplateIDType GetType() const { return Type; }
-	void SetType(EMassEntityTemplateIDType InType) { Type = InType; }
-
 	bool operator==(const FMassEntityTemplateID& Other) const
 	{
-		return (Hash == Other.Hash) && (Type == Other.Type);
+		return (Hash == Other.Hash);
 	}
 
 	friend uint32 GetTypeHash(const FMassEntityTemplateID& TemplateID)
 	{
-		return HashCombine(TemplateID.Hash, (uint32)TemplateID.Type);
+		return TemplateID.Hash;
 	}
 
-	bool IsValid() { return Type != EMassEntityTemplateIDType::None; }
+	bool IsValid() { return Hash != 0; }
 
 	FString ToString() const;
 
 protected:
 	UPROPERTY()
 	uint32 Hash = 0;
-
-	UPROPERTY()
-	EMassEntityTemplateIDType Type = EMassEntityTemplateIDType::None;
 };
 
 /** @todo document	*/

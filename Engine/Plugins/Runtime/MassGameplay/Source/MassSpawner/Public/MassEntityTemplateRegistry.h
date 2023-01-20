@@ -209,16 +209,14 @@ struct MASSSPAWNER_API FMassEntityTemplateRegistry
 
 	static FStructToTemplateBuilderDelegate& FindOrAdd(const UScriptStruct& DataType);
 
-	const FMassEntityTemplate* FindOrBuildStructTemplate(const FConstStructView StructInstance);
-
 	/** Removes all the cached template instances */
 	void DebugReset();
 
 	const FMassEntityTemplate* FindTemplateFromTemplateID(FMassEntityTemplateID TemplateID) const;
 	FMassEntityTemplate* FindMutableTemplateFromTemplateID(FMassEntityTemplateID TemplateID);
 
-	FMassEntityTemplate& CreateTemplate(const uint32 HashLookup, FMassEntityTemplateID TemplateID);
-	void DestroyTemplate(const uint32 HashLookup, FMassEntityTemplateID TemplateID);
+	FMassEntityTemplate& CreateTemplate(FMassEntityTemplateID TemplateID);
+	void DestroyTemplate(FMassEntityTemplateID TemplateID);
 	void InitializeEntityTemplate(FMassEntityTemplate& InOutTemplate) const;
 
 protected:
@@ -227,13 +225,6 @@ protected:
 
 protected:
 	static TMap<const UScriptStruct*, FStructToTemplateBuilderDelegate> StructBasedBuilders;
-
-	/** 
-	 *  Map from a hash to a FMassEntityTemplateID
-	 *  For build from FInstancedStruct it will be the Combined hash of the UScriptStruct FName and FTemplateRegistryHelpers::CalcHash()
-	 *  This hash will not be deterministic between server and clients
-	 */
-	TMap<uint32, FMassEntityTemplateID> LookupTemplateIDMap;
 
 	TMap<FMassEntityTemplateID, FMassEntityTemplate> TemplateIDToTemplateMap;
 

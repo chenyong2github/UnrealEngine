@@ -67,28 +67,6 @@ void UMassSpawnerSubsystem::SpawnEntities(FMassEntityTemplateID TemplateID, cons
 	DoSpawning(*EntityTemplate, NumberToSpawn, SpawnData, InitializerClass, OutEntities);
 }
 
-void UMassSpawnerSubsystem::SpawnFromConfig(FStructView Config, const int32 NumToSpawn, FConstStructView SpawnData, TSubclassOf<UMassProcessor> InitializerClass)
-{
-	check(Config.IsValid());
-
-	const FMassEntityTemplate* EntityTemplate = TemplateRegistryInstance.FindOrBuildStructTemplate(Config);
-	checkf(EntityTemplate && EntityTemplate->IsValid(), TEXT("SpawnFromConfig: TemplateID must have been registered!"));
-
-	TArray<FMassEntityHandle> Entities;
-	DoSpawning(*EntityTemplate, NumToSpawn, SpawnData, InitializerClass, Entities);
-}
-
-void UMassSpawnerSubsystem::RegisterCollection(TArrayView<FInstancedStruct> Collection)
-{
-	for (FInstancedStruct& Entry : Collection)
-	{
-		if (Entry.IsValid())
-		{
-			TemplateRegistryInstance.FindOrBuildStructTemplate(Entry);
-		}
-	}
-}
-
 void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID TemplateID, TConstArrayView<FMassEntityHandle> Entities)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassSpawnerSubsystem_DestroyEntities")

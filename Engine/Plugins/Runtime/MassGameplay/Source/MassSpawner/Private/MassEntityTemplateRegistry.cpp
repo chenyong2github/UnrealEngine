@@ -71,56 +71,6 @@ FMassEntityTemplateRegistry::FStructToTemplateBuilderDelegate& FMassEntityTempla
 	return StructBasedBuilders.FindOrAdd(&DataType);
 }
 
-const FMassEntityTemplate* FMassEntityTemplateRegistry::FindOrBuildStructTemplate(const FConstStructView StructInstance)
-{
-	const UScriptStruct* Type = StructInstance.GetScriptStruct();
-	check(Type);
-	// 1. Check if we already have the template stored.
-	// 2. If not, 
-	//	a. build it
-	//	b. store it
-
-	const uint32 StructInstanceHash = FTemplateRegistryHelpers::CalcHash(StructInstance);
-	const uint32 HashLookup = HashCombine(GetTypeHash(Type->GetFName()), StructInstanceHash);
-
-	FMassEntityTemplateID* TemplateID = LookupTemplateIDMap.Find(HashLookup);
-
-	if (TemplateID != nullptr)
-	{
-		if (const FMassEntityTemplate* TemplateFound = TemplateIDToTemplateMap.Find(*TemplateID))
-		{
-			return TemplateFound;
-		}
-	}
-
-	// this means we don't have an entry for given struct. Let's see if we know how to make one
-	FMassEntityTemplate* NewTemplate = nullptr;
-	FStructToTemplateBuilderDelegate* Builder = StructBasedBuilders.Find(StructInstance.GetScriptStruct());
-	if (Builder)
-	{
-		if (TemplateID == nullptr)
-		{
-			// TODO consider removing the need for strings here
-			// Use the class name string for the hash here so the hash can be deterministic between client and server
-			const uint32 NameStringHash = GetTypeHash(Type->GetName());
-			const uint32 Hash = HashCombine(NameStringHash, StructInstanceHash);
-
-			TemplateID = &LookupTemplateIDMap.Add(HashLookup, FMassEntityTemplateID(Hash, EMassEntityTemplateIDType::ScriptStruct));
-		}
-
-		NewTemplate = &TemplateIDToTemplateMap.Add(*TemplateID);
-
-		check(NewTemplate);
-		NewTemplate->SetTemplateID(*TemplateID);
-
-		BuildTemplateImpl(*Builder, StructInstance, *NewTemplate);
-	}
-	UE_CVLOG_UELOG(Builder == nullptr, Owner.Get(), LogMassSpawner, Warning, TEXT("Attempting to build a MassAgentTemplate for struct type %s while template builder has not been registered for this type")
-		, *GetNameSafe(Type));
-
-	return NewTemplate;
-}
-
 bool FMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuilderDelegate& Builder, const FConstStructView StructInstance, FMassEntityTemplate& OutTemplate)
 {
 	UWorld* World = GetWorld();
@@ -155,7 +105,6 @@ void FMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& 
 void FMassEntityTemplateRegistry::DebugReset()
 {
 #if WITH_MASSGAMEPLAY_DEBUG
-	LookupTemplateIDMap.Reset();
 	TemplateIDToTemplateMap.Reset();
 #endif // WITH_MASSGAMEPLAY_DEBUG
 }
@@ -170,19 +119,16 @@ FMassEntityTemplate* FMassEntityTemplateRegistry::FindMutableTemplateFromTemplat
 	return TemplateIDToTemplateMap.Find(TemplateID);
 }
 
-FMassEntityTemplate& FMassEntityTemplateRegistry::CreateTemplate(const uint32 HashLookup, FMassEntityTemplateID TemplateID)
+FMassEntityTemplate& FMassEntityTemplateRegistry::CreateTemplate(FMassEntityTemplateID TemplateID)
 {
-	checkSlow(!LookupTemplateIDMap.Contains(HashLookup));
-	LookupTemplateIDMap.Add(HashLookup, TemplateID);
 	checkSlow(!TemplateIDToTemplateMap.Contains(TemplateID));
 	FMassEntityTemplate& NewTemplate = TemplateIDToTemplateMap.Add(TemplateID);
 	NewTemplate.SetTemplateID(TemplateID);
 	return NewTemplate;
 }
 
-void FMassEntityTemplateRegistry::DestroyTemplate(const uint32 HashLookup, FMassEntityTemplateID TemplateID)
+void FMassEntityTemplateRegistry::DestroyTemplate(FMassEntityTemplateID TemplateID)
 {
-	LookupTemplateIDMap.Remove(HashLookup);
 	TemplateIDToTemplateMap.Remove(TemplateID);
 }
 
