@@ -5,6 +5,7 @@
 #include "MessageEndpointBuilder.h"
 #include "Misc/Paths.h"
 #include "Misc/SecureHash.h"
+#include "Async/Async.h"
 #include "Serialization/MemoryReader.h"
 #include "ProfilerServiceMessages.h"
 
@@ -21,6 +22,8 @@ DECLARE_CYCLE_STAT(TEXT("GenerateCycleGraph"),	STAT_PC_GenerateCycleGraph,			STA
 DECLARE_CYCLE_STAT(TEXT("GenerateAccumulator"),STAT_PC_GenerateAccumulator,		STATGROUP_Profiler);
 DECLARE_CYCLE_STAT(TEXT("FindOrAddStat"),		STAT_PC_FindOrAddStat,				STATGROUP_Profiler);
 DECLARE_CYCLE_STAT(TEXT("FindOrAddThread"),	STAT_PC_FindOrAddThread,			STATGROUP_Profiler);
+
+UE::Tasks::FPipe FProfilerClientManager::AsyncTaskPipe{ TEXT("SessionProfilerClientPipe") };
 
 
 /* FProfilerClientManager structors
@@ -47,9 +50,10 @@ FProfilerClientManager::FProfilerClientManager(const TSharedRef<IMessageBus, ESP
 	MessageDelegate = FTickerDelegate::CreateRaw(this, &FProfilerClientManager::HandleMessagesTicker);
 	LastPingTime = FDateTime::Now();
 	RetryTime = 5.f;
+	bIsLivePreview = false;
 
 	LoadConnection = nullptr;
-	MessageDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(MessageDelegate, 0.1f);
+	MessageDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(MessageDelegate);
 #endif
 }
 
@@ -181,6 +185,8 @@ void FProfilerClientManager::SetPreviewState(const bool bRequestedPreviewState, 
 #if STATS
 	if (MessageEndpoint.IsValid() && ActiveSessionId.IsValid())
 	{
+		bIsLivePreview = bRequestedPreviewState;
+
 		if(!InstanceId.IsValid())
 		{
 			TArray<FMessageAddress> Instances;
@@ -641,61 +647,85 @@ bool FProfilerClientManager::HandleMessagesTicker(float DeltaTime)
     QUICK_SCOPE_CYCLE_COUNTER(STAT_FProfilerClientManager_HandleMessagesTicker);
 
 #if STATS
+	// MessageBus sends all data in out of order fashion.
+	// We buffer frame to make sure that all frames are received in the proper order.
+	const int32 NUM_BUFFERED_FRAMES = 15;
+
+	int32 NumConnectionsWithFrameData = 0;
 	for (auto It = Connections.CreateIterator(); It; ++It)
 	{
-		FServiceConnection& Connection = It.Value();
-
-		TArray<int64> Frames;
-		Connection.ReceivedData.GenerateKeyArray(Frames);
-		Frames.Sort();
-
-		// MessageBus sends all data in out of order fashion.
-		// We buffer frame to make sure that all frames are received in the proper order.
-		const int32 NUM_BUFFERED_FRAMES = 15;
-
-		for(int32 Index = 0; Index < Frames.Num(); Index++)
+		if (It.Value().ReceivedData.Num() >= NUM_BUFFERED_FRAMES)
 		{
+			NumConnectionsWithFrameData++;
+		}
+	}
+
+	if (NumConnectionsWithFrameData)
+	{
+		// Limit all processing while doing a live preview - otherwise the ping from a live connection may not be processed in time & the game will disconnect us. 
+		// @todo all of this processing should move to a background thread or task, along with DecompressDataAndSendToGame 
+		const double TimeLimitSeconds = bIsLivePreview ? 0.2 : 0.8;
+		const double MaxDurationSeconds = TimeLimitSeconds / (double)NumConnectionsWithFrameData;
+
+		for (auto It = Connections.CreateIterator(); It; ++It)
+		{
+			FServiceConnection& Connection = It.Value();
 			if (Connection.ReceivedData.Num() < NUM_BUFFERED_FRAMES)
 			{
 				break;
 			}
 
-			//FScopeLogTime SLT("HandleMessagesTicker");
-
-			const int64 FrameNum = Frames[Index];
-			const TArray<uint8>* const Data = Connection.ReceivedData.FindChecked(FrameNum);
-			FStatsReadStream& Stream = Connection.Stream;
+			TArray<int64> Frames;
+			Connection.ReceivedData.GenerateKeyArray(Frames);
+			Frames.Sort();
 
 
-			// Read all messages from the uncompressed buffer.
-			FMemoryReader MemoryReader(*Data, true);
-			while (MemoryReader.Tell() < MemoryReader.TotalSize())
+			uint64 StartTimeCycles = FPlatformTime::Cycles64();
+			for(int32 Index = 0; Index < Frames.Num(); Index++)
 			{
-				// Read the message.
-				FStatMessage Message(Stream.ReadMessage(MemoryReader));
-				new (Connection.PendingStatMessagesMessages)FStatMessage(Message);
+				const int64 FrameNum = Frames[Index];
+				const TArray<uint8>* const Data = Connection.ReceivedData.FindChecked(FrameNum);
+				FStatsReadStream& Stream = Connection.Stream;
+
+
+				// Read all messages from the uncompressed buffer.
+				FMemoryReader MemoryReader(*Data, true);
+				while (MemoryReader.Tell() < MemoryReader.TotalSize())
+				{
+					// Read the message.
+					FStatMessage Message(Stream.ReadMessage(MemoryReader));
+					new (Connection.PendingStatMessagesMessages)FStatMessage(Message);
+				}
+
+				// Adds a new from from the pending messages, the pending messages will be removed after the call.
+				Connection.CurrentThreadState.ProcessMetaDataAndLeaveDataOnly(Connection.PendingStatMessagesMessages);
+				Connection.CurrentThreadState.AddFrameFromCondensedMessages(Connection.PendingStatMessagesMessages);
+
+				UE_LOG(LogProfilerClient, VeryVerbose, TEXT("Frame=%i/%i, FNamesIndexMap=%i, CurrentMetadataSize=%i"), FrameNum, Frames.Num(), Connection.Stream.FNamesIndexMap.Num(), Connection.CurrentThreadState.ShortNameToLongName.Num());
+
+				// create an old format data frame from the data
+				Connection.GenerateProfilerDataFrame();
+
+				// Fire a meta data update message
+				if (Connection.CurrentData.MetaDataUpdated)
+				{
+					ProfilerMetaDataUpdatedDelegate.Broadcast(Connection.InstanceId, Connection.StatMetaData);
+				}
+
+				// send the data out
+				ProfilerDataDelegate.Broadcast(Connection.InstanceId, Connection.CurrentData);
+
+				delete Data;
+				Connection.ReceivedData.Remove(FrameNum);
+
+				// see if we need to yield
+				double DurationSeconds = (FPlatformTime::Cycles64() - StartTimeCycles) * FPlatformTime::GetSecondsPerCycle64();
+				if (DurationSeconds > MaxDurationSeconds)
+				{
+					UE_CLOG(Index < Frames.Num()-1, LogProfilerClient, Verbose, TEXT("Over time - %d/%d frames processed for connection %s"), Index, Frames.Num() - Index, *Connection.InstanceId.ToString() );
+					break;
+				}
 			}
-
-			// Adds a new from from the pending messages, the pending messages will be removed after the call.
-			Connection.CurrentThreadState.ProcessMetaDataAndLeaveDataOnly(Connection.PendingStatMessagesMessages);
-			Connection.CurrentThreadState.AddFrameFromCondensedMessages(Connection.PendingStatMessagesMessages);
-
-			UE_LOG(LogProfilerClient, VeryVerbose, TEXT("Frame=%i/%i, FNamesIndexMap=%i, CurrentMetadataSize=%i"), FrameNum, Frames.Num(), Connection.Stream.FNamesIndexMap.Num(), Connection.CurrentThreadState.ShortNameToLongName.Num());
-
-			// create an old format data frame from the data
-			Connection.GenerateProfilerDataFrame();
-
-			// Fire a meta data update message
-			if (Connection.CurrentData.MetaDataUpdated)
-			{
-				ProfilerMetaDataUpdatedDelegate.Broadcast(Connection.InstanceId, Connection.StatMetaData);
-			}
-
-			// send the data out
-			ProfilerDataDelegate.Broadcast(Connection.InstanceId, Connection.CurrentData);
-
-			delete Data;
-			Connection.ReceivedData.Remove(FrameNum);
 		}
 	}
 
@@ -746,12 +776,11 @@ void FProfilerClientManager::HandleProfilerServiceData2Message(const FProfilerSe
 		// Create a temporary profiler data and prepare all data.
 		FProfilerServiceData2* ToProcess = new FProfilerServiceData2(Message.InstanceId, Message.Frame, Message.HexData, Message.CompressedSize, Message.UncompressedSize);
 
-		// Decompression and decoding is done on the task graph.
-		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady
-		(
-			FSimpleDelegateGraphTask::FDelegate::CreateRaw(this, &FProfilerClientManager::DecompressDataAndSendToGame, ToProcess), 
-			TStatId()
-		);
+		// Decompression uses a task pipe
+		AsyncTaskPipe.Launch(UE_SOURCE_LOCATION, [this,ToProcess]()
+		{
+			DecompressDataAndSendToGame(ToProcess);
+		});
 	}
 #endif
 }

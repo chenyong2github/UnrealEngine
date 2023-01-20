@@ -12,6 +12,7 @@
 #include "IMessageBus.h"
 #include "MessageEndpoint.h"
 #include "Stats/StatsFile.h"
+#include "Tasks/Pipe.h"
 
 class FNewStatsReader;
 class FProfilerClientManager;
@@ -288,4 +289,10 @@ private:
 
 	/** Holds the last time a ping was made to instances */
 	FDateTime LastPingTime;
+
+	/** Async task pipe for processing the incoming profiler service data */
+	static UE::Tasks::FPipe AsyncTaskPipe;
+
+	/** Whether we are doing a data preview */
+	bool bIsLivePreview;
 };

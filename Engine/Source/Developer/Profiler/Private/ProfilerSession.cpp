@@ -381,8 +381,9 @@ bool FProfilerSession::HandleTicker( float DeltaTime )
 		NumFramesProcessedLastTime = 0;
 	}
 
-	// Limit processing to 50ms per frame.
-	const double TimeLimit = 250 / 1000.0;
+	// Limit processing per frame. For a live preview this must be severely limited so we can respond to the pings from the game in time
+	const double TimeLimitMS = ( bDataPreviewing && SessionType == EProfilerSessionTypes::Live ) ? 25.0 : 250.0;
+	const double TimeLimit = TimeLimitMS / 1000.0;
 	double Seconds = 0;
 
 	for( int32 It = 0; It < FrameToProcess.Num(); It++ )
