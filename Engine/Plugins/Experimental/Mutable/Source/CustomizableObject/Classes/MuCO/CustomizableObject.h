@@ -1414,6 +1414,18 @@ public:
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) override;
 	// End of UObject Interface
 
+private:
+
+	/** Cached handle to be able later to remove the bound method from the FEditorDelegates::OnPostAssetValidation delegate */
+	inline static FDelegateHandle OnPostCOValidationHandle;
+	
+	/** Collection with all root objects tested during this IsDataValidRun. Shared with all COs */
+	inline static TArray<UCustomizableObject*> AlreadyValidatedRootObjects;
+	
+	/** Method invoked once the validation of all assets has been completed. */
+	static void OnPostCOsValidation();
+
+public:
 	// UObject Interface -> Asset saving
 	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext) override;
 	// End of UObject Interface
