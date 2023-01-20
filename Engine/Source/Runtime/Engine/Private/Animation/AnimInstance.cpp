@@ -192,6 +192,30 @@ void UAnimInstance::SnapshotPose(FPoseSnapshot& Snapshot)
 	}
 }
 
+const TMap<FName, FAnimGroupInstance>& UAnimInstance::GetSyncGroupMapRead() const
+{
+	const FAnimInstanceProxy& Proxy = GetProxyOnGameThread<FAnimInstanceProxy>();
+	return Proxy.GetSyncGroupMapRead();
+}
+
+const TArray<FAnimTickRecord>& UAnimInstance::GetUngroupedActivePlayersRead()
+{
+	FAnimInstanceProxy& Proxy = GetProxyOnGameThread<FAnimInstanceProxy>();
+	return Proxy.GetUngroupedActivePlayersRead();
+}
+
+const TMap<FName, float>& UAnimInstance::GetAnimationCurves(EAnimCurveType InCurveType) const
+{
+	const FAnimInstanceProxy& Proxy = GetProxyOnGameThread<FAnimInstanceProxy>();
+	return Proxy.GetAnimationCurves(InCurveType);
+}
+
+void UAnimInstance::GatherDebugData(FNodeDebugData& DebugData)
+{
+	FAnimInstanceProxy& Proxy = GetProxyOnGameThread<FAnimInstanceProxy>();
+	Proxy.GatherDebugData(DebugData);
+}
+
 USkeletalMeshComponent* UAnimInstance::GetOwningComponent() const
 {
 	return GetSkelMeshComponent();
