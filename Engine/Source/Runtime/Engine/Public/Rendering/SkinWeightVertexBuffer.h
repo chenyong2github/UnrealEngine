@@ -297,7 +297,7 @@ public:
 	ENGINE_API void SetBoneWeight(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex, uint16 BoneWeight);
 	ENGINE_API void ResetVertexBoneWeights(uint32 VertexWeightOffset, uint32 VertexInfluenceCount);
 
-	ENGINE_API void CopyDataFromBuffer(const TArrayView<const FSkinWeightInfo>& SkinWeightData);
+	ENGINE_API void CopyDataFromBuffer(const uint8* InSkinWeightData, uint32 InNumVertices);
 
 	/** Create an RHI vertex buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
 	FBufferRHIRef CreateRHIBuffer_RenderThread();
@@ -394,7 +394,7 @@ public:
 	ENGINE_API void GetSkinWeights(TArray<FSkinWeightInfo>& OutVertices) const;
 	ENGINE_API FSkinWeightInfo GetVertexSkinWeights(uint32 VertexIndex) const;
 
-	ENGINE_API void CopySkinWeightInfoData(const TArrayView<const FSkinWeightInfo>& SkinWeightData);
+	ENGINE_API void CopySkinWeightRawDataFromBuffer(const uint8* InSkinWeightData, uint32 InNumVertices);
 
 	friend FArchive& operator<<(FArchive& Ar, FSkinWeightVertexBuffer& VertexBuffer);
 
@@ -454,6 +454,9 @@ public:
 	uint32 GetConstantInfluencesBoneWeightsOffset() const
 	{ return DataVertexBuffer.GetConstantInfluencesBoneWeightsOffset(); }
 
+	FSkinWeightDataVertexBuffer* GetDataVertexBuffer()
+	{ return &DataVertexBuffer; }
+	
 	const FSkinWeightDataVertexBuffer* GetDataVertexBuffer() const
 	{ return &DataVertexBuffer; }
 

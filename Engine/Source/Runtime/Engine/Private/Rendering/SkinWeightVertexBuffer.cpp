@@ -622,10 +622,10 @@ void FSkinWeightDataVertexBuffer::ResetVertexBoneWeights(uint32 VertexWeightOffs
 	}
 }
 
-void FSkinWeightDataVertexBuffer::CopyDataFromBuffer(const TArrayView<const FSkinWeightInfo>& SkinWeightData)
+void FSkinWeightDataVertexBuffer::CopyDataFromBuffer(const uint8* InSkinWeightData, uint32 InNumVertices)
 {
-	Init(SkinWeightData.Num() * GetMaxBoneInfluences(), SkinWeightData.Num());
-	FMemory::Memcpy(Data, SkinWeightData.GetData(), GetVertexDataSize());
+	Init(InNumVertices * GetMaxBoneInfluences(), InNumVertices);
+	FMemory::Memcpy(Data, InSkinWeightData, GetVertexDataSize());
 }
 
 /*-----------------------------------------------------------------------------
@@ -948,7 +948,7 @@ FSkinWeightInfo FSkinWeightVertexBuffer::GetVertexSkinWeights(uint32 VertexIndex
 	}
 	return OutVertex;
 }
-void FSkinWeightVertexBuffer::CopySkinWeightInfoData(const TArrayView<const FSkinWeightInfo>& SkinWeightData)
+void FSkinWeightVertexBuffer::CopySkinWeightRawDataFromBuffer(const uint8* InSkinWeightData, uint32 InNumVertices)
 {
-	DataVertexBuffer.CopyDataFromBuffer(SkinWeightData);
+	DataVertexBuffer.CopyDataFromBuffer(InSkinWeightData, InNumVertices);
 }

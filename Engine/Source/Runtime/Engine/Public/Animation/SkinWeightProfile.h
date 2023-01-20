@@ -95,7 +95,7 @@ struct FRuntimeSkinWeightProfileData
 		friend FArchive& operator<<(FArchive& Ar, FSkinWeightOverrideInfo& OverrideInfo);
 	};
 
-	void ApplyOverrides(FSkinWeightVertexBuffer* OverrideBuffer, const void* DataBuffer, const int32 NumVerts) const;	
+	void ApplyOverrides(FSkinWeightVertexBuffer* OverrideBuffer, const uint8* DataBuffer, const int32 NumVerts) const;	
 	void ApplyDefaultOverride(FSkinWeightVertexBuffer* Buffer) const;
 
 #if WITH_EDITORONLY_DATA

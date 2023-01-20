@@ -252,9 +252,10 @@ public:
 	/** Returns the maximum number of weights for these settings */
 	int32 GetMaxWeightCount() const { return MaxWeightCount; }
 
-	/** Sets the minimum influence allowed. Any bone weight value below this limit will be
-	  * ignored. The threshold value is clamped to the half-closed interval (0, 1] since
+	/** Sets the minimum influence allowed. Any bone weight value below this threshold value is
+	  * discarded. The threshold value is clamped to the half-closed interval (0, 1] since
 	  * weight values of zero indicate no influence at all and are ignored completely.
+	  * By default, all non-zero weights are allowed.
 	  */
 	FBoneWeightsSettings& SetWeightThreshold(float InWeightThreshold)
 	{
@@ -327,7 +328,7 @@ public:
 private:
 	EBoneWeightNormalizeType NormalizeType = EBoneWeightNormalizeType::Always;
 	int32 MaxWeightCount = MaxInlineBoneWeightCount;
-	uint16 WeightThreshold = 257; // == uint8(1) converted to 16 bit using 'v | v << 8'.
+	uint16 WeightThreshold = 1; 
 	FBoneIndexType DefaultBoneIndex = static_cast<FBoneIndexType>(0);
 	bool bHasDefaultBoneIndex = false;
 	bool bBlendZeroInfluence = true; 

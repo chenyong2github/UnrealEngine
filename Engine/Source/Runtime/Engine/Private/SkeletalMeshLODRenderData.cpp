@@ -476,7 +476,7 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 	for (const auto& Pair : ImportedModel->SkinWeightProfiles)
 	{
 		FRuntimeSkinWeightProfileData& Override = SkinWeightProfilesData.AddOverrideData(Pair.Key);
-		MeshUtilities.GenerateRuntimeSkinWeightData(ImportedModel, Pair.Value.SkinWeights, Override);
+		MeshUtilities.GenerateRuntimeSkinWeightData(ImportedModel, Pair.Value.SkinWeights, bUseHighPrecisionWeights, Override);
 	}
 
 	ActiveBoneIndices = ImportedModel->ActiveBoneIndices;

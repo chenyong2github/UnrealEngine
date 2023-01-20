@@ -5753,7 +5753,11 @@ void FMeshUtilities::CalculateOverlappingCorners(const TArray<FVector3f>& InVert
 }
 
 
-void FMeshUtilities::GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* ImportedModel, const TArray<FRawSkinWeight>& InRawSkinWeights, FRuntimeSkinWeightProfileData& InOutSkinWeightOverrideData) const
+void FMeshUtilities::GenerateRuntimeSkinWeightData(
+	const FSkeletalMeshLODModel* ImportedModel,
+	const TArray<FRawSkinWeight>& InRawSkinWeights,
+	bool bInUseHighPrecisionWeights,
+	FRuntimeSkinWeightProfileData& InOutSkinWeightOverrideData) const
 {
 	const FSkeletalMeshLODModel& TargetLODModel = *ImportedModel;
 
@@ -5792,13 +5796,13 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* 
 			if (bIsDifferent)
 			{
 				// Check whether or not there is already an override store which matches the new skin weight data
-				int32 OverrideIndex = UniqueWeights.IndexOfByPredicate([SourceSkinWeight, NumInfluences](const FRawSkinWeight Override)
+				int32 OverrideIndex = UniqueWeights.IndexOfByPredicate([SourceSkinWeight, NumInfluences](const FRawSkinWeight& InOverride)
 				{
 					bool bSame = true;
 					for (int32 InfluenceIndex = 0; InfluenceIndex < NumInfluences; ++InfluenceIndex)
 					{
-						bSame &= (Override.InfluenceBones[InfluenceIndex] == SourceSkinWeight.InfluenceBones[InfluenceIndex]);
-						bSame &= (Override.InfluenceWeights[InfluenceIndex] == SourceSkinWeight.InfluenceWeights[InfluenceIndex]);
+						bSame &= (InOverride.InfluenceBones[InfluenceIndex] == SourceSkinWeight.InfluenceBones[InfluenceIndex]);
+						bSame &= (InOverride.InfluenceWeights[InfluenceIndex] == SourceSkinWeight.InfluenceWeights[InfluenceIndex]);
 					}
 
 					return bSame;
@@ -5813,20 +5817,29 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* 
 					for (int32 InfluenceIndex = 0; InfluenceIndex < NumInfluences; ++InfluenceIndex)
 					{
 						const FBoneIndexType Index = SourceSkinWeight.InfluenceBones[InfluenceIndex];
-						const uint8 Weight = SourceSkinWeight.InfluenceWeights[InfluenceIndex];
+						const uint16 Weight = SourceSkinWeight.InfluenceWeights[InfluenceIndex];
+						TArray<uint8> &BoneIDs = InOutSkinWeightOverrideData.BoneIDs;
+						TArray<uint8> &BoneWeights = InOutSkinWeightOverrideData.BoneWeights;
 
 						if (b16BitBoneIndices)
 						{
-							InOutSkinWeightOverrideData.BoneIDs.AddZeroed(2);
-							FBoneIndexType* BoneIndex = (FBoneIndexType*)&InOutSkinWeightOverrideData.BoneIDs[InOutSkinWeightOverrideData.BoneIDs.Num() - 2];
-							*BoneIndex = Index;
+							BoneIDs.AddZeroed(2);
+							*reinterpret_cast<FBoneIndexType*>(&BoneIDs[BoneIDs.Num() - 2]) = Index;
 						}
 						else
 						{
-							InOutSkinWeightOverrideData.BoneIDs.Add((uint8)Index);
+							InOutSkinWeightOverrideData.BoneIDs.Add(static_cast<uint8>(Index));
 						}
 
-						InOutSkinWeightOverrideData.BoneWeights.Add(Weight);
+						if (bInUseHighPrecisionWeights)
+						{
+							BoneWeights.AddZeroed(2);
+							*reinterpret_cast<uint16*>(&BoneWeights[BoneWeights.Num() - 2]) = Weight;
+						}
+						else
+						{
+							BoneWeights.Add(static_cast<uint8>(Weight >> 8));
+						}
 					}
 
 					UniqueWeights.Add(SourceSkinWeight);
@@ -6011,8 +6024,8 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 
 				for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
 				{
-					float Weight = static_cast<float>(Vertex.InfluenceWeights[InfluenceIndex]) / 65535.0f;
-					if (FMath::IsNearlyZero(Weight))
+					// Have we reached the end of valid weights?
+					if (Vertex.InfluenceWeights[InfluenceIndex] == 0)
 					{
 						break;
 					}
@@ -6111,11 +6124,12 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 					const FRawSkinWeight& SkinWeight = ImportedSkinWeightProfileData.SkinWeights[VerticeIndex];
 					for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
 					{
-						float Weight = static_cast<float>(SkinWeight.InfluenceWeights[InfluenceIndex]) / 65535.0f;
-						if (FMath::IsNearlyZero(Weight))
+						const uint16 RawWeight = SkinWeight.InfluenceWeights[InfluenceIndex]; 
+						if (RawWeight == 0)
 						{
 							break;
 						}
+						const float Weight = static_cast<float>(RawWeight) / 65535.0f;
 						SkeletalMeshImportData::FRawBoneInfluence& Influence = AlternateInfluence.Influences.AddZeroed_GetRef();
 						Influence.VertexIndex = VerticeIndex;
 						Influence.BoneIndex = Section.BoneMap[SkinWeight.InfluenceBones[InfluenceIndex]];

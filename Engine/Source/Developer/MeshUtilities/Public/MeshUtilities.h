@@ -333,7 +333,11 @@ public:
 	virtual void FindOverlappingCorners(FOverlappingCorners& OutOverlappingCorners, const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, float ComparisonThreshold) const = 0;
 
 	/** Used to generate runtime skin weight data from Editor-only data */
-	virtual void GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* ImportedModel, const TArray<FRawSkinWeight>& InRawSkinWeights, struct FRuntimeSkinWeightProfileData& InOutSkinWeightOverrideData) const = 0;
+	virtual void GenerateRuntimeSkinWeightData(
+		const FSkeletalMeshLODModel* ImportedModel,
+		const TArray<FRawSkinWeight>& InRawSkinWeights,
+		bool bInUseHighPrecisionWeights,
+		struct FRuntimeSkinWeightProfileData& InOutSkinWeightOverrideData) const = 0;
 
 	/*
 	 * This function create the import data using the LODModel. You can call this function if you load an asset that was not re-import since the build refactor and the chunking is more agressive than the bake data in the LODModel.
