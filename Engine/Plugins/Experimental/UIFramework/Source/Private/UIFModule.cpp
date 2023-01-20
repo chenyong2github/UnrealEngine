@@ -3,8 +3,10 @@
 #include "UIFModule.h"
 
 #include "Modules/ModuleManager.h"
+#include "UIFLocalSettings.h"
 #include "UIFPresenter.h"
 #include "UIFWidget.h"
+#include "UObject/Package.h"
 
 namespace UE::UIFramework::Private
 {
@@ -158,6 +160,11 @@ void FUIFrameworkModule::SetPresenterClass(TSubclassOf<UUIFrameworkPresenter> In
 TSubclassOf<UUIFrameworkPresenter> FUIFrameworkModule::GetPresenterClass()
 {
 	return UE::UIFramework::Private::Director.Get() ? UE::UIFramework::Private::Director : TSubclassOf<UUIFrameworkPresenter>(UUIFrameworkGameViewportPresenter::StaticClass());
+}
+
+void FUIFrameworkModule::StartupModule()
+{
+	GetMutableDefault<UUIFrameworkLocalSettings>()->LoadResources();
 }
 
 IMPLEMENT_MODULE(FUIFrameworkModule, UIFramework)

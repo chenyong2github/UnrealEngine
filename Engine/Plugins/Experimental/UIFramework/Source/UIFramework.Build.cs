@@ -11,6 +11,7 @@ public class UIFramework : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
+				"DeveloperSettings",
 				"Engine",
 				"ModelViewViewModel",
 				"SlateCore",

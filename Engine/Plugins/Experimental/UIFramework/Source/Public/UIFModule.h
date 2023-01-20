@@ -34,6 +34,9 @@ public:
 	static void SetPresenterClass(TSubclassOf<UUIFrameworkPresenter> Director);
 	static TSubclassOf<UUIFrameworkPresenter> GetPresenterClass();
 
+public:
+	virtual void StartupModule() override;
+
 private:
 	static void AuthorityDetachWidgetFromParentInternal(UUIFrameworkWidget* Child, bool bTemporary);
 	//static UUIFrameworkWidget* AuthorityRenameRecursive(UUIFrameworkPlayerComponent* ReplicationOwner, UUIFrameworkWidget* Widget, UObject* NewOuter);
