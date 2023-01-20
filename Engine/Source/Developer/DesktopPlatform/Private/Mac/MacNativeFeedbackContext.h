@@ -40,7 +40,9 @@ public:
 	FMacNativeFeedbackContext();
 	virtual ~FMacNativeFeedbackContext();
 
-	virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category ) override;
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category) override;
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time) override;
+	virtual void SerializeRecord(const UE::FLogRecord& Record) override;
 
 	virtual bool YesNof(const FText& Text) override;
 
@@ -50,10 +52,12 @@ public:
 	virtual void FinalizeSlowTask( ) override;
 	virtual void ProgressReported( const float TotalProgressInterp, FText DisplayMessage ) override;
 
-	FContextSupplier* GetContext() const;
-	void SetContext( FContextSupplier* InSupplier );
+	FContextSupplier* GetContext() const override;
+	void SetContext(FContextSupplier* InContext) override;
 
 private:
+	void SerializeToWindow(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time);
+
 	void SetDefaultTextColor();
 	
 private:
