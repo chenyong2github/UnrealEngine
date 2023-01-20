@@ -1837,6 +1837,12 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, const UPCGComponent* 
 
 		return Data;
 	}
+	else if (!bParseActor)
+	{
+		UPCGPointData* Data = NewObject<UPCGPointData>();
+		Data->InitializeFromActor(Actor);
+		return Data;
+	}
 	else if (AVolume* Volume = Cast<AVolume>(Actor))
 	{
 		UPCGVolumeData* Data = NewObject<UPCGVolumeData>();
@@ -1844,7 +1850,7 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, const UPCGComponent* 
 
 		return Data;
 	}
-	else if (bParseActor)// Prepare data on a component basis
+	else // Prepare data on a component basis
 	{
 		TInlineComponentArray<ULandscapeSplinesComponent*, 1> LandscapeSplines;
 		Actor->GetComponents(LandscapeSplines);
