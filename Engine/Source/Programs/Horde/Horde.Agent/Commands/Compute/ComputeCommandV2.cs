@@ -2,10 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -21,13 +23,6 @@ namespace Horde.Agent.Commands
 	[Command("ComputeV2", "Executes a command through the Horde Compute API")]
 	class ComputeCommandV2 : Command
 	{
-		public class AddComputeTaskRequest
-		{
-			public Requirements? Requirements { get; set; }
-			public string RemoteIp { get; set; } = String.Empty;
-			public int RemotePort { get; set; } = 4000;
-		}
-
 		/// <summary>
 		/// Condition for 
 		/// </summary>
@@ -50,68 +45,30 @@ namespace Horde.Agent.Commands
 			ServerProfile profile = _settings.GetCurrentServerProfile();
 			logger.LogInformation("Server: {Server}", profile.Name);
 
-			int port = 9001;
+			await using ComputeClient client = new ComputeClient(CreateHttpClient, logger);
+			client.Start();
 
-			using CancellationTokenSource source = new CancellationTokenSource();
-			Task task = Task.Run(() => ListenerProcess(port, logger, source.Token));
+			IComputeRequest<object?> request = await client.AddRequestAsync(null, TestCommandAsync);
+			await request.Result;
 
-			using (HttpClient client = new HttpClient())
-			{
-				AddComputeTaskRequest request = new AddComputeTaskRequest();
-				request.RemoteIp = "127.0.0.1";
-				request.RemotePort = port;
-
-				Uri uri = new Uri(profile.Url, "api/v2/compute");
-				using (HttpResponseMessage response = await client.PostAsync(uri.AbsoluteUri, request, source.Token))
-				{
-					response.EnsureSuccessStatusCode();
-				}
-			}
-
-			await task;
 			return 0;
 		}
 
-		static async Task ListenerProcess(int port, ILogger logger, CancellationToken cancellationToken)
+		HttpClient CreateHttpClient()
 		{
-			TcpListener listener = new TcpListener(IPAddress.Loopback, port);
-			listener.Start();
-
-			List<Task> tasks = new List<Task>();
-			try
-			{
-				for (; ; )
-				{
-					TcpClient client = await listener.AcceptTcpClientAsync(cancellationToken);
-					logger.LogInformation("Received connection");
-
-					Task task = ServerProcess(client, logger, cancellationToken);
-					tasks.Add(task);
-				}
-			}
-			finally
-			{
-				await Task.WhenAll(tasks);
-				listener.Stop();
-			}
+			HttpClient client = new HttpClient();
+			client.BaseAddress = _settings.GetCurrentServerProfile().Url;
+			return client;
 		}
 
-		static async Task ServerProcess(TcpClient client, ILogger logger, CancellationToken cancellationToken)
+		async Task<object?> TestCommandAsync(ComputeChannel channel, CancellationToken cancellationToken)
 		{
-			MessageChannel channel = new MessageChannel(client.Client);
-			try
-			{
-				await channel.WriteAsync(new XorRequestMessage { Value = 123, Payload = new byte[] { 1, 2, 3, 4, 5 } }, cancellationToken);
+			await channel.WriteAsync(new XorRequestMessage { Value = 123, Payload = new byte[] { 1, 2, 3, 4, 5 } }, cancellationToken);
 
-				XorResponseMessage response = await channel.ReadAsync<XorResponseMessage>(cancellationToken);
-				logger.LogInformation("Received response: {Message}", String.Join(", ", response.Payload.Select(x => x.ToString())));
+			XorResponseMessage response = await channel.ReadAsync<XorResponseMessage>(cancellationToken);
 
-				await channel.WriteAsync(new CloseMessage(), cancellationToken);
-			}
-			finally
-			{
-				client.Dispose();
-			}
+			await channel.WriteAsync(new CloseMessage(), cancellationToken);
+			return null;
 		}
 	}
 }

@@ -2,8 +2,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using EpicGames.Horde.Common;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Compute.Impl;
@@ -27,14 +29,24 @@ namespace Horde.Build.Compute.V2
 		public Requirements? Requirements { get; set; }
 
 		/// <summary>
-		/// IP address to contact the initiator on.
-		/// </summary>
-		public string RemoteIp { get; set; } = String.Empty;
-
-		/// <summary>
 		/// Port to connect on
 		/// </summary>
 		public int RemotePort { get; set; } = 4000;
+
+		/// <summary>
+		/// Base-64 encoded cryptographic nonce to identify the request
+		/// </summary>
+		public string Nonce { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Base-64 encoded AES key for the channel
+		/// </summary>
+		public string AesKey { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Base-64 encoded AES IV for the channel
+		/// </summary>
+		public string AesIv { get; set; } = String.Empty;
 	}
 
 	/// <summary>
@@ -73,7 +85,17 @@ namespace Horde.Build.Compute.V2
 			}
 
 			Requirements requirements = request.Requirements ?? new Requirements();
-			_computeService.AddRequest(requirements, request.RemoteIp, request.RemotePort);
+			byte[] nonce = StringUtils.ParseHexString(request.Nonce);
+			byte[] aesKey = StringUtils.ParseHexString(request.AesKey);
+			byte[] aesIv = StringUtils.ParseHexString(request.AesIv);
+
+			IPAddress? remoteIp = HttpContext.Connection.RemoteIpAddress;
+			if (remoteIp == null)
+			{
+				return BadRequest("Missing remote IP address");
+			}
+
+			_computeService.AddRequest(requirements, remoteIp.ToString(), request.RemotePort, nonce, aesKey, aesIv);
 			return Ok();
 		}
 	}

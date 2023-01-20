@@ -16,6 +16,7 @@ using Horde.Build.Tasks;
 using Horde.Build.Utilities;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Compute.V2
@@ -31,11 +32,17 @@ namespace Horde.Build.Compute.V2
 		{
 			public string Ip { get; }
 			public int Port { get; }
+			public ReadOnlyMemory<byte> Nonce { get; }
+			public ReadOnlyMemory<byte> AesKey { get; }
+			public ReadOnlyMemory<byte> AesIv { get; }
 
-			public Request(string ip, int port)
+			public Request(string ip, int port, ReadOnlyMemory<byte> nonce, ReadOnlyMemory<byte> aesKey, ReadOnlyMemory<byte> aesIv)
 			{
 				Ip = ip;
 				Port = port;
+				Nonce = nonce;
+				AesKey = aesKey;
+				AesIv = aesIv;
 			}
 		}
 
@@ -72,12 +79,15 @@ namespace Horde.Build.Compute.V2
 		}
 
 		/// <summary>
-		/// 
+		/// Adds a new compute request
 		/// </summary>
-		/// <param name="requirements"></param>
-		/// <param name="ip"></param>
-		/// <param name="port"></param>
-		public void AddRequest(Requirements requirements, string ip, int port)
+		/// <param name="requirements">Requirements for the agent to serve the request</param>
+		/// <param name="ip">IP address to connect to</param>
+		/// <param name="port">Remote port to connect to</param>
+		/// <param name="nonce">Cryptographic nonce used to identify the request</param>
+		/// <param name="aesKey">Key for AES encryption on the compute channel</param>
+		/// <param name="aesIv">Initialization vector for AES encryption</param>
+		public void AddRequest(Requirements requirements, string ip, int port, ReadOnlyMemory<byte> nonce, ReadOnlyMemory<byte> aesKey, ReadOnlyMemory<byte> aesIv)
 		{
 			CbObject obj = CbSerializer.Serialize(requirements);
 			IoHash hash = IoHash.Compute(obj.GetView().Span);
@@ -89,7 +99,7 @@ namespace Horde.Build.Compute.V2
 					queue = new RequestQueue(hash, requirements);
 					_queues.Add(hash, queue);
 				}
-				queue.Requests.Enqueue(new Request(ip, port));
+				queue.Requests.Enqueue(new Request(ip, port, nonce, aesKey, aesIv));
 			}
 		}
 
@@ -124,6 +134,9 @@ namespace Horde.Build.Compute.V2
 					ComputeTaskMessageV2 computeTask = new ComputeTaskMessageV2();
 					computeTask.RemoteIp = request.Ip;
 					computeTask.RemotePort = request.Port;
+					computeTask.Nonce = ByteString.CopyFrom(request.Nonce.Span);
+					computeTask.AesKey = ByteString.CopyFrom(request.AesKey.Span);
+					computeTask.AesIv = ByteString.CopyFrom(request.AesIv.Span);
 
 					string leaseName = $"Compute lease";
 					byte[] payload = Any.Pack(computeTask).ToByteArray();

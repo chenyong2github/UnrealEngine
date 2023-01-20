@@ -45,7 +45,10 @@ namespace Horde.Agent.Leases.Handlers
 			using TcpClient tcpClient = new TcpClient();
 			await tcpClient.ConnectAsync(computeTask.RemoteIp, computeTask.RemotePort);
 
-			MessageChannel channel = new MessageChannel(tcpClient.Client);
+			Socket socket = tcpClient.Client;
+			await socket.SendAsync(computeTask.Nonce.Memory, SocketFlags.None, cancellationToken);
+
+			ComputeChannel channel = new ComputeChannel(socket, computeTask.AesKey.Memory, computeTask.AesIv.Memory);
 			for (; ; )
 			{
 				MessageBase request = await channel.ReadAsync(cancellationToken);
