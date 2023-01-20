@@ -75,6 +75,8 @@ protected:
 	int32 NumCategorySlots;
 	int32 NumCategories;
 
+	static bool bConsoleCommandsEnabled;
+
 #if WITH_GAMEPLAY_DEBUGGER_MENU
 	friend struct FGameplayDebuggerConsoleCommands;
 
@@ -97,8 +99,6 @@ protected:
 	FTimerHandle SelectActorTickHandle;
 
 	bool bDebugDrawEnabled = true;
-	
-	static bool bConsoleCommandsEnabled;
 
 	void OnActivationPressed();
 	void OnActivationReleased();

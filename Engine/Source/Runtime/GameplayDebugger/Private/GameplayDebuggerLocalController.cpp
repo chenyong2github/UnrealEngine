@@ -37,9 +37,9 @@
 
 #if WITH_GAMEPLAY_DEBUGGER
 bool UGameplayDebuggerLocalController::bConsoleCommandsEnabled = true;
-#elif WITH_GAMEPLAY_DEBUGGER_MENU
+#else
 bool UGameplayDebuggerLocalController::bConsoleCommandsEnabled = false;
-#endif // WITH_GAMEPLAY_DEBUGGER_MENU
+#endif
 
 UGameplayDebuggerLocalController::UGameplayDebuggerLocalController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
