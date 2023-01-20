@@ -61,7 +61,7 @@ namespace Horde.Agent.Commands
 			return client;
 		}
 
-		async Task<object?> TestCommandAsync(ComputeChannel channel, CancellationToken cancellationToken)
+		async Task<object?> TestCommandAsync(IComputeChannel channel, CancellationToken cancellationToken)
 		{
 			await channel.WriteAsync(new XorRequestMessage { Value = 123, Payload = new byte[] { 1, 2, 3, 4, 5 } }, cancellationToken);
 

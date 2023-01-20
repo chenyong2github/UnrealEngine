@@ -3,10 +3,8 @@
 using EpicGames.Core;
 using EpicGames.Serialization;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,61 +14,10 @@ using System.Threading.Tasks;
 namespace EpicGames.Horde.Compute
 {
 	/// <summary>
-	/// Base class for messages
+	/// Transfers messages via a AES-encrypted socket
 	/// </summary>
-	public abstract class MessageBase
+	public class SocketComputeChannel : IComputeChannel
 	{
-		/// <summary>
-		/// Type of the message
-		/// </summary>
-		public Utf8String Type { get; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		protected MessageBase()
-		{
-			Type = GetType().GetCustomAttribute<MessageAttribute>()!.Name;
-		}
-	}
-
-	/// <summary>
-	/// Attribute used to annotate a message type with an identifier string
-	/// </summary>
-	[AttributeUsage(AttributeTargets.Class)]
-	public sealed class MessageAttribute : Attribute
-	{
-		/// <summary>
-		/// Message type
-		/// </summary>
-		public string Name { get; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public MessageAttribute(string name)
-		{
-			Name = name;
-		}
-	}
-
-	/// <summary>
-	/// Reads messages from a socket
-	/// </summary>
-	public class ComputeChannel
-	{
-		static readonly Utf8String s_typeField = "name";
-		static readonly Utf8String s_dataField = "data";
-
-		static readonly Type[] s_messageTypes =
-		{
-			typeof(CloseMessage),
-			typeof(XorRequestMessage),
-			typeof(XorResponseMessage)
-		};
-
-		static readonly Dictionary<Utf8String, ICbConverter> s_typeToConverter = CreateTypeToConverterMap();
-
 		readonly Socket _socket;
 		readonly int _blockSize;
 		readonly ICryptoTransform _decryptor;
@@ -91,7 +38,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="socket">Socket for communication</param>
 		/// <param name="aesKey">AES encryption key</param>
 		/// <param name="aesIv">AES initialization vector</param>
-		public ComputeChannel(Socket socket, ReadOnlyMemory<byte> aesKey, ReadOnlyMemory<byte> aesIv)
+		public SocketComputeChannel(Socket socket, ReadOnlyMemory<byte> aesKey, ReadOnlyMemory<byte> aesIv)
 		{
 			using Aes aes = Aes.Create();
 			aes.Key = aesKey.ToArray();
@@ -107,36 +54,11 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <summary>
-		/// Build a lookup of all known message types
-		/// </summary>
-		static Dictionary<Utf8String, ICbConverter> CreateTypeToConverterMap()
-		{
-			Dictionary<Utf8String, ICbConverter> typeToConverter = new Dictionary<Utf8String, ICbConverter>();
-			foreach (Type messageType in s_messageTypes)
-			{
-				string name = messageType.GetCustomAttribute<MessageAttribute>()!.Name;
-				ICbConverter converter = CbConverter.GetConverter(messageType);
-				typeToConverter.Add(name, converter);
-			}
-			return typeToConverter;
-		}
-
-		/// <summary>
 		/// Receives a message from the remote
 		/// </summary>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public async Task<T> ReadAsync<T>(CancellationToken cancellationToken) where T : MessageBase
-		{
-			return (T)await ReadAsync(cancellationToken);
-		}
-
-		/// <summary>
-		/// Receives a message from the remote
-		/// </summary>
-		/// <param name="cancellationToken"></param>
-		/// <returns></returns>
-		public async Task<MessageBase> ReadAsync(CancellationToken cancellationToken)
+		public async Task<object> ReadAsync(CancellationToken cancellationToken)
 		{
 			// Discard any data from the previous message
 			if (_paddedMessageLength > 0)
@@ -162,17 +84,7 @@ namespace EpicGames.Horde.Compute
 
 					if (_decryptedLength >= _paddedMessageLength)
 					{
-						CbObject obj = new CbObject(_readBuffer.AsMemory(0, messageLength));
-
-						CbField typeField = obj.Find(s_typeField);
-						Utf8String type = typeField.AsUtf8String();
-
-						ICbConverter converter = s_typeToConverter[type];
-
-						CbField dataField = obj.Find(s_dataField);
-						MessageBase message = (MessageBase)converter.ReadObject(dataField)!;
-
-						return message;
+						return ComputeMessage.Deserialize(_readBuffer.AsMemory(0, messageLength));
 					}
 
 					if (_readBuffer.Length < _paddedMessageLength)
@@ -205,19 +117,10 @@ namespace EpicGames.Horde.Compute
 		/// <param name="message">Message to be sent</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns></returns>
-		public async Task WriteAsync(MessageBase message, CancellationToken cancellationToken)
+		public async Task WriteAsync(object message, CancellationToken cancellationToken)
 		{
 			// Format the output object
-			Utf8String name = message.Type;
-		
-			_writer.Clear();
-			_writer.BeginObject();
-			_writer.WriteUtf8String(s_typeField, name);
-
-			ICbConverter converter = CbConverter.GetConverter(message.GetType());
-			converter.WriteNamedObject(_writer, s_dataField, message);
-
-			_writer.EndObject();
+			ComputeMessage.Serialize(message, _writer);
 
 			// Serialize it to the write buffer
 			int length = _writer.GetSize();

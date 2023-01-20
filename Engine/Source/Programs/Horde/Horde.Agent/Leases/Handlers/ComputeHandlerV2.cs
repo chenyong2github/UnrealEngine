@@ -48,11 +48,11 @@ namespace Horde.Agent.Leases.Handlers
 			Socket socket = tcpClient.Client;
 			await socket.SendAsync(computeTask.Nonce.Memory, SocketFlags.None, cancellationToken);
 
-			ComputeChannel channel = new ComputeChannel(socket, computeTask.AesKey.Memory, computeTask.AesIv.Memory);
+			IComputeChannel channel = new SocketComputeChannel(socket, computeTask.AesKey.Memory, computeTask.AesIv.Memory);
 			for (; ; )
 			{
-				MessageBase request = await channel.ReadAsync(cancellationToken);
-				_logger.LogInformation("Received message {Type}", request.Type);
+				object request = await channel.ReadAsync(cancellationToken);
+				_logger.LogInformation("Received message {Type}", request.GetType().Name);
 
 				switch (request)
 				{

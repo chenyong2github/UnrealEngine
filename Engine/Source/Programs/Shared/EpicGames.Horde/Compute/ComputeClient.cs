@@ -58,7 +58,7 @@ namespace EpicGames.Horde.Compute
 			public ReadOnlyMemory<byte> AesKey { get; }
 			public ReadOnlyMemory<byte> AesIv { get; }
 
-			protected readonly TaskCompletionSource<ComputeChannel> _computeChannelSource;
+			protected readonly TaskCompletionSource<IComputeChannel> _computeChannelSource;
 			protected readonly CancellationTokenSource _cancellationSource;
 
 			public RequestInfo(CancellationToken cancellationToken)
@@ -71,11 +71,11 @@ namespace EpicGames.Horde.Compute
 					AesIv = aes.IV;
 				}
 
-				_computeChannelSource = new TaskCompletionSource<ComputeChannel>();
+				_computeChannelSource = new TaskCompletionSource<IComputeChannel>();
 				_cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 			}
 
-			public abstract Task RunAsync(ComputeChannel channel);
+			public abstract Task RunAsync(IComputeChannel channel);
 
 			public void Cancel()
 			{
@@ -91,11 +91,11 @@ namespace EpicGames.Horde.Compute
 
 		class RequestInfo<TResult> : RequestInfo, IComputeRequest<TResult>
 		{
-			readonly Func<ComputeChannel, CancellationToken, Task<TResult>> _handler;
+			readonly Func<IComputeChannel, CancellationToken, Task<TResult>> _handler;
 
 			public Task<TResult> Result { get; }
 
-			public RequestInfo(Func<ComputeChannel, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
+			public RequestInfo(Func<IComputeChannel, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
 				: base(cancellationToken)
 			{
 				_handler = handler;
@@ -103,7 +103,7 @@ namespace EpicGames.Horde.Compute
 				Result = RunWrapperAsync();
 			}
 
-			public override Task RunAsync(ComputeChannel channel)
+			public override Task RunAsync(IComputeChannel channel)
 			{
 				_computeChannelSource.SetResult(channel);
 				return Result;
@@ -111,7 +111,7 @@ namespace EpicGames.Horde.Compute
 
 			async Task<TResult> RunWrapperAsync()
 			{
-				ComputeChannel channel = await _computeChannelSource.Task;
+				IComputeChannel channel = await _computeChannelSource.Task;
 				return await _handler(channel, _cancellationSource.Token);
 			}
 		}
@@ -193,7 +193,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="clusterId">Cluster to execute the request</param>
 		/// <param name="requirements">Requirements for the agent</param>
 		/// <param name="handler">Handler for the connection</param>
-		public async Task<IComputeRequest<TResult>> AddRequestAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<ComputeChannel, CancellationToken, Task<TResult>> handler)
+		public async Task<IComputeRequest<TResult>> AddRequestAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeChannel, CancellationToken, Task<TResult>> handler)
 		{
 			RequestInfo<TResult> requestInfo = new RequestInfo<TResult>(handler, _cancellationSource.Token);
 			await AddRequestAsync(clusterId, requirements, requestInfo);
@@ -293,7 +293,7 @@ namespace EpicGames.Horde.Compute
 				}
 
 				// Create a crypto stream for communication, using the predetermined key for this request
-				ComputeChannel channel = new ComputeChannel(socket, requestInfo.AesKey, requestInfo.AesIv);
+				IComputeChannel channel = new SocketComputeChannel(socket, requestInfo.AesKey, requestInfo.AesIv);
 				await requestInfo.RunAsync(channel);
 			}
 			finally
