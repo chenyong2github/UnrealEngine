@@ -211,10 +211,8 @@ RAY_TRACING_ENTRY_ANY_HIT(RayTracingDecalMaterialAHS,
 		// #endif
 	}
 
-	// We don't support blending of mesh decals in ray tracing at the moment.
-	// Instead we only use alpha masking to provide some limited overlap support, especially useful when large meshes are used to render sparse decals.
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
-	if (Opacity <= 0.01f)
+	if (Opacity <= 0.00001f)
 	{
 		IgnoreHit();
 		return;
