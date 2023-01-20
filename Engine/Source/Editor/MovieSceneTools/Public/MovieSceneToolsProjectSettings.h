@@ -96,11 +96,11 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Shots, meta = (UIMin = "1", UIMax = "10"))
 	uint32 FirstTakeNumber;
 
-	/** A single character separator between the shot number and the take number. */
+	/** Character separator between the shot number and the take number. */
 	UPROPERTY(config, EditAnywhere, Category=Shots)
 	FString TakeSeparator;
 
-	/** A single character separator between the take number and the sub sequence name. */
+	/** Character separator between the take number and the sub sequence name. */
 	UPROPERTY(config, EditAnywhere, Category=Shots)
 	FString SubSequenceSeparator;
 

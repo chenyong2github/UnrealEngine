@@ -8,16 +8,11 @@
 #include "HAL/Platform.h"
 #include "Internationalization/Text.h"
 #include "Misc/AssertionMacros.h"
+#include "MovieSceneFwd.h"
 #include "MovieSceneToolsProjectSettings.h"
 #include "PropertyHandle.h"
 #include "UObject/NameTypes.h"
 #include "UObject/UObjectGlobals.h"
-
-//#include "Editor/PropertyEditor/Public/IDetailsView.h"
-//#include "IDetailCustomization.h"
-//#include "DetailLayoutBuilder.h"
-//#include "PropertyHandle.h"
-
 
 TSharedRef<IDetailCustomization> FMovieSceneToolsProjectSettingsCustomization::MakeInstance()
 {
@@ -28,6 +23,9 @@ void FMovieSceneToolsProjectSettingsCustomization::CustomizeDetails(IDetailLayou
 {
 	TSharedRef<IPropertyHandle> TakeSeparatorProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMovieSceneToolsProjectSettings, TakeSeparator));
 	TakeSeparatorProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FMovieSceneToolsProjectSettingsCustomization::OnTakeSeparatorUpdated));
+
+	TSharedRef<IPropertyHandle> SubSequenceSeparatorProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMovieSceneToolsProjectSettings, SubSequenceSeparator));
+	SubSequenceSeparatorProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FMovieSceneToolsProjectSettingsCustomization::OnSubSequenceSeparatorUpdated));
 }
 
 void FMovieSceneToolsProjectSettingsCustomization::OnTakeSeparatorUpdated()
@@ -36,14 +34,26 @@ void FMovieSceneToolsProjectSettingsCustomization::OnTakeSeparatorUpdated()
 
 	FString TakeSeparator = ProjectSettings->TakeSeparator;
 
-	// Make sure the take separator is a valid single character
+	// Make sure the take separator is a valid character
 	FText OutErrorMessage;
 	if (!FName(*TakeSeparator).IsValidXName(INVALID_OBJECTNAME_CHARACTERS INVALID_LONGPACKAGE_CHARACTERS, &OutErrorMessage))
 	{
+		UE_LOG(LogMovieScene, Warning, TEXT("Invalid separator: %s"), *OutErrorMessage.ToString());
 		ProjectSettings->TakeSeparator = TEXT("_");
 	}
-	else if (ProjectSettings->TakeSeparator.Len() > 1)
+}
+
+void FMovieSceneToolsProjectSettingsCustomization::OnSubSequenceSeparatorUpdated()
+{
+	UMovieSceneToolsProjectSettings* ProjectSettings = GetMutableDefault<UMovieSceneToolsProjectSettings>();
+
+	FString SubSequenceSeparator = ProjectSettings->SubSequenceSeparator;
+
+	// Make sure the subsequence separator is a valid character
+	FText OutErrorMessage;
+	if (!FName(*SubSequenceSeparator).IsValidXName(INVALID_OBJECTNAME_CHARACTERS INVALID_LONGPACKAGE_CHARACTERS, &OutErrorMessage))
 	{
-		ProjectSettings->TakeSeparator.LeftChopInline(ProjectSettings->TakeSeparator.Len()-1);
+		UE_LOG(LogMovieScene, Warning, TEXT("Invalid separator: %s"), *OutErrorMessage.ToString());
+		ProjectSettings->SubSequenceSeparator = TEXT("_");
 	}
 }
