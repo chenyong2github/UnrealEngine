@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -23,9 +23,9 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntryAnnotation : public FSmartObj
 	
 	/** Local space offset of the entry. */
 	UPROPERTY(EditAnywhere, Category="Default")
-	FVector3f Offset;
+	FVector3f Offset = FVector3f(0.f);
 
 	/** Local space rotation of the entry. */
 	UPROPERTY(EditAnywhere, Category="Default")
-	FRotator Rotation;
+	FRotator Rotation = FRotator(0.f);
 };
