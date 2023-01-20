@@ -16,7 +16,7 @@ struct FClothData
 	float3 V;
 
 	FBxDFEnergyTermsRGB Spec;
-	FBxDFEnergyTermsRGB Fuzz;
+	FBxDFEnergyTermsA Fuzz;
 
 	float3 DiffWeight;
 
@@ -36,9 +36,11 @@ FClothData PrepareClothData(FPathTracingPayload Payload, float3 V_World)
 
 	const float NoV = saturate(Data.V.z);
 	Data.Spec = ComputeGGXSpecEnergyTermsRGB(Payload.Roughness, NoV, Payload.SpecularColor);
-	Data.Fuzz = ComputeClothEnergyTermsRGB(Payload.Roughness, NoV, Payload.GetClothColor());
+	Data.Fuzz = ComputeClothEnergyTermsA(Payload.Roughness, NoV);
 
-	Data.DiffWeight = (1.0 - lerp(Data.Spec.E, Data.Fuzz.E, ClothBlend)) * Payload.DiffuseColor;
+	const float SpecEp = ComputeEnergyPreservation(Data.Spec);
+	const float FuzzEp = ComputeEnergyPreservation(Data.Fuzz);
+	Data.DiffWeight = lerp(SpecEp, FuzzEp, ClothBlend) * Payload.DiffuseColor;
 
 	Data.LobeCdf = LobeSelectionCdf(Data.DiffWeight, ClothBlend * Data.Fuzz.E, (1.0 - ClothBlend) * Data.Spec.E);
 	Data.LobePdf = LobeSelectionPdf(Data.LobeCdf);
@@ -77,7 +79,7 @@ FMaterialEval Cloth_EvalMaterial(
 	// Cloth Lobe (see ClothBxDF - it is counted as specular)
 	const float DCloth = D_InvGGX(Pow4(Payload.Roughness), NoH);
 	const float3 FCloth = F_Schlick(Payload.GetClothColor(), VoH);
-	const float3 ClothWeight = NoL > 0 && NoV > 0 ? (PI * ClothBlend * DCloth * Vis_Cloth(NoV, NoL)) * FCloth * Data.Fuzz.W : 0.0;
+	const float3 ClothWeight = NoL > 0 && NoV > 0 ? (PI * ClothBlend * DCloth * Vis_Cloth(NoV, NoL)) * FCloth * ComputeEnergyConservation(Data.Fuzz) : 0.0;
 	Result.AddLobeWithMIS(ClothWeight * ShadowTerminator * DiffuseSpecularScale.y, NoL / PI, Data.LobePdf.y);
 
 	// Specular lobe
@@ -164,7 +166,7 @@ FMaterialSample Cloth_SampleMaterial(
 	{
 		const float DCloth = D_InvGGX(Pow4(Payload.Roughness), NoH);
 		const float3 FCloth = F_Schlick(Payload.GetClothColor(), VoH);
-		const float3 ClothWeight = NoL > 0 && NoV > 0 ? (PI * ClothBlend * DCloth * Vis_Cloth(NoV, NoL)) * FCloth * Data.Fuzz.W : 0.0;
+		const float3 ClothWeight = NoL > 0 && NoV > 0 ? (PI * ClothBlend * DCloth * Vis_Cloth(NoV, NoL)) * FCloth * ComputeEnergyConservation(Data.Fuzz) : 0.0;
 		Result.AddLobeWithMIS(ClothWeight * ShadowTerminator, NoL / PI, Data.LobePdf.y);
 		Result.ScatterType = PATHTRACER_SCATTER_SPECULAR;
 	}

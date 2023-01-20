@@ -772,7 +772,7 @@ FDirectLighting ClothBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, floa
 	float3 F2 = F_Schlick( FuzzColor, Context.VoH );
 	float3 Spec2 = AreaLight.FalloffColor * (Falloff * NoL) * (D2 * Vis2) * F2;
 	
-	const FBxDFEnergyTerms EnergyTerms2 = ComputeClothEnergyTerms(GBuffer.Roughness, Context.NoV, FuzzColor);
+	const FBxDFEnergyTermsA EnergyTerms2 = ComputeClothEnergyTermsA(GBuffer.Roughness, Context.NoV);
 	Spec2 *= ComputeEnergyConservation(EnergyTerms2);
 
 	FDirectLighting Lighting;
