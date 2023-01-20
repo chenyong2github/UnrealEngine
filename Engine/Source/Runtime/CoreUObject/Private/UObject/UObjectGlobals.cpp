@@ -7,6 +7,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
+#include "Logging/StructuredLog.h"
 #include "Misc/AsciiSet.h"
 #include "Misc/PackageAccessTrackingOps.h"
 #include "Misc/Paths.h"
@@ -38,6 +39,7 @@
 #include "UObject/UnrealType.h"
 #include "UObject/ObjectRedirector.h"
 #include "UObject/PackageResourceManager.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/DuplicatedObject.h"
 #include "Serialization/DuplicatedDataReader.h"
 #include "Serialization/DuplicatedDataWriter.h"
@@ -5311,6 +5313,119 @@ COREUOBJECT_API UFunction* FindDelegateSignature(FName DelegateSignatureName)
 	}
 
 	return nullptr;
+}
+
+void UE::SerializeForLog(FCbWriter& Writer, const FAssetLog& AssetLog)
+{
+	FString ObjectPath;
+	FString LocalPath;
+
+	if (AssetLog.Path)
+	{
+		ObjectPath = AssetLog.Path;
+		FString PackageName, ObjectName, SubObjectName, Extension;
+		if (FPackageName::TryConvertToMountedPath(ObjectPath, &LocalPath, &PackageName, &ObjectName, &SubObjectName, &Extension))
+		{
+			ObjectPath = PackageName;
+			if (!ObjectName.IsEmpty())
+			{
+				ObjectPath += TEXT('.');
+				ObjectPath += ObjectName;
+			}
+			if (!SubObjectName.IsEmpty())
+			{
+				ObjectPath += SUBOBJECT_DELIMITER;
+				ObjectPath += SubObjectName;
+			}
+
+			if (!Extension.IsEmpty())
+			{
+				LocalPath += Extension;
+			}
+			else if (!FPackageName::DoesPackageExist(PackageName, &LocalPath))
+			{
+				LocalPath.Empty();
+			}
+		}
+	}
+	else if (AssetLog.PackagePath)
+	{
+		ObjectPath = AssetLog.PackagePath->GetPackageName();
+		LocalPath = AssetLog.PackagePath->GetLocalFullPath();
+	}
+	else if (AssetLog.Object)
+	{
+		ObjectPath = AssetLog.Object->GetPathName();
+		if (const UPackage* Package = AssetLog.Object->GetPackage())
+		{
+			LocalPath = Package->GetLoadedPath().GetLocalFullPath();
+		}
+	}
+
+	const auto GetConfigBool = [](const TCHAR* Section, const TCHAR* Key, bool bDefault) -> bool
+	{
+		GConfig->GetBool(Section, Key, bDefault, GEngineIni);
+		return bDefault;
+	};
+
+	if (!LocalPath.IsEmpty())
+	{
+		static bool bShowDiskPath = GetConfigBool(TEXT("Core.System"), TEXT("AssetLogShowsDiskPath"), true);
+		static bool bShowAbsolutePath = GetConfigBool(TEXT("Core.System"), TEXT("AssetLogShowsAbsolutePath"), false);
+		if (bShowAbsolutePath)
+		{
+			LocalPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*LocalPath);
+		}
+		FPaths::MakePlatformFilename(LocalPath);
+		if (bShowDiskPath)
+		{
+			ObjectPath = LocalPath;
+		}
+	}
+
+	Writer.BeginObject();
+	Writer.AddString(ANSITEXTVIEW("$type"), ANSITEXTVIEW("Asset"));
+	Writer.AddString(ANSITEXTVIEW("$text"), ObjectPath);
+	if (!LocalPath.IsEmpty())
+	{
+		Writer.AddString(ANSITEXTVIEW("file"), LocalPath);
+	}
+	Writer.EndObject();
+}
+
+void UE::Core::Private::RecordAssetLog(
+	const FName& CategoryName,
+	const ELogVerbosity::Type Verbosity,
+	const FAssetLog& AssetLog,
+	const FString& Message,
+	const ANSICHAR* File,
+	const int32 Line)
+{
+	FCbWriter Writer;
+	Writer.BeginObject();
+	Writer.SetName(ANSITEXTVIEW("Asset"));
+	SerializeForLog(Writer, AssetLog);
+	Writer.AddString(ANSITEXTVIEW("Message"), Message);
+	Writer.EndObject();
+
+	FLogRecord Record;
+	Record.SetFormat(TEXT("[AssetLog] {Asset}: {Message}"));
+	Record.SetFields(Writer.Save().AsObject());
+	Record.SetFile(File);
+	Record.SetLine(Line);
+	Record.SetCategory(CategoryName);
+	Record.SetVerbosity(Verbosity);
+	Record.SetTime(FLogTime::Now());
+
+	switch (Verbosity)
+	{
+	case ELogVerbosity::Error:
+	case ELogVerbosity::Warning:
+	case ELogVerbosity::Display:
+		return GWarn->SerializeRecord(Record);
+	default:
+		return GLog->SerializeRecord(Record);
+	}
 }
 
 /**

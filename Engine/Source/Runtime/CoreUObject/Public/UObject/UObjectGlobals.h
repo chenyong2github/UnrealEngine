@@ -45,6 +45,7 @@
 #include "UObject/UnrealNames.h"
 
 class FArchive;
+class FCbWriter;
 class FLinkerInstancingContext;
 class FObjectPreSaveContext;
 class FOutputDevice;
@@ -2979,6 +2980,37 @@ UE_DEPRECATED(5.0, "This method is no longer in use and will be removed.")
 COREUOBJECT_API TMap<FName, FDynamicClassStaticData>& GetDynamicClassMap();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+namespace UE
+{
+
+class FAssetLog
+{
+public:
+	inline explicit FAssetLog(const TCHAR* InPath UE_LIFETIMEBOUND) : Path(InPath) {}
+	inline explicit FAssetLog(const FPackagePath& InPath UE_LIFETIMEBOUND) : PackagePath(&InPath) {}
+	inline explicit FAssetLog(const UObject* InObject UE_LIFETIMEBOUND) : Object(InObject) {}
+
+	COREUOBJECT_API friend void SerializeForLog(FCbWriter& Writer, const FAssetLog& AssetLog);
+
+private:
+	const TCHAR* Path = nullptr;
+	const FPackagePath* PackagePath = nullptr;
+	const UObject* Object = nullptr;
+};
+
+} // UE
+
+namespace UE::Core::Private
+{
+COREUOBJECT_API void RecordAssetLog(
+	const FName& CategoryName,
+	ELogVerbosity::Type Verbosity,
+	const FAssetLog& AssetLog,
+	const FString& Message,
+	const ANSICHAR* File,
+	int32 Line);
+} // UE::Core::Private
+
 /**
  * FAssetMsg
  * This struct contains functions for asset-related messaging
@@ -3020,12 +3052,11 @@ struct FAssetMsg
 		{ \
 			UE_LOG_EXPAND_IS_FATAL(Verbosity, PREPROCESSOR_NOTHING, if (!CategoryName.IsSuppressed(ELogVerbosity::Verbosity))) \
 			{ \
-				FString FormatPath = FAssetMsg::FormatPathForAssetLog(Asset);\
-				FMsg::Logf_Internal(__FILE__, __LINE__, CategoryName.GetCategoryName(), ELogVerbosity::Verbosity, TEXT(ASSET_LOG_FORMAT_STRING_ANSI "%s"), *FormatPath, *FString::Printf(Format, ##__VA_ARGS__)); \
+				::UE::Core::Private::RecordAssetLog(CategoryName.GetCategoryName(), ELogVerbosity::Verbosity, ::UE::FAssetLog(Asset), FString::Printf(Format, ##__VA_ARGS__), __FILE__, __LINE__); \
 				UE_LOG_EXPAND_IS_FATAL(Verbosity, \
 					{ \
 						UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE(); \
-						FDebug::AssertFailed("", __FILE__, __LINE__, TEXT("%s: %s"), *FormatPath, *FString::Printf(Format, ##__VA_ARGS__)); \
+						FDebug::AssertFailed("", __FILE__, __LINE__, TEXT("%s: %s"), *FAssetMsg::FormatPathForAssetLog(Asset), *FString::Printf(Format, ##__VA_ARGS__)); \
 						CA_ASSUME(false); \
 					}, \
 					PREPROCESSOR_NOTHING \
