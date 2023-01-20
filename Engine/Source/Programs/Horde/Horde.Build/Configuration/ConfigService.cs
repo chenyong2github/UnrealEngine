@@ -232,7 +232,9 @@ namespace Horde.Build.Configuration
 			}
 			if (data.Length == 0)
 			{
-				data = SerializeSnapshot(await CreateSnapshotAsync(CancellationToken.None));
+				ConfigSnapshot snapshot = await CreateSnapshotAsync(CancellationToken.None);
+				await WriteSnapshotAsync(snapshot);
+				data = SerializeSnapshot(snapshot);
 			}
 			return new ConfigState(IoHash.Compute(data.Span), CreateGlobalConfig(data));
 		}
