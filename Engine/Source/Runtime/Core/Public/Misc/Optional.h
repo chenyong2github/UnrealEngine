@@ -223,3 +223,12 @@ FArchive& operator<<(FArchive& Ar, TOptional<OptionalType>& Optional)
 	Optional.Serialize(Ar);
 	return Ar;
 }
+
+/**
+ * Trait which determines whether or not a type is a TOptional.
+ */
+template <typename T> static constexpr bool TIsTOptional_V                              = false;
+template <typename T> static constexpr bool TIsTOptional_V<               TOptional<T>> = true;
+template <typename T> static constexpr bool TIsTOptional_V<const          TOptional<T>> = true;
+template <typename T> static constexpr bool TIsTOptional_V<      volatile TOptional<T>> = true;
+template <typename T> static constexpr bool TIsTOptional_V<const volatile TOptional<T>> = true;

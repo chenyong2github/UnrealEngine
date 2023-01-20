@@ -643,6 +643,15 @@ private:
 	}
 };
 
+/**
+ * Trait which determines whether or not a type is a TSharedRef.
+ */
+template <typename T>                       constexpr bool TIsTSharedRef_V                                                = false;
+template <class ObjectType, ESPMode InMode> constexpr bool TIsTSharedRef_V<               TSharedRef<ObjectType, InMode>> = true;
+template <class ObjectType, ESPMode InMode> constexpr bool TIsTSharedRef_V<const          TSharedRef<ObjectType, InMode>> = true;
+template <class ObjectType, ESPMode InMode> constexpr bool TIsTSharedRef_V<      volatile TSharedRef<ObjectType, InMode>> = true;
+template <class ObjectType, ESPMode InMode> constexpr bool TIsTSharedRef_V<const volatile TSharedRef<ObjectType, InMode>> = true;
+
 
 /**
  * Wrapper for a type that yields a reference to that type.
@@ -1204,6 +1213,15 @@ private:
 	SharedPointerInternals::FSharedReferencer< Mode > SharedReferenceCount;
 };
 
+/**
+ * Trait which determines whether or not a type is a TSharedPtr.
+ */
+template <typename T>                       constexpr bool TIsTSharedPtr_V                                                = false;
+template <class ObjectType, ESPMode InMode> constexpr bool TIsTSharedPtr_V<               TSharedPtr<ObjectType, InMode>> = true;
+template <class ObjectType, ESPMode InMode> constexpr bool TIsTSharedPtr_V<const          TSharedPtr<ObjectType, InMode>> = true;
+template <class ObjectType, ESPMode InMode> constexpr bool TIsTSharedPtr_V<      volatile TSharedPtr<ObjectType, InMode>> = true;
+template <class ObjectType, ESPMode InMode> constexpr bool TIsTSharedPtr_V<const volatile TSharedPtr<ObjectType, InMode>> = true;
+
 namespace Freeze
 {
 	template<class ObjectType, ESPMode Mode>
@@ -1510,6 +1528,15 @@ private:
 		controller object is shared by all shared and weak pointers that refer to the object */
 	SharedPointerInternals::FWeakReferencer< Mode > WeakReferenceCount;
 };
+
+/**
+ * Trait which determines whether or not a type is a TWeakPtr.
+ */
+template <typename T>                       constexpr bool TIsTWeakPtr_V                                              = false;
+template <class ObjectType, ESPMode InMode> constexpr bool TIsTWeakPtr_V<               TWeakPtr<ObjectType, InMode>> = true;
+template <class ObjectType, ESPMode InMode> constexpr bool TIsTWeakPtr_V<const          TWeakPtr<ObjectType, InMode>> = true;
+template <class ObjectType, ESPMode InMode> constexpr bool TIsTWeakPtr_V<      volatile TWeakPtr<ObjectType, InMode>> = true;
+template <class ObjectType, ESPMode InMode> constexpr bool TIsTWeakPtr_V<const volatile TWeakPtr<ObjectType, InMode>> = true;
 
 
 template<class T, ESPMode Mode> struct TIsWeakPointerType<TWeakPtr<T, Mode> > { enum { Value = true }; };

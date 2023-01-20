@@ -853,3 +853,12 @@ FORCEINLINE typename TEnableIf<TIsUnboundedArray<T>::Value, TUniquePtr<T>>::Type
  */
 template <typename T, typename... TArgs>
 typename TEnableIf<TIsBoundedArray<T>::Value, TUniquePtr<T>>::Type MakeUnique(TArgs&&... Args) = delete;
+
+/**
+ * Trait which determines whether or not a type is a TUniquePtr.
+ */
+template <typename T>                   constexpr bool TIsTUniquePtr_V                                        = false;
+template <typename T, typename Deleter> constexpr bool TIsTUniquePtr_V<               TUniquePtr<T, Deleter>> = true;
+template <typename T, typename Deleter> constexpr bool TIsTUniquePtr_V<const          TUniquePtr<T, Deleter>> = true;
+template <typename T, typename Deleter> constexpr bool TIsTUniquePtr_V<      volatile TUniquePtr<T, Deleter>> = true;
+template <typename T, typename Deleter> constexpr bool TIsTUniquePtr_V<const volatile TUniquePtr<T, Deleter>> = true;
