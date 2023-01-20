@@ -235,8 +235,8 @@ public:
 
 	void ResetMorphBuffers();
 
-	virtual int32 GetNumFloatsPerBone() const { return NearestNeighborNumFloatsPerBone; }
-	virtual int32 GetNumFloatsPerCurve() const { return NearestNeighborNumFloatsPerCurve; }
+	virtual int32 GetNumFloatsPerBone() const override { return NearestNeighborNumFloatsPerBone; }
+	virtual int32 GetNumFloatsPerCurve() const override { return NearestNeighborNumFloatsPerCurve; }
 
 	bool DoesUseOptimizedNetwork() const;
 	UNearestNeighborOptimizedNetwork* GetOptimizedNetwork() const { return OptimizedNetwork.Get(); }

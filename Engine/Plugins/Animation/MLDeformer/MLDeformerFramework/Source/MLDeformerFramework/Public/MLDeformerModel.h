@@ -326,7 +326,7 @@ public:
 	 * Set the neural network object that we use during inference.
 	 * @param InNeuralNetwork The new neural network to use inside this deformer model.
 	 */
-	void SetNeuralNetwork(UNeuralNetwork* InNeuralNetwork);
+	virtual void SetNeuralNetwork(UNeuralNetwork* InNeuralNetwork);
 
 	/**
 	 * Get the neural network modified delegate.
@@ -507,6 +507,12 @@ public:
 	static FName GetDeltaCutoffLengthPropertyName()		{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, DeltaCutoffLength); }
 #endif	// #if WITH_EDITORONLY_DATA
 
+	/** @return The number of floats per bone in network input. */
+	virtual int32 GetNumFloatsPerBone() const { return NumFloatsPerBone; }
+
+	/** @return The number of floats per curve in network input. */
+	virtual int32 GetNumFloatsPerCurve() const { return NumFloatsPerCurve; }
+
 protected:
 	/**
 	 * Set the training input information.
@@ -595,6 +601,12 @@ private:
 	/** The skeletal mesh that represents the linear skinned mesh. */
 	UPROPERTY(EditAnywhere, Category = "Base Mesh")
 	TObjectPtr<USkeletalMesh> SkeletalMesh = nullptr;
+
+	/** The number of floats per bone in network input. */
+	static constexpr int32 NumFloatsPerBone = 6;
+
+	/** The number of floats per curve in network input. */
+	static constexpr int32 NumFloatsPerCurve = 1;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
