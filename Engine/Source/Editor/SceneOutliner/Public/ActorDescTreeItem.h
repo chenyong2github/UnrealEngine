@@ -41,9 +41,6 @@ public:
 	/** Construct this item from an actor desc */
 	FActorDescTreeItem(const FGuid& InActorGuid, UActorDescContainer* Container);
 
-	/** Construct this item from an actor desc */
-	FActorDescTreeItem(const FGuid& InActorGuid, FActorDescContainerCollection* ContainerCollection);
-
 	/* Begin ISceneOutlinerTreeItem Implementation */
 	virtual bool IsValid() const override { return ActorDescHandle.Get() != nullptr; }
 	virtual FSceneOutlinerTreeItemID GetID() const override;

@@ -24,6 +24,8 @@
 #include "ToolMenus.h"
 #include "LevelEditorViewport.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Misc/ArchiveMD5.h"
+#include "UObject/ObjectKey.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorDescTreeItem"
 
@@ -231,17 +233,18 @@ FActorDescTreeItem::FActorDescTreeItem(const FGuid& InActorGuid, UActorDescConta
 	Initialize();
 }
 
-FActorDescTreeItem::FActorDescTreeItem(const FGuid& InActorGuid, FActorDescContainerCollection* ContainerCollection)
-	: IActorBaseTreeItem(Type)
-	, ActorDescHandle(ContainerCollection, InActorGuid)
-	, ActorGuid(InActorGuid)
-{
-	Initialize();
-}
-
 void FActorDescTreeItem::Initialize()
 {
-	ID = FSceneOutlinerTreeItemID(ActorGuid);
+	FArchiveMD5 Ar;
+	Ar << ActorGuid;
+
+	FObjectKey ContainerKey(ActorDescHandle.Container.Get());
+	Ar << ContainerKey;
+
+	FMD5Hash MD5Hash;
+	Ar.GetHash(MD5Hash);
+	
+	ID = FSceneOutlinerTreeItemID(MD5HashToGuid(MD5Hash));
 
 	if (const FWorldPartitionActorDesc* const ActorDesc = ActorDescHandle.Get())
 	{
