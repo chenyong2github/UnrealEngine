@@ -102,7 +102,16 @@ namespace UE::NearestNeighborModel
 				if (NearestNeighborModel->DoesUseOptimizedNetwork())
 				{
 					Model->SetNeuralNetwork(Network);
-					return NearestNeighborModel->LoadOptimizedNetwork(OnnxFile);
+					const bool bSuccess = NearestNeighborModel->LoadOptimizedNetwork(OnnxFile);
+					if (bSuccess)
+					{
+						UNearestNeighborModelInstance* ModelInstance = static_cast<UNearestNeighborModelInstance*>(GetTestMLDeformerModelInstance());
+						if (ModelInstance)
+						{
+							ModelInstance->InitOptimizedNetworkInstance();
+							return true;
+						}
+					}
 				}
 				else
 				{
