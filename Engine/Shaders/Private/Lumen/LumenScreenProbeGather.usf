@@ -53,7 +53,7 @@ struct FScreenProbeMaterial
 	float3 WorldNormal;
 	float SceneDepth;
 	bool bIsValid;
-	bool bTwoSidedFoliage;
+	bool bHasBackfaceDiffuse;
 };
 
 FScreenProbeMaterial GetScreenProbeMaterial(uint2 PixelPos)
@@ -63,7 +63,7 @@ FScreenProbeMaterial GetScreenProbeMaterial(uint2 PixelPos)
 	Out.WorldNormal = Material.WorldNormal;
 	Out.SceneDepth = Material.SceneDepth;
 	Out.bIsValid = IsValid(Material);
-	Out.bTwoSidedFoliage = IsFoliage(Material);
+	Out.bHasBackfaceDiffuse = HasBackfaceDiffuse(Material);
 	return Out;
 }
 
@@ -100,7 +100,7 @@ void WriteDownsampledProbeMaterial(float2 ScreenUV, uint2 ScreenProbeAtlasCoord,
 		ProbeWorldVelocity = ProbeTranslatedWorldPosition - GetPrevTranslatedWorldPosition(ProbeHistoryScreenPosition);
 	}
 
-	RWScreenProbeWorldSpeed[ScreenProbeAtlasCoord] = EncodeScreenProbeSpeed(length(ProbeWorldVelocity), ProbeMaterial.bTwoSidedFoliage);
+	RWScreenProbeWorldSpeed[ScreenProbeAtlasCoord] = EncodeScreenProbeSpeed(length(ProbeWorldVelocity), ProbeMaterial.bHasBackfaceDiffuse);
 
 	RWScreenProbeTranslatedWorldPosition[ScreenProbeAtlasCoord] = ProbeTranslatedWorldPosition;
 }
@@ -653,7 +653,7 @@ void ScreenProbeTileClassificationMarkCS(
 				}
 
 				const float DiffuseLerp = GetDiffuseLerp(Material.Roughness);
-				const float LumenSpecularRayAlpha = LumenCombineReflectionsAlpha(Material.Roughness, IsFoliage(Material));
+				const float LumenSpecularRayAlpha = LumenCombineReflectionsAlpha(Material.Roughness, HasBackfaceDiffuse(Material));
 				if ((DiffuseLerp < 1.0f && LumenSpecularRayAlpha < 1.0f) || IsClearCoat(Material))
 				{
 					TileClassification = TILE_CLASSIFICATION_SUPPORT_IMPORTANCE_SAMPLE_BRDF;
@@ -957,7 +957,7 @@ float3 InterpolateScreenProbeIrradiance(FScreenProbeSample ScreenProbeSample, fl
 	return Irradiance;
 }
 
-float3 EvaluateDiffuse(FScreenProbeSample ScreenProbeSample, float3 WorldNormal, uint ShadingID, float3 UnitBentNormal, float AO, inout float3 BackfaceDiffuseLighting)
+float3 EvaluateDiffuse(FScreenProbeSample ScreenProbeSample, float3 WorldNormal, bool bHasBackfaceDiffuse, float3 UnitBentNormal, float AO, inout float3 BackfaceDiffuseLighting)
 {
 	float3 DiffuseLighting = 0.0f;
 	const float PreintegratedTwoSidedBxDF = 1.0f / PI;
@@ -983,7 +983,7 @@ float3 EvaluateDiffuse(FScreenProbeSample ScreenProbeSample, float3 WorldNormal,
 		DiffuseLighting += 4 * PI * SHDiffuseLighting;
 
 #if SUPPORT_BACKFACE_DIFFUSE
-		if (ShadingID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+		if (bHasBackfaceDiffuse)
 		{
 			float3 BackfaceSHDiffuseLighting = EvaluateSHIrradiance(-WorldNormal, 0.0f, LightingSH);
 			BackfaceDiffuseLighting += 4 * PI * PreintegratedTwoSidedBxDF * BackfaceSHDiffuseLighting;
@@ -995,7 +995,7 @@ float3 EvaluateDiffuse(FScreenProbeSample ScreenProbeSample, float3 WorldNormal,
 		DiffuseLighting += InterpolateScreenProbeIrradiance(ScreenProbeSample, ProbeLightingNormal);
 
 #if SUPPORT_BACKFACE_DIFFUSE
-		if (ShadingID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+		if (bHasBackfaceDiffuse)
 		{
 			BackfaceDiffuseLighting += PreintegratedTwoSidedBxDF * InterpolateScreenProbeIrradiance(ScreenProbeSample, -WorldNormal);
 		}
@@ -1249,7 +1249,7 @@ void ScreenProbeIntegrateCS(
 
 			if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_SPHERICAL_HARMONIC)
 			{
-				DiffuseLighting += EvaluateDiffuse(ScreenProbeSample, Material.WorldNormal, Material.ShadingID, UnitBentNormal, AO, BackfaceDiffuseLighting);
+				DiffuseLighting += EvaluateDiffuse(ScreenProbeSample, Material.WorldNormal, Material.bHasBackfaceDiffuse, UnitBentNormal, AO, BackfaceDiffuseLighting);
 			}
 		#if INTEGRATE_TILE_CLASSIFICATION_MODE != TILE_CLASSIFICATION_SIMPLE_DIFFUSE
 			else if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_IMPORTANCE_SAMPLE_BRDF)
@@ -1307,9 +1307,9 @@ void ScreenProbeIntegrateCS(
 				FSphericalGaussian VisibleSG = BentNormalAO_ToSphericalGaussian(UnitBentNormal, AO);
 
 				#if SUPPORT_BACKFACE_DIFFUSE
-					const bool bTwoSidedFoliage = Material.ShadingID == SHADINGMODELID_TWOSIDED_FOLIAGE;
+					const bool bHasBackfaceDiffuse = Material.bHasBackfaceDiffuse;
 				#else
-					const bool bTwoSidedFoliage = false;
+					const bool bHasBackfaceDiffuse = false;
 				#endif
 					
 				for (float Y = 0; Y < ScreenProbeResolutionFloat; Y++)
@@ -1322,7 +1322,7 @@ void ScreenProbeIntegrateCS(
 
 						float NdotL = dot(WorldConeDirection, Material.WorldNormal);
 
-						if (NdotL > 0 || bTwoSidedFoliage)
+						if (NdotL > 0 || bHasBackfaceDiffuse)
 						{
 							#if 1
 								float SampleWeight = saturate(NdotL);
@@ -1359,8 +1359,9 @@ void ScreenProbeIntegrateCS(
 
 							DiffuseLighting += InterpolatedRadiance * SampleWeight * DirectionalOcclusion;
 
-							if (bTwoSidedFoliage)
+							if (bHasBackfaceDiffuse)
 							{
+								// STRATA_TODO: this sampling routine only match the 'wrap' case, but not the other routine. Need to revist this.
 								// Match TwoSidedBxDF
 								half Wrap = 0.5;
 								half WrapNoL = saturate((-dot(Material.WorldNormal, WorldConeDirection) + Wrap) / Square(1 + Wrap));
@@ -1465,7 +1466,7 @@ void ScreenProbeIntegrateCS(
 
 			// Prevent NaNs from ImportanceSampleVisibleGGX
 			Material.Roughness = max(Material.Roughness, 0.01f);
-			const float LumenSpecularRayAlpha = LumenCombineReflectionsAlpha(Material.Roughness, IsFoliage(Material));
+			const float LumenSpecularRayAlpha = LumenCombineReflectionsAlpha(Material.Roughness, HasBackfaceDiffuse(Material));
 
 			// Rough-Specular
 		#if INTEGRATE_TILE_CLASSIFICATION_MODE != TILE_CLASSIFICATION_SIMPLE_DIFFUSE
@@ -1966,7 +1967,7 @@ void ScreenProbeTemporalReprojectionCS(
 #if SUPPORT_BACKFACE_DIFFUSE
 	float3 OutBackfaceDiffuseIndirect = 0;
 
-	if (Material.ShadingID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+	if (Material.bHasBackfaceDiffuse)
 	{
 #if ACCURATE_HISTORY_DISOCCLUSION
 		float3 HistoryDiffuseIndirect00 = Texture2DSampleLevel(BackfaceDiffuseIndirectHistory, GlobalPointClampedSampler, HistoryGatherUV00, 0).xyz;

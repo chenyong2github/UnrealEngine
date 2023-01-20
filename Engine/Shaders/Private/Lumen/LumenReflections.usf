@@ -45,7 +45,7 @@ bool NeedRayTracedReflections(float InRoughness, const FLumenMaterialData In)
 
 	if (ReflectionPass == 0)
 	{
-		bNeedReflections = IsValid(In) && (LumenCombineReflectionsAlpha(InRoughness, IsFoliage(In)) > 0.0f || IsClearCoat(In));
+		bNeedReflections = IsValid(In) && (LumenCombineReflectionsAlpha(InRoughness, HasBackfaceDiffuse(In)) > 0.0f || IsClearCoat(In));
 	}
 	else if (ReflectionPass == 1)
 	{
@@ -1014,7 +1014,7 @@ void ReflectionTemporalReprojectionCS(
 
 	OutReflections = MakeFinite(OutReflections);
 
-	RWSpecularIndirect[Coord.SvPositionFlatten] = float4(OutReflections, 0);
+	RWSpecularIndirect[Coord.SvPositionFlatten] = OutReflections;
 	RWNumHistoryFramesAccumulated[Coord.SvPositionFlatten] = NewNumFramesAccumulated / MaxFramesAccumulated;
 
 #if USE_BILATERAL_FILTER

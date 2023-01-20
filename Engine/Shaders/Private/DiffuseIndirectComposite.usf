@@ -161,9 +161,9 @@ FShadingOcclusion GetShadingOcclusion(uint2 InPixelPos, float3 V, float3 N, floa
 	return Out;
 }
 
-float3 MixSpecularAndRoughReflections(float InRoughness, bool bIsFoliage, float4 SpecularReflections, float3 RoughReflections)
+float3 MixSpecularAndRoughReflections(float InRoughness, bool bHasBackfaceDiffuse, float4 SpecularReflections, float3 RoughReflections)
 {
-	const float FadeAlpha = LumenCombineReflectionsAlpha(InRoughness, bIsFoliage);
+	const float FadeAlpha = LumenCombineReflectionsAlpha(InRoughness, bHasBackfaceDiffuse);
 
 	// (1 - FadeAlpha) applied during Lumen integration to allow direct lighting specular which shouldn't be lerped out
 	float3 Lighting = RoughReflections;
@@ -182,7 +182,7 @@ float3 MixSpecularAndRoughReflections(float InRoughness, bool bIsFoliage, float4
 	return Lighting;
 }
 
-float3 CombineRoughSpecular(FGBufferData GBuffer, bool bIsFoliage, float NoV, float4 RayTracedReflections, float3 RoughReflections, float3 SpecularColor)
+float3 CombineRoughSpecular(FGBufferData GBuffer, bool bHasBackfaceDiffuse, float NoV, float4 RayTracedReflections, float3 RoughReflections, float3 SpecularColor)
 {
 	float3 Lighting;
 	
@@ -192,7 +192,7 @@ float3 CombineRoughSpecular(FGBufferData GBuffer, bool bIsFoliage, float NoV, fl
 	}
 	else
 	{
-		Lighting = MixSpecularAndRoughReflections(GBuffer.Roughness, bIsFoliage, RayTracedReflections, RoughReflections) * EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
+		Lighting = MixSpecularAndRoughReflections(GBuffer.Roughness, bHasBackfaceDiffuse, RayTracedReflections, RoughReflections) * EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
 	}
 	return Lighting;
 }
@@ -262,18 +262,28 @@ FStrataDeferredLighting StrataIndirectLighting(
 		
 		const float3 DiffuseColor = StrataGetBSDFDiffuseColor(BSDF);
 		const float  Roughness = StrataGetBSDFRoughness(BSDF);
+		const bool bHasBackfaceDiffuse = StrataGetBSDFType(BSDF) == STRATA_BSDF_TYPE_SLAB && BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID;
 		const FShadingOcclusion Occlusion = GetShadingOcclusion(PixelPos, V, StrataBSDFContext.N, Roughness, DiffuseColor, InAO);
 
-		const float3 InGlossyLighting = MixSpecularAndRoughReflections(Roughness, false/*bIsFoliage*/, InSpecularLighting, InRoughSpecularLighting);
+		const float3 InGlossyLighting = MixSpecularAndRoughReflections(Roughness, bHasBackfaceDiffuse, InSpecularLighting, InRoughSpecularLighting);
+
 
 		FDirectLighting OutBSDF = (FDirectLighting)0;
 		OutBSDF.Diffuse  += BSDFThroughput * InDiffuseLighting * StrataEnvLight.DiffuseWeight * Occlusion.DiffuseOcclusion;
 		OutBSDF.Specular += BSDFThroughput * InGlossyLighting  * StrataEnvLight.SpecularWeight * Occlusion.SpecularOcclusion;
 
+		#if DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SCREEN_PROBE_GATHER
+		if (bHasBackfaceDiffuse && bLumenSupportBackfaceDiffuse > 0)
+		{
+			const float3 InBackfaceDiffuseLighting = DiffuseIndirect_Textures_1.Load(uint3(InCoord, 0)).rgb;
+			OutBSDF.Diffuse  += BSDFThroughput * InBackfaceDiffuseLighting * StrataEnvLight.DiffuseBackFaceWeight * PI * Occlusion.DiffuseOcclusion; // Multiplied by PI as is StrataEnvLight.DiffuseBackFaceWeight is divided PI
+		}
+		#endif 
+
 		#if STRATA_FASTPATH==0
 		if (any(StrataEnvLight.SpecularHazeWeight > 0.0f))
 		{
-			const float3 InHazeGlossyLighting = MixSpecularAndRoughReflections(StrataEnvLight.SpecularHazeSafeRoughness, false/*bIsFoliage*/, InSpecularLighting, InRoughSpecularLighting);
+			const float3 InHazeGlossyLighting = MixSpecularAndRoughReflections(StrataEnvLight.SpecularHazeSafeRoughness, bHasBackfaceDiffuse, InSpecularLighting, InRoughSpecularLighting);
 			OutBSDF.Specular += BSDFThroughput * StrataEnvLight.SpecularHazeWeight * InHazeGlossyLighting * Occlusion.SpecularOcclusion;
 		}
 		#endif 
@@ -512,7 +522,7 @@ void MainPS(
 
 				#if DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SCREEN_PROBE_GATHER
 					RoughSpecularIndirectLighting *= Occlusion.SpecularOcclusion;
-					IndirectLighting.Specular = CombineRoughSpecular(GBuffer, IsFoliage(Material), NoV, SpecularIndirectLighting, RoughSpecularIndirectLighting, SpecularColor);
+					IndirectLighting.Specular = CombineRoughSpecular(GBuffer, HasBackfaceDiffuse(Material), NoV, SpecularIndirectLighting, RoughSpecularIndirectLighting, SpecularColor);
 				#else
 					IndirectLighting.Specular = SpecularIndirectLighting.xyz * EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
 				#endif

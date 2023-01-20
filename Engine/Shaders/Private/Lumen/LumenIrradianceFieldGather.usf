@@ -116,7 +116,7 @@ void IrradianceFieldGatherCS(
 #define COMPUTE_ROUGH_SPECULAR 1
 #if COMPUTE_ROUGH_SPECULAR
 
-			const float LumenSpecularRayAlpha = LumenCombineReflectionsAlpha(Material.Roughness, IsFoliage(Material));
+			const float LumenSpecularRayAlpha = LumenCombineReflectionsAlpha(Material.Roughness, HasBackfaceDiffuse(Material));
 			if (LumenSpecularRayAlpha < 1.0f || IsClearCoat(Material))
 			{
 				//GBufferData.WorldNormal = GetClearCoatBottomNormal(GBufferData, GBufferData.WorldNormal);

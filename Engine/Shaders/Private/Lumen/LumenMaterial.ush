@@ -186,7 +186,7 @@ struct FLumenMaterialData
 	bool   bRequiresBxDFImportanceSampling;
 	bool   bIsSLW;
 	bool   bIsHair;
-	bool   bIsFoliage;
+	bool   bHasBackfaceDiffuse;
 	bool   bIsFrontLayerTranslucency;
 	float  Anisotropy;
 
@@ -224,6 +224,7 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	const FStrataSubsurfaceHeader SSSHeader		= StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, InPixelPos);
 
 	// When Lumen is not used, only MaterialAO and ShadingID (see IsValid) are read, sourced form the single UINT read for the StrataPixelHeader.
+	const uint BSDFType = StrataGetBSDFType(StrataPixelHeader);
 
 	Out.SceneDepth						= ConvertFromDeviceZ(SceneTexturesStruct.SceneDepthTexture.Load(int3(InPixelPos, 0)).r);
 	Out.WorldNormal						= TopLayerData.WorldNormal;
@@ -231,9 +232,9 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	Out.ShadingID						= IsStrataMaterial(StrataPixelHeader) ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT;
 	Out.DiffuseIndirectSampleOcclusion	= StrataGetIrradianceAndAO(StrataPixelHeader).DiffuseIndirectSampleOcclusion;
 	Out.bNeedsSeparateLightAccumulation = StrataSubSurfaceHeaderGetUseDiffusion(SSSHeader);
-	Out.bIsSLW							= StrataGetBSDFType(StrataPixelHeader) == STRATA_BSDF_TYPE_SINGLELAYERWATER;
-	Out.bIsHair							= StrataGetBSDFType(StrataPixelHeader) == STRATA_BSDF_TYPE_HAIR;
-	Out.bIsFoliage						= false; // STRATA_TODO: this is used as a mean to identified 'high frequency alpha-masked'
+	Out.bIsSLW							= BSDFType == STRATA_BSDF_TYPE_SINGLELAYERWATER;
+	Out.bIsHair							= BSDFType == STRATA_BSDF_TYPE_HAIR;
+	Out.bHasBackfaceDiffuse				= BSDFType == STRATA_BSDF_TYPE_SLAB && HasSubsurface(StrataPixelHeader);
 	Out.bRequiresBxDFImportanceSampling = Out.bIsHair;
 	Out.bIsFrontLayerTranslucency		= false;
 
@@ -280,6 +281,9 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InCoord, uint InBSDFInd
 			const FStrataBSDF BSDF							= UnpackStrataBSDFIn(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader);
 			const FStrataIrradianceAndOcclusion IrradianceAO= StrataGetIrradianceAndAO(StrataPixelHeader);
 
+			const uint BSDFType = StrataGetBSDFType(BSDF);
+			const uint SSSType  = BSDFType == STRATA_BSDF_TYPE_SLAB ? BSDF_GETSSSTYPE(BSDF) : SSS_TYPE_INVALID;
+
 			Out.SceneDepth						= ConvertFromDeviceZ(SceneTexturesStruct.SceneDepthTexture.Load(int3(InCoord, 0)).r);
 			Out.TangentBasis					= StrataGetBSDFSharedBasis(StrataPixelHeader, BSDF, StrataAddressing);
 			Out.WorldNormal						= Out.TangentBasis[2];
@@ -287,9 +291,9 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InCoord, uint InBSDFInd
 			Out.ShadingID						= SHADINGMODELID_STRATA;
 			Out.DiffuseIndirectSampleOcclusion	= IrradianceAO.DiffuseIndirectSampleOcclusion;
 			Out.bNeedsSeparateLightAccumulation = StrataSubSurfaceHeaderGetUseDiffusion(SSSHeader);
-			Out.bIsSLW							= StrataGetBSDFType(BSDF) == STRATA_BSDF_TYPE_SINGLELAYERWATER;
-			Out.bIsHair							= StrataGetBSDFType(BSDF) == STRATA_BSDF_TYPE_HAIR;
-			Out.bIsFoliage						= false; // STRATA_TODO: this is used as a mean to identified 'high frequency alpha-masked'
+			Out.bIsSLW							= BSDFType == STRATA_BSDF_TYPE_SINGLELAYERWATER;
+			Out.bIsHair							= BSDFType == STRATA_BSDF_TYPE_HAIR;
+			Out.bHasBackfaceDiffuse				= SSSType != SSS_TYPE_INVALID;
 			Out.bRequiresBxDFImportanceSampling = Out.bIsHair;
 			Out.bIsFrontLayerTranslucency		= false;
 			Out.Anisotropy						= StrataGetBSDFAnisotropy(BSDF);
@@ -339,7 +343,7 @@ FLumenMaterialData InternalReadMaterialData_FrontLayerTranslucency(uint2 InPixel
 	Out.bNeedsSeparateLightAccumulation = false;
 	Out.bIsSLW = false;
 	Out.bIsHair = false;
-	Out.bIsFoliage = false;
+	Out.bHasBackfaceDiffuse = false;
 	Out.bRequiresBxDFImportanceSampling = false;
 	Out.bIsFrontLayerTranslucency = NormalEncoded.w > 0.0f;
 #endif
@@ -362,7 +366,7 @@ FLumenMaterialData InternalReadMaterialData_GBuffer(const FGBufferData GBufferDa
 	Out.bNeedsSeparateLightAccumulation = UseSubsurfaceProfile(GBufferData.ShadingModelID);
 	Out.bIsSLW = GBufferData.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER;
 	Out.bIsHair = GBufferData.ShadingModelID == SHADINGMODELID_HAIR;
-	Out.bIsFoliage = GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE || GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE;
+	Out.bHasBackfaceDiffuse = GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE || GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE;
 	Out.bRequiresBxDFImportanceSampling = RequiresBxDFImportanceSampling(GBufferData.ShadingModelID);
 	Out.bIsFrontLayerTranslucency = false;
 
@@ -419,9 +423,9 @@ bool IsHair(FLumenMaterialData In)
 	return In.bIsHair || In.ShadingID == SHADINGMODELID_HAIR;
 }
 
-bool IsFoliage(FLumenMaterialData In)
+bool HasBackfaceDiffuse(FLumenMaterialData In)
 {
-	return In.bIsFoliage || In.ShadingID == SHADINGMODELID_TWOSIDED_FOLIAGE || In.ShadingID == SHADINGMODELID_SUBSURFACE;
+	return In.bHasBackfaceDiffuse || In.ShadingID == SHADINGMODELID_TWOSIDED_FOLIAGE || In.ShadingID == SHADINGMODELID_SUBSURFACE;
 }
 
 bool IsClearCoat(FLumenMaterialData In)
@@ -461,13 +465,13 @@ bool ComputeIndirectLighting(FLumenMaterialData In)
 // Return true if the material has a hemispherical domain
 bool HasHemisphericalVisibility(FLumenMaterialData In)
 {
-	return !IsFoliage(In) && !IsHair(In);
+	return !HasBackfaceDiffuse(In) && !IsHair(In);
 }
 
 // Return true if the material has a spherical domain (vs. hemispherical domain)
 bool HasSphericalVisibility(FLumenMaterialData In)
 {
-	return IsFoliage(In) || IsHair(In);
+	return HasBackfaceDiffuse(In) || IsHair(In);
 }
 
 bool HasBentNormal(FLumenMaterialData In)
