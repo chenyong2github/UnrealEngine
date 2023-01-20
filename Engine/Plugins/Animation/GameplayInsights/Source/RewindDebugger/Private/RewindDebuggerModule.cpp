@@ -17,6 +17,7 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "AnimInstanceHelpers.h"
+#include "BlueprintDoubleClickHandler.h"
 #include "PropertyTraceMenu.h"
 #include "ToolMenus.h"
 #include "LevelEditor.h"
@@ -181,6 +182,7 @@ TSharedRef<SDockTab> FRewindDebuggerModule::SpawnRewindDebuggerTab(const FSpawnT
 }
 
 static FAnimInstanceDoubleClickHandler AnimInstanceDoubleClickHandler;
+static FBlueprintDoubleClickHandler BlueprintDoubleClickHandler;
 
 void FRewindDebuggerModule::StartupModule()
 {
@@ -224,6 +226,7 @@ void FRewindDebuggerModule::StartupModule()
 	RewindDebuggerCameraExtension.Initialize();
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerExtension::ModularFeatureName, &RewindDebuggerCameraExtension);
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerDoubleClickHandler::ModularFeatureName, &AnimInstanceDoubleClickHandler);
+	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerDoubleClickHandler::ModularFeatureName, &BlueprintDoubleClickHandler);
 
 	FPropertyTraceMenu::Register();
 	FAnimInstanceMenu::Register();
@@ -234,6 +237,7 @@ void FRewindDebuggerModule::ShutdownModule()
 {
 	IModularFeatures::Get().UnregisterModularFeature(IRewindDebuggerExtension::ModularFeatureName, &RewindDebuggerCameraExtension);
 	IModularFeatures::Get().UnregisterModularFeature(IRewindDebuggerDoubleClickHandler::ModularFeatureName, &AnimInstanceDoubleClickHandler);
+	IModularFeatures::Get().UnregisterModularFeature(IRewindDebuggerDoubleClickHandler::ModularFeatureName, &BlueprintDoubleClickHandler);
 
 	FRewindDebuggerCommands::Unregister();
 	FRewindDebuggerStyle::Shutdown();

@@ -16,7 +16,7 @@
 #define LOCTEXT_NAMESPACE "SRewindDebuggerAnimBPTools"
 
 #if OBJECT_TRACE_ENABLED
-static bool OpenBlueprintAndAttachDebugger(const TraceServices::IAnalysisSession* Session, uint64 ObjectId)
+static bool OpenAnimBlueprintAndAttachDebugger(const TraceServices::IAnalysisSession* Session, uint64 ObjectId)
 {
 	TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
 
@@ -62,7 +62,7 @@ bool FAnimInstanceDoubleClickHandler::HandleDoubleClick(IRewindDebugger* RewindD
 	TSharedPtr<FDebugObjectInfo> SelectedObject = RewindDebugger->GetSelectedComponent();
 	if (SelectedObject.IsValid())
 	{
-		return OpenBlueprintAndAttachDebugger(RewindDebugger->GetAnalysisSession(), SelectedObject->ObjectId);
+		return OpenAnimBlueprintAndAttachDebugger(RewindDebugger->GetAnalysisSession(), SelectedObject->ObjectId);
 	}
 #endif
 	return false;
@@ -92,7 +92,7 @@ void FAnimInstanceMenu::Register()
 							{
 								IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
 								TSharedPtr<const TraceServices::IAnalysisSession> Session = UnrealInsightsModule.GetAnalysisSession();
-								OpenBlueprintAndAttachDebugger(Session.Get(), ObjectId);
+								OpenAnimBlueprintAndAttachDebugger(Session.Get(), ObjectId);
 							}));
 		}
 	}));
