@@ -93,15 +93,11 @@ public:
 		return bSoftObjectPathRemappingEnabled; 
 	}
 
-	void SetRegenerateUniqueBulkDataGuids(bool bFlag)
-	{
-		bRegenerateUniqueBulkDataGuids = bFlag;
-	}
+	UE_DEPRECATED(5.2, "No longer used, pass ELoadFlags::LOAD_RegenerateBulkDataGuids to LoadPackage instead")
+	void SetRegenerateUniqueBulkDataGuids(bool bFlag) { }
 
-	bool ShouldRegenerateUniqueBulkDataGuids() const
-	{
-		return bRegenerateUniqueBulkDataGuids;
-	}
+	UE_DEPRECATED(5.2, "No longer used, check ELoadFlags::LOAD_RegenerateBulkDataGuids in the LoadFlags instead")
+	bool ShouldRegenerateUniqueBulkDataGuids() const { return false; }
 
 	/** Return the instanced package name for a given instanced outer package and an object package name */
 	static FString GetInstancedPackageName(const FString& InOuterPackageName, const FString& InPackageName)
@@ -133,6 +129,4 @@ private:
 	TSet<FName> Tags;
 	/** Remap soft object paths */
 	bool bSoftObjectPathRemappingEnabled = true;
-	/** When true we will generate new unique identifiers for editor bulkdata objects */
-	bool bRegenerateUniqueBulkDataGuids = false;
 };

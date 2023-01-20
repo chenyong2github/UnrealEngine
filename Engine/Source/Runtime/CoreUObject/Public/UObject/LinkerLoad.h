@@ -930,6 +930,12 @@ public:
 	 */
 	COREUOBJECT_API void DetachExports();
 
+	/** Should bulkdata identifiers should be regenerated as they are loaded or not */
+	bool ShouldRegenerateGuids() const
+	{
+		return (LoadFlags & LOAD_RegenerateBulkDataGuids) != 0;
+	}
+
 private:
 
 	FORCEINLINE virtual void Seek(int64 InPos) override

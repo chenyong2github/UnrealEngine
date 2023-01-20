@@ -243,7 +243,7 @@ FString GetDebugNameFromOwner(UObject* Owner)
  */
 bool ShouldGenerateNewIdentifier(FLinkerLoad* LinkerLoad, UObject* Owner)
 {
-	if (LinkerLoad && LinkerLoad->GetInstancingContext().ShouldRegenerateUniqueBulkDataGuids())
+	if (LinkerLoad && LinkerLoad->ShouldRegenerateGuids())
 	{
 		return true;
 	}
