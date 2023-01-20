@@ -28,6 +28,11 @@
 #include "UObject/ObjectSaveContext.h"
 #include "Templates/UniquePtr.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
+
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObject)
 
 class UMaterialInterface;
