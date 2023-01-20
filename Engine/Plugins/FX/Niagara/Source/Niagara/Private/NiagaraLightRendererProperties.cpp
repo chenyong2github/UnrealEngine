@@ -216,21 +216,6 @@ bool UNiagaraLightRendererProperties::PopulateRequiredBindings(FNiagaraParameter
 }
 
 #if WITH_EDITORONLY_DATA
-bool UNiagaraLightRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
-{
-	switch (SourceMode)
-	{
-		case ENiagaraRendererSourceDataMode::Particles:
-			return InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString);
-
-		default:
-			return
-				InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespaceString) ||
-				InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespaceString) ||
-				InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString);
-	}
-}
-
 const TArray<FNiagaraVariable>& UNiagaraLightRendererProperties::GetOptionalAttributes()
 {
 	static TArray<FNiagaraVariable> Attrs;

@@ -63,6 +63,11 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 		return nullptr;
 	}
 
+	if (!IsRendererEnabled(InProperties, Emitter))
+	{
+		return nullptr;
+	}
+
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGenLights);
 
 	//Bail if we don't have the required attributes to render this emitter.

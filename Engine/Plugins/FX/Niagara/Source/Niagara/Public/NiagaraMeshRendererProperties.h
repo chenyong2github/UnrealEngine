@@ -222,10 +222,6 @@ public:
 
 	void UpdateMICs();
 
-#if WITH_EDITORONLY_DATA
-	bool IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const;
-#endif
-
 	virtual ENiagaraRendererSourceDataMode GetCurrentSourceMode() const override { return SourceMode; }
 	//UNiagaraRendererProperties Interface END
 

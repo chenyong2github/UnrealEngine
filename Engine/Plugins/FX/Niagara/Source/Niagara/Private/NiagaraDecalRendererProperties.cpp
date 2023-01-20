@@ -243,21 +243,6 @@ bool UNiagaraDecalRendererProperties::PopulateRequiredBindings(FNiagaraParameter
 }
 
 #if WITH_EDITORONLY_DATA
-bool UNiagaraDecalRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
-{
-	switch (SourceMode)
-	{
-		case ENiagaraRendererSourceDataMode::Particles:
-			return InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString);
-
-		default:
-			return
-				InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespaceString) ||
-				InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespaceString) ||
-				InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString);
-	}
-}
-
 const TArray<FNiagaraVariable>& UNiagaraDecalRendererProperties::GetOptionalAttributes()
 {
 	using namespace NiagaraDecalRendererPropertiesLocal;

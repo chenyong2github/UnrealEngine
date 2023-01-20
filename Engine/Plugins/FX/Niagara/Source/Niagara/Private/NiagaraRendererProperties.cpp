@@ -348,11 +348,26 @@ void FNiagaraRendererMaterialParameters::GetFeedback(TArrayView<UMaterialInterfa
 #if WITH_EDITORONLY_DATA
 bool UNiagaraRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
 {
-	if (InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString))
+	if (InTargetBindingName == GET_MEMBER_NAME_CHECKED(UNiagaraRendererProperties, RendererEnabledBinding))
 	{
-		return true;
+		return
+			InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespace) ||
+			InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespace) ||
+			InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespace);
 	}
-	return false;
+
+	switch (GetCurrentSourceMode())
+	{
+		case ENiagaraRendererSourceDataMode::Particles:
+			return InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString);
+
+		default:
+			return
+				InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespaceString) ||
+				InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespaceString) ||
+				InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString);
+	}
+
 }
 
 void UNiagaraRendererProperties::RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter)

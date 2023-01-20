@@ -352,16 +352,14 @@ void UNiagaraComponentRendererProperties::CacheFromCompiledData(const FNiagaraDa
 #if WITH_EDITORONLY_DATA
 bool UNiagaraComponentRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
 {
-	if ( InTargetBindingName == GET_MEMBER_NAME_CHECKED(UNiagaraComponentRendererProperties, RendererEnabledBinding) )
+	if (InTargetBindingName == GET_MEMBER_NAME_CHECKED(UNiagaraRendererProperties, RendererEnabledBinding))
 	{
-		if (
+		return
 			InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespace) ||
 			InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespace) ||
-			InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
-		{
-			return true;
-		}
+			InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespace);
 	}
+
 	return false;
 }
 #endif

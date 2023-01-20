@@ -430,18 +430,6 @@ void UNiagaraRibbonRendererProperties::UpdateMICs()
 
 #if WITH_EDITORONLY_DATA
 
-bool UNiagaraRibbonRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
-{
-	if (InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespaceString) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespaceString) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString))
-	{
-		return true;
-	}
-	return false;
-}
-
 void UNiagaraRibbonRendererProperties::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);

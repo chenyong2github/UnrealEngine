@@ -558,20 +558,6 @@ void UNiagaraMeshRendererProperties::UpdateMICs()
 #endif
 }
 
-#if WITH_EDITORONLY_DATA
-bool UNiagaraMeshRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
-{
-	if ((SourceMode == ENiagaraRendererSourceDataMode::Particles && InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString)) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespaceString) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespaceString) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString))
-	{
-		return true;
-	}
-	return false;
-}
-#endif
-
 void UNiagaraMeshRendererProperties::ApplyMaterialOverrides(const FNiagaraEmitterInstance* EmitterInstance, TArray<UMaterialInterface*>& InOutMaterials) const
 {
 	if (bOverrideMaterials)
@@ -677,7 +663,7 @@ void UNiagaraMeshRendererProperties::GetStreamingMeshInfo(const FBoxSphereBounds
 				OwnerBounds.Origin + MeshBounds.Origin,
 				MeshBounds.BoxExtent * MeshProperties.Scale,
 				MeshBounds.SphereRadius * MeshProperties.Scale.GetMax());
-			const float MeshTexelFactor = MeshBounds.SphereRadius * 2.0f;
+			const float MeshTexelFactor = float(MeshBounds.SphereRadius * 2.0);
 
 			new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(StaticMesh, StreamingBounds, MeshTexelFactor);
 		}
@@ -946,8 +932,8 @@ void UNiagaraMeshRendererProperties::PreEditChange(class FProperty* PropertyThat
 
 void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	SubImageSize.X = FMath::Max<float>(SubImageSize.X, 1.f);
-	SubImageSize.Y = FMath::Max<float>(SubImageSize.Y, 1.f);
+	SubImageSize.X = FMath::Max(SubImageSize.X, 1.0);
+	SubImageSize.Y = FMath::Max(SubImageSize.Y, 1.0);
 
 	const bool bIsRedirect = PropertyChangedEvent.ChangeType == EPropertyChangeType::Redirected;
 	const bool bRebuildMeshList = ChangeRequiresMeshListRebuild(PropertyChangedEvent.Property);

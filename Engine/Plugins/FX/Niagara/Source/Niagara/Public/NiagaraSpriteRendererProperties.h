@@ -362,8 +362,6 @@ public:
 
 
 #if WITH_EDITORONLY_DATA
-	virtual bool IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const override;
-
 	/** Use the cutout texture from the material opacity mask, or if none exist, from the material opacity.	*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cutout")
 	bool bUseMaterialCutoutTexture;

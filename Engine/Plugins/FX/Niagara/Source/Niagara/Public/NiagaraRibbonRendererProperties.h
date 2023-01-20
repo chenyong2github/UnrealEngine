@@ -231,10 +231,6 @@ public:
 	virtual TArray<FNiagaraVariable> GetBoundAttributes() const override; 
 #endif
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
-	
-#if WITH_EDITORONLY_DATA
-	virtual bool IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const override;
-#endif
 	//UNiagaraRendererProperties Interface END
 
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")

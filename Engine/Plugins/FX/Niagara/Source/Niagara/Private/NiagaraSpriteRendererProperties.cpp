@@ -418,34 +418,6 @@ void UNiagaraSpriteRendererProperties::UpdateMICs()
 }
 
 #if WITH_EDITORONLY_DATA
-
-bool UNiagaraSpriteRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
-{
-	if ((SourceMode == ENiagaraRendererSourceDataMode::Particles && InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString)) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespaceString) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespaceString) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString))
-	{
-		return true;
-	}
-	return false;
-}
-
-
-//#if WITH_EDITOR
-//void UNiagaraSpriteRendererProperties::PostEditUndo()
-//{
-//	Super::PostEditUndo();
-//	UpdateSourceModeDerivates(SourceMode);
-//}
-//
-//void UNiagaraSpriteRendererProperties::PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation)
-//{
-//	Super::PostEditUndo(TransactionAnnotation);
-//	UpdateSourceModeDerivates(SourceMode);
-//}
-//#endif
-
 void UNiagaraSpriteRendererProperties::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
