@@ -3601,3 +3601,5 @@ void FOpenXRHMD::FTrackingSpace::DestroySpace()
 	}
 	Handle = XR_NULL_HANDLE;
 }
+
+#undef LOCTEXT_NAMESPACE
