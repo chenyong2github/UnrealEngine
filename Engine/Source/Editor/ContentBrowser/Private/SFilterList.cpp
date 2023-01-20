@@ -331,7 +331,7 @@ void SFilterList::PopulateAddFilterMenu_Internal(UToolMenu* Menu)
 		MenuExpansion = Context->MenuExpansion;
 	}
 
-	this->PopulateAddFilterMenu(Menu, AssetFilterCategories.FindChecked(EAssetTypeCategories::Basic), FOnFilterAssetType::CreateLambda([this](UClass *TestClass)
+	this->PopulateAddFilterMenu(Menu, AssetFilterCategories.FindChecked(EAssetCategoryPaths::Basic.GetCategory()), FOnFilterAssetType::CreateLambda([this](UClass *TestClass)
 	{
 		return !IsFilteredByPicker(this->InitialClassFilters, TestClass);
 	}));

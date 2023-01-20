@@ -77,15 +77,7 @@ EAssetCommandResult UAssetDefinition_SkeletalMesh::OpenAssets(const FAssetOpenAr
 
 UThumbnailInfo* UAssetDefinition_SkeletalMesh::LoadThumbnailInfo(const FAssetData& InAssetData) const
 {
-	USkeletalMesh* SkeletalMesh = CastChecked<USkeletalMesh>(InAssetData.GetAsset());
-	UThumbnailInfo* ThumbnailInfo = SkeletalMesh->GetThumbnailInfo();
-	if ( ThumbnailInfo == nullptr )
-	{
-		ThumbnailInfo = NewObject<USceneThumbnailInfo>(SkeletalMesh, NAME_None, RF_Transactional);
-		SkeletalMesh->SetThumbnailInfo(ThumbnailInfo);
-	}
-
-	return ThumbnailInfo;
+	return UE::Editor::FindOrCreateThumbnailInfo(InAssetData.GetAsset(), USceneThumbnailInfo::StaticClass());
 }
 
 EVisibility UAssetDefinition_SkeletalMesh::GetThumbnailSkinningOverlayVisibility(const FAssetData AssetData) const

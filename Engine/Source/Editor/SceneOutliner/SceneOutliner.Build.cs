@@ -26,7 +26,7 @@ public class SceneOutliner : ModuleRules
 				"EditorWidgets",
 				"ToolWidgets",
 				"UnsavedAssetsTracker",
-				"UncontrolledChangelists"
+				"AssetDefinition"
 			}
 		);
 		

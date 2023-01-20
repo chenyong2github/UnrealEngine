@@ -122,25 +122,25 @@ bool UAssetDefinition_AssetTypeActionsProxy::CanMerge() const
 	return AssetType->CanMerge();
 }
 
-EAssetCommandResult UAssetDefinition_AssetTypeActionsProxy::Merge(const FAssetMergeArgs& MergeArgs) const
+EAssetCommandResult UAssetDefinition_AssetTypeActionsProxy::Merge(const FAssetAutomaticMergeArgs& MergeArgs) const
 {
-	if (!MergeArgs.BaseAsset.IsSet() && !MergeArgs.RemoteAsset.IsSet())
-	{
-		AssetType->Merge(MergeArgs.LocalAsset.GetAsset());
-		return EAssetCommandResult::Handled;
-	}
-	else
-	{
-		FOnAssetMergeResolved MergeCallback = MergeArgs.ResolutionCallback;
-		AssetType->Merge(MergeArgs.BaseAsset.GetValue().GetAsset(), MergeArgs.RemoteAsset.GetValue().GetAsset(), MergeArgs.LocalAsset.GetAsset(),
-			FOnMergeResolved::CreateLambda([MergeCallback](UPackage* MergedPackage, EMergeResult::Type Result){
-			FAssetMergeResults Results;
-			Results.MergedPackage = MergedPackage;
-			Results.Result = static_cast<EAssetMergeResult>(Result);
-			MergeCallback.ExecuteIfBound(Results);
-		}));
-		return EAssetCommandResult::Handled;
-	}
+	AssetType->Merge(MergeArgs.LocalAsset);
+
+	return EAssetCommandResult::Handled;
+}
+
+EAssetCommandResult UAssetDefinition_AssetTypeActionsProxy::Merge(const FAssetManualMergeArgs& MergeArgs) const
+{
+	FOnAssetMergeResolved MergeCallback = MergeArgs.ResolutionCallback;
+	AssetType->Merge(MergeArgs.BaseAsset, MergeArgs.RemoteAsset, MergeArgs.LocalAsset,
+		FOnMergeResolved::CreateLambda([MergeCallback](UPackage* MergedPackage, EMergeResult::Type Result){
+		FAssetMergeResults Results;
+		Results.MergedPackage = MergedPackage;
+		Results.Result = static_cast<EAssetMergeResult>(Result);
+		MergeCallback.ExecuteIfBound(Results);
+	}));
+
+	return EAssetCommandResult::Handled;
 }
 
 FAssetOpenSupport UAssetDefinition_AssetTypeActionsProxy::GetAssetOpenSupport(const FAssetOpenSupportArgs& OpenSupportArgs) const
@@ -189,7 +189,7 @@ EAssetCommandResult UAssetDefinition_AssetTypeActionsProxy::OpenAssets(const FAs
 	return EAssetCommandResult::Handled;
 }
 
-EAssetCommandResult UAssetDefinition_AssetTypeActionsProxy::GetFilters(TArray<FAssetFilterData>& OutFilters) const
+void UAssetDefinition_AssetTypeActionsProxy::BuildFilters(TArray<FAssetFilterData>& OutFilters) const
 {
 	if (AssetType->CanFilter())
 	{
@@ -198,11 +198,7 @@ EAssetCommandResult UAssetDefinition_AssetTypeActionsProxy::GetFilters(TArray<FA
 		Data.DisplayText = AssetType->GetName();
 		AssetType->BuildBackendFilter(Data.Filter);
 		OutFilters.Add(MoveTemp(Data));
-
-		return EAssetCommandResult::Handled;
 	}
-
-	return EAssetCommandResult::Unhandled;
 }
 
 FText UAssetDefinition_AssetTypeActionsProxy::GetObjectDisplayNameText(UObject* Object) const

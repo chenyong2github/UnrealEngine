@@ -19,7 +19,8 @@ public class EditorWidgets : ModuleRules
 				"UnrealEd",
 				"CoreUObject",
 				"ToolWidgets",
-				"EditorConfig"
+				"EditorConfig",
+				"AssetDefinition",
 			}
 		);
 		

@@ -31,14 +31,15 @@ public:
 	virtual FAssetSupportResponse CanLocalize(const FAssetData& InAsset) const override;
 	virtual bool CanImport() const override;
 	virtual bool CanMerge() const override;
-	virtual EAssetCommandResult Merge(const FAssetMergeArgs& MergeArgs) const override;
+	virtual EAssetCommandResult Merge(const FAssetAutomaticMergeArgs& MergeArgs) const override;
+	virtual EAssetCommandResult Merge(const FAssetManualMergeArgs& MergeArgs) const override;
 
 	virtual FAssetOpenSupport GetAssetOpenSupport(const FAssetOpenSupportArgs& OpenSupportArgs) const override;
 	virtual TArray<FAssetData> PrepareToActivateAssets(const FAssetActivateArgs& ActivateArgs) const override;
 	virtual EAssetCommandResult ActivateAssets(const FAssetActivateArgs& ActivateArgs) const override;
 	virtual EAssetCommandResult OpenAssets(const FAssetOpenArgs& OpenArgs) const override;
 
-	virtual EAssetCommandResult GetFilters(TArray<FAssetFilterData>& OutFilters) const override;
+	virtual void BuildFilters(TArray<FAssetFilterData>& OutFilters) const override;
 
 	// We don't need to implement GetSourceFiles, the default one will / should work for any existing type.
 	// virtual EAssetCommandResult GetSourceFiles(const FAssetSourceFileArgs& SourceFileArgs, TArray<FAssetSourceFile>& OutSourceAssets) const override;

@@ -61,6 +61,7 @@ class FSkinnedAssetBuildContext;
 class FSkinnedAssetPostLoadContext;
 class USkeletalMeshLODSettings;
 class USkeleton;
+class UThumbnailInfo;
 struct FMeshUVChannelInfo;
 struct FSkeletalMaterial;
 struct FSkinWeightProfileInfo;
@@ -1521,8 +1522,8 @@ public:
 
 	/** Information for thumbnail rendering */
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetThumbnailInfo() or USkeletalMesh::SetThumbnailInfo().")
-	UPROPERTY(VisibleAnywhere, Instanced, AdvancedDisplay, Category = Thumbnail)
-	TObjectPtr<class UThumbnailInfo> ThumbnailInfo;
+	UPROPERTY(VisibleAnywhere, Instanced, AdvancedDisplay, Getter=GetThumbnailInfo, Setter=SetThumbnailInfo, Category = Thumbnail)
+	TObjectPtr<UThumbnailInfo> ThumbnailInfo;
 	
 	static FName GetThumbnailInfoMemberName()
 	{
@@ -1530,16 +1531,16 @@ public:
 		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, ThumbnailInfo);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
-
-	class UThumbnailInfo* GetThumbnailInfo() const
+	
+	UThumbnailInfo* GetThumbnailInfo() const
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ThumbnailInfo);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return ThumbnailInfo;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
-
-	void SetThumbnailInfo(class UThumbnailInfo* InThumbnailInfo)
+	
+	void SetThumbnailInfo(UThumbnailInfo* InThumbnailInfo)
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ThumbnailInfo);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS

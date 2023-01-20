@@ -9,15 +9,7 @@
 
 UThumbnailInfo* UAssetDefinition_PhysicsAsset::LoadThumbnailInfo(const FAssetData& InAsset) const
 {
-	UPhysicsAsset* PhysicsAsset = CastChecked<UPhysicsAsset>(InAsset.GetAsset());
-	UThumbnailInfo* ThumbnailInfo = PhysicsAsset->ThumbnailInfo;
-	if (ThumbnailInfo == nullptr)
-	{
-		ThumbnailInfo = NewObject<USceneThumbnailInfo>(PhysicsAsset, NAME_None, RF_Transactional);
-		PhysicsAsset->ThumbnailInfo = ThumbnailInfo;
-	}
-
-	return ThumbnailInfo;
+	return UE::Editor::FindOrCreateThumbnailInfo(InAsset.GetAsset(), USceneThumbnailInfo::StaticClass());
 }
 
 EAssetCommandResult UAssetDefinition_PhysicsAsset::OpenAssets(const FAssetOpenArgs& OpenArgs) const

@@ -17,21 +17,21 @@
 
 UThumbnailInfo* UAssetDefinition_MaterialInterface::LoadThumbnailInfo(const FAssetData& InAsset) const
 {
-	UMaterialInterface* MaterialInterface = CastChecked<UMaterialInterface>(InAsset.GetAsset());
-	USceneThumbnailInfoWithPrimitive* ThumbnailInfo = Cast<USceneThumbnailInfoWithPrimitive>(MaterialInterface->ThumbnailInfo);
-	if ( ThumbnailInfo == nullptr )
+	if (UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(InAsset.GetAsset()))
 	{
-		ThumbnailInfo = NewObject<USceneThumbnailInfoWithPrimitive>(MaterialInterface, NAME_None, RF_Transactional);
-		MaterialInterface->ThumbnailInfo = ThumbnailInfo;
-	}
-	
-	const UMaterial* Material = MaterialInterface->GetBaseMaterial();
-	if (Material && Material->bUsedWithParticleSprites)
-    {
-    	ThumbnailInfo->DefaultPrimitiveType = TPT_Plane;
-    }
+		if (USceneThumbnailInfoWithPrimitive* ThumbnailInfo = UE::Editor::FindOrCreateThumbnailInfo<USceneThumbnailInfoWithPrimitive>(MaterialInterface))
+		{
+			const UMaterial* Material = MaterialInterface->GetBaseMaterial();
+			if (Material && Material->bUsedWithParticleSprites)
+			{
+				ThumbnailInfo->DefaultPrimitiveType = TPT_Plane;
+			}
 
-	return ThumbnailInfo;
+			return ThumbnailInfo;
+		}
+	}
+
+	return nullptr;
 }
 
 // Menu Extensions

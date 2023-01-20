@@ -385,7 +385,7 @@ void SWidgetDrawer::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const F
 				FWidgetPath MenuHostPath;
 
 				// See if the menu being opened is part of the content browser path and if so the menu should not be dismissed
-				FSlateApplication::Get().GeneratePathToWidgetUnchecked(MenuHost.ToSharedRef(), MenuHostPath, EVisibility::All);
+				FSlateApplication::Get().GeneratePathToWidgetUnchecked(MenuHost.ToSharedRef(), MenuHostPath, EVisibility::Visible);
 				if (!MenuHostPath.ContainsWidget(ActiveDrawerOverlayContent.Get()))
 				{
 					bShouldDismiss = true;

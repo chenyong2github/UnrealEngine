@@ -1913,6 +1913,9 @@ public:
 	 * been validated for thread safe use in a blueprint.
 	 */
 	static bool HasFunctionBlueprintThreadSafeMetaData(const UFunction* InFunction);
+
+public:
+	static bool ShouldOpenWithDataOnlyEditor(const UBlueprint* Blueprint);
 };
 
 struct UNREALED_API FBlueprintDuplicationScopeFlags

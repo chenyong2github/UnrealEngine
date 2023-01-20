@@ -35,7 +35,6 @@
 #include "IClassTypeActions.h"
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
-#include "AssetTypeActions/AssetTypeActions_Blueprint.h"
 #include "AssetTypeActions/AssetTypeActions_BlueprintGeneratedClass.h"
 #include "AssetTypeActions/AssetTypeActions_AnimationAsset.h"
 #include "AssetTypeActions/AssetTypeActions_AnimBlueprint.h"
@@ -43,7 +42,6 @@
 #include "AssetTypeActions/AssetTypeActions_AnimBlueprintGeneratedClass.h"
 #include "AssetTypeActions/AssetTypeActions_AnimBoneCompressionSettings.h"
 #include "AssetTypeActions/AssetTypeActions_AnimCurveCompressionSettings.h"
-#include "AssetTypeActions/AssetTypeActions_Class.h"
 #include "AssetTypeActions/AssetTypeActions_ForceFeedbackEffect.h"
 #include "AssetTypeActions/AssetTypeActions_ParticleSystem.h"
 #include "AssetTypeActions/AssetTypeActions_PhysicalMaterialMask.h"
@@ -279,25 +277,22 @@ public:
 
 	virtual bool CanFilter() override
 	{
-		TArray<FAssetFilterData> Filters;
-		AssetDefinitionPtr->GetFilters(Filters);
-		return Filters.Num() > 0;
+		TSharedRef<FAssetFilterDataCache> FilterCache = AssetDefinitionPtr->GetFilters();
+		return FilterCache->Filters.Num() > 0;
 	}
 
 	virtual FName GetFilterName() const override
 	{
-		TArray<FAssetFilterData> Filters;
-		AssetDefinitionPtr->GetFilters(Filters);
-		return Filters.Num() > 0 ? FName(*Filters[0].Name) : NAME_None;
+		TSharedRef<FAssetFilterDataCache> FilterCache = AssetDefinitionPtr->GetFilters();
+		return FilterCache->Filters.Num() > 0 ? FName(*FilterCache->Filters[0].Name) : NAME_None;
 	}
 
 	virtual void BuildBackendFilter(FARFilter& InFilter) override
 	{
-		TArray<FAssetFilterData> Filters;
-		AssetDefinitionPtr->GetFilters(Filters);
-		if (Filters.Num() > 0)
+		TSharedRef<FAssetFilterDataCache> FilterCache = AssetDefinitionPtr->GetFilters();
+		if (FilterCache->Filters.Num() > 0)
 		{
-			InFilter = Filters[0].Filter;
+			InFilter = FilterCache->Filters[0].Filter;
 		}
 	}
 
@@ -329,7 +324,7 @@ public:
 	/** Begins a merge operation for InObject (automatically determines remote/base versions needed to resolve) */
 	virtual void Merge( UObject* InObject ) override
 	{
-		FAssetMergeArgs MergeArgs;
+		FAssetAutomaticMergeArgs MergeArgs;
 		MergeArgs.LocalAsset = InObject;
 
 		AssetDefinitionPtr.Get()->Merge(MergeArgs);
@@ -338,7 +333,7 @@ public:
 	/** Begins a merge between the specified assets */
 	virtual void Merge(UObject* BaseAsset, UObject* RemoteAsset, UObject* LocalAsset, const FOnMergeResolved& ResolutionCallback) override
 	{
-		FAssetMergeArgs MergeArgs;
+		FAssetManualMergeArgs MergeArgs;
 		MergeArgs.LocalAsset = LocalAsset;
 		MergeArgs.BaseAsset = BaseAsset;
 		MergeArgs.RemoteAsset = RemoteAsset;
@@ -1334,9 +1329,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimBlueprintGeneratedClass));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimBoneCompressionSettings));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimCurveCompressionSettings));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Blueprint));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_BlueprintGeneratedClass));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Class));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ForceFeedbackEffect(InputCategoryBit)));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ParticleSystem));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PhysicalMaterialMask));

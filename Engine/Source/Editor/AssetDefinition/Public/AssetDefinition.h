@@ -7,10 +7,10 @@
 #include "AssetRegistry/AssetData.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Toolkits/IToolkit.h"
+#include "Misc/AssetFilterData.h"
 
 #include "AssetDefinition.generated.h"
 
-struct FAssetFilterData;
 class IToolkitHost;
 class UThumbnailInfo;
 struct FSlateBrush;
@@ -55,7 +55,7 @@ struct FAssetArgs
 	TConstArrayView<FAssetData> Assets;
 
 	template<typename ExpectedObjectType>
-	TArray<ExpectedObjectType*> LoadObjects(const TSet<FName>& LoadTags = {}) const
+	TArray<ExpectedObjectType*> LoadObjects(const TSet<FName>& LoadTags = {}, TArray<FAssetData>* OutAssetsThatFailedToLoad = nullptr) const
 	{
 		FScopedSlowTask SlowTask(Assets.Num());
 	
@@ -71,8 +71,15 @@ struct FAssetArgs
 				if (ExpectedObjectType* ExpectedType = Cast<ExpectedObjectType>(Asset.GetAsset(LoadTags)))
 				{
 					LoadedObjects.Add(ExpectedType);
+					continue;
 				}
-			}	
+			}
+
+			// If we get here than we failed to load the asset for some reason or another.
+			if (OutAssetsThatFailedToLoad)
+			{
+				OutAssetsThatFailedToLoad->Add(Asset);
+			}
 		}
 		
 		return LoadedObjects;
@@ -123,12 +130,17 @@ struct FAssetMergeResults
 
 DECLARE_DELEGATE_OneParam(FOnAssetMergeResolved, const FAssetMergeResults& Results);
 
-struct FAssetMergeArgs
+struct FAssetAutomaticMergeArgs
 {
-	FAssetData LocalAsset;
-	TOptional<FAssetData> BaseAsset;
-	TOptional<FAssetData> RemoteAsset;
-	
+	UObject* LocalAsset = nullptr;
+	FOnAssetMergeResolved ResolutionCallback;
+};
+
+struct FAssetManualMergeArgs
+{
+	UObject* LocalAsset = nullptr;
+	UObject* BaseAsset = nullptr;
+	UObject* RemoteAsset = nullptr;
 	FOnAssetMergeResolved ResolutionCallback;
 };
 
@@ -201,30 +213,6 @@ struct FAssetOpenSupportArgs
 	EAssetOpenMethod OpenMethod = EAssetOpenMethod::Edit;
 };
 
-/**
- * The asset category path is how we know how to build menus around assets.  For example, Basic is generally the ones
- * we expose at the top level, where as everything else is a category with a pull out menu, and the subcategory would
- * be where it gets placed in a submenu inside of there.
- */
-struct ASSETDEFINITION_API FAssetCategoryPath
-{
-	FAssetCategoryPath(const FText& InCategory);
-	FAssetCategoryPath(FText InCategory, FText InSubCategory);
-	FAssetCategoryPath(const FAssetCategoryPath& InCategory, const FText& SubCategory);
-	FAssetCategoryPath(TConstArrayView<FText> InCategoryPath);
-
-	FName GetCategory() const { return CategoryPath[0].Key; }
-	FText GetCategoryText() const { return CategoryPath[0].Value; }
-	
-	bool HasSubCategory() const { return CategoryPath.Num() > 1; }
-	FName GetSubCategory() const { return HasSubCategory() ? CategoryPath[1].Key : NAME_None; }
-	FText GetSubCategoryText() const { return HasSubCategory() ? CategoryPath[1].Value : FText::GetEmpty(); }
-	
-	FAssetCategoryPath operator / (const FText& SubCategory) const { return FAssetCategoryPath(*this, SubCategory); }
-	
-private:
-	TArray<TPair<FName, FText>> CategoryPath;
-};
 
 /**
  * These are just some common asset categories.  You're not at all limited to these, and can register an "Advanced"
@@ -281,6 +269,14 @@ enum class EIncludeClassInFilter : uint8
 	IfClassIsNotAbstract,
 	Always
 };
+
+
+struct FAssetFilterDataCache
+{
+public:
+	TArray<FAssetFilterData> Filters;
+};
+
 
 /**
  * Asset Definitions represent top level assets that are known to the editor.
@@ -370,13 +366,26 @@ public:
 	
 	// Merging
 	virtual bool CanMerge() const { return false; }
-	virtual EAssetCommandResult Merge(const FAssetMergeArgs& MergeArgs) const { return EAssetCommandResult::Unhandled; }
-	
+	virtual EAssetCommandResult Merge(const FAssetAutomaticMergeArgs& MergeArgs) const { return EAssetCommandResult::Unhandled; }
+	virtual EAssetCommandResult Merge(const FAssetManualMergeArgs& MergeArgs) const { return EAssetCommandResult::Unhandled; }
+
 
 	// Filtering
-	virtual EAssetCommandResult GetFilters(TArray<FAssetFilterData>& OutFilters) const;
+	virtual TSharedRef<FAssetFilterDataCache> GetFilters() const
+	{
+		if (!FilterCache.IsValid())
+		{
+			FilterCache = MakeShared<FAssetFilterDataCache>();
+			BuildFilters(FilterCache->Filters);
+		}
 
-	
+		return FilterCache.ToSharedRef();
+	}
+
+protected:
+	virtual void BuildFilters(TArray<FAssetFilterData>& OutFilters) const;
+
+public:
 	// Extras
 	virtual FText GetObjectDisplayNameText(UObject* Object) const
 	{
@@ -443,6 +452,9 @@ protected:
 
 protected:
 	EIncludeClassInFilter IncludeClassInFilter = EIncludeClassInFilter::IfClassIsNotAbstract;
+
+private:
+	mutable TSharedPtr<FAssetFilterDataCache> FilterCache;
 
 	friend class UAssetDefinitionRegistry;
 };

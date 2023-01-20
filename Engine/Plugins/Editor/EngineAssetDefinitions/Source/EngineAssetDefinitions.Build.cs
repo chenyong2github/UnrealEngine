@@ -33,6 +33,8 @@ public class EngineAssetDefinitions : ModuleRules
 				"Foliage",
 				"Landscape",
 				"PhysicsCore",
+				"Kismet",
+				"GameProjectGeneration"
 			}
 		);
 		

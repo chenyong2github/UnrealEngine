@@ -19,20 +19,7 @@
 
 UThumbnailInfo* UAssetDefinition_StaticMesh::LoadThumbnailInfo(const FAssetData& InAssetData) const
 {
-	UStaticMesh* StaticMesh = Cast<UStaticMesh>(InAssetData.GetAsset());
-	if (ensure(StaticMesh))
-	{
-		UThumbnailInfo* ThumbnailInfo = StaticMesh->ThumbnailInfo;
-		if ( ThumbnailInfo == nullptr )
-		{
-			ThumbnailInfo = NewObject<USceneThumbnailInfo>(StaticMesh, NAME_None, RF_Transactional);
-			StaticMesh->ThumbnailInfo = ThumbnailInfo;
-		}
-
-		return ThumbnailInfo;
-	}
-
-	return nullptr;
+	return UE::Editor::FindOrCreateThumbnailInfo(InAssetData.GetAsset(), USceneThumbnailInfo::StaticClass());
 }
 
 EAssetCommandResult UAssetDefinition_StaticMesh::OpenAssets(const FAssetOpenArgs& OpenArgs) const

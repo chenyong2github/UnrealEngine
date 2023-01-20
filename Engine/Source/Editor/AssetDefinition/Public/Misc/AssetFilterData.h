@@ -4,6 +4,7 @@
 
 #include "UObject/Object.h"
 #include "AssetRegistry/ARFilter.h"
+#include "AssetCategoryPath.h"
 
 #include "AssetFilterData.generated.h"
 
@@ -14,6 +15,10 @@ struct FAssetFilterData
 
 public:
 	FString Name;
-	FText DisplayText;	
+	
+	FText DisplayText;
+
+	TArray<FAssetCategoryPath> FilterCategories;
+	
 	FARFilter Filter;
 };

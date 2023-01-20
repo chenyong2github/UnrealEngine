@@ -148,15 +148,7 @@ EAssetCommandResult UAssetDefinition_AnimationAsset::OpenAssets(const FAssetOpen
 
 UThumbnailInfo* UAssetDefinition_AnimationAsset::LoadThumbnailInfo(const FAssetData& InAssetData) const
 {
-	UAnimationAsset* Anim = CastChecked<UAnimationAsset>(InAssetData.GetAsset());
-	UThumbnailInfo* ThumbnailInfo = Anim->ThumbnailInfo;
-	if (ThumbnailInfo == nullptr)
-	{
-		ThumbnailInfo = NewObject<USceneThumbnailInfo>(Anim, NAME_None, RF_Transactional);
-		Anim->ThumbnailInfo = ThumbnailInfo;
-	}
-
-	return ThumbnailInfo;
+	return UE::Editor::FindOrCreateThumbnailInfo(InAssetData.GetAsset(), USceneThumbnailInfo::StaticClass());
 }
 
 // Menu Extensions

@@ -71,20 +71,7 @@ EAssetCommandResult UAssetDefinition_World::OpenAssets(const FAssetOpenArgs& Ope
 
 UThumbnailInfo* UAssetDefinition_World::LoadThumbnailInfo(const FAssetData& InAsset) const
 {
-	if (UObject* WorldInstance = InAsset.GetAsset())
-	{
-		UWorld* World = CastChecked<UWorld>(WorldInstance);
-		UThumbnailInfo* ThumbnailInfo = World->ThumbnailInfo;
-		if (ThumbnailInfo == nullptr)
-		{
-			ThumbnailInfo = NewObject<UWorldThumbnailInfo>(World, NAME_None, RF_Transactional);
-			World->ThumbnailInfo = ThumbnailInfo;
-		}
-		
-		return ThumbnailInfo;
-	}
-
-	return nullptr;
+	return UE::Editor::FindOrCreateThumbnailInfo(InAsset.GetAsset(), UWorldThumbnailInfo::StaticClass());
 }
 
 FAssetSupportResponse UAssetDefinition_World::CanRename(const FAssetData& InAsset) const

@@ -58,19 +58,18 @@ protected:
 	FReply ResetToDefault();
 
 	/** Helper accessors for ThumbnailInfo objects */
-	USceneThumbnailInfo* GetSceneThumbnailInfo();
-	USceneThumbnailInfoWithPrimitive* GetSceneThumbnailInfoWithPrimitive();
-	USceneThumbnailInfoWithPrimitive* ConstGetSceneThumbnailInfoWithPrimitive() const;
+	USceneThumbnailInfo* GetSceneThumbnailInfo() const;
+	USceneThumbnailInfoWithPrimitive* GetSceneThumbnailInfoWithPrimitive() const;
 
 	EThumbnailPrimType GetDefaultThumbnailType() const;
 
-	/** Event fired when the asset data for this asset is loaded or changed */
-	void OnAssetDataChanged();
-
 protected:
+	bool bInSmallView;
 	bool bModifiedThumbnailWhileDragging;
 	FIntPoint DragStartLocation;
 	TWeakPtr<FAssetThumbnail> AssetThumbnail;
-	TWeakObjectPtr<USceneThumbnailInfo> SceneThumbnailInfo;
-	bool bInSmallView;
+
+private:
+	// Never access this directly.
+	mutable TWeakObjectPtr<USceneThumbnailInfo> SceneThumbnailInfoPtr;
 };

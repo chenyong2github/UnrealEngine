@@ -90,7 +90,7 @@ bool UAssetDefinition::CanRegisterStatically() const
 	return !GetClass()->HasAnyClassFlags(CLASS_Abstract);
 }
 
-EAssetCommandResult UAssetDefinition::GetFilters(TArray<FAssetFilterData>& OutFilters) const
+void UAssetDefinition::BuildFilters(TArray<FAssetFilterData>& OutFilters) const
 {
 	const TSoftClassPtr<UObject> AssetClassPtr = GetAssetClass();
 
@@ -103,15 +103,12 @@ EAssetCommandResult UAssetDefinition::GetFilters(TArray<FAssetFilterData>& OutFi
 			FAssetFilterData DefaultFilter;
 			DefaultFilter.Name = AssetClassPtr.ToSoftObjectPath().ToString();
 			DefaultFilter.DisplayText = GetAssetDisplayName();
+			DefaultFilter.FilterCategories = GetAssetCategories();
 			DefaultFilter.Filter.ClassPaths.Add(AssetClassPtr.ToSoftObjectPath().GetAssetPath());
 			DefaultFilter.Filter.bRecursiveClasses = true;
 			OutFilters.Add(MoveTemp(DefaultFilter));
-	
-			return EAssetCommandResult::Handled;
 		}
 	}
-	
-	return EAssetCommandResult::Unhandled;
 }
 
 #undef LOCTEXT_NAMESPACE

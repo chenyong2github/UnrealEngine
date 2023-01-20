@@ -12,6 +12,8 @@
 
 class FFilterCategory;
 class IAssetTypeActions;
+class UAssetDefinition;
+struct FAssetFilterData;
 class UClass;
 struct FARFilter;
 
@@ -25,29 +27,16 @@ class EDITORWIDGETS_API FCustomClassFilterData
 public:
 
 	/* You can provide an IAssetTypeActions for your type to get all the information from that */
-	FCustomClassFilterData(TWeakPtr<IAssetTypeActions> InAssetTypeAction)
-	: Class(nullptr)
-	, AssetTypeActions(InAssetTypeAction)
-	{
-		
-	}
+	FCustomClassFilterData(UAssetDefinition* InAssetDefinition, const FAssetFilterData& InAssetTypeAction);
 
 	/* Or you can provide a UClass, a Category and a Color to identify the filter */
-	FCustomClassFilterData(UClass *InClass, TSharedPtr<FFilterCategory> InCategory, FLinearColor InColor)
-	: Class(InClass)
-	, Color(InColor)
-	{
-		Categories.Add(InCategory);
-	}
+	FCustomClassFilterData(UClass* InClass, TSharedPtr<FFilterCategory> InCategory, FLinearColor InColor);
 
 	/* Unlike normal filters, Type Filters are allowed to belong to multiple categories */
 	void AddCategory(TSharedPtr<FFilterCategory> InCategory);
-
-	/* Get the AssetTypeActions associated with this filter if they exist */
-	TSharedPtr<IAssetTypeActions> GetAssetTypeActions() const;
-
+	
 	/* Get the UClass associated with this filter */
-	UClass *GetClass() const;
+	UClass* GetClass() const;
 
 	/* Get the Catgories this filter belongs to */
 	TArray<TSharedPtr<FFilterCategory>> GetCategories() const;
@@ -56,7 +45,7 @@ public:
 	FLinearColor GetColor() const;
 
 	/** Add this filter to the input BackendFilter */
-	void BuildBackendFilter(FARFilter &Filter);
+	void BuildBackendFilter(FARFilter& OutFilter);
 
 	/** Get the logical name of this filter class */
 	FText GetName() const;
@@ -72,7 +61,19 @@ public:
 private:
 
 	/** The Class the filter is associated with (if it does not have an AssetTypeAction) */
-	UClass *Class;
+	TWeakObjectPtr<UClass> Class;
+
+	/** The Filter name */
+	FString FilterName;
+	
+	/** The Filter display name */
+	FText FilterDisplayName;
+
+	/** The class path of the class associated with the filter */
+	FTopLevelAssetPath ClassPathName;
+
+	/** The actual asset registry filter. */
+	FARFilter Filter;
 
 	/** The Categories the filter will show up under */
 	TArray<TSharedPtr<FFilterCategory>> Categories;
@@ -80,6 +81,6 @@ private:
 	/** The Color of the filter (if it does not have an AssetTypeAction to get the color from) */
 	FLinearColor Color;
 
-	/** An optional AssetTypeAction to get information about the filter class */
-	TWeakPtr<IAssetTypeActions> AssetTypeActions;
+	/** An optional AssetDefinition to get information about the filter class */
+	TWeakObjectPtr<UAssetDefinition> AssetDefinitionPtr;
 };

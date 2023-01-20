@@ -52,14 +52,6 @@ void SThumbnailEditModeTools::Construct( const FArguments& InArgs, const TShared
 	DragStartLocation = FIntPoint(ForceInitToZero);
 	bInSmallView = InArgs._SmallView;
 
-	// Prime the SceneThumbnailInfo pointer
-	GetSceneThumbnailInfo();
-
-	if ( AssetThumbnail.IsValid() )
-	{
-		AssetThumbnail.Pin()->OnAssetDataChanged().AddSP(this, &SThumbnailEditModeTools::OnAssetDataChanged);
-	}
-
 	ChildSlot
 	[
 		SNew(SHorizontalBox)
@@ -104,13 +96,13 @@ void SThumbnailEditModeTools::Construct( const FArguments& InArgs, const TShared
 
 EVisibility SThumbnailEditModeTools::GetPrimitiveToolsVisibility() const
 {
-	const bool bIsVisible = !bInSmallView && (ConstGetSceneThumbnailInfoWithPrimitive() != NULL);
+	const bool bIsVisible = !bInSmallView && (GetSceneThumbnailInfo() != nullptr);
 	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SThumbnailEditModeTools::GetPrimitiveToolsResetToDefaultVisibility() const
 {
-	USceneThumbnailInfo* ThumbnailInfo = SceneThumbnailInfo.Get();
+	USceneThumbnailInfo* ThumbnailInfo = GetSceneThumbnailInfo();
 	
 	EVisibility ResetToDefaultVisibility = EVisibility::Collapsed;
 	if (ThumbnailInfo)
@@ -123,7 +115,7 @@ EVisibility SThumbnailEditModeTools::GetPrimitiveToolsResetToDefaultVisibility()
 
 const FSlateBrush* SThumbnailEditModeTools::GetCurrentPrimitiveBrush() const
 {
-	USceneThumbnailInfoWithPrimitive* ThumbnailInfo = ConstGetSceneThumbnailInfoWithPrimitive();
+	USceneThumbnailInfoWithPrimitive* ThumbnailInfo = GetSceneThumbnailInfoWithPrimitive();
 	if ( ThumbnailInfo )
 	{
 		// Note this is for the icon only.  we are assuming the thumbnail renderer does the right thing when rendering
@@ -211,7 +203,7 @@ FReply SThumbnailEditModeTools::OnMouseButtonDown( const FGeometry& MyGeometry, 
 		if ( ThumbnailInfo )
 		{
 			FThumbnailRenderingInfo* RenderInfo = GUnrealEd->GetThumbnailManager()->GetRenderingInfo(Asset);
-			if (RenderInfo != NULL && RenderInfo->Renderer != NULL)
+			if (RenderInfo != nullptr && RenderInfo->Renderer != nullptr)
 			{
 				bModifiedThumbnailWhileDragging = false;
 				DragStartLocation = FIntPoint(MouseEvent.GetScreenSpacePosition().X, MouseEvent.GetScreenSpacePosition().Y);
@@ -314,15 +306,15 @@ FCursorReply SThumbnailEditModeTools::OnCursorQuery( const FGeometry& MyGeometry
 		FCursorReply::Cursor( EMouseCursor::Default );
 }
 
-USceneThumbnailInfo* SThumbnailEditModeTools::GetSceneThumbnailInfo()
+USceneThumbnailInfo* SThumbnailEditModeTools::GetSceneThumbnailInfo() const
 {
-	if ( !SceneThumbnailInfo.IsValid() )
+	USceneThumbnailInfo* SceneThumbnailInfo = SceneThumbnailInfoPtr.Get();
+	
+	if (!SceneThumbnailInfo)
 	{
 		if ( AssetThumbnail.IsValid() )
 		{
-			UObject* Asset = AssetThumbnail.Pin()->GetAsset();
-
-			if ( Asset )
+			if ( UObject* Asset = AssetThumbnail.Pin()->GetAsset() )
 			{
 				static const FName AssetToolsName("AssetTools");
 				FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(AssetToolsName);
@@ -335,30 +327,12 @@ USceneThumbnailInfo* SThumbnailEditModeTools::GetSceneThumbnailInfo()
 		}
 	}
 
-	return SceneThumbnailInfo.Get();
+	return SceneThumbnailInfo;
 }
 
-USceneThumbnailInfoWithPrimitive* SThumbnailEditModeTools::GetSceneThumbnailInfoWithPrimitive()
+USceneThumbnailInfoWithPrimitive* SThumbnailEditModeTools::GetSceneThumbnailInfoWithPrimitive() const
 {
-	USceneThumbnailInfo* ThumbnailInfo = SceneThumbnailInfo.Get();
-	if ( !ThumbnailInfo )
-	{
-		ThumbnailInfo = GetSceneThumbnailInfo();
-	}
-
-	return Cast<USceneThumbnailInfoWithPrimitive>( ThumbnailInfo );
+	return Cast<USceneThumbnailInfoWithPrimitive>( GetSceneThumbnailInfo() );
 }
-
-USceneThumbnailInfoWithPrimitive* SThumbnailEditModeTools::ConstGetSceneThumbnailInfoWithPrimitive() const
-{
-	return Cast<USceneThumbnailInfoWithPrimitive>( SceneThumbnailInfo.Get() );
-}
-
-void SThumbnailEditModeTools::OnAssetDataChanged()
-{
-	// Set the SceneThumbnailInfo pointer as needed
-	GetSceneThumbnailInfo();
-}
-
 
 #undef LOCTEXT_NAMESPACE

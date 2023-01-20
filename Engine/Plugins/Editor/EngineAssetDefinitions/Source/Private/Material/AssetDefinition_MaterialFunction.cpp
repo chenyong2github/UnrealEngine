@@ -34,15 +34,7 @@ EAssetCommandResult UAssetDefinition_MaterialFunction::OpenAssets(const FAssetOp
 
 UThumbnailInfo* UAssetDefinition_MaterialFunction::LoadThumbnailInfo(const FAssetData& InAsset) const
 {
-	UMaterialFunctionInterface* MaterialFunc = CastChecked<UMaterialFunctionInterface>(InAsset.GetAsset());
-	UThumbnailInfo* ThumbnailInfo = MaterialFunc->ThumbnailInfo;
-	if (ThumbnailInfo == nullptr)
-	{
-		ThumbnailInfo = NewObject<USceneThumbnailInfoWithPrimitive>(MaterialFunc, NAME_None, RF_Transactional);
-		MaterialFunc->ThumbnailInfo = ThumbnailInfo;
-	}
-
-	return ThumbnailInfo;
+	return UE::Editor::FindOrCreateThumbnailInfo(InAsset.GetAsset(), USceneThumbnailInfoWithPrimitive::StaticClass());
 }
 
 // Menu Extensions
