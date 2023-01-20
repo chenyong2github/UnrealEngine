@@ -462,7 +462,11 @@ void UNearestNeighborModel::SetOptimizedNetwork(UNearestNeighborOptimizedNetwork
 
 bool UNearestNeighborModel::DoesUseOptimizedNetwork() const
 {
+#if NEARESTNEIGHBORMODEL_USE_ISPC
 	return UE::NearestNeighborModel::bNearestNeighborModelUseOptimizedNetwork;
+#else
+	return false;
+#endif
 }
 
 /**

@@ -7,6 +7,11 @@
 
 class UNearestNeighborOptimizedNetworkInstance;
 
+#define NEARESTNEIGHBORMODEL_USE_ISPC INTEL_ISPC
+#if !defined(NEARESTNEIGHBORMODEL_USE_ISPC)
+	#define NEARESTNEIGHBORMODEL_USE_ISPC 0
+#endif
+
 USTRUCT()
 struct FNearestNeighborNetworkParameter
 {
