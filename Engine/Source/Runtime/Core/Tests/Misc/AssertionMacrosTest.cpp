@@ -2,7 +2,7 @@
 
 #include "Misc/Build.h" 
 
-#if WITH_LOW_LEVEL_TESTS && DO_ENSURE
+#if WITH_LOW_LEVEL_TESTS
 
 #include "Misc/AssertionMacros.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
