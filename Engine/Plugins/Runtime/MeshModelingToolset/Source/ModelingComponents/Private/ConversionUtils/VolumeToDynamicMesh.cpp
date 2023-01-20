@@ -189,6 +189,8 @@ void BrushToDynamicMesh(UModel& BrushModel, UE::Geometry::FDynamicMesh3& Mesh, c
 		{
 			FPlanarFlipsOptimization(&Mesh, 5).Apply(); // Do five passes
 		}
+
+		Mesh.CompactInPlace();
 	}
 }
 
