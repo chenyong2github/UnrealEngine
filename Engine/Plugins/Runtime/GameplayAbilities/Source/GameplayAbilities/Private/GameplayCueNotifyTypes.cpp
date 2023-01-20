@@ -860,7 +860,7 @@ bool FGameplayCueNotify_InputDevicePropertyInfo::SetDeviceProperties(const FGame
 		// Apply any device properties from this gameplay cue
 		if (UInputDeviceSubsystem* System = UInputDeviceSubsystem::Get())
 		{
-			FSetDevicePropertyParams Params = {};
+			FActivateDevicePropertyParams Params = {};
 			Params.UserId = TargetPC->GetPlatformUserId();
 			
 			if (ensure(Params.UserId.IsValid()))

@@ -12,18 +12,17 @@
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogInputDeviceProperties, Log, All);
 
 class UInputDeviceProperty;
-class APlayerController;
 
-/** Parameters for the UInputDeviceSubsystem::SetDeviceProperty function */
+/** Parameters for the UInputDeviceSubsystem::ActivateDeviceProperty function */
 USTRUCT(BlueprintType)
-struct ENGINE_API FSetDevicePropertyParams
+struct ENGINE_API FActivateDevicePropertyParams
 {
 	GENERATED_BODY()
 
-	FSetDevicePropertyParams();
+	FActivateDevicePropertyParams();
 	
 	/** The Platform User whose device's should receive the device property */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Activation Options")
 	FPlatformUserId UserId;
 
 	/** 
@@ -32,37 +31,32 @@ struct ENGINE_API FSetDevicePropertyParams
 	* 
 	* The default input device is obtained from IPlatformInputDeviceMapper::GetPrimaryInputDeviceForUser
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Activation Options")
 	FInputDeviceId DeviceId;
 
 	/**
 	* If true, then the input device property will not be removed after it's evaluation time has completed.
 	* Instead, it will remain active until manually removed with a RemoveDeviceProperty call.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
-	bool bLooping = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Activation Options")
+	uint8 bLooping : 1;
 
 	/** If true, then this device property will ignore dilated delta time and use the Applications delta time instead */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
-	bool bIgnoreTimeDilation = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Activation Options")
+	uint8 bIgnoreTimeDilation : 1;
 
 	/** If true, then this device property will be played even if the game world is paused. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
-	bool bPlayWhilePaused = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Activation Options")
+	uint8 bPlayWhilePaused : 1;
 };
-
-/**
- * Delegate called when a user changed the hardware they are using for input.
- *
- * @param UserId		The Platform user whose device has changed
- */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FHardwareInputDeviceChanged, const FPlatformUserId, UserId, const FInputDeviceId, DeviceId);
 
 /** Contains a pointer to an active device property and keeps track of how long it has been evaluated for */
 USTRUCT()
 struct ENGINE_API FActiveDeviceProperty
 {
 	GENERATED_BODY()
+
+	FActiveDeviceProperty();
 	
 	/** Active properties can just use the hash of their FInputDevicePropertyHandle for a fast and unique lookup */
 	ENGINE_API friend uint32 GetTypeHash(const FActiveDeviceProperty& InProp);
@@ -92,13 +86,13 @@ struct ENGINE_API FActiveDeviceProperty
 	* If true, then the input device property will not be removed after it's evaluation time has completed.
 	* Instead, it will remain active until manually removed with a RemoveDeviceProperty call.
 	*/
-	bool bLooping = false;
+	uint8 bLooping : 1;
 
 	/** If true, then this device property will ignore dilated delta time and use the Applications delta time instead */
-	bool bIgnoreTimeDilation = false;
+	uint8 bIgnoreTimeDilation : 1;
 
 	/** If true, then this device property will be played even if the game world is paused. */
-	bool bPlayWhilePaused = false;
+	uint8 bPlayWhilePaused : 1;
 
 	/**
 	 * This is set to true when this device property has been applied.
@@ -107,8 +101,15 @@ struct ENGINE_API FActiveDeviceProperty
 	 * I.e., your property is set to a duration of 0.1, but you get a delta time of .12 seconds for some reason
 	 * (choppy frames, low perf client, debugging, etc). 
 	 */
-	bool bHasBeenAppliedAtLeastOnce = false;
+	uint8 bHasBeenAppliedAtLeastOnce : 1;
 };
+
+/**
+ * Delegate called when a user changed the hardware they are using for input.
+ *
+ * @param UserId		The Platform user whose device has changed
+ */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FHardwareInputDeviceChanged, const FPlatformUserId, UserId, const FInputDeviceId, DeviceId);
 
 /**
 * The input device subsystem provides an interface to allow users to set Input Device Properties
@@ -131,9 +132,11 @@ public:
 	 */
 	static UInputDeviceSubsystem* Get();
 
+	//~ Begin UEngineSubsystem interface
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const;
+	//~ End UEngineSubsystem interface
 	
 	//~ Begin FTickableGameObject interface	
 	virtual UWorld* GetTickableGameObjectWorld() const override;
@@ -143,33 +146,25 @@ public:
 	virtual TStatId GetStatId() const override;
 	virtual void Tick(float InDeltaTime) override;
 	//~ End FTickableGameObject interface
-
-	/** Get the player controller who has the given Platform User ID. */
-	UFUNCTION(BlueprintCallable, Category = "Input Devices")
-	static APlayerController* GetPlayerControllerFromPlatformUser(const FPlatformUserId UserId);
-
-	/** Get the player controller who owns the given input device id */
-	UFUNCTION(BlueprintCallable, Category = "Input Devices")
-	static APlayerController* GetPlayerControllerFromInputDevice(const FInputDeviceId DeviceId);
-
+	
 	/**
 	 * Starts tracking the given device property as an "Active" property. This means that the property will be evaluted and applied to its platform user
 	 *
 	 * NOTE: This does NOT make a new instance of the given property. If you pass in the same object before it is completely
 	 * evaluated, then you see undesired effects.
 	 */
-	FInputDevicePropertyHandle ActivateDeviceProperty(UInputDeviceProperty* Property, const FSetDevicePropertyParams& Params);
+	FInputDevicePropertyHandle ActivateDeviceProperty(UInputDeviceProperty* Property, const FActivateDevicePropertyParams& Params);
 
 	/** Spawn a new instance of the given device property class and activate it. */
 	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (AutoCreateRefTerm = "Params", ReturnDisplayName = "Device Property Handle"))
-	FInputDevicePropertyHandle ActivateDevicePropertyOfClass(TSubclassOf<UInputDeviceProperty> PropertyClass, const FSetDevicePropertyParams& Params);
+	FInputDevicePropertyHandle ActivateDevicePropertyOfClass(TSubclassOf<UInputDeviceProperty> PropertyClass, const FActivateDevicePropertyParams& Params);
 	
 	/** Returns a pointer to the active input device property with the given handle. Returns null if the property doesn't exist */
 	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta=(ReturnDisplayName="Device Property"))
 	UInputDeviceProperty* GetActiveDeviceProperty(const FInputDevicePropertyHandle Handle) const;
 	
 	/** Returns true if the property associated with the given handle is currently active, and it is not pending removal */
-	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Is Property Active"))
+	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Is Active"))
 	bool IsPropertyActive(const FInputDevicePropertyHandle Handle) const;	
 
 	/**
@@ -196,10 +191,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Input Devices")
 	void RemoveAllDeviceProperties();
 
-	/** Returns true if the given handle is valid */
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Input Devices")
-	static bool IsDevicePropertyHandleValid(const FInputDevicePropertyHandle& InHandle);
-
 	/** Gets the most recently used hardware input device for the given platform user */
 	UFUNCTION(BlueprintCallable, Category = "Input Devices")
 	FHardwareDeviceIdentifier GetMostRecentlyUsedHardwareDevice(const FPlatformUserId InUserId) const;
@@ -208,12 +199,12 @@ public:
 	FHardwareDeviceIdentifier GetInputDeviceHardwareIdentifier(const FInputDeviceId InputDevice) const;
 
 	/** A delegate that is fired when a platform user changes what Hardware Input device they are using */
-	UPROPERTY(BlueprintAssignable, Category = "Input Device")
+	UPROPERTY(BlueprintAssignable, Category = "Input Devices")
 	FHardwareInputDeviceChanged OnInputHardwareDeviceChanged;
 	
 protected:
 
-	/** Set the most recently used hardware device */
+	/** Set the most recently used hardware device from the input processor */
 	void SetMostRecentlyUsedHardwareDevice(const FInputDeviceId InDeviceId, const FHardwareDeviceIdentifier& InHardwareId);
 
 	// Callbacks for when PIE is started/stopped. We will likely want to pause/resume input device properties
@@ -246,6 +237,6 @@ protected:
 	/** A map of platform user's to their most recent hardware device identifier */
 	TMap<FPlatformUserId, FHardwareDeviceIdentifier> LatestUserDeviceIdentifiers;
 
-	/** An input processor that is used to determine the current hardware input device */
+	/** An input processor that is used to determine the most recently used hardware device for each user*/
 	TSharedPtr<class FInputDeviceSubsystemProcessor> InputPreprocessor;
 };

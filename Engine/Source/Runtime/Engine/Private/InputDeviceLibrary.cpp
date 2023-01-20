@@ -43,6 +43,11 @@ APlayerController* UInputDeviceLibrary::GetPlayerControllerFromInputDevice(const
 	return GetPlayerControllerFromPlatformUser(IPlatformInputDeviceMapper::Get().GetUserForInputDevice(DeviceId));
 }
 
+bool UInputDeviceLibrary::IsDevicePropertyHandleValid(const FInputDevicePropertyHandle& InHandle)
+{
+	return InHandle.IsValid();
+}
+
 int32 UInputDeviceLibrary::GetAllInputDevicesForUser(const FPlatformUserId UserId, TArray<FInputDeviceId>& OutInputDevices)
 {
 	return IPlatformInputDeviceMapper::Get().GetAllInputDevicesForUser(UserId, OutInputDevices);

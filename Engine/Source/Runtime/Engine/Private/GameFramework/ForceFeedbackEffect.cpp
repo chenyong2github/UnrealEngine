@@ -179,7 +179,7 @@ void FActiveForceFeedbackEffect::ActivateDeviceProperties()
 			{
 				if (ensure(DeviceProp))
 				{
-					FSetDevicePropertyParams Params = {};
+					FActivateDevicePropertyParams Params = {};
 					Params.bIgnoreTimeDilation = Parameters.bIgnoreTimeDilation;
 					Params.UserId = PlatformUser;
 					Params.bPlayWhilePaused = Parameters.bPlayWhilePaused;

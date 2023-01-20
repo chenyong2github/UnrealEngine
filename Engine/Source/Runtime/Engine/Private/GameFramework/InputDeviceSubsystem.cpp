@@ -4,7 +4,6 @@
 #include "GameFramework/InputDeviceProperties.h"
 #include "Framework/Application/IInputProcessor.h"
 #include "Framework/Application/SlateApplication.h"			// For RegisterInputPreProcessor
-#include "GameFramework/PlayerController.h"
 #include "Misc/App.h"	// For FApp::GetDeltaTime()
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputDeviceSubsystem)
@@ -107,6 +106,18 @@ public:
 ////////////////////////////////////////////////////////
 // FActiveDeviceProperty
 
+FActiveDeviceProperty::FActiveDeviceProperty()
+	: Property(nullptr)
+	, EvaluatedDuration(0.0)
+	, PlatformUser(PLATFORMUSERID_NONE)
+	, DeviceId(INPUTDEVICEID_NONE)
+	, PropertyHandle(FInputDevicePropertyHandle::InvalidHandle)
+	, bLooping(false)
+	, bIgnoreTimeDilation(false)
+	, bPlayWhilePaused(false)
+	, bHasBeenAppliedAtLeastOnce(false)
+{ }
+
 uint32 GetTypeHash(const FActiveDeviceProperty& InProp)
 {
 	return InProp.PropertyHandle.GetTypeHash();
@@ -134,14 +145,17 @@ bool FActiveDeviceProperty::operator!=(const FActiveDeviceProperty& Other) const
 }
 
 ////////////////////////////////////////////////////////
-// FSetDevicePropertyParams
+// FActivateDevicePropertyParams
 
-FSetDevicePropertyParams::FSetDevicePropertyParams()
+FActivateDevicePropertyParams::FActivateDevicePropertyParams()
 	: UserId(FSlateApplicationBase::SlateAppPrimaryPlatformUser)
 	// Set this Device Id to NONE by default. The subsystem will detect this being invalid and fall back 
 	// to the default device for the given platform user. This will let the default behavior of the system be 
 	// consistent, while still allowing for setting specific input devices if desired.
 	, DeviceId(INPUTDEVICEID_NONE)
+	, bLooping(false)
+	, bIgnoreTimeDilation(false)
+	, bPlayWhilePaused(false)
 {
 }
 
@@ -332,40 +346,7 @@ void UInputDeviceSubsystem::Tick(float InDeltaTime)
 	PropertiesPendingRemoval.Empty();
 }
 
-APlayerController* UInputDeviceSubsystem::GetPlayerControllerFromPlatformUser(const FPlatformUserId UserId)
-{
-	if (UserId.IsValid())
-	{
-		if (const UInputDeviceSubsystem* System = UInputDeviceSubsystem::Get())
-		{
-			if (const UWorld* World = System->GetTickableGameObjectWorld())
-			{
-				for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
-				{
-					APlayerController* PlayerController = Iterator->Get();
-					const FPlatformUserId PlayerControllerUserID = PlayerController ? PlayerController->GetPlatformUserId() : PLATFORMUSERID_NONE;
-					if (PlayerControllerUserID.IsValid() && PlayerControllerUserID == UserId)
-					{
-						return PlayerController;
-					}
-				}
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogInputDeviceProperties, Warning, TEXT("Attempting to find the player controller for an invalid Platform"));
-	}
-
-	return nullptr;
-}
-
-APlayerController* UInputDeviceSubsystem::GetPlayerControllerFromInputDevice(const FInputDeviceId DeviceId)
-{
-	return GetPlayerControllerFromPlatformUser(IPlatformInputDeviceMapper::Get().GetUserForInputDevice(DeviceId));
-}
-
-FInputDevicePropertyHandle UInputDeviceSubsystem::ActivateDeviceProperty(UInputDeviceProperty* Property, const FSetDevicePropertyParams& Params)
+FInputDevicePropertyHandle UInputDeviceSubsystem::ActivateDeviceProperty(UInputDeviceProperty* Property, const FActivateDevicePropertyParams& Params)
 {
 	if (!Property)
 	{
@@ -403,7 +384,7 @@ FInputDevicePropertyHandle UInputDeviceSubsystem::ActivateDeviceProperty(UInputD
 	return OutHandle;
 }
 
-FInputDevicePropertyHandle UInputDeviceSubsystem::ActivateDevicePropertyOfClass(TSubclassOf<UInputDeviceProperty> PropertyClass, const FSetDevicePropertyParams& Params)
+FInputDevicePropertyHandle UInputDeviceSubsystem::ActivateDevicePropertyOfClass(TSubclassOf<UInputDeviceProperty> PropertyClass, const FActivateDevicePropertyParams& Params)
 {
 	if (!PropertyClass)
 	{
@@ -451,11 +432,6 @@ void UInputDeviceSubsystem::RemoveDevicePropertyHandles(const TSet<FInputDeviceP
 	{
 		UE_LOG(LogInputDeviceProperties, Warning, TEXT("Provided an empty set of handles to remove. Nothing will happen."));
 	}
-}
-
-bool UInputDeviceSubsystem::IsDevicePropertyHandleValid(const FInputDevicePropertyHandle& InHandle)
-{
-	return InHandle.IsValid();
 }
 
 void UInputDeviceSubsystem::RemoveAllDeviceProperties()

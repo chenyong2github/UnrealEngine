@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "GameFramework/InputDevicePropertyHandle.h"
 
 #include "InputDeviceLibrary.generated.h"
 
@@ -33,6 +34,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Input Devices")
 	static APlayerController* GetPlayerControllerFromInputDevice(const FInputDeviceId DeviceId);
 
+	/** Returns true if the given handle is valid */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Input Devices", meta = (ReturnDisplayName = "Is Valid"))
+	static bool IsDevicePropertyHandleValid(const FInputDevicePropertyHandle& InHandle);
+	
 	/**
 	 * Populates the OutInputDevices array with any InputDeviceID's that are mapped to the given platform user
 	 *
