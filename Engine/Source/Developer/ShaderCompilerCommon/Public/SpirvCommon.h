@@ -8,7 +8,7 @@
 #include "Misc/AssertionMacros.h"
 
 THIRD_PARTY_INCLUDES_START
-	#include "spirv_reflect.h"
+	#include <spirv/unified1/spirv.h>
 THIRD_PARTY_INCLUDES_END
 
 

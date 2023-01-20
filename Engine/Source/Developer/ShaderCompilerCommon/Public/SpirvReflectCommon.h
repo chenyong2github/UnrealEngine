@@ -9,6 +9,7 @@
 
 #if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 THIRD_PARTY_INCLUDES_START
+	#include <spirv/unified1/spirv.h>
 	#include "spirv_reflect.h"
 THIRD_PARTY_INCLUDES_END
 #endif
