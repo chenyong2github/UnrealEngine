@@ -26,11 +26,15 @@ class ENGINE_API UContentBundleManager : public UObject
 {
 	GENERATED_BODY()
 
+	friend class FContentBundleClient;
+
 public:
 	UContentBundleManager();
 
 	void Initialize();
 	void Deinitialize();
+
+	bool CanInject() const;
 
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
@@ -46,8 +50,14 @@ public:
 	void DrawContentBundlesStatus(const UWorld* InWorld, UCanvas* Canvas, FVector2D& Offset) const;
 
 private:
+#if WITH_EDITOR
+	bool TryInject(FContentBundleClient& Client);
+	void Remove(FContentBundleClient& Client);
+#endif
+
 	uint32 GetContentBundleContainerIndex(const UWorld* InjectedWorld) const;
 	const TUniquePtr<FContentBundleContainer>* GetContentBundleContainer(const UWorld* InjectedWorld) const;
+	TUniquePtr<FContentBundleContainer>* GetContentBundleContainer(const UWorld* InjectedWorld);
 
 	void OnWorldPartitionInitialized(UWorldPartition* WorldPartition);
 	void OnWorldPartitionUninitialized(UWorldPartition* WorldPartition);

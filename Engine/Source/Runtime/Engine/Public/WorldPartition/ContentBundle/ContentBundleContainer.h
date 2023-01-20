@@ -48,6 +48,9 @@ public:
 	const TArray<TUniquePtr<FContentBundle>>& GetGameContentBundles() const;
 	TArray<TUniquePtr<FContentBundle>>& GetGameContentBundles();
 
+	bool InjectContentBundle(FContentBundleClient& ContentBundleClient);
+	bool RemoveContentBundle(FContentBundleClient& ContentBundleClient);
+
 #if WITH_EDITOR
 	TSharedPtr<FContentBundleEditor> GetEditorContentBundle(const UContentBundleDescriptor* Descriptor) const;
 	TSharedPtr<FContentBundleEditor> GetEditorContentBundle(const FGuid& ContentBundleGuid) const;
@@ -62,8 +65,6 @@ public:
 	void ForEachContentBundleBreakable(TFunctionRef<bool(FContentBundleBase*)> Func) const;
 
 private:
-	bool ShouldInjectClientContent(const TSharedPtr<FContentBundleClient>& ContentBundleClient) const;
-
 	FContentBundleBase* GetContentBundle(const FContentBundleClient& ContentBundleClient);
 
 	void RegisterContentBundleClientEvents();
@@ -80,8 +81,8 @@ private:
 	void InitializeContentBundlesForegisteredClients();
 	void DeinitializeContentBundles();
 
-	void InjectContentBundle(FContentBundleBase& ContentBundle);
-	void RemoveContentBundle(FContentBundleBase& ContentBundle);
+	bool InjectContentBundle(FContentBundleBase& ContentBundle);
+	bool RemoveContentBundle(FContentBundleBase& ContentBundle);
 
 #if WITH_EDITOR
 	void OnPreGenerateStreaming(TArray<FString>* OutPackageToGenerate);

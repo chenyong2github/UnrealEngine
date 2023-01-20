@@ -266,14 +266,54 @@ void FContentBundleContainer::DeinitializeContentBundle(FContentBundleBase& Cont
 	GetGameContentBundles().RemoveAtSwap(Index);
 }
 
-void FContentBundleContainer::InjectContentBundle(FContentBundleBase& ContentBundle)
+bool FContentBundleContainer::InjectContentBundle(FContentBundleClient& ContentBundleClient)
 {
-	ContentBundle.InjectContent();
+	if (FContentBundleBase* ContentBundle = GetContentBundle(ContentBundleClient))
+	{
+		return InjectContentBundle(*ContentBundle);
+	}
+
+	return false;
 }
 
-void FContentBundleContainer::RemoveContentBundle(FContentBundleBase& ContentBundle)
+bool FContentBundleContainer::InjectContentBundle(FContentBundleBase& ContentBundle)
 {
-	ContentBundle.RemoveContent();
+	if (ContentBundle.GetStatus() == EContentBundleStatus::Registered)
+	{
+		TSharedPtr<FContentBundleClient> ContentBundleClient = ContentBundle.GetClient().Pin();
+		if (ContentBundleClient != nullptr && ContentBundleClient->ShouldInjectContent(InjectedWorld))
+		{
+			ContentBundle.InjectContent();
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+bool FContentBundleContainer::RemoveContentBundle(FContentBundleClient& ContentBundleClient)
+{
+	if (FContentBundleBase* ContentBundle = GetContentBundle(ContentBundleClient))
+	{
+		return RemoveContentBundle(*ContentBundle);
+	}
+
+	return false;
+}
+
+bool FContentBundleContainer::RemoveContentBundle(FContentBundleBase& ContentBundle)
+{
+	if ((ContentBundle.GetStatus() == EContentBundleStatus::ContentInjected || ContentBundle.GetStatus() == EContentBundleStatus::ReadyToInject))
+	{
+		TSharedPtr<FContentBundleClient> ContentBundleClient = ContentBundle.GetClient().Pin();
+		if (ContentBundleClient == nullptr || ContentBundleClient->ShouldRemoveContent(InjectedWorld) || !InjectedWorld->ContentBundleManager->CanInject())
+		{
+			ContentBundle.RemoveContent();
+			return true;
+		}
+	}
+	
+	return false;
 }
 
 void FContentBundleContainer::OnContentBundleClientRegistered(TSharedPtr<FContentBundleClient>& ContentBundleClient)
@@ -291,18 +331,12 @@ void FContentBundleContainer::OnContentBundleClientUnregistered(FContentBundleCl
 
 void FContentBundleContainer::OnContentBundleClientContentInjectionRequested(FContentBundleClient& ContentBundleClient)
 {
-	if (FContentBundleBase* ContentBundle = GetContentBundle(ContentBundleClient))
-	{
-		InjectContentBundle(*ContentBundle);
-	}
+	InjectContentBundle(ContentBundleClient);
 }
 
 void FContentBundleContainer::OnContentBundleClientContentRemovalRequested(FContentBundleClient& ContentBundleClient)
 {
-	if (FContentBundleBase* ContentBundle = GetContentBundle(ContentBundleClient))
-	{
-		RemoveContentBundle(*ContentBundle);
-	}
+	RemoveContentBundle(ContentBundleClient);
 }
 
 void FContentBundleContainer::RegisterContentBundleClientEvents()
@@ -323,11 +357,6 @@ void FContentBundleContainer::UnregisterContentBundleClientEvents()
 	ContentBundleEngineSubsystem->OnContentBundleClientRequestedContentRemoval.RemoveAll(this);
 }
 
-bool FContentBundleContainer::ShouldInjectClientContent(const TSharedPtr<FContentBundleClient>& ContentBundleClient) const
-{
-	return ContentBundleClient->GetState() == EContentBundleClientState::ContentInjectionRequested;
-}
-
 void FContentBundleContainer::InitializeContentBundlesForegisteredClients()
 {
 	UContentBundleEngineSubsystem* ContentBundleEngineSubsystem = UContentBundleEngineSubsystem::Get();
@@ -340,11 +369,7 @@ void FContentBundleContainer::InitializeContentBundlesForegisteredClients()
 		for (TSharedPtr<FContentBundleClient>& ContentBundleClient : ContentBundleClients)
 		{
 			FContentBundleBase& ContentBundle = InitializeContentBundle(ContentBundleClient);
-
-			if (ShouldInjectClientContent(ContentBundleClient))
-			{
-				InjectContentBundle(ContentBundle);
-			}
+			InjectContentBundle(ContentBundle);
 		}
 
 		UE_LOG(LogContentBundle, Log, TEXT("[Container: %s] End initializing ContentBundles."), *GetInjectedWorld()->GetName());

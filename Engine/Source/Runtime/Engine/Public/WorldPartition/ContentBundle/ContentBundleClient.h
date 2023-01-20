@@ -28,8 +28,7 @@ UENUM()
 enum class EWorldContentState
 {
 	NoContent,
-	ContentBundleInjected,
-	ContentBundleInjectionFailed
+	ContentBundleInjected
 };
 
 class ENGINE_API FContentBundleClient
@@ -50,15 +49,24 @@ public:
 	
 	void RequestUnregister();
 
-	EContentBundleClientState GetState() const { return State; }
+#if WITH_EDITOR
+	void RequestForceInject(UWorld* WorldToInject);
+	void RequestRemoveForceInjectedContent(UWorld *WorldToInject);
+#endif 
 
-	bool HasInjectedAnyContent() const;
+	EContentBundleClientState GetState() const { return State; }
 
 	FString const& GetDisplayName() const { return DisplayName; }
 
+	bool ShouldInjectContent(UWorld* World) const;
+	bool ShouldRemoveContent(UWorld* World) const;
+
 private:
+	bool HasContentToRemove() const;
+
 	void SetState(EContentBundleClientState State);
 	void SetWorldContentState(UWorld* World, EWorldContentState State);
+	EWorldContentState GetWorldContentState(UWorld* World) const;
 
 	void OnContentInjectedInWorld(EContentBundleStatus InjectionStatus, UWorld* InjectedWorld);
 	void OnContentRemovedFromWorld(EContentBundleStatus RemovalStatus, UWorld* InjectedWorld);
@@ -66,6 +74,10 @@ private:
 	TWeakObjectPtr<const UContentBundleDescriptor> ContentBundleDescriptor;
 	
 	TMap<TWeakObjectPtr<UWorld>, EWorldContentState> WorldContentStates;
+
+#if WITH_EDITOR
+	TSet<TWeakObjectPtr<UWorld>> ForceInjectedWorlds;
+#endif
 
 	FString DisplayName;
 

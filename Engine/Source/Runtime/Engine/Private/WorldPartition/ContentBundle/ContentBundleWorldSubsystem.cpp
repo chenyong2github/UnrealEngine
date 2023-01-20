@@ -58,6 +58,16 @@ void UContentBundleManager::Deinitialize()
 #endif
 }
 
+bool UContentBundleManager::CanInject() const
+{
+	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorld>()->GetWorldPartition())
+	{
+		return WorldPartition->IsInitialized();
+	}
+
+	return false;
+}
+
 void UContentBundleManager::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	UContentBundleManager* Subsystem = CastChecked<UContentBundleManager>(InThis);
@@ -158,6 +168,27 @@ TSharedPtr<FContentBundleEditor> UContentBundleManager::GetEditorContentBundle(c
 	return nullptr;
 }
 
+bool UContentBundleManager::TryInject(FContentBundleClient& Client)
+{
+	if (CanInject())
+	{
+		if (TUniquePtr<FContentBundleContainer>* Container = GetContentBundleContainer(GetTypedOuter<UWorld>()))
+		{
+			return (*Container)->InjectContentBundle(Client);
+		}
+	}
+
+	return false;
+}
+
+void UContentBundleManager::Remove(FContentBundleClient& Client)
+{
+	if (TUniquePtr<FContentBundleContainer>* Container = GetContentBundleContainer(GetTypedOuter<UWorld>()))
+	{
+		(*Container)->RemoveContentBundle(Client);
+	}
+}
+
 #endif
 
 uint32 UContentBundleManager::GetContentBundleContainerIndex(const UWorld* InjectedWorld) const
@@ -177,6 +208,11 @@ const TUniquePtr<FContentBundleContainer>* UContentBundleManager::GetContentBund
 	}
 
 	return nullptr;
+}
+
+TUniquePtr<FContentBundleContainer>* UContentBundleManager::GetContentBundleContainer(const UWorld* InjectedWorld)
+{
+	return const_cast<TUniquePtr<FContentBundleContainer>*>(const_cast<const UContentBundleManager*>(this)->GetContentBundleContainer(InjectedWorld));
 }
 
 void UContentBundleManager::OnWorldPartitionInitialized(UWorldPartition* InWorldPartition)
