@@ -268,6 +268,11 @@ void FGroupVisualizationCache::UpdateGroupInfo_ConnectedComponents(
 						BorderTris.Add(tid);
 					}
 				}
+				if (BorderTris.IsEmpty())
+				{
+					CenterTriID = *TrisInGroup.begin();
+					break;
+				}
 				for (int32 tid : BorderTris)
 				{
 					TrisInGroup.Remove(tid);
