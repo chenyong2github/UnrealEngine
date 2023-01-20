@@ -733,6 +733,21 @@ namespace UE::PoseSearch
 		RefreshTreeView(false, bRecoverSelection);
 		EditorViewModel.Pin()->BuildSearchIndex();
 	}
+
+	TWeakPtr<FDatabaseAssetTreeNode> SDatabaseAssetTree::SetSelectedItem(int32 SourceAssetIdx)
+	{
+		for (TSharedPtr<FDatabaseAssetTreeNode> & Node : AllNodes)
+		{
+			if (Node->SourceAssetIdx == SourceAssetIdx)
+			{
+				TreeView->ClearSelection();
+				TreeView->SetItemSelection(Node, true);
+				return Node;
+			}
+		}
+
+		return TWeakPtr<FDatabaseAssetTreeNode>();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

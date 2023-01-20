@@ -39,7 +39,9 @@ namespace UE::PoseSearch
 		UPoseSearchDatabase* GetPoseSearchDatabase();
 		FDatabaseViewModel* GetViewModel() const { return ViewModel.Get(); }
 		TSharedPtr<FDatabaseViewModel> GetViewModelSharedPtr() const { return ViewModel; }
-
+		
+		void SetSelectedAsset(int32 SourceAssetIdx);
+		
 		void BuildSearchIndex();
 
 		void PreviewBackwardEnd();

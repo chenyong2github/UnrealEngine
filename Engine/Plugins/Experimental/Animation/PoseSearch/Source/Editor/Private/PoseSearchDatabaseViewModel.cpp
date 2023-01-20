@@ -509,6 +509,14 @@ namespace UE::PoseSearch
 		return false;
 	}
 
+	void FDatabaseViewModel::SetSelectedNode(const TSharedPtr<FDatabaseAssetTreeNode>& InSelectedNode)
+	{
+		SelectedNodes.Reset(1);
+		SelectedNodes.Push(InSelectedNode);
+		ResetPreviewActors();
+		ProcessSelectedActor(nullptr);
+	}
+
 	void FDatabaseViewModel::SetSelectedNodes(const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& InSelectedNodes)
 	{
 		SelectedNodes = InSelectedNodes;

@@ -55,6 +55,19 @@ namespace UE::PoseSearch
 		return ViewModel.IsValid() ? ViewModel->GetPoseSearchDatabase() : nullptr;
 	}
 
+	void FDatabaseEditor::SetSelectedAsset(int32 SourceAssetIdx)
+	{
+		if (ViewModel.IsValid())
+		{
+			const TWeakPtr<FDatabaseAssetTreeNode> Node = AssetTreeWidget->SetSelectedItem(SourceAssetIdx);
+			
+			if (Node.IsValid())
+			{
+				ViewModel->SetSelectedNode(Node.Pin());
+			}
+		}
+	}
+
 	void FDatabaseEditor::BuildSearchIndex()
 	{
 		ViewModel->BuildSearchIndex();

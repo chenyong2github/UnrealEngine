@@ -2,8 +2,14 @@
 
 #pragma once
 
+#include "AnimPreviewInstance.h"
 #include "Editor.h"
+#include "IAnimationEditor.h"
+#include "IPersonaToolkit.h"
+#include "PoseSearchDatabaseEditor.h"
+#include "PoseSearchDatabaseViewModel.h"
 #include "PoseSearchDebuggerDatabaseRowData.h"
+#include "Animation/DebugSkelMeshComponent.h"
 #include "Preferences/PersonaOptions.h"
 #include "Styling/AppStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -116,7 +122,42 @@ struct FDatabaseName : IColumn
 				})
 			.OnNavigate_Lambda([RowData]()
 				{
-					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(RowData->DatabasePath);
+					UObject* Asset = nullptr;
+
+					// Load asset
+					if (UPackage* Package = LoadPackage(NULL, *RowData->DatabasePath, LOAD_NoRedirects))
+					{
+						Package->FullyLoad();
+
+						const FString AssetName = FPaths::GetBaseFilename(RowData->DatabasePath);
+						Asset = FindObject<UObject>(Package, *AssetName);
+					}
+					else
+					{
+						// Fallback for unsaved assets
+						Asset = FindObject<UObject>(nullptr, *RowData->DatabasePath);
+					}
+
+					// Open editor
+					if (Asset != nullptr)
+					{
+						if (UAssetEditorSubsystem* AssetEditorSS = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+						{
+							AssetEditorSS->OpenEditorForAsset(Asset);
+								
+							if (IAssetEditorInstance* Editor = AssetEditorSS->FindEditorForAsset(Asset, true))
+							{
+								if (Editor->GetEditorName() == FName("PoseSearchDatabaseEditor"))
+								{
+									FDatabaseEditor* DatabaseEditor = static_cast<FDatabaseEditor*>(Editor);
+									
+									// Open asset paused and at specific time as seen on the pose search debugger.
+									DatabaseEditor->SetSelectedAsset(RowData->DbAssetIdx);
+									DatabaseEditor->GetViewModel()->SetPlayTime(RowData->AssetTime, false);
+								}
+							}
+						}
+					}
 				});
 	}
 };
@@ -145,7 +186,44 @@ struct FAssetName : IColumn
 				})
 			.OnNavigate_Lambda([RowData]()
 				{
-					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(RowData->AssetPath);
+					UObject* Asset = nullptr;
+
+					// Load asset
+					if (UPackage* Package = LoadPackage(NULL, *RowData->AssetPath, LOAD_NoRedirects))
+					{
+						Package->FullyLoad();
+
+						const FString AssetName = FPaths::GetBaseFilename(RowData->AssetPath);
+						Asset = FindObject<UObject>(Package, *AssetName);
+					}
+					else
+					{
+						// Fallback for unsaved assets
+						Asset = FindObject<UObject>(nullptr, *RowData->AssetPath);
+					}
+
+					// Open editor
+					if (Asset != nullptr)
+					{
+						if (UAssetEditorSubsystem* AssetEditorSS = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+						{
+							AssetEditorSS->OpenEditorForAsset(Asset);
+							
+							if (IAssetEditorInstance* Editor = AssetEditorSS->FindEditorForAsset(Asset, true))
+							{
+								if (Editor->GetEditorName() == "AnimationEditor")
+								{
+									const IAnimationEditor* AnimationEditor = static_cast<IAnimationEditor*>(Editor);
+									const UDebugSkelMeshComponent* PreviewComponent = AnimationEditor->GetPersonaToolkit()->GetPreviewMeshComponent();
+
+									// Open asset paused and at specific time as seen on the pose search debugger.
+									PreviewComponent->PreviewInstance->SetPosition(RowData->AssetTime);
+									PreviewComponent->PreviewInstance->SetPlaying(false);
+									PreviewComponent->PreviewInstance->SetBlendSpacePosition(RowData->BlendParameters);
+								}
+							}
+						}
+					}
 				});
 	}
 };
