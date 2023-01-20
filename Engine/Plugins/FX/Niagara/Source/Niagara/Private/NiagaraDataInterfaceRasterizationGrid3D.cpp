@@ -915,16 +915,16 @@ bool UNiagaraDataInterfaceRasterizationGrid3D::InitPerInstanceData(void* PerInst
 
 	// Compute number of tiles based on resolution of individual attributes
 	// #todo(dmp): refactor
-	int32 MaxDim = 2048;
-	int32 MaxTilesX = floor(MaxDim / InstanceData->NumCells.X);
-	int32 MaxTilesY = floor(MaxDim / InstanceData->NumCells.Y);
-	int32 MaxTilesZ = floor(MaxDim / InstanceData->NumCells.Z);
-	int32 MaxAttributes = MaxTilesX * MaxTilesY * MaxTilesZ;
+	const float MaxDim = 2048;
+	const int32 MaxTilesX = FMath::FloorToInt(MaxDim / float(InstanceData->NumCells.X));
+	const int32 MaxTilesY = FMath::FloorToInt(MaxDim / float(InstanceData->NumCells.Y));
+	const int32 MaxTilesZ = FMath::FloorToInt(MaxDim / float(InstanceData->NumCells.Z));
+	const int32 MaxAttributes = MaxTilesX * MaxTilesY * MaxTilesZ;
 
 	// need to determine number of tiles in x and y based on number of attributes and max dimension size
-	int32 NumTilesX = FMath::Min<int32>(MaxTilesX, NumAttribChannelsFound);
-	int32 NumTilesY = FMath::Min<int32>(MaxTilesY, ceil(1.0 * NumAttribChannelsFound / NumTilesX));
-	int32 NumTilesZ = FMath::Min<int32>(MaxTilesZ, ceil(1.0 * NumAttribChannelsFound / (NumTilesX * NumTilesY)));
+	const int32 NumTilesX = FMath::Min<int32>(MaxTilesX, NumAttribChannelsFound);
+	const int32 NumTilesY = FMath::Min<int32>(MaxTilesY, FMath::CeilToInt(1.0f * float(NumAttribChannelsFound) / float(NumTilesX)));
+	const int32 NumTilesZ = FMath::Min<int32>(MaxTilesZ, FMath::CeilToInt(1.0f * float(NumAttribChannelsFound) / float(NumTilesX * NumTilesY)));
 
 	InstanceData->NumTiles.X = NumTilesX;
 	InstanceData->NumTiles.Y = NumTilesY;
@@ -1027,7 +1027,7 @@ void UNiagaraDataInterfaceRasterizationGrid3D::VMSetFloatResetValue(FVectorVMExt
 		if (bSuccess)
 		{
 			// Quantize value
-			InstData->ResetValue = NewResetValue * InstData->Precision;
+			InstData->ResetValue = FMath::FloorToInt(NewResetValue * InstData->Precision);
 		}
 	}
 }
@@ -1043,16 +1043,16 @@ bool UNiagaraDataInterfaceRasterizationGrid3D::PerInstanceTickPostSimulate(void*
 		
 		// Compute number of tiles based on resolution of individual attributes
 		// #todo(dmp): refactor
-		int32 MaxDim = 2048;
-		int32 MaxTilesX = floor(MaxDim / InstanceData->NumCells.X);
-		int32 MaxTilesY = floor(MaxDim / InstanceData->NumCells.Y);
-		int32 MaxTilesZ = floor(MaxDim / InstanceData->NumCells.Z);
-		int32 MaxAttributes = MaxTilesX * MaxTilesY * MaxTilesZ;
+		const float MaxDim = 2048;
+		const int32 MaxTilesX = FMath::FloorToInt(MaxDim / float(InstanceData->NumCells.X));
+		const int32 MaxTilesY = FMath::FloorToInt(MaxDim / float(InstanceData->NumCells.Y));
+		const int32 MaxTilesZ = FMath::FloorToInt(MaxDim / float(InstanceData->NumCells.Z));
+		const int32 MaxAttributes = MaxTilesX * MaxTilesY * MaxTilesZ;
 
 		// need to determine number of tiles in x and y based on number of attributes and max dimension size
-		int32 NumTilesX = FMath::Min<int32>(MaxTilesX, InstanceData->TotalNumAttributes);
-		int32 NumTilesY = FMath::Min<int32>(MaxTilesY, ceil(1.0 * InstanceData->TotalNumAttributes / NumTilesX));
-		int32 NumTilesZ = FMath::Min<int32>(MaxTilesZ, ceil(1.0 * InstanceData->TotalNumAttributes / (NumTilesX * NumTilesY)));
+		const int32 NumTilesX = FMath::Min<int32>(MaxTilesX, InstanceData->TotalNumAttributes);
+		const int32 NumTilesY = FMath::Min<int32>(MaxTilesY, FMath::CeilToInt(1.0f * float(InstanceData->TotalNumAttributes) / float(NumTilesX)));
+		const int32 NumTilesZ = FMath::Min<int32>(MaxTilesZ, FMath::CeilToInt(1.0f * float(InstanceData->TotalNumAttributes) / float(NumTilesX * NumTilesY)));
 
 		InstanceData->NumTiles.X = NumTilesX;
 		InstanceData->NumTiles.Y = NumTilesY;
@@ -1153,15 +1153,15 @@ void FNiagaraDataInterfaceProxyRasterizationGrid3D::PreStage(const FNDIGpuComput
 		{
 			const FIntVector AttributeTileIndex(iAttribute % InstanceData.NumTiles.X, (iAttribute / InstanceData.NumTiles.X) % InstanceData.NumTiles.Y, iAttribute / (InstanceData.NumTiles.X * InstanceData.NumTiles.Y));
 			PerAttributeData[iAttribute] = FVector4f(
-				AttributeTileIndex.X * InstanceData.NumCells.X,
-				AttributeTileIndex.Y * InstanceData.NumCells.Y,
-				AttributeTileIndex.Z * InstanceData.NumCells.Z,
-				0
+				float(AttributeTileIndex.X * InstanceData.NumCells.X),
+				float(AttributeTileIndex.Y * InstanceData.NumCells.Y),
+				float(AttributeTileIndex.Z * InstanceData.NumCells.Z),
+				0.0f
 			);
 			PerAttributeData[iAttribute + InstanceData.TotalNumAttributes] = FVector4f(
-				(1.0f / InstanceData.NumTiles.X) * float(AttributeTileIndex.X),
-				(1.0f / InstanceData.NumTiles.Y) * float(AttributeTileIndex.Y),
-				(1.0f / InstanceData.NumTiles.Z) * float(AttributeTileIndex.Z),
+				(1.0f / float(InstanceData.NumTiles.X)) * float(AttributeTileIndex.X),
+				(1.0f / float(InstanceData.NumTiles.Y)) * float(AttributeTileIndex.Y),
+				(1.0f / float(InstanceData.NumTiles.Z)) * float(AttributeTileIndex.Z),
 				0.0f
 			);
 		}

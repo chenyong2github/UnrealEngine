@@ -2921,15 +2921,15 @@ void UNiagaraDataInterfaceGrid3DCollection::SetShaderParameters(const FNiagaraDa
 		{
 			const FIntVector AttributeTileIndex(iAttribute % ProxyData->NumTiles.X, (iAttribute / ProxyData->NumTiles.X) % ProxyData->NumTiles.Y, iAttribute / (ProxyData->NumTiles.X * ProxyData->NumTiles.Y));
 			PerAttributeData[iAttribute] = FVector4f(
-				AttributeTileIndex.X * ProxyData->NumCells.X,
-				AttributeTileIndex.Y * ProxyData->NumCells.Y,
-				AttributeTileIndex.Z * ProxyData->NumCells.Z,
+				float(AttributeTileIndex.X * ProxyData->NumCells.X),
+				float(AttributeTileIndex.Y * ProxyData->NumCells.Y),
+				float(AttributeTileIndex.Z * ProxyData->NumCells.Z),
 				0
 			);
 			PerAttributeData[iAttribute + ProxyData->TotalNumAttributes] = FVector4f(
-				(1.0f / ProxyData->NumTiles.X) * float(AttributeTileIndex.X),
-				(1.0f / ProxyData->NumTiles.Y) * float(AttributeTileIndex.Y),
-				(1.0f / ProxyData->NumTiles.Z) * float(AttributeTileIndex.Z),
+				(1.0f / float(ProxyData->NumTiles.X)) * float(AttributeTileIndex.X),
+				(1.0f / float(ProxyData->NumTiles.Y)) * float(AttributeTileIndex.Y),
+				(1.0f / float(ProxyData->NumTiles.Z)) * float(AttributeTileIndex.Z),
 				0.0f
 			);
 		}
@@ -3268,7 +3268,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 	}
 	else if (SetResolutionMethod == ESetResolutionMethod::MaxAxis)
 	{
-		InstanceData->CellSize = FVector(FMath::Max<float>(FMath::Max(WorldBBoxSize.X, WorldBBoxSize.Y), WorldBBoxSize.Z) / ((float)NumCellsMaxAxis));
+		InstanceData->CellSize = FVector(FMath::Max(FMath::Max(WorldBBoxSize.X, WorldBBoxSize.Y), WorldBBoxSize.Z) / double(NumCellsMaxAxis));
 	}
 	else if (SetResolutionMethod == ESetResolutionMethod::CellSize)
 	{
@@ -3278,9 +3278,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 	// compute world bounds and padding based on cell size
 	if (SetResolutionMethod == ESetResolutionMethod::MaxAxis || SetResolutionMethod == ESetResolutionMethod::CellSize)
 	{
-		InstanceData->NumCells.X = WorldBBoxSize.X / InstanceData->CellSize[0];
-		InstanceData->NumCells.Y = WorldBBoxSize.Y / InstanceData->CellSize[0];
-		InstanceData->NumCells.Z = WorldBBoxSize.Z / InstanceData->CellSize[0];
+		InstanceData->NumCells.X = int32(FMath::FloorToInt(WorldBBoxSize.X / InstanceData->CellSize[0]));
+		InstanceData->NumCells.Y = int32(FMath::FloorToInt(WorldBBoxSize.Y / InstanceData->CellSize[0]));
+		InstanceData->NumCells.Z = int32(FMath::FloorToInt(WorldBBoxSize.Z / InstanceData->CellSize[0]));
 
 		// Pad grid by 1 cell if our computed bounding box is too small
 		if (WorldBBoxSize.X > WorldBBoxSize.Y && WorldBBoxSize.X > WorldBBoxSize.Z)
@@ -3424,11 +3424,11 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 		// Compute number of tiles based on resolution of individual attributes
 
 		// #todo(dmp): refactor
-		int32 MaxDim = 2048;
-		int32 MaxTilesX = floor(MaxDim / InstanceData->NumCells.X);
-		int32 MaxTilesY = floor(MaxDim / InstanceData->NumCells.Y);
-		int32 MaxTilesZ = floor(MaxDim / InstanceData->NumCells.Z);
-		int32 MaxAttributes = MaxTilesX * MaxTilesY * MaxTilesZ;
+		const float MaxDim = 2048;
+		const int32 MaxTilesX = FMath::FloorToInt(MaxDim / float(InstanceData->NumCells.X));
+		const int32 MaxTilesY = FMath::FloorToInt(MaxDim / float(InstanceData->NumCells.Y));
+		const int32 MaxTilesZ = FMath::FloorToInt(MaxDim / float(InstanceData->NumCells.Z));
+		const int32 MaxAttributes = MaxTilesX * MaxTilesY * MaxTilesZ;
 
 		if (InstanceData->NumCells.X > MaxDim || InstanceData->NumCells.Y > MaxDim || InstanceData->NumCells.Z > MaxDim)
 		{
@@ -3443,9 +3443,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 		}
 
 		// need to determine number of tiles in x and y based on number of attributes and max dimension size
-		int32 NumTilesX = FMath::Min<int32>(MaxTilesX, NumAttribChannelsFound);
-		int32 NumTilesY = FMath::Min<int32>(MaxTilesY, ceil(1.0 * NumAttribChannelsFound / NumTilesX));
-		int32 NumTilesZ = FMath::Min<int32>(MaxTilesZ, ceil(1.0 * NumAttribChannelsFound / (NumTilesX * NumTilesY)));
+		const int32 NumTilesX = FMath::Min<int32>(MaxTilesX, NumAttribChannelsFound);
+		const int32 NumTilesY = FMath::Min<int32>(MaxTilesY, FMath::CeilToInt(1.0f * float(NumAttribChannelsFound) / float(NumTilesX)));
+		const int32 NumTilesZ = FMath::Min<int32>(MaxTilesZ, FMath::CeilToInt(1.0f * float(NumAttribChannelsFound) / float(NumTilesX * NumTilesY)));
 
 		InstanceData->NumTiles.X = NumTilesX;
 		InstanceData->NumTiles.Y = NumTilesY;
@@ -3525,7 +3525,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 			for (int32 i = 0; i < RT_InstanceData.Vars.Num(); i++)
 			{
 				TargetData->Vars.Emplace(RT_InstanceData.Vars[i].GetName());
-				TargetData->VarComponents.Emplace(RT_InstanceData.Vars[i].GetType().GetSize() / sizeof(float));
+				TargetData->VarComponents.Add(RT_InstanceData.Vars[i].GetType().GetSize() / sizeof(float));
 			}
 #if WITH_EDITOR
 			TargetData->bPreviewGrid = RT_InstanceData.bPreviewGrid;
@@ -3842,9 +3842,9 @@ void UNiagaraDataInterfaceGrid3DCollection::VMGetWorldBBoxSize(FVectorVMExternal
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
-		*OutWorldBoundsX.GetDestAndAdvance() = InstData->WorldBBoxSize.X;
-		*OutWorldBoundsY.GetDestAndAdvance() = InstData->WorldBBoxSize.Y;
-		*OutWorldBoundsZ.GetDestAndAdvance() = InstData->WorldBBoxSize.Z;
+		*OutWorldBoundsX.GetDestAndAdvance() = float(InstData->WorldBBoxSize.X);
+		*OutWorldBoundsY.GetDestAndAdvance() = float(InstData->WorldBBoxSize.Y);
+		*OutWorldBoundsZ.GetDestAndAdvance() = float(InstData->WorldBBoxSize.Z);
 	}
 }
 
@@ -3935,11 +3935,11 @@ bool UNiagaraDataInterfaceGrid3DCollection::PerInstanceTickPostSimulate(void* Pe
 		else
 		{
 			// #todo(dmp): refactor
-			int32 MaxDim = 2048;
-			int32 MaxTilesX = floor(MaxDim / InstanceData->NumCells.X);
-			int32 MaxTilesY = floor(MaxDim / InstanceData->NumCells.Y);
-			int32 MaxTilesZ = floor(MaxDim / InstanceData->NumCells.Z);
-			int32 MaxAttributes = MaxTilesX * MaxTilesY * MaxTilesZ;
+			const float MaxDim = 2048.0f;
+			const int32 MaxTilesX = FMath::FloorToInt(MaxDim / float(InstanceData->NumCells.X));
+			const int32 MaxTilesY = FMath::FloorToInt(MaxDim / float(InstanceData->NumCells.Y));
+			const int32 MaxTilesZ = FMath::FloorToInt(MaxDim / float(InstanceData->NumCells.Z));
+			const int32 MaxAttributes = MaxTilesX * MaxTilesY * MaxTilesZ;
 
 			if (InstanceData->NumCells.X > MaxDim || InstanceData->NumCells.Y > MaxDim || InstanceData->NumCells.Z > MaxDim)
 			{
@@ -3960,9 +3960,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::PerInstanceTickPostSimulate(void* Pe
 			}
 
 			// need to determine number of tiles in x and y based on number of attributes and max dimension size
-			int32 NumTilesX = FMath::Min<int32>(MaxTilesX, InstanceData->TotalNumAttributes);
-			int32 NumTilesY = FMath::Min<int32>(MaxTilesY, ceil(1.0 * InstanceData->TotalNumAttributes / NumTilesX));
-			int32 NumTilesZ = FMath::Min<int32>(MaxTilesZ, ceil(1.0 * InstanceData->TotalNumAttributes / (NumTilesX * NumTilesY)));
+			const int32 NumTilesX = FMath::Min<int32>(MaxTilesX, InstanceData->TotalNumAttributes);
+			const int32 NumTilesY = FMath::Min<int32>(MaxTilesY, FMath::CeilToInt(1.0f * float(InstanceData->TotalNumAttributes) / float(NumTilesX)));
+			const int32 NumTilesZ = FMath::Min<int32>(MaxTilesZ, FMath::CeilToInt(1.0f * float(InstanceData->TotalNumAttributes) / float(NumTilesX * NumTilesY)));
 
 			InstanceData->NumTiles.X = NumTilesX;
 			InstanceData->NumTiles.Y = NumTilesY;
@@ -4008,9 +4008,9 @@ void UNiagaraDataInterfaceGrid3DCollection::VMGetCellSize(FVectorVMExternalFunct
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
-		*OutCellSizeX.GetDestAndAdvance() = InstData->CellSize.X;
-		*OutCellSizeY.GetDestAndAdvance() = InstData->CellSize.Y;
-		*OutCellSizeZ.GetDestAndAdvance() = InstData->CellSize.Z;
+		*OutCellSizeX.GetDestAndAdvance() = float(InstData->CellSize.X);
+		*OutCellSizeY.GetDestAndAdvance() = float(InstData->CellSize.Y);
+		*OutCellSizeZ.GetDestAndAdvance() = float(InstData->CellSize.Z);
 	}
 }
 

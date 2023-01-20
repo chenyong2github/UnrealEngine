@@ -1481,7 +1481,7 @@ namespace NDIStaticMeshLocal
 		template<typename TRandomHelper>
 		FORCEINLINE int32 RandomUniformSection(const TRandomHelper& RandHelper, int32 InstanceIndex, const TConstArrayView<FNDISectionInfo>& SectionInfos, TConstArrayView<int32>& SectionRemap) const
 		{
-			int32 SectionIndex = RandHelper.Rand(InstanceIndex) * SectionInfos.Num();
+			int32 SectionIndex = int32(RandHelper.Rand(InstanceIndex) * float(SectionInfos.Num()));
 			SectionIndex = RandHelper.Rand(InstanceIndex) < SectionInfos[SectionIndex].Prob ? SectionIndex : SectionInfos[SectionIndex].Alias;
 			return SectionRemap[SectionIndex];
 		}

@@ -262,7 +262,7 @@ protected:
 
 private:
 	
-	void WriteTransform(const FMatrix& ToWrite, FVectorVMExternalFunctionContext& Context);
+	void WriteTransform(const FMatrix44f& ToWrite, FVectorVMExternalFunctionContext& Context);
 
 	TMap<FNiagaraSystemInstanceID, FNDISpline_InstanceData*> SystemInstancesToProxyData_GT;
 };

@@ -156,7 +156,7 @@ void UNiagaraDataInterfaceCurveBase::UpdateLUT(bool bFromSerialize)
 	{
 		ShaderLUT = BuildLUT(CurveLUTDefaultWidth);
 		OptimizeLUT();
-		LUTNumSamplesMinusOne = (ShaderLUT.Num() / GetCurveNumElems()) - 1;
+		LUTNumSamplesMinusOne = float((ShaderLUT.Num() / GetCurveNumElems()) - 1);
 	}
 
 	if (!bUseLUT || (ShaderLUT.Num() == 0))
@@ -401,7 +401,7 @@ void UNiagaraDataInterfaceCurveBase::PushToRenderThreadImpl()
 			RT_Proxy->LUTMinTime = RT_LUTMinTime;
 			RT_Proxy->LUTMaxTime = RT_LUTMaxTime;
 			RT_Proxy->LUTInvTimeRange = RT_LUTInvTimeRange;
-			RT_Proxy->CurveLUTNumMinusOne = RT_CurveLUTNumMinusOne;
+			RT_Proxy->CurveLUTNumMinusOne = uint32(RT_CurveLUTNumMinusOne);
 			RT_Proxy->LUTOffset = RT_LUTOffset;
 
 			DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RT_Proxy->CurveLUT.NumBytes);

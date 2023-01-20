@@ -1119,7 +1119,7 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 	{
 		float FixedDelta = System->GetFixedTickDeltaTime();
 		float Budget = FixedDelta > 0 ? FMath::Fmod(FixedDeltaTickAge, FixedDelta) + DeltaSeconds : 0;
-		int32 Ticks = FixedDelta > 0 ? FMath::Min(Budget / FixedDelta, GNiagaraSystemSimulationMaxTickSubsteps) : 0;
+		int32 Ticks = FixedDelta > 0 ? FMath::Min(FMath::FloorToInt(Budget / FixedDelta), GNiagaraSystemSimulationMaxTickSubsteps) : 0;
 
 		TickInfo.UsesFixedTick = true;
 		TickInfo.EngineTick = DeltaSeconds;

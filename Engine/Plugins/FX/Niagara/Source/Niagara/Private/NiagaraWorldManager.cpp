@@ -1652,7 +1652,7 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 		FVector Location = Component->GetComponentLocation();
 		for (const FNiagaraCachedViewInfo& ViewInfo : GetCachedViewInfo())
 		{
-			ClosestDistSq = FMath::Min(ClosestDistSq, FVector::DistSquared(ViewInfo.ViewToWorld.GetOrigin(), Location));
+			ClosestDistSq = FMath::Min(ClosestDistSq, float(FVector::DistSquared(ViewInfo.ViewToWorld.GetOrigin(), Location)));
 		}
 
 		LODDistance = FMath::Sqrt(ClosestDistSq);
@@ -1703,7 +1703,7 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 		float ClosestDistSq = FLT_MAX;
 		for (const FNiagaraCachedViewInfo& ViewInfo : GetCachedViewInfo())
 		{
-			ClosestDistSq = FMath::Min(ClosestDistSq, FVector::DistSquared(ViewInfo.ViewToWorld.GetOrigin(), Location));
+			ClosestDistSq = FMath::Min(ClosestDistSq, float(FVector::DistSquared(ViewInfo.ViewToWorld.GetOrigin(), Location)));
 		}
 
 		if (GEnableNiagaraDistanceCulling && ScalabilitySettings.bCullByDistance)

@@ -205,7 +205,7 @@ FNiagaraSimulationDebugDrawData* FNiagaraGpuComputeDebug::GetSimulationDebugDraw
 
 	FNiagaraSimulationDebugDrawData* DebugDrawData = GetSimulationDebugDrawData(SystemInstanceID);
 
-	const uint32 MaxPossibleLines = FMath::Min(FMath::DivideAndRoundDown(GetMaxBufferDimension(), uint64(NiagaraGpuComputeDebugLocal::NumUintsPerLine)), uint64(TNumericLimits<uint32>::Max() >> 1));
+	const uint32 MaxPossibleLines = uint32(FMath::Min(FMath::DivideAndRoundDown(GetMaxBufferDimension(), uint64(NiagaraGpuComputeDebugLocal::NumUintsPerLine)), uint64(TNumericLimits<uint32>::Max() >> 1)));
 	const uint32 MaxLineInstancesToUse = FMath::Min(FMath::Max(DebugDrawData->GpuLineMaxInstances, OverrideMaxDebugLines > 0 ? OverrideMaxDebugLines : uint32(GNiagaraGpuComputeDebug_MaxLineInstances)), MaxPossibleLines);
 	if (DebugDrawData->GpuLineMaxInstances != MaxLineInstancesToUse)
 	{
@@ -246,9 +246,9 @@ void FNiagaraGpuComputeDebug::DrawDebug(FRDGBuilder& GraphBuilder, const FViewIn
 	++TickCounter;
 
 	const UFont* Font = GEngine->GetTinyFont();
-	const float FontHeight = Font->GetMaxCharHeight();
+	const int32 FontHeight = FMath::CeilToInt(Font->GetMaxCharHeight());
 
-	FIntPoint Location(10.0f, Output.ViewRect.Height() - 10.0f);
+	FIntPoint Location(10, Output.ViewRect.Height() - 10);
 
 	const int32 DisplayMinHeight = GNiagaraGpuComputeDebug_MinTextureHeight > 0 ? GNiagaraGpuComputeDebug_MinTextureHeight : 0;
 	const int32 DisplayMaxHeight = GNiagaraGpuComputeDebug_MaxTextureHeight > 0 ? GNiagaraGpuComputeDebug_MaxTextureHeight : TNumericLimits<int32>::Max();
@@ -281,7 +281,7 @@ void FNiagaraGpuComputeDebug::DrawDebug(FRDGBuilder& GraphBuilder, const FViewIn
 			}
 		);
 
-		Location.Y -= 1.0f;
+		Location.Y -= 1;
 	}
 }
 

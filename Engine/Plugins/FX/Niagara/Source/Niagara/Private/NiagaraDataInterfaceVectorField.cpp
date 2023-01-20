@@ -493,7 +493,7 @@ void UNiagaraDataInterfaceVectorField::GetFieldTilingAxes(FVectorVMExternalFunct
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeZ(Context);
 
-	FVector Tilings = GetTilingAxes();
+	const FVector3f Tilings(GetTilingAxes());
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		*OutSizeX.GetDest() = Tilings.X;
@@ -512,7 +512,7 @@ void UNiagaraDataInterfaceVectorField::GetFieldDimensions(FVectorVMExternalFunct
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeZ(Context);
 
-	FVector Dim = GetDimensions();
+	const FVector3f Dim(GetDimensions());
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		*OutSizeX.GetDest() = Dim.X;
@@ -534,8 +534,8 @@ void UNiagaraDataInterfaceVectorField::GetFieldBounds(FVectorVMExternalFunctionC
 	VectorVM::FExternalFuncRegisterHandler<float> OutMaxY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutMaxZ(Context);
 
-	FVector MinBounds = GetMinBounds();
-	FVector MaxBounds = GetMaxBounds();
+	const FVector3f MinBounds(GetMinBounds());
+	const FVector3f MaxBounds(GetMaxBounds());
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		*OutMinX.GetDest() = MinBounds.X;
@@ -615,7 +615,7 @@ void UNiagaraDataInterfaceVectorField::SampleVectorField(FVectorVMExternalFuncti
 					// Offset by half a cell size due to sample being in the center of its cell
 					Pos = Pos - FVector(0.5f, 0.5f, 0.5f);
 
-					const FVector V = StaticVectorField->FilteredSample(Pos, TilingAxes);
+					const FVector3f V(StaticVectorField->FilteredSample(Pos, TilingAxes));
 
 					// Write final output...
 					*OutSampleX.GetDest() = V.X;

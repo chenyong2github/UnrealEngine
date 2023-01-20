@@ -138,7 +138,7 @@ UNiagaraComponent* FNCPool::Acquire(UWorld* World, UNiagaraSystem* Template, ENC
 	return RetElem.Component;
 }
 
-void FNCPool::Reclaim(UNiagaraComponent* Component, const float CurrentTimeSeconds)
+void FNCPool::Reclaim(UNiagaraComponent* Component, const double CurrentTimeSeconds)
 {
 	check(Component);
 	check(Component->GetAsset());
@@ -219,7 +219,7 @@ bool FNCPool::RemoveComponent(UNiagaraComponent* Component)
 }
 
 extern int32 GNigaraAllowPrimedPools;
-void FNCPool::KillUnusedComponents(float KillTime, UNiagaraSystem* Template)
+void FNCPool::KillUnusedComponents(double KillTime, UNiagaraSystem* Template)
 {
 	int32 i = 0;
 	check(Template);
@@ -268,7 +268,7 @@ bool UNiagaraComponentPool::Enabled()
 UNiagaraComponentPool::UNiagaraComponentPool(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	LastParticleSytemPoolCleanTime = 0.0f;
+	LastParticleSytemPoolCleanTime = 0.0;
 }
 
 UNiagaraComponentPool::~UNiagaraComponentPool()
@@ -475,7 +475,7 @@ void UNiagaraComponentPool::ReclaimWorldParticleSystem(UNiagaraComponent* Compon
 	// WorldParticleSystemPools is empty after world cleanup, so destroy components coming in to be reclaimed instead
 	if (GbEnableNiagaraSystemPooling && Asset != nullptr && WorldParticleSystemPools.Num() > 0)
 	{
-		float CurrentTime = Component->GetWorld()->GetTimeSeconds();
+		const double CurrentTime = Component->GetWorld()->GetTimeSeconds();
 
 		//Periodically clear up the pools.
 		if (CurrentTime - LastParticleSytemPoolCleanTime > GNiagaraSystemPoolingCleanTime)

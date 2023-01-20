@@ -188,7 +188,7 @@ namespace NDIUObjectPropertyReaderLocal
 			}
 			else if (const FDoubleProperty* DoubleProperty = CastField<const FDoubleProperty>(InProperty))
 			{
-				return [PropertyAddress](const FNiagaraLWCConverter& LwcConverter, void* DestAddress) { *reinterpret_cast<float*>(DestAddress) = *reinterpret_cast<const double*>(PropertyAddress); };
+				return [PropertyAddress](const FNiagaraLWCConverter& LwcConverter, void* DestAddress) { *reinterpret_cast<float*>(DestAddress) = float(*reinterpret_cast<const double*>(PropertyAddress)); };
 			}
 			return nullptr;
 		}
@@ -310,7 +310,7 @@ namespace NDIUObjectPropertyReaderLocal
 	{
 		static FName GetFunctionName() { return FName("GetIntProperty"); }
 		static FNiagaraTypeDefinition GetTypeDef() { return FNiagaraTypeDefinition::GetIntDef(); }
-		static void VMFunction(FVectorVMExternalFunctionContext& Context, const uint32 GetterIndex) { VMReadData<int32, int32>(Context, GetterIndex, 0.0f); }
+		static void VMFunction(FVectorVMExternalFunctionContext& Context, const uint32 GetterIndex) { VMReadData<int32, int32>(Context, GetterIndex, 0); }
 		static TFunction<void(const FNiagaraLWCConverter&, void*)> GetCopyFunction(const FProperty* InProperty, const void* PropertyAddress)
 		{
 			if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(InProperty))

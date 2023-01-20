@@ -85,7 +85,7 @@ int32 FNiagaraUvQuadTree::FSubTree::GetQuads(const FBox2D& Box, FChildArray& Qua
 
 int32 FNiagaraUvQuadTree::FSubTree::Freeze(const FNiagaraUvQuadTree & QuadTree, FArchive& Ar) const
 {
-	int32 StartOffset = Ar.Tell();
+	int64 StartOffset = Ar.Tell();
 	int32 PlaceholderIndex = INDEX_NONE;
 
 	for (int32 OffsetIt = 0; OffsetIt < SubTreeIndices.Num(); ++OffsetIt)
@@ -109,7 +109,7 @@ int32 FNiagaraUvQuadTree::FSubTree::Freeze(const FNiagaraUvQuadTree & QuadTree, 
 			ChildOffsets[ChildIt] = QuadTree.ChildTrees[SubTreeIndices[ChildIt]].Freeze(QuadTree, Ar);
 		}
 
-		const int32 EndOffset = Ar.Tell();
+		const int64 EndOffset = Ar.Tell();
 		Ar.Seek(StartOffset);
 
 		for (int32 ChildIt = 0; ChildIt < ChildOffsets.Num(); ++ChildIt)
@@ -183,7 +183,7 @@ void FNiagaraUvQuadTree::Split(int32 SubTreeIndex)
 			const FVector2D OverlapMin = FVector2D::Max(ContentNode.Coverage.Min, Parent.Coverage.Min);
 			const FVector2D OverlapMax = FVector2D::Min(ContentNode.Coverage.Max, Parent.Coverage.Max);
 			FBox2D OverlapRegion(OverlapMin, FVector2D::Max(OverlapMin, OverlapMax));
-			const float AreaRatio = OverlapRegion.GetArea() / Parent.Coverage.GetArea();
+			const double AreaRatio = OverlapRegion.GetArea() / Parent.Coverage.GetArea();
 
 			if (AreaRatio > GNiagaraUvQuadTreeDuplicateThreshold)
 			{

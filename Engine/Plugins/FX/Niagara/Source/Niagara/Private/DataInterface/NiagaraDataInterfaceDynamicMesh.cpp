@@ -659,7 +659,7 @@ namespace NDIDynamicMeshLocal
 				StaticMeshData.NumTexCoords = InstanceData->NumTexCoords;
 				for (uint32 i=0; i < InstanceData->NumTexCoords; ++i)
 				{
-					StaticMeshData.TextureCoordinates.Emplace(&InstanceData->VertexBuffer, /*InstanceData->TexCoordOffset + (i * sizeof(FVector2f))*/0, sizeof(FVector2f) * InstanceData->NumTexCoords, VET_Float2, EVertexStreamUsage::ManualFetch);
+					StaticMeshData.TextureCoordinates.Emplace(&InstanceData->VertexBuffer, /*InstanceData->TexCoordOffset + (i * sizeof(FVector2f))*/0, int32(sizeof(FVector2f) * InstanceData->NumTexCoords), VET_Float2, EVertexStreamUsage::ManualFetch);
 				}
 				StaticMeshData.TextureCoordinatesSRV = InstanceData->VertexBufferTexCoordSRV;
 			}

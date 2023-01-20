@@ -318,7 +318,7 @@ void FNiagaraGPUInstanceCountManager::FlushIndirectArgsPool()
 	if (GNiagaraIndirectArgsPoolAllowShrinking && DrawIndirectPool.Num() > 0 && DrawIndirectLowWaterFrames >= uint32(GNiagaraIndirectArgsPoolLowWaterFrames))
 	{
 		FIndirectArgsPoolEntryPtr& PoolEntry = DrawIndirectPool[0];
-		const uint32 NewSize = FMath::Max<uint32>(GNiagaraIndirectArgsPoolMinSize, PoolEntry->AllocatedEntries / GNiagaraIndirectArgsPoolBlockSizeFactor);
+		const uint32 NewSize = FMath::Max<uint32>(GNiagaraIndirectArgsPoolMinSize, FMath::FloorToInt(float(PoolEntry->AllocatedEntries) / GNiagaraIndirectArgsPoolBlockSizeFactor));
 
 		INDIRECT_ARG_POOL_LOG("Shrinking pool from size %d to %d", PoolEntry->AllocatedEntries, NewSize);
 
@@ -566,7 +566,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(FNiagaraGpuCompu
 			{
 				// See if this was a low water mark frame
 				FIndirectArgsPoolEntryPtr& PoolEntry = DrawIndirectPool[0];
-				const uint32 LowWaterCount = FMath::Max<uint32>(GNiagaraIndirectArgsPoolMinSize, PoolEntry->AllocatedEntries * GNiagaraIndirectArgsPoolLowWaterAmount);
+				const uint32 LowWaterCount = FMath::Max<uint32>(GNiagaraIndirectArgsPoolMinSize, FMath::CeilToInt(float(PoolEntry->AllocatedEntries) * GNiagaraIndirectArgsPoolLowWaterAmount));
 				if (PoolEntry->UsedEntriesTotal < LowWaterCount)
 				{
 					++DrawIndirectLowWaterFrames;

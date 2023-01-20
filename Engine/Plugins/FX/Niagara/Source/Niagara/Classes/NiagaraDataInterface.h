@@ -852,7 +852,12 @@ struct FNDIRandomInfoPolicy
 			//           We use the upper 24 bits as they tend to be higher quality.
 
 			// NOTE(mv): The divide can often be folded with the range scale in the rand functions
-			return FVector4f((v >> 8) & 0x00ffffff) / 16777216.0; // 0x01000000 == 16777216
+			FVector4f OutValue;
+			OutValue.X = float((v.X >> 8) & 0x00ffffff) / 16777216.0f; // 0x01000000 == 16777216
+			OutValue.Y = float((v.Y >> 8) & 0x00ffffff) / 16777216.0f;
+			OutValue.Z = float((v.Z >> 8) & 0x00ffffff) / 16777216.0f;
+			OutValue.W = float((v.W >> 8) & 0x00ffffff) / 16777216.0f;
+			return OutValue;
 			// return float4((v >> 8) & 0x00ffffff) * (1.0/16777216.0); // bugged, see UE-67738
 		}
 		else
@@ -876,7 +881,11 @@ struct FNDIRandomInfoPolicy
 			v.Y += v.Z * v.X;
 			v.Z += v.X * v.Y;
 
-			return FVector3f((v >> 8) & 0x00ffffff) / 16777216.0; // 0x01000000 == 16777216
+			FVector3f OutValue;
+			OutValue.X = float((v.X >> 8) & 0x00ffffff) / 16777216.0f; // 0x01000000 == 16777216
+			OutValue.Y = float((v.Y >> 8) & 0x00ffffff) / 16777216.0f;
+			OutValue.Z = float((v.Z >> 8) & 0x00ffffff) / 16777216.0f;
+			return OutValue;
 		}
 		else
 		{

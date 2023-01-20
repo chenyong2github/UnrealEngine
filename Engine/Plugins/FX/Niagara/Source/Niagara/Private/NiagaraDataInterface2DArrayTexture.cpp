@@ -216,7 +216,9 @@ bool UNiagaraDataInterface2DArrayTexture::PerInstanceTick(void* PerInstanceData,
 					{
 						InstanceData.TextureReferenceRHI = RT_Texture->TextureReference.TextureReferenceRHI;
 						InstanceData.SamplerStateRHI = RT_Texture->GetResource() ? RT_Texture->GetResource()->SamplerStateRHI.GetReference() : TStaticSamplerState<SF_Point>::GetRHI();
-						InstanceData.TextureSize = FVector3f(RT_TextureSize.X, RT_TextureSize.Y, RT_TextureSize.Z);
+						InstanceData.TextureSize.X = float(RT_TextureSize.X);
+						InstanceData.TextureSize.Y = float(RT_TextureSize.Y);
+						InstanceData.TextureSize.Z = float(RT_TextureSize.Z);
 					}
 					else
 					{

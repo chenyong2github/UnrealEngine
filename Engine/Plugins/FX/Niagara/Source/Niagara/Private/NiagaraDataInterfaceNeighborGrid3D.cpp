@@ -472,9 +472,9 @@ void UNiagaraDataInterfaceNeighborGrid3D::SetShaderParameters(const FNiagaraData
 	{
 		ShaderParameters->NumCells		= ProxyData->NumCells;
 		ShaderParameters->UnitToUV		= FVector3f(1.0f) / FVector3f(ProxyData->NumCells);
-		ShaderParameters->CellSize.X	= ProxyData->WorldBBoxSize.X / float(ProxyData->NumCells.X);
-		ShaderParameters->CellSize.Y	= ProxyData->WorldBBoxSize.Y / float(ProxyData->NumCells.Y);
-		ShaderParameters->CellSize.Z	= ProxyData->WorldBBoxSize.Z / float(ProxyData->NumCells.Z);
+		ShaderParameters->CellSize.X	= float(ProxyData->WorldBBoxSize.X / double(ProxyData->NumCells.X));
+		ShaderParameters->CellSize.Y	= float(ProxyData->WorldBBoxSize.Y / double(ProxyData->NumCells.Y));
+		ShaderParameters->CellSize.Z	= float(ProxyData->WorldBBoxSize.Z / double(ProxyData->NumCells.Z));
 		ShaderParameters->WorldBBoxSize	= FVector3f(ProxyData->WorldBBoxSize);
 		ShaderParameters->MaxNeighborsPerCellValue = ProxyData->MaxNeighborsPerCell;
 
@@ -532,9 +532,9 @@ bool UNiagaraDataInterfaceNeighborGrid3D::InitPerInstanceData(void* PerInstanceD
 	// compute world bounds and padding based on cell size
 	if (SetResolutionMethod == ESetResolutionMethod::MaxAxis || SetResolutionMethod == ESetResolutionMethod::CellSize)
 	{
-		RT_NumCells.X = WorldBBoxSize.X / TmpCellSize;
-		RT_NumCells.Y = WorldBBoxSize.Y / TmpCellSize;
-		RT_NumCells.Z = WorldBBoxSize.Z / TmpCellSize;
+		RT_NumCells.X = int32(FMath::FloorToInt(WorldBBoxSize.X / TmpCellSize));
+		RT_NumCells.Y = int32(FMath::FloorToInt(WorldBBoxSize.Y / TmpCellSize));
+		RT_NumCells.Z = int32(FMath::FloorToInt(WorldBBoxSize.Z / TmpCellSize));
 
 		// Pad grid by 1 cell if our computed bounding box is too small
 		if (WorldBBoxSize.X > WorldBBoxSize.Y && WorldBBoxSize.X > WorldBBoxSize.Z)
@@ -580,7 +580,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::InitPerInstanceData(void* PerInstanceD
 	RT_NumCells.Y = FMath::Max(RT_NumCells.Y, 1);
 	RT_NumCells.Z = FMath::Max(RT_NumCells.Z, 1);
 
-	InstanceData->CellSize = TmpCellSize;
+	InstanceData->CellSize = float(TmpCellSize);
 	InstanceData->WorldBBoxSize = RT_WorldBBoxSize;
 	InstanceData->MaxNeighborsPerCell = RT_MaxNeighborsPerCell;	
 	InstanceData->NumCells = RT_NumCells;
@@ -671,7 +671,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::PerInstanceTickPostSimulate(void* PerI
 	{
 		InstanceData->bNeedsRealloc = false;
 
-		InstanceData->CellSize = (InstanceData->WorldBBoxSize / FVector(InstanceData->NumCells.X, InstanceData->NumCells.Y, InstanceData->NumCells.Z))[0];
+		InstanceData->CellSize = float((InstanceData->WorldBBoxSize / FVector(InstanceData->NumCells.X, InstanceData->NumCells.Y, InstanceData->NumCells.Z))[0]);
 
 		FNiagaraDataInterfaceProxyNeighborGrid3D* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyNeighborGrid3D>();
 		ENQUEUE_RENDER_COMMAND(FUpdateData)(

@@ -21,14 +21,14 @@ struct FNCPoolElement
 	UPROPERTY(transient)
 	TObjectPtr<UNiagaraComponent> Component;
 
-	float LastUsedTime;
+	double LastUsedTime;
 
 	FNCPoolElement()
 		: Component(nullptr), LastUsedTime(0.0f)
 	{
 
 	}
-	FNCPoolElement(UNiagaraComponent* InNC, float InLastUsedTime)
+	FNCPoolElement(UNiagaraComponent* InNC, double InLastUsedTime)
 		: Component(InNC), LastUsedTime(InLastUsedTime)
 	{
 
@@ -65,13 +65,13 @@ public:
 	UNiagaraComponent* Acquire(UWorld* World, UNiagaraSystem* Template, ENCPoolMethod PoolingMethod, bool bForceNew=false);
 
 	/** Returns a component to the pool. */
-	void Reclaim(UNiagaraComponent* NC, const float CurrentTimeSeconds);
+	void Reclaim(UNiagaraComponent* NC, const double CurrentTimeSeconds);
 
 	/** Forces us to remove a component, returns true if the component exists inside the pool. */
 	bool RemoveComponent(UNiagaraComponent* Component);
 
 	/** Kills any components that have not been used since the passed KillTime. */
-	void KillUnusedComponents(float KillTime, UNiagaraSystem* Template);
+	void KillUnusedComponents(double KillTime, UNiagaraSystem* Template);
 
 	int32 NumComponents() { return FreeElements.Num(); }
 };
@@ -85,9 +85,9 @@ private:
 	UPROPERTY()
 	TMap<TObjectPtr<UNiagaraSystem>, FNCPool> WorldParticleSystemPools;
 
-	float LastParticleSytemPoolCleanTime;
-public:
+	double LastParticleSytemPoolCleanTime;
 
+public:
 	static bool Enabled();
 
 	~UNiagaraComponentPool();

@@ -780,7 +780,7 @@ struct NIAGARA_API FNiagaraTypeDefinition
 {
 	GENERATED_USTRUCT_BODY()
 
-	enum FUnderlyingType
+	enum FUnderlyingType : uint16
 	{
 		UT_None = 0,
 		UT_Class,

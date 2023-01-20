@@ -2085,7 +2085,11 @@ void FNiagaraGpuComputeDispatch::GenerateSortKeys(FRHICommandListImmediate& RHIC
 			Params.NumCullPlanes = 0;
 			for (const FPlane& Plane : SortInfo.CullPlanes)
 			{
-				Params.CullPlanes[Params.NumCullPlanes++] = FVector4f(Plane.X, Plane.Y, Plane.Z, Plane.W);
+				Params.CullPlanes[Params.NumCullPlanes].X = float(Plane.X);
+				Params.CullPlanes[Params.NumCullPlanes].Y = float(Plane.Y);
+				Params.CullPlanes[Params.NumCullPlanes].Z = float(Plane.Z);
+				Params.CullPlanes[Params.NumCullPlanes].W = float(Plane.W);	// LWC Precision loss
+				++Params.NumCullPlanes;
 			}
 
 			// Choose the shader to bind

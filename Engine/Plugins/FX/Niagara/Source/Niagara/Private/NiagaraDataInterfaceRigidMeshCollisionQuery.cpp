@@ -363,7 +363,7 @@ void UpdateAssetArrays(TConstArrayView<TComponentType*> Components, const FVecto
 		FTransform MeshTransform = CreateElementTransform(Component, BodySetup);
 		MeshTransform.AddToTranslation(LWCTile * -FLargeWorldRenderScalar::GetTileSize());
 
-		auto CurrMeshScale = MeshTransform.GetScale3D();
+		const FVector3f CurrMeshScale(MeshTransform.GetScale3D());
 
 		const int32 ComponentIdIndex = OutAssetArrays->UniqueCompnentId.AddUnique(Component->ComponentId);
 
@@ -458,9 +458,9 @@ void UpdateAssetArrays(TConstArrayView<TComponentType*> Components, const FVecto
 			if (InitializeStatics)
 			{			
 				// local bounds extent is half the world extents of the bounding box in local space
-				Extent *= 2;
+				Extent *= 2.0;
 
-				OutAssetArrays->ElementExtent[BoxIndex] = FVector4f(Extent.X, Extent.Y, Extent.Z, 0);
+				OutAssetArrays->ElementExtent[BoxIndex] = FVector4f(float(Extent.X), float(Extent.Y), float(Extent.Z), 0);
 				OutAssetArrays->MeshScale[BoxIndex] = FVector4f(CurrMeshScale.X, CurrMeshScale.Y, CurrMeshScale.Z, 0);
 				OutAssetArrays->PhysicsType[BoxIndex] = true;
 				OutAssetArrays->ComponentIdIndex[BoxIndex] = ComponentIdIndex;

@@ -1803,8 +1803,8 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 	{
 		FVector2D::FReal CellSize = FMath::Max(WorldBBoxSize.X, WorldBBoxSize.Y) / NumCellsMaxAxis;
 
-		InstanceData->NumCells.X = WorldBBoxSize.X / CellSize;
-		InstanceData->NumCells.Y = WorldBBoxSize.Y / CellSize;
+		InstanceData->NumCells.X = int32(FMath::FloorToInt(WorldBBoxSize.X / CellSize));
+		InstanceData->NumCells.Y = int32(FMath::FloorToInt(WorldBBoxSize.Y / CellSize));
 
 		// Pad grid by 1 voxel if our computed bounding box is too small
 		if (WorldBBoxSize.X > WorldBBoxSize.Y && !FMath::IsNearlyEqual(CellSize * InstanceData->NumCells.Y, WorldBBoxSize.Y))
@@ -1886,7 +1886,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 		for (int32 i = 0; i < RT_InstanceData.Vars.Num(); i++)
 		{
 			TargetData->Vars.Emplace(RT_InstanceData.Vars[i].GetName());
-			TargetData->VarComponents.Emplace(RT_InstanceData.Vars[i].GetType().GetSize() / sizeof(float));
+			TargetData->VarComponents.Add(RT_InstanceData.Vars[i].GetType().GetSize() / sizeof(float));
 		}
 #if WITH_EDITORONLY_DATA
 		TargetData->bPreviewGrid = RT_InstanceData.bPreviewGrid;
@@ -2565,7 +2565,7 @@ void FGrid2DCollectionRWInstanceData_RenderThread::BeginSimulate(FRDGBuilder& Gr
 		DestinationData = new FGrid2DBuffer();
 		Buffers.Emplace(DestinationData);
 
-		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create2DArray(NumCells, PixelFormat, FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV, NumAttributes);
+		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create2DArray(NumCells, PixelFormat, FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV, uint16(NumAttributes));
 
 		const TCHAR* GridTextureName = TEXT("Grid2D::GridTexture");
 	#if 0

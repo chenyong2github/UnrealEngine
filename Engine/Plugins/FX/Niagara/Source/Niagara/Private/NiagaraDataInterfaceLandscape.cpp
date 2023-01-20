@@ -811,7 +811,9 @@ void FNDI_Landscape_SharedResource::Initialize()
 						TArray<uint8> PhysMatRemap;
 						for (const UPhysicalMaterial* ComponentMaterial : CollisionComponent->CookedPhysicalMaterials)
 						{
-							PhysMatRemap.Emplace(ResourceKey.PhysicalMaterials.IndexOfByKey(ComponentMaterial));
+							const int32 RemapIndex = ResourceKey.PhysicalMaterials.IndexOfByKey(ComponentMaterial);
+							ensure(RemapIndex <= TNumericLimits<uint8>::Max());
+							PhysMatRemap.Emplace(uint8(RemapIndex));
 						}
 
 						for (int32 Y = 0; Y < ComponentQuadCount; ++Y)
@@ -975,8 +977,8 @@ FNDI_Landscape_SharedResourceHandle FNDI_Landscape_GeneratedData::GetLandscapeDa
 
 	// at runtime we don't know the potential number of components in the landscape, so we can only clamp the values to start at 0.
 	// Ideally, we'd be able to specify an upper bound as well to further refine the region of overlap.
-	const FIntPoint MinBoundRegion = FIntPoint(SystemBoundsInLandscape.Min.X, SystemBoundsInLandscape.Min.Y).ComponentMax(FIntPoint(0, 0));
-	const FIntPoint MaxBoundRegion = FIntPoint(SystemBoundsInLandscape.Max.X, SystemBoundsInLandscape.Max.Y).ComponentMax(FIntPoint(0, 0));
+	const FIntPoint MinBoundRegion = FIntPoint(int32(SystemBoundsInLandscape.Min.X), int32(SystemBoundsInLandscape.Min.Y)).ComponentMax(FIntPoint(0, 0));	// LWC Precision Loss
+	const FIntPoint MaxBoundRegion = FIntPoint(int32(SystemBoundsInLandscape.Max.X), int32(SystemBoundsInLandscape.Max.Y)).ComponentMax(FIntPoint(0, 0));
 
 	const FIntRect SystemRect = FIntRect(MinBoundRegion, MaxBoundRegion).Scale(1.0f / Landscape->ComponentSizeQuads);
 

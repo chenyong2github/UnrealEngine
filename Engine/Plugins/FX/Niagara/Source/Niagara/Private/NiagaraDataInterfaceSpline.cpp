@@ -682,7 +682,10 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 				FVector4f* PositionBufferData = static_cast<FVector4f*>(RHILockBuffer(TargetData->SplinePositionsLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
 				for (int32 Index = 0; Index < rtShaderLUT.Positions.Num(); Index++)
 				{
-					PositionBufferData[Index] = FVector4f(rtShaderLUT.Positions[Index].X, rtShaderLUT.Positions[Index].Y, rtShaderLUT.Positions[Index].Z);
+					PositionBufferData[Index].X = float(rtShaderLUT.Positions[Index].X);	// LWC Precision Loss
+					PositionBufferData[Index].Y = float(rtShaderLUT.Positions[Index].Y);
+					PositionBufferData[Index].Z = float(rtShaderLUT.Positions[Index].Z);
+					PositionBufferData[Index].W = 1.0f;
 				}
 				RHIUnlockBuffer(TargetData->SplinePositionsLUT.Buffer);
 		
@@ -692,7 +695,10 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 				FVector4f* ScaleBufferData = static_cast<FVector4f*>(RHILockBuffer(TargetData->SplineScalesLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
 				for (int32 Index = 0; Index < rtShaderLUT.Scales.Num(); Index++)
 				{
-					ScaleBufferData[Index] = FVector4f(rtShaderLUT.Scales[Index].X, rtShaderLUT.Scales[Index].Y, rtShaderLUT.Scales[Index].Z);
+					ScaleBufferData[Index].X = float(rtShaderLUT.Scales[Index].X);
+					ScaleBufferData[Index].Y = float(rtShaderLUT.Scales[Index].Y);
+					ScaleBufferData[Index].Z = float(rtShaderLUT.Scales[Index].Z);
+					ScaleBufferData[Index].W = 1.0f;
 				}
 				RHIUnlockBuffer(TargetData->SplineScalesLUT.Buffer);
 				
@@ -1002,7 +1008,7 @@ float FNDISpline_InstanceData::EvaluateFindNearestPosition<TIntegralConstant<boo
 	int32 KeyToNearest = 0;
 	for (int32 i=0; i < SplineLUT.Positions.Num(); i++)
 	{
-		const float Distance = FVector::DistSquared(InPosition, SplineLUT.Positions[i]);
+		const float Distance = float(FVector::DistSquared(InPosition, SplineLUT.Positions[i]));
 		if (Distance < MinDistance)
 		{
 			MinDistance = Distance;
@@ -1082,9 +1088,9 @@ void UNiagaraDataInterfaceSpline::SampleSplinePositionByUnitDistance(FVectorVMEx
 			FVector Pos = InstData->GetLocationAtDistanceAlongSpline<UseLUT>(DistanceUnitDistance * SplineLength, ESplineCoordinateSpace::Local);
 			TransformHandler.TransformPosition(Pos, InstData->Transform);
 
-			*OutPosX.GetDest() = Pos.X;
-			*OutPosY.GetDest() = Pos.Y;
-			*OutPosZ.GetDest() = Pos.Z;
+			*OutPosX.GetDest() = float(Pos.X);	// LWC Precision Loss
+			*OutPosY.GetDest() = float(Pos.Y);
+			*OutPosZ.GetDest() = float(Pos.Z);
 			SplineSampleParam.Advance();
 			OutPosX.Advance();
 			OutPosY.Advance();
@@ -1098,9 +1104,9 @@ void UNiagaraDataInterfaceSpline::SampleSplinePositionByUnitDistance(FVectorVMEx
 			FVector Pos = FVector(EForceInit::ForceInitToZero);
 			TransformHandler.TransformPosition(Pos, InstData->Transform);
 
-			*OutPosX.GetDest() = Pos.X;
-			*OutPosY.GetDest() = Pos.Y;
-			*OutPosZ.GetDest() = Pos.Z;
+			*OutPosX.GetDest() = float(Pos.X);	// LWC Precision Loss
+			*OutPosY.GetDest() = float(Pos.Y);
+			*OutPosZ.GetDest() = float(Pos.Z);
 			SplineSampleParam.Advance();
 			OutPosX.Advance();
 			OutPosY.Advance();
@@ -1131,20 +1137,20 @@ void UNiagaraDataInterfaceSpline::SampleSplineRotationByUnitDistance(FVectorVMEx
 			FQuat Quat = InstData->GetQuaternionAtDistanceAlongSpline<UseLUT>(DistanceUnitDistance * SplineLength, ESplineCoordinateSpace::Local);
 			TransformHandler.TransformRotation(Quat, TransformQuat);
 
-			*OutQuatX.GetDestAndAdvance() = Quat.X;
-			*OutQuatY.GetDestAndAdvance() = Quat.Y;
-			*OutQuatZ.GetDestAndAdvance() = Quat.Z;
-			*OutQuatW.GetDestAndAdvance() = Quat.W;
+			*OutQuatX.GetDestAndAdvance() = float(Quat.X);	// LWC Precison Loss
+			*OutQuatY.GetDestAndAdvance() = float(Quat.Y);
+			*OutQuatZ.GetDestAndAdvance() = float(Quat.Z);
+			*OutQuatW.GetDestAndAdvance() = float(Quat.W);
 		}
 	}
 	else
 	{
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
-			*OutQuatX.GetDestAndAdvance() = FQuat::Identity.X;
-			*OutQuatY.GetDestAndAdvance() = FQuat::Identity.Y;
-			*OutQuatZ.GetDestAndAdvance() = FQuat::Identity.Z;
-			*OutQuatW.GetDestAndAdvance() = FQuat::Identity.W;
+			*OutQuatX.GetDestAndAdvance() = FQuat4f::Identity.X;
+			*OutQuatY.GetDestAndAdvance() = FQuat4f::Identity.Y;
+			*OutQuatZ.GetDestAndAdvance() = FQuat4f::Identity.Z;
+			*OutQuatW.GetDestAndAdvance() = FQuat4f::Identity.W;
 		}
 	}
 }
@@ -1169,9 +1175,9 @@ void UNiagaraDataInterfaceSpline::SampleSplineUpVectorByUnitDistance(FVectorVMEx
 			FVector Pos = InstData->GetUpVectorAtDistanceAlongSpline<UseLUT>(DistanceUnitDistance * SplineLength, ESplineCoordinateSpace::Local);
 			TransformHandler.TransformVector(Pos, InstData->Transform);
 
-			*OutPosX.GetDest() = Pos.X;
-			*OutPosY.GetDest() = Pos.Y;
-			*OutPosZ.GetDest() = Pos.Z;
+			*OutPosX.GetDest() = float(Pos.X);		// LWC Precision Loss
+			*OutPosY.GetDest() = float(Pos.Y);
+			*OutPosZ.GetDest() = float(Pos.Z);
 			SplineSampleParam.Advance();
 			OutPosX.Advance();
 			OutPosY.Advance();
@@ -1185,9 +1191,9 @@ void UNiagaraDataInterfaceSpline::SampleSplineUpVectorByUnitDistance(FVectorVMEx
 			FVector Pos = FVector(0.0f, 0.0f, 1.0f); 
 			TransformHandler.TransformVector(Pos, InstData->Transform);
 
-			*OutPosX.GetDest() = Pos.X;
-			*OutPosY.GetDest() = Pos.Y;
-			*OutPosZ.GetDest() = Pos.Z;
+			*OutPosX.GetDest() = float(Pos.X);		// LWC Precision Loss
+			*OutPosY.GetDest() = float(Pos.Y);
+			*OutPosZ.GetDest() = float(Pos.Z);
 			SplineSampleParam.Advance();
 			OutPosX.Advance();
 			OutPosY.Advance();
@@ -1217,9 +1223,9 @@ void UNiagaraDataInterfaceSpline::SampleSplineRightVectorByUnitDistance(FVectorV
 			FVector Pos = InstData->GetRightVectorAtDistanceAlongSpline<UseLUT>(DistanceUnitDistance * SplineLength, ESplineCoordinateSpace::Local);
 			TransformHandler.TransformVector(Pos, InstData->Transform);
 
-			*OutPosX.GetDest() = Pos.X;
-			*OutPosY.GetDest() = Pos.Y;
-			*OutPosZ.GetDest() = Pos.Z;
+			*OutPosX.GetDest() = float(Pos.X);	// LWC Precision Loss
+			*OutPosY.GetDest() = float(Pos.Y);
+			*OutPosZ.GetDest() = float(Pos.Z);
 			SplineSampleParam.Advance();
 			OutPosX.Advance();
 			OutPosY.Advance();
@@ -1233,9 +1239,9 @@ void UNiagaraDataInterfaceSpline::SampleSplineRightVectorByUnitDistance(FVectorV
 			FVector Pos = FVector(-1.0f, 0.0f, 0.0f); 
 			TransformHandler.TransformVector(Pos, InstData->Transform);
 
-			*OutPosX.GetDest() = Pos.X;
-			*OutPosY.GetDest() = Pos.Y;
-			*OutPosZ.GetDest() = Pos.Z;
+			*OutPosX.GetDest() = float(Pos.X);	// LWC Precision Loss
+			*OutPosY.GetDest() = float(Pos.Y);
+			*OutPosZ.GetDest() = float(Pos.Z);
 			SplineSampleParam.Advance();
 			OutPosX.Advance();
 			OutPosY.Advance();
@@ -1264,9 +1270,9 @@ void UNiagaraDataInterfaceSpline::SampleSplineTangentByUnitDistance(FVectorVMExt
 			FVector Pos = InstData->GetTangentAtDistanceAlongSpline<UseLUT>(DistanceUnitDistance * SplineLength, ESplineCoordinateSpace::Local);
 			TransformHandler.TransformVector(Pos, InstData->Transform);
 
-			*OutPosX.GetDest() = Pos.X;
-			*OutPosY.GetDest() = Pos.Y;
-			*OutPosZ.GetDest() = Pos.Z;
+			*OutPosX.GetDest() = float(Pos.X);	// LWC Precision Loss
+			*OutPosY.GetDest() = float(Pos.Y);
+			*OutPosZ.GetDest() = float(Pos.Z);
 			SplineSampleParam.Advance();
 			OutPosX.Advance();
 			OutPosY.Advance();
@@ -1280,9 +1286,9 @@ void UNiagaraDataInterfaceSpline::SampleSplineTangentByUnitDistance(FVectorVMExt
 			FVector Pos = FVector(EForceInit::ForceInitToZero); 
 			TransformHandler.TransformVector(Pos, InstData->Transform);
 
-			*OutPosX.GetDest() = Pos.X;
-			*OutPosY.GetDest() = Pos.Y;
-			*OutPosZ.GetDest() = Pos.Z;
+			*OutPosX.GetDest() = float(Pos.X);	// LWC Precision Loss
+			*OutPosY.GetDest() = float(Pos.Y);
+			*OutPosZ.GetDest() = float(Pos.Z);
 			SplineSampleParam.Advance();
 			OutPosX.Advance();
 			OutPosY.Advance();
@@ -1311,9 +1317,9 @@ void UNiagaraDataInterfaceSpline::SampleSplineDirectionByUnitDistance(FVectorVME
 			FVector Pos = InstData->GetDirectionAtDistanceAlongSpline<UseLUT>(DistanceUnitDistance * SplineLength, ESplineCoordinateSpace::Local);
 			TransformHandler.TransformVector(Pos, InstData->Transform);
 
-			*OutPosX.GetDest() = Pos.X;
-			*OutPosY.GetDest() = Pos.Y;
-			*OutPosZ.GetDest() = Pos.Z;
+			*OutPosX.GetDest() = float(Pos.X);		// LWC Precision Loss
+			*OutPosY.GetDest() = float(Pos.Y);
+			*OutPosZ.GetDest() = float(Pos.Z);
 			SplineSampleParam.Advance();
 			OutPosX.Advance();
 			OutPosY.Advance();
@@ -1327,9 +1333,9 @@ void UNiagaraDataInterfaceSpline::SampleSplineDirectionByUnitDistance(FVectorVME
 			FVector Pos = FVector(0.0f, 1.0f, 0.0f); 
 			TransformHandler.TransformVector(Pos, InstData->Transform);
 
-			*OutPosX.GetDest() = Pos.X;
-			*OutPosY.GetDest() = Pos.Y;
-			*OutPosZ.GetDest() = Pos.Z;
+			*OutPosX.GetDest() = float(Pos.X);	// LWC Precision Loss
+			*OutPosY.GetDest() = float(Pos.Y);
+			*OutPosZ.GetDest() = float(Pos.Z);
 			SplineSampleParam.Advance();
 			OutPosX.Advance();
 			OutPosY.Advance();
@@ -1338,7 +1344,7 @@ void UNiagaraDataInterfaceSpline::SampleSplineDirectionByUnitDistance(FVectorVME
 	}
 }
 
-void UNiagaraDataInterfaceSpline::WriteTransform(const FMatrix& ToWrite, FVectorVMExternalFunctionContext& Context)
+void UNiagaraDataInterfaceSpline::WriteTransform(const FMatrix44f& ToWrite, FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FExternalFuncRegisterHandler<float> Out00(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> Out01(Context);
@@ -1418,13 +1424,13 @@ void UNiagaraDataInterfaceSpline::FindClosestUnitDistanceFromPositionWS(FVectorV
 void UNiagaraDataInterfaceSpline::GetLocalToWorld(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDISpline_InstanceData> InstData(Context);
-	WriteTransform(InstData->Transform, Context);
+	WriteTransform(FMatrix44f(InstData->Transform), Context);	//LWC Precision Loss
 }
 
 void UNiagaraDataInterfaceSpline::GetLocalToWorldInverseTransposed(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDISpline_InstanceData> InstData(Context);
-	WriteTransform(InstData->TransformInverseTransposed, Context);
+	WriteTransform(FMatrix44f(InstData->TransformInverseTransposed), Context);	//LWC Precision Loss
 }
 
 void UNiagaraDataInterfaceSpline::VMGetSplineLength(FVectorVMExternalFunctionContext& Context)

@@ -572,8 +572,8 @@ void UNiagaraDataInterfaceIntRenderTarget2D::SetShaderParameters(const FNiagaraD
 
 	// Set Parameters
 	FShaderParameters* Parameters = Context.GetParameterNestedStruct<FShaderParameters>();
-	Parameters->TextureSizeAndInvSize.X = InstanceData.Size.X;
-	Parameters->TextureSizeAndInvSize.Y = InstanceData.Size.Y;
+	Parameters->TextureSizeAndInvSize.X = float(InstanceData.Size.X);
+	Parameters->TextureSizeAndInvSize.Y = float(InstanceData.Size.Y);
 	Parameters->TextureSizeAndInvSize.Z = 1.0f / float(InstanceData.Size.X);
 	Parameters->TextureSizeAndInvSize.W = 1.0f / float(InstanceData.Size.Y);
 

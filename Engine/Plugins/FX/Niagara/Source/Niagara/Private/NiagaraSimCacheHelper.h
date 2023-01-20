@@ -333,19 +333,19 @@ struct FNiagaraSimCacheHelper
 					if (SourceVariable.Variable.GetType() == FNiagaraTypeDefinition::GetPositionDef())
 					{
 						check(SourceVariable.FloatCount == 3);
-						CacheLayout.VariableMappingsToDataBuffer.Emplace(FloatOffset, DestVariableLayout->FloatComponentStart, &FNiagaraSimCacheHelper::CopyPositions);
+						CacheLayout.VariableMappingsToDataBuffer.Emplace(uint16(FloatOffset), uint16(DestVariableLayout->FloatComponentStart), &FNiagaraSimCacheHelper::CopyPositions);
 						DestVariableLayout = nullptr;
 					}
 					else if (SourceVariable.Variable.GetType() == FNiagaraTypeDefinition::GetQuatDef())
 					{
 						check(SourceVariable.FloatCount == 4);
-						CacheLayout.VariableMappingsToDataBuffer.Emplace(FloatOffset, DestVariableLayout->FloatComponentStart, &FNiagaraSimCacheHelper::CopyQuaternions);
+						CacheLayout.VariableMappingsToDataBuffer.Emplace(uint16(FloatOffset), uint16(DestVariableLayout->FloatComponentStart), &FNiagaraSimCacheHelper::CopyQuaternions);
 						DestVariableLayout = nullptr;
 					}
 					else if (SourceVariable.Variable.GetType() == FNiagaraTypeDefinition::GetMatrix4Def())
 					{
 						check(SourceVariable.FloatCount == 16);
-						CacheLayout.VariableMappingsToDataBuffer.Emplace(FloatOffset, DestVariableLayout->FloatComponentStart, &FNiagaraSimCacheHelper::CopyMatrices);
+						CacheLayout.VariableMappingsToDataBuffer.Emplace(uint16(FloatOffset), uint16(DestVariableLayout->FloatComponentStart), &FNiagaraSimCacheHelper::CopyMatrices);
 						DestVariableLayout = nullptr;
 					}
 				}

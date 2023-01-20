@@ -469,14 +469,14 @@ void UNiagaraDataInterfaceCamera::GetCameraProperties(FVectorVMExternalFunctionC
 	VectorVM::FExternalFuncRegisterHandler<float> CamRightZ(Context);
 
 	FCameraDataInterface_InstanceData* CamData = InstData.Get();
-	float XPos = CamData->CameraLocation.X;
-	float YPos = CamData->CameraLocation.Y;
-	float ZPos = CamData->CameraLocation.Z;
+	const float XPos = CamData->CameraLocation.X;
+	const float YPos = CamData->CameraLocation.Y;
+	const float ZPos = CamData->CameraLocation.Z;
 
 	FRotationMatrix RotationMatrix(CamData->CameraRotation);
-	const FVector Forward = RotationMatrix.GetScaledAxis(EAxis::X);
-	const FVector Up = RotationMatrix.GetScaledAxis(EAxis::Z);
-	const FVector Right = RotationMatrix.GetScaledAxis(EAxis::Y);
+	const FVector3f Forward = FVector3f(RotationMatrix.GetScaledAxis(EAxis::X));
+	const FVector3f Up = FVector3f(RotationMatrix.GetScaledAxis(EAxis::Z));
+	const FVector3f Right = FVector3f(RotationMatrix.GetScaledAxis(EAxis::Y));
 
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
