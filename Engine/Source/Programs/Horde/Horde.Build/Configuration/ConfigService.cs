@@ -160,7 +160,10 @@ namespace Horde.Build.Configuration
 		/// <inheritdoc/>
 		public async Task StartAsync(CancellationToken cancellationToken)
 		{
-			await _ticker.StartAsync();
+			if (_serverSettings.IsRunModeActive(RunMode.Worker))
+			{
+				await _ticker.StartAsync();
+			}
 			_updateTask.Start();
 		}
 
@@ -168,7 +171,10 @@ namespace Horde.Build.Configuration
 		public async Task StopAsync(CancellationToken cancellationToken)
 		{
 			await _updateTask.StopAsync();
-			await _ticker.StopAsync();
+			if (_serverSettings.IsRunModeActive(RunMode.Worker))
+			{
+				await _ticker.StopAsync();
+			}
 		}
 
 		/// <summary>

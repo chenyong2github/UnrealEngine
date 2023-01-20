@@ -372,6 +372,9 @@ namespace Horde.Build
 			services.AddSingleton<IOptionsFactory<GlobalConfig>>(sp => sp.GetRequiredService<ConfigService>());
 			services.AddSingleton<IOptionsChangeTokenSource<GlobalConfig>>(sp => sp.GetRequiredService<ConfigService>());
 
+			// Always run the hosted config service, regardless of the server role, so we receive updates on the latest config values.
+			services.AddHostedService(provider => provider.GetRequiredService<ConfigService>());
+
 			// Auditing
 			services.AddSingleton<IAuditLog<AgentId>>(sp => sp.GetRequiredService<IAuditLogFactory<AgentId>>().Create("Agents.Log", "AgentId"));
 
@@ -669,7 +672,6 @@ namespace Horde.Build
 				{
 					services.AddHostedService(provider => provider.GetRequiredService<SlackNotificationSink>());
 				}
-				services.AddHostedService(provider => provider.GetRequiredService<ConfigService>());
 				services.AddHostedService<TelemetryService>();
 				services.AddHostedService(provider => provider.GetRequiredService<DeviceService>());
 				services.AddHostedService(provider => provider.GetRequiredService<TestDataService>());
