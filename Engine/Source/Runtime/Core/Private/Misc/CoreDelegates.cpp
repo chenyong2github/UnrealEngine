@@ -110,6 +110,9 @@ TMulticastDelegate<void()> FCoreDelegates::ApplicationWillTerminateDelegate;
 TMulticastDelegate<void()> FCoreDelegates::ApplicationShouldUnloadResourcesDelegate;
 TMulticastDelegate<void(float)> FCoreDelegates::MobileBackgroundTickDelegate;
 
+TMulticastDelegate<void()> FCoreDelegates::ApplicationSystemUIOverlayAppearedDelegate;
+TMulticastDelegate<void()> FCoreDelegates::ApplicationSystemUIOverlayDisappearedDelegate;
+
 TMulticastDelegate<void(const TArray<FString>&)> FCoreDelegates::ApplicationReceivedStartupArgumentsDelegate;
 
 TMulticastDelegate<void(bool)> FCoreDelegates::UserMusicInterruptDelegate;
