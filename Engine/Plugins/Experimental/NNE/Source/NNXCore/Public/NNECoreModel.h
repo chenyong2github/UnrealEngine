@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "NNXRuntime.h"
+#include "NNECoreRuntimeCPU.h"
 #include "NNECoreModelData.h"
 
 #include "NNECoreModel.generated.h"
@@ -109,10 +109,10 @@ public:
 	
 private:
 
-	TSharedPtr<NNX::FMLInferenceModel> Model;
+	TSharedPtr<UE::NNECore::IModelCPU> Model;
 
-	TArray<NNX::FMLTensorBinding> InputBindings;
-	TArray<NNX::FTensorShape> InputShapes;
+	TArray<UE::NNECore::FTensorBindingCPU> InputBindings;
+	TArray<UE::NNECore::FTensorShape> InputShapes;
 
 	TSharedPtr<bool> IsAsyncRunning;
 };
