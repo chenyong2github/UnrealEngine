@@ -65,15 +65,59 @@ public:
 	UE_DISABLE_OPTIMIZATION_SHIP
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(Command_CopyToClipboard, "Copy To Clipboard", "Copies the selection to clipboard.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::C));
-		UI_COMMAND(Command_CopyColumnToClipboard, "Copy Column Value To Clipboard", "Copies the value of the hovered column to clipboard.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::C));
-		UI_COMMAND(Command_CopyColumnTooltipToClipboard, "Copy Column Tooltip To Clipboard", "Copies the value of the hovered column's tooltip to clipboard.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Alt, EKeys::C));
-		UI_COMMAND(Command_ExpandSubtree, "Expand Subtree", "Expand the subtree that starts from the selected group node.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::None, EKeys::E));
-		UI_COMMAND(Command_ExpandCriticalPath, "Expand Critical Path", "Expand the first group child node recursively until a leaf nodes in reached.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::None, EKeys::R));
-		UI_COMMAND(Command_CollapseSubtree, "Collapse Subtree", "Collapse the subtree that starts from the selected group node.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::None, EKeys::C));
-		UI_COMMAND(Command_ExportToFile, "Export Visible Tree to File...", "Exports the tree/table content to a file. It exports only the tree nodes currently expanded in the tree, including leaf nodes.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::E));
-		UI_COMMAND(Command_ExportEntireTreeToFile, "Export Entire Tree to File...", "Exports the entire tree/table content to a file. It exports also the collapsed tree nodes, including the leaf nodes. Filtered out nodes are not exported.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::E));
-		UI_COMMAND(Command_ExportEntireTreeToFileNoLeafs, "Export Entire Tree (No Leafs) to File...", "Exports the entire tree/table content to a file, but not the leaf nodes. It exports the collapsed tree nodes. Filtered out nodes are not exported.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt, EKeys::E));
+		UI_COMMAND(Command_CopyToClipboard,
+			"Copy To Clipboard",
+			"Copies the selection to clipboard.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control, EKeys::C));
+
+		UI_COMMAND(Command_CopyColumnToClipboard,
+			"Copy Column Value To Clipboard",
+			"Copies the value of the hovered column to clipboard.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::C));
+
+		UI_COMMAND(Command_CopyColumnTooltipToClipboard,
+			"Copy Column Tooltip To Clipboard",
+			"Copies the value of the hovered column's tooltip to clipboard.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control | EModifierKey::Alt, EKeys::C));
+
+		UI_COMMAND(Command_ExpandSubtree,
+			"Expand Subtree",
+			"Expand the subtree that starts from the selected group node.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::None, EKeys::E));
+
+		UI_COMMAND(Command_ExpandCriticalPath,
+			"Expand Critical Path",
+			"Expand the first group child node recursively until a leaf nodes in reached.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::None, EKeys::R));
+
+		UI_COMMAND(Command_CollapseSubtree,
+			"Collapse Subtree",
+			"Collapse the subtree that starts from the selected group node.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::None, EKeys::C));
+
+		UI_COMMAND(Command_ExportToFile,
+			"Export Visible Tree to File...",
+			"Exports the tree/table content to a file. It exports only the tree nodes currently expanded in the tree, including leaf nodes.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control, EKeys::E));
+
+		UI_COMMAND(Command_ExportEntireTreeToFile,
+			"Export Entire Tree to File...",
+			"Exports the entire tree/table content to a file. It exports also the collapsed tree nodes, including the leaf nodes. Filtered out nodes are not exported.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Shift, EKeys::E));
+
+		UI_COMMAND(Command_ExportEntireTreeToFileNoLeafs,
+			"Export Entire Tree (No Leafs) to File...",
+			"Exports the entire tree/table content to a file, but not the leaf nodes. It exports the collapsed tree nodes. Filtered out nodes are not exported.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Alt, EKeys::E));
 	}
 	UE_ENABLE_OPTIMIZATION_SHIP
 
@@ -156,15 +200,42 @@ void STableTreeView::InitCommandList()
 {
 	FTableTreeViewCommands::Register();
 	CommandList = MakeShared<FUICommandList>();
-	CommandList->MapAction(FTableTreeViewCommands::Get().Command_CopyToClipboard, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopySelectedToClipboard_Execute), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopySelectedToClipboard_CanExecute));
-	CommandList->MapAction(FTableTreeViewCommands::Get().Command_CopyColumnToClipboard, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopyColumnToClipboard_Execute), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopyColumnToClipboard_CanExecute));
-	CommandList->MapAction(FTableTreeViewCommands::Get().Command_CopyColumnTooltipToClipboard, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopyColumnTooltipToClipboard_Execute), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopyColumnTooltipToClipboard_CanExecute));
-	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExpandSubtree, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExpandSubtree_Execute), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExpandSubtree_CanExecute));
-	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExpandCriticalPath, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExpandCriticalPath_Execute), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExpandCriticalPath_CanExecute));
-	CommandList->MapAction(FTableTreeViewCommands::Get().Command_CollapseSubtree, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CollapseSubtree_Execute), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CollapseSubtree_CanExecute));
-	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExportToFile, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_Execute, false, true), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_CanExecute));
-	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExportEntireTreeToFile, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_Execute, true, true), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_CanExecute));
-	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExportEntireTreeToFileNoLeafs, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_Execute, true, false), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_CanExecute));
+
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_CopyToClipboard,
+		FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopySelectedToClipboard_Execute),
+		FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopySelectedToClipboard_CanExecute));
+
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_CopyColumnToClipboard,
+		FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopyColumnToClipboard_Execute),
+		FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopyColumnToClipboard_CanExecute));
+
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_CopyColumnTooltipToClipboard,
+		FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopyColumnTooltipToClipboard_Execute),
+		FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopyColumnTooltipToClipboard_CanExecute));
+
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExpandSubtree,
+		FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExpandSubtree_Execute),
+		FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExpandSubtree_CanExecute));
+
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExpandCriticalPath,
+		FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExpandCriticalPath_Execute),
+		FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExpandCriticalPath_CanExecute));
+
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_CollapseSubtree,
+		FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CollapseSubtree_Execute),
+		FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CollapseSubtree_CanExecute));
+
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExportToFile,
+		FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_Execute, false, true),
+		FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_CanExecute));
+
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExportEntireTreeToFile,
+		FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_Execute, true, true),
+		FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_CanExecute));
+
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExportEntireTreeToFileNoLeafs,
+		FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_Execute, true, false),
+		FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_CanExecute));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

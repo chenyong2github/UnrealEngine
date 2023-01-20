@@ -172,7 +172,7 @@ public:
 	virtual FText GetCurrentOperationName() const override;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	
+
 	/** Set a log listing name to be used for any errors or warnings. Must be preregistered by the caller with the MessageLog module. */
 	void SetLogListingName(const FName& InLogListingName) { LogListingName = InLogListingName; }
 	const FName& GetLogListingName() { return LogListingName; }
@@ -583,12 +583,13 @@ protected:
 
 	//////////////////////////////////////////////////
 	// Async
+
 	bool bRunInAsyncMode = false;
 	bool bIsUpdateRunning = false;
 	bool bIsCloseScheduled = false;
 
 	TArray<FTableTreeNodePtr> DummyGroupNodes;
-	FGraphEventRef InProgressAsyncOperationEvent;;
+	FGraphEventRef InProgressAsyncOperationEvent;
 	FGraphEventRef AsyncCompleteTaskEvent;
 	EAsyncOperationType InProgressAsyncOperations = static_cast<EAsyncOperationType>(0);
 	TSharedPtr<class SAsyncOperationStatus> AsyncOperationStatus;
@@ -605,6 +606,7 @@ protected:
 	TArray<FTableTreeNodePtr> NodesToExpand;
 
 	//////////////////////////////////////////////////
+
 	TSharedPtr<FFilterConfigurator> FilterConfigurator;
 	FDelegateHandle OnFilterChangesCommitedHandle;
 	FFilterContext Context;

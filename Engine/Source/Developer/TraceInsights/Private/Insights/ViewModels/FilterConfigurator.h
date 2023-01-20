@@ -9,7 +9,7 @@
 
 namespace Insights
 {
- 
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FFilterConfigurator : public IFilterExecutor
@@ -36,6 +36,7 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// OnDestroyedEvent
+
 public:
 	/** The event to execute when an instance is destroyed. */
 	DECLARE_MULTICAST_DELEGATE(FOnDestroyedEvent);
@@ -46,6 +47,7 @@ private:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// OnChangesCommitedEvent
+
 public:
 	/** The event to execute when the changes to the Filter Widget are saved by clicking on the OK Button. */
 	DECLARE_MULTICAST_DELEGATE(FOnChangesCommitedEvent);
@@ -57,9 +59,9 @@ private:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 private:
-
 	void ComputeUsedKeys();
 
+private:
 	FFilterConfiguratorNodePtr RootNode;
 
 	TSharedPtr<TArray<TSharedPtr<struct FFilter>>> AvailableFilters;
