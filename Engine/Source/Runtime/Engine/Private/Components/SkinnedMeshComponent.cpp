@@ -353,7 +353,8 @@ void FExternalMorphSetWeights::UpdateNumActiveMorphTargets()
 
 void FExternalMorphSetWeights::ZeroWeights(bool bZeroNumActiveMorphTargets)
 {
-	for (int32 Index = 0; Index < Weights.Num(); ++Index)
+	const int32 NumWeights = Weights.Num();
+	for (int32 Index = 0; Index < NumWeights; ++Index)
 	{
 		Weights[Index] = 0.0f;
 	}

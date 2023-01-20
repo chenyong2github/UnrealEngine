@@ -39,6 +39,7 @@ void UMLDeformerComponent::Init()
 		if (ModelInstance)
 		{
 			ModelInstance->Release();
+			ModelInstance->ConditionalBeginDestroy();
 			ModelInstance = nullptr;
 		}
 		return;
@@ -51,6 +52,7 @@ void UMLDeformerComponent::Init()
 		if (ModelInstance)
 		{
 			ModelInstance->Release();
+			ModelInstance->ConditionalBeginDestroy();
 			ModelInstance = nullptr;
 		}
 		ModelInstance = Model->CreateModelInstance(this);
@@ -231,9 +233,9 @@ void UMLDeformerComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerComponent::TickComponent)
 			float ApplyWeight = Weight;
-			if (GMLDeformerOverrideWeight >= 0.f)
+			if (GMLDeformerOverrideWeight >= 0.0f)
 			{
-				ApplyWeight = FMath::Min(GMLDeformerOverrideWeight, 1.f);
+				ApplyWeight = FMath::Min(GMLDeformerOverrideWeight, 1.0f);
 			}
 			ModelInstance->Tick(DeltaTime, ApplyWeight);
 

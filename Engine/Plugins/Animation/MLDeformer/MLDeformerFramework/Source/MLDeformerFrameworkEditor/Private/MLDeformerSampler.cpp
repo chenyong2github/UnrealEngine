@@ -8,6 +8,8 @@
 
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimInstance.h"
+#include "BoneContainer.h"
 #include "BoneWeights.h"
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshModel.h"
@@ -73,6 +75,10 @@ namespace UE::MLDeformer
 			SkeletalMeshComponent->bPauseAnims = true;
 			SkeletalMeshComponent->RefreshBoneTransforms();
 			SkeletalMeshComponent->CacheRefToLocalMatrices(BoneMatrices);
+			if (SkeletalMeshComponent->GetAnimInstance())
+			{
+				SkeletalMeshComponent->GetAnimInstance()->GetRequiredBones().SetUseRAWData(true);
+			}
 		}
 	}
 
@@ -254,6 +260,10 @@ namespace UE::MLDeformer
 		SkeletalMeshComponent->Play(false);
 		SkeletalMeshComponent->SetVisibility(false);
 		SkeletalMeshComponent->RefreshBoneTransforms();
+		if (SkeletalMeshComponent->GetAnimInstance())
+		{
+			SkeletalMeshComponent->GetAnimInstance()->GetRequiredBones().SetUseRAWData(true);
+		}
 
 		if (TargetMeshActor.Get() == nullptr)
 		{

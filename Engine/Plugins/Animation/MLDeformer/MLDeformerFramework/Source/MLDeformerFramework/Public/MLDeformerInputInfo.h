@@ -75,6 +75,12 @@ public:
 	virtual int32 CalcNumNeuralNetInputs(int32 NumFloatsPerBone, int32 NumFloatsPerCurve) const;
 
 	/**
+	 * Copy members from the other class.
+	 * @param Other The other class to copy over members from.
+	 **/
+	virtual void CopyMembersFrom(UMLDeformerInputInfo* Other);
+
+	/**
 	 * Get the number of bones that we trained on.
 	 * @return The number of bones.
 	 */

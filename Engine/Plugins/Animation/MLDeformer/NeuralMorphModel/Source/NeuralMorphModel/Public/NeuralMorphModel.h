@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "MLDeformerMorphModel.h"
 #include "GeometryCache.h"
+#include "NeuralMorphTypes.h"
 #include "NeuralMorphModel.generated.h"
 
 class USkeletalMesh;
@@ -31,36 +32,11 @@ struct FExternalMorphSet;
 // Declare our log category.
 NEURALMORPHMODEL_API DECLARE_LOG_CATEGORY_EXTERN(LogNeuralMorphModel, Log, All);
 
-/** 
- * The mode of the model, either local or global. 
- * In local mode the network contains a super simple neural network for each bone, while in 
- * global mode all bones and curves are input to one larger fully connected network.
- * The local mode has faster performance, while global mode can result in higher quality deformation.
- * This model runs its neural network on the CPU, but uses comrpessed GPU based morph targets, which require shader model 5.
- */
-UENUM()
-enum class ENeuralMorphMode : uint8
-{
-	/**
-	 * Each bone creates a set of morph targets and has its own small neural network.
-	 * The local mode can also create more localized morph targets and tends to use slightly less memory.
-	 * This mode is faster to process on the CPU side.
-	 */
-	Local,
-
-	/** 
-	 * There is one fully connected neural network that generates a set of morph targets.
-	 * This has a slightly higher CPU overhead, but could result in higher quality.
-	 * The Global mode is basically the same as the Vertex Delta Model, but runs the neural network on the CPU
-	 * and uses GPU compressed morph targets.
-	 */
-	Global
-};
-
 /**
  * The neural morph model.
  * This generates a set of highly compressed morph targets to approximate a target deformation based on bone rotations and/or curve inputs.
- * The neural network inside this model runs on the CPU and outputs the morph target weights.
+ * During inference, the neural network inside this model runs on the CPU and outputs the morph target weights for the morph targets it generated during training.
+ * Groups of bones and curves can also be defined. Those groups will generate a set of morph targets together as well. This can help when shapes depend on multiple inputs.
  * An external morph target set is generated during training and serialized inside the ML Deformer asset that contains this model.
  * When the ML Deformer component initializes the morph target set is registered. Most of the heavy lifting is done by the UMLDeformerMorphModel class.
  * The neural morph model has two modes: local and global. See the ENeuralMorphMode for a description of the two.
@@ -83,8 +59,11 @@ public:
 	// UMLDeformerModel overrides.
 	virtual FString GetDisplayName() const override			{ return "Neural Morph Model"; }
 	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;
+	virtual UMLDeformerInputInfo* CreateInputInfo();
 	// ~END UMLDeformerModel overrides.
 
+	const TArray<FNeuralMorphBoneGroup>& GetBoneGroups() const		{ return BoneGroups; }
+	const TArray<FNeuralMorphCurveGroup>& GetCurveGroups() const	{ return CurveGroups; }
 	UNeuralMorphNetwork* GetNeuralMorphNetwork() const		{ return NeuralMorphNetwork.Get(); }
 	void SetNeuralMorphNetwork(UNeuralMorphNetwork* Net)	{ NeuralMorphNetwork = Net; }
 	ENeuralMorphMode GetModelMode() const					{ return Mode; }
@@ -96,9 +75,25 @@ public:
 	int32 GetBatchSize() const								{ return BatchSize; }
 	float GetLearningRate() const							{ return LearningRate; }
 	float GetLearningRateDecay() const						{ return LearningRateDecay; }
-	float GetRegularizationFactor() const					{ return RegularizationFactor;  }
+	float GetRegularizationFactor() const					{ return RegularizationFactor; }
 
 public:
+	/**
+	 * The set of bones that are grouped together and generate morph targets together as a whole.
+	 * This can be used in case multiple bones are correlated to each other and work together to produce given shapes.
+	 * Groups are only used when the model is in Local mode.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Inputs and Output")
+	TArray<FNeuralMorphBoneGroup> BoneGroups;
+
+	/**
+	 * The set of curves that are grouped together and generate morph targets together as a whole.
+	 * This can be used in case multiple curves are correlated to each other and work together to produce given shapes.
+	 * Groups are only used when the model is in Local mode.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Inputs and Output")
+	TArray<FNeuralMorphCurveGroup> CurveGroups;
+
 	/**
 	 * The mode that the neural network will operate in. 
 	 * Local mode means there is one tiny network per bone, while global mode has one network for all bones together.
@@ -108,10 +103,10 @@ public:
 	ENeuralMorphMode Mode = ENeuralMorphMode::Local;
 
 	/** 
-	 * The number of morph targets to generate per bone.
+	 * The number of morph targets to generate per bone, curve or group.
 	 * Higher numbers result in better approximation of the target deformation, but also result in a higher memory footprint and slower performance.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName = "Num Morph Targets Per Bone", Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "1000"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName = "Num Morphs Per Bone/Curve/Group", Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "1000"))
 	int32 LocalNumMorphTargetsPerBone = 6;
 
 	/** 

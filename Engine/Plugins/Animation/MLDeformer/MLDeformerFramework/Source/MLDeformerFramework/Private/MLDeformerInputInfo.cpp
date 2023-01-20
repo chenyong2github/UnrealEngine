@@ -28,6 +28,15 @@ void UMLDeformerInputInfo::OnPostLoad()
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+void UMLDeformerInputInfo::CopyMembersFrom(UMLDeformerInputInfo* Other)
+{
+	BoneNames = Other->BoneNames;
+	CurveNames = Other->CurveNames;
+	NumBaseMeshVertices = Other->NumBaseMeshVertices;
+	NumTargetMeshVertices = Other->NumTargetMeshVertices;
+	SkeletalMesh = Other->SkeletalMesh;
+}
+
 void UMLDeformerInputInfo::UpdateNameStrings()
 {
 #if WITH_EDITORONLY_DATA

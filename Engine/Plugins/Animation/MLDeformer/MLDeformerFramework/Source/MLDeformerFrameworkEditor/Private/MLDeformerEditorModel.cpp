@@ -124,6 +124,10 @@ namespace UE::MLDeformer
 		InPersonaPreviewScene->AddComponent(SkelMeshComponent, FTransform::Identity);
 		InPersonaPreviewScene->SetAdditionalMeshesSelectable(false);
 		InPersonaPreviewScene->SetPreviewMesh(Mesh);
+		if (SkelMeshComponent->GetAnimInstance())
+		{
+			SkelMeshComponent->GetAnimInstance()->GetRequiredBones().SetUseRAWData(true);
+		}
 
 		// Register the editor actor.
 		const FLinearColor LabelColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.BaseMesh.LabelColor");
@@ -154,6 +158,7 @@ namespace UE::MLDeformer
 		SkelMeshComponent->RegisterComponent();
 		SkelMeshComponent->SetVisibility(false);
 		SkelMeshComponent->MarkRenderStateDirty();
+
 
 		// Register the editor actor.
 		const FLinearColor LabelColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.BaseMesh.LabelColor");
@@ -306,13 +311,25 @@ namespace UE::MLDeformer
 
 	void FMLDeformerEditorModel::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 	{
-		// Force the training sequence to use Step interpolation and sample raw animation data.
+		// Force the training sequence to use Step interpolation.
 		// We do this in the Tick, as this is reset to false in the engine sometimes.
 		UAnimSequence* TrainingAnimSequence = Model->GetAnimSequence();
 		if (TrainingAnimSequence)
 		{
-			TrainingAnimSequence->bUseRawDataOnly = true;
 			TrainingAnimSequence->Interpolation = EAnimInterpolationType::Step;
+		}
+
+		// Use raw data for everything.
+		for (FMLDeformerEditorActor* Actor : EditorActors)
+		{
+			if (Actor && Actor->GetSkeletalMeshComponent())
+			{
+				USkeletalMeshComponent* SkelMeshComp = Actor->GetSkeletalMeshComponent();
+				if (SkelMeshComp->GetAnimInstance())
+				{
+					SkelMeshComp->GetAnimInstance()->GetRequiredBones().SetUseRAWData(true);
+				}
+			}
 		}
 
 		// Do the same for the test anim sequence.
@@ -320,9 +337,7 @@ namespace UE::MLDeformer
 		{
 			UAnimSequence* TestAnimSequence = VizSettings->GetTestAnimSequence();
 			if (TestAnimSequence)
-			{
-				TestAnimSequence->bUseRawDataOnly = true;
-
+			{			
 				// Enable step interpolation when doing showing a heatmap vs ground truth.
 				if (VizSettings->HasTestGroundTruth() && VizSettings->GetShowHeatMap() && VizSettings->GetHeatMapMode() == EMLDeformerHeatMapMode::GroundTruth)
 				{
@@ -445,7 +460,6 @@ namespace UE::MLDeformer
 		UAnimSequence* TrainingAnimSequence = Model->GetAnimSequence();
 		if (TrainingAnimSequence)
 		{
-			TrainingAnimSequence->bUseRawDataOnly = true;
 			TrainingAnimSequence->Interpolation = EAnimInterpolationType::Step;
 		}
 
@@ -467,6 +481,10 @@ namespace UE::MLDeformer
 			SkeletalMeshComponent->SetPosition(CurrentPlayTime);
 			SkeletalMeshComponent->SetPlayRate(TestAnimSpeed);
 			SkeletalMeshComponent->Play(true);
+			if (SkeletalMeshComponent->GetAnimInstance())
+			{
+				SkeletalMeshComponent->GetAnimInstance()->GetRequiredBones().SetUseRAWData(true);
+			}
 		}
 
 		// Update the test base model.
@@ -643,7 +661,6 @@ namespace UE::MLDeformer
 			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
 			{
 				SetResamplingInputOutputsNeeded(true);
-				UpdateEditorInputInfo();
 				UpdateIsReadyForTrainingState();
 				GetEditor()->GetModelDetailsView()->ForceRefresh();
 			}

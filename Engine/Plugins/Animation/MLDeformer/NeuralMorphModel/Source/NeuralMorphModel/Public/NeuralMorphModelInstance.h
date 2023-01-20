@@ -6,6 +6,7 @@
 #include "NeuralMorphModelInstance.generated.h"
 
 class UNeuralMorphNetworkInstance;
+class UNeuralMorphNetwork;
 
 UCLASS()
 class NEURALMORPHMODEL_API UNeuralMorphModelInstance
@@ -22,6 +23,15 @@ public:
 	// ~END UMLDeformerModelInstance overrides.
 
 protected:
+	/**
+	 * Set the network inputs.
+	 */
+	void FillNetworkInputs();
+
+protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UNeuralMorphNetworkInstance> NetworkInstance;
+
+	TArray<int32> BoneGroupIndices;
+	TArray<int32> CurveGroupIndices;
 };

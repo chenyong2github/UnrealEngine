@@ -3,24 +3,124 @@
 #include "NeuralMorphModelInstance.h"
 #include "NeuralMorphModel.h"
 #include "NeuralMorphNetwork.h"
+#include "NeuralMorphInputInfo.h"
 #include "MLDeformerComponent.h"
 #include "MLDeformerAsset.h"
 #include "Animation/AnimInstance.h"
 #include "Components/ExternalMorphSet.h"
 #include "Components/SkeletalMeshComponent.h"
 
-
 void UNeuralMorphModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)
 {
 	Super::Init(SkelMeshComponent);
 
-#if !NEURALMORPHMODEL_FORCE_USE_NNI
 	UNeuralMorphModel* MorphModel = Cast<UNeuralMorphModel>(Model);
+
+#if !NEURALMORPHMODEL_FORCE_USE_NNI
 	UNeuralMorphNetwork* MorphNetwork = MorphModel->GetNeuralMorphNetwork();
 	NetworkInstance = MorphNetwork ? MorphNetwork->CreateInstance() : nullptr;
 #endif
+
+	UNeuralMorphInputInfo* InputInfo = Cast<UNeuralMorphInputInfo>(Model->GetInputInfo());
+	if (InputInfo == nullptr)
+	{
+		return;
+	}
+
+	InputInfo->GenerateBoneGroupIndices(BoneGroupIndices);
+	InputInfo->GenerateCurveGroupIndices(CurveGroupIndices);
 }
 
+void UNeuralMorphModelInstance::FillNetworkInputs()
+{
+	check(NetworkInstance);
+	UNeuralMorphNetwork* MorphNetwork = Cast<UNeuralMorphNetwork>(NetworkInstance->GetOuter());
+
+	// Write the input bone transforms.
+	float* MainInputs = NetworkInstance->GetInputs().GetData();
+	const UNeuralMorphMLP* MainMLP = MorphNetwork->GetMainMLP();
+	const int32 NumMainMLPInputs = MainMLP->GetNumInputs();
+	Super::SetBoneTransforms(MainInputs, NumMainMLPInputs, 0);
+
+	// Write the curve input values, start writing after the bone inputs.
+	const int32 CurveWriteOffset = Model->GetInputInfo()->GetNumBones() * 6;	// 6 Floats per bone.
+	SetCurveValues(MainInputs, NumMainMLPInputs, CurveWriteOffset);
+
+	// Normalize the inputs.
+	const float* Means = MorphNetwork->GetInputMeans().GetData();
+	const float* Stds = MorphNetwork->GetInputStds().GetData();
+	const int32 NumInputs = MorphNetwork->GetInputMeans().Num();
+	for (int32 Index = 0; Index < NumInputs; ++Index)
+	{
+		MainInputs[Index] = (MainInputs[Index] - Means[Index]) / Stds[Index];
+	}
+
+	// Write the input transforms for the group MLP.
+	// We reuse the same input values from the main network, and those values just got normalized.
+	// So there is no need to normalize them again.
+	const UNeuralMorphMLP* GroupMLP = MorphNetwork->GetGroupMLP();
+	if (GroupMLP)
+	{
+		// Only the local mode should be using the group MLP.
+		check(Cast<UNeuralMorphModel>(Model)->GetModelMode() == ENeuralMorphMode::Local);
+
+		// Write the bone transforms.
+		int32 Offset = 0;
+		float* GroupNetworkInputs = NetworkInstance->GetGroupInputs().GetData();
+		const int32 NumBoneGroups = BoneGroupIndices.Num();
+		for (int32 Index = 0; Index < BoneGroupIndices.Num(); ++Index)
+		{
+			const int32 BoneIndex = BoneGroupIndices[Index];
+			if (BoneIndex != INDEX_NONE)
+			{
+				const int32 BoneOffset = BoneIndex * 6;
+				GroupNetworkInputs[Offset++] = MainInputs[BoneOffset];
+				GroupNetworkInputs[Offset++] = MainInputs[BoneOffset + 1];
+				GroupNetworkInputs[Offset++] = MainInputs[BoneOffset + 2];
+				GroupNetworkInputs[Offset++] = MainInputs[BoneOffset + 3];
+				GroupNetworkInputs[Offset++] = MainInputs[BoneOffset + 4];
+				GroupNetworkInputs[Offset++] = MainInputs[BoneOffset + 5];
+			}
+			else
+			{
+				GroupNetworkInputs[Offset++] = 0.0f;
+				GroupNetworkInputs[Offset++] = 0.0f;
+				GroupNetworkInputs[Offset++] = 0.0f;
+				GroupNetworkInputs[Offset++] = 0.0f;
+				GroupNetworkInputs[Offset++] = 0.0f;
+				GroupNetworkInputs[Offset++] = 0.0f;
+			}
+		}
+
+		// Write the curve values.
+		const int32 NumFloatsPerCurve = MorphNetwork->GetNumFloatsPerCurve();
+		check(MorphNetwork->GetNumFloatsPerCurve() == 6);	// Local mode curve values are expected to use 6 floats.
+		const int32 NumCurveGroups = CurveGroupIndices.Num();
+		for (int32 Index = 0; Index < CurveGroupIndices.Num(); ++Index)
+		{
+			const int32 CurveIndex = CurveGroupIndices[Index];
+			if (CurveIndex != INDEX_NONE)
+			{
+				const int32 CurveOffset = CurveWriteOffset + (CurveIndex * NumFloatsPerCurve);
+				GroupNetworkInputs[Offset++] = MainInputs[CurveOffset];
+				GroupNetworkInputs[Offset++] = MainInputs[CurveOffset + 1];
+				GroupNetworkInputs[Offset++] = MainInputs[CurveOffset + 2];
+				GroupNetworkInputs[Offset++] = MainInputs[CurveOffset + 3];
+				GroupNetworkInputs[Offset++] = MainInputs[CurveOffset + 4];
+				GroupNetworkInputs[Offset++] = MainInputs[CurveOffset + 5];
+			}
+			else
+			{
+				GroupNetworkInputs[Offset++] = 0.0f;
+				GroupNetworkInputs[Offset++] = 0.0f;
+				GroupNetworkInputs[Offset++] = 0.0f;
+				GroupNetworkInputs[Offset++] = 0.0f;
+				GroupNetworkInputs[Offset++] = 0.0f;
+				GroupNetworkInputs[Offset++] = 0.0f;
+			}
+		}
+	}
+}
 
 int64 UNeuralMorphModelInstance::SetCurveValues(float* OutputBuffer, int64 OutputBufferSize, int64 StartIndex)
 {
@@ -43,7 +143,7 @@ int64 UNeuralMorphModelInstance::SetCurveValues(float* OutputBuffer, int64 Outpu
 			OutputBuffer[Index++] = 0.0f;
 		}
 
-		// Write the 
+		// Write the actual curve values.
 		UAnimInstance* AnimInstance = SkeletalMeshComponent->GetAnimInstance();
 		if (AnimInstance)
 		{
@@ -100,6 +200,7 @@ bool UNeuralMorphModelInstance::SetupInputs()
 	// Some safety checks.
 	if (SkeletalMeshComponent == nullptr ||
 		SkeletalMeshComponent->GetSkeletalMeshAsset() == nullptr ||
+		MorphNetwork->GetMainMLP() == nullptr ||
 		!bIsCompatible)
 	{
 		return false;
@@ -115,10 +216,8 @@ bool UNeuralMorphModelInstance::SetupInputs()
 		return false;
 	}
 
-	// Update and write the input values directly into the input tensor.
-	float* InputDataPointer = NetworkInstance->GetInputs().GetData();
-	const int64 NumFloatsWritten = SetNeuralNetworkInputValues(InputDataPointer, NumNeuralNetInputs);
-	check(NumFloatsWritten == NumNeuralNetInputs);
+	// Set the actual network input values.
+	FillNetworkInputs();
 
 	return true;
 #endif
@@ -149,59 +248,60 @@ void UNeuralMorphModelInstance::Execute(float ModelWeight)
 		return;
 	}
 
-	if (!MorphNetwork->IsEmpty())
+	// Make sure we have a valid network instance.
+	if (NetworkInstance == nullptr)
 	{
-		// Perform inference on the neural network, this updates its output values.
-		NetworkInstance->Run();
-
-		// If our model is active, we want to run the neural network and update the morph weights
-		// with the values that the neural net calculated for us.
-		// Get the network output values, read the values and use them as morph target weights inside the skeletal mesh component.
-		const TArrayView<const float> NetworkOutputs = NetworkInstance->GetOutputs();
-		const int32 NumNetworkWeights = NetworkOutputs.Num();
-		const int32 NumMorphTargets = WeightData->Weights.Num();
-
-		// If we have the expected amount of weights.
-		// +1 because we always have an extra morph target that represents the means, with fixed weight of 1.
-		// Therefore, the neural network output will contain one less float than the number of morph targets in our morph set.
-		if (NumMorphTargets == NumNetworkWeights + 1)
-		{
-			// Set the first morph target, which represents the means, to a weight of 1.0, as it always needs to be fully active.
-			WeightData->Weights[0] = ModelWeight;
-
-			// Update all generated morph target weights with the values calculated by our neural network.
-			const TArrayView<const float> ErrorValues = MorphModel->GetMorphTargetErrorValues();
-			const TArrayView<const int32> ErrorOrder = MorphModel->GetMorphTargetErrorOrder();
-			if (!ErrorValues.IsEmpty())
-			{
-				const int32 QualityLevel = GetMLDeformerComponent()->GetQualityLevel();
-				const int32 NumActiveMorphs = MorphModel->GetNumActiveMorphs(QualityLevel);
-				for (int32 Index = 0; Index < NumActiveMorphs; ++Index)
-				{
-					const int32 MorphIndex = ErrorOrder[Index];
-					const float TargetWeight = NetworkOutputs[MorphIndex] * ModelWeight;
-					WeightData->Weights[MorphIndex + 1] = FMath::Lerp<float, float>(StartMorphWeights[MorphIndex + 1], TargetWeight, MorphLerpAlpha);
-				}
-
-				// Disable all inactive morphs.
-				for (int32 Index = NumActiveMorphs; Index < NumNetworkWeights; ++Index)
-				{
-					const int32 MorphIndex = ErrorOrder[Index];
-					WeightData->Weights[MorphIndex + 1] = FMath::Lerp<float, float>(StartMorphWeights[MorphIndex + 1], 0.0f, MorphLerpAlpha);
-				}
-			}
-			else
-			{
-				for (int32 MorphIndex = 0; MorphIndex < NumNetworkWeights; ++MorphIndex)
-				{
-					WeightData->Weights[MorphIndex + 1] = NetworkOutputs[MorphIndex] * ModelWeight;
-				}
-			}
-			return;
-		}
+		WeightData->ZeroWeights();
+		return;
 	}
 
+	// If our model is active, we want to run the neural network and update the morph weights
+	// with the values that the neural net calculated for us.
+	// Get the network output values, read the values and use them as morph target weights inside the skeletal mesh component.
+	const TArrayView<const float> NetworkOutputs = NetworkInstance->GetOutputs();
+	const int32 NumNetworkWeights = NetworkOutputs.Num();
+	const int32 NumMorphTargets = WeightData->Weights.Num();
+
 	// Set the weights to zero if we have no valid network.
-	WeightData->ZeroWeights();
+	if (MorphNetwork->IsEmpty() || NumMorphTargets != NumNetworkWeights + 1)	// Plus 1 because of the extra means morph target.
+	{
+		WeightData->ZeroWeights();
+		return;
+	}
+
+	// Perform inference on the neural network, this updates its output values.
+	NetworkInstance->Run();
+
+	// Set the first morph target, which represents the means, to a weight of 1.0, as it always needs to be fully active.
+	WeightData->Weights[0] = ModelWeight;
+
+	// Update all generated morph target weights with the values calculated by our neural network.
+	const TArrayView<const float> ErrorValues = MorphModel->GetMorphTargetErrorValues();
+	const TArrayView<const int32> ErrorOrder = MorphModel->GetMorphTargetErrorOrder();
+	if (!ErrorValues.IsEmpty())
+	{
+		const int32 QualityLevel = GetMLDeformerComponent()->GetQualityLevel();
+		const int32 NumActiveMorphs = MorphModel->GetNumActiveMorphs(QualityLevel);
+		for (int32 Index = 0; Index < NumActiveMorphs; ++Index)
+		{
+			const int32 MorphIndex = ErrorOrder[Index];
+			const float TargetWeight = NetworkOutputs[MorphIndex] * ModelWeight;
+			WeightData->Weights[MorphIndex + 1] = FMath::Lerp<float, float>(StartMorphWeights[MorphIndex + 1], TargetWeight, MorphLerpAlpha);
+		}
+
+		// Disable all inactive morphs.
+		for (int32 Index = NumActiveMorphs; Index < NumNetworkWeights; ++Index)
+		{
+			const int32 MorphIndex = ErrorOrder[Index];
+			WeightData->Weights[MorphIndex + 1] = FMath::Lerp<float, float>(StartMorphWeights[MorphIndex + 1], 0.0f, MorphLerpAlpha);
+		}
+	}
+	else // Old models might not have the error values yet, and thus not support the quality levels yet.
+	{
+		for (int32 MorphIndex = 0; MorphIndex < NumNetworkWeights; ++MorphIndex)
+		{
+			WeightData->Weights[MorphIndex + 1] = NetworkOutputs[MorphIndex] * ModelWeight;
+		}
+	}
 #endif
 }

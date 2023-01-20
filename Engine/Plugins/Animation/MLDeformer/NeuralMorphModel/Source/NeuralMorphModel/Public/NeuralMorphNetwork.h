@@ -8,9 +8,10 @@
 
 class UNeuralMorphNetworkInstance;
 
+
 /** A fully connected layer, which contains the weights and biases for those connections. */ 
 UCLASS()
-class NEURALMORPHMODEL_API UNeuralMorphNetworkLayer
+class NEURALMORPHMODEL_API UNeuralMorphMLPLayer
 	: public UObject
 {
 	GENERATED_BODY()
@@ -24,11 +25,11 @@ public:
 	UPROPERTY()
 	int32 NumOutputs = 0;
 
-	/** The third dimension of the layer. This basically contains the number of bones in local mode. */
+	/** The number of instances of inputs and outputs. */
 	UPROPERTY()
 	int32 Depth = 1;
 
-	/** The weights, which is basically a 2d array. The number of weights will be equal to the number of rows multiplied by number of columns multiplied by the depth. */
+	/** A 2D array of weights. The number of weights equals NumRows x NumColumns x Depth. */
 	UPROPERTY()
 	TArray<float> Weights;
 
@@ -37,10 +38,95 @@ public:
 	TArray<float> Biases;
 };
 
+
+/**
+ * An MLP neural network.
+ */
+UCLASS()
+class NEURALMORPHMODEL_API UNeuralMorphMLP
+	: public UObject
+{
+	GENERATED_BODY()
+
+public:
+	/** Clear the network, getting rid of all weights and biases. */
+	void Empty();
+
+	/** 
+	 * Check if the network is empty or not.
+	 * If it is empty, it means it hasn't been loaded, and cannot do anything.
+	 * Empty means it has no layers.
+	 * @return Returns true if empty, otherwise false is returned.
+	 */
+	bool IsEmpty() const;
+
+	/**
+	 * Load the network from a file on disk.
+	 * When loading fails, the network will be emptied.
+	 * @param Archive The archive to load from.
+	 * @return Returns true when successfully loaded this model, otherwise false is returned.
+	 */
+	bool Load(FArchive& FileReader);
+
+	/**
+	 * Get the number of inputs, which is the number of floats the network takes as input.
+	 * @result The number of input floats to the network.
+	 */
+	int32 GetNumInputs() const;
+
+	/**
+	 * Get the number of outputs, which is the number of floats the network will output.
+	 * @return The number of floats that the network outputs.
+	 */
+	int32 GetNumOutputs() const;
+
+	/**
+	 * Get the number of network layers.
+	 * This equals to the number of hidden layers plus one.
+	 * @return The number of network layers.
+	 */
+	int32 GetNumLayers() const;
+
+	/**
+	 * Get a given network layer.
+	 * @return A reference to the layer, which will contain the weights and biases.
+	 */
+	UNeuralMorphMLPLayer& GetLayer(int32 Index) const;
+
+	/**
+	 * Get the maximum number of inputs for all layers in the network.
+	 * This is used to pre-allocate a temp buffer used to pass the data through the layers.
+	 * @return The maximum number of inputs of all layers.
+	 */
+	int32 GetMaxNumLayerInputs() const;
+
+	/**
+	 * Get the maximum number of outputs for all layers in the network.
+	 * This is used to pre-allocate a temp buffer used to pass the data through the layers.
+	 * @return The maximum number of outputs of all layers.
+	 */
+	int32 GetMaxNumLayerOutputs() const;
+
+private:
+	/**
+	 * Load an MLP fully connected layer from a given archive.
+	 * @param Archive The archive to read from.
+	 */
+	UNeuralMorphMLPLayer* LoadNetworkLayer(FArchive& Archive);
+
+private:
+	/** The network weights and biases of the main network. */
+	UPROPERTY()
+	TArray<TObjectPtr<UNeuralMorphMLPLayer>> Layers;
+};
+
+
 /**
  * The specialized neural network for the Neural Morph Model.
  * This class is used to do inference at runtime at a higher performance than using UNeuralNetwork.
  * The reason why it is faster is because it is a highly specialized network for this specific model.
+ * When the model is a local mode based model, there can be actually two neural networks inside this: one main network and a bone/curve group network.
+ * The group network uses groups of bones or curves to generate morph targets, rather than individual bones/curves.
  */
 UCLASS()
 class NEURALMORPHMODEL_API UNeuralMorphNetwork
@@ -75,14 +161,16 @@ public:
 	UNeuralMorphNetworkInstance* CreateInstance();
 
 	/**
-	 * Get the number of inputs, which is the number of floats the network takes as input.
-	 * @result The number of input floats to the network.
+	 * Get the number of network inputs.
+	 * This is the sum of the number of main network inputs and group network inputs.
+	 * @return The number of inputs.
 	 */
 	int32 GetNumInputs() const;
 
 	/**
-	 * Get the number of outputs, which is the number of floats the network will output.
-	 * @return The number of floats that the network outputs.
+	 * Get the number of network outputs.
+	 * This is the sum of the number of main network outputs and group network outputs.
+	 * @return The number of outputs.
 	 */
 	int32 GetNumOutputs() const;
 
@@ -106,6 +194,22 @@ public:
 	int32 GetNumMorphsPerBone() const;
 
 	/**
+	 * Get the number of groups.
+	 * A group is a collection of bones or curves that together generate a number of morph targets.
+	 * Each group must have the same number of items.
+	 * @result The number of groups.
+	 */
+	int32 GetNumGroups() const;
+
+	/**
+	 * Get the number of items per group.
+	 * This indicates how many bones or curves each group has.
+	 * Every group must have the same number of items.
+	 * @return The number of items per group.
+	 */
+	int32 GetNumItemsPerGroup() const;
+
+	/**
 	 * Get the mode that the model was trained for, either global or local mode.
 	 * @return The mode the model was trained for.
 	 */
@@ -123,29 +227,44 @@ public:
 	 */
 	const TArrayView<const float> GetInputStds() const;
 
-	/**
-	 * Get the number of network layers.
-	 * This equals to the number of hidden layers plus one.
-	 * @return The number of network layer.
-	 */
-	int32 GetNumLayers() const;
-
-	/**
-	 * Get a given network layer.
-	 * @return A reference to the layer, which will contain the weights and biases.
-	 */
-	UNeuralMorphNetworkLayer& GetLayer(int32 Index) const;
-
 	/** 
 	 * Get the number of floats used to represent a single curve value.
 	 * @return The number of float values per curve.
 	 */
 	int32 GetNumFloatsPerCurve() const;
 
+	/**
+	 * Get the main MLP.
+	 * This is the MLP (or actually a Multi-MLP) that contains a small network for every bone or curve.
+	 * Each small network will output a set of morph target weights.
+	 * @return A pointer to the main MLP.
+	 */
+	UNeuralMorphMLP* GetMainMLP() const;
+
+	/**
+	 * Get the MLP used for group of bones and curves.
+	 * This MLP (or actually a Multi-MLP) contains small networks for the bone or curve groups.
+	 * Each group will generate a set of morph target weights.
+	 * @return A pointer to the MLP used for the bone and curve groups.
+	 */
+	UNeuralMorphMLP* GetGroupMLP() const;
+
 private:
-	/** The network weights and biases, between the different layers. */
+	/**
+	 * Load an MLP network from the currently already opened archive.
+	 * @param Archive The archive to load from.
+	 * @return Returns a pointer to the loaded MLP, or a nullptr in case of a failure.
+	 */
+	UNeuralMorphMLP* LoadMLP(FArchive& FileReader);
+
+private:
+	/** The MLP that acts as main network. */
 	UPROPERTY()
-	TArray<TObjectPtr<UNeuralMorphNetworkLayer>> Layers;
+	TObjectPtr<UNeuralMorphMLP> MainMLP;
+
+	/** The MLP for the bone and curve groups, when in local mode. */
+	UPROPERTY()
+	TObjectPtr<UNeuralMorphMLP> GroupMLP;
 
 	/** The means of the input values, used to normalize inputs. */
 	UPROPERTY()
@@ -174,6 +293,14 @@ private:
 	/** The number of floats per curve. */
 	UPROPERTY()
 	int32 NumFloatsPerCurve = 1;
+
+	/** The number of groups. This is a group of bones/curves that create their own morphs. */
+	UPROPERTY()
+	int32 NumGroups = 0;
+
+	/** The number of items (bones/curves) per group. */
+	UPROPERTY()
+	int32 NumItemsPerGroup = 0;
 };
 
 /** 
@@ -192,10 +319,17 @@ class NEURALMORPHMODEL_API UNeuralMorphNetworkInstance
 public:
 	/**
 	 * Get the network input buffer.
-	 * @return The array view of floats that represents the network inputs.
+	 * @return The array view of floats that represents the main network inputs.
 	 */
 	TArrayView<float> GetInputs();
 	TArrayView<const float> GetInputs() const;
+
+	/**
+	 * Get the inputs for the group MLP.
+	 * @return The array view of floats that represent the group network inputs.
+	 */
+	TArrayView<float> GetGroupInputs();
+	TArrayView<const float> GetGroupInputs() const;
 
 	/**
 	 * Get the network output buffer.
@@ -220,12 +354,10 @@ public:
 private:
 	struct FRunSettings
 	{
-		float* TempInputBuffer;
-		float* TempOutputBuffer;
-		const float* InputStdsBuffer;
-		const float* InputMeansBuffer;
-		const float* InputBuffer;
-		float* OutputBuffer;
+		float* TempInputBuffer = nullptr;
+		float* TempOutputBuffer = nullptr;
+		const float* InputBuffer = nullptr;
+		float* OutputBuffer = nullptr;
 	};
 
 	/**
@@ -235,10 +367,11 @@ private:
 	void RunGlobalModel(const FRunSettings& RunSettings);
 
 	/**
- 	 * Run inference using the local model mode, which basically has a small MLP for every bone.
+ 	 * Run a local mlp, which internally is acting like a multi-mlp (one mlp per bone or curve).
+	 * @param MLP The MLP to run.
 	 * @param RunSettings The settings used to run the model. This specifies a set of buffers.
 	 */
-	void RunLocalModel(const FRunSettings& RunSettings);
+	void RunLocalMLP(UNeuralMorphMLP& MLP, const FRunSettings& RunSettings);
 
 	/**
  	 * Initialize this instance using a given network object.
@@ -248,8 +381,11 @@ private:
 	void Init(UNeuralMorphNetwork* InNeuralNetwork);
 
 private:
-	/** The input values. */
+	/** The input values for the main MLP. */
 	TArray<float> Inputs;
+
+	/** The input values for the group MLP. */
+	TArray<float> GroupInputs;
 
 	/** The output values. */
 	TArray<float> Outputs;

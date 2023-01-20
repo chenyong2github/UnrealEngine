@@ -76,7 +76,8 @@ namespace UE::MLDeformer
 			TArray<FMLDeformerGeomCacheMeshMapping> MeshMappings;
 			TArray<FString> FailedNames;
 			TArray<FString> VertexMisMatchNames;
-			GenerateGeomCacheMeshMappings(InSkelMesh, InGeomCache, MeshMappings, FailedNames, VertexMisMatchNames);
+			const bool bSuppressLogMessages = true;
+			GenerateGeomCacheMeshMappings(InSkelMesh, InGeomCache, MeshMappings, FailedNames, VertexMisMatchNames, bSuppressLogMessages);
 
 			// List all mesh names that have issues.
 			FString ErrorString;
@@ -125,7 +126,7 @@ namespace UE::MLDeformer
 		return (TrackName.Find(MeshName) == 0);
 	}
 
-	void GenerateGeomCacheMeshMappings(USkeletalMesh* SkelMesh, UGeometryCache* GeomCache, TArray<FMLDeformerGeomCacheMeshMapping>& OutMeshMappings, TArray<FString>& OutFailedImportedMeshNames, TArray<FString>& OutVertexMisMatchNames)
+	void GenerateGeomCacheMeshMappings(USkeletalMesh* SkelMesh, UGeometryCache* GeomCache, TArray<FMLDeformerGeomCacheMeshMapping>& OutMeshMappings, TArray<FString>& OutFailedImportedMeshNames, TArray<FString>& OutVertexMisMatchNames, bool bSuppressLog)
 	{
 		OutMeshMappings.Empty();
 		OutFailedImportedMeshNames.Empty();
@@ -217,7 +218,10 @@ namespace UE::MLDeformer
 
 					// We found a match, no need to iterate over more Tracks.
 					bFoundMatch = true;
-					UE_LOG(LogMLDeformer, Display, TEXT("Mapped geom cache track '%s' to SkelMesh submesh '%s'"), *Track->GetName(), *SkelMeshName);
+					if (!bSuppressLog)
+					{
+						UE_LOG(LogMLDeformer, Display, TEXT("Mapped geom cache track '%s' to SkelMesh submesh '%s'"), *Track->GetName(), *SkelMeshName);
+					}
 					break;
 				} // If the track name matches the skeletal meshes internal mesh name.
 			} // For all meshes in the Skeletal Mesh.
@@ -225,7 +229,10 @@ namespace UE::MLDeformer
 			if (Track && !bFoundMatch)
 			{
 				OutFailedImportedMeshNames.Add(Track->GetName());
-				UE_LOG(LogMLDeformer, Warning, TEXT("Geometry cache '%s' cannot be matched with a mesh inside the Skeletal Mesh."), *Track->GetName());
+				if (!bSuppressLog)
+				{
+					UE_LOG(LogMLDeformer, Warning, TEXT("Geometry cache '%s' cannot be matched with a mesh inside the Skeletal Mesh."), *Track->GetName());
+				}
 			}
 		} // For all tracks.
 	}

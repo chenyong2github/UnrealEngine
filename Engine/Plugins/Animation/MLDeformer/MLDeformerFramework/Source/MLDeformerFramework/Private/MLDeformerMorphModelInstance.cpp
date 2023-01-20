@@ -138,9 +138,6 @@ void UMLDeformerMorphModelInstance::Tick(float DeltaTime, float ModelWeight)
 
 FExternalMorphSetWeights* UMLDeformerMorphModelInstance::FindWeightData(int32 LOD) const
 {
-	const UMLDeformerMorphModel* MorphModel = Cast<UMLDeformerMorphModel>(Model);
-	checkSlow(MorphModel);
-
 	// Check if our LOD index is valid first, as we might not have registered yet.
 	USkeletalMeshComponent* SkelMeshComponent = SkeletalMeshComponent.Get();
 	if (SkelMeshComponent == nullptr || !SkelMeshComponent->IsValidExternalMorphSetLODIndex(LOD))
@@ -155,8 +152,6 @@ FExternalMorphSetWeights* UMLDeformerMorphModelInstance::FindWeightData(int32 LO
 
 void UMLDeformerMorphModelInstance::HandleZeroModelWeight()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UNeuralMorphModelInstance::HandleZeroModelWeight)
-
 	const int LOD = 0;	// For now we only support LOD 0, as we can't setup an ML Deformer per LOD yet.
 	FExternalMorphSetWeights* WeightData = FindWeightData(LOD);
 	if (WeightData)

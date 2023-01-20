@@ -2,6 +2,7 @@
 #include "NeuralMorphModel.h"
 #include "NeuralMorphModelVizSettings.h"
 #include "NeuralMorphModelInstance.h"
+#include "NeuralMorphInputInfo.h"
 #include "MLDeformerAsset.h"
 #include "MLDeformerComponent.h"
 #include "UObject/UObjectGlobals.h"
@@ -47,6 +48,11 @@ UMLDeformerModelInstance* UNeuralMorphModel::CreateModelInstance(UMLDeformerComp
 	return NewObject<UNeuralMorphModelInstance>(Component);
 }
 
+UMLDeformerInputInfo* UNeuralMorphModel::CreateInputInfo()
+{
+	return NewObject<UNeuralMorphInputInfo>(this);
+}
+
 void UNeuralMorphModel::Serialize(FArchive& Archive)
 {
 #if !NEURALMORPHMODEL_FORCE_USE_NNI
@@ -67,6 +73,18 @@ void UNeuralMorphModel::Serialize(FArchive& Archive)
 		}
 	}
 #endif
+
+	// Convert the UMLDeformerInputInfo object into a UNeuralMorphInputInfo object.
+	UMLDeformerInputInfo* CurInputInfo = GetInputInfo();
+	if (CurInputInfo)
+	{
+		if (!CurInputInfo->IsA<UNeuralMorphInputInfo>())
+		{
+			UNeuralMorphInputInfo* NeuralMorphInputInfo = Cast<UNeuralMorphInputInfo>(CreateInputInfo());
+			NeuralMorphInputInfo->CopyMembersFrom(CurInputInfo);
+			SetInputInfo(NeuralMorphInputInfo);
+		}		
+	}
 
 	Super::Serialize(Archive);
 }
