@@ -497,7 +497,7 @@ void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(UE::PoseSearch::IAssetIndex
 			}
 			else
 			{
-				LinearVelocity = (BoneTransformsFuture.GetTranslation() - BoneTransformsPast.GetTranslation()) / (SamplingContext->FiniteDelta * 2.0f);
+				LinearVelocity = (BoneTransformsFuture.GetTranslation() - BoneTransformsPast.GetTranslation()) / (SamplingContext->FiniteDelta * 2.f);
 			}
 
 			FFeatureVectorHelper::EncodeVector(FeatureVector, DataOffset, LinearVelocity);
@@ -691,7 +691,7 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 				DrawDebugString(
 					DrawParams.World, BonePos + FVector(0.0, 0.0, 10.0),
 					Schema->BoneReferences[SchemaBoneIdx[ChannelBoneIdx]].BoneName.ToString(),
-					nullptr, Color, LifeTime, false, 1.0f);
+					nullptr, Color, LifeTime, false, 1.f);
 			}
 		}
 		else
@@ -702,7 +702,9 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Rotation))
 		{
 			const FQuat BoneRot = FFeatureVectorHelper::DecodeQuat(PoseVector, DataOffset);
-			// @todo: debug draw rotation
+			const FRotator Rotator(DrawParams.RootTransform.GetRotation() * BoneRot);
+			const float AdjustedThickness = EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast) ? 0.f : 1.f;
+			DrawDebugCoordinateSystem(DrawParams.World, BonePos, Rotator, 15.f, bPersistent, LifeTime, DepthPriority, AdjustedThickness);
 		}
 
 		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Velocity))
@@ -721,7 +723,7 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 			}
 			else
 			{
-				const float AdjustedThickness = EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast) ? 0.0f : 1.f;
+				const float AdjustedThickness = EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast) ? 0.f : 1.f;
 
 				DrawDebugLine(
 					DrawParams.World,

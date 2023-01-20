@@ -42,8 +42,12 @@ void ICostBreakDownData::AddEntireBreakDownSection(const FText& Label, const UPo
 // FFeatureVectorHelper
 void FFeatureVectorHelper::EncodeQuat(TArrayView<float> Values, int32& DataOffset, const FQuat& Quat)
 {
-	const FVector X = Quat.GetAxisX();
-	const FVector Y = Quat.GetAxisY();
+	// unitary quaternions are non Euclidean representation of rotation, so they cannot be used to calculate cost functions within the context of kdtrees, 
+	// so we convert them in a matrix, and pick 2 axis (we choose X,Y), skipping the 3rd since correlated to the cross product of the first two (this saves memory and cpu cycles)
+
+	const FMatrix M = Quat.ToMatrix();
+	const FVector X = M.GetScaledAxis(EAxis::X);
+	const FVector Y = M.GetScaledAxis(EAxis::Y);
 
 	Values[DataOffset + 0] = X.X;
 	Values[DataOffset + 1] = X.Y;
@@ -85,15 +89,13 @@ FQuat FFeatureVectorHelper::DecodeQuat(TConstArrayView<float> Values, int32& Dat
 
 FQuat FFeatureVectorHelper::DecodeQuatInternal(TConstArrayView<float> Values, int32 DataOffset)
 {
+	// reconstructing the chosen 2 axis (X,Y - from EncodeQuat) from the 6 floats from Values 
 	const FVector X(Values[DataOffset + 0], Values[DataOffset + 1], Values[DataOffset + 2]);
 	const FVector Y(Values[DataOffset + 3], Values[DataOffset + 4], Values[DataOffset + 5]);
+	// calculating the 3rd axis required to reconstruct the rotation matrix
 	const FVector Z = FVector::CrossProduct(X, Y);
-
-	FMatrix M(FMatrix::Identity);
-	M.SetColumn(0, X);
-	M.SetColumn(1, Y);
-	M.SetColumn(2, Z);
-
+	const FMatrix M(X, Y, Z, FVector::ZeroVector);
+	// converting the matrix to the unitary quaternion
 	return FQuat(M);
 }
 
