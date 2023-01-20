@@ -46,12 +46,6 @@ namespace UE::PixelStreamingServers
 		bool IsLaunched() const;
 		bool HasConnections() const;
 		bool Close(uint16 ConnectionId);
-
-		/**
-		 * Send message to a particular websocket connection.
-		 * Note: This message is sent as binary using the websocket protocol because of the WS implementation that is used.
-		 * @return True if the message able to be sent.
-		 */
 		bool Send(uint16 ConnectionId, FString Message) const;
 		bool GetFirstConnection(uint16& OutConnectionId) const;
 

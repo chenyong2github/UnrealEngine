@@ -105,15 +105,12 @@ private:
 	void OnConnectionError(const FString& Error);
 	void OnClosed(int32 StatusCode, const FString& Reason, bool bWasClean);
 	void OnMessage(const FString& Msg);
-	void OnBinaryMessage(const uint8* Data, int32 Length, bool bIsLastFragment);
 
 	using FJsonObjectPtr = TSharedPtr<FJsonObject>;
 	void RegisterHandler(const FString& messageType, const TFunction<void(FJsonObjectPtr)>& handler);
 
 	void OnIdRequested();
 	void OnConfig(const FJsonObjectPtr& Json);
-	void OnPing(const FJsonObjectPtr& Json);
-	void OnPong(const FJsonObjectPtr& Json);
 	void OnSessionDescription(const FJsonObjectPtr& Json);
 	void OnIceCandidate(const FJsonObjectPtr& Json);
 	void OnPlayerCount(const FJsonObjectPtr& Json);
@@ -152,7 +149,6 @@ private:
 	FDelegateHandle OnConnectionErrorHandle;
 	FDelegateHandle OnClosedHandle;
 	FDelegateHandle OnMessageHandle;
-	FDelegateHandle OnBinaryMessageHandle;
 
 	bool bAutoReconnectEnabled = true;
 	bool bKeepAliveEnabled = true;
