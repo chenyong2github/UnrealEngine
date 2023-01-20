@@ -337,6 +337,17 @@ namespace UnrealBuildTool
 			{
 				Arguments.Add("/analyze");
 
+				if (CompileEnvironment.bStaticAnalyzerExtensions)
+				{
+					FileReference EspxEngine = FileReference.Combine(EnvVars.CompilerPath.Directory, "EspXEngine.dll");
+					Arguments.Add($"/analyze:plugin\"{NormalizeCommandLinePath(EspxEngine)}\"");
+				}
+
+				foreach (FileReference Ruleset in CompileEnvironment.StaticAnalyzerRulesets)
+				{
+					Arguments.Add($"/analyze:ruleset\"{NormalizeCommandLinePath(Ruleset)}\"");
+				}
+
 				if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2022)
 				{
 					// Ignore warnings in external headers

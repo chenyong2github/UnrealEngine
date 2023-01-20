@@ -299,6 +299,19 @@ namespace UnrealBuildTool
 		public bool bDisableStaticAnalysis = false;
 
 		/// <summary>
+		/// Enable additional analyzer extension warnings using the EspXEngine plugin. This is only supported for MSVC.
+		/// See https://learn.microsoft.com/en-us/cpp/code-quality/using-the-cpp-core-guidelines-checkers
+		/// This will add a large number of warnings by default. It's recommended to use StaticAnalyzerRulesets if this is enabled.
+		/// </summary>
+		public bool bStaticAnalyzerExtensions = false;
+
+		/// <summary>
+		/// The static analyzer rulesets that should be used to filter warnings. This is only supported for MSVC.
+		/// See https://learn.microsoft.com/en-us/cpp/code-quality/using-rule-sets-to-specify-the-cpp-rules-to-run
+		/// </summary>
+		public HashSet<FileReference> StaticAnalyzerRulesets = new HashSet<FileReference>();
+
+		/// <summary>
 		/// The static analyzer checkers that should be enabled rather than the defaults. This is only supported for Clang.
 		/// </summary>
 		public HashSet<string> StaticAnalyzerCheckers = new HashSet<string>();

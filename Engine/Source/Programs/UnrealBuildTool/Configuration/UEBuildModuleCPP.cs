@@ -1596,6 +1596,8 @@ namespace UnrealBuildTool
 			Result.ShadowVariableWarningLevel = Rules.ShadowVariableWarningLevel;
 			Result.UnsafeTypeCastWarningLevel = Rules.UnsafeTypeCastWarningLevel;
 			Result.bDisableStaticAnalysis = Rules.bDisableStaticAnalysis;
+			Result.bStaticAnalyzerExtensions = Rules.bStaticAnalyzerExtensions;
+			Result.StaticAnalyzerRulesets = Rules.StaticAnalyzerRulesets;
 			Result.StaticAnalyzerCheckers = Rules.StaticAnalyzerCheckers;
 			Result.StaticAnalyzerDisabledCheckers = Rules.StaticAnalyzerDisabledCheckers;
 			Result.StaticAnalyzerAdditionalCheckers = Rules.StaticAnalyzerAdditionalCheckers;
