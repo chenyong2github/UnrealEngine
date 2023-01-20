@@ -768,6 +768,12 @@ namespace AutomationTool
 			/// </summary>
 			UTF16Output = 1 << 10,
 
+			/// <summary>
+			/// If set, then use the shell to create the process, else the process will be created directly from the executable.
+			/// Will force NoStdOutRedirect since UseShellExecute is incompatible with redirection of stdout.
+			/// </summary>
+			UseShellExecute = 1 << 11,
+
 			Default = AllowSpew | AppMustExist,
 		}
 
@@ -871,7 +877,8 @@ namespace AutomationTool
 				LogWithVerbosity(SpewVerbosity,"Running: " + App + " " + (String.IsNullOrEmpty(CommandLine) ? "" : CommandLine));
 			}
 
-			bool bRedirectStdOut = !Options.HasFlag(ERunOptions.NoStdOutRedirect);
+			bool bUseShellExecute = Options.HasFlag(ERunOptions.UseShellExecute);
+			bool bRedirectStdOut = !bUseShellExecute && !Options.HasFlag(ERunOptions.NoStdOutRedirect);
 			bool bAllowSpew = bRedirectStdOut && Options.HasFlag(ERunOptions.AllowSpew);
 			bool bCaptureSpew = bRedirectStdOut && !Options.HasFlag(ERunOptions.NoStdOutCapture);
 			IProcessResult Result = ProcessManager.CreateProcess(App, bAllowSpew, bCaptureSpew, Env, SpewVerbosity: SpewVerbosity, SpewFilterCallback: SpewFilterCallback, WorkingDir: WorkingDir);
@@ -887,7 +894,7 @@ namespace AutomationTool
 				// also see UE-102580
 				Proc.StartInfo.Arguments = String.IsNullOrEmpty(CommandLine) ? "" : CommandLine.Replace('\'', '\"');
 
-				Proc.StartInfo.UseShellExecute = false;
+				Proc.StartInfo.UseShellExecute = bUseShellExecute;
 				if (bRedirectStdOut)
 				{
 					Proc.StartInfo.RedirectStandardOutput = true;

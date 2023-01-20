@@ -271,7 +271,7 @@ namespace AutomationScripts
 				}
 
 				var CookServerLogFile = CombinePaths(LogFolderOutsideOfSandbox, "CookServer.log");
-				CookServerProcess = RunCookOnTheFlyServer(Params.RawProjectPath, Params.NoClient ? "" : CookServerLogFile, COTFCommandLine);
+				CookServerProcess = RunCookOnTheFlyServer(Params, Params.NoClient ? "" : CookServerLogFile, COTFCommandLine);
 			}
 			else
 			{
