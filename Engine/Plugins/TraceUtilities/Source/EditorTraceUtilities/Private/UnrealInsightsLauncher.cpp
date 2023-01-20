@@ -49,45 +49,10 @@ FUnrealInsightsLauncher::~FUnrealInsightsLauncher()
 
 }
 	
-void FUnrealInsightsLauncher::RegisterMenus()
-{
-	FToolMenuOwnerScoped OwnerScoped(this);
-
-	UToolMenu* ProfileMenu = UToolMenus::Get()->ExtendMenu("MainFrame.MainMenu.Tools");
-	if (ProfileMenu)
-	{
-		FToolMenuSection& Section = ProfileMenu->AddSection("Unreal Insights", FText::FromString(TEXT("Unreal Insights")));
-		Section.AddMenuEntry("OpenUnrealInsights",
-			LOCTEXT("OpenUnrealInsights_Label", "Run Unreal Insights"),
-			LOCTEXT("OpenUnrealInsights_Desc", "Run the Unreal Insights standalone application."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "UnrealInsights.MenuIcon"),
-			FUIAction(FExecuteAction::CreateRaw(this, &FUnrealInsightsLauncher::RunUnrealInsights_Execute), FCanExecuteAction())
-		);
-		Section.AddMenuEntry("OpenLiveTrace",
-			LOCTEXT("OpenLiveTrace_Label", "Open active Trace"),
-			LOCTEXT("OpenLiveTrace_Desc", "Opens the currently running trace in Unreal Insights."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "UnrealInsights.MenuIcon"),
-			FUIAction(FExecuteAction::CreateRaw(this, &FUnrealInsightsLauncher::RunUnrealInsights_OpenLiveTrace), FCanExecuteAction::CreateLambda(
-				[](){ return FTraceAuxiliary::IsConnected();}))
-		);
-	}
-}
-
 FString FUnrealInsightsLauncher::GetInsightsApplicationPath()
 {
 	FString Path = FPlatformProcess::GenerateApplicationPath(TEXT("UnrealInsights"), EBuildConfiguration::Development);
 	return FPaths::ConvertRelativePathToFull(Path);
-}
-
-void FUnrealInsightsLauncher::RunUnrealInsights_Execute()
-{
-	FString Path = GetInsightsApplicationPath();
-	StartUnrealInsights(Path);
-}
-
-void FUnrealInsightsLauncher::RunUnrealInsights_OpenLiveTrace()
-{
-	TryOpenTraceFromDestination(FTraceAuxiliary::GetTraceDestination());
 }
 
 void FUnrealInsightsLauncher::StartUnrealInsights(const FString& Path, const FString& Parameters)

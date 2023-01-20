@@ -23,9 +23,6 @@ public:
 		return Instance;
 	}
 
-	
-	void RegisterMenus();
-
 	/**
 	 * Returns the full path to UnrealInsights.exe for the current engine installation 
 	 */
@@ -74,14 +71,6 @@ private:
 	 * Assumes that the Insights Executable in path belongs to this engine.
 	 */
 	void TryBuildUnrealInsightsExe(const FString& Path, const FString& LaunchParameters = TEXT(""));
-
-	/// callback from Options Menu Entry "Start Unreal Insights"
-	void RunUnrealInsights_Execute();
-
-	/**
-	 * Opens the currently live trace if connected.
-	 */
-	 void RunUnrealInsights_OpenLiveTrace();
 
 	/// Logs an error message to the MessageLog window
 	void LogMessage(const FText& Message);

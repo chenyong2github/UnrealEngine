@@ -4,7 +4,6 @@
 
 #include "Misc/ConfigContext.h"
 #include "ToolMenus.h"
-#include "UnrealInsightsLauncher.h"
 
 DEFINE_LOG_CATEGORY(LogTraceUtilities)
 
@@ -20,10 +19,6 @@ FString FEditorTraceUtilitiesModule::EditorTraceUtilitiesIni;
 void FEditorTraceUtilitiesModule::StartupModule()
 {
 	LLM_SCOPE_BYNAME(TEXT("Insights"));
-	RegisterStartupCallbackHandle = UToolMenus::RegisterStartupCallback(
-		FSimpleMulticastDelegate::FDelegate::CreateSP(
-			FUnrealInsightsLauncher::Get().ToSharedRef(),
-			&FUnrealInsightsLauncher::RegisterMenus));
 
 	RegisterInsightsStatusWidgetWithToolMenu();
 
