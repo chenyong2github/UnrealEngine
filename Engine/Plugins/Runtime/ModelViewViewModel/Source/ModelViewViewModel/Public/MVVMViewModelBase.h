@@ -4,6 +4,7 @@
 
 
 #include "FieldNotification/IClassDescriptor.h"
+#include "FieldNotification/FieldNotificationDeclaration.h" // IWYU pragma: keep
 #include "ViewModel/MVVMFieldNotificationDelegates.h"
 
 #include "MVVMViewModelBase.generated.h"
