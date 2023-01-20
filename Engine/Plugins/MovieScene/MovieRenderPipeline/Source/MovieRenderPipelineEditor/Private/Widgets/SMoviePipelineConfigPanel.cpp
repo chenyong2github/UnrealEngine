@@ -556,6 +556,7 @@ void SMoviePipelineConfigPanel::SaveTransientPresetToAsset(UMoviePipelineConfigB
 	if (TransientPreset && DestinationPreset)
 	{
 		DestinationPreset->CopyFrom(TransientPreset);
+		DestinationPreset->SetConfigOrigin(nullptr);
 		DestinationPreset->MarkPackageDirty();
 
 		// We need to be able to save an empty string into the file. When we duplicate the Output Setting in CopyFrom, the PostLoad is fired which fixes it back up

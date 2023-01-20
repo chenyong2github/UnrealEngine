@@ -47,14 +47,14 @@ public:
 	virtual TArray<UMoviePipelineSetting*> GetUserSettings() const { return Settings; }
 
 	/**
-	 * Gets the config that this config was originally based on (if any). Helpful for determining where a transient
-	 * config came from.
+	 * Gets the config that this config was originally based on (if any). The origin will only be set on transient
+	 * configs; the origin will be nullptr for non-transient configs because the origin will be this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	UMoviePipelineConfigBase* GetConfigOrigin() const { return ConfigOrigin.LoadSynchronous(); }
 
 	/**
-	 * Sets the config that this config originated from (if any).
+	 * Sets the config that this config originated from (if any). The origin should only be set for transient configs.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void SetConfigOrigin(UMoviePipelineConfigBase* InConfig) { ConfigOrigin = InConfig; }
