@@ -3,6 +3,10 @@
 #include "TypedElementDatabaseCompatibility.h"
 
 #include "Editor.h"
+#include "Elements/Columns/TypedElementLabelColumns.h"
+#include "Elements/Columns/TypedElementMiscColumns.h"
+#include "Elements/Columns/TypedElementPackageColumns.h"
+#include "Elements/Columns/TypedElementTransformColumns.h"
 #include "MassActorEditorSubsystem.h"
 #include "MassActorSubsystem.h"
 
@@ -72,8 +76,19 @@ void UTypedElementDatabaseCompatibility::CreateStandardArchetypes()
 {
 	StandardActorTable = Storage->RegisterTable(MakeArrayView(
 		{
-			FMassActorFragment::StaticStruct()
+			FMassActorFragment::StaticStruct(),
+			FTypedElementLabelColumn::StaticStruct(),
+			FTypedElementLabelHashColumn::StaticStruct(),
+			FTypedElementPackagePathColumn::StaticStruct(),
+			FTypedElementPackageLoadedPathColumn::StaticStruct()
 		}), FName("Editor_StandardActorTable"));
+
+	StandardActorWithTransformTable = Storage->RegisterTable(StandardActorTable,
+		MakeArrayView(
+		{
+			FTypedElementLabelColumn::StaticStruct(),
+			FTypedElementLocalTransformColumn::StaticStruct()
+		}), FName("Editor_StandardActorWithTransformTable"));
 }
 
 void UTypedElementDatabaseCompatibility::AddPendingActors()

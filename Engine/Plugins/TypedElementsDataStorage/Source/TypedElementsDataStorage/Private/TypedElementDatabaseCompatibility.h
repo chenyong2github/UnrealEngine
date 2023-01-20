@@ -39,6 +39,7 @@ private:
 	TArray<TWeakObjectPtr<AActor>> ActorsPendingRegistration;
 	
 	TypedElementTableHandle StandardActorTable{ TypedElementInvalidTableHandle };
+	TypedElementTableHandle StandardActorWithTransformTable{ TypedElementInvalidTableHandle };
 	ITypedElementDataStorageInterface* Storage{ nullptr };
 	TSharedPtr<FMassActorManager> ActorSubsystem;
 };
