@@ -11,10 +11,7 @@
 #include "NNECoreTensor.h"
 
 
-namespace NNX 
-{
-
-namespace Test 
+namespace UE::NNEQA::Private
 {
 	struct FTests
 	{
@@ -41,13 +38,13 @@ namespace Test
 			bool IsModelTest;
 			TMap<FString, float> AbsoluteToleranceForRuntime;
 			TMap<FString, float> RelativeToleranceForRuntime;
-			TArray<UE::NNECore::Internal::FTensor> Inputs;
-			TArray<UE::NNECore::Internal::FTensor> Weights;
-			TArray<UE::NNECore::Internal::FTensor> Outputs;
+			TArray<NNECore::Internal::FTensor> Inputs;
+			TArray<NNECore::Internal::FTensor> Weights;
+			TArray<NNECore::Internal::FTensor> Outputs;
 			TArray<FTensorData> InputsData;
 			TArray<FTensorData> WeightsData;
 			TArray<FTensorData> OutputsData;
-			UE::NNECore::FAttributeMap AttributeMap;
+			NNECore::FAttributeMap AttributeMap;
 			TArray<FString> Tags;
 			TArray<FString> AutomationExcludedRuntime;
 			TArray<FString> AutomationExcludedPlatform;
@@ -85,10 +82,9 @@ namespace Test
 		float operator () (uint32 ElementIndex) const;
 	};
 
-	FString TensorToString(const UE::NNECore::Internal::FTensor& Tensor);
-	FString TensorToString(const UE::NNECore::Internal::FTensor& Tensor, TConstArrayView<char> TensorData);
+	FString TensorToString(const NNECore::Internal::FTensor& Tensor);
+	FString TensorToString(const NNECore::Internal::FTensor& Tensor, TConstArrayView<char> TensorData);
 	template<typename T> FString ShapeToString(TConstArrayView<T> Shape);
-	TArray<char> GenerateTensorDataForTest(const UE::NNECore::Internal::FTensor& Tensor, std::function<float(uint32)> ElementInitializer);
+	TArray<char> GenerateTensorDataForTest(const NNECore::Internal::FTensor& Tensor, std::function<float(uint32)> ElementInitializer);
 
-} // namespace Test
-} // namespace NNX
+} // namespace UE::NNEQA::Private

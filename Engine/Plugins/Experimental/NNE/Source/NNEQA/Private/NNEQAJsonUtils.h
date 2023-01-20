@@ -8,9 +8,7 @@
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
 
-namespace NNX 
-{
-namespace Test
+namespace UE::NNEQA::Private
 {
 namespace Json
 {
@@ -264,5 +262,4 @@ namespace Json
 	}
 
 } // namespace Json
-} // namespace Test
-} // namespace NNX
+} // namespace UE::NNEQA::Private

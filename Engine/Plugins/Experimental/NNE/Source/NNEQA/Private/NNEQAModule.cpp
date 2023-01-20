@@ -2,15 +2,15 @@
 
 #include "Modules/ModuleManager.h"
 
-#include "NNXQAParametricTest.h"
+#include "NNEQAParametricTest.h"
 
-class FNNXQAModule : public IModuleInterface
+class FNNEQAModule : public IModuleInterface
 {
 public:
 
 	virtual void StartupModule() override
 	{
-		NNX::Test::InitializeParametricTests();
+		UE::NNEQA::Private::InitializeParametricTests();
 	}
 
 	virtual void ShutdownModule() override
@@ -19,4 +19,4 @@ public:
 
 };
 
-IMPLEMENT_MODULE(FNNXQAModule, NNXQA);
+IMPLEMENT_MODULE(FNNEQAModule, NNEQA);

@@ -1,5 +1,5 @@
 {
-	"description": "schema for NNX test",
+	"description": "schema for NNE test",
 	"type": "object",
 	"additionalProperties": false,
 	"properties": {

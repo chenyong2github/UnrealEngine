@@ -3,9 +3,9 @@
 using System.IO;
 using UnrealBuildTool;
 
-public class NNXQA : ModuleRules
+public class NNEQA : ModuleRules
 {
-	public NNXQA(ReadOnlyTargetRules Target) : base(Target)
+	public NNEQA(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
