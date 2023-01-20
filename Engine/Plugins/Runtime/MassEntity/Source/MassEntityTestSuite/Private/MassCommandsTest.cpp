@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Engine/World.h"
 #include "MassEntityManager.h"
 #include "MassProcessingTypes.h"
 #include "MassEntityTestTypes.h"
@@ -11,6 +10,8 @@
 #include "Algo/RandomShuffle.h"
 
 #define LOCTEXT_NAMESPACE "MassTest"
+
+UE_DISABLE_OPTIMIZATION_SHIP
 
 //----------------------------------------------------------------------//
 // tests 
@@ -242,5 +243,7 @@ IMPLEMENT_AI_INSTANT_TEST(FCommands_DeferredFunction, "System.Mass.Commands.Defe
 
 #endif // WITH_MASSENTITY_DEBUG
 } // FMassCommandsTest
+
+UE_ENABLE_OPTIMIZATION_SHIP
 
 #undef LOCTEXT_NAMESPACE

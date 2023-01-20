@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Engine/World.h"
 #include "MassEntityManager.h"
 #include "MassProcessingTypes.h"
 #include "MassEntityTestTypes.h"
@@ -10,6 +9,8 @@
 #include "Algo/Sort.h"
 
 #define LOCTEXT_NAMESPACE "MassTest"
+
+UE_DISABLE_OPTIMIZATION_SHIP
 
 //----------------------------------------------------------------------//
 // tests 
@@ -114,5 +115,7 @@ struct FUtilsTest_MultiSort_Payload : FExecutionTestBase
 IMPLEMENT_AI_INSTANT_TEST(FUtilsTest_MultiSort_Payload, "System.Mass.Utils.MultiSort_Payload");
 
 } // FMassUtilsTest
+
+UE_ENABLE_OPTIMIZATION_SHIP
 
 #undef LOCTEXT_NAMESPACE

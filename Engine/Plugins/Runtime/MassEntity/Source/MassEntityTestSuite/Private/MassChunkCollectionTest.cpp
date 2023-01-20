@@ -6,6 +6,8 @@
 
 #define LOCTEXT_NAMESPACE "MassTest"
 
+UE_DISABLE_OPTIMIZATION_SHIP
+
 //----------------------------------------------------------------------//
 // tests 
 //----------------------------------------------------------------------//
@@ -210,5 +212,7 @@ IMPLEMENT_AI_INSTANT_TEST(FEntityCollection_WithPayload, "System.Mass.EntityColl
 #endif // WITH_MASSENTITY_DEBUG
 //
 }
+
+UE_ENABLE_OPTIMIZATION_SHIP
 
 #undef LOCTEXT_NAMESPACE

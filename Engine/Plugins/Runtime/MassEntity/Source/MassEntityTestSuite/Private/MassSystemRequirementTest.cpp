@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "AITestsCommon.h"
 #include "Engine/Engine.h"
 #include "MassProcessorDependencySolver.h"

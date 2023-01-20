@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Engine/World.h"
 #include "MassEntityManager.h"
 #include "MassProcessingTypes.h"
 #include "MassEntityTestTypes.h"
 #include "MassExecutor.h"
 
 #define LOCTEXT_NAMESPACE "MassTest"
+
+UE_DISABLE_OPTIMIZATION_SHIP
 
 //----------------------------------------------------------------------//
 // tests 
@@ -167,5 +167,7 @@ struct FExecution_Sparse : FEntityTestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FExecution_Sparse, "System.Mass.Execution.Sparse");
 } // FMassExecutionTest
+
+UE_ENABLE_OPTIMIZATION_SHIP
 
 #undef LOCTEXT_NAMESPACE

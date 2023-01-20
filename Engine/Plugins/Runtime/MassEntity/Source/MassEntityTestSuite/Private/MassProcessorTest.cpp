@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "AITestsCommon.h"
-
-#include "Engine/World.h"
 #include "MassEntityManager.h"
 #include "MassExecutionContext.h"
 #include "MassProcessingTypes.h"
@@ -11,6 +8,8 @@
 #include "MassExecutor.h"
 
 #define LOCTEXT_NAMESPACE "MassTest"
+
+UE_DISABLE_OPTIMIZATION_SHIP
 
 namespace FMassProcessorTest
 {
@@ -117,6 +116,8 @@ IMPLEMENT_AI_INSTANT_TEST(FProcessorTest_Requirements, "System.Mass.Processor.Re
 
 
 } // FMassProcessorTestTest
+
+UE_ENABLE_OPTIMIZATION_SHIP
 
 #undef LOCTEXT_NAMESPACE
 

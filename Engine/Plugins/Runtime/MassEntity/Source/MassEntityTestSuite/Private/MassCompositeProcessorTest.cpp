@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "AITestsCommon.h"
-
-#include "Engine/World.h"
 #include "MassEntityManager.h"
 #include "MassExecutionContext.h"
 #include "MassProcessingTypes.h"
@@ -11,6 +8,8 @@
 #include "MassExecutor.h"
 
 #define LOCTEXT_NAMESPACE "MassTest"
+
+UE_DISABLE_OPTIMIZATION_SHIP
 
 namespace FMassCompositeProcessorTest
 {
@@ -66,6 +65,8 @@ struct FCompositeProcessorTest_MultipleSubProcessors : FEntityTestBase
 IMPLEMENT_AI_INSTANT_TEST(FCompositeProcessorTest_MultipleSubProcessors, "System.Mass.Processor.Composite.MultipleSubProcessors");
 
 } // FMassCompositeProcessorTest
+
+UE_ENABLE_OPTIMIZATION_SHIP
 
 #undef LOCTEXT_NAMESPACE
 

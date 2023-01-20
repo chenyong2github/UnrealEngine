@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "AITestsCommon.h"
-
 #include "MassProcessorDependencySolver.h"
 #include "MassEntityTestTypes.h"
 
 #define LOCTEXT_NAMESPACE "MassTest"
+
+UE_DISABLE_OPTIMIZATION_SHIP
 
 namespace FMassDependencySolverTest
 {
@@ -379,5 +379,7 @@ struct FCircularDependency : FDependencySolverBase
 IMPLEMENT_AI_INSTANT_TEST(FCircularDependency, "System.Mass.Dependencies.Circular");
 
 } // FMassDependencySolverTest
+
+UE_ENABLE_OPTIMIZATION_SHIP
 
 #undef LOCTEXT_NAMESPACE
