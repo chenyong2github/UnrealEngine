@@ -2413,6 +2413,11 @@ FName FControlRigEditor::GetToolkitFName() const
 	return FName("ControlRigEditor");
 }
 
+FName FControlRigEditor::GetToolkitContextFName() const
+{
+	return GetToolkitFName();
+}
+
 FText FControlRigEditor::GetBaseToolkitName() const
 {
 	return LOCTEXT("AppLabel", "Control Rig Editor");

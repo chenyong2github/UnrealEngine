@@ -89,6 +89,7 @@ public:
 	
 	// IToolkit Interface
 	virtual FName GetToolkitFName() const override;
+	virtual FName GetToolkitContextFName() const override;
 	virtual FText GetBaseToolkitName() const override;
 	virtual FText GetToolkitToolTipText() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
