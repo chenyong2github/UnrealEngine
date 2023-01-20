@@ -311,8 +311,13 @@ namespace Horde.Build.Configuration
 		async ValueTask<ReadOnlyMemory<byte>> ReadAsync(Uri uri, int change, CancellationToken cancellationToken)
 		{
 			string cacheKey = $"{nameof(PerforceConfigSource)}:data:{uri}@{change}";
-			if (!_cache.TryGetValue(cacheKey, out ReadOnlyMemory<byte> data))
+			if (_cache.TryGetValue(cacheKey, out ReadOnlyMemory<byte> data))
 			{
+				_logger.LogInformation("Read {Uri}@{Change} from cache ({Key})", uri, change, cacheKey);
+			}
+			else
+			{
+				_logger.LogInformation("Reading {Uri}@{Change} from Perforce", uri, change);
 				using (IPerforceConnection perforce = await ConnectAsync(uri.Host, cancellationToken))
 				{
 					PerforceResponse<PrintRecord<byte[]>> response = await perforce.TryPrintDataAsync($"{uri.AbsolutePath}@{change}", cancellationToken);

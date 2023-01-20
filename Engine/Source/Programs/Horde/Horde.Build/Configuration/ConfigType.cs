@@ -220,7 +220,6 @@ namespace Horde.Build.Configuration
 				string? path = (string?)jsonNode;
 
 				Uri uri = ConfigType.CombinePaths(context.CurrentFile, path!);
-				context.Logger.LogInformation("Including config file {Uri}", uri);
 				IConfigFile file = await ReadFileAsync(uri, context, cancellationToken);
 
 				context.IncludeStack.Push(file);
