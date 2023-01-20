@@ -208,6 +208,9 @@ private:
 	/** The cursor this user is in control of. Guaranteed to be valid for all real users, absence implies this is a virtual user. */
 	TSharedPtr<ICursor> Cursor;
 
+	/** Store the last time the cursor position was changed */
+	double LastCursorSignificantMoveTime = 0.0;
+
 	/** SlateUsers can optionally be individually assigned a navigation config to use. This overrides the global nav config that lives on FSlateApplication when valid. */
 	TSharedPtr<FNavigationConfig> UserNavigationConfig;
 

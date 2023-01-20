@@ -1553,9 +1553,10 @@ void FSlateApplication::TickPlatform(float DeltaTime)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SlateApplicationInput);
 
+		const bool bCanSpawnNewTooltip = true;
 		ForEachUser([this](FSlateUser& User) {
 			User.UpdateCursor();
-			User.UpdateTooltip(MenuStack, false);
+			User.UpdateTooltip(MenuStack, bCanSpawnNewTooltip);
 		});
 
 		bool bSynthesizedCursorMoveThisFrame = false;
@@ -5898,10 +5899,6 @@ bool FSlateApplication::ProcessMouseMoveEvent( const FPointerEvent& MouseEvent, 
 			return true;
 		}
 
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_ProcessMouseMove_Tooltip);
-		
-		GetOrCreateUser(MouseEvent)->UpdateTooltip(MenuStack, /*bCanSpawnNewTooltip =*/true);
-		
 		// Guard against synthesized mouse moves and only track user interaction if the cursor pos changed
 		SetLastUserInteractionTime(this->GetCurrentTime());
 	}
