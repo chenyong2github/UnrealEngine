@@ -314,9 +314,9 @@ bool FRigVMDrawInterface::IsEnabled() const
 {
 	bool bIsEnabled = true;
 
-#if UE_BUILD_SHIPPING || UE_BUILD_TEST 
+#if UE_BUILD_TEST
 	bIsEnabled = CVarEnableRigVMDrawInterfaceInShipping.GetValueOnAnyThread() == 1; 
-#endif 
+#endif
 
 	return bIsEnabled; 
 }
