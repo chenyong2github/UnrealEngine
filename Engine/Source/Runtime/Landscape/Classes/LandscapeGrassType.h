@@ -113,6 +113,10 @@ struct FGrassVariety
 	UPROPERTY(EditAnywhere, Category = Grass)
 	bool bReceivesDecals;
 
+	/** Controls whether the primitive should affect dynamic distance field lighting methods. */
+	UPROPERTY(EditAnywhere, Category = Grass)
+	bool bAffectDistanceFieldLighting;
+
 	/** Whether the grass should cast shadows when using non-precomputed shadowing. **/
 	UPROPERTY(EditAnywhere, Category = Grass)
 	bool bCastDynamicShadow;

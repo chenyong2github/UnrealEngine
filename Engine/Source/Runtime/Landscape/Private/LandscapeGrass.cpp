@@ -1358,6 +1358,7 @@ FGrassVariety::FGrassVariety()
 	, AlignToSurface(true)
 	, bUseLandscapeLightmap(false)
 	, bReceivesDecals(true)
+	, bAffectDistanceFieldLighting(false)
 	, bCastDynamicShadow(true)
 	, bCastContactShadow(true)
 	, bKeepInstanceBufferCPUCopy(false)
@@ -3162,6 +3163,7 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNu
 										GrassInstancedStaticMeshComponent->LightingChannels = GrassVariety.LightingChannels;
 										GrassInstancedStaticMeshComponent->bCastStaticShadow = false;
 										GrassInstancedStaticMeshComponent->CastShadow = (GrassVariety.bCastDynamicShadow || GrassVariety.bCastContactShadow) && !bDisableDynamicShadows;
+										GrassInstancedStaticMeshComponent->bAffectDistanceFieldLighting = GrassVariety.bAffectDistanceFieldLighting;
 										GrassInstancedStaticMeshComponent->bCastDynamicShadow = GrassVariety.bCastDynamicShadow && !bDisableDynamicShadows;
 										GrassInstancedStaticMeshComponent->bCastContactShadow = GrassVariety.bCastContactShadow && !bDisableDynamicShadows;
 										GrassInstancedStaticMeshComponent->OverrideMaterials = GrassVariety.OverrideMaterials;
@@ -3203,9 +3205,6 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNu
 											GrassInstancedStaticMeshComponent->InstanceStartCullDistance = GrassVariety.GetStartCullDistance() * CullDistanceScale;
 											GrassInstancedStaticMeshComponent->InstanceEndCullDistance = GrassVariety.GetEndCullDistance() * CullDistanceScale;
 										}
-
-										//@todo - take the settings from a UFoliageType object.  For now, disable distance field lighting on grass so we don't hitch.
-										GrassInstancedStaticMeshComponent->bAffectDistanceFieldLighting = false;
 
 										{
 											QUICK_SCOPE_CYCLE_COUNTER(STAT_GrassAttachComp);
