@@ -220,6 +220,12 @@ struct FDMXDisplayClusterLightCardActorData
 		if (bNeedsUpdateLightCardTransform)
 		{
 			Actor->UpdateStageActorTransform();
+
+			// When the transform properties change and if bAlwaysFlushToWall is set, remain flush with the owning stage actor.
+			if (Actor->bAlwaysFlushToWall)
+			{
+				Actor->MakeFlushToWall();
+			}
 		}
 
 		if (bNeedsUpdateLightCardMaterialInstance)

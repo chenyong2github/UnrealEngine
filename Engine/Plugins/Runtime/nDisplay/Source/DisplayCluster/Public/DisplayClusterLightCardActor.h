@@ -96,6 +96,9 @@ public:
 	/** Updates the UV Indicator */
 	void UpdateUVIndicator();
 
+	/** Makes the light card flush to the wall */
+	void MakeFlushToWall();
+
 	/** Configures this light card as a flag */
 	void SetIsLightCardFlag(bool bNewFlagValue);
 

@@ -159,13 +159,14 @@ void ADisplayClusterLightCardActor::PostEditChangeProperty(FPropertyChangedEvent
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Yaw) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, RadialOffset) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Scale) ||
-		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, bIsUVLightCard)))
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, bIsUVLightCard) ||
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, bAlwaysFlushToWall)))
 	{
 		UpdateStageActorTransform();
 
-		if (bAlwaysFlushToWall && RootActorOwner.IsValid())
+		if (bAlwaysFlushToWall)
 		{
-			RootActorOwner->MakeStageActorFlushToWall(this);
+			MakeFlushToWall();
 		}
 	}
 
@@ -443,6 +444,14 @@ void ADisplayClusterLightCardActor::UpdateUVIndicator()
 		}
 	}
 #endif // WITH_EDITOR
+}
+
+void ADisplayClusterLightCardActor::MakeFlushToWall()
+{
+	if (RootActorOwner.IsValid())
+	{
+		RootActorOwner->MakeStageActorFlushToWall(this);
+	}
 }
 
 void ADisplayClusterLightCardActor::SetIsLightCardFlag(bool bNewFlagValue)
