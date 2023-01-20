@@ -16,9 +16,13 @@
 namespace
 {
 
+TAutoConsoleVariable<float> CVarTSRHistorySampleCount(
+	TEXT("r.TSR.History.SampleCount"), 16.0f,
+	TEXT("Maximum number sample for each output pixel in the history."),
+	ECVF_RenderThreadSafe);
+
 TAutoConsoleVariable<float> CVarTSRHistorySP(
-	TEXT("r.TSR.History.ScreenPercentage"),
-	100.0f,
+	TEXT("r.TSR.History.ScreenPercentage"), 100.0f,
 	TEXT("Size of TSR's history."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
@@ -40,12 +44,17 @@ TAutoConsoleVariable<int32> CVarTSRHistorySeparateTranslucency(
 TAutoConsoleVariable<int32> CVarTSRHistoryGrandReprojection(
 	TEXT("r.TSR.History.GrandReprojection"), 0,
 	TEXT("Experimental functionality to keep higher sharpness in TSR's history in motion."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSRWaveOps(
 	TEXT("r.TSR.WaveOps"), 1,
 	TEXT("Whether to use wave ops in the shading rejection heuristics"),
 	ECVF_RenderThreadSafe);
+
+TAutoConsoleVariable<float> CVarTSRHistoryRejectionSampleCount(
+	TEXT("r.TSR.ShadingRejection.SampleCount"), 2.0f,
+	TEXT("Maximum number of sample in each output pixel of the history after total shading rejection."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSRFlickeringEnable(
 	TEXT("r.TSR.ShadingRejection.Flickering"), 1,
@@ -101,9 +110,14 @@ TAutoConsoleVariable<int32> CVarTSREnableResponiveAA(
 	TEXT("Whether the responsive AA should keep history fully clamped."),
 	ECVF_RenderThreadSafe);
 
+TAutoConsoleVariable<float> CVarTSRWeightClampingSampleCount(
+	TEXT("r.TSR.Velocity.WeightClampingSampleCount"), 4.0f,
+	TEXT("Sample count in history pixel to clamp history to when output pixel velocity reach r.TSR.Velocity.WeightClampingPixelSpeed (Default = 4.0f)."),
+	ECVF_RenderThreadSafe);
+
 TAutoConsoleVariable<float> CVarTSRWeightClampingPixelSpeed(
 	TEXT("r.TSR.Velocity.WeightClampingPixelSpeed"), 1.0f,
-	TEXT("Defines the pixel velocity at which the the high frequencies of the history get's their contributing weight clamped. ")
+	TEXT("Defines the output pixel velocity at which the the high frequencies of the history get's their contributing weight clamped. ")
 	TEXT("Smallest reduce blur in movement (Default = 1.0f)."),
 	ECVF_RenderThreadSafe);
 
@@ -495,6 +509,7 @@ class FTSRRejectShadingCS : public FTSRShader
 		SHADER_PARAMETER(FVector2f, TranslucencyTextureUVMax)
 		SHADER_PARAMETER(FVector3f, HistoryGuideQuantizationError)
 		SHADER_PARAMETER(float, FlickeringFramePeriod)
+		SHADER_PARAMETER(float, TheoricBlendFactor)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputMoireLumaTexture)
@@ -658,6 +673,10 @@ class FTSRUpdateHistoryCS : public FTSRShader
 
 		SHADER_PARAMETER(FVector3f, HistoryQuantizationError)
 		SHADER_PARAMETER(float, MinTranslucencyRejection)
+		SHADER_PARAMETER(float, HistorySampleCount)
+		SHADER_PARAMETER(float, HistoryHisteresis)
+		SHADER_PARAMETER(float, WeightClampingRejection)
+		SHADER_PARAMETER(float, WeightClampingPixelSpeedAmplitude)
 		SHADER_PARAMETER(float, InvWeightClampingPixelSpeed)
 		SHADER_PARAMETER(float, InputToHistoryFactor)
 		SHADER_PARAMETER(float, InputContributionMultiplier)
@@ -837,6 +856,9 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	const float RefreshRateToFrameRateCap = (View.Family->Time.GetDeltaRealTimeSeconds() > 0.0f && CVarTSRFlickeringAdjustToFrameRate.GetValueOnRenderThread())
 		? View.Family->Time.GetDeltaRealTimeSeconds() * CVarTSRFlickeringFrameRateCap.GetValueOnRenderThread() : 1.0f;
 
+	// Maximum number sample for each output pixel in the history
+	const float MaxHistorySampleCount = FMath::Clamp(CVarTSRHistorySampleCount.GetValueOnRenderThread(), 8.0f, 32.0f);
+
 	// whether TSR passes can run on async compute.
 	int32 AsyncComputePasses = GSupportsEfficientAsyncCompute ? CVarTSRAsyncCompute.GetValueOnRenderThread() : 0;
 
@@ -926,9 +948,14 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			FMath::Max(InputExtent.X, QuantizedHistoryViewSize.X),
 			FMath::Max(InputExtent.Y, QuantizedHistoryViewSize.Y));
 	}
+	float OutputToHistoryResolutionFraction = float(HistorySize.X) / float(OutputRect.Width());
+	float OutputToHistoryResolutionFractionSquare = OutputToHistoryResolutionFraction * OutputToHistoryResolutionFraction;
 
-	float ScreenPercentage = float(InputRect.Width()) / float(OutputRect.Width());
-	float InvScreenPercentage = float(OutputRect.Width()) / float(InputRect.Width());
+	float InputToHistoryResolutionFraction = float(HistorySize.X) / float(InputRect.Width());
+	float InputToHistoryResolutionFractionSquare = InputToHistoryResolutionFraction * InputToHistoryResolutionFraction;
+
+	float OutputToInputResolutionFraction = float(InputRect.Width()) / float(OutputRect.Width());
+	float OutputToInputResolutionFractionSquare = OutputToInputResolutionFraction * OutputToInputResolutionFraction;
 
 	RDG_EVENT_SCOPE(GraphBuilder, "TemporalSuperResolution(%s) %dx%d -> %dx%d",
 		bSupportsAlpha ? TEXT("Alpha") : TEXT(""),
@@ -1551,6 +1578,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->TranslucencyTextureUVMax = GetScreenPassTextureViewportParameters(TranslucencyViewport).UVViewportBilinearMax;
 		PassParameters->HistoryGuideQuantizationError = ComputePixelFormatQuantizationError(History.Guide->Desc.Format);
 		PassParameters->FlickeringFramePeriod = FlickeringFramePeriod;
+		PassParameters->TheoricBlendFactor = 1.0f / (1.0f + MaxHistorySampleCount / OutputToInputResolutionFractionSquare);
 
 		PassParameters->InputTexture = PassInputs.SceneColorTexture;
 		if (PassInputs.MoireInputTexture.IsValid())
@@ -1699,9 +1727,16 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->HistoryPixelPosToTranslucencyPPCo = HistoryPixelPosToViewportUV * PassParameters->TranslucencyInfo.ViewportSize + CommonParameters.InputJitter * PassParameters->TranslucencyInfo.ViewportSize / CommonParameters.InputInfo.ViewportSize + SeparateTranslucencyRect.Min;
 		PassParameters->HistoryQuantizationError = ComputePixelFormatQuantizationError((History.ColorArray ? History.ColorArray : History.Output)->Desc.Format);
 		PassParameters->MinTranslucencyRejection = TranslucencyRejectionTexture == nullptr ? 1.0 : 0.0;
-		PassParameters->InvWeightClampingPixelSpeed = 1.0f / CVarTSRWeightClampingPixelSpeed.GetValueOnRenderThread();
+
+		// All parameters to control the sample count in history.
+		PassParameters->HistorySampleCount = MaxHistorySampleCount / OutputToHistoryResolutionFractionSquare;
+		PassParameters->HistoryHisteresis = 1.0f / PassParameters->HistorySampleCount;
+		PassParameters->WeightClampingRejection = (CVarTSRHistoryRejectionSampleCount.GetValueOnRenderThread() / OutputToHistoryResolutionFractionSquare) * PassParameters->HistoryHisteresis;
+		PassParameters->WeightClampingPixelSpeedAmplitude = FMath::Clamp(1.0f - CVarTSRWeightClampingSampleCount.GetValueOnRenderThread() * PassParameters->HistoryHisteresis, 0.0f, 1.0f);
+		PassParameters->InvWeightClampingPixelSpeed = 1.0f / (CVarTSRWeightClampingPixelSpeed.GetValueOnRenderThread() * OutputToHistoryResolutionFraction);
+		
 		PassParameters->InputToHistoryFactor = float(HistorySize.X) / float(InputRect.Width());
-		PassParameters->InputContributionMultiplier = FMath::Pow(float(HistorySize.X) / float(OutputRect.Width()), 2.0f); 
+		PassParameters->InputContributionMultiplier = OutputToHistoryResolutionFractionSquare; 
 		PassParameters->GrandPrevPreExposureCorrection = bCameraCut ? 1.0f : View.PreExposure / InputHistory.PrevSceneColorPreExposure;
 		PassParameters->ResponsiveStencilMask = CVarTSREnableResponiveAA.GetValueOnRenderThread() ? (STENCIL_TEMPORAL_RESPONSIVE_AA_MASK) : 0;
 		PassParameters->bGenerateOutputMip1 = false;

@@ -1194,4 +1194,12 @@ float ComputeScreenVelocityBilateralWeight(float2 ScreenVelocityDelta)
 	return ComputePixelVelocityBilateralWeight(ScreenVelocityDelta * ScreenVelocityToInputPixelVelocity);
 }
 
+tsr_half2 ComputePrevWeightMultiplier(tsr_half2 BlendFactor)
+{
+	return (1.0 - BlendFactor) / BlendFactor;
+}
 
+tsr_half2 RejectionFactorToBlendFactor(tsr_half2 RejectionFactor)
+{
+	return tsr_half(1.0) - RejectionFactor;
+}

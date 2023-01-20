@@ -27,9 +27,6 @@
 	#define CONFIG_INTERPOLATE_VELOCITY 1
 	#define CONFIG_REJECTION_ANTI_ALIASING 1
 
-	// To support sg.AntiAliasingQuality=4 with same temporal response as sg.AntiAliasingQuality=3
-	#define CONFIG_APPLY_CONTRIBUTION_MULTIPLIER 1
-
 #else
 	#error Unknown history update quality
 #endif
@@ -80,10 +77,6 @@
 	#define CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION 1
 #else
 	#define CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION 0
-#endif
-
-#ifndef CONFIG_APPLY_CONTRIBUTION_MULTIPLIER
-	#define CONFIG_APPLY_CONTRIBUTION_MULTIPLIER 0
 #endif
 
 #ifndef PLATFORM_SPECIFIC_ISOLATE
@@ -166,9 +159,12 @@ FScreenTransform HistoryPixelPosToTranslucencyPPCo;
 FScreenTransform ScreenPosToGrandPrevHistoryBufferUV;
 float3 HistoryQuantizationError;
 float MinTranslucencyRejection;
+float HistorySampleCount;
+float HistoryHisteresis;
+float WeightClampingRejection;
+float WeightClampingPixelSpeedAmplitude;
 float InvWeightClampingPixelSpeed;
 float InputToHistoryFactor;
-float InputContributionMultiplier;
 float GrandPrevPreExposureCorrection;
 uint ResponsiveStencilMask;
 uint bGenerateOutputMip1;
@@ -772,6 +768,7 @@ void MainCS(
 			{
 				bIsDisoccluded = false;
 				LowFrequencyRejection = tsr_half(1.0).xx;
+				LowFrequencyClamp = tsr_half(1.0).xx;
 				TranslucencyRejection = tsr_half(1.0).xx;
 			}
 			#endif
@@ -785,9 +782,6 @@ void MainCS(
 	
 	// Reproject history
 	tsr_halfCx2 PrevHighFrequencyColor;
-	#if CONFIG_PREMULTIPLY_HISTORY
-		tsr_half2 PrevHistoryWeight;
-	#endif
 	tsr_half2 PrevHistoryValidity;
 	
 	tsr_halfCx2 PrevHistoryMomentMin;
@@ -942,17 +936,8 @@ void MainCS(
 
 					tsr_half2 KernelWeight = RawKernelWeight[i];
 
-					#if CONFIG_PREMULTIPLY_HISTORY
-						tsr_half2 InvWeight = SafeRcp(SampleMetadata[1]);
-
-						HighFrequencyMin = min(HighFrequencyMin, dpv_scale(SampleHighFrequency, InvWeight));
-						HighFrequencyMax = max(HighFrequencyMax, dpv_scale(SampleHighFrequency, InvWeight));
-
-					#else
-						HighFrequencyMin = min(HighFrequencyMin, SampleHighFrequency);
-						HighFrequencyMax = max(HighFrequencyMax, SampleHighFrequency);
-
-					#endif
+					HighFrequencyMin = min(HighFrequencyMin, SampleHighFrequency);
+					HighFrequencyMax = max(HighFrequencyMax, SampleHighFrequency);
 
 					AccumulateHighFrequency += dpv_scale(SampleHighFrequency, KernelWeight);
 					AccumulateMetadata  += dpv_scale(SampleMetadata, KernelWeight);
@@ -1004,9 +989,6 @@ void MainCS(
 			PrevHistoryMomentMax = HighFrequencyMax;
 
 			PrevHighFrequencyColor = AccumulateHighFrequency;
-			#if CONFIG_PREMULTIPLY_HISTORY
-				PrevHistoryWeight = AccumulateMetadata[1];
-			#endif
 			PrevHistoryValidity = AccumulateMetadata[0];
 
 			PrevHistoryTranslucency = AccumulateTranslucency;
@@ -1074,6 +1056,9 @@ void MainCS(
 	tsr_half2 InputPixelAlignement;
 	tsr_half2 ClosestInputLuma4;
 	
+	tsr_half2 BlendClamp;
+	tsr_half2 PrevWeight;
+	tsr_half2 CurrentWeight;
 	
 	PLATFORM_SPECIFIC_ISOLATE
 	{
@@ -1116,22 +1101,72 @@ void MainCS(
 			
 			// Vector in pixel between pixel K -> O.
 			tsr_half2x2 dInputKO = tsr_half2x2(InputPPCo - InputPPCk);
-
-
-			// Soften the spatial kernel when there is high noise in the input to make parallax disocclusion of detailed geometry less distracting.
-			tsr_half2 OffScreenInputToHistoryFactor = tsr_half(1.0) - tsr_half(0.5) * NoiseFiltering;
-
-			bool2 bIsRefining = PrevHistoryValidity != 0.0;
-
-			tsr_half2 KernelInputToHistoryLerp = select(or(or(bIsOffScreen, bIsDisoccluded), !bIsRefining), tsr_half(0.0).xx, saturate(LowFrequencyRejection * tsr_half(16.0) - tsr_half(13.0)));
-			tsr_half2 KernelInputToHistoryFactor = lerp(OffScreenInputToHistoryFactor, tsr_half(InputToHistoryFactor), KernelInputToHistoryLerp);
-			tsr_half2 KernelInputToHistoryAlignmentFactor = lerp(tsr_half(1.0).xx, tsr_half(InputToHistoryFactor), KernelInputToHistoryLerp);
 			
-			InputPixelAlignement = ComputeSampleWeigth(KernelInputToHistoryAlignmentFactor, dInputKO, /* MinimalContribution = */ float(0.0));
+			// Compute upscaling kernel size based of the rejections and number of samples already in history.
+			tsr_half2 KernelInputToHistoryFactor;
+			{
+				const tsr_half ActualHistorySampleCount = tsr_half(HistorySampleCount);
+				const tsr_half ActualHistoryHisteresis = tsr_half(HistoryHisteresis);
+
+				tsr_half2 MinRejectionBlendFactor = RejectionFactorToBlendFactor(LowFrequencyRejection);
+				MinRejectionBlendFactor = select(bIsOffScreen, tsr_half(1.0).xx, MinRejectionBlendFactor);
+
+				tsr_half2 CoarseInputPixelAlignement = ComputeSampleWeigth(tsr_half(1.0), dInputKO, /* MinimalContribution = */ float(0.0));
+				tsr_half2 IdealInputPixelAlignement = ComputeSampleWeigth(tsr_half(InputToHistoryFactor), dInputKO, /* MinimalContribution = */ float(0.0));
+			
+				tsr_half2 CoarseCurrentContribution = CoarseInputPixelAlignement * tsr_half(ActualHistoryHisteresis);
+				tsr_half2 IdealCurrentContribution = IdealInputPixelAlignement * tsr_half(ActualHistoryHisteresis);
+
+				// Select whether history should be clamped.
+				BlendClamp = select(bIsDisoccluded, tsr_half(0.0), min(HoleFilledVelocityMask[1], LowFrequencyClamp));
 		
-			#if CONFIG_APPLY_CONTRIBUTION_MULTIPLIER
-				InputPixelAlignement *= tsr_half(InputContributionMultiplier);
-			#endif
+				// Reduces the number of pixels when rejecting history
+				tsr_half2 ClampedPrevHistoryValidity = PrevHistoryValidity;
+				#if 1
+				{
+					tsr_half2 MaxValidity = lerp(tsr_half(WeightClampingRejection), tsr_half(1.0), select(bIsDisoccluded, tsr_half(0.0), LowFrequencyClamp));
+					//tsr_half2 MaxValidity = lerp(tsr_half(WeightClampingRejection), tsr_half(1.0), BlendClamp);
+
+					ClampedPrevHistoryValidity = min(ClampedPrevHistoryValidity, MaxValidity);
+				}
+				#endif
+
+				const tsr_half MaxWeight = tsr_half(1.0);
+	
+				// Compute the histeresis if was refining the history
+				tsr_half2 RefiningHisteresis = select(
+					ClampedPrevHistoryValidity + IdealCurrentContribution > tsr_half(0.0),
+					IdealCurrentContribution * rcp(ClampedPrevHistoryValidity + IdealCurrentContribution),
+					tsr_half(1.0));
+				
+				// Compute the prev weight with coarse pixel alignment when rejecting the history.
+				tsr_half2 CoarseRejectedPrevWeight = min(
+					CoarseCurrentContribution * ComputePrevWeightMultiplier(MinRejectionBlendFactor),
+					MaxWeight);
+					
+				// Compute the prev weight with coarse pixel alignment when refining.
+				tsr_half2 CoarseRefiningPrevWeight = min(
+					CoarseCurrentContribution * ComputePrevWeightMultiplier(RefiningHisteresis),
+					MaxWeight);
+				
+				// Do not refine when rejected previous weight is lower than refining with coarse pixel alignment.
+				// bIsNotRefining = CoarseRejectedPrevWeight < CoarseRefiningPrevWeight
+				tsr_half2 bIsRefining = select(CoarseRejectedPrevWeight < CoarseRefiningPrevWeight, tsr_half(0.0), tsr_half(1.0));
+				bIsRefining = min(bIsRefining, saturate(ClampedPrevHistoryValidity * ActualHistorySampleCount));
+	
+				// Soften the spatial kernel when there is high noise in the input to make parallax disocclusion of detailed geometry less distracting.
+				tsr_half2 OffScreenInputToHistoryFactor = tsr_half(1.0) - tsr_half(0.5) * NoiseFiltering;
+
+				tsr_half2 KernelInputToHistoryLerp = select(or(bIsOffScreen, bIsDisoccluded), tsr_half(0.0).xx, saturate(LowFrequencyRejection * tsr_half(16.0) - tsr_half(13.0)) * bIsRefining);
+				KernelInputToHistoryFactor = lerp(OffScreenInputToHistoryFactor, tsr_half(InputToHistoryFactor), KernelInputToHistoryLerp);
+				tsr_half2 KernelInputToHistoryAlignmentFactor = lerp(tsr_half(1.0).xx, tsr_half(InputToHistoryFactor), KernelInputToHistoryLerp);
+			
+				InputPixelAlignement = ComputeSampleWeigth(KernelInputToHistoryAlignmentFactor, dInputKO, /* MinimalContribution = */ float(0.0));
+			
+				CurrentWeight = InputPixelAlignement * tsr_half(ActualHistoryHisteresis);
+				PrevWeight = min(select(CurrentWeight > tsr_half(0.0), CurrentWeight, CoarseCurrentContribution) * ComputePrevWeightMultiplier(MinRejectionBlendFactor), ClampedPrevHistoryValidity);
+				PrevWeight = min(PrevWeight, MaxWeight - CurrentWeight);	
+			}
 
 			UNROLL_N(CONFIG_SAMPLES)
 			for (uint SampleId = 0; SampleId < CONFIG_SAMPLES; SampleId++)
@@ -1344,9 +1379,6 @@ void MainCS(
 	#endif
 
 	// Contribute current frame input into the predictor for next frame.
-	const tsr_half Histeresis = rcp(tsr_half(MAX_SAMPLE_COUNT));
-	const tsr_half PredictionOnlyValidity = Histeresis * tsr_half(2.0);
-	
 	tsr_halfCx2 FinalHighFrequencyColor;
 	tsr_half2 FinalHistoryValidity;
 	
@@ -1362,44 +1394,16 @@ void MainCS(
 	#endif
 
 	{
-		#if CONFIG_PREMULTIPLY_HISTORY
-			tsr_half2 InvPrevHistoryWeight = SafeRcp(PrevHistoryWeight);
-		#endif
-		tsr_half2 InvPrevHistoryValidity = SafeRcp(PrevHistoryValidity);
-
-		tsr_half2 TotalRejection = select(or(bIsOffScreen, bIsDisoccluded), tsr_half(0.0).xx, saturate(LowFrequencyRejection * tsr_half(4.0)));
-
-		tsr_half2 BlendClamp = min(TotalRejection * HoleFilledVelocityMask[1], LowFrequencyClamp);
-		
-		#if CONFIG_PREMULTIPLY_HISTORY
-			tsr_halfCx2 UnpremultipliedPrevHighFrequencyColor = dpv_scale(PrevHighFrequencyColor, InvPrevHistoryWeight);
-		#else
-			tsr_halfCx2 UnpremultipliedPrevHighFrequencyColor = PrevHighFrequencyColor;
-		#endif
-		tsr_halfCx2 ClampedPrevHighFrequencyColor = clamp(UnpremultipliedPrevHighFrequencyColor, InputMinColor, InputMaxColor);
-		tsr_halfCx2 BlendedPrevHighFrequencyColor = UnpremultipliedPrevHighFrequencyColor;
-		BlendedPrevHighFrequencyColor[0] = lerp(ClampedPrevHighFrequencyColor[0], UnpremultipliedPrevHighFrequencyColor[0], BlendClamp);
-		BlendedPrevHighFrequencyColor[1] = lerp(ClampedPrevHighFrequencyColor[1], UnpremultipliedPrevHighFrequencyColor[1], BlendClamp);
-		BlendedPrevHighFrequencyColor[2] = lerp(ClampedPrevHighFrequencyColor[2], UnpremultipliedPrevHighFrequencyColor[2], BlendClamp);
-
-		// Compute how much the history needs to be rejected, based on the completeness.
-		tsr_half2 PrevHistoryRejectionWeight = select(bIsOffScreen, tsr_half(0.0), LowFrequencyRejection);
-	
-		tsr_half2 DesiredCurrentContribution = max(Histeresis * InputPixelAlignement, tsr_half(0.0));
-
-		// Determine whether the the prediction based rejection was confident enough.
-		tsr_half2 RejectionConfidentEnough = tsr_half(1); // saturate(RejectionValidity * MAX_SAMPLE_COUNT - 3.0);
+		tsr_halfCx2 ClampedPrevHighFrequencyColor = clamp(PrevHighFrequencyColor, InputMinColor, InputMaxColor);
+		tsr_halfCx2 BlendedPrevHighFrequencyColor = PrevHighFrequencyColor;
+		BlendedPrevHighFrequencyColor[0] = lerp(ClampedPrevHighFrequencyColor[0], PrevHighFrequencyColor[0], BlendClamp);
+		BlendedPrevHighFrequencyColor[1] = lerp(ClampedPrevHighFrequencyColor[1], PrevHighFrequencyColor[1], BlendClamp);
+		BlendedPrevHighFrequencyColor[2] = lerp(ClampedPrevHighFrequencyColor[2], PrevHighFrequencyColor[2], BlendClamp);
 		
 		// Clamp the validity due to motion to maintain better sharpness in history reprojection under motion.
-		tsr_half2 ClampedPrevHistoryValidity;
-		#if CONFIG_GRAND_REPROJECTION
+		#if !CONFIG_GRAND_REPROJECTION
 		{
-			tsr_half2 MaxValidity = lerp(PredictionOnlyValidity, tsr_half(1.0), TotalRejection);
-			ClampedPrevHistoryValidity = min(PrevHistoryValidity, MaxValidity);
-		}
-		#elif 1
-		{
-			tsr_half2 MaxValidity = tsr_half(1.0) - (tsr_half(1.0) - PredictionOnlyValidity) * saturate(OutputPixelVelocity * tsr_half(InvWeightClampingPixelSpeed));
+			tsr_half2 MaxValidity = tsr_half(1.0) - tsr_half(WeightClampingPixelSpeedAmplitude) * saturate(OutputPixelVelocity * tsr_half(InvWeightClampingPixelSpeed));
 
 			// Clamp up the max validity to favor stability under motion on high contrast edges.
 			#if 1
@@ -1408,40 +1412,22 @@ void MainCS(
 				tsr_half2 FilteredLuma = Luma4(FilteredInputColor);
 
 				tsr_half2 MinValidityForStability = abs(FilteredLuma - PrevHistoryLuma) / max(FilteredLuma, PrevHistoryLuma);
-				
+			
 				MaxValidity = max(MaxValidity, MinValidityForStability);
 			}
 			#endif
 			
-			ClampedPrevHistoryValidity = min(PrevHistoryValidity, MaxValidity);
-		}
-		#else
-		{
-			ClampedPrevHistoryValidity = PrevHistoryValidity;
+			PrevWeight = min(PrevWeight, MaxValidity);
 		}
 		#endif
 
-		ClampedPrevHistoryValidity = min(ClampedPrevHistoryValidity, lerp(tsr_half(0.2), tsr_half(1.0), BlendClamp));
-
-		// Compute the newly rejected validity
-		tsr_half2 RejectedValidity = ClampedPrevHistoryValidity * PrevHistoryRejectionWeight;
-
-		// Compute the maximum output validity.
-		tsr_half2 OutputValidity = (
-			clamp(RejectedValidity + DesiredCurrentContribution, tsr_half(0.0), PredictionOnlyValidity) +
-			clamp(RejectedValidity + DesiredCurrentContribution * PrevHistoryRejectionWeight * RejectionConfidentEnough - PredictionOnlyValidity, tsr_half(0.0), tsr_half(1.0) - PredictionOnlyValidity));
-
-		tsr_half2 OutputValidity2 = select(bIsOffScreen, max(MIN_IMPLICIT_HISTORY_WEIGHT, OutputValidity), OutputValidity);
-		DesiredCurrentContribution = select(bIsOffScreen, max(MIN_IMPLICIT_HISTORY_WEIGHT, DesiredCurrentContribution), DesiredCurrentContribution);
-
-		tsr_half2 PrevMomentWeight = max(OutputValidity2 - DesiredCurrentContribution, tsr_half(0.0));
-		tsr_half2 CurrentMomentWeight = min(DesiredCurrentContribution, OutputValidity2);
+		tsr_half2 OutputValidity = CurrentWeight + PrevWeight;
 
 		tsr_half2 PrevHistoryToneWeight = HdrWeightY(Luma4(BlendedPrevHighFrequencyColor));
 		tsr_half2 FilteredInputToneWeight = HdrWeight4(FilteredInputColor);
 			
-		tsr_half2 BlendPrevHistory = PrevMomentWeight * PrevHistoryToneWeight;
-		tsr_half2 BlendFilteredInput = CurrentMomentWeight * FilteredInputToneWeight;
+		tsr_half2 BlendPrevHistory = PrevWeight * PrevHistoryToneWeight;
+		tsr_half2 BlendFilteredInput = CurrentWeight * FilteredInputToneWeight;
 
 		tsr_half2 CommonWeight = SafeRcp(BlendPrevHistory + BlendFilteredInput);
 
@@ -1454,10 +1440,6 @@ void MainCS(
 
 		#if CONFIG_GRAND_REPROJECTION
 		{
-			#if CONFIG_PREMULTIPLY_HISTORY
-				#error Unsupported
-			#endif
-
 			tsr_halfCx2 BoxSize = dpv_scale(PrevHistoryMomentMax - PrevHistoryMomentMin, tsr_half(0.5));
 
 			// Compute how much frame N-2 got overblur by reprojecting into N-1 and N versus directly to N.
@@ -1472,11 +1454,11 @@ void MainCS(
 			tsr_half2 PrevReprojectionOverblurScale = select(bIsOverblurLegal, tsr_half(1.0), tsr_half(0.0));
 
 			tsr_half2 HistoryClampResultant = MeasureRejectionFactor(
-				UnpremultipliedPrevHighFrequencyColor, BlendedPrevHighFrequencyColor,
+				PrevHighFrequencyColor, BlendedPrevHighFrequencyColor,
 				FilteredInputColor, InputMinColor, InputMaxColor,
 				MeasureBackbufferLDRQuantizationError());
 
-			tsr_half2 MeasuredResultant = saturate(CommonWeight * BlendPrevHistory * HistoryClampResultant * TotalRejection);
+			tsr_half2 MeasuredResultant = saturate(CommonWeight * BlendPrevHistory * HistoryClampResultant);
 
 			FinalPrevHighFrequencyColor = PrevHighFrequencyColor;
 
@@ -1484,7 +1466,7 @@ void MainCS(
 				FinalPrevHighFrequencyResultant = MeasuredResultant;
 
 				const tsr_half CorrectionError = tsr_half(1.0 / sqrt(PI * 0.5));
-				MeasuredResultant = min(MeasuredResultant, saturate(tsr_half(1.0) - Histeresis * rcp(FinalHistoryValidity)));
+				MeasuredResultant = min(MeasuredResultant, saturate(tsr_half(1.0) - tsr_half(HistoryHisteresis) * rcp(FinalHistoryValidity)));
 
 				tsr_half2 CorrectionResultant = GrandPrevToPrevResultant * MeasuredResultant * PrevReprojectionOverblurScale * CorrectionError;
 
@@ -1671,20 +1653,11 @@ void MainCS(
 			FinalMetadata[0] = FinalHistoryValidity;
 		#endif
 
-		// Premultiply FinalHighFrequencyColor to have validity weighted average in next frame history reprojection.
-		#if CONFIG_PREMULTIPLY_HISTORY
-			tsr_half2 FinalHistoryWeight = max(FinalHistoryValidity, MIN_IMPLICIT_HISTORY_WEIGHT);
-			tsr_halfCx2 PremultipliedHighFrequencyColor = dpv_scale(FinalHighFrequencyColor, FinalHistoryWeight);
-			FinalMetadata[1] = FinalHistoryWeight;
-		#else
-			tsr_halfCx2 PremultipliedHighFrequencyColor = FinalHighFrequencyColor;
-		#endif
-		
 		#if CONFIG_GRAND_REPROJECTION == 1
 			FinalMetadata[1] = FinalPrevHighFrequencyResultant;
 		#elif CONFIG_GRAND_REPROJECTION == 2
 			// Encode the overblur with the high frequency color to avoid negative numbers not encodable in a R11G11B10.
-			FinalOverblur = FinalOverblur + PremultipliedHighFrequencyColor;
+			FinalOverblur = FinalOverblur + FinalHighFrequencyColor;
 		#endif
 
 		// Stochastically round up or down using the hardware RWTexture2D truncation unit to take into precision
@@ -1695,7 +1668,7 @@ void MainCS(
 			tsr_half E = tsr_half(Hammersley16(0, 1, Random).x);
 			
 			FinalOutputColor = QuantizeForFloatRenderTarget(FinalOutputColor, E, HistoryQuantizationError);
-			PremultipliedHighFrequencyColor = QuantizeForFloatRenderTarget(PremultipliedHighFrequencyColor, E, HistoryQuantizationError);
+			FinalHighFrequencyColor = QuantizeForFloatRenderTarget(FinalHighFrequencyColor, E, HistoryQuantizationError);
 
 			#if CONFIG_GRAND_REPROJECTION
 				FinalPrevHighFrequencyColor = QuantizeForFloatRenderTarget(FinalPrevHighFrequencyColor, E, HistoryQuantizationError);
@@ -1709,8 +1682,8 @@ void MainCS(
 
 		// Protect from NaN and +Inf when writing out the history.
 		{
-			PremultipliedHighFrequencyColor = -dpv_min(-PremultipliedHighFrequencyColor, ColorNull);
-			PremultipliedHighFrequencyColor = dpv_min(PremultipliedHighFrequencyColor, ColorMax10BitsFloat);	
+			FinalHighFrequencyColor = -dpv_min(-FinalHighFrequencyColor, ColorNull);
+			FinalHighFrequencyColor = dpv_min(FinalHighFrequencyColor, ColorMax10BitsFloat);	
 
 			#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATELY
 				FinalTranslucencyColor = -dpv_min(-FinalTranslucencyColor, tsr_half(0.0).xxxx);
@@ -1723,7 +1696,7 @@ void MainCS(
 			// Output final history lo pixel.
 			{
 				#if CONFIG_OUTPUT_HIGH_FREQUENCY
-					HistoryOutput_ColorArray[tsr_short3(dpv_lo(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_HighFrequency)] = dpv_lo(PremultipliedHighFrequencyColor);
+					HistoryOutput_ColorArray[tsr_short3(dpv_lo(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_HighFrequency)] = dpv_lo(FinalHighFrequencyColor);
 				#endif
 				HistoryOutput_Metadata[dpv_lo(LocalHistoryPixelPos)]  = dpv_lo(FinalMetadata);
 				#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
@@ -1747,7 +1720,7 @@ void MainCS(
 			#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
 			{
 				#if CONFIG_OUTPUT_HIGH_FREQUENCY
-					HistoryOutput_ColorArray[tsr_short3(dpv_hi(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_HighFrequency)] = dpv_hi(PremultipliedHighFrequencyColor);
+					HistoryOutput_ColorArray[tsr_short3(dpv_hi(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_HighFrequency)] = dpv_hi(FinalHighFrequencyColor);
 				#endif
 				HistoryOutput_Metadata[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalMetadata);
 				#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATELY
