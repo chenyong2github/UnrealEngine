@@ -96,7 +96,8 @@ ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogSpawn, Warning, All);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorSpawned, AActor*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorDestroyed, AActor*);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorAddedToWorld, AActor*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostRegisterAllActorComponents, AActor*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPreUnregisterAllActorComponents, AActor*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorRemovedFromWorld, AActor*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnFeatureLevelChanged, ERHIFeatureLevel::Type);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieSceneSequenceTick, float);
@@ -1532,13 +1533,19 @@ private:
 	mutable FOnActorDestroyed OnActorDestroyed;
 
 	/**
-	 * Broadcasts after an actor has been fully added to a world and its components have been registered.
+	 * Broadcasts after an actor has registered all its components.
 	 * This is called for both spawned and loaded actors.
 	 */
-	mutable FOnActorAddedToWorld OnActorAddedToWorld;
+	mutable FOnPostRegisterAllActorComponents OnPostRegisterAllActorComponents;
 
 	/**
-	 * Broadcasts when an actor has been removed from the world and its components have been unregistered.
+	 * Broadcasts before an actor unregisters all its components.
+	 * This is called for both spawned and loaded actors.
+	 */
+	mutable FOnPreUnregisterAllActorComponents OnPreUnregisterAllActorComponents;
+
+	/**
+	 * Broadcasts when an actor has been removed from the world.
 	 * This event is the earliest point where an actor can be safely renamed without affecting replication.
 	 */
 	mutable FOnActorRemovedFromWorld OnActorRemovedFromWorld;
@@ -2791,30 +2798,36 @@ public:
 	/** Remove a listener for OnActorDestroyed events */
 	void RemoveOnActorDestroyededHandler(FDelegateHandle InHandle) const;
 
-	/** Add a listener for OnActorAddedToWorld events */
-	FDelegateHandle AddOnActorAddedToWorldHandler(const FOnActorAddedToWorld::FDelegate& InHandler) const;
+	/** Add a listener for OnPostRegisterAllActorComponents events */
+	FDelegateHandle AddOnPostRegisterAllActorComponentsHandler(const FOnPostRegisterAllActorComponents::FDelegate& InHandler) const;
+
+	/** Remove a listener for OnPostRegisterAllActorComponents events */
+	void RemoveOnPostRegisterAllActorComponentsHandler(FDelegateHandle InHandle) const;
 
 	/**
-	 * Broadcast an OnActorAddedToWorld event.
+	 * Broadcast an OnPostRegisterAllActorComponents event.
 	 * This method should only be called from internal actor and level code and never on inactive worlds.
 	 */
-	void NotifyActorAddedToWorld(AActor* Actor);
+	void NotifyPostRegisterAllActorComponents(AActor* Actor);
 
-	/** Remove a listener for OnActorAddedToWorld events */
-	void RemoveOnActorAddedToWorldHandler(FDelegateHandle InHandle) const;
+	/** Add a listener for OnPreUnregisterAllActorComponents events */
+	FDelegateHandle AddOnPreUnregisterAllActorComponentsHandler(const FOnPreUnregisterAllActorComponents::FDelegate& InHandler) const;
+
+	/** Remove a listener for OnPreUnregisterAllActorComponents events */
+	void RemoveOnPreUnregisterAllActorComponentsHandler(FDelegateHandle InHandle) const;
+
+	/**
+	 * Broadcast an OnPreUnregisterAllActorComponents event.
+	 * This method should only be called from internal actor and level code. Calls on inactive or GCing worlds are
+	 * ignored.
+	 */
+	void NotifyPreUnregisterAllActorComponents(AActor* Actor);
 
 	/** Add a listener for OnActorRemovedFromWorld events */
 	FDelegateHandle AddOnActorRemovedFromWorldHandler(const FOnActorRemovedFromWorld::FDelegate& InHandler) const;
 
 	/** Remove a listener for OnActorRemovedFromWorld events */
 	void RemoveOnActorRemovedFromWorldHandler(FDelegateHandle InHandle) const;
-
-	/**
-	 * Broadcast an OnActorRemovedFromWorld event.
-	 * This method should only be called from internal actor and level code. Calls on inactive or GCing worlds are
-	 * ignored.
-	 */
-	void NotifyActorRemovedFromWorld(AActor* Actor);
 
 	/**
 	 * Returns whether the passed in actor is part of any of the loaded levels actors array.

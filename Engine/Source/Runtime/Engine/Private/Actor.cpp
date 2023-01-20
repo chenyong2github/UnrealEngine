@@ -5240,7 +5240,7 @@ void AActor::UnregisterAllComponents(const bool bForReregister)
 	{
 		if (UWorld* OwningWorld = GetWorld())
 		{
-			OwningWorld->NotifyActorRemovedFromWorld(this);
+			OwningWorld->NotifyPreUnregisterAllActorComponents(this);
 		}
 	}
 
@@ -5393,7 +5393,7 @@ bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister, FRegis
 		PostRegisterAllComponents();
 
 		// After all components have been registered the actor is considered fully added: notify the owning world.
-		World->NotifyActorAddedToWorld(this);
+		World->NotifyPostRegisterAllActorComponents(this);
 		return true;
 	}
 	
