@@ -27,15 +27,18 @@ FAssetCategoryPath::FAssetCategoryPath(const FText& InCategory)
 	CategoryPath = { TPair<FName, FText>(FName(*FTextInspector::GetSourceString(InCategory)), InCategory) };
 }
 
-FAssetCategoryPath::FAssetCategoryPath(FText InCategory, FText InSubCategory)
+FAssetCategoryPath::FAssetCategoryPath(const FText& InCategory, const FText& InSubCategory)
 {
-	CategoryPath = { TPair<FName, FText>(FName(*FTextInspector::GetSourceString(InCategory)), InCategory), TPair<FName, FText>(FName(*FTextInspector::GetSourceString(InSubCategory)), InSubCategory) };
+	CategoryPath = {
+		TPair<FName, FText>(FName(*FTextInspector::GetSourceString(InCategory)), InCategory),
+		TPair<FName, FText>(FName(*FTextInspector::GetSourceString(InSubCategory)), InSubCategory)
+	};
 }
 
-FAssetCategoryPath::FAssetCategoryPath(const FAssetCategoryPath& InCategory, const FText& SubCategory)
+FAssetCategoryPath::FAssetCategoryPath(const FAssetCategoryPath& InCategory, const FText& InSubCategory)
 {
     CategoryPath.Append(InCategory.CategoryPath);
-    CategoryPath.Add(TPair<FName, FText>(FName(*FTextInspector::GetSourceString(SubCategory)), SubCategory));
+    CategoryPath.Add(TPair<FName, FText>(FName(*FTextInspector::GetSourceString(InSubCategory)), InSubCategory));
 }
 
 FAssetCategoryPath::FAssetCategoryPath(TConstArrayView<FText> InCategoryPath)
@@ -47,6 +50,9 @@ FAssetCategoryPath::FAssetCategoryPath(TConstArrayView<FText> InCategoryPath)
 		CategoryPath.Add(TPair<FName, FText>(FName(*FTextInspector::GetSourceString(CategoryChunk)), CategoryChunk));
 	}
 }
+
+// UAssetDefinition
+//---------------------------------------------------------------------------
 
 UAssetDefinition::UAssetDefinition()
 {

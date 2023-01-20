@@ -12,7 +12,8 @@
 struct ASSETDEFINITION_API FAssetCategoryPath
 {
 	FAssetCategoryPath(const FText& InCategory);
-	FAssetCategoryPath(const FAssetCategoryPath& InCategory, const FText& SubCategory);
+	FAssetCategoryPath(const FText& InCategory, const FText& SubCategory);
+	FAssetCategoryPath(const FAssetCategoryPath& InCategory, const FText& InSubCategory);
 	FAssetCategoryPath(TConstArrayView<FText> InCategoryPath);
 
 	FName GetCategory() const { return CategoryPath[0].Key; }
