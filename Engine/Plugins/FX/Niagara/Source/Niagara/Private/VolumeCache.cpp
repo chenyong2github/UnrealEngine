@@ -149,6 +149,12 @@ bool FOpenVDBCacheData::LoadFile(FString Path, int frame)
 	// if the file is loaded at the current frame, return true
 	if (OpenVDBGrids.Contains(frame) && OpenVDBGrids[frame] != nullptr)
 	{
+		// if dense vdb buffer doesn't match current resolution, re initialize it				
+		if (DenseGridPtr == nullptr || (DenseGridPtr->bbox().dim() != openvdb::Coord(DenseResolution.X - 1, DenseResolution.Y - 1, DenseResolution.Z - 1)))
+		{
+			Init(DenseResolution);
+		}
+
 		openvdb::tools::CopyToDense<Vec4Tree, Vec4Dense> Copier(OpenVDBGrids[frame]->tree(), *DenseGridPtr);
 		Copier.copy();
 
@@ -201,8 +207,8 @@ bool FOpenVDBCacheData::LoadFile(FString Path, int frame)
 
 			OpenVDBGrids.Add(frame, ColorGrid);
 
-			// if dense vdb buffer doesn't match current resolution, re initialize it	
-			if (DenseGridPtr->bbox().dim() != openvdb::Coord(DenseResolution.X - 1, DenseResolution.Y - 1, DenseResolution.Z - 1))
+			// if dense vdb buffer doesn't match current resolution, re initialize it				
+			if (DenseGridPtr == nullptr || (DenseGridPtr->bbox().dim() != openvdb::Coord(DenseResolution.X - 1, DenseResolution.Y - 1, DenseResolution.Z - 1)))
 			{
 				Init(DenseResolution);
 			}

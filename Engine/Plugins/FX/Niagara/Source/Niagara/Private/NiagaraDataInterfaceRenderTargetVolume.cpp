@@ -566,9 +566,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::GetExposedVariableValue(const FNia
 UObject* UNiagaraDataInterfaceRenderTargetVolume::SimCacheBeginWrite(UObject* SimCache, FNiagaraSystemInstance* NiagaraSystemInstance, const void* OptionalPerInstanceData) const
 {
 	if (NDIRenderTargetVolumeLocal::GSimCacheUseOpenVDB)
-	{
-		const FRenderTargetVolumeRWInstanceData_GameThread* InstanceData_GT = reinterpret_cast<const FRenderTargetVolumeRWInstanceData_GameThread*>(OptionalPerInstanceData);		
-
+	{		
 		UVolumeCache* OpenVDBSimCacheData = nullptr;
 
 		OpenVDBSimCacheData = NewObject<UVolumeCache>(SimCache);
@@ -608,7 +606,7 @@ UObject* UNiagaraDataInterfaceRenderTargetVolume::SimCacheBeginWrite(UObject* Si
 
 		OpenVDBSimCacheData->FilePath = FullFilePathSpec;
 		OpenVDBSimCacheData->CacheType = EVolumeCacheType::OpenVDB;
-		OpenVDBSimCacheData->Resolution = InstanceData_GT->Size;
+		OpenVDBSimCacheData->Resolution = FIntVector3(1,1,1);
 		OpenVDBSimCacheData->FrameRangeStart = TNumericLimits<int32>::Lowest();
 		OpenVDBSimCacheData->FrameRangeEnd = TNumericLimits<int32>::Lowest();
 		OpenVDBSimCacheData->InitData();
