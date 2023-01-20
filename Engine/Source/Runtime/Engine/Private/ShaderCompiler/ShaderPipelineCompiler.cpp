@@ -7,7 +7,7 @@
 #include "Interfaces/IShaderFormat.h"
 #include "ShaderCompiler.h"
 
-bool CompileShaderPipeline(const IShaderFormat* Compiler, FName Format, FShaderPipelineCompileJob* PipelineJob, const FString& Dir)
+bool CompileShaderPipeline(const TArray<const IShaderFormat*>& ShaderFormats, FName Format, FShaderPipelineCompileJob* PipelineJob, const FString& Dir)
 {
 	check(PipelineJob && PipelineJob->StageJobs.Num() > 0);
 
@@ -18,27 +18,15 @@ bool CompileShaderPipeline(const IShaderFormat* Compiler, FName Format, FShaderP
 	// First job doesn't have to trim outputs
 	CurrentJob->Input.bIncludeUsedOutputs = false;
 
-	if (IsValidRef(CurrentJob->Input.SharedEnvironment))
-	{
-		// Merge the shared environment into the per-shader environment before calling into the compile function
-		// Normally this happens in the worker
-		CurrentJob->Input.Environment.Merge(*CurrentJob->Input.SharedEnvironment);
-	}
-
 	// Compile the shader directly through the platform dll (directly from the shader dir as the working directory)
-	Compiler->CompileShader(Format, CurrentJob->Input, CurrentJob->Output, Dir);
+	CompileShader(ShaderFormats, CurrentJob->Input, CurrentJob->Output, Dir);
 
 	CurrentJob->bSucceeded = CurrentJob->Output.bSucceeded;
-
 	if (!CurrentJob->Output.bSucceeded)
 	{
 		// Can't carry on compiling the pipeline
 		return false;
 	}
-
-	// Generate a hash of the output and cache it
-	// The shader processing this output will use it to search for existing FShaderResources
-	CurrentJob->Output.GenerateOutputHash();
 
 	// This tells the shader compiler we do want to remove unused outputs
 	bool bEnableRemovingUnused = true;
@@ -68,18 +56,10 @@ bool CompileShaderPipeline(const IShaderFormat* Compiler, FName Format, FShaderP
 			CurrentJob->Input.UsedOutputs = PreviousJob->Output.UsedAttributes;
 		}
 
-		if (IsValidRef(CurrentJob->Input.SharedEnvironment))
-		{
-			// Merge the shared environment into the per-shader environment before calling into the compile function
-			// Normally this happens in the worker
-			CurrentJob->Input.Environment.Merge(*CurrentJob->Input.SharedEnvironment);
-		}
-
 		// Compile the shader directly through the platform dll (directly from the shader dir as the working directory)
-		Compiler->CompileShader(Format, CurrentJob->Input, CurrentJob->Output, Dir);
+		CompileShader(ShaderFormats, CurrentJob->Input, CurrentJob->Output, Dir);
 
 		CurrentJob->bSucceeded = CurrentJob->Output.bSucceeded;
-
 		if (!CurrentJob->Output.bSucceeded)
 		{
 			// Can't carry on compiling the pipeline
@@ -87,10 +67,6 @@ bool CompileShaderPipeline(const IShaderFormat* Compiler, FName Format, FShaderP
 		}
 
 		bJobFailedRemovingUnused = CurrentJob->Output.bFailedRemovingUnused || bJobFailedRemovingUnused;
-
-		// Generate a hash of the output and cache it
-		// The shader processing this output will use it to search for existing FShaderResources
-		CurrentJob->Output.GenerateOutputHash();
 	}
 
 	PipelineJob->bSucceeded = true;

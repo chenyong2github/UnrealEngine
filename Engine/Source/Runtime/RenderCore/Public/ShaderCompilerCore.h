@@ -16,6 +16,7 @@
 #include "ShaderCore.h"
 
 class Error;
+class IShaderFormat;
 
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
 inline const int32 ShaderCompileWorkerInputVersion = 18;
@@ -533,6 +534,12 @@ struct RENDERCORE_API FSCWErrorCode
 	/** Returns true if the SCW global error code has been set. Equivalent to 'Get() != NotSet'. */
 	static bool IsSet();
 };
+
+#if PLATFORM_WINDOWS
+extern RENDERCORE_API int HandleShaderCompileException(Windows::LPEXCEPTION_POINTERS Info, FString& OutExMsg, FString& OutCallStack);
+#endif
+extern RENDERCORE_API const IShaderFormat* FindShaderFormat(FName Format, TArray<const IShaderFormat*> ShaderFormats);
+extern RENDERCORE_API void CompileShader(const TArray<const IShaderFormat*>& ShaderFormats, FShaderCompilerInput& Input, FShaderCompilerOutput& Output, const FString& WorkingDirectory, int32* CompileCount = nullptr);
 
 UE_DEPRECATED(5.2, "Functionality has moved to UE::ShaderCompilerCommon::ShouldUseStableConstantBuffer")
 inline bool ShouldUseStableConstantBuffer(const FShaderCompilerInput& Input)

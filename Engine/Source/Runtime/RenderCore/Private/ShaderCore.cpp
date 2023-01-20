@@ -7,6 +7,7 @@
 #include "ShaderCore.h"
 #include "Algo/Find.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformStackWalk.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
@@ -33,6 +34,12 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/StringBuilder.h"
+#endif
+
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#	include <winnt.h>
+#include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
 static TAutoConsoleVariable<int32> CVarShaderDevelopmentMode(
@@ -697,6 +704,178 @@ bool CheckVirtualShaderFilePath(FStringView VirtualFilePath, TArray<FShaderCompi
 	}
 
 	return bSuccess;
+}
+
+const IShaderFormat* FindShaderFormat(FName Format, TArray<const IShaderFormat*> ShaderFormats)
+{
+	for (int32 Index = 0; Index < ShaderFormats.Num(); Index++)
+	{
+		TArray<FName> Formats;
+
+		ShaderFormats[Index]->GetSupportedFormats(Formats);
+
+		for (int32 FormatIndex = 0; FormatIndex < Formats.Num(); FormatIndex++)
+		{
+			if (Formats[FormatIndex] == Format)
+			{
+				return ShaderFormats[Index];
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+#if PLATFORM_WINDOWS
+static bool ExceptionCodeToString(DWORD ExceptionCode, FString& OutStr)
+{
+#define EXCEPTION_CODE_CASE_STR(CODE) case CODE: OutStr = TEXT(#CODE); return true;
+	const DWORD CPlusPlusExceptionCode = 0xE06D7363;
+	switch (ExceptionCode)
+	{
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_ACCESS_VIOLATION);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_ARRAY_BOUNDS_EXCEEDED);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_BREAKPOINT);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_DATATYPE_MISALIGNMENT);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_DENORMAL_OPERAND);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_DIVIDE_BY_ZERO);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_INEXACT_RESULT);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_INVALID_OPERATION);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_OVERFLOW);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_STACK_CHECK);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_UNDERFLOW);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_GUARD_PAGE);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_ILLEGAL_INSTRUCTION);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_IN_PAGE_ERROR);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_INT_DIVIDE_BY_ZERO);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_INT_OVERFLOW);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_INVALID_DISPOSITION);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_INVALID_HANDLE);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_NONCONTINUABLE_EXCEPTION);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_PRIV_INSTRUCTION);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_SINGLE_STEP);
+		EXCEPTION_CODE_CASE_STR(EXCEPTION_STACK_OVERFLOW);
+		EXCEPTION_CODE_CASE_STR(STATUS_UNWIND_CONSOLIDATE);
+		case CPlusPlusExceptionCode: OutStr = TEXT("CPP_EXCEPTION"); return true;
+		default: return false;
+	}
+#undef EXCEPTION_CODE_CASE_STR
+}
+
+int HandleShaderCompileException(Windows::LPEXCEPTION_POINTERS Info, FString& OutExMsg, FString& OutCallStack)
+{
+	const DWORD AssertExceptionCode = 0x00004000;
+	FString ExCodeStr;
+	if (Info->ExceptionRecord->ExceptionCode == AssertExceptionCode)
+	{
+		// In the case of an assert the assert handler populates the GErrorHist global.
+		// This contains a readable assert message followed by a callstack; so we can use that to populate
+		// our message/callstack and save some time as well as getting the properly formatted assert message.
+		FString Assert = GErrorHist;
+		const TCHAR* CallstackStart = FCString::Strfind(GErrorHist, TEXT("0x"));
+
+		OutExMsg = FString(CallstackStart - GErrorHist, GErrorHist);
+		OutCallStack = CallstackStart;
+	}
+	else
+	{
+		if (ExceptionCodeToString(Info->ExceptionRecord->ExceptionCode, ExCodeStr))
+		{
+			OutExMsg = FString::Printf(
+				TEXT("Exception: %s, address=0x%016x\n"),
+				*ExCodeStr,
+				(uint64)Info->ExceptionRecord->ExceptionAddress);
+		}
+		else
+		{
+			OutExMsg = FString::Printf(
+				TEXT("Exception code: 0x%08x, address=0x%016x\n"),
+				Info->ExceptionRecord->ExceptionCode,
+				(uint64)Info->ExceptionRecord->ExceptionAddress);
+		}
+
+		ANSICHAR CallStack[32768];
+		FMemory::Memzero(CallStack);
+		FPlatformStackWalk::StackWalkAndDump(CallStack, ARRAYSIZE(CallStack), Info->ExceptionRecord->ExceptionAddress);
+		OutCallStack = ANSI_TO_TCHAR(CallStack);
+	}
+
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
+
+#if PLATFORM_WINDOWS
+void CompileShaderInternal(const IShaderFormat* Compiler, const FShaderCompilerInput& Input, FShaderCompilerOutput& Output, const FString& WorkingDirectory, FString& OutExceptionMsg, FString& OutExceptionCallstack, int32* CompileCount)
+#else
+void CompileShaderInternal(const IShaderFormat* Compiler, const FShaderCompilerInput& Input, FShaderCompilerOutput& Output, const FString& WorkingDirectory, int32* CompileCount)
+#endif
+{
+#if PLATFORM_WINDOWS
+	__try
+#endif
+	{
+		double TimeStart = FPlatformTime::Seconds();
+
+		Compiler->CompileShader(Input.ShaderFormat, Input, Output, WorkingDirectory);
+		if (Output.bSucceeded)
+		{
+			Output.GenerateOutputHash();
+			if (Input.CompressionFormat != NAME_None)
+			{
+				Output.CompressOutput(Input.CompressionFormat, Input.OodleCompressor, Input.OodleLevel);
+			}
+		}
+		Output.CompileTime = FPlatformTime::Seconds() - TimeStart;
+
+		if (Compiler->UsesHLSLcc(Input))
+		{
+			Output.bUsedHLSLccCompiler = true;
+		}
+
+		if (CompileCount)
+		{
+			++(*CompileCount);
+		}
+	}
+#if PLATFORM_WINDOWS
+	__except (HandleShaderCompileException(GetExceptionInformation(), OutExceptionMsg, OutExceptionCallstack))
+	{
+		Output.bSucceeded = false;
+	}
+#endif
+}
+
+void CompileShader(const TArray<const IShaderFormat*>& ShaderFormats, FShaderCompilerInput& Input, FShaderCompilerOutput& Output, const FString& WorkingDirectory, int32* CompileCount)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(CompileShader);
+
+	const IShaderFormat* Compiler = FindShaderFormat(Input.ShaderFormat, ShaderFormats);
+	if (!Compiler)
+	{
+		UE_LOG(LogShaders, Fatal, TEXT("Can't compile shaders for format %s, couldn't load compiler dll"), *Input.ShaderFormat.ToString());
+	}
+
+	if (IsValidRef(Input.SharedEnvironment))
+	{
+		Input.Environment.Merge(*Input.SharedEnvironment);
+	}
+
+#if PLATFORM_WINDOWS
+	FString ExceptionMsg;
+	FString ExceptionCallstack;
+	CompileShaderInternal(Compiler, Input, Output, WorkingDirectory, ExceptionMsg, ExceptionCallstack, CompileCount);
+	if (!Output.bSucceeded && (!ExceptionMsg.IsEmpty() || !ExceptionCallstack.IsEmpty()))
+	{
+		FShaderCompilerError Error;
+		Error.StrippedErrorMessage = FString::Printf(
+			TEXT("Exception encountered in platform compiler: %s\nException Callstack:\n%s"), 
+			*ExceptionMsg, 
+			*ExceptionCallstack);
+		Output.Errors.Add(Error);
+	}
+#else
+	CompileShaderInternal(Compiler, Input, Output, WorkingDirectory, CompileCount);
+#endif
 }
 
 /**

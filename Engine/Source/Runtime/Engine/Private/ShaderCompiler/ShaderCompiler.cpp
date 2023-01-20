@@ -1193,7 +1193,7 @@ static TAutoConsoleVariable<bool> CVarShadersUseLegacyPreprocessor(
 	TEXT("\tfalse: Disabled - preprocess with STB\n"),
 	ECVF_ReadOnly);
 
-extern bool CompileShaderPipeline(const IShaderFormat* Compiler, FName Format, FShaderPipelineCompileJob* PipelineJob, const FString& Dir);
+extern bool CompileShaderPipeline(const TArray<const IShaderFormat*>& ShaderFormats, FName Format, FShaderPipelineCompileJob* PipelineJob, const FString& Dir);
 
 #if ENABLE_COOK_STATS
 namespace ShaderCompilerCookStats
@@ -2910,41 +2910,14 @@ void FShaderCompileUtilities::ExecuteShaderCompileJob(FShaderCommonCompileJob& J
 
 	check(!Job.bFinalized);
 
+	FString WorkingDir = FPlatformProcess::ShaderDir();
 	static ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
 	auto* SingleJob = Job.GetSingleShaderJob();
+	const TArray<const IShaderFormat*> ShaderFormats = TPM.GetShaderFormats();
 	if (SingleJob)
 	{
 		const FName Format = (SingleJob->Input.ShaderFormat != NAME_None) ? SingleJob->Input.ShaderFormat : LegacyShaderPlatformToShaderFormat(EShaderPlatform(SingleJob->Input.Target.Platform));
-		const IShaderFormat* Compiler = TPM.FindShaderFormat(Format);
-
-		if (!Compiler)
-		{
-			UE_LOG(LogShaderCompilers, Fatal, TEXT("Can't compile shaders for format %s, couldn't load compiler dll"), *Format.ToString());
-		}
-		CA_ASSUME(Compiler != nullptr);
-
-		if (IsValidRef(SingleJob->Input.SharedEnvironment))
-		{
-			// Merge the shared environment into the per-shader environment before calling into the compile function
-			// Normally this happens in the worker
-			SingleJob->Input.Environment.Merge(*SingleJob->Input.SharedEnvironment);
-		}
-
-		// Compile the shader directly through the platform dll (directly from the shader dir as the working directory)
-		Compiler->CompileShader(Format, SingleJob->Input, SingleJob->Output, FString(FPlatformProcess::ShaderDir()));
-
-		SingleJob->bSucceeded = SingleJob->Output.bSucceeded;
-
-		if (SingleJob->Output.bSucceeded)
-		{
-			// Generate a hash of the output and compress the code
-			// The shader processing this output will use the heash to search for existing FShaderResources
-			SingleJob->Output.GenerateOutputHash();
-			if (SingleJob->Input.CompressionFormat != NAME_None)
-			{
-				SingleJob->Output.CompressOutput(SingleJob->Input.CompressionFormat, SingleJob->Input.OodleCompressor, SingleJob->Input.OodleLevel);
-			}
-		}
+		CompileShader(ShaderFormats, SingleJob->Input, SingleJob->Output, WorkingDir);
 	}
 	else
 	{
@@ -2953,13 +2926,6 @@ void FShaderCompileUtilities::ExecuteShaderCompileJob(FShaderCommonCompileJob& J
 
 		EShaderPlatform Platform = (EShaderPlatform)PipelineJob->StageJobs[0]->Input.Target.Platform;
 		const FName Format = LegacyShaderPlatformToShaderFormat(Platform);
-		const IShaderFormat* Compiler = TPM.FindShaderFormat(Format);
-
-		if (!Compiler)
-		{
-			UE_LOG(LogShaderCompilers, Fatal, TEXT("Can't compile shaders for format %s, couldn't load compiler dll"), *Format.ToString());
-		}
-		CA_ASSUME(Compiler != nullptr);
 
 		// Verify same platform on all stages
 		for (int32 Index = 1; Index < PipelineJob->StageJobs.Num(); ++Index)
@@ -2975,7 +2941,7 @@ void FShaderCompileUtilities::ExecuteShaderCompileJob(FShaderCommonCompileJob& J
 			}
 		}
 
-		CompileShaderPipeline(Compiler, Format, PipelineJob, FString(FPlatformProcess::ShaderDir()));
+		CompileShaderPipeline(ShaderFormats, Format, PipelineJob, WorkingDir);
 	}
 
 	Job.bFinalized = true;

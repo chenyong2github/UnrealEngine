@@ -7,6 +7,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "ShaderCompilerCore.h"
 #include "Stats/Stats.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/MonitoredProcess.h"
@@ -629,24 +630,7 @@ public:
 
 	virtual const IShaderFormat* FindShaderFormat(FName Name) override
 	{
-		const TArray<const IShaderFormat*>& ShaderFormats = GetShaderFormats();	
-
-		for (int32 Index = 0; Index < ShaderFormats.Num(); Index++)
-		{
-			TArray<FName> Formats;
-			
-			ShaderFormats[Index]->GetSupportedFormats(Formats);
-		
-			for (int32 FormatIndex = 0; FormatIndex < Formats.Num(); FormatIndex++)
-			{
-				if (Formats[FormatIndex] == Name)
-				{
-					return ShaderFormats[Index];
-				}
-			}
-		}
-
-		return nullptr;
+		return ::FindShaderFormat(Name, GetShaderFormats());
 	}
 
 	virtual uint32 ShaderFormatVersion(FName Name) override

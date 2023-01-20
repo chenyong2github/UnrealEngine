@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "RequiredProgramMainCPPInclude.h"
 #include "ShaderCompilerCore.h"
+#include "ShaderCompilerCommon.h"
 #include "ShaderCore.h"
 #include "HAL/ExceptionHandling.h"
 #include "Interfaces/IShaderFormat.h"
@@ -89,157 +90,6 @@ static const TArray<const IShaderFormat*>& GetShaderFormats()
 	return Results;
 }
 
-static const IShaderFormat* FindShaderFormat(FName Name)
-{
-	const TArray<const IShaderFormat*>& ShaderFormats = GetShaderFormats();	
-
-	for (int32 Index = 0; Index < ShaderFormats.Num(); Index++)
-	{
-		TArray<FName> Formats;
-		ShaderFormats[Index]->GetSupportedFormats(Formats);
-		for (int32 FormatIndex = 0; FormatIndex < Formats.Num(); FormatIndex++)
-		{
-			if (Formats[FormatIndex] == Name)
-			{
-				return ShaderFormats[Index];
-			}
-		}
-	}
-
-	return nullptr;
-}
-
-#if PLATFORM_WINDOWS
-	static bool ExceptionCodeToString(DWORD ExceptionCode, FString& OutStr)
-	{
-#define EXCEPTION_CODE_CASE_STR(CODE) case CODE: OutStr = TEXT(#CODE); return true;
-		const DWORD CPlusPlusExceptionCode = 0xE06D7363;
-		switch (ExceptionCode)
-		{
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_ACCESS_VIOLATION);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_ARRAY_BOUNDS_EXCEEDED);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_BREAKPOINT);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_DATATYPE_MISALIGNMENT);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_DENORMAL_OPERAND);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_DIVIDE_BY_ZERO);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_INEXACT_RESULT);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_INVALID_OPERATION);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_OVERFLOW);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_STACK_CHECK);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_UNDERFLOW);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_GUARD_PAGE);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_ILLEGAL_INSTRUCTION);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_IN_PAGE_ERROR);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_INT_DIVIDE_BY_ZERO);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_INT_OVERFLOW);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_INVALID_DISPOSITION);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_INVALID_HANDLE);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_NONCONTINUABLE_EXCEPTION);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_PRIV_INSTRUCTION);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_SINGLE_STEP);
-			EXCEPTION_CODE_CASE_STR(EXCEPTION_STACK_OVERFLOW);
-			EXCEPTION_CODE_CASE_STR(STATUS_UNWIND_CONSOLIDATE);
-			case CPlusPlusExceptionCode: OutStr = TEXT("CPP_EXCEPTION"); return true;
-			default: return false;
-		}
-#undef EXCEPTION_CODE_CASE_STR
-	}
-
-	static int HandleException(Windows::LPEXCEPTION_POINTERS Info, FString& OutExMsg, FString& OutCallStack)
-	{
-		const DWORD AssertExceptionCode = 0x00004000;
-		FString ExCodeStr;
-		if (Info->ExceptionRecord->ExceptionCode == AssertExceptionCode)
-		{
-			// In the case of an assert the assert handler populates the GErrorHist global.
-			// This contains a readable assert message followed by a callstack; so we can use that to populate
-			// our message/callstack and save some time as well as getting the properly formatted assert message.
-			FString Assert = GErrorHist;
-			const TCHAR* CallstackStart = FCString::Strfind(GErrorHist, TEXT("0x"));
-
-			OutExMsg = FString(CallstackStart - GErrorHist, GErrorHist);
-			OutCallStack = CallstackStart;
-		}
-		else
-		{
-			if (ExceptionCodeToString(Info->ExceptionRecord->ExceptionCode, ExCodeStr))
-			{
-				OutExMsg = FString::Printf(
-					TEXT("Exception: %s, address=0x%016x\n"),
-					*ExCodeStr,
-					(uint64)Info->ExceptionRecord->ExceptionAddress);
-			}
-			else
-			{
-				OutExMsg = FString::Printf(
-					TEXT("Exception code: 0x%08x, address=0x%016x\n"),
-					Info->ExceptionRecord->ExceptionCode,
-					(uint64)Info->ExceptionRecord->ExceptionAddress);
-			}
-
-			ANSICHAR CallStack[32768];
-			FMemory::Memzero(CallStack);
-			FPlatformStackWalk::StackWalkAndDump(CallStack, ARRAYSIZE(CallStack), Info->ExceptionRecord->ExceptionAddress);
-			OutCallStack = ANSI_TO_TCHAR(CallStack);
-		}
-
-		return EXCEPTION_EXECUTE_HANDLER;
-	}
-	
-#endif
-
-
-/** Processes a compilation job. */
-static FORCENOINLINE void ProcessCompilationJob(const FShaderCompilerInput& Input,FShaderCompilerOutput& Output,const FString& WorkingDirectory)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessCompilationJob);
-
-	const IShaderFormat* Compiler = FindShaderFormat(Input.ShaderFormat);
-	if (!Compiler)
-	{
-		ExitWithoutCrash(FSCWErrorCode::CantCompileForSpecificFormat, FString::Printf(TEXT("Can't compile shaders for format %s"), *Input.ShaderFormat.ToString()));
-	}
-
-#if PLATFORM_WINDOWS
-	FString ExceptionMsg;
-	FString ExceptionCallstack;
-	__try
-#endif
-	{
-		// Compile the shader directly through the platform dll (directly from the shader dir as the working directory)
-		double TimeStart = FPlatformTime::Seconds();
-		Compiler->CompileShader(Input.ShaderFormat, Input, Output, WorkingDirectory);
-		if (Output.bSucceeded)
-		{
-			Output.GenerateOutputHash();
-			if (Input.CompressionFormat != NAME_None)
-			{
-				Output.CompressOutput(Input.CompressionFormat, Input.OodleCompressor, Input.OodleLevel);
-			}
-		}
-		Output.CompileTime = FPlatformTime::Seconds() - TimeStart;
-
-		if (Compiler->UsesHLSLcc(Input))
-		{
-			Output.bUsedHLSLccCompiler = true;
-		}
-
-		++GNumProcessedJobs;
-	}
-#if PLATFORM_WINDOWS
-	__except (HandleException(GetExceptionInformation(), ExceptionMsg, ExceptionCallstack))
-	{
-		Output.bSucceeded = false;
-
-		FShaderCompilerError ExceptionError;
-		ExceptionError.StrippedErrorMessage = FString::Printf(
-			TEXT("Exception encountered in platform compiler: %s\nException Callstack:\n%s"), 
-			*ExceptionMsg, 
-			*ExceptionCallstack);
-		Output.Errors.Add(ExceptionError);
-	}
-#endif
-}
 
 static void UpdateFileSize(FArchive& OutputFile, int64 FileSizePosition)
 {
@@ -773,15 +623,9 @@ private:
 					UpdateIncludeDirectoryForPreviewPlatform((EShaderPlatform)CompilerInput.Target.Platform, ShaderPlatform);
 				}
 
-				if (IsValidRef(CompilerInput.SharedEnvironment))
-				{
-					// Merge the shared environment into the per-shader environment before calling into the compile function
-					CompilerInput.Environment.Merge(*CompilerInput.SharedEnvironment);
-				}
-
 				// Process the job.
 				FShaderCompilerOutput CompilerOutput;
-				ProcessCompilationJob(CompilerInput, CompilerOutput, WorkingDirectory);
+				CompileShader(GetShaderFormats(), CompilerInput, CompilerOutput, WorkingDirectory, &GNumProcessedJobs);
 
 				// Serialize the job's output.
 				FJobResult& JobResult = *new(OutSingleJobResults) FJobResult;
@@ -826,12 +670,6 @@ private:
 						const EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(CompilerInputs[StageIndex].ShaderFormat);
 						UpdateIncludeDirectoryForPreviewPlatform((EShaderPlatform)CompilerInputs[StageIndex].Target.Platform, ShaderPlatform);
 					}
-
-					if (IsValidRef(CompilerInputs[StageIndex].SharedEnvironment))
-					{
-						// Merge the shared environment into the per-shader environment before calling into the compile function
-						CompilerInputs[StageIndex].Environment.Merge(*CompilerInputs[StageIndex].SharedEnvironment);
-					}
 				}
 
 				ProcessShaderPipelineCompilationJob(PipelineJob, CompilerInputs);
@@ -847,7 +685,7 @@ private:
 		FShaderCompilerOutput FirstCompilerOutput;
 		CompilerInputs[0].bCompilingForShaderPipeline = true;
 		CompilerInputs[0].bIncludeUsedOutputs = false;
-		ProcessCompilationJob(CompilerInputs[0], FirstCompilerOutput, WorkingDirectory);
+		CompileShader(GetShaderFormats(), CompilerInputs[0], FirstCompilerOutput, WorkingDirectory, &GNumProcessedJobs);
 
 		// Serialize the job's output.
 		{
@@ -878,7 +716,7 @@ private:
 			}
 
 			FShaderCompilerOutput CompilerOutput;
-			ProcessCompilationJob(CompilerInputs[Index], CompilerOutput, WorkingDirectory);
+			CompileShader(GetShaderFormats(), CompilerInputs[Index], CompilerOutput, WorkingDirectory, &GNumProcessedJobs);
 
 			// Serialize the job's output.
 			FJobResult& JobResult = *new(PipelineJob.SingleJobs) FJobResult;
@@ -1233,7 +1071,7 @@ static void DirectCompile(const TArray<const class IShaderFormat*>& ShaderFormat
 	Input.UsedOutputs = UsedOutputs;
 
 	FShaderCompilerOutput Output;
-	ProcessCompilationJob(Input, Output, Dir);
+	CompileShader(GetShaderFormats(), Input, Output, Dir, &GNumProcessedJobs);
 }
 
 
@@ -1428,7 +1266,7 @@ static int32 GuardedMainWrapper(int32 ArgC, TCHAR* ArgV[], const TCHAR* CrashOut
 			ReturnCode = GuardedMain(ArgC, ArgV, bDirectMode);
 			GIsGuarded = 0;
 		}
-		__except(HandleException(GetExceptionInformation(), ExceptionMsg, ExceptionCallStack))
+		__except(HandleShaderCompileException(GetExceptionInformation(), ExceptionMsg, ExceptionCallStack))
 		{
 			FArchive& OutputFile = *IFileManager::Get().CreateFileWriter(CrashOutputFile, FILEWRITE_EvenIfReadOnly);
 
