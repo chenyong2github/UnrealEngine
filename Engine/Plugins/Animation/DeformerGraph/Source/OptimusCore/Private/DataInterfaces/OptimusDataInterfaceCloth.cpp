@@ -90,9 +90,16 @@ void UOptimusClothDataInterface::GetPermutations(FComputeKernelPermutationVector
 	OutPermutationVector.AddPermutation(TEXT("ENABLE_DEFORMER_CLOTH"), 2);
 }
 
+TCHAR const* UOptimusClothDataInterface::TemplateFilePath = TEXT("/Plugin/Optimus/Private/DataInterfaceCloth.ush");
+
+TCHAR const* UOptimusClothDataInterface::GetShaderVirtualPath() const
+{
+	return TemplateFilePath;
+}
+
 void UOptimusClothDataInterface::GetShaderHash(FString& InOutKey) const
 {
-	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceCloth.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+	GetShaderFileHash(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
 }
 
 void UOptimusClothDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
@@ -103,7 +110,7 @@ void UOptimusClothDataInterface::GetHLSL(FString& OutHLSL, FString const& InData
 	};
 
 	FString TemplateFile;
-	LoadShaderSourceFile(TEXT("/Plugin/Optimus/Private/DataInterfaceCloth.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	LoadShaderSourceFile(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
 	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 

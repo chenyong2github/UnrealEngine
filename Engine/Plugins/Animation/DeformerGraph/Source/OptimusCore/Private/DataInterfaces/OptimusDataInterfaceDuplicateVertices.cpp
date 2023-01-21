@@ -79,9 +79,16 @@ void UOptimusDuplicateVerticesDataInterface::GetPermutations(FComputeKernelPermu
 	OutPermutationVector.AddPermutation(TEXT("ENABLE_DUPLICATED_VERTICES"), 2);
 }
 
+TCHAR const* UOptimusDuplicateVerticesDataInterface::TemplateFilePath = TEXT("/Plugin/Optimus/Private/DataInterfaceDuplicateVertices.ush");
+
+TCHAR const* UOptimusDuplicateVerticesDataInterface::GetShaderVirtualPath() const
+{
+	return TemplateFilePath;
+}
+
 void UOptimusDuplicateVerticesDataInterface::GetShaderHash(FString& InOutKey) const
 {
-	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceSkinnedMesh.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+	GetShaderFileHash(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
 }
 
 void UOptimusDuplicateVerticesDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
@@ -92,7 +99,7 @@ void UOptimusDuplicateVerticesDataInterface::GetHLSL(FString& OutHLSL, FString c
 	};
 
 	FString TemplateFile;
-	LoadShaderSourceFile(TEXT("/Plugin/Optimus/Private/DataInterfaceDuplicateVertices.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	LoadShaderSourceFile(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
 	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 

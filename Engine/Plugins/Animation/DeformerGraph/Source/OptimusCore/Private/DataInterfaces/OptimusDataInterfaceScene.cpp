@@ -60,9 +60,16 @@ void UOptimusSceneDataInterface::GetShaderParameters(TCHAR const* UID, FShaderPa
 	InOutBuilder.AddNestedStruct<FSceneDataInterfaceParameters>(UID);
 }
 
+TCHAR const* UOptimusSceneDataInterface::TemplateFilePath = TEXT("/Plugin/Optimus/Private/DataInterfaceScene.ush");
+
+TCHAR const* UOptimusSceneDataInterface::GetShaderVirtualPath() const
+{
+	return TemplateFilePath;
+}
+
 void UOptimusSceneDataInterface::GetShaderHash(FString& InOutKey) const
 {
-	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceScene.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+	GetShaderFileHash(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
 }
 
 void UOptimusSceneDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
@@ -73,7 +80,7 @@ void UOptimusSceneDataInterface::GetHLSL(FString& OutHLSL, FString const& InData
 	};
 
 	FString TemplateFile;
-	LoadShaderSourceFile(TEXT("/Plugin/Optimus/Private/DataInterfaceScene.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	LoadShaderSourceFile(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
 	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 

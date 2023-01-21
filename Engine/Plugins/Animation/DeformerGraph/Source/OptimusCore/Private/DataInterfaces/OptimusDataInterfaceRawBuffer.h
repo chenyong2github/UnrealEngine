@@ -48,6 +48,7 @@ public:
 	//~ Begin UComputeDataInterface Interface
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
+	TCHAR const* GetShaderVirtualPath() const override;
 	void GetShaderHash(FString& InOutKey) const override;
 	void GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const override;
 	//~ End UComputeDataInterface Interface
@@ -83,7 +84,10 @@ protected:
 		}
 		return Provider;
 	}
+
 private:
+	static TCHAR const* TemplateFilePath;
+
 	const UOptimusComponentSource* GetComponentSource() const;
 	bool SupportsAtomics() const;
 	FString GetRawType() const;

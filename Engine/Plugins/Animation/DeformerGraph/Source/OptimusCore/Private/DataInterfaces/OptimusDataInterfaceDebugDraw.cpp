@@ -76,9 +76,16 @@ void UOptimusDebugDrawDataInterface::GetShaderParameters(TCHAR const* UID, FShad
 	InOutBuilder.AddNestedStruct<FDebugDrawDataInterfaceParameters>(UID);
 }
 
+TCHAR const* UOptimusDebugDrawDataInterface::TemplateFilePath = TEXT("/Plugin/Optimus/Private/DataInterfaceDebugDraw.ush");
+
+TCHAR const* UOptimusDebugDrawDataInterface::GetShaderVirtualPath() const
+{
+	return TemplateFilePath;
+}
+
 void UOptimusDebugDrawDataInterface::GetShaderHash(FString& InOutKey) const
 {
-	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceDebugDraw.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+	GetShaderFileHash(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
 }
 
 void UOptimusDebugDrawDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
@@ -89,7 +96,7 @@ void UOptimusDebugDrawDataInterface::GetHLSL(FString& OutHLSL, FString const& In
 	};
 
 	FString TemplateFile;
-	LoadShaderSourceFile(TEXT("/Plugin/Optimus/Private/DataInterfaceDebugDraw.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	LoadShaderSourceFile(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
 	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 

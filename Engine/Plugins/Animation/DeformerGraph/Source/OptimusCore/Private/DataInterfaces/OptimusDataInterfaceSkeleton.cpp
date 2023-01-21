@@ -90,12 +90,18 @@ void UOptimusSkeletonDataInterface::GetPermutations(FComputeKernelPermutationVec
 	OutPermutationVector.AddPermutation(TEXT("GPUSKIN_UNLIMITED_BONE_INFLUENCE"), 2);
 	OutPermutationVector.AddPermutation(TEXT("GPUSKIN_BONE_INDEX_UINT16"), 2);
 	OutPermutationVector.AddPermutation(TEXT("GPUSKIN_BONE_WEIGHTS_UINT16"), 2);
-	//OutPermutationVector.AddPermutation(TEXT("MERGE_DUPLICATED_VERTICES"), 2);
+}
+
+TCHAR const* UOptimusSkeletonDataInterface::TemplateFilePath = TEXT("/Plugin/Optimus/Private/DataInterfaceSkeleton.ush");
+
+TCHAR const* UOptimusSkeletonDataInterface::GetShaderVirtualPath() const
+{
+	return TemplateFilePath;
 }
 
 void UOptimusSkeletonDataInterface::GetShaderHash(FString& InOutKey) const
 {
-	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceSkeleton.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+	GetShaderFileHash(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
 }
 
 void UOptimusSkeletonDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
@@ -106,7 +112,7 @@ void UOptimusSkeletonDataInterface::GetHLSL(FString& OutHLSL, FString const& InD
 	};
 
 	FString TemplateFile;
-	LoadShaderSourceFile(TEXT("/Plugin/Optimus/Private/DataInterfaceSkeleton.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	LoadShaderSourceFile(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
 	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 

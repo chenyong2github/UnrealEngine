@@ -109,9 +109,16 @@ void UOptimusSkinnedMeshDataInterface::GetShaderParameters(TCHAR const* UID, FSh
 	InOutBuilder.AddNestedStruct<FSkinnedMeshDataInterfaceParameters>(UID);
 }
 
+TCHAR const* UOptimusSkinnedMeshDataInterface::TemplateFilePath = TEXT("/Plugin/Optimus/Private/DataInterfaceSkinnedMesh.ush");
+
+TCHAR const* UOptimusSkinnedMeshDataInterface::GetShaderVirtualPath() const
+{
+	return TemplateFilePath;
+}
+
 void UOptimusSkinnedMeshDataInterface::GetShaderHash(FString& InOutKey) const
 {
-	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceSkinnedMesh.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+	GetShaderFileHash(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
 }
 
 void UOptimusSkinnedMeshDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
@@ -122,7 +129,7 @@ void UOptimusSkinnedMeshDataInterface::GetHLSL(FString& OutHLSL, FString const& 
 	};
 
 	FString TemplateFile;
-	LoadShaderSourceFile(TEXT("/Plugin/Optimus/Private/DataInterfaceSkinnedMesh.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	LoadShaderSourceFile(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
 	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 

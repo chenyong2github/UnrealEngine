@@ -178,9 +178,16 @@ void UOptimusConnectivityDataInterface::GetShaderParameters(TCHAR const* UID, FS
 	InOutBuilder.AddNestedStruct<FConnectivityDataInterfaceParameters>(UID);
 }
 
+TCHAR const* UOptimusConnectivityDataInterface::TemplateFilePath = TEXT("/Plugin/Optimus/Private/DataInterfaceConnectivity.ush");
+
+TCHAR const* UOptimusConnectivityDataInterface::GetShaderVirtualPath() const
+{
+	return TemplateFilePath;
+}
+
 void UOptimusConnectivityDataInterface::GetShaderHash(FString& InOutKey) const
 {
-	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceConnectivity.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+	GetShaderFileHash(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
 }
 
 void UOptimusConnectivityDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
@@ -191,7 +198,7 @@ void UOptimusConnectivityDataInterface::GetHLSL(FString& OutHLSL, FString const&
 	};
 
 	FString TemplateFile;
-	LoadShaderSourceFile(TEXT("/Plugin/Optimus/Private/DataInterfaceConnectivity.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	LoadShaderSourceFile(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
 	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 

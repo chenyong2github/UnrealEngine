@@ -56,6 +56,7 @@ public:
 	TCHAR const* GetClassName() const override { return TEXT("DebugDraw"); }
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const override;
+	TCHAR const* GetShaderVirtualPath() const override;
 	void GetShaderHash(FString& InOutKey) const override;
 	void GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const override;
 	UComputeDataProvider* CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const override;
@@ -63,6 +64,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = DebugDraw, meta = (ShowOnlyInnerProperties))
 	FOptimusDebugDrawParameters DebugDrawParameters;
+
+private:
+	static TCHAR const* TemplateFilePath;
 };
 
 /** Compute Framework Data Provider for writing skinned mesh. */

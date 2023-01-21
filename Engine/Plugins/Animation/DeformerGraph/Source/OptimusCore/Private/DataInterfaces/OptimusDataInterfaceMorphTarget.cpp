@@ -67,9 +67,16 @@ void UOptimusMorphTargetDataInterface::GetPermutations(FComputeKernelPermutation
 	OutPermutationVector.AddPermutation(TEXT("ENABLE_DEFORMER_MORPHTARGET"), 2);
 }
 
+TCHAR const* UOptimusMorphTargetDataInterface::TemplateFilePath = TEXT("/Plugin/Optimus/Private/DataInterfaceMorphTarget.ush");
+
+TCHAR const* UOptimusMorphTargetDataInterface::GetShaderVirtualPath() const
+{
+	return TemplateFilePath;
+}
+
 void UOptimusMorphTargetDataInterface::GetShaderHash(FString& InOutKey) const
 {
-	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceMorphTarget.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+	GetShaderFileHash(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
 }
 
 void UOptimusMorphTargetDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
@@ -80,7 +87,7 @@ void UOptimusMorphTargetDataInterface::GetHLSL(FString& OutHLSL, FString const& 
 	};
 
 	FString TemplateFile;
-	LoadShaderSourceFile(TEXT("/Plugin/Optimus/Private/DataInterfaceMorphTarget.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	LoadShaderSourceFile(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
 	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 
