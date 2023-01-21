@@ -131,16 +131,7 @@ namespace ChaosTest
 					EXPECT_TRUE(bResult);
 				}
 			}
-			{
-				const FVec3 X1 = { 10.0, -1.0, 0.0 };
-				const FVec3 X2 = { 11.0, 1.0, 0.0 };
-				const FReal Radius = 0.1;
-				const FCapsule Capsule = FCapsule(X1, X2, Radius);
-				const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
-				bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
-				EXPECT_FALSE(bResult);
-			}
-			{
+{
 				const FVec3 X1 = { -11.0, 2.0, 0.0 };
 				const FVec3 X2 = { -9.0, -8.0, 0.0 };
 				const FReal Radius = 0.01;
@@ -153,6 +144,15 @@ namespace ChaosTest
 					bool bResultMTD = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0, &MTDInfo);
 					EXPECT_EQ(bResult, bResultMTD);
 				}
+			}
+			{
+				const FVec3 X1 = { 10.0, -1.0, 0.0 };
+				const FVec3 X2 = { 11.0, 1.0, 0.0 };
+				const FReal Radius = 0.1;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+				bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+				EXPECT_FALSE(bResult);
 			}
 			{
 				// Sphere test
@@ -1212,7 +1212,7 @@ namespace ChaosTest
 				{
 					const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
 					bool bResult = TriangleMesh->OverlapGeom(Sphere, QueryTM, 0.0);
-					// EXPECT_TRUE(bResult); // TODO Enable test
+					EXPECT_TRUE(bResult);
 				}
 			}
 			{
@@ -1264,7 +1264,7 @@ namespace ChaosTest
 				{
 					const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
 					bool bResult = TriangleMesh->OverlapGeom(Sphere, QueryTM, 0.0);
-					// EXPECT_TRUE(bResult); // TODO Enable test
+					EXPECT_TRUE(bResult);
 				}
 			}
 			{
@@ -1276,7 +1276,7 @@ namespace ChaosTest
 				}
 			}
 		}
-		{
+{
 			FTriangleMeshImplicitObject::ParticlesType TrimeshParticles(
 				{
 					{0.0, 0.0, 0.0},
@@ -1340,6 +1340,16 @@ namespace ChaosTest
 					{
 						const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
 						bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+						EXPECT_TRUE(bResult);
+					}
+				}
+				{
+					const FVec3 X = { -100, 0, 0 };
+					const FReal Radius = 99.0f;
+					const Chaos::FSphere Sphere = Chaos::FSphere(X, Radius);
+					{
+						const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+						bool bResult = TriangleMesh->OverlapGeom(Sphere, QueryTM, 0.0);
 						EXPECT_TRUE(bResult);
 					}
 				}
