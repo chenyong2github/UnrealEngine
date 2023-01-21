@@ -10,6 +10,7 @@
 #include "MLDeformerEditorToolkit.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/Skeleton.h"
+#include "BoneContainer.h"
 
 #define LOCTEXT_NAMESPACE "NeuralMorphEditorModel"
 

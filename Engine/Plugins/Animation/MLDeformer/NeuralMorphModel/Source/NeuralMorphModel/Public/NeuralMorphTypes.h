@@ -3,10 +3,9 @@
 
 #include "CoreTypes.h"
 #include "Containers/Array.h"
+#include "BoneContainer.h"
 #include "MLDeformerCurveReference.h"
 #include "NeuralMorphTypes.generated.h"
-
-struct FBoneReference;
 
 /** 
  * The mode of the model, either local or global. 

@@ -35,6 +35,7 @@
 #include "GeometryCacheMeshData.h"
 #include "GeometryCacheTrack.h"
 #include "NeuralNetwork.h"
+#include "BoneContainer.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerEditorModel"
 
