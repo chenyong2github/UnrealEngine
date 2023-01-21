@@ -353,7 +353,7 @@ namespace FBlueprintActionMenuBuilderImpl
 
 	static TAutoConsoleVariable<float> CVarBPContextMenuTimeSlicingThreshold(
 		TEXT("BP.ContextMenuTimeSlicingThreshold"),
-		0.025f,
+		0.05f,
 		TEXT("The amount of time (in seconds) allowed per frame for time slicing.")
 	);
 
