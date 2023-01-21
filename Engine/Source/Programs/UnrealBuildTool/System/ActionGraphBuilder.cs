@@ -252,7 +252,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				CopyAction.CommandArguments = String.Format("-c 'cp -f \"\"{0}\"\" \"\"{1}\"'", SourceFile.AbsolutePath, TargetFile.AbsolutePath);
+				CopyAction.CommandArguments = String.Format("-c 'cp -f \"{0}\" \"{1}\"'", SourceFile.AbsolutePath, TargetFile.AbsolutePath);
 			}
 			CopyAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 			CopyAction.PrerequisiteItems.Add(SourceFile);
