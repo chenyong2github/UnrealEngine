@@ -40,6 +40,15 @@ static FAutoConsoleVariableRef CVarNaniteComputeMaterials(
 	ECVF_RenderThreadSafe
 );
 
+// TODO: Heavily work in progress / experimental - do not use!
+static int32 GNaniteSoftwareVRS = 0;
+static FAutoConsoleVariableRef CVarNaniteSoftwareVRS(
+	TEXT("r.Nanite.SoftwareVRS"),
+	GNaniteSoftwareVRS,
+	TEXT("Whether to enable Nanite software variable rate shading in compute."),
+	ECVF_RenderThreadSafe
+);
+
 static int32 GNaniteMaterialVisibility = 0;
 static FAutoConsoleVariableRef CVarNaniteMaterialVisibility(
 	TEXT("r.Nanite.MaterialVisibility"),
@@ -486,6 +495,7 @@ TRDGUniformBufferRef<FNaniteUniformParameters> CreateDebugNaniteUniformBuffer(FR
 	UniformParameters->VisBuffer64					= SystemTextures.Black;
 	UniformParameters->DbgBuffer64					= SystemTextures.Black;
 	UniformParameters->DbgBuffer32					= SystemTextures.Black;
+	UniformParameters->ShadingRate					= SystemTextures.Black;
 	UniformParameters->MaterialResolve				= SystemTextures.Black;
 	UniformParameters->MaterialDepthTable			= GraphBuilder.CreateSRV(GSystemTextures.GetDefaultBuffer(GraphBuilder, 4, 0u), PF_R32_UINT);
 	UniformParameters->MultiViewIndices				= GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder));
@@ -692,6 +702,13 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 		UniformParameters->VisBuffer64 = VisBuffer64;
 		UniformParameters->DbgBuffer64 = DbgBuffer64;
 		UniformParameters->DbgBuffer32 = DbgBuffer32;
+		UniformParameters->ShadingRate = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::NaniteEmitGBufferPass, nullptr);
+		if (UniformParameters->ShadingRate == nullptr)
+		{
+			const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+			UniformParameters->ShadingRate = SystemTextures.Black;
+		}
+		
 		UniformParameters->MaterialResolve = MaterialResolve;
 		UniformParameters->MaterialDepthTable = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(MaterialCommands.GetMaterialDepthDataBuffer()));
 
@@ -771,6 +788,13 @@ void DispatchBasePass(
 	const int32 ViewWidth = View.ViewRect.Max.X - View.ViewRect.Min.X;
 	const int32 ViewHeight = View.ViewRect.Max.Y - View.ViewRect.Min.Y;
 	const FIntPoint ViewSize = FIntPoint(ViewWidth, ViewHeight);
+
+	const FUint32Vector4 ViewRect(
+		(uint32)View.ViewRect.Min.X,
+		(uint32)View.ViewRect.Min.Y,
+		(uint32)View.ViewRect.Max.X,
+		(uint32)View.ViewRect.Max.Y
+	);
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
@@ -945,16 +969,57 @@ void DispatchBasePass(
 			RDG_EVENT_NAME("ShadeGBufferCS"),
 			ShadingPassParameters,
 			ERDGPassFlags::NeverCull | ERDGPassFlags::Compute,
-			[ShadingPassParameters, &ShadingCommands, &BasePassTexturesView, ViewSize /*, &SceneView*/](FRHIComputeCommandList& RHICmdList)
+			[ShadingPassParameters, &ShadingCommands, ViewRect, ViewSize /*, &SceneView*/](FRHIComputeCommandList& RHICmdList)
 			{
 				//ShadingPassParameters.MaterialIndirectArgs->MarkResourceAsUsed();
 
-				ShadingPassParameters->OutTarget0UAV->MarkResourceAsUsed();
-				ShadingPassParameters->OutTarget1UAV->MarkResourceAsUsed();
-				ShadingPassParameters->OutTarget2UAV->MarkResourceAsUsed();
-				ShadingPassParameters->OutTarget3UAV->MarkResourceAsUsed();
-				ShadingPassParameters->OutTarget4UAV->MarkResourceAsUsed();
-				ShadingPassParameters->OutTarget5UAV->MarkResourceAsUsed();
+				TArray<FRHIUnorderedAccessView*, TInlineAllocator<8>> OutputTargets;
+				auto GetOutputTargetRHI = [](const FRDGTextureUAVRef OutputTarget)
+				{
+					FRHIUnorderedAccessView* OutputTargetRHI = nullptr;
+					if (OutputTarget != nullptr)
+					{
+						OutputTarget->MarkResourceAsUsed();
+						OutputTargetRHI = OutputTarget->GetRHI();
+					}
+					return OutputTargetRHI;
+				};
+
+				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget0UAV));
+				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget1UAV));
+				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget2UAV));
+				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget3UAV));
+				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget4UAV));
+				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget5UAV));
+				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget6UAV));
+				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget7UAV));
+
+				// .X = Active Shading Bin
+				// .Y = VRS Tile Size
+				// .Z = Unused
+				// .W = Unused
+				FUint32Vector4 PassData(
+					0, // Set per shading command
+					0,
+					0,
+					0
+				);
+
+				if (GNaniteSoftwareVRS != 0)
+				{
+					// Technically these could be different, but currently never in practice
+					// 8x8, 16x16, or 32x32 for DX12 Tier2 HW VRS
+					ensure
+					(
+						GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMinHeight &&
+						GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMaxWidth &&
+						GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMaxHeight
+					);
+
+					PassData.Y = GRHIVariableRateShadingImageTileMinWidth;
+				}
+
+				uint32 ShadingBinTest = 0;
 
 				for (const FNaniteShadingCommand& ShadingCommand : ShadingCommands)
 				{
@@ -963,6 +1028,10 @@ void DispatchBasePass(
 					SCOPED_DRAW_EVENTF(RHICmdList, SWShading, TEXT("%s"), *ShadingMaterial->GetMaterialName());
 				#endif
 
+					++ShadingBinTest;
+
+					PassData.X = ShadingBinTest;
+					//PassData.X = ShadingCommand.ShadingBin;
 					//Parameters.ActiveShadingBin = ShadingCommand.RasterizerBin;
 
 					//FRHIBuffer* IndirectArgsBuffer = Parameters.IndirectArgs->GetIndirectRHICallBuffer();
@@ -976,17 +1045,19 @@ void DispatchBasePass(
 
 					ShadingCommand.ShaderBindings.SetOnCommandList(RHICmdList, ComputeShaderRHI);
 
-					ShadingCommand.ComputeShader->SetTargetUAVParameters(
+					ShadingCommand.ComputeShader->SetPassParameters(
 						RHICmdList,
 						ComputeShaderRHI,
-						ShadingPassParameters->OutTarget0UAV ? ShadingPassParameters->OutTarget0UAV->GetRHI() : nullptr,
-						ShadingPassParameters->OutTarget1UAV ? ShadingPassParameters->OutTarget1UAV->GetRHI() : nullptr,
-						ShadingPassParameters->OutTarget2UAV ? ShadingPassParameters->OutTarget2UAV->GetRHI() : nullptr,
-						ShadingPassParameters->OutTarget3UAV ? ShadingPassParameters->OutTarget3UAV->GetRHI() : nullptr,
-						ShadingPassParameters->OutTarget4UAV ? ShadingPassParameters->OutTarget4UAV->GetRHI() : nullptr,
-						ShadingPassParameters->OutTarget5UAV ? ShadingPassParameters->OutTarget5UAV->GetRHI() : nullptr,
-						ShadingPassParameters->OutTarget6UAV ? ShadingPassParameters->OutTarget6UAV->GetRHI() : nullptr,
-						ShadingPassParameters->OutTarget7UAV ? ShadingPassParameters->OutTarget7UAV->GetRHI() : nullptr
+						ViewRect,
+						PassData,
+						OutputTargets[0],
+						OutputTargets[1],
+						OutputTargets[2],
+						OutputTargets[3],
+						OutputTargets[4],
+						OutputTargets[5],
+						OutputTargets[6],
+						OutputTargets[7]
 					);
 
 					const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(ViewSize, 8);
@@ -2087,6 +2158,7 @@ void DrawLumenMeshCapturePass(
 			UniformParameters->VisBuffer64				= RasterContext.VisBuffer64;
 			UniformParameters->DbgBuffer64				= SystemTextures.Black;
 			UniformParameters->DbgBuffer32				= SystemTextures.Black;
+			UniformParameters->ShadingRate				= SystemTextures.Black;
 			UniformParameters->MaterialResolve			= SystemTextures.Black;
 			UniformParameters->MaterialDepthTable		= GraphBuilder.CreateSRV(GSystemTextures.GetDefaultBuffer(GraphBuilder, 4, 0u), PF_R32_UINT);
 

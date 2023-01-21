@@ -229,6 +229,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>,		VisBuffer64)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>,		DbgBuffer64)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>,			DbgBuffer32)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>,			ShadingRate)
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, RayTracingDataBuffer)
 

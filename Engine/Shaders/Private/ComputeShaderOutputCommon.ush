@@ -8,10 +8,71 @@ through a single struct, allowing for a more readable code
 
 #include "ShaderOutputCommon.ush"
 #include "GammaCorrectionCommon.ush"
+#include "VariableRateShading/VRSShadingRateCommon.ush"
 #include "MortonCode.ush"
 
 // TEMP: For initial debugging
 #include "Visualization.ush"
+
+// .xy = min, .zw = max
+uint4 ViewRect;
+
+// .x = draw id, .zyw unused
+uint4 PassData; 
+
+// TODO: Is this ever used? (see bHighPrecisionGBuffers)
+#define HIGH_PRECISION_GBUFFERS 0
+
+// Just like pixel shaders, compute 2x2 CS quads from thread index so we can leverage the 4 lane cross bar.
+// [0 1][2 3] -> [0 1][4 5]
+// [4 5][6 7] -> [2 3][6 7]
+#define REMAP_SHADING_QUADS 1
+
+#if STRATA_OPAQUE_DEFERRED
+	#if STRATA_BASE_PASS_MRT_OUTPUT_COUNT != 3
+		#error Strata STRATA_BASE_PASS_MRT_OUTPUT_COUNT has been updated but not the uint MRTs
+	#endif
+	#if PIXELSHADEROUTPUT_MRT3
+		#error Strata cannot map to such a case
+	#endif
+#endif
+
+// TODO: Move to VRSShadingRateCommon
+float4 VisualizeShadingRate(uint ShadingRate)
+{
+	float4 RateColor = float4(1.0, 0.0, 0.0, 0); // Red (1x1 shading rate)
+
+	if (ShadingRate > 0)
+	{
+		if (ShadingRate == D3D12_SHADING_RATE_1X2)
+		{
+			RateColor = float4(1.0, 0.5, 0.0, 0); // Orange
+		}
+		else if (ShadingRate == D3D12_SHADING_RATE_2X1)
+		{
+			RateColor = float4(1.0, 1.0, 0.0, 0); // Yellow
+		}
+		else if (ShadingRate == D3D12_SHADING_RATE_2X2)
+		{
+			RateColor = float4(0.0, 1.0, 0.0, 0); // Green
+		}
+		else if (ShadingRate == D3D12_SHADING_RATE_2X4)
+		{
+			RateColor = float4(0.0, 0.0, 1.0, 0); // Blue
+		}
+		else if (ShadingRate == D3D12_SHADING_RATE_4X2)
+		{
+			RateColor = float4(1.0, 0.0, 1.0, 0); // Purple
+		}
+		else if (ShadingRate == D3D12_SHADING_RATE_4X4)
+		{
+			RateColor = float4(1.0, 0.5, 0.8, 0); // Pink
+		}
+	}
+	
+	RateColor.a = 0.5f;
+	return RateColor;
+}
 
 #if PIXELSHADEROUTPUT_MRT0
 	#if DUAL_SOURCE_COLOR_BLENDING_ENABLED && MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING
@@ -34,13 +95,6 @@ through a single struct, allowing for a more readable code
 #endif
 
 #if STRATA_OPAQUE_DEFERRED
-
-	#if STRATA_BASE_PASS_MRT_OUTPUT_COUNT != 3
-		#error Strata STRATA_BASE_PASS_MRT_OUTPUT_COUNT has been updated but not the uint MRTs
-	#endif
-	#if PIXELSHADEROUTPUT_MRT3
-		#error Strata cannot map to such a case
-	#endif
 	#if PIXELSHADEROUTPUT_MRT2
 		RWTexture2D<uint> StrataOutput3UAV;
 		RWTexture2D<uint> StrataOutput4UAV;
@@ -82,50 +136,8 @@ through a single struct, allowing for a more readable code
 
 #endif // STRATA_OPAQUE_DEFERRED
 
-// .xy = min, .zw = max
-uint4 ViewRect; // TODO: Not bound yet
-
-// TODO: Is this ever used? (see bHighPrecisionGBuffers)
-#define HIGH_PRECISION_GBUFFERS 0
-
-// Just like pixel shaders, compute 2x2 CS quads from thread index so we can leverage the 4 lane cross bar.
-// [0 1][2 3] -> [0 1][4 5]
-// [4 5][6 7] -> [2 3][7 6]
-#define REMAP_SHADING_QUADS 1
-
-[numthreads(8, 8, 1)]
-void MainCS(uint ThreadIndex : SV_GroupIndex, uint3 GroupID : SV_GroupID, uint3 DTID : SV_DispatchThreadID)
+FPixelShaderOut ShadePixel(const float2 PixelPos)
 {
-#if REMAP_SHADING_QUADS
-	// Just like pixel shaders, compute 2x2 CS quads from thread index so we can leverage the 4 lane cross bar.
-	// [0 1][2 3] -> [0 1][4 5]
-	// [4 5][6 7] -> [2 3][7 6]
-#if 1
-	const uint X = BitFieldInsertU32(BitFieldMaskU32(1u, 0u), ThreadIndex, BitFieldExtractU32(ThreadIndex, 3u, 2u));
-	const uint Y = BitFieldInsertU32(BitFieldMaskU32(2u, 0u), BitFieldExtractU32(ThreadIndex, 2u, 1u), BitFieldExtractU32(ThreadIndex, 3u, 3u));
-#else
-	const uint2 Decoded = MortonDecode(ThreadIndex);
-	const uint X = Decoded.x;
-	const uint Y = Decoded.y;
-#endif
-	const uint2 PixelCoord = uint2(X, Y) + GroupID.xy * 8u;
-#else
-	const uint2 PixelCoord = DTID.xy;
-#endif
-
-	const float2 HalfPixelOffset = float2(0.5f, 0.5f);
-	const float2 PixelPos   = float2(PixelCoord /* TODO: + ViewRect.xy */) + HalfPixelOffset;
-
-#if IS_NANITE_PASS
-	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(Nanite.MaterialResolve[PixelPos]);
-	if (!ResolvedMaterial.bIsNanitePixel)
-	{
-		return;
-	}
-
-	const uint MaterialDepthId = GetMaterialDepthId(ResolvedMaterial.MaterialSlot, Nanite.MaterialDepthTable);
-#endif
-
 #if PIXELSHADEROUTPUT_INTERPOLANTS || PIXELSHADEROUTPUT_BASEPASS
 #if IS_NANITE_PASS
 	FNaniteFullscreenVSToPS NaniteInterpolants = (FNaniteFullscreenVSToPS)0;
@@ -142,7 +154,8 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint3 GroupID : SV_GroupID, uint3 
 	FPixelShaderIn PixelShaderIn = (FPixelShaderIn)0;
 	FPixelShaderOut PixelShaderOut = (FPixelShaderOut)0;
 
-	PixelShaderIn.SvPosition = float4(PixelPos.x, PixelPos.y, 0.0f, 1.0f);
+	const float2 HalfPixelOffset = float2(0.5f, 0.5f);
+	PixelShaderIn.SvPosition = float4(PixelPos + HalfPixelOffset, 0.0f, 1.0f);
 	PixelShaderIn.bIsFrontFace = false;//bIsFrontFace;
 
 #if PIXELSHADEROUTPUT_BASEPASS
@@ -150,31 +163,90 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint3 GroupID : SV_GroupID, uint3 
 	FPixelShaderInOut_MainPS(Interpolants, BasePassInterpolants, PixelShaderIn, PixelShaderOut);
 #endif
 
-	// TODO: Work in progress / experimental
-#if PIXELSHADEROUTPUT_MRT0 // scene color?
-	OutTarget0UAV[PixelPos] = PixelShaderOut.MRT[0];
+#if !HIGH_PRECISION_GBUFFERS
+	PixelShaderOut.MRT[3] = float4(LinearToSrgb(PixelShaderOut.MRT[3].rgb), PixelShaderOut.MRT[3].a); // BaseColor is sRGB
 #endif
 
-#if PIXELSHADEROUTPUT_MRT1 // world normal?
-	OutTarget1UAV[PixelPos] = PixelShaderOut.MRT[1];
+	return PixelShaderOut;
+}
+
+FPixelShaderOut WaveReadLaneAt(FPixelShaderOut ShadedPixel, uint SrcIndex)
+{
+	FPixelShaderOut Result = (FPixelShaderOut)0;
+
+#if PIXELSHADEROUTPUT_MRT0
+	Result.MRT[0] = WaveReadLaneAt(ShadedPixel.MRT[0], SrcIndex);
+#endif
+
+#if PIXELSHADEROUTPUT_MRT1
+	Result.MRT[1] = WaveReadLaneAt(ShadedPixel.MRT[1], SrcIndex);
 #endif
 
 #if PIXELSHADEROUTPUT_MRT2
-	OutTarget2UAV[PixelPos] = PixelShaderOut.MRT[2];
+	Result.MRT[2] = WaveReadLaneAt(ShadedPixel.MRT[2], SrcIndex);
+#endif
+
+#if STRATA_OPAQUE_DEFERRED
+
+	Result.StrataOutput[0]		= WaveReadLaneAt(ShadedPixel.StrataOutput[0],		SrcIndex);
+	Result.StrataOutput[1]		= WaveReadLaneAt(ShadedPixel.StrataOutput[1],		SrcIndex);
+	Result.StrataOutput[2]		= WaveReadLaneAt(ShadedPixel.StrataOutput[2],		SrcIndex);
+	Result.StrataTopLayerData	= WaveReadLaneAt(ShadedPixel.StrataTopLayerData,	SrcIndex);
+
+#else // STRATA_OPAQUE_DEFERRED
+
+#if PIXELSHADEROUTPUT_MRT3
+	Result.MRT[3] = WaveReadLaneAt(ShadedPixel.MRT[3], SrcIndex);
+#endif
+
+#if PIXELSHADEROUTPUT_MRT4
+	Result.MRT[4] = WaveReadLaneAt(ShadedPixel.MRT[4], SrcIndex);
+#endif
+
+#if PIXELSHADEROUTPUT_MRT5
+	Result.MRT[5] = WaveReadLaneAt(ShadedPixel.MRT[5], SrcIndex);
+#endif
+
+#if PIXELSHADEROUTPUT_MRT6
+	Result.MRT[6] = WaveReadLaneAt(ShadedPixel.MRT[6], SrcIndex);
+#endif
+
+#if PIXELSHADEROUTPUT_MRT7
+	Result.MRT[7] = WaveReadLaneAt(ShadedPixel.MRT[7], SrcIndex);
+#endif
+
+#endif // STRATA_OPAQUE_DEFERRED
+
+	Result.Coverage	= WaveReadLaneAt(ShadedPixel.Coverage, SrcIndex);
+	Result.Depth	= WaveReadLaneAt(ShadedPixel.Depth, SrcIndex);
+
+	return Result;
+}
+
+void ExportPixel(const float2 PixelPos, FPixelShaderOut ShadedPixel)
+{
+#if PIXELSHADEROUTPUT_COVERAGE || PIXELSHADEROUTPUT_A2C
+	// TODO: OutCoverage = PixelShaderOut.Coverage;
+#endif 
+
+#if OUTPUT_PIXEL_DEPTH_OFFSET
+	// TODO: OutDepth = PixelShaderOut.Depth;
+#endif 
+
+#if PIXELSHADEROUTPUT_MRT0
+	OutTarget0UAV[PixelPos] = ShadedPixel.MRT[0];
+#endif
+
+#if PIXELSHADEROUTPUT_MRT1
+	OutTarget1UAV[PixelPos] = ShadedPixel.MRT[1];
+#endif
+
+#if PIXELSHADEROUTPUT_MRT2
+	OutTarget2UAV[PixelPos] = ShadedPixel.MRT[2];
 #endif
 
 #if PIXELSHADEROUTPUT_MRT3
-	#if HIGH_PRECISION_GBUFFERS
-		OutTarget3UAV[PixelPos] = PixelShaderOut.MRT[3];
-	#else
-		// const bool bLegacyAlbedoSrgb = true;
-		//Info.Targets[3].Init(DiffuseAndSpecularGBufferFormat,  TEXT("GBufferC"), bLegacyAlbedoSrgb && !bHighPrecisionGBuffers,  true,  true,  true);
-		OutTarget3UAV[PixelPos] = float4(LinearToSrgb(PixelShaderOut.MRT[3].rgb), PixelShaderOut.MRT[3].a); // BaseColor is sRGB
-
-		//float3 DebugVal = IntToColor(MaterialDepthId);
-		//float3 DebugVal = IntToColor(ThreadIndex >> 2u);
-		//OutTarget3UAV[PixelPos] = float4(LinearToSrgb(DebugVal), PixelShaderOut.MRT[3].w);
-	#endif
+	OutTarget3UAV[PixelPos] = ShadedPixel.MRT[3];
 #endif
 
 #if STRATA_OPAQUE_DEFERRED
@@ -186,52 +258,199 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint3 GroupID : SV_GroupID, uint3 
 	// After, Strata output are appended (3 uint output)
 
 #if PIXELSHADEROUTPUT_MRT3
-	StrataOutput4UAV[PixelPos] = PixelShaderOut.StrataOutput[0];
-	StrataOutput5UAV[PixelPos] = PixelShaderOut.StrataOutput[1];
-	StrataOutput6UAV[PixelPos] = PixelShaderOut.StrataOutput[2];
-	StrataOutput7UAV[PixelPos] = PixelShaderOut.StrataTopLayerData;
+	StrataOutput4UAV[PixelPos] = ShadedPixel.StrataOutput[0];
+	StrataOutput5UAV[PixelPos] = ShadedPixel.StrataOutput[1];
+	StrataOutput6UAV[PixelPos] = ShadedPixel.StrataOutput[2];
+	StrataOutput7UAV[PixelPos] = ShadedPixel.StrataTopLayerData;
 #elif PIXELSHADEROUTPUT_MRT2
-	StrataOutput3UAV[PixelPos] = PixelShaderOut.StrataOutput[0];
-	StrataOutput4UAV[PixelPos] = PixelShaderOut.StrataOutput[1];
-	StrataOutput5UAV[PixelPos] = PixelShaderOut.StrataOutput[2];
-	StrataOutput6UAV[PixelPos] = PixelShaderOut.StrataTopLayerData;
+	StrataOutput3UAV[PixelPos] = ShadedPixel.StrataOutput[0];
+	StrataOutput4UAV[PixelPos] = ShadedPixel.StrataOutput[1];
+	StrataOutput5UAV[PixelPos] = ShadedPixel.StrataOutput[2];
+	StrataOutput6UAV[PixelPos] = ShadedPixel.StrataTopLayerData;
 #elif PIXELSHADEROUTPUT_MRT1
-	StrataOutput2UAV[PixelPos] = PixelShaderOut.StrataOutput[0];
-	StrataOutput3UAV[PixelPos] = PixelShaderOut.StrataOutput[1];
-	StrataOutput4UAV[PixelPos] = PixelShaderOut.StrataOutput[2];
-	StrataOutput5UAV[PixelPos] = PixelShaderOut.StrataTopLayerData;
+	StrataOutput2UAV[PixelPos] = ShadedPixel.StrataOutput[0];
+	StrataOutput3UAV[PixelPos] = ShadedPixel.StrataOutput[1];
+	StrataOutput4UAV[PixelPos] = ShadedPixel.StrataOutput[2];
+	StrataOutput5UAV[PixelPos] = ShadedPixel.StrataTopLayerData;
 #else
-	StrataOutput1UAV[PixelPos] = PixelShaderOut.StrataOutput[0];
-	StrataOutput2UAV[PixelPos] = PixelShaderOut.StrataOutput[1];
-	StrataOutput3UAV[PixelPos] = PixelShaderOut.StrataOutput[2];
-	StrataOutput4UAV[PixelPos] = PixelShaderOut.StrataTopLayerData;
+	StrataOutput1UAV[PixelPos] = ShadedPixel.StrataOutput[0];
+	StrataOutput2UAV[PixelPos] = ShadedPixel.StrataOutput[1];
+	StrataOutput3UAV[PixelPos] = ShadedPixel.StrataOutput[2];
+	StrataOutput4UAV[PixelPos] = ShadedPixel.StrataTopLayerData;
 #endif
 
 #else // STRATA_OPAQUE_DEFERRED
 
 #if PIXELSHADEROUTPUT_MRT4
-	OutTarget4UAV[PixelPos] = PixelShaderOut.MRT[4];
+	OutTarget4UAV[PixelPos] = ShadedPixel.MRT[4];
 #endif
 
 #if PIXELSHADEROUTPUT_MRT5
-	OutTarget5UAV[PixelPos] = PixelShaderOut.MRT[5];
+	OutTarget5UAV[PixelPos] = ShadedPixel.MRT[5];
 #endif
 
 #if PIXELSHADEROUTPUT_MRT6
-	OutTarget6UAV[PixelPos] = PixelShaderOut.MRT[6];
+	OutTarget6UAV[PixelPos] = ShadedPixel.MRT[6];
 #endif
 
 #if PIXELSHADEROUTPUT_MRT7
-	OutTarget7UAV[PixelPos] = PixelShaderOut.MRT[7];
+	OutTarget7UAV[PixelPos] = ShadedPixel.MRT[7];
 #endif
 
 #endif // STRATA_OPAQUE_DEFERRED
+}
 
-#if PIXELSHADEROUTPUT_COVERAGE || PIXELSHADEROUTPUT_A2C
-	// TODO: OutCoverage = PixelShaderOut.Coverage;
-#endif 
+struct FShadingQuad
+{
+	bool bActiveLane;
+	uint SwizzleIndex;
+};
 
-#if OUTPUT_PIXEL_DEPTH_OFFSET
-	// TODO: OutDepth = PixelShaderOut.Depth;
-#endif 
+FShadingQuad GetShadingQuad(uint QuadX, uint QuadY, uint LaneIndex, uint ShadingRate)
+{
+	FShadingQuad ShadingQuad;
+
+	// https://microsoft.github.io/DirectX-Specs/d3d/HLSL_SM_6_6_Derivatives.html
+	// https://microsoft.github.io/DirectX-Specs/d3d/VariableRateShading.html
+	
+	// D3D12_SHADING_RATE_1X1
+	ShadingQuad.bActiveLane = true;
+	ShadingQuad.SwizzleIndex = LaneIndex;
+
+	const uint QuadIndex = QuadX * QuadY * 2u;
+
+#if 1
+	const bool bTopLeft		= ((QuadIndex & 3u) == 0u);
+	const bool bTopRight	= ((QuadIndex & 3u) == 1u);
+	const bool bBottomLeft	= ((QuadIndex & 3u) == 2u);
+	const bool bBottomRight	= ((QuadIndex & 3u) == 3u);
+#else
+	// To test the QuadRead swizzles
+	const int XSigned = int(X);
+	const int YSigned = int(Y);
+	int LaneXDelta = QuadReadAcrossX(XSigned) - XSigned;
+	int LaneYDelta = QuadReadAcrossY(YSigned) - YSigned;
+	const bool bTopLeft		= (LaneXDelta > 0 && LaneYDelta > 0);
+	const bool bTopRight	= (LaneXDelta < 0 && LaneYDelta > 0);
+	const bool bBottomLeft	= (LaneXDelta > 0 && LaneYDelta < 0);
+	const bool bBottomRight	= (LaneXDelta < 0 && LaneYDelta < 0);
+#endif
+
+	if (ShadingRate == D3D12_SHADING_RATE_1X2)
+	{
+		// [A]
+		// [B]
+		ShadingQuad.bActiveLane  = (QuadIndex & 1u) == 0u;
+		ShadingQuad.SwizzleIndex = select(ShadingQuad.bActiveLane, LaneIndex, QuadReadAcrossX(LaneIndex));
+	}
+	else if (ShadingRate == D3D12_SHADING_RATE_2X1)
+	{
+		// [A][B]
+		ShadingQuad.bActiveLane  = (QuadIndex & 1u) == 0u;
+		ShadingQuad.SwizzleIndex = select(ShadingQuad.bActiveLane, LaneIndex, QuadReadAcrossY(LaneIndex));
+	}
+	else if (ShadingRate == D3D12_SHADING_RATE_2X2)
+	{
+		// [A][B]
+		// [C][D]
+		ShadingQuad.bActiveLane  = (QuadIndex & 3u) == 0u;
+		ShadingQuad.SwizzleIndex = 
+			select(
+				ShadingQuad.bActiveLane,
+				LaneIndex,
+				select(
+					bBottomRight,
+					QuadReadAcrossDiagonal(LaneIndex),
+					select(
+						bBottomLeft,
+						QuadReadAcrossY(LaneIndex),
+						QuadReadAcrossX(LaneIndex)
+					)
+				)
+			)
+		;
+	}
+	else if (ShadingRate == D3D12_SHADING_RATE_2X4) // not generated yet
+	{
+		// [A][B]
+		// [C][D]
+		// [E][F]
+		// [G][H]
+	}
+	else if (ShadingRate == D3D12_SHADING_RATE_4X2) // not generated yet
+	{
+		// [A][B][C][D]
+		// [E][F][G][H]
+	}
+	else if (ShadingRate == D3D12_SHADING_RATE_4X4) // not generated yet
+	{
+		// [A][B][C][D]
+		// [E][F][G][H]
+		// [I][J][K][L]
+		// [M][N][O][P]
+	}
+
+	return ShadingQuad;
+}
+
+[numthreads(8, 8, 1)]
+void MainCS(uint ThreadIndex : SV_GroupIndex, uint3 GroupID : SV_GroupID)
+{
+	// Just like pixel shaders, compute 2x2 CS quads from thread index so we can leverage the 4 lane cross bar.
+	// [0 1][2 3] -> [0 1][4 5]
+	// [4 5][6 7] -> [2 3][6 7]
+
+	// Wave64 - 4 rows, each containing 16 threads, formed into shading quads
+	// Two periods of tiling in both the X and Y axis.
+#if 1
+	const uint X = BitFieldInsertU32(BitFieldMaskU32(1u, 0u), ThreadIndex, BitFieldExtractU32(ThreadIndex, 3u, 2u));
+	const uint Y = BitFieldInsertU32(BitFieldMaskU32(2u, 0u), BitFieldExtractU32(ThreadIndex, 2u, 1u), BitFieldExtractU32(ThreadIndex, 3u, 3u));
+#else
+	const uint2 Decoded = MortonDecode(ThreadIndex);
+	const uint X = Decoded.x;
+	const uint Y = Decoded.y;
+#endif
+
+	const uint LaneIndex = WaveGetLaneIndex();
+
+	const uint2  PixelCoord = uint2(X, Y) + GroupID.xy * 8u;
+	const float2 PixelPos   = float2(PixelCoord + ViewRect.xy);
+
+	uint ShadingRate = D3D12_SHADING_RATE_1X1;
+
+#if IS_NANITE_PASS
+	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(Nanite.MaterialResolve[PixelPos]);
+	if (!ResolvedMaterial.bIsNanitePixel)
+	{
+		// TODO: Need to handle inactive "helper lanes" in this case..
+		// Leaves black artifacts around edges of Nanite meshes that render on top of non-Nanite
+		return;
+	}
+
+	const uint MaterialDepthId = GetMaterialDepthId(ResolvedMaterial.MaterialSlot, Nanite.MaterialDepthTable);
+
+	if (WaveIsFirstLane() && PassData.y != 0)
+	{
+		// Retrieve the variable shading rate that governs our 8x8 tile
+		const uint2 ShadingRateTileSize = PassData.yy; // (8x8, 16x16, or 32x32)
+		ShadingRate = Nanite.ShadingRate[PixelPos / ShadingRateTileSize] & 0xFu;
+	}
+
+	// Propagate the shading rate to all lanes processing our 8x8 tile
+	ShadingRate = WaveReadLaneFirst(ShadingRate);
+#endif
+
+	const FShadingQuad ShadingQuad = GetShadingQuad(X, Y, LaneIndex, ShadingRate);
+
+	FPixelShaderOut ShadedPixel;
+
+	// TODO: Optimize - consider 1-2 threads per 2x2 quad
+	BRANCH
+	if (ShadingQuad.bActiveLane)
+	{
+		ShadedPixel = ShadePixel(PixelPos);
+	}
+
+	ShadedPixel = WaveReadLaneAt(ShadedPixel, ShadingQuad.SwizzleIndex);
+	ExportPixel(PixelPos, ShadedPixel);
 }

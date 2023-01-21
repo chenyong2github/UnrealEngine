@@ -99,9 +99,11 @@ void TBasePassComputeShaderPolicyParamType<LightMapPolicyType>::GetShaderBinding
 }
 
 template<typename LightMapPolicyType>
-void TBasePassComputeShaderPolicyParamType<LightMapPolicyType>::SetTargetUAVParameters(
+void TBasePassComputeShaderPolicyParamType<LightMapPolicyType>::SetPassParameters(
 	FRHIComputeCommandList& RHICmdList,
 	FRHIComputeShader* ComputeShader,
+	const FUintVector4& ViewRect,
+	const FUintVector4& PassData,
 	FRHIUnorderedAccessView* Target0UAV,
 	FRHIUnorderedAccessView* Target1UAV,
 	FRHIUnorderedAccessView* Target2UAV,
@@ -116,6 +118,9 @@ void TBasePassComputeShaderPolicyParamType<LightMapPolicyType>::SetTargetUAVPara
 	{
 		return;
 	}
+
+	SetShaderValue(RHICmdList, ComputeShader, ViewRectParam, ViewRect);
+	SetShaderValue(RHICmdList, ComputeShader, PassDataParam, PassData);
 
 	SetUAVParameter(RHICmdList, ComputeShader, Target0, Target0UAV);
 	SetUAVParameter(RHICmdList, ComputeShader, Target1, Target1UAV);

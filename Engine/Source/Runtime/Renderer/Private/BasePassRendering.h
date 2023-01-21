@@ -326,7 +326,11 @@ public:
 		FMeshMaterialShader(Initializer)
 	{
 		LightMapPolicyType::ComputeParametersType::Bind(Initializer.ParameterMap);
+
 		ReflectionCaptureBuffer.Bind(Initializer.ParameterMap, TEXT("ReflectionCapture"));
+
+		ViewRectParam.Bind(Initializer.ParameterMap, TEXT("ViewRect"));
+		PassDataParam.Bind(Initializer.ParameterMap, TEXT("PassData"));
 
 		Target0.Bind(Initializer.ParameterMap, TEXT("OutTarget0UAV"), SPF_Optional);
 		Target1.Bind(Initializer.ParameterMap, TEXT("OutTarget1UAV"), SPF_Optional);
@@ -354,9 +358,11 @@ public:
 		const TBasePassShaderElementData<LightMapPolicyType>& ShaderElementData,
 		FMeshDrawSingleShaderBindings& ShaderBindings) const;
 
-	void SetTargetUAVParameters(
+	void SetPassParameters(
 		FRHIComputeCommandList& RHICmdList,
 		FRHIComputeShader* ComputeShader,
+		const FUintVector4& ViewRect,
+		const FUintVector4& PassData,
 		FRHIUnorderedAccessView* Target0UAV,
 		FRHIUnorderedAccessView* Target1UAV,
 		FRHIUnorderedAccessView* Target2UAV,
@@ -368,15 +374,17 @@ public:
 	);
 
 private:
-	LAYOUT_FIELD(FShaderUniformBufferParameter, ReflectionCaptureBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, Target0);
-	LAYOUT_FIELD(FShaderResourceParameter, Target1);
-	LAYOUT_FIELD(FShaderResourceParameter, Target2);
-	LAYOUT_FIELD(FShaderResourceParameter, Target3);
-	LAYOUT_FIELD(FShaderResourceParameter, Target4);
-	LAYOUT_FIELD(FShaderResourceParameter, Target5);
-	LAYOUT_FIELD(FShaderResourceParameter, Target6);
-	LAYOUT_FIELD(FShaderResourceParameter, Target7);
+	LAYOUT_FIELD(FShaderUniformBufferParameter,	ReflectionCaptureBuffer);
+	LAYOUT_FIELD(FShaderParameter,				ViewRectParam);
+	LAYOUT_FIELD(FShaderParameter,				PassDataParam);
+	LAYOUT_FIELD(FShaderResourceParameter,		Target0);
+	LAYOUT_FIELD(FShaderResourceParameter,		Target1);
+	LAYOUT_FIELD(FShaderResourceParameter,		Target2);
+	LAYOUT_FIELD(FShaderResourceParameter,		Target3);
+	LAYOUT_FIELD(FShaderResourceParameter,		Target4);
+	LAYOUT_FIELD(FShaderResourceParameter,		Target5);
+	LAYOUT_FIELD(FShaderResourceParameter,		Target6);
+	LAYOUT_FIELD(FShaderResourceParameter,		Target7);
 };
 
 /**
