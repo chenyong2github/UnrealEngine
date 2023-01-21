@@ -11,6 +11,7 @@ class UVCamModifier;
 /**
  * Defines a tree hierarchy. Each node is called a group.
  * A group consists of modifiers and (sub) groups.
+ * By design, modifiers are restricted to only belong to at most one group.
  * 
  * An example use case is if you want to have a button menu which should procedurally generate sub-button menus depending
  * on the modifiers in the component. 
@@ -31,13 +32,22 @@ public:
 	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Virtual Camera|Hierarchies")
 	bool GetParentGroup(FName ChildGroup, FName& ParentGroup) const;
 
+	
 	/**
 	 * Gets the group the modifier belongs to.
 	 * @return True if the modifier belongs to any group
 	 */
 	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Virtual Camera|Hierarchies")
 	bool GetGroupOfModifier(UVCamModifier* Modifier, FName& Group) const;
+	
+	/**
+	 * Gets the connection point the modifier is configured to be bound to.
+	 * This function is optional to implement; it is valid for it to always return false.
+	 */
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Virtual Camera|Hierarchies")
+	bool GetConnectionPointForModifier(UVCamModifier* Modifier, FName& ConnectionPoint) const;
 
+	
 	/** Gets the child groups of the given group. */
 	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Virtual Camera|Hierarchies")
 	TSet<FName> GetChildGroups(FName ParentGroup) const;

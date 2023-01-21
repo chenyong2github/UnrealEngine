@@ -17,10 +17,10 @@ class VCAMEXTENSIONS_API UClassBasedModifierGroup : public UBaseModifierGroup
 	GENERATED_BODY()
 public:
 	
-	UPROPERTY(EditAnywhere, Category = "Virtual Camera|Hierarchies")
+	UPROPERTY(EditAnywhere, Category = "Hierarchy")
 	TSet<TSubclassOf<UVCamModifier>> ModifierClasses;
 
-	UPROPERTY(EditAnywhere, Instanced, Category = "Virtual Camera|Hierarchies")
+	UPROPERTY(EditAnywhere, Instanced, Category = "Hierarchy")
 	TArray<TObjectPtr<UClassBasedModifierGroup>> Children;
 };
 

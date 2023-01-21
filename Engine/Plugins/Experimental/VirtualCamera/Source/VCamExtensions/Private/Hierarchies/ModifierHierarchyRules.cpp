@@ -2,6 +2,8 @@
 
 #include "Hierarchies/ModifierHierarchyRules.h"
 
+#include "VCamExtensionsLog.h"
+
 FName UModifierHierarchyRules::GetRootGroup_Implementation() const
 {
 	unimplemented();
@@ -19,6 +21,12 @@ bool UModifierHierarchyRules::GetGroupOfModifier_Implementation(UVCamModifier* M
 	return false;
 }
 
+bool UModifierHierarchyRules::GetConnectionPointForModifier_Implementation(UVCamModifier* Modifier, FName& ConnectionPoint) const
+{
+	UE_LOG(LogVCamExtensions, Warning, TEXT("%s does not support GetConnectionPointForModifier"), *GetClass()->GetName());
+	return false;
+}
+
 TSet<FName> UModifierHierarchyRules::GetChildGroups_Implementation(FName ParentGroup) const
 {
 	unimplemented();
@@ -30,4 +38,3 @@ TSet<UVCamModifier*> UModifierHierarchyRules::GetModifiersInGroup_Implementation
 	unimplemented();
 	return {};
 }
-

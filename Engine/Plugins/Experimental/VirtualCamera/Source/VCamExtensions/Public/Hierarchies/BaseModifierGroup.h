@@ -12,7 +12,7 @@ class VCAMEXTENSIONS_API UBaseModifierGroup : public UObject
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditAnywhere, Category = "Virtual Camera|Hierarchies")
+	UPROPERTY(EditAnywhere, Category = "Hierarchy")
 	FName GroupName;
 
 	//~ Begin UObject Interface
