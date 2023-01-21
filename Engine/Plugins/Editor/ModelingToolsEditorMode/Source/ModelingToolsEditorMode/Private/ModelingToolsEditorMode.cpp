@@ -92,6 +92,7 @@
 #include "PatternTool.h"
 
 #include "Polymodeling/ExtrudeMeshSelectionTool.h"
+#include "Polymodeling/OffsetMeshSelectionTool.h"
 
 #include "Physics/PhysicsInspectorTool.h"
 #include "Physics/SetCollisionGeometryTool.h"
@@ -106,6 +107,7 @@
 // commands
 #include "Commands/DeleteGeometrySelectionCommand.h"
 #include "Commands/DisconnectGeometrySelectionCommand.h"
+#include "Commands/RetriangulateGeometrySelectionCommand.h"
 #include "Commands/ModifyGeometrySelectionCommand.h"
 
 
@@ -717,39 +719,43 @@ void UModelingToolsEditorMode::Enter()
 
 
 	// this function registers and tracks an active UGeometrySelectionEditCommand and it's associated UICommand
-	auto RegisterSelectionTool = [&](TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder)
+	auto RegisterSelectionTool = [&](TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder, bool bRequiresActiveTarget, bool bRequiresSelection)
 	{
 		UEditorInteractiveToolsContext* UseToolsContext = GetInteractiveToolsContext(EToolsContextScope::EdMode);
 		const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
 		UseToolsContext->ToolManager->RegisterToolType(ToolIdentifier, Builder);
 		CommandList->MapAction(UICommand,
 			FExecuteAction::CreateUObject(UseToolsContext, &UEdModeInteractiveToolsContext::StartTool, ToolIdentifier),
-			FCanExecuteAction::CreateWeakLambda(UseToolsContext, [this, ToolIdentifier, UseToolsContext]() {
+			FCanExecuteAction::CreateWeakLambda(UseToolsContext, [this, ToolIdentifier, UseToolsContext, bRequiresActiveTarget, bRequiresSelection]() {
 				return ShouldToolStartBeAllowed(ToolIdentifier) &&
-					GetSelectionManager()->HasSelection() &&
+					( GetSelectionManager()->HasActiveTargets() || bRequiresActiveTarget == false) &&
+					( GetSelectionManager()->HasSelection() || bRequiresSelection == false ) &&
+					( GetSelectionManager()->GetMeshTopologyMode() != UGeometrySelectionManager::EMeshTopologyMode::None ) &&
 					UseToolsContext->ToolManager->CanActivateTool(EToolSide::Mouse, ToolIdentifier);
 			}),
 			FIsActionChecked::CreateUObject(UseToolsContext, &UEdModeInteractiveToolsContext::IsToolActive, EToolSide::Mouse, ToolIdentifier),
-			FIsActionButtonVisible::CreateUObject(GetSelectionManager(), &UGeometrySelectionManager::HasSelection),
+			//FIsActionButtonVisible::CreateUObject(GetSelectionManager(), &UGeometrySelectionManager::HasSelection),
+			FIsActionButtonVisible::CreateWeakLambda(UseToolsContext, [this, bRequiresActiveTarget, bRequiresSelection]() {
+				return ( GetSelectionManager()->HasActiveTargets() || bRequiresActiveTarget == false) &&
+					( GetSelectionManager()->HasSelection() || bRequiresSelection == false ) &&
+					( GetSelectionManager()->GetMeshTopologyMode() != UGeometrySelectionManager::EMeshTopologyMode::None );
+			}),
 			EUIActionRepeatMode::RepeatDisabled);
 	};
 
 	// register mesh-selection-driven tools
-	RegisterSelectionTool(ToolManagerCommands.BeginSelectionAction_Extrude, TEXT("BeginSelectionExtrudeTool"), NewObject<UExtrudeMeshSelectionToolBuilder>());
+	RegisterSelectionTool(ToolManagerCommands.BeginSelectionAction_Extrude, TEXT("BeginSelectionExtrudeTool"), NewObject<UExtrudeMeshSelectionToolBuilder>(), true, true);
+	RegisterSelectionTool(ToolManagerCommands.BeginSelectionAction_Offset, TEXT("BeginSelectionOffsetTool"), NewObject<UOffsetMeshSelectionToolBuilder>(), true, true);
+
+	RegisterSelectionTool(ToolManagerCommands.BeginPolyModelTool_PolyEd, TEXT("BeginSelectionPolyEdTool"), NewObject<UMeshSelectionToolBuilder>(), true, false);
+	RegisterSelectionTool(ToolManagerCommands.BeginPolyModelTool_TriSel, TEXT("BeginSelectionTriEdTool"), NewObject<UOffsetMeshSelectionToolBuilder>(), true, false);
 
 
 	auto RegisterPolyModelActionTool = [&](EEditMeshPolygonsToolActions Action, TSharedPtr<FUICommandInfo> UICommand, FString StringName, bool bRequiresSelection)
 	{
 		UEditMeshPolygonsActionModeToolBuilder* ActionModeBuilder = NewObject<UEditMeshPolygonsActionModeToolBuilder>();
 		ActionModeBuilder->StartupAction = Action;
-		if ( bRequiresSelection )
-		{
-			RegisterSelectionTool(UICommand, StringName, ActionModeBuilder);
-		}
-		else
-		{
-			RegisterTool(UICommand, StringName, ActionModeBuilder);
-		}
+		RegisterSelectionTool(UICommand, StringName, ActionModeBuilder, true, bRequiresSelection);
 	};
 	RegisterPolyModelActionTool(EEditMeshPolygonsToolActions::Inset, ToolManagerCommands.BeginPolyModelTool_Inset, TEXT("PolyEdit_Inset"), true);
 	RegisterPolyModelActionTool(EEditMeshPolygonsToolActions::Outset, ToolManagerCommands.BeginPolyModelTool_Outset, TEXT("PolyEdit_Outset"), true);
@@ -808,6 +814,7 @@ void UModelingToolsEditorMode::Enter()
 	// create and register InteractiveCommands for mesh selections
 	RegisterSelectionCommand(NewObject<UDeleteGeometrySelectionCommand>(), ToolManagerCommands.BeginSelectionAction_Delete, false);
 	RegisterSelectionCommand(NewObject<UDisconnectGeometrySelectionCommand>(), ToolManagerCommands.BeginSelectionAction_Disconnect, false);
+	RegisterSelectionCommand(NewObject<URetriangulateGeometrySelectionCommand>(), ToolManagerCommands.BeginSelectionAction_Retriangulate, false);
 	RegisterSelectionCommand(NewObject<UModifyGeometrySelectionCommand>(), ToolManagerCommands.BeginSelectionAction_SelectAll, true);
 	RegisterSelectionCommand(NewObject<UModifyGeometrySelectionCommand_Invert>(), ToolManagerCommands.BeginSelectionAction_Invert, true);
 	RegisterSelectionCommand(NewObject<UModifyGeometrySelectionCommand_ExpandToConnected>(), ToolManagerCommands.BeginSelectionAction_ExpandToConnected, true);

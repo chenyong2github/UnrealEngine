@@ -139,6 +139,8 @@ public:
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_PushPull;
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Bevel;
 	
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_PolyEd;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_TriSel;
 
 
 	// selection state actions
@@ -153,6 +155,7 @@ public:
 
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_Delete;
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_Disconnect;
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_Retriangulate;
 
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_SelectAll;
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_ExpandToConnected;
@@ -162,6 +165,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_Contract;
 
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_Extrude;
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_Offset;
 
 	// For connecting ModelingMode with UVEditor plugin
 	TSharedPtr<FUICommandInfo> LaunchUVEditor;

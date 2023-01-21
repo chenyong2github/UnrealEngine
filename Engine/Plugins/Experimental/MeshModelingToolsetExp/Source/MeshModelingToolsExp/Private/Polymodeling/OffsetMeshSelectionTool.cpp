@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Polymodeling/ExtrudeMeshSelectionTool.h"
+#include "Polymodeling/OffsetMeshSelectionTool.h"
 #include "InteractiveToolManager.h"
 #include "MeshOpPreviewHelpers.h" // UMeshOpPreviewWithBackgroundCompute
 #include "ToolSetupUtil.h"
@@ -16,78 +16,72 @@
 #include "Operations/OffsetMeshRegion.h"
 
 #include "ModelingOperators.h"
-#include "PolyModelingOps/LinearExtrusionOp.h"
+#include "PolyModelingOps/RegionOffsetOp.h"
 #include "Operations/PolyModeling/PolyModelingMaterialUtil.h"
 #include "Operations/PolyModeling/PolyModelingFaceUtil.h"
 
-#include "BaseGizmos/CombinedTransformGizmo.h"
-#include "BaseGizmos/TransformGizmoUtil.h"
-#include "BaseGizmos/TransformProxy.h"
-
-
 using namespace UE::Geometry;
 
-#define LOCTEXT_NAMESPACE "UExtrudeMeshSelectionTool"
+#define LOCTEXT_NAMESPACE "UOffsetMeshSelectionTool"
 
 
 
-USingleTargetWithSelectionTool* UExtrudeMeshSelectionToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
+USingleTargetWithSelectionTool* UOffsetMeshSelectionToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return NewObject<UExtrudeMeshSelectionTool>(SceneState.ToolManager);
+	return NewObject<UOffsetMeshSelectionTool>(SceneState.ToolManager);
 }
 
 
 
-class FExtrudeMeshSelectionOpFactory : public IDynamicMeshOperatorFactory
+class FOffsetMeshSelectionOpFactory : public IDynamicMeshOperatorFactory
 {
 public:
-	UExtrudeMeshSelectionTool* SourceTool;
+	UOffsetMeshSelectionTool* SourceTool;
 
-	FExtrudeMeshSelectionOpFactory(UExtrudeMeshSelectionTool* Tool)
+	FOffsetMeshSelectionOpFactory(UOffsetMeshSelectionTool* Tool)
 	{
 		SourceTool = Tool;
 	}
 
-	TUniquePtr<FLinearExtrusionOp> MakeNewExtrudeOp(
+	TUniquePtr<FRegionOffsetOp> MakeNewOffsetOp(
 		TSharedPtr<FSharedConstDynamicMesh3> SourceMesh,
-		const TArray<int32>& ExtrudeROI	)
+		const TArray<int32>& OffsetROI	)
 	{
-		TUniquePtr<FLinearExtrusionOp> Op = MakeUnique<FLinearExtrusionOp>();
+		TUniquePtr<FRegionOffsetOp> Op = MakeUnique<FRegionOffsetOp>();
 		Op->OriginalMeshShared = SourceTool->EditRegionSharedMesh;
-		Op->TriangleSelection = ExtrudeROI;
+		Op->TriangleSelection = OffsetROI;
 
-		Op->bShellsToSolids = SourceTool->ExtrudeProperties->bShellsToSolids;
+		Op->bShellsToSolids = SourceTool->OffsetProperties->bShellsToSolids;
 
-		Op->bInferGroupsFromNeighbours = SourceTool->ExtrudeProperties->bInferGroupsFromNbrs;
-		Op->bNewGroupPerSubdivision = SourceTool->ExtrudeProperties->bGroupPerSubdivision;
+		Op->bInferGroupsFromNeighbours = SourceTool->OffsetProperties->bInferGroupsFromNbrs;
+		Op->bNewGroupPerSubdivision = SourceTool->OffsetProperties->bGroupPerSubdivision;
 		Op->bUseColinearityForSettingBorderGroups = false;		// what is this??
-		Op->bRemapExtrudeGroups = ! SourceTool->ExtrudeProperties->bReplaceSelectionGroups;
+		Op->bRemapExtrudeGroups = ! SourceTool->OffsetProperties->bReplaceSelectionGroups;
 
-		Op->CreaseAngleThresholdDeg = SourceTool->ExtrudeProperties->CreaseAngle;
-
-		Op->UVScaleFactor = SourceTool->ExtrudeProperties->UVScale;
-		Op->bUVIslandPerGroup = SourceTool->ExtrudeProperties->bUVIslandPerGroup;
-
-		Op->bInferMaterialID = SourceTool->ExtrudeProperties->bInferMaterialID;
-		Op->SetMaterialID = FMath::Min(SourceTool->ExtrudeProperties->SetMaterialID, SourceTool->MaxMaterialID);
-
-		Op->RegionModifierMode = (FLinearExtrusionOp::ESelectionShapeModifierMode)(int32)SourceTool->ExtrudeProperties->RegionMode;
-		Op->NumSubdivisions = SourceTool->ExtrudeProperties->NumSubdivisions;
-
-		Op->RaycastMaxDistance = SourceTool->ExtrudeProperties->RaycastMaxDistance;
-
-		if (SourceTool->ExtrudeProperties->InputMode == EExtrudeMeshSelectionInteractionMode::Interactive)
+		Op->OffsetMode = FRegionOffsetOp::EOffsetComputationMode::VertexNormals;
+		if ( SourceTool->OffsetProperties->Direction == EOffsetMeshSelectionDirectionMode::ConstantWidth )
 		{
-			Op->StartFrame = SourceTool->InitialFrameLocal;
-			Op->ToFrame = SourceTool->ExtrudeFrameLocal;
-			Op->Scale = SourceTool->LocalScale;
+			Op->OffsetMode = FRegionOffsetOp::EOffsetComputationMode::ApproximateConstantThickness;
 		}
-		else
+		else if (SourceTool->OffsetProperties->Direction == EOffsetMeshSelectionDirectionMode::FaceNormals)
 		{
-			Op->StartFrame = SourceTool->InitialFrameLocal;
-			Op->ToFrame = FFrame3d(Op->StartFrame.Origin + SourceTool->ExtrudeProperties->ExtrudeDistance * Op->StartFrame.Z(), Op->StartFrame.Rotation);
-			Op->Scale = FVector3d::One();
+			Op->OffsetMode = FRegionOffsetOp::EOffsetComputationMode::FaceNormals;
 		}
+
+		Op->OffsetDistance = SourceTool->OffsetProperties->OffsetDistance;
+
+		//Op->bUseColinearityForSettingBorderGroups = OffsetProperties->bUseColinearityForSettingBorderGroups;
+		//Op->MaxScaleForAdjustingTriNormalsOffset = OffsetProperties->MaxDistanceScaleFactor;
+
+		Op->CreaseAngleThresholdDeg = SourceTool->OffsetProperties->CreaseAngle;
+
+		Op->UVScaleFactor = SourceTool->OffsetProperties->UVScale;
+		Op->bUVIslandPerGroup = SourceTool->OffsetProperties->bUVIslandPerGroup;
+
+		Op->bInferMaterialID = SourceTool->OffsetProperties->bInferMaterialID;
+		Op->SetMaterialID = FMath::Min(SourceTool->OffsetProperties->SetMaterialID, SourceTool->MaxMaterialID);
+
+		Op->NumSubdivisions = SourceTool->OffsetProperties->NumSubdivisions;
 
 		Op->SetResultTransform(SourceTool->WorldTransform);
 
@@ -96,18 +90,18 @@ public:
 
 	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override
 	{
-		return MakeNewExtrudeOp(SourceTool->EditRegionSharedMesh, SourceTool->RegionExtrudeROI.Array());
+		return MakeNewOffsetOp(SourceTool->EditRegionSharedMesh, SourceTool->RegionOffsetROI.Array());
 	}
 };
 
 
-UExtrudeMeshSelectionTool::UExtrudeMeshSelectionTool()
+UOffsetMeshSelectionTool::UOffsetMeshSelectionTool()
 {
-	SetToolDisplayName(LOCTEXT("ToolName", "Extrude Selection"));
+	SetToolDisplayName(LOCTEXT("ToolName", "Offset Selection"));
 }
 
 
-void UExtrudeMeshSelectionTool::Setup()
+void UOffsetMeshSelectionTool::Setup()
 {
 	UToolTarget* UseTarget = Super::GetTarget();
 	CurrentMesh = UE::ToolTarget::GetDynamicMeshCopy(UseTarget);
@@ -120,41 +114,37 @@ void UExtrudeMeshSelectionTool::Setup()
 	WorldTransform = UE::ToolTarget::GetLocalToWorldTransform(UseTarget);
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(UseTarget);
 
-	ExtrudeProperties = NewObject<UExtrudeMeshSelectionToolProperties>(this);
-	ExtrudeProperties->RestoreProperties(this);
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->InputMode,
-		[this](EExtrudeMeshSelectionInteractionMode NewMode) { UpdateInteractionMode(NewMode); });
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->ExtrudeDistance,
+	OffsetProperties = NewObject<UOffsetMeshSelectionToolProperties>(this);
+	OffsetProperties->RestoreProperties(this);
+	OffsetProperties->WatchProperty(OffsetProperties->OffsetDistance,
 		[this](double) { EditCompute->InvalidateResult(); });
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->RegionMode,
-		[this](EExtrudeMeshSelectionRegionModifierMode) { EditCompute->InvalidateResult();});
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->NumSubdivisions,
+	OffsetProperties->WatchProperty(OffsetProperties->Direction,
+		[this](EOffsetMeshSelectionDirectionMode) { EditCompute->InvalidateResult();});
+	OffsetProperties->WatchProperty(OffsetProperties->NumSubdivisions,
 		[this](int) { EditCompute->InvalidateResult();});
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->bShellsToSolids,
+	OffsetProperties->WatchProperty(OffsetProperties->bShellsToSolids,
 		[this](bool) { EditCompute->InvalidateResult(); });
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->UVScale,
+	OffsetProperties->WatchProperty(OffsetProperties->UVScale,
 		[this](double) { EditCompute->InvalidateResult(); });
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->bInferGroupsFromNbrs,
+	OffsetProperties->WatchProperty(OffsetProperties->bInferGroupsFromNbrs,
 		[this](bool) { EditCompute->InvalidateResult(); });
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->bGroupPerSubdivision,
+	OffsetProperties->WatchProperty(OffsetProperties->bGroupPerSubdivision,
 		[this](bool) { EditCompute->InvalidateResult(); });
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->bUVIslandPerGroup,
+	OffsetProperties->WatchProperty(OffsetProperties->bUVIslandPerGroup,
 		[this](bool) { EditCompute->InvalidateResult(); });
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->bReplaceSelectionGroups,
+	OffsetProperties->WatchProperty(OffsetProperties->bReplaceSelectionGroups,
 		[this](bool) { EditCompute->InvalidateResult(); });
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->CreaseAngle,
+	OffsetProperties->WatchProperty(OffsetProperties->CreaseAngle,
 		[this](double) { EditCompute->InvalidateResult(); });
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->RaycastMaxDistance,
-		[this](double) { EditCompute->InvalidateResult(); });
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->bInferMaterialID,
+	OffsetProperties->WatchProperty(OffsetProperties->bInferMaterialID,
 		[this](bool) { EditCompute->InvalidateResult(); });
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->SetMaterialID,
+	OffsetProperties->WatchProperty(OffsetProperties->SetMaterialID,
 		[this](int) { EditCompute->InvalidateResult(); });
 
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->bShowInputMaterials,
+	OffsetProperties->WatchProperty(OffsetProperties->bShowInputMaterials,
 		[this](bool) { UpdateVisualizationSettings(); });
 
-	AddToolPropertySource(ExtrudeProperties);
+	AddToolPropertySource(OffsetProperties);
 
 	// extract selection
 	FMeshFaceSelection TriSelection(&CurrentMesh);
@@ -162,20 +152,20 @@ void UExtrudeMeshSelectionTool::Setup()
 	UE::Geometry::EnumerateSelectionTriangles(Selection, CurrentMesh,
 		[&](int32 tid) { TriSelection.Select(tid); },
 		nullptr  /* no support for group layers yet */);
-	ExtrudeROI = TriSelection.AsArray();
+	OffsetROI = TriSelection.AsArray();
 
 	// if we have an empty selection, just abort here
-	if (ExtrudeROI.Num() == 0)
+	if (OffsetROI.Num() == 0)
 	{
 		GetToolManager()->PostActiveToolShutdownRequest(this, EToolShutdownType::Cancel,
-			true, LOCTEXT("InvalidSelectionMessage", "ExtrudeMeshSelectionTool: input face selection was empty, cannot Extrude"));
+			true, LOCTEXT("InvalidSelectionMessage", "OffsetMeshSelectionTool: input face selection was empty, cannot Offset"));
 		return;
 	}
 
 	TriSelection.ExpandToOneRingNeighbours(2);
 	ModifiedROI = TriSelection.AsSet();		// could steal here if it was possible
 
-	SelectionBoundsWorld = (FBox)TMeshQueries<FDynamicMesh3>::GetTrianglesBounds(CurrentMesh, ExtrudeROI, WorldTransform);
+	SelectionBoundsWorld = (FBox)TMeshQueries<FDynamicMesh3>::GetTrianglesBounds(CurrentMesh, OffsetROI, WorldTransform);
 
 	// create the preview object for the unmodified area
 	// (if input was a UDynamicMesh we could do this w/o making a copy...)
@@ -186,7 +176,7 @@ void UExtrudeMeshSelectionTool::Setup()
 	SourcePreview->EnableSecondaryTriangleBuffers(
 		[this](const FDynamicMesh3* Mesh, int32 TriangleID)
 		{
-			return ExtrudeROI.Contains(TriangleID);		// hide triangles in extrude area in base mesh
+			return OffsetROI.Contains(TriangleID);		// hide triangles in Offset area in base mesh
 		});
 	SourcePreview->SetSecondaryBuffersVisibility(false);
 	SourcePreview->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
@@ -194,14 +184,14 @@ void UExtrudeMeshSelectionTool::Setup()
 
 	// initialize a region operator for the modified area
 	RegionOperator = MakePimpl<FMeshRegionOperator>(&CurrentMesh, ModifiedROI.Array());
-	for (int32 tid : ExtrudeROI)
+	for (int32 tid : OffsetROI)
 	{
-		RegionExtrudeROI.Add( RegionOperator->Region.MapTriangleToSubmesh(tid) );
+		RegionOffsetROI.Add( RegionOperator->Region.MapTriangleToSubmesh(tid) );
 	}
 	EditRegionMesh = RegionOperator->Region.GetSubmesh();
 	for (int32 tid : EditRegionMesh.TriangleIndicesItr())
 	{
-		if (RegionExtrudeROI.Contains(tid) == false)
+		if (RegionOffsetROI.Contains(tid) == false)
 		{
 			RegionBorderTris.Add(tid);
 		}
@@ -209,12 +199,12 @@ void UExtrudeMeshSelectionTool::Setup()
 	EditRegionSharedMesh = MakeShared<FSharedConstDynamicMesh3>(&EditRegionMesh);
 
 	// try to guess selection frame...
-	SelectionFrameLocal = UE::Geometry::ComputeFaceSelectionFrame(EditRegionMesh, RegionExtrudeROI.Array(), false);
+	SelectionFrameLocal = UE::Geometry::ComputeFaceSelectionFrame(EditRegionMesh, RegionOffsetROI.Array(), false);
 	InitialFrameLocal = SelectionFrameLocal;
 	InitialFrameWorld = InitialFrameLocal;
 	InitialFrameWorld.Transform(WorldTransform);
 
-	this->OperatorFactory = MakePimpl<FExtrudeMeshSelectionOpFactory>(this);
+	this->OperatorFactory = MakePimpl<FOffsetMeshSelectionOpFactory>(this);
 
 	// Create the preview compute for the extrusion operation
 	EditCompute = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
@@ -223,8 +213,8 @@ void UExtrudeMeshSelectionTool::Setup()
 	EditCompute->PreviewMesh->SetTransform((FTransform)WorldTransform);
 	EditCompute->ConfigureMaterials(MaterialSet.Materials, nullptr, nullptr);
 
-	// hide the triangles in the 'border' region outside the extrude area, although they are included in
-	// the extrude region operator submesh, they are still visible in the base mesh
+	// hide the triangles in the 'border' region outside the Offset area, although they are included in
+	// the Offset region operator submesh, they are still visible in the base mesh
 	EditCompute->PreviewMesh->EnableSecondaryTriangleBuffers(
 		[this](const FDynamicMesh3* Mesh, int32 TriangleID) { return RegionBorderTris.Contains(TriangleID); });
 	EditCompute->PreviewMesh->SetSecondaryBuffersVisibility(false);
@@ -239,17 +229,21 @@ void UExtrudeMeshSelectionTool::Setup()
 	// hide input Component
 	UE::ToolTarget::HideSourceObject(Target);
 
-	// initialize UI stuff
-	Initialize_GizmoMechanic();
-	UpdateInteractionMode(ExtrudeProperties->InputMode);
+	// are these needed?
+	OffsetFrameWorld = InitialFrameWorld;
+	OffsetFrameLocal = OffsetFrameWorld;
+	OffsetFrameLocal.Transform( WorldTransform.InverseUnsafe() );
+	LocalScale = FVector3d::One();
+
+	EditCompute->InvalidateResult();
 }
 
 
-void UExtrudeMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
+void UOffsetMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
 {
-	if ( ExtrudeProperties )
+	if ( OffsetProperties )
 	{
-		ExtrudeProperties->SaveProperties(this);
+		OffsetProperties->SaveProperties(this);
 	}
 
 	if (SourcePreview != nullptr )
@@ -272,16 +266,16 @@ void UExtrudeMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
 
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("ExtrudeSelection", "Extrude Selection"));
+			GetToolManager()->BeginUndoTransaction(LOCTEXT("OffsetSelection", "Offset Selection"));
 
 			TArray<int32> SelectOutputTriangles;
 
-			// this function computes the final Extrude on full Mesh and cleans it up
+			// this function computes the final Offset on full Mesh and cleans it up
 			auto ComputeFinalResult = [this, &SelectOutputTriangles](FDynamicMesh3& EditMesh) -> bool
 			{
 				TSharedPtr<FSharedConstDynamicMesh3> FullMeshShared = MakeShared<FSharedConstDynamicMesh3>(&EditMesh);
-				TUniquePtr<FLinearExtrusionOp> FinalOp = OperatorFactory->MakeNewExtrudeOp(FullMeshShared, this->ExtrudeROI);
-				SelectOutputTriangles = this->ExtrudeROI;
+				TUniquePtr<FRegionOffsetOp> FinalOp = OperatorFactory->MakeNewOffsetOp(FullMeshShared, this->OffsetROI);
+				SelectOutputTriangles = this->OffsetROI;
 				bool bResult = FinalOp->CalculateResultInPlace(EditMesh, nullptr);
 				if (EditMesh.IsCompact() == false)
 				{
@@ -309,18 +303,18 @@ void UExtrudeMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
 					{
 						FDynamicMeshChangeTracker ChangeTracker(&EditMesh);
 						ChangeTracker.BeginChange();
-						ChangeTracker.SaveTriangles(ExtrudeROI, true);
+						ChangeTracker.SaveTriangles(OffsetROI, true);
 						if (ComputeFinalResult(EditMesh))
 						{
 							TUniquePtr<FDynamicMeshChange> MeshEditChange = ChangeTracker.EndChange();
 							GetToolManager()->GetContextTransactionsAPI()->AppendChange( TransactionTarget,
-								MakeUnique<FMeshChange>(MoveTemp(MeshEditChange)), LOCTEXT("ExtrudeSelection", "Extrude Selection") );
+								MakeUnique<FMeshChange>(MoveTemp(MeshEditChange)), LOCTEXT("OffsetSelection", "Offset Selection") );
 							return true;
 						}
 						return false;
 					});
 
-				ensureMsgf(bChangeApplied, TEXT("UExtrudeMeshSelectionTool::OnShutdown : incremental mesh edit failed!"));
+				ensureMsgf(bChangeApplied, TEXT("UOffsetMeshSelectionTool::OnShutdown : incremental mesh edit failed!"));
 			}
 
 			// if we could not apply incremental change, apply a full-mesh update
@@ -348,13 +342,6 @@ void UExtrudeMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
 		}
 	}
 
-	if ( TransformGizmo != nullptr )
-	{
-		GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
-		TransformProxy = nullptr;
-		TransformGizmo = nullptr;
-	}
-
 	if ( EditRegionSharedMesh.IsValid() )
 	{
 		EditRegionSharedMesh->ReleaseSharedObject();
@@ -365,60 +352,29 @@ void UExtrudeMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
 
 
 
-void UExtrudeMeshSelectionTool::OnTick(float DeltaTime)
+void UOffsetMeshSelectionTool::OnTick(float DeltaTime)
 {
 	EditCompute->Tick(DeltaTime);
 }
 
 
-void UExtrudeMeshSelectionTool::Render(IToolsContextRenderAPI* RenderAPI)
+void UOffsetMeshSelectionTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 }
 
-FBox UExtrudeMeshSelectionTool::GetWorldSpaceFocusBox() 
+FBox UOffsetMeshSelectionTool::GetWorldSpaceFocusBox() 
 { 
 	FAxisAlignedBox3d CurBox = SelectionBoundsWorld;
-	FVector3d Translation = ExtrudeFrameWorld.Origin - InitialFrameWorld.Origin;
+	FVector3d Translation = OffsetFrameWorld.Origin - InitialFrameWorld.Origin;
 	CurBox.Min += Translation; CurBox.Max += Translation;
 	CurBox.Contain(SelectionBoundsWorld);
 	return (FBox)CurBox;
 }
 
-void UExtrudeMeshSelectionTool::Initialize_GizmoMechanic()
+
+void UOffsetMeshSelectionTool::UpdateVisualizationSettings()
 {
-	// Set up the gizmo.
-	TransformProxy = NewObject<UTransformProxy>(this);
-	TransformProxy->SetTransform( InitialFrameWorld.ToFTransform() );
-
-	//TransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(
-	TransformGizmo = UE::TransformGizmoUtil::CreateCustomRepositionableTransformGizmo(
-		GetToolManager()->GetPairedGizmoManager(),
-		ETransformGizmoSubElements::FullTranslateRotateScale, this);
-
-	TransformGizmo->SetActiveTarget(TransformProxy, GetToolManager());
-	TransformProxy->OnTransformChanged.AddUObject(this, &UExtrudeMeshSelectionTool::GizmoTransformChanged);
-
-	ExtrudeFrameWorld = InitialFrameWorld;
-	ExtrudeFrameLocal = ExtrudeFrameWorld;
-	ExtrudeFrameLocal.Transform( WorldTransform.InverseUnsafe() );
-	LocalScale = FVector3d::One();
-}
-
-void UExtrudeMeshSelectionTool::GizmoTransformChanged(UTransformProxy* Proxy, FTransform Transform)
-{
-	ExtrudeFrameWorld = (FFrame3d)Transform;
-	ExtrudeFrameLocal = ExtrudeFrameWorld;
-	ExtrudeFrameLocal.Transform( WorldTransform.InverseUnsafe() );
-
-	LocalScale = Transform.GetScale3D();
-
-	EditCompute->InvalidateResult();
-}
-
-
-void UExtrudeMeshSelectionTool::UpdateVisualizationSettings()
-{
-	if (ExtrudeProperties->bShowInputMaterials)
+	if (OffsetProperties->bShowInputMaterials)
 	{
 		EditCompute->DisablePreviewMaterials();
 		Cast<UDynamicMeshComponent>(EditCompute->PreviewMesh->GetRootComponent())->SetColorOverrideMode(EDynamicMeshComponentColorOverrideMode::None);
@@ -433,19 +389,6 @@ void UExtrudeMeshSelectionTool::UpdateVisualizationSettings()
 }
 
 
-void UExtrudeMeshSelectionTool::UpdateInteractionMode(EExtrudeMeshSelectionInteractionMode InteractionMode)
-{
-	if ( InteractionMode == EExtrudeMeshSelectionInteractionMode::Interactive )
-	{
-		TransformGizmo->SetVisibility(true);
-	}
-	else
-	{
-		TransformGizmo->SetVisibility(false);
-	}
-
-	EditCompute->InvalidateResult();
-}
 
 
 #undef LOCTEXT_NAMESPACE

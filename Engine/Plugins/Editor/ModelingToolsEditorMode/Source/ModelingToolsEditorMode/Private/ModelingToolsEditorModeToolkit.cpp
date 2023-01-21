@@ -1011,15 +1011,21 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 	else if (PaletteIndex == SelectionActionsTabName)
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_Delete);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_Disconnect);
+		//ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_Disconnect);		// disabled for 5.2, available via TriSel Tool
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_Extrude);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_Offset);
 
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_PushPull);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_InsertEdgeLoop);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_CutFaces);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Inset);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Outset);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_CutFaces);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Bevel);
+
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_InsertEdgeLoop);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_Retriangulate);
+
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_PolyEd);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_TriSel);
 		
 	}
 	else if (PaletteIndex == PrimitiveTabName)

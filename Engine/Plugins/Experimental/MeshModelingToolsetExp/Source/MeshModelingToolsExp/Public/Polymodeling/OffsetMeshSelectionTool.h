@@ -6,20 +6,18 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/MeshSharingUtil.h"
 #include "Templates/PimplPtr.h"
-#include "ExtrudeMeshSelectionTool.generated.h"
+#include "OffsetMeshSelectionTool.generated.h"
 
 class UPreviewMesh;
 class UMeshOpPreviewWithBackgroundCompute; 
-class FExtrudeMeshSelectionOpFactory;
-class UTransformProxy;
-class UCombinedTransformGizmo;
+class FOffsetMeshSelectionOpFactory;
 namespace UE::Geometry { class FMeshRegionOperator; }
 
 /**
  * ToolBuilder
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UExtrudeMeshSelectionToolBuilder : public USingleTargetWithSelectionToolBuilder
+class MESHMODELINGTOOLSEXP_API UOffsetMeshSelectionToolBuilder : public USingleTargetWithSelectionToolBuilder
 {
 	GENERATED_BODY()
 public:
@@ -29,60 +27,55 @@ public:
 
 
 UENUM()
-enum class EExtrudeMeshSelectionInteractionMode : uint8
+enum class EOffsetMeshSelectionInteractionMode : uint8
 {
-	/** Define the extrusion distance using a 3D gizmo */
-	Interactive = 0,
-	/** Define the extrusion distance using a slider in the Settings */
-	Fixed = 1
+	/** Define the offset distance using a slider in the Settings */
+	Fixed = 0
 };
 
 UENUM()
-enum class EExtrudeMeshSelectionRegionModifierMode : uint8
+enum class EOffsetMeshSelectionDirectionMode : uint8
 {
-	/** Transform the original selected area */
-	OriginalShape = 0,
-	/** Flatten the extrusion area to the X/Y plane of the extrusion frame */
-	FlattenToPlane = 1,
-	/** Flatten the extrusion area by raycasting against the X/Y plane of the extrusion frame */
-	RaycastToPlane = 2
+	/** */
+	VertexNormals = 0,
+	/** */
+	FaceNormals = 1,
+	/**  */
+	ConstantWidth = 2
 };
 
+
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UExtrudeMeshSelectionToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEXP_API UOffsetMeshSelectionToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
 public:
-	/** Control how the Extruded Area should be Transformed */
-	UPROPERTY(EditAnywhere, Category = "Extrude")
-	EExtrudeMeshSelectionInteractionMode InputMode = EExtrudeMeshSelectionInteractionMode::Interactive;
+	/** Control how the Offset Area should be Transformed */
+	//UPROPERTY(EditAnywhere, Category = "Offset")
+	//EOffsetMeshSelectionInteractionMode InputMode = EOffsetMeshSelectionInteractionMode::Interactive;
 
 	/** The Extrusion Distance used in Fixed Input Mode*/
-	UPROPERTY(EditAnywhere, Category = "Extrude", meta = (DisplayName="Fixed Distance", UIMin = -250, UIMax = 250, EditCondition = "InputMode == EExtrudeMeshSelectionInteractionMode::Fixed"))
-	double ExtrudeDistance = 10.0;
+	UPROPERTY(EditAnywhere, Category = "Offset", meta = (DisplayName="Distance", UIMin = -250, UIMax = 250))
+	double OffsetDistance = 10.0;
 
-	/** Control how the Extruded Area should be deformed as part of the Extrusion */
-	UPROPERTY(EditAnywhere, Category = "Extrude")
-	EExtrudeMeshSelectionRegionModifierMode RegionMode = EExtrudeMeshSelectionRegionModifierMode::OriginalShape;
+	/** Control how the Offset Area should be displaced */
+	UPROPERTY(EditAnywhere, Category = "Offset")
+	EOffsetMeshSelectionDirectionMode Direction = EOffsetMeshSelectionDirectionMode::ConstantWidth;
 
 	/** Specify the number of subdivisions along the sides of the Extrusion */
-	UPROPERTY(EditAnywhere, Category = "Extrude", meta = (DisplayName="Subdivisions", UIMin = 0, UIMax = 10, ClampMin = 0, ClampMax = 1000))
+	UPROPERTY(EditAnywhere, Category = "Offset", meta = (DisplayName="Subdivisions", UIMin = 0, UIMax = 10, ClampMin = 0, ClampMax = 1000))
 	int NumSubdivisions = 0;
 
 	/** Specify the Crease Angle used to split the sides of the Extrusion into separate Groups */
-	UPROPERTY(EditAnywhere, Category = "Extrude", meta = (UIMin = 0, UIMax = 180, Min = 0, Max = 180))
+	UPROPERTY(EditAnywhere, Category = "Offset", meta = (UIMin = 0, UIMax = 180, Min = 0, Max = 180))
 	double CreaseAngle = 60.0;
 
-	/** Control the maximum distance each vertex may be moved in Raycast To Plane Mode */
-	UPROPERTY(EditAnywhere, Category = "Extrude", meta = (DisplayName="Max Distance", UIMin = 0, UIMax = 1000, ClampMin = 0, EditCondition = "RegionMode == EExtrudeMeshSelectionRegionModifierMode::RaycastToPlane"))
-	double RaycastMaxDistance = 1000.0;
-
-	/** If the Extruded Area has a fully open border, this option determines if Extrusion will create a Solid mesh or leave the base "open" */
-	UPROPERTY(EditAnywhere, Category = "Extrude")
+	/** If the Offset Area has a fully open border, this option determines if Extrusion will create a Solid mesh or leave the base "open" */
+	UPROPERTY(EditAnywhere, Category = "Offset")
 	bool bShellsToSolids = true;			// todo: should only be available if input has shells that could become solid...
 
-	/** Control whether a single Group should be generated along the sides of the Extrusion, or multiple Groups based on the adjacent Groups around the Extruded Area border */
+	/** Control whether a single Group should be generated along the sides of the Extrusion, or multiple Groups based on the adjacent Groups around the Offset Area border */
 	UPROPERTY(EditAnywhere, Category = "Groups", meta = (DisplayName="Propagate Groups"))
 	bool bInferGroupsFromNbrs = true;
 
@@ -90,7 +83,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Groups", meta=(DisplayName="Per Subdivision", EditCondition="NumSubdivisions > 0") )
 	bool bGroupPerSubdivision = true;
 
-	/** Control whether groups in the Extruded Area are mapped to new Groups, or replaced with a single new Group */
+	/** Control whether groups in the Offset Area are mapped to new Groups, or replaced with a single new Group */
 	UPROPERTY(EditAnywhere, Category = "Groups", meta=(DisplayName="Replace Cap Groups"))
 	bool bReplaceSelectionGroups = false;
 
@@ -102,7 +95,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UVs", meta = (DisplayName="Island Per Group"))
 	bool bUVIslandPerGroup = true;
 
-	/** Control whether SetMaterialID is assigned to all triangles along the sides of the Extrusion, or if MaterialIDs should be inferred from the Extruded Area */
+	/** Control whether SetMaterialID is assigned to all triangles along the sides of the Extrusion, or if MaterialIDs should be inferred from the Offset Area */
 	UPROPERTY(EditAnywhere, Category = "Material", meta=(DisplayName="Infer Materials"))
 	bool bInferMaterialID = true;
 
@@ -110,7 +103,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Material", meta=(DisplayName="Material ID", EditCondition="bInferMaterialID == false"))
 	int SetMaterialID = 0;
 
-	/** Control whether the original Mesh Materials should be shown, or a visualization of the extruded Groups */
+	/** Control whether the original Mesh Materials should be shown, or a visualization of the Offset Groups */
 	UPROPERTY(EditAnywhere, Category = "Visualization", meta=(DisplayName="Show Materials"))
 	bool bShowInputMaterials = false;
 };
@@ -118,12 +111,12 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UExtrudeMeshSelectionTool : public USingleTargetWithSelectionTool
+class MESHMODELINGTOOLSEXP_API UOffsetMeshSelectionTool : public USingleTargetWithSelectionTool
 {
 	GENERATED_BODY()
 	using FFrame3d = UE::Geometry::FFrame3d;
 public:
-	UExtrudeMeshSelectionTool();
+	UOffsetMeshSelectionTool();
 
 	virtual void Setup() override;
 	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
@@ -140,7 +133,7 @@ public:
 
 protected:
 	UPROPERTY()
-	TObjectPtr<UExtrudeMeshSelectionToolProperties> ExtrudeProperties = nullptr;
+	TObjectPtr<UOffsetMeshSelectionToolProperties> OffsetProperties = nullptr;
 
 
 protected:
@@ -150,12 +143,12 @@ protected:
 	UE::Geometry::FFrame3d SelectionFrameLocal;
 	UE::Geometry::FFrame3d InitialFrameLocal;
 	UE::Geometry::FFrame3d InitialFrameWorld;
-	UE::Geometry::FFrame3d ExtrudeFrameWorld;
-	UE::Geometry::FFrame3d ExtrudeFrameLocal;
+	UE::Geometry::FFrame3d OffsetFrameWorld;
+	UE::Geometry::FFrame3d OffsetFrameLocal;
 	FVector3d LocalScale;
 
 	UE::Geometry::FDynamicMesh3 CurrentMesh;
-	TArray<int32> ExtrudeROI;
+	TArray<int32> OffsetROI;
 	TSet<int32> ModifiedROI;
 	int32 MaxMaterialID = 0;		// maximum material ID on mesh (inclusive)
 
@@ -163,11 +156,11 @@ protected:
 	UE::Geometry::FDynamicMesh3 EditRegionMesh;
 	TSharedPtr<UE::Geometry::FSharedConstDynamicMesh3> EditRegionSharedMesh;
 
-	TSet<int32> RegionExtrudeROI;
+	TSet<int32> RegionOffsetROI;
 	TSet<int32> RegionBorderTris;
 
-	TPimplPtr<FExtrudeMeshSelectionOpFactory> OperatorFactory;
-	friend class FExtrudeMeshSelectionOpFactory;
+	TPimplPtr<FOffsetMeshSelectionOpFactory> OperatorFactory;
+	friend class FOffsetMeshSelectionOpFactory;
 
 	UPROPERTY()
 	TObjectPtr<UPreviewMesh> SourcePreview = nullptr;
@@ -176,16 +169,4 @@ protected:
 	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> EditCompute = nullptr;
 
 	void UpdateVisualizationSettings();
-
-	void Initialize_GizmoMechanic();
-
-	UPROPERTY()
-	TObjectPtr<UCombinedTransformGizmo> TransformGizmo = nullptr;
-
-	UPROPERTY()
-	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
-
-	void GizmoTransformChanged(UTransformProxy* Proxy, FTransform Transform);
-
-	void UpdateInteractionMode(EExtrudeMeshSelectionInteractionMode InteractionMode);
 };

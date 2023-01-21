@@ -935,7 +935,7 @@ bool UGeometrySelectionManager::CanExecuteSelectionCommand(UGeometrySelectionEdi
 		bHaveSelections = true;
 	});
 
-	return bHaveSelections && bCanExecute;
+	return ( bHaveSelections || (Command->AllowEmptySelection() && HasActiveTargets() && MeshTopologyMode != EMeshTopologyMode::None ) ) && bCanExecute;
 }
 
 void UGeometrySelectionManager::ExecuteSelectionCommand(UGeometrySelectionEditCommand* Command)
@@ -951,7 +951,7 @@ void UGeometrySelectionManager::ExecuteSelectionCommand(UGeometrySelectionEditCo
 
 	for (TSharedPtr<FGeometrySelectionTarget> Target : ActiveTargetReferences)
 	{
-		if (Target->Selection.IsEmpty()) continue;
+		if (Target->Selection.IsEmpty() && Command->AllowEmptySelection() == false) continue;
 
 		// TODO: can use Command->IsModifySelectionCommand() to check if this is a command that only affects selection
 		// and not geometry. In that case we can skip the intermediate clear-selection and emit a single change.
