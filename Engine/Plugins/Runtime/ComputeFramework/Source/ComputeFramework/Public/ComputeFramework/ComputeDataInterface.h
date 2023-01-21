@@ -37,6 +37,8 @@ public:
 	virtual void GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const {}
 	/** Gather the shader metadata exposed by the data provider payload. */
 	virtual void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const {}
+	/** If the data interface HLSL comes from a file this should fill the virtual file path. This is used to resolve shader compilation errors. */
+	virtual TCHAR const* GetShaderVirtualPath() const { return nullptr; }
 	/** Get a hash that changes on any data interface changes that affect kernel compilation. */
 	virtual void GetShaderHash(FString& InOutKey) const {}
 	/** Gather any extra struct types that this data provider relies on. */

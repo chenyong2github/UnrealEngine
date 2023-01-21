@@ -141,9 +141,16 @@ static bool ParseShaderCompilerError(FShaderCompilerError const& InError, FCompu
 	OutMessage.Text = Error.StrippedErrorMessage;
 	OutMessage.VirtualFilePath = Error.ErrorVirtualFilePath;
 
-	if (OutMessage.VirtualFilePath.StartsWith(TEXT("/")) && !OutMessage.VirtualFilePath.StartsWith(TEXT("/UObject/")) && !OutMessage.VirtualFilePath.Contains(TEXT("/Generated/")))
+	// Fix up the DataInterface generated file paths before any error reporting.
+	// Magic path structure is set in ComputeGraph compilation.
+	if (OutMessage.VirtualFilePath.RemoveFromStart(TEXT("/Engine/Generated/DataInterface/")))
 	{
-		OutMessage.RealFilePath = Error.GetShaderSourceFilePath();
+		OutMessage.VirtualFilePath.MidInline(OutMessage.VirtualFilePath.Find(TEXT("/")));
+	}
+	// Store any disk paths before error reporting. Can skip some known cases that won't have disk paths.
+	if (OutMessage.VirtualFilePath.StartsWith(TEXT("/")) && !OutMessage.VirtualFilePath.StartsWith(TEXT("/Engine/Generated/")))
+	{
+		OutMessage.RealFilePath = GetShaderSourceFilePath(OutMessage.VirtualFilePath);
 	}
 
 	LexFromString(OutMessage.Line, *Line);

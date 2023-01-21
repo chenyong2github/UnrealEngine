@@ -160,7 +160,8 @@ private:
 		UComputeKernelSource const& InKernelSource,
 		TMap<FString, FString> const& InAdditionalSources,
 		FString& OutHashKey,
-		FComputeKernelDefinitionSet& OutDefinitionSet, 
+		TMap<FString, FString>& OutGeneratedSources,
+		FComputeKernelDefinitionSet& OutDefinitionSet,
 		FComputeKernelPermutationVector& OutPermutationVector) const;
 
 	/** Cache shader resources for all kernels in the graph. */

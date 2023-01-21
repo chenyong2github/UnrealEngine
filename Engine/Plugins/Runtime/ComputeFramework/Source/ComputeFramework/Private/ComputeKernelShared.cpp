@@ -49,6 +49,7 @@ void FComputeKernelResource::SetupShaderCompilationEnvironment(EShaderPlatform I
 	}
 
 	OutEnvironment.IncludeVirtualPathToContentsMap.Append(AdditionalSources);
+	OutEnvironment.IncludeVirtualPathToContentsMap.Append(GeneratedSources);
 }
 #endif // WITH_EDITOR
 
@@ -230,6 +231,7 @@ void FComputeKernelResource::SetupResource(
 	FString const& InShaderHashKey,
 	FString const& InShaderSource,
 	TMap<FString, FString> const& InAdditionalSources,
+	TMap<FString, FString> const& InGeneratedSources,
 	TSharedPtr<FComputeKernelDefinitionSet>& InShaderDefinitionSet,
 	TSharedPtr<FComputeKernelPermutationVector>& InShaderPermutationVector,
 	TUniquePtr<FShaderParametersMetadataAllocations>& InShaderParameterMetadataAllocations,
@@ -243,6 +245,7 @@ void FComputeKernelResource::SetupResource(
 	ShaderCodeHash = GetTypeHash(InShaderHashKey);
 	ShaderSource = InShaderSource;
 	AdditionalSources = InAdditionalSources;
+	GeneratedSources = InGeneratedSources;
 	ShaderDefinitionSet = InShaderDefinitionSet;
 	ShaderPermutationVector = InShaderPermutationVector;
 	ShaderParameterMetadataAllocations = MoveTemp(InShaderParameterMetadataAllocations);

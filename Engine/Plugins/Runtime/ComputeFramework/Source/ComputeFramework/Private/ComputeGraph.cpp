@@ -439,7 +439,8 @@ FString UComputeGraph::BuildKernelSource(
 	UComputeKernelSource const& InKernelSource,
 	TMap<FString, FString> const& InAdditionalSources,
 	FString& OutHashKey,
-	FComputeKernelDefinitionSet& OutDefinitionSet, 
+	TMap<FString, FString>& OutGeneratedSources,
+	FComputeKernelDefinitionSet& OutDefinitionSet,
 	FComputeKernelPermutationVector& OutPermutationVector) const
 {
 	FString HLSL;
@@ -481,7 +482,21 @@ FString UComputeGraph::BuildKernelSource(
 		{
 			// Add a unique prefix to generate unique names in the data interface shader code.
 			FString NamePrefix = GetUniqueDataInterfaceName(DataInterface, DataProviderIndex);
-			DataInterface->GetHLSL(HLSL, NamePrefix);
+
+			// Data interface optionally put source in a generated file that maps to an on-disk virtual path.
+			if (TCHAR const* ShaderVirtualPath = DataInterface->GetShaderVirtualPath())
+			{
+				// The generated path has a magic unique prefix which the compilation manager knows to strip before resolving errors.
+				FString MagicVirtualPath = FString::Printf(TEXT("/Engine/Generated/DataInterface/%s%s"), *NamePrefix, ShaderVirtualPath);
+				HLSL += FString::Printf(TEXT("#include \"%s\"\n"), *MagicVirtualPath);
+				FString DataInterfaceHLSL;
+				DataInterface->GetHLSL(DataInterfaceHLSL, NamePrefix);
+				OutGeneratedSources.Add(MagicVirtualPath, DataInterfaceHLSL);
+			}
+			else
+			{
+				DataInterface->GetHLSL(HLSL, NamePrefix);
+			}
 
 			DataInterface->GetStructDeclarations(StructsSeen, StructDeclarations);
 			
@@ -574,13 +589,14 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 			TMap<FString, FString> AdditionalSources = GatherAdditionalSources(Kernel->KernelSource->AdditionalSources);
 
 			FString ShaderHashKey;
+			TMap<FString, FString> GeneratedSources;
 			TSharedPtr<FComputeKernelDefinitionSet> ShaderDefinitionSet = MakeShared<FComputeKernelDefinitionSet>();
 			TSharedPtr<FComputeKernelPermutationVector> ShaderPermutationVector = MakeShared<FComputeKernelPermutationVector>();
 			TUniquePtr<FShaderParametersMetadataAllocations> ShaderParameterMetadataAllocations = MakeUnique<FShaderParametersMetadataAllocations>();
 
 			FString ShaderEntryPoint = Kernel->KernelSource->EntryPoint;
 			FString ShaderFriendlyName = GetOuter()->GetName() / GetFName().GetPlainNameString() / ShaderEntryPoint;
-			FString ShaderSource = BuildKernelSource(KernelIndex, *Kernel->KernelSource, AdditionalSources, ShaderHashKey, *ShaderDefinitionSet, *ShaderPermutationVector);
+			FString ShaderSource = BuildKernelSource(KernelIndex, *Kernel->KernelSource, AdditionalSources, ShaderHashKey, GeneratedSources, *ShaderDefinitionSet, *ShaderPermutationVector);
 			FShaderParametersMetadata* ShaderParameterMetadata = BuildKernelShaderMetadata(KernelIndex, *ShaderParameterMetadataAllocations);
 
 			const ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
@@ -595,6 +611,7 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 				ShaderHashKey,
 				ShaderSource,
 				AdditionalSources,
+				GeneratedSources,
 				ShaderDefinitionSet,
 				ShaderPermutationVector,
 				ShaderParameterMetadataAllocations,
@@ -685,12 +702,13 @@ void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* Targe
 			TMap<FString, FString> AdditionalSources = GatherAdditionalSources(KernelInvocations[KernelIndex]->KernelSource->AdditionalSources);
 
 			FString ShaderHashKey;
+			TMap<FString, FString> GeneratedSources;
 			TSharedPtr<FComputeKernelDefinitionSet> ShaderDefinitionSet = MakeShared<FComputeKernelDefinitionSet>();
 			TSharedPtr<FComputeKernelPermutationVector> ShaderPermutationVector = MakeShared<FComputeKernelPermutationVector>();
 
 			FString ShaderEntryPoint = KernelSource->EntryPoint;
 			FString ShaderFriendlyName = GetOuter()->GetName() + TEXT("_") + ShaderEntryPoint;
-			FString ShaderSource = BuildKernelSource(KernelIndex, *KernelSource, AdditionalSources, ShaderHashKey, *ShaderDefinitionSet, *ShaderPermutationVector);
+			FString ShaderSource = BuildKernelSource(KernelIndex, *KernelSource, AdditionalSources, ShaderHashKey, GeneratedSources, *ShaderDefinitionSet, *ShaderPermutationVector);
 
 			for (int32 ShaderFormatIndex = 0; ShaderFormatIndex < ShaderFormats.Num(); ++ShaderFormatIndex)
 			{
@@ -708,6 +726,7 @@ void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* Targe
 					ShaderHashKey,
 					ShaderSource,
 					AdditionalSources,
+					GeneratedSources,
 					ShaderDefinitionSet,
 					ShaderPermutationVector,
 					ShaderParameterMetadataAllocations,

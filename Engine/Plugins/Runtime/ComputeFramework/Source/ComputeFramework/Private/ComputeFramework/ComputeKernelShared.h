@@ -432,6 +432,7 @@ public:
 		FString const& InShaderHashKey,
 		FString const& InShaderSource,
 		TMap<FString, FString> const& InAdditionalSources,
+		TMap<FString, FString> const& InGeneratedSources,
 		TSharedPtr<FComputeKernelDefinitionSet>& InShaderDefinitionSet,
 		TSharedPtr<FComputeKernelPermutationVector>& InShaderPermutationVector,
 		TUniquePtr<FShaderParametersMetadataAllocations>& InShaderParameterMetadataAllocations,
@@ -496,6 +497,8 @@ private:
 
 	/** Additional source code. Stored as a map from a virtual source file name to the shader source.  */
 	TMap<FString, FString> AdditionalSources;
+	/** Generated source code. Stored as a map from a virtual source file name to the shader source.  */
+	TMap<FString, FString> GeneratedSources;
 
 	/** Defines used when compiling shaders. Object can be shared across a number of shader formats during cook. */
 	TSharedPtr<FComputeKernelDefinitionSet> ShaderDefinitionSet;
