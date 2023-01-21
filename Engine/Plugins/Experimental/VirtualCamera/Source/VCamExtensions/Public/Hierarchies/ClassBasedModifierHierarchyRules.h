@@ -5,6 +5,7 @@
 #include "BaseModifierGroup.h"
 #include "ModifierHierarchyRules.h"
 #include "Modifier/VCamModifier.h"
+#include "Templates/Function.h"
 #include "Templates/SubclassOf.h"
 #include "ClassBasedModifierHierarchyRules.generated.h"
 

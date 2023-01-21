@@ -2,6 +2,7 @@
 
 #include "Hierarchies/ClassBasedModifierHierarchyRules.h"
 
+#include "HierarchyUtils.h"
 #include "VCamComponent.h"
 
 #include "Algo/AllOf.h"
@@ -159,27 +160,13 @@ void UClassBasedModifierHierarchyRules::ForEachGroup(TFunctionRef<EBreakBehavior
 		return;
 	}
 
-	TQueue<TPair<UClassBasedModifierGroup*, UClassBasedModifierGroup*>> Queue;
-	Queue.Enqueue({ RootGroup, nullptr });
-
-	TPair<UClassBasedModifierGroup*, UClassBasedModifierGroup*> Current;
-	while (Queue.Dequeue(Current))
-	{
-		UClassBasedModifierGroup* CurrentNode = Current.Key;
-		UClassBasedModifierGroup* Parent = Current.Value;
-		
-		const EBreakBehavior BreakBehavior = Callback(*CurrentNode, Parent);
-		if (BreakBehavior == EBreakBehavior::Break)
+	using namespace UE::VCamExtensions;
+	HierarchyUtils::ForEachGroup(
+		*RootGroup,
+		[Callback](UClassBasedModifierGroup& CurrentGroup, UClassBasedModifierGroup* Parent)
 		{
-			return;
-		}
-		
-		for (UClassBasedModifierGroup* Child : CurrentNode->Children)
-		{
-			if (Child)
-			{
-				Queue.Enqueue({ Child, CurrentNode });
-			}
-		}
-	}
+			return Callback(CurrentGroup, Parent) == EBreakBehavior::Continue ? HierarchyUtils::EBreakBehavior::Continue : HierarchyUtils::EBreakBehavior::Break;
+		},
+		[](UClassBasedModifierGroup& CurrentGroup){ return CurrentGroup.Children; }
+		);
 }
