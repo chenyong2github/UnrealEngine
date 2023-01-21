@@ -33,7 +33,7 @@ RWTexture2D<uint>			SceneStencil;
 
 RWTexture2D<float4>			Velocity;
 
-RWTexture2D<uint>			MaterialResolve;
+RWTexture2D<uint2>			MaterialResolve;
 RWStructuredBuffer<uint>	MaterialHTile;
 RWTexture2D<float>			MaterialDepth;
 
@@ -119,8 +119,9 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 				const FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 				const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
-				const uint MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
-				MaterialDepthValue = asfloat(GetMaterialDepthId(MaterialSlot, MaterialDepthTable));
+				const uint LegacyShadingId = GetMaterialLegacyShadingId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+				const uint ShadingBin = GetMaterialShadingBin(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+				MaterialDepthValue = asfloat(GetMaterialDepthId(LegacyShadingId, MaterialDepthTable));
 
 				const bool bIsDecalReceiver = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
 				const bool bHasDistanceField = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_DISTANCE_FIELD_REPRESENTATION) != 0;
@@ -175,7 +176,8 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 
 			#if MATERIAL_DATA_EXPORT
 				MaterialResolve[PixelPos.xy] = PackMaterialResolve(
-					MaterialSlot,
+					LegacyShadingId,
+					ShadingBin,
 					bIsDecalReceiver,
 					bHasDistanceField,
 					GetPrimitive_LightingChannelMask_FromFlags(PrimitiveData.Flags)

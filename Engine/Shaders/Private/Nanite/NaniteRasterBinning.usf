@@ -93,7 +93,7 @@ StructuredBuffer<uint2> InTotalPrevDrawClusters;
 
 uint bUsePrimOrMeshShader;
 
-uint RegularMaterialRasterSlotCount;
+uint RegularMaterialRasterBinCount;
 ByteAddressBuffer MaterialSlotTable;
 
 #if RASTER_BIN_SCATTER
@@ -215,7 +215,7 @@ uint AllocateRasterizerBinCluster(uint BinIndex, bool bSoftware, uint BatchCount
 
 void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart, uint RangeEnd, uint BatchCount, uint BatchInfoOffset, FCluster Cluster, bool bBatchInfoInlined, bool bSoftware)
 {
-	const bool bProgrammableRaster = RasterizerBin >= RegularMaterialRasterSlotCount;
+	const bool bProgrammableRaster = RasterizerBin >= RegularMaterialRasterBinCount;
 	const bool bUseBatch = bSoftware ? bProgrammableRaster : bUsePrimOrMeshShader;
 	BatchCount = CondMask(bUseBatch, BatchCount, 1u);
 #if RASTER_BIN_CLASSIFY
@@ -300,19 +300,19 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 
 			// The 0th material range is always non-zero length
 			{
-				RasterizerBin0 = GetMaterialRasterSlotFromIndex(Cluster.Material0Index, InstanceData.PrimitiveId, RegularMaterialRasterSlotCount, bSecondaryBin, MaterialSlotTable);
+				RasterizerBin0 = GetMaterialRasterBinFromIndex(Cluster.Material0Index, InstanceData.PrimitiveId, RegularMaterialRasterBinCount, bSecondaryBin, MaterialSlotTable);
 			}
 
 			BRANCH
 			if (Cluster.Material1Length > 0u)
 			{
-				RasterizerBin1 = GetMaterialRasterSlotFromIndex(Cluster.Material1Index, InstanceData.PrimitiveId, RegularMaterialRasterSlotCount, bSecondaryBin, MaterialSlotTable);
+				RasterizerBin1 = GetMaterialRasterBinFromIndex(Cluster.Material1Index, InstanceData.PrimitiveId, RegularMaterialRasterBinCount, bSecondaryBin, MaterialSlotTable);
 			}
 
 			BRANCH
 			if (Material2Length > 0)
 			{
-				RasterizerBin2 = GetMaterialRasterSlotFromIndex(Cluster.Material2Index, InstanceData.PrimitiveId, RegularMaterialRasterSlotCount, bSecondaryBin, MaterialSlotTable);
+				RasterizerBin2 = GetMaterialRasterBinFromIndex(Cluster.Material2Index, InstanceData.PrimitiveId, RegularMaterialRasterBinCount, bSecondaryBin, MaterialSlotTable);
 			}
 
 			if (RasterizerBin0 == RasterizerBin1 && RasterizerBin0 == RasterizerBin2)
@@ -381,7 +381,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 				uint MaterialIndex;
 				DecodeMaterialRange(EncodedRange, TriStart, TriLength, MaterialIndex);
 
-				const uint RasterizerBinN = GetMaterialRasterSlotFromIndex(MaterialIndex, InstanceData.PrimitiveId, RegularMaterialRasterSlotCount, bSecondaryBin, MaterialSlotTable);
+				const uint RasterizerBinN = GetMaterialRasterBinFromIndex(MaterialIndex, InstanceData.PrimitiveId, RegularMaterialRasterBinCount, bSecondaryBin, MaterialSlotTable);
 
 				const uint BatchCount = BitStreamReader_Read_RO(ClusterPageData, BatchCountStreamState, 4, 4);
 

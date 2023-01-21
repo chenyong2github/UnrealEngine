@@ -18,7 +18,7 @@ uint StencilDecal;
 uint bWriteCustomStencil; // only used to repurpose EmitSceneDepthStencilPS for custom depth/stencil where possible
 
 Texture2D<UlongType> VisBuffer64;
-Texture2D<uint> MaterialResolve;
+Texture2D<uint2> MaterialResolve;
 StructuredBuffer<uint> MaterialTileRemap;
 
 // These are only used for custom depth/stencil output
@@ -67,12 +67,12 @@ void EmitMaterialDepthPS(
 )
 {
 	const uint2 PixelPos = (uint2)SvPosition.xy;
-	uint MaterialSlot = 0;
+	uint LegacyShadingId = 0;
 
 #if MATERIAL_RESOLVE
 	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PixelPos]);
 	const bool bIsNanitePixel = ResolvedMaterial.bIsNanitePixel;
-	MaterialSlot = ResolvedMaterial.MaterialSlot;
+	LegacyShadingId = ResolvedMaterial.LegacyShadingId;
 #else
 	UlongType VisPixel  = VisBuffer64[PixelPos];
 
@@ -87,14 +87,14 @@ void EmitMaterialDepthPS(
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster, false );
 		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-		MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		LegacyShadingId = GetMaterialLegacyShadingId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 	}
 #endif
 
 	if (bIsNanitePixel)
 	{
 		// Export material depth ID as SV_Depth.
-		const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
+		const uint MaterialDepthId = GetMaterialDepthId(LegacyShadingId, MaterialDepthTable);
 		OutDepth = asfloat(MaterialDepthId | DummyZero); // Workaround for bug on Geforce 2080Ti. It seems the issue might be related to writing directly to OutDepth in a buffer load instruction.
 	}
 	else
@@ -106,7 +106,7 @@ void EmitMaterialDepthPS(
 void EmitSceneDepthPS(
 	in float4  SvPosition			: SV_Position,
 #if MATERIAL_RESOLVE
-	out uint   OutMaterialResolve	: SV_Target0,
+	out uint2   OutMaterialResolve	: SV_Target0,
 #endif
 #if VELOCITY_EXPORT
 	out float4 OutVelocity			: SV_Target1,
@@ -136,11 +136,13 @@ void EmitSceneDepthPS(
 
 	#if MATERIAL_RESOLVE
 		const FCluster ClusterData		= GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-		const uint MaterialSlot			= GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		const uint LegacyShadingId		= GetMaterialLegacyShadingId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		const uint ShadingBin			= GetMaterialShadingBin(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 		const bool bIsDecalReceiver		= (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
 		const bool bHasDistanceField	= (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_DISTANCE_FIELD_REPRESENTATION) != 0;
 		OutMaterialResolve = PackMaterialResolve(
-			MaterialSlot,
+			LegacyShadingId,
+			ShadingBin,
 			bIsDecalReceiver,
 			bHasDistanceField,
 			GetPrimitive_LightingChannelMask_FromFlags(GetPrimitiveData(InstanceData.PrimitiveId).Flags)
@@ -208,7 +210,7 @@ void EmitSceneStencilPS(
 void EmitSceneDepthStencilPS
 (
 	in float4  SvPosition			: SV_Position,
-	out uint   OutMaterialResolve	: SV_Target0,
+	out uint2   OutMaterialResolve	: SV_Target0,
 #if VELOCITY_EXPORT
 	out float4 OutVelocity			: SV_Target1,
 #endif
@@ -235,8 +237,8 @@ void EmitSceneDepthStencilPS
 		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 		const FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 		const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-
-		const uint MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		const uint LegacyShadingId = GetMaterialLegacyShadingId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		const uint ShadingBin = GetMaterialShadingBin(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 		const bool bIsDecalReceiver = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
 		const bool bHasDistanceField = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_DISTANCE_FIELD_REPRESENTATION) != 0;
 
@@ -266,7 +268,8 @@ void EmitSceneDepthStencilPS
 
 		OutDepth = asfloat(DepthInt);
 		OutMaterialResolve = PackMaterialResolve(
-			MaterialSlot,
+			LegacyShadingId,
+			ShadingBin,
 			bIsDecalReceiver,
 			bHasDistanceField,
 			GetPrimitive_LightingChannelMask_FromFlags(PrimitiveData.Flags)

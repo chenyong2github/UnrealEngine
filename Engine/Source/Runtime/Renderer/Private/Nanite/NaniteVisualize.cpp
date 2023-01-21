@@ -127,7 +127,7 @@ class FNaniteVisualizeCS : public FNaniteGlobalShader
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER(uint32, MaxVisibleClusters)
 		SHADER_PARAMETER(uint32, RenderFlags)
-		SHADER_PARAMETER(uint32, RegularMaterialRasterSlotCount)
+		SHADER_PARAMETER(uint32, RegularMaterialRasterBinCount)
 		SHADER_PARAMETER(FIntPoint, PickingPixelPos)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
@@ -135,7 +135,7 @@ class FNaniteVisualizeCS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, DbgBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, DbgBuffer32)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, MaterialResolve)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialComplexity)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneZDecoded)
@@ -172,7 +172,7 @@ class FNanitePickingCS : public FNaniteGlobalShader
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER(uint32, MaxVisibleClusters)
 		SHADER_PARAMETER(uint32, RenderFlags)
-		SHADER_PARAMETER(uint32, RegularMaterialRasterSlotCount)
+		SHADER_PARAMETER(uint32, RegularMaterialRasterBinCount)
 		SHADER_PARAMETER(FIntPoint, PickingPixelPos)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
@@ -180,7 +180,7 @@ class FNanitePickingCS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, DbgBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, DbgBuffer32)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, MaterialResolve)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialComplexity)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
@@ -232,7 +232,7 @@ public:
 		SHADER_PARAMETER(FUint32Vector4, ViewRect)
 		SHADER_PARAMETER(FUint32Vector4, HTileConfig)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float>, SceneDepth)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, MaterialResolve)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(TextureMetadata, SceneHTileBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(TextureMetadata, MaterialHTileBuffer)
@@ -269,7 +269,7 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, MaterialResolve)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialEditorTable)
@@ -329,7 +329,7 @@ static FRDGBufferRef PerformPicking(
 		PassParameters->PageConstants = Data.PageConstants;
 		PassParameters->MaxVisibleClusters = Data.MaxVisibleClusters;
 		PassParameters->RenderFlags = Data.RenderFlags;
-		PassParameters->RegularMaterialRasterSlotCount = RasterPipelines.GetRegularBinCount();
+		PassParameters->RegularMaterialRasterBinCount = RasterPipelines.GetRegularBinCount();
 		PassParameters->PickingPixelPos = FIntPoint((int32)VisualizationData.GetPickingMousePos().X, (int32)VisualizationData.GetPickingMousePos().Y);
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(Data.VisibleClustersSWHW);
 		PassParameters->VisBuffer64 = Data.VisBuffer64;
@@ -431,6 +431,8 @@ void DisplayPicking(const FScene* Scene, const FNanitePickingFeedback& PickingFe
 
 	Writer.EmptyLine();
 
+	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Raster Depth: %.6f"), *reinterpret_cast<const float*>(&PickingFeedback.DepthInt))), 10, FColor::Yellow);
+
 	if (PickingFeedback.RasterMode == 1)
 	{
 		Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Raster Mode: Hardware"))), 10, FColor::Yellow);
@@ -440,10 +442,11 @@ void DisplayPicking(const FScene* Scene, const FNanitePickingFeedback& PickingFe
 		Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Raster Mode: Software"))), 10, FColor::Yellow);
 	}
 
-	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Raster Slot: %d"), PickingFeedback.RasterSlot)), 10, FColor::Yellow);
-	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Raster Depth: %.6f"), *reinterpret_cast<const float*>(&PickingFeedback.DepthInt))), 10, FColor::Yellow);
+	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Raster Bin: %d"), PickingFeedback.RasterBin)), 10, FColor::Yellow);
 
 	Writer.EmptyLine();
+
+	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Shading Bin: %d"), PickingFeedback.ShadingBin)), 10, FColor::Yellow);
 
 	if (PickingFeedback.MaterialMode == 0)
 	{
@@ -456,8 +459,8 @@ void DisplayPicking(const FScene* Scene, const FNanitePickingFeedback& PickingFe
 
 	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Material Index: %d"), PickingFeedback.MaterialIndex)), 10, FColor::Yellow);
 	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Material Count: %d"), PickingFeedback.MaterialCount)), 10, FColor::Yellow);
-	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Material Slot: %d"),  PickingFeedback.MaterialSlot)),  10, FColor::Yellow);
 	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Material Depth: %.6f"), *reinterpret_cast<const float*>(&PickingFeedback.MaterialDepthId))), 10, FColor::Yellow);
+	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Legacy Shading Id: %d"), PickingFeedback.LegacyShadingId)), 10, FColor::Yellow);
 
 	Writer.EmptyLine();
 
@@ -726,7 +729,7 @@ void AddVisualizationPasses(
 				PassParameters->PageConstants = Data.PageConstants;
 				PassParameters->MaxVisibleClusters = Data.MaxVisibleClusters;
 				PassParameters->RenderFlags = Data.RenderFlags;
-				PassParameters->RegularMaterialRasterSlotCount = RasterPipelines.GetRegularBinCount();
+				PassParameters->RegularMaterialRasterBinCount = RasterPipelines.GetRegularBinCount();
 				PassParameters->PickingPixelPos = FIntPoint((int32)VisualizationData.GetPickingMousePos().X, (int32)VisualizationData.GetPickingMousePos().Y);
 				PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 				PassParameters->VisBuffer64 = VisBuffer64;

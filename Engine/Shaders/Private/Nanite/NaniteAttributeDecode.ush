@@ -311,19 +311,21 @@ uint RemapMaterialIndexToOffset(uint InPrimitiveIndex, uint InMaterialIndex, uin
 	return RemapOffset;
 }
 
-struct FNaniteMaterialSlot {
-	uint MaterialIndex;
-	uint RasterSlot;
-	uint SecondaryRasterSlot;
+struct FNaniteMaterialSlot
+{
+	uint ShadingBin;
+	uint RasterBin;
+	uint SecondaryRasterBin;
+	uint LegacyShadingId;
 };
 
 FNaniteMaterialSlot UnpackMaterialSlot(uint2 Data)
 {
 	FNaniteMaterialSlot Output;
-	Output.MaterialIndex = Data.x >> 16u;
-	Output.RasterSlot = Data.x & 0xFFFFu;
-	Output.SecondaryRasterSlot = Data.y;
-
+	Output.ShadingBin			= Data.x >> 16u;
+	Output.RasterBin			= Data.x & 0xFFFFu;
+	Output.LegacyShadingId		= Data.y >> 16u;
+	Output.SecondaryRasterBin	= Data.y & 0xFFFFu;
 	return Output;
 }
 
@@ -340,47 +342,68 @@ FNaniteMaterialSlot LoadMaterialSlot(uint InPrimitiveIndex, uint InMaterialIndex
 	return LoadMaterialSlot(InMaterialTable, RemapOffset);
 }
 
-uint GetMaterialShadingSlotFromIndex(
+uint GetMaterialLegacyShadingIdFromIndex(
 	uint InRelativeMaterialIndex,
 	uint InPrimitiveIndex,
 	ByteAddressBuffer InMaterialSlotTable)
 {
 	FNaniteMaterialSlot MaterialSlot = LoadMaterialSlot(InPrimitiveIndex, InRelativeMaterialIndex, InMaterialSlotTable);
-	return MaterialSlot.MaterialIndex;
+	return MaterialSlot.LegacyShadingId;
 }
 
-uint GetMaterialRasterSlotFromIndex(
+uint GetMaterialShadingBinFromIndex(
 	uint InRelativeMaterialIndex,
 	uint InPrimitiveIndex,
-	uint InRegularSlotCount,
-	bool bSecondaryBin,
 	ByteAddressBuffer InMaterialSlotTable)
 {
 	FNaniteMaterialSlot MaterialSlot = LoadMaterialSlot(InPrimitiveIndex, InRelativeMaterialIndex, InMaterialSlotTable);
-	uint RasterSlot = MaterialSlot.RasterSlot;
-	if (bSecondaryBin && MaterialSlot.SecondaryRasterSlot != 0xFFFFFFFFu)
-	{
-		RasterSlot = MaterialSlot.SecondaryRasterSlot;
-	}
-	if (RasterSlot >= InRegularSlotCount)
-	{
-		RasterSlot = 0xffff - RasterSlot + InRegularSlotCount;
-	}
-
-	return RasterSlot;
+	return MaterialSlot.ShadingBin;
 }
 
-uint GetMaterialShadingSlot(
+uint GetMaterialRasterBinFromIndex(
+	uint InRelativeMaterialIndex,
+	uint InPrimitiveIndex,
+	uint InRegularRasterBinCount,
+	bool bSecondaryRasterBin,
+	ByteAddressBuffer InMaterialSlotTable)
+{
+	FNaniteMaterialSlot MaterialSlot = LoadMaterialSlot(InPrimitiveIndex, InRelativeMaterialIndex, InMaterialSlotTable);
+	uint RasterBin = MaterialSlot.RasterBin;
+	
+	if (bSecondaryRasterBin && MaterialSlot.SecondaryRasterBin != 0xFFFFu)
+	{
+		RasterBin = MaterialSlot.SecondaryRasterBin;
+	}
+
+	if (RasterBin >= InRegularRasterBinCount)
+	{
+		RasterBin = 0xFFFFu - RasterBin + InRegularRasterBinCount;
+	}
+
+	return RasterBin;
+}
+
+uint GetMaterialLegacyShadingId(
 	FCluster InCluster,
 	uint InPrimitiveIndex,
 	uint InTriIndex,
 	ByteAddressBuffer InMaterialSlotTable)
 {
 	const uint RelativeMaterialIndex = GetRelativeMaterialIndex(InCluster, InTriIndex);
-	return GetMaterialShadingSlotFromIndex(RelativeMaterialIndex, InPrimitiveIndex, InMaterialSlotTable);
+	return GetMaterialLegacyShadingIdFromIndex(RelativeMaterialIndex, InPrimitiveIndex, InMaterialSlotTable);
 }
 
-uint GetMaterialRasterSlot(
+uint GetMaterialShadingBin(
+	FCluster InCluster,
+	uint InPrimitiveIndex,
+	uint InTriIndex,
+	ByteAddressBuffer InMaterialSlotTable)
+{
+	const uint RelativeMaterialIndex = GetRelativeMaterialIndex(InCluster, InTriIndex);
+	return GetMaterialShadingBinFromIndex(RelativeMaterialIndex, InPrimitiveIndex, InMaterialSlotTable);
+}
+
+uint GetMaterialRasterBin(
 	FCluster InCluster,
 	uint InPrimitiveIndex,
 	uint InTriIndex,
@@ -389,7 +412,7 @@ uint GetMaterialRasterSlot(
 	ByteAddressBuffer InMaterialSlotTable)
 {
 	const uint RelativeMaterialIndex = GetRelativeMaterialIndex(InCluster, InTriIndex);
-	return GetMaterialRasterSlotFromIndex(RelativeMaterialIndex, InPrimitiveIndex, InRegularSlotCount, bSecondaryBin, InMaterialSlotTable);
+	return GetMaterialRasterBinFromIndex(RelativeMaterialIndex, InPrimitiveIndex, InRegularSlotCount, bSecondaryBin, InMaterialSlotTable);
 }
 
 uint GetMaterialDepthId(

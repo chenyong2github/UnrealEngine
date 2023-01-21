@@ -45,6 +45,7 @@ void FNaniteVisualizationData::Initialize()
 		AddVisualizationMode(TEXT("Hierarchy"), LOCTEXT("Hierarchy", "Hierarchy"), FModeType::Advanced, NANITE_VISUALIZE_HIERARCHY_OFFSET, true);
 		AddVisualizationMode(TEXT("RasterMode"), LOCTEXT("RasterMode", "Raster Mode"), FModeType::Advanced, NANITE_VISUALIZE_RASTER_MODE, true);
 		AddVisualizationMode(TEXT("RasterBins"), LOCTEXT("RasterBins", "Raster Bins"), FModeType::Advanced, NANITE_VISUALIZE_RASTER_BINS, true);
+		AddVisualizationMode(TEXT("ShadingBins"), LOCTEXT("ShadingBins", "Shading Bins"), FModeType::Advanced, NANITE_VISUALIZE_SHADING_BINS, true);
 		AddVisualizationMode(TEXT("SceneZMin"), LOCTEXT("SceneZMin", "Scene Z Min"), FModeType::Advanced, NANITE_VISUALIZE_SCENE_Z_MIN, true);
 		AddVisualizationMode(TEXT("SceneZMax"), LOCTEXT("SceneZMax", "Scene Z Max"), FModeType::Advanced, NANITE_VISUALIZE_SCENE_Z_MAX, true);
 		AddVisualizationMode(TEXT("SceneZDelta"), LOCTEXT("SceneZDelta", "Scene Z Delta"), FModeType::Advanced, NANITE_VISUALIZE_SCENE_Z_DELTA, true);
@@ -61,7 +62,6 @@ void FNaniteVisualizationData::Initialize()
 		AddVisualizationMode(TEXT("LightmapDataIndex"), LOCTEXT("LightmapDataIndex", "Lightmap Data Index"), FModeType::Advanced, NANITE_VISUALIZE_LIGHTMAP_DATA_INDEX, true);
 		AddVisualizationMode(TEXT("PositionBits"), LOCTEXT("PositionBits", "Position Bits"), FModeType::Advanced, NANITE_VISUALIZE_POSITION_BITS, true);
 		AddVisualizationMode(TEXT("VSMStatic"), LOCTEXT("VSMStatic", "Virtual Shadow Map Static"), FModeType::Advanced, NANITE_VISUALIZE_VSM_STATIC_CACHING, true);
-		AddVisualizationMode(TEXT("MaterialComplexity"), LOCTEXT("MaterialComplexity", "Material Complexity"), FModeType::Advanced, NANITE_VISUALIZE_MATERIAL_COMPLEXITY, false);
 
 		ConfigureConsoleCommand();
 

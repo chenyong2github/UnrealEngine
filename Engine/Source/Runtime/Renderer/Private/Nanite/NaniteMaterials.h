@@ -89,23 +89,25 @@ struct FNaniteMaterialSlot
 	};
 
 	FNaniteMaterialSlot()
-	: ShadingId(0xFFFF)
-	, RasterId(0xFFFF)
-	, SecondaryRasterId(0xFFFF)
+	: ShadingBin(0xFFFF)
+	, RasterBin(0xFFFF)
+	, SecondaryRasterBin(0xFFFF)
+	, LegacyShadingId(0xFFFF)
 	{
 	}
 
 	inline FPacked Pack() const
 	{
 		FPacked Ret;
-		Ret.Data[0] = (ShadingId << 16u | RasterId);
-		Ret.Data[1] = SecondaryRasterId == 0xFFFFu ? 0xFFFFFFFFu : SecondaryRasterId;
+		Ret.Data[0] = (ShadingBin << 16u | RasterBin);
+		Ret.Data[1] = (LegacyShadingId << 16u | SecondaryRasterBin);
 		return Ret;
 	}
 
-	uint16 ShadingId;
-	uint16 RasterId;
-	uint16 SecondaryRasterId;
+	uint16 ShadingBin;
+	uint16 RasterBin;
+	uint16 SecondaryRasterBin;
+	uint16 LegacyShadingId;
 };
 
 struct FNaniteMaterialPassCommand

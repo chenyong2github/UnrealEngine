@@ -21,7 +21,7 @@ Texture2D<float>		SceneZDecoded;
 Texture2D<uint4>		SceneZLayout;
 Texture2D<float>		MaterialZDecoded;
 Texture2D<uint4>		MaterialZLayout;
-Texture2D<uint>			MaterialResolve;
+Texture2D<uint2>		MaterialResolve;
 Texture2D<uint>			MaterialComplexity;
 
 ByteAddressBuffer		MaterialSlotTable;
@@ -30,7 +30,7 @@ ByteAddressBuffer		MaterialHitProxyTable;
 
 int4					VisualizeConfig;
 int4					VisualizeScales;
-uint					RegularMaterialRasterSlotCount;
+uint					RegularMaterialRasterBinCount;
 int2					PickingPixelPos;
 
 RWStructuredBuffer<FNanitePickingFeedback> FeedbackBuffer;
@@ -238,8 +238,13 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		else if (VisualizeMode == NANITE_VISUALIZE_RASTER_BINS)
 		{
 			const bool bSecondaryRasterBin = !bWPOEnabled;
-			const uint RasterSlot = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterSlotCount, bSecondaryRasterBin, MaterialSlotTable);
-			Result = IntToColor(RasterSlot);
+			const uint RasterBin = GetMaterialRasterBin(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterBinCount, bSecondaryRasterBin, MaterialSlotTable);
+			Result = IntToColor(RasterBin);
+		}
+		else if (VisualizeMode == NANITE_VISUALIZE_SHADING_BINS)
+		{
+			const uint ShadingBin = GetMaterialShadingBin(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+			Result = IntToColor(ShadingBin);
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_OVERDRAW)
 		{
@@ -266,19 +271,19 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_DEPTH)
 		{
-			//const uint MaterialSlot = GetMaterialShadingSlot(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
-			const uint MaterialSlot = ResolvedMaterial.MaterialSlot;
-			const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
+			//const uint LegacyShadingId = GetMaterialLegacyShadingId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+			const uint LegacyShadingId = ResolvedMaterial.LegacyShadingId;
+			const uint MaterialDepthId = GetMaterialDepthId(LegacyShadingId, MaterialDepthTable);
 			Result = IntToColor(MaterialDepthId);
 		}
-		else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_COMPLEXITY)
+		/*else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_COMPLEXITY)
 		{
 			const uint TileMaterialCount = MaterialComplexity[TilePos];
 			const float ComplexityScale = GetComplexityScale();
 			const float ComplexityCount = TileMaterialCount; // Num of unique materials per tile
 			const float ComplexityColor = 1.0f - exp2(-ComplexityCount * ComplexityScale);
 			Result = ColorMapTurbo(ComplexityColor);
-		}
+		}*/
 		else if (VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MIN || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MAX || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_DELTA)// || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MASK)
 		{
 			const uint4 ZLayout = SceneZLayout[PixelPos];
@@ -518,11 +523,12 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		FeedbackResults.PageIndex			= VisibleCluster.PageIndex;
 		FeedbackResults.TriangleIndex		= TriIndex;
 		FeedbackResults.DepthInt			= DepthInt;
-		FeedbackResults.RasterSlot			= GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterSlotCount, bSecondaryRasterBin, MaterialSlotTable);
 		FeedbackResults.RasterMode			= DebugValueMax;
-		FeedbackResults.MaterialSlot		= ResolvedMaterial.MaterialSlot;
+		FeedbackResults.RasterBin			= GetMaterialRasterBin(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterBinCount, bSecondaryRasterBin, MaterialSlotTable);
+		FeedbackResults.ShadingBin			= GetMaterialShadingBin(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		FeedbackResults.LegacyShadingId		= ResolvedMaterial.LegacyShadingId;
 		FeedbackResults.MaterialIndex		= GetRelativeMaterialIndex(Cluster, TriIndex);
-		FeedbackResults.MaterialDepthId		= GetMaterialDepthId(ResolvedMaterial.MaterialSlot, MaterialDepthTable);
+		FeedbackResults.MaterialDepthId		= GetMaterialDepthId(ResolvedMaterial.LegacyShadingId, MaterialDepthTable);
 		FeedbackResults.MaterialCount		= GetMaterialCount(Cluster);
 		FeedbackResults.MaterialMode		= IsMaterialFastPath(Cluster) ? 0u : 1u;
 		FeedbackResults.HierarchyOffset		= InstanceData.NaniteHierarchyOffset;

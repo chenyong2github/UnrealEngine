@@ -188,19 +188,19 @@
 #define NANITE_VISUALIZE_OVERDRAW							(1u << 6u)
 #define NANITE_VISUALIZE_RASTER_MODE						(1u << 7u)
 #define NANITE_VISUALIZE_RASTER_BINS						(1u << 8u)
-#define NANITE_VISUALIZE_SCENE_Z_MIN						(1u << 9u)
-#define NANITE_VISUALIZE_SCENE_Z_MAX						(1u << 10u)
-#define NANITE_VISUALIZE_SCENE_Z_DELTA						(1u << 11u)
-#define NANITE_VISUALIZE_SCENE_Z_DECODED					(1u << 12u)
-#define NANITE_VISUALIZE_MATERIAL_Z_MIN						(1u << 13u)
-#define NANITE_VISUALIZE_MATERIAL_Z_MAX						(1u << 14u)
-#define NANITE_VISUALIZE_MATERIAL_Z_DELTA					(1u << 15u)
-#define NANITE_VISUALIZE_MATERIAL_Z_DECODED					(1u << 16u)
-#define NANITE_VISUALIZE_MATERIAL_COUNT						(1u << 17u)
-#define NANITE_VISUALIZE_MATERIAL_MODE						(1u << 18u)
-#define NANITE_VISUALIZE_MATERIAL_INDEX						(1u << 19u)
-#define NANITE_VISUALIZE_MATERIAL_DEPTH						(1u << 20u)
-#define NANITE_VISUALIZE_MATERIAL_COMPLEXITY				(1u << 21u)
+#define NANITE_VISUALIZE_SHADING_BINS						(1u << 9u)
+#define NANITE_VISUALIZE_SCENE_Z_MIN						(1u << 10u)
+#define NANITE_VISUALIZE_SCENE_Z_MAX						(1u << 11u)
+#define NANITE_VISUALIZE_SCENE_Z_DELTA						(1u << 12u)
+#define NANITE_VISUALIZE_SCENE_Z_DECODED					(1u << 13u)
+#define NANITE_VISUALIZE_MATERIAL_Z_MIN						(1u << 14u)
+#define NANITE_VISUALIZE_MATERIAL_Z_MAX						(1u << 15u)
+#define NANITE_VISUALIZE_MATERIAL_Z_DELTA					(1u << 16u)
+#define NANITE_VISUALIZE_MATERIAL_Z_DECODED					(1u << 17u)
+#define NANITE_VISUALIZE_MATERIAL_COUNT						(1u << 18u)
+#define NANITE_VISUALIZE_MATERIAL_MODE						(1u << 19u)
+#define NANITE_VISUALIZE_MATERIAL_INDEX						(1u << 20u)
+#define NANITE_VISUALIZE_MATERIAL_DEPTH						(1u << 21u)
 #define NANITE_VISUALIZE_HIT_PROXY_DEPTH					(1u << 22u)
 #define NANITE_VISUALIZE_NANITE_MASK						(1u << 23u)
 #define NANITE_VISUALIZE_LIGHTMAP_UVS						(1u << 24u)
@@ -261,10 +261,10 @@ struct FNanitePickingFeedback
 
 	UINT_TYPE TriangleIndex;
 	UINT_TYPE DepthInt;
-	UINT_TYPE RasterSlot;
 	UINT_TYPE RasterMode;
+	UINT_TYPE RasterBin;
 
-	UINT_TYPE MaterialSlot;
+	UINT_TYPE ShadingBin;
 	UINT_TYPE MaterialIndex;
 	UINT_TYPE MaterialDepthId;
 	UINT_TYPE MaterialCount;
@@ -272,6 +272,7 @@ struct FNanitePickingFeedback
 	UINT_TYPE MaterialMode;
 	UINT_TYPE HierarchyOffset;
 	UINT_TYPE RuntimeResourceID;
+	UINT_TYPE LegacyShadingId;
 };
 
 #undef  INT_TYPE

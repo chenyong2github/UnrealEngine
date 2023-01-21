@@ -14,7 +14,7 @@
 #define DOWNSAMPLE_DEPTH_FILTER_MAX			1
 #define DOWNSAMPLE_DEPTH_FILTER_CBMINMAX	2
 
-Texture2D<uint> NaniteMaterialResolve;
+Texture2D<uint2> NaniteMaterialResolve;
 Texture2D<float> DepthTexture;
 float2 DestinationTexelSize;
 float2 SourceMaxUV;

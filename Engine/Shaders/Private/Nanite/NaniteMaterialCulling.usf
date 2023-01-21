@@ -13,7 +13,7 @@
 Texture2D<UlongType> VisBuffer64;
 ByteAddressBuffer MaterialSlotTable;
 ByteAddressBuffer MaterialDepthTable;
-Texture2D<uint> MaterialResolve;
+Texture2D<uint2> MaterialResolve;
 
 RWBuffer<uint> MaterialIndirectArgs;
 RWStructuredBuffer<uint> MaterialTileRemap;
@@ -57,43 +57,44 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 	for (uint BlockY = 0; BlockY < 64u; BlockY += 16)
 	{
 		// Overlap all 4 loads for BlockX
-		uint MaterialResolveData[4];
+		uint2 MaterialResolveData[4];
 		UNROLL
-		for(uint i = 0; i < 4; i++)
+		for (uint i = 0; i < 4; i++)
 		{
 			const uint2 FetchPos = min(GroupPixelStart + uint2(i * 16, BlockY), FetchClamp);
 			MaterialResolveData[i] = MaterialResolve[FetchPos]; 
 		}
 
-		uint PrevMaterialSlot = ~0u;
-		for(uint i = 0; i < 4; i++)
+		uint PrevLegacyShadingId = ~0u;
+		for (uint i = 0; i < 4; i++)
 		{
 			FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolveData[i]);
-			uint MaterialSlot = ResolvedMaterial.MaterialSlot;
+			uint LegacyShadingId = ResolvedMaterial.LegacyShadingId;
 			
-			if (ResolvedMaterial.bIsNanitePixel && MaterialSlot != PrevMaterialSlot)	// Skip if it is a material slot we have already processed
+			if (ResolvedMaterial.bIsNanitePixel && LegacyShadingId != PrevLegacyShadingId)	// Skip if it is a legacy shading id we have already processed
 			{
 				bool bWrite = false;
 
 				// Scalarize to get rid of duplicate updates that would otherwise result in atomic contention
 				do
 				{
-					if(WaveIsFirstLane())
+					if (WaveIsFirstLane())
 					{
 						// Only the first lane with a given material slot gets to write
 						bWrite = true;
 					}
-				} while(MaterialSlot != ToScalarMemory(MaterialSlot));
+				}
+				while (LegacyShadingId != ToScalarMemory(LegacyShadingId));
 
 				if (bWrite)
 				{
-					const uint TileBinIndex = MaterialSlot >> 5u;
-					const uint TileBinOffset = MaterialSlot & 31u;
+					const uint TileBinIndex = LegacyShadingId >> 5u;
+					const uint TileBinOffset = LegacyShadingId & 31u;
 					const uint TileBinUsage = 1u << TileBinOffset;
 					InterlockedOr(TileMaterialBins[TileBinIndex], TileBinUsage);
 				}
 
-				PrevMaterialSlot = MaterialSlot;
+				PrevLegacyShadingId = LegacyShadingId;
 			}
 		}
 	}
@@ -121,30 +122,31 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 					FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 					FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 					FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-					const uint MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+					const uint LegacyShadingId = GetMaterialLegacyShadingId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+					const uint ShadingBin = GetMaterialShadingBin(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable); // TODO: Implement CS culling
 
 					// Scalarize tile classify if all lanes ballot the same material slot index	
-					const uint FirstMaterialSlot = ToScalarMemory(WaveReadLaneFirst(MaterialSlot));
-					if (WaveActiveAllTrue(FirstMaterialSlot == MaterialSlot))
+					const uint FirstLegacyShadingId = ToScalarMemory(WaveReadLaneFirst(LegacyShadingId));
+					if (WaveActiveAllTrue(FirstLegacyShadingId == LegacyShadingId))
 					{
 						if (WaveIsFirstLane())
 						{
-							const uint TileBinIndex  = FirstMaterialSlot >> 5u;
-							const uint TileBinOffset = FirstMaterialSlot & 31u;
+							const uint TileBinIndex  = FirstLegacyShadingId >> 5u;
+							const uint TileBinOffset = FirstLegacyShadingId & 31u;
 							const uint TileBinUsage  = 1u << TileBinOffset;
 							InterlockedOr(TileMaterialBins[TileBinIndex], TileBinUsage);
 						}
 					}
 					else
 					{
-						const uint TileBinIndex  = MaterialSlot >> 5u;
-						const uint TileBinOffset = MaterialSlot & 31u;
+						const uint TileBinIndex  = LegacyShadingId >> 5u;
+						const uint TileBinOffset = LegacyShadingId & 31u;
 						const uint TileBinUsage  = 1u << TileBinOffset;
 						InterlockedOr(TileMaterialBins[TileBinIndex], TileBinUsage);
 					}
 
 					// TODO: Pull out depth into custom HiZ?
-					//const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
+					//const uint MaterialDepthId = GetMaterialDepthId(LegacyShadingId, MaterialDepthTable);
 				}
 			}
 		}

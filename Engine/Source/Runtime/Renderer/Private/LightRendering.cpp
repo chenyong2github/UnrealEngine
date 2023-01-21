@@ -2897,7 +2897,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float>, SceneStencilTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, NaniteMaterialResolve)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, NaniteMaterialResolve)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 

@@ -101,8 +101,8 @@ void FNaniteDrawListContext::AddShadingCommand(FPrimitiveSceneInfo& PrimitiveSce
 	check(SectionIndex < uint32(MaterialSlots.Num()));
 
 	FNaniteMaterialSlot& MaterialSlot = MaterialSlots[SectionIndex];
-	check(MaterialSlot.ShadingId == 0xFFFFu);
-	PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex].ShadingId = uint16(ShadingCommand.GetMaterialSlot());
+	check(MaterialSlot.LegacyShadingId == 0xFFFFu);
+	PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex].LegacyShadingId = uint16(ShadingCommand.GetMaterialSlot());
 }
 
 void FNaniteDrawListContext::AddShadingBin(FPrimitiveSceneInfo& PrimitiveSceneInfo, const FNaniteShadingBin& ShadingBin, ENaniteMeshPass::Type MeshPass, uint8 SectionIndex)
@@ -113,8 +113,8 @@ void FNaniteDrawListContext::AddShadingBin(FPrimitiveSceneInfo& PrimitiveSceneIn
 	check(SectionIndex < uint32(MaterialSlots.Num()));
 
 	FNaniteMaterialSlot& MaterialSlot = MaterialSlots[SectionIndex];
-	//check(MaterialSlot.ShadingId == 0xFFFFu);
-	// TODO: PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex].ShadingId = ShadingBin.BinIndex;
+	check(MaterialSlot.ShadingBin == 0xFFFFu);
+	PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex].ShadingBin = ShadingBin.BinIndex;
 }
 
 void FNaniteDrawListContext::AddRasterBin(
@@ -135,9 +135,9 @@ void FNaniteDrawListContext::AddRasterBin(
 	check(SectionIndex < uint32(MaterialSlots.Num()));
 
 	FNaniteMaterialSlot& MaterialSlot = MaterialSlots[SectionIndex];
-	check(MaterialSlot.RasterId == 0xFFFFu);
-	MaterialSlot.RasterId = PrimaryRasterBin.BinIndex;
-	MaterialSlot.SecondaryRasterId = SecondaryRasterBin.BinIndex;
+	check(MaterialSlot.RasterBin == 0xFFFFu);
+	MaterialSlot.RasterBin = PrimaryRasterBin.BinIndex;
+	MaterialSlot.SecondaryRasterBin = SecondaryRasterBin.BinIndex;
 }
 
 void FNaniteDrawListContext::FinalizeCommand(

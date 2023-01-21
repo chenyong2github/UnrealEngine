@@ -17,7 +17,7 @@ through a single struct, allowing for a more readable code
 // .xy = min, .zw = max
 uint4 ViewRect;
 
-// .x = draw id, .zyw unused
+// .x = shading bin, y = VRS tile size, .zw = unused
 uint4 PassData; 
 
 // TODO: Is this ever used? (see bHighPrecisionGBuffers)
@@ -420,14 +420,12 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint3 GroupID : SV_GroupID)
 
 #if IS_NANITE_PASS
 	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(Nanite.MaterialResolve[PixelPos]);
-	if (!ResolvedMaterial.bIsNanitePixel)
+	if (!ResolvedMaterial.bIsNanitePixel || PassData.x != ResolvedMaterial.ShadingBin)
 	{
 		// TODO: Need to handle inactive "helper lanes" in this case..
 		// Leaves black artifacts around edges of Nanite meshes that render on top of non-Nanite
 		return;
 	}
-
-	const uint MaterialDepthId = GetMaterialDepthId(ResolvedMaterial.MaterialSlot, Nanite.MaterialDepthTable);
 
 	if (WaveIsFirstLane() && PassData.y != 0)
 	{

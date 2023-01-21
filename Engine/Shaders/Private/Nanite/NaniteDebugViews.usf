@@ -9,7 +9,7 @@
 
 Texture2D<UlongType> VisBuffer64;
 Texture2D<float> SceneDepth;
-Texture2D<uint> MaterialResolve;
+Texture2D<uint2> MaterialResolve;
 ByteAddressBuffer MaterialSlotTable;
 ByteAddressBuffer MaterialDepthTable;
 ByteAddressBuffer MaterialEditorTable;
@@ -171,7 +171,7 @@ void ExportDebugViewPS(
 			FCluster Cluster							= GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 			FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PixelPos]);
-			const uint MaterialEditorData = GetMaterialDepthId(ResolvedMaterial.MaterialSlot, MaterialEditorTable);
+			const uint MaterialEditorData = GetMaterialDepthId(ResolvedMaterial.LegacyShadingId, MaterialEditorTable);
 
 			BRANCH
 			if (DebugViewMode == DEBUG_VIEW_WIREFRAME)

@@ -818,7 +818,7 @@ class FRasterBinBuild_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER(uint32, RenderFlags)
 		SHADER_PARAMETER(uint32, MaxVisibleClusters)
-		SHADER_PARAMETER(uint32, RegularMaterialRasterSlotCount)
+		SHADER_PARAMETER(uint32, RegularMaterialRasterBinCount)
 		SHADER_PARAMETER(uint32, bUsePrimOrMeshShader)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -2566,7 +2566,7 @@ static FBinningData AddPass_Binning(
 		PassParameters->PageConstants = PageConstants;
 		PassParameters->RenderFlags = RenderFlags;
 		PassParameters->MaxVisibleClusters = MaxVisibleClusters;
-		PassParameters->RegularMaterialRasterSlotCount = Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetRegularBinCount();
+		PassParameters->RegularMaterialRasterBinCount = Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetRegularBinCount();
 		PassParameters->bUsePrimOrMeshShader = bUsePrimOrMeshShader;
 
 		// Classify SW & HW Clusters
@@ -2780,9 +2780,8 @@ FBinningData AddPass_Rasterize(
 		const FNaniteRasterBinIndexTranslator BinIndexTranslator = RasterPipelines.GetBinIndexTranslator();
 
 		RasterizerPasses.Reserve(RasterPipelines.GetBinCount());
-		for (auto RasterBinIter = Pipelines.begin(); RasterBinIter != Pipelines.end(); ++RasterBinIter)
+		for (const auto& RasterBin : Pipelines)
 		{
-			auto& RasterBin = *RasterBinIter;
 			const FNaniteRasterEntry& RasterEntry = RasterBin.Value;
 
 			if (RasterContext.bCustomPass && !RasterPipelines.ShouldBinRenderInCustomPass(RasterEntry.BinIndex))

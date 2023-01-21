@@ -180,7 +180,7 @@ class FEmitMaterialDepthPS : public FNaniteGlobalShader
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, MaterialResolve)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
@@ -248,7 +248,7 @@ class FEmitSceneStencilPS : public FNaniteGlobalShader
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, MaterialResolve)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -347,7 +347,7 @@ class FDepthExportCS : public FNaniteGlobalShader
 		SHADER_PARAMETER(uint32, bWriteCustomStencil)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Velocity)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, MaterialResolve)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, MaterialResolve)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTextureMetadata, SceneHTile)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, SceneDepth)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, SceneStencil)
@@ -512,6 +512,7 @@ struct FNaniteShadingCommand
 	const FMaterial* Material = nullptr;
 	TShaderRef<TBasePassComputeShaderPolicyParamType<FUniformLightMapPolicy>> ComputeShader;
 	FMeshDrawShaderBindings ShaderBindings;
+	uint16 ShadingBin = 0xFFFFu;
 };
 
 namespace Nanite
@@ -544,9 +545,8 @@ void BuildShadingCommands(
 	ShadingCommands.Reset();
 	ShadingCommands.Reserve(Pipelines.Num());
 
-	for (auto ShadingBinIter = Pipelines.begin(); ShadingBinIter != Pipelines.end(); ++ShadingBinIter)
+	for (const auto& ShadingBin : Pipelines)
 	{
-		auto& ShadingBin = *ShadingBinIter;
 		const FNaniteShadingEntry& ShadingEntry = ShadingBin.Value;
 
 		const FMaterialRenderProxy* ShadingMaterialRenderProxyPtr = ShadingEntry.ShadingPipeline.ShadingMaterial;
@@ -596,6 +596,7 @@ void BuildShadingCommands(
 		ShadingCommand->ComputeShader = BasePassComputeShader;
 		ShadingCommand->MaterialProxy = ShadingMaterialRenderProxyPtr;
 		ShadingCommand->Material = ShadingCommand->MaterialProxy->GetMaterialNoFallback(FeatureLevel);
+		ShadingCommand->ShadingBin = ShadingEntry.BinIndex;
 		check(ShadingCommand->Material);
 
 		TMeshProcessorShaders
@@ -1028,11 +1029,7 @@ void DispatchBasePass(
 					SCOPED_DRAW_EVENTF(RHICmdList, SWShading, TEXT("%s"), *ShadingMaterial->GetMaterialName());
 				#endif
 
-					++ShadingBinTest;
-
-					PassData.X = ShadingBinTest;
-					//PassData.X = ShadingCommand.ShadingBin;
-					//Parameters.ActiveShadingBin = ShadingCommand.RasterizerBin;
+					PassData.X = ShadingCommand.ShadingBin;
 
 					//FRHIBuffer* IndirectArgsBuffer = Parameters.IndirectArgs->GetIndirectRHICallBuffer();
 
@@ -1419,7 +1416,7 @@ void EmitDepthTargets(
 
 	FRDGTextureDesc MaterialResolveDesc = FRDGTextureDesc::Create2D(
 		SceneTexturesExtent,
-		PF_R32_UINT,
+		PF_R32G32_UINT, // TODO: Shrink when LegacyShadingId is removed
 		FClearValueBinding::Transparent,
 		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV);
 
