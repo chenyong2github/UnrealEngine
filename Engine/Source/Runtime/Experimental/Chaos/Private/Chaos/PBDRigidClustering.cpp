@@ -1177,7 +1177,12 @@ namespace Chaos
 					bool bUseDamagePropagation = false;
 					if (const FGeometryCollectionPhysicsProxy* ConcreteProxy = GetConcreteProxy(Cluster))
 					{
-						bUseDamagePropagation = ConcreteProxy->GetSimParameters().bUseDamagePropagation;
+						const FSimulationParameters& SimParams = ConcreteProxy->GetSimParameters();
+						bUseDamagePropagation = SimParams.bUseDamagePropagation;
+						if (!SimParams.bEnableStrainOnCollision)
+						{
+							return;
+						}
 					}
 
 					if (bUseDamagePropagation)

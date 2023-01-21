@@ -291,6 +291,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, MaxClusterLevel(100)
 	, DamageThreshold({ 500000.f, 50000.f, 5000.f })
 	, bUseSizeSpecificDamageThreshold(false)
+	, bEnableDamageFromCollision(true)
 	, bAllowRemovalOnSleep(true)
 	, bAllowRemovalOnBreak(true)
 	, ClusterConnectionType_DEPRECATED(EClusterConnectionTypeEnum::Chaos_MinimalSpanningSubsetDelaunayTriangulation)
@@ -735,6 +736,16 @@ void UGeometryCollectionComponent::SetNotifyBreaks(bool bNewNotifyBreaks)
 {
 	if (bNotifyBreaks != bNewNotifyBreaks)
 	{
+		if (Chaos::FPhysicsSolver* Solver = GetSolver(*this); Solver && PhysicsProxy)
+		{
+			Solver->EnqueueCommandImmediate(
+				[this, bNewNotifyBreaks]()
+				{
+					FSimulationParameters& SimParams = PhysicsProxy->GetSimParameters();
+					SimParams.bGenerateBreakingData = bNewNotifyBreaks;
+				}
+			);
+		}
 		bNotifyBreaks = bNewNotifyBreaks;
 		UpdateBreakEventRegistration();
 	}
@@ -744,6 +755,16 @@ void UGeometryCollectionComponent::SetNotifyRemovals(bool bNewNotifyRemovals)
 {
 	if (bNotifyRemovals != bNewNotifyRemovals)
 	{
+		if (Chaos::FPhysicsSolver* Solver = GetSolver(*this); Solver && PhysicsProxy)
+		{
+			Solver->EnqueueCommandImmediate(
+				[this, bNewNotifyRemovals]()
+				{
+					FSimulationParameters& SimParams = PhysicsProxy->GetSimParameters();
+					SimParams.bGenerateBreakingData = bNewNotifyRemovals;
+				}
+			);
+		}
 		bNotifyRemovals = bNewNotifyRemovals;
 		UpdateRemovalEventRegistration();
 	}
@@ -753,6 +774,17 @@ void UGeometryCollectionComponent::SetNotifyCrumblings(bool bNewNotifyCrumblings
 {
 	if (bNotifyCrumblings != bNewNotifyCrumblings)
 	{
+		if (Chaos::FPhysicsSolver* Solver = GetSolver(*this); Solver && PhysicsProxy)
+		{
+			Solver->EnqueueCommandImmediate(
+				[this, bNewNotifyCrumblings, bNewCrumblingEventIncludesChildren]()
+				{
+					FSimulationParameters& SimParams = PhysicsProxy->GetSimParameters();
+					SimParams.bGenerateCrumblingData = bNewNotifyCrumblings;
+					SimParams.bGenerateCrumblingChildrenData = bNewCrumblingEventIncludesChildren;
+				}
+			);
+		}
 		bNotifyCrumblings = bNewNotifyCrumblings;
 		bCrumblingEventIncludesChildren = bNewCrumblingEventIncludesChildren;
 		UpdateCrumblingEventRegistration();
@@ -2643,6 +2675,7 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		SimulationParameters.ShockDamagePropagationFactor = DamagePropagationData.ShockDamagePropagationFactor;
 		SimulationParameters.WorldTransform = GetComponentToWorld();
 		SimulationParameters.UserData = static_cast<void*>(&PhysicsUserData);
+		SimulationParameters.bEnableStrainOnCollision = bEnableDamageFromCollision;
 
 		UPhysicalMaterial* EnginePhysicalMaterial = GetPhysicalMaterial();
 		if (ensure(EnginePhysicalMaterial))
@@ -4722,4 +4755,20 @@ TArray<Chaos::FPhysicsObject*> UGeometryCollectionComponent::GetAllPhysicsObject
 		Objects.Add(GetPhysicsObjectById(Index));
 	}
 	return Objects;
+}
+
+void UGeometryCollectionComponent::SetEnableDamageFromCollision(bool bValue)
+{
+	if (Chaos::FPhysicsSolver* Solver = GetSolver(*this); Solver && PhysicsProxy)
+	{
+		Solver->EnqueueCommandImmediate(
+			[this, bValue]()
+			{
+				FSimulationParameters& SimParams = PhysicsProxy->GetSimParameters();
+				SimParams.bEnableStrainOnCollision = bValue;
+			}
+		);
+	}
+
+	bEnableDamageFromCollision = bValue;
 }

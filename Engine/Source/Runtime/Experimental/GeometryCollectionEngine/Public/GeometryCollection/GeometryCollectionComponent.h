@@ -647,6 +647,9 @@ public:
 	void SelectEmbeddedGeometry();
 #endif
 
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void SetEnableDamageFromCollision(bool bValue);
+
 	/** API for getting at geometry collection data */
 	int32 GetNumElements(FName Group) const;
 
@@ -736,6 +739,10 @@ public:
 	/** Data about how damage propagation shoudl behave. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Damage")
 	FGeometryCollectionDamagePropagationData DamagePropagationData;
+
+	/** Whether or not collisions against this geometry collection will apply strain which could cause the geometry collection to fracture. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ChaosPhysics|Damage")
+	bool bEnableDamageFromCollision;
 
 	/** Allow removal on sleep for the instance if the rest collection has it enabled */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Removal")

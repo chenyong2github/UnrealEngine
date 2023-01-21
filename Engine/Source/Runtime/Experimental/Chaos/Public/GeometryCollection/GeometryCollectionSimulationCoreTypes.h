@@ -210,6 +210,7 @@ struct FSimulationParameters
 		, SimulationFilterData()
 		, QueryFilterData()
 		, UserData(nullptr)
+		, bEnableStrainOnCollision(true)
 	{}
 
 	FSimulationParameters(const FSimulationParameters& Other)
@@ -258,6 +259,7 @@ struct FSimulationParameters
 		, SimulationFilterData(Other.SimulationFilterData)
 		, QueryFilterData(Other.QueryFilterData)
 		, UserData(Other.UserData)
+		, bEnableStrainOnCollision(Other.bEnableStrainOnCollision)
 	{
 	}
 
@@ -331,4 +333,5 @@ struct FSimulationParameters
 	FCollisionFilterData SimulationFilterData;
 	FCollisionFilterData QueryFilterData;
 	void* UserData;
+	bool bEnableStrainOnCollision;
 };
