@@ -12,12 +12,11 @@ void UOptimusSource::SetSource(const FString& InText)
 	Modify();
 }
 
-
-FString UOptimusSource::GetSource() const
+FString UOptimusSource::GetVirtualPath() const 
 {
 	FString ShaderPathName = GetPathName();
 	Optimus::ConvertObjectPathToShaderFilePath(ShaderPathName);
-	return FString::Printf(TEXT("#line 1 \"%s\"\n%s"), *ShaderPathName, *SourceText);
+	return ShaderPathName;
 }
 
 #if WITH_EDITOR	

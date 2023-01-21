@@ -112,20 +112,21 @@ FName Optimus::GetTypeName(UScriptStruct* InStructType, bool bInShouldGetUniqueN
 
 void Optimus::ConvertObjectPathToShaderFilePath(FString& InOutPath)
 {
-	// Shader compiler recognizes "/UObject/..." path as special. 
+	// Shader compiler recognizes "/Engine/Generated/..." path as special. 
 	// It doesn't validate file suffix etc.
-	InOutPath = TEXT("/UObject") + InOutPath;
+	InOutPath = FString::Printf(TEXT("/Engine/Generated/UObject%s.ush"), *InOutPath);
 	// Shader compilation result parsing will break if it finds ':' where it doesn't expect.
 	InOutPath.ReplaceCharInline(TEXT(':'), TEXT('@'));
 }
 
 bool Optimus::ConvertShaderFilePathToObjectPath(FString& InOutPath)
 {
-	if (!InOutPath.RemoveFromStart(TEXT("/UObject")))
+	if (!InOutPath.RemoveFromStart(TEXT("/Engine/Generated/UObject")))
 	{
 		return false;
 	}
 
 	InOutPath.ReplaceCharInline(TEXT('@'), TEXT(':'));
+	InOutPath.RemoveFromEnd(TEXT(".ush"));
 	return true;
 }

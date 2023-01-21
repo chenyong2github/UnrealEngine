@@ -18,7 +18,7 @@ public:
 	/** Get source code ready for HLSL compilation. */
 	virtual FString GetSource() const { return FString(); }
 	/** Get virtual file path for the source code. This will be the file name shown in any compilation errors. */
-	virtual FString GetVirtualPath() const { return FString::Printf(TEXT("/Plugin/ComputeFramework/Generated%s.ush"), *GetPathName()); }
+	virtual FString GetVirtualPath() const { return FString::Printf(TEXT("/Engine/Generated/%s.ush"), *GetPathName()); }
 
 public:
 	/** Array of additional source objects. This allows us to specify source dependencies. */
