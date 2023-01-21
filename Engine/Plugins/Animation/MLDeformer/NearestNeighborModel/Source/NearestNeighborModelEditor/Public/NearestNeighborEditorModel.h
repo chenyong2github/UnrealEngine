@@ -65,6 +65,8 @@ namespace UE::NearestNeighborModel
 
 		void UpdateNearestNeighborActors();
 		void KMeansClusterPoses();
+		TPair<UAnimSequence*, uint8> CreateAnimOfClusterCenters(const FString& PackageName, const TArray<int32>& KmeansResults);
+		uint8 GetKMeansClusterResult() const { return KMeansClusterResult; }
 
 		uint8 InitMorphTargets();
 		void RefreshMorphTargets();
@@ -103,9 +105,8 @@ namespace UE::NearestNeighborModel
 
 	private:
 		UWorld* EditorWorld = nullptr;
-		uint8 ClothPartUpdateResult = 0;
-		uint8 NearestNeighborUpdateResult = 0;
 		uint8 MorphTargetUpdateResult = 0;
+		uint8 KMeansClusterResult = 0;
 		int32 NumTrainingFramesOverride = -1;
 	};
 }	// namespace UE::NearestNeighborModel
