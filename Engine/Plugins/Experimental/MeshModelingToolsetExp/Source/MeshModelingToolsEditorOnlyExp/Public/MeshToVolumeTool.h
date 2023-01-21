@@ -90,7 +90,7 @@ protected:
 	TObjectPtr<UMeshToVolumeToolProperties> Settings;
 
 	UPROPERTY()
-	TObjectPtr<UOnAcceptHandleSourcesProperties> HandleSourcesProperties;
+	TObjectPtr<UOnAcceptHandleSourcesPropertiesSingle> HandleSourcesProperties;
 
 	UPROPERTY()
 	TObjectPtr<UPreviewMesh> PreviewMesh;

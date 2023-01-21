@@ -82,7 +82,7 @@ void UMeshToVolumeTool::Setup()
 							{ bVolumeValid = false; });
 
 
-	HandleSourcesProperties = NewObject<UOnAcceptHandleSourcesProperties>(this);
+	HandleSourcesProperties = NewObject<UOnAcceptHandleSourcesPropertiesSingle>(this);
 	HandleSourcesProperties->RestoreProperties(this);
 	AddToolPropertySource(HandleSourcesProperties);
 
