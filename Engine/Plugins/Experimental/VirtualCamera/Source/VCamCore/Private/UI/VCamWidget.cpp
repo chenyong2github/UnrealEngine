@@ -2,6 +2,7 @@
 
 #include "UI/VCamWidget.h"
 
+#include "LogVCamCore.h"
 #include "VCamComponent.h"
 
 UVCamWidget::UVCamWidget(const FObjectInitializer& ObjectInitializer)
@@ -12,6 +13,17 @@ UVCamWidget::UVCamWidget(const FObjectInitializer& ObjectInitializer)
 	{
 		OnPostConnectionsReinitializedDelegate_Blueprint.Broadcast();
 	});
+}
+
+void UVCamWidget::NativePreConstruct()
+{
+	// If we were created by a widget dynamically, let's use their VCamComponent so ReinitializeConnections will work
+	if (UVCamWidget* Outer = GetTypedOuter<UVCamWidget>(); !VCamComponent && Outer && Outer->VCamComponent)
+	{
+		VCamComponent = Outer->VCamComponent;
+	}
+	
+	Super::NativePreConstruct();
 }
 
 void UVCamWidget::NativeDestruct()
@@ -43,6 +55,7 @@ bool UVCamWidget::ReinitializeConnections()
 {
 	if (!IsValid(VCamComponent))
 	{
+		UE_LOG(LogVCamCore, Error, TEXT("ReinitializeConnections failed because VCamComponet is not set (for widget %s of class %s)"), *GetPathName(), *GetClass()->GetPathName());
 		return false;
 	}
 	

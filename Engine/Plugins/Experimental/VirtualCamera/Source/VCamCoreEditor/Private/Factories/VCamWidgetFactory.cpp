@@ -4,6 +4,7 @@
 #include "UI/VCamWidget.h"
 
 #include "AssetToolsModule.h"
+#include "IVCamCoreEditorModule.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "WidgetBlueprint.h"
@@ -50,8 +51,7 @@ UObject* UVCamWidgetFactory::FactoryCreateNew(UClass* Class, UObject* InParent, 
 
 uint32 UVCamWidgetFactory::GetMenuCategories() const
 {
-	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	return AssetTools.RegisterAdvancedAssetCategory("VirtualCamera", LOCTEXT("AssetCategoryName", "VCam"));
+	return UE::VCamCoreEditor::IVCamCoreEditorModule::Get().GetAdvancedAssetCategoryForVCam();
 }
 
 #undef LOCTEXT_NAMESPACE

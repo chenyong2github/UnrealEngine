@@ -33,6 +33,7 @@ namespace UE::VCamCoreEditor::Private
 		//~ Begin IVCamCoreEditorModule Interface
 		virtual void RegisterConnectionRemapCustomization(TSubclassOf<UVCamWidget> Class, FGetConnectionRemappingCustomization GetterDelegate) override;
 		virtual void UnregisterConnectionRemapCustomization(TSubclassOf<UVCamWidget> Class) override;
+		virtual uint32 GetAdvancedAssetCategoryForVCam() const override;
 		//~ Begin IVCamCoreEditorModule Interface
 
 	private:

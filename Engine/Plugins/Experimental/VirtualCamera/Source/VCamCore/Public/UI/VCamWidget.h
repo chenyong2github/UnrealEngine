@@ -69,6 +69,7 @@ public:
 	UVCamWidget(const FObjectInitializer& ObjectInitializer);
 
 	//~ Begin UWidget Interface
+	virtual void NativePreConstruct() override;
 	virtual void NativeDestruct() override;
 	//~ End UWidget Interface
 	

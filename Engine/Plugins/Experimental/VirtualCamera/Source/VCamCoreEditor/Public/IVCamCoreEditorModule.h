@@ -35,6 +35,9 @@ namespace UE::VCamCoreEditor
 		 */
 		virtual void RegisterConnectionRemapCustomization(TSubclassOf<UVCamWidget> Class, FGetConnectionRemappingCustomization GetterDelegate) = 0;
 		virtual void UnregisterConnectionRemapCustomization(TSubclassOf<UVCamWidget> Class) = 0;
+
+		/** Gets the asset category that assets are grouped under. */
+		virtual uint32 GetAdvancedAssetCategoryForVCam() const = 0;
 		
 		virtual ~IVCamCoreEditorModule() override = default;
 	};
