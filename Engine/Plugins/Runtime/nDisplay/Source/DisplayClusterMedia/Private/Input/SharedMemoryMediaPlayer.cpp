@@ -458,14 +458,12 @@ bool FSharedMemoryMediaPlayer::DetermineNextSourceFrameGenlockMode(uint64 FrameN
 {
 	// Look for the closest thing to the next consecutive frame.
 
+	FModeState::FGenlockModeState& State = ModeState.Genlock;
+
 	FSharedMemoryMediaFrameMetadata* SharedMemoryData[NUMSHAREDMEM] = { 0 };
 	FSharedMemoryMediaFrameMetadata::FSender SenderMetadata[NUMSHAREDMEM];
 
-	uint32 NextFrameNumber = ~0;
-	int32 NextFrameNumberIdx = -1;
-
-	bool bAtLeastOneFrameValid = false;
-	bool bAlreadyPickedFrameFound = false;
+	TArray<uint32, TInlineAllocator<NUMSHAREDMEM>> ValidFrameNumbers;
 
 	for (int32 MemIdx = 0; MemIdx < NUMSHAREDMEM; ++MemIdx)
 	{
@@ -480,58 +478,40 @@ bool FSharedMemoryMediaPlayer::DetermineNextSourceFrameGenlockMode(uint64 FrameN
 			continue;
 		}
 
-		bAtLeastOneFrameValid = true;
-
-		if (SenderMetadata[MemIdx].FrameNumber == ModeState.Genlock.LastSourceFrameNumberPicked)
-		{
-			bAlreadyPickedFrameFound = true;
-		}
-
-		// Detect if this one is closer to being consecutive.
-		if (SenderMetadata[MemIdx].FrameNumber > ModeState.Genlock.LastSourceFrameNumberPicked)
-		{
-			const uint32 ThisDistance = SenderMetadata[MemIdx].FrameNumber - ModeState.Genlock.LastSourceFrameNumberPicked;
-			const uint32 NextDistance = NextFrameNumber - ModeState.Genlock.LastSourceFrameNumberPicked;
-
-			if (ThisDistance < NextDistance)
-			{
-				NextFrameNumber = SenderMetadata[MemIdx].FrameNumber;
-				NextFrameNumberIdx = MemIdx;
-			}
-		}
+		ValidFrameNumbers.Add(SenderMetadata[MemIdx].FrameNumber);
 	}
 
 	// If none were valid, return. We will not wait any time for them to arrive at this point.
-	if (!bAtLeastOneFrameValid)
+	if (!ValidFrameNumbers.Num())
 	{
 		return false;
 	}
 
-	// If none were equal greater than our last frame then no need to render. 
-	if (NextFrameNumberIdx < 0)
+	uint32 MinDistanceFromLastPicked = INT_MAX;
+
+	for (const uint32& ValidFrameNumber : ValidFrameNumbers)
 	{
-		// If the previous frame wasn't found though, we should reset our state, as the source may have just(re)connected.
-		if (!bAlreadyPickedFrameFound)
-		{
-			UE_LOG(LogDisplayClusterMedia, Warning, TEXT("SharedMemoryMedia: In genlock mode, the sender's frame count seems to have reset to earlier than %u"),
-				ModeState.Genlock.LastSourceFrameNumberPicked);
+		const uint32 DistanceFromPicked = 
+			State.LastSourceFrameNumberPicked > ValidFrameNumber ? 
+			State.LastSourceFrameNumberPicked - ValidFrameNumber : ValidFrameNumber - State.LastSourceFrameNumberPicked;
 
-			ModeState.Genlock.Reset();
-		}
-
-		return false;
+		MinDistanceFromLastPicked = FMath::Min(DistanceFromPicked, MinDistanceFromLastPicked);
 	}
 
-	// No point in rendering the same frame
-	if (ModeState.Freerun.LastSourceFrameNumberPicked == NextFrameNumber)
+	// If our frame number seems far from what is in the buffers, reset our state
+	if (MinDistanceFromLastPicked > 2)
 	{
-		return false;
+		UE_LOG(LogDisplayClusterMedia, Warning, TEXT("SharedMemoryMedia: In genlock mode, the sender's frame count seems to have reset to earlier than %u"),
+			State.LastSourceFrameNumberPicked);
+
+		State.Reset();
+
+		ValidFrameNumbers.Sort();
+		State.LastSourceFrameNumberPicked = ValidFrameNumbers.Last() - 1;
 	}
 
-	OutExpectedFrameNumber = NextFrameNumber;
-	OutSharedMemoryIdx = NextFrameNumberIdx;
-
-	ModeState.Genlock.LastSourceFrameNumberPicked = OutExpectedFrameNumber;
+	OutExpectedFrameNumber = ++State.LastSourceFrameNumberPicked;
+	OutSharedMemoryIdx = OutExpectedFrameNumber % NUMSHAREDMEM;
 
 	return true;
 }
@@ -539,6 +519,8 @@ bool FSharedMemoryMediaPlayer::DetermineNextSourceFrameGenlockMode(uint64 FrameN
 bool FSharedMemoryMediaPlayer::DetermineNextSourceFrameFreerunMode(uint64 FrameNumber, uint32& OutExpectedFrameNumber, uint32& OutSharedMemoryIdx)
 {
 	// Use the latest frame, ack the others (if they haven't already been acked).
+
+	FModeState::FFreerunModeState& State = ModeState.Freerun;
 
 	// See what is on all the reception buffers
 
@@ -586,35 +568,35 @@ bool FSharedMemoryMediaPlayer::DetermineNextSourceFrameFreerunMode(uint64 FrameN
 	check(LowestFrameNumberIdx >= 0);
 
 	// No point in rendering the same frame
-	if (ModeState.Freerun.LastSourceFrameNumberPicked == HighestFrameNumber)
+	if (State.LastSourceFrameNumberPicked == HighestFrameNumber)
 	{
 		return false;
 	}
-	else if (ModeState.Freerun.LastSourceFrameNumberPicked > HighestFrameNumber)
+	else if (State.LastSourceFrameNumberPicked > HighestFrameNumber)
 	{
 		// We have picked in the past a frame number higher than the highest in the buffers.
 		// This is unexpected, something may have happened to our source.
 		UE_LOG(LogDisplayClusterMedia, Warning, TEXT("SharedMemoryMedia: In freerun mode, the sender's frame count seems to have reset from %u to %u."),
-			ModeState.Freerun.LastSourceFrameNumberPicked, HighestFrameNumber);
+			State.LastSourceFrameNumberPicked, HighestFrameNumber);
 
 		OutExpectedFrameNumber = LowestFrameNumber;
 		OutSharedMemoryIdx = LowestFrameNumberIdx;
 
-		ModeState.Freerun.Reset();
-		ModeState.Freerun.LastSourceFrameNumberConsideredAtIdx[OutSharedMemoryIdx] = OutExpectedFrameNumber;
-		ModeState.Freerun.LastSourceFrameNumberPicked = OutExpectedFrameNumber;
+		State.Reset();
+		State.LastSourceFrameNumberConsideredAtIdx[OutSharedMemoryIdx] = OutExpectedFrameNumber;
+		State.LastSourceFrameNumberPicked = OutExpectedFrameNumber;
 
 		return true;
 	}
 
-	check(ModeState.Freerun.LastSourceFrameNumberPicked < HighestFrameNumber);
+	check(State.LastSourceFrameNumberPicked < HighestFrameNumber);
 
 	// ack the ones we're skipping in favor of the latest one
 	for (int32 MemIdx = 0; MemIdx < NUMSHAREDMEM; ++MemIdx)
 	{
-		const uint32 LastSourceFrameNumberConsideredAtThisIdx = ModeState.Freerun.LastSourceFrameNumberConsideredAtIdx[MemIdx];
+		const uint32 LastSourceFrameNumberConsideredAtThisIdx = State.LastSourceFrameNumberConsideredAtIdx[MemIdx];
 
-		ModeState.Freerun.LastSourceFrameNumberConsideredAtIdx[MemIdx] = SenderMetadata[MemIdx].FrameNumber;
+		State.LastSourceFrameNumberConsideredAtIdx[MemIdx] = SenderMetadata[MemIdx].FrameNumber;
 
 		// Don't ack the latest one just yet (we'll ack it once we're done with it)
 		if (HighestFrameNumberIdx == MemIdx)
@@ -632,7 +614,7 @@ bool FSharedMemoryMediaPlayer::DetermineNextSourceFrameFreerunMode(uint64 FrameN
 	OutExpectedFrameNumber = HighestFrameNumber;
 	OutSharedMemoryIdx = HighestFrameNumberIdx;
 
-	ModeState.Freerun.LastSourceFrameNumberPicked = OutExpectedFrameNumber;
+	State.LastSourceFrameNumberPicked = OutExpectedFrameNumber;
 
 	return true;
 
