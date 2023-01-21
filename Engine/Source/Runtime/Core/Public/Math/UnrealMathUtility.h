@@ -250,7 +250,7 @@ class TRange;
 template <typename T>
 struct TCustomLerp
 {
-	enum { Value = false };
+	constexpr static bool Value = false;
 };
 
 /**

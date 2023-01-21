@@ -545,7 +545,7 @@ FORCEINLINE VectorRegister4Double VectorLerp(const VectorRegister4Double& A, con
 template<>
 struct TCustomLerp<VectorRegister4Float>
 {
-	enum { Value = true };
+	constexpr static bool Value = true;
 	
 	// Specialization of Lerp function that works with vector registers
 	static FORCEINLINE VectorRegister4Float Lerp(const VectorRegister4Float& A, const VectorRegister4Float& B, const VectorRegister4Float& Alpha)
@@ -558,7 +558,7 @@ struct TCustomLerp<VectorRegister4Float>
 template<>
 struct TCustomLerp<VectorRegister4Double>
 {
-	enum { Value = true };
+	constexpr static bool Value = true;
 
 	// Specialization of Lerp function that works with vector registers
 	static FORCEINLINE VectorRegister4Double Lerp(const VectorRegister4Double& A, const VectorRegister4Double& B, const VectorRegister4Double& Alpha)

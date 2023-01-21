@@ -1405,7 +1405,7 @@ inline bool FQuat4d::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
 template<typename T>
 struct TCustomLerp< UE::Math::TQuat<T> >
 {
-	enum { Value = true };
+	constexpr static bool Value = true;
 	using QuatType = UE::Math::TQuat<T>;
 
 	template<class U>

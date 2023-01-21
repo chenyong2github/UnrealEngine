@@ -194,7 +194,7 @@ FORCEINLINE ScalarRegister ScalarMax(const ScalarRegister& A, const ScalarRegist
 // TCustomLerp for FMath::Lerp()
 template<> struct TCustomLerp<ScalarRegister>
 {
-	enum { Value = true };
+	constexpr static bool Value = true;
 
 	// Specialization of Lerp template that works with scalar (float in vector) registers
 	FORCEINLINE ScalarRegister Lerp(const ScalarRegister& A, const ScalarRegister& B, const ScalarRegister& Alpha)

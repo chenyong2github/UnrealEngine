@@ -899,7 +899,7 @@ template<typename T>
 struct TCustomLerp<UE::Math::TRotator<T>>
 {
 	// Required to make FMath::Lerp<TRotator>() call our custom Lerp() implementation below.
-	enum { Value = true };
+	constexpr static bool Value = true;
 	using RotatorType = UE::Math::TRotator<T>;
 
 	template<class U>
