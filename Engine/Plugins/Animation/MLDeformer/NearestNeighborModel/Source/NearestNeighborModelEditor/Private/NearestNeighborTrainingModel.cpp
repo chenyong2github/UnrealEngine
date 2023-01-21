@@ -52,35 +52,30 @@ int32 UNearestNeighborTrainingModel::GetPartNumNeighbors(const int32 PartId) con
 	return FMath::Min(NearestNeighborModel->GetNumNeighborsFromAnimSequence(PartId), NearestNeighborModel->GetNumNeighborsFromGeometryCache(PartId));
 }
 
-bool UNearestNeighborTrainingModel::SampleKmeansAnim(const int32 SkeletonId)
+void UNearestNeighborTrainingModel::SampleKmeansAnim(const int32 SkeletonId)
 {
 	FNearestNeighborGeomCacheSampler* Sampler = static_cast<FNearestNeighborGeomCacheSampler*>(EditorModel->GetSampler());
-	return Sampler->SampleKMeansAnim(SkeletonId);
+	Sampler->SampleKMeansAnim(SkeletonId);
 }
 
-bool UNearestNeighborTrainingModel::SampleKmeansFrame(const int32 Frame)
+void UNearestNeighborTrainingModel::SampleKmeansFrame(const int32 Frame)
 {
 	FNearestNeighborGeomCacheSampler* Sampler = static_cast<FNearestNeighborGeomCacheSampler*>(EditorModel->GetSampler());
-	const bool bSampleExist = Sampler->SampleKMeansFrame(Frame);
-	if (bSampleExist)
-	{
-		SampleBoneRotations = Sampler->GetBoneRotations();
-		return true;	
-	}
-	return false;
+	Sampler->SampleKMeansFrame(Frame);
+	SampleBoneRotations = Sampler->GetBoneRotations();
 }
 
 
 int32 UNearestNeighborTrainingModel::GetKmeansNumAnims() const
 {
-	return NearestNeighborModel->SourceAnims.Num();
+	return NearestNeighborModel->SourceSkeletons.Num();
 }
 
 int32 UNearestNeighborTrainingModel::GetKmeansAnimNumFrames(const int32 SkeletonId) const
 {
-	if (SkeletonId < NearestNeighborModel->SourceAnims.Num())
+	if (SkeletonId < NearestNeighborModel->SourceSkeletons.Num())
 	{
-		return NearestNeighborModel->SourceAnims[SkeletonId]->GetDataModel()->GetNumberOfFrames();
+		return NearestNeighborModel->SourceSkeletons[SkeletonId]->GetDataModel()->GetNumberOfFrames();
 	}
 	return 0;
 }
