@@ -1027,6 +1027,7 @@ bool UNiagaraNodeFunctionCall::RefreshFromExternalChanges()
 		// TODO - Leverage code in reallocate pins to determine if any pins have changed...
 		ReallocatePins(false);
 		FNiagaraStackGraphUtilities::SynchronizeReferencingMapPinsWithFunctionCall(*this);
+		FNiagaraStackGraphUtilities::FixDynamicInputNodeOutputPinsFromExternalChanges(*this);
 		return true;
 	}
 	else

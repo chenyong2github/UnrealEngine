@@ -3916,6 +3916,69 @@ void FNiagaraStackGraphUtilities::DependencyUtilities::GetModuleScriptAssetsByDe
 	}
 }
 
+void FNiagaraStackGraphUtilities::FixDynamicInputNodeOutputPinsFromExternalChanges(UNiagaraNodeFunctionCall& InFunctionCallNode)
+{
+	if (InFunctionCallNode.FunctionScript == nullptr || InFunctionCallNode.FunctionScript->GetUsage() != ENiagaraScriptUsage::DynamicInput)
+	{
+		return;
+	}
+
+	FPinCollectorArray OutputPins;
+	InFunctionCallNode.GetOutputPins(OutputPins);
+	if (OutputPins.Num() > 1)
+	{
+		// Try to find an orphaned pin which is still linked, and any non-orphaned unlinked pins.
+		UEdGraphPin* LinkedOrphanedPin = nullptr;
+		TArray<UEdGraphPin*> UnlinkedValidPins;
+		for (UEdGraphPin* OutputPin : OutputPins)
+		{
+			if (OutputPin->bOrphanedPin)
+			{
+				if (OutputPin->LinkedTo.Num() == 1 && ensureMsgf(LinkedOrphanedPin == nullptr, TEXT("Dynamic inputs should only ever have one linked pin.")))
+				{
+					LinkedOrphanedPin = OutputPin;
+				}
+			}
+			else
+			{
+				if (OutputPin->LinkedTo.Num() == 0)
+				{
+					UnlinkedValidPins.Add(OutputPin);
+				}
+			}
+		}
+
+		UEdGraphPin* LinkedValidPin = nullptr;
+		if (LinkedOrphanedPin != nullptr && UnlinkedValidPins.Num() > 0)
+		{
+			// Try to match the first available valid pin to the orphaned pin by type and then fix up the pin links.
+			for (UEdGraphPin* UnlinkedValidPin : UnlinkedValidPins)
+			{
+				if (UnlinkedValidPin->PinType == LinkedOrphanedPin->PinType)
+				{
+					// A valid unlinked pin was found, so move the link from the orphaned pin to the valid pin.
+					UnlinkedValidPin->MakeLinkTo(LinkedOrphanedPin->LinkedTo[0]);
+					LinkedOrphanedPin->BreakAllPinLinks(false);
+					LinkedValidPin = UnlinkedValidPin;
+					break;
+				}
+			}
+		}
+
+		if (LinkedValidPin != nullptr)
+		{
+			// If a valid pin was linked, remove all of the other output pins since they're not valid for a dynamic input node.
+			for (UEdGraphPin* OutputPin : OutputPins)
+			{
+				if (OutputPin != LinkedValidPin)
+				{
+					InFunctionCallNode.RemovePin(OutputPin);
+				}
+			}
+		}
+	}
+}
+
 int32 FNiagaraStackGraphUtilities::DependencyUtilities::FindBestIndexForModuleInStack(UNiagaraNodeFunctionCall& ModuleNode, UNiagaraGraph& EmitterScriptGraph)
 {
 	// Check if the new module node has any dependencies to begin with. If not, early exit.
