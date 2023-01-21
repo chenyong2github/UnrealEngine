@@ -24,21 +24,25 @@ class VCAMEXTENSIONS_API UModifierHierarchyRules : public UObject
 public:
 
 	/** Gets the root of the tree. */
-	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Virtual Camera")
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Virtual Camera|Hierarchies")
 	FName GetRootGroup() const;
+
+	/** Gets the parent of this given group. Fails if called on the root node. */
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Virtual Camera|Hierarchies")
+	bool GetParentGroup(FName ChildGroup, FName& ParentGroup) const;
 
 	/**
 	 * Gets the group the modifier belongs to.
 	 * @return True if the modifier belongs to any group
 	 */
-	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Virtual Camera")
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Virtual Camera|Hierarchies")
 	bool GetGroupOfModifier(UVCamModifier* Modifier, FName& Group) const;
 
 	/** Gets the child groups of the given group. */
-	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Virtual Camera")
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Virtual Camera|Hierarchies")
 	TSet<FName> GetChildGroups(FName ParentGroup) const;
 
 	/** Gets all the modifiers on the component that belong in the given group. */
-	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Virtual Camera")
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Virtual Camera|Hierarchies")
 	TSet<UVCamModifier*> GetModifiersInGroup(UVCamComponent* Component, FName GroupName) const;
 };

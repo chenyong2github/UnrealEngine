@@ -8,6 +8,11 @@ FName UModifierHierarchyRules::GetRootGroup_Implementation() const
 	return {};
 }
 
+bool UModifierHierarchyRules::GetParentGroup_Implementation(FName ChildGroup, FName& ParentGroup) const
+{
+	return false;
+}
+
 bool UModifierHierarchyRules::GetGroupOfModifier_Implementation(UVCamModifier* Modifier, FName& Group) const
 {
 	unimplemented();
@@ -25,3 +30,4 @@ TSet<UVCamModifier*> UModifierHierarchyRules::GetModifiersInGroup_Implementation
 	unimplemented();
 	return {};
 }
+

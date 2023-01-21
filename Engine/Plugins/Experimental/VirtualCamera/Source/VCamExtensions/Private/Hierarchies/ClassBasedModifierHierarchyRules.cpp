@@ -24,6 +24,22 @@ FName UClassBasedModifierHierarchyRules::GetRootGroup_Implementation() const
 		: NAME_None;
 }
 
+bool UClassBasedModifierHierarchyRules::GetParentGroup_Implementation(FName ChildGroup, FName& ParentGroup) const
+{
+	bool bFound = false;
+	ForEachGroup([ChildGroup, &ParentGroup, &bFound](UClassBasedModifierGroup& Group, UClassBasedModifierGroup* Parent)
+	{
+		if (Group.GroupName == ChildGroup)
+		{
+			ParentGroup = Parent->GroupName;
+			bFound = true;
+			return EBreakBehavior::Break;
+		}
+		return EBreakBehavior::Continue;
+	});
+	return bFound;
+}
+
 bool UClassBasedModifierHierarchyRules::GetGroupOfModifier_Implementation(UVCamModifier* Modifier, FName& Group) const
 {
 	if (!Modifier)
@@ -75,7 +91,7 @@ void UClassBasedModifierHierarchyRules::PostEditChangeProperty(FPropertyChangedE
 UClassBasedModifierGroup* UClassBasedModifierHierarchyRules::FindGroupByName(FName GroupName) const
 {
 	UClassBasedModifierGroup* FoundGroup = nullptr;
-	ForEachGroup([GroupName, &FoundGroup](UClassBasedModifierGroup& Group)
+	ForEachGroup([GroupName, &FoundGroup](UClassBasedModifierGroup& Group, UClassBasedModifierGroup* Parent)
 	{
 		if (Group.GroupName == GroupName)
 		{
@@ -118,7 +134,7 @@ TSet<UVCamModifier*> UClassBasedModifierHierarchyRules::EnumerateModifiersInGrou
 UClassBasedModifierGroup* UClassBasedModifierHierarchyRules::FindBestMatchFor(UVCamModifier& Modifier) const
 {
 	TArray<TPair<TSubclassOf<UVCamModifier>, UClassBasedModifierGroup&>> MatchingGroups;
-	ForEachGroup([&Modifier, &MatchingGroups](UClassBasedModifierGroup& Group)
+	ForEachGroup([&Modifier, &MatchingGroups](UClassBasedModifierGroup& Group, UClassBasedModifierGroup* Parent)
 	{
 		for (const TSubclassOf<UVCamModifier>& Class : Group.ModifierClasses)
 		{
@@ -155,30 +171,33 @@ UClassBasedModifierGroup* UClassBasedModifierHierarchyRules::FindBestMatchFor(UV
 	return ClosestGroup;
 }
 
-void UClassBasedModifierHierarchyRules::ForEachGroup(TFunctionRef<EBreakBehavior(UClassBasedModifierGroup& Group)> Callback) const
+void UClassBasedModifierHierarchyRules::ForEachGroup(TFunctionRef<EBreakBehavior(UClassBasedModifierGroup& CurrentGroup, UClassBasedModifierGroup* Parent)> Callback) const
 {
 	if (!ensure(RootGroup))
 	{
 		return;
 	}
 
-	TQueue<UClassBasedModifierGroup*> Queue;
-	Queue.Enqueue(RootGroup);
+	TQueue<TPair<UClassBasedModifierGroup*, UClassBasedModifierGroup*>> Queue;
+	Queue.Enqueue({ RootGroup, nullptr });
 
-	UClassBasedModifierGroup* Current = nullptr;
+	TPair<UClassBasedModifierGroup*, UClassBasedModifierGroup*> Current;
 	while (Queue.Dequeue(Current))
 	{
-		const EBreakBehavior BreakBehavior = Callback(*Current);
+		UClassBasedModifierGroup* CurrentNode = Current.Key;
+		UClassBasedModifierGroup* Parent = Current.Value;
+		
+		const EBreakBehavior BreakBehavior = Callback(*CurrentNode, Parent);
 		if (BreakBehavior == EBreakBehavior::Break)
 		{
 			return;
 		}
 		
-		for (UClassBasedModifierGroup* Child : Current->Children)
+		for (UClassBasedModifierGroup* Child : CurrentNode->Children)
 		{
 			if (Child)
 			{
-				Queue.Enqueue(Child);
+				Queue.Enqueue({ Child, CurrentNode });
 			}
 		}
 	}

@@ -40,6 +40,7 @@ public:
 
 	//~ Begin UModifierHierarchyRules Interface
 	virtual FName GetRootGroup_Implementation() const override;
+	virtual bool GetParentGroup_Implementation(FName ChildGroup, FName& ParentGroup) const override;
 	virtual bool GetGroupOfModifier_Implementation(UVCamModifier* Modifier, FName& Group) const override;
 	virtual TSet<FName> GetChildGroups_Implementation(FName ParentGroup) const override;
 	virtual TSet<UVCamModifier*> GetModifiersInGroup_Implementation(UVCamComponent* Component, FName GroupName) const override;
@@ -66,5 +67,5 @@ private:
 	TSet<UVCamModifier*> EnumerateModifiersInGroup(UClassBasedModifierGroup& Group, UVCamComponent& Component) const;
 	
 	UClassBasedModifierGroup* FindBestMatchFor(UVCamModifier& Modifier) const;
-	void ForEachGroup(TFunctionRef<EBreakBehavior(UClassBasedModifierGroup& Group)> Callback) const;
+	void ForEachGroup(TFunctionRef<EBreakBehavior(UClassBasedModifierGroup& CurrentGroup, UClassBasedModifierGroup* Parent)> Callback) const;
 };
