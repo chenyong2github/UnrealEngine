@@ -1781,41 +1781,40 @@ public:
 		else
 		{
 			const EIoChunkType ChunkType = Meta.HasAnyFlags(BULKDATA_OptionalPayload) ? EIoChunkType::OptionalBulkData : EIoChunkType::BulkData;
-			FIoChunkId ChunkId = CreateIoChunkId(PackageId.Value(), ChunkIndex, ChunkType);
+			BulkData.BulkChunkId = CreateIoChunkId(PackageId.Value(), ChunkIndex, ChunkType);
 
 			if (Meta.HasAnyFlags(BULKDATA_DuplicateNonOptionalPayload))
 			{
 				const FIoChunkId OptionalChunkId = CreateIoChunkId(PackageId.Value(), ChunkIndex, EIoChunkType::OptionalBulkData);
 				if (IoDispatcher.DoesChunkExist(OptionalChunkId))
 				{
-					ChunkId = OptionalChunkId;
+					BulkData.BulkChunkId = OptionalChunkId;
 					Meta.ClearFlags(BULKDATA_DuplicateNonOptionalPayload);
 					Meta.AddFlags(BULKDATA_OptionalPayload);
 					Meta.SetOffset(DuplicateSerialOffset);
 				}
 			}
-			else if (Meta.HasAnyFlags(BULKDATA_MemoryMappedPayload) && Params.bAttemptMemoryMapping)
+			else if (Meta.HasAnyFlags(BULKDATA_MemoryMappedPayload))
 			{
-				const FIoChunkId MappedChunkId = CreateIoChunkId(PackageId.Value(), ChunkIndex, EIoChunkType::MemoryMappedBulkData);
-				TIoStatusOr<FIoMappedRegion> Status = IoDispatcher.OpenMapped(MappedChunkId, FIoReadOptions(Meta.GetOffset(), Meta.GetSize()));
+				BulkData.BulkChunkId = CreateIoChunkId(PackageId.Value(), ChunkIndex, EIoChunkType::MemoryMappedBulkData);
+				if (Params.bAttemptMemoryMapping)
+				{
+					TIoStatusOr<FIoMappedRegion> Status = IoDispatcher.OpenMapped(BulkData.BulkChunkId, FIoReadOptions(Meta.GetOffset(), Meta.GetSize()));
 
-				if (Status.IsOk())
-				{
-					ChunkId = MappedChunkId;
-					FIoMappedRegion Mapping = Status.ConsumeValueOrDie(); 
-					BulkData.DataAllocation.SetMemoryMappedData(&BulkData, Mapping.MappedFileHandle, Mapping.MappedFileRegion);
-				}
-				else
-				{
-					UE_LOG(LogSerialization, Warning, TEXT("Memory map bulk data from chunk '%s', offset '%lld', size '%lld' FAILED"),
-						*LexToString(MappedChunkId), Meta.GetOffset(), Meta.GetSize());
-					
-					BulkData.BulkChunkId = ChunkId;
-					BulkData.ForceBulkDataResident();
+					if (Status.IsOk())
+					{
+						FIoMappedRegion Mapping = Status.ConsumeValueOrDie(); 
+						BulkData.DataAllocation.SetMemoryMappedData(&BulkData, Mapping.MappedFileHandle, Mapping.MappedFileRegion);
+					}
+					else
+					{
+						UE_LOG(LogSerialization, Warning, TEXT("Memory map bulk data from chunk '%s', offset '%lld', size '%lld' FAILED"),
+							*LexToString(BulkData.BulkChunkId), Meta.GetOffset(), Meta.GetSize());
+
+						BulkData.ForceBulkDataResident();
+					}
 				}
 			}
-
-			BulkData.BulkChunkId = ChunkId;
 		}
 
 		return true;
