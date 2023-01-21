@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "BaseModifierGroup.h"
 #include "ModifierHierarchyRules.h"
 #include "Modifier/VCamModifier.h"
 #include "Templates/SubclassOf.h"
@@ -10,21 +11,16 @@
 class UVCamComponent;
 
 UCLASS(EditInlineNew)
-class VCAMEXTENSIONS_API UClassBasedModifierGroup : public UObject
+class VCAMEXTENSIONS_API UClassBasedModifierGroup : public UBaseModifierGroup
 {
 	GENERATED_BODY()
 public:
-
-	UPROPERTY(EditAnywhere, Category = "Virtual Camera")
-	FName GroupName;
 	
-	UPROPERTY(EditAnywhere, Category = "Virtual Camera")
+	UPROPERTY(EditAnywhere, Category = "Virtual Camera|Hierarchies")
 	TSet<TSubclassOf<UVCamModifier>> ModifierClasses;
 
-	UPROPERTY(EditAnywhere, Instanced, Category = "Virtual Camera")
+	UPROPERTY(EditAnywhere, Instanced, Category = "Virtual Camera|Hierarchies")
 	TArray<TObjectPtr<UClassBasedModifierGroup>> Children;
-
-	virtual void PostInitProperties() override;
 };
 
 /**
@@ -45,12 +41,6 @@ public:
 	virtual TSet<FName> GetChildGroups_Implementation(FName ParentGroup) const override;
 	virtual TSet<UVCamModifier*> GetModifiersInGroup_Implementation(UVCamComponent* Component, FName GroupName) const override;
 	//~ End UModifierHierarchyRules Interface
-
-#if WITH_EDITOR
-	//~ Begin UObject Interface
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	//~ End UObject Interface
-#endif
 
 private:
 	

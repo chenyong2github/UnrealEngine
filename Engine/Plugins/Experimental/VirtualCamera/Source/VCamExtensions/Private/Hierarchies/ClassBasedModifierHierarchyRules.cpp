@@ -6,12 +6,6 @@
 
 #include "Algo/AllOf.h"
 
-void UClassBasedModifierGroup::PostInitProperties()
-{
-	GroupName = GetFName();
-	Super::PostInitProperties();
-}
-
 UClassBasedModifierHierarchyRules::UClassBasedModifierHierarchyRules()
 {
 	RootGroup = CreateDefaultSubobject<UClassBasedModifierGroup>(TEXT("Root"));
@@ -74,19 +68,6 @@ TSet<UVCamModifier*> UClassBasedModifierHierarchyRules::GetModifiersInGroup_Impl
 		? EnumerateModifiersInGroup(*FoundGroup, *Component)
 		: TSet<UVCamModifier*>{};
 }
-
-#if WITH_EDITOR
-void UClassBasedModifierHierarchyRules::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	if (PropertyChangedEvent.Property
-		&& PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UClassBasedModifierGroup, GroupName))
-	{
-		// TODO: ensure unique name
-	}
-	
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-#endif
 
 UClassBasedModifierGroup* UClassBasedModifierHierarchyRules::FindGroupByName(FName GroupName) const
 {
