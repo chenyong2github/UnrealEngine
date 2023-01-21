@@ -399,7 +399,7 @@ namespace Chaos
 					Axis = VectorNegate(Axis);
 				}
 				const FRealSingle Separation = VectorDot3Scalar(VectorSubtract(ClosestPoint, PlaneVertex), Axis);
-				if (Separation > 0.0f)
+				if (Separation > UE_KINDA_SMALL_NUMBER)
 				{
 					return false;
 				}
@@ -510,7 +510,9 @@ namespace Chaos
 		FRealSingle ClosestDist = VectorDot3Scalar(Normal, ClosCent);
 		FRealSingle FurthestDist = VectorDot3Scalar(Normal, FurtCent);
 
-		return FMath::Sign(ClosestDist) != FMath::Sign(FurthestDist);
+		return !(FMath::Abs<FRealSingle>(ClosestDist) > UE_KINDA_SMALL_NUMBER &&
+			FMath::Abs<FRealSingle>(FurthestDist) > UE_KINDA_SMALL_NUMBER &&
+			FMath::Sign(ClosestDist) == FMath::Sign(FurthestDist));
 	}
 
 	const VectorRegister4Float FAABBSimd::SignBit = GlobalVectorConstants::SignBit();
@@ -564,7 +566,7 @@ namespace Chaos
 		HalfExtents = VectorLoadFloat3(&HalfExtentsf.X);
 	}
 
-	FORCEINLINE bool FAABBSimd::ComputeEdgeOverlap(const VectorRegister4Float& TriangleEdge, const VectorRegister4Float& TriangleVertex, const VectorRegister4Float& Centroid, const VectorRegister4Float& Normal, const VectorRegister4Float& LocalClosest) const
+	FORCEINLINE_DEBUGGABLE bool FAABBSimd::ComputeEdgeOverlap(const VectorRegister4Float& TriangleEdge, const VectorRegister4Float& TriangleVertex, const VectorRegister4Float& Centroid, const VectorRegister4Float& Normal, const VectorRegister4Float& LocalClosest) const
 	{
 		// Triangle edge vs box edges 
 		const VectorRegister4Float ClosestPoint = VectorAdd(LocalClosest, Position);
@@ -593,7 +595,7 @@ namespace Chaos
 					Axis = VectorBitwiseXor(SignBit, Axis);
 				}
 				const FRealSingle ScaledSeparation = VectorDot3Scalar(VectorSubtract(ClosestPoint, TriangleVertex), Axis);
-				if (ScaledSeparation > 0.0f)
+				if (ScaledSeparation > UE_KINDA_SMALL_NUMBER)
 				{
 					return false;
 				}
@@ -674,7 +676,9 @@ namespace Chaos
 		FRealSingle ClosestDist = VectorDot3Scalar(Normal, ClosCent);
 		FRealSingle FurthestDist = VectorDot3Scalar(Normal, FurtCent);
 
-		if (FMath::Sign(ClosestDist) == FMath::Sign(FurthestDist))
+		if (FMath::Abs<FRealSingle>(ClosestDist) > UE_KINDA_SMALL_NUMBER &&
+			FMath::Abs<FRealSingle>(FurthestDist) > UE_KINDA_SMALL_NUMBER &&
+			FMath::Sign(ClosestDist) == FMath::Sign(FurthestDist))
 		{
 			return false;
 		}

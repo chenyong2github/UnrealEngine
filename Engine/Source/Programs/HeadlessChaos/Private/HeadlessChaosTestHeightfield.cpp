@@ -967,7 +967,7 @@ namespace ChaosTest {
 						FVec3 Dir(1, 0, 0);
 						bool BoxResult = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
 						bool BoxResultMTD = Heightfield.OverlapGeom(Box, QueryTM, 0.0, &OutBoxMTD);
-						// EXPECT_EQ(BoxResult, BoxResultMTD); // TODO Enable test
+						EXPECT_EQ(BoxResult, BoxResultMTD);
 
 						bool CapsuleResult = Heightfield.OverlapGeom(Capsule, QueryTM, 0.0, nullptr);
 						bool CapsuleResultMTD = Heightfield.OverlapGeom(Capsule, QueryTM, 0.0, &OutCapsuleMTD);
