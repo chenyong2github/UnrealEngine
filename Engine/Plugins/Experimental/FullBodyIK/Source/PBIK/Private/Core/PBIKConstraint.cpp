@@ -2,6 +2,7 @@
 
 #include "Core/PBIKConstraint.h"
 #include "Core/PBIKBody.h"
+#include "Core/PBIKSolver.h"
 
 namespace PBIK
 {
@@ -22,7 +23,7 @@ FJointConstraint::FJointConstraint(FRigidBody* InA, FRigidBody* InB)
 	AngleX = AngleY = AngleZ = 0;
 }
 	
-void FJointConstraint::Solve(bool bMoveSubRoots)
+void FJointConstraint::Solve(const FPBIKSolverSettings& Settings)
 {
 	// get pos correction to use for rotation
 	FVector OffsetA;
@@ -38,42 +39,37 @@ void FJointConstraint::Solve(bool bMoveSubRoots)
 	UpdateJointLimits();
 
 	// calc inv mass of body A
-	float AInvMass = 1.0f;
-	AInvMass -= (A->Pin && A->Pin->bEnabled) ? A->Pin->Alpha : 0.0f;
-	AInvMass -= !bMoveSubRoots && A->Bone->bIsSubRoot ? 1.0f : 0.0f;
-	AInvMass = AInvMass <= 0.0f ? 0.0f : AInvMass;
-
-	// calc inv mass of body B
-	float BInvMass = 1.0f;
-	BInvMass -= (B->Pin && B->Pin->bEnabled) ? B->Pin->Alpha : 0.0f;
-	BInvMass -= !bMoveSubRoots && B->Bone->bIsSubRoot ? 1.0f : 0.0f;
-	BInvMass = BInvMass <= 0.0f ? 0.0f : BInvMass;
-
-	const float InvMassSum = AInvMass + BInvMass;
-	if (FMath::IsNearlyZero(InvMassSum))
+	const float WA = A->GetInverseMass();
+	const float WB = B->GetInverseMass();
+	const float W = WA + WB;
+	if (FMath::IsNearlyZero(W))
 	{
 		return; // no correction can be applied on full locked configuration
 	}
-	const float OneOverInvMassSum = 1.0f / InvMassSum;
 
 	// apply positional correction to align pin point on both Bodies
 	// NOTE: applying position correction AFTER rotation takes into
 	// consideration change in relative pin locations mid-step after
 	// bodies have been rotated by ApplyPushToRotateBody
 	Correction = GetPositionCorrection(OffsetA, OffsetB);
-	Correction = Correction * OneOverInvMassSum;
+	FVector N;
+	float C;
+	Correction.ToDirectionAndLength(N, C);
 
-	A->ApplyPushToPosition(Correction * AInvMass);
-	B->ApplyPushToPosition(-Correction * BInvMass);
+	const FVector CorrectA = N * (C * (WA / W));
+	const FVector CorrectB = N * (C * (WB / W));
+
+	A->ApplyPushToPosition(CorrectA);
+	B->ApplyPushToPosition(-CorrectB);
 }
 
-void FJointConstraint::RemoveStretch()
+void FJointConstraint::RemoveStretch(const float Percent)
 {
 	// apply position correction, keeping parent body fixed
 	FVector ToA;
 	FVector ToB;
 	const FVector Correction = GetPositionCorrection(ToA, ToB);
-	B->Position -= Correction;
+	B->Position -= Correction * Percent;
 }
 
 FVector FJointConstraint::GetPositionCorrection(FVector& OutBodyToA, FVector& OutBodyToB) const
@@ -281,30 +277,29 @@ FPinConstraint::FPinConstraint(
 	bPinRotation = bInPinRotation;
 }
 
-void FPinConstraint::Solve(bool bMoveSubRoots)
+void FPinConstraint::Solve(const FPBIKSolverSettings& Settings)
 {
 	if (!bEnabled || (Alpha <= KINDA_SMALL_NUMBER))
 	{
 		return;
 	}
 
-	if (!bMoveSubRoots && A->Bone->bIsSubRoot)
-	{
-		return;
-	}
-
-	// get positional correction for rotation
-	FVector AToPinPoint;
-	FVector Correction = GetPositionCorrection(AToPinPoint);
-
 	if (bPinRotation)
 	{
-		// move body to pin location
-		A->Position += Correction;
 		// keep body at fixed rotation relative to the pin goal rotation
 		A->Rotation = ARotLocalToPin * GoalRotation;
+		
+		// move body to pin location
+		FVector AToPinPoint;
+		const FVector Correction = GetPositionCorrection(AToPinPoint);
+		A->Position += Correction;
+		
 	}else
 	{
+		// get positional correction for rotation
+		FVector AToPinPoint;
+		FVector Correction = GetPositionCorrection(AToPinPoint);
+		
 		// rotate body from alignment of pin points
 		A->ApplyPushToRotateBody(Correction, AToPinPoint);
 
@@ -312,7 +307,7 @@ void FPinConstraint::Solve(bool bMoveSubRoots)
 		// (applying directly without considering PositionStiffness because PinConstraints need
 		// to precisely pull the attached body to achieve convergence)
 		Correction = GetPositionCorrection(AToPinPoint);
-		A->Position += Correction; 
+		A->Position += Correction * Settings.OverRelaxation; 
 	}
 }
 
@@ -321,6 +316,13 @@ void FPinConstraint::SetGoal(const FVector& InGoalPosition, const FQuat& InGoalR
 	GoalPosition = InGoalPosition;
 	GoalRotation = InGoalRotation;
 	Alpha = InAlpha;
+}
+
+void FPinConstraint::EnableInCurrentState()
+{
+	GoalPosition = A->Position;
+	GoalRotation = A->Rotation;
+	bEnabled = true;
 }
 
 FVector FPinConstraint::GetPositionCorrection(FVector& OutBodyToPinPoint) const

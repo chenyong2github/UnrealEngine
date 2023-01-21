@@ -93,10 +93,11 @@ void FRigidBody::UpdateFromInputs(const FPBIKSolverSettings& Settings)
 		InputPosition = Position;
 	}
 
-	// for fork joints (multiple solved children) we sum lengths to all children (see Initialize)
-	const float MinMass = 0.5f; // prevent mass ever hitting zero
-	MaxInvMass = 1.0f / (Mass * ((Settings.MassMultiplier * GLOBAL_UNITS) + MinMass));
-	MinInvMass = 1.0f / (Mass * ((Settings.MinMassMultiplier * GLOBAL_UNITS) + MinMass));
+	// update InvMass based on global mass multiplier
+	constexpr float MinMass = 0.5f; // prevent mass ever hitting zero
+	InvMass = 1.0f / FMath::Max(MinMass,(Mass * Settings.MassMultiplier * GLOBAL_UNITS));
+
+	SolverSettings = &Settings;
 }
 
 int FRigidBody::GetNumBonesToRoot() const
@@ -114,6 +115,16 @@ FRigidBody* FRigidBody::GetParentBody() const
 	return nullptr;
 }
 
+float FRigidBody::GetInverseMass()
+{
+	if (Pin && Pin->bEnabled)
+	{
+		return 1.0f - Pin->Alpha;
+	}
+
+	return InvMass;
+}
+
 void FRigidBody::ApplyPushToRotateBody(const FVector& Push, const FVector& Offset)
 {
 	if (Pin && Pin->bEnabled && Pin->bPinRotation)
@@ -129,7 +140,7 @@ void FRigidBody::ApplyPushToRotateBody(const FVector& Push, const FVector& Offse
 
 void FRigidBody::ApplyPushToPosition(const FVector& Push)
 {
-	Position += Push * (1.0f - J.PositionStiffness);
+	Position += Push * (1.0f - J.PositionStiffness) * SolverSettings->OverRelaxation;
 }
 
 void FRigidBody::ApplyRotationDelta(const FQuat& DeltaQ)
@@ -139,8 +150,17 @@ void FRigidBody::ApplyRotationDelta(const FQuat& DeltaQ)
 		return; // rotation of this body is pinned
 	}
 
+	// limit rotation each iteration
+	FQuat ClampedDQ = DeltaQ;
+	const float MaxPhi = FMath::DegreesToRadians(SolverSettings->MaxAngle);
+	const float Phi = DeltaQ.Size();
+	if (Phi > MaxPhi)
+	{
+		ClampedDQ *= MaxPhi / Phi;
+	}
+
 	/** DeltaQ is assumed to be a "pure" quaternion representing an infintesimal rotation */
-	FQuat Delta = DeltaQ * Rotation;
+	FQuat Delta = ClampedDQ * Rotation;
 	Delta.X *= 0.5f;
 	Delta.Y *= 0.5f;
 	Delta.Z *= 0.5f;

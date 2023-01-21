@@ -11,8 +11,8 @@ struct FConstraint
 {
 	bool bEnabled = true;
 
-	virtual void Solve(bool bMoveSubRoots) = 0;
-	virtual void RemoveStretch() {};
+	virtual void Solve(const FPBIKSolverSettings& Settings) = 0;
+	virtual void RemoveStretch(const float Percent){};
 };
 
 struct FJointConstraint : public FConstraint
@@ -51,9 +51,9 @@ public:
 
 	virtual ~FJointConstraint() {};
 
-	virtual void Solve(bool bMoveSubRoots) override;
+	virtual void Solve(const FPBIKSolverSettings& Settings) override;
 
-	virtual void RemoveStretch() override;
+	virtual void RemoveStretch(const float Percent) override;
 
 private:
 
@@ -106,9 +106,11 @@ public:
 
 	virtual ~FPinConstraint() {};
 
-	virtual void Solve(bool bMoveSubRoots) override;
+	virtual void Solve(const FPBIKSolverSettings& Settings) override;
 
 	void SetGoal(const FVector& InGoalPosition, const FQuat& InGoalRotation, const float InAlpha);
+
+	void EnableInCurrentState();
 
 private:
 

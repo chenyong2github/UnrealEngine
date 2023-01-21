@@ -117,10 +117,13 @@ void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 	// update settings
 	FPBIKSolverSettings Settings;
 	Settings.Iterations = Iterations;
-	Settings.bAllowStretch = bAllowStretch;
 	Settings.MassMultiplier = MassMultiplier;
-	Settings.MinMassMultiplier = MinMassMultiplier;
+	Settings.bAllowStretch = bAllowStretch;
 	Settings.RootBehavior = RootBehavior;
+	Settings.PrePullRootSettings = PrePullRootSettings;
+	Settings.GlobalPullChainAlpha = PullChainAlpha;
+	Settings.MaxAngle = MaxAngle;
+	Settings.OverRelaxation = OverRelaxation;
 	Settings.bStartSolveFromInputPose = bStartSolveFromInputPose;
 
 	// solve
@@ -149,10 +152,13 @@ void UIKRigPBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 	if(UIKRigPBIKSolver* Settings = Cast<UIKRigPBIKSolver>(InSettings))
 	{
 		Iterations = Settings->Iterations;
-		bAllowStretch = Settings->bAllowStretch;
 		MassMultiplier = Settings->MassMultiplier;
-		MinMassMultiplier = Settings->MinMassMultiplier;
+		bAllowStretch = Settings->bAllowStretch;
 		RootBehavior = Settings->RootBehavior;
+		PrePullRootSettings = Settings->PrePullRootSettings;
+		PullChainAlpha = Settings->PullChainAlpha;
+		MaxAngle = Settings->MaxAngle;
+		OverRelaxation = Settings->OverRelaxation;
 		bStartSolveFromInputPose = Settings->bStartSolveFromInputPose;
 
 		// copy effector settings

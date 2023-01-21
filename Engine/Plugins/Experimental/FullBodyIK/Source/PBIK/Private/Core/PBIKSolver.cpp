@@ -189,174 +189,22 @@ void FPBIKSolver::Solve(const FPBIKSolverSettings& Settings)
 	UpdateBonesFromBodies();
 }
 
-void FPBIKSolver::PullRootTowardsEffectors()
-{
-	using PBIK::FEffector;
-	using PBIK::FRigidBody;
-	
-	// accumulate a delta offset from each effector
-	FVector BodyOffset = FVector::ZeroVector;
-	for (FEffector& Effector : Effectors)
-	{
-		const float DistToRootStraightLine = (Effector.Position - SolverRoot->Position).Size();
-		const float Delta = DistToRootStraightLine - Effector.DistToRootStraightLine;//Effector.DistToRootAlongBones;
-		if (Delta < SMALL_NUMBER)
-		{
-			continue; // only pull
-		}
-
-		FVector RootToTip = Effector.Position - SolverRoot->Position;
-		BodyOffset += Delta * RootToTip.GetSafeNormal();
-	}
-
-	const float InvNumEffectors = (1.0f / static_cast<float>(Effectors.Num()));
-	BodyOffset *= InvNumEffectors;
-
-	// linearly move entire apparatus towards tip effectors
-	for (FRigidBody& Body : Bodies)
-	{
-		Body.Position += BodyOffset;
-	}
-}
-
-void FPBIKSolver::ApplyPullChainAlpha()
-{
-	using PBIK::FEffector;
-	using PBIK::FBone;
-	using PBIK::FRigidBody;
-	
-	for (FEffector& Effector : Effectors)
-	{
-		if (!Effector.ParentSubRoot)
-		{
-			continue;
-		}
-
-		if (Effector.DistToSubRootAlongBones < SMALL_NUMBER)
-		{
-			continue;
-		}
-
-		if (Effector.Settings.PullChainAlpha < SMALL_NUMBER)
-		{
-			continue;
-		}
-
-		// get original chain vector
-		const FVector ChainStartOrig = Effector.ParentSubRoot->InputPosition;
-		const FVector ChainEndOrig = Effector.PositionOrig;
-		FVector ChainVecOrig;
-		float ChainLenOrig;
-		(ChainEndOrig - ChainStartOrig).ToDirectionAndLength(ChainVecOrig, ChainLenOrig);
-
-		// get new chain vector
-		FVector ChainStartNew;
-		if (Effector.ParentSubRoot->Effector)
-		{
-			// add effector offset to chain root
-			FEffector* RootEffector = Effector.ParentSubRoot->Effector;
-			FVector RootEffectorDelta = RootEffector->Position - RootEffector->PositionOrig;
-			ChainStartNew = Effector.ParentSubRoot->Position + RootEffectorDelta;
-		}else
-		{
-			ChainStartNew = Effector.ParentSubRoot->Position;
-		}
-		const FVector ChainEndNew = Effector.Position;
-		FVector ChainVecNew;
-		float ChainLenNew;
-		(ChainEndNew - ChainStartNew).ToDirectionAndLength(ChainVecNew, ChainLenNew);
-
-		FQuat ChainDeltaRotation = FQuat::FindBetweenNormals(ChainVecOrig, ChainVecNew);
-		const float ChainDeltaAlpha = Effector.Settings.PullChainAlpha * Effector.Settings.StrengthAlpha;
-		ChainDeltaRotation = FQuat::FastLerp(FQuat::Identity, ChainDeltaRotation, ChainDeltaAlpha);
-		FVector ChainDeltaPosition = ChainVecNew * (ChainLenNew - ChainLenOrig) * ChainDeltaAlpha;
-
-		FBone* Bone = Effector.Bone->Parent;
-		int32 ChainIndex = 0;
-		const float InvChainLength = 1.0f / Effector.DistToSubRootAlongBones;
-		while (Bone && Bone->Body != Effector.ParentSubRoot)
-		{		
-			// rotate body along with chain
-			const FVector BodyRelativeToChain = Bone->Body->Position - ChainStartNew;
-			const FVector RotatedBodyPos = ChainStartNew + ChainDeltaRotation.RotateVector(BodyRelativeToChain);
-			Bone->Body->Position = RotatedBodyPos;
-			Bone->Body->Rotation = ChainDeltaRotation * Bone->Body->Rotation;
-
-			// move body proportional to chain stretch amount
-			const float Strength = 1.0f - (Effector.DistancesFromEffector[ChainIndex] * InvChainLength);
-			Bone->Body->Position += ChainDeltaPosition * Strength;
-			
-			Bone = Bone->Parent;
-			++ChainIndex;
-		}
-	}
-}
-
-void FPBIKSolver::ApplyPreferredAngles()
-{
-	// apply preferred angles to squashed effector chains
-	using PBIK::FEffector;
-	for (FEffector& Effector : Effectors)
-	{
-		Effector.ApplyPreferredAngles();
-	}
-
-	// preferred angles introduce stretch, so remove that to prevent biasing the first constraint iteration
-	for (int32 C = Constraints.Num() - 1; C >= 0; --C)
-	{
-		Constraints[C]->RemoveStretch();
-	}
-}
-
 void FPBIKSolver::UpdateBodies(const FPBIKSolverSettings& Settings)
 {
-	// this creates a better pose from which to start the constraint solving
-	if (Settings.RootBehavior == EPBIKRootBehavior::PrePull)
-	{
-		// pull ALL bodies towards the effectors
-		PullRootTowardsEffectors();
-	}
+	using PBIK::FRigidBody;
+	
+	// apply large scale gross movement to entire skeleton based on effector deltas
+	// (this creates a better pose from which to start the constraint solving)
+	ApplyRootPrePull(Settings.RootBehavior, Settings.PrePullRootSettings);
 
 	// pre-rotate bones towards preferred angles when effector limb is squashed
 	ApplyPreferredAngles();
 
 	// pull each effector's chain towards itself
-	ApplyPullChainAlpha();
+	ApplyPullChainAlpha(Settings.GlobalPullChainAlpha);
 		
 	// run ALL constraint iterations
-	SolveConstraints(Settings.Iterations, true, Settings.bAllowStretch);
-}
-
-void FPBIKSolver::SolveConstraints(const int32 Iterations, const bool bMoveRoots, const bool bAllowStretch)
-{
-	using PBIK::FRigidBody;
-	
-	for (int32  I = 0; I < Iterations; ++I)
-	{
-		float IterPercent = Iterations == 1 ? 0 : (static_cast<float>(I) / static_cast<float>(Iterations - 1));
-		
-		// gradually ramp down mass of bodies
-		float MassRamp = PBIK::SquaredEaseOut(IterPercent);
-		for (FRigidBody& Body : Bodies)
-		{
-			Body.InvMass = FMath::Lerp(Body.MaxInvMass, Body.MinInvMass, MassRamp);
-		}
-		
-		// solve all constraints
-		for (auto Constraint : Constraints)
-		{
-			Constraint->Solve(bMoveRoots);
-		}
-
-		// do post-pass to remove stretch
-		if (!bAllowStretch && (I>Iterations/2))
-		{
-			for (int32 C = Constraints.Num() - 1; C >= 0; --C)
-			{
-				Constraints[C]->RemoveStretch();
-			}
-		}
-	}
+	SolveConstraints(Settings);
 }
 
 void FPBIKSolver::UpdateBonesFromBodies()
@@ -409,6 +257,182 @@ void FPBIKSolver::UpdateBonesFromBodies()
 
 		Bone.Position = Bone.Parent->Position + Bone.Parent->Rotation * Bone.LocalPositionOrig;
 		Bone.Rotation = Bone.Parent->Rotation * Bone.LocalRotationOrig;
+	}
+}
+
+void FPBIKSolver::ApplyRootPrePull(const EPBIKRootBehavior RootBehavior, const FRootPrePullSettings& PrePullSettings)
+{
+	using PBIK::FEffector;
+	using PBIK::FRigidBody;
+	
+	if (RootBehavior != EPBIKRootBehavior::PrePull)
+	{
+		return;
+	}
+
+	// calculate a "best fit" transform from deformed goal locations
+	TArray<FVector, TInlineAllocator<8>> InitialPoints;
+	TArray<FVector, TInlineAllocator<8>> CurrentPoints;
+	InitialPoints.Reserve(Effectors.Num());
+	CurrentPoints.Reserve(Effectors.Num());
+	for (FEffector& Effector : Effectors)
+	{
+		InitialPoints.Add(Effector.PositionOrig);
+		CurrentPoints.Add(Effector.Position);
+	}
+
+	// calculate "best fit" rotational delta from deformed effector configuration
+	FVector InitialCentroid;
+	FVector CurrentCentroid;
+	const FQuat RotationOffset = GetRotationFromDeformedPoints(
+		InitialPoints,
+		CurrentPoints,
+		InitialCentroid,
+		CurrentCentroid);
+
+	// do per-axis alpha blend for position offset
+	FVector PositionOffset = CurrentCentroid - InitialCentroid;
+	PositionOffset *= FVector(PrePullSettings.PositionAlphaX, PrePullSettings.PositionAlphaY, PrePullSettings.PositionAlphaZ);
+	// alpha blend entire offset
+	PositionOffset *= PrePullSettings.PositionAlpha;
+	
+	// do per-axis alpha blend for rotation offset
+	const FVector Euler = RotationOffset.Euler() * FVector(PrePullSettings.RotationAlphaX, PrePullSettings.RotationAlphaY, PrePullSettings.RotationAlphaZ);
+	FQuat FinalRotationOffset = FQuat::MakeFromEuler(Euler);
+	// alpha blend the entire rotation offset
+	FinalRotationOffset = FQuat::FastLerp(FQuat::Identity, FinalRotationOffset, PrePullSettings.RotationAlpha).GetNormalized();
+
+	// move and rotate all bodies rigidly with the root
+	const FRigidBody* RootBody = SolverRoot->Body;
+	const FVector RootPosition = RootBody->Position;
+	const FQuat RootRotation = RootBody->Rotation;
+	const FVector NewRootPosition = RootPosition + PositionOffset;
+	const FQuat NewRootRotation = FinalRotationOffset * RootBody->Rotation;
+	for (FRigidBody& Body : Bodies)
+	{
+		FVector LocalPos = RootRotation.Inverse() * (Body.Position - RootPosition);
+		FQuat LocalRot = RootRotation.Inverse() * Body.Rotation;
+		Body.Position = NewRootPosition + (NewRootRotation * LocalPos);
+		Body.Rotation = NewRootRotation * LocalRot;
+	}
+}
+
+void FPBIKSolver::ApplyPullChainAlpha(const float GlobalPullChainAlpha)
+{
+	using PBIK::FEffector;
+	using PBIK::FBone;
+	using PBIK::FRigidBody;
+
+	if (FMath::IsNearlyZero(GlobalPullChainAlpha))
+	{
+		return;
+	}
+	
+	for (FEffector& Effector : Effectors)
+	{
+		if (!Effector.ParentSubRoot)
+		{
+			continue;
+		}
+
+		if (Effector.DistToSubRootAlongBones < SMALL_NUMBER)
+		{
+			continue;
+		}
+
+		if (Effector.Settings.PullChainAlpha < SMALL_NUMBER)
+		{
+			continue;
+		}
+
+		// get original chain vector
+		const FVector ChainStartOrig = Effector.ParentSubRoot->InputPosition;
+		const FVector ChainEndOrig = Effector.PositionOrig;
+		FVector ChainVecOrig;
+		float ChainLenOrig;
+		(ChainEndOrig - ChainStartOrig).ToDirectionAndLength(ChainVecOrig, ChainLenOrig);
+
+		// get new chain vector
+		FVector ChainStartNew;
+		if (Effector.ParentSubRoot->Effector)
+		{
+			// add effector offset to chain root
+			FEffector* RootEffector = Effector.ParentSubRoot->Effector;
+			FVector RootEffectorDelta = RootEffector->Position - RootEffector->PositionOrig;
+			ChainStartNew = Effector.ParentSubRoot->Position + RootEffectorDelta;
+		}else
+		{
+			ChainStartNew = Effector.ParentSubRoot->Position;
+		}
+		const FVector ChainEndNew = Effector.Position;
+		FVector ChainVecNew;
+		float ChainLenNew;
+		(ChainEndNew - ChainStartNew).ToDirectionAndLength(ChainVecNew, ChainLenNew);
+
+		FQuat ChainDeltaRotation = FQuat::FindBetweenNormals(ChainVecOrig, ChainVecNew);
+		const float ChainDeltaAlpha = Effector.Settings.PullChainAlpha * Effector.Settings.StrengthAlpha * GlobalPullChainAlpha;
+		ChainDeltaRotation = FQuat::FastLerp(FQuat::Identity, ChainDeltaRotation, ChainDeltaAlpha);
+		FVector ChainDeltaPosition = ChainVecNew * (ChainLenNew - ChainLenOrig) * ChainDeltaAlpha;
+
+		FBone* Bone = Effector.Bone->Parent;
+		int32 ChainIndex = 0;
+		const float InvChainLength = 1.0f / Effector.DistToSubRootAlongBones;
+		while (Bone && Bone->Body != Effector.ParentSubRoot)
+		{		
+			// rotate body along with chain
+			const FVector BodyRelativeToChain = Bone->Body->Position - ChainStartNew;
+			const FVector RotatedBodyPos = ChainStartNew + ChainDeltaRotation.RotateVector(BodyRelativeToChain);
+			Bone->Body->Position = RotatedBodyPos;
+			Bone->Body->Rotation = ChainDeltaRotation * Bone->Body->Rotation;
+
+			// move body proportional to chain stretch amount
+			const float Strength = 1.0f - (Effector.DistancesFromEffector[ChainIndex] * InvChainLength);
+			Bone->Body->Position += ChainDeltaPosition * Strength;
+			
+			Bone = Bone->Parent;
+			++ChainIndex;
+		}
+	}
+}
+
+void FPBIKSolver::ApplyPreferredAngles()
+{
+	// apply preferred angles to squashed effector chains
+	using PBIK::FEffector;
+	for (FEffector& Effector : Effectors)
+	{
+		Effector.ApplyPreferredAngles();
+	}
+
+	// preferred angles introduce stretch, so remove that to prevent biasing the first constraint iteration
+	for (int32 C = Constraints.Num() - 1; C >= 0; --C)
+	{
+		constexpr float FullAmount = 1.0f;
+		Constraints[C]->RemoveStretch(FullAmount);
+	}
+}
+
+void FPBIKSolver::SolveConstraints(const FPBIKSolverSettings& Settings)
+{
+	using PBIK::FRigidBody;
+
+	for (int32  I = 0; I < Settings.Iterations; ++I)
+	{
+		// solve all constraints
+		for (const TSharedPtr<PBIK::FConstraint>& Constraint : Constraints)
+		{
+			Constraint->Solve(Settings);
+		}
+		
+		// do post-pass to remove stretch
+		if (!Settings.bAllowStretch)
+		{
+			const float StretchAmount = FMath::Min(1.0f, static_cast<float>(I+1) / (Settings.Iterations / 2.0f));
+			for (int32 C = Constraints.Num() - 1; C >= 0; --C)
+			{
+				Constraints[C]->RemoveStretch(StretchAmount);
+			}
+		}
 	}
 }
 
@@ -592,7 +616,7 @@ bool FPBIKSolver::InitBodies()
 	// must be done AFTER setting: Bone.IsSubRoot/IsSolverRoot/Parent
 	for (FEffector& Effector : Effectors)
 	{
-		FBone* Parent = Effector.Bone->Parent;
+		const FBone* Parent = Effector.Bone->Parent;
 		while (Parent)
 		{
 			if (!Parent->bIsSolved)
@@ -634,11 +658,12 @@ bool FPBIKSolver::InitConstraints()
 	using PBIK::FJointConstraint;
 
 	Constraints.Empty();
-
-	// pin bodies to effectors
+	
+	// Add Effector Pin Constraints
+	// (these are added first since they create the pulling effect which needs resolved by the joint constraints)
 	for (FEffector& Effector : Effectors)
 	{
-		FBone* BodyBone = Effector.Bone->bIsSolverRoot ? Effector.Bone : Effector.Bone->Parent;
+		const FBone* BodyBone = Effector.Bone->bIsSolverRoot ? Effector.Bone : Effector.Bone->Parent;
 		if (!BodyBone)
 		{
 			UE_LOG(LogPBIKSolver, Warning, TEXT("PBIK: effector is on bone that does not have a parent."));
@@ -653,17 +678,8 @@ bool FPBIKSolver::InitConstraints()
 		Constraints.Add(Constraint);
 	}
 
-	// pin root body to animated location 
-	// this constraint is by default off in solver settings
-	if (!SolverRoot->Body->Effector) // only add if user hasn't added their own root effector
-	{
-		const TSharedPtr<FPinConstraint> RootConstraint = MakeShared<FPinConstraint>(SolverRoot->Body, SolverRoot->Position, SolverRoot->Rotation, true);
-		Constraints.Add(RootConstraint);
-		RootPin = RootConstraint;
-		SolverRoot->Body->Pin = RootConstraint.Get();
-	}
-
-	// constrain all bodies together (child to parent)
+	// Add joint constraints
+	// (constrain all bodies together (child to parent))
 	for (FRigidBody& Body : Bodies)
 	{
 		FRigidBody* ParentBody = Body.GetParentBody();
@@ -676,6 +692,17 @@ bool FPBIKSolver::InitConstraints()
 		Constraints.Add(Constraint);
 	}
 
+	// pin root body to animated location 
+	// this constraint is by default off in solver settings
+	// this constraint is added last to ensure it is fully solved at the end of the iteration loop
+	if (!SolverRoot->Body->Effector) // only add if user hasn't added their own root effector
+	{
+		const TSharedPtr<FPinConstraint> RootConstraint = MakeShared<FPinConstraint>(SolverRoot->Body, SolverRoot->Position, SolverRoot->Rotation, true);
+		Constraints.Add(RootConstraint);
+		RootPin = RootConstraint;
+		SolverRoot->Body->Pin = RootConstraint.Get();
+	}
+	
 	return true;
 }
 
@@ -783,5 +810,82 @@ void FPBIKSolver::SetEffectorGoal(
 {
 	check(Index >= 0 && Index < Effectors.Num());
 	Effectors[Index].SetGoal(InPosition, InRotation, InSettings);
+}
+
+// given a set of points in an initial configuration and the same set of points in a deformed configuration,
+// this function outputs a quaternion that represents the "best fit" rotation that rotates the initial points to the
+// current points.
+FQuat FPBIKSolver::GetRotationFromDeformedPoints(
+	const TArrayView<FVector>& InInitialPoints,
+	const TArrayView<FVector>& InCurrentPoints,
+	FVector& OutInitialCentroid,
+	FVector& OutCurrentCentroid)
+{
+	check(InInitialPoints.Num() == InCurrentPoints.Num());
+
+	// must have more than 1 point to generate a gradient
+	if (InInitialPoints.Num() <= 1)
+	{
+		return FQuat::Identity;
+	}
+	
+	// calculate initial and current centroids
+	OutInitialCentroid = FVector::ZeroVector;
+	OutCurrentCentroid = FVector::ZeroVector;
+	for (int32 PointIndex=0; PointIndex<InInitialPoints.Num(); ++PointIndex)
+	{
+		OutInitialCentroid += InInitialPoints[PointIndex];
+		OutCurrentCentroid += InCurrentPoints[PointIndex];
+	}
+
+	// average centroids
+	const float InvNumEffectors = 1.0f / static_cast<float>(InInitialPoints.Num());
+	OutInitialCentroid *= InvNumEffectors;
+	OutCurrentCentroid *= InvNumEffectors;
+
+	// accumulate deformation gradient to extract a rotation from
+	FVector DX = FVector::ZeroVector; // DX, DY, DZ are rows of 3x3 deformation gradient tensor
+	FVector DY = FVector::ZeroVector;
+	FVector DZ = FVector::ZeroVector;
+	for (int32 PointIndex=0; PointIndex<InInitialPoints.Num(); ++PointIndex)
+	{
+		// accumulate the deformation gradient tensor for all points
+		// "Meshless Deformations Based on Shape Matching"
+		// Equation 7 describes accumulation of deformation gradient from points
+		//
+		// P is normalized vector from INITIAL centroid to INITIAL point
+		// Q is normalized vector from CURRENT centroid to CURRENT point
+		FVector P = (InInitialPoints[PointIndex] - OutInitialCentroid).GetSafeNormal();
+		FVector Q = (InCurrentPoints[PointIndex] - OutCurrentCentroid).GetSafeNormal();
+		// PQ^T is the outer product of P and Q which is a 3x3 matrix
+		// https://en.m.wikipedia.org/wiki/Outer_product
+		DX += FVector(P[0]*Q[0], P[0]*Q[1], P[0]*Q[2]);
+		DY += FVector(P[1]*Q[0], P[1]*Q[1], P[1]*Q[2]);
+		DZ += FVector(P[2]*Q[0], P[2]*Q[1], P[2]*Q[2]);
+	}
+
+	// extract "best fit" rotation from deformation gradient
+	FQuat Q = FQuat::Identity;
+	constexpr int32 MaxIter = 50;
+	// "A Robust Method to Extract the Rotational Part of Deformations" equation 7
+	// https://matthias-research.github.io/pages/publications/stablePolarDecomp.pdf
+	for (unsigned int Iter = 0; Iter < MaxIter; Iter++)
+	{
+		FMatrix R = FRotationMatrix::Make(Q);
+		FVector RCol0(R.M[0][0], R.M[0][1], R.M[0][2]);
+		FVector RCol1(R.M[1][0], R.M[1][1], R.M[1][2]);
+		FVector RCol2(R.M[2][0], R.M[2][1], R.M[2][2]);
+		FVector Omega = RCol0.Cross(DX) + RCol1.Cross(DY) + RCol2.Cross(DZ);
+		Omega *= 1.0f / (fabs(RCol0.Dot(DX) + RCol1.Dot(DY) + RCol2.Dot(DZ)) + SMALL_NUMBER);
+		const float W = Omega.Size();
+		if (W < SMALL_NUMBER)
+		{
+			break;
+		}
+		Q = FQuat(FQuat((1.0 / W) * Omega, W)) * Q;
+		Q.Normalize();
+	}
+
+	return Q;
 }
 

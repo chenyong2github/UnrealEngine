@@ -14,6 +14,7 @@ namespace PBIK
 {
 
 static float GLOBAL_UNITS = 100.0f; // (1.0f = meters), (100.0f = centimeters)
+static float MIN_MASS = 0.5f;
 
 // A long tail ease out function. Input range, 0-1. 
 FORCEINLINE static float QuarticEaseOut(const float& Input){ return (FMath::Pow(Input-1.0f, 4.0f) * -1.0f) + 1.0f; };
@@ -100,6 +101,44 @@ enum class EPBIKRootBehavior : uint8
 };
 
 USTRUCT(BlueprintType)
+struct FRootPrePullSettings
+{
+	GENERATED_BODY()
+	
+	/** Range 0-1, default is 0. Apply a large scale rotation offset to the entire body prior to constraint solving.*/
+	UPROPERTY(EditAnywhere, Category = RootRotation, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float RotationAlpha = 0.0f;
+
+	/** Range 0-1, default is 1. Blend contribution to rotation offset in the X axis in component space.*/
+	UPROPERTY(EditAnywhere, Category = RootRotation, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float RotationAlphaX = 1.0f;
+
+	/** Range 0-1, default is 1. Blend contribution to rotation offset in the Y axis in component space.*/
+	UPROPERTY(EditAnywhere, Category = RootRotation, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float RotationAlphaY = 1.0f;
+
+	/** Range 0-1, default is 1. Blend contribution to rotation offset in the Z axis in component space.*/
+	UPROPERTY(EditAnywhere, Category = RootRotation, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float RotationAlphaZ = 1.0f;
+
+	/** Range 0-1, default is 1. Apply a large scale position offset to the entire body prior to constraint solving.*/
+	UPROPERTY(EditAnywhere, Category = RootPosition, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float PositionAlpha = 1.0f;
+
+	/** Range 0-1, default is 1. Blend contribution to position offset in the X axis in component space.*/
+	UPROPERTY(EditAnywhere, Category = RootPosition, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float PositionAlphaX = 1.0f;
+
+	/** Range 0-1, default is 1. Blend contribution to position offset in the Y axis in component space.*/
+	UPROPERTY(EditAnywhere, Category = RootPosition, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float PositionAlphaY = 1.0f;
+
+	/** Range 0-1, default is 1. Blend contribution to position offset in the Z axis in component space.*/
+	UPROPERTY(EditAnywhere, Category = RootPosition, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float PositionAlphaZ = 1.0f;
+};
+
+USTRUCT(BlueprintType)
 struct PBIK_API FPBIKSolverSettings
 {
 	GENERATED_BODY()
@@ -112,23 +151,37 @@ struct PBIK_API FPBIKSolverSettings
 	UPROPERTY(EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
 	float MassMultiplier = 1.0f;
 
-	/** Set this as low as possible while keeping the solve stable. Lower values improve convergence of effector targets. Default is 0.2. */
-	UPROPERTY(EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
-	float MinMassMultiplier = 0.2f;
-
 	/** If true, joints will translate to reach the effectors; causing bones to lengthen if necessary. Good for cartoon effects. Default is false. */
 	UPROPERTY(EditAnywhere, Category = SolverSettings)
 	bool bAllowStretch = false;
 
 	/** (Default is PrePull) Set the behavior of the solver root.
-	*Pre Pull: translates the root (and all children) by the average motion of the stretched effectors to help achieve faster convergence when reaching far.
+	*Pre Pull: translates and rotates the root (and all children) by the average motion of the stretched effectors to help achieve faster convergence when reaching far.
 	*Pin to Input: locks the translation and rotation of the root bone to the input pose. Overrides any bone settings applied to the root. Good for partial-body solves.
 	*Free: treats the root bone like any other and allows it to move freely or according to any bone settings applied to it. */
-	UPROPERTY(EditAnywhere, Category = SolverSettings)
+	UPROPERTY(EditAnywhere, Category = RootBehavior)
 	EPBIKRootBehavior RootBehavior = EPBIKRootBehavior::PrePull;
 
-	/** When true, the solver is reset each tick to start from the current input pose. If false, incoming animated poses are ignored and the solver starts from the results of the previous solve. Default is true. */
-	UPROPERTY(EditAnywhere, Category = SolverSettings)
+	/** Settings only applicable when Root Behavior is set to "PrePull". Use these values to adjust the gross movement and orientation of the entire skeleton. */
+	UPROPERTY(EditAnywhere, Category = RootBehavior)
+	FRootPrePullSettings PrePullRootSettings;
+
+	/** A global multiplier for all Pull Chain Alpha values on all effectors. Range is 0.0 to 1.0. Default is 1.0. */
+	UPROPERTY(EditAnywhere, Category = AdvancedSettings, meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
+	float GlobalPullChainAlpha = 1.0f;
+
+	/** Maximum angle that a joint can be rotated per constraint iteration. Lower this value if the solve is diverging. Range is 0.0 to 180.0. Default is 30. */
+	UPROPERTY(EditAnywhere, Category = AdvancedSettings, meta = (ClampMin = "0", ClampMax = "45", UIMin = "0.0", UIMax = "180.0"))
+	float MaxAngle = 30.f;
+
+	/** Pushes constraints beyond their normal amount to speed up convergence. Increasing this may speed up convergence, but at the cost of stability. Range is 1.0 - 2.0. Default is 1.3. */
+	UPROPERTY(EditAnywhere, Category = AdvancedSettings, meta = (ClampMin = "1", UIMin = "1.0", UIMax = "2.0"))
+	float OverRelaxation = 1.3f;
+	
+	/** When true, the solver is reset each tick to start from the current input pose. Default is true.
+	 * If false, incoming animated poses are ignored and the solver starts from the results of the previous solve.
+	 * In very limited circumstances, it can be beneficial to use the pose from the previous frame.*/
+	UPROPERTY(EditAnywhere, Category = AdvancedSettings)
 	bool bStartSolveFromInputPose = true;
 };
 
@@ -200,16 +253,25 @@ private:
 
 	void UpdateBonesFromBodies();
 
-	void SolveConstraints(const int32 Iterations, const bool bMoveRoots, const bool bAllowStretch);
+	void SolveConstraints(const FPBIKSolverSettings& Settings);
 	
-	void PullRootTowardsEffectors();
+	void ApplyRootPrePull(const EPBIKRootBehavior RootBehavior, const FRootPrePullSettings& PrePullSettings);
 	
-	void ApplyPullChainAlpha();
+	void ApplyPullChainAlpha(const float GlobalPullChainAlpha);
 
 	void ApplyPreferredAngles();
 
 private:
 
+	// given a set of points in an initial configuration and the same set of points in a deformed configuration,
+	// this function outputs a quaternion that represents the "best fit" rotation that rotates the initial points to the
+	// current points.
+	static FQuat GetRotationFromDeformedPoints(
+		const TArrayView<FVector>& InInitialPoints,
+		const TArrayView<FVector>& InCurrentPoints,
+		FVector& OutInitialCentroid,
+		FVector& OutCurrentCentroid);
+	
 	PBIK::FBone* SolverRoot = nullptr;
 	TWeakPtr<PBIK::FPinConstraint> RootPin = nullptr;
 	TArray<PBIK::FBone> Bones;
