@@ -544,6 +544,14 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 			{
 				PCGE_LOG(Verbose, "Output %d has %d points", OutputIndex, PointData->GetPoints().Num());
 			}
+
+			// Important implementation note:
+			// Any data that was created by the user in the blueprint will have that data parented to this blueprint element instance
+			// Which will cause issues wrt to reference leaks. We need to fix this here.
+			if (Output.Data)
+			{
+				const_cast<UPCGData*>(Output.Data.Get())->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+			}
 		}
 	}
 	else if(Context)

@@ -263,7 +263,7 @@ protected:
 	void RemoveAttributeInternal(FName AttributeName);
 
 	UPROPERTY()
-	TWeakObjectPtr<const UPCGMetadata> Parent;
+	TObjectPtr<const UPCGMetadata> Parent;
 
 	// Set of parents kept for streams relationship and GC collection
 	// But otherwise not used directly
@@ -293,7 +293,7 @@ FPCGMetadataAttribute<T>* UPCGMetadata::CreateAttribute(FName AttributeName, con
 
 	const FPCGMetadataAttributeBase* ParentAttribute = nullptr;
 
-	if (bOverrideParent && Parent.IsValid())
+	if (bOverrideParent && Parent)
 	{
 		ParentAttribute = Parent->GetConstAttribute(AttributeName);
 	}
