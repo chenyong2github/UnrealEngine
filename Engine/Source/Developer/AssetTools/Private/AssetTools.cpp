@@ -35,11 +35,6 @@
 #include "IClassTypeActions.h"
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
-#include "AssetTypeActions/AssetTypeActions_BlueprintGeneratedClass.h"
-#include "AssetTypeActions/AssetTypeActions_AnimationAsset.h"
-#include "AssetTypeActions/AssetTypeActions_AnimBlueprint.h"
-#include "AssetTypeActions/AssetTypeActions_AnimBlueprintInterface.h"
-#include "AssetTypeActions/AssetTypeActions_AnimBlueprintGeneratedClass.h"
 #include "AssetTypeActions/AssetTypeActions_AnimBoneCompressionSettings.h"
 #include "AssetTypeActions/AssetTypeActions_AnimCurveCompressionSettings.h"
 #include "AssetTypeActions/AssetTypeActions_ForceFeedbackEffect.h"
@@ -277,19 +272,19 @@ public:
 
 	virtual bool CanFilter() override
 	{
-		TSharedRef<FAssetFilterDataCache> FilterCache = AssetDefinitionPtr->GetFilters();
+		const TSharedRef<FAssetFilterDataCache> FilterCache = AssetDefinitionPtr->GetFilters();
 		return FilterCache->Filters.Num() > 0;
 	}
 
 	virtual FName GetFilterName() const override
 	{
-		TSharedRef<FAssetFilterDataCache> FilterCache = AssetDefinitionPtr->GetFilters();
+		const TSharedRef<FAssetFilterDataCache> FilterCache = AssetDefinitionPtr->GetFilters();
 		return FilterCache->Filters.Num() > 0 ? FName(*FilterCache->Filters[0].Name) : NAME_None;
 	}
 
 	virtual void BuildBackendFilter(FARFilter& InFilter) override
 	{
-		TSharedRef<FAssetFilterDataCache> FilterCache = AssetDefinitionPtr->GetFilters();
+		const TSharedRef<FAssetFilterDataCache> FilterCache = AssetDefinitionPtr->GetFilters();
 		if (FilterCache->Filters.Num() > 0)
 		{
 			InFilter = FilterCache->Filters[0].Filter;
@@ -1311,25 +1306,21 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 
 	// Register the built-in advanced categories
 	AllocatedCategoryBits.Add(TEXT("Animation"), FAdvancedAssetCategory(EAssetTypeCategories::Animation, LOCTEXT("AnimationAssetCategory", "Animation")));
-	AllocatedCategoryBits.Add(TEXT("Blueprint"), FAdvancedAssetCategory(EAssetTypeCategories::Blueprint, LOCTEXT("BlueprintAssetCategory", "Blueprints")));
-	AllocatedCategoryBits.Add(TEXT("Material"), FAdvancedAssetCategory(EAssetTypeCategories::Materials, LOCTEXT("MaterialAssetCategory", "Materials")));
-	AllocatedCategoryBits.Add(TEXT("Audio"), FAdvancedAssetCategory(EAssetTypeCategories::Sounds, LOCTEXT("SoundAssetCategory", "Sounds")));
+	AllocatedCategoryBits.Add(TEXT("Blueprint"), FAdvancedAssetCategory(EAssetTypeCategories::Blueprint, LOCTEXT("BlueprintAssetCategory", "Blueprint")));
+	AllocatedCategoryBits.Add(TEXT("Material"), FAdvancedAssetCategory(EAssetTypeCategories::Materials, LOCTEXT("MaterialAssetCategory", "Material")));
+	AllocatedCategoryBits.Add(TEXT("Audio"), FAdvancedAssetCategory(EAssetTypeCategories::Sounds, LOCTEXT("SoundAssetCategory", "Audio")));
 	AllocatedCategoryBits.Add(TEXT("Physics"), FAdvancedAssetCategory(EAssetTypeCategories::Physics, LOCTEXT("PhysicsAssetCategory", "Physics")));
 	AllocatedCategoryBits.Add(TEXT("User Interface"), FAdvancedAssetCategory(EAssetTypeCategories::UI, LOCTEXT("UserInterfaceAssetCategory", "User Interface")));
 	AllocatedCategoryBits.Add(TEXT("Misc"), FAdvancedAssetCategory(EAssetTypeCategories::Misc, LOCTEXT("MiscellaneousAssetCategory", "Miscellaneous")));
 	AllocatedCategoryBits.Add(TEXT("Gameplay"), FAdvancedAssetCategory(EAssetTypeCategories::Gameplay, LOCTEXT("GameplayAssetCategory", "Gameplay")));
 	AllocatedCategoryBits.Add(TEXT("Media"), FAdvancedAssetCategory(EAssetTypeCategories::Media, LOCTEXT("MediaAssetCategory", "Media")));
-	AllocatedCategoryBits.Add(TEXT("Texture"), FAdvancedAssetCategory(EAssetTypeCategories::Textures, LOCTEXT("TextureAssetCategory", "Textures")));
+	AllocatedCategoryBits.Add(TEXT("Texture"), FAdvancedAssetCategory(EAssetTypeCategories::Textures, LOCTEXT("TextureAssetCategory", "Texturs")));
 
 	EAssetTypeCategories::Type InputCategoryBit = RegisterAdvancedAssetCategory(FName(TEXT("Input")), LOCTEXT("InputAssetsCategory", "Input"));
 	
 	// Register the built-in asset type actions
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimBlueprintInterface));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimBlueprint));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimBlueprintGeneratedClass));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimBoneCompressionSettings));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimCurveCompressionSettings));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_BlueprintGeneratedClass));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ForceFeedbackEffect(InputCategoryBit)));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ParticleSystem));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PhysicalMaterialMask));

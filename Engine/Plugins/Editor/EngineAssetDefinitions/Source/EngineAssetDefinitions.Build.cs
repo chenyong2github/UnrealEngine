@@ -34,7 +34,8 @@ public class EngineAssetDefinitions : ModuleRules
 				"Landscape",
 				"PhysicsCore",
 				"Kismet",
-				"GameProjectGeneration"
+				"GameProjectGeneration",
+				"AnimationBlueprintEditor"
 			}
 		);
 		

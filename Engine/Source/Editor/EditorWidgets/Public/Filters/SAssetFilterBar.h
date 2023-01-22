@@ -834,6 +834,8 @@ protected:
 				
 					for (const FAssetFilterData& FilterData : FilterCache->Filters)
 					{
+						ensureMsgf(FilterData.FilterCategories.Num() > 0, TEXT("%s is missing Filter Categories, without any filter categories we can't display this filter."), *FilterData.Name);
+					
 						// Convert the AssetTypeAction to an FCustomClassFilterData and add it to our list
 						TSharedRef<FCustomClassFilterData> CustomClassFilterData = MakeShared<FCustomClassFilterData>(AssetDefinition, FilterData);
 

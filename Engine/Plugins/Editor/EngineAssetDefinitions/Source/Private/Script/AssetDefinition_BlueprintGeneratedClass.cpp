@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetTypeActions/AssetTypeActions_BlueprintGeneratedClass.h"
+#include "AssetDefinition_BlueprintGeneratedClass.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "ToolMenus.h"
 #include "Misc/PackageName.h"
@@ -10,15 +10,11 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#include "IAssetTools.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-UClass* FAssetTypeActions_BlueprintGeneratedClass::GetSupportedClass() const
-{
-	return UBlueprintGeneratedClass::StaticClass();
-}
-
-TWeakPtr<IClassTypeActions> FAssetTypeActions_BlueprintGeneratedClass::GetClassTypeActions(const FAssetData& AssetData) const
+TWeakPtr<IClassTypeActions> UAssetDefinition_BlueprintGeneratedClass::GetClassTypeActions(const FAssetData& AssetData) const
 {
 	// Blueprints get the class type actions for their parent native class.
 	// Using asset tags avoids us having to load the blueprint
@@ -35,11 +31,17 @@ TWeakPtr<IClassTypeActions> FAssetTypeActions_BlueprintGeneratedClass::GetClassT
 
 	if (ParentClass)
 	{
-		FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
-		return AssetToolsModule.Get().GetClassTypeActionsForClass(ParentClass);
+		return IAssetTools::Get().GetClassTypeActionsForClass(ParentClass);
 	}
 
 	return nullptr;
+}
+
+// Menu Extensions
+//--------------------------------------------------------------------
+
+namespace MenuExtension_BlueprintGeneratedClass
+{
 }
 
 #undef LOCTEXT_NAMESPACE

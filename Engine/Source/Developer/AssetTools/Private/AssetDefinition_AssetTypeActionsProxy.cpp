@@ -193,9 +193,17 @@ void UAssetDefinition_AssetTypeActionsProxy::BuildFilters(TArray<FAssetFilterDat
 {
 	if (AssetType->CanFilter())
 	{
+		// If this asset definition doesn't have any categories it can't have any filters.  Filters need to have a
+		// category to be displayed.
+		if (GetAssetCategories().Num() == 0)
+		{
+			return;
+		}
+		
 		FAssetFilterData Data;
 		Data.Name = AssetType->GetFilterName().ToString();
 		Data.DisplayText = AssetType->GetName();
+		Data.FilterCategories = GetAssetCategories();
 		AssetType->BuildBackendFilter(Data.Filter);
 		OutFilters.Add(MoveTemp(Data));
 	}

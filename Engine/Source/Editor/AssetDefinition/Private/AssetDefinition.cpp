@@ -102,6 +102,13 @@ void UAssetDefinition::BuildFilters(TArray<FAssetFilterData>& OutFilters) const
 
 	if (const UClass* AssetClass = AssetClassPtr.Get())
 	{
+		// If this asset definition doesn't have any categories it can't have any filters.  Filters need to have a
+		// category to be displayed.
+		if (GetAssetCategories().Num() == 0)
+		{
+			return;
+		}
+		
 		// By default we don't advertise filtering if the class is abstract for the asset definition.  Odds are,
 		// if they've registered an abstract class as an asset definition, they mean to use it for subclasses.
 		if (IncludeClassInFilter == EIncludeClassInFilter::Always || (IncludeClassInFilter == EIncludeClassInFilter::IfClassIsNotAbstract && !AssetClass->HasAnyClassFlags(CLASS_Abstract)))
