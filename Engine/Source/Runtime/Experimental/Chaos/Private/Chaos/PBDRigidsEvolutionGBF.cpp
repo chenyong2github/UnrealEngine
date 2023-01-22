@@ -59,6 +59,10 @@ namespace Chaos
 		bool bChaosCollisionCCDUseTightBoundingBox = true;
 		FAutoConsoleVariableRef  CVarChaosCollisionCCDUseTightBoundingBox(TEXT("p.Chaos.Collision.CCD.UseTightBoundingBox"), bChaosCollisionCCDUseTightBoundingBox , TEXT(""));
 
+		// Collision Solver Type: Full Gaus Seidel or Partial Jacobi (see ECollisionSolverType)
+		int32 ChaosSolverCollisionSolverType = -1;
+		FAutoConsoleVariableRef CVarChaosSolverCollisionSolverType(TEXT("p.Chaos.Solver.Collision.SolverType"), ChaosSolverCollisionSolverType, TEXT("-1: Use default (Full Gauss Seidel); 0: Full Gauss Seidel; 1: Partial Jacobi"));
+
 		int32 ChaosSolverCollisionPriority = 0;
 		FAutoConsoleVariableRef CVarChaosSolverCollisionPriority(TEXT("p.Chaos.Solver.Collision.Priority"), ChaosSolverCollisionPriority, TEXT("Set constraint priority. Larger values are evaluated later [def:0]"));
 
@@ -300,6 +304,22 @@ void FPBDRigidsEvolutionGBF::BuildDisabledParticles(const int32 Island, TArray<T
 	SleepedIslands[Island] = GetIslandManager().SleepInactive(Island, PhysicsMaterials, SolverPhysicsMaterials);
 }
 
+void FPBDRigidsEvolutionGBF::UpdateCollisionSolverType()
+{
+	// If we have changed the collision solver type we must destroy any existing solvers so that they get recreated.
+	// This is not intended to be performant - it is to allow switching for behaviour and performance comparisons only, without restarting the game.
+	if (ChaosSolverCollisionSolverType >= 0)
+	{
+		const Private::ECollisionSolverType CollisionSolverType = (ChaosSolverCollisionSolverType != 0) ? Private::ECollisionSolverType::PartialJacobi : Private::ECollisionSolverType::GaussSeidel;
+		if (CollisionSolverType != CollisionConstraints.GetSolverType())
+		{
+			IslandGroupManager.RemoveConstraintContainer(CollisionConstraints);
+			CollisionConstraints.SetSolverType(CollisionSolverType);
+			IslandGroupManager.AddConstraintContainer(CollisionConstraints, ChaosSolverCollisionPriority);
+		}
+	}
+}
+
 int32 DrawAwake = 0;
 FAutoConsoleVariableRef CVarDrawAwake(TEXT("p.chaos.DebugDrawAwake"),DrawAwake,TEXT("Draw particles that are awake"));
 
@@ -323,6 +343,9 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 		SerializeToDisk(*this);
 	}
 #endif
+
+	// Update the collision solver type (used to support runtime comparisons of solver types for debugging/testing)
+	UpdateCollisionSolverType();
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_UnclusterUnions);

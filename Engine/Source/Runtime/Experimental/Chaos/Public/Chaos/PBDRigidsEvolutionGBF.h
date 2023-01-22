@@ -347,6 +347,8 @@ namespace Chaos
 			return CurrentStepResimCacheImp;
 		}
 
+		void UpdateCollisionSolverType();
+
 		FRigidClustering Clustering;
 
 		FPBDJointConstraints JointConstraints;

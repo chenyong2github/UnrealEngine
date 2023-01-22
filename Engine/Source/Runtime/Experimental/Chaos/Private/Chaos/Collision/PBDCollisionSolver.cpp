@@ -19,8 +19,6 @@
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
-DEFINE_LOG_CATEGORY(LogChaosCollision);
-
 // TEMP: to be removed
 DECLARE_CYCLE_STAT(TEXT("SolvePositionNoFriction"), STAT_SolvePositionNoFriction, STATGROUP_ChaosConstraintSolver);
 
@@ -38,7 +36,7 @@ namespace Chaos
 		bool bChaos_PBDCollisionSolver_ISPC = false;	// NOTE: WORK IN PROGRESS. Not ready to be enabled.
 		bool bChaos_PBDCollisionSolver_UseJacobiPairSolver = false;
 		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_ISPC(TEXT("p.Chaos.PBDCollisionSolver.ISPC"), bChaos_PBDCollisionSolver_ISPC, TEXT("Use ISPC collision solver (WIP)"));
-		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverUseJacobiPairSolver(TEXT("p.Chaos.PBDCollisionSolver.UseJacobi"), bChaos_PBDCollisionSolver_UseJacobiPairSolver, TEXT("Whether to use the Jacobi collision pair solver"));
+		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverUseJacobiPairSolver(TEXT("p.Chaos.PBDCollisionSolver.UseJacobi"), bChaos_PBDCollisionSolver_UseJacobiPairSolver, TEXT("Whether to use the Jacobi collision pair solver (as option in main collision solver)"));
 
 		//
 		// Position Solver Settings

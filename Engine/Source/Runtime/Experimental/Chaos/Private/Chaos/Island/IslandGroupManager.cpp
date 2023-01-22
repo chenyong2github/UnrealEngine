@@ -93,6 +93,15 @@ namespace Chaos
 			}
 		}
 
+		void FPBDIslandGroupManager::RemoveConstraintContainer(FPBDConstraintContainer& ConstraintContainer)
+		{
+			const int32 ContainerId = ConstraintContainer.GetContainerId();
+			for (int32 GroupIndex = 0; GroupIndex < IslandGroups.Num(); ++GroupIndex)
+			{
+				IslandGroups[GroupIndex]->SetConstraintSolver(ContainerId, nullptr);
+			}
+		}
+
 		void FPBDIslandGroupManager::SetConstraintContainerPriority(const int32 ContainerId, const int32 Priority)
 		{
 			for (int32 GroupIndex = 0; GroupIndex < IslandGroups.Num(); ++GroupIndex)

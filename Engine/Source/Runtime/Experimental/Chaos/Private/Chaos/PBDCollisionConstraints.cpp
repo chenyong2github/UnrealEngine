@@ -9,6 +9,7 @@
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/Collision/CollisionPruning.h"
 #include "Chaos/Collision/PBDCollisionSolver.h"
+#include "Chaos/Collision/PBDCollisionContainerSolverJacobi.h"
 #include "Chaos/Collision/SolverCollisionContainer.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
@@ -27,6 +28,11 @@
 
 namespace Chaos
 {
+	namespace CVars
+	{
+		extern bool bChaos_PBDCollisionSolver_UseJacobiPairSolver2;
+	}
+
 	int32 CollisionParticlesBVHDepth = 4;
 	FAutoConsoleVariableRef CVarCollisionParticlesBVHDepth(TEXT("p.CollisionParticlesBVHDepth"), CollisionParticlesBVHDepth, TEXT("The maximum depth for collision particles bvh"));
 
@@ -113,6 +119,7 @@ namespace Chaos
 		, bEnableEdgePruning(true)
 		, bIsDeterministic(false)
 		, bCanDisableContacts(true)
+		, CollisionSolverType(Private::ECollisionSolverType::GaussSeidel)
 		, GravityDirection(FVec3(0,0,-1))
 		, GravitySize(980)
 		, SolverSettings()
@@ -124,6 +131,23 @@ namespace Chaos
 
 	FPBDCollisionConstraints::~FPBDCollisionConstraints()
 	{
+	}
+
+	TUniquePtr<FConstraintContainerSolver> FPBDCollisionConstraints::CreateSceneSolver(const int32 Priority)
+	{
+		if (CollisionSolverType == Private::ECollisionSolverType::PartialJacobi)
+		{
+			return MakeUnique<FPBDCollisionContainerSolverJacobi>(*this, Priority);
+		}
+		else
+		{
+			return MakeUnique<FPBDCollisionContainerSolver>(*this, Priority);
+		}
+	}
+
+	TUniquePtr<FConstraintContainerSolver> FPBDCollisionConstraints::CreateGroupSolver(const int32 Priority)
+	{
+		return CreateSceneSolver(Priority);
 	}
 
 	void FPBDCollisionConstraints::DisableHandles()

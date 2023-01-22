@@ -48,7 +48,10 @@ namespace Chaos
 			PrioritizedConstraintContainerSolvers.Reset(ConstraintContainerSolvers.Num());
 			for (TUniquePtr<FConstraintContainerSolver>& SolverContainer : ConstraintContainerSolvers)
 			{
-				PrioritizedConstraintContainerSolvers.Add(SolverContainer.Get());
+				if (SolverContainer != nullptr)
+				{
+					PrioritizedConstraintContainerSolvers.Add(SolverContainer.Get());
+				}
 			}
 
 			PrioritizedConstraintContainerSolvers.StableSort(

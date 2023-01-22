@@ -93,6 +93,11 @@ namespace Chaos
 			void AddConstraintContainer(FPBDConstraintContainer& ConstraintContainer, const int32 Priority = 0);
 
 			/**
+			 * Remove a previously-added container. Generall this is only needed for debuggin as cleanup is automatic on destruction.
+			 */
+			void RemoveConstraintContainer(FPBDConstraintContainer& ConstraintContainer);
+
+			/**
 			 * Set the priority for the specified container (that must have been pre-registered with AddConstraintContainer).
 			*/
 			void SetConstraintContainerPriority(const int32 ContainerId, const int32 Priority);

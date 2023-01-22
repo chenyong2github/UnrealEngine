@@ -6,8 +6,6 @@
 #include "Chaos/Defines.h"
 #include "Chaos/Evolution/SolverBody.h"
 
-CHAOS_API DECLARE_LOG_CATEGORY_EXTERN(LogChaosCollision, Log, All);
-
 // Set to 0 to use a linearized error calculation, and set to 1 to use a non-linear error calculation in collision detection. 
 // In principle nonlinear is more accurate when large rotation corrections occur, but this is not too important for collisions because 
 // when the bodies settle the corrections are small. The linearized version is significantly faster than the non-linear version because 
@@ -77,7 +75,6 @@ namespace Chaos
 			*/
 			void CalculateContactPositionErrorNormal(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FSolverReal MaxPushOut, FSolverReal& OutContactDeltaNormal) const;
 			void CalculateContactPositionErrorTangential(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, FSolverReal& OutContactDeltaTanget0, FSolverReal& OutContactDeltaTangent1) const;
-			void CalculateContactPositionError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FSolverReal MaxPushOut, FSolverReal& OutContactDeltaNormal, FSolverReal& OutContactDeltaTanget0, FSolverReal& OutContactDeltaTangent1) const;
 
 			/**
 			 * @brief Calculate the velocity error at the current transforms
@@ -88,12 +85,6 @@ namespace Chaos
 			// @todo(chaos): make private
 		public:
 			friend class FPBDCollisionSolver;
-
-			/**
-			 * @brief Calculate the relative velocity at the contact point
-			 * @note InitContact must be called before calling this function
-			*/
-			FSolverVec3 CalculateContactVelocity(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1) const;
 
 			/**
 			 * @brief Whether we need to solve velocity for this manifold point (only if we were penetrating or applied a pushout)
@@ -757,36 +748,6 @@ namespace Chaos
 			OutContactDeltaTangentV = WorldContact.ContactDeltaTangentV + FSolverVec3::DotProduct(ContactDelta, WorldContact.ContactTangentV);
 		}
 
-		FORCEINLINE_DEBUGGABLE void FPBDCollisionSolverManifoldPoint::CalculateContactPositionError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FSolverReal MaxPushOut, FSolverReal& OutContactDeltaNormal, FSolverReal& OutContactDeltaTangentU, FSolverReal& OutContactDeltaTangentV) const
-		{
-	#if CHAOS_NONLINEAR_COLLISIONS_ENABLED
-	#error "Non-linear collision solver probably no longer functional - fix it!"
-			// Non-linear version: calculate the contact delta after we have converted the current positional impulses into position and rotation corrections.
-			// We could precalculate and store the LocalContactPositions if we really want to use this nonlinear version
-			const FSolverVec3 LocalContactPosition0 = Body0.Q().Inverse() * RelativeContactPosition0;
-			const FSolverVec3 LocalContactPosition1 = Body1.Q().Inverse() * RelativeContactPosition1;
-			const FSolverVec3 ContactDelta = (Body0.CorrectedP() + Body0.CorrectedQ() * LocalContactPosition0) - (Body1.CorrectedP() + Body1.CorrectedQ() * LocalContactPosition1);
-			OutContactDeltaNormal = FSolverVec3::DotProduct(ContactDelta, WorldContactNormal);
-			OutContactDeltaTangentU = FSolverVec3::DotProduct(ContactDelta, WorldContactTangentU);
-			OutContactDeltaTangentV = FSolverVec3::DotProduct(ContactDelta, WorldContactTangentV);
-	#else
-			// Linear version: calculate the contact delta assuming linear motion after applying a positional impulse at the contact point. There will be an error that depends on the size of the rotation.
-			const FSolverVec3 ContactDelta0 = Body0.DP() + FSolverVec3::CrossProduct(Body0.DQ(), WorldContact.RelativeContactPoints[0]);
-			const FSolverVec3 ContactDelta1 = Body1.DP() + FSolverVec3::CrossProduct(Body1.DQ(), WorldContact.RelativeContactPoints[1]);
-			const FSolverVec3 ContactDelta = ContactDelta0 - ContactDelta1;
-			OutContactDeltaNormal = WorldContact.ContactDeltaNormal + FSolverVec3::DotProduct(ContactDelta, WorldContact.ContactNormal);
-			OutContactDeltaTangentU = WorldContact.ContactDeltaTangentU + FSolverVec3::DotProduct(ContactDelta, WorldContact.ContactTangentU);
-			OutContactDeltaTangentV = WorldContact.ContactDeltaTangentV + FSolverVec3::DotProduct(ContactDelta, WorldContact.ContactTangentV);
-	#endif
-
-			// NOTE: OutContactDeltaNormal is negative for penetration
-			// NOTE: MaxPushOut == 0 disables the pushout limits
-			if ((MaxPushOut > 0) && (OutContactDeltaNormal < -MaxPushOut))
-			{
-				OutContactDeltaNormal = -MaxPushOut;
-			}
-		}
-
 		FORCEINLINE_DEBUGGABLE void FPBDCollisionSolverManifoldPoint::CalculateContactVelocityError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FSolverReal DynamicFriction, const FSolverReal Dt, FSolverReal& OutContactVelocityDeltaNormal, FSolverReal& OutContactVelocityDeltaTangent0, FSolverReal& OutContactVelocityDeltaTangent1) const
 		{
 			const FSolverVec3 ContactVelocity0 = Body0.V() + FSolverVec3::CrossProduct(Body0.W(), WorldContact.RelativeContactPoints[0]);
@@ -810,13 +771,6 @@ namespace Chaos
 
 			// Add up the errors in the velocity (current velocity - desired velocity)
 			OutContactVelocityDeltaNormal = (ContactVelocityNormal - WorldContact.ContactTargetVelocityNormal);
-		}
-
-		FORCEINLINE_DEBUGGABLE FSolverVec3 FPBDCollisionSolverManifoldPoint::CalculateContactVelocity(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1) const
-		{
-			const FSolverVec3 ContactVelocity0 = Body0.V() + FVec3::CrossProduct(Body0.W(), WorldContact.RelativeContactPoints[0]);
-			const FSolverVec3 ContactVelocity1 = Body1.V() + FVec3::CrossProduct(Body1.W(), WorldContact.RelativeContactPoints[1]);
-			return ContactVelocity0 - ContactVelocity1;
 		}
 
 		FORCEINLINE_DEBUGGABLE bool FPBDCollisionSolverManifoldPoint::ShouldSolveVelocity() const

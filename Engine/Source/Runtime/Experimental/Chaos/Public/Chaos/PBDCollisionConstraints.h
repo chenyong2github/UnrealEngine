@@ -7,7 +7,7 @@
 #include "Chaos/Collision/CollisionContext.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/Collision/PBDCollisionConstraintHandle.h"
-#include "Chaos/Collision/SolverCollisionContainer.h"
+#include "Chaos/Collision/PBDCollisionSolverSettings.h"
 #include "Chaos/PBDConstraintContainer.h"
 #include "Framework/BufferedData.h"
 
@@ -27,6 +27,17 @@ class FPBDCollisionConstraint;
 using FRigidBodyContactConstraintsPostComputeCallback = TFunction<void()>;
 using FRigidBodyContactConstraintsPostApplyCallback = TFunction<void(const FReal Dt, const TArray<FPBDCollisionConstraintHandle*>&)>;
 using FRigidBodyContactConstraintsPostApplyPushOutCallback = TFunction<void(const FReal Dt, const TArray<FPBDCollisionConstraintHandle*>&, bool)>;
+
+
+namespace Private
+{
+	// The type of solver to use for collisions
+	enum class ECollisionSolverType
+	{
+		GaussSeidel,
+		PartialJacobi,
+	};
+}
 
 /**
  * A container and solver for collision constraints.
@@ -141,16 +152,21 @@ public:
 	virtual void PrepareTick() override final {}
 	virtual void UnprepareTick() override final {}
 
-	virtual TUniquePtr<FConstraintContainerSolver> CreateSceneSolver(const int32 Priority) override final
+	virtual TUniquePtr<FConstraintContainerSolver> CreateSceneSolver(const int32 Priority) override final;
+
+	virtual TUniquePtr<FConstraintContainerSolver> CreateGroupSolver(const int32 Priority) override final;
+
+	// The type of solver we are creating
+	Private::ECollisionSolverType GetSolverType() const
 	{
-		return MakeUnique<FPBDCollisionContainerSolver>(*this, Priority);
+		return CollisionSolverType;
 	}
 
-	virtual TUniquePtr<FConstraintContainerSolver> CreateGroupSolver(const int32 Priority) override final
+	// Set the solver type. NOTE: Any previously created solvers will not be recreated at this level. (See FPBDRigidsEvolutionGBF::UpdateCollisionSolverType)
+	void SetSolverType(const Private::ECollisionSolverType InSolverType)
 	{
-		return MakeUnique<FPBDCollisionContainerSolver>(*this, Priority);
+		CollisionSolverType = InSolverType;
 	}
-
 
 	//
 	// Member Access
@@ -277,7 +293,6 @@ protected:
 	void PruneEdgeCollisions();
 
 private:
-
 	const FPBDRigidsSOAs& Particles;
 
 	Private::FCollisionConstraintAllocator ConstraintAllocator;
@@ -300,6 +315,8 @@ private:
 	// permanently (ie, for the remaining iterations) if it is ignored due to culldistance.
 	// This improves performance, but can decrease stability if contacts are culled prematurely.
 	bool bCanDisableContacts;
+
+	Private::ECollisionSolverType CollisionSolverType;
 
 	// Used to determine constraint directions
 	FVec3 GravityDirection;

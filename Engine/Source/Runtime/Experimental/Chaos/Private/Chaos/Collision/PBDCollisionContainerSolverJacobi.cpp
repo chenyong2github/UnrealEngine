@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "Chaos/Collision/SolverCollisionContainer.h"
+#include "Chaos/Collision/PBDCollisionContainerSolverJacobi.h"
 
 #include "Chaos/Collision/CollisionApplyType.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
@@ -25,30 +25,11 @@ namespace Chaos
 		extern bool bChaos_PBDCollisionSolver_Position_SolveEnabled;
 		extern bool bChaos_PBDCollisionSolver_Velocity_SolveEnabled;
 
-		// If one body is more than MassRatio1 times the mass of the other, adjust the solver stiffness when the lighter body is underneath.
-		// Solver stiffness will be equal to 1 when the mass ratio is MassRatio1.
-		// Solver stiffness will be equal to 0 when the mass ratio is MassRatio2.
-		FRealSingle Chaos_PBDCollisionSolver_AutoStiffness_MassRatio1 = 0;
-		FRealSingle Chaos_PBDCollisionSolver_AutoStiffness_MassRatio2 = 0;
-		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverAutoStiffnessMassRatio1(TEXT("p.Chaos.PBDCollisionSolver.AutoStiffness.MassRatio1"), Chaos_PBDCollisionSolver_AutoStiffness_MassRatio1, TEXT(""));
-		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverAutoStiffnessMassRatio2(TEXT("p.Chaos.PBDCollisionSolver.AutoStiffness.MassRatio2"), Chaos_PBDCollisionSolver_AutoStiffness_MassRatio2, TEXT(""));
+		extern FRealSingle Chaos_PBDCollisionSolver_AutoStiffness_MassRatio1;
+		extern FRealSingle Chaos_PBDCollisionSolver_AutoStiffness_MassRatio2;
 
-		// Jacobi solver stiffness
-		// @todo(chaos): to be tuned
-		FRealSingle Chaos_PBDCollisionSolver_JacobiStiffness = 0.5f;
-		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverJacobiStiffness(TEXT("p.Chaos.PBDCollisionSolver.JacobiStiffness"), Chaos_PBDCollisionSolver_JacobiStiffness, TEXT(""));
-
-		// Jacobi position tolerance. Position corrections below this are zeroed.
-		// @todo(chaos): to be tuned
-		FRealSingle Chaos_PBDCollisionSolver_JacobiPositionTolerance = 1.e-6f;
-		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverJacobiPositionTolerance(TEXT("p.Chaos.PBDCollisionSolver.JacobiPositionTolerance"), Chaos_PBDCollisionSolver_JacobiPositionTolerance, TEXT(""));
-		
-		// Jacobi rotation tolerance. Rotation corrections below this are zeroed.
-		// @todo(chaos): to be tuned
-		FRealSingle Chaos_PBDCollisionSolver_JacobiRotationTolerance = 1.e-8f;
-		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverJacobiRotationTolerance(TEXT("p.Chaos.PBDCollisionSolver.JacobiRotationTolerance"), Chaos_PBDCollisionSolver_JacobiRotationTolerance, TEXT(""));
+		extern FRealSingle Chaos_PBDCollisionSolver_JacobiStiffness;
 	}
-
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -56,7 +37,14 @@ namespace Chaos
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 
 	// Transform the Constraint's local-space data into world space for use by  the collision solver and also calculate tangents, errors, etc
-	FORCEINLINE_DEBUGGABLE void UpdateCollisionSolverContactPointFromConstraint(Private::FPBDCollisionSolver& Solver, const int32 SolverPointIndex, const FPBDCollisionConstraint* Constraint, const int32 ConstraintPointIndex, const FRealSingle Dt, const FSolverBody& Body0, const FSolverBody& Body1)
+	FORCEINLINE_DEBUGGABLE void UpdateCollisionSolverContactPointFromConstraint(
+		Private::FPBDCollisionSolverJacobi& Solver, 
+		const int32 SolverPointIndex, 
+		const FPBDCollisionConstraint* Constraint, 
+		const int32 ConstraintPointIndex, 
+		const FRealSingle Dt, 
+		const FSolverBody& Body0, 
+		const FSolverBody& Body1)
 	{
 		const FManifoldPoint& ManifoldPoint = Constraint->GetManifoldPoint(ConstraintPointIndex);
 
@@ -131,19 +119,25 @@ namespace Chaos
 			}
 		}
 
-		FWorldContactPoint& WorldContactPoint = Solver.GetWorldContactPoint(SolverPointIndex);
-		WorldContactPoint.RelativeContactPoints[0] = WorldRelativeContact0;
-		WorldContactPoint.RelativeContactPoints[1] = WorldRelativeContact1;
-		WorldContactPoint.ContactNormal = WorldContactNormal;
-		WorldContactPoint.ContactTangentU = WorldContactTangentU;
-		WorldContactPoint.ContactTangentV = WorldContactTangentV;
-		WorldContactPoint.ContactDeltaNormal = WorldContactDeltaNormal;
-		WorldContactPoint.ContactDeltaTangentU = WorldContactDeltaTangentU;
-		WorldContactPoint.ContactDeltaTangentV = WorldContactDeltaTangentV;
-		WorldContactPoint.ContactTargetVelocityNormal = WorldContactTargetVelocityNormal;
+		Solver.InitManifoldPoint(
+			SolverPointIndex,
+			WorldRelativeContact0,
+			WorldRelativeContact1,
+			WorldContactNormal,
+			WorldContactTangentU,
+			WorldContactTangentV,
+			WorldContactDeltaNormal,
+			WorldContactDeltaTangentU,
+			WorldContactDeltaTangentV,
+			WorldContactTargetVelocityNormal);
 	}
 
-	FORCEINLINE_DEBUGGABLE void UpdateCollisionSolverManifoldFromConstraint(Private::FPBDCollisionSolver& Solver, const FPBDCollisionConstraint* Constraint, const FSolverReal Dt, const int32 ConstraintPointBeginIndex, const int32 ConstraintPointEndIndex)
+	FORCEINLINE_DEBUGGABLE void UpdateCollisionSolverManifoldFromConstraint(
+		Private::FPBDCollisionSolverJacobi& Solver, 
+		const FPBDCollisionConstraint* Constraint, 
+		const FSolverReal Dt, 
+		const int32 ConstraintPointBeginIndex, 
+		const int32 ConstraintPointEndIndex)
 	{
 		const FSolverBody& Body0 = Solver.SolverBody0().SolverBody();
 		const FSolverBody& Body1 = Solver.SolverBody1().SolverBody();
@@ -161,12 +155,17 @@ namespace Chaos
 				UpdateCollisionSolverContactPointFromConstraint(Solver, SolverManifoldPointIndex, Constraint, ConstraintManifoldPointIndex, Dt, Body0, Body1);
 
 				// Prepare the solver (set constraint-space mass etc)
-				Solver.FinalizeManifoldPoint(SolverManifoldPointIndex, Dt);
+				Solver.FinalizeManifoldPoint(SolverManifoldPointIndex);
 			}
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void UpdateCollisionSolverFromConstraint(Private::FPBDCollisionSolver& Solver, const FPBDCollisionConstraint* Constraint, const FSolverReal Dt, const FPBDCollisionSolverSettings& SolverSettings, bool& bOutPerIterationCollision)
+	FORCEINLINE_DEBUGGABLE void UpdateCollisionSolverFromConstraint(
+		Private::FPBDCollisionSolverJacobi& Solver, 
+		const FPBDCollisionConstraint* Constraint, 
+		const FSolverReal Dt, 
+		const FPBDCollisionSolverSettings& SolverSettings, 
+		bool& bOutPerIterationCollision)
 	{
 		// Friction values. Static and Dynamic friction are applied in the position solve for most shapes.
 		// We can also run in a mode without static friction at all. This is faster but stacking is not possible.
@@ -212,7 +211,10 @@ namespace Chaos
 		UpdateCollisionSolverManifoldFromConstraint(Solver, Constraint, Dt, 0, Constraint->NumManifoldPoints());
 	}
 
-	FORCEINLINE_DEBUGGABLE void UpdateCollisionConstraintFromSolver(FPBDCollisionConstraint* Constraint, const Private::FPBDCollisionSolver& Solver, const FSolverReal Dt)
+	FORCEINLINE_DEBUGGABLE void UpdateCollisionConstraintFromSolver(
+		FPBDCollisionConstraint* Constraint, 
+		const Private::FPBDCollisionSolverJacobi& Solver, 
+		const FSolverReal Dt)
 	{
 		Constraint->ResetSolverResults();
 
@@ -225,20 +227,13 @@ namespace Chaos
 			FSolverVec3 NetImpulse = FSolverVec3(0);
 			FSolverReal StaticFrictionRatio = FSolverReal(0);
 
-			const Private::FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = Solver.GetManifoldPoint(SolverManifoldPointIndex);
 			if (!Constraint->GetManifoldPoint(ManifoldPointIndex).Flags.bDisabled)
 			{
-				NetPushOut =
-					SolverManifoldPoint.NetPushOutNormal * SolverManifoldPoint.WorldContact.ContactNormal +
-					SolverManifoldPoint.NetPushOutTangentU * SolverManifoldPoint.WorldContact.ContactTangentU +
-					SolverManifoldPoint.NetPushOutTangentV * SolverManifoldPoint.WorldContact.ContactTangentV;
+				NetPushOut = Solver.GetNetPushOut(SolverManifoldPointIndex);
 
-				NetImpulse =
-					SolverManifoldPoint.NetImpulseNormal * SolverManifoldPoint.WorldContact.ContactNormal +
-					SolverManifoldPoint.NetImpulseTangentU * SolverManifoldPoint.WorldContact.ContactTangentU +
-					SolverManifoldPoint.NetImpulseTangentV * SolverManifoldPoint.WorldContact.ContactTangentV;
+				NetImpulse = Solver.GetNetImpulse(SolverManifoldPointIndex);
 
-				StaticFrictionRatio = SolverManifoldPoint.StaticFrictionRatio;
+				StaticFrictionRatio = Solver.GetStaticFrictionRatio(SolverManifoldPointIndex);
 
 				++SolverManifoldPointIndex;
 			}
@@ -260,21 +255,21 @@ namespace Chaos
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-	FPBDCollisionContainerSolver::FPBDCollisionContainerSolver(const FPBDCollisionConstraints& InConstraintContainer, const int32 InPriority)
+	FPBDCollisionContainerSolverJacobi::FPBDCollisionContainerSolverJacobi(const FPBDCollisionConstraints& InConstraintContainer, const int32 InPriority)
 		: FConstraintContainerSolver(InPriority)
 		, ConstraintContainer(InConstraintContainer)
 		, bPerIterationCollisionDetection(false)
 	{
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST && INTEL_ISPC
-		Private::FPBDCollisionSolverHelper::CheckISPC();
+		Private::FPBDCollisionSolverJacobiHelper::CheckISPC();
 #endif
 	}
 
-	FPBDCollisionContainerSolver::~FPBDCollisionContainerSolver()
+	FPBDCollisionContainerSolverJacobi::~FPBDCollisionContainerSolverJacobi()
 	{
 	}
 
-	void FPBDCollisionContainerSolver::Reset(const int32 MaxCollisions)
+	void FPBDCollisionContainerSolverJacobi::Reset(const int32 MaxCollisions)
 	{
 		// A over-allocation policy to avoid reallocation every frame in the common case where a pile of objects is dropped
 		// and the number of contacts increases every tick.
@@ -286,7 +281,6 @@ namespace Chaos
 		CollisionSolvers.Reset(MaxCollisions);
 		CollisionConstraints.Reset(CollisionSolvers.Max());
 		bCollisionConstraintPerIterationCollisionDetection.Reset(CollisionSolvers.Max());
-		CollisionSolverManifoldPoints.Reset(CollisionSolvers.Max() * Private::FPBDCollisionSolver::MaxPointsPerConstraint);
 
 		// Just set the array size for these right away - all data will be initialized later and there is no constructor
 		// We use CollisionConstraints.Num() to track how many constraints we currently have
@@ -294,7 +288,7 @@ namespace Chaos
 		bCollisionConstraintPerIterationCollisionDetection.SetNumUninitialized(MaxCollisions);
 	}
 
-	void FPBDCollisionContainerSolver::AddConstraints()
+	void FPBDCollisionContainerSolverJacobi::AddConstraints()
 	{
 		Reset(ConstraintContainer.NumConstraints());
 
@@ -306,7 +300,7 @@ namespace Chaos
 		}
 	}
 
-	void FPBDCollisionContainerSolver::AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& IslandConstraints)
+	void FPBDCollisionContainerSolverJacobi::AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& IslandConstraints)
 	{
 		for (Private::FPBDIslandConstraint& IslandConstraint : IslandConstraints)
 		{
@@ -317,38 +311,20 @@ namespace Chaos
 		}
 	}
 
-	void FPBDCollisionContainerSolver::AddConstraint(FPBDCollisionConstraint& Constraint)
+	void FPBDCollisionContainerSolverJacobi::AddConstraint(FPBDCollisionConstraint& Constraint)
 	{
 		// NOTE: No need to add to CollisionSolvers or bCollisionConstraintPerIterationCollisionDetection
 		const int32 Index = CollisionConstraints.Add(&Constraint);
 
-		// Allocate the manifold points for this constraints solver
-		// NOTE: we don't know how many points we will create if collision detection is deferred or incrememntal, so just allocate space for the max allowed
-		// @todo(chaos): see if we can do better - we don't want to pay for this logic when it is only used rarely
-		const bool bDeferredCollisionDetection = ConstraintContainer.GetDetectorSettings().bDeferNarrowPhase;
-		const int32 ManifoldPointMax = (bDeferredCollisionDetection || Constraint.GetUseIncrementalManifold()) ? Private::FPBDCollisionSolver::MaxPointsPerConstraint : Constraint.NumManifoldPoints();
-		if (ManifoldPointMax > 0)
-		{
-			const int32 ManifoldPointStart = CollisionSolverManifoldPoints.Num();
-			check(CollisionSolverManifoldPoints.Max() >= ManifoldPointStart + ManifoldPointMax);	// No resize following reset
-			CollisionSolverManifoldPoints.SetNum(ManifoldPointStart + ManifoldPointMax);
-
-			CollisionSolvers[Index].SetManifoldPointsBuffer(&CollisionSolverManifoldPoints[ManifoldPointStart], ManifoldPointMax);
-		}
-		else
-		{
-			// Ideally we wouldn't have any active constraint with no manifold points, but this can
-			// currently happen for CCD objects and incremental collisions
-			CollisionSolvers[Index].Reset();
-		}
+		CollisionSolvers[Index].Reset();
 	}
 
 
-	void FPBDCollisionContainerSolver::AddBodies(FSolverBodyContainer& SolverBodyContainer)
+	void FPBDCollisionContainerSolverJacobi::AddBodies(FSolverBodyContainer& SolverBodyContainer)
 	{
 		for (int32 SolverIndex = 0, SolverEndIndex = NumSolvers(); SolverIndex < SolverEndIndex; ++SolverIndex)
 		{
-			Private::FPBDCollisionSolver& CollisionSolver = CollisionSolvers[SolverIndex];
+			Private::FPBDCollisionSolverJacobi& CollisionSolver = CollisionSolvers[SolverIndex];
 			FPBDCollisionConstraint* Constraint = CollisionConstraints[SolverIndex];
 			check(Constraint != nullptr);
 
@@ -363,25 +339,20 @@ namespace Chaos
 		}
 	}
 
-	void FPBDCollisionContainerSolver::GatherInput(const FReal Dt)
+	void FPBDCollisionContainerSolverJacobi::GatherInput(const FReal Dt)
 	{
 		GatherInput(Dt, 0, NumSolvers());
 	}
 
-	void FPBDCollisionContainerSolver::CachePrefetchSolver(const int32 ConstraintIndex) const
+	void FPBDCollisionContainerSolverJacobi::CachePrefetchSolver(const int32 ConstraintIndex) const
 	{
 		if (ConstraintIndex < NumSolvers())
 		{
-			const int32 NumManifoldPoints = CollisionSolvers[ConstraintIndex].NumManifoldPoints();
-			if (NumManifoldPoints > 0)
-			{
-				FPlatformMisc::PrefetchBlock(&CollisionSolvers[ConstraintIndex].GetManifoldPoint(0), NumManifoldPoints * sizeof(Private::FPBDCollisionSolverManifoldPoint));
-			}
-			FPlatformMisc::PrefetchBlock(&CollisionSolvers[ConstraintIndex], sizeof(FPBDCollisionContainerSolver));
+			FPlatformMisc::PrefetchBlock(&CollisionSolvers[ConstraintIndex], sizeof(FPBDCollisionContainerSolverJacobi));
 		}
 	}
 
-	void FPBDCollisionContainerSolver::GatherInput(const FReal InDt, const int32 BeginIndex, const int32 EndIndex)
+	void FPBDCollisionContainerSolverJacobi::GatherInput(const FReal InDt, const int32 BeginIndex, const int32 EndIndex)
 	{
 		// NOTE: may be called in parallel. Should not change the container or any elements outside of [BeginIndex, EndIndex)
 
@@ -399,7 +370,7 @@ namespace Chaos
 		bool bWantPerIterationCollisionDetection = false;
 		for (int32 ConstraintIndex = BeginIndex; ConstraintIndex < EndIndex; ++ConstraintIndex)
 		{
-			Private::FPBDCollisionSolver& CollisionSolver = CollisionSolvers[ConstraintIndex];
+			Private::FPBDCollisionSolverJacobi& CollisionSolver = CollisionSolvers[ConstraintIndex];
 			FPBDCollisionConstraint* Constraint = CollisionConstraints[ConstraintIndex];
 			bool& bPerIterationCollision = bCollisionConstraintPerIterationCollisionDetection[ConstraintIndex];
 
@@ -418,12 +389,12 @@ namespace Chaos
 		}
 	}
 
-	void FPBDCollisionContainerSolver::ScatterOutput(const FReal Dt)
+	void FPBDCollisionContainerSolverJacobi::ScatterOutput(const FReal Dt)
 	{
 		ScatterOutput(Dt, 0, NumSolvers());
 	}
 
-	void FPBDCollisionContainerSolver::ScatterOutput(const FReal InDt, const int32 BeginIndex, const int32 EndIndex)
+	void FPBDCollisionContainerSolverJacobi::ScatterOutput(const FReal InDt, const int32 BeginIndex, const int32 EndIndex)
 	{
 		// NOTE: may be called in parallel. Should not change the container or any elements outside of [BeginIndex, EndIndex)
 
@@ -434,7 +405,7 @@ namespace Chaos
 
 		for (int32 ConstraintIndex = BeginIndex; ConstraintIndex < EndIndex; ++ConstraintIndex)
 		{
-			Private::FPBDCollisionSolver& CollisionSolver = CollisionSolvers[ConstraintIndex];
+			Private::FPBDCollisionSolverJacobi& CollisionSolver = CollisionSolvers[ConstraintIndex];
 			FPBDCollisionConstraint* Constraint = CollisionConstraints[ConstraintIndex];
 
 			UpdateCollisionConstraintFromSolver(Constraint, CollisionSolver, Dt);
@@ -445,22 +416,22 @@ namespace Chaos
 		}
 	}
 
-	void FPBDCollisionContainerSolver::ApplyPositionConstraints(const FReal Dt, const int32 It, const int32 NumIts)
+	void FPBDCollisionContainerSolverJacobi::ApplyPositionConstraints(const FReal Dt, const int32 It, const int32 NumIts)
 	{
 		SolvePositionImpl(Dt, It, NumIts, 0, NumSolvers(), ConstraintContainer.GetSolverSettings());
 	}
 
-	void FPBDCollisionContainerSolver::ApplyVelocityConstraints(const FReal Dt, const int32 It, const int32 NumIts)
+	void FPBDCollisionContainerSolverJacobi::ApplyVelocityConstraints(const FReal Dt, const int32 It, const int32 NumIts)
 	{
 		SolveVelocityImpl(Dt, It, NumIts, 0, NumSolvers(), ConstraintContainer.GetSolverSettings());
 	}
 
-	void FPBDCollisionContainerSolver::ApplyProjectionConstraints(const FReal Dt, const int32 It, const int32 NumIts)
+	void FPBDCollisionContainerSolverJacobi::ApplyProjectionConstraints(const FReal Dt, const int32 It, const int32 NumIts)
 	{
 		// Not supported for collisions
 	}
 
-	void FPBDCollisionContainerSolver::UpdatePositionShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
+	void FPBDCollisionContainerSolverJacobi::UpdatePositionShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
 	{
 		// If this is the first shock propagation iteration, enable it on each solver
 		const bool bEnableShockPropagation = (It == NumIts - SolverSettings.NumPositionShockPropagationIterations);
@@ -473,7 +444,7 @@ namespace Chaos
 		}
 	}
 
-	void FPBDCollisionContainerSolver::UpdateVelocityShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
+	void FPBDCollisionContainerSolverJacobi::UpdateVelocityShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
 	{
 		// Set/reset the shock propagation based on current iteration. The position solve may
 		// have left the bodies with a mass scale and we want to change or reset it.
@@ -494,7 +465,7 @@ namespace Chaos
 		}
 	}
 
-	bool FPBDCollisionContainerSolver::SolvePositionImpl(const FReal InDt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
+	bool FPBDCollisionContainerSolverJacobi::SolvePositionImpl(const FReal InDt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
 		if (!CVars::bChaos_PBDCollisionSolver_Position_SolveEnabled)
@@ -527,17 +498,17 @@ namespace Chaos
 		// Apply the position correction
 		if (bApplyStaticFriction)
 		{
-			Private::FPBDCollisionSolverHelper::SolvePositionWithFriction(MakeArrayView(&CollisionSolvers[BeginIndex], EndIndex - BeginIndex), Dt, MaxPushOut);
+			Private::FPBDCollisionSolverJacobiHelper::SolvePositionWithFriction(MakeArrayView(&CollisionSolvers[BeginIndex], EndIndex - BeginIndex), Dt, MaxPushOut);
 		}
 		else
 		{
-			Private::FPBDCollisionSolverHelper::SolvePositionNoFriction(MakeArrayView(&CollisionSolvers[BeginIndex], EndIndex - BeginIndex), Dt, MaxPushOut);
+			Private::FPBDCollisionSolverJacobiHelper::SolvePositionNoFriction(MakeArrayView(&CollisionSolvers[BeginIndex], EndIndex - BeginIndex), Dt, MaxPushOut);
 		}
 
 		return true;
 	}
 
-	bool FPBDCollisionContainerSolver::SolveVelocityImpl(const FReal InDt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
+	bool FPBDCollisionContainerSolverJacobi::SolveVelocityImpl(const FReal InDt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_ApplyPushOut);
 		if (!CVars::bChaos_PBDCollisionSolver_Velocity_SolveEnabled)
@@ -555,12 +526,12 @@ namespace Chaos
 		const FSolverReal Dt = FSolverReal(InDt);
 		const bool bApplyDynamicFriction = (It >= NumIts - SolverSettings.NumVelocityFrictionIterations);
 
-		Private::FPBDCollisionSolverHelper::SolveVelocity(MakeArrayView(&CollisionSolvers[BeginIndex], EndIndex - BeginIndex), Dt, bApplyDynamicFriction);
+		Private::FPBDCollisionSolverJacobiHelper::SolveVelocity(MakeArrayView(&CollisionSolvers[BeginIndex], EndIndex - BeginIndex), Dt, bApplyDynamicFriction);
 
 		return true;
 	}
 
-	void FPBDCollisionContainerSolver::UpdateCollisions(const FReal InDt, const int32 BeginIndex, const int32 EndIndex)
+	void FPBDCollisionContainerSolverJacobi::UpdateCollisions(const FReal InDt, const int32 BeginIndex, const int32 EndIndex)
 	{
 		const FSolverReal Dt = FSolverReal(InDt);
 		const bool bDeferredCollisionDetection = ConstraintContainer.GetDetectorSettings().bDeferNarrowPhase;
@@ -570,7 +541,7 @@ namespace Chaos
 		{
 			if (bDeferredCollisionDetection || bCollisionConstraintPerIterationCollisionDetection[SolverIndex])
 			{
-				Private::FPBDCollisionSolver& CollisionSolver = CollisionSolvers[SolverIndex];
+				Private::FPBDCollisionSolverJacobi& CollisionSolver = CollisionSolvers[SolverIndex];
 				FPBDCollisionConstraint* Constraint = CollisionConstraints[SolverIndex];
 
 				// Run collision detection at the current transforms including any correction from previous iterations
