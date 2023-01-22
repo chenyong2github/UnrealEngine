@@ -7,6 +7,8 @@
 #include "Async/ParallelFor.h"
 #include "Containers/BitArray.h"
 #include "DynamicMesh/MeshNormals.h"
+#include "Selections/GeometrySelection.h"
+#include "Selections/GeometrySelectionUtil.h"
 
 using namespace UE::Geometry;
 
@@ -119,6 +121,53 @@ void FGroupTopologyDeformer::SetActiveHandleCorners(const TArray<int>& CornerIDs
 	ComputeEncoding();
 }
 
+
+void FGroupTopologyDeformer::SetActiveHandleFromSelection(const FGeometrySelection& Selection)
+{
+	if (!ensure(Selection.TopologyType == EGeometryTopologyType::Polygroup))
+	{
+		return;
+	}
+
+	TArray<int> Elements;
+	if (Selection.ElementType == EGeometryElementType::Face)
+	{
+		for (uint64 Element : Selection.Selection)
+		{
+			int32 GroupID = FGeoSelectionID(Element).TopologyID;
+			if (Topology->FindGroupByID(GroupID) != nullptr)
+			{
+				Elements.Add(GroupID);
+			}
+		}
+		SetActiveHandleFaces(Elements);
+	}
+	else if (Selection.ElementType == EGeometryElementType::Edge)
+	{
+		for (uint64 Element : Selection.Selection)
+		{
+			int32 GroupEdgeID = FGeoSelectionID(Element).TopologyID;
+			if (GroupEdgeID > 0 && GroupEdgeID < Topology->Edges.Num())
+			{
+				Elements.Add(GroupEdgeID);
+			}
+		}
+		SetActiveHandleEdges(Elements);
+	}
+	else if (Selection.ElementType == EGeometryElementType::Vertex)
+	{
+		for (uint64 Element : Selection.Selection)
+		{
+			int32 CornerID = FGeoSelectionID(Element).TopologyID;
+			if (CornerID > 0 && CornerID < Topology->Corners.Num())
+			{
+				Elements.Add(CornerID);
+			}
+		}
+		SetActiveHandleCorners(Elements);
+	}
+
+}
 
 
 

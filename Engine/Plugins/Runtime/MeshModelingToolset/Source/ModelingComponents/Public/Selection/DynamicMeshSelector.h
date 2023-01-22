@@ -186,7 +186,7 @@ public:
 	virtual void ShutdownTransformation(IGeometrySelectionTransformer* Transformer) override;
 
 protected:
-	TPimplPtr<FBasicDynamicMeshSelectionTransformer> ActiveTransformer;
+	TSharedPtr<FBasicDynamicMeshSelectionTransformer> ActiveTransformer;
 
 	// give Transformer access to internals 
 	friend class FBasicDynamicMeshSelectionTransformer;

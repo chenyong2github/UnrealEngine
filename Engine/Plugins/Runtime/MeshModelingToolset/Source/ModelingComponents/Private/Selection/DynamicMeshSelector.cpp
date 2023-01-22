@@ -12,6 +12,7 @@
 #include "GroupTopology.h"
 #include "Spatial/SegmentTree3.h"
 #include "ToolSceneQueriesUtil.h"
+#include "Selection/DynamicMeshPolygroupTransformer.h"
 
 using namespace UE::Geometry;
 
@@ -733,7 +734,16 @@ IGeometrySelectionTransformer* FDynamicMeshSelector::InitializeTransformation(co
 		ParentIdentifier.GetAsComponentType<UDynamicMeshComponent>()->SetTransientDeferCollisionUpdates(true);
 	}
 
-	ActiveTransformer = MakePimpl<FBasicDynamicMeshSelectionTransformer>();
+	if (Selection.TopologyType == EGeometryTopologyType::Polygroup)
+	{
+		ActiveTransformer = MakeShared<FDynamicMeshPolygroupTransformer>();
+	}
+	else
+	{
+		ActiveTransformer = MakeShared<FBasicDynamicMeshSelectionTransformer>();
+	}
+
+
 	ActiveTransformer->Initialize(this);
 	return ActiveTransformer.Get();
 }

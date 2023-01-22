@@ -12,6 +12,7 @@ namespace Geometry
 
 class FDynamicMesh3;
 class FGroupTopology;
+struct FGeometrySelection;
 
 
 /**
@@ -93,6 +94,12 @@ public:
 	 * Set the active handle to the given Edges
 	 */
 	virtual void SetActiveHandleEdges(const TArray<int>& TopologyEdgeIDs);
+
+
+	/**
+	 * Set the active handle from GeometrySelection
+	 */
+	virtual void SetActiveHandleFromSelection(const FGeometrySelection& Selection);
 
 	//
 	// Solving
