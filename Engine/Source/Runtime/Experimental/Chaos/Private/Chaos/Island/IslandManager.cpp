@@ -239,6 +239,15 @@ void FPBDIslandManager::InitializeGraph(const TParticleView<FPBDRigidParticles>&
 			FGeometryParticleHandle* ParticleHandle = IslandGraph->GraphNodes[NodeIndex].NodeItem;
 
 			IslandGraph->UpdateNode(NodeIndex, IsDynamicParticle(ParticleHandle), IsStationaryParticle(ParticleHandle));
+
+			// If the particle is static or kinematic and has no edges, remove it
+			if (!IslandGraph->GraphNodes[NodeIndex].bValidNode)
+			{
+				if (IslandGraph->GraphNodes[NodeIndex].NodeEdges.Num() == 0)
+				{
+					RemoveParticle(ParticleHandle);
+				}
+			}
 		}
 	}
 
