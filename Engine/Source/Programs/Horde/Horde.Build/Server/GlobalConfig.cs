@@ -36,6 +36,7 @@ namespace Horde.Build.Server
 	/// <summary>
 	/// Directive to merge config data from another source
 	/// </summary>
+	[ConfigIncludeContext]
 	public class ConfigInclude
 	{
 		/// <summary>

@@ -31,6 +31,11 @@ namespace Horde.Build.Configuration
 		public Stack<string> ScopeStack { get; } = new Stack<string>();
 
 		/// <summary>
+		/// Stack of objects
+		/// </summary>
+		public Stack<object> IncludeContextStack { get; } = new Stack<object>();
+
+		/// <summary>
 		/// Map of property path to the file declaring a value for it
 		/// </summary>
 		public Dictionary<string, Uri> PropertyPathToFile { get; } = new Dictionary<string, Uri>(StringComparer.OrdinalIgnoreCase);
