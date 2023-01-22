@@ -450,8 +450,6 @@ namespace UE::NearestNeighborModel
 		return EUpdateResult::ERROR;
 	}
 
-	// write a function to return an animation sequence and a boolean
-
 	template<typename T>
 	T* CreateObjectInstance(const FString& PackageName)
 	{
