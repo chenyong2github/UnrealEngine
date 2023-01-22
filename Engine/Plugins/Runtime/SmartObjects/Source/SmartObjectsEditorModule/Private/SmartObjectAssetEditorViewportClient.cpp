@@ -145,7 +145,7 @@ FVector FSmartObjectAssetEditorViewportClient::GetWidgetLocation() const
 
 			for (int32 AnnotationIndex = 0; AnnotationIndex < Slot.Data.Num(); AnnotationIndex++)
 			{
-				const FInstancedStruct& Data = Slot.Data[Index];
+				const FInstancedStruct& Data = Slot.Data[AnnotationIndex];
 				if (const FSmartObjectSlotAnnotation* Annotation = Data.GetPtr<FSmartObjectSlotAnnotation>())
 				{
 					if (Selection.Contains(UE::SmartObjects::Editor::FSelectedItem(Slot.ID, AnnotationIndex)))
@@ -209,7 +209,7 @@ UE::Widget::EWidgetMode FSmartObjectAssetEditorViewportClient::GetWidgetMode() c
 
 			for (int32 AnnotationIndex = 0; AnnotationIndex < Slot.Data.Num(); AnnotationIndex++)
 			{
-				const FInstancedStruct& Data = Slot.Data[Index];
+				const FInstancedStruct& Data = Slot.Data[AnnotationIndex];
 				if (const FSmartObjectSlotAnnotation* Annotation = Data.GetPtr<FSmartObjectSlotAnnotation>())
 				{
 					if (Selection.Contains(UE::SmartObjects::Editor::FSelectedItem(Slot.ID, AnnotationIndex)))
@@ -351,7 +351,7 @@ bool FSmartObjectAssetEditorViewportClient::InputWidgetDelta(FViewport* InViewpo
 				{
 					for (int32 AnnotationIndex = 0; AnnotationIndex < Slot.Data.Num(); AnnotationIndex++)
 					{
-						FInstancedStruct& Data = Slot.Data[Index];
+						FInstancedStruct& Data = Slot.Data[AnnotationIndex];
 						if (FSmartObjectSlotAnnotation* Annotation = Data.GetMutablePtr<FSmartObjectSlotAnnotation>())
 						{
 							if (Selection.Contains(UE::SmartObjects::Editor::FSelectedItem(Slot.ID, AnnotationIndex)))

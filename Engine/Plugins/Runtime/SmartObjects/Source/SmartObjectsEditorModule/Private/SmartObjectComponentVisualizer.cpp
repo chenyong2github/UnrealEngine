@@ -64,20 +64,19 @@ void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedIte
 			const FVector AxisX = Transform->GetUnitAxis(EAxis::X);
 			const FVector AxisY = Transform->GetUnitAxis(EAxis::Y);
 
-			// Tick at the center.
-			PDI.DrawTranslucentLine(Location - AxisX * TickSize, Location + AxisX * TickSize, Color, SDPG_World, 1.0f);
+			// Arrow with tick at base.
+			VisContext.DrawArrow(Location - AxisX * TickSize, Location + AxisX * DebugCylinderRadius * 2.0, Color, /*ArrowHeadLength*/ 20.0f, /*EndLocationInset*/ 0.0f, SDPG_World);
 			PDI.DrawTranslucentLine(Location - AxisY * TickSize, Location + AxisY * TickSize, Color, SDPG_World, 1.0f);
 
 			// Circle and direction arrow.
 			DrawCircle(&PDI, Location, AxisX, AxisY, Color, DebugCylinderRadius, /*NumSides*/64, SDPG_World, /*Thickness*/2.f);
-			VisContext.DrawArrow(Location + AxisX * DebugCylinderRadius, Location + AxisX * DebugCylinderRadius * 2.0, Color, /*ArrowHeadLength*/ 15.0f, /*EndLocationInset*/ 0.0f, SDPG_World);
 		}
 			
 		PDI.SetHitProxy(nullptr);
 
 		for (int32 AnnotationIndex = 0; AnnotationIndex < Slot.Data.Num(); AnnotationIndex++)
 		{
-			const FInstancedStruct& Data = Slot.Data[Index];
+			const FInstancedStruct& Data = Slot.Data[AnnotationIndex];
 			if (const FSmartObjectSlotAnnotation* Annotation = Data.GetPtr<FSmartObjectSlotAnnotation>())
 			{
 				PDI.SetHitProxy(new HSmartObjectSlotProxy(/*Component*/nullptr, SlotID, AnnotationIndex));
@@ -139,7 +138,7 @@ void DrawCanvas(const USmartObjectDefinition& Definition, TConstArrayView<FSelec
 		// Slot data annotations
 		for (int32 AnnotationIndex = 0; AnnotationIndex < Slot.Data.Num(); AnnotationIndex++)
 		{
-			const FInstancedStruct& Data = Slot.Data[Index];
+			const FInstancedStruct& Data = Slot.Data[AnnotationIndex];
 			if (const FSmartObjectSlotAnnotation* Annotation = Data.GetPtr<FSmartObjectSlotAnnotation>())
 			{
 				VisContext.SlotIndex = FSmartObjectSlotIndex(Index);
