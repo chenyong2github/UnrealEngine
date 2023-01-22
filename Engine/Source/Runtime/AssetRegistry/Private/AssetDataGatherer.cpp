@@ -435,7 +435,8 @@ FScanDir* FScanDir::GetControllingDir(FStringView InRelPath, bool bIsDirectory, 
 	}
 }
 
-bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath, const FSetPathProperties& InProperties, bool bConfirmedExists)
+bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath,
+	const FSetPathProperties& InProperties, bool bConfirmedExists)
 {
 	// TrySetDirectoryProperties can only be called on valid ScanDirs, which we rely on so we can call FindOrAddSubDir which requires that
 	check(IsValid()); 
@@ -2045,17 +2046,19 @@ bool FAssetDataDiscovery::IsMonitored(FStringView LocalAbsPath) const
 	return MountDir && MountDir->IsMonitored(LocalAbsPath);
 }
 
+template <typename ContainerType>
+SIZE_T GetArrayRecursiveAllocatedSize(const ContainerType& Container)
+{
+	SIZE_T Result = Container.GetAllocatedSize();
+	for (const auto& Value : Container)
+	{
+		Result += Value.GetAllocatedSize();
+	}
+	return Result;
+};
+
 SIZE_T FAssetDataDiscovery::GetAllocatedSize() const
 {
-	auto GetArrayRecursiveAllocatedSize = [](auto Container)
-	{
-		SIZE_T Result = Container.GetAllocatedSize();
-		for (const auto& Value : Container)
-		{
-			Result += Value.GetAllocatedSize();
-		}
-		return Result;
-	};
 
 	FScopedPause ScopedPause(*this);
 	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(TreeLock);
