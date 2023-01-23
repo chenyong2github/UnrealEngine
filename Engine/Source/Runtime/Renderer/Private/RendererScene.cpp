@@ -5868,12 +5868,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 				// Flush virtual textures touched by primitive
 				QueueSceneInfoToFlushVirtualTexture(PrimitiveSceneInfo);
 
-				// Set LOD parent information if valid
-				PrimitiveSceneInfo->LinkLODParentComponent();
-
-				// Update scene LOD tree
-				SceneLODHierarchy.UpdateNodeSceneInfo(PrimitiveSceneInfo->PrimitiveComponentId, PrimitiveSceneInfo);
-
 				bNeedPathTracedInvalidation = bNeedPathTracedInvalidation || IsPrimitiveRelevantToPathTracing(PrimitiveSceneInfo);
 			}
 			AddedLocalPrimitiveSceneInfos.RemoveAt(StartIndex, AddedLocalPrimitiveSceneInfos.Num() - StartIndex, false);
@@ -6126,6 +6120,15 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 				CreateLightPrimitiveInteractionsForPrimitive(SceneInfo);
 			}
 		});
+	}
+
+	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : AddedPrimitiveSceneInfos)
+	{
+		// Set LOD parent information if valid
+		PrimitiveSceneInfo->LinkLODParentComponent();
+
+		// Update scene LOD tree
+		SceneLODHierarchy.UpdateNodeSceneInfo(PrimitiveSceneInfo->PrimitiveComponentId, PrimitiveSceneInfo);
 	}
 
 	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : SceneInfosToFlushVirtualTexture)
