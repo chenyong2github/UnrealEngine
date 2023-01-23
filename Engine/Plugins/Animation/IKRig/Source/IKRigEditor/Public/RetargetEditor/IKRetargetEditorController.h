@@ -68,6 +68,7 @@ struct FRetargetPlaybackManager : public TSharedFromThis<FRetargetPlaybackManage
 	void StopPlayback() const;
 	void PausePlayback();
 	void ResumePlayback() const;
+	bool IsStopped() const;
 	
 private:
 

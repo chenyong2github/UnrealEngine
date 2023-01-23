@@ -92,6 +92,9 @@ void FIKRetargetEditor::InitAssetEditor(
 	// initial setup, ignored if IK Rig is already assigned
 	EditorController->PromptUserToAssignIKRig(ERetargetSourceOrTarget::Source);
 	EditorController->PromptUserToAssignIKRig(ERetargetSourceOrTarget::Target);
+
+	// run retarget by default
+	EditorController->SetRetargeterMode(ERetargeterOutputMode::RunRetarget);
 }
 
 void FIKRetargetEditor::OnClose()

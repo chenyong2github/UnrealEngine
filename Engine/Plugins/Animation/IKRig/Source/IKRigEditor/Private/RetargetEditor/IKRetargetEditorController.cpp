@@ -123,6 +123,17 @@ void FRetargetPlaybackManager::ResumePlayback() const
 	}
 }
 
+bool FRetargetPlaybackManager::IsStopped() const
+{
+	UIKRetargetAnimInstance* AnimInstance = EditorController.Pin()->SourceAnimInstance.Get();
+	if (!AnimInstance)
+	{
+		return true;
+	}
+	
+	return !AnimInstance->GetAnimationAsset();
+}
+
 void FIKRetargetEditorController::Initialize(TSharedPtr<FIKRetargetEditor> InEditor, UIKRetargeter* InAsset)
 {
 	Editor = InEditor;
