@@ -20,7 +20,8 @@ namespace AutomationTool
 		int RunExternalCommand(string Command, string Params, bool bRequiresPrivilegeElevation, bool bUnattended, bool bCreateWindow);
 		void Log(string Message);
 		void ReportError(string Message);
-		void PauseForUser(string Message); 
+		void PauseForUser(string Message);
+		int ReadInputInt(string Prompt, List<string> Options, bool bIsCancellable, int DefaultValue = -1);
 	}
 
 	//public interface InputOutput

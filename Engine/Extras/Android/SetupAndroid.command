@@ -84,9 +84,6 @@ echo Android Studio Path: $STUDIO_PATH
 if [ "$STUDIO_SDK_PATH" == "" ]; then
 	STUDIO_SDK_PATH=~/Library/Android/sdk
 fi
-if [ "$1" != "" ]; then
-	STUDIO_SDK_PATH=$1
-fi
 if [ ! -d "$STUDIO_SDK_PATH" ]; then
 	echo Android SDK not found at: $STUDIO_SDK_PATH
 	echo Unable to locate local Android SDK location. Did you run Android Studio after installing?

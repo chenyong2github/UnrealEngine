@@ -15,6 +15,8 @@ using UnrealBuildBase;
 using AutomationUtils.Automation;
 using System.Text.RegularExpressions;
 using AutomationScripts;
+using System.Drawing;
+using System.Security.Policy;
 
 public class AndroidPlatform : Platform
 {
@@ -175,15 +177,72 @@ public class AndroidPlatform : Platform
 		return AndroidSDK != null ? new string[] { AndroidSDK.GetMainVersion() } : Array.Empty<string>();
 	}
 
-	public override bool GetSDKInstallCommand(out string Command, out string Params, ref bool bRequiresPrivilegeElevation, ref bool bCreateWindow, ITurnkeyContext TurnkeyContext)
+	// Android has a more complex sdk installation, so perform it manually
+	public override bool InstallSDK(BuildCommand BuildCommand, ITurnkeyContext TurnkeyContext, DeviceInfo Device, bool bUnattended, bool bSdkAlreadyInstalled)
 	{
+		if (Device != null)
+		{
+			return base.InstallSDK(BuildCommand, TurnkeyContext, Device, bUnattended, bSdkAlreadyInstalled);
+		}
+
+		string SdkDir = GetSdkDir();
+		bool bIsInstalled = Directory.Exists(SdkDir);
+
+		if (!bIsInstalled)
+		{
+			int Option = 2;
+			while (Option == 2)
+			{
+				string Prompt = $"The Android Sdk directory was not found (expected to find it at '{SdkDir}'\n" +
+					"Android Studio can install it for you, but you will need to manually perform some steps (if desired, you can get detailed help with option 2):\n" +
+					"  - Wait for Android Studio to start, you will see an initial dialog asking how to proceed (called \"Welcome to Android Studio\")\n" +
+					"  - Click the \"Configure\" dropdown in the bottom right, and select \"SDK Manager\"\n" +
+					"  - Click on the \"SDK Tools\" tab near the top middle of the right pane\n" +
+					"  - Check the box next to Android SDK COmmand-line Tools (latest)\n" +
+					"  - Click OK in the bottom right\n" +
+					"  - It will probably ask for you to accept a license - you MUST do this\n" +
+					"  - Once installation has completed, close/quit Android Studio to continue\n";
+
+				List<string> Options = new()
+				{
+					"Run Android Studio to install the Command Line Tools",
+					"Get detailed step by step guide",
+				};
+
+				Option = TurnkeyContext.ReadInputInt(Prompt, Options, true, 1);
+
+				if (Option == 0)
+				{
+					return false;
+				}
+				if (Option == 2)
+				{
+					// @todo: we need to redo the documentation DRAMATICALLY on here
+					string URL = "https://docs.unrealengine.com/5.1/en-US/how-to-set-up-android-sdk-and-ndk-for-your-unreal-engine-development-environment/";
+					Process.Start(new ProcessStartInfo { FileName = URL, UseShellExecute = true });
+				}
+			}
+
+			string AndroidStudioExe = GetAndroidStudioExe();
+
+			if (HostPlatform.Platform == UnrealTargetPlatform.Mac)
+			{
+				TurnkeyContext.RunExternalCommand("open", $"-W \"{GetAndroidStudioExe()}\"", false, true, true);
+			}
+			else
+			{
+				TurnkeyContext.RunExternalCommand(GetAndroidStudioExe(), "", false, true, false);
+			}
+		}
+
 		// run the Setup.bat in the engine, not coming from a normal FileSource
 
-		if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64)
+		string Command;
+		if (HostPlatform.Platform == UnrealTargetPlatform.Win64)
 		{
 			Command = "$(EngineDir)/Extras/Android/SetupAndroid.bat";
 		}
-		else if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Mac)
+		else if (HostPlatform.Platform == UnrealTargetPlatform.Mac)
 		{
 			Command = "$(EngineDir)/Extras/Android/SetupAndroid.command";
 		}
@@ -199,14 +258,12 @@ public class AndroidPlatform : Platform
 		string CMakeVersion = AndroidSDK.GetPlatformSpecificVersion("cmake");
 		string NDKVersion = AndroidSDK.GetPlatformSpecificVersion("ndk");
 
-		Params = $"{PlatformsVersion} {BuildToolsVersion} {CMakeVersion} {NDKVersion} -noninteractive";
+		string Params = $"{PlatformsVersion} {BuildToolsVersion} {CMakeVersion} {NDKVersion} -noninteractive";
 
 		// because this may bring up a license acceptance message that needs the user to respond, so we make a new window
-		bCreateWindow = true;
-
-		return true;
+		int ExitCode = TurnkeyContext.RunExternalCommand(Command, Params, bRequiresPrivilegeElevation: false, bUnattended, bCreateWindow: true);
+		return ExitCode == 0;
 	}
-
 
 
 	private static string GetAndroidStudioExe()
@@ -274,16 +331,17 @@ public class AndroidPlatform : Platform
 				{
 					if (BashProfileContents[LineIndex].StartsWith("export " + SdkKey + "="))
 					{
-						string PathVar = BashProfileContents[LineIndex].Split
-('=')[1].Replace("\"", "");
-Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
+						string PathVar = BashProfileContents[LineIndex].Split('=')[1].Replace("\"", "");
 						return PathVar;
 					}
 
 				}
 			}
 
-			return Environment.GetEnvironmentVariable("ANDROID_HOME");
+			string UserHome = Environment.GetEnvironmentVariable("HOME");
+			string AndroidSdkPath = Path.Combine(UserHome, "Library", "Android", "Sdk");
+
+			return AndroidSdkPath;
 		}
 
 		Debug.Assert(OperatingSystem.IsWindows());
@@ -296,30 +354,25 @@ Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
 	public override bool UpdateHostPrerequisites(BuildCommand Command, ITurnkeyContext TurnkeyContext, bool bVerifyOnly)
 	{
 		string AndroidStudioExe = GetAndroidStudioExe();
-		string SdkDir = GetSdkDir();
 
 		bool bIsMac = (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Mac);
 		bool bHaveAndroidStudio = (bIsMac && Directory.Exists(AndroidStudioExe)) || 
 					(!bIsMac && FileExists(AndroidStudioExe));
 
-		bool bIsInstalled = bHaveAndroidStudio && Directory.Exists(SdkDir);
-
 		// if we are only verifying, just return the status, and if it's installed, we are done!
-		if (bVerifyOnly || bIsInstalled)
+		if (bVerifyOnly)
 		{
 			if (!bHaveAndroidStudio)
 			{
 				TurnkeyContext.ReportError("Android Studio is not installed correctly.");
 			}
-			if (!Directory.Exists(SdkDir))
-			{
-				TurnkeyContext.ReportError("Android SDK directory is not set correctly.");
-			}
-			return bIsInstalled;
+			return bHaveAndroidStudio;
 		}
 
 		if (!bHaveAndroidStudio)
 		{
+			TurnkeyContext.PauseForUser("Android Studio was not found on this machine. Press Enter to download and install Android Studio which is required to use Android.");
+
 			// get AS installer
 			string OutputPath = TurnkeyContext.RetrieveFileSource("AndroidStudio");
 
@@ -338,7 +391,7 @@ Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
 
 			if (OutputPath == null)
 			{
-				TurnkeyContext.PauseForUser("Unable to find Android Studio installer. Please download and install Android Studio 4.0.2 from https://developer.android.com/studio/archive before continuing.\n\nMake sure to use the Run Android Studio and complete the first-time setup!\n\nFollow the steps to install command-line tools (latest):\nhttps://docs.unrealengine.com/5.0/en-US/how-to-setup-up-android-sdk-and-ndk-for-your-unreal-engine-development-environment");
+				TurnkeyContext.PauseForUser("Unable to find Android Studio installer. Please download and install Android Studio 4.0.2 from https://developer.android.com/studio/archive to standard location before continuing.");
 			}
 			else
 			{
@@ -416,9 +469,8 @@ Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
 				}
 				else if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64)
 				{
-					TurnkeyContext.PauseForUser("Running the Android Studio installer, and then Android Studio for first-time setup!\n\nFollow the steps to install command-line tools (latest):\nhttps://docs.unrealengine.com/5.0/en-US/how-to-setup-up-android-sdk-and-ndk-for-your-unreal-engine-development-environment");
+					// install AS with the /S switch
 					int ExitCode = TurnkeyContext.RunExternalCommand(OutputPath, "/S", false, true, true);
-					//				Utils.RunLocalProcessAndReturnStdOut(OutputPath, "", out ExitCode, true);
 
 					// AS installer returns 1223 even on success ("user canceled" even tho there's no UI to cancel it...) when running with /S
 					if (ExitCode != 0 && ExitCode != 1223)
@@ -432,37 +484,21 @@ Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
 					TurnkeyContext.ReportError($"Invalid host platform");
 					return false;
 				}
-
-				// re-query for AS location
-				TurnkeyContext.RunExternalCommand(GetAndroidStudioExe(), "", false, true, bIsMac);
 			}
-		}
-		else
-		{
-			TurnkeyContext.PauseForUser("The Sdk directory was not found. Running the Android Studio to perform first-time setup.\n\nFollow the steps to install command-line tools (latest):\nhttps://docs.unrealengine.com/5.0/en-US/how-to-setup-up-android-sdk-and-ndk-for-your-unreal-engine-development-environment");
-
-			TurnkeyContext.RunExternalCommand(AndroidStudioExe, "", false, true, bIsMac);
 		}
 
 		// check to see if the installation worked. If so, continue on!
 		AndroidStudioExe = GetAndroidStudioExe();
-		SdkDir = GetSdkDir();
 
 		bHaveAndroidStudio = (bIsMac && Directory.Exists(AndroidStudioExe)) || 
 					(!bIsMac && FileExists(AndroidStudioExe));
-
-		bIsInstalled = bHaveAndroidStudio && Directory.Exists(SdkDir);
 
 		if (!bHaveAndroidStudio)
 		{
 			TurnkeyContext.ReportError("Android Studio is not installed correctly, after attempted installation.");
 		}
-		if (!Directory.Exists(SdkDir))
-		{
-			TurnkeyContext.ReportError("Android SDK directory is not set correctly, after attempted installation.");
-		}
 
-		return bIsInstalled;
+		return bHaveAndroidStudio;
 	}
 
 

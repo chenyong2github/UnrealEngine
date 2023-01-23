@@ -315,5 +315,11 @@ namespace Turnkey
 		{
 			TurnkeyUtils.PauseForUser(Message);
 		}
+
+		public int ReadInputInt(string Prompt, List<string> Options, bool bIsCancellable, int DefaultValue)
+		{
+			return TurnkeyUtils.ReadInputInt(Prompt, Options, bIsCancellable, DefaultValue);
+		}
+
 	}
 }
