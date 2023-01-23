@@ -74,7 +74,7 @@ void FQuadGridPatch::InitializeFromQuadStrip(const FDynamicMesh3& Mesh, const TA
 		{
 			VertexSpans[1].Add(Other0);
 		}
-		checkSlow(FirstVertexSpan.Last() == Other0);
+		checkSlow(VertexSpans[1].Last() == Other0);
 		VertexSpans[1].Add(Other1);
 	}
 }
