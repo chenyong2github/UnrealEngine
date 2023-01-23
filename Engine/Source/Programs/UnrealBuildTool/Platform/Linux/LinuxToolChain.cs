@@ -57,10 +57,10 @@ namespace UnrealBuildTool
 			: this(UnrealTargetPlatform.Linux, InArchitecture, InSDK, InOptions, InLogger)
 		{
 			// prevent unknown clangs since the build is likely to fail on too old or too new compilers
-			if (CompilerVersionLessThan(13, 0, 0) || CompilerVersionGreaterOrEqual(14, 0, 0))
+			if (CompilerVersionLessThan(15, 0, 0) || CompilerVersionGreaterOrEqual(16, 0, 0))
 			{
 				throw new BuildException(
-					string.Format("This version of the Unreal Engine can only be compiled with clang 13.0. clang {0} may not build it - please use a different version.",
+					string.Format("This version of the Unreal Engine can only be compiled with clang 15.0. clang {0} may not build it - please use a different version.",
 						Info.ClangVersion)
 					);
 			}
