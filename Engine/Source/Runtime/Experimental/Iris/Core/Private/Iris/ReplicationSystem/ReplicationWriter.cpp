@@ -744,7 +744,7 @@ void FReplicationWriter::InternalUpdateDirtyChangeMasks(const FChangeMaskCache& 
 		if (Entry.bMarkSubObjectOwnerDirty == 0U)
 		{		
 			// Mark object for TearOff, that is that we will stop replication as soon as the tear-off is acknowledged
-			Info.TearOff = MarkForTearOff;
+			Info.TearOff |= MarkForTearOff;
 
 			// Update flush flags
 			Info.FlushFlags = Info.FlushFlags | ExtraFlushFlags;
@@ -1140,8 +1140,25 @@ void FReplicationWriter::HandleDroppedRecord<FReplicationWriter::EReplicatedObje
 		// Mark attachments as dirty
 		Info.HasAttachments |= RecordInfo.HasAttachments;
 
-		// Bump prio
-		SchedulingPriorities[InternalIndex] += FReplicationWriter::CreatePriority;
+		if (Info.IsSubObject)
+		{
+			// Mark owner dirty as well as subobjects only are scheduled together with owner
+			const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectData(InternalIndex);
+			uint32 SubObjectOwnerInternalIndex = ObjectData.SubObjectRootIndex;
+
+			FReplicationInfo& SubObjectOwnerReplicationInfo = GetReplicationInfo(SubObjectOwnerInternalIndex);
+			if (ensure(SubObjectOwnerReplicationInfo.GetState() < EReplicatedObjectState::PendingDestroy))
+			{
+				// Mark owner as dirty
+				ObjectsWithDirtyChanges.SetBit(SubObjectOwnerInternalIndex);
+
+				// Indicate that we have dirty subobjects
+				SubObjectOwnerReplicationInfo.HasDirtySubObjects = 1U;
+
+				// Give slight priority bump to owner
+				SchedulingPriorities[SubObjectOwnerInternalIndex] += FReplicationWriter::LostStatePriorityBump;
+			}
+		}
 	}
 	else if (CurrentState == EReplicatedObjectState::SubObjectPendingDestroy)
 	{

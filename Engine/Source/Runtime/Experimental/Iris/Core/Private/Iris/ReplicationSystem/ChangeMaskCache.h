@@ -35,11 +35,14 @@ struct FChangeMaskCache
 	/** Empty cached data and free memory */
 	inline void EmptyCache();
 
-	/** The pointer is only valid until the next Add call. */
+	/** The ref is only valid until the next Add call. */
 	inline FCachedInfo& AddChangeMaskForObject(uint32 InternalIndex, uint32 BitCount);
 
-	/** The pointer is only valid until the next Add call. */
+	/** The ref is only valid until the next Add call. */
 	inline FCachedInfo& AddSubObjectOwnerDirty(uint32 InternalIndex);
+
+	/** The ref is only valid until the next Add call. */
+	inline FCachedInfo& AddEmptyChangeMaskForObject(uint32 InternalIndex);
 
 	/** The pointer is only valid until the next Add call. */
 	inline uint32* GetChangeMaskStorage(const FCachedInfo& Info);
@@ -78,6 +81,17 @@ FChangeMaskCache::FCachedInfo& FChangeMaskCache::AddChangeMaskForObject(uint32 I
 	Info.bHasDirtyChangeMask = 0U;
 
 	Storage.AddZeroed(WordCount);
+
+	return Indices.Add_GetRef(Info);
+}
+
+FChangeMaskCache::FCachedInfo& FChangeMaskCache::AddEmptyChangeMaskForObject(uint32 InternalIndex)
+{
+	FCachedInfo Info;
+	Info.InternalIndex = InternalIndex;
+	Info.StorageOffset = 0U;
+	Info.bMarkSubObjectOwnerDirty = 0U;
+	Info.bHasDirtyChangeMask = 0U;
 
 	return Indices.Add_GetRef(Info);
 }

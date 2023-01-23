@@ -253,9 +253,13 @@ bool FReplicationSystemTestNode::SendUpdate(uint32 ConnectionId)
 
 	Connection.DataStreamManager->EndWrite();
 
-	UE_NET_TRACE_FLUSH_COLLECTOR(Context.GetTraceCollector(), GetNetTraceId(), Connection.ConnectionId, ENetTracePacketType::Outgoing);
+	if (bResult)
+	{
+		UE_NET_TRACE_FLUSH_COLLECTOR(Context.GetTraceCollector(), GetNetTraceId(), Connection.ConnectionId, ENetTracePacketType::Outgoing);
+		UE_NET_TRACE_PACKET_SEND(GetNetTraceId(), Connection.ConnectionId, Packet.PacketId, Packet.BitCount);
+	}
+
 	UE_NET_TRACE_DESTROY_COLLECTOR(Context.GetTraceCollector());
-	UE_NET_TRACE_PACKET_SEND(GetNetTraceId(), Connection.ConnectionId, Packet.PacketId, Packet.BitCount);
 
 	return bResult;
 }

@@ -485,7 +485,7 @@ void FReplicationReader::ReadObject(FNetSerializationContext& Context)
 			InternalIndex = NetRefHandleManager->GetInternalIndex(IncompleteHandle);
 
 			// If this is a subobject that is being destroyed this was no error as we send destroy info for unconfirmed objects
-			if (!!(ReplicatedDestroyHeaderFlags & ReplicatedDestroyHeaderFlags_EndReplication))
+			if ((ReplicatedDestroyHeaderFlags & ReplicatedDestroyHeaderFlags_EndReplication) == 0U)
 			{
 				bHasErrors = InternalIndex == FNetRefHandleManager::InvalidInternalIndex;
 			}

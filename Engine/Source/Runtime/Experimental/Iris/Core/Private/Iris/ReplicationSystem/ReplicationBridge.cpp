@@ -758,21 +758,34 @@ void UReplicationBridge::InternalTearOff(FNetRefHandle Handle)
 			CallPreSendUpdateSingleHandle(Handle);
 		} 
 
-		if (FReplicationInstanceOperationsInternal::CopyObjectStateData(ChangeMaskWriter, ChangeMaskCache, *NetRefHandleManager, SerializationContext, InternalObjectIndex))
+		if (ObjectData.InstanceProtocol && ObjectData.Protocol->InternalTotalSize > 0U)
 		{
-			// Propagate changes to all connections that we currently have in scope
-			FReplicationConnections& Connections = ReplicationSystem->GetReplicationSystemInternal()->GetConnections();
-
-			// Iterate over connections and propagate dirty changemasks to all connections already scoping this object
-			auto UpdateDirtyChangeMasks = [&Connections, &ChangeMaskCache](uint32 ConnectionId)
-			{
-				FReplicationConnection* Conn = Connections.GetConnection(ConnectionId);
-				const bool bMarkForTearOff = true;
-				Conn->ReplicationWriter->ForceUpdateDirtyChangeMasks(ChangeMaskCache, FReplicationWriter::FlushFlags_None, bMarkForTearOff);
-			};
-			const FNetBitArray& ValidConnections = Connections.GetValidConnections();
-			ValidConnections.ForAllSetBits(UpdateDirtyChangeMasks);		
+			FReplicationInstanceOperationsInternal::CopyObjectStateData(ChangeMaskWriter, ChangeMaskCache, *NetRefHandleManager, SerializationContext, InternalObjectIndex);
 		}
+		else
+		{
+			// Nothing to copy, but we must still propagate the tear-off state.
+			FChangeMaskCache::FCachedInfo& Info = ChangeMaskCache.AddEmptyChangeMaskForObject(InternalObjectIndex);
+			// If we are a subobject we must also mark owner as dirty.
+			const uint32 SubObjectOwnerIndex = ObjectData.SubObjectRootIndex;
+			if (SubObjectOwnerIndex != FNetRefHandleManager::InvalidInternalIndex) 
+			{
+				ChangeMaskCache.AddSubObjectOwnerDirty(SubObjectOwnerIndex);
+			}			
+		}
+
+		// Propagate changes to all connections that we currently have in scope
+		FReplicationConnections& Connections = ReplicationSystem->GetReplicationSystemInternal()->GetConnections();
+
+		// Iterate over connections and propagate dirty changemasks to all connections already scoping this object
+		auto UpdateDirtyChangeMasks = [&Connections, &ChangeMaskCache](uint32 ConnectionId)
+		{
+			FReplicationConnection* Conn = Connections.GetConnection(ConnectionId);
+			const bool bMarkForTearOff = true;
+			Conn->ReplicationWriter->ForceUpdateDirtyChangeMasks(ChangeMaskCache, FReplicationWriter::FlushFlags_None, bMarkForTearOff);
+		};
+		const FNetBitArray& ValidConnections = Connections.GetValidConnections();
+		ValidConnections.ForAllSetBits(UpdateDirtyChangeMasks);		
 
 		// Mark object as being torn-off and that we should no longer propagate state changes
 		ObjectData.bTearOff = 1U;
