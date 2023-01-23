@@ -13,6 +13,7 @@
 #include "Components/DisplayClusterICVFXCameraComponent.h"
 #include "Components/DisplayClusterSceneComponentSyncThis.h"
 #include "CineCameraComponent.h"
+#include "DisplayClusterChromakeyCardActor.h"
 #include "ProceduralMeshComponent.h"
 
 #include "DisplayClusterLightCardActor.h"
@@ -45,12 +46,16 @@
 #include "Algo/MaxElement.h"
 #include "Components/DisplayClusterStageGeometryComponent.h"
 #include "UObject/Package.h"
+#include "WorldPartition/DataLayer/DataLayerAsset.h"
 
 
 #if WITH_EDITOR
 #include "IConcertSyncClientModule.h"
 #include "IConcertClientWorkspace.h"
 #include "IConcertSyncClient.h"
+
+#include "AssetToolsModule.h"
+#include "DataLayer/DataLayerFactory.h"
 #endif
 
 
@@ -133,6 +138,53 @@ const FDisplayClusterConfigurationRenderFrame& ADisplayClusterRootActor::GetRend
 
 	return CurrentConfigData->RenderFrameSettings;
 }
+
+UDataLayerAsset* ADisplayClusterRootActor::GetOrCreateLightCardDataLayerAsset(const FName& InName)
+{
+#if WITH_EDITOR
+	if (LightCardDataLayerAsset == nullptr)
+	{
+		Modify();
+		LightCardDataLayerAsset = CreateDataLayerAsset(InName);
+	}
+#endif
+
+	return LightCardDataLayerAsset;
+}
+
+UDataLayerAsset* ADisplayClusterRootActor::GetOrCreateChromakeyCardDataLayerAsset(const FName& InName)
+{
+#if WITH_EDITOR
+	if (ChromakeyCardDataLayerAsset == nullptr)
+	{
+		Modify();
+		ChromakeyCardDataLayerAsset = CreateDataLayerAsset(InName);
+	}
+#endif
+
+	return ChromakeyCardDataLayerAsset;
+}
+
+#if WITH_EDITOR
+UDataLayerAsset* ADisplayClusterRootActor::CreateDataLayerAsset(const FName& InName)
+{
+	IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+	const FString PackageName = GetPackage()->GetName();
+	FString AssetName;
+	FString TempPackageName;
+
+	UDataLayerFactory* Factory = NewObject<UDataLayerFactory>();
+
+	AssetTools.CreateUniqueAssetName(PackageName / InName.ToString(), FString(),
+		TempPackageName, AssetName);
+
+	UClass* AssetClass = Factory->GetSupportedClass();
+	
+	return Cast<UDataLayerAsset>(AssetTools.CreateAsset(AssetName,
+		PackageName, AssetClass, Factory));
+}
+#endif
 
 void ADisplayClusterRootActor::InitializeFromConfig(UDisplayClusterConfigurationData* ConfigData)
 {
@@ -749,6 +801,46 @@ void ADisplayClusterRootActor::UpdateLightCardPositions()
 								LightCardActor->SetActorLocation(Location);
 								LightCardActor->SetActorRotation(Rotation);
 							}
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void ADisplayClusterRootActor::SetChromakeyCardsOwner()
+{
+	TArray<UDisplayClusterICVFXCameraComponent*> ICVFXComponents;
+	GetComponents(ICVFXComponents);
+
+	for (UDisplayClusterICVFXCameraComponent* Camera : ICVFXComponents)
+	{
+		FDisplayClusterConfigurationICVFX_VisibilityList& ChromakeyCards = Camera->CameraSettings.Chromakey.ChromakeyRenderTexture.ShowOnlyList;
+
+		for (const TSoftObjectPtr<AActor>& Actor : ChromakeyCards.Actors)
+		{
+			if (ADisplayClusterChromakeyCardActor* ChromakeyCardActor = Actor.IsValid() ? Cast<ADisplayClusterChromakeyCardActor>(Actor.Get()) : nullptr)
+			{
+				// Set the owner so the light card actor can look the root actor up in certain situations, like adjusting labels
+				// when running as -game
+				ChromakeyCardActor->SetRootActorOwner(this);
+			}
+		}
+
+		if (ChromakeyCards.ActorLayers.Num())
+		{
+			if (const UWorld* World = GetWorld())
+			{
+				for (TActorIterator<ADisplayClusterChromakeyCardActor> Iter(World); Iter; ++Iter)
+				{
+					ADisplayClusterChromakeyCardActor* ChromakeyCardActor = *Iter;
+					for (const FActorLayer& ActorLayer : ChromakeyCards.ActorLayers)
+					{
+						if (ChromakeyCardActor->Layers.Contains(ActorLayer.Name))
+						{
+							ChromakeyCardActor->SetRootActorOwner(this);
 							break;
 						}
 					}

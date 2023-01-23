@@ -5,6 +5,7 @@
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterRootActor.h"
 #include "Features/IModularFeatures.h"
+#include "Misc/DisplayClusterLog.h"
 #include "IDisplayClusterLightCardActorExtender.h"
 
 #include "Components/DisplayClusterLabelComponent.h"
@@ -18,6 +19,7 @@
 
 #include "Editor.h"
 #include "Layers/LayersSubsystem.h"
+#include "DataLayer/DataLayerEditorSubsystem.h"
 
 #endif
 
@@ -136,6 +138,14 @@ void ADisplayClusterLightCardActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	if (!MainSpringArmComponent || !LightCardTransformerComponent || !LightCardComponent)
+	{
+		// @todo Using WP with MU can trigger this in -game if an actor was added prior to converting to an MU session, and that actor was deleted.
+		// It looks like the actor isn't being destroyed properly on the clients.
+		UE_LOG(LogDisplayClusterGame, Error, TEXT("Light Card Actor is missing components."));
+		return;
+	}
+	
 	ClampLatitudeAndLongitude(Latitude, Longitude);
 
 	UpdateStageActorTransform();
@@ -541,41 +551,72 @@ void ADisplayClusterLightCardActor::AddToLightCardLayer(ADisplayClusterRootActor
 
 	bool bLayerAdded = false;
 #if WITH_EDITOR
-	ULayersSubsystem* LayersSubsystem = GEditor ? GEditor->GetEditorSubsystem<ULayersSubsystem>() : nullptr;
-	if (LayersSubsystem)
+	TArray<AActor*> ActorsInLayer;
+	
+	if (SupportsLayers())
 	{
-		// Adjust transparent sort order for UV light cards
-		if (IsUVActor())
+		if (ULayersSubsystem* LayersSubsystem = GEditor ? GEditor->GetEditorSubsystem<ULayersSubsystem>() : nullptr)
 		{
-			int32 HighestPriority = MIN_int32;
-			bool bExistingPrioritiesFound = false;
-			
-			const TArray<AActor*> ActorsInLayer = LayersSubsystem->GetActorsFromLayer(LightCardLayerName);
-			for (AActor* Actor : ActorsInLayer)
-			{
-				if (const ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(Actor))
-				{
-					if (LightCard->IsUVActor())
-					{
-						if (LightCard->LightCardComponent->TranslucencySortPriority > HighestPriority)
-						{
-							HighestPriority = LightCard->LightCardComponent->TranslucencySortPriority;
-						}
-						bExistingPrioritiesFound = true;
-					}
-				}
-			}
+			ActorsInLayer = LayersSubsystem->GetActorsFromLayer(LightCardLayerName);
 
-			if (bExistingPrioritiesFound)
+			LayersSubsystem->AddActorsToLayer(TArray<AActor*>{ this }, LightCardLayerName);
+			bLayerAdded = true;
+		}
+	}
+	else if (SupportsDataLayer() && GetLevel())
+	{
+		if (UDataLayerEditorSubsystem* DataLayersSubsystem = GEditor ? GEditor->GetEditorSubsystem<UDataLayerEditorSubsystem>() : nullptr)
+		{
+			if (UDataLayerAsset* DataLayerAsset = InRootActor->GetOrCreateLightCardDataLayerAsset(LightCardLayerName))
 			{
-				// Newly added cards should be on the top-most visibility layer
-				LightCardComponent->TranslucencySortPriority = HighestPriority < MAX_int32 ? HighestPriority + 1 : HighestPriority;
+				UDataLayerInstance* DataLayerInstance = DataLayersSubsystem->GetDataLayerInstance(DataLayerAsset);
+				if (DataLayerInstance == nullptr)
+				{
+					FDataLayerCreationParameters CreationParams;
+					CreationParams.WorldDataLayers = GetLevel()->GetWorldDataLayers();
+					CreationParams.DataLayerAsset = DataLayerAsset;
+					DataLayerInstance = DataLayersSubsystem->CreateDataLayerInstance(MoveTemp(CreationParams));
+				}
+
+				ActorsInLayer = DataLayersSubsystem->GetActorsFromDataLayer(DataLayerInstance);
+			
+				AddDataLayer(DataLayerInstance);
+			}
+			else
+			{
+				UE_LOG(LogDisplayClusterGame, Error, TEXT("Light Card Actor could not find or create the data layer asset for layer '%s'."),  *LightCardLayerName.ToString());
+			}
+		}
+	}
+	
+	// Adjust transparent sort order for UV light cards
+	if (IsUVActor() && ActorsInLayer.Num() > 0)
+	{
+		int32 HighestPriority = MIN_int32;
+		bool bExistingPrioritiesFound = false;
+
+		for (AActor* Actor : ActorsInLayer)
+		{
+			if (const ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(Actor))
+			{
+				if (LightCard->IsUVActor())
+				{
+					if (LightCard->LightCardComponent->TranslucencySortPriority > HighestPriority)
+					{
+						HighestPriority = LightCard->LightCardComponent->TranslucencySortPriority;
+					}
+					bExistingPrioritiesFound = true;
+				}
 			}
 		}
 
-		LayersSubsystem->AddActorsToLayer(TArray<AActor*>{ this }, LightCardLayerName);
-		bLayerAdded = true;
+		if (bExistingPrioritiesFound)
+		{
+			// Newly added cards should be on the top-most visibility layer
+			LightCardComponent->TranslucencySortPriority = HighestPriority < MAX_int32 ? HighestPriority + 1 : HighestPriority;
+		}
 	}
+	
 #endif
 	if (!bLayerAdded)
 	{

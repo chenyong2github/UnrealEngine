@@ -6,6 +6,7 @@
 
 #include "DisplayClusterChromakeyCardActor.generated.h"
 
+class UDataLayerAsset;
 class UDisplayClusterICVFXCameraComponent;
 
 UCLASS(Blueprintable, NotPlaceable, DisplayName = "Chromakey Card", HideCategories = (Tick, Physics, Collision, Replication, Cooking, Input, Actor))

@@ -14,6 +14,7 @@ public class DisplayClusterMultiUser : ModuleRules
 				"CoreUObject",
 				"ConcertSyncClient",
 				"DisplayClusterConfiguration",
+				"Engine"
 			});
 	}
 }

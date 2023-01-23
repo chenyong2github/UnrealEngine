@@ -39,4 +39,21 @@ struct FDisplayClusterPositionalParams
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Orientation)
 	FVector2D Scale = FVector2D(1.0f);
+	
+	FORCEINLINE friend bool operator==(const FDisplayClusterPositionalParams& A, const FDisplayClusterPositionalParams& B)
+	{
+		return A.DistanceFromCenter == B.DistanceFromCenter &&
+			A.Longitude == B.Longitude &&
+			A.Latitude == B.Latitude &&
+			A.Spin == B.Spin &&
+			A.Pitch == B.Pitch &&
+			A.Yaw == B.Yaw &&
+			A.RadialOffset == B.RadialOffset &&
+			A.Scale == B.Scale;
+	}
+
+	FORCEINLINE friend bool operator!=(const FDisplayClusterPositionalParams& A, const FDisplayClusterPositionalParams& B)
+	{
+		return !(A == B);
+	}
 };

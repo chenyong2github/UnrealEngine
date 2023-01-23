@@ -1559,7 +1559,8 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 
 		const TWeakObjectPtr<ADisplayClusterRootActor> RootActorPtr (RootActor);
 		const TWeakPtr<FDisplayClusterLightCardEditorViewportClient> WeakPtrThis = SharedThis(this);
-		
+
+		TWeakObjectPtr<AActor> StageActorWeakPtr(StageActor);
 		// Schedule for the next tick so CDO changes get propagated first in the event of config editor skeleton
 		// regeneration & compiles. nDisplay's custom propagation may have issues if the archetype isn't correct.
 		PreviewWorld->GetTimerManager().SetTimerForNextTick([=]()
@@ -1571,10 +1572,10 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 				return;
 			}
 
-			if (StageActor)
+			if (StageActorWeakPtr.IsValid())
 			{
-				ActorsRefreshing.Remove(StageActor);
-				DestroyProxy(StageActor);
+				ActorsRefreshing.Remove(StageActorWeakPtr.Get());
+				DestroyProxy(StageActorWeakPtr.Get());
 			}
 			else
 			{
@@ -1653,9 +1654,9 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 
 				if (LightCardEditorPtr.IsValid())
 				{
-					if (StageActor)
+					if (StageActorWeakPtr.IsValid())
 					{
-						if (AActor* ActorProxy = CreateStageActorProxy(StageActor))
+						if (AActor* ActorProxy = CreateStageActorProxy(StageActorWeakPtr.Get()))
 						{
 							ActorProxiesCreated.Add(ActorProxy);
 						}

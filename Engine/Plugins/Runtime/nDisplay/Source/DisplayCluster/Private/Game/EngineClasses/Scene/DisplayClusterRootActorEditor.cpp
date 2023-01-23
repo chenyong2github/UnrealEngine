@@ -153,6 +153,8 @@ void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
 	{
 		ResetPreviewInternals_Editor();
 	}
+	
+	SetChromakeyCardsOwner();
 }
 
 void ADisplayClusterRootActor::PostActorCreated_Editor()

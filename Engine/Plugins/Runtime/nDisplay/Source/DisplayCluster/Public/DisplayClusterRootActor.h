@@ -99,6 +99,13 @@ public:
 	const FDisplayClusterConfigurationICVFX_StageSettings& GetStageSettings() const;
 	const FDisplayClusterConfigurationRenderFrame& GetRenderFrameSettings() const;
 
+	UDataLayerAsset* GetOrCreateLightCardDataLayerAsset(const FName& InName);
+	UDataLayerAsset* GetOrCreateChromakeyCardDataLayerAsset(const FName& InName);
+
+private:
+#if WITH_EDITOR
+	UDataLayerAsset* CreateDataLayerAsset(const FName& InName);
+#endif
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// AActor
@@ -120,6 +127,9 @@ protected:
 
 	/** Updates the world position and rotation of each light card referenced by this root actor's light card list to match the default view origin */
 	void UpdateLightCardPositions();
+
+	/** Sets self as the owner for any chromakey cards */
+	void SetChromakeyCardsOwner();
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "NDisplay")
@@ -281,6 +291,13 @@ private:
 	UPROPERTY()
 	TObjectPtr<UDisplayClusterStageGeometryComponent> StageGeometryComponent;
 
+	/** Data layer used for light card layers */
+	UPROPERTY()
+	TObjectPtr<UDataLayerAsset> LightCardDataLayerAsset;
+
+	/** Data layer used for chromakey card layers */
+	UPROPERTY()
+	TObjectPtr<UDataLayerAsset> ChromakeyCardDataLayerAsset;
 private:
 	// Current operation mode
 	EDisplayClusterOperationMode OperationMode;

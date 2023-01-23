@@ -4,9 +4,11 @@
 
 #include "DisplayClusterRootActor.h"
 #include "Components/DisplayClusterICVFXCameraComponent.h"
+#include "Misc/DisplayClusterLog.h"
 
 #if WITH_EDITOR
 #include "Layers/LayersSubsystem.h"
+#include "DataLayer/DataLayerEditorSubsystem.h"
 #endif
 
 ADisplayClusterChromakeyCardActor::ADisplayClusterChromakeyCardActor(const FObjectInitializer& ObjectInitializer)
@@ -67,11 +69,38 @@ void ADisplayClusterChromakeyCardActor::AddToChromakeyLayer(ADisplayClusterRootA
 		check(!ChromakeyLayerName.IsNone());
 		bool bLayerAdded = false;
 #if WITH_EDITOR
-		ULayersSubsystem* LayersSubsystem = GEditor ? GEditor->GetEditorSubsystem<ULayersSubsystem>() : nullptr;
-		if (LayersSubsystem)
+		//TArray<AActor*> ActorsInLayer; // @todo uv chromakey cards - this will be used to determine translucent sort order
+	
+		if (SupportsLayers())
 		{
-			LayersSubsystem->AddActorsToLayer(TArray<AActor*>{ this }, ChromakeyLayerName);
-			bLayerAdded = true;
+			if (ULayersSubsystem* LayersSubsystem = GEditor ? GEditor->GetEditorSubsystem<ULayersSubsystem>() : nullptr)
+			{
+				LayersSubsystem->AddActorsToLayer(TArray<AActor*>{ this }, ChromakeyLayerName);
+				bLayerAdded = true;
+			}
+		}
+		else if (SupportsDataLayer() && GetLevel())
+		{
+			if (UDataLayerEditorSubsystem* DataLayersSubsystem = GEditor ? GEditor->GetEditorSubsystem<UDataLayerEditorSubsystem>() : nullptr)
+			{
+				if (UDataLayerAsset* DataLayerAsset = InRootActor->GetOrCreateChromakeyCardDataLayerAsset(ChromakeyLayerName))
+				{
+					UDataLayerInstance* DataLayerInstance = DataLayersSubsystem->GetDataLayerInstance(DataLayerAsset);
+					if (DataLayerInstance == nullptr)
+					{
+						FDataLayerCreationParameters CreationParams;
+						CreationParams.WorldDataLayers = GetLevel()->GetWorldDataLayers();
+						CreationParams.DataLayerAsset = DataLayerAsset;
+						DataLayerInstance = DataLayersSubsystem->CreateDataLayerInstance(MoveTemp(CreationParams));
+					}
+			
+					AddDataLayer(DataLayerInstance);
+				}
+				else
+				{
+					UE_LOG(LogDisplayClusterGame, Error, TEXT("Chromakey Card Actor could not find or create the data layer asset for layer '%s'."),  *ChromakeyLayerName.ToString());
+				}
+			}
 		}
 #endif
 		if (!bLayerAdded)

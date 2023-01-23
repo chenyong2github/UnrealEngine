@@ -11,6 +11,8 @@
 #include "IConcertSyncClient.h"
 #include "IConcertSyncClientModule.h"
 
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
+
 #define NDISPLAY_MULTIUSER_TRANSACTION_FILTER TEXT("DisplayClusterMultiUser")
 
 FDisplayClusterMultiUserManager::FDisplayClusterMultiUserManager()
@@ -55,12 +57,18 @@ void FDisplayClusterMultiUserManager::OnApplyRemoteTransaction(ETransactionNotif
 
 ETransactionFilterResult FDisplayClusterMultiUserManager::ShouldObjectBeTransacted(UObject* InObject, UPackage* InPackage)
 {
-	if (InObject && ((InObject->IsA<UDisplayClusterConfigurationData_Base>() &&
-		!InObject->IsTemplate() && !InObject->HasAnyFlags(RF_Transient) && InPackage != GetTransientPackage()) ||
-		(InObject->GetClass()->HasMetaData(TEXT("DisplayClusterMultiUserInclude")))))
+	if (InObject)
 	{
-		UE_LOG(LogDisplayClusterMultiUser, Log, TEXT("FDisplayClusterMultiUser transaction for object: %s"), *InObject->GetName());
-		return ETransactionFilterResult::IncludeObject;
+		const bool bIsValidObjectType = InObject->IsA<UDisplayClusterConfigurationData_Base>()
+		|| InObject->IsA<UDataLayerInstance>();
+
+		if (((bIsValidObjectType && !InObject->IsTemplate() && !InObject->HasAnyFlags(RF_Transient)
+			&& InPackage != GetTransientPackage())
+			|| InObject->GetClass()->HasMetaData(TEXT("DisplayClusterMultiUserInclude"))))
+		{
+			UE_LOG(LogDisplayClusterMultiUser, Log, TEXT("FDisplayClusterMultiUser transaction for object: %s"), *InObject->GetName());
+			return ETransactionFilterResult::IncludeObject;
+		}
 	}
 
 	return ETransactionFilterResult::UseDefault;

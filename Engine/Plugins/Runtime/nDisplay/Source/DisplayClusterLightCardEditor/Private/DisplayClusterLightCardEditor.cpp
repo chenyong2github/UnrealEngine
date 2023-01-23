@@ -6,7 +6,6 @@
 #include "DisplayClusterLightCardEditorCommands.h"
 #include "DisplayClusterLightCardEditorUtils.h"
 #include "DisplayClusterLightCardEditorStyle.h"
-#include "Engine/Blueprint.h"
 #include "IDisplayClusterLightCardEditor.h"
 #include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
 #include "LightCardTemplates/DisplayClusterLightCardTemplateHelpers.h"
@@ -39,11 +38,13 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor/Transactor.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Engine/Blueprint.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "Layers/LayersSubsystem.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ITransaction.h"
@@ -53,6 +54,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Workflow/SWizard.h"
 
 #define LOCTEXT_NAMESPACE "FDisplayClusterLightCardEditor"
@@ -212,6 +214,27 @@ AActor* FDisplayClusterLightCardEditor::SpawnActor(TSubclassOf<AActor> InActorCl
 	{
 		return nullptr;
 	}
+
+	const UClass* ClassToUse = InTemplate ? InTemplate->GetClass() : InActorClass.Get(); 
+
+	// Partitioned worlds that are not saved will fail to create the data layer asset. Detect this and display
+	// an error message for the user.
+	if (ActiveRootActor->GetWorld()->IsPartitionedWorld() &&
+		(ClassToUse->IsChildOf(ADisplayClusterLightCardActor::StaticClass()) ||
+		ClassToUse->IsChildOf(UDisplayClusterLightCardTemplate::StaticClass())))
+	{
+		const FString PathName = ActiveRootActor->GetWorld()->GetPathName();
+		if (PathName.StartsWith(TEXT("/Temp")))
+		{
+			FNotificationInfo NotificationInfo(LOCTEXT("CannotSpawnActorInUnsavedWorldPartition",
+	"Cannot spawn an actor of this type in a world partition map that is not saved. Please save the map."));
+			NotificationInfo.bUseThrobber = false;
+			NotificationInfo.ExpireDuration = 4.0f;
+			FSlateNotificationManager::Get().AddNotification(NotificationInfo)->SetCompletionState(SNotificationItem::CS_Fail);
+
+			return nullptr;
+		}
+	}
 	
 	FScopedTransaction Transaction(LOCTEXT("SpawnActorTransactionMessage", "Spawn Actor"));
 
@@ -219,7 +242,6 @@ AActor* FDisplayClusterLightCardEditor::SpawnActor(TSubclassOf<AActor> InActorCl
 	
 	FDisplayClusterLightCardEditorHelper::FSpawnActorArgs SpawnArgs;
 	{
-		const UClass* ClassToUse = InTemplate ? InTemplate->GetClass() : InActorClass.Get();
 		FString ActorNameStr = InActorName.IsNone() ? ClassToUse->GetDisplayNameText().ToString() : InActorName.ToString();
 		ActorNameStr.RemoveSpacesInline();
 		
@@ -452,34 +474,15 @@ void FDisplayClusterLightCardEditor::AddLightCardsToActor(const TArray<ADisplayC
 {
 	if (ActiveRootActor.IsValid())
 	{
-		UDisplayClusterConfigurationData* ConfigData = ActiveRootActor->GetConfigData();
-		ConfigData->Modify();
-		FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = ConfigData->StageSettings.Lightcard.ShowOnlyList;
-
+		FDisplayClusterLightCardEditorHelper::FAddLightCardArgs AddLightCardArgs;
+		AddLightCardArgs.bShowLabels = ShouldShowLightCardLabels();
+		AddLightCardArgs.LabelScale = *GetLightCardLabelScale();
+		
+		FDisplayClusterLightCardEditorHelper::AddLightCardsToRootActor(LightCards, ActiveRootActor.Get(), MoveTemp(AddLightCardArgs));
+		
 		for (ADisplayClusterLightCardActor* LightCard : LightCards)
 		{
 			check(LightCard);
-
-			if (!RootActorLightCards.Actors.ContainsByPredicate([&](const TSoftObjectPtr<AActor>& Actor)
-				{
-					// Don't add if a loaded actor is already present.
-					return Actor.Get() == LightCard;
-				}))
-			{
-				LightCard->ShowLightCardLabel(ShouldShowLightCardLabels(), *GetLightCardLabelScale(), ActiveRootActor.Get());
-				
-				const TSoftObjectPtr<AActor> LightCardSoftObject(LightCard);
-
-				// Remove any exact paths to this actor. It's possible invalid actors are present if a light card
-				// was force deleted from a level.
-				RootActorLightCards.Actors.RemoveAll([&](const TSoftObjectPtr<AActor>& Actor)
-					{
-						return Actor == LightCardSoftObject;
-					});
-
-				LightCard->AddToLightCardLayer(ActiveRootActor.Get());
-			}
-
 			RefreshPreviewStageActor(LightCard);
 		}
 	}

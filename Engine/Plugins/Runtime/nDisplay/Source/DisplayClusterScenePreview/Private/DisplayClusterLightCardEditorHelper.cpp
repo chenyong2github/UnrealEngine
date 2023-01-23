@@ -2,7 +2,6 @@
 
 #include "DisplayClusterLightCardEditorHelper.h"
 
-#include "Engine/Blueprint.h"
 #include "IDisplayClusterScenePreview.h"
 
 #include "DisplayClusterConfigurationTypes.h"
@@ -20,6 +19,7 @@
 #include "ProceduralMeshComponent.h"
 #include "Components/DisplayClusterStageGeometryComponent.h"
 #include "Containers/ArrayView.h"
+#include "Engine/Blueprint.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
 #include "UObject/Package.h"
@@ -438,21 +438,33 @@ void FDisplayClusterLightCardEditorHelper::VerifyAndFixActorOrigin(const FDispla
 	// Set location and rotation to match the root actor
 	const FVector& NewActorLocation = OriginComponent ? OriginComponent->GetComponentLocation() : FVector::ZeroVector;
 	const FRotator& NewActorRotation = OwningRootActor ? OwningRootActor->GetActorRotation() : FRotator::ZeroRotator;
-	
+
+	const FTransform OldOrigin = Actor->GetOrigin();
 	Actor->SetOrigin({ NewActorRotation, NewActorLocation, FVector::One() });
+
+	const FTransform NewOrigin = Actor->GetOrigin();
+	bool bActorMoved = !OldOrigin.Equals(NewOrigin, 0.f);
 	
 	if (Actor.AsActorChecked()->IsA<ADisplayClusterLightCardActor>())
 	{
+		const FDisplayClusterPositionalParams OldPositionalParams = Actor->GetPositionalParams();
+	
 		// Update the light card spherical coordinates to match its current world coordinates
 		const FVector LightCardEndEffectorLocation = Actor->GetStageActorTransform(true).GetLocation();
 		const FVector ActorRelativeLocation = NewActorRotation.UnrotateVector(LightCardEndEffectorLocation);
 
 		const FSphericalCoordinates SphericalCoords(ActorRelativeLocation);
 		SetActorCoordinates(Actor, SphericalCoords);
+
+		const FDisplayClusterPositionalParams NewPositionalParams = Actor->GetPositionalParams();
+		bActorMoved = bActorMoved || NewPositionalParams != OldPositionalParams;
 	}
 
 #if WITH_EDITOR
-	PostEditChangePropertiesForMovedActor(Actor);
+	if (bActorMoved)
+	{
+		PostEditChangePropertiesForMovedActor(Actor);
+	}
 #endif
 }
 
@@ -847,7 +859,7 @@ AActor* FDisplayClusterLightCardEditorHelper::SpawnStageActor(const FSpawnActorA
 #if WITH_EDITOR
 	if (!bIsPreview)
 	{
-		NewActor->SetActorLabel(NewActor->GetName());
+		FActorLabelUtilities::SetActorLabelUnique(NewActor, ActorName.ToString());
 	}
 #endif
 	

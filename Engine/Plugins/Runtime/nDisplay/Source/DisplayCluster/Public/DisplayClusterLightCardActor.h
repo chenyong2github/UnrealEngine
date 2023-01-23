@@ -10,6 +10,7 @@
 
 class ADisplayClusterRootActor;
 class UActorComponent;
+class UDataLayerAsset;
 class UDisplayClusterLabelComponent;
 class UMeshComponent;
 class USceneComponent;
