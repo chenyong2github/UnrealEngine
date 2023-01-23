@@ -489,6 +489,15 @@ void FD3D12DynamicRHI::RHIPerFrameRHIFlushComplete()
 				case FD3D12DeferredDeleteObject::EType::DescriptorBlock:
 					ObjectToDelete.DescriptorBlock.Manager->Recycle(ObjectToDelete.DescriptorBlock.Block);
 					break;
+#if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES	
+				case FD3D12DeferredDeleteObject::EType::VirtualAllocation:
+					FD3D12DynamicRHI::GetD3DRHI()->DestroyVirtualTexture(
+						ObjectToDelete.VirtualAllocDescriptor.Flags,
+						ObjectToDelete.VirtualAllocDescriptor.RawMemory,
+						const_cast<FPlatformMemory::FPlatformVirtualMemoryBlock&>(ObjectToDelete.VirtualAllocDescriptor.VirtualBlock),
+						ObjectToDelete.VirtualAllocDescriptor.CommittedTextureSize);
+					break;
+#endif
 				default:
 					checkf(false, TEXT("Unknown ED3D12DeferredDeleteObjectType"));
 					break;

@@ -41,7 +41,8 @@ struct FD3D12DeferredDeleteObject
 		D3DHeap,
 		BindlessDescriptor,
 		CPUAllocation,
-		DescriptorBlock
+		DescriptorBlock,
+		VirtualAllocation
 	} Type;
 
 	union
@@ -63,6 +64,14 @@ struct FD3D12DeferredDeleteObject
 			FD3D12OnlineDescriptorBlock* Block;
 			FD3D12OnlineDescriptorManager* Manager;
 		} DescriptorBlock;
+
+		struct
+		{
+			FPlatformMemory::FPlatformVirtualMemoryBlock VirtualBlock;
+			ETextureCreateFlags Flags;
+			uint64 CommittedTextureSize;
+			void* RawMemory;
+		} VirtualAllocDescriptor;
 	};
 
 	explicit FD3D12DeferredDeleteObject(FD3D12Resource* RHIObject)
@@ -95,6 +104,11 @@ struct FD3D12DeferredDeleteObject
 	explicit FD3D12DeferredDeleteObject(FD3D12OnlineDescriptorBlock* Block, FD3D12OnlineDescriptorManager* Manager)
 		: Type(EType::DescriptorBlock)
 		, DescriptorBlock({ Block, Manager })
+	{}
+
+	explicit FD3D12DeferredDeleteObject(FPlatformMemory::FPlatformVirtualMemoryBlock& VirtualBlock, ETextureCreateFlags Flags, uint64 CommittedTextureSize, void* RawMemory)
+		: Type(EType::VirtualAllocation)
+		, VirtualAllocDescriptor({ VirtualBlock, Flags, CommittedTextureSize, RawMemory })
 	{}
 };
 
