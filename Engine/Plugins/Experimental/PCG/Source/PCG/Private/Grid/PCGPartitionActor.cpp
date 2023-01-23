@@ -60,7 +60,7 @@ void APCGPartitionActor::PostLoad()
 #endif
 
 	// Make sure that we don't track objects that do not exist anymore
-	CleanupDeadGraphInstances();
+	CleanupDeadGraphInstances(/*bRemoveNullOnly=*/true);
 
 #if WITH_EDITOR
 	// Mark all our local components as local
@@ -226,7 +226,7 @@ UPCGComponent* APCGPartitionActor::GetOriginalComponent(const UPCGComponent* Loc
 	return OriginalComponent ? (*OriginalComponent).Get() : nullptr;
 }
 
-void APCGPartitionActor::CleanupDeadGraphInstances()
+void APCGPartitionActor::CleanupDeadGraphInstances(bool bRemoveNonNullOnly)
 {
 	// First find if we have any local dead instance (= nullptr) hooked to an original component.
 	TSet<TSoftObjectPtr<UPCGComponent>> DeadOriginalInstances;
@@ -254,7 +254,8 @@ void APCGPartitionActor::CleanupDeadGraphInstances()
 	TSet<TObjectPtr<UPCGComponent>> DeadLocalInstances;
 	for (const auto& LocalToOriginalItem : LocalToOriginal)
 	{
-		if (!LocalToOriginalItem.Value.IsValid())
+		if((bRemoveNonNullOnly && LocalToOriginalItem.Value.IsNull()) ||
+			(!bRemoveNonNullOnly && !LocalToOriginalItem.Value.IsValid()))
 		{
 			DeadLocalInstances.Add(LocalToOriginalItem.Key);
 		}
