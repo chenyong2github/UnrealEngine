@@ -49,6 +49,10 @@
 		{
 			"Name": "ChaosCaching",
 			"Enabled": true
+		},
+		{
+			"Name": "GeometryProcessing",
+			"Enabled": true
 		}
 	]
 }
