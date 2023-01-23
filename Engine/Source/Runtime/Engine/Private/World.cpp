@@ -7220,6 +7220,11 @@ UWorld* FSeamlessTravelHandler::Tick()
 				// Keep if it's in the current level AND it isn't specifically excluded AND it was either marked as should keep OR we don't own this actor
 				if (bIsInCurrentLevel && !bForceExcludeActor && (bManuallyMarkedKeep || bKeepNonOwnedActor))
 				{
+					if (NetworkObjectInfo)
+					{
+						NetDriver->NotifyActorIsTraveling(TheActor);
+					}
+
 					ActuallyKeptActors.Add(TheActor);
 					return true;
 				}

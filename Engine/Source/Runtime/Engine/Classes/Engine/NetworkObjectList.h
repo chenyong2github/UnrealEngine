@@ -259,6 +259,12 @@ public:
 	/** Removes the recently dormant status from the passed in connection */
 	void ClearRecentlyDormantConnection(AActor* const Actor, UNetConnection* const Connection, UNetDriver* NetDriver);
 
+	/** Called when a replicated actor is about to be carried from one world to another */
+	void OnActorIsTraveling(AActor* TravelingAtor);
+
+	/** Called when seamless traveling is almost done just before we initialize the new world */
+	void OnPostSeamlessTravel();
+
 	/** 
 	 *	Does the necessary house keeping when a new connection is added 
 	 *	When a new connection is added, we must add all objects back to the active list so the new connection will process it
@@ -346,6 +352,9 @@ private:
 	FNetworkObjectSet AllNetworkObjects;
 	FNetworkObjectSet ActiveNetworkObjects;
 	FNetworkObjectSet ObjectsDormantOnAllConnections;
+
+	/** Store the network info of actors that travel to the new world during a seamless travel. */
+	FNetworkObjectSet SeamlessTravelingObjects;
 
 	TMap<TWeakObjectPtr<UNetConnection>, int32 > NumDormantObjectsPerConnection;
 

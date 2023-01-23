@@ -406,6 +406,38 @@ void FNetworkObjectList::ClearRecentlyDormantConnection(AActor* const Actor, UNe
 	NetworkObjectInfo->RecentlyDormantConnections.Remove(Connection);
 }
 
+void FNetworkObjectList::OnActorIsTraveling(AActor* TravelingAtor)
+{
+	TSharedPtr<FNetworkObjectInfo>* NetworkObjectInfoPtr = AllNetworkObjects.Find(TravelingAtor);
+	check(NetworkObjectInfoPtr);
+
+	SeamlessTravelingObjects.Add(*NetworkObjectInfoPtr);
+}
+
+void FNetworkObjectList::OnPostSeamlessTravel()
+{
+	for (const TSharedPtr<FNetworkObjectInfo>& SeamlessTravelingActorInfo : SeamlessTravelingObjects)
+	{
+		// Make sure the actor didn't re-register itself during seamless travel
+		if (AllNetworkObjects.Find(SeamlessTravelingActorInfo->Actor) != nullptr)
+		{
+			AActor* TravelingActor = SeamlessTravelingActorInfo->Actor;
+			ensureMsgf(false, TEXT("Seamless traveling actor %s was readded to the netdriver before seamless travel was finished!"), *GetNameSafe(TravelingActor));
+			
+			// Clean our lists of this duplicate info.
+			AllNetworkObjects.Remove(TravelingActor);
+			ActiveNetworkObjects.Remove(TravelingActor);
+			ObjectsDormantOnAllConnections.Remove(TravelingActor);
+		}
+
+		// Add the saved object info back into the active list
+		AllNetworkObjects.Add(SeamlessTravelingActorInfo);
+		ActiveNetworkObjects.Add(SeamlessTravelingActorInfo);
+	}
+
+	SeamlessTravelingObjects.Empty();
+}
+
 void FNetworkObjectList::HandleConnectionAdded()
 {
 	// When a new connection is added, we must add all objects back to the active list so the new connection will process it

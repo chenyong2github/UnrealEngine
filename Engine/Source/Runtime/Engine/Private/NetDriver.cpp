@@ -3517,6 +3517,11 @@ void UNetDriver::NotifyActorTearOff(AActor* Actor)
 #endif // UE_WITH_IRIS
 }
 
+void UNetDriver::NotifyActorIsTraveling(AActor* TravelingActor)
+{
+	NetworkObjects->OnActorIsTraveling(TravelingActor);
+}
+
 void UNetDriver::ForceNetUpdate(AActor* Actor)
 {
 	// Let Replication Driver handle it if its exists
@@ -6003,6 +6008,8 @@ void UNetDriver::PreSeamlessTravelGarbageCollect()
 void UNetDriver::PostSeamlessTravelGarbageCollect()
 {
 	CleanPackageMaps();
+
+	NetworkObjects->OnPostSeamlessTravel();
 }
 
 void UNetDriver::SetReplicationDriver(UReplicationDriver* NewReplicationDriver)

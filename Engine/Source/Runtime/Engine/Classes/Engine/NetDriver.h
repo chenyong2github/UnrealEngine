@@ -1554,6 +1554,9 @@ public:
 
 	ENGINE_API virtual void NotifyActorTearOff(AActor* Actor);
 
+	/** Called when an actor is about to be carried during a seamless travel */
+	ENGINE_API void NotifyActorIsTraveling(AActor* TravelingActor);
+
 	/** Set whether this actor should swap roles before replicating properties. */
 	ENGINE_API void SetRoleSwapOnReplicate(AActor* Actor, bool bSwapRoles);
 
