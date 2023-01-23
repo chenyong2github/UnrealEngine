@@ -214,7 +214,7 @@ void UWorldPartitionRuntimeHash::FStreamingSourceCells::AddCell(const UWorldPart
 
 void FWorldPartitionQueryCache::AddCellInfo(const UWorldPartitionRuntimeCell* Cell, const FSphericalSector& SourceShape)
 {
-	const double SquareDistance = FVector::DistSquared2D(SourceShape.GetCenter(), Cell->GetCellBounds().GetCenter());
+	const double SquareDistance = FVector::DistSquared2D(SourceShape.GetCenter(), Cell->GetContentBounds().GetCenter());
 	if (double* ExistingSquareDistance = CellToSourceMinSqrDistances.Find(Cell))
 	{
 		*ExistingSquareDistance = FMath::Min(*ExistingSquareDistance, SquareDistance);

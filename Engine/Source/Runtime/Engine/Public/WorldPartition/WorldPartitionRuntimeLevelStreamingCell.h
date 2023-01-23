@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "WorldPartition/WorldPartitionRuntimeSpatialHashCell.h"
+#include "WorldPartition/WorldPartitionRuntimeCell.h"
+#include "WorldPartition/WorldPartitionRuntimeCellData.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionLevelHelper.h"
@@ -9,7 +10,7 @@
 #include "WorldPartitionRuntimeLevelStreamingCell.generated.h"
 
 UCLASS()
-class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSpatialHashCell
+class ENGINE_API UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeCell
 {
 	GENERATED_UCLASS_BODY()
 

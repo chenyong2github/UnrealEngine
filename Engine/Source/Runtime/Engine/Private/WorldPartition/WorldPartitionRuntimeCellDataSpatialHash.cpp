@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "WorldPartition/WorldPartitionRuntimeSpatialHashCell.h"
-#include "UObject/Package.h"
-
+#include "WorldPartition/WorldPartitionRuntimeCellDataSpatialHash.h"
 #include "Engine/Level.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeSpatialHashCell)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeCellDataSpatialHash)
 
 static float GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance = 0.4f; // Value between [0, 1]
 static FAutoConsoleVariableRef CVarRuntimeSpatialHashCellToSourceAngleContributionToCellImportance(
@@ -13,49 +11,27 @@ static FAutoConsoleVariableRef CVarRuntimeSpatialHashCellToSourceAngleContributi
 	GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance,
 	TEXT("Value between 0 and 1 that modulates the contribution of the angle between streaming source-to-cell vector and source-forward vector to the cell importance. The closest to 0, the less the angle will contribute to the cell importance."));
 
-UWorldPartitionRuntimeSpatialHashCell::UWorldPartitionRuntimeSpatialHashCell(const FObjectInitializer& ObjectInitializer)
-: Super(ObjectInitializer)
-, Level(0)
-, CachedIsBlockingSource(false)
-, CachedMinSquareDistanceToBlockingSource(MAX_dbl)
-, CachedMinSquareDistanceToSource(MAX_dbl)
-, CachedSourceSortingDistance(0)
+UWorldPartitionRuntimeCellDataSpatialHash::UWorldPartitionRuntimeCellDataSpatialHash(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+	, Extent(0)
+	, Level(0)
+	, bCachedIsBlockingSource(false)
+	, CachedMinSquareDistanceToBlockingSource(MAX_dbl)
+	, CachedMinSquareDistanceToSource(MAX_dbl)
 {}
 
-#if WITH_EDITOR
-void UWorldPartitionRuntimeSpatialHashCell::PostDuplicate(bool bDuplicateForPIE)
-{
-	Super::PostDuplicate(bDuplicateForPIE);
-
-	if (UnsavedActorsContainer)
-	{
-		// Make sure actor container isn't under PIE World so those template actors will never be considered part of the world.
-		UnsavedActorsContainer->Rename(nullptr, GetPackage());
-
-		for (auto& [ActorName, Actor] : UnsavedActorsContainer->Actors)
-		{
-			if (ensure(Actor))
-			{
-				// Don't use AActor::Rename here since the actor is not par of the world, it's only a duplication template.	
-				Actor->UObject::Rename(nullptr, UnsavedActorsContainer);
-			}
-		}
-	}
-}
-#endif
-
-void UWorldPartitionRuntimeSpatialHashCell::ResetStreamingSourceInfo() const
+void UWorldPartitionRuntimeCellDataSpatialHash::ResetStreamingSourceInfo() const
 {
 	Super::ResetStreamingSourceInfo();
 
-	CachedIsBlockingSource = false;
+	bCachedIsBlockingSource = false;
 	CachedMinSquareDistanceToBlockingSource = MAX_dbl;
 	CachedMinSquareDistanceToSource = MAX_dbl;
 	CachedSourceSquaredDistances.Reset();
 	CachedInstersectingShapes.Reset();
 }
 
-float UWorldPartitionRuntimeSpatialHashCell::ComputeSourceToCellAngleFactor(const FSphericalSector& SourceShape) const
+float UWorldPartitionRuntimeCellDataSpatialHash::ComputeSourceToCellAngleFactor(const FSphericalSector& SourceShape) const
 {
 	float AngleContribution = FMath::Clamp(GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance, 0.f, 1.f);
 	float AngleFactor = 1.f;
@@ -94,7 +70,7 @@ float UWorldPartitionRuntimeSpatialHashCell::ComputeSourceToCellAngleFactor(cons
 	return AngleFactor;
 }
 
-void UWorldPartitionRuntimeSpatialHashCell::AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const
+void UWorldPartitionRuntimeCellDataSpatialHash::AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const
 {
 	Super::AppendStreamingSourceInfo(Source, SourceShape);
 
@@ -103,23 +79,14 @@ void UWorldPartitionRuntimeSpatialHashCell::AppendStreamingSourceInfo(const FWor
 	// Only consider blocking sources
 	if (Source.bBlockOnSlowLoading)
 	{
-		CachedIsBlockingSource = true;
+		bCachedIsBlockingSource = true;
 		CachedMinSquareDistanceToBlockingSource = FMath::Min(SquareDistance, CachedMinSquareDistanceToBlockingSource);
 	}
 	CachedSourceSquaredDistances.Add(SquareDistance);
 	CachedInstersectingShapes.Add(SourceShape);
 }
 
-FBox UWorldPartitionRuntimeSpatialHashCell::GetCellBounds() const
-{
-	FBox Box = FBox::BuildAABB(Position, FVector(Extent));
-	// Use content bounds for the Z extent
-	Box.Min.Z = GetContentBounds().Min.Z;
-	Box.Max.Z = GetContentBounds().Max.Z;
-	return Box;
-}
-
-void UWorldPartitionRuntimeSpatialHashCell::MergeStreamingSourceInfo() const
+void UWorldPartitionRuntimeCellDataSpatialHash::MergeStreamingSourceInfo() const
 {
 	Super::MergeStreamingSourceInfo();
 
@@ -161,13 +128,12 @@ void UWorldPartitionRuntimeSpatialHashCell::MergeStreamingSourceInfo() const
 	}
 }
 
-int32 UWorldPartitionRuntimeSpatialHashCell::SortCompare(const UWorldPartitionRuntimeCell* InOther, bool bCanUseSortingCache) const
+int32 UWorldPartitionRuntimeCellDataSpatialHash::SortCompare(const UWorldPartitionRuntimeCellData* InOther, bool bCanUseSortingCache) const
 {
 	int32 Result = Super::SortCompare(InOther, bCanUseSortingCache);
 	if (Result == 0)
 	{
-		const UWorldPartitionRuntimeSpatialHashCell* Other = Cast<const UWorldPartitionRuntimeSpatialHashCell>(InOther);
-		check(Other);
+		const UWorldPartitionRuntimeCellDataSpatialHash* Other = (UWorldPartitionRuntimeCellDataSpatialHash*)InOther;
 		
 		// Level (higher value is higher prio)
 		Result = Other->Level - Level;
@@ -187,4 +153,13 @@ int32 UWorldPartitionRuntimeSpatialHashCell::SortCompare(const UWorldPartitionRu
 		}
 	}
 	return Result;
+}
+
+FBox UWorldPartitionRuntimeCellDataSpatialHash::GetCellBounds() const
+{
+	FBox Box = FBox::BuildAABB(Position, FVector(Extent));
+	// Use content bounds for the Z extent
+	Box.Min.Z = GetContentBounds().Min.Z;
+	Box.Max.Z = GetContentBounds().Max.Z;
+	return Box;
 }

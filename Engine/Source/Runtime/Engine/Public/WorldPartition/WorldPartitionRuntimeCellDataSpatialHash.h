@@ -2,32 +2,26 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "WorldPartition/WorldPartitionRuntimeCell.h"
-#include "WorldPartitionRuntimeSpatialHashCell.generated.h"
+#include "WorldPartition/WorldPartitionRuntimeCellData.h"
+#include "WorldPartitionRuntimeCellDataSpatialHash.generated.h"
 
 class UActorContainer;
+class UWorldPartitionRuntimeCell;
 
-UCLASS(Abstract)
-class ENGINE_API UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
+UCLASS(Within = WorldPartitionRuntimeCell)
+class ENGINE_API UWorldPartitionRuntimeCellDataSpatialHash : public UWorldPartitionRuntimeCellData
 {
 	GENERATED_UCLASS_BODY()
 
-#if WITH_EDITOR
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
-#endif
-
-	//~Begin UWorldPartitionRuntimeCell
+	//~Begin UWorldPartitionRuntimeCellData
 	virtual void ResetStreamingSourceInfo() const override;
 	virtual void AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const override;
 	virtual void MergeStreamingSourceInfo() const override;
-	virtual int32 SortCompare(const UWorldPartitionRuntimeCell* InOther, bool bCanUseSortingCache = true) const override;
-	//~End UWorldPartitionRuntimeCell
-
-	//~ Begin IWorldPartitionCell Interface
+	virtual int32 SortCompare(const UWorldPartitionRuntimeCellData* InOther, bool bCanUseSortingCache = true) const override;
 	virtual FBox GetCellBounds() const override;
-	//~ End IWorldPartitionCell Interface
+	//~End UWorldPartitionRuntimeCellData
 
-	bool IsBlockingSource() const { return CachedIsBlockingSource; }
+	bool IsBlockingSource() const { return bCachedIsBlockingSource; }
 	double GetMinSquareDistanceToBlockingSource() const { return CachedMinSquareDistanceToBlockingSource; }
 
 	UPROPERTY()
@@ -38,17 +32,12 @@ class ENGINE_API UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionR
 
 	UPROPERTY()
 	int32 Level;
-		
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	TObjectPtr<UActorContainer> UnsavedActorsContainer;
-#endif
 
 private:
 	float ComputeSourceToCellAngleFactor(const FSphericalSector& SourceShape) const;
 
 	// Used to determine if cell was requested by blocking source
-	mutable bool CachedIsBlockingSource;
+	mutable bool bCachedIsBlockingSource;
 
 	// Square distance from the cell to the closest blocking streaming source
 	mutable double CachedMinSquareDistanceToBlockingSource;

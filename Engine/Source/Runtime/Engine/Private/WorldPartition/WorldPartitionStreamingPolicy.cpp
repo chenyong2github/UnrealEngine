@@ -413,7 +413,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState_ForEachStreamingCellsSources);
 
-				UWorldPartitionRuntimeCell::DirtyStreamingSourceCacheEpoch();
+				UWorldPartitionRuntimeCellData::DirtyStreamingSourceCacheEpoch();
 
 				WorldPartition->RuntimeHash->ForEachStreamingCellsSources(StreamingSources, [this](const UWorldPartitionRuntimeCell* Cell, EStreamingSourceTargetState TargetState)
 				{
@@ -689,7 +689,7 @@ void UWorldPartitionStreamingPolicy::UpdateDebugCellsStreamingPriority(const TSe
 
 		for (const UWorldPartitionRuntimeCell* Cell : Cells)
 		{
-			Cell->MergeStreamingSourceInfo();
+			Cell->RuntimeCellData->MergeStreamingSourceInfo();
 		}
 
 		SortStreamingCellsByImportance(Cells);
