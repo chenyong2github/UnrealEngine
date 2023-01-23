@@ -127,7 +127,7 @@ namespace UnrealBuildTool.Matchers
 				int minutes = Convert.ToInt32(m.Groups[2].Value);
 				int seconds = Convert.ToInt32(m.Groups[3].Value);
 				TimeSpan duration = new TimeSpan(hours, minutes, seconds);
-				builder.AddProperty(PropertyDuration, duration.TotalSeconds);
+				builder.AddProperty(PropertyDuration, (int)duration.TotalSeconds);
 			}
 		}
 		
@@ -139,7 +139,7 @@ namespace UnrealBuildTool.Matchers
 				int minutes = Convert.ToInt32(m.Groups[1].Value);
 				int seconds = Convert.ToInt32(m.Groups[2].Value);
 				TimeSpan startTime = new TimeSpan(0, minutes, seconds);
-				builder.AddProperty(PropertyStartTime, startTime.TotalSeconds);
+				builder.AddProperty(PropertyStartTime, (int)startTime.TotalSeconds);
 			}
 		}
 	}
