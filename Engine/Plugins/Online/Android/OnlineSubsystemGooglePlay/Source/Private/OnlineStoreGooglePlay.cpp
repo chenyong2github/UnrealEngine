@@ -160,7 +160,7 @@ TSharedPtr<FOnlineStoreOffer> FOnlineStoreGooglePlayV2::GetOffer(const FUniqueOf
 	return Result;
 }
 
-JNI_METHOD void Java_com_epicgames_unreal_GooglePlayStoreHelper_NativeQueryComplete(JNIEnv* jenv, jobject /*Thiz*/, jint ResponseCode, jobjectArray ProductIDs, jobjectArray Titles, jobjectArray Descriptions, jobjectArray Prices, jfloatArray PriceValuesRaw, jobjectArray CurrencyCodes)
+JNI_METHOD void Java_com_epicgames_unreal_GooglePlayStoreHelper_NativeQueryComplete(JNIEnv* jenv, jobject /*Thiz*/, jint ResponseCode, jobjectArray ProductIDs, jobjectArray Titles, jobjectArray Descriptions, jobjectArray Prices, jlongArray PriceValuesRaw, jobjectArray CurrencyCodes)
 {
 	TArray<FOnlineStoreOffer> ProvidedProductInformation;
 	EGooglePlayBillingResponseCode EGPResponse = (EGooglePlayBillingResponseCode)ResponseCode;
@@ -177,7 +177,7 @@ JNI_METHOD void Java_com_epicgames_unreal_GooglePlayStoreHelper_NativeQueryCompl
 
 		ensure((NumProducts == NumTitles) && (NumProducts == NumDescriptions) && (NumProducts == NumPrices) && (NumProducts == NumPricesRaw) && (NumProducts == NumCurrencyCodes));
 
-		jfloat* PriceValues = jenv->GetFloatArrayElements(PriceValuesRaw, 0);
+		jlong* PriceValues = jenv->GetLongArrayElements(PriceValuesRaw, 0);
 
 		for (jsize Idx = 0; Idx < NumProducts; Idx++)
 		{
@@ -204,7 +204,10 @@ JNI_METHOD void Java_com_epicgames_unreal_GooglePlayStoreHelper_NativeQueryCompl
 
 			const FDecimalNumberFormattingRules& FormattingRules = Culture.GetCurrencyFormattingRules(NewProductInfo.CurrencyCode);
 			const FNumberFormattingOptions& FormattingOptions = FormattingRules.CultureDefaultFormattingOptions;
-			double Val = static_cast<double>(PriceValues[Idx]) * static_cast<double>(FMath::Pow(10.0f, FormattingOptions.MaximumFractionalDigits));
+
+			// Value provided in PriceValues[idx] by Google Billing Library is multiplied by 1'000'000 (it is a value in micro units). We need to divide it by 10^6 and multiply by 
+			// 10^FormattingOptions.MaximumFractionalDigits to properly adjust the value to the number of fractional digits expected
+			double Val = static_cast<double>(PriceValues[Idx]) * static_cast<double>(FMath::Pow(10.0f, FormattingOptions.MaximumFractionalDigits - 6));
 
 			NewProductInfo.NumericPrice = FMath::TruncToInt(Val + 0.5);
 			NewProductInfo.ReleaseDate = FDateTime::MinValue();
@@ -220,7 +223,7 @@ JNI_METHOD void Java_com_epicgames_unreal_GooglePlayStoreHelper_NativeQueryCompl
 				NewProductInfo.NumericPrice,
 				*NewProductInfo.CurrencyCode);
 		}
-		jenv->ReleaseFloatArrayElements(PriceValuesRaw, PriceValues, JNI_ABORT);
+		jenv->ReleaseLongArrayElements(PriceValuesRaw, PriceValues, JNI_ABORT);
 	}
 
 	UE_LOG_ONLINE_STOREV2(Verbose, TEXT("QueryOffersById result Success: %d Response: %s"), bWasSuccessful, LexToString(EGPResponse));

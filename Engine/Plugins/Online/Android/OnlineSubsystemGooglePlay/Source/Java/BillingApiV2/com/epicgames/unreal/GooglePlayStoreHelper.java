@@ -273,7 +273,7 @@ public class GooglePlayStoreHelper implements StoreHelper, PurchasesUpdatedListe
 		public String[] Titles;
 		public String[] Descriptions;
 		public String[] Prices;
-		public float[] PricesRaw;
+		public long[] PricesRaw;
 		public String[] CurrencyCodes;
 
 		public ListOfProductDetailsAsArrays(List<ProductDetails> InProductDetailsList)
@@ -282,7 +282,7 @@ public class GooglePlayStoreHelper implements StoreHelper, PurchasesUpdatedListe
 			Titles = new String[InProductDetailsList.size()];
 			Descriptions = new String[InProductDetailsList.size()];
 			Prices = new String[InProductDetailsList.size()];
-			PricesRaw = new float[InProductDetailsList.size()];
+			PricesRaw = new long[InProductDetailsList.size()];
 			CurrencyCodes = new String[InProductDetailsList.size()];
 
 			for (int index = 0; index < InProductDetailsList.size(); index++) 
@@ -301,7 +301,7 @@ public class GooglePlayStoreHelper implements StoreHelper, PurchasesUpdatedListe
 				Titles[index] = ThisProduct.getTitle();
 				Descriptions[index] = ThisProduct.getDescription();
 				Prices[index] = PriceDetails.getFormattedPrice();
-				PricesRaw[index] = (float)(PriceDetails.getPriceAmountMicros() / 1000000.0);
+				PricesRaw[index] = PriceDetails.getPriceAmountMicros();
 				CurrencyCodes[index] = PriceDetails.getPriceCurrencyCode();
 			}
 		}
@@ -459,7 +459,7 @@ public class GooglePlayStoreHelper implements StoreHelper, PurchasesUpdatedListe
 	}
 
 	// Callback that notify the C++ implementation that a task has completed
-	public native void NativeQueryComplete(int ResponseCode, String[] ProductIDs, String[] Titles, String[] Descriptions, String[] Prices, float[] PricesRaw, String[] CurrencyCodes);
+	public native void NativeQueryComplete(int ResponseCode, String[] ProductIDs, String[] Titles, String[] Descriptions, String[] Prices, long[] PricesRaw, String[] CurrencyCodes);
 	public native void NativePurchaseComplete(int ResponseCode, String ProductId, int PurchaseState, String ProductToken, String ReceiptData, String Signature);
 	public native void NativeQueryExistingPurchasesComplete(int ResponseCode, String[] ProductIds, int[] PurchaseState, String[] ProductTokens, String[] ReceiptsData, String[] Signatures);
 	public native void NativeConsumeComplete(int ResponseCode, String PurchaseToken);
