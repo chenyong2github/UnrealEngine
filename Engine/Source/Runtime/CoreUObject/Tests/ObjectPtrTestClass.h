@@ -4,7 +4,7 @@
 #if WITH_LOW_LEVEL_TESTS
 
 #include "UObject/Object.h"
-
+#include "UObject/ObjectPtr.h"
 
 //simple test class for testing TObjectPtr resolve behavior
 class UObjectPtrTestClass : public UObject
@@ -15,6 +15,15 @@ public:
 
 };
 
+//test class with typed reference to another class
+class UObjectPtrTestClassWithRef : public UObject
+{
+	DECLARE_CLASS_INTRINSIC(UObjectPtrTestClassWithRef, UObject, CLASS_MatchedSerializers, TEXT("/Script/CoreUObject"))
+
+public:
+	TObjectPtr<UObjectPtrTestClass> ObjectPtr;
+	TObjectPtr<UObjectPtrTestClass> ObjectPtrNonNullable;
+};
 
 
 //derived test class
