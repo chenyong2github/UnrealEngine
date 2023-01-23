@@ -11,6 +11,7 @@
 struct FSlateBrush;
 class SBorder;
 class STextBlock;
+class STransformGizmoNumericalUIOverlay;
 class UInteractiveToolPropertySet;
 
 /**
@@ -22,6 +23,8 @@ class FUVEditorModeToolkit : public FModeToolkit
 public:
 	FUVEditorModeToolkit();
 	~FUVEditorModeToolkit();
+
+	virtual void InitializeAfterModeSetup();
 
 	/** Creates a menu where the displayed UV Channel can be changed for each asset */
 	virtual TSharedRef<SWidget> CreateChannelMenu();
@@ -37,6 +40,9 @@ public:
 
 	/** Creates a widget where the active tool's display settings can be changed. */
 	virtual TSharedRef<SWidget> GetToolDisplaySettingsWidget();
+
+	/** Creates submenu for manipulating the gizmo numerical UI */
+	virtual void MakeGizmoNumericalUISubMenu(FMenuBuilder& MenuBuilder);
 
 	/** Enables or diables the Play in Editor mode warning for the editor */
 	virtual void EnableShowPIEWarning(bool bEnable);
@@ -104,6 +110,8 @@ protected:
 	/** Contains the widget container for the Accept/Cancel buttons for tools. */
 	TSharedPtr<SWidget> ViewportOverlayWidget;
 
+	TSharedPtr<STransformGizmoNumericalUIOverlay> GizmoNumericalUIOverlayWidget;
+
 	FText ActiveToolName;
 	const FSlateBrush* ActiveToolIcon;
 	FStatusBarMessageHandle ActiveToolMessageHandle;
@@ -112,4 +120,5 @@ protected:
 	void UpdateActiveToolProperties();
 	void InvalidateCachedDetailPanelState(UObject* ChangedObject);
 
+	bool bFirstInitializeAfterModeSetup = true;
 };

@@ -10,10 +10,12 @@
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
 #include "SPrimaryButton.h"
+#include "STransformGizmoNumericalUIOverlay.h"
 #include "Tools/UEdMode.h"
 #include "UVEditorBackgroundPreview.h"
 #include "UVEditorCommands.h"
 #include "UVEditorMode.h"
+#include "UVEditorUXSettings.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
@@ -195,6 +197,42 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 		]	
 	];
 
+	// Set up the gizmo numerical UI
+	GizmoNumericalUIOverlayWidget = SNew(STransformGizmoNumericalUIOverlay)
+		.bPositionRelativeToBottom(true)
+		.DefaultLeftPadding(15.0f)
+		// Unlike the level editor, we don't have an axis indicator that we have to be above, so this value is different
+		.DefaultVerticalPadding(15.0f)
+		// Enable non-delta mode by giving a default reference transform
+		.DefaultLocalReferenceTransform(FTransform())
+		// Make our displays show 0-1 units instead of world units.
+		.InternalToDisplayFunction([](const FVector3d& WorldPosition)
+		{
+			FVector2f UV = FUVEditorUXSettings::InternalUVToExternalUV(FUVEditorUXSettings::VertPositionToUV(WorldPosition));
+			return FVector3d(UV.X, UV.Y, 0);
+		})
+		.DisplayToInternalFunction([](const FVector3d& UVPosition)
+		{
+			return FUVEditorUXSettings::UVToVertPosition(FUVEditorUXSettings::ExternalUVToInternalUV(FVector2f(UVPosition.X, UVPosition.Y)));
+		})
+		.TranslationScrubSensitivity(1 / FUVEditorUXSettings::UVMeshScalingFactor)
+		;
+
+	GetToolkitHost()->AddViewportOverlayWidget(GizmoNumericalUIOverlayWidget.ToSharedRef());
+}
+
+void FUVEditorModeToolkit::InitializeAfterModeSetup()
+{
+	if (bFirstInitializeAfterModeSetup)
+	{
+		if (ensure(GizmoNumericalUIOverlayWidget.IsValid()))
+		{
+			// This has to happen after the gizmo context object is registered
+			GizmoNumericalUIOverlayWidget->BindToGizmoContextObject(GetScriptableEditorMode()->GetInteractiveToolsContext());
+		}
+		bFirstInitializeAfterModeSetup = false;
+	}
+	
 }
 
 FName FUVEditorModeToolkit::GetToolkitFName() const
@@ -286,6 +324,14 @@ TSharedRef<SWidget> FUVEditorModeToolkit::GetToolDisplaySettingsWidget()
 		return SNew(SBorder)
 			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.Padding(0);
+	}
+}
+
+void FUVEditorModeToolkit::MakeGizmoNumericalUISubMenu(FMenuBuilder& MenuBuilder)
+{
+	if (GizmoNumericalUIOverlayWidget.IsValid())
+	{
+		GizmoNumericalUIOverlayWidget->MakeNumericalUISubMenu(MenuBuilder);
 	}
 }
 

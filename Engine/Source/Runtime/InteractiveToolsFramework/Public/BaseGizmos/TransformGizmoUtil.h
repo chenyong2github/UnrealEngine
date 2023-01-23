@@ -125,6 +125,9 @@ public:
 	 */
 	virtual UCombinedTransformGizmo* CreateCustomRepositionableTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGizmoCreated, UCombinedTransformGizmo*);
+	FOnGizmoCreated OnGizmoCreated;
+
 protected:
 	TSharedPtr<FCombinedTransformGizmoActorFactory> GizmoActorBuilder;
 	bool bDefaultGizmosRegistered = false;

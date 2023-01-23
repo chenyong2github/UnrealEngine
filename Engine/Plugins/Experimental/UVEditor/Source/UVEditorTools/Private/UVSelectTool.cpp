@@ -4,6 +4,7 @@
 
 #include "BaseGizmos/CombinedTransformGizmo.h"
 #include "BaseGizmos/GizmoBaseComponent.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 #include "ContextObjects/UVToolViewportButtonsAPI.h"
 #include "ContextObjectStore.h"
 #include "DynamicMesh/DynamicMeshChangeTracker.h"
@@ -235,7 +236,7 @@ void UUVSelectTool::Setup()
 	// Gizmo setup
 	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();
 	UTransformProxy* TransformProxy = NewObject<UTransformProxy>(this);
-	TransformGizmo = GizmoManager->CreateCustomTransformGizmo(
+	TransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GizmoManager, 
 		ETransformGizmoSubElements::TranslateAxisX | ETransformGizmoSubElements::TranslateAxisY | ETransformGizmoSubElements::TranslatePlaneXY
 		| ETransformGizmoSubElements::ScaleAxisX | ETransformGizmoSubElements::ScaleAxisY | ETransformGizmoSubElements::ScalePlaneXY
 		| ETransformGizmoSubElements::RotateAxisZ,

@@ -515,6 +515,29 @@ void FUVEditorToolkit::PostInitAssetEditor()
 			
 			TSharedRef<SVerticalBox> Container = SNew(SVerticalBox);
 
+			FMenuBuilder MenuBuilder(true, TSharedPtr<FUICommandList>());
+			MenuBuilder.BeginSection("Section_Gizmo", LOCTEXT("Section_Gizmo", "Gizmo"));
+
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("NumericalUISubMenu", "Numerical UI"), LOCTEXT("NumericalUISubMenu_ToolTip", "Configure the gizmo numerical UI."),
+				FNewMenuDelegate::CreateLambda([UVModeToolkit](FMenuBuilder& SubMenuBuilder) {
+					UVModeToolkit->MakeGizmoNumericalUISubMenu(SubMenuBuilder);
+				}));
+
+			MenuBuilder.EndSection();
+
+
+			Container->AddSlot()
+			.AutoHeight()
+			.Padding(FMargin(0.f, 0.f, 8.f, 0.f))
+			[
+				SNew(SBox)
+				.MinDesiredWidth(500)
+				[
+					MenuBuilder.MakeWidget()
+				]
+			];
+
 			Container->AddSlot()
 				.AutoHeight()
 				.Padding(FMargin(0.f, 0.f, 8.f, 0.f))

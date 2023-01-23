@@ -16,6 +16,7 @@
 #include "Toolkits/AssetEditorModeUILayer.h"
 
 #include "SSimpleButton.h"
+#include "STransformGizmoNumericalUIOverlay.h"
 #include "Tools/UEdMode.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Input/SEditableComboBox.h"
@@ -100,6 +101,12 @@ FModelingToolsEditorModeToolkit::~FModelingToolsEditorModeToolkit()
 		{
 			GetToolkitHost()->RemoveViewportOverlayWidget(SelectionPaletteOverlayWidget.ToSharedRef());
 			SelectionPaletteOverlayWidget.Reset();
+		}
+
+		if (GizmoNumericalUIOverlayWidget.IsValid())
+		{
+			GetToolkitHost()->RemoveViewportOverlayWidget(GizmoNumericalUIOverlayWidget.ToSharedRef());
+			GizmoNumericalUIOverlayWidget.Reset();
 		}
 	}
 
@@ -201,6 +208,11 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 
 	MakeToolShutdownOverlayWidget();
 
+	// Note that the numerical UI widget should be created before making the selection palette so that
+	// it can be bound to the buttons there.
+	MakeGizmoNumericalUIOverlayWidget();
+	GetToolkitHost()->AddViewportOverlayWidget(GizmoNumericalUIOverlayWidget.ToSharedRef());
+
 	const UModelingToolsEditorModeSettings* ModelingModeSettings = GetDefault<UModelingToolsEditorModeSettings>();
 	bool bEnableSelectionUI = ModelingModeSettings && ModelingModeSettings->bEnableMeshSelections;
 	if ( bEnableSelectionUI )
@@ -286,6 +298,15 @@ void FModelingToolsEditorModeToolkit::MakeToolShutdownOverlayWidget()
 
 }
 
+
+void FModelingToolsEditorModeToolkit::MakeGizmoNumericalUIOverlayWidget()
+{
+	GizmoNumericalUIOverlayWidget = SNew(STransformGizmoNumericalUIOverlay)
+		.DefaultLeftPadding(15)
+		// Position above the little axis visualization
+		.DefaultVerticalPadding(75)
+		.bPositionRelativeToBottom(true);
+}
 
 
 TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
@@ -776,6 +797,13 @@ void FModelingToolsEditorModeToolkit::InitializeAfterModeSetup()
 		// force update of the active asset LOD mode, this is necessary because the update modifies
 		// ToolTarget Factories that are only available once ModelingToolsEditorMode has been initialized
 		AssetLODMode->SetSelectedItem(AssetLODModes[0]);
+
+		// Attach the gizmo numerical UI to the gizmo context object so that it can show the values for any newly
+		// created gizmos.
+		if (ensure(GizmoNumericalUIOverlayWidget.IsValid()))
+		{
+			GizmoNumericalUIOverlayWidget->BindToGizmoContextObject(GetScriptableEditorMode()->GetInteractiveToolsContext(EToolsContextScope::EdMode));
+		}
 
 		bFirstInitializeAfterModeSetup = false;
 	}
@@ -1500,10 +1528,20 @@ void FModelingToolsEditorModeToolkit::OnActiveViewportChanged(TSharedPtr<IAssetV
 		if (OldViewport)	
 		{
 			GetToolkitHost()->RemoveViewportOverlayWidget(ToolShutdownViewportOverlayWidget.ToSharedRef(), OldViewport);
+
+			if (GizmoNumericalUIOverlayWidget.IsValid())
+			{
+				GetToolkitHost()->RemoveViewportOverlayWidget(GizmoNumericalUIOverlayWidget.ToSharedRef(), OldViewport);
+			}
 		}
 
 		// Add the hud to the new viewport
 		GetToolkitHost()->AddViewportOverlayWidget(ToolShutdownViewportOverlayWidget.ToSharedRef(), NewViewport);
+
+		if (GizmoNumericalUIOverlayWidget.IsValid())
+		{
+			GetToolkitHost()->AddViewportOverlayWidget(GizmoNumericalUIOverlayWidget.ToSharedRef(), NewViewport);
+		}
 	}
 }
 

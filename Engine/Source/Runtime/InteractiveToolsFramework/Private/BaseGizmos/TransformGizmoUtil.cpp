@@ -141,8 +141,12 @@ UCombinedTransformGizmo* UCombinedTransformGizmoContextObject::Create3AxisTransf
 	if (ensure(bDefaultGizmosRegistered))
 	{
 		UInteractiveGizmo* NewGizmo = GizmoManager->CreateGizmo(DefaultThreeAxisTransformBuilderIdentifier, InstanceIdentifier, Owner);
-		ensure(NewGizmo);
-		return Cast<UCombinedTransformGizmo>(NewGizmo);
+		UCombinedTransformGizmo* CastGizmo = Cast<UCombinedTransformGizmo>(NewGizmo);
+		if (ensure(CastGizmo))
+		{
+			OnGizmoCreated.Broadcast(CastGizmo);
+		}
+		return CastGizmo;
 	}
 	return nullptr;
 }
@@ -173,8 +177,12 @@ UCombinedTransformGizmo* UCombinedTransformGizmoContextObject::CreateCustomTrans
 	{
 		GizmoActorBuilder->EnableElements = Elements;
 		UInteractiveGizmo* NewGizmo = GizmoManager->CreateGizmo(CustomThreeAxisTransformBuilderIdentifier, InstanceIdentifier, Owner);
-		ensure(NewGizmo);
-		return Cast<UCombinedTransformGizmo>(NewGizmo);
+		UCombinedTransformGizmo* CastGizmo = Cast<UCombinedTransformGizmo>(NewGizmo);
+		if (ensure(CastGizmo))
+		{
+			OnGizmoCreated.Broadcast(CastGizmo);
+		}
+		return CastGizmo;
 	}
 	return nullptr;
 }
@@ -207,7 +215,12 @@ UCombinedTransformGizmo* UCombinedTransformGizmoContextObject::CreateCustomRepos
 		GizmoActorBuilder->EnableElements = Elements;
 		UInteractiveGizmo* NewGizmo = GizmoManager->CreateGizmo(CustomRepositionableThreeAxisTransformBuilderIdentifier, InstanceIdentifier, Owner);
 		ensure(NewGizmo);
-		return Cast<UCombinedTransformGizmo>(NewGizmo);
+		UCombinedTransformGizmo* CastGizmo = Cast<UCombinedTransformGizmo>(NewGizmo);
+		if (ensure(CastGizmo))
+		{
+			OnGizmoCreated.Broadcast(CastGizmo);
+		}
+		return CastGizmo;
 	}
 	return nullptr;
 }

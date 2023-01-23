@@ -9,7 +9,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "StatusBarSubsystem.h"
 
-
+class STransformGizmoNumericalUIOverlay;
 class IDetailsView;
 class SButton;
 class STextBlock;
@@ -68,6 +68,9 @@ public:
 
 	virtual void ForceToolPaletteRebuild();
 
+	// This is exposed only for the convenience of being able to create the numerical UI submenu
+	// in a non-member function in ModelingModeToolkit_Toolbars.cpp
+	TSharedPtr<STransformGizmoNumericalUIOverlay> GetGizmoNumericalUIOverlayWidget() { return GizmoNumericalUIOverlayWidget; }
 private:
 	const static TArray<FName> PaletteNames_Standard;
 
@@ -86,6 +89,8 @@ private:
 	TSharedPtr<SWidget> SelectionPaletteOverlayWidget;
 	void MakeSelectionPaletteOverlayWidget();
 
+	void MakeGizmoNumericalUIOverlayWidget();
+	TSharedPtr<STransformGizmoNumericalUIOverlay> GizmoNumericalUIOverlayWidget;
 
 	TSharedPtr<STextBlock> ModeWarningArea;
 	TSharedPtr<STextBlock> ModeHeaderArea;

@@ -31,7 +31,9 @@ public class ModelingEditorUI : ModuleRules
 				"UnrealEd",
                 "ContentBrowser",
 				"ContentBrowserData",
+				"InteractiveToolsFramework",
                 "LevelEditor",
+				"ModelingComponents", // FTransformGizmoDataBinder
 				"StatusBar",
                 "Projects",
 				"ToolWidgets",

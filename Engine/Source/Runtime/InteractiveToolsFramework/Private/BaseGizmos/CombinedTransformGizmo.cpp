@@ -32,6 +32,40 @@
 
 #define LOCTEXT_NAMESPACE "UCombinedTransformGizmo"
 
+namespace CombinedTransformGizmoLocals
+{
+	// Looks at a gizmo actor and figures out what sub element flags must have been active when creating it.
+	ETransformGizmoSubElements GetSubElementFlagsFromActor(ACombinedTransformGizmoActor* GizmoActor)
+	{
+		ETransformGizmoSubElements Elements = ETransformGizmoSubElements::None;
+		if (!GizmoActor)
+		{
+			return Elements;
+		}
+
+		if (GizmoActor->TranslateX) { Elements |= ETransformGizmoSubElements::TranslateAxisX; }
+		if (GizmoActor->TranslateY) { Elements |= ETransformGizmoSubElements::TranslateAxisY; }
+		if (GizmoActor->TranslateZ) { Elements |= ETransformGizmoSubElements::TranslateAxisZ; }
+		if (GizmoActor->TranslateXY) { Elements |= ETransformGizmoSubElements::TranslatePlaneXY; }
+		if (GizmoActor->TranslateYZ) { Elements |= ETransformGizmoSubElements::TranslatePlaneYZ; }
+		if (GizmoActor->TranslateXZ) { Elements |= ETransformGizmoSubElements::TranslatePlaneXZ; }
+
+		if (GizmoActor->RotateX) { Elements |= ETransformGizmoSubElements::RotateAxisX; }
+		if (GizmoActor->RotateY) { Elements |= ETransformGizmoSubElements::RotateAxisY; }
+		if (GizmoActor->RotateZ) { Elements |= ETransformGizmoSubElements::RotateAxisZ; }
+
+		if (GizmoActor->AxisScaleX) { Elements |= ETransformGizmoSubElements::ScaleAxisX; }
+		if (GizmoActor->AxisScaleY) { Elements |= ETransformGizmoSubElements::ScaleAxisY; }
+		if (GizmoActor->AxisScaleZ) { Elements |= ETransformGizmoSubElements::ScaleAxisZ; }
+		if (GizmoActor->PlaneScaleXY) { Elements |= ETransformGizmoSubElements::ScalePlaneXY; }
+		if (GizmoActor->PlaneScaleYZ) { Elements |= ETransformGizmoSubElements::ScalePlaneYZ; }
+		if (GizmoActor->PlaneScaleXZ) { Elements |= ETransformGizmoSubElements::ScalePlaneXZ; }
+
+		if (GizmoActor->UniformScale) { Elements |= ETransformGizmoSubElements::ScaleUniform; }
+
+		return Elements;
+	}
+}
 
 ACombinedTransformGizmoActor::ACombinedTransformGizmoActor()
 {
@@ -367,7 +401,7 @@ void UCombinedTransformGizmo::SetDisallowNegativeScaling(bool bDisallow)
 
 void UCombinedTransformGizmo::SetIsNonUniformScaleAllowedFunction(TUniqueFunction<bool()>&& IsNonUniformScaleAllowedIn)
 {
-	IsNonUniformScaleAllowed = MoveTemp(IsNonUniformScaleAllowedIn);
+	IsNonUniformScaleAllowedFunc = MoveTemp(IsNonUniformScaleAllowedIn);
 }
 
 
@@ -476,7 +510,7 @@ void UCombinedTransformGizmo::Tick(float DeltaTime)
 		(UseGizmoMode == EToolContextTransformGizmoMode::Combined || UseGizmoMode == EToolContextTransformGizmoMode::Scale);
 	bool bShouldShowNonUniformScale = 
 		(UseGizmoMode == EToolContextTransformGizmoMode::Combined || UseGizmoMode == EToolContextTransformGizmoMode::Scale)
-		&& IsNonUniformScaleAllowed();
+		&& IsNonUniformScaleAllowedFunc();
 
 	SetSubGizmoTypeVisibility(TranslationSubGizmos, bShouldShowTranslation);
 	SetSubGizmoTypeVisibility(RotationSubGizmos, bShouldShowRotation);
@@ -643,6 +677,8 @@ void UCombinedTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolCont
 		ActiveComponents.Add(GizmoActor->PlaneScaleXY);
 		NonUniformScaleSubGizmos.Add(FSubGizmoInfo{ GizmoActor->PlaneScaleXY, NewGizmo });
 	}
+
+	OnSetActiveTarget.Broadcast(this, ActiveTarget);
 }
 
 FTransform UCombinedTransformGizmo::GetGizmoTransform() const
@@ -678,7 +714,30 @@ void UCombinedTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransfor
 {
 	check(ActiveTarget != nullptr);
 
-	StateTarget->BeginUpdate();
+	BeginTransformEditSequence();
+	UpdateTransformDuringEditSequence(NewTransform, bKeepGizmoUnscaled);
+	EndTransformEditSequence();
+}
+
+void UCombinedTransformGizmo::BeginTransformEditSequence()
+{
+	if (ensure(StateTarget))
+	{
+		StateTarget->BeginUpdate();
+	}
+}
+
+void UCombinedTransformGizmo::EndTransformEditSequence()
+{
+	if (ensure(StateTarget))
+	{
+		StateTarget->EndUpdate();
+	}
+}
+
+void UCombinedTransformGizmo::UpdateTransformDuringEditSequence(const FTransform& NewTransform, bool bKeepGizmoUnscaled)
+{
+	check(ActiveTarget != nullptr);
 
 	USceneComponent* GizmoComponent = GizmoActor->GetRootComponent();
 	FTransform GizmoTransform = NewTransform;
@@ -688,10 +747,7 @@ void UCombinedTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransfor
 	}
 	GizmoComponent->SetWorldTransform(GizmoTransform);
 	ActiveTarget->SetTransform(NewTransform);
-
-	StateTarget->EndUpdate();
 }
-
 
 void UCombinedTransformGizmo::SetNewChildScale(const FVector& NewChildScale)
 {
@@ -707,12 +763,35 @@ void UCombinedTransformGizmo::SetNewChildScale(const FVector& NewChildScale)
 
 void UCombinedTransformGizmo::SetVisibility(bool bVisible)
 {
+	bool bPreviousVisibility = !GizmoActor->IsHidden();
+
 	GizmoActor->SetActorHiddenInGame(bVisible == false);
 #if WITH_EDITOR
 	GizmoActor->SetIsTemporarilyHiddenInEditor(bVisible == false);
 #endif
+
+	if (bPreviousVisibility != bVisible)
+	{
+		OnVisibilityChanged.Broadcast(this, bVisible);
+	}
 }
 
+void UCombinedTransformGizmo::SetDisplaySpaceTransform(TOptional<FTransform> TransformIn)
+{
+	if (DisplaySpaceTransform.IsSet() != TransformIn.IsSet()
+		|| (TransformIn.IsSet() && !TransformIn.GetValue().Equals(DisplaySpaceTransform.GetValue())))
+	{
+		DisplaySpaceTransform = TransformIn;
+		OnDisplaySpaceTransformChanged.Broadcast(this, TransformIn);
+	}
+}
+
+ETransformGizmoSubElements UCombinedTransformGizmo::GetGizmoElements()
+{
+	using namespace CombinedTransformGizmoLocals;
+
+	return GetSubElementFlagsFromActor(GizmoActor);
+}
 
 UInteractiveGizmo* UCombinedTransformGizmo::AddAxisTranslationGizmo(
 	UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
@@ -953,6 +1032,8 @@ UInteractiveGizmo* UCombinedTransformGizmo::AddUniformScaleGizmo(
 
 void UCombinedTransformGizmo::ClearActiveTarget()
 {
+	OnAboutToClearActiveTarget.Broadcast(this, ActiveTarget);
+
 	for (UInteractiveGizmo* Gizmo : ActiveGizmos)
 	{
 		GetGizmoManager()->DestroyGizmo(Gizmo);

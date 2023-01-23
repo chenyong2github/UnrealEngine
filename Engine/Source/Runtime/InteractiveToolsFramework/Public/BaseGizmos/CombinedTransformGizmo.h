@@ -325,6 +325,12 @@ public:
 	);
 
 	/**
+	 * Exposes the return value of the current IsNonUniformScaleAllowed function so that, for instance,
+	 * numerical UI can react appropriately.
+	 */
+	virtual bool IsNonUniformScaleAllowed() const { return IsNonUniformScaleAllowedFunc(); }
+
+	/**
 	 * By default, the nonuniform scale components can scale negatively. However, they can be made to clamp
 	 * to zero instead by passing true here. This is useful for using the gizmo to flatten geometry.
 	 *
@@ -377,6 +383,22 @@ public:
 	 * @param bKeepGizmoUnscaled If true, the scale component of NewTransform is passed through to the target but gizmo scale is set to 1
 	 */
 	virtual void SetNewGizmoTransform(const FTransform& NewTransform, bool bKeepGizmoUnscaled = true);
+
+	/**
+	 * Called at the start of a sequence of gizmo transform edits, for instance while dragging or
+	 * manipulating the gizmo numerical UI.
+	 */
+	virtual void BeginTransformEditSequence();
+
+	/**
+	 * Called at the end of a sequence of gizmo transform edits.
+	 */
+	virtual void EndTransformEditSequence();
+
+	/**
+	 * Updates the gizmo transform between Begin/EndTransformeditSequence calls.
+	 */
+	void UpdateTransformDuringEditSequence(const FTransform& NewTransform, bool bKeepGizmoUnscaled = true);
 
 	/**
 	 * Explicitly set the child scale. Mainly useful to "reset" the child scale to (1,1,1) when re-using Gizmo across multiple transform actions.
@@ -463,6 +485,50 @@ public:
 	UPROPERTY()
 	EToolContextTransformGizmoMode ActiveGizmoMode = EToolContextTransformGizmoMode::Combined;
 
+	/**
+	 * Gets the elements that this gizmo was initialized with. Note that this may not account for individual
+	 * element visibility- for instance the scaling component may not be visible if IsNonUniformScaleAllowed() is false.
+	 */
+	ETransformGizmoSubElements GetGizmoElements();
+
+
+	/**
+	 * The DisplaySpaceTransform is not used by the gizmo itself, but can be used by external adapters that might
+	 * display gizmo values, to give values relative to this transform rather than relative to world origin and axes.
+	 * 
+	 * For example a numerical UI for a two-axis gizmo that is not in a world XY/YZ/XZ plane cannot use the global
+	 * axes for setting the absolute position of the plane if it wants the gizmo to remain in that plane; instead, the
+	 * DisplaySpaceTransform can give a space in which X and Y values keep the gizmo in the plane.
+	 *
+	 * Note that this is an optional feature, as it would require tools to keep this transform up to date if they
+	 * want the UI to use it, so tools could just leave it unset.
+	 */
+	void SetDisplaySpaceTransform(TOptional<FTransform> TransformIn);
+	const TOptional<FTransform>& GetDisplaySpaceTransform() { return DisplaySpaceTransform; }
+
+	/**
+	 * Broadcast at the end of a SetDisplaySpaceTransform call that changes the display space transform.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDisplaySpaceTransformChanged, UCombinedTransformGizmo*, TOptional<FTransform>);
+	FOnDisplaySpaceTransformChanged OnDisplaySpaceTransformChanged;
+
+	/** 
+	 * Broadcast at the end of a SetActiveTarget call. Using this, an adapter such as a numerical UI widget can 
+	 * bind to the gizmo at construction and still be able to initialize using the transform proxy once that is set.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSetActiveTarget, UCombinedTransformGizmo*, UTransformProxy*);
+	FOnSetActiveTarget OnSetActiveTarget;
+
+	/** 
+	 * Broadcast at the beginning of a ClearActiveTarget call, when the ActiveTarget (if present) is not yet 
+	 * disconnected. Gives things a chance to unbind from it.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnClearActiveTarget, UCombinedTransformGizmo*, UTransformProxy*);
+	FOnClearActiveTarget OnAboutToClearActiveTarget;
+
+	/** Broadcast at the end of a SetVisibility call if the visibility changes. */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnVisibilityChanged, UCombinedTransformGizmo*, bool);
+	FOnVisibilityChanged OnVisibilityChanged;
 
 protected:
 	TSharedPtr<FCombinedTransformGizmoActorFactory> GizmoActorBuilder;
@@ -574,9 +640,12 @@ protected:
 	TUniqueFunction<bool()> ShouldAlignDestination = []() { return false; };
 	TUniqueFunction<bool(const FRay&, FVector&)> DestinationAlignmentRayCaster = [](const FRay&, FVector&) {return false; };
 
-	TUniqueFunction<bool()> IsNonUniformScaleAllowed = [this]() { return CurrentCoordinateSystem == EToolContextCoordinateSystem::Local; };
+	TUniqueFunction<bool()> IsNonUniformScaleAllowedFunc = [this]() { return CurrentCoordinateSystem == EToolContextCoordinateSystem::Local; };
 
 	bool bDisallowNegativeScaling = false;
+
+	// See comment for SetDisplaySpaceTransform;
+	TOptional<FTransform> DisplaySpaceTransform;
 protected:
 
 

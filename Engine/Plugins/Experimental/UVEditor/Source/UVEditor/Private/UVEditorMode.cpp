@@ -7,6 +7,7 @@
 #include "Actions/UVSeamSewAction.h"
 #include "Actions/UVToolAction.h"
 #include "AssetEditorModeManager.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 #include "ContextObjects/UVToolViewportButtonsAPI.h"
 #include "ContextObjects/UVToolAssetInputsContext.h"
 #include "ContextObjectStore.h"
@@ -453,6 +454,13 @@ void UUVEditorMode::Enter()
 	RegisterTools();
 	RegisterActions();
 	ActivateDefaultTool();
+
+	// do any toolkit UI initialization that depends on the mode setup above
+	if (Toolkit.IsValid())
+	{
+		FUVEditorModeToolkit* UVModeToolkit = (FUVEditorModeToolkit*)Toolkit.Get();
+		UVModeToolkit->InitializeAfterModeSetup();
+	}
 
 	if (FEngineAnalytics::IsAvailable())
 	{
@@ -997,6 +1005,9 @@ void UUVEditorMode::InitializeModeContexts()
 
 	UUVEditorToolPropertiesAPI* UVEditorToolPropertiesAPI = NewObject<UUVEditorToolPropertiesAPI>();
 	AddContextObject(UVEditorToolPropertiesAPI);
+
+	// Register gizmo helper
+	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(GetInteractiveToolsContext());
 }
 
 void UUVEditorMode::InitializeTargets()

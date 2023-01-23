@@ -56,6 +56,7 @@ public class UVEditor : ModuleRules
 				"LevelEditor",
 				"ModelingComponentsEditorOnly", // Static/skeletal mesh tool targets
 				"ModelingComponents",
+				"ModelingEditorUI",
 				"StatusBar",
 				"ToolMenus",
 				"ToolWidgets",

@@ -960,6 +960,13 @@ void UEditMeshPolygonsTool::OnGizmoTransformChanged(UTransformProxy* Proxy, FTra
 void UEditMeshPolygonsTool::OnEndGizmoTransform(UTransformProxy* Proxy)
 {
 	bInGizmoDrag = false;
+	// Sometimes we don't get a tick between OnGizmoTransformChanged and OnEndGizmoTransform. In
+	// most drag cases this is not much of a problem, but if we type values into the gizmo numerical
+	// UI, it is.
+	if (bGizmoUpdatePending)
+	{
+		ComputeUpdate_Gizmo();
+	}
 	bGizmoUpdatePending = false;
 	bSpatialDirty = true;
 	SelectionMechanic->NotifyMeshChanged(false);
