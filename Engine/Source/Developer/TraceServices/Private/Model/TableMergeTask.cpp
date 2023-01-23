@@ -4,6 +4,7 @@
 
 #include "Logging/TokenizedMessage.h"
 #include "Tasks/Task.h"
+#include "Async/TaskGraphInterfaces.h"
 
 namespace TraceServices
 {
