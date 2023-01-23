@@ -9451,7 +9451,7 @@ int32 FHLSLMaterialTranslator::GetHairSeed()
 
 int32 FHLSLMaterialTranslator::GetHairClumpID()
 {
-	return AddCodeChunk(MCT_UInt1, TEXT("MaterialExpressionGetHairClumpID(Parameters)"));
+	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairClumpID(Parameters)"));
 }
 
 int32 FHLSLMaterialTranslator::GetHairTangent(bool bUseTangentSpace)
