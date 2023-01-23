@@ -514,7 +514,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	/** A generic callback anytime an ability is committed (cost/cooldown applied) */
 	FGenericAbilityDelegate AbilityCommittedCallbacks;
 
-	/** Called with a failure reason when an ability fails to execute */
+	/** Called with a failure reason when an ability fails to activate */
 	FAbilityFailedDelegate AbilityFailedCallbacks;
 
 	/** Called when an ability spec's internals have changed */
