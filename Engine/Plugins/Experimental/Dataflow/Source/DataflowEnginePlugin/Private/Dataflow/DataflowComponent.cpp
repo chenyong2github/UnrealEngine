@@ -66,7 +66,10 @@ void UDataflowComponent::TickComponent(float DeltaTime, enum ELevelTick TickType
 		{
 			for (const UDataflowEdNode* Target : RenderTargets)
 			{
-				bNeedsRefresh |= Target->Render(Facade, Context);
+				if (Target)
+				{
+					bNeedsRefresh |= Target->Render(Facade, Context);
+				}
 			}
 		}
 
