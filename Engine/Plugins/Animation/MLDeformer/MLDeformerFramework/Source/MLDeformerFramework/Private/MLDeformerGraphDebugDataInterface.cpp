@@ -74,6 +74,18 @@ void UMLDeformerGraphDebugDataInterface::GetShaderParameters(TCHAR const* UID, F
 	InOutBuilder.AddNestedStruct<FMLDeformerGraphDebugDataInterfaceParameters>(UID);
 }
 
+TCHAR const* UMLDeformerGraphDebugDataInterface::TemplateFilePath = TEXT("/Plugin/MLDeformerFramework/Private/MLDeformerGraphHeatMapDataInterface.ush");
+
+TCHAR const* UMLDeformerGraphDebugDataInterface::GetShaderVirtualPath() const
+{
+	return TemplateFilePath;
+}
+
+void UMLDeformerGraphDebugDataInterface::GetShaderHash(FString& InOutKey) const
+{
+	GetShaderFileHash(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+}
+
 void UMLDeformerGraphDebugDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
 {
 	TMap<FString, FStringFormatArg> TemplateArgs =
@@ -82,7 +94,7 @@ void UMLDeformerGraphDebugDataInterface::GetHLSL(FString& OutHLSL, FString const
 	};
 
 	FString TemplateFile;
-	LoadShaderSourceFile(TEXT("/Plugin/MLDeformerFramework/Private/MLDeformerGraphHeatMapDataInterface.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	LoadShaderSourceFile(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
 	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 
