@@ -4,6 +4,7 @@
 #include "ContextualAnimMovieSceneSection.h"
 #include "ContextualAnimMovieSceneSequence.h"
 #include "MovieScene.h"
+#include "ContextualAnimTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimMovieSceneTrack)
 
@@ -71,6 +72,19 @@ void UContextualAnimMovieSceneTrack::RemoveSectionAt(int32 SectionIndex)
 #if WITH_EDITOR
 EMovieSceneSectionMovedResult UContextualAnimMovieSceneTrack::OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params)
 {
+	if (Params.MoveType == EPropertyChangeType::ValueSet)
+	{
+		UContextualAnimMovieSceneSection* NotifySection = CastChecked<UContextualAnimMovieSceneSection>(&Section);
+
+		const FContextualAnimTrack& AnimTrack = NotifySection->GetAnimTrack();
+		if(AnimTrack.Animation)
+		{
+			const float AnimLength = AnimTrack.Animation->GetPlayLength();
+			const FFrameRate TickResolution = GetTypedOuter<UMovieScene>()->GetTickResolution();
+			NotifySection->SetRange(TRange<FFrameNumber>::Inclusive(0, (AnimLength * TickResolution).RoundToFrame()));
+		}
+	}
+
 	return EMovieSceneSectionMovedResult::None;
 }
 #endif

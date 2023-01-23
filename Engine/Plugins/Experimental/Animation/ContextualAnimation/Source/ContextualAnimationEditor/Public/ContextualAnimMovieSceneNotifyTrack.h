@@ -56,6 +56,8 @@ public:
 	virtual EMovieSceneSectionMovedResult OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params) override;
 #endif
 
+	virtual bool SupportsMultipleRows() const override { return true; }
+
 	/** Returns a reference to the animation this track was created from */
 	UAnimSequenceBase& GetAnimation() const;
 

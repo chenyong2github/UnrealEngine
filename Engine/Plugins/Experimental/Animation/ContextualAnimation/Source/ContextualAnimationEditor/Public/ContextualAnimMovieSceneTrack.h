@@ -52,6 +52,8 @@ public:
 	virtual EMovieSceneSectionMovedResult OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params) override;
 #endif
 
+	virtual bool SupportsMultipleRows() const override { return true; }
+
 private:
 
 	/** List of sections in this track */
