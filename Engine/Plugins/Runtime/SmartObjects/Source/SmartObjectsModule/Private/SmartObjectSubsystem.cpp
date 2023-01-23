@@ -428,10 +428,12 @@ bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObje
 		bIsValid = SmartObjectComponent.GetDefinition()->Validate();
 	}
 	
-	if (bIsValid.Get(false) == false)
+	if (bIsValid.GetValue() == false)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Attempting to register %s while its DefinitionAsset fails validation test. Bailing out."),
-			*GetFullNameSafe(&SmartObjectComponent));
+		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Attempting to register %s while its DefinitionAsset fails validation test. Bailing out."
+													" Resave asset %s to see the errors and fix the problem."),
+			*GetFullNameSafe(&SmartObjectComponent),
+			*GetFullNameSafe(SmartObjectComponent.GetDefinition()));
 		return false;
 	}
 
@@ -440,9 +442,7 @@ bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObje
 		return RegisterSmartObjectInternal(SmartObjectComponent);
 	}
 	
-	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Failed to register %s. Already registered"),
-		*GetFullNameSafe(SmartObjectComponent.GetOwner()),
-		*GetFullNameSafe(SmartObjectComponent.GetDefinition()));
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Failed to register %s. Already registered"),	*GetFullNameSafe(SmartObjectComponent.GetOwner()));
 
 	return false;
 }

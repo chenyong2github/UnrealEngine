@@ -11,6 +11,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectDefinition)
 
+#define LOCTEXT_NAMESPACE "SmartObjectDefinition"
+
 namespace UE::SmartObject
 {
 	const FVector DefaultSlotSize(40, 40, 90);
@@ -18,26 +20,55 @@ namespace UE::SmartObject
 
 USmartObjectDefinition::USmartObjectDefinition(const FObjectInitializer& ObjectInitializer): UDataAsset(ObjectInitializer)
 {
+#if WITH_EDITORONLY_DATA
+	Slots.AddDefaulted();
+#endif
+	
 	UserTagsFilteringPolicy = GetDefault<USmartObjectSettings>()->DefaultUserTagsFilteringPolicy;
 	ActivityTagsMergingPolicy = GetDefault<USmartObjectSettings>()->DefaultActivityTagsMergingPolicy;
 	WorldConditionSchemaClass = GetDefault<USmartObjectSettings>()->DefaultWorldConditionSchemaClass;
 }
 
-bool USmartObjectDefinition::Validate() const
+#if WITH_EDITOR
+
+EDataValidationResult USmartObjectDefinition::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	const EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
+
+	Validate(&ValidationErrors);
+	
+	return CombineDataValidationResults(Result, bValid ? EDataValidationResult::Valid : EDataValidationResult::Invalid);
+}
+
+#endif // WITH_EDITOR
+
+bool USmartObjectDefinition::Validate(TArray<FText>* ErrorsToReport) const
 {
 	bValid = false;
 	if (Slots.Num() == 0)
 	{
-		UE_LOG(LogSmartObject, Error, TEXT("%s: Need to provide at least one slot definition"), *GetFullName());
-		return false;
+		if (ErrorsToReport)
+		{
+			ErrorsToReport->Emplace(LOCTEXT("MissingSlotError", "Need to provide at least one slot definition"));
+		}
+		else
+		{
+			return false;
+		}
 	}
 
 	// Detect null entries in default definitions
 	int32 NullEntryIndex;
 	if (DefaultBehaviorDefinitions.Find(nullptr, NullEntryIndex))
 	{
-		UE_LOG(LogSmartObject, Error, TEXT("%s: Null entry found at index %d in default behavior definition list"), *GetFullName(), NullEntryIndex);
-		return false;
+		if (ErrorsToReport)
+		{
+			ErrorsToReport->Emplace(FText::Format(LOCTEXT("NullDefaultBehaviorEntryError", "Null entry found at index {0} in default behavior definition list"), NullEntryIndex));
+		}
+		else
+		{
+			return false;
+		}
 	}
 
 	// Detect null entries in slot definitions
@@ -46,8 +77,14 @@ bool USmartObjectDefinition::Validate() const
 		const FSmartObjectSlotDefinition& Slot = Slots[i];
 		if (Slot.BehaviorDefinitions.Find(nullptr, NullEntryIndex))
 		{
-			UE_LOG(LogSmartObject, Error, TEXT("%s: Null definition entry found at index %d in behavior list of slot %d"), *GetFullName(), i, NullEntryIndex);
-			return false;
+			if (ErrorsToReport)
+			{
+				ErrorsToReport->Emplace(FText::Format(LOCTEXT("NullSlotBehaviorEntryError", "Null entry found at index {0} in default behavior definition list"), NullEntryIndex));
+			}
+			else
+			{
+				return false;
+			}
 		}
 	}
 
@@ -59,8 +96,14 @@ bool USmartObjectDefinition::Validate() const
 			const FSmartObjectSlotDefinition& Slot = Slots[i];
 			if (Slot.BehaviorDefinitions.Num() == 0)
 			{
-				UE_LOG(LogSmartObject, Error, TEXT("%s: Slot at index %d needs to provide a behavior definition since there is no default one in the SmartObject definition"), *GetFullName(), i);
-				return false;
+				if (ErrorsToReport)
+				{
+					ErrorsToReport->Emplace(FText::Format(LOCTEXT("MissingSlotBehaviorError", "Slot at index {0} needs to provide a behavior definition since there is no default one in the SmartObject definition"), i));
+				}
+				else
+				{
+					return false;
+				}
 			}
 		}
 	}
@@ -305,3 +348,5 @@ void USmartObjectDefinition::PostLoad()
 	Validate();
 #endif	
 }
+
+#undef LOCTEXT_NAMESPACE

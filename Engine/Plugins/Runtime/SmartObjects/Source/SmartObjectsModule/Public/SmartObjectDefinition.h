@@ -197,12 +197,14 @@ public:
 	void SetActivityTagsMergingPolicy(const ESmartObjectTagMergingPolicy InActivityTagsMergingPolicy) { ActivityTagsMergingPolicy = InActivityTagsMergingPolicy; }
 
 	/**
-	 *	Performs validation and logs errors if any. An object using an invalid definition
-	 *	will not be registered in the simulation.
+	 *	Performs validation for the current definition. The method will return on the first error encountered by default
+	 *	but could go through all validations and report all errors (e.g. when saving the asset errors are reported to the user).
+	 *	An object using an invalid definition will not be registered in the simulation.
 	 *	The result of the validation is stored until next validation and can be retrieved using `IsValid`.
+	 *	@param ErrorsToReport Optional list of error messages that could be provided to report them
 	 *	@return true if the definition is valid
 	 */
-	bool Validate() const;
+	bool Validate(TArray<FText>* ErrorsToReport = nullptr) const;
 
 	/** Provides a description of the definition */
 	friend FString LexToString(const USmartObjectDefinition& Definition)
@@ -240,6 +242,7 @@ protected:
 
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
+	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
 #endif // WITH_EDITOR
 
 	virtual void PostLoad() override;
