@@ -653,8 +653,11 @@ void FModelingToolsEditorModeToolkit::ClearPresetComboList()
 {
 	ActiveNamedPreset.Reset();
 	AvailablePresetsForTool.Empty();
-	PresetComboBox->RefreshOptions();
-	PresetComboBox->ClearSelection();
+	if (PresetComboBox)
+	{
+		PresetComboBox->RefreshOptions();
+		PresetComboBox->ClearSelection();
+	}
 }
 
 void FModelingToolsEditorModeToolkit::HandlePresetAssetChanged(const FAssetData& InAssetData)
