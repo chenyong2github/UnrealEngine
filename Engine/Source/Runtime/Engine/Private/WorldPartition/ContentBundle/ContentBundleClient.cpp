@@ -132,12 +132,12 @@ void FContentBundleClient::SetWorldContentState(UWorld* World, EWorldContentStat
 {
 	if (EWorldContentState* OldState = WorldContentStates.Find(World))
 	{
-		UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Client WorldState for world %s changing from %s to %s"), *GetDescriptor()->GetDisplayName(), *World->GetName(), *UEnum::GetDisplayValueAsText(*OldState).ToString(), *UEnum::GetDisplayValueAsText(NewState).ToString());
+		UE_LOG(LogContentBundle, Log, TEXT("%s Client WorldState changing from %s to %s"), *ContentBundle::Log::MakeDebugInfoString(*this, World), *UEnum::GetDisplayValueAsText(*OldState).ToString(), *UEnum::GetDisplayValueAsText(NewState).ToString());
 		*OldState = NewState;
 		return;
 	}
 	
-	UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Client WorldState for world %s changing to %s"), *GetDescriptor()->GetDisplayName(), *World->GetName(), *UEnum::GetDisplayValueAsText(NewState).ToString());
+	UE_LOG(LogContentBundle, Log, TEXT("%s Client WorldState changing to %s"), *ContentBundle::Log::MakeDebugInfoString(*this, World), *UEnum::GetDisplayValueAsText(NewState).ToString());
 	WorldContentStates.Add(World, NewState);
 }
 
@@ -176,7 +176,7 @@ void FContentBundleClient::SetState(EContentBundleClientState NewState)
 {
 	check(NewState != State);
 
-	UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Client State changing from %s to %s"), *GetDescriptor()->GetDisplayName(), *UEnum::GetDisplayValueAsText(State).ToString(), *UEnum::GetDisplayValueAsText(NewState).ToString());
+	UE_LOG(LogContentBundle, Log, TEXT("%s Client State changing from %s to %s"), *ContentBundle::Log::MakeDebugInfoString(*this), *UEnum::GetDisplayValueAsText(State).ToString(), *UEnum::GetDisplayValueAsText(NewState).ToString());
 	State = NewState;
 }
 
@@ -186,6 +186,8 @@ void FContentBundleClient::RequestForceInject(UWorld* WorldToInject)
 {
 	if (UContentBundleManager* ContentBundleManager = WorldToInject->ContentBundleManager)
 	{
+		UE_LOG(LogContentBundle, Log, TEXT("%s Client requested a forced injection in world."), *ContentBundle::Log::MakeDebugInfoString(*this, WorldToInject));
+
 		ForceInjectedWorlds.Add(WorldToInject);
 	
 		if (ShouldInjectContent(WorldToInject))
@@ -193,18 +195,28 @@ void FContentBundleClient::RequestForceInject(UWorld* WorldToInject)
 			ContentBundleManager->TryInject(*this);
 		}
 	}
+	else
+	{
+		UE_LOG(LogContentBundle, Log, TEXT("%s Client cannot force inject in World. It does not support content bundles."), *ContentBundle::Log::MakeDebugInfoString(*this, WorldToInject));
+	}
 }
 
 void FContentBundleClient::RequestRemoveForceInjectedContent(UWorld* WorldToInject)
 {
 	if (UContentBundleManager* ContentBundleManager = WorldToInject->ContentBundleManager)
 	{
+		UE_LOG(LogContentBundle, Log, TEXT("%s Client requested removal of force injected content in world."), *ContentBundle::Log::MakeDebugInfoString(*this, WorldToInject));
+
 		ForceInjectedWorlds.Remove(WorldToInject);
 
 		if (ShouldRemoveContent(WorldToInject))
 		{
 			ContentBundleManager->Remove(*this);
 		}
+	}
+	else
+	{
+		UE_LOG(LogContentBundle, Log, TEXT("%s Client cannot remove force injected content from world. It does not support content bundles."), *ContentBundle::Log::MakeDebugInfoString(*this, WorldToInject));
 	}
 }
 

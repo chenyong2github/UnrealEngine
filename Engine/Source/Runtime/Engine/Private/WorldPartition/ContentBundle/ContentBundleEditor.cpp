@@ -60,7 +60,7 @@ void FContentBundleEditor::DoInjectContent()
 		ActorDescContainer = WorldPartition->RegisterActorDescContainer(FName(*ActorDescContainerPackage));
 		if (ActorDescContainer.IsValid())
 		{
-			UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] ExternalActors in %s found. %u actors were injected"), *GetDescriptor()->GetDisplayName(), *ActorDescContainer->GetExternalActorPath(), ActorDescContainer->GetActorDescCount());
+			UE_LOG(LogContentBundle, Log, TEXT("%s ExternalActors in %s found. %u actors were injected"), *ContentBundle::Log::MakeDebugInfoString(*this), *ActorDescContainer->GetExternalActorPath(), ActorDescContainer->GetActorDescCount());
 
 			check(GetDescriptor()->GetGuid().IsValid());
 			ActorDescContainer->SetContentBundleGuid(GetDescriptor()->GetGuid());
@@ -79,13 +79,13 @@ void FContentBundleEditor::DoInjectContent()
 		}
 		else
 		{
-			UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Failed to register actor desc container with %s"), *GetDescriptor()->GetDisplayName(), *ActorDescContainerPackage);
+			UE_LOG(LogContentBundle, Log, TEXT("%s Failed to register actor desc container with %s"), *ContentBundle::Log::MakeDebugInfoString(*this), *ActorDescContainerPackage);
 			SetStatus(EContentBundleStatus::FailedToInject);
 		}
 	}
 	else
 	{
-		UE_LOG(LogContentBundle, Error, TEXT("[CB: %s] Failed to build Container Package Path using %s"), *GetDescriptor()->GetDisplayName(), *GetInjectedWorld()->GetPackage()->GetName());
+		UE_LOG(LogContentBundle, Error, TEXT("%s Failed to build Container Package Path using %s"), *ContentBundle::Log::MakeDebugInfoString(*this), *GetInjectedWorld()->GetPackage()->GetName());
 		SetStatus(EContentBundleStatus::FailedToInject);
 	}
 
@@ -150,7 +150,7 @@ bool FContentBundleEditor::AddActor(AActor* InActor)
 
 	if (GetStatus() == EContentBundleStatus::ReadyToInject)
 	{
-		UE_LOG(LogContentBundle, Verbose, TEXT("[CB: %s] Adding first actor to content bundle."), *GetDescriptor()->GetDisplayName());
+		UE_LOG(LogContentBundle, Verbose, TEXT("%s Adding first actor to content bundle."), *ContentBundle::Log::MakeDebugInfoString(*this));
 		SetStatus(EContentBundleStatus::ContentInjected);
 	}
 
@@ -167,7 +167,7 @@ bool FContentBundleEditor::AddActor(AActor* InActor)
 
 	UnsavedActorMonitor->MonitorActor(InActor);
 
-	UE_LOG(LogContentBundle, Verbose, TEXT("[CB: %s] Added new actor %s, ActorCount:  %u. Package %s."), *GetDescriptor()->GetDisplayName(), *InActor->GetActorNameOrLabel(), GetActorCount(), *InActor->GetPackage()->GetName());
+	UE_LOG(LogContentBundle, Verbose, TEXT("%s Added new actor %s, ActorCount:  %u. Package %s."), *ContentBundle::Log::MakeDebugInfoString(*this), *InActor->GetActorNameOrLabel(), GetActorCount(), *InActor->GetPackage()->GetName());
 
 	return true;
 }
@@ -276,7 +276,7 @@ void FContentBundleEditor::StopEditing()
 void FContentBundleEditor::InjectBaseContent()
 {
 	check(GetStatus() == EContentBundleStatus::ReadyToInject);
-	UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Injecting Base Content"), *GetDescriptor()->GetDisplayName());
+	UE_LOG(LogContentBundle, Log, TEXT("%s Injecting Base Content"), *ContentBundle::Log::MakeDebugInfoString(*this));
 
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.Name = BuildWorlDataLayersName();
@@ -307,7 +307,7 @@ void FContentBundleEditor::GenerateStreaming(TArray<FString>* OutPackageToGenera
 
 	if (GetStatus() != EContentBundleStatus::ContentInjected)
 	{
-		UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Skipping streaming generation. It's status is: %s."), *GetDescriptor()->GetDisplayName(), *UEnum::GetDisplayValueAsText(GetStatus()).ToString());
+		UE_LOG(LogContentBundle, Log, TEXT("%s Skipping streaming generation. It's status is: %s."), *ContentBundle::Log::MakeDebugInfoString(*this), *UEnum::GetDisplayValueAsText(GetStatus()).ToString());
 		return;
 	}
 
@@ -322,7 +322,7 @@ void FContentBundleEditor::GenerateStreaming(TArray<FString>* OutPackageToGenera
 		CellCount++;
 		return true;
 	});
-	UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Generated streaming cells. %u cells were generated"), *GetDescriptor()->GetDisplayName(), CellCount);
+	UE_LOG(LogContentBundle, Log, TEXT("%s Generated streaming cells. %u cells were generated"), *ContentBundle::Log::MakeDebugInfoString(*this), CellCount);
 
 	if (bIsPIE)
 	{
@@ -330,7 +330,7 @@ void FContentBundleEditor::GenerateStreaming(TArray<FString>* OutPackageToGenera
 		UContentBundleDuplicateForPIEHelper* DuplicateForPIEHelper = ContentBundleManager->GetPIEDuplicateHelper();
 		if (!DuplicateForPIEHelper->StoreContentBundleStreamingObect(*this, ExternalStreamingObject))
 		{
-			UE_LOG(LogContentBundle, Error, TEXT("[CB: %s] Failed to store streaming object for %s. PIE duplication will not work."), *GetDescriptor()->GetDisplayName());
+			UE_LOG(LogContentBundle, Error, TEXT("%s Failed to store streaming object. PIE duplication will not work."), *ContentBundle::Log::MakeDebugInfoString(*this));
 		}
 
 		// Clear streaming object. It will be kept alive & duplicated by UContentBundleDuplicateForPIEHelper.
@@ -365,7 +365,7 @@ bool FContentBundleEditor::GatherPackagesToCook(class IWorldPartitionCookPackage
 			}
 			else
 			{
-				UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Failed to add cell package %s in cook context."), *ContentBundlePaths::GetCookedContentBundleLevelFolder(*this), *RuntimeCell.GetPackageNameToCreate());
+				UE_LOG(LogContentBundle, Error, TEXT("%s[Cook] Failed to add cell package %s in cook context."), *ContentBundle::Log::MakeDebugInfoString(*this), *RuntimeCell.GetPackageNameToCreate());
 				bIsSuccess = false;
 			}
 		});
@@ -373,7 +373,7 @@ bool FContentBundleEditor::GatherPackagesToCook(class IWorldPartitionCookPackage
 		const FWorldPartitionCookPackage* CookPackage = CookContext.AddGenericPackageToGenerate(this, ContentBundlePaths::GetCookedContentBundleLevelFolder(*this), GetExternalStreamingObjectPackageName());
 		if (CookPackage == nullptr)
 		{
-			UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Failed to add streaming object package in cook context %s."), *GetDescriptor()->GetDisplayName());
+			UE_LOG(LogContentBundle, Error, TEXT("%s[Cook] Failed to add streaming object package in cook context."), *ContentBundle::Log::MakeDebugInfoString(*this));
 			bIsSuccess = false;
 		}
 	}
@@ -388,7 +388,7 @@ bool FContentBundleEditor::PopulateGeneratorPackageForCook(class IWorldPartition
 
 	if (HasCookedContent())
 	{
-		UE_LOG(LogContentBundle, Log, TEXT("[CB: %s][Cook] Populating Generator Package. %u Packages"), *GetDescriptor()->GetDisplayName(), PackagesToCook.Num());
+		UE_LOG(LogContentBundle, Log, TEXT("%s[Cook] Populating Generator Package. %u Packages"), *ContentBundle::Log::MakeDebugInfoString(*this), PackagesToCook.Num());
 
 		for (const FWorldPartitionCookPackage* CookPackage : PackagesToCook)
 		{
@@ -402,13 +402,13 @@ bool FContentBundleEditor::PopulateGeneratorPackageForCook(class IWorldPartition
 
 					if (!Cell->PrepareCellForCook(CookPackage->GetPackage()))
 					{
-						UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Failed to prepare cell with package %s for cook."), *GetDescriptor()->GetDisplayName(), *CookPackage->RelativePath);
+						UE_LOG(LogContentBundle, Error, TEXT("%s[Cook] Failed to prepare cell with package %s for cook."), *ContentBundle::Log::MakeDebugInfoString(*this), *CookPackage->RelativePath);
 						bIsSuccess = false;
 					}
 				}
 				else
 				{
-					UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Could not find cell for package %s while populating generator pacakges."), *GetDescriptor()->GetDisplayName(), *CookPackage->RelativePath);
+					UE_LOG(LogContentBundle, Error, TEXT("%s[Cook] Could not find cell for package %s while populating generator pacakges."), *ContentBundle::Log::MakeDebugInfoString(*this), *CookPackage->RelativePath);
 					bIsSuccess = false;
 				}
 			}
@@ -425,7 +425,7 @@ bool FContentBundleEditor::PopulateGeneratedPackageForCook(class IWorldPartition
 {
 	bool bIsSuccess = true;
 
-	UE_LOG(LogContentBundle, Log, TEXT("[CB: %s][Cook] Populating Generated Package %s"), *GetDescriptor()->GetDisplayName(), *PackageToCook.RelativePath);
+	UE_LOG(LogContentBundle, Log, TEXT("%s[Cook] Populating Generated Package %s"), *ContentBundle::Log::MakeDebugInfoString(*this), *PackageToCook.RelativePath);
 
 	if (PackageToCook.Type == FWorldPartitionCookPackage::EType::Level)
 	{
@@ -439,22 +439,22 @@ bool FContentBundleEditor::PopulateGeneratedPackageForCook(class IWorldPartition
 					TArray<UPackage*> ModifiedPackages;
 					if (!Cell->PopulateGeneratedPackageForCook(PackageToCook.GetPackage(), OutModifiedPackages))
 					{
-						UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Failed to populate cell package %s."), *GetDescriptor()->GetDisplayName(), *PackageToCook.RelativePath);
+						UE_LOG(LogContentBundle, Error, TEXT("%s[Cook] Failed to populate cell package %s."), *ContentBundle::Log::MakeDebugInfoString(*this), *PackageToCook.RelativePath);
 						bIsSuccess = false;
 					}
 					
 				}
 				else
 				{
-					UE_LOG(LogContentBundle, Warning, TEXT("[CB: %s][Cook] Cell %s is flagged always loaded. Content Bundles cells should never be always loaded. It will not be populated and be empty at runtime."),
-						*GetDescriptor()->GetDisplayName(), *PackageToCook.RelativePath);
+					UE_LOG(LogContentBundle, Warning, TEXT("%s[Cook] Cell %s is flagged always loaded. Content Bundles cells should never be always loaded. It will not be populated and be empty at runtime."),
+						*ContentBundle::Log::MakeDebugInfoString(*this), *PackageToCook.RelativePath);
 					bIsSuccess = false;
 				}
 			}
 		}
 		else
 		{
-			UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Could not find cell for package %s while populating generated pacakges."), *GetDescriptor()->GetDisplayName(), *PackageToCook.RelativePath);
+			UE_LOG(LogContentBundle, Error, TEXT("%s[Cook] Could not find cell for package %s while populating generated pacakges."), *ContentBundle::Log::MakeDebugInfoString(*this), *PackageToCook.RelativePath);
 			bIsSuccess = false;
 		}
 	}
@@ -462,7 +462,7 @@ bool FContentBundleEditor::PopulateGeneratedPackageForCook(class IWorldPartition
 	{
 		if (!ExternalStreamingObject->Rename(nullptr, PackageToCook.GetPackage(), REN_DontCreateRedirectors))
 		{
-			UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Failed to set streaming object package %s."), *GetDescriptor()->GetDisplayName());
+			UE_LOG(LogContentBundle, Error, TEXT("%s[Cook] Failed to rename streaming object package."), *ContentBundle::Log::MakeDebugInfoString(*this));
 			bIsSuccess = false;
 		}
 	}
@@ -513,8 +513,8 @@ void FContentBundleEditor::UnregisterDelegates()
 
 void FContentBundleEditor::OnActorDescAdded(FWorldPartitionActorDesc* ActorDesc)
 {
-	UE_LOG(LogContentBundle, Verbose, TEXT("[CB: %s] Added actor %s to container, ActorCount: %u. Package %s."), 
-		*GetDescriptor()->GetDisplayName(), *ActorDesc->GetActorLabelOrName().ToString(), GetActorCount(), *ActorDesc->GetActorPackage().ToString());
+	UE_LOG(LogContentBundle, Verbose, TEXT("%s Added actor %s to container, ActorCount: %u. Package %s."), 
+		*ContentBundle::Log::MakeDebugInfoString(*this), *ActorDesc->GetActorLabelOrName().ToString(), GetActorCount(), *ActorDesc->GetActorPackage().ToString());
 
 	AActor* Actor = ActorDesc->GetActor();
 	UnsavedActorMonitor->StopMonitoringActor(Actor);
@@ -522,8 +522,8 @@ void FContentBundleEditor::OnActorDescAdded(FWorldPartitionActorDesc* ActorDesc)
 
 void FContentBundleEditor::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc)
 {
-	UE_LOG(LogContentBundle, Verbose, TEXT("[CB: %s] Removed actor %s from container, ActorCount:  %u. Package %s."), 
-		*GetDescriptor()->GetDisplayName(), *ActorDesc->GetActorLabelOrName().ToString(), GetActorCount(), *ActorDesc->GetActorPackage().ToString());
+	UE_LOG(LogContentBundle, Verbose, TEXT("%s Removed actor %s from container, ActorCount:  %u. Package %s."), 
+		*ContentBundle::Log::MakeDebugInfoString(*this), *ActorDesc->GetActorLabelOrName().ToString(), GetActorCount(), *ActorDesc->GetActorPackage().ToString());
 
 	if (!HasUserPlacedActors())
 	{
@@ -539,8 +539,8 @@ void FContentBundleEditor::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDes
 
 void FContentBundleEditor::OnUnsavedActorDeleted(AActor* Actor)
 {
-	UE_LOG(LogContentBundle, Verbose, TEXT("[CB: %s] Removed unsaved actor %s, ActorCount: %u. Package %s."),
-		*GetDescriptor()->GetDisplayName(), *Actor->GetActorNameOrLabel(), GetActorCount(), *Actor->GetPackage()->GetName());
+	UE_LOG(LogContentBundle, Verbose, TEXT("%s Removed unsaved actor %s, ActorCount: %u. Package %s."),
+		*ContentBundle::Log::MakeDebugInfoString(*this), *Actor->GetActorNameOrLabel(), GetActorCount(), *Actor->GetPackage()->GetName());
 
 	if (!HasUserPlacedActors())
 	{

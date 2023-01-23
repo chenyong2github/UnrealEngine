@@ -35,7 +35,7 @@ UWorld* FContentBundleContainer::GetInjectedWorld() const
 void FContentBundleContainer::Initialize()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FContentBundleContainer::Initialize);
-	UE_LOG(LogContentBundle, Log, TEXT("[Container: %s] Creating new contrainer."), *GetInjectedWorld()->GetName());
+	UE_LOG(LogContentBundle, Log, TEXT("%s Creating new contrainer."), *ContentBundle::Log::MakeDebugInfoString(*this));
 
 #if WITH_EDITOR
 	if (UseEditorContentBundle())
@@ -64,7 +64,7 @@ void FContentBundleContainer::Deinitialize()
 
 	if (GetInjectedWorld())
 	{
-		UE_LOG(LogContentBundle, Log, TEXT("[Container: %s] Deleting container."), *GetInjectedWorld()->GetName());
+		UE_LOG(LogContentBundle, Log, TEXT("%s Deleting container."), *ContentBundle::Log::MakeDebugInfoString(*this));
 
 #if WITH_EDITOR
 		UWorldPartition* WorldPartition = GetInjectedWorld()->GetWorldPartition();
@@ -228,8 +228,8 @@ FContentBundleBase& FContentBundleContainer::InitializeContentBundle(TSharedPtr<
 
 	FContentBundleBase* ContentBundle = nullptr;
 
-	UE_LOG(LogContentBundle, Log, TEXT("[Container: %s] Creating new ContentBundle %s from client %s with state %s."), 
-		*GetInjectedWorld()->GetName(), *ContentBundleClient->GetDescriptor()->GetDisplayName(), *ContentBundleClient->GetDisplayName(), *UEnum::GetDisplayValueAsText(ContentBundleClient->GetState()).ToString());
+	UE_LOG(LogContentBundle, Log, TEXT("%s Creating new content bundle from client %s with client state %s."), 
+		*ContentBundle::Log::MakeDebugInfoString(*ContentBundleClient , GetInjectedWorld()), *ContentBundleClient->GetDisplayName(), *UEnum::GetDisplayValueAsText(ContentBundleClient->GetState()).ToString());
 
 #if WITH_EDITOR
 	if (UseEditorContentBundle())
@@ -273,6 +273,8 @@ bool FContentBundleContainer::InjectContentBundle(FContentBundleClient& ContentB
 		return InjectContentBundle(*ContentBundle);
 	}
 
+	UE_LOG(LogContentBundle, Log, TEXT("%s Failed to inject content bundle from client %s. It was not found in world."),
+		*ContentBundle::Log::MakeDebugInfoString(ContentBundleClient, InjectedWorld), *ContentBundleClient.GetDisplayName());
 	return false;
 }
 
@@ -298,6 +300,8 @@ bool FContentBundleContainer::RemoveContentBundle(FContentBundleClient& ContentB
 		return RemoveContentBundle(*ContentBundle);
 	}
 
+	UE_LOG(LogContentBundle, Log, TEXT("%s Failed to remove content bundle from client %s. It was not found in world."),
+		*ContentBundle::Log::MakeDebugInfoString(ContentBundleClient, InjectedWorld), *ContentBundleClient.GetDisplayName());
 	return false;
 }
 
@@ -310,6 +314,11 @@ bool FContentBundleContainer::RemoveContentBundle(FContentBundleBase& ContentBun
 		{
 			ContentBundle.RemoveContent();
 			return true;
+		}
+		else
+		{
+			UE_LOG(LogContentBundle, Log, TEXT("%s Client %s determined content bundle will not be removed from world."),
+				*ContentBundle::Log::MakeDebugInfoString(ContentBundle), *ContentBundleClient->GetDisplayName());
 		}
 	}
 	
@@ -364,7 +373,7 @@ void FContentBundleContainer::InitializeContentBundlesForegisteredClients()
 
 	if (!ContentBundleClients.IsEmpty())
 	{
-		UE_LOG(LogContentBundle, Log, TEXT("[Container: %s] Begin initializing ContentBundles from %u registered clients."), *GetInjectedWorld()->GetName(), ContentBundleClients.Num());
+		UE_LOG(LogContentBundle, Log, TEXT("%s Begin initializing ContentBundles from %u registered clients."), *ContentBundle::Log::MakeDebugInfoString(*this), ContentBundleClients.Num());
 
 		for (TSharedPtr<FContentBundleClient>& ContentBundleClient : ContentBundleClients)
 		{
@@ -372,7 +381,7 @@ void FContentBundleContainer::InitializeContentBundlesForegisteredClients()
 			InjectContentBundle(ContentBundle);
 		}
 
-		UE_LOG(LogContentBundle, Log, TEXT("[Container: %s] End initializing ContentBundles."), *GetInjectedWorld()->GetName());
+		UE_LOG(LogContentBundle, Log, TEXT("%s End initializing ContentBundles."), *ContentBundle::Log::MakeDebugInfoString(*this));
 	}
 }
 
@@ -395,7 +404,7 @@ void FContentBundleContainer::DeinitializeContentBundles()
 
 void FContentBundleContainer::OnPreGenerateStreaming(TArray<FString>* OutPackageToGenerate)
 {
-	UE_LOG(LogContentBundle, Log, TEXT("[Container: %s] Generating Streaming for %u Content Bundles."), *GetInjectedWorld()->GetName(), GetEditorContentBundles().Num());
+	UE_LOG(LogContentBundle, Log, TEXT("%s Generating Streaming for %u Content Bundles."), *ContentBundle::Log::MakeDebugInfoString(*this), GetEditorContentBundles().Num());
 
 	if (IsRunningCookCommandlet())
 	{

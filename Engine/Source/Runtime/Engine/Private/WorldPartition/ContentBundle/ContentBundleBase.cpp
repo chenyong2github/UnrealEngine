@@ -131,6 +131,7 @@ void FContentBundleBase::SetStatus(EContentBundleStatus NewStatus)
 {
 	check(NewStatus != Status);
 
-	UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] State changing from %s to %s"), *GetDescriptor()->GetDisplayName(), *UEnum::GetDisplayValueAsText(Status).ToString(), *UEnum::GetDisplayValueAsText(NewStatus).ToString());
+	UE_LOG(LogContentBundle, Log, TEXT("%s State changing from %s to %s"), 
+		*ContentBundle::Log::MakeDebugInfoString(*this), *UEnum::GetDisplayValueAsText(Status).ToString(), *UEnum::GetDisplayValueAsText(NewStatus).ToString());
 	Status = NewStatus;
 }
