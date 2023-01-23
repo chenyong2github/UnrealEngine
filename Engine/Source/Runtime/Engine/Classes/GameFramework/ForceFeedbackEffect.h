@@ -18,15 +18,19 @@ struct FForceFeedbackChannelDetails
 {
 	GENERATED_USTRUCT_BODY()
 
+	/** Please note the final channel mapping depends on the software and hardware capabilities of the platform used to run the engine or the game. Refer to documentation for more information. */
 	UPROPERTY(EditAnywhere, Category="ChannelDetails")
 	uint32 bAffectsLeftLarge:1;
 
+	/** Please note the final channel mapping depends on the software and hardware capabilities of the platform used to run the engine or the game. Refer to documentation for more information. */
 	UPROPERTY(EditAnywhere, Category="ChannelDetails")
 	uint32 bAffectsLeftSmall:1;
 
+	/** Please note the final channel mapping depends on the software and hardware capabilities of the platform used to run the engine or the game. Refer to documentation for more information. */
 	UPROPERTY(EditAnywhere, Category="ChannelDetails")
 	uint32 bAffectsRightLarge:1;
 
+	/** Please note the final channel mapping depends on the software and hardware capabilities of the platform used to run the engine or the game. Refer to documentation for more information. */
 	UPROPERTY(EditAnywhere, Category="ChannelDetails")
 	uint32 bAffectsRightSmall:1;
 
