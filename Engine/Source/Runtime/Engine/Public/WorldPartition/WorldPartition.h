@@ -315,7 +315,7 @@ private:
 public:
 	UActorDescContainer* GetActorDescContainer() const { return ActorDescContainer; }
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TObjectPtr<UActorDescContainer> ActorDescContainer;
 
 	UPROPERTY()
