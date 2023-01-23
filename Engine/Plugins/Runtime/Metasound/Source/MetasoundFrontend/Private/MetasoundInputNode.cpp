@@ -9,37 +9,37 @@
 
 namespace Metasound
 {
-	FDataReferenceCollection FInputValueOperator::GetInputs() const
+	namespace MetasoundInputNodePrivate
 	{
-		checkNoEntry();
-		return {};
-	}
-
-	FDataReferenceCollection FInputValueOperator::GetOutputs() const
-	{
-		checkNoEntry();
-		return {};
-	}
-
-	void FInputValueOperator::Bind(FVertexInterfaceData& InVertexData) const
-	{
-		if (const FAnyDataReference* Ref = InVertexData.GetInputs().FindDataReference(VertexName))
+		FDataReferenceCollection FInputOperatorBase::GetInputs() const
 		{
-			checkf(EDataReferenceAccessType::Value == Ref->GetAccessType(), TEXT("Expected bound reference to have %s access. Actual access was %s"), *LexToString(EDataReferenceAccessType::Value), *LexToString(Ref->GetAccessType()));
-
-			// Pass through input to output
-			InVertexData.GetOutputs().BindVertex(VertexName, *Ref);
+			// This is slated to be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
-		else
+
+		FDataReferenceCollection FInputOperatorBase::GetOutputs() const
 		{
-			// Use stored default value
-			InVertexData.GetInputs().BindVertex(VertexName, Default);
-			InVertexData.GetOutputs().BindVertex(VertexName, Default);
+			// This is slated to be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
-	}
 
-	IOperator::FExecuteFunction FInputValueOperator::GetExecuteFunction()
-	{
-		return nullptr;
+		FNonExecutableInputOperatorBase::FNonExecutableInputOperatorBase(const FVertexName& InVertexName, FAnyDataReference&& InDataRef)
+		: VertexName(InVertexName)
+		, DataRef(MoveTemp(InDataRef))
+		{
+		}
+
+		void FNonExecutableInputOperatorBase::Bind(FVertexInterfaceData& InVertexData) const
+		{
+			InVertexData.GetInputs().BindVertex(VertexName, DataRef);
+			InVertexData.GetOutputs().BindVertex(VertexName, DataRef);
+		}
+
+		IOperator::FExecuteFunction FNonExecutableInputOperatorBase::GetExecuteFunction()
+		{
+			return nullptr;
+		}
 	}
 }
