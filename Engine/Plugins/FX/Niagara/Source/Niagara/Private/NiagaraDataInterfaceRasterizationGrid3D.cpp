@@ -480,9 +480,9 @@ void UNiagaraDataInterfaceRasterizationGrid3D::VMGetNumCells(FVectorVMExternalFu
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
-		NumCellsX.SetAndAdvance(NumCells.X);
-		NumCellsY.SetAndAdvance(NumCells.Y);
-		NumCellsZ.SetAndAdvance(NumCells.Z);
+		NumCellsX.SetAndAdvance(InstData->NumCells.X);
+		NumCellsY.SetAndAdvance(InstData->NumCells.Y);
+		NumCellsZ.SetAndAdvance(InstData->NumCells.Z);
 	}
 }
 
