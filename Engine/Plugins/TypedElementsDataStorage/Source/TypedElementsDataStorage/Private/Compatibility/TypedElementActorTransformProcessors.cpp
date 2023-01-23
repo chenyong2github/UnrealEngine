@@ -75,7 +75,8 @@ void UTypedElementActorLocalTransformToColumnProcessor::Execute(FMassEntityManag
 
 			for (FMassEntityHandle Entity : Context.GetEntities())
 			{
-				if (ActorIt->Get()->GetRootComponent() != nullptr)
+				const AActor* ActorInstance = ActorIt->Get();
+				if (ActorInstance != nullptr && ActorInstance->GetRootComponent() != nullptr)
 				{
 					TransformIt->Transform = ActorIt->Get()->GetActorTransform();
 				}
