@@ -6,6 +6,7 @@
 #include "SceneManagement.h"
 #include "SmartObjectAnnotation.h"
 #include "SmartObjectVisualizationContext.h"
+#include "Misc/EnumerateRange.h"
 #include "Settings/EditorStyleSettings.h"
 
 IMPLEMENT_HIT_PROXY(HSmartObjectSlotProxy, HComponentVisProxy);
@@ -33,24 +34,22 @@ void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedIte
 	bool bIsSelected = false;
 
 	const TConstArrayView<FSmartObjectSlotDefinition> Slots = Definition.GetSlots();
-	for (int32 Index = 0; Index < Slots.Num(); ++Index)
+	for (TConstEnumerateRef<FSmartObjectSlotDefinition> Slot : EnumerateRange(Slots))
 	{
-		const FSmartObjectSlotDefinition& Slot = Slots[Index];
-		
 		constexpr FVector::FReal DebugCylinderRadius = 40.0;
 		constexpr FVector::FReal TickSize = 10.0;
 
-		TOptional<FTransform> Transform = Definition.GetSlotTransform(OwnerLocalToWorld, FSmartObjectSlotIndex(Index));
+		TOptional<FTransform> Transform = Definition.GetSlotTransform(OwnerLocalToWorld, FSmartObjectSlotIndex(Slot.GetIndex()));
 		if (!Transform.IsSet())
 		{
 			continue;
 		}
 		bIsSelected = false;
 #if WITH_EDITORONLY_DATA
-		Color = Slot.bEnabled ? Slot.DEBUG_DrawColor : FColor::Silver;
-		SlotID = Slot.ID;
+		Color = Slot->bEnabled ? Slot->DEBUG_DrawColor : FColor::Silver;
+		SlotID = Slot->ID;
 
-		if (Selection.Contains(FSelectedItem(Slot.ID)))
+		if (Selection.Contains(FSelectedItem(Slot->ID)))
 		{
 			Color = VisContext.SelectedColor;
 			bIsSelected = true;
@@ -74,16 +73,15 @@ void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedIte
 			
 		PDI.SetHitProxy(nullptr);
 
-		for (int32 AnnotationIndex = 0; AnnotationIndex < Slot.Data.Num(); AnnotationIndex++)
+		for (TConstEnumerateRef<FInstancedStruct> Data : EnumerateRange(Slot->Data))
 		{
-			const FInstancedStruct& Data = Slot.Data[AnnotationIndex];
-			if (const FSmartObjectSlotAnnotation* Annotation = Data.GetPtr<FSmartObjectSlotAnnotation>())
+			if (const FSmartObjectSlotAnnotation* Annotation = Data->GetPtr<FSmartObjectSlotAnnotation>())
 			{
-				PDI.SetHitProxy(new HSmartObjectSlotProxy(/*Component*/nullptr, SlotID, AnnotationIndex));
+				PDI.SetHitProxy(new HSmartObjectSlotProxy(/*Component*/nullptr, SlotID, Data.GetIndex()));
 
-				VisContext.SlotIndex = FSmartObjectSlotIndex(Index);
+				VisContext.SlotIndex = FSmartObjectSlotIndex(Slot.GetIndex());
 				VisContext.bIsSlotSelected = bIsSelected;
-				VisContext.bIsAnnotationSelected = Selection.Contains(FSelectedItem(Slot.ID, AnnotationIndex));
+				VisContext.bIsAnnotationSelected = Selection.Contains(FSelectedItem(Slot->ID, Data.GetIndex()));
 
 				Annotation->DrawVisualization(VisContext);
 			}
@@ -110,11 +108,9 @@ void DrawCanvas(const USmartObjectDefinition& Definition, TConstArrayView<FSelec
 	bool bIsSelected = false;
 
 	const TConstArrayView<FSmartObjectSlotDefinition> Slots = Definition.GetSlots();
-	for (int32 Index = 0; Index < Slots.Num(); ++Index)
+	for (TConstEnumerateRef<FSmartObjectSlotDefinition> Slot : EnumerateRange(Slots))
 	{
-		const FSmartObjectSlotDefinition& Slot = Slots[Index];
-		
-		TOptional<FTransform> Transform = Definition.GetSlotTransform(OwnerLocalToWorld, FSmartObjectSlotIndex(Index));
+		TOptional<FTransform> Transform = Definition.GetSlotTransform(OwnerLocalToWorld, FSmartObjectSlotIndex(Slot.GetIndex()));
 		if (!Transform.IsSet())
 		{
 			continue;
@@ -122,9 +118,9 @@ void DrawCanvas(const USmartObjectDefinition& Definition, TConstArrayView<FSelec
 
 		bIsSelected = false;
 #if WITH_EDITORONLY_DATA
-		Color = Slot.bEnabled ? Slot.DEBUG_DrawColor : FColor::Silver;
+		Color = Slot->bEnabled ? Slot->DEBUG_DrawColor : FColor::Silver;
 
-		if (Selection.Contains(Slot.ID))
+		if (Selection.Contains(Slot->ID))
 		{
 			Color = FColor::Red;
 			bIsSelected = true;
@@ -133,17 +129,16 @@ void DrawCanvas(const USmartObjectDefinition& Definition, TConstArrayView<FSelec
 
 		// Slot name
 		const FVector SlotLocation = Transform->GetLocation();
-		VisContext.DrawString(SlotLocation, *Slot.Name.ToString(), Color);
+		VisContext.DrawString(SlotLocation, *Slot->Name.ToString(), Color);
 
 		// Slot data annotations
-		for (int32 AnnotationIndex = 0; AnnotationIndex < Slot.Data.Num(); AnnotationIndex++)
+		for (TConstEnumerateRef<FInstancedStruct> Data : EnumerateRange(Slot->Data))
 		{
-			const FInstancedStruct& Data = Slot.Data[AnnotationIndex];
-			if (const FSmartObjectSlotAnnotation* Annotation = Data.GetPtr<FSmartObjectSlotAnnotation>())
+			if (const FSmartObjectSlotAnnotation* Annotation = Data->GetPtr<FSmartObjectSlotAnnotation>())
 			{
-				VisContext.SlotIndex = FSmartObjectSlotIndex(Index);
+				VisContext.SlotIndex = FSmartObjectSlotIndex(Slot.GetIndex());
 				VisContext.bIsSlotSelected = bIsSelected;
-				VisContext.bIsAnnotationSelected = Selection.Contains(FSelectedItem(Slot.ID, AnnotationIndex));
+				VisContext.bIsAnnotationSelected = Selection.Contains(FSelectedItem(Slot->ID, Data.GetIndex()));
 				
 				Annotation->DrawVisualizationHUD(VisContext);
 			}
