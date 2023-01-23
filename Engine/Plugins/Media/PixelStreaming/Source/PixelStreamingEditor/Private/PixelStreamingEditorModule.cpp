@@ -59,46 +59,27 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 		return;
 	}
 
-	// The current handler is the function that will currently be executed if a message with type "Command" is received
-	TFunction<void(FMemoryReader)> CurrentHandler = Module.FindMessageHandler("Command");
-	TFunction<void(FMemoryReader)> ExtendedHandler = [CurrentHandler](FMemoryReader Ar)
+	// Add custom handle for { type: "Command", Resolution.Width: "1920", Resolution.Height: "1080" } when doing Editor streaming
+	// because we cannot resize the game viewport, but instead want to resize the parent window.
+	TSharedPtr<IPixelStreamingInputHandler> InputHandler = Streamer->GetInputHandler().Pin();
+	if(InputHandler) 
 	{
-		// We then create our new handler which will execute the "base" handler
-		CurrentHandler(Ar);
-		// and then perform out extended functionality after.
-		// equivalent to the super::DoSomeFunc pattern
-		FString Res;
-		Res.GetCharArray().SetNumUninitialized(Ar.TotalSize() / 2 + 1);
-		Ar.Serialize(Res.GetCharArray().GetData(), Ar.TotalSize());
-		FString Descriptor = Res.Mid(1);
-		FString WidthString;
-		FString HeightString;
-		bool bSuccess;
-		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Width"), WidthString, bSuccess);
-		if (bSuccess)
-		{
+		InputHandler->SetCommandHandler("Resolution.Width", [](FString Descriptor, FString WidthString){
+			bool bSuccess;
+			FString HeightString;
 			UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
-			if (bSuccess)
+			int Width = FCString::Atoi(*WidthString);
+			int Height = FCString::Atoi(*HeightString);
+			if (Width < 1 || Height < 1)
 			{
-				int Width = FCString::Atoi(*WidthString);
-				int Height = FCString::Atoi(*HeightString);
-				if (Width < 1 || Height < 1)
-				{
-					return;
-				}
-
-				TSharedPtr<SWindow> ParentWindow = IMainFrameModule::Get().GetParentWindow();
-				ParentWindow->Resize(FVector2D(Width, Height));
-				FSlateApplication::Get().OnSizeChanged(ParentWindow->GetNativeWindow().ToSharedRef(), Width, Height);
+				return;
 			}
-		}
-	};
-	Module.RegisterMessage( Protocol::EPixelStreamingMessageDirection::ToStreamer, 
-							"Command", 
-							Protocol::FPixelStreamingInputMessage(51, 0, {}),
-							[ExtendedHandler](FMemoryReader Ar) {
-								ExtendedHandler(Ar);
-							});
+
+			TSharedPtr<SWindow> ParentWindow = IMainFrameModule::Get().GetParentWindow();
+			ParentWindow->Resize(FVector2D(Width, Height));
+			FSlateApplication::Get().OnSizeChanged(ParentWindow->GetNativeWindow().ToSharedRef(), Width, Height);
+		});
+	}
 
 	// Give the editor streamer the default url if the user hasn't specified one when launching the editor
 	if (Streamer->GetSignallingServerURL().IsEmpty())

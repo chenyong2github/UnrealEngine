@@ -28,6 +28,9 @@ namespace UE::PixelStreaming
 		/** Set which MessageHandler will route input  */
 		virtual void SetMessageHandler(const TSharedRef<FGenericApplicationMessageHandler>& InTargetHandler) override;
 
+		/** Register a custom function to execute when command JSON is received. */
+		virtual void SetCommandHandler(const FString& CommandName, const TFunction<void(FString, FString)>& Handler) override;
+
 		/** Exec handler to allow console commands to be passed through for debugging */
 		virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 		/**
@@ -92,6 +95,11 @@ namespace UE::PixelStreaming
          * UI Interaction handling
          */
         virtual void HandleUIInteraction(FMemoryReader Ar);
+
+		/**
+		 * Populate default command handlers for data channel messages sent with "{ type: "Command" }".
+		 */
+		void PopulateDefaultCommandHandlers();
 
 		FIntPoint ConvertFromNormalizedScreenLocation(const FVector2D& ScreenLocation, bool bIncludeOffset = true);
 		FWidgetPath FindRoutingMessageWidget(const FVector2D& Location) const;
@@ -169,6 +177,15 @@ namespace UE::PixelStreaming
 		 * 2 characters for the length which are skipped
 		 */
 		const size_t MessageHeaderOffset = 1;
+
+		/**
+		 * A map of named commands we respond to when we receive a datachannel message of type "command".
+		 * Key = command name (e.g "Encoder.MaxQP")
+		 * Value = The command handler lambda function whose parameters are as follows:
+		 * 	FString - the descriptor (e.g. the full json payload of the command message)
+		 * 	FString - the parsed value of the command, e.g. if key was "Encoder.MaxQP" and descriptor was { type: "Command", "Encoder.MaxQP": 51 }, then parsed value is "51".
+		 */
+		TMap<FString, TFunction<void(FString, FString)>> CommandHandlers;
 	
 	private:
 		float uint16_MAX = (float) UINT16_MAX;

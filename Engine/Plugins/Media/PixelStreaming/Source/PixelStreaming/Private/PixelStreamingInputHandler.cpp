@@ -60,6 +60,8 @@ namespace UE::PixelStreaming
 
         RegisterMessageHandler("Command", [this](FMemoryReader Ar) { HandleCommand(Ar); });
         RegisterMessageHandler("UIInteraction", [this](FMemoryReader Ar) { HandleUIInteraction(Ar); });
+
+		PopulateDefaultCommandHandlers();
     }
 
     FPixelStreamingInputHandler::~FPixelStreamingInputHandler()
@@ -659,6 +661,79 @@ namespace UE::PixelStreaming
 		}
 	}
 
+	void FPixelStreamingInputHandler::SetCommandHandler(const FString& CommandName, const TFunction<void(FString, FString)>& Handler)
+	{
+		CommandHandlers.Add(CommandName, Handler);
+	}
+
+	void FPixelStreamingInputHandler::PopulateDefaultCommandHandlers() {
+
+		// Execute console commands if passed "ConsoleCommand" and -PixelStreamingAllowConsoleCommands is on.
+		CommandHandlers.Add(TEXT("ConsoleCommand"), [](FString Descriptor, FString ConsoleCommand){
+			if(!UE::PixelStreaming::Settings::CVarPixelStreamingAllowConsoleCommands.GetValueOnAnyThread())
+			{
+				return;
+			}
+			GEngine->Exec(GEngine->GetWorld(), *ConsoleCommand);
+		});
+
+		// Change width/height if sent { "Resolution.Width": 1920, "Resolution.Height": 1080 }
+		CommandHandlers.Add(TEXT("Resolution.Width"), [](FString Descriptor, FString WidthString){
+			bool bSuccess = false;
+			FString HeightString;
+			UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
+			if(bSuccess) 
+			{
+				int Width = FCString::Atoi(*WidthString);
+				int Height = FCString::Atoi(*HeightString);
+				if (Width < 1 || Height < 1)
+				{
+					return;
+				}
+
+				FString ChangeResCommand = FString::Printf(TEXT("r.SetRes %dx%d"), Width, Height);
+				GEngine->Exec(GEngine->GetWorld(), *ChangeResCommand);
+			}
+		});
+
+		// Response to "Stat.FPS" by calling "stat fps"
+		CommandHandlers.Add(TEXT("Stat.FPS"), [](FString Descriptor, FString FPSCommand){
+			FString StatFPSCommand = FString::Printf(TEXT("stat fps"));
+			GEngine->Exec(GEngine->GetWorld(), *StatFPSCommand);
+		});
+
+		// Set Encoder.MinQP CVar
+		CommandHandlers.Add(TEXT("Encoder.MinQP"), [](FString Descriptor, FString MinQPString){
+			int MinQP = FCString::Atoi(*MinQPString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMinQP->Set(MinQP, ECVF_SetByCommandline);
+		});
+
+		// Set Encoder.MaxQP CVar
+		CommandHandlers.Add(TEXT("Encoder.MaxQP"), [](FString Descriptor, FString MaxQPString){
+			int MaxQP = FCString::Atoi(*MaxQPString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMaxQP->Set(MaxQP, ECVF_SetByCommandline);
+		});
+
+		// Set WebRTC max FPS
+		CommandHandlers.Add(TEXT("WebRTC.Fps"), [](FString Descriptor, FString FPSString){
+			int FPS = FCString::Atoi(*FPSString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCFps->Set(FPS, ECVF_SetByCommandline);
+		});
+
+		// Set MinBitrate
+		CommandHandlers.Add(TEXT("WebRTC.MinBitrate"), [](FString Descriptor, FString MinBitrateString){
+			int MinBitrate = FCString::Atoi(*MinBitrateString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCMinBitrate->Set(MinBitrate, ECVF_SetByCommandline);
+		});
+
+		// Set MaxBitrate
+		CommandHandlers.Add(TEXT("WebRTC.MaxBitrate"), [](FString Descriptor, FString MaxBitrateString){
+			int MaxBitrate = FCString::Atoi(*MaxBitrateString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCMaxBitrate->Set(MaxBitrate, ECVF_SetByCommandline);
+		});
+
+	}
+
     /**
      * Command handling
      */
@@ -671,99 +746,18 @@ namespace UE::PixelStreaming
 		FString Descriptor = Res.Mid(MessageHeaderOffset);
 		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("Command: %s"), *Descriptor);
 
-		bool bSuccess = false;
-
-		FString ConsoleCommand;
-		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("ConsoleCommand"), ConsoleCommand, bSuccess);
-		if (bSuccess && UE::PixelStreaming::Settings::CVarPixelStreamingAllowConsoleCommands.GetValueOnAnyThread())
+		// Iterate each command handler and see if the command we got matches any of the bound command names.
+		for(auto& CommandHandlersPair : CommandHandlers) 
 		{
-			GEngine->Exec(GEngine->GetWorld(), *ConsoleCommand);
-			return;
-		}
-
-		/**
-		 * Allowed Console commands
-		 */
-		FString WidthString;
-		FString HeightString;
-		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Width"), WidthString, bSuccess);
-		if (bSuccess)
-		{
-			UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
-
-			if (bSuccess)
+			FString CommandValue;
+			bool bSuccess = false;
+			UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, CommandHandlersPair.Key, CommandValue, bSuccess);
+			if(bSuccess) 
 			{
-				int Width = FCString::Atoi(*WidthString);
-				int Height = FCString::Atoi(*HeightString);
-				if (Width < 1 || Height < 1)
-				{
-					return;
-				}
-
-				FString ChangeResCommand = FString::Printf(TEXT("r.SetRes %dx%d"), Width, Height);
-				GEngine->Exec(GEngine->GetWorld(), *ChangeResCommand);
+				// Execute bound command handler with descriptor and parsed command value
+				CommandHandlersPair.Value(Descriptor, CommandValue);
 				return;
 			}
-		}
-
-		FString StatFPSString;
-		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Stat.FPS"), StatFPSString, bSuccess);
-		if (bSuccess)
-		{
-			FString StatFPSCommand = FString::Printf(TEXT("stat fps"));
-			GEngine->Exec(GEngine->GetWorld(), *StatFPSCommand);
-			return;
-		}
-
-		/**
-		 * Encoder Settings
-		 */
-		FString MinQPString;
-		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Encoder.MinQP"), MinQPString, bSuccess);
-		if (bSuccess)
-		{
-			int MinQP = FCString::Atoi(*MinQPString);
-			UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMinQP->Set(MinQP, ECVF_SetByCommandline);
-			return;
-		}
-
-		FString MaxQPString;
-		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Encoder.MaxQP"), MaxQPString, bSuccess);
-		if (bSuccess)
-		{
-			int MaxQP = FCString::Atoi(*MaxQPString);
-			UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMaxQP->Set(MaxQP, ECVF_SetByCommandline);
-			return;
-		}
-
-		/**
-		 * WebRTC Settings
-		 */
-		FString FPSString;
-		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("WebRTC.Fps"), FPSString, bSuccess);
-		if (bSuccess)
-		{
-			int FPS = FCString::Atoi(*FPSString);
-			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCFps->Set(FPS, ECVF_SetByCommandline);
-			return;
-		}
-
-		FString MinBitrateString;
-		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("WebRTC.MinBitrate"), MinBitrateString, bSuccess);
-		if (bSuccess)
-		{
-			int MinBitrate = FCString::Atoi(*MinBitrateString);
-			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCMinBitrate->Set(MinBitrate, ECVF_SetByCommandline);
-			return;
-		}
-
-		FString MaxBitrateString;
-		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("WebRTC.MaxBitrate"), MaxBitrateString, bSuccess);
-		if (bSuccess)
-		{
-			int MaxBitrate = FCString::Atoi(*MaxBitrateString);
-			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCMaxBitrate->Set(MaxBitrate, ECVF_SetByCommandline);
-			return;
 		}
 	}
 
