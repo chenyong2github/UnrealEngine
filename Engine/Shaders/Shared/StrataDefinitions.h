@@ -8,7 +8,7 @@
 #pragma once
 
 // Change this to force recompilation of all strata dependent shaders (use https://www.random.org/cgi-bin/randbyte?nbytes=4&format=h)
-#define STRATA_SHADER_VERSION 0xcb0f647e1
+#define STRATA_SHADER_VERSION 0x084bf26a2 
 
 
 

@@ -266,8 +266,7 @@ void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, c
 			}
 			else
 			{
-				// STRATA_TODO_BLENDMODE_ADDITIVE
-				// We always use premultipled alpha for translucent rendering.
+				// We always use premultipled alpha for translucent rendering, that works for any surface with additive color.
 				// If a material was requesting dual source blending, the shader will use static platofm knowledge to convert colored transmittance to a grey scale transmittance.
 				DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI());
 			}
@@ -324,6 +323,7 @@ void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, c
 			// Masked materials are rendered together in the base pass, where the blend state is set at a higher level
 			break;
 		case BLEND_Translucent:
+		case BLEND_TranslucentColoredTransmittance:	// When Strata is disabled, this falls back to simple Translucency.
 			// Note: alpha channel used by separate translucency, storing how much of the background should be added when doing the final composite
 			// The Alpha channel is also used by non-separate translucency when rendering to scene captures, which store the final opacity
 			DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI());
