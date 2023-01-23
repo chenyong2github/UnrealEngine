@@ -7,10 +7,12 @@
 #include "../VulkanExtensions.h"
 
 // Disable warning about forward declared enumeration without a type, since the D3D specific enums are not used in this translation unit
+#if WITH_AMD_AGS
 #pragma warning(push)
 #pragma warning(disable : 4471)
 #include "amd_ags.h"
 #pragma warning(pop)
+#endif
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 static HMODULE GVulkanDLLModule = nullptr;
