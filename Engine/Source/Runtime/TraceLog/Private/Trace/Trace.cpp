@@ -23,6 +23,7 @@ void	Writer_Update();
 bool	Writer_SendTo(const ANSICHAR*, uint32, uint32);
 bool	Writer_WriteTo(const ANSICHAR*, uint32);
 bool	Writer_WriteSnapshotTo(const ANSICHAR*);
+bool	Writer_SendSnapshotTo(const ANSICHAR*, uint32);	
 bool	Writer_IsTracing();
 bool	Writer_Stop();
 uint32	Writer_GetThreadId();
@@ -103,6 +104,14 @@ bool WriteSnapshotTo(const TCHAR* InPath)
 	char Path[512];
 	ToAnsiCheap(Path, InPath);
 	return Private::Writer_WriteSnapshotTo(Path);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool SendSnapshotTo(const TCHAR* InHost, uint32 InPort)
+{
+	char Host[512];
+	ToAnsiCheap(Host, InHost);
+	return Private::Writer_SendSnapshotTo(Host, InPort);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

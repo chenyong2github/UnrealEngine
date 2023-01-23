@@ -959,7 +959,26 @@ private:
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-bool Writer_WriteSnapshotTo(const ANSICHAR* Path)
+struct FSnapshotTarget
+{
+	enum EType { FileTarget, HostTarget };
+	EType Type;
+	union
+	{
+		 struct
+		 {
+			 const ANSICHAR* Path;
+		 } File;
+		 struct
+		 {
+			 const ANSICHAR* Host;
+			 uint32 Port;
+		 } Host;
+	};
+};
+
+////////////////////////////////////////////////////////////////////////////////
+bool Writer_WriteSnapshot(const FSnapshotTarget& Target)
 {
 	if (!Writer_IsTailing())
 	{
@@ -996,8 +1015,24 @@ bool Writer_WriteSnapshotTo(const ANSICHAR* Path)
 		TStashGlobal SyncPacketCountdown(GSyncPacketCountdown, GNumSyncPackets);
 		TStashGlobal TraceStatistics(GTraceStatistics);
 
-		// Open the snapshot file and write the file header
-		GDataHandle = FileOpen(Path);
+		if (Target.Type == FSnapshotTarget::EType::FileTarget)
+		{
+			// Open the snapshot file 
+			GDataHandle = FileOpen(Target.File.Path);
+		}
+		else
+		{
+			// Open the snapshot connection and write 
+			const uint32 Port = Target.Host.Port ? Target.Host.Port : 1981;
+			GDataHandle = TcpSocketConnect(Target.Host.Host, uint16(Port));
+			if (!GDataHandle)
+			{
+				return false;
+			}
+			GDataHandle = Writer_PackSendFlags(GDataHandle, 0);
+		}
+
+		// Write the file header
 		if (!GDataHandle || !Writer_SessionPrologue())
 		{
 			return false;
@@ -1028,7 +1063,26 @@ bool Writer_WriteSnapshotTo(const ANSICHAR* Path)
 
 	return true;
 }
+	
+////////////////////////////////////////////////////////////////////////////////
+bool Writer_WriteSnapshotTo(const ANSICHAR* Path)
+{
+	FSnapshotTarget Target;
+	Target.Type = FSnapshotTarget::EType::FileTarget;
+	Target.File.Path = Path;
+	return Writer_WriteSnapshot(Target);
+}
 
+////////////////////////////////////////////////////////////////////////////////
+bool Writer_SendSnapshotTo(const ANSICHAR* Host, uint32 Port)
+{
+	FSnapshotTarget Target;
+	Target.Type = FSnapshotTarget::EType::HostTarget;
+	Target.Host.Host = Host;
+	Target.Host.Port = Port;
+	return Writer_WriteSnapshot(Target);
+}
+	
 ////////////////////////////////////////////////////////////////////////////////
 bool Writer_IsTracing()
 {

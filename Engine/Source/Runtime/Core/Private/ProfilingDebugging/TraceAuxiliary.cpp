@@ -100,6 +100,7 @@ public:
 	void StartWorkerThread();
 	void StartEndFramePump();
 	bool WriteSnapshot(const TCHAR* InFilePath, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
+	bool SendSnapshot(const TCHAR* InHost, uint32 InPort, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
 
 	// True if this is parent process with forking requested before forking.
 	bool					IsParentProcessAndPreFork();
@@ -578,6 +579,28 @@ bool FTraceAuxiliaryImpl::WriteSnapshot(const TCHAR* InFilePath, const FTraceAux
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+bool FTraceAuxiliaryImpl::SendSnapshot(const TCHAR* InHost, uint32 InPort, const FTraceAuxiliary::FLogCategoryAlias& LogCategory)
+{
+	double StartTime = FPlatformTime::Seconds();
+
+	UE_LOG_REF(LogCategory, Log, TEXT("Sending trace snapshot to '%s'..."), InHost);
+
+	const bool bResult = UE::Trace::SendSnapshotTo(InHost, InPort);
+
+	if (bResult)
+	{
+		FTraceAuxiliary::OnSnapshotSaved.Broadcast(InHost);
+		UE_LOG_REF(LogCategory, Display, TEXT("Trace snapshot generated in %.3f seconds to \"%s\"."), FPlatformTime::Seconds() - StartTime, InHost);
+	}
+	else
+	{
+		UE_LOG_REF(LogCategory, Error, TEXT("Failed to trace snapshot to \"%s\"."), InHost);
+	}
+
+	return bResult;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 const TCHAR* FTraceAuxiliaryImpl::GetDest() const
 {
 	return *TraceDest;
@@ -929,6 +952,33 @@ static void TraceAuxiliarySnapshotFile(const TArray<FString>& Args)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+static void TraceAuxiliarySnapshotSend(const TArray<FString>& Args)
+{
+	const TCHAR* Host = nullptr;
+	uint32 Port = 0;
+
+	if (Args.Num() >= 1)
+	{
+		Host = *Args[0];
+	}
+	if (Args.Num() >= 2)
+	{
+		LexFromString(Port, *Args[1]);
+	}
+	if (Args.Num() == 0)
+	{
+		Host = TEXT("localhost");
+	}
+	if (Args.Num() > 2) 
+	{
+		UE_LOG(LogConsoleResponse, Warning, TEXT("Invalid arguments. Usage: Trace.SnapshotFile <Host> <Port>"));
+		return;
+	}
+
+	GTraceAuxiliary.SendSnapshot(Host, Port, LogConsoleResponse);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 static void TraceBookmark(const TArray<FString>& Args)
 {
 	TRACE_BOOKMARK(TEXT("%s"), Args.Num() ? *Args[0] : TEXT(""));
@@ -1016,6 +1066,14 @@ static FAutoConsoleCommand TraceAuxiliarySnapshotFileCmd(
 	TEXT("[Path] - Writes a snapshot of the current in-memory trace buffer to a file."
 	),
 	FConsoleCommandWithArgsDelegate::CreateStatic(TraceAuxiliarySnapshotFile)
+);
+
+////////////////////////////////////////////////////////////////////////////////
+static FAutoConsoleCommand TraceAuxiliarySnapshotSendCmd(
+	TEXT("Trace.SnapshotSend"),
+	TEXT("<Host> <Port> - Sends a snapshot of the current in-memory trace buffer to a server. If no host is specified 'localhost' is used."
+	),
+	FConsoleCommandWithArgsDelegate::CreateStatic(TraceAuxiliarySnapshotSend)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
