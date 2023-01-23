@@ -12,7 +12,7 @@ UUIFrameworkLocalSettings::UUIFrameworkLocalSettings()
 	LoadingResource = FSoftObjectPath(TEXT("/UIFramework/Materials/M_UI_DefaultLoading.M_UI_DefaultLoading"));
 }
 
-void UUIFrameworkLocalSettings::LoadResources()
+void UUIFrameworkLocalSettings::LoadResources() const
 {
 	Async(EAsyncExecution::TaskGraphMainThread, []()
 		{
@@ -29,7 +29,16 @@ void UUIFrameworkLocalSettings::LoadResources()
 					{
 						UUIFrameworkLocalSettings* Default = GetMutableDefault<UUIFrameworkLocalSettings>();
 						Default->ErrorResourcePtr = Default->ErrorResource.Get();
+						if (Default->ErrorResourcePtr)
+						{
+							Default->ErrorResourcePtr->AddToRoot();
+						}
+
 						Default->LoadingResourcePtr = Default->LoadingResource.Get();
+						if (Default->LoadingResourcePtr)
+						{
+							Default->LoadingResourcePtr->AddToRoot();
+						}
 					}
 				},
 				FStreamableManager::DefaultAsyncLoadPriority);

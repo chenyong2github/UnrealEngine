@@ -164,7 +164,7 @@ TSubclassOf<UUIFrameworkPresenter> FUIFrameworkModule::GetPresenterClass()
 
 void FUIFrameworkModule::StartupModule()
 {
-	//GetMutableDefault<UUIFrameworkLocalSettings>()->LoadResources();
+	GetDefault<UUIFrameworkLocalSettings>()->LoadResources();
 }
 
 IMPLEMENT_MODULE(FUIFrameworkModule, UIFramework)

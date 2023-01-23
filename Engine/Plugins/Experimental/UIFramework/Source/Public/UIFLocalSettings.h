@@ -29,7 +29,7 @@ public:
 		return LoadingResourcePtr;
 	}
 
-	void LoadResources();
+	void LoadResources() const;
 	
 	virtual FName GetCategoryName() const override;
 
@@ -57,8 +57,7 @@ private:
 	UPROPERTY(Config, EditAnywhere, Category = "UI Framework", meta = (AllowPrivateAccess = "true", DisplayThumbnail = "true", AllowedClasses = "/Script/Engine.Texture,/Script/Engine.MaterialInterface,/Script/Engine.SlateTextureAtlasInterface", DisallowedClasses = "/Script/MediaAssets.MediaTexture"))
 	TSoftObjectPtr<UObject> LoadingResource;
 
-	UPROPERTY(Transient)
+	//~ kept alive with by AddToRoot
 	TObjectPtr<UObject> ErrorResourcePtr;
-	UPROPERTY(Transient)
 	TObjectPtr<UObject> LoadingResourcePtr;
 };
