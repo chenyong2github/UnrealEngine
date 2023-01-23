@@ -147,12 +147,12 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 
 		// Output/Patch SSS data for legacy encoding (this allows to save ALU & bandwidth during the base pass0
 		uint OptimisedLegacyMode = ((PackedHeader >> (HEADER_SINGLEENCODING_BIT_COUNT)) & HEADER_SINGLE_OPTLEGACYMODE_BIT_MASK);
-		const bool bIsLegacyWrap = OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP;
+		const bool bIsLegacyWrapOrWrapThin = OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP || OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP_THIN; // Wrap and Wrap thin have same packing
 		const bool bIsLegacySSSProfile = OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSPROFILE;
-		if (bIsSingle && (bIsLegacyWrap || bIsLegacySSSProfile))
+		if (bIsSingle && (bIsLegacyWrapOrWrapThin || bIsLegacySSSProfile))
 		{
 			bContainsScreenSpaceSubsurfaceScattering = true;
-			if (bIsLegacyWrap)
+			if (bIsLegacyWrapOrWrapThin)
 			{
 				const uint PackedSSSWOpacity7bits = (PackedHeader >> (HEADER_SINGLEENCODING_BIT_COUNT + HEADER_SINGLE_OPTLEGACYMODE_BIT_COUNT)) & 0x7F;
 				FStrataSubsurfaceHeader SSSHeader = (FStrataSubsurfaceHeader)0;

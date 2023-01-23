@@ -621,13 +621,6 @@ void PackStrataOut(
 							// Ensure the rest of the BSDF is not stored with the regular path
 							BSDF.State = 0;
 						}
-						// else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_xxx)
-						//
-						// STRATA_TODO
-						// - Fast cloth
-						// - Fast subsurface
-						// - Fast diffusion with profile
-						// - Anisotropy as an option for Disney and clear coat as for current UE5?
 
 						#if (HEADER_SIMPLEENCODING_BIT_COUNT) > 32
 						#error Strata fast path header is > 32bits
