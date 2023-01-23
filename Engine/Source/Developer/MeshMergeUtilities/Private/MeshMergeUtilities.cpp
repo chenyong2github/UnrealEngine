@@ -2300,7 +2300,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 	TArray<FKAggregateGeom> PhysicsGeometry;
 	if (InSettings.bMergePhysicsData)
 	{
-		ExtractPhysicsDataFromComponents(ComponentsToMerge, PhysicsGeometry, BodySetupSource);
+		RetrievePhysicsData(ComponentsToMerge, PhysicsGeometry, BodySetupSource);
 	}
 
 	// Merge sockets
@@ -3698,16 +3698,52 @@ UMaterialInterface* FMeshMergeUtilities::CreateProxyMaterial(const FString &InBa
 	return MergedMaterial;
 }
 
-void FMeshMergeUtilities::ExtractPhysicsDataFromComponents(const TArray<UPrimitiveComponent*>& ComponentsToMerge, TArray<FKAggregateGeom>& InOutPhysicsGeometry, UBodySetup*& OutBodySetupSource) const
+void FMeshMergeUtilities::RetrievePhysicsData(const TArray<UPrimitiveComponent*>& ComponentsToMerge, TArray<FKAggregateGeom>& InOutPhysicsGeometry, UBodySetup*& OutBodySetupSource) const
 {
 	InOutPhysicsGeometry.AddDefaulted(ComponentsToMerge.Num());
-	for (int32 ComponentIndex = 0; ComponentIndex < ComponentsToMerge.Num(); ++ComponentIndex)
+	for (int32 ComponentIndex = 0, PhysicsGeometryIndex = 0; ComponentIndex < ComponentsToMerge.Num(); ++ComponentIndex)
 	{
 		UPrimitiveComponent* PrimComp = ComponentsToMerge[ComponentIndex];
 		UBodySetup* BodySetup = nullptr;
 		FTransform ComponentToWorld = FTransform::Identity;
 
-		if (UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(PrimComp))
+		auto ExtractPhysicGeometry = [&BodySetup, &ComponentToWorld, &OutBodySetupSource, &InOutPhysicsGeometry, PrimComp](int32 PhysicsIndex) {
+				USplineMeshComponent* SplineMeshComponent = Cast<USplineMeshComponent>(PrimComp);
+				FMeshMergeHelpers::ExtractPhysicsGeometry(BodySetup, ComponentToWorld, SplineMeshComponent != nullptr, InOutPhysicsGeometry[PhysicsIndex]);
+				if (SplineMeshComponent)
+				{
+					FMeshMergeHelpers::PropagateSplineDeformationToPhysicsGeometry(SplineMeshComponent, InOutPhysicsGeometry[PhysicsIndex]);
+				}
+
+				// We will use first valid BodySetup as a source of physics settings
+				if (OutBodySetupSource == nullptr)
+				{
+					OutBodySetupSource = BodySetup;
+				}
+			};
+
+		if (UInstancedStaticMeshComponent* ISMComp = Cast<UInstancedStaticMeshComponent>(PrimComp))
+		{
+			const int32 NumberOfInstances = ISMComp->PerInstanceSMData.Num();
+			const UStaticMesh* SrcMesh = ISMComp->GetStaticMesh();
+			
+			if (NumberOfInstances > 1)
+			{
+				InOutPhysicsGeometry.AddDefaulted(NumberOfInstances - 1);
+			}
+
+			if (SrcMesh)
+			{
+				BodySetup = SrcMesh->GetBodySetup();
+			}
+
+			for (const FInstancedStaticMeshInstanceData& InstanceData : ISMComp->PerInstanceSMData)
+			{
+				ComponentToWorld = FTransform(InstanceData.Transform) * ISMComp->GetComponentToWorld();
+				ExtractPhysicGeometry(PhysicsGeometryIndex++);
+			}
+		}
+		else if (UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(PrimComp))
 		{
 			UStaticMesh* SrcMesh = StaticMeshComp->GetStaticMesh();
 			if (SrcMesh)
@@ -3715,25 +3751,15 @@ void FMeshMergeUtilities::ExtractPhysicsDataFromComponents(const TArray<UPrimiti
 				BodySetup = SrcMesh->GetBodySetup();
 			}
 			ComponentToWorld = StaticMeshComp->GetComponentToWorld();
+			ExtractPhysicGeometry(PhysicsGeometryIndex++);
 		}
 		else if (UShapeComponent* ShapeComp = Cast<UShapeComponent>(PrimComp))
 		{
 			BodySetup = ShapeComp->GetBodySetup();
 			ComponentToWorld = ShapeComp->GetComponentToWorld();
+			ExtractPhysicGeometry(PhysicsGeometryIndex++);
 		}
 
-		USplineMeshComponent* SplineMeshComponent = Cast<USplineMeshComponent>(PrimComp);
-		FMeshMergeHelpers::ExtractPhysicsGeometry(BodySetup, ComponentToWorld, SplineMeshComponent != nullptr, InOutPhysicsGeometry[ComponentIndex]);
-		if (SplineMeshComponent)
-		{
-			FMeshMergeHelpers::PropagateSplineDeformationToPhysicsGeometry(SplineMeshComponent, InOutPhysicsGeometry[ComponentIndex]);
-		}
-
-		// We will use first valid BodySetup as a source of physics settings
-		if (OutBodySetupSource == nullptr)
-		{
-			OutBodySetupSource = BodySetup;
-		}
 	}
 }
 

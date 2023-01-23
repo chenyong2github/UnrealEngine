@@ -135,6 +135,15 @@ public:
 	/** Extract mesh data in FMeshDescription form from the provided static mesh */
 	virtual void RetrieveMeshDescription(const UStaticMesh* InStaticMesh, int32 LODIndex, FMeshDescription& InOutMeshDescription) const = 0;
 
+	/**
+	 * Extract physics geometry and body setup from set of primitive components.
+	 * 
+	 * @param InComponents			List of components to extract the physics geometry from.
+	 * @param InOutPhysicsGeometry	The list of extracted physics geometry.
+	 * @param OutBodySetupSource	The BodySetup extracted.
+	 */
+	virtual void RetrievePhysicsData(const TArray<UPrimitiveComponent*>& InComponents, TArray<FKAggregateGeom>& InOutPhysicsGeometry, UBodySetup*& OutBodySetupSource) const = 0;
+
 	virtual void RegisterExtension(IMeshMergeExtension* InExtension) = 0;
 	virtual void UnregisterExtension(IMeshMergeExtension* InExtension) = 0;
 };
