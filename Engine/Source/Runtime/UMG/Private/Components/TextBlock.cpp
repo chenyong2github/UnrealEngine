@@ -126,6 +126,7 @@ void UTextBlock::SetFont(FSlateFontInfo InFontInfo)
 	{
 		MyTextBlock->SetFont(Font);
 	}
+	OnFontChanged();
 }
 
 const FSlateBrush& UTextBlock::GetStrikeBrush() const
@@ -385,6 +386,7 @@ void UTextBlock::SetText(FText InText)
 	{
 		MyTextBlock->SetText(GetDisplayText());
 	}
+	OnTextChanged();
 }
 
 TAttribute<FText> UTextBlock::GetDisplayText()

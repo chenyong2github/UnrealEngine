@@ -611,15 +611,18 @@ void UCommonTextBlock::SynchronizeProperties()
 	}
 }
 
-void UCommonTextBlock::SetText(FText InText)
+void UCommonTextBlock::OnTextChanged()
 {
-	Super::SetText(InText);
-	
+	Super::OnTextChanged();
 	if (bAutoCollapseWithEmptyText)
 	{
-		SetVisibility(InText.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		SetVisibility(GetText().IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 	}
+}
 
+void UCommonTextBlock::OnFontChanged()
+{
+	Super::OnFontChanged();
 	if (CommonUIUtils::ShouldDisplayMobileUISizes())
 	{
 		ApplyFontSizeMultiplier();

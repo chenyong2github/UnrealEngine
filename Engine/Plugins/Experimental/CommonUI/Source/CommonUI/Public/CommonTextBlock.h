@@ -176,8 +176,6 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
-	virtual void SetText(FText InText) override;
-
 	UFUNCTION(BlueprintCallable, Category = "Common Text")
 	void SetWrapTextWidth(int32 InWrapTextAt);
 
@@ -212,6 +210,9 @@ public:
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void SynchronizeProperties() override;
+
+	virtual void OnTextChanged() override;
+	virtual void OnFontChanged() override;
 
 	/** Mobile font size multiplier. Activated by default on mobile. See CVar Mobile_PreviewFontSize */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Mobile", meta = (ClampMin = "0.01", ClampMax = "5.0"))

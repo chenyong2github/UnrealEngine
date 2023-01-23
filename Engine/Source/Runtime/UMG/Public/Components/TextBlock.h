@@ -221,6 +221,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	UMaterialInstanceDynamic* GetDynamicOutlineMaterial();
 
+protected:
+	virtual void OnTextChanged()
+	{
+	}
+
+	virtual void OnFontChanged()
+	{
+	}
+
 public:
 	//~ Begin UTextLayoutWidget Interface
 	virtual void SetJustification(ETextJustify::Type InJustification) override;
