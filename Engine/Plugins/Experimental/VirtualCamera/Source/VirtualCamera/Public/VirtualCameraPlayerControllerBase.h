@@ -4,15 +4,15 @@
 
 #include "GameFramework/PlayerController.h"
 
-#include "CineCameraActor.h"
-#include "InputCore.h"
 #include "IVirtualCameraController.h"
-#include "LevelSequencePlaybackController.h"
+#include "LevelSequence/LevelSequencePlaybackController.h"
+#include "VirtualCameraPawnBase.h"
+
+#include "CineCameraActor.h"
 #include "Math/UnitConversion.h"
 #include "Misc/FrameNumber.h"
 #include "Misc/FrameRate.h"
 #include "Misc/Timecode.h"
-#include "VirtualCameraPawnBase.h"
 #include "VirtualCameraPlayerControllerBase.generated.h"
 
 class AVPRootActor;

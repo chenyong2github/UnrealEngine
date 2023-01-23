@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualCameraSubsystem.h"
-#include "LevelSequencePlaybackController.h"
+
+#include "LevelSequence/LevelSequencePlaybackController.h"
+
 #include "Engine/Selection.h"
 #include "GameFramework/Actor.h"
 

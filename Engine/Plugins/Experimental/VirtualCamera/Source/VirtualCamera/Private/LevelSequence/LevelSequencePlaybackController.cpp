@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LevelSequencePlaybackController.h"
+#include "LevelSequence/LevelSequencePlaybackController.h"
 
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -10,8 +10,6 @@
 #include "Modules/ModuleManager.h"
 #include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
-#include "UObject/UObjectBase.h"
-#include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 #include "ILevelSequenceEditorToolkit.h"
@@ -20,8 +18,6 @@
 #include "Templates/SharedPointer.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #endif //WITH_EDITOR
-
-
 
 ULevelSequencePlaybackController::ULevelSequencePlaybackController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

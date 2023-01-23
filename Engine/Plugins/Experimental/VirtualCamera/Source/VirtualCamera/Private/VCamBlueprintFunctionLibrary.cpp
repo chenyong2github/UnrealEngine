@@ -2,15 +2,16 @@
 
 #include "VCamBlueprintFunctionLibrary.h"
 
+#include "LevelSequence/VirtualCameraClipsMetaData.h"
+#include "VirtualCameraUserSettings.h"
+
+#include "AssetRegistry/AssetData.h"
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
-#include "Engine/GameInstance.h"
-#include "LevelSequence.h"
-#include "VirtualCameraClipsMetaData.h"
 #include "Components/SceneCaptureComponent2D.h"
-#include "AssetRegistry/AssetData.h"
-#include "VirtualCameraUserSettings.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
+#include "LevelSequence.h"
 #include "MovieScene.h"
 
 #if WITH_EDITOR
@@ -27,7 +28,6 @@
 #include "Recorder/TakeRecorderPanel.h"
 #include "SLevelViewport.h"
 #include "SceneView.h"
-#include "Subsystems/UnrealEditorSubsystem.h"
 #include "TakePreset.h"
 #include "VPUtilitiesEditorBlueprintLibrary.h"
 #endif
