@@ -5,7 +5,6 @@
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 #include "RenderGraphUtils.h"
-#include "NNXOperator.h"
 
 namespace UE::NNEHlslShaders::Internal
 {

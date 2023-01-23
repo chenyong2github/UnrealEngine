@@ -18,16 +18,16 @@ namespace UE::NNEHlslShaders::Internal
 		OutEnvironment.SetDefine(TEXT("ELEMENTWISE_OP(X,Y)"), *OpFunc);
 	}
 
-	const FString TElementWiseBinaryCS::GetOpFunc(EMLElementWiseBinaryOperatorType OpType)
+	const FString TElementWiseBinaryCS::GetOpFunc(NNECore::Internal::EElementWiseBinaryOperatorType OpType)
 	{
-		FString OpTable[(int32) EMLElementWiseBinaryOperatorType::MAX];
+		FString OpTable[(int32) NNECore::Internal::EElementWiseBinaryOperatorType::MAX];
 
-		for (int32 Idx = 0; Idx < (int32)EMLElementWiseBinaryOperatorType::MAX; ++Idx)
+		for (int32 Idx = 0; Idx < (int32) NNECore::Internal::EElementWiseBinaryOperatorType::MAX; ++Idx)
 		{
 			OpTable[Idx] = FString("");
 		}
 
-#define OP(OpName, OpFunc) OpTable[(int32) EMLElementWiseBinaryOperatorType::OpName] = OpFunc
+#define OP(OpName, OpFunc) OpTable[(int32) NNECore::Internal::EElementWiseBinaryOperatorType::OpName] = OpFunc
 		OP(Add,              TEXT("((X)+(Y))"));
 		//OP(And,            TEXT("((X)&&(Y))"));
 		OP(Div,              TEXT("((X)/(Y))"));

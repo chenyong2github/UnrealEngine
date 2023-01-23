@@ -5,7 +5,7 @@
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 #include "RenderGraphUtils.h"
-#include "NNXOperator.h"
+#include "NNECoreOperator.h"
 
 namespace UE::NNEHlslShaders::Internal
 {
@@ -22,7 +22,7 @@ namespace UE::NNEHlslShaders::Internal
 		DECLARE_GLOBAL_SHADER(TElementWiseBinaryCS);
 		SHADER_USE_PARAMETER_STRUCT(TElementWiseBinaryCS, FGlobalShader)
 
-		class FOperatorType : SHADER_PERMUTATION_ENUM_CLASS("OP_TYPENAME", EMLElementWiseBinaryOperatorType);
+		class FOperatorType : SHADER_PERMUTATION_ENUM_CLASS("OP_TYPENAME", NNECore::Internal::EElementWiseBinaryOperatorType);
 		class FBinaryNumDimensions : SHADER_PERMUTATION_RANGE_INT("NUM_DIMENSIONS", 1, FElementWiseBinaryConstants::MAX_NUM_DIMENSIONS);
 		using FPermutationDomain = TShaderPermutationDomain<FOperatorType, FBinaryNumDimensions>;
 
@@ -41,6 +41,6 @@ namespace UE::NNEHlslShaders::Internal
 
 	private:
 
-		static const FString GetOpFunc(EMLElementWiseBinaryOperatorType OpType);
+		static const FString GetOpFunc(NNECore::Internal::EElementWiseBinaryOperatorType OpType);
 	};
 } // UE::NNEHlslShaders::Internal

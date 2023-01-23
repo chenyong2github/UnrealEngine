@@ -18,16 +18,16 @@ namespace UE::NNEHlslShaders::Internal
 		OutEnvironment.SetDefine(TEXT("ELEMENTWISE_OP(X,Y)"), *OpFunc);
 	}
 
-	const FString TElementWiseVariadicCS::GetOpFunc(EMLElementWiseVariadicOperatorType OpType)
+	const FString TElementWiseVariadicCS::GetOpFunc(NNECore::Internal::EElementWiseVariadicOperatorType OpType)
 	{
-		FString OpTable[(int32)EMLElementWiseVariadicOperatorType::MAX];
+		FString OpTable[(int32) NNECore::Internal::EElementWiseVariadicOperatorType::MAX];
 
-		for (int32 Idx = 0; Idx < (int32)EMLElementWiseVariadicOperatorType::MAX; ++Idx)
+		for (int32 Idx = 0; Idx < (int32) NNECore::Internal::EElementWiseVariadicOperatorType::MAX; ++Idx)
 		{
 			OpTable[Idx] = FString("");
 		}
 
-#define OP(OpName, OpFunc) OpTable[(int32) EMLElementWiseVariadicOperatorType::OpName] = OpFunc
+#define OP(OpName, OpFunc) OpTable[(int32) NNECore::Internal::EElementWiseVariadicOperatorType::OpName] = OpFunc
 		OP(Max, TEXT("max(X,Y)"));
 		OP(Min, TEXT("min(X,Y)"));
 		OP(Mean, TEXT("((X)+(Y))"));
