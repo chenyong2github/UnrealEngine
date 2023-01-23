@@ -581,7 +581,7 @@ namespace Mdl
 						{
 							TraverseResult << TEXT(", gamma: ::tex::gamma_linear");
 						}
-						else if (Gamma == 2.2)
+						else if (Gamma == 2.2f)
 						{
 							TraverseResult << TEXT(", gamma: ::tex::gamma_srgb");
 						}
