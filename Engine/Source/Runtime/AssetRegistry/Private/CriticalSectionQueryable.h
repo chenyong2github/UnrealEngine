@@ -4,6 +4,7 @@
 
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformTLS.h"
+#include "Misc/ScopeLock.h"
 
 #include <atomic>
 
@@ -102,4 +103,90 @@ private:
 
 	// Holds the synchronization object to aggregate and scope manage.
 	FCriticalSectionQueryable* SynchObject;
+};
+
+/**
+ * Like a critical section: only a single thread can posess it at once. But provides a different API than a critical
+ * section to more flexibly interact with another critical section. With multiple normal critical sections they must
+ * be entered in the same order to prevent deadlocks. A ThreadOwnerSection is instead tested and claimed for ownership
+ * only while inside its collaborating critical section (called the AegisLock), and ownership can then continue to be
+ * held even after releasing the AegisLock.
+ */
+class FThreadOwnerSection
+{
+public:
+	bool TryTakeOwnership(FCriticalSectionQueryable& NotYetEnteredAegisLock)
+	{
+		FScopeLockQueryable ScopeLock(&NotYetEnteredAegisLock);
+		return TryTakeOwnershipWithinLock();
+	}
+	bool TryTakeOwnership(FCriticalSection& NotYetEnteredAegisLock)
+	{
+		FScopeLock ScopeLock(&NotYetEnteredAegisLock);
+		return TryTakeOwnershipWithinLock();
+	}
+	bool TryTakeOwnership(FScopeLockQueryable& AlreadyEnteredAegisScopeLock)
+	{
+		return TryTakeOwnershipWithinLock();
+	}
+	bool TryTakeOwnership(FScopeLock& AlreadyEnteredAegisScopeLock)
+	{
+		return TryTakeOwnershipWithinLock();
+	}
+
+	void ReleaseOwnershipChecked(FCriticalSectionQueryable& NotYetEnteredAegisLock)
+	{
+		FScopeLockQueryable ScopeLock(&NotYetEnteredAegisLock);
+		ReleaseOwnershipCheckedWithinLock();
+	}
+	void ReleaseOwnershipChecked(FCriticalSection& NotYetEnteredAegisLock)
+	{
+		FScopeLock ScopeLock(&NotYetEnteredAegisLock);
+		ReleaseOwnershipCheckedWithinLock();
+	}
+	void ReleaseOwnershipChecked(FScopeLockQueryable& AlreadyEnteredAegisScopeLock)
+	{
+		ReleaseOwnershipCheckedWithinLock();
+	}
+	void ReleaseOwnershipChecked(FScopeLock& AlreadyEnteredAegisScopeLock)
+	{
+		ReleaseOwnershipCheckedWithinLock();
+	}
+
+	bool IsOwned(FScopeLockQueryable& AlreadyEnteredAegisScopeLock) const
+	{
+		return bHasOwner;
+	}
+	bool IsOwned(FScopeLock& AlreadyEnteredAegisScopeLock) const
+	{
+		return bHasOwner;
+	}
+
+	bool IsOwnedByCurrentThread() const
+	{
+		return OwnerThreadId.load(std::memory_order_relaxed) == FPlatformTLS::GetCurrentThreadId();
+	}
+
+private:
+	bool TryTakeOwnershipWithinLock()
+	{
+		if (!bHasOwner)
+		{
+			bHasOwner = true;
+			OwnerThreadId.store(FPlatformTLS::GetCurrentThreadId(), std::memory_order_relaxed);
+			return true;
+		}
+		return false;
+	}
+	void ReleaseOwnershipCheckedWithinLock()
+	{
+		check(IsOwnedByCurrentThread());
+		bHasOwner = false;
+		OwnerThreadId.store(0, std::memory_order_relaxed);
+	}
+
+private:
+	/** OwnerThreadId can be checked while outside of the lock so it is an atomic to prevent dataraces. */
+	std::atomic<uint32> OwnerThreadId{ 0 };
+	bool bHasOwner = false;
 };

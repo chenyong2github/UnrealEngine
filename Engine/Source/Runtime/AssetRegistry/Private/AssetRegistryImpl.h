@@ -188,6 +188,8 @@ public:
 	Impl::EGatherStatus TickGatherer(Impl::FEventContext& EventContext,
 		Impl::FClassInheritanceContext& InheritanceContext, const double TickStartTime, bool& bOutInterrupted,
 		TOptional<FAssetsFoundCallback> AssetsFoundCallback = TOptional<FAssetsFoundCallback>());
+	/** Send a log message with the search statistics. */
+	void LogSearchDiagnostics() const;
 	/** Look for and load a single AssetData result from the gatherer. */
 	void TickGatherPackage(Impl::FEventContext& EventContext, const FString& PackageName, const FString& LocalPath);
 	void ClearGathererCache();
@@ -386,10 +388,8 @@ private:
 	UE_DEPRECATED(5.0, "DelayDelete is only intended to support deprecated functions.")
 	TArray<TUniqueFunction<void()>> DeleteActions;
 
-	/** The start time of the full asset search */
-	double FullSearchStartTime;
-	double AmortizeStartTime;
-	double TotalAmortizeTime;
+	/** Time spent processing Gather results */
+	float StoreGatherResultsTimeSeconds;
 	/** The highest number of pending results observed during initial gathering */
 	int32 HighestPending = 0;
 

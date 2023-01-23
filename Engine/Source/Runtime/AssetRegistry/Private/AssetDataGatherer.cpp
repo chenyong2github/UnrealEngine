@@ -5,6 +5,8 @@
 
 #include "Algo/AnyOf.h"
 #include "Algo/Find.h"
+#include "Algo/Sort.h"
+#include "Algo/Unique.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistryArchive.h"
 #include "AssetRegistryPrivate.h"
@@ -41,6 +43,17 @@ namespace AssetDataGathererConstants
 	constexpr int32 MinSecondsToElapseBeforeCacheWrite = 60;
 	static constexpr uint32 CacheSerializationMagic = 0x3339D87B; // Versioning and integrity checking
 	static constexpr uint64 CurrentVersion = FAssetRegistryVersion::LatestVersion | (uint64(CacheSerializationMagic) << 32);
+	/**
+	 * The maximum number of threads used in the ParallelFor in FAssetDataDiscovery::TickInternal.
+	 * Higher values cause more time spent waking up workers. Lower values cause more time spent running the DirectoryEnumeration on each thread.
+	 * Current value was chosen based on experiments on an SSD drive with a warm disk cache.
+	 */
+	static int32 GARDiscoverThreads = 15;
+	/**
+	 * Minimum batch sized used used in the ParallelFor in FAssetDataDiscovery::TickInternal.
+	 * In theory higher minimum values could reduce the cost of waking up workers, but in practice it does not have a significant effect.
+	 */
+	static int32 GARDiscoverMinBatchSize = 1;
 }
 
 namespace UE::AssetDataGather::Private
@@ -197,15 +210,6 @@ void FScanDir::Shutdown()
 		MountDir->GetDiscovery().NumDirectoriesToScan.Decrement();
 	}
 
-	// Update Parent data that we influence
-	if (Parent) // Root ScanDir has no parent
-	{
-		if (AccumulatedPriority != EPriority::Normal)
-		{
-			Parent->OnChildPriorityChanged(AccumulatedPriority, -1);
-		}
-	}
-
 	// Clear backpointers (which also marks us as shutdown)
 	MountDir = nullptr;
 	Parent = nullptr;
@@ -224,11 +228,6 @@ FMountDir* FScanDir::GetMountDir() const
 FStringView FScanDir::GetRelPath() const
 {
 	return RelPath;
-}
-
-EPriority FScanDir::GetPriority() const
-{
-	return AccumulatedPriority;
 }
 
 void FScanDir::AppendLocalAbsPath(FStringBuilderBase& OutFullPath) const
@@ -435,18 +434,18 @@ FScanDir* FScanDir::GetControllingDir(FStringView InRelPath, bool bIsDirectory, 
 	}
 }
 
-bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath,
-	const FSetPathProperties& InProperties, bool bConfirmedExists)
+bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath, FInherited& ParentData,
+	const FSetPathProperties& InProperties, bool bConfirmedExists, FScanDirAndParentData& OutControllingDir)
 {
 	// TrySetDirectoryProperties can only be called on valid ScanDirs, which we rely on so we can call FindOrAddSubDir which requires that
 	check(IsValid()); 
 
-	SetComplete(false);
 	if (InRelPath.IsEmpty())
 	{
 		// The properties apply to this entire directory
 		if (InProperties.IsOnAllowList.IsSet() && DirectData.bIsOnAllowList != *InProperties.IsOnAllowList)
 		{
+			SetComplete(false);
 			if (bScanInFlight)
 			{
 				bScanInFlightInvalidated = true;
@@ -479,6 +478,7 @@ bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath,
 		if ((InProperties.MatchesDenyList.IsSet() && DirectData.bMatchesDenyList != *InProperties.MatchesDenyList) ||
 			(InProperties.IgnoreDenyList.IsSet() && DirectData.bIgnoreDenyList != *InProperties.IgnoreDenyList))
 		{
+			SetComplete(false);
 			if (InProperties.MatchesDenyList.IsSet())
 			{
 				DirectData.bMatchesDenyList = *InProperties.MatchesDenyList;
@@ -513,6 +513,7 @@ bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath,
 		}
 		if (InProperties.HasScanned.IsSet())
 		{
+			SetComplete(false);
 			bool bNewValue = *InProperties.HasScanned;
 			auto SetProperties = [bNewValue](FScanDir& ScanDir)
 			{
@@ -526,10 +527,9 @@ bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath,
 			SetProperties(*this);
 			ForEachDescendent(SetProperties);
 		}
-		if (InProperties.Priority.IsSet() && DirectPriority != *InProperties.Priority)
-		{
-			SetDirectPriority(*InProperties.Priority);
-		}
+
+		OutControllingDir.ScanDir = this;
+		OutControllingDir.ParentData = ParentData;
 		return true;
 	}
 	else
@@ -543,6 +543,8 @@ bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath,
 			ModifiedProperties->IsOnAllowList.Reset();
 			if (!ModifiedProperties->IsSet())
 			{
+				OutControllingDir.ScanDir = this;
+				OutControllingDir.ParentData = ParentData;
 				return false;
 			}
 			Properties = &ModifiedProperties.GetValue();
@@ -565,6 +567,8 @@ bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath,
 			SubDir = FindSubDir(FirstComponent);
 			if (!SubDir)
 			{
+				OutControllingDir.ScanDir = this;
+				OutControllingDir.ParentData = ParentData;
 				return false;
 			}
 		}
@@ -583,14 +587,25 @@ bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath,
 					{
 						UE_LOG(LogAssetRegistry, Warning, TEXT("SetDirectoryProperties called on %s path %.*s. Ignoring the call."),
 							StatData.bIsValid ? TEXT("file") : TEXT("non-existent"), LocalAbsPath.Len(), LocalAbsPath.GetData());
+						OutControllingDir.ScanDir = this;
+						OutControllingDir.ParentData = ParentData;
 						return false;
 					}
 					bConfirmedExists = true;
 				}
 				SubDir = &FindOrAddSubDir(FirstComponent);
+				SetComplete(false);
 			}
 		}
-		return SubDir->TrySetDirectoryProperties(Remainder, *Properties, bConfirmedExists);
+
+		FInherited ParentDataForSubDir(ParentData, DirectData);
+		bool bResult = SubDir->TrySetDirectoryProperties(Remainder, ParentDataForSubDir, *Properties, bConfirmedExists,
+			OutControllingDir);
+		if (OutControllingDir.ScanDir && !OutControllingDir.ScanDir->IsComplete())
+		{
+			SetComplete(false);
+		}
+		return bResult;
 	}
 }
 
@@ -609,68 +624,6 @@ void FScanDir::MarkFileAlreadyScanned(FStringView BaseName)
 		}
 	}
 	AlreadyScannedFiles.Emplace(BaseName);
-}
-
-EPriority FScanDir::GetDirectPriority() const
-{
-	return DirectPriority;
-}
-
-void FScanDir::SetDirectPriority(EPriority InPriority)
-{
-	DirectPriority = InPriority;
-	UpdateAccumulatedPriority();
-}
-
-void FScanDir::UpdateAccumulatedPriority()
-{
-	uint32 LocalAccumulated = static_cast<uint32>(DirectPriority);
-	for (uint32 PriorityLevel = 0; PriorityLevel < CountEPriority; ++PriorityLevel)
-	{
-		if (PriorityRefCounts[PriorityLevel] > 0 && PriorityLevel < LocalAccumulated)
-		{
-			LocalAccumulated = PriorityLevel;
-		}
-	}
-
-	EPriority LocalEPriority = static_cast<EPriority>(LocalAccumulated);
-	if (LocalEPriority != AccumulatedPriority)
-	{
-		if (Parent)
-		{
-			if (AccumulatedPriority != EPriority::Normal)
-			{
-				Parent->OnChildPriorityChanged(AccumulatedPriority, -1);
-			}
-			if (LocalEPriority != EPriority::Normal)
-			{
-				Parent->OnChildPriorityChanged(LocalEPriority, 1);
-			}
-		}
-		AccumulatedPriority = LocalEPriority;
-	}
-}
-
-void FScanDir::OnChildPriorityChanged(EPriority InPriority, int32 Delta)
-{
-	check(-(int32)TNumericLimits<uint8>::Max() < Delta && Delta < TNumericLimits<uint8>::Max());
-	uint8& PriorityRefCount = PriorityRefCounts[static_cast<uint32>(InPriority)];
-	check(Delta > 0 || PriorityRefCount >= -Delta);
-
-	if (Delta > 0 && PriorityRefCount >= TNumericLimits<uint8>::Max() - Delta)
-	{
-		// Mark that the count is now stuck
-		PriorityRefCount = TNumericLimits<uint8>::Max();
-	}
-	else if (Delta < 0 && PriorityRefCount == TNumericLimits<uint8>::Max())
-	{
-		// The count is stuck, do not decrement it
-	}
-	else
-	{
-		PriorityRefCount = (uint8)(PriorityRefCount + Delta);
-	}
-	UpdateAccumulatedPriority();
 }
 
 void FScanDir::SetScanResults(FStringView LocalAbsPath, const FInherited& ParentData, TArrayView<FDiscoveredPathData>& InOutSubDirs, TArrayView<FDiscoveredPathData>& InOutFiles)
@@ -731,7 +684,7 @@ void FScanDir::SetScanResults(FStringView LocalAbsPath, const FInherited& Parent
 	bHasScanned = true;
 }
 
-void FScanDir::Update(FScanDir*& OutCursor, FInherited& InOutParentData)
+void FScanDir::Update(TArray<FScanDirAndParentData>& OutScanRequests, const FScanDir::FInherited& ParentData)
 {
 	check(MountDir);
 	if (bIsComplete)
@@ -739,88 +692,34 @@ void FScanDir::Update(FScanDir*& OutCursor, FInherited& InOutParentData)
 		return;
 	}
 
-	FScanDir* ThisCursor = nullptr;
-	if (ShouldScan(InOutParentData))
+	bool bScanThis = ShouldScan(ParentData);
+	if (bScanThis)
 	{
-		ThisCursor = this;
+		OutScanRequests.Add(FScanDirAndParentData{ this, ParentData });
 	}
 
+	bool bAllSubDirsComplete = true;
 	if (SubDirs.Num())
 	{
-		FScanDir* SubDirToScan = FindHighestPrioritySubDir();
-		// If AccumulatedPriority of this and the subdir are the same, the tie goes to the subdir, since 
-		// the accumulatedpriority of a parentdir is clamped to be at least as strong (at least as small) as the subdir's accumulatedpriority
-		if (SubDirToScan && (!ThisCursor || SubDirToScan->AccumulatedPriority <= ThisCursor->AccumulatedPriority))
+		FInherited ParentDataForSubDirs(ParentData, DirectData);
+		TArray<TRefCountPtr<FScanDir>> CopySubDirs = SubDirs;
+		for (const TRefCountPtr<FScanDir>& SubDir : CopySubDirs)
 		{
-			FInherited ThisCursorParentData(InOutParentData, DirectData);
-#if DO_CHECK
-			int32 LoopCount = 0;
-			const int32 MaxLoopCount = SubDirs.Num();
-#endif
-			for (;;) // Continue Updating SubDirs until we find one that needs scanning or all are complete or lower in priority than this
+			if (SubDir->bIsComplete)
 			{
-				FInherited SubDirsParentData(ThisCursorParentData);
-				SubDirToScan->Update(OutCursor, SubDirsParentData);
-				if (OutCursor != this)
-				{
-					InOutParentData = SubDirsParentData;
-					return;
-				}
-				// Otherwise the SubDir finished updating and we should move to the next one
-				// The old value of SubDirToScan may have been deallocated; do not access it further.
-
-				SubDirToScan = FindHighestPrioritySubDir();
-				if (SubDirToScan && (!ThisCursor || SubDirToScan->AccumulatedPriority <= ThisCursor->AccumulatedPriority))
-				{
-					checkf(LoopCount++ < MaxLoopCount,
-						TEXT("Infinite loop: SubDirs return completion without actually completing. SubDirToScan=%s"),
-						*SubDirToScan->GetLocalAbsPath());
-
-					continue;
-				}
-				else
-				{
-					break;
-				}
+				continue;
 			}
+			int32 PreviousCount = OutScanRequests.Num();
+			SubDir->Update(OutScanRequests, ParentDataForSubDirs);
+			bool bSubDirComplete = SubDir->IsComplete();
+			check(OutScanRequests.Num() > PreviousCount || bSubDirComplete);
+			bAllSubDirsComplete &= bSubDirComplete;
 		}
 	}
 
-	if (ThisCursor)
+	if (bScanThis || !bAllSubDirsComplete)
 	{
-		OutCursor = ThisCursor;
 		return;
-	}
-
-	OutCursor = Parent; // Note this will be null for the root ScanDir
-	if (!Parent)
-	{
-		InOutParentData = FInherited();
-	}
-	else
-	{
-		if (Parent->DirectData.bIsOnAllowList)
-		{
-			// We have a contract that bIsOnAllowList is only set on the highest-level directory to monitor and
-			// applies to all directories under it. So we only need to change ParentData.bIsOnAllowList from true to
-			// false when we move up the tree into a parent directory with bIsOnAllowList = true.
-			check(!this->DirectData.bIsOnAllowList); // Verify children below allow list true are allow list false
-			check(!Parent->Parent || !Parent->Parent->DirectData.bIsOnAllowList); // Verify above allow list true is allow list false
-			check(InOutParentData.bIsOnAllowList); // Verify original InOutParentData matches parent's direct value
-			InOutParentData.bIsOnAllowList = false;
-		}
-		if (Parent->DirectData.bMatchesDenyList || Parent->DirectData.bIgnoreDenyList)
-		{
-			// We don't have the same set-once contract for deny list information, so when we find a direct deny list parent
-			// we have to recalculate the parent's deny listed information by checking all ancestors.
-			InOutParentData.bMatchesDenyList = false;
-			InOutParentData.bIgnoreDenyList = false;
-			for (FScanDir* Current = Parent->Parent; Current; Current = Current->Parent)
-			{
-				InOutParentData.bMatchesDenyList = InOutParentData.bMatchesDenyList || Current->DirectData.bMatchesDenyList;
-				InOutParentData.bIgnoreDenyList = InOutParentData.bIgnoreDenyList || Current->DirectData.bIgnoreDenyList;
-			}
-		}
 	}
 
 	SetComplete(true);
@@ -897,31 +796,7 @@ void FScanDir::SetComplete(bool bInIsComplete)
 	if (bIsComplete)
 	{
 		MountDir->GetDiscovery().NumDirectoriesToScan.Decrement();
-		// If we were given a priority, remove it when we complete
-		SetDirectPriority(EPriority::Normal);
-		// All subDirs are complete, so all of their priorities should be set back to normal, so we can unstick any stuck priorities now by setting them all to 0
-#if DO_CHECK
-		bool bHasPriority = false;
-		ForEachSubDir([&bHasPriority](FScanDir& SubDir) { if (SubDir.GetPriority() != EPriority::Normal) { bHasPriority = true; }});
-		if (bHasPriority)
-		{
-			UE_LOG(LogAssetRegistry, Warning, TEXT("ScanDir %s is marked complete, but it has subdirectories with still-set priorities."), *GetLocalAbsPath());
-		}
-		else
-#endif
-		{
-			bool bModifiedRefCount = false;
-			for (uint8& PriorityRefCount : PriorityRefCounts)
-			{
-				bModifiedRefCount = bModifiedRefCount | (PriorityRefCount != 0);
-				PriorityRefCount = 0;
-			}
-			if (bModifiedRefCount)
-			{
-				UpdateAccumulatedPriority();
-			}
-		}
-		// Upon completion, subdirs that do not need to be maintained are deleted, which is done by removing them from the parent
+		// Upon completion, subdirs that do not need to be maintained are deleted, which is done by removing them from the parent.
 		// ScanDirs need to be maintained if they are the root, or have persistent settings, or have child ScanDirs that need to be maintained,
 		// or the parent scan has not been done yet.
 		if ((Parent != nullptr && Parent->bHasScanned) && !HasPersistentSettings() && SubDirs.IsEmpty())
@@ -997,31 +872,6 @@ int32 FScanDir::FindLowerBoundSubDir(FStringView SubDirBaseName)
 			return FPathViews::Less(SubDir->GetRelPath(), BaseName);
 		}
 	);
-}
-
-FScanDir* FScanDir::FindHighestPrioritySubDir()
-{
-	if (SubDirs.Num() == 0)
-	{
-		return nullptr;
-	}
-
-	FScanDir* WinningSubDir = nullptr;
-	EPriority WinningPriority = EPriority::Normal;
-
-	for (const TRefCountPtr<FScanDir>& SubDir : SubDirs)
-	{
-		if (SubDir->bIsComplete)
-		{
-			continue;
-		}
-		if (WinningSubDir == nullptr || SubDir->AccumulatedPriority < WinningPriority)
-		{
-			WinningSubDir = SubDir.GetReference();
-			WinningPriority = SubDir->AccumulatedPriority;
-		}
-	}
-	return WinningSubDir;
 }
 
 template <typename CallbackType>
@@ -1128,11 +978,6 @@ bool FMountDir::IsComplete() const
 	return Root->IsComplete();
 }
 
-EPriority FMountDir::GetPriority() const
-{
-	return Root->GetPriority();
-}
-
 void FMountDir::GetMonitorData(FStringView InLocalAbsPath, FScanDir::FInherited& OutData) const
 {
 	FStringView QueryRelPath;
@@ -1152,11 +997,16 @@ bool FMountDir::IsMonitored(FStringView InLocalAbsPath) const
 	return MonitorData.IsMonitored();
 }
 
-bool FMountDir::TrySetDirectoryProperties(FStringView InLocalAbsPath, const FSetPathProperties& InProperties, bool bConfirmedExists)
+bool FMountDir::TrySetDirectoryProperties(FStringView InLocalAbsPath, const FSetPathProperties& InProperties, bool bConfirmedExists,
+	FScanDirAndParentData* OutControllingDir)
 {
 	FStringView RelPath;
 	if (!ensure(FPathViews::TryMakeChildPathRelativeTo(InLocalAbsPath, GetLocalAbsPath(), RelPath)))
 	{
+		if (OutControllingDir)
+		{
+			OutControllingDir->ScanDir.SafeRelease();
+		}
 		return false;
 	}
 	if (InProperties.IgnoreDenyList.IsSet())
@@ -1171,12 +1021,22 @@ bool FMountDir::TrySetDirectoryProperties(FStringView InLocalAbsPath, const FSet
 			NewProperties.IgnoreDenyList.Reset();
 			if (!NewProperties.IsSet())
 			{
+				if (OutControllingDir)
+				{
+					OutControllingDir->ScanDir.SafeRelease();
+				}
 				return false;
 			}
-			return TrySetDirectoryProperties(InLocalAbsPath, NewProperties, bConfirmedExists);
+			return TrySetDirectoryProperties(InLocalAbsPath, NewProperties, bConfirmedExists, OutControllingDir);
 		}
 	}
-	return Root->TrySetDirectoryProperties(RelPath, InProperties, bConfirmedExists);
+	FScanDirAndParentData PlaceHolderOutControllingDir;
+	if (!OutControllingDir)
+	{
+		OutControllingDir = &PlaceHolderOutControllingDir;
+	}
+	FScanDir::FInherited ParentData;
+	return Root->TrySetDirectoryProperties(RelPath, ParentData, InProperties, bConfirmedExists, *OutControllingDir);
 }
 
 void FMountDir::UpdateDenyList()
@@ -1218,6 +1078,7 @@ void FMountDir::UpdateDenyList()
 	TStringBuilder<256> AbsPathDenyList;
 	IFileManager& FileManager = IFileManager::Get();
 	FSetPathProperties ChangeDenyList;
+	FScanDir::FInherited ParentData;
 	ChangeDenyList.MatchesDenyList = true;
 	for (const FString& RelPath : AddedDenyListPaths)
 	{
@@ -1226,21 +1087,23 @@ void FMountDir::UpdateDenyList()
 		FPathViews::AppendPath(AbsPathDenyList, RelPath);
 		if (FileManager.DirectoryExists(AbsPathDenyList.ToString()))
 		{
-			Root->TrySetDirectoryProperties(RelPath, ChangeDenyList, true /* bConfirmedExists */);
+			FScanDirAndParentData UnusedControllingDir;
+			Root->TrySetDirectoryProperties(RelPath, ParentData, ChangeDenyList, true /* bConfirmedExists */, UnusedControllingDir);
 		}
 	}
 	ChangeDenyList.MatchesDenyList = false;
 	for (const FString& RelPath : RemovedDenyLists)
 	{
 		// We don't need to check for existence when setting the removal property, because the scandir already exists
-		Root->TrySetDirectoryProperties(RelPath, ChangeDenyList, false /* bConfirmedExists */);
+		FScanDirAndParentData UnusedControllingDir;
+		Root->TrySetDirectoryProperties(RelPath, ParentData, ChangeDenyList, false /* bConfirmedExists */, UnusedControllingDir);
 	}
 }
 
-void FMountDir::Update(FScanDir*& OutCursor, FScanDir::FInherited& OutParentData)
+void FMountDir::Update(TArray<FScanDirAndParentData>& OutScanRequests)
 {
-	OutParentData = FScanDir::FInherited();
-	Root->Update(OutCursor, OutParentData);
+	FScanDir::FInherited ParentData = FScanDir::FInherited();
+	Root->Update(OutScanRequests, ParentData);
 }
 
 FScanDir* FMountDir::GetFirstIncompleteScanDir()
@@ -1393,12 +1256,18 @@ FAssetDataDiscovery::FAssetDataDiscovery(const TArray<FString>& InLongPackageNam
 		bIsSynchronous = true;
 		UE_LOG(LogAssetRegistry, Warning, TEXT("Requested asyncronous asset data discovery, but threading support is disabled. Performing a synchronous discovery instead!"));
 	}
+
+	PriorityDataUpdated->Trigger();
+
+	FParse::Value(FCommandLine::Get(), TEXT("-ARDiscoverThreads="), AssetDataGathererConstants::GARDiscoverThreads);
+	FParse::Value(FCommandLine::Get(), TEXT("-ARDiscoverMinBatchSize="), AssetDataGathererConstants::GARDiscoverMinBatchSize);
+	AssetDataGathererConstants::GARDiscoverThreads = FMath::Max(0, AssetDataGathererConstants::GARDiscoverThreads);
+	AssetDataGathererConstants::GARDiscoverMinBatchSize = FMath::Max(1, AssetDataGathererConstants::GARDiscoverMinBatchSize);
 }
 
 FAssetDataDiscovery::~FAssetDataDiscovery()
 {
 	EnsureCompletion();
-	Cursor.SafeRelease();
 	// Remove pointers to other MountDirs before we delete any of them
 	for (TUniquePtr<FMountDir>& MountDir : MountDirs)
 	{
@@ -1426,22 +1295,34 @@ uint32 FAssetDataDiscovery::Run()
 {
 	LLM_SCOPE(ELLMTag::AssetRegistry);
 	constexpr float IdleSleepTime = 0.1f;
-	{
-		FGathererScopeLock ResultsScopeLock(&ResultsLock);
-		DiscoverStartTime = FPlatformTime::Seconds();
-		NumDiscoveredFiles = 0;
-	}
 
+	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(TreeLock);
+	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
 	while (!IsStopped)
 	{
+		bool bTickOwner = false;
+		while (!IsStopped && !bIsIdle && !IsPaused)
 		{
-			CHECK_IS_NOT_LOCKED_CURRENT_THREAD(TreeLock);
-			CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
-			FGathererScopeLock TickScopeLock(&TickLock);
-			while (!IsStopped && !bIsIdle && !IsPaused)
+			if (!bTickOwner)
 			{
-				TickInternal();
+				if (TickOwner.TryTakeOwnership(TreeLock))
+				{
+					bTickOwner = true;
+				}
 			}
+			if (bTickOwner)
+			{
+				TickInternal(true /* bTickAll */);
+			}
+			else
+			{
+				FPlatformProcess::Sleep(IdleSleepTime);
+			}
+		}
+		if (bTickOwner)
+		{
+			TickOwner.ReleaseOwnershipChecked(TreeLock);
+			bTickOwner = false;
 		}
 
 		while (!IsStopped && (IsPaused || bIsIdle))
@@ -1461,10 +1342,17 @@ FAssetDataDiscovery::FScopedPause::FScopedPause(const FAssetDataDiscovery& InOwn
 	{
 		Owner.IsPaused++;
 	}
+	while (!Owner.TickOwner.TryTakeOwnership(Owner.TreeLock))
+	{
+		check(!Owner.TickOwner.IsOwnedByCurrentThread());
+		constexpr float BlockingSleepTime = 0.001f;
+		FPlatformProcess::Sleep(BlockingSleepTime);
+	}
 }
 
 FAssetDataDiscovery::FScopedPause::~FScopedPause()
 {
+	Owner.TickOwner.ReleaseOwnershipChecked(Owner.TreeLock);
 	if (!Owner.bIsSynchronous)
 	{
 		check(Owner.IsPaused > 0);
@@ -1494,224 +1382,330 @@ void FAssetDataDiscovery::EnsureCompletion()
 }
 
 
-void FAssetDataDiscovery::TickInternal()
+void FAssetDataDiscovery::TickInternal(bool bTickAll)
 {
 	LLM_SCOPE(ELLMTag::AssetRegistry);
+	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
+	check(TickOwner.IsOwnedByCurrentThread());
 
-	TStringBuilder<256> DirLocalAbsPath;
-	TStringBuilder<128> DirLongPackageName;
+	TArray<FScanDirAndParentData> ScanRequests;
 	TStringBuilder<128> DirMountRelPath;
-	int32 DirLongPackageNameRootLen;
-	TRefCountPtr<FScanDir> LocalCursor = nullptr;
+
+	int32 DirToScanDatasNum = 0;
+	bool bUpdatedPriorityData = false;
+	double TickStartTime = FPlatformTime::Seconds();
+	ON_SCOPE_EXIT
 	{
-		CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
-		FGathererScopeLock TreeScopeLock(&TreeLock);
-		for (;;)
+		if (TickStartTime >= 0.)
 		{
-			// Start at the existing cursor (initializing it if necessary) at call Update until we find a ScanTree that requires scanning
-			if (!Cursor || !Cursor->IsValid())
+			CurrentDiscoveryTime += FPlatformTime::Seconds() - TickStartTime;
+			TickStartTime = -1.;
+		}
+	};
+	for (;;)
+	{
+		{
+			FGathererScopeLock TreeScopeLock(&TreeLock);
+
+			// Process scanned directories from the previous iteration of the for(;;) loop.
+			if (DirToScanDatasNum > 0)
 			{
-				FScanDir* NewCursor;
-				FindFirstCursor(NewCursor, CursorParentData);
-				Cursor = NewCursor;
-				if (!NewCursor)
+				for (FDirToScanData& Data : TArrayView<FDirToScanData>(DirToScanDatas.GetData(), DirToScanDatasNum))
 				{
-					SetIsIdle(true);
-					int32 LocalNumDirectoriesToScan = NumDirectoriesToScan.GetValue();
-					if (LocalNumDirectoriesToScan != 0)
+					if (Data.bScanned)
 					{
-						FScanDir* Incomplete = nullptr;
-						for (TUniquePtr<FMountDir>& MountDir : MountDirs)
+						TArrayView<FDiscoveredPathData> LocalSubDirs(Data.IteratedSubDirs.GetData(), Data.NumIteratedDirs);
+						TArrayView<FDiscoveredPathData> LocalDiscoveredFiles(Data.IteratedFiles.GetData(), Data.NumIteratedFiles);
+						if (!Data.ScanDir->IsValid())
 						{
-							Incomplete = MountDir->GetFirstIncompleteScanDir();
-							if (Incomplete)
+							// The ScanDir has been shutdown, and it is only still allocated to prevent us from crashing. Drop our reference and allow it to delete.
+						}
+						else if (Data.ScanDir->IsScanInFlightInvalidated())
+						{
+							// Some setting has been applied to the ScanDir that requires a new scan
+							// Consume the invalidated flag and ignore the results of our scan
+							Data.ScanDir->SetScanInFlightInvalidated(false);
+						}
+						else
+						{
+							Data.ScanDir->SetScanResults(Data.DirLocalAbsPath, Data.ParentData, LocalSubDirs, LocalDiscoveredFiles);
+							if (!LocalSubDirs.IsEmpty() || !LocalDiscoveredFiles.IsEmpty())
 							{
-								break;
+								AddDiscovered(Data.DirLocalAbsPath, LocalSubDirs, LocalDiscoveredFiles);
 							}
 						}
-						UE_LOG(LogAssetRegistry, Warning, TEXT("FAssetDataDiscovery::SetIsIdle(true) called when NumDirectoriesToScan == %d.\n")
-							TEXT("First incomplete scandir: %s"), LocalNumDirectoriesToScan, Incomplete ? *Incomplete->GetLocalAbsPath() : TEXT("<NoneFound>"));
+						Data.ScanDir->SetScanInFlight(false);
+						Data.ScanDir.SafeRelease();
 					}
+				}
+				DirToScanDatasNum = 0;
+			}
+
+			// Look for new dirs to scan, break out of the for (;;) loop if we don't find any
+			auto AddScanRequest = [this, &DirToScanDatasNum, &DirMountRelPath](FScanDirAndParentData&& ScanRequest)
+			{
+				if (DirToScanDatas.Num() <= DirToScanDatasNum)
+				{
+					// We increment DirToScanDatasNum one at a time so DirToScanDatas.Num() should always be >= to it.
+					check(DirToScanDatas.Num() == DirToScanDatasNum);
+					DirToScanDatas.Emplace();
+				}
+				FScanDir* ScanDir = ScanRequest.ScanDir.GetReference();
+				FDirToScanData& ScanData = DirToScanDatas[DirToScanDatasNum++];
+				ScanData.Reset();
+				DirMountRelPath.Reset();
+				ScanDir->SetScanInFlight(true);
+				FMountDir* MountDir = ScanDir->GetMountDir();
+				check(MountDir);
+				ScanDir->AppendMountRelPath(DirMountRelPath);
+				ScanData.DirLocalAbsPath << MountDir->GetLocalAbsPath();
+				FPathViews::AppendPath(ScanData.DirLocalAbsPath, DirMountRelPath);
+				ScanData.DirLongPackageName << MountDir->GetLongPackageName();
+				FPathViews::AppendPath(ScanData.DirLongPackageName, DirMountRelPath);
+				ScanData.ScanDir = MoveTemp(ScanRequest.ScanDir);
+				ScanData.ParentData = MoveTemp(ScanRequest.ParentData);
+			};
+
+			bool bExitAfterPriorityUpdate = !bTickAll && bUpdatedPriorityData;
+			if (!PriorityScanDirs.IsEmpty())
+			{
+				ScanRequests.Reset();
+				for (int32 PriorityIndex = 0; PriorityIndex < PriorityScanDirs.Num(); ++PriorityIndex)
+				{
+					FPriorityScanDirData& PriorityData = PriorityScanDirs[PriorityIndex];
+					int32 OriginalScanRequestsNum = ScanRequests.Num();
+					if (PriorityData.ScanDir->IsValid() && !PriorityData.ScanDir->IsComplete())
+					{
+						PriorityData.ScanDir->Update(ScanRequests, PriorityData.ParentData);
+					}
+					if (PriorityData.ScanDir->IsComplete())
+					{
+						// Update should not add ScanRequests if it was already or transitioned to complete
+						check(ScanRequests.Num() == OriginalScanRequestsNum); 
+						if (PriorityData.bReleaseWhenComplete)
+						{
+							PriorityData.bReleaseWhenComplete = false;
+							check(PriorityData.RequestCount > 0);
+							PriorityData.RequestCount--;
+							if (PriorityData.RequestCount == 0)
+							{
+								PriorityScanDirs.RemoveAtSwap(PriorityIndex);
+								--PriorityIndex; // Counteract the ++PriorityIndex in the for loop iteration
+							}
+							continue;
+						}
+					}
+				}
+
+				if (!bExitAfterPriorityUpdate)
+				{
+					// A ScanDir and its parent can both be in PriorityScanDirs, and in that case we can get duplicates
+					// in the list of ScanRequests. Ensure uniqueness now.
+					Algo::Sort(ScanRequests,
+						[](const FScanDirAndParentData & A, const FScanDirAndParentData& B)
+						{
+							return A.ScanDir.GetReference() < B.ScanDir.GetReference();
+						});
+					ScanRequests.SetNum(Algo::Unique(ScanRequests,
+						[](const FScanDirAndParentData& A, const FScanDirAndParentData& B)
+						{
+							return A.ScanDir.GetReference() == B.ScanDir.GetReference();
+						}));
+
+					for (FScanDirAndParentData& ScanRequest : ScanRequests)
+					{
+						AddScanRequest(MoveTemp(ScanRequest));
+					}
+				}
+				ScanRequests.Reset();
+			}
+			if (bUpdatedPriorityData)
+			{
+				PriorityDataUpdated->Trigger();
+			}
+			if (bExitAfterPriorityUpdate)
+			{
+				return; // exit to check the done condition
+			}
+			bPriorityDirty = false;
+			bUpdatedPriorityData = DirToScanDatasNum > 0;
+
+			if (bTickAll && DirToScanDatasNum == 0)
+			{
+				ScanRequests.Reset();
+				UpdateAll(ScanRequests);
+				for (FScanDirAndParentData& ScanRequest : ScanRequests)
+				{
+					AddScanRequest(MoveTemp(ScanRequest));
+				}
+				ScanRequests.Reset();
+			}
+
+			if (DirToScanDatasNum == 0)
+			{
+				if (!bTickAll)
+				{
 					return;
 				}
-			}
-			if (Cursor->ShouldScan(CursorParentData))
-			{
-				SetIsIdle(false);
-				break;
-			}
 
-			FScanDir* NewCursor = Cursor.GetReference();
-			NewCursor->Update(NewCursor, CursorParentData);
-			check(NewCursor != Cursor);
-			Cursor = NewCursor;
-		}
-		// IsScanInFlight must be false, because it is not valid to have two TickInternals run at the same time, and we set ScanInFlight back to false after each TickInternal.
-		// If ScanInFlight were true here we would not be able to proceed since we currently don't have a way to find the next ScanTree to update without scanning the current one.
-		check(!Cursor->IsScanInFlight());
-
-		Cursor->SetScanInFlight(true);
-		FMountDir* MountDir = Cursor->GetMountDir();
-		check(MountDir);
-		Cursor->AppendMountRelPath(DirMountRelPath);
-		DirLocalAbsPath << MountDir->GetLocalAbsPath();
-		FPathViews::AppendPath(DirLocalAbsPath, DirMountRelPath);
-		DirLongPackageName << MountDir->GetLongPackageName();
-		FPathViews::AppendPath(DirLongPackageName, DirMountRelPath);
-		DirLongPackageNameRootLen = DirLongPackageName.Len();
-		LocalCursor = Cursor;
-	}
-
-	int32 NumIteratedDirs = 0;
-	int32 NumIteratedFiles = 0;
-	IFileManager::Get().IterateDirectoryStat(DirLocalAbsPath.ToString(), [this, &DirLocalAbsPath, &DirLongPackageName, DirLongPackageNameRootLen, &NumIteratedDirs, &NumIteratedFiles]
-		(const TCHAR* InPackageFilename, const FFileStatData& InPackageStatData)
-		{
-			FStringView LocalAbsPath(InPackageFilename);
-			FStringView RelPath;
-			FString Buffer;
-			if (!FPathViews::TryMakeChildPathRelativeTo(InPackageFilename, DirLocalAbsPath, RelPath))
-			{
-				// Try again with the path converted to the absolute path format that we passed in; some IFileManagers can send relative paths to the visitor even though the search path is absolute
-				Buffer = FPaths::ConvertRelativePathToFull(FString(InPackageFilename));
-				LocalAbsPath = Buffer;
-				if (!FPathViews::TryMakeChildPathRelativeTo(Buffer, DirLocalAbsPath, RelPath))
+				int32 LocalNumDirectoriesToScan = NumDirectoriesToScan.GetValue();
+				if (LocalNumDirectoriesToScan != 0)
 				{
-					UE_LOG(LogAssetRegistry, Warning, TEXT("IterateDirectoryStat returned unexpected result %s which is not a child of the requested path %s."), InPackageFilename, DirLocalAbsPath.ToString());
+					// We have some directories left to scan, but we were unable to find any of them. Print diagnostics.
+					FScanDir* Incomplete = nullptr;
+					for (TUniquePtr<FMountDir>& MountDir : MountDirs)
+					{
+						Incomplete = MountDir->GetFirstIncompleteScanDir();
+						if (Incomplete)
+						{
+							break;
+						}
+					}
+					UE_LOG(LogAssetRegistry, Warning, TEXT("FAssetDataDiscovery::SetIsIdle(true) called when NumDirectoriesToScan == %d.\n")
+						TEXT("First incomplete scandir: %s"), LocalNumDirectoriesToScan, Incomplete ? *Incomplete->GetLocalAbsPath() : TEXT("<NoneFound>"));
+				}
+				SetIsIdle(true, TickStartTime);
+				return;
+			}
+			SetIsIdle(false);
+		}
+
+		// Outside of the TreeLock critical section, scan the directories
+		int32 NumThreads = FMath::Max(FTaskGraphInterface::Get().GetNumWorkerThreads(), 1);
+		if (AssetDataGathererConstants::GARDiscoverThreads > 0)
+		{
+			NumThreads = FMath::Min(NumThreads, AssetDataGathererConstants::GARDiscoverThreads);
+		}
+		int32 DirToScanBuffersNum = FMath::Min(NumThreads, DirToScanDatasNum);
+		if (DirToScanBuffers.Num() < DirToScanBuffersNum)
+		{
+			DirToScanBuffers.SetNum(DirToScanBuffersNum);
+		}
+		TArrayView<FDirToScanBuffer> LocalScanBuffers(DirToScanBuffers.GetData(), DirToScanBuffersNum);
+		for (FDirToScanBuffer& ScanBuffer : LocalScanBuffers)
+		{
+			ScanBuffer.Reset();
+		}
+
+		ParallelForWithExistingTaskContext(LocalScanBuffers, DirToScanDatasNum, AssetDataGathererConstants::GARDiscoverMinBatchSize,
+		[this](FDirToScanBuffer& ScanBuffer, int32 DirToScanDatasIndex)
+		{
+			FDirToScanData& Data = DirToScanDatas[DirToScanDatasIndex];
+			if (ScanBuffer.bAbort)
+			{
+				return;
+			}
+			if (bPriorityDirty.load(std::memory_order_relaxed))
+			{
+				ScanBuffer.bAbort = true;
+				return;
+			}
+
+			IFileManager::Get().IterateDirectoryStat(Data.DirLocalAbsPath.ToString(),
+			[this, &Data]
+			(const TCHAR* InPackageFilename, const FFileStatData& InPackageStatData)
+			{
+				FStringView LocalAbsPath(InPackageFilename);
+				FStringView RelPath;
+				FString Buffer;
+				if (!FPathViews::TryMakeChildPathRelativeTo(InPackageFilename, Data.DirLocalAbsPath, RelPath))
+				{
+					// Try again with the path converted to the absolute path format that we passed in; some
+					// IFileManagers can send relative paths to the visitor even though the search path is absolute
+					Buffer = FPaths::ConvertRelativePathToFull(FString(InPackageFilename));
+					LocalAbsPath = Buffer;
+					if (!FPathViews::TryMakeChildPathRelativeTo(Buffer, Data.DirLocalAbsPath, RelPath))
+					{
+						UE_LOG(LogAssetRegistry, Warning,
+							TEXT("IterateDirectoryStat returned unexpected result %s which is not a child of the requested path %s."),
+							InPackageFilename, Data.DirLocalAbsPath.ToString());
+						return true;
+					}
+				}
+				if (FPathViews::GetPathLeaf(RelPath).Len() != RelPath.Len())
+				{
+					UE_LOG(LogAssetRegistry, Warning,
+						TEXT("IterateDirectoryStat returned unexpected result %s which is not a direct child of the requested path %s."),
+						InPackageFilename, Data.DirLocalAbsPath.ToString());
 					return true;
 				}
-			}
-			if (FPathViews::GetPathLeaf(RelPath).Len() != RelPath.Len())
-			{
-				UE_LOG(LogAssetRegistry, Warning, TEXT("IterateDirectoryStat returned unexpected result %s which is not a direct child of the requested path %s."), InPackageFilename, DirLocalAbsPath.ToString());
-				return true;
-			}
-			ON_SCOPE_EXIT{ DirLongPackageName.RemoveSuffix(DirLongPackageName.Len() - DirLongPackageNameRootLen); };
+				int32 DirLongPackageRootNameLen = Data.DirLongPackageName.Len();
+				ON_SCOPE_EXIT
+				{
+					Data.DirLongPackageName.RemoveSuffix(Data.DirLongPackageName.Len() - DirLongPackageRootNameLen);
+				};
 
-			if (InPackageStatData.bIsDirectory)
-			{
-				FPathViews::AppendPath(DirLongPackageName, RelPath);
-				// Don't enter directories that contain invalid packagepath characters (including '.'; extensions are not valid in content directories because '.' is not valid in a packagepath)
-				if (!FPackageName::DoesPackageNameContainInvalidCharacters(RelPath))
+				if (InPackageStatData.bIsDirectory)
 				{
-					if (IteratedSubDirs.Num() < NumIteratedDirs + 1)
+					FPathViews::AppendPath(Data.DirLongPackageName, RelPath);
+					// Don't enter directories that contain invalid packagepath characters (including '.';
+					// extensions are not valid in content directories because '.' is not valid in a packagepath)
+					if (!FPackageName::DoesPackageNameContainInvalidCharacters(RelPath))
 					{
-						check(IteratedSubDirs.Num() == NumIteratedDirs);
-						IteratedSubDirs.Emplace();
-					}
-					IteratedSubDirs[NumIteratedDirs++].Assign(LocalAbsPath, DirLongPackageName, RelPath, EGatherableFileType::Directory);
-				}
-			}
-			else
-			{
-				EGatherableFileType FileType = GetFileType(RelPath);
-				// Don't record files that contain invalid packagepath characters (not counting their extension) or that do not end with a recognized extension
-				if (FileType != EGatherableFileType::Invalid)
-				{
-					FStringView BaseName = FPathViews::GetBaseFilename(RelPath);
-					if (!FPackageName::DoesPackageNameContainInvalidCharacters(BaseName))
-					{
-						if (IteratedFiles.Num() < NumIteratedFiles + 1)
+						if (Data.IteratedSubDirs.Num() < Data.NumIteratedDirs + 1)
 						{
-							check(IteratedFiles.Num() == NumIteratedFiles);
-							IteratedFiles.Emplace();
+							check(Data.IteratedSubDirs.Num() == Data.NumIteratedDirs);
+							Data.IteratedSubDirs.Emplace();
 						}
-						FPathViews::AppendPath(DirLongPackageName, BaseName);
-						IteratedFiles[NumIteratedFiles++].Assign(LocalAbsPath, DirLongPackageName, RelPath, InPackageStatData.ModificationTime, FileType);
+						Data.IteratedSubDirs[Data.NumIteratedDirs++].Assign(LocalAbsPath, Data.DirLongPackageName, RelPath,
+							EGatherableFileType::Directory);
 					}
 				}
-			}
-			return true;
+				else
+				{
+					EGatherableFileType FileType = GetFileType(RelPath);
+					// Don't record files that contain invalid packagepath characters (not counting their extension)
+					// or that do not end with a recognized extension
+					if (FileType != EGatherableFileType::Invalid)
+					{
+						FStringView BaseName = FPathViews::GetBaseFilename(RelPath);
+						if (!FPackageName::DoesPackageNameContainInvalidCharacters(BaseName))
+						{
+							if (Data.IteratedFiles.Num() < Data.NumIteratedFiles + 1)
+							{
+								check(Data.IteratedFiles.Num() == Data.NumIteratedFiles);
+								Data.IteratedFiles.Emplace();
+							}
+							FPathViews::AppendPath(Data.DirLongPackageName, BaseName);
+							Data.IteratedFiles[Data.NumIteratedFiles++].Assign(LocalAbsPath, Data.DirLongPackageName, RelPath,
+								InPackageStatData.ModificationTime, FileType);
+						}
+					}
+				}
+				return true;
+			});
+			Data.bScanned = true;
 		});
-
-	TArrayView<FDiscoveredPathData> LocalSubDirs(IteratedSubDirs.GetData(), NumIteratedDirs);
-	TArrayView<FDiscoveredPathData> LocalDiscoveredFiles(IteratedFiles.GetData(), NumIteratedFiles);
-	bool bValid = false;
-	{
-		CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
-		FGathererScopeLock TreeScopeLock(&TreeLock);
-		if (!LocalCursor->IsValid())
-		{
-			// The ScanDir has been shutdown, and it is only still allocated to prevent us from crashing. Drop our reference and allow it to delete.
-		}
-		else if (LocalCursor->IsScanInFlightInvalidated())
-		{
-			// Some setting has been applied to the ScanDir that requires a new scan
-			// Consume the invalidated flag and ignore the results of our scan
-			LocalCursor->SetScanInFlightInvalidated(false);
-		}
-		else
-		{
-			LocalCursor->SetScanResults(DirLocalAbsPath, CursorParentData, LocalSubDirs, LocalDiscoveredFiles);
-			bValid = true;
-			FScanDir* NewCursor = Cursor.GetReference();
-			// Other thread may have set the cursor to a new spot; in that case do not update and on the next tick start at the new cursor
-			if (LocalCursor == NewCursor)
-			{
-				LocalCursor->Update(NewCursor, CursorParentData);
-				Cursor = NewCursor;
-			}
-		}
-		LocalCursor->SetScanInFlight(false);
-	}
-
-	if (bValid && (!LocalSubDirs.IsEmpty() || !LocalDiscoveredFiles.IsEmpty()))
-	{
-		AddDiscovered(DirLocalAbsPath, LocalSubDirs, LocalDiscoveredFiles);
 	}
 }
 
-void FAssetDataDiscovery::FindFirstCursor(FScanDir*& OutCursor, FScanDir::FInherited& OutParentData)
+void FAssetDataDiscovery::UpdateAll(TArray<FScanDirAndParentData>& OutScanRequests)
 {
 	CHECK_IS_LOCKED_CURRENT_THREAD(TreeLock);
-	OutCursor = nullptr;
-	while (!OutCursor)
+	for (TUniquePtr<FMountDir>& MountDirOwner : MountDirs)
 	{
-		EPriority WinningPriority = EPriority::Normal;
-		FMountDir* WinningMountDir = nullptr;
-		for (TUniquePtr<FMountDir>& MountDir : MountDirs)
+		FMountDir* MountDir = MountDirOwner.Get();
+		if (MountDir->IsComplete())
 		{
-			if (MountDir->IsComplete())
-			{
-				continue;
-			}
-			if (WinningMountDir == nullptr || MountDir->GetPriority() < WinningPriority)
-			{
-				WinningMountDir = MountDir.Get();
-				WinningPriority = MountDir->GetPriority();
-			}
+			continue;
 		}
 
-		if (!WinningMountDir)
-		{
-			OutCursor = nullptr;
-			OutParentData = FScanDir::FInherited();
-			break;
-		}
-
-		WinningMountDir->Update(OutCursor, OutParentData);
-		check(OutCursor != nullptr || WinningMountDir->IsComplete()); // The WinningMountDir's update should either return something to update or it should mark itself complete
-	}
-}
-
-void FAssetDataDiscovery::InvalidateCursor()
-{
-	if (Cursor)
-	{
-		if (Cursor->IsScanInFlight())
-		{
-			Cursor->SetScanInFlightInvalidated(true);
-		}
-		Cursor.SafeRelease();
+		MountDir->Update(OutScanRequests);
 	}
 }
 
 void FAssetDataDiscovery::SetIsIdle(bool bInIsIdle)
 {
+	double TickStartTime = -1.;
+	SetIsIdle(bInIsIdle, TickStartTime);
+}
+
+void FAssetDataDiscovery::SetIsIdle(bool bInIsIdle, double& TickStartTime)
+{
 	CHECK_IS_LOCKED_CURRENT_THREAD(TreeLock);
 
 	// Caller is responsible for holding TreeLock around this function; writes of SetIsIdle are done inside the TreeLock
-	// If bIsIdle is true, caller holds TickLock and TreeLock
+	// If bIsIdle is true, caller holds TickOwner and TreeLock
 	if (bIsIdle == bInIsIdle)
 	{
 		return;
@@ -1722,18 +1716,28 @@ void FAssetDataDiscovery::SetIsIdle(bool bInIsIdle)
 	{
 		if (bIsIdle)
 		{
-			UE_LOG(LogAssetRegistry, Verbose, TEXT("Discovery took %0.6f seconds and found %d files to process"), FPlatformTime::Seconds() - DiscoverStartTime, NumDiscoveredFiles);
+			if (TickStartTime >= 0.)
+			{
+				CurrentDiscoveryTime += FPlatformTime::Seconds() - TickStartTime;
+				TickStartTime = -1.;
+			}
+
+			CumulativeDiscoveryTime += static_cast<float>(CurrentDiscoveryTime);
+			CumulativeDiscoveredFiles += NumDiscoveredFiles;
+			UE_LOG(LogAssetRegistry, Verbose,
+				TEXT("Discovery took %0.4f seconds to add %d files, Cumulative=%0.4f seconds to add %d."),
+				CurrentDiscoveryTime, NumDiscoveredFiles, CumulativeDiscoveryTime, CumulativeDiscoveredFiles);
+			CurrentDiscoveryTime = 0.;
 		}
 		else
 		{
-			DiscoverStartTime = FPlatformTime::Seconds();
 			NumDiscoveredFiles = 0;
 		}
 	}
 
 	if (bIsIdle)
 	{
-		CHECK_IS_LOCKED_CURRENT_THREAD(TickLock);
+		check(TickOwner.IsOwnedByCurrentThread());
 		Shrink();
 	}
 }
@@ -1768,19 +1772,42 @@ void FAssetDataDiscovery::GetAndTrimSearchResults(bool& bOutIsComplete, TArray<F
 	}
 }
 
+void FAssetDataDiscovery::GetDiagnostics(float& OutCumulativeDiscoveryTime)
+{
+	FGathererScopeLock ResultsScopeLock(&ResultsLock);
+	OutCumulativeDiscoveryTime = CumulativeDiscoveryTime;
+}
+
+
 void FAssetDataDiscovery::WaitForIdle()
 {
 	if (bIsIdle)
 	{
 		return;
 	}
-	FScopedPause ScopedPause(*this);
 	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(TreeLock);
 	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
-	FGathererScopeLock TickScopeLock(&TickLock);
+
+	constexpr float IdleSleepTime = 0.1f;
+	bool bTickOwner = false;
 	while (!bIsIdle)
 	{
-		TickInternal();
+		if (!bTickOwner)
+		{
+			bTickOwner = TickOwner.TryTakeOwnership(TreeLock);
+		}
+		if (bTickOwner)
+		{
+			TickInternal(true /* bTickAll */);
+		}
+		else
+		{
+			FPlatformProcess::Sleep(IdleSleepTime);
+		}
+	}
+	if (bTickOwner)
+	{
+		TickOwner.ReleaseOwnershipChecked(TreeLock);
 	}
 }
 
@@ -1843,140 +1870,243 @@ void FPathExistence::LoadExistenceData()
 	bHasExistenceData = true;
 }
 
-void FAssetDataDiscovery::SetPropertiesAndWait(FPathExistence& QueryPath, bool bAddToAllowList, bool bForceRescan, bool bIgnoreDenyListScanFilters)
+void FAssetDataDiscovery::SetPropertiesAndWait(TArrayView<FPathExistence> QueryPaths, bool bAddToAllowList,
+	bool bForceRescan, bool bIgnoreDenyListScanFilters)
 {
-	// We might have been asked to wait on a filename missing the extension, in which case QueryPath.GetType() == MissingButDirExists
-	// We need to handle Directory, File, and MissingButDirExists in unique ways
-	FPathExistence::EType PathType = QueryPath.GetType();
-	if (PathType == FPathExistence::EType::MissingParentDir)
+	for (FPathExistence& QueryPath : QueryPaths)
 	{
-		// SetPropertiesAndWait is called for every ScanPathsSynchronous, and this is the first spot that checks for existence. 
-		// Some systems call ScanPathsSynchronous speculatively to scan whatever is present, so this log is verbose-only.
-		UE_LOG(LogAssetRegistry, Verbose, TEXT("SetPropertiesAndWait called on non-existent path %s. Call will be ignored."),
-			*QueryPath.GetLocalAbsPath());
-		return;
+		QueryPath.LoadExistenceData();
 	}
-	FStringView SearchPath = QueryPath.GetLowestExistingPath();
 
+	struct FScanDirAndQueryPath
+	{
+		TRefCountPtr<FScanDir> ScanDir;
+		bool bScanEntireTree = false;
+	};
+	TArray<FScanDirAndQueryPath> DirsToScan;
+	bool bTickOwner = false;
 	{
 		CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
 		FGathererScopeLock TreeScopeLock(&TreeLock);
-		FMountDir* MountDir = FindContainingMountPoint(SearchPath);
-		if (!MountDir)
+		for (FPathExistence& QueryPath : QueryPaths)
 		{
-			UE_LOG(LogAssetRegistry, Log, TEXT("SetPropertiesAndWait called on %s which is not in a mounted directory. Call will be ignored."),
-				*QueryPath.GetLocalAbsPath());
-			return;
-		}
-
-		if (PathType == FPathExistence::EType::Directory)
-		{
-			FSetPathProperties Properties;
-			if (bAddToAllowList)
+			// We might have been asked to wait on a filename missing the extension, in which case QueryPath.GetType() == MissingButDirExists
+			// We need to handle Directory, File, and MissingButDirExists in unique ways
+			FPathExistence::EType PathType = QueryPath.GetType();
+			if (PathType == FPathExistence::EType::MissingParentDir)
 			{
-				Properties.IsOnAllowList = bAddToAllowList;
+				// SetPropertiesAndWait is called for every ScanPathsSynchronous, and this is the first spot that checks for existence. 
+				// Some systems call ScanPathsSynchronous speculatively to scan whatever is present, so this log is verbose-only.
+				UE_LOG(LogAssetRegistry, Verbose, TEXT("SetPropertiesAndWait called on non-existent path %s. Call will be ignored."),
+					*QueryPath.GetLocalAbsPath());
+				continue;
 			}
-			if (bForceRescan)
+			FStringView SearchPath = QueryPath.GetLowestExistingPath();
+
+			FMountDir* MountDir = FindContainingMountPoint(SearchPath);
+			if (!MountDir)
 			{
-				Properties.HasScanned = false;
+				UE_LOG(LogAssetRegistry, Log, TEXT("SetPropertiesAndWait called on %s which is not in a mounted directory. Call will be ignored."),
+					*QueryPath.GetLocalAbsPath());
+				continue;
 			}
-			if (bIgnoreDenyListScanFilters)
+
+			if (PathType == FPathExistence::EType::Directory)
 			{
-				Properties.IgnoreDenyList = true;
-			}
-			if (Properties.IsSet())
-			{
-				SetIsIdle(false);
-				MountDir->TrySetDirectoryProperties(SearchPath, Properties, true /* bConfirmedExists */);
-			}
-		}
-
-		FString RelPath;
-		FScanDir::FInherited MonitorData;
-		bool bSearchPathIsDirectory = PathType == FPathExistence::EType::Directory || PathType == FPathExistence::EType::MissingButDirExists;
-		TRefCountPtr<FScanDir> ScanDir = MountDir->GetControllingDir(SearchPath, bSearchPathIsDirectory, MonitorData, RelPath);
-		bool bIsAllowedInThisCall = MonitorData.IsOnAllowList() || bAddToAllowList;
-		bool bIsDeniedInThisCall = MonitorData.IsOnDenyList() && !bIgnoreDenyListScanFilters;
-		bool bIsMonitoredInThisCall = bIsAllowedInThisCall && !bIsDeniedInThisCall;
-		if (!ScanDir || !bIsMonitoredInThisCall)
-		{
-			UE_LOG(LogAssetRegistry, Log, TEXT("SetPropertiesAndWait called on %s which is not monitored. Call will be ignored."),
-				*QueryPath.GetLocalAbsPath());
-			return;
-		}
-
-		if (bSearchPathIsDirectory)
-		{
-			// If Relpath from the controlling dir to the requested dir is not empty then we have found a parent directory rather than the requested directory.
-			// This can only occur for a monitored directory when the requested directory is already complete and we do not need to wait on it.
-			if (RelPath.IsEmpty() && !ScanDir->IsComplete())
-			{
-				// We are going to wait on the path, so set its priority to blocking
-				SetIsIdle(false);
-				EPriority OriginalPriority = ScanDir->GetDirectPriority();
-				ScanDir->SetDirectPriority(EPriority::Blocking);
-				InvalidateCursor();
-
-				FScopedPause ScopedPause(*this);
-				TreeScopeLock.Unlock(); // Entering the ticklock, as well as any long duration task such as a tick, has to be done outside of any locks
-				// If the query path is MissingButDirExists, we assume it is a file missing the extension, and scan (or confirm already scanned) its directory
-				bool bScanEntireTree = PathType == FPathExistence::EType::Directory;
-
-				CHECK_IS_NOT_LOCKED_CURRENT_THREAD(TreeLock);
-				CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
-				FGathererScopeLock TickScopeLock(&TickLock);
-				for (;;)
+				FSetPathProperties Properties;
+				if (bAddToAllowList)
 				{
-					TickInternal();
-					FGathererScopeLock LoopTreeScopeLock(&TreeLock);
-					if (!ScanDir->IsValid())
-					{
-						break;
-					}
-					if (ScanDir->IsComplete() || (!bScanEntireTree && ScanDir->HasScanned()))
-					{
-						// Restore the Priority.
-						// TODO: We dropped the lock so something else could have changed the value of ScanDir's priority and we are now clobbering it.
-						// This can be fixed by adding a counter for each level of the priority. That's complex and cpu expensive, so not doing it until we need it.
-						ScanDir->SetDirectPriority(OriginalPriority);
-						break;
-					}
-					else if (!ensureMsgf(!bIsIdle, TEXT("It should not be possible for the Discovery to go idle while there is an incomplete ScanDir.")))
-					{
-						// Restore the Priority
-						ScanDir->SetDirectPriority(OriginalPriority);
-						break;
-					}
+					Properties.IsOnAllowList = bAddToAllowList;
+				}
+				if (bForceRescan)
+				{
+					Properties.HasScanned = false;
+				}
+				if (bIgnoreDenyListScanFilters)
+				{
+					Properties.IgnoreDenyList = true;
+				}
+				if (Properties.IsSet())
+				{
+					SetIsIdle(false);
+					MountDir->TrySetDirectoryProperties(SearchPath, Properties, true /* bConfirmedExists */, nullptr);
 				}
 			}
-		}
-		else
-		{
-			check(PathType == FPathExistence::EType::File);
-			bool bAlreadyScanned = ScanDir->HasScanned() && MonitorData.IsMonitored();
-			if (!bAlreadyScanned || bForceRescan)
+
+			FString RelPath;
+			FScanDir::FInherited MonitorData;
+			bool bSearchPathIsDirectory = PathType == FPathExistence::EType::Directory || PathType == FPathExistence::EType::MissingButDirExists;
+			TRefCountPtr<FScanDir> ScanDir = MountDir->GetControllingDir(SearchPath, bSearchPathIsDirectory, MonitorData, RelPath);
+			bool bIsAllowedInThisCall = MonitorData.IsOnAllowList() || bAddToAllowList;
+			bool bIsDeniedInThisCall = MonitorData.IsOnDenyList() && !bIgnoreDenyListScanFilters;
+			bool bIsMonitoredInThisCall = bIsAllowedInThisCall && !bIsDeniedInThisCall;
+			if (!ScanDir || !bIsMonitoredInThisCall)
 			{
-				FStringView RelPathFromParentDir = FPathViews::GetCleanFilename(RelPath);
-				EGatherableFileType FileType = GetFileType(RelPathFromParentDir);
-				if (FileType != EGatherableFileType::Invalid)
+				UE_LOG(LogAssetRegistry, Log, TEXT("SetPropertiesAndWait called on %s which is not monitored. Call will be ignored."),
+					*QueryPath.GetLocalAbsPath());
+				continue;
+			}
+
+			if (bSearchPathIsDirectory)
+			{
+				// If Relpath from the controlling dir to the requested dir is not empty then we have found a parent directory rather than the requested directory.
+				// This can only occur for a monitored directory when the requested directory is already complete and we do not need to wait on it.
+				if (!RelPath.IsEmpty() || ScanDir->IsComplete())
 				{
-					FStringView FileRelPathNoExt = FPathViews::GetBaseFilenameWithPath(RelPath);
-					if (!FPackageName::DoesPackageNameContainInvalidCharacters(FileRelPathNoExt))
+					continue;
+				}
+
+				FScanDirAndQueryPath& ScanQuery = DirsToScan.Emplace_GetRef();
+				ScanQuery.ScanDir = ScanDir;
+				ScanQuery.bScanEntireTree = PathType == FPathExistence::EType::Directory;
+				FPriorityScanDirData* PriorityData = PriorityScanDirs.FindByPredicate(
+					[&ScanDir](const FPriorityScanDirData& ScanDirData) { return ScanDirData.ScanDir == ScanDir; });
+				if (!PriorityData)
+				{
+					PriorityData = &PriorityScanDirs.Add_GetRef(FPriorityScanDirData{ ScanDir });
+				}
+				++PriorityData->RequestCount;
+				PriorityData->ParentData = MonitorData;
+			}
+			else
+			{
+				check(PathType == FPathExistence::EType::File);
+				bool bAlreadyScanned = ScanDir->HasScanned() && MonitorData.IsMonitored();
+				if (!bAlreadyScanned || bForceRescan)
+				{
+					FStringView RelPathFromParentDir = FPathViews::GetCleanFilename(RelPath);
+					EGatherableFileType FileType = GetFileType(RelPathFromParentDir);
+					if (FileType != EGatherableFileType::Invalid)
 					{
-						TStringBuilder<256> LongPackageName;
-						LongPackageName << MountDir->GetLongPackageName();
-						FPathViews::AppendPath(LongPackageName, ScanDir->GetMountRelPath());
-						FPathViews::AppendPath(LongPackageName, FileRelPathNoExt);
-						AddDiscoveredFile(FDiscoveredPathData(SearchPath, LongPackageName, RelPathFromParentDir, QueryPath.GetModificationTime(), FileType));
-						if (FPathViews::IsPathLeaf(RelPath) && !ScanDir->HasScanned())
+						FStringView FileRelPathNoExt = FPathViews::GetBaseFilenameWithPath(RelPath);
+						if (!FPackageName::DoesPackageNameContainInvalidCharacters(FileRelPathNoExt))
 						{
-							SetIsIdle(false);
-							ScanDir->MarkFileAlreadyScanned(RelPath);
+							TStringBuilder<256> LongPackageName;
+							LongPackageName << MountDir->GetLongPackageName();
+							FPathViews::AppendPath(LongPackageName, ScanDir->GetMountRelPath());
+							FPathViews::AppendPath(LongPackageName, FileRelPathNoExt);
+							AddDiscoveredFile(FDiscoveredPathData(SearchPath, LongPackageName, RelPathFromParentDir, QueryPath.GetModificationTime(), FileType));
+							if (FPathViews::IsPathLeaf(RelPath) && !ScanDir->HasScanned())
+							{
+								SetIsIdle(false);
+								ScanDir->MarkFileAlreadyScanned(RelPath);
+							}
 						}
 					}
 				}
 			}
 		}
+
+		if (!DirsToScan.IsEmpty())
+		{
+			bPriorityDirty = true;
+			PriorityDataUpdated->Reset();
+			bTickOwner = TickOwner.TryTakeOwnership(TreeScopeLock);
+		}
+	}
+
+	while (!DirsToScan.IsEmpty())
+	{
+		if (bTickOwner)
+		{
+			TickInternal(false /* bTickAll */);
+		}
+		else
+		{
+			constexpr uint32 WaitTimeMilliseconds = 100;
+			PriorityDataUpdated->Wait(WaitTimeMilliseconds);
+		}
+
+		{
+			FGathererScopeLock LoopTreeScopeLock(&TreeLock);
+			for (int32 Index = 0; Index < DirsToScan.Num(); ++Index)
+			{
+				FScanDirAndQueryPath& ScanQuery = DirsToScan[Index];
+				FScanDir* ScanDir = ScanQuery.ScanDir.GetReference();
+				auto RemoveCurrent = [&DirsToScan, &Index, ScanDir, this]()
+				{
+					DirsToScan.RemoveAtSwap(Index);
+					int32 PriorityDataIndex = PriorityScanDirs.IndexOfByPredicate(
+						[ScanDir](const FPriorityScanDirData& ScanDirData) { return ScanDirData.ScanDir.GetReference() == ScanDir; });
+
+					check(PriorityDataIndex != INDEX_NONE); // Nothing should be able to remove it until we remove our RequestCount
+					FPriorityScanDirData& PriorityData = PriorityScanDirs[PriorityDataIndex];
+					check(PriorityData.RequestCount > 0);
+					--PriorityData.RequestCount;
+					if (PriorityData.RequestCount == 0)
+					{
+						PriorityScanDirs.RemoveAtSwap(PriorityDataIndex);
+					}
+				};
+
+				if (!ScanDir->IsValid())
+				{
+					RemoveCurrent();
+					continue;
+				}
+				if (ScanDir->IsComplete() || (!ScanQuery.bScanEntireTree && ScanDir->HasScanned()))
+				{
+					RemoveCurrent();
+					continue;
+				}
+				else if (!ensureMsgf(!bIsIdle, TEXT("It should not be possible for the Discovery to go idle while there is an incomplete ScanDir.")))
+				{
+					RemoveCurrent();
+					continue;
+				}
+			}
+
+			if (DirsToScan.IsEmpty())
+			{
+				if (bTickOwner)
+				{
+					TickOwner.ReleaseOwnershipChecked(LoopTreeScopeLock);
+					bTickOwner = false;
+				}
+			}
+			else
+			{
+				PriorityDataUpdated->Reset();
+				if (!bTickOwner)
+				{
+					bTickOwner = TickOwner.TryTakeOwnership(LoopTreeScopeLock);
+				}
+			}
+		}
+	}
+}
+
+void FAssetDataDiscovery::PrioritizeSearchPath(const FString& LocalAbsPath, EPriority Priority)
+{
+	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
+	FGathererScopeLock TreeScopeLock(&TreeLock);
+	SetIsIdle(false);
+	FMountDir* MountDir = FindContainingMountPoint(LocalAbsPath);
+	if (!MountDir)
+	{
+		UE_LOG(LogAssetRegistry, Warning, TEXT("FAssetDataGatherer::PrioritizeSearchPath called on unmounted path %.*s. Call will be ignored."),
+			LocalAbsPath.Len(), *LocalAbsPath);
+		return;
+	}
+
+	FSetPathProperties EmptyProperties;
+	FScanDirAndParentData ScanDirAndParent;
+	MountDir->TrySetDirectoryProperties(LocalAbsPath, EmptyProperties, false, &ScanDirAndParent);
+	FScanDir* ScanDir = ScanDirAndParent.ScanDir.GetReference();
+	if (ScanDir && ScanDir->IsValid() && !ScanDir->IsComplete())
+	{
+		FPriorityScanDirData* PriorityData = PriorityScanDirs.FindByPredicate(
+			[&ScanDir](const FPriorityScanDirData& ScanDirData) { return ScanDirData.ScanDir.GetReference() == ScanDir; });
+		if (!PriorityData)
+		{
+			PriorityData = &PriorityScanDirs.Add_GetRef(FPriorityScanDirData{ ScanDir });
+		}
+		if (!PriorityData->bReleaseWhenComplete)
+		{
+			PriorityData->bReleaseWhenComplete = true;
+			++PriorityData->RequestCount;
+		}
+		PriorityData->ParentData = ScanDirAndParent.ParentData;
 	}
 }
 
@@ -1993,7 +2123,6 @@ bool FAssetDataDiscovery::TrySetDirectoryProperties(const FString& LocalAbsPath,
 	{
 		return false;
 	}
-	InvalidateCursor();
 	return true;
 }
 
@@ -2007,7 +2136,7 @@ bool FAssetDataDiscovery::TrySetDirectoryPropertiesInternal(const FString& Local
 		return false;
 	}
 
-	return MountDir->TrySetDirectoryProperties(LocalAbsPath, InProperties, bConfirmedExists);
+	return MountDir->TrySetDirectoryProperties(LocalAbsPath, InProperties, bConfirmedExists, nullptr);
 }
 
 bool FAssetDataDiscovery::IsOnAllowList(FStringView LocalAbsPath) const
@@ -2059,11 +2188,10 @@ SIZE_T GetArrayRecursiveAllocatedSize(const ContainerType& Container)
 
 SIZE_T FAssetDataDiscovery::GetAllocatedSize() const
 {
-
-	FScopedPause ScopedPause(*this);
 	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(TreeLock);
 	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
-	FGathererScopeLock TickScopeLock(&TickLock);
+	check(!TickOwner.IsOwnedByCurrentThread());
+	FScopedPause ScopedPause(*this);
 	FGathererScopeLock TreeScopeLock(&TreeLock);
 	FGathererScopeLock ResultsScopeLock(&ResultsLock);
 
@@ -2087,9 +2215,33 @@ SIZE_T FAssetDataDiscovery::GetAllocatedSize() const
 		Result += sizeof(*Value);
 		Result += Value->GetAllocatedSize();
 	}
+	Result += GetArrayRecursiveAllocatedSize(DirToScanDatas);
+	Result += DirToScanBuffers.GetAllocatedSize();
+	return Result;
+}
+
+void FAssetDataDiscovery::FDirToScanData::Reset()
+{
+	DirLocalAbsPath.Reset();
+	DirLongPackageName.Reset();
+	NumIteratedDirs = 0;
+	NumIteratedFiles = 0;
+	bScanned = false;
+}
+
+SIZE_T FAssetDataDiscovery::FDirToScanData::GetAllocatedSize() const
+{
+	SIZE_T Result = 0;
+	Result += DirLocalAbsPath.GetAllocatedSize();
+	Result += DirLongPackageName.GetAllocatedSize();
 	Result += GetArrayRecursiveAllocatedSize(IteratedSubDirs);
 	Result += GetArrayRecursiveAllocatedSize(IteratedFiles);
 	return Result;
+}
+
+void FAssetDataDiscovery::FDirToScanBuffer::Reset()
+{
+	bAbort = false;
 }
 
 SIZE_T FAssetDataDiscovery::FDirectoryResult::GetAllocatedSize() const
@@ -2099,7 +2251,7 @@ SIZE_T FAssetDataDiscovery::FDirectoryResult::GetAllocatedSize() const
 
 void FAssetDataDiscovery::Shrink()
 {
-	CHECK_IS_LOCKED_CURRENT_THREAD(TickLock);
+	check(TickOwner.IsOwnedByCurrentThread());
 	CHECK_IS_LOCKED_CURRENT_THREAD(TreeLock);
 	CHECK_IS_LOCKED_CURRENT_THREAD(ResultsLock);
 	DirLongPackageNamesToNotReport.Shrink();
@@ -2111,8 +2263,8 @@ void FAssetDataDiscovery::Shrink()
 	{
 		MountDir->Shrink();
 	}
-	IteratedSubDirs.Shrink();
-	IteratedFiles.Shrink();
+	DirToScanDatas.Empty();
+	DirToScanBuffers.Empty();
 }
 
 void FAssetDataDiscovery::AddMountPoint(const FString& LocalAbsPath, FStringView LongPackageName)
@@ -2121,8 +2273,6 @@ void FAssetDataDiscovery::AddMountPoint(const FString& LocalAbsPath, FStringView
 	FGathererScopeLock TreeScopeLock(&TreeLock);
 	SetIsIdle(false);
 	AddMountPointInternal(LocalAbsPath, LongPackageName);
-
-	InvalidateCursor();
 }
 
 void FAssetDataDiscovery::AddMountPointInternal(const FString& LocalAbsPath, FStringView LongPackageName)
@@ -2183,8 +2333,6 @@ void FAssetDataDiscovery::RemoveMountPoint(const FString& LocalAbsPath)
 	FGathererScopeLock TreeScopeLock(&TreeLock);
 	SetIsIdle(false);
 	RemoveMountPointInternal(LocalAbsPath);
-
-	InvalidateCursor();
 }
 
 void FAssetDataDiscovery::RemoveMountPointInternal(const FString& LocalAbsPath)
@@ -2391,8 +2539,11 @@ void FAssetDataDiscovery::AddDiscovered(FStringView DirAbsPath, TConstArrayView<
 	{
 		DiscoveredDirectories.Add(FString(SubDir.LongPackageName));
 	}
-	DiscoveredFiles.Emplace(DirAbsPath, Files);
-	NumDiscoveredFiles += Files.Num();
+	if (Files.Num())
+	{
+		DiscoveredFiles.Emplace(DirAbsPath, Files);
+		NumDiscoveredFiles += Files.Num();
+	}
 }
 
 void FAssetDataDiscovery::AddDiscoveredFile(FDiscoveredPathData&& File)
@@ -2948,7 +3099,7 @@ FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InLongPackageNames
 	, IsPaused(0)
 	, bInitialPluginsLoaded(false)
 	, bSaveAsyncCacheTriggered(false)
-	, SearchStartTime(0)
+	, CurrentSearchTime(0.)
 	, LastCacheWriteTime(0.0)
 	, bHasLoadedMonolithicCache(false)
 	, bDiscoveryIsComplete(false)
@@ -3084,9 +3235,15 @@ void FAssetDataGatherer::InnerTickLoop(bool bInIsSynchronousTick, bool bContribu
 		TGuardValue<bool> ScopeSynchronousTick(bIsSynchronousTick, bInIsSynchronousTick);
 		TRACE_CPUPROFILER_EVENT_SCOPE(FAssetDataGatherer::Tick);
 		bool bTickInterruptionEvent = false;
+		double TickStartTime = FPlatformTime::Seconds();
 		while (!IsStopped && (bInIsSynchronousTick || !IsPaused) && !bTickInterruptionEvent)
 		{
-			TickInternal(bTickInterruptionEvent);
+			TickInternal(bTickInterruptionEvent, TickStartTime);
+		}
+		if (TickStartTime >= 0.)
+		{
+			CurrentSearchTime += FPlatformTime::Seconds() - TickStartTime;
+			TickStartTime = 0.;
 		}
 
 		if (bContributeToCacheSave)
@@ -3154,7 +3311,7 @@ void FAssetDataGatherer::EnsureCompletion()
 	}
 }
 
-void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
+void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt, double& TickStartTime)
 {
 	LLM_SCOPE(ELLMTag::AssetRegistry);
 
@@ -3181,7 +3338,6 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 		{
 			bFirstTickAfterIdle = false;
 			LastCacheWriteTime = FPlatformTime::Seconds();
-			SearchStartTime = LastCacheWriteTime;
 		}
 
 		IngestDiscoveryResults();
@@ -3212,7 +3368,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 			{
 				bSaveAsyncCacheTriggered = true;
 			}
-			SetIsIdle(true);
+			SetIsIdle(true, TickStartTime);
 			return;
 		}
 		if (bReadMonolithicCache && !bHasLoadedMonolithicCache)
@@ -3597,6 +3753,13 @@ void FAssetDataGatherer::GetAndTrimSearchResults(FResults& InOutResults, FResult
 	OutContext.bAbleToProgress = !bIsIdle;
 }
 
+void FAssetDataGatherer::GetDiagnostics(float& OutGatherTimeSeconds, float& OutDiscoverTimeSeconds)
+{
+	Discovery->GetDiagnostics(OutDiscoverTimeSeconds);
+	FGathererScopeLock ResultsScopeLock(&ResultsLock);
+	OutGatherTimeSeconds = CumulativeGatherTime;
+}
+
 void FAssetDataGatherer::GetPackageResults(TMultiMap<FName, FAssetData*>& OutAssetResults, TMultiMap<FName, FPackageDependencyData>& OutDependencyResults)
 {
 	FGathererScopeLock ResultsScopeLock(&ResultsLock);
@@ -3625,7 +3788,8 @@ void FAssetDataGatherer::WaitOnPath(FStringView InPath)
 	}
 	FString LocalAbsPath = NormalizeLocalPath(InPath);
 	UE::AssetDataGather::Private::FPathExistence QueryPath(LocalAbsPath);
-	Discovery->SetPropertiesAndWait(QueryPath, false /* bAddToAllowList */, false /* bForceRescan */, false /* bIgnoreDenyListScanFilters */);
+	Discovery->SetPropertiesAndWait(TArrayView<UE::AssetDataGather::Private::FPathExistence>(&QueryPath, 1),
+		false /* bAddToAllowList */, false /* bForceRescan */, false /* bIgnoreDenyListScanFilters */);
 	WaitOnPathsInternal(TArrayView<UE::AssetDataGather::Private::FPathExistence>(&QueryPath, 1), FString(), TArray<FString>());
 }
 
@@ -3691,10 +3855,7 @@ void FAssetDataGatherer::ScanPathsSynchronous(const TArray<FString>& InLocalPath
 		QueryPaths.Add(UE::AssetDataGather::Private::FPathExistence(NormalizeLocalPath(LocalPath)));
 	}
 
-	for (UE::AssetDataGather::Private::FPathExistence& QueryPath: QueryPaths)
-	{
-		Discovery->SetPropertiesAndWait(QueryPath, true /* bAddToAllowList */, bForceRescan, bIgnoreDenyListScanFilters);
-	}
+	Discovery->SetPropertiesAndWait(QueryPaths, true /* bAddToAllowList */, bForceRescan, bIgnoreDenyListScanFilters);
 
 	{
 		FGathererScopeLock ResultsScopeLock(&ResultsLock);
@@ -4258,9 +4419,22 @@ void FAssetDataGatherer::PrioritizeSearchPath(const FString& PathToPrioritize)
 	FString LocalFilenamePathToPrioritize;
 	if (FPackageName::TryConvertLongPackageNameToFilename(PathToPrioritize, LocalFilenamePathToPrioritize))
 	{
-		FSetPathProperties Properties;
-		Properties.Priority = EPriority::High;
-		SetDirectoryProperties(LocalFilenamePathToPrioritize, Properties);
+		LocalFilenamePathToPrioritize = NormalizeLocalPath(LocalFilenamePathToPrioritize);
+		if (LocalFilenamePathToPrioritize.Len() == 0)
+		{
+			return;
+		}
+		EPriority Priority = EPriority::High;
+		Discovery->PrioritizeSearchPath(LocalFilenamePathToPrioritize, Priority);
+
+		{
+			FGathererScopeLock ResultsScopeLock(&ResultsLock);
+			SetIsIdle(false);
+			int32 NumPrioritizedPaths;
+			UE::AssetDataGather::Private::FPathExistence QueryPath(PathToPrioritize);
+			SortPathsByPriority(TArrayView<UE::AssetDataGather::Private::FPathExistence>(&QueryPath, 1),
+				Priority, NumPrioritizedPaths);
+		}
 	}
 }
 
@@ -4277,13 +4451,6 @@ void FAssetDataGatherer::SetDirectoryProperties(FStringView LocalPath, const UE:
 	{
 		FGathererScopeLock ResultsScopeLock(&ResultsLock);
 		SetIsIdle(false);
-		if (InProperties.Priority.IsSet())
-		{
-			int32 NumPrioritizedPaths;
-			UE::AssetDataGather::Private::FPathExistence QueryPath(LocalAbsPath);
-			SortPathsByPriority(TArrayView<UE::AssetDataGather::Private::FPathExistence>(&QueryPath, 1),
-				*InProperties.Priority, NumPrioritizedPaths);
-		}
 	}
 }
 
@@ -4346,6 +4513,12 @@ bool FAssetDataGatherer::IsVerseFile(FStringView FilePath)
 
 void FAssetDataGatherer::SetIsIdle(bool bInIsIdle)
 {
+	double TickStartTime = -1.;
+	SetIsIdle(bInIsIdle, TickStartTime);
+}
+
+void FAssetDataGatherer::SetIsIdle(bool bInIsIdle, double& TickStartTime)
+{
 	CHECK_IS_LOCKED_CURRENT_THREAD(ResultsLock);
 	if (bInIsIdle == bIsIdle)
 	{
@@ -4356,14 +4529,21 @@ void FAssetDataGatherer::SetIsIdle(bool bInIsIdle)
 	if (bIsIdle)
 	{
 		// bIsComplete will be set in GetAndTrimSearchResults
-		double SearchTime = FPlatformTime::Seconds() - SearchStartTime;
+		if (TickStartTime >= 0.)
+		{
+			CurrentSearchTime += FPlatformTime::Seconds() - TickStartTime;
+			TickStartTime = -1.;
+		}
 		if (!bFinishedInitialDiscovery)
 		{
 			bFinishedInitialDiscovery = true;
 
-			UE_LOG(LogAssetRegistry, Verbose, TEXT("Initial scan took %0.6f seconds (found %d cached assets, and loaded %d)"), (float)SearchTime, NumCachedAssetFiles, NumUncachedAssetFiles);
+			UE_LOG(LogAssetRegistry, Verbose, TEXT("Initial scan took %0.6f seconds (found %d cached assets, and loaded %d)"),
+				(float)CurrentSearchTime, NumCachedAssetFiles, NumUncachedAssetFiles);
 		}
-		SearchTimes.Add(SearchTime);
+		SearchTimes.Add(CurrentSearchTime);
+		CumulativeGatherTime += static_cast<float>(CurrentSearchTime);
+		CurrentSearchTime = 0.;
 	}
 	else
 	{

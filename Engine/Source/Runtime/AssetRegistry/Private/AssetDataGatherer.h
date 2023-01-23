@@ -119,6 +119,8 @@ public:
 	};
 	/** Gets search results from the data gatherer. */
 	void GetAndTrimSearchResults(FResults& InOutResults, FResultContext& OutContext);
+	/** Get diagnostics for telemetry or logging. */
+	void GetDiagnostics(float& OutGatherTimeSeconds, float& OutDiscoverTimeSeconds);
 	/** Gets just the AssetResults and DependencyResults from the data gatherer. */
 	void GetPackageResults(TMultiMap<FName, FAssetData*>& OutAssetResults,
 		TMultiMap<FName, FPackageDependencyData>& OutDependencyResults);
@@ -232,7 +234,7 @@ private:
 	 * Tick function to pump scanning and push results into the search results structure. May be called from devoted
 	 * thread or inline from synchronous functions on other threads.
 	 */
-	void TickInternal(bool& bOutIsIdle);
+	void TickInternal(bool& bOutIsIdle, double& TickStartTime);
 	/** Add any new package files from the background directory scan to our work list **/
 	void IngestDiscoveryResults();
 
@@ -301,6 +303,7 @@ private:
 	 * when they note a possible state change. Caller is responsible for holding the ResultsLock.
 	 */
 	void SetIsIdle(bool IsIdle);
+	void SetIsIdle(bool IsIdle, double& TickStartTime);
 
 	/** Minimize memory usage in the buffers used during gathering. */
 	void Shrink();
@@ -386,12 +389,14 @@ private:
 
 	/** All the search times since the last call to GetAndTrimSearchResults. */
 	TArray<double> SearchTimes;
+	/** Sum of all SearchTimes. */
+	float CumulativeGatherTime = 0.f;
 
 	/** The directories found during the search, unless they are hidden by DirLongPackageNamesToNotReport. */
 	TArray<FString> DiscoveredPaths;
 
-	/** The search start time, set after resuming from idle and used for performance metrics when reporting results. */
-	double SearchStartTime;
+	/** The time spent in TickInternal since the last idle time. Used for performance metrics when reporting results. */
+	double CurrentSearchTime = 0.;
 	/** The last time at which the cache file was written, used to periodically update the cache. */
 	double LastCacheWriteTime;
 	/** The cached value of the NumPathsToSearch returned by Discovery the last time we synchronized with it. */

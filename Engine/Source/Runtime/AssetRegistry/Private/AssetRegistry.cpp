@@ -771,8 +771,7 @@ void FAssetRegistryImpl::Initialize(Impl::FInitializeContext& Context)
 	bInitialSearchCompleted = true;
 	GatherStatus = Impl::EGatherStatus::Active;
 	bSearchAllAssets = false;
-	AmortizeStartTime = 0;
-	TotalAmortizeTime = 0;
+	StoreGatherResultsTimeSeconds = 0.f;
 
 	// By default update the disk cache once on asset load, to incorporate changes made in PostLoad. This only happens in editor builds
 	bUpdateDiskCacheAfterLoad = true;
@@ -1532,7 +1531,6 @@ void FAssetRegistryImpl::SearchAllAssetsInitialAsync(Impl::FEventContext& EventC
 {
 	bInitialSearchStarted = true;
 	bInitialSearchCompleted = false;
-	FullSearchStartTime = FPlatformTime::Seconds();
 	SearchAllAssets(EventContext, InheritanceContext, false /* bSynchronousSearch */);
 }
 
@@ -1555,6 +1553,10 @@ void UAssetRegistryImpl::SearchAllAssets(bool bSynchronousSearch)
 			GuardedData.ConditionalLoadPremadeAssetRegistry(*this, EventContext, InterfaceScopeLock);
 		}
 		GuardedData.SearchAllAssets(EventContext, InheritanceContext, bSynchronousSearch);
+		if (bSynchronousSearch)
+		{
+			GuardedData.LogSearchDiagnostics();
+		}
 	}
 #if WITH_EDITOR
 	if (bSynchronousSearch)
@@ -3857,6 +3859,26 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 	{
 		return OutStatus;
 	}
+	double TimingStartTime = -1.;
+	auto LazyStartTimer = [&TimingStartTime]()
+	{
+		if (TimingStartTime <= 0.)
+		{
+			TimingStartTime = FPlatformTime::Seconds();
+		}
+	};
+	auto RecordTimer = [this, &TimingStartTime]()
+	{
+		if (TimingStartTime > 0.)
+		{
+			StoreGatherResultsTimeSeconds += static_cast<float>(FPlatformTime::Seconds() - TimingStartTime);
+			TimingStartTime = -1.;
+		}
+	};
+	ON_SCOPE_EXIT
+	{
+		RecordTimer();
+	};
 
 	// Gather results from the background search
 	FAssetDataGatherer::FResultContext ResultContext;
@@ -3908,44 +3930,37 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 		this->GatherStatus = OutStatus;
 	};
 
-
 	// Add discovered paths
 	if (BackgroundResults.Paths.Num())
 	{
+		LazyStartTimer();
 		PathDataGathered(EventContext, TickStartTime, BackgroundResults.Paths);
 	}
 
 	// Process the asset results
 	if (BackgroundResults.Assets.Num())
 	{
+		LazyStartTimer();
 		// Mark the first amortize time
-		if (AmortizeStartTime == 0)
-		{
-			AmortizeStartTime = FPlatformTime::Seconds();
-		}
 		if (AssetsFoundCallback.IsSet())
 		{
 			AssetsFoundCallback.GetValue()(BackgroundResults.Assets);
 		}
 
 		AssetSearchDataGathered(EventContext, TickStartTime, BackgroundResults.Assets);
-
-		if (BackgroundResults.Assets.Num() == 0)
-		{
-			TotalAmortizeTime += FPlatformTime::Seconds() - AmortizeStartTime;
-			AmortizeStartTime = 0;
-		}
 	}
 
 	// Add dependencies
 	if (BackgroundResults.Dependencies.Num())
 	{
+		LazyStartTimer();
 		DependencyDataGathered(TickStartTime, BackgroundResults.Dependencies);
 	}
 
 	// Load cooked packages that do not have asset data
 	if (BackgroundResults.CookedPackageNamesWithoutAssetData.Num())
 	{
+		LazyStartTimer();
 		CookedPackageNamesWithoutAssetDataGathered(EventContext, TickStartTime, BackgroundResults.CookedPackageNamesWithoutAssetData, bOutInterrupted);
 		if (bOutInterrupted)
 		{
@@ -3957,6 +3972,7 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 	// Add Verse files
 	if (BackgroundResults.VerseFiles.Num())
 	{
+		LazyStartTimer();
 		VerseFilesGathered(TickStartTime, BackgroundResults.VerseFiles);
 	}
 
@@ -3966,6 +3982,7 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 	bool bDiskGatherComplete = !ResultContext.bIsSearching && NumGatherFromDiskPending == 0;
 	if (bDiskGatherComplete && PackagesNeedingDependencyCalculation.Num())
 	{
+		LazyStartTimer();
 		LoadCalculatedDependencies(nullptr, TickStartTime, InheritanceContext, bOutInterrupted);
 		if (bOutInterrupted)
 		{
@@ -3989,8 +4006,8 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 			// update redirectors
 			UpdateRedirectCollector();
 #endif
-			UE_LOG(LogAssetRegistry, Verbose, TEXT("### Time spent amortizing search results: %0.4f seconds"), TotalAmortizeTime);
-			UE_LOG(LogAssetRegistry, Log, TEXT("Asset discovery search completed in %0.4f seconds"), FPlatformTime::Seconds() - FullSearchStartTime);
+			RecordTimer();
+			LogSearchDiagnostics();
 
 			bInitialSearchCompleted = true;
 
@@ -4001,6 +4018,16 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 	return OutStatus;
 }
 
+void FAssetRegistryImpl::LogSearchDiagnostics() const
+{
+	float GatherTimeSeconds;
+	float DiscoveryTimeSeconds;
+	GlobalGatherer->GetDiagnostics(GatherTimeSeconds, DiscoveryTimeSeconds);
+	float Total = DiscoveryTimeSeconds + GatherTimeSeconds + StoreGatherResultsTimeSeconds;
+	UE_LOG(LogAssetRegistry, Log, TEXT("AssetRegistryGather time %.4fs: AssetDataDiscovery %0.4fs, AssetDataGather %0.4fs, StoreResults %0.4fs."),
+		Total, DiscoveryTimeSeconds, GatherTimeSeconds, StoreGatherResultsTimeSeconds);
+}
+
 void FAssetRegistryImpl::TickGatherPackage(Impl::FEventContext& EventContext, const FString& PackageName, const FString& LocalPath)
 {
 	if (!GlobalGatherer.IsValid())
@@ -4008,6 +4035,22 @@ void FAssetRegistryImpl::TickGatherPackage(Impl::FEventContext& EventContext, co
 		return;
 	}
 	GlobalGatherer->WaitOnPath(LocalPath);
+	double TimingStartTime = -1.;
+	auto LazyStartTimer = [&TimingStartTime]()
+	{
+		if (TimingStartTime <= 0.)
+		{
+			TimingStartTime = FPlatformTime::Seconds();
+		}
+	};
+	ON_SCOPE_EXIT
+	{
+		if (TimingStartTime > 0.)
+		{
+			StoreGatherResultsTimeSeconds += static_cast<float>(FPlatformTime::Seconds() - TimingStartTime);
+			TimingStartTime = -1.;
+		}
+	};
 
 	FName PackageFName(PackageName);
 
@@ -4022,6 +4065,7 @@ void FAssetRegistryImpl::TickGatherPackage(Impl::FEventContext& EventContext, co
 	BackgroundResults.Dependencies.Remove(PackageFName);
 	if (PackageAssets.Num() > 0)
 	{
+		LazyStartTimer();
 		TMultiMap<FName, FAssetData*> PackageAssetsMap;
 		PackageAssetsMap.Reserve(PackageAssets.Num());
 		for (FAssetData* PackageAsset : PackageAssets)
@@ -4032,6 +4076,7 @@ void FAssetRegistryImpl::TickGatherPackage(Impl::FEventContext& EventContext, co
 	}
 	if (PackageDependencyDatas.Num() > 0)
 	{
+		LazyStartTimer();
 		TMultiMap<FName, FPackageDependencyData> PackageDependencyDatasMap;
 		PackageDependencyDatasMap.Reserve(PackageDependencyDatas.Num());
 		for (FPackageDependencyData& DependencyData : PackageDependencyDatas)
