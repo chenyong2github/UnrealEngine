@@ -602,7 +602,7 @@ private:
 	TArray<TSharedPtr<FMediaCaptureSyncData>> SyncHandlers;
 
 	/** Whether capture is active. Used to be queried by sync task */
-	std::atomic<bool> bIsActive;
+	std::atomic<bool> bIsActive = false;
 
 	FCriticalSection PendingReadbackTasksCriticalSection;
 
