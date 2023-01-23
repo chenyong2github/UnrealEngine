@@ -8,6 +8,8 @@
 
 #include "AssetDefinition_BlueprintGeneratedClass.generated.h"
 
+class UFactory;
+
 UCLASS()
 class UAssetDefinition_BlueprintGeneratedClass : public UAssetDefinition_ClassTypeBase
 {
@@ -28,4 +30,7 @@ public:
 	// UAssetDefinition_ClassTypeBase Implementation
 	virtual TWeakPtr<IClassTypeActions> GetClassTypeActions(const FAssetData& AssetData) const override;
 	// End UAssetDefinition_ClassTypeBase Implementation
+
+	virtual UClass* GetNewDerivedBlueprintClass() const;
+	virtual UFactory* GetFactoryForNewDerivedBlueprint(UBlueprintGeneratedClass* GeneratedClass) const;
 };
