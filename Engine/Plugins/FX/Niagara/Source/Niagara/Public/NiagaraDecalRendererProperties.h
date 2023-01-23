@@ -10,6 +10,7 @@
 #include "NiagaraParameterBinding.h"
 #include "NiagaraDecalRendererProperties.generated.h"
 
+class UMaterialInstanceConstant;
 class UMaterialInterface;
 class FNiagaraEmitterInstance;
 class SWidget;
@@ -25,6 +26,7 @@ public:
 	//UObject Interface
 	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
+	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITORONLY_DATA
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif// WITH_EDITORONLY_DATA
@@ -41,13 +43,19 @@ public:
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
 	virtual void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
-	virtual void GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const override;
+	virtual void GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings, TArray<FNiagaraRendererFeedback>& OutInfo) const override;
+	TArray<FNiagaraVariable> GetBoundAttributes() const override;
+	virtual void RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter) override;
+	virtual void RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter) override;
 #endif // WITH_EDITORONLY_DATA
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
 	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false) override;
 	virtual ENiagaraRendererSourceDataMode GetCurrentSourceMode() const override { return SourceMode; }
 	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore) override;
+	virtual bool NeedsMIDsForMaterials() const { return MaterialParameters.HasAnyBindings(); }
 	//UNiagaraRendererProperties Interface END
+
+	void UpdateMICs();
 
 	UMaterialInterface* GetMaterial(const FNiagaraEmitterInstance* InEmitter) const;
 
@@ -59,6 +67,11 @@ public:
 	/** What material to use for the decal. */
 	UPROPERTY(EditAnywhere, Category = "Decal Rendering")
 	TObjectPtr<UMaterialInterface> Material;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(transient)
+	TObjectPtr<UMaterialInstanceConstant> MICMaterial;
+#endif
 
 	/** Binding to material. */
 	UPROPERTY(EditAnywhere, Category = "Decal Rendering")
@@ -103,6 +116,10 @@ public:
 	/** Visibility tag binding, when valid the returned values is compated with RendererVisibility. */
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RendererVisibilityTagBinding;
+
+	/** If this array has entries, we will create a MaterialInstanceDynamic per Emitter instance from Material and set the Material parameters using the Niagara simulation variables listed.*/
+	UPROPERTY(EditAnywhere, Category = "Bindings")
+	FNiagaraRendererMaterialParameters MaterialParameters;
 
 	FNiagaraDataSetAccessor<FNiagaraPosition>	PositionDataSetAccessor;
 	FNiagaraDataSetAccessor<FQuat4f>			DecalOrientationDataSetAccessor;

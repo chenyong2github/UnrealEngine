@@ -5,6 +5,7 @@
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraRendererDecals.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "Modules/ModuleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDecalRendererProperties)
@@ -117,16 +118,42 @@ void UNiagaraDecalRendererProperties::PostInitProperties()
 	}
 }
 
+void UNiagaraDecalRendererProperties::Serialize(FArchive& Ar)
+{
+	// MIC will replace the main material during serialize
+	// Be careful if adding code that looks at the material to make sure you get the correct one
+	{
+#if WITH_EDITORONLY_DATA
+		TOptional<TGuardValue<TObjectPtr<UMaterialInterface>>> MICGuard;
+		if (Ar.IsSaving() && Ar.IsCooking() && MICMaterial)
+		{
+			MICGuard.Emplace(Material, MICMaterial);
+		}
+#endif
+
+		Super::Serialize(Ar);
+	}
+}
+
 #if WITH_EDITORONLY_DATA
 void UNiagaraDecalRendererProperties::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	const FName MemberPropertyName = PropertyChangedEvent.GetMemberPropertyName();
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraDecalRendererProperties, SourceMode))
 	{
 		UpdateSourceModeDerivates(SourceMode, true);
+	}
+
+	// Update our MICs if we change material / material bindings
+	//-OPT: Could narrow down further to only static materials
+	if ((PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraDecalRendererProperties, Material)) ||
+		(MemberPropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraDecalRendererProperties, MaterialParameters)))
+	{
+		UpdateMICs();
 	}
 }
 #endif// WITH_EDITORONLY_DATA
@@ -211,6 +238,7 @@ void UNiagaraDecalRendererProperties::GetUsedMaterials(const FNiagaraEmitterInst
 void UNiagaraDecalRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
 {
 	UpdateSourceModeDerivates(SourceMode);
+	UpdateMICs();
 
 	PositionDataSetAccessor.Init(CompiledData, PositionBinding.GetDataSetBindableVariable().GetName());
 	DecalOrientationDataSetAccessor.Init(CompiledData, DecalOrientationBinding.GetDataSetBindableVariable().GetName());
@@ -224,6 +252,14 @@ void UNiagaraDecalRendererProperties::CacheFromCompiledData(const FNiagaraDataSe
 void UNiagaraDecalRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit)
 {
 	Super::UpdateSourceModeDerivates(InSourceMode, bFromPropertyEdit);
+
+	if ( UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>() )
+	{
+		for (FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameters.AttributeBindings)
+		{
+			MaterialParamBinding.CacheValues(SrcEmitter);
+		}
+	}
 }
 
 bool UNiagaraDecalRendererProperties::PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore)
@@ -237,6 +273,12 @@ bool UNiagaraDecalRendererProperties::PopulateRequiredBindings(FNiagaraParameter
 			InParameterStore.AddParameter(Binding->GetParamMapBindableVariable(), false);
 			bAnyAdded = true;
 		}
+	}
+
+	for (const FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameters.AttributeBindings)
+	{
+		InParameterStore.AddParameter(MaterialParamBinding.GetParamMapBindableVariable(), false);
+		bAnyAdded = true;
 	}
 
 	return bAnyAdded;
@@ -270,14 +312,55 @@ void UNiagaraDecalRendererProperties::GetRendererTooltipWidgets(const FNiagaraEm
 	OutWidgets.Add(SNew(STextBlock).Text(LOCTEXT("DecalRenderer", "Decal Renderer")));
 }
 
-void UNiagaraDecalRendererProperties::GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const
+void UNiagaraDecalRendererProperties::GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings, TArray<FNiagaraRendererFeedback>& OutInfo) const
 {
 	Super::GetRendererFeedback(InEmitter, OutErrors, OutWarnings, OutInfo);
 
 	OutInfo.Emplace(LOCTEXT("DecalRenderingPreviewSceneInfo", "Decal Rendering does not show in the default preview scene, please modify the Preview Scene Settings to add ground geometry to visualize in preview."));
+
+	if (MaterialParameters.HasAnyBindings())
+	{
+		TArray<UMaterialInterface*> Materials;
+		GetUsedMaterials(nullptr, Materials);
+		MaterialParameters.GetFeedback(Materials, OutWarnings);
+	}
 }
 
+TArray<FNiagaraVariable> UNiagaraDecalRendererProperties::GetBoundAttributes() const
+{
+	TArray<FNiagaraVariable> BoundAttributes = Super::GetBoundAttributes();
+	BoundAttributes.Reserve(BoundAttributes.Num() + MaterialParameters.AttributeBindings.Num());
+
+	for (const FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameters.AttributeBindings)
+	{
+		BoundAttributes.AddUnique(MaterialParamBinding.GetParamMapBindableVariable());
+	}
+	return BoundAttributes;
+}
+
+void UNiagaraDecalRendererProperties::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter)
+{
+	Super::RenameVariable(OldVariable, NewVariable, InEmitter);
+#if WITH_EDITORONLY_DATA
+	MaterialParameters.RenameVariable(OldVariable, NewVariable, InEmitter, GetCurrentSourceMode());
+#endif
+}
+
+void UNiagaraDecalRendererProperties::RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter)
+{
+	Super::RemoveVariable(OldVariable, InEmitter);
+#if WITH_EDITORONLY_DATA
+	MaterialParameters.RemoveVariable(OldVariable, InEmitter, GetCurrentSourceMode());
+#endif
+}
 #endif // WITH_EDITORONLY_DATA
+
+void UNiagaraDecalRendererProperties::UpdateMICs()
+{
+#if WITH_EDITORONLY_DATA
+	UpdateMaterialParametersMIC(MaterialParameters, Material, MICMaterial);
+#endif
+}
 
 UMaterialInterface* UNiagaraDecalRendererProperties::GetMaterial(const FNiagaraEmitterInstance* InEmitter) const
 {
@@ -286,6 +369,10 @@ UMaterialInterface* UNiagaraDecalRendererProperties::GetMaterial(const FNiagaraE
 	{
 		MaterialInterface = Cast<UMaterialInterface>(InEmitter->FindBinding(MaterialParameterBinding.Parameter));
 	}
+
+#if WITH_EDITORONLY_DATA
+	MaterialInterface = MaterialInterface ? MaterialInterface : ToRawPtr(MICMaterial);
+#endif
 
 	return MaterialInterface ? MaterialInterface : ToRawPtr(Material);
 }

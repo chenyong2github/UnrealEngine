@@ -158,11 +158,16 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 	const float DefaultFade = UNiagaraDecalRendererProperties::GetDefaultDecalFade();
 
 	// Check for Material Update
-	UMaterialInterface* Material = RendererProperties->GetMaterial(Emitter);
+	UMaterialInterface* Material = BaseMaterials_GT.Num() ? BaseMaterials_GT[0] : nullptr;
 	if (Material != WeakMaterial.Get())
 	{
 		WeakMaterial = Material;
 		ReleaseAllDecals();
+	}
+
+	if (RendererProperties->MaterialParameters.HasAnyBindings())
+	{
+		ProcessMaterialParameterBindings(RendererProperties->MaterialParameters, Emitter, MakeArrayView(BaseMaterials_GT));
 	}
 
 	// Generate list of decals to update
