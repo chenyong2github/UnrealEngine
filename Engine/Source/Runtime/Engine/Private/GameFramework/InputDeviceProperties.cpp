@@ -4,6 +4,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveFloat.h"
+#include "GameFramework/InputDeviceLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputDeviceProperties)
 
@@ -419,4 +420,87 @@ int32 UInputDeviceTriggerVibrationProperty::GetVibrationAmplitudeValue(const FDe
 	}
 	
 	return 0;
+}
+
+///////////////////////////////////////////////////////////////////////
+// UInputDeviceSoundBasedVibrationProperty
+
+#include "Sound/SoundBase.h"
+#include "Sound/SoundSubmix.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/InputDeviceSubsystem.h"
+
+FAudioBasedVibrationData::FAudioBasedVibrationData()
+	: Sound(nullptr)
+	, VibrationEndpoint(nullptr)
+	, GamepadAudioEndpoint(nullptr)
+	, VibrationSoundLevel(1.0f)
+	, GamepadAudioSoundLevel(1.0f)
+{
+}
+
+void UInputDeviceAudioBasedVibrationProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration)
+{
+	if (const FAudioBasedVibrationData* DataToUse = GetRelevantData(PlatformUser, DeviceId))
+	{
+		// Set the endpoints to use on this sound
+		if (DataToUse->Sound)
+		{
+			if (DataToUse->VibrationEndpoint)
+			{
+				FSoundSubmixSendInfo SendInfo;
+				SendInfo.SoundSubmix = DataToUse->VibrationEndpoint;
+				SendInfo.SendLevel = DataToUse->VibrationSoundLevel;
+				DataToUse->Sound->SoundSubmixSends.Emplace(MoveTemp(SendInfo));
+			}
+
+			if (DataToUse->GamepadAudioEndpoint)
+			{
+				FSoundSubmixSendInfo SendInfo;
+				SendInfo.SoundSubmix = DataToUse->GamepadAudioEndpoint;
+				SendInfo.SendLevel = DataToUse->GamepadAudioSoundLevel;
+				DataToUse->Sound->SoundSubmixSends.Emplace(MoveTemp(SendInfo));
+			}
+		}
+	}
+}
+
+void UInputDeviceAudioBasedVibrationProperty::ApplyDeviceProperty(const FPlatformUserId UserId, const FInputDeviceId DeviceId)
+{
+	// Audio Endpoints can already play vibrations and audio on an input device, if the device implements
+	// the interface for it. We can just do that! Woot
+	if (const FAudioBasedVibrationData* DataToUse = GetRelevantData(UserId, DeviceId))
+	{
+		if (DataToUse->Sound)
+		{
+			// Get the player controller and play the sound
+			if (APlayerController* PC = UInputDeviceLibrary::GetPlayerControllerFromPlatformUser(UserId))
+			{
+				// The sound endpoints will have been populated above in the Evaluate function
+				PC->ClientPlaySound(DataToUse->Sound);
+			}	
+		}		
+	}
+}
+
+FInputDeviceProperty* UInputDeviceAudioBasedVibrationProperty::GetInternalDeviceProperty()
+{
+	return nullptr;
+}
+
+float UInputDeviceAudioBasedVibrationProperty::RecalculateDuration()
+{
+	// Returning a durtion of 0 means that it will be played as a "one shot" effect
+	return 0.0f;
+}
+
+const FAudioBasedVibrationData* UInputDeviceAudioBasedVibrationProperty::GetRelevantData(const FPlatformUserId UserId, const FInputDeviceId DeviceId) const
+{
+	const FAudioBasedVibrationData* DataToUse = &Data;
+	
+	if (const FAudioBasedVibrationData* OverrideData = GetDeviceSpecificData<FAudioBasedVibrationData>(UserId, DeviceId, DeviceOverrideData))
+	{
+		DataToUse = OverrideData;
+	}
+	return DataToUse;
 }

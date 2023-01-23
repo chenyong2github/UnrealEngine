@@ -471,3 +471,66 @@ private:
 	/** The internal property that represents this trigger feedback. */
 	FInputDeviceTriggerVibrationProperty InternalProperty;
 };
+
+///////////////////////////////////////////////////////////////////////
+// UInputDeviceSoundBasedVibrationProperty
+
+class USoundBase;
+class UEndpointSubmix;
+
+USTRUCT(BlueprintType)
+struct FAudioBasedVibrationData
+{
+	GENERATED_BODY()
+
+	FAudioBasedVibrationData();
+	
+	/** The sound to play on the gamepad */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	TObjectPtr<USoundBase> Sound;
+
+	/** The audio endpoint that the sound will be played on for gamepad vibration. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vibration Audio")
+	TObjectPtr<UEndpointSubmix> VibrationEndpoint;
+
+	/** The audio endpoint that the sound will be played on for gamepad audio. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gamepad Audio")
+	TObjectPtr<UEndpointSubmix> GamepadAudioEndpoint;
+
+	/** The amount of sound to send to the Vibration endpoint submix */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vibration Audio", meta = (UIMin = "0.0"))
+	float VibrationSoundLevel;
+
+	/** The amount of sound to send to the Gamepad Audio endpoint submix */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gamepad Audio", meta = (UIMin = "0.0"))
+	float GamepadAudioSoundLevel;
+};
+
+/**
+ * Plays a sound to an input device's speaker. On platforms that support it, this sound will be played
+ * in the form of a vibration where the left and right audio channels represent the left and right side
+ * of the controller.
+ */
+UCLASS(Blueprintable, meta = (DisplayName = "Audio Based Vibration (Experimental)"))
+class UInputDeviceAudioBasedVibrationProperty : public UInputDeviceProperty
+{
+	GENERATED_BODY()
+
+public:
+	virtual void EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration) override;
+	virtual void ApplyDeviceProperty(const FPlatformUserId UserId, const FInputDeviceId DeviceId) override;
+	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
+	virtual float RecalculateDuration() override;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
+	FAudioBasedVibrationData Data;
+
+	/** A map of device specific color data. If no overrides are specified, the Default hardware data will be used */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Trigger", meta = (GetOptions = "Engine.InputPlatformSettings.GetAllHardwareDeviceNames"))
+	TMap<FName, FAudioBasedVibrationData> DeviceOverrideData;
+
+private:
+
+	/** Returns the data that is relevant to the current input device */
+	const FAudioBasedVibrationData* GetRelevantData(const FPlatformUserId UserId, const FInputDeviceId DeviceId) const;
+};
