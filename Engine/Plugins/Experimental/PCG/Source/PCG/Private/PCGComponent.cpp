@@ -533,6 +533,11 @@ FPCGTaskId UPCGComponent::CleanupInternal(bool bRemoveComponents, bool bSave, co
 
 	Modify();
 
+#if WITH_EDITOR
+	ExtraCapture.ResetTimers();
+	ExtraCapture.ResetCapturedMessages();
+#endif
+
 	CurrentCleanupTask = GetSubsystem()->ScheduleCleanup(this, bRemoveComponents, bSave, Dependencies);
 	return CurrentCleanupTask;
 }

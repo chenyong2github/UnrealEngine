@@ -16,8 +16,9 @@ class FPCGGraphCompiler
 public:
 	void Compile(UPCGGraph* InGraph);
 	TArray<FPCGGraphTask> GetCompiledTasks(UPCGGraph* InGraph, bool bIsTopGraph = true);
+	TArray<FPCGGraphTask> GetPrecompiledTasks(UPCGGraph* InGraph, bool bIsTopGraph = true) const;
 
-	static void OffsetNodeIds(TArray<FPCGGraphTask>& Tasks, FPCGTaskId Offset);
+	static void OffsetNodeIds(TArray<FPCGGraphTask>& Tasks, FPCGTaskId Offset, FPCGTaskId ParentId);
 
 #if WITH_EDITOR
 	void NotifyGraphChanged(UPCGGraph* InGraph);
@@ -27,7 +28,7 @@ private:
 	TArray<FPCGGraphTask> CompileGraph(UPCGGraph* InGraph, FPCGTaskId& NextId);
 	void CompileTopGraph(UPCGGraph* InGraph);
 
-	FRWLock GraphToTaskMapLock;
+	mutable FRWLock GraphToTaskMapLock;
 	TMap<UPCGGraph*, TArray<FPCGGraphTask>> GraphToTaskMap;
 	TMap<UPCGGraph*, TArray<FPCGGraphTask>> TopGraphToTaskMap;
 

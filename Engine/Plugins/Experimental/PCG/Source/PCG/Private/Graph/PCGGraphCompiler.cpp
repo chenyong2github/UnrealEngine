@@ -54,7 +54,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 			GraphDependenciesLock.Unlock();
 #endif // WITH_EDITOR
 
-			OffsetNodeIds(Subtasks, NextId);
+			OffsetNodeIds(Subtasks, NextId, PreId);
 			NextId += Subtasks.Num();
 
 			const UPCGNode* SubgraphInputNode = Subgraph->GetInputNode();
@@ -211,13 +211,23 @@ void FPCGGraphCompiler::Compile(UPCGGraph* InGraph)
 	// Store back the results in the cache if it's valid
 	if (!CompiledTasks.IsEmpty())
 	{
-	GraphToTaskMapLock.WriteLock();
-	if (!GraphToTaskMap.Contains(InGraph))
-	{
-		GraphToTaskMap.Add(InGraph, MoveTemp(CompiledTasks));
+		GraphToTaskMapLock.WriteLock();
+		if (!GraphToTaskMap.Contains(InGraph))
+		{
+			GraphToTaskMap.Add(InGraph, MoveTemp(CompiledTasks));
+		}
+		GraphToTaskMapLock.WriteUnlock();
 	}
-	GraphToTaskMapLock.WriteUnlock();
 }
+
+TArray<FPCGGraphTask> FPCGGraphCompiler::GetPrecompiledTasks(UPCGGraph* InGraph, bool bIsTopGraph) const
+{
+	// Get compiled tasks in a threadsafe way
+	FReadScopeLock ReadLock(GraphToTaskMapLock);
+
+	const TArray<FPCGGraphTask>* ExistingTasks = (bIsTopGraph ? TopGraphToTaskMap : GraphToTaskMap).Find(InGraph);
+
+	return ExistingTasks ? *ExistingTasks : TArray<FPCGGraphTask>();
 }
 
 TArray<FPCGGraphTask> FPCGGraphCompiler::GetCompiledTasks(UPCGGraph* InGraph, bool bIsTopGraph)
@@ -254,11 +264,20 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::GetCompiledTasks(UPCGGraph* InGraph, bo
 	return CompiledTasks;
 }
 
-void FPCGGraphCompiler::OffsetNodeIds(TArray<FPCGGraphTask>& Tasks, FPCGTaskId Offset)
+void FPCGGraphCompiler::OffsetNodeIds(TArray<FPCGGraphTask>& Tasks, FPCGTaskId Offset, FPCGTaskId ParentId)
 {
 	for (FPCGGraphTask& Task : Tasks)
 	{
 		Task.NodeId += Offset;
+
+		if  (Task.ParentId == InvalidPCGTaskId)
+		{
+			Task.ParentId = ParentId;
+		}
+		else
+		{
+			Task.ParentId += Offset;
+		}
 
 		for(FPCGGraphTaskInput& Input : Task.Inputs)
 		{
@@ -302,6 +321,8 @@ void FPCGGraphCompiler::CompileTopGraph(UPCGGraph* InGraph)
 		{
 			Task.Inputs.Emplace(PreExecuteTaskId, nullptr, nullptr);
 		}
+
+		Task.CompiledTaskId = Task.NodeId;
 	}
 
 	FPCGGraphTask& PostExecuteTask = CompiledTasks.Emplace_GetRef();

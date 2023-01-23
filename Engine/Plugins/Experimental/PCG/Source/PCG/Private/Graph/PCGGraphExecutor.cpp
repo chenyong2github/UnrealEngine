@@ -106,7 +106,7 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 		ScheduledTask.SourceComponent = SourceComponent;
 
 		// Offset task node ids
-		FPCGGraphCompiler::OffsetNodeIds(ScheduledTask.Tasks, NextTaskId);
+		FPCGGraphCompiler::OffsetNodeIds(ScheduledTask.Tasks, NextTaskId, InvalidPCGTaskId);
 		NextTaskId += ScheduledTask.Tasks.Num();
 		ScheduledId = NextTaskId - 1; // This is true because the last task is from the output node or is the post-execute task
 
@@ -516,6 +516,7 @@ void FPCGGraphExecutor::Execute()
 				{
 					Task.Context = Task.Element->Initialize(TaskInput, Task.SourceComponent, Task.Node);
 					Task.Context->TaskId = Task.NodeId;
+					Task.Context->CompiledTaskId = Task.CompiledTaskId;
 				}
 
 				// Validate that we can start this task now

@@ -4,6 +4,8 @@
 
 #include "PCGComponent.h"
 #include "PCGContext.h"
+#include "Graph/PCGGraphCompiler.h"
+#include "Graph/PCGGraphExecutor.h"
 
 #if WITH_EDITOR
 
@@ -24,51 +26,172 @@ void PCGUtils::FExtraCapture::Update(const PCGUtils::FScopedCall& InScopedCall)
 		return;
 	}
 
-	FScopeLock ScopedLock(&Lock);
-
-	TArray<FCallTime>* TimesPtr = Timers.Find(InScopedCall.Context->Node);
-	TArray<FCapturedMessage>* CapturedMessagesPtr = CapturedMessages.Find(InScopedCall.Context->Node);
-
-	if (!TimesPtr)
-	{
-		TimesPtr = &Timers.Add(InScopedCall.Context->Node);
-	}
-
-	if (!CapturedMessagesPtr)
-	{
-		CapturedMessagesPtr = &CapturedMessages.Add(InScopedCall.Context->Node);
-	}
-
-	check(TimesPtr && CapturedMessagesPtr);
-
 	const double ThisFrameTime = FPlatformTime::Seconds() - InScopedCall.StartTime;
 
-	constexpr int32 MaxNumberOfTrackedTimers = 100;
+	FScopeLock ScopedLock(&Lock);
 
-	FCallTime* Time = !TimesPtr->IsEmpty() ? &TimesPtr->Last() : nullptr;
-	check(Time || InScopedCall.Phase == EPCGExecutionPhase::NotExecuted);
+	FCallTime& Timer = Timers.FindOrAdd(InScopedCall.Context->CompiledTaskId);
 
 	switch (InScopedCall.Phase)
 	{
 	case EPCGExecutionPhase::NotExecuted:
-		TimesPtr->Emplace();
+		Timer = FCallTime(); // reset it
 		break;
 	case EPCGExecutionPhase::PrepareData:
-		Time->PrepareDataTime = ThisFrameTime;
+		Timer.PrepareDataTime = ThisFrameTime;
 		break;
 	case EPCGExecutionPhase::Execute:
-		Time->ExecutionTime += ThisFrameTime;
-		Time->ExecutionFrameCount++;
+		Timer.ExecutionTime += ThisFrameTime;
+		Timer.ExecutionFrameCount++;
 
-		Time->MaxExecutionFrameTime = FMath::Max(Time->MaxExecutionFrameTime, ThisFrameTime);
-		Time->MinExecutionFrameTime = FMath::Min(Time->MinExecutionFrameTime, ThisFrameTime);
+		Timer.MaxExecutionFrameTime = FMath::Max(Timer.MaxExecutionFrameTime, ThisFrameTime);
+		Timer.MinExecutionFrameTime = FMath::Min(Timer.MinExecutionFrameTime, ThisFrameTime);
 		break;
 	case EPCGExecutionPhase::PostExecute:
-		Time->PostExecuteTime = ThisFrameTime;
+		Timer.PostExecuteTime = ThisFrameTime;
 		break;
 	}
 
-	CapturedMessagesPtr->Append(InScopedCall.CapturedMessages);
+	if (!InScopedCall.CapturedMessages.IsEmpty())
+	{
+		TArray<FCapturedMessage>& InstanceMessages = CapturedMessages.FindOrAdd(InScopedCall.Context->Node);
+		InstanceMessages.Append(std::move(InScopedCall.CapturedMessages));
+	}
+}
+
+namespace PCGUtils
+{
+	void AddTimers(FCallTreeInfo& RootInfo, const FExtraCapture::TTimersMap& Timers, const TMap<FPCGTaskId, const FPCGGraphTask*>& TaskLookup)
+	{
+		// re-use this map
+		TArray<FPCGTaskId> PathIds;
+		TArray<const UPCGNode*> PathNodes;
+
+		for (const auto& Pair : Timers)
+		{
+			const FPCGTaskId TaskId = Pair.Key;
+			const FCallTime& CallTime = Pair.Value;
+
+			PathIds.Reset();
+			PathNodes.Reset();
+
+			// build a list of parent ids that we need to populate our tree with
+			PathIds.Add(TaskId);
+			while (true)
+			{
+				const FPCGGraphTask*const * TaskItr = TaskLookup.Find(PathIds.Last());
+				if (!TaskItr || !*TaskItr)
+				{
+					// can't find an entry in our list ignore it
+					PathIds.Reset();
+					PathNodes.Reset();
+					break;
+				}
+
+				const FPCGGraphTask& Task = **TaskItr;
+
+				if (PathNodes.Num() < PathIds.Num())
+				{
+					PathNodes.Add(Task.Node);
+				}
+
+				if (Task.ParentId == InvalidPCGTaskId)
+				{
+					break;
+				}
+
+				PathIds.Add(Task.ParentId);
+			}
+
+			FCallTreeInfo* CurrentInfo = &RootInfo;
+
+			// now add the entries, the order is reversed b/c top level ones were pushed to the end
+			for (int32 Idx = PathIds.Num()-1; Idx >= 0; --Idx)
+			{
+				const FPCGTaskId CurrentId = PathIds[Idx];
+
+				FCallTreeInfo* FoundInfo = nullptr;
+				for (FCallTreeInfo& Child : CurrentInfo->Children)
+				{
+					if (Child.TaskId == CurrentId)
+					{
+						FoundInfo = &Child;
+						break;
+					}
+				}
+
+				if (!FoundInfo)
+				{
+					// didn't find an existing entry, add one
+					FCallTreeInfo& Child = CurrentInfo->Children.Emplace_GetRef();
+					Child.TaskId = CurrentId;
+					Child.Node = PathNodes[Idx];
+
+					CurrentInfo = &Child;
+				}
+				else
+				{
+					CurrentInfo = FoundInfo;
+				}
+			}
+
+			CurrentInfo->CallTime = CallTime;
+		}
+	}
+
+	void BuildTreeInfo(FCallTreeInfo& Info)
+	{
+		for (FCallTreeInfo& Child : Info.Children)
+		{
+			BuildTreeInfo(Child);
+
+			Info.CallTime.PrepareDataTime += Child.CallTime.PrepareDataTime;
+			Info.CallTime.ExecutionTime += Child.CallTime.ExecutionTime;
+			Info.CallTime.PostExecuteTime += Child.CallTime.PostExecuteTime;
+			Info.CallTime.MinExecutionFrameTime = FMath::Min(Info.CallTime.MinExecutionFrameTime, Child.CallTime.MinExecutionFrameTime);
+			Info.CallTime.MaxExecutionFrameTime = FMath::Max(Info.CallTime.MaxExecutionFrameTime, Child.CallTime.MaxExecutionFrameTime);
+		}
+	}
+}
+
+PCGUtils::FCallTreeInfo PCGUtils::FExtraCapture::CalculateCallTreeInfo(const UPCGComponent* Component) const
+{
+	UPCGSubsystem* PCGSubsystem = Component ? Component->GetSubsystem() : nullptr;
+
+	if (!PCGSubsystem)
+	{
+		return {};
+	}
+
+	const FPCGGraphCompiler* Compiler = PCGSubsystem->GetGraphCompiler();
+	if (!Compiler)
+	{
+		return {};
+	}
+
+	TArray<FPCGGraphTask> CompiledTasks = Compiler->GetPrecompiledTasks(Component->GetGraph());
+	if (CompiledTasks.IsEmpty())
+	{
+		return {};
+	}
+
+	// the last task on a top level graph is post execute task that doesn't need to be in the call tree
+	CompiledTasks.Pop(); 
+
+	TMap<FPCGTaskId, const FPCGGraphTask*> TaskLookup;
+
+	// build some lookup maps
+	for (const FPCGGraphTask& Task : CompiledTasks)
+	{
+		TaskLookup.Add(Task.CompiledTaskId, &Task);
+	}
+
+	FCallTreeInfo RootInfo;
+
+	PCGUtils::AddTimers(RootInfo, Timers, TaskLookup);
+	PCGUtils::BuildTreeInfo(RootInfo);
+
+	return RootInfo;
 }
 
 PCGUtils::FScopedCall::FScopedCall(const IPCGElement& InOwner, FPCGContext* InContext)

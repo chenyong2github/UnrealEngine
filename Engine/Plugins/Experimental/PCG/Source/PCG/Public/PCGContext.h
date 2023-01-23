@@ -53,6 +53,7 @@ struct PCG_API FPCGContext
 	// TODO: replace this by a better identification mechanism
 	const UPCGNode* Node = nullptr;
 	FPCGTaskId TaskId = InvalidPCGTaskId;
+	FPCGTaskId CompiledTaskId = InvalidPCGTaskId;
 	bool bIsPaused = false;
 
 	EPCGExecutionPhase CurrentPhase = EPCGExecutionPhase::NotExecuted;

@@ -10,20 +10,22 @@
 
 #include "PCGSubsystem.generated.h"
 
-enum class EPCGComponentDirtyFlag : uint8;
-enum class ETickableTickType : uint8;
-struct FPCGContext;
 
-class FPCGGraphExecutor;
 class APCGPartitionActor;
 class APCGWorldActor;
 class UPCGGraph;
-struct FPCGDataCollection;
 class UPCGLandscapeCache;
+
+enum class EPCGComponentDirtyFlag : uint8;
+enum class ETickableTickType : uint8;
+
+class FPCGGraphCompiler;
+class FPCGGraphExecutor;
+struct FPCGContext;
+struct FPCGDataCollection;
 
 class IPCGElement;
 typedef TSharedPtr<IPCGElement, ESPMode::ThreadSafe> FPCGElementPtr;
-
 
 /**
 * UPCGSubsystem
@@ -158,6 +160,9 @@ public:
 
 	/** Clears the landscape data cache */
 	void ClearLandscapeCache();
+
+	/** Returns the graph compiler so we can figure out task info in the profiler view **/
+	const FPCGGraphCompiler* GetGraphCompiler() const;
 
 private:
 	enum class EOperation : uint32

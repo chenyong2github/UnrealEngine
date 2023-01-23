@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "PCGCommon.h"
 #include "UObject/WeakObjectPtr.h" // IWYU pragma: keep
 
+class UPCGComponent;
 class UPCGNode;
 enum class EPCGExecutionPhase : uint8;
 struct FPCGContext;
@@ -33,6 +35,16 @@ namespace PCGUtils
 		ELogVerbosity::Type Verbosity;
 	};
 
+	struct PCG_API FCallTreeInfo
+	{
+		FPCGTaskId TaskId;
+		FString Name; // name of the task, Node may be nullptr for generated tasks
+		const UPCGNode* Node = nullptr;
+		FCallTime CallTime;
+
+		TArray<FCallTreeInfo> Children;
+	};
+
 	struct FScopedCall : public FOutputDevice
 	{
 		FScopedCall(const IPCGElement& InOwner, FPCGContext* InContext);
@@ -60,11 +72,13 @@ namespace PCGUtils
 		void ResetTimers();
 		void ResetCapturedMessages();
 
-		using TTimersMap = TMap<TWeakObjectPtr<const UPCGNode>, TArray<FCallTime>>;
+		using TTimersMap = TMap<FPCGTaskId, FCallTime>;
 		using TCapturedMessageMap = TMap<TWeakObjectPtr<const UPCGNode>, TArray<FCapturedMessage>>;
 
 		const TTimersMap& GetTimers() const { return Timers; }
 		const TCapturedMessageMap& GetCapturedMessages() const { return CapturedMessages; }
+
+		FCallTreeInfo CalculateCallTreeInfo(const UPCGComponent* Component) const;
 
 	private:
 		TTimersMap Timers;

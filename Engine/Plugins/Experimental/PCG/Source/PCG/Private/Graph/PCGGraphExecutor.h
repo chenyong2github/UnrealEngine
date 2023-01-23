@@ -43,6 +43,8 @@ struct FPCGGraphTask
 	FPCGElementPtr Element; // Added to have tasks that aren't node-bound
 	FPCGContext* Context = nullptr;
 	FPCGTaskId NodeId = InvalidPCGTaskId;
+	FPCGTaskId CompiledTaskId = InvalidPCGTaskId; // the task id as it exists when compiled
+	FPCGTaskId ParentId = InvalidPCGTaskId; // represents the parent sub object graph task, if we were called from one
 };
 
 struct FPCGGraphScheduleTask
@@ -108,6 +110,10 @@ public:
 
 	/** Notify compiler that graph has changed so it'll be removed from the cache */
 	void NotifyGraphChanged(UPCGGraph* InGraph);
+
+	/** So the profiler can decode graph task ids **/
+	FPCGGraphCompiler* GetCompiler() const { return GraphCompiler.Get(); }
+
 #endif
 
 	/** "Tick" of the graph executor. This call is NOT THREADSAFE */

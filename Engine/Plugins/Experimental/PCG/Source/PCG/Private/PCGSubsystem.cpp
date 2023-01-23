@@ -1608,6 +1608,16 @@ void UPCGSubsystem::ClearLandscapeCache()
 	}
 }
 
+const FPCGGraphCompiler* UPCGSubsystem::GetGraphCompiler() const
+{
+	if (GraphExecutor)
+	{
+		return GraphExecutor->GetCompiler();
+	}
+
+	return nullptr;
+}
+
 void UPCGSubsystem::ResetPartitionActorsMap()
 {
 	PartitionActorsMapLock.WriteLock();
