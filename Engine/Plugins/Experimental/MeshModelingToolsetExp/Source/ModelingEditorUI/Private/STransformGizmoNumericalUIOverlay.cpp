@@ -5,10 +5,15 @@
 #include "BaseGizmos/CombinedTransformGizmo.h"
 #include "BaseGizmos/TransformGizmoUtil.h" // UCombinedTransformGizmoContextObject
 #include "ContextObjectStore.h"
+#include "Framework/Commands/UIAction.h" // FUIAction
+#include "Framework/Commands/UICommandInfo.h" // EUserInterfaceActionType
+#include "Framework/Multibox/MultiboxBuilder.h" // FMenuBuilder
 #include "InteractiveToolsContext.h"
 #include "ModelingWidgets/SDraggableBox.h" // SDraggableBoxOverlay
 #include "ModelingWidgets/STickDelegateWidget.h"
 #include "Transforms/TransformGizmoDataBinder.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h" // SHorizontalBox
 #include "Widgets/Images/SImage.h"
 

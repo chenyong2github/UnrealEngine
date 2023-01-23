@@ -2,8 +2,14 @@
 
 #include "ModelingWidgets/SDraggableBox.h"
 
+#include "Framework/Application/SlateApplication.h"
+#include "Input/DragAndDrop.h" // FDragDropEvent
+#include "Styling/SlateTypes.h" // FWindowStyle
 #include "Viewports/InViewportUIDragOperation.h"
 #include "Widgets/Layout/SBackgroundBlur.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h" // SVerticalBox
+#include "Widgets/SWindow.h"
 
 
 void SDraggableBoxOverlay::Construct(const FArguments& InArgs)
