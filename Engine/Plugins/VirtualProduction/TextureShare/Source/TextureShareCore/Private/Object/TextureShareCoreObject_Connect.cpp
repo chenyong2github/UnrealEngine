@@ -24,6 +24,8 @@ using namespace TextureShareCoreHelpers;
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FTextureShareCoreObject::TryFrameProcessesConnection(FTextureShareCoreInterprocessMemory& InterprocessMemory, FTextureShareCoreInterprocessObject& LocalObject)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(TextureShareCore::Connect);
+
 	// Mark last acces time for current process (this value used by other processes to detect die)
 	LocalObject.Sync.UpdateLastAccessTime();
 

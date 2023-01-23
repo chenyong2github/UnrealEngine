@@ -15,6 +15,8 @@
 
 #include "Misc/ScopeLock.h"
 
+#include "ITextureShareCoreCallbacks.h"
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 using namespace TextureShareCoreHelpers;
 
@@ -23,6 +25,8 @@ using namespace TextureShareCoreHelpers;
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FTextureShareCoreObject::FrameSync(const ETextureShareSyncStep InSyncStep)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(TextureShareCore::FrameSync);
+
 	UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT(">>>> %s:FrameSync(%s)"), *GetName(), GetTEXT(InSyncStep));
 
 	if (IsFrameSyncActive() && TryEnterSyncBarrier(InSyncStep))
@@ -66,6 +70,8 @@ bool FTextureShareCoreObject::FrameSync(const ETextureShareSyncStep InSyncStep)
 
 bool FTextureShareCoreObject::FrameSync_RenderThread(const ETextureShareSyncStep InSyncStep)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(TextureShareCore::FrameSync_RenderThread);
+
 	UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT(">>>> %s:FrameSync_RenderThread(%s)"), *GetName(), GetTEXT(InSyncStep));
 
 	if (IsFrameSyncActive() && TryEnterSyncBarrier(InSyncStep))
@@ -148,6 +154,12 @@ bool FTextureShareCoreObject::BeginFrameSync()
 	{
 		SetCurrentSyncStep(ETextureShareSyncStep::FrameBegin);
 		SetFrameSyncState(ETextureShareCoreInterprocessObjectFrameSyncState::FrameBegin);
+
+		if (ITextureShareCoreCallbacks::Get().OnTextureShareCoreBeginFrameSync().IsBound())
+		{
+			ITextureShareCoreCallbacks::Get().OnTextureShareCoreBeginFrameSync().Broadcast(*this);
+		}
+
 		return true;
 	}
 
@@ -160,6 +172,12 @@ bool FTextureShareCoreObject::EndFrameSync()
 	{
 		SetCurrentSyncStep(ETextureShareSyncStep::FrameEnd);
 		SetFrameSyncState(ETextureShareCoreInterprocessObjectFrameSyncState::FrameEnd);
+
+
+		if (ITextureShareCoreCallbacks::Get().OnTextureShareCoreEndFrameSync().IsBound())
+		{
+			ITextureShareCoreCallbacks::Get().OnTextureShareCoreEndFrameSync().Broadcast(*this);
+		}
 
 		return true;
 	}
@@ -195,6 +213,12 @@ bool FTextureShareCoreObject::BeginFrameSync_RenderThread()
 
 		SetCurrentSyncStep(ETextureShareSyncStep::FrameProxyBegin);
 		SetFrameSyncState(ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyBegin);
+
+		if (ITextureShareCoreCallbacks::Get().OnTextureShareCoreBeginFrameSync_RenderThread().IsBound())
+		{
+			ITextureShareCoreCallbacks::Get().OnTextureShareCoreBeginFrameSync_RenderThread().Broadcast(*this);
+		}
+
 		return true;
 	}
 
@@ -217,6 +241,11 @@ bool FTextureShareCoreObject::EndFrameSync_RenderThread()
 
 		SetCurrentSyncStep(ETextureShareSyncStep::FrameProxyEnd);
 		SetFrameSyncState(ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyEnd);
+
+		if (ITextureShareCoreCallbacks::Get().OnTextureShareCoreEndFrameSync_RenderThread().IsBound())
+		{
+			ITextureShareCoreCallbacks::Get().OnTextureShareCoreEndFrameSync_RenderThread().Broadcast(*this);
+		}
 	}
 
 	return bResult;
@@ -272,6 +301,11 @@ bool FTextureShareCoreObject::DoFrameSync(const ETextureShareSyncStep InSyncStep
 		// Write local data
 		SendFrameData();
 
+		if (ITextureShareCoreCallbacks::Get().OnTextureShareCoreFrameSync().IsBound())
+		{
+			ITextureShareCoreCallbacks::Get().OnTextureShareCoreFrameSync().Broadcast(*this, InSyncStep);
+		}
+
 		// add barrier here
 		if (SyncBarrierPass(InSyncStep, ETextureShareSyncPass::Enter))
 		{
@@ -307,6 +341,11 @@ bool FTextureShareCoreObject::DoFrameSync_RenderThread(const ETextureShareSyncSt
 
 		// Write local data
 		SendFrameProxyData_RenderThread();
+
+		if (ITextureShareCoreCallbacks::Get().OnTextureShareCoreFrameSync_RenderThread().IsBound())
+		{
+			ITextureShareCoreCallbacks::Get().OnTextureShareCoreFrameSync_RenderThread().Broadcast(*this, InSyncStep);
+		}
 
 		// add barrier here
 		if (SyncBarrierPass(InSyncStep, ETextureShareSyncPass::Enter))

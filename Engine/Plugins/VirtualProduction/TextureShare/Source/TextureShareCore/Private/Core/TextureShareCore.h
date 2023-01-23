@@ -2,6 +2,8 @@
 
 #pragma once
 #include "ITextureShareCoreAPI.h"
+#include "TextureShareCoreCallbacks.h"
+
 #include "Containers/TextureShareCoreContainers.h"
 
 class FTextureShareCoreObject;
@@ -44,6 +46,11 @@ public:
 
 	virtual void SetProcessName(const FString& InProcessId) override;
 	virtual bool SetProcessDeviceType(const ETextureShareDeviceType InDeviceType) override;
+
+	virtual ITextureShareCoreCallbacks& GetCallbacks() override
+	{
+		return Callbacks;
+	}
 	//~~ITextureShareCoreAPI
 
 	bool RemoveCachedResources(const FTextureShareCoreObjectDesc& ObjectDesc);
@@ -86,4 +93,6 @@ private:
 
 	// TS Objects
 	TMap<FString, TSharedPtr<FTextureShareCoreObject, ESPMode::ThreadSafe>> Objects;
+
+	FTextureShareCoreCallbacks Callbacks;
 };

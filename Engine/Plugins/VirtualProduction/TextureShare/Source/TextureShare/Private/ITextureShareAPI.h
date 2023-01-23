@@ -6,6 +6,7 @@
 class ITextureShareObject;
 class ITextureShareObjectProxy;
 class UWorld;
+class ITextureShareCallbacks;
 
 /**
  * TextureShare API
@@ -103,4 +104,12 @@ public:
 	 * @param InProcessId - Custom local process name
 	 */
 	virtual void SetProcessName(const FString& InProcessId) = 0;
+
+public:
+	/**
+	* Access to the TextureShare callbacks API
+	*
+	* @return Callbacks API
+	*/
+	virtual ITextureShareCallbacks& GetCallbacks() = 0;
 };

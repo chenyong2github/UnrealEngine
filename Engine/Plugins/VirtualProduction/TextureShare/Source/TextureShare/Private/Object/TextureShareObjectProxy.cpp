@@ -9,6 +9,7 @@
 #include "Module/TextureShareLog.h"
 #include "Misc/TextureShareStrings.h"
 
+#include "ITextureShareCallbacks.h"
 #include "ITextureShareCore.h"
 
 #include "RenderGraphUtils.h"
@@ -84,6 +85,11 @@ bool FTextureShareObjectProxy::BeginFrameSync_RenderThread(FRHICommandListImmedi
 
 			bFrameProxySyncActive = true;
 
+			if (ITextureShareCallbacks::Get().OnTextureShareBeginFrameSyncEvent_RenderThread().IsBound())
+			{
+				ITextureShareCallbacks::Get().OnTextureShareBeginFrameSyncEvent_RenderThread().Broadcast(RHICmdList, *this);
+			}
+
 			return true;
 		}
 	}
@@ -102,14 +108,26 @@ bool FTextureShareObjectProxy::EndFrameSync_RenderThread(FRHICommandListImmediat
 
 	bFrameProxySyncActive = false;
 
+	if (ITextureShareCallbacks::Get().OnTextureShareEndFrameSyncEvent_RenderThread().IsBound())
+	{
+		ITextureShareCallbacks::Get().OnTextureShareEndFrameSyncEvent_RenderThread().Broadcast(RHICmdList, *this);
+	}
+
 	CoreObject->UnlockThreadMutex(ETextureShareThreadMutex::GameThread);
 
 	return bResult;
 }
 
+DECLARE_GPU_STAT_NAMED(TextureShareObjectProxyFrameSync, TEXT("TextureShare::FrameSync_RenderThread"));
+
 bool FTextureShareObjectProxy::FrameSync_RenderThread(FRHICommandListImmediate& RHICmdList, const ETextureShareSyncStep InSyncStep) const
 {
 	check(IsInRenderingThread());
+
+	SCOPED_GPU_STAT(RHICmdList, TextureShareObjectProxyFrameSync);
+	SCOPED_DRAW_EVENT(RHICmdList, TextureShareObjectProxyFrameSync);
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(TextureShare::FrameSync_RenderThread);
 
 	if (IsFrameSyncActive_RenderThread())
 	{
@@ -135,6 +153,11 @@ bool FTextureShareObjectProxy::FrameSync_RenderThread(FRHICommandListImmediate& 
 
 				// step 5: copy received textures
 				ResourcesProxy->RunReceiveResources_RenderThread(RHICmdList, InSyncStep);
+			}
+
+			if (ITextureShareCallbacks::Get().OnTextureShareFrameSyncEvent_RenderThread().IsBound())
+			{
+				ITextureShareCallbacks::Get().OnTextureShareFrameSyncEvent_RenderThread().Broadcast(RHICmdList, *this, InSyncStep);
 			}
 
 			return true;
@@ -242,6 +265,8 @@ bool FTextureShareObjectProxy::ShareResource_RenderThread(FRDGBuilder& GraphBuil
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
+DECLARE_GPU_STAT_NAMED(TextureShareObjectProxyShareResource, TEXT("TextureShare::ShareResource_RenderThread"));
+
 bool FTextureShareObjectProxy::ShareResource_RenderThread(FRHICommandListImmediate& RHICmdList, const FTextureShareCoreResourceDesc& InResourceDesc, FRHITexture* InTexture, const int32 InTextureGPUIndex, const FIntRect* InTextureRect) const
 {
 	check(IsInRenderingThread());
@@ -253,6 +278,12 @@ bool FTextureShareObjectProxy::ShareResource_RenderThread(FRHICommandListImmedia
 		{
 			if (FTextureShareResource* SharedResource = ResourcesProxy->GetSharedTexture_RenderThread(RHICmdList, CoreObject, InTexture, *ExistResourceRequest))
 			{
+
+				SCOPED_GPU_STAT(RHICmdList, TextureShareObjectProxyShareResource);
+				SCOPED_DRAW_EVENT(RHICmdList, TextureShareObjectProxyShareResource);
+
+				TRACE_CPUPROFILER_EVENT_SCOPE(TextureShare::ShareResource_RenderThread);
+
 				switch (ExistResourceRequest->ResourceDesc.OperationType)
 				{
 					// Remote process request read texture, send it

@@ -5,6 +5,7 @@
 #include "Module/TextureShareLog.h"
 #include "Misc/TextureShareStrings.h"
 
+#include "ITextureShareCallbacks.h"
 #include "ITextureShareCoreObject.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -71,6 +72,11 @@ bool FTextureShareObject::BeginSession()
 
 		FTextureShareObjectProxy::BeginSession_GameThread(*this);
 
+		if (ITextureShareCallbacks::Get().OnTextureShareBeginSession().IsBound())
+		{
+			ITextureShareCallbacks::Get().OnTextureShareBeginSession().Broadcast(*this);
+		}
+
 		return true;
 	}
 
@@ -84,6 +90,11 @@ bool FTextureShareObject::EndSession()
 		bSessionActive = false;
 
 		FTextureShareObjectProxy::EndSession_GameThread(*this);
+
+		if (ITextureShareCallbacks::Get().OnTextureShareEndSession().IsBound())
+		{
+			ITextureShareCallbacks::Get().OnTextureShareEndSession().Broadcast(*this);
+		}
 
 		return true;
 	}
@@ -104,6 +115,11 @@ bool FTextureShareObject::BeginFrameSync()
 		if (CoreObject->BeginFrameSync())
 		{
 			bFrameSyncActive = true;
+
+			if (ITextureShareCallbacks::Get().OnTextureShareBeginFrameSync().IsBound())
+			{
+				ITextureShareCallbacks::Get().OnTextureShareBeginFrameSync().Broadcast(*this);
+			}
 
 			return true;
 		}
@@ -133,6 +149,11 @@ bool FTextureShareObject::EndFrameSync(FViewport* InViewport)
 	// Game thread data now sent to the proxy.Game-thread data can now be cleared
 	const bool bResult = CoreObject->EndFrameSync();
 
+	if (ITextureShareCallbacks::Get().OnTextureShareEndFrameSync().IsBound())
+	{
+		ITextureShareCallbacks::Get().OnTextureShareEndFrameSync().Broadcast(*this);
+	}
+
 	CoreObject->UnlockThreadMutex(ETextureShareThreadMutex::RenderingThread);
 
 	return bResult;
@@ -140,8 +161,15 @@ bool FTextureShareObject::EndFrameSync(FViewport* InViewport)
 
 bool FTextureShareObject::FrameSync(const ETextureShareSyncStep InSyncStep)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(TextureShare::FrameSync);
+
 	if (IsFrameSyncActive() && CoreObject->FrameSync(InSyncStep))
 	{
+		if (ITextureShareCallbacks::Get().OnTextureShareFrameSync().IsBound())
+		{
+			ITextureShareCallbacks::Get().OnTextureShareFrameSync().Broadcast(*this, InSyncStep);
+		}
+
 		return true;
 	}
 

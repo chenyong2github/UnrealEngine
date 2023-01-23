@@ -8,6 +8,8 @@
 
 #include "Containers/TextureShareCoreContainers_ObjectDesc.h"
 
+class ITextureShareCoreCallbacks;
+
 /**
  * TextureShareCore API
  */
@@ -96,4 +98,12 @@ public:
 	 * @param InMilisecondsTimeout- Timeout to remove resource
 	 */
 	virtual void RemoveUnusedResources(const uint32 InMilisecondsTimeOut) = 0;
+
+public:
+	/**
+	* Access to the TextureShareCore callbacks API
+	*
+	* @return Callbacks API
+	*/
+	virtual ITextureShareCoreCallbacks& GetCallbacks() = 0;
 };

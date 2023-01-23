@@ -13,6 +13,8 @@
 #include "Module/TextureShareCoreModule.h"
 #include "Module/TextureShareCoreLog.h"
 
+#include "ITextureShareCoreCallbacks.h"
+
 #include "Misc/ScopeLock.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,6 +39,11 @@ bool FTextureShareCoreObject::BeginSession()
 
 				// New IPC object created
 				bSessionActive = true;
+
+				if (ITextureShareCoreCallbacks::Get().OnTextureShareCoreBeginSession().IsBound())
+				{
+					ITextureShareCoreCallbacks::Get().OnTextureShareCoreBeginSession().Broadcast(*this);
+				}
 
 				UE_TS_LOG(LogTextureShareCoreObject, Log, TEXT("%s:BeginSession()"), *GetName());
 			}
@@ -66,6 +73,11 @@ bool FTextureShareCoreObject::EndSession()
 				{
 					// Reset IPC object to defaults
 					InterprocessObject->Release();
+
+					if (ITextureShareCoreCallbacks::Get().OnTextureShareCoreEndSession().IsBound())
+					{
+						ITextureShareCoreCallbacks::Get().OnTextureShareCoreEndSession().Broadcast(*this);
+					}
 
 					UE_TS_LOG(LogTextureShareCoreObject, Log, TEXT("%s:EndSession()"), *GetName());
 
