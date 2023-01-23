@@ -90,7 +90,7 @@ void FTestStoreInterface::OnQueryOnlineStoreOffersComplete(bool bWasSuccessful, 
 		UE_LOG(LogOnline, Log, TEXT("Found %d offers in cache"), StoreOffers.Num());
 		for (const FOnlineStoreOfferRef& OfferRef : StoreOffers)
 		{
-			UE_LOG(LogOnline, Log, TEXT("  Title=[%s] Desc=[%s] OfferId=[%s] CurrencyCode=[%s] PriceInt=[%d] DisplayPrice=[%s]"), 
+			UE_LOG(LogOnline, Log, TEXT("  Title=[%s] Desc=[%s] OfferId=[%s] CurrencyCode=[%s] PriceInt=[%lld] DisplayPrice=[%s]"), 
 				*OfferRef->Title.ToString(),
 				*OfferRef->Description.ToString(),
 				*OfferRef->OfferId, 

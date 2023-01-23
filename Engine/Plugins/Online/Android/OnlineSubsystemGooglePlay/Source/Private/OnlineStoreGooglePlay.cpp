@@ -69,7 +69,7 @@ void FOnlineStoreGooglePlayV2::OnGooglePlayAvailableIAPQueryComplete(EGooglePlay
 			AddOffer(NewProductOffer);
 			OfferIds.Add(NewProductOffer->OfferId);
 
-			UE_LOG_ONLINE_STOREV2(Log, TEXT("Product Identifier: %s, Name: %s, Desc: %s, Long Desc: %s, Price: %s IntPrice: %d"),
+			UE_LOG_ONLINE_STOREV2(Log, TEXT("Product Identifier: %s, Name: %s, Desc: %s, Long Desc: %s, Price: %s IntPrice: %lld"),
 				*NewProductOffer->OfferId,
 				*NewProductOffer->Title.ToString(),
 				*NewProductOffer->Description.ToString(),
@@ -212,7 +212,7 @@ JNI_METHOD void Java_com_epicgames_unreal_GooglePlayStoreHelper_NativeQueryCompl
 
 			ProvidedProductInformation.Add(NewProductInfo);
 
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("\nProduct Identifier: %s, Name: %s, Description: %s, Price: %s, Price Raw: %d, Currency Code: %s\n"),
+			UE_LOG_ONLINE_STOREV2(Verbose, TEXT("\nProduct Identifier: %s, Name: %s, Description: %s, Price: %s, Price Raw: %lld, Currency Code: %s\n"),
 				*NewProductInfo.OfferId,
 				*NewProductInfo.Title.ToString(),
 				*NewProductInfo.Description.ToString(),
