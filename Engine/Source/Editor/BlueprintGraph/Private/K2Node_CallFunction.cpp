@@ -2512,7 +2512,17 @@ void UK2Node_CallFunction::ExpandNode(class FKismetCompilerContext& CompilerCont
 					Enum = EnumProp->GetEnum();
 				}
 
-				UEdGraphPin* EnumParamPin = FindPin(EnumParamName);
+				auto FindEnumPin = [EnumParamName](const UEdGraphPin* InPin)
+				{
+					check(InPin);
+					const bool bPinMatches =
+						(InPin->PinName == EnumParamName) &&
+						(InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Byte) &&
+						(Cast<UEnum>(InPin->PinType.PinSubCategoryObject) != nullptr);
+					return bPinMatches;
+				};
+
+				UEdGraphPin* EnumParamPin = FindPinByPredicate(FindEnumPin);
 				if (Enum && EnumParamPin)
 				{
 					// Expanded as input execs pins
