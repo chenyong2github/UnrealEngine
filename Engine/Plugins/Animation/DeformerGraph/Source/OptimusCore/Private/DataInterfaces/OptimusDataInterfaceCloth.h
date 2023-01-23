@@ -69,5 +69,6 @@ private:
 
 	FSkeletalMeshObject* SkeletalMeshObject = nullptr;
 	float ClothBlendWeight = 1.0f;
+	FVector3f MeshScale = FVector3f::OneVector;
 	uint32 FrameNumber = 0;
 };

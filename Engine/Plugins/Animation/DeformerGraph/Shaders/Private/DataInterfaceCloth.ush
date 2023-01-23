@@ -26,6 +26,7 @@ uint {DataInterfaceName}_NumVertices;
 uint {DataInterfaceName}_InputStreamStart;
 uint {DataInterfaceName}_NumInfluencesPerVertex;
 float {DataInterfaceName}_ClothBlendWeight;
+float3 {DataInterfaceName}_MeshScale;
 float4x4 {DataInterfaceName}_ClothToLocal;
 Buffer<float4> {DataInterfaceName}_ClothBuffer;
 Buffer<float2> {DataInterfaceName}_ClothPositionsAndNormalsBuffer;
@@ -107,22 +108,24 @@ FClothResult GetClothResult_{DataInterfaceName}(uint VertexIndex)
 				Weight = 1.0f;
 				SumWeights = 1.0f;
 			}
+			
+			float3 Scale = {DataInterfaceName}_MeshScale;
 
-			NormalPosition += Weight * (Influence.NormalBaryCoordsAndDist.x * (A + NA * Influence.NormalBaryCoordsAndDist.w)
-				+ Influence.NormalBaryCoordsAndDist.y * (B + NB * Influence.NormalBaryCoordsAndDist.w)
-				+ Influence.NormalBaryCoordsAndDist.z * (C + NC * Influence.NormalBaryCoordsAndDist.w));
+			NormalPosition += Weight * (Influence.NormalBaryCoordsAndDist.x * (A + NA * Influence.NormalBaryCoordsAndDist.w * Scale.x)
+				+ Influence.NormalBaryCoordsAndDist.y * (B + NB * Influence.NormalBaryCoordsAndDist.w * Scale.y)
+				+ Influence.NormalBaryCoordsAndDist.z * (C + NC * Influence.NormalBaryCoordsAndDist.w * Scale.z));
 
-			TangentPosition += Weight * (Influence.TangentBaryCoordsAndDist.x * (A + NA * Influence.TangentBaryCoordsAndDist.w)
-				+ Influence.TangentBaryCoordsAndDist.y * (B + NB * Influence.TangentBaryCoordsAndDist.w)
-				+ Influence.TangentBaryCoordsAndDist.z * (C + NC * Influence.TangentBaryCoordsAndDist.w));
+			TangentPosition += Weight * (Influence.TangentBaryCoordsAndDist.x * (A + NA * Influence.TangentBaryCoordsAndDist.w * Scale.x)
+				+ Influence.TangentBaryCoordsAndDist.y * (B + NB * Influence.TangentBaryCoordsAndDist.w * Scale.y)
+				+ Influence.TangentBaryCoordsAndDist.z * (C + NC * Influence.TangentBaryCoordsAndDist.w * Scale.z));
 
 			float3 TriangleBary = float3(Influence.PositionBaryCoordsAndDist.x,
 				Influence.PositionBaryCoordsAndDist.y,
 				1.0f - Influence.PositionBaryCoordsAndDist.x - Influence.PositionBaryCoordsAndDist.y);
 
-			float3 SimPosition = TriangleBary.x * (A + NA * Influence.PositionBaryCoordsAndDist.w)
-				+ TriangleBary.y * (B + NB * Influence.PositionBaryCoordsAndDist.w)
-				+ TriangleBary.z * (C + NC * Influence.PositionBaryCoordsAndDist.w);
+			float3 SimPosition = TriangleBary.x * (A + NA * Influence.PositionBaryCoordsAndDist.w * Scale.x)
+				+ TriangleBary.y * (B + NB * Influence.PositionBaryCoordsAndDist.w * Scale.y)
+				+ TriangleBary.z * (C + NC * Influence.PositionBaryCoordsAndDist.w * Scale.z);
 
 			SimulatedPosition += Weight * SimPosition;
 		}

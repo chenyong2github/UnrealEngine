@@ -75,6 +75,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FClothDataInterfaceParameters, )
 	SHADER_PARAMETER(uint32, InputStreamStart)
 	SHADER_PARAMETER(uint32, NumInfluencesPerVertex)
 	SHADER_PARAMETER(float, ClothBlendWeight)
+	SHADER_PARAMETER(FVector3f, MeshScale)
 	SHADER_PARAMETER(FMatrix44f, ClothToLocal)
 	SHADER_PARAMETER_SRV(Buffer<float4>, ClothBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float2>, ClothPositionsAndNormalsBuffer)
@@ -138,6 +139,7 @@ FOptimusClothDataProviderProxy::FOptimusClothDataProviderProxy(USkinnedMeshCompo
 		if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SkinnedMeshComponent))
 		{
 			ClothBlendWeight = SkeletalMeshComponent->ClothBlendWeight;
+			MeshScale = (FVector3f)SkeletalMeshComponent->GetComponentScale();
 		}
 	}
 }
@@ -216,6 +218,7 @@ void FOptimusClothDataProviderProxy::GatherDispatchData(FDispatchData const& InD
 		Parameters.NumVertices = RenderSection.NumVertices;
 		Parameters.InputStreamStart = ClothBuffers.ClothInfluenceBufferOffset;
 		Parameters.ClothBlendWeight = bValidCloth ? ClothBlendWeight : 0.f;
+		Parameters.MeshScale = bValidCloth ? MeshScale : FVector3f::OneVector;
 		Parameters.NumInfluencesPerVertex = bValidCloth ? NumClothInfluencesPerVertex : 0;
 		Parameters.ClothToLocal = ClothBuffers.ClothToLocal;
 		Parameters.ClothBuffer = bValidCloth ? ClothBuffers.ClothInfluenceBuffer : NullSRVBinding;
