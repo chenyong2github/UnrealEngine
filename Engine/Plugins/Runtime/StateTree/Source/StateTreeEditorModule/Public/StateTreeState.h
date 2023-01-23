@@ -13,32 +13,6 @@
 class UStateTreeState;
 
 /**
- * Editor representation of a link to another state in StateTree
- */
-USTRUCT()
-struct STATETREEEDITORMODULE_API FStateTreeStateLink
-{
-	GENERATED_BODY()
-
-	FStateTreeStateLink() = default;
-	FStateTreeStateLink(const EStateTreeTransitionType InType) : Type(InType) {}
-
-	void Set(const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr);
-	void Set(const UStateTreeState* InState) { Set(EStateTreeTransitionType::GotoState, InState); }
-
-	bool IsValid() const { return ID.IsValid(); }
-
-	UPROPERTY(EditDefaultsOnly, Category = Link)
-	FName Name;
-
-	UPROPERTY(EditDefaultsOnly, Category = Link, meta = (IgnoreForMemberInitializationTest))
-	FGuid ID;
-
-	UPROPERTY(EditDefaultsOnly, Category = Link)
-	EStateTreeTransitionType Type = EStateTreeTransitionType::GotoState;
-};
-
-/**
  * Editor representation of a transition in StateTree
  */
 USTRUCT()
@@ -75,6 +49,14 @@ struct STATETREEEDITORMODULE_API FStateTreeTransition
 	/** Transition target state. */
 	UPROPERTY(EditDefaultsOnly, Category = "Transition", meta=(DisplayName="Transition To"))
 	FStateTreeStateLink State;
+
+	/**
+	 * Transition priority when multiple transitions happen at the same time.
+	 * During transition handling, the transitions are visited from leaf to root.
+	 * The first visited transition, of highest priority, that leads to a state selection, will be activated.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Transition")
+	EStateTreeTransitionPriority Priority = EStateTreeTransitionPriority::Normal;
 
 	/** Delay the triggering of the transition. */
 	UPROPERTY(EditDefaultsOnly, Category = "Transition")
@@ -135,7 +117,9 @@ public:
 	const UStateTreeState* GetNextSiblingState() const;
 
 	// StateTree Builder API
-
+	/** @return state link to this state. */
+	FStateTreeStateLink GetLinkToState() const;
+	
 	/** Adds child state with specified name. */
 	UStateTreeState& AddChildState(const FName ChildName, const EStateTreeStateType StateType = EStateTreeStateType::State)
 	{

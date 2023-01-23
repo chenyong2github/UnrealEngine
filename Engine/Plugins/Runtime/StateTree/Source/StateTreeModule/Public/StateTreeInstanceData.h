@@ -8,6 +8,7 @@
 #include "StateTreeEvents.h"
 #include "StateTreeInstanceData.generated.h"
 
+struct FStateTreeTransitionRequest;
 struct FStateTreeExecutionState;
 
 /**
@@ -56,6 +57,25 @@ struct STATETREEMODULE_API FStateTreeInstanceStorage
 
 	/** @return reference to the event queue. */
 	const FStateTreeEventQueue& GetEventQueue() const { return EventQueue; }
+
+	/** 
+	 * Buffers a transition request to be sent to the State Tree.
+	 * @param Owner Optional pointer to an owner UObject that is used for logging errors.
+	 * @param Request transition to request.
+	*/
+	void AddTransitionRequest(const UObject* Owner, const FStateTreeTransitionRequest& Request);
+
+	/** @return currently pending transition requests. */
+	TConstArrayView<FStateTreeTransitionRequest> GetTransitionRequests() const
+	{
+		return TransitionRequests;		
+	}
+
+	/** Reset all pending transition requests. */
+	void ResetTransitionRequests()
+	{
+		TransitionRequests.Reset();
+	}
 	
 protected:
 	/** Struct instances */
@@ -69,6 +89,10 @@ protected:
 	/** Events */
 	UPROPERTY()
 	FStateTreeEventQueue EventQueue;
+
+	/** Requested transitions */
+	UPROPERTY()
+	TArray<FStateTreeTransitionRequest> TransitionRequests;
 
 	friend struct FStateTreeInstanceData;
 };
@@ -140,6 +164,19 @@ struct STATETREEMODULE_API FStateTreeInstanceData
 	/** @return reference to the event queue. */
 	FStateTreeEventQueue& GetMutableEventQueue();
 	const FStateTreeEventQueue& GetEventQueue() const;
+
+	/** 
+	 * Buffers a transition request to be sent to the State Tree.
+	 * @param Owner Optional pointer to an owner UObject that is used for logging errors.
+	 * @param Request transition to request.
+	*/
+	void AddTransitionRequest(const UObject* Owner, const FStateTreeTransitionRequest& Request);
+
+	/** @return currently pending transition requests. */
+	TConstArrayView<FStateTreeTransitionRequest> GetTransitionRequests() const;
+
+	/** Reset all pending transition requests. */
+	void ResetTransitionRequests();
 
 	FStateTreeInstanceStorage& GetMutableStorage();
 	const FStateTreeInstanceStorage& GetStorage() const;

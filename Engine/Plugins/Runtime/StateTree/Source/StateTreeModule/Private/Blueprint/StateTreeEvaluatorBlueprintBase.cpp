@@ -22,7 +22,7 @@ UStateTreeEvaluatorBlueprintBase::UStateTreeEvaluatorBlueprintBase(const FObject
 void UStateTreeEvaluatorBlueprintBase::TreeStart(FStateTreeExecutionContext& Context)
 {
 	// Evaluator became active, cache event queue and owner.
-	SetCachedEventQueueFromContext(Context);
+	SetCachedInstanceDataFromContext(Context);
 
 	if (bHasTreeStart)
 	{
@@ -38,7 +38,7 @@ void UStateTreeEvaluatorBlueprintBase::TreeStop(FStateTreeExecutionContext& Cont
 	}
 
 	// Evaluator became inactive, clear cached event queue and owner.
-	ClearCachedEventQueue();
+	ClearCachedInstanceData();
 }
 
 void UStateTreeEvaluatorBlueprintBase::Tick(FStateTreeExecutionContext& Context, const float DeltaTime)

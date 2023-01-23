@@ -41,7 +41,7 @@ void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	TSharedPtr<IPropertyHandle> EnterConditionsProperty = DetailBuilder.GetProperty(TEXT("EnterConditions"));
 	TSharedPtr<IPropertyHandle> TransitionsProperty = DetailBuilder.GetProperty(TEXT("Transitions"));
 	TSharedPtr<IPropertyHandle> TypeProperty = DetailBuilder.GetProperty(TEXT("Type"));
-	TSharedPtr<IPropertyHandle> LinkedStateProperty = DetailBuilder.GetProperty(TEXT("LinkedState"));
+	TSharedPtr<IPropertyHandle> LinkedSubtreeProperty = DetailBuilder.GetProperty(TEXT("LinkedSubtree"));
 	TSharedPtr<IPropertyHandle> ParametersProperty = DetailBuilder.GetProperty(TEXT("Parameters"));
 
 	uint8 StateTypeValue = 0;
@@ -53,7 +53,7 @@ void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 
 	if (StateType != EStateTreeStateType::Linked)
 	{
-		LinkedStateProperty->MarkHiddenByCustomization();
+		LinkedSubtreeProperty->MarkHiddenByCustomization();
 	}
 	
 	if (!(StateType == EStateTreeStateType::Subtree || StateType == EStateTreeStateType::Linked))

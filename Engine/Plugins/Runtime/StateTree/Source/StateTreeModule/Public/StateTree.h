@@ -34,6 +34,8 @@ struct STATETREEMODULE_API FStateTreeCustomVersion
 		AddedFoo,
 		// Changed transition delay
 		TransitionDelay,
+		// Added external transitions
+		AddedExternalTransitions,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -214,6 +216,10 @@ private:
 	UPROPERTY()
 	uint16 GlobalTasksNum = 0;
 
+	/** True if any global task is a transition task. */
+	UPROPERTY()
+	bool bHasGlobalTransitionTasks = false;
+	
 	// Data created during linking.
 	
 	/** List of external data required by the state tree, created during linking. */

@@ -341,7 +341,7 @@ struct FStateTreeTest_SubTree : FAITestBase
 		UStateTreeState& State3A = State3.AddChildState(FName(TEXT("State3A")));
 		UStateTreeState& State3B = State3.AddChildState(FName(TEXT("State3B")));
 
-		State1.LinkedSubtree.Set(&State3);
+		State1.LinkedSubtree = State3.GetLinkToState();
 
 		State1.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &State2);
 
@@ -575,7 +575,7 @@ struct FStateTreeTest_TransitionPriorityEnterState : FAITestBase
 		UStateTree& StateTree = UE::StateTree::Tests::NewStateTree(&GetWorld());
 		UStateTreeEditorData& EditorData = *Cast<UStateTreeEditorData>(StateTree.EditorData);
 		
-		UStateTreeState& Root = EditorData.AddSubTree(FName(TEXT("Root")));
+		UStateTreeState& Root =	EditorData.AddSubTree(FName(TEXT("Root")));
 		UStateTreeState& State0 = Root.AddChildState(FName(TEXT("State0")));
 		UStateTreeState& State1 = Root.AddChildState(FName(TEXT("State1")));
 		UStateTreeState& State1A = State1.AddChildState(FName(TEXT("State1A")));

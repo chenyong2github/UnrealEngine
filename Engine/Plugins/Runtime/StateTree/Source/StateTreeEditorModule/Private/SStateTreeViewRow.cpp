@@ -512,9 +512,9 @@ FText SStateTreeViewRow::GetTransitionsDesc(const UStateTreeState& State, const 
 		const bool bMatch = bUseMask ? EnumHasAnyFlags(Transition.Trigger, Trigger) : Transition.Trigger == Trigger;
 		if (bMatch)
 		{
-			switch (Transition.State.Type)
+			switch (Transition.State.LinkType)
 			{
-			case EStateTreeTransitionType::NotSet:
+			case EStateTreeTransitionType::None:
 				DescItems.Add(LOCTEXT("TransitionNoneStyled", "[None]"));
 				break;
 			case EStateTreeTransitionType::Succeeded:
@@ -572,9 +572,9 @@ FText SStateTreeViewRow::GetTransitionsIcon(const UStateTreeState& State, const 
 		const bool bMatch = bUseMask ? EnumHasAnyFlags(Transition.Trigger, Trigger) : Transition.Trigger == Trigger;
 		if (bMatch)
 		{
-			switch (Transition.State.Type)
+			switch (Transition.State.LinkType)
 			{
-			case EStateTreeTransitionType::NotSet:
+			case EStateTreeTransitionType::None:
 				IconType |= IconRightArrow;
 				break;
 			case EStateTreeTransitionType::Succeeded:

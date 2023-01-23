@@ -31,6 +31,7 @@ private:
 	bool GetDelayTransition() const;
 	
 	TSharedPtr<IPropertyHandle> TriggerProperty;
+	TSharedPtr<IPropertyHandle> PriorityProperty;
 	TSharedPtr<IPropertyHandle> EventTagProperty;
 	TSharedPtr<IPropertyHandle> StateProperty;
 	TSharedPtr<IPropertyHandle> DelayTransitionProperty;

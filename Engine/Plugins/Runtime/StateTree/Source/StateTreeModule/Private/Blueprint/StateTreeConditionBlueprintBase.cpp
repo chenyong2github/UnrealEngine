@@ -22,11 +22,11 @@ bool UStateTreeConditionBlueprintBase::TestCondition(FStateTreeExecutionContext&
 	if (bHasTestCondition)
 	{
 		// Cache the owner and event queue for the duration the condition is evaluated.
-		SetCachedEventQueueFromContext(Context);
+		SetCachedInstanceDataFromContext(Context);
 
 		const bool bResult = ReceiveTestCondition();
 
-		ClearCachedEventQueue();
+		ClearCachedInstanceData();
 
 		return bResult;
 	}

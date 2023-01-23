@@ -11,6 +11,7 @@ struct FStateTreeEvaluatorBase;
 struct FStateTreeTaskBase;
 struct FStateTreeConditionBase;
 struct FStateTreeEvent;
+struct FStateTreeTransitionRequest;
 
 /**
  * StateTree Execution Context is a helper that is used to update and access StateTree instance data.
@@ -137,6 +138,22 @@ public:
 	/** @return events to process this tick. */
 	TConstArrayView<FStateTreeEvent> GetEventsToProcess() const { return EventsToProcess; }
 
+	/** @return true if there is a pending event with specified tag. */
+	bool HasEventToProcess(const FGameplayTag Tag) const
+	{
+		if (EventsToProcess.IsEmpty())
+		{
+			return false;
+		}
+		
+		return EventsToProcess.ContainsByPredicate([Tag](const FStateTreeEvent& Event)
+		{
+			return Event.Tag.MatchesTag(Tag);
+		});
+	}
+
+	/** @return the currently processed state if applicable. */
+	FStateTreeStateHandle GetCurrentlyProcessedState() const { return CurrentlyProcessedState; }
 	
 	/** @return Pointer to a State or null if state not found */ 
 	const FCompactStateTreeState* GetStateFromHandle(const FStateTreeStateHandle StateHandle) const
@@ -235,7 +252,16 @@ public:
 		static_assert(TIsDerivedFrom<T, FStateTreeNodeBase>::IsDerived, "Expecting Node to derive from FStateTreeNodeBase.");
 		return TStateTreeInstanceDataStructRef<typename T::FInstanceDataType>(InstanceData, DataViews[Node.DataViewIndex.Get()].template GetMutable<typename T::FInstanceDataType>());
 	}
-	
+
+	/**
+	 * Requests transition to a state.
+	 * If called during during transition processing (e.g. from FStateTreeTaskBase::TriggerTransitions()) the transition
+	 * is attempted to be activate immediately (it can fail e.g. because of preconditions on a target state).
+	 * If called outside the transition handling, the request is buffered and handled at the beginning of next transition processing.
+	 * @param Request The state to transition to.
+	 */
+	void RequestTransition(const FStateTreeTransitionRequest& Request);
+
 protected:
 
 	/** @return Prefix that will be used by STATETREE_LOG and STATETREE_CLOG, empty by default. */
@@ -295,14 +321,12 @@ protected:
 	 * Checks all conditions at given range
 	 * @return True if all conditions pass.
 	 */
-	bool TestAllConditions(FStateTreeInstanceData& SharedInstanceData, const int32 ConditionsOffset, const int32 ConditionsNum);
+	bool TestAllConditions(const int32 ConditionsOffset, const int32 ConditionsNum);
 
 	/**
-	 * Tries to select a state pointed by the specified transition. The OutTransition is filled on successful selection.
-	 * @return true of the state selection succeeds.
+	 * Requests transition to a specified state with specified priority.
 	 */
-	bool SelectTransition(FStateTreeInstanceData& SharedInstanceData, FStateTreeExecutionState& Exec,
-			const int16 StateIndex, const FCompactStateTreeState& State, const FCompactStateTransition& Transition, FStateTreeTransitionResult& OutTransition);
+	bool RequestTransition(const FStateTreeStateHandle NextState, const EStateTreeTransitionPriority Priority);
 
 	/**
 	 * Triggers transitions based on current run status. CurrentStatus is used to select which transitions events are triggered.
@@ -311,7 +335,7 @@ protected:
 	 * the actual next state returned by the selector.
 	 * @return Transition result describing the source state, state transitioned to, and next selected state.
 	 */
-	bool TriggerTransitions(FStateTreeInstanceData& SharedInstanceData, FStateTreeTransitionResult& OutTransition);
+	bool TriggerTransitions();
 
 	/**
 	 * Traverses the ActiveStates from StartStateIndex to 0 and returns first linked state.
@@ -319,22 +343,23 @@ protected:
 	 */
 	FStateTreeStateHandle GetParentLinkedStateHandle(const FStateTreeActiveStates& ActiveStates, const int32 StartStateIndex) const;
 
+	FStateTreeStateHandle GetParentLinkedStateHandle(const FStateTreeActiveStates& ActiveStates, const FStateTreeStateHandle StartStateHandle) const;
+
 	/**
 	 * Runs state selection logic starting at the specified state, walking towards the leaf states.
 	 * If a state cannot be selected, false is returned. 
 	 * If NextState is a selector state, SelectStateInternal is called recursively (depth-first) to all child states (where NextState will be one of child states).
 	 * If NextState is a leaf state, the active states leading from root to the leaf are returned.
-	 * @param SharedInstanceData Reference to the instance data
 	 * @param NextState The state which we try to select next.
 	 * @param OutNewActiveStates Active states that got selected.
 	 * @return True if succeeded to select new active states.
 	 */
-	bool SelectState(FStateTreeInstanceData& SharedInstanceData, const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveStates);
+	bool SelectState(const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveStates);
 
 	/**
 	 * Used internally to do the recursive part of the SelectState().
 	 */
-	bool SelectStateInternal(FStateTreeInstanceData& SharedInstanceData, const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveStates);
+	bool SelectStateInternal(const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveStates);
 
 	/** @return StateTree execution state from the instance storage. */
 	FStateTreeExecutionState& GetExecState()
@@ -397,4 +422,50 @@ protected:
 
 	/** Events to process in current tick. */
 	TArray<FStateTreeEvent, TConcurrentLinearArrayAllocator<FDefaultBlockAllocationTag>> EventsToProcess;
+
+	/** Shared instance data for the duration of the context. */
+	TSharedPtr<FStateTreeInstanceData> SharedInstanceData;
+
+	/** Next transition, used by RequestTransition(). */
+	FStateTreeTransitionResult NextTransition;
+
+	/** Current state we're processing, or invalid if not applicable. */
+	FStateTreeStateHandle CurrentlyProcessedState;
+
+	/** True if transitions are allowed to be requested directly instead of buffering. */
+	bool bAllowDirectTransitions = false;
+
+	/** Helper struct to track when it is allowed to request transitions. */
+	struct FAllowDirectTransitionsScope
+	{
+		FAllowDirectTransitionsScope(FStateTreeExecutionContext& InContext)
+			: Context(InContext)
+		{
+			Context.bAllowDirectTransitions = true;
+		}
+
+		~FAllowDirectTransitionsScope()
+		{
+			Context.bAllowDirectTransitions = false;
+		}
+		
+		FStateTreeExecutionContext& Context;
+	};
+	
+	/** Helper struct to track currently processed state. */
+	struct FCurrentlyProcessedStateScope
+	{
+		FCurrentlyProcessedStateScope(FStateTreeExecutionContext& InContext, const FStateTreeStateHandle State)
+			: Context(InContext)
+		{
+			Context.CurrentlyProcessedState = State;
+		}
+
+		~FCurrentlyProcessedStateScope()
+		{
+			Context.CurrentlyProcessedState = FStateTreeStateHandle::Invalid;
+		}
+		
+		FStateTreeExecutionContext& Context;
+	};
 };

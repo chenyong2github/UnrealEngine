@@ -81,6 +81,7 @@ void UStateTree::ResetCompiled()
 
 	GlobalTasksBegin = 0;
 	GlobalTasksNum = 0;
+	bHasGlobalTransitionTasks = false;
 	
 	ResetLinked();
 }

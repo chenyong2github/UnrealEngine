@@ -25,6 +25,7 @@ void FStateTreeTransitionDetails::CustomizeHeader(TSharedRef<class IPropertyHand
 	PropUtils = StructCustomizationUtils.GetPropertyUtilities().Get();
 
 	TriggerProperty = StructProperty->GetChildHandle(TEXT("Trigger"));
+	PriorityProperty = StructProperty->GetChildHandle(TEXT("Priority"));
 	EventTagProperty = StructProperty->GetChildHandle(TEXT("EventTag"));
 	StateProperty = StructProperty->GetChildHandle(TEXT("State"));
 	DelayTransitionProperty = StructProperty->GetChildHandle(TEXT("bDelayTransition"));
@@ -54,7 +55,7 @@ void FStateTreeTransitionDetails::CustomizeHeader(TSharedRef<class IPropertyHand
 			]
 		];
 }
-
+ 
 void FStateTreeTransitionDetails::CustomizeChildren(TSharedRef<class IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	check(TriggerProperty);
@@ -65,6 +66,12 @@ void FStateTreeTransitionDetails::CustomizeChildren(TSharedRef<class IPropertyHa
 	check(StateProperty);
 	check(ConditionsProperty);
 
+	auto IsTickOrEventTransition = [this]()
+	{
+		return !EnumHasAnyFlags(GetTrigger(), EStateTreeTransitionTrigger::OnStateCompleted) ? EVisibility::Visible : EVisibility::Collapsed;
+	};
+
+	// Trigger
 	StructBuilder.AddProperty(TriggerProperty.ToSharedRef());
 
 	// Show event only when the trigger is set to Event. 
@@ -74,20 +81,20 @@ void FStateTreeTransitionDetails::CustomizeChildren(TSharedRef<class IPropertyHa
 			return (GetTrigger() == EStateTreeTransitionTrigger::OnEvent) ? EVisibility::Visible : EVisibility::Collapsed;
 		})));
 
-	// Delay
-	auto IsDelayVisible = [this]()
-	{
-		return !EnumHasAnyFlags(GetTrigger(), EStateTreeTransitionTrigger::OnStateCompleted) ? EVisibility::Visible : EVisibility::Collapsed;
-	};
-
-	StructBuilder.AddProperty(DelayTransitionProperty.ToSharedRef())
-		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda(IsDelayVisible)));
-	StructBuilder.AddProperty(DelayDurationProperty.ToSharedRef())
-		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda(IsDelayVisible)));
-	StructBuilder.AddProperty(DelayRandomVarianceProperty.ToSharedRef())
-		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda(IsDelayVisible)));
-
+	// State
 	StructBuilder.AddProperty(StateProperty.ToSharedRef());
+
+	// Priority
+	StructBuilder.AddProperty(PriorityProperty.ToSharedRef())
+		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda(IsTickOrEventTransition)));
+
+	// Delay
+	StructBuilder.AddProperty(DelayTransitionProperty.ToSharedRef())
+		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda(IsTickOrEventTransition)));
+	StructBuilder.AddProperty(DelayDurationProperty.ToSharedRef())
+		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda(IsTickOrEventTransition)));
+	StructBuilder.AddProperty(DelayRandomVarianceProperty.ToSharedRef())
+		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda(IsTickOrEventTransition)));
 
 	// Show conditions always expanded, with simplified header (remove item count)
 	IDetailPropertyRow& ConditionsRow = StructBuilder.AddProperty(ConditionsProperty.ToSharedRef());
@@ -166,10 +173,10 @@ FText FStateTreeTransitionDetails::GetDescription() const
 	const FStateTreeStateLink* State = static_cast<FStateTreeStateLink*>(RawData[0]);
 	if (State != nullptr)
 	{
-		switch (State->Type)
+		switch (State->LinkType)
 		{
-		case EStateTreeTransitionType::NotSet:
-			TargetText = LOCTEXT("TransitionBlock", "Block Transition");
+		case EStateTreeTransitionType::None:
+			TargetText = LOCTEXT("TransitionNone", "None");
 			break;
 		case EStateTreeTransitionType::Succeeded:
 			TargetText = LOCTEXT("TransitionTreeSucceeded", "Tree Succeeded");

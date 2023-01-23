@@ -28,7 +28,7 @@ UStateTreeTaskBlueprintBase::UStateTreeTaskBlueprintBase(const FObjectInitialize
 EStateTreeRunStatus UStateTreeTaskBlueprintBase::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition)
 {
 	// Task became active, cache event queue and owner.
-	SetCachedEventQueueFromContext(Context);
+	SetCachedInstanceDataFromContext(Context);
 	
 	if (bHasEnterState)
 	{
@@ -45,7 +45,7 @@ void UStateTreeTaskBlueprintBase::ExitState(FStateTreeExecutionContext& Context,
 	}
 
 	// Task became inactive, clear cached event queue and owner.
-	ClearCachedEventQueue();
+	ClearCachedInstanceData();
 }
 
 void UStateTreeTaskBlueprintBase::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates)

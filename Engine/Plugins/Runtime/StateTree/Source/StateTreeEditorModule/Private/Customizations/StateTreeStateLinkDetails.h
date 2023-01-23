@@ -48,7 +48,7 @@ private:
 
 	TSharedPtr<IPropertyHandle> NameProperty;
 	TSharedPtr<IPropertyHandle> IDProperty;
-	TSharedPtr<IPropertyHandle> TypeProperty;
+	TSharedPtr<IPropertyHandle> LinkTypeProperty;
 
 	// If set, hide selecting meta states like Next or (tree) Succeeded.
 	bool bDirectStatesOnly = false;

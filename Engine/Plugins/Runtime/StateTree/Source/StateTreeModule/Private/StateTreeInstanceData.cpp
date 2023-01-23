@@ -4,6 +4,7 @@
 #include "StateTreeTypes.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "VisualLogger/VisualLogger.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeInstanceData)
 
@@ -41,8 +42,27 @@ namespace UE::StateTree
 
 } // UE::StateTree
 
+
 //----------------------------------------------------------------//
-//  FStateTreeInstanceData
+// FStateTreeInstanceStorage
+//----------------------------------------------------------------//
+
+void FStateTreeInstanceStorage::AddTransitionRequest(const UObject* Owner, const FStateTreeTransitionRequest& Request)
+{
+	constexpr int32 MaxPendingTransitionRequests = 32;
+	
+	if (TransitionRequests.Num() >= MaxPendingTransitionRequests)
+	{
+		UE_VLOG_UELOG(Owner, LogStateTree, Error, TEXT("%s: Too many transition requests sent to '%s' (%d pending). Dropping request."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(Owner), TransitionRequests.Num());
+		return;
+	}
+
+	TransitionRequests.Add(Request);
+}
+
+
+//----------------------------------------------------------------//
+// FStateTreeInstanceData
 //----------------------------------------------------------------//
 
 FStateTreeInstanceData::FStateTreeInstanceData()
@@ -95,6 +115,21 @@ FStateTreeEventQueue& FStateTreeInstanceData::GetMutableEventQueue()
 const FStateTreeEventQueue& FStateTreeInstanceData::GetEventQueue() const
 {
 	return GetStorage().EventQueue;
+}
+
+void FStateTreeInstanceData::AddTransitionRequest(const UObject* Owner, const FStateTreeTransitionRequest& Request)
+{
+	GetMutableStorage().AddTransitionRequest(Owner, Request);
+}
+
+TConstArrayView<FStateTreeTransitionRequest> FStateTreeInstanceData::GetTransitionRequests() const
+{
+	return GetStorage().GetTransitionRequests();
+}
+
+void FStateTreeInstanceData::ResetTransitionRequests()
+{
+	GetMutableStorage().ResetTransitionRequests();
 }
 
 int32 FStateTreeInstanceData::GetEstimatedMemoryUsage() const

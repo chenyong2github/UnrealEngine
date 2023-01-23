@@ -36,25 +36,45 @@ AActor* UStateTreeNodeBlueprintBase::GetOwnerActor(const FStateTreeExecutionCont
 	return Cast<AActor>(Context.GetOwner());
 }
 
-void UStateTreeNodeBlueprintBase::SetCachedEventQueueFromContext(const FStateTreeExecutionContext& Context) const
+void UStateTreeNodeBlueprintBase::SetCachedInstanceDataFromContext(const FStateTreeExecutionContext& Context) const
 {
-	CachedEventQueue = &Context.GetMutableEventQueue();
+	if (FStateTreeInstanceData* InstanceData = Context.GetMutableInstanceData())
+	{
+		InstanceStorage = &InstanceData->GetMutableStorage();
+	}
+	CachedState = Context.GetCurrentlyProcessedState();
 	CachedOwner = Context.GetOwner();
 }
 
-void UStateTreeNodeBlueprintBase::ClearCachedEventQueue() const
+void UStateTreeNodeBlueprintBase::ClearCachedInstanceData() const
 {
-	CachedEventQueue = nullptr;
+	InstanceStorage = nullptr;
+	CachedState = FStateTreeStateHandle::Invalid;
 	CachedOwner = nullptr;
 }
 
 void UStateTreeNodeBlueprintBase::SendEvent(const FStateTreeEvent& Event)
 {
-	if (CachedEventQueue == nullptr || CachedOwner == nullptr)
+	if (InstanceStorage == nullptr || CachedOwner == nullptr)
 	{
 		UE_VLOG_UELOG(this, LogStateTree, Error, TEXT("Trying to call SendEvent() while node is not active. Use SendEvent() on UStateTreeComponent instead for sending signals externally."));
 		return;
 	}
-	CachedEventQueue->SendEvent(CachedOwner, Event.Tag, Event.Payload, Event.Origin);
+	InstanceStorage->GetMutableEventQueue().SendEvent(CachedOwner, Event.Tag, Event.Payload, Event.Origin);
 }
 
+void UStateTreeNodeBlueprintBase::RequestTransition(const FStateTreeStateLink& TargetState, const EStateTreeTransitionPriority Priority)
+{
+	if (InstanceStorage == nullptr || CachedOwner == nullptr)
+	{
+		UE_VLOG_UELOG(this, LogStateTree, Error, TEXT("Trying to call SendEvent() while node is not active. Use SendEvent() on UStateTreeComponent instead for sending signals externally."));
+		return;
+	}
+
+	FStateTreeTransitionRequest Request;
+	Request.SourceState = CachedState;
+	Request.TargetState = TargetState.StateHandle;
+	Request.Priority = Priority;
+	
+	InstanceStorage->AddTransitionRequest(CachedOwner, Request);
+}

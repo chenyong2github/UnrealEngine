@@ -10,34 +10,19 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeState)
 
 //////////////////////////////////////////////////////////////////////////
-// FStateTreeStateLink
-
-void FStateTreeStateLink::Set(const EStateTreeTransitionType InType, const UStateTreeState* InState)
-{
-	Type = InType;
-	if (Type == EStateTreeTransitionType::GotoState)
-	{
-		check(InState);
-		Name = InState->Name;
-		ID = InState->ID;
-	}
-}
-
-
-//////////////////////////////////////////////////////////////////////////
 // FStateTreeTransition
 
 FStateTreeTransition::FStateTreeTransition(const EStateTreeTransitionTrigger InTrigger, const EStateTreeTransitionType InType, const UStateTreeState* InState)
 	: Trigger(InTrigger)
 {
-	State.Set(InType, InState);
+	State = InState ? InState->GetLinkToState() : FStateTreeStateLink(InType);
 }
 
 FStateTreeTransition::FStateTreeTransition(const EStateTreeTransitionTrigger InTrigger, const FGameplayTag InEventTag, const EStateTreeTransitionType InType, const UStateTreeState* InState)
 	: Trigger(InTrigger)
 	, EventTag(InEventTag)
 {
-	State.Set(InType, InState);
+	State = InState ? InState->GetLinkToState() : FStateTreeStateLink(InType);
 }
 
 
@@ -223,7 +208,7 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 						FStateTreeTransition& Transition = Transitions[TransitionsIndex];
 						Transition.Trigger = EStateTreeTransitionTrigger::OnStateCompleted;
 						const UStateTreeState* RootState = GetRootState();
-						Transition.State.Set(RootState ? RootState : this);
+						Transition.State = RootState->GetLinkToState();
 					}
 				}
 			}
@@ -334,3 +319,10 @@ const UStateTreeState* UStateTreeState::GetNextSiblingState() const
 	return nullptr;
 }
 
+FStateTreeStateLink UStateTreeState::GetLinkToState() const
+{
+	FStateTreeStateLink Link(EStateTreeTransitionType::GotoState);
+	Link.Name = Name;
+	Link.ID = ID;
+	return Link;
+}
