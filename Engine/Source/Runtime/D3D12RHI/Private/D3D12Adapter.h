@@ -374,9 +374,6 @@ public:
 
 	FD3D12TransientHeapCache& GetOrCreateTransientHeapCache();
 
-	typedef TArray<FD3D12SyncPointRef, TInlineAllocator<MAX_NUM_GPUS>> FTemporalEffect;
-	FTemporalEffect& GetTemporalEffect(const FName& EffectName);
-
 	FD3D12FastConstantAllocator& GetTransientUniformBufferAllocator();
 	void ReleaseTransientUniformBufferAllocator(FTransientUniformBufferAllocator* InAllocator);
 
@@ -573,10 +570,6 @@ protected:
 	FCriticalSection TrackedAllocationDataCS;
 
 	FD3D12MemoryInfo MemoryInfo;
-
-#if WITH_MGPU
-	TMap<FName, FTemporalEffect> TemporalEffectMap;
-#endif
 
 	TArray<FTransientUniformBufferAllocator*> TransientUniformBufferAllocators;
 	FCriticalSection TransientUniformBufferAllocatorsCS;

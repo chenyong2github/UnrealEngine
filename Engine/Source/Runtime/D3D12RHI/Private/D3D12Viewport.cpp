@@ -17,14 +17,6 @@ namespace D3D12RHI
 	 */
 	namespace RHIConsoleVariables
 	{
-		int32 AFRUseFramePacing = 0;
-		static FAutoConsoleVariableRef CVarUseFramePacing(
-			TEXT("D3D12.AFRUseFramePacing"),
-			AFRUseFramePacing,
-			TEXT("Control when frames are presented when using mGPU and Alternate Frame Rendering."),
-			ECVF_RenderThreadSafe
-			);
-
 #if !UE_BUILD_SHIPPING
 #if LOG_VIEWPORT_EVENTS
 		int32 LogViewportEvents = 1;
@@ -113,14 +105,20 @@ void FD3D12FramePacing::PrePresentQueued(ID3D12CommandQueue* Queue)
 	const float Alpha = FMath::Clamp(Delta / 1000.0f / FramePacingAvgTimePeriod, 0.0f, 1.0f);
 
 	/** Number of milliseconds the GPU was busy last frame. */
-	// Multi-GPU support : Should be updated to use GPUIndex for AFR.
+	/**
+	 * TODO:  Proper Multi-GPU support for measuring GPU frame cycles would involve doing something more complicated.
+	 * This could involve either using the frame cycles for whichever GPU was idle the least, or identifying time spans
+	 * where all GPUs are idle.  The latter seems more appropriate for the purpose of frame pacing, but would require
+	 * adding detailed idle time span tracking across all GPUs, which is some work.  The call below just queries cycles
+	 * for GPU 0 only.
+	 */
 	const uint32 GPUCycles = RHIGetGPUFrameCycles();
 	const float GPUMsForFrame = FPlatformTime::ToMilliseconds(GPUCycles);
 
 	AvgFrameTimeMs = (Alpha * GPUMsForFrame) + ((1.0f - Alpha) * AvgFrameTimeMs);
 	LastFrameTimeMs = CurrTimeMs;
 
-	const float TargetFrameTime = AvgFrameTimeMs * FramePacingPercentage / GNumAlternateFrameRenderingGroups;
+	const float TargetFrameTime = AvgFrameTimeMs * FramePacingPercentage;
 
 	const uint32 WriteIndex = NextIndex % MaxFrames;
 	SleepTimes[WriteIndex] = (uint32)TargetFrameTime;
@@ -368,11 +366,6 @@ void FD3D12Viewport::CalculateSwapChainDepth(int32 DefaultSwapChainDepth)
 		if (FParse::Value(FCommandLine::Get(), TEXT("PresentGPU="), BackbufferMultiGPUBinding))
 		{
 			BackbufferMultiGPUBinding = FMath::Clamp<int32>(BackbufferMultiGPUBinding, INDEX_NONE, (int32)GNumExplicitGPUsForRendering - 1) ;
-		}
-		else if (GNumAlternateFrameRenderingGroups > 1)
-		{
-			BackbufferMultiGPUBinding = INDEX_NONE;
-			NumBackBuffers = GNumExplicitGPUsForRendering > 2 ? GNumExplicitGPUsForRendering : 4;
 		}
 	}
 #endif // WITH_MGPU
@@ -692,35 +685,6 @@ bool FD3D12Viewport::Present(bool bLockToVsync)
 
 	FD3D12CommandContext* PresentContext = nullptr;
 #if WITH_MGPU
-	if (GNumAlternateFrameRenderingGroups > 1)
-	{
-		const uint32 PresentGPUIndex = BackBufferGPUIndices[CurrentBackBufferIndex_RHIThread];
-		PresentContext = &Adapter->GetDevice(PresentGPUIndex)->GetDefaultCommandContext();
-
-		// In AFR it's possible that the current frame will complete faster than the frame
-		// already in progress so we need to add synchronization to ensure that our Present
-		// occurs after the previous frame's Present. Otherwise we can put frames in the
-		// system present queue out of order.
-		if (LastFrameSyncPoint)
-		{
-			PresentContext->WaitSyncPoint(LastFrameSyncPoint);
-		}
-	}
-
-#if 0 // Multi-GPU support : figure out what kind of synchronization is needed.
-	// When using an alternating frame rendering technique with multiple GPUs the time of frame
-	// delivery must be paced in order to provide a nice experience.
-	if (Adapter->GetMultiGPUMode() == MGPU_AFR && RHIConsoleVariables::AFRUseFramePacing && !bLockToVsync)
-	{
-		if (FramePacerRunnable == nullptr)
-		{
-			FramePacerRunnable = new FD3D12FramePacing(Adapter);
-		}
-	
-		FramePacerRunnable->PrePresentQueued(Device->GetCommandListManager().GetD3DCommandQueue());
-	}
-	else
-#endif
 	if (FramePacerRunnable)
 	{
 		delete FramePacerRunnable;
@@ -934,7 +898,7 @@ void FD3D12CommandContextBase::RHIEndDrawingViewport(FRHIViewport* ViewportRHI, 
 
 	bool bNativelyPresented = Viewport->Present(bLockToVsync);
 	
-	// Multi-GPU support : here each GPU wait's for it's own frame completion. Note that even in AFR, each GPU renders an (empty) frame.
+	// Multi-GPU support : here each GPU wait's for it's own frame completion.
 	if (bNativelyPresented)
 	{
 		static const auto CFinishFrameVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.FinishCurrentFrame"));

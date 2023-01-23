@@ -2409,13 +2409,6 @@ bool FDeferredShadingSceneRenderer::IsNaniteEnabled() const
 	return UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes && Nanite::GStreamingManager.HasResourceEntries();
 }
 
-#if WITH_MGPU
-BEGIN_SHADER_PARAMETER_STRUCT(FGBufferTemporalTextureParams, )
-	RDG_TEXTURE_ACCESS(DepthResolve, ERHIAccess::CopySrc)
-	RDG_TEXTURE_ACCESS(GBufferA, ERHIAccess::CopySrc)
-END_SHADER_PARAMETER_STRUCT()
-#endif
-
 void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 {
 	const bool bNaniteEnabled = IsNaniteEnabled();
@@ -3434,35 +3427,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			AddResolveSceneDepthPass(GraphBuilder, Views, SceneTextures.Depth);
 		}
 
-#if WITH_MGPU
-		if (SceneTextures.Depth.Resolve && SceneTextures.GBufferA)
-		{
-			FGBufferTemporalTextureParams* PassParameters = GraphBuilder.AllocParameters<FGBufferTemporalTextureParams>();
-
-			PassParameters->DepthResolve = SceneTextures.Depth.Resolve;
-			PassParameters->GBufferA = SceneTextures.GBufferA;
-
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("GBuffer Temporal Copy"),
-				PassParameters,
-				ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
-				[PassParameters](FRHIComputeCommandList& RHICmdList)
-				{
-					FName GBufferTemporalEffect("GBufferTemporalCopy");
-
-					RHICmdList.WaitForTemporalEffect(GBufferTemporalEffect);
-
-					const uint32 NumGBufferTemporalTextures = 2;
-					TStaticArray<FRHITexture*, NumGBufferTemporalTextures> GBufferTemporalTexturesRHI;
-					GBufferTemporalTexturesRHI[0] = PassParameters->DepthResolve->GetRHI();
-					GBufferTemporalTexturesRHI[1] = PassParameters->GBufferA->GetRHI();
-
-					RHICmdList.BroadcastTemporalEffect(
-						GBufferTemporalEffect, MakeArrayView(GBufferTemporalTexturesRHI.GetData(), GBufferTemporalTexturesRHI.Num()));
-				});
-		}
-#endif  // WITH_MGPU
-		
 		if (bNaniteEnabled)
 		{
 			if (GNaniteShowStats != 0)

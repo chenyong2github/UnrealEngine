@@ -401,9 +401,6 @@ protected:
 
 			/** If set, the pass should set its command list stat. */
 			uint32 bSetCommandListStat : 1;
-
-			/** If set, the pass will wait on the assigned mGPU temporal effect. */
-			uint32 bWaitForTemporalEffect : 1;
 		};
 		uint32 PackedBits1 = 0;
 	};

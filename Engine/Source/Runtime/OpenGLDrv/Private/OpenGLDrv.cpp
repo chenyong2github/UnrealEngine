@@ -205,18 +205,14 @@ void FOpenGLGPUProfiler::BeginFrame(FOpenGLDynamicRHI* InRHI)
 	}
 	bPreviousLatchedGProfilingGPUHitches = bLatchedGProfilingGPUHitches;
 
-	// Skip timing events when using SLI, they will not be accurate anyway
-	if (GNumAlternateFrameRenderingGroups == 1)
+	if (FrameTiming.IsSupported())
 	{
-		if (FrameTiming.IsSupported())
-		{
-			FrameTiming.StartTiming();
-		}
-		if (FOpenGLDisjointTimeStampQuery::IsSupported())
-		{
-			CurrentGPUFrameQueryIndex = (CurrentGPUFrameQueryIndex + 1) % MAX_GPUFRAMEQUERIES;
-			DisjointGPUFrameTimeQuery[CurrentGPUFrameQueryIndex].StartTracking();
-		}
+		FrameTiming.StartTiming();
+	}
+	if (FOpenGLDisjointTimeStampQuery::IsSupported())
+	{
+		CurrentGPUFrameQueryIndex = (CurrentGPUFrameQueryIndex + 1) % MAX_GPUFRAMEQUERIES;
+		DisjointGPUFrameTimeQuery[CurrentGPUFrameQueryIndex].StartTracking();
 	}
 
 	if (GetEmitDrawEvents())
@@ -238,28 +234,22 @@ void FOpenGLGPUProfiler::EndFrame()
 		PopEvent();
 	}
 
-	// Skip timing events when using SLI, they will not be accurate anyway
-	if (GNumAlternateFrameRenderingGroups == 1)
+	if (FrameTiming.IsSupported())
 	{
-		if (FrameTiming.IsSupported())
-		{
-			FrameTiming.EndTiming();
-		}
-		if (FOpenGLDisjointTimeStampQuery::IsSupported())
-		{
-			DisjointGPUFrameTimeQuery[CurrentGPUFrameQueryIndex].EndTracking();
-		}
+		FrameTiming.EndTiming();
+	}
+	if (FOpenGLDisjointTimeStampQuery::IsSupported())
+	{
+		DisjointGPUFrameTimeQuery[CurrentGPUFrameQueryIndex].EndTracking();
 	}
 
-	// Skip timing events when using SLI, as they will block the GPU and we want maximum throughput
-	// Stat unit GPU time is not accurate anyway with SLI
-	if (FrameTiming.IsSupported() && GNumAlternateFrameRenderingGroups == 1)
+	if (FrameTiming.IsSupported())
 	{
 		uint64 GPUTiming = FrameTiming.GetTiming();
 		uint64 GPUFreq = FrameTiming.GetTimingFrequency();
 		GGPUFrameTime = FMath::TruncToInt( double(GPUTiming) / double(GPUFreq) / FPlatformTime::GetSecondsPerCycle() );
 	}
-	else if (FOpenGLDisjointTimeStampQuery::IsSupported() && GNumAlternateFrameRenderingGroups == 1)
+	else if (FOpenGLDisjointTimeStampQuery::IsSupported())
 	{
 		static uint32 GLastGPUFrameTime = 0;
 		uint64 GPUTiming = 0;

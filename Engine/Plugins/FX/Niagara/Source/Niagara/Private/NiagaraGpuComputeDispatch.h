@@ -255,14 +255,9 @@ private:
 	ENiagaraGpuComputeTickStage::Type StageToTransferGPUBuffers = ENiagaraGpuComputeTickStage::First;
 	ENiagaraGpuComputeTickStage::Type StageToWaitForGPUTransfers = ENiagaraGpuComputeTickStage::First;
 
-	bool bAFREnabled = false;
-	TArray<FRHIBuffer*> AFRBuffers;
-	TArray<FRHITexture*> AFRTextures;
-
 	bool bCrossGPUTransferEnabled = false;
 	TArray<FTransferResourceParams> CrossGPUTransferBuffers;
 
-	void AddAFRBuffer(FRHIBuffer* Buffer);
 	void AddCrossGPUTransfer(FRHICommandList& RHICmdList, FRHIBuffer* Buffer);
 
 	void CalculateCrossGPUTransferLocation();

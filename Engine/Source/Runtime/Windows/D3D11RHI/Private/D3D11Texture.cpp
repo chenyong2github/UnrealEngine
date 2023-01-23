@@ -769,19 +769,6 @@ FD3D11Texture* FD3D11DynamicRHI::CreateD3D11Texture2D(FRHITextureCreateDesc cons
 		DepthStencilViews
 	);
 
-#if WITH_NVAPI
-	if (IsRHIDeviceNVIDIA() && EnumHasAnyFlags(Flags, TexCreate_AFRManual))
-	{
-		// get a resource handle for this texture
-		void* IHVHandle = nullptr;
-		//getobjecthandle not threadsafe
-		NvAPI_D3D_GetObjectHandleForResource(Direct3DDevice, Texture2D->GetResource(), (NVDX_ObjectHandle*)&(IHVHandle));
-		Texture2D->SetIHVResourceHandle(IHVHandle);
-		
-		NvU32 ManualAFR = 1;
-		NvAPI_D3D_SetResourceHint(Direct3DDevice, (NVDX_ObjectHandle)IHVHandle, NVAPI_D3D_SRH_CATEGORY_SLI, NVAPI_D3D_SRH_SLI_APP_CONTROLLED_INTERFRAME_CONTENT_SYNC, &ManualAFR);
-	}
-#endif
 	if (CreateDesc.BulkData)
 	{
 		CreateDesc.BulkData->Discard();
@@ -930,19 +917,6 @@ FD3D11Texture* FD3D11DynamicRHI::CreateD3D11Texture3D(FRHITextureCreateDesc cons
 		{}
 	);
 
-#if WITH_NVAPI
-	if (IsRHIDeviceNVIDIA() && EnumHasAnyFlags(Flags, TexCreate_AFRManual))
-	{
-		// get a resource handle for this texture
-		void* IHVHandle = nullptr;
-		//getobjecthandle not threadsafe
-		NvAPI_D3D_GetObjectHandleForResource(Direct3DDevice, Texture3D->GetResource(), (NVDX_ObjectHandle*)&(IHVHandle));
-		Texture3D->SetIHVResourceHandle(IHVHandle);
-
-		NvU32 ManualAFR = 1;
-		NvAPI_D3D_SetResourceHint(Direct3DDevice, (NVDX_ObjectHandle)IHVHandle, NVAPI_D3D_SRH_CATEGORY_SLI, NVAPI_D3D_SRH_SLI_APP_CONTROLLED_INTERFRAME_CONTENT_SYNC, &ManualAFR);
-	}
-#endif
 	if (CreateDesc.BulkData)
 	{
 		CreateDesc.BulkData->Discard();

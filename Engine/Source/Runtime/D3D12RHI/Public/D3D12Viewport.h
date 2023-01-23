@@ -238,7 +238,7 @@ private:
 	/** A fence value used to track the GPU's progress. */
 	TArray<FD3D12SyncPointRef> FrameSyncPoints;
 
-	// Determine how deep the swapchain should be (based on AFR or not)
+	// Determine how deep the swapchain should be
 	void CalculateSwapChainDepth(int32 DefaultSwapChainDepth);
 
 	FCustomPresentRHIRef CustomPresent;

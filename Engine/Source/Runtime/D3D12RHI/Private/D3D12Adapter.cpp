@@ -258,14 +258,8 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 
 	uint32 MaxGPUCount = 1; // By default, multi-gpu is disabled.
 #if WITH_MGPU
-	if (!FParse::Value(FCommandLine::Get(), TEXT("MaxGPUCount="), MaxGPUCount))
-	{
-		// If there is a mode token in the command line, enable multi-gpu.
-		if (FParse::Param(FCommandLine::Get(), TEXT("AFR")))
-		{
-			MaxGPUCount = MAX_NUM_GPUS;
-		}
-	}
+	FParse::Value(FCommandLine::Get(), TEXT("MaxGPUCount="), MaxGPUCount);
+
 	if (FParse::Param(FCommandLine::Get(), TEXT("VMGPU")))
 	{
 		GVirtualMGPU = 1;
@@ -725,40 +719,6 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	{
 		GNumExplicitGPUsForRendering = Desc.NumDeviceNodes;
 		UE_LOG(LogD3D12RHI, Log, TEXT("Enabling multi-GPU with %d nodes"), Desc.NumDeviceNodes);
-	}
-
-	// Viewport ignores AFR if PresentGPU is specified.
-	int32 Dummy;
-	if (!FParse::Value(FCommandLine::Get(), TEXT("PresentGPU="), Dummy))
-	{
-		bool bWantsAFR = false;
-		if (FParse::Value(FCommandLine::Get(), TEXT("NumAFRGroups="), GNumAlternateFrameRenderingGroups))
-		{
-			bWantsAFR = true;
-		}
-		else if (FParse::Param(FCommandLine::Get(), TEXT("AFR")))
-		{
-			bWantsAFR = true;
-			GNumAlternateFrameRenderingGroups = GNumExplicitGPUsForRendering;
-		}
-
-		if (bWantsAFR)
-		{
-			if (GNumAlternateFrameRenderingGroups <= 1 || GNumAlternateFrameRenderingGroups > GNumExplicitGPUsForRendering)
-			{
-				UE_LOG(LogD3D12RHI, Error, TEXT("Cannot enable alternate frame rendering because NumAFRGroups (%u) must be > 1 and <= MaxGPUCount (%u)"), GNumAlternateFrameRenderingGroups, GNumExplicitGPUsForRendering);
-				GNumAlternateFrameRenderingGroups = 1;
-			}
-			else if (GNumExplicitGPUsForRendering % GNumAlternateFrameRenderingGroups != 0)
-			{
-				UE_LOG(LogD3D12RHI, Error, TEXT("Cannot enable alternate frame rendering because MaxGPUCount (%u) must be evenly divisible by NumAFRGroups (%u)"), GNumExplicitGPUsForRendering, GNumAlternateFrameRenderingGroups);
-				GNumAlternateFrameRenderingGroups = 1;
-			}
-			else
-			{
-				UE_LOG(LogD3D12RHI, Log, TEXT("Enabling alternate frame rendering with %u AFR groups"), GNumAlternateFrameRenderingGroups);
-			}
-		}
 	}
 #endif
 }
@@ -1512,22 +1472,6 @@ void FD3D12Adapter::EndFrame()
 	}
 #endif
 }
-
-#if WITH_MGPU
-FD3D12Adapter::FTemporalEffect& FD3D12Adapter::GetTemporalEffect(const FName& EffectName)
-{
-	FTemporalEffect* Effect = TemporalEffectMap.Find(EffectName);
-
-	if (Effect == nullptr)
-	{
-		Effect = &TemporalEffectMap.Emplace(EffectName, FTemporalEffect());
-		Effect->AddDefaulted(FRHIGPUMask::All().GetNumActive());
-	}
-
-	check(Effect);
-	return *Effect;
-}
-#endif // WITH_MGPU
 
 FD3D12FastConstantAllocator& FD3D12Adapter::GetTransientUniformBufferAllocator()
 {

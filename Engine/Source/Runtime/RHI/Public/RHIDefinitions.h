@@ -952,8 +952,8 @@ enum class ETextureCreateFlags : uint64
     Streamable                        = 1ull << 28,
     // Render target will not FinalizeFastClear; Caches and meta data will be flushed, but clearing will be skipped (avoids potentially trashing metadata)
     NoFastClearFinalize               = 1ull << 29,
-    // Hint to the driver that this resource is managed properly by the engine for Alternate-Frame-Rendering in mGPU usage.
-    AFRManual                         = 1ull << 30,
+	/** Texture needs to support atomic operations */
+	Atomic64Compatible                = 1ull << 30,
     // Workaround for 128^3 volume textures getting bloated 4x due to tiling mode on some platforms.
     ReduceMemoryWithTilingMode        = 1ull << 31,
     /** Texture needs to support atomic operations */
@@ -962,8 +962,6 @@ enum class ETextureCreateFlags : uint64
 	External                		  = 1ull << 34,
 	/** Don't automatically transfer across GPUs in multi-GPU scenarios.  For example, if you are transferring it yourself manually. */
 	MultiGPUGraphIgnore				  = 1ull << 35,
-	/** Texture needs to support atomic operations */
-    Atomic64Compatible                = 1ull << 36,
 };
 ENUM_CLASS_FLAGS(ETextureCreateFlags);
 
@@ -999,7 +997,6 @@ ENUM_CLASS_FLAGS(ETextureCreateFlags);
 #define TexCreate_DepthStencilResolveTarget      ETextureCreateFlags::DepthStencilResolveTarget
 #define TexCreate_Streamable                     ETextureCreateFlags::Streamable
 #define TexCreate_NoFastClearFinalize            ETextureCreateFlags::NoFastClearFinalize
-#define TexCreate_AFRManual                      ETextureCreateFlags::AFRManual
 #define TexCreate_ReduceMemoryWithTilingMode     ETextureCreateFlags::ReduceMemoryWithTilingMode
 #define TexCreate_Transient                      ETextureCreateFlags::Transient
 #define TexCreate_AtomicCompatible               ETextureCreateFlags::AtomicCompatible

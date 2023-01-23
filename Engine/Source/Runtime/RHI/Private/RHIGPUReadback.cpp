@@ -24,8 +24,8 @@ void FGenericRHIGPUFence::Clear()
 
 void FGenericRHIGPUFence::WriteInternal()
 {
-	// GPU generally overlap the game. This overlap increases when using AFR. In normal mode this can make us appear to be further behind the gpu than we actually are.
-	InsertedFrameNumber = GFrameNumberRenderThread + GNumAlternateFrameRenderingGroups;
+	// GPU generally overlaps the game
+	InsertedFrameNumber = GFrameNumberRenderThread + 1;
 }
 
 bool FGenericRHIGPUFence::Poll() const

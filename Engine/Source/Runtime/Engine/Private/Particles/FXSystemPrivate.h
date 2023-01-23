@@ -392,8 +392,8 @@ private:
 #endif // #if WITH_EDITOR
 
 #if WITH_MGPU
-	EParticleSimulatePhase::Type PhaseToWaitForTemporalEffect = EParticleSimulatePhase::First;
-	EParticleSimulatePhase::Type PhaseToBroadcastTemporalEffect = EParticleSimulatePhase::First;
+	EParticleSimulatePhase::Type PhaseToWaitForResourceTransfer = EParticleSimulatePhase::First;
+	EParticleSimulatePhase::Type PhaseToBroadcastResourceTransfer = EParticleSimulatePhase::First;
 #endif
 
 	TUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformParams;

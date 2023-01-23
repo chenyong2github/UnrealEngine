@@ -71,7 +71,7 @@ public:
 		return ActiveGPUMask;
 	}
 
-	// Changes the GPUMask used when updating the reflection capture in AFR.
+	// Changes the GPUMask used when updating the reflection capture with multi-GPU.
 	void SetActiveGPUMask(FRHIGPUMask InGPUMask)
 	{
 		check(IsInRenderingThread());
@@ -80,7 +80,7 @@ public:
 
 private:
 
-	FRHIGPUMask ActiveGPUMask; // In AFR we need to change which GPUs are rendered to every frame.
+	FRHIGPUMask ActiveGPUMask; // GPU mask copied from parent render target for multi-GPU
 	FIntPoint Size;
 };
 

@@ -259,8 +259,8 @@ void FVirtualTextureUploadCache::Finalize(FRDGBuilder& GraphBuilder)
 	SCOPED_DRAW_EVENT(RHICmdList, FVirtualTextureUploadCache_Finalize);
 	SCOPE_CYCLE_COUNTER(STAT_VTP_FlushUpload)
 
-		// Multi-GPU support : May be inefficient for AFR.
-		SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+	// Multi-GPU support:
+	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 
 	for (int PoolIndex = 0; PoolIndex < Pools.Num(); ++PoolIndex)
 	{

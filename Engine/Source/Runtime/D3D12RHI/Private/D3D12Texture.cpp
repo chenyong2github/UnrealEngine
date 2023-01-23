@@ -1727,7 +1727,7 @@ void* FD3D12Texture::Lock(class FRHICommandListImmediate* RHICmdList, uint32 Mip
 	{
 		LockedResource->bLockedForReadOnly = true;
 
-		//TODO: Make this work for AFR (it's probably a very rare occurance though)
+		//TODO: Make this work for multi-GPU (it's probably a very rare occurrence though)
 		ensure(GNumExplicitGPUsForRendering == 1);
 
 		// If we're reading from the texture, we create a staging resource, copy the texture contents to it, and map it.

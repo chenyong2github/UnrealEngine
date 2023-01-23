@@ -210,13 +210,6 @@ public:
 	/** Adds a user-defined dependency between two passes. This can be used to fine-tune async compute overlap by forcing a sync point. */
 	void AddPassDependency(FRDGPass* Producer, FRDGPass* Consumer);
 
-#if WITH_MGPU
-	void SetNameForTemporalEffect(FName InNameForTemporalEffect)
-	{
-		NameForTemporalEffect = InNameForTemporalEffect;
-	}
-#endif
-
 	/** Sets the current command list stat for all subsequent passes. */
 	void SetCommandListStat(TStatId StatId);
 
@@ -749,12 +742,6 @@ private:
 	} AuxiliaryPasses;
 
 #if WITH_MGPU
-	/** Name for the temporal effect used to synchronize multi-frame resources. */
-	FName NameForTemporalEffect;
-
-	/** Whether we performed the wait for the temporal effect yet. */
-	bool bWaitedForTemporalEffect = false;
-
 	/** Copy all cross GPU external resources (not marked MultiGPUGraphIgnore) at the end of execution (bad for perf, but useful for debugging). */
 	bool bForceCopyCrossGPU = false;
 #endif

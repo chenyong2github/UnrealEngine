@@ -362,23 +362,6 @@ public:
 		return FRHIGPUMask::GPU0();
 	}
 
-#if WITH_MGPU
-	virtual void RHIWaitForTemporalEffect(const FName& InEffectName)
-	{
-		/* empty default implementation */
-	}
-
-	virtual void RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHITexture*> InTextures)
-	{
-		/* empty default implementation */
-	}
-
-	virtual void RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHIBuffer*> InBuffers)
-	{
-		/* empty default implementation */
-	}
-#endif // WITH_MGPU
-
 	/**
 	 * Synchronizes the content of a resource between two GPUs using a copy operation.
 	 * @param Params - the parameters for each resource or texture region copied between GPUs.
@@ -623,29 +606,6 @@ public:
 	*/
 	// This method is queued with an RHIThread, otherwise it will flush after it is queued; without an RHI thread there is no benefit to queuing this frame advance commands
 	virtual void RHIEndScene() = 0;
-
-	/**
-	* Signals the beginning and ending of rendering to a resource to be used in the next frame on a multiGPU system
-	*/
-	virtual void RHIBeginUpdateMultiFrameResource(FRHITexture* Texture)
-	{
-		/* empty default implementation */
-	}
-
-	virtual void RHIEndUpdateMultiFrameResource(FRHITexture* Texture)
-	{
-		/* empty default implementation */
-	}
-
-	virtual void RHIBeginUpdateMultiFrameResource(FRHIUnorderedAccessView* UAV)
-	{
-		/* empty default implementation */
-	}
-
-	virtual void RHIEndUpdateMultiFrameResource(FRHIUnorderedAccessView* UAV)
-	{
-		/* empty default implementation */
-	}
 
 	virtual void RHISetStreamSource(uint32 StreamIndex, FRHIBuffer* VertexBuffer, uint32 Offset) = 0;
 

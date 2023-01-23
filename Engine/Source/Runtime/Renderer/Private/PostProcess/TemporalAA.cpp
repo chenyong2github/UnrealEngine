@@ -876,42 +876,16 @@ FTAAOutputs AddTemporalAAPass(
 			bUseHistoryTexture[i] = PassParameters->Common.HistoryBuffer[i] != nullptr;
 		}
 
-		{
-			FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(PracticableDestRect.Size(), GTemporalAATileSizeX);
-			FComputeShaderUtils::ValidateGroupCount(GroupCount);
-
-			const FShaderParametersMetadata* ParametersMetadata = FTemporalAACS::FParameters::FTypeInfo::GetStructMetadata();
-
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("TAA(%s Quality=%s) %dx%d -> %dx%d",
-					PassName,
-					kTAAQualityNames[int32(PermutationVector.Get<FTemporalAA::FTAAQualityDim>())],
-					PracticableSrcRect.Width(), PracticableSrcRect.Height(),
-					PracticableDestRect.Width(), PracticableDestRect.Height()),
-				ParametersMetadata,
-				PassParameters,
-				ERDGPassFlags::Compute,
-				[ParametersMetadata, PassParameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
-				{
-#if WITH_MGPU
-					RHICmdList.WaitForTemporalEffect(TAAEffectName);
-#endif  // WITH_MGPU
-
-					FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, ParametersMetadata, *PassParameters, GroupCount);
-
-#if WITH_MGPU
-					TArray<FRHITexture*, TFixedAllocator<2>> OutputTexturesRHI;
-					OutputTexturesRHI.Add(PassParameters->OutComputeTex[0]->GetParentRHI());
-					if (PassParameters->OutComputeTexDownsampled)
-					{
-						OutputTexturesRHI.Add(PassParameters->OutComputeTexDownsampled->GetParentRHI());
-					}
-
-					RHICmdList.BroadcastTemporalEffect(
-						TAAEffectName, MakeArrayView(OutputTexturesRHI.GetData(), OutputTexturesRHI.Num()));
-#endif  // WITH_MGPU
-				});
-		}
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("TAA(%s Quality=%s) %dx%d -> %dx%d",
+				PassName,
+				kTAAQualityNames[int32(PermutationVector.Get<FTemporalAA::FTAAQualityDim>())],
+				PracticableSrcRect.Width(), PracticableSrcRect.Height(),
+				PracticableDestRect.Width(), PracticableDestRect.Height()),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(PracticableDestRect.Size(), GTemporalAATileSizeX));
 	}
 	else
 	{

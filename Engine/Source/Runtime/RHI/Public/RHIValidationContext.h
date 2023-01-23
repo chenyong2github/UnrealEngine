@@ -595,29 +595,6 @@ public:
 		RHIContext->RHIEndScene();
 	}
 
-	/**
-	* Signals the beginning and ending of rendering to a resource to be used in the next frame on a multiGPU system
-	*/
-	virtual void RHIBeginUpdateMultiFrameResource(FRHITexture* Texture) override final
-	{
-		RHIContext->RHIBeginUpdateMultiFrameResource(Texture);
-	}
-
-	virtual void RHIEndUpdateMultiFrameResource(FRHITexture* Texture) override final
-	{
-		RHIContext->RHIEndUpdateMultiFrameResource(Texture);
-	}
-
-	virtual void RHIBeginUpdateMultiFrameResource(FRHIUnorderedAccessView* UAV) override final
-	{
-		RHIContext->RHIBeginUpdateMultiFrameResource(UAV);
-	}
-
-	virtual void RHIEndUpdateMultiFrameResource(FRHIUnorderedAccessView* UAV) override final
-	{
-		RHIContext->RHIEndUpdateMultiFrameResource(UAV);
-	}
-
 	virtual void RHISetStreamSource(uint32 StreamIndex, FRHIBuffer* VertexBuffer, uint32 Offset) override final
 	{
 		//#todo-rco: Decide if this is needed or not...

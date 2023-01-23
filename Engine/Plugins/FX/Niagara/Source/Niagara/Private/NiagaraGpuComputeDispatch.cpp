@@ -86,11 +86,6 @@ const FName FNiagaraGpuComputeDispatch::Name(TEXT("FNiagaraGpuComputeDispatch"))
 
 namespace FNiagaraGpuComputeDispatchLocal
 {
-#if WITH_MGPU
-	const FName TemporalEffectBuffersName("FNiagaraGpuComputeDispatch_Buffers");
-	const FName TemporalEffectTexturesName("FNiagaraGpuComputeDispatch_Textures");
-#endif // WITH_MGPU
-
 	int32 GTickFlushMaxQueuedFrames = 3;
 	static FAutoConsoleVariableRef CVarNiagaraTickFlushMaxQueuedFrames(
 		TEXT("fx.Niagara.Batcher.TickFlush.MaxQueuedFrames"),
@@ -1240,16 +1235,6 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRDGBuilder& GraphBuilder, TConstA
 				ComputeContext->SetDataToRender(CurrentData);
 
 #if WITH_MGPU
-				if (bAFREnabled)
-				{
-					AddAFRBuffer(CurrentData->GetGPUBufferFloat().Buffer);
-					AddAFRBuffer(CurrentData->GetGPUBufferHalf().Buffer);
-					AddAFRBuffer(CurrentData->GetGPUBufferInt().Buffer);
-					if (ComputeContext->MainDataSet->RequiresPersistentIDs())
-					{
-						AddAFRBuffer(ComputeContext->MainDataSet->GetGPUFreeIDs().Buffer);
-					}
-				}
 				if (bCrossGPUTransferEnabled)
 				{
 					AddCrossGPUTransfer(GraphBuilder.RHICmdList, CurrentData->GetGPUBufferFloat().Buffer);
@@ -1716,8 +1701,7 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 	bRaisedWarningThisFrame = false;
 #endif
 #if WITH_MGPU
-	bAFREnabled = GNumAlternateFrameRenderingGroups > 1;
-	bCrossGPUTransferEnabled = !bAFREnabled && (GNumExplicitGPUsForRendering > 1);
+	bCrossGPUTransferEnabled = GNumExplicitGPUsForRendering > 1;
 	StageToTransferGPUBuffers = ENiagaraGpuComputeTickStage::Last;
 	StageToWaitForGPUTransfers = ENiagaraGpuComputeTickStage::First;
 #endif
@@ -2295,10 +2279,6 @@ void FNiagaraGpuComputeDispatch::MultiGPUResourceModified(FRDGBuilder& GraphBuil
 
 void FNiagaraGpuComputeDispatch::MultiGPUResourceModified(FRHICommandList& RHICmdList, FRHIBuffer* Buffer, bool bRequiredForSimulation, bool bRequiredForRendering) const
 {
-	if (bAFREnabled && bRequiredForSimulation)
-	{
-		const_cast<FNiagaraGpuComputeDispatch*>(this)->AddAFRBuffer(Buffer);
-	}
 	if (bCrossGPUTransferEnabled && bRequiredForRendering)
 	{
 		const_cast<FNiagaraGpuComputeDispatch*>(this)->AddCrossGPUTransfer(RHICmdList, Buffer);
@@ -2307,13 +2287,6 @@ void FNiagaraGpuComputeDispatch::MultiGPUResourceModified(FRHICommandList& RHICm
 
 void FNiagaraGpuComputeDispatch::MultiGPUResourceModified(FRHICommandList& RHICmdList, FRHITexture* Texture, bool bRequiredForSimulation, bool bRequiredForRendering) const
 {
-	if (bAFREnabled && bRequiredForSimulation)
-	{
-		if (Texture)
-		{
-			const_cast<FNiagaraGpuComputeDispatch*>(this)->AFRTextures.Add(Texture);
-		}
-	}
 	if (bCrossGPUTransferEnabled && bRequiredForRendering)
 	{
 		const bool bPullData = false;
@@ -2327,15 +2300,6 @@ void FNiagaraGpuComputeDispatch::MultiGPUResourceModified(FRHICommandList& RHICm
 				const_cast<FNiagaraGpuComputeDispatch*>(this)->CrossGPUTransferBuffers.Emplace(Texture, GPUMask.GetFirstIndex(), GPUIndex, bPullData, bLockStep);
 			}
 		}
-	}
-}
-
-void FNiagaraGpuComputeDispatch::AddAFRBuffer(FRHIBuffer* Buffer)
-{
-	check(bAFREnabled);
-	if (Buffer)
-	{
-		AFRBuffers.Add(Buffer);
 	}
 }
 
@@ -2386,18 +2350,6 @@ void FNiagaraGpuComputeDispatch::TransferMultiGPUBufers(FRHICommandList& RHICmdL
 		return;
 	}
 
-	// Transfer buffers for AFR rendering
-	if (AFRBuffers.Num())
-	{
-		RHICmdList.BroadcastTemporalEffect(FNiagaraGpuComputeDispatchLocal::TemporalEffectBuffersName, AFRBuffers);
-		AFRBuffers.Reset();
-	}
-	if (AFRTextures.Num())
-	{
-		RHICmdList.BroadcastTemporalEffect(FNiagaraGpuComputeDispatchLocal::TemporalEffectTexturesName, AFRTextures);
-		AFRTextures.Reset();
-	}
-
 	// Transfer buffers for cross GPU rendering
 	if (CrossGPUTransferBuffers.Num())
 	{
@@ -2410,8 +2362,7 @@ void FNiagaraGpuComputeDispatch::WaitForMultiGPUBuffers(FRHICommandList& RHICmdL
 {
 	if (StageToWaitForGPUTransfers == TickStage)
 	{
-		RHICmdList.WaitForTemporalEffect(FNiagaraGpuComputeDispatchLocal::TemporalEffectBuffersName);
-		RHICmdList.WaitForTemporalEffect(FNiagaraGpuComputeDispatchLocal::TemporalEffectTexturesName);
+		// TODO:  implement delayed fence wait here for cross GPU transfers issued above
 	}
 }
 #endif // WITH_MGPU

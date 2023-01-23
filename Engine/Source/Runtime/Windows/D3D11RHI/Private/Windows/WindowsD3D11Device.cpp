@@ -107,14 +107,6 @@ static TAutoConsoleVariable<int32> CVarNVidiaTimestampWorkaround(
 	TEXT("If true we disable timestamps on pre-maxwell hardware (workaround for driver bug)\n"),
 	ECVF_Default);
 
-int32 GDX11ForcedGPUs = -1;
-static FAutoConsoleVariableRef CVarDX11NumGPUs(
-	TEXT("r.DX11NumForcedGPUs"),
-	GDX11ForcedGPUs,
-	TEXT("Num Forced GPUs."),
-	ECVF_Default
-	);
-
 /**
  * Console variables used by the D3D11 RHI device.
  */
@@ -2089,38 +2081,6 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			GDynamicRHI->EnableIdealGPUCaptureOptions(true);
 		}
 #endif
-
-#if WITH_SLI
-		GNumAlternateFrameRenderingGroups = 1;
-
-#ifdef NVAPI_INTERFACE
-		if (!bRenderDoc && IsRHIDeviceNVIDIA())
-		{
-			NV_GET_CURRENT_SLI_STATE SLICaps;
-			FMemory::Memzero(SLICaps);
-			SLICaps.version = NV_GET_CURRENT_SLI_STATE_VER;
-			NvAPI_Status SLIStatus = NvAPI_D3D_GetCurrentSLIState(Direct3DDevice, &SLICaps);
-			if (SLIStatus == NVAPI_OK)
-			{
-				if (SLICaps.numAFRGroups > 1)
-				{
-					GNumAlternateFrameRenderingGroups = SLICaps.numAFRGroups;
-					UE_LOG(LogD3D11RHI, Log, TEXT("Detected %i SLI GPUs Setting GNumAlternateFrameRenderingGroups to: %i."), SLICaps.numAFRGroups, GNumAlternateFrameRenderingGroups);
-				}
-			}
-			else
-			{
-				UE_LOG(LogD3D11RHI, Log, TEXT("NvAPI_D3D_GetCurrentSLIState failed: 0x%x"), (int32)SLIStatus);
-			}
-		}
-#endif //NVAPI_INTERFACE
-
-		if (GDX11ForcedGPUs > 0)
-		{
-			GNumAlternateFrameRenderingGroups = GDX11ForcedGPUs;
-			UE_LOG(LogD3D11RHI, Log, TEXT("r.DX11NumForcedGPUs forcing GNumAlternateFrameRenderingGroups to: %i "), GDX11ForcedGPUs);
-		}
-#endif // WITH_SLI
 
 		if (IsRHIDeviceNVIDIA())
 		{

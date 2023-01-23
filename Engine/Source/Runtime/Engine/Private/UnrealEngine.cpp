@@ -3586,8 +3586,7 @@ public:
 		}
 #if WITH_MGPU
 		// We have to do all the work for secondary views that are on a different GPU than
-		// the primary view. NB: This assumes that the primary view is assigned to the
-		// first GPU of the AFR group. See FSceneRenderer::ComputeViewGPUMasks.
+		// the primary view.
 		else if (GNumExplicitGPUsForRendering > 1)
 		{
 			return EStereoscopicPass::eSSP_PRIMARY;

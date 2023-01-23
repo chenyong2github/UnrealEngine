@@ -748,8 +748,6 @@ void FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FScene& Scene, cons
 	ensure(bIsEnabled == UseGPUScene(GMaxRHIShaderPlatform, Scene.GetFeatureLevel()));
 	ensure(NumScenePrimitives == Scene.Primitives.Num());
 
-	// Multi-GPU support : Updating on all GPUs is inefficient for AFR. Work is wasted
-	// for any primitives that update on consecutive frames.
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
 	constexpr int32 InitialBufferSize = 256;
@@ -939,8 +937,6 @@ void FGPUScene::UploadGeneral(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExte
 
 	SCOPED_NAMED_EVENT(UpdateGPUScene, FColor::Green);
 
-	// Multi-GPU support : Updating on all GPUs is inefficient for AFR. Work is wasted
-	// for any primitives that update on consecutive frames.
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 	RDG_EVENT_SCOPE(GraphBuilder, "UpdateGPUScene NumPrimitiveDataUploads %u", NumPrimitiveDataUploads);
 

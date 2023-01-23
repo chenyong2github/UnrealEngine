@@ -2952,9 +2952,8 @@ void FSceneRenderer::ComputeGPUMasks(FRHICommandListImmediate* RHICmdList)
 	//
 	// TODO:  we should remove this conditional, and set the GPU mask for the source render targets, but the goal is to have
 	// a minimal scope CL for the 5.1.1 hot fix.  This effectively reverts the change from CL 20540730, just for scene captures.
-	if ((GNumExplicitGPUsForRendering > 1) && ViewFamily.RenderTarget && ((GNumAlternateFrameRenderingGroups > 1) || Views[0].bIsSceneCapture))
+	if ((GNumExplicitGPUsForRendering > 1) && ViewFamily.RenderTarget && Views[0].bIsSceneCapture)
 	{
-		// Get render target GPU mask, taking into account AFR
 		check(RHICmdList);
 		RenderTargetGPUMask = ViewFamily.RenderTarget->GetGPUMask(*RHICmdList);
 	}
@@ -2963,23 +2962,16 @@ void FSceneRenderer::ComputeGPUMasks(FRHICommandListImmediate* RHICmdList)
 	// Otherwise fallback on rendering the whole view family on each relevant GPU using broadcast logic.
 	if (GNumExplicitGPUsForRendering > 1 && CVarEnableMultiGPUForkAndJoin.GetValueOnAnyThread() != 0)
 	{
-		// Check whether this looks like an AFR setup (note that the logic also applies when there is only one AFR group).
-		// Each AFR group uses multiple GPU. AFRGroup(i) = { i, NumAFRGroups + i,  2 * NumAFRGroups + i, ... } up to NumGPUs.
-		// Each view rendered gets assigned to the next GPU in that group. 
-		const FRHIGPUMask UsableGPUMask = AFRUtils::GetGPUMaskForGroup(RenderTargetGPUMask);
-
 		// Start iterating from RenderTargetGPUMask and then wrap around. This avoids an
 		// unnecessary cross-gpu transfer in cases where you only have 1 view and the
 		// render target is located on a GPU other than GPU 0.
-		FRHIGPUMask::FIterator GPUIterator(FRHIGPUMask::FilterGPUsBefore(RenderTargetGPUMask.GetFirstIndex()) & UsableGPUMask);
+		FRHIGPUMask::FIterator GPUIterator(RenderTargetGPUMask);
 		for (FViewInfo& ViewInfo : Views)
 		{
 			// Only handle views that are to be rendered (this excludes instance stereo).
 			if (ViewInfo.ShouldRenderView())
 			{
-				// Multi-GPU support : This is inefficient for AFR if the reflection capture
-				// updates every frame. Work is wasted on the GPUs that are not involved in
-				// rendering the current frame.
+				// TODO:  should reflection captures run on one GPU and transfer, like all other rendering?
 				if (ViewInfo.bIsReflectionCapture)
 				{
 					ViewInfo.GPUMask = FRHIGPUMask::All();
@@ -2997,7 +2989,7 @@ void FSceneRenderer::ComputeGPUMasks(FRHICommandListImmediate* RHICmdList)
 					++GPUIterator;
 					if (!GPUIterator)
 					{
-						GPUIterator = FRHIGPUMask::FIterator(UsableGPUMask);
+						GPUIterator = FRHIGPUMask::FIterator(RenderTargetGPUMask);
 					}
 				}
 			}
@@ -3073,9 +3065,7 @@ static void GetCrossGPUTransfers(FSceneRenderer* SceneRenderer, TArray<FCrossGPU
 void FSceneRenderer::PreallocateCrossGPUFences(const TArray<FSceneRenderer*>& SceneRenderers)
 {
 #if WITH_MGPU
-	// We can only apply cross GPU fence wait transfer optimizations if AFR isn't enabled.  This is because we can't determine
-	// which GPU a given render target is being rendered on where this function is called.
-	if ((SceneRenderers.Num() > 1) && (GNumAlternateFrameRenderingGroups <= 1))
+	if (SceneRenderers.Num() > 1)
 	{
 		// Allocated fences to wait on are placed in the last scene renderer
 		TArray<FTransferResourceFenceData*>& LastRendererFencesWait = SceneRenderers.Last()->CrossGPUTransferFencesWait;

@@ -472,14 +472,6 @@ public:
 	 */
 	bool GetQueryData(ID3D11Query* Query, void* Data, SIZE_T DataSize, ERenderQueryType QueryType, bool bWait, bool bStallRHIThread);
 
-#if WITH_NVAPI
-	virtual void RHIBeginUpdateMultiFrameResource(FRHITexture* Texture) override;
-	virtual void RHIEndUpdateMultiFrameResource(FRHITexture* Texture) override;
-
-	virtual void RHIBeginUpdateMultiFrameResource(FRHIUnorderedAccessView* UAV) override;
-	virtual void RHIEndUpdateMultiFrameResource(FRHIUnorderedAccessView* UAV) override;
-#endif
-
 	virtual FSamplerStateRHIRef RHICreateSamplerState(const FSamplerStateInitializerRHI& Initializer) final override;
 	virtual FRasterizerStateRHIRef RHICreateRasterizerState(const FRasterizerStateInitializerRHI& Initializer) final override;
 	virtual FDepthStencilStateRHIRef RHICreateDepthStencilState(const FDepthStencilStateInitializerRHI& Initializer) final override;

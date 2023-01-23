@@ -368,7 +368,7 @@ public:
 		return GPUMask & ActiveGPUMask;
 	}
 
-	// Changes the GPUMask used when updating the texture in AFR.
+	// Changes the GPUMask used when updating the texture with multi-GPU.
 	void SetActiveGPUMask(FRHIGPUMask InGPUMask)
 	{
 		check(IsInRenderingThread());
@@ -385,7 +385,7 @@ protected:
 
 private:
 	FRHIGPUMask GPUMask;
-	FRHIGPUMask ActiveGPUMask; // In AFR we need to change which GPUs are rendered to every frame.
+	FRHIGPUMask ActiveGPUMask;  // GPU mask copied from parent render target for multi-GPU
 };
 
 /**

@@ -45,10 +45,6 @@
 DECLARE_CYCLE_STAT(TEXT("GPUSpriteEmitterInstance Init GT"), STAT_GPUSpriteEmitterInstance_Init, STATGROUP_Particles);
 DECLARE_GPU_STAT_NAMED(ParticleSimulation, TEXT("Particle Simulation"));
 
-#if WITH_MGPU
-DECLARE_GPU_STAT(AFRWaitForParticleSimulation);
-#endif
-
 /*------------------------------------------------------------------------------
 	Constants to tune memory and performance for GPU particle simulation.
 ------------------------------------------------------------------------------*/
@@ -110,14 +106,6 @@ static TAutoConsoleVariable<float> CVarGPUParticleFixTolerance(TEXT("r.GPUPartic
 static TAutoConsoleVariable<int32> CVarGPUParticleMaxNumIterations(TEXT("r.GPUParticle.MaxNumIterations"),3,TEXT("Max number of iteration when using a fix delta seconds."));
 
 static TAutoConsoleVariable<int32> CVarSimulateGPUParticles(TEXT("r.GPUParticle.Simulate"), 1, TEXT("Enable or disable GPU particle simulation"));
-
-static TAutoConsoleVariable<int32> CVarGPUParticleAFRReinject(
-	TEXT("r.GPUParticle.AFRReinject"),
-	1,
-	TEXT("Toggle optimization when running in AFR to re-inject particle injections on the next GPU rather than doing a slow GPU->GPU transfer of the texture data\n")	
-	TEXT("  0: Reinjection off\n")
-	TEXT("  1: Reinjection on"),
-	ECVF_ReadOnly);
 
 /*-----------------------------------------------------------------------------
 	Allocators used to manage GPU particle resources.
@@ -308,8 +296,6 @@ public:
 		const int32 SizeX = GParticleSimulationTextureSizeX;
 		const int32 SizeY = GParticleSimulationTextureSizeY;
 
-		const ETextureCreateFlags ExtraFlags = CVarGPUParticleAFRReinject.GetValueOnRenderThread() == 1 ? TexCreate_AFRManual : TexCreate_None;
-
 #define ATTRIBUTES_TEXTURE_NAME	TEXT("ParticleAttributes")
 
 		const FRHITextureCreateDesc Desc =
@@ -317,7 +303,7 @@ public:
 			.SetExtent(SizeX, SizeY)
 			.SetFormat(PF_B8G8R8A8)
 			.SetClearValue(FClearValueBinding::Transparent)
-			.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::NoFastClear | ExtraFlags)
+			.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::NoFastClear)
 			.SetInitialState(ERHIAccess::RTV);
 
 		TextureRHI = RHICreateTexture(Desc);
@@ -4413,16 +4399,11 @@ void FFXSystem::PrepareGPUSimulation(FRHICommandListImmediate& RHICmdList)
 	// Grab resources.
 	FParticleStateTextures& CurrentStateTextures = ParticleSimulationResources->GetCurrentStateTextures();
 
-	// We delay this transition in AFR to coincide with the first time the simulation
-	// texture is actually used.
-	if (GNumAlternateFrameRenderingGroups == 1)
-	{
-		// Setup render states.
-		RHICmdList.Transition({
-			FRHITransitionInfo(CurrentStateTextures.PositionTextureRHI, ERHIAccess::SRVMask, ERHIAccess::RTV),
-			FRHITransitionInfo(CurrentStateTextures.VelocityTextureRHI, ERHIAccess::SRVMask, ERHIAccess::RTV)
-		});
-	}
+	// Setup render states.
+	RHICmdList.Transition({
+		FRHITransitionInfo(CurrentStateTextures.PositionTextureRHI, ERHIAccess::SRVMask, ERHIAccess::RTV),
+		FRHITransitionInfo(CurrentStateTextures.VelocityTextureRHI, ERHIAccess::SRVMask, ERHIAccess::RTV)
+	});
 }
 
 void FFXSystem::FinalizeGPUSimulation(FRHICommandListImmediate& RHICmdList)
@@ -4452,28 +4433,8 @@ void FFXSystem::SimulateGPUParticles(
 
 
 #if WITH_MGPU
-	static const FName TemporalEffectName("SimulateGPUParticles");
-	TArray<FRHITexture*, TFixedAllocator<4>> TemporalEffectTextures;
-	if (GNumAlternateFrameRenderingGroups > 1)
-	{
-		if (Phase == PhaseToWaitForTemporalEffect)
-		{
-			SCOPED_GPU_STAT(RHICmdList, AFRWaitForParticleSimulation);
-			RHICmdList.WaitForTemporalEffect(TemporalEffectName);
-
-			// Only the previous state textures are actually being copied, but due to the data
-			// race mentioned in the BroadcastTemporalEffect block below we need to delay
-			// transitioning the current textures to writable state as well.
-			RHICmdList.Transition({
-				FRHITransitionInfo(CurrentStateRenderTargets[0], ERHIAccess::Unknown, ERHIAccess::RTV),
-				FRHITransitionInfo(CurrentStateRenderTargets[1], ERHIAccess::Unknown, ERHIAccess::RTV)});
-		}
-		TemporalEffectTextures.Add(CurrentStateRenderTargets[0]);
-		TemporalEffectTextures.Add(CurrentStateRenderTargets[1]);
-	}
-
 	TArray<FTransferResourceParams, TFixedAllocator<4>> CrossGPUTransferResources;
-	const bool bCrossTransferEnabled = GNumAlternateFrameRenderingGroups == 1 && GNumExplicitGPUsForRendering > 1;
+	const bool bCrossTransferEnabled = GNumExplicitGPUsForRendering > 1;
 	auto AddCrossGPUTransferResource =
 		[&](FRHITexture* TextureToTransfer)
 		{
@@ -4502,44 +4463,28 @@ void FFXSystem::SimulateGPUParticles(
 		if ( !CurrentStateTextures.bTexturesCleared )
 		{
 			
-			RHICmdList.BeginUpdateMultiFrameResource(CurrentStateRenderTargets[0]);
-			RHICmdList.BeginUpdateMultiFrameResource(CurrentStateRenderTargets[1]);
-
-			{
-				FRHIRenderPassInfo RenderPassInfo(2, CurrentStateRenderTargets, ERenderTargetActions::Clear_Store);
-				RHICmdList.BeginRenderPass(RenderPassInfo, TEXT("GPUParticlesClearStateTextures"));
-				RHICmdList.EndRenderPass();
-			}
+			FRHIRenderPassInfo RenderPassInfo(2, CurrentStateRenderTargets, ERenderTargetActions::Clear_Store);
+			RHICmdList.BeginRenderPass(RenderPassInfo, TEXT("GPUParticlesClearStateTextures"));
+			RHICmdList.EndRenderPass();
 			
 			CurrentStateTextures.bTexturesCleared = true;
-			
-			RHICmdList.EndUpdateMultiFrameResource(CurrentStateRenderTargets[0]);
-			RHICmdList.EndUpdateMultiFrameResource(CurrentStateRenderTargets[1]);
 		}
 		
 		if ( !PrevStateTextures.bTexturesCleared )
 		{
-			RHICmdList.BeginUpdateMultiFrameResource(PreviousStateRenderTargets[0]);
-			RHICmdList.BeginUpdateMultiFrameResource(PreviousStateRenderTargets[1]);
+			RHICmdList.Transition({
+				FRHITransitionInfo(PreviousStateRenderTargets[0], ERHIAccess::SRVMask, ERHIAccess::RTV),
+				FRHITransitionInfo(PreviousStateRenderTargets[1], ERHIAccess::SRVMask, ERHIAccess::RTV)});
 
-			{
-				RHICmdList.Transition({
-					FRHITransitionInfo(PreviousStateRenderTargets[0], ERHIAccess::SRVMask, ERHIAccess::RTV),
-					FRHITransitionInfo(PreviousStateRenderTargets[1], ERHIAccess::SRVMask, ERHIAccess::RTV)});
+			FRHIRenderPassInfo RPInfo(2, PreviousStateRenderTargets, ERenderTargetActions::Clear_Store);
+			RHICmdList.BeginRenderPass(RPInfo, TEXT("GPUParticlesClearPreviousStateTextures"));
+			RHICmdList.EndRenderPass();
 
-				FRHIRenderPassInfo RPInfo(2, PreviousStateRenderTargets, ERenderTargetActions::Clear_Store);
-				RHICmdList.BeginRenderPass(RPInfo, TEXT("GPUParticlesClearPreviousStateTextures"));
-				RHICmdList.EndRenderPass();
-
-				RHICmdList.Transition({
-					FRHITransitionInfo(PreviousStateRenderTargets[0], ERHIAccess::RTV, ERHIAccess::SRVMask),
-					FRHITransitionInfo(PreviousStateRenderTargets[1], ERHIAccess::RTV, ERHIAccess::SRVMask) });
-			}
+			RHICmdList.Transition({
+				FRHITransitionInfo(PreviousStateRenderTargets[0], ERHIAccess::RTV, ERHIAccess::SRVMask),
+				FRHITransitionInfo(PreviousStateRenderTargets[1], ERHIAccess::RTV, ERHIAccess::SRVMask) });
 			
 			PrevStateTextures.bTexturesCleared = true;
-			
-			RHICmdList.EndUpdateMultiFrameResource(PreviousStateRenderTargets[0]);
-			RHICmdList.EndUpdateMultiFrameResource(PreviousStateRenderTargets[1]);
 		}
 	}
 	
@@ -4694,9 +4639,6 @@ void FFXSystem::SimulateGPUParticles(
 		}
 	}
 
-	RHICmdList.BeginUpdateMultiFrameResource(CurrentStateRenderTargets[0]);
-	RHICmdList.BeginUpdateMultiFrameResource(CurrentStateRenderTargets[1]);
-	
 	if ( SimulationCommands.Num() || TilesToClear.Num())
 	{
 		FRHIRenderPassInfo RPInfo(2, CurrentStateRenderTargets, ERenderTargetActions::Load_Store);
@@ -4757,8 +4699,6 @@ void FFXSystem::SimulateGPUParticles(
 			ParticleSimulationResources->RenderAttributesTexture.TextureRHI,
 			ParticleSimulationResources->SimulationAttributesTexture.TextureRHI
 		};
-		RHICmdList.BeginUpdateMultiFrameResource(ParticleSimulationResources->RenderAttributesTexture.TextureRHI);
-		RHICmdList.BeginUpdateMultiFrameResource(ParticleSimulationResources->SimulationAttributesTexture.TextureRHI);
 
 		FRHIRenderPassInfo RPInfo(4, InjectRenderTargets, ERenderTargetActions::Load_Store);
 		{
@@ -4789,23 +4729,6 @@ void FFXSystem::SimulateGPUParticles(
 			});
 		}
 
-		if (GNumAlternateFrameRenderingGroups > 1)
-		{
-			if (CVarGPUParticleAFRReinject.GetValueOnRenderThread() == 1)
-			{
-				ensureMsgf(GNumAlternateFrameRenderingGroups == 2, TEXT("GPU Particles running on an AFR depth > 2 not supported.  Currently: %i"), GNumAlternateFrameRenderingGroups);
-
-				// Place these particles into the multi-gpu update queue
-				LastFrameNewParticles.Append(NewParticles);
-			}
-			else
-			{
-#if WITH_MGPU
-				TemporalEffectTextures.Add(ParticleSimulationResources->RenderAttributesTexture.TextureRHI);
-				TemporalEffectTextures.Add(ParticleSimulationResources->SimulationAttributesTexture.TextureRHI);
-#endif
-			}
-		}
 #if WITH_MGPU
 		if (bCrossTransferEnabled)
 		{
@@ -4813,8 +4736,6 @@ void FFXSystem::SimulateGPUParticles(
 			AddCrossGPUTransferResource(ParticleSimulationResources->SimulationAttributesTexture.TextureRHI);
 		}
 #endif
-		RHICmdList.EndUpdateMultiFrameResource(ParticleSimulationResources->RenderAttributesTexture.TextureRHI);
-		RHICmdList.EndUpdateMultiFrameResource(ParticleSimulationResources->SimulationAttributesTexture.TextureRHI);
 	}
 	
 	// finish current state render
@@ -4822,13 +4743,10 @@ void FFXSystem::SimulateGPUParticles(
 		FRHITransitionInfo(CurrentStateRenderTargets[0], ERHIAccess::RTV, ERHIAccess::SRVMask),
 		FRHITransitionInfo(CurrentStateRenderTargets[1], ERHIAccess::RTV, ERHIAccess::SRVMask)});
 
-	RHICmdList.EndUpdateMultiFrameResource(CurrentStateRenderTargets[0]);
-	RHICmdList.EndUpdateMultiFrameResource(CurrentStateRenderTargets[1]);
-
 	if (SimulationCommands.Num() && FixDeltaSeconds > 0)
 	{
 		//the fixed timestep works in two stages.  A first stage which simulates the fixed timestep and this second stage which simulates any remaining time from the actual delta time.  e.g.  fixed timestep of 16ms and actual dt of 23ms
-		//will make this second step simulate an interpolated extra 7ms.  This second interpolated step is what we render on THIS frame, but it is NOT fed into the next frame's simulation.  Thus we do not need to transfer it between GPUs in AFR mode.
+		//will make this second step simulate an interpolated extra 7ms.  This second interpolated step is what we render on THIS frame, but it is NOT fed into the next frame's simulation.
 		FParticleStateTextures& VisualizeStateTextures = ParticleSimulationResources->GetPreviousStateTextures();
 		
 		RHICmdList.Transition({ 
@@ -4870,27 +4788,11 @@ void FFXSystem::SimulateGPUParticles(
 	}
 
 #if WITH_MGPU
-	// Previously, this broadcast was before the above extra stage simulate work. This
-	// is because that work is temporary, only applied visually to the current frame
-	// rather than fed back through the simulation for the next frame. However, this
-	// led to a possible data race in AFR under certain circumstances: Let's say GPU0
-	// writes to StateTextures[0][GPU0] on this frame, then initiates the copy from
-	// StateTextures[0][GPU0] to StateTextures[0][GPU1] and signals GPU1 that it can
-	// start particle work. GPU0 then starts writing to StateTextures[1][GPU0] as a
-	// temporary for extra work on this frame. GPU1 Completes its work on
-	// StateTextures[1][GPU1], and initiates the copy from StateTextures[1][GPU1] to
-	// StateTextures[1][GPU0] at the end of its frame. However, GPU0 may still be
-	// writing to StateTextures[1][GPU0], and this leads to a data race. For now, we're
-	// moving the broadcast to after any extra work to block the next AFR group from
-	// using the textures until we're done, however for a potential AFR performance
-	// boost, we can put the broadcast back to where it was, and use a third buffer for
-	// temporary extra particle simulation work.
-	if (Phase == PhaseToBroadcastTemporalEffect)
+	// TODO:  This transfer was done here due to AFR considerations, but AFR support has been removed.
+	// Should investigate whether it still needs to be done here, or would be more optimal to move
+	// somewhere else?
+	if (Phase == PhaseToBroadcastResourceTransfer)
 	{
-		if (GNumAlternateFrameRenderingGroups > 1)
-		{
-			RHICmdList.BroadcastTemporalEffect(TemporalEffectName, TemporalEffectTextures);
-		}
 		if (CrossGPUTransferResources.Num() > 0)
 		{
 			RHICmdList.TransferResources(CrossGPUTransferResources);
@@ -4907,6 +4809,7 @@ void FFXSystem::SimulateGPUParticles(
 
 void FFXSystem::OnSimulationPhaseChanged(const FParticleSimulationGPU* GPUSimulation, EParticleSimulatePhase::Type PrevPhase)
 {
+	// TODO:  Could this be simplified now that AFR has been removed?
 	// We keep track of the number of simulations of each phase type to more
 	// efficiently synchronize temporal effects. We want to avoid having any long
 	// stretches of time where the AFR frames can't run in parallel.
@@ -4957,16 +4860,16 @@ void FFXSystem::UpdateMultiGPUResources(FRHICommandListImmediate& RHICmdList)
 	LastFrameNewParticles.Reset();
 
 #if WITH_MGPU
-	PhaseToBroadcastTemporalEffect = EParticleSimulatePhase::Last;
-	while (PhaseToBroadcastTemporalEffect > EParticleSimulatePhase::First && NumGPUSimulations[PhaseToBroadcastTemporalEffect] == 0)
+	PhaseToBroadcastResourceTransfer = EParticleSimulatePhase::Last;
+	while (PhaseToBroadcastResourceTransfer > EParticleSimulatePhase::First && NumGPUSimulations[PhaseToBroadcastResourceTransfer] == 0)
 	{
-		PhaseToBroadcastTemporalEffect = static_cast<EParticleSimulatePhase::Type>(PhaseToBroadcastTemporalEffect - 1);
+		PhaseToBroadcastResourceTransfer = static_cast<EParticleSimulatePhase::Type>(PhaseToBroadcastResourceTransfer - 1);
 	}
 
-	PhaseToWaitForTemporalEffect = EParticleSimulatePhase::First;
-	while (PhaseToWaitForTemporalEffect < PhaseToBroadcastTemporalEffect && NumGPUSimulations[PhaseToWaitForTemporalEffect] == 0)
+	PhaseToWaitForResourceTransfer = EParticleSimulatePhase::First;
+	while (PhaseToWaitForResourceTransfer < PhaseToBroadcastResourceTransfer && NumGPUSimulations[PhaseToWaitForResourceTransfer] == 0)
 	{
-		PhaseToWaitForTemporalEffect = static_cast<EParticleSimulatePhase::Type>(PhaseToWaitForTemporalEffect + 1);
+		PhaseToWaitForResourceTransfer = static_cast<EParticleSimulatePhase::Type>(PhaseToWaitForResourceTransfer + 1);
 	}
 #endif
 }

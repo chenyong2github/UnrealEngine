@@ -1182,28 +1182,6 @@ FRHICOMMAND_MACRO(FRHICommandSetGPUMask)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandWaitForTemporalEffect)
-{
-	FName EffectName;
-	FORCEINLINE_DEBUGGABLE FRHICommandWaitForTemporalEffect(const FName& InEffectName)
-		: EffectName(InEffectName)
-	{
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-FRHICOMMAND_MACRO_TPL(TRHIResource, FRHICommandBroadcastTemporalEffect)
-{
-	FName EffectName;
-	const TArrayView<TRHIResource*> Resources;
-	FORCEINLINE_DEBUGGABLE FRHICommandBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<TRHIResource*> InResources)
-		: EffectName(InEffectName)
-		, Resources(InResources)
-	{
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
 FRHICOMMAND_MACRO(FRHICommandTransferResources)
 {
 	TArray<FTransferResourceParams, TInlineAllocator<4>> Params;
@@ -3128,40 +3106,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 #if WITH_MGPU
-	FORCEINLINE_DEBUGGABLE void WaitForTemporalEffect(const FName& EffectName)
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIWaitForTemporalEffect(EffectName);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandWaitForTemporalEffect)(EffectName);
-	}
+	UE_DEPRECATED(5.2, "AFR support has been removed in 5.2, function is a nop and calls should be removed.")
+	FORCEINLINE void WaitForTemporalEffect(const FName& EffectName) {}
 
-	FORCEINLINE_DEBUGGABLE void BroadcastTemporalEffect(const FName& EffectName, const TArrayView<FRHITexture*> Textures)
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIBroadcastTemporalEffect(EffectName, Textures);
-			return;
-		}
+	UE_DEPRECATED(5.2, "AFR support has been removed in 5.2, function is a nop and calls should be removed.")
+	FORCEINLINE void BroadcastTemporalEffect(const FName& EffectName, const TArrayView<FRHITexture*> Textures) {}
 
-		ALLOC_COMMAND(FRHICommandBroadcastTemporalEffect<FRHITexture>)(EffectName, AllocArray(Textures));
-	}
-
-	FORCEINLINE_DEBUGGABLE void BroadcastTemporalEffect(const FName& EffectName, const TArrayView<FRHIBuffer*> Buffers)
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIBroadcastTemporalEffect(EffectName, Buffers);
-			return;
-		}
-
-		ALLOC_COMMAND(FRHICommandBroadcastTemporalEffect<FRHIBuffer>)(EffectName, AllocArray(Buffers));
-	}
+	UE_DEPRECATED(5.2, "AFR support has been removed in 5.2, function is a nop and calls should be removed.")
+	FORCEINLINE void BroadcastTemporalEffect(const FName& EffectName, const TArrayView<FRHIBuffer*> Buffers) {}
 #endif // WITH_MGPU
 
 #if RHI_RAYTRACING
@@ -3285,49 +3237,17 @@ public:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void BeginUpdateMultiFrameResource(FRHITexture* Texture)
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIBeginUpdateMultiFrameResource( Texture);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandBeginUpdateMultiFrameResource)(Texture);
-	}
+	UE_DEPRECATED(5.2, "AFR support has been removed in 5.2, function is a nop and calls should be removed.")
+	FORCEINLINE void BeginUpdateMultiFrameResource(FRHITexture* Texture) {}
 
-	FORCEINLINE_DEBUGGABLE void EndUpdateMultiFrameResource(FRHITexture* Texture)
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIEndUpdateMultiFrameResource(Texture);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandEndUpdateMultiFrameResource)(Texture);
-	}
+	UE_DEPRECATED(5.2, "AFR support has been removed in 5.2, function is a nop and calls should be removed.")
+	FORCEINLINE void EndUpdateMultiFrameResource(FRHITexture* Texture) {}
 
-	FORCEINLINE_DEBUGGABLE void BeginUpdateMultiFrameResource(FRHIUnorderedAccessView* UAV)
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIBeginUpdateMultiFrameResource(UAV);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandBeginUpdateMultiFrameUAV)(UAV);
-	}
+	UE_DEPRECATED(5.2, "AFR support has been removed in 5.2, function is a nop and calls should be removed.")
+	FORCEINLINE void BeginUpdateMultiFrameResource(FRHIUnorderedAccessView* UAV) {}
 
-	FORCEINLINE_DEBUGGABLE void EndUpdateMultiFrameResource(FRHIUnorderedAccessView* UAV)
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIEndUpdateMultiFrameResource(UAV);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandEndUpdateMultiFrameUAV)(UAV);
-	}
+	UE_DEPRECATED(5.2, "AFR support has been removed in 5.2, function is a nop and calls should be removed.")
+	FORCEINLINE void EndUpdateMultiFrameResource(FRHIUnorderedAccessView* UAV) {}
 
 	using FRHIComputeCommandList::SetShaderUniformBuffer;
 

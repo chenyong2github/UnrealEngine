@@ -346,10 +346,6 @@ void RHIInit(bool bHasEditorToken)
 
 				GDynamicRHI->Init();
 
-#if WITH_MGPU
-				AFRUtils::StaticInitialize();
-#endif
-
 				// Validation of contexts.
 				GRHICommandList.GetImmediateCommandList().GetContext();
 				check(GIsRHIInitialized);

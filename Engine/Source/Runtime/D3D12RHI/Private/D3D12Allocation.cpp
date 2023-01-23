@@ -2136,6 +2136,7 @@ void FD3D12FastAllocatorPage::UpdateFence()
 
 void FD3D12FastAllocatorPagePool::ReturnFastAllocatorPage(FD3D12FastAllocatorPage* Page)
 {
+	// TODO:  AFR has been removed, but I don't understand the comment, so I'm leaving it.  What did this code have to do with AFR?
 	// Extend the lifetime of these resources when in AFR as other nodes might be relying on this
 	Page->UpdateFence();
 	Pool.Add(Page);

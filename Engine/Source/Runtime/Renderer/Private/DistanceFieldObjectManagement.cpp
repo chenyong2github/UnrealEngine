@@ -911,7 +911,7 @@ void FSceneRenderer::PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, FRDGEx
 			{
 				FViewInfo& View = Views[ViewIndex];
 
-				RDG_GPU_MASK_SCOPE(GraphBuilder, GNumAlternateFrameRenderingGroups > 1 ? FRHIGPUMask::All() : View.GPUMask);
+				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
 				float OcclusionMaxDistance = Scene->DefaultMaxDistanceFieldOcclusionDistance;
 

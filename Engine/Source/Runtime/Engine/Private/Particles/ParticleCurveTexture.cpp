@@ -175,8 +175,6 @@ static void InjectCurves(
 
 	SCOPED_DRAW_EVENT(RHICmdList, InjectParticleCurves);
 
-	RHICmdList.BeginUpdateMultiFrameResource(CurveTextureRHI);
-
 	ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ELoad;
 
 	if (bFirstCall)
@@ -280,7 +278,6 @@ static void InjectCurves(
 	}
 	RHICmdList.EndRenderPass();
 	RHICmdList.Transition(FRHITransitionInfo(CurveTextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask));
-	RHICmdList.EndUpdateMultiFrameResource(CurveTextureRHI);
 }
 
 /*------------------------------------------------------------------------------

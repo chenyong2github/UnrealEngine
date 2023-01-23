@@ -1934,19 +1934,6 @@ void FRDGBuilder::Execute()
 	RHICmdList.SetStaticUniformBuffers({});
 
 #if WITH_MGPU
-	if (NameForTemporalEffect != NAME_None)
-	{
-		TArray<FRHITexture*> BroadcastTexturesForTemporalEffect;
-		for (const FExtractedTexture& ExtractedTexture : ExtractedTextures)
-		{
-			if (EnumHasAnyFlags(ExtractedTexture.Texture->Flags, ERDGTextureFlags::MultiFrame))
-			{
-				BroadcastTexturesForTemporalEffect.Add(ExtractedTexture.Texture->GetRHIUnchecked());
-			}
-		}
-		RHICmdList.BroadcastTemporalEffect(NameForTemporalEffect, BroadcastTexturesForTemporalEffect);
-	}
-
 	if (bForceCopyCrossGPU)
 	{
 		ForceCopyCrossGPU();
@@ -2424,12 +2411,6 @@ FRDGPass* FRDGBuilder::SetupEmptyPass(FRDGPass* Pass)
 void FRDGBuilder::CompilePassOps(FRDGPass* Pass)
 {
 #if WITH_MGPU
-	if (!bWaitedForTemporalEffect && NameForTemporalEffect != NAME_None && Pass->Pipeline == ERHIPipeline::Graphics)
-	{
-		bWaitedForTemporalEffect = true;
-		Pass->bWaitForTemporalEffect = 1;
-	}
-
 	FRHIGPUMask GPUMask = Pass->GPUMask;
 #else
 	FRHIGPUMask GPUMask = FRHIGPUMask::All();
@@ -2877,13 +2858,6 @@ void FRDGBuilder::ExecutePass(FRDGPass* Pass, FRHIComputeCommandList& RHICmdList
 #endif
 
 			IF_RDG_ENABLE_DEBUG(ConditionalDebugBreak(RDG_BREAKPOINT_PASS_EXECUTE, BuilderName.GetTCHAR(), Pass->GetName()));
-
-#if WITH_MGPU
-			if (Pass->bWaitForTemporalEffect)
-			{
-				static_cast<FRHICommandList&>(RHICmdListPass).WaitForTemporalEffect(NameForTemporalEffect);
-			}
-#endif
 
 			Pass->GPUScopeOpsPrologue.Execute(RHICmdListPass);
 

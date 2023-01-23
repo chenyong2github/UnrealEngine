@@ -1008,11 +1008,6 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 
 		RDG_EVENT_SCOPE(GraphBuilder, "VolumetricFog");
 
-#if WITH_MGPU
-		static const FName NameForTemporalEffect("ComputeVolumetricFog");
-		GraphBuilder.SetNameForTemporalEffect(FName(NameForTemporalEffect, View.ViewState ? View.ViewState->UniqueID : 0));
-#endif
-
 		FRDGTextureRef ConservativeDepthTexture;
 		// To use a depth target format, and depth tests, we will have to render depth from a PS depth output. Keeping it simple for now with all the tests happening in shader.
 		if (GVolumetricFogConservativeDepth > 0)

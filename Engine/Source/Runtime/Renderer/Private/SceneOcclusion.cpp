@@ -106,9 +106,8 @@ int32 FOcclusionQueryHelpers::GetNumBufferedFrames(ERHIFeatureLevel::Type Featur
 {
 	int32 NumGPUS = 1;
 #if WITH_SLI || WITH_MGPU
-	// If we're running with SLI, assume throughput is more important than latency, and buffer an extra frame
-	ensure(GNumAlternateFrameRenderingGroups <= (int32)FOcclusionQueryHelpers::MaxBufferedOcclusionFrames);
-	return FMath::Min<int32>(GNumAlternateFrameRenderingGroups, (int32)FOcclusionQueryHelpers::MaxBufferedOcclusionFrames);
+	// TODO:  Should this still be differentiated for MGPU?  Originally this logic was here for AFR, which has been removed.
+	return FMath::Min<int32>(1, (int32)FOcclusionQueryHelpers::MaxBufferedOcclusionFrames);
 #endif
 	static const auto NumBufferedQueriesVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.NumBufferedOcclusionQueries"));
 	EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
@@ -288,8 +287,7 @@ bool FSceneViewState::IsShadowOccluded(FSceneViewState::FProjectedShadowKey Shad
 
 	// Read the occlusion query results.
 	uint64 NumSamples = 0;
-	// Only block on the query if not running SLI
-	const bool bWaitOnQuery = GNumAlternateFrameRenderingGroups == 1;
+	const bool bWaitOnQuery = true;
 
 	if (Query && RHIGetRenderQueryResult(Query->GetQuery(), NumSamples, bWaitOnQuery))
 	{

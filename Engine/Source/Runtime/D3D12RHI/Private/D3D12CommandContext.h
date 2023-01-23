@@ -5,15 +5,6 @@ D3D12CommandContext.h: D3D12 Command Context Interfaces
 =============================================================================*/
 
 #pragma once
-#define AFR_ENGINE_CHANGES_PRESENT WITH_MGPU
-
-// TODO: Because the upper engine is yet to implement these interfaces we can't 'override' something that doesn't exist.
-//       Remove when upper engine is ready
-#if AFR_ENGINE_CHANGES_PRESENT
-#define AFR_API_OVERRIDE override
-#else
-#define AFR_API_OVERRIDE
-#endif
 
 #include "D3D12RHIPrivate.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -625,16 +616,6 @@ public:
 
 	void ResolveTexture(UE::RHICore::FResolveTextureInfo Info);
 
-	// When using Alternate Frame Rendering some temporal effects i.e. effects which consume GPU work from previous frames must synchronize their resources
-	// to prevent visual corruption.
-
-	// This should be called right before the effect consumes it's temporal resources.
-	virtual void RHIWaitForTemporalEffect(const FName& InEffectName) final AFR_API_OVERRIDE;
-
-	// This should be called right after the effect generates the resources which will be used in subsequent frame(s).
-	virtual void RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHITexture*> InTextures) final AFR_API_OVERRIDE;
-	virtual void RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHIBuffer*> InBuffers) final AFR_API_OVERRIDE;
-
 #if D3D12_RHI_RAYTRACING
 	virtual void RHIBindAccelerationStructureMemory(FRHIRayTracingScene* Scene, FRHIBuffer* Buffer, uint32 BufferOffset) final override;
 	virtual void BuildAccelerationStructuresInternal(const TArrayView<D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC> BuildDesc);
@@ -717,11 +698,6 @@ protected:
 
 private:
 
-#if WITH_MGPU
-	template <typename TD3D12Resource, typename TCopyFunction>
-	void BroadcastTemporalEffect(const FName& InEffectName, const TArrayView<TD3D12Resource*> InResources, const TCopyFunction& InCopyFunction);
-#endif
-
 	static void ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12CommandContext>& RHICmdList, FD3D12UnorderedAccessView* UAV, const void* ClearValues, bool bFloat);
 
 	template <typename TRHIShader>
@@ -741,11 +717,8 @@ private:
 	TArray<FRHIUniformBuffer*> StaticUniformBuffers;
 };
 
-// This class is a shim to get AFR working. Currently the upper engine only queries for the 'Immediate Context'
-// once. However when in AFR we need to switch which context is active every frame so we return an instance of this class
-// as the default context so that we can control when to swap which device we talk to.
-// Because IRHICommandContext is pure virtual we can return the normal FD3D12CommandContext when not using mGPU thus there
-// is no additional overhead for the common case i.e. 1 GPU.
+// Version of command context to handle multi-GPU.  Because IRHICommandContext is pure virtual we can return the normal
+// FD3D12CommandContext when not using mGPU, thus there is no additional overhead for the common case i.e. 1 GPU.
 class FD3D12CommandContextRedirector final : public FD3D12CommandContextBase
 {
 public:
@@ -979,21 +952,6 @@ public:
 	FORCEINLINE virtual void RHISetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner) final override
 	{
 		ContextRedirect(RHISetShadingRate(ShadingRate, Combiner));
-	}
-
-	FORCEINLINE virtual void RHIWaitForTemporalEffect(const FName& InEffectName) final AFR_API_OVERRIDE
-	{
-		ContextRedirect(RHIWaitForTemporalEffect(InEffectName));
-	}
-
-	FORCEINLINE virtual void RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHITexture*> InTextures) final AFR_API_OVERRIDE
-	{
-		ContextRedirect(RHIBroadcastTemporalEffect(InEffectName, InTextures));
-	}
-
-	FORCEINLINE virtual void RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHIBuffer*> InBuffers) final AFR_API_OVERRIDE
-	{
-		ContextRedirect(RHIBroadcastTemporalEffect(InEffectName, InBuffers));
 	}
 
 	FORCEINLINE virtual void RHIBeginFrame() final override

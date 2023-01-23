@@ -13,10 +13,6 @@
 #include "PipelineStateCache.h"
 #include "ScenePrivate.h"
 
-#if WITH_MGPU
-DECLARE_GPU_STAT(AFRWaitForDistanceFieldAOHistory);
-#endif
-
 int32 GAOUseHistory = 1;
 FAutoConsoleVariableRef CVarAOUseHistory(
 	TEXT("r.AOUseHistory"),
@@ -322,15 +318,6 @@ void UpdateHistory(
 
 	if (BentNormalHistoryState && DistanceFieldAOUseHistory(View))
 	{
-#if WITH_MGPU
-		RDG_GPU_STAT_SCOPE(GraphBuilder, AFRWaitForDistanceFieldAOHistory);
-		AddPass(GraphBuilder, RDG_EVENT_NAME("WaitForTemporalEffect"), [&View](FRHICommandList& RHICmdList)
-		{
-			static const FName NameForTemporalEffect("DistanceFieldAOHistory");
-			RHICmdList.WaitForTemporalEffect(FName(NameForTemporalEffect, View.ViewState->UniqueID));
-		});
-#endif
-
 		FIntPoint BufferSize = GetBufferSizeForAO(View);
 
 		if (*BentNormalHistoryState 
@@ -526,11 +513,6 @@ void UpdateHistory(
 		DistanceFieldAOHistoryViewRect->Min = FIntPoint::ZeroValue;
 		DistanceFieldAOHistoryViewRect->Max.X = View.ViewRect.Size().X / GAODownsampleFactor;
 		DistanceFieldAOHistoryViewRect->Max.Y = View.ViewRect.Size().Y / GAODownsampleFactor;
-
-#if WITH_MGPU && 0 // TODO(RDG)
-		FRHITexture* TexturesToCopyForTemporalEffect[] = { BentNormalHistoryOutput->GetRHI() };
-		RHICmdList.BroadcastTemporalEffect(FName(NameForTemporalEffect, View.ViewState->UniqueID), TexturesToCopyForTemporalEffect);
-#endif
 	}
 	else
 	{

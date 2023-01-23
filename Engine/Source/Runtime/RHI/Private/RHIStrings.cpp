@@ -367,7 +367,6 @@ FString GetTextureCreateFlagsName(ETextureCreateFlags TextureCreateFlags)
 		case TexCreate_DepthStencilResolveTarget:		return TEXT("TexCreate_DepthStencilResolveTarget");
 		case TexCreate_Streamable:						return TEXT("TexCreate_Streamable");
 		case TexCreate_NoFastClearFinalize:				return TEXT("TexCreate_NoFastClearFinalize");
-		case TexCreate_AFRManual:						return TEXT("TexCreate_AFRManual");
 		case TexCreate_ReduceMemoryWithTilingMode:		return TEXT("TexCreate_ReduceMemoryWithTilingMode");
 		case TexCreate_AtomicCompatible:				return TEXT("TexCreate_AtomicCompatible");
 		case TexCreate_External:						return TEXT("TexCreate_External");
@@ -592,10 +591,16 @@ const TCHAR* GetTextureCreateFlagString(ETextureCreateFlags TextureCreateFlag)
 		return TEXT("Streamable");
 	case ETextureCreateFlags::NoFastClearFinalize:
 		return TEXT("NoFastClearFinalize");
-	case ETextureCreateFlags::AFRManual:
-		return TEXT("AFRManual");
+	case ETextureCreateFlags::Atomic64Compatible:
+		return TEXT("Atomic64Compatible");
 	case ETextureCreateFlags::ReduceMemoryWithTilingMode:
 		return TEXT("ReduceMemoryWithTilingMode");
+	case ETextureCreateFlags::AtomicCompatible:
+		return TEXT("AtomicCompatible");
+	case ETextureCreateFlags::External:
+		return TEXT("External");
+	case ETextureCreateFlags::MultiGPUGraphIgnore:
+		return TEXT("MultiGPUGraphIgnore");
 	}
 	return TEXT("");
 }

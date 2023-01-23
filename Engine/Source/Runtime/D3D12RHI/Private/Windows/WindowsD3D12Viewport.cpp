@@ -342,12 +342,12 @@ void FD3D12Viewport::ResizeInternal()
 
 		for (uint32 i = 0; i < NumBackBuffers; ++i)
 		{
-			// When BackbufferMultiGPUBinding == INDEX_NONE, cycle through each GPU (for AFR or debugging).
-			const uint32 BackBufferGPUIndex = BackbufferMultiGPUBinding >= 0 ? (uint32)BackbufferMultiGPUBinding : (i % GNumAlternateFrameRenderingGroups);
+			// When BackbufferMultiGPUBinding == INDEX_NONE, cycle through each GPU.
+			const uint32 BackBufferGPUIndex = BackbufferMultiGPUBinding == INDEX_NONE ? i % GNumExplicitGPUsForRendering : BackbufferMultiGPUBinding;
 			BackBufferGPUIndices.Add(BackBufferGPUIndex);
 		}
 
-		// Interleave the swapchains between the AFR devices
+		// Select the GPU for each element in the swapchain 
 		for (uint32 i = 0; i < NumBackBuffers; ++i)
 		{
 			const uint32 GPUIndex = BackBufferGPUIndices[i];

@@ -190,11 +190,6 @@ void FMetalGPUProfiler::BeginFrame()
 		CurrentEventNodeFrame = new FMetalEventNodeFrame(Context, GTriggerGPUProfile);
 		CurrentEventNodeFrame->StartFrame();
 		
-		if(GNumAlternateFrameRenderingGroups > 1)
-		{
-			GTriggerGPUProfile = false;
-		}
-
 		if(GTriggerGPUProfile)
 		{
 			bTrackingEvents = true;

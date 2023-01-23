@@ -779,35 +779,31 @@ void FD3D11DynamicRHI::RHIEndDrawingViewport(FRHIViewport* ViewportRHI,bool bPre
 		bNativelyPresented = Viewport->Present(bLockToVsync);
 	}
 
-	// Don't wait on the GPU when using SLI, let the driver determine how many frames behind the GPU should be allowed to get
-	if (GNumAlternateFrameRenderingGroups == 1)
-	{
-		if (bNativelyPresented)
-		{ 
-			static const auto CFinishFrameVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.FinishCurrentFrame"));
-			if (!CFinishFrameVar->GetValueOnRenderThread())
-			{
-				// Wait for the GPU to finish rendering the previous frame before finishing this frame.
-				Viewport->WaitForFrameEventCompletion();
-				Viewport->IssueFrameEvent();
-			}
-			else
-			{
-				// Finish current frame immediately to reduce latency
-				Viewport->IssueFrameEvent();
-				Viewport->WaitForFrameEventCompletion();
-			}
-		}
-
-		// If the input latency timer has been triggered, block until the GPU is completely
-		// finished displaying this frame and calculate the delta time.
-		if ( GInputLatencyTimer.RenderThreadTrigger )
+	if (bNativelyPresented)
+	{ 
+		static const auto CFinishFrameVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.FinishCurrentFrame"));
+		if (!CFinishFrameVar->GetValueOnRenderThread())
 		{
+			// Wait for the GPU to finish rendering the previous frame before finishing this frame.
 			Viewport->WaitForFrameEventCompletion();
-			uint32 EndTime = FPlatformTime::Cycles();
-			GInputLatencyTimer.DeltaTime = EndTime - GInputLatencyTimer.StartTime;
-			GInputLatencyTimer.RenderThreadTrigger = false;
+			Viewport->IssueFrameEvent();
 		}
+		else
+		{
+			// Finish current frame immediately to reduce latency
+			Viewport->IssueFrameEvent();
+			Viewport->WaitForFrameEventCompletion();
+		}
+	}
+
+	// If the input latency timer has been triggered, block until the GPU is completely
+	// finished displaying this frame and calculate the delta time.
+	if ( GInputLatencyTimer.RenderThreadTrigger )
+	{
+		Viewport->WaitForFrameEventCompletion();
+		uint32 EndTime = FPlatformTime::Cycles();
+		GInputLatencyTimer.DeltaTime = EndTime - GInputLatencyTimer.StartTime;
+		GInputLatencyTimer.RenderThreadTrigger = false;
 	}
 }
 

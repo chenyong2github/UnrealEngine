@@ -6678,8 +6678,7 @@ void FEngineLoop::AppPreExit( )
 	// which uses async tasks to wait until resources are safe to be deleted (for example, FMediaTextureResource).
 	// To avoid this, we set the frame number to the maximum possible value here, before waiting for the thread pool to die. It's safe to do so
 	// because FlushRenderingCommands() is called multiple times on exit before reaching this point, so there's no way the render thread has any
-	// more frames in flight. Note that simply incrementing the value doesn't work, because FGenericRHIGPUFence::WriteInternal adds
-	// GNumAlternateFrameRenderingGroups to the current frame number to account for multi-GPU, and we don't want to depend on that RHI export here.
+	// more frames in flight.
 	GFrameNumberRenderThread = MAX_uint32;
 
 	if (GIOThreadPool != nullptr)

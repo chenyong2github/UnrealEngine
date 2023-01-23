@@ -975,9 +975,8 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 
 
 		// If capturing every frame, only render to the GPUs that are actually being used
-		// this frame. Otherwise we will get poor performance in AFR. We can only determine
-		// this by querying the viewport back buffer on the render thread, so pass that
-		// along if it exists.
+		// this frame. We can only determine this by querying the viewport back buffer on
+		// the render thread, so pass that along if it exists.
 		FRenderTarget* GameViewportRT = nullptr;
 		if (CaptureComponent->bCaptureEveryFrame)
 		{
@@ -1006,7 +1005,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 			{
 				if (GameViewportRT != nullptr)
 				{
-					const FRHIGPUMask GPUMask = AFRUtils::GetGPUMaskForGroup(GameViewportRT->GetGPUMask(RHICmdList));
+					const FRHIGPUMask GPUMask = GameViewportRT->GetGPUMask(RHICmdList);
 					TextureRenderTargetResource->SetActiveGPUMask(GPUMask);
 				}
 				else
