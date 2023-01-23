@@ -14,7 +14,6 @@ DEFINE_LOG_CATEGORY(LogContentBundle);
 namespace ContentBundle
 {
 #if !NO_LOGGING
-
 	namespace LogPrivate
 	{
 		FString MakeDebugInfoString(const UContentBundleDescriptor& ContentBundleDescriptor)
@@ -30,34 +29,44 @@ namespace ContentBundle
 		FString MakeDebugInfoString(const UContentBundleDescriptor& ContentBundleDescriptor, UWorld* World)
 		{
 			return FString::Printf(TEXT("%s%s"), *MakeDebugInfoString(ContentBundleDescriptor), *MakeWorldDebugInfoString(World));
-		}
-
-		
+		}	
 	}
+#endif
 
 FString Log::MakeDebugInfoString(const FContentBundleBase& ContentBundle)
 {
+#if !NO_LOGGING
 	return LogPrivate::MakeDebugInfoString(*ContentBundle.GetDescriptor(), ContentBundle.GetInjectedWorld());
+#else
+	return FString();
+#endif
 }
 
 FString Log::MakeDebugInfoString(const FContentBundleClient& ContentBundleClient)
 {
+#if !NO_LOGGING
 	return LogPrivate::MakeDebugInfoString(*ContentBundleClient.GetDescriptor());
+#else
+	return FString();
+#endif
 }
 
 FString Log::MakeDebugInfoString(const FContentBundleContainer& ContentBundleContainer)
 {
+#if !NO_LOGGING
 	return LogPrivate::MakeWorldDebugInfoString(ContentBundleContainer.GetInjectedWorld());
+#else
+	return FString();
+#endif
 }
 
 FString Log::MakeDebugInfoString(const FContentBundleClient& ContentBundleClient, UWorld* World)
 {
+#if !NO_LOGGING
 	return LogPrivate::MakeDebugInfoString(*ContentBundleClient.GetDescriptor(), World);
+#else
+	return FString();
+#endif
 }
 
-
-
-
-
-#endif
 }

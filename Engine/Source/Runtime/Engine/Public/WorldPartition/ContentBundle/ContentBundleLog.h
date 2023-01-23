@@ -15,11 +15,9 @@ namespace ContentBundle
 {
 	namespace Log
 	{
-#if !NO_LOGGING
-		FString MakeDebugInfoString(const FContentBundleBase& ContentBundle);
-		FString MakeDebugInfoString(const FContentBundleClient& ContentBundleClient);
-		FString MakeDebugInfoString(const FContentBundleContainer& ContentBundleContainer);
-		FString MakeDebugInfoString(const FContentBundleClient& ContentBundleClient, UWorld* World);
-#endif
+		ENGINE_API FString MakeDebugInfoString(const FContentBundleBase& ContentBundle);
+		ENGINE_API FString MakeDebugInfoString(const FContentBundleClient& ContentBundleClient);
+		ENGINE_API FString MakeDebugInfoString(const FContentBundleContainer& ContentBundleContainer);
+		ENGINE_API FString MakeDebugInfoString(const FContentBundleClient& ContentBundleClient, UWorld* World);
 	}
 }
