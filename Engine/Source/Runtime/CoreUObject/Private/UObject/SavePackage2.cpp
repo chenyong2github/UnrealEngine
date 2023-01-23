@@ -529,25 +529,6 @@ ESavePackageResult ValidateExports(FSaveContext& SaveContext)
 		}
 	}
 
-#if WITH_EDITOR
-	if (GOutputCookingWarnings)
-	{
-		// check the name list for UniqueObjectNameForCooking cooking
-		if (SaveContext.NameExists(NAME_UniqueObjectNameForCookingComparisonIndex))
-		{
-			for (const FTaggedExport& Export : SaveContext.GetExports())
-			{
-				FName NameInUse = Export.Obj->GetFName();
-				if (NameInUse.GetComparisonIndex() == NAME_UniqueObjectNameForCookingComparisonIndex)
-				{
-					UObject* Outer = Export.Obj->GetOuter();
-					UE_LOG(LogSavePackage, Warning, TEXT("Saving object into cooked package %s which was created at cook time, Object Name %s, Full Path %s, Class %s, Outer %s, Outer class %s"), SaveContext.GetFilename(), *NameInUse.ToString(), *Export.Obj->GetFullName(), *Export.Obj->GetClass()->GetName(), Outer ? *Outer->GetName() : TEXT("None"), Outer ? *Outer->GetClass()->GetName() : TEXT("None"));
-				}
-			}
-		}
-	}
-#endif
-
 	// If this is a map package, make sure there is a world or level in the export map.
 	if (SaveContext.GetPackage()->ContainsMap())
 	{
@@ -579,7 +560,42 @@ ESavePackageResult ValidateExports(FSaveContext& SaveContext)
 		}
 	}
 
+	// Validate External Export Rules
+	if (SaveContext.HasExternalExportValidations())
+	{
+		TSet<UObject*> Exports;
+		Algo::Transform(SaveContext.GetExports(), Exports, [](const FTaggedExport& InExport) { return InExport.Obj; });
+
+		for (const TFunction<FSavePackageSettings::ExternalExportValidationFunc>& ValidateExport : SaveContext.GetExternalExportValidations())
+		{
+			SaveContext.Result = ValidateExport({ SaveContext.GetPackage(), Exports, SaveContext.IsGenerateSaveError() ? SaveContext.GetError() : nullptr });
+			if (SaveContext.Result != ESavePackageResult::Success)
+			{
+				return SaveContext.Result;
+			}
+		}
+	}
+
 	// Cooking checks
+#if WITH_EDITOR
+	if (GOutputCookingWarnings)
+	{
+		// check the name list for UniqueObjectNameForCooking cooking
+		if (SaveContext.NameExists(NAME_UniqueObjectNameForCookingComparisonIndex))
+		{
+			for (const FTaggedExport& Export : SaveContext.GetExports())
+			{
+				FName NameInUse = Export.Obj->GetFName();
+				if (NameInUse.GetComparisonIndex() == NAME_UniqueObjectNameForCookingComparisonIndex)
+				{
+					UObject* Outer = Export.Obj->GetOuter();
+					UE_LOG(LogSavePackage, Warning, TEXT("Saving object into cooked package %s which was created at cook time, Object Name %s, Full Path %s, Class %s, Outer %s, Outer class %s"), SaveContext.GetFilename(), *NameInUse.ToString(), *Export.Obj->GetFullName(), *Export.Obj->GetClass()->GetName(), Outer ? *Outer->GetName() : TEXT("None"), Outer ? *Outer->GetClass()->GetName() : TEXT("None"));
+				}
+			}
+		}
+	}
+#endif
+
 	if (SaveContext.IsCooking())
 	{
 		// Add the exports for the cook checker
@@ -820,8 +836,21 @@ ESavePackageResult ValidateImports(FSaveContext& SaveContext)
 		return ValidateIllegalReferences(SaveContext, PrivateObjects, ObjectsInOtherMaps);
 	}
 
-	ISavePackageValidator* Validator = SaveContext.GetPackageValidator();
-	if (Validator)
+	// Validate External Import Rules
+	if (SaveContext.HasExternalImportValidations())
+	{
+		for (const TFunction<FSavePackageSettings::ExternalImportValidationFunc>& ValidateImport : SaveContext.GetExternalImportValidations())
+		{
+			SaveContext.Result = ValidateImport({ SaveContext.GetPackage(), SaveContext.GetImports(), SaveContext.IsGenerateSaveError() ? SaveContext.GetError() : nullptr });
+			if (SaveContext.Result != ESavePackageResult::Success)
+			{
+				return SaveContext.Result;
+			}
+		}
+	}
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (ISavePackageValidator* Validator = SaveContext.GetPackageValidator())
 	{
 		ESavePackageResult ValidatorResult = Validator->ValidateImports(Package, Imports);
 		if (ValidatorResult != ESavePackageResult::Success)
@@ -829,6 +858,7 @@ ESavePackageResult ValidateImports(FSaveContext& SaveContext)
 			return ValidatorResult;
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Cooking checks
 	// Currently do not use the edl checker for the optional context

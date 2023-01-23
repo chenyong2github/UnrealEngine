@@ -237,7 +237,7 @@ namespace UE::Cook
 	struct FCookSavePackageContext
 	{
 		FCookSavePackageContext(const ITargetPlatform* InTargetPlatform,
-			ICookedPackageWriter* InPackageWriter, FStringView InWriterDebugName);
+			ICookedPackageWriter* InPackageWriter, FStringView InWriterDebugName, FSavePackageSettings InSettings);
 		~FCookSavePackageContext();
 
 		FSavePackageContext SaveContext;

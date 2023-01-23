@@ -128,6 +128,7 @@ struct FSavePackageArgs
 };
 
 /** Interface for SavePackage to test for caller-specific errors. */
+class UE_DEPRECATED(5.2, "Use a FSavePackageContext::ExternalValidationFunc if you need to run external validation") ISavePackageValidator;
 class ISavePackageValidator
 {
 public:
@@ -138,12 +139,83 @@ public:
 	virtual ESavePackageResult ValidateImports(const UPackage* Package, const TSet<UObject*>& Imports) = 0;
 };
 
+
+/** Param struct for external import validation functions */
+struct FImportsValidationContext
+{
+	FImportsValidationContext(const UPackage* InPackage, const TSet<UObject*>& InImports, FOutputDevice* InOutputDevice)
+		: Package(InPackage)
+		, Imports(InImports)
+		, OutputDevice(InOutputDevice)
+	{}
+
+	const UPackage* Package;
+	const TSet<UObject*>& Imports;
+	FOutputDevice* OutputDevice;
+};
+
+/** Param struct for external export validation functions */
+struct FExportsValidationContext
+{
+	FExportsValidationContext(const UPackage* InPackage, const TSet<UObject*>& InExports, FOutputDevice* InOutputDevice)
+		: Package(InPackage)
+		, Exports(InExports)
+		, OutputDevice(InOutputDevice)
+	{}
+
+	const UPackage* Package;
+	const TSet<UObject*>& Exports;
+	FOutputDevice* OutputDevice;
+};
+
+/** struct persistent settings used by all save unless overridden. @see FSavePackageContext */
+class FSavePackageSettings
+{
+public:
+	typedef ESavePackageResult ExternalImportValidationFunc(const FImportsValidationContext& InValidationContext);
+	typedef ESavePackageResult ExternalExportValidationFunc(const FExportsValidationContext& InValidationContext);
+	
+	FSavePackageSettings() = default;
+
+	/** Get the default settings by save when none are specified. */
+	COREUOBJECT_API static FSavePackageSettings& GetDefaultSettings();
+
+	COREUOBJECT_API bool IsDefault() const
+	{
+		return ExternalImportValidations.Num() == 0 && ExternalExportValidations.Num() == 0;
+	}
+
+	COREUOBJECT_API const TArray<TFunction<ExternalImportValidationFunc>>& GetExternalImportValidations() const
+	{
+		return ExternalImportValidations;
+	}
+	COREUOBJECT_API const TArray<TFunction<ExternalExportValidationFunc>>& GetExternalExportValidations() const
+	{
+		return ExternalExportValidations;
+	}
+
+	COREUOBJECT_API void AddExternalImportValidation(TFunction<ExternalImportValidationFunc> InValidation)
+	{
+		ExternalImportValidations.Add(MoveTemp(InValidation));
+	}
+	COREUOBJECT_API void AddExternalExportValidation(TFunction<ExternalExportValidationFunc> InValidation)
+	{
+		ExternalExportValidations.Add(MoveTemp(InValidation));
+	}
+
+private:
+	TArray<TFunction<ExternalImportValidationFunc>> ExternalImportValidations;
+	TArray<TFunction<ExternalExportValidationFunc>> ExternalExportValidations;
+};
+
 class FSavePackageContext
 {
 public:
-	FSavePackageContext(const ITargetPlatform* InTargetPlatform, IPackageWriter* InPackageWriter)
+
+	FSavePackageContext(const ITargetPlatform* InTargetPlatform, IPackageWriter* InPackageWriter, FSavePackageSettings InSettings = FSavePackageSettings())
 	: TargetPlatform(InTargetPlatform)
-	, PackageWriter(InPackageWriter) 
+	, PackageWriter(InPackageWriter)
+	, SavePackageSettings(MoveTemp(InSettings))
 	{
 		if (PackageWriter)
 		{
@@ -159,13 +231,25 @@ public:
 
 	COREUOBJECT_API ~FSavePackageContext();
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ISavePackageValidator* GetValidator()
 	{
-		return Validator.Get();
+		return Validator.Get();	
 	}
 	COREUOBJECT_API void SetValidator(TUniquePtr<ISavePackageValidator>&& InValidator)
 	{
 		Validator = MoveTemp(InValidator);
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	COREUOBJECT_API const TArray<TFunction<FSavePackageSettings::ExternalImportValidationFunc>>& GetExternalImportValidations() const
+	{
+		return SavePackageSettings.GetExternalImportValidations();
+	}
+
+	COREUOBJECT_API const TArray<TFunction<FSavePackageSettings::ExternalExportValidationFunc>>& GetExternalExportValidations() const
+	{
+		return SavePackageSettings.GetExternalExportValidations();
 	}
 
 	const ITargetPlatform* const TargetPlatform;
@@ -173,7 +257,10 @@ public:
 	IPackageWriter::FCapabilities PackageWriterCapabilities;
 
 private:
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TUniquePtr<ISavePackageValidator> Validator;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FSavePackageSettings SavePackageSettings;
 public:
 
 	UE_DEPRECATED(5.0, "bForceLegacyOffsets is no longer supported; remove uses of the variable")

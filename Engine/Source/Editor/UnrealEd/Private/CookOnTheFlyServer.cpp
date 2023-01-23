@@ -20,7 +20,6 @@
 #include "Containers/RingBuffer.h"
 #include "Cooker/AsyncIODelete.h"
 #include "Cooker/CookDirector.h"
-#include "Cooker/CookedSavePackageValidator.h"
 #include "Cooker/CookMPCollector.h"
 #include "Cooker/CookOnTheFlyServerInterface.h"
 #include "Cooker/CookPackageData.h"
@@ -9267,8 +9266,59 @@ UE::Cook::FCookSavePackageContext* UCookOnTheFlyServer::CreateSaveContext(const 
 
 	DiffModeHelper->InitializePackageWriter(PackageWriter);
 
-	FCookSavePackageContext* Context = new FCookSavePackageContext(TargetPlatform, PackageWriter, WriterDebugName);
-	Context->SaveContext.SetValidator(MakeUnique<FCookedSavePackageValidator>(TargetPlatform, *this));
+	// Setup save package settings (i.e. validation)
+	FSavePackageSettings SavePackageSettings = FSavePackageSettings::GetDefaultSettings();
+	{
+		// Setup Import Validation for suppressed module native classes
+		TSet<FName> DisabledNativeScriptPackages;
+		for (TSharedRef<IPlugin>& Plugin : IPluginManager::Get().GetEnabledPlugins())
+		{
+			if (!TargetPlatform->IsEnabledForPlugin(Plugin.Get()))
+			{
+				for (const FModuleDescriptor& Module : Plugin->GetDescriptor().Modules)
+				{
+					DisabledNativeScriptPackages.Add(FPackageName::GetModuleScriptPackageName(Module.Name));
+				}
+			}
+		}
+
+		SavePackageSettings.AddExternalImportValidation([SuppressedNativeScriptPackages = MoveTemp(DisabledNativeScriptPackages), TargetPlatform, this](const FImportsValidationContext& ValidationContext)
+			{
+				for (UObject* Object : ValidationContext.Imports)
+				{
+					UClass* Class = Cast<UClass>(Object);
+					if (Class && Class->IsNative() && SuppressedNativeScriptPackages.Contains(Class->GetPackage()->GetFName()))
+					{
+						FInstigator Instigator = GetInstigator(ValidationContext.Package->GetFName());
+						bool bIsError = true;
+						if (Instigator.Category == EInstigator::StartupPackage)
+						{
+							// StartupPackages might be around just because of the editor;
+							// if they're not available on client, ignore them without error
+							bIsError = false;
+						}
+
+						// If you receive this message in a package that you do want to cook, you can remove the object of the
+						// unavailable class by overriding UObject::NeedsLoadForTargetPlatform on that class to return false.
+						if (bIsError)
+						{
+							UE_ASSET_LOG(LogCook, Error, ValidationContext.Package, TEXT("Failed to cook %s for platform %s. It imports class %s, which is in a module that is not available on the platform."),
+								*ValidationContext.Package->GetName(), *TargetPlatform->PlatformName(), *Class->GetPathName());
+							return ESavePackageResult::ValidatorError;
+						}
+						else
+						{
+							UE_ASSET_LOG(LogCook, Display, ValidationContext.Package, TEXT("Skipping package %s for platform %s. It imports class %s, which is in a module that is not available on the platform."),
+								*ValidationContext.Package->GetName(), *TargetPlatform->PlatformName(), *Class->GetPathName());
+							return ESavePackageResult::ValidatorSuppress;
+						}
+					}
+				}
+				return ESavePackageResult::Success;
+			});
+	}
+
+	FCookSavePackageContext* Context = new FCookSavePackageContext(TargetPlatform, PackageWriter, WriterDebugName, MoveTemp(SavePackageSettings));
 	return Context;
 
 }

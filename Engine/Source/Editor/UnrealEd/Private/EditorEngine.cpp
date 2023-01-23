@@ -4581,6 +4581,14 @@ FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InAsset
 		}
 	}
 
+	// if no save package context was passed in and the default settings were modified, install a context for the save
+	TUniquePtr<FSavePackageContext> UniqueContext;
+	if (SaveArgs.SavePackageContext == nullptr && !FSavePackageSettings::GetDefaultSettings().IsDefault())
+	{
+		UniqueContext = MakeUnique<FSavePackageContext>(nullptr, nullptr, FSavePackageSettings::GetDefaultSettings());
+		SaveArgs.SavePackageContext = UniqueContext.Get();
+	}
+
 	SlowTask.EnterProgressFrame(10);
 
 	UWorld* World = Cast<UWorld>(Asset);

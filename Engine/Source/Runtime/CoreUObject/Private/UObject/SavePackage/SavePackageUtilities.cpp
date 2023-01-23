@@ -182,6 +182,12 @@ namespace UE
 	}
 }
 
+ FSavePackageSettings& FSavePackageSettings::GetDefaultSettings()
+{
+	static FSavePackageSettings Default;
+	return Default;
+}
+
 namespace SavePackageUtilities
 {
 const FName NAME_World("World");
