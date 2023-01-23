@@ -20,6 +20,7 @@
 #include "VolumeCache.h"
 #include "RHIStaticStates.h"
 #include "Misc/PathViews.h"
+#include "Misc/Paths.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceRenderTargetVolume)
@@ -85,14 +86,6 @@ namespace NDIRenderTargetVolumeLocal
 		TEXT("fx.Niagara.RenderTargetVolume.SimCacheUseOpenVDB"),
 		GSimCacheUseOpenVDB,
 		TEXT("Use OpenVDB as the backing data for the sim cache."),
-		ECVF_Default
-	);
-
-	FString GSimCacheOpenVDBBasePath = "";
-	static FAutoConsoleVariableRef CVarSimCacheOpenVDBBasePath(
-		TEXT("fx.Niagara.RenderTargetVolume.SimCacheOpenVDBBasePath"),
-		GSimCacheOpenVDBBasePath,
-		TEXT("Base path for OpenVDB output."),
 		ECVF_Default
 	);
 
@@ -573,9 +566,9 @@ UObject* UNiagaraDataInterfaceRenderTargetVolume::SimCacheBeginWrite(UObject* Si
 
 		FString SystemInstanceName = NiagaraSystemInstance->GetSystem()->GetName();
 
-		if (NDIRenderTargetVolumeLocal::GSimCacheOpenVDBBasePath == "")
+		if (GetDefault<UNiagaraSettings>()->SimCacheAuxiliaryFileBasePath == "")
 		{
-			UE_LOG(LogNiagara, Error, TEXT("You must set fx.Niagara.RenderTargetVolume.SimCacheOpenVDBPath"));
+			UE_LOG(LogNiagara, Error, TEXT("You must set SimCacheAuxiliaryFileBasePath in project settings"));
 			return nullptr;
 		}
 
@@ -590,8 +583,12 @@ UObject* UNiagaraDataInterfaceRenderTargetVolume::SimCacheBeginWrite(UObject* Si
 #endif
 
 		FString DIName = Proxy->SourceDIName.ToString();
-		FString FullFilePathSpec = NDIRenderTargetVolumeLocal::GSimCacheOpenVDBBasePath + "/NiagaraSimCache/" + ActorName + "/" + DIName + "_SimCache.{FrameIndex}.vdb";
+		FString FullFilePathSpec = GetDefault<UNiagaraSettings>()->SimCacheAuxiliaryFileBasePath + "/" + ActorName + "/" + DIName + "_SimCache.{FrameIndex}.vdb";
 		FullFilePathSpec.ReplaceInline(TEXT("//"), TEXT("/"));		
+		
+		FullFilePathSpec.ReplaceInline(TEXT("{project_dir}"), *FPaths::ProjectDir());
+
+		FullFilePathSpec = FPaths::ConvertRelativePathToFull(FullFilePathSpec);
 
 		// Create output directory		
 		const FString FileDirectory = FString(FPathViews::GetPath(FullFilePathSpec));
