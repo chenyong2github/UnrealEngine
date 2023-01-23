@@ -18,7 +18,7 @@ class FMemoryRuleSpec;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class SMemAllocTableTreeView : public STableTreeView
+class SMemAllocTableTreeView : public SSessionTableTreeView
 {
 public:
 	/** Default constructor. */
@@ -95,6 +95,8 @@ protected:
 	void OpenCallstackFrameSourceFileInIDE();
 	FText GetSelectedCallstackFrameFileName() const;
 	void OpenSourceFileInIDE(const TCHAR* File, uint32 Line) const;
+	void ExportMemorySnapshot() const;
+	bool IsExportMemorySnaphotAvailable() const;
 
 private:
 	void OnQueryInvalidated();

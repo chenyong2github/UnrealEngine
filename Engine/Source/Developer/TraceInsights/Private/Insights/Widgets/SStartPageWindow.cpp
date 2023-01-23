@@ -44,6 +44,7 @@
 #include "Insights/StoreService/StoreBrowser.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/Version.h"
+#include "Insights/ImportTool/TableImportTool.h"
 #include "Insights/Widgets/SInsightsSettings.h"
 #include "Insights/Widgets/SLazyToolTip.h"
 
@@ -1954,6 +1955,10 @@ FReply STraceStoreWindow::OnDragOver(const FGeometry& MyGeometry, const FDragDro
 				{
 					return FReply::Handled();
 				}
+				if (DraggedFileExtension == TEXT(".csv") || DraggedFileExtension == TEXT(".tsv"))
+				{
+					return FReply::Handled();
+				}
 			}
 		}
 	}
@@ -1978,6 +1983,11 @@ FReply STraceStoreWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEve
 				if (DraggedFileExtension == TEXT(".utrace"))
 				{
 					OpenTraceFile(Files[0]);
+					return FReply::Handled();
+				}
+				if (DraggedFileExtension == TEXT(".csv") || DraggedFileExtension == TEXT(".tsv"))
+				{
+					Insights::FTableImportTool::Get()->ImportFile(Files[0]);
 					return FReply::Handled();
 				}
 			}
@@ -2095,7 +2105,24 @@ TSharedRef<SWidget> STraceStoreWindow::MakeTraceListMenu()
 			NAME_None,
 			EUserInterfaceActionType::Button
 		);
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ImportTableButtonLabel", "Import table..."),
+			LOCTEXT("ImportTableButtonTooltip", "Open .csv or .tsv file."),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.FolderOpen"),
+			FUIAction(FExecuteAction::CreateLambda([]{ Insights::FTableImportTool::Get()->StartImportProcess(); })),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("DiffTablesButtonLabel", "Diff tables..."),
+			LOCTEXT("DiffTablesButtonTooltip", "Open 2 table files in diff mode."),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.FolderOpen"),
+			FUIAction(FExecuteAction::CreateLambda([]{ Insights::FTableImportTool::Get()->StartDiffProcess(); })),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
 	}
+
 	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection("AvailableTraces", LOCTEXT("TraceListMenu_Section_AvailableTraces", "Top Most Recently Created Traces"));

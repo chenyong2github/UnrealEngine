@@ -19,6 +19,7 @@
 #include "Insights/InsightsStyle.h"
 #include "Insights/Log.h"
 #include "Insights/Table/ViewModels/UntypedTable.h"
+#include "Insights/Table/Widgets/SUntypedDiffTableTreeView.h"
 #include "Insights/Table/Widgets/SUntypedTableTreeView.h"
 
 #define LOCTEXT_NAMESPACE "ImportTableTool"
@@ -95,12 +96,19 @@ void FTableImportTool::StartImportProcess()
 		return;
 	}
 
+	ImportFile(Filenames[0]);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTableImportTool::ImportFile(const FString& Filename)
+{
 	using namespace TraceServices;
 
-	FName TableId = GetTableID(Filenames[0]);
-	DisplayTable(TableId);
+	FName TableId = GetTableID(Filename);
+	DisplayImportTable(TableId);
 
-	FTableImportService::ImportTable(Filenames[0],
+	FTableImportService::ImportTable(Filename,
 		TableId,
 		[this](TSharedPtr<FTableImportCallbackParams> Params) {
 			this->TableImportServiceCallback(Params);
@@ -109,7 +117,119 @@ void FTableImportTool::StartImportProcess()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTableImportTool::DisplayTable(FName TableViewID)
+void FTableImportTool::StartDiffProcess()
+{
+	TArray<FString> Filenames;
+	bool bDialogResult = false;
+
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (DesktopPlatform)
+	{
+		const FString DefaultPath = FPaths::ProjectSavedDir();
+		const FString DefaultFile = TEXT("");
+		bDialogResult = DesktopPlatform->OpenFileDialog(
+			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+			LOCTEXT("DiffTableTitle", "Choose Tables").ToString(),
+			DefaultPath,
+			DefaultFile,
+			TEXT("Comma-Separated Values (*.csv)|*.csv|Tab-Separated Values (*.tsv)|*.tsv"),
+			EFileDialogFlags::Multiple,
+			Filenames
+		);
+	}
+
+	if (!bDialogResult)
+	{
+		return;
+	}
+
+	if (DesktopPlatform && Filenames.Num() <  2)
+	{
+		const FString DefaultPath = FPaths::ProjectSavedDir();
+		const FString DefaultFile = TEXT("");
+		bDialogResult = DesktopPlatform->OpenFileDialog(
+			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+			LOCTEXT("DiffTableBTitle", "Choose Table B").ToString(),
+			DefaultPath,
+			DefaultFile,
+			TEXT("Comma-Separated Values (*.csv)|*.csv|Tab-Separated Values (*.tsv)|*.tsv"),
+			EFileDialogFlags::None,
+			Filenames
+		);
+	}
+
+	if (!bDialogResult)
+	{
+		return;
+	}
+
+	if (Filenames.Num() != 2)
+	{
+		FMessageLog ReportMessageLog(FInsightsManager::Get()->GetLogListingName());
+		ReportMessageLog.Error(LOCTEXT("NotEnoughFilesSelected", "Exactly 2 files are required to be chosen!"));
+		ReportMessageLog.Notify();
+		return;
+	}
+
+	DiffFiles(Filenames[0], Filenames[1]);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTableImportTool::DiffFiles(const FString& FilenameA, const FString& FilenameB)
+{
+	using namespace TraceServices;
+
+	FName TableViewID = GetTableID(FilenameA+TEXT(",")+FilenameB);
+	DisplayDiffTable(TableViewID);
+
+	FTableImportService::ImportTable(FilenameA, TableViewID, 
+		[this, Name = FilenameA](TSharedPtr<FTableImportCallbackParams> Params)
+		{
+			ensure(Params.IsValid());
+
+			if (const FOpenImportedTableTabData* TableViewPtr = OpenTablesMap.Find(Params->TableId))
+			{
+				TSharedPtr<SUntypedDiffTableTreeView> TableView = StaticCastSharedPtr<SUntypedDiffTableTreeView>(TableViewPtr->TableTreeView);
+
+				if (Params->Result == TraceServices::ETableImportResult::ESuccess)
+				{
+					TableView->UpdateSourceTableA(Name, Params->Table);
+				}
+				else
+				{
+					FMessageLog ReportMessageLog(FInsightsManager::Get()->GetLogListingName());
+					ReportMessageLog.AddMessages(Params->Messages);
+					ReportMessageLog.Notify();
+				}
+			}
+		});
+	FTableImportService::ImportTable(FilenameB, TableViewID, 
+		[this, Name = FilenameB](TSharedPtr<FTableImportCallbackParams> Params)
+		{
+			ensure(Params.IsValid());
+
+			if (const FOpenImportedTableTabData* TableViewPtr = OpenTablesMap.Find(Params->TableId))
+			{
+				TSharedPtr<SUntypedDiffTableTreeView> TableView = StaticCastSharedPtr<SUntypedDiffTableTreeView>(TableViewPtr->TableTreeView);
+
+				if (Params->Result == TraceServices::ETableImportResult::ESuccess)
+				{
+					TableView->UpdateSourceTableB(Name, Params->Table);
+				}
+				else
+				{
+					FMessageLog ReportMessageLog(FInsightsManager::Get()->GetLogListingName());
+					ReportMessageLog.AddMessages(Params->Messages);
+					ReportMessageLog.Notify();
+				}
+			}
+		});
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTableImportTool::DisplayImportTable(FName TableViewID)
 {
 	FText ImportTableTreeViewTabDisplayName;
 	FString FileName = FPaths::GetCleanFilename(TableViewID.GetPlainNameString());
@@ -133,6 +253,45 @@ void FTableImportTool::DisplayTable(FName TableViewID)
 	FGlobalTabmanager::Get()->TryInvokeTab(TableViewID);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTableImportTool::DisplayDiffTable(FName TableViewID)
+{
+	FText ImportTableTreeViewTabDisplayName;
+	TArray<FString> Filenames;
+	ensure(TableViewID.GetPlainNameString().ParseIntoArray(Filenames, TEXT(",")) == 2);
+
+	const FText FilenameA = FText::FromString(FPaths::GetCleanFilename(Filenames[0]));
+	const FText FilenameB = FText::FromString(FPaths::GetCleanFilename(Filenames[1]));
+
+	if (TableViewID.GetNumber())
+	{
+		ImportTableTreeViewTabDisplayName = FText::Format(
+			LOCTEXT("TableImportTool.DiffTablesNumericTreeViewTabDisplayName", "{0} vs {1} ({2})"),
+			FilenameA,
+			FilenameB,
+			FText::AsNumber(TableViewID.GetNumber()));
+	}
+	else
+	{
+		ImportTableTreeViewTabDisplayName = FText::Format(
+			LOCTEXT("TableImportTool.DiffTablesTableTreeViewTabDisplayName", "{0} vs {1}"),
+			FilenameA,
+			FilenameB);
+	}
+	const FText ImportTableTreeViewTabTooltipText = FText::Format(
+			LOCTEXT("TableImportTool.DiffTablesTableTreeViewTabTooltip", "{0} vs {1}"),
+			FilenameA,
+			FilenameB);
+
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(TableViewID,
+		FOnSpawnTab::CreateSP(this, &FTableImportTool::SpawnTab_TableDiffTreeView, TableViewID, ImportTableTreeViewTabDisplayName))
+		.SetDisplayName(ImportTableTreeViewTabDisplayName)
+		.SetTooltipText(ImportTableTreeViewTabTooltipText)
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView"));
+
+	FGlobalTabmanager::Get()->TryInvokeTab(TableViewID);
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FTableImportTool::TableImportServiceCallback(TSharedPtr<TraceServices::FTableImportCallbackParams> Params)
@@ -174,6 +333,38 @@ TSharedRef<SDockTab> FTableImportTool::SpawnTab_TableImportTreeView(const FSpawn
 		.TabRole(ETabRole::PanelTab)
 		[
 			SAssignNew(TableTreeView, SUntypedTableTreeView, UntypedTable)
+			.RunInAsyncMode(true)
+		];
+
+	TableTreeView->SetCurrentOperationNameOverride(LOCTEXT("TableImportMessage", "Importing Data"));
+
+	FOpenImportedTableTabData OpenTabData;
+	OpenTabData.TableTreeView = TableTreeView;
+	OpenTabData.Tab = DockTab;
+
+	OpenTablesMap.Add(TableViewID, OpenTabData);
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateSP(this, &FTableImportTool::OnTableImportTreeViewTabClosed));
+
+	return DockTab;
+}
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+TSharedRef<SDockTab> FTableImportTool::SpawnTab_TableDiffTreeView(const FSpawnTabArgs& Args, FName TableViewID, FText InDisplayName)
+{
+	TSharedRef<FUntypedTable> UntypedTable = MakeShared<Insights::FUntypedTable>();
+	UntypedTable->Reset();
+	UntypedTable->SetDisplayName(InDisplayName);
+
+	TSharedPtr<Insights::SUntypedDiffTableTreeView> TableTreeView;
+
+	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+		.ShouldAutosize(false)
+		.TabRole(ETabRole::PanelTab)
+		[
+			SAssignNew(TableTreeView, SUntypedDiffTableTreeView, UntypedTable)
 			.RunInAsyncMode(true)
 		];
 

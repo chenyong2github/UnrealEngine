@@ -16,7 +16,7 @@ namespace Insights
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class SPackageTableTreeView : public STableTreeView
+class SPackageTableTreeView : public SSessionTableTreeView
 {
 public:
 	/** Default constructor. */

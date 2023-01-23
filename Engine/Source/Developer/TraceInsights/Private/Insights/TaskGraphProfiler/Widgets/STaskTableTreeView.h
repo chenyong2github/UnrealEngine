@@ -16,7 +16,7 @@ namespace Insights
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class STaskTableTreeView : public STableTreeView
+class STaskTableTreeView : public SSessionTableTreeView
 {
 private:
 	struct FColumnConfig

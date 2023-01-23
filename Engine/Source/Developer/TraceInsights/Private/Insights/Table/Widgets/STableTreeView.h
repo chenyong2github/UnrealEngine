@@ -33,7 +33,7 @@ class FUICommandList;
 
 namespace TraceServices
 {
-	class IAnalysisSession;
+class IAnalysisSession;
 }
 
 namespace Insights
@@ -180,7 +180,7 @@ public:
 protected:
 	void InitCommandList();
 
-	void ConstructWidget(TSharedPtr<FTable> InTablePtr);
+	virtual void ConstructWidget(TSharedPtr<FTable> InTablePtr);
 	virtual TSharedRef<SWidget> ConstructSearchBox();
 	virtual TSharedRef<SWidget> ConstructAdvancedFiltersButton();
 	virtual TSharedRef<SWidget> ConstructHierarchyBreadcrumbTrail();
@@ -190,9 +190,6 @@ protected:
 	virtual void ConstructFooterArea(TSharedRef<SVerticalBox> InWidgetContent);
 
 	void UpdateTree();
-
-	/** Called when the analysis session has changed. */
-	void InsightsManager_OnSessionChanged();
 
 	/**
 	 * Populates OutSearchStrings with the strings that should be used in searching.
@@ -426,6 +423,10 @@ protected:
 	bool ContextMenu_ResetColumns_CanExecute() const;
 	void ContextMenu_ResetColumns_Execute();
 
+	// HideAllColumns (ContextMenu)
+	bool ContextMenu_HideAllColumns_CanExecute() const;
+	void ContextMenu_HideAllColumns_Execute();
+
 	//Async
 	virtual void OnPreAsyncUpdate();
 	virtual void OnPostAsyncUpdate();
@@ -494,10 +495,6 @@ protected:
 protected:
 	/** Table view model. */
 	TSharedPtr<Insights::FTable> Table;
-
-	/** The analysis session used to populate this widget. */
-	TSharedPtr<const TraceServices::IAnalysisSession> Session;
-
 	//////////////////////////////////////////////////
 	// Tree View, Columns
 
@@ -628,6 +625,23 @@ protected:
 
 	/** A log listing name to be used for any errors or warnings. */
 	FName LogListingName;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class SSessionTableTreeView : public STableTreeView
+{
+public:
+	virtual ~SSessionTableTreeView() override;
+
+protected:
+	virtual void ConstructWidget(TSharedPtr<FTable> InTablePtr) override;
+
+	/** Called when the analysis session has changed. */
+	void InsightsManager_OnSessionChanged();
+
+	/** The analysis session used to populate this widget. */
+	TSharedPtr<const TraceServices::IAnalysisSession> Session;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

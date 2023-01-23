@@ -177,12 +177,6 @@ STableTreeView::~STableTreeView()
 		checkf(bIsCloseScheduled, TEXT("TableTreeView running in async mode was closed but OnClose() was not called. This can lead to a crash. Call OnClose() from the owner tab/window."))
 	}
 
-	// Remove ourselves from the Insights manager.
-	if (FInsightsManager::Get().IsValid())
-	{
-		FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
-	}
-
 	if (CurrentAsyncOpFilterConfigurator)
 	{
 		delete CurrentAsyncOpFilterConfigurator;
@@ -190,8 +184,6 @@ STableTreeView::~STableTreeView()
 	}
 
 	//FTableTreeViewCommands::Unregister();
-
-	Session.Reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -375,15 +367,6 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 	InitializeAndShowHeaderColumns();
 
 	InitCommandList();
-
-	// Register ourselves with the Insights manager.
-	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &STableTreeView::InsightsManager_OnSessionChanged);
-
-	// Update the Session (i.e. when analysis session was already started).
-	InsightsManager_OnSessionChanged();
-
-	CreateGroupings();
-	CreateSortings();
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -953,26 +936,25 @@ TSharedRef<SWidget> STableTreeView::TreeViewHeaderRow_GenerateColumnMenu(const F
 			NAME_None,
 			EUserInterfaceActionType::Button
 		);
+
+		FUIAction Action_HideAllColumns
+		(
+			FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_HideAllColumns_Execute),
+			FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_HideAllColumns_CanExecute)
+		);
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ContextMenu_HideAllColumns", "Hide All Columns"),
+			LOCTEXT("ContextMenu_HideAllColumns_Desc", "Resets tree view to hide all columns (except hierarchy)."),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
+			Action_HideAllColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
 	}
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STableTreeView::InsightsManager_OnSessionChanged()
-{
-	TSharedPtr<const TraceServices::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
-	if (NewSession != Session)
-	{
-		Session = NewSession;
-		Reset();
-	}
-	else
-	{
-		UpdateTree();
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2810,6 +2792,36 @@ void STableTreeView::ContextMenu_ResetColumns_Execute()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool STableTreeView::ContextMenu_HideAllColumns_CanExecute() const
+{
+	if (bIsUpdateRunning)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ContextMenu_HideAllColumns_Execute()
+{
+	ColumnBeingSorted = GetDefaultColumnBeingSorted();
+	ColumnSortMode = GetDefaultColumnSortMode();
+	UpdateCurrentSortingByColumn();
+
+	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
+	{
+		FTableColumn& Column = ColumnRef.Get();
+		if (Column.IsVisible() && Column.CanBeHidden())
+		{
+			HideColumn(Column);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STableTreeView::Reset()
 {
 	StatsStartTime = 0.0;
@@ -3754,6 +3766,52 @@ void STableTreeView::StopAllTableDataTasks(bool bWait)
 		}
 
 		DataTaskInfos.Empty();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// SSessionTableTreeView
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+SSessionTableTreeView::~SSessionTableTreeView()
+{
+	// Remove ourselves from the Insights manager.
+	if (FInsightsManager::Get().IsValid())
+	{
+		FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
+	}
+
+	Session.Reset();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SSessionTableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
+{
+	STableTreeView::ConstructWidget(InTablePtr);
+	// Register ourselves with the Insights manager.
+	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &SSessionTableTreeView::InsightsManager_OnSessionChanged);
+
+	// Update the Session (i.e. when analysis session was already started).
+	InsightsManager_OnSessionChanged();
+
+	CreateGroupings();
+	CreateSortings();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SSessionTableTreeView::InsightsManager_OnSessionChanged()
+{
+	TSharedPtr<const TraceServices::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
+	if (NewSession != Session)
+	{
+		Session = NewSession;
+		Reset();
+	}
+	else
+	{
+		UpdateTree();
 	}
 }
 

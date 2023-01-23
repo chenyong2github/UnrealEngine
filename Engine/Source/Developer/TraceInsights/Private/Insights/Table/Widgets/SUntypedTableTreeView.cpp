@@ -81,7 +81,7 @@ void SUntypedTableTreeView::RebuildTree(bool bResync)
 	TSharedPtr<TraceServices::IUntypedTable> SourceTable = UntypedTable->GetSourceTable();
 	TSharedPtr<TraceServices::IUntypedTableReader> TableReader = UntypedTable->GetTableReader();
 
-	if (Session.IsValid() && SourceTable.IsValid() && TableReader.IsValid())
+	if (SourceTable.IsValid() && TableReader.IsValid())
 	{
 		const int32 TotalRowCount = static_cast<int32>(SourceTable->GetRowCount());
 		if (TotalRowCount != TableTreeNodes.Num())

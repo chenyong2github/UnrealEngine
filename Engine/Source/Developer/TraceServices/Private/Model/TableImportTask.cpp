@@ -91,7 +91,7 @@ ETableImportResult FTableImportTask::ImportTable()
 
 bool FTableImportTask::ParseHeader(const FString& HeaderLine)
 {
-	HeaderLine.ParseIntoArray(ColumnNames, *Separator);
+	HeaderLine.ParseIntoArray(ColumnNames, *Separator, false);
 	if (ColumnNames.Num() == 0)
 	{
 		AddError(FText::Format(LOCTEXT("NoColumnsMsg", "Import failed because the file did not contain any columns."), FText::FromString(FilePath)));
@@ -119,16 +119,21 @@ bool FTableImportTask::CreateLayout(const FString& Line)
 		{
 			return Row.GetValue(Index);
 		};
+		
+		if (ColumnNames[Index].IsEmpty())
+		{
+			ColumnNames[Index] = FString::Format(TEXT("Column {0}"), {Index});
+		}
 
 		if (Values[Index].IsNumeric())
 		{
 			if (Values[Index].Contains(TEXT(".")))
 			{
-				Layout.AddColumn<double>(*ColumnNames[Index], ProjectorFunc);
+				Layout.AddColumn<double>(*ColumnNames[Index], ProjectorFunc, TableColumnDisplayHint_Summable);
 			}
 			else
 			{
-				Layout.AddColumn<uint32>(*ColumnNames[Index], ProjectorFunc);
+				Layout.AddColumn<uint32>(*ColumnNames[Index], ProjectorFunc, TableColumnDisplayHint_Summable);
 			}
 		}
 		else
@@ -162,33 +167,33 @@ bool FTableImportTask::ParseData(TArray<FString>& Lines)
 		{
 			ETableColumnType ColumnType = Layout.GetColumnType(ValueIndex);
 			const TCHAR* Value = *Values[ValueIndex];
-			if (ColumnType == ETableColumnType::TableColumnType_CString)
+			if (ColumnType == TableColumnType_CString)
 			{
 				const TCHAR* StoredValue = Table->GetStringStore().Store(Value);
 				NewRow.SetValue(ValueIndex, StoredValue);
 			}
-			else if (ColumnType == ETableColumnType::TableColumnType_Double)
+			else if (ColumnType == TableColumnType_Double)
 			{
 				if (!Values[ValueIndex].IsNumeric())
 				{
-					Layout.SetColumnType(ValueIndex, ETableColumnType::TableColumnType_CString);
+					Layout.SetColumnType(ValueIndex, TableColumnType_CString);
 					Restart = true;
 					break;
 				}
 
 				NewRow.SetValue(ValueIndex, FCString::Atod(Value));
 			}
-			else if (ColumnType == ETableColumnType::TableColumnType_Int)
+			else if (ColumnType == TableColumnType_Int)
 			{
 				if (!Values[ValueIndex].IsNumeric())
 				{
-					Layout.SetColumnType(ValueIndex, ETableColumnType::TableColumnType_CString);
+					Layout.SetColumnType(ValueIndex, TableColumnType_CString);
 					Restart = true;
 					break;
 				}
 				else if (Values[ValueIndex].Contains(TEXT(".")))
 				{
-					Layout.SetColumnType(ValueIndex, ETableColumnType::TableColumnType_Double);
+					Layout.SetColumnType(ValueIndex, TableColumnType_Double);
 					Restart = true;
 					break;
 				}
@@ -225,14 +230,14 @@ void FTableImportTask::SplitLineIntoValues(const FString& InLine, TArray<FString
 		}
 		else if(!IsInQuotes && InLine[Index] == Separator[0])
 		{
-			FString Value = InLine.Mid(Start, Index - Start);
-			OutValues.Add(Value.TrimQuotes());
+			FString Value = InLine.Mid(Start, Index - Start).TrimQuotes();
+			OutValues.Add(std::move(Value));
 			Start = Index + 1;
 		}
 	}
 
-	FString Value = InLine.Mid(Start, Index - Start);
-	OutValues.Add(Value.TrimQuotes());
+	FString Value = InLine.Mid(Start, Index - Start).TrimQuotes();
+	OutValues.Add(std::move(Value));
 }
 
 bool FTableImportTask::LoadFileToStringArray(const FString &InFilePath, TArray<FString>& Lines)

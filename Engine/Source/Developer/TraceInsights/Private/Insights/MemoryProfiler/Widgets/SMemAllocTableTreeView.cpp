@@ -13,6 +13,9 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SToolTip.h"
+#include "DesktopPlatformModule.h"
+#include "HAL/PlatformFileManager.h"
+#include "Logging/MessageLog.h"
 
 // TraceServices
 #include "Common/ProviderLock.h"
@@ -27,6 +30,7 @@
 #include "Insights/InsightsStyle.h"
 #include "Insights/MemoryProfiler/Common/SymbolSearchPathsHelper.h"
 #include "Insights/MemoryProfiler/MemoryProfilerManager.h"
+#include "Insights/MemoryProfiler/ViewModels/CallstackFormatting.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocGroupingByCallstack.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocGroupingByHeap.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocGroupingBySize.h"
@@ -1470,6 +1474,25 @@ void SMemAllocTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 		}
 		MenuBuilder.EndSection();
 	}
+
+	{
+		const FText ItemLabel = LOCTEXT("ContextMenu_Export_SubMenu", "Export snaphot");
+		const FText ItemToolTip = LOCTEXT("ContextMenu_Export_Desc_SubMenu", "Export memory snaphot to construct diff later");
+
+		FUIAction Action_ExportSnapshot
+		(
+			FExecuteAction::CreateSP(this, &SMemAllocTableTreeView::ExportMemorySnapshot),
+			FCanExecuteAction::CreateSP(this, &SMemAllocTableTreeView::IsExportMemorySnaphotAvailable)
+		);
+		MenuBuilder.AddMenuEntry(
+			ItemLabel,
+			ItemToolTip,
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Save"),
+			Action_ExportSnapshot,
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1644,6 +1667,206 @@ void SMemAllocTableTreeView::OpenSourceFileInIDE(const TCHAR* InFile, uint32 Lin
 	{
 		SourceCodeAccessModule.OnOpenFileFailed().Broadcast(File);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemAllocTableTreeView::ExportMemorySnapshot() const
+{
+	// 1. Choose file
+	FString DefaultFile = TEXT("Table.tsv");
+	if (Table.IsValid() && !Table->GetDisplayName().IsEmpty())
+	{
+		DefaultFile = Table->GetDisplayName().ToString();
+		DefaultFile.RemoveSpacesInline();
+	}
+
+	TArray<FString> SaveFilenames;
+	bool bDialogResult = false;
+
+	if (IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get())
+	{
+		const FString DefaultPath = FPaths::ProjectSavedDir();
+		bDialogResult = DesktopPlatform->SaveFileDialog(
+			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+			LOCTEXT("ExportFileTitle", "Export Table").ToString(),
+			DefaultPath,
+			DefaultFile,
+			TEXT("Comma-Separated Values (*.csv)|*.csv|Tab-Separated Values (*.tsv)|*.tsv|Text Files (*.txt)|*.txt|All Files (*.*)|*.*"),
+			EFileDialogFlags::None,
+			SaveFilenames
+		);
+	}
+
+	if (!bDialogResult || SaveFilenames.Num() == 0)
+	{
+		return;
+	}
+
+	const FString& Path = SaveFilenames[0];
+	const TCHAR Separator = Path.EndsWith(TEXT(".csv")) ? TEXT(',') : TEXT('\t');
+
+	const auto ExportFileHandle = std::unique_ptr<IFileHandle>(FPlatformFileManager::Get().GetPlatformFile().OpenWrite(*Path));
+
+	if (ExportFileHandle == nullptr)
+	{
+		FMessageLog ReportMessageLog((LogListingName != NAME_None) ? LogListingName : TEXT("Other"));
+		ReportMessageLog.Error(LOCTEXT("FailedToOpenFile", "Export failed. Failed to open file for write."));
+		ReportMessageLog.Notify();
+		return;
+	}
+	
+	UTF16CHAR BOM = UNICODE_BOM;
+	ExportFileHandle->Write((uint8*)&BOM, sizeof(UTF16CHAR));
+	
+	static constexpr TCHAR LineEnd = TEXT('\n');
+	static constexpr TCHAR QuotationMarkBegin = TEXT('\"');
+	static constexpr TCHAR QuotationMarkEnd = TEXT('\"');
+
+	bool IsFirstRow = true;
+	auto WriteColumnHeader = [Separator](FStringBuilderBase& OutData, const FTableColumn& Column)
+		{
+			FString Value = Column.GetShortName().ToString().ReplaceCharWithEscapedChar();
+			int32 CharIndex;
+			if (Value.FindChar(Separator, CharIndex))
+			{
+				OutData += QuotationMarkBegin;
+				OutData += Value;
+				OutData += QuotationMarkEnd;
+			}
+			else
+			{
+				OutData += Value;
+			}
+		};
+	auto WriteColumn = [Separator](FStringBuilderBase& OutData, const FTableColumn& Column, const FTableTreeNode& Node)
+		{
+			FString Value = Column.GetValue(Node)->AsString().ReplaceCharWithEscapedChar();
+			int32 CharIndex;
+			if (Value.FindChar(Separator, CharIndex))
+			{
+				OutData << QuotationMarkBegin;
+				OutData << Value;
+				OutData << QuotationMarkEnd;
+			}
+			else
+			{
+				OutData << Value;
+			}
+		};
+	auto WriteCallstackColumn = [Separator](FStringBuilderBase& OutData, const FTableTreeNode& Node)
+		{
+			const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+			const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
+			if (Alloc)
+			{
+				if (!Alloc->Callstack)
+				{
+					OutData << QuotationMarkBegin;
+					OutData << GetCallstackNotAvailableString();
+					OutData << QuotationMarkEnd;
+					return;
+				}
+
+				if (Alloc->Callstack->Num() == 0)
+				{
+					OutData << QuotationMarkBegin;
+					OutData << GetEmptyCallstackString();
+					OutData << QuotationMarkEnd;
+					return;
+				}
+				
+				const uint32 NumCallstackFrames = Alloc->Callstack->Num();
+				check(NumCallstackFrames <= 256);
+				OutData << QuotationMarkBegin;
+				for (uint32 Index = 0; Index < NumCallstackFrames; ++Index)
+				{
+					if (Index != 0)
+					{
+						OutData << TEXT("/");
+					}
+					const TraceServices::FStackFrame* Frame = Alloc->Callstack->Frame(static_cast<uint8>(Index));
+					check(Frame != nullptr);
+					FormatStackFrame(*Frame, OutData, EStackFrameFormatFlags::ModuleAndSymbol);
+				}
+				OutData << QuotationMarkEnd;
+			}
+		};
+	const FTableColumn& StartEventIndexColumn = *GetTable()->FindColumn(FMemAllocTableColumns::StartEventIndexColumnId);
+	const FTableColumn& EndEventIndexColumn = *GetTable()->FindColumn(FMemAllocTableColumns::EndEventIndexColumnId);
+	const FTableColumn& EventDistanceColumn = *GetTable()->FindColumn(FMemAllocTableColumns::EventDistanceColumnId);
+	const FTableColumn& StartTimeColumn = *GetTable()->FindColumn(FMemAllocTableColumns::StartTimeColumnId);
+	const FTableColumn& EndTimeColumn = *GetTable()->FindColumn(FMemAllocTableColumns::EndTimeColumnId);
+	const FTableColumn& DurationColumn = *GetTable()->FindColumn(FMemAllocTableColumns::DurationColumnId);
+	const FTableColumn& AddressColumn = *GetTable()->FindColumn(FMemAllocTableColumns::AddressColumnId);
+	const FTableColumn& MemoryPageColumn = *GetTable()->FindColumn(FMemAllocTableColumns::MemoryPageColumnId);
+	const FTableColumn& SizeColumn = *GetTable()->FindColumn(FMemAllocTableColumns::SizeColumnId);
+	const FTableColumn& TagColumn = *GetTable()->FindColumn(FMemAllocTableColumns::TagColumnId);
+	const FTableColumn& AssetColumn = *GetTable()->FindColumn(FMemAllocTableColumns::AssetColumnId);
+	const FTableColumn& ClassNameColumn = *GetTable()->FindColumn(FMemAllocTableColumns::ClassNameColumnId);
+	const FTableColumn& FunctionColumn = *GetTable()->FindColumn(FMemAllocTableColumns::FunctionColumnId);
+	const FTableColumn& SourceFileColumn = *GetTable()->FindColumn(FMemAllocTableColumns::SourceFileColumnId);
+
+	// 2. Iterate over TreeNodes
+	TStringBuilder<2048> Buffer;
+	for (const TSharedPtr<FTableTreeNode>& Node : TableTreeNodes)
+	{
+		// Export only leaves
+		if (Node->IsGroup()) continue;
+		// String buffer optimization
+		Buffer.Reset();
+
+		if (IsFirstRow)
+		{
+			WriteColumnHeader(Buffer, StartEventIndexColumn); Buffer += Separator;
+			WriteColumnHeader(Buffer, EndEventIndexColumn); Buffer += Separator;
+			WriteColumnHeader(Buffer, EventDistanceColumn); Buffer += Separator;
+			WriteColumnHeader(Buffer, StartTimeColumn); Buffer += Separator;
+			WriteColumnHeader(Buffer, EndTimeColumn); Buffer += Separator;
+			WriteColumnHeader(Buffer, DurationColumn); Buffer += Separator;
+			WriteColumnHeader(Buffer, AddressColumn); Buffer += Separator;
+			WriteColumnHeader(Buffer, MemoryPageColumn); Buffer += Separator;
+			WriteColumnHeader(Buffer, SizeColumn); Buffer += Separator;
+			WriteColumnHeader(Buffer, TagColumn); Buffer += Separator;
+			WriteColumnHeader(Buffer, AssetColumn); Buffer += Separator;
+			WriteColumnHeader(Buffer, ClassNameColumn); Buffer += Separator;
+			WriteColumnHeader(Buffer, FunctionColumn); Buffer += Separator;
+			WriteColumnHeader(Buffer, SourceFileColumn); Buffer += Separator;
+			Buffer += TEXT("Callstack"); Buffer += LineEnd;
+
+			IsFirstRow = false;
+		}
+
+		// 3. Export these column values as is:
+		WriteColumn(Buffer, StartEventIndexColumn, *Node); Buffer += Separator;
+		WriteColumn(Buffer, EndEventIndexColumn, *Node); Buffer += Separator;
+		WriteColumn(Buffer, EventDistanceColumn, *Node); Buffer += Separator;
+		WriteColumn(Buffer, StartTimeColumn, *Node); Buffer += Separator;
+		WriteColumn(Buffer, EndTimeColumn, *Node); Buffer += Separator;
+		WriteColumn(Buffer, DurationColumn, *Node); Buffer += Separator;
+		WriteColumn(Buffer, AddressColumn, *Node); Buffer += Separator;
+		WriteColumn(Buffer, MemoryPageColumn, *Node); Buffer += Separator;
+		WriteColumn(Buffer, SizeColumn, *Node); Buffer += Separator;
+		WriteColumn(Buffer, TagColumn, *Node); Buffer += Separator;
+		WriteColumn(Buffer, AssetColumn, *Node); Buffer += Separator;
+		WriteColumn(Buffer, ClassNameColumn, *Node); Buffer += Separator;
+		WriteColumn(Buffer, FunctionColumn, *Node); Buffer += Separator;
+		WriteColumn(Buffer, SourceFileColumn, *Node); Buffer += Separator;
+		WriteCallstackColumn(Buffer, *Node); Buffer += LineEnd;
+
+		// 5. Write rows to file
+		FTCHARToUTF16 UTF16String(*Buffer, Buffer.Len());
+		ExportFileHandle->Write((const uint8*)UTF16String.Get(), UTF16String.Length() * sizeof(UTF16CHAR));
+	}
+
+	ExportFileHandle->Flush();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SMemAllocTableTreeView::IsExportMemorySnaphotAvailable() const
+{
+	return !TableTreeNodes.IsEmpty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

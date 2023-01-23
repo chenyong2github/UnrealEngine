@@ -59,15 +59,20 @@ public:
 	virtual void OnWindowClosedEvent() override;
 
 	void StartImportProcess();
-
-	void DisplayTable(FName TableViewID);
-	void TableImportServiceCallback(TSharedPtr<TraceServices::FTableImportCallbackParams> Params);
-
-	TSharedRef<SDockTab> SpawnTab_TableImportTreeView(const FSpawnTabArgs& Args, FName TableViewID, FText InDisplayName);
-	void OnTableImportTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+	void ImportFile(const FString& Filename);
+	void StartDiffProcess();
+	void DiffFiles(const FString& FilenameA, const FString& FilenameB);
 
 	void CloseAllOpenTabs();
+
 private:
+	TSharedRef<SDockTab> SpawnTab_TableImportTreeView(const FSpawnTabArgs& Args, FName TableViewID, FText InDisplayName);
+	TSharedRef<SDockTab> SpawnTab_TableDiffTreeView(const FSpawnTabArgs& Args, FName TableViewID, FText InDisplayName);
+	void OnTableImportTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	void DisplayImportTable(FName TableViewID);
+	void DisplayDiffTable(FName TableViewID);
+	void TableImportServiceCallback(TSharedPtr<TraceServices::FTableImportCallbackParams> Params);
 
 	FName GetTableID(const FString& Path);
 	static TSharedPtr<FTableImportTool> Instance;
