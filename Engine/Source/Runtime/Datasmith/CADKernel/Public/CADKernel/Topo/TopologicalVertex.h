@@ -168,8 +168,15 @@ public:
 				}
 				TopologicalLink.Reset();
 			}
-			SetDeleted();
+			Delete();
 		}
+	}
+
+	virtual void Empty() override
+	{
+		ConnectedEdges.Empty();
+		Mesh.Reset();
+		TLinkable<FTopologicalVertex, FVertexLink>::Empty();
 	}
 
 	bool IsBorderVertex();

@@ -116,7 +116,7 @@ public:
 		return ((States & EHaveStates::IsDeleted) == EHaveStates::IsDeleted);
 	}
 
-	void SetDeleted() const
+	void SetDeletedMarker() const
 	{
 		States |= EHaveStates::IsDeleted;
 	}

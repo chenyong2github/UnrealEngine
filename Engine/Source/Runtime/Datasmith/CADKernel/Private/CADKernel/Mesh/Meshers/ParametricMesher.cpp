@@ -124,7 +124,7 @@ void FParametricMesher::MeshEntities()
 	FProgress ProgressBar(Faces.Num() * 2, TEXT("Meshing Entities : Find quad surfaces"));
 
 #ifdef CADKERNEL_DEV
-	MesherReport.Chronos.ApplyCriteriaDuration = FChrono::Elapse(ApplyCriteriaStartTime);
+	MesherReport.Chronos.ApplyCriteriaDuration = FChrono::Elapse(StartTime);
 #endif
 
 	FTimePoint MeshingStartTime = FChrono::Now();
@@ -171,13 +171,16 @@ void FParametricMesher::ApplyFaceCriteria(FTopologicalFace& Face)
 		return;
 	}
 
-	FCriteriaGrid Grid(Face);
-	if (Face.IsDeleted())
+	if (!Face.ComputeCriteriaGridSampling())
 	{
+		// The face is considered as degenerate, the face is delete, the process is canceled
 		return;
 	}
 
-	Grid.ApplyCriteria(GetMeshModel().GetCriteria());
+	FCriteriaGrid Grid(Face);
+
+	Face.InitDeltaUs();
+	Face.ApplyCriteria(GetMeshModel().GetCriteria(), Grid);
 }
 
 void FParametricMesher::ApplyEdgeCriteria(FTopologicalEdge& Edge)

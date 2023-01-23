@@ -30,6 +30,33 @@ enum class ESewOption : uint8
 
 ENUM_CLASS_FLAGS(ESewOption);
 
+namespace SewOption
+{
+
+static ESewOption GetFromOptions(bool bGStitchingForceSew, bool bGStitchingRemoveThinFaces, bool bGStitchingRemoveDuplicatedFaces)
+{
+	ESewOption Option = ESewOption::None;
+
+	if (bGStitchingForceSew)
+	{
+		Option |= ESewOption::ForceJoining;
+	}
+
+	if (bGStitchingRemoveThinFaces)
+	{
+		Option |= ESewOption::RemoveThinFaces;
+	}
+
+	if (bGStitchingRemoveDuplicatedFaces)
+	{
+		Option |= ESewOption::RemoveDuplicatedFaces;
+	}
+
+	return Option;
+}
+
+}
+
 struct FTopomakerOptions
 {
 	ESewOption SewOptions;

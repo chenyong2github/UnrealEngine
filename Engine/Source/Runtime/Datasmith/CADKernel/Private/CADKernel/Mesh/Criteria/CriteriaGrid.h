@@ -8,12 +8,10 @@
 namespace UE::CADKernel
 {
 class FTopologicalFace;
-class FCriterion;
 
 class FCriteriaGrid
 {
 protected:
-	FTopologicalFace& Face;
 
 	const FCoordinateGrid& CoordinateGrid;
 	int32 TrueUcoorindateCount;
@@ -34,18 +32,23 @@ protected:
 		return TrueVIndex * TrueUcoorindateCount + TrueUIndex;
 	}
 
-	const FPoint& GetPoint(int32 UIndex, int32 VIndex, bool bIsInterU, bool bIsInterV, FVector3f* normal = nullptr) const;
-	void Init();
-
-public:
-	FCriteriaGrid(FTopologicalFace& Surface);
-
-	FTopologicalFace& GetSurface()
+	const FPoint& GetPoint(int32 UIndex, int32 VIndex, bool bIsInternalU, bool bIsInternalV, FVector3f* OutNormal = nullptr) const
 	{
-		return Face;
+		int32 Index = GetIndex(UIndex, VIndex, bIsInternalU, bIsInternalV);
+		ensureCADKernel(Grid.Points3D.IsValidIndex(Index));
+
+		if (OutNormal)
+		{
+			*OutNormal = Grid.Normals[Index];
+		}
+		return Grid.Points3D[Index];
 	}
 
-	void ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& GetCriteria) const;
+	void Init(const FTopologicalFace& Face);
+
+public:
+
+	FCriteriaGrid(const FTopologicalFace& InFace);
 
 	double GetCoordinate(EIso Iso, int32 ind) const
 	{
@@ -92,7 +95,10 @@ public:
 		return GetPoint(iU, iV, true, true, normal);
 	}
 
+#ifdef DISPLAY_CRITERIA_GRID
 	void Display() const;
+#endif
+
 };
 }
 

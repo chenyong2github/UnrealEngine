@@ -1133,7 +1133,7 @@ void FTopomaker::SplitIntoConnectedShells()
 		if (FaceSubset.MainShell != nullptr)
 		{
 			FShell* Shell = (FShell*)FaceSubset.MainShell;
-			Shell->Empty(FaceSubset.Faces.Num());
+			Shell->Empty();
 			Shell->Add(FaceSubset.Faces);
 		}
 		else

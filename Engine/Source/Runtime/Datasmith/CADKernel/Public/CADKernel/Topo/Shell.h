@@ -89,7 +89,7 @@ public:
 		ResetMarkersRecursivelyOnEntities((TArray<TOrientedEntity<FEntity>>&) TopologicalFaces);
 	}
 
-	void Empty(int32 NewSize = 0);
+	virtual void Empty() override;
 
 	void Add(TSharedRef<FTopologicalFace> InTopologicalFace, EOrientation InOrientation);
 	void Add(TArray<FTopologicalFace*> Faces);

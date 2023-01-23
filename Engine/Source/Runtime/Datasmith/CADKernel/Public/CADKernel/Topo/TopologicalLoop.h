@@ -79,6 +79,12 @@ public:
 
 	~FTopologicalLoop() = default;
 
+	virtual void Empty() override
+	{
+		Edges.Empty();
+		FTopologicalEntity::Empty();
+	}
+
 	static TSharedPtr<FTopologicalLoop> Make(const TArray<TSharedPtr<FTopologicalEdge>>& EdgeList, const TArray<EOrientation>& EdgeDirections, const bool bIsExternalLoop, const double GeometricTolerance);
 
 	void DeleteLoopEdges();

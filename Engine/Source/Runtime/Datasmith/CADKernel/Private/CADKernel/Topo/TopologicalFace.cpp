@@ -10,6 +10,8 @@
 #include "CADKernel/Geo/Sampler/SamplerOnChord.h"
 #include "CADKernel/Geo/Sampling/Polyline.h"
 #include "CADKernel/Geo/Surfaces/Surface.h"
+#include "CADKernel/Mesh/Criteria/CriteriaGrid.h"
+#include "CADKernel/Mesh/Criteria/Criterion.h"
 #include "CADKernel/Mesh/Structure/FaceMesh.h"
 #include "CADKernel/Mesh/Structure/Grid.h"
 #include "CADKernel/Topo/Shell.h"
@@ -41,12 +43,6 @@ void FTopologicalFace::ComputeBoundary() const
 
 	Boundary->WidenIfDegenerated();
 	Boundary.SetReady();
-}
-
-void FTopologicalFace::Presample()
-{
-	const FSurfacicBoundary& FaceBoundaries = GetBoundary();
-	CarrierSurface->Presample(FaceBoundaries, CrossingCoordinates);
 }
 
 #ifdef DEBUG_GET_BBOX
@@ -264,7 +260,7 @@ void FTopologicalFace::RemoveLoop(const TSharedPtr<FTopologicalLoop>& Loop)
 
 	if (Loops.Num() == 0)
 	{
-		SetDeleted();
+		Delete();
 	}
 }
 
@@ -489,6 +485,8 @@ TSharedRef<FFaceMesh> FTopologicalFace::GetOrCreateMesh(FModelMesh& MeshModel)
 	return Mesh.ToSharedRef();
 }
 
+// Meshing parameters ==============================================================================================================================================================================================================================
+
 void FTopologicalFace::InitDeltaUs()
 {
 	CrossingPointDeltaMins[EIso::IsoU].Init(DOUBLE_SMALL_NUMBER, CrossingCoordinates[EIso::IsoU].Num() - 1);
@@ -497,6 +495,104 @@ void FTopologicalFace::InitDeltaUs()
 	CrossingPointDeltaMins[EIso::IsoV].Init(DOUBLE_SMALL_NUMBER, CrossingCoordinates[EIso::IsoV].Num() - 1);
 	CrossingPointDeltaMaxs[EIso::IsoV].Init(HUGE_VALUE, CrossingCoordinates[EIso::IsoV].Num() - 1);
 }
+
+bool FTopologicalFace::ComputeCriteriaGridSampling()
+{
+	const FSurfacicBoundary& FaceBoundaries = GetBoundary();
+	CarrierSurface->Presample(FaceBoundaries, CrossingCoordinates);
+
+	constexpr int32 MaxGrid = 1000000;
+	if (CrossingCoordinates[EIso::IsoU].Num() * CrossingCoordinates[EIso::IsoV].Num() > MaxGrid)
+	{
+		// The sampling of the surface is huge. This is probably due to a degenerated carrier surface
+		// The face is removed
+		Remove();
+		return false;
+	}
+
+	return true;
+}
+
+void FTopologicalFace::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Criteria, const FCriteriaGrid& Grid)
+{
+	TArray<double>& DeltaUMaxArray = CrossingPointDeltaMaxs[EIso::IsoU];
+	TArray<double>& DeltaUMinArray = CrossingPointDeltaMins[EIso::IsoU];
+	TArray<double>& DeltaVMaxArray = CrossingPointDeltaMaxs[EIso::IsoV];
+	TArray<double>& DeltaVMinArray = CrossingPointDeltaMins[EIso::IsoV];
+	FSurfaceCurvature& SurfaceCurvature = GetCurvatures();
+
+	double ElementLengthMin = DOUBLE_BIG_NUMBER;
+
+	TFunction<void(const double, const double, const double)> ElementLength = [&](const double CoordNextMinusCoord, const double Length, const double DeltaMax)
+	{
+		if (CoordNextMinusCoord < DOUBLE_SMALL_NUMBER)
+		{
+			return Length;
+		}
+		const double ElemLength = Length * DeltaMax / CoordNextMinusCoord;
+		if (ElementLengthMin > ElemLength)
+		{
+			ElementLengthMin = ElemLength;
+		}
+		return ElemLength;
+	};
+
+	for (int32 IndexV = 0; IndexV < Grid.GetCoordinateCount(EIso::IsoV) - 1; ++IndexV)
+	{
+		for (int32 IndexU = 0; IndexU < Grid.GetCoordinateCount(EIso::IsoU) - 1; ++IndexU)
+		{
+			const FPoint& Point_U0_V0 = Grid.GetPoint(IndexU, IndexV);
+			const FPoint& Point_U1_V1 = Grid.GetPoint(IndexU + 1, IndexV + 1);
+			const FPoint& Point_Um_V0 = Grid.GetIntermediateU(IndexU, IndexV);
+			const FPoint& Point_Um_V1 = Grid.GetIntermediateU(IndexU, IndexV + 1);
+			const FPoint& Point_U0_Vm = Grid.GetIntermediateV(IndexU, IndexV);
+			const FPoint& Point_U1_Vm = Grid.GetIntermediateV(IndexU + 1, IndexV);
+			const FPoint& Point_Um_Vm = Grid.GetIntermediateUV(IndexU, IndexV);
+
+			// Evaluate Sag
+			double LengthU;
+			const double SagU = FCriterion::EvaluateSag(Point_U0_Vm, Point_U1_Vm, Point_Um_Vm, LengthU);
+			double LengthV;
+			const double SagV = FCriterion::EvaluateSag(Point_Um_V0, Point_Um_V1, Point_Um_Vm, LengthV);
+			double LengthUV;
+			const double SagUV = FCriterion::EvaluateSag(Point_U0_V0, Point_U1_V1, Point_Um_Vm, LengthUV);
+
+			double& DeltaUMin = DeltaUMinArray[IndexU];
+			double& DeltaUMax = DeltaUMaxArray[IndexU];
+			double& DeltaVMin = DeltaVMinArray[IndexV];
+			double& DeltaVMax = DeltaVMaxArray[IndexV];
+
+			const double UNextMinusU = Grid.GetCoordinate(EIso::IsoU, IndexU + 1) - Grid.GetCoordinate(EIso::IsoU, IndexU);
+			const double VNextMinusV = Grid.GetCoordinate(EIso::IsoV, IndexV + 1) - Grid.GetCoordinate(EIso::IsoV, IndexV);
+
+			for (const TSharedPtr<FCriterion>& Criterion : Criteria)
+			{
+				Criterion->UpdateDelta(UNextMinusU, SagU, SagUV, SagV, LengthU, LengthUV, DeltaUMax, DeltaUMin, SurfaceCurvature[EIso::IsoU]);
+				Criterion->UpdateDelta(VNextMinusV, SagV, SagUV, SagU, LengthV, LengthUV, DeltaVMax, DeltaVMin, SurfaceCurvature[EIso::IsoV]);
+			}
+
+			ElementLength(UNextMinusU, LengthU, DeltaUMax);
+			ElementLength(VNextMinusV, LengthV, DeltaVMax);
+		}
+	}
+
+	// Delta of the extremities are smooth to avoid big disparity 
+	if (DeltaUMaxArray.Num() > 2)
+	{
+		DeltaUMaxArray[0] = (DeltaUMaxArray[0] + DeltaUMaxArray[1] * 2) * AThird;
+		DeltaUMaxArray.Last() = (DeltaUMaxArray.Last() + DeltaUMaxArray[DeltaUMaxArray.Num() - 2] * 2) * AThird;
+	}
+
+	if (DeltaVMaxArray.Num() > 2)
+	{
+		DeltaVMaxArray[0] = (DeltaVMaxArray[0] + DeltaVMaxArray[1] * 2) * AThird;
+		DeltaVMaxArray.Last() = (DeltaVMaxArray.Last() + DeltaVMaxArray[DeltaVMaxArray.Num() - 2] * 2) * AThird;
+	}
+
+	SetEstimatedMinimalElementLength(ElementLengthMin);
+	SetApplyCriteriaMarker();
+}
+
 
 // Quad ==============================================================================================================================================================================================================================
 

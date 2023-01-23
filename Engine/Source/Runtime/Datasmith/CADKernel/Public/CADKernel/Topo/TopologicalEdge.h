@@ -139,7 +139,7 @@ public:
 
 	virtual ~FTopologicalEdge() = default;
 
-	virtual void Delete() override;
+	virtual void Empty() override;
 
 	virtual void Serialize(FCADKernelArchive& Ar) override
 	{

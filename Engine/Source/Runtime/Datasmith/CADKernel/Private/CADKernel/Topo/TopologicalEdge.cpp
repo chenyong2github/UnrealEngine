@@ -356,7 +356,7 @@ void FTopologicalEdge::Link(FTopologicalEdge& Twin)
 	MakeLink(Twin);
 }
 
-void FTopologicalEdge::Delete()
+void FTopologicalEdge::Empty()
 {
 	StartVertex->RemoveConnectedEdge(*this);
 	StartVertex->DeleteIfIsolated();
@@ -374,7 +374,8 @@ void FTopologicalEdge::Delete()
 	Curve.Reset();
 	Loop = nullptr;
 	Mesh.Reset();
-	SetDeleted();
+
+	TLinkable<FTopologicalEdge, FEdgeLink>::Empty();
 }
 
 FTopologicalFace* FTopologicalEdge::GetFace() const

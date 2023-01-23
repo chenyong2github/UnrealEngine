@@ -248,7 +248,7 @@ UE::CADKernel::FBody* FTechSoftBridge::AddBody(A3DRiBrepModel* A3DBRepModel, TMa
 
 	if(Body->FaceCount() == 0)
 	{
-		Body->SetDeleted();
+		Body->Delete();
 		return nullptr;
 	}
 
@@ -893,7 +893,7 @@ void FTechSoftBridge::AddFace(const A3DTopoFace* A3DFace, UE::CADKernel::EOrient
 			Report->FailedFaceCount++;
 #endif
 			Face->SetAsDegenerated();
-			Face->SetDeleted();
+			Face->Delete();
 			return;
 		}
 		else

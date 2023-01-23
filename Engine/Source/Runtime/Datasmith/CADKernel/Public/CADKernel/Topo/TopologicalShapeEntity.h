@@ -25,6 +25,12 @@ public:
 		SerializeIdent(Ar, &HostedBy);
 	}
 
+	virtual void Empty() override 
+	{
+		HostedBy = nullptr;
+		FTopologicalEntity::Empty();
+	}
+
 	const FMetadataDictionary& GetMetadataDictionary() const
 	{
 		return Dictionary;

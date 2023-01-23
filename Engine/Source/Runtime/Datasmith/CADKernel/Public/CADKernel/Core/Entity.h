@@ -61,7 +61,13 @@ public:
 
 	virtual void Delete()
 	{
-		SetDeleted();
+		Empty();
+		SetDeletedMarker();
+	}
+
+	virtual void Empty()
+	{
+
 	}
 
 	template<typename OtherEntity, typename... InArgTypes>

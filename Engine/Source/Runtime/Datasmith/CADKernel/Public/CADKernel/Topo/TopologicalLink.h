@@ -50,11 +50,10 @@ public:
 		SerializeIdents(Ar, TwinEntities, false);
 	}
 
-	virtual void Delete()
+	virtual void Empty() override
 	{
 		TwinEntities.Empty();
 		ActiveEntity = nullptr;
-		SetDeleted();
 	}
 
 	const EntityType* GetActiveEntity() const

@@ -18,7 +18,10 @@
 
 namespace UE::CADKernel
 {
+
 class FCADKernelArchive;
+class FCriteriaGrid;
+class FCriterion;
 class FCurve;
 class FDatabase;
 class FModelMesh;
@@ -267,14 +270,6 @@ public:
 
 	void EvaluateGrid(FGrid& Grid) const;
 
-	// ======   Sample Functions   ======
-
-	/**
-	 * Generate a pre-sampling of the surface saved in CrossingCoordinate.
-	 * This sampling is light enough to allow a fast computation of the grid, precise enough to compute accurately meshing criteria
-	 */
-	void Presample();
-
 	/**
 	 * Update the bounding box with an approximation of the surface based of n iso curves 
 	 * @param ApproximationFactor: the factor apply to the geometric tolerance to defined the SAG error of the ISO
@@ -290,7 +285,27 @@ public:
 	{
 		Disjoin(NewBorderEdges);
 		RemoveOfHost();
-		SetDeleted();
+		Delete();
+	}
+
+	virtual void Empty() override
+	{
+#ifndef CADKERNEL_DEV
+		CarrierSurface.Reset();
+		Loops.Empty();
+#endif
+		Mesh.Reset();
+
+		MeshCuttingCoordinates.Empty();
+		CrossingCoordinates.Empty();
+		CrossingPointDeltaMins.Empty();
+		CrossingPointDeltaMaxs.Empty();
+
+		SurfaceCorners.Empty();
+		StartSideIndices.Empty();
+		SideProperties.Empty();
+
+		FTopologicalShapeEntity::Empty();
 	}
 
 	/** Has at least one non manifold edge */
@@ -372,23 +387,24 @@ public:
 		return CrossingCoordinates[Iso];
 	}
 
+	/**
+	 * Generate a pre-sampling of the surface saved in CrossingCoordinate.
+	 * This sampling is light enough to allow a fast computation of the grid, precise enough to compute accurately meshing criteria
+	 * @return false if the face is considered as degenerate and so removed
+	 */
+	bool ComputeCriteriaGridSampling();
+		
+	/**
+	 * Compute CrossingPointDeltaMins and CrossingPointDeltaMaxs respecting the meshing criteria
+	 */
+	void ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Criteria, const FCriteriaGrid& Grid);
 
 	const TArray<double>& GetCrossingPointDeltaMins(EIso Iso) const
 	{
 		return CrossingPointDeltaMins[Iso];
 	}
 
-	TArray<double>& GetCrossingPointDeltaMins(EIso Iso)
-	{
-		return CrossingPointDeltaMins[Iso];
-	}
-
 	const TArray<double>& GetCrossingPointDeltaMaxs(EIso Iso) const
-	{
-		return CrossingPointDeltaMaxs[Iso];
-	}
-
-	TArray<double>& GetCrossingPointDeltaMaxs(EIso Iso)
 	{
 		return CrossingPointDeltaMaxs[Iso];
 	}

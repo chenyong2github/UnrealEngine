@@ -26,7 +26,7 @@ protected:
 
 	double ComputeSizeCriterionValue(double InDeltaU, double ChordLength) const
 	{
-		return  (ChordLength > UE_DOUBLE_KINDA_SMALL_NUMBER) ? InDeltaU * Size / ChordLength : UE_DOUBLE_BIG_NUMBER;
+		return  (ChordLength > DOUBLE_KINDA_SMALL_NUMBER) ? InDeltaU * Size / ChordLength : DOUBLE_BIG_NUMBER;
 	}
 
 public:

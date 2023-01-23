@@ -78,7 +78,7 @@ public:
 
 	virtual void Remove(const FTopologicalShapeEntity* ShellToRemove) override;
 
-	void Empty()
+	virtual void Empty() override
 	{
 		Shells.Empty();
 	}
