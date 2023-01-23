@@ -279,7 +279,7 @@ public:
 			UE_LOG(LogHMD, Warning, TEXT("The Vulkan API version has not been tested with the OpenXR runtime"));
 		}
 
-		VkPhysicalDevice Gpu;
+		VkPhysicalDevice Gpu = nullptr;
 		XR_ENSURE(GetVulkanGraphicsDeviceKHR(Instance, InSystem, VulkanRHI->RHIGetVkInstance(), &Gpu));
 		if (Gpu != VulkanRHI->RHIGetVkPhysicalDevice())
 		{
@@ -298,7 +298,7 @@ public:
 
 	virtual uint64 GetGraphicsAdapterLuid(XrSystemId InSystem) override
 	{
-		VkPhysicalDevice Gpu;
+		VkPhysicalDevice Gpu = nullptr;
 		XR_ENSURE(GetVulkanGraphicsDeviceKHR(Instance, InSystem, GetIVulkanDynamicRHI()->RHIGetVkInstance(), &Gpu));
 		return GetIVulkanDynamicRHI()->RHIGetGraphicsAdapterLUID(Gpu);
 	}
