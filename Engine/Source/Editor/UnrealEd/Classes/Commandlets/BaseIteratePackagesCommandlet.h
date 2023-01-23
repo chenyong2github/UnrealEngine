@@ -9,6 +9,7 @@
 #include "Engine/EngineTypes.h"
 // world partition builder includes
 #include "WorldPartition/WorldPartitionBuilder.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
 
 #include "BaseIteratePackagesCommandlet.generated.h"
 
@@ -239,8 +240,11 @@ protected:
 
 	virtual void PerformWorldBuilderAdditionalOperations(class AActor* Actor, bool& bSavePackage) { }
 	virtual void PerformWorldBuilderAdditionalOperations(class UObject* Object, bool& bSavePackage) { }
+	virtual void WorldBuilderFailedLoadingActor(const FWorldPartitionActorDesc* ActorDesc) { } 
 
 	virtual void PostPerformAdditionalOperations(class UPackage* Package) { }
+
+
 
 
 	/**

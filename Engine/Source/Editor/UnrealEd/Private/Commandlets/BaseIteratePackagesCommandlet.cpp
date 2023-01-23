@@ -721,6 +721,7 @@ void UBaseIteratePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filena
 
 						if (!Actor)
 						{
+							WorldBuilderFailedLoadingActor(ActorDesc);
 							return true;
 						}
 
