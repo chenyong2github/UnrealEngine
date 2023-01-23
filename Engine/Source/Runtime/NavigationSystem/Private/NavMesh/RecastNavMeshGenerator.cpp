@@ -3415,6 +3415,23 @@ ETimeSliceWorkResult FRecastTileGenerator::GenerateCompressedLayersTimeSliced(FN
 	return ETimeSliceWorkResult::Succeeded;
 }
 
+namespace UE::NavMesh::Private
+{
+#if RECAST_INTERNAL_DEBUG_DATA
+	void DrawHeightfield(const EHeightFieldRenderMode RenderMode, duDebugDraw* dd, const rcHeightfield& hf)
+	{
+		if (RenderMode == EHeightFieldRenderMode::Solid)
+		{
+			duDebugDrawHeightfieldSolid(dd, hf);
+		}
+		else
+		{
+			duDebugDrawHeightfieldWalkable(dd, hf);
+		}
+	}
+#endif //RECAST_INTERNAL_DEBUG_DATA
+};
+
 bool FRecastTileGenerator::GenerateCompressedLayers(FNavMeshBuildContext& BuildContext)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_RecastBuildCompressedLayers);
@@ -3440,11 +3457,11 @@ bool FRecastTileGenerator::GenerateCompressedLayers(FNavMeshBuildContext& BuildC
 #if RECAST_INTERNAL_DEBUG_DATA
 	if (IsTileDebugActive())
 	{
-		if (TileDebugSettings.bHeightfieldSolidFromRasterization)
+		if (TileDebugSettings.bHeightfieldFromRasterization)
 		{
-			duDebugDrawHeightfieldSolid(&BuildContext.InternalDebugData, *RasterContext.SolidHF);
+			UE::NavMesh::Private::DrawHeightfield(TileDebugSettings.HeightFieldRenderMode, &BuildContext.InternalDebugData, *RasterContext.SolidHF);
 		}
-		if (TileDebugSettings.bHeightfieldSolidBounds)
+		if (TileDebugSettings.bHeightfieldBounds)
 		{
 			duDebugDrawHeightfieldBounds(&BuildContext.InternalDebugData, *RasterContext.SolidHF);
 		}
@@ -3458,18 +3475,18 @@ bool FRecastTileGenerator::GenerateCompressedLayers(FNavMeshBuildContext& BuildC
 	}
 
 #if RECAST_INTERNAL_DEBUG_DATA
-	if (IsTileDebugActive() && TileDebugSettings.bHeightfieldSolidPostInclusionBoundsFiltering)
+	if (IsTileDebugActive() && TileDebugSettings.bHeightfieldPostInclusionBoundsFiltering)
 	{
-		duDebugDrawHeightfieldSolid(&BuildContext.InternalDebugData, *RasterContext.SolidHF);
+		UE::NavMesh::Private::DrawHeightfield(TileDebugSettings.HeightFieldRenderMode, &BuildContext.InternalDebugData, *RasterContext.SolidHF);
 	}
 #endif
 
 	GenerateRecastFilter(BuildContext, RasterContext);
 
 #if RECAST_INTERNAL_DEBUG_DATA
-	if (IsTileDebugActive() && TileDebugSettings.bHeightfieldSolidPostHeightFiltering)
+	if (IsTileDebugActive() && TileDebugSettings.bHeightfieldPostHeightFiltering)
 	{
-		duDebugDrawHeightfieldSolid(&BuildContext.InternalDebugData, *RasterContext.SolidHF);
+		UE::NavMesh::Private::DrawHeightfield(TileDebugSettings.HeightFieldRenderMode, &BuildContext.InternalDebugData, *RasterContext.SolidHF);
 	}
 #endif
 

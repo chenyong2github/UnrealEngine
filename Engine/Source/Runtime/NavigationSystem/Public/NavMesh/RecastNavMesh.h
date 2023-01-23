@@ -429,6 +429,13 @@ struct NAVIGATIONSYSTEM_API FRecastNavMeshGenerationProperties
 	FRecastNavMeshGenerationProperties(const ARecastNavMesh& RecastNavMesh);
 };
 
+UENUM()
+enum class EHeightFieldRenderMode : uint8
+{
+	Solid = 0,
+	Walkable
+};
+
 USTRUCT()
 struct NAVIGATIONSYSTEM_API FRecastNavMeshTileGenerationDebug
 {
@@ -455,16 +462,19 @@ struct NAVIGATIONSYSTEM_API FRecastNavMeshTileGenerationDebug
 	uint32 bCollisionGeometry : 1;
 
 	UPROPERTY(EditAnywhere, Category = Debug)
-	uint32 bHeightfieldSolidFromRasterization : 1;
+	EHeightFieldRenderMode HeightFieldRenderMode;
 
 	UPROPERTY(EditAnywhere, Category = Debug)
-	uint32 bHeightfieldSolidPostInclusionBoundsFiltering : 1;
+	uint32 bHeightfieldFromRasterization : 1;
 
 	UPROPERTY(EditAnywhere, Category = Debug)
-	uint32 bHeightfieldSolidPostHeightFiltering : 1;
+	uint32 bHeightfieldPostInclusionBoundsFiltering : 1;
 
 	UPROPERTY(EditAnywhere, Category = Debug)
-	uint32 bHeightfieldSolidBounds : 1;
+	uint32 bHeightfieldPostHeightFiltering : 1;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bHeightfieldBounds : 1;
 
 	UPROPERTY(EditAnywhere, Category = Debug)
 	uint32 bCompactHeightfield : 1;
