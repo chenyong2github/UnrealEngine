@@ -435,7 +435,7 @@ UE::Tasks::FTask FRDGBuilder::AddCommandListSetupTask(TaskLambdaType&& TaskLambd
 
 	if (bParallelExecuteEnabled && bCondition)
 	{
-		FRHICommandList* RHICmdListTask = new FRHICommandList(FRHIGPUMask::All());
+		FRHICommandList* RHICmdListTask = new FRHICommandList(RHICmdList.GetGPUMask());
 
 		Task = UE::Tasks::Launch(TEXT("FRDGBuilder::AddCommandListSetupTask"), [TaskLambda = MoveTemp(TaskLambda), RHICmdListTask] () mutable
 		{
