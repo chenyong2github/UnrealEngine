@@ -191,6 +191,23 @@ public:
 	UMassTestProcessor_FloatsInts();
 };
 
+UCLASS()
+class MASSENTITYTESTSUITE_API UMassTestStaticCounterProcessor : public UMassProcessor
+{
+	GENERATED_BODY()
+
+public:
+	UMassTestStaticCounterProcessor();
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override
+	{
+		++StaticCounter;
+	}
+	virtual void ConfigureQueries() override {}
+	virtual bool ShouldAllowQueryBasedPruning(const bool bRuntimeMode = true) const { return false; }
+
+	static int StaticCounter;
+};
+
 struct MASSENTITYTESTSUITE_API FExecutionTestBase : FAITestBase
 {
 	TSharedPtr<FMassEntityManager> EntityManager;

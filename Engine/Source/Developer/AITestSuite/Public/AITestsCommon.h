@@ -72,6 +72,8 @@ public:
 	virtual bool SetUp() { return true; }
 	/** @return true to indicate that the test is done. */
 	virtual bool Update() { return false; } 
+	/** lets the Test instance test the results. Use AITEST_*_LATENT macros */
+	virtual void VerifyLatentResults() {}
 	/** @return false to indicate an issue with test execution. Will signal to automation framework this test instance failed. */
 	virtual bool InstantTest() { return false;}
 	// it's essential that overriding functions call the super-implementation. Otherwise the check in ~FAITestBase will fail.
@@ -80,6 +82,7 @@ public:
 
 DEFINE_EXPORTED_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(AITESTSUITE_API, FAITestCommand_SetUpTest, FAITestBase*, AITest);
 DEFINE_EXPORTED_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(AITESTSUITE_API, FAITestCommand_PerformTest, FAITestBase*, AITest);
+DEFINE_EXPORTED_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(AITESTSUITE_API, FAITestCommand_VerifyTestResults, FAITestBase*, AITest);
 DEFINE_EXPORTED_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(AITESTSUITE_API, FAITestCommand_TearDownTest, FAITestBase*, AITest);
 
 // @note that TestClass needs to derive from FAITestBase
@@ -94,6 +97,8 @@ DEFINE_EXPORTED_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(AITESTSUITE_API, FAITest
 		ADD_LATENT_AUTOMATION_COMMAND(FAITestCommand_SetUpTest(TestInstance)); \
 		/* run latent command to update */ \
 		ADD_LATENT_AUTOMATION_COMMAND(FAITestCommand_PerformTest(TestInstance)); \
+		/* let the Test instance verify the results, calls VerifyLatentResults */ \
+		ADD_LATENT_AUTOMATION_COMMAND(FAITestCommand_VerifyTestResults(TestInstance)); \
 		/* run latent command to tear down */ \
 		ADD_LATENT_AUTOMATION_COMMAND(FAITestCommand_TearDownTest(TestInstance)); \
 		return true; \

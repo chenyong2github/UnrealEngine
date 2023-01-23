@@ -55,6 +55,16 @@ bool FAITestCommand_PerformTest::Update()
 	return AITest == nullptr || AITest->Update();
 }
 
+bool FAITestCommand_VerifyTestResults::Update()
+{
+	if (AITest)
+	{
+		AITest->VerifyLatentResults();
+	}
+	// signal "done"
+	return true; 
+}
+
 bool FAITestCommand_TearDownTest::Update()
 {
 	if (AITest)

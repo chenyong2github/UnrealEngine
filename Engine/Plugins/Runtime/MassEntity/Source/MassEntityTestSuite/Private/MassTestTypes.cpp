@@ -6,6 +6,9 @@
 #include "MassExecutionContext.h"
 #include "Engine/World.h"
 
+
+UE_DISABLE_OPTIMIZATION_SHIP
+
 //----------------------------------------------------------------------//
 // Test bases 
 //----------------------------------------------------------------------//
@@ -79,6 +82,15 @@ UMassTestProcessor_FloatsInts::UMassTestProcessor_FloatsInts()
 	};
 }
 
+ int UMassTestStaticCounterProcessor::StaticCounter = 0;
+ UMassTestStaticCounterProcessor::UMassTestStaticCounterProcessor()
+ {
+#if WITH_EDITORONLY_DATA
+	 bCanShowUpInSettings = false;
+#endif // WITH_EDITORONLY_DATA
+	 bAutoRegisterWithProcessingPhases = false;
+	 ExecutionFlags = int32(EProcessorExecutionFlags::All);
+ }
 //----------------------------------------------------------------------//
 // UMassTestWorldSubsystem
 //----------------------------------------------------------------------//
@@ -94,3 +106,4 @@ int32 UMassTestWorldSubsystem::Read() const
 	return Number;
 }
 
+UE_ENABLE_OPTIMIZATION_SHIP
