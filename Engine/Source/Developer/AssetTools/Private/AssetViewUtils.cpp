@@ -1706,7 +1706,7 @@ void ShowSyncDependenciesDialog(const TArray<FString>& InDependencies, TArray<FS
 
 void AssetViewUtils::SyncPackagesFromSourceControl(const TArray<FString>& PackageNames, bool bIsSyncLatestOperation)
 {
-	if (PackageNames.Num() > 0)
+	if (PackageNames.Num() > 0 || bIsSyncLatestOperation)
 	{
 		TArray<FString> PackageNamesToSync = PackageNames;
 
