@@ -82,10 +82,19 @@ bool UNiagaraNodeParameterMapSet::VerifyEditablePinName(const FText& InName, FTe
 		return false;
 	}
 
-	if(GetNiagaraGraph()->GetScriptVariable(FName(InName.ToString())) != nullptr && !InName.EqualToCaseIgnored(FText::FromString(InGraphPinObj->GetName())))
+	UNiagaraScriptVariable* ExistingScriptVariable = GetNiagaraGraph()->GetScriptVariable(FName(InName.ToString()));
+	if(ExistingScriptVariable != nullptr)
 	{
-		OutErrorMessage = LOCTEXT("InvalidName_VariableExists", "This variable already exists.");
-		return false;
+		// if the variable already exists and the type matches, we are trying to reference an existing parameter which is allowed.
+		if(ExistingScriptVariable->Variable.GetType() == UEdGraphSchema_Niagara::PinToTypeDefinition(InGraphPinObj))
+		{
+			return true;
+		}
+		else
+		{
+			OutErrorMessage = LOCTEXT("InvalidName_VariableExistsDifferentType", "This variable already exists with a different type.\nChoose another name.");
+			return false;
+		}
 	}
 	
 	return true;

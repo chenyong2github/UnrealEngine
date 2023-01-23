@@ -2348,7 +2348,9 @@ bool UNiagaraGraph::RenameParameterFromPin(const FNiagaraVariable& Parameter, FN
 		FNiagaraParameterDefinitionsUtilities::TrySubscribeScriptVarToDefinitionByName(TargetScriptVar, ScriptViewModel.Get());
 	};
 
-	if (Parameter.GetName() == NewName)
+	FNiagaraVariable NewVariable(Parameter.GetType(), NewName);
+	UNiagaraScriptVariable* ExistingVariable = GetScriptVariable(NewVariable);
+	if (Parameter.GetName() == NewName || (ExistingVariable != nullptr && ExistingVariable->Variable.GetType() == NewVariable.GetType()))
 	{
 		return true;
 	}
