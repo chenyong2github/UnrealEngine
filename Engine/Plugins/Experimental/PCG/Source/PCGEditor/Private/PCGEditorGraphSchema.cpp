@@ -220,7 +220,7 @@ void UPCGEditorGraphSchema::GetNativeElementActions(FGraphActionMenuBuilder& Act
 		{
 			const FText MenuDesc = FText::FromName(PCGSettings->GetDefaultNodeName());
 			const FText Category = StaticEnum<EPCGSettingsType>()->GetDisplayNameTextByValue(static_cast<__underlying_type(EPCGSettingsType)>(PCGSettings->GetType()));
-			const FText Description = FText::GetEmpty();
+			const FText Description = PCGSettings->GetNodeTooltipText();
 
 			TSharedPtr<FPCGEditorGraphSchemaAction_NewNativeElement> NewAction(new FPCGEditorGraphSchemaAction_NewNativeElement(Category, MenuDesc, Description, 0));
 			NewAction->SettingsClass = SettingsClass;

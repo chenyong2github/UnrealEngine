@@ -27,7 +27,7 @@ TArray<FPCGPinProperties> UPCGProjectionSettings::InputPinProperties() const
 #if WITH_EDITOR
 FText UPCGProjectionSettings::GetNodeTooltipText() const
 {
-	return LOCTEXT("ProjectionNodeTooltip", "Projects each of the inputs connected to In onto the Projection Target and concatenates all of the results to Out. Overrides to the projection settings can be specified using the Params.");
+	return LOCTEXT("ProjectionNodeTooltip", "Projects each of the inputs connected to In onto the Projection Target and concatenates all of the results to Out.");
 }
 #endif
 
