@@ -54,6 +54,7 @@ void SMVVMSelectViewModel::Construct(const FArguments& InArgs, const UWidgetBlue
 	FClassViewerInitializationOptions ClassViewerOptions;
 	ClassViewerOptions.DisplayMode = EClassViewerDisplayMode::TreeView;
 	ClassViewerOptions.Mode = EClassViewerMode::ClassPicker;
+	ClassViewerOptions.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 	ClassViewerOptions.ClassFilters.Add(MakeShared<FViewModelClassFilter>());
 
 	ClassViewer = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer")

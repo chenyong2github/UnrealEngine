@@ -62,6 +62,7 @@ bool UMVVMViewModelBlueprintFactory::ConfigureProperties()
 	FClassViewerInitializationOptions Options;
 	Options.DisplayMode = EClassViewerDisplayMode::Type::TreeView;
 	Options.Mode = EClassViewerMode::ClassPicker;
+	Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 	Options.bShowNoneOption = false;
 	Options.bExpandAllNodes = true;
 
