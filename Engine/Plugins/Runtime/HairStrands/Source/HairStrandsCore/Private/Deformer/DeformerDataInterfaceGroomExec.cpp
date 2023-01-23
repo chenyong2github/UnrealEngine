@@ -49,9 +49,16 @@ void UOptimusGroomExecDataInterface::GetShaderParameters(TCHAR const* UID, FShad
 	InOutBuilder.AddNestedStruct<FGroomExecDataInterfaceParameters>(UID);
 }
 
+TCHAR const* UOptimusGroomExecDataInterface::TemplateFilePath = TEXT("/Plugin/Runtime/HairStrands/Private/DeformerDataInterfaceGroomExec.ush");
+
+TCHAR const* UOptimusGroomExecDataInterface::GetShaderVirtualPath() const
+{
+	return TemplateFilePath;
+}
+
 void UOptimusGroomExecDataInterface::GetShaderHash(FString& InOutKey) const
 {
-	GetShaderFileHash(TEXT("/Plugin/Runtime/HairStrands/Private/DeformerDataInterfaceGroomExec.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+	GetShaderFileHash(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
 }
 
 void UOptimusGroomExecDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
@@ -62,7 +69,7 @@ void UOptimusGroomExecDataInterface::GetHLSL(FString& OutHLSL, FString const& In
 	};
 
 	FString TemplateFile;
-	LoadShaderSourceFile(TEXT("/Plugin/Runtime/HairStrands/Private/DeformerDataInterfaceGroomExec.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	LoadShaderSourceFile(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
 	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 
