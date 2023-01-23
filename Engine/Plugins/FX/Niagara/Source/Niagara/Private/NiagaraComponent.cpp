@@ -734,6 +734,17 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 		INC_DWORD_STAT_BY(STAT_TotalNiagaraSystemInstances, 1);
 		INC_DWORD_STAT_BY(STAT_TotalNiagaraSystemInstancesSolo, 1);
 
+		// Support for pausing / playback rate from the debugger
+		if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(GetWorld()))
+		{
+			if (WorldManager->GetDebugPlaybackMode() == ENiagaraDebugPlaybackMode::Paused)
+			{
+				return;
+			}
+
+			DeltaSeconds *= WorldManager->GetDebugPlaybackRate();
+		}
+
 		// If we have a sim cache attached then use that
 		if ( SimCache != nullptr )
 		{
