@@ -5,6 +5,10 @@
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
+#include "Engine/LevelStreaming.h"
+#include "LevelUtils.h"
+#include "GameFramework/WorldSettings.h"
+#include "WorldPartition/WorldPartition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceEditorInstanceActor)
 
@@ -56,6 +60,25 @@ ALevelInstanceEditorInstanceActor* ALevelInstanceEditorInstanceActor::Create(ILe
 	}
 
 	return InstanceActor;
+}
+
+void ALevelInstanceEditorInstanceActor::UpdateWorldTransform(const FTransform& WorldTransform)
+{
+	GetRootComponent()->SetWorldTransform(WorldTransform);
+
+	const ULevel* Level = GetLevel();
+
+	ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(Level);
+	check(LevelStreaming);
+
+	AWorldSettings* WorldSettings = Level->GetWorldSettings();
+	check(WorldSettings);
+	LevelStreaming->LevelTransform = FTransform(WorldSettings->LevelInstancePivotOffset) * WorldTransform;
+
+	if (UWorldPartition* WorldPartition = WorldSettings->GetWorldPartition())
+	{
+		WorldPartition->SetInstanceTransform(LevelStreaming->LevelTransform);
+	}
 }
 
 #endif

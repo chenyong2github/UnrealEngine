@@ -153,16 +153,6 @@ void ULevelStreamingLevelInstance::PrepareLevelInstanceLoadedActor(AActor& InAct
 	{
 		if (InActor.GetAttachParentActor() == nullptr && !InActor.IsChildActor())
 		{
-			// Detect if LevelInstance has moved since it was loaded/created and move the child actor accordingly
-			if (!LevelTransform.Equals(LevelInstanceEditorInstanceActor->GetTransform()))
-			{
-				FTransform TransformToApply = LevelTransform.Inverse() * LevelInstanceEditorInstanceActor->GetTransform();
-				FLevelUtils::FApplyLevelTransformParams TransformParams(InActor.GetLevel(), TransformToApply);
-				TransformParams.Actor = &InActor;
-				TransformParams.bDoPostEditMove = true;
-				FLevelUtils::ApplyLevelTransform(TransformParams);
-			}
-
 			InActor.AttachToActor(LevelInstanceEditorInstanceActor.Get(), FAttachmentTransformRules::KeepWorldTransform);
 		}
 	}

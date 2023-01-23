@@ -151,6 +151,7 @@ public:
 	//~ End UObject Interface
 
 #if WITH_EDITOR
+	void SetInstanceTransform(const FTransform& InInstanceTransform) { InstanceTransform = InInstanceTransform; }
 	FName GetWorldPartitionEditorName() const;
 
 	// Streaming generation

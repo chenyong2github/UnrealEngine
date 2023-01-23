@@ -98,9 +98,9 @@ void ULevelInstanceComponent::UpdateEditorInstanceActor()
 		}
 	}
 
-	if (AActor* EditorInstanceActor = CachedEditorInstanceActorPtr.Get())
+	if (ALevelInstanceEditorInstanceActor* EditorInstanceActor = Cast<ALevelInstanceEditorInstanceActor>(CachedEditorInstanceActorPtr.Get()))
 	{
-		EditorInstanceActor->GetRootComponent()->SetWorldTransform(GetComponentTransform());
+		EditorInstanceActor->UpdateWorldTransform(GetComponentTransform());
 	}
 }
 

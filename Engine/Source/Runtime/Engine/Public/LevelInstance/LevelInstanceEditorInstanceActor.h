@@ -32,6 +32,8 @@ public:
 	virtual AActor* GetSelectionParent() const override;
 
 private:
+	friend class ULevelInstanceComponent;
+	void UpdateWorldTransform(const FTransform& WorldTransform);
 
 	FLevelInstanceID LevelInstanceID;
 #endif
