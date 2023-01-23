@@ -70,14 +70,15 @@ struct CAMERACALIBRATIONCORE_API FCameraFeedInfo
 	GENERATED_BODY()
 
 public:
-	FIntPoint GetDimensions()
+	FIntPoint GetDimensions() const
 	{
 		return Dimensions;
 	}
 
-	void SetDimensions(FIntPoint InDimensions)
+	void SetDimensions(FIntPoint InDimensions, bool bMarkAsOverridden = false)
 	{
 		Dimensions = InDimensions;
+		bIsOverridden = bMarkAsOverridden;
 
 		// If one of the dimensions is set to 0, the description of the feed is invalid
 		if (Dimensions.X == 0 || Dimensions.Y == 0)
@@ -92,7 +93,7 @@ public:
 		}
 	}
 
-	float GetAspectRatio()
+	float GetAspectRatio() const
 	{
 		return AspectRatio;
 	}
@@ -104,9 +105,14 @@ public:
 		bIsValid = false;
 	}
 
-	bool IsValid()
+	bool IsValid() const
 	{
 		return bIsValid;
+	}
+
+	bool IsOverridden() const
+	{
+		return bIsOverridden;
 	}
 
 private:
@@ -120,6 +126,9 @@ private:
 
 	/** Whether the dimensions of the feed are valid (false if either X or Y is 0) */
 	bool bIsValid = false;
+
+	/** Whether the dimensions of the feed were overridden by the user */
+	bool bIsOverridden = false;
 };
 
 /**

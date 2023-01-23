@@ -89,6 +89,16 @@ TSharedRef<SWidget> ULensInfoStep::BuildUI()
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			[CameraFeedInfoStructureDetailsView->GetWidget().ToSharedRef() ]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SResetToDefaultMenu)
+				.OnResetToDefault(FSimpleDelegate::CreateUObject(this, &ULensInfoStep::ResetCameraFeedInfoToDefault))
+				.DiffersFromDefault(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateUObject(this, &ULensInfoStep::CameraFeedInfoDiffersFromDefault)))
+			]
 		]
 
 		+ SVerticalBox::Slot()
@@ -210,7 +220,7 @@ bool ULensInfoStep::OnViewportClicked(const FGeometry& MyGeometry, const FPointe
 		if (TSharedPtr<FCameraCalibrationStepsController> StepsController = CameraCalibrationStepsController.Pin())
 		{
 			const FVector2D LocalInPixels = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-			StepsController->UpdateCameraFeedInfo(LocalInPixels);
+			StepsController->SetCameraFeedDimensionsFromMousePosition(LocalInPixels);
 			return true;
 		}
 	}
@@ -227,11 +237,36 @@ void ULensInfoStep::OnCameraFeedInfoChanged(const FPropertyChangedEvent& Propert
 		{
 			if (ULensFile* LensFile = StepsController->GetLensFile())
 			{
-				LensFile->CameraFeedInfo.SetDimensions(LensFile->CameraFeedInfo.GetDimensions());
-				StepsController->UpdateAspectRatioCorrection(LensFile->CameraFeedInfo.GetDimensions());
+				FIntPoint CameraFeedDimensions = LensFile->CameraFeedInfo.GetDimensions();
+				const FIntPoint CompRenderResolution = StepsController->GetCompRenderResolution();
+				CameraFeedDimensions.X = FMath::Clamp(CameraFeedDimensions.X, 0, CompRenderResolution.X);
+				CameraFeedDimensions.Y = FMath::Clamp(CameraFeedDimensions.Y, 0, CompRenderResolution.Y);
+
+				StepsController->SetCameraFeedDimensions(CameraFeedDimensions, true);
 			}
 		}
 	}
+}
+
+void ULensInfoStep::ResetCameraFeedInfoToDefault()
+{
+	if (TSharedPtr<FCameraCalibrationStepsController> StepsController = CameraCalibrationStepsController.Pin())
+	{
+		const FIntPoint DefaultCameraFeedDimensions = StepsController->GetCGRenderResolution();
+		StepsController->SetCameraFeedDimensions(DefaultCameraFeedDimensions, false);
+	}
+}
+
+bool ULensInfoStep::CameraFeedInfoDiffersFromDefault() const
+{
+	if (TSharedPtr<FCameraCalibrationStepsController> StepsController = CameraCalibrationStepsController.Pin())
+	{
+		if (ULensFile* LensFile = StepsController->GetLensFile())
+		{
+			return LensFile->CameraFeedInfo.IsOverridden();
+		}
+	}
+	return false;
 }
 
 EVisibility ULensInfoStep::HandleAspectRatioWarningVisibility() const

@@ -752,7 +752,7 @@ bool UCameraNodalOffsetAlgoPoints::OnViewportClicked(const FGeometry& MyGeometry
 	Row->CalibratorPointData = LastCalibratorPoint;
 
 	// Get the mouse click 2d position
-	if (!StepsController->CalculateNormalizedMouseClickPosition(MyGeometry, MouseEvent, Row->Point2D))
+	if (!StepsController->CalculateNormalizedMouseClickPosition(MyGeometry, MouseEvent, Row->Point2D, ESimulcamViewportPortion::CameraFeed))
 	{
 		return true;
 	}

@@ -46,7 +46,7 @@ void UCameraNodalOffsetAlgoOpticalAxis::Initialize(UNodalOffsetTool* InNodalOffs
 	}
 
 	// Create the render target for the crosshair overlay
-	const FIntPoint OverlaySize = StepsController->GetCompRenderTargetSize();
+	const FIntPoint OverlaySize = StepsController->GetCompRenderResolution();
 
 	OverlayTexture = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), MakeUniqueObjectName(GetTransientPackage(), UTextureRenderTarget2D::StaticClass()));
 

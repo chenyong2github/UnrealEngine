@@ -44,6 +44,13 @@ public:
 	/** Returns true if our LensInfo differs from the original info when the tool was opened */
 	bool DiffersFromDefault() const;
 
+	/** Reset the camera feed dimensions to their default value (recomputed by the Steps Controller) */
+	void ResetCameraFeedInfoToDefault();
+
+	/** Returns true if the camera feed info has been overriden by the user */
+	bool CameraFeedInfoDiffersFromDefault() const;
+
+
 private:
 	/** Determines the visibility of the aspect ratio warning by comparing the camera feed aspect ratio with that of the camera actor */
 	EVisibility HandleAspectRatioWarningVisibility() const;

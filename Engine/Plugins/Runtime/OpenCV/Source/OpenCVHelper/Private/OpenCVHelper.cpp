@@ -241,7 +241,7 @@ UTexture2D* FOpenCVHelper::TextureFromCvMat(cv::Mat& Mat, UTexture2D* InTexture)
 
 	if ((InTexture->GetSizeX() != Mat.cols) || (InTexture->GetSizeY() != Mat.rows) || (InTexture->GetPixelFormat() != PixelFormat))
 	{
-		return nullptr;
+		return TextureFromCvMat(Mat);
 	}
 
 	// Copy the pixels from the OpenCV Mat to the Texture

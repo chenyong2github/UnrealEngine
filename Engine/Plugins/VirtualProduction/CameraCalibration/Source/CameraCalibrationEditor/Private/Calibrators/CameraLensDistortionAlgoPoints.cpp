@@ -254,7 +254,7 @@ bool UCameraLensDistortionAlgoPoints::OnViewportClicked(const FGeometry& MyGeome
 	}
 
 	// Get the mouse click 2d position
-	if (!StepsController->CalculateNormalizedMouseClickPosition(MyGeometry, MouseEvent, LastCalibratorPoint.Point2d))
+	if (!StepsController->CalculateNormalizedMouseClickPosition(MyGeometry, MouseEvent, LastCalibratorPoint.Point2d, ESimulcamViewportPortion::CameraFeed))
 	{
 		return true;
 	}
@@ -383,7 +383,7 @@ bool UCameraLensDistortionAlgoPoints::GetLensDistortion(
 		return false;
 	}
 
-	const FIntPoint ImageSize = StepsController->GetCompRenderTargetSize();
+	const FIntPoint ImageSize = StepsController->GetCompRenderResolution();
 
 	// Gather 3D points and 2D points from each group of rows
 	std::vector<std::vector<cv::Point3f>> Samples3d;
