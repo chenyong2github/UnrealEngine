@@ -215,8 +215,8 @@ uint AllocateRasterizerBinCluster(uint BinIndex, bool bSoftware, uint BatchCount
 
 void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart, uint RangeEnd, uint BatchCount, uint BatchInfoOffset, FCluster Cluster, bool bBatchInfoInlined, bool bSoftware)
 {
-	const bool bProgrammableRaster = RasterizerBin >= RegularMaterialRasterBinCount;
-	const bool bUseBatch = bSoftware ? bProgrammableRaster : bUsePrimOrMeshShader;
+	const FNaniteMaterialFlags BinMaterialFlags = GetRasterizerBinMaterialFlags(RasterizerBin);
+	const bool bUseBatch = bSoftware ? BinMaterialFlags.bPixelProgrammable : (bUsePrimOrMeshShader && BinMaterialFlags.bVertexProgrammable);
 	BatchCount = CondMask(bUseBatch, BatchCount, 1u);
 #if RASTER_BIN_CLASSIFY
 	IncrementRasterizerBinCount(RasterizerBin, bSoftware, BatchCount);

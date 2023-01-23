@@ -290,21 +290,45 @@ public:
 	{
 	}
 
-	static bool RequiresProgrammableVertex(const FMaterialShaderPermutationParameters& Parameters)
+	static bool IsVertexProgrammable(const FMaterialShaderParameters& MaterialParameters)
 	{
-		return Parameters.MaterialParameters.bHasVertexPositionOffsetConnected;
+		return MaterialParameters.bHasVertexPositionOffsetConnected;
 	}
 
-	static bool RequiresProgrammablePixel(const FMaterialShaderPermutationParameters& Parameters)
+	static bool IsVertexProgrammable(uint32 MaterialBitFlags)
 	{
-		const bool bProgrammablePixel =
-		(
-			Parameters.MaterialParameters.bIsMasked || 
-			Parameters.MaterialParameters.bHasPixelDepthOffsetConnected
-		);
-
-		return bProgrammablePixel;
+		return (MaterialBitFlags & NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET) != 0u;
 	}
+
+	static bool IsPixelProgrammable(const FMaterialShaderParameters& MaterialParameters)
+	{
+		return MaterialParameters.bIsMasked || MaterialParameters.bHasPixelDepthOffsetConnected;
+	}
+
+	static bool IsPixelProgrammable(uint32 MaterialBitFlags)
+	{
+		return (MaterialBitFlags & NANITE_MATERIAL_PIXEL_PROGRAMMABLE_FLAGS);
+	}
+
+	static bool ShouldCompileProgrammablePermutation(const FMaterialShaderParameters& MaterialParameters, bool bPermutationVertexProgrammable, bool bPermutationPixelProgrammable)
+	{
+		if (MaterialParameters.bIsDefaultMaterial)
+		{
+			return true;
+		}
+
+		// Custom materials should compile only the specific combination that is actually used
+		// TODO: The status of material attributes on the FMaterialShaderParameters is determined without knowledge of any static
+		// switches' values, and therefore when true could represent the set of materials that both enable them and do not. We could
+		// isolate a narrower set of required shaders if FMaterialShaderParameters reflected the status after static switches are
+		// applied.
+		//return IsVertexProgrammable(MaterialParameters, bPermutationPrimitiveShader) == bPermutationVertexProgrammable &&	
+		//		IsPixelProgrammable(MaterialParameters) == bPermutationPixelProgrammable;
+		return	(IsVertexProgrammable(MaterialParameters) || !bPermutationVertexProgrammable) &&
+				(IsPixelProgrammable(MaterialParameters) || !bPermutationPixelProgrammable) &&
+				(bPermutationVertexProgrammable || bPermutationPixelProgrammable);
+	}
+
 
 	static bool ShouldCompilePixelPermutation(const FMaterialShaderPermutationParameters& Parameters, bool bProgrammableRaster)
 	{
@@ -312,7 +336,7 @@ public:
 		bool bValidMaterial = Parameters.MaterialParameters.bIsDefaultMaterial;
 
 		// Compile this pixel shader if it requires programmable raster and it's enabled
-		if (bProgrammableRaster && Parameters.MaterialParameters.bIsUsedWithNanite && RequiresProgrammablePixel(Parameters))
+		if (bProgrammableRaster && Parameters.MaterialParameters.bIsUsedWithNanite && FNaniteMaterialShader::IsPixelProgrammable(Parameters.MaterialParameters))
 		{
 			bValidMaterial = true;
 		}
@@ -329,7 +353,7 @@ public:
 		bool bValidMaterial = Parameters.MaterialParameters.bIsDefaultMaterial;
 
 		// Compile this vertex shader if it requires programmable raster and it's enabled
-		if (bProgrammableRaster && Parameters.MaterialParameters.bIsUsedWithNanite && RequiresProgrammableVertex(Parameters))
+		if (bProgrammableRaster && Parameters.MaterialParameters.bIsUsedWithNanite && FNaniteMaterialShader::IsVertexProgrammable(Parameters.MaterialParameters))
 		{
 			bValidMaterial = true;
 		}
@@ -346,7 +370,7 @@ public:
 		bool bValidMaterial = Parameters.MaterialParameters.bIsDefaultMaterial;
 
 		// Compile this compute shader if it requires programmable raster and it's enabled
-		if (bProgrammableRaster && Parameters.MaterialParameters.bIsUsedWithNanite && (RequiresProgrammableVertex(Parameters) || RequiresProgrammablePixel(Parameters)))
+		if (bProgrammableRaster && Parameters.MaterialParameters.bIsUsedWithNanite && (IsVertexProgrammable(Parameters.MaterialParameters) || IsPixelProgrammable(Parameters.MaterialParameters)))
 		{
 			bValidMaterial = true;
 		}

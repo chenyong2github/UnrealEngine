@@ -59,20 +59,22 @@ StructuredBuffer<uint2> RasterizerBinData;
 // .x = VisibleIndex
 // .y = RangeStart
 // .z = RangeEnd
-uint3 FetchSWRasterizerBin(const uint ClusterIndex)
+// .w = MaterialFlags
+uint4 FetchSWRasterizerBin(const uint ClusterIndex)
 {
 	const uint RasterBinOffset		= RasterizerBinHeaders[ActiveRasterizerBin].z;
 	const uint2 PackedData			= RasterizerBinData[RasterBinOffset + ClusterIndex].xy;
 	const uint VisibleIndex			= PackedData.x;
 	const uint RangeStart			= PackedData.y >> 16u;
 	const uint RangeEnd				= PackedData.y & 0xFFFFu;
-	return uint3(VisibleIndex, RangeStart, RangeEnd);
+	return uint4(VisibleIndex, RangeStart, RangeEnd, RasterizerBinHeaders[ActiveRasterizerBin].w);
 }
 
 // .x = VisibleIndex
 // .y = RangeStart
 // .z = RangeEnd
-uint3 FetchHWRasterizerBin(const uint ClusterIndex)
+// .w = MaterialFlags
+uint4 FetchHWRasterizerBin(const uint ClusterIndex)
 {
 	const uint RasterBinOffset		= RasterizerBinHeaders[ActiveRasterizerBin].z;
 	const uint RasterBinCapacity	= RasterizerBinHeaders[ActiveRasterizerBin].x + RasterizerBinHeaders[ActiveRasterizerBin].y; // SW + HW
@@ -80,7 +82,7 @@ uint3 FetchHWRasterizerBin(const uint ClusterIndex)
 	const uint VisibleIndex			= PackedData.x;
 	const uint RangeStart			= PackedData.y >> 16u;
 	const uint RangeEnd				= PackedData.y & 0xFFFFu;
-	return uint3(VisibleIndex, RangeStart, RangeEnd);
+	return uint4(VisibleIndex, RangeStart, RangeEnd, RasterizerBinHeaders[ActiveRasterizerBin].w);
 }
 
 ViewState ResolveView(FNaniteView NaniteView)
@@ -250,7 +252,7 @@ struct FTriRange
 	uint Num;
 };
 
-FTriRange GetTriangleRange(FCluster Cluster, bool bHasRasterBin, uint3 RasterBin)
+FTriRange GetTriangleRange(FCluster Cluster, bool bHasRasterBin, uint4 RasterBin)
 {
 	FTriRange Range;
 	if (bHasRasterBin)
@@ -273,12 +275,13 @@ void MicropolyRasterize(
 	uint	VisibleIndex		: SV_GroupID,
 	uint	GroupThreadIndex	: SV_GroupIndex) 
 {
-	uint3 RasterBin;
+	uint4 RasterBin;
 	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
 	BRANCH
 	if (bHasRasterBin)
 	{
 		RasterBin = FetchSWRasterizerBin(VisibleIndex);
+		checkSlow(UnpackMaterialFlags(RasterBin.w).bPixelProgrammable == NANITE_VERT_REUSE_BATCH);
 		VisibleIndex = RasterBin.x;
 	}
 
@@ -790,13 +793,14 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	uint VisibleIndex = LDS.S.ClusterIndex;
 #endif
 
-	uint3 RasterBin;
+	uint4 RasterBin;
 
 	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
 	BRANCH
 	if (bHasRasterBin)
 	{
 		RasterBin = FetchHWRasterizerBin(VisibleIndex);
+		checkSlow(UnpackMaterialFlags(RasterBin.w).bVertexProgrammable == NANITE_VERT_REUSE_BATCH);
 		VisibleIndex = RasterBin.x;
 	}
 
@@ -1033,13 +1037,14 @@ void HWRasterizeMS(
 {
 	uint VisibleIndex = GroupID;
 
-	uint3 RasterBin;
+	uint4 RasterBin;
 
 	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
 	BRANCH
 	if (bHasRasterBin)
 	{
 		RasterBin = FetchHWRasterizerBin(VisibleIndex);
+		checkSlow(UnpackMaterialFlags(RasterBin.w).bVertexProgrammable == NANITE_VERT_REUSE_BATCH);
 		VisibleIndex = RasterBin.x;
 	}
 
@@ -1130,7 +1135,7 @@ VSOut HWRasterizeVS(
 	uint VisibleIndex	: SV_InstanceID
 	)
 {
-	uint3 RasterBin;
+	uint4 RasterBin;
 
 	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
 	BRANCH

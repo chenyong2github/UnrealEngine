@@ -938,49 +938,6 @@ static uint32 GetMaterialBitFlags(const FMaterial& RasterMaterial, bool bForceDi
 	return MaterialBitFlags;
 }
 
-static bool IsVertexProgrammable(const FMaterialShaderParameters& MaterialParameters, bool bPermutationPrimitiveShader)
-{
-	// Always use the programmable version of prim shaders if programmable raster is enabled for this pass (i.e. has raster bins).
-	// RasterBinBuild always split HW clusters into smaller batches which only programmable prim shaders handle. There is no perf
-	// hit because shader compilers will detect that WPO output is always zero and compile out all unnecessary instructions.
-	return bPermutationPrimitiveShader || MaterialParameters.bHasVertexPositionOffsetConnected;
-}
-
-static bool IsVertexProgrammable(uint32 MaterialBitFlags, bool bUsePrimitiveShader)
-{
-	return bUsePrimitiveShader || (MaterialBitFlags & NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET) != 0u;
-}
-
-static bool IsPixelProgrammable(const FMaterialShaderParameters& MaterialParameters)
-{
-	return MaterialParameters.bIsMasked || MaterialParameters.bHasPixelDepthOffsetConnected;
-}
-
-static bool IsPixelProgrammable(uint32 MaterialBitFlags)
-{
-	return (MaterialBitFlags & NANITE_MATERIAL_FLAG_PIXEL_DISCARD) != 0u ||
-		   (MaterialBitFlags & NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET) != 0u;
-}
-
-static bool ShouldCompileProgrammablePermutation(const FMaterialShaderParameters& MaterialParameters, bool bPermutationVertexProgrammable, bool bPermutationPixelProgrammable, bool bPermutationPrimitiveShader)
-{
-	if (MaterialParameters.bIsDefaultMaterial)
-	{
-		return true;
-	}
-
-	// Custom materials should compile only the specific combination that is actually used
-	// TODO: The status of material attributes on the FMaterialShaderParameters is determined without knowledge of any static
-	// switches' values, and therefore when true could represent the set of materials that both enable them and do not. We could
-	// isolate a narrower set of required shaders if FMaterialShaderParameters reflected the status after static switches are
-	// applied.
-	//return IsVertexProgrammable(MaterialParameters, bPermutationPrimitiveShader) == bPermutationVertexProgrammable &&	
-	//		IsPixelProgrammable(MaterialParameters) == bPermutationPixelProgrammable;
-	return	(IsVertexProgrammable(MaterialParameters, bPermutationPrimitiveShader) || !bPermutationVertexProgrammable) &&
-			(IsPixelProgrammable(MaterialParameters) || !bPermutationPixelProgrammable) &&
-			(bPermutationVertexProgrammable || bPermutationPixelProgrammable);
-}
-
 class FMicropolyRasterizeCS : public FNaniteMaterialShader
 {
 	DECLARE_SHADER_TYPE(FMicropolyRasterizeCS, Material);
@@ -1040,7 +997,7 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 			return false;
 		}
 
-		if (!ShouldCompileProgrammablePermutation(Parameters.MaterialParameters, PermutationVector.Get<FVertexProgrammableDim>(), PermutationVector.Get<FPixelProgrammableDim>(), false))
+		if (!ShouldCompileProgrammablePermutation(Parameters.MaterialParameters, PermutationVector.Get<FVertexProgrammableDim>(), PermutationVector.Get<FPixelProgrammableDim>()))
 		{
 			return false;
 		}
@@ -1137,7 +1094,7 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 			return false;
 		}
 
-		if (!ShouldCompileProgrammablePermutation(Parameters.MaterialParameters, PermutationVector.Get<FVertexProgrammableDim>(), PermutationVector.Get<FPixelProgrammableDim>(), PermutationVector.Get<FPrimShaderDim>()))
+		if (!ShouldCompileProgrammablePermutation(Parameters.MaterialParameters, PermutationVector.Get<FVertexProgrammableDim>(), PermutationVector.Get<FPixelProgrammableDim>()))
 		{
 			return false;
 		}
@@ -1237,7 +1194,7 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 			return false;
 		}
 
-		if (!ShouldCompileProgrammablePermutation(Parameters.MaterialParameters, PermutationVector.Get<FVertexProgrammableDim>(), PermutationVector.Get<FPixelProgrammableDim>(), false))
+		if (!ShouldCompileProgrammablePermutation(Parameters.MaterialParameters, PermutationVector.Get<FVertexProgrammableDim>(), PermutationVector.Get<FPixelProgrammableDim>()))
 		{
 			return false;
 		}
@@ -1368,7 +1325,7 @@ public:
 			return false;
 		}
 
-		if (!ShouldCompileProgrammablePermutation(Parameters.MaterialParameters, PermutationVector.Get<FVertexProgrammableDim>(), PermutationVector.Get<FPixelProgrammableDim>(), PermutationVector.Get<FPrimShaderDim>()))
+		if (!ShouldCompileProgrammablePermutation(Parameters.MaterialParameters, PermutationVector.Get<FVertexProgrammableDim>(), PermutationVector.Get<FPixelProgrammableDim>()))
 		{
 			return false;
 		}
@@ -1441,11 +1398,10 @@ void SetupProgrammableRasterizePermutationVectors(
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVirtualTextureTargetDim>(bHasVirtualShadowMapArray);
 }
 
-void GetMaterialShaderTypes(
+static void GetMaterialShaderTypes(
 	bool bVertexProgrammable,
 	bool bPixelProgrammable,
 	bool bUseMeshShader,
-	bool bUsePrimitiveShader,
 	bool bIsTwoSided,
 	FHWRasterizeVS::FPermutationDomain& PermutationVectorVS,
 	FHWRasterizeMS::FPermutationDomain& PermutationVectorMS,
@@ -1525,7 +1481,7 @@ void CollectRasterPSOInitializersForPermutation(
 {
 	FMaterialShaderTypes ProgrammableShaderTypes;
 	FMaterialShaderTypes NonProgrammableShaderTypes;
-	GetMaterialShaderTypes(bVertexProgrammable, bPixelProgrammable, bUseMeshShader, bUsePrimitiveShader, bIsTwoSided,
+	GetMaterialShaderTypes(bVertexProgrammable, bPixelProgrammable, bUseMeshShader, bIsTwoSided,
 		PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS, ProgrammableShaderTypes, NonProgrammableShaderTypes);
 	
 	// retrieve shaders from default material for not programmable vertex or pixel shaders
@@ -1656,8 +1612,8 @@ void CollectRasterPSOInitializersForPipeline(
 	else
 	{
 		const uint32 MaterialBitFlags = GetMaterialBitFlags(RasterMaterial, bForceDisableWPO);
-		const bool bVertexProgrammable = IsVertexProgrammable(MaterialBitFlags, bUsePrimitiveShader);
-		const bool bPixelProgrammable = IsPixelProgrammable(MaterialBitFlags);
+		const bool bVertexProgrammable = FNaniteMaterialShader::IsVertexProgrammable(MaterialBitFlags);
+		const bool bPixelProgrammable = FNaniteMaterialShader::IsPixelProgrammable(MaterialBitFlags);
 
 		const FMeshPassProcessor::FMeshDrawingPolicyOverrideSettings OverrideSettings = FMeshPassProcessor::ComputeMeshOverrideSettings(PreCacheParams);
 		ERasterizerCullMode MeshCullMode = FMeshPassProcessor::ComputeMeshCullMode(RasterMaterial, OverrideSettings);
@@ -2810,14 +2766,14 @@ FBinningData AddPass_Rasterize(
 			const FMaterial& RasterMaterial = RasterizerPass.RasterPipeline.RasterMaterial->GetIncompleteMaterialWithFallback(Scene.GetFeatureLevel());
 			MaterialBitFlags = GetMaterialBitFlags(RasterMaterial, RasterEntry.bForceDisableWPO);
 
-			RasterizerPass.bVertexProgrammable = IsVertexProgrammable(MaterialBitFlags, bUsePrimitiveShader);
-			RasterizerPass.bPixelProgrammable  = IsPixelProgrammable(MaterialBitFlags);
+			RasterizerPass.bVertexProgrammable = FNaniteMaterialShader::IsVertexProgrammable(MaterialBitFlags);
+			RasterizerPass.bPixelProgrammable  = FNaniteMaterialShader::IsPixelProgrammable(MaterialBitFlags);
 
 			if (RasterizerPass.bVertexProgrammable || RasterizerPass.bPixelProgrammable)
 			{
 				FMaterialShaderTypes ProgrammableShaderTypes;
 				FMaterialShaderTypes NonProgrammableShaderTypes;
-				GetMaterialShaderTypes(RasterizerPass.bVertexProgrammable, RasterizerPass.bPixelProgrammable, bUseMeshShader, bUsePrimitiveShader, RasterizerPass.RasterPipeline.bIsTwoSided,
+				GetMaterialShaderTypes(RasterizerPass.bVertexProgrammable, RasterizerPass.bPixelProgrammable, bUseMeshShader, RasterizerPass.RasterPipeline.bIsTwoSided,
 					PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS, ProgrammableShaderTypes, NonProgrammableShaderTypes);
 
 				const FMaterialRenderProxy* ProgrammableRasterProxy = RasterEntry.RasterPipeline.RasterMaterial;
