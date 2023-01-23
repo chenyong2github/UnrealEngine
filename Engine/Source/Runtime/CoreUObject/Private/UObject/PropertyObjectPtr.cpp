@@ -185,11 +185,6 @@ void FObjectPtrProperty::SetObjectPropertyValue_InContainer(void* ContainerAddre
 	}
 }
 
-bool FObjectPtrProperty::AllowCrossLevel() const
-{
-	return true;
-}
-
 bool FObjectPtrProperty::AllowObjectTypeReinterpretationTo(const FObjectPropertyBase* Other) const
 {
 	return Other && Other->IsA<FObjectProperty>();
