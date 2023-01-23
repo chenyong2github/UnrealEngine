@@ -685,7 +685,7 @@ namespace UE::NNEQA::Private
 		UE_LOG(LogNNE, Display, TEXT("Starting tests of '%s'"), *TestSetup.TargetName);
 
 		// Reference runtime
-		const FString& RefName = TEXT("NNERuntimeCPU");
+		const FString& RefName = TEXT("NNERuntimeORTCpu");
 		const float AbsoluteTolerance = TestSetup.GetAbsoluteToleranceForRuntime(RefName);
 		const float RelativeTolerance = TestSetup.GetRelativeToleranceForRuntime(RefName);
 		TArray<TArray<char>> RefOutputMemBuffers;

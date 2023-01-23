@@ -14,15 +14,15 @@
 
 using namespace NNX;
 
-FGuid UNNERuntimeORTCpuImpl::GUID = FGuid((int32)'O', (int32)'N', (int32)'N', (int32)'X');
-int32 UNNERuntimeORTCpuImpl::Version = 0x00000001;
+FGuid UNNERuntimeORTDmlImpl::GUID = FGuid((int32)'O', (int32)'D', (int32)'M', (int32)'L');
+int32 UNNERuntimeORTDmlImpl::Version = 0x00000001;
 
-bool UNNERuntimeORTCpuImpl::CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const
+bool UNNERuntimeORTDmlImpl::CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const
 {
 	return FileType.Compare("onnx", ESearchCase::IgnoreCase) == 0;
 }
 
-TArray<uint8> UNNERuntimeORTCpuImpl::CreateModelData(FString FileType, TConstArrayView<uint8> FileData)
+TArray<uint8> UNNERuntimeORTDmlImpl::CreateModelData(FString FileType, TConstArrayView<uint8> FileData)
 {
 	if (!CanCreateModelData(FileType, FileData))
 	{
@@ -41,61 +41,20 @@ TArray<uint8> UNNERuntimeORTCpuImpl::CreateModelData(FString FileType, TConstArr
 		return {};
 	}
 
-	int32 GuidSize = sizeof(UNNERuntimeORTCpuImpl::GUID);
-	int32 VersionSize = sizeof(UNNERuntimeORTCpuImpl::Version);
+	int32 GuidSize = sizeof(UNNERuntimeORTDmlImpl::GUID);
+	int32 VersionSize = sizeof(UNNERuntimeORTDmlImpl::Version);
 	TArray<uint8> Result;
 	FMemoryWriter Writer(Result);
-	Writer << UNNERuntimeORTCpuImpl::GUID;
-	Writer << UNNERuntimeORTCpuImpl::Version;
+	Writer << UNNERuntimeORTDmlImpl::GUID;
+	Writer << UNNERuntimeORTDmlImpl::Version;
 	Writer.Serialize(OutputModel.Data.GetData(), OutputModel.Data.Num());
 	return Result;
 }
 
-bool UNNERuntimeORTCpuImpl::CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelData) const
-{
-	check(ModelData != nullptr);
-
-	int32 GuidSize = sizeof(UNNERuntimeORTCpuImpl::GUID);
-	int32 VersionSize = sizeof(UNNERuntimeORTCpuImpl::Version);
-	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
-
-	if (Data.Num() <= GuidSize + VersionSize)
-	{
-		return false;
-	}
-
-	bool bResult = FGenericPlatformMemory::Memcmp(&(Data[0]), &(UNNERuntimeORTCpuImpl::GUID), GuidSize) == 0;
-	bResult &= FGenericPlatformMemory::Memcmp(&(Data[GuidSize]), &(UNNERuntimeORTCpuImpl::Version), VersionSize) == 0;
-	return bResult;
-}
-
-void UNNERuntimeORTCpuImpl::Init()
+void UNNERuntimeORTDmlImpl::Init()
 {
 	check(!ORTEnvironment.IsValid());
 	ORTEnvironment = MakeUnique<Ort::Env>();
-}
-
-TUniquePtr<UE::NNECore::IModelCPU> UNNERuntimeORTCpuImpl::CreateModelCPU(TObjectPtr<UNNEModelData> ModelData)
-{
-	check(ModelData != nullptr);
-	check(ORTEnvironment.IsValid());
-
-	if (!CanCreateModelCPU(ModelData))
-	{
-		return TUniquePtr<UE::NNECore::IModelCPU>();
-	}
-
-	const UE::NNERuntimeORT::Private::FRuntimeConf InConf;
-	UE::NNERuntimeORT::Private::FModelORTCpu* Model = new UE::NNERuntimeORT::Private::FModelORTCpu(ORTEnvironment.Get(), InConf);
-	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
-
-	if (!Model->Init(Data))
-	{
-		delete Model;
-		return TUniquePtr<UE::NNECore::IModelCPU>();
-	}
-	UE::NNECore::IModelCPU* IModel = static_cast<UE::NNECore::IModelCPU*>(Model);
-	return TUniquePtr<UE::NNECore::IModelCPU>(IModel);
 }
 
 #if PLATFORM_WINDOWS
@@ -103,8 +62,8 @@ bool UNNERuntimeORTDmlImpl::CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelDat
 {
 	check(ModelData != nullptr);
 
-	int32 GuidSize = sizeof(UNNERuntimeORTCpuImpl::GUID);
-	int32 VersionSize = sizeof(UNNERuntimeORTCpuImpl::Version);
+	int32 GuidSize = sizeof(UNNERuntimeORTDmlImpl::GUID);
+	int32 VersionSize = sizeof(UNNERuntimeORTDmlImpl::Version);
 	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
 
 	if (Data.Num() <= GuidSize + VersionSize)
@@ -112,8 +71,8 @@ bool UNNERuntimeORTDmlImpl::CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelDat
 		return false;
 	}
 
-	bool bResult = FGenericPlatformMemory::Memcmp(&(Data[0]), &(UNNERuntimeORTCpuImpl::GUID), GuidSize) == 0;
-	bResult &= FGenericPlatformMemory::Memcmp(&(Data[GuidSize]), &(UNNERuntimeORTCpuImpl::Version), VersionSize) == 0;
+	bool bResult = FGenericPlatformMemory::Memcmp(&(Data[0]), &(UNNERuntimeORTDmlImpl::GUID), GuidSize) == 0;
+	bResult &= FGenericPlatformMemory::Memcmp(&(Data[GuidSize]), &(UNNERuntimeORTDmlImpl::Version), VersionSize) == 0;
 	return bResult;
 }
 

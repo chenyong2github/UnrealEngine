@@ -58,17 +58,6 @@ void FNNERuntimeORTModule::StartupModule()
 
 	Ort::InitApi();
 	
-	// NNE runtime ORT Cpu startup
-	NNERuntimeORTCpu = NewObject<UNNERuntimeORTCpuImpl>();
-	if (NNERuntimeORTCpu.IsValid())
-	{
-		TWeakInterfacePtr<INNERuntime> RuntimeCPUInterface(NNERuntimeORTCpu.Get());
-
-		NNERuntimeORTCpu->Init();
-		NNERuntimeORTCpu->AddToRoot();
-		UE::NNECore::RegisterRuntime(RuntimeCPUInterface);
-	}
-
 #if PLATFORM_WINDOWS
 	// NNE runtime ORT Dml startup
 	NNERuntimeORTDml = NewObject<UNNERuntimeORTDmlImpl>();
@@ -85,16 +74,6 @@ void FNNERuntimeORTModule::StartupModule()
 
 void FNNERuntimeORTModule::ShutdownModule()
 {
-	// NNE runtime ORT Cpu shutdown
-	if (NNERuntimeORTCpu.IsValid())
-	{
-		TWeakInterfacePtr<INNERuntime> RuntimeCPUInterface(NNERuntimeORTCpu.Get());
-
-		UE::NNECore::UnregisterRuntime(RuntimeCPUInterface);
-		NNERuntimeORTCpu->RemoveFromRoot();
-		NNERuntimeORTCpu = TWeakObjectPtr<UNNERuntimeORTCpuImpl>(nullptr);
-	}
-
 #if PLATFORM_WINDOWS
 	// NNE runtime ORT Dml shutdown
 	if (NNERuntimeORTDml.IsValid())

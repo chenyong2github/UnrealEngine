@@ -57,8 +57,8 @@ namespace UE::NNERuntimeORT::Private
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FModelORT_Init"), STAT_FModelORT_Init, STATGROUP_NNE);
 		
 		// Get the header size
-		int32 GuidSize = sizeof(UNNERuntimeORTCpuImpl::GUID);
-		int32 VersionSize = sizeof(UNNERuntimeORTCpuImpl::Version);
+		int32 GuidSize = sizeof(UNNERuntimeORTDmlImpl::GUID);
+		int32 VersionSize = sizeof(UNNERuntimeORTDmlImpl::Version);
 
 		// Clean previous networks
 		bIsLoaded = false;

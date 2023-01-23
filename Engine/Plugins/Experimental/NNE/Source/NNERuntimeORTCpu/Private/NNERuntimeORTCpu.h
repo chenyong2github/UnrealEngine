@@ -16,10 +16,10 @@ NNX_THIRD_PARTY_INCLUDES_START
 #include "core/session/onnxruntime_cxx_api.h"
 NNX_THIRD_PARTY_INCLUDES_END
 
-#include "NNERuntimeCPU.generated.h"
+#include "NNERuntimeORTCpu.generated.h"
 
 UCLASS()
-class UNNERuntimeCPUImpl : public UObject, public INNERuntime, public INNERuntimeCPU
+class UNNERuntimeORTCpuImpl : public UObject, public INNERuntime, public INNERuntimeCPU
 {
 	GENERATED_BODY()
 
@@ -28,10 +28,10 @@ public:
 	static int32 Version;
 
 	Ort::Env NNEEnvironmentCPU;
-	UNNERuntimeCPUImpl() {};
-	virtual ~UNNERuntimeCPUImpl() {}
+	UNNERuntimeORTCpuImpl() {};
+	virtual ~UNNERuntimeORTCpuImpl() {}
 		
-	virtual FString GetRuntimeName() const override { return TEXT("NNERuntimeCPU"); };
+	virtual FString GetRuntimeName() const override { return TEXT("NNERuntimeORTCpu"); };
 	virtual bool IsPlatformSupported(const ITargetPlatform* TargetPlatform) const override { return true; };
 
 	virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const override;

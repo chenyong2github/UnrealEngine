@@ -16,7 +16,7 @@ NNX_THIRD_PARTY_INCLUDES_END
 
 DECLARE_STATS_GROUP(TEXT("NNE"), STATGROUP_NNE, STATCAT_Advanced);
 
-namespace UE::NNERuntimeCPU::Private
+namespace UE::NNERuntimeORTCpu::Private
 {
 
 	using TypeInfoORT = std::pair<ENNETensorDataType, uint64>;
@@ -211,4 +211,4 @@ namespace UE::NNERuntimeCPU::Private
 		}
 	}
 
-} // UE::NNERuntimeCPU::Private
+} // UE::NNERuntimeORTCpu::Private

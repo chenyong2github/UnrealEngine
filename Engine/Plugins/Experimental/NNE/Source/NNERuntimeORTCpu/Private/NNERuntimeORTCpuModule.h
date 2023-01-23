@@ -8,14 +8,14 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 
 namespace NNX { class IRuntime; }
-class UNNERuntimeCPUImpl;
+class UNNERuntimeORTCpuImpl;
 
-class FNNERuntimeCPUModule : public IModuleInterface
+class FNNERuntimeORTCpuModule : public IModuleInterface
 {
 
 public:
 	NNX::IRuntime* CPURuntime{ nullptr };
-	TWeakObjectPtr<UNNERuntimeCPUImpl> NNERuntimeCPU{ nullptr };
+	TWeakObjectPtr<UNNERuntimeORTCpuImpl> NNERuntimeORTCpu{ nullptr };
 
 	// Begin IModuleInterface
 	virtual void StartupModule() override;

@@ -20,7 +20,7 @@ NNX_THIRD_PARTY_INCLUDES_END
 #include "NNERuntimeORT.generated.h"
 
 UCLASS()
-class UNNERuntimeORTCpuImpl : public UObject, public INNERuntime, public INNERuntimeCPU
+class UNNERuntimeORTDmlImpl : public UObject, public INNERuntime, public INNERuntimeCPU
 {
 	GENERATED_BODY()
 
@@ -29,27 +29,17 @@ public:
 	static int32 Version;
 
 	TUniquePtr<Ort::Env> ORTEnvironment;
-	UNNERuntimeORTCpuImpl() {};
-	virtual ~UNNERuntimeORTCpuImpl() {}
+	UNNERuntimeORTDmlImpl() {};
+	virtual ~UNNERuntimeORTDmlImpl() {}
 
 	void Init();
 
-	virtual FString GetRuntimeName() const override { return TEXT("NNERuntimeORTCpuEditor"); };
+	virtual FString GetRuntimeName() const override { return TEXT("NNERuntimeORTDml"); };
 	virtual bool IsPlatformSupported(const ITargetPlatform* TargetPlatform) const override { return true; };
 
 	virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const override;
 	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData) override;
 
-	virtual bool CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelData) const override;
-	virtual TUniquePtr<UE::NNECore::IModelCPU> CreateModelCPU(TObjectPtr<UNNEModelData> ModelData) override;
-};
-
-UCLASS()
-class UNNERuntimeORTDmlImpl : public UNNERuntimeORTCpuImpl
-{
-	GENERATED_BODY()
-
-	virtual FString GetRuntimeName() const override { return TEXT("NNERuntimeORTDmlEditor"); };
 	virtual bool CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelData) const override;
 	virtual TUniquePtr<UE::NNECore::IModelCPU> CreateModelCPU(TObjectPtr<UNNEModelData> ModelData) override;
 };

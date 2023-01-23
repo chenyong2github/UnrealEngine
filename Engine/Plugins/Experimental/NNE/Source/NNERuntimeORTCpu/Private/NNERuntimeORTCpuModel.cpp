@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "NNERuntimeCPUModel.h"
-#include "NNERuntimeCPU.h"
-#include "NNERuntimeCPUUtils.h"
+#include "NNERuntimeORTCpuModel.h"
+#include "NNERuntimeORTCpu.h"
+#include "NNERuntimeORTCpuUtils.h"
 #include "NNEProfilingTimer.h"
 #include "RedirectCoutAndCerrToUeLog.h"
 
-namespace UE::NNERuntimeCPU::Private
+namespace UE::NNERuntimeORTCpu::Private
 {
 
 	FModelCPU::FModelCPU() :
@@ -27,8 +27,8 @@ namespace UE::NNERuntimeCPU::Private
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FModelCPU_Init"), STAT_FModelCPU_Init, STATGROUP_NNE);
 		
 		// Get the header size
-		int32 GuidSize = sizeof(UNNERuntimeCPUImpl::GUID);
-		int32 VersionSize = sizeof(UNNERuntimeCPUImpl::Version);
+		int32 GuidSize = sizeof(UNNERuntimeORTCpuImpl::GUID);
+		int32 VersionSize = sizeof(UNNERuntimeORTCpuImpl::Version);
 
 		// Clean previous networks
 		bIsLoaded = false;
@@ -298,4 +298,4 @@ namespace UE::NNERuntimeCPU::Private
 		InputTransferStatisticsEstimator.ResetStats();
 	}
 
-} // namespace UE::NNERuntimeCPU::Private
+} // namespace UE::NNERuntimeORTCpu::Private

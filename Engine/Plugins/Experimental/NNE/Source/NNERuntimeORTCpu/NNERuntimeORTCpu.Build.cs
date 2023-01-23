@@ -1,21 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-using System.IO;
 
-public class NNXRuntimeCPU : ModuleRules
+public class NNERuntimeORTCpu : ModuleRules
 {
-	public NNXRuntimeCPU( ReadOnlyTargetRules Target ) : base( Target )
+	public NNERuntimeORTCpu( ReadOnlyTargetRules Target ) : base( Target )
 	{
-		// Define when UEAndORT-based NNI is available
 		bool bIsORTSupported = (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Mac);
 		
-		ShortName = "NNXRtCpu"; // Shorten to avoid path-too-long errors
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicDependencyModuleNames.AddRange
-			(
-			new string[] {
+		(
+			new string[] 
+			{
 				"Core",
 				"Engine",
 				"NNXCore",
@@ -25,12 +23,12 @@ public class NNXRuntimeCPU : ModuleRules
 		);
 
 		PrivateDependencyModuleNames.AddRange
-			(
-			new string[] {
-				//"ORTDefault",
+		(
+			new string[] 
+			{
 				"CoreUObject",
 				"NNEUtils",
-				"NNEOnnxruntime"	// Select this for open-source-based ONNX Runtime
+				"NNEOnnxruntime"
 			}
 		);
 	}
