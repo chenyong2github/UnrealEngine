@@ -13,10 +13,11 @@
 #include "Selection/GroupTopologySelector.h"
 #include "Selection/PolygonSelectionMechanic.h"
 #include "ToolDataVisualizer.h"
-#include "Transforms/MultiTransformer.h"
 #include "EditUVIslandsTool.generated.h"
 
 class FMeshVertexChangeBuilder;
+class UCombinedTransformGizmo;
+class UTransformProxy;
 using UE::Geometry::FDynamicMeshUVOverlay;
 
 /**
@@ -110,11 +111,14 @@ protected:
 	void OnSelectionModifiedEvent();
 
 	UPROPERTY()
-	TObjectPtr<UMultiTransformer> MultiTransformer = nullptr;
+	TObjectPtr<UCombinedTransformGizmo> TransformGizmo = nullptr;
 
-	void OnMultiTransformerTransformBegin();
-	void OnMultiTransformerTransformUpdate();
-	void OnMultiTransformerTransformEnd();
+	UPROPERTY()
+	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
+
+	void OnGizmoTransformBegin(UTransformProxy* TransformProxy);
+	void OnGizmoTransformUpdate(UTransformProxy* TransformProxy, FTransform Transform);
+	void OnGizmoTransformEnd(UTransformProxy* TransformProxy);
 
 	// realtime visualization
 	void OnDynamicMeshComponentChanged();
