@@ -34,11 +34,8 @@ bool FWorldCondition_SmartObjectActorTagQuery::Initialize(const UWorldConditionS
 
 	SmartObjectActorRef = SmartObjectSchema->GetSmartObjectActorRef();
 
-	// @todo SO: restore caching once we can change dynamically
-	// (i.e. actor with AbilitySystemComponent can cache result using the delegate; actor only implementing IGameplayTagAssetInterface can not)
-	// bCanCacheResult = Schema.GetContextDataTypeByRef(SmartObjectActorRef) == EWorldConditionContextDataType::Persistent;
-	bCanCacheResult	 = false;
-	
+	bCanCacheResult = Schema.GetContextDataTypeByRef(SmartObjectActorRef) == EWorldConditionContextDataType::Persistent;
+
 	return true;
 }
 
@@ -93,7 +90,7 @@ bool FWorldCondition_SmartObjectActorTagQuery::Activate(const FWorldConditionCon
 	return true;
 }
 
-EWorldConditionResult FWorldCondition_SmartObjectActorTagQuery::IsTrue(const FWorldConditionContext& Context) const
+FWorldConditionResult FWorldCondition_SmartObjectActorTagQuery::IsTrue(const FWorldConditionContext& Context) const
 {
 	const AActor* const SmartObjectActor = Context.GetContextDataPtr<AActor>(SmartObjectActorRef);
 	const IGameplayTagAssetInterface* GameplayTagAssetInterface = Cast<IGameplayTagAssetInterface>(SmartObjectActor);
@@ -104,16 +101,21 @@ EWorldConditionResult FWorldCondition_SmartObjectActorTagQuery::IsTrue(const FWo
 			GameplayTagAssetInterface = AbilitySystemComponent;
 		}
 	}
-	
-	if (GameplayTagAssetInterface)
+
+	FStateType& State = Context.GetState(*this);
+	const bool bResultCanBeCached = State.DelegateHandle.IsValid();
+	FWorldConditionResult Result(EWorldConditionResultValue::IsFalse, bResultCanBeCached);
+	if (GameplayTagAssetInterface != nullptr)
 	{
 		FGameplayTagContainer Tags;
 		GameplayTagAssetInterface->GetOwnedGameplayTags(Tags);
-
-		return TagQuery.Matches(Tags) ? EWorldConditionResult::IsTrue : EWorldConditionResult::IsFalse;
+		if (TagQuery.Matches(Tags))
+		{
+			Result.Value = EWorldConditionResultValue::IsTrue;
+		}
 	}
 
-	return EWorldConditionResult::IsFalse;
+	return Result;
 }
 
 void FWorldCondition_SmartObjectActorTagQuery::Deactivate(const FWorldConditionContext& Context) const

@@ -14,8 +14,8 @@ void FWorldConditionResultInvalidationHandle::InvalidateResult() const
 {
 	if (CachedResult && Item)
 	{
-		*CachedResult = EWorldConditionResult::Invalid;
-		Item->CachedResult = EWorldConditionResult::Invalid;
+		*CachedResult = EWorldConditionResultValue::Invalid;
+		Item->CachedResult = EWorldConditionResultValue::Invalid;
 	}
 }
 
@@ -71,7 +71,7 @@ void FWorldConditionQueryState::Initialize(const UObject& InOwner, const FWorldC
 	int32 Offset = 0;
 
 	// Reserve space for cached result
-	Offset += sizeof(EWorldConditionResult); 
+	Offset += sizeof(EWorldConditionResultValue);
 	
 	// Reserve space for condition items.
 	Offset = Align(Offset, alignof(FWorldConditionItem));
@@ -120,8 +120,8 @@ void FWorldConditionQueryState::Initialize(const UObject& InOwner, const FWorldC
 	Memory = static_cast<uint8*>(FMemory::Malloc(TotalSize, MinAlignment));
 
 	// Init cached result
-	EWorldConditionResult& CachedResult = *reinterpret_cast<EWorldConditionResult*>(Memory + CachedResultOffset);
-	CachedResult = EWorldConditionResult::Invalid;
+	EWorldConditionResultValue& CachedResult = *reinterpret_cast<EWorldConditionResultValue*>(Memory + CachedResultOffset);
+	CachedResult = EWorldConditionResultValue::Invalid;
 	
 	// Initialize items
 	for (int32 Index = 0; Index < static_cast<int32>(NumConditions); Index++)
@@ -244,7 +244,7 @@ FWorldConditionResultInvalidationHandle FWorldConditionQueryState::GetInvalidati
 	check(bIsInitialized);
 	check(Memory && Condition.ConditionIndex < NumConditions);
 
-	EWorldConditionResult* CachedResult = reinterpret_cast<EWorldConditionResult*>(Memory + CachedResultOffset);
+	EWorldConditionResultValue* CachedResult = reinterpret_cast<EWorldConditionResultValue*>(Memory + CachedResultOffset);
 	FWorldConditionItem* Item = reinterpret_cast<FWorldConditionItem*>(Memory + ItemsOffset + Condition.ConditionIndex * sizeof(FWorldConditionItem));
 
 	return FWorldConditionResultInvalidationHandle(CachedResult, Item);

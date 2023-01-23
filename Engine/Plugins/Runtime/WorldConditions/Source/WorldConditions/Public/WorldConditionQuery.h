@@ -177,7 +177,7 @@ struct WORLDCONDITIONS_API FWorldConditionItem
 	uint8 NextExpressionDepth = 0;
 	
 	/** Cached result of the condition. */
-	EWorldConditionResult CachedResult = EWorldConditionResult::Invalid;
+	EWorldConditionResultValue CachedResult = EWorldConditionResultValue::Invalid;
 };
 
 /**
@@ -219,13 +219,13 @@ struct WORLDCONDITIONS_API FWorldConditionResultInvalidationHandle
 	
 protected:
 
-	explicit FWorldConditionResultInvalidationHandle(EWorldConditionResult* InCachedResult, FWorldConditionItem* InItem)
+	explicit FWorldConditionResultInvalidationHandle(EWorldConditionResultValue* InCachedResult, FWorldConditionItem* InItem)
 		: CachedResult(InCachedResult)
 		, Item(InItem)
 	{
 	}
 
-	EWorldConditionResult* CachedResult = nullptr;
+	EWorldConditionResultValue* CachedResult = nullptr;
 	FWorldConditionItem* Item = nullptr;
 
 	friend struct FWorldConditionQueryState;
@@ -269,11 +269,11 @@ struct WORLDCONDITIONS_API FWorldConditionQueryState
 	void Free();
 
 	/** @return cached result stored in the state. */
-	EWorldConditionResult GetCachedResult() const
+	EWorldConditionResultValue GetCachedResult() const
 	{
 		check(bIsInitialized);
 		// If Memory is null, and the query is initialized, it's empty query, which evaluates to true. 
-		return Memory ? *reinterpret_cast<EWorldConditionResult*>(Memory + CachedResultOffset) : EWorldConditionResult::IsTrue;
+		return Memory ? *reinterpret_cast<EWorldConditionResultValue*>(Memory + CachedResultOffset) : EWorldConditionResultValue::IsTrue;
 	}
 
 	/** @return Condition item at specific index */
@@ -326,12 +326,12 @@ struct WORLDCONDITIONS_API FWorldConditionQueryState
 	
 protected:
 
-	void SetCachedResult(const EWorldConditionResult InResult) const
+	void SetCachedResult(const EWorldConditionResultValue InResult) const
 	{
 		check(bIsInitialized);
 		if (Memory)
 		{
-			EWorldConditionResult& CachedResult = *reinterpret_cast<EWorldConditionResult*>(Memory + CachedResultOffset); 
+			EWorldConditionResultValue& CachedResult = *reinterpret_cast<EWorldConditionResultValue*>(Memory + CachedResultOffset); 
 			CachedResult = InResult;
 		}
 	}
@@ -339,7 +339,7 @@ protected:
 private:
 
 	static constexpr int32 CachedResultOffset = 0;
-	static constexpr int32 ItemsOffset = Align(sizeof(EWorldConditionResult), alignof(FWorldConditionItem));
+	static constexpr int32 ItemsOffset = Align(sizeof(EWorldConditionResultValue), alignof(FWorldConditionItem));
  
 	uint8 NumConditions = 0;
 	uint8 bHasPerConditionState : 1;

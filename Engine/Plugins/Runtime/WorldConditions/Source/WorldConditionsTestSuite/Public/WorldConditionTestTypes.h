@@ -97,13 +97,17 @@ struct FWorldConditionTest : public FWorldConditionBase
 		return bActivateResult;
 	}
 	
-	virtual EWorldConditionResult IsTrue(const FWorldConditionContext& Context) const override
+	virtual FWorldConditionResult IsTrue(const FWorldConditionContext& Context) const override
 	{
+		FWorldConditionResult Result(EWorldConditionResultValue::IsFalse, bCanCacheResult);
 		if (const FWorldConditionTestData* TestData = Context.GetContextDataPtr<FWorldConditionTestData>(ValueRef))
 		{
-			return (TestData->Value == TestValue) ? EWorldConditionResult::IsTrue : EWorldConditionResult::IsFalse;
+			if (TestData->Value == TestValue)
+			{
+				Result.Value = EWorldConditionResultValue::IsTrue;
+			}
 		}
-		return EWorldConditionResult::IsFalse;
+		return Result;
 	}
 	
 	virtual void Deactivate(const FWorldConditionContext& Context) const override
@@ -175,15 +179,19 @@ struct FWorldConditionTestCached : public FWorldConditionBase
 		return true;
 	}
 	
-	virtual EWorldConditionResult IsTrue(const FWorldConditionContext& Context) const override
+	virtual FWorldConditionResult IsTrue(const FWorldConditionContext& Context) const override
 	{
+		FWorldConditionResult Result(EWorldConditionResultValue::IsFalse, bCanCacheResult);
 		if (const FWorldConditionTestData* TestData = Context.GetContextDataPtr<FWorldConditionTestData>(ValueRef))
 		{
 			FWorldConditionTestData* MutableTestData = const_cast<FWorldConditionTestData*>(TestData);
 			MutableTestData->AccessCount++;
-			return (TestData->Value == TestValue) ? EWorldConditionResult::IsTrue : EWorldConditionResult::IsFalse;
+			if (TestData->Value == TestValue)
+			{
+				Result.Value = EWorldConditionResultValue::IsTrue;
+			}
 		}
-		return EWorldConditionResult::IsFalse;
+		return Result;
 	}
 	
 	virtual void Deactivate(const FWorldConditionContext& Context) const override

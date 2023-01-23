@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -35,7 +35,7 @@ protected:
 	virtual const UStruct* GetRuntimeStateType() const override { return FStateType::StaticStruct(); }
 	virtual bool Initialize(const UWorldConditionSchema& Schema) override;
 	virtual bool Activate(const FWorldConditionContext& Context) const override;
-	virtual EWorldConditionResult IsTrue(const FWorldConditionContext& Context) const override;
+	virtual FWorldConditionResult IsTrue(const FWorldConditionContext& Context) const override;
 	virtual void Deactivate(const FWorldConditionContext& Context) const override;
 
 	FWorldConditionContextDataRef SubsystemRef;

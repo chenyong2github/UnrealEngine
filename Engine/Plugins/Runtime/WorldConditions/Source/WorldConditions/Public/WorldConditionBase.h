@@ -20,56 +20,96 @@ class UWorldConditionSchema;
  * FWorldConditionContextDataRef allows to reference a specific context data. When added on a world condition as property, the UI allows to pick
  * context data of specified type, and in code, pointer to the actual data can be accessed via the context. 
  *
- *		UPROPERTY(EditAnywhere, Category="Default", meta=(BaseStruct="/Script/SmartObjectsModule.SmartObjectSlotHandle"))
- *		FWorldConditionContextDataRef Slot;
+ *		UPROPERTY(EditAnywhere, Category="Default", meta=(BaseStruct="/Script/ModuleFoo.StructBar"))
+ *		FWorldConditionContextDataRef BarRef;
  *
- *	EWorldConditionResult FWorldConditionSlotTagQuery::Initialize(const FWorldConditionContext& Context) const
- *	{
- *		if (FSmartObjectSlotHandle* SlotHandle = Context.GetMutableContextDataPtr<FSmartObjectSlotHandle>(Slot))
+ *		FWorldConditionResult FWorldConditionFoo::IsTrue(const FWorldConditionContext& Context) const
  *		{
- *		}
- *		...
- *	}
- *
- * Under the hood a reference is a name that needs to be turned into an index before use. This is done on Init().
- *	bool FWorldConditionSlotTagQuery::Initialize(const UWorldConditionSchema& Schema)
- *	{
- *		if (!Schema.ResolveContextDataRef<FSmartObjectSlotHandle>(Slot))
- *		{
- *			return false;
- *		}
- *		...
- *	}
- *
- * To speed up query evaluation, the result of a World Condition can be cached by World Condition Query. A condition can be cached, if it is based on
- * globally accessible data, or context data that is marked as Permanent. To indicate that a conditions result can be cached,
- * bCanCacheResult must be set to true. This is done on Initialize().
- *
- *	bool FWorldConditionSlotTagQuery::Initialize(const UWorldConditionSchema& Schema)
- *	{
- *		...
- *		bCanCacheResult = Schema.GetContextDataTypeByRef(Slot) == EWorldConditionContextDataType::Persistent)
- *		...
- *	}
- *
- * When the result is cached, it needs to be invalidated when new value arrives. This can be done using e.g. a delegate callback which
- * calls InvalidateResult() of the current condition. This call will invalidate the query state so that next time when IsTrue() is called
- * required condition will be re-evaluated. It is advised to do as little work as possible in the delegate callback.
- *
- *	bool FWorldConditionSlotTagQuery::Activate(const FWorldConditionContext& Context) const
- *	{
- *		if (Context.GetContextDataType(Slot) == EWorldConditionContextDataType::Persistent)
- *		{
- *			FOnSmartObjectEvent* SlotDelegate = ...;
- *			FStateType& State = Context.GetState(*this);
- *			State.DelegateHandle = SlotDelegate->AddLambda([this, &QueryState = Context.GetQueryState()]()
- *				{
- *					InvalidateResult(QueryState);
- *				});
+ *			if (FStructBar* Bar = Context.GetMutableContextDataPtr<FStructBar>(BarRef))
+ *			{
  *			}
+ *			...
  *		}
- *		return false;
- *	}
+ *
+ * Under the hood a reference is a name that needs to be turned into an index before use. This is done on Initialize():
+ *
+ *		bool FWorldConditionFoo::Initialize(const UWorldConditionSchema& Schema)
+ *		{
+ *			if (!Schema.ResolveContextDataRef<FStructBar>(BarRef))
+ *			{
+ *				return false;
+ *			}
+ *			...
+ *		}
+ *
+ * To speed up query evaluation, the result of a World Condition can be cached by World Condition Query.
+ * A result can be cached, if the condition is based on globally accessible data, or context data that is marked as Permanent.
+ * Context data marked as Dynamic may change each time IsTrue() is called and the result should never be cached.
+ *
+ * To indicate that a result can be cached it should have bCanBeCached set to true when returned by IsTrue().
+ *
+ * In cases where a data change callback can be registered based on context data, the caching can be determined
+ * during Initialize() by checking of the referenced data is persistent:
+ *
+ *		bool FWorldConditionFoo::Initialize(const UWorldConditionSchema& Schema)
+ *		{
+ *			...
+ *			bCanCacheResult = Schema.GetContextDataTypeByRef(BarRef) == EWorldConditionContextDataType::Persistent)
+ *			...
+ *		}
+ *
+ * The caching status is returned from IsTrue() along with the result:
+ *
+ *		FWorldConditionResult FWorldConditionFoo::IsTrue(const FWorldConditionContext& Context) const
+ *		{
+ *			FWorldConditionResult Result(EWorldConditionResult::IsFalse, bCanCacheResult);
+ *			...
+ *			return Result;
+ *		}
+ *
+ * When the result is cached, it needs to be invalidated when new value arrives. This can be done using e.g. a delegate callback and invalidation handle.
+ * The call to InvalidateResult() on that handle will invalidate the query state so that next time IsTrue() is called required conditions will be re-evaluated.
+ * It is advised to do as little work as possible in the delegate callback:
+ *
+ *		bool FWorldConditionFoo::Activate(const FWorldConditionContext& Context) const
+ *		{
+ *			FStructBar* Bar = Context.GetMutableContextDataPtr<FStructBar>(BarRef)
+ *			if (bCanCacheResult && Bar != nullptr)
+ *			{
+ *				if (FOnFooEvent* Delegate = Bar->GetDelegate())
+ *				{
+ *					FStateType& State = Context.GetState(*this);
+ *					State.DelegateHandle = Delegate->AddLambda([this, InvalidationHandle = Context.GetInvalidationHandle(*this)]()
+ *                      {
+ *                          InvalidationHandle.InvalidateResult();
+ *                      });
+ *				}
+ *			...
+ *		}
+ *
+ *	Note that bCanCacheResult is stored in the condition inside world condition definition, and is the same for all instances of the world condition query state.
+ *	Sometimes the caching status also relies on the input data, say, a condition may operate with a component or interface
+ *	of a given actor, one of which may not have invalidation callbacks.
+ *	In such case we can use some data in the condition state to decide the caching status of the result when returning it from IsTrue():
+ *	
+ *		FWorldConditionResult FWorldConditionFoo::IsTrue(const FWorldConditionContext& Context) const
+ *		{
+ *			FStateType& State = Context.GetState(*this);
+ *
+ *			// Only cache result if we were able to register invalidation callback
+ *			const bool bResultCanBeCached = State.DelegateHandle.IsValid();
+ *			FWorldConditionResult Result(EWorldConditionResult::IsFalse, bResultCanBeCached);
+ *
+ *			if (FStructBar* Bar = Context.GetMutableContextDataPtr<FStructBar>(BarRef))
+ *			{
+ *				if (Bar->EvaluateSomething())
+ *				{
+ *					Result.Value = EWorldConditionResult::IsTrue;
+ *				}
+ *			}
+ *
+ *			return Result;
+ *		}
  */
 USTRUCT(meta=(Hidden))
 struct WORLDCONDITIONS_API FWorldConditionBase
@@ -116,7 +156,7 @@ struct WORLDCONDITIONS_API FWorldConditionBase
 	 * @param Context Context that stores the context data and state of the query.
 	 * @return The state of the condition.
 	 */
-	virtual EWorldConditionResult IsTrue(const FWorldConditionContext& Context) const;
+	virtual FWorldConditionResult IsTrue(const FWorldConditionContext& Context) const;
 
 	/**
 	 * Called to deactivate the condition.

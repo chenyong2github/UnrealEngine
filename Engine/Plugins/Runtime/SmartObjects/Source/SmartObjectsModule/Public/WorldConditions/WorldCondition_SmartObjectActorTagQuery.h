@@ -32,7 +32,7 @@ protected:
 	virtual const UStruct* GetRuntimeStateType() const override { return FStateType::StaticStruct(); }
 	virtual bool Initialize(const UWorldConditionSchema& Schema) override;
 	virtual bool Activate(const FWorldConditionContext& Context) const override;
-	virtual EWorldConditionResult IsTrue(const FWorldConditionContext& Context) const override;
+	virtual FWorldConditionResult IsTrue(const FWorldConditionContext& Context) const override;
 	virtual void Deactivate(const FWorldConditionContext& Context) const override;
 
 	/** Smart Object's owning actor for which the tags must match the query. The Actor must implement IGameplayTagAssetInterface or have an AbilitySystemComponent. */

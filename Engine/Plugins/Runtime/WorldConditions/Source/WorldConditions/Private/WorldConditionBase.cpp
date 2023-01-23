@@ -26,9 +26,9 @@ bool FWorldConditionBase::Activate(const FWorldConditionContext& Context) const
 	return true;
 }
 
-EWorldConditionResult FWorldConditionBase::IsTrue(const FWorldConditionContext& Context) const
+FWorldConditionResult FWorldConditionBase::IsTrue(const FWorldConditionContext& Context) const
 {
-	return EWorldConditionResult::IsTrue;
+	return FWorldConditionResult(EWorldConditionResultValue::IsTrue, bCanCacheResult);
 }
 
 void FWorldConditionBase::Deactivate(const FWorldConditionContext& Context) const

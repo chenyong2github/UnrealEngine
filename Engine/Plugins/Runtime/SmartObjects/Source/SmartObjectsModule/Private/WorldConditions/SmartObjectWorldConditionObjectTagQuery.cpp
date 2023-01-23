@@ -64,18 +64,22 @@ bool FSmartObjectWorldConditionObjectTagQuery::Activate(const FWorldConditionCon
 	return true;
 }
 
-EWorldConditionResult FSmartObjectWorldConditionObjectTagQuery::IsTrue(const FWorldConditionContext& Context) const
+FWorldConditionResult FSmartObjectWorldConditionObjectTagQuery::IsTrue(const FWorldConditionContext& Context) const
 {
 	const USmartObjectSubsystem* SmartObjectSubsystem = Context.GetContextDataPtr<USmartObjectSubsystem>(SubsystemRef);
 	check(SmartObjectSubsystem);
 
+	FWorldConditionResult Result(EWorldConditionResultValue::IsFalse, bCanCacheResult);
 	if (const FSmartObjectHandle* ObjectHandle = Context.GetContextDataPtr<FSmartObjectHandle>(ObjectHandleRef))
 	{
 		const FGameplayTagContainer& ObjectTags = SmartObjectSubsystem->GetInstanceTags(*ObjectHandle);
-		return TagQuery.Matches(ObjectTags) ? EWorldConditionResult::IsTrue : EWorldConditionResult::IsFalse;
+		if (TagQuery.Matches(ObjectTags))
+		{
+			Result.Value =EWorldConditionResultValue::IsTrue; 
+		}
 	}
 
-	return EWorldConditionResult::IsFalse;
+	return Result;
 }
 
 void FSmartObjectWorldConditionObjectTagQuery::Deactivate(const FWorldConditionContext& Context) const

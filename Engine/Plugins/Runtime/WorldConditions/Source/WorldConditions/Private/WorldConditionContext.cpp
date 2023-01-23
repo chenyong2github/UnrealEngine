@@ -47,9 +47,9 @@ bool FWorldConditionContext::IsTrue() const
 		return false;
 	}
 
-	if (QueryState.GetCachedResult() != EWorldConditionResult::Invalid)
+	if (QueryState.GetCachedResult() != EWorldConditionResultValue::Invalid)
 	{
-		return QueryState.GetCachedResult() == EWorldConditionResult::IsTrue;
+		return QueryState.GetCachedResult() == EWorldConditionResultValue::IsTrue;
 	}
 
 	const UWorldConditionQuerySharedDefinition* SharedDefinition = QueryState.SharedDefinition;
@@ -60,7 +60,7 @@ bool FWorldConditionContext::IsTrue() const
 	}
 
 	static_assert(UE::WorldCondition::MaxExpressionDepth == 4);
-	EWorldConditionResult Results[UE::WorldCondition::MaxExpressionDepth + 1] = { EWorldConditionResult::Invalid, EWorldConditionResult::Invalid, EWorldConditionResult::Invalid, EWorldConditionResult::Invalid, EWorldConditionResult::Invalid };
+	EWorldConditionResultValue Results[UE::WorldCondition::MaxExpressionDepth + 1] = { EWorldConditionResultValue::Invalid, EWorldConditionResultValue::Invalid, EWorldConditionResultValue::Invalid, EWorldConditionResultValue::Invalid, EWorldConditionResultValue::Invalid };
 	EWorldConditionOperator Operators[UE::WorldCondition::MaxExpressionDepth + 1] = { EWorldConditionOperator::Copy, EWorldConditionOperator::Copy, EWorldConditionOperator::Copy, EWorldConditionOperator::Copy, EWorldConditionOperator::Copy };
 	int32 Depth = 0;
 
@@ -75,18 +75,16 @@ bool FWorldConditionContext::IsTrue() const
 
 		Depth = FMath::Max(Depth, NextExpressionDepth);
 		
-		EWorldConditionResult CurrResult = Item.CachedResult;
-		if (CurrResult == EWorldConditionResult::Invalid)
+		EWorldConditionResultValue CurrResult = Item.CachedResult;
+		if (CurrResult == EWorldConditionResultValue::Invalid)
 		{
 			check(SharedDefinition->Conditions.Num() == QueryState.GetNumConditions());
 			const FWorldConditionBase& Condition = SharedDefinition->Conditions[Index].Get<FWorldConditionBase>();
-			CurrResult = Condition.IsTrue(*this);
-			CurrResult = UE::WorldCondition::Invert(CurrResult, Condition.bInvert); 
-			
-			if (Condition.bCanCacheResult)
-			{
-				Item.CachedResult = CurrResult;
-			}
+			FWorldConditionResult ConditionResult = Condition.IsTrue(*this);
+			CurrResult = UE::WorldCondition::Invert(ConditionResult.Value, Condition.bInvert); 
+
+			// Cache result if possible; clear cache otherwise
+			Item.CachedResult = ConditionResult.bCanBeCached ? CurrResult : EWorldConditionResultValue::Invalid;
 			
 			bAllConditionsCanBeCached &= Condition.bCanCacheResult;
 		}
@@ -102,11 +100,11 @@ bool FWorldConditionContext::IsTrue() const
 		}
 	}
 
-	const EWorldConditionResult FinalResult = Results[0];
+	const EWorldConditionResultValue FinalResult = Results[0];
 	
-	QueryState.SetCachedResult(bAllConditionsCanBeCached ? FinalResult : EWorldConditionResult::Invalid);
+	QueryState.SetCachedResult(bAllConditionsCanBeCached ? FinalResult : EWorldConditionResultValue::Invalid);
 	
-	return FinalResult == EWorldConditionResult::IsTrue;
+	return FinalResult == EWorldConditionResultValue::IsTrue;
 
 }
 

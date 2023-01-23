@@ -9,7 +9,7 @@ WORLDCONDITIONS_API DECLARE_LOG_CATEGORY_EXTERN(LogWorldCondition, Warning, All)
 
 /** Result of a world condition */
 UENUM()
-enum class EWorldConditionResult : uint8
+enum class EWorldConditionResultValue : uint8
 {
 	/** The result is false. */
 	IsFalse = 0,
@@ -17,6 +17,31 @@ enum class EWorldConditionResult : uint8
 	IsTrue = 1,
 	/** The result needs to be recalculated. */
 	Invalid = 2,
+};
+
+/**
+ * Result of a world condition evaluation.
+ * Also contains additional information related to that result (e.g. if the result can be cached or not)
+ */
+USTRUCT()
+struct FWorldConditionResult
+{
+	GENERATED_BODY()
+
+	FWorldConditionResult() = default;
+	FWorldConditionResult(const EWorldConditionResultValue Result, const bool bCanResultBeCached)
+		: Value(Result)
+		, bCanBeCached(bCanResultBeCached)
+	{
+	}
+
+	/** Indicates the result of a condition evaluated for a given context. */
+	UPROPERTY()
+	EWorldConditionResultValue Value = EWorldConditionResultValue::Invalid;
+
+	/** Indicates that a given result can be cached or not. */
+	UPROPERTY()
+	bool bCanBeCached = false;
 };
 
 /** Boolean operator between conditions in a expression. */
@@ -37,24 +62,24 @@ namespace UE::WorldCondition
 	constexpr int32 MaxExpressionDepth = 4;
 
 	/** Merges two condition results using specific operator. */
-	inline EWorldConditionResult MergeResults(const EWorldConditionOperator Operator, const EWorldConditionResult InLeft, const EWorldConditionResult InRight)
+	inline EWorldConditionResultValue MergeResults(const EWorldConditionOperator Operator, const EWorldConditionResultValue InLeft, const EWorldConditionResultValue InRight)
 	{
 		const uint8 Left = (uint8)InLeft & 1;
 		const uint8 Right = (uint8)InRight & 1;
 		const uint8 ResultAnd = Left & Right;
 		const uint8 ResultOr = Left | Right;
 		const uint8 Result = (Operator == EWorldConditionOperator::And) ? ResultAnd : ResultOr;
-		return (Operator == EWorldConditionOperator::Copy) ? InRight : (EWorldConditionResult)Result;
+		return (Operator == EWorldConditionOperator::Copy) ? InRight : (EWorldConditionResultValue)Result;
 	}
 
 	/** Inverts the result if bInvert is true. Invalid is kept intact. */
-	inline EWorldConditionResult Invert(const EWorldConditionResult InResult, const bool bInvert)
+	inline EWorldConditionResultValue Invert(const EWorldConditionResultValue InResult, const bool bInvert)
 	{
-		if (InResult == EWorldConditionResult::Invalid)
+		if (InResult == EWorldConditionResultValue::Invalid)
 		{
-			return EWorldConditionResult::Invalid;
+			return EWorldConditionResultValue::Invalid;
 		}
-		return ((InResult == EWorldConditionResult::IsTrue) ^ bInvert) ? EWorldConditionResult::IsTrue : EWorldConditionResult::IsFalse;
+		return ((InResult == EWorldConditionResultValue::IsTrue) ^ bInvert) ? EWorldConditionResultValue::IsTrue : EWorldConditionResultValue::IsFalse;
 	}
 
 } // UE::WorldCondition
