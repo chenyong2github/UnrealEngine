@@ -181,9 +181,10 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityActorInfo
 	/** Accessor to get the affected anim instance from the SkeletalMeshComponent */
 	UAnimInstance* GetAnimInstance() const;
 	
-	/** Returns true if this actor is locally controlled. Only true for players on the client that owns them */
+	/** Returns true if this actor is locally controlled. Only true for players on the client that owns them (differs from APawn::IsLocallyControlled which requires a Controller) */
 	bool IsLocallyControlled() const;
 
+	/** Returns true if this actor has a PlayerController that is locally controlled. */
 	bool IsLocallyControlledPlayer() const;
 
 	/** Returns true if the owning actor has net authority */

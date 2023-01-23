@@ -110,15 +110,18 @@ bool FGameplayAbilityActorInfo::IsLocallyControlled() const
 	}
 	else if (const APawn* OwnerPawn = Cast<APawn>(OwnerActor))
 	{
-		return OwnerPawn->IsLocallyControlled();
+		if (OwnerPawn->IsLocallyControlled())
+		{
+			return true;
+		}
+		else if (OwnerPawn->GetController())
+		{
+			// We're controlled, but we're not locally controlled.
+			return false;
+		}
 	}
-	else if (IsNetAuthority())
-	{
-		// Non-players are always locally controlled on the server
-		return true;
-	}
-
-	return false;
+	
+	return IsNetAuthority();
 }
 
 bool FGameplayAbilityActorInfo::IsLocallyControlledPlayer() const
