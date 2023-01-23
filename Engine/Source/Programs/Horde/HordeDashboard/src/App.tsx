@@ -191,7 +191,6 @@ const App: React.FC = () => {
 
 export default App;
 
-
 const HomeRedirect: React.FC = () => {
    if (window.location.pathname === "/" || !window.location.pathname) {
       return <Navigate to="/index" replace={true} />
@@ -201,8 +200,8 @@ const HomeRedirect: React.FC = () => {
 
 const Root: React.FC = () => {
    return <div>
-      <HomeRedirect />
       <Outlet />
+      <HomeRedirect />      
    </div>
 }
 
