@@ -58,6 +58,7 @@ namespace EpicGames.UHT.Types
 			switch (phase)
 			{
 				case UhtResolvePhase.Final:
+					ScriptStruct.Resolve(phase);
 					if (ScanForInstancedReferenced(true))
 					{
 						PropertyFlags |= EPropertyFlags.ContainsInstancedReference;
