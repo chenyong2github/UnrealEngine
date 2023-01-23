@@ -4,11 +4,6 @@
 
 #include "WebRTCIncludes.h"
 #include "Async/Async.h"
-#include "Dom/JsonObject.h"
-#include "Serialization/JsonReader.h"
-#include "Serialization/JsonWriter.h"
-#include "Serialization/JsonSerializer.h"
-#include "Policies/CondensedJsonPrintPolicy.h"
 #include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CommandLine.h"
@@ -131,40 +126,4 @@ namespace UE::PixelStreaming
 		return Pos + DataSize;
 	}
 
-	inline void ExtendJsonWithField(const FString& Descriptor, FString FieldName, FString StringValue, FString& NewDescriptor, bool& Success)
-	{
-		TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-
-		if (!Descriptor.IsEmpty())
-		{
-			TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(Descriptor);
-			if (!FJsonSerializer::Deserialize(JsonReader, JsonObject) || !JsonObject.IsValid())
-			{
-				Success = false;
-				return;
-			}
-		}
-
-		TSharedRef<FJsonValueString> JsonValueObject = MakeShareable(new FJsonValueString(StringValue));
-		JsonObject->SetField(FieldName, JsonValueObject);
-
-		TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&NewDescriptor);
-		Success = FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
-	}
-
-	inline void ExtractJsonFromDescriptor(FString Descriptor, FString FieldName, FString& StringValue, bool& Success)
-	{
-		TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-
-		TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(Descriptor);
-		if (FJsonSerializer::Deserialize(JsonReader, JsonObject) && JsonObject.IsValid())
-		{
-			const TSharedPtr<FJsonObject>* JsonObjectPtr = &JsonObject;
-			Success = (*JsonObjectPtr)->TryGetStringField(FieldName, StringValue);
-		}
-		else
-		{
-			Success = false;
-		}
-	}
 } // namespace UE::PixelStreaming

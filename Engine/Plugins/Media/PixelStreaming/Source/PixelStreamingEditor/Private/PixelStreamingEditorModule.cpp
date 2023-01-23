@@ -13,7 +13,7 @@
 #include "UnrealEngine.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "PixelStreamingProtocol.h"
-#include "Utils.h"
+#include "PixelStreamingUtils.h"
 #include "GenericPlatform/GenericPlatformHttp.h"
 #include "LevelEditorViewport.h"
 #include "Slate/SceneViewport.h"

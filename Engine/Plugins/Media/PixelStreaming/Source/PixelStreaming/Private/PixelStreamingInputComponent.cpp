@@ -13,7 +13,7 @@
 #include "PixelStreamingProtocol.h"
 #include "IPixelStreamingStreamer.h"
 #include "Settings.h"
-#include "Utils.h"
+#include "PixelStreamingUtils.h"
 
 UPixelStreamingInput::UPixelStreamingInput(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

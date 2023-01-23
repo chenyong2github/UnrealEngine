@@ -12,7 +12,7 @@
 #include "Widgets/SViewport.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonSerializer.h"
-#include "Utils.h"
+#include "PixelStreamingUtils.h"
 #include "PixelStreamingInputComponent.h"
 #include "Engine/Engine.h"
 #include "Framework/Application/SlateUser.h"
