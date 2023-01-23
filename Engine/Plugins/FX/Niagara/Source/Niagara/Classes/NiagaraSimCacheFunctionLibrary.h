@@ -3,8 +3,8 @@
 #pragma once
 
 #include "NiagaraSimCache.h"
+#include "NiagaraSimCacheCapture.h"
 
-#include "Containers/Ticker.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
 
@@ -23,27 +23,18 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraComponent> CaptureComponent;
-
-	UPROPERTY()
-	int32 CaptureNumFrames = 0;
-
-	UPROPERTY()
-	int32 CaptureFrameRate = 0;
-
-	UPROPERTY()
-	int32 CaptureFrameCounter = 0;
-
-	UPROPERTY()
-	int32 TimeOutCounter = 0;
-
+	
 	UPROPERTY(BlueprintAssignable)
 	FOnCaptureComplete CaptureComplete;
 
-	FTSTicker::FDelegateHandle TickerHandle;
+	FNiagaraSimCacheCapture SimCacheCapture;
+
+	FNiagaraSimCacheCaptureParameters CaptureParameters;
+
+	FNiagaraSimCacheCreateParameters CreateParameters;
 
 	virtual void Activate() override;
 	virtual void SetReadyToDestroy() override;
-	bool OnFrameTick(float DeltaTime);
 
 	/**
 	Capture multiple frames from the provided simulation into a SimCache until the simulation becomes inactive, completes or we hit the NumFrames limit.
@@ -51,23 +42,22 @@ public:
 	CaptureRate allows you to reduce the rate of capture, i.e. a rate of 2 would capture frames 0, 2, 4, etc.
 	When AdvanceSimulation is true we will manually advance the simulation in a loop until we have captured the number of frames request, rather than reading from the component each frame.
 	*/
-	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true", Category=NiagaraSimCache))
+	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true", Category=NiagaraSimCache, AdvancedDisplay = "CaptureRate, bAdvanceSimulation, AdvanceDeltaTime"))
 	static UAsyncNiagaraCaptureSimCache* CaptureNiagaraSimCacheMultiFrame(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache, int32 NumFrames = 16, int32 CaptureRate = 1, bool bAdvanceSimulation=false, float AdvanceDeltaTime=0.01666f);
-
+	
 	/**
 	Capture frames from the provided simulation into a SimCache until the simulation becomes inactive or completes.
 	Capture occurs at the end of each frame with the first frame being this frame.
 	CaptureRate allows you to reduce the rate of capture, i.e. a rate of 2 would capture frames 0, 2, 4, etc.
 	When AdvanceSimulation is true we will manually advance the simulation until the capture is complete inside a loop, rather than reading from the component each frame.
 	*/
-	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true", Category=NiagaraSimCache))
+	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true", Category=NiagaraSimCache, AdvancedDisplay = "CaptureRate, bAdvanceSimulation, AdvanceDeltaTime"))
 	static UAsyncNiagaraCaptureSimCache* CaptureNiagaraSimCacheUntilComplete(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache, int32 CaptureRate = 1, bool bAdvanceSimulation=false, float AdvanceDeltaTime=0.01666f);
 
-	UPROPERTY()
-	bool bAdvanceSimulation = false;
+private:
+	static UAsyncNiagaraCaptureSimCache* CaptureNiagaraSimCacheImpl(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache, FNiagaraSimCacheCaptureParameters CaptureParameters);
 
-	UPROPERTY()
-	float AdvanceDeltaTime = 1.0f / 60.0f;
+	void CaptureFinished(UNiagaraSimCache* CapturedSimCache);
 };
 
 UCLASS()

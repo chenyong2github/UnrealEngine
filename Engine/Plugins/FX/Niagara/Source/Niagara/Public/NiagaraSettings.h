@@ -115,6 +115,10 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	/** If true then the "link input" menu will also show variables of different types, as long as there is a conversion script for them. */
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	bool bShowConvertibleInputsInStack = false;
+
+	/** The number of frames to capture when capturing a Sim Cache from the Niagara Component Details Panel. **/
+	UPROPERTY(Config, EditAnywhere, Category = SimulationCaching, meta = (UIMin = 1))
+	int32 QuickSimCacheCaptureFrameCount = 5;
 #endif // WITH_EDITORONLY_DATA
 
 	/** If true then active effects rebase the simulation positions to not lose precision. Can be turned off if not needed to skip unnecessary rebasing calculations. */

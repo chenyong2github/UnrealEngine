@@ -8,6 +8,7 @@
 #include "NiagaraDataInterface.h"
 #include "IDetailPropertyRow.h"
 #include "DetailWidgetRow.h"
+#include "NiagaraSimCacheCapture.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Widgets/Text/STextBlock.h"
@@ -26,11 +27,13 @@
 #include "NiagaraScriptSource.h"
 #include "NiagaraNodeInput.h"
 #include "GameDelegates.h"
+#include "IAssetTools.h"
 #include "NiagaraEditorStyle.h"
 #include "IDetailChildrenBuilder.h"
 #include "NiagaraClipboard.h"
 #include "NiagaraConstants.h"
 #include "NiagaraScriptVariable.h"
+#include "NiagaraSettings.h"
 #include "NiagaraSystemEditorData.h"
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
@@ -1254,6 +1257,11 @@ FNiagaraComponentDetails::~FNiagaraComponentDetails()
 		GEngine->OnWorldDestroyed().RemoveAll(this);
 	}
 
+	for(UNiagaraSimCache*& SimCache : CapturedCaches)
+	{
+		SimCache->ClearFlags(RF_Standalone);
+	}
+
 	FGameDelegates::Get().GetEndPlayMapDelegate().RemoveAll(this);
 }
 
@@ -1399,6 +1407,17 @@ void FNiagaraComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 						.Text(LOCTEXT("ResetEmitterButton", "Reset"))
 					]
 				]
+				+ SUniformGridPanel::Slot(2,0)
+				[
+					SNew(SButton)
+					.OnClicked(this, &FNiagaraComponentDetails::OnCaptureSelectedSystem)
+					.ToolTipText(LOCTEXT("CaptureSimCacheButtonToolTip", "Capture a temporary sim cache from the first selected particle system."))
+					.HAlign(HAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("CaptureSimCacheButton", "Capture"))
+					]
+				]
 			]
 		];
 }
@@ -1476,6 +1495,84 @@ FReply FNiagaraComponentDetails::OnDebugSelectedSystem()
 #if WITH_NIAGARA_DEBUGGER
 		SNiagaraDebugger::InvokeDebugger(NiagaraComponentToUse);
 #endif
+	}
+
+	return FReply::Handled();
+}
+
+FReply FNiagaraComponentDetails::OnCaptureSelectedSystem()
+{
+	if (!Builder)
+		return FReply::Handled();
+
+	const TArray< TWeakObjectPtr<UObject> >& SelectedObjects = Builder->GetSelectedObjects();
+
+	UNiagaraComponent* NiagaraComponentToUse = nullptr;
+	for (int32 Idx = 0; Idx < SelectedObjects.Num(); ++Idx)
+	{
+		if (SelectedObjects[Idx].IsValid())
+		{
+			if (AActor* Actor = Cast<AActor>(SelectedObjects[Idx].Get()))
+			{
+				for (UActorComponent* AC : Actor->GetComponents())
+				{
+					UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(AC);
+					if (NiagaraComponent)
+					{
+						NiagaraComponentToUse = NiagaraComponent;
+						break;
+					}
+				}
+			}
+			else if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(SelectedObjects[Idx].Get()))
+			{
+				NiagaraComponentToUse = NiagaraComponent;
+				break;
+			}
+		}
+	}
+
+	if (NiagaraComponentToUse)
+	{
+		
+		int32 CaptureIndex = ComponentCaptures.AddDefaulted();
+		UNiagaraSimCache* SimCache = NewObject<UNiagaraSimCache>(GetTransientPackage());
+		SimCache->SetFlags(RF_Standalone);
+		CapturedCaches.Add(SimCache);
+		FNiagaraSimCacheCapture& SimCacheCapture = ComponentCaptures[CaptureIndex];
+
+		FNiagaraSimCacheCreateParameters CreateParameters;
+		
+		FNiagaraSimCacheCaptureParameters CaptureParameters;
+
+		CaptureParameters.CaptureRate = 1;
+		// A value of 0 would capture until completion. Since this can apply broadly, looping systems would not finish capturing, so don't go below 1.
+		CaptureParameters.NumFrames = FMath::Max(1, GetDefault<UNiagaraSettings>()->QuickSimCacheCaptureFrameCount);
+		CaptureParameters.bManuallyAdvanceSimulation = false;
+		
+		if(NiagaraComponentToUse->GetWorld())
+		{
+			
+			SimCacheCapture.CaptureNiagaraSimCache(SimCache, CreateParameters, NiagaraComponentToUse, CaptureParameters);
+
+			SimCacheCapture.OnCaptureComplete().AddLambda(
+			[CaptureIndex, this](UNiagaraSimCache* CapturedSimCache)
+			{
+				if(CapturedSimCache)
+				{
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(CapturedSimCache, EToolkitMode::Standalone);
+				}
+
+				if(ComponentCaptures.IsValidIndex(CaptureIndex))
+				{
+					ComponentCaptures.RemoveAt(CaptureIndex);
+				}
+				
+			});
+		}
+
+		
+		return FReply::Handled();
 	}
 
 	return FReply::Handled();

@@ -7,6 +7,7 @@
 #include "IDetailCustomNodeBuilder.h"
 #include "Input/Reply.h"
 #include "NiagaraComponent.h"
+#include "NiagaraSimCacheCapture.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
 #include "ViewModels/HierarchyEditor/NiagaraHierarchyViewModelBase.h"
 #include "ViewModels/HierarchyEditor/NiagaraUserParametersHierarchyViewModel.h"
@@ -18,6 +19,7 @@ class FNiagaraParameterViewModelCustomDetails;
 class INiagaraParameterViewModel;
 class SNiagaraParameterEditor;
 class FNiagaraParameterViewModelCustomDetails;
+class FNiagaraSimCacheCapture;
 class UNiagaraSystem;
 
 USTRUCT()
@@ -46,9 +48,13 @@ protected:
 
 	FReply OnResetSelectedSystem();
 	FReply OnDebugSelectedSystem();
+	FReply OnCaptureSelectedSystem();
 private:
 	TWeakObjectPtr<UNiagaraComponent> Component;
 	IDetailLayoutBuilder* Builder = nullptr;
+
+	TArray<FNiagaraSimCacheCapture> ComponentCaptures;
+	TArray<UNiagaraSimCache*> CapturedCaches;
 };
 
 class FNiagaraSystemUserParameterDetails : public IDetailCustomization
