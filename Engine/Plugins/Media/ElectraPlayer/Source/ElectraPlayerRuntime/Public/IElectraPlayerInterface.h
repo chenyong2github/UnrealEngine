@@ -40,6 +40,7 @@ public:
 		LicenseKeyData,
 		PlaystartPosFromSeekPositions,
 		MediaMetadataUpdate,
+		CustomAnalyticsMetric,
 		Android_VideoSurface,
 	};
 	virtual Electra::FVariantValue QueryOptions(EOptionType Type, const Electra::FVariantValue& Param = Electra::FVariantValue()) = 0;

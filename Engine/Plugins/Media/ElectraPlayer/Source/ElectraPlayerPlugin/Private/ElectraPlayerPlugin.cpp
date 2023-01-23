@@ -264,7 +264,7 @@ Electra::FVariantValue FElectraPlayerPlugin::FPlayerAdapterDelegate::QueryOption
 			IMediaOptions *SafeOptions = SafeOptionInterface->GetMediaOptionInterface();
 			if (SafeOptions)
 			{
-				switch (Type)
+				switch(Type)
 				{
 					case EOptionType::MaxVerticalStreamResolution:
 					{
@@ -308,6 +308,20 @@ Electra::FVariantValue FElectraPlayerPlugin::FPlayerAdapterDelegate::QueryOption
 							check(Param.IsType(FVariantValue::EDataType::TypeFString));
 							// This only provides metadata, the return value of the Get is of no consequence.
 							SafeOptions->GetMediaOption(MetadataUpdateOptionKey, Param.GetFString());
+						}
+						break;
+					}
+
+					case EOptionType::CustomAnalyticsMetric:
+					{
+						check(Param.IsType(FVariantValue::EDataType::TypeFString));
+						if (Param.IsType(FVariantValue::EDataType::TypeFString))
+						{
+							FName OptionKey(*Param.GetFString());
+							if (SafeOptions->HasMediaOption(OptionKey))
+							{
+								return FVariantValue(SafeOptions->GetMediaOption(OptionKey, FString()));
+							}
 						}
 						break;
 					}

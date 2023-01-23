@@ -26,6 +26,12 @@ DECLARE_CYCLE_STAT(TEXT("FElectraPlayer::TickInput"), STAT_ElectraPlayer_Electra
 
 //-----------------------------------------------------------------------------
 
+// Prefix to use in querying for a custom analytic value through QueryOptions()
+#define CUSTOM_ANALYTIC_METRIC_QUERYOPTION_KEY TEXT("ElectraCustomAnalytic")
+// Prefix to use in the metric event to set the custom value.
+#define CUSTOM_ANALYTIC_METRIC_KEYNAME TEXT("Custom")
+
+
 #define USE_INTERNAL_PLAYBACK_STATE 1
 
 //-----------------------------------------------------------------------------
@@ -249,6 +255,7 @@ bool FElectraPlayer::OpenInternal(const FString& Url, const FParamDict& InPlayer
 	NumQueuedAnalyticEvents = 0;
 	// Create a guid string for the analytics. We do this here and not in the constructor in case the same instance is used over again.
 	AnalyticsInstanceGuid = FGuid::NewGuid().ToString(EGuidFormats::Digits);
+	UpdateAnalyticsCustomValues();
 
 	PlaystartOptions = InPlaystartOptions;
 
@@ -1721,6 +1728,33 @@ void FElectraPlayer::AddCommonAnalyticsAttributes(TArray<FAnalyticsEventAttribut
 	InOutParamArray.Add(FAnalyticsEventAttribute(TEXT("Utc"), static_cast<double>(FDateTime::UtcNow().ToUnixTimestamp())));
 	InOutParamArray.Add(FAnalyticsEventAttribute(TEXT("OS"), FString::Printf(TEXT("%s"), *AnalyticsOSVersion)));
 	InOutParamArray.Add(FAnalyticsEventAttribute(TEXT("GPUAdapter"), AnalyticsGPUType));
+	StatisticsLock.Lock();
+	for(int32 nI=0, nIMax=UE_ARRAY_COUNT(AnalyticsCustomValues); nI<nIMax; ++nI)
+	{
+		if (AnalyticsCustomValues[nI].Len())
+		{
+			InOutParamArray.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("%s%d"), CUSTOM_ANALYTIC_METRIC_KEYNAME, nI), AnalyticsCustomValues[nI]));
+		}
+	}
+	StatisticsLock.Unlock();
+}
+
+void FElectraPlayer::UpdateAnalyticsCustomValues()
+{
+	StatisticsLock.Lock();
+	TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin();
+	if (PinnedAdapterDelegate.IsValid())
+	{
+		for(int32 nI=0, nIMax=UE_ARRAY_COUNT(AnalyticsCustomValues); nI<nIMax; ++nI)
+		{
+			FVariantValue Value = PinnedAdapterDelegate->QueryOptions(IElectraPlayerAdapterDelegate::EOptionType::CustomAnalyticsMetric, FVariantValue(FString::Printf(TEXT("%s%d"), CUSTOM_ANALYTIC_METRIC_QUERYOPTION_KEY, nI)));
+			if (Value.IsValid() && Value.GetDataType() == FVariantValue::EDataType::TypeFString)
+			{
+				AnalyticsCustomValues[nI] = Value.GetFString();
+			}
+		}
+	}
+	StatisticsLock.Unlock();
 }
 
 
@@ -2283,7 +2317,18 @@ void FElectraPlayer::HandlePlayerEventSegmentDownload(const Electra::Metrics::FS
 
 		if (SegmentDownloadStats.FailureReason.Len())
 		{
-			Statistics.AddMessageToHistory(FString::Printf(TEXT("%s segment download issue (%s)"), Electra::Metrics::GetSegmentTypeString(SegmentDownloadStats.SegmentType), *SegmentDownloadStats.FailureReason));
+			FString Msg;
+			if (!SegmentDownloadStats.bWasAborted)
+			{
+				Msg = FString::Printf(TEXT("%s segment download issue on representation %s, bitrate %d, retry %d: %s"), Electra::Metrics::GetSegmentTypeString(SegmentDownloadStats.SegmentType),
+					*SegmentDownloadStats.RepresentationID, SegmentDownloadStats.Bitrate, SegmentDownloadStats.RetryNumber, *SegmentDownloadStats.FailureReason);
+			}
+			else
+			{
+				Msg = FString::Printf(TEXT("%s segment download issue on representation %s, bitrate %d, aborted: %s"), Electra::Metrics::GetSegmentTypeString(SegmentDownloadStats.SegmentType),
+					*SegmentDownloadStats.RepresentationID, SegmentDownloadStats.Bitrate, *SegmentDownloadStats.FailureReason);
+			}
+			Statistics.AddMessageToHistory(Msg);
 		}
 
 		static const FString kEventNameElectraSegmentIssue(TEXT("Electra.SegmentIssue"));
@@ -2319,11 +2364,11 @@ void FElectraPlayer::HandlePlayerEventVideoQualityChange(int32 NewBitrate, int32
 	}
 	else
 	{
-		if(bIsDrasticDownswitch)
+		if (bIsDrasticDownswitch)
 		{
 			++Statistics.NumQualityDrasticDownswitches;
 		}
-		if(NewBitrate > PreviousBitrate)
+		if (NewBitrate > PreviousBitrate)
 		{
 			++Statistics.NumQualityUpswitches;
 		}
@@ -2373,6 +2418,8 @@ void FElectraPlayer::HandlePlayerEventVideoQualityChange(int32 NewBitrate, int32
 		AnalyticEvent->ParamArray.Add(FAnalyticsEventAttribute(TEXT("NewResolution"), *FString::Printf(TEXT("%d*%d"), Statistics.CurrentlyActiveResolutionWidth, Statistics.CurrentlyActiveResolutionHeight)));
 		EnqueueAnalyticsEvent(AnalyticEvent);
 	}
+
+	Statistics.AddMessageToHistory(FString::Printf(TEXT("Video bitrate change from %d to %d"), PreviousBitrate, NewBitrate));
 
 	CSV_EVENT(ElectraPlayer, TEXT("QualityChange %d -> %d"), PreviousBitrate, NewBitrate);
 }
@@ -2633,8 +2680,8 @@ void FElectraPlayer::HandlePlayerEventError(const FString& ErrorReason)
 	FString MessageHistory;
 	for(auto &msg : Statistics.MessageHistoryBuffer)
 	{
-		MessageHistory.Append(msg);
-		MessageHistory.Append(TEXT("\n"));
+		MessageHistory.Append(FString::Printf(TEXT("%8.3f: %s"), msg.TimeSinceStart, *msg.Message));
+		MessageHistory.Append(TEXT("<br>"));
 	}
 
 	// Enqueue an "Error" event.
@@ -2714,6 +2761,20 @@ void FElectraPlayer::FDroppedFrameStats::AddNewDrop(const FTimespan& InFrameTime
 	PlayerTimeAtLastReport = InPlayerTime;
 }
 
+void FElectraPlayer::FStatistics::AddMessageToHistory(FString InMessage)
+{
+	if (MessageHistoryBuffer.Num() >= 20)
+	{
+		MessageHistoryBuffer.RemoveAt(0);
+	}
+	double Now = FPlatformTime::Seconds();
+	FStatistics::FHistoryEntry he;
+	he.Message = MoveTemp(InMessage);
+	he.TimeSinceStart = TimeAtOpen < 0.0 ? 0.0 : Now - TimeAtOpen;
+	MessageHistoryBuffer.Emplace(MoveTemp(he));
+}
+
+
 void FElectraPlayer::UpdatePlayEndStatistics()
 {
 	TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
@@ -2788,12 +2849,7 @@ void FElectraPlayer::LogStatistics()
 			"Currently active playlist URL: %s\n"\
 			"Currently active resolution: %d * %d\n" \
 			"Current state: %s\n" \
-			"Number of video frames dropped: %d, worst time delta %.3f ms\n" \
-			"Number of audio frames dropped: %d, worst time delta %.3f ms\n" \
-			"Last error: %s\n" \
-			"Subtitles URL: %s\n" \
-			"Subtitles response time: %.3fs\n" \
-			"Subtitles last error: %s\n"
+			"Last issue: %s\n"
 		),
 			this, CurrentPlayer.Get(),
 			*FString::Printf(TEXT("%s"), *AnalyticsOSVersion),
@@ -2829,14 +2885,7 @@ void FElectraPlayer::LogStatistics()
 			Statistics.CurrentlyActiveResolutionWidth,
 			Statistics.CurrentlyActiveResolutionHeight,
 			*Statistics.LastState,
-			Statistics.DroppedVideoFrames.NumTotalDropped,
-			Statistics.DroppedVideoFrames.WorstDeltaTime.GetTotalMilliseconds(),
-			Statistics.DroppedAudioFrames.NumTotalDropped,
-			Statistics.DroppedAudioFrames.WorstDeltaTime.GetTotalMilliseconds(),
-			*SanitizeMessage(Statistics.LastError),
-			*SanitizeMessage(Statistics.SubtitlesURL),
-			Statistics.SubtitlesResponseTime,
-			*Statistics.SubtitlesLastError
+			*SanitizeMessage(Statistics.LastError)
 		);
 		
 		if (Statistics.LastError.Len())
@@ -2844,7 +2893,7 @@ void FElectraPlayer::LogStatistics()
 			FString MessageHistory;
 			for(auto &msg : Statistics.MessageHistoryBuffer)
 			{
-				MessageHistory.Append(msg);
+				MessageHistory.Append(FString::Printf(TEXT("%8.3f: %s"), msg.TimeSinceStart, *msg.Message));
 				MessageHistory.Append(TEXT("\n"));
 			}
 			UE_LOG(LogElectraPlayer, Log, TEXT("Most recent log messages:\n%s"), *MessageHistory);
@@ -2879,13 +2928,14 @@ void FElectraPlayer::SendAnalyticMetrics(const TSharedPtr<IAnalyticsProviderET>&
 
 
 	TArray<FAnalyticsEventAttribute> ParamArray;
+	UpdateAnalyticsCustomValues();
 	AddCommonAnalyticsAttributes(ParamArray);
 	StatisticsLock.Lock();
 	FString MessageHistory;
 	for(auto &msg : Statistics.MessageHistoryBuffer)
 	{
-		MessageHistory.Append(msg);
-		MessageHistory.Append(TEXT("\n"));
+		MessageHistory.Append(FString::Printf(TEXT("%8.3f: %s"), msg.TimeSinceStart, *msg.Message));
+		MessageHistory.Append(TEXT("<br>"));
 	}
 	ParamArray.Add(FAnalyticsEventAttribute(TEXT("URL"), Statistics.InitialURL));
 	ParamArray.Add(FAnalyticsEventAttribute(TEXT("LastState"), Statistics.LastState));
@@ -2948,6 +2998,7 @@ void FElectraPlayer::SendAnalyticMetricsPerMinute(const TSharedPtr<IAnalyticsPro
 	if (Player.Get() && Player->AdaptivePlayer->IsPlaying())
 	{
 		TArray<FAnalyticsEventAttribute> ParamArray;
+		UpdateAnalyticsCustomValues();
 		AddCommonAnalyticsAttributes(ParamArray);
 		StatisticsLock.Lock();
 		ParamArray.Add(FAnalyticsEventAttribute(TEXT("URL"), Statistics.CurrentlyActivePlaylistURL));
@@ -3086,7 +3137,8 @@ void FElectraPlayer::FAdaptiveStreamingPlayerResourceProvider::ProcessPendingSta
 	TSharedPtr<Electra::IAdaptiveStreamingPlayerResourceRequest, ESPMode::ThreadSafe> InOutRequest;
 	while (PendingStaticResourceRequests.Dequeue(InOutRequest))
 	{
-		check(InOutRequest->GetResourceType() == Electra::IAdaptiveStreamingPlayerResourceRequest::EPlaybackResourceType::Playlist ||
+		check(InOutRequest->GetResourceType() == Electra::IAdaptiveStreamingPlayerResourceRequest::EPlaybackResourceType::Empty ||
+			  InOutRequest->GetResourceType() == Electra::IAdaptiveStreamingPlayerResourceRequest::EPlaybackResourceType::Playlist ||
 			  InOutRequest->GetResourceType() == Electra::IAdaptiveStreamingPlayerResourceRequest::EPlaybackResourceType::LicenseKey);
 		if (InOutRequest->GetResourceType() == Electra::IAdaptiveStreamingPlayerResourceRequest::EPlaybackResourceType::Playlist)
 		{

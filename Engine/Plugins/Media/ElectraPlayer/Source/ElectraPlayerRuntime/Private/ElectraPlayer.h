@@ -451,7 +451,7 @@ private:
 	/** Metric delegates */
 	FElectraPlayerSendAnalyticMetricsDelegate&			SendAnalyticMetricsDelegate;
 	FElectraPlayerSendAnalyticMetricsPerMinuteDelegate&	SendAnalyticMetricsPerMinuteDelegate;
-	FElectraPlayerReportVideoStreamingErrorDelegate&		ReportVideoStreamingErrorDelegate;
+	FElectraPlayerReportVideoStreamingErrorDelegate&	ReportVideoStreamingErrorDelegate;
 	FElectraPlayerReportSubtitlesMetricsDelegate&		ReportSubtitlesMetricsDelegate;
 
 	/** Option interface **/
@@ -654,6 +654,11 @@ private:
 			FAverageValue	Bandwidth;
 			FAverageValue	Latency;
 		};
+		struct FHistoryEntry
+		{
+			double TimeSinceStart = 0.0;
+			FString Message;
+		};
 		FStatistics()
 		{
 			DroppedVideoFrames.SetFrameType(FDroppedFrameStats::EFrameType::VideoFrame);
@@ -704,14 +709,7 @@ private:
 			MediaDuration = 0.0;
 			MessageHistoryBuffer.Empty();
 		}
-		void AddMessageToHistory(FString InMessage)
-		{
-			if (MessageHistoryBuffer.Num() >= 20)
-			{
-				MessageHistoryBuffer.RemoveAt(0);
-			}
-			MessageHistoryBuffer.Emplace(MoveTemp(InMessage));
-		}
+		void AddMessageToHistory(FString InMessage);
 
 		FString					InitialURL;
 		FString					CurrentlyActivePlaylistURL;
@@ -753,7 +751,7 @@ private:
 		FTimeRange				MediaTimelineAtStart;
 		FTimeRange				MediaTimelineAtEnd;
 		double					MediaDuration;
-		TArray<FString>			MessageHistoryBuffer;
+		TArray<FHistoryEntry>	MessageHistoryBuffer;
 	};
 
 	struct FAnalyticsEvent
@@ -767,6 +765,7 @@ private:
 	void AddCommonAnalyticsAttributes(TArray<FAnalyticsEventAttribute>& InOutParamArray);
 	TSharedPtr<FAnalyticsEvent> CreateAnalyticsEvent(FString InEventName);
 	void EnqueueAnalyticsEvent(TSharedPtr<FAnalyticsEvent> InAnalyticEvent);
+	void UpdateAnalyticsCustomValues();
 
 	FCriticalSection						StatisticsLock;
 	FStatistics								Statistics;
@@ -780,6 +779,9 @@ private:
 	FString									AnalyticsInstanceGuid;
 	/** Sequential analytics event number. Helps sorting events. **/
 	uint32									AnalyticsInstanceEventCount;
+
+	/** Custom analytics constants. **/
+	FString									AnalyticsCustomValues[8];
 
 	void HandleBlobDownload();
 
