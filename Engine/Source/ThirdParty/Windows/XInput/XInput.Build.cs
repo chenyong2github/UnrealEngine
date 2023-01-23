@@ -3,7 +3,7 @@ using UnrealBuildTool;
 
 public class XInput : ModuleRules
 {
-	protected string DirectXSDKDir { get => Target.UEThirdPartySourceDirectory + "Windows/DirectX"; }
+	protected string DirectXSDKDir { get => DirectX.GetDir(Target); }
 
 	public XInput(ReadOnlyTargetRules Target) : base(Target)
 	{
@@ -13,8 +13,8 @@ public class XInput : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicAdditionalLibraries.Add(DirectXSDKDir + "/Lib/x64/XInput.lib");
-			PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
+			PublicAdditionalLibraries.Add(DirectX.GetLibDir(Target) + "XInput.lib");
+			PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
 		}
 	}
 }

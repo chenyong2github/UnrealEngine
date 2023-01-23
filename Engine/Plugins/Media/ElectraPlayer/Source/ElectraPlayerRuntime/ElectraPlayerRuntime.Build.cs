@@ -43,13 +43,7 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
-				string DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
-				PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
-
-				if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
-				{
-					DirectXSDKDir += "/Lib/x64/";
-				}
+				PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
 
 				PrivateDefinitions.Add("_CRT_SECURE_NO_WARNINGS=1");
 
@@ -74,7 +68,7 @@ namespace UnrealBuildTool.Rules
 				if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 				{
 					PublicAdditionalLibraries.AddRange(new string[] {
-						DirectXSDKDir + "dxerr.lib",
+						DirectX.GetLibDir(Target) + "dxerr.lib",
 					});
 				}
 

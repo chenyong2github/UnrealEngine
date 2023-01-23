@@ -7,14 +7,11 @@ public class DX11 : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
-
 		if (Target.Platform == UnrealTargetPlatform.Win64 )
 		{
-			PublicSystemIncludePaths.Add(DirectXSDKDir + "/Include");
+			PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
 
-			string LibDir = DirectXSDKDir + "/Lib/x64/";
-
+			string LibDir = DirectX.GetLibDir(Target);
 			PublicAdditionalLibraries.AddRange(
 				new string[] {
 					LibDir + "dxgi.lib",

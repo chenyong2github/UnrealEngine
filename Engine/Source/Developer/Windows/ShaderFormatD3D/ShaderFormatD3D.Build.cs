@@ -28,8 +28,7 @@ public class ShaderFormatD3D : ModuleRules
 			string AmdAgsPath = Target.UEThirdPartySourceDirectory + "AMD/AMD_AGS/";
 			PublicSystemIncludePaths.Add(AmdAgsPath + "inc/");  // For amd_ags.h, to get AGS_DX12_SHADER_INSTRINSICS_SPACE_ID
 
-            string DxDllsPath = "$(EngineDir)/Binaries/ThirdParty/Windows/DirectX/x64";
-			RuntimeDependencies.Add(Path.Combine(DxDllsPath, "d3dcompiler_47.dll"));
+			RuntimeDependencies.Add(Path.Combine(DirectX.GetDllDir(Target), "d3dcompiler_47.dll"));
 
 			string ShaderConductorDllsPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "ShaderConductor/Win64");
 			RuntimeDependencies.Add(Path.Combine(ShaderConductorDllsPath, "dxcompiler.dll"));

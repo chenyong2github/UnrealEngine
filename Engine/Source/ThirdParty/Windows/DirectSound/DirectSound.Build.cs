@@ -6,23 +6,16 @@ public class DirectSound : ModuleRules
 	public DirectSound(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
-		
-		string DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
 
-		string LibDir = null;
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			LibDir = $"{DirectXSDKDir}/Lib/{Target.WindowsPlatform.GetArchitectureSubpath()}/";
-		}
+			PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
 
-		if (LibDir != null)
-		{
-			PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
-
+			string DirectXLibDir = DirectX.GetLibDir(Target);
 			PublicAdditionalLibraries.AddRange(
 				new string[] {
-					 LibDir + "dxguid.lib",
-					 LibDir + "dsound.lib"
+					 DirectXLibDir + "dxguid.lib",
+					 DirectXLibDir + "dsound.lib"
 				}
 			);
 		}

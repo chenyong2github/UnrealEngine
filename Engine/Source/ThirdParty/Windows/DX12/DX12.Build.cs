@@ -21,8 +21,6 @@ public class DX12 : ModuleRules
 		{
 			Log.TraceLog("Running DX12");
 
-			string DirectXSDKDir = Path.Combine(Target.UEThirdPartySourceDirectory, "Windows", "DirectX");
-
 			string[] AllD3DLibs = new string[]
 			{
 				"dxgi.lib",
@@ -32,7 +30,8 @@ public class DX12 : ModuleRules
 
 			if (bUsesWindowsD3D12Libs)
 			{
-				PublicAdditionalLibraries.AddRange(AllD3DLibs.Select(LibName => Path.Combine(DirectXSDKDir, "Lib", "x64", LibName)));
+				string DirectXSDKDir = DirectX.GetLibDir(Target);
+				PublicAdditionalLibraries.AddRange(AllD3DLibs.Select(LibName => Path.Combine(DirectXSDKDir, LibName)));
 			}
 			else
 			{
@@ -57,14 +56,14 @@ public class DX12 : ModuleRules
 
 				RuntimeDependencies.Add(
 					"$(TargetOutputDir)/D3D12/D3D12Core.dll",
-					"$(EngineDir)/Binaries/ThirdParty/Windows/DirectX/x64/D3D12Core.dll");
+					DirectX.GetDllDir(Target) + "D3D12Core.dll");
 
 				if (Target.Configuration != UnrealTargetConfiguration.Shipping &&
 					Target.Configuration != UnrealTargetConfiguration.Test)
 				{
 					RuntimeDependencies.Add(
 						"$(TargetOutputDir)/D3D12/d3d12SDKLayers.dll",
-						"$(EngineDir)/Binaries/ThirdParty/Windows/DirectX/x64/d3d12SDKLayers.dll");
+						DirectX.GetDllDir(Target) + "d3d12SDKLayers.dll");
 				}
 			}
 			else
@@ -75,7 +74,7 @@ public class DX12 : ModuleRules
 			// Always delay-load D3D12
 			PublicDelayLoadDLLs.Add("d3d12.dll");
 
-			PublicSystemIncludePaths.Add(Path.Combine(DirectXSDKDir, "include"));
+			PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
 
 			PublicDefinitions.Add("D3D12_MAX_DEVICE_INTERFACE=10");
 			PublicDefinitions.Add("D3D12_MAX_COMMANDLIST_INTERFACE=6");

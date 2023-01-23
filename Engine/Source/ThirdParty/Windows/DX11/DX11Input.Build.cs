@@ -7,14 +7,12 @@ public class DX11Input : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
-
-		PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
+		PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
 
 		string LibDir = null;
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			LibDir = $"{DirectXSDKDir}/Lib/{Target.WindowsPlatform.GetArchitectureSubpath()}/";
+			LibDir = DirectX.GetLibDir(Target);
 		}
 
 		PublicAdditionalLibraries.AddRange(
