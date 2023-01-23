@@ -14,9 +14,13 @@
 #include "LandscapeMaterialInstanceConstant.h"
 #include "Misc/ConfigCacheIni.h"
 #include "EngineUtils.h"
+#include "RenderUtils.h"
 #include "Misc/MessageDialog.h"
 
-//#define LOCTEXT_NAMESPACE "LandscapeEditor"
+static TAutoConsoleVariable<bool> CVarLandscapeSimulateAlphaBrushTextureLoadFailure(
+	TEXT("landscape.SimulateAlphaBrushTextureLoadFailure"),
+	false,
+	TEXT("Debug utility to simulate a loading failure (e.g. invalid source data, which can happen in cooked editor or with a badly virtualized texture) when loading the alpha brush texture"));
 
 ULandscapeEditorObject::ULandscapeEditorObject(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -105,7 +109,7 @@ ULandscapeEditorObject::ULandscapeEditorObject(const FObjectInitializer& ObjectI
 	, bUseWorldSpacePatternBrush(false)
 	, WorldSpacePatternBrushSettings(FVector2D::ZeroVector, 0.0f, false, 3200)
 	, AlphaTexture(nullptr)
-	, AlphaTextureChannel(EColorChannel::Red)
+	, AlphaTextureChannel(ELandscapeTextureColorChannel::Red)
 	, AlphaTextureSizeX(1)
 	, AlphaTextureSizeY(1)
 
@@ -126,10 +130,7 @@ ULandscapeEditorObject::ULandscapeEditorObject(const FObjectInitializer& ObjectI
 	};
 	static FConstructorStatics ConstructorStatics;
 
-	if (!IsTemplate())
-	{
-		SetAlphaTexture(ConstructorStatics.AlphaTexture.Object, AlphaTextureChannel);
-	}
+	SetAlphaTexture(ConstructorStatics.AlphaTexture.Object, AlphaTextureChannel);
 }
 
 void ULandscapeEditorObject::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -222,11 +223,16 @@ void ULandscapeEditorObject::Load()
 	GConfig->GetBool(TEXT("LandscapeEdit"), TEXT("WorldSpacePatternBrushSettings.bCenterTextureOnOrigin"), WorldSpacePatternBrushSettings.bCenterTextureOnOrigin, GEditorPerProjectIni);
 	GConfig->GetFloat(TEXT("LandscapeEdit"), TEXT("WorldSpacePatternBrushSettings.RepeatSize"), WorldSpacePatternBrushSettings.RepeatSize, GEditorPerProjectIni);
 	FString AlphaTextureName = (AlphaTexture != nullptr) ? AlphaTexture->GetPathName() : FString();
-	int32 InAlphaTextureChannel = AlphaTextureChannel;
+	int32 InAlphaTextureChannel = static_cast<int32>(AlphaTextureChannel);
 	GConfig->GetString(TEXT("LandscapeEdit"), TEXT("AlphaTextureName"), AlphaTextureName, GEditorPerProjectIni);
 	GConfig->GetInt(TEXT("LandscapeEdit"), TEXT("AlphaTextureChannel"), InAlphaTextureChannel, GEditorPerProjectIni);
-	AlphaTextureChannel = (EColorChannel::Type)InAlphaTextureChannel;
-	SetAlphaTexture(LoadObject<UTexture2D>(nullptr, *AlphaTextureName, nullptr, LOAD_NoWarn), AlphaTextureChannel);
+	AlphaTextureChannel = (ELandscapeTextureColorChannel)InAlphaTextureChannel;
+	UTexture2D* LoadedTexture = LoadObject<UTexture2D>(nullptr, *AlphaTextureName, nullptr, LOAD_NoWarn);
+	if ((LoadedTexture == nullptr) && !AlphaTextureName.IsEmpty())
+	{
+		UE_LOG(LogLandscapeTools, Error, TEXT("Cannot load alpha texture (%s)"), *AlphaTextureName);
+	}
+	SetAlphaTexture(LoadedTexture, AlphaTextureChannel);
 
 	int32 InFlattenMode = (int32)ELandscapeToolFlattenMode::Both;
 	GConfig->GetInt(TEXT("LandscapeEdit"), TEXT("FlattenMode"), InFlattenMode, GEditorPerProjectIni);
@@ -503,78 +509,115 @@ void ULandscapeEditorObject::SetGizmoSnapMode(ELandscapeGizmoSnapType InSnapMode
 	}
 }
 
-void ULandscapeEditorObject::SetAlphaTexture(UTexture2D* InTexture, EColorChannel::Type InTextureChannel)
+bool ULandscapeEditorObject::LoadAlphaTextureSourceData(UTexture2D* InTexture, TArray<uint8>& OutSourceData, int32& OutSourceDataSizeX, int32& OutSourceDataSizeY, ELandscapeTextureColorChannel& InOutTextureChannel)
 {
-	TArray64<uint8> NewTextureData;
-	UTexture2D* NewAlphaTexture = nullptr;
-	int32 NumChannels = 0;
+	check(InTexture != nullptr);
 
-	// Validate that the input texture is valid, if not, we'll display an error message and use the default brush alpha texture : 
+	if (InTexture && InTexture->Source.IsValid() 
+		&& !CVarLandscapeSimulateAlphaBrushTextureLoadFailure.GetValueOnGameThread()) // For debug purposes, we can also simulate a loading failure for the alpha brush texture
+	{
+		FImage SourceImage;
+		if (InTexture->Source.GetMipImage(SourceImage, 0) && (SourceImage.Format != ERawImageFormat::Invalid))
+		{
+			OutSourceDataSizeX = SourceImage.SizeX;
+			OutSourceDataSizeY = SourceImage.SizeY;
+			const int32 NumPixels = OutSourceDataSizeX * OutSourceDataSizeY;
+
+			// Handle the case where we're being asked to sample from a channel that is non-existent in the source image :
+			EPixelFormat PixelFormat = InTexture->GetPixelFormat();
+			EPixelFormatChannelFlags ValidTextureChannels = GetPixelFormatValidChannels(PixelFormat);
+			if (((InOutTextureChannel == ELandscapeTextureColorChannel::Green && !EnumHasAnyFlags(ValidTextureChannels, EPixelFormatChannelFlags::G)))
+				|| ((InOutTextureChannel == ELandscapeTextureColorChannel::Blue && !EnumHasAnyFlags(ValidTextureChannels, EPixelFormatChannelFlags::B)))
+				|| ((InOutTextureChannel == ELandscapeTextureColorChannel::Alpha && !EnumHasAnyFlags(ValidTextureChannels, EPixelFormatChannelFlags::A))))
+			{
+				// Fallback to Red
+				InOutTextureChannel = ELandscapeTextureColorChannel::Red;
+			}
+
+			// Convert/expand the image to BGRA8 : 
+			SourceImage.ChangeFormat(ERawImageFormat::BGRA8, EGammaSpace::Linear);
+
+			const int32 FinalDataSizeBytes = NumPixels;
+			check(SourceImage.RawData.Num() == FinalDataSizeBytes * 4);
+			OutSourceData.SetNum(FinalDataSizeBytes);
+
+			uint8* SrcPtr = SourceImage.RawData.GetData();
+			// Properly offset the source data as we're reading a single channel from a BGRA8 source :
+			switch (InOutTextureChannel)
+			{
+			case ELandscapeTextureColorChannel::Blue:
+				SrcPtr += 0;
+				break;
+			case ELandscapeTextureColorChannel::Green:
+				SrcPtr += 1;
+				break;
+			case ELandscapeTextureColorChannel::Red:
+				SrcPtr += 2;
+				break;
+			case ELandscapeTextureColorChannel::Alpha:
+				SrcPtr += 3;
+				break;
+			default:
+				check(false);
+				break;
+			}
+
+			for (int32 Index = 0; Index < NumPixels; Index++, SrcPtr += 4)
+			{
+				OutSourceData[Index] = *SrcPtr;
+			}
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void ULandscapeEditorObject::SetAlphaTexture(UTexture2D* InTexture, ELandscapeTextureColorChannel InTextureChannel)
+{
+	AlphaTexture = nullptr;
+	AlphaTextureChannel = InTextureChannel;
+	AlphaTextureSizeX = 0;
+	AlphaTextureSizeY = 0;
+
+	UTexture2D* DefaultAlphaTexture = GetClass()->GetDefaultObject<ULandscapeEditorObject>()->AlphaTexture;
+	// Try to read the texture data from the specified texture if any : 
 	if (InTexture != nullptr)
 	{
-		if (!InTexture->Source.IsValid())
+		if (LoadAlphaTextureSourceData(InTexture, AlphaTextureData, AlphaTextureSizeX, AlphaTextureSizeY, AlphaTextureChannel))
 		{
-			UE_LOG(LogLandscapeTools, Error, TEXT("Invalid source data detected for texture (%s), the default AlphaTexture (%s) will be used."), *InTexture->GetPathName(), *GetClass()->GetDefaultObject<ULandscapeEditorObject>()->AlphaTexture->GetPathName());
+			AlphaTexture = InTexture;
 		}
 		else
 		{
-			// Try to read the new texture data now : 
-			const bool bSourceDataIsG8 = (InTexture->Source.GetFormat() == TSF_G8);
-			NumChannels = bSourceDataIsG8 ? 1 : 4;
-			InTexture->Source.GetMipData(NewTextureData, 0);
-			if (NewTextureData.Num() == (NumChannels * InTexture->Source.GetSizeX() * InTexture->Source.GetSizeY()))
-			{
-				// Valid new texture
-				NewAlphaTexture = InTexture;
-			}
-			else
-			{
-				UE_LOG(LogLandscapeTools, Error, TEXT("Invalid data size detected for texture (%s), the default AlphaTexture (%s) will be used."), *InTexture->GetPathName(), *GetClass()->GetDefaultObject<ULandscapeEditorObject>()->AlphaTexture->GetPathName());
-			}
+			UE_LOG(LogLandscapeTools, Error, TEXT("Invalid source data detected for texture (%s), the default AlphaTexture (%s) will be used."), *InTexture->GetPathName(), DefaultAlphaTexture ? *DefaultAlphaTexture->GetPathName() : TEXT("None"));
 		}
 	}
 
-	// Load fallback if there's no texture or valid data
-	if (NewAlphaTexture == nullptr)
+	if (AlphaTexture == nullptr)
 	{
-		UTexture2D* DefaultAlphaTexture = GetClass()->GetDefaultObject<ULandscapeEditorObject>()->AlphaTexture;
-		check((DefaultAlphaTexture != nullptr) && DefaultAlphaTexture->Source.IsValid()); // The default texture should always be valid
-		DefaultAlphaTexture->Source.GetMipData(NewTextureData, 0);
-		NewAlphaTexture = DefaultAlphaTexture;
-		const bool bSourceDataIsG8 = (DefaultAlphaTexture->Source.GetFormat() == TSF_G8);
-		NumChannels = bSourceDataIsG8 ? 1 : 4;
+		if (DefaultAlphaTexture == nullptr)
+		{
+			UE_LOG(LogLandscapeTools, Error, TEXT("No default AlphaTexture specified : the alpha brush won't work as expected."));
+		}
+		else if (LoadAlphaTextureSourceData(DefaultAlphaTexture, AlphaTextureData, AlphaTextureSizeX, AlphaTextureSizeY, AlphaTextureChannel))
+		{
+			AlphaTexture = DefaultAlphaTexture;
+		}
+		else
+		{
+			UE_LOG(LogLandscapeTools, Error, TEXT("Invalid source data detected for default AlphaTexture (%s)"), *DefaultAlphaTexture->GetPathName());
+		}
 	}
 
-	check((NewAlphaTexture != nullptr) && !NewTextureData.IsEmpty() && (NumChannels > 0));
+	// If the AlphaTexture was successfully loaded, all read data should be valid :
+	check ((AlphaTexture == nullptr) || HasValidAlphaTextureData());
+}
 
-	AlphaTexture = NewAlphaTexture;
-	AlphaTextureSizeX = NewAlphaTexture->Source.GetSizeX();
-	AlphaTextureSizeY = NewAlphaTexture->Source.GetSizeY();
-	AlphaTextureChannel = (NumChannels == 1) ? EColorChannel::Red : InTextureChannel;
-	AlphaTextureData.Empty(AlphaTextureSizeX * AlphaTextureSizeY);
-
-	uint8* SrcPtr;
-	switch (AlphaTextureChannel)
-	{
-	case 1:
-		SrcPtr = &((FColor*)NewTextureData.GetData())->G;
-		break;
-	case 2:
-		SrcPtr = &((FColor*)NewTextureData.GetData())->B;
-		break;
-	case 3:
-		SrcPtr = &((FColor*)NewTextureData.GetData())->A;
-		break;
-	default:
-		SrcPtr = &((FColor*)NewTextureData.GetData())->R;
-		break;
-	}
-
-	for (int32 i = 0; i < AlphaTextureSizeX * AlphaTextureSizeY; i++)
-	{
-		AlphaTextureData.Add(*SrcPtr);
-		SrcPtr += NumChannels;
-	}
+bool ULandscapeEditorObject::HasValidAlphaTextureData() const
+{
+	return ((AlphaTextureSizeX > 0) && (AlphaTextureSizeY > 0) && !AlphaTextureData.IsEmpty());
 }
 
 void ULandscapeEditorObject::ChooseBestComponentSizeForImport()

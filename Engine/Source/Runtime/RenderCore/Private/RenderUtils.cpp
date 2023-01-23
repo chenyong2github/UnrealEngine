@@ -268,8 +268,8 @@ EPixelFormatChannelFlags GetPixelFormatValidChannels(EPixelFormat InPixelFormat)
 		EPixelFormatChannelFlags::None,		// PF_Unknown,
 		EPixelFormatChannelFlags::RGBA,		// PF_A32B32G32R32F
 		EPixelFormatChannelFlags::RGBA,		// PF_B8G8R8A8
-		EPixelFormatChannelFlags::G,		// PF_G8
-		EPixelFormatChannelFlags::G,		// PF_G16
+		EPixelFormatChannelFlags::R,		// PF_G8
+		EPixelFormatChannelFlags::R,		// PF_G16
 		EPixelFormatChannelFlags::RGB,		// PF_DXT1
 		EPixelFormatChannelFlags::RGBA,		// PF_DXT3
 		EPixelFormatChannelFlags::RGBA,		// PF_DXT5

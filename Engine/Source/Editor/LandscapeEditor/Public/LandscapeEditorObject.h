@@ -127,10 +127,9 @@ enum class ELandscapeConvertMode : int8
 	Resample = 2,
 };
 
-UENUM()
 namespace EColorChannel
 {
-	enum Type : int
+	enum UE_DEPRECATED(5.2, "Use ELandscapeTextureColorChannel") Type : int
 	{
 		Red,
 		Green,
@@ -138,6 +137,15 @@ namespace EColorChannel
 		Alpha,
 	};
 }
+
+UENUM()
+enum class ELandscapeTextureColorChannel : int32
+{
+	Red,
+	Green,
+	Blue,
+	Alpha,
+};
 
 UENUM()
 enum class ELandscapeMirrorOperation : uint8
@@ -647,7 +655,7 @@ public:
 
 	// Channel of Mask Texture to use
 	UPROPERTY(Category="Brush Settings", EditAnywhere, NonTransactional, meta=(DisplayName="Texture Channel", ShowForBrushes="BrushSet_Alpha,BrushSet_Pattern"))
-	TEnumAsByte<EColorChannel::Type> AlphaTextureChannel;
+	ELandscapeTextureColorChannel AlphaTextureChannel;
 
 	UPROPERTY(NonTransactional)
 	int32 AlphaTextureSizeX;
@@ -696,7 +704,8 @@ public:
 	void SetPasteMode(ELandscapeToolPasteMode InPasteMode);
 
 	// Alpha/Pattern Brush
-	void SetAlphaTexture(UTexture2D* InTexture, EColorChannel::Type InTextureChannel);
+	void SetAlphaTexture(UTexture2D* InTexture, ELandscapeTextureColorChannel InTextureChannel);
+	bool HasValidAlphaTextureData() const;
 
 	// New Landscape
 	FString LastImportPath;
@@ -790,4 +799,6 @@ private:
 		check(ParentMode);
 		return !(ParentMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap || ParentMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Visibility);
 	}
+
+	static bool LoadAlphaTextureSourceData(UTexture2D* InTexture, TArray<uint8>& OutSourceData, int32& OutSourceDataSizeX, int32& OutSourceDataSizeY, ELandscapeTextureColorChannel& InOutTextureChannel);
 };

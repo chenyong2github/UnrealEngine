@@ -19,6 +19,7 @@ public class LandscapeEditor : ModuleRules
                 "RenderCore",
                 "RHI",
                 "InputCore",
+				"ImageCore",
 				"EditorFramework",
 				"UnrealEd",
 				"PropertyEditor",
