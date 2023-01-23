@@ -590,6 +590,38 @@ namespace UnrealBuildTool
 					}
 				}
 			}
+
+			// Set Module.bHasUObjects for any IncludePathModules not already processed.
+			// This is necessary to keep include paths consistent between targets built with -AllModules and without
+			HashSet<UEBuildModuleCPP> IncludePathModules = new HashSet<UEBuildModuleCPP>();
+			IncludePathModules.UnionWith(ModulesToGenerateHeadersFor.SelectMany(x => x.PrivateIncludePathModules ?? new()).OfType<UEBuildModuleCPP>().Where(x => !x.bHasUObjects));
+			IncludePathModules.UnionWith(ModulesToGenerateHeadersFor.SelectMany(x => x.PublicIncludePathModules ?? new()).OfType<UEBuildModuleCPP>().Where(x => !x.bHasUObjects));
+			IncludePathModules.ExceptWith(ModulesToGenerateHeadersFor);
+			if (IncludePathModules.Count > 0)
+			{
+				Dictionary<UEBuildModuleCPP, UHTModuleInfo> IncludePathInfo = new();
+				using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
+				{
+					ReadOnlyHashSet<string> ExcludedFolders = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
+					foreach (var Module in IncludePathModules)
+					{
+						Queue.Enqueue(() =>
+						{
+							foreach (DirectoryItem ModuleDirectoryItem in Module.ModuleDirectories.Select(x => DirectoryItem.GetItemByDirectoryReference(x)))
+							{
+								List<FileItem> HeaderFiles = new();
+								FindHeaders(ModuleDirectoryItem, ExcludedFolders, HeaderFiles);
+
+								if (HeaderFiles.Any(x => MetadataCache.ContainsReflectionMarkup(x)))
+								{
+									Module.bHasUObjects = true;
+									break;
+								}
+							}
+						});
+					}
+				}
+			}
 		}
 
 		static void SetupUObjectModule(UHTModuleInfo ModuleInfo, ReadOnlyHashSet<string> ExcludedFolders, SourceFileMetadataCache MetadataCache, ThreadPoolWorkQueue Queue)
