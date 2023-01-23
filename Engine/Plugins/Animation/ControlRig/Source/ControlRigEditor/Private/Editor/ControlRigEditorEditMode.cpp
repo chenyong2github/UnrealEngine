@@ -209,7 +209,7 @@ void FControlRigEditorEditMode::Render(const FSceneView* View, FViewport* Viewpo
 			bDrawAxesInsideBone);
 		if (Hierarchy->GetFirstParent(ElementIndex) == INDEX_NONE)
 		{
-			SkeletalDebugRendering::DrawRootCone(PDI, BoneTransform, FVector::Zero(), BoneRadius);
+			SkeletalDebugRendering::DrawConeConnection(PDI, BoneTransform.GetLocation(), FVector::Zero(), BoneRadius, FLinearColor::Red);
 		}
 		PDI->SetHitProxy(nullptr);
 	}

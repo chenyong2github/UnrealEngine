@@ -138,20 +138,20 @@ void DrawAxes(
 #endif
 }
 
-void DrawRootCone(
+void DrawConeConnection(
 	FPrimitiveDrawInterface* PDI,
-	const FTransform& InBoneTransform,
-	const FVector& ComponentOrigin,
-	const float SphereRadius)
+	const FVector& Start,
+	const FVector& End,
+	const float SphereRadius,
+	const FLinearColor& Color)
 {
 #if ENABLE_DRAW_DEBUG
 	// offset start/end based on bone radius
-	const FVector RadiusOffset = (ComponentOrigin - InBoneTransform.GetLocation()).GetSafeNormal() * SphereRadius;
-	const FVector Start = InBoneTransform.GetLocation() + RadiusOffset;
-	const FVector End = ComponentOrigin;
+	const FVector RadiusOffset = (End - Start).GetSafeNormal() * SphereRadius;
+	const FVector StartOffset = Start + RadiusOffset;
 			
 	// calc cone size
-	const FVector EndToStart = (Start - End);
+	const FVector EndToStart = (StartOffset - End);
 	const float ConeLength = EndToStart.Size();
 	const float Angle = FMath::RadiansToDegrees(FMath::Atan(SphereRadius / ConeLength));
 	TArray<FVector> Verts;
@@ -162,7 +162,7 @@ void DrawRootCone(
 		ConeLength,
 		Angle,
 		NumConeSides,
-		FLinearColor::Red,
+		Color,
 		ESceneDepthPriorityGroup::SDPG_Foreground,
 		0.0f,
 		1.0f);
@@ -254,9 +254,9 @@ void DrawBones(
 	const TArray<TRefCountPtr<HHitProxy>>& HitProxies,
 	const FSkelDebugDrawConfig& DrawConfig)
 {
+	// get parent indices of bones
 	TArray<int32> ParentIndices;
 	ParentIndices.AddUninitialized(RefSkeleton.GetNum());
-
 	for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
 	{
 		ParentIndices[BoneIndex] = RefSkeleton.GetParentIndex(BoneIndex);
@@ -297,10 +297,17 @@ void DrawBonesInternal(
 	// first determine which bones to draw, and which to filter out
 	const int32 NumBones = ParentIndices.Num();
 	TBitArray<> BonesToDraw(false, NumBones);
+	const bool bDrawAll = DrawConfig.BoneDrawMode == EBoneDrawMode::All;
 	const bool bDrawSelected = DrawConfig.BoneDrawMode == EBoneDrawMode::Selected;
 	const bool bDrawSelectedAndParents = DrawConfig.BoneDrawMode == EBoneDrawMode::SelectedAndParents;
 	const bool bDrawSelectedAndChildren = DrawConfig.BoneDrawMode == EBoneDrawMode::SelectedAndChildren;
 	const bool bDrawSelectedAndParentsAndChildren = DrawConfig.BoneDrawMode == EBoneDrawMode::SelectedAndParentsAndChildren;
+
+	// draw all bones
+	if (bDrawAll)
+	{
+		BonesToDraw.Init(true, NumBones);
+	}
 
 	// add selected bones
 	if (bDrawSelected || bDrawSelectedAndParents || bDrawSelectedAndChildren || bDrawSelectedAndParentsAndChildren)
@@ -368,7 +375,7 @@ void DrawBonesInternal(
 		}
 
 		// skips bones that should not be drawn
-		const bool bDoDraw = DrawConfig.bForceDraw || DrawConfig.BoneDrawMode == EBoneDrawMode::All || BonesToDraw[BoneIndex];
+		const bool bDoDraw = DrawConfig.bForceDraw || BonesToDraw[BoneIndex];
 		if (!bDoDraw)
 		{
 			continue;
@@ -411,6 +418,8 @@ void DrawBonesInternal(
 
 		// Always set new hit proxy to prevent unintentionally using last drawn element's proxy
 		PDI->SetHitProxy(DrawConfig.bAddHitProxy ? HitProxies[BoneIndex] : nullptr);
+
+		// draw skeleton
 		SkeletalDebugRendering::DrawWireBoneAdvanced(
 			PDI,
 			BoneTransform,
@@ -420,10 +429,31 @@ void DrawBonesInternal(
 			SDPG_Foreground,
 			BoneRadius,
 			bDrawAxesInsideBone);
+		
+		// special case for root connection to origin
 		if (GetParentIndex(BoneIndex) == INDEX_NONE)
 		{
-			SkeletalDebugRendering::DrawRootCone(PDI, BoneTransform, ComponentOrigin, BoneRadius);
+			SkeletalDebugRendering::DrawConeConnection(PDI, BoneTransform.GetLocation(), ComponentOrigin, BoneRadius, FLinearColor::Red);
 		}
+		
+		// special case for forcing drawing connection to parent when:
+		// 1. parent is not selected AND
+		// 2. only drawing selected or children of selected bones
+		// In this case, the connection to the parent will not get drawn unless we force it here
+		if (bDrawSelected || bDrawSelectedAndChildren)
+		{
+			if (InSelectedBones.Contains(BoneIndex))
+			{
+				const int32 ParentIndex = GetParentIndex(BoneIndex);
+				if (!WorldTransforms.IsValidIndex(ParentIndex))
+				{
+					continue;
+				}
+				const FVector ParentPosition = WorldTransforms[ParentIndex].GetTranslation();
+				SkeletalDebugRendering::DrawConeConnection(PDI, ParentPosition, BoneTransform.GetLocation(), BoneRadius, DrawConfig.ParentOfSelectedBoneColor);
+			}
+		}
+		
 		PDI->SetHitProxy(nullptr);
 	}
 }

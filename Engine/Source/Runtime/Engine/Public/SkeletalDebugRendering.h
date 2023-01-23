@@ -98,17 +98,20 @@ ENGINE_API	void DrawWireBoneAdvanced(
 	const bool bDrawAxes);
 
 /**
- * Draw a red cone showing offset of root bone from the component origin
- * @param	PDI					Primitive draw interface to use
- * @param	InBoneTransform		The bone transform
- * @param	ComponentOrigin		The position in world space of the component this bone lives within
- * @param	SphereRadius		The radius of the root bone
+ * Draw a cone showing offset from origin position to a given bone transform
+ * Used to draw the root cone (always in red)
+ * @param	PDI				Primitive draw interface to use
+ * @param	Start			The position in world space of the start of the cone
+ * @param	End				The position in world space of the tapered end of the cone
+ * @param	SphereRadius	The radius of the root bone
+ * @param	Color			The color to use for the cone
  */
-ENGINE_API	void DrawRootCone(
+ENGINE_API	void DrawConeConnection(
 	FPrimitiveDrawInterface* PDI,
-	const FTransform& InBoneTransform,
-	const FVector& ComponentOrigin,
-	const float SphereRadius);
+	const FVector& Start,
+	const FVector& End,
+	const float SphereRadius,
+	const FLinearColor& Color);
 
 #if WITH_EDITOR
 ENGINE_API void DrawBonesFromPoseWatch(
