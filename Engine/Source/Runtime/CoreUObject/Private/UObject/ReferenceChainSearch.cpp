@@ -918,7 +918,7 @@ struct TReferenceSearchHelper
 			UE::GC::FWorkerContext Context;
 			ObjectsToProcess = {Object};
 			Context.SetInitialObjectsUnpadded(ObjectsToProcess);
-			CollectReferences(Processor, Context);
+			CollectReferences<FDirectReferenceCollector>(Processor, Context);
 
 			if (!HandleReferences(Object, Processor.GetReferencedObjects()))
 			{
