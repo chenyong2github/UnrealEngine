@@ -62,3 +62,5 @@ void FPresetAssetModule::OnPostEngineInit()
 
 
 IMPLEMENT_MODULE(FPresetAssetModule, PresetAsset);
+
+#undef LOCTEXT_NAMESPACE
