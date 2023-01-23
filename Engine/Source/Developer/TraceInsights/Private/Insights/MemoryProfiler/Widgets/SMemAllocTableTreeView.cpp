@@ -45,6 +45,7 @@
 #include "Insights/ViewModels/FilterConfigurator.h"
 
 #include <limits>
+#include <memory>
 
 #define LOCTEXT_NAMESPACE "SMemAllocTableTreeView"
 
