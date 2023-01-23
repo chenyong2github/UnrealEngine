@@ -2859,6 +2859,19 @@ void UGeometryCollectionComponent::SendRenderDynamicData_Concurrent()
 	}
 }
 
+void UGeometryCollectionComponent::SetCollisionObjectType(ECollisionChannel Channel)
+{
+	Super::SetCollisionObjectType(Channel);
+
+	BuildInitialFilterData();
+
+	// Update filters stored on proxy
+	if (PhysicsProxy)
+	{
+		PhysicsProxy->UpdateFilterData_External(InitialSimFilter, InitialQueryFilter);
+	}
+}
+
 void UGeometryCollectionComponent::OnActorEnableCollisionChanged()
 {
 	// Update filters on BI
