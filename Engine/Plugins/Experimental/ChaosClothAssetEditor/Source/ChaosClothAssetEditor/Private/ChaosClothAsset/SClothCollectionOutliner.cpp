@@ -18,6 +18,7 @@ void SClothCollectionOutlinerRow::Construct(const FArguments& InArgs,
 
 	SMultiColumnTableRow<TSharedPtr<const FClothCollectionItem>>::Construct(
 		FSuperRowType::FArguments()
+		.Style(&FAppStyle().GetWidgetStyle<FTableRowStyle>("TableView.AlternatingRow"))
 		, OwnerTableView);
 }
 
