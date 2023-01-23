@@ -651,7 +651,7 @@ void ASmartObjectPersistentCollection::AppendToCollection(const TConstArrayView<
 
 		if (Component != nullptr)
 		{
-			if (Component->GetRegisteredHandle().IsValid() == false || Component->GetRegisterationType() == ESmartObjectRegistrationType::Dynamic)
+			if (Component->GetRegisteredHandle().IsValid() == false || Component->GetRegistrationType() == ESmartObjectRegistrationType::Dynamic)
 			{
 				Component->InvalidateRegisteredHandle();
 

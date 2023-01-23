@@ -35,7 +35,7 @@ public:
 
 	bool GetCanBePartOfCollection() const { return bCanBePartOfCollection; }
 
-	ESmartObjectRegistrationType GetRegisterationType() const { return RegistrationType; }
+	ESmartObjectRegistrationType GetRegistrationType() const { return RegistrationType; }
 	FSmartObjectHandle GetRegisteredHandle() const { return RegisteredHandle; }
 	void SetRegisteredHandle(const FSmartObjectHandle Value, const ESmartObjectRegistrationType InRegistrationType);
 	void InvalidateRegisteredHandle();

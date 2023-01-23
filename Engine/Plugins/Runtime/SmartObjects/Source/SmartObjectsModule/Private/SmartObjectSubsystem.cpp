@@ -517,7 +517,7 @@ bool USmartObjectSubsystem::UnregisterSmartObject(USmartObjectComponent& SmartOb
 {
 	if (RegisteredSOComponents.Contains(&SmartObjectComponent))
 	{
-		return UnregisterSmartObjectInternal(SmartObjectComponent, /*bDestroyRuntimeState=*/SmartObjectComponent.GetRegisterationType() == ESmartObjectRegistrationType::Dynamic);
+		return UnregisterSmartObjectInternal(SmartObjectComponent, /*bDestroyRuntimeState=*/SmartObjectComponent.GetRegistrationType() == ESmartObjectRegistrationType::Dynamic);
 	}
 
 	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Failed to unregister %s. Already unregistered"),
@@ -537,7 +537,7 @@ bool USmartObjectSubsystem::UnregisterSmartObjectInternal(USmartObjectComponent&
 	{
 		ensure(SmartObjectComponent.GetRegisteredHandle().IsValid());
 
-		if (SmartObjectComponent.GetRegisterationType() == ESmartObjectRegistrationType::Dynamic)
+		if (SmartObjectComponent.GetRegistrationType() == ESmartObjectRegistrationType::Dynamic)
 		{
 			RuntimeCreatedEntries.Remove(SmartObjectComponent.GetRegisteredHandle());
 		}
@@ -1977,7 +1977,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool USmartObjectSubsystem::UnregisterSmartObjectInternal(USmartObjectComponent & SmartObjectComponent, const ESmartObjectUnregistrationMode UnregistrationMode)
 {
 	const bool bShouldDestroyRuntimeData = (UnregistrationMode == ESmartObjectUnregistrationMode::DestroyRuntimeInstance)
-		|| (SmartObjectComponent.GetRegisterationType() == ESmartObjectRegistrationType::Dynamic);
+		|| (SmartObjectComponent.GetRegistrationType() == ESmartObjectRegistrationType::Dynamic);
 	return UnregisterSmartObjectInternal(SmartObjectComponent, bShouldDestroyRuntimeData);
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
