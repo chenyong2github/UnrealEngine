@@ -130,8 +130,8 @@ void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdLis
 			const FRHITexture2D* Tex2D = Layer.Texture->GetTexture2D();
 			if (Tex2D)
 			{
-				const float SizeX = Tex2D->GetSizeX();
-				const float SizeY = Tex2D->GetSizeY();
+				const float SizeX = (float)Tex2D->GetSizeX();
+				const float SizeY = (float)Tex2D->GetSizeY();
 				if (SizeX != 0)
 				{
 					const float AspectRatio = SizeY / SizeX;
@@ -158,7 +158,7 @@ void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdLis
 		RendererModule.DrawRectangle(
 			RHICmdList,
 			0.0f, 0.0f,
-			TargetSize.X, TargetSize.Y,
+			(float)TargetSize.X, (float)TargetSize.Y,
 			0.0f, 0.0f,
 			1.0f, 1.0f,
 			TargetSize,

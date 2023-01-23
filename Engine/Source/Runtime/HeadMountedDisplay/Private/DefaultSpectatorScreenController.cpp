@@ -309,7 +309,7 @@ void FDefaultSpectatorScreenController::RenderSpectatorModeSingleEyeCroppedToFil
 {
 	const FIntRect SrcRect = GetFullFlatEyeRect_RenderThread(EyeTexture);
 	const FIntRect DstRect(0, 0, TargetTexture->GetSizeX(), TargetTexture->GetSizeY());
-	const FIntRect WindowRect(0, 0, WindowSize.X, WindowSize.Y);
+	const FIntRect WindowRect(0, 0, static_cast<int32>(WindowSize.X), static_cast<int32>(WindowSize.Y));
 
 	const FIntRect SrcCroppedToFitRect = Helpers::GetEyeCroppedToFitRect(HMDDevice->GetEyeCenterPoint_RenderThread(EStereoscopicEye::eSSE_LEFT_EYE), SrcRect, WindowRect);
 
@@ -398,7 +398,7 @@ FIntRect FDefaultSpectatorScreenController::Helpers::GetEyeCroppedToFitRect(FVec
 		const int32 HalfHeightDiff = FMath::TruncToInt(((float)SrcRect.Height() - DesiredSrcHeight) * 0.5f);
 		OutRect.Min.Y += HalfHeightDiff;
 		OutRect.Max.Y -= HalfHeightDiff;
-		const int32 DesiredCenterAdjustment = FMath::TruncToInt((EyeCenterPoint.Y - 0.5f) * (float)SrcRect.Height());
+		const int32 DesiredCenterAdjustment = FMath::TruncToInt(((float)EyeCenterPoint.Y - 0.5f) * (float)SrcRect.Height());
 		const int32 ActualCenterAdjustment = FMath::Clamp(DesiredCenterAdjustment, -HalfHeightDiff, HalfHeightDiff);
 		OutRect.Min.Y += ActualCenterAdjustment;
 		OutRect.Max.Y += ActualCenterAdjustment;
@@ -411,7 +411,7 @@ FIntRect FDefaultSpectatorScreenController::Helpers::GetEyeCroppedToFitRect(FVec
 		const int32 HalfWidthDiff = FMath::TruncToInt(((float)SrcRect.Width() - DesiredSrcWidth) * 0.5f);
 		OutRect.Min.X += HalfWidthDiff;
 		OutRect.Max.X -= HalfWidthDiff;
-		const int32 DesiredCenterAdjustment = FMath::TruncToInt((EyeCenterPoint.X - 0.5f) * (float)SrcRect.Width());
+		const int32 DesiredCenterAdjustment = FMath::TruncToInt(((float)EyeCenterPoint.X - 0.5f) * (float)SrcRect.Width());
 		const int32 ActualCenterAdjustment = FMath::Clamp(DesiredCenterAdjustment, -HalfWidthDiff, HalfWidthDiff);
 		OutRect.Min.X += ActualCenterAdjustment;
 		OutRect.Max.X += ActualCenterAdjustment;

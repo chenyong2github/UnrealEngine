@@ -42,8 +42,8 @@ void FHMDViewMesh::BuildMesh(const FVector2D Positions[], uint32 VertexCount, EH
 		if (MeshType == MT_HiddenArea)
 		{
 			// Remap from to NDC space [0 1] -> [-1 1]
-			Vertex.Position.X = (Position.X * 2.0f) - 1.0f;
-			Vertex.Position.Y = (Position.Y * 2.0f) - 1.0f;
+			Vertex.Position.X = ((float)Position.X * 2.0f) - 1.0f;
+			Vertex.Position.Y = ((float)Position.Y * 2.0f) - 1.0f;
 			Vertex.Position.Z = 1.0f;
 			Vertex.Position.W = 1.0f;
 
@@ -54,16 +54,16 @@ void FHMDViewMesh::BuildMesh(const FVector2D Positions[], uint32 VertexCount, EH
 		else
 		{
 			// Remap the viewport origin from the bottom left to the top left
-			Vertex.Position.X = Position.X;
-			Vertex.Position.Y = 1.0f - Position.Y;
+			Vertex.Position.X = (float)Position.X;
+			Vertex.Position.Y = 1.0f - (float)Position.Y;
 			Vertex.Position.Z = 0.0f;
 			Vertex.Position.W = 1.0f;
 
-			Vertex.UV.X = Position.X;
-			Vertex.UV.Y = 1.0f - Position.Y;
+			Vertex.UV.X = (float)Position.X;
+			Vertex.UV.Y = 1.0f - (float)Position.Y;
 		}
 
-		pIndices[VertexIndex] = VertexIndex;
+		pIndices[VertexIndex] = static_cast<uint16>(VertexIndex);
 	}
 
 	RHIUnlockBuffer(VertexBufferRHI);

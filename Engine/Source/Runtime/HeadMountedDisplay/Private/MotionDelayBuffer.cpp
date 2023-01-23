@@ -423,7 +423,7 @@ static void MotionDelayClient_Impl::CalulateDelayTransform(uint32 DesiredDelay, 
 		FTransform TransformA = MakeTransform(SampleAIndex);
 		FTransform TransformB = MakeTransform(SampleBIndex);
 
-		const float BlendAlpha = (CurrentTime - SampleA.TimeStamp - DelaySeconds) / (SampleB.TimeStamp - SampleA.TimeStamp);
+		const float BlendAlpha = (float)((CurrentTime - SampleA.TimeStamp - DelaySeconds) / (SampleB.TimeStamp - SampleA.TimeStamp));
 		TransformOut.Blend(TransformA, TransformB, BlendAlpha);
 	}
 }
