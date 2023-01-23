@@ -35,11 +35,11 @@ public class GLTFExporter : ModuleRules
 
 		if (Target.bBuildEditor)
 		{
-			// TODO: remove this when we no longer need to include GLTFMaterialBakingStructures.h in GLTFMeshData.h
+			// TODO: remove this when we no longer need to include MaterialBakingStructures.h in GLTFMeshData.h
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"GLTFMaterialBaking",
+					"MaterialBaking",
 				}
 			);
 

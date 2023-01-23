@@ -7,8 +7,8 @@
 #include "SceneTypes.h"
 
 #if WITH_EDITOR
-// TODO: remove dependency to GLTFMaterialBaking in public header
-#include "GLTFMaterialBakingStructures.h"
+// TODO: remove dependency to MaterialBaking in public header
+#include "MaterialBakingStructures.h"
 #endif
 
 class FLightmapResourceCluster;
@@ -31,7 +31,7 @@ struct GLTFEXPORTER_API FGLTFMeshData
 	int32 LODIndex;
 
 #if WITH_EDITOR
-	FGLTFPrimitiveData PrimitiveData;
+	FPrimitiveData PrimitiveData;
 	FMeshDescription Description;
 
 	FLightMapRef LightMap;
