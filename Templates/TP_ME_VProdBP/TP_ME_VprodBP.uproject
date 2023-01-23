@@ -5,19 +5,20 @@
 	"Description": "",
 	"Plugins": [
 		{
-			"Name": "OculusVR",
+			"Name": "OpenXR",
 			"Enabled": true,
 			"SupportedTargetPlatforms": [
-				"Win32",
-				"Win64"
+				"Win64",
+				"Linux",
+				"Android"
 			]
 		},
 		{
-			"Name": "SteamVR",
+			"Name": "VirtualScouting",
 			"Enabled": true,
 			"SupportedTargetPlatforms": [
-				"Win32",
-				"Win64"
+				"Win64",
+				"Linux"
 			]
 		},
 		{
