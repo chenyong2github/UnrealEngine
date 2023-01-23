@@ -12,6 +12,7 @@
 #include "NiagaraGPUInstanceCountManager.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraSimCacheAttributeReaderHelper.h"
+#include "NiagaraSimCacheCustomStorageInterface.h"
 #include "NiagaraSimCacheHelper.h"
 #include "NiagaraSystemImpl.h"
 #include "NiagaraSystemInstance.h"
@@ -112,9 +113,12 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 			Helper.SystemInstance,
 			[&](const FNiagaraDataInterfaceUtilities::FDataInterfaceUsageContext& UsageContext)
 			{
-				for ( const FNiagaraVariableBase& PreserveAttribute : UsageContext.DataInterface->GetSimCacheRendererAttributes(UsageContext.OwnerObject) )
+				if (INiagaraSimCacheCustomStorageInterface* SimCacheCustomStorageInterface = Cast<INiagaraSimCacheCustomStorageInterface>(UsageContext.DataInterface))
 				{
-					CreateParameters.ExplicitCaptureAttributes.AddUnique(PreserveAttribute.GetName());
+					for (const FNiagaraVariableBase& PreserveAttribute : SimCacheCustomStorageInterface->GetSimCacheRendererAttributes(UsageContext.OwnerObject))
+					{
+						CreateParameters.ExplicitCaptureAttributes.AddUnique(PreserveAttribute.GetName());
+					}
 				}
 				return true;
 			}
@@ -138,10 +142,16 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 			Helper.SystemInstance,
 			[&](const FNiagaraVariableBase& Variable, UNiagaraDataInterface* DataInterface)
 			{
-				if ( (CreateParameters.ExplicitCaptureAttributes.Num() == 0) || CreateParameters.ExplicitCaptureAttributes.Contains(Variable.GetName()) )
+				// Are we capturing this data interface?
+				if ((CreateParameters.ExplicitCaptureAttributes.Num() != 0) && !CreateParameters.ExplicitCaptureAttributes.Contains(Variable.GetName()))
+				{
+					return true;
+				}
+
+				if (INiagaraSimCacheCustomStorageInterface* SimCacheCustomStorageInterface = Cast<INiagaraSimCacheCustomStorageInterface>(DataInterface))
 				{
 					const void* PerInstanceData = Helper.SystemInstance->FindDataInterfaceInstanceData(DataInterface);
-					if (UObject* DICacheStorage = DataInterface->SimCacheBeginWrite(this, Helper.SystemInstance, PerInstanceData))
+					if (UObject* DICacheStorage = SimCacheCustomStorageInterface->SimCacheBeginWrite(this, Helper.SystemInstance, PerInstanceData))
 					{
 						DataInterfaceStorage.FindOrAdd(Variable) = DICacheStorage;
 					}
@@ -267,8 +277,9 @@ bool UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
 			{
 				if ( UObject* StorageObject = DataInterfaceStorage.FindRef(Variable) )
 				{
+					INiagaraSimCacheCustomStorageInterface* SimCacheCustomStorageInterface = CastChecked<INiagaraSimCacheCustomStorageInterface>(DataInterface);
 					const void* PerInstanceData = Helper.SystemInstance->FindDataInterfaceInstanceData(DataInterface);
-					bDataInterfacesSucess &= DataInterface->SimCacheWriteFrame(StorageObject, FrameIndex, Helper.SystemInstance, PerInstanceData);
+					bDataInterfacesSucess &= SimCacheCustomStorageInterface->SimCacheWriteFrame(StorageObject, FrameIndex, Helper.SystemInstance, PerInstanceData);
 				}
 				return true;
 			}
@@ -299,8 +310,8 @@ bool UNiagaraSimCache::EndWrite()
 		{
 			UClass* DataInterfaceClass = it.Key().GetType().GetClass();
 			check(DataInterfaceClass != nullptr);
-			UNiagaraDataInterface* DataInterface = CastChecked<UNiagaraDataInterface>(DataInterfaceClass->GetDefaultObject());
-			bDataInterfacesSucess &= DataInterface->SimCacheEndWrite(it.Value());
+			INiagaraSimCacheCustomStorageInterface* SimCacheCustomStorageInterface = CastChecked<INiagaraSimCacheCustomStorageInterface>(DataInterfaceClass->GetDefaultObject());
+			bDataInterfacesSucess &= SimCacheCustomStorageInterface->SimCacheEndWrite(it.Value());
 		}
 
 		if (bDataInterfacesSucess == false)
@@ -458,8 +469,11 @@ bool UNiagaraSimCache::ReadFrame(int32 FrameIndex, float FrameFraction, FNiagara
 			{
 				if (UObject* StorageObject = DataInterfaceStorage.FindRef(Variable))
 				{
-					void* PerInstanceData = Helper.SystemInstance->FindDataInterfaceInstanceData(DataInterface);
-					bDataInterfacesSucess &= DataInterface->SimCacheReadFrame(StorageObject, FrameIndex, NextFrameIndex, FrameFraction, Helper.SystemInstance, PerInstanceData);
+					if (INiagaraSimCacheCustomStorageInterface* SimCacheCustomStorageInterface = Cast<INiagaraSimCacheCustomStorageInterface>(DataInterface))
+					{
+						void* PerInstanceData = Helper.SystemInstance->FindDataInterfaceInstanceData(DataInterface);
+						bDataInterfacesSucess &= SimCacheCustomStorageInterface->SimCacheReadFrame(StorageObject, FrameIndex, NextFrameIndex, FrameFraction, Helper.SystemInstance, PerInstanceData);
+					}
 				}
 				return true;
 			}
@@ -475,9 +489,9 @@ bool UNiagaraSimCache::ReadFrame(int32 FrameIndex, float FrameFraction, FNiagara
 	//-TODO: This should loop over all DataInterfaces that register not just ones with instance data
 	for (TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& DataInterfacePair : SystemInstance->DataInterfaceInstanceDataOffsets)
 	{
-		if (UNiagaraDataInterface* Interface = DataInterfacePair.Key.Get())
+		if (INiagaraSimCacheCustomStorageInterface* SimCacheCustomStorageInterface = Cast<INiagaraSimCacheCustomStorageInterface>(DataInterfacePair.Key.Get()))
 		{
-			Interface->SimCachePostReadFrame(&SystemInstance->DataInterfaceInstanceData[DataInterfacePair.Value], SystemInstance);
+			SimCacheCustomStorageInterface->SimCachePostReadFrame(&SystemInstance->DataInterfaceInstanceData[DataInterfacePair.Value], SystemInstance);
 		}
 	}
 	return true;

@@ -489,27 +489,6 @@ public:
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) { return false; }
 	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) { return false; }
 	
-	/** Begin writing data for a simulation cache, returning a nullptr means the data interface does not store data into the simulation cache. */
-	virtual UObject* SimCacheBeginWrite(UObject* SimCache, FNiagaraSystemInstance* NiagaraSystemInstance, const void* OptionalPerInstanceData) const { return nullptr; }
-	/** Write a new frame of data for the simulation cache.  This is always in sequence, i.e. 0, 1, 2, etc, we will never jump around frames. */
-	virtual bool SimCacheWriteFrame(UObject* StorageObject, int FrameIndex, FNiagaraSystemInstance* SystemInstance, const void* OptionalPerInstanceData) const { return true; }
-	/** End writing data for a simulation cache.  Note this is called on the CDO not the instance the object was created from. */
-	virtual bool SimCacheEndWrite(UObject* StorageObject) const { return true; }
-	/** Read a frame of data from the simulation cache. */
-	virtual bool SimCacheReadFrame(UObject* StorageObject, int FrameA, int FrameB, float Interp, FNiagaraSystemInstance* SystemInstance, void* OptionalPerInstanceData) { return true; }
-	/**
-	Called when the simulation cache has finished reading a frame.
-	Only DataInterfaces with PerInstanceData are currently supported.
-	*/
-	virtual void SimCachePostReadFrame(void* OptionalPerInstanceData, FNiagaraSystemInstance* SystemInstance) {}
-	/**
-	This function allows you to preserve a list of attributes when building a renderer only cache.
-	The UsageContext will be either a UNiagaraSystem or a UNiagaraEmitter and can be used to scope your variables accordingly.
-	For example, if you were to require 'Particles.MyAttribute' in order to process the cache results you would need to convert
-	this into 'MyEmitter.Particles.MyAttribute' by checking the UsageContext is a UNiagaraEmitter and then creating the variable from the unique name.
-	*/
-	virtual TArray<FNiagaraVariableBase> GetSimCacheRendererAttributes(UObject* UsageContext) const { return TArray<FNiagaraVariableBase>(); }
-
 #if WITH_EDITORONLY_DATA
 	/** Allows the generic class defaults version of this class to specify any dependencies/version/etc that might invalidate the compile. It should never depend on the value of specific properties.*/
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;

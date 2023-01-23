@@ -6,6 +6,7 @@
 #include "NiagaraDataInterfaceRW.h"
 #include "NiagaraCommon.h"
 #include "NiagaraRenderGraphUtils.h"
+#include "NiagaraSimCacheCustomStorageInterface.h"
 #include "VectorVM.h"
 #include "GroomAsset.h"
 #include "GroomActor.h"
@@ -378,7 +379,7 @@ struct FNDIHairStrandsData
 
 /** Data Interface for the strand base */
 UCLASS(EditInlineNew, Category = "Strands", meta = (DisplayName = "Hair Strands"))
-class HAIRSTRANDSCORE_API UNiagaraDataInterfaceHairStrands : public UNiagaraDataInterface
+class HAIRSTRANDSCORE_API UNiagaraDataInterfaceHairStrands : public UNiagaraDataInterface, public INiagaraSimCacheCustomStorageInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -397,7 +398,7 @@ public:
 	/** UObject Interface */
 	virtual void PostInitProperties() override;
 
-	/** UNiagaraDataInterface Interface */
+	/** Begin UNiagaraDataInterface Interface */
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return Target == ENiagaraSimTarget::GPUComputeSim; }
@@ -409,8 +410,6 @@ public:
 	virtual bool HasPreSimulateTick() const override { return true; }
 	virtual bool HasTickGroupPrereqs() const override { return true; }
 	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
-	virtual void SimCachePostReadFrame(void* OptionalPerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
-	virtual TArray<FNiagaraVariableBase> GetSimCacheRendererAttributes(UObject* UsageContext) const override;
 
 	/** GPU simulation  functionality */
 #if WITH_EDITORONLY_DATA
@@ -423,6 +422,12 @@ public:
 	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
+	/** End UNiagaraDataInterface Interface */
+
+	/** Begin INiagaraSimCacheCustomStorageInterface Interface */
+	virtual void SimCachePostReadFrame(void* OptionalPerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
+	virtual TArray<FNiagaraVariableBase> GetSimCacheRendererAttributes(UObject* UsageContext) const override;
+	/** End INiagaraSimCacheCustomStorageInterface Interface */
 
 	/** Update the source component */
 	void ExtractSourceComponent(FNiagaraSystemInstance* SystemInstance);
