@@ -46,7 +46,7 @@ struct FUIFrameworkImageBlockData
 /**
  *
  */
-UCLASS(DisplayName = "Brush UIFramework")
+UCLASS(DisplayName = "Image Block UIFramework")
 class UIFRAMEWORK_API UUIFrameworkImageBlock : public UUIFrameworkWidget
 {
 	GENERATED_BODY()

@@ -104,7 +104,7 @@ private:
 /**
  *
  */
-UCLASS(DisplayName = "TextBlock UIFramework")
+UCLASS(DisplayName = "Text Block UIFramework")
 class UIFRAMEWORK_API UUIFrameworkTextBlock : public UUIFrameworkTextBase
 {
 	GENERATED_BODY()

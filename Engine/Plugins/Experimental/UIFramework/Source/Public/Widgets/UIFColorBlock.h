@@ -15,7 +15,7 @@ class UTexture2D;
 /**
  *
  */
-UCLASS(DisplayName = "Brush UIFramework")
+UCLASS(DisplayName = "Color Block UIFramework")
 class UIFRAMEWORK_API UUIFrameworkColorBlock : public UUIFrameworkWidget
 {
 	GENERATED_BODY()
