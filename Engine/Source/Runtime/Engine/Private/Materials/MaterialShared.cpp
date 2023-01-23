@@ -4258,6 +4258,11 @@ int32 UMaterialInterface::CompileProperty(FMaterialCompiler* Compiler, EMaterial
 		Result = FMaterialAttributeDefinitionMap::CompileDefaultExpression(Compiler, Property);
 	}
 
+	if (Result == INDEX_NONE && Property == MP_FrontMaterial && Engine_IsStrataEnabled())
+	{
+		Result = Compiler->StrataCreateAndRegisterNullMaterial();
+	}
+
 	if (Result != INDEX_NONE)
 	{
 		// Cast is always required to go between float and LWC
