@@ -3,6 +3,7 @@
 #include "NiagaraGraphDataCache.h"
 
 #include "NiagaraNodeFunctionCall.h"
+#include "NiagaraNodeAssignment.h"
 
 static int32 GNiagaraGraphDataCacheSize = 16384;
 static FAutoConsoleVariableRef CVarNiagaraGraphDataCacheSize(
@@ -51,16 +52,25 @@ void FNiagaraGraphDataCache::GetStackFunctionInputPinsInternal(
 		return;
 	}
 
-	FStackFunctionInputPinKey CacheKey(FunctionCallNode, CalledGraph, StaticVars, ConstantResolver, Options, bIgnoreDisabled, bFilterForCompilation);
-
-	bool FoundInCache = false;
-
-	if (const FStackFunctionInputPinValue* CachedValue = StackFunctionInputPinCache.FindAndTouch(CacheKey))
+	bool bUseCache = true;
+	if(FunctionCallNode.IsA<UNiagaraNodeAssignment>())
 	{
-		FoundInCache = true;
-		OutInputPins = CachedValue->InputPins;
+		bUseCache = false;
 	}
-	else
+
+	FStackFunctionInputPinKey CacheKey(FunctionCallNode, CalledGraph, StaticVars, ConstantResolver, Options, bIgnoreDisabled, bFilterForCompilation);
+	
+	bool bFoundInCache = false;
+	if(bUseCache)
+	{
+		if (const FStackFunctionInputPinValue* CachedValue = StackFunctionInputPinCache.FindAndTouch(CacheKey))
+		{
+			bFoundInCache = true;
+			OutInputPins = CachedValue->InputPins;
+		}
+	}
+
+	if(bUseCache == false || bFoundInCache == false)
 	{
 		FStackFunctionInputPinValue NewValue;
 		FNiagaraStackGraphUtilities::GetStackFunctionInputPinsWithoutCache(
@@ -74,8 +84,11 @@ void FNiagaraGraphDataCache::GetStackFunctionInputPinsInternal(
 
 		OutInputPins = NewValue.InputPins;
 
-		StackFunctionInputPinCache.Add(CacheKey, NewValue);
-	}
+		if(bUseCache)
+		{
+			StackFunctionInputPinCache.Add(CacheKey, NewValue);
+		}
+	}	
 
 	if (GNiagaraGraphDataCacheValidation)
 	{
