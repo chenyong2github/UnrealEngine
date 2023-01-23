@@ -7,6 +7,8 @@
 #include "Styling/AppStyle.h"
 #include "SourceCodeNavigation.h"
 #include "AddToProjectConfig.h"
+#include "AssetToolsModule.h"
+#include "ContentBrowserMenuContexts.h"
 #include "GameProjectGenerationModule.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Editor/UnrealEdEngine.h"
@@ -15,123 +17,8 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_Class::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
-{
-	UClass *const BaseClass = (InObjects.Num() == 1) ? Cast<UClass>(InObjects[0]) : nullptr;
 
-	// Only allow the New class option if we have a base class that we can actually derive from in one of our project modules
-	FGameProjectGenerationModule& GameProjectGenerationModule = FGameProjectGenerationModule::Get();
-	TArray<FModuleContextInfo> ProjectModules = GameProjectGenerationModule.GetCurrentProjectModules();
-	const bool bIsValidBaseCppClass = BaseClass && GameProjectGenerationModule.IsValidBaseClassForCreation(BaseClass, ProjectModules);
-	const bool bIsValidBaseBlueprintClass = BaseClass && FKismetEditorUtilities::CanCreateBlueprintOfClass(BaseClass);
-
-	auto CreateCreateDerivedCppClass = [BaseClass]()
-	{
-		// Work out where the header file for the current class is, as we'll use that path as the default for the new class
-		FString BaseClassPath;
-		if(FSourceCodeNavigation::FindClassHeaderPath(BaseClass, BaseClassPath))
-		{
-			// Strip off the actual filename as we only need the path
-			BaseClassPath = FPaths::GetPath(BaseClassPath);
-		}
-
-		FGameProjectGenerationModule::Get().OpenAddCodeToProjectDialog(
-			FAddToProjectConfig()
-			.ParentClass(BaseClass)
-			.InitialPath(BaseClassPath)
-			.ParentWindow(FGlobalTabmanager::Get()->GetRootWindow())
-		);
-	};
-
-	auto IsCPPAllowed = []()
-	{
-		return ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed();
-	};
-
-	auto CanCreateDerivedCppClass = [bIsValidBaseCppClass, IsCPPAllowed]() -> bool
-	{
-		return bIsValidBaseCppClass && IsCPPAllowed();
-	};
-
-	auto CreateCreateDerivedBlueprintClass = [BaseClass]()
-	{
-		FGameProjectGenerationModule::Get().OpenAddBlueprintToProjectDialog(
-			FAddToProjectConfig()
-			.ParentClass(BaseClass)
-			.ParentWindow(FGlobalTabmanager::Get()->GetRootWindow())
-		);
-	};
-
-	auto CanCreateDerivedBlueprintClass = [bIsValidBaseBlueprintClass]() -> bool
-	{
-		return bIsValidBaseBlueprintClass;
-	};
-
-	FText NewDerivedCppClassLabel;
-	FText NewDerivedCppClassToolTip;
-	FText NewDerivedBlueprintClassLabel;
-	FText NewDerivedBlueprintClassToolTip;
-	if(InObjects.Num() == 1)
-	{
-		check(BaseClass);
-
-		const FText BaseClassName = FText::FromName(BaseClass->GetFName());
-
-		NewDerivedCppClassLabel = FText::Format(LOCTEXT("Class_NewDerivedCppClassLabel_CreateFrom", "Create C++ class derived from {0}"), BaseClassName);
-		if(bIsValidBaseCppClass)
-		{
-			NewDerivedCppClassToolTip = FText::Format(LOCTEXT("Class_NewDerivedCppClassTooltip_CreateFrom", "Create a new C++ class deriving from {0}."), BaseClassName);
-		}
-		else
-		{
-			NewDerivedCppClassToolTip = FText::Format(LOCTEXT("Class_NewDerivedCppClassTooltip_InvalidClass", "Cannot create a new C++ class deriving from {0}."), BaseClassName);
-		}
-
-		NewDerivedBlueprintClassLabel = FText::Format(LOCTEXT("Class_NewDerivedBlueprintClassLabel_CreateFrom", "Create Blueprint class based on {0}"), BaseClassName);
-		if(bIsValidBaseBlueprintClass)
-		{
-			NewDerivedBlueprintClassToolTip = FText::Format(LOCTEXT("Class_NewDerivedBlueprintClassTooltip_CreateFrom", "Create a new Blueprint class based on {0}."), BaseClassName);
-		}
-		else
-		{
-			NewDerivedBlueprintClassToolTip = FText::Format(LOCTEXT("Class_NewDerivedBlueprintClassTooltip_InvalidClass", "Cannot create a new Blueprint class based on {0}."), BaseClassName);
-		}
-	}
-	else
-	{
-		NewDerivedCppClassLabel = LOCTEXT("Class_NewDerivedCppClassLabel_InvalidNumberOfBases", "New C++ class derived from...");
-		NewDerivedCppClassToolTip = LOCTEXT("Class_NewDerivedCppClassTooltip_InvalidNumberOfBases", "Can only create a derived C++ class when there is a single base class selected.");
-
-		NewDerivedBlueprintClassLabel = LOCTEXT("Class_NewDerivedBlueprintClassLabel_InvalidNumberOfBases", "New Blueprint class based on...");
-		NewDerivedBlueprintClassToolTip = LOCTEXT("Class_NewDerivedBlueprintClassTooltip_InvalidNumberOfBases", "Can only create a Blueprint class when there is a single base class selected.");
-	}
-
-	Section.AddMenuEntry(
-		"NewDerivedCppClass",
-		NewDerivedCppClassLabel,
-		NewDerivedCppClassToolTip,
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.C++"),
-		FUIAction(
-			FExecuteAction::CreateLambda(CreateCreateDerivedCppClass),
-			FCanExecuteAction::CreateLambda(CanCreateDerivedCppClass),
-			FIsActionChecked(),
-			FIsActionButtonVisible::CreateLambda(IsCPPAllowed)
-		)
-	);
-
-	Section.AddMenuEntry(
-		"NewDerivedBlueprintClass",
-		NewDerivedBlueprintClassLabel,
-		NewDerivedBlueprintClassToolTip,
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Blueprint"),
-		FUIAction(
-			FExecuteAction::CreateLambda(CreateCreateDerivedBlueprintClass),
-			FCanExecuteAction::CreateLambda(CanCreateDerivedBlueprintClass)
-			)
-		);
-}
-
-UThumbnailInfo* FAssetTypeActions_Class::GetThumbnailInfo(UObject* Asset) const
+UThumbnailInfo* UAssetDefinition_Class::LoadThumbnailInfo(const FAssetData& InAssetData) const
 {
 	// todo: jdale - CLASS - We need to generate and store proper thumbnail info for classes so that we can store their custom render transforms
 	// This can't be stored in the UClass instance (like we do for Blueprints), so we'll need another place to store it
@@ -139,44 +26,176 @@ UThumbnailInfo* FAssetTypeActions_Class::GetThumbnailInfo(UObject* Asset) const
 	return nullptr;
 }
 
-void FAssetTypeActions_Class::OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor )
+EAssetCommandResult UAssetDefinition_Class::OpenAssets(const FAssetOpenArgs& OpenArgs) const
 {
-	for(UObject* Object : InObjects)
+	TArray<FString> FilesToOpen;
+	for (UClass* Class : OpenArgs.LoadObjects<UClass>())
 	{
-		UClass* const Class = Cast<UClass>(Object);
-		if(Class)
+		FString ClassHeaderPath;
+		if(FSourceCodeNavigation::FindClassHeaderPath(Class, ClassHeaderPath))
 		{
-			TArray<FString> FilesToOpen;
+			const FString AbsoluteHeaderPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ClassHeaderPath);
+			FilesToOpen.Add(AbsoluteHeaderPath);
+		}
 
-			FString ClassHeaderPath;
-			if(FSourceCodeNavigation::FindClassHeaderPath(Class, ClassHeaderPath))
-			{
-				const FString AbsoluteHeaderPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ClassHeaderPath);
-				FilesToOpen.Add(AbsoluteHeaderPath);
-			}
-
-			FString ClassSourcePath;
-			if(FSourceCodeNavigation::FindClassSourcePath(Class, ClassSourcePath))
-			{
-				const FString AbsoluteSourcePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ClassSourcePath);
-				FilesToOpen.Add(AbsoluteSourcePath);
-			}
-
-			FSourceCodeNavigation::OpenSourceFiles(FilesToOpen);
+		FString ClassSourcePath;
+		if(FSourceCodeNavigation::FindClassSourcePath(Class, ClassSourcePath))
+		{
+			const FString AbsoluteSourcePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ClassSourcePath);
+			FilesToOpen.Add(AbsoluteSourcePath);
 		}
 	}
+
+	if (FilesToOpen.Num() > 0)
+	{
+		FSourceCodeNavigation::OpenSourceFiles(FilesToOpen);
+	}
+
+	return EAssetCommandResult::Handled;
 }
 
-TWeakPtr<IClassTypeActions> FAssetTypeActions_Class::GetClassTypeActions(const FAssetData& AssetData) const
+TWeakPtr<IClassTypeActions> UAssetDefinition_Class::GetClassTypeActions(const FAssetData& AssetData) const
 {
 	UClass* Class = FindObject<UClass>(nullptr, *AssetData.GetObjectPathString());
-	if(Class)
+	if (Class)
 	{
-		FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
-		return AssetToolsModule.Get().GetClassTypeActionsForClass(Class);
+		return IAssetTools::Get().GetClassTypeActionsForClass(Class);
 	}
 
 	return nullptr;
+}
+
+
+// Menu Extensions
+//--------------------------------------------------------------------
+
+namespace MenuExtension_Class
+{
+	static FDelayedAutoRegisterHelper DelayedAutoRegister(EDelayedRegisterRunPhase::EndOfEngineInit, []{ 
+		UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateLambda([]()
+		{
+			FToolMenuOwnerScoped OwnerScoped(UE_MODULE_NAME);
+			UToolMenu* Menu = UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UClass::StaticClass());
+		
+			FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+			Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+			{
+				if (const UContentBrowserAssetContextMenuContext* CBContext = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InSection))
+				{
+					UClass *const BaseClass = (CBContext->SelectedAssets.Num() == 1) ? Cast<UClass>(CBContext->SelectedAssets[0].GetAsset()) : nullptr;
+
+					// Only allow the New class option if we have a base class that we can actually derive from in one of our project modules
+					FGameProjectGenerationModule& GameProjectGenerationModule = FGameProjectGenerationModule::Get();
+					TArray<FModuleContextInfo> ProjectModules = GameProjectGenerationModule.GetCurrentProjectModules();
+					const bool bIsValidBaseCppClass = BaseClass && GameProjectGenerationModule.IsValidBaseClassForCreation(BaseClass, ProjectModules);
+					const bool bIsValidBaseBlueprintClass = BaseClass && FKismetEditorUtilities::CanCreateBlueprintOfClass(BaseClass);
+
+					auto CreateCreateDerivedCppClass = [BaseClass](const FToolMenuContext& InContext)
+					{
+						// Work out where the header file for the current class is, as we'll use that path as the default for the new class
+						FString BaseClassPath;
+						if(FSourceCodeNavigation::FindClassHeaderPath(BaseClass, BaseClassPath))
+						{
+							// Strip off the actual filename as we only need the path
+							BaseClassPath = FPaths::GetPath(BaseClassPath);
+						}
+
+						FGameProjectGenerationModule::Get().OpenAddCodeToProjectDialog(
+							FAddToProjectConfig()
+							.ParentClass(BaseClass)
+							.InitialPath(BaseClassPath)
+							.ParentWindow(FGlobalTabmanager::Get()->GetRootWindow())
+						);
+					};
+
+					auto IsCPPAllowed = []()
+					{
+						return ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed();
+					};
+
+					auto CanCreateDerivedCppClass = [bIsValidBaseCppClass, IsCPPAllowed](const FToolMenuContext& InContext) -> bool
+					{
+						return bIsValidBaseCppClass && IsCPPAllowed();
+					};
+
+					auto CreateCreateDerivedBlueprintClass = [BaseClass](const FToolMenuContext& InContext)
+					{
+						FGameProjectGenerationModule::Get().OpenAddBlueprintToProjectDialog(
+							FAddToProjectConfig()
+							.ParentClass(BaseClass)
+							.ParentWindow(FGlobalTabmanager::Get()->GetRootWindow())
+						);
+					};
+
+					auto CanCreateDerivedBlueprintClass = [bIsValidBaseBlueprintClass](const FToolMenuContext& InContext) -> bool
+					{
+						return bIsValidBaseBlueprintClass;
+					};
+
+					FText NewDerivedCppClassLabel;
+					FText NewDerivedCppClassToolTip;
+					FText NewDerivedBlueprintClassLabel;
+					FText NewDerivedBlueprintClassToolTip;
+					if (CBContext->SelectedAssets.Num() == 1)
+					{
+						check(BaseClass);
+
+						const FText BaseClassName = FText::FromName(BaseClass->GetFName());
+
+						NewDerivedCppClassLabel = FText::Format(LOCTEXT("Class_NewDerivedCppClassLabel_CreateFrom", "Create C++ class derived from {0}"), BaseClassName);
+						if(bIsValidBaseCppClass)
+						{
+							NewDerivedCppClassToolTip = FText::Format(LOCTEXT("Class_NewDerivedCppClassTooltip_CreateFrom", "Create a new C++ class deriving from {0}."), BaseClassName);
+						}
+						else
+						{
+							NewDerivedCppClassToolTip = FText::Format(LOCTEXT("Class_NewDerivedCppClassTooltip_InvalidClass", "Cannot create a new C++ class deriving from {0}."), BaseClassName);
+						}
+
+						NewDerivedBlueprintClassLabel = FText::Format(LOCTEXT("Class_NewDerivedBlueprintClassLabel_CreateFrom", "Create Blueprint class based on {0}"), BaseClassName);
+						if(bIsValidBaseBlueprintClass)
+						{
+							NewDerivedBlueprintClassToolTip = FText::Format(LOCTEXT("Class_NewDerivedBlueprintClassTooltip_CreateFrom", "Create a new Blueprint class based on {0}."), BaseClassName);
+						}
+						else
+						{
+							NewDerivedBlueprintClassToolTip = FText::Format(LOCTEXT("Class_NewDerivedBlueprintClassTooltip_InvalidClass", "Cannot create a new Blueprint class based on {0}."), BaseClassName);
+						}
+					}
+					else
+					{
+						NewDerivedCppClassLabel = LOCTEXT("Class_NewDerivedCppClassLabel_InvalidNumberOfBases", "New C++ class derived from...");
+						NewDerivedCppClassToolTip = LOCTEXT("Class_NewDerivedCppClassTooltip_InvalidNumberOfBases", "Can only create a derived C++ class when there is a single base class selected.");
+
+						NewDerivedBlueprintClassLabel = LOCTEXT("Class_NewDerivedBlueprintClassLabel_InvalidNumberOfBases", "New Blueprint class based on...");
+						NewDerivedBlueprintClassToolTip = LOCTEXT("Class_NewDerivedBlueprintClassTooltip_InvalidNumberOfBases", "Can only create a Blueprint class when there is a single base class selected.");
+					}
+
+					if (IsCPPAllowed())
+					{
+						const TAttribute<FText> Label = NewDerivedCppClassLabel;
+						const TAttribute<FText> ToolTip = NewDerivedCppClassToolTip;
+						const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.C++");
+
+						FToolUIAction UIAction;
+						UIAction.ExecuteAction = FToolMenuExecuteAction::CreateLambda(CreateCreateDerivedCppClass);
+						UIAction.CanExecuteAction = FToolMenuCanExecuteAction::CreateLambda(CanCreateDerivedCppClass);
+						InSection.AddMenuEntry("NewDerivedCppClass", Label, ToolTip, Icon, UIAction);
+					}
+					{
+                    	const TAttribute<FText> Label = NewDerivedBlueprintClassLabel;
+                    	const TAttribute<FText> ToolTip = NewDerivedBlueprintClassToolTip;
+                    	const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.C++");
+
+                    	FToolUIAction UIAction;
+                    	UIAction.ExecuteAction = FToolMenuExecuteAction::CreateLambda(CreateCreateDerivedBlueprintClass);
+			            UIAction.CanExecuteAction = FToolMenuCanExecuteAction::CreateLambda(CanCreateDerivedBlueprintClass);
+                    	InSection.AddMenuEntry("NewDerivedBlueprintClass", Label, ToolTip, Icon, UIAction);
+                    }
+				}
+			}));
+		}));
+	});
 }
 
 #undef LOCTEXT_NAMESPACE

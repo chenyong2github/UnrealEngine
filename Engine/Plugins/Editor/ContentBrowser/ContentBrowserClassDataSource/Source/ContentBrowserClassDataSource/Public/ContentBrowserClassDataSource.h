@@ -78,6 +78,8 @@ public:
 	virtual bool Legacy_TryConvertAssetDataToVirtualPath(const FAssetData& InAssetData, const bool InUseFolderPaths, FName& OutPath) override;
 
 protected:
+	TSharedPtr<IAssetTypeActions> GetClassTypeActions();
+	
 	virtual void BuildRootPathVirtualTree() override;
 	bool RootClassPathPassesFilter(const FName InRootClassPath, const bool bIncludeEngineClasses, const bool bIncludePluginClasses) const;
 

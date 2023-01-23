@@ -2,29 +2,36 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Class.h"
-#include "Toolkits/IToolkitHost.h"
-#include "AssetTypeActions/AssetTypeActions_ClassTypeBase.h"
+#include "Script/AssetDefinition_ClassTypeBase.h"
 
+#include "AssetDefinition_Class.generated.h"
+
+struct FToolMenuContext;
 struct FAssetData;
-class IClassTypeActions;
+class UFactory;
 
-class FAssetTypeActions_Class : public FAssetTypeActions_ClassTypeBase
+UCLASS()
+class UAssetDefinition_Class : public UAssetDefinition_ClassTypeBase
 {
+	GENERATED_BODY()
+
 public:
-	// IAssetTypeActions Implementation
-	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_Class", "C++ Class"); }
-	virtual FColor GetTypeColor() const override { return FColor(255, 255, 255); }
-	virtual UClass* GetSupportedClass() const override { return UClass::StaticClass(); }
-	virtual uint32 GetCategories() override { return EAssetTypeCategories::Basic; }
+	// UAssetDefinition Implementation
+	virtual FText GetAssetDisplayName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_Class", "C++ Class"); }
+	virtual FLinearColor GetAssetColor() const override { return FLinearColor(FColor(255, 255, 255)); }
+	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return UClass::StaticClass(); }
+	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override
+	{
+		static const auto Categories = { EAssetCategoryPaths::Basic };
+		return Categories;
+	}
 	
-	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
+	virtual UThumbnailInfo* LoadThumbnailInfo(const FAssetData& InAssetData) const override;
+	virtual EAssetCommandResult OpenAssets(const FAssetOpenArgs& OpenArgs) const override;
+	// UAssetDefinition End
 
-	virtual class UThumbnailInfo* GetThumbnailInfo(UObject* Asset) const override;
-
-	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override;
-
-	// FAssetTypeActions_ClassTypeBase Implementation
+	// UAssetDefinition_ClassTypeBase Implementation
 	virtual TWeakPtr<IClassTypeActions> GetClassTypeActions(const FAssetData& AssetData) const override;
+	// UAssetDefinition_ClassTypeBase End
 };
+

@@ -354,8 +354,7 @@ public:
 	/** Returns additional tooltip information for the specified asset, if it has any (otherwise return the null widget) */
 	virtual FText GetAssetDescription(const FAssetData& AssetData) const override
 	{
-		ensureMsgf(false, TEXT("This code path is not expected to be called any more.  Expected UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(YourAsset)->GetAssetDescription to be called directly."));
-        return FText::GetEmpty();
+		return AssetDefinitionPtr.Get()->GetAssetDescription(AssetData);
 	}
 
 	/** Collects the resolved source paths for the imported assets */
