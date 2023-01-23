@@ -8,10 +8,10 @@
 
 #define LOCTEXT_NAMESPACE "ObjectMixerEditor"
 
+class SObjectMixerEditorList;
 class SInlineEditableTextBlock;
 class SMenuAnchor;
-class SObjectMixerEditorMainPanel;
-class FObjectMixerEditorListFilter_Collection;
+class SObjectMixerEditorList;
 
 class SCollectionSelectionButton final : public SCompoundWidget
 {
@@ -24,8 +24,8 @@ public:
 	
 	void Construct(
 		const FArguments& InArgs,
-		const TSharedRef<SObjectMixerEditorMainPanel> MainPanelWidget,
-		const TSharedRef<FObjectMixerEditorListFilter_Collection> InCollectionListFilter);
+		const TSharedRef<SObjectMixerEditorList> ListWidget,
+		const FName InCollectionName);
 
 	TSharedRef<SWidget> GetContextMenu() const;
 
@@ -46,16 +46,11 @@ public:
 	const FSlateBrush* GetBorderBrush() const;
 	FSlateColor GetBorderForeground() const;
 
-	TWeakPtr<FObjectMixerEditorListFilter_Collection> GetCollectionListFilter()
-	{
-		return  CollectionListFilter;
-	}
+	/** Whether the associated collection is selected */
+	bool GetIsSelected() const;
 
-	/** Whether the associated list filter is active */
-	bool GetIsChecked() const;
-
-	TWeakPtr<SObjectMixerEditorMainPanel> MainPanelPtr;
-	TWeakPtr<FObjectMixerEditorListFilter_Collection> CollectionListFilter;
+	TWeakPtr<SObjectMixerEditorList> ListWidgetPtr;
+	FName CollectionName;
 
 private:
 

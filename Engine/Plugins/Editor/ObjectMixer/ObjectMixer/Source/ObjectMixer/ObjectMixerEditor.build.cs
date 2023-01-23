@@ -35,6 +35,7 @@ public class ObjectMixerEditor : ModuleRules
 				"CoreUObject",
 				"ContentBrowser",
 				"Engine",
+				"EditorConfig",
 				"EditorStyle",
 				"EditorWidgets",
 				"InputCore",

@@ -2,26 +2,27 @@
 
 #include "ObjectMixerEditorModule.h"
 
+#include "ObjectMixerEditorLog.h"
 #include "Engine/Level.h"
 #include "ObjectMixerEditorSettings.h"
 #include "Misc/CoreDelegates.h"
+#include "ObjectMixerEditorSerializedData.h"
 #include "ObjectMixerEditorStyle.h"
-#include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
+#include "Views/List/ObjectMixerEditorList.h"
+#include "Views/Widgets/ObjectMixerEditorListMenuContext.h"
 
 #include "ISettingsModule.h"
 #include "LevelEditor.h"
-#include "ObjectMixerEditorSerializedData.h"
 #include "Selection.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
-#include "Views/Widgets/ObjectMixerEditorListMenuContext.h"
 
 const FName FObjectMixerEditorModule::BaseObjectMixerModuleName("ObjectMixerEditor");
 
-#define LOCTEXT_NAMESPACE "FObjectMixerEditorModule"
+#define LOCTEXT_NAMESPACE "ObjectMixerEditor"
 
 IMPLEMENT_MODULE(FObjectMixerEditorModule, ObjectMixerEditor)
 
@@ -98,7 +99,7 @@ void FObjectMixerEditorModule::Teardown()
 	}
 	DelegateHandles.Empty();
 	
-	MainPanel.Reset();
+	ListModel.Reset();
 
 	UToolMenus::UnregisterOwner(this);
 	
@@ -125,51 +126,43 @@ FName FObjectMixerEditorModule::GetModuleName() const
 TSharedPtr<SWidget> FObjectMixerEditorModule::MakeObjectMixerDialog(
 	TSubclassOf<UObjectMixerObjectFilter> InDefaultFilterClass)
 {
-	if (!MainPanel.IsValid())
+	if (!ListModel.IsValid())
 	{
-		MainPanel = MakeShared<FObjectMixerEditorMainPanel>(GetModuleName());
-		MainPanel->Initialize();
+		ListModel = MakeShared<FObjectMixerEditorList>(GetModuleName());
+		ListModel->Initialize();
 	}
-	
-	const TSharedPtr<SWidget> ObjectMixerDialog = MainPanel->GetOrCreateWidget();
 
 	if (InDefaultFilterClass)
 	{
-		MainPanel->SetDefaultFilterClass(InDefaultFilterClass);
+		ListModel->SetDefaultFilterClass(InDefaultFilterClass);
 	}
+	
+	const TSharedPtr<SWidget> ObjectMixerDialog = ListModel->GetOrCreateWidget();
 
 	return ObjectMixerDialog;
 }
 
 void FObjectMixerEditorModule::RequestRebuildList() const
 {
-	if (MainPanel.IsValid())
+	if (ListModel.IsValid())
 	{
-		MainPanel->RequestRebuildList();
+		ListModel->RequestRebuildList();
 	}
 }
 
 void FObjectMixerEditorModule::RefreshList() const
 {
-	if (MainPanel.IsValid())
+	if (ListModel.IsValid())
 	{
-		MainPanel->RefreshList();
+		ListModel->RefreshList();
 	}
 }
 
 void FObjectMixerEditorModule::OnRenameCommand()
 {
-	if (MainPanel.IsValid())
+	if (ListModel.IsValid())
 	{
-		MainPanel->OnRenameCommand();
-	}
-}
-
-void FObjectMixerEditorModule::RequestSyncEditorSelectionToListSelection()
-{
-	if (MainPanel.IsValid())
-	{
-		MainPanel->RequestSyncEditorSelectionToListSelection();
+		ListModel->OnRenameCommand();
 	}
 }
 
@@ -329,10 +322,6 @@ void FObjectMixerEditorModule::BindDelegates()
 	{
 		RequestRebuildList();
 	}));
-	DelegateHandles.Add(GEditor->GetSelectedActors()->SelectionChangedEvent.AddLambda([this] (UObject*)
-	{
-		RequestSyncEditorSelectionToListSelection();
-	}));
 	
 	DelegateHandles.Add(FEditorDelegates::MapChange.AddLambda([this](uint32)
 	{
@@ -378,9 +367,9 @@ TSet<FName> FObjectMixerEditorModule::GetPropertiesThatRequireRefresh() const
 {
 	TSet<FName> ReturnValue;
 
-	if (MainPanel.IsValid())
+	if (ListModel.IsValid())
 	{
-		for (const TObjectPtr<UObjectMixerObjectFilter> Instance : MainPanel->GetObjectFilterInstances())
+		for (const TObjectPtr<UObjectMixerObjectFilter> Instance : ListModel->GetObjectFilterInstances())
 		{
 			ReturnValue.Append(Instance->GetPropertiesThatRequireListRefresh());
 		}

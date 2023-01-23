@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Views/List/ObjectMixerEditorListRow.h"
+#include "Views/List/ObjectMixerEditorListRowData.h"
 
 #include "ToolMenuEntry.h"
 #include "Types/SlateEnums.h"
@@ -21,12 +21,12 @@ public:
 
 	struct FObjectMixerEditorListMenuContextData
 	{
-		TArray<FObjectMixerEditorListRowPtr> SelectedItems;
-		TWeakPtr<class FObjectMixerEditorMainPanel> MainPanelPtr;
+		TArray<TSharedPtr<ISceneOutlinerTreeItem>> SelectedItems;
+		TWeakPtr<class FObjectMixerEditorList> ListModelPtr;
 	};
 
-	static TSharedPtr<SWidget> CreateContextMenu(const FObjectMixerEditorListMenuContextData InData);
-	static TSharedPtr<SWidget> BuildContextMenu(const FObjectMixerEditorListMenuContextData& InData);
+	static TSharedPtr<SWidget> CreateContextMenu(FObjectMixerEditorListMenuContextData InData);
+	static TSharedPtr<SWidget> BuildContextMenu(const FObjectMixerEditorListMenuContextData InData);
 	static void RegisterFoldersOnlyContextMenu();
 	static void RegisterObjectMixerActorContextMenuExtension();
 	static void RegisterObjectMixerElementContextMenuExtension(const FName& MenuName);

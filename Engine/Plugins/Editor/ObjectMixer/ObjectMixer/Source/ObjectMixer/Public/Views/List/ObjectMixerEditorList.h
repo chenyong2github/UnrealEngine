@@ -2,61 +2,148 @@
 
 #pragma once
 
-#include "ObjectMixerEditorListRow.h"
-#include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
+#include "ObjectMixerEditorListRowData.h"
 
 #include "Templates/SharedPointer.h"
 #include "Widgets/SWidget.h"
 
+class FObjectMixerEditorModule;
 class SObjectMixerEditorList;
+class UObjectMixerEditorSerializedData;
 
-struct FFolder;
+DECLARE_MULTICAST_DELEGATE(FOnPreFilterChange)
+DECLARE_MULTICAST_DELEGATE(FOnPostFilterChange)
 
-class OBJECTMIXEREDITOR_API FObjectMixerEditorList : public TSharedFromThis<FObjectMixerEditorList>
+
+class OBJECTMIXEREDITOR_API FObjectMixerEditorList : public TSharedFromThis<FObjectMixerEditorList>, public FGCObject
 {
 public:
 
-	FObjectMixerEditorList(TSharedRef<FObjectMixerEditorMainPanel, ESPMode::ThreadSafe> InMainPanel);
+	FObjectMixerEditorList(const FName InModuleName);
 
 	virtual ~FObjectMixerEditorList();
 
-	void FlushWidget();
+	void Initialize();
 	
+	void RegisterAndMapContextMenuCommands();
+
 	TSharedRef<SWidget> GetOrCreateWidget();
 
-	void OnPreFilterChange();
-	void OnPostFilterChange();
-
-	void ClearList() const;
-
-	/**
-	 * Regenerate the list items and refresh the list. Call when adding or removing variables.
-	 */
+	/** Regenerate the list items and refresh the list. Call when adding or removing items. */
 	void RequestRebuildList() const;
 
 	/**
-	 * Refresh filters and sorting.
-	 * Useful for when the list state has gone stale but the item count has not changed.
+	 * Refresh list filters and sorting.
+	 * Useful for when the list state has gone stale but the variable count has not changed.
 	 */
 	void RefreshList() const;
 
+	void BuildPerformanceCache();
+
 	/** Called when the Rename command is executed from the UI or hotkey. */
 	void OnRenameCommand();
+	
+	void RebuildCollectionSelector();
 
-	void RequestSyncEditorSelectionToListSelection() const;
+	void SetDefaultFilterClass(UClass* InNewClass);
+	bool IsClassSelected(UClass* InClass) const;
 
-	[[nodiscard]] TArray<FObjectMixerEditorListRowPtr> GetSelectedTreeViewItems() const;
+	const TArray<TObjectPtr<UObjectMixerObjectFilter>>& GetObjectFilterInstances();
+
+	const UObjectMixerObjectFilter* GetMainObjectFilterInstance();
+
+	void CacheObjectFilterInstances();
+
+	/** Get the style of the tree (flat list or hierarchy) */
+	EObjectMixerTreeViewMode GetTreeViewMode()
+	{
+		return TreeViewMode;
+	}
+	/** Set the style of the tree (flat list or hierarchy)  */
+	void SetTreeViewMode(EObjectMixerTreeViewMode InViewMode)
+	{
+		TreeViewMode = InViewMode;
+		RequestRebuildList();
+	}
+
+	/**
+	 * Force returns result from Filter->ForceGetObjectClassesToFilter.
+	 * Generally, you want to get this from the public performance cache.
+	 */
+	TSet<UClass*> ForceGetObjectClassesToFilter();
+
+	/**
+	 * Force returns result from Filter->ForceGetObjectClassesToPlace.
+	 * Generally, you want to get this from the public performance cache.
+	 */
+	TSet<TSubclassOf<AActor>> ForceGetObjectClassesToPlace();
+
+	const TArray<TSubclassOf<UObjectMixerObjectFilter>>& GetObjectFilterClasses() const
+	{
+		return ObjectFilterClasses;
+	}
+
+	void AddObjectFilterClass(UClass* InObjectFilterClass, const bool bShouldRebuild = true);
+
+	void RemoveObjectFilterClass(UClass* InObjectFilterClass, const bool bCacheAndRebuild = true);
+
+	void ResetObjectFilterClasses(const bool bCacheAndRebuild = true)
+	{
+		ObjectFilterClasses.Empty(ObjectFilterClasses.Num());
+
+		if (bCacheAndRebuild)
+		{
+			CacheAndRebuildFilters();
+		}
+	}
+
+	void CacheAndRebuildFilters()
+	{
+		CacheObjectFilterInstances();
+		RequestRebuildList();
+	}
+
+	/** Used as a way to differentiate different subclasses of the Object Mixer module */
+	FName GetModuleName() const
+	{
+		return ModuleName;
+	}
+
+	// User Collections
+
+	/** Get a pointer to the UObjectMixerEditorSerializedData object along with the name of the filter represented by this ListModel instance. */
+	UObjectMixerEditorSerializedData* GetSerializedData() const;
+	bool RequestAddObjectsToCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToAdd) const;
+	bool RequestRemoveObjectsFromCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToRemove) const;
+	bool RequestRemoveCollection(const FName& CollectionName) const;
+	bool RequestDuplicateCollection(const FName& CollectionToDuplicateName, FName& DesiredDuplicateName) const;
+	bool RequestReorderCollection(const FName& CollectionToMoveName, const FName& CollectionInsertBeforeName) const;
+	bool RequestRenameCollection(const FName& CollectionNameToRename, const FName& NewCollectionName) const;
+	bool DoesCollectionExist(const FName& CollectionName) const;
+	bool IsObjectInCollection(const FName& CollectionName, const FSoftObjectPath& InObject) const;
+	TSet<FName> GetCollectionsForObject(const FSoftObjectPath& InObject) const;
+	TArray<FName> GetAllCollectionNames() const;
+
+	/**
+	 * This is the filter class used to initialize the ListModel.
+	 * This filter class cannot be turned off by the end user.
+	 */
+	const TSubclassOf<UObjectMixerObjectFilter>& GetDefaultFilterClass() const;
+
+	void OnPostFilterChange();
+
+	FOnPreFilterChange OnPreFilterChangeDelegate;
+	FOnPostFilterChange OnPostFilterChangeDelegate;
+
+	TSharedPtr<FUICommandList> ObjectMixerElementEditCommands;
+	TSharedPtr<FUICommandList> ObjectMixerFolderEditCommands;
+
+	void FlushWidget();
+
+	UE_NODISCARD TArray<TSharedPtr<ISceneOutlinerTreeItem>> GetSelectedTreeViewItems() const;
 	int32 GetSelectedTreeViewItemCount() const;
 
-	void OnRequestNewFolder(TOptional<FFolder> ExplicitParentFolder = TOptional<FFolder>());
-
-	void OnRequestMoveFolder(const FFolder& FolderToMove, const FFolder& TargetNewParentFolder);
-
-	void ExecuteListViewSearchOnAllRows(const FString& SearchString, const bool bShouldRefreshAfterward = true);
-
-	void EvaluateIfRowsPassFilters(const bool bShouldRefreshAfterward = true) const;
-
-	TSet<TWeakPtr<FObjectMixerEditorListRow>> GetSoloRows() const;
+	TSet<TSharedPtr<ISceneOutlinerTreeItem>> GetSoloRows() const;
 	void ClearSoloRows();
 
 	/** Returns true if at least one row is set to Solo. */
@@ -67,12 +154,59 @@ public:
 	 * then sets each object's visibility in editor.
 	 */
 	void EvaluateAndSetEditorVisibilityPerRow();
+	
+	/** Represents the collections the user has selected in the UI. If empty, "All" is considered as selected. */
+	UE_NODISCARD const TSet<FName>& GetSelectedCollections() const;
+	UE_NODISCARD bool IsCollectionSelected(const FName& CollectionName);
+	void SetSelectedCollections(const TSet<FName> InSelectedCollections);
+	void SetCollectionSelected(const FName& CollectionName, const bool bNewSelected);
 
-	TWeakPtr<FObjectMixerEditorMainPanel> GetMainPanelModel();
+	// Performance cache
+	TSet<UClass*> ObjectClassesToFilterCache;
+	TSet<FName> ColumnsToShowByDefaultCache;
+	TSet<FName> ColumnsToExcludeCache;
+	TSet<FName> ForceAddedColumnsCache;
+	EObjectMixerInheritanceInclusionOptions PropertyInheritanceInclusionOptionsCache = EObjectMixerInheritanceInclusionOptions::None;
+	bool bShouldIncludeUnsupportedPropertiesCache = false;
 
-private:
+protected:
+	
+	virtual void AddReferencedObjects( FReferenceCollector& Collector )  override
+	{
+		Collector.AddReferencedObjects(ObjectFilterInstances);
+	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FObjectMixerEditorList");
+	}
 
-	TWeakPtr<FObjectMixerEditorMainPanel> MainPanelModelPtr;
+	/** Represents the collections the user has selected in the UI. If empty, "All" is considered as selected. */
+	TSet<FName> SelectedCollections;
 
 	TSharedPtr<SObjectMixerEditorList> ListWidget;
+	
+	TArray<TObjectPtr<UObjectMixerObjectFilter>> ObjectFilterInstances;
+
+	/**
+	 * The classes used to generate property edit columns
+	 */
+	TArray<TSubclassOf<UObjectMixerObjectFilter>> ObjectFilterClasses;
+
+	/**
+	 * The FObjectMixerEditorModule subclass that created this instance.
+	 */
+	TWeakPtr<FObjectMixerEditorModule> SpawningModulePtr;
+
+	/**
+	 * If set, this is the filter class used to initialize the ListModel.
+	 * This filter class cannot be turned off by the end user.
+	 */
+	TSubclassOf<UObjectMixerObjectFilter> DefaultFilterClass;
+
+	/**
+	 * Determines the style of the tree (flat list or hierarchy)
+	 */
+	EObjectMixerTreeViewMode TreeViewMode = EObjectMixerTreeViewMode::Folders;
+
+	FName ModuleName = NAME_None;
 };

@@ -6,7 +6,8 @@
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
 #include "Widgets/Docking/SDockTab.h"
 
-class FObjectMixerEditorMainPanel;
+class FObjectMixerEditorList;
+class FObjectMixerEditorList;
 
 class OBJECTMIXEREDITOR_API FObjectMixerEditorModule : public IModuleInterface
 {
@@ -45,8 +46,6 @@ public:
 	/** Called when the Rename command is executed from the UI or hotkey. */
 	virtual void OnRenameCommand();
 	
-	virtual void RequestSyncEditorSelectionToListSelection();
-
 	void RegisterMenuGroup();
 	void UnregisterMenuGroup();
 	virtual void SetupMenuItemVariables();
@@ -68,7 +67,7 @@ public:
 	TSharedPtr<FWorkspaceItem> GetWorkspaceGroup();
 
 	/**
-	 * This is the filter class used to initialize the MainPanel.
+	 * This is the filter class used to initialize the ListModel.
 	 * This filter class cannot be turned off by the end user.
 	 */
 	const TSubclassOf<UObjectMixerObjectFilter>& GetDefaultFilterClass() const;
@@ -83,7 +82,7 @@ protected:
 	TSet<FName> GetPropertiesThatRequireRefresh() const;
 	
 	/** Lives for as long as the module is loaded. */
-	TSharedPtr<FObjectMixerEditorMainPanel> MainPanel;
+	TSharedPtr<FObjectMixerEditorList> ListModel;
 
 	/** The text that appears on the spawned nomad tab */
 	FText TabLabel;
@@ -95,7 +94,7 @@ protected:
 	ETabSpawnerMenuType::Type TabSpawnerType = ETabSpawnerMenuType::Enabled;
 
 	/**
-	 * If set, this is the filter class used to initialize the MainPanel.
+	 * If set, this is the filter class used to initialize the ListModel.
 	 * This filter class cannot be turned off by the end user.
 	 */
 	TSubclassOf<UObjectMixerObjectFilter> DefaultFilterClass;

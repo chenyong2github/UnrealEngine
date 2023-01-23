@@ -9,7 +9,7 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Engine/BlueprintGeneratedClass.h"
 
-#define LOCTEXT_NAMESPACE "ObjectMixerFilterFactory"
+#define LOCTEXT_NAMESPACE "ObjectMixerEditor"
 
 UObjectMixerBlueprintFilterFactory::UObjectMixerBlueprintFilterFactory()
 {
