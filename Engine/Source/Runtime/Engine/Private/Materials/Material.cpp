@@ -576,6 +576,7 @@ void UMaterialInterface::InitDefaultMaterials()
 			TArray<FMaterialPSOPrecacheRequestID> MaterialPrecacheRequestIDs;
 
 			FPSOPrecacheParams PrecachePSOParams;
+			PrecachePSOParams.bDefaultMaterial = true;
 			FPSOPrecacheVertexFactoryDataList AllVertexFactoryTypes;
 			for (TLinkedList<FVertexFactoryType*>::TIterator It(FVertexFactoryType::GetTypeList()); It; It.Next())
 			{

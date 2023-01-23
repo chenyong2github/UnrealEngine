@@ -45,6 +45,10 @@ public:
 	}
 
 private:
+	
+	/** Collect all the PSO precache data used by the static mesh component */
+	virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
+
 	/* The landscape proxy identity this Nanite representation was generated for */
 	UPROPERTY()
 	FGuid ProxyContentId;

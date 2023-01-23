@@ -593,7 +593,7 @@ void FOpaqueVelocityMeshProcessor::CollectPSOInitializers(const FSceneTexturesCo
 	const FMaterial* EffectiveMaterial = &Material;
 	
 	bool bCollectPSOs = false;
-	if (Material.IsDefaultMaterial())
+	if (PreCacheParams.bDefaultMaterial)
 	{
 		// Precache all cull modes for default material?
 		bCollectPSOs = true;

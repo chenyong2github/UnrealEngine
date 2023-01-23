@@ -667,10 +667,7 @@ public:
 private:
 	/** Initializes the resources used by the static mesh component. */
 	void InitResources();
-
-	/** Collect all the PSO precache data used by the static mesh component */
-	virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
-
+		
 #if WITH_EDITOR
 	/** Update the vertex override colors */
 	void PrivateFixupOverrideColors();
@@ -682,6 +679,9 @@ private:
 	void ClearStreamingTextureData();
 #endif
 protected:
+
+	/** Collect all the PSO precache data used by the static mesh component */
+	virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
 
 	/** Whether the component type supports static lighting. */
 	virtual bool SupportsStaticLighting() const override

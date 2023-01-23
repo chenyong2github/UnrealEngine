@@ -170,6 +170,7 @@ private:
 		const FShadowDepthType& InShadowDepthType,
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode,
+		bool bRequired,
 		TArray<FPSOPrecacheData>& PSOInitializers);
 
 	void CollectPSOInitializersInternal(
@@ -179,6 +180,7 @@ private:
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode,
 		bool bSupportsPositionAndNormalOnlyStream,
+		bool bRequired,
 		TArray<FPSOPrecacheData>& PSOInitializers);
 
 	FShadowDepthType ShadowDepthType;

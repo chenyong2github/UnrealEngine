@@ -622,7 +622,7 @@ void FCustomDepthPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesC
 	PassDrawRenderState.SetDepthStencilState(GetCustomDepthStencilState(bWriteCustomStencilValues, PreCacheParams.GetStencilWriteMask()));
 
 	// Are we currently collecting PSO's for the default material
-	if (Material.IsDefaultMaterial())
+	if (PreCacheParams.bDefaultMaterial)
 	{		
 		CollectDefaultMaterialPSOInitializers(SceneTexturesConfig, Material, VertexFactoryData, PSOInitializers);
 		return;

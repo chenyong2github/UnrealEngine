@@ -28,6 +28,7 @@ struct FPSOPrecacheParams
 	FPSOPrecacheParams()
 	{
 		PrimitiveType = (uint8)PT_TriangleList;
+		bDefaultMaterial = false;
 		bRenderInMainPass = true;
 		bRenderInDepthPass = true;
 		bStaticLighting = true;
@@ -90,6 +91,8 @@ struct FPSOPrecacheParams
 		{
 			uint32 PrimitiveType : 6;
 
+			uint32 bDefaultMaterial : 1;
+
 			uint32 bRenderInMainPass : 1;
 			uint32 bRenderInDepthPass : 1;
 			uint32 bStaticLighting : 1;
@@ -106,7 +109,7 @@ struct FPSOPrecacheParams
 			uint32 bHasWorldPositionOffsetVelocity : 1;
 			uint32 StencilWriteMask : 4;
 
-			uint32 Unused : 7;
+			uint32 Unused : 6;
 		};
 		uint32 Data;
 	};

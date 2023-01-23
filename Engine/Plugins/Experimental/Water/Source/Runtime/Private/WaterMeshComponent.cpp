@@ -77,6 +77,7 @@ void UWaterMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& BaseP
 	if (FarDistanceMaterial)
 	{
 		FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
+		ComponentParams.Priority = EPSOPrecachePriority::High;
 		ComponentParams.MaterialInterface = FarDistanceMaterial;
 		ComponentParams.VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(WaterVertexFactoryType));
 		ComponentParams.PSOPrecacheParams = BasePrecachePSOParams;
@@ -86,6 +87,7 @@ void UWaterMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& BaseP
 		if (MaterialInterface)
 		{
 			FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
+			ComponentParams.Priority = EPSOPrecachePriority::High;
 			ComponentParams.MaterialInterface = MaterialInterface;
 			ComponentParams.VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(WaterVertexFactoryType));
 			ComponentParams.PSOPrecacheParams = BasePrecachePSOParams;

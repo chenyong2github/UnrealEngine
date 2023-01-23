@@ -939,7 +939,8 @@ public:
 	 */
 	struct FComponentPSOPrecacheParams
 	{
-		UMaterialInterface* MaterialInterface;
+		EPSOPrecachePriority Priority = EPSOPrecachePriority::Medium;
+		UMaterialInterface* MaterialInterface = nullptr;
 		FPSOPrecacheVertexFactoryDataList VertexFactoryDataList;
 		FPSOPrecacheParams PSOPrecacheParams;
 	};

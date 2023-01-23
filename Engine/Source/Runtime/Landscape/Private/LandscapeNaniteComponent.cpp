@@ -46,6 +46,17 @@ void ULandscapeNaniteComponent::PostLoad()
 	}
 }
 
+void ULandscapeNaniteComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams)
+{
+	Super::CollectPSOPrecacheData(BasePrecachePSOParams, OutParams);
+	
+	// Mark high priority
+	for (FComponentPSOPrecacheParams& Params : OutParams)
+	{
+		Params.Priority = EPSOPrecachePriority::High;
+	}
+}
+
 ALandscapeProxy* ULandscapeNaniteComponent::GetLandscapeProxy() const
 {
 	return CastChecked<ALandscapeProxy>(GetOuter());
