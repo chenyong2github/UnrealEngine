@@ -16,11 +16,11 @@ class IHttpRequest;
 /**
  * Apple implementation of an Http request
  */
-class FAppleHttpRequest : public FHttpRequestImpl
+class FAppleHttpNSUrlConnectionRequest : public FHttpRequestImpl
 {
 public:
 	// implementation friends
-	friend class FAppleHttpResponse;
+	friend class FAppleHttpNSUrlConnectionResponse;
 
 
 	//~ Begin IHttpBase Interface
@@ -58,12 +58,12 @@ public:
 	/**
 	 * Constructor
 	 */
-	FAppleHttpRequest();
+	FAppleHttpNSUrlConnectionRequest();
 
 	/**
 	 * Destructor. Clean up any connection/request handles
 	 */
-	virtual ~FAppleHttpRequest();
+	virtual ~FAppleHttpNSUrlConnectionRequest();
 
 
 private:
@@ -101,7 +101,7 @@ private:
 	int32 RequestPayloadByteLength;
 
 	/** The response object which we will use to pair with this request */
-	TSharedPtr<class FAppleHttpResponse,ESPMode::ThreadSafe> Response;
+	TSharedPtr<class FAppleHttpNSUrlConnectionResponse,ESPMode::ThreadSafe> Response;
 
 	/** BYTE array payload to use with the request. Typically for a POST */
 	mutable TArray<uint8> RequestPayload;
@@ -126,7 +126,7 @@ private:
 /**
  * Apple Response Wrapper which will be used for it's delegates to receive responses.
  */
-@interface FHttpResponseAppleWrapper : NSObject
+@interface FHttpResponseAppleNSUrlConnectionWrapper : NSObject
 {
 	/** Holds the payload as we receive it. */
 	TArray<uint8> Payload;
@@ -166,19 +166,19 @@ private:
 /**
  * Apple implementation of an Http response
  */
-class FAppleHttpResponse : public IHttpResponse
+class FAppleHttpNSUrlConnectionResponse : public IHttpResponse
 {
 private:
 	// This is the NSHTTPURLResponse, all our functionality will deal with.
-	FHttpResponseAppleWrapper* ResponseWrapper;
+	FHttpResponseAppleNSUrlConnectionWrapper* ResponseWrapper;
 
 	/** Request that owns this response */
-	const FAppleHttpRequest& Request;
+	const FAppleHttpNSUrlConnectionRequest& Request;
 
 
 public:
 	// implementation friends
-	friend class FAppleHttpRequest;
+	friend class FAppleHttpNSUrlConnectionRequest;
 
 
 	//~ Begin IHttpBase Interface
@@ -223,12 +223,12 @@ public:
 	 *
 	 * @param InRequest - original request that created this response
 	 */
-	FAppleHttpResponse(const FAppleHttpRequest& InRequest);
+	FAppleHttpNSUrlConnectionResponse(const FAppleHttpNSUrlConnectionRequest& InRequest);
 
 	/**
 	 * Destructor
 	 */
-	virtual ~FAppleHttpResponse();
+	virtual ~FAppleHttpNSUrlConnectionResponse();
 
 
 private:

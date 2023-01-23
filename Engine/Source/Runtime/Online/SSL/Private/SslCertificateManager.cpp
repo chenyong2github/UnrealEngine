@@ -299,9 +299,11 @@ bool FSslCertificateManager::VerifySslCertificates(TArray<TArray<uint8, TFixedAl
 		return true;
 	}
 	bool bFoundMatch = false;
-	for (int32 CertIndex = 0; CertIndex < Digests.Num(); ++CertIndex)
+	for (const TArray<uint8, TFixedAllocator<PUBLIC_KEY_DIGEST_SIZE>>& CurrentDigest: Digests)
 	{
-		if (PinnedKeys->Contains(Digests[CertIndex]))
+		UE_LOG(LogSsl, VeryVerbose, TEXT("checking digest. Base64: '%s'"), *FBase64::Encode(CurrentDigest.GetData(), CurrentDigest.Num()));
+		
+		if (PinnedKeys->Contains(CurrentDigest))
 		{
 			UE_LOG(LogSsl, Verbose, TEXT("found public key digest in request that matches a pinned key for '%s'"), *Domain);
 			bFoundMatch = true;
