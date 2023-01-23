@@ -7,7 +7,7 @@
 #include "Chaos/Box.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/CollisionResolutionTypes.h"
-#include "Chaos/Collision/SolverCollisionContainer.h"
+#include "Chaos/Collision/PBDCollisionContainerSolver.h"
 #include "Chaos/Convex.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/GJK.h"

@@ -3,7 +3,7 @@
 
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/Collision/CollisionApplyType.h"
-#include "Chaos/Collision/PBDCollisionSolverJacobi.h"
+#include "Chaos/Collision/PBDCollisionSolverSimd.h"
 #include "Chaos/Collision/PBDCollisionSolverSettings.h"
 #include "Chaos/Evolution/SolverConstraintContainer.h"
 
@@ -25,13 +25,13 @@ namespace Chaos
 		 * 
 		 * This version runs a Gauss-Seidel outer loop over manifolds, and a Jacobi loop over contacts in each manifold.
 		*/
-		class FPBDCollisionContainerSolverJacobi : public FConstraintContainerSolver
+		class FPBDCollisionContainerSolverSimd : public FConstraintContainerSolver
 		{
 		public:
-			UE_NONCOPYABLE(FPBDCollisionContainerSolverJacobi);
+			UE_NONCOPYABLE(FPBDCollisionContainerSolverSimd);
 
-			FPBDCollisionContainerSolverJacobi(const FPBDCollisionConstraints& InConstraintContainer, const int32 InPriority);
-			~FPBDCollisionContainerSolverJacobi();
+			FPBDCollisionContainerSolverSimd(const FPBDCollisionConstraints& InConstraintContainer, const int32 InPriority);
+			~FPBDCollisionContainerSolverSimd();
 
 			int32 NumSolvers() const { return CollisionConstraints.Num(); }
 
@@ -63,7 +63,8 @@ namespace Chaos
 			void UpdateCollisions(const FReal InDt, const int32 BeginIndex, const int32 EndIndex);
 
 			const FPBDCollisionConstraints& ConstraintContainer;
-			TArray<Private::FPBDCollisionSolverJacobi> CollisionSolvers;
+			TArray<Private::FPBDCollisionSolverSimd> CollisionSolvers;
+			TArray<Private::FPBDCollisionSolverManifoldPointSimd> CollisionSolverManifoldPoints;
 			TArray<FPBDCollisionConstraint*> CollisionConstraints;
 			TArray<bool> bCollisionConstraintPerIterationCollisionDetection;
 			bool bPerIterationCollisionDetection;

@@ -35,6 +35,7 @@ namespace Private
 	enum class ECollisionSolverType
 	{
 		GaussSeidel,
+		GaussSeidelSimd,
 		PartialJacobi,
 	};
 }

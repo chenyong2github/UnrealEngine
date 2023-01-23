@@ -8,9 +8,9 @@
 #include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/Collision/CollisionPruning.h"
-#include "Chaos/Collision/PBDCollisionSolver.h"
+#include "Chaos/Collision/PBDCollisionContainerSolver.h"
 #include "Chaos/Collision/PBDCollisionContainerSolverJacobi.h"
-#include "Chaos/Collision/SolverCollisionContainer.h"
+#include "Chaos/Collision/PBDCollisionContainerSolverSimd.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
 #include "Chaos/GeometryQueries.h"
@@ -135,19 +135,24 @@ namespace Chaos
 
 	TUniquePtr<FConstraintContainerSolver> FPBDCollisionConstraints::CreateSceneSolver(const int32 Priority)
 	{
-		if (CollisionSolverType == Private::ECollisionSolverType::PartialJacobi)
-		{
-			return MakeUnique<FPBDCollisionContainerSolverJacobi>(*this, Priority);
-		}
-		else
-		{
-			return MakeUnique<FPBDCollisionContainerSolver>(*this, Priority);
-		}
+		// RBAN always uses Gauss Seidel solver for now
+		return MakeUnique<FPBDCollisionContainerSolver>(*this, Priority);
 	}
 
 	TUniquePtr<FConstraintContainerSolver> FPBDCollisionConstraints::CreateGroupSolver(const int32 Priority)
 	{
-		return CreateSceneSolver(Priority);
+		switch (CollisionSolverType)
+		{
+		case Private::ECollisionSolverType::GaussSeidel:
+			return MakeUnique<FPBDCollisionContainerSolver>(*this, Priority);
+		case Private::ECollisionSolverType::GaussSeidelSimd:
+			return MakeUnique<Private::FPBDCollisionContainerSolverSimd>(*this, Priority);
+		case Private::ECollisionSolverType::PartialJacobi:
+			return MakeUnique<Private::FPBDCollisionContainerSolverJacobi>(*this, Priority);
+		}
+
+		check(false);
+		return nullptr;
 	}
 
 	void FPBDCollisionConstraints::DisableHandles()

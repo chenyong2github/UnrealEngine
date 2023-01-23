@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "Chaos/Collision/PBDCollisionSolver.h"
+#include "Chaos/Collision/PBDCollisionSolverSimd.h"
 
 #include "Chaos/Collision/CollisionApplyType.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
@@ -12,58 +12,14 @@
 #include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/Utilities.h"
 
-#if INTEL_ISPC
-#include "PBDCollisionSolver.ispc.generated.h"
-#endif
-
 //PRAGMA_DISABLE_OPTIMIZATION
-
-// TEMP: to be removed
-DECLARE_CYCLE_STAT(TEXT("SolvePositionNoFriction"), STAT_SolvePositionNoFriction, STATGROUP_ChaosConstraintSolver);
 
 namespace Chaos
 {
 	namespace CVars
 	{
-		extern int32 Chaos_Collision_UseShockPropagation;
-
-		//
-		// Solver Settings
-		//
-
-		bool bChaos_PBDCollisionSolver_ISPC = false;	// NOTE: WORK IN PROGRESS. Not ready to be enabled.
-		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_ISPC(TEXT("p.Chaos.PBDCollisionSolver.ISPC"), bChaos_PBDCollisionSolver_ISPC, TEXT("Use ISPC collision solver (WIP)"));
-
-		//
-		// Position Solver Settings
-		//
-
-		bool bChaos_PBDCollisionSolver_Position_SolveEnabled = true;
-		float Chaos_PBDCollisionSolver_Position_MinInvMassScale = 0.77f;
-		float Chaos_PBDCollisionSolver_Position_StaticFrictionStiffness = 1.0f;
-		float Chaos_PBDCollisionSolver_Position_PositionSolverTolerance = 0.001f;		// cms
-		float Chaos_PBDCollisionSolver_Position_RotationSolverTolerance = 0.001f;		// rads
-
-		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_SolveEnabled(TEXT("p.Chaos.PBDCollisionSolver.Position.SolveEnabled"), bChaos_PBDCollisionSolver_Position_SolveEnabled, TEXT(""));
-		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_MinInvMassScale(TEXT("p.Chaos.PBDCollisionSolver.Position.MinInvMassScale"), Chaos_PBDCollisionSolver_Position_MinInvMassScale, TEXT(""));
-		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_StaticFrictionStiffness(TEXT("p.Chaos.PBDCollisionSolver.Position.StaticFriction.Stiffness"), Chaos_PBDCollisionSolver_Position_StaticFrictionStiffness, TEXT(""));
-		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_PositionSolverTolerance(TEXT("p.Chaos.PBDCollisionSolver.Position.PositionTolerance"), Chaos_PBDCollisionSolver_Position_PositionSolverTolerance, TEXT(""));
-		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_RotationSolverTolerance(TEXT("p.Chaos.PBDCollisionSolver.Position.RotationTolerance"), Chaos_PBDCollisionSolver_Position_RotationSolverTolerance, TEXT(""));
-
-		//
-		// Velocity Solver Settings
-		//
-
-		bool bChaos_PBDCollisionSolver_Velocity_SolveEnabled = true;
-		// If Chaos_PBDCollisionSolver_Velocity_MinInvMassScale is the same as Chaos_PBDCollisionSolver_Position_MinInvMassScale and all velocity iterations have shockpropagation, we avoid recalculating constraint-space mass
-		float Chaos_PBDCollisionSolver_Velocity_MinInvMassScale = Chaos_PBDCollisionSolver_Position_MinInvMassScale;
-		bool bChaos_PBDCollisionSolver_Velocity_FrictionEnabled = true;
-		bool bChaos_PBDCollisionSolver_Velocity_AveragePointEnabled = true;
-
-		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Velocity_SolveEnabled(TEXT("p.Chaos.PBDCollisionSolver.Velocity.SolveEnabled"), bChaos_PBDCollisionSolver_Velocity_SolveEnabled, TEXT(""));
-		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Velocity_MinInvMassScale(TEXT("p.Chaos.PBDCollisionSolver.Velocity.MinInvMassScale"), Chaos_PBDCollisionSolver_Velocity_MinInvMassScale, TEXT(""));
-		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Velocity_FrictionEnabled(TEXT("p.Chaos.PBDCollisionSolver.Velocity.FrictionEnabled"), bChaos_PBDCollisionSolver_Velocity_FrictionEnabled, TEXT(""));
-		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Velocity_AveragePointEnabled(TEXT("p.Chaos.PBDCollisionSolver.Velocity.AveragePointEnabled"), bChaos_PBDCollisionSolver_Velocity_AveragePointEnabled, TEXT(""));
+		extern float Chaos_PBDCollisionSolver_Position_MinInvMassScale;
+		extern float Chaos_PBDCollisionSolver_Velocity_MinInvMassScale;
 	}
 	using namespace CVars;
 
@@ -75,22 +31,22 @@ namespace Chaos
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-		void FPBDCollisionSolver::EnablePositionShockPropagation()
+		void FPBDCollisionSolverSimd::EnablePositionShockPropagation()
 		{
 			SetShockPropagationInvMassScale(Chaos_PBDCollisionSolver_Position_MinInvMassScale);
 		}
 
-		void FPBDCollisionSolver::EnableVelocityShockPropagation()
+		void FPBDCollisionSolverSimd::EnableVelocityShockPropagation()
 		{
 			SetShockPropagationInvMassScale(Chaos_PBDCollisionSolver_Velocity_MinInvMassScale);
 		}
 
-		void FPBDCollisionSolver::DisableShockPropagation()
+		void FPBDCollisionSolverSimd::DisableShockPropagation()
 		{
 			SetShockPropagationInvMassScale(FReal(1));
 		}
 
-		void FPBDCollisionSolver::SetShockPropagationInvMassScale(const FSolverReal InvMassScale)
+		void FPBDCollisionSolverSimd::SetShockPropagationInvMassScale(const FSolverReal InvMassScale)
 		{
 			FConstraintSolverBody& Body0 = SolverBody0();
 			FConstraintSolverBody& Body1 = SolverBody1();
@@ -131,7 +87,7 @@ namespace Chaos
 			}
 		}
 
-		void FPBDCollisionSolver::SolveVelocityAverage(const FSolverReal Dt)
+		void FPBDCollisionSolverSimd::SolveVelocityAverage(const FSolverReal Dt)
 		{
 			FConstraintSolverBody& Body0 = SolverBody0();
 			FConstraintSolverBody& Body1 = SolverBody1();
@@ -145,7 +101,7 @@ namespace Chaos
 			FSolverReal WorldContactVelocityTargetNormal = FSolverReal(0);
 			for (int32 PointIndex = 0; PointIndex < NumManifoldPoints(); ++PointIndex)
 			{
-				FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = State.ManifoldPoints[PointIndex];
+				FPBDCollisionSolverManifoldPointSimd& SolverManifoldPoint = State.ManifoldPoints[PointIndex];
 				if (SolverManifoldPoint.ShouldSolveVelocity())
 				{
 					RelativeContactPosition0 += SolverManifoldPoint.WorldContact.RelativeContactPoints[0];
@@ -167,7 +123,7 @@ namespace Chaos
 			{
 				const FSolverReal InvCount = FSolverReal(1) / FSolverReal(NumActiveManifoldPoints);
 
-				FPBDCollisionSolverManifoldPoint AverageManifoldPoint;
+				FPBDCollisionSolverManifoldPointSimd AverageManifoldPoint;
 				AverageManifoldPoint.WorldContact.RelativeContactPoints[0] = RelativeContactPosition0 * InvCount;
 				AverageManifoldPoint.WorldContact.RelativeContactPoints[1] = RelativeContactPosition1 * InvCount;
 				AverageManifoldPoint.WorldContact.ContactNormal = WorldContactNormal;
@@ -223,18 +179,17 @@ namespace Chaos
 
 				const FSolverReal MinImpulseNormal = FMath::Min(FSolverReal(0), -AverageManifoldPoint.NetPushOutNormal / Dt);
 
-				ApplyVelocityCorrectionNormal(
+				AverageManifoldPoint.ApplyVelocityCorrectionNormal(
 					State.Stiffness,
 					ContactVelocityDeltaNormal,
 					MinImpulseNormal,
-					AverageManifoldPoint,
 					Body0,
 					Body1);
 
 				// Now distribute the net impulse among the active points so we don't over-correct pushout from initial overlaps
 				for (int32 PointIndex = 0; PointIndex < NumManifoldPoints(); ++PointIndex)
 				{
-					FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = State.ManifoldPoints[PointIndex];
+					FPBDCollisionSolverManifoldPointSimd& SolverManifoldPoint = State.ManifoldPoints[PointIndex];
 					if (SolverManifoldPoint.ShouldSolveVelocity())
 					{
 						SolverManifoldPoint.NetImpulseNormal += AverageManifoldPoint.NetImpulseNormal * InvCount;
@@ -248,53 +203,32 @@ namespace Chaos
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 
-		void FPBDCollisionSolverHelper::SolvePositionNoFriction(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut)
+		void FPBDCollisionSolverHelperSimd::SolvePositionNoFriction(const TArrayView<FPBDCollisionSolverSimd>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_SolvePositionNoFriction);
-
-#if INTEL_ISPC
-			if (CVars::bChaos_PBDCollisionSolver_ISPC)
-			{
-				ispc::SolvePositionNoFriction(
-					(ispc::FPBDCollisionSolver*)CollisionSolvers.GetData(), 
-					CollisionSolvers.Num(), 
-					Dt, 
-					MaxPushOut);
-				return;
-			}
-#endif
-
-			for (FPBDCollisionSolver& CollisionSolver : CollisionSolvers)
+			for (FPBDCollisionSolverSimd& CollisionSolver : CollisionSolvers)
 			{
 				CollisionSolver.SolvePositionNoFriction(Dt, MaxPushOut);
 			}
 		}
 
-		void FPBDCollisionSolverHelper::SolvePositionWithFriction(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut)
+		void FPBDCollisionSolverHelperSimd::SolvePositionWithFriction(const TArrayView<FPBDCollisionSolverSimd>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut)
 		{
-			for (FPBDCollisionSolver& CollisionSolver : CollisionSolvers)
+			for (FPBDCollisionSolverSimd& CollisionSolver : CollisionSolvers)
 			{
 				CollisionSolver.SolvePositionWithFriction(Dt, MaxPushOut);
 			}
 		}
 
-		void FPBDCollisionSolverHelper::SolveVelocity(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const bool bApplyDynamicFriction)
+		void FPBDCollisionSolverHelperSimd::SolveVelocity(const TArrayView<FPBDCollisionSolverSimd>& CollisionSolvers, const FSolverReal Dt, const bool bApplyDynamicFriction)
 		{
-			for (FPBDCollisionSolver& CollisionSolver : CollisionSolvers)
+			for (FPBDCollisionSolverSimd& CollisionSolver : CollisionSolvers)
 			{
 				CollisionSolver.SolveVelocity(Dt, bApplyDynamicFriction);
 			}
 		}
 
-		void FPBDCollisionSolverHelper::CheckISPC()
+		void FPBDCollisionSolverHelperSimd::CheckISPC()
 		{
-#if INTEL_ISPC
-			check(sizeof(ispc::FPBDCollisionSolver) == sizeof(Private::FPBDCollisionSolver));
-			check(sizeof(ispc::FPBDCollisionSolverManifoldPoint) == sizeof(Private::FPBDCollisionSolverManifoldPoint));
-			check(sizeof(ispc::FWorldContactPoint) == sizeof(FWorldContactPoint));
-			check(sizeof(ispc::FConstraintSolverBody) == sizeof(FConstraintSolverBody));
-			check(sizeof(ispc::FSolverBody) == sizeof(FSolverBody));
-#endif
 		}
 
 	}	// namespace Private
