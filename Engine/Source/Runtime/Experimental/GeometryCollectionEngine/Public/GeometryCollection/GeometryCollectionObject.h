@@ -601,7 +601,7 @@ public:
 	/**
 	* whether to import collision from the source asset
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collisions")
 	bool bImportCollisionFromSource;
 	
 #if WITH_EDITORONLY_DATA
