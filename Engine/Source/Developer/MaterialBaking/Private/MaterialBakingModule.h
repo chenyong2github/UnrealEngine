@@ -43,6 +43,9 @@ public:
 	/** Bakes all material properties to linear textures, except for colors */
 	virtual void SetLinearBake(bool bCorrectLinear) override;
 
+	/** Returns whether a specific material property is baked to a linear texture or not */
+	virtual bool IsLinearBake(FMaterialPropertyEx Property) override;
+
 protected:
 	/* Creates and adds or reuses a RenderTarget from the pool */
 	UTextureRenderTarget2D* CreateRenderTarget(bool bInForceLinearGamma, EPixelFormat InPixelFormat, const FIntPoint& InTargetSize, const FColor& BackgroundColor);

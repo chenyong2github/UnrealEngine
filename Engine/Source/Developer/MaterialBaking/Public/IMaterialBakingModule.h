@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "MaterialPropertyEx.h"
 #include "PixelFormat.h"
 #include "SceneTypes.h"
 
@@ -37,4 +38,7 @@ public:
 
 	/** Bakes all material properties to linear textures, except for colors */
 	virtual void SetLinearBake(bool bCorrectLinear) = 0;
+
+	/** Returns whether a specific material property is baked to a linear texture or not */
+	virtual bool IsLinearBake(FMaterialPropertyEx Property) = 0;
 };
