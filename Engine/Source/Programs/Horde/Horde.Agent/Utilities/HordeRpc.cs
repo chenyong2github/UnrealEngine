@@ -167,12 +167,12 @@ namespace HordeCommon.Rpc
 
 	partial class WriteOutputRequest
 	{
-		public WriteOutputRequest(string logId, long offset, int lineIndex, byte[] data, bool flush)
+		public WriteOutputRequest(string logId, long offset, int lineIndex, ByteString data, bool flush)
 		{
 			LogId = logId;
 			Offset = offset;
 			LineIndex = lineIndex;
-			Data = ByteString.CopyFrom(data);
+			Data = data;
 			Flush = flush;
 		}
 	}

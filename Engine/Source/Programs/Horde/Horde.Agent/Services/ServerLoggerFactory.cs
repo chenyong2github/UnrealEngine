@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using EpicGames.Horde.Storage.Backends;
 using System.Net.Http;
 using Microsoft.Extensions.Options;
+using Horde.Agent.Utility;
 
 namespace Horde.Agent.Services
 {

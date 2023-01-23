@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -37,6 +36,14 @@ namespace EpicGames.Core
 		/// The utf-8 encoded JSON event
 		/// </summary>
 		public ReadOnlyMemory<byte> Data { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public JsonLogEvent(LogEvent logEvent)
+			: this(logEvent.Level, logEvent.Id, logEvent.LineIndex, logEvent.LineCount, logEvent.ToJsonBytes())
+		{
+		}
 
 		/// <summary>
 		/// Constructor
