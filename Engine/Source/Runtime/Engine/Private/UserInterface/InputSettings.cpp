@@ -495,6 +495,9 @@ void UInputSettings::SetDefaultInputComponentClass(TSubclassOf<UInputComponent> 
 	}
 }
 
+/////////////////////////////////////////////////////////////
+// FHardwareDeviceIdentifier
+
 FHardwareDeviceIdentifier FHardwareDeviceIdentifier::Invalid = { NAME_None, NAME_None };
 FHardwareDeviceIdentifier FHardwareDeviceIdentifier::DefaultKeyboardAndMouse = { TEXT("DefaultKeyboardAndMouse"), TEXT("KBM") };
 
@@ -517,6 +520,17 @@ bool FHardwareDeviceIdentifier::IsValid() const
 {
 	return InputClassName.IsValid() && HardwareDeviceIdentifier.IsValid();
 }
+
+//////////////////////////////////////////////////////////////////
+// UInputPlatformSettings
+
+UInputPlatformSettings::UInputPlatformSettings()
+	: MaxTriggerFeedbackPosition(8)
+	, MaxTriggerFeedbackStrength(8)
+	, MaxTriggerVibrationTriggerPosition(9)
+	, MaxTriggerVibrationFrequency(255)
+	, MaxTriggerVibrationAmplitude(8)
+{ }
 
 UInputPlatformSettings* UInputPlatformSettings::Get()
 {

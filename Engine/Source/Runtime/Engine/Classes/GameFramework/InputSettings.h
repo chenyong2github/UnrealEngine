@@ -340,6 +340,8 @@ class ENGINE_API UInputPlatformSettings : public UPlatformSettings
 
 public:
 
+	UInputPlatformSettings();
+	
 	static UInputPlatformSettings* Get();
 
 #if WITH_EDITOR
@@ -363,6 +365,52 @@ public:
 
 	/** Returns an array of all Hardware Device Identifiers known to this platform */
 	const TArray<FHardwareDeviceIdentifier>& GetHardwareDevices() const;
+
+	////////////////////////////////////////////////////
+	// Trigger Feedback
+	
+	/**
+	 * The maximum position that a trigger can be set to
+	 * 
+	 * @see UInputDeviceTriggerFeedbackProperty
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Device Properties|Trigger Feedback", meta = (UIMin = "0"))
+	int32 MaxTriggerFeedbackPosition;
+
+	/**
+	 * The maximum strength that trigger feedback can be set to
+	 * 
+	 * @see UInputDeviceTriggerFeedbackProperty
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Device Properties|Trigger Feedback", meta = (UIMin = "0"))
+	int32 MaxTriggerFeedbackStrength;
+
+	////////////////////////////////////////////////////
+	// Trigger Vibrations
+	
+	/**
+	 * The max position that a vibration trigger effect can be set to.
+	 * 
+	 * @see UInputDeviceTriggerVibrationProperty::GetTriggerPositionValue
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Device Properties|Trigger Vibration", meta = (UIMin = "0"))
+	int32 MaxTriggerVibrationTriggerPosition;
+
+	/**
+	 * The max frequency that a trigger vibration can occur
+	 * 
+	 * @see UInputDeviceTriggerVibrationProperty::GetVibrationFrequencyValue
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Device Properties|Trigger Vibration", meta = (UIMin = "0"))
+	int32 MaxTriggerVibrationFrequency;
+
+	/**
+	 * The maximum amplitude that can be set on trigger vibrations
+	 * 
+	 * @see UInputDeviceTriggerVibrationProperty::GetVibrationAmplitudeValue
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Device Properties|Trigger Vibration", meta = (UIMin = "0"))
+	int32 MaxTriggerVibrationAmplitude;
 	
 protected:
 

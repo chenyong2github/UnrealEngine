@@ -5,6 +5,7 @@
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveFloat.h"
 #include "GameFramework/InputDeviceLibrary.h"
+#include "GameFramework/InputSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputDeviceProperties)
 
@@ -217,9 +218,8 @@ int32 UInputDeviceTriggerFeedbackProperty::GetPositionValue(const FDeviceTrigger
 {
 	if (ensure(Data->FeedbackPositionCurve))
 	{
-		// TODO: Make the max Strength a cvar
 		int32 Pos = Data->FeedbackPositionCurve->GetFloatValue(Duration);
-		return FMath::Clamp(Pos, 0, 8);
+		return FMath::Clamp(Pos, 0, UInputPlatformSettings::Get()->MaxTriggerFeedbackPosition);
 	}
 
 	return 0;
@@ -229,9 +229,8 @@ int32 UInputDeviceTriggerFeedbackProperty::GetStrengthValue(const FDeviceTrigger
 {
 	if (ensure(Data->FeedbackStrenghCurve))
 	{
-		// TODO: Make the max Strength a cvar
 		int32 Strength = Data->FeedbackStrenghCurve->GetFloatValue(Duration);
-		return FMath::Clamp(Strength, 0, 8);
+		return FMath::Clamp(Strength, 0, UInputPlatformSettings::Get()->MaxTriggerFeedbackStrength);
 	}
 
 	return 0;
@@ -390,9 +389,8 @@ int32 UInputDeviceTriggerVibrationProperty::GetTriggerPositionValue(const FDevic
 {
 	if (ensure(Data->TriggerPositionCurve))
 	{
-		// TODO: Make the max Strength a cvar
 		int32 Strength = Data->TriggerPositionCurve->GetFloatValue(Duration);
-		return FMath::Clamp(Strength, 0, 9);
+		return FMath::Clamp(Strength, 0, UInputPlatformSettings::Get()->MaxTriggerVibrationTriggerPosition);
 	}
 
 	return 0;
@@ -402,9 +400,8 @@ int32 UInputDeviceTriggerVibrationProperty::GetVibrationFrequencyValue(const FDe
 {
 	if (ensure(Data->VibrationFrequencyCurve))
 	{
-		// TODO: Make the max Frequency a cvar
 		int32 Strength = Data->VibrationFrequencyCurve->GetFloatValue(Duration);
-		return FMath::Clamp(Strength, 0, 255);
+		return FMath::Clamp(Strength, 0, UInputPlatformSettings::Get()->MaxTriggerVibrationFrequency);
 	}
 	
 	return 0;
@@ -414,9 +411,8 @@ int32 UInputDeviceTriggerVibrationProperty::GetVibrationAmplitudeValue(const FDe
 {
 	if (ensure(Data->VibrationAmplitudeCurve))
 	{
-		// TODO: Make the max Amplitude a cvar
 		int32 Strength = Data->VibrationAmplitudeCurve->GetFloatValue(Duration);
-		return FMath::Clamp(Strength, 0, 8);
+		return FMath::Clamp(Strength, 0, UInputPlatformSettings::Get()->MaxTriggerVibrationAmplitude);
 	}
 	
 	return 0;
