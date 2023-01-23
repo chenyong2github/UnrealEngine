@@ -113,6 +113,10 @@ void FLwsWebSocketsManager::InitWebSockets(TArrayView<const FString> Protocols)
 	ContextInfo.max_http_header_data2 = MaxHttpHeaderData;
 	ContextInfo.pt_serv_buf_size = MaxHttpHeaderData;
 	
+	int32 PingPongInterval = 0;
+	GConfig->GetInt(TEXT("WebSockets.LibWebSockets"), TEXT("PingPongInterval"), PingPongInterval, GEngineIni);
+	ContextInfo.ws_ping_pong_interval = PingPongInterval;
+
 	// HTTP proxy
 	const FString& ProxyAddress = FHttpModule::Get().GetProxyAddress();
 	TOptional<FTCHARToUTF8> Converter;
