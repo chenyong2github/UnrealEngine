@@ -142,6 +142,11 @@ namespace EpicGames.Core
 		ILogger _logger;
 
 		/// <summary>
+		/// Log events sinks in addition to <see cref="_logger" />
+		/// </summary>
+		List<ILogEventSink> _logEventSinks = new();
+
+		/// <summary>
 		/// Timer for the parser being active
 		/// </summary>
 		readonly Stopwatch _timer = Stopwatch.StartNew();
@@ -169,10 +174,16 @@ namespace EpicGames.Core
 		/// Constructor
 		/// </summary>
 		/// <param name="logger">The logger to receive parsed output messages</param>
-		public LogEventParser(ILogger logger)
+		/// <param name="logEventSinks">Additional sinks to receive log events</param>
+		public LogEventParser(ILogger logger, List<ILogEventSink>? logEventSinks = null)
 		{
 			_logger = logger;
 			_buffer = new LogBuffer(50);
+			
+			if (logEventSinks != null)
+			{
+				_logEventSinks.AddRange(logEventSinks);
+			}
 		}
 
 		/// <inheritdoc/>
@@ -524,6 +535,10 @@ namespace EpicGames.Core
 			foreach (LogEvent logEvent in logEvents)
 			{
 				_logger.Log(logEvent.Level, logEvent.Id, logEvent, null, (state, exception) => state.ToString());
+				foreach (ILogEventSink logEventSink in _logEventSinks)
+				{
+					logEventSink.ProcessEvent(logEvent);
+				}
 			}
 		}
 	}

@@ -37,8 +37,8 @@ namespace Horde.Agent.Execution
 		protected WorkspaceInfo? _autoSdkWorkspace;
 		protected WorkspaceInfo _workspace;
 
-		public PerforceExecutor(ISession session, string jobId, string batchId, string agentTypeName, AgentWorkspace? autoSdkWorkspaceInfo, AgentWorkspace workspaceInfo, DirectoryReference rootDir, IHttpClientFactory httpClientFactory)
-			: base(session, jobId, batchId, agentTypeName, httpClientFactory)
+		public PerforceExecutor(ISession session, string jobId, string batchId, string agentTypeName, AgentWorkspace? autoSdkWorkspaceInfo, AgentWorkspace workspaceInfo, DirectoryReference rootDir, IHttpClientFactory httpClientFactory, ILogger logger)
+			: base(session, jobId, batchId, agentTypeName, httpClientFactory, logger)
 		{
 			_autoSdkWorkspaceInfo = autoSdkWorkspaceInfo;
 			_workspaceInfo = workspaceInfo;
@@ -436,17 +436,19 @@ namespace Horde.Agent.Execution
 	class PerforceExecutorFactory : JobExecutorFactory
 	{
 		readonly IHttpClientFactory _httpClientFactory;
+		readonly ILogger<PerforceExecutor> _logger;
 
 		public override string Name => PerforceExecutor.Name;
 
-		public PerforceExecutorFactory(IHttpClientFactory httpClientFactory)
+		public PerforceExecutorFactory(IHttpClientFactory httpClientFactory, ILogger<PerforceExecutor> logger)
 		{
 			_httpClientFactory = httpClientFactory;
+			_logger = logger;
 		}
 
 		public override JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
 		{
-			return new PerforceExecutor(session, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, executeJobTask.AutoSdkWorkspace, executeJobTask.Workspace, session.WorkingDir, _httpClientFactory);
+			return new PerforceExecutor(session, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, executeJobTask.AutoSdkWorkspace, executeJobTask.Workspace, session.WorkingDir, _httpClientFactory, _logger);
 		}
 	}
 }

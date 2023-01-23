@@ -107,7 +107,6 @@ namespace Horde.Agent.Tests
 				@"1 error generated.",
 				@"",
 				@"Error executing d:\build\AutoSDK\Sync\HostWin64\Android\-24\ndk\21.4.7075529\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe (tool returned code: 1)",
-				@"AnimNode_BlendListByInt.gen.cpp [arm64] (0:22.43 at +2:47)",
 			};
 
 			List<LogEvent> logEvents = Parse(lines);
@@ -597,6 +596,63 @@ namespace Horde.Agent.Tests
 			CheckEventGroup(logEvents.Slice(6, 1), 7, 1, LogLevel.Information, KnownLogEvents.Systemic_Xge_ServiceNotRunning);
 			CheckEventGroup(logEvents.Slice(7, 1), 8, 1, LogLevel.Error, KnownLogEvents.Systemic_Xge_BuildFailed);
 		}
+		
+		[TestMethod]
+		public void XoreaxTaskMetadataMatcher()
+		{
+			string[] lines =
+			{
+				@"MiMalloc.c (0:01.17 at +0:11)",
+				@"SomeFile.cpp (4:31.12 at +0:16)",
+				@"Default.rc2 (Agent 'SomeAgentName (Core #7)', 2:34.56 at +55:18)",
+				@" (1:01.12 at +58:03)",
+			};
+
+			List<LogEvent> logEvents = Parse(lines);
+			Assert.AreEqual(4, logEvents.Count);
+			CheckEventGroup(logEvents.Slice(0, 1), 0, 1, LogLevel.Information, KnownLogEvents.Systemic_Xge_TaskMetadata);
+			CheckEventGroup(logEvents.Slice(1, 1), 1, 1, LogLevel.Information, KnownLogEvents.Systemic_Xge_TaskMetadata);
+			CheckEventGroup(logEvents.Slice(2, 1), 2, 1, LogLevel.Information, KnownLogEvents.Systemic_Xge_TaskMetadata);
+			CheckEventGroup(logEvents.Slice(3, 1), 3, 1, LogLevel.Information, KnownLogEvents.Systemic_Xge_TaskMetadata);
+
+			Assert.AreEqual("MiMalloc.c", logEvents[0].GetProperty<string>("name"));
+			Assert.AreEqual(77, logEvents[0].GetProperty<int>("duration"));
+			Assert.AreEqual(11, logEvents[0].GetProperty<int>("startTime"));
+			
+			Assert.AreEqual("SomeFile.cpp", logEvents[1].GetProperty<string>("name"));
+			Assert.AreEqual(16272, logEvents[1].GetProperty<int>("duration"));
+			Assert.AreEqual(16, logEvents[1].GetProperty<int>("startTime"));
+			
+			Assert.AreEqual("Default.rc2", logEvents[2].GetProperty<string>("name"));
+			Assert.AreEqual("SomeAgentName (Core #7)", logEvents[2].GetProperty<string>("agent"));
+			Assert.AreEqual(9296, logEvents[2].GetProperty<int>("duration"));
+			Assert.AreEqual(3318, logEvents[2].GetProperty<int>("startTime"));
+			
+			Assert.AreEqual("", logEvents[3].GetProperty<string>("name"));
+			Assert.AreEqual(3672, logEvents[3].GetProperty<int>("duration"));
+			Assert.AreEqual(3483, logEvents[3].GetProperty<int>("startTime"));
+		}
+
+		private class FakeLogSink : ILogEventSink
+		{
+			public List<LogEvent> ReceivedLogEvents { get; } = new();
+			public void ProcessEvent(LogEvent logEvent)
+			{
+				ReceivedLogEvents.Add(logEvent);
+			}
+		}
+		
+		[TestMethod]
+		public void AdditionalLogSinks()
+		{
+			FakeLogSink fakeLogSink = new();
+			using LogParser parser = new (NullLogger.Instance, new List<string>(), new List<ILogEventSink>() { fakeLogSink });
+
+			parser.WriteLine(@"MiMalloc.c (0:01.17 at +0:11)");
+			
+			Assert.AreEqual(1, fakeLogSink.ReceivedLogEvents.Count);
+			Assert.AreEqual("MiMalloc.c", fakeLogSink.ReceivedLogEvents[0].GetProperty<string>("name"));
+		}
 
 		[TestMethod]
 		public void LogChannelMatcher()
@@ -781,10 +837,10 @@ namespace Horde.Agent.Tests
 				Assert.IsTrue(enumerator.MoveNext());
 
 				LogEvent logEvent = enumerator.Current;
-				Assert.AreEqual(level, logEvent.Level);
-				Assert.AreEqual(eventId, logEvent.Id);
-				Assert.AreEqual(idx, logEvent.LineIndex);
-				Assert.AreEqual(count, logEvent.LineCount);
+				Assert.AreEqual(level, logEvent.Level, "Log level mismatch");
+				Assert.AreEqual(eventId, logEvent.Id, "Event ID mismatch");
+				Assert.AreEqual(idx, logEvent.LineIndex, "Line index mismatch");
+				Assert.AreEqual(count, logEvent.LineCount, "Line count mismatch");
 				Assert.AreEqual(index + idx, logEvent.GetProperty(LogLine));
 			}
 			Assert.IsFalse(enumerator.MoveNext());

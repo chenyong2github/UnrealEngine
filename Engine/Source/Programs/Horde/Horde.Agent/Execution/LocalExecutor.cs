@@ -20,8 +20,8 @@ namespace Horde.Agent.Execution
 		private readonly LocalExecutorSettings _settings;
 		private readonly DirectoryReference _localWorkspaceDir;
 
-		public LocalExecutor(ISession session, string jobId, string batchId, string agentTypeName, LocalExecutorSettings settings, IHttpClientFactory httpClientFactory) 
-			: base(session, jobId, batchId, agentTypeName, httpClientFactory)
+		public LocalExecutor(ISession session, string jobId, string batchId, string agentTypeName, LocalExecutorSettings settings, IHttpClientFactory httpClientFactory, ILogger logger) 
+			: base(session, jobId, batchId, agentTypeName, httpClientFactory, logger)
 		{
 			_settings = settings;
 			if (settings.WorkspaceDir == null)
@@ -74,18 +74,20 @@ namespace Horde.Agent.Execution
 	{
 		readonly LocalExecutorSettings _settings;
 		readonly IHttpClientFactory _httpClientFactory;
+		readonly ILogger<LocalExecutor> _logger;
 
 		public override string Name => "Local";
 
-		public LocalExecutorFactory(IOptions<LocalExecutorSettings> settings, IHttpClientFactory httpClientFactory)
+		public LocalExecutorFactory(IOptions<LocalExecutorSettings> settings, IHttpClientFactory httpClientFactory, ILogger<LocalExecutor> logger)
 		{
 			_settings = settings.Value;
 			_httpClientFactory = httpClientFactory;
+			_logger = logger;
 		}
 
 		public override JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
 		{
-			return new LocalExecutor(session, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, _settings, _httpClientFactory);
+			return new LocalExecutor(session, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, _settings, _httpClientFactory, _logger);
 		}
 	}
 }

@@ -150,6 +150,11 @@ namespace Horde.Agent.Execution
 		protected string _agentTypeName;
 
 		protected IHttpClientFactory _httpClientFactory;
+		
+		/// <summary>
+		/// Logger for the local agent process (as opposed to job logger)
+		/// </summary>
+		readonly protected ILogger _logger;
 
 		protected GetJobResponse _job;
 		protected GetStreamResponse _stream;
@@ -167,7 +172,7 @@ namespace Horde.Agent.Execution
 
 		public bool UseNewLogger { get; private set; }
 
-		public JobExecutor(ISession session, string jobId, string batchId, string agentTypeName, IHttpClientFactory httpClientFactory)
+		public JobExecutor(ISession session, string jobId, string batchId, string agentTypeName, IHttpClientFactory httpClientFactory, ILogger logger)
 		{
 			_session = session;
 
@@ -176,6 +181,7 @@ namespace Horde.Agent.Execution
 			_agentTypeName = agentTypeName;
 
 			_httpClientFactory = httpClientFactory;
+			_logger = logger;
 
 			_job = null!;
 			_stream = null!;
@@ -1160,8 +1166,23 @@ namespace Horde.Agent.Execution
 
 			List<string> ignorePatterns = await ReadIgnorePatternsAsync(workspaceDir, logger);
 
+			FilteringEventSink xgeEventSink = new(new [] { KnownLogEvents.Systemic_Xge_TaskMetadata.Id }, (logEvent) =>
+			{
+				try
+				{
+					string taskName = logEvent.GetProperty<string>("name");
+					int duration = logEvent.GetProperty<int>("duration");
+					string agent = logEvent.GetProperty<string>("agent");
+					_logger.LogInformation("Ran XGE task '{XgeTaskName}' on agent '{XgeAgent}' for {Duration} secs", taskName, agent, duration);	
+				}
+				catch (Exception e)
+				{
+					_logger.LogWarning(e, "Failed to log XGE task execution");
+				}
+			});
+			
 			int exitCode;
-			using (LogParser filter = new LogParser(logger, ignorePatterns))
+			using (LogParser filter = new LogParser(logger, ignorePatterns, new List<ILogEventSink>() { xgeEventSink }))
 			{
 				await ExecuteCleanupScriptAsync(cleanupScript, filter, logger);
 				try

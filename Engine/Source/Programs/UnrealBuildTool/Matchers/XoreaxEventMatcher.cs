@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
@@ -8,6 +10,11 @@ namespace UnrealBuildTool.Matchers
 {
 	class XoreaxEventMatcher : ILogEventMatcher
 	{
+		public const string PropertyName = "name";
+		public const string PropertyAgent = "agent";
+		public const string PropertyDuration = "duration";
+		public const string PropertyStartTime = "startTime";
+		
 		static readonly Regex s_buildService = new Regex(@"\(BuildService.exe\) is not running");
 
 		static readonly Regex s_xgConsole = new Regex(@"BUILD FAILED: (.*)xgConsole\.exe(.*)");
@@ -21,6 +28,11 @@ namespace UnrealBuildTool.Matchers
 		static readonly Regex s_cacheWarning = new Regex(@"^\s*WARNING: \d+ items \([^\)]*\) removed from the cache due to reaching the cache size limit");
 		static readonly Regex s_cacheWarning2 = new Regex(@"^\s*WARNING: Several items removed from the cache due to reaching the cache size limit");
 		static readonly Regex s_cacheWarning3 = new Regex(@"^\s*WARNING: The Build Cache is close to full");
+		
+		static readonly Regex s_taskFinishedOnHelper = new Regex(@"(.*?) \(Agent '(.+)', (.*) at \+(.*)\)");
+		static readonly Regex s_taskFinishedLocally = new Regex(@"(.*?) \((.*) at \+(.*)\)");
+		static readonly Regex s_duration = new Regex(@"(\d+):(\d+)\.(\d+)");
+		static readonly Regex s_startTime = new Regex(@"\+?(\d+):(\d+)");
 
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
@@ -83,7 +95,52 @@ namespace UnrealBuildTool.Matchers
 					return builder.ToMatch(LogEventPriority.High, LogLevel.Information, eventId);
 				}
 			}
+			
+			if (cursor.TryMatch(s_taskFinishedOnHelper, out Match? taskHelperMatch))
+			{
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				builder.AddProperty(PropertyName, taskHelperMatch.Groups[1].Value);
+				builder.AddProperty(PropertyAgent, taskHelperMatch.Groups[2].Value);
+				SetDuration(builder, taskHelperMatch.Groups[3].Value);
+				SetStartTime(builder, taskHelperMatch.Groups[4].Value);
+				return builder.ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_Xge_TaskMetadata);
+			}
+			
+			if (cursor.TryMatch(s_taskFinishedLocally, out Match? taskLocalMatch))
+			{
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				builder.AddProperty(PropertyName, taskLocalMatch.Groups[1].Value);
+				SetDuration(builder, taskLocalMatch.Groups[2].Value);
+				SetStartTime(builder, taskLocalMatch.Groups[3].Value);
+				return builder.ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_Xge_TaskMetadata);
+			}
+			
 			return null;
+		}
+
+		private static void SetDuration(LogEventBuilder builder, string durationText)
+		{
+			Match m = s_duration.Match(durationText);
+			if (m.Success)
+			{
+				int hours = Convert.ToInt32(m.Groups[1].Value);
+				int minutes = Convert.ToInt32(m.Groups[2].Value);
+				int seconds = Convert.ToInt32(m.Groups[3].Value);
+				TimeSpan duration = new TimeSpan(hours, minutes, seconds);
+				builder.AddProperty(PropertyDuration, duration.TotalSeconds);
+			}
+		}
+		
+		private static void SetStartTime(LogEventBuilder builder, string startTimeText)
+		{
+			Match m = s_startTime.Match(startTimeText);
+			if (m.Success)
+			{
+				int minutes = Convert.ToInt32(m.Groups[1].Value);
+				int seconds = Convert.ToInt32(m.Groups[2].Value);
+				TimeSpan startTime = new TimeSpan(0, minutes, seconds);
+				builder.AddProperty(PropertyStartTime, startTime.TotalSeconds);
+			}
 		}
 	}
 }

@@ -188,7 +188,7 @@ namespace Horde.Agent.Tests
 		private readonly Func<BeginStepResponse, ILogger, CancellationToken, Task<JobStepOutcome>> _func;
 
 		public SimpleTestExecutor(Func<BeginStepResponse, ILogger, CancellationToken, Task<JobStepOutcome>> func)
-			: base(null!, null!, null!, null!, null!)
+			: base(null!, null!, null!, null!, null!, NullLogger.Instance)
 		{
 			_func = func;
 		}

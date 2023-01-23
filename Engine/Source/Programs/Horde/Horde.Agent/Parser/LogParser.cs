@@ -19,8 +19,9 @@ namespace Horde.Agent.Parser
 		/// </summary>
 		/// <param name="logger">The logger to receive parsed output messages</param>
 		/// <param name="ignorePatterns">List of patterns to ignore</param>
-		public LogParser(ILogger logger, List<string> ignorePatterns)
-			: base(logger)
+		/// <param name="logEventSinks">Additional sinks to receive log events</param>
+		public LogParser(ILogger logger, List<string> ignorePatterns, List<ILogEventSink>? logEventSinks = null)
+			: base(logger, logEventSinks)
 		{
 			foreach (string ignorePattern in ignorePatterns)
 			{

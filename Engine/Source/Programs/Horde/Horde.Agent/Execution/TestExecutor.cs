@@ -22,8 +22,8 @@ namespace Horde.Agent.Execution
 	{
 		public const string Name = "Test";
 
-		public TestExecutor(ISession session, string jobId, string batchId, string agentTypeName, IHttpClientFactory httpClientFactory)
-			: base(session, jobId, batchId, agentTypeName, httpClientFactory)
+		public TestExecutor(ISession session, string jobId, string batchId, string agentTypeName, IHttpClientFactory httpClientFactory, ILogger logger)
+			: base(session, jobId, batchId, agentTypeName, httpClientFactory, logger)
 		{
 		}
 
@@ -193,17 +193,19 @@ namespace Horde.Agent.Execution
 	class TestExecutorFactory : JobExecutorFactory
 	{
 		readonly IHttpClientFactory _httpClientFactory;
+		readonly ILogger<TestExecutor> _logger;
 
 		public override string Name => TestExecutor.Name;
 
-		public TestExecutorFactory(IHttpClientFactory httpClientFactory)
+		public TestExecutorFactory(IHttpClientFactory httpClientFactory, ILogger<TestExecutor> logger)
 		{
 			_httpClientFactory = httpClientFactory;
+			_logger = logger;
 		}
 
 		public override JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
 		{
-			return new TestExecutor(session, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, _httpClientFactory);
+			return new TestExecutor(session, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, _httpClientFactory, _logger);
 		}
 	}
 }

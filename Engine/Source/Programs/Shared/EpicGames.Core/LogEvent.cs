@@ -589,6 +589,44 @@ namespace EpicGames.Core
 	}
 
 	/// <summary>
+	/// Interface for a log event sink
+	/// </summary>
+	public interface ILogEventSink
+	{
+		/// <summary>
+		/// Process log event 
+		/// </summary>
+		/// <param name="logEvent">Log event</param>
+		void ProcessEvent(LogEvent logEvent);
+	}
+
+	/// <summary>
+	/// Simple filtering log event sink with a callback for convenience
+	/// </summary>
+	public class FilteringEventSink : ILogEventSink
+	{
+		private IReadOnlyList<LogEvent> LogEvents => _logEvents;
+		private readonly List<LogEvent> _logEvents = new();
+		private readonly int[] _includeEventIds;
+		private readonly Action<LogEvent>? _eventCallback;
+		
+		public FilteringEventSink(int[] includeEventIds, Action<LogEvent>? eventCallback = null)
+		{
+			_includeEventIds = includeEventIds;
+			_eventCallback = eventCallback;
+		}
+
+		public void ProcessEvent(LogEvent logEvent)
+		{
+			if (_includeEventIds.Any(x => x == logEvent.Id.Id))
+			{
+				_logEvents.Add(logEvent);
+				_eventCallback?.Invoke(logEvent);
+			}
+		}
+	}
+	
+	/// <summary>
 	/// Converter for serialization of <see cref="LogEvent"/> instances to Json streams
 	/// </summary>
 	public class LogEventConverter : JsonConverter<LogEvent>

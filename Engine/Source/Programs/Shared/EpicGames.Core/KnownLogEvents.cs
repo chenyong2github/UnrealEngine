@@ -204,6 +204,16 @@ namespace EpicGames.Core
 		/// Cache size reached
 		/// </summary>
 		public static EventId Systemic_Xge_CacheLimit { get; } = new EventId(714);
+		
+		/// <summary>
+		/// Current logging level may impact performance
+		/// </summary>
+		public static EventId Systemic_Xge_DetailedLogging { get; } = new EventId(715);
+		
+		/// <summary>
+		/// Metadata about an XGE task (local or remote execution, start/end time etc)
+		/// </summary>
+		public static EventId Systemic_Xge_TaskMetadata { get; } = new EventId(716);
 
 		/// <summary>
 		/// DDC is slow

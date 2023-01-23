@@ -23,8 +23,8 @@ namespace Horde.Agent.Execution
 		private readonly IWorkspaceMaterializer? _autoSdkWorkspace;
 		private readonly IWorkspaceMaterializer _workspace;
 
-		public WorkspaceExecutor(ISession session, string jobId, string batchId, string agentTypeName, IWorkspaceMaterializer? autoSdkWorkspace, IWorkspaceMaterializer workspace, IHttpClientFactory httpClientFactory)
-			: base(session, jobId, batchId, agentTypeName, httpClientFactory)
+		public WorkspaceExecutor(ISession session, string jobId, string batchId, string agentTypeName, IWorkspaceMaterializer? autoSdkWorkspace, IWorkspaceMaterializer workspace, IHttpClientFactory httpClientFactory, ILogger logger)
+			: base(session, jobId, batchId, agentTypeName, httpClientFactory, logger)
 		{
 			_autoSdkWorkspace = autoSdkWorkspace;
 			_workspace = workspace;
