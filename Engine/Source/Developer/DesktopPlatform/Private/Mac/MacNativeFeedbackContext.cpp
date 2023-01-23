@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MacNativeFeedbackContext.h"
+#include "HAL/PlatformTime.h"
 #include "Logging/StructuredLog.h"
 #include "Mac/MacApplication.h"
 #include "Mac/CocoaThread.h"
