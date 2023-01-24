@@ -53,6 +53,11 @@ TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > FOpenXRHMDModule::Cre
 	auto ARModule = FModuleManager::LoadModulePtr<IOpenXRARModule>("OpenXRAR");
 	auto ARSystem = ARModule->CreateARSystem();
 
+	if (!Instance)
+	{
+		return nullptr;
+	}
+
 	auto OpenXRHMD = FSceneViewExtensions::NewExtension<FOpenXRHMD>(Instance, RenderBridge, EnabledExtensions, ExtensionPlugins, ARSystem);
 	if (OpenXRHMD->IsInitialized())
 	{
