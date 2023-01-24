@@ -14,6 +14,7 @@
 #include "BehaviorTree/Tasks/BTTask_RunBehaviorDynamic.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/ConfigCacheIni.h"
 

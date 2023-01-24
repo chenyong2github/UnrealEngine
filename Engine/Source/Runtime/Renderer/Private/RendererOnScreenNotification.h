@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Internationalization/Text.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/LazySingleton.h"
 

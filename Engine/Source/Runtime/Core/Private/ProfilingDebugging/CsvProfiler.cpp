@@ -7,6 +7,7 @@
 */
 
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "CoreGlobals.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/ThreadManager.h"

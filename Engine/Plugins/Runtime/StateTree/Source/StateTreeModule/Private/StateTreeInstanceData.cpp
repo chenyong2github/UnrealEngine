@@ -60,6 +60,11 @@ void FStateTreeInstanceStorage::AddTransitionRequest(const UObject* Owner, const
 	TransitionRequests.Add(Request);
 }
 
+void FStateTreeInstanceStorage::ResetTransitionRequests()
+{
+	TransitionRequests.Reset();
+}
+
 
 //----------------------------------------------------------------//
 // FStateTreeInstanceData

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -72,10 +72,7 @@ struct STATETREEMODULE_API FStateTreeInstanceStorage
 	}
 
 	/** Reset all pending transition requests. */
-	void ResetTransitionRequests()
-	{
-		TransitionRequests.Reset();
-	}
+	void ResetTransitionRequests();
 	
 protected:
 	/** Struct instances */

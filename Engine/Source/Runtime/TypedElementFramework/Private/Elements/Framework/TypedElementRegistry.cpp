@@ -2,6 +2,7 @@
 
 #include "Elements/Framework/TypedElementRegistry.h"
 
+#include "HAL/IConsoleManager.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/ScopeLock.h"
 #include "UObject/StrongObjectPtr.h"

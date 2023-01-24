@@ -2,6 +2,7 @@
 
 #include "Camera/CameraPhotography.h"
 
+#include "HAL/IConsoleManager.h"
 #include "Misc/CoreDelegates.h"
 #include "CameraPhotographyModule.h"
 #include "Engine/World.h"

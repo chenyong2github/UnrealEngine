@@ -48,6 +48,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/MemoryTrace.h"
 #include "ProfilingDebugging/PlatformEvents.h"
+#include "Stats/Stats.h"
 #include "String/ParseTokens.h"
 #include "Templates/Invoke.h"
 #include "Templates/UnrealTemplate.h"
