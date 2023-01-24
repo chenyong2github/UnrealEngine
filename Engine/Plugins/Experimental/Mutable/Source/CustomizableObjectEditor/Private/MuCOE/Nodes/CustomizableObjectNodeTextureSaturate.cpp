@@ -51,7 +51,7 @@ FLinearColor UCustomizableObjectNodeTextureSaturate::GetNodeTitleColor() const
 
 FText UCustomizableObjectNodeTextureSaturate::GetTooltipText() const
 {
-	return LOCTEXT("Texture_Saturate_Tooltip", "Saturate Image");
+	return LOCTEXT("Texture_Saturate_Tooltip", "Get the provided texture with its saturation adjusted based on the numerical input provided where 1 equals to full saturation and 0 to no saturation.");
 }
 
 #undef LOCTEXT_NAMESPACE

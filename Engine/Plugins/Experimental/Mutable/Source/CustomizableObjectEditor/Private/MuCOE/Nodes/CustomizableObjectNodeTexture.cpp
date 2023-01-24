@@ -52,7 +52,7 @@ FLinearColor UCustomizableObjectNodeTexture::GetNodeTitleColor() const
 
 FText UCustomizableObjectNodeTexture::GetTooltipText() const
 {
-	return LOCTEXT("Texture_Tooltip", "Defines an image.");
+	return LOCTEXT("Texture_Tooltip", "Defines a texture.");
 }
 
 
