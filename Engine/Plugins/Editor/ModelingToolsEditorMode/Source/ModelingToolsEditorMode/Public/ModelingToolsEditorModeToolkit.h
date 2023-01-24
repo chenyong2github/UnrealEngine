@@ -8,13 +8,38 @@
 #include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "StatusBarSubsystem.h"
+#include "UObject/GCObject.h"
+
+#include "ModelingToolsEditorModeToolkit.generated.h"
+
+#define LOCTEXT_NAMESPACE "ModelingToolsEditorModeToolkit"
 
 class STransformGizmoNumericalUIOverlay;
 class IDetailsView;
 class SButton;
 class STextBlock;
+class UInteractiveToolsPresetCollectionAsset;
 
-class FModelingToolsEditorModeToolkit : public FModeToolkit
+UCLASS()
+class UPresetSettingsProperties : public UObject
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY(EditAnywhere, Category = "Presets", meta=(MetaClass = "InteractiveToolsPresetCollectionAsset"))
+	TArray< FSoftObjectPath > ActivePresetCollectionsPaths;
+};
+
+struct FToolPresetOption
+{
+	FString PresetLabel;
+	FString PresetTooltip;
+	FSlateIcon PresetIcon;
+	FString PresetName;
+	FSoftObjectPath PresetCollection;
+};
+
+class FModelingToolsEditorModeToolkit : public FModeToolkit, public FGCObject
 {
 public:
 
@@ -71,6 +96,11 @@ public:
 	// This is exposed only for the convenience of being able to create the numerical UI submenu
 	// in a non-member function in ModelingModeToolkit_Toolbars.cpp
 	TSharedPtr<STransformGizmoNumericalUIOverlay> GetGizmoNumericalUIOverlayWidget() { return GizmoNumericalUIOverlayWidget; }
+
+	/** GCObject interface */
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
+
 private:
 	const static TArray<FName> PaletteNames_Standard;
 
@@ -118,27 +148,30 @@ private:
 	void SelectNewAssetPath() const;
 
 	// Presets
+	TObjectPtr<UPresetSettingsProperties> PresetSettings;
+	TSharedPtr<SWidget> MakePresetPanel();
 	FSoftObjectPath CurrentPreset;
-	TSharedPtr<FString> ActiveNamedPreset;
-	TArray<TSharedPtr<FString>> AvailablePresetsForTool;
+	FString NewPresetLabel;
+	FString NewPresetTooltip;
+	FSlateIcon NewPresetIcon;
+
+	TArray<TSharedPtr<FToolPresetOption>> AvailablePresetsForTool;
 	TSharedPtr<SEditableComboBox<TSharedPtr<FString>>> PresetComboBox;
+
+	TSharedRef<SWidget> GetPresetSettingsButtonContent();
+	TSharedRef<SWidget> GetPresetCreateButtonContent();
+
+	void CreateNewPresetInCollection(const FString& PresetLabel, FSoftObjectPath CollectionPath, const FString& ToolTip, FSlateIcon Icon);
+	void LoadPresetFromCollection(const FString& PresetName, FSoftObjectPath CollectionPath);
 
 	FString GetCurrentPresetPath() { return CurrentPreset.GetAssetPathString(); }
 	void HandlePresetAssetChanged(const FAssetData& InAssetData);
 	bool HandleFilterPresetAsset(const FAssetData& InAssetData);
-	void LoadActivePreset();
 	void SaveActivePreset();
 	
+	void RebuildPresetListForTool(bool bSettingsOpened);
 	TSharedRef<SWidget> MakePresetComboWidget(TSharedPtr<FString> InItem);
 	bool IsPresetEnabled() const;
-	void OnPresetChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
-	void OnPresetRenamed(const FText&, ETextCommit::Type);
-	FReply OnAddPreset();
-	FReply OnRemovePreset();
-	FText GetPresetComboBoxContent() const;
-	TSharedPtr<FString> GetPresetString() const;
-	FString GetRawPresetString() const;
-	void BuildPresetComboList();
 	void ClearPresetComboList();
 
 
@@ -149,3 +182,5 @@ private:
 	bool bFirstInitializeAfterModeSetup = true;
 	bool bShowActiveSelectionActions = true;
 };
+
+#undef LOCTEXT_NAMESPACE

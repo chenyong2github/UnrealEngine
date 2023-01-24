@@ -13,28 +13,38 @@
 #define LOCTEXT_NAMESPACE "PresetAsset"
 
 USTRUCT(BlueprintType)
-struct FPropertyStore
+struct FInteractiveToolPresetDefintion
 {
 	GENERATED_BODY()
 public:
 	UPROPERTY(VisibleAnywhere, Category = "PresetAsset")
 	TArray< TObjectPtr<UObject> > Properties;
+
+	UPROPERTY(EditAnywhere, Category = "PresetAsset")
+	FString Label;
+
+	UPROPERTY(EditAnywhere, Category = "PresetAsset")
+	FString Tooltip;
+
+	// TODO: Investigate how to store things like icons. This doesn't work as written, as FSlateBrush can't be serialized?
+	//UPROPERTY(EditAnywhere, Category = "PresetAsset")
+	//FSlateBrush Icon;
 };
 
 USTRUCT(BlueprintType)
-struct FNamedPropertyStore
+struct FInteractiveToolPresetStore
 {
 	GENERATED_BODY()
 public:
 	UPROPERTY(EditAnywhere, Category = "PresetAsset")
-	TMap< FString, FPropertyStore> Store;
+	TMap< FString, FInteractiveToolPresetDefintion> NamedPresets;
 };
 
 /**
  * Implements an asset that can be used to store tool settings as a named preset
  */
 UCLASS(BlueprintType, hidecategories=(Object))
-class PRESETASSET_API UPresetAsset
+class PRESETASSET_API UInteractiveToolsPresetCollectionAsset
 	: public UObject
 {
 	GENERATED_BODY()
@@ -49,21 +59,21 @@ public:
 	// support for adding, removing, renaming, saving and retrieving presets.
 
 	UPROPERTY(VisibleAnywhere, Category = "PresetAsset")
-	TMap<FString, FNamedPropertyStore > StoredProperties;
+	TMap<FString, FInteractiveToolPresetStore > PerToolPresets;
 
 };
 
 
 UCLASS(hidecategories = Object)
-class PRESETASSET_API UPresetAssetFactory : public UFactory
+class PRESETASSET_API UInteractiveToolsPresetCollectionAssetFactory : public UFactory
 {
 	GENERATED_BODY()
 
 public:
 
-	UPresetAssetFactory()
+	UInteractiveToolsPresetCollectionAssetFactory()
 	{
-		SupportedClass = UPresetAsset::StaticClass();
+		SupportedClass = UInteractiveToolsPresetCollectionAsset::StaticClass();
 
 		bCreateNew = true;
 		bEditAfterNew = true;
@@ -81,11 +91,11 @@ public:
 
 	UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override
 	{
-		UPresetAsset* Preset = nullptr;
+		UInteractiveToolsPresetCollectionAsset* Preset = nullptr;
 		if (ensure(SupportedClass == Class))
 		{
 			ensure(0 != (RF_Public & Flags));
-			Preset = NewObject<UPresetAsset>(InParent, Class, Name, Flags);
+			Preset = NewObject<UInteractiveToolsPresetCollectionAsset>(InParent, Class, Name, Flags);
 		}
 		return Preset;
 	}
