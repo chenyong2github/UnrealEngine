@@ -58,4 +58,4 @@ public:
 	}
 };
 
-IMPLEMENT_MODULE(FNNXRuntimeRDGModule, NNXRuntimeRDG)
+IMPLEMENT_MODULE(FNNXRuntimeRDGModule, NNERuntimeRDG)
