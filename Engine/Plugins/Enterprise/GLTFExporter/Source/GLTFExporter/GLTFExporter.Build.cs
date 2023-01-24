@@ -60,7 +60,6 @@ public class GLTFExporter : ModuleRules
 					"MeshMergeUtilities",
 					"MeshDescription",
 					"StaticMeshDescription",
-					"GLTFMaterialAnalyzer",
 				}
 			);
 

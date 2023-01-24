@@ -3,11 +3,11 @@
 #include "Converters/GLTFMaterialUtilities.h"
 #include "Converters/GLTFTextureUtilities.h"
 #include "Converters/GLTFNameUtilities.h"
-#include "Materials/Material.h"
+#include "Converters/GLTFProxyMaterialCompiler.h"
 #include "Utilities/GLTFProxyMaterialUtilities.h"
+#include "Materials/Material.h"
 #include "Misc/DefaultValueHelper.h"
 #if WITH_EDITOR
-#include "GLTFMaterialAnalyzer.h"
 #include "IMaterialBakingModule.h"
 #include "MaterialBakingStructures.h"
 #include "Materials/MaterialExpressionTextureSample.h"
@@ -95,11 +95,11 @@ const FExpressionInput* FGLTFMaterialUtilities::GetInputForProperty(const UMater
 	return UnderlyingMaterial->GetExpressionInputForProperty(Property.Type);
 }
 
-const UMaterialExpressionCustomOutput* FGLTFMaterialUtilities::GetCustomOutputByName(const UMaterialInterface* Material, const FString& FunctionName)
+UMaterialExpressionCustomOutput* FGLTFMaterialUtilities::GetCustomOutputByName(const UMaterialInterface* Material, const FString& FunctionName)
 {
 	for (const TObjectPtr<UMaterialExpression>& Expression : Material->GetMaterial()->GetExpressions())
 	{
-		const UMaterialExpressionCustomOutput* CustomOutput = Cast<UMaterialExpressionCustomOutput>(Expression);
+		UMaterialExpressionCustomOutput* CustomOutput = Cast<UMaterialExpressionCustomOutput>(Expression);
 		if (CustomOutput != nullptr && CustomOutput->GetFunctionName() == FunctionName)
 		{
 			return CustomOutput;
@@ -230,7 +230,7 @@ bool FGLTFMaterialUtilities::TryGetTextureCoordinateIndex(const UMaterialExpress
 
 void FGLTFMaterialUtilities::GetAllTextureCoordinateIndices(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FGLTFIndexArray& OutTexCoords)
 {
-	FGLTFMaterialAnalysis Analysis;
+	FMaterialAnalysisResult Analysis;
 	AnalyzeMaterialProperty(InMaterial, InProperty, Analysis);
 
 	const TBitArray<>& TexCoords = Analysis.TextureCoordinates;
@@ -243,28 +243,53 @@ void FGLTFMaterialUtilities::GetAllTextureCoordinateIndices(const UMaterialInter
 	}
 }
 
-void FGLTFMaterialUtilities::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FGLTFMaterialAnalysis& OutAnalysis)
+void FGLTFMaterialUtilities::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FMaterialAnalysisResult& OutAnalysis)
 {
 	if (GetInputForProperty(InMaterial, InProperty) == nullptr)
 	{
-		OutAnalysis = FGLTFMaterialAnalysis();
+		OutAnalysis = FMaterialAnalysisResult();
 		return;
 	}
 
-	UGLTFMaterialAnalyzer::AnalyzeMaterialPropertyEx(InMaterial, InProperty.Type, InProperty.CustomOutput.ToString(), OutAnalysis);
+	UMaterial* BaseMaterial = const_cast<UMaterial*>(InMaterial->GetMaterial());
+	bool bRequiresPrimitiveData = false;
+
+	// To extend and improve the analysis for glTF's specific use-case, we compile using FGLTFProxyMaterialCompiler
+	BaseMaterial->AnalyzeMaterialCompilationInCallback([InProperty, BaseMaterial, &bRequiresPrimitiveData](FMaterialCompiler* Compiler)
+	{
+		FGLTFProxyMaterialCompiler ProxyCompiler(Compiler);
+
+		if (InProperty.IsCustomOutput())
+		{
+			UMaterialExpressionCustomOutput* CustomOutput = GetCustomOutputByName(BaseMaterial, InProperty.CustomOutput.ToString());
+			ProxyCompiler.SetMaterialProperty(MP_MAX, CustomOutput->GetShaderFrequency(), false);
+			CustomOutput->Compile(&ProxyCompiler, 0);
+		}
+		else
+		{
+			ProxyCompiler.SetMaterialProperty(InProperty.Type, SF_NumFrequencies, false);
+			BaseMaterial->CompileProperty(&ProxyCompiler, InProperty.Type);
+		}
+
+		bRequiresPrimitiveData =
+			ProxyCompiler.bUsesActorPosition ||
+			ProxyCompiler.bUsesObjectPosition ||
+			ProxyCompiler.bUsesObjectOrientation ||
+			ProxyCompiler.bUsesObjectRadius ||
+			ProxyCompiler.bUsesObjectBounds ||
+			ProxyCompiler.bUsesObjectLocalBounds ||
+			ProxyCompiler.bUsesPreSkinnedLocalBounds ||
+			ProxyCompiler.bUsesCustomPrimitiveData;
+	}, OutAnalysis);
+
+	// Also make sure the analysis takes into account primitive data
+	OutAnalysis.bRequiresVertexData |= bRequiresPrimitiveData;
 }
 
 FMaterialShadingModelField FGLTFMaterialUtilities::EvaluateShadingModelExpression(const UMaterialInterface* Material)
 {
-	FGLTFMaterialAnalysis Analysis;
+	FMaterialAnalysisResult Analysis;
 	AnalyzeMaterialProperty(Material, MP_ShadingModel, Analysis);
-
-	int32 Value;
-	if (FDefaultValueHelper::ParseInt(Analysis.ParameterCode, Value))
-	{
-		return static_cast<EMaterialShadingModel>(Value);
-	}
-
 	return Analysis.ShadingModels;
 }
 
@@ -334,7 +359,7 @@ bool FGLTFMaterialUtilities::NeedsMeshData(const UMaterialInterface* Material)
 		};
 
 		bool bNeedsMeshData = false;
-		FGLTFMaterialAnalysis Analysis;
+		FMaterialAnalysisResult Analysis;
 
 		// TODO: optimize baking by separating need for vertex data and primitive data
 
@@ -342,7 +367,6 @@ bool FGLTFMaterialUtilities::NeedsMeshData(const UMaterialInterface* Material)
 		{
 			AnalyzeMaterialProperty(Material, Property, Analysis);
 			bNeedsMeshData |= Analysis.bRequiresVertexData;
-			bNeedsMeshData |= Analysis.bRequiresPrimitiveData;
 		}
 
 		return bNeedsMeshData;

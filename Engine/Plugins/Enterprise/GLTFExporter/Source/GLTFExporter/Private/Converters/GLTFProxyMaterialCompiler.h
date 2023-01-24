@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if WITH_EDITOR
+
 #include "MaterialCompiler.h"
 #include "Materials/MaterialExpressionCustom.h"
 
@@ -50,9 +52,15 @@ public:
 		return Compiler->ObjectBounds();
 	}
 
+	virtual int32 ObjectLocalBounds(int32 OutputIndex) override
+	{
+		bUsesObjectLocalBounds = true;
+		return Compiler->ObjectLocalBounds(OutputIndex);
+	}
+
+	// NOTE: also need to check old in-engine material function ObjectLocalBounds that bypasses the above override since it uses custom expressions 
 	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, int32 OutputIndex, TArray<int32>& CompiledInputs) override
 	{
-		// NOTE: because there is no overridable compiler method for ObjectLocalBounds in engine this is our only option currently
 		if (Custom->Code.Contains(TEXT("GetPrimitiveData(Parameters).LocalObjectBounds")))
 		{
 			bUsesObjectLocalBounds = true;
@@ -148,3 +156,5 @@ public:
 		return EMaterialCompilerType::MaterialProxy;
 	}
 };
+
+#endif
