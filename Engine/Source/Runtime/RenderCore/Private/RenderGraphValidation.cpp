@@ -581,9 +581,9 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 		checkf(ResourceMap.Contains(Resource), TEXT("Resource at %p registered with pass %s is not part of the graph and is likely a dangling pointer or garbage value."), Resource, Pass->GetName());
 	};
 
-	const auto CheckNotCopy = [&](FRDGResourceRef Resource)
+	const auto CheckComputeOrRaster = [&](FRDGResourceRef Resource)
 	{
-		ensureMsgf(!bIsCopy, TEXT("Pass %s, parameter %s is valid for Raster or (Async)Compute, but the pass is a Copy pass."), PassName, Resource->Name);
+		ensureMsgf(bIsAnyCompute || bIsRaster, TEXT("Pass %s, parameter %s is valid for Raster or (Async)Compute, but neither flag is set."), PassName, Resource->Name);
 	};
 
 	bool bCanProduce = false;
@@ -643,7 +643,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 			if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
 			{
 				FRDGTextureRef Texture = SRV->GetParent();
-				CheckNotCopy(Texture);
+				CheckComputeOrRaster(Texture);
 				MarkAsConsumed(Texture);
 			}
 		}
@@ -654,7 +654,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
 			{
 				FRDGTextureRef Texture = UAV->GetParent();
-				CheckNotCopy(Texture);
+				CheckComputeOrRaster(Texture);
 				MarkAsProduced(Texture);
 			}
 		}
@@ -664,7 +664,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
 			{
 				FRDGBufferRef Buffer = SRV->GetParent();
-				CheckNotCopy(Buffer);
+				CheckComputeOrRaster(Buffer);
 				MarkAsConsumed(Buffer);
 			}
 		}
@@ -675,7 +675,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
 			{
 				FRDGBufferRef Buffer = UAV->GetParent();
-				CheckNotCopy(Buffer);
+				CheckComputeOrRaster(Buffer);
 				MarkAsProduced(Buffer);
 			}
 		}

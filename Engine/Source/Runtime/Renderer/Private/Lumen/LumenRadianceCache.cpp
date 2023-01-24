@@ -1996,7 +1996,8 @@ void UpdateRadianceCaches(
 					HardwareRayTracingRayAllocatorBuffer[RadianceCacheIndex],
 					RadianceCacheHardwareRayTracingIndirectArgs[RadianceCacheIndex],
 					RadianceProbeAtlasTextureUAV,
-					DepthProbeTextureUAV
+					DepthProbeTextureUAV,
+					ComputePassFlags
 				);
 			}
 			else

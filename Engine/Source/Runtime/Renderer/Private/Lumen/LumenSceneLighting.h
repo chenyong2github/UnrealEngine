@@ -180,7 +180,8 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	FRDGBufferRef LightTileAllocator,
 	FRDGBufferRef LightTiles,
 	FRDGBufferRef LumenPackedLights,
-	FRDGBufferUAVRef ShadowMaskTilesUAV);
+	FRDGBufferUAVRef ShadowMaskTilesUAV,
+	ERDGPassFlags ComputePassFlags);
 
 enum class ELumenDispatchCardTilesIndirectArgsOffset
 {

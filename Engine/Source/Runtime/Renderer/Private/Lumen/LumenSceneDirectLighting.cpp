@@ -1863,7 +1863,8 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						CullContext.LightTileAllocator,
 						CullContext.LightTiles,
 						LumenPackedLights,
-						ShadowMaskTilesUAV);
+						ShadowMaskTilesUAV,
+						ComputePassFlags);
 				}
 				else
 				{

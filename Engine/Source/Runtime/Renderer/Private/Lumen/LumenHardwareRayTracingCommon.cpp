@@ -249,7 +249,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 	SharedParameters->LightDataPacked = View.RayTracingLightDataUniformBuffer;
 
 	// Inline
-	SharedParameters->HitGroupData = View.LumenHardwareRayTracingHitDataBufferSRV;
+	SharedParameters->HitGroupData = View.LumenHardwareRayTracingHitDataBuffer ? GraphBuilder.CreateSRV(View.LumenHardwareRayTracingHitDataBuffer) : nullptr;
 	SharedParameters->RayTracingSceneMetadata = View.GetRayTracingSceneChecked()->GetMetadataBufferSRV();
 
 	// Use surface cache, instead
@@ -398,7 +398,8 @@ void LumenHWRTCompactRays(
 	const FRDGBufferRef& RayAllocatorBuffer,
 	const FRDGBufferRef& TraceDataPackedBuffer,
 	FRDGBufferRef& OutputRayAllocatorBuffer,
-	FRDGBufferRef& OutputTraceDataPackedBuffer
+	FRDGBufferRef& OutputTraceDataPackedBuffer,
+	ERDGPassFlags ComputePassFlags
 )
 {
 	FRDGBufferRef CompactRaysIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.HWRT.CompactTracingIndirectArgs"));
@@ -413,6 +414,7 @@ void LumenHWRTCompactRays(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("CompactRaysIndirectArgs"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
@@ -439,6 +441,7 @@ void LumenHWRTCompactRays(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("CompactRays"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			PassParameters->CompactRaysIndirectArgs,
@@ -452,7 +455,8 @@ void LumenHWRTBucketRaysByMaterialID(
 	const FViewInfo& View,
 	int32 RayCount,
 	FRDGBufferRef& RayAllocatorBuffer,
-	FRDGBufferRef& TraceDataPackedBuffer
+	FRDGBufferRef& TraceDataPackedBuffer,
+	ERDGPassFlags ComputePassFlags
 )
 {
 	FRDGBufferRef BucketRaysByMaterialIdIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.HWRT.BucketRaysByMaterialIdIndirectArgsBuffer"));
@@ -467,6 +471,7 @@ void LumenHWRTBucketRaysByMaterialID(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("BucketRaysByMaterialIdIndirectArgs"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
@@ -493,6 +498,7 @@ void LumenHWRTBucketRaysByMaterialID(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("BucketRaysByMaterialId"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			PassParameters->BucketRaysByMaterialIdIndirectArgs,

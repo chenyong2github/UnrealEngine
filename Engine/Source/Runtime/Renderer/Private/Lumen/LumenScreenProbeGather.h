@@ -179,7 +179,8 @@ void RenderHardwareRayTracingScreenProbe(
 	const FLumenCardTracingParameters& TracingParameters,
 	FLumenIndirectTracingParameters& DiffuseTracingParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-	const FCompactedTraceParameters& CompactedTraceParameters);
+	const FCompactedTraceParameters& CompactedTraceParameters,
+	ERDGPassFlags ComputePassFlags);
 
 extern void RenderHardwareRayTracingShortRangeAO(
 	FRDGBuilder& GraphBuilder,

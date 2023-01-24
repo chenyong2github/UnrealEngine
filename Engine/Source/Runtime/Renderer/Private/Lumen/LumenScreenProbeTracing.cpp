@@ -741,8 +741,6 @@ void TraceScreenProbes(
 
 	if (bUseHardwareRayTracing)
 	{
-		check(ComputePassFlags == ERDGPassFlags::Compute);
-
 		FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
 			GraphBuilder,
 			View,
@@ -750,7 +748,8 @@ void TraceScreenProbes(
 			false,
 			0.0f,
 			IndirectTracingParameters.MaxTraceDistance,
-			bRenderDirectLighting);
+			bRenderDirectLighting,
+			ComputePassFlags);
 
 		RenderHardwareRayTracingScreenProbe(
 			GraphBuilder,
@@ -761,7 +760,8 @@ void TraceScreenProbes(
 			TracingParameters,
 			IndirectTracingParameters,
 			RadianceCacheParameters,
-			CompactedTraceParameters);
+			CompactedTraceParameters,
+			ComputePassFlags);
 	}
 	else if (bTraceMeshObjects)
 	{

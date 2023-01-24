@@ -106,12 +106,15 @@ void HardwareRayTraceTranslucencyVolume(
 	FLumenTranslucencyLightingVolumeParameters VolumeParameters,
 	FLumenTranslucencyLightingVolumeTraceSetupParameters TraceSetupParameters,
 	FRDGTextureRef VolumeTraceRadiance,
-	FRDGTextureRef VolumeTraceHitDistance
+	FRDGTextureRef VolumeTraceHitDistance,
+	ERDGPassFlags ComputePassFlags
 )
 {
 #if RHI_RAYTRACING
 	bool bUseMinimalPayload = true;
 	bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing(*View.Family);
+
+	checkf(ComputePassFlags != ERDGPassFlags::AsyncCompute || bInlineRayTracing, TEXT("Async Lumen HWRT is only supported for inline ray tracing"));
 
 	// Cast rays
 	{
@@ -145,6 +148,7 @@ void HardwareRayTraceTranslucencyVolume(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("HardwareRayTracing (inline) %ux%u", DispatchResolution.X, DispatchResolution.Y),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				GroupCount);

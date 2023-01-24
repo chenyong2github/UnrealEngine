@@ -721,7 +721,8 @@ void TraceReflections(
 			ReflectionTileParameters,
 			false,
 			0.0f,
-			IndirectTracingParameters.MaxTraceDistance);
+			IndirectTracingParameters.MaxTraceDistance,
+			ComputePassFlags);
 
 		RenderLumenHardwareRayTracingReflections(
 			GraphBuilder,
@@ -736,7 +737,8 @@ void TraceReflections(
 			IndirectTracingParameters.MaxTraceDistance,
 			bUseRadianceCache,
 			RadianceCacheParameters,
-			bSampleSceneColorAtHit
+			bSampleSceneColorAtHit,
+			ComputePassFlags
 			);
 	}
 	else 

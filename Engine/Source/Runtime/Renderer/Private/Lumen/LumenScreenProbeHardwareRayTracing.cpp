@@ -383,7 +383,7 @@ void SetLumenHardwareRayTracingScreenProbeParameters(
 	Parameters->RWRetraceDataPackedBuffer = GraphBuilder.CreateUAV(RetraceDataPackedBuffer);
 }
 
-void DispatchLumenScreenProbeGatherHardwareRayTracingIndirectArgs(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGBufferRef HardwareRayTracingIndirectArgsBuffer, FRDGBufferRef RayAllocatorBuffer, FIntPoint OutputThreadGroupSize)
+void DispatchLumenScreenProbeGatherHardwareRayTracingIndirectArgs(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGBufferRef HardwareRayTracingIndirectArgsBuffer, FRDGBufferRef RayAllocatorBuffer, FIntPoint OutputThreadGroupSize, ERDGPassFlags ComputePassFlags)
 {
 	FLumenScreenProbeGatherHardwareRayTracingIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenScreenProbeGatherHardwareRayTracingIndirectArgsCS::FParameters>();
 
@@ -395,6 +395,7 @@ void DispatchLumenScreenProbeGatherHardwareRayTracingIndirectArgs(FRDGBuilder& G
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("LumenScreenProbeGatherHardwareRayTracingIndirectArgsCS"),
+		ComputePassFlags,
 		ComputeShader,
 		PassParameters,
 		FIntVector(1, 1, 1));
@@ -417,12 +418,13 @@ void DispatchRayGenOrComputeShader(
 	bool bInlineRayTracing,
 	FRDGBufferRef RayAllocatorBuffer,
 	FRDGBufferRef TraceTexelDataPackedBuffer,
-	FRDGBufferRef RetraceDataPackedBuffer
+	FRDGBufferRef RetraceDataPackedBuffer,
+	ERDGPassFlags ComputePassFlags
 )
 {
 	FRDGBufferRef HardwareRayTracingIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.ScreenProbeGather.HardwareRayTracing.IndirectArgsCS"));
 	FIntPoint OutputThreadGroupSize = bInlineRayTracing ? FLumenScreenProbeGatherHardwareRayTracingCS::GetThreadGroupSize() : FLumenScreenProbeGatherHardwareRayTracingRGS::GetThreadGroupSize();
-	DispatchLumenScreenProbeGatherHardwareRayTracingIndirectArgs(GraphBuilder, View, HardwareRayTracingIndirectArgsBuffer, RayAllocatorBuffer, OutputThreadGroupSize);
+	DispatchLumenScreenProbeGatherHardwareRayTracingIndirectArgs(GraphBuilder, View, HardwareRayTracingIndirectArgsBuffer, RayAllocatorBuffer, OutputThreadGroupSize, ComputePassFlags);
 
 	uint32 DefaultThreadCount = CVarLumenScreenProbeGatherHardwareRayTracingDefaultThreadCount.GetValueOnRenderThread();
 	uint32 DefaultGroupCount = CVarLumenScreenProbeGatherHardwareRayTracingDefaultGroupCount.GetValueOnRenderThread();
@@ -470,27 +472,16 @@ void DispatchRayGenOrComputeShader(
 	if (bInlineRayTracing)
 	{
 		TShaderRef<FLumenScreenProbeGatherHardwareRayTracingCS> ComputeShader = View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingCS>(PermutationVector);
-		if (IsHardwareRayTracingScreenProbeGatherIndirectDispatch())
-		{			
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("HardwareRayTracing (inline) %s %s", *GenerateModeString(), *GenerateResolutionString()),
-				ComputeShader,
-				PassParameters,
-				PassParameters->HardwareRayTracingIndirectArgs,
-				0);
-		}
-		else
-		{
-			const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(DispatchResolution, FLumenScreenProbeGatherHardwareRayTracingCS::GetThreadGroupSize());
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("HardwareRayTracing (inline) %s %s", *GenerateModeString(), *GenerateResolutionString()),
-				ComputeShader,
-				PassParameters,
-				GroupCount);
-		}
+		
+		// Inline always runs as an indirect compute shader
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("HardwareRayTracing (inline) %s <indirect>", *GenerateModeString()),
+			ComputePassFlags,
+			ComputeShader,
+			PassParameters,
+			PassParameters->HardwareRayTracingIndirectArgs,
+			0);
 	}
 	else
 	{
@@ -534,9 +525,13 @@ void RenderHardwareRayTracingScreenProbe(
 	const FLumenCardTracingParameters& TracingParameters,
 	FLumenIndirectTracingParameters& IndirectTracingParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-	const FCompactedTraceParameters& CompactedTraceParameters)
+	const FCompactedTraceParameters& CompactedTraceParameters,
+	ERDGPassFlags ComputePassFlags)
 #if RHI_RAYTRACING
 {
+	// Async only supported for inline ray tracing
+	check(ComputePassFlags != ERDGPassFlags::AsyncCompute || Lumen::UseHardwareInlineRayTracing(*View.Family));
+
 	const uint32 NumTracesPerProbe = ScreenProbeParameters.ScreenProbeTracingOctahedronResolution * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
 	FIntPoint RayTracingResolution = FIntPoint(ScreenProbeParameters.ScreenProbeAtlasViewSize.X * ScreenProbeParameters.ScreenProbeAtlasViewSize.Y * NumTracesPerProbe, 1);
 	int32 MaxRayCount = RayTracingResolution.X * RayTracingResolution.Y;
@@ -553,6 +548,7 @@ void RenderHardwareRayTracingScreenProbe(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("FConvertRayAllocatorCS"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
@@ -565,6 +561,7 @@ void RenderHardwareRayTracingScreenProbe(
 	const bool bIsForceHitLighting = IsHitLightingForceEnabledForScreenProbeGather();
 	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing(*View.Family);
 	const bool bUseRadianceCache = LumenScreenProbeGather::UseRadianceCache(View);
+	const bool bIndirectDispatch = IsHardwareRayTracingScreenProbeGatherIndirectDispatch() || bInlineRayTracing;
 
 	// Default tracing of near-field, extract surface cache and material-id
 	{
@@ -576,23 +573,23 @@ void RenderHardwareRayTracingScreenProbe(
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FEnableNearFieldTracing>(true);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FEnableFarFieldTracing>(false);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FWriteFinalLightingDim>(!bIsForceHitLighting || !bUseFarFieldForScreenProbeGather);
-		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FIndirectDispatchDim>(IsHardwareRayTracingScreenProbeGatherIndirectDispatch());
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FIndirectDispatchDim>(bIndirectDispatch);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling(View));
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FPackTraceDataDim>(bUseFarFieldForScreenProbeGather);
 
 		DispatchRayGenOrComputeShader(GraphBuilder, Scene, SceneTextures, View, ScreenProbeParameters, TracingParameters, IndirectTracingParameters, CompactedTraceParameters, RadianceCacheParameters,
 			PermutationVector, MaxRayCount, bApplySkyLight, bUseRadianceCache, bInlineRayTracing,
-			RayAllocatorBuffer, TraceTexelDataPackedBuffer, RetraceDataPackedBuffer);
+			RayAllocatorBuffer, TraceTexelDataPackedBuffer, RetraceDataPackedBuffer, ComputePassFlags);
 	}
 
 	FRDGBufferRef FarFieldRayAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.ScreenProbeGather.HardwareRayTracing.FarFieldRayAllocatorBuffer"));
 	FRDGBufferRef FarFieldRetraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenHWRTPipeline::FTraceDataPacked), MaxRayCount), TEXT("Lumen.ScreenProbeGather.HardwareRayTracing.FarFieldRetraceDataPackedBuffer"));
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FarFieldRayAllocatorBuffer, PF_R32_UINT), 0);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FarFieldRayAllocatorBuffer, PF_R32_UINT), 0, ComputePassFlags);
 	if (bUseFarFieldForScreenProbeGather)
 	{
 		LumenHWRTCompactRays(GraphBuilder, Scene, View, MaxRayCount, LumenHWRTPipeline::ECompactMode::FarFieldRetrace,
 			RayAllocatorBuffer, RetraceDataPackedBuffer,
-			FarFieldRayAllocatorBuffer, FarFieldRetraceDataPackedBuffer);
+			FarFieldRayAllocatorBuffer, FarFieldRetraceDataPackedBuffer, ComputePassFlags);
 
 		bool bApplySkyLight = true;
 
@@ -602,14 +599,14 @@ void RenderHardwareRayTracingScreenProbe(
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FEnableNearFieldTracing>(false);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FEnableFarFieldTracing>(true);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FWriteFinalLightingDim>(true);
-		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FIndirectDispatchDim>(IsHardwareRayTracingScreenProbeGatherIndirectDispatch());
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FIndirectDispatchDim>(bIndirectDispatch);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling(View));
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FPackTraceDataDim>(false);
 
 		// Trace continuation rays
 		DispatchRayGenOrComputeShader(GraphBuilder, Scene, SceneTextures, View, ScreenProbeParameters, TracingParameters, IndirectTracingParameters, CompactedTraceParameters, RadianceCacheParameters,
 			PermutationVector, MaxRayCount, bApplySkyLight, bUseRadianceCache, bInlineRayTracing,
-			FarFieldRayAllocatorBuffer, TraceTexelDataPackedBuffer, FarFieldRetraceDataPackedBuffer);
+			FarFieldRayAllocatorBuffer, TraceTexelDataPackedBuffer, FarFieldRetraceDataPackedBuffer, ComputePassFlags);
 	}
 }
 #else // RHI_RAYTRACING

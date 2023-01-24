@@ -106,4 +106,5 @@ extern void RenderLumenHardwareRayTracingReflections(
 	float MaxTraceDistance,
 	bool bUseRadianceCache,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-	bool bSampleSceneColorAtHit);
+	bool bSampleSceneColorAtHit,
+	ERDGPassFlags ComputePassFlags);

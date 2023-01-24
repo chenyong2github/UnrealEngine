@@ -744,6 +744,8 @@ void LumenRadiosity::AddRadiosityPass(
 #if RHI_RAYTRACING
 		const bool bUseMinimalPayload = true;
 		const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing(*FirstView.Family);
+		
+		checkf(ComputePassFlags != ERDGPassFlags::AsyncCompute || bInlineRayTracing, TEXT("Async Lumen HWRT is only supported for inline ray tracing"));
 
 		checkf((Views.Num() == 1 || IStereoRendering::IsStereoEyeView(FirstView)), TEXT("Radiosity HW tracing needs to be updated for splitscreen support"));
 		uint32 ViewIndex = 0;
@@ -790,27 +792,17 @@ void LumenRadiosity::AddRadiosityPass(
 		if (bInlineRayTracing)
 		{
 			TShaderRef<FLumenRadiosityHardwareRayTracingCS> ComputeShader = GlobalShaderMap->GetShader<FLumenRadiosityHardwareRayTracingCS>(PermutationVector);
-			if (IsHardwareRayTracingRadiosityIndirectDispatch())
-			{
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("HardwareRayTracing (inline) %s %ux%u probes at %u spacing", *Resolution, HemisphereProbeResolution, HemisphereProbeResolution, ProbeSpacing),
-					ComputeShader,
-					PassParameters,
-					PassParameters->HardwareRayTracingIndirectArgs,
-					(uint32)ERadiosityIndirectArgs::HardwareRayTracingThreadPerTrace + ViewIndex * (uint32)ERadiosityIndirectArgs::MAX * sizeof(FRHIDispatchIndirectParameters));
-			}
-			else
-			{
-				const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(DispatchResolution, FLumenRadiosityHardwareRayTracingCS::GetThreadGroupSize());
-
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("HardwareRayTracing (inline) %s %ux%u probes at %u spacing", *Resolution, HemisphereProbeResolution, HemisphereProbeResolution, ProbeSpacing),
-					ComputeShader,
-					PassParameters,
-					GroupCount);
-			}
+			
+			// Inline always runs as an indirect compute shader
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("HardwareRayTracing (inline) <indirect> %ux%u probes at %u spacing", HemisphereProbeResolution, HemisphereProbeResolution, ProbeSpacing),
+				ComputePassFlags,
+				ComputeShader,
+				PassParameters,
+				PassParameters->HardwareRayTracingIndirectArgs,
+				(uint32)ERadiosityIndirectArgs::HardwareRayTracingThreadPerTrace + ViewIndex * (uint32)ERadiosityIndirectArgs::MAX * sizeof(FRHIDispatchIndirectParameters));
+		
 		}
 		else
 		{

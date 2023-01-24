@@ -752,8 +752,6 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 
 			if (Lumen::UseHardwareRayTracedTranslucencyVolume(ViewFamily) && GLumenTranslucencyVolumeTraceFromVolume != 0)
 			{
-				check(ComputePassFlags == ERDGPassFlags::Compute);
-
 				HardwareRayTraceTranslucencyVolume(
 					GraphBuilder,
 					View,
@@ -762,7 +760,8 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 					VolumeParameters,
 					TraceSetupParameters, 
 					VolumeTraceRadiance, 
-					VolumeTraceHitDistance);
+					VolumeTraceHitDistance,
+					ComputePassFlags);
 			}
 			else
 			{

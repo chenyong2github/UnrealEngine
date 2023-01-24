@@ -85,7 +85,8 @@ extern void HardwareRayTraceTranslucencyVolume(
 	FLumenTranslucencyLightingVolumeParameters VolumeParameters,
 	FLumenTranslucencyLightingVolumeTraceSetupParameters TraceSetupParameters,
 	FRDGTextureRef VolumeTraceRadiance,
-	FRDGTextureRef VolumeTraceHitDistance
+	FRDGTextureRef VolumeTraceHitDistance,
+	ERDGPassFlags ComputePassFlags
 );
 
 namespace LumenTranslucencyVolumeRadianceCache

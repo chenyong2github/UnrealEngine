@@ -138,7 +138,8 @@ extern void RenderLumenHardwareRayTracingRadianceCache(
 	FRDGBufferRef HardwareRayTracingRayAllocatorBuffer,
 	FRDGBufferRef RadianceCacheHardwareRayTracingIndirectArgs,
 	FRDGTextureUAVRef RadianceProbeAtlasTextureUAV,
-	FRDGTextureUAVRef DepthProbeTextureUAV);
+	FRDGTextureUAVRef DepthProbeTextureUAV,
+	ERDGPassFlags ComputePassFlags);
 
 extern void MarkUsedProbesForVisualize(FRDGBuilder& GraphBuilder, const FViewInfo& View, const class LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters, ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute);
 

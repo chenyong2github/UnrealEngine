@@ -1754,6 +1754,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FBuildAccelerationStructurePassParams, )
 	RDG_BUFFER_ACCESS(RayTracingSceneScratchBuffer, ERHIAccess::UAVCompute)
 	RDG_BUFFER_ACCESS(DynamicGeometryScratchBuffer, ERHIAccess::UAVCompute)
 	RDG_BUFFER_ACCESS(RayTracingSceneInstanceBuffer, ERHIAccess::SRVCompute)
+	RDG_BUFFER_ACCESS(LumenHitDataBuffer, ERHIAccess::CopyDest)
 
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRaytracingLightDataPacked, LightDataPacked)
@@ -2197,7 +2198,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 	if (bAnyLumenHardwareInlineRayTracingPassEnabled)
 	{
-		SetupLumenHardwareRayTracingHitGroupBuffer(ReferenceView);
+		SetupLumenHardwareRayTracingHitGroupBuffer(GraphBuilder, ReferenceView);
 	}
 
 	const bool bIsPathTracing = ViewFamily.EngineShowFlags.PathTracing;
@@ -2207,6 +2208,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 	PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
 	PassParams->DynamicGeometryScratchBuffer = DynamicGeometryScratchBuffer;
 	PassParams->LightDataPacked = bIsPathTracing ? nullptr : ReferenceView.RayTracingLightDataUniformBuffer; // accessed by FRayTracingLightingMS
+	PassParams->LumenHitDataBuffer = ReferenceView.LumenHardwareRayTracingHitDataBuffer;
 
 	if (IsNaniteEnabled())
 	{
@@ -2222,7 +2224,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 	}
 
 	const FRayTracingLightFunctionMap* RayTracingLightFunctionMap = GraphBuilder.Blackboard.Get<FRayTracingLightFunctionMap>();
-	GraphBuilder.AddPass(RDG_EVENT_NAME("WaitForRayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+	GraphBuilder.AddPass(RDG_EVENT_NAME("WaitForRayTracingScene"), PassParams, ERDGPassFlags::Copy | ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 		[this, PassParams, bIsPathTracing, &ReferenceView, bAnyLumenHardwareInlineRayTracingPassEnabled, RayTracingLightFunctionMap](FRHICommandListImmediate& RHICmdList)
 	{
 		check(ReferenceView.RayTracingMaterialPipeline || ReferenceView.RayTracingMaterialBindings.Num() == 0);
@@ -2304,11 +2306,6 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 		{
 			RHICmdList.EndTransition(RayTracingDynamicGeometryUpdateEndTransition);
 			RayTracingDynamicGeometryUpdateEndTransition = nullptr;
-		}
-
-		if (ReferenceView.LumenHardwareRayTracingHitDataBuffer)
-		{
-			RHICmdList.Transition(FRHITransitionInfo(ReferenceView.LumenHardwareRayTracingHitDataBuffer, ERHIAccess::None, ERHIAccess::SRVMask));
 		}
 	});
 
@@ -3564,6 +3561,15 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Shadows, lumen and fog after base pass
 	if (!bHasRayTracedOverlay)
 	{
+#if RHI_RAYTRACING
+		// When Lumen HWRT is running async we need to wait for ray tracing scene before dispatching the work
+		if (bNeedToWaitForRayTracingScene && Lumen::UseAsyncCompute(ViewFamily) && Lumen::UseHardwareInlineRayTracing(ViewFamily))
+		{
+			WaitForRayTracingScene(GraphBuilder, DynamicGeometryScratchBuffer);
+			bNeedToWaitForRayTracingScene = false;
+		}
+#endif // RHI_RAYTRACING
+
 		DispatchAsyncLumenIndirectLightingWork(
 			GraphBuilder,
 			CompositionLighting,

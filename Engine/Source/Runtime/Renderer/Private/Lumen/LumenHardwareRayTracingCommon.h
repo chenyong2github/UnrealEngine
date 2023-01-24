@@ -62,7 +62,7 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 
 		// Inline data
-		SHADER_PARAMETER_SRV(StructuredBuffer<Lumen::FHitGroupRootConstants>, HitGroupData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<Lumen::FHitGroupRootConstants>, HitGroupData)
 		END_SHADER_PARAMETER_STRUCT()
 
 		FLumenHardwareRayTracingShaderBase();
@@ -199,7 +199,8 @@ void LumenHWRTCompactRays(
 	const FRDGBufferRef& RayAllocatorBuffer,
 	const FRDGBufferRef& TraceDataPackedBuffer,
 	FRDGBufferRef& OutputRayAllocatorBuffer,
-	FRDGBufferRef& OutputTraceDataPackedBuffer
+	FRDGBufferRef& OutputTraceDataPackedBuffer,
+	ERDGPassFlags ComputePassFlags
 );
 
 void LumenHWRTBucketRaysByMaterialID(
@@ -208,7 +209,8 @@ void LumenHWRTBucketRaysByMaterialID(
 	const FViewInfo& View,
 	int32 RayCount,
 	FRDGBufferRef& RayAllocatorBuffer,
-	FRDGBufferRef& TraceDataPackedBuffer
+	FRDGBufferRef& TraceDataPackedBuffer,
+	ERDGPassFlags ComputePassFlags
 );
 
 

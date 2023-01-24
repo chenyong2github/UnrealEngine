@@ -1597,8 +1597,7 @@ public:
 	FRayTracingPipelineState* LumenHardwareRayTracingMaterialPipeline = nullptr;
 
 	// Buffer that stores the hit group data for Lumen passes that use MinimalPayload and inline ray tracing.
-	FBufferRHIRef									LumenHardwareRayTracingHitDataBuffer;
-	FShaderResourceViewRHIRef						LumenHardwareRayTracingHitDataBufferSRV;
+	FRDGBufferRef			  LumenHardwareRayTracingHitDataBuffer = nullptr;	
 
 	TArray<FRayTracingLocalShaderBindingWriter*, SceneRenderingAllocator>	RayTracingMaterialBindings; // One per binding task
 	FGraphEventRef									RayTracingMaterialBindingsTask;
