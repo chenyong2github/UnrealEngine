@@ -5,10 +5,12 @@
 #include "OnlineIdentityOculus.h"
 #include "OnlineSubsystemOculusPackage.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FOnlineLeaderboardOculus::FOnlineLeaderboardOculus(class FOnlineSubsystemOculus& InSubsystem)
 : OculusSubsystem(InSubsystem)
 {
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool FOnlineLeaderboardOculus::ReadLeaderboards(const TArray< FUniqueNetIdRef >& Players, FOnlineLeaderboardReadRef& ReadObject)
 {

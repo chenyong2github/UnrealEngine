@@ -57,10 +57,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 TSet< TSharedRef<FOnlineMessageMultiTaskOculusWriteAchievements> > FOnlineMessageMultiTaskOculusWriteAchievements::ActiveAchievementWriteTasks;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FOnlineAchievementsOculus::FOnlineAchievementsOculus(class FOnlineSubsystemOculus& InSubsystem)
 : OculusSubsystem(InSubsystem)
 {
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FOnlineAchievementsOculus::~FOnlineAchievementsOculus()
 {

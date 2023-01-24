@@ -35,7 +35,9 @@ public:
 	*
 	* @param InSubsystem online subsystem being used
 	*/
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FOnlineVoiceOculus(class FOnlineSubsystemOculus& InSubsystem);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual ~FOnlineVoiceOculus();
 
 	// IOnlineVoice
@@ -145,8 +147,10 @@ private:
 
 	int32 IndexOfRemoteTalker(const FUniqueNetId& TalkerId);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Reference to the main Oculus subsystem */
 	class FOnlineSubsystemOculus& OculusSubsystem;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FDelegateHandle VoipConnectionRequestDelegateHandle;
 	void OnVoipConnectionRequest(ovrMessageHandle Message, bool bIsError) const;
