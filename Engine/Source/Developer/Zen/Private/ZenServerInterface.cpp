@@ -29,7 +29,6 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
-#include "SocketSubsystem.h"
 #include "String/LexFromString.h"
 #include "ZenVersion.h"
 
@@ -312,30 +311,6 @@ IsLocalHost(const FString& Host)
 	if (Host.Compare(FString(TEXT("[::1]"))) == 0)
 	{
 		return true;
-	}
-
-	ISocketSubsystem& SocketSubsystem = *ISocketSubsystem::Get();
-
-	const TSharedPtr<FInternetAddr> Addr = SocketSubsystem.GetAddressFromString(Host);
-	if (!Addr)
-	{
-		UE_LOG(LogZenServiceInstance, Warning, TEXT("Failed to get internet address from host '%s'"), *Host);
-		return false;
-	}
-
-	TArray<TSharedPtr<FInternetAddr>> LocalAddresses;
-	if (!SocketSubsystem.GetLocalAdapterAddresses(LocalAddresses))
-	{
-		UE_LOG(LogZenServiceInstance, Warning, TEXT("Failed to find local adapter addresses"));
-		return false;
-	}
-
-	for (const auto& Local : LocalAddresses)
-	{
-		if (*Local == *Addr)
-		{
-			return true;
-		}
 	}
 
 	return false;
