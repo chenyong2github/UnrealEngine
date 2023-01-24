@@ -13105,7 +13105,7 @@ int32 UMaterialExpressionDeriveNormalZ::Compile(class FMaterialCompiler* Compile
 		return Compiler->Errorf(TEXT("Missing input normal xy vector whose z should be derived."));
 	}
 
-	//z = sqrt(1 - ( x * x + y * y));
+	// z = sqrt(saturate(1 - ( x * x + y * y)));
 	int32 InputVector = Compiler->ForceCast(InXY.Compile(Compiler), MCT_Float2);
 	int32 DotResult = Compiler->Dot(InputVector, InputVector);
 	int32 InnerResult = Compiler->Sub(Compiler->Constant(1), DotResult);
