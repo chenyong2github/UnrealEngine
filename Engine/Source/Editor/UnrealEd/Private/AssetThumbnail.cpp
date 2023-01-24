@@ -1178,7 +1178,10 @@ bool FAssetThumbnailPool::LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo
 {
 	const FAssetData& AssetData = CustomAssetToRender.IsValid() ? CustomAssetToRender : ThumbnailInfo->AssetData;
 	UObject* Asset = AssetData.FastGetAsset();
-	ensure(!Asset || IsValidChecked(Asset));
+	if (Asset && !IsValidChecked(Asset))
+	{
+		Asset = nullptr;
+	}
 
 	const bool bAreShadersCompiling = (GShaderCompilingManager && GShaderCompilingManager->IsCompiling());
 	if (Asset && !bAreShadersCompiling)
