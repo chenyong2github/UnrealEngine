@@ -111,9 +111,6 @@ template <class ElementType> class TLinkedList;
 
 #define HANDLE_CUSTOM_OUTPUTS_AS_MATERIAL_ATTRIBUTES 0
 
-// GPUCULL_TODO: This seems it does not even compile if turned off? (EDIT: compilation issues fixed in 18733736)
-#define ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES (1)
-
 // disallow debug data in shipping or on non-desktop Test
 #define ALLOW_SHADERMAP_DEBUG_DATA (!(UE_BUILD_SHIPPING || (UE_BUILD_TEST && !PLATFORM_DESKTOP)))
 
