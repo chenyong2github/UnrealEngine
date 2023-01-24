@@ -79,11 +79,6 @@ float EditorNITLevel;
 uint bOutputInHDR;
 float OutputMaxLuminance;
 
-#if EYEADAPTATION_EXPOSURE_FIX != 1
-// Default value used when eye adaptation is disabled (e.g fixed exposure) or not available.
-float DefaultEyeExposure;
-#endif
-
 float4 BloomDirtMaskTint;
 Texture2D BloomDirtMaskTexture;
 SamplerState BloomDirtMaskSampler;
@@ -424,12 +419,7 @@ float4 TonemapCommonPS(
 
 	SceneColor.rgb *= View.OneOverPreExposure;
 
-#if EYEADAPTATION_EXPOSURE_FIX == 1
 	float2 EyeAdaptationData = EyeAdaptationBuffer[0].xw;
-#else
-	// If eye adaptation is disabled (e.g. fixed exposure level ) or not available.  
-	float2 EyeAdaptationData = DefaultEyeExposure.xx;
-#endif
 
 	float ExposureScale = EyeAdaptationData.x;
 
