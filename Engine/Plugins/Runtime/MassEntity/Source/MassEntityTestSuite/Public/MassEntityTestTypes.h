@@ -13,10 +13,16 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Misc/MTAccessDetector.h"
 #include "MassExternalSubsystemTraits.h"
+#include "MassProcessingPhaseManager.h"
 #include "MassEntityTestTypes.generated.h"
 
 
 struct FMassEntityManager;
+struct FMassProcessingPhaseManager;
+namespace UE::Mass::Testing
+{
+	struct FMassTestProcessingPhaseManager;
+}
 
 USTRUCT()
 struct FTestFragment_Float : public FMassFragment
@@ -123,6 +129,8 @@ public:
 
 	FMassEntityQuery& TestGetQuery() { return EntityQuery; }
 
+	void SetShouldAllowDuplicates(const bool bInShouldAllowDuplicated) { bAllowDuplicates = bInShouldAllowDuplicated; }
+
 protected:
 	FMassEntityQuery EntityQuery;
 };
@@ -228,6 +236,26 @@ struct MASSENTITYTESTSUITE_API FEntityTestBase : FExecutionTestBase
 	FInstancedStruct InstanceInt;
 
 	virtual bool SetUp() override;
+};
+
+
+struct MASSENTITYTESTSUITE_API FProcessingPhasesTestBase : FEntityTestBase
+{
+	using Super = FEntityTestBase;
+
+	TSharedPtr<UE::Mass::Testing::FMassTestProcessingPhaseManager> PhaseManager;
+	FMassProcessingPhaseConfig PhasesConfig[int(EMassProcessingPhase::MAX)];
+	int32 TickIndex = -1;
+	FGraphEventRef CompletionEvent;
+	float DeltaTime = 1.f / 30;
+	UWorld* World = nullptr;
+
+	FProcessingPhasesTestBase();
+	virtual bool SetUp() override;
+	virtual bool Update() override;
+	virtual void TearDown() override;
+	virtual void VerifyLatentResults() override;
+	virtual bool PopulatePhasesConfig() = 0;
 };
 
 template<typename T>
@@ -337,3 +365,31 @@ struct TMassExternalSubsystemTraits<UMassTestGameInstanceSubsystem>
 		ThreadSafeWrite = false,
 	};
 };
+
+namespace UE::Mass::Testing
+{
+/** Test-time TaskGraph task for triggering processing phases. */
+struct FMassTestPhaseTickTask
+{
+	FMassTestPhaseTickTask(const TSharedRef<FMassProcessingPhaseManager>& InPhaseManager, const EMassProcessingPhase InPhase, const float InDeltaTime);
+
+	static TStatId GetStatId();
+	static ENamedThreads::Type GetDesiredThread();
+	static ESubsequentsMode::Type GetSubsequentsMode();
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
+
+private:
+	const TSharedRef<FMassProcessingPhaseManager> PhaseManager;
+	const EMassProcessingPhase Phase = EMassProcessingPhase::MAX;
+	const float DeltaTime = 0.f;
+};
+
+/** The main point of this FMassProcessingPhaseManager extension is to disable world-based ticking, even if a world is available. */
+struct FMassTestProcessingPhaseManager : public FMassProcessingPhaseManager
+{
+	void Start(const TSharedPtr<FMassEntityManager>& InEntityManager);
+	void OnNewArchetype(const FMassArchetypeHandle& NewArchetype);
+};
+
+} // namespace UE::Mass::Testing
