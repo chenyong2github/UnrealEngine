@@ -24,6 +24,7 @@ public class VCamCoreEditor : ModuleRules
 				"Engine",
 				"EditorFramework",
 				"EnhancedInput",
+				"InputBlueprintNodes",
 				"InputCore",
 				"LiveLinkInterface",
 				"PropertyEditor",
@@ -35,7 +36,7 @@ public class VCamCoreEditor : ModuleRules
 				"UnrealEd",
 				"VCamCore",
 				"VCamInput",
-				"VPUtilities"
+				"VPUtilities", 
 			}
 		);
 	}

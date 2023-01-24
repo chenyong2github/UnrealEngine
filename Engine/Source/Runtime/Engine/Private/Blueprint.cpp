@@ -625,6 +625,14 @@ UClass* UBlueprint::RegenerateClass(UClass* ClassToRegenerate, UObject* Previous
 	UBlueprint::ForceLoadMembers(this);
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	for (auto It = Extensions.CreateIterator(); It; ++It)
+	{
+		if (!*It)
+		{
+			It.RemoveCurrent();
+		}
+	}
+	
 	for (UBlueprintExtension* Extension : Extensions)
 	{
 		ForceLoad(Extension);
