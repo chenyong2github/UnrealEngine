@@ -30,16 +30,28 @@ UMovieSceneBlenderSystem::UMovieSceneBlenderSystem(const FObjectInitializer& Obj
 	using namespace UE::MovieScene;
 
 	SystemCategories = UE::MovieScene::EEntitySystemCategory::BlenderSystems;
+	SelectionPriority = DefaultPriority;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		// You can only ever register blender systems, never unregister them.
-		SystemID = FMovieSceneBlenderSystemID(GBlenderSystemRegistry.Num());
-		GBlenderSystemRegistry.Add(SystemID, GetClass());
+		// No need to register these for the base class
+		if (GetClass() != UMovieSceneBlenderSystem::StaticClass())
+		{
+			// You can only ever register blender systems, never unregister them.
+			SystemID = FMovieSceneBlenderSystemID(GBlenderSystemRegistry.Num());
+			GBlenderSystemRegistry.Add(SystemID, GetClass());
+
+			FComponentRegistry* ComponentRegistry = UMovieSceneEntitySystemLinker::GetComponents();
+			BlenderTypeTag = ComponentRegistry->NewTag(*GetName());
+		}
 	}
 	else 
 	{
-		SystemID = GetClass()->GetDefaultObject<UMovieSceneBlenderSystem>()->SystemID;
+		UMovieSceneBlenderSystem* CDO = GetClass()->GetDefaultObject<UMovieSceneBlenderSystem>();
+
+		SystemID = CDO->SystemID;
+		BlenderTypeTag = CDO->BlenderTypeTag;
+
 		checkf(SystemID.IsValid(), TEXT("Blender system wasn't registered correctly on init!"));
 	}
 }

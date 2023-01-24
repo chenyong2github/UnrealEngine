@@ -47,6 +47,9 @@ public:
 
 	GENERATED_BODY()
 
+	/** Default blender system priority. Higher priorities win, negative priorities are supported. */
+	static constexpr int32 DefaultPriority = 0;
+
 	/**
 	 * Get a blender system class, given a blender system ID.
 	 */
@@ -79,6 +82,21 @@ public:
 	 */
 	void ReleaseBlendChannel(FMovieSceneBlendChannelID BlendChannelID);
 
+	/**
+	 * Retrieve the selection priority to use when choosing a blender system. Highest wins.
+	 */
+	int32 GetSelectionPriority() const
+	{
+		return SelectionPriority;
+	}
+
+	/**
+	 * Retrieve the tag that should accompany any blend input and output components to be used by this blender
+	 */
+	UE::MovieScene::FComponentTypeID GetBlenderTypeTag() const
+	{
+		return BlenderTypeTag;
+	}
 
 protected:
 
@@ -93,6 +111,12 @@ protected:
 
 private:
 
+	/** Priority to use when selecting a blender system for a given set of entities. Highest priority will be used. */
+	int32 SelectionPriority;
+
 	/** Cached blender system ID */
 	FMovieSceneBlenderSystemID SystemID;
+
+	/** Type that is unique to this blender system type that distinquishes its BlendInput and Output components */
+	UE::MovieScene::FComponentTypeID BlenderTypeTag;
 };

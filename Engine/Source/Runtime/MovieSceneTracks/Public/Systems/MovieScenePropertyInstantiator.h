@@ -139,6 +139,18 @@ private:
 
 private:
 
+	struct FBlenderSystemInfo
+	{
+		UClass* BlenderSystemClass = nullptr;
+		UE::MovieScene::FComponentTypeID BlenderTypeTag;
+	};
+
+	struct FSetupBlenderSystemResult
+	{
+		FBlenderSystemInfo CurrentInfo;
+		FBlenderSystemInfo PreviousInfo;
+	};
+
 	/* Parameter structure passed around when instantiating a specific instance of a property */
 	struct FPropertyParameters
 	{
@@ -148,6 +160,11 @@ private:
 		const UE::MovieScene::FPropertyDefinition* PropertyDefinition;
 		/** The index of the PropertyInfo member within UMovieScenePropertyInstantiatorSystem::ResolvedProperties */
 		int32 PropertyInfoIndex;
+
+		void MakeOutputComponentType(
+			const UE::MovieScene::FEntityManager& EntityManager,
+			TArrayView<const UE::MovieScene::FPropertyCompositeDefinition> Composites,
+			UE::MovieScene::FComponentMask& OutComponentType) const;
 	};
 	void DiscoverInvalidatedProperties(TBitArray<>& OutInvalidatedProperties);
 	void UpgradeFloatToDoubleProperties(const TBitArray<>& InvalidatedProperties);
@@ -156,6 +173,9 @@ private:
 	bool PropertySupportsFastPath(const FPropertyParameters& Params) const;
 	void InitializeFastPath(const FPropertyParameters& Params);
 	void InitializeBlendPath(const FPropertyParameters& Params);
+
+	FSetupBlenderSystemResult SetupBlenderSystem(const FPropertyParameters& Params);
+
 	int32 ResolveProperty(UE::MovieScene::FCustomAccessorView CustomAccessors, UObject* Object, const FMovieScenePropertyBinding& PropertyBinding, int32 PropertyDefinitionIndex);
 
 	UE::MovieScene::FPropertyRecomposerPropertyInfo FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const;

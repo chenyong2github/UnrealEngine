@@ -475,7 +475,7 @@ void UMovieScenePiecewiseDoubleBlenderSystem::OnRun(FSystemTaskPrerequisites& In
 		FGraphEventRef Task = FEntityTaskBuilder()
 		.Read(BuiltInComponents->BlendChannelInput)
 		.ReadOptional(BuiltInComponents->WeightAndEasingResult)
-		.FilterAll({ BuiltInComponents->Tags.AbsoluteBlend })
+		.FilterAll({ BuiltInComponents->Tags.AbsoluteBlend, GetBlenderTypeTag() })
 		.FilterAny(BlendedResultMask)
 		.FilterNone({ BuiltInComponents->Tags.Ignored })
 		.SetStat(BlendValuesStatId)
@@ -492,7 +492,7 @@ void UMovieScenePiecewiseDoubleBlenderSystem::OnRun(FSystemTaskPrerequisites& In
 		FGraphEventRef Task = FEntityTaskBuilder()
 		.Read(BuiltInComponents->BlendChannelInput)
 		.ReadOptional(BuiltInComponents->WeightAndEasingResult)
-		.FilterAll({ BuiltInComponents->Tags.RelativeBlend })
+		.FilterAll({ BuiltInComponents->Tags.RelativeBlend, GetBlenderTypeTag() })
 		.FilterAny(BlendedResultMask)
 		.FilterNone({ BuiltInComponents->Tags.Ignored })
 		.SetStat(BlendValuesStatId)
@@ -509,7 +509,7 @@ void UMovieScenePiecewiseDoubleBlenderSystem::OnRun(FSystemTaskPrerequisites& In
 		FGraphEventRef Task = FEntityTaskBuilder()
 		.Read(BuiltInComponents->BlendChannelInput)
 		.ReadOptional(BuiltInComponents->WeightAndEasingResult)
-		.FilterAll({ BuiltInComponents->Tags.AdditiveBlend })
+		.FilterAll({ BuiltInComponents->Tags.AdditiveBlend, GetBlenderTypeTag() })
 		.FilterAny(BlendedResultMask)
 		.FilterNone({ BuiltInComponents->Tags.Ignored })
 		.SetStat(BlendValuesStatId)
@@ -526,7 +526,7 @@ void UMovieScenePiecewiseDoubleBlenderSystem::OnRun(FSystemTaskPrerequisites& In
 		FGraphEventRef Task = FEntityTaskBuilder()
 		.Read(BuiltInComponents->BlendChannelInput)
 		.ReadOptional(BuiltInComponents->WeightAndEasingResult)
-		.FilterAll({ BuiltInComponents->Tags.AdditiveFromBaseBlend })
+		.FilterAll({ BuiltInComponents->Tags.AdditiveFromBaseBlend, GetBlenderTypeTag() })
 		.FilterAny(BlendedResultMask)
 		.FilterNone({ BuiltInComponents->Tags.Ignored })
 		.SetStat(BlendValuesStatId)
@@ -543,6 +543,7 @@ void UMovieScenePiecewiseDoubleBlenderSystem::OnRun(FSystemTaskPrerequisites& In
 	{
 		FEntityTaskBuilder()
 		.Read(BuiltInComponents->BlendChannelOutput)
+		.FilterAll({ GetBlenderTypeTag() })
 		.FilterAny(BlendedPropertyMask)
 		.SetStat(CombineBlendsStatId)
 		.template Dispatch_PerAllocation<FCombineBlendsForProperties>(&EntityManager, Prereqs, &Subsequents, CachedRelevantProperties, &AccumulationBuffers, FEntityAllocationWriteContext(EntityManager));
@@ -553,6 +554,7 @@ void UMovieScenePiecewiseDoubleBlenderSystem::OnRun(FSystemTaskPrerequisites& In
 		// Blend task that combines vanilla (non-property-based) components
 		FEntityTaskBuilder()
 		.Read(BuiltInComponents->BlendChannelOutput)
+		.FilterAll({ GetBlenderTypeTag() })
 		.FilterAny(BlendedResultMask)
 		.FilterNone(BlendedPropertyMask)
 		.SetStat(CombineBlendsStatId)
@@ -581,10 +583,10 @@ void UMovieScenePiecewiseDoubleBlenderSystem::ReinitializeAccumulationBuffers()
 	{
 		TComponentTypeID<double> Component = ResultComponents[Index];
 
-		const bool bHasAbsolutes         = EntityManager.Contains(FEntityComponentFilter().All({ Component, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AbsoluteBlend }));
-		const bool bHasRelatives         = EntityManager.Contains(FEntityComponentFilter().All({ Component, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.RelativeBlend }));
-		const bool bHasAdditives         = EntityManager.Contains(FEntityComponentFilter().All({ Component, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AdditiveBlend }));
-		const bool bHasAdditivesFromBase = EntityManager.Contains(FEntityComponentFilter().All({ Component, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AdditiveFromBaseBlend }));
+		const bool bHasAbsolutes         = EntityManager.Contains(FEntityComponentFilter().All({ Component, GetBlenderTypeTag(), BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AbsoluteBlend }));
+		const bool bHasRelatives         = EntityManager.Contains(FEntityComponentFilter().All({ Component, GetBlenderTypeTag(), BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.RelativeBlend }));
+		const bool bHasAdditives         = EntityManager.Contains(FEntityComponentFilter().All({ Component, GetBlenderTypeTag(), BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AdditiveBlend }));
+		const bool bHasAdditivesFromBase = EntityManager.Contains(FEntityComponentFilter().All({ Component, GetBlenderTypeTag(), BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AdditiveFromBaseBlend }));
 
 		if (!(bHasAbsolutes || bHasRelatives || bHasAdditives || bHasAdditivesFromBase))
 		{
@@ -639,7 +641,7 @@ void UMovieScenePiecewiseDoubleBlenderSystem::ReinitializeAccumulationBuffers()
 			AllPropertyTypes.Set(PropertyDefinition.PropertyType);
 
 			InclusionFilter.Reset();
-			InclusionFilter.All({ BuiltInComponents->BlendChannelOutput, PropertyDefinition.PropertyType });
+			InclusionFilter.All({ GetBlenderTypeTag(), BuiltInComponents->BlendChannelOutput, PropertyDefinition.PropertyType });
 			if (EntityManager.Contains(InclusionFilter))
 			{
 				CachedRelevantProperties.PadToNum(PropertyTypeIndex + 1, false);
@@ -650,7 +652,7 @@ void UMovieScenePiecewiseDoubleBlenderSystem::ReinitializeAccumulationBuffers()
 		}
 	}
 
-	bContainsNonPropertyBlends = EntityManager.Contains(FEntityComponentFilter().All({ BuiltInComponents->BlendChannelOutput }).None(AllPropertyTypes));
+	bContainsNonPropertyBlends = EntityManager.Contains(FEntityComponentFilter().All({ GetBlenderTypeTag(), BuiltInComponents->BlendChannelOutput }).None(AllPropertyTypes));
 }
 
 void UMovieScenePiecewiseDoubleBlenderSystem::ZeroAccumulationBuffers()
@@ -774,7 +776,7 @@ FGraphEventRef UMovieScenePiecewiseDoubleBlenderSystem::DispatchDecomposeTask(co
 			.Read(ResultComponentType)
 			.ReadOptional(BaseValueComponentType)
 			.ReadOptional(BuiltInComponents->WeightAndEasingResult)
-			.FilterAll({ Params.PropertyTag })
+			.FilterAll({ Params.PropertyTag, GetBlenderTypeTag() })
 			.template Dispatch_PerAllocation<FChannelResultTask>(&Linker->EntityManager, FSystemTaskPrerequisites(), nullptr, Params, Output);
 	}
 	else
@@ -785,7 +787,7 @@ FGraphEventRef UMovieScenePiecewiseDoubleBlenderSystem::DispatchDecomposeTask(co
 			.Read(ResultComponentType)
 			.ReadOptional(BaseValueComponentType)
 			.ReadOptional(BuiltInComponents->WeightAndEasingResult)
-			.FilterAll({ Params.PropertyTag })
+			.FilterAll({ Params.PropertyTag, GetBlenderTypeTag() })
 			.template Dispatch_PerAllocation<FChannelResultTask>(&Linker->EntityManager, FSystemTaskPrerequisites(), nullptr, Params, Output);
 	}
 }

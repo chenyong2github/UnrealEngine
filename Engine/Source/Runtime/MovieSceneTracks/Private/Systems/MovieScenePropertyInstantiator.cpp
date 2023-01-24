@@ -562,53 +562,159 @@ void UMovieScenePropertyInstantiatorSystem::InitializeFastPath(const FPropertyPa
 	}
 }
 
+UMovieScenePropertyInstantiatorSystem::FSetupBlenderSystemResult UMovieScenePropertyInstantiatorSystem::SetupBlenderSystem(const FPropertyParameters& Params)
+{
+	using namespace UE::MovieScene;
+
+	FSetupBlenderSystemResult Result;
+
+	UClass* NewBlenderClass = nullptr;
+	int32 BlenderClassPriority = TNumericLimits<int32>::Lowest();
+
+	// Iterate all the contributors to locate the correct blender system by-priority
+	for (auto ContributorIt = Contributors.CreateConstKeyIterator(Params.PropertyInfoIndex); ContributorIt; ++ContributorIt)
+	{
+		FMovieSceneEntityID Contributor = ContributorIt.Value();
+		TOptionalComponentReader<TSubclassOf<UMovieSceneBlenderSystem>> BlenderTypeComponent = Linker->EntityManager.ReadComponent(Contributor, BuiltInComponents->BlenderType);
+		if (!BlenderTypeComponent)
+		{
+			continue;
+		}
+
+		UClass* ProspectiveBlenderClass = BlenderTypeComponent->Get();
+		if (NewBlenderClass == ProspectiveBlenderClass)
+		{
+			// If it's already the same, don't waste time getting the CDO or anything like that
+			continue;
+		}
+
+		const UMovieSceneBlenderSystem* CDO = GetDefault<UMovieSceneBlenderSystem>(ProspectiveBlenderClass);
+
+		if (!NewBlenderClass || CDO->GetSelectionPriority() > BlenderClassPriority)
+		{
+			NewBlenderClass = ProspectiveBlenderClass;
+			BlenderClassPriority = CDO->GetSelectionPriority();
+		}
+		else
+		{
+#if DO_CHECK
+			ensureMsgf(CDO->GetSelectionPriority() != BlenderClassPriority,
+				TEXT("Encountered 2 different blender classes being used with the same priority - this is undefined behavior. Please check the system classes to ensure they have different priorities (%s and %s)."),
+				*ProspectiveBlenderClass->GetName(), *NewBlenderClass->GetName());
+#endif
+		}
+	}
+
+	if (!NewBlenderClass)
+	{
+		NewBlenderClass = Params.PropertyDefinition->BlenderSystemClass;
+	}
+
+	if (!ensureMsgf(NewBlenderClass, TEXT("No default blender class specified on property, and no custom blender specified on entities. Falling back to double blender.")))
+	{
+		NewBlenderClass = UMovieScenePiecewiseDoubleBlenderSystem::StaticClass();
+	}
+
+	FComponentTypeID BlenderTypeTag = GetDefault<UMovieSceneBlenderSystem>(NewBlenderClass)->GetBlenderTypeTag();
+	ensureMsgf(BlenderTypeTag, TEXT("Encountered a blender system (%s) with an invalid type tag."), *NewBlenderClass->GetName());
+
+	FBlenderSystemInfo NewBlenderInfo{ NewBlenderClass, BlenderTypeTag };
+	FBlenderSystemInfo OldBlenderInfo;
+
+	UMovieSceneBlenderSystem* ExistingBlender = Params.PropertyInfo->Blender.Get();
+	if (ExistingBlender)
+	{
+		UClass* OldBlenderClass = ExistingBlender->GetClass();
+		if (OldBlenderClass != NewBlenderClass)
+		{
+			OldBlenderInfo = FBlenderSystemInfo{ OldBlenderClass, ExistingBlender->GetBlenderTypeTag() };
+		}
+		else
+		{
+			// It's the same - keep the same info
+			OldBlenderInfo = NewBlenderInfo;
+		}
+	}
+
+	return FSetupBlenderSystemResult{NewBlenderInfo, OldBlenderInfo};
+}
+
 void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyParameters& Params)
 {
 	using namespace UE::MovieScene;
 
 	TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(*Params.PropertyDefinition);
 
-	UClass* BlenderClass = Params.PropertyDefinition->BlenderSystemClass;
+	FSetupBlenderSystemResult SetupResult = SetupBlenderSystem(Params);
 
-	// Ensure contributors all have the necessary blend inputs and tags
-	for (auto ContributorIt = Contributors.CreateConstKeyIterator(Params.PropertyInfoIndex); ContributorIt; ++ContributorIt)
+	// -----------------------------------------------------------------------------------------------------
+	// Situation 1: New or modified contributors (inputs) but we're already set up for blending using the same system
+	if (SetupResult.CurrentInfo.BlenderSystemClass == SetupResult.PreviousInfo.BlenderSystemClass)
 	{
-		FMovieSceneEntityID Contributor = ContributorIt.Value();
+		UMovieSceneBlenderSystem* Blender = Params.PropertyInfo->Blender.Get();
+		check(Blender);
 
-		TOptionalComponentReader<TSubclassOf<UMovieSceneBlenderSystem>> BlenderTypeComponent = Linker->EntityManager.ReadComponent(Contributor, BuiltInComponents->BlenderType);
-		if (BlenderTypeComponent)
+		// Ensure the output entity still matches the correct set of channels of all inputs
+		FComponentMask NewEntityType;
+		Params.MakeOutputComponentType(Linker->EntityManager, Composites, NewEntityType);
+		Linker->EntityManager.ChangeEntityType(Params.PropertyInfo->PropertyEntityID, NewEntityType);
+
+		const FMovieSceneBlendChannelID BlendChannel(Blender->GetBlenderSystemID(), Params.PropertyInfo->BlendChannel);
+
+		// Change new contributors to include the blend input components
+		for (auto ContributorIt = NewContributors.CreateConstKeyIterator(Params.PropertyInfoIndex); ContributorIt; ++ContributorIt)
 		{
-			BlenderClass = BlenderTypeComponent->Get();
-			break;
+			FEntityBuilder()
+			.Add(BuiltInComponents->BlendChannelInput, BlendChannel)
+			.AddTag(SetupResult.CurrentInfo.BlenderTypeTag)
+			.MutateExisting(&Linker->EntityManager, ContributorIt.Value());
 		}
+
+		// Nothing more to do
+		return;
 	}
 
-	if (!ensureMsgf(BlenderClass, TEXT("No default blender class specified on property, and no custom blender specified on entities. Falling back to float blender.")))
+	// -----------------------------------------------------------------------------------------------------
+	// Situation 2: Never used blending before, or the blender type has changed
+	UMovieSceneBlenderSystem* OldBlender = Params.PropertyInfo->Blender.Get();
+	UMovieSceneBlenderSystem* NewBlender = CastChecked<UMovieSceneBlenderSystem>(Linker->LinkSystem(SetupResult.CurrentInfo.BlenderSystemClass));
+
+	const FMovieSceneBlendChannelID NewBlendChannel = NewBlender->AllocateBlendChannel();
+
+	Params.PropertyInfo->Blender = NewBlender;
+	Params.PropertyInfo->BlendChannel = NewBlendChannel.ChannelID;
+
+	FTypelessMutation InputMutation;
+
+	// -----------------------------------------------------------------------------------------------------
+	// Situation 2.1: We're already set up for blending, but with a different blender system
+	if (OldBlender)
 	{
-		BlenderClass = UMovieScenePiecewiseDoubleBlenderSystem::StaticClass();
+		const FMovieSceneBlendChannelID OldBlendChannel(OldBlender->GetBlenderSystemID(), Params.PropertyInfo->BlendChannel);
+
+		OldBlender->ReleaseBlendChannel(OldBlendChannel);
+
+		// Change the output entity by adding the new blend channel and tag, while simultaneously
+		// updating the channels and restore state flags etc added by MakeOutputComponentType
+		{
+			FTypelessMutation OutputMutation;
+			OutputMutation.RemoveAll();
+
+			Params.MakeOutputComponentType(Linker->EntityManager, Composites, OutputMutation.AddMask);
+
+			FEntityBuilder()
+			.Add(BuiltInComponents->BlendChannelOutput, NewBlendChannel)
+			.AddTag(SetupResult.CurrentInfo.BlenderTypeTag)
+			.MutateExisting(&Linker->EntityManager, Params.PropertyInfo->PropertyEntityID, OutputMutation);
+		}
+
+		// Ensure that the old blend tag is removed from inputs
+		InputMutation.Remove({ SetupResult.PreviousInfo.BlenderTypeTag });
 	}
 
-	UMovieSceneBlenderSystem* ExistingBlender = Params.PropertyInfo->Blender.Get();
-	if (ExistingBlender && BlenderClass != ExistingBlender->GetClass())
-	{
-		const FMovieSceneBlendChannelID ExistingBlendChannel(ExistingBlender->GetBlenderSystemID(), Params.PropertyInfo->BlendChannel);
-		ExistingBlender->ReleaseBlendChannel(ExistingBlendChannel);
-		Params.PropertyInfo->BlendChannel = INVALID_BLEND_CHANNEL;
-	}
-
-	UMovieSceneBlenderSystem* const Blender = CastChecked<UMovieSceneBlenderSystem>(Linker->LinkSystem(BlenderClass));
-	Params.PropertyInfo->Blender = Blender;
-
-	const bool bWasAlreadyBlended = Params.PropertyInfo->BlendChannel != INVALID_BLEND_CHANNEL;
-	if (!bWasAlreadyBlended)
-	{
-		const FMovieSceneBlendChannelID NewBlendChannel = Blender->AllocateBlendChannel();
-		Params.PropertyInfo->BlendChannel = NewBlendChannel.ChannelID;
-	}
-
-	const FMovieSceneBlendChannelID BlendChannel(Blender->GetBlenderSystemID(), Params.PropertyInfo->BlendChannel);
-
-	if (!bWasAlreadyBlended)
+	// -----------------------------------------------------------------------------------------------------
+	// Situation 2.2: Never encountered blending before - need to create a new output entity to receive the blend result
+	else
 	{
 		FComponentMask NewMask;
 		NewMask.Set(Params.PropertyDefinition->InitialValueType);
@@ -633,92 +739,66 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 		}
 		NewMask.Set(Params.PropertyDefinition->PropertyType);
 
-		FMovieSceneEntityID NewEntityID;
+		FMovieSceneEntityID NewOutputEntityID;
+
+		auto NewOutputEntity = FEntityBuilder()
+		.Add(BuiltInComponents->BlendChannelOutput,      NewBlendChannel)
+		.Add(BuiltInComponents->PropertyBinding,         Params.PropertyInfo->PropertyBinding)
+		.Add(BuiltInComponents->BoundObject,             Params.PropertyInfo->BoundObject)
+		.Add(BuiltInComponents->BlendChannelOutput,      NewBlendChannel)
+		.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, Params.PropertyInfo->PropertyEntityID.IsValid())
+		.AddTagConditional(BuiltInComponents->Tags.RestoreState, Params.PropertyInfo->bWantsRestoreState)
+		.AddTag(SetupResult.CurrentInfo.BlenderTypeTag)
+		.AddTag(BuiltInComponents->Tags.NeedsLink)
+		.AddMutualComponents();
+
 		switch (Params.PropertyInfo->Property.GetIndex())
 		{
 		// Never seen this property before
 		case 0:
-			NewEntityID = FEntityBuilder()
-			.Add(BuiltInComponents->FastPropertyOffset,      Params.PropertyInfo->Property.template Get<uint16>())
-			.Add(BuiltInComponents->PropertyBinding,         Params.PropertyInfo->PropertyBinding)
-			.Add(BuiltInComponents->BoundObject,             Params.PropertyInfo->BoundObject)
-			.Add(BuiltInComponents->BlendChannelOutput,      BlendChannel)
-			.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, Params.PropertyInfo->PropertyEntityID.IsValid())
-			.AddTagConditional(BuiltInComponents->Tags.RestoreState, Params.PropertyInfo->bWantsRestoreState)
-			.AddTag(BuiltInComponents->Tags.NeedsLink)
-			.AddMutualComponents()
+			NewOutputEntityID = NewOutputEntity
+			.Add(BuiltInComponents->FastPropertyOffset, Params.PropertyInfo->Property.template Get<uint16>())
 			.CreateEntity(&Linker->EntityManager, NewMask);
 			break;
 
 		case 1:
-			NewEntityID = FEntityBuilder()
+			NewOutputEntityID = NewOutputEntity
 			.Add(BuiltInComponents->CustomPropertyIndex, Params.PropertyInfo->Property.template Get<FCustomPropertyIndex>())
-			.Add(BuiltInComponents->PropertyBinding,     Params.PropertyInfo->PropertyBinding)
-			.Add(BuiltInComponents->BoundObject,         Params.PropertyInfo->BoundObject)
-			.Add(BuiltInComponents->BlendChannelOutput,  BlendChannel)
-			.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, Params.PropertyInfo->PropertyEntityID.IsValid())
-			.AddTagConditional(BuiltInComponents->Tags.RestoreState, Params.PropertyInfo->bWantsRestoreState)
-			.AddTag(BuiltInComponents->Tags.NeedsLink)
-			.AddMutualComponents()
 			.CreateEntity(&Linker->EntityManager, NewMask);
 			break;
 
 		case 2:
-			NewEntityID = FEntityBuilder()
-			.Add(BuiltInComponents->SlowProperty,            Params.PropertyInfo->Property.template Get<FSlowPropertyPtr>())
-			.Add(BuiltInComponents->PropertyBinding,         Params.PropertyInfo->PropertyBinding)
-			.Add(BuiltInComponents->BoundObject,             Params.PropertyInfo->BoundObject)
-			.Add(BuiltInComponents->BlendChannelOutput,      BlendChannel)
-			.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, Params.PropertyInfo->PropertyEntityID.IsValid())
-			.AddTagConditional(BuiltInComponents->Tags.RestoreState, Params.PropertyInfo->bWantsRestoreState)
-			.AddTag(BuiltInComponents->Tags.NeedsLink)
-			.AddMutualComponents()
+			NewOutputEntityID = NewOutputEntity
+			.Add(BuiltInComponents->SlowProperty, Params.PropertyInfo->Property.template Get<FSlowPropertyPtr>())
 			.CreateEntity(&Linker->EntityManager, NewMask);
 			break;
 		}
 
+		// Params.PropertyInfo->PropertyEntityID will be set if the entity was previously using the fast path
 		if (Params.PropertyInfo->PropertyEntityID)
 		{
 			// Move any copiable/migratable components over from the existing fast-path entity
-			Linker->EntityManager.CopyComponents(Params.PropertyInfo->PropertyEntityID, NewEntityID, Linker->EntityManager.GetComponents()->GetCopyAndMigrationMask());
+			Linker->EntityManager.CopyComponents(Params.PropertyInfo->PropertyEntityID, NewOutputEntityID, Linker->EntityManager.GetComponents()->GetCopyAndMigrationMask());
 
-			// Add blend inputs on the first contributor, which was using the fast-path
-			Linker->EntityManager.AddComponent(Params.PropertyInfo->PropertyEntityID, BuiltInComponents->BlendChannelInput, BlendChannel);
-			Linker->EntityManager.RemoveComponents(Params.PropertyInfo->PropertyEntityID, CleanFastPathMask);
+			// Clean the previously-fast-path entity
+			InputMutation.RemoveMask = CleanFastPathMask;
 		}
 
-		Params.PropertyInfo->PropertyEntityID = NewEntityID;
-	}
-	else
-	{
-		FComponentMask NewEntityType = Linker->EntityManager.GetEntityType(Params.PropertyInfo->PropertyEntityID);
-
-		// Ensure the property has only the exact combination of components that constitute its animation
-		for (int32 Index = 0; Index < Composites.Num(); ++Index)
-		{
-			FComponentTypeID Composite = Composites[Index].ComponentTypeID;
-			NewEntityType[Composite] = (Params.PropertyInfo->EmptyChannels[Index] != true);
-		}
-		NewEntityType.Set(Params.PropertyDefinition->PropertyType);
-
-		if (Params.PropertyInfo->bWantsRestoreState)
-		{
-			NewEntityType.Set(BuiltInComponents->Tags.RestoreState);
-		}
-		else
-		{
-			NewEntityType.Remove(BuiltInComponents->Tags.RestoreState);
-		}
-
-		Linker->EntityManager.ChangeEntityType(Params.PropertyInfo->PropertyEntityID, NewEntityType);
+		// The property entity ID is now the blend output entity
+		Params.PropertyInfo->PropertyEntityID = NewOutputEntityID;
 	}
 
-	// Ensure contributors all have the necessary blend inputs and tags
-	for (auto ContributorIt = NewContributors.CreateConstKeyIterator(Params.PropertyInfoIndex); ContributorIt; ++ContributorIt)
+	// Change *all* contributors (not just new ones because the old ones will have the old blender's channel and tag on them)
+	// to include the new blend channel input, and remove the old blender type. No need to remove the clean fast path mask because
+	// that will have already happened as part of the 'completely new blending' branch below
+	for (auto ContributorIt = Contributors.CreateConstKeyIterator(Params.PropertyInfoIndex); ContributorIt; ++ContributorIt)
 	{
 		const FMovieSceneEntityID Contributor = ContributorIt.Value();
-		Linker->EntityManager.AddComponent(Contributor, BuiltInComponents->BlendChannelInput, BlendChannel);
-		Linker->EntityManager.RemoveComponents(Contributor, CleanFastPathMask);
+
+		FEntityBuilder()
+		.Add(BuiltInComponents->BlendChannelInput, NewBlendChannel)
+		.AddTag(SetupResult.CurrentInfo.BlenderTypeTag)
+		.MutateExisting(&Linker->EntityManager, Contributor, InputMutation);
 	}
 }
 
@@ -791,3 +871,31 @@ void UMovieScenePropertyInstantiatorSystem::InitializePropertyMetaData(FSystemTa
 	InitializePropertyMetaDataTasks.Empty();
 }
 
+void UMovieScenePropertyInstantiatorSystem::FPropertyParameters::MakeOutputComponentType(
+	const UE::MovieScene::FEntityManager& EntityManager,
+	TArrayView<const UE::MovieScene::FPropertyCompositeDefinition> Composites,
+	UE::MovieScene::FComponentMask& OutComponentType) const
+{
+	using namespace UE::MovieScene;
+
+	// Get the existing type
+	OutComponentType = EntityManager.GetEntityType(PropertyInfo->PropertyEntityID);
+
+	// Ensure the property has only the exact combination of channels that constitute its animation
+	for (int32 Index = 0; Index < Composites.Num(); ++Index)
+	{
+		FComponentTypeID Composite = Composites[Index].ComponentTypeID;
+		OutComponentType[Composite] = (PropertyInfo->EmptyChannels[Index] != true);
+	}
+	OutComponentType.Set(PropertyDefinition->PropertyType);
+
+	// Set the restore state tag appropriately
+	if (PropertyInfo->bWantsRestoreState)
+	{
+		OutComponentType.Set(FBuiltInComponentTypes::Get()->Tags.RestoreState);
+	}
+	else
+	{
+		OutComponentType.Remove(FBuiltInComponentTypes::Get()->Tags.RestoreState);
+	}
+}
