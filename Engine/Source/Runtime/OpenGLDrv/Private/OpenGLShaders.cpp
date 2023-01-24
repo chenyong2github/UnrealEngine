@@ -352,7 +352,7 @@ private:
 			CompressedSize,
 			(void*)InGlslCode.GetData(),
 			UncompressedSize,
-			COMPRESS_BiasMemory);
+			COMPRESS_BiasSpeed);
 
 		if (bCompressed)
 		{
