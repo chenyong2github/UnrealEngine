@@ -61,7 +61,8 @@ public class ChaosClothAssetEditor : ModuleRules
 				"DataflowEnginePlugin",
 				"RenderCore",
 				"TypedElementFramework",
-				"TypedElementRuntime"
+				"TypedElementRuntime",
+				"AssetDefinition",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
