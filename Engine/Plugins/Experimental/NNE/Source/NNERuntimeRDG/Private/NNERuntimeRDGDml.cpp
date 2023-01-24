@@ -9,6 +9,7 @@
 #include "NNECoreAttributeMap.h"
 #include "NNECoreModelData.h"
 #include "HAL/FileManager.h"
+#include "Interfaces/IPluginManager.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "Algo/Find.h"
@@ -2082,21 +2083,23 @@ bool FRuntimeDmlStartup()
 		bLoadDirectML = false;
 	}
 
-#ifdef DIRECTML_BIN_PATH
+#if WITH_DIRECTML
 		
 	if (bIsD3D12RHI && bLoadDirectML)
 	{
-		const FString DirectMLRuntimeBinPath = TEXT(PREPROCESSOR_TO_STRING(DIRECTML_BIN_PATH));
+		const FString DirectMLRuntimeBinPath = FPlatformProcess::BaseDir() / FString(TEXT(PREPROCESSOR_TO_STRING(DIRECTML_PATH)));
 		FString DirectMLDLLPaths[2];
 		int32	NumPaths = 1;
 		
 		DirectMLDLLPaths[0] = DirectMLRuntimeBinPath / TEXT("DirectML.dll");
 
+#if WITH_DIRECTML_DEBUG
 		if (GetID3D12PlatformDynamicRHI()->IsD3DDebugEnabled())
 		{
 			DirectMLDLLPaths[1] = DirectMLRuntimeBinPath / TEXT("DirectML.Debug.dll");
 			++NumPaths;
 		}
+#endif
 
 		FPlatformProcess::PushDllDirectory(*DirectMLRuntimeBinPath);
 
@@ -2115,7 +2118,7 @@ bool FRuntimeDmlStartup()
 
 		FPlatformProcess::PopDllDirectory(*DirectMLRuntimeBinPath);
 	}
-#endif
+#endif // WITH_DIRECTML
 
 	const bool bRegisterOnlyOperators = !bLoadDirectML;
 	return bRegisterOnlyOperators;
@@ -2294,10 +2297,12 @@ bool UNNERuntimeRDGDmlImpl::Init(bool bRegisterOnlyOperators)
 	DML_CREATE_DEVICE_FLAGS DmlCreateFlags = DML_CREATE_DEVICE_FLAG_NONE;
 
 	// Set debugging flags
+#if WITH_DIRECTML_DEBUG
 	if (RHI->IsD3DDebugEnabled())
 	{
 		DmlCreateFlags |= DML_CREATE_DEVICE_FLAG_DEBUG;
 	}
+#endif
 
 	Res = DMLCreateDevice(Ctx->D3D12Device, DmlCreateFlags, DML_PPV_ARGS(&(Ctx->Device)));
 	if (!Ctx->Device)
