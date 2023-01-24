@@ -15,7 +15,7 @@ public class MacPlatform : ApplePlatform
 	/// <summary>
 	/// Default architecture to build projects for. Defaults to Intel
 	/// </summary>
-	protected string[] ProjectTargetArchitectures = { MacExports.IntelArchitecture };
+	protected UnrealArchitectures ProjectTargetArchitectures = new(UnrealArch.X64);
 
 	public MacPlatform()
 		: base(UnrealTargetPlatform.Mac)
@@ -35,15 +35,15 @@ public class MacPlatform : ApplePlatform
 
 			if (ConfigTargetArchicture.ToLower().Contains("intel"))
 			{
-				ProjectTargetArchitectures = new[] { MacExports.IntelArchitecture };
+				ProjectTargetArchitectures = new UnrealArchitectures(UnrealArch.X64);
 			}
 			else if (ConfigTargetArchicture.ToLower().Contains("apple"))
 			{
-				ProjectTargetArchitectures = new[] { MacExports.AppleArchitecture};
+				ProjectTargetArchitectures = new UnrealArchitectures(UnrealArch.Arm64);
 			}
 			else if (ConfigTargetArchicture.ToLower().Contains("universal"))
 			{
-				ProjectTargetArchitectures = new[] { MacExports.IntelArchitecture, MacExports.AppleArchitecture };
+				ProjectTargetArchitectures = new UnrealArchitectures(new[] { UnrealArch.X64, UnrealArch.Arm64 });
 			}
 		}		
 	}
@@ -105,8 +105,8 @@ public class MacPlatform : ApplePlatform
 			// if building for Distribution, and no arch is already specified, then get the distro architectures and use that for this build
 			if (Params.Distribution && !Target.UBTArgs.ToLower().Contains("-architecture="))
 			{
-				IEnumerable<string> DistroArches = PlatformExports.GetProjectArchitectures(UnrealTargetPlatform.Mac, Params.RawProjectPath, Target.TargetName, false, true);
-				Target.UBTArgs += " -architecture=" + string.Join("+", DistroArches);
+				UnrealArchitectures DistroArches = UnrealArchitectureConfig.ForPlatform(UnrealTargetPlatform.Mac).DistributionArchitectures(Params.RawProjectPath, Target.TargetName);
+				Target.UBTArgs += " -architecture=" + DistroArches.ToString();
 			}
 		}
 	}

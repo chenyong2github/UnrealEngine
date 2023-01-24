@@ -173,34 +173,7 @@ namespace UnrealBuildTool
 		{
 			base.SetUpGlobalEnvironment(Target);
 
-			// validation, because sometimes this is called from a shell script and quoting messes up		
-			if (!Target.Architecture.All(C => char.IsLetterOrDigit(C) || C == '_' || C == '+'))
-			{
-				throw new BuildException($"Architecture '{Target.Architecture}' contains invalid characters");
-			}			
-
 			SetupXcodePaths(true);
-		}
-
-		/// <summary>
-		/// Takes an architecture string as provided by UBT for the target and formats it for Clang. Supports
-		/// multiple architectures joined with '+'
-		/// </summary>
-		/// <param name="InArchitectures"></param>
-		/// <returns></returns>
-		protected string FormatArchitectureArg(string InArchitectures)
-		{
-			string ArchArg = "-arch ";
-			if (InArchitectures.Contains("+"))
-			{
-				return ArchArg + string.Join(" -arch ", InArchitectures.Split(new[] { '+' }, StringSplitOptions.RemoveEmptyEntries));
-			}
-			else
-			{
-				ArchArg += InArchitectures;
-			}
-
-			return ArchArg;
 		}
 
 		/// <inheritdoc/>
@@ -277,7 +250,7 @@ namespace UnrealBuildTool
 			}
 
 			// Pass through architecture and OS info
-			Arguments.Add("" + FormatArchitectureArg(CompileEnvironment.Architecture));
+			Arguments.Add("" + FormatArchitectureArg(CompileEnvironment.Architectures));
 			Arguments.Add($"-isysroot \"{SDKPath}\"");
 			Arguments.Add("-mmacosx-version-min=" + (CompileEnvironment.bEnableOSX109Support ? "10.9" : Settings.MacOSVersion));
 
@@ -308,7 +281,7 @@ namespace UnrealBuildTool
 		void GetLinkArguments_Global(LinkEnvironment LinkEnvironment, List<string> Arguments)
 		{
 			// Pass through architecture and OS info		
-			Arguments.Add(FormatArchitectureArg(LinkEnvironment.Architecture));
+			Arguments.Add(FormatArchitectureArg(LinkEnvironment.Architectures));
 			Arguments.Add(string.Format("-isysroot \"{0}\"", SDKPath));
 			Arguments.Add("-mmacosx-version-min=" + Settings.MacOSVersion);
 			Arguments.Add("-dead_strip");
@@ -537,11 +510,10 @@ namespace UnrealBuildTool
 			FileReference LinkerPath = bIsBuildingLibrary ? Info.Archiver : Info.Clang;
 			string LinkCommand = "";
 
-			string[] ArchStrings = LinkEnvironment.Architecture.Split('+', StringSplitOptions.RemoveEmptyEntries);
-			if (ArchStrings.Length > 1)
+			if (LinkEnvironment.Architectures.bIsMultiArch)
 			{
 				List<FileItem> PerArchOutputFiles = new();
-				foreach (string Arch in ArchStrings)
+				foreach (UnrealArch Arch in LinkEnvironment.Architectures.Architectures)
 				{
 					LinkEnvironment ArchEnvironment = new LinkEnvironment(LinkEnvironment, Arch);
 					if (!bBuildImportLibraryOnly)
@@ -732,7 +704,7 @@ namespace UnrealBuildTool
 		private FileItem MakeStubItem(LinkEnvironment LinkEnvironment, string DylibPath)
 		{
 			string IntermediateDirectory = (ProjectFile == null ? Unreal.EngineDirectory : ProjectFile.Directory) + "/Intermediate/Mac";
-			return FileItem.GetItemByPath(Path.Combine(IntermediateDirectory, "Stubs", LinkEnvironment.Architecture, Path.GetFileName(DylibPath)));
+			return FileItem.GetItemByPath(Path.Combine(IntermediateDirectory, "Stubs", LinkEnvironment.Architecture.ToString(), Path.GetFileName(DylibPath)));
 		}
 
 		private FileItem LinkArchitectureFiles(LinkEnvironment LinkEnvironment, FileReference MultiArchOutputFile, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph, out string LinkCommand)
@@ -746,7 +718,8 @@ namespace UnrealBuildTool
 
 			LinkAction.WorkingDirectory = GetMacDevSrcRoot();
 			LinkAction.CommandPath = LinkerPath;
-			LinkAction.CommandDescription = (bBuildImportLibraryOnly ? "LinkStub" : "Link") + $" [{LinkEnvironment.Architecture}]";
+			string Arch = UnrealArchitectureConfig.ForPlatform(UnrealTargetPlatform.Mac).ConvertToReadableArchitecture(LinkEnvironment.Architecture);
+			LinkAction.CommandDescription = (bBuildImportLibraryOnly ? "LinkStub" : "Link") + $" [{Arch}]";
 			LinkAction.CommandVersion = Info.ClangVersionString;
 			LinkAction.bProducesImportLibrary = bBuildImportLibraryOnly || LinkEnvironment.bIsBuildingDLL;
 

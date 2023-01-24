@@ -21,7 +21,7 @@ public class libav : ModuleRules
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			string IncPath = Path.Combine(ModuleDirectory, "include");
-			string LibPath = Path.Combine(ModuleDirectory, "lib", "Linux", Target.Architecture);
+			string LibPath = Path.Combine(ModuleDirectory, "lib", "Linux", Target.Architecture.LinuxName);
 
 			// The files we check for existence to determine whether or not we can enable the
 			// use ov libav.

@@ -18,7 +18,7 @@ public class Re2 : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Unix", Target.Architecture, "Release", "libre2.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Unix", Target.Architecture.LinuxName, "Release", "libre2.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

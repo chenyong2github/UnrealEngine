@@ -26,9 +26,9 @@ public class IntelTBB : ModuleRules
 			string LibDirTBB = Path.Combine(IntelTBBLibPath, PlatformSubPath, "vc14");
 			string LibDirTBBMalloc = LibDirTBB;
 			
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{
-				LibDirTBBMalloc = Path.Combine(LibDirTBBMalloc, Target.WindowsPlatform.GetArchitectureSubpath());
+				LibDirTBBMalloc = Path.Combine(LibDirTBBMalloc, Target.Architecture.WindowsName);
 			}
 
 			PublicSystemLibraryPaths.Add(LibDirTBB);

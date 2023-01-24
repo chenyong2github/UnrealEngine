@@ -12,9 +12,9 @@ namespace UnrealBuildTool.Rules
 
 			string PlatformSubpath = Target.Platform.ToString();
 			LibDir = Path.Combine(LibPNGPath, PlatformSubpath, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{
-				LibDir = Path.Combine(LibDir, Target.WindowsPlatform.GetArchitectureSubpath());
+				LibDir = Path.Combine(LibDir, Target.Architecture.WindowsName);
 			}
 
 			string LibFileName = "libpng";
@@ -22,7 +22,7 @@ namespace UnrealBuildTool.Rules
 			{
 				LibFileName += "d";
 			}
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64 || Target.WindowsPlatform.Architecture == UnrealArch.X64)
 			{
 				LibFileName += "_64";
 			}

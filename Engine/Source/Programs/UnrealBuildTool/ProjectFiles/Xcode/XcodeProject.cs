@@ -634,14 +634,14 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 											if (BuildPlatform.Platform == UnrealTargetPlatform.Mac)
 											{
-												string MacExecutableName = MakeExecutableFileName(ExeName, UnrealTargetPlatform.Mac, Configuration, ProjectTarget.TargetRules.Architecture, ProjectTarget.TargetRules.UndecoratedConfiguration);
+												string MacExecutableName = MakeExecutableFileName(ExeName, UnrealTargetPlatform.Mac, Configuration, ProjectTarget.TargetRules.Architectures, ProjectTarget.TargetRules.UndecoratedConfiguration);
 												string IOSExecutableName = MacExecutableName.Replace("-Mac-", "-IOS-");
 												string TVOSExecutableName = MacExecutableName.Replace("-Mac-", "-TVOS-");
 												BuildConfigs.Add(new UnrealBuildConfig(ConfigName, TargetName, FileReference.Combine(MacBinaryDir, MacExecutableName), FileReference.Combine(IOSBinaryDir, IOSExecutableName), FileReference.Combine(TVOSBinaryDir, TVOSExecutableName), ProjectTarget, Configuration));
 											}
 											else if (BuildPlatform.Platform == UnrealTargetPlatform.IOS || BuildPlatform.Platform == UnrealTargetPlatform.TVOS)
 											{
-												string IOSExecutableName = MakeExecutableFileName(ExeName, UnrealTargetPlatform.IOS, Configuration, ProjectTarget.TargetRules.Architecture, ProjectTarget.TargetRules.UndecoratedConfiguration);
+												string IOSExecutableName = MakeExecutableFileName(ExeName, UnrealTargetPlatform.IOS, Configuration, ProjectTarget.TargetRules.Architectures, ProjectTarget.TargetRules.UndecoratedConfiguration);
 												string TVOSExecutableName = IOSExecutableName.Replace("-IOS-", "-TVOS-");
 												//string MacExecutableName = IOSExecutableName.Replace("-IOS-", "-Mac-");
 												BuildConfigs.Add(new UnrealBuildConfig(ConfigName, TargetName, FileReference.Combine(MacBinaryDir, IOSExecutableName), FileReference.Combine(IOSBinaryDir, IOSExecutableName), FileReference.Combine(TVOSBinaryDir, TVOSExecutableName), ProjectTarget, Configuration));
@@ -693,7 +693,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			return false;
 		}
 
-		private static string MakeExecutableFileName(string BinaryName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture, UnrealTargetConfiguration UndecoratedConfiguration)
+		private static string MakeExecutableFileName(string BinaryName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UnrealArchitectures Architectures, UnrealTargetConfiguration UndecoratedConfiguration)
 		{
 			StringBuilder Result = new StringBuilder();
 
@@ -705,9 +705,9 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 
 			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform);
-			if (BuildPlatform.RequiresArchitectureSuffix())
+			if (UnrealArchitectureConfig.ForPlatform(Platform).RequiresArchitectureFilenames(Architectures))
 			{
-				Result.Append(Architecture);
+				Result.Append(Architectures.ToString());
 			}
 
 			return Result.ToString();
@@ -715,7 +715,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 
 		// cache for the below function
-		Dictionary<string, IEnumerable<string>> CachedMacProjectArchitectures = new Dictionary<string, IEnumerable<string>>();
+		Dictionary<string, UnrealArchitectures> CachedMacProjectArchitectures = new();
 
 		/// <summary>
 		/// Returns the Mac architectures that should be configured for the provided target. If the target has a project we'll adhere
@@ -727,10 +727,10 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		/// <param name="Config">Build config for the target we're generating</param>
 		/// <param name="InProjectFile">Path to the project file, or null if the target has no project</param>
 		/// <returns></returns>
-		public IEnumerable<string> GetSupportedMacArchitectures(UnrealBuildConfig Config, FileReference? InProjectFile)
+		public UnrealArchitectures GetSupportedMacArchitectures(UnrealBuildConfig Config, FileReference? InProjectFile)
 		{
 			// All architectures supported
-			IEnumerable<string> AllArchitectures = new[] { MacExports.IntelArchitecture, MacExports.AppleArchitecture };
+			UnrealArchitectures AllArchitectures = new(new[] { UnrealArch.X64, UnrealArch.Arm64 });
 
 			// Add a way on the command line of forcing a project file with all architectures (there isn't a good way to let this be
 			// set and checked where we can access it).
@@ -746,7 +746,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			// First time seeing this target?
 			if (!CachedMacProjectArchitectures.ContainsKey(TargetName))
 			{
-				CachedMacProjectArchitectures[TargetName] = PlatformExports.GetProjectArchitectures(UnrealTargetPlatform.Mac, InProjectFile, TargetName, bGetAllSupported: true);
+				CachedMacProjectArchitectures[TargetName] = UnrealArchitectureConfig.ForPlatform(UnrealTargetPlatform.Mac).ProjectSupportedArchitectures(InProjectFile, TargetName);
 			}
 
 			return CachedMacProjectArchitectures[TargetName];
@@ -1837,7 +1837,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				FileReference MacExecutablePath = Config.MacExecutablePath!;
 				string MacExecutableDir = XcodeFileCollection.ConvertPath(MacExecutablePath.Directory.FullName);
 				string MacExecutableFileName = MacExecutablePath.GetFileName();
-				string SupportedMacArchitectures = string.Join(" ", UnrealData.GetSupportedMacArchitectures(Config, UnrealData.UProjectFileLocation));
+				string SupportedMacArchitectures = string.Join(" ", UnrealData.GetSupportedMacArchitectures(Config, UnrealData.UProjectFileLocation).Architectures.Select(x => x.AppleName));
 
 				string SupportedPlatforms = "";
 				if (Config.ProjectTarget!.TargetRules != null)

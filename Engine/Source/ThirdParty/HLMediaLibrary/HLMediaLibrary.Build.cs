@@ -22,7 +22,7 @@ public class HLMediaLibrary : ModuleRules
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		string Config = Target.Configuration == UnrealTargetConfiguration.Debug ? "Debug" : "Release";
-		string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
+		string Arch = Target.Architecture.WindowsName;
 		string SubPath = Path.Combine(Platform, Config, Arch);
 
 		string LibPath = Path.Combine(BaseDir, "lib", SubPath);

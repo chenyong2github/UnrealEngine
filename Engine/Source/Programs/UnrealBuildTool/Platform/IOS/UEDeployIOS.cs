@@ -309,22 +309,8 @@ namespace UnrealBuildTool
 			string BundleShortVersion;
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "VersionInfo", out BundleShortVersion);
 
-			// required capabilities
-			string RequiredCaps = "";
-
-			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.IOS)).ReadProjectSettings(ProjectFile);
-
-			List<string> Arches = ((Config == UnrealTargetConfiguration.Shipping) ? ProjectSettings.ShippingArchitectures : ProjectSettings.NonShippingArchitectures).ToList();
-			if (Arches.Count > 1)
-			{
-				RequiredCaps += "\t\t<string>armv7</string>\n";
-			}
-			else
-			{
-				RequiredCaps += "\t\t<string>" + Arches[0] + "</string>\n";
-			}
-
-			//ConfigHierarchy GameIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirRef, UnrealTargetPlatform.IOS);
+			// required capabilities (arm64 always required)
+			string RequiredCaps = "\t\t<string>arm64</string>\n";
 
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportsMetal", out bSupported);
 			RequiredCaps += bSupported ? "\t\t<string>metal</string>\n" : "";

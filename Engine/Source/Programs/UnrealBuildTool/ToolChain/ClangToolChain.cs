@@ -831,7 +831,7 @@ namespace UnrealBuildTool
 			Arguments.Add("-c");
 			Arguments.Add("-pipe");
 
-			if (UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform).IsX86Architecture(CompileEnvironment.Architecture))
+			if (CompileEnvironment.Architecture.bIsX64)
 			{		
 				// UE5 minspec is 4.2
 				Arguments.Add("-msse4.2");
@@ -1034,9 +1034,10 @@ namespace UnrealBuildTool
 			CompileAction.CommandPath = Info.Clang;
 			CompileAction.CommandVersion = Info.ClangVersionString;
 			CompileAction.CommandDescription = IsAnalyzing(CompileEnvironment) ? "Analyze" : "Compile";
-			if (CompileEnvironment.Architecture != "")
+			UnrealArchitectureConfig ArchConfig = UnrealArchitectureConfig.ForPlatform(CompileEnvironment.Platform);
+			if (ArchConfig.Mode != UnrealArchitectureMode.SingleArchitecture)
 			{
-				string ReadableArch = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform).ConvertToReadableArchitecture(CompileEnvironment.Architecture);
+				string ReadableArch = ArchConfig.ConvertToReadableArchitecture(CompileEnvironment.Architecture);
 				CompileAction.CommandDescription += $" [{ReadableArch}]";
 			}
 			CompileAction.StatusDescription = Path.GetFileName(SourceFile.AbsolutePath);

@@ -42,34 +42,30 @@ namespace UnrealBuildTool
 			return null;
 		}
 
-		// when compiling/linking separately, if the current architecture matches this, then the output won't include the architecture name in it
-		public string ArchitectureWithoutMarkup()
-		{
-			return "";
-		}
-
 		protected abstract CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph);
 		 
 		public CPPOutput CompileAllCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			CPPOutput Result;
-			string[] ArchStrings = CompileEnvironment.Architecture.Split('+', StringSplitOptions.RemoveEmptyEntries);
-
-			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform);
+			
+			UnrealArchitectureConfig ArchConfig = UnrealArchitectureConfig.ForPlatform(CompileEnvironment.Platform);
 			// compile architectures separately if needed
-			if (ArchStrings.Length > 1 && !BuildPlatform.CanCompileArchitecturesInSinglePass(ArchStrings))
+			if (ArchConfig.Mode == UnrealArchitectureMode.SingleTargetCompileSeparately || ArchConfig.Mode == UnrealArchitectureMode.SingleTargetLinkSeparately)
 			{
 				Result = new CPPOutput();
-				foreach (string ArchString in ArchStrings)
+				foreach (UnrealArch Arch in CompileEnvironment.Architectures.Architectures)
 				{
 					// determine the output location of intermediates (so, if OutputDir had the arch name in it, like Intermediate/x86+arm64, we would replace it with either emptry string
-					// or a single arch name
-					string ArchReplacement = string.Compare(ArchitectureWithoutMarkup(), ArchString, true) == 0 ? "" : BuildPlatform.GetFolderNameForArchitecture(ArchString);
-					DirectoryReference ArchOutputDir = new(OutputDir.FullName.Replace(CompileEnvironment.Architecture, ArchReplacement));
+					// or a single arch name depending on if the platform uses architecture directories for the architecture)
+					// @todo Add ArchitectureConfig.RequiresArchitectureFilenames but for directory -- or can we just use GetFolderNameForArch?!?!?
+//					string ArchReplacement = (Arch == ArchitectureWithoutMarkup()) ? "" : ArchConfig.GetFolderNameForArchitecture(Arch);
 
-					CppCompileEnvironment ArchEnvironment = new(CompileEnvironment, ArchString);
+					string PlatformArchitecturesString = ArchConfig.GetFolderNameForArchitectures(CompileEnvironment.Architectures);
+					DirectoryReference ArchOutputDir = new(OutputDir.FullName.Replace(PlatformArchitecturesString, ArchConfig.GetFolderNameForArchitecture(Arch)));
+
+					CppCompileEnvironment ArchEnvironment = new(CompileEnvironment, Arch);
 					CPPOutput ArchResult = CompileCPPFiles(ArchEnvironment, InputFiles, ArchOutputDir, ModuleName, Graph);
-					Result.Merge(ArchResult, ArchString);
+					Result.Merge(ArchResult, Arch);
 				}
 			}
 			else
@@ -119,20 +115,21 @@ namespace UnrealBuildTool
 		public virtual FileItem[] LinkAllFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
 			List<FileItem> Result = new();
-			string[] ArchStrings = LinkEnvironment.Architecture.Split('+', StringSplitOptions.RemoveEmptyEntries);
 
 			// compile architectures separately if needed
-			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(LinkEnvironment.Platform);
-			if (ArchStrings.Length > 1 && !BuildPlatform.CanLinkArchitecturesInSinglePass(ArchStrings))
+			UnrealArchitectureConfig ArchConfig = UnrealArchitectureConfig.ForPlatform(LinkEnvironment.Platform);
+			if (ArchConfig.Mode == UnrealArchitectureMode.SingleTargetLinkSeparately)
 			{
-				foreach (string ArchString in ArchStrings)
+				foreach (UnrealArch Arch in LinkEnvironment.Architectures.Architectures)
 				{
-					LinkEnvironment ArchEnvironment = new LinkEnvironment(LinkEnvironment, ArchString);
+					LinkEnvironment ArchEnvironment = new LinkEnvironment(LinkEnvironment, Arch);
 						
 					// determine the output location of intermediates (so, if OutputDir had the arch name in it, like Intermediate/x86+arm64, we would replace it with either emptry string
 					// or a single arch name
-					string ArchReplacement = string.Compare(ArchitectureWithoutMarkup(), ArchString, true) == 0 ? "" : BuildPlatform.GetFolderNameForArchitecture(ArchString);
-					ArchEnvironment.OutputFilePaths = LinkEnvironment.OutputFilePaths.Select(x => new FileReference(x.FullName.Replace(LinkEnvironment.Architecture, ArchReplacement))).ToList();
+					//string ArchReplacement = Arch == ArchitectureWithoutMarkup() ? "" : ArchConfig.GetFolderNameForArchitecture(Arch);
+					string PlatformArchitecturesString = ArchConfig.GetFolderNameForArchitectures(LinkEnvironment.Architectures);
+
+					ArchEnvironment.OutputFilePaths = LinkEnvironment.OutputFilePaths.Select(x => new FileReference(x.FullName.Replace(PlatformArchitecturesString, ArchConfig.GetFolderNameForArchitecture(Arch)))).ToList();
 
 					FileItem? LinkFile = LinkFiles(ArchEnvironment, bBuildImportLibraryOnly, Graph);
 					if (LinkFile != null)

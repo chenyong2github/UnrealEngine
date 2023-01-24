@@ -1025,7 +1025,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Per-architecture lists of dependencies for linking to ignore (useful when building for multiple architectures, and a lib only is needed for one architecture), it's up to the Toolchain to use this
 		/// </summary>
-		public Dictionary<string, List<string>> DependenciesToSkipPerArchitecture = new();
+		public Dictionary<string, List<UnrealArch>> DependenciesToSkipPerArchitecture = new();
 
 		/// <summary>
 		/// Returns the directory of where the passed in module name lives.

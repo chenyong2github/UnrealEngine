@@ -946,17 +946,24 @@ namespace AutomationTool
 			this.DeviceUsername = ParseParamValueIfNotSpecified(Command, DeviceUsername, "deviceuser", String.Empty);
 			this.DevicePassword = ParseParamValueIfNotSpecified(Command, DevicePassword, "devicepass", String.Empty);
 			this.CrashReporter = GetParamValueIfNotSpecified(Command, CrashReporter, this.CrashReporter, "crashreporter");
-			this.SpecifiedArchitecture = ParseParamValueIfNotSpecified(Command, SpecifiedArchitecture, "specifiedarchitecture", String.Empty);
-			// if SpecifiedArchitecture is used, then set them all to it, and then allow comandline to override specific ones
-			this.ServerArchitecture = this.EditorArchitecture = this.ClientArchitecture = this.ProgramArchitecture = this.SpecifiedArchitecture;
-			this.ServerArchitecture = ParseParamValueIfNotSpecified(Command, ServerArchitecture, "serverarchitecture", this.ServerArchitecture);
-			this.EditorArchitecture = ParseParamValueIfNotSpecified(Command, EditorArchitecture, "editorarchitecture", this.EditorArchitecture);
-			this.ClientArchitecture = ParseParamValueIfNotSpecified(Command, ClientArchitecture, "clientarchitecture", this.ClientArchitecture);
-			this.ProgramArchitecture = ParseParamValueIfNotSpecified(Command, ProgramArchitecture, "programarchitecture", this.ProgramArchitecture);
 			this.UbtArgs = ParseParamValueIfNotSpecified(Command, UbtArgs, "ubtargs", String.Empty);
 			this.AdditionalPackageOptions = ParseParamValueIfNotSpecified(Command, AdditionalPackageOptions, "AdditionalPackageOptions", String.Empty);
 			this.WriteBackMetadataToAssetRegistry = ParseParamValueIfNotSpecified(Command, WriteBackMetadataToAssetRegistry, "WriteBackMetadataToAssetRegistry", String.Empty);
 			this.RetainStagedDirectory = GetParamValueIfNotSpecified(Command, RetainStagedDirectory, this.RetainStagedDirectory, "RetainStagedDirectory");
+
+			string SpecifiedArchString, ServerArchString, EditorArchString, ClientArchString, ProgramArchString;
+			SpecifiedArchString = ParseParamValueIfNotSpecified(Command, SpecifiedArchitecture, "specifiedarchitecture", null);
+			// if SpecifiedArchitecture is used, then set them all to it, and then allow comandline to override specific ones
+			ServerArchString = EditorArchString = ClientArchString = ProgramArchString = SpecifiedArchString;
+			ServerArchString = ParseParamValueIfNotSpecified(Command, ServerArchitecture, "serverarchitecture", ServerArchString);
+			EditorArchString = ParseParamValueIfNotSpecified(Command, EditorArchitecture, "editorarchitecture", EditorArchString);
+			ClientArchString = ParseParamValueIfNotSpecified(Command, ClientArchitecture, "clientarchitecture", ClientArchString);
+			ProgramArchString = ParseParamValueIfNotSpecified(Command, ProgramArchitecture, "programarchitecture", ProgramArchString);
+			this.SpecifiedArchitecture = UnrealArchitectures.FromString(SpecifiedArchString, null);
+			this.ServerArchitecture = UnrealArchitectures.FromString(ServerArchString, null);
+			this.EditorArchitecture = UnrealArchitectures.FromString(EditorArchString, null);
+			this.ClientArchitecture = UnrealArchitectures.FromString(ClientArchString, null);
+			this.ProgramArchitecture = UnrealArchitectures.FromString(ProgramArchString, null);
 
 			// -trace can be used with or without a value
 			if (Trace != null || GetParamValueIfNotSpecified(Command, null, false, "trace"))
@@ -2237,19 +2244,19 @@ namespace AutomationTool
         public int RunTimeoutSeconds;
 
 		[Help("SpecifiedArchitecture", "Architecture to use for building any executables (see EditorArchitecture, etc for specific target type control)")]
-		public string SpecifiedArchitecture;
+		private UnrealArchitectures SpecifiedArchitecture;
 
 		[Help("EditorArchitecture", "Architecture to use for building editor executables")]
-		public string EditorArchitecture;
+		public UnrealArchitectures EditorArchitecture;
 
 		[Help("ServerArchitecture", "Architecture to use for building server executables")]
-		public string ServerArchitecture;
+		public UnrealArchitectures ServerArchitecture;
 
 		[Help("ClientArchitecture", "Architecture to use for building client/game executables")]
-		public string ClientArchitecture;
+		public UnrealArchitectures ClientArchitecture;
 
 		[Help("ProgramArchitecture", "Architecture to use for building program executables")]
-		public string ProgramArchitecture;
+		public UnrealArchitectures ProgramArchitecture;
 
 		[Help("UbtArgs", "extra options to pass to ubt")]
 		public string UbtArgs;

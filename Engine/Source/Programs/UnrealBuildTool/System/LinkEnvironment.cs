@@ -28,7 +28,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The architecture that is being compiled/linked (empty string by default)
 		/// </summary>
-		public readonly string Architecture;
+		public UnrealArchitectures Architectures;
+
+		/// <summary>
+		/// Gets the Architecture in the normal case where there is a single Architecture in Architectures
+		/// </summary>
+		public UnrealArch Architecture => Architectures.SingleArchitecture;
 
 		/// <summary>
 		/// On Mac, indicates the path to the target's application bundle
@@ -120,7 +125,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Per-architecture lists of dependencies for linking to ignore (useful when building for multiple architectures, and a lib only is needed for one architecture), it's up to the Toolchain to use this
 		/// </summary>
-		public Dictionary<string, HashSet<string>> DependenciesToSkipPerArchitecture = new();
+		public Dictionary<string, HashSet<UnrealArch>> DependenciesToSkipPerArchitecture = new();
 
 		/// <summary>
 		/// Additional arguments to pass to the linker.
@@ -342,11 +347,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Default constructor.
 		/// </summary>
-		public LinkEnvironment(UnrealTargetPlatform Platform, CppConfiguration Configuration, string Architecture)
+		public LinkEnvironment(UnrealTargetPlatform Platform, CppConfiguration Configuration, UnrealArchitectures Architectures)
 		{
 			this.Platform = Platform;
 			this.Configuration = Configuration;
-			this.Architecture = Architecture;
+			this.Architectures = new(Architectures);
 		}
 
 		/// <summary>
@@ -356,7 +361,7 @@ namespace UnrealBuildTool
 		{
 			Platform = Other.Platform;
 			Configuration = Other.Configuration;
-			Architecture = Other.Architecture;
+			Architectures = Other.Architectures;
 			BundleDirectory = Other.BundleDirectory;
 			OutputDirectory = Other.OutputDirectory;
 			IntermediateDirectory = Other.IntermediateDirectory;
@@ -415,9 +420,9 @@ namespace UnrealBuildTool
 			ModuleDefinitionFile = Other.ModuleDefinitionFile;
 			AdditionalProperties.AddRange(Other.AdditionalProperties);
 
-			foreach (KeyValuePair<string, HashSet<string>> Pair in Other.DependenciesToSkipPerArchitecture)
+			foreach (KeyValuePair<string, HashSet<UnrealArch>> Pair in Other.DependenciesToSkipPerArchitecture)
 			{
-				DependenciesToSkipPerArchitecture[Pair.Key] = new HashSet<string>(Pair.Value);
+				DependenciesToSkipPerArchitecture[Pair.Key] = new HashSet<UnrealArch>(Pair.Value);
 			}
 		}
 
@@ -426,14 +431,19 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Other">Parent LinkEnvironment to start with that may have been created from multiple architectures (arch1+arch2)</param>
 		/// <param name="OverrideArchitecture">The single architecture to filter down to</param>
-		public LinkEnvironment(LinkEnvironment Other, string OverrideArchitecture)
+		public LinkEnvironment(LinkEnvironment Other, UnrealArch OverrideArchitecture)
 			: this(Other)
 		{
-			Architecture = OverrideArchitecture;
+			Architectures = new UnrealArchitectures(OverrideArchitecture);
 
 			// filter the input files 
-			string IntermediateDirPart = UEBuildPlatform.GetBuildPlatform(Platform).GetFolderNameForArchitecture(OverrideArchitecture);
+			UnrealArchitectureConfig ArchConfig = UnrealArchitectureConfig.ForPlatform(Platform);
+			string IntermediateDirPart = ArchConfig.GetFolderNameForArchitectures(Architectures);
 			InputFiles = Other.InputFiles.Where(x => x.Location.ContainsName(IntermediateDirPart, 0)).ToList();
+
+			IntermediateDirectory = new DirectoryReference(Other.IntermediateDirectory!.FullName.Replace(
+				ArchConfig.GetFolderNameForArchitectures(Other.Architectures),
+				ArchConfig.GetFolderNameForArchitecture(OverrideArchitecture)));
 
 			if (DependenciesToSkipPerArchitecture.Count() > 0)
 			{

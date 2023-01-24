@@ -115,9 +115,149 @@ namespace UnrealBuildTool
 		#endregion
 	}
 
+	class MacArchitectureConfig : UnrealArchitectureConfig
+	{
+		public MacArchitectureConfig()
+			: base(UnrealArchitectureMode.SingleTargetCompileSeparately, new[] { UnrealArch.X64, UnrealArch.Arm64 })
+		{
+		}
+
+		public override string ConvertToReadableArchitecture(UnrealArch Architecture)
+		{
+			if (Architecture == UnrealArch.X64)
+			{
+				return "Intel";
+			}
+			if (Architecture == UnrealArch.Arm64)
+			{
+				return "Apple";
+			}
+			return base.ConvertToReadableArchitecture(Architecture);
+		}
+
+		public override UnrealArchitectures ActiveArchitectures(FileReference? ProjectFile, string? TargetName)
+		{
+			return GetProjectArchitectures(ProjectFile, TargetName, false, false);
+		}
+
+		public override UnrealArchitectures DistributionArchitectures(FileReference? ProjectFile, string? TargetName)
+		{
+			return GetProjectArchitectures(ProjectFile, TargetName, false, true);
+		}
+
+		public override UnrealArchitectures ProjectSupportedArchitectures(FileReference? ProjectFile, string? TargetName = null)
+		{
+			return GetProjectArchitectures(ProjectFile, TargetName, true, false);
+		}
+
+		private UnrealArchitectures GetProjectArchitectures(FileReference? ProjectFile, string? TargetName, bool bGetAllSupported, bool bIsDistributionMode)
+		{
+			bool bIsEditor = false;
+
+			// get project ini from ProjetFile, or if null, then try to get it from the target rules
+			if (TargetName != null)
+			{
+				RulesAssembly RulesAsm;
+				if (ProjectFile == null)
+				{
+					RulesAsm = RulesCompiler.CreateEngineRulesAssembly(Unreal.IsEngineInstalled(), false, false, Log.Logger);
+				}
+				else
+				{
+					RulesAsm = RulesCompiler.CreateProjectRulesAssembly(ProjectFile, Unreal.IsEngineInstalled(), false, false, Log.Logger);
+				}
+
+				// CreateTargetRules here needs to have an UnrealArchitectures object, because otherwise with 'null', it will call
+				// back to this function to get the ActiveArchitectures! in this case the arch is unimportant
+				UnrealArchitectures DummyArchitectures = new(UnrealArch.X64);
+				TargetRules? Rules = RulesAsm.CreateTargetRules(TargetName, UnrealTargetPlatform.Mac, UnrealTargetConfiguration.Development, DummyArchitectures, ProjectFile, null, Log.Logger);
+				bIsEditor = Rules.Type == TargetType.Editor;
+
+				// the projectfile passed in may be a game's uproject file that we are compiling a program in the context of, 
+				// but we still want the settings for the program
+				if (Rules.Type == TargetType.Program)
+				{
+					ProjectFile = Rules.ProjectFile;
+				}
+			}
+
+			ConfigHierarchy EngineIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.Mac);
+
+			// get values from project ini
+			string SupportKey = bIsEditor ? "EditorTargetArchitecture" : "TargetArchitecture";
+			string DefaultKey = bIsEditor ? "EditorDefaultArchitecture" : "DefaultArchitecture";
+			string SupportedArchitecture;
+			string DefaultArchitecture;
+			EngineIni.GetString("/Script/MacTargetPlatform.MacTargetSettings", SupportKey, out SupportedArchitecture);
+			EngineIni.GetString("/Script/MacTargetPlatform.MacTargetSettings", DefaultKey, out DefaultArchitecture);
+			SupportedArchitecture = SupportedArchitecture.ToLower();
+			DefaultArchitecture = DefaultArchitecture.ToLower();
+
+			bool bSupportsArm64 = SupportedArchitecture.Contains("universal") || SupportedArchitecture.Contains("apple");
+			bool bSupportsX86 = SupportedArchitecture.Contains("universal") || SupportedArchitecture.Contains("intel");
+
+			// make sure we found a good value
+			if (!bSupportsArm64 && !bSupportsX86)
+			{
+				throw new BuildException($"Unknown {DefaultKey} value found ('{DefaultArchitecture}') in .ini");
+			}
+
+			// choose a supported architecture(s) based on desired type
+			List<UnrealArch> Architectures = new();
+
+			// return all supported if getting supported, compiling for distribution, or we want active, and "all" is selected
+			if (bGetAllSupported || bIsDistributionMode || DefaultArchitecture.Equals("all", StringComparison.InvariantCultureIgnoreCase))
+			{
+				if (bSupportsArm64)
+				{
+					Architectures.Add(UnrealArch.Arm64);
+				}
+				if (bSupportsX86)
+				{
+					Architectures.Add(UnrealArch.X64);
+				}
+			}
+			else if (DefaultArchitecture.Equals("host", StringComparison.InvariantCultureIgnoreCase))
+			{
+				if (MacExports.IsRunningOnAppleArchitecture && bSupportsArm64)
+				{
+					Architectures.Add(UnrealArch.Arm64);
+				}
+				else
+				{
+					Architectures.Add(UnrealArch.X64);
+				}
+			}
+			else if (DefaultArchitecture.Contains("apple"))
+			{
+				if (!bSupportsArm64)
+				{
+					throw new BuildException($"{DefaultKey} is set to {DefaultArchitecture}, but AppleSilicon is not a supported architecture");
+				}
+				Architectures.Add(UnrealArch.Arm64);
+			}
+			else if (DefaultArchitecture.Contains("intel"))
+			{
+				if (!bSupportsX86)
+				{
+					throw new BuildException($"{DefaultKey} is set to {DefaultArchitecture}, but Intel is not a supported architecture");
+				}
+				Architectures.Add(UnrealArch.X64);
+			}
+			else
+			{
+				throw new BuildException($"Unknown {DefaultKey} value found ('{DefaultArchitecture}') in .ini");
+			}
+
+			return new UnrealArchitectures(Architectures);
+		}
+
+	}
+
 	class MacPlatform : UEBuildPlatform
 	{
-		public MacPlatform(UEBuildPlatformSDK InSDK, ILogger InLogger) : base(UnrealTargetPlatform.Mac, InSDK, InLogger)
+		public MacPlatform(UEBuildPlatformSDK InSDK, ILogger InLogger) 
+			: base(UnrealTargetPlatform.Mac, InSDK, new MacArchitectureConfig(), InLogger)
 		{
 		}
 
@@ -162,7 +302,7 @@ namespace UnrealBuildTool
 			}
 
 			// Mac-Arm todo - Remove this all when we feel confident no more x86-only plugins will come around
-			bool bCompilingForArm = Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0;
+			bool bCompilingForArm = Target.Architectures.Contains(UnrealArch.Arm64);
 			if (bCompilingForArm && Target.Name != "UnrealHeaderTool")
 			{
 				Target.DisablePlugins.AddRange(new string[]
@@ -218,161 +358,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public override bool CanCompileArchitecturesInSinglePass(IEnumerable<string> InArchitectures)
-		{
-			return false;
-		}
-
-		public override bool CanLinkArchitecturesInSinglePass(IEnumerable<string> InArchitectures)
-		{
-			return true;
-		}
-
-		public override bool RequiresArchitectureSuffix()
-		{
-			return false;
-		}
-
-		public override string ConvertToPlatformArchitecture(string Architecture)
-		{
-			switch (Architecture.ToLower())
-			{
-				case "x86_64":
-				case "x64":
-				case "intel":
-				case "x86":
-					return MacExports.IntelArchitecture;
-
-				case "arm64":
-				case "arm":
-				case "apple":
-				case "applesilicon":
-				case "m1":
-					return MacExports.AppleArchitecture;
-			}
-			throw new BuildException($"Unknown architecture {Architecture}");
-		}
-
-		public override string ConvertToReadableArchitecture(string Architecture)
-		{
-			if (Architecture == MacExports.IntelArchitecture)
-			{
-				return "Intel";
-			}
-			if (Architecture == MacExports.AppleArchitecture)
-			{
-				return "Apple";
-			}
-			return Architecture;
-		}
-
-		public override bool IsX86Architecture(string Architecture)
-		{
-			return Architecture == MacExports.IntelArchitecture;
-		}
-
-		public override string GetDefaultArchitecture(FileReference? ProjectFile)
-		{
-			// by default use Intel.
-			return MacExports.DefaultArchitecture;
-		}
-
-		public override IEnumerable<string> GetProjectArchitectures(FileReference? ProjectFile, string? TargetName, bool bGetAllSupported, bool bIsDistributionMode)
-		{
-			bool bIsEditor = false;
-			//// get project ini from ProjetFile, or if null, then try to get it from the target rules
-			//DirectoryReference? ProjectDir = null;
-			if (TargetName != null)
-			{
-				RulesAssembly RulesAsm;
-				if (ProjectFile == null)
-				{
-					RulesAsm = RulesCompiler.CreateEngineRulesAssembly(Unreal.IsEngineInstalled(), false, false, Log.Logger);
-				}
-				else
-				{
-					RulesAsm = RulesCompiler.CreateProjectRulesAssembly(ProjectFile, Unreal.IsEngineInstalled(), false, false, Log.Logger);
-				}
-				TargetRules? Rules = RulesAsm.CreateTargetRules(TargetName, UnrealTargetPlatform.Mac, UnrealTargetConfiguration.Development, "", ProjectFile, null, Log.Logger);
-				bIsEditor = Rules.Type == TargetType.Editor;
-				// the projectfile passed in may be a game's uproject file that we are compiling a program in the context of, 
-				// but we still want the settings for the program
-				if (Rules.Type == TargetType.Program)
-				{
-					ProjectFile = Rules.ProjectFile;
-				}
-			}
-
-			ConfigHierarchy EngineIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.Mac);
-
-			// get values from project ini
-			string SupportKey = bIsEditor ? "EditorTargetArchitecture" : "TargetArchitecture";
-			string DefaultKey = bIsEditor ? "EditorDefaultArchitecture" : "DefaultArchitecture";
-			string SupportedArchitecture;
-			string DefaultArchitecture;
-			EngineIni.GetString("/Script/MacTargetPlatform.MacTargetSettings", SupportKey, out SupportedArchitecture);
-			EngineIni.GetString("/Script/MacTargetPlatform.MacTargetSettings", DefaultKey, out DefaultArchitecture);
-			SupportedArchitecture = SupportedArchitecture.ToLower();
-			DefaultArchitecture = DefaultArchitecture.ToLower();
-
-			bool bSupportsArm64 = SupportedArchitecture.Contains("universal") || SupportedArchitecture.Contains("apple");
-			bool bSupportsX86 = SupportedArchitecture.Contains("universal") || SupportedArchitecture.Contains("intel");
-
-			// make sure we found a good value
-			if (!bSupportsArm64 && !bSupportsX86)
-			{
-				throw new BuildException($"Unknown {DefaultKey} value found ('{DefaultArchitecture}') in .ini");
-			}
-
-			// choose a supported architecture(s) based on desired type
-			List<string> Architectures = new();
-
-			// return all supported if getting supported, compiling for distribution, or we want active, and "all" is selected
-			if (bGetAllSupported || bIsDistributionMode || DefaultArchitecture.Equals("all", StringComparison.InvariantCultureIgnoreCase))
-			{
-				if (bSupportsArm64)
-				{
-					Architectures.Add("arm64");
-				}
-				if (bSupportsX86)
-				{
-					Architectures.Add("x86_64");
-				}
-			}
-			else if (DefaultArchitecture.Equals("host", StringComparison.InvariantCultureIgnoreCase))
-			{
-				if (MacExports.IsRunningOnAppleArchitecture && bSupportsArm64)
-				{
-					Architectures.Add("arm64");
-				}
-				else
-				{
-					Architectures.Add("x86_64");
-				}
-			}
-			else if (DefaultArchitecture.Contains("apple"))
-			{
-				if (!bSupportsArm64)
-				{
-					throw new BuildException($"{DefaultKey} is set to {DefaultArchitecture}, but AppleSilicon is not a supported architecture");
-				}
-				Architectures.Add("arm64");
-			}
-			else if (DefaultArchitecture.Contains("intel"))
-			{
-				if (!bSupportsX86)
-				{
-					throw new BuildException($"{DefaultKey} is set to {DefaultArchitecture}, but Intel is not a supported architecture");
-				}
-				Architectures.Add("x86_64");
-			}
-			else
-			{
-				throw new BuildException($"Unknown {DefaultKey} value found ('{DefaultArchitecture}') in .ini");
-			}
-
-			return Architectures;
-		}
 
 		/// <summary>
 		/// Determines if the given name is a build product for a target.

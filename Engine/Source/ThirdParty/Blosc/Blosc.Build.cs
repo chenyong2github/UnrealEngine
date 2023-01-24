@@ -22,7 +22,7 @@ public class Blosc : ModuleRules
 			string LibDirectory = Path.Combine(
 				DeploymentDirectory,
 				"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
-				Target.WindowsPlatform.GetArchitectureSubpath(),
+				Target.Architecture.WindowsName,
 				"lib");
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libblosc" + LibPostfix + ".lib"));
@@ -41,7 +41,7 @@ public class Blosc : ModuleRules
 			string LibDirectory = Path.Combine(
 				DeploymentDirectory,
 				"Unix",
-				Target.Architecture,
+				Target.Architecture.LinuxName,
 				"lib");
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libblosc" + LibPostfix + ".a"));

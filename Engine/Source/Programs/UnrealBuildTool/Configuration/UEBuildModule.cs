@@ -181,7 +181,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Per-architecture lists of dependencies for linking to ignore (useful when building for multiple architectures, and a lib only is needed for one architecture), it's up to the Toolchain to use this
 		/// </summary>
-		public Dictionary<string, List<string>> DependenciesToSkipPerArchitecture;
+		public Dictionary<string, List<UnrealArch>> DependenciesToSkipPerArchitecture;
 
 		/// <summary>
 		/// The Verse source code directory associated with this module if any
@@ -818,7 +818,7 @@ namespace UnrealBuildTool
 			List<UEBuildBundleResource> AdditionalBundleResources,
 			List<string> DelayLoadDLLs,
 			List<UEBuildBinary> BinaryDependencies,
-			Dictionary<string, HashSet<string>> DependenciesToSkip,
+			Dictionary<string, HashSet<UnrealArch>> DependenciesToSkip,
 			HashSet<UEBuildModule> VisitedModules,
 			DirectoryReference ExeDir
 			)
@@ -870,11 +870,11 @@ namespace UnrealBuildTool
 				DelayLoadDLLs.AddRange(PublicDelayLoadDLLs);
 
 				// merge in to the outgoing dictionary
-				foreach (KeyValuePair<string, List<string>> Pair in DependenciesToSkipPerArchitecture)
+				foreach (KeyValuePair<string, List<UnrealArch>> Pair in DependenciesToSkipPerArchitecture)
 				{
 					if (!DependenciesToSkip.ContainsKey(Pair.Key))
 					{
-						DependenciesToSkip[Pair.Key] = new HashSet<string>();
+						DependenciesToSkip[Pair.Key] = new HashSet<UnrealArch>();
 					}
 					DependenciesToSkip[Pair.Key] = DependenciesToSkip[Pair.Key].Union(Pair.Value).ToHashSet();
 				}

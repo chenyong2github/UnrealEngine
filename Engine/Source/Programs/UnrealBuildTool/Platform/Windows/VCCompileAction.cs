@@ -139,6 +139,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool ForceClFilter = false;
 
+		/// <summary>
+		/// Architecture this is compiling for (used for display)
+		/// </summary>
+		public UnrealArch Architecture { get; set; }
+
 		#region Public IAction implementation
 
 		/// <summary>
@@ -161,7 +166,7 @@ namespace UnrealBuildTool
 
 		IEnumerable<FileItem> IExternalAction.DeleteItems => DeleteItems;
 		public DirectoryReference WorkingDirectory => Unreal.EngineSourceDirectory;
-		string IExternalAction.CommandDescription => "Compile";
+		string IExternalAction.CommandDescription => $"Compile [{Architecture}]";
 		bool IExternalAction.bIsGCCCompiler => false;
 		bool IExternalAction.bProducesImportLibrary => false;
 		string IExternalAction.StatusDescription => (SourceFile == null) ? "Compiling" : SourceFile.Location.GetFileName();
@@ -309,6 +314,7 @@ namespace UnrealBuildTool
 			bShowIncludes = InAction.bShowIncludes;
 			bCanExecuteRemotely = InAction.bCanExecuteRemotely;
 			bCanExecuteRemotelyWithSNDBS = InAction.bCanExecuteRemotelyWithSNDBS;
+			Architecture = InAction.Architecture;
 
 			AdditionalPrerequisiteItems = new List<FileItem>(InAction.AdditionalPrerequisiteItems);
 			AdditionalProducedItems = new List<FileItem>(InAction.AdditionalProducedItems);

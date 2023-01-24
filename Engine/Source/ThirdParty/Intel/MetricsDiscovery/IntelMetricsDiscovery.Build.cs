@@ -10,7 +10,7 @@ public class IntelMetricsDiscovery : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.bCompileIntelMetricsDiscovery && Target.Platform == UnrealTargetPlatform.Win64 && Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) == -1)
+		if (Target.bCompileIntelMetricsDiscovery && Target.Platform == UnrealTargetPlatform.Win64 && Target.Architecture.bIsX64)
 		{
 			string BuildType = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "-md-debug" : "-md-release";
 

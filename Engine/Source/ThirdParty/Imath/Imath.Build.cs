@@ -26,7 +26,7 @@ public class Imath : ModuleRules
 			string LibDirectory = Path.Combine(
 				DeploymentDirectory,
 				"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
-				Target.WindowsPlatform.GetArchitectureSubpath(),
+				Target.Architecture.WindowsName,
 				"lib");
 
 			string StaticLibName = "Imath-3_1" + LibPostfix + ".lib";
@@ -51,7 +51,7 @@ public class Imath : ModuleRules
 			string LibDirectory = Path.Combine(
 				DeploymentDirectory,
 				"Unix",
-				Target.Architecture,
+				Target.Architecture.LinuxName,
 				"lib");
 
 			string StaticLibName = "libImath-3_1" + LibPostfix + ".a";

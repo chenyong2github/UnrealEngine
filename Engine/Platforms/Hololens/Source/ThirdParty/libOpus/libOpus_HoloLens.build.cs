@@ -8,12 +8,12 @@ namespace UnrealBuildTool.Rules
 		{
 			string LibraryPath = OpusLibPath + "/";
 
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+			if (Target.WindowsPlatform.Architecture == UnrealArch.X64)
 			{
 				LibraryPath += "Windows/VS2012/";
 				LibraryPath += "x64/";
 			}
-			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+			else if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{
 				LibraryPath += "Windows/VS" + (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019 ? "2015" : "2012");
 				LibraryPath += "/ARM64/";

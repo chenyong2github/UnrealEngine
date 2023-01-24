@@ -1129,7 +1129,7 @@ namespace UnrealBuildTool
 			}
 
 			// Make the output file path
-			string BinaryFileName = UEBuildTarget.MakeBinaryFileName(BinaryName, Platform, Configuration, TargetRulesObject!.Architecture, TargetRulesObject.UndecoratedConfiguration, UEBuildBinaryType.Executable);
+			string BinaryFileName = UEBuildTarget.MakeBinaryFileName(BinaryName, Platform, Configuration, TargetRulesObject!.Architectures, TargetRulesObject.UndecoratedConfiguration, UEBuildBinaryType.Executable);
 			string ExecutableFilename = FileReference.Combine(OutputDirectory, BinaryFileName).FullName;
 
 			// Include the path to the actual executable for a Mac app bundle

@@ -59,7 +59,7 @@ public class FBX : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			string FBxDllPath = FBXDLLDir + "Linux/" + Target.Architecture + "/";
+			string FBxDllPath = FBXDLLDir + "Linux/" + Target.Architecture.LinuxName + "/";
 			if (!Target.bIsEngineInstalled && !Directory.Exists(FBxDllPath))
 			{
 				string Err = string.Format("FBX SDK not found in {0}", FBxDllPath);

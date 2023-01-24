@@ -52,7 +52,7 @@ public class Vorbis : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "Unix", Target.Architecture, "libvorbis.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "Unix", Target.Architecture.LinuxName, "libvorbis.a"));
 		}
 	}
 }

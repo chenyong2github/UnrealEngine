@@ -41,7 +41,7 @@ namespace UnrealBuildTool
 		/// <param name="CookFlavor"></param>
 		/// <param name="bIsDataDeploy"></param>
 		/// <returns></returns>
-		public bool PrepForUATPackageOrDeploy(FileReference ProjectFile, string InProjectName, string InProjectDirectory, WindowsArchitecture Architecture, List<UnrealTargetConfiguration> InTargetConfigurations, List<string> InExecutablePaths, string InEngineDir, bool bForDistribution, string CookFlavor, bool bIsDataDeploy)
+		public bool PrepForUATPackageOrDeploy(FileReference ProjectFile, string InProjectName, string InProjectDirectory, UnrealArch Architecture, List<UnrealTargetConfiguration> InTargetConfigurations, List<string> InExecutablePaths, string InEngineDir, bool bForDistribution, string CookFlavor, bool bIsDataDeploy)
 		{
 			return InnerDeploy.PrepForUATPackageOrDeploy(ProjectFile, InProjectName, InProjectDirectory, Architecture, InTargetConfigurations, InExecutablePaths, InEngineDir, bForDistribution, CookFlavor, bIsDataDeploy);
 		}
@@ -88,7 +88,7 @@ namespace UnrealBuildTool
 		public static void CreateManifestForDLC(FileReference DLCFile, DirectoryReference OutputDirectory, ILogger Logger)
 		{
 			string IntermediateDirectory = DirectoryReference.Combine(DLCFile.Directory, "Intermediate", "Deploy").FullName;
-			new HoloLensManifestGenerator(Logger).CreateManifest(UnrealTargetPlatform.HoloLens, WindowsArchitecture.ARM64, OutputDirectory.FullName, IntermediateDirectory, DLCFile, DLCFile.Directory.FullName, new List<UnrealTargetConfiguration>(), new List<string>(), null);
+			new HoloLensManifestGenerator(Logger).CreateManifest(UnrealTargetPlatform.HoloLens, UnrealArch.Arm64, OutputDirectory.FullName, IntermediateDirectory, DLCFile, DLCFile.Directory.FullName, new List<UnrealTargetConfiguration>(), new List<string>(), null);
 		}
 
 		/// <summary>

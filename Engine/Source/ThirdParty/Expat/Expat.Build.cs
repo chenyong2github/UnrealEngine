@@ -35,9 +35,9 @@ public class Expat : ModuleRules
 		{
 			string LibraryPath = Path.Combine(ExpatPackagePath, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
-			if (Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0)
+			if (!Target.Architecture.bIsX64)
 			{
-				LibraryPath = Path.Combine(LibraryPath, Target.WindowsPlatform.GetArchitectureSubpath());
+				LibraryPath = Path.Combine(LibraryPath, Target.Architecture.WindowsName);
 			}
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
@@ -57,7 +57,7 @@ public class Expat : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(ExpatPackagePath, "Unix/" + Target.Architecture, ConfigName, "libexpat.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(ExpatPackagePath, "Unix/" + Target.Architecture.LinuxName, ConfigName, "libexpat.a"));
 		}
 	}
 }

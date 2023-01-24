@@ -9,12 +9,12 @@ namespace UnrealBuildTool.Rules
 		{
 			get
 			{
-				if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64) // emulation target, bBuildForEmulation
+				if (Target.WindowsPlatform.Architecture == UnrealArch.X64) // emulation target, bBuildForEmulation
 				{
 					return "oo2core_winuwp64.lib";
 
 				}
-				else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64) // device target, bBuildForDevice
+				else if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64) // device target, bBuildForDevice
 				{
 					return "oo2core_winuwparm64.lib";
 				}
@@ -28,12 +28,12 @@ namespace UnrealBuildTool.Rules
 		{
 			get
 			{
-				if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64) // emulation target, bBuildForEmulation
+				if (Target.WindowsPlatform.Architecture == UnrealArch.X64) // emulation target, bBuildForEmulation
 				{
 					return "oo2core_winuwp64_debug.lib";
 
 				}
-				else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64) // device target, bBuildForDevice
+				else if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64) // device target, bBuildForDevice
 				{
 					return "oo2core_winuwparm64_debug.lib";
 				}

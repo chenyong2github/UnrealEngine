@@ -148,7 +148,7 @@ public class Python3 : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			if (Target.Architecture.StartsWith("x86_64"))
+			if (Target.Architecture == UnrealArch.X64)
 			{
 				var PlatformDir = Target.Platform.ToString();
 		

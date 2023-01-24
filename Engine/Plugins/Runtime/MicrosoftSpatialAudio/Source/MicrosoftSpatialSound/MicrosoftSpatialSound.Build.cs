@@ -11,7 +11,7 @@ public class MicrosoftSpatialSound : ModuleRules
 		string BinariesDir = System.IO.Path.Combine(EngineDir, "Binaries", "ThirdParty", LibraryName);
 
 		string Config = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" : "Release";
-		string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
+		string Arch = Target.Architecture.WindowsName;
 		string SubPath = System.IO.Path.Combine(Platform, Config, Arch);
 
 		string BinariesPath = System.IO.Path.Combine(BinariesDir, SubPath);

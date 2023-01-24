@@ -282,7 +282,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Which platform the target is compiled for
 		/// </summary>
-		public string Architecture;
+		public UnrealArchitectures Architectures;
 
 		/// <summary>
 		/// Which configuration this target is compiled in
@@ -343,9 +343,9 @@ namespace UnrealBuildTool
 		/// <param name="InPlatform">Platform for the target being compiled</param>
 		/// <param name="InConfiguration">Configuration of the target being compiled</param>
 		/// <param name="InVersion">Version information for the target</param>
-		/// <param name="InArchitecture">Architecture information for the target</param>
+		/// <param name="InArchitectures">Architecture information for the target</param>
 		/// <param name="InIsTestTarget">Whether it's a target for low level tests</param>
-		public TargetReceipt(FileReference? InProjectFile, string InTargetName, TargetType InTargetType, UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, BuildVersion InVersion, string InArchitecture, bool InIsTestTarget)
+		public TargetReceipt(FileReference? InProjectFile, string InTargetName, TargetType InTargetType, UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, BuildVersion InVersion, UnrealArchitectures InArchitectures, bool InIsTestTarget)
 		{
 			ProjectFile = InProjectFile;
 			ProjectDir = DirectoryReference.FromFile(InProjectFile);
@@ -354,7 +354,7 @@ namespace UnrealBuildTool
 			Configuration = InConfiguration;
 			TargetType = InTargetType;
 			Version = InVersion;
-			Architecture = InArchitecture;
+			Architectures = InArchitectures;
 			IsTestTarget = InIsTestTarget;
 		}
 
@@ -451,15 +451,16 @@ namespace UnrealBuildTool
 		/// <param name="TargetName">The target being built</param>
 		/// <param name="Platform">The target platform</param>
 		/// <param name="Configuration">The target configuration</param>
-		/// <param name="BuildArchitecture">The architecture being built</param>
+		/// <param name="BuildArchitectures">The architecture being built</param>
 		/// <returns>Path to the receipt for this target</returns>
-		public static FileReference GetDefaultPath(DirectoryReference BaseDir, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string BuildArchitecture)
+		public static FileReference GetDefaultPath(DirectoryReference BaseDir, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UnrealArchitectures? BuildArchitectures)
 		{
 			// Get the architecture suffix. Platforms have the option of overriding whether to include this string in filenames.
 			string ArchitectureSuffix = "";
-			if(!String.IsNullOrEmpty(BuildArchitecture) && UEBuildPlatform.GetBuildPlatform(Platform).RequiresArchitectureSuffix())
+			// @todo disallow null here?
+			if (BuildArchitectures != null && UnrealArchitectureConfig.ForPlatform(Platform).RequiresArchitectureFilenames(BuildArchitectures))
 			{
-				ArchitectureSuffix = BuildArchitecture;
+				ArchitectureSuffix = BuildArchitectures.ToString();
 			}
 		
 			// Build the output filename
@@ -554,16 +555,22 @@ namespace UnrealBuildTool
 
 			// Read the launch executable
 			string? Architecture;
-			if (!RawObject.TryGetStringField("Architecture", out Architecture))
+			UnrealArchitectures Architectures;
+			if (RawObject.TryGetStringField("Architecture", out Architecture))
 			{
-				Architecture = "";
+				Architectures = UnrealArchitectures.FromString(Architecture, Platform)!;
+			}
+			else
+			{
+				// @todo this doesn't necessarily match how it was compiled - should this be an error case?
+				Architectures = UnrealArchitectureConfig.ForPlatform(Platform).ActiveArchitectures(ProjectFile, TargetName);
 			}
 
 			bool IsTestTarget;
 			RawObject.TryGetBoolField("IsTestTarget", out IsTestTarget);
 
 			// Create the receipt
-			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version, Architecture, IsTestTarget);
+			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version, Architectures, IsTestTarget);
 
 			// Get the project directory
 			DirectoryReference? ProjectDir = Receipt.ProjectDir;
@@ -729,7 +736,7 @@ namespace UnrealBuildTool
 				Writer.WriteValue("Configuration", Configuration.ToString());
 				Writer.WriteValue("TargetType", TargetType.ToString());
 				Writer.WriteValue("IsTestTarget", IsTestTarget);
-				Writer.WriteValue("Architecture", Architecture);
+				Writer.WriteValue("Architecture", Architectures.ToString());
 
 				if(ProjectFile != null)
 				{

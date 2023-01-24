@@ -11,7 +11,7 @@ public class NVAftermath : ModuleRules
 	{
 		Type = ModuleType.External;
 
-        if (Target.Platform == UnrealTargetPlatform.Win64 && Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) == -1)
+        if (Target.Platform == UnrealTargetPlatform.Win64 && Target.Architecture.bIsX64)
 		{
 			string ThirdPartyDir = Path.Combine(Target.UEThirdPartySourceDirectory, "NVIDIA", "NVaftermath");
 			string IncludeDir = Path.Combine(ThirdPartyDir, "include");

@@ -10,7 +10,7 @@ public class AMD_AGS : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) == -1)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Architecture.bIsX64)
 		{
 			string ThirdPartyDir = Path.Combine(Target.UEThirdPartySourceDirectory, "AMD", "AMD_AGS");
 			string IncludeDir = Path.Combine(ThirdPartyDir, "inc");

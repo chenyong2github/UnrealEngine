@@ -151,26 +151,13 @@ namespace UnrealBuildTool
 		// Code below here is mostly copy-pasted from LinuxToolChain.
 		// We didn't inherit from LinuxToolChain on purpose in order to be able to add support for running iwyu against other clang platforms than linux
 
-		static string ArchitectureSpecificDefines(string Architecture)
-		{
-			string Result = "";
-
-			if (Architecture.StartsWith("x86_64") || Architecture.StartsWith("aarch64"))
-			{
-				Result += "-D_LINUX64";
-			}
-
-			return Result;
-		}
-
-		private static bool ShouldUseLibcxx(string Architecture)
+		private static bool ShouldUseLibcxx(UnrealArch Architecture)
 		{
 			// set UE_LINUX_USE_LIBCXX to either 0 or 1. If unset, defaults to 1.
 			string? UseLibcxxEnvVarOverride = Environment.GetEnvironmentVariable("UE_LINUX_USE_LIBCXX");
 			if (string.IsNullOrEmpty(UseLibcxxEnvVarOverride) || UseLibcxxEnvVarOverride == "1")
 			{
-				// at the moment ARM32 libc++ remains missing
-				return Architecture.StartsWith("x86_64") || Architecture.StartsWith("aarch64");
+				return true;
 			}
 			return false;
 		}
@@ -190,14 +177,9 @@ namespace UnrealBuildTool
 
 			Arguments.Add(GetRTTIFlag(CompileEnvironment)); // flag for run-time type info
 
-			Arguments.Add(ArchitectureSpecificDefines(CompileEnvironment.Architecture));
 			if (true)//CrossCompiling())
 			{
-				if (!String.IsNullOrEmpty(CompileEnvironment.Architecture))
-				{
-					Arguments.Add($"-target {CompileEnvironment.Architecture}");        // Set target triple
-				}
-
+				Arguments.Add($"-target {CompileEnvironment.Architecture.LinuxName}");        // Set target triple
 				Arguments.AddRange(CrossCompilingArguments);
 			}
 

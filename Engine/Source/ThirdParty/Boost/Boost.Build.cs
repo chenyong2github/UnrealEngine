@@ -45,7 +45,7 @@ public class Boost : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			string BoostLibPath = Path.Combine(BoostPath, "lib", "Unix", Target.Architecture);
+			string BoostLibPath = Path.Combine(BoostPath, "lib", "Unix", Target.Architecture.LinuxName);
 
 			string BoostLibArchSuffix = "x64";
 			if (Target.Platform == UnrealTargetPlatform.LinuxArm64)

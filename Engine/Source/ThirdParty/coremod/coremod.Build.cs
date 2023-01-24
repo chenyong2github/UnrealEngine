@@ -29,7 +29,7 @@ public class coremod: ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
         {
-            PublicAdditionalLibraries.Add(LibraryPath + "/lib/Linux/" + Target.Architecture + "/" + "libcoremodLinux.a");
+            PublicAdditionalLibraries.Add(LibraryPath + "/lib/Linux/" + Target.Architecture.LinuxName + "/" + "libcoremodLinux.a");
         }
 		else if (Target.Platform == UnrealTargetPlatform.Android)
 		{

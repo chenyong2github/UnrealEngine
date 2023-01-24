@@ -86,13 +86,13 @@ public class GoogleTest : ModuleRules
             {
                 PartialLibraryPath += DefaultConfiguration + "/";
                 LibraryPath += PartialLibraryPath;
-                LibraryPath += Target.Architecture + "/";
+                LibraryPath += Target.Architecture.LinuxName + "/";
             }
             else
             {
                 PartialLibraryPath += DefaultConfiguration + "_fPIC/";
                 LibraryPath += PartialLibraryPath;
-                LibraryPath += Target.Architecture + "/";
+                LibraryPath += Target.Architecture.LinuxName + "/";
             }
 
             PublicAdditionalLibraries.Add(LibraryPath + "libgtest.a");

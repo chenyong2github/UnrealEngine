@@ -8,13 +8,13 @@ namespace UnrealBuildTool.Rules
 	{
 		public zlib_HoloLens(ReadOnlyTargetRules Target) : base(Target)
 		{
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+			if (Target.WindowsPlatform.Architecture == UnrealArch.X64)
 			{
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", "Release", "zlibstatic.lib"));
 			}
 			else
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", Target.WindowsPlatform.GetArchitectureSubpath(), "Release", "zlibstatic.lib"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", Target.Architecture.WindowsName, "Release", "zlibstatic.lib"));
 			}
 		}
 	}

@@ -32,7 +32,8 @@ namespace AutomationTool
 				Platform = HostPlatform.Current.HostEditorPlatform;
 			}
 			UnrealTargetConfiguration Configuration = ParseOptionalEnumParam<UnrealTargetConfiguration>("Configuration") ?? UnrealTargetConfiguration.Development;
-			string Architecture = ParseOptionalStringParam("Architecture");
+			string ArchitectureString = ParseOptionalStringParam("Architecture");
+			UnrealArchitectures Architecture = UnrealArchitectures.FromString(ArchitectureString, Platform);
 			FileReference ProjectFile = ParseOptionalFileReferenceParam("Project");
 			DirectoryReference ToDir = ParseRequiredDirectoryReferenceParam("To");
 

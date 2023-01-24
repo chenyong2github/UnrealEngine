@@ -34,7 +34,7 @@ public class nvTriStrip : ModuleRules
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
         {
             string Postfix = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "d" : "";
-            PublicAdditionalLibraries.Add(NvTriStripLibPath + "Linux/" + Target.Architecture + "/libnvtristrip" + Postfix + ".a");
+            PublicAdditionalLibraries.Add(NvTriStripLibPath + "Linux/" + Target.Architecture.LinuxName + "/libnvtristrip" + Postfix + ".a");
         }
 	}
 }

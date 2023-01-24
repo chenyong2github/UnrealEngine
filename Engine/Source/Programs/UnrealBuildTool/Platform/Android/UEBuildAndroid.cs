@@ -106,28 +106,86 @@ namespace UnrealBuildTool
 		#endregion
 	}
 
+	class AndroidArchitectureConfig : UnrealArchitectureConfig
+	{
+		public AndroidArchitectureConfig()
+			: base(UnrealArchitectureMode.SingleTargetLinkSeparately, new[] { UnrealArch.X64, UnrealArch.Arm64 })
+		{
+
+		}
+
+		public override UnrealArchitectures ActiveArchitectures(FileReference? ProjectFile, string? TargetName) => GetProjectArchitectures(ProjectFile, false);
+
+		public override string GetFolderNameForArchitecture(UnrealArch Architecture)
+		{
+			return Architecture == UnrealArch.Arm64 ? "a" : "x";
+		}
+
+
+
+
+		private static UnrealArchitectures? CachedActiveArchitectures = null;
+		private static FileReference? CachedActiveArchesProject = null;
+		private UnrealArchitectures GetProjectArchitectures(FileReference? ProjectFile, bool bGetAllSupported)
+		{
+			if (CachedActiveArchitectures == null || ProjectFile != CachedActiveArchesProject)
+			{
+				List<string> ActiveArches = new();
+				CachedActiveArchesProject = ProjectFile;
+
+				// look in ini settings for what platforms to compile for
+				ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
+				bool bBuild;
+				bool bUnsupportedBinaryBuildArch = false;
+
+				if (Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildForArm64", out bBuild) && bBuild)
+				{
+					ActiveArches.Add("arm64");
+				}
+				if (Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildForx8664", out bBuild) && bBuild)
+				{
+					if (File.Exists(Path.Combine(Unreal.EngineDirectory.FullName, "Build", "InstalledBuild.txt")))
+					{
+						bUnsupportedBinaryBuildArch = true;
+						Log.TraceWarningOnce("Please install source to build for x86_64 (-x64); ignoring this architecture target.");
+					}
+					else
+					{
+						ActiveArches.Add("x64");
+					}
+				}
+
+				// we expect one to be specified
+				if (ActiveArches.Count == 0)
+				{
+					if (bUnsupportedBinaryBuildArch)
+					{
+						throw new BuildException("Only architectures unsupported by binary-only engine selected.");
+					}
+					else
+					{
+						throw new BuildException("At least one architecture must be specified in Android project settings.");
+					}
+				}
+
+				CachedActiveArchitectures = new UnrealArchitectures(ActiveArches);
+			}
+			return CachedActiveArchitectures;
+		}
+	}
+
 	class AndroidPlatform : UEBuildPlatform
 	{
 		UEBuildPlatformSDK SDK;
 
 		public AndroidPlatform(UnrealTargetPlatform InTargetPlatform, UEBuildPlatformSDK InSDK, ILogger InLogger) 
-			: base(InTargetPlatform, InSDK, InLogger)
+			: base(InTargetPlatform, InSDK, new AndroidArchitectureConfig(), InLogger)
 		{
 			SDK = InSDK;
 		}
 
 		public AndroidPlatform(AndroidPlatformSDK InSDK, ILogger InLogger) : this(UnrealTargetPlatform.Android, InSDK, InLogger)
 		{
-		}
-
-		public override string GetFolderNameForArchitecture(string Architecture)
-		{
-			if (Architecture.Contains("+"))
-			{
-				return Architecture;
-			}
-				
-			return Architecture.Contains("arm") ? "a" : "x";
 		}
 
 		public override void ResetTarget(TargetRules Target)
@@ -161,8 +219,8 @@ namespace UnrealBuildTool
 			Target.bCompileISPC = false;
 
 
-			// disable plugins by architecture
-			if (Target.Architecture.ToLower() == "x64" && Target.Name != "UnrealHeaderTool")
+			// disable plugins by architecture (if we are compiling for multiple architectures, we still need to disable the plugin for all architectures)
+			if (Target.Architectures.Contains(UnrealArch.Arm64) && Target.Name != "UnrealHeaderTool")
 			{
 				Target.DisablePlugins.AddRange(new string[]
 				{
@@ -177,22 +235,6 @@ namespace UnrealBuildTool
 			return BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Linux;
 		}
 
-		public override bool IsX86Architecture(string Architecture)
-		{
-			return Architecture == "-x64";
-		}
-
-		public override bool NeedsSingleTargetForMultiArchitecture(IEnumerable<string> Architectures)
-		{
-			return true;
-		}
-
-		public override bool RequiresArchitectureSuffix()
-		{
-			// Any -architecture argument passed to UBT only affects the contents of the binaries, not their naming
-			return false;
-		}
-		
 		public override bool IsBuildProduct(string FileName, string[] NamePrefixes, string[] NameSuffixes)
 		{
 			return IsBuildProductWithArch(FileName, NamePrefixes, NameSuffixes, ".so")
@@ -206,7 +248,7 @@ namespace UnrealBuildTool
 			if (Name.EndsWith(Extension, StringComparison.InvariantCultureIgnoreCase))
 			{
 				int ExtensionEndIdx = Name.Length - Extension.Length;
-				foreach (string CpuSuffix in AndroidToolChain.AllCpuSuffixes)
+				foreach (string CpuSuffix in AndroidToolChain.AllCpuSuffixes.Values)
 				{
 					int CpuIdx = ExtensionEndIdx - CpuSuffix.Length;
 					if (CpuIdx > 0 && String.Compare(Name, CpuIdx, CpuSuffix, 0, CpuSuffix.Length, StringComparison.InvariantCultureIgnoreCase) == 0)
@@ -235,73 +277,6 @@ namespace UnrealBuildTool
 		public override string[] GetDebugInfoExtensions(ReadOnlyTargetRules InTarget, UEBuildBinaryType InBinaryType)
 		{
 			return new string [] {};
-		}
-
-		public override string ConvertToPlatformArchitecture(string Arch)
-		{
-			switch (Arch.ToLower())
-			{
-				case "arm64":
-				case "a8":
-				case "a":
-				case "-arm64": 
-					return "arm64";
-
-				case "x64":
-				case "x86_64":
-				case "x6":
-				case "x":
-				case "-x64": 
-					return "x64";
-			}
-			throw new BuildException($"Unknown architecture {Arch}");
-		}
-
-		private List<string>? ActiveArches = null;
-		private FileReference? ActiveArchesProject = null;
-		public override IEnumerable<string> GetProjectArchitectures(FileReference? ProjectFile, string? TargetName, bool bGetAllSupported, bool bIsDistributionMode)
-		{
-			if (ActiveArches == null || ProjectFile != ActiveArchesProject)
-			{
-				ActiveArches = new();
-				ActiveArchesProject = ProjectFile;
-
-				// look in ini settings for what platforms to compile for
-				ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
-				bool bBuild;
-				bool bUnsupportedBinaryBuildArch = false;
-
-				if (Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildForArm64", out bBuild) && bBuild)
-				{
-					ActiveArches.Add("arm64");
-				}
-				if (Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildForx8664", out bBuild) && bBuild)
-				{
-					if (File.Exists(Path.Combine(Unreal.EngineDirectory.FullName, "Build", "InstalledBuild.txt")))
-					{
-						bUnsupportedBinaryBuildArch = true;
-						Log.TraceWarningOnce("Please install source to build for x86_64 (-x64); ignoring this architecture target.");
-					}
-					else
-					{
-						ActiveArches.Add("x64");
-					}
-				}
-
-				// force arm64 if something went wrong
-				if (ActiveArches.Count == 0)
-				{
-					if (bUnsupportedBinaryBuildArch)
-					{
-						throw new BuildException("Only architectures unsupported by binary-only engine selected.");
-					}
-					else
-					{
-						ActiveArches.Add("arm64");
-					}
-				}
-			}
-			return ActiveArches;
 		}
 
 		public override void FindAdditionalBuildProductsToClean(ReadOnlyTargetRules Target, List<FileReference> FilesToDelete, List<DirectoryReference> DirectoriesToDelete)
@@ -419,7 +394,7 @@ namespace UnrealBuildTool
 		{
 			// make multiple output binaries
 			List<FileReference> AllBinaries = new List<FileReference>();
-			foreach (string Architecture in Target.Architecture.Split('+'))
+			foreach (UnrealArch Architecture in Target.Architectures.Architectures)
 			{
 				string BinaryPath;
 				if (Target.bShouldCompileAsDLL)

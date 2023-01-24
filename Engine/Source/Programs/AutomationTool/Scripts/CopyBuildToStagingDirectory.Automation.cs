@@ -1268,13 +1268,12 @@ namespace AutomationScripts
 						SC.StageCrashReporterFiles(StagedFileType.UFS, DirectoryReference.Combine(SC.EngineRoot, "Content", "Internationalization", InternationalizationPreset), StageFilesSearch.AllDirectories, new StagedDirectoryReference("Engine/Content/Internationalization"));
 
 						// Get the architecture in use
-						string Architecture = Params.SpecifiedArchitecture;
-						if (string.IsNullOrEmpty(Architecture))
+						UnrealArchitectures Architecture = Params.ProgramArchitecture;
+						if (Architecture == null)
 						{
-							Architecture = "";
 							if (PlatformExports.IsPlatformAvailable(CrashReportPlatform))
 							{
-								Architecture = PlatformExports.GetDefaultArchitecture(CrashReportPlatform, Params.RawProjectPath);
+								Architecture = UnrealArchitectureConfig.ForPlatform(CrashReportPlatform).ActiveArchitectures(Params.RawProjectPath, TargetName:null);
 							}
 						}
 
@@ -4498,23 +4497,27 @@ namespace AutomationScripts
 			} 
 			var ConfigsToProcess = InDedicatedServer && (Params.Cook || Params.CookOnTheFly) ? Params.ServerConfigsToBuild : Params.ClientConfigsToBuild;
 
-			List<Tuple<string, UnrealTargetConfiguration>> TargetAndConfigPairs = new List<Tuple<string, UnrealTargetConfiguration>>();
+			List<Tuple<string, UnrealTargetConfiguration, UnrealArchitectures>> TargetAndConfigPairs = new();
 
 			foreach (var Target in ListToProcess)
 			{
 				// If we are staging a client and have been asked to include editor targets, we currently only want to
 				// include a single Development editor target. Ideally, we should have shipping editor configs and then
 				// just include the requested configs for all targets
-				if ((Params.HasEditorTargets && Params.EditorTargets.Contains(Target)) || 
-					(Params.HasProgramTargets && Params.ProgramTargets.Contains(Target)))
+				if (Params.HasEditorTargets && Params.EditorTargets.Contains(Target))
 				{
-					TargetAndConfigPairs.Add(new Tuple<string, UnrealTargetConfiguration>(Target, UnrealTargetConfiguration.Development));
+					TargetAndConfigPairs.Add(new Tuple<string, UnrealTargetConfiguration, UnrealArchitectures>(Target, UnrealTargetConfiguration.Development, Params.EditorArchitecture));
+				}
+				else if (Params.HasProgramTargets && Params.ProgramTargets.Contains(Target))
+				{
+					TargetAndConfigPairs.Add(new Tuple<string, UnrealTargetConfiguration, UnrealArchitectures>(Target, UnrealTargetConfiguration.Development, Params.ProgramArchitecture));
 				}
 				else
 				{
+					UnrealArchitectures Arches = InDedicatedServer ? Params.ServerArchitecture : Params.ClientArchitecture;
 					foreach (var Config in ConfigsToProcess)
 					{
-						TargetAndConfigPairs.Add(new Tuple<string, UnrealTargetConfiguration>(Target, Config));
+						TargetAndConfigPairs.Add(new Tuple<string, UnrealTargetConfiguration, UnrealArchitectures>(Target, Config, Arches));
 					}
 				}
 			}
@@ -4539,7 +4542,6 @@ namespace AutomationScripts
 				List<string> ExecutablesToStage = new List<string>();
 
 				string PlatformName = StagePlatform.ToString();
-				string StageArchitecture = !String.IsNullOrEmpty(Params.SpecifiedArchitecture) ? Params.SpecifiedArchitecture : "";
 				foreach (var TargetAndConfig in TargetAndConfigPairs)
 				{
 					string Target = TargetAndConfig.Item1;
@@ -4547,7 +4549,15 @@ namespace AutomationScripts
 					string Exe = Target;
 					if (Config != UnrealTargetConfiguration.Development)
 					{
-						Exe = Target + "-" + PlatformName + "-" + Config.ToString() + StageArchitecture;
+						Exe = Target + "-" + PlatformName + "-" + Config.ToString();
+					}
+
+					// append the architecture part if needed
+					UnrealArchitectureConfig ArchConfig = UnrealArchitectureConfig.ForPlatform(StagePlatform.Type);
+					UnrealArchitectures PlatformArches = TargetAndConfig.Item3 ?? ArchConfig.ActiveArchitectures(Params.RawProjectPath, Target);
+					if (ArchConfig.RequiresArchitectureFilenames(PlatformArches))
+					{
+						Exe += PlatformArches.ToString();
 					}
 					ExecutablesToStage.Add(Exe);
 				}
@@ -4562,6 +4572,7 @@ namespace AutomationScripts
 				{
 					string Target = TargetAndConfig.Item1;
 					UnrealTargetConfiguration Config = TargetAndConfig.Item2;
+					UnrealArchitectures Architecture = TargetAndConfig.Item3;
 					DirectoryReference ReceiptBaseDir = Params.IsCodeBasedProject ? ProjectDir : EngineDir;
 
 					Platform PlatformInstance = Platform.Platforms[StagePlatform];
@@ -4574,13 +4585,11 @@ namespace AutomationScripts
 
 					foreach (UnrealTargetPlatform ReceiptPlatform in SubPlatformsToStage)
 					{
-						string Architecture = Params.SpecifiedArchitecture;
-						if (string.IsNullOrEmpty(Architecture))
+						if (Architecture == null)
 						{
-							Architecture = "";
 							if (PlatformExports.IsPlatformAvailable(ReceiptPlatform))
 							{
-								Architecture = PlatformExports.GetDefaultArchitecture(ReceiptPlatform, Params.RawProjectPath);
+								Architecture = UnrealArchitectureConfig.ForPlatform(ReceiptPlatform).ActiveArchitectures(Params.RawProjectPath, Target);
 							}
 						}
 

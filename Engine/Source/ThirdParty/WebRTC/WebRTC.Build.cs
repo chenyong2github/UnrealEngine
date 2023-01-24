@@ -12,7 +12,7 @@ public class WebRTC : ModuleRules
 	{
 		get =>
 			Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
-			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64"));
+			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture == UnrealArch.X64);
 	}
 
 	private static bool bWebRtcVersion96
@@ -86,7 +86,7 @@ public class WebRTC : ModuleRules
 				PublicDefinitions.Add("WEBRTC_POSIX=1");
 
 				// This is slightly different than the other platforms
-				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, Target.Architecture, ConfigPath);
+				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, Target.Architecture.LinuxName, ConfigPath);
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libwebrtc.a"));
 				
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");

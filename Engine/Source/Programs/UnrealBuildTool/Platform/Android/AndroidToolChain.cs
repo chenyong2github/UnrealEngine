@@ -19,10 +19,10 @@ namespace UnrealBuildTool
 		public const int MinimumNDKAPILevel = 26;
 
 		// this is architectures with the dash, which we match in filenames that have inlined arch name
-		public static readonly string[] AllCpuSuffixes =
+		public static readonly Dictionary<UnrealArch, string> AllCpuSuffixes = new()
 		{
-			"-arm64",
-			"-x64"
+			{ UnrealArch.Arm64, "-arm64" },
+			{ UnrealArch.X64,   "-x64" },
 		};
 
 		// sh0rt names for the above suffixes
@@ -63,32 +63,32 @@ namespace UnrealBuildTool
 		protected static string? AndroidClangBuild;
 
 		// the "-android" suffix paths here are vcpkg triplets for the android platform
-		static private Dictionary<string, string[]> AllArchNames = new Dictionary<string, string[]> {
-			{ "arm64", new string[] { "arm64", "arm64-v8a", "arm64-android" } },
-			{ "x64",   new string[] { "x64", "x86_64", "x64-android" } }
+		static private Dictionary<UnrealArch, string[]> AllArchNames = new() {
+			{ UnrealArch.Arm64, new string[] { "arm64", "arm64-v8a", "arm64-android" } },
+			{ UnrealArch.X64,   new string[] { "x64", "x86_64", "x64-android" } }
 		};
 
 		// architecture paths to use for filtering include and lib paths
-		static private Dictionary<string, string[]> AllFilterArchNames = new Dictionary<string, string[]> {
-			{ "armv7", new string[] { "armv7", "armeabi-v7a", "arm-android" } },
-			{ "arm64", new string[] { "arm64", "arm64-v8a", "arm64-android" } },
-			{ "x86",   new string[] { "x86", "x86-android" } },
-			{ "x64",   new string[] { "x64", "x86_64", "x64-android" } }
+		static private Dictionary<UnrealArch, string[]> AllFilterArchNames = new() {
+			{ UnrealArch.Arm64, new string[] { "arm64", "arm64-v8a", "arm64-android" } },
+			{ UnrealArch.X64,   new string[] { "x64", "x86_64", "x64-android" } },
+			// using Default as a placeholder to remove old folders for arches we no longer support, but licensees may have in their Build rules that we need to strip out
+			{ UnrealArch.Deprecated	, new string[] { "armv7", "armeabi-v7a", "arm-android", "x86", "x86-android" } }
 		};
 
-		static private Dictionary<string, string[]> LibrariesToSkip = new Dictionary<string, string[]> {
-			{ "arm64", new string[] { "nvToolsExt", "nvToolsExtStub", "vorbisenc", } },
-			{ "x64",   new string[] { "nvToolsExt", "nvToolsExtStub", "oculus", "OVRPlugin", "vrapi", "ovrkernel", "systemutils", "openglloader", "ovrplatformloader", "gpg", "vorbisenc", } }
+		static private Dictionary<UnrealArch, string[]> LibrariesToSkip = new() {
+			{ UnrealArch.Arm64, new string[] { "nvToolsExt", "nvToolsExtStub", "vorbisenc", } },
+			{ UnrealArch.X64,   new string[] { "nvToolsExt", "nvToolsExtStub", "oculus", "OVRPlugin", "vrapi", "ovrkernel", "systemutils", "openglloader", "ovrplatformloader", "gpg", "vorbisenc", } }
 		};
 
-		static private Dictionary<string, string[]> ModulesToSkip = new Dictionary<string, string[]> {
-			{ "arm64", new string[] {  } },
-			{ "x64",   new string[] { "OnlineSubsystemOculus", "OculusHMD", "OculusMR", "OnlineSubsystemGooglePlay" } }
+		static private Dictionary<UnrealArch, string[]> ModulesToSkip = new() {
+			{ UnrealArch.Arm64, new string[] {  } },
+			{ UnrealArch.X64,   new string[] { "OnlineSubsystemOculus", "OculusHMD", "OculusMR", "OnlineSubsystemGooglePlay" } }
 		};
 
-		static private Dictionary<string, string[]> GeneratedModulesToSkip = new Dictionary<string, string[]> {
-			{ "arm64", new string[] {  } },
-			{ "x64",   new string[] { "OculusEntitlementCallbackProxy", "OculusCreateSessionCallbackProxy", "OculusFindSessionsCallbackProxy", "OculusIdentityCallbackProxy", "OculusNetConnection", "OculusNetDriver", "OnlineSubsystemOculus_init" } }
+		static private Dictionary<UnrealArch, string[]> GeneratedModulesToSkip = new() {
+			{ UnrealArch.Arm64, new string[] {  } },
+			{ UnrealArch.X64,   new string[] { "OculusEntitlementCallbackProxy", "OculusCreateSessionCallbackProxy", "OculusFindSessionsCallbackProxy", "OculusIdentityCallbackProxy", "OculusNetConnection", "OculusNetDriver", "OnlineSubsystemOculus_init" } }
 		};
 
 		public string? NDKToolchainVersion;
@@ -449,7 +449,7 @@ namespace UnrealBuildTool
 			// @todo can remove this when we only add paths properly for architecture
 			IEnumerable<DirectoryReference> FilteredPaths = CompileEnvironment.UserIncludePaths.Where(x => IsDirectoryForArch(x.FullName, CompileEnvironment.Architecture));
 			Arguments.AddRange(FilteredPaths.Select(IncludePath => GetUserIncludePathArgument(IncludePath)));
-			
+
 			FilteredPaths = CompileEnvironment.SystemIncludePaths.Where(x => IsDirectoryForArch(x.FullName, CompileEnvironment.Architecture)); 
 			Arguments.AddRange(FilteredPaths.Select(IncludePath => GetSystemIncludePathArgument(IncludePath)));
 		}
@@ -493,7 +493,7 @@ namespace UnrealBuildTool
 				else if (CompileEnvironment.OptimizationLevel == OptimizationMode.SizeAndSpeed)
 				{
 					Arguments.Add("-Os");
-					if (CompileEnvironment.Architecture == "arm64")
+					if (CompileEnvironment.Architecture == UnrealArch.Arm64)
 					{
 						Arguments.Add("-moutline");
 					}
@@ -669,7 +669,7 @@ namespace UnrealBuildTool
 				Arguments.Add("-DINTEL_ISPC=1");
 			}
 
-			if (CompileEnvironment.Architecture == "arm64")
+			if (CompileEnvironment.Architecture == UnrealArch.Arm64)
 			{
 				Arguments.Add(ToolchainParamsArm64);
 				Arguments.Add("-D__arm64__");            // for some reason this isn't defined and needed for PhysX
@@ -677,7 +677,7 @@ namespace UnrealBuildTool
 				Arguments.Add("-march=armv8-a");
 				Arguments.Add("-fsigned-char");             // Treat chars as signed //@todo android: any concerns about ABI compatibility with libs here?
 			}
-			else if (CompileEnvironment.Architecture == "x64")
+			else if (CompileEnvironment.Architecture == UnrealArch.X64)
 			{
 				Arguments.Add(ToolchainParamsx64);
 				Arguments.Add("-fno-omit-frame-pointer");
@@ -705,7 +705,7 @@ namespace UnrealBuildTool
 		}
 
 
-		protected virtual string GetLinkArguments(LinkEnvironment LinkEnvironment, string Architecture)
+		protected virtual string GetLinkArguments(LinkEnvironment LinkEnvironment, UnrealArch Architecture)
 		{
 			string Result = "";
 
@@ -725,12 +725,12 @@ namespace UnrealBuildTool
 				Result += " -Wl,--strip-debug";
 			}
 
-			if (Architecture == "x64")
+			if (Architecture == UnrealArch.X64)
 			{
 				Result += ToolchainLinkParamsx64;
 				Result += " -march=atom";
 			}
-			else // if (Architecture == "arm64")
+			else // if (Architecture == UnrealArch.Arm64)
 			{
 				Result += ToolchainLinkParamsArm64;
 				Result += " -march=armv8-a";
@@ -848,13 +848,13 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		static bool IsDirectoryForArch(string Dir, string Arch)
+		static bool IsDirectoryForArch(string Dir, UnrealArch Arch)
 		{
 			// make sure paths use one particular slash
 			Dir = Dir.Replace("\\", "/").ToLowerInvariant();
 
 			// look for other architectures in the Dir path, and fail if it finds it
-			foreach (KeyValuePair<string, string[]> Pair in AllFilterArchNames)
+			foreach (KeyValuePair<UnrealArch, string[]> Pair in AllFilterArchNames)
 			{
 				if (Pair.Key != Arch)
 				{
@@ -873,7 +873,7 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		static bool ShouldSkipModule(string ModuleName, string Arch)
+		static bool ShouldSkipModule(string ModuleName, UnrealArch Arch)
 		{
 			foreach (string ModName in ModulesToSkip[Arch])
 			{
@@ -887,7 +887,7 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		bool ShouldSkipLib(string FullLib, string Arch)
+		bool ShouldSkipLib(string FullLib, UnrealArch Arch)
 		{
 			// strip any absolute path
 			string Lib = Path.GetFileNameWithoutExtension(FullLib);
@@ -922,11 +922,11 @@ namespace UnrealBuildTool
 			}
 
 			// if another architecture is in the filename, reject it
-			foreach (string ComboName in AllCpuSuffixes)
+			foreach (KeyValuePair<UnrealArch, string> ComboName in AllCpuSuffixes)
 			{
-				if (ComboName != Arch)
+				if (ComboName.Key != Arch)
 				{
-					if (Lib.EndsWith(ComboName))
+					if (Lib.EndsWith(ComboName.Value))
 					{
 						return true;
 					}
@@ -957,7 +957,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		void GenerateEmptyLinkFunctionsForRemovedModules(List<FileItem> SourceFiles, string Arch, string ModuleName, DirectoryReference OutputDirectory, IActionGraphBuilder Graph, ILogger Logger)
+		void GenerateEmptyLinkFunctionsForRemovedModules(List<FileItem> SourceFiles, UnrealArch Arch, string ModuleName, DirectoryReference OutputDirectory, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			// Only add to Launch module
 			if (!ModuleName.Equals("Launch"))
@@ -971,11 +971,13 @@ namespace UnrealBuildTool
 			List<string> Result = new List<string>();
 			Result.Add("#include \"CoreTypes.h\"");
 			Result.Add("");
-			switch (Arch)
+			if (Arch == UnrealArch.X64)
 			{
-				case "arm64": Result.Add("#if PLATFORM_ANDROID_ARM64"); break;
-				case "x64": Result.Add("#if PLATFORM_ANDROID_X64"); break;
-				default: Result.Add("#if PLATFORM_ANDROID_ARM"); break;
+				Result.Add("#if PLATFORM_ANDROID_X64");
+			}
+			else
+			{
+				Result.Add("#if PLATFORM_ANDROID_ARM64");
 			}
 
 			foreach (string ModName in ModulesToSkip[Arch])
@@ -1003,15 +1005,12 @@ namespace UnrealBuildTool
 		protected static string? ArPathx64;
 		protected static string? ReadElfPath;
 
-		static public string GetStripExecutablePath(string UnrealArch)
+		static public string GetStripExecutablePath(UnrealArch UnrealArch)
 		{
-			string StripPath;
-
-			switch (UnrealArch)
+			string StripPath = ArPathArm64!;
+			if (UnrealArch == UnrealArch.X64)
 			{
-				case "arm64": StripPath = ArPathArm64!; break;
-				case "x64": StripPath = ArPathx64!; break;
-				default: StripPath = ArPathArm64!; break;
+				StripPath = ArPathx64!;
 			}
 			return StripPath.Replace("-ar", "-strip");
 		}
@@ -1040,9 +1039,9 @@ namespace UnrealBuildTool
 			return base.CompileCPPFiles(CompileEnvironment, InputFiles, OutputDir, ModuleName, Graph);
 		}
 
-		static public string InlineArchName(string Pathname, string Arch, bool bUseShortNames = false)
+		static public string InlineArchName(string Pathname, UnrealArch Arch, bool bUseShortNames = false)
 		{
-			string FinalArch = "-" + Arch;
+			string FinalArch = "-" + Arch.ToString().ToLower();
 			if (bUseShortNames)
 			{
 				FinalArch = ShortArchNames[FinalArch];
@@ -1053,16 +1052,16 @@ namespace UnrealBuildTool
 		public string RemoveArchName(string Pathname)
 		{
 			// remove all architecture names
-			foreach (string Arch in AllCpuSuffixes)
+			foreach (string Arch in AllCpuSuffixes.Values)
 			{
 				Pathname = Path.Combine(Path.GetDirectoryName(Pathname)!, Path.GetFileName(Pathname).Replace(Arch, ""));
 			}
 			return Pathname;
 		}
 
-		static public DirectoryReference InlineArchIncludeFolder(DirectoryReference PathRef, string Arch)
+		static public DirectoryReference InlineArchIncludeFolder(DirectoryReference PathRef, UnrealArch Arch)
 		{
-			return DirectoryReference.Combine(PathRef, "include", Arch.Replace("-", ""));
+			return DirectoryReference.Combine(PathRef, "include", Arch.ToString());
 		}
 
 		public override CPPOutput GenerateISPCHeaders(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
@@ -1151,7 +1150,7 @@ namespace UnrealBuildTool
 
 				// Add the source file and its included files to the prerequisite item list.
 				CompileAction.PrerequisiteItems.Add(ISPCFile);
-				CompileAction.StatusDescription = string.Format("{0} [{1}]", Path.GetFileName(ISPCFile.AbsolutePath), CompileEnvironment.Architecture.Replace("-", ""));
+				CompileAction.StatusDescription = string.Format("[{0}] {1}", CompileEnvironment.Architecture, Path.GetFileName(ISPCFile.AbsolutePath));
 
 				FileItem ISPCFinalHeaderFile = FileItem.GetItemByFileReference(
 					FileReference.Combine(
@@ -1344,7 +1343,7 @@ namespace UnrealBuildTool
 				// Add the source file and its included files to the prerequisite item list.
 				CompileAction.PrerequisiteItems.Add(ISPCFile);
 
-				CompileAction.StatusDescription = string.Format("{0} [{1}]", Path.GetFileName(ISPCFile.AbsolutePath), CompileEnvironment.Architecture.Replace("-", ""));
+				CompileAction.StatusDescription = string.Format("[{0}] [{1}]", CompileEnvironment.Architecture, Path.GetFileName(ISPCFile.AbsolutePath));
 
 				for(int i = 0; i < CompiledISPCObjFiles.Count; i++)
 				{
@@ -1395,7 +1394,7 @@ namespace UnrealBuildTool
 				ModifyLibraries(LinkEnvironment);
 			}
 
-			string Arch = LinkEnvironment.Architecture;
+			UnrealArch Arch = LinkEnvironment.Architecture;
 
 			// Create an action that invokes the linker.
 			Action LinkAction = Graph.CreateAction(ActionType.Link);
@@ -1403,10 +1402,13 @@ namespace UnrealBuildTool
 
 			if (LinkEnvironment.bIsBuildingLibrary)
 			{
-				switch (Arch)
+				if (Arch == UnrealArch.Arm64)
 				{
-					case "arm64": LinkAction.CommandPath = new FileReference(ArPathArm64!); break;
-					case "x64": LinkAction.CommandPath = new FileReference(ArPathx64!); break;
+					LinkAction.CommandPath = new FileReference(ArPathArm64!);
+				}
+				else
+				{
+					LinkAction.CommandPath = new FileReference(ArPathx64!);
 				}
 			}
 			else
@@ -1423,7 +1425,7 @@ namespace UnrealBuildTool
 
 			// Add the output file as a production of the link action.
 			FileItem OutputFile;
-			OutputFile = FileItem.GetItemByFileReference(LinkEnvironment.OutputFilePaths.Where(x => x.FullName.Contains(LinkEnvironment.Architecture)).First());
+			OutputFile = FileItem.GetItemByFileReference(LinkEnvironment.OutputFilePaths.Where(x => x.FullName.Contains(LinkEnvironment.Architecture.ToString(), StringComparison.InvariantCultureIgnoreCase)).First());
 			LinkAction.ProducedItems.Add(OutputFile);
 			LinkAction.StatusDescription = string.Format("{0}", Path.GetFileName(OutputFile.AbsolutePath));
 			LinkAction.CommandVersion = AndroidClangBuild!;
@@ -1602,7 +1604,7 @@ namespace UnrealBuildTool
 
 			string VersionScriptFileItem = GetVersionScriptFilename(LinkEnvironment);
 			LinkAction.PrerequisiteItems.Add(FileItem.GetItemByPath(VersionScriptFileItem));
-				
+			
 			Logger.LogInformation("Link: {LinkActionCommandPathFullName} {LinkActionCommandArguments}", LinkAction.CommandPath.FullName, LinkAction.CommandArguments);
 
 			// Windows can run into an issue with too long of a commandline when clang tries to call ld to link.

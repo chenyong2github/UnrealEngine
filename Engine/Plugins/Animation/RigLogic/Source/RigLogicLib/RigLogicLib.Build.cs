@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using UnrealBuildTool;
 
 public class RigLogicLib : ModuleRules
@@ -57,7 +58,8 @@ public class RigLogicLib : ModuleRules
             PrivateDefinitions.Add("TRIO_MMAP_AVAILABLE=1");
         }
 
-        if (Target.Architecture.StartsWith("x86_64"))
+        // if no architecture isn't X64, we can use SSE (this should be moved to .h so it can check per architecture)
+        if (!Target.Architectures.Architectures.Any(x => !x.bIsX64))
         {
             PrivateDefinitions.Add("RL_BUILD_WITH_SSE=1");
         }

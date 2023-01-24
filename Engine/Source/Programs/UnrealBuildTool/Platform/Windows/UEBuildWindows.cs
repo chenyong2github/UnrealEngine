@@ -14,6 +14,35 @@ using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
+	partial struct UnrealArch
+	{
+		/// <summary>
+		/// Version of Arm64 that can interop with X64 (Emulation Compatible)
+		/// </summary>
+		public static UnrealArch Arm64ec = FindOrAddByName("arm64ec", bIsX64: false);
+
+
+		private static Dictionary<UnrealArch, string> WindowsToolchainArchitectures = new()
+		{
+			{ UnrealArch.Arm64,         "arm64" },
+			{ UnrealArch.Arm64ec,       "arm64" },
+			{ UnrealArch.X64,           "x64" },
+		};
+
+		/// <summary>
+		/// Windows-specific low level name for the generic platforms
+		/// </summary>
+		public string WindowsName
+		{
+			get
+			{
+				if (WindowsToolchainArchitectures.ContainsKey(this)) return WindowsToolchainArchitectures[this];
+				throw new BuildException($"Unknown architecture {ToString()} passed to UnrealArch.WindowsName");
+			}
+		}
+
+	}
+
 	/// <summary>
 	/// Available compiler toolchains on Windows platform
 	/// </summary>
@@ -130,25 +159,6 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
-	/// Available architectures on Windows platform
-	/// </summary>
-	public enum WindowsArchitecture
-	{
-		/// <summary>
-		/// x64
-		/// </summary>
-		x64,
-		/// <summary>
-		/// ARM64
-		/// </summary>
-		ARM64,
-		/// <summary>
-		/// ARM64EC
-		/// </summary>
-		ARM64EC,
-	}
-
-	/// <summary>
 	/// Windows-specific target settings
 	/// </summary>
 	public class WindowsTargetRules
@@ -176,12 +186,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Architecture of Target.
 		/// </summary>
-		public WindowsArchitecture Architecture
+		public UnrealArch Architecture
 		{
 			get;
 			internal set;
 		}
-		= WindowsArchitecture.x64;
+		= UnrealArch.X64;
 
 		/// <summary>
 		/// The specific toolchain version to use. This may be a specific version number (for example, "14.13.26128"), the string "Latest" to select the newest available version, or
@@ -543,7 +553,7 @@ namespace UnrealBuildTool
 			this.Target = Target;
 
 			string Platform = Target.Platform.ToString();
-			if (Target.Architecture == "arm64" || Target.Architecture == "arm64ec")
+			if (Target.Platform== UnrealTargetPlatform.Win64 && !Target.Architecture.bIsX64)
 			{
 				Platform += "-arm64";
 			}
@@ -582,7 +592,7 @@ namespace UnrealBuildTool
 			get { return Inner.Compiler; }
 		}
 		
-		public WindowsArchitecture Architecture
+		public UnrealArch Architecture
 		{
 			get { return Inner.Architecture; }
 		}
@@ -814,11 +824,6 @@ namespace UnrealBuildTool
 			get { return Inner.IDEDir; }
 		}
 
-		public string GetArchitectureSubpath()
-		{
-			return WindowsExports.GetArchitectureSubpath(Architecture);
-		}
-
 		#pragma warning restore CS1591
 		#endregion
 	}
@@ -867,6 +872,28 @@ namespace UnrealBuildTool
 		}
 	}
 
+	class WindowsArchitectureConfig : UnrealArchitectureConfig
+	{
+		public WindowsArchitectureConfig()
+			: base(UnrealArchitectureMode.OneTargetPerArchitecture, new[] { UnrealArch.X64, UnrealArch.Arm64, UnrealArch.Arm64ec})
+		{
+
+		}
+
+		public override UnrealArchitectures ActiveArchitectures(FileReference? ProjectFile, string? TargetName)
+		{
+			// for now alwways ocmpile X64 unless overridden on commandline
+			return new UnrealArchitectures(UnrealArch.X64);
+		}
+
+		public override bool RequiresArchitectureFilenames(UnrealArchitectures Architectures)
+		{
+			return Architectures.SingleArchitecture != UnrealArch.X64;
+		}
+
+
+	}
+
 	class WindowsPlatform : UEBuildPlatform
 	{		
 		MicrosoftPlatformSDK SDK;
@@ -878,11 +905,22 @@ namespace UnrealBuildTool
 		/// <param name="InSDK">The installed Windows SDK</param>
 		/// <param name="InLogger">Logger instance</param>
 		public WindowsPlatform(UnrealTargetPlatform InPlatform, MicrosoftPlatformSDK InSDK, ILogger InLogger)
-			: base(InPlatform, InSDK, InLogger)
+			: this(InPlatform, InSDK, new WindowsArchitectureConfig(), InLogger)
+		{
+		}
+
+		/// <summary>
+		/// Constructor that takes an archConfig (for use by subclasses)
+		/// </summary>
+		/// <param name="InPlatform">Creates a windows platform with the given enum value</param>
+		/// <param name="InSDK">The installed Windows SDK</param>
+		/// <param name="ArchConfig">Achitecture configuration</param>
+		/// <param name="InLogger">Logger instance</param>
+		public WindowsPlatform(UnrealTargetPlatform InPlatform, MicrosoftPlatformSDK InSDK, UnrealArchitectureConfig ArchConfig, ILogger InLogger)
+			: base(InPlatform, InSDK, ArchConfig, InLogger)
 		{
 			SDK = InSDK;
 		}
-
 		/// <summary>
 		/// Reset a target's settings to the default
 		/// </summary>
@@ -911,21 +949,10 @@ namespace UnrealBuildTool
 		{
 			if (Platform == UnrealTargetPlatform.Win64)
 			{
-				switch(Target.Architecture)
-				{
-					case "arm64":
-						Target.WindowsPlatform.Architecture = WindowsArchitecture.ARM64;
-						break;
-					case "arm64ec":
-						Target.WindowsPlatform.Architecture = WindowsArchitecture.ARM64EC;
-						break;
-					default:
-						Target.WindowsPlatform.Architecture = WindowsArchitecture.x64;
-						break;
-				}
+				Target.WindowsPlatform.Architecture = Target.Architecture;// == UnrealArch.Default ? UnrealArch.X64 : Target.Architecture;
 
 				// Add names of plugins here that are incompatible with arm64
-				bool bCompilingForArm = Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0;
+				bool bCompilingForArm = !Target.Architecture.bIsX64;
 				if (bCompilingForArm && Target.Name != "UnrealHeaderTool")
 				{
 					Target.DisablePlugins.AddRange(new string[]
@@ -997,7 +1024,7 @@ namespace UnrealBuildTool
 
 			Target.bCompileISPC = true;
 
-			if (Platform == UnrealTargetPlatform.Win64 && Target.Architecture == "arm64")
+			if (Platform == UnrealTargetPlatform.Win64 && !Target.Architecture.bIsX64)
 			{
 				Target.bCompileISPC = false; // The version of ISPC we currently use does not support Windows Aarch64
 			}
@@ -1039,7 +1066,7 @@ namespace UnrealBuildTool
 		/// Gets the default compiler which should be used, if it's not set explicitly by the target, command line, or config file.
 		/// </summary>
 		/// <returns>The default compiler version</returns>
-		internal static WindowsCompiler GetDefaultCompiler(FileReference? ProjectFile, WindowsArchitecture Architecture, ILogger Logger)
+		internal static WindowsCompiler GetDefaultCompiler(FileReference? ProjectFile, UnrealArch Architecture, ILogger Logger)
 		{
 			// If there's no specific compiler set, try to pick the matching compiler for the selected IDE
 			if (ProjectFileGeneratorSettings.Format != null)
@@ -1099,14 +1126,14 @@ namespace UnrealBuildTool
 			// If we do have a Visual Studio installation, but we're missing just the C++ parts, warn about that.
 			if (TryGetVSInstallDirs(WindowsCompiler.VisualStudio2022, Logger) != null)
 			{
-				string ToolSetWarning = Architecture == WindowsArchitecture.x64 ?
+				string ToolSetWarning = Architecture == UnrealArch.X64 ?
 					"MSVC v143 - VS 2022 C++ x64/x86 build tools (Latest)" :
 					"MSVC v143 - VS 2022 C++ ARM64 build tools (Latest)";
 				Logger.LogWarning("Visual Studio 2022 is installed, but is missing the C++ toolchain. Please verify that the \"{Component}\" component is selected in the Visual Studio 2022 installation options.", ToolSetWarning);
 			}
 			else if (TryGetVSInstallDirs(WindowsCompiler.VisualStudio2019, Logger) != null)
 			{
-				string ToolSetWarning = Architecture == WindowsArchitecture.x64 ?
+				string ToolSetWarning = Architecture == UnrealArch.X64 ?
 					"MSVC v142 - VS 2019 C++ x64/x86 build tools (Latest)" :
 					"MSVC v142 - VS 2019 C++ ARM64 build tools (Latest)";
 				Logger.LogWarning("Visual Studio 2019 is installed, but is missing the C++ toolchain. Please verify that the \"{Component}\" component is selected in the Visual Studio 2019 installation options.", ToolSetWarning);
@@ -1155,7 +1182,7 @@ namespace UnrealBuildTool
 		/// <param name="Architecture">Architecture the compiler must support</param>
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the given compiler is installed</returns>
-		public static bool HasCompiler(WindowsCompiler Compiler, WindowsArchitecture Architecture, ILogger Logger)
+		public static bool HasCompiler(WindowsCompiler Compiler, UnrealArch Architecture, ILogger Logger)
 		{
 			return MicrosoftPlatformSDK.HasCompiler(Compiler, Architecture, Logger);
 		}
@@ -1171,41 +1198,14 @@ namespace UnrealBuildTool
 		/// <param name="OutToolChainDir">Receives the directory containing the toolchain</param>
 		/// <param name="OutRedistDir">Receives the optional directory containing redistributable components</param>
 		/// <returns>True if the toolchain directory was found correctly</returns>
-		public static bool TryGetToolChainDir(WindowsCompiler Compiler, string? CompilerVersion, WindowsArchitecture Architecture, ILogger Logger, [NotNullWhen(true)] out VersionNumber? OutToolChainVersion, [NotNullWhen(true)] out DirectoryReference? OutToolChainDir, out DirectoryReference? OutRedistDir)
+		public static bool TryGetToolChainDir(WindowsCompiler Compiler, string? CompilerVersion, UnrealArch Architecture, ILogger Logger, [NotNullWhen(true)] out VersionNumber? OutToolChainVersion, [NotNullWhen(true)] out DirectoryReference? OutToolChainDir, out DirectoryReference? OutRedistDir)
 		{
 			return MicrosoftPlatformSDK.TryGetToolChainDir(Compiler, CompilerVersion, Architecture, Logger, out OutToolChainVersion, out OutToolChainDir, out OutRedistDir);
 		}
 
-		public static string GetArchitectureSubpath(WindowsArchitecture arch)
+		public static string GetArchitectureName(UnrealArch arch)
 		{
-			string archPath = "Unknown";
-			if (arch == WindowsArchitecture.x64)
-			{
-				archPath = "x64";
-			}
-			else if (arch == WindowsArchitecture.ARM64 || arch == WindowsArchitecture.ARM64EC)
-			{
-				archPath = "arm64";
-			}
-			return archPath;
-		}
-
-		public static string GetArchitectureName(WindowsArchitecture arch)
-		{
-			string archPath = "Unknown";
-			if (arch == WindowsArchitecture.x64)
-			{
-				archPath = "x64";
-			}
-			else if (arch == WindowsArchitecture.ARM64)
-			{
-				archPath = "arm64";
-			}
-			else if (arch == WindowsArchitecture.ARM64EC)
-			{
-				archPath = "arm64ec";
-			}
-			return archPath;
+			return arch.ToString();
 		}
 
 		/// <summary>

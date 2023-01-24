@@ -18,8 +18,7 @@ public class UElibPNG : ModuleRules
 				return "libPNG-1.6.37";
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac ||
-				Target.Architecture.StartsWith("aarch64") ||
-				Target.Architecture.StartsWith("i686"))
+				(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture == UnrealArch.Arm64))
 			{
 				return "libPNG-1.5.27";
 			}
@@ -46,20 +45,16 @@ public class UElibPNG : ModuleRules
 		// sets depending on CPU supported features.
 		// Please, take care of bringing those changes over if you upgrade the library
 		if (Target.Platform == UnrealTargetPlatform.Win64 &&
-		    Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+		    Target.WindowsPlatform.Architecture.bIsX64)
 		{
 			string LibFileName = string.Format("libpng15_static{0}.lib", Target.Configuration != UnrealTargetConfiguration.Debug ? "" : "d");
 			LibDir = Path.Combine(LibPNGPath, "Win64-llvm", Target.Configuration != UnrealTargetConfiguration.Debug ? "Release" : "Debug");
 			PublicAdditionalLibraries.Add(Path.Combine(LibDir, LibFileName));
 		}
+		// arm64 case
 		else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			LibDir = Path.Combine(LibPNGPath, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-
-			if (Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0)
-			{
-				LibDir = Path.Combine(LibDir, Target.WindowsPlatform.GetArchitectureSubpath());
-			}
+			LibDir = Path.Combine(LibPNGPath, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.Architecture.WindowsName);
 
 			string LibFileName = "libpng" + (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "d" : "") + "_64.lib";
 			PublicAdditionalLibraries.Add(Path.Combine(LibDir, LibFileName));
@@ -70,7 +65,7 @@ public class UElibPNG : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
-			LibDir = (Target.Architecture == "-simulator")
+			LibDir = (Target.Architecture == UnrealArch.IOSSimulator)
 				? "Simulator"
 				: "Device";
 
@@ -78,7 +73,7 @@ public class UElibPNG : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.TVOS)
 		{
-			LibDir = (Target.Architecture == "-simulator")
+			LibDir = (Target.Architecture == UnrealArch.TVOSSimulator)
 				? "Simulator"
 				: "Device";
 
@@ -91,7 +86,7 @@ public class UElibPNG : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibPNGPath, "Unix", Target.Architecture, "libpng.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibPNGPath, "Unix", Target.Architecture.LinuxName, "libpng.a"));
 		}
 
 		PublicSystemIncludePaths.Add(IncPNGPath);

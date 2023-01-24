@@ -18,7 +18,7 @@ public class fmt : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Unix", Target.Architecture, "Release", "libfmt.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Unix", Target.Architecture.LinuxName, "Release", "libfmt.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

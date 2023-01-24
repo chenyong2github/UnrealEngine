@@ -898,7 +898,7 @@ namespace Gauntlet
 		// If a test is being run multiple times, we only want to install the first time
 		static Dictionary<string, string> PackagedInstalls = new Dictionary<string, string>();
 
-		public static string[] GetPathToVCLibsPackages(bool UseDebugCrt, WindowsCompiler Compiler, WindowsArchitecture[] ActualArchitectures)
+		public static string[] GetPathToVCLibsPackages(bool UseDebugCrt, WindowsCompiler Compiler, UnrealArch[] ActualArchitectures)
 		{
 			List<DirectoryReference> SdkRootDirs = new List<DirectoryReference>();
 			WindowsExports.EnumerateSdkRootDirs(SdkRootDirs, EpicGames.Core.Log.Logger);
@@ -927,7 +927,7 @@ namespace Gauntlet
 				{
 					foreach (var Arch in ActualArchitectures)
 					{
-						string ArchitectureFragment = WindowsExports.GetArchitectureSubpath(Arch);
+						string ArchitectureFragment = Arch.WindowsName;
 
 						// For whatever reason, VCLibs are not in Windows Kits/, but Microsoft SDKs/Windows Kits, so go up two directories and start from there.
 						if (Directory.Exists(SdkRootDir.ParentDirectory.ToString()) && Directory.Exists(SdkRootDir.ParentDirectory.ParentDirectory.ToString()))
@@ -1063,7 +1063,7 @@ namespace Gauntlet
 					Log.Verbose("Unable to uninstall {0}", PackageName);
 				}
 
-					try
+				try
 				{
 					string PackagePath = PackagedBuild.SourceAppxBundlePath;
 					string CertPath = PackagedBuild.SourceCertPath;
@@ -1074,7 +1074,7 @@ namespace Gauntlet
 					bool UseDebugCrt = AppConfig.Configuration == UnrealTargetConfiguration.Debug;
 					WindowsCompiler Compiler = WindowsCompiler.Default;
 
-					WindowsArchitecture[] ActualArchitectures = { WindowsArchitecture.ARM64 };
+					UnrealArch[] ActualArchitectures = { UnrealArch.Arm64 };
 					Dependencies.AddRange(GetPathToVCLibsPackages(UseDebugCrt, Compiler, ActualArchitectures));
 
 					DevicePortal.AppInstallStatus += Portal_AppInstallStatus;

@@ -67,36 +67,31 @@ namespace AutomationTool
 			// Create list of platform configurations installed in a Rocket build
 			List<InstalledPlatformInfo.InstalledPlatformConfiguration> InstalledConfigs = new List<InstalledPlatformInfo.InstalledPlatformConfiguration>();
 
-			// Add the editor platform, otherwise we'll never be able to run UAT
-			string EditorArchitecture = PlatformExports.GetDefaultArchitecture(HostPlatform.Current.HostEditorPlatform, null);
+			// Add the editor platform/architecture for unspecified target, otherwise we'll never be able to run UAT. This currently expects this to be a single architecture for now!
+			// @todo handle multiple architectures, and pass in the target name (and maybe project file?)
+			UnrealArch EditorArchitecture = UnrealArchitectureConfig.ForPlatform(HostPlatform.Current.HostEditorPlatform).ActiveArchitectures(null, null).SingleArchitecture;
 			InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(UnrealTargetConfiguration.Development, HostPlatform.Current.HostEditorPlatform, TargetRules.TargetType.Editor, EditorArchitecture, "", EProjectType.Unknown, false));
 			InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(UnrealTargetConfiguration.DebugGame, HostPlatform.Current.HostEditorPlatform, TargetRules.TargetType.Editor, EditorArchitecture, "", EProjectType.Unknown, false));
 
 			foreach (UnrealTargetPlatform CodeTargetPlatform in Platforms)
 			{
-				string Architecture = PlatformExports.GetDefaultArchitecture(CodeTargetPlatform, null);
+				UnrealArchitectureConfig PlatformArchConfig = UnrealArchitectureConfig.ForPlatform(CodeTargetPlatform);
 
 				// Try to parse additional Architectures from the command line
 				string Architectures = ParseParamValue(CodeTargetPlatform.ToString() + "Architectures");
-				string GPUArchitectures = ParseParamValue(CodeTargetPlatform.ToString() + "GPUArchitectures");
 
 				// Build a list of pre-compiled architecture combinations for this platform if any
-				List<string> AllArchNames;
+				UnrealArchitectures AllArchitectures;
 
-				if (!String.IsNullOrWhiteSpace(Architectures) && !String.IsNullOrWhiteSpace(GPUArchitectures))
+				if (!String.IsNullOrWhiteSpace(Architectures))
 				{
-					AllArchNames = (from Arch in Architectures.Split('+')
-									from GPUArch in GPUArchitectures.Split('+')
-									select "-" + Arch + "-" + GPUArch).ToList();
-				}
-				else if (!String.IsNullOrWhiteSpace(Architectures))
-				{
-					AllArchNames = Architectures.Split('+').ToList();
+					AllArchitectures = UnrealArchitectures.FromString(Architectures, CodeTargetPlatform);
 				}
 				// if there aren't any, use the default
 				else
 				{
-					AllArchNames = new List<string>() { Architecture };
+					// get the architectures for the target platform, for unspecified target
+					AllArchitectures = PlatformArchConfig.ActiveArchitectures(null, null);
 				}
 
 				// Check whether this platform should only be used for content based projects
@@ -119,36 +114,28 @@ namespace AutomationTool
 						// Need to check for development receipt as we use that for the Engine code in DebugGame
 						UnrealTargetConfiguration EngineConfiguration = (CodeTargetConfiguration == UnrealTargetConfiguration.DebugGame) ? UnrealTargetConfiguration.Development : CodeTargetConfiguration;
 
-						// Android has multiple architecture flavors built without receipts, so use the default arch target instead
-						if (CodeTargetPlatform == UnrealTargetPlatform.Android)
+						// if the platform doesn't split up multi-arch into multiple targets (which equate to receipt files) then make multiple configs from one receipt
+						if (PlatformArchConfig.Mode != UnrealArchitectureMode.OneTargetPerArchitecture)
 						{
-							FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(new DirectoryReference(OutputEnginePath), CurrentTargetName, CodeTargetPlatform, EngineConfiguration, Architecture);
+							FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(new DirectoryReference(OutputEnginePath), CurrentTargetName, CodeTargetPlatform, EngineConfiguration, AllArchitectures);
 							if (FileReference.Exists(ReceiptFileName))
 							{
 								// Strip the output folder so that this can be used on any machine
 								string RelativeReceiptFileName = ReceiptFileName.MakeRelativeTo(new DirectoryReference(OutputDir));
 
 								// Blindly append all of the architecture names
-								if (AllArchNames.Count > 0)
+								foreach (UnrealArch Arch in AllArchitectures.Architectures)
 								{
-									foreach (string Arch in AllArchNames)
-									{
-										InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, CurrentTargetType, Arch, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
-									}
-								}
-								// if for some reason we didn't specify any flavors, just add the default one.
-								else
-								{
-									InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, CurrentTargetType, Architecture, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
+									InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, CurrentTargetType, Arch, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
 								}
 							}
 						}
-						// If we're not Android, check the existence of the target receipts for each architecture specified.
+						// otherwise, look for receipts for each specified architecture
 						else
 						{
-							foreach (string Arch in AllArchNames)
+							foreach (UnrealArch Arch in AllArchitectures.Architectures)
 							{
-								FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(new DirectoryReference(OutputEnginePath), CurrentTargetName, CodeTargetPlatform, EngineConfiguration, Arch);
+								FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(new DirectoryReference(OutputEnginePath), CurrentTargetName, CodeTargetPlatform, EngineConfiguration, AllArchitectures);
 								if (FileReference.Exists(ReceiptFileName))
 								{
 									string RelativeReceiptFileName = ReceiptFileName.MakeRelativeTo(new DirectoryReference(OutputDir));

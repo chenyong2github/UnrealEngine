@@ -24,7 +24,7 @@ public class SymsLib : ModuleRules
 		{
 			bool bUseDebug = Target.Configuration == UnrealTargetConfiguration.Debug;
 			string LibName = bUseDebug ? "libsymsd_fPIC.a" : "libsyms_fPIC.a";
-			string LibPath = Path.Combine(LibPathBase, "Unix", Target.Architecture);
+			string LibPath = Path.Combine(LibPathBase, "Unix", Target.Architecture.LinuxName);
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, LibName));
 		}

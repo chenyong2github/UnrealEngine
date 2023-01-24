@@ -62,7 +62,7 @@ namespace UnrealBuildTool.Rules
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenVR");
                 PrivateDependencyModuleNames.AddRange(new string[] { "MetalRHI" });
             }
-            else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64"))
+            else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture == UnrealArch.X64)
 			{
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenVR");
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");

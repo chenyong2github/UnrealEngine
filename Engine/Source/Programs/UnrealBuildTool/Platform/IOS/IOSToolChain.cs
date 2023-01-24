@@ -73,9 +73,9 @@ namespace UnrealBuildTool
 			IOSSDKVersionFloat = float.Parse(IOSSDKVersion, System.Globalization.CultureInfo.InvariantCulture);
 		}
 
-		public string GetSDKPath(string Architecture)
+		public string GetSDKPath(UnrealArch Architecture)
 		{
-			if (Architecture == "-simulator")
+			if (Architecture == UnrealArch.IOSSimulator || Architecture == UnrealArch.TVOSSimulator)
 			{
 				return BaseSDKDirSim + "/" + SimulatorPlatformName + IOSSDKVersion + ".sdk";
 			}
@@ -275,7 +275,7 @@ namespace UnrealBuildTool
 			}
 
 			// What architecture(s) to build for
-			Arguments.Add(GetArchitectureArgument(CompileEnvironment.Configuration, CompileEnvironment.Architecture));
+			Arguments.Add(FormatArchitectureArg(CompileEnvironment.Architectures));
 
 			Arguments.Add($"-isysroot \"{Settings.Value.GetSDKPath(CompileEnvironment.Architecture)}\"");
 
@@ -354,33 +354,6 @@ namespace UnrealBuildTool
 			return "iphoneos-version-min";
 		}
 
-		public virtual string GetArchitectureArgument(CppConfiguration Configuration, string UBTArchitecture)
-		{
-			// get the list of architectures to compile
-			string Archs =
-				UBTArchitecture == "-simulator" ? "arm64" :
-				String.Join(",", (Configuration == CppConfiguration.Shipping) ? ProjectSettings.ShippingArchitectures : ProjectSettings.NonShippingArchitectures);
-
-			Log.TraceLogOnce("Compiling with these architectures: " + Archs);
-
-			// parse the string
-			string[] Tokens = Archs.Split(",".ToCharArray());
-
-
-			string Result = "";
-
-			foreach (string Token in Tokens)
-			{
-				Result += " -arch " + Token;
-			}
-
-			//  Remove this in 4.16 
-			//  Commented this out, for now. @Pete let's conditionally check this when we re-implement this fix. 
-			//  Result += " -mcpu=cortex-a9";
-
-			return Result;
-		}
-
 		public string GetAdditionalLinkerFlags(CppConfiguration InConfiguration)
 		{
 			if (InConfiguration != CppConfiguration.Shipping)
@@ -395,9 +368,9 @@ namespace UnrealBuildTool
 
 		void GetLinkArguments_Global(LinkEnvironment LinkEnvironment, List<string> Arguments)
 		{
-			Arguments.Add(GetArchitectureArgument(LinkEnvironment.Configuration, LinkEnvironment.Architecture));
+			Arguments.Add(FormatArchitectureArg(LinkEnvironment.Architectures));
 
-			bool bIsDevice = (LinkEnvironment.Architecture != "-simulator");
+			bool bIsDevice = LinkEnvironment.Architecture != UnrealArch.IOSSimulator && LinkEnvironment.Architecture != UnrealArch.TVOSSimulator;
 			Arguments.Add(String.Format(" -isysroot \\\"{0}Platforms/{1}.platform/Developer/SDKs/{1}{2}.sdk\\\"",
 				Settings.Value.XcodeDeveloperDir, bIsDevice ? Settings.Value.DevicePlatformName : Settings.Value.SimulatorPlatformName, Settings.Value.IOSSDKVersion));
 

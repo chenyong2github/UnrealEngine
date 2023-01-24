@@ -189,7 +189,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public bool PrepForUATPackageOrDeploy(FileReference? ProjectFile, string ProjectName, string ProjectDirectory, WindowsArchitecture Architecture, List<UnrealTargetConfiguration> TargetConfigurations, List<string> ExecutablePaths, string EngineDirectory, bool bForDistribution, string CookFlavor, bool bIsDataDeploy)
+		public bool PrepForUATPackageOrDeploy(FileReference? ProjectFile, string ProjectName, string ProjectDirectory, UnrealArch Architecture, List<UnrealTargetConfiguration> TargetConfigurations, List<string> ExecutablePaths, string EngineDirectory, bool bForDistribution, string CookFlavor, bool bIsDataDeploy)
 		{
 			//@todo need to support dlc and other targets
 			//string LocalizedContentDirectory = Path.Combine(ProjectDirectory, "Content", "Localization", "Game");
@@ -220,10 +220,10 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		private void MakePackage(TargetReceipt Receipt, TargetReceipt NewReceipt, WindowsArchitecture Architecture, List<string> UpdatedFiles)
+		private void MakePackage(TargetReceipt Receipt, TargetReceipt NewReceipt, UnrealArch Architecture, List<string> UpdatedFiles)
 		{
-			string OutputName = String.Format("{0}_{1}_{2}_{3}", Receipt.TargetName, Receipt.Platform, Receipt.Configuration, WindowsExports.GetArchitectureSubpath(Architecture));
-			string IntermediateDirectory = Path.Combine(Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : Unreal.EngineDirectory.FullName, "Intermediate", "Deploy", WindowsExports.GetArchitectureSubpath(Architecture));
+			string OutputName = String.Format("{0}_{1}_{2}_{3}", Receipt.TargetName, Receipt.Platform, Receipt.Configuration, Architecture.WindowsName);
+			string IntermediateDirectory = Path.Combine(Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : Unreal.EngineDirectory.FullName, "Intermediate", "Deploy", Architecture.WindowsName);
 			string OutputDirectory = Receipt.Launch!.Directory.FullName;
 			string OutputAppX = Path.Combine(OutputDirectory, OutputName + Extension);
 			string SigningCertificate = @"Build\HoloLens\SigningCertificate.pfx";
@@ -305,14 +305,14 @@ namespace UnrealBuildTool
 				}
 			}
 
-			string ManifestName = String.Format("AppxManifest_{0}.xml", WindowsExports.GetArchitectureSubpath(Architecture));
+			string ManifestName = String.Format("AppxManifest_{0}.xml", Architecture.WindowsName);
 			AddedFiles.Add(Path.Combine(OutputDirectory, ManifestName), "AppxManifest.xml");
 
 			//manually add resources
-			string PriFileName = String.Format("resources_{0}.pri", WindowsExports.GetArchitectureSubpath(Architecture));
+			string PriFileName = String.Format("resources_{0}.pri", Architecture.WindowsName);
 			AddedFiles.Add(Path.Combine(OutputDirectory, PriFileName), "resources.pri");
 			{
-				DirectoryReference ResourceFolder = DirectoryReference.Combine(Receipt.Launch.Directory, WindowsExports.GetArchitectureSubpath(Architecture));
+				DirectoryReference ResourceFolder = DirectoryReference.Combine(Receipt.Launch.Directory, Architecture.WindowsName);
 				foreach (var ResourcePath in UpdatedFiles)
 				{
 					var ResourceFile = new FileReference(ResourcePath);
@@ -467,7 +467,7 @@ namespace UnrealBuildTool
 		}
 
 
-		private void CopyDataAndSymbolsBetweenReceipts(TargetReceipt Receipt, TargetReceipt NewReceipt, WindowsArchitecture Architecture)
+		private void CopyDataAndSymbolsBetweenReceipts(TargetReceipt Receipt, TargetReceipt NewReceipt, UnrealArch Architecture)
 		{
 			NewReceipt.AdditionalProperties.AddRange(Receipt.AdditionalProperties);
 			NewReceipt.AdditionalProperties = NewReceipt.AdditionalProperties.GroupBy(e => e.Name).Select(g => g.First()).ToList();
@@ -489,8 +489,9 @@ namespace UnrealBuildTool
 
 			// Note: TargetReceipt.Read now expands path variables internally.
 			TargetReceipt? NewReceipt = null;
-			FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(Receipt.ProjectDir != null ? Receipt.ProjectDir : Unreal.EngineDirectory, Receipt.TargetName, Receipt.Platform, Receipt.Configuration, "Multi");
-			NewReceipt = new TargetReceipt(Receipt.ProjectFile, Receipt.TargetName, Receipt.TargetType, Receipt.Platform, Receipt.Configuration, Receipt.Version, "Multi", Receipt.IsTestTarget);
+			// @todo this behavior has changed! It used to pass in "Multi", now it passes in all the architectures it was built with
+			FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(Receipt.ProjectDir != null ? Receipt.ProjectDir : Unreal.EngineDirectory, Receipt.TargetName, Receipt.Platform, Receipt.Configuration, Receipt.Architectures);
+			NewReceipt = new TargetReceipt(Receipt.ProjectFile, Receipt.TargetName, Receipt.TargetType, Receipt.Platform, Receipt.Configuration, Receipt.Version, Receipt.Architectures, Receipt.IsTestTarget);
 
 			string SDK = "";
 			var Results = Receipt.AdditionalProperties.Where(x => x.Name == "SDK");
@@ -507,16 +508,12 @@ namespace UnrealBuildTool
 			List<string> ExePaths = new List<string> { Receipt.Launch!.FullName };
 			string RelativeEnginePath = Unreal.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory());
 
-			WindowsArchitecture Arch = WindowsArchitecture.ARM64;
-			if (Receipt.Architecture.ToLower() == "x64")
-			{
-				Arch = WindowsArchitecture.x64;
-			}
-
+			// assume just one architecture at a time
+			UnrealArch Arch = Receipt.Architectures.SingleArchitecture;
 
 			string AbsoluteExeDirectory = Path.GetDirectoryName(ExePaths[0])!;
 			UnrealTargetPlatform Platform = UnrealTargetPlatform.HoloLens;
-			string IntermediateDirectory = Path.Combine(Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : Unreal.EngineDirectory.FullName, "Intermediate", "Deploy", WindowsExports.GetArchitectureSubpath(Arch));
+			string IntermediateDirectory = Path.Combine(Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : Unreal.EngineDirectory.FullName, "Intermediate", "Deploy", Arch.WindowsName);
 			List<string> UpdatedFiles = new HoloLensManifestGenerator(Logger).CreateManifest(Platform, Arch, AbsoluteExeDirectory, IntermediateDirectory, Receipt.ProjectFile, Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : Unreal.EngineDirectory.FullName, TargetConfigs, ExePaths, WinMDReferences)!;
 
 			PrepForUATPackageOrDeploy(Receipt.ProjectFile, ProjectName, Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : Unreal.EngineDirectory.FullName, Arch, TargetConfigs, ExePaths, RelativeEnginePath, false, "", false);

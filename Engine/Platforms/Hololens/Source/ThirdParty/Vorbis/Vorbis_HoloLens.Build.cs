@@ -12,14 +12,14 @@ namespace UnrealBuildTool.Rules
 			string LibFileName = "libvorbis_64";
 
 			string LibDir;
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{
-				LibDir = System.String.Format("{0}/{1}/VS{2}/{3}/", VorbisLibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath() + "/");
+				LibDir = System.String.Format("{0}/{1}/VS{2}/{3}/", VorbisLibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.Architecture.WindowsName + "/");
 				RuntimeDependencies.Add(
 					System.String.Format("$(EngineDir)/Binaries/ThirdParty/Vorbis/{0}/VS{1}/{2}/{3}.dll",
 						Target.Platform,
 						Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
-						Target.WindowsPlatform.GetArchitectureSubpath(),
+						Target.Architecture.WindowsName,
 						LibFileName));
 			}
 			else

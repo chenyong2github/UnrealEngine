@@ -61,7 +61,7 @@ namespace AutomationTool
 			}
 
 			// Parse the architecture
-			string Architecture = ParseParamValue("Architecture");
+			UnrealArchitectures Architectures = UnrealArchitectures.FromString(ParseParamValue("Architecture"), Platform);
 
 			// Check the receipt exists
 			DirectoryReference ProjectDir = null;
@@ -69,7 +69,7 @@ namespace AutomationTool
 			{
 				ProjectDir = new FileReference(Project).Directory;
 			}
-			FileReference ReceiptFile = TargetReceipt.GetDefaultPath(ProjectDir, Target, Platform, Configuration, Architecture);
+			FileReference ReceiptFile = TargetReceipt.GetDefaultPath(ProjectDir, Target, Platform, Configuration, Architectures);
 			if(!FileReference.Exists(ReceiptFile))
 			{
 				throw new AutomationException("FortniteEditor receipt not found ({0})", ReceiptFile);

@@ -1178,13 +1178,12 @@ public class MakeCookedEditor : BuildCommand
 
 	protected static void GatherTargetDependencies(ProjectParams Params, DeploymentContext SC, ModifyStageContext Context, string ReceiptName, UnrealTargetConfiguration Configuration)
 	{
-		string Architecture = Params.SpecifiedArchitecture;
-		if (string.IsNullOrEmpty(Architecture))
+		UnrealArchitectures Architecture = Params.EditorArchitecture;
+		if (Architecture == null)
 		{
-			Architecture = "";
 			if (PlatformExports.IsPlatformAvailable(SC.StageTargetPlatform.IniPlatformType))
 			{
-				Architecture = PlatformExports.GetDefaultArchitecture(SC.StageTargetPlatform.IniPlatformType, Params.RawProjectPath);
+				Architecture = UnrealArchitectureConfig.ForPlatform(SC.StageTargetPlatform.IniPlatformType).ActiveArchitectures(Params.RawProjectPath, null);
 			}
 		}
 

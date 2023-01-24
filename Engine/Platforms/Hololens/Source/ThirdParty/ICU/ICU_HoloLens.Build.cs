@@ -9,7 +9,7 @@ namespace UnrealBuildTool.Rules
 		public ICU_HoloLens(ReadOnlyTargetRules Target) : base(Target)
 		{
 			string VSVersionFolderName = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			string PlatformICULibPath = Path.Combine(ICULibPath, VSVersionFolderName, Target.WindowsPlatform.GetArchitectureSubpath(), "lib");
+			string PlatformICULibPath = Path.Combine(ICULibPath, VSVersionFolderName, Target.Architecture.WindowsName, "lib");
 
 			string[] LibraryNameStems =
 			{

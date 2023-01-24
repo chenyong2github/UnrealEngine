@@ -21,7 +21,7 @@ public class LibJpegTurbo : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			string LibPath = Path.Combine(ModuleDirectory, "lib/Unix", Target.Architecture);
+			string LibPath = Path.Combine(ModuleDirectory, "lib/Unix", Target.Architecture.LinuxName);
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug)
 			{
@@ -32,7 +32,7 @@ public class LibJpegTurbo : ModuleRules
 				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libturbojpeg.a"));
 			}
 
-			PublicSystemIncludePaths.Add(Path.Combine(IncPath, "Unix", Target.Architecture));
+			PublicSystemIncludePaths.Add(Path.Combine(IncPath, "Unix", Target.Architecture.LinuxName));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

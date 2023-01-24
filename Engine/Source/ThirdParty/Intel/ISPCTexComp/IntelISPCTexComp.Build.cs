@@ -34,7 +34,7 @@ public class IntelISPCTexComp : ModuleRules
             PublicDelayLoadDLLs.Add(LibraryFilePath);
             RuntimeDependencies.Add(LibraryFilePath);
         }
-        else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64"))
+        else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture == UnrealArch.X64)
         {
             string BinaryLibraryFolder = BinaryFolder + "Linux64-Release";
 			PrivateRuntimeLibraryPaths.Add(BinaryLibraryFolder);

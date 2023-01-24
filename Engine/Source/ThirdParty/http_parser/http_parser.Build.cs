@@ -18,7 +18,7 @@ public class http_parser : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Unix", Target.Architecture, "Release", "libhttp_parser.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Unix", Target.Architecture.LinuxName, "Release", "libhttp_parser.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

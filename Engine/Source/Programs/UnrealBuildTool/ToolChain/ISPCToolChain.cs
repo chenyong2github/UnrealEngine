@@ -23,10 +23,11 @@ namespace UnrealBuildTool
 		/// <param name="Platform">Which OS platform to target.</param>
 		/// <param name="Arch">Which architecture inside an OS platform to target. Only used for Android currently.</param>
 		/// <returns>List of instruction set targets passed to ISPC compiler</returns>
-		public virtual List<string> GetISPCCompileTargets(UnrealTargetPlatform Platform, string? Arch)
+		public virtual List<string> GetISPCCompileTargets(UnrealTargetPlatform Platform, UnrealArch? Arch)
 		{
 			List<string> ISPCTargets = new List<string>();
 
+			// @todo this could be simplified for the arm case - but sse has more options
 			if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows) ||
 				(UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) && Platform != UnrealTargetPlatform.LinuxArm64) ||
 				Platform == UnrealTargetPlatform.Mac)
@@ -39,11 +40,17 @@ namespace UnrealBuildTool
 			}
 			else if (Platform == UnrealTargetPlatform.Android)
 			{
-				switch (Arch)
+				if (Arch == UnrealArch.X64)
 				{
-					case "arm64": ISPCTargets.Add("neon"); break;
-					case "x64": ISPCTargets.AddRange(new string[] { "sse4" }); break;
-					default: Logger.LogWarning("Invalid Android architecture for ISPC. At least one architecture (arm64, x64) needs to be selected in the project settings to build"); break;
+					ISPCTargets.Add("sse4");
+				}
+				else if (Arch == UnrealArch.Arm64)
+				{
+					ISPCTargets.Add("neon");
+				}
+				else
+				{
+					Logger.LogWarning("Invalid Android architecture for ISPC. At least one architecture (arm64, x64) needs to be selected in the project settings to build");
 				}
 			}
 			else if (Platform == UnrealTargetPlatform.IOS)
@@ -101,7 +108,7 @@ namespace UnrealBuildTool
 		/// <param name="Platform">Which OS platform to target.</param>
 		/// <param name="Arch">Which architecture inside an OS platform to target. Only used for Android currently.</param>
 		/// <returns>Arch string passed to ISPC compiler</returns>
-		public virtual string GetISPCArchTarget(UnrealTargetPlatform Platform, string? Arch)
+		public virtual string GetISPCArchTarget(UnrealTargetPlatform Platform, UnrealArch? Arch)
 		{
 			string ISPCArch = "";
 
@@ -117,11 +124,17 @@ namespace UnrealBuildTool
 			}
 			else if (Platform == UnrealTargetPlatform.Android)
 			{
-				switch (Arch)
+				if (Arch == UnrealArch.Arm64)
 				{
-					case "arm64": ISPCArch += "aarch64"; break;
-					case "x64": ISPCArch += "x86-64"; break;
-					default: Logger.LogWarning("Invalid Android architecture for ISPC. At least one architecture (arm64, x64) needs to be selected in the project settings to build"); break;
+					ISPCArch += "aarch64";
+				}
+				else if (Arch == UnrealArch.X64)
+				{
+					ISPCArch += "x86-64";
+				}
+				else
+				{
+					Logger.LogWarning("Invalid Android architecture for ISPC. At least one architecture (arm64, x64) needs to be selected in the project settings to build");
 				}
 			}
 			else if (Platform == UnrealTargetPlatform.IOS)

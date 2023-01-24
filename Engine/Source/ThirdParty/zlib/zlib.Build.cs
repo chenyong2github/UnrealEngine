@@ -17,13 +17,13 @@ public class zlib : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+			if (Target.WindowsPlatform.Architecture == UnrealArch.X64)
 			{
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", "Release", "zlibstatic.lib"));
 			}
 			else
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", Target.WindowsPlatform.GetArchitectureSubpath(), "Release", "zlibstatic.lib"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", Target.Architecture.WindowsName, "Release", "zlibstatic.lib"));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
@@ -32,7 +32,7 @@ public class zlib : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Unix", Target.Architecture, "Release", "libz.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Unix", Target.Architecture.LinuxName, "Release", "libz.a"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android) || Target.IsInPlatformGroup(UnrealPlatformGroup.Apple))
 		{

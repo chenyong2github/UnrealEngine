@@ -34,11 +34,7 @@ typedef FUnixPlatformTypes FPlatformTypes;
 
 #define UNIX_MAX_PATH				PATH_MAX
 
-#if defined(_LINUX64) || defined(_LP64)
-	#define PLATFORM_64BITS						1
-#else
-	#define PLATFORM_64BITS						0
-#endif
+#define PLATFORM_64BITS							1
 #define PLATFORM_CAN_SUPPORT_EDITORONLY_DATA	1
 
 // Base defines, defaults are commented out

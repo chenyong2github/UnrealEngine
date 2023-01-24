@@ -25,9 +25,9 @@ public class LibTiff : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			string LibPath = Path.Combine(ModuleDirectory, "Lib/Unix", Target.Architecture);
+			string LibPath = Path.Combine(ModuleDirectory, "Lib/Unix", Target.Architecture.LinuxName);
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libtiff.a"));
-			string IncludePath = Path.Combine(ModuleDirectory, "Source/Unix", Target.Architecture);
+			string IncludePath = Path.Combine(ModuleDirectory, "Source/Unix", Target.Architecture.LinuxName);
 			PublicSystemIncludePaths.Add(IncludePath);
 			bWithLibTiff = true;
 		}

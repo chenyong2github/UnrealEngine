@@ -24,7 +24,7 @@ public class LibVpx : ModuleRules
 		} 
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibvpxLibraryPath, "Unix", Target.Architecture, ((Target.LinkType == TargetLinkType.Monolithic) ? "libvpx.a" : "libvpx_fPIC.a")));
+			PublicAdditionalLibraries.Add(Path.Combine(LibvpxLibraryPath, "Unix", Target.Architecture.LinuxName, ((Target.LinkType == TargetLinkType.Monolithic) ? "libvpx.a" : "libvpx_fPIC.a")));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

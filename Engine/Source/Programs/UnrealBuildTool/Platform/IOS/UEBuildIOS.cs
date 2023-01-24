@@ -13,6 +13,45 @@ using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
+	partial struct UnrealArch
+	{
+		// @todo add x64 simulators to run on old macs?
+		/// <summary>
+		/// IOS Simulator
+		/// </summary>
+		public static UnrealArch IOSSimulator = FindOrAddByName("iossimulator", bIsX64: false);
+
+		/// <summary>
+		/// TVOS Simulator
+		/// </summary>
+		public static UnrealArch TVOSSimulator = FindOrAddByName("tvossimulator", bIsX64: false);
+
+
+		private static Dictionary<UnrealArch, string> AppleToolchainArchitectures = new()
+		{
+			{ UnrealArch.Arm64,         "arm64" },
+			{ UnrealArch.X64,           "x86_64" },
+			{ UnrealArch.IOSSimulator,  "arm64" },
+			{ UnrealArch.TVOSSimulator, "arm64" },
+		};
+
+		/// <summary>
+		/// Apple-specific low level name for the generic platforms
+		/// </summary>
+		public string AppleName
+		{
+			get
+			{
+				if (AppleToolchainArchitectures.ContainsKey(this)) return AppleToolchainArchitectures[this];
+
+				throw new BuildException($"Unknown architecture {ToString()} passed to UnrealArch.AppleName");
+			}
+		}
+
+
+	}
+
+
 	/// <summary>
 	/// IOS-specific target settings
 	/// </summary>
@@ -370,28 +409,6 @@ namespace UnrealBuildTool
 		public readonly string BundleDisplayName = "";
 
 		/// <summary>
-		/// Returns a list of all the non-shipping architectures which are supported
-		/// </summary>
-		public IEnumerable<string> NonShippingArchitectures
-		{
-			get
-			{
-				yield return "arm64";
-			}
-		}
-
-		/// <summary>
-		/// Returns a list of all the shipping architectures which are supported
-		/// </summary>
-		public IEnumerable<string> ShippingArchitectures
-		{
-			get
-			{
-				yield return "arm64";
-			}
-		}
-
-		/// <summary>
 		/// Which version of the iOS to allow at run time
 		/// </summary>
 		public virtual string RuntimeVersion
@@ -716,6 +733,21 @@ namespace UnrealBuildTool
             }
         }
     }
+	
+	class IOSArchitectureConfig : UnrealArchitectureConfig
+	{
+		public IOSArchitectureConfig()
+			: base(UnrealArchitectureMode.SingleTargetCompileSeparately,new[] { UnrealArch.Arm64, UnrealArch.IOSSimulator })
+		{
+
+		}
+
+		public override UnrealArchitectures ActiveArchitectures(FileReference? ProjectFile, string? TargetName)
+		{
+			// always use arm64 unless overridden on command line
+			return new UnrealArchitectures(UnrealArch.Arm64);
+		}
+	}
 
 	class IOSPlatform : UEBuildPlatform
 	{
@@ -729,20 +761,9 @@ namespace UnrealBuildTool
 		}
 
 		protected IOSPlatform(UEBuildPlatformSDK InSDK, UnrealTargetPlatform TargetPlatform, ILogger Logger)
-			: base(TargetPlatform, InSDK, Logger)
+			: base(TargetPlatform, InSDK, new IOSArchitectureConfig(), Logger)
 		{
 		}
-
-		public override string GetDefaultArchitecture(FileReference? ProjectFile)
-		{
-			return "arm64";
-		}
-
-		public override bool IsX86Architecture(string Architecture)
-		{
-			return false;
-		}
-
 
 
 		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference? ProjectFile, ReadOnlyTargetRules Target)
@@ -875,17 +896,6 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-		}
-
-
-		/// <summary>
-		/// Allows the platform to override whether the architecture name should be appended to the name of binaries.
-		/// </summary>
-		/// <returns>True if the architecture name should be appended to the binary</returns>
-		public override bool RequiresArchitectureSuffix()
-		{
-			// Any -architecture argument passed to UBT only affects the contents of the binaries, not their naming
-			return false;
 		}
 
 		/// <summary>
@@ -1221,7 +1231,7 @@ namespace UnrealBuildTool
 
 			CompileEnvironment.Definitions.Add("UE_DISABLE_FORCE_INLINE=" + (ProjectSettings.bDisableForceInline ? "1" : "0"));
 
-			if (Target.Architecture == "-simulator")
+			if (Target.Architecture == UnrealArch.IOSSimulator || Target.Architecture == UnrealArch.TVOSSimulator)
 			{
 				CompileEnvironment.Definitions.Add("WITH_SIMULATOR=1");
 			}

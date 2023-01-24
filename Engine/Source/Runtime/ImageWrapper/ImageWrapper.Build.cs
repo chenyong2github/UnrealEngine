@@ -54,7 +54,7 @@ public class ImageWrapper : ModuleRules
 		// Add openEXR lib for windows builds.
 		if ((Target.Platform.IsInGroup(UnrealPlatformGroup.Windows)) ||
 			(Target.Platform == UnrealTargetPlatform.Mac) ||
-			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64")))
+			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture == UnrealArch.X64))
 		{
 			PublicDefinitions.Add("WITH_UNREALEXR=1");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Imath");

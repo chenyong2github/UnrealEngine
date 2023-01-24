@@ -32,9 +32,9 @@ namespace UnrealBuildTool
 		public readonly UnrealTargetConfiguration Configuration;
 
 		/// <summary>
-		/// Architecture that the target is being built for (or an empty string for the default)
+		/// Architecture that the target is being built for
 		/// </summary>
-		public readonly string Architecture;
+		public readonly UnrealArchitectures Architectures;
 
 		/// <summary>
 		/// The project containing the target
@@ -60,17 +60,25 @@ namespace UnrealBuildTool
 		/// <param name="Name">Name of the target being built</param>
 		/// <param name="Platform">The platform that the target is being built for</param>
 		/// <param name="Configuration">The configuration being built</param>
-		/// <param name="Architecture">The architecture being built for</param>
+		/// <param name="Architectures">The architectures being built for</param>
 		/// <param name="ProjectFile">Path to the project file containing the target</param>
 		/// <param name="Arguments">Additional command line arguments for this target</param>
-		public TargetInfo(string Name, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture, FileReference? ProjectFile, CommandLineArguments? Arguments)
+		public TargetInfo(string Name, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UnrealArchitectures? Architectures, FileReference? ProjectFile, CommandLineArguments? Arguments)
 		{
 			this.Name = Name;
 			this.Platform = Platform;
 			this.Configuration = Configuration;
-			this.Architecture = Architecture;
 			this.ProjectFile = ProjectFile;
 			this.Arguments = Arguments;
+
+			if (Architectures == null)
+			{
+				this.Architectures = UnrealArchitectureConfig.ForPlatform(Platform).ActiveArchitectures(ProjectFile, Name);
+			}
+			else
+			{
+				this.Architectures = Architectures;
+			}
 		}
 
 		/// <summary>
@@ -82,7 +90,7 @@ namespace UnrealBuildTool
 			this.Name = Reader.ReadString()!;
 			this.Platform = UnrealTargetPlatform.Parse(Reader.ReadString()!);
 			string ConfigurationStr = Reader.ReadString()!;
-			this.Architecture = Reader.ReadString()!;
+			this.Architectures = new UnrealArchitectures(Reader.ReadArray(() => Reader.ReadString()!)!);
 			this.ProjectFile = Reader.ReadFileReferenceOrNull();
 			string[]? ArgumentStrs = Reader.ReadArray(() => Reader.ReadString()!);
 
@@ -104,7 +112,7 @@ namespace UnrealBuildTool
 			Writer.WriteString(Name);
 			Writer.WriteString(Platform.ToString());
 			Writer.WriteString(Configuration.ToString());
-			Writer.WriteString(Architecture);
+			Writer.WriteArray(Architectures.Architectures.ToArray(), Item => Writer.WriteString(Item.ToString()));
 			Writer.WriteFileReference(ProjectFile);
 			Writer.WriteArray(Arguments?.GetRawArray(), Item => Writer.WriteString(Item));
 		}

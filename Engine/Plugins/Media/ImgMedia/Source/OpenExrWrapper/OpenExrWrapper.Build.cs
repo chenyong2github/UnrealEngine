@@ -15,7 +15,7 @@ namespace UnrealBuildTool.Rules
 					"TimeManagement",
 				});
 
-			bool bLinuxEnabled = Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64");
+			bool bLinuxEnabled = Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture == UnrealArch.X64;
 
             if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
                 (Target.Platform == UnrealTargetPlatform.Mac) ||

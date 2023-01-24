@@ -59,7 +59,7 @@ public class Core : ModuleRules
 				"zlib"
 				);
 
-			if (Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) == -1)
+			if (Target.Architecture.bIsX64)
 			{
 				AddEngineThirdPartyPrivateStaticDependencies(Target,
 					"IntelVTune"

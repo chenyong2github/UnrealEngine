@@ -24,7 +24,7 @@ namespace UnrealBuildTool
 		public string Name;
 		public UnrealTargetPlatform Platform;
 		public UnrealTargetConfiguration Configuration;
-		public string Architecture;
+		public UnrealArchitectures Architectures;
 		public CommandLineArguments AdditionalArguments;
 		public bool IsTestsTarget = false;
 
@@ -118,15 +118,22 @@ namespace UnrealBuildTool
 		/// <param name="TargetName">Name of the target to build</param>
 		/// <param name="Platform">Platform to build for</param>
 		/// <param name="Configuration">Configuration to build</param>
-		/// <param name="Architecture">Architecture to build for</param>
+		/// <param name="Architectures">Architectures to build for</param>
 		/// <param name="Arguments">Other command-line arguments for the target</param>
-		public TargetDescriptor(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture, CommandLineArguments? Arguments)
+		public TargetDescriptor(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UnrealArchitectures Architectures, CommandLineArguments? Arguments)
 		{
 			this.ProjectFile = ProjectFile;
 			this.Name = TargetName;
 			this.Platform = Platform;
 			this.Configuration = Configuration;
-			this.Architecture = Architecture;
+			if (Architectures == null)
+			{
+				this.Architectures = UnrealArchitectureConfig.ForPlatform(Platform).ActiveArchitectures(ProjectFile, TargetName);
+			}
+			else
+			{
+				this.Architectures = Architectures;
+			}
 
 			// If there are any additional command line arguments
 			List<string> AdditionalArguments = new List<string>();
@@ -187,7 +194,7 @@ namespace UnrealBuildTool
 
 		public static TargetDescriptor FromTargetInfo(TargetInfo Info)
 		{
-			return new TargetDescriptor(Info.ProjectFile, Info.Name, Info.Platform, Info.Configuration, Info.Architecture, Info.Arguments);
+			return new TargetDescriptor(Info.ProjectFile, Info.Name, Info.Platform, Info.Configuration, Info.Architectures, Info.Arguments);
 		}
 
 		/// <summary>
@@ -365,11 +372,10 @@ namespace UnrealBuildTool
 
 				UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform);
 
-				// Parse the architecture parameter, or get the default for the platform (and letting the platform clean it up
-				IEnumerable<string> ParamArchitectures = Arguments.GetValues("-Architecture=", '+')
-					.Union(Arguments.GetValues("-Architectures=", '+'))
-					.Select(x => BuildPlatform.ConvertToPlatformArchitecture(x))
-					.Distinct();
+				// Parse the architecture parameter, or use null to look up platform defaults later
+				string ParamArchitectureList = Arguments.GetStringOrDefault("-Architecture=", "") + Arguments.GetStringOrDefault("-Architectures=", "");
+				UnrealArchitectures? ParamArchitectures = UnrealArchitectures.FromString(ParamArchitectureList, Platform);
+
 
 				foreach(UnrealTargetConfiguration Configuration in Configurations)
 				{
@@ -384,11 +390,11 @@ namespace UnrealBuildTool
 
 						if (ProjectFile == null)
 						{
-							TargetNames.Add(RulesCompiler.CreateEngineRulesAssembly(bUsePrecompiled, bSkipRulesCompile, bForceRulesCompile, Logger).GetTargetNameByType(TargetType, Platform, Configuration, "", null, Logger));
+							TargetNames.Add(RulesCompiler.CreateEngineRulesAssembly(bUsePrecompiled, bSkipRulesCompile, bForceRulesCompile, Logger).GetTargetNameByType(TargetType, Platform, Configuration, null, Logger));
 						}
 						else
 						{
-							TargetNames.Add(RulesCompiler.CreateProjectRulesAssembly(ProjectFile, bUsePrecompiled, bSkipRulesCompile, bForceRulesCompile, Logger).GetTargetNameByType(TargetType, Platform, Configuration, "", ProjectFile, Logger));
+							TargetNames.Add(RulesCompiler.CreateProjectRulesAssembly(ProjectFile, bUsePrecompiled, bSkipRulesCompile, bForceRulesCompile, Logger).GetTargetNameByType(TargetType, Platform, Configuration, ProjectFile, Logger));
 						}
 					}
 
@@ -402,7 +408,7 @@ namespace UnrealBuildTool
 					foreach(string TargetName in TargetNames)
 					{
 						FileReference? TargetProjectFile = ProjectFile;
-						IEnumerable<string> Architectures;
+						UnrealArchitectures Architectures;
 
 						// If a project file was not specified see if we can find one
 						if (TargetProjectFile == null && NativeProjects.TryGetProjectForTarget(TargetName, Logger, out TargetProjectFile))
@@ -418,33 +424,27 @@ namespace UnrealBuildTool
 								.FirstOrDefault();
 						}
 
-						if (ParamArchitectures.Count() == 0)
+						if (ParamArchitectures == null)
 						{
 							// ask the platform what achitectures it wants for this project
-							Architectures = BuildPlatform.GetProjectArchitectures(TargetProjectFile, TargetName, false, false);
+							Architectures = BuildPlatform.ArchitectureConfig.ActiveArchitectures(TargetProjectFile, TargetName);
 						}
 						else
 						{
 							Architectures = ParamArchitectures;
 						}
 
-						// Make sure we could at least one (even if it's "", the default)
-						if (Architectures.Count() == 0)
+						// If the platform wants a target for each architecture, make a target descriptor for each architecture, otherwise one target for all architectures
+						if (BuildPlatform.ArchitectureConfig.Mode == UnrealArchitectureMode.OneTargetPerArchitecture)
 						{
-							throw new BuildException($"Architecture(s) could be determined for platform {Platform}");
+							foreach (UnrealArch Architecture in Architectures.Architectures)
+							{
+								TargetDescriptors.Add(new TargetDescriptor(TargetProjectFile, TargetName, Platform, Configuration, new UnrealArchitectures(Architecture), Arguments));
 						}
-
-						// If the platform can do these in a single pass then turn them back into a single + separate string.
-						// It is now responsible for splitting them as necessary.
-						if (BuildPlatform.NeedsSingleTargetForMultiArchitecture(Architectures))
-						{
-							Architectures = new List<string> { string.Join("+", Architectures.OrderBy(S => S)) };
 						}
-
-						// Create the target descriptor for each architecture
-						foreach (string Architecture in Architectures)
+						else
 						{
-							TargetDescriptors.Add(new TargetDescriptor(TargetProjectFile, TargetName, Platform, Configuration, Architecture, Arguments));
+							TargetDescriptors.Add(new TargetDescriptor(TargetProjectFile, TargetName, Platform, Configuration, Architectures, Arguments));
 						}
 					}
 				}
@@ -494,10 +494,7 @@ namespace UnrealBuildTool
 		{
 			StringBuilder Result = new StringBuilder();
 			Result.AppendFormat("{0} {1} {2}", Name, Platform, Configuration);
-			if(!String.IsNullOrEmpty(Architecture))
-			{
-				Result.AppendFormat(" -Architecture={0}", Architecture);
-			}
+			Result.AppendFormat($" -Architecture={Architectures}");
 			if(ProjectFile != null)
 			{
 				Result.AppendFormat(" -Project={0}", Utils.MakePathSafeToUseWithCommandLine(ProjectFile));
@@ -516,7 +513,7 @@ namespace UnrealBuildTool
 				Name.GetHashCode() + 
 				Platform.GetHashCode() + 
 				Configuration.GetHashCode() + 
-				Architecture.GetHashCode();
+				Architectures.GetHashCode();
 #pragma warning restore RE1024
 		}
 
@@ -530,7 +527,7 @@ namespace UnrealBuildTool
 					Name == Other.Name &&
 					Platform == Other.Platform &&
 					Configuration == Other.Configuration &&
-					Architecture == Other.Architecture;
+					Architectures.Architectures.SequenceEqual(Other.Architectures.Architectures);
 			}
 			return false;
 		}

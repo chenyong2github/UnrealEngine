@@ -60,7 +60,7 @@ public class DisplayClusterShaders : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(PathLib, "mpcdi.lib"));
 			PublicAdditionalLibraries.Add(Path.Combine(PathLib, "tinyxml2.lib"));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64"))
+		else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture == UnrealArch.X64)
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(PathLib, "libmpcdi.a"));
 		}

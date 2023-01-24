@@ -111,15 +111,15 @@ namespace UnrealBuildTool
 		/// <param name="TargetName">Name of the target being built</param>
 		/// <param name="Platform">Platform the target is being built for</param>
 		/// <param name="Configuration">The configuration being built</param>
-		/// <param name="Architecture">Architecture of the target being built</param>
+		/// <param name="Architectures">Architecture of the target being built</param>
 		/// <returns>Path to the target's version file</returns>
-		public static FileReference GetFileNameForTarget(DirectoryReference OutputDirectory, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture)
+		public static FileReference GetFileNameForTarget(DirectoryReference OutputDirectory, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UnrealArchitectures Architectures)
 		{
 			// Get the architecture suffix. Platforms have the option of overriding whether to include this string in filenames.
 			string ArchitectureSuffix = "";
-			if(UEBuildPlatform.GetBuildPlatform(Platform).RequiresArchitectureSuffix())
+			if(UnrealArchitectureConfig.ForPlatform(Platform).RequiresArchitectureFilenames(Architectures))
 			{
-				ArchitectureSuffix = Architecture;
+				ArchitectureSuffix = Architectures.ToString();
 			}
 		
 			// Build the output filename

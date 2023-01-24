@@ -30,7 +30,7 @@ public class OpenVDB : ModuleRules
 			string LibDirectory = Path.Combine(
 				DeploymentDirectory,
 				"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
-				Target.WindowsPlatform.GetArchitectureSubpath(),
+				Target.Architecture.WindowsName,
 				"lib");
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libopenvdb.lib"));
@@ -49,7 +49,7 @@ public class OpenVDB : ModuleRules
 			string LibDirectory = Path.Combine(
 				DeploymentDirectory,
 				"Unix",
-				Target.Architecture,
+				Target.Architecture.LinuxName,
 				"lib");
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libopenvdb.a"));

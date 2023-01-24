@@ -11,7 +11,7 @@ public class DirectStorage : ModuleRules
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
-			string ArchFolder = Target.WindowsPlatform.Architecture.ToString();
+			string ArchFolder = Target.Architecture.WindowsName;
 			string IncludeFolder = Path.Combine(ModuleDirectory, "Include", "DirectStorage");
 			string LibFolder = Path.Combine(ModuleDirectory, "Lib", ArchFolder);
 			string BinariesFolder = Path.Combine("$(EngineDir)", "Binaries", "ThirdParty", "Windows", "DirectStorage", ArchFolder);

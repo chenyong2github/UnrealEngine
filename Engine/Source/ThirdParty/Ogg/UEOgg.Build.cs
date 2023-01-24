@@ -46,7 +46,7 @@ public class UEOgg : ModuleRules
 			string fPIC = (Target.LinkType == TargetLinkType.Monolithic)
 				? ""
 				: "_fPIC";
-			PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "Unix", Target.Architecture, "libogg" + fPIC + ".a"));
+			PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "Unix", Target.Architecture.LinuxName, "libogg" + fPIC + ".a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
         {

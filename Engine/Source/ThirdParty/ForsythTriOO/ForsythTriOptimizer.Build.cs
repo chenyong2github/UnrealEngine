@@ -34,7 +34,7 @@ public class ForsythTriOptimizer : ModuleRules
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
         {
             string Postfix = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "d" : "";
-            PublicAdditionalLibraries.Add(ForsythTriOptimizerLibPath + "Linux/" + Target.Architecture + "/libForsythTriOptimizer" + Postfix + ".a");
+            PublicAdditionalLibraries.Add(ForsythTriOptimizerLibPath + "Linux/" + Target.Architecture.LinuxName + "/libForsythTriOptimizer" + Postfix + ".a");
         }
 	}
 }

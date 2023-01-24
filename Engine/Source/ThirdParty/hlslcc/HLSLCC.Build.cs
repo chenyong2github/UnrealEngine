@@ -38,7 +38,7 @@ public class HLSLCC : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(LibPath + "Linux/" + Target.Architecture + "/libhlslcc.a");
+			PublicAdditionalLibraries.Add(LibPath + "Linux/" + Target.Architecture.LinuxName + "/libhlslcc.a");
 		}
 		else
 		{

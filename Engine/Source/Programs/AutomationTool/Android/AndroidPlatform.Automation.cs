@@ -515,7 +515,7 @@ public class AndroidPlatform : Platform
 		return Path.Combine(Path.GetDirectoryName(Params.GetProjectExeForPlatform(UnrealTargetPlatform.Android).ToString()), DecoratedExeName) + ".so";
 	}
 
-	private static string GetFinalApkName(ProjectParams Params, string DecoratedExeName, bool bRenameUnrealGame, string Architecture)
+	private static string GetFinalApkName(ProjectParams Params, string DecoratedExeName, bool bRenameUnrealGame, UnrealArch? Architecture)
 	{
 		string ProjectDir = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(Params.RawProjectPath.FullName)), "Binaries/Android");
 
@@ -525,7 +525,8 @@ public class AndroidPlatform : Platform
 		}
 
 		// Apk's go to project location, not necessarily where the .so is (content only packages need to output to their directory)
-		string ApkName = Path.Combine(ProjectDir, DecoratedExeName) + "-" + Architecture + ".apk";
+		string ArchName = Architecture == null ? "" : Architecture.ToString();
+		string ApkName = Path.Combine(ProjectDir, $"{DecoratedExeName}-{ArchName}.apk");
 
 		// if the source binary was UnrealGame, handle using it or switching to project name
 		if (Path.GetFileNameWithoutExtension(Params.GetProjectExeForPlatform(UnrealTargetPlatform.Android).ToString()) == "UnrealGame")
@@ -588,7 +589,7 @@ public class AndroidPlatform : Platform
 	#pragma warning restore CS0414
 
 
-	private static string GetFinalSymbolizedSODirectory(string ApkName, DeploymentContext SC, string Architecture)
+	private static string GetFinalSymbolizedSODirectory(string ApkName, DeploymentContext SC, UnrealArch Architecture)
 	{
 		string PackageVersion = GetPackageInfo(ApkName, SC, true);
 		if (PackageVersion == null || PackageVersion.Length == 0)
@@ -757,7 +758,7 @@ public class AndroidPlatform : Platform
 		Uninstall,
 		Symbolize,
 	};
-	private static string GetFinalBatchName(string ApkName, DeploymentContext SC, string Architecture, bool bNoOBBInstall, EBatchType BatchType, UnrealTargetPlatform Target)
+	private static string GetFinalBatchName(string ApkName, DeploymentContext SC, bool bNoOBBInstall, EBatchType BatchType, UnrealTargetPlatform Target)
 	{
 		string Extension = ".bat";
 		if (Target == UnrealTargetPlatform.Linux || Target == UnrealTargetPlatform.LinuxArm64)
@@ -783,10 +784,9 @@ public class AndroidPlatform : Platform
 		return "";
 	}
 
-	private List<string> GetDeploymentArchitectures(ProjectParams Params, DeploymentContext SC)
+	private UnrealArchitectures GetDeploymentArchitectures(ProjectParams Params, DeploymentContext SC)
 	{
-		string ArchitectureList = (Params.ClientArchitecture != "") ? Params.ClientArchitecture : SC.StageTargets[0].Receipt.Architecture;
-		return ArchitectureList.Split('+').ToList();
+		return Params.ClientArchitecture ?? SC.StageTargets[0].Receipt.Architectures;
 	}
 
 	private List<string> CollectPluginDataPaths(DeploymentContext SC)
@@ -1036,7 +1036,7 @@ public class AndroidPlatform : Platform
 
 		UnrealTargetConfiguration TargetConfiguration = SC.StageTargetConfigurations[0];
 
-		List<string> Architectures = GetDeploymentArchitectures(Params, SC);
+		UnrealArchitectures Architectures = GetDeploymentArchitectures(Params, SC);
 		bool bMakeSeparateApks = UnrealBuildTool.AndroidExports.ShouldMakeSeparateApks();
 		bool bBuildWithHiddenSymbolVisibility = BuildWithHiddenSymbolVisibility(SC);
 		bool bSaveSymbols = GetSaveSymbols(SC);
@@ -1066,7 +1066,7 @@ public class AndroidPlatform : Platform
 			}
 		}
 
-		string BaseApkName = GetFinalApkName(Params, SC.StageExecutables[0], true, "");
+		string BaseApkName = GetFinalApkName(Params, SC.StageExecutables[0], true, Architecture:null);
 		LogInformation("BaseApkName = {0}", BaseApkName);
 
 		// Create main OBB with entire contents of staging dir. This
@@ -1280,14 +1280,14 @@ public class AndroidPlatform : Platform
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bEnableMaliPerfCounters", out bDisablePerfHarden);
 		}
 
-		foreach (string Architecture in Architectures)
+		foreach (UnrealArch Architecture in Architectures.Architectures)
 		{
-			string ApkName = GetFinalApkName(Params, SC.StageExecutables[0], true, bMakeSeparateApks ? Architecture : "");
-			string ApkBareName = GetFinalApkName(Params, SC.StageExecutables[0], true, "");
+			string ApkName = GetFinalApkName(Params, SC.StageExecutables[0], true, bMakeSeparateApks ? Architecture : null);
+			string ApkBareName = GetFinalApkName(Params, SC.StageExecutables[0], true, null);
 			bool bHaveAPK = !bEnableBundle;     // do not have a standard APK if bundle enabled
 			if (!SC.IsCodeBasedProject)
 			{
-				string UnrealSOName = GetFinalApkName(Params, SC.StageExecutables[0], false, bMakeSeparateApks ? Architecture : "");
+				string UnrealSOName = GetFinalApkName(Params, SC.StageExecutables[0], false, bMakeSeparateApks ? Architecture : null);
                 UnrealSOName = UnrealSOName.Replace(".apk", ".so");
                 if (FileExists_NoExceptions(UnrealSOName) == false)
 				{
@@ -1410,7 +1410,7 @@ public class AndroidPlatform : Platform
 				string LineEnding = bIsPC ? "\r\n" : "\n";
 				// Write install batch file(s).
 				string PackageName = GetPackageInfo(ApkName, SC, false);
-				string BatchName = GetFinalBatchName(ApkName, SC, bMakeSeparateApks ? Architecture : "", false, EBatchType.Install, Target);
+				string BatchName = GetFinalBatchName(ApkName, SC, false, EBatchType.Install, Target);
 				string[] BatchLines = GenerateInstallBatchFile(bPackageDataInsideApk, PackageName, ApkName, Params, ObbName, DeviceObbName, false, PatchName, DevicePatchName, false, 
 					Overflow1Name, DeviceOverflow1Name, false, Overflow2Name, DeviceOverflow2Name, false, bIsPC, Params.Distribution, TargetSDKVersion > 22, bDisablePerfHarden, bUseAFS, bUseAFSProject, AFSToken, Target);
 				if (bHaveAPK)
@@ -1419,7 +1419,7 @@ public class AndroidPlatform : Platform
 					File.WriteAllText(BatchName, string.Join(LineEnding, BatchLines) + LineEnding);
 				}
 				// make a batch file that can be used to uninstall the .apk and .obb files
-				string UninstallBatchName = GetFinalBatchName(ApkName, SC, bMakeSeparateApks ? Architecture : "", false, EBatchType.Uninstall, Target);
+				string UninstallBatchName = GetFinalBatchName(ApkName, SC, false, EBatchType.Uninstall, Target);
 				BatchLines = GenerateUninstallBatchFile(bPackageDataInsideApk, PackageName, ApkName, Params, bIsPC);
 				if (bHaveAPK || bHaveUniversal)
 				{
@@ -1429,14 +1429,14 @@ public class AndroidPlatform : Platform
 				string UniversalBatchName = "";
 				if (bHaveUniversal)
 				{
-					UniversalBatchName = GetFinalBatchName(UniversalApkName, SC, "", false, EBatchType.Install, Target);
+					UniversalBatchName = GetFinalBatchName(UniversalApkName, SC, false, EBatchType.Install, Target);
 					// make a batch file that can be used to install the .apk
 					string[] UniversalBatchLines = GenerateInstallBatchFile(bPackageDataInsideApk, PackageName, UniversalApkName, Params, ObbName, DeviceObbName, false, PatchName, DevicePatchName, false,
 						Overflow1Name, DeviceOverflow1Name, false, Overflow2Name, DeviceOverflow2Name, false, bIsPC, Params.Distribution, TargetSDKVersion > 22, bDisablePerfHarden, bUseAFS, bUseAFSProject, AFSToken, Target);
 					File.WriteAllText(UniversalBatchName, string.Join(LineEnding, UniversalBatchLines) + LineEnding);
 				}
 
-				string SymbolizeBatchName = GetFinalBatchName(ApkName, SC, Architecture, false, EBatchType.Symbolize, Target);
+				string SymbolizeBatchName = GetFinalBatchName(ApkName, SC, false, EBatchType.Symbolize, Target);
 				if(bBuildWithHiddenSymbolVisibility || bSaveSymbols)
 				{
 					BatchLines = GenerateSymbolizeBatchFile(Params, PackageName, ApkName, SC, Architecture, bIsPC);
@@ -1773,7 +1773,7 @@ public class AndroidPlatform : Platform
 		return BatchLines;
 	}
 
-	private string[] GenerateSymbolizeBatchFile(ProjectParams Params, string PackageName, string ApkName, DeploymentContext SC, string Architecture, bool bIsPC)
+	private string[] GenerateSymbolizeBatchFile(ProjectParams Params, string PackageName, string ApkName, DeploymentContext SC, UnrealArch Architecture, bool bIsPC)
 	{
 		string[] BatchLines = null;
 
@@ -1826,7 +1826,7 @@ public class AndroidPlatform : Platform
 		}
 
 		UnrealTargetConfiguration TargetConfiguration = SC.StageTargetConfigurations[0];
-		IEnumerable<string> Architectures = GetDeploymentArchitectures(Params, SC);
+		UnrealArchitectures Architectures = GetDeploymentArchitectures(Params, SC);
 		bool bMakeSeparateApks = UnrealBuildTool.AndroidExports.ShouldMakeSeparateApks();
 		bool bPackageDataInsideApk = UnrealBuildTool.AndroidExports.CreateDeploymentHandler(Params.RawProjectPath, Params.ForcePackageData).GetPackageDataInsideApk();
 
@@ -1839,10 +1839,10 @@ public class AndroidPlatform : Platform
 		bool bUseAFS = bAFSEnablePlugin && !bPackageDataInsideApk;
 
 		List<string> AddedObbFiles = new List<string>();
-		foreach (string Architecture in Architectures)
+		foreach (UnrealArch Architecture in Architectures.Architectures)
 		{
-			string ApkBareName = GetFinalApkName(Params, SC.StageExecutables[0], true, "");
-			string ApkName = GetFinalApkName(Params, SC.StageExecutables[0], true, bMakeSeparateApks ? Architecture : "");
+			string ApkBareName = GetFinalApkName(Params, SC.StageExecutables[0], true, null);
+			string ApkName = GetFinalApkName(Params, SC.StageExecutables[0], true, bMakeSeparateApks ? Architecture : null);
 			bool bHaveAPK = FileExists(ApkName);
 			string ObbName = GetFinalObbName(ApkName, SC);
 			string PatchName = GetFinalPatchName(ApkName, SC);
@@ -1850,7 +1850,6 @@ public class AndroidPlatform : Platform
 			string Overflow2Name = GetFinalOverflowName(ApkName, SC, 2);
 			bool bBuildWithHiddenSymbolVisibility = BuildWithHiddenSymbolVisibility(SC);
 			bool bSaveSymbols = GetSaveSymbols(SC);
-			//string NoOBBBatchName = GetFinalBatchName(ApkName, Params, bMakeSeparateApks ? Architecture : "", bMakeSeparateApks ? GPUArchitecture : "", true, false);
 
 			string APKDirectory = Path.GetDirectoryName(ApkName);
 			string APKNameWithoutExtension = Path.GetFileNameWithoutExtension(ApkName);
@@ -1994,23 +1993,23 @@ public class AndroidPlatform : Platform
 			{
 				if (bHaveAPK)
 				{
-					string BatchName = GetFinalBatchName(ApkName, SC, bMakeSeparateApks ? Architecture : "", false, EBatchType.Install, Target);
+					string BatchName = GetFinalBatchName(ApkName, SC, false, EBatchType.Install, Target);
 					SC.ArchiveFiles(Path.GetDirectoryName(BatchName), Path.GetFileName(BatchName));
 				}
 				if (bHaveAPK || bHaveUniversal)
 				{
-					string UninstallBatchName = GetFinalBatchName(ApkName, SC, bMakeSeparateApks ? Architecture : "", false, EBatchType.Uninstall, Target);
+					string UninstallBatchName = GetFinalBatchName(ApkName, SC, false, EBatchType.Uninstall, Target);
 					SC.ArchiveFiles(Path.GetDirectoryName(UninstallBatchName), Path.GetFileName(UninstallBatchName));
 				}
 				if (bHaveUniversal)
 				{
-					string UniversalBatchName = GetFinalBatchName(UniversalApkName, SC, "", false, EBatchType.Install, Target);
+					string UniversalBatchName = GetFinalBatchName(UniversalApkName, SC, false, EBatchType.Install, Target);
 					SC.ArchiveFiles(Path.GetDirectoryName(UniversalBatchName), Path.GetFileName(UniversalBatchName));
 				}
 
 				if (bBuildWithHiddenSymbolVisibility || bSaveSymbols)
 				{
-					string SymbolizeBatchName = GetFinalBatchName(ApkName, SC, Architecture, false, EBatchType.Symbolize, Target);
+					string SymbolizeBatchName = GetFinalBatchName(ApkName, SC, false, EBatchType.Symbolize, Target);
 					SC.ArchiveFiles(Path.GetDirectoryName(SymbolizeBatchName), Path.GetFileName(SymbolizeBatchName));
 				}
 				if (bUseAFS && (bHaveAPK || bHaveUniversal))
@@ -2192,7 +2191,7 @@ public class AndroidPlatform : Platform
 		UFSManifests = null;
 		NonUFSManifests = null;
 
-		string DeviceArchitecture = GetBestDeviceArchitecture(Params, DeviceName);
+		UnrealArch? DeviceArchitecture = GetBestDeviceArchitecture(Params, DeviceName);
 		string ApkName = GetFinalApkName(Params, SC.StageExecutables[0], true, DeviceArchitecture);
 		string PackageName = GetPackageInfo(ApkName, SC, false);
 
@@ -2353,7 +2352,7 @@ public class AndroidPlatform : Platform
 
 		foreach (var DeviceName in Params.DeviceNames)
 		{
-			string DeviceArchitecture = GetBestDeviceArchitecture(Params, DeviceName);
+			UnrealArch? DeviceArchitecture = GetBestDeviceArchitecture(Params, DeviceName);
 			string ApkName = GetFinalApkName(Params, SC.StageExecutables[0], true, DeviceArchitecture);
 
 			// make sure APK is up to date (this is fast if so)
@@ -2937,7 +2936,7 @@ public class AndroidPlatform : Platform
 
 		foreach (var DeviceName in Params.DeviceNames)
         {
-            string DeviceArchitecture = GetBestDeviceArchitecture(Params, DeviceName);
+            UnrealArch? DeviceArchitecture = GetBestDeviceArchitecture(Params, DeviceName);
             string ApkName = GetFinalApkName(Params, SC.StageExecutables[0], true, DeviceArchitecture);
 
             // make sure APK is up to date (this is fast if so)
@@ -3746,31 +3745,31 @@ public class AndroidPlatform : Platform
 		return CachedAaptPath;
 	}
 
-	private string GetBestDeviceArchitecture(ProjectParams Params, string DeviceName)
+	private UnrealArch? GetBestDeviceArchitecture(ProjectParams Params, string DeviceName)
 	{
 		bool bMakeSeparateApks = UnrealBuildTool.AndroidExports.ShouldMakeSeparateApks();
 		// if we are joining all .so's into a single .apk, there's no need to find the best one - there is no other one
 		if (!bMakeSeparateApks)
 		{
-			return "";
+			return null;
 		}
 
 		// @todo get TargetName?
-		IEnumerable<string> AppArchitectures = PlatformExports.GetProjectArchitectures(UnrealTargetPlatform.Android, Params.RawProjectPath, null, true, Params.Distribution);
+		UnrealArchitectures AppArchitectures = UnrealArchitectureConfig.ForPlatform(UnrealTargetPlatform.Android).ActiveArchitectures(Params.RawProjectPath, null);
 
 		// ask the device
 		IProcessResult ABIResult = RunAdbCommand(Params, DeviceName, " shell getprop ro.product.cpu.abi", null, ERunOptions.AppMustExist);
 
 		// the output is just the architecture
-		string DeviceArch = UnrealBuildTool.AndroidExports.GetUnrealArch(ABIResult.Output.Trim());
+		UnrealArch DeviceArch = UnrealBuildTool.AndroidExports.GetUnrealArch(ABIResult.Output.Trim());
 
 		// if the architecture wasn't built, look for a backup
 		if (!AppArchitectures.Contains(DeviceArch))
 		{
 			// Houdini emulation can run arm64 on intel
-			if (DeviceArch == "-x64")
+			if (DeviceArch == UnrealArch.X64)
 			{
-				DeviceArch = "-arm64";
+				DeviceArch = UnrealArch.Arm64;
 			}
 		}
 
@@ -3848,7 +3847,7 @@ public class AndroidPlatform : Platform
 		foreach (string DeviceName in Params.DeviceNames)
 		{
 			//get the package name and save that
-			string DeviceArchitecture = GetBestDeviceArchitecture(Params, DeviceName);
+			UnrealArch? DeviceArchitecture = GetBestDeviceArchitecture(Params, DeviceName);
 
 			//strip off the device, GPU architecture and extension (.so)
 			int DashIndex = ClientApp.LastIndexOf("-");

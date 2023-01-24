@@ -83,7 +83,7 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// Architecture for this combination
 			/// </summary>
-			public string Architecture;
+			public UnrealArch Architecture;
 
 			/// <summary>
 			/// Location of a file that must exist for this combination to be valid (optional)
@@ -110,7 +110,7 @@ namespace UnrealBuildTool
 			/// <param name="InRequiredFile"></param>
 			/// <param name="InProjectType"></param>
 			/// <param name="bInCanBeDisplayed"></param>
-			public InstalledPlatformConfiguration(UnrealTargetConfiguration InConfiguration, UnrealTargetPlatform InPlatform, TargetType InPlatformType, string InArchitecture, string InRequiredFile, EProjectType InProjectType, bool bInCanBeDisplayed)
+			public InstalledPlatformConfiguration(UnrealTargetConfiguration InConfiguration, UnrealTargetPlatform InPlatform, TargetType InPlatformType, UnrealArch InArchitecture, string InRequiredFile, EProjectType InProjectType, bool bInCanBeDisplayed)
 			{
 				Configuration = InConfiguration;
 				Platform = InPlatform;
@@ -199,8 +199,9 @@ namespace UnrealBuildTool
 				PlatformType = TargetType.Game;
 			}
 
-			string Architecture;
-			ParseSubValue(PlatformConfiguration, "Architecture=", out Architecture);
+			string ArchitectureString;
+			ParseSubValue(PlatformConfiguration, "Architecture=", out ArchitectureString);
+			UnrealArch Architecture = UnrealArch.Parse(ArchitectureString);
 
 			string RequiredFile;
 			if (ParseSubValue(PlatformConfiguration, "RequiredFile=", out RequiredFile))
@@ -420,10 +421,7 @@ namespace UnrealBuildTool
 			{
 				ConfigDescription += string.Format("PlatformType=\"{0}\", ", Config.PlatformType.ToString());
 			}
-			if (!string.IsNullOrEmpty(Config.Architecture))
-			{
-				ConfigDescription += string.Format("Architecture=\"{0}\", ", Config.Architecture);
-			}
+			ConfigDescription += string.Format("Architecture=\"{0}\", ", Config.Architecture);
 			if (!string.IsNullOrEmpty(Config.RequiredFile))
 			{
 				ConfigDescription += string.Format("RequiredFile=\"{0}\", ", Config.RequiredFile);

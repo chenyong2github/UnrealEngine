@@ -36,32 +36,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Gets the default architecture for a given platform
-		/// </summary>
-		/// <param name="Platform">The platform to get the default architecture for</param>
-		/// <param name="ProjectFile">Project file to read settings from</param>
-		/// <returns>The default architecture</returns>
-		public static string GetDefaultArchitecture(UnrealTargetPlatform Platform, FileReference? ProjectFile)
-		{
-			return UEBuildPlatform.GetBuildPlatform(Platform).GetDefaultArchitecture(ProjectFile);
-		}
-
-		/// <summary>
-		/// Gets the architecture(s) the platform wants to currently compile
-		/// </summary>
-		/// <param name="Platform">The platform to get the default architecture for</param>
-		/// <param name="ProjectFile">Project file to read settings from</param>
-		/// <param name="TargetName">Target name - most Programs don't have a project file, but they will have a Target name that can be used to determine architecture</param>
-		/// <param name="bGetAllSupported">If true, return all supported architectures for this target</param>
-		/// <param name="bIsDistributionMode">If true, return architectures when packaging in distribution mode</param>
-		/// <returns>The architecture to build</returns>
-		public static IEnumerable<string> GetProjectArchitectures(UnrealTargetPlatform Platform, FileReference? ProjectFile, string? TargetName, bool bGetAllSupported=false, bool bIsDistributionMode=false)
-		{
-			return UEBuildPlatform.GetBuildPlatform(Platform).GetProjectArchitectures(ProjectFile, TargetName, bGetAllSupported, bIsDistributionMode);
-		}
-
-
-		/// <summary>
 		/// Checks whether the given project has a default build configuration
 		/// </summary>
 		/// <param name="ProjectFile">The project file</param>

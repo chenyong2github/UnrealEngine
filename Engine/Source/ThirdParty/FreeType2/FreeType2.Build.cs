@@ -78,9 +78,9 @@ public class FreeType2 : ModuleRules
 					"Win64",
 					"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
-			if (Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0)
+			if (!Target.Architecture.bIsX64)
 			{
-				LibPath = Path.Combine(LibPath, Target.WindowsPlatform.GetArchitectureSubpath());
+				LibPath = Path.Combine(LibPath, Target.Architecture.WindowsName);
 			}
 
 			LibPath = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT
@@ -108,7 +108,7 @@ public class FreeType2 : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.TVOS)
 		{
-			LibPath = (Target.Architecture == "-simulator")
+			LibPath = (Target.Architecture == UnrealArch.TVOSSimulator)
 				? "Simulator"
 				: "Device";
 
@@ -138,7 +138,7 @@ public class FreeType2 : ModuleRules
 				? "libfreetyped_fPIC.a"
 				: "libfreetype_fPIC.a";
 
-			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "Unix", Target.Architecture, LibPath));
+			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "Unix", Target.Architecture.LinuxName, LibPath));
 		}
 	}
 }

@@ -113,7 +113,7 @@ namespace AutomationTool.Tasks
 			DirectoryReference TargetProjectDir = DirectoryReference.Combine(TargetDir, ProjectFile.GetFileNameWithoutExtension());
 
 			// Get the path to the receipt
-			FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(SourceProjectDir, Parameters.Target, Parameters.Platform, Parameters.Configuration, Parameters.Architecture);
+			FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(SourceProjectDir, Parameters.Target, Parameters.Platform, Parameters.Configuration, UnrealArchitectures.FromString(Parameters.Architecture, Parameters.Platform));
 
 			// Try to load it
 			TargetReceipt Receipt;

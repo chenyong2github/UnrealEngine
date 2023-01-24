@@ -30,7 +30,7 @@ public class GenerateDSYM : BuildCommand
 				string PlatformName = ParseParamValue("platform");
 				FileReference ProjectFile = ParseProjectParam();
 				string TargetName = ParseOptionalStringParam("target") ?? System.IO.Path.GetFileNameWithoutExtension(ProjectFile?.FullName ?? "");
-				string Architecture = ParseOptionalStringParam("architecture") ?? System.IO.Path.GetFileNameWithoutExtension(ProjectFile?.FullName ?? "");
+				string ArchitectureString = ParseOptionalStringParam("architecture") ?? System.IO.Path.GetFileNameWithoutExtension(ProjectFile?.FullName ?? "");
 				UnrealTargetConfiguration Configuration = ParseOptionalEnumParam<UnrealTargetConfiguration>("config") ?? UnrealTargetConfiguration.Development;
 
 				if (ProjectFile == null || PlatformName == null || TargetName == null)
@@ -51,6 +51,7 @@ public class GenerateDSYM : BuildCommand
 					Log.TraceError("Platform must be one of Mac, IOS, TVOS");
 					return;
 				}
+				UnrealArchitectures Architecture = UnrealArchitectures.FromString(ArchitectureString, Platform);
 
 
 				FileReference ReceiptFile = TargetReceipt.GetDefaultPath(DirectoryReference.FromFile(ProjectFile) ?? Unreal.EngineDirectory, TargetName, Platform, Configuration, Architecture);

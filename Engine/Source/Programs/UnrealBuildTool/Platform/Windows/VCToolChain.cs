@@ -12,6 +12,7 @@ using EpicGames.Core;
 using UnrealBuildBase;
 using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
+using Microsoft.CodeAnalysis;
 
 namespace UnrealBuildTool
 {
@@ -844,7 +845,7 @@ namespace UnrealBuildTool
 				Arguments.Add($"-Xclang -x -Xclang \"{FileSpecifier}\"");
 			}
 
-			if (CompileEnvironment.Architecture == "arm64ec")
+			if (CompileEnvironment.Architecture == UnrealArch.Arm64ec)
 			{
 				Arguments.Add("/arm64EC");
 				// The latest vc toolchain requires that these be manually set for arm64ec.
@@ -1191,7 +1192,7 @@ namespace UnrealBuildTool
 			}
 
 			// Allow delay-loaded DLLs to be explicitly unloaded.
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+			if (Target.WindowsPlatform.Architecture == UnrealArch.X64)
 			{
 				Arguments.Add("/DELAY:UNLOAD");
 			}
@@ -1282,7 +1283,7 @@ namespace UnrealBuildTool
 				LinkEnvironment.Configuration != CppConfiguration.Shipping && 
 				!Target.WindowsPlatform.bMergeIdenticalCOMDATs &&
 				!LinkEnvironment.bAllowLTCG &&
-				Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+				Target.WindowsPlatform.Architecture == UnrealArch.X64)
 			{
 				Arguments.Add("/INCREMENTAL");
 				Arguments.Add("/verbose:incr");
@@ -1356,6 +1357,9 @@ namespace UnrealBuildTool
 			BaseCompileAction.IncludePaths.AddRange(CompileEnvironment.UserIncludePaths);
 			BaseCompileAction.SystemIncludePaths.AddRange(CompileEnvironment.SystemIncludePaths);
 			BaseCompileAction.SystemIncludePaths.AddRange(EnvVars.IncludePaths);
+			
+			// Remember the architecture
+			BaseCompileAction.Architecture = CompileEnvironment.Architecture;
 
 			// Add preprocessor definitions to the argument list.
 			BaseCompileAction.Definitions.AddRange(CompileEnvironment.Definitions);
@@ -1754,7 +1758,7 @@ namespace UnrealBuildTool
 			{
 				DirectoryReference ASanRuntimeDir;
 				String ASanArchSuffix;
-				if (EnvVars.Architecture == WindowsArchitecture.x64)
+				if (EnvVars.Architecture == UnrealArch.X64)
 				{
 					ASanRuntimeDir = DirectoryReference.Combine(EnvVars.ToolChainDir, "bin", "Hostx64", "x64");
 					ASanArchSuffix = "x86_64";
@@ -2120,7 +2124,7 @@ namespace UnrealBuildTool
 			    EnvVars.CompilerVersion < new VersionNumber(14, 28, 0))
 			{
 				String ASanArchSuffix = "";
-				if (EnvVars.Architecture == WindowsArchitecture.x64)
+				if (EnvVars.Architecture == UnrealArch.X64)
 				{
 					ASanArchSuffix = "x86_64";
 				}
@@ -2300,7 +2304,8 @@ namespace UnrealBuildTool
 
 			// Create an action that invokes the linker.
 			Action LinkAction = Graph.CreateAction(ActionType.Link);
-			LinkAction.CommandDescription = "Link";
+			string ReadableArch = UnrealArchitectureConfig.ForPlatform(LinkEnvironment.Platform).ConvertToReadableArchitecture(LinkEnvironment.Architecture);
+			LinkAction.CommandDescription += $"Link [{ReadableArch}]";
 			LinkAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 			if(bIsBuildingLibraryOrImportLibrary)
 			{
@@ -2481,7 +2486,7 @@ namespace UnrealBuildTool
 		public static string GetVCIncludePaths(UnrealTargetPlatform Platform, WindowsCompiler Compiler, string? CompilerVersion, ILogger Logger)
 		{
 			// Make sure we've got the environment variables set up for this target
-			VCEnvironment EnvVars = VCEnvironment.Create(Compiler, WindowsCompiler.Default, Platform, WindowsArchitecture.x64, CompilerVersion, null, null, false, false, Logger);
+			VCEnvironment EnvVars = VCEnvironment.Create(Compiler, WindowsCompiler.Default, Platform, UnrealArch.X64, CompilerVersion, null, null, false, false, Logger);
 
 			// Also add any include paths from the INCLUDE environment variable.  MSVC is not necessarily running with an environment that
 			// matches what UBT extracted from the vcvars*.bat using SetEnvironmentVariablesFromBatchFile().  We'll use the variables we

@@ -86,7 +86,7 @@ public class Flite : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(FliteLibPath , Target.Architecture, bUseDebugLibs ? "Debug" : "Release", "libFlite.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(FliteLibPath , Target.Architecture.LinuxName, bUseDebugLibs ? "Debug" : "Release", "libFlite.a"));
 		}
 		PublicDefinitions.Add("UE_FLITE_REQUIRES_WINDOWS_HEADERS=" + (bRequiresWindowsHeaders ? "1" : "0"));
 	}

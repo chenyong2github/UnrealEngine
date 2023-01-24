@@ -478,7 +478,13 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Architecture that the target is being built for (or an empty string for the default).
 		/// </summary>
-		public readonly string Architecture;
+		public readonly UnrealArchitectures Architectures;
+
+		/// <summary>
+		/// Gets the Architecture in the normal case where there is a single Architecture in Architectures
+		/// (this will throw an exception if there is more than one architecture specified)
+		/// </summary>
+		public UnrealArch Architecture => Architectures.SingleArchitecture;
 
 		/// <summary>
 		/// Path to the project file for the project containing this target.
@@ -1159,7 +1165,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bWithLiveCoding
 		{
-			get { return bWithLiveCodingPrivate ?? (Platform == UnrealTargetPlatform.Win64 && Architecture != "arm64" && Architecture != "arm64ec" && Configuration != UnrealTargetConfiguration.Shipping && Configuration != UnrealTargetConfiguration.Test && Type != TargetType.Program); }
+			get { return bWithLiveCodingPrivate ?? (Platform == UnrealTargetPlatform.Win64 && Architecture.bIsX64 && Configuration != UnrealTargetConfiguration.Shipping && Configuration != UnrealTargetConfiguration.Test && Type != TargetType.Program); }
 			set { bWithLiveCodingPrivate = value; }
 		}
 		bool? bWithLiveCodingPrivate;
@@ -2254,7 +2260,7 @@ namespace UnrealBuildTool
 			this.DefaultName = Target.Name;
 			this.Platform = Target.Platform;
 			this.Configuration = Target.Configuration;
-			this.Architecture = Target.Architecture;
+			this.Architectures = Target.Architectures;
 			this.ProjectFile = Target.ProjectFile;
 			this.Version = Target.Version;
 			this.WindowsPlatform = new WindowsTargetRules(this);
@@ -2657,7 +2663,12 @@ namespace UnrealBuildTool
 			get { return Inner.Configuration; }
 		}
 
-		public string Architecture
+		public UnrealArchitectures Architectures
+		{
+			get { return Inner.Architectures; }
+		}
+
+		public UnrealArch Architecture
 		{
 			get { return Inner.Architecture; }
 		}

@@ -19,7 +19,7 @@ public class libcurl : ModuleRules
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			PublicSystemIncludePaths.Add(Path.Combine(LinuxLibCurlPath, "include"));
-			PublicAdditionalLibraries.Add(Path.Combine(LinuxLibCurlPath, "lib", "Unix", Target.Architecture, "Release", "libcurl.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(LinuxLibCurlPath, "lib", "Unix", Target.Architecture.LinuxName, "Release", "libcurl.a"));
 			PublicDefinitions.Add("CURL_STATICLIB=1");
 
 			// Our build requires nghttp2, OpenSSL and zlib, so ensure they're linked in

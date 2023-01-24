@@ -109,7 +109,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Platform"></param>
 		/// <param name="Architecture"></param>
-		public DirectoryReference? GetFrameworkDirectory(UnrealTargetPlatform Platform, string Architecture)
+		public DirectoryReference? GetFrameworkDirectory(UnrealTargetPlatform Platform, UnrealArch Architecture)
 		{
 			if( XCFrameworkVariants != null)
 			{
@@ -218,20 +218,20 @@ namespace UnrealBuildTool
 			/// </summary>
 			/// <param name="Platform"></param>
 			/// <param name="Architecture"></param>
-			public bool Matches(UnrealTargetPlatform Platform, string Architecture)
+			public bool Matches(UnrealTargetPlatform Platform, UnrealArch Architecture)
 			{
 				if(( Platform == UnrealTargetPlatform.IOS && SupportedPlatform == "ios" ) ||
 				   ( Platform == UnrealTargetPlatform.Mac && SupportedPlatform == "macos" ) ||
 				   ( Platform == UnrealTargetPlatform.TVOS && SupportedPlatform == "tvos" ))
 				{
-					if( Architecture == "-simulator" )
+					if( Architecture == UnrealArch.IOSSimulator || Architecture == UnrealArch.TVOSSimulator)
 					{
 						// When using -simulator we don't have the actual architecture. Assume arm64 as other parts of UBT already are doing
 						return ( SupportedPlatformVariant == "simulator" ) && SupportedArchitectures.Contains("arm64");
 					}
 					else
 					{
-						return ( SupportedPlatformVariant == null ) && SupportedArchitectures.Contains(Architecture);
+						return ( SupportedPlatformVariant == null ) && SupportedArchitectures.Contains(Architecture.AppleName);
 					}
 				}
 				return false;

@@ -45,7 +45,7 @@ namespace UnrealBuildTool.Rules
 				});
 			}
 
-			bool bLinuxEnabled = Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64");
+			bool bLinuxEnabled = Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture == UnrealArch.X64;
 
 			// Add EXR support.
 			if ((Target.Platform == UnrealTargetPlatform.Mac) ||

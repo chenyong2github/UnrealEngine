@@ -60,7 +60,7 @@ public class SoundTouchZ : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
         {
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryRootDir, "lib", "Linux", Target.Architecture, "libSoundTouchZ.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibraryRootDir, "lib", "Linux", Target.Architecture.LinuxName, "libSoundTouchZ.a"));
         }
 	}
 }

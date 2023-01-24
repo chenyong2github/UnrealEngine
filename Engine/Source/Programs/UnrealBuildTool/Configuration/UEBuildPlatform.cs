@@ -14,6 +14,165 @@ using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
+	/// <summary>
+	/// Enum for the different ways a platform can support multiple architectures within UnrealBuildTool
+	/// </summary>
+	public enum UnrealArchitectureMode
+	{
+		/// <summary>
+		/// This platform only supports a single architecture (consoles, etc)
+		/// </summary>
+		SingleArchitecture,
+
+		/// <summary>
+		/// This platform needs separate targets per architecture (compiling for multiple will compile two entirely separate set of source/exectuable/intermediates)
+		/// </summary>
+		OneTargetPerArchitecture,
+
+		/// <summary>
+		/// This will create a single target, but compile each source file separately
+		/// </summary>
+		SingleTargetCompileSeparately,
+
+		/// <summary>
+		/// This will create a single target, but compile each source file and link the executable separately - but then packaged together into one final output
+		/// </summary>
+		SingleTargetLinkSeparately,
+	}
+
+	/// <summary>
+	/// Full architecture configuation information for a platform. Can be found by platform with UnrealArchitectureConfig.ForPlatform(), or UEBuildPlatform.ArchitectureConfig
+	/// </summary>
+	public class UnrealArchitectureConfig
+	{
+		/// <summary>
+		/// Get the architecture configuration object for a given platform
+		/// </summary>
+		/// <param name="Platform"></param>
+		/// <returns></returns>
+		public static UnrealArchitectureConfig ForPlatform(UnrealTargetPlatform Platform)
+		{
+			return UEBuildPlatform.GetBuildPlatform(Platform).ArchitectureConfig;
+		}
+
+
+		/// <summary>
+		/// The multi-architecture mode for this platform (potentially single-architecture)
+		/// </summary>
+		public UnrealArchitectureMode Mode { get; }
+
+		/// <summary>
+		/// The set of all architecture this platform supports. Any platform specified on the UBT commandline not in this list will be an error
+		/// </summary>
+		public UnrealArchitectures AllSupportedArchitectures { get; }
+
+		/// <summary>
+		/// This determines what architecture(s) to compile/package when no architeecture is specified on the commandline
+		/// </summary>
+		/// <param name="ProjectFile"></param>
+		/// <param name="TargetName"></param>
+		/// <returns></returns>
+		public virtual UnrealArchitectures ActiveArchitectures(FileReference? ProjectFile, string? TargetName)
+		{
+			if (Mode != UnrealArchitectureMode.SingleArchitecture || AllSupportedArchitectures.bIsMultiArch)
+			{
+				throw new BuildException("Platforms that support multiple platforms are expected to override ActiveArchitectures in a platform-specifiec UnraelArchitectureConfig subclass");
+			}
+			return AllSupportedArchitectures;
+		}
+
+		/// <summary>
+		/// Like ProjectSupportedArchitectures, except when building in distribution mode. Defaults to ActiveArchitectures
+		/// </summary>
+		/// <param name="ProjectFile"></param>
+		/// <param name="TargetName"></param>
+		/// <returns></returns>
+		public virtual UnrealArchitectures DistributionArchitectures(FileReference? ProjectFile, string? TargetName)
+		{
+			return ActiveArchitectures(ProjectFile, TargetName);
+		}
+
+	
+		/// <summary>
+		/// Returns the set all architectures potentially supported by this project. Can be used by project file gnenerators to restrict IDE architecture options
+		/// Defaults to AllSupportedArchitectures
+		/// </summary>
+		/// <param name="ProjectFile"></param>
+		/// <param name="TargetName"></param>
+		/// <returns></returns>
+		public virtual UnrealArchitectures ProjectSupportedArchitectures(FileReference? ProjectFile, string? TargetName)
+		{
+			return AllSupportedArchitectures;
+		}
+
+		/// <summary>
+		/// Returns if architecture name should be used when making intermediate directories, per-architecture filenames, etc
+		/// It is virtual, so a platform can choose to skip architecture name for one platform, but not another 
+		/// </summary>
+		/// <returns></returns>
+		public virtual bool RequiresArchitectureFilenames(UnrealArchitectures Architectures)
+		{
+			// @todo: this needs to also have directory vs file (we may need directory names but not filenames in the case of Single-target multi-arch)
+			return Mode == UnrealArchitectureMode.OneTargetPerArchitecture;
+		}
+
+		/// <summary>
+		/// Convert user specified architecture strings to what the platform wants
+		/// </summary>
+		/// <param name="Architecture"></param>
+		/// <returns></returns>
+		public virtual string ConvertToReadableArchitecture(UnrealArch Architecture)
+		{
+			return Architecture.ToString();
+		}
+
+		/// <summary>
+		/// Get name for architecture-specific directories (can be shorter than architecture name itself)
+		/// </summary>
+		public virtual string GetFolderNameForArchitecture(UnrealArch Architecture)
+		{
+			// by default, use the architecture name
+			return Architecture.ToString();
+		}
+
+		/// <summary>
+		/// Get name for architecture-specific directories (can be shorter than architecture name itself)
+		/// </summary>
+		public virtual string GetFolderNameForArchitectures(UnrealArchitectures Architectures)
+		{
+			// by default, use the architecture names combined with +
+			return Architectures.GetFolderNameForPlatform(this);
+		}
+
+
+
+		/// <summary>
+		/// Simple constructor for platforms with a single architecture
+		/// </summary>
+		/// <param name="SingleArchitecture"></param>
+		public UnrealArchitectureConfig(UnrealArch SingleArchitecture)
+		{
+			this.Mode = UnrealArchitectureMode.SingleArchitecture;
+			this.AllSupportedArchitectures = new UnrealArchitectures(SingleArchitecture);
+		}
+
+		/// <summary>
+		/// Full constructor for platforms that support multiple architectures
+		/// </summary>
+		/// <param name="Mode"></param>
+		/// <param name="SupportedArchitectures"></param>
+		protected UnrealArchitectureConfig(UnrealArchitectureMode Mode, IEnumerable<UnrealArch> SupportedArchitectures)
+		{
+			this.Mode = Mode;
+			this.AllSupportedArchitectures = new UnrealArchitectures(SupportedArchitectures);
+		}
+
+
+	}
+
+
+
+
 	abstract class UEBuildPlatform
 	{
 		private static Dictionary<UnrealTargetPlatform, UEBuildPlatform> BuildPlatformDictionary = new Dictionary<UnrealTargetPlatform, UEBuildPlatform>();
@@ -25,6 +184,11 @@ namespace UnrealBuildTool
 		/// The corresponding target platform enum
 		/// </summary>
 		public readonly UnrealTargetPlatform Platform;
+
+		/// <summary>
+		/// The configuration about the architecture(s) this platform supports
+		/// </summary>
+		public readonly UnrealArchitectureConfig ArchitectureConfig;
 
 		/// <summary>
 		/// Logger for this platform
@@ -51,11 +215,13 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="InPlatform">The enum value for this platform</param>
 		/// <param name="SDK">The SDK management object for this platform</param>
+		/// <param name="ArchitectureConfig">THe architecture configuraton for this platform. This is returned by UnrealArchitectureConfig.ForPlatform()</param>
 		/// <param name="InLogger">Logger for output</param>
-		public UEBuildPlatform(UnrealTargetPlatform InPlatform, UEBuildPlatformSDK SDK, ILogger InLogger)
+		public UEBuildPlatform(UnrealTargetPlatform InPlatform, UEBuildPlatformSDK SDK, UnrealArchitectureConfig ArchitectureConfig, ILogger InLogger)
 		{
 			Platform = InPlatform;
 			Logger = InLogger;
+			this.ArchitectureConfig = ArchitectureConfig;
 
 			// check DDPI to see if the platform is enabled on this host platform
 			string IniPlatformName = ConfigHierarchy.GetIniPlatformName(Platform);
@@ -204,102 +370,6 @@ namespace UnrealBuildTool
 		public static IEnumerable<UnrealTargetPlatform> GetRegisteredPlatforms()
 		{
 			return BuildPlatformDictionary.Keys;
-		}
-
-		/// <summary>
-		/// Returns true if this platform is capable of building the specified architectures in a single pass
-		/// (e.g. creating a fat library). If both this and CanLinkArchitecturesInSinglePass() return false
-		/// then a UEBuildTarget will be created for each architecture. If one returns true, and one false, then
-		/// UTToolchain will loop over the architectures within CompileAllFIles/LinkAllFiles
-		/// </summary>
-		/// <param name="InArchitectures">Architectures that are being built</param>
-		public virtual bool CanCompileArchitecturesInSinglePass(IEnumerable<string> InArchitectures)
-		{
-			return false;
-		}
-
-		/// <summary>
-		/// Returns true if this platform is capable of building the specified architectures in a single pass
-		/// (e.g. creating a fat binary). If both this and CanCompileArchitecturesInSinglePass() return false
-		/// then a UEBuildTarget will be created for each architecture
-		/// </summary>
-		/// <param name="InArchitectures">Architectures that are being built</param>
-		public virtual bool CanLinkArchitecturesInSinglePass(IEnumerable<string> InArchitectures)
-		{
-			return false;
-		}
-
-		/// <summary>
-		/// Determines if a platform needs a single Target object, even if it wants separate compiling and linking
-		/// (one case would be Deploying will combine the Link output into one unit)
-		/// </summary>
-		/// <param name="InArchitectures">Architectures that are being built</param>
-		public virtual bool NeedsSingleTargetForMultiArchitecture(IEnumerable<string> InArchitectures)
-		{
-			return CanCompileArchitecturesInSinglePass(InArchitectures) || CanLinkArchitecturesInSinglePass(InArchitectures);
-		}
-
-		/// <summary>
-		/// Get the default architecture for a project. This may be overriden on the command line to UBT.
-		/// </summary>
-		/// <param name="ProjectFile">Optional project to read settings from </param>
-		public virtual string GetDefaultArchitecture(FileReference? ProjectFile)
-		{
-			// by default, use an empty architecture (which is really just a modifer to the platform for some paths/names)
-			return "";
-		}
-
-		/// <summary>
-		/// Get the default architecture for a project. This may be overriden on the command line to UBT.
-		/// </summary>
-		/// <param name="ProjectFile">Optional project to read settings from </param>
-		/// <param name="TargetName">Optional name of project, can be useful for programs, etc that have no projectfile</param>
-		/// <param name="bGetAllSupported">If true, return all supported architectures for this target</param>
-		/// <param name="bIsDistributionMode">If true, return architectures when packaging in distribution mode</param>
-		public virtual IEnumerable<string> GetProjectArchitectures(FileReference? ProjectFile, string? TargetName, bool bGetAllSupported, bool bIsDistributionMode)
-		{
-			// by default, use an empty architecture (which is really just a modifer to the platform for some paths/names)
-			return new string[] { GetDefaultArchitecture(ProjectFile) };
-		}
-
-		/// <summary>
-		/// Convert user specified architecture strings to what the platform wants
-		/// </summary>
-		/// <param name="Architecture"></param>
-		/// <returns></returns>
-		public virtual string ConvertToPlatformArchitecture(string Architecture)
-		{
-			return Architecture;
-		}
-
-		/// <summary>
-		/// Convert user specified architecture strings to what the platform wants
-		/// </summary>
-		/// <param name="Architecture"></param>
-		/// <returns></returns>
-		public virtual string ConvertToReadableArchitecture(string Architecture)
-		{
-			return Architecture;
-		}
-
-		/// <summary>
-		/// Convert user specified architecture strings to what the platform wants
-		/// </summary>
-		/// <param name="Architecture"></param>
-		/// <returns></returns>
-		public virtual bool IsX86Architecture(string Architecture)
-		{
-			// most platforms are x86
-			return true;
-		}
-
-		/// <summary>
-		/// Get name for architecture-specific directories (can be shorter than architecture name itself)
-		/// </summary>
-		public virtual string GetFolderNameForArchitecture(string Architecture)
-		{
-			// by default, use the architecture name
-			return Architecture;
 		}
 
 		/// <summary>
@@ -715,15 +785,6 @@ namespace UnrealBuildTool
 		/// <param name="Target">The target being build</param>
 		public virtual void ModifyModuleRulesForOtherPlatform(string ModuleName, ModuleRules Rules, ReadOnlyTargetRules Target)
 		{
-		}
-
-		/// <summary>
-		/// Allows the platform to override whether the architecture name should be appended to the name of binaries.
-		/// </summary>
-		/// <returns>True if the architecture name should be appended to the binary</returns>
-		public virtual bool RequiresArchitectureSuffix()
-		{
-			return true;
 		}
 
 		/// <summary>

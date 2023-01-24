@@ -126,14 +126,14 @@ namespace UnrealBuildTool
 			string? SDKRoot = Environment.GetEnvironmentVariable(SDKRootEnvVar);
 			if (!String.IsNullOrEmpty(SDKRoot))
 			{
-				string AutoSDKPath = Path.Combine(SDKRoot, "Host" + BuildHostPlatform.Current.Platform, TargetPlatformName, GetAutoSDKDirectoryForMainVersion(), LinuxPlatform.DefaultHostArchitecture);
+				string AutoSDKPath = Path.Combine(SDKRoot, "Host" + BuildHostPlatform.Current.Platform, TargetPlatformName, GetAutoSDKDirectoryForMainVersion(), LinuxPlatform.DefaultHostArchitecture.LinuxName);
 				if (DirectoryReference.Exists(new DirectoryReference(AutoSDKPath)))
 				{
 					return AutoSDKPath;
 				}
 			}
 
-			string InTreeSDKPath = Path.Combine(LinuxPlatformSDK.GetInTreeSDKRoot().FullName, GetMainVersion(), LinuxPlatform.DefaultHostArchitecture);
+			string InTreeSDKPath = Path.Combine(LinuxPlatformSDK.GetInTreeSDKRoot().FullName, GetMainVersion(), LinuxPlatform.DefaultHostArchitecture.LinuxName);
 			if (DirectoryReference.Exists(new DirectoryReference(InTreeSDKPath)))
 			{
 				return InTreeSDKPath;
@@ -222,7 +222,7 @@ namespace UnrealBuildTool
 		/// WARNING: Do not cache this value - it may be changed after sourcing OutputEnvVars.txt
 		/// </summary>
 		/// <returns>Valid SDK DirectoryReference</returns>
-		public virtual DirectoryReference? GetBaseLinuxPathForArchitecture(string Architecture)
+		public virtual DirectoryReference? GetBaseLinuxPathForArchitecture(UnrealArch Architecture)
 		{
 			// if new multi-arch toolchain is used, prefer it
 			DirectoryReference? MultiArchRoot = GetSDKLocation();
@@ -230,7 +230,7 @@ namespace UnrealBuildTool
 
 			if (MultiArchRoot != null )
 			{
-				BaseLinuxPath = DirectoryReference.Combine(MultiArchRoot, Architecture);
+				BaseLinuxPath = DirectoryReference.Combine(MultiArchRoot, Architecture.LinuxName);
 			}
 			else
 			{

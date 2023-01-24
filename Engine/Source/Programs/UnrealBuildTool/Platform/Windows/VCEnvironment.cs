@@ -38,7 +38,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The compiler Architecture
 		/// </summary>
-		public readonly WindowsArchitecture Architecture;
+		public readonly UnrealArch Architecture;
 
 		/// <summary>
 		/// The underlying toolchain to use. Using Clang/ICL will piggy-back on a Visual Studio toolchain for the CRT, linker, etc...
@@ -153,18 +153,18 @@ namespace UnrealBuildTool
 			Environment.SetEnvironmentVariable("VC_COMPILER_DIR", CompilerPath.Directory.FullName, EnvironmentVariableTarget.Process);
 
 			AddDirectoryToPath(GetVCToolPath(ToolChainDir, Architecture));
-			if (Architecture == WindowsArchitecture.ARM64)
+			if (Architecture == UnrealArch.Arm64)
 			{
 				// Add both toolchain paths to the PATH environment variable. There are some support DLLs which are only added to one of the paths, but which the toolchain in the other directory
 				// needs to run (eg. mspdbcore.dll).
-				AddDirectoryToPath(GetVCToolPath(ToolChainDir, WindowsArchitecture.x64));
+				AddDirectoryToPath(GetVCToolPath(ToolChainDir, UnrealArch.X64));
 			}
 
 			// Add the Windows SDK directory to the path too, for mt.exe.
 			if (WindowsSdkVersion >= new VersionNumber(10))
 			{
 				string BuildHostArch = Architecture.ToString();
-				if (Architecture == WindowsArchitecture.ARM64 || Architecture == WindowsArchitecture.ARM64EC)
+				if (Architecture == UnrealArch.Arm64 || Architecture == UnrealArch.Arm64ec)
 				{
 					Debug.Assert(BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64);
 					BuildHostArch = "x64";
@@ -194,9 +194,9 @@ namespace UnrealBuildTool
 		/// <param name="VCToolChainDir">Base directory for the VC toolchain</param>
 		/// <param name="Architecture">Target Architecture</param>
 		/// <returns>Directory containing the 64-bit toolchain binaries</returns>
-		public static DirectoryReference GetVCToolPath(DirectoryReference VCToolChainDir, WindowsArchitecture Architecture)
+		public static DirectoryReference GetVCToolPath(DirectoryReference VCToolChainDir, UnrealArch Architecture)
 		{
-			FileReference CompilerPath = FileReference.Combine(VCToolChainDir, "bin", "Hostx64", WindowsExports.GetArchitectureSubpath(Architecture), "cl.exe");
+			FileReference CompilerPath = FileReference.Combine(VCToolChainDir, "bin", "Hostx64", Architecture.WindowsName, "cl.exe");
 			if (FileReference.Exists(CompilerPath))
 			{
 				return CompilerPath.Directory;
@@ -208,7 +208,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the path to the compiler.
 		/// </summary>
-		static FileReference GetCompilerToolPath(WindowsCompiler Compiler, WindowsArchitecture Architecture, DirectoryReference CompilerDir)
+		static FileReference GetCompilerToolPath(WindowsCompiler Compiler, UnrealArch Architecture, DirectoryReference CompilerDir)
 		{
 			if (Compiler == WindowsCompiler.Clang)
 			{
@@ -224,7 +224,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the path to the linker.
 		/// </summary>
-		FileReference GetLinkerToolPath(WindowsCompiler Compiler, WindowsArchitecture Architecture, DirectoryReference CompilerDir, DirectoryReference ToochainDir)
+		FileReference GetLinkerToolPath(WindowsCompiler Compiler, UnrealArch Architecture, DirectoryReference CompilerDir, DirectoryReference ToochainDir)
 		{
 			if (Compiler == WindowsCompiler.Clang && bAllowClangLinker)
 			{
@@ -241,7 +241,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the path to the library linker.
 		/// </summary>
-		FileReference GetLibraryLinkerToolPath(WindowsCompiler Compiler, WindowsArchitecture Architecture, DirectoryReference CompilerDir, DirectoryReference ToochainDir)
+		FileReference GetLibraryLinkerToolPath(WindowsCompiler Compiler, UnrealArch Architecture, DirectoryReference CompilerDir, DirectoryReference ToochainDir)
 		{
 			if (Compiler == WindowsCompiler.Clang && bAllowClangLinker)
 			{
@@ -280,7 +280,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected virtual DirectoryReference GetToolChainLibsDir()
 		{
-			string ArchFolder = WindowsExports.GetArchitectureSubpath(Architecture);
+			string ArchFolder = Architecture.WindowsName;
 
 			// Add the standard Visual C++ library paths
 			if (ToolChain.IsMSVC())
@@ -291,7 +291,7 @@ namespace UnrealBuildTool
 			{
 				DirectoryReference LibsPath = DirectoryReference.Combine(ToolChainDir, "LIB");
 
-				if (Architecture == WindowsArchitecture.x64)
+				if (Architecture == UnrealArch.X64)
 				{
 					LibsPath = DirectoryReference.Combine(LibsPath, "amd64");
 				}
@@ -306,7 +306,7 @@ namespace UnrealBuildTool
 		[SupportedOSPlatform("windows")]
 		private void SetupEnvironment(ILogger Logger)
 		{
-			string ArchFolder = WindowsExports.GetArchitectureSubpath(Architecture);
+			string ArchFolder = Architecture.WindowsName;
 
 			// Add the standard Visual C++ include paths
 			IncludePaths.Add(DirectoryReference.Combine(ToolChainDir, "INCLUDE"));
@@ -382,7 +382,7 @@ namespace UnrealBuildTool
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>New environment object with paths for the given settings</returns>
 		[SupportedOSPlatform("windows")]
-		public static VCEnvironment Create(WindowsCompiler Compiler, WindowsCompiler ToolChain, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion, bool bUseCPPWinRT, bool bAllowClangLinker, ILogger Logger)
+		public static VCEnvironment Create(WindowsCompiler Compiler, WindowsCompiler ToolChain, UnrealTargetPlatform Platform, UnrealArch Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion, bool bUseCPPWinRT, bool bAllowClangLinker, ILogger Logger)
 		{
 			return Create( new VCEnvironmentParameters(Compiler, ToolChain, Platform, Architecture, CompilerVersion, WindowsSdkVersion, SuppliedSdkDirectoryForVersion, bUseCPPWinRT, bAllowClangLinker, Logger), Logger );
 		}
@@ -417,7 +417,7 @@ namespace UnrealBuildTool
 		public VersionNumber CompilerVersion;
 
 		/// <summary>The compiler Architecture</summary>
-		public WindowsArchitecture Architecture;
+		public UnrealArch Architecture;
 
 		/// <summary>The base toolchain version</summary>
 		public WindowsCompiler ToolChain;
@@ -458,7 +458,7 @@ namespace UnrealBuildTool
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>Creation parameters for VC environment</returns>
 		[SupportedOSPlatform("windows")]
-		public VCEnvironmentParameters (WindowsCompiler Compiler, WindowsCompiler ToolChain, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion, bool bUseCPPWinRT, bool bAllowClangLinker, ILogger Logger)
+		public VCEnvironmentParameters (WindowsCompiler Compiler, WindowsCompiler ToolChain, UnrealTargetPlatform Platform, UnrealArch Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion, bool bUseCPPWinRT, bool bAllowClangLinker, ILogger Logger)
 		{
 			// Get the compiler version info
 			VersionNumber? SelectedCompilerVersion;

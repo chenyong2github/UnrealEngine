@@ -39,7 +39,7 @@ public class OpenVR : ModuleRules
 			PublicDelayLoadDLLs.Add(DylibPath);
 			RuntimeDependencies.Add(DylibPath);
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64"))
+		else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture == UnrealArch.X64)
 		{
 			LibraryPath += "linux64/";
 			PublicAdditionalLibraries.Add(LibraryPath + "libopenvr_api.so");

@@ -35,7 +35,7 @@ public class SwarmInterface : ModuleRules
 				throw new BuildException("Could not find NetFxSDK install dir; this will prevent SwarmInterface from installing.  Install a version of .NET Framework SDK at 4.6.0 or higher.");
 			}
 
-			string ArchFolder = WindowsExports.GetArchitectureSubpath(Target.WindowsPlatform.Architecture);
+			string ArchFolder = Target.WindowsPlatform.Architecture.WindowsName;
 
 			PrivateIncludePaths.Add(Path.Combine(NetFxSdkDir, "include", "um"));
 			PublicSystemLibraryPaths.Add(Path.Combine(NetFxSdkDir, "lib", "um", ArchFolder));

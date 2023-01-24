@@ -23,7 +23,7 @@ public class MCPP : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			LibPath += "Linux/" + Target.Architecture;
+			LibPath += "Linux/" + Target.Architecture.LinuxName;
 			PublicAdditionalLibraries.Add(LibPath + "/libmcpp.a");
 		}
 	}

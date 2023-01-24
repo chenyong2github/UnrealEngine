@@ -20,7 +20,7 @@ public class Protobuf : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Unix", Target.Architecture, "Release", "libprotobuf.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Unix", Target.Architecture.LinuxName, "Release", "libprotobuf.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

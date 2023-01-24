@@ -44,7 +44,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Architectures"></param>
 		/// <param name="inPluginExtraData"></param>
-		void SetAndroidPluginData(List<string> Architectures, List<string> inPluginExtraData);
+		void SetAndroidPluginData(UnrealArchitectures Architectures, List<string> inPluginExtraData);
 
 		/// <summary>
 		/// 
@@ -102,7 +102,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="NDKArch"></param>
 		/// <returns></returns>
-		public static string GetUnrealArch(string NDKArch)
+		public static UnrealArch GetUnrealArch(string NDKArch)
 		{
 			return UEDeployAndroid.GetUnrealArch(NDKArch);
 		}

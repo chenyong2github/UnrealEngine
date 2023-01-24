@@ -10,6 +10,7 @@ using EpicGames.Core;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using System.Linq;
 
 namespace UnrealBuildTool
 {
@@ -192,6 +193,17 @@ namespace UnrealBuildTool
 			ProjectFile = InProjectFile;
 		}
 
+		/// <summary>
+		/// Takes an architecture string as provided by UBT for the target and formats it for Clang. Supports
+		/// multiple architectures joined with '+'
+		/// </summary>
+		/// <param name="InArchitectures"></param>
+		/// <returns></returns>
+		protected string FormatArchitectureArg(UnrealArchitectures InArchitectures)
+		{
+			return "-arch " + string.Join('+', InArchitectures.Architectures.Select(x => x.AppleName));
+		}
+
 		protected DirectoryReference GetMacDevSrcRoot()
 		{
 			return Unreal.EngineSourceDirectory;
@@ -337,7 +349,7 @@ namespace UnrealBuildTool
 				{
 					Arguments.Add("-Os");
 
-					if (CompileEnvironment.Architecture.StartsWith("aarch64"))
+					if (CompileEnvironment.Architecture == UnrealArch.Arm64)
 					{
 						Arguments.Add("-moutline");
 					}

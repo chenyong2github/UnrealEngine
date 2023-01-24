@@ -19,7 +19,7 @@ public class libxml2 : ModuleRules
 			{
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");
 				PublicSystemIncludePaths.Add(Path.Combine(xml2Path, "include"));
-				PublicAdditionalLibraries.Add(Path.Combine(xml2Path, "lib", Target.Architecture, "libxml2.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(xml2Path, "lib", Target.Architecture.LinuxName, "libxml2.a"));
 			}
 		}
 	}

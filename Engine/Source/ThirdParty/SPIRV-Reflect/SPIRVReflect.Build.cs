@@ -38,7 +38,7 @@ public class SPIRVReflect : ModuleRules
         }
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "Linux", Target.Architecture, "libSPIRV-Reflect.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "Linux", Target.Architecture.LinuxName, "libSPIRV-Reflect.a"));
 		}
 		else
 		{

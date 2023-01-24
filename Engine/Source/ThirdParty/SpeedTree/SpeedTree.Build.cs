@@ -49,11 +49,11 @@ public class SpeedTree : ModuleRules
 			{
 				if (Target.LinkType == TargetLinkType.Monolithic)
 				{
-					PublicAdditionalLibraries.Add(SpeedTreePath + "Lib/Linux/" + Target.Architecture + "/Release/libSpeedTreeCore.a");
+					PublicAdditionalLibraries.Add(SpeedTreePath + "Lib/Linux/" + Target.Architecture.LinuxName + "/Release/libSpeedTreeCore.a");
 				}
 				else
 				{
-					PublicAdditionalLibraries.Add(SpeedTreePath + "Lib/Linux/" + Target.Architecture + "/Release/libSpeedTreeCore_fPIC.a");
+					PublicAdditionalLibraries.Add(SpeedTreePath + "Lib/Linux/" + Target.Architecture.LinuxName + "/Release/libSpeedTreeCore_fPIC.a");
 				}
 			}
 		}

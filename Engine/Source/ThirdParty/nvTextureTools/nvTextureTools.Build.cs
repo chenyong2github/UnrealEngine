@@ -47,7 +47,7 @@ public class nvTextureTools : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			string NvBinariesDir = Target.UEThirdPartyBinariesDirectory + "nvTextureTools/Linux/" + Target.Architecture;
+			string NvBinariesDir = Target.UEThirdPartyBinariesDirectory + "nvTextureTools/Linux/" + Target.Architecture.LinuxName;
 			PrivateRuntimeLibraryPaths.Add(NvBinariesDir);
 
 			PublicAdditionalLibraries.Add(NvBinariesDir + "/libnvcore.so");

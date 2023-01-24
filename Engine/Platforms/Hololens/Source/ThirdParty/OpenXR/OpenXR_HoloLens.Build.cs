@@ -6,14 +6,14 @@ namespace UnrealBuildTool.Rules
 	{
 		public OpenXR_HoloLens(ReadOnlyTargetRules Target) : base(Target)
 		{
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+			if (Target.WindowsPlatform.Architecture == UnrealArch.X64)
 			{
 				PublicAdditionalLibraries.Add(LoaderPath + "/hololens/x64/openxr_loader.lib");
 
 				PublicDelayLoadDLLs.Add("openxr_loader.dll");
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/OpenXR/hololens/x64/openxr_loader.dll");
 			}
-			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+			else if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{
 				PublicAdditionalLibraries.Add(LoaderPath + "/hololens/arm64/openxr_loader.lib");
 

@@ -25,7 +25,7 @@ public class NVAPI : ModuleRules
 			nvApiPath = Path.Combine(EngineDirectory, "Restricted", "NoRedist", "Source", "ThirdParty", "NVIDIA", "nvapi");
 		}
 
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) == -1)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Architecture.bIsX64)
 		{
 			PublicSystemIncludePaths.Add(nvApiPath);
 

@@ -48,7 +48,7 @@ namespace UnrealBuildTool.Rules
 				
 				PublicDefinitions.Add("WITH_WEBM_LIBS=1");			
 			}
-			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64"))
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture == UnrealArch.X64)
 			{
 				// libVPX is linked inside WebRTC so just use those headers and binaries where avaliable
 				// In order to get rid of this need to rebuild webrtc without libvpx included (win64, macos, linux where editor runs)

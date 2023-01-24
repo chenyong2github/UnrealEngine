@@ -50,7 +50,7 @@ public class libstrophe : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, "Unix", Target.Architecture.ToString(), ConfigName, "libstrophe" + ((Target.LinkType != TargetLinkType.Monolithic) ? "_fPIC" : "") + ".a"));
+			PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, "Unix", Target.Architecture.LinuxName.ToString(), ConfigName, "libstrophe" + ((Target.LinkType != TargetLinkType.Monolithic) ? "_fPIC" : "") + ".a"));
 			PublicSystemLibraries.Add("resolv");
 		}
 	}

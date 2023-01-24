@@ -77,11 +77,11 @@ namespace AutomationScripts
 			var CrashReportPlatforms = new HashSet<UnrealTargetPlatform>();
 
 
-
-			string ServerArchitecture = Params.ServerArchitecture == "" ? "" : $" -architecture={Params.ServerArchitecture}";
-			string EditorArchitecture = Params.EditorArchitecture == "" ? "" : $" -architecture={Params.EditorArchitecture}";
-			string ClientArchitecture = Params.ClientArchitecture == "" ? "" : $" -architecture={Params.ClientArchitecture}";
-			string ProgramArchitecture = Params.ProgramArchitecture == "" ? "" : $" -architecture={Params.ProgramArchitecture}";
+			Func<UnrealArchitectures, string> GetArchString = Arch => (Arch == null) ? "" : $"-architecture={Arch}";
+			string ServerArchitecture = GetArchString(Params.ServerArchitecture);
+			string EditorArchitecture = GetArchString(Params.EditorArchitecture);
+			string ClientArchitecture = GetArchString(Params.ClientArchitecture);
+			string ProgramArchitecture = GetArchString(Params.ProgramArchitecture);
 
 			// Setup editor targets
 			if (Params.HasEditorTargets && (!Params.SkipBuildEditor) && (TargetMask & ProjectBuildTargets.Editor) == ProjectBuildTargets.Editor)
@@ -159,7 +159,9 @@ namespace AutomationScripts
 					{
 						UnrealTargetPlatform CrashReportPlatform = Platform.GetPlatform(ClientPlatformType).CrashReportPlatform ?? ClientPlatformType;
 						CrashReportPlatforms.Add(CrashReportPlatform);
-						Agenda.AddTargets(Params.ClientCookedTargets.ToArray(), ClientPlatformType, BuildConfig, Params.CodeBasedUprojectPath, InAddArgs: " -remoteini=\"" + Params.RawProjectPath.Directory.FullName + "\"" + AdditionalArgs + ClientArchitecture);
+						string Arch = Params.IsProgramTarget ? ProgramArchitecture : ClientArchitecture;
+						Agenda.AddTargets(Params.ClientCookedTargets.ToArray(), ClientPlatformType, BuildConfig, Params.CodeBasedUprojectPath, 
+							InAddArgs: $" -remoteini=\"{Params.RawProjectPath.Directory}\" {AdditionalArgs} {Arch}");
 					}
 				}
 			}
@@ -173,7 +175,8 @@ namespace AutomationScripts
 					{
 						UnrealTargetPlatform CrashReportPlatform = Platform.GetPlatform(ServerPlatformType).CrashReportPlatform ?? ServerPlatformType;
 						CrashReportPlatforms.Add(CrashReportPlatform);
-						Agenda.AddTargets(Params.ServerCookedTargets.ToArray(), ServerPlatformType, BuildConfig, Params.CodeBasedUprojectPath, InAddArgs: " -remoteini=\"" + Params.RawProjectPath.Directory.FullName + "\"" + AdditionalArgs + ServerArchitecture);
+						Agenda.AddTargets(Params.ServerCookedTargets.ToArray(), ServerPlatformType, BuildConfig, Params.CodeBasedUprojectPath, 
+							InAddArgs: $" -remoteini=\"{Params.RawProjectPath.Directory}\" {AdditionalArgs} {ServerArchitecture}");
 					}
 				}
 			}
@@ -194,7 +197,8 @@ namespace AutomationScripts
 				{
 					if (PlatformSupportsCrashReporter(CrashReportPlatform))
 					{
-						Agenda.AddTarget("CrashReportClient", CrashReportPlatform, UnrealTargetConfiguration.Shipping, InAddArgs: " -remoteini=\"" + Params.RawProjectPath.Directory.FullName + "\"" + ProgramArchitecture);
+						Agenda.AddTarget("CrashReportClient", CrashReportPlatform, UnrealTargetConfiguration.Shipping, 
+							InAddArgs: $" -remoteini=\"{Params.RawProjectPath.Directory}\" {ProgramArchitecture}");
 					}
 				}
 			}

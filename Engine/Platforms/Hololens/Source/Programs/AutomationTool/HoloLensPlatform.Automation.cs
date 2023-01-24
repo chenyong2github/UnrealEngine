@@ -363,8 +363,6 @@ namespace HoloLens.Automation
 	[SupportedOSPlatform("windows10.0.10240.0")]
 	public class HoloLensPlatform : Platform
     {
-		private WindowsArchitecture[] ActualArchitectures = { };
-
 		private FileReference MakeAppXPath;
 		private FileReference PDBCopyPath;
 		private FileReference SignToolPath;
@@ -379,51 +377,7 @@ namespace HoloLens.Automation
 		{
 
 		}
-
-		public override void PreBuildAgenda(UnrealBuild Build, UnrealBuild.BuildAgenda Agenda, ProjectParams Params)
-		{
-			if(ActualArchitectures.Length == 0)
-			{
-				throw new AutomationException(ExitCode.Error_Arguments, "No target architecture selected on \'Platforms/HoloLens/OS Info\' page. Please select at last one.");
-			}
-
-			foreach (var BuildConfig in Params.ClientConfigsToBuild)
-			{
-				foreach(var target in Params.ClientCookedTargets)
-				{
-					var MultiReceiptFileName = TargetReceipt.GetDefaultPath(Params.RawProjectPath.Directory, target, UnrealTargetPlatform.HoloLens, BuildConfig, "Multi");
-					if (File.Exists(MultiReceiptFileName.FullName))
-					{
-						FileReference.Delete(MultiReceiptFileName);
-					}
-
-					var x64ReceiptFileName = TargetReceipt.GetDefaultPath(Params.RawProjectPath.Directory, target, UnrealTargetPlatform.HoloLens, BuildConfig, "x64");
-					if (File.Exists(x64ReceiptFileName.FullName))
-					{
-						FileReference.Delete(x64ReceiptFileName);
-					}
-
-					var arm64ReceiptFileName = TargetReceipt.GetDefaultPath(Params.RawProjectPath.Directory, target, UnrealTargetPlatform.HoloLens, BuildConfig, "arm64");
-					if (File.Exists(arm64ReceiptFileName.FullName))
-					{
-						FileReference.Delete(arm64ReceiptFileName);
-					}
-
-					foreach (var Arch in ActualArchitectures)
-					{
-						Agenda.Targets.Add(new UnrealBuild.BuildTarget()
-						{
-							TargetName = target,
-							Platform = UnrealTargetPlatform.HoloLens,
-							Config = BuildConfig,
-							UprojectPath = Params.CodeBasedUprojectPath,
-							UBTArgs = " -remoteini=\"" + Params.RawProjectPath.Directory.FullName + "\" -Architecture=" + WindowsExports.GetArchitectureSubpath(Arch),
-						});
-					}
-				}
-			}
-		}
-
+	
 		public override bool CanBeCompiled() //block auto compilation
 		{
 			return false;
@@ -447,7 +401,7 @@ namespace HoloLens.Automation
 				}
 			}
 
-			ConfigHierarchy PlatformEngineConfig = null;
+			ConfigHierarchy PlatformEngineConfig;
 			if (!ProjParams.EngineConfigs.TryGetValue(PlatformType, out PlatformEngineConfig))
 			{
 				throw new AutomationException(ExitCode.Error_Arguments, "No configuration on \'Platforms/HoloLens/OS Info\' page. Please create one.");
@@ -461,14 +415,14 @@ namespace HoloLens.Automation
 				AcceptThumbprints.AddRange(ThumbprintsFromConfig);
 			}
 
-
+			// if we are running, make sure we have built the matching arch if building is enabled
 			if (ProjParams.Run)
 			{
-				var ArchList = new List<WindowsArchitecture>();
+				var ArchList = new List<UnrealArch>();
 				foreach (string DeviceAddress in ProjParams.DeviceNames)
 				{
 					//We have to choose architecture of the device to run
-					WindowsArchitecture Arch = WindowsArchitecture.x64;
+					UnrealArch Arch = UnrealArch.X64;
 					if (!IsLocalDevice(DeviceAddress))
 					{
 						Arch = RemoteDeviceArchitecture(DeviceAddress, ProjParams);
@@ -476,40 +430,10 @@ namespace HoloLens.Automation
 
 					ArchList.Add(Arch);
 
-					LogInformation(String.Format("Project will be compiled for the architecture {0} of the HoloLens device {1}.", WindowsExports.GetArchitectureSubpath(Arch), DeviceAddress));
+					LogInformation(String.Format("Project will be compiled for the architecture {0} of the HoloLens device {1}.", Arch, DeviceAddress));
 				}
-
-				ActualArchitectures = ArchList.Distinct().ToArray();
+				ProjParams.ClientArchitecture = new UnrealArchitectures(ArchList);
 			}
-			else
-			{
-				var ArchList = new List<WindowsArchitecture>();
-				bool bBuildForEmulation = false;
-				bool bBuildForDevice = false;
-                
-				if (PlatformEngineConfig.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bBuildForEmulation", out bBuildForEmulation))
-				{
-					if (bBuildForEmulation)
-					{
-						ArchList.Add(WindowsArchitecture.x64);
-					}
-				}
-
-				if (PlatformEngineConfig.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bBuildForDevice", out bBuildForDevice))
-				{
-					// If both are unchecked, then we build for device
-					if (bBuildForDevice || (!bBuildForEmulation && !bBuildForDevice))
-					{
-						ArchList.Add(WindowsArchitecture.ARM64);
-					}
-				}
-
-				ActualArchitectures = ArchList.ToArray();
-			}
-
-			string ArchString = ActualArchitectures.Length == 1 && ProjParams.Run && !ProjParams.Package ? WindowsExports.GetArchitectureSubpath(ActualArchitectures[0]) : "Multi";
-			ProjParams.SpecifiedArchitecture = ArchString;
-			ProjParams.ConfigOverrideParams.Add(String.Format("Architecture={0}", ArchString));
 
 			FindInstruments();
 			GenerateSigningCertificate(ProjParams, PlatformEngineConfig);
@@ -609,30 +533,32 @@ namespace HoloLens.Automation
 				HoloLensExports DeployExports = new HoloLensExports(Log.Logger);
 				foreach (StageTarget Target in SC.StageTargets)
 				{
-					string ArchString = Target.Receipt.Architecture;
 					SC.StageBuildProductsFromReceipt(Target.Receipt, Target.RequireFilesExist, Params.bTreatNonShippingBinariesAsDebugFiles);
 					DeployExports.AddWinMDReferencesFromReceipt(Target.Receipt, Params.RawProjectPath.Directory, SC.LocalRoot.FullName, Windows10SDKVersion);
 
 					// Stage HoloLens-specific assets (tile, splash, etc.)
-					DirectoryReference assetsPath = new DirectoryReference(Path.Combine(ProjectBinariesFolder.FullName, ArchString, "Resources"));
-					StagedDirectoryReference stagedAssetPath = new StagedDirectoryReference("Resources");
-					SC.StageFiles(StagedFileType.NonUFS, assetsPath, "*.png", StageFilesSearch.AllDirectories, stagedAssetPath);
-
-
-					SC.StageFile(StagedFileType.NonUFS, new FileReference(Path.Combine(ProjectBinariesFolder.FullName, String.Format("AppxManifest_{0}.xml", ArchString))),
-						new StagedFileReference("AppxManifest.xml"));
-					SC.StageFile(StagedFileType.NonUFS, new FileReference(Path.Combine(ProjectBinariesFolder.FullName, String.Format("resources_{0}.pri", ArchString))),
-						new StagedFileReference("resources.pri"));
-
-					FileReference SourceNetworkManifestPath = new FileReference(Path.Combine(ProjectBinariesFolder.FullName, String.Format("NetworkManifest_{0}.xml", ArchString)));
-					if (FileReference.Exists(SourceNetworkManifestPath))
+					foreach (UnrealArch Arch in Target.Receipt.Architectures.Architectures)
 					{
-						SC.StageFile(StagedFileType.NonUFS, SourceNetworkManifestPath, new StagedFileReference("NetworkManifest.xml"));
+						string ArchString = Target.Receipt.Architectures.SingleArchitecture.ToString();
+						DirectoryReference assetsPath = new DirectoryReference(Path.Combine(ProjectBinariesFolder.FullName, ArchString, "Resources"));
+						StagedDirectoryReference stagedAssetPath = new StagedDirectoryReference("Resources");
+						SC.StageFiles(StagedFileType.NonUFS, assetsPath, "*.png", StageFilesSearch.AllDirectories, stagedAssetPath);
+
+						SC.StageFile(StagedFileType.NonUFS, new FileReference(Path.Combine(ProjectBinariesFolder.FullName, String.Format("AppxManifest_{0}.xml", ArchString))),
+							new StagedFileReference("AppxManifest.xml"));
+						SC.StageFile(StagedFileType.NonUFS, new FileReference(Path.Combine(ProjectBinariesFolder.FullName, String.Format("resources_{0}.pri", ArchString))),
+							new StagedFileReference("resources.pri"));
+
+						FileReference SourceNetworkManifestPath = new FileReference(Path.Combine(ProjectBinariesFolder.FullName, String.Format("NetworkManifest_{0}.xml", ArchString)));
+						if (FileReference.Exists(SourceNetworkManifestPath))
+						{
+							SC.StageFile(StagedFileType.NonUFS, SourceNetworkManifestPath, new StagedFileReference("NetworkManifest.xml"));
+						}
 					}
 
 					TargetRules Rules = Params.ProjectTargets.Find(x => x.Rules.Type == TargetType.Game).Rules;
 					bool UseDebugCrt = Params.ClientConfigsToBuild.Contains(UnrealTargetConfiguration.Debug) && Rules.bDebugBuildsActuallyUseDebugCRT;
-					foreach (var RT in GetPathToVCLibsPackages(UseDebugCrt, Rules.WindowsPlatform.Compiler))
+					foreach (var RT in GetPathToVCLibsPackages(Params, UseDebugCrt, Rules.WindowsPlatform.Compiler))
 					{
 						SC.StageFile(StagedFileType.NonUFS, new FileReference(RT), new StagedFileReference(Path.GetFileName(RT)));
 					}
@@ -829,9 +755,9 @@ namespace HoloLens.Automation
 		{
 			foreach (StageTarget Target in SC.StageTargets)
 			{
-				string IntermediateDirectory = Path.Combine(SC.ProjectRoot.FullName, "Intermediate", "Deploy", Params.SpecifiedArchitecture);
+				string IntermediateDirectory = Path.Combine(SC.ProjectRoot.FullName, "Intermediate", "Deploy", Params.ClientArchitecture.ToString());
 				var Receipt = Target.Receipt;
-				string OutputName = String.Format("{0}_{1}_{2}_{3}", Receipt.TargetName, Receipt.Platform, Receipt.Configuration, Receipt.Architecture);
+				string OutputName = String.Format("{0}_{1}_{2}_{3}", Receipt.TargetName, Receipt.Platform, Receipt.Configuration, Receipt.Architectures);
 
 				string MapFilename = Path.Combine(IntermediateDirectory, OutputName + "_full.pkgmap");
 
@@ -1024,7 +950,7 @@ namespace HoloLens.Automation
 				compiler = Rules.WindowsPlatform.Compiler;
 			}
 
-			foreach (string vcLib in GetPathToVCLibsPackages(UseDebugCrt, compiler))
+			foreach (string vcLib in GetPathToVCLibsPackages(Params, UseDebugCrt, compiler))
 			{
 				CopyFile(vcLib, Path.Combine(SC.StageDirectory.FullName, Path.GetFileName(vcLib)));
 			}
@@ -1371,7 +1297,7 @@ namespace HoloLens.Automation
 			}
 		}
 
-		private WindowsArchitecture RemoteDeviceArchitecture(string DeviceAddress, ProjectParams Params)
+		private UnrealArch RemoteDeviceArchitecture(string DeviceAddress, ProjectParams Params)
 		{
 			string OsVersionString = "";
 			try
@@ -1413,11 +1339,11 @@ namespace HoloLens.Automation
 
 			if (osArchBlock.StartsWith("amd64"))
 			{
-				return WindowsArchitecture.x64;
+				return UnrealArch.X64;
 			}
 			else if (osArchBlock.StartsWith("arm64"))
 			{
-				return WindowsArchitecture.ARM64;
+				return UnrealArch.Arm64;
 			}
 			else
 			{
@@ -1486,7 +1412,7 @@ namespace HoloLens.Automation
 						Compiler = Rules.WindowsPlatform.Compiler;
 					}
 
-					Dependencies.AddRange(GetPathToVCLibsPackages(UseDebugCrt, Compiler));
+					Dependencies.AddRange(GetPathToVCLibsPackages(Params, UseDebugCrt, Compiler));
 
 					portal.AppInstallStatus += Portal_AppInstallStatus;
 					portal.InstallApplicationAsync(string.Empty, PackagePath, Dependencies, CertPath).Wait();
@@ -1758,9 +1684,10 @@ namespace HoloLens.Automation
 			}
 		}
 
-		public string[] GetPathToVCLibsPackages(bool UseDebugCrt, WindowsCompiler Compiler)
+		public string[] GetPathToVCLibsPackages(ProjectParams Params, bool UseDebugCrt, WindowsCompiler Compiler)
 		{
-			return Gauntlet.TargetDeviceHoloLens.GetPathToVCLibsPackages(UseDebugCrt, Compiler, ActualArchitectures);
+			UnrealArchitectures Arches = Params.ClientArchitecture ?? UnrealArchitectureConfig.ForPlatform(UnrealTargetPlatform.HoloLens).ActiveArchitectures(Params.RawProjectPath, null);
+			return Gauntlet.TargetDeviceHoloLens.GetPathToVCLibsPackages(UseDebugCrt, Compiler, Arches.Architectures.ToArray());
 		}
 
 		private void GenerateDLCManifestIfNecessary(ProjectParams Params, DeploymentContext SC)

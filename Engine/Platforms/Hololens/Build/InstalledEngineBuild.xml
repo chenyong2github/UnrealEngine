@@ -7,7 +7,7 @@
 	<Option Name="WithHoloLens" Restrict="true|false" DefaultValue="$(DefaultWithHoloLens)" Description="Include the HoloLens target platform"/>
 
 	<!-- Hololens Architectures -->
-	<Property Name="HoloLensArchitectures" Value="x64+arm64+multi"/>
+	<Property Name="HoloLensArchitectures" Value="x64+arm64"/>
 	<Property Name="DefaultArchitectureCommandsWin64" Value="$(DefaultArchitectureCommandsWin64)  -HoloLensArchitectures=$(HoloLensArchitectures)"/>
 
 	<!-- platform extensions -->

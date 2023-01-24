@@ -108,7 +108,7 @@ public class HarfBuzz : ModuleRules
 			}
 
 			LibPath = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "libharfbuzzd_fPIC.a" : "libharfbuzz_fPIC.a";
-			PublicAdditionalLibraries.Add(Path.Combine(LibHarfBuzzRootPath, "Unix", Target.Architecture, LibPath));
+			PublicAdditionalLibraries.Add(Path.Combine(LibHarfBuzzRootPath, "Unix", Target.Architecture.LinuxName, LibPath));
 		}
 	}
 }

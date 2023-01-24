@@ -18,6 +18,9 @@ using OpenTracing.Util;
 using UnrealBuildBase;
 using EpicGames.UHT.Utils;
 using Microsoft.Extensions.Logging;
+using System.Runtime.InteropServices;
+using UnrealBuildTool;
+
 
 namespace UnrealBuildTool
 {
@@ -565,6 +568,437 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
+	/// The architecture we're building for
+	/// </summary>
+	[Serializable, TypeConverter(typeof(UnrealArchPlatformTypeConverter))]
+	public partial struct UnrealArch : ISerializable
+	{
+		#region Private/boilerplate
+
+		// internal concrete name of the group
+		private int Id;
+
+		// shared string instance registry - pass in a delegate to create a new one with a name that wasn't made yet
+		private static UniqueStringRegistry? StringRegistry;
+
+		// tracks if non-default architectures are an x64 arch
+		private static Dictionary<int, bool> IsX64Map = new();
+
+		// #jira UE-88908 if parts of a partial struct have each static member variables, their initialization order does not appear guaranteed
+		// here this means initializing "StringRegistry" directly to "new UniqueStringRegistry()" may not be executed before FindOrAddByName() has been called as part of initializing a static member variable of another part of the partial struct
+		private static UniqueStringRegistry GetUniqueStringRegistry()
+		{
+			if (StringRegistry == null)
+			{
+				StringRegistry = new UniqueStringRegistry();
+			}
+			return StringRegistry;
+		}
+
+		private UnrealArch(string Name)
+		{
+			Id = GetUniqueStringRegistry().FindOrAddByName(Name);
+		}
+
+		private UnrealArch(int InId)
+		{
+			Id = InId;
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="Info"></param>
+		/// <param name="Context"></param>
+		public void GetObjectData(SerializationInfo Info, StreamingContext Context)
+		{
+			Info.AddValue("Name", ToString());
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="Info"></param>
+		/// <param name="Context"></param>
+		public UnrealArch(SerializationInfo Info, StreamingContext Context)
+		{
+			Id = GetUniqueStringRegistry().FindOrAddByName((string)Info.GetValue("Name", typeof(string))!);
+		}
+
+		/// <summary>
+		/// Return the single instance of the Group with this name
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <param name="bIsX64">True if X64, false if not, or null if it's Default and will ask the platform later</param>
+		/// <returns></returns>
+		static private UnrealArch FindOrAddByName(string Name, bool? bIsX64)
+		{
+			int Id = GetUniqueStringRegistry().FindOrAddByName(Name);
+			if (bIsX64 != null)
+			{
+				IsX64Map[Id] = bIsX64.Value;
+			}
+			return new UnrealArch(Id);
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="A"></param>
+		/// <param name="B"></param>
+		/// <returns></returns>
+		public static bool operator ==(UnrealArch A, UnrealArch B)
+		{
+			return A.Id == B.Id;
+		}
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="A"></param>
+		/// <param name="B"></param>
+		/// <returns></returns>
+		public static bool operator !=(UnrealArch A, UnrealArch B)
+		{
+			return A.Id != B.Id;
+		}
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="B"></param>
+		/// <returns></returns>
+		public override bool Equals(object? B)
+		{
+			if (Object.ReferenceEquals(B, null))
+			{
+				return false;
+			}
+
+			return Id == ((UnrealArch)B).Id;
+		}
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <returns></returns>
+		public override int GetHashCode()
+		{
+			return Id;
+		}
+
+		#endregion
+
+		/// <summary>
+		/// Returns true if the architecure is X64 based
+		/// </summary>
+		public bool bIsX64 => IsX64Map[Id];
+
+		//public static string operator +(string A, UnrealArch B)
+		//{
+		//	throw new BuildException("string + UnrealArch is not allowed");
+		//}
+
+		//static void Test(UnrealArch A)
+		//{
+		//	string Foo = "A" + A;
+		//}
+
+		/// <summary>
+		/// Return the string representation
+		/// </summary>
+		/// <returns></returns>
+		public override string ToString()
+		{
+			return GetUniqueStringRegistry().GetStringForId(Id);
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <param name="Arch"></param>
+		/// <returns></returns>
+		static public bool TryParse(string Name, out UnrealArch Arch)
+		{
+			if (GetUniqueStringRegistry().HasString(Name))
+			{
+				Arch.Id = GetUniqueStringRegistry().FindOrAddByName(Name);
+				return true;
+			}
+
+			if (GetUniqueStringRegistry().HasAlias(Name))
+			{
+				Arch.Id = GetUniqueStringRegistry().FindExistingAlias(Name);
+				return true;
+			}
+
+			Arch.Id = -1;
+			return false;
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <returns></returns>
+		static public UnrealArch Parse(string Name)
+		{
+			// allow for some alternate names
+			switch (Name.ToLower())
+			{
+				case "a8":
+				case "a":
+				case "-arm64":
+					Name = "arm64";
+					break;
+
+				case "x86_64":
+				case "x6":
+				case "x":
+				case "-x64":
+				case "intel":
+					Name = "x64";
+					break;
+			}
+
+			if (GetUniqueStringRegistry().HasString(Name))
+			{
+				return new UnrealArch(Name);
+			}
+
+			if (GetUniqueStringRegistry().HasAlias(Name))
+			{
+				int Id = GetUniqueStringRegistry().FindExistingAlias(Name);
+				return new UnrealArch(Id);
+			}
+
+			throw new BuildException(string.Format("The Architecture name {0} is not a valid Architecture name. Valid names are ({1})", Name,
+				string.Join(",", GetUniqueStringRegistry().GetStringNames())));
+		}
+
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <returns></returns>
+		public static UnrealArch[] GetValidPlatforms()
+		{
+			return Array.ConvertAll(GetUniqueStringRegistry().GetStringIds(), x => new UnrealArch(x));
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <returns></returns>
+		public static string[] GetValidPlatformNames()
+		{
+			return GetUniqueStringRegistry().GetStringNames();
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <returns></returns>
+		public static bool IsValidName(string Name)
+		{
+			return GetUniqueStringRegistry().HasString(Name);
+		}
+
+		/// <summary>
+		/// 64-bit x86/intel
+		/// </summary>
+		public static UnrealArch X64 = FindOrAddByName("x64", bIsX64: true);
+
+		/// <summary>
+		/// 64-bit arm
+		/// </summary>
+		public static UnrealArch Arm64 = FindOrAddByName("arm64", bIsX64: false);
+
+		/// <summary>
+		/// Used in place when needing to handle deprecated architectures that a licensee may still have. Do not use in normal logic
+		/// </summary>
+		public static UnrealArch Deprecated = FindOrAddByName("deprecated", bIsX64: false);
+	}
+
+	internal class UnrealArchPlatformTypeConverter : TypeConverter
+	{
+		public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
+		{
+			if (sourceType == typeof(string))
+				return true;
+
+			return base.CanConvertFrom(context, sourceType);
+		}
+
+		public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType)
+		{
+			if (destinationType == typeof(string))
+				return true;
+
+			return base.CanConvertTo(context, destinationType);
+		}
+
+		public override object? ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value)
+		{
+			if (value.GetType() == typeof(string))
+			{
+				return UnrealArch.Parse((string)value);
+			}
+			return base.ConvertFrom(context, culture, value);
+		}
+
+		public override object? ConvertTo(ITypeDescriptorContext? context, CultureInfo? culture, object? value, Type destinationType)
+		{
+			if (destinationType == typeof(string) && value != null)
+			{
+				UnrealArch Platform = (UnrealArch)value;
+				return Platform.ToString();
+			}
+			return base.ConvertTo(context, culture, value, destinationType);
+		}
+	}
+
+	/// <summary>
+	/// A collection of one or more architecetures
+	/// </summary>
+	[Serializable]
+	public class UnrealArchitectures
+	{
+		/// <summary>
+		/// Construct a UnrealArchitectures object from a list of Architectures
+		/// </summary>
+		/// <param name="Architectures"></param>
+		public UnrealArchitectures(IEnumerable<UnrealArch> Architectures)
+		{
+			this.Architectures = new(Architectures.Distinct());
+		}
+
+		/// <summary>
+		/// Construct a UnrealArchitectures object from a list of string Architectures
+		/// </summary>
+		/// <param name="Architectures"></param>
+		/// <param name="ValidationPlatform"></param>
+		public UnrealArchitectures(IEnumerable<string> Architectures, UnrealTargetPlatform? ValidationPlatform=null)
+		{
+			// validate before conversion (make sure all given architectures can be converted to an UnrealArch that is supported by the platform)
+			if (ValidationPlatform != null)
+			{
+				UnrealArchitectureConfig ArchConfig = UnrealArchitectureConfig.ForPlatform(ValidationPlatform.Value);
+				foreach (string ArchString in Architectures)
+				{
+					UnrealArch Arch;
+					if (!UnrealArch.TryParse(ArchString, out Arch) || !ArchConfig.AllSupportedArchitectures.Contains(Arch))
+					{
+						string ValidArches = string.Join("\n  ", ArchConfig.AllSupportedArchitectures.Architectures);
+						throw new BuildException($"Platform {ValidationPlatform} does not support architecture {ArchString}. Valid options are:\n  {ValidArches}");
+					}
+				}
+			}
+
+			// now we know we can convert to final form
+			this.Architectures = new(Architectures.Select(x => UnrealArch.Parse(x)).Distinct());
+
+			// standardize order so that passing in { X64, Arm64 } will always result in "arm64+x64" filenames, etc
+			this.Architectures.SortBy(x => x.ToString());
+		}
+
+		/// <summary>
+		/// Construct a UnrealArchitectures object from a single Architecture
+		/// </summary>
+		/// <param name="Architecture"></param>
+		public UnrealArchitectures(UnrealArch Architecture)
+			: this(new UnrealArch[] { Architecture })
+		{
+		}
+
+		/// <summary>
+		/// Construct a UnrealArchitectures object from a single string Architecture
+		/// </summary>
+		/// <param name="ArchitectureString"></param>
+		/// <param name="ValidationPlatform"></param>
+		public UnrealArchitectures(string ArchitectureString, UnrealTargetPlatform? ValidationPlatform)
+			: this(ArchitectureString.Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries), ValidationPlatform)
+		{
+		}
+
+		/// <summary>
+		/// Construct a UnrealArchitectures object from another one
+		/// </summary>
+		/// <param name="Other"></param>
+		public UnrealArchitectures(UnrealArchitectures Other)
+			: this(Other.Architectures)
+		{
+		}
+
+		/// <summary>
+		/// Creates an UnrealArchitectures from a string (created via ToString() or similar)
+		/// </summary>
+		/// <param name="ArchString"></param>
+		/// <param name="ValidationPlatform"></param>
+		/// <returns></returns>
+		public static UnrealArchitectures? FromString(string? ArchString, UnrealTargetPlatform? ValidationPlatform)
+		{
+			if (string.IsNullOrEmpty(ArchString))
+			{
+				return null;
+			}
+
+			return new UnrealArchitectures(ArchString, ValidationPlatform);
+		}
+
+
+		/// <summary>
+		/// The list of architecture names in this set, sorted by architecture name
+		/// </summary>
+		public readonly List<UnrealArch> Architectures;
+
+		/// <summary>
+		/// Gets the Architecture in the normal case where there is a single Architecture in Architectures, or throw an Exception if not single
+		/// </summary>
+		public UnrealArch SingleArchitecture
+		{
+			get
+			{
+				if (Architectures.Count > 1)
+				{
+					throw new BuildException($"Asking CppCompileEnvironment for a single Architecture, but it has multiple Architectures ({string.Join(", ", Architectures)}). This indicates logic needs to be updated");
+				}
+				return Architectures[0];
+			}
+		}
+
+		/// <summary>
+		/// True if there is is more than one architecture specified
+		/// </summary>
+		public bool bIsMultiArch
+		{
+			get { return Architectures.Count > 1; }
+		}
+
+		/// <summary>
+		/// Gets the Architectures list as a + delimited string
+		/// </summary>
+		public override string ToString()
+		{
+			return string.Join('+', Architectures);
+		}
+
+		internal string GetFolderNameForPlatform(UnrealArchitectureConfig Config)
+		{
+			return string.Join('+', Architectures.Select(x => Config.GetFolderNameForArchitecture(x)));
+		}
+
+		/// <summary>
+		/// Convenience function to check if the given architecture is in this set
+		/// </summary>
+		/// <param name="Arch"></param>
+		/// <returns></returns>
+		public bool Contains(UnrealArch Arch)
+		{
+			return Architectures.Contains(Arch);
+		}
+	}
+
+	/// <summary>
 	/// The class of platform. See Utils.GetPlatformsInClass().
 	/// </summary>
 	public enum UnrealPlatformClass
@@ -708,7 +1142,7 @@ namespace UnrealBuildTool
 			TargetRules RulesObject;
 			using (GlobalTracer.Instance.BuildSpan("RulesAssembly.CreateTargetRules()").StartActive())
 			{
-				RulesObject = RulesAssembly.CreateTargetRules(Descriptor.Name, Descriptor.Platform, Descriptor.Configuration, Descriptor.Architecture, Descriptor.ProjectFile, Descriptor.AdditionalArguments, Logger, Descriptor.IsTestsTarget);
+				RulesObject = RulesAssembly.CreateTargetRules(Descriptor.Name, Descriptor.Platform, Descriptor.Configuration, Descriptor.Architectures, Descriptor.ProjectFile, Descriptor.AdditionalArguments, Logger, Descriptor.IsTestsTarget);
 			}
 			if ((ProjectFileGenerator.bGenerateProjectFiles == false) && !RulesObject.GetSupportedPlatforms().Contains(Descriptor.Platform))
 			{
@@ -761,9 +1195,9 @@ namespace UnrealBuildTool
 					DependencyListDir = DirectoryReference.Combine(RulesObject.ProjectFile.Directory, "Intermediate", "DependencyLists", RulesObject.Name, RulesObject.Configuration.ToString(), RulesObject.Platform.ToString());
 				}
 
-				if (!String.IsNullOrEmpty(Descriptor.Architecture))
+				if (!UnrealArchitectureConfig.ForPlatform(Descriptor.Platform).RequiresArchitectureFilenames(Descriptor.Architectures))
 				{
-					DependencyListDir = new DirectoryReference(DependencyListDir.FullName + Descriptor.Architecture);
+					DependencyListDir = new DirectoryReference(DependencyListDir.FullName + Descriptor.Architectures.ToString());
 				}
 
 				FileReference DependencyListFile;
@@ -892,7 +1326,7 @@ namespace UnrealBuildTool
 			}
 
 			// Create the target rules for it
-			TargetRules BaseRules = RulesAssembly.CreateTargetRules(BaseTargetName, ThisRules.Platform, ThisRules.Configuration, ThisRules.Architecture, null, Arguments, Logger);
+			TargetRules BaseRules = RulesAssembly.CreateTargetRules(BaseTargetName, ThisRules.Platform, ThisRules.Configuration, ThisRules.Architectures, null, Arguments, Logger);
 
 			// Get all the configurable objects
 			object[] BaseObjects = BaseRules.GetConfigurableObjects().ToArray();
@@ -1022,7 +1456,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The architecture this target is being built for
 		/// </summary>
-		public string Architecture;
+		public UnrealArchitectures Architectures;
 
 		/// <summary>
 		/// Relative path for platform-specific intermediates (eg. Intermediate/Build/Win64)
@@ -1137,7 +1571,7 @@ namespace UnrealBuildTool
 			AppName = InRules.Name;
 			Platform = InDescriptor.Platform;
 			Configuration = InDescriptor.Configuration;
-			Architecture = InDescriptor.Architecture;
+			Architectures = InDescriptor.Architectures;
 			Rules = InRules;
 			RulesAssembly = InRulesAssembly;
 			TargetType = Rules.Type;
@@ -1145,7 +1579,7 @@ namespace UnrealBuildTool
 			bDeployAfterCompile = InRules.bDeployAfterCompile && !InRules.bDisableLinking && InDescriptor.SpecificFilesToCompile.Count == 0 && InDescriptor.OnlyModuleNames.Count == 0;
 
 			// now that we have the platform, we can set the intermediate path to include the platform/architecture name
-			PlatformIntermediateFolder = GetPlatformIntermediateFolder(Platform, Architecture, false);
+			PlatformIntermediateFolder = GetPlatformIntermediateFolder(Platform, Architectures, false);
 
 			TargetRulesFile = InRules.File;
 
@@ -1203,7 +1637,7 @@ namespace UnrealBuildTool
 			}
 
 			// Get the receipt path for this target
-			ReceiptFileName = TargetReceipt.GetDefaultPath(OutputRootDirectory, TargetName, Platform, Configuration, Architecture);
+			ReceiptFileName = TargetReceipt.GetDefaultPath(OutputRootDirectory, TargetName, Platform, Configuration, Architectures);
 
 			// Read the project descriptor
 			if (ProjectFile != null)
@@ -1216,13 +1650,13 @@ namespace UnrealBuildTool
 		/// Gets the intermediate directory for a given platform
 		/// </summary>
 		/// <param name="Platform">Platform to get the folder for</param>
-		/// <param name="Architecture">Architecture to get the folder for</param>
+		/// <param name="Architectures">Architectures to get the folder for</param>
 		/// <param name="External">Insert External after Intermediate - for out-of-tree plugins</param>
 		/// <returns>The output directory for intermediates</returns>
-		public static string GetPlatformIntermediateFolder(UnrealTargetPlatform Platform, string Architecture, bool External)
+		public static string GetPlatformIntermediateFolder(UnrealTargetPlatform Platform, UnrealArchitectures Architectures, bool External)
 		{
 			// now that we have the platform, we can set the intermediate path to include the platform/architecture name
-			return Path.Combine("Intermediate", External ? "External" : String.Empty, "Build", Platform.ToString(), UEBuildPlatform.GetBuildPlatform(Platform).GetFolderNameForArchitecture(Architecture));
+			return Path.Combine("Intermediate", External ? "External" : String.Empty, "Build", Platform.ToString(), UnrealArchitectureConfig.ForPlatform(Platform).GetFolderNameForArchitectures(Architectures));
 		}
 
 		/// <summary>
@@ -1474,7 +1908,7 @@ namespace UnrealBuildTool
 					{
 						DirectoryReference DirectoryName = Binary.OutputFilePath.Directory;
 						bool bIsGameBinary = Binary.PrimaryModule.Rules.Context.bCanBuildDebugGame;
-						FileReference ManifestFileName = FileReference.Combine(DirectoryName, ModuleManifest.GetStandardFileName(AppName, Platform, Configuration, Architecture, bIsGameBinary));
+						FileReference ManifestFileName = FileReference.Combine(DirectoryName, ModuleManifest.GetStandardFileName(AppName, Platform, Configuration, Architectures, bIsGameBinary));
 
 						ModuleManifest? Manifest;
 						if (!FileNameToModuleManifest.TryGetValue(ManifestFileName, out Manifest))
@@ -1501,7 +1935,7 @@ namespace UnrealBuildTool
 
 			if (!bCompileMonolithic && BuildPlatform.RequiresLoadOrderManifest(Rules))
 			{
-				string ManifestFileName = LoadOrderManifest.GetStandardFileName(AppName, Platform, Configuration, Architecture);
+				string ManifestFileName = LoadOrderManifest.GetStandardFileName(AppName, Platform, Configuration, Architectures);
 
 				// Create a map module->binary for all primary modules.
 				Dictionary<UEBuildModule, UEBuildBinary> PrimaryModules =
@@ -1595,7 +2029,7 @@ namespace UnrealBuildTool
 			}
 
 			// Create the receipt
-			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version, Architecture, Rules.IsTestTarget);
+			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version, Architectures, Rules.IsTestTarget);
 
 			if (!Rules.bShouldCompileAsDLL)
 			{
@@ -1754,8 +2188,8 @@ namespace UnrealBuildTool
 
 			SourceFileMetadataCache MetadataCache = SourceFileMetadataCache.CreateHierarchy(ProjectFile, Logger);
 
-			CppCompileEnvironment GlobalCompileEnvironment = new CppCompileEnvironment(Platform, CppConfiguration, Architecture, MetadataCache);
-			LinkEnvironment GlobalLinkEnvironment = new LinkEnvironment(GlobalCompileEnvironment.Platform, GlobalCompileEnvironment.Configuration, GlobalCompileEnvironment.Architecture);
+			CppCompileEnvironment GlobalCompileEnvironment = new CppCompileEnvironment(Platform, CppConfiguration, Architectures, MetadataCache);
+			LinkEnvironment GlobalLinkEnvironment = new LinkEnvironment(GlobalCompileEnvironment.Platform, GlobalCompileEnvironment.Configuration, GlobalCompileEnvironment.Architectures);
 
 			UEToolChain TargetToolChain = CreateToolchain(Platform);
 			SetupGlobalEnvironment(TargetToolChain, GlobalCompileEnvironment, GlobalLinkEnvironment);
@@ -1774,8 +2208,8 @@ namespace UnrealBuildTool
 
 			SourceFileMetadataCache MetadataCache = SourceFileMetadataCache.CreateHierarchy(ProjectFile, Logger);
 
-			CppCompileEnvironment GlobalCompileEnvironment = new CppCompileEnvironment(Platform, CppConfiguration, Architecture, MetadataCache);
-			LinkEnvironment GlobalLinkEnvironment = new LinkEnvironment(GlobalCompileEnvironment.Platform, GlobalCompileEnvironment.Configuration, GlobalCompileEnvironment.Architecture);
+			CppCompileEnvironment GlobalCompileEnvironment = new CppCompileEnvironment(Platform, CppConfiguration, Architectures, MetadataCache);
+			LinkEnvironment GlobalLinkEnvironment = new LinkEnvironment(GlobalCompileEnvironment.Platform, GlobalCompileEnvironment.Configuration, GlobalCompileEnvironment.Architectures);
 
 			UEToolChain TargetToolChain = CreateToolchain(Platform);
 			TargetToolChain.SetEnvironmentVariables();
@@ -2097,7 +2531,7 @@ namespace UnrealBuildTool
 					{
 						VersionConfig = UnrealTargetConfiguration.Development;
 					}
-					VersionFile = BuildVersion.GetFileNameForTarget(ExeDir, bCompileMonolithic ? TargetName : AppName, Platform, VersionConfig, Architecture);
+					VersionFile = BuildVersion.GetFileNameForTarget(ExeDir, bCompileMonolithic ? TargetName : AppName, Platform, VersionConfig, Architectures);
 				}
 
 				// Also add the version file as a build product
@@ -3254,7 +3688,7 @@ namespace UnrealBuildTool
 			bool bUseExternalFolder = ModuleRules.Plugin != null && (ModuleRules.Plugin.Type == PluginType.External && !ModuleRules.Plugin.bExplicitPluginTarget);
 
 			// Get the output and intermediate directories for this module
-			DirectoryReference IntermediateDirectory = DirectoryReference.Combine(BaseOutputDirectory, GetPlatformIntermediateFolder(Platform, Architecture, bUseExternalFolder), AppName, ModuleConfiguration.ToString());
+			DirectoryReference IntermediateDirectory = DirectoryReference.Combine(BaseOutputDirectory, GetPlatformIntermediateFolder(Platform, Architectures, bUseExternalFolder), AppName, ModuleConfiguration.ToString());
 
 			// Append a subdirectory if the module rules specifies one
 			if (!String.IsNullOrEmpty(ModuleRules.BinariesSubFolder))
@@ -3290,7 +3724,7 @@ namespace UnrealBuildTool
 			}
 
 			// Get the output filenames
-			FileReference BaseBinaryPath = FileReference.Combine(OutputDirectory, MakeBinaryFileName(AppName + "-" + Module.Name, Platform, ModuleConfiguration, Architecture, Rules.UndecoratedConfiguration, UEBuildBinaryType.DynamicLinkLibrary));
+			FileReference BaseBinaryPath = FileReference.Combine(OutputDirectory, MakeBinaryFileName(AppName + "-" + Module.Name, Platform, ModuleConfiguration, Architectures, Rules.UndecoratedConfiguration, UEBuildBinaryType.DynamicLinkLibrary));
 			List<FileReference> OutputFilePaths = UEBuildPlatform.GetBuildPlatform(Platform).FinalizeBinaryPaths(BaseBinaryPath, ProjectFile, Rules);
 
 			// Create the binary
@@ -3311,11 +3745,11 @@ namespace UnrealBuildTool
 		/// <param name="BinaryName">The name of this binary</param>
 		/// <param name="Platform">The platform being built for</param>
 		/// <param name="Configuration">The configuration being built</param>
-		/// <param name="Architecture">The target architecture being built</param>
+		/// <param name="Architectures">The target architectures being built</param>
 		/// <param name="UndecoratedConfiguration">The target configuration which doesn't require a platform and configuration suffix. Development by default.</param>
 		/// <param name="BinaryType">Type of binary</param>
 		/// <returns>Name of the binary</returns>
-		public static string MakeBinaryFileName(string BinaryName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture, UnrealTargetConfiguration UndecoratedConfiguration, UEBuildBinaryType BinaryType)
+		public static string MakeBinaryFileName(string BinaryName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UnrealArchitectures Architectures, UnrealTargetConfiguration UndecoratedConfiguration, UEBuildBinaryType BinaryType)
 		{
 			StringBuilder Result = new StringBuilder();
 
@@ -3332,9 +3766,9 @@ namespace UnrealBuildTool
 			}
 
 			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform);
-			if (BuildPlatform.RequiresArchitectureSuffix())
+			if (BuildPlatform.ArchitectureConfig.RequiresArchitectureFilenames(Architectures))
 			{
-				Result.Append(Architecture);
+				Result.Append(Architectures.ToString());
 			}
 
 			Result.Append(BuildPlatform.GetBinaryExtension(BinaryType));
@@ -3349,7 +3783,7 @@ namespace UnrealBuildTool
 		/// <param name="BinaryName">Name of the binary</param>
 		/// <param name="Platform">Target platform to build for</param>
 		/// <param name="Configuration">Target configuration being built</param>
-		/// <param name="Architecture">Architecture being built</param>
+		/// <param name="Architectures">Architectures being built</param>
 		/// <param name="BinaryType">The type of binary we're compiling</param>
 		/// <param name="UndecoratedConfiguration">The configuration which doesn't have a "-{Platform}-{Configuration}" suffix added to the binary</param>
 		/// <param name="bIncludesGameModules">Whether this executable contains game modules</param>
@@ -3357,7 +3791,7 @@ namespace UnrealBuildTool
 		/// <param name="ProjectFile">The project file containing the target being built</param>
 		/// <param name="Rules">Rules for the target being built</param>
 		/// <returns>List of executable paths for this target</returns>
-		public List<FileReference> MakeBinaryPaths(DirectoryReference BaseDirectory, string BinaryName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UEBuildBinaryType BinaryType, string Architecture, UnrealTargetConfiguration UndecoratedConfiguration, bool bIncludesGameModules, string ExeSubFolder, FileReference? ProjectFile, ReadOnlyTargetRules Rules)
+		public List<FileReference> MakeBinaryPaths(DirectoryReference BaseDirectory, string BinaryName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UEBuildBinaryType BinaryType, UnrealArchitectures Architectures, UnrealTargetConfiguration UndecoratedConfiguration, bool bIncludesGameModules, string ExeSubFolder, FileReference? ProjectFile, ReadOnlyTargetRules Rules)
 		{
 			FileReference BinaryFile;
 			if (Rules.OutputFile != null)
@@ -3375,7 +3809,7 @@ namespace UnrealBuildTool
 				{
 					BinaryDirectory = DirectoryReference.Combine(BinaryDirectory, ExeSubFolder);
 				}
-				BinaryFile = FileReference.Combine(BinaryDirectory, MakeBinaryFileName(BinaryName, Platform, ExeConfiguration, Architecture, UndecoratedConfiguration, BinaryType));
+				BinaryFile = FileReference.Combine(BinaryDirectory, MakeBinaryFileName(BinaryName, Platform, ExeConfiguration, Architectures, UndecoratedConfiguration, BinaryType));
 			}
 
 			// Allow the platform to customize the output path (and output several executables at once if necessary)
@@ -3831,7 +4265,7 @@ namespace UnrealBuildTool
 			}
 
 			bool bCompileAsDLL = Rules.bShouldCompileAsDLL && bCompileMonolithic;
-			List<FileReference> OutputPaths = MakeBinaryPaths(OutputDirectory, bCompileMonolithic ? TargetName : AppName, Platform, Configuration, bCompileAsDLL ? UEBuildBinaryType.DynamicLinkLibrary : UEBuildBinaryType.Executable, Rules.Architecture, Rules.UndecoratedConfiguration, bCompileMonolithic && ProjectFile != null, Rules.ExeBinariesSubFolder, ProjectFile, Rules);
+			List<FileReference> OutputPaths = MakeBinaryPaths(OutputDirectory, bCompileMonolithic ? TargetName : AppName, Platform, Configuration, bCompileAsDLL ? UEBuildBinaryType.DynamicLinkLibrary : UEBuildBinaryType.Executable, Rules.Architectures, Rules.UndecoratedConfiguration, bCompileMonolithic && ProjectFile != null, Rules.ExeBinariesSubFolder, ProjectFile, Rules);
 
 			// Create the binary
 			UEBuildBinary Binary = new UEBuildBinary(
@@ -4043,12 +4477,10 @@ namespace UnrealBuildTool
 			if (Rules.bUseVerse)
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_VERSE=1");
-				GlobalCompileEnvironment.Definitions.Add("UE_USE_VERSE_PATHS=1");
 			}
 			else
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_VERSE=0");
-				GlobalCompileEnvironment.Definitions.Add("UE_USE_VERSE_PATHS=0");
 			}
 
 			if (Rules.bCompileWithStatsWithoutEngine)
@@ -4255,14 +4687,14 @@ namespace UnrealBuildTool
 			}
 
 			// Compile in the names of the module manifests
-			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_MODULE_MANIFEST=\"{0}\"", ModuleManifest.GetStandardFileName(AppName, Platform, Configuration, Architecture, false)));
-			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_MODULE_MANIFEST_DEBUGGAME=\"{0}\"", ModuleManifest.GetStandardFileName(AppName, Platform, UnrealTargetConfiguration.DebugGame, Architecture, true)));
+			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_MODULE_MANIFEST=\"{0}\"", ModuleManifest.GetStandardFileName(AppName, Platform, Configuration, Architectures, false)));
+			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_MODULE_MANIFEST_DEBUGGAME=\"{0}\"", ModuleManifest.GetStandardFileName(AppName, Platform, UnrealTargetConfiguration.DebugGame, Architectures, true)));
 
 			// Compile in the names of the loadorder manifests.
 			if (!bCompileMonolithic && BuildPlatform.RequiresLoadOrderManifest(Rules))
 			{
-				GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_LOADORDER_MANIFEST=\"{0}\"", LoadOrderManifest.GetStandardFileName(AppName, Platform, Configuration, Architecture)));
-				GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_LOADORDER_MANIFEST_DEBUGGAME=\"{0}\"", LoadOrderManifest.GetStandardFileName(AppName, Platform, UnrealTargetConfiguration.DebugGame, Architecture)));
+				GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_LOADORDER_MANIFEST=\"{0}\"", LoadOrderManifest.GetStandardFileName(AppName, Platform, Configuration, Architectures)));
+				GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_LOADORDER_MANIFEST_DEBUGGAME=\"{0}\"", LoadOrderManifest.GetStandardFileName(AppName, Platform, UnrealTargetConfiguration.DebugGame, Architectures)));
 			}
 
 			// tell the compiled code the name of the UBT platform (this affects folder on disk, etc that the game may need to know)

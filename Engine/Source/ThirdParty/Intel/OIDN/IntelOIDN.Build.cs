@@ -8,7 +8,7 @@ public class IntelOIDN : ModuleRules
     {
         Type = ModuleType.External;
 
-        if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+        if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Architecture.bIsX64)
         {
 			string SDKDir         = Target.UEThirdPartySourceDirectory + "Intel/OIDN/";
 			string Embree3_SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree3122/Win64/";

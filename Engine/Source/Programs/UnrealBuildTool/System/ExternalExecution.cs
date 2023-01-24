@@ -681,8 +681,10 @@ namespace UnrealBuildTool
 		/// <returns>Path to the UHT receipt</returns>
 		public static FileReference GetHeaderToolReceiptFile(FileReference? ProjectFile, FileReference[]? EnabledUhtPlugins)
 		{
+			UnrealArchitectures Architectures = UnrealArchitectureConfig.ForPlatform(BuildHostPlatform.Current.Platform).ActiveArchitectures(null, "UnrealHeaderTool");
+
 			DirectoryReference BaseDir = EnabledUhtPlugins != null && EnabledUhtPlugins.Length > 0 && ProjectFile != null ? ProjectFile.Directory : Unreal.EngineDirectory;
-			return TargetReceipt.GetDefaultPath(BaseDir, "UnrealHeaderTool", BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development, "");
+			return TargetReceipt.GetDefaultPath(BaseDir, "UnrealHeaderTool", BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development, Architectures);
 		}
 
 		/// <summary>

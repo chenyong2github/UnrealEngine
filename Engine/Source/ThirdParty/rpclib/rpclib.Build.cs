@@ -19,7 +19,7 @@ public class RPCLib : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Unix", Target.Architecture, "Release", "librpc.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Unix", Target.Architecture.LinuxName, "Release", "librpc.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

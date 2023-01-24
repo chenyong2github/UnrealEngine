@@ -9,7 +9,7 @@ public class OptiXDenoiseBase : ModuleRules
     {
         Type = ModuleType.External;
 
-        if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+        if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.WindowsPlatform.Architecture == UnrealArch.X64)
         {
 			PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
 			PublicDelayLoadDLLs.Add("OptiXDenoiseBase.dll");

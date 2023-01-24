@@ -35,7 +35,7 @@ namespace UnrealBuildTool
 		// Manifest configuration values/paths
 		private List<WinMDRegistrationInfo>? WinMDReferences;
 		//private UnrealTargetPlatform Platform;
-		private WindowsArchitecture Architecture;
+		private UnrealArch Architecture;
 		private string? TargetSettings;
 		private string? ProjectPath;
 		private string? OutputPath;
@@ -756,7 +756,7 @@ namespace UnrealBuildTool
         /// <param name="InWinMDReferences">The WinMD references that should be added as activatable types</param>
         /// <returns>A list of all updated target files</returns>
 		[SupportedOSPlatform("windows")]
-        public List<string>? CreateManifest(UnrealTargetPlatform TargetPlatform, WindowsArchitecture TargetArchitecture, string InOutputPath, string InIntermediatePath, FileReference? InProjectFile, string InProjectDirectory, List<UnrealTargetConfiguration> InTargetConfigs, List<string> InExecutables, IEnumerable<WinMDRegistrationInfo>? InWinMDReferences)
+        public List<string>? CreateManifest(UnrealTargetPlatform TargetPlatform, UnrealArch TargetArchitecture, string InOutputPath, string InIntermediatePath, FileReference? InProjectFile, string InProjectDirectory, List<UnrealTargetConfiguration> InTargetConfigs, List<string> InExecutables, IEnumerable<WinMDRegistrationInfo>? InWinMDReferences)
 		{
 			// Check parameter values are valid
 			if (InTargetConfigs.Count != InExecutables.Count)
@@ -804,7 +804,7 @@ namespace UnrealBuildTool
 			Architecture = TargetArchitecture;
 			TargetSettings = "/Script/HoloLensPlatformEditor.HoloLensTargetSettings";
 			BuildResourceSubPath = "Resources";
-			StoreResourceSubPath = WindowsExports.GetArchitectureSubpath(Architecture) + "\\" + BuildResourceSubPath;
+			StoreResourceSubPath = Architecture.WindowsName + "\\" + BuildResourceSubPath;
 
 			// Clean out the resources intermediate path so that we know there are no stale binary files.
 			string IntermediateResourceDirectory = Path.Combine(IntermediatePath, BuildResourceSubPath);
@@ -970,7 +970,7 @@ namespace UnrealBuildTool
 
 			// Export appxmanifest.xml to the intermediate directory then compare the contents to any existing target manifest
 			// and replace if there are differences.
-			string ManifestName = String.Format("AppxManifest_{0}.xml", WindowsExports.GetArchitectureSubpath(Architecture));
+			string ManifestName = String.Format("AppxManifest_{0}.xml", Architecture.WindowsName);
 			string ManifestIntermediatePath = Path.Combine(IntermediatePath, ManifestName);
 			string ManifestTargetPath = Path.Combine(OutputPath, ManifestName);
 			AppxManifestXmlDocument.Save(ManifestIntermediatePath);
@@ -1121,8 +1121,8 @@ namespace UnrealBuildTool
 				}
 
 				// Generate the resource index
-				string ResourceLogFile = Path.Combine(IntermediatePath, "ResIndexLog_" + WindowsExports.GetArchitectureSubpath(Architecture) + ".xml");
-				string ResourceIndexFile = Path.Combine(IntermediatePath, "resources_" + WindowsExports.GetArchitectureSubpath(Architecture) + ".pri");
+				string ResourceLogFile = Path.Combine(IntermediatePath, "ResIndexLog_" + Architecture.WindowsName + ".xml");
+				string ResourceIndexFile = Path.Combine(IntermediatePath, "resources_" + Architecture.WindowsName + ".pri");
 				MakePriArgs = "new /pr \"" + IntermediateResourceDirectory + "\" /cf \"" + ResourceConfigFile + "\" /mn \"" + ManifestTargetPath + "\" /il \"" + ResourceLogFile + "\" /of \"" + ResourceIndexFile + "\" /o";
 				StartInfo = new System.Diagnostics.ProcessStartInfo(PriExecutable, MakePriArgs);
 				StartInfo.UseShellExecute = false;
@@ -1874,7 +1874,7 @@ namespace UnrealBuildTool
 
 			XmlAttribute ProcessorArchitecture = AppxManifestXmlDocument.CreateAttribute("ProcessorArchitecture");
 			// @MIXEDREALITY_CHANGE : BEGIN TODO:
-			ProcessorArchitecture.Value = WindowsExports.GetArchitectureSubpath(Architecture); 
+			ProcessorArchitecture.Value = Architecture.WindowsName; 
 			Identity.Attributes.Append(ProcessorArchitecture);
 
 			XmlAttribute PublisherName = CreateStringAttribute("Publisher", "PublisherName", "Package.Identity.Publisher", "/Script/EngineSettings.GeneralProjectSettings", "CompanyDistinguishedName", "CN=NoPublisher");

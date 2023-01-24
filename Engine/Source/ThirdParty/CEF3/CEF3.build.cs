@@ -109,7 +109,7 @@ public class CEF3 : ModuleRules
 					}
 				}
 
-				if (Target.Architecture.ToLower().Contains("arm64"))
+				if (Target.Architectures.Contains(UnrealArch.Arm64))
 				{
 					// Add contents of framework directory as runtime dependencies
 					foreach (string FilePath in Directory.EnumerateFiles(FrameworkPathArm64, "*", SearchOption.AllDirectories))
@@ -117,7 +117,7 @@ public class CEF3 : ModuleRules
 						RuntimeDependencies.Add(FilePath);
 					}
 				}
-				if (Target.Architecture.ToLower().Contains("x86"))
+				if (Target.Architectures.Contains(UnrealArch.X64))
 				{
 					// Add contents of framework directory as runtime dependencies
 					foreach (string FilePath in Directory.EnumerateFiles(FrameworkPathX86, "*", SearchOption.AllDirectories))

@@ -118,9 +118,9 @@ namespace UnrealBuildTool
 		public List<FileItem> CompiledModuleInterfaces = new List<FileItem>();
 		public List<FileItem> GeneratedHeaderFiles = new List<FileItem>();
 		public FileItem? PrecompiledHeaderFile = null;
-		public Dictionary<string, FileItem> PerArchPrecompiledHeaderFiles = new();
+		public Dictionary<UnrealArch, FileItem> PerArchPrecompiledHeaderFiles = new();
 
-		public void Merge(CPPOutput Other, string Architecture)
+		public void Merge(CPPOutput Other, UnrealArch Architecture)
 		{
 			ObjectFiles.AddRange(Other.ObjectFiles);
 			CompiledModuleInterfaces.AddRange(Other.CompiledModuleInterfaces);
@@ -151,7 +151,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The architecture that is being compiled/linked (empty string by default)
 		/// </summary>
-		public readonly string Architecture;
+		public UnrealArchitectures Architectures;
+
+		/// <summary>
+		/// Gets the Architecture in the normal case where there is a single Architecture in Architectures
+		/// </summary>
+		public UnrealArch Architecture => Architectures.SingleArchitecture;
 
 		/// <summary>
 		/// Cache of source file metadata
@@ -257,7 +262,7 @@ namespace UnrealBuildTool
 		/// Not doing this will result in a compile errors because shared PCHs were compiled with different flags than consumer
 		/// </summary>
 		public bool bEnableObjCAutomaticReferenceCounting = false;
-		
+
 		/// <summary>
 		/// How to treat any warnings in the code
 		/// </summary>
@@ -485,7 +490,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// A dictionary of PCH files for multiple architectures
 		/// </summary>
-		public Dictionary<string, FileItem>? PerArchPrecompiledHeaderFiles = null;
+		public Dictionary<UnrealArch, FileItem>? PerArchPrecompiledHeaderFiles = null;
+
+		/// <summary>
+		/// True if a single PRecompiledHeader exists, or at least one PerArchPrecompiledHeaderFile exists
+		/// </summary>
+		public bool bHasPrecompiledHeader => PrecompiledHeaderFile != null || (PerArchPrecompiledHeaderFiles != null && PerArchPrecompiledHeaderFiles.Count > 0);
 
 		/// <summary>
 		/// Whether or not UHT is being built
@@ -537,11 +547,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Default constructor.
 		/// </summary>
-		public CppCompileEnvironment(UnrealTargetPlatform Platform, CppConfiguration Configuration, string Architecture, SourceFileMetadataCache MetadataCache)
+		public CppCompileEnvironment(UnrealTargetPlatform Platform, CppConfiguration Configuration, UnrealArchitectures Architectures, SourceFileMetadataCache MetadataCache)
 		{
 			this.Platform = Platform;
 			this.Configuration = Configuration;
-			this.Architecture = Architecture;
+			this.Architectures = Architectures;
 			this.MetadataCache = MetadataCache;
 			this.SharedPCHs = new List<PrecompiledHeaderTemplate>();
 			this.UserIncludePaths = new HashSet<DirectoryReference>();
@@ -557,10 +567,14 @@ namespace UnrealBuildTool
 		{
 			Platform = Other.Platform;
 			Configuration = Other.Configuration;
-			Architecture = Other.Architecture;
+			Architectures = new(Other.Architectures);
 			MetadataCache = Other.MetadataCache;
 			SharedPCHs = Other.SharedPCHs;
 			PrecompiledHeaderIncludeFilename = Other.PrecompiledHeaderIncludeFilename;
+			if (Other.PerArchPrecompiledHeaderFiles != null)
+			{
+				PerArchPrecompiledHeaderFiles = new(Other.PerArchPrecompiledHeaderFiles);
+			}
 			PrecompiledHeaderAction = Other.PrecompiledHeaderAction;
 			bUseSharedBuildEnvironment = Other.bUseSharedBuildEnvironment;
 			bUseRTTI = Other.bUseRTTI;
@@ -629,10 +643,10 @@ namespace UnrealBuildTool
 			CrashDiagnosticDirectory = Other.CrashDiagnosticDirectory;
 		}
 
-		public CppCompileEnvironment(CppCompileEnvironment Other, string OverrideArchitecture)
+		public CppCompileEnvironment(CppCompileEnvironment Other, UnrealArch OverrideArchitecture)
 			: this(Other)
 		{
-			Architecture = OverrideArchitecture;
+			Architectures = new UnrealArchitectures(OverrideArchitecture);
 			if (Other.PerArchPrecompiledHeaderFiles != null)
 			{
 				Other.PerArchPrecompiledHeaderFiles.TryGetValue(OverrideArchitecture, out PrecompiledHeaderFile);
@@ -640,6 +654,10 @@ namespace UnrealBuildTool
 			else
 			{
 				PrecompiledHeaderFile = null;
+			}
+			if (PrecompiledHeaderFile == null && PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
+			{
+				Console.WriteLine("badness");
 			}
 		}
 	}

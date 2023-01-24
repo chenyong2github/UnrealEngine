@@ -35,11 +35,5 @@ namespace UnrealBuildTool
 		{
 			return "tvos-version-min";
 		}
-
-		public override string GetArchitectureArgument(CppConfiguration Configuration, string UBTArchitecture)
-		{
-			// TV is only arm64
-			return " -arch " + (UBTArchitecture == "-simulator" ? "i386" : "arm64");
-		}
 	}
 }
