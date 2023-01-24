@@ -286,7 +286,11 @@ FReply SRigSpacePickerWidget::OpenDialog(bool bModal)
 	{
 		Window->GetOnWindowDeactivatedEvent().AddLambda([this]()
 		{
-			SetControls(nullptr, {});
+			// Do not reset if we lost focus because of opening the context menu
+			if (!ContextMenu.IsValid())
+			{
+				SetControls(nullptr, {});
+			}
 		});
 	}
 	
