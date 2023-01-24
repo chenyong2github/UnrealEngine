@@ -735,6 +735,7 @@ void FOpenXRHMD::Recenter(EOrientPositionSelector::Type Selector, float Yaw)
 	}
 
 	bTrackingSpaceInvalid = true;
+	OnTrackingOriginChanged();
 }
 
 void FOpenXRHMD::SetBaseRotation(const FRotator& InBaseRotation)
@@ -1234,7 +1235,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, InputModule(nullptr)
 	, ExtensionPlugins(std::move(InExtensionPlugins))
 	, Instance(InInstance)
-	, System(XR_NULL_SYSTEM_ID)
+	, System(IOpenXRHMDModule::Get().GetSystemId())
 	, Session(XR_NULL_HANDLE)
 	, LocalSpace(XR_NULL_HANDLE)
 	, StageSpace(XR_NULL_HANDLE)
@@ -2907,6 +2908,15 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 
 	RefreshTrackingToWorldTransform(WorldContext);
 
+	if (!System)
+	{
+		System = IOpenXRHMDModule::Get().GetSystemId();
+		if (System)
+		{
+			FCoreDelegates::VRHeadsetReconnected.Broadcast();
+		}
+	}
+
 	// Process all pending messages.
 	XrEventDataBuffer event;
 	while (ReadNextEvent(&event))
@@ -2928,6 +2938,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 				{
 					GEngine->SetMaxFPS(0);
 				}
+				FCoreDelegates::VRHeadsetPutOnHead.Broadcast();
 				bIsReady = true;
 				StartSession();
 			}
@@ -2945,6 +2956,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 				{
 					GEngine->SetMaxFPS(OPENXR_PAUSED_IDLE_FPS);
 				}
+				FCoreDelegates::VRHeadsetRemovedFromHead.Broadcast();
 				bIsReady = false;
 				StopSession();
 			}
@@ -2954,6 +2966,12 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 				if (!GIsEditor)
 				{
 					GEngine->SetMaxFPS(0);
+				}
+
+				if (SessionState.state == XR_SESSION_STATE_LOSS_PENDING)
+				{
+					FCoreDelegates::VRHeadsetLost.Broadcast();
+					System = XR_NULL_SYSTEM_ID;
 				}
 				
 				FApp::SetHasVRFocus(false);
@@ -3010,10 +3028,16 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 
 			break;
 		}
+		case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED:
+		{
+			OnInteractionProfileChanged();
+			break;
+		}
 		case XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR:
 		{
 			bHiddenAreaMaskSupported = ensure(IsExtensionEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME));  // Ensure fail indicates a non-conformant openxr implementation.
 			bNeedReBuildOcclusionMesh = true;
+			break;
 		}
 		}
 	}

@@ -64,13 +64,17 @@ class HEADMOUNTEDDISPLAY_API UVRNotificationsComponent : public UActorComponent
 	UPROPERTY(BlueprintAssignable)
 	FVRNotificationsDelegate VRControllerRecenteredDelegate;
 
-	// This will be called when the VR system recenters a controller.  
+	// This will be called whenever the tracking origin is altered.
 	UPROPERTY(BlueprintAssignable)
 	FVRNotificationsDelegate XRTrackingOriginChangedDelegate;
 
-	// This will be called when the VR system recenters a controller.  
+	// This will be called whenever the play area is altered.
 	UPROPERTY(BlueprintAssignable)
 	FVRNotificationsDelegate XRPlayAreaChangedDelegate;
+
+	// This will be called whenever the interaction profile is altered. 
+	UPROPERTY(BlueprintAssignable)
+	FVRNotificationsDelegate XRInteractionProfileChangedDelegate;
 
 public:
 	void OnRegister() override;
@@ -89,6 +93,7 @@ private:
 	void VRControllerRecentered_Handler()		{ VRControllerRecenteredDelegate.Broadcast(); }
 	void XRTrackingOriginChanged_Handler(const IXRTrackingSystem* TrackingSys)		{ XRTrackingOriginChangedDelegate.Broadcast(); }
 	void XRPlayAreaChanged_Handler()			{ XRPlayAreaChangedDelegate.Broadcast(); }
+	void XRInteractionProfileChanged_Handler()	{ XRPlayAreaChangedDelegate.Broadcast(); }
 };
 
 

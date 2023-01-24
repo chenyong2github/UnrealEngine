@@ -27,6 +27,7 @@ void UVRNotificationsComponent::OnRegister()
 	FCoreDelegates::VRControllerRecentered.AddUObject(this, &UVRNotificationsComponent::VRControllerRecentered_Handler);
 	FXRTrackingSystemDelegates::OnXRTrackingOriginChanged.AddUObject(this, &UVRNotificationsComponent::XRTrackingOriginChanged_Handler);
 	FXRTrackingSystemDelegates::OnXRPlayAreaChanged.AddUObject(this, &UVRNotificationsComponent::XRPlayAreaChanged_Handler);
+	FXRTrackingSystemDelegates::OnXRInteractionProfileChanged.AddUObject(this, &UVRNotificationsComponent::XRInteractionProfileChanged_Handler);
 }
 
 void UVRNotificationsComponent::OnUnregister()
@@ -44,5 +45,6 @@ void UVRNotificationsComponent::OnUnregister()
 	FCoreDelegates::VRControllerRecentered.RemoveAll(this);
 	FXRTrackingSystemDelegates::OnXRTrackingOriginChanged.RemoveAll(this);
 	FXRTrackingSystemDelegates::OnXRPlayAreaChanged.RemoveAll(this);
+	FXRTrackingSystemDelegates::OnXRInteractionProfileChanged.RemoveAll(this);
 }
 

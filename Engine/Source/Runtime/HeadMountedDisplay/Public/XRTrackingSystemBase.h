@@ -14,6 +14,9 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE(FXRPlayAreaChanged);
 	static FXRPlayAreaChanged OnXRPlayAreaChanged;
+
+	DECLARE_MULTICAST_DELEGATE(FXRInteractionProfileChanged);
+	static FXRPlayAreaChanged OnXRInteractionProfileChanged;
 };
 
 /** 
@@ -188,6 +191,14 @@ protected:
 	virtual void OnPlayAreaChanged()
 	{
 		FXRTrackingSystemDelegates::OnXRPlayAreaChanged.Broadcast();
+	}
+
+	/**
+	 * Meant to be called by sub-classes whenever the interaction profile is altered.
+	 */
+	virtual void OnInteractionProfileChanged()
+	{
+		FXRTrackingSystemDelegates::OnXRInteractionProfileChanged.Broadcast();
 	}
 
 	/**
