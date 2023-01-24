@@ -125,7 +125,7 @@ namespace Horde.Build.Jobs
 					Id = id.ToString(),
 					JobId = id.JobId.ToString(),
 					BatchId = id.BatchId.ToString(),
-					StepId = id.BatchId.ToString(),
+					StepId = id.StepId.ToString(),
 					AgentId = agentId,
 					BatchInitTime = initTime,
 					BatchWaitTime = waitTime,
