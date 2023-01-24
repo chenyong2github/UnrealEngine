@@ -634,7 +634,6 @@ FMoveKeysAndSections::FMoveKeysAndSections(FSequencer& InSequencer, ESequencerMo
 		KeysAsArray = Keys.Array();
 	}
 
-
 	if (EnumHasAnyFlags(MoveType, ESequencerMoveOperationType::MoveSections))
 	{
 		for (TWeakPtr<FViewModel> WeakSelectedModel : Sequencer.GetSelection().GetSelectedTrackAreaItems())
@@ -645,6 +644,9 @@ FMoveKeysAndSections::FMoveKeysAndSections(FSequencer& InSequencer, ESequencerMo
 			}
 		}
 	}
+
+	// Always move selected marked frames along with keys and/or sections.
+	MarkedFrames = Sequencer.GetSelection().GetSelectedMarkedFrames();
 }
 
 void FMoveKeysAndSections::AddSnapTime(FFrameNumber SnapTime)
@@ -751,11 +753,6 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 		return;
 	}
 
-	ESequencerScrubberStyle ScrubStyle = Sequencer.GetScrubStyle();
-
-	FFrameRate TickResolution = Sequencer.GetFocusedTickResolution();
-	FFrameRate DisplayRate = Sequencer.GetFocusedDisplayRate();
-
 	// Convert the current mouse position to a time
 	FVector2D  VirtualMousePos = VirtualTrackArea.PhysicalToVirtual(LocalMousePos);
 	FFrameTime MouseTime = VirtualTrackArea.PixelToFrame(LocalMousePos.X);
@@ -819,6 +816,9 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 
 	// Update our key times by moving them by our delta.
 	HandleKeyMovement(MaxDeltaX, MouseDeltaTime);
+
+	// Update our marked frames by moving them by our delta.
+	HandleMarkedFrameMovement(MaxDeltaX, MouseDeltaTime);
 
 	// Get a list of the unique tracks in this selection and update their easing so previews draw interactively as you drag.
 	TSet<UMovieSceneTrack*> Tracks;
@@ -1434,3 +1434,26 @@ void FMoveKeysAndSections::HandleKeyMovement(TOptional<FFrameNumber> MaxDeltaX, 
 		}
 	}
 }
+
+void FMoveKeysAndSections::HandleMarkedFrameMovement(TOptional<FFrameNumber> MaxDeltaX, FFrameNumber DesiredDeltaX)
+{
+	if (MarkedFrames.Num() == 0)
+	{
+		return;
+	}
+
+	const FFrameNumber EffectiveDelta = MaxDeltaX.Get(DesiredDeltaX);
+	UMovieScene* FocusedMovieScene = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
+	const TArray<FMovieSceneMarkedFrame>& AllMarkedFrames = FocusedMovieScene->GetMarkedFrames();
+
+	for (int32 MarkIndex = 0; MarkIndex < MarkedFrames.Num(); ++MarkIndex)
+	{
+		const FMovieSceneMarkedFrame& MarkedFrame = AllMarkedFrames[MarkIndex];
+		const FFrameNumber NewMarkTime = MarkedFrame.FrameNumber + EffectiveDelta;
+		FocusedMovieScene->SetMarkedFrame(MarkIndex, NewMarkTime);
+	}
+
+	FocusedMovieScene->MarkAsChanged();
+	FocusedMovieScene->BroadcastChanged();
+}
+

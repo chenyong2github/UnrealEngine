@@ -179,6 +179,8 @@ protected:
 	bool HandleSectionMovement(FFrameTime MouseTime, FVector2D VirtualMousePos, FVector2D LocalMousePos, TOptional<FFrameNumber> MaxDeltaX, FFrameNumber DesiredDeltaX);
 	/** Move selected keys, if any. */
 	void HandleKeyMovement(TOptional<FFrameNumber> MaxDeltaX, FFrameNumber DesiredDeltaX);
+	/** Move selected marked frames, if any. */
+	void HandleMarkedFrameMovement(TOptional<FFrameNumber> MaxDeltaX, FFrameNumber DesiredDeltaX);
 
 	void OnSequencerNodeTreeUpdated();
 
@@ -195,6 +197,9 @@ protected:
 	/** Set of keys that are being moved. */
 	TSet<FSequencerSelectedKey> Keys;
 	TArray<FSequencerSelectedKey> KeysAsArray;
+
+	/** Set of marked frames that are being moved. */
+	TSet<int32> MarkedFrames;
 
 	/** What was the time of the mouse for the previous frame? Used to calculate a per-frame delta. */
 	FFrameTime MouseTimePrev;

@@ -80,6 +80,9 @@ public:
 	/** Gets a set of the selected models */
 	const TSet<TWeakPtr<FViewModel>>& GetSelectedTrackAreaItems() const;
 
+	/** Gets the indexes of the selected marked frames */
+	const TSet<int32> GetSelectedMarkedFrames() const;
+
 	/** Gets a set of the outliner nodes that have selected keys or sections */
 	const TSet<TWeakPtr<FViewModel>>& GetNodesWithSelectedKeysOrSections() const;
 
@@ -118,6 +121,9 @@ public:
 	void AddToTrackAreaSelection(TSharedPtr<FViewModel> InModel);
 	void AddToOutlinerSelection(TSharedPtr<FViewModel> InModel);
 
+	/** Adds a marked frame to the selection */
+	void AddToSelection(int32 InMarkedFrameIndex);
+
 	/** Removes a key from the selection */
 	void RemoveFromSelection(const FSequencerSelectedKey& Key);
 
@@ -130,6 +136,9 @@ public:
 	/** Removes an outliner node from the selection */
 	void RemoveFromSelection(TSharedRef<FViewModel> OutlinerNode);
 
+	/** Removes a marked frame from the selection */
+	void RemoveFromSelection(int32 InMarkedFrameIndex);
+
 	/** Removes any outliner nodes from the selection that do not relate to the given section */
 	void EmptySelectedOutlinerNodesWithoutSections(const TArray<UMovieSceneSection*>& Sections);
 
@@ -138,6 +147,9 @@ public:
 
 	/** Returns whether or not the model is selected. */
 	bool IsSelected(TWeakPtr<FViewModel> InModel) const;
+
+	/** Returns whether the given marked frame is selected */
+	bool IsSelected(int32 InMarkedFrameIndex) const;
 
 	/** Returns whether or not the outliner node has keys or sections selected. */
 	bool NodeHasSelectedKeysOrSections(TWeakPtr<FViewModel> Model) const;
@@ -148,11 +160,14 @@ public:
 	/** Empties the key selection. */
 	void EmptySelectedKeys();
 
-	/** Empties the Track Area selection. */
+	/** Empties the Track Area selection (including Time Slider selection). */
 	void EmptySelectedTrackAreaItems();
 
 	/** Empties the outliner node selection. */
 	void EmptySelectedOutlinerNodes();
+
+	/** Empties the marked frames selection. */
+	void EmptySelectedMarkedFrames();
 
 	/** Gets a multicast delegate which is called when the key selection changes. */
 	FOnSelectionChanged& GetOnKeySelectionChanged();
@@ -165,6 +180,9 @@ public:
 
 	/** Gets a multicast delegate with an array of FGuid of bound objects which is called when the outliner node selection changes. */
 	FOnSelectionChangedObjectGuids& GetOnOutlinerNodeSelectionChangedObjectGuids();
+
+	/** Gets a multicast delegate which is called when the marked frames selection changes. */
+	FOnSelectionChanged& GetOnMarkedFramesSelectionChanged();
 
 	/** Helper function to get an array of FGuid of bound objects on return */
 	TArray<FGuid> GetBoundObjectsGuids();
@@ -206,11 +224,13 @@ private:
 	TSet<FKeyHandle> RawSelectedKeys;
 	TSet<TWeakPtr<FViewModel>> SelectedTrackAreaItems;
 	TSet<TWeakPtr<FViewModel>> SelectedOutlinerItems;
+	TSet<int32> SelectedMarkedFrames;
 	mutable TSet<TWeakPtr<FViewModel>> NodesWithSelectedKeysOrSections;
 
 	FOnSelectionChanged OnKeySelectionChanged;
 	FOnSelectionChanged OnSectionSelectionChanged;
 	FOnSelectionChanged OnOutlinerNodeSelectionChanged;
+	FOnSelectionChanged OnMarkedFramesSelectionChanged;
 
 	FOnSelectionChangedObjectGuids OnOutlinerNodeSelectionChangedObjectGuids;
 

@@ -46,6 +46,12 @@ namespace ScrubConstants
 
 	/**The fraction of the current view range to scroll per unit delta  */
 	const float ScrollPanFraction = 0.1f;
+
+	/** Marked frame label box margin */
+	const int32 MarkLabelBoxMargin = 2;
+
+	/** Marked frame label box margin on the opposite side of the marker time */
+	const int32 MarkLabelBoxWideMargin = 4;
 }
 
 FSequencerTimeSliderController::FSequencerTimeSliderController( const FTimeSliderArgs& InArgs, TWeakPtr<FSequencer> InWeakSequencer )
@@ -55,14 +61,23 @@ FSequencerTimeSliderController::FSequencerTimeSliderController( const FTimeSlide
 	, MouseDragType( DRAG_NONE )
 	, bMouseDownInRegion(false)
 	, bPanning( false )
+	, HoverMarkIndex( INDEX_NONE )
 	, DragMarkIndex( INDEX_NONE )
+	, DragMarkReferenceFrameNumber( 0 )
+	, DragMarkCurrentFrameNumber( 0 )
 {
 	ScrubFillBrush              = FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.ScrubFill" ) );
 	FrameBlockScrubHandleUpBrush   = FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.FrameBlockScrubHandleUp" ) ); 
 	FrameBlockScrubHandleDownBrush = FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.FrameBlockScrubHandleDown" ) );
 	VanillaScrubHandleUpBrush      = FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.VanillaScrubHandleUp" ) ); 
 	VanillaScrubHandleDownBrush    = FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.VanillaScrubHandleDown" ) );
+
+	FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService().ToSharedPtr();
+	SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
+	SmallBoldLayoutFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);
+
 	ContextMenuSuppression = 0;
+
 	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
 	if (Sequencer.IsValid())
 	{
@@ -233,7 +248,6 @@ void FSequencerTimeSliderController::DrawTicks( FSlateWindowElementList& OutDraw
 	FFrameRate     TickResolution  = GetTickResolution();
 	FFrameRate     DisplayRate     = GetDisplayRate();
 	FPaintGeometry PaintGeometry   = InArgs.AllottedGeometry.ToPaintGeometry();
-	FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
 
 	double MajorGridStep  = 0.0;
 	int32  MinorDivisions = 0;
@@ -315,7 +329,7 @@ void FSequencerTimeSliderController::DrawTicks( FSlateWindowElementList& OutDraw
 	}
 }
 
-int32 FSequencerTimeSliderController::DrawMarkedFrames( const FGeometry& AllottedGeometry, const FScrubRangeToScreen& RangeToScreen, FSlateWindowElementList& OutDrawElements, int32 LayerId, const ESlateDrawEffect& DrawEffects, bool bDrawLabels ) const
+int32 FSequencerTimeSliderController::DrawMarkedFrames( const FGeometry& AllottedGeometry, const FScrubRangeToScreen& RangeToScreen, FSlateWindowElementList& OutDrawElements, int32 LayerId, const ESlateDrawEffect& DrawEffects, const FWidgetStyle& InWidgetStyle, bool bDrawLabels ) const
 {
 	const TArray<FMovieSceneMarkedFrame> & MarkedFrames = TimeSliderArgs.MarkedFrames.Get();
 	const TArray<FMovieSceneMarkedFrame> & GlobalMarkedFrames = TimeSliderArgs.GlobalMarkedFrames.Get();
@@ -324,18 +338,33 @@ int32 FSequencerTimeSliderController::DrawMarkedFrames( const FGeometry& Allotte
 		return LayerId;
 	}
 
-	const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
+	const TSet<int32>& SelectedMarkedFrames = WeakSequencer.Pin()->GetSelection().GetSelectedMarkedFrames();
+	//const FLinearColor SelectedColor = FLinearColor::White; //FAppStyle::GetSlateColor("SelectionColor").GetColor(InWidgetStyle);
+	const FLinearColor WhiteColorHSV = FLinearColor::White.LinearRGBToHSV();
 
-	FQualifiedFrameTime ScrubPosition = FQualifiedFrameTime(TimeSliderArgs.ScrubPosition.Get(), GetTickResolution());
-	FScrubberMetrics    ScrubMetrics = GetScrubPixelMetrics(ScrubPosition, RangeToScreen);
-	auto DrawFrameMarkers = ([=](const TArray<FMovieSceneMarkedFrame> & InMarkedFrames, FSlateWindowElementList& DrawElements, bool bFade) {
-
-		for (const FMovieSceneMarkedFrame& MarkedFrame : InMarkedFrames)
+	auto DrawFrameMarkers = ([=](const TArray<FMovieSceneMarkedFrame> & InMarkedFrames, FSlateWindowElementList& DrawElements, bool bIsGlobal)
+	{
+		for (int32 MarkIndex = 0; MarkIndex < InMarkedFrames.Num(); ++MarkIndex)
 		{
+			const FMovieSceneMarkedFrame& MarkedFrame(InMarkedFrames[MarkIndex]);
 			double Seconds = MarkedFrame.FrameNumber / GetTickResolution();
 
-			FLinearColor DrawColor = bFade ? MarkedFrame.Color.Desaturate(0.25f) : MarkedFrame.Color;
+			const bool bIsHovered = (!bIsGlobal && HoverMarkIndex == MarkIndex);
+			const bool bIsSelected = (!bIsGlobal && SelectedMarkedFrames.Contains(MarkIndex));
+
+			// Get a selected color that's the marked frame color but at full opacity, full brightness, and a bit desaturated if it's
+			// already bright to begin with.
+			const FLinearColor MarkedFrameColorHSV = MarkedFrame.Color.CopyWithNewOpacity(1.f).LinearRGBToHSV();
+			const FLinearColor SelectedColor = FLinearColor::LerpUsingHSV(
+				MarkedFrameColorHSV, 
+				FLinearColor(
+					MarkedFrameColorHSV.R, 
+					MarkedFrameColorHSV.G * (1.f - MarkedFrameColorHSV.B),
+					1.f),
+				0.5f)
+				.HSVToLinearRGB();
+
+			FLinearColor DrawColor = bIsGlobal ? MarkedFrame.Color.Desaturate(0.25f) : (bIsSelected ? SelectedColor : MarkedFrame.Color);
 			const float  LinePos = RangeToScreen.InputToLocalX(Seconds);
 			TArray<FVector2D> LinePoints;
 			LinePoints.AddUninitialized(2);
@@ -349,32 +378,47 @@ int32 FSequencerTimeSliderController::DrawMarkedFrames( const FGeometry& Allotte
 				LinePoints,
 				DrawEffects,
 				DrawColor,
-				false
+				false,
+				(bIsHovered || bIsSelected) ? 2.f : 1.f
 			);
 
 			FString LabelString = MarkedFrame.Label;
 			if (bDrawLabels && !LabelString.IsEmpty())
 			{
 				// Draw the label next to the marked frame line
-				FVector2D TextSize = FontMeasureService->Measure(LabelString, SmallLayoutFont);
+				bool bDrawLeft;
+				FVector2D TextPosition, TextSize;
+				GetMarkLabelGeometry(AllottedGeometry, RangeToScreen, MarkedFrame, TextPosition, TextSize, bDrawLeft);
 
-				// Flip the text position if getting near the end of the view range
-				static const float TextOffsetPx = 2.f;
-				bool  bDrawLeft = (AllottedGeometry.Size.X - LinePos) < (TextSize.X + 14.f) - TextOffsetPx;
-				float TextPosition = bDrawLeft ? LinePos - TextSize.X - TextOffsetPx : LinePos + TextOffsetPx;
+				const FSlateBrush* LabelBrush = bDrawLeft ?
+					FAppStyle::GetBrush("Sequencer.MarkedFrame.LabelLeft") :
+					FAppStyle::GetBrush("Sequencer.MarkedFrame.LabelRight");
+
+				if (bIsHovered || bIsSelected)
+				{
+					FSlateDrawElement::MakeBox(
+						DrawElements,
+						LayerId + 1,
+						AllottedGeometry.ToPaintGeometry(
+							TextSize + ScrubConstants::MarkLabelBoxMargin + ScrubConstants::MarkLabelBoxWideMargin,
+							FSlateLayoutTransform(FVector2D(LinePos, 0.f))),
+						LabelBrush,
+						DrawEffects,
+						DrawColor.CopyWithNewOpacity(0.3f)
+					);
+				}
 
 				FSlateDrawElement::MakeText(
 					DrawElements,
 					LayerId + 1,
-					AllottedGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(FVector2f(TextPosition, 0.f))),
+					AllottedGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(TextPosition)),
 					LabelString,
-					SmallLayoutFont,
+					(bIsHovered || bIsSelected) ? SmallBoldLayoutFont : SmallLayoutFont,
 					DrawEffects,
 					DrawColor
 				);
 			}
 		}
-
 	});
 	
 	DrawFrameMarkers(GlobalMarkedFrames, OutDrawElements, true);
@@ -504,7 +548,7 @@ int32 FSequencerTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, con
 			ScrubColor
 		);
 		
-		LayerId = DrawMarkedFrames(AllottedGeometry, RangeToScreen, OutDrawElements, LayerId, DrawEffects, true);
+		LayerId = DrawMarkedFrames(AllottedGeometry, RangeToScreen, OutDrawElements, LayerId, DrawEffects, InWidgetStyle, true);
 
 		{
 			// Draw the current time next to the scrub handle
@@ -524,9 +568,6 @@ int32 FSequencerTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, con
 				TextColor = FLinearColor::Yellow;
 			}
 
-			FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
-
-			const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 			FVector2D TextSize = FontMeasureService->Measure(FrameString, SmallLayoutFont);
 
 			// Flip the text position if getting near the end of the view range
@@ -858,6 +899,7 @@ FReply FSequencerTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, co
 		else if (MouseDragType == DRAG_MARK)
 		{
 			TimeSliderArgs.OnMarkEndDrag.ExecuteIfBound();
+			UpdateMarkSelection(DragMarkIndex, DragMarkCurrentFrameNumber);
 		}
 		else if (MouseDragType == DRAG_SETTING_RANGE)
 		{
@@ -892,27 +934,53 @@ FReply FSequencerTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, co
 		}
 		else if (bMouseDownInRegion)
 		{
-			TimeSliderArgs.OnEndScrubberMovement.ExecuteIfBound();
-
-			FFrameTime ScrubTime = MouseTime;
-			FVector2D CursorPos  = MouseEvent.GetScreenSpacePosition();
-
 			TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
 
-			if (MouseDragType == DRAG_SCRUBBING_TIME)
+			if (HoverMarkIndex == INDEX_NONE)
 			{
-				ScrubTime = ComputeScrubTimeFromMouse(MyGeometry, MouseEvent, RangeToScreen);
+				// Teleport the playhead to the clicked time.
+				TimeSliderArgs.OnEndScrubberMovement.ExecuteIfBound();
+
+				FFrameTime ScrubTime = MouseTime;
+				FVector2D CursorPos  = MouseEvent.GetScreenSpacePosition();
+
+				if (MouseDragType == DRAG_SCRUBBING_TIME)
+				{
+					ScrubTime = ComputeScrubTimeFromMouse(MyGeometry, MouseEvent, RangeToScreen);
+				}
+				else if (Sequencer.IsValid())
+				{
+					ScrubTime = SnapTimeToNearestKey(MouseEvent, RangeToScreen, CursorPos.X, ScrubTime);
+
+					// We weren't scrubbing, so this is a single click in the time slider. This should
+					// also act as a deselection of any selected markers.
+					Sequencer->GetSelection().EmptySelectedMarkedFrames();
+				}
+
+				// If middle mouse button down we don't evaluate on the time change
+				CommitScrubPosition( ScrubTime, /*bIsScrubbing=*/false , /*bEvaluate*/ !bHandleMiddleMouseButton);
 			}
 			else if (Sequencer.IsValid())
 			{
-				ScrubTime = SnapTimeToNearestKey(MouseEvent, RangeToScreen, CursorPos.X, ScrubTime);
-			}
+				// Select the clicked marker, and optionally teleport the playhead.
+				HandleMarkSelection(HoverMarkIndex);
 
-			CommitScrubPosition( ScrubTime, /*bIsScrubbing=*/false , /*bEvaluate*/ !bHandleMiddleMouseButton); //if middle mouse button down we don't evaluate on the time change
+				FModifierKeysState ModifierKeys = FSlateApplication::Get().GetModifierKeys();
+				const bool bSnapPlayTimeToMark = ModifierKeys.AreModifersDown(EModifierKey::Shift);
+				if (bSnapPlayTimeToMark || Sequencer->GetSequencerSettings()->GetSnapPlayTimeToPressedKey())
+				{
+					const TArray<FMovieSceneMarkedFrame>& MarkedFrames = TimeSliderArgs.MarkedFrames.Get();
+					const FFrameNumber MarkTime = MarkedFrames[HoverMarkIndex].FrameNumber;
+
+					// If middle mouse button down we don't evaluate on the time change
+					CommitScrubPosition(MarkTime, /*bIsScrubbing=*/ false , /*bEvaluate*/ !bHandleMiddleMouseButton);
+				}
+			}
 		}
 
 		MouseDragType = DRAG_NONE;
 		DistanceDragged = 0.f;
+		DragMarkIndex = INDEX_NONE;
 		bMouseDownInRegion = false;
 
 		return FReply::Handled().ReleaseMouseCapture();
@@ -922,8 +990,30 @@ FReply FSequencerTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, co
 	return FReply::Unhandled();
 }
 
+FReply FSequencerTimeSliderController::OnMouseButtonDoubleClick(TSharedRef<const SWidget> WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (HoverMarkIndex != INDEX_NONE)
+	{
+		// Teleport the playhead to the double-clicked marker.
+		bool bHandleMiddleMouseButton = MouseEvent.GetEffectingButton() == EKeys::MiddleMouseButton && WidgetOwner->HasMouseCapture();
+		const TArray<FMovieSceneMarkedFrame>& MarkedFrames = TimeSliderArgs.MarkedFrames.Get();
+		const FFrameNumber MarkTime = MarkedFrames[HoverMarkIndex].FrameNumber;
+		CommitScrubPosition(MarkTime, /*bIsScrubbing=*/ false , /*bEvaluate*/ !bHandleMiddleMouseButton);
+	}
+	return FReply::Unhandled();
+}
 
 FReply FSequencerTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
+{
+	return OnMouseMoveImpl(WidgetOwner, MyGeometry, MouseEvent, false);
+}
+
+FReply FSequencerTimeSliderController::OnTimeSliderMouseMove(SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	return OnMouseMoveImpl(WidgetOwner, MyGeometry, MouseEvent, true);
+}
+
+FReply FSequencerTimeSliderController::OnMouseMoveImpl( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bFromTimeSlider )
 {
 	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
 	if (!Sequencer.IsValid())
@@ -934,6 +1024,8 @@ FReply FSequencerTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const 
 	bool bHandleLeftMouseButton  = MouseEvent.IsMouseButtonDown( EKeys::LeftMouseButton  );
 	bool bHandleRightMouseButton = MouseEvent.IsMouseButtonDown( EKeys::RightMouseButton ) && TimeSliderArgs.AllowZoom;
 	bool bHandleMiddleMouseButton = MouseEvent.IsMouseButtonDown(EKeys::MiddleMouseButton);
+
+	HoverMarkIndex = INDEX_NONE;
 
 	if (bHandleRightMouseButton)
 	{
@@ -1028,9 +1120,11 @@ FReply FSequencerTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const 
 					MouseDragType = DRAG_PLAYBACK_START;
 					TimeSliderArgs.OnPlaybackRangeBeginDrag.ExecuteIfBound();
 				}
-				else if (!bReadOnly && !bHitScrubber && HitTestMark(RangeToScreen, MouseDownPixel, DragMarkIndex) && bHandleMiddleMouseButton == false)
+				else if (!bReadOnly && !bHitScrubber && HitTestMark(MyGeometry, RangeToScreen, MouseDownPixel, bFromTimeSlider, &DragMarkIndex, &DragMarkReferenceFrameNumber) && bHandleMiddleMouseButton == false)
 				{
 					MouseDragType = DRAG_MARK;
+					DragMarkCurrentFrameNumber = DragMarkReferenceFrameNumber;
+					HandleMarkSelection(DragMarkIndex);
 					TimeSliderArgs.OnMarkBeginDrag.ExecuteIfBound();
 				}
 				else if (FSlateApplication::Get().GetModifierKeys().AreModifersDown(EModifierKey::Control) && bHandleMiddleMouseButton == false)
@@ -1104,7 +1198,8 @@ FReply FSequencerTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const 
 			}
 			else if (MouseDragType == DRAG_MARK)
 			{
-				SetMark(DragMarkIndex, MouseTime.FrameNumber);
+				DragMarkCurrentFrameNumber = DragMarkReferenceFrameNumber + DiffFrame;
+				SetMark(DragMarkIndex, DragMarkCurrentFrameNumber);
 			}
 			else if (MouseDragType == DRAG_SCRUBBING_TIME)
 			{
@@ -1116,6 +1211,14 @@ FReply FSequencerTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const 
 				MouseDownPosition[1] = MouseEvent.GetScreenSpacePosition();
 			}
 		}
+	}
+	else if (bFromTimeSlider && DragMarkIndex == INDEX_NONE)
+	{
+		// Update hover state of marked frames.
+		TRange<double> LocalViewRange = GetViewRange();
+		FScrubRangeToScreen RangeToScreen(LocalViewRange, MyGeometry.Size);
+		const FVector2D LocalMousePostion = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+		HitTestMark(MyGeometry, RangeToScreen, LocalMousePostion.X, bFromTimeSlider, &HoverMarkIndex);
 	}
 
 	if ( DistanceDragged != 0.f && (bHandleLeftMouseButton || bHandleRightMouseButton) )
@@ -1235,8 +1338,8 @@ FCursorReply FSequencerTimeSliderController::OnCursorQuery( TSharedRef<const SWi
 		return FCursorReply::Cursor(EMouseCursor::ResizeLeftRight);
 	}
 
-	int32 DummyMarkIndex = INDEX_NONE;
-	if (MouseDragType == DRAG_MARK || (!bReadOnly && !bHitScrubber && HitTestMark(RangeToScreen, HitTestPixel, DummyMarkIndex)))
+	const bool bFromTimeSlider = true;
+	if (MouseDragType == DRAG_MARK || (!bReadOnly && !bHitScrubber && HitTestMark(MyGeometry, RangeToScreen, HitTestPixel, bFromTimeSlider)))
 	{
 		return FCursorReply::Cursor(EMouseCursor::CardinalCross);
 	}
@@ -1291,7 +1394,7 @@ int32 FSequencerTimeSliderController::OnPaintViewArea( const FGeometry& Allotted
 
 	if (Args.bDisplayMarkedFrames)
 	{
-		LayerId = DrawMarkedFrames(AllottedGeometry, RangeToScreen, OutDrawElements, LayerId, DrawEffects, false);
+		LayerId = DrawMarkedFrames(AllottedGeometry, RangeToScreen, OutDrawElements, LayerId, DrawEffects, FWidgetStyle(), false);
 	}
 
 	LayerId = DrawVerticalFrames(AllottedGeometry, RangeToScreen, OutDrawElements, LayerId, DrawEffects);
@@ -1340,7 +1443,7 @@ int32 FSequencerTimeSliderController::OnPaintViewArea( const FGeometry& Allotted
 
 TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
 	const bool bReadOnly = Sequencer && Sequencer->IsReadOnly();
 	
 	FScrubRangeToScreen RangeToScreen = FScrubRangeToScreen(GetViewRange(), MyGeometry.Size);
@@ -1427,8 +1530,8 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 	}
 	MenuBuilder.EndSection(); // SequencerPlaybackRangeMenu
 
-	UMovieSceneCompiledDataManager* CompiledDataManager = WeakSequencer.Pin()->GetEvaluationTemplate().GetCompiledDataManager();
-	const FMovieSceneSequenceHierarchy* Hierarchy = CompiledDataManager->FindHierarchy(WeakSequencer.Pin()->GetEvaluationTemplate().GetCompiledDataID());
+	UMovieSceneCompiledDataManager* CompiledDataManager = Sequencer->GetEvaluationTemplate().GetCompiledDataManager();
+	const FMovieSceneSequenceHierarchy* Hierarchy = CompiledDataManager->FindHierarchy(Sequencer->GetEvaluationTemplate().GetCompiledDataID());
 
 	if (TimeSliderArgs.ScrubPositionParentChain.IsSet() && Hierarchy)
 	{
@@ -1437,7 +1540,7 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			TArray<FMovieSceneSequenceID> ParentChain = TimeSliderArgs.ScrubPositionParentChain.Get();
 			for (FMovieSceneSequenceID ParentID : ParentChain)
 			{
-				FText ParentText = WeakSequencer.Pin()->GetRootMovieSceneSequence()->GetDisplayName();
+				FText ParentText = Sequencer->GetRootMovieSceneSequence()->GetDisplayName();
 
 				for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
 				{
@@ -1467,16 +1570,21 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 
 	MenuBuilder.BeginSection("SequencerMarkMenu", FText::Format(LOCTEXT("MarkTextFormat", "Mark ({0}):"), CurrentTimeText));
 	{
-		FFrameNumber DisplayFrameNumber = GetDisplayRate().AsFrameNumber(FrameNumber / GetTickResolution());
-
-		UMovieScene* MovieScene = WeakSequencer.Pin()->GetFocusedMovieSceneSequence()->GetMovieScene();
+		UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 		bool bHasMarks = MovieScene->GetMarkedFrames().Num() > 0;
 
 		int32 MarkedIndex = INDEX_NONE;
-		HitTestMark(RangeToScreen, MousePixel, MarkedIndex);
+		const bool bTestLabelBox = true;
+		HitTestMark(MyGeometry, RangeToScreen, MousePixel, bTestLabelBox, &MarkedIndex);
+
+		FSequencerSelection& SequencerSelection = Sequencer->GetSelection();
+		SequencerSelection.Empty();
 
 		if (MarkedIndex != INDEX_NONE)
 		{
+			SequencerSelection.EmptySelectedMarkedFrames();
+			SequencerSelection.AddToSelection(MarkedIndex);
+
 			class SMarkedFramePropertyWidget : public SCompoundWidget, public FNotifyHook
 			{
 			public:
@@ -1533,28 +1641,23 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			MenuBuilder.AddWidget(Widget, FText::GetEmpty(), false);
 		}
 
-		if (MarkedIndex == INDEX_NONE)
-		{
-			MenuBuilder.AddMenuEntry( 
-				LOCTEXT("AddMark", "Add Mark"),
-				FText(),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateLambda( [=]{ AddMarkAtFrame(FrameNumber); }),
-					FCanExecuteAction::CreateLambda([=]{ return !bReadOnly; }))
-			);
-		}
-		else 
-		{
-			MenuBuilder.AddMenuEntry( 
-				LOCTEXT("DeleteMark", "Delete Mark"),
-				FText(),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateLambda([=]{ DeleteMarkAtIndex(MarkedIndex); }),
-					FCanExecuteAction::CreateLambda([=]{ return !bReadOnly; }))
-			);
-		}
+		MenuBuilder.AddMenuEntry( 
+			LOCTEXT("AddMark", "Add Mark"),
+			FText(),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda( [=]{ AddMarkAtFrame(FrameNumber); }),
+				FCanExecuteAction::CreateLambda([=]{ return !bReadOnly && MarkedIndex == INDEX_NONE; }))
+		);
+
+		MenuBuilder.AddMenuEntry( 
+			LOCTEXT("DeleteMark", "Delete Mark"),
+			FText(),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([=]{ DeleteMarkAtIndex(MarkedIndex); }),
+				FCanExecuteAction::CreateLambda([=]{ return !bReadOnly && MarkedIndex != INDEX_NONE; }))
+		);
 
 		MenuBuilder.AddMenuEntry( 
 			LOCTEXT("Delete All Marks", "Delete All Marks"),
@@ -1715,8 +1818,17 @@ bool FSequencerTimeSliderController::HitTestRangeEnd(const FScrubRangeToScreen& 
 		HitPixel <= RangeEndPixel + MouseTolerance + DragToleranceSlateUnits;
 }
 
-bool FSequencerTimeSliderController::HitTestMark(const FScrubRangeToScreen& RangeToScreen, float HitPixel, int32& OutMarkIndex) const
+bool FSequencerTimeSliderController::HitTestMark(const FGeometry& AllottedGeometry, const FScrubRangeToScreen& RangeToScreen, float HitPixel, bool bTestLabelBox, int32* OutMarkIndex, FFrameNumber* OutMarkFrameNumber) const
 {
+	if (OutMarkIndex)
+	{
+		*OutMarkIndex = INDEX_NONE;
+	}
+	if (OutMarkFrameNumber)
+	{
+		*OutMarkFrameNumber = 0;
+	}
+
 	const TArray<FMovieSceneMarkedFrame> & MarkedFrames = TimeSliderArgs.MarkedFrames.Get();
 	if (MarkedFrames.Num() < 1)
 	{
@@ -1737,12 +1849,59 @@ bool FSequencerTimeSliderController::HitTestMark(const FScrubRangeToScreen& Rang
 			(HitPixel >= MarkPixel - MouseTolerance - BrushSizeInStateUnits - DragToleranceSlateUnits &&
 			 HitPixel <= MarkPixel + MouseTolerance + DragToleranceSlateUnits))
 		{
-			OutMarkIndex = MarkIndex;
+			if (OutMarkIndex)
+			{
+				*OutMarkIndex = MarkIndex;
+			}
+			if (OutMarkFrameNumber)
+			{
+				*OutMarkFrameNumber = MarkedFrames[MarkIndex].FrameNumber;
+			}
 			return true;
+		}
+
+		// Hit test against the label box, which is the text size offset and grown by the margin.
+		if (bTestLabelBox)
+		{
+			FVector2D TextPosition, TextSize;
+			bool bDrawLeft;
+			GetMarkLabelGeometry(AllottedGeometry, RangeToScreen, MarkedFrames[MarkIndex], TextPosition, TextSize, bDrawLeft);
+			FVector2D TextBoxSize = TextSize + ScrubConstants::MarkLabelBoxMargin + ScrubConstants::MarkLabelBoxWideMargin;
+			if (HitPixel >= MarkPixel && HitPixel <= MarkPixel + TextBoxSize.X)
+			{
+				if (OutMarkIndex)
+				{
+					*OutMarkIndex = MarkIndex;
+				}
+				if (OutMarkFrameNumber)
+				{
+					*OutMarkFrameNumber = MarkedFrames[MarkIndex].FrameNumber;
+				}
+				return true;
+			}
 		}
 	}
 
 	return false;
+}
+
+void FSequencerTimeSliderController::GetMarkLabelGeometry(const FGeometry& AllottedGeometry, const FScrubRangeToScreen& RangeToScreen, const FMovieSceneMarkedFrame& MarkedFrame, FVector2D& OutPosition, FVector2D& OutSize, bool& bIsDrawLeft) const
+{
+	double Seconds = MarkedFrame.FrameNumber / GetTickResolution();
+	float MarkPixel = RangeToScreen.InputToLocalX(Seconds);
+
+	const FString& LabelString = MarkedFrame.Label;
+	FVector2D TextSize = FontMeasureService->Measure(LabelString, SmallLayoutFont);
+
+	// Flip the text position if getting near the end of the view range
+	bool bDrawLeft = (AllottedGeometry.Size.X - MarkPixel) < (TextSize.X + ScrubConstants::MarkLabelBoxMargin + ScrubConstants::MarkLabelBoxWideMargin);
+	float TextPosition = bDrawLeft ? 
+		MarkPixel - TextSize.X - ScrubConstants::MarkLabelBoxMargin : 
+		MarkPixel + ScrubConstants::MarkLabelBoxMargin;
+
+	OutPosition = FVector2D(TextPosition, 0);
+	OutSize = TextSize;
+	bIsDrawLeft = bDrawLeft;
 }
 
 FFrameTime FSequencerTimeSliderController::SnapTimeToNearestKey(const FPointerEvent& MouseEvent, const FScrubRangeToScreen& RangeToScreen, float CursorPos, FFrameTime InTime) const
@@ -1840,6 +1999,44 @@ void FSequencerTimeSliderController::SetSelectionRangeEnd(FFrameNumber NewEnd)
 	else if (NewEnd >= UE::MovieScene::DiscreteInclusiveLower(SelectionRange))
 	{
 		TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(TRange<FFrameNumber>(SelectionRange.GetLowerBound(), NewEnd));
+	}
+}
+
+void FSequencerTimeSliderController::HandleMarkSelection(int32 InMarkIndex)
+{
+	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
+	FSequencerSelection& SequencerSelection = Sequencer->GetSelection();
+
+	FModifierKeysState ModifierKeys = FSlateApplication::Get().GetModifierKeys();
+	const bool bToggleSelection = ModifierKeys.AreModifersDown(EModifierKey::Control);
+	const bool bAddToSelection = ModifierKeys.AreModifersDown(EModifierKey::Shift);
+
+	if (!bToggleSelection && !bAddToSelection)
+	{
+		SequencerSelection.Empty();
+		SequencerSelection.AddToSelection(InMarkIndex);
+	}
+	else if (bAddToSelection || !SequencerSelection.IsSelected(InMarkIndex))
+	{
+		SequencerSelection.AddToSelection(InMarkIndex);
+	}
+	else
+	{
+		SequencerSelection.RemoveFromSelection(InMarkIndex);
+	}
+}
+
+void FSequencerTimeSliderController::UpdateMarkSelection(int32 InOldMarkIndex, FFrameNumber InMarkFrameNumber)
+{
+	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
+	FSequencerSelection& SequencerSelection = Sequencer->GetSelection();
+	SequencerSelection.RemoveFromSelection(InOldMarkIndex);
+
+	UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+	int32 NewMarkIndex = MovieScene->FindMarkedFrameByFrameNumber(InMarkFrameNumber);
+	if (ensure(NewMarkIndex != INDEX_NONE))
+	{
+		SequencerSelection.AddToSelection(NewMarkIndex);
 	}
 }
 

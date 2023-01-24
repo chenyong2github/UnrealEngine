@@ -80,6 +80,7 @@ struct FMovieSceneMarkedFrame
 	FMovieSceneMarkedFrame()
 		: Label(FString())
 #if WITH_EDITORONLY_DATA
+		, Comment(FString())
 		, Color(0.f, 1.f, 1.f, 0.4f)
 #endif
 		, bIsDeterminismFence(false)
@@ -89,6 +90,7 @@ struct FMovieSceneMarkedFrame
 		: FrameNumber(InFrameNumber)
 		, Label(FString())
 #if WITH_EDITORONLY_DATA
+		, Comment(FString())
 		, Color(0.f, 1.f, 1.f, 0.4f)
 #endif
 		, bIsDeterminismFence(false)
@@ -101,6 +103,9 @@ struct FMovieSceneMarkedFrame
 	FString Label;
 
 #if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = "Marked Frame")
+	FString Comment;
+
 	UPROPERTY(EditAnywhere, Category = "Marked Frame")
 	FLinearColor Color;
 #endif

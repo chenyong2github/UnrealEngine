@@ -94,6 +94,11 @@ const TSet<TWeakPtr<UE::Sequencer::FViewModel>>& FSequencerSelection::GetSelecte
 	return SelectedTrackAreaItems;
 }
 
+const TSet<int32> FSequencerSelection::GetSelectedMarkedFrames() const
+{
+	return SelectedMarkedFrames;
+}
+
 const TSet<TWeakPtr<UE::Sequencer::FViewModel>>& FSequencerSelection::GetNodesWithSelectedKeysOrSections() const
 {
 	using namespace UE::Sequencer;
@@ -321,6 +326,23 @@ void FSequencerSelection::AddToOutlinerSelection(TSharedPtr<UE::Sequencer::FView
 	EmptySelectedTrackAreaItems();
 }
 
+void FSequencerSelection::AddToSelection(int32 InMarkedFrameIndex)
+{
+	if (!ensureAlwaysMsgf(InMarkedFrameIndex != INDEX_NONE, TEXT("AddToSelection with invalid marked frame index")))
+	{
+		return;
+	}
+
+	++SerialNumber;
+
+	SelectedMarkedFrames.Add(InMarkedFrameIndex);
+
+	if (IsBroadcasting())
+	{
+		OnMarkedFramesSelectionChanged.Broadcast();
+	}
+}
+
 void FSequencerSelection::AddToSelection(const TArrayView<TSharedPtr<UE::Sequencer::FViewModel>>& InModels)
 {
 	using namespace UE::Sequencer;
@@ -433,6 +455,18 @@ void FSequencerSelection::RemoveFromSelection(TSharedRef<UE::Sequencer::FViewMod
 	}
 }
 
+void FSequencerSelection::RemoveFromSelection(int32 InMarkedFrameIndex)
+{
+	++SerialNumber;
+
+	SelectedMarkedFrames.Remove(InMarkedFrameIndex);
+
+	if (IsBroadcasting())
+	{
+		OnMarkedFramesSelectionChanged.Broadcast();
+	}
+}
+
 bool FSequencerSelection::IsSelected(const FSequencerSelectedKey& Key) const
 {
 	return SelectedKeys.Contains(Key);
@@ -441,6 +475,11 @@ bool FSequencerSelection::IsSelected(const FSequencerSelectedKey& Key) const
 bool FSequencerSelection::IsSelected(TWeakPtr<UE::Sequencer::FViewModel> InModel) const
 {
 	return SelectedOutlinerItems.Contains(InModel) || SelectedTrackAreaItems.Contains(InModel);
+}
+
+bool FSequencerSelection::IsSelected(int32 InMarkedFrameIndex) const
+{
+	return SelectedMarkedFrames.Contains(InMarkedFrameIndex);
 }
 
 bool FSequencerSelection::NodeHasSelectedKeysOrSections(TWeakPtr<UE::Sequencer::FViewModel> InModel) const
@@ -490,6 +529,7 @@ void FSequencerSelection::Empty()
 	EmptySelectedKeys();
 	EmptySelectedOutlinerNodes();
 	EmptySelectedTrackAreaItems();
+	EmptySelectedMarkedFrames();
 }
 
 void FSequencerSelection::EmptySelectedKeys()
@@ -547,6 +587,18 @@ void FSequencerSelection::EmptySelectedTrackAreaItems()
 			OnSectionSelectionChanged.Broadcast();
 		}
 	}
+
+	if (SelectedMarkedFrames.Num() > 0)
+	{
+		++SerialNumber;
+
+		SelectedMarkedFrames.Empty();
+
+		if (IsBroadcasting())
+		{
+			OnMarkedFramesSelectionChanged.Broadcast();
+		}
+	}
 }
 
 void FSequencerSelection::EmptySelectedOutlinerNodes()
@@ -575,6 +627,22 @@ void FSequencerSelection::EmptySelectedOutlinerNodes()
 	if ( IsBroadcasting() )
 	{
 		OnOutlinerNodeSelectionChanged.Broadcast();
+	}
+}
+
+void FSequencerSelection::EmptySelectedMarkedFrames()
+{
+	if (!SelectedMarkedFrames.Num())
+	{
+		return;
+	}
+	
+	++SerialNumber;
+	SelectedMarkedFrames.Empty();
+
+	if (IsBroadcasting())
+	{
+		OnMarkedFramesSelectionChanged.Broadcast();
 	}
 }
 

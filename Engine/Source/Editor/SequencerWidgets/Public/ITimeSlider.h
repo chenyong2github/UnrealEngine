@@ -259,7 +259,28 @@ public:
 
 	virtual int32 OnPaintViewArea( const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, bool bEnabled, const FPaintViewAreaArgs& Args ) const = 0;
 
-	virtual FCursorReply OnCursorQuery( TSharedRef<const SWidget> WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const = 0;
+	virtual FReply OnMouseButtonDoubleClick( TSharedRef<const SWidget> WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) { return FReply::Unhandled(); }
+	virtual FCursorReply OnCursorQuery( TSharedRef<const SWidget> WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const { return FCursorReply::Unhandled(); }
+
+	virtual FReply OnTimeSliderMouseButtonDown(SWidget& OwnerWidget, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+	{
+		return OnMouseButtonDown(OwnerWidget, MyGeometry, MouseEvent);
+	}
+
+	virtual FReply OnTimeSliderMouseButtonUp(SWidget& OwnerWidget, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+	{
+		return OnMouseButtonUp(OwnerWidget, MyGeometry, MouseEvent);
+	}
+
+	virtual FReply OnTimeSliderMouseMove(SWidget& OwnerWidget, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+	{
+		return OnMouseMove(OwnerWidget, MyGeometry, MouseEvent);
+	}
+
+	virtual FReply OnTimeSliderMouseWheel(SWidget& OwnerWidget, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+	{
+		return OnMouseWheel(OwnerWidget, MyGeometry, MouseEvent);
+	}
 
 	/** Get the current play rate for this controller */
 	virtual FFrameRate GetDisplayRate() const = 0;

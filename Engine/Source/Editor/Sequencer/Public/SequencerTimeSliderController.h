@@ -12,6 +12,7 @@
 class FSlateWindowElementList;
 struct FContextMenuSuppressor;
 struct FSlateBrush;
+class FSlateFontMeasure;
 class FSequencer;
 class IPropertyTypeCustomization;
 
@@ -42,7 +43,9 @@ public:
 	virtual FReply OnMouseButtonUp( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual FReply OnMouseMove( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual FReply OnMouseWheel( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	virtual FReply OnTimeSliderMouseMove( SWidget& OwnerWidget, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual FCursorReply OnCursorQuery( TSharedRef<const SWidget> WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const override;
+	virtual FReply OnMouseButtonDoubleClick( TSharedRef<const SWidget> WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	/** End ITimeSliderController Interface */
 
 	/** Get the current play rate for this controller */
@@ -165,6 +168,12 @@ public:
 			return PixelsPerInput > 0 ? (ScreenX / PixelsPerInput) + ViewStart : ViewStart;
 		}
 
+		/** Local Widget Space -> Curve Input domain. */
+		double LocalDeltaXToDeltaInput(float ScreenDeltaX) const
+		{
+			return PixelsPerInput > 0 ? (ScreenDeltaX / PixelsPerInput) : 0;
+		}
+
 		/** Curve Input domain -> local Widget Space */
 		float InputToLocalX(double Input) const
 		{
@@ -177,6 +186,10 @@ public:
 	{
 		bIsEvaluating = true;
 	}
+
+private:
+
+	FReply OnMouseMoveImpl( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bFromTimeSlider );
 
 private:
 	// forward declared as class members to prevent name collision with similar types defined in other units
@@ -234,7 +247,7 @@ private:
 	 *
 	 * @return the new layer ID
 	 */
-	int32 DrawMarkedFrames(const FGeometry& AllottedGeometry, const FScrubRangeToScreen& RangeToScreen, FSlateWindowElementList& OutDrawElements, int32 LayerId, const ESlateDrawEffect& DrawEffects, bool bDrawLabels) const;
+	int32 DrawMarkedFrames(const FGeometry& AllottedGeometry, const FScrubRangeToScreen& RangeToScreen, FSlateWindowElementList& OutDrawElements, int32 LayerId, const ESlateDrawEffect& DrawEffects, const FWidgetStyle& InWidgetStyle, bool bDrawLabels) const;
 
 private:
 
@@ -253,7 +266,12 @@ private:
 	 *
 	 * @return The mark index hit
 	 */
-	bool HitTestMark(const FScrubRangeToScreen& RangeToScreen, float HitPixel, int32& OutMarkIndex) const;
+	bool HitTestMark(const FGeometry& AllottedGeometry, const FScrubRangeToScreen& RangeToScreen, float HitPixel, bool bTestLabelBox, int32* OutMarkIndex = nullptr, FFrameNumber* OutMarkFrameNumber = nullptr) const;
+
+	/**
+	 * Get marked frame label box size
+	 */
+	void GetMarkLabelGeometry(const FGeometry& AllottedGeometry, const FScrubRangeToScreen& RangeToScreen, const FMovieSceneMarkedFrame& MarkedFrame, FVector2D& OutPosition, FVector2D& OutSize, bool& bIsDrawLeft) const;
 
 	FFrameTime SnapTimeToNearestKey(const FPointerEvent& MouseEvent, const FScrubRangeToScreen& RangeToScreen, float CursorPos, FFrameTime InTime) const;
 
@@ -269,6 +287,8 @@ private:
 	FFrameTime ComputeScrubTimeFromMouse(const FGeometry& Geometry, const FPointerEvent& MouseEvent, FScrubRangeToScreen RangeToScreen) const;
 	FFrameTime ComputeFrameTimeFromMouse(const FGeometry& Geometry, FVector2D ScreenSpacePosition, FScrubRangeToScreen RangeToScreen, bool CheckSnapping = true) const;
 
+	void HandleMarkSelection(int32 InMarkIndex);
+	void UpdateMarkSelection(int32 InOldMarkIndex, FFrameNumber InMarkFrameNumber);
 	void AddMarkAtFrame(FFrameNumber FrameNumber);
 	void DeleteMarkAtIndex(int32 InMarkIndex);
 	void DeleteAllMarks();
@@ -301,6 +321,13 @@ private:
 	
 	/** Brush for drawing a downwards facing scrub handle */
 	const FSlateBrush* FrameBlockScrubHandleDownBrush, *VanillaScrubHandleDownBrush;
+
+	/** Font measure service */
+	TSharedPtr<FSlateFontMeasure> FontMeasureService;
+
+	/** Font info for the marked frames labels */
+	FSlateFontInfo SmallLayoutFont;
+	FSlateFontInfo SmallBoldLayoutFont;
 	
 	/** Total mouse delta during dragging **/
 	float DistanceDragged;
@@ -341,8 +368,17 @@ private:
 	/** Range stack */
 	TArray<TRange<double>> ViewRangeStack;
 
+	/** Index of mark being hovered */
+	int32 HoverMarkIndex;
+
 	/** Index of mark being edited */
 	int32 DragMarkIndex;
+
+	/** Marked frame time when the mouse is first pressed down */
+	FFrameNumber DragMarkReferenceFrameNumber;
+
+	/** Time of the mark being edited */
+	FFrameNumber DragMarkCurrentFrameNumber;
 
 	/** When > 0, we should not show context menus */
 	int32 ContextMenuSuppression;

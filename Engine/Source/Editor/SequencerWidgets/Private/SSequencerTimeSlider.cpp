@@ -28,18 +28,23 @@ int32 SSequencerTimeSlider::OnPaint( const FPaintArgs& Args, const FGeometry& Al
 
 FReply SSequencerTimeSlider::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	TimeSliderController->OnMouseButtonDown( *this, MyGeometry, MouseEvent );
+	TimeSliderController->OnTimeSliderMouseButtonDown( *this, MyGeometry, MouseEvent );
 	return FReply::Handled().CaptureMouse(AsShared()).PreventThrottling();
 }
 
 FReply SSequencerTimeSlider::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	return TimeSliderController->OnMouseButtonUp( *this,  MyGeometry, MouseEvent );
+	return TimeSliderController->OnTimeSliderMouseButtonUp( *this,  MyGeometry, MouseEvent );
 }
 
 FReply SSequencerTimeSlider::OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	return TimeSliderController->OnMouseMove( *this, MyGeometry, MouseEvent );
+	return TimeSliderController->OnTimeSliderMouseMove( *this, MyGeometry, MouseEvent );
+}
+
+FReply SSequencerTimeSlider::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	return TimeSliderController->OnMouseButtonDoubleClick( SharedThis(this), MyGeometry, MouseEvent );
 }
 
 FVector2D SSequencerTimeSlider::ComputeDesiredSize( float ) const
@@ -49,7 +54,7 @@ FVector2D SSequencerTimeSlider::ComputeDesiredSize( float ) const
 
 FReply SSequencerTimeSlider::OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	return TimeSliderController->OnMouseWheel( *this, MyGeometry, MouseEvent );
+	return TimeSliderController->OnTimeSliderMouseWheel( *this, MyGeometry, MouseEvent );
 }
 
 FCursorReply SSequencerTimeSlider::OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
