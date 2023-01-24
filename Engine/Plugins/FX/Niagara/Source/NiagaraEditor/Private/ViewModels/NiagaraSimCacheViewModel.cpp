@@ -443,6 +443,12 @@ void FNiagaraSimCacheViewModel::BuildEntries(TWeakPtr<SNiagaraSimCacheTreeView> 
 
 void FNiagaraSimCacheViewModel::UpdateCurrentEntries()
 {
+	// The overview panel is in charge of building these entries.
+	// Early out if they haven't been built yet.
+	if(!RootEntries.IsValidIndex(EmitterIndex +1))
+	{
+		return;
+	}
 	CurrentRootEntries.Empty();
 	CurrentRootEntries.Add(RootEntries[EmitterIndex + 1]);
 }
