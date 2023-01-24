@@ -17,7 +17,6 @@
 #include "UnrealEngine.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionPackageHelper.h"
-#include "AssetCompilingManager.h"
 #include "LevelUtils.h"
 #include "ActorFolder.h"
 
