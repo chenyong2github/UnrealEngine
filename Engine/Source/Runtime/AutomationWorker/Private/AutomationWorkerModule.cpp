@@ -300,7 +300,7 @@ void FAutomationWorkerModule::SendWorkerFound(const FMessageAddress& ControllerA
 	FString DeviceId = FPlatformMisc::GetDeviceId().IsEmpty() ? DeviceName : FPlatformMisc::GetDeviceId();
 
 	Response->DeviceName = DeviceName;
-	Response->InstanceName = FString::Printf(TEXT("%s-%s"), *DeviceId, *FApp::GetSessionId().ToString());
+	Response->InstanceName = FString::Printf(TEXT("%s-%s-%s"), *DeviceId, *FApp::GetSessionId().ToString(), *FApp::GetInstanceId().ToString());
 	Response->Platform = FPlatformProperties::PlatformName();
 	Response->SessionId = FApp::GetSessionId();
 	Response->OSVersionName = OSVersionString;
