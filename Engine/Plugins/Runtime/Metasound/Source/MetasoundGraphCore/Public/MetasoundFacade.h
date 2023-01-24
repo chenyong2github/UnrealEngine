@@ -165,4 +165,17 @@ namespace Metasound
 
 			FVertexInterface VertexInterface;
 	};
+
+
+	/** TNodeFacade further reduces boilerplate code by allowing shorthand node implementations.
+	 *  in the form: TNodeFacade<FMyOperator>
+	 */
+	template<typename OperatorType>
+	class TNodeFacade : public FNodeFacade
+	{
+	public:
+		TNodeFacade(const FNodeInitData& InInitData)
+			: FNodeFacade(InInitData.InstanceName, InInitData.InstanceID, TFacadeOperatorClass<OperatorType>())
+		{}
+	};
 }
