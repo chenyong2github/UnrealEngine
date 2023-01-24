@@ -166,12 +166,13 @@ public:
 
 	/** Capture and append the current callstack. */
 	void Add(
-		int64 CurrentOffset,
-		int64 CurrentTotalSize,
+		int64 Offset,
+		int64 Length,
 		UObject* SerializedObject,
 		FProperty* SerializedProperty,
 		TArrayView<const FName> DebugDataStack,
-		bool bSaveStackTrace,
+		bool bIsCollectingCallstacks,
+		bool bCollectCurrentCallstack,
 		int32 StackIgnoreCount);
 
 	/** Append other callstacks. */
@@ -212,7 +213,7 @@ public:
 
 private:
 	/** Adds a unique callstack to UniqueCallstacks map */
-	ANSICHAR* AddUniqueCallstack(UObject* SerializedObject, FProperty* SerializedProperty, uint32& OutCallstackCRC);
+	ANSICHAR* AddUniqueCallstack(bool bIsCollectingCallstacks, UObject* SerializedObject, FProperty* SerializedProperty, uint32& OutCallstackCRC);
 
 	/** The asset being serialized */
 	UObject* Asset;
@@ -291,7 +292,8 @@ public:
 		const TCHAR* CallstackCutoffText,
 		const int64 MaxDiffsToLog,
 		int32& InOutDiffsLogged,
-		TMap<FName, FArchiveDiffStats>& OutStats);
+		TMap<FName, FArchiveDiffStats>& OutStats,
+		bool bSuppressLogging = false);
 
 	/** Creates map with mismatching callstacks. */
 	static bool GenerateDiffMap(

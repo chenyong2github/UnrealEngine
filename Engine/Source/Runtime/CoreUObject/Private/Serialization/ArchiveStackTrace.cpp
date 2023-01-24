@@ -207,6 +207,7 @@ FArchiveCallstacks::FArchiveCallstacks(UObject* InAsset)
 	, bCallstacksDirty(true)
 	, StackTraceSize(65535)
 	, LastSerializeCallstack(nullptr)
+	, TotalSize(0)
 {
 	StackTrace = MakeUnique<ANSICHAR[]>(StackTraceSize);
 	StackTrace[0] = 0;
@@ -217,35 +218,41 @@ FName FArchiveCallstacks::GetAssetClass() const
 	return Asset != nullptr ? Asset->GetClass()->GetFName() : NAME_None;
 }
 
-ANSICHAR* FArchiveCallstacks::AddUniqueCallstack(UObject* SerializedObject, FProperty* SerializedProperty, uint32& OutCallstackCRC)
+ANSICHAR* FArchiveCallstacks::AddUniqueCallstack(bool bIsCollectingCallstacks, UObject* SerializedObject, FProperty* SerializedProperty, uint32& OutCallstackCRC)
 {
-	ANSICHAR* OutCallstack = nullptr;
-	OutCallstackCRC = FCrc::StrCrc32(StackTrace.Get());
-
-	if (FCallstackData* ExistingCallstack = UniqueCallstacks.Find(OutCallstackCRC))
+	ANSICHAR* Callstack = nullptr;
+	if (bIsCollectingCallstacks)
 	{
-		OutCallstack = ExistingCallstack->Callstack.Get();
+		OutCallstackCRC = FCrc::StrCrc32(StackTrace.Get());
+
+		if (FCallstackData* ExistingCallstack = UniqueCallstacks.Find(OutCallstackCRC))
+		{
+			Callstack = ExistingCallstack->Callstack.Get();
+		}
+		else
+		{
+			const int32 Len = FCStringAnsi::Strlen(StackTrace.Get()) + 1;
+			TUniquePtr<ANSICHAR[]> NewCallstack = MakeUnique<ANSICHAR[]>(Len);
+			FCStringAnsi::Strcpy(NewCallstack.Get(), Len, StackTrace.Get());
+			FCallstackData& NewEntry = UniqueCallstacks.Add(OutCallstackCRC, FCallstackData(MoveTemp(NewCallstack), SerializedObject, SerializedProperty));
+			Callstack = NewEntry.Callstack.Get();
+		}
 	}
 	else
 	{
-		const int32 Len = FCStringAnsi::Strlen(StackTrace.Get()) + 1;
-		TUniquePtr<ANSICHAR[]> Callstack = MakeUnique<ANSICHAR[]>(Len);
-		FCStringAnsi::Strcpy(Callstack.Get(), Len, StackTrace.Get());
-		FCallstackData& Data = UniqueCallstacks.Add(OutCallstackCRC, FCallstackData(MoveTemp(Callstack), SerializedObject, SerializedProperty));
-
-		OutCallstack = Data.Callstack.Get();
+		OutCallstackCRC = 0;
 	}
-
-	return OutCallstack;
+	return Callstack;
 }
 
 void FArchiveCallstacks::Add(
-	int64 CurrentOffset,
-	int64 CurrentTotalSize,
+	int64 Offset,
+	int64 Length,
 	UObject* SerializedObject,
 	FProperty* SerializedProperty,
 	TArrayView<const FName> DebugDataStack,
-	bool bSaveStackTrace,
+	bool bIsCollectingCallstacks,
+	bool bCollectCurrentCallstack,
 	int32 StackIgnoreCount)
 {
 	if (GIgnoreDiffManager.ShouldBypassDiff())
@@ -253,9 +260,11 @@ void FArchiveCallstacks::Add(
 		return;
 	}
 
-	TotalSize = CurrentTotalSize;
+	const int64 CurrentOffset = Offset;
+	TotalSize = FMath::Max(TotalSize, CurrentOffset + Length); 
 
-	if (bSaveStackTrace && GIgnoreDiffManager.ShouldIgnoreDiff() == false)
+	const bool bShouldCollectCallstack = bIsCollectingCallstacks && bCollectCurrentCallstack && !GIgnoreDiffManager.ShouldIgnoreDiff();
+	if (bShouldCollectCallstack)
 	{
 		StackTrace[0] = '\0';
 		FPlatformStackWalk::StackWalkAndDump(StackTrace.Get(), StackTraceSize, StackIgnoreCount);
@@ -297,22 +306,16 @@ void FArchiveCallstacks::Add(
 		if (CallstackAtOffsetMap.Num() == 0 || CurrentOffset > CallstackAtOffsetMap.Last().Offset)
 		{
 			// New data serialized at the end of archive buffer
-			if (bSaveStackTrace)
-			{
-				LastSerializeCallstack = AddUniqueCallstack(SerializedObject, SerializedProperty, CallstackCRC);
-			}
+			LastSerializeCallstack = AddUniqueCallstack(bIsCollectingCallstacks, SerializedObject, SerializedProperty, CallstackCRC);
 			CallstackAtOffsetMap.Add(FCallstackAtOffset {CurrentOffset, CallstackCRC, GIgnoreDiffManager.ShouldIgnoreDiff()});
 		}
 		else
 		{
 			// This happens usually after Seek() so we need to find the exiting offset or insert a new one
-			int32 CallstackToUpdateIndex = GetCallstackIndexAtOffset(CurrentOffset);
+			const int32 CallstackToUpdateIndex = GetCallstackIndexAtOffset(CurrentOffset);
 			check(CallstackToUpdateIndex != -1);
 			FCallstackAtOffset& CallstackToUpdate = CallstackAtOffsetMap[CallstackToUpdateIndex];
-			if (bSaveStackTrace)
-			{
-				LastSerializeCallstack = AddUniqueCallstack(SerializedObject, SerializedProperty, CallstackCRC);
-			}
+			LastSerializeCallstack = AddUniqueCallstack(bIsCollectingCallstacks, SerializedObject, SerializedProperty, CallstackCRC);
 			if (CallstackToUpdate.Offset == CurrentOffset)
 			{
 				CallstackToUpdate.Callstack = CallstackCRC;
@@ -324,6 +327,7 @@ void FArchiveCallstacks::Add(
 				CallstackAtOffsetMap.Insert(FCallstackAtOffset {CurrentOffset, CallstackCRC, GIgnoreDiffManager.ShouldIgnoreDiff()}, CallstackToUpdateIndex + 1);
 			}
 		}
+		check(CallstackCRC != 0 || !bShouldCollectCallstack);
 	}
 	else if (LastSerializeCallstack)
 	{
@@ -457,7 +461,6 @@ void FArchiveStackTraceWriter::Serialize(void* Data, int64 Length)
 	} BreakAtOffsetSettings;
 
 	const int64 CurrentOffset = DiffMapOffset + Tell();
-	const int64 CurrentTotalSize = DiffMapOffset + TotalSize();
 
 	if (BreakAtOffsetSettings.OffsetToBreakOn >= 0 && BreakAtOffsetSettings.OffsetToBreakOn >= CurrentOffset && BreakAtOffsetSettings.OffsetToBreakOn < CurrentOffset + Length)
 	{
@@ -475,19 +478,22 @@ void FArchiveStackTraceWriter::Serialize(void* Data, int64 Length)
 
 	if (Length > 0)
 	{
-		check(SerializeContext);
-		const bool bSaveStackTrace = DiffMap != nullptr && DiffMap->ContainsOffset(CurrentOffset);
+		UObject* SerializedObject = SerializeContext ? SerializeContext->SerializedObject : nullptr;
 		TArrayView<const FName> DebugStack;
 #if WITH_EDITOR
 		DebugStack = DebugDataStack;
 #endif
+		const bool bIsCollectingCallstacks = DiffMap != nullptr;
+		const bool bCollectCurrentCallstack = bIsCollectingCallstacks && DiffMap->ContainsOffset(CurrentOffset);
+
 		Callstacks.Add(
 			CurrentOffset,
-			CurrentTotalSize,
-			SerializeContext->SerializedObject,
+			Length,
+			SerializedObject,
 			GetSerializedProperty(),
 			DebugStack,
-			bSaveStackTrace,
+			bIsCollectingCallstacks,
+			bCollectCurrentCallstack,
 			StackIgnoreCount);
 	}
 
@@ -665,7 +671,8 @@ void FArchiveStackTraceWriter::Compare(
 	const TCHAR* CallstackCutoffText,
 	const int64 MaxDiffsToLog,
 	int32& InOutDiffsLogged,
-	TMap<FName, FArchiveDiffStats>& OutStats)
+	TMap<FName, FArchiveDiffStats>& OutStats,
+	bool bSuppressLogging)
 {
 #if !NO_LOGGING
 	const TCHAR* const Indent = FDiffFormatHelper::Get().Indent;
@@ -677,7 +684,7 @@ void FArchiveStackTraceWriter::Compare(
 	
 	if (SourceSize != DestSize)
 	{
-		UE_LOG(LogArchiveDiff, Warning, TEXT("%s: Size mismatch: on disk: %lld vs memory: %lld"), AssetFilename, SourceSize, DestSize);
+		UE_CLOG(!bSuppressLogging, LogArchiveDiff, Warning, TEXT("%s: Size mismatch: on disk: %lld vs memory: %lld"), AssetFilename, SourceSize, DestSize);
 		int64 SizeDiff = DestPackage.Size - SourcePackage.Size;
 		OutStats.FindOrAdd(AssetClass).DiffSize += SizeDiff;
 	}
@@ -720,7 +727,7 @@ void FArchiveStackTraceWriter::Compare(
 
 			if (DifferenceCallstackoffsetIndex < 0)
 			{
-				UE_LOG(LogArchiveDiff, Warning, TEXT("%s: Difference at offset %lld (absolute offset: %lld), unknown callstack"), AssetFilename, LocalOffset, DestAbsoluteOffset);
+				UE_CLOG(!bSuppressLogging, LogArchiveDiff, Warning, TEXT("%s: Difference at offset %lld (absolute offset: %lld), unknown callstack"), AssetFilename, LocalOffset, DestAbsoluteOffset);
 				continue;
 			}
 
@@ -802,7 +809,8 @@ void FArchiveStackTraceWriter::Compare(
 					DebugDataStackText = FString::Printf(TEXT("\r\n%s"), FDiffFormatHelper::Get().Indent) + FullStackText.RightChop(DebugDataIndex + 2);
 				}
 #endif
-				UE_LOG(
+				UE_CLOG(
+					!bSuppressLogging,
 					LogArchiveDiff,
 					Warning,
 					TEXT("%s: Difference at offset %lld%s (absolute offset: %lld): byte %d on disk, byte %d in memory, callstack:%s%s%s%s%s"),
@@ -819,7 +827,8 @@ void FArchiveStackTraceWriter::Compare(
 				);
 
 				const int BytesToLog = 128;
-				UE_LOG(
+				UE_CLOG(
+					!bSuppressLogging,
 					LogArchiveDiff,
 					Display,
 					TEXT("%s: Logging %d bytes around absolute offset: %lld (%016X) in the on disk (existing) package, (which corresponds to offset %lld (%016X) in the in-memory package)"),
@@ -832,7 +841,8 @@ void FArchiveStackTraceWriter::Compare(
 				);
 				FCompressionUtil::LogHexDump(SourcePackage.Data, SourcePackage.Size, SourceAbsoluteOffset - BytesToLog / 2, SourceAbsoluteOffset + BytesToLog / 2);
 
-				UE_LOG(
+				UE_CLOG(
+					!bSuppressLogging,
 					LogArchiveDiff,
 					Display,
 					TEXT("%s: Logging %d bytes around absolute offset: %lld (%016X) in the in memory (new) package"),
@@ -869,11 +879,11 @@ void FArchiveStackTraceWriter::Compare(
 	{
 		if (FirstUnreportedDiffIndex != -1)
 		{
-			UE_LOG(LogArchiveDiff, Warning, TEXT("%s: %lld difference(s) not logged (first at absolute offset: %lld)."), AssetFilename, NumDiffsLocal - NumDiffsLoggedLocal, FirstUnreportedDiffIndex);
+			UE_CLOG(!bSuppressLogging, LogArchiveDiff, Warning, TEXT("%s: %lld difference(s) not logged (first at absolute offset: %lld)."), AssetFilename, NumDiffsLocal - NumDiffsLoggedLocal, FirstUnreportedDiffIndex);
 		}
 		else
 		{
-			UE_LOG(LogArchiveDiff, Warning, TEXT("%s: %lld difference(s) not logged."), AssetFilename, NumDiffsLocal - NumDiffsLoggedLocal);
+			UE_CLOG(!bSuppressLogging, LogArchiveDiff, Warning, TEXT("%s: %lld difference(s) not logged."), AssetFilename, NumDiffsLocal - NumDiffsLoggedLocal);
 		}
 	}
 #endif
