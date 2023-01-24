@@ -493,6 +493,30 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeSettingsWidget()
 		.HAlign(HAlign_Right)
 		[
 			SNew(STextBlock)
+			.Text(LOCTEXT("PlaybackRate", "Playback Rate"))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SSpinBox<float>)
+			.MinDesiredWidth(50.0f)
+			.MinValue(0.0f)
+			.MinSliderValue(0.0f)
+			.MaxValue(10.0f)
+			.MaxSliderValue(10.0f)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Value(ViewModel, &FNiagaraBakerViewModel::GetPlaybackRate)
+			.OnValueChanged(ViewModel, &FNiagaraBakerViewModel::SetPlaybackRate)
+		]
+
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(10.0f)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		[
+			SNew(STextBlock)
 			.Text(this, &SNiagaraBakerWidget::GetCurrentTimeText)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("CurrentTimeSecondsTooltip", "Current time in seconds"), nullptr, DocLink, "CurrentTimeText"))
@@ -935,7 +959,7 @@ void SNiagaraBakerWidget::RefreshWidget()
 	BakerSettingsDetails->SetObject(OutputObject, true);
 }
 
-void SNiagaraBakerWidget::Tick(const FGeometry& AllottedGeometry, const double CurrentTime, const float DeltaTime)
+void SNiagaraBakerWidget::Tick(const FGeometry& AllottedGeometry, const double _UnusedCurrentTime, float DeltaTime)
 {
 	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
 	if (BakerSettings == nullptr)
@@ -946,6 +970,11 @@ void SNiagaraBakerWidget::Tick(const FGeometry& AllottedGeometry, const double C
 	const float DurationSeconds = BakerSettings->DurationSeconds;
 	if ( DurationSeconds > 0.0f )
 	{
+		if (TSharedPtr<FNiagaraBakerViewModel> ViewModel = WeakViewModel.Pin())
+		{
+			DeltaTime *= ViewModel->GetPlaybackRate();
+		}
+
 		if (PlaybackMode != EPlaybackMode::Stopped)
 		{
 			PreviewRelativeTime += PlaybackMode == EPlaybackMode::PlayingForward ? DeltaTime : -DeltaTime;

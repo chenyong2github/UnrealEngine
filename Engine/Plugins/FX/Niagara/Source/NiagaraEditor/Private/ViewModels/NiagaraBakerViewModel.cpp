@@ -45,11 +45,6 @@ void FNiagaraBakerViewModel::Initialize(TWeakPtr<FNiagaraSystemViewModel> InWeak
 		.WeakViewModel(this->AsShared());
 }
 
-void FNiagaraBakerViewModel::RefreshView()
-{
-	//-TOOD:
-}
-
 void FNiagaraBakerViewModel::SetDisplayTimeFromNormalized(float NormalizeTime)
 {
 	if ( Widget )
