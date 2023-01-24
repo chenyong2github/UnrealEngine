@@ -3,7 +3,6 @@
 #include "NNERuntimeORT.h"
 #include "NNERuntimeORTUtils.h"
 #include "NNEProfilingTimer.h"
-#include "RedirectCoutAndCerrToUeLog.h"
 
 #if PLATFORM_WINDOWS
 
@@ -78,7 +77,6 @@ namespace UE::NNERuntimeORT::Private
 		try
 #endif //WITH_EDITOR
 		{
-			const FRedirectCoutAndCerrToUeLog RedirectCoutAndCerrToUeLog;
 			if (!InitializedAndConfigureMembers())
 			{
 				UE_LOG(LogNNE, Warning, TEXT("Load(): InitializedAndConfigureMembers failed."));

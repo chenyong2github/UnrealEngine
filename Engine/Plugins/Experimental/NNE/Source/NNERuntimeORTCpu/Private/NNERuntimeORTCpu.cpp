@@ -9,7 +9,6 @@
 #include "NNERuntimeORTCpuModel.h"
 #include "NNERuntimeORTCpuUtils.h"
 #include "NNEUtilsModelOptimizer.h"
-#include "RedirectCoutAndCerrToUeLog.h"
 
 FGuid UNNERuntimeORTCpuImpl::GUID = FGuid((int32)'O', (int32)'C', (int32)'P', (int32)'U');
 int32 UNNERuntimeORTCpuImpl::Version = 0x00000001;

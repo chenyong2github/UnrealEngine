@@ -8,7 +8,6 @@
 #include "NNECoreModelData.h"
 #include "NNECoreModelOptimizerInterface.h"
 #include "NNEProfilingTimer.h"
-#include "RedirectCoutAndCerrToUeLog.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NNERuntimeORT)
 

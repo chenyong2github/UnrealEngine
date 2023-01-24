@@ -3,7 +3,6 @@
 #include "NNERuntimeORTCpu.h"
 #include "NNERuntimeORTCpuUtils.h"
 #include "NNEProfilingTimer.h"
-#include "RedirectCoutAndCerrToUeLog.h"
 
 namespace UE::NNERuntimeORTCpu::Private
 {
@@ -48,7 +47,6 @@ namespace UE::NNERuntimeORTCpu::Private
 		try
 #endif //WITH_EDITOR
 		{
-			const FRedirectCoutAndCerrToUeLog RedirectCoutAndCerrToUeLog;
 			if (!InitializedAndConfigureMembers())
 			{
 				UE_LOG(LogNNE, Warning, TEXT("Load(): InitializedAndConfigureMembers failed."));
