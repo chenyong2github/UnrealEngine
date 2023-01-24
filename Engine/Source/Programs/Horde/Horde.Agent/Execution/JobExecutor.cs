@@ -1211,7 +1211,7 @@ namespace Horde.Agent.Execution
 						{
 							string taskName = logEvent.GetProperty<string>("name");
 							int duration = logEvent.GetProperty<int>("duration");
-							_logger.LogInformation("Executed XGE task '{XgeTaskName}' on agent '{XgeAgent}' for {Duration} secs", taskName, agentName, duration);	
+							_logger.LogInformation("Executed XGE task {XgeTaskName} on agent {XgeAgent} for {Duration} ms", taskName, agentName, duration);	
 						}
 					}
 					catch (Exception e)
