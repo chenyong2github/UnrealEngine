@@ -47,6 +47,7 @@ protected:
 	virtual bool PostInitializeCaptureViewport(TSharedPtr<FSceneViewport>& InSceneViewport) override;
 	virtual bool UpdateSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport) override;
 	virtual bool UpdateRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget) override;
+	virtual bool UpdateAudioDeviceImpl(const FAudioDeviceHandle& InAudioDeviceHandle) override;
 	virtual void StopCaptureImpl(bool bAllowPendingFrameToBeProcess) override;
 	virtual bool ShouldCaptureRHIResource() const override;
 
@@ -63,6 +64,7 @@ private:
 
 private:
 	bool InitBlackmagic(UBlackmagicMediaOutput* InMediaOutput);
+	bool CreateAudioOutput(const FAudioDeviceHandle& InAudioDeviceHandle, const UBlackmagicMediaOutput* InBlackmagicMediaOutput);
 	void WaitForSync_AnyThread();
 	void OutputAudio_AnyThread(const FCaptureBaseData& InBaseData, const BlackmagicDesign::FTimecode& Timecode);
 	void ApplyViewportTextureAlpha(TSharedPtr<FSceneViewport> InSceneViewport);

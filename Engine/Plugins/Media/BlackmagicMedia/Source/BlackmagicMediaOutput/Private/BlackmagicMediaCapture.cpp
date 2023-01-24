@@ -386,6 +386,11 @@ bool UBlackmagicMediaCapture::UpdateRenderTargetImpl(UTextureRenderTarget2D* InR
 	return true;
 }
 
+bool UBlackmagicMediaCapture::UpdateAudioDeviceImpl(const FAudioDeviceHandle& InAudioDeviceHandle)
+{
+	return CreateAudioOutput(InAudioDeviceHandle, Cast<UBlackmagicMediaOutput>(MediaOutput));
+}
+
 void UBlackmagicMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess)
 {
 	if (!bAllowPendingFrameToBeProcess)
@@ -605,14 +610,12 @@ bool UBlackmagicMediaCapture::InitBlackmagic(UBlackmagicMediaOutput* InBlackmagi
 	bOutputAudio = InBlackmagicMediaOutput->bOutputAudio;
 	NumOutputChannels = static_cast<uint8>(InBlackmagicMediaOutput->OutputChannelCount);
 
-	if (GEngine && bOutputAudio)
+	if (bOutputAudio)
 	{
-		UMediaIOCoreSubsystem::FCreateAudioOutputArgs Args;
-		Args.NumOutputChannels = static_cast<int32>(ChannelOptions.NumAudioChannels);
-		Args.TargetFrameRate = FrameRate;
-		Args.MaxSampleLatency = Align(InBlackmagicMediaOutput->AudioBufferSize, 4);
-		Args.OutputSampleRate = static_cast<uint32>(InBlackmagicMediaOutput->AudioSampleRate);
-		AudioOutput = GEngine->GetEngineSubsystem<UMediaIOCoreSubsystem>()->CreateAudioOutput(Args);
+		if (!CreateAudioOutput(AudioDeviceHandle, InBlackmagicMediaOutput))
+		{
+			UE_LOG(LogBlackmagicMediaOutput, Error, TEXT("Failed to initialize audio output."));
+		}
 	}
 	
 	check(EventCallback == nullptr);
@@ -648,6 +651,22 @@ bool UBlackmagicMediaCapture::InitBlackmagic(UBlackmagicMediaOutput* InBlackmagi
 	}
 
 	return true;
+}
+
+bool UBlackmagicMediaCapture::CreateAudioOutput(const FAudioDeviceHandle& InAudioDeviceHandle, const UBlackmagicMediaOutput* InBlackmagicMediaOutput)
+{
+	if (GEngine && bOutputAudio && InBlackmagicMediaOutput)
+	{
+		UMediaIOCoreSubsystem::FCreateAudioOutputArgs Args;
+		Args.NumOutputChannels = static_cast<int32>(InBlackmagicMediaOutput->OutputChannelCount);
+		Args.TargetFrameRate = FrameRate;
+		Args.MaxSampleLatency = Align(InBlackmagicMediaOutput->AudioBufferSize, 4);
+		Args.OutputSampleRate = static_cast<uint32>(InBlackmagicMediaOutput->AudioSampleRate);
+		Args.AudioDeviceHandle = InAudioDeviceHandle;
+		AudioOutput = GEngine->GetEngineSubsystem<UMediaIOCoreSubsystem>()->CreateAudioOutput(Args);
+		return AudioOutput.IsValid();
+	}
+	return false;
 }
 
 void UBlackmagicMediaCapture::LockDMATexture_RenderThread(FTextureRHIRef InTexture)
@@ -787,9 +806,16 @@ void UBlackmagicMediaCapture::WaitForSync_AnyThread()
 
 void UBlackmagicMediaCapture::OutputAudio_AnyThread(const FCaptureBaseData& InBaseData, const BlackmagicDesign::FTimecode& InTimecode)
 {
-	if (bOutputAudio && AudioOutput)
+	if (bOutputAudio)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UBlackmagicMediaCapture::OutputAudio);
+
+		// Take a local copy of the audio output in case it is switched from the main thread.
+		const TSharedPtr<FMediaIOAudioOutput> LocalAudioOutput = AudioOutput;
+		if(!LocalAudioOutput)
+		{
+			return;
+		}
 
 		const double NewTimestamp = FPlatformTime::Seconds();
 		double CurrentFrameTime = NewTimestamp - OutputAudioTimestamp;
@@ -802,8 +828,8 @@ void UBlackmagicMediaCapture::OutputAudio_AnyThread(const FCaptureBaseData& InBa
 
 		float FrameTimeRatio = CurrentFrameTime / TargetFrametime;
 
-		uint32_t NumSamplesToPull = FrameTimeRatio * AudioOutput->NumSamplesPerFrame;
-		NumSamplesToPull = FMath::Clamp<uint32_t>(NumSamplesToPull, 0, AudioOutput->NumSamplesPerFrame);
+		uint32_t NumSamplesToPull = FrameTimeRatio * LocalAudioOutput->NumSamplesPerFrame;
+		NumSamplesToPull = FMath::Clamp<uint32_t>(NumSamplesToPull, 0, LocalAudioOutput->NumSamplesPerFrame);
 
 		BlackmagicDesign::FAudioSamplesDescriptor AudioSamples;
 		AudioSamples.Timecode = InTimecode;
@@ -812,7 +838,7 @@ void UBlackmagicMediaCapture::OutputAudio_AnyThread(const FCaptureBaseData& InBa
 		
 		if (AudioBitDepth == EBlackmagicMediaOutputAudioBitDepth::Signed_32Bits)
 		{
-			TArray<int32> AudioBuffer = AudioOutput->GetAllAudioSamples<int32>();
+			TArray<int32> AudioBuffer = LocalAudioOutput->GetAllAudioSamples<int32>();
 			AudioSamples.AudioBuffer = reinterpret_cast<uint8_t*>(AudioBuffer.GetData());
 			AudioSamples.NumAudioSamples = AudioBuffer.Num() / NumOutputChannels;
 			AudioSamples.AudioBufferLength = AudioBuffer.Num() * sizeof(int32);
@@ -820,7 +846,7 @@ void UBlackmagicMediaCapture::OutputAudio_AnyThread(const FCaptureBaseData& InBa
 		}
 		else if (AudioBitDepth == EBlackmagicMediaOutputAudioBitDepth::Signed_16Bits)
 		{
-			TArray<int16> AudioBuffer = AudioOutput->GetAllAudioSamples<int16>();
+			TArray<int16> AudioBuffer = LocalAudioOutput->GetAllAudioSamples<int16>();
 			AudioSamples.AudioBuffer = reinterpret_cast<uint8_t*>(AudioBuffer.GetData());
 			AudioSamples.NumAudioSamples = AudioBuffer.Num() / NumOutputChannels;
 			AudioSamples.AudioBufferLength = AudioBuffer.Num() * sizeof(int16);

@@ -54,23 +54,14 @@ Audio::FAlignedFloatBuffer FMediaIOAudioOutput::GetFloatBuffer(uint32 NumSamples
 	return FloatBuffer;
 }
 
-FMediaIOAudioCapture::FMediaIOAudioCapture()
+FMediaIOAudioCapture::FMediaIOAudioCapture(const FAudioDeviceHandle& InAudioDeviceHandle)
 {
-	RegisterMainAudioDevice();
-#if WITH_EDITOR
-	FEditorDelegates::PostPIEStarted.AddRaw(this, &FMediaIOAudioCapture::OnPIEStarted);
-	FEditorDelegates::PrePIEEnded.AddRaw(this, &FMediaIOAudioCapture::OnPIEEnded);
-#endif
+	RegisterAudioDevice(InAudioDeviceHandle);
 }
 
 FMediaIOAudioCapture::~FMediaIOAudioCapture()
 {
-#if WITH_EDITOR
-	FEditorDelegates::EndPIE.RemoveAll(this);
-	FEditorDelegates::PostPIEStarted.RemoveAll(this);
-#endif
-
-	UnregisterMainAudioDevice();
+	UnregisterAudioDevice();
 }
 
 void FMediaIOAudioCapture::OnNewSubmixBuffer(const USoundSubmix* InOwningSubmix, float* InAudioData, int32 InNumSamples, int32 InNumChannels, const int32 InSampleRate, double InAudioClock)
@@ -131,50 +122,11 @@ TSharedPtr<FMediaIOAudioOutput> FMediaIOAudioCapture::CreateAudioOutput(int32 In
 	return nullptr;
 }
 
-#if WITH_EDITOR
-void FMediaIOAudioCapture::OnPIEStarted(const bool)
-{
-	UnregisterMainAudioDevice();
-	
-	if (GEditor)
-	{
-		if (FWorldContext* PIEWorldContext = GEditor->GetPIEWorldContext())
-		{
-			Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(PIEWorldContext->World()->GetAudioDeviceRaw());
-			RegisterBufferListener(MixerDevice);
-		}
-	}
-}
-
-void FMediaIOAudioCapture::OnPIEEnded(const bool)
-{
-	if (GEditor)
-	{
-		if (FWorldContext* PIEWorldContext = GEditor->GetPIEWorldContext())
-		{
-			UnregisterBufferListener(PIEWorldContext->World()->GetAudioDeviceRaw());
-		}
-	}
-	
-	RegisterMainAudioDevice();
-}
-#endif
-
-void FMediaIOAudioCapture::RegisterMainAudioDevice()
-{
-	RegisterBufferListener(GEngine->GetMainAudioDeviceRaw());
-}
-
-void FMediaIOAudioCapture::UnregisterMainAudioDevice()
-{
-	UnregisterBufferListener(GEngine->GetMainAudioDeviceRaw());
-}
-
 void FMediaIOAudioCapture::RegisterBufferListener(FAudioDevice* AudioDevice)
 {
 	if (AudioDevice && AudioDevice->IsAudioMixerEnabled())
 	{
-		Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice);
+		const Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice);
 		NumChannels = MixerDevice->GetDeviceOutputChannels();
 		SampleRate = MixerDevice->GetSampleRate();
 		PrimarySubmixName = *GetDefault<UAudioSettings>()->MasterSubmix.GetAssetName();
@@ -190,5 +142,87 @@ void FMediaIOAudioCapture::UnregisterBufferListener(FAudioDevice* AudioDevice)
 	}
 }
 
+void FMediaIOAudioCapture::RegisterAudioDevice(const FAudioDeviceHandle& InAudioDeviceHandle)
+{
+	// Can only be registered to one device.
+	UnregisterAudioDevice();
+
+	if (InAudioDeviceHandle.IsValid())
+	{
+		RegisterBufferListener(InAudioDeviceHandle.GetAudioDevice());
+		RegisteredDeviceId = InAudioDeviceHandle.GetDeviceID();
+	}
+}
+
+void FMediaIOAudioCapture::UnregisterAudioDevice()
+{
+	if (RegisteredDeviceId != INDEX_NONE)
+	{
+		if (FAudioDevice* RegisteredDevice = GEngine->GetAudioDeviceManager()->GetAudioDeviceRaw(RegisteredDeviceId))
+		{
+			UnregisterBufferListener(RegisteredDevice);
+		}
+		RegisteredDeviceId = INDEX_NONE;
+	}
+}
+
+FMainMediaIOAudioCapture::FMainMediaIOAudioCapture()
+	: FMediaIOAudioCapture(FAudioDeviceHandle())
+{
+	RegisterMainAudioDevice();
+#if WITH_EDITOR
+	FEditorDelegates::PostPIEStarted.AddRaw(this, &FMainMediaIOAudioCapture::OnPIEStarted);
+	FEditorDelegates::PrePIEEnded.AddRaw(this, &FMainMediaIOAudioCapture::OnPIEEnded);
+#endif
+}
+
+FMainMediaIOAudioCapture::~FMainMediaIOAudioCapture()
+{
+#if WITH_EDITOR
+	FEditorDelegates::EndPIE.RemoveAll(this);
+	FEditorDelegates::PostPIEStarted.RemoveAll(this);
+#endif
+
+	UnregisterMainAudioDevice();
+}
+
+#if WITH_EDITOR
+void FMainMediaIOAudioCapture::OnPIEStarted(const bool)
+{
+	UnregisterMainAudioDevice();
+	
+	if (GEditor)
+	{
+		if (FWorldContext* PIEWorldContext = GEditor->GetPIEWorldContext())
+		{
+			Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(PIEWorldContext->World()->GetAudioDeviceRaw());
+			RegisterBufferListener(MixerDevice);
+		}
+	}
+}
+
+void FMainMediaIOAudioCapture::OnPIEEnded(const bool)
+{
+	if (GEditor)
+	{
+		if (FWorldContext* PIEWorldContext = GEditor->GetPIEWorldContext())
+		{
+			UnregisterBufferListener(PIEWorldContext->World()->GetAudioDeviceRaw());
+		}
+	}
+	
+	RegisterMainAudioDevice();
+}
+#endif
+
+void FMainMediaIOAudioCapture::RegisterMainAudioDevice()
+{
+	RegisterBufferListener(GEngine->GetMainAudioDeviceRaw());
+}
+
+void FMainMediaIOAudioCapture::UnregisterMainAudioDevice()
+{
+	UnregisterBufferListener(GEngine->GetMainAudioDeviceRaw());
+}
 
 #undef LOCTEXT_NAMESPACE //MediaIOAudioOutput

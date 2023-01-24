@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 
 #include <atomic>
+#include "AudioDeviceHandle.h"
 #include "Containers/SpscQueue.h"
 #include "HAL/CriticalSection.h"
 #include "MediaOutput.h"
@@ -303,6 +304,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Media|Output")
 	void SetMediaOutput(UMediaOutput* InMediaOutput);
 
+	/** Set the audio device to capture. */
+	bool SetCaptureAudioDevice(const FAudioDeviceHandle& InAudioDeviceHandle);
+
+	/** Get the audio device to capture. */
+	const FAudioDeviceHandle& GetCaptureAudioDevice() const { return AudioDeviceHandle; }
+	
 	/** Get the desired size of the current capture. */
 	UFUNCTION(BlueprintCallable, Category = "Media|Output")
 	FIntPoint GetDesiredSize() const { return DesiredSize; }
@@ -341,6 +348,7 @@ public:
 	
 	virtual bool UpdateSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport) { return true; }
 	virtual bool UpdateRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget) { return true; }
+	virtual bool UpdateAudioDeviceImpl(const FAudioDeviceHandle& InAudioDeviceHandle) { return true; }
 
 	static const TSet<EPixelFormat>& GetSupportedRgbaSwizzleFormats();
 
@@ -541,6 +549,9 @@ protected:
 	/** MediaOutput associated with this capture */
 	UPROPERTY(Transient)
 	TObjectPtr<UMediaOutput> MediaOutput;
+
+	/** Audio device to be captured. If none, main engine's audio device is captured. */
+	FAudioDeviceHandle AudioDeviceHandle;
 	
 	/** Output size of the media capture. If a conversion is done, this resolution might be different than source resolution. i.e. 1080p RGB might be 960x1080 in YUV */
 	FIntPoint DesiredOutputSize = FIntPoint(1920, 1080);

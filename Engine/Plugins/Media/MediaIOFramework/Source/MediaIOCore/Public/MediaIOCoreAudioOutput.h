@@ -11,6 +11,7 @@
 #endif
 
 class FAudioDevice;
+class FAudioDeviceHandle;
 
 class MEDIAIOCORE_API FMediaIOAudioOutput
 { 
@@ -138,12 +139,12 @@ private:
 };
 
 /**
- * Handles capturing capturing audio samples rendered by the engine and dispatching them to outputs.
+ * Handles capturing audio samples rendered by the engine and dispatching them to outputs.
  */
 class FMediaIOAudioCapture : public ISubmixBufferListener
 {
 public:
-	FMediaIOAudioCapture();
+	FMediaIOAudioCapture(const FAudioDeviceHandle& InAudioDeviceHandle);
 	virtual ~FMediaIOAudioCapture();
 
 	//~ ISubmixBufferListener interface
@@ -152,17 +153,18 @@ public:
 	/** Create an audio output that will receive audio samples. */
 	TSharedPtr<FMediaIOAudioOutput> CreateAudioOutput(int32 InNumOutputChannels, FFrameRate InTargetFrameRate, uint32 InMaxSampleLatency, uint32 InOutputSampleRate);
 
-private:
-#if WITH_EDITOR
-	void OnPIEStarted(const bool);
-	void OnPIEEnded(const bool);
-#endif
-
-	void RegisterMainAudioDevice();
-	void UnregisterMainAudioDevice();
+protected:
 	void RegisterBufferListener(FAudioDevice* AudioDevice);
 	void UnregisterBufferListener(FAudioDevice* AudioDevice);
+
 private:
+	void RegisterAudioDevice(const FAudioDeviceHandle& InAudioDeviceHandle);
+	void UnregisterAudioDevice();
+
+private:
+	/** Audio device Id this buffer listener is registered to. */
+	Audio::FDeviceId RegisteredDeviceId = INDEX_NONE;
+	
 	/** Sample rate on the engine side. */ 
 	uint32 SampleRate = 0;
 
@@ -174,4 +176,26 @@ private:
 
 	/** Utility that allows pushing audio samples to multiple outputs. */
 	Audio::FPatchSplitter AudioSplitter;
+};
+
+/**
+ * Audio capture that automatically registers to the main engine device.
+ * Also, handles automatically registering to the current PIE world's audio device.
+ * This audio capture is used by default if no audio device handle is specified when media capture
+ * creates the audio output.
+ */
+class FMainMediaIOAudioCapture : public FMediaIOAudioCapture
+{
+public:
+	FMainMediaIOAudioCapture();
+	virtual ~FMainMediaIOAudioCapture();
+
+private:
+#if WITH_EDITOR
+	void OnPIEStarted(const bool);
+	void OnPIEEnded(const bool);
+#endif
+
+	void RegisterMainAudioDevice();
+	void UnregisterMainAudioDevice();
 };

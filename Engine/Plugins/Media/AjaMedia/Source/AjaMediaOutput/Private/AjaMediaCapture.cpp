@@ -297,6 +297,11 @@ bool UAjaMediaCapture::UpdateRenderTargetImpl(UTextureRenderTarget2D* InRenderTa
 	return true;
 }
 
+bool UAjaMediaCapture::UpdateAudioDeviceImpl(const FAudioDeviceHandle& InAudioDeviceHandle)
+{
+	return CreateAudioOutput(InAudioDeviceHandle, Cast<UAjaMediaOutput>(MediaOutput));
+}
+
 void UAjaMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess)
 {
 	if (!bAllowPendingFrameToBeProcess)
@@ -468,14 +473,12 @@ bool UAjaMediaCapture::InitAJA(UAjaMediaOutput* InAjaMediaOutput)
 
 	bOutputAudio = InAjaMediaOutput->bOutputAudio;
 	
-	if (GEngine && bOutputAudio)
+	if (bOutputAudio)
 	{
-		UMediaIOCoreSubsystem::FCreateAudioOutputArgs Args;
-		Args.NumOutputChannels = static_cast<uint32>(InAjaMediaOutput->NumOutputAudioChannels);
-		Args.TargetFrameRate = FrameRate;
-		Args.MaxSampleLatency = InAjaMediaOutput->AudioBufferSize;
-		Args.OutputSampleRate = static_cast<uint32>(InAjaMediaOutput->AudioSampleRate);
-		AudioOutput = GEngine->GetEngineSubsystem<UMediaIOCoreSubsystem>()->CreateAudioOutput(Args);
+		if (!CreateAudioOutput(AudioDeviceHandle, InAjaMediaOutput))
+		{
+			UE_LOG(LogAjaMediaOutput, Error, TEXT("Failed to initialize audio output."));
+		}
 	}
 	
 	PixelFormat = InAjaMediaOutput->PixelFormat;
@@ -509,6 +512,22 @@ bool UAjaMediaCapture::InitAJA(UAjaMediaOutput* InAjaMediaOutput)
 	}
 
 	return true;
+}
+
+bool UAjaMediaCapture::CreateAudioOutput(const FAudioDeviceHandle& InAudioDeviceHandle, const UAjaMediaOutput* InAjaMediaOutput)
+{
+	if (GEngine && bOutputAudio && InAjaMediaOutput)
+	{
+		UMediaIOCoreSubsystem::FCreateAudioOutputArgs Args;
+		Args.NumOutputChannels = static_cast<int32>(InAjaMediaOutput->NumOutputAudioChannels);
+		Args.TargetFrameRate = FrameRate;
+		Args.MaxSampleLatency = Align(InAjaMediaOutput->AudioBufferSize, 4);
+		Args.OutputSampleRate = static_cast<uint32>(InAjaMediaOutput->AudioSampleRate);
+		Args.AudioDeviceHandle = InAudioDeviceHandle;
+		AudioOutput = GEngine->GetEngineSubsystem<UMediaIOCoreSubsystem>()->CreateAudioOutput(Args);
+		return AudioOutput.IsValid();
+	}
+	return false;
 }
 
 void UAjaMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height, int32 BytesPerRow)
@@ -592,12 +611,19 @@ void UAjaMediaCapture::WaitForSync_AnyThread() const
 
 void UAjaMediaCapture::OutputAudio_AnyThread(const AJA::AJAOutputFrameBufferData& FrameBuffer) const
 {
-	if (bOutputAudio && AudioOutput)
+	if (bOutputAudio)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::SetAudio);
-
-		int32 NumSamplesToPull = FMath::RoundToInt32(48000.f * AudioOutput->NumInputChannels / FrameRate.AsDecimal());
-		TArray<int32> AudioSamples = AudioOutput->GetAudioSamples<int32>(NumSamplesToPull);
+		
+		// Take a local copy of the audio output in case it is switched from the main thread.
+		const TSharedPtr<FMediaIOAudioOutput> LocalAudioOutput = AudioOutput;
+		if(!LocalAudioOutput)
+		{
+			return;
+		}
+		
+		const int32 NumSamplesToPull = FMath::RoundToInt32(48000.f * LocalAudioOutput->NumInputChannels / FrameRate.AsDecimal());
+		TArray<int32> AudioSamples = LocalAudioOutput->GetAudioSamples<int32>(NumSamplesToPull);
 		OutputChannel->SetAudioFrameData(FrameBuffer, reinterpret_cast<uint8*>(AudioSamples.GetData()), AudioSamples.Num() * sizeof(int32));
 	}
 }

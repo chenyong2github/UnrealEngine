@@ -1347,6 +1347,20 @@ void UMediaCapture::SetMediaOutput(UMediaOutput* InMediaOutput)
 	}
 }
 
+bool UMediaCapture::SetCaptureAudioDevice(const FAudioDeviceHandle& InAudioDeviceHandle)
+{
+	bool bSuccess = true;
+	if (CaptureSource)
+	{
+		bSuccess = UpdateAudioDeviceImpl(InAudioDeviceHandle);
+	}
+	if (bSuccess)
+	{
+		AudioDeviceHandle = InAudioDeviceHandle;
+	}
+	return bSuccess;
+}
+
 void UMediaCapture::CaptureImmediate_RenderThread(FRDGBuilder& GraphBuilder, FRHITexture* InSourceTexture)
 {
 	UE::MediaCaptureData::FCaptureFrameArgs CaptureArgs{GraphBuilder};
