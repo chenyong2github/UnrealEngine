@@ -610,7 +610,7 @@ namespace EpicGames.Core
 		/// </summary>
 		public IReadOnlyList<LogEvent> LogEvents => _logEvents;
 		
-		private readonly List<LogEvent> _logEvents = new();
+		private readonly List<LogEvent> _logEvents = new List<LogEvent>();
 		private readonly int[] _includeEventIds;
 		private readonly Action<LogEvent>? _eventCallback;
 		
