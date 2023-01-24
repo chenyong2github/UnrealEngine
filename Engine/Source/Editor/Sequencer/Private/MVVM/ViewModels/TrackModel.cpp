@@ -23,6 +23,7 @@
 #include "MovieSceneNameableTrack.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Tracks/MovieScenePrimitiveMaterialTrack.h"
+#include "EntitySystem/IMovieSceneBlenderSystemSupport.h"
 
 #include "ISequencer.h"
 #include "ISequencerSection.h"
@@ -644,6 +645,8 @@ void FTrackModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		return;
 	}
 
+	TWeakPtr<ISequencer> WeakSequencer = GetEditor()->GetSequencer();
+
 	const int32 TrackRowIndex = GetRowIndex();
 
 	if (TrackEditor)
@@ -653,8 +656,6 @@ void FTrackModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 	if (Track && Track->GetSupportedBlendTypes().Num() > 0)
 	{
-		TWeakPtr<ISequencer> WeakSequencer = GetEditor()->GetSequencer();
-
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("AddSection", "Add Section"),
 			FText(),
@@ -662,6 +663,25 @@ void FTrackModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				FSequencerUtilities::PopulateMenu_CreateNewSection(SubMenuBuilder, TrackRowIndex + 1, Track, WeakSequencer);
 			})
 		);	
+	}
+
+	// Add menu items for selecting a blender
+	IMovieSceneBlenderSystemSupport* BlenderSystemSupport = Cast<IMovieSceneBlenderSystemSupport>(Track);
+	if (BlenderSystemSupport)
+	{
+		TArray<TSubclassOf<UMovieSceneBlenderSystem>> BlenderTypes;
+		BlenderSystemSupport->GetSupportedBlenderSystems(BlenderTypes);
+
+		if (BlenderTypes.Num() > 1)
+		{
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("BlendingAlgorithmSubMenu", "Blending Algorithm"),
+				FText(),
+				FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder){
+					FSequencerUtilities::PopulateMenu_BlenderSubMenu(SubMenuBuilder, Track, WeakSequencer);
+				})
+			);
+		}
 	}
 
 	// Find sections in the track to add batch properties for

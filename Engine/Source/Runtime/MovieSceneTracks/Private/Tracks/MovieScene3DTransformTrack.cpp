@@ -6,6 +6,8 @@
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Channels/MovieSceneChannelProxy.h"
+#include "Systems/MovieSceneQuaternionBlenderSystem.h"
+#include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 #include "MovieSceneCommonHelpers.h"
 #include "Algo/BinarySearch.h"
 
@@ -36,6 +38,30 @@ UMovieSceneSection* UMovieScene3DTransformTrack::CreateNewSection()
 	return NewObject<UMovieScene3DTransformSection>(this, NAME_None, RF_Transactional);
 }
 
+TSubclassOf<UMovieSceneBlenderSystem> UMovieScene3DTransformTrack::GetBlenderSystem() const
+{
+	if (BlenderSystemClass == nullptr)
+	{
+		return UMovieScenePiecewiseDoubleBlenderSystem::StaticClass();
+	}
+	return BlenderSystemClass;
+}
+
+void UMovieScene3DTransformTrack::SetBlenderSystem(TSubclassOf<UMovieSceneBlenderSystem> InBlenderSystemClass)
+{
+	if (InBlenderSystemClass == UMovieScenePiecewiseDoubleBlenderSystem::StaticClass())
+	{
+		InBlenderSystemClass = nullptr;
+	}
+
+	BlenderSystemClass = InBlenderSystemClass;
+}
+
+void UMovieScene3DTransformTrack::GetSupportedBlenderSystems(TArray<TSubclassOf<UMovieSceneBlenderSystem>>& OutSystemClasses) const
+{
+	OutSystemClasses.Add(UMovieSceneQuaternionBlenderSystem::StaticClass());
+	OutSystemClasses.Add(UMovieScenePiecewiseDoubleBlenderSystem::StaticClass());
+}
 
 #if WITH_EDITOR
 

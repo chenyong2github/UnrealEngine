@@ -14,6 +14,8 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneBlenderSystem.h"
+#include "EntitySystem/IMovieSceneBlenderSystemSupport.h"
 #include "Containers/ArrayView.h"
 #include "Channels/MovieSceneChannel.h"
 #include "UObject/SequencerObjectVersion.h"
@@ -323,8 +325,24 @@ void UMovieSceneSection::BuildDefaultComponents(UMovieSceneEntitySystemLinker* E
 	const bool bHasSectionPreRoll  = Params.EntityMetaData && EnumHasAnyFlags(Params.EntityMetaData->Flags, ESectionEvaluationFlags::PreRoll | ESectionEvaluationFlags::PostRoll);
 	const bool bHasSequencePreRoll = Params.Sequence.bPreRoll || Params.Sequence.bPostRoll;
 
+	TSubclassOf<UMovieSceneBlenderSystem> BlenderSystemClass = nullptr;
+
+	// Try and find a blender system to use
+	{
+		IMovieSceneBlenderSystemSupport* BlenderSystemSupport = Cast<IMovieSceneBlenderSystemSupport>(this);
+		if (!BlenderSystemSupport)
+		{
+			BlenderSystemSupport = GetImplementingOuter<IMovieSceneBlenderSystemSupport>();
+		}
+		if (BlenderSystemSupport)
+		{
+			BlenderSystemClass = BlenderSystemSupport->GetBlenderSystem();
+		}
+	}
+
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()
+		.AddConditional(Components->BlenderType,                BlenderSystemClass, BlenderSystemClass.Get() != nullptr)
 		.AddConditional(Components->Easing,                     FEasingComponentData{ decltype(FEasingComponentData::Section)(this) }, bHasEasing)
 		.AddConditional(Components->HierarchicalBias,           Params.Sequence.HierarchicalBias, Params.Sequence.HierarchicalBias != 0)
 		.AddConditional(Components->Interrogation.InputKey,     Params.InterrogationKey, Params.InterrogationKey.IsValid())

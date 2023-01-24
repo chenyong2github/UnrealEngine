@@ -557,6 +557,17 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 	}
 
 	/**
+	 * Write all of the specified components and pass them through to the task as individual parameters
+	 *
+	 * @param ComponentTypes  The component types to visit
+	 */
+	template<typename... U>
+	TEntityTaskComponents<T..., TWriteAccess<U>...> WriteAllOf(TComponentTypeID<U>... ComponentTypes) const
+	{
+		return TEntityTaskComponents<T..., TWriteAccess<U>... >( CommonParams, Accessors.template Get<Indices>()..., TWriteAccess<U>(ComponentTypes)... );
+	}
+
+	/**
 	 * Write the type-erased value of a component. Passed to the task as a void*
 	 * @note Supplying an invalid ComponentType will be handled gracefully, but will result in no task being dispatched.
 	 *

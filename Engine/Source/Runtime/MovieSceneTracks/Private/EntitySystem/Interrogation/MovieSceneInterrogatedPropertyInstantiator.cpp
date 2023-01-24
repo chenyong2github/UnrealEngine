@@ -195,7 +195,8 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 		Output->BlendChannel = INVALID_BLEND_CHANNEL;
 	}
 
-	Output->Blender = CastChecked<UMovieSceneBlenderSystem>(Linker->LinkSystem(BlenderClass));
+	UMovieSceneBlenderSystem* BlenderSystem = CastChecked<UMovieSceneBlenderSystem>(Linker->LinkSystem(BlenderClass));
+	Output->Blender = BlenderSystem;
 
 	const bool bWasAlreadyBlended = Output->BlendChannel != INVALID_BLEND_CHANNEL;
 	if (!bWasAlreadyBlended)
@@ -239,6 +240,7 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 		.Add(BuiltInComponents->BlendChannelOutput, BlendChannel)
 		.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, Output->PropertyEntityID.IsValid())
 		.AddTag(BuiltInComponents->Tags.NeedsLink)
+		.AddTag(BlenderSystem->GetBlenderTypeTag())
 		.AddMutualComponents()
 		.CreateEntity(&Linker->EntityManager, NewMask);
 
@@ -277,6 +279,7 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 	{
 		const FMovieSceneBlendChannelID BlendChannel(Output->Blender->GetBlenderSystemID(), Output->BlendChannel);
 		Linker->EntityManager.AddComponent(Input, BuiltInComponents->BlendChannelInput, BlendChannel);
+		Linker->EntityManager.AddComponent(Input, BlenderSystem->GetBlenderTypeTag());
 		Linker->EntityManager.RemoveComponents(Input, CleanFastPathMask);
 	}
 }

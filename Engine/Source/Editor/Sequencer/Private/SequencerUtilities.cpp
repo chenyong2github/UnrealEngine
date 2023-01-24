@@ -25,6 +25,8 @@
 #include "Styling/AppStyle.h"
 #include "MovieSceneCopyableBinding.h"
 #include "MovieSceneCopyableTrack.h"
+#include "EntitySystem/MovieSceneBlenderSystem.h"
+#include "EntitySystem/IMovieSceneBlenderSystemSupport.h"
 #include "MovieSceneFolder.h"
 #include "MovieSceneSection.h"
 #include "MovieSceneSpawnRegister.h"
@@ -36,6 +38,7 @@
 #include "Tracks/MovieSceneSpawnTrack.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Styling/SlateIconFinder.h"
 #include "ISequencerTrackEditor.h"
 #include "ISequencer.h"
 #include "Sequencer.h"
@@ -258,6 +261,50 @@ void FSequencerUtilities::PopulateMenu_CreateNewSection(FMenuBuilder& MenuBuilde
 			TooltipOverride.IsEmpty() ? FText::Format(LOCTEXT("AddSectionFormatToolTip", "Adds a new {0} section at the current time"), DisplayName) : TooltipOverride,
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), EnumValueName),
 			FUIAction(FExecuteAction::CreateLambda(CreateNewSection, BlendType))
+		);
+	}
+}
+
+void FSequencerUtilities::PopulateMenu_BlenderSubMenu(FMenuBuilder& MenuBuilder, UMovieSceneTrack* Track, TWeakPtr<ISequencer> InSequencer)
+{
+	IMovieSceneBlenderSystemSupport* BlenderSystemSupport = Cast<IMovieSceneBlenderSystemSupport>(Track);
+	// Shouldn't have been called with a track that does not implement this interface
+	check(BlenderSystemSupport);
+
+	TArray<TSubclassOf<UMovieSceneBlenderSystem>> BlenderTypes;
+	BlenderSystemSupport->GetSupportedBlenderSystems(BlenderTypes);
+
+	// Ensure no nulls
+	BlenderTypes.Remove(TSubclassOf<UMovieSceneBlenderSystem>());
+
+	// Sort alphabetically
+	Algo::Sort(BlenderTypes,
+		[](TSubclassOf<UMovieSceneBlenderSystem> A, TSubclassOf<UMovieSceneBlenderSystem> B)
+		{
+			return A->GetDisplayNameText().CompareTo(B->GetDisplayNameText()) < 0;
+		}
+	);
+
+	for (TSubclassOf<UMovieSceneBlenderSystem> SystemClass : BlenderTypes)
+	{
+		MenuBuilder.AddMenuEntry(
+			SystemClass->GetDisplayNameText(),
+			SystemClass->GetToolTipText(),
+			FSlateIconFinder::FindIconForClass(SystemClass.Get()),
+			FUIAction(
+				FExecuteAction::CreateLambda([Track, BlenderSystemSupport, SystemClass]{
+					FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeBlenderType", "Change blender to '{0}'"), SystemClass.Get()->GetDisplayNameText()));
+
+					Track->Modify();
+					BlenderSystemSupport->SetBlenderSystem(SystemClass);
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([BlenderSystemSupport, SystemClass]
+				{
+					return BlenderSystemSupport->GetBlenderSystem() == SystemClass;
+				})),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
 		);
 	}
 }
