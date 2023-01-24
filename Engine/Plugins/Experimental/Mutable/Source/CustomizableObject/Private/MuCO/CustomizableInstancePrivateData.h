@@ -26,25 +26,24 @@ enum ECOInstanceFlags
 	Updating						= 1 << 0,	//
 	CreatingSkeletalMesh			= 1 << 1,	//
 	Generated						= 1 << 2,	//
-	AssetsLoaded					= 1 << 3,	// Assets required to generate a mesh. Mainly Materials, PhysicsAssets and AnimBps 
-	ReduceLODs						= 1 << 4,	// CurrentMinLOD will be mapped to the LOD 0 of the generated SkeletalMesh. 
-	ReuseTextures					= 1 << 5, 	// 
-	ReplacePhysicsAssets			= 1 << 6,	// Merge active PhysicsAssets and replace the base physics asset
-	PendingMeshUpdate				= 1 << 7,	// Internaly used to know if we should regenerate the SkeletalMeshes when updating the instance
+	ReuseTextures					= 1 << 3, 	// 
+	ReplacePhysicsAssets			= 1 << 4,	// Merge active PhysicsAssets and replace the base physics asset
 
 	// Update priorities
-	UsedByComponent					= 1 << 8,	// If any components are using this instance, they will set flag every frame
-	UsedByComponentInPlay			= 1 << 9,	// If any components are using this instance in play, they will set flag every frame
-	UsedByPlayerOrNearIt			= 1 << 10,	// The instance is used by the player or is near the player, used to give more priority to its updates
-	DiscardedByNumInstancesLimit	= 1 << 11,	// The instance is descarded because we exceeded the limit of instances generated 
+	UsedByComponent					= 1 << 5,	// If any components are using this instance, they will set flag every frame
+	UsedByComponentInPlay			= 1 << 6,	// If any components are using this instance in play, they will set flag every frame
+	UsedByPlayerOrNearIt			= 1 << 7,	// The instance is used by the player or is near the player, used to give more priority to its updates
+	DiscardedByNumInstancesLimit	= 1 << 8,	// The instance is descarded because we exceeded the limit of instances generated 
 
 	// Types of updates
-	PendingLODsUpdate				= 1 << 12,	// Used to queue an update due to a change in LODs required by the instance
-	PendingLODsUpdateSecondStage	= 1 << 13,	// Second stage of the previous flag, Internaly used to queue an update due to a change in LODs required by the instance
-	PendingLODsDowngrade			= 1 << 14,	// Used to queue a downgrade update to reduce the number of LODs. LOD update goes from a high res level to a low res one, ex: 0 to 1 or 1 to 2
+	PendingLODsUpdate				= 1 << 9,	// Used to queue an update due to a change in LODs required by the instance
+	PendingLODsDowngrade			= 1 << 10,	// Used to queue a downgrade update to reduce the number of LODs. LOD update goes from a high res level to a low res one, ex: 0 to 1 or 1 to 2
 
 	// Streaming
-	LODsStreamingEnabled			= 1 << 15,	// Stream LODs instead of generating all LODs at once. Enables LODs update(upgrade)/downgrade.
+	LODsStreamingEnabled			= 1 << 11,	// Stream LODs instead of generating all LODs at once. Enables LODs update(upgrade)/downgrade.
+	
+	// Generation
+	ForceGenerateAllLODs			= 1 << 12,	// If set, Requested LOD Levels will be ignored and all LODs in between the current min/max lod will be generated
 };
 
 
@@ -230,8 +229,6 @@ public:
 	// Copy data generated in the mutable thread over to the instance and initializes additional data required during the update
 	void PrepareForUpdate(const TSharedPtr<FMutableOperationData>& OperationData);
 
-	void SetMinMaxLODToLoad(UCustomizableObjectInstance* Public, int32 NewMinLOD, int32 NewMaxLOD, bool bLimitLODUpgrades = true);
-	
 	int32 GetNumLODsAvailable() const { return NumLODsAvailable; }
 	
 	// The following method is basically copied from PostEditChangeProperty and/or SkeletalMesh.cpp to be able to replicate PostEditChangeProperty without the editor
@@ -252,11 +249,19 @@ public:
 
 private:
 
-	bool BuildSkeletalMeshSkeletonData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SkeletalMesh, const FMutableRefSkeletalMeshData* RefSkeletalMeshData, UCustomizableObjectInstance* CustomizableObjectIntance, int32 ComponentIndex);
-	void BuildMorphTargetsData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SkeletalMesh, UCustomizableObjectInstance* CustomizableObjectInstance, int32 ComponentIndex);
-	void BuildClothingData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SkeletalMesh, UCustomizableObjectInstance* CustomizableObjectInstance, int32 ComponentIndex);
-	void BuildSkeletalMeshElementData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SkeletalMesh, UCustomizableObjectInstance* CustomizableObjectInstance, int32 ComponentIndex);
-	bool BuildSkeletalMeshRenderData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SkeletalMesh, UCustomizableObjectInstance* CustomizableObjectInstance, int32 ComponentIndex);
+	void InitLastUpdateData(const TSharedPtr<FMutableOperationData>& OperationData);
+
+	void InitSkeletalMeshData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SkeletalMesh, const FMutableRefSkeletalMeshData* RefSkeletalMeshData, int32 ComponentIndex);
+
+	bool BuildSkeletonData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SkeletalMesh, const FMutableRefSkeletalMeshData* RefSkeletalMeshData, UCustomizableObjectInstance* CustomizableObjectIntance, int32 ComponentIndex);
+	void BuildMeshSockets(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SkeletalMesh, const FMutableRefSkeletalMeshData* RefSkeletalMeshData, UCustomizableObjectInstance* CustomizableObjectInstance, mu::MeshPtrConst MutableMesh);
+	void BuildOrCopyElementData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SkeletalMesh, UCustomizableObjectInstance* CustomizableObjectInstance, int32 ComponentIndex);
+	void BuildOrCopyMorphTargetsData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SkeletalMesh, const USkeletalMesh* SrcSkeletalMesh, UCustomizableObjectInstance* CustomizableObjectInstance, int32 ComponentIndex);
+	bool BuildOrCopyRenderData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SkeletalMesh, const USkeletalMesh* SrcSkeletalMesh, UCustomizableObjectInstance* CustomizableObjectInstance, int32 ComponentIndex);
+	void BuildOrCopyClothingData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SkeletalMesh, const USkeletalMesh* SrcSkeletalMesh, UCustomizableObjectInstance* CustomizableObjectInstance, int32 ComponentIndex);
+
+	bool CopySkeletonData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SrcSkeletalMesh, USkeletalMesh* DestSkeletalMesh, int32 ComponentIndex);
+	void CopyMeshSockets(USkeletalMesh* SrcSkeletalMesh, USkeletalMesh* DestSkeletalMesh);
 
 	//
 	USkeleton* MergeSkeletons(UCustomizableObjectInstance* Public, const FMutableRefSkeletalMeshData* RefSkeletalMeshData, int32 ComponentIndex);
@@ -264,26 +269,23 @@ private:
 	//
 	UPhysicsAsset* GetOrBuildPhysicsAsset(TObjectPtr<class UPhysicsAsset> TamplateAsset, const mu::PhysicsBody* PhysicsBody, int32 ComponentIndex, bool bDisableCollisionBetweenAssets);
 	
+	// Create a transient texture and add it to the TextureTrackerArray
+	UTexture2D* CreateTexture();
+
 	
+	void InvalidateGeneratedData();
+
+	bool DoComponentsNeedUpdate(UCustomizableObjectInstance* CustomizableObjectInstance, const TSharedPtr<FMutableOperationData>& OperationData, TArray<bool>& OutComponentNeedsUpdate, bool& bOutEmptyMesh);
+
 	int32 GetLastMeshId(int32 ComponentIndex, int32 LODIndex) const;
 	void SetLastMeshId(int32 ComponentIndex, int32 LODIndex, int32 MeshId);
-	void ClearAllLastMeshIds();
 
-	bool MeshNeedsUpdate(UCustomizableObjectInstance* Public, const TSharedPtr<FMutableOperationData>& OperationData, bool& bOutEmptyMesh);
-
-	UTexture2D* CreateTexture();
-	
 public:
 
 	// If any components are using this instance, they will store the min of their distances to the player here every frame for LOD purposes
 	float MinSquareDistFromComponentToPlayer;
 	float LastMinSquareDistFromComponentToPlayer; // The same as the previous dist for last frame
 												
-	double LastUpdateTime;
-
-	/** Saves the LODs requested on the update. */
-	void SaveMinMaxLODToLoad(const UCustomizableObjectInstance* Public);
-	
 	// This is the LODs that the Customizable Object has
 	int32 NumLODsAvailable;
 
@@ -315,6 +317,9 @@ public:
 
 	UPROPERTY(Transient, Category = CustomizableObjectInstance, editfixedsize, VisibleAnywhere)
 	FGameplayTagContainer AnimBPGameplayTags;
+
+	// Struct used during an update to avoid generating resources that can be reused.
+	FInstanceGeneratedData LastUpdateData;
 
 private:
 	

@@ -587,10 +587,16 @@ public:
 	void SetIsPlayerOrNearIt(bool NewValue);
 	float GetMinSquareDistToPlayer() const;
 	void SetMinSquareDistToPlayer(float NewValue);
-	void SetMinMaxLODToLoad(int32 NewMinLOD = 0, int32 NewMaxLOD = INT32_MAX, bool LimitLODUpgrades = true);
+
+	int32 GetNumComponents() const;
+
+
 	int32 GetMinLODToLoad() const;
 	int32 GetMaxLODToLoad() const;
 	int32 GetNumLODsAvailable() const;
+
+	UE_DEPRECATED(5.2, "Use SetRequestedLODs instead.")
+	void SetMinMaxLODToLoad(int32 NewMinLOD = 0, int32 NewMaxLOD = INT32_MAX, bool LimitLODUpgrades = true);
 
 	/** Return the Min LOD this Instance is using (from the beginning of an update. If an update fails this value will be incorrect). */
 	int32 GetCurrentMinLOD() const;
@@ -600,14 +606,18 @@ public:
 
 	/** Save the Min and Max LOD that will be used for the update. */
 	void CommitMinMaxLOD();
-	
-	/* If enabled, CurrentMinLOD will be the first LOD of the generated SkeletalMesh. Otherwise the number of LODs will remain constant and LODs [0 .. CurrentMinLOD] will share the same RenderData. 
-	 * Enabled by default */
-	void SetUseCurrentMinLODAsBaseLOD(bool bIsBaseLOD);
-	bool GetUseCurrentMinLODAsBaseLOD() const;
+
+	/** Sets an array of LODs to generate per component. Mutable will generate those plus the currently generated LODs (if any).
+	 * Requires mutable.EnableOnlyGenerateRequestedLODs and CurrentInstanceLODManagement->IsOnlyGenerateRequestedLODLevelsEnabled() to be true.
+	 * @param InMinLOD - MinLOD to generate.
+	 * @param InMaxLOD - MaxLOD to generate.
+	 * @param InRequestedLODsPerComponent - Array with bitmasks of requested LODs per component with range from [0 .. CO->GetComponentCount()]. */
+	void SetRequestedLODs(int32 InMinLOD, int32 InMaxLOD, const TArray<uint16>& InRequestedLODsPerComponent);
+
+	const TArray<uint16>& GetRequestedLODsPerComponent() const;
 
 	/** Instance updated. */
-	void Updated(EUpdateResult Result);
+	void Updated(EUpdateResult Result, const FDescriptorRuntimeHash& UpdatedHash);
 	
 	/** Return the UCustomizableObjectInstance::Descriptor hash on the last update request. */
 	FDescriptorRuntimeHash GetDescriptorRuntimeHash() const;

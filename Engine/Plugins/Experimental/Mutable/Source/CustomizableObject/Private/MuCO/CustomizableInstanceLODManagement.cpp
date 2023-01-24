@@ -47,10 +47,14 @@ static TAutoConsoleVariable<int32> CVarDistanceForFixedLOD2(
 	TEXT("If NumGeneratedInstancesLimit is different than 0, sets the distance at which the system will fix the LOD of an instance to the lowest res one (LOD2) to prevent unnecessary LOD changes and memory consumption"),
 	ECVF_Scalability);
 
+static TAutoConsoleVariable<bool> CVarOnlyUpdateCloseCustomizableObjects(
+	TEXT("b.OnlyUpdateCloseCustomizableObjects"),
+	true,
+	TEXT("If true, only CustomizableObjects within a predefined distance to the view centers will be generated"),
+	ECVF_Scalability);
 
 UCustomizableInstanceLODManagement::UCustomizableInstanceLODManagement() : UCustomizableInstanceLODManagementBase()
 {
-	bOnlyUpdateCloseCustomizableObjects = false;
 	CloseCustomizableObjectsDist = 2000.f;
 }
 
@@ -90,72 +94,74 @@ void UpdateCameraToInstancesDistance(const FVector CameraPosition)
 
 void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 {
-	UCustomizableObjectSystem* CustomizableObjectSystem = UCustomizableObjectSystem::GetInstance();
-
-	if (ViewCenters.Num() == 0) // Just use the first pawn
+	int32 NumGeneratedInstancesLimitLODs = GetNumGeneratedInstancesLimitFullLODs();
+	if (NumGeneratedInstancesLimitLODs > 0 || (IsOnlyUpdateCloseCustomizableObjectsEnabled() && IsOnlyGenerateRequestedLODLevelsEnabled()))
 	{
-		UCustomizableSkeletalComponent* FirstCustomizableSkeletalComponent = nullptr;
+		UCustomizableObjectSystem* CustomizableObjectSystem = UCustomizableObjectSystem::GetInstance();
 
-#if WITH_EDITOR
-		bool bLevelEditorInstancesUpdated = false;
-#endif
-
-		for (TObjectIterator<UCustomizableSkeletalComponent> CustomizableSkeletalComponent; CustomizableSkeletalComponent; ++CustomizableSkeletalComponent)
+		if (ViewCenters.Num() == 0) // Just use the first pawn
 		{
-			if (CustomizableSkeletalComponent && !CustomizableSkeletalComponent->IsTemplate())
-			{
-				UWorld* LocalWorld = CustomizableSkeletalComponent->GetWorld();
-				APlayerController* Controller = LocalWorld ? LocalWorld->GetFirstPlayerController() : nullptr;
-				TWeakObjectPtr<const AActor> ViewCenter = Controller ? TWeakObjectPtr<const AActor>(Controller->GetPawn()) : nullptr;
+			UCustomizableSkeletalComponent* FirstCustomizableSkeletalComponent = nullptr;
 
+	#if WITH_EDITOR
+			bool bLevelEditorInstancesUpdated = false;
+	#endif
+
+			for (TObjectIterator<UCustomizableSkeletalComponent> CustomizableSkeletalComponent; CustomizableSkeletalComponent; ++CustomizableSkeletalComponent)
+			{
+				if (CustomizableSkeletalComponent && !CustomizableSkeletalComponent->IsTemplate())
+				{
+					UWorld* LocalWorld = CustomizableSkeletalComponent->GetWorld();
+					APlayerController* Controller = LocalWorld ? LocalWorld->GetFirstPlayerController() : nullptr;
+					TWeakObjectPtr<const AActor> ViewCenter = Controller ? TWeakObjectPtr<const AActor>(Controller->GetPawn()) : nullptr;
+
+					if (ViewCenter.IsValid())
+					{
+						UpdatePawnToInstancesDistances(nullptr, ViewCenter);
+						break;
+					}
+
+	#if WITH_EDITOR
+					else if (CustomizableSkeletalComponent->GetWorld())
+					{
+						EWorldType::Type worldType = CustomizableSkeletalComponent->GetWorld()->WorldType;
+					
+						// Level Editor Instances (non PIE)
+						if (!bLevelEditorInstancesUpdated && worldType == EWorldType::Editor)
+						{
+							for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+							{
+								if (LevelVC && LevelVC->IsPerspective())
+								{
+									UpdateCameraToInstancesDistance(LevelVC->GetViewLocation());
+									bLevelEditorInstancesUpdated = true;
+									break;
+								}
+							}
+						}
+
+						// Blueprint instances
+						else if (worldType == EWorldType::EditorPreview)
+						{
+							CustomizableSkeletalComponent->EditorUpdateComponent();
+						}
+					}
+	#endif // WITH_EDITOR
+
+				}
+			}
+		}
+		else
+		{
+			for (const TWeakObjectPtr<const AActor> ViewCenter : ViewCenters)
+			{
 				if (ViewCenter.IsValid())
 				{
 					UpdatePawnToInstancesDistances(nullptr, ViewCenter);
-					break;
 				}
-
-#if WITH_EDITOR
-				else if (CustomizableSkeletalComponent->GetWorld())
-				{
-					EWorldType::Type worldType = CustomizableSkeletalComponent->GetWorld()->WorldType;
-					
-					// Level Editor Instances (non PIE)
-					if (!bLevelEditorInstancesUpdated && worldType == EWorldType::Editor)
-					{
-						for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
-						{
-							if (LevelVC && LevelVC->IsPerspective())
-							{
-								UpdateCameraToInstancesDistance(LevelVC->GetViewLocation());
-								bLevelEditorInstancesUpdated = true;
-								break;
-							}
-						}
-					}
-
-					// Blueprint instances
-					else if (worldType == EWorldType::EditorPreview)
-					{
-						CustomizableSkeletalComponent->EditorUpdateComponent();
-					}
-				}
-#endif // WITH_EDITOR
-
 			}
 		}
 	}
-	else
-	{
-		for (const TWeakObjectPtr<const AActor> ViewCenter : ViewCenters)
-		{
-			if (ViewCenter.IsValid())
-			{
-				UpdatePawnToInstancesDistances(nullptr, ViewCenter);
-			}
-		}
-	}
-
-	int32 NumGeneratedInstancesLimitLODs = GetNumGeneratedInstancesLimitFullLODs();
 
 	if (NumGeneratedInstancesLimitLODs > 0)
 	{
@@ -186,6 +192,8 @@ void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 			SortedInstances[i]->SetIsPlayerOrNearIt(true);
 		}
 
+		TArray<uint16> RequestedLODs;
+
 		if (SortedInstances.Num() > NumGeneratedInstancesLimitLODs)
 		{
 			SortedInstances.Sort([](UCustomizableObjectInstance& A, UCustomizableObjectInstance& B)
@@ -197,15 +205,18 @@ void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 			const float DistanceForFixedLOD = float(CVarDistanceForFixedLOD2.GetValueOnGameThread());
 			const float DistanceForFixedLODSquared = FMath::Square(DistanceForFixedLOD);
 
+
 			for (int32 i = 0; i < NumGeneratedInstancesLimitLODs && i < SortedInstances.Num(); ++i)
 			{
 				if (!bAlreadyReachedFixedLOD && SortedInstances[i]->GetMinSquareDistToPlayer() < DistanceForFixedLODSquared)
 				{
-					SortedInstances[i]->SetMinMaxLODToLoad();
+					RequestedLODs.Init(MAX_uint16, SortedInstances[i]->GetNumComponents());
+					SortedInstances[i]->SetRequestedLODs(0, MAX_int32, RequestedLODs);
 				}
 				else
 				{
-					SortedInstances[i]->SetMinMaxLODToLoad(2, 2);
+					RequestedLODs.Init(MAX_uint16, SortedInstances[i]->GetNumComponents());
+					SortedInstances[i]->SetRequestedLODs(2, 2, RequestedLODs);
 					bAlreadyReachedFixedLOD = true;
 				}
 			}
@@ -214,18 +225,21 @@ void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 			{
 				if (!bAlreadyReachedFixedLOD && SortedInstances[i]->GetMinSquareDistToPlayer() < DistanceForFixedLODSquared)
 				{
-					SortedInstances[i]->SetMinMaxLODToLoad(1, 2);
+					RequestedLODs.Init(MAX_uint16, SortedInstances[i]->GetNumComponents());
+					SortedInstances[i]->SetRequestedLODs(1, MAX_int32, RequestedLODs);
 				}
 				else
 				{
-					SortedInstances[i]->SetMinMaxLODToLoad(2, 2);
+					RequestedLODs.Init(MAX_uint16, SortedInstances[i]->GetNumComponents());
+					SortedInstances[i]->SetRequestedLODs(2, MAX_int32, RequestedLODs);
 					bAlreadyReachedFixedLOD = true;
 				}
 			}
 
 			for (int32 i = NumGeneratedInstancesLimitLODs + NumGeneratedInstancesLimitLOD1; i < NumGeneratedInstancesLimitLODs + NumGeneratedInstancesLimitLOD1 + NumGeneratedInstancesLimitLOD2 && i < SortedInstances.Num(); ++i)
 			{
-				SortedInstances[i]->SetMinMaxLODToLoad(2, 2);
+				RequestedLODs.Init(MAX_uint16, SortedInstances[i]->GetNumComponents());
+				SortedInstances[i]->SetRequestedLODs(2, MAX_int32, RequestedLODs);
 			}
 
 			for (int32 i = NumGeneratedInstancesLimitLODs + NumGeneratedInstancesLimitLOD1 + NumGeneratedInstancesLimitLOD2; i < SortedInstances.Num(); ++i)
@@ -238,176 +252,140 @@ void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 			// No limit surpassed, set all instances to have all LODs, there will be an UpdateSkeletalMesh only if there's a change in LOD state
 			for (int32 i = 0; i < SortedInstances.Num(); ++i)
 			{
-				SortedInstances[i]->SetMinMaxLODToLoad();
+				RequestedLODs.Init(MAX_uint16, SortedInstances[i]->GetNumComponents());
+				SortedInstances[i]->SetRequestedLODs(2, MAX_int32, RequestedLODs);
 			}
 		}
 	}
-	else if (bOnlyUpdateCloseCustomizableObjects)
+	else if (IsOnlyGenerateRequestedLODLevelsEnabled())
 	{
-		TArray<FVector> Locations;
-		TArray<FMatrix> ProjectionMatrices;
-		TMap <const AActor*, int32> ViewCentersToIndexMap;
-
-		UCameraComponent* PlayerCamera = nullptr;
-
-		if (ViewCenters.Num() == 0)
+		struct FLODTracker
 		{
-			for (TObjectIterator<UCustomizableSkeletalComponent> CustomizableSkeletalComponent; CustomizableSkeletalComponent; ++CustomizableSkeletalComponent)
-			{
-				UWorld* LocalWorld = CustomizableSkeletalComponent->GetWorld();
-				APlayerController* Controller = LocalWorld ? LocalWorld->GetFirstPlayerController() : nullptr;
+			int32 MinLOD = MAX_int32;
+			int32 MaxLOD = MAX_int32;
 
-				if (Controller && Controller->GetViewTarget())
-				{
-					PlayerCamera = Cast<UCameraComponent>(Controller->GetViewTarget()->GetComponentByClass(UCameraComponent::StaticClass()));
-					ViewCentersToIndexMap.Add(Controller, 0);
-					break;
-				}
-			}
+			bool bInitialized = false;
+			TArray<uint16> RequestedLODsPerComponent;
+		};
 
-			if (PlayerCamera && PlayerCamera->IsActive())
-			{
-				FMinimalViewInfo MinimalViewInfo;
-				PlayerCamera->GetCameraView(16.6f, MinimalViewInfo); // The Delta Time parameter is irrelevant
+		TMap<TObjectPtr<UCustomizableObjectInstance>, FLODTracker> InstancesMinLOD;
+		InstancesMinLOD.Reserve(100);
 
-				FMatrix ViewMatrix;
-				FMatrix ProjectionMatrix;
-				FMatrix ViewProjectionMatrix;
-				UGameplayStatics::GetViewProjectionMatrix(MinimalViewInfo, ViewMatrix, ProjectionMatrix, ViewProjectionMatrix);
-
-				Locations.Add(MinimalViewInfo.Location);
-				ProjectionMatrices.Add(ProjectionMatrix);
-			}
-		}
-		else
+		for (TObjectIterator<UCustomizableSkeletalComponent> CustomizableSkeletalComponent; CustomizableSkeletalComponent; ++CustomizableSkeletalComponent)
 		{
-			int32 index = 0;
-			for (const TWeakObjectPtr<const AActor> ViewCenter : ViewCenters)
+			if (CustomizableSkeletalComponent && !CustomizableSkeletalComponent->IsTemplate())
 			{
-				if (!ViewCenter.IsValid())
+				UCustomizableObjectInstance* COI = CustomizableSkeletalComponent->CustomizableObjectInstance;
+				if (!COI || !COI->GetCustomizableObject())
 				{
 					continue;
 				}
 
-				UCameraComponent* Camera = nullptr;
-				if (const ACameraActor* CameraActor = Cast<ACameraActor>(ViewCenter.Get()))
-				{
-					Camera = CameraActor->GetCameraComponent();
-				}
-				else
-				{
-					Camera = Cast<UCameraComponent>(ViewCenter->GetComponentByClass(UCameraComponent::StaticClass()));
-				}
-				
-				if (Camera && Camera->IsActive())
-				{
-					FMinimalViewInfo MinimalViewInfo;
-					Camera->GetCameraView(16.6f, MinimalViewInfo); // The Delta Time parameter is irrelevant
+#if WITH_EDITOR
 
-					FMatrix ViewMatrix;
-					FMatrix ProjectionMatrix;
-					FMatrix ViewProjectionMatrix;
-					UGameplayStatics::GetViewProjectionMatrix(MinimalViewInfo, ViewMatrix, ProjectionMatrix, ViewProjectionMatrix);
+				EWorldType::Type WorldType = EWorldType::Type::None;
 
-					Locations.Add(MinimalViewInfo.Location);
-					ProjectionMatrices.Add(ProjectionMatrix);
-					ViewCentersToIndexMap.Add(ViewCenter.Get(), index);
-					index++;
+				UWorld* World = CustomizableSkeletalComponent->GetWorld();
+				if (World)
+				{
+					WorldType = World->WorldType;
+				}
+
+				// Blueprint instances and CO Editors
+				if (WorldType == EWorldType::EditorPreview || (!World && !CustomizableSkeletalComponent->GetAttachParentActor()))
+				{
+					CustomizableSkeletalComponent->EditorUpdateComponent();
+					continue;
+				}
+
+				// Skip if world type is EditorPreview, GamePreview, etc...
+				if (WorldType == EWorldType::GamePreview || WorldType == EWorldType::GameRPC || WorldType == EWorldType::Inactive)
+				{
+					continue;
+				}
+#endif // WITH_EDITOR
+
+				FLODTracker& LODTracker = InstancesMinLOD.FindOrAdd(COI);
+
+				if (!LODTracker.bInitialized)
+				{
+					LODTracker.RequestedLODsPerComponent.AddZeroed(COI->GetCustomizableObject()->GetComponentCount());
+					LODTracker.bInitialized = true;
+				}
+
+				USkeletalMeshComponent* Parent = Cast<USkeletalMeshComponent>(CustomizableSkeletalComponent->GetAttachParent());
+				if (Parent)
+				{
+					COI->SetIsBeingUsedByComponentInPlay(true);
+
+					// If it's the local player set max priority
+					const APawn* Pawn = Cast<APawn>(Parent->GetAttachParentActor());
+					if (Pawn && Pawn->IsLocallyControlled())
+					{
+						COI->SetMinSquareDistToPlayer(-1.f);
+					}
+					else
+					{
+						LODTracker.MaxLOD = COI->GetNumLODsAvailable() - 1;
+					}
+
+
+					// Use the component minLOD to set the minimum LOD to generate
+					LODTracker.MinLOD = FMath::Min(LODTracker.MinLOD, Parent->bOverrideMinLod ? Parent->MinLodModel : 0);
+
+					// If the parent component have a SkeletalMesh use the RequestedLODLevel of the component as reference to know which LODs mutable should generate.
+					if (Parent->GetSkeletalMeshAsset() && LODTracker.RequestedLODsPerComponent.IsValidIndex(CustomizableSkeletalComponent->ComponentIndex))
+					{
+						LODTracker.RequestedLODsPerComponent[CustomizableSkeletalComponent->ComponentIndex] |= 1 << Parent->GetPredictedLODLevel();
+					}
 				}
 			}
 		}
 
-		if (Locations.Num())
+		for (TPair<TObjectPtr<UCustomizableObjectInstance>, FLODTracker>& It : InstancesMinLOD)
 		{
-			float SquaredDist = FMath::Square(CloseCustomizableObjectsDist);
-			float ScreenSizeLOD1 = 0.04f;
-			float ScreenSizeLOD2 = 0.02f;
-
-			for (TObjectIterator<UCustomizableObjectInstance> CustomizableObjectInstance; CustomizableObjectInstance; ++CustomizableObjectInstance)
+			if (IsValidChecked(It.Key) && It.Key->GetPrivate())
 			{
-				if ( IsValidChecked(*CustomizableObjectInstance) && CustomizableObjectInstance->GetPrivate() )
+				const UCustomizableObject* CustomizableObject = It.Key->GetCustomizableObject();
+				if (!CustomizableObject || CustomizableObject->IsLocked())
 				{
-					UCustomizableObject* CustomizableObject = CustomizableObjectInstance->GetCustomizableObject(); 
-					if (!CustomizableObject)
-					{
-						continue;
-					}
-														
-					if (CustomizableObjectInstance->GetMinSquareDistToPlayer() > SquaredDist || !CustomizableObjectInstance->NearestToActor.IsValid())
-					{
-						continue;
-					}
-
-					USkeletalMesh* RefSkeletalMesh = CustomizableObject->GetRefSkeletalMesh();
-					if (!RefSkeletalMesh)
-					{
-						continue;
-					}
-					
-					if (RefSkeletalMesh->GetLODInfoArray().Num() > 1)
-					{
-						ScreenSizeLOD1 = FMath::Square(RefSkeletalMesh->GetLODInfo(1)->ScreenSize.Default);
-					}
-					
-					if (RefSkeletalMesh->GetLODInfoArray().Num() > 2)
-					{
-						ScreenSizeLOD2 = FMath::Square(RefSkeletalMesh->GetLODInfo(2)->ScreenSize.Default);
-					}
-					
-					float BoundSize = RefSkeletalMesh->GetBounds().SphereRadius;
-					FVector BoundOrigin;
-
-					AActor* ParentActor = CustomizableObjectInstance->NearestToActor->GetAttachmentRootActor();
-					if (ParentActor)
-					{
-						BoundSize *= ParentActor->GetActorScale().Size() * 1.55f;
-						BoundOrigin = ParentActor->GetActorLocation();
-					}
-					else
-					{
-						BoundOrigin = CustomizableObjectInstance->NearestToActor->GetComponentLocation();
-					}
-
-
-					int32* ViewIndex = ViewCentersToIndexMap.Find(CustomizableObjectInstance->NearestToViewCenter.Get());
-					float InstanceScreenSize = ComputeBoundsScreenRadiusSquared(BoundOrigin, BoundSize, Locations[ViewIndex ? *ViewIndex : 0 ], ProjectionMatrices[ ViewIndex ? *ViewIndex : 0]);
-
-					int32 InstanceMaxLOD = FMath::Min(RefSkeletalMesh->GetLODNum(), CustomizableObjectInstance->GetNumLODsAvailable()) - 1;
-
-					bool bIsPawn = CustomizableObjectInstance->GetMinSquareDistToPlayer() <= 0;
-
-					if (InstanceMaxLOD == 0 || InstanceScreenSize > ScreenSizeLOD1 || bIsPawn)
-					{
-						CustomizableObjectInstance->SetMinMaxLODToLoad(0, InstanceMaxLOD, false);
-					}
-					else if (InstanceMaxLOD == 1 || InstanceScreenSize > ScreenSizeLOD2 )
-					{
-						CustomizableObjectInstance->SetMinMaxLODToLoad(1, InstanceMaxLOD, false);
-					}
-					else
-					{
-						CustomizableObjectInstance->SetMinMaxLODToLoad(2, 2);
-					}
+					continue;
 				}
+
+				if (IsOnlyUpdateCloseCustomizableObjectsEnabled() && (It.Key->GetMinSquareDistToPlayer() > FMath::Square(CloseCustomizableObjectsDist) || !It.Key->NearestToActor.IsValid()))
+				{
+					continue;
+				}
+
+				// Limit MinLOD
+				It.Value.MinLOD = FMath::Min(It.Value.MinLOD, CustomizableObject->GetNumLODs() - 1);
+
+				// If it's the player generate only the first LOD
+				if (It.Key->GetMinSquareDistToPlayer() == -1.f && It.Value.MaxLOD == MAX_int32)
+				{
+					It.Value.MaxLOD = It.Value.MinLOD;
+				}
+
+				It.Key->SetRequestedLODs(It.Value.MinLOD, It.Value.MaxLOD, It.Value.RequestedLODsPerComponent);
 			}
 		}
 	}
 }
 
 
-int32 UCustomizableInstanceLODManagement::GetNumGeneratedInstancesLimitFullLODs()
+int32 UCustomizableInstanceLODManagement::GetNumGeneratedInstancesLimitFullLODs() const
 {
 	return CVarNumGeneratedInstancesLimit.GetValueOnGameThread();
 }
 
 
-int32 UCustomizableInstanceLODManagement::GetNumGeneratedInstancesLimitLOD1()
+int32 UCustomizableInstanceLODManagement::GetNumGeneratedInstancesLimitLOD1() const
 {
 	return CVarNumGeneratedInstancesLimitLOD1.GetValueOnGameThread();
 }
 
 
-int32 UCustomizableInstanceLODManagement::GetNumGeneratedInstancesLimitLOD2()
+int32 UCustomizableInstanceLODManagement::GetNumGeneratedInstancesLimitLOD2() const
 {
 	return CVarNumGeneratedInstancesLimitLOD2.GetValueOnGameThread();
 }
@@ -425,22 +403,9 @@ int32 UCustomizableInstanceLODManagement::GetNumberOfPriorityUpdateInstances() c
 }
 
 
-bool UCustomizableInstanceLODManagement::IsOnlyUpdateCloseCustomizableObjectsEnabled() const
+void UCustomizableInstanceLODManagement::SetCustomizableObjectsUpdateDistance(float Distance)
 {
-	return bOnlyUpdateCloseCustomizableObjects;
-}
-
-
-void UCustomizableInstanceLODManagement::EnableOnlyUpdateCloseCustomizableObjects(float CloseDist)
-{
-	bOnlyUpdateCloseCustomizableObjects = true;
-	CloseCustomizableObjectsDist = CloseDist;
-}
-
-
-void UCustomizableInstanceLODManagement::DisableOnlyUpdateCloseCustomizableObjects()
-{
-	bOnlyUpdateCloseCustomizableObjects = false;
+	CloseCustomizableObjectsDist = Distance;
 }
 
 
@@ -448,3 +413,10 @@ float UCustomizableInstanceLODManagement::GetOnlyUpdateCloseCustomizableObjectsD
 {
 	return CloseCustomizableObjectsDist;
 }
+
+
+bool UCustomizableInstanceLODManagement::IsOnlyUpdateCloseCustomizableObjectsEnabled() const
+{
+	return CVarOnlyUpdateCloseCustomizableObjects.GetValueOnGameThread();
+}
+

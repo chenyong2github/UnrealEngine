@@ -677,6 +677,9 @@ void FCustomizableObjectInstanceDescriptor::ReloadParameters()
 	}
 
 	SetState(FMath::Clamp(GetState(), 0, CustomizableObject->GetStateCount() - 1));
+	
+	MaxLOD = FMath::Max(0, CustomizableObject->GetNumLODs() - 1);
+	RequestedLODLevels.Init(0, CustomizableObject->GetComponentCount());
 
 	TArray<FCustomizableObjectBoolParameterValue> OldBoolParameters = BoolParameters;
 	TArray<FCustomizableObjectIntParameterValue> OldIntParameters = IntParameters;
@@ -1034,6 +1037,18 @@ int32 FCustomizableObjectInstanceDescriptor::GetMaxLod() const
 void FCustomizableObjectInstanceDescriptor::SetMaxLod(int32 InMaxLOD)
 {
 	MaxLOD = InMaxLOD;
+}
+
+
+void FCustomizableObjectInstanceDescriptor::SetRequestedLODLevels(const TArray<uint16>& InRequestedLODLevels)
+{
+	RequestedLODLevels = InRequestedLODLevels;
+}
+
+
+const TArray<uint16>& FCustomizableObjectInstanceDescriptor::GetRequestedLODLevels() const
+{
+	return RequestedLODLevels;
 }
 
 
@@ -2367,14 +2382,38 @@ FDescriptorRuntimeHash::FDescriptorRuntimeHash(const FCustomizableObjectInstance
 {
 	MinLOD = Descriptor.MinLOD;
 	MaxLOD = Descriptor.MaxLOD;	
+
+	RequestedLODsPerComponent = Descriptor.RequestedLODLevels;
 }
 
 
 bool FDescriptorRuntimeHash::IsSubset(const FDescriptorRuntimeHash& Other) const
 {
-	return FDescriptorHash::operator==(Other) &&
-		MinLOD >= Other.MinLOD &&
-		MaxLOD <= Other.MaxLOD;
+	if (FDescriptorHash::operator!=(Other) || MinLOD < Other.MinLOD || MaxLOD != Other.MaxLOD)
+	{
+		return false;
+	}
+
+	if (RequestedLODsPerComponent == Other.RequestedLODsPerComponent)
+	{
+		return true;
+	}
+
+	for (int32 ComponentIndex = 0; ComponentIndex < RequestedLODsPerComponent.Num(); ++ComponentIndex)
+	{
+		int32 RequestedLODs = RequestedLODsPerComponent[ComponentIndex];
+		int32 OtherRequestedLODs = Other.RequestedLODsPerComponent[ComponentIndex];
+		for (uint16 LODIndex = MinLOD; LODIndex <= MaxLOD; ++LODIndex)
+		{
+			// To be a subset all bits set in RequestedLODs must be set in OtherRequestedLODs. OtherRequestedLODs can have additional bits set
+			if (RequestedLODs & (1 << LODIndex) && !(OtherRequestedLODs & (1 << LODIndex)))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 
@@ -2394,4 +2433,16 @@ int32 FDescriptorRuntimeHash::GetMinLOD() const
 int32 FDescriptorRuntimeHash::GetMaxLOD() const
 {
 	return MaxLOD;
+}
+
+
+void FDescriptorRuntimeHash::UpdateRequestedLODs(const TArray<uint16>& InRequestedLODs)
+{
+	RequestedLODsPerComponent = InRequestedLODs;
+}
+
+
+const TArray<uint16>& FDescriptorRuntimeHash::GetRequestedLODs() const
+{
+	return RequestedLODsPerComponent;
 }

@@ -15,14 +15,14 @@ public:
 	UCustomizableInstanceLODManagementBase() : UObject() {};
 	virtual ~UCustomizableInstanceLODManagementBase() {};
 
-	virtual void UpdateInstanceDistsAndLODs() { check(0 && "You must override this"); };
-
-	virtual int32 GetNumGeneratedInstancesLimitFullLODs() { check(0 && "You must override this"); return 0; };
-	virtual int32 GetNumGeneratedInstancesLimitLOD1() { check(0 && "You must override this"); return 0; };
-	virtual int32 GetNumGeneratedInstancesLimitLOD2() { check(0 && "You must override this"); return 0; };
-
-	virtual bool IsOnlyUpdateCloseCustomizableObjectsEnabled() const { check(0 && "You must override this"); return false; };
-	virtual float GetOnlyUpdateCloseCustomizableObjectsDist() const { check(0 && "You must override this"); return 0.f; };
+	// WARNING! The following methods must be overriden in derived classes
+	virtual void UpdateInstanceDistsAndLODs() { check(0); };
+	virtual int32 GetNumGeneratedInstancesLimitFullLODs() const { check(0); return 0; };
+	virtual int32 GetNumGeneratedInstancesLimitLOD1() const { check(0); return 0; };
+	virtual int32 GetNumGeneratedInstancesLimitLOD2() const { check(0); return 0; };
+	virtual float GetOnlyUpdateCloseCustomizableObjectsDist() const { check(0); return 0.f; };
+	virtual bool IsOnlyUpdateCloseCustomizableObjectsEnabled() const { check(0); return false; };
+	virtual bool IsOnlyGenerateRequestedLODLevelsEnabled() const { check(0); return false; };
 };
 
 
@@ -36,9 +36,9 @@ public:
 
 	virtual void UpdateInstanceDistsAndLODs() override;
 
-	virtual int32 GetNumGeneratedInstancesLimitFullLODs() override;
-	virtual int32 GetNumGeneratedInstancesLimitLOD1() override;
-	virtual int32 GetNumGeneratedInstancesLimitLOD2() override;
+	virtual int32 GetNumGeneratedInstancesLimitFullLODs() const override;
+	virtual int32 GetNumGeneratedInstancesLimitLOD1() const override;
+	virtual int32 GetNumGeneratedInstancesLimitLOD2() const override;
 
 	// Used to define the actors that will be considered the centers of LOD distance calculations. If left empty it will revert to the default, the first player controller actor
 	void AddViewCenter(const AActor* const InCentralActor) { ViewCenters.Add(TWeakObjectPtr<const AActor>(InCentralActor)); };
@@ -49,10 +49,11 @@ public:
 	void SetNumberOfPriorityUpdateInstances(int32 NumPriorityUpdateInstances);
 	int32 GetNumberOfPriorityUpdateInstances() const;
 
-	virtual bool IsOnlyUpdateCloseCustomizableObjectsEnabled() const override;
+	virtual void SetCustomizableObjectsUpdateDistance(float Distance);
 	virtual float GetOnlyUpdateCloseCustomizableObjectsDist() const override;
-	void EnableOnlyUpdateCloseCustomizableObjects(float CloseDist);
-	void DisableOnlyUpdateCloseCustomizableObjects();
+
+	virtual bool IsOnlyUpdateCloseCustomizableObjectsEnabled() const override;
+	virtual bool IsOnlyGenerateRequestedLODLevelsEnabled() const override { return true; };
 
 private:
 	// The list of actors that define a view radius (CloseDist) around them used for LOD management
@@ -61,7 +62,6 @@ private:
 	// Sets how many of the nearest instances to the player will have updates with priority over LOD changes
 	int32 NumPriorityUpdateInstances = 1;
 
-	bool bOnlyUpdateCloseCustomizableObjects;
 	float CloseCustomizableObjectsDist;	
 };
 

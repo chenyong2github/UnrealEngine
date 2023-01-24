@@ -549,8 +549,16 @@ namespace MutableMeshPreviewUtils
 			OutSkeletalMesh->GetMaterials().SetNum(1);
 			OutSkeletalMesh->GetMaterials()[0] = UnrealMaterial;
 
-			constexpr int32 MeshLODIndex = 0;
-			UnrealConversionUtils::BuildSkeletalMeshElementDataAtLOD(MeshLODIndex,InMutableMesh,OutSkeletalMesh);
+			Helper_GetLODInfoArray(OutSkeletalMesh)[0].LODMaterialMap.SetNumZeroed(1);
+
+			// Add RenderSections for each surface in the mesh
+			if (InMutableMesh)
+			{
+				for (int32 SurfaceIndex = 0; SurfaceIndex < InMutableMesh->GetSurfaceCount(); ++SurfaceIndex)
+				{
+					new(Helper_GetLODRenderSections(OutSkeletalMesh, 0)) Helper_SkelMeshRenderSection();
+				}
+			}
 		}
 
 

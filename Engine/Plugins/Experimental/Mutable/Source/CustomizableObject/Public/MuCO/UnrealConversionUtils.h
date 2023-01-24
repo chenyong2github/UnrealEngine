@@ -20,17 +20,6 @@ namespace UnrealConversionUtils
 	 * current pipelines (instance update and USkeletal mesh generation for a mesh viewport)
 	 */
 	
-	/**
-	 * Assigns a new render section for each of the surfaces found on the mutable mesh and sets a default material for
-	 * each of them (same default material)
-	 * @param MeshLODIndex - The index of the LOD found on the OutSkeletalMesh to be targeting.
-	 * @param InMutableMesh - The Mutable mesh to get the surface count from. Determines the amount materials and also
-	 * render sections to be added to the OutSkeletalMesh.
-	 * @param OutSkeletalMesh - The skeletal mesh whose render data is being updated (adding render sections)
-	 */
-	CUSTOMIZABLEOBJECT_API void BuildSkeletalMeshElementDataAtLOD(const int32 MeshLODIndex, mu::MeshPtrConst InMutableMesh,
-										   USkeletalMesh* OutSkeletalMesh);
-	
 	
 	/**
 	 * Builds the reference skeleton by adding bones to the reference skeleton modifier provided. When exiting the scope
@@ -97,6 +86,21 @@ namespace UnrealConversionUtils
 		const FName InProfileName,
 		const mu::FMeshBufferSet& InMutableMeshVertexBuffers,
 		const int32 InBoneIndexBuffer);
+
+
+	/**
+	 *Performs a copy of the render data of a specific Skeletal Mesh LOD to another Skeletal Mesh
+	 * @param SrcSkeletalMesh - Skeletal Mesh with the data to copy.
+	 * @param DestSkeletalMesh - Skeletal Mesh where the data will be copied.
+	 * @param SrcLODIndex - Index of the LOD to copy.
+	 * @param DestSkeletalMesh - Index of the LOD that will be copyed to.
+	 */
+	CUSTOMIZABLEOBJECT_API void CopySkeletalMeshLODRenderData(
+		const USkeletalMesh* SrcSkeletalMesh,
+		USkeletalMesh* DestSkeletalMesh,
+		int32 SrcLODIndex,
+		int32 DestLODIndex);
+
 }
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

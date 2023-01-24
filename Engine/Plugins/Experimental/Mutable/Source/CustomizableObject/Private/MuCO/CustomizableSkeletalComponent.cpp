@@ -184,7 +184,7 @@ void UCustomizableSkeletalComponent::EditorUpdateComponent()
 {
 	if (CustomizableObjectInstance)
 	{
-		CustomizableObjectInstance->GetPrivate()->SetCOInstanceFlags(UsedByComponent);
+		CustomizableObjectInstance->GetPrivate()->SetCOInstanceFlags((ECOInstanceFlags)(UsedByComponent | ForceGenerateAllLODs));
 
 		AActor* ParentActor = GetAttachmentRootActor();
 		if (ParentActor)

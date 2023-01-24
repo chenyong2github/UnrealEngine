@@ -72,6 +72,10 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 
 	void SetMaxLod(int32 InMaxLOD);
 
+	void SetRequestedLODLevels(const TArray<uint16>& InRequestedLODLevels);
+
+	const TArray<uint16>& GetRequestedLODLevels() const;
+
 	// ------------------------------------------------------------
 	// Parameters
 	// ------------------------------------------------------------
@@ -359,9 +363,12 @@ private:
      * These descriptions get generated with every instance update, so it should be disabled when not needed. */
 	bool bBuildParameterDecorations = false;
 
-	/** These are the LODs we want to have, they MUST NOT be used in an update (Mutable thread). */
+	/** These are the LODs Mutable can generate, they MUST NOT be used in an update (Mutable thread). */
 	int32 MinLOD = 0;
 	int32 MaxLOD = INT32_MAX;
+
+	/** Array of RequestedLODs per component to generate, they MUST NOT be used in an update (Mutable thread). */
+	TArray<uint16> RequestedLODLevels;
 
 	/** Lookup of UCustomizableObjectDescriptor::IntParameters. */
 	TMap<FString, int32> IntParametersLookupTable;
@@ -421,10 +428,17 @@ public:
 	int32 GetMinLOD() const;
 
 	int32 GetMaxLOD() const;
-	
+
+	void UpdateRequestedLODs(const TArray<uint16>& InRequestedLODs);
+
+	const TArray<uint16>& GetRequestedLODs() const;
+
 private:
 	int32 MinLOD = 0;
 	int32 MaxLOD = INT32_MAX;
+
+	// Array of bitmasks that indicate which LODs of each component have been requested
+	TArray<uint16> RequestedLODsPerComponent;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

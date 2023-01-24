@@ -259,6 +259,8 @@ public:
 
 	bool IsProgressiveMipStreamingEnabled() const;
 
+	bool IsOnlyGenerateRequestedLODsEnabled() const;
+
 	void AddPendingReleaseSkeletalMesh( USkeletalMesh* SkeletalMesh );
 
 	void PurgePendingReleaseSkeletalMesh();
