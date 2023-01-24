@@ -39,7 +39,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Task")
 	FString DestinationPath;
 
-	/** Optional custom name to import as */
+	/** Optional custom name to import as (if you are using interchange the name must be set in a pipeline and this field will be ignored)*/
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Task")
 	FString DestinationName;
 

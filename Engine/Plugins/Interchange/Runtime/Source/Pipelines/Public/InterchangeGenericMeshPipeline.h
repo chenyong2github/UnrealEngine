@@ -260,7 +260,7 @@ private:
 public:
 	
 	/** Specialize for skeletalmesh */
-	void ImplementUseSourceNameForAssetOptionSkeletalMesh(const int32 MeshesImportedNodeCount, const bool bUseSourceNameForAsset);
+	void ImplementUseSourceNameForAssetOptionSkeletalMesh(const int32 MeshesImportedNodeCount, const bool bUseSourceNameForAsset, const FString& AssetName);
 
 private:
 	/* Skeletal mesh API END                                                */

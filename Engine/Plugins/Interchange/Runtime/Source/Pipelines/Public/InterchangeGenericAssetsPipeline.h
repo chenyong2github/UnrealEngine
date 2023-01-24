@@ -36,9 +36,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common", meta = (AdjustPipelineAndRefreshDetailOnChange = "True"))
 	EReimportStrategyFlags ReimportStrategy = EReimportStrategyFlags::ApplyNoProperties;
 
-	/** If enable and there is only one asset and one source data, we will name the asset like the source data name. */
+	/** If enable and AssetName is empty and there is only one asset and one source data, we will name the asset like the source data name. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common")
 	bool bUseSourceNameForAsset = true;
+
+	/** If not empty, and there is only one asset and one source data, we will name the asset with this string. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common")
+	FString AssetName;
 
 	/** Translation offset applied to meshes and animations. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common", meta = (DisplayName = "Offset Translation"))

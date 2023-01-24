@@ -263,6 +263,19 @@ namespace UE
 	} //ns interchange
 } //ns UE
 
+/**
+ * This class is use to pass override pipelines in the ImportAssetTask Options member
+ */
+UCLASS(Transient, BlueprintType)
+class INTERCHANGEENGINE_API UInterchangePipelineStackOverride : public UObject
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
+		TArray<TObjectPtr<UInterchangePipelineBase>> OverridePipelines;
+};
+
 USTRUCT(BlueprintType)
 struct FImportAssetParameters
 {

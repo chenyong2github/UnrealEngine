@@ -3258,6 +3258,17 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 				}
 				else
 				{
+					if (Params.AssetImportTask)
+					{
+						//Add the override pipelines if we have a task that specify valid interchange override pipelines
+						if (UInterchangePipelineStackOverride* PipelineStackOverride = Cast<UInterchangePipelineStackOverride>(Params.AssetImportTask->Options))
+						{
+							for (TObjectPtr<UInterchangePipelineBase> OverridePipeline : PipelineStackOverride->OverridePipelines)
+							{
+								ImportAssetParameters.OverridePipelines.Add(OverridePipeline);
+							}
+						}
+					}
 					UE::Interchange::FAssetImportResultRef InterchangeResult = (InterchangeManager.ImportAssetAsync(DestinationPath, ScopedSourceData.GetSourceData(), ImportAssetParameters));
 
 					// If we have an ImportTask, fill out the asynchronous results object here so the caller can see when the results are ready

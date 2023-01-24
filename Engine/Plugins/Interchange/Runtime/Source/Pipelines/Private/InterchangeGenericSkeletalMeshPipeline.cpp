@@ -681,7 +681,7 @@ void UInterchangeGenericMeshPipeline::PostImportPhysicsAssetImport(UObject* Crea
 #endif //WITH_EDITOR
 }
 
-void UInterchangeGenericMeshPipeline::ImplementUseSourceNameForAssetOptionSkeletalMesh(const int32 MeshesImportedNodeCount, const bool bUseSourceNameForAsset)
+void UInterchangeGenericMeshPipeline::ImplementUseSourceNameForAssetOptionSkeletalMesh(const int32 MeshesImportedNodeCount, const bool bUseSourceNameForAsset, const FString& AssetName)
 {
 	check(CommonSkeletalMeshesAndAnimationsProperties.IsValid());
 
@@ -693,7 +693,7 @@ void UInterchangeGenericMeshPipeline::ImplementUseSourceNameForAssetOptionSkelet
 		return;
 	}
 	//If we import only one asset, and bUseSourceNameForAsset is true, we want to rename the asset using the file name.
-	const bool bShouldChangeAssetName = (bUseSourceNameForAsset && MeshesImportedNodeCount == 1);
+	const bool bShouldChangeAssetName = ((bUseSourceNameForAsset || !AssetName.IsEmpty()) && MeshesImportedNodeCount == 1);
 	const FString SkeletalMeshUid = SkeletalMeshNodeUids[0];
 	UInterchangeSkeletalMeshFactoryNode* SkeletalMeshNode = Cast<UInterchangeSkeletalMeshFactoryNode>(BaseNodeContainer->GetFactoryNode(SkeletalMeshUid));
 	if (!SkeletalMeshNode)
@@ -705,7 +705,7 @@ void UInterchangeGenericMeshPipeline::ImplementUseSourceNameForAssetOptionSkelet
 		
 	if (bShouldChangeAssetName)
 	{
-		DisplayLabelName = FPaths::GetBaseFilename(SourceDatas[0]->GetFilename());
+		DisplayLabelName = AssetName.IsEmpty() ? FPaths::GetBaseFilename(SourceDatas[0]->GetFilename()) : AssetName;
 		SkeletalMeshNode->SetDisplayLabel(DisplayLabelName);
 	}
 
