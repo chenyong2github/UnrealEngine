@@ -1209,6 +1209,8 @@ public:
 	FVulkanBindlessDescriptorManager(FVulkanDevice* InDevice);
 	~FVulkanBindlessDescriptorManager();
 
+	typedef TStaticArray<TArray<VkDescriptorAddressInfoEXT>, ShaderStage::NumStages> FUniformBufferDescriptorArrays;
+
 	void Init();
 	void Deinit();
 
@@ -1230,7 +1232,7 @@ public:
 	FRHIDescriptorHandle RegisterBuffer(VkBuffer VulkanBuffer, VkDeviceSize BufferOffset, VkDeviceSize BufferSize, VkDescriptorType DescriptorType);
 	FRHIDescriptorHandle RegisterTexelBuffer(const VkBufferViewCreateInfo& ViewInfo, VkDescriptorType DescriptorType);
 	FRHIDescriptorHandle RegisterAccelerationStructure(VkAccelerationStructureKHR AccelerationStructure);
-	void RegisterUniformBuffers(VkCommandBuffer CommandBuffer, VkPipelineBindPoint BindPoint, ShaderStage::EStage Stage, const FVulkanDescriptorSetWriter& SetWriter);
+	void RegisterUniformBuffers(VkCommandBuffer CommandBuffer, VkPipelineBindPoint BindPoint, const FUniformBufferDescriptorArrays& StageUBs);
 
 	void Unregister(FRHIDescriptorHandle DescriptorHandle);
 
@@ -1262,6 +1264,9 @@ private:
 
 	BindlessSetState BindlessUniformBufferSetState;
 	std::atomic<uint32> UniformBlockIndex = 0;
+
+	VkDescriptorBufferBindingInfoEXT BufferBindingInfo[VulkanBindless::NumBindlessSets + 1];
+	uint32_t BufferIndices[VulkanBindless::MaxNumSets];
 
 	VkPipelineLayout BindlessPipelineLayout = VK_NULL_HANDLE;
 

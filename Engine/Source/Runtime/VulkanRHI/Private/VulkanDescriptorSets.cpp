@@ -8,6 +8,14 @@
 #include "VulkanDescriptorSets.h"
 
 
+int32 GVulkanBindlessEnabled = 0;
+static FAutoConsoleVariableRef CVarVulkanBindlessEnabled(
+	TEXT("r.Vulkan.Bindless.Enabled"),
+	GVulkanBindlessEnabled,
+	TEXT("Enable the use of bindless if all conditions are met to support it"),
+	ECVF_ReadOnly
+);
+
 int32 GVulkanBindlessMaxSamplerDescriptorCount = 2048;
 static FAutoConsoleVariableRef CVarVulkanBindlessMaxSamplerDescriptorCount(
 	TEXT("r.Vulkan.Bindless.MaxSamplerDescriptorCount"),
@@ -81,6 +89,15 @@ static FAutoConsoleVariableRef CVarVulkanBindlessMaxUniformBuffersPerStage(
 	ECVF_ReadOnly
 );
 
+int32 GVulkanBindlessRebindBuffers = 0;
+static FAutoConsoleVariableRef CVarVulkanBindlessRebindBuffers(
+	TEXT("r.Vulkan.Bindless.RebindBuffers"),
+	GVulkanBindlessRebindBuffers,
+	TEXT("Rebind buffers for every draw or dispatch.  Handy for debugging but not great for performance."),
+	ECVF_RenderThreadSafe
+);
+
+
 
 static inline uint32 GetInitialDescriptorCount(VkDescriptorType DescriptorType)
 {
@@ -121,11 +138,20 @@ FVulkanBindlessDescriptorManager::FVulkanBindlessDescriptorManager(FVulkanDevice
 	: VulkanRHI::FDeviceChild(InDevice)
 	, bIsSupported(VerifySupport(InDevice))
 {
-	const bool bFullyDisabled = (RHIGetBindlessResourcesConfiguration(GMaxRHIShaderPlatform) == ERHIBindlessConfiguration::Disabled) &&
-		(RHIGetBindlessSamplersConfiguration(GMaxRHIShaderPlatform) == ERHIBindlessConfiguration::Disabled);
-	const bool bFullyEnabled = (RHIGetBindlessResourcesConfiguration(GMaxRHIShaderPlatform) == ERHIBindlessConfiguration::AllShaders) &&
-		(RHIGetBindlessSamplersConfiguration(GMaxRHIShaderPlatform) == ERHIBindlessConfiguration::AllShaders);
-	checkf(bFullyDisabled || bFullyEnabled, TEXT("Bindless must be fully enabled or fully disabled in Vulkan because of the way it uses descriptor buffers."));
+	FMemory::Memzero(BufferBindingInfo);
+
+	// Setup up the buffer indices according to the constants currently used in code to end up with 
+	// a different index for each type of bindless resource (up to VulkanBindless::NumBindlessSets)
+	// and then all the uniform buffers in the same descriptor buffer at the end
+	// For example:   BufferIndices[] = { 0,1,2,3,4,5,6,7,7,7,7,7,7,7,7,7,7 };
+	for (uint32 Index = 0; Index < VulkanBindless::NumBindlessSets; Index++)
+	{
+		BufferIndices[Index] = Index;
+	}
+	for (uint32 Index = VulkanBindless::NumBindlessSets; Index < VulkanBindless::MaxNumSets; Index++)
+	{
+		BufferIndices[Index] = VulkanBindless::NumBindlessSets;
+	}
 }
 
 FVulkanBindlessDescriptorManager::~FVulkanBindlessDescriptorManager()
@@ -150,7 +176,7 @@ void FVulkanBindlessDescriptorManager::BindDescriptorBuffers(VkCommandBuffer Com
 {
 }
 
-void FVulkanBindlessDescriptorManager::RegisterUniformBuffers(VkCommandBuffer CommandBuffer, VkPipelineBindPoint BindPoint, ShaderStage::EStage Stage, const FVulkanDescriptorSetWriter& SetWriter)
+void FVulkanBindlessDescriptorManager::RegisterUniformBuffers(VkCommandBuffer CommandBuffer, VkPipelineBindPoint BindPoint, const FUniformBufferDescriptorArrays& StageUBs)
 {
 }
 
