@@ -79,11 +79,12 @@ void FNiagaraMeshVertexFactory::InitRHI()
 		Elements.Add(AccessStreamComponent(Data.PositionComponent, 0));
 	}
 
-	// Can't use GetFeatureLevel() on FNiagaraMeshVertexFactory because it's never set during creation
-	// This needs to be fixed and then the unused stream components don't have to be added when
-	// manual vertex fetch is used - can't use GMaxRHIFeatureLevel to check for support because then ES3.1 preview won't work anymore
-	//const bool bUseManualVertexFetch = SupportsManualVertexFetch(GetFeatureLevel());
-	//if (!bUseManualVertexFetch)
+	// Should also work in editor (PIE with ES 3.1 preview seems to work), but we don't precache PSOs for that platform currently, so keep it safe in case there's a flow we missed
+#if !WITH_EDITOR
+	const bool bHasValidFeatureLevel = ensure(HasValidFeatureLevel());
+	const bool bRemoveUnusedVertexElements = bHasValidFeatureLevel ? SupportsManualVertexFetch(GetFeatureLevel()) : false;
+	if (!bRemoveUnusedVertexElements)
+#endif
 	{
 		// only tangent,normal are used by the stream. the binormal is derived in the shader
 		uint8 TangentBasisAttributes[2] = { 1, 2 };

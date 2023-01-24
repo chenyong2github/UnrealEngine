@@ -216,6 +216,11 @@ public:
 	bool IsPrimitiveIDElementEnabled() const { return bAddPrimitiveIDElement; }
 	void EnablePrimitiveIDElement(bool bEnable) { bAddPrimitiveIDElement = bEnable; }
 	
+	inline void SetNiagaraMeshFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel)
+	{
+		FNiagaraVertexFactoryBase::SetFeatureLevel(InFeatureLevel);
+	}
+
 protected:
 	FStaticMeshDataType Data;
 	int32 MeshIndex;	
