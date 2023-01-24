@@ -51,7 +51,7 @@ static TAutoConsoleVariable<int32> CVarShadingFurnaceTest_TableFormat(
 static TAutoConsoleVariable<int32> CVarMaterialEnergyConservation(
 	TEXT("r.Material.EnergyConservation"),
 	0,
-	TEXT("Enable energy conservation for material (project settings, read only)."),
+	TEXT("Enable energy conservation for legacy materials (project settings, read only). Please note that when Strata is enabled, energy conservation is forced to enabled."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 #define SHADING_ENERGY_CONSERVATION_TABLE_RESOLUTION 32

@@ -4,8 +4,8 @@
 
 // If EnergyConservation flag is not enabled explicitly then:
 // * If strata is enabled: ON by default
-// * If strata is disnabled: OFF by default
-#if STRATA_ENABLED || MATERIAL_ENERGYCONSERVATION
+// * If strata is disabled: OFF by default
+#if STRATA_ENABLED || LEGACY_MATERIAL_ENERGYCONSERVATION
 	#undef USE_ENERGY_CONSERVATION
 	#define USE_ENERGY_CONSERVATION 1
 #else

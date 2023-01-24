@@ -959,7 +959,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	*/
 	UPROPERTY(config, EditAnywhere, Category = Materials, meta = (
 		ConsoleVariable = "r.Material.EnergyConservation", DisplayName = "Enable Energy Conservation on Material",
-		ToolTip = "Enable Energy Conservation on Material.",
+		ToolTip = "Enable Energy Conservation on Material. Please note that when Strata is enabled, energy conservation is forced to enabled.",
 		ConfigRestartRequired = true))
 		uint32 bMaterialEnergyConservation : 1;
 
