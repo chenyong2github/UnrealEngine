@@ -8,8 +8,9 @@ struct FEnhancedActionKeyMapping;
 
 /**
 * Hold setting information of an Action Input or a Action Key Mapping for setting screen and save purposes.
+* Experimental: Do not count on long term support for this structure.
 */
-UCLASS(DefaultToInstanced, EditInlineNew)
+UCLASS(DefaultToInstanced, EditInlineNew, DisplayName="Player Mappable Key Settings (Experimental)")
 class ENHANCEDINPUT_API UPlayerMappableKeySettings : public UObject
 {
 	GENERATED_BODY()
