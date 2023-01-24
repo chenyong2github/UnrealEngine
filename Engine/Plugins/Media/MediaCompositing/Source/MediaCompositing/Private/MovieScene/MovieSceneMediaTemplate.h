@@ -55,9 +55,6 @@ struct FMovieSceneMediaSectionParams
 	UPROPERTY()
 	FMovieSceneFloatChannel ProxyTextureBlend;
 
-	UPROPERTY()
-	int32 ProxyTextureIndex;
-
 	FMovieSceneMediaSectionParams()
 		: MediaSoundComponent(nullptr)
 		, MediaSource(nullptr)
@@ -65,7 +62,6 @@ struct FMovieSceneMediaSectionParams
 		, MediaTexture(nullptr)
 		, MediaPlayer(nullptr)
 		, bLooping(false)
-		, ProxyTextureIndex(0)
 	{}
 };
 

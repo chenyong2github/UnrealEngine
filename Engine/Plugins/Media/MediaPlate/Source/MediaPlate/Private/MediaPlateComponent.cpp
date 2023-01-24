@@ -637,6 +637,11 @@ UMediaTexture* UMediaPlateComponent::ProxyGetMediaTexture(int32 TextureIndex)
 	return GetMediaTexture(TextureIndex);
 }
 
+int32 UMediaPlateComponent::ProxyGetNumberOfMediaTextures() const
+{
+	return MediaTextures.Num();
+}
+
 bool UMediaPlateComponent::ProxyIsPlaylistIndexPlaying(int32 Index) const
 {
 	return bIsMediaPlatePlaying && (Index == PlaylistIndex);

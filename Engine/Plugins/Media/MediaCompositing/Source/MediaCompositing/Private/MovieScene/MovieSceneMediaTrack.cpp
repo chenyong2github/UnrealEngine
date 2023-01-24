@@ -67,6 +67,7 @@ UMovieSceneMediaSection* UMovieSceneMediaTrack::AddNewSectionOnRow(FFrameNumber 
 	NewSection->InitialPlacementOnRow(MediaSections, Time, DurationToUse.FrameNumber.Value, RowIndex);
 
 	MediaSections.Add(NewSection);
+	UpdateSectionTextureIndices();
 
 	return NewSection;
 }
@@ -78,6 +79,7 @@ UMovieSceneMediaSection* UMovieSceneMediaTrack::AddNewSectionOnRow(FFrameNumber 
 void UMovieSceneMediaTrack::AddSection(UMovieSceneSection& Section)
 {
 	MediaSections.Add(&Section);
+	UpdateSectionTextureIndices();
 }
 
 
@@ -114,17 +116,115 @@ bool UMovieSceneMediaTrack::IsEmpty() const
 void UMovieSceneMediaTrack::RemoveSection(UMovieSceneSection& Section)
 {
 	MediaSections.Remove(&Section);
+	UpdateSectionTextureIndices();
 }
 
 void UMovieSceneMediaTrack::RemoveSectionAt(int32 SectionIndex)
 {
 	MediaSections.RemoveAt(SectionIndex);
+	UpdateSectionTextureIndices();
 }
 
+#if WITH_EDITOR
+
+EMovieSceneSectionMovedResult UMovieSceneMediaTrack::OnSectionMoved(UMovieSceneSection& InSection, const FMovieSceneSectionMovedParams& Params)
+{
+	UpdateSectionTextureIndices();
+	return EMovieSceneSectionMovedResult::None;
+}
+
+#endif // WITH_EDITOR
 
 FMovieSceneEvalTemplatePtr UMovieSceneMediaTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
 {
 	return FMovieSceneMediaSectionTemplate(*CastChecked<const UMovieSceneMediaSection>(&InSection), *this);
+}
+
+void UMovieSceneMediaTrack::UpdateSectionTextureIndices()
+{
+#if WITH_EDITOR
+	// Do we have an object binding?
+	UMovieScene* MovieScene = Cast<UMovieScene>(GetOuter());
+	if (MovieScene != nullptr)
+	{
+		const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+		for (const FMovieSceneBinding& Binding : Bindings)
+		{
+			bool bIsThisMyBinding = false;
+			const TArray<UMovieSceneTrack*>& Tracks = Binding.GetTracks();
+			for (UMovieSceneTrack* Track : Tracks)
+			{
+				if ((Track != nullptr) && (Track == this))
+				{
+					bIsThisMyBinding = true;
+					break;
+				}
+			}
+
+			if (bIsThisMyBinding)
+			{
+				// Get all sections.
+				TArray<UMovieSceneMediaSection*> AllSections;
+				for (UMovieSceneTrack* Track : Tracks)
+				{
+					if (Track != nullptr)
+					{
+						const TArray<UMovieSceneSection*>& Sections = Track->GetAllSections();
+						for (UMovieSceneSection* Section : Sections)
+						{
+							UMovieSceneMediaSection* MediaSection = Cast<UMovieSceneMediaSection>(Section);
+							if (MediaSection != nullptr)
+							{
+								AllSections.Add(MediaSection);
+							}
+						}
+					}
+				}
+
+				// Set up indices from earliest section to latest.
+				AllSections.Sort([](UMovieSceneMediaSection& A, UMovieSceneMediaSection& B)
+				{ return A.GetRange().GetLowerBoundValue() < B.GetRange().GetLowerBoundValue(); });
+
+				int32 CurrentTextureIndex = 0;
+				UMovieSceneMediaSection* PreviousSection = nullptr;
+				TRange<FFrameNumber> PreviousRange;
+				for (UMovieSceneMediaSection* Section : AllSections)
+				{
+					TRange <FFrameNumber> Range = Section->GetRange();
+					
+					// If we overlap the previous section then we need another texture so increment
+					// the count. Otherwise we can reuse the same index as the previous section.
+					bool bIsOverlappingPreviousSection = false;
+					if (PreviousRange.HasUpperBound())
+					{
+						bIsOverlappingPreviousSection = Range.GetLowerBoundValue() <
+							PreviousRange.GetUpperBoundValue();
+					}
+					if (bIsOverlappingPreviousSection)
+					{
+						CurrentTextureIndex = (CurrentTextureIndex + 1);
+					}
+					else if (PreviousSection != nullptr)
+					{
+						CurrentTextureIndex = PreviousSection->TextureIndex;
+					}
+
+					Section->TextureIndex = CurrentTextureIndex;
+
+					// Previous section is defined as the section right before in the timeline, which
+					// is not necessarily the last section we looked at.
+					if ((PreviousRange.HasUpperBound() == false) ||
+						(PreviousRange.GetUpperBoundValue() < Range.GetUpperBoundValue()))
+					{
+						PreviousSection = Section;
+						PreviousRange = Range;
+					}
+				}
+				break;
+			}
+		}
+	}
+#endif // WITH_EDITOR
 }
 
 #undef LOCTEXT_NAMESPACE

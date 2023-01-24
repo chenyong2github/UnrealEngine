@@ -69,6 +69,11 @@ public:
 	virtual UMediaTexture* ProxyGetMediaTexture(int32 TextureIndex) = 0;
 
 	/**
+	 * Gets the number of media textures we can get with ProxyGetMediaTexture.
+	 */
+	virtual int32 ProxyGetNumberOfMediaTextures() const = 0;
+
+	/**
 	 * Ask if a specific track in the playlist is playing.
 	 */
 	virtual bool ProxyIsPlaylistIndexPlaying(int32 Index) const = 0;

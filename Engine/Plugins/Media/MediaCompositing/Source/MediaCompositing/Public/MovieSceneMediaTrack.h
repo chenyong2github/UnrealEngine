@@ -63,6 +63,13 @@ public:
 	virtual void RemoveSectionAt(int32 SectionIndex) override;
 	virtual bool SupportsMultipleRows() const override { return true; }
 
+
+#if WITH_EDITOR
+	
+	virtual EMovieSceneSectionMovedResult OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params);
+
+#endif // WITH_EDITOR
+
 private:
 	/** Base function to add a new section. */
 	UMovieSceneMediaSection* AddNewSectionOnRow(FFrameNumber Time, int32 RowIndex);
@@ -70,4 +77,11 @@ private:
 	/** List of all media sections. */
 	UPROPERTY()
 	TArray<TObjectPtr<UMovieSceneSection>> MediaSections;
+
+	/**
+	 * Updates all our sections so they have correct texture indices
+	 * so the proxy can blend all the sections together correctly.
+	 */
+	void UpdateSectionTextureIndices();
+
 };
