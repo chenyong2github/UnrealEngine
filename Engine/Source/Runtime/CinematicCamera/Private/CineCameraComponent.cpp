@@ -621,6 +621,11 @@ void UCineCameraComponent::SetCurrentAperture(const float NewCurrentAperture)
 	RecalcDerivedData();
 }
 
+void UCineCameraComponent::SetCustomNearClippingPlane(const float NewCustomNearClippingPlane)
+{
+	CustomNearClippingPlane = NewCustomNearClippingPlane;
+}
+
 #if WITH_EDITORONLY_DATA
 void UCineCameraComponent::UpdateDebugFocusPlane()
 {
