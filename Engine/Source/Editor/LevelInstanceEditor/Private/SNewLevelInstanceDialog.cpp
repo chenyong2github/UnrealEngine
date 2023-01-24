@@ -45,6 +45,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/Text/STextBlock.h"
+#include "SLevelInstancePivotPicker.h"
 
 class IPropertyHandle;
 
@@ -187,18 +188,7 @@ FReply SNewLevelInstanceDialog::OnCancelClicked()
 	return FReply::Handled();
 }
 
-TSharedRef<SWidget> FNewLevelInstanceParamsDetails::OnGeneratePivotActorWidget(AActor* Actor) const
-{
-	// If a row wasn't generated just create the default one, a simple text block of the item's name.
-	return SNew(STextBlock).Text(Actor ? FText::FromString(Actor->GetActorLabel()) : LOCTEXT("null", "null")).Font(IDetailLayoutBuilder::GetDetailFont());
-}
-
-FText FNewLevelInstanceParamsDetails::GetSelectedPivotActorText() const
-{
-	return CreationParams->PivotActor ? FText::FromString(CreationParams->PivotActor->GetActorLabel()) : LOCTEXT("none", "None");
-}
-
-void FNewLevelInstanceParamsDetails::OnSelectedPivotActorChanged(AActor* NewValue, ESelectInfo::Type SelectionType)
+void FNewLevelInstanceParamsDetails::OnSelectedPivotActorChanged(AActor* NewValue)
 {
 	CreationParams->PivotActor = NewValue;
 }
@@ -255,16 +245,9 @@ void FNewLevelInstanceParamsDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 		.MinDesiredWidth(Row.ValueWidget.MinWidth)
 		.MaxDesiredWidth(Row.ValueWidget.MaxWidth)
 		[
-			SNew(SComboBox<AActor*>)
-			.OptionsSource(&PivotActors)
-			.OnGenerateWidget(this, &FNewLevelInstanceParamsDetails::OnGeneratePivotActorWidget)
-			.OnSelectionChanged(this, &FNewLevelInstanceParamsDetails::OnSelectedPivotActorChanged)
+			SNew(SLevelInstancePivotPicker)
+			.OnPivotActorPicked(this, &FNewLevelInstanceParamsDetails::OnSelectedPivotActorChanged)
 			.IsEnabled(this, &FNewLevelInstanceParamsDetails::IsPivotActorSelectionEnabled)
-			[
-				SNew(STextBlock)
-				.Text(this, &FNewLevelInstanceParamsDetails::GetSelectedPivotActorText)
-				.Font(DetailBuilder.GetDetailFont())
-			]
 		];
 }
 

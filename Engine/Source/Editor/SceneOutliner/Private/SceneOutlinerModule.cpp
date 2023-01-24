@@ -78,32 +78,36 @@ TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateSceneOutliner(const FScen
 
 TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateActorPicker(const FSceneOutlinerInitializationOptions& InInitOptions, const FOnActorPicked& OnActorPickedDelegate, TWeakObjectPtr<UWorld> SpecifiedWorld) const
 {
-	auto OnItemPicked = FOnSceneOutlinerItemPicked::CreateLambda([OnActorPickedDelegate](TSharedRef<ISceneOutlinerTreeItem> Item)
-		{
-			if (FActorTreeItem* ActorItem = Item->CastTo<FActorTreeItem>())
-			{
-				if (ActorItem->IsValid())
-				{
-					OnActorPickedDelegate.ExecuteIfBound(ActorItem->Actor.Get());
-
-				}
-			}
-		});
-
-	FCreateSceneOutlinerMode ModeFactory = FCreateSceneOutlinerMode::CreateLambda([&OnItemPicked, &SpecifiedWorld](SSceneOutliner* Outliner)
-		{
-			FActorModeParams Params;
-			Params.SceneOutliner = Outliner;
-			Params.SpecifiedWorldToDisplay = SpecifiedWorld;
-			Params.bHideComponents = true;
-			Params.bHideLevelInstanceHierarchy = true;
-			Params.bHideUnloadedActors = true;
-			Params.bHideEmptyFolders = true;
-			return new FActorPickingMode(Params, OnItemPicked);
-		});
-
 	FSceneOutlinerInitializationOptions InitOptions(InInitOptions);
-	InitOptions.ModeFactory = ModeFactory;
+	if (!InitOptions.ModeFactory.IsBound())
+	{
+		auto OnItemPicked = FOnSceneOutlinerItemPicked::CreateLambda([OnActorPickedDelegate](TSharedRef<ISceneOutlinerTreeItem> Item)
+			{
+				if (FActorTreeItem* ActorItem = Item->CastTo<FActorTreeItem>())
+				{
+					if (ActorItem->IsValid())
+					{
+						OnActorPickedDelegate.ExecuteIfBound(ActorItem->Actor.Get());
+
+					}
+				}
+			});
+
+		FCreateSceneOutlinerMode ModeFactory = FCreateSceneOutlinerMode::CreateLambda([OnItemPicked, SpecifiedWorld](SSceneOutliner* Outliner)
+			{
+				FActorModeParams Params;
+				Params.SceneOutliner = Outliner;
+				Params.SpecifiedWorldToDisplay = SpecifiedWorld;
+				Params.bHideComponents = true;
+				Params.bHideLevelInstanceHierarchy = true;
+				Params.bHideUnloadedActors = true;
+				Params.bHideEmptyFolders = true;
+				return new FActorPickingMode(Params, OnItemPicked);
+			});
+
+		InitOptions.ModeFactory = ModeFactory;
+	}
+
 	if (InitOptions.ColumnMap.Num() == 0)
 	{
 		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0, FCreateSceneOutlinerColumn(), false, TOptional<float>(), FSceneOutlinerBuiltInColumnTypes::Label_Localized()));

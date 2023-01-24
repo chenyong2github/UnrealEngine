@@ -28,21 +28,14 @@ private:
 	FReply OnApplyButtonClicked(TWeakObjectPtr<AActor> LevelInstancePivot);
 
 	int32 GetSelectedPivotType() const;
-	void OnSelectedPivotTypeChanged(int32 NewValue, ESelectInfo::Type SelectionType);
+	void OnSelectedPivotTypeChanged(int32 NewValue, ESelectInfo::Type SelectionType, TWeakObjectPtr<AActor> LevelInstancePivot);
 
-	// struct to hold weak ptr
-	struct FActorInfo
-	{
-		TWeakObjectPtr<AActor> Actor;
-	};
-
-	TSharedRef<SWidget> OnGeneratePivotActorWidget(TSharedPtr<FActorInfo> Actor) const;
-	FText GetSelectedPivotActorText() const;
-	void OnSelectedPivotActorChanged(TSharedPtr<FActorInfo> NewValue, ESelectInfo::Type SelectionType);
+	void OnPivotActorPicked(AActor* InPivotActor, TWeakObjectPtr<AActor> LevelInstancePivot);
 	bool IsPivotActorSelectionEnabled() const;
+
+	void ShowPivotLocation(const TWeakObjectPtr<AActor>& LevelInstancePivot);
 
 	// Settings for Apply button
 	ELevelInstancePivotType PivotType;
 	TWeakObjectPtr<AActor> PivotActor;
-	TArray<TSharedPtr<FActorInfo>> PivotActors;
 };

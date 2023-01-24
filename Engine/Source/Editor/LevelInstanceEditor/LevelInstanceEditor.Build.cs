@@ -31,7 +31,8 @@ public class LevelInstanceEditor : ModuleRules
 				"ClassViewer",
 				"MessageLog",
 				"EditorWidgets",
-				"DeveloperSettings"
+				"DeveloperSettings",
+				"SceneOutliner"
 			}
 		);
 

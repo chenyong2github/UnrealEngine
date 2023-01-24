@@ -84,6 +84,8 @@ public:
 	virtual bool CanRenameItem(const ISceneOutlinerTreeItem& Item) const { return false; }
 	/** Whether the toolbar can be customized. */
 	virtual bool CanCustomizeToolbar() const { return false; }
+	/** Check if an item is interactive */
+	virtual bool CanInteract(const ISceneOutlinerTreeItem& Item) const { return true; }
 
 	/** Synchronize the mode specific selection with the tree view */
 	virtual void SynchronizeSelection() {}

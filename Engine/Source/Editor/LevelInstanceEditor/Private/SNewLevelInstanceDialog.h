@@ -78,9 +78,7 @@ public:
 
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
-	TSharedRef<SWidget> OnGeneratePivotActorWidget(AActor* Actor) const;
-	FText GetSelectedPivotActorText() const;
-	void OnSelectedPivotActorChanged(AActor* NewValue, ESelectInfo::Type SelectionType);
+	void OnSelectedPivotActorChanged(AActor* NewValue);
 	bool IsPivotActorSelectionEnabled() const;
 
 protected:

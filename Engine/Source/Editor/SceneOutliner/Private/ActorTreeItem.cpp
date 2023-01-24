@@ -262,15 +262,7 @@ private:
 			// Highlight actors that are exclusive to PlayWorld
 			return FLinearColor(0.9f, 0.8f, 0.4f);
 		}
-
-		// also darken items that are non selectable in the active mode(s)
-		const bool bInSelected = true;
-		const bool bSelectEvenIfHidden = true;		// @todo outliner: Is this actually OK?
-		if (!GEditor->CanSelectActor(Actor, bInSelected, bSelectEvenIfHidden))
-		{
-			return FSceneOutlinerCommonLabelData::DarkColor;
-		}
-
+		
 		return FSlateColor::UseForeground();
 	}
 
@@ -346,14 +338,7 @@ bool FActorTreeItem::CanInteract() const
 		return false;
 	}
 
-	const bool bInSelected = true;
-	const bool bSelectEvenIfHidden = true;		// @todo outliner: Is this actually OK?
-	if (!GEditor->CanSelectActor(ActorPtr, bInSelected, bSelectEvenIfHidden))
-	{
-		return false;
-	}
-
-	return true;
+	return WeakSceneOutliner.Pin()->GetMode()->CanInteract(*this);
 }
 
 TSharedRef<SWidget> FActorTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)

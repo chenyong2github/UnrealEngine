@@ -112,6 +112,7 @@ FActorMode::FActorMode(const FActorModeParams& Params)
 	, bHideLevelInstanceHierarchy(Params.bHideLevelInstanceHierarchy)
 	, bHideUnloadedActors(Params.bHideUnloadedActors)
 	, bHideEmptyFolders(Params.bHideEmptyFolders)
+	, bCanInteractWithSelectableActorsOnly(Params.bCanInteractWithSelectableActorsOnly)
 {
 	SceneOutliner->AddFilter(MakeShared<FActorFilter>(FActorTreeItem::FFilterPredicate::CreateLambda([this](const AActor* Actor)
 	{
@@ -360,6 +361,37 @@ bool FActorMode::IsActorDisplayable(const SSceneOutliner* SceneOutliner, const A
 		!Actor->IsA(AWorldSettings::StaticClass()) &&											// Don't show the WorldSettings actor, even though it is technically editable
 		IsValidChecked(Actor) &&																// We don't want to show actors that are about to go away
 		FLevelUtils::IsLevelVisible(Actor->GetLevel());											// Only show Actors whose level is visible
+}
+
+bool FActorMode::CanInteract(const ISceneOutlinerTreeItem& Item) const
+{
+	if (bCanInteractWithSelectableActorsOnly)
+	{
+		AActor* FoundActor = nullptr;
+		if (const FActorTreeItem* ActorTreeItem = Item.CastTo<FActorTreeItem>())
+		{
+			FoundActor = ActorTreeItem->Actor.Get();
+		}
+		else if (const FComponentTreeItem* ComponentTreeItem = Item.CastTo<FComponentTreeItem>())
+		{
+			if (UActorComponent* Component = ComponentTreeItem->Component.Get())
+			{
+				FoundActor = Component->GetOwner();
+			}
+		}
+
+		if (FoundActor)
+		{
+			const bool bInSelected = true;
+			const bool bSelectEvenIfHidden = true;		// @todo outliner: Is this actually OK?
+			if (!GEditor->CanSelectActor(FoundActor, bInSelected, bSelectEvenIfHidden))
+			{
+				return false;
+			}
+		}
+	}
+	
+	return true;
 }
 
 bool FActorMode::IsActorLevelDisplayable(ULevel* InLevel)

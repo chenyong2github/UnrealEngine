@@ -16,7 +16,9 @@ class ENGINE_API FLevelInstanceEditorPivotHelper
 {
 public:
 	static ILevelInstanceEditorPivotInterface* Create(ILevelInstanceInterface* LevelInstance, ULevelStreaming* LevelStreaming);
-	static void SetPivot(ILevelInstanceEditorPivotInterface* Pivot, ELevelInstancePivotType PivotType, AActor* PivotToActor);
+	static void SetPivot(ILevelInstanceEditorPivotInterface* PivotInterface, ELevelInstancePivotType PivotType, AActor* PivotToActor);
+	static FVector GetPivot(ILevelInstanceEditorPivotInterface* PivotInterface, ELevelInstancePivotType PivotType, AActor* PivotToActor);
+	static void ShowPivotLocation(const FVector& PivotLocation);
 };
 
 #endif

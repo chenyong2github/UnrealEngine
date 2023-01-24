@@ -29,13 +29,14 @@ struct SCENEOUTLINER_API FActorModeParams
 {
 	FActorModeParams() {}
 
-	FActorModeParams(SSceneOutliner* InSceneOutliner, const TWeakObjectPtr<UWorld>& InSpecifiedWorldToDisplay = nullptr, bool bInHideComponents = true, bool bInHideLevelInstanceHierarchy = true, bool bInHideUnloadedActors = true, bool bInHideEmptyFolders = true)
+	FActorModeParams(SSceneOutliner* InSceneOutliner, const TWeakObjectPtr<UWorld>& InSpecifiedWorldToDisplay = nullptr, bool bInHideComponents = true, bool bInHideLevelInstanceHierarchy = true, bool bInHideUnloadedActors = true, bool bInHideEmptyFolders = true, bool bInCanInteractWithSelectableActorsOnly = true)
 		: SpecifiedWorldToDisplay(InSpecifiedWorldToDisplay)
 		, SceneOutliner(InSceneOutliner)
 		, bHideComponents(bInHideComponents)
 		, bHideLevelInstanceHierarchy(bInHideLevelInstanceHierarchy)
 		, bHideUnloadedActors(bInHideUnloadedActors)
 		, bHideEmptyFolders(bInHideEmptyFolders)
+		, bCanInteractWithSelectableActorsOnly(bInCanInteractWithSelectableActorsOnly)
 	{}
 
 	TWeakObjectPtr<UWorld> SpecifiedWorldToDisplay = nullptr;
@@ -45,6 +46,7 @@ struct SCENEOUTLINER_API FActorModeParams
 	bool bHideLevelInstanceHierarchy = true;
 	bool bHideUnloadedActors = true;
 	bool bHideEmptyFolders = true;
+	bool bCanInteractWithSelectableActorsOnly = true;
 };
 
 class SCENEOUTLINER_API FActorMode : public ISceneOutlinerMode
@@ -73,6 +75,8 @@ public:
 
 	virtual FFolder::FRootObject GetRootObject() const override;
 	virtual FFolder::FRootObject GetPasteTargetRootObject() const override;
+
+	virtual bool CanInteract(const ISceneOutlinerTreeItem& Item) const override;
 
 private:
 	/** Called when the user selects a world in the world picker menu */
@@ -111,4 +115,6 @@ protected:
 	bool bHideEmptyFolders;
 	/** Should the outliner scroll to the item on selection */
 	bool bAlwaysFrameSelection;
+	/** If True, CanInteract will be restricted to selectable actors only. */
+	bool bCanInteractWithSelectableActorsOnly;
 };

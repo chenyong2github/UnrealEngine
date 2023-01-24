@@ -220,16 +220,7 @@ bool FComponentTreeItem::CanInteract() const
 		return false;
 	}
 
-	const bool bInSelected = true;
-	const bool bSelectEvenIfHidden = true;		// @todo outliner: Is this actually OK?
-
-	AActor* ParentActor = ComponentPtr->GetOwner(); 
-	if (!GEditor->CanSelectActor(ParentActor, bInSelected, bSelectEvenIfHidden)) 
-	{
-		return false;
-	}
-
-	return true;
+	return WeakSceneOutliner.Pin()->GetMode()->CanInteract(*this);
 }
 
 TSharedRef<SWidget> FComponentTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)

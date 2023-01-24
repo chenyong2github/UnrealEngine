@@ -569,6 +569,7 @@ private:
 		if (bForce || bPassesFilters)
 		{
 			FSceneOutlinerTreeItemPtr Result = MakeShareable(new TreeItemType(Data));
+			Result->WeakSceneOutliner = StaticCastSharedRef<ISceneOutliner>(AsShared());
 			Result->Flags.bIsFilteredOut = !bPassesFilters;
 			Result->Flags.bInteractive = Filters->GetInteractiveState(*Result) && InteractiveFilters->GetInteractiveState(*Result);
 			return Result;

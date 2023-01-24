@@ -7,6 +7,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "SceneOutlinerStandaloneTypes.h"
 
+class ISceneOutliner;
 class UToolMenu;
 
 /** Base tree item interface  */
@@ -38,6 +39,9 @@ public:
 		
 	/** Flags for this item */
 	FlagsType Flags;
+
+	/** Weak Outliner pointer */
+	TWeakPtr<ISceneOutliner> WeakSceneOutliner;
 
 	/** Delegate for hooking up an inline editable text block to be notified that a rename is requested. */
 	DECLARE_DELEGATE( FOnRenameRequest );

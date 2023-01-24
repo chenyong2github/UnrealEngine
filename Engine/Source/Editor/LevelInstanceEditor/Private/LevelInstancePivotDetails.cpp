@@ -6,7 +6,6 @@
 #include "DetailWidgetRow.h"
 #include "Engine/Level.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "SEnumCombo.h"
 #include "ScopedTransaction.h"
@@ -15,6 +14,7 @@
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceEditorPivotInterface.h"
 #include "LevelInstance/LevelInstanceEditorPivot.h"
+#include "SLevelInstancePivotPicker.h"
 
 #define LOCTEXT_NAMESPACE "FLevelInstancePivotDetails"
 
@@ -48,29 +48,23 @@ void FLevelInstancePivotDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 
 	PivotActor = nullptr;
 	PivotType = ELevelInstancePivotType::CenterMinZ;
-	PivotActors.Reset();
-	for (AActor* Actor : EditingObject->GetLevel()->Actors)
-	{
-		if (Actor != nullptr && Actor != EditingObject && Actor->GetRootComponent() != nullptr && !Actor->IsA<ABrush>())
-		{
-			PivotActors.Add(MakeShareable(new FActorInfo{ Actor }));
-		}
-	}
 
 	IDetailCategoryBuilder& ChangePivotCategory = DetailBuilder.EditCategory("Change Pivot", FText::GetEmpty(), ECategoryPriority::Important);
-		
+	
 	ChangePivotCategory.AddCustomRow(LOCTEXT("PivotTypeRow", "Type"), false)
 		.NameContent()
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("PivotTypeText", "Type"))
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		]
 		.ValueContent()
 		[
 			SNew(SEnumComboBox, StaticEnum<ELevelInstancePivotType>())
-			.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
+			.ContentPadding(2.f)
 			.CurrentValue(this, &FLevelInstancePivotDetails::GetSelectedPivotType)
-			.OnEnumSelectionChanged(this, &FLevelInstancePivotDetails::OnSelectedPivotTypeChanged)
+			.OnEnumSelectionChanged(this, &FLevelInstancePivotDetails::OnSelectedPivotTypeChanged, EditingObject)
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		];
 
 	ChangePivotCategory.AddCustomRow(LOCTEXT("PivotActorRow", "Actor"), false)
@@ -78,19 +72,13 @@ void FLevelInstancePivotDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("PivotActorText", "Actor"))
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		]
 		.ValueContent()
 		[
-			SNew(SComboBox<TSharedPtr<FActorInfo>>)
-			.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
-			.OptionsSource(&PivotActors)
-			.OnGenerateWidget(this, &FLevelInstancePivotDetails::OnGeneratePivotActorWidget)
-			.OnSelectionChanged(this, &FLevelInstancePivotDetails::OnSelectedPivotActorChanged)
+			SNew(SLevelInstancePivotPicker)
 			.IsEnabled(this, &FLevelInstancePivotDetails::IsPivotActorSelectionEnabled)
-			[
-				SNew(STextBlock)
-				.Text(this, &FLevelInstancePivotDetails::GetSelectedPivotActorText)
-			]
+			.OnPivotActorPicked(this, &FLevelInstancePivotDetails::OnPivotActorPicked, EditingObject)
 		];
 			
 	ChangePivotCategory.AddCustomRow(LOCTEXT("ApplyRow", "Apply"), false)
@@ -101,9 +89,13 @@ void FLevelInstancePivotDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 			[
 				SNew(SButton)
 				.IsEnabled(this, &FLevelInstancePivotDetails::IsApplyButtonEnabled, EditingObject)
-				.Text(LOCTEXT("ChangePivotButton", "Apply"))
 				.HAlign(HAlign_Center)
 				.OnClicked(this, &FLevelInstancePivotDetails::OnApplyButtonClicked, EditingObject)
+				[
+					SNew(STextBlock)
+					.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
+					.Text(LOCTEXT("ChangePivotButton", "Apply"))
+				]
 			]
 		];
 }
@@ -128,27 +120,11 @@ int32 FLevelInstancePivotDetails::GetSelectedPivotType() const
 	return (int32)PivotType;
 }
 
-void FLevelInstancePivotDetails::OnSelectedPivotTypeChanged(int32 NewValue, ESelectInfo::Type SelectionType)
+void FLevelInstancePivotDetails::OnSelectedPivotTypeChanged(int32 NewValue, ESelectInfo::Type SelectionType, TWeakObjectPtr<AActor> LevelInstancePivot)
 {
 	PivotType = (ELevelInstancePivotType)NewValue;
-}
 
-TSharedRef<SWidget> FLevelInstancePivotDetails::OnGeneratePivotActorWidget(TSharedPtr<FActorInfo> ActorInfo) const
-{
-	AActor* Actor = ActorInfo->Actor.Get();
-
-	// If a row wasn't generated just create the default one, a simple text block of the item's name.
-	return SNew(STextBlock).Text(Actor ? FText::FromString(Actor->GetActorLabel()) : LOCTEXT("null", "null"));
-}
-
-FText FLevelInstancePivotDetails::GetSelectedPivotActorText() const
-{
-	return PivotActor.IsValid() ? FText::FromString(PivotActor->GetActorLabel()) : LOCTEXT("none", "None");
-}
-
-void FLevelInstancePivotDetails::OnSelectedPivotActorChanged(TSharedPtr<FActorInfo> NewValue, ESelectInfo::Type SelectionType)
-{
-	PivotActor = NewValue->Actor;
+	ShowPivotLocation(LevelInstancePivot);
 }
 
 bool FLevelInstancePivotDetails::IsPivotActorSelectionEnabled() const
@@ -156,6 +132,24 @@ bool FLevelInstancePivotDetails::IsPivotActorSelectionEnabled() const
 	return PivotType == ELevelInstancePivotType::Actor;
 }
 
+void FLevelInstancePivotDetails::OnPivotActorPicked(AActor* InPivotActor, TWeakObjectPtr<AActor> LevelInstancePivot)
+{
+	PivotActor = InPivotActor;
+
+	ShowPivotLocation(LevelInstancePivot);
+}
+
+void FLevelInstancePivotDetails::ShowPivotLocation(const TWeakObjectPtr<AActor>& LevelInstancePivot)
+{
+	// Avoid showing invalid location
+	if (PivotType == ELevelInstancePivotType::Actor && PivotActor == nullptr)
+	{
+		return;
+	}
+
+	FVector PivotLocation = FLevelInstanceEditorPivotHelper::GetPivot(CastChecked<ILevelInstanceEditorPivotInterface>(LevelInstancePivot.Get()), PivotType, PivotActor.Get());
+	FLevelInstanceEditorPivotHelper::ShowPivotLocation(PivotLocation);
+}
 
 
 #undef LOCTEXT_NAMESPACE

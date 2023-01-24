@@ -4,7 +4,7 @@
 
 #include "ActorMode.h"
 
-class FActorPickingMode : public FActorMode
+class SCENEOUTLINER_API FActorPickingMode : public FActorMode
 {
 public:
 	FActorPickingMode(const FActorModeParams& Params, FOnSceneOutlinerItemPicked OnItemPickedDelegate);
