@@ -435,6 +435,7 @@ FVulkanRingBuffer::FVulkanRingBuffer(FVulkanDevice* InDevice, uint64 TotalSize, 
 	: VulkanRHI::FDeviceChild(InDevice)
 	, BufferSize(TotalSize)
 	, BufferOffset(0)
+	, BufferAddress(0)
 	, MinAlignment(0)
 {
 	check(TotalSize <= (uint64)MAX_uint32);
@@ -442,6 +443,14 @@ FVulkanRingBuffer::FVulkanRingBuffer(FVulkanDevice* InDevice, uint64 TotalSize, 
 	MinAlignment = Allocation.GetBufferAlignment(Device);
 	// Start by wrapping around to set up the correct fence
 	BufferOffset = TotalSize;
+
+	if (InDevice->GetOptionalExtensions().HasBufferDeviceAddress)
+	{
+		VkBufferDeviceAddressInfo BufferInfo;
+		ZeroVulkanStruct(BufferInfo, VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO);
+		BufferInfo.buffer = Allocation.GetBufferHandle();
+		BufferAddress = VulkanRHI::vkGetBufferDeviceAddressKHR(Device->GetInstanceHandle(), &BufferInfo);
+	}
 }
 
 FVulkanRingBuffer::~FVulkanRingBuffer()

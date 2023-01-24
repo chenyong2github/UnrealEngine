@@ -821,6 +821,11 @@ public:
 		return Allocation.Offset;
 	}
 
+	inline VkDeviceAddress GetBufferAddress() const
+	{
+		return BufferAddress;
+	}
+
 	inline VkBuffer GetHandle() const
 	{
 		return Allocation.GetBufferHandle();
@@ -831,12 +836,12 @@ public:
 		return Allocation.GetMappedPointer(Device);
 	}
 
-	VulkanRHI::FVulkanAllocation& GetAllocation()
+	inline VulkanRHI::FVulkanAllocation& GetAllocation()
 	{
 		return Allocation;
 	}
 
-	const VulkanRHI::FVulkanAllocation& GetAllocation() const
+	inline const VulkanRHI::FVulkanAllocation& GetAllocation() const
 	{
 		return Allocation;
 	}
@@ -845,6 +850,7 @@ public:
 protected:
 	uint64 BufferSize;
 	uint64 BufferOffset;
+	VkDeviceAddress BufferAddress;
 	uint32 MinAlignment;
 	VulkanRHI::FVulkanAllocation Allocation;
 
@@ -861,22 +867,22 @@ public:
 	FVulkanUniformBufferUploader(FVulkanDevice* InDevice);
 	~FVulkanUniformBufferUploader();
 
-	uint8* GetCPUMappedPointer()
+	inline uint8* GetCPUMappedPointer()
 	{
 		return (uint8*)CPUBuffer->GetMappedPointer();
 	}
 
-	uint64 AllocateMemory(uint64 Size, uint32 Alignment, FVulkanCmdBuffer* InCmdBuffer)
+	inline uint64 AllocateMemory(uint64 Size, uint32 Alignment, FVulkanCmdBuffer* InCmdBuffer)
 	{
 		return CPUBuffer->AllocateMemory(Size, Alignment, InCmdBuffer);
 	}
 
-	const VulkanRHI::FVulkanAllocation& GetCPUBufferAllocation() const
+	inline const VulkanRHI::FVulkanAllocation& GetCPUBufferAllocation() const
 	{
 		return CPUBuffer->GetAllocation();
 	}
 
-	VkBuffer GetCPUBufferHandle() const
+	inline VkBuffer GetCPUBufferHandle() const
 	{
 		return CPUBuffer->GetHandle();
 	}
@@ -884,6 +890,11 @@ public:
 	inline uint32 GetCPUBufferOffset() const
 	{
 		return CPUBuffer->GetBufferOffset();
+	}
+
+	inline VkDeviceAddress GetCPUBufferAddress() const
+	{
+		return CPUBuffer->GetBufferAddress();
 	}
 
 protected:
