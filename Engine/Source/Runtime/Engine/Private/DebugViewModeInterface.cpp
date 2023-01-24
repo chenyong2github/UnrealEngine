@@ -13,15 +13,15 @@ DebugViewModeInterface.cpp: Contains definitions for rendering debug viewmodes.
 
 FDebugViewModeInterface* FDebugViewModeInterface::Singleton = nullptr;
 
-void FDebugViewModeInterface::SetDrawRenderState(EDebugViewShaderMode DebugViewMode, const FMaterial& InMaterial, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const
+void FDebugViewModeInterface::SetDrawRenderState(EDebugViewShaderMode DebugViewMode, EBlendMode InBlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const
 {
 	if (DebugViewMode == DVSM_QuadComplexity || DebugViewMode == DVSM_ShaderComplexityBleedingQuadOverhead || DebugViewMode == DVSM_ShaderComplexityContainedQuadOverhead || DebugViewMode == DVSM_ShaderComplexity)
 	{
-		if (IsOpaqueBlendMode(InMaterial))
+		if (IsOpaqueBlendMode(InBlendMode))
 		{
 			DrawRenderState.DepthStencilState = TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI();
 		}
-		else if (IsMaskedBlendMode(InMaterial))
+		else if (IsMaskedBlendMode(InBlendMode))
 		{
 			if (bHasDepthPrepassForMaskedMaterial)
 			{
@@ -45,7 +45,7 @@ void FDebugViewModeInterface::SetDrawRenderState(EDebugViewShaderMode DebugViewM
 	}
 	else
 	{
-		if (IsTranslucentBlendMode(InMaterial))
+		if (IsTranslucentBlendMode(InBlendMode))
 		{
 			// Otherwise, force translucent blend mode (shaders will use an hardcoded alpha).
 			DrawRenderState.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI();
@@ -56,7 +56,7 @@ void FDebugViewModeInterface::SetDrawRenderState(EDebugViewShaderMode DebugViewM
 			DrawRenderState.BlendState = TStaticBlendState<>::GetRHI();
 
 			// If not selected, use depth equal to make alpha test stand out (goes with EarlyZPassMode = DDM_AllOpaque) 
-			if (IsMaskedBlendMode(InMaterial) && bHasDepthPrepassForMaskedMaterial)
+			if (IsMaskedBlendMode(InBlendMode) && bHasDepthPrepassForMaskedMaterial)
 			{
 				DrawRenderState.DepthStencilState = TStaticDepthStencilState<false, CF_Equal>::GetRHI();
 			}

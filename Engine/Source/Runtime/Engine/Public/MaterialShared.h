@@ -55,6 +55,7 @@ class FMaterial;
 class FMaterialCompiler;
 class FMaterialRenderProxy;
 class FMaterialShaderType;
+struct FMaterialShaderParameters;
 class FMaterialUniformExpression;
 class FMaterialUniformExpressionTexture;
 struct FUniformExpressionCache;
@@ -144,6 +145,52 @@ inline uint32 GetUseSubsurfaceProfileShadingModelMask()
 
 /** Whether to allow dithered LOD transitions for a specific feature level. */
 ENGINE_API bool AllowDitheredLODTransition(ERHIFeatureLevel::Type FeatureLevel);
+
+/** Blend modes utility functions */
+ENGINE_API bool IsOpaqueBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsOpaqueBlendMode(const FMaterial& In);
+ENGINE_API bool IsOpaqueBlendMode(const UMaterialInterface& In);
+ENGINE_API bool IsOpaqueBlendMode(const FMaterialShaderParameters& In);
+
+ENGINE_API bool IsOpaqueOrMaskedBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsOpaqueOrMaskedBlendMode(const FMaterial& In);
+ENGINE_API bool IsOpaqueOrMaskedBlendMode(const UMaterialInterface& In);
+ENGINE_API bool IsOpaqueOrMaskedBlendMode(const FMaterialShaderParameters& In);
+
+ENGINE_API bool IsMaskedBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsMaskedBlendMode(const FMaterial& In);
+ENGINE_API bool IsMaskedBlendMode(const UMaterialInterface& In);
+ENGINE_API bool IsMaskedBlendMode(const FMaterialShaderParameters& In);
+
+ENGINE_API bool IsTranslucentOnlyBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsTranslucentOnlyBlendMode(const FMaterial& In);
+ENGINE_API bool IsTranslucentOnlyBlendMode(const UMaterialInterface& In);
+ENGINE_API bool IsTranslucentOnlyBlendMode(const FMaterialShaderParameters& In);
+
+ENGINE_API bool IsTranslucentBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsTranslucentBlendMode(const FMaterial& In);
+ENGINE_API bool IsTranslucentBlendMode(const UMaterialInterface& In);
+ENGINE_API bool IsTranslucentBlendMode(const FMaterialShaderParameters& In);
+
+ENGINE_API bool IsAlphaHoldoutBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsAlphaHoldoutBlendMode(const FMaterial& In);
+ENGINE_API bool IsAlphaHoldoutBlendMode(const UMaterialInterface& In);
+ENGINE_API bool IsAlphaHoldoutBlendMode(const FMaterialShaderParameters& In);
+
+ENGINE_API bool IsModulateBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsModulateBlendMode(const FMaterial& In);
+ENGINE_API bool IsModulateBlendMode(const UMaterialInterface& In);
+ENGINE_API bool IsModulateBlendMode(const FMaterialShaderParameters& In);
+
+ENGINE_API bool IsAdditiveBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsAdditiveBlendMode(const FMaterial& In);
+ENGINE_API bool IsAdditiveBlendMode(const UMaterialInterface& In);
+ENGINE_API bool IsAdditiveBlendMode(const FMaterialShaderParameters& In);
+
+ENGINE_API bool IsAlphaCompositeBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsAlphaCompositeBlendMode(const FMaterial& In);
+ENGINE_API bool IsAlphaCompositeBlendMode(const UMaterialInterface& In);
+ENGINE_API bool IsAlphaCompositeBlendMode(const FMaterialShaderParameters& In);
 
 #if WITH_EDITOR
 
@@ -2940,17 +2987,3 @@ inline bool ShouldIncludeMaterialInDefaultOpaquePass(const FMaterial& Material)
 	return !Material.IsSky()
 		&& !Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
 }
-
-ENGINE_API bool IsOpaqueBlendMode(const FMaterialShaderParameters& In);
-
-ENGINE_API bool IsOpaqueOrMaskedBlendMode(const FMaterialShaderParameters& In);
-
-ENGINE_API bool IsMaskedBlendMode(const FMaterialShaderParameters& In);
-
-ENGINE_API bool IsTranslucentOnlyBlendMode(const FMaterialShaderParameters& In);
-
-ENGINE_API bool IsTranslucentBlendMode(const FMaterialShaderParameters& In);
-
-ENGINE_API bool IsAlphaHoldoutBlendMode(const FMaterialShaderParameters& In);
-
-ENGINE_API bool IsModulateBlendMode(const FMaterialShaderParameters& In);

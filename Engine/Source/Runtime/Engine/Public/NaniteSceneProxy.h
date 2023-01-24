@@ -76,6 +76,7 @@ struct FMaterialAudit
 
 ENGINE_API void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit);
 ENGINE_API void FixupMaterials(FMaterialAudit& Audit);
+ENGINE_API bool IsSupportedBlendMode(EBlendMode Mode);
 ENGINE_API bool IsSupportedBlendMode(const FMaterial& In);
 ENGINE_API bool IsSupportedBlendMode(const FMaterialShaderParameters& In);
 ENGINE_API bool IsSupportedBlendMode(const UMaterialInterface& In);

@@ -2150,7 +2150,7 @@ void FixupMaterials(FMaterialAudit& Audit)
 	}
 }
 
-inline bool IsSupportedBlendMode(const EBlendMode& BlendMode)
+bool IsSupportedBlendMode(EBlendMode BlendMode)
 {
 	if (GNaniteErrorOnMaskedBlendMode != 0)
 	{

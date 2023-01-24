@@ -264,42 +264,6 @@ enum EBlendMode : int
 class FMaterial;
 class UMaterialInterface;
 
-ENGINE_API bool IsOpaqueBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsOpaqueBlendMode(const FMaterial& In);
-ENGINE_API bool IsOpaqueBlendMode(const UMaterialInterface& In);
-
-ENGINE_API bool IsOpaqueOrMaskedBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsOpaqueOrMaskedBlendMode(const FMaterial& In);
-ENGINE_API bool IsOpaqueOrMaskedBlendMode(const UMaterialInterface& In);
-
-ENGINE_API bool IsMaskedBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsMaskedBlendMode(const FMaterial& In);
-ENGINE_API bool IsMaskedBlendMode(const UMaterialInterface& In);
-
-ENGINE_API bool IsTranslucentOnlyBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsTranslucentOnlyBlendMode(const FMaterial& In);
-ENGINE_API bool IsTranslucentOnlyBlendMode(const UMaterialInterface& In);
-
-ENGINE_API bool IsTranslucentBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsTranslucentBlendMode(const FMaterial& In);
-ENGINE_API bool IsTranslucentBlendMode(const UMaterialInterface& In);
-
-ENGINE_API bool IsAlphaHoldoutBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsAlphaHoldoutBlendMode(const FMaterial& In);
-ENGINE_API bool IsAlphaHoldoutBlendMode(const UMaterialInterface& In);
-
-ENGINE_API bool IsModulateBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsModulateBlendMode(const FMaterial& In);
-ENGINE_API bool IsModulateBlendMode(const UMaterialInterface& In);
-
-ENGINE_API bool IsAdditiveBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsAdditiveBlendMode(const FMaterial& In);
-ENGINE_API bool IsAdditiveBlendMode(const UMaterialInterface& In);
-
-ENGINE_API bool IsAlphaCompositeBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsAlphaCompositeBlendMode(const FMaterial& In);
-ENGINE_API bool IsAlphaCompositeBlendMode(const UMaterialInterface& In);
-
 /** The default float precision for material's pixel shaders on mobile devices*/
 UENUM()
 enum EMaterialFloatPrecisionMode : int

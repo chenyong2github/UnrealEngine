@@ -101,7 +101,7 @@ uint8 ComputeRayTracingInstanceShadowMask(ERayTracingViewMaskMode MaskMode)
 
 uint8 BlendModeToRayTracingInstanceMask(const EBlendMode BlendMode, ERayTracingViewMaskMode MaskMode)
 {
-	ERayTracingInstanceMaskType Type = (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked) ? ERayTracingInstanceMaskType::Opaque : ERayTracingInstanceMaskType::Translucent;
+	ERayTracingInstanceMaskType Type = IsOpaqueOrMaskedBlendMode(BlendMode) ? ERayTracingInstanceMaskType::Opaque : ERayTracingInstanceMaskType::Translucent;
 	return ComputeRayTracingInstanceMask(Type, MaskMode);
 }
 

@@ -273,6 +273,8 @@ public:
 	/**
 	 * Whether material utilities support exporting specified material blend mode and property 
 	 */
+	UE_DEPRECATED(5.2, "Use SupportsExport(bool bIsOpaque, ...) function instead")
+	static bool SupportsExport(EBlendMode InBlendMode, EMaterialProperty InMaterialProperty);
 	static bool SupportsExport(bool bIsOpaque, EMaterialProperty InMaterialProperty);
 
 	/**

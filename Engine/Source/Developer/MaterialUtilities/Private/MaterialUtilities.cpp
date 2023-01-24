@@ -967,6 +967,11 @@ bool FMaterialUtilities::SupportsExport(bool bIsOpaque, EMaterialProperty InMate
 	return FExportMaterialProxy::WillFillData(bIsOpaque, InMaterialProperty);
 }
 
+bool FMaterialUtilities::SupportsExport(EBlendMode InBlendMode, EMaterialProperty InMaterialProperty)
+{
+	return FExportMaterialProxy::WillFillData(IsOpaqueBlendMode(InBlendMode), InMaterialProperty);
+}
+
 static bool ExportLandscapeMaterial(const ALandscapeProxy* InLandscape, const TSet<FPrimitiveComponentId>& ShowOnlyPrimitives, const TSet<FPrimitiveComponentId>& HiddenPrimitives, FFlattenMaterial& OutFlattenMaterial)
 {
 	check(InLandscape);
