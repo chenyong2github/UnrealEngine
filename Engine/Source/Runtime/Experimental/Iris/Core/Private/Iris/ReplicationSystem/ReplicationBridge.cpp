@@ -753,7 +753,7 @@ void UReplicationBridge::InternalTearOff(FNetRefHandle Handle)
 		FInternalNetSerializationContext InternalContext(ReplicationSystem);
 		SerializationContext.SetInternalContext(&InternalContext);
 
-		if (EnumHasAnyFlags(ObjectData.InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPoll | EReplicationInstanceProtocolTraits::NeedsPreSendUpdate))
+		if (ObjectData.InstanceProtocol && EnumHasAnyFlags(ObjectData.InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPoll | EReplicationInstanceProtocolTraits::NeedsPreSendUpdate))
 		{
 			CallPreSendUpdateSingleHandle(Handle);
 		} 
