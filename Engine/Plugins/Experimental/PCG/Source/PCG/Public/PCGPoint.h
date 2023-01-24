@@ -33,6 +33,7 @@ public:
 	FPCGPoint(const FTransform& InTransform, float InDensity, int32 InSeed);
 
 	FBox GetLocalBounds() const;
+	FBox GetLocalDensityBounds() const;
 	void SetLocalBounds(const FBox& InBounds);
 	FBoxSphereBounds GetDensityBounds() const;
 

@@ -29,6 +29,11 @@ FBox FPCGPoint::GetLocalBounds() const
 	return FBox(BoundsMin, BoundsMax);
 }
 
+FBox FPCGPoint::GetLocalDensityBounds() const
+{
+	return FBox((2 - Steepness) * BoundsMin, (2 - Steepness) * BoundsMax);
+}
+
 void FPCGPoint::SetLocalBounds(const FBox& InBounds)
 {
 	BoundsMin = InBounds.Min;
@@ -37,7 +42,7 @@ void FPCGPoint::SetLocalBounds(const FBox& InBounds)
 
 FBoxSphereBounds FPCGPoint::GetDensityBounds() const
 {
-	return FBoxSphereBounds(FBox((2 - Steepness) * BoundsMin, (2 - Steepness) * BoundsMax).TransformBy(Transform));
+	return FBoxSphereBounds(GetLocalDensityBounds().TransformBy(Transform));
 }
 
 bool FPCGPoint::HasCustomPropertyGetterSetter(FName Name)
