@@ -840,6 +840,7 @@ void DispatchBasePass(
 
 	// Classify materials for tile culling
 	// TODO: Run velocity export in here instead of depth pre-pass?
+	if (HighestMaterialSlot > 0)
 	{
 		// Initialize acceleration/indexing structures for tile classification
 		{
