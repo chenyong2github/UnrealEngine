@@ -24,6 +24,7 @@ class FSceneViewFamily;
 class UCanvas;
 class FOpenXRRenderBridge;
 class IOpenXRInputModule;
+struct FDefaultStereoLayers_LayerRenderParams;
 
 /**
  * Simple Head Mounted Display
@@ -91,6 +92,17 @@ public:
 		bool bXrFrameStateUpdated = false;
 	};
 
+	struct FEmulatedLayerState
+	{
+		// These layers are used as a target to composite all the emulated face locked layers into
+		// and be sent to the compositor with VIEW tracking space to avoid reprojection.
+		TArray<XrCompositionLayerProjectionView> CompositedProjectionLayers;
+		TArray<XrSwapchainSubImage> EmulationImages;
+		// This swapchain is where the emulated face locked layers are rendered into.
+		FXRSwapChainPtr EmulationSwapchain;
+		bool bIsFaceLockedLayerEmulationActive = false;
+	};
+
 	struct FPipelinedLayerState
 	{
 		TArray<XrCompositionLayerQuad> QuadLayers;
@@ -103,6 +115,8 @@ public:
 		FXRSwapChainPtr ColorSwapchain;
 		FXRSwapChainPtr DepthSwapchain;
 		TArray<FXRSwapChainPtr> QuadSwapchains;
+
+		FEmulatedLayerState EmulatedLayerState;
 
 		bool bBackgroundLayerVisible = true;
 		bool bSubmitBackgroundLayer = true;
@@ -249,7 +263,9 @@ protected:
 	void VRHeadsetRecenterDelegate();
 
 	void SetupFrameQuadLayers_RenderThread(FRHICommandListImmediate& RHICmdList);
-	void DrawEmulatedQuadLayers_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& InView);
+	void DrawEmulatedLayers_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& InView);
+	void DrawBackgroundCompositedEmulatedLayers_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& InView);
+	void DrawEmulatedFaceLockedLayers_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& InView);
 
 	/** TStereoLayerManager<FOpenXRLayer> */
 	void UpdateLayer(FOpenXRLayer& ManagerLayer, uint32 LayerId, bool bIsValid) override;
@@ -350,7 +366,7 @@ public:
 	virtual ~FOpenXRHMD();
 
 	void OnBeginSimulation_GameThread();
-	void OnBeginRendering_RHIThread(const FPipelinedFrameState& InFrameState, FXRSwapChainPtr ColorSwapchain, FXRSwapChainPtr DepthSwapchain);
+	void OnBeginRendering_RHIThread(const FPipelinedFrameState& InFrameState, FXRSwapChainPtr ColorSwapchain, FXRSwapChainPtr DepthSwapchain, FXRSwapChainPtr EmulationSwapchain);
 	void OnFinishRendering_RHIThread();
 
 	/** @return	True if the HMD was initialized OK */
@@ -374,6 +390,9 @@ public:
 
 private:
 	TArray<XrEnvironmentBlendMode> RetrieveEnvironmentBlendModes() const;
+	FDefaultStereoLayers_LayerRenderParams CalculateEmulatedLayerRenderParams(const FSceneView& InView);
+	FRHIRenderPassInfo SetupEmulatedLayersRenderPass(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, TArray<IStereoLayers::FLayerDesc>& Layers, FTexture2DRHIRef RenderTarget, FDefaultStereoLayers_LayerRenderParams& OutRenderParams);
+	bool IsEmulatingStereoLayers();
 
 	bool					bStereoEnabled;
 	TAtomic<bool>			bIsRunning;
@@ -438,7 +457,8 @@ private:
 	FQuat					BaseOrientation;
 	FVector					BasePosition;
 
-	bool					bNativeWorldQuadLayerSupport;
-	TArray<IStereoLayers::FLayerDesc> EmulatedSceneLayers;
+	bool					bLayerSupportOpenXRCompliant;
+	TArray<IStereoLayers::FLayerDesc> BackgroundCompositedEmulatedLayers;
+	TArray<IStereoLayers::FLayerDesc> EmulatedFaceLockedLayers;
 	TArray<FOpenXRLayer>			  NativeQuadLayers;
 };

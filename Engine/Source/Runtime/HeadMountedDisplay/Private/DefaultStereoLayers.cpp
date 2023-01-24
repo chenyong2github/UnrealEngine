@@ -58,7 +58,7 @@ FDefaultStereoLayers::FDefaultStereoLayers(const FAutoRegister& AutoRegister, FH
 //=============================================================================
 
 // static
-void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdList, const TArray<FLayerDesc>& LayersToRender, const FLayerRenderParams& RenderParams)
+void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdList, const TArray<FLayerDesc>& LayersToRender, const FDefaultStereoLayers_LayerRenderParams& RenderParams)
 {
 	check(IsInRenderingThread());
 	if (!LayersToRender.Num())
@@ -235,7 +235,7 @@ void FDefaultStereoLayers::PostRenderView_RenderThread(FRDGBuilder& GraphBuilder
 		FVector HmdLocation = HmdTransform.GetTranslation();
 		FMatrix TrackerMatrix = FTranslationMatrix(-HmdLocation) * FInverseRotationMatrix(HmdOrientation.Rotator()) * EyeMatrix;
 
-		FLayerRenderParams RenderParams{
+		FDefaultStereoLayers_LayerRenderParams RenderParams{
 			InView.UnscaledViewRect, // Viewport
 			{
 				ViewProjectionMatrix,				// WorldLocked,

@@ -5,6 +5,13 @@
 #include "SceneViewExtension.h"
 class FHeadMountedDisplayBase;
 
+/** Experimental struct */
+struct HEADMOUNTEDDISPLAY_API FDefaultStereoLayers_LayerRenderParams
+{
+	FIntRect Viewport;
+	FMatrix RenderMatrices[3];
+};
+
 /** 
  *	Default implementation of stereo layers for platforms that require emulating layer support.
  *
@@ -29,15 +36,8 @@ public:
 		return false;
 	}
 
-	/** Experimental struct */
-	struct FLayerRenderParams
-	{
-		FIntRect Viewport;
-		FMatrix RenderMatrices[3];
-	};
-
 	/** Experimental method */
-	static void StereoLayerRender(FRHICommandListImmediate& RHICmdList, const TArray<FLayerDesc>& LayersToRender, const FLayerRenderParams& RenderParams);
+	static void StereoLayerRender(FRHICommandListImmediate& RHICmdList, const TArray<FLayerDesc>& LayersToRender, const FDefaultStereoLayers_LayerRenderParams& RenderParams);
 
 protected:
 	
