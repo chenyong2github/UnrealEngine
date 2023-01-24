@@ -307,6 +307,14 @@ private:
 	UPROPERTY(Blueprintgetter = GetIsAspectRatioAuto, BlueprintSetter = SetIsAspectRatioAuto, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
 	bool bIsAspectRatioAuto = true;
 
+	/** If true then enable the use of MipLevelToUpscale as defined below. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
+	bool bEnableMipMapUpscaling = false;
+
+	/* With exr playback, upscale into lower quality mips from this specified level. All levels including and above the specified value will be fully read. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate", meta = (EditCondition = "bEnableMipMapUpscaling", AllowPrivateAccess = true, UIMin = "0", UIMax = "16"))
+	int32 MipLevelToUpscale = 16;
+
 	/** If > 0, then this is the aspect ratio of our screen and 
 	 * letterboxes will be added if the media is smaller than the screen. */
 	UPROPERTY()

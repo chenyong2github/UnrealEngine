@@ -32,6 +32,8 @@ struct FMediaTextureTrackerObject
 	EMediaTextureVisibleMipsTiles VisibleMipsTilesCalculations;
 	/** Arc size in degrees used for visible tiles calculations, specific to the sphere.*/
 	FVector2D MeshRange;
+	/* Mip level to upscale into lower quality mips. All levels including and above the specified value will be fully read. */
+	int32 MipLevelToUpscale = -1;
 };
 
 /**

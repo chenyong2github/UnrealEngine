@@ -761,6 +761,9 @@ IQueuedWork* FImgMediaLoader::GetWork()
 		return nullptr;
 	}
 
+	// Update minimum mip level to upscale
+	MinimumMipLevelToUpscale = GetDesiredMinimumMipLevelToUpscale();
+
 	FImgMediaLoaderWork* Work = (WorkPool.Num() > 0) ? WorkPool.Pop() : new FImgMediaLoaderWork(AsShared(), Reader.ToSharedRef());
 	
 	// Get the existing frame so we can add the mip level to it.
@@ -958,6 +961,7 @@ bool FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 	}
 
 	NumMipLevels = FMath::Max(FirstFrameInfo.NumMipLevels, ImagePaths.Num());
+	MinimumMipLevelToUpscale = -1;
 
 	SequenceDim = FirstFrameInfo.Dim;
 
@@ -1535,6 +1539,16 @@ void FImgMediaLoader::GetDesiredMipTiles(int32 FrameIndex, TMap<int32, FImgMedia
 			OutMipsAndTiles.Emplace(MipLevel, FImgMediaTileSelection::CreateForTargetMipLevel(SequenceDim, TilingDescription.TileSize, MipLevel, true));
 		}
 	}
+}
+
+int32 FImgMediaLoader::GetDesiredMinimumMipLevelToUpscale()
+{
+	if (MipMapInfo.IsValid())
+	{
+		return MipMapInfo->GetMinimumMipLevelToUpscale();
+	}
+
+	return -1;
 }
 
 

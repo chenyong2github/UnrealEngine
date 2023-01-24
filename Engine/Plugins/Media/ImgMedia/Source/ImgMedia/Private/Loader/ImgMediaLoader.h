@@ -260,6 +260,14 @@ public:
 	};
 
 	/**
+	 * Get the minumum mip level to upscale to lower quality mips (-1 if disabled).
+	 */
+	int32 GetMinimumLevelToUpscale() const
+	{
+		return MinimumMipLevelToUpscale;
+	};
+
+	/**
 	 * If mips are stored in separate files we should make sure to read it.
 	 */
 	bool MipsInSeparateFiles() const
@@ -473,6 +481,13 @@ protected:
 	 */
 	void GetDesiredMipTiles(int32 FrameIndex, TMap<int32, FImgMediaTileSelection>& OutMipsAndTiles);
 
+	/**
+	 * Get what mip level supporting readers should upscale.
+	 *
+	 * @return minimum mip level to upscale.
+	 */
+	int32 GetDesiredMinimumMipLevelToUpscale();
+
 	/***
 	 * Modulos the time so that it is between 0 and SequenceDuration.
 	 * Handles negative numbers appropriately.
@@ -570,6 +585,9 @@ private:
 
 	/** Stores num of mip levels if the sequence is made out of files that contain all mips in one file. */
 	int32 NumMipLevels;
+
+	/** Minumum mip level to upscale. */
+	TAtomic<int32> MinimumMipLevelToUpscale;
 
 	/** The image sequence reader to use. */
 	TSharedPtr<IImgMediaReader, ESPMode::ThreadSafe> Reader;

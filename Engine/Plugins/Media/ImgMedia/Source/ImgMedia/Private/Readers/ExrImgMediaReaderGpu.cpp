@@ -38,13 +38,6 @@ static TAutoConsoleVariable<bool> CVarExrReaderUseUploadHeap(
 	TEXT("Utilizes upload heap and copies raw exr buffer asynchronously.\n\
 			Requires a restart of the engine."));
 
-static TAutoConsoleVariable<int32> CVarUpscaleLowQualityMip(
-	TEXT("r.ExrReaderGPU.UpscaleHigherLevelMip"),
-	-1,
-	TEXT("Upscales lower quality mips into higher quality (EX: upscaling mip 3 into mip 0, 1, 2).\n\
-			This will cover unread black regions of EXR texture with the lower quality mips.\n\
-			This will clamp to the lowest quality mip available and disabled by default (-1)"));
-
 /** This is to force user to restart after they've changed this setting. */
 static bool bUseUploadHeap = CVarExrReaderUseUploadHeap.GetValueOnAnyThread();
 
@@ -93,7 +86,7 @@ FExrImgMediaReaderGpu::FExrImgMediaReaderGpu(const TSharedRef<FImgMediaLoader, E
 {
 	const int32 NumMipLevels = InLoader->GetNumMipLevels();
 
-	if (NumMipLevels <= 1 && CVarUpscaleLowQualityMip.GetValueOnAnyThread() >= 0)
+	if (NumMipLevels <= 1 && InLoader->GetMinimumLevelToUpscale() >= 0)
 	{
 		UE_LOG(LogImgMedia, Display, TEXT("No upscaling for sequence without mips: %s"), *InLoader->GetImagePath(0,0));
 	}
@@ -321,7 +314,7 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 		// Force mip level to be upscaled to all higher quality mips.
 		FIntPoint CurrentMipDim = ConverterParams->FullResolution;
 		TMap<int32, FImgMediaTileSelection> InMipTilesCopy = InMipTiles;
-		const int32 MipToUpscale = FMath::Clamp(CVarUpscaleLowQualityMip.GetValueOnAnyThread(), -1, ConverterParams->NumMipLevels - 1);
+		const int32 MipToUpscale = FMath::Clamp(Loader->GetMinimumLevelToUpscale(), -1, ConverterParams->NumMipLevels - 1);
 
 		if (ConverterParams->NumMipLevels > 1 && MipToUpscale >= 0)
 		{

@@ -277,6 +277,16 @@ UMeshComponent* FImgMediaMipMapObjectInfo::GetMeshComponent() const
 	return MeshComponent.Get(true);
 }
 
+int32 FImgMediaMipMapObjectInfo::GetMipLevelToUpscale() const
+{
+	if (Tracker.IsValid())
+	{
+		return Tracker.Pin()->MipLevelToUpscale;
+	}
+
+	return -1;
+}
+
 void FImgMediaMipMapObjectInfo::CalculateVisibleTiles(const TArray<FImgMediaViewInfo>& InViewInfos, const FSequenceInfo& InSequenceInfo, TMap<int32, FImgMediaTileSelection>& VisibleTiles) const
 {
 	UMeshComponent* Mesh = MeshComponent.Get();
@@ -901,12 +911,11 @@ TMap<int32, FImgMediaTileSelection> FImgMediaMipMapInfo::GetVisibleTiles()
 	// accessing things that are modified by code external to this function.
 
 
-	int32 MipToUpscale = -1;
-	static const auto CVarUpscaleMip = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ExrReaderGPU.UpscaleHigherLevelMip"));
+	int32 MipToUpscale = GetMinimumMipLevelToUpscale();
 
-	if (SequenceInfo.NumMipLevels > 1 && CVarUpscaleMip)
+	if (SequenceInfo.NumMipLevels > 1)
 	{
-		MipToUpscale = FMath::Min(CVarUpscaleMip->GetValueOnAnyThread(), SequenceInfo.NumMipLevels - 1);
+		MipToUpscale = FMath::Min(MipToUpscale, SequenceInfo.NumMipLevels - 1);
 	}
 
 	FScopeLock Lock(&InfoCriticalSection);
@@ -940,6 +949,30 @@ TMap<int32, FImgMediaTileSelection> FImgMediaMipMapInfo::GetVisibleTiles()
 	}
 
 	return CachedVisibleTiles;
+}
+
+int32 FImgMediaMipMapInfo::GetMinimumMipLevelToUpscale() const
+{
+	int32 MinimumLevel = TNumericLimits<int32>::Max();
+
+	FScopeLock LockObjects(&ObjectsCriticalSection);
+
+	for (const FImgMediaMipMapObjectInfo* ObjectInfo : Objects)
+	{
+		const int32 ObjectMipLevelToUpscale = ObjectInfo->GetMipLevelToUpscale();
+
+		if (ObjectMipLevelToUpscale >= 0)
+		{
+			MinimumLevel = FMath::Min(MinimumLevel, ObjectMipLevelToUpscale);
+		}
+	}
+
+	if (MinimumLevel != TNumericLimits<int32>::Max())
+	{
+		return MinimumLevel;
+	}
+
+	return -1;
 }
 
 
