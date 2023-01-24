@@ -147,6 +147,10 @@ void FMovieSceneMediaData::HandleMediaPlayerEvent(EMediaEvent Event)
 	    return;
     }
 
+	// Update looping here, as if there is no IMediaPlayer (which is different to MediaPlayer)
+	// when we last called SetLooping then looping might not be set correctly.
+	MediaPlayer->SetLooping(MediaPlayer->IsLooping());
+
 	FTimespan MediaTime;
 	if (!MediaPlayer->IsLooping())
 	{
