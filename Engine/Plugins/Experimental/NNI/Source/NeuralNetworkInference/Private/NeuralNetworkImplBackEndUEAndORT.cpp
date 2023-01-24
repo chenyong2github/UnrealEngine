@@ -5,7 +5,6 @@
 #include "NeuralEnumClasses.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
-#include "RedirectCoutAndCerrToUeLog.h"
 #if WITH_EDITOR
 #include "Misc/MessageDialog.h"
 #endif //WITH_EDITOR
@@ -239,7 +238,6 @@ void UNeuralNetwork::FImplBackEndUEAndORT::FNeuralNetworkAsyncTask::SetRunSessio
 
 void UNeuralNetwork::FImplBackEndUEAndORT::FNeuralNetworkAsyncTask::DoWork()
 {
-	const FRedirectCoutAndCerrToUeLog RedirectCoutAndCerrToUeLog;
 	if (SyncMode == ENeuralSynchronousMode::Asynchronous)
 	{
 		BackEnd->RunSessionAsync(DeviceType, InputDeviceType);
@@ -312,8 +310,6 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 	try
 #endif //WITH_EDITOR
 	{
-		const FRedirectCoutAndCerrToUeLog RedirectCoutAndCerrToUeLog;
-
 		// Avoid multi-threaded crashes
 		if (InOutImplBackEndUEAndORT.IsValid())
 		{
