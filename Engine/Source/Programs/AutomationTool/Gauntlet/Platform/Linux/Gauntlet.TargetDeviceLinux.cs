@@ -74,18 +74,43 @@ namespace Gauntlet
 			return Device.Run(this);
 		}
 
+		public bool ForceCleanDeviceArtifacts()
+		{
+			DirectoryInfo ClientTempDirInfo = new DirectoryInfo(ArtifactPath) { Attributes = FileAttributes.Normal };
+			Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Setting files in device artifacts {0} to have normal attributes (no longer read-only).", ArtifactPath);
+			foreach (FileSystemInfo info in ClientTempDirInfo.GetFileSystemInfos("*", SearchOption.AllDirectories))
+			{
+				info.Attributes = FileAttributes.Normal;
+			}
+			try
+			{
+				Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Clearing device artifact path {0} (force)", ArtifactPath);
+				Directory.Delete(ArtifactPath, true);
+			}
+			catch (Exception Ex)
+			{
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to force delete artifact path {File}. {Exception}", ArtifactPath, Ex.Message);
+				return false;
+			}
+			return true;
+		}
+
 		public virtual void CleanDeviceArtifacts()
 		{
 			if (!string.IsNullOrEmpty(ArtifactPath) && Directory.Exists(ArtifactPath))
 			{
 				try
 				{
-					Log.Info("Clearing actifact path {0} for {1}", ArtifactPath, Device.Name);
+					Log.Info("Clearing device artifacts path {0} for {1}", ArtifactPath, Device.Name);
 					Directory.Delete(ArtifactPath, true);
 				}
 				catch (Exception Ex)
 				{
-					Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to delete {File}. {Exception}", ArtifactPath, Ex.Message);
+					Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "First attempt at clearing artifact path {0} failed - trying again", ArtifactPath);
+					if (!ForceCleanDeviceArtifacts())
+					{
+						Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to delete {File}. {Exception}", ArtifactPath, Ex.Message);
+					}
 				}
 			}
 		}
