@@ -117,6 +117,16 @@ float4 DecodeDiffuseMeanFreePath(float4 EncodedDiffuseMeanFreePath)
 	return EncodedDiffuseMeanFreePath * DEC_UNIT_TO_DIFFUSEMEANFREEPATH_IN_MM;
 }
 
+float EncodeScatteringDistribution(float ScatteringDistribution)
+{
+	return (ScatteringDistribution + 1.0f) * 0.5f;
+}
+
+float DecodeScatteringDistribution(float ScatteringDistribution)
+{
+	return ScatteringDistribution * 2.0f - 1.0f;
+}
+
 bool GetSubsurfaceTransmittanceProfileUseBurley(uint SubsurfaceProfileInt)
 {
 	half Type = GetSubsurfaceProfileTexture(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt).a;

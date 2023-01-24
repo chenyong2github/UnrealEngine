@@ -380,6 +380,17 @@ FLinearColor DecodeDiffuseMeanFreePath(FLinearColor EncodedDiffuseMeanFreePath)
 	return EncodedDiffuseMeanFreePath * DEC_UNIT_TO_DIFFUSEMEANFREEPATH_IN_MM;
 }
 
+//in [0,1]
+float EncodeScatteringDistribution(float ScatteringDistribution)
+{
+	return (ScatteringDistribution + 1.0f) * 0.5f;
+}
+
+float DecodeScatteringDistribution(float ScatteringDistribution)
+{
+	return ScatteringDistribution * 2.0f - 1.0f;
+}
+
 void SetupSurfaceAlbedoAndDiffuseMeanFreePath(FLinearColor& SurfaceAlbedo, FLinearColor& Dmfp)
 {
 	int32 SamplingSelectionMethod = FMath::Clamp(CVarSSProfilesSamplingChannelSelection.GetValueOnAnyThread(), 0, 1);
@@ -497,7 +508,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 		//X:ExtinctionScale, Y:Normal Scale, Z:ScatteringDistribution, W:OneOverIOR
 		TextureRow[SSSS_TRANSMISSION_OFFSET].R = Data.ExtinctionScale;
 		TextureRow[SSSS_TRANSMISSION_OFFSET].G = Data.NormalScale;
-		TextureRow[SSSS_TRANSMISSION_OFFSET].B = Data.ScatteringDistribution;
+		TextureRow[SSSS_TRANSMISSION_OFFSET].B = EncodeScatteringDistribution(Data.ScatteringDistribution);
 		TextureRow[SSSS_TRANSMISSION_OFFSET].A = 1.0f / Data.IOR;
 
 		if (Data.bEnableBurley)

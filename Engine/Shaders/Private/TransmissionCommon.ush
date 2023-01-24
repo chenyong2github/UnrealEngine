@@ -36,7 +36,7 @@ FTransmissionProfileParams GetTransmissionProfileParams(uint SubsurfaceProfileIn
 
 	Result.ExtinctionScale = Data.x;
 	Result.NormalScale = Data.y;
-	Result.ScatteringDistribution = Data.z;
+	Result.ScatteringDistribution = DecodeScatteringDistribution(Data.z);
 	Result.OneOverIOR = Data.w;
 
 	return Result;

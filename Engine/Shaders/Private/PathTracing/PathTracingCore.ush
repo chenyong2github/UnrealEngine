@@ -824,14 +824,22 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 
 
 #if SSS_USE_TIR
-	const float3 Albedo = 1 - exp(SSSColor * (-11.43 + SSSColor * (15.38 - 13.91 * SSSColor)));
+	float3 Albedo = 1 - exp(SSSColor * (-11.43 + SSSColor * (15.38 - 13.91 * SSSColor)));
 #else
 	// Van de-Hulst inverse mapping
 	// https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf (Slide 44)
 	// http://www.eugenedeon.com/project/a-hitchhikers-guide-to-multiple-scattering/ (Section 7.5.3 of v0.1.3)
-	const float3 Albedo = 1 - Pow2(4.09712 + 4.20863 * SSSColor - sqrt(9.59217 + SSSColor * (41.6808 + 17.7126 * SSSColor)));
+	float3 Albedo = 1 - Pow2(4.09712 + 4.20863 * SSSColor - sqrt(9.59217 + SSSColor * (41.6808 + 17.7126 * SSSColor)));
 	SSSRadius *= 2.0; // roughly match parameterization above
 #endif
+
+	// Apply albedo remapping for anisotropic scattering 
+	float G = Payload.GetSubsurfacePhaseFunction();
+
+	// Revisiting Physically Based Shading at Imageworks.
+	// https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf
+	Albedo = Albedo / (1 - G * (1 - Albedo));
+
 	const int MAX_SSS_BOUNCES = MaxSSSBounces;
 	const float3 SigmaT = 1.0 / SSSRadius;
 	const float3 SigmaS = Albedo * SigmaT;
@@ -851,10 +859,12 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 			FProbeResult ProbeResult = TraceProbeRay(Ray);
 			if (ProbeResult.IsMiss())
 			{
-				// we didn't hit anything, so scatter randomly in the volume and keep tracing
+				// we didn't hit anything, so scatter according to the scattering distribution in the volume and keep tracing
 				RandSample = RandomSequence_GenerateSample3D(RandSequence);
 				Ray.Origin += Ray.TMax * Ray.Direction;
-				Ray.Direction = UniformSampleSphere(RandSample.xy).xyz;
+				
+				float4 DirectionAndPhase = ImportanceSampleHenyeyGreensteinPhase(RandSample.xy, G);
+				Ray.Direction = TangentToWorld(DirectionAndPhase.xyz, Ray.Direction);
 				Ray.TMin = 0;
 				// account for transmittance and scattering up to this point
 				PathThroughput *= SigmaS * EvaluateSpectralTransmittanceHit(Ray.TMax, SigmaT, ColorChannelPdf).xyz;

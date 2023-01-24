@@ -152,6 +152,7 @@
 #include "Materials/MaterialExpressionStaticBoolParameter.h"
 #include "Materials/MaterialExpressionStaticSwitchParameter.h"
 #include "Materials/MaterialExpressionStaticComponentMaskParameter.h"
+#include "Materials/MaterialExpressionSubsurfaceMediumMaterialOutput.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionDoubleVectorParameter.h"
 #include "Materials/MaterialExpressionParticleColor.h"
@@ -25816,5 +25817,91 @@ bool UMaterialExpressionSparseVolumeTextureSampleParameter::MatchesSearchQuery(c
 	return Super::MatchesSearchQuery(SearchQuery);
 }
 #endif
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSubsurfaceMediumMaterialOutput
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionSubsurfaceMediumMaterialOutput::UMaterialExpressionSubsurfaceMediumMaterialOutput(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_SubsurfaceMedium;
+		FConstructorStatics()
+			: NAME_SubsurfaceMedium(LOCTEXT("Shading", "Shading"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_SubsurfaceMedium);
+#endif
+
+#if WITH_EDITOR
+	Outputs.Reset();
+#endif
+}
+
+#if WITH_EDITOR
+
+int32 UMaterialExpressionSubsurfaceMediumMaterialOutput::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+
+	int32 CodeInput = INDEX_NONE;
+	
+	if (OutputIndex == 0)
+	{
+		CodeInput = MeanFreePath.IsConnected() ? MeanFreePath.Compile(Compiler) : INDEX_NONE;
+	}
+	else if (OutputIndex == 1)
+	{
+		CodeInput = ScatteringDistribution.IsConnected() ? ScatteringDistribution.Compile(Compiler) : INDEX_NONE;
+	}
+
+	return Compiler->CustomOutput(this, OutputIndex, CodeInput);
+}
+
+void UMaterialExpressionSubsurfaceMediumMaterialOutput::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString(TEXT("Subsurface Medium (Path Tracer Only)")));
+}
+
+uint32 UMaterialExpressionSubsurfaceMediumMaterialOutput::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Float3;
+		break;
+	case 1:
+		return MCT_Float1;
+		break;
+	default:
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+
+#endif // WITH_EDITOR
+
+int32 UMaterialExpressionSubsurfaceMediumMaterialOutput::GetNumOutputs() const
+{
+	return 2;
+}
+
+FString UMaterialExpressionSubsurfaceMediumMaterialOutput::GetFunctionName() const
+{
+	return TEXT("GetSubsurfaceMediumMaterialOutput");
+}
+
+FString UMaterialExpressionSubsurfaceMediumMaterialOutput::GetDisplayName() const
+{
+	return TEXT("Subsurface Medium");
+}
 
 #undef LOCTEXT_NAMESPACE
