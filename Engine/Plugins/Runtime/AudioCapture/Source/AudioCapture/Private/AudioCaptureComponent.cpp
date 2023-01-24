@@ -66,6 +66,9 @@ void UAudioCaptureComponent::BeginDestroy()
 
 bool UAudioCaptureComponent::IsReadyForFinishDestroy()
 {
+	//Prevent an infinite loop here if it was marked pending kill while generating
+	OnEndGenerate();
+
 	return !bIsNotReadyForForFinishDestroy;
 }
 
