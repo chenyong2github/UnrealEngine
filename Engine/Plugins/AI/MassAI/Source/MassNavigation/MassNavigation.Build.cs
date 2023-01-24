@@ -8,9 +8,6 @@ namespace UnrealBuildTool.Rules
 		{
 			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-			// Work-around for intermittent VS2022 msvc crash
-			bUseUnity = false;
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"AIModule",

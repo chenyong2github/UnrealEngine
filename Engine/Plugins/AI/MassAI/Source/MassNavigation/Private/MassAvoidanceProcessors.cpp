@@ -799,7 +799,7 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 						{
 							const FMassCircleCollider Circle = ColliderFragment->GetCircleCollider();
 							
-							FCollider& Collider = Colliders.AddDefaulted_GetRef();
+							FCollider& Collider = Colliders.Add_GetRef(FCollider{});
 							Collider.Velocity = OtherVelocity;
 							Collider.bCanAvoid = bCanAvoid;
 							Collider.bIsMoving = bOtherIsMoving;
@@ -810,7 +810,7 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 						{
 							const FMassPillCollider Pill = ColliderFragment->GetPillCollider(); 
 
-							FCollider& Collider = Colliders.AddDefaulted_GetRef();
+							FCollider& Collider = Colliders.Add_GetRef(FCollider{});
 							Collider.Velocity = OtherVelocity;
 							Collider.bCanAvoid = bCanAvoid;
 							Collider.bIsMoving = bOtherIsMoving;
@@ -819,7 +819,7 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 
 							if (Colliders.Num() < MaxColliders)
 							{
-								FCollider& Collider2 = Colliders.AddDefaulted_GetRef();
+								FCollider& Collider2 = Colliders.Add_GetRef(FCollider{});
 								Collider2.Velocity = OtherVelocity;
 								Collider2.bCanAvoid = bCanAvoid;
 								Collider2.bIsMoving = bOtherIsMoving;
@@ -831,7 +831,7 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 				}
 				else
 				{
-					FCollider& Collider = Colliders.AddDefaulted_GetRef();
+					FCollider& Collider = Colliders.Add_GetRef(FCollider{});
 					Collider.Location = Obstacle.LocationCached;
 					Collider.Velocity = OtherVelocity;
 					Collider.Radius = OtherEntityView.GetFragmentData<FAgentRadiusFragment>().Radius;
