@@ -113,6 +113,9 @@ public:
 	UPROPERTY()
 	uint32 bParticleIterationStateEnabled : 1;
 
+	UPROPERTY()
+	uint32 bGpuIndirectDispatch : 1;
+
 	/** When the value is not none this is the binding used for particle state iteration stages. */
 	UPROPERTY()
 	FName ParticleIterationStateBinding;

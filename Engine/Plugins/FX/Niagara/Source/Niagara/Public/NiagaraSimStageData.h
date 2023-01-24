@@ -6,6 +6,19 @@
 #include "Math/UnrealMath.h"
 #include "Misc/CoreMiscDefines.h"
 
+class FRDGBuffer;
+
+struct FNiagaraSimStageDispatchArgs
+{
+	// Dispatch Element Count and optional Gpu Element Count to clip OOB threads
+	FIntVector3	ElementCount = FIntVector3::ZeroValue;
+	uint32		GpuElementCountOffset = INDEX_NONE;
+
+	// Indirect dispatch buffer and the byte offset into the buffer
+	FRDGBuffer*	IndirectBuffer = nullptr;
+	uint32		IndirectOffset = 0;
+};
+
 struct FNiagaraSimStageData
 {
 	FNiagaraSimStageData()
@@ -21,7 +34,7 @@ struct FNiagaraSimStageData
 
 	uint32 StageIndex = INDEX_NONE;
 	uint32 IterationIndex = 0;
-	FIntVector ElementCountXYZ = FIntVector::NoneValue;
+	FNiagaraSimStageDispatchArgs DispatchArgs;
 
 	class FNiagaraDataBuffer* Source = nullptr;
 	uint32 SourceCountOffset = INDEX_NONE;

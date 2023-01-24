@@ -79,8 +79,14 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 		#define NIAGARA_DISPATCH_TYPE NIAGARA_DISPATCH_TYPE_ONE_D
 	#endif
 
-	uint3 DispatchThreadIdBounds;		// Used to track thread bounds
-	uint3 DispatchThreadIdToLinear;		// Used to convert from DispatchThreadId to a linear thread id
+	#if NIAGARA_DISPATCH_INDIRECT
+		static uint3	DispatchThreadIdBounds;		// Used to track thread bounds
+		Buffer<uint4>	IndirectDispatchArgs;		// Indirect count buffer we lookup into to get actual thread count
+		uint			IndirectDispatchArgsOffset;	// Offset into the indirect count buffer
+	#else
+		uint3 DispatchThreadIdBounds;			// Used to track thread bounds
+		uint3 DispatchThreadIdToLinear;			// Used to convert from DispatchThreadId to a linear thread id
+	#endif
 
 	static uint3 GDispatchThreadId;		// SV_DispatchThreadId
 	static uint3 GGroupId;				// SV_GroupdId
@@ -534,7 +540,11 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	float SimulationStageNormalizedIterationIndex;
 
 	// Note: These are referenced from an asset that passes back the data to the user (see SimulationStageIterationInfo)
-	int SimulationStage_GetInstanceCount() { return SimulationStageIterationInfo.x == -1 ? SimulationStageIterationInfo.y : RWInstanceCounts[SimulationStageIterationInfo.x]; }
+	#if NIAGARA_DISPATCH_INDIRECT
+		int SimulationStage_GetInstanceCount() { return DispatchThreadIdBounds.x * DispatchThreadIdBounds.y * DispatchThreadIdBounds.z; }
+	#else
+		int SimulationStage_GetInstanceCount() { return SimulationStageIterationInfo.x == -1 ? SimulationStageIterationInfo.y : RWInstanceCounts[SimulationStageIterationInfo.x]; }
+	#endif
 	int SimulationStage_GetIterationIndex() { return SimulationStageIterationInfo.z; }
 	int SimulationStage_GetNumIterations() { return SimulationStageIterationInfo.w; }
 	float SimulationStage_GetNormalizedIterationIndex() { return SimulationStageNormalizedIterationIndex; }

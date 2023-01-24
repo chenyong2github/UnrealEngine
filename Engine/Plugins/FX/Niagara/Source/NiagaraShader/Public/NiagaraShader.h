@@ -188,6 +188,10 @@ public:
 		SHADER_PARAMETER(FUintVector3,								DispatchThreadIdBounds)
 		SHADER_PARAMETER(FUintVector3,								DispatchThreadIdToLinear)
 
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>,				IndirectDispatchArgs)
+		SHADER_PARAMETER(uint32,									IndirectDispatchArgsOffset)
+		RDG_BUFFER_ACCESS(IndirectDispatchArgsBuffer,				ERHIAccess::IndirectArgs)
+
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGlobalParameters,			GlobalParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSystemParameters,			SystemParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FOwnerParameters,			OwnerParameters)

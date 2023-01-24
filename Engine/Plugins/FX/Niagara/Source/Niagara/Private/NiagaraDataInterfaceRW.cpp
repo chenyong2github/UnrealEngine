@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraDataInterfaceRW.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraShader.h"
+#include "NiagaraSimStageData.h"
+#include "RenderGraph.h"
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
 
@@ -41,6 +44,138 @@ const FName UNiagaraDataInterfaceRWBase::LinearToIndexFunctionName("LinearToInde
 
 const FName UNiagaraDataInterfaceRWBase::ExecutionIndexToUnitFunctionName("ExecutionIndexToUnit");
 const FName UNiagaraDataInterfaceRWBase::ExecutionIndexToGridIndexFunctionName("ExecutionIndexToGridIndex");
+
+/*--------------------------------------------------------------------------------------------------------------------------*/
+
+void FNDIGpuComputeDispatchArgsGenContext::SetDirect(const FIntVector3& InElementCount, uint32 GpuCountOffset) const
+{
+	SimStageData->DispatchArgs.ElementCount = InElementCount;
+	SimStageData->DispatchArgs.GpuElementCountOffset = GpuCountOffset;
+}
+
+void FNDIGpuComputeDispatchArgsGenContext::SetIndirect(FRDGBuffer* InBuffer, uint32 BufferByteOffset) const
+{
+	SimStageData->DispatchArgs.IndirectBuffer = InBuffer;
+	SimStageData->DispatchArgs.IndirectOffset = BufferByteOffset;
+}
+
+void FNDIGpuComputeDispatchArgsGenContext::SetIndirect(FRDGBuffer* InBuffer, uint32 BufferByteOffset, FCreateIndirectCallback&& Callback) const
+{
+	SimStageData->DispatchArgs.IndirectBuffer = InBuffer;
+	SimStageData->DispatchArgs.IndirectOffset = BufferByteOffset;
+
+	auto& IndirectCallback = IndirectCallbacks.AddDefaulted_GetRef();
+	IndirectCallback.Key = Callback;
+	IndirectCallback.Value.Key = InBuffer;
+	IndirectCallback.Value.Value = BufferByteOffset;
+}
+
+FNDIGpuComputeDispatchArgsGenContext::FIndirectArgs FNDIGpuComputeDispatchArgsGenContext::CreateIndirect(const FUintVector3& InCounterOffsets) const
+{
+	const int32 BatchSize = FNiagaraDispatchIndirectArgsGenCS::ThreadCount;
+
+	// Do we need to allocate new indirect buffer?
+	if (IndirectBuffer == nullptr)
+	{
+		IndirectCounterGenArgs = GraphBuilder.AllocPODArray<FNiagaraDispatchIndirectInfoCS>(BatchSize);
+		NumIndirectCounterGenArgs = 0;
+
+		IndirectBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FNiagaraDispatchIndirectParametersCS>(BatchSize), TEXT("NiagaraIndirectBuffer"));
+	}
+
+	SimStageData->DispatchArgs.IndirectBuffer = IndirectBuffer;
+	SimStageData->DispatchArgs.IndirectOffset = NumIndirectCounterGenArgs * sizeof(FNiagaraDispatchIndirectParametersCS);
+
+	FIndirectArgs IndirectArgs;
+	IndirectArgs.Key = IndirectBuffer;
+	IndirectArgs.Value = NumIndirectCounterGenArgs;
+	IndirectCounterGenArgs[NumIndirectCounterGenArgs++] = FNiagaraDispatchIndirectInfoCS(InCounterOffsets, SimStageData->StageMetaData->GpuDispatchNumThreads, IndirectArgs.Value);
+	if (NumIndirectCounterGenArgs == BatchSize)
+	{
+		FlushPass();
+	}
+	return IndirectArgs;
+}
+
+void FNDIGpuComputeDispatchArgsGenContext::AddBufferAccess(FRDGBuffer* InBuffer, ERHIAccess InAccess) const
+{
+	GetPassParameters()->BufferAccessArray.Emplace(InBuffer, InAccess);
+}
+
+void FNDIGpuComputeDispatchArgsGenContext::AddTextureAccess(FRDGTexture* InTexture, ERHIAccess InAccess) const
+{
+	GetPassParameters()->TextureAccessArray.Emplace(InTexture, InAccess);
+}
+
+FNDIGpuComputeDispatchArgsGenParameters* FNDIGpuComputeDispatchArgsGenContext::GetPassParameters() const
+{
+	if (PassParameters == nullptr)
+	{
+		PassParameters = GraphBuilder.AllocParameters<FNDIGpuComputeDispatchArgsGenParameters>();
+	}
+	return PassParameters;
+}
+
+void FNDIGpuComputeDispatchArgsGenContext::FlushPass() const
+{
+	if (NumIndirectCounterGenArgs == 0 && IndirectCallbacks.Num() == 0)
+	{
+		return;
+	}
+
+	// Create Args Buffer and Upload into it
+	FNiagaraDispatchIndirectArgsGenCS::FParameters* IndirectArgsGenParameters = &GetPassParameters()->IndirectArgsGenParameters;
+	if (NumIndirectCounterGenArgs > 0)
+	{
+		const uint32 DispatchInfosBufferSize = sizeof(FNiagaraDispatchIndirectInfoCS) * NumIndirectCounterGenArgs;
+		FRDGBufferRef DispatchInfosBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), DispatchInfosBufferSize / sizeof(uint32)), TEXT("NiagaraIndirectGenArgs"));
+		GraphBuilder.QueueBufferUpload(DispatchInfosBuffer, IndirectCounterGenArgs, DispatchInfosBufferSize, ERDGInitialDataFlags::NoCopy);
+
+		IndirectArgsGenParameters->DispatchInfos = GraphBuilder.CreateSRV(DispatchInfosBuffer, PF_R32_UINT);
+		IndirectArgsGenParameters->NumDispatchInfos = NumIndirectCounterGenArgs;
+		IndirectArgsGenParameters->MaxGroupsPerDimension = FUintVector3(GRHIMaxDispatchThreadGroupsPerDimension);
+
+		IndirectArgsGenParameters->InstanceCounts = ComputeDispatchInterface.GetGPUInstanceCounterManager().GetInstanceCountBuffer().SRV;
+		IndirectArgsGenParameters->RWDispatchIndirectArgs = GraphBuilder.CreateUAV(IndirectBuffer, PF_R32_UINT);
+	}
+
+	// Kick pass to genreate args
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("Niagara::ExecuteTicks::DispatchGroupPre"),
+		GetPassParameters(),
+		ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+		[PassParameters=GetPassParameters(), IndirectArgsGenParameters, CreateCallbacks=MoveTemp(IndirectCallbacks)](FRHICommandListImmediate& RHICmdList)
+		{
+			if (IndirectArgsGenParameters != nullptr)
+			{
+				TShaderMapRef<FNiagaraDispatchIndirectArgsGenCS> DispatchIndirectArgsGenCS(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+				FComputeShaderUtils::Dispatch(RHICmdList, DispatchIndirectArgsGenCS, *IndirectArgsGenParameters, FIntVector(1, 1, 1));
+			}
+			for (const auto& CreateCallback : CreateCallbacks)
+			{
+				CreateCallback.Key(RHICmdList, CreateCallback.Value.Key, CreateCallback.Value.Value);
+			}
+		}
+	);
+
+	// Clear our data
+	IndirectBuffer = nullptr;
+	IndirectCounterGenArgs = nullptr;
+	NumIndirectCounterGenArgs = 0;
+	IndirectCallbacks.Empty();
+	PassParameters = nullptr;
+}
+
+/*--------------------------------------------------------------------------------------------------------------------------*/
+
+void FNiagaraDataInterfaceProxyRW::GetDispatchArgs(const FNDIGpuComputeDispatchArgsGenContext& Context)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	Context.SetDirect(GetElementCount(Context.GetSystemInstanceID()), GetGPUInstanceCountOffset(Context.GetSystemInstanceID()));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+/*--------------------------------------------------------------------------------------------------------------------------*/
 
 UNiagaraDataInterfaceRWBase::UNiagaraDataInterfaceRWBase(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)

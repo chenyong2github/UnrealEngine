@@ -1390,6 +1390,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					// Determine dispatch information from iteration source (if we have one)
 					SimulationStageMetaData.GpuDispatchType = ENiagaraGpuDispatchType::OneD;
 					SimulationStageMetaData.GpuDispatchNumThreads = FNiagaraShader::GetDefaultThreadGroupSize(ENiagaraGpuDispatchType::OneD);
+					SimulationStageMetaData.bGpuIndirectDispatch = false;
 					if ( SimulationStageMetaData.IterationSourceType == ENiagaraIterationSource::DataInterface )
 					{
 						if (SimulationStageMetaData.IterationDataInterface.IsNone())
@@ -1403,6 +1404,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 							if ( UNiagaraDataInterface* IteratinoSourceCDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(IterationSourceVar->GetType().GetClass()) )
 							{
 								SimulationStageMetaData.GpuDispatchType = TranslationStages[Index].bGpuDispatchForceLinear ? ENiagaraGpuDispatchType::OneD : IteratinoSourceCDO->GetGpuDispatchType();
+								SimulationStageMetaData.bGpuIndirectDispatch = IteratinoSourceCDO->GetGpuUseIndirectDispatch();
 
 								if (TranslationStages[Index].bOverrideGpuDispatchNumThreads)
 								{
@@ -3396,13 +3398,8 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"	GGroupId			= InGroupId;\n"
 			"	GGroupThreadId		= InGroupThreadId;\n"
 			"	GGroupIndex			= InGroupIndex;\n"
-			"	GLinearThreadId		= GDispatchThreadId.x + (GDispatchThreadId.y * DispatchThreadIdToLinear.y);\n"
-			"	#if NIAGARA_DISPATCH_TYPE >= NIAGARA_DISPATCH_TYPE_THREE_D\n"
-			"		GLinearThreadId += GDispatchThreadId.z * DispatchThreadIdToLinear.z;\n"
-			"	#endif\n"
 			"	GEmitterTickCounter = EmitterTickCounter;\n"
 			"	GRandomSeedOffset = 0;\n"
-			"\n"
 		);
 
 	//////////////////////////////////////////////////////////////////////////
@@ -3419,6 +3416,26 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			(i == 1) ? TEXT("#if") : TEXT("#elif"),
 			TranslationStage.SimulationStageIndex,
 			*TranslationStage.PassNamespace
+		);
+
+		// Indirect dispatches need to setup the bounds and translation into linear
+		HlslOutput += TEXT(
+			"#if NIAGARA_DISPATCH_INDIRECT\n"
+			"	DispatchThreadIdBounds = IndirectDispatchArgs[IndirectDispatchArgsOffset].xyz;\n"
+			"	GLinearThreadId = GDispatchThreadId.x;\n"
+			"	#if NIAGARA_DISPATCH_TYPE >= NIAGARA_DISPATCH_TYPE_TWO_D\n"
+			"		GLinearThreadId += GDispatchThreadId.y * DispatchThreadIdBounds.x;\n"
+			"	#endif\n"
+			"	#if NIAGARA_DISPATCH_TYPE >= NIAGARA_DISPATCH_TYPE_THREE_D\n"
+			"		GLinearThreadId += GDispatchThreadId.z * DispatchThreadIdBounds.x * DispatchThreadIdBounds.y;\n"
+			"	#endif\n"
+			"#else //NIAGARA_DISPATCH_INDIRECT\n"
+			"	GLinearThreadId		= GDispatchThreadId.x + (GDispatchThreadId.y * DispatchThreadIdToLinear.y);\n"
+			"	#if NIAGARA_DISPATCH_TYPE >= NIAGARA_DISPATCH_TYPE_THREE_D\n"
+			"		GLinearThreadId += GDispatchThreadId.z * DispatchThreadIdToLinear.z;\n"
+			"	#endif\n"
+			"#endif //NIAGARA_DISPATCH_INDIRECT\n"
+			"\n"
 		);
 
 		// Particle iteration stage
@@ -3477,15 +3494,6 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		// Iteration Data Interface
 		else if (TranslationStage.IterationSourceType == ENiagaraIterationSource::DataInterface)
 		{
-			//	if (const FNiagaraVariable* IterationSourceVar = CompileData->EncounteredVariables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == SimulationStageMetaData.IterationSource; }))
-			//	{
-			//		if (UNiagaraDataInterface* IteratinoSourceCDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(IterationSourceVar->GetType().GetClass()))
-			//		{
-			//			SimulationStageMetaData.GpuDispatchType = IteratinoSourceCDO->GetGpuDispatchType();
-			//			SimulationStageMetaData.GpuDispatchNumThreads = IteratinoSourceCDO->GetGpuDispatchNumThreads();
-			//		}
-			//	}
-
 			//-TODO: We can simplify the logic here with SimulationStage_GetInstanceCount() as only things that can provide an instance count offset
 			//		 can really be variable, everything else is driven from CPU code.
 			HlslOutput += TEXT(

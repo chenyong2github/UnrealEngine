@@ -4156,13 +4156,7 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(const FNDIGpuComp
 		// If there is an output DI and the stage dispatch count is different from the grid resolution, then we want to consider it for a pre-stage UAV clear.
 		// This is to enable the most common use case of scattered writes to temporary buffers				
 		const FNiagaraSimStageData& SimStageData = Context.GetSimStageData();
-
-		FIntVector ElementCount = SimStageData.ElementCountXYZ;
-
-		if (SimStageData.AlternateIterationSource != nullptr)
-		{
-			ElementCount = SimStageData.AlternateIterationSource->GetElementCount(Context.GetSystemInstanceID());
-		}
+		const FIntVector3& ElementCount = SimStageData.DispatchArgs.ElementCount;
 
 		if (ProxyData->ClearBeforeNonIterationStage && 
 			(ElementCount.X != ProxyData->NumCells.X || ElementCount.Y != ProxyData->NumCells.Y || ElementCount.Z != ProxyData->NumCells.Z))

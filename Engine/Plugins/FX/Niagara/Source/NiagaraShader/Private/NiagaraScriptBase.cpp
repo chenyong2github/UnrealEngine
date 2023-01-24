@@ -13,6 +13,7 @@ FSimulationStageMetaData::FSimulationStageMetaData()
 	: bWritesParticles(0)
 	, bPartialParticleUpdate(0)
 	, bParticleIterationStateEnabled(0)
+	, bGpuIndirectDispatch(0)
 	, GpuDispatchType(ENiagaraGpuDispatchType::OneD)
 	, GpuDispatchNumThreads(0, 0, 0)
 {

@@ -44,13 +44,14 @@ bool UNiagaraDataInterface::AppendCompileHash(FNiagaraCompileHashVisitor* InVisi
 {
 	//-TODO: Currently applied to all, but we only need to hash this in for the iteration source
 	const UNiagaraDataInterface* BaseDataInterface = GetDefault<UNiagaraDataInterface>();
+	const FString DataInterfaceName = GetClass()->GetName();
 	if (BaseDataInterface->GetGpuDispatchType() != GetGpuDispatchType())
 	{
-		const FString DataInterfaceName = GetClass()->GetName();
 		InVisitor->UpdatePOD(*FString::Printf(TEXT("%s_GpuDispatchType"), *DataInterfaceName), (int32)GetGpuDispatchType());
 		InVisitor->UpdateString(*FString::Printf(TEXT("%s_GpuDispatchNumThreads"), *DataInterfaceName), *FString::Printf(TEXT("%dx%dx%d"), GetGpuDispatchNumThreads().X, GetGpuDispatchNumThreads().Y, GetGpuDispatchNumThreads().Z));
 	}
-
+	InVisitor->UpdatePOD(*FString::Printf(TEXT("%s_GpuUseIndirectDispatch"), *DataInterfaceName), (int32)GetGpuUseIndirectDispatch());
+	
 	return true;
 }
 #endif

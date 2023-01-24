@@ -258,7 +258,7 @@ struct NIAGARA_API FNDIGpuComputeContext
 
 	const FNiagaraGpuComputeDispatchInterface& GetComputeDispatchInterface() const { return ComputeDispatchInterface; }
 
-private:
+protected:
 	FRDGBuilder& GraphBuilder;
 	const FNiagaraGpuComputeDispatchInterface& ComputeDispatchInterface;
 };
@@ -273,7 +273,7 @@ struct NIAGARA_API FNDIGpuComputeResetContext : public FNDIGpuComputeContext
 
 	FNiagaraSystemInstanceID GetSystemInstanceID() const { return SystemInstanceID; }
 
-private:
+protected:
 	FNiagaraSystemInstanceID SystemInstanceID = FNiagaraSystemInstanceID();
 };
 
@@ -298,7 +298,7 @@ struct NIAGARA_API FNDIGpuComputePrePostStageContext : public FNDIGpuComputeCont
 
 	void SetDataInterfaceProxy(FNiagaraDataInterfaceProxy* InDataInterfaceProxy) { DataInterfaceProxy = InDataInterfaceProxy; }
 
-private:
+protected:
 	const FNiagaraGPUSystemTick& SystemTick;
 	const FNiagaraComputeInstanceData& ComputeInstanceData;
 	const FNiagaraSimStageData& SimStageData;
@@ -320,7 +320,7 @@ struct NIAGARA_API FNDIGpuComputePostSimulateContext : public FNDIGpuComputeCont
 	FNiagaraSystemInstanceID GetSystemInstanceID() const { return SystemInstanceID; }
 	bool IsFinalPostSimulate() const { return bFinalPostSimulate; }
 
-private:
+protected:
 	FNiagaraSystemInstanceID SystemInstanceID = FNiagaraSystemInstanceID();
 	bool bFinalPostSimulate = false;
 };
@@ -471,6 +471,7 @@ public:
 
 	virtual ENiagaraGpuDispatchType GetGpuDispatchType() const { return ENiagaraGpuDispatchType::OneD; }
 	virtual FIntVector GetGpuDispatchNumThreads() const { return FIntVector(64, 1, 1); }
+	virtual bool GetGpuUseIndirectDispatch() const { return false; }
 #endif
 
 	/** Allows data interfaces to cache any static data that may be shared between instances */
