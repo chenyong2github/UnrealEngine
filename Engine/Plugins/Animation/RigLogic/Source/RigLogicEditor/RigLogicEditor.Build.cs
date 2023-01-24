@@ -34,7 +34,9 @@ namespace UnrealBuildTool.Rules
                     "SlateCore",
                     "ApplicationCore",
                     "Slate",
-                    "InputCore"
+                    "InputCore",
+					"EditorWidgets",
+					"DesktopPlatform"
                 }
             );
 
@@ -42,10 +44,12 @@ namespace UnrealBuildTool.Rules
                 new string[]
                 {
                     "PropertyEditor",
-                    "AssetTools"
-                }
+                    "AssetTools",
+					"Settings"
+				}
             );
 
-        }
-    }
+
+		}
+	}
 }

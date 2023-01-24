@@ -15,9 +15,13 @@
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "DNAAssetImportWindow.h"
+#include "DesktopPlatformModule.h"
+#include "EditorDirectories.h"
 
 TSharedPtr<FDNAImporter> FDNAImporter::StaticInstance;
 TSharedPtr<FDNAImporter> FDNAImporter::StaticPreviewInstance;
+
+#define LOCTEXT_NAMESPACE "DNAAssetImport"
 
 FDNAAssetImportOptions* GetImportOptions(FDNAImporter * DNAImporter, UDNAAssetImportUI * ImportUI, bool bShowOptionDialog, bool bIsAutomated, const FString & FullPath, bool & OutOperationCanceled, const FString & InFilename)
 {
@@ -193,4 +197,44 @@ void FDNAImporter::PartialCleanUp()
 {
 	// reset
 	CurPhase = NOTSTARTED;
+}
+
+FString FDNAImporter::PromptForDNAImportFile()
+{
+	const FText PromptTitle = LOCTEXT("DNAPromptTitle", "Choose a file to import for DNA");
+
+	FString ChosenFilename("");
+
+	FString ExtensionStr;
+	ExtensionStr += TEXT("All model files|*.dna|");
+	ExtensionStr += TEXT("DNA files|*.dna|");
+	ExtensionStr += TEXT("All files|*.*");
+
+	// First, display the file open dialog for selecting the file.
+	TArray<FString> OpenFilenames;
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	bool bOpen = false;
+	if (DesktopPlatform)
+	{
+		bOpen = DesktopPlatform->OpenFileDialog(
+			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+			PromptTitle.ToString(),
+			*FEditorDirectories::Get().GetLastDirectory(ELastDirectory::UNR),
+			TEXT(""),
+			*ExtensionStr,
+			EFileDialogFlags::None,
+			OpenFilenames
+		);
+	}
+
+	if (bOpen)
+	{
+		if (OpenFilenames.Num() == 1)
+		{
+			ChosenFilename = OpenFilenames[0];
+			FEditorDirectories::Get().SetLastDirectory(ELastDirectory::UNR, FPaths::GetPath(ChosenFilename));
+		}
+	}
+
+	return ChosenFilename;
 }

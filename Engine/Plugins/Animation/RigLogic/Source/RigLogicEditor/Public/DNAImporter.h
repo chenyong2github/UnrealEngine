@@ -46,6 +46,7 @@ public:
 	 */
 	FDNAAssetImportOptions* GetImportOptions() const;
 	void PartialCleanUp();
+	FString PromptForDNAImportFile();
 	FString GetDNAFileName() { return DNAFileName; }
 	void SetDNAFileName(FString DNAName) { this->DNAFileName = DNAName; };
 protected:
