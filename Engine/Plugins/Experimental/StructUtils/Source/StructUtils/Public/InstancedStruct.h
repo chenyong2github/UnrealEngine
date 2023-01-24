@@ -275,3 +275,10 @@ struct TStructOpsTypeTraits<FInstancedStruct> : public TStructOpsTypeTraitsBase2
 		WithNetSerializer = true,
 	};
 };
+
+#if WITH_EDITORONLY_DATA
+namespace UE::StructUtils::Private
+{
+void RegisterInstancedStructForLocalization();
+}
+#endif // WITH_EDITORONLY_DATA

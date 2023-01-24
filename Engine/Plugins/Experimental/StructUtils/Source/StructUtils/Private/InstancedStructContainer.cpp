@@ -3,25 +3,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedStructContainer)
 
-class FPropertyLocalizationDataGatherer;
-enum class EPropertyLocalizationGathererTextFlags : uint8;
-
-// From InstancedStruct.cpp to support localization.
-namespace UE::StructUtils::Private
-{
-#if WITH_EDITORONLY_DATA
-	void GatherForLocalization(const FString& PathToParent, const UScriptStruct* Struct, const void* StructData, const void* DefaultStructData,
-								FPropertyLocalizationDataGatherer& PropertyLocalizationDataGatherer, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
-#endif // WITH_EDITORONLY_DATA
-
-	void RegisterForLocalization();
-
-} // UE::StructUtils::Private
-
-
 FInstancedStructContainer::FInstancedStructContainer()
 {
-	UE::StructUtils::Private::RegisterForLocalization();
 }
 
 FInstancedStructContainer::FInstancedStructContainer(const FInstancedStructContainer& InOther)

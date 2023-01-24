@@ -2,6 +2,10 @@
 
 #include "StructUtilsModule.h"
 
+#if WITH_EDITORONLY_DATA
+#include "InstancedStruct.h"
+#endif // WITH_EDITORONLY_DATA
+
 #define LOCTEXT_NAMESPACE "StructUtils"
 
 class FStructUtilsModule : public IStructUtilsModule
@@ -18,6 +22,10 @@ void FStructUtilsModule::StartupModule()
 	// Called right after the module DLL has been loaded and the module object has been created
 	// Load dependent modules here, and they will be guaranteed to be available during ShutdownModule. ie:
 	// 		FModuleManager::Get().LoadModuleChecked(TEXT("HTTP"));
+	
+#if WITH_EDITORONLY_DATA
+	UE::StructUtils::Private::RegisterInstancedStructForLocalization();
+#endif // WITH_EDITORONLY_DATA
 }
 
 void FStructUtilsModule::ShutdownModule()

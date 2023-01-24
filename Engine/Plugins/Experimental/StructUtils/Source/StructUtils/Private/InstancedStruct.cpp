@@ -23,30 +23,25 @@ void GatherForLocalization(const FString& PathToParent, const UScriptStruct* Str
 		PropertyLocalizationDataGatherer.GatherLocalizationDataFromStructWithCallbacks(PathToParent + TEXT(".StructInstance"), StructTypePtr, ThisInstance->GetMemory(), DefaultInstance ? DefaultInstance->GetMemory() : nullptr, GatherTextFlags);
 	}
 }
-#endif // WITH_EDITORONLY_DATA
 
-void RegisterForLocalization()
+void RegisterInstancedStructForLocalization()
 {
-#if WITH_EDITORONLY_DATA
 	{ static const FAutoRegisterLocalizationDataGatheringCallback AutomaticRegistrationOfLocalizationGatherer(TBaseStructure<FInstancedStruct>::Get(), &GatherForLocalization); }
-#endif
 }
+#endif // WITH_EDITORONLY_DATA
 }
 
 FInstancedStruct::FInstancedStruct()
 {
-	UE::StructUtils::Private::RegisterForLocalization();
 }
 
 FInstancedStruct::FInstancedStruct(const UScriptStruct* InScriptStruct)
 {
-	UE::StructUtils::Private::RegisterForLocalization();
 	InitializeAs(InScriptStruct, nullptr);
 }
 
 FInstancedStruct::FInstancedStruct(const FConstStructView InOther)
 {
-	UE::StructUtils::Private::RegisterForLocalization();
 	InitializeAs(InOther.GetScriptStruct(), InOther.GetMemory());
 }
 
