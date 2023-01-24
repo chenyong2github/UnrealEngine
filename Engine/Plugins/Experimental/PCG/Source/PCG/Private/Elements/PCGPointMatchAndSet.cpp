@@ -57,7 +57,12 @@ void UPCGPointMatchAndSetSettings::PostLoad()
 	if (!MatchAndSetInstance)
 	{
 		RefreshMatchAndSet();
-	}	
+	}
+	else
+	{
+		const EObjectFlags Flags = GetMaskedFlags(RF_PropagateToSubObjects) | RF_Transactional;
+		MatchAndSetInstance->SetFlags(Flags);
+	}
 }
 
 #if WITH_EDITOR
@@ -119,7 +124,8 @@ void UPCGPointMatchAndSetSettings::RefreshMatchAndSet()
 {
 	if (MatchAndSetType)
 	{
-		MatchAndSetInstance = NewObject<UPCGMatchAndSetBase>(this, MatchAndSetType);
+		const EObjectFlags Flags = GetMaskedFlags(RF_PropagateToSubObjects);
+		MatchAndSetInstance = NewObject<UPCGMatchAndSetBase>(this, MatchAndSetType, NAME_None, Flags);
 		check(MatchAndSetInstance);
 		MatchAndSetInstance->SetType(SetTargetType, SetTargetStringMode);
 	}

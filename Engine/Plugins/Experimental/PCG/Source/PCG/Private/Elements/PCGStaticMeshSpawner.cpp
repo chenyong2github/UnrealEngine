@@ -263,14 +263,24 @@ void UPCGStaticMeshSpawnerSettings::PostLoad()
 	}
 #endif
 
+	const EObjectFlags Flags = GetMaskedFlags(RF_PropagateToSubObjects) | RF_Transactional;
+	
 	if (!MeshSelectorInstance)
 	{
 		RefreshMeshSelector();
+	}
+	else
+	{
+		MeshSelectorInstance->SetFlags(Flags);
 	}
 
 	if (!InstancePackerInstance)
 	{
 		RefreshInstancePacker();
+	}
+	else
+	{
+		InstancePackerInstance->SetFlags(Flags);
 	}
 }
 
@@ -325,7 +335,8 @@ void UPCGStaticMeshSpawnerSettings::RefreshMeshSelector()
 {
 	if (MeshSelectorType)
 	{
-		MeshSelectorInstance = NewObject<UPCGMeshSelectorBase>(this, MeshSelectorType);
+		const EObjectFlags Flags = GetMaskedFlags(RF_PropagateToSubObjects);
+		MeshSelectorInstance = NewObject<UPCGMeshSelectorBase>(this, MeshSelectorType, NAME_None, Flags);
 	}
 	else
 	{
@@ -337,7 +348,8 @@ void UPCGStaticMeshSpawnerSettings::RefreshInstancePacker()
 {
 	if (InstancePackerType)
 	{
-		InstancePackerInstance = NewObject<UPCGInstancePackerBase>(this, InstancePackerType);
+		const EObjectFlags Flags = GetMaskedFlags(RF_PropagateToSubObjects);
+		InstancePackerInstance = NewObject<UPCGInstancePackerBase>(this, InstancePackerType, NAME_None, Flags);
 	}
 	else
 	{

@@ -178,7 +178,7 @@ void UPCGGraph::BeginDestroy()
 
 UPCGNode* UPCGGraph::AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsClass, UPCGSettings*& OutDefaultNodeSettings)
 {
-	UPCGSettings* Settings = NewObject<UPCGSettings>(GetTransientPackage(), InSettingsClass);
+	UPCGSettings* Settings = NewObject<UPCGSettings>(GetTransientPackage(), InSettingsClass, NAME_None, RF_Transactional);
 
 	if (!Settings)
 	{
@@ -190,7 +190,6 @@ UPCGNode* UPCGGraph::AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsCla
 	if (Node)
 	{
 		Settings->Rename(nullptr, Node);
-		Settings->SetFlags(RF_Transactional);
 	}
 
 	OutDefaultNodeSettings = Settings;
@@ -268,7 +267,6 @@ UPCGNode* UPCGGraph::AddNodeCopy(UPCGSettings* InSettings, UPCGSettings*& Defaul
 	if (SettingsCopy)
 	{
 		SettingsCopy->Rename(nullptr, NewNode);
-		SettingsCopy->SetFlags(RF_Transactional);
 	}
 
 	DefaultNodeSettings = SettingsCopy;
