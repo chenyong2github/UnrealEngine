@@ -585,7 +585,10 @@ FLumenMaterialCoord GetLumenMaterialCoordForScreenProbeGather(uint2 DispatchThre
 {
 	FLumenMaterialCoord Out = (FLumenMaterialCoord)0;
 #if STRATA_ENABLED && PERMUTATION_OVERFLOW_TILE
-	bIsValid = all((DispatchThreadId >> STRATA_TILE_SIZE_DIV_AS_SHIFT) < uint2(Strata.OverflowTileCount));
+	const uint2 TileCoord = DispatchThreadId >> STRATA_TILE_SIZE_DIV_AS_SHIFT;
+	const bool bIsInOverflowRect = all(TileCoord < uint2(Strata.OverflowTileCount));
+	const bool bIsInTileRange = (TileCoord.x + TileCoord.y * Strata.OverflowTileCount.x) < Strata.BSDFTileCountBuffer[0];
+	bIsValid = bIsInOverflowRect && bIsInTileRange;
 	Out = GetLumenMaterialCoord(DispatchThreadId + (Strata.OverflowTileOffset * STRATA_TILE_SIZE), true);
 	FlattenTileCoord = Out.SvPositionFlatten >> STRATA_TILE_SIZE_DIV_AS_SHIFT;
 #else
@@ -698,6 +701,7 @@ RWStructuredBuffer<uint> RWIntegrateTileData;
 Texture2D<uint> TileClassificationModes;
 
 uint2 ViewportTileDimensions;
+uint2 ViewportTileDimensionsWithOverflow;
 
 groupshared uint SharedNumTiles[TILE_CLASSIFICATION_NUM];
 groupshared uint SharedIntegrateTileData[TILE_CLASSIFICATION_NUM * THREADGROUP_SIZE];
@@ -789,7 +793,7 @@ void ScreenProbeTileClassificationBuildListsCS(
 	{
 		if (GroupThreadId < SharedNumTiles[ModeIndex])
 		{
-			const uint ArgsOffset = GetTileDataOffset(ViewportTileDimensions, ModeIndex, PERMUTATION_OVERFLOW_TILE);
+			const uint ArgsOffset = GetTileDataOffset(ViewportTileDimensionsWithOverflow, ModeIndex, PERMUTATION_OVERFLOW_TILE);
 			RWIntegrateTileData[ArgsOffset + SharedGlobalTileOffset[ModeIndex] + GroupThreadId] = SharedIntegrateTileData[ModeIndex * THREADGROUP_SIZE + GroupThreadId];
 		}
 	}
@@ -1134,7 +1138,7 @@ void ScreenProbeIntegrateCS(
 {
 #if INTEGRATE_TILE_CLASSIFICATION_MODE < TILE_CLASSIFICATION_DISABLED
 
-	const uint ArgsOffset = GetTileDataOffset(ViewportTileDimensions, INTEGRATE_TILE_CLASSIFICATION_MODE, PERMUTATION_OVERFLOW_TILE);
+	const uint ArgsOffset = GetTileDataOffset(ViewportTileDimensionsWithOverflow, INTEGRATE_TILE_CLASSIFICATION_MODE, PERMUTATION_OVERFLOW_TILE);
 	// See data layout in ScreenProbeTileClassificationBuildListsCS
 	uint2 TileCoord = UnpackTileData(IntegrateTileData[ArgsOffset + GroupId]);
 	DispatchThreadId = TileCoord * INTEGRATE_TILE_SIZE + GroupThreadId;

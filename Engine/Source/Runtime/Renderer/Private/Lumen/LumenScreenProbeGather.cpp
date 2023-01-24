@@ -839,6 +839,7 @@ class FScreenProbeTileClassificationBuildListsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER(FIntPoint, ViewportTileDimensions)
+		SHADER_PARAMETER(FIntPoint, ViewportTileDimensionsWithOverflow)
 		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -893,6 +894,7 @@ class FScreenProbeIntegrateCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, LumenReflectionInputIsSSR)
 		SHADER_PARAMETER(uint32, DefaultDiffuseIntegrationMethod)
 		SHADER_PARAMETER(FIntPoint, ViewportTileDimensions)
+		SHADER_PARAMETER(FIntPoint, ViewportTileDimensionsWithOverflow)
 		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -1216,6 +1218,7 @@ void InterpolateAndIntegrate(
 				PassParameters->View = View.ViewUniformBuffer;
 				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 				PassParameters->ViewportTileDimensions = ViewportIntegrateTileDimensions;
+				PassParameters->ViewportTileDimensionsWithOverflow = TileClassificationBufferDimensions;
 
 				FScreenProbeTileClassificationBuildListsCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FScreenProbeTileClassificationBuildListsCS::FOverflowTile>(bOverflow);
@@ -1278,6 +1281,7 @@ void InterpolateAndIntegrate(
 				PassParameters->ScreenSpaceBentNormalParameters = ScreenSpaceBentNormalParameters;
 				PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
 				PassParameters->ViewportTileDimensions = ViewportIntegrateTileDimensions;
+				PassParameters->ViewportTileDimensionsWithOverflow = TileClassificationBufferDimensions;
 				PassParameters->IndirectArgs = IntegrateIndirectArgs;
 				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
