@@ -8,6 +8,7 @@ using UnrealBuildTool;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
+using static AutomationTool.ProcessResult;
 
 namespace Gauntlet
 {
@@ -410,7 +411,7 @@ namespace Gauntlet
 				Log.Info("Launching {0} on {1}", App.Name, ToString());
 				Log.Verbose("\t{0}", MacInstall.CommandArguments);
 
-				Result = CommandUtils.Run(MacInstall.ExecutablePath, MacInstall.CommandArguments, Options: MacInstall.RunOptions);
+				Result = CommandUtils.Run(MacInstall.ExecutablePath, MacInstall.CommandArguments, Options: MacInstall.RunOptions, SpewFilterCallback: new SpewFilterCallbackType(delegate (string M) { return null; }) /* make sure stderr does not spew in the stdout */);
 
 				if (Result.HasExited && Result.ExitCode != 0)
 				{

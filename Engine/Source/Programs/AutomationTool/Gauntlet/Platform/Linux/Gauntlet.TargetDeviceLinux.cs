@@ -9,6 +9,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using static AutomationTool.ProcessResult;
 
 namespace Gauntlet
 {
@@ -212,7 +213,6 @@ namespace Gauntlet
 			}
 
 			IProcessResult Result = null;
-			string ProcessLogFile = null;
 
 			lock (Globals.MainLock)
 			{
@@ -225,48 +225,9 @@ namespace Gauntlet
 
 				string CmdLine = LinuxApp.CommandArguments;
 
-				// Look in app parameters if abslog is specified, if so use it
-				/* TODO for linux
-				Regex CLRegex = new Regex(@"(--?[a-zA-Z]+)[:\s=]?([A-Z]:(?:\\[\w\s-]+)+\\?(?=\s-)|\""[^\""]*\""|[^-][^\s]*)?");
-				foreach (Match M in CLRegex.Matches(CmdLine))
-				{
-					if (M.Groups.Count == 3 && M.Groups[1].Value == "-abslog")
-					{
-						ProcessLogFile = M.Groups[2].Value;
-					}
-				}
-				*/
-
-				// explicitly set log file when not already defined
-				if (string.IsNullOrEmpty(ProcessLogFile))
-				{
-					string LogFolder = string.Format(@"{0}/Logs", LinuxApp.ArtifactPath);
-
-					if (!Directory.Exists(LogFolder))
-					{
-						Directory.CreateDirectory(LogFolder);
-					}
-
-					ProcessLogFile = string.Format("{0}/{1}.log", LogFolder, LinuxApp.ProjectName);
-					CmdLine = string.Format("{0} -abslog=\"{1}\"", CmdLine, ProcessLogFile);
-				}
-
-				// cleanup any existing log file
-				try
-				{
-					if (File.Exists(ProcessLogFile))
-					{
-						File.Delete(ProcessLogFile);
-					}
-				}
-				catch (Exception Ex)
-				{
-					throw new AutomationException("Unable to delete existing log file {0} {1}", ProcessLogFile, Ex.Message);
-				}
-
 				Log.Verbose("\t{0}", CmdLine);
 
-				Result = CommandUtils.Run(LinuxApp.ExecutablePath, CmdLine, Options: LinuxApp.RunOptions | (ProcessLogFile != null ? CommandUtils.ERunOptions.NoStdOutRedirect : 0 ));
+				Result = CommandUtils.Run(LinuxApp.ExecutablePath, CmdLine, Options: LinuxApp.RunOptions, SpewFilterCallback: new SpewFilterCallbackType(delegate(string M) { return null; }) /* make sure stderr does not spew in the stdout */);
 
 				if (Result.HasExited && Result.ExitCode != 0)
 				{
@@ -276,7 +237,7 @@ namespace Gauntlet
 				Environment.CurrentDirectory = OldWD;
 			}
 
-			return new LinuxAppInstance(LinuxApp, Result, ProcessLogFile);
+			return new LinuxAppInstance(LinuxApp, Result);
 		}
 
 		private void CopyAdditionalFiles(UnrealAppConfig AppConfig)

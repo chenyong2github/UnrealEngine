@@ -9,6 +9,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using static AutomationTool.ProcessResult;
 
 namespace Gauntlet
 {
@@ -337,8 +338,9 @@ namespace Gauntlet
 					}
 				}
 
-				// explicitly set log file when not already defined
-				if (string.IsNullOrEmpty(ProcessLogFile))
+				// Explicitly set log file when not already defined if not build machine
+				// -abslog makes sure Unreal dymanicaly update the log window when using -log
+				if (!AutomationTool.Automation.IsBuildMachine && string.IsNullOrEmpty(ProcessLogFile))
 				{
 					string LogFolder = string.Format(@"{0}\Logs", WinApp.ArtifactPath);
 
@@ -367,7 +369,7 @@ namespace Gauntlet
 
 				Log.Verbose("\t{0}", CmdLine);
 
-				Result = CommandUtils.Run(WinApp.ExecutablePath, CmdLine, Options: WinApp.RunOptions | (ProcessLogFile != null ? CommandUtils.ERunOptions.NoStdOutRedirect : 0 ));
+				Result = CommandUtils.Run(WinApp.ExecutablePath, CmdLine, Options: WinApp.RunOptions | (ProcessLogFile != null ? CommandUtils.ERunOptions.NoStdOutRedirect : 0 ), SpewFilterCallback: new SpewFilterCallbackType(delegate (string M) { return null; }) /* make sure stderr does not spew in the stdout */);
 
 				if (Result.HasExited && Result.ExitCode != 0)
 				{

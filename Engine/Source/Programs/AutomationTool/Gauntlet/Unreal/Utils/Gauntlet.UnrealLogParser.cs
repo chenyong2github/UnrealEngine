@@ -545,11 +545,75 @@ namespace Gauntlet
 		{
 			string[] ErrorMsgMatches = new string[] { @"(Fatal Error:.+)", @"Critical error: =+[\s\n]+(?:.+?\s*Error:\s*)?(.+)", @"(Assertion Failed:.+)", @"(Unhandled Exception:.+)", @"(LowLevelFatalError.+)" };
 
-			var Traces = ParseTracedErrors(ErrorMsgMatches);
+			var Traces = ParseTracedErrors(ErrorMsgMatches).Concat(GetASanErrors());
 
 			// Keep the one with the most information.
 			Traces.OrderBy(T => T.Callstack.Length);
 			return Traces.Count() > 0 ? Traces.Last() : null;
+		}
+
+		/// <summary>
+		/// Parse the log for Address Sanitizer error.
+		/// </summary>
+		/// <returns></returns>
+		public IEnumerable<UnrealLog.CallstackMessage> GetASanErrors()
+		{
+			/// Match:
+			/// ==5077==ERROR: AddressSanitizer: alloc - dealloc - mismatch(operator new vs free) on 0x602014ab4790
+			/// Then for gathering the callstack, match
+			/// ==5077==ABORTING
+			/// remove anything inside the callstack starting with [2022.12.02-15.22.40:688][618]
+
+			List<UnrealLog.CallstackMessage> ASanReports = new List<UnrealLog.CallstackMessage>();
+			string InitPattern = @"==([0-9]+)==ERROR: ([^\n]+)";
+			string LineStartsWithTimeStamp = @"^\[[0-9.:-]+\]\[[0-9]+\]";
+
+			MatchCollection Matches = Regex.Matches(Content, InitPattern, RegexOptions.IgnoreCase);
+
+			foreach (Match TraceInitMatch in Matches)
+			{
+				string TraceID = TraceInitMatch.Groups[1].Value;
+				string EndPattern = @$"=={TraceID}==ABORTING";
+				int TraceInitIndex = TraceInitMatch.Index + TraceInitMatch.Length;
+
+				UnrealLog.CallstackMessage NewTrace = new UnrealLog.CallstackMessage();
+				NewTrace.Position = TraceInitMatch.Index;
+				NewTrace.Message = TraceInitMatch.Groups[2].Value;
+
+				// If the regex matches the very end of the string, the substring will get an invalid range.
+				string ErrorContent = Content.Length <= TraceInitIndex
+					? string.Empty : Content.Substring(TraceInitIndex + 1);
+
+				if (!string.IsNullOrEmpty(ErrorContent))
+				{
+					Match MsgMatch = Regex.Match(ErrorContent, EndPattern);
+					if (MsgMatch.Success)
+					{
+						string MsgContent = ErrorContent.Substring(0, MsgMatch.Index);
+						// Prune the line with time stamp
+						List<string> Backtrace = new List<string>();
+						foreach (string Line in MsgContent.Split("\n"))
+						{
+							Match IsTimeStampLine = Regex.Match(Line, LineStartsWithTimeStamp);
+							if (!IsTimeStampLine.Success)
+							{
+								Backtrace.Add(Line);
+							}
+						}
+
+						NewTrace.Callstack = Backtrace.ToArray();
+					}
+				}
+
+				if(NewTrace.Callstack == null)
+				{
+					NewTrace.Callstack = new string[] { "Unable to parse callstack from log" };
+				}
+
+				ASanReports.Add(NewTrace);
+			}
+
+			return ASanReports;
 		}
 
 		/// <summary>

@@ -1928,7 +1928,7 @@ namespace Gauntlet
 				{
 					Callstack.Add("Could not parse callstack. See log for full callstack");
 				}
-				Log.Error(KnownLogEvents.Gauntlet_TestEvent, " * Fatal Error: {Summary}\n{Callstack}", Event.Summary, string.Join("\n", Callstack.Select(C=>"    "+C)));
+				Log.Error(KnownLogEvents.Gauntlet_FatalEvent, " * Fatal Error: {Summary}\n{Callstack}", Event.Summary, string.Join("\n", Callstack.Select(C=>"    "+C)));
 				Log.Info("");
 			}
 

@@ -171,6 +171,11 @@ namespace EpicGames.Core
 		public static EventId Gauntlet_BuildDropEvent { get; } = new EventId(604);
 
 		/// <summary>
+		/// Fatal Error message from Gauntlet events
+		/// </summary>
+		public static EventId Gauntlet_FatalEvent { get; } = new EventId(605);
+
+		/// <summary>
 		/// A systemic event, relating to the health of the farm
 		/// </summary>
 		public static EventId Systemic { get; } = new EventId(700);
