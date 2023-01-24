@@ -48,6 +48,7 @@ struct CHAOSCACHING_API FObservedComponent
 	FObservedComponent()
 		: CacheName(NAME_None)
 		, bIsSimulating(true)
+		, bPlaybackEnabled(true)
 		, Cache(nullptr)
 		, BestFitAdapter(nullptr)
 	{
@@ -57,6 +58,7 @@ struct CHAOSCACHING_API FObservedComponent
 	{
 		CacheName = OtherComponent.CacheName;
 		bIsSimulating = OtherComponent.bIsSimulating;
+		bPlaybackEnabled = OtherComponent.bPlaybackEnabled;
 		bTriggered = OtherComponent.bTriggered;
 		AbsoluteTime = OtherComponent.AbsoluteTime;
 		TimeSinceTrigger = OtherComponent.TimeSinceTrigger;
@@ -70,6 +72,7 @@ struct CHAOSCACHING_API FObservedComponent
 	{
 		CacheName = OtherComponent.CacheName;
 		bIsSimulating = OtherComponent.bIsSimulating;
+		bPlaybackEnabled = OtherComponent.bPlaybackEnabled;
 		bTriggered = OtherComponent.bTriggered;
 		AbsoluteTime = OtherComponent.AbsoluteTime;
 		TimeSinceTrigger = OtherComponent.TimeSinceTrigger;
@@ -82,7 +85,7 @@ struct CHAOSCACHING_API FObservedComponent
 	}
 
 	/** Unique name for the cache, used as a key into the cache collection */
-	UPROPERTY(EditAnywhere, Category = "Caching")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Caching")
 	FName CacheName;
 
 	/** Deprecated hard object reference. Not working with sequencer and take recorder since
@@ -96,7 +99,7 @@ struct CHAOSCACHING_API FObservedComponent
 	FSoftComponentReference SoftComponentRef;
 
 	/** Capture of the initial state of the component before cache manager takes control. */
-	UPROPERTY(EditAnywhere, Category = "Caching")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Caching")
 	bool bIsSimulating;
 
 	/** Post serialize function to transfer datas from the deprecated TObjectPtr -> TSoftObjectPtr */
@@ -105,9 +108,17 @@ struct CHAOSCACHING_API FObservedComponent
 	/** Prepare runtime tick data for a new run */
 	void ResetRuntimeData(const EStartMode ManagerStartMode);
 
+	/** Check if the Observed component is enabled for a specific cache mode */
+	bool IsEnabled(ECacheMode CacheMode) const;
+
 	/** Gets the component from the internal component ref */
 	UPrimitiveComponent* GetComponent();
 	UPrimitiveComponent* GetComponent() const;
+
+private:
+	/** Whether this component is enabled for playback, this allow a cache to hold many component but only replay some of them. */
+	UPROPERTY(EditAnywhere, Category = "Caching")
+	bool bPlaybackEnabled;
 
 private:
 	friend class AChaosCacheManager;
