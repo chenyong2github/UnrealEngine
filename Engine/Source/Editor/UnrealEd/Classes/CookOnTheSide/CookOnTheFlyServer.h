@@ -143,6 +143,7 @@ ENUM_CLASS_FLAGS(ECookTickFlags);
 
 namespace UE::Cook
 {
+	class FAssetRegistryMPCollector;
 	class FBuildDefinitions;
 	class FCookDirector;
 	class FCookWorkerClient;
@@ -1424,12 +1425,13 @@ private:
 	float DisplayUpdatePeriodSeconds = 0.0f;
 	EIdleStatus IdleStatus = EIdleStatus::Done;
 
+	friend UE::Cook::FAssetRegistryMPCollector;
 	friend UE::Cook::FBeginCookConfigSettings;
-	friend UE::Cook::FInitializeConfigSettings;
 	friend UE::Cook::FCookDirector;
 	friend UE::Cook::FCookWorkerClient;
 	friend UE::Cook::FCookWorkerServer;
 	friend UE::Cook::FGeneratorPackage;
+	friend UE::Cook::FInitializeConfigSettings;
 	friend UE::Cook::FPackageData;
 	friend UE::Cook::FPendingCookedPlatformData;
 	friend UE::Cook::FPlatformManager;

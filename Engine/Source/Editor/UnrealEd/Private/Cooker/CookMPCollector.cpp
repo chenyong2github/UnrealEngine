@@ -41,6 +41,27 @@ const ITargetPlatform* FMPCollectorClientTickContext::IntToPlatform(uint8 Platfo
 	return IntToPlatformImpl(PlatformAsInt, Platforms);
 }
 
+void FMPCollectorClientTickPackageContext::AddMessage(FCbObject Object)
+{
+	Messages.Emplace(nullptr, MoveTemp(Object));
+}
+
+void FMPCollectorClientTickPackageContext::AddPlatformMessage(const ITargetPlatform* TargetPlatform, FCbObject Object)
+{
+	check(TargetPlatform && Platforms.Contains(TargetPlatform));
+	Messages.Emplace(TargetPlatform, MoveTemp(Object));
+}
+
+uint8 FMPCollectorClientTickPackageContext::PlatformToInt(const ITargetPlatform* Platform) const
+{
+	return PlatformToIntImpl(Platform, Platforms);
+}
+
+const ITargetPlatform* FMPCollectorClientTickPackageContext::IntToPlatform(uint8 PlatformAsInt) const
+{
+	return IntToPlatformImpl(PlatformAsInt, Platforms);
+}
+
 uint8 FMPCollectorClientMessageContext::PlatformToInt(const ITargetPlatform* Platform) const
 {
 	return PlatformToIntImpl(Platform, Platforms);

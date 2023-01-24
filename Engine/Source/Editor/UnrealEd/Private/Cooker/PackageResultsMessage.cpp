@@ -7,8 +7,28 @@
 namespace UE::Cook
 {
 
-void FPackageRemoteResult::AddMessage(const FPackageData& PackageData, const ITargetPlatform* TargetPlatform, const IPackageMessage& Message)
+TArray<UE::CompactBinaryTCP::FMarshalledMessage> FPackageRemoteResult::FPlatformResult::ReleaseMessages()
 {
+	TArray<UE::CompactBinaryTCP::FMarshalledMessage> Result = MoveTemp(Messages);
+	Messages.Empty();
+	return Result;
+}
+
+TArray<UE::CompactBinaryTCP::FMarshalledMessage> FPackageRemoteResult::ReleaseMessages()
+{
+	TArray<UE::CompactBinaryTCP::FMarshalledMessage> Result = MoveTemp(Messages);
+	Messages.Empty();
+	return Result;
+}
+
+void FPackageRemoteResult::AddPackageMessage(const FGuid& MessageType, FCbObject&& Object)
+{
+	Messages.Add(UE::CompactBinaryTCP::FMarshalledMessage{ MessageType, MoveTemp(Object) });
+}
+
+void FPackageRemoteResult::AddPlatformMessage(const ITargetPlatform* TargetPlatform, const FGuid& MessageType, FCbObject&& Object)
+{
+	check(TargetPlatform != nullptr);
 	int32 PlatformIndex = Platforms.IndexOfByPredicate([TargetPlatform](const FPlatformResult& Result)
 		{ return Result.Platform == TargetPlatform; }
 	);
@@ -23,14 +43,18 @@ void FPackageRemoteResult::AddMessage(const FPackageData& PackageData, const ITa
 		Result->Platform = TargetPlatform;
 	}
 
-	FCbWriter Writer;
-	Writer.BeginObject();
-	Message.Write(Writer, PackageData, TargetPlatform);
-	Writer.EndObject();
-
-	Result->Messages.Add(UE::CompactBinaryTCP::FMarshalledMessage{ Message.GetMessageType(), Writer.Save().AsObject() });
+	Result->Messages.Add(UE::CompactBinaryTCP::FMarshalledMessage{ MessageType, MoveTemp(Object)});
 }
 
+void FPackageRemoteResult::SetPlatforms(TConstArrayView<ITargetPlatform*> OrderedSessionPlatforms)
+{
+	Platforms.Reserve(OrderedSessionPlatforms.Num());
+	for (ITargetPlatform* TargetPlatform : OrderedSessionPlatforms)
+	{
+		FPackageRemoteResult::FPlatformResult& PlatformResult = Platforms.Emplace_GetRef();
+		PlatformResult.Platform = TargetPlatform;
+	}
+}
 
 void FPackageResultsMessage::Write(FCbWriter& Writer) const
 {
@@ -42,6 +66,7 @@ void FPackageResultsMessage::Write(FCbWriter& Writer) const
 			Writer << "N" << Result.PackageName;
 			Writer << "R" << (uint8) Result.SuppressCookReason;
 			Writer << "E" << Result.bReferencedOnlyByEditorOnlyData;
+			WriteMessagesArray(Writer, Result.Messages);
 			Writer.BeginArray("P");
 			for (const FPackageRemoteResult::FPlatformResult& PlatformResult : Result.Platforms)
 			{
@@ -49,17 +74,7 @@ void FPackageResultsMessage::Write(FCbWriter& Writer) const
 				Writer << "S" << PlatformResult.bSuccessful;
 				Writer << "G" << PlatformResult.PackageGuid;
 				Writer << "D" << PlatformResult.TargetDomainDependencies;
-				if (!PlatformResult.Messages.IsEmpty())
-				{
-					// We write a nonhomogenous array of length 2N. 2N+0 is the Message type, 2N+1 is the message object.
-					Writer.BeginArray("M");
-					for (const UE::CompactBinaryTCP::FMarshalledMessage& Message : PlatformResult.Messages)
-					{
-						Writer << Message.MessageType;
-						Writer << Message.Object;
-					}
-					Writer.EndArray();
-				}
+				WriteMessagesArray(Writer, PlatformResult.Messages);
 				Writer.EndObject();
 			}
 			Writer.EndArray();
@@ -67,6 +82,22 @@ void FPackageResultsMessage::Write(FCbWriter& Writer) const
 		Writer.EndObject();
 	}
 	Writer.EndArray();
+}
+
+void FPackageResultsMessage::WriteMessagesArray(FCbWriter& Writer,
+	TConstArrayView<UE::CompactBinaryTCP::FMarshalledMessage> InMessages)
+{
+	if (!InMessages.IsEmpty())
+	{
+		// We write a nonhomogenous array of length 2N. 2N+0 is the Message type, 2N+1 is the message object.
+		Writer.BeginArray("M");
+		for (const UE::CompactBinaryTCP::FMarshalledMessage& Message : InMessages)
+		{
+			Writer << Message.MessageType;
+			Writer << Message.Object;
+		}
+		Writer.EndArray();
+	}
 }
 
 bool FPackageResultsMessage::TryRead(FCbObjectView Object)
@@ -88,6 +119,10 @@ bool FPackageResultsMessage::TryRead(FCbObjectView Object)
 		}
 		Result.SuppressCookReason = static_cast<ESuppressCookReason>(LocalSuppressCookReason);
 		Result.bReferencedOnlyByEditorOnlyData = ResultObject["E"].AsBool();
+		if (!TryReadMessagesArray(ResultObject, Result.Messages))
+		{
+			return false;
+		}
 		Result.Platforms.Reset();
 		for (FCbFieldView PlatformField : ResultObject["P"])
 		{
@@ -98,27 +133,37 @@ bool FPackageResultsMessage::TryRead(FCbObjectView Object)
 			PlatformResult.PackageGuid = PlatformObject["G"].AsUuid();
 			PlatformResult.TargetDomainDependencies = FCbObject::Clone(PlatformObject["D"].AsObjectView());
 
-			// We read a nonhomogenous array of length 2N. 2N+0 is the Message type, 2N+1 is the message object.
-			FCbArrayView MessagesArray = PlatformObject["M"].AsArrayView();
-			PlatformResult.Messages.Reserve(MessagesArray.Num() / 2);
-			FCbFieldViewIterator MessageField = MessagesArray.CreateViewIterator();
-			while (MessageField)
+			if (!TryReadMessagesArray(PlatformObject, PlatformResult.Messages))
 			{
-				UE::CompactBinaryTCP::FMarshalledMessage& Message = PlatformResult.Messages.Emplace_GetRef();
-				Message.MessageType = MessageField->AsUuid();
-				if (MessageField.HasError())
-				{
-					return false;
-				}
-				++MessageField;
-				Message.Object = FCbObject::Clone(MessageField->AsObjectView());
-				if (MessageField.HasError())
-				{
-					return false;
-				}
-				++MessageField;
+				return false;
 			}
 		}
+	}
+	return true;
+}
+
+bool FPackageResultsMessage::TryReadMessagesArray(FCbObjectView ObjectWithMessageField,
+	TArray<UE::CompactBinaryTCP::FMarshalledMessage>& InMessages)
+{
+	// We read a nonhomogenous array of length 2N. 2N+0 is the Message type, 2N+1 is the message object.
+	FCbArrayView MessagesArray = ObjectWithMessageField["M"].AsArrayView();
+	InMessages.Reset(MessagesArray.Num() / 2);
+	FCbFieldViewIterator MessageField = MessagesArray.CreateViewIterator();
+	while (MessageField)
+	{
+		UE::CompactBinaryTCP::FMarshalledMessage& Message = InMessages.Emplace_GetRef();
+		Message.MessageType = MessageField->AsUuid();
+		if (MessageField.HasError())
+		{
+			return false;
+		}
+		++MessageField;
+		Message.Object = FCbObject::Clone(MessageField->AsObjectView());
+		if (MessageField.HasError())
+		{
+			return false;
+		}
+		++MessageField;
 	}
 	return true;
 }

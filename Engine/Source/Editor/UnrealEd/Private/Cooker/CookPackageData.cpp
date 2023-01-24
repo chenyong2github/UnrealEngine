@@ -778,7 +778,6 @@ void FPackageData::OnEnterSave()
 	check(!HasPrepareSaveFailed());
 	CheckObjectCacheEmpty();
 	CheckCookedPlatformDataEmpty();
-	check(!PackageRemoteResult);
 }
 
 void FPackageData::OnExitSave()
@@ -787,22 +786,6 @@ void FPackageData::OnExitSave()
 	ClearObjectCache();
 	SetHasPrepareSaveFailed(false);
 	SetIsPrepareSaveRequiresGC(false);
-	PackageRemoteResult.Reset();
-}
-
-FPackageRemoteResult& FPackageData::GetOrAddPackageRemoteResult()
-{
-	check(GetState() == EPackageState::Save);
-	if (!PackageRemoteResult)
-	{
-		PackageRemoteResult = MakeUnique<FPackageRemoteResult>();
-	}
-	return *PackageRemoteResult;
-}
-
-TUniquePtr<FPackageRemoteResult>& FPackageData::GetPackageRemoteResult()
-{
-	return PackageRemoteResult;
 }
 
 void FPackageData::OnEnterInProgress()

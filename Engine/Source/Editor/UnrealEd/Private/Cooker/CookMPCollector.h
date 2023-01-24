@@ -41,6 +41,26 @@ private:
 	friend class FCookWorkerClient;
 };
 
+class FMPCollectorClientTickPackageContext
+{
+public:
+	TConstArrayView<const ITargetPlatform*> GetPlatforms() const { return Platforms; }
+	FName GetPackageName() const { return PackageName; }
+
+	void AddMessage(FCbObject Object);
+	void AddPlatformMessage(const ITargetPlatform* Platform, FCbObject Object);
+
+	uint8 PlatformToInt(const ITargetPlatform* Platform) const;
+	const ITargetPlatform* IntToPlatform(uint8 PlatformAsInt) const;
+
+private:
+	TArray<TPair<const ITargetPlatform*, FCbObject>> Messages;
+	TConstArrayView<const ITargetPlatform*> Platforms;
+	FName PackageName;
+
+	friend class FCookWorkerClient;
+};
+
 class FMPCollectorClientMessageContext
 {
 public:
@@ -66,11 +86,18 @@ public:
 	int32 GetProfileId() const { return ProfileId; }
 	FCookWorkerServer* GetCookWorkerServer() { return Server; }
 
+	bool HasPackageName() const { return !PackageName.IsNone(); }
+	FName GetPackageName() const { return PackageName; }
+	bool HasTargetPlatform() const { return TargetPlatform != nullptr; }
+	const ITargetPlatform* GetTargetPlatform() const { return TargetPlatform; }
+
 private:
 	TConstArrayView<const ITargetPlatform*> Platforms;
-	FWorkerId WorkerId;
-	int32 ProfileId;
+	FName PackageName;
 	FCookWorkerServer* Server = nullptr;
+	const ITargetPlatform* TargetPlatform = nullptr;
+	int32 ProfileId;
+	FWorkerId WorkerId;
 
 	friend class FCookWorkerServer;
 };
@@ -88,6 +115,7 @@ public:
 	virtual const TCHAR* GetDebugName() const = 0;
 
 	virtual void ClientTick(FMPCollectorClientTickContext& Context) {}
+	virtual void ClientTickPackage(FMPCollectorClientTickPackageContext& Context) {}
 	virtual void ClientReceiveMessage(FMPCollectorClientMessageContext& Context, FCbObjectView Message) {}
 	virtual void ServerReceiveMessage(FMPCollectorServerMessageContext& Context, FCbObjectView Message) {}
 };

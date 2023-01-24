@@ -7,7 +7,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryState.h"
 #include "Containers/Map.h"
-#include "Cooker/PackageResultsMessage.h"
+#include "Cooker/CookMPCollector.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "Misc/Paths.h"
 #include "Templates/UniquePtr.h"
@@ -204,7 +204,7 @@ public:
 	 * @param bIncludeOnlyDiskAssets Include only disk assets or else also enumerate memory assets
 	 */
 	void UpdateAssetRegistryData(const UPackage& Package, FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList, bool bIncludeOnlyDiskAssets = true);
-	void UpdateAssetRegistryData(UE::Cook::FPackageData& PackageData, UE::Cook::FAssetRegistryPackageMessage&& Message);
+	void UpdateAssetRegistryData(UE::Cook::FMPCollectorServerMessageContext& Context, UE::Cook::FAssetRegistryPackageMessage&& Message);
 
 	/**
 	 * Check config to see whether chunk assignments use the AssetManager. If so, run the once-per-process construction
@@ -468,15 +468,20 @@ public:
 private:
 	FCookWorkerClient& Client;
 	const ITargetPlatform* TargetPlatform = nullptr;
+	TMap<FName, FCbObject> PackageUpdateMessages;
+
+	friend FAssetRegistryMPCollector;
 };
 
-class FAssetRegistryPackageMessage : public IPackageMessage
+class FAssetRegistryPackageMessage : public UE::CompactBinaryTCP::IMessage
 {
 public:
-	virtual void Write(FCbWriter& Writer, const FPackageData& PackageData, const ITargetPlatform* TargetPlatform) const override;
-	virtual bool TryRead(FCbObjectView Object, FPackageData& PackageData, const ITargetPlatform* TargetPlatform) override;
+	virtual void Write(FCbWriter& Writer) const override;
+	virtual bool TryRead(FCbObjectView Object) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
+	FName PackageName;
+	const ITargetPlatform* TargetPlatform;
 	TArray<FAssetData> AssetDatas;
 	TMap<FSoftObjectPath, TArray<TPair<FName, FString>>> CookTags;
 	uint32 PackageFlags = 0;
@@ -486,6 +491,20 @@ public:
 	static FGuid MessageType;
 };
 
+class FAssetRegistryMPCollector : public UE::Cook::IMPCollector
+{
+public:
+	FAssetRegistryMPCollector(UCookOnTheFlyServer& InCOTFS);
+
+	virtual FGuid GetMessageType() const { return FAssetRegistryPackageMessage::MessageType; }
+	virtual const TCHAR* GetDebugName() const { return TEXT("AssetRegistry"); }
+
+	virtual void ClientTickPackage(FMPCollectorClientTickPackageContext& Context) override;
+	virtual void ServerReceiveMessage(FMPCollectorServerMessageContext& Context, FCbObjectView Message) override;
+
+private:
+	UCookOnTheFlyServer& COTFS;
+};
 
 
 }

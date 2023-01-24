@@ -46,6 +46,7 @@ FCookWorkerClient::FCookWorkerClient(UCookOnTheFlyServer& InCOTFS)
 		{
 			HandleHeartbeatMessage(Context, bReadSuccessful, MoveTemp(Message));
 		}, TEXT("HandleHeartbeatMessage")));
+	Register(new FAssetRegistryMPCollector(COTFS));
 }
 
 FCookWorkerClient::~FCookWorkerClient()
@@ -149,65 +150,54 @@ void FCookWorkerClient::ReportDemoteToIdle(const FPackageData& PackageData, ESup
 		return;
 	}
 	FPackageRemoteResult& Result = PendingResults.Emplace_GetRef();
-	Result.PackageName = PackageData.GetPackageName();
-	Result.SuppressCookReason = Reason;
+	Result.SetPackageName(PackageData.GetPackageName());
+	Result.SetSuppressCookReason(Reason);
 }
 
 void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
 {
-	TUniquePtr<FPackageRemoteResult> MovedResult = MoveTemp(PackageData.GetPackageRemoteResult());
-	FPackageRemoteResult* Result;
-	if (MovedResult)
-	{
-		Result = &PendingResults.Emplace_GetRef(MoveTemp(*MovedResult));
-	} 
-	else
-	{
-		Result = &PendingResults.Emplace_GetRef();
-	}
+	FPackageRemoteResult& Result = PendingResults.Emplace_GetRef();
 
-	Result->PackageName = PackageData.GetPackageName();
-	Result->SuppressCookReason = ESuppressCookReason::InvalidSuppressCookReason;
+	FName PackageName = PackageData.GetPackageName();
+	Result.SetPackageName(PackageName);
+	Result.SetSuppressCookReason(ESuppressCookReason::InvalidSuppressCookReason);
+	Result.SetPlatforms(OrderedSessionPlatforms);
 
-	// Sort the platforms to match the OrderedSessionPlatforms order, and add any missing platforms
 	int32 NumPlatforms = OrderedSessionPlatforms.Num();
-	bool bAlreadySorted = true;
-	for (int32 PlatformIndex = 0; PlatformIndex < NumPlatforms; ++PlatformIndex)
-	{
-		if (OrderedSessionPlatforms[PlatformIndex] != Result->Platforms[PlatformIndex].Platform)
-		{
-			bAlreadySorted = false;
-			break;
-		}
-	}
-	if (!bAlreadySorted)
-	{
-		TArray<FPackageRemoteResult::FPlatformResult, TInlineAllocator<1>> SortedPlatforms;
-		SortedPlatforms.SetNum(NumPlatforms);
-		for (FPackageRemoteResult::FPlatformResult& ExistingResult : Result->Platforms)
-		{
-			int32 PlatformIndex = OrderedSessionPlatforms.IndexOfByKey(ExistingResult.Platform);
-			check(PlatformIndex != INDEX_NONE && SortedPlatforms[PlatformIndex].Platform == nullptr); // Only platforms in the session platforms should have been added, and there should not be duplicates
-			SortedPlatforms[PlatformIndex] = MoveTemp(ExistingResult);
-		}
-		for (int32 PlatformIndex = 0; PlatformIndex < NumPlatforms; ++PlatformIndex)
-		{
-			FPackageRemoteResult::FPlatformResult& Sorted = SortedPlatforms[PlatformIndex];
-			if (!Sorted.Platform)
-			{
-				Sorted.Platform = OrderedSessionPlatforms[PlatformIndex];
-				Sorted.bSuccessful = false;
-			}
-		}
-		Swap(Result->Platforms, SortedPlatforms);
-	}
-
 	for (int32 PlatformIndex = 0; PlatformIndex < NumPlatforms; ++PlatformIndex)
 	{
 		ITargetPlatform* TargetPlatform = OrderedSessionPlatforms[PlatformIndex];
-		FPackageRemoteResult::FPlatformResult& PlatformResults = Result->Platforms[PlatformIndex];
+		FPackageRemoteResult::FPlatformResult& PlatformResults = Result.GetPlatforms()[PlatformIndex];
 		FPackageData::FPlatformData& PackagePlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
-		PlatformResults.bSuccessful = PackagePlatformData.bCookSucceeded;
+		PlatformResults.SetSuccessful(PackagePlatformData.bCookSucceeded);
+	}
+
+	FMPCollectorClientTickPackageContext Context;
+	Context.PackageName = PackageName;
+	Context.Platforms = OrderedSessionPlatforms;
+
+	for (const TPair<FGuid, TRefCountPtr<IMPCollector>>& CollectorPair : Collectors)
+	{
+		IMPCollector* Collector = CollectorPair.Value.GetReference();
+		Collector->ClientTickPackage(Context);
+		if (!Context.Messages.IsEmpty())
+		{
+			const FGuid& MessageType = CollectorPair.Key;
+			for (TPair<const ITargetPlatform*, FCbObject>& MessagePair : Context.Messages)
+			{
+				const ITargetPlatform* TargetPlatform = MessagePair.Key;
+				FCbObject Object = MoveTemp(MessagePair.Value);
+				if (!TargetPlatform)
+				{
+					Result.AddPackageMessage(MessageType, MoveTemp(Object));
+				}
+				else
+				{
+					Result.AddPlatformMessage(TargetPlatform, MessageType, MoveTemp(Object));
+				}
+			}
+			Context.Messages.Reset();
+		}
 	}
 }
 

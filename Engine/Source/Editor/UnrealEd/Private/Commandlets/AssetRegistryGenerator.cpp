@@ -8,7 +8,9 @@
 #include "AssetRegistry/CookTagList.h"
 #include "CollectionManagerModule.h"
 #include "CollectionManagerTypes.h"
+#include "Cooker/CookMPCollector.h"
 #include "Cooker/CookPackageData.h"
+#include "Cooker/CookPlatformManager.h"
 #include "Cooker/CookWorkerClient.h"
 #include "Commandlets/ChunkDependencyInfo.h"
 #include "Commandlets/IChunkDataGenerator.h"
@@ -2583,10 +2585,12 @@ void FAssetRegistryGenerator::UpdateAssetRegistryData(const UPackage& Package,
 		TEXT("Trying to update asset package flags in package '%s' that does not exist"), *PackageName.ToString());
 }
 
-void FAssetRegistryGenerator::UpdateAssetRegistryData(UE::Cook::FPackageData& PackageData, UE::Cook::FAssetRegistryPackageMessage&& Message)
+void FAssetRegistryGenerator::UpdateAssetRegistryData(UE::Cook::FMPCollectorServerMessageContext& Context,
+	UE::Cook::FAssetRegistryPackageMessage&& Message)
 {
 	LLM_SCOPE_BYTAG(Cooker_GeneratedAssetRegistry);
-	const FName PackageName = PackageData.GetPackageName();
+	const FName PackageName = Context.GetPackageName();
+	check(!PackageName.IsNone());
 	PreviousPackagesToUpdate.Remove(PackageName);
 
 	for (FAssetData& AssetData : Message.AssetDatas)
@@ -2628,12 +2632,15 @@ void FAssetRegistryReporterRemote::UpdateAssetRegistryData(FPackageData& Package
 		DiskSize = -1;
 	}
 
+	FName PackageName = PackageData.GetPackageName();
 	FAssetRegistryPackageMessage Message;
+	Message.PackageName = PackageName;
+	Message.TargetPlatform = TargetPlatform;
 	Message.PackageFlags = NewPackageFlags;
 	Message.DiskSize = DiskSize;
 
 	// Add to the message all the AssetDatas in the package from the global AssetRegistry
-	IAssetRegistry::Get()->GetAssetsByPackageName(PackageData.GetPackageName(), Message.AssetDatas,
+	IAssetRegistry::Get()->GetAssetsByPackageName(PackageName, Message.AssetDatas,
 		bIncludeOnlyDiskAssets, false /* SkipARFilteredAssets */);
 
 	// Also add AssetDatas for any assets that were created during PostLoad or cooking and are not in the global assetregistry
@@ -2658,15 +2665,22 @@ void FAssetRegistryReporterRemote::UpdateAssetRegistryData(FPackageData& Package
 	Message.CookTags = MoveTemp(InArchiveCookTagList.ObjectToTags);
 
 	// Send the message to the director
-	PackageData.GetOrAddPackageRemoteResult().AddMessage(PackageData, TargetPlatform, Message);
+	FCbWriter Writer;
+	Writer.BeginObject();
+	Message.Write(Writer);
+	Writer.EndObject();
+
+	PackageUpdateMessages.Add(PackageName, Writer.Save().AsObject());
 }
 
-void FAssetRegistryPackageMessage::Write(FCbWriter& Writer, const FPackageData& PackageData, const ITargetPlatform* TargetPlatform) const
+void FAssetRegistryPackageMessage::Write(FCbWriter& Writer) const
 {
+	check(!PackageName.IsNone());
+
 	Writer.BeginArray("A");
 	for (const FAssetData& AssetData : AssetDatas)
 	{
-		check(AssetData.PackageName == PackageData.GetPackageName() && !AssetData.AssetName.IsNone()); // We replicate only regular Assets of the form PackageName.AssetName
+		check(AssetData.PackageName == PackageName && !AssetData.AssetName.IsNone()); // We replicate only regular Assets of the form PackageName.AssetName
 		AssetData.NetworkWrite(Writer, false /* bWritePackageName */);
 
 	}
@@ -2680,8 +2694,10 @@ void FAssetRegistryPackageMessage::Write(FCbWriter& Writer, const FPackageData& 
 	Writer << "S" << DiskSize;
 }
 
-bool FAssetRegistryPackageMessage::TryRead(FCbObjectView Object, FPackageData& PackageData, const ITargetPlatform* TargetPlatform)
+bool FAssetRegistryPackageMessage::TryRead(FCbObjectView Object)
 {
+	check(!PackageName.IsNone());
+
 	LLM_SCOPE_BYTAG(Cooker_GeneratedAssetRegistry);
 	FCbFieldView AssetDatasField = Object["A"];
 	FCbArrayView AssetDatasArray = AssetDatasField.AsArrayView();
@@ -2693,7 +2709,7 @@ bool FAssetRegistryPackageMessage::TryRead(FCbObjectView Object, FPackageData& P
 	for (FCbFieldView ElementField : AssetDatasArray)
 	{
 		FAssetData& AssetData = AssetDatas.Emplace_GetRef();
-		if (!AssetData.TryNetworkRead(ElementField, false /* bReadPackageName */, PackageData.GetPackageName()))
+		if (!AssetData.TryNetworkRead(ElementField, false /* bReadPackageName */, PackageName))
 		{
 			return false;
 		}
@@ -2716,6 +2732,55 @@ bool FAssetRegistryPackageMessage::TryRead(FCbObjectView Object, FPackageData& P
 }
 
 FGuid FAssetRegistryPackageMessage::MessageType(TEXT("0588DCCEBF1742399EC1E011FC97E4DC"));
+
+FAssetRegistryMPCollector::FAssetRegistryMPCollector(UCookOnTheFlyServer& InCOTFS)
+	: COTFS(InCOTFS)
+{
+}
+
+void FAssetRegistryMPCollector::ClientTickPackage(FMPCollectorClientTickPackageContext& Context)
+{
+	bool bLoggedWarning = false;
+	for (const ITargetPlatform* TargetPlatform : Context.GetPlatforms())
+	{
+		FPlatformData* PlatformData = COTFS.PlatformManager->GetPlatformData(TargetPlatform);
+		FAssetRegistryReporterRemote& RegistryReporter = static_cast<FAssetRegistryReporterRemote&>(*PlatformData->RegistryReporter);
+		FCbObject Message;
+		if (!RegistryReporter.PackageUpdateMessages.RemoveAndCopyValue(Context.GetPackageName(), Message))
+		{
+			UE_CLOG(!bLoggedWarning, LogAssetRegistryGenerator, Warning,
+				TEXT("ClientTickPackage was called for package %s, but UpdateAssetRegistryData was not called for that package. We will not have up to date AssetDataTags in the generated AssetRegistry."),
+				*Context.GetPackageName().ToString());
+			bLoggedWarning = true;
+		}
+		else
+		{
+			Context.AddPlatformMessage(TargetPlatform, MoveTemp(Message));
+		}
+	}
+}
+
+void FAssetRegistryMPCollector::ServerReceiveMessage(FMPCollectorServerMessageContext& Context, FCbObjectView Message)
+{
+	FName PackageName = Context.GetPackageName();
+	const ITargetPlatform* TargetPlatform = Context.GetTargetPlatform();
+	check(PackageName.IsValid() && TargetPlatform);
+
+	FAssetRegistryPackageMessage ARMessage;
+	ARMessage.PackageName = PackageName;
+	ARMessage.TargetPlatform = TargetPlatform;
+	if (!ARMessage.TryRead(Message))
+	{
+		UE_LOG(LogCook, Error, TEXT("Corrupt AssetRegistryPackageMessage received from CookWorker %d. It will be ignored."),
+			Context.GetProfileId());
+	}
+	else
+	{
+		FAssetRegistryGenerator* RegistryGenerator = COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator.Get();
+		check(RegistryGenerator); // The TargetPlatform came from OrderedSessionPlatforms, and the RegistryGenerator should exist for any of those platforms
+		RegistryGenerator->UpdateAssetRegistryData(Context, MoveTemp(ARMessage));
+	}
+}
 
 }
 

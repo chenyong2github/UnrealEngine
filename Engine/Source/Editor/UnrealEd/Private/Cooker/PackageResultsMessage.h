@@ -10,30 +10,14 @@
 
 class ITargetPlatform;
 namespace UE::Cook { struct FPackageData; }
+namespace UE::Cook { struct FPackageResultsMessage; }
 
 namespace UE::Cook
 {
 
 /**
- * The base class of messages that can be sent as platform-specific package-specific submessages
- * in a FPackageResultMessage. Messages are identified to the remote connection by the Guid identifier
- * from GetMessageType.
- */
-class IPackageMessage
-{
-public:
-	virtual ~IPackageMessage() {}
-	/** Marshall the message to a CompactBinaryObject. */
-	virtual void Write(FCbWriter& Writer, const FPackageData& PackageData, const ITargetPlatform* TargetPlatform) const = 0;
-	/** Unmarshall the message from a CompactBinaryObject. */
-	virtual bool TryRead(FCbObjectView Object, FPackageData& PackageData, const ITargetPlatform* TargetPlatform) = 0;
-	/** Return the Guid that identifies the message to the remote connection. */
-	virtual FGuid GetMessageType() const = 0;
-};
-
-/**
- * Helper struct for FPackageResultsMessage that can also be owned by other types like PackageData.
- * Holds replication information about the result of the Package's save on each platform, including
+ * Helper struct for FPackageResultsMessage.
+ * Holds replication information about the result of a Package's save, including per-platform results and
  * system-specific messages from other systems
  */
 struct FPackageRemoteResult
@@ -42,22 +26,59 @@ public:
 	/** Information about the results for a single platform */
 	struct FPlatformResult
 	{
-		const ITargetPlatform* Platform = nullptr;
-		TArray<UE::CompactBinaryTCP::FMarshalledMessage> Messages;
-		FGuid PackageGuid;
+	public:
+		const ITargetPlatform* GetPlatform() const { return Platform; }
+		void SetPlatform(const ITargetPlatform* InPlatform) { Platform = InPlatform; }
+
+		TConstArrayView<UE::CompactBinaryTCP::FMarshalledMessage> GetMessages() const { return Messages; }
+		TArray<UE::CompactBinaryTCP::FMarshalledMessage> ReleaseMessages();
+
+		const FGuid& GetPackageGuid() const { return PackageGuid; }
+		void SetPackageGuid(const FGuid& InPackageGuid) { PackageGuid = InPackageGuid; }
+
+		FCbObjectView GetTargetDomainDependencies() const { return TargetDomainDependencies; }
+		void SetTargetDomainDependencies(FCbObject&& InObject) { TargetDomainDependencies = MoveTemp(InObject); }
+
+		bool IsSuccessful() const { return bSuccessful; }
+		void SetSuccessful(bool bInSuccessful) { bSuccessful = bInSuccessful; }
+
+	private:
 		FCbObject TargetDomainDependencies;
-		bool bSuccessful = true;
+		FGuid PackageGuid;
+		TArray<UE::CompactBinaryTCP::FMarshalledMessage> Messages;
+		const ITargetPlatform* Platform = nullptr;
+		bool bSuccessful = false;
+
+		friend FPackageRemoteResult;
+		friend FPackageResultsMessage;
 	};
 
-	void AddMessage(const FPackageData& PackageData, const ITargetPlatform* TargetPlatform, const IPackageMessage& Message);
+	FName GetPackageName() const { return PackageName; }
+	void SetPackageName(FName InPackageName) { PackageName = InPackageName; }
 
-public:
+	ESuppressCookReason GetSuppressCookReason() const { return SuppressCookReason; }
+	void SetSuppressCookReason(ESuppressCookReason InSuppressCookReason) { SuppressCookReason = InSuppressCookReason; }
+
+	bool IsReferencedOnlyByEditorOnlyData() const { return bReferencedOnlyByEditorOnlyData; }
+	void SetReferencedOnlyByEditorOnlyData(bool bInReferencedOnlyByEditorOnlyData) { bReferencedOnlyByEditorOnlyData = bInReferencedOnlyByEditorOnlyData; }
+
+	void AddPackageMessage(const FGuid& MessageType, FCbObject&& Object);
+	void AddPlatformMessage(const ITargetPlatform* TargetPlatform, const FGuid& MessageType, FCbObject&& Object);
+	TConstArrayView<UE::CompactBinaryTCP::FMarshalledMessage> GetMessages() const { return Messages; }
+	TArray<UE::CompactBinaryTCP::FMarshalledMessage> ReleaseMessages();
+
+	TArray<FPlatformResult, TInlineAllocator<1>>& GetPlatforms() { return Platforms; }
+	void SetPlatforms(TConstArrayView<ITargetPlatform*> OrderedSessionPlatforms);
+
+private:
+	TArray<FPlatformResult, TInlineAllocator<1>> Platforms;
+	TArray<UE::CompactBinaryTCP::FMarshalledMessage> Messages;
 	FName PackageName;
 	/** If failure reason is InvalidSuppressCookReason, it was saved. Otherwise, holds the suppression reason */
 	ESuppressCookReason SuppressCookReason;
 	bool bReferencedOnlyByEditorOnlyData = false;
-	TArray<FPlatformResult, TInlineAllocator<1>> Platforms;
 
+	friend FPackageResultsMessage;
 };
 
 /** Message from Client to Server giving the results for saved or refused-to-cook packages. */
@@ -72,6 +93,12 @@ public:
 	TArray<FPackageRemoteResult> Results;
 
 	static FGuid MessageType;
+
+private:
+	static void WriteMessagesArray(FCbWriter& Writer,
+		TConstArrayView<UE::CompactBinaryTCP::FMarshalledMessage> InMessages);
+	static bool TryReadMessagesArray(FCbObjectView ObjectWithMessageField,
+		TArray<UE::CompactBinaryTCP::FMarshalledMessage>& InMessages);
 };
 
 }

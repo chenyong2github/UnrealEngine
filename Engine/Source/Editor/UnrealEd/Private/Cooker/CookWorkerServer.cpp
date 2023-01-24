@@ -563,25 +563,35 @@ void FCookWorkerServer::HandleReceiveMessagesInternal()
 	}
 }
 
-void FCookWorkerServer::HandleReceivedPackagePlatformMessages(FPackageData& PackageData, const ITargetPlatform* TargetPlatform, TArray<UE::CompactBinaryTCP::FMarshalledMessage>&& Messages)
+void FCookWorkerServer::HandleReceivedPackagePlatformMessages(FPackageData& PackageData, const ITargetPlatform* TargetPlatform,
+	TArray<UE::CompactBinaryTCP::FMarshalledMessage>&& Messages)
 {
 	check(TickState.TickThread == ECookDirectorThread::SchedulerThread);
+	if (Messages.IsEmpty())
+	{
+		return;
+	}
+
+	FMPCollectorServerMessageContext Context;
+	Context.Platforms = OrderedSessionPlatforms;
+	Context.PackageName = PackageData.GetPackageName();
+	Context.TargetPlatform = TargetPlatform;
+	Context.Server = this;
+	Context.ProfileId = ProfileId;
+	Context.WorkerId = WorkerId;
 
 	for (UE::CompactBinaryTCP::FMarshalledMessage& Message : Messages)
 	{
-		if (Message.MessageType == FAssetRegistryPackageMessage::MessageType)
+		TRefCountPtr<IMPCollector>* Collector = Director.Collectors.Find(Message.MessageType);
+		if (Collector)
 		{
-			FAssetRegistryPackageMessage ARMessage;
-			if (!ARMessage.TryRead(Message.Object, PackageData, TargetPlatform))
-			{
-				LogInvalidMessage(TEXT("FAssetRegistryPackageMessage"));
-			}
-			else
-			{
-				FAssetRegistryGenerator* RegistryGenerator = COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator.Get();
-				check(RegistryGenerator); // The TargetPlatform came from OrderedSessionPlatforms, and the RegistryGenerator should exist for any of those platforms
-				RegistryGenerator->UpdateAssetRegistryData(PackageData, MoveTemp(ARMessage));
-			}
+			check(*Collector);
+			(*Collector)->ServerReceiveMessage(Context, Message.Object);
+		}
+		else
+		{
+			UE_LOG(LogCook, Error, TEXT("CookWorkerServer received PackageMessage of unknown type %s from CookWorker. Ignoring it."),
+				*Message.MessageType.ToString());
 		}
 	}
 }
@@ -611,49 +621,52 @@ void FCookWorkerServer::RecordResults(FPackageResultsMessage& Message)
 
 	for (FPackageRemoteResult& Result : Message.Results)
 	{
-		FPackageData* PackageData = COTFS.PackageDatas->FindPackageDataByPackageName(Result.PackageName);
+		FPackageData* PackageData = COTFS.PackageDatas->FindPackageDataByPackageName(Result.GetPackageName());
 		if (!PackageData)
 		{
 			UE_LOG(LogCook, Warning, TEXT("CookWorkerServer %d received FPackageResultsMessage for invalid package %s. Ignoring it."),
-				ProfileId, *Result.PackageName.ToString());
+				ProfileId, *Result.GetPackageName().ToString());
 			continue;
 		}
 		if (PendingPackages.Remove(PackageData) != 1)
 		{
 			UE_LOG(LogCook, Warning, TEXT("CookWorkerServer %d received FPackageResultsMessage for package %s which is not a pending package. Ignoring it."),
-				ProfileId, *Result.PackageName.ToString());
+				ProfileId, *Result.GetPackageName().ToString());
 			continue;
 		}
 		PackageData->SetWorkerAssignment(FWorkerId::Invalid(), ESendFlags::QueueNone);
 
 		// MPCOOKTODO: Refactor FSaveCookedPackageContext::FinishPlatform and ::FinishPackage so we can call them from here
 		// to reduce duplication
-		if (Result.SuppressCookReason == ESuppressCookReason::InvalidSuppressCookReason)
+		if (Result.GetSuppressCookReason() == ESuppressCookReason::InvalidSuppressCookReason)
 		{
 			int32 NumPlatforms = OrderedSessionPlatforms.Num();
-			if (Result.Platforms.Num() != NumPlatforms)
+			if (Result.GetPlatforms().Num() != NumPlatforms)
 			{
-				UE_LOG(LogCook, Warning, TEXT("CookWorkerServer %d received FPackageResultsMessage for package %s with an invalid number of platform results: expected %d, actual %d. Ignoring it."),
-					ProfileId, *Result.PackageName.ToString(), NumPlatforms, Result.Platforms.Num());
+				UE_LOG(LogCook, Warning,
+					TEXT("CookWorkerServer %d received FPackageResultsMessage for package %s with an invalid number of platform results: expected %d, actual %d. Ignoring it."),
+					ProfileId, *Result.GetPackageName().ToString(), NumPlatforms, Result.GetPlatforms().Num());
 				continue;
 			}
+
+			HandleReceivedPackagePlatformMessages(*PackageData, nullptr, Result.ReleaseMessages());
 			for (int32 PlatformIndex = 0; PlatformIndex < NumPlatforms; ++PlatformIndex)
 			{
 				ITargetPlatform* TargetPlatform = OrderedSessionPlatforms[PlatformIndex];
-				FPackageRemoteResult::FPlatformResult& PlatformResult = Result.Platforms[PlatformIndex];
-				PackageData->SetPlatformCooked(TargetPlatform, PlatformResult.bSuccessful);
+				FPackageRemoteResult::FPlatformResult& PlatformResult = Result.GetPlatforms()[PlatformIndex];
+				PackageData->SetPlatformCooked(TargetPlatform, PlatformResult.IsSuccessful());
 				// MPCOOKTODO: Call CommitRemotePackage on the PackageWriter
-				HandleReceivedPackagePlatformMessages(*PackageData, TargetPlatform, MoveTemp(PlatformResult.Messages));
+				HandleReceivedPackagePlatformMessages(*PackageData, TargetPlatform, PlatformResult.ReleaseMessages());
 			}
-			if (Result.bReferencedOnlyByEditorOnlyData)
+			if (Result.IsReferencedOnlyByEditorOnlyData())
 			{
-				COTFS.PackageTracker->UncookedEditorOnlyPackages.AddUnique(Result.PackageName);
+				COTFS.PackageTracker->UncookedEditorOnlyPackages.AddUnique(Result.GetPackageName());
 			}
 			COTFS.PromoteToSaveComplete(*PackageData, ESendFlags::QueueAddAndRemove);
 		}
 		else
 		{
-			COTFS.DemoteToIdle(*PackageData, ESendFlags::QueueAddAndRemove, Result.SuppressCookReason);
+			COTFS.DemoteToIdle(*PackageData, ESendFlags::QueueAddAndRemove, Result.GetSuppressCookReason());
 		}
 	}
 	Director.ResetFinalIdleHeartbeatFence();

@@ -129,6 +129,7 @@ FCookDirector::FCookDirector(UCookOnTheFlyServer& InCOTFS, int32 CookProcessCoun
 		{
 			HandleHeartbeatMessage(Context, bReadSuccessful, MoveTemp(Message));
 		}, TEXT("HandleHeartbeatMessage")));
+	Register(new FAssetRegistryMPCollector(COTFS));
 
 	LastTickTimeSeconds = FPlatformTime::Seconds();
 
