@@ -1942,6 +1942,17 @@ uint ReverseBitsN(uint Bitfield, const uint BitCount)
 	return reversebits(Bitfield) >> (32 - BitCount);
 }
 
+// Remap 2D array index to flattened 1D array index
+inline uint Flatten2D(uint2 Coord, uint2 Dim)
+{
+	return Coord.x + Coord.y * Dim.x;
+}
+
+// Remap flattened array index to 2D array index
+inline uint2 Unflatten2D(uint Index, uint2 Dim)
+{
+	return uint2(Index % Dim.x, Index / Dim.x);
+}
 
 uint2 ZOrder2D(uint Index, const uint SizeLog2)
 {

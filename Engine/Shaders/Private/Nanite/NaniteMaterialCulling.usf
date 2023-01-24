@@ -53,7 +53,6 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 
 	GroupMemoryBarrierWithGroupSync();
 
-#if MATERIAL_RESOLVE
 	for (uint BlockY = 0; BlockY < 64u; BlockY += 16)
 	{
 		// Overlap all 4 loads for BlockX
@@ -65,13 +64,17 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 			MaterialResolveData[i] = MaterialResolve[FetchPos]; 
 		}
 
-		uint PrevLegacyShadingId = ~0u;
+		uint PrevShadingBin = ~0u;
 		for (uint i = 0; i < 4; i++)
 		{
 			FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolveData[i]);
-			uint LegacyShadingId = ResolvedMaterial.LegacyShadingId;
+		#if LEGACY_CULLING
+			uint ShadingBin = ResolvedMaterial.LegacyShadingId;
+		#else
+			uint ShadingBin = ResolvedMaterial.ShadingBin;
+		#endif
 			
-			if (ResolvedMaterial.bIsNanitePixel && LegacyShadingId != PrevLegacyShadingId)	// Skip if it is a legacy shading id we have already processed
+			if (ResolvedMaterial.bIsNanitePixel && ShadingBin != PrevShadingBin)	// Skip if it is a shading bin we have already processed
 			{
 				bool bWrite = false;
 
@@ -84,74 +87,20 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 						bWrite = true;
 					}
 				}
-				while (LegacyShadingId != ToScalarMemory(LegacyShadingId));
+				while (ShadingBin != ToScalarMemory(ShadingBin));
 
 				if (bWrite)
 				{
-					const uint TileBinIndex = LegacyShadingId >> 5u;
-					const uint TileBinOffset = LegacyShadingId & 31u;
+					const uint TileBinIndex = ShadingBin >> 5u;
+					const uint TileBinOffset = ShadingBin & 31u;
 					const uint TileBinUsage = 1u << TileBinOffset;
 					InterlockedOr(TileMaterialBins[TileBinIndex], TileBinUsage);
 				}
 
-				PrevLegacyShadingId = LegacyShadingId;
+				PrevShadingBin = ShadingBin;
 			}
 		}
 	}
-#else
-	for (uint BlockY = 0; BlockY < 64u; BlockY += 16)
-	{
-		for (uint BlockX = 0; BlockX < 64u; BlockX += 16)
-		{
-			uint2 FetchPos = GroupPixelStart + uint2(BlockX, BlockY);
-			FetchPos = min(FetchPos, FetchClamp);
-
-			UlongType VisPixel = VisBuffer64[FetchPos];
-
-			uint DepthInt = 0;
-			uint VisibleClusterIndex = 0;
-			uint TriIndex = 0;
-			UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
-
-			const bool ValidClusterIndex = (VisibleClusterIndex != 0xFFFFFFFF);
-			const bool TileHasNanite = WaveActiveAnyTrue(ValidClusterIndex);
-			if (TileHasNanite)
-			{
-				if (ValidClusterIndex)
-				{
-					FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-					FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
-					FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-					const uint LegacyShadingId = GetMaterialLegacyShadingId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
-					const uint ShadingBin = GetMaterialShadingBin(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable); // TODO: Implement CS culling
-
-					// Scalarize tile classify if all lanes ballot the same material slot index	
-					const uint FirstLegacyShadingId = ToScalarMemory(WaveReadLaneFirst(LegacyShadingId));
-					if (WaveActiveAllTrue(FirstLegacyShadingId == LegacyShadingId))
-					{
-						if (WaveIsFirstLane())
-						{
-							const uint TileBinIndex  = FirstLegacyShadingId >> 5u;
-							const uint TileBinOffset = FirstLegacyShadingId & 31u;
-							const uint TileBinUsage  = 1u << TileBinOffset;
-							InterlockedOr(TileMaterialBins[TileBinIndex], TileBinUsage);
-						}
-					}
-					else
-					{
-						const uint TileBinIndex  = LegacyShadingId >> 5u;
-						const uint TileBinOffset = LegacyShadingId & 31u;
-						const uint TileBinUsage  = 1u << TileBinOffset;
-						InterlockedOr(TileMaterialBins[TileBinIndex], TileBinUsage);
-					}
-
-					// TODO: Pull out depth into custom HiZ?
-					//const uint MaterialDepthId = GetMaterialDepthId(LegacyShadingId, MaterialDepthTable);
-				}
-			}
-		}
-	}
-#endif // MATERIAL_RESOLVE
 
 	GroupMemoryBarrierWithGroupSync();
 
@@ -225,8 +174,8 @@ void InitializeMaterials(uint3 ThreadIndex : SV_DispatchThreadID)
 		MaterialIndirectArgs[IndirectArgOffset + 3] = 0; // BaseVertexLocation
 		MaterialIndirectArgs[IndirectArgOffset + 4] = 0; // StartInstanceLocation
 
-		MaterialIndirectArgs[IndirectArgOffset + 5] = 0; // ThreadGroupCountX: Populated by material tile classification (# of surviving tile thread groups per material)
-		MaterialIndirectArgs[IndirectArgOffset + 6] = 0; // ThreadGroupCountY
+		MaterialIndirectArgs[IndirectArgOffset + 5] = 0; // ThreadGroupCountX: Populated by FinalizeMaterials (# of surviving 8x8 micro tile thread groups per material)
+		MaterialIndirectArgs[IndirectArgOffset + 6] = 1; // ThreadGroupCountY
 		MaterialIndirectArgs[IndirectArgOffset + 7] = 1; // ThreadGroupCountZ
 
 		for (uint RemapIndex = 0; RemapIndex < MaterialRemapCount; ++RemapIndex)
@@ -247,7 +196,10 @@ void FinalizeMaterials(uint3 ThreadIndex : SV_DispatchThreadID)
 
 		const uint MaterialTileCount = MaterialIndirectArgs[IndirectArgOffset + 1];
 
-		MaterialIndirectArgs[IndirectArgOffset + 5] = (MaterialTileCount + 15u) / 16u; // ThreadGroupCountX
-		MaterialIndirectArgs[IndirectArgOffset + 6] = (MaterialTileCount + 15u) / 16u; // ThreadGroupCountY
+		// One material macro tile covers 64x64 (4096) pixels.
+		const uint PixelsToShade = MaterialTileCount * 64u * 64u;
+		
+		// Launch enough 8x8 pixel micro tile groups to shade all the surviving macro tile pixels
+		MaterialIndirectArgs[IndirectArgOffset + 5] = (PixelsToShade + 63u) / 64u; // ThreadGroupCountX
 	}
 }

@@ -107,13 +107,6 @@ static TAutoConsoleVariable<int32> CVarParallelBasePassBuild(
 	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteClassifyWithResolve = 1;
-static FAutoConsoleVariableRef CVarNaniteClassifyWithResolve(
-	TEXT("r.Nanite.ClassifyWithResolve"),
-	GNaniteClassifyWithResolve,
-	TEXT("")
-);
-
 int32 GNaniteDecompressDepth = 0;
 static FAutoConsoleVariableRef CVarNaniteDecompressDepth(
 	TEXT("r.Nanite.DecompressDepth"),
@@ -134,6 +127,20 @@ static FAutoConsoleVariableRef CVarNaniteCustomDepthExportMethod(
 
 #if WITH_EDITORONLY_DATA
 extern int32 GNaniteIsolateInvalidCoarseMesh;
+#endif
+
+extern int32 GNaniteShowDrawEvents;
+
+#if WANTS_DRAW_MESH_EVENTS
+static FORCEINLINE const TCHAR* GetShadingMaterialName(const FMaterialRenderProxy* InShadingMaterial)
+{
+	if (InShadingMaterial == nullptr)
+	{
+		return TEXT("<Invalid>");
+	}
+
+	return *InShadingMaterial->GetMaterialName();
+}
 #endif
 
 class FNaniteMarkStencilPS : public FNaniteGlobalShader
@@ -397,8 +404,8 @@ public:
 	DECLARE_GLOBAL_SHADER(FClassifyMaterialsCS);
 	SHADER_USE_PARAMETER_STRUCT(FClassifyMaterialsCS, FNaniteGlobalShader);
 
-	class FMaterialResolveDim : SHADER_PERMUTATION_BOOL("MATERIAL_RESOLVE");
-	using FPermutationDomain = TShaderPermutationDomain<FMaterialResolveDim>;
+	class FLegacyCullingDim : SHADER_PERMUTATION_BOOL("LEGACY_CULLING");
+	using FPermutationDomain = TShaderPermutationDomain<FLegacyCullingDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -650,6 +657,7 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 	const FViewInfo& View,
 	const FRasterResults& RasterResults,
 	const FIntPoint& TileGridSize,
+	const uint32 TileRemaps,
 	const FNaniteMaterialCommands& MaterialCommands,
 	FRDGTextureRef MaterialResolve,
 	FRDGTextureRef VisBuffer64,
@@ -676,7 +684,7 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 			0.0f
 		);
 
-		const FIntVector4 MaterialConfig(1 /* Indirect */, TileGridSize.X, TileGridSize.Y, 0);
+		const FIntVector4 MaterialConfig(1 /* Indirect */, TileGridSize.X, TileGridSize.Y, TileRemaps);
 
 		FNaniteUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FNaniteUniformParameters>();
 		UniformParameters->PageConstants = RasterResults.PageConstants;
@@ -885,7 +893,7 @@ void DispatchBasePass(
 			PassParameters->RowTileCount = DispatchDim.X;
 
 			FClassifyMaterialsCS::FPermutationDomain PermutationMaterialResolveCS;
-			PermutationMaterialResolveCS.Set<FClassifyMaterialsCS::FMaterialResolveDim>(GNaniteClassifyWithResolve != 0);
+			PermutationMaterialResolveCS.Set<FClassifyMaterialsCS::FLegacyCullingDim>(false);
 			auto ComputeShader = View.ShaderMap->GetShader<FClassifyMaterialsCS>(PermutationMaterialResolveCS);
 
 			FComputeShaderUtils::AddPass(
@@ -948,6 +956,7 @@ void DispatchBasePass(
 			View,
 			RasterResults,
 			TileGridSize,
+			TileRemaps,
 			Scene.NaniteMaterials[ENaniteMeshPass::BasePass],
 			RasterResults.MaterialResolve,
 			VisBuffer64,
@@ -969,10 +978,10 @@ void DispatchBasePass(
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("ShadeGBufferCS"),
 			ShadingPassParameters,
-			ERDGPassFlags::NeverCull | ERDGPassFlags::Compute,
+			ERDGPassFlags::Compute,
 			[ShadingPassParameters, &ShadingCommands, ViewRect, ViewSize /*, &SceneView*/](FRHIComputeCommandList& RHICmdList)
 			{
-				//ShadingPassParameters.MaterialIndirectArgs->MarkResourceAsUsed();
+				ShadingPassParameters->MaterialIndirectArgs->MarkResourceAsUsed();
 
 				TArray<FRHIUnorderedAccessView*, TInlineAllocator<8>> OutputTargets;
 				auto GetOutputTargetRHI = [](const FRDGTextureUAVRef OutputTarget)
@@ -1025,19 +1034,19 @@ void DispatchBasePass(
 				for (const FNaniteShadingCommand& ShadingCommand : ShadingCommands)
 				{
 				#if WANTS_DRAW_MESH_EVENTS
-					const FMaterialRenderProxy* ShadingMaterial = ShadingCommand.MaterialProxy;
-					SCOPED_DRAW_EVENTF(RHICmdList, SWShading, TEXT("%s"), *ShadingMaterial->GetMaterialName());
+					SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, SWShading, GNaniteShowDrawEvents != 0, TEXT("%s"), GetShadingMaterialName(ShadingCommand.MaterialProxy));
 				#endif
 
 					PassData.X = ShadingCommand.ShadingBin;
 
-					//FRHIBuffer* IndirectArgsBuffer = Parameters.IndirectArgs->GetIndirectRHICallBuffer();
+					FRHIBuffer* IndirectArgsBuffer = ShadingPassParameters->MaterialIndirectArgs->GetIndirectRHICallBuffer();
 
 					FRHIComputeShader* ComputeShaderRHI = ShadingCommand.ComputeShader.GetComputeShader();
 
-					const uint32 IndirectOffset = 0; // ShadingCommand.IndirectOffset
+					const uint32 IndirectArgSize = sizeof(FRHIDrawIndexedIndirectParameters) + sizeof(FRHIDispatchIndirectParametersNoPadding);
+					const uint32 IndirectOffset = (IndirectArgSize * ShadingCommand.ShadingBin) + 20u; // 6th dword is the start of the dispatch args
 
-					//FComputeShaderUtils::ValidateIndirectArgsBuffer(IndirectArgsBuffer->GetSize(), IndirectOffset, IndirectArgsBuffer->GetStride());
+					FComputeShaderUtils::ValidateIndirectArgsBuffer(IndirectArgsBuffer->GetSize(), IndirectOffset, IndirectArgsBuffer->GetStride());
 					SetComputePipelineState(RHICmdList, ComputeShaderRHI);
 
 					ShadingCommand.ShaderBindings.SetOnCommandList(RHICmdList, ComputeShaderRHI);
@@ -1057,14 +1066,15 @@ void DispatchBasePass(
 						OutputTargets[7]
 					);
 
-					const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(ViewSize, 8);
-					RHICmdList.DispatchComputeShader(GroupCount.X, GroupCount.Y, GroupCount.Z);
+					RHICmdList.DispatchIndirectComputeShader(IndirectArgsBuffer, IndirectOffset);
 					
 					UnsetShaderUAVs(RHICmdList, ShadingCommand.ComputeShader, ComputeShaderRHI);
 				}
 			}
 		);
 	}
+
+	ExtractShadingStats(GraphBuilder, View, MaterialIndirectArgs, HighestMaterialSlot);
 }
 
 void DrawBasePass(
@@ -1193,7 +1203,7 @@ void DrawBasePass(
 			PassParameters->RowTileCount = DispatchDim.X;
 
 			FClassifyMaterialsCS::FPermutationDomain PermutationMaterialResolveCS;
-			PermutationMaterialResolveCS.Set<FClassifyMaterialsCS::FMaterialResolveDim>(GNaniteClassifyWithResolve != 0);
+			PermutationMaterialResolveCS.Set<FClassifyMaterialsCS::FLegacyCullingDim>(true);
 			auto ComputeShader = View.ShaderMap->GetShader<FClassifyMaterialsCS>(PermutationMaterialResolveCS);
 
 			FComputeShaderUtils::AddPass(
@@ -1242,6 +1252,7 @@ void DrawBasePass(
 			View,
 			RasterResults,
 			TileGridSize,
+			TileRemaps,
 			MaterialCommands,
 			RasterResults.MaterialResolve,
 			VisBuffer64,

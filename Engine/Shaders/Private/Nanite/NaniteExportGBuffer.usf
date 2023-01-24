@@ -631,6 +631,8 @@ void FullScreenVS(
 	}
 #endif
 
+	Output.TileIndex = TileIndex;
+
 	float2 GridStep = float2(1.0, 1.0) / (float2)GridSize;
 	uint2  GridPos  = uint2(TileIndex % GridSize.x, TileIndex / GridSize.x);
 

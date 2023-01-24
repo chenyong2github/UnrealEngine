@@ -168,6 +168,7 @@ struct FNaniteFullscreenVSToPS
 	nointerpolation uint EyeIndex  : PACKED_EYE_INDEX;
 #endif
 	nointerpolation uint ViewIndex : PACKED_VIEW_INDEX;
+	nointerpolation uint TileIndex : MACRO_TILE_INDEX;
 };
 
 #if NANITE_USE_UNIFORM_BUFFER

@@ -213,7 +213,7 @@ extern TGlobalResource< FGlobalResources > GGlobalResources;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 	SHADER_PARAMETER(FIntVector4,					PageConstants)
-	SHADER_PARAMETER(FIntVector4,					MaterialConfig) // .x mode, .yz grid size, .w unused
+	SHADER_PARAMETER(FIntVector4,					MaterialConfig) // .x mode, .yz grid size, .w tile remap count
 	SHADER_PARAMETER(uint32,						MaxNodes)
 	SHADER_PARAMETER(uint32,						MaxVisibleClusters)
 	SHADER_PARAMETER(uint32,						RenderFlags)
