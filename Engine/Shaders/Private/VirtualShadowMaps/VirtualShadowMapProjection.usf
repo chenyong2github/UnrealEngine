@@ -202,7 +202,8 @@ FVirtualShadowMapSampleResult ProjectLight(
 	float SceneDepth,
 	float ScreenRayLengthWorld,
 	float3 TranslatedWorldPosition,
-	const float Noise)
+	const float Noise,
+	float SubsurfaceOpacity)
 {
 	const bool bIsHairInput = InputType == INPUT_TYPE_HAIRSTRANDS;
 
@@ -309,8 +310,19 @@ FVirtualShadowMapSampleResult ProjectLight(
 				WorldNormal);
 		}
 
+		if (SubsurfaceOpacity < 1.0f)
+		{
+			// We use a single term for both the shadow and "transmission shadow" in the VSM path to provide a
+			// higher quality filtered result on back faces and avoid artifacts at the point where normals flip.
+			// This is especially important for foliage as normals are often "warped" to provide softer shading
+			// and do not represent the underlying geometry accurately, so having a continuous shadow function
+			// is important.
+			Result.ShadowFactor = GetShadowFactorSubsurface(Result.ShadowFactor, Result.OccluderDistance, SubsurfaceOpacity);
+		}
+
 		//Result.GeneralDebug = GreenToRedTurbo(1.0f - (SMRTRayOffset / ScreenRayLengthWorld));
 		//Result.GeneralDebug = SpotAttenuation(-L, Light.Direction, Light.SpotAngles).xxx;
+		//Result.GeneralDebug = (Result.OccluderDistance / 20.0f).xxx;
 
 		// Hair strands voxel traversal to apply hair shadow on top of opaque geometry
 		#if HAS_HAIR_STRANDS
@@ -400,6 +412,20 @@ FVirtualShadowMapSampleResult ProjectLight(
 			}
 		}
 		#endif
+	}
+
+	// Add some simple dither to break up banding
+	// This is not perfect for stuff like subsurface stuff in motion, as the banding on those smooth
+	// gradients can be significant and in motion TSR can't get enough samples to average it all out,
+	// but it's inexpensive amd usually pretty reasonable.
+	// Current noise scale aligns with one pass projection packing, but also works well for typical SMRT ray counts
+	// The tolerance on the lower end is somewhat arbitrary, but needed to trade off brightening umbra regions in subsurface
+	// materials (due to adding noise then clamping) against banding in penumbra regions on these surfaces.
+	const float NoiseScale = (1.0f / 15.0f);
+	if (Result.ShadowFactor > (NoiseScale/4.0f) && Result.ShadowFactor < 1.0f)
+	{
+		Result.ShadowFactor += (BlueNoiseScalar(PixelPos, View.StateFrameIndex) - 0.5f) * NoiseScale;
+		Result.ShadowFactor = saturate(Result.ShadowFactor);
 	}
 
 	return Result;
@@ -584,6 +610,7 @@ void VirtualShadowMapProjection(
 	const float Noise = InterleavedGradientNoise( SvPosition.xy, View.StateFrameIndexMod8 );
 
 	const FProjectionShadingInfo ShadingInfo = GetProjectionShadingInfo(PixelPos);
+	const float SubsurfaceOpacity = bIsHairInput ? 1.0f : GetSubsurfaceOpacityFromGbuffer(PixelPos);
 
 	FVirtualShadowMapSampleResult VisualizeResult = InitVirtualShadowMapSampleResult();
 
@@ -615,9 +642,8 @@ void VirtualShadowMapProjection(
 				SceneDepth,
 				ScreenRayLengthWorld,
 				TranslatedWorldPosition,
-				Noise);
-
-			// NOTE: Subsurface opacity is handled in the clustered shading pass in the one pass projection path
+				Noise,
+				SubsurfaceOpacity);
 
 			PackShadowMask(ShadowMask, Result.ShadowFactor, Index);
 
@@ -636,8 +662,8 @@ void VirtualShadowMapProjection(
 		FLightShaderParameters Light = GetRootLightShaderParameters();
 
 		// Subsurface approximation
-#if DIRECTIONAL_LIGHT
 		const float SubsurfaceOpacity = bIsHairInput ? 1.0f : GetSubsurfaceOpacityFromGbuffer(PixelPos);
+#if DIRECTIONAL_LIGHT
 		// Increases light source radius for subsurface material as the opacity reduces to emulates light diffusion.
 		// TODO: Does something similar make sense for local lights?
 		if (SubsurfaceOpacity < 1.0f)
@@ -654,20 +680,8 @@ void VirtualShadowMapProjection(
 			SceneDepth,
 			ScreenRayLengthWorld,
 			TranslatedWorldPosition,
-			Noise);
-
-#if DIRECTIONAL_LIGHT
-		// TODO: Implement occluder distance and similar falloff for local lights, and unify logic into one pass projection path
-		if (SubsurfaceOpacity < 1.0f)
-		{
-			// We use a single term for both the shadow and "transmission shadow" in the VSM path to provide a
-			// higher quality filtered result on back faces and avoid artifacts at the point where normals flip.
-			// This is especially important for foliage as normals are often "warped" to provide softer shading
-			// and do not represent the underlying geometry accurately, so having a continuous shadow function
-			// is important.
-			Result.ShadowFactor = GetShadowFactorSubsurface(Result.ShadowFactor, Result.OccluderDistance, SubsurfaceOpacity);
-		}
-#endif
+			Noise,
+			SubsurfaceOpacity);
 
 		OutShadowFactor[ PixelPos ] = Result.ShadowFactor.xx;
 

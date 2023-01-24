@@ -338,7 +338,7 @@ FVirtualShadowMapSampleResult TraceDirectional(
 		*/
 		float OccluderDistance = (OccluderDistanceSum / float(max(1, RayCount - RayMissCount)));
 
-		Result.ShadowFactor = SMRTComputeRayMissFactor(RayMissCount, RayCount, MaxRayCount, Noise);
+		Result.ShadowFactor = float(RayMissCount) / float(RayCount);
 		Result.OccluderDistance = OccluderDistance;
 		Result.RayCount = RayCount;
 	}

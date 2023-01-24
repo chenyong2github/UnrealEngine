@@ -393,6 +393,8 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 
 		uint i = 0;
 		uint RayMissCount = 0;
+		float OccluderDistanceSum = 0.0f;
+		float MaxOccluderDistance = -1.0f;
 		for( ; i < MaxRayCount; i++ )
 		{
 			RandomSequence RandSequence;
@@ -471,7 +473,24 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 					RayState);
 			}
 
-			RayMissCount += SMRTResult.bValidHit ? 0 : 1;
+			if (SMRTResult.bValidHit)
+			{
+				// TODO: Do we want to mess with this at all due to our offset?
+				float ReceiverDistance = length(RayStart);
+				float OccluderDistance = ComputeOccluderDistancePerspective(
+					// Re-fetch this here to avoid reg pressure
+					GetVirtualShadowMapProjectionData(RayState.VirtualShadowMapId).ShadowViewToClipMatrix,
+					SMRTResult.HitDepth,
+					saturate(RayState.RayStartUVz.z),
+					ReceiverDistance);
+
+				OccluderDistanceSum += OccluderDistance;
+				MaxOccluderDistance = max(MaxOccluderDistance, OccluderDistance);
+			}
+			else
+			{
+				++RayMissCount;
+			}
 			
 			// Debug output (DCE'd if not used)
 			Result.ClipmapIndexOrMipLevel = RayState.MipLevel;
@@ -480,25 +499,12 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 
 			if (SMRTAdaptiveRayCount > 0)
 			{
+				// TODO: Adapt this heuristic based on SMRTAdaptiveRayCount as well?
 				if( i == 0 )
 				{
 					bool bHit = SMRTResult.bValidHit;
-					#if 0			// Disabled heuristic penumbra size path for now as it creates some speckle artifacts near the edges of sharp shadows
-						if( bHit )
-						{
-						#if 0
-							//float WorldBluringRadius = ComputeLightSampleWorldBluringRadius( TranslatedWorldPosition, LIGHT_TYPE_SPOT, Light, SMRTResult.OccluderDistance );
-							//float PixelBluringRadius = ProjectWorldDistanceToPixelDistance( SceneDepth, WorldBluringRadius );
-							float WorldBluringRadius = Light.SourceRadius * SMRTResult.OccluderDistance / max( DistToLight - SMRTResult.OccluderDistance, 0.001 );
-							float PixelBluringRadius = WorldBluringRadius * View.ViewSizeAndInvSize.x * 0.5 / ( SceneDepth * View.ClipToView[0][0] );
-							bHit = PixelBluringRadius > 2;
-						#else
-							bHit = SMRTResult.OccluderDistance * Light.SourceRadius * ( 0.25 * View.ViewSizeAndInvSize.y / ( SceneDepth * View.ClipToView[1][1] ) ) > max( DistToLight - Result.OccluderDistance, 0.001 );
-						#endif
-						}
-					#endif
 
-					// All lanes miss or hit something close enough to not be noisy.
+					// All lanes missed
 					bool bAllLanesMiss = WaveActiveAllTrue( !bHit );
 					if( bAllLanesMiss )
 					{
@@ -507,8 +513,7 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 				}
 				else if( i >= SMRTAdaptiveRayCount )
 				{
-					// After 2 iterations and all have hit, must be in umbra.
-					// TODO: Modify this heuristic based on ray counts to avoid blocky artifacts in near-umbra
+					// After N iterations and all have hit, assume umbra
 					bool bAllLanesHit = WaveActiveAllTrue( RayMissCount == 0 );
 					if( bAllLanesHit )
 					{
@@ -522,9 +527,12 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 		}
 		uint RayCount = min(i + 1, MaxRayCount);		// break vs regular for loop exit
 
-		Result.ShadowFactor = SMRTComputeRayMissFactor(RayMissCount, RayCount, MaxRayCount, Noise);
+		float OccluderDistance = (OccluderDistanceSum / float(max(1, RayCount - RayMissCount)));
+		//OccluderDistance = MaxOccluderDistance;
+
+		Result.ShadowFactor = float(RayMissCount) / float(RayCount);
 		Result.RayCount = RayCount;
-		Result.OccluderDistance = -1.0f;	// TODO?
+		Result.OccluderDistance = OccluderDistance;
 	}
 
 	return Result;

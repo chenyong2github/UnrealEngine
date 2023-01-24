@@ -31,16 +31,3 @@ struct FSMRTResult
 	bool bValidHit;
 	float HitDepth;	// Valid if bValidHit is true
 };
-
-float SMRTComputeRayMissFactor(uint RayMissCount, uint RayCount, uint MaxRayCount, half Noise)
-{
-	float RayMissFactor = float(RayMissCount) / float(RayCount);
-
-	// Add some simple dither to break up banding
-	if (RayMissFactor > 0.0f && RayMissFactor < 1.0f)
-	{
-		RayMissFactor += (Noise - 0.5f) * float(1.0f / MaxRayCount);
-	}
-
-	return RayMissFactor;
-}

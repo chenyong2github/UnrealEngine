@@ -149,7 +149,7 @@ static TAutoConsoleVariable<int32> CVarForcePerLightShadowMaskClear(
 static TAutoConsoleVariable<int32> CVarSubsurfaceShadowMinSourceAngle(
 	TEXT("r.Shadow.Virtual.SubsurfaceShadowMinSourceAngle"),
 	5,
-	TEXT("Minimum source angle (in degrees) used for shadow & transmittance of sub-surface materials"),
+	TEXT("Minimum source angle (in degrees) used for shadow & transmittance of sub-surface materials with directional lights"),
 	ECVF_RenderThreadSafe
 );
 
