@@ -23,7 +23,6 @@ class AWaterLandscapeBrush : public ALandscapeBlueprintBrush
 public:
 	AWaterLandscapeBrush(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	virtual void PostInitProperties() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginDestroy() override;
 	virtual void PostRegisterAllComponents() override;
@@ -90,6 +89,9 @@ public:
 
 	virtual void GetRenderDependencies(TSet<UObject *>& OutDependencies) override;
 
+	virtual void PostLoad() override;
+	virtual void PostActorCreated() override;
+
 	void ForceUpdate();
 
 #if WITH_EDITOR
@@ -119,7 +121,7 @@ private:
 	void UpdateAffectedWeightmaps();
 	void ClearActors();
 	bool IsActorAffectingLandscape(AActor* Actor) const;
-
+	void RegisterDelegates();
 	void OnFullHeightmapRenderDone(UTextureRenderTarget2D* HeightmapRenderTarget);
 	void OnWaterBrushActorChanged(const IWaterBrushActorInterface::FWaterBrushActorChangedEventParams& InParams);
 	void OnActorsAffectingLandscapeChanged();

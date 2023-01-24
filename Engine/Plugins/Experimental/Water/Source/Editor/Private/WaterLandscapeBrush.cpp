@@ -229,10 +229,8 @@ bool AWaterLandscapeBrush::IsActorAffectingLandscape(AActor* Actor) const
 	return ((WaterBrushActor != nullptr) && WaterBrushActor->AffectsLandscape());
 }
 
-void AWaterLandscapeBrush::PostInitProperties()
+void AWaterLandscapeBrush::RegisterDelegates()
 {
-	Super::PostInitProperties();
-
 	if (!IsTemplate())
 	{
 		OnWorldPostInitHandle = FWorldDelegates::OnPostWorldInitialization.AddLambda([this](UWorld* World, const UWorld::InitializationValues IVS)
@@ -270,10 +268,28 @@ void AWaterLandscapeBrush::PostInitProperties()
 		OnLevelActorDeletedHandle = GEngine->OnLevelActorDeleted().AddUObject(this, &AWaterLandscapeBrush::OnLevelActorRemoved);
 
 		IWaterBrushActorInterface::GetOnWaterBrushActorChangedEvent().AddUObject(this, &AWaterLandscapeBrush::OnWaterBrushActorChanged);
-
-		// If we are loading do not trigger events
-		UpdateActors(!GIsEditorLoadingPackage);
 	}
+}
+
+void AWaterLandscapeBrush::PostActorCreated()
+{
+	Super::PostActorCreated();
+
+	RegisterDelegates();
+
+	constexpr bool bInTriggerEvents = true;
+	UpdateActors(bInTriggerEvents);
+}
+
+void AWaterLandscapeBrush::PostLoad()
+{
+	Super::PostLoad();
+
+	RegisterDelegates();
+
+	// If we are loading do not trigger events
+	constexpr bool bInTriggerEvents = false;
+	UpdateActors(bInTriggerEvents);
 }
 
 void AWaterLandscapeBrush::OnLevelActorAdded(AActor* InActor)
