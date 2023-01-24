@@ -25,6 +25,12 @@ namespace UE::Net
 	}
 }
 
+struct FObjectReplicationBridgeInstantiateResult
+{
+	UObject* Object = nullptr;
+	EReplicationBridgeCreateNetRefHandleResultFlags Flags = EReplicationBridgeCreateNetRefHandleResultFlags::None;
+};
+
 /*
 * Partial implementation of ReplicationBridge that can be used as a foundation for 
 * implementing support for replicating objects derived from UObject
@@ -149,9 +155,9 @@ protected:
 	IRISCORE_API virtual void UpdateInstancesWorldLocation() override;
 	IRISCORE_API virtual void PruneStaleObjects() override;	
 	IRISCORE_API virtual bool WriteNetRefHandleCreationInfo(FReplicationBridgeSerializationContext& Context, FNetRefHandle Handle) override;
-	IRISCORE_API virtual FNetRefHandle CreateNetRefHandleFromRemote(FNetRefHandle SubObjectOwnerNetHandle, FNetRefHandle WantedNetHandle, FReplicationBridgeSerializationContext& Context) override;
+	IRISCORE_API virtual FReplicationBridgeCreateNetRefHandleResult CreateNetRefHandleFromRemote(FNetRefHandle SubObjectOwnerNetHandle, FNetRefHandle WantedNetHandle, FReplicationBridgeSerializationContext& Context) override;
 	IRISCORE_API virtual void PostApplyInitialState(FNetRefHandle Handle) override;
-	IRISCORE_API virtual void DetachInstanceFromRemote(FNetRefHandle Handle, bool bTearOff, bool bShouldDestroyInstance) override;
+	IRISCORE_API virtual void DetachInstanceFromRemote(FNetRefHandle Handle, EReplicationBridgeDestroyInstanceReason DestroyReason, EReplicationBridgeDestroyInstanceFlags DestroyFlags) override;
 	IRISCORE_API virtual void DetachInstance(FNetRefHandle Handle) override;
 
 protected:
@@ -169,7 +175,7 @@ protected:
 	virtual FCreationHeader* ReadCreationHeader(UE::Net::FNetSerializationContext& Context) { return nullptr; };
 
 	/** Called when we instantiate/find object instance requested by remote. */
-	virtual UObject* BeginInstantiateFromRemote(FNetRefHandle SubObjectOwnerHandle, const UE::Net::FNetObjectResolveContext& ResolveContext, const FCreationHeader* Header) { return nullptr; };
+	virtual FObjectReplicationBridgeInstantiateResult BeginInstantiateFromRemote(FNetRefHandle SubObjectOwnerHandle, const UE::Net::FNetObjectResolveContext& ResolveContext, const FCreationHeader* Header) { return FObjectReplicationBridgeInstantiateResult(); };
 
 	/** Invoked before we start applying state data to instance on remote end. */
 	virtual bool OnInstantiatedFromRemote(UObject* Instance, const FCreationHeader* InHeader, uint32 ConnectionId) const { return true; }
@@ -178,7 +184,7 @@ protected:
 	virtual void EndInstantiateFromRemote(FNetRefHandle Handle) {};
 
 	/** Destroy or tear-off the game instance on request from remote. */
-	virtual void DestroyInstanceFromRemote(UObject* Instance, bool bTearOff) {};
+	virtual void DestroyInstanceFromRemote(UObject* Instance, EReplicationBridgeDestroyInstanceReason DestroyReason, EReplicationBridgeDestroyInstanceFlags DestroyFlags) {}
 
 protected:
 	/** Lookup the UObject associated with the provided Handle. This function will not try to resolve the reference. */
@@ -220,9 +226,10 @@ private:
 
 	void PreUpdateAndPollImpl(FNetRefHandle RefHandle);
 
-	void RegisterRemoteInstance(FNetRefHandle RefHandle, UObject* InstancePtr, const UE::Net::FReplicationProtocol* Protocol, UE::Net::FReplicationInstanceProtocol* InstanceProtocol, const FCreationHeader* Header, uint32 ConnectionId);
+	/** Remove mapping between handle and object instance. */
+	void UnregisterInstance(FNetRefHandle RefHandle);
 
-	void UnregisterRemoteInstance(FNetRefHandle RefHandle, bool bTearOff, bool bShouldDestroyInstance);
+	void RegisterRemoteInstance(FNetRefHandle RefHandle, UObject* InstancePtr, const UE::Net::FReplicationProtocol* Protocol, UE::Net::FReplicationInstanceProtocol* InstanceProtocol, const FCreationHeader* Header, uint32 ConnectionId);
 
 	void SetNetPushIdOnInstance(UE::Net::FReplicationInstanceProtocol* InstanceProtocol, FNetHandle NetHandle);
 

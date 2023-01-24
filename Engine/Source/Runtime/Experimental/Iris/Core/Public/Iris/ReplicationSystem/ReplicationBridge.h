@@ -77,6 +77,36 @@ enum class EEndReplicationFlags : uint32
 };
 ENUM_CLASS_FLAGS(EEndReplicationFlags);
 
+enum class EReplicationBridgeCreateNetRefHandleResultFlags : unsigned
+{
+	None = 0U,
+	/** Whether the instance may be destroyed due to the remote peer requesting the object to be destroyed. If not then the object itself must not be destroyed. */
+	AllowDestroyInstanceFromRemote = 1U << 0U,
+};
+ENUM_CLASS_FLAGS(EReplicationBridgeCreateNetRefHandleResultFlags);
+
+struct FReplicationBridgeCreateNetRefHandleResult
+{
+	UE::Net::FNetRefHandle NetRefHandle;
+	EReplicationBridgeCreateNetRefHandleResultFlags Flags = EReplicationBridgeCreateNetRefHandleResultFlags::None;
+};
+
+enum class EReplicationBridgeDestroyInstanceReason : unsigned
+{
+	DoNotDestroy,
+	TearOff,
+	Destroy,
+};
+IRISCORE_API const TCHAR* LexToString(EReplicationBridgeDestroyInstanceReason Reason);
+
+enum class EReplicationBridgeDestroyInstanceFlags : unsigned
+{
+	None = 0U,
+	/** Whether the instance may be destroyed when instructed from the remote peer. This flag applies when the destroy reason is TearOff and torn off actors are to be destroyed as well as regular Destroy. */
+	AllowDestroyInstanceFromRemote = 1U << 0U,
+};
+ENUM_CLASS_FLAGS(EReplicationBridgeDestroyInstanceFlags);
+
 UCLASS(Transient, MinimalAPI)
 class UReplicationBridge : public UObject
 {
@@ -149,7 +179,7 @@ protected:
 	IRISCORE_API virtual bool WriteNetRefHandleCreationInfo(FReplicationBridgeSerializationContext& Context, FNetRefHandle Handle);
 
 	/** Read data required to instantiate NetObject from bitstream. */
-	IRISCORE_API virtual FNetRefHandle CreateNetRefHandleFromRemote(FNetRefHandle SubObjectOwnerNetHandle, FNetRefHandle WantedNetHandle, FReplicationBridgeSerializationContext& Context);
+	IRISCORE_API virtual FReplicationBridgeCreateNetRefHandleResult CreateNetRefHandleFromRemote(FNetRefHandle SubObjectOwnerNetHandle, FNetRefHandle WantedNetHandle, FReplicationBridgeSerializationContext& Context);
 
 	/** Invoke after we have applied the initial state for an object.*/
 	IRISCORE_API virtual void PostApplyInitialState(FNetRefHandle Handle);
@@ -157,10 +187,10 @@ protected:
 	/**
 	 * Called when the instance is detached from the protocol on request by the remote. 
 	 * @param Handle The handle of the object to destroy or tear off.
-	 * @param bTearOff Whether the object should be torn off, i.e. not destroyed. 
-	 * @param bShouldDestroyInstance Whether the object should be destroyed.
+	 * @param DestroyReason Reason for destroying the instance. 
+	 * @param DestroyFlags Special flags such as whether the instance may be destroyed when reason is TearOff, which may revert to destroying, or Destroy.
 	 */
-	IRISCORE_API virtual void DetachInstanceFromRemote(FNetRefHandle Handle, bool bTearOff, bool bShouldDestroyInstance);
+	IRISCORE_API virtual void DetachInstanceFromRemote(FNetRefHandle Handle, EReplicationBridgeDestroyInstanceReason DestroyReason, EReplicationBridgeDestroyInstanceFlags DestroyFlags);
 
 	/** Called when we detach instance protocol from the local instance */
 	IRISCORE_API virtual void DetachInstance(FNetRefHandle Handle);
@@ -212,18 +242,21 @@ protected:
 	/** Destroys the group associated with the level. */
 	IRISCORE_API void DestroyLevelGroup(const UObject* Level);
 
+	/** Called when destruction info is received to determine whether the instance may be destroyed. */
+	IRISCORE_API virtual bool IsAllowedToDestroyInstance(const UObject* Instance) const;
+
 private:
 
 	// Internal operations invoked by ReplicationSystem/ReplicationWriter
 	void ReadAndExecuteDestructionInfoFromRemote(FReplicationBridgeSerializationContext& Context);
-	void DetachSubObjectInstancesFromRemote(FNetRefHandle Handle, bool bTearOff, bool bShouldDestroyInstance);
-	void DestroyNetObjectFromRemote(FNetRefHandle Handle, bool bTearOff, bool bDestroyInstance);
+	void DetachSubObjectInstancesFromRemote(FNetRefHandle Handle, EReplicationBridgeDestroyInstanceReason DestroyReason, EReplicationBridgeDestroyInstanceFlags DestroyFlags);
+	void DestroyNetObjectFromRemote(FNetRefHandle Handle, EReplicationBridgeDestroyInstanceReason DestroyReason, EReplicationBridgeDestroyInstanceFlags DestroyFlags);
 
 	// Adds the Handle to the list of handles pending tear-off, if bIsImmediate is true the object will be destroyed after the next update, otherwise
 	// it will be kept around until EndReplication is called.
 	void TearOff(FNetRefHandle Handle, EEndReplicationFlags DestroyFlags, bool bIsImmediate);
 
-	FNetRefHandle CallCreateNetRefHandleFromRemote(FNetRefHandle SubObjectOwnerHandle, FNetRefHandle WantedNetHandle, FReplicationBridgeSerializationContext& Context);
+	FReplicationBridgeCreateNetRefHandleResult CallCreateNetRefHandleFromRemote(FNetRefHandle SubObjectOwnerHandle, FNetRefHandle WantedNetHandle, FReplicationBridgeSerializationContext& Context);
 	void CallPreSendUpdate(float DeltaSeconds);	
 	void CallPreSendUpdateSingleHandle(FNetRefHandle Handle);
 	void CallUpdateInstancesWorldLocation();
@@ -232,7 +265,7 @@ private:
 	void CallPruneStaleObjects();
 	void CallGetInitialDependencies(FNetRefHandle Handle, FNetDependencyInfoArray& OutDependencies) const;
 	void CallDetachInstance(FNetRefHandle Handle);
-	void CallDetachInstanceFromRemote(FNetRefHandle Handle, bool bTearOff, bool bShouldDestroyInstance);
+	void CallDetachInstanceFromRemote(FNetRefHandle Handle, EReplicationBridgeDestroyInstanceReason DestroyReason, EReplicationBridgeDestroyInstanceFlags DestroyFlags);
 
 private:
 

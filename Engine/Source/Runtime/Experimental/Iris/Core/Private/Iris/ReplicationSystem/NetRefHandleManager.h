@@ -95,14 +95,16 @@ public:
 				uint32 bDestroySubObjectWithOwner : 1U;
 				uint32 bIsDependentObject : 1U;
 				uint32 bHasDependentObjects : 1U;
-				uint32 Padding : 27U;
+				uint32 bAllowDestroyInstanceFromRemote : 1U;
+				// Padding. Adjust when adding or removing flags.
+				uint32 Padding : 26U;
 			};
 		};
 	
 		// Returns true if this is a SubObject
 		bool IsSubObject() const { return SubObjectRootIndex && !!bDestroySubObjectWithOwner; }
 
-		// Returns true if this is a DepedentObject
+		// Returns true if this is a DependentObject
 		bool IsDependentObject() const { return bIsDependentObject; }
 	};
 

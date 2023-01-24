@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Iris/ReplicationSystem/ReplicationBridge.h"
-#include "CoreTypes.h"
 #include "Containers/ArrayView.h"
 #include "Iris/IrisConfigInternal.h"
 #include "Iris/Core/IrisLog.h"
@@ -48,9 +47,9 @@ bool UReplicationBridge::WriteNetRefHandleCreationInfo(FReplicationBridgeSeriali
 	return true;
 }
 
-UE::Net::FNetRefHandle UReplicationBridge::CreateNetRefHandleFromRemote(FNetRefHandle SubObjectOwnerNetHandle, FNetRefHandle WantedNetHandle, FReplicationBridgeSerializationContext& Context)
+FReplicationBridgeCreateNetRefHandleResult UReplicationBridge::CreateNetRefHandleFromRemote(FNetRefHandle SubObjectOwnerNetHandle, FNetRefHandle WantedNetHandle, FReplicationBridgeSerializationContext& Context)
 {
-	return FNetRefHandle();
+	return FReplicationBridgeCreateNetRefHandleResult();
 };
 
 void UReplicationBridge::PreSendUpdateSingleHandle(FNetRefHandle Handle)
@@ -69,7 +68,7 @@ void UReplicationBridge::PostApplyInitialState(FNetRefHandle Handle)
 {
 }
 
-void UReplicationBridge::DetachInstanceFromRemote(FNetRefHandle Handle, bool bTearOff, bool bShouldDestroyInstance)
+void UReplicationBridge::DetachInstanceFromRemote(FNetRefHandle Handle, EReplicationBridgeDestroyInstanceReason DestroyReason, EReplicationBridgeDestroyInstanceFlags DestroyFlags)
 {
 }
 
@@ -106,7 +105,7 @@ void UReplicationBridge::CallGetInitialDependencies(FNetRefHandle Handle, FNetDe
 	}
 }
 
-void UReplicationBridge::DetachSubObjectInstancesFromRemote(FNetRefHandle OwnerHandle, bool bTearOff, bool bShouldDestroyInstance)
+void UReplicationBridge::DetachSubObjectInstancesFromRemote(FNetRefHandle OwnerHandle, EReplicationBridgeDestroyInstanceReason DestroyReason, EReplicationBridgeDestroyInstanceFlags DestroyFlags)
 {
 	using namespace UE::Net::Private;
 
@@ -117,14 +116,20 @@ void UReplicationBridge::DetachSubObjectInstancesFromRemote(FNetRefHandle OwnerH
 		{
 			FNetRefHandleManager::FReplicatedObjectData& SubObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(SubObjectInternalIndex);
 			const FNetRefHandle SubObjectHandle = SubObjectData.RefHandle;
-			SubObjectData.bTearOff = bTearOff;
+			SubObjectData.bTearOff = (DestroyReason == EReplicationBridgeDestroyInstanceReason::TearOff);
 
-			CallDetachInstanceFromRemote(SubObjectHandle, bTearOff, bShouldDestroyInstance);
+			EReplicationBridgeDestroyInstanceFlags SubObjectDestroyFlags = DestroyFlags;
+			// The subobject is allowed to be destroyed if both the owner and the subobject allows it.
+			if (!SubObjectData.bAllowDestroyInstanceFromRemote)
+			{
+				EnumRemoveFlags(SubObjectDestroyFlags, EReplicationBridgeDestroyInstanceFlags::AllowDestroyInstanceFromRemote);
+			}
+			CallDetachInstanceFromRemote(SubObjectHandle, DestroyReason, SubObjectDestroyFlags);
 		}
 	}
 }
 
-void UReplicationBridge::DestroyNetObjectFromRemote(FNetRefHandle Handle, bool bTearOff, bool bDestroyInstance)
+void UReplicationBridge::DestroyNetObjectFromRemote(FNetRefHandle Handle, EReplicationBridgeDestroyInstanceReason DestroyReason, EReplicationBridgeDestroyInstanceFlags DestroyFlags)
 {
 	using namespace UE::Net::Private;
 
@@ -132,14 +137,14 @@ void UReplicationBridge::DestroyNetObjectFromRemote(FNetRefHandle Handle, bool b
 	{
 		FInternalNetRefIndex OwnerInternalIndex = NetRefHandleManager->GetInternalIndex(Handle);
 		FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(OwnerInternalIndex);
-		ObjectData.bTearOff = bTearOff;
+		ObjectData.bTearOff = (DestroyReason == EReplicationBridgeDestroyInstanceReason::TearOff);
 
 		// if the a subobject owner is to be destroyed we want to detach all subobjects before doing so to ensure we execute expected callbacks
 		// We keep tracking them internally
-		DetachSubObjectInstancesFromRemote(Handle, bTearOff, bDestroyInstance);
+		DetachSubObjectInstancesFromRemote(Handle, DestroyReason, DestroyFlags);
 		
 		// Allow derived bridges to cleanup any instance info they have stored
-		CallDetachInstanceFromRemote(Handle, bTearOff, bDestroyInstance);
+		CallDetachInstanceFromRemote(Handle, DestroyReason, DestroyFlags);
 
 		// Detach instance protocol
 		InternalDetachInstanceFromNetRefHandle(Handle);
@@ -174,9 +179,9 @@ void UReplicationBridge::CallDetachInstance(FNetRefHandle Handle)
 	DetachInstance(Handle);
 }
 
-void UReplicationBridge::CallDetachInstanceFromRemote(FNetRefHandle Handle, bool bTearOff, bool bShouldDestroyInstance)
+void UReplicationBridge::CallDetachInstanceFromRemote(FNetRefHandle Handle, EReplicationBridgeDestroyInstanceReason DestroyReason, EReplicationBridgeDestroyInstanceFlags DestroyFlags)
 {
-	DetachInstanceFromRemote(Handle, bTearOff, bShouldDestroyInstance);
+	DetachInstanceFromRemote(Handle, DestroyReason, DestroyFlags);
 }
 
 void UReplicationBridge::CallPruneStaleObjects()
@@ -212,21 +217,24 @@ bool UReplicationBridge::CallWriteNetRefHandleCreationInfo(FReplicationBridgeSer
 	}
 }
 
-UE::Net::FNetRefHandle UReplicationBridge::CallCreateNetRefHandleFromRemote(FNetRefHandle SubObjectOwnerHandle, FNetRefHandle WantedNetHandle, FReplicationBridgeSerializationContext& Context)
+FReplicationBridgeCreateNetRefHandleResult UReplicationBridge::CallCreateNetRefHandleFromRemote(FNetRefHandle SubObjectOwnerHandle, FNetRefHandle WantedNetHandle, FReplicationBridgeSerializationContext& Context)
 {
-	using namespace UE::Net;
-
 	check(!Context.bIsDestructionInfo);
 
-	FNetRefHandle ResultingHandle = CreateNetRefHandleFromRemote(SubObjectOwnerHandle, WantedNetHandle, Context);
+	FReplicationBridgeCreateNetRefHandleResult CreateResult = CreateNetRefHandleFromRemote(SubObjectOwnerHandle, WantedNetHandle, Context);
 
 	// Track subobjects on clients
-	if (ResultingHandle.IsValid() && SubObjectOwnerHandle.IsValid())
+	if (CreateResult.NetRefHandle.IsValid() && SubObjectOwnerHandle.IsValid())
 	{
-		NetRefHandleManager->AddSubObject(SubObjectOwnerHandle, ResultingHandle);
+		NetRefHandleManager->AddSubObject(SubObjectOwnerHandle, CreateResult.NetRefHandle);
 	}
 
-	return ResultingHandle;
+	return CreateResult;
+}
+
+bool UReplicationBridge::IsAllowedToDestroyInstance(const UObject* Instance) const
+{
+	return true;
 }
 
 void UReplicationBridge::ReadAndExecuteDestructionInfoFromRemote(FReplicationBridgeSerializationContext& Context)
@@ -243,12 +251,11 @@ void UReplicationBridge::ReadAndExecuteDestructionInfoFromRemote(FReplicationBri
 
 	// Destroy the reference
 	// Resolve the reference in order to be able to destroy it
-	if (ObjectReferenceCache->ResolveObjectReference(ReferenceToDestroy, Context.SerializationContext.GetInternalContext()->ResolveContext) != nullptr)
+	if (const UObject* Instance = ObjectReferenceCache->ResolveObjectReference(ReferenceToDestroy, Context.SerializationContext.GetInternalContext()->ResolveContext))
 	{
-		// Need to forward this as we do not really know how to destroy the actual instance
-		constexpr bool bTearOff = false;
-		constexpr bool bShouldDestroyInstance = true;
-		CallDetachInstanceFromRemote(ReferenceToDestroy.GetRefHandle(), bTearOff, bShouldDestroyInstance);
+		constexpr EReplicationBridgeDestroyInstanceReason DestroyReason = EReplicationBridgeDestroyInstanceReason::Destroy;
+		const EReplicationBridgeDestroyInstanceFlags DestroyFlags = IsAllowedToDestroyInstance(Instance) ? EReplicationBridgeDestroyInstanceFlags::AllowDestroyInstanceFromRemote : EReplicationBridgeDestroyInstanceFlags::None;
+		CallDetachInstanceFromRemote(ReferenceToDestroy.GetRefHandle(), DestroyReason, DestroyFlags);
 	}
 }
 
@@ -955,4 +962,27 @@ void UReplicationBridge::ClearNetPushIds(UE::Net::Private::FInternalNetRefIndex 
 		}
 	}
 #endif
+}
+
+const TCHAR* LexToString(EReplicationBridgeDestroyInstanceReason Reason)
+{
+	switch (Reason)
+	{
+	case EReplicationBridgeDestroyInstanceReason::DoNotDestroy:
+	{
+		return TEXT("DoNotDestroy");
+	}
+	case EReplicationBridgeDestroyInstanceReason::TearOff:
+	{
+		return TEXT("TearOff");
+	}
+	case EReplicationBridgeDestroyInstanceReason::Destroy:
+	{
+		return TEXT("Destroy");
+	}
+	default:
+	{
+		return TEXT("[Invalid]");
+	}
+	};
 }

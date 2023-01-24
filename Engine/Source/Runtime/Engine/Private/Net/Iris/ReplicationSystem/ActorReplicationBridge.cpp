@@ -541,11 +541,13 @@ UObjectReplicationBridge::FCreationHeader* UActorReplicationBridge::ReadCreation
 	return nullptr;
 }
 
-UObject* UActorReplicationBridge::BeginInstantiateFromRemote(FNetRefHandle SubObjectOwnerNetHandle, const UE::Net::FNetObjectResolveContext& ResolveContext, const UObjectReplicationBridge::FCreationHeader* InHeader)
+FObjectReplicationBridgeInstantiateResult UActorReplicationBridge::BeginInstantiateFromRemote(FNetRefHandle SubObjectOwnerNetHandle, const UE::Net::FNetObjectResolveContext& ResolveContext, const UObjectReplicationBridge::FCreationHeader* InHeader)
 {
 	using namespace UE::Net::Private;
 
 	IRIS_PROFILER_SCOPE(ActorReplicationBridge_OnBeginInstantiateFromRemote);
+
+	FObjectReplicationBridgeInstantiateResult InstantiateResult;
 
 	const FActorReplicationBridgeCreationHeader* BridgeHeader = static_cast<const FActorReplicationBridgeCreationHeader*>(InHeader);
 
@@ -609,7 +611,12 @@ UObject* UActorReplicationBridge::BeginInstantiateFromRemote(FNetRefHandle SubOb
 					UE_LOG_ACTORREPLICATIONBRIDGE(Verbose, TEXT("OnBeginInstantiateFromRemote Spawned Actor %s"), *Actor->GetPathName());
 				}
 
-				return Actor;
+				InstantiateResult.Object = Actor;
+				if (NetDriver->ShouldClientDestroyActor(Actor))
+				{
+					InstantiateResult.Flags |= EReplicationBridgeCreateNetRefHandleResultFlags::AllowDestroyInstanceFromRemote;
+				}
+				return InstantiateResult;
 			}
 			else
 			{
@@ -622,7 +629,12 @@ UObject* UActorReplicationBridge::BeginInstantiateFromRemote(FNetRefHandle SubOb
 			if (UObject* Object = ResolveObjectReference(Header->ObjectReference, ResolveContext))
 			{
 				UE_LOG_ACTORREPLICATIONBRIDGE(Verbose, TEXT("OnBeginInstantiateFromRemote Found static Actor using path %s"), ToCStr(Object->GetPathName()));
-				return Object;
+				InstantiateResult.Object = Object;
+				if (NetDriver->ShouldClientDestroyActor(Cast<AActor>(Object)))
+				{
+					InstantiateResult.Flags |= EReplicationBridgeCreateNetRefHandleResultFlags::AllowDestroyInstanceFromRemote;
+				}
+				return InstantiateResult;
 			}
 			else
 			{
@@ -647,28 +659,39 @@ UObject* UActorReplicationBridge::BeginInstantiateFromRemote(FNetRefHandle SubOb
 
 			if (Header->bIsNameStableForNetworking)
 			{
-				// Resolve by finding object relative to owner
+				// Resolve by finding object relative to owner. We do not allow this object to be destroyed.
 				SubObj = ResolveObjectReference(Header->ObjectReference, ResolveContext);
+
+				if (!SubObj)
+				{
+					UE_LOG_ACTORREPLICATIONBRIDGE(Warning, TEXT("BeginInstantiateFromRemote Failed to find subobjectReference for dynamic SubObject %s, Owner %s (%s)"), *Header->ObjectReference.ToString(), *SubObjectOwnerNetHandle.ToString(), *GetPathNameSafe(GetReplicatedObject(SubObjectOwnerNetHandle)));
+				}
 			}
 			else
 			{
+				UObject* ObjOuter = Owner;
+
 				// We need to spawn the subobject
 				UObject* SubObjClassObj = ResolveObjectReference(Header->ObjectClassReference, ResolveContext);
 				UClass * SubObjClass = Cast<UClass>(SubObjClassObj);
 
 				// Try to spawn SubObject
- 				SubObj = NewObject< UObject >(Owner, SubObjClass);
+ 				SubObj = NewObject<UObject>(Owner, SubObjClass);
+
+				// Sanity check some things
+				checkf(SubObj != nullptr, TEXT("UActorReplicationBridge::BeginInstantiateFromRemote: Subobject is NULL after instantiating. Class: %s, Actor %s"), *GetNameSafe(SubObjClass), *Owner->GetName());
+				checkf(SubObj->IsIn(ObjOuter), TEXT("UActorReplicationBridge::BeginInstantiateFromRemote: Subobject is not in Outer. SubObject: %s, Actor: %s Outer: %s"), *SubObj->GetName(), *Owner->GetName(), *ObjOuter->GetName());
+				checkf(Cast<AActor>(SubObj) == nullptr, TEXT("UActorReplicationBridge::BeginInstantiateFromRemote: Subobject is an Actor. SubObject: %s, Actor: %s"), *SubObj->GetName(), *Owner->GetName());
 
 				// Notify actor that we created a component from replication
 				Owner->OnSubobjectCreatedFromReplication(SubObj);
-			}
 
-			// Sanity check some things
-			check(SubObj != nullptr);
-			check(SubObj->IsIn( Owner ));
-			check(Cast< AActor >( SubObj ) == nullptr);
+				// Created objects may be destroyed.
+				InstantiateResult.Flags |= EReplicationBridgeCreateNetRefHandleResultFlags::AllowDestroyInstanceFromRemote;
+			}
 			
-			return SubObj;
+			InstantiateResult.Object = SubObj;
+			return InstantiateResult;
 		}
 		else
 		{
@@ -676,7 +699,9 @@ UObject* UActorReplicationBridge::BeginInstantiateFromRemote(FNetRefHandle SubOb
 			if (UObject* Object = ResolveObjectReference(Header->ObjectReference, ResolveContext))
 			{
 				UE_LOG_ACTORREPLICATIONBRIDGE(Verbose, TEXT("BeginInstantiateFromRemote Found static SubObject using path %s"), ToCStr(Object->GetPathName()));
-				return Object;
+				// We do not allow this object to be destroyed.
+				InstantiateResult.Object = Object;
+				return InstantiateResult;
 			}
 			else
 			{
@@ -685,7 +710,7 @@ UObject* UActorReplicationBridge::BeginInstantiateFromRemote(FNetRefHandle SubOb
 		}
 	}
 
-	return nullptr;
+	return InstantiateResult;
 }
 
 bool UActorReplicationBridge::OnInstantiatedFromRemote(UObject* Instance, const UObjectReplicationBridge::FCreationHeader* InHeader, uint32 ConnectionId) const
@@ -731,23 +756,35 @@ void UActorReplicationBridge::EndInstantiateFromRemote(FNetRefHandle Handle)
 	}
 }
 
-void UActorReplicationBridge::DestroyInstanceFromRemote(UObject* Instance, bool bTearOff)
+void UActorReplicationBridge::DestroyInstanceFromRemote(UObject* Instance, EReplicationBridgeDestroyInstanceReason DestroyReason, EReplicationBridgeDestroyInstanceFlags DestroyFlags)
 {
+	if (DestroyReason == EReplicationBridgeDestroyInstanceReason::DoNotDestroy)
+	{
+		return;
+	}
+
 	if (AActor* Actor = Cast<AActor>(Instance))
 	{
-		if (bTearOff && !NetDriver->ShouldClientDestroyTearOffActors())
+		if ((DestroyReason == EReplicationBridgeDestroyInstanceReason::TearOff) && !NetDriver->ShouldClientDestroyTearOffActors())
 		{
-			Actor->SetRole(ROLE_Authority);
-			Actor->SetReplicates(false);
-
-			if (Actor->GetWorld() != nullptr && !IsEngineExitRequested())
+			if (Actor->GetRemoteRole() == ROLE_Authority)
 			{
-				Actor->TornOff();
-			}
+				Actor->SetRole(ROLE_Authority);
+				Actor->SetReplicates(false);
 
-			NetDriver->NotifyActorTornOff(Actor);
+				if (Actor->GetWorld() != nullptr && !IsEngineExitRequested())
+				{
+					Actor->TornOff();
+				}
+
+				NetDriver->NotifyActorTornOff(Actor);
+			}
+			else
+			{
+				UE_LOG_ACTORREPLICATIONBRIDGE(Warning, TEXT("Trying to tear off actor which doesn't support it: %s"), ToCStr(GetNameSafe(Actor)));
+			}
 		}
-		else
+		else if (EnumHasAnyFlags(DestroyFlags, EReplicationBridgeDestroyInstanceFlags::AllowDestroyInstanceFromRemote))
 		{
 			// Any subobjects have already been detached from ReplicationBridge
 			Actor->PreDestroyFromReplication();
@@ -756,8 +793,13 @@ void UActorReplicationBridge::DestroyInstanceFromRemote(UObject* Instance, bool 
 	}
 	else
 	{
-		// If the SubObject is being torn-off, it is up to owning actor to clean it up properly
-		if (bTearOff && !NetDriver->ShouldClientDestroyTearOffActors())
+		// If the SubObject is being torn off it is up to owning actor to clean it up properly
+		if (DestroyReason == EReplicationBridgeDestroyInstanceReason::TearOff)
+		{
+			return;
+		}
+
+		if (!EnumHasAnyFlags(DestroyFlags, EReplicationBridgeDestroyInstanceFlags::AllowDestroyInstanceFromRemote))
 		{
 			return;
 		}
@@ -987,6 +1029,16 @@ bool UActorReplicationBridge::ObjectLevelHasFinishedLoading(UObject* Object) con
 		{
 			return Level->bIsVisible;
 		}
+	}
+
+	return true;
+}
+
+bool UActorReplicationBridge::IsAllowedToDestroyInstance(const UObject* Instance) const
+{
+	if (AActor* Actor = const_cast<AActor*>(Cast<AActor>(Instance)))
+	{
+		return !NetDriver || NetDriver->ShouldClientDestroyActor(Actor);
 	}
 
 	return true;

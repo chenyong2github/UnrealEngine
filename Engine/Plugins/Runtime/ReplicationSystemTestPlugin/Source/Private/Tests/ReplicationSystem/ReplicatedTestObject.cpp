@@ -135,7 +135,7 @@ UObjectReplicationBridge::FCreationHeader* UReplicatedTestObjectBridge::ReadCrea
 	return Header.Release();
 }
 
-UObject* UReplicatedTestObjectBridge::BeginInstantiateFromRemote(FNetRefHandle SubObjectOwnerHandle, const UE::Net::FNetObjectResolveContext& ResolveContext, const FCreationHeader* InHeader)
+FObjectReplicationBridgeInstantiateResult UReplicatedTestObjectBridge::BeginInstantiateFromRemote(FNetRefHandle SubObjectOwnerHandle, const UE::Net::FNetObjectResolveContext& ResolveContext, const FCreationHeader* InHeader)
 {
 	const FReplicationTestObjectCreationHeader* Header = static_cast<const FReplicationTestObjectCreationHeader*>(InHeader);
 
@@ -163,7 +163,10 @@ UObject* UReplicatedTestObjectBridge::BeginInstantiateFromRemote(FNetRefHandle S
 		CreatedObjectsOnNode->Add(TStrongObjectPtr<UObject>(CreatedObject));
 	}
 	
-	return CreatedObject;
+	FObjectReplicationBridgeInstantiateResult InstantiateResult;
+	InstantiateResult.Object = CreatedObject;
+	InstantiateResult.Flags |= EReplicationBridgeCreateNetRefHandleResultFlags::AllowDestroyInstanceFromRemote;
+	return InstantiateResult;
 }
 
 void UReplicatedTestObjectBridge::EndInstantiateFromRemote(FNetRefHandle Handle)
@@ -173,19 +176,32 @@ void UReplicatedTestObjectBridge::EndInstantiateFromRemote(FNetRefHandle Handle)
 	Instance->NetRefHandle = Handle;
 }
 
-void UReplicatedTestObjectBridge::DestroyInstanceFromRemote(UObject* Instance, bool bTearOff)
+void UReplicatedTestObjectBridge::DestroyInstanceFromRemote(UObject* Instance, EReplicationBridgeDestroyInstanceReason DestroyReason, EReplicationBridgeDestroyInstanceFlags DestroyFlags)
 {
-	if (Instance && !bTearOff)
+	if (!Instance)
 	{
-		// Remove the object from the created objects on the node
-		if (CreatedObjectsOnNode)
-		{
-			CreatedObjectsOnNode->Remove(TStrongObjectPtr<UObject>(Instance));
-		}
-
-		Instance->PreDestroyFromReplication();
-		Instance->MarkAsGarbage();
+		return;
 	}
+
+	if (DestroyReason == EReplicationBridgeDestroyInstanceReason::Destroy)
+	{
+		if (EnumHasAnyFlags(DestroyFlags, EReplicationBridgeDestroyInstanceFlags::AllowDestroyInstanceFromRemote))
+		{
+			// Remove the object from the created objects on the node
+			if (CreatedObjectsOnNode)
+			{
+				CreatedObjectsOnNode->Remove(TStrongObjectPtr<UObject>(Instance));
+			}
+
+			Instance->PreDestroyFromReplication();
+			Instance->MarkAsGarbage();
+		}
+	}
+}
+
+bool UReplicatedTestObjectBridge::IsAllowedToDestroyInstance(const UObject* Instance) const
+{
+	return true;
 }
 
 void UReplicatedTestObjectBridge::SetPollFramePeriod(UReplicatedTestObject* Instance, uint8 FramePeriod)

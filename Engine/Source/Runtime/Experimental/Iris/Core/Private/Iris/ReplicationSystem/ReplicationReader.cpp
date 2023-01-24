@@ -300,7 +300,18 @@ void FReplicationReader::EndReplication(uint32 InternalIndex, bool bTearOff, boo
 
 		CleanupReferenceTracking(ObjectInfo);
 		Attachments.DropAllAttachments(ENetObjectAttachmentType::Normal, InternalIndex);
-		ReplicationBridge->DestroyNetObjectFromRemote(Data.RefHandle, bTearOff, bDestroyInstance);
+
+		EReplicationBridgeDestroyInstanceReason DestroyReason = EReplicationBridgeDestroyInstanceReason::DoNotDestroy;
+		if (bDestroyInstance)
+		{
+			DestroyReason = EReplicationBridgeDestroyInstanceReason::Destroy;
+		}
+		else if (bTearOff)
+		{
+			DestroyReason = EReplicationBridgeDestroyInstanceReason::TearOff;
+		}
+		EReplicationBridgeDestroyInstanceFlags DestroyFlags = (Data.bAllowDestroyInstanceFromRemote ? EReplicationBridgeDestroyInstanceFlags::AllowDestroyInstanceFromRemote : EReplicationBridgeDestroyInstanceFlags::None);
+		ReplicationBridge->DestroyNetObjectFromRemote(Data.RefHandle, DestroyReason, DestroyFlags);
 
 		CleanupObjectData(*ObjectInfo);
 
@@ -450,8 +461,8 @@ void FReplicationReader::ReadObject(FNetSerializationContext& Context)
 		// Get Bridge
 		FReplicationBridgeSerializationContext BridgeContext(Context, Parameters.ConnectionId);
 
-		FNetRefHandle NetRefHandle = ReplicationBridge->CallCreateNetRefHandleFromRemote(SubObjectOwnerHandle, IncompleteHandle, BridgeContext);
-
+		const FReplicationBridgeCreateNetRefHandleResult CreateResult = ReplicationBridge->CallCreateNetRefHandleFromRemote(SubObjectOwnerHandle, IncompleteHandle, BridgeContext);
+		FNetRefHandle NetRefHandle = CreateResult.NetRefHandle;
 		if (!NetRefHandle.IsValid())
 		{
 #if UE_NET_REPLICATION_SUPPORT_SKIP_INITIAL_STATE
