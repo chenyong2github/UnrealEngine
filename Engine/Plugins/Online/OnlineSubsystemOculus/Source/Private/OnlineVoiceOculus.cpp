@@ -22,14 +22,17 @@ FRemoteTalkerDataOculus::FRemoteTalkerDataOculus() :
 {
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FOnlineVoiceOculus::FOnlineVoiceOculus(FOnlineSubsystemOculus& InSubsystem) :
 	bIsLocalPlayerMuted(false),
 	OculusSubsystem(InSubsystem)
 {
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FOnlineVoiceOculus::~FOnlineVoiceOculus()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (VoipConnectionRequestDelegateHandle.IsValid())
 	{
 		OculusSubsystem.RemoveNotifDelegate(ovrMessage_Notification_Voip_ConnectRequest, VoipConnectionRequestDelegateHandle);
@@ -41,6 +44,7 @@ FOnlineVoiceOculus::~FOnlineVoiceOculus()
 		OculusSubsystem.RemoveNotifDelegate(ovrMessage_Notification_Voip_StateChange, VoipStateChangeDelegateHandle);
 		VoipStateChangeDelegateHandle.Reset();
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool FOnlineVoiceOculus::Init()
@@ -48,11 +52,13 @@ bool FOnlineVoiceOculus::Init()
 	bool bHasVoiceEnabled = false;
 	if (GConfig->GetBool(TEXT("OnlineSubsystem"), TEXT("bHasVoiceEnabled"), bHasVoiceEnabled, GEngineIni) && bHasVoiceEnabled)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		VoipConnectionRequestDelegateHandle = OculusSubsystem.GetNotifDelegate(ovrMessage_Notification_Voip_ConnectRequest)
 			.AddRaw(this, &FOnlineVoiceOculus::OnVoipConnectionRequest);
 
 		VoipStateChangeDelegateHandle = OculusSubsystem.GetNotifDelegate(ovrMessage_Notification_Voip_StateChange)
 			.AddRaw(this, &FOnlineVoiceOculus::OnVoipStateChange);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
 	{

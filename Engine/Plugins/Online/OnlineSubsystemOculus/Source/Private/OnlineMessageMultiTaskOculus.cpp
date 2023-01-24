@@ -7,6 +7,7 @@
 void FOnlineMessageMultiTaskOculus::AddNewRequest(ovrRequest RequestId)
 {
 	InProgressRequests.Add(RequestId);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OculusSubsystem.AddRequestDelegate(
 		RequestId,
 		FOculusMessageOnCompleteDelegate::CreateLambda([this, RequestId](ovrMessageHandle Message, bool bIsError)
@@ -22,4 +23,5 @@ void FOnlineMessageMultiTaskOculus::AddNewRequest(ovrRequest RequestId)
 			Delegate.ExecuteIfBound();
 		}
 	}));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

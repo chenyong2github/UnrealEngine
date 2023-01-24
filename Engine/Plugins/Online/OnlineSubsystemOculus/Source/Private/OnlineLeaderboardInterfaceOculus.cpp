@@ -15,7 +15,9 @@ bool FOnlineLeaderboardOculus::ReadLeaderboards(const TArray< FUniqueNetIdRef >&
 	bool bOnlyLoggedInUser = false;
 	if (Players.Num() > 0) 
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		auto LoggedInPlayerId = OculusSubsystem.GetIdentityInterface()->GetUniquePlayerId(0);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if (Players.Num() == 1 && LoggedInPlayerId.IsValid() && *Players[0] == *LoggedInPlayerId)
 		{
 			bOnlyLoggedInUser = true;
@@ -60,12 +62,14 @@ bool FOnlineLeaderboardOculus::ReadOculusLeaderboards(bool bOnlyFriends, bool bO
 	}
 
 	ReadObject->ReadState = EOnlineAsyncTaskState::InProgress;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OculusSubsystem.AddRequestDelegate(
 		ovr_Leaderboard_GetEntries(TCHAR_TO_ANSI(*ReadObject->LeaderboardName.ToString()), Limit, FilterType, StartAt),
 		FOculusMessageOnCompleteDelegate::CreateLambda([this, ReadObject](ovrMessageHandle Message, bool bIsError)
 	{
 		OnReadLeaderboardsComplete(Message, bIsError, ReadObject);
 	}));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return true;
 }
 
@@ -151,12 +155,14 @@ void FOnlineLeaderboardOculus::OnReadLeaderboardsComplete(ovrMessageHandle Messa
 	bool bHasPaging = ovr_LeaderboardEntryArray_HasNextPage(LeaderboardArray);
 	if (bHasPaging)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		OculusSubsystem.AddRequestDelegate(
 			ovr_Leaderboard_GetNextEntries(LeaderboardArray),
 			FOculusMessageOnCompleteDelegate::CreateLambda([this, ReadObject](ovrMessageHandle InMessage, bool bInIsError)
 		{
 			OnReadLeaderboardsComplete(InMessage, bInIsError, ReadObject);
 		}));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return;
 	}
 
@@ -171,7 +177,9 @@ void FOnlineLeaderboardOculus::FreeStats(FOnlineLeaderboardRead& ReadObject)
 
 bool FOnlineLeaderboardOculus::WriteLeaderboards(const FName& SessionName, const FUniqueNetId& Player, FOnlineLeaderboardWrite& WriteObject)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto LoggedInPlayerId = OculusSubsystem.GetIdentityInterface()->GetUniquePlayerId(0);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (!(LoggedInPlayerId.IsValid() && Player == *LoggedInPlayerId))
 	{
 		UE_LOG_ONLINE_LEADERBOARD(Error, TEXT("Can only write to leaderboards for logged in player id"));
@@ -223,6 +231,7 @@ bool FOnlineLeaderboardOculus::WriteLeaderboards(const FName& SessionName, const
 
 	for (const auto& LeaderboardName : WriteObject.LeaderboardNames)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		OculusSubsystem.AddRequestDelegate(
 			ovr_Leaderboard_WriteEntry(TCHAR_TO_ANSI(*LeaderboardName.ToString()), Score, /* extra_data */ nullptr, 0, (WriteObject.UpdateMethod == ELeaderboardUpdateMethod::Force)),
 			FOculusMessageOnCompleteDelegate::CreateLambda([this](ovrMessageHandle Message, bool bIsError)
@@ -234,6 +243,7 @@ bool FOnlineLeaderboardOculus::WriteLeaderboards(const FName& SessionName, const
 				UE_LOG_ONLINE_LEADERBOARD(Error, TEXT("%s"), *FString(ErrorMessage));
 			}
 		}));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	return true;

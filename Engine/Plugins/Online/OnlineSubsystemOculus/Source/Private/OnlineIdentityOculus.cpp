@@ -58,9 +58,11 @@ bool FOnlineIdentityOculus::Login(int32 LocalUserNum, const FOnlineAccountCreden
 			{
 				// Immediately add the Oculus ID to our cache list
 				UserIds.Add(LocalUserNum, FUniqueNetIdOculus::Create(OculusId));
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				OculusSubsystem.AddRequestDelegate(
 					ovr_User_GetLoggedInUser(),
 					FOculusMessageOnCompleteDelegate::CreateRaw(this, &FOnlineIdentityOculus::OnLoginComplete, LocalUserNum));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				return true;
 			}
 		}
@@ -253,15 +255,18 @@ void FOnlineIdentityOculus::RevokeAuthToken(const FUniqueNetId& UserId, const FO
 	});
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FOnlineIdentityOculus::FOnlineIdentityOculus(FOnlineSubsystemOculus& InSubsystem)
 	: OculusSubsystem(InSubsystem)
 {
 	// Auto login the 0-th player
 	FOnlineIdentityOculus::AutoLogin(0);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FOnlineIdentityOculus::GetUserPrivilege(const FUniqueNetId& UserId, EUserPrivileges::Type Privilege, const FOnGetUserPrivilegeCompleteDelegate& Delegate)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Check for entitlement
 	OculusSubsystem.AddRequestDelegate(
 		ovr_Entitlement_GetIsViewerEntitled(),
@@ -284,6 +289,7 @@ void FOnlineIdentityOculus::GetUserPrivilege(const FUniqueNetId& UserId, EUserPr
 			}
 			Delegate.ExecuteIfBound(*UserId, Privilege, PrivilegeResults);
 		}));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FPlatformUserId FOnlineIdentityOculus::GetPlatformUserIdFromUniqueNetId(const FUniqueNetId& UniqueNetId) const

@@ -22,8 +22,10 @@ class FOnlineSessionOculus : public IOnlineSession
 {
 private:
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Reference to the main Oculus subsystem */
 	FOnlineSubsystemOculus& OculusSubsystem;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Current session settings
@@ -75,8 +77,9 @@ PACKAGE_SCOPE:
 	bool UpdateRoomDataStore(FName SessionName, FOnlineSessionSettings& UpdatedSessionSettings);
 
 public:
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FOnlineSessionOculus(FOnlineSubsystemOculus& InSubsystem);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual ~FOnlineSessionOculus();
 
 	// IOnlineSession

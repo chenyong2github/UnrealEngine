@@ -20,6 +20,7 @@ const FString FOnlineUserCloudOculus::DEFAULT_BUCKET_KEY = TEXT("DefaultUserClou
 
 const FString FOnlineUserCloudOculus::ALL_BUCKETS_KEY = TEXT("UserCloudBuckets");
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FOnlineUserCloudOculus::FOnlineUserCloudOculus(FOnlineSubsystemOculus& InSubsystem)
 	: OculusSubsystem(InSubsystem)
 	, EnumerateBucketsCounter(-1)
@@ -36,10 +37,13 @@ FOnlineUserCloudOculus::FOnlineUserCloudOculus(FOnlineSubsystemOculus& InSubsyst
 		Buckets.AddUnique(DefaultBucket);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FOnlineUserCloudOculus::EnumerateUserFiles(const FUniqueNetId& UserId)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto LoggedInPlayerId = OculusSubsystem.GetIdentityInterface()->GetUniquePlayerId(0);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (!LoggedInPlayerId.IsValid() || UserId != *LoggedInPlayerId)
 	{
 		UE_LOG_ONLINE_CLOUD(Warning, TEXT("Can only enumerate save data for logged in player"));
@@ -112,7 +116,7 @@ void FOnlineUserCloudOculus::RequestEnumeratePagedBuckets(FUniqueNetIdPtr UserId
 			TriggerOnEnumerateUserFilesCompleteDelegates(true, *UserId);
 		}
 	});
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (previousPage)
 	{
 		OculusSubsystem.AddRequestDelegate(ovr_CloudStorage_GetNextCloudStorageMetadataArrayPage(previousPage), std::move(Delegate));
@@ -121,11 +125,14 @@ void FOnlineUserCloudOculus::RequestEnumeratePagedBuckets(FUniqueNetIdPtr UserId
 	{
 		OculusSubsystem.AddRequestDelegate(ovr_CloudStorage_LoadBucketMetadata(TCHAR_TO_UTF8(*Buckets[EnumerateBucketsCounter])), std::move(Delegate));
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FOnlineUserCloudOculus::GetUserFileList(const FUniqueNetId& UserId, TArray<FCloudFileHeader>& UserFiles)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto LoggedInPlayerId = OculusSubsystem.GetIdentityInterface()->GetUniquePlayerId(0);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (!LoggedInPlayerId.IsValid() || UserId != *LoggedInPlayerId)
 	{
 		UE_LOG_ONLINE_CLOUD(Warning, TEXT("Can get file list for logged in player"));
@@ -137,7 +144,9 @@ void FOnlineUserCloudOculus::GetUserFileList(const FUniqueNetId& UserId, TArray<
 
 bool FOnlineUserCloudOculus::WriteUserFile(const FUniqueNetId& UserId, const FString& FileName, TArray<uint8>& FileContents, bool bCompressBeforeUpload)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto LoggedInPlayerId = OculusSubsystem.GetIdentityInterface()->GetUniquePlayerId(0);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (!LoggedInPlayerId.IsValid() || UserId != *LoggedInPlayerId)
 	{
 		UE_LOG_ONLINE_CLOUD(Warning, TEXT("Can only save data for logged in player"));
@@ -172,17 +181,19 @@ bool FOnlineUserCloudOculus::WriteUserFile(const FUniqueNetId& UserId, const FSt
 		delete TmpBuffer;
 		TriggerOnWriteUserFileCompleteDelegates(!bIsError, *LoggedInPlayerId, FileName);
 	});
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OculusSubsystem.AddRequestDelegate(
 		ovr_CloudStorage_Save(TCHAR_TO_UTF8(*BucketName), TCHAR_TO_UTF8(*Key), TmpBuffer->GetData(), TmpBuffer->Num(), 0, nullptr),
 		std::move(DelegateLambda));
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return true;
 }
 
 bool FOnlineUserCloudOculus::ReadUserFile(const FUniqueNetId& UserId, const FString& FileName)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto LoggedInPlayerId = OculusSubsystem.GetIdentityInterface()->GetUniquePlayerId(0);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (!LoggedInPlayerId.IsValid() || UserId != *LoggedInPlayerId)
 	{
 		UE_LOG_ONLINE_CLOUD(Warning, TEXT("Can only read data for logged in player"));
@@ -197,6 +208,7 @@ bool FOnlineUserCloudOculus::ReadUserFile(const FUniqueNetId& UserId, const FStr
 		Key = FileName;
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OculusSubsystem.AddRequestDelegate(
 		ovr_CloudStorage_Load(TCHAR_TO_UTF8(*BucketName), TCHAR_TO_UTF8(*Key)),
 		FOculusMessageOnCompleteDelegate::CreateLambda([this, BucketName, Key, LoggedInPlayerId, FileName](ovrMessageHandle Message, bool bIsError)
@@ -221,13 +233,15 @@ bool FOnlineUserCloudOculus::ReadUserFile(const FUniqueNetId& UserId, const FStr
 		}
 		TriggerOnReadUserFileCompleteDelegates(!bIsError, *LoggedInPlayerId, FileName);
 	}));
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return true;
 }
 
 bool FOnlineUserCloudOculus::GetFileContents(const FUniqueNetId& UserId, const FString& FileName, TArray<uint8>& FileContents)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto LoggedInPlayerId = OculusSubsystem.GetIdentityInterface()->GetUniquePlayerId(0);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (!LoggedInPlayerId.IsValid() || UserId != *LoggedInPlayerId)
 	{
 		UE_LOG_ONLINE_CLOUD(Warning, TEXT("Can only read data for logged in player"));
@@ -246,7 +260,9 @@ bool FOnlineUserCloudOculus::GetFileContents(const FUniqueNetId& UserId, const F
 
 bool FOnlineUserCloudOculus::ClearFiles(const FUniqueNetId& UserId)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto LoggedInPlayerId = OculusSubsystem.GetIdentityInterface()->GetUniquePlayerId(0);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (!LoggedInPlayerId.IsValid() || UserId != *LoggedInPlayerId)
 	{
 		UE_LOG_ONLINE_CLOUD(Warning, TEXT("Can only clear data for logged in player"));
@@ -259,7 +275,9 @@ bool FOnlineUserCloudOculus::ClearFiles(const FUniqueNetId& UserId)
 
 bool FOnlineUserCloudOculus::ClearFile(const FUniqueNetId& UserId, const FString& FileName)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto LoggedInPlayerId = OculusSubsystem.GetIdentityInterface()->GetUniquePlayerId(0);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (!LoggedInPlayerId.IsValid() || UserId != *LoggedInPlayerId)
 	{
 		UE_LOG_ONLINE_CLOUD(Warning, TEXT("Can only clear data for logged in player"));
@@ -282,7 +300,9 @@ void FOnlineUserCloudOculus::CancelWriteUserFile(const FUniqueNetId& UserId, con
 
 bool FOnlineUserCloudOculus::DeleteUserFile(const FUniqueNetId& UserId, const FString& FileName, bool bShouldCloudDelete, bool bShouldLocallyDelete)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto LoggedInPlayerId = OculusSubsystem.GetIdentityInterface()->GetUniquePlayerId(0);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (!LoggedInPlayerId.IsValid() || UserId != *LoggedInPlayerId)
 	{
 		UE_LOG_ONLINE_CLOUD(Warning, TEXT("Can only save data for logged in player"));
@@ -313,10 +333,11 @@ bool FOnlineUserCloudOculus::DeleteUserFile(const FUniqueNetId& UserId, const FS
 
 			TriggerOnDeleteUserFileCompleteDelegates(!bIsError, *LoggedInPlayerId, FileName);
 		});
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		OculusSubsystem.AddRequestDelegate(
 			ovr_CloudStorage_Delete(TCHAR_TO_UTF8(*BucketName), TCHAR_TO_UTF8(*Key)),
 			std::move(DelegateLambda));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
 	{

@@ -23,7 +23,7 @@ typedef TUniquePtr<class FOnlineMessageTaskManagerOculus> FOnlineMessageTaskMana
 /**
 *	OnlineSubsystemOculus - Implementation of the online subsystem for Oculus services
 */
-class ONLINESUBSYSTEMOCULUS_API FOnlineSubsystemOculus :
+class ONLINESUBSYSTEMOCULUS_API UE_DEPRECATED(5.2, "OnlineSubsystemOculus has been deprecated and will be removed") FOnlineSubsystemOculus :
 	public FOnlineSubsystemImpl
 {
 
@@ -87,7 +87,9 @@ PACKAGE_SCOPE:
 	/** Only the factory makes instances */
 	FOnlineSubsystemOculus() = delete;
 	explicit FOnlineSubsystemOculus(FName InInstanceName) :
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FOnlineSubsystemImpl(OCULUS_SUBSYSTEM, InInstanceName),
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		bOculusInit(false)
 	{}
 
@@ -133,4 +135,6 @@ namespace FNetworkProtocolTypes
 	ONLINESUBSYSTEMOCULUS_API extern const FLazyName Oculus;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 typedef TSharedPtr<FOnlineSubsystemOculus, ESPMode::ThreadSafe> FOnlineSubsystemOculusPtr;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

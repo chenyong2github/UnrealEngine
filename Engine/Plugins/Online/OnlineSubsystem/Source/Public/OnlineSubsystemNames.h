@@ -85,9 +85,7 @@ UE_DEPRECATED(4.27, "OnlineSubsystemLiveServer has been deprecated and will be r
 #define SWITCH_SUBSYSTEM FName(TEXT("SWITCH"))
 #endif
 
-#ifndef OCULUS_SUBSYSTEM
-#define OCULUS_SUBSYSTEM FName(TEXT("Oculus"))
-#endif
+UE_DEPRECATED(5.2, "OnlineSubsystemOculus has been deprecated and will be removed") ONLINESUBSYSTEM_API extern FName OCULUS_SUBSYSTEM;
 
 #ifndef SAMSUNG_SUBSYSTEM
 #define SAMSUNG_SUBSYSTEM FName(TEXT("SAMSUNG"))

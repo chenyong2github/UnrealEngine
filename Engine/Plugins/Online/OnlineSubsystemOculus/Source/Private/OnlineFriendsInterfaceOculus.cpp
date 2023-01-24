@@ -5,15 +5,17 @@
 #include "OnlineError.h"
 #include "OnlineSubsystemOculusPackage.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FOnlineFriendsOculus::FOnlineFriendsOculus(FOnlineSubsystemOculus& InSubsystem)
 : OculusSubsystem(InSubsystem)
 {
 }
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 const FString FOnlineFriendsOculus::FriendsListInviteableUsers = TEXT("invitableUsers");
 
 bool FOnlineFriendsOculus::ReadFriendsList(int32 LocalUserNum, const FString& ListName, const FOnReadFriendsListComplete& Delegate)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (ListName == EFriendsLists::ToString(EFriendsLists::Default) || ListName == EFriendsLists::ToString(EFriendsLists::OnlinePlayers))
 	{
 		OculusSubsystem.AddRequestDelegate(
@@ -35,7 +37,7 @@ bool FOnlineFriendsOculus::ReadFriendsList(int32 LocalUserNum, const FString& Li
 		}));
 		return true;
 	}
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Delegate.ExecuteIfBound(LocalUserNum, false, ListName, TEXT("Invalid friends list"));
 	return false;
 }
@@ -77,12 +79,14 @@ void FOnlineFriendsOculus::OnQueryFriendsComplete(ovrMessageHandle Message, bool
 	bool bHasPaging = ovr_UserArray_HasNextPage(UserArray);
 	if (bHasPaging)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		OculusSubsystem.AddRequestDelegate(
 			ovr_User_GetNextUserArrayPage(UserArray),
 			FOculusMessageOnCompleteDelegate::CreateLambda([this, LocalUserNum, ListName, &OutList, Delegate](ovrMessageHandle InMessage, bool bInIsError)
 		{
 			OnQueryFriendsComplete(InMessage, bInIsError, LocalUserNum, ListName, OutList, /* bAppendToExistingMap */ true, Delegate);
 		}));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
 	{

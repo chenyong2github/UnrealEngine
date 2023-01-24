@@ -79,9 +79,11 @@ struct FOnlineAchievementOculus : FOnlineAchievement
 class FOnlineAchievementsOculus : public IOnlineAchievements
 {
 private:
-	
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS	
 	/** Reference to the owning subsystem */
 	FOnlineSubsystemOculus& OculusSubsystem;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Mapping of players to their achievements */
 	TMap<FUniqueNetIdOculus, TArray<FOnlineAchievement>> PlayerAchievements;
@@ -95,12 +97,14 @@ private:
 
 public:
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/**
 	* Constructor
 	*
 	* @param InSubsystem - A reference to the owning subsystem
 	*/
 	FOnlineAchievementsOculus(FOnlineSubsystemOculus& InSubsystem);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	* Default destructor

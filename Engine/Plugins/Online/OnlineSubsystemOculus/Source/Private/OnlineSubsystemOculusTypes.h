@@ -39,8 +39,10 @@ public:
 
 	static const FUniqueNetIdOculus& Cast(const FUniqueNetId& NetId)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		check(NetId.GetType() == OCULUS_SUBSYSTEM);
 		return *static_cast<const FUniqueNetIdOculus*>(&NetId);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	FUniqueNetIdOculusRef AsShared() const
@@ -50,7 +52,9 @@ public:
 
 	virtual FName GetType() const override
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return OCULUS_SUBSYSTEM;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	// IOnlinePlatformData
@@ -123,10 +127,12 @@ private:
 	*/
 	explicit FUniqueNetIdOculus(const FUniqueNetId& Src)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (Src.GetType() == OCULUS_SUBSYSTEM)
 		{
 			ID = FUniqueNetIdOculus::Cast(Src).ID;
 		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 };
 

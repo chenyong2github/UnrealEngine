@@ -13,8 +13,10 @@
 
 bool UOculusNetDriver::IsAvailable() const
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Net driver won't work if the online subsystem doesn't exist
 	IOnlineSubsystem* OculusSubsystem = IOnlineSubsystem::Get(OCULUS_SUBSYSTEM);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (OculusSubsystem)
 	{
 		return true;
@@ -83,11 +85,13 @@ bool UOculusNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, co
 	// Listen for network state
 	if (!NetworkingConnectionStateChangeDelegateHandle.IsValid())
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		auto OnlineSubsystem = static_cast<FOnlineSubsystemOculus*>(IOnlineSubsystem::Get(OCULUS_SUBSYSTEM));
 		NetworkingConnectionStateChangeDelegateHandle =
 			OnlineSubsystem->GetNotifDelegate(ovrMessage_Notification_Networking_ConnectionStateChange)
 			.AddUObject(this, &UOculusNetDriver::OnNetworkingConnectionStateChange);
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	return true;
 }
@@ -145,11 +149,13 @@ bool UOculusNetDriver::InitListen(FNetworkNotify* InNotify, FURL& LocalURL, bool
 	// Listen for incoming peers
 	if (!PeerConnectRequestDelegateHandle.IsValid())
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		auto OnlineSubsystem = static_cast<FOnlineSubsystemOculus*>(IOnlineSubsystem::Get(OCULUS_SUBSYSTEM));
 		PeerConnectRequestDelegateHandle =
 			OnlineSubsystem->GetNotifDelegate(ovrMessage_Notification_Networking_PeerConnectRequest)
 			.AddUObject(this, &UOculusNetDriver::OnNewNetworkingPeerRequest);
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	InitConnectionlessHandler();
 
@@ -470,7 +476,7 @@ void UOculusNetDriver::Shutdown()
 	UNetDriver::Shutdown();
 
 	UE_LOG(LogNet, Verbose, TEXT("Oculus Net Driver shutdown"));
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto OnlineSubsystem = static_cast<FOnlineSubsystemOculus*>(IOnlineSubsystem::Get(OCULUS_SUBSYSTEM));
 	if (PeerConnectRequestDelegateHandle.IsValid())
 	{
@@ -482,6 +488,7 @@ void UOculusNetDriver::Shutdown()
 		OnlineSubsystem->RemoveNotifDelegate(ovrMessage_Notification_Networking_ConnectionStateChange, NetworkingConnectionStateChangeDelegateHandle);
 		NetworkingConnectionStateChangeDelegateHandle.Reset();
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Ensure all current connections are closed now
 	for (auto& Connection : Connections)

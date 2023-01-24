@@ -23,7 +23,9 @@ UOculusUpdateSessionCallbackProxy* UOculusUpdateSessionCallbackProxy::SetSession
 
 void UOculusUpdateSessionCallbackProxy::Activate()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto OculusSessionInterface = Online::GetSessionInterface(OCULUS_SUBSYSTEM);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (OculusSessionInterface.IsValid())
 	{
@@ -42,7 +44,9 @@ void UOculusUpdateSessionCallbackProxy::Activate()
 
 void UOculusUpdateSessionCallbackProxy::OnUpdateCompleted(FName SessionName, bool bWasSuccessful)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto OculusSessionInterface = Online::GetSessionInterface(OCULUS_SUBSYSTEM);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (OculusSessionInterface.IsValid())
 	{

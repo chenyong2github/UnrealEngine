@@ -24,6 +24,9 @@ public:
 
 	IOnlineSubsystemPtr CreateSubsystem(FName InstanceName) override
 	{
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("OnlineSubsystemOculus has been deprecated"));
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (!OnlineSub.IsValid())
 		{
 			OnlineSub = MakeShared<FOnlineSubsystemOculus, ESPMode::ThreadSafe>(InstanceName);
@@ -50,7 +53,7 @@ public:
 			OnlineSub->Shutdown();
 			OnlineSub = nullptr;
 		}
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return OnlineSub;
 	}
 };
@@ -63,7 +66,9 @@ void FOnlineSubsystemOculusModule::StartupModule()
 
 	// Create and register our singleton factory with the main online subsystem for easy access
 	FOnlineSubsystemModule& OSS = FModuleManager::GetModuleChecked<FOnlineSubsystemModule>("OnlineSubsystem");
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OSS.RegisterPlatformService(OCULUS_SUBSYSTEM, OculusFactory);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FOnlineSubsystemOculusModule::ShutdownModule()
@@ -71,7 +76,9 @@ void FOnlineSubsystemOculusModule::ShutdownModule()
 	UE_LOG_ONLINE(Log, TEXT("Oculus Shutdown!"));
 
 	FOnlineSubsystemModule& OSS = FModuleManager::GetModuleChecked<FOnlineSubsystemModule>("OnlineSubsystem");
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OSS.UnregisterPlatformService(OCULUS_SUBSYSTEM);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	delete OculusFactory;
 	OculusFactory = nullptr;

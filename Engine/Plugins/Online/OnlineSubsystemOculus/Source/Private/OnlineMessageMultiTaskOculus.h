@@ -25,10 +25,14 @@ protected:
 	FOnlineMessageMultiTaskOculus::FFinalizeDelegate Delegate;
 
 PACKAGE_SCOPE:
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FOnlineSubsystemOculus& OculusSubsystem;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FOnlineMessageMultiTaskOculus(
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FOnlineSubsystemOculus& InOculusSubsystem,
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		const FOnlineMessageMultiTaskOculus::FFinalizeDelegate& InDelegate)
 		: Delegate(InDelegate)
 		, OculusSubsystem(InOculusSubsystem)

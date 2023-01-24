@@ -19,7 +19,9 @@ UOculusIdentityCallbackProxy* UOculusIdentityCallbackProxy::GetOculusIdentity(in
 
 void UOculusIdentityCallbackProxy::Activate()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto OculusIdentityInterface = Online::GetIdentityInterface(OCULUS_SUBSYSTEM);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (OculusIdentityInterface.IsValid())
 	{

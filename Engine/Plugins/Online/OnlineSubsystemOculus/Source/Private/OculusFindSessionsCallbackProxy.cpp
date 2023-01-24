@@ -35,7 +35,9 @@ UOculusFindSessionsCallbackProxy* UOculusFindSessionsCallbackProxy::FindModerate
 
 void UOculusFindSessionsCallbackProxy::Activate()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto OculusSessionInterface = Online::GetSessionInterface(OCULUS_SUBSYSTEM);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (OculusSessionInterface.IsValid())
 	{
@@ -62,7 +64,9 @@ void UOculusFindSessionsCallbackProxy::Activate()
 
 void UOculusFindSessionsCallbackProxy::OnCompleted(bool bSuccess)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	auto OculusSessionInterface = Online::GetSessionInterface(OCULUS_SUBSYSTEM);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (OculusSessionInterface.IsValid())
 	{

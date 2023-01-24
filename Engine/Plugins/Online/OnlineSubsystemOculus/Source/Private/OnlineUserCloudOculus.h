@@ -20,7 +20,10 @@
 class FOnlineUserCloudOculus : public IOnlineUserCloud
 {
 public:
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FOnlineUserCloudOculus(FOnlineSubsystemOculus& InSubsystem);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	virtual ~FOnlineUserCloudOculus() = default;
 
 	virtual void EnumerateUserFiles(const FUniqueNetId& UserId) override;
@@ -58,7 +61,9 @@ private:
 	/** Tag used to find the all bucket names in DefaultEngine.ini */
 	static const FString ALL_BUCKETS_KEY;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FOnlineSubsystemOculus& OculusSubsystem;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Default Bucket to store saves if none is specified from FileName - set in DefaultEngine.ini */
 	FString DefaultBucket;

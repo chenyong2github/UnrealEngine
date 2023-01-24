@@ -12,21 +12,24 @@
 class FOnlineLeaderboardOculus : public IOnlineLeaderboards
 {
 private:
-	
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Reference to the owning subsystem */
 	FOnlineSubsystemOculus& OculusSubsystem;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bool ReadOculusLeaderboards(bool bOnlyFriends, bool bOnlyLoggedInUser, FOnlineLeaderboardReadRef& ReadObject);
 	void OnReadLeaderboardsComplete(ovrMessageHandle Message, bool bIsError, const FOnlineLeaderboardReadRef& ReadObject);
 
 public:
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/**
 	* Constructor
 	*
 	* @param InSubsystem - A reference to the owning subsystem
 	*/
 	FOnlineLeaderboardOculus(FOnlineSubsystemOculus& InSubsystem);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	* Default destructor

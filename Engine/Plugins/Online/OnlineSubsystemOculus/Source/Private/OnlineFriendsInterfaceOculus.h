@@ -70,9 +70,11 @@ public:
 class FOnlineFriendsOculus : public IOnlineFriends
 {
 private:
-	
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Reference to the owning subsystem */
 	FOnlineSubsystemOculus& OculusSubsystem;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** All the friends for the player */
 	TMap<uint64, TSharedRef<FOnlineFriend>> PlayerFriends;
@@ -92,12 +94,14 @@ public:
 
 	static const FString FriendsListInviteableUsers;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/**
 	* Constructor
 	*
 	* @param InSubsystem - A reference to the owning subsystem
 	*/
 	FOnlineFriendsOculus(FOnlineSubsystemOculus& InSubsystem);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	* Default destructor

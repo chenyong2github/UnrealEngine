@@ -82,6 +82,7 @@ public:
 
 	// FOnlineIdentityOculus
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/**
 	* Constructor
 	*
@@ -93,6 +94,7 @@ public:
 	* Default destructor
 	*/
 	virtual ~FOnlineIdentityOculus() = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 PACKAGE_SCOPE:
 
@@ -104,9 +106,11 @@ PACKAGE_SCOPE:
 
 private:
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Reference to the owning subsystem */
 	FOnlineSubsystemOculus& OculusSubsystem;
-	
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/** Ids mapped to locally registered users */
 	TMap<int32, FUniqueNetIdRef> UserIds;
 

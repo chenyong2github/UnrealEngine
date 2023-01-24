@@ -180,6 +180,7 @@ bool FOnlineSubsystemOculus::Tick(float DeltaTime)
 	return true;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FOnlineSubsystemOculus::AddRequestDelegate(ovrRequest RequestId, FOculusMessageOnCompleteDelegate&& Delegate) const
 {
 	check(MessageTaskManager);
@@ -197,6 +198,7 @@ void FOnlineSubsystemOculus::RemoveNotifDelegate(ovrMessageType MessageType, con
 	check(MessageTaskManager);
 	return MessageTaskManager->RemoveNotifDelegate(MessageType, Delegate);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool FOnlineSubsystemOculus::Init()
 {
