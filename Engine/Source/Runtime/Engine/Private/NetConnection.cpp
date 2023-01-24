@@ -567,6 +567,13 @@ void UNetConnection::InitConnection(UNetDriver* InDriver, EConnectionState InSta
 
 	InitChannelData();
 
+	// Cache instance id
+#if UE_NET_TRACE_ENABLED
+	NetTraceId = Driver->GetNetTraceId();
+#endif
+
+	SetConnectionId(InDriver->AllocateConnectionId());
+
 	// We won't be sending any packets, so use a default size
 	MaxPacket = (InMaxPacket == 0 || InMaxPacket > MAX_PACKET_SIZE) ? MAX_PACKET_SIZE : InMaxPacket;
 	PacketOverhead = 0;
@@ -600,6 +607,9 @@ void UNetConnection::InitConnection(UNetDriver* InDriver, EConnectionState InSta
 	auto PackageMapClient = NewObject<UPackageMapClient>(this);
 	PackageMapClient->Initialize(this, Driver->GuidCache);
 	PackageMap = PackageMapClient;
+
+	UE_NET_TRACE_CONNECTION_CREATED(NetTraceId, GetConnectionId());
+	UE_NET_TRACE_CONNECTION_STATE_UPDATED(NetTraceId, GetConnectionId(), static_cast<uint8>(GetConnectionState()));
 }
 
 void UNetConnection::InitHandler()
@@ -3777,14 +3787,18 @@ void UNetConnection::PrepareWriteBitsToSendBuffer(const int32 SizeInBits, const 
 		FlushNet();
 	}
 
+#if UE_NET_TRACE_ENABLED
+	// If tracing is enabled setup the NetTraceCollector for outgoing data
+	if (SendBuffer.GetNumBits() == 0)
+	{
+		OutTraceCollector = UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace);
+	}
+#endif
+
 	// If this is the start of the queue, make sure to add the packet id
 	if ( SendBuffer.GetNumBits() == 0 && !IsInternalAck() )
 	{
-#if UE_NET_TRACE_ENABLED
-		// If tracing is enabled setup the NetTraceCollector for outgoing data
-		OutTraceCollector = UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace);
 		UE_NET_TRACE_SCOPE(PacketHeaderAndInfo, SendBuffer, OutTraceCollector, ENetTraceVerbosity::Trace);
-#endif
 
 		// Write Packet Header, before sending the packet we will go back and rewrite the data
 		WritePacketHeader(SendBuffer);

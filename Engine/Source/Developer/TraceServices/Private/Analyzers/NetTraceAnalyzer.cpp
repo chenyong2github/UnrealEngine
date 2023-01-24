@@ -751,7 +751,7 @@ void FNetTraceAnalyzer::HandleConnectionClosedEvent(const FOnEventContext& Conte
 	else
 	{
 		// Incomplete trace?  Ignore?
-		check(false);
+		UE_LOG(LogNetTrace, Warning, TEXT("Connection %d is missing"), ConnectionId);
 	}
 }
 

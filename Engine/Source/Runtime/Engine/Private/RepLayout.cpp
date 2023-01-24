@@ -2957,6 +2957,8 @@ static FORCEINLINE void WritePropertyHandle_BackwardsCompatible(
 	uint32			NetFieldExportHandle,
 	bool			bDoChecksum)
 {
+	UE_NET_TRACE_SCOPE(PropertyHandle, Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
+
 	const int NumStartingBits = Writer.GetNumBits();
 
 	Writer.SerializeIntPacked(NetFieldExportHandle);
@@ -3053,6 +3055,8 @@ void FRepLayout::SendProperties_BackwardsCompatible_r(
 
 	FNetBitWriter TempWriter(Writer.PackageMap, 0);
 
+	UE_NET_TRACE_SCOPE(Properties, Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
+
 	while (HandleIterator.NextHandle())
 	{
 		const FRepLayoutCmd& Cmd = Cmds[HandleIterator.CmdIndex];
@@ -3078,6 +3082,8 @@ void FRepLayout::SendProperties_BackwardsCompatible_r(
 		}
 
 		WritePropertyHandle_BackwardsCompatible(Writer, HandleIterator.CmdIndex + 1, bDoChecksum);
+
+		UE_NET_TRACE_DYNAMIC_NAME_SCOPE(Cmd.Property->GetFName(), Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
 
 		if (Cmd.Type == ERepLayoutCmdType::DynamicArray)
 		{

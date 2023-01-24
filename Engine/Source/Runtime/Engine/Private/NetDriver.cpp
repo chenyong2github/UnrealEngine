@@ -6289,8 +6289,8 @@ void UNetDriver::InitNetTraceId()
 	if (NetTraceId == NetTraceInvalidGameInstanceId)
 	{
 		// We just need to make sure that all active NetDriver`s running in the same game instance uses different NetTraceId`s.
-		static uint8 CurrentNetTraceId = 255;
-		NetTraceId = ++CurrentNetTraceId;
+		static uint8 CurrentNetTraceId = 0;
+		NetTraceId = 128 + ((++CurrentNetTraceId) & 127);
 	}
 }
 
