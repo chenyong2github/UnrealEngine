@@ -472,6 +472,16 @@ namespace UnrealBuildTool
 				Writer.WriteValue("DependencyListFile", Action.DependencyListFile.AbsolutePath);
 			}
 		}
+
+		/// <summary>
+		/// Determine if this Action ignores output conficts.
+		/// </summary>
+		/// <param name="Action"> The Action to check</param>
+		/// <returns>True if conflicts are ignored, else false.</returns>
+		public static bool IgnoreConflicts(this IExternalAction Action)
+		{
+			return Action.ActionType == ActionType.WriteMetadata;
+		}
 	}
 
 	/// <summary>

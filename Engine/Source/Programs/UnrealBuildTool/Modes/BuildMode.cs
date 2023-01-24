@@ -422,7 +422,7 @@ namespace UnrealBuildTool
 					// TODO: Skipping conflicts for WriteMetadata is a hack to maintain parity with the BuildGraph executor which allowed
 					// exporting mulitple conflicing WriteMetadata actions.
 					// This is technically buggy behavior and should be properly fixed in UEBuildTarget.cs
-					IEnumerable<IExternalAction> CheckActions = Makefiles.SelectMany(x => x.Actions).Where(x => x.ActionType != ActionType.WriteMetadata);
+					IEnumerable<IExternalAction> CheckActions = Makefiles.SelectMany(x => x.Actions).Where(x => !x.IgnoreConflicts());
 					ActionGraph.CheckForConflicts(CheckActions, Logger);
 				}
 
@@ -975,11 +975,18 @@ namespace UnrealBuildTool
 		{
 			// Set of all output items. Knowing that there are no conflicts in produced items, we use this to eliminate duplicate actions.
 			Dictionary<FileItem, LinkedAction> OutputItemToProducingAction = new Dictionary<FileItem, LinkedAction>();
+			HashSet<LinkedAction> IgnoreConflictActions = new HashSet<LinkedAction>();
 			for(int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 			{
 				string GroupPrefix = String.Format("{0}-{1}-{2}", TargetDescriptors[TargetIdx].Name, TargetDescriptors[TargetIdx].Platform, TargetDescriptors[TargetIdx].Configuration);
 				foreach(LinkedAction TargetAction in TargetActions[TargetIdx])
 				{
+					if (TargetAction.IgnoreConflicts())
+					{
+						IgnoreConflictActions.Add(TargetAction);
+						continue;
+					}
+
 					FileItem ProducedItem = TargetAction.ProducedItems.First();
 
 					LinkedAction? ExistingAction;
@@ -991,7 +998,9 @@ namespace UnrealBuildTool
 					ExistingAction.GroupNames.Add(GroupPrefix);
 				}
 			}
-			return new List<LinkedAction>(OutputItemToProducingAction.Values);
+			List<LinkedAction> Results = new List<LinkedAction>(OutputItemToProducingAction.Values);
+			Results.AddRange(IgnoreConflictActions);
+			return Results;
 		}
 
 		void ProcessCoreDumps(DirectoryReference? SaveCrashDumpDirectory, ILogger Logger)
