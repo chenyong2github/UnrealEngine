@@ -109,12 +109,12 @@ void UCustomizableInstancePrivateData::InitLastUpdateData(const TSharedPtr<FMuta
 
 
 void UCustomizableInstancePrivateData::InvalidateGeneratedData()
+{
+	for (FCustomizableInstanceComponentData& ComponentData : ComponentsData)
 	{
-		for (FCustomizableInstanceComponentData& ComponentData : ComponentsData)
-		{
-			ComponentData.LastMeshIdPerLOD.Init(INDEX_NONE, NumLODsAvailable);
-		}
-	
+		ComponentData.LastMeshIdPerLOD.Init(INDEX_NONE, NumLODsAvailable);
+	}
+
 	LastUpdateData.Clear();
 }
 
@@ -1503,7 +1503,7 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 {
 	MUTABLE_CPUPROFILER_SCOPE(UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0)
 
-		bool bEmptyMesh = false;
+	bool bEmptyMesh = false;
 
 	TArray<bool> ComponentNeedsUpdate;
 	bool bUpdateMeshes = DoComponentsNeedUpdate(Public, OperationData, ComponentNeedsUpdate, bEmptyMesh);
@@ -1537,8 +1537,6 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 	TextureReuseCache.Empty(); // Sections may have changed, so invalidate the texture reuse cache because it's indexed by section
 
 	TArray<TObjectPtr<USkeletalMesh>> OldSkeletalMeshes = Public->SkeletalMeshes;
-
-	check(NumLODsAvailable == OperationData->InstanceUpdateData.LODs.Num());
 
 	bool bSuccess = true;
 	bool bHasSkeletalMesh = false;
