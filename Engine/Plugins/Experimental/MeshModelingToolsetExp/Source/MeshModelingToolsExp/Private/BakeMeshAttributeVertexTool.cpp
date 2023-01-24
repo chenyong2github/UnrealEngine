@@ -4,6 +4,7 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -272,15 +273,8 @@ void UBakeMeshAttributeVertexTool::Setup()
 
 	// PreviewMesh stores computed result mesh. On shutdown, PreviewMesh will be
 	// used to commit the dynamic mesh to the target tool target.
-	PreviewMesh = NewObject<UPreviewMesh>(this);
-	PreviewMesh->CreateInWorld(GetTargetWorld(), FTransform::Identity);
-	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, nullptr);
-	PreviewMesh->SetTransform(static_cast<FTransform>(UE::ToolTarget::GetLocalToWorldTransform(Targets[0])));
-	PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::ExternallyProvided);
-	PreviewMesh->ReplaceMesh(TargetMesh);
-	PreviewMesh->SetMaterials(UE::ToolTarget::GetMaterialSet(Targets[0]).Materials);
+	PreviewMesh = CreateBakePreviewMesh(this, Targets[0], GetTargetWorld());
 	PreviewMesh->SetOverrideRenderMaterial(PreviewMaterial);
-	PreviewMesh->SetVisible(true);
 
 	UToolTarget* Target = Targets[0];
 	UToolTarget* DetailTarget = Targets[bIsBakeToSelf ? 0 : 1];
@@ -307,12 +301,12 @@ void UBakeMeshAttributeVertexTool::Setup()
 	SetToolPropertySourceEnabled(InputMeshSettings, true);
 	InputMeshSettings->bHasTargetUVLayer = false;
 	InputMeshSettings->bHasSourceNormalMap = false;
-	InputMeshSettings->TargetStaticMesh = GetStaticMeshTarget(Target);
-	InputMeshSettings->TargetSkeletalMesh = GetSkeletalMeshTarget(Target);
-	InputMeshSettings->TargetDynamicMesh = GetDynamicMeshTarget(Target);
-	InputMeshSettings->SourceStaticMesh = !bIsBakeToSelf ? GetStaticMeshTarget(DetailTarget) : nullptr;
-	InputMeshSettings->SourceSkeletalMesh = !bIsBakeToSelf ? GetSkeletalMeshTarget(DetailTarget) : nullptr;
-	InputMeshSettings->SourceDynamicMesh = !bIsBakeToSelf ? GetDynamicMeshTarget(DetailTarget) : nullptr;
+	InputMeshSettings->TargetStaticMesh = UE::ToolTarget::GetStaticMeshFromTargetIfAvailable(Target);
+	InputMeshSettings->TargetSkeletalMesh = UE::ToolTarget::GetSkeletalMeshFromTargetIfAvailable(Target);
+	InputMeshSettings->TargetDynamicMesh = GetTargetActorViaIPersistentDynamicMeshSource(Target);
+	InputMeshSettings->SourceStaticMesh = !bIsBakeToSelf ? UE::ToolTarget::GetStaticMeshFromTargetIfAvailable(DetailTarget) : nullptr;
+	InputMeshSettings->SourceSkeletalMesh = !bIsBakeToSelf ? UE::ToolTarget::GetSkeletalMeshFromTargetIfAvailable(DetailTarget) : nullptr;
+	InputMeshSettings->SourceDynamicMesh = !bIsBakeToSelf ? GetTargetActorViaIPersistentDynamicMeshSource(DetailTarget) : nullptr;
 	InputMeshSettings->SourceNormalMap = nullptr;
 	InputMeshSettings->WatchProperty(InputMeshSettings->bHideSourceMesh, [this](bool bState) { SetSourceObjectVisible(!bState); });
 	InputMeshSettings->WatchProperty(InputMeshSettings->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });

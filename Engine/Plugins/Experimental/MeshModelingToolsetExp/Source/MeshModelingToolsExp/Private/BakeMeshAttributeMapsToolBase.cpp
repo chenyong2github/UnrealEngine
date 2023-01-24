@@ -54,20 +54,11 @@ void UBakeMeshAttributeMapsToolBase::Setup()
 		BentNormalPreviewMaterial = UMaterialInstanceDynamic::Create(BentNormalMaterial, GetToolManager());
 	}
 
-	// Initialize preview mesh
 	UE::ToolTarget::HideSourceObject(Targets[0]);
 
-	const FDynamicMesh3 InputMesh = UE::ToolTarget::GetDynamicMeshCopy(Targets[0], true);
-	const FTransformSRT3d BaseToWorld = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
-	PreviewMesh = NewObject<UPreviewMesh>(this);
-	PreviewMesh->CreateInWorld(GetTargetWorld(), FTransform::Identity);
-	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, nullptr);
-	PreviewMesh->SetTransform(static_cast<FTransform>(BaseToWorld));
-	PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::ExternallyProvided);
-	PreviewMesh->ReplaceMesh(InputMesh);
-	PreviewMesh->SetMaterials(UE::ToolTarget::GetMaterialSet(Targets[0]).Materials);
+	// Initialize preview mesh
+	PreviewMesh = CreateBakePreviewMesh(this, Targets[0], GetTargetWorld());
 	PreviewMesh->SetOverrideRenderMaterial(PreviewMaterial);
-	PreviewMesh->SetVisible(true);
 }
 
 void UBakeMeshAttributeMapsToolBase::PostSetup()
@@ -129,11 +120,11 @@ void UBakeMeshAttributeMapsToolBase::OnTick(float DeltaTime)
 void UBakeMeshAttributeMapsToolBase::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	UpdateResult();
-	
+
 	const float Brightness = VisualizationProps->Brightness;
 	const FVector BrightnessColor(Brightness, Brightness, Brightness);
 	const float AOMultiplier = VisualizationProps->AOMultiplier;
-	
+
 	PreviewMaterial->SetVectorParameterValue(TEXT("Brightness"), BrightnessColor );
 	PreviewMaterial->SetScalarParameterValue(TEXT("AOMultiplier"), AOMultiplier );
 	BentNormalPreviewMaterial->SetVectorParameterValue(TEXT("Brightness"), BrightnessColor );

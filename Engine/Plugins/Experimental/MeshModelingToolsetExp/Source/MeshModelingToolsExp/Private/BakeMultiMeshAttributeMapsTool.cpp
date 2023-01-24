@@ -521,9 +521,9 @@ void UBakeMultiMeshAttributeMapsTool::Setup()
 	InputMeshSettings = NewObject<UBakeMultiMeshInputToolProperties>(this);
 	InputMeshSettings->RestoreProperties(this);
 	AddToolPropertySource(InputMeshSettings);
-	InputMeshSettings->TargetStaticMesh = GetStaticMeshTarget(Target);
-	InputMeshSettings->TargetSkeletalMesh = GetSkeletalMeshTarget(Target);
-	InputMeshSettings->TargetDynamicMesh = GetDynamicMeshTarget(Target);
+	InputMeshSettings->TargetStaticMesh = UE::ToolTarget::GetStaticMeshFromTargetIfAvailable(Target);
+	InputMeshSettings->TargetSkeletalMesh = UE::ToolTarget::GetSkeletalMeshFromTargetIfAvailable(Target);
+	InputMeshSettings->TargetDynamicMesh = GetTargetActorViaIPersistentDynamicMeshSource(Target);
 	UpdateUVLayerNames(InputMeshSettings->TargetUVLayer, InputMeshSettings->TargetUVLayerNamesList, TargetMesh);
 	InputMeshSettings->WatchProperty(InputMeshSettings->TargetUVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
 	InputMeshSettings->WatchProperty(InputMeshSettings->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
@@ -560,7 +560,7 @@ void UBakeMultiMeshAttributeMapsTool::Setup()
 		});
 
 		FBakeMultiMeshDetailProperties SourceMeshProp;
-		SourceMeshProp.SourceMesh = GetStaticMeshTarget(DetailTarget);
+		SourceMeshProp.SourceMesh = UE::ToolTarget::GetStaticMeshFromTargetIfAvailable(DetailTarget);
 		SourceMeshProp.SourceTexture = DetailColorTexture;
 		InputMeshSettings->SourceMeshes.Add(SourceMeshProp);
 		InputMeshSettings->WatchProperty(InputMeshSettings->SourceMeshes[Idx-1].SourceTexture, [this](UTexture2D*) { OpState |= EBakeOpState::Evaluate; });

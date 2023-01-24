@@ -342,24 +342,6 @@ void UBakeMeshAttributeTool::UpdateMultiTextureMaterialIDs(
 }
 
 
-void UBakeMeshAttributeTool::UpdateUVLayerNames(FString& UVLayer, TArray<FString>& UVLayerNamesList, const FDynamicMesh3& Mesh)
-{
-	UVLayerNamesList.Reset();
-	int32 FoundIndex = -1;
-	for (int32 k = 0; k < Mesh.Attributes()->NumUVLayers(); ++k)
-	{
-		UVLayerNamesList.Add(FString::Printf(TEXT("UV %d"), k));
-		if (UVLayer == UVLayerNamesList.Last())
-		{
-			FoundIndex = k;
-		}
-	}
-	if (FoundIndex == -1)
-	{
-		UVLayer = UVLayerNamesList[0];
-	}
-}
-
 #undef LOCTEXT_NAMESPACE
 
 

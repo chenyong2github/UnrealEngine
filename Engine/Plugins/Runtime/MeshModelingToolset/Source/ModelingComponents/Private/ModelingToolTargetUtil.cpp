@@ -10,6 +10,8 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "TargetInterfaces/AssetBackedTarget.h"
+#include "TargetInterfaces/SkeletalMeshBackedTarget.h"
+#include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "TargetInterfaces/DynamicMeshSource.h"
 #include "TargetInterfaces/PhysicsDataSource.h"
 
@@ -563,7 +565,19 @@ IInterface_CollisionDataProvider* UE::ToolTarget::GetPhysicsCollisionDataProvide
 	return nullptr;
 }
 
+UStaticMesh* UE::ToolTarget::GetStaticMeshFromTargetIfAvailable(UToolTarget* Target)
+{
+	IStaticMeshBackedTarget* TargetStaticMeshTarget = Cast<IStaticMeshBackedTarget>(Target);
+	UStaticMesh* TargetStaticMesh = TargetStaticMeshTarget ? TargetStaticMeshTarget->GetStaticMesh() : nullptr;
+	return TargetStaticMesh;
+}
 
+USkeletalMesh* UE::ToolTarget::GetSkeletalMeshFromTargetIfAvailable(UToolTarget* Target)
+{
+	ISkeletalMeshBackedTarget* TargetSkeletalMeshTarget = Cast<ISkeletalMeshBackedTarget>(Target);
+	USkeletalMesh* TargetSkeletalMesh = TargetSkeletalMeshTarget ? TargetSkeletalMeshTarget->GetSkeletalMesh() : nullptr;
+	return TargetSkeletalMesh;
+}
 
 
 

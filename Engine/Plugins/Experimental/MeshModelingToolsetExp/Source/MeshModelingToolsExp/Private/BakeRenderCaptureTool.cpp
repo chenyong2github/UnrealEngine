@@ -11,6 +11,8 @@
 
 #include "DynamicMesh/MeshTransforms.h"
 
+#include "BakeToolUtils.h"
+#include "ToolSetupUtil.h"
 #include "ModelingToolTargetUtil.h"
 
 #include "ModelingObjectsCreationAPI.h"
@@ -79,7 +81,9 @@ class FRenderCaptureMapBakerOp : public TGenericDataOperator<FMeshMapBaker>
 {
 public:
 	UE::Geometry::FDynamicMesh3* BaseMesh = nullptr;
+	UE::Geometry::FDynamicMeshAABBTree3* BaseMeshSpatial = nullptr;
 	TSharedPtr<UE::Geometry::FMeshTangentsd, ESPMode::ThreadSafe> BaseMeshTangents;
+	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> BaseMeshUVCharts;
 	int32 TargetUVLayer;
 	double ValidSampleDepthThreshold;
 	EBakeTextureResolution TextureImageSize;
@@ -97,13 +101,11 @@ public:
 // Bake textures onto the base/target mesh by projecting/sampling the set of captured photos
 void FRenderCaptureMapBakerOp::CalculateResult(FProgressCancel*)
 {
-	const FDynamicMeshAABBTree3 BaseMeshSpatial(BaseMesh);
-
 	FSceneCapturePhotoSetSampler Sampler(
 		SceneCapture,
 		ValidSampleDepthThreshold,
 		BaseMesh,
-		&BaseMeshSpatial,
+		BaseMeshSpatial,
 		BaseMeshTangents.Get());
 
 	const FImageDimensions TextureDimensions(
@@ -115,6 +117,7 @@ void FRenderCaptureMapBakerOp::CalculateResult(FProgressCancel*)
 	Result = MakeRenderCaptureBaker(
 		BaseMesh,
 		BaseMeshTangents,
+		BaseMeshUVCharts,
 		SceneCapture,
 		&Sampler,
 		PendingBake,
@@ -172,19 +175,31 @@ void UBakeRenderCaptureTool::Setup()
 
 	Super::Setup();
 
+	UE::ToolTarget::HideSourceObject(Targets[0]);
+
+	// Initialize materials and textures for background compute, error feedback and previewing the results
 	InitializePreviewMaterials();
 
-	// Initialize base mesh
-	const FTransformSRT3d BaseToWorld = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
-	PreviewMesh->ProcessMesh([this, BaseToWorld](const FDynamicMesh3& Mesh)
+	// Initialize the PreviewMesh, which displays intermediate results
+	PreviewMesh = CreateBakePreviewMesh(this, Targets[0], GetTargetWorld());
+
+	// Initialize the datastructures used by the bake background compute/tool operator
+	PreviewMesh->ProcessMesh([this](const FDynamicMesh3& Mesh)
 	{
 		TargetMesh.Copy(Mesh);
-		TargetMeshTangents = MakeShared<FMeshTangentsd, ESPMode::ThreadSafe>(&TargetMesh);
-		TargetMeshTangents->CopyTriVertexTangents(Mesh);
-		
-		// FMeshSceneAdapter operates in world space, so ensure our mesh transformed to world.
+		const FTransformSRT3d BaseToWorld = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 		MeshTransforms::ApplyTransform(TargetMesh, BaseToWorld, true);
-		TargetSpatial.SetMesh(&TargetMesh, true);
+
+		// Initialize UV charts
+		TargetMeshUVCharts = MakeShared<TArray<int32>, ESPMode::ThreadSafe>();
+		FMeshMapBaker::ComputeUVCharts(TargetMesh, *TargetMeshUVCharts);
+
+		// Initialize tangents
+		TargetMeshTangents = MakeShared<FMeshTangentsd, ESPMode::ThreadSafe>(&TargetMesh);
+		TargetMeshTangents->CopyTriVertexTangents(TargetMesh);
+
+		// Initialize spatial index
+		TargetMeshSpatial.SetMesh(&TargetMesh, true);
 	});
 
 	// Initialize actors
@@ -252,7 +267,7 @@ void UBakeRenderCaptureTool::Setup()
 	InputMeshSettings = NewObject<UBakeRenderCaptureInputToolProperties>(this);
 	InputMeshSettings->RestoreProperties(this);
 	AddToolPropertySource(InputMeshSettings);
-	InputMeshSettings->TargetStaticMesh = GetStaticMeshTarget(Target);
+	InputMeshSettings->TargetStaticMesh = UE::ToolTarget::GetStaticMeshFromTargetIfAvailable(Target);
 	UpdateUVLayerNames(InputMeshSettings->TargetUVLayer, InputMeshSettings->TargetUVLayerNamesList, TargetMesh);
 	InputMeshSettings->WatchProperty(InputMeshSettings->TargetUVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
 	
@@ -273,6 +288,11 @@ void UBakeRenderCaptureTool::Setup()
 	AddToolPropertySource(ResultSettings);
 	SetToolPropertySourceEnabled(ResultSettings, true);
 
+	VisualizationProps = NewObject<UBakeRenderCaptureVisualizationProperties>(this);
+	VisualizationProps->RestoreProperties(this);
+	AddToolPropertySource(VisualizationProps);
+	VisualizationProps->WatchProperty(VisualizationProps->bPreviewAsMaterial, [this](bool) { UpdateVisualization(); });
+
 	TargetUVLayerToError.Reset();
 
 	// Hide the render capture meshes since this baker operates solely in world space which will occlude the preview of
@@ -290,7 +310,7 @@ void UBakeRenderCaptureTool::Setup()
 		LOCTEXT("OnStartTool", "Bake Render Capture. Select Bake Mesh (LowPoly) first, then select Detail Meshes (HiPoly) to bake. Assets will be created on Accept."),
 		EToolMessageLevel::UserNotification);
 
-	PostSetup();
+	GatherAnalytics(BakeAnalytics.MeshSettings);
 }
 
 
@@ -299,28 +319,76 @@ void UBakeRenderCaptureTool::Setup()
 
 void UBakeRenderCaptureTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	Super::Render(RenderAPI);
+	// This block contains things we want to update every frame to respond to sliders in the UI
+	{
+		const float Brightness = VisualizationProps->Brightness;
+		const FVector BaseColorBrightness(Brightness, Brightness, Brightness);
 
-	const float Brightness = VisualizationProps->Brightness;
-	const FVector BrightnessColor(Brightness, Brightness, Brightness);
-	PreviewMaterialRC->SetVectorParameterValue(TEXT("Brightness"), BrightnessColor);
-	PreviewMaterialPackedRC->SetVectorParameterValue(TEXT("Brightness"), BrightnessColor);
-	PreviewMaterialRC_Subsurface->SetVectorParameterValue(TEXT("Brightness"), BrightnessColor);
-	PreviewMaterialPackedRC_Subsurface->SetVectorParameterValue(TEXT("Brightness"), BrightnessColor);
+		PreviewMaterialRC->SetVectorParameterValue(TEXT("Brightness"), BaseColorBrightness);
+		PreviewMaterialPackedRC->SetVectorParameterValue(TEXT("Brightness"), BaseColorBrightness);
+		PreviewMaterialRC_Subsurface->SetVectorParameterValue(TEXT("Brightness"), BaseColorBrightness);
+		PreviewMaterialPackedRC_Subsurface->SetVectorParameterValue(TEXT("Brightness"), BaseColorBrightness);
+
+		const float EmissiveScale = VisualizationProps->EmissiveScale;
+
+		PreviewMaterialRC->SetScalarParameterValue(TEXT("EmissiveScale"), EmissiveScale);
+		PreviewMaterialPackedRC->SetScalarParameterValue(TEXT("EmissiveScale"), EmissiveScale);
+		PreviewMaterialRC_Subsurface->SetScalarParameterValue(TEXT("EmissiveScale"), EmissiveScale);
+		PreviewMaterialPackedRC_Subsurface->SetScalarParameterValue(TEXT("EmissiveScale"), EmissiveScale);
+
+		const float SSBrightness = VisualizationProps->SSBrightness;
+		const FVector SubsurfaceColorBrightness(SSBrightness, SSBrightness, SSBrightness);
+
+		PreviewMaterialRC_Subsurface->SetVectorParameterValue(TEXT("BrightnessSubsurface"), SubsurfaceColorBrightness);
+		PreviewMaterialPackedRC_Subsurface->SetVectorParameterValue(TEXT("BrightnessSubsurface"), SubsurfaceColorBrightness);
+	}
+
+	// This is a no-op if OpState == EBakeOpState::Clean
+	UpdateResult();
 }
 
 
+void UBakeRenderCaptureTool::OnTick(float DeltaTime)
+{
+	if (Compute)
+	{
+		Compute->Tick(DeltaTime);
+
+		if (static_cast<bool>(OpState & EBakeOpState::Invalid))
+		{
+			PreviewMesh->SetOverrideRenderMaterial(ErrorPreviewMaterial);
+		}
+		else
+		{
+			const float ElapsedComputeTime = Compute->GetElapsedComputeTime();
+			if (!CanAccept() && ElapsedComputeTime > SecondsBeforeWorkingMaterial)
+			{
+				PreviewMesh->SetOverrideRenderMaterial(WorkingPreviewMaterial);
+			}
+		}
+	}
+	else if (static_cast<bool>(OpState & EBakeOpState::Invalid))
+	{
+		PreviewMesh->SetOverrideRenderMaterial(ErrorPreviewMaterial);
+	} 
+}
 
 
 void UBakeRenderCaptureTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBakeRenderCaptureTool::Shutdown);
-	
-	Super::OnShutdown(ShutdownType);
-	
+
 	Settings->SaveProperties(this);
 	RenderCaptureProperties->SaveProperties(this);
 	InputMeshSettings->SaveProperties(this);
+	VisualizationProps->SaveProperties(this);
+
+	if (PreviewMesh != nullptr)
+	{
+		PreviewMesh->SetVisible(false);
+		PreviewMesh->Disconnect();
+		PreviewMesh = nullptr;
+	}
 
 	if (Compute)
 	{
@@ -336,17 +404,20 @@ void UBakeRenderCaptureTool::OnShutdown(EToolShutdownType ShutdownType)
 	
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
+		// TODO Support skeletal meshes here---see BakeMeshAttributeMapsTool::OnShutdown
 		IStaticMeshBackedTarget* StaticMeshTarget = Cast<IStaticMeshBackedTarget>(Targets[0]);
 		UObject* SourceAsset = StaticMeshTarget ? StaticMeshTarget->GetStaticMesh() : nullptr;
 		const UPrimitiveComponent* SourceComponent = UE::ToolTarget::GetTargetComponent(Targets[0]);
-		CreateTextureAssetsRC(SourceComponent->GetWorld(), SourceAsset);
+		CreateTextureAssets(SourceComponent->GetWorld(), SourceAsset);
 	}
 
 	// Clear actors on shutdown so that their lifetime is not tied to the lifetime of the tool
 	Actors.Empty();
+
+	UE::ToolTarget::ShowSourceObject(Targets[0]);
 }
 
-void UBakeRenderCaptureTool::CreateTextureAssetsRC(UWorld* SourceWorld, UObject* SourceAsset)
+void UBakeRenderCaptureTool::CreateTextureAssets(UWorld* SourceWorld, UObject* SourceAsset)
 {
 	bool bCreatedAssetOK = true;
 	const FString BaseName = UE::ToolTarget::GetTargetActor(Targets[0])->GetActorNameOrLabel();
@@ -501,7 +572,9 @@ TUniquePtr<TGenericDataOperator<FMeshMapBaker>> UBakeRenderCaptureTool::MakeNewO
 {
 	TUniquePtr<FRenderCaptureMapBakerOp> Op = MakeUnique<FRenderCaptureMapBakerOp>();
 	Op->BaseMesh = &TargetMesh;
+	Op->BaseMeshSpatial = &TargetMeshSpatial;
 	Op->BaseMeshTangents = TargetMeshTangents;
+	Op->BaseMeshUVCharts = TargetMeshUVCharts;
 	Op->TargetUVLayer = InputMeshSettings->GetTargetUVLayerIndex();
 	Op->ValidSampleDepthThreshold = Settings->ValidSampleDepthThreshold;
 	Op->TextureImageSize = Settings->TextureSize;
@@ -530,7 +603,7 @@ TUniquePtr<TGenericDataOperator<FMeshMapBaker>> UBakeRenderCaptureTool::MakeNewO
 
 
 
-void UBakeRenderCaptureTool::OnMapsUpdatedRC(const TUniquePtr<FMeshMapBaker>& NewResult)
+void UBakeRenderCaptureTool::OnMapsUpdated(const TUniquePtr<FMeshMapBaker>& NewResult)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(BakeRenderCaptureTool_Textures_BuildTextures);
 
@@ -581,10 +654,40 @@ void UBakeRenderCaptureTool::OnMapsUpdatedRC(const TUniquePtr<FMeshMapBaker>& Ne
 	UpdateVisualization();
 }
 
+bool UBakeRenderCaptureTool::ValidTargetMeshTangents()
+{
+	if (bCheckTargetMeshTangents)
+	{
+		bValidTargetMeshTangents = TargetMeshTangents ? FDynamicMeshTangents(&TargetMesh).HasValidTangents(true) : false;
+		bCheckTargetMeshTangents = false;
+	}
+	return bValidTargetMeshTangents;
+}
 
 void UBakeRenderCaptureTool::InitializePreviewMaterials()
 {
-	// EmptyColorMapWhite, EmptyColorMapBlack and EmptyNormalMap are defined in the base tool
+	{
+		FTexture2DBuilder Builder;
+		Builder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, FImageDimensions(16, 16));
+		Builder.Commit(false);
+		EmptyNormalMap = Builder.GetTexture2D();
+	}
+
+	{
+		FTexture2DBuilder Builder;
+		Builder.Initialize(FTexture2DBuilder::ETextureType::Color, FImageDimensions(16, 16));
+		Builder.Clear(FColor(0,0,0));
+		Builder.Commit(false);
+		EmptyColorMapBlack = Builder.GetTexture2D();
+	}
+
+	{
+		FTexture2DBuilder Builder;
+		Builder.Initialize(FTexture2DBuilder::ETextureType::Color, FImageDimensions(16, 16));
+		Builder.Clear(FColor::White);
+		Builder.Commit(false);
+		EmptyColorMapWhite = Builder.GetTexture2D();
+	}
 
 	{
 		FTexture2DBuilder Builder;
@@ -639,7 +742,11 @@ void UBakeRenderCaptureTool::InitializePreviewMaterials()
 		Builder.Commit(false);
 		EmptySpecularMap = Builder.GetTexture2D();
 	}
-	
+
+	WorkingPreviewMaterial = ToolSetupUtil::GetDefaultWorkingMaterialInstance(GetToolManager());
+
+	ErrorPreviewMaterial = ToolSetupUtil::GetDefaultErrorMaterial(GetToolManager());
+
 	{
 		UMaterial* Material = LoadObject<UMaterial>(nullptr,
 			TEXT("/MeshModelingToolsetExp/Materials/BakeRenderCapturePreviewMaterial"));
@@ -708,18 +815,17 @@ void UBakeRenderCaptureTool::InitializePreviewMaterials()
 }
 
 
-void UBakeRenderCaptureTool::InvalidateComputeRC()
+void UBakeRenderCaptureTool::InvalidateCompute()
 {
-	// Note: This implementation is identical to UBakeMeshAttributeMapsToolBase::InvalidateCompute but calls
-	// OnMapsUpdatedRC rather than OnMapsUpdated
 	if (!Compute)
 	{
 		// Initialize background compute
 		Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshMapBaker>>();
 		Compute->Setup(this);
-		Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshMapBaker>& NewResult) { OnMapsUpdatedRC(NewResult); });
+		Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshMapBaker>& NewResult) { OnMapsUpdated(NewResult); });
 	}
 	Compute->InvalidateResult();
+	OpState = EBakeOpState::Clean;
 }
 
 FRenderCaptureUpdate UBakeRenderCaptureTool::UpdateSceneCapture()
@@ -788,7 +894,7 @@ FRenderCaptureUpdate UBakeRenderCaptureTool::UpdateSceneCapture()
 	return Update;
 }
 
-// Process dirty props and update background compute. Called by UBakeMeshAttributeMapsToolBase::Render
+// Process dirty props and update background compute. Called by Render
 void UBakeRenderCaptureTool::UpdateResult()
 {
 	// Return if the bake is already launched/complete.
@@ -885,15 +991,12 @@ void UBakeRenderCaptureTool::UpdateResult()
 		UpdateVisualization();
 
 		// Start another bake operation
-		InvalidateComputeRC();
+		InvalidateCompute();
 
 		// Cache computed parameters which are used to determine if results need re-baking
 		ComputedTextureSize = Settings->TextureSize;
 		ComputedSamplesPerPixel = Settings->SamplesPerPixel;
 		ComputedValidDepthThreshold = Settings->ValidSampleDepthThreshold;
-
-		// Set a clean op state so we don't render this function until its completed
-		OpState = EBakeOpState::Clean;
 	}
 }
 

@@ -3,6 +3,7 @@
 #include "BakeMeshAttributeMapsTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
@@ -313,12 +314,12 @@ void UBakeMeshAttributeMapsTool::Setup()
 	SetToolPropertySourceEnabled(InputMeshSettings, true);
 	InputMeshSettings->bHasTargetUVLayer = true;
 	InputMeshSettings->bHasSourceNormalMap = true;
-	InputMeshSettings->TargetStaticMesh = GetStaticMeshTarget(Target);
-	InputMeshSettings->TargetSkeletalMesh = GetSkeletalMeshTarget(Target);
-	InputMeshSettings->TargetDynamicMesh = GetDynamicMeshTarget(Target);
-	InputMeshSettings->SourceStaticMesh = !bIsBakeToSelf ? GetStaticMeshTarget(DetailTarget) : nullptr;
-	InputMeshSettings->SourceSkeletalMesh = !bIsBakeToSelf ? GetSkeletalMeshTarget(DetailTarget) : nullptr;
-	InputMeshSettings->SourceDynamicMesh = !bIsBakeToSelf ? GetDynamicMeshTarget(DetailTarget) : nullptr;
+	InputMeshSettings->TargetStaticMesh = UE::ToolTarget::GetStaticMeshFromTargetIfAvailable(Target);
+	InputMeshSettings->TargetSkeletalMesh = UE::ToolTarget::GetSkeletalMeshFromTargetIfAvailable(Target);
+	InputMeshSettings->TargetDynamicMesh = GetTargetActorViaIPersistentDynamicMeshSource(Target);
+	InputMeshSettings->SourceStaticMesh = !bIsBakeToSelf ? UE::ToolTarget::GetStaticMeshFromTargetIfAvailable(DetailTarget) : nullptr;
+	InputMeshSettings->SourceSkeletalMesh = !bIsBakeToSelf ? UE::ToolTarget::GetSkeletalMeshFromTargetIfAvailable(DetailTarget) : nullptr;
+	InputMeshSettings->SourceDynamicMesh = !bIsBakeToSelf ? GetTargetActorViaIPersistentDynamicMeshSource(DetailTarget) : nullptr;
 	InputMeshSettings->SourceNormalMap = nullptr;
 	UpdateUVLayerNames(InputMeshSettings->TargetUVLayer, InputMeshSettings->TargetUVLayerNamesList, TargetMesh);
 	InputMeshSettings->WatchProperty(InputMeshSettings->bHideSourceMesh, [this](bool bState) { SetSourceObjectVisible(!bState); });

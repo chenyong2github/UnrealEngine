@@ -407,6 +407,7 @@ MakeColorEvaluator(
 TUniquePtr<FMeshMapBaker> UE::Geometry::MakeRenderCaptureBaker(
 	FDynamicMesh3* BaseMesh,
 	TSharedPtr<UE::Geometry::FMeshTangentsd, ESPMode::ThreadSafe> BaseMeshTangents,
+	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> BaseMeshUVCharts,
 	FSceneCapturePhotoSet* SceneCapture,
 	FSceneCapturePhotoSetSampler* Sampler,
 	FRenderCaptureOptions PendingBake,
@@ -419,6 +420,7 @@ TUniquePtr<FMeshMapBaker> UE::Geometry::MakeRenderCaptureBaker(
 
 	check(BaseMesh != nullptr);
 	check(BaseMeshTangents.IsValid());
+	check(BaseMeshUVCharts.IsValid());
 	check(SceneCapture != nullptr);
 	check(Sampler != nullptr);
 	check(OcclusionHandler != nullptr);
@@ -436,6 +438,7 @@ TUniquePtr<FMeshMapBaker> UE::Geometry::MakeRenderCaptureBaker(
 	TUniquePtr<FMeshMapBaker> Result = MakeUnique<FMeshMapBaker>();
 	Result->SetTargetMesh(BaseMesh);
 	Result->SetTargetMeshTangents(BaseMeshTangents);
+	Result->SetTargetMeshUVCharts(BaseMeshUVCharts.Get());
 	Result->SetDimensions(FImageDimensions(static_cast<int32>(TextureImageSize), static_cast<int32>(TextureImageSize)));
 	Result->SetSamplesPerPixel(static_cast<int32>(SamplesPerPixel));
 	Result->SetFilter(FMeshMapBaker::EBakeFilterType::BSpline);

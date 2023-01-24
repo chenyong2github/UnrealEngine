@@ -8,6 +8,8 @@
 #include "TargetInterfaces/MaterialProvider.h" // FComponentMaterialSet
 #include "MeshConversionOptions.h"
 
+class UStaticMesh;
+class USkeletalMesh;
 class UToolTarget;
 class UPrimitiveComponent;
 class AActor;
@@ -35,6 +37,7 @@ namespace ToolTarget
  * @return the AActor backing a ToolTarget, or nullptr if there is no such Actor
  */
 MODELINGCOMPONENTS_API AActor* GetTargetActor(UToolTarget* Target);
+	
 
 /**
  * @return the UPrimitiveComponent backing a ToolTarget, or nullptr if there is no such Component
@@ -236,6 +239,11 @@ MODELINGCOMPONENTS_API UBodySetup* GetPhysicsBodySetup(UToolTarget* Target);
 */
 MODELINGCOMPONENTS_API IInterface_CollisionDataProvider* GetPhysicsCollisionDataProvider(UToolTarget* Target);
 
+/** @return StaticMesh from a tool target */ 
+MODELINGCOMPONENTS_API UStaticMesh* GetStaticMeshFromTargetIfAvailable(UToolTarget* Target);
+
+/** @return SkeletalMesh from a tool target */
+MODELINGCOMPONENTS_API USkeletalMesh* GetSkeletalMeshFromTargetIfAvailable(UToolTarget* Target);
 
 
 }  // end namespace ToolTarget

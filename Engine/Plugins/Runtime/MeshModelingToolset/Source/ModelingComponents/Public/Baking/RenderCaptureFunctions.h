@@ -171,6 +171,7 @@ MODELINGCOMPONENTS_API
 TUniquePtr<FMeshMapBaker> MakeRenderCaptureBaker(
 	FDynamicMesh3* BaseMesh,
 	TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> BaseMeshTangents,
+	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> BaseMeshUVCharts,
 	FSceneCapturePhotoSet* SceneCapture,
 	FSceneCapturePhotoSetSampler* Sampler,
 	FRenderCaptureOptions PendingBake,
