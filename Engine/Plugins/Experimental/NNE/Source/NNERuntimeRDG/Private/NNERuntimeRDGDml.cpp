@@ -2083,7 +2083,7 @@ bool FRuntimeDmlStartup()
 		bLoadDirectML = false;
 	}
 
-#if WITH_DIRECTML
+#ifdef WITH_DIRECTML
 		
 	if (bIsD3D12RHI && bLoadDirectML)
 	{
@@ -2093,7 +2093,7 @@ bool FRuntimeDmlStartup()
 		
 		DirectMLDLLPaths[0] = DirectMLRuntimeBinPath / TEXT("DirectML.dll");
 
-#if WITH_DIRECTML_DEBUG
+#ifdef WITH_DIRECTML_DEBUG
 		if (GetID3D12PlatformDynamicRHI()->IsD3DDebugEnabled())
 		{
 			DirectMLDLLPaths[1] = DirectMLRuntimeBinPath / TEXT("DirectML.Debug.dll");
@@ -2297,7 +2297,7 @@ bool UNNERuntimeRDGDmlImpl::Init(bool bRegisterOnlyOperators)
 	DML_CREATE_DEVICE_FLAGS DmlCreateFlags = DML_CREATE_DEVICE_FLAG_NONE;
 
 	// Set debugging flags
-#if WITH_DIRECTML_DEBUG
+#ifdef WITH_DIRECTML_DEBUG
 	if (RHI->IsD3DDebugEnabled())
 	{
 		DmlCreateFlags |= DML_CREATE_DEVICE_FLAG_DEBUG;

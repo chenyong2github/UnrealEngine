@@ -29,13 +29,13 @@ public class DirectMLDefault : ModuleRules
 			RuntimeDependencies.Add("$(TargetOutputDir)/DML/" + DllFileName, DllFullPath);
 
 			PublicDefinitions.Add("DML_TARGET_VERSION=0x5000");
-			PublicDefinitions.Add("WITH_DIRECTML=1");
+			PublicDefinitions.Add("WITH_DIRECTML");
 			PublicDefinitions.Add("DIRECTML_PATH=DML");
 
 			if (Target.Configuration != UnrealTargetConfiguration.Shipping &&
 				Target.Configuration != UnrealTargetConfiguration.Test)
 			{
-				PublicDefinitions.Add("WITH_DIRECTML_DEBUG=1");
+				PublicDefinitions.Add("WITH_DIRECTML_DEBUG");
 				PublicDelayLoadDLLs.Add(DllFileName);
 				RuntimeDependencies.Add("$(TargetOutputDir)/DML/" + DbgDllFileName, DbgDllFullPath);
 			}
