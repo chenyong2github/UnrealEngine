@@ -130,3 +130,5 @@ void FRigLogicEditor::ShutdownModule()
 {
 
 }
+
+#undef LOCTEXT_NAMESPACE
