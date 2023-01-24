@@ -68,12 +68,12 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 			if (InputA.GetShape().Rank() != 2)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Gemm first input should be of rank 2"));
+				UE_LOG(LogNNE, Warning, TEXT("Gemm first input should be of rank 2"));
 				return false;
 			}
 			if (InputB.GetShape().Rank() != 2)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Gemm second input should be of rank 2"));
+				UE_LOG(LogNNE, Warning, TEXT("Gemm second input should be of rank 2"));
 				return false;
 			}
 			if (InputTensorDescs.Num() == 3)
@@ -81,12 +81,12 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 				const NNECore::FTensorDesc& InputC = InputTensorDescs[2];
 				if (InputC.GetShape().Rank() > 2)
 				{
-					UE_LOG(LogNNX, Warning, TEXT("Gemm third input should be of rank 2 or less"));
+					UE_LOG(LogNNE, Warning, TEXT("Gemm third input should be of rank 2 or less"));
 					return false;
 				}
 				if (InputC.GetShape().Rank() == 1 && InputC.GetShape().GetData()[0] == 1)
 				{
-					UE_LOG(LogNNX, Warning, TEXT("Gemm third input as scalar not supported"));
+					UE_LOG(LogNNE, Warning, TEXT("Gemm third input as scalar not supported"));
 					return false;
 				}
 			}

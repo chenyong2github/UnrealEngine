@@ -6,31 +6,20 @@
 #include "NNECoreAttributeValue.h"
 #include "NNECoreTensor.h"
 #include "NNECoreTypes.h"
-#include "NNXCore.h"
+#include "NNECore.h"
 #include "NNXModelOptimizerInterface.h"
-#include "NNXRuntime.h"
 #include "NNXRuntimeFormat.h"
 #include "RenderGraphResources.h"
 #include "Serialization/MemoryReader.h"
 #include "ShaderParameterUtils.h"
 
-#include "Containers/Map.h"
 
-BEGIN_SHADER_PARAMETER_STRUCT(FMLTensorUploadParameters, )
-	RDG_BUFFER_ACCESS(Buffer, ERHIAccess::CopyDest)
-END_SHADER_PARAMETER_STRUCT()
 
-BEGIN_SHADER_PARAMETER_STRUCT(FMLTensorReadbackParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FNNETensorReadbackParameters, )
 	RDG_BUFFER_ACCESS(Buffer, ERHIAccess::CopySrc)
 END_SHADER_PARAMETER_STRUCT()
 
-BEGIN_SHADER_PARAMETER_STRUCT(FMLElementWiseOpParameters, )
-	RDG_BUFFER_ACCESS(InputBuffer, ERHIAccess::UAVCompute)			//!< NOTE: DirectML requires state to be in UAV, even though we're just reading from the InputBuffer
-	RDG_BUFFER_ACCESS(OutputBuffer, ERHIAccess::UAVCompute)
-END_SHADER_PARAMETER_STRUCT()
-
 class FRDGBuilder;
-struct FMLRuntimeFormat;
 struct FNNIModelRaw;
 
 namespace UE::NNECore { class FTensorDesc; }
@@ -39,8 +28,6 @@ using namespace NNX;
 
 namespace UE::NNERuntimeRDG::Private
 {
-
-struct FTensorBinding;
 
 /**
  * Interface for all operators to prepare the model tensors at scheduling time
@@ -89,72 +76,7 @@ using FTensorRDGArray = TArray<FTensorRDG, TInlineAllocator<16>>;
 using FTensorRDGRefArray = TArray<FTensorRDGRef, TInlineAllocator<64>>;
 using FIntArray = TArray<int32, TInlineAllocator<16>>;
 
-class FRuntimeRDG : public IRuntime
-{
-public:
-	static FGuid GUID;
-	static int32 Version;
-
-	virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const;
-	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData) = 0;
-	virtual bool CanCreateModel(TConstArrayView<uint8> ModelData) const;
-};
-
-/** 
- * RDG inference model base class
- */
-class FInferenceModelRDG : public FMLInferenceModel
-{
-
-	struct FReadbackEntry;
-
-public:
-
-	~FInferenceModelRDG();
-
-	virtual int SetInputTensorShapes(TConstArrayView<FTensorShape> InputShapes) override;
-	virtual int RunSync(TConstArrayView<FMLTensorBinding> InputBindings, TConstArrayView<FMLTensorBinding> OutputBindings) override;
-	virtual int EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<FMLTensorBinding> InputBindings, TConstArrayView<FMLTensorBinding> OutputBindings) override;
-
-protected:
-
-	FInferenceModelRDG();
-
-	bool LoadModel(TConstArrayView<uint8> ModelData, FMLRuntimeFormat& Format);
-
-	int SetTensors(FRDGBuilder& GraphBuilder, FTensorRDGArray& InTensorRDGs, FIntArray& OutIndices, TConstArrayView<FMLTensorBinding> InBindings);
-	
-	virtual int PrepareTensorShapesAndData() = 0;
-	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) = 0;
-
-	virtual void AddTensorUploads_RenderThread(FRDGBuilder& GraphBuilder, TConstArrayView<int32> InUploadIndices, TConstArrayView<FTensorRDG> InRDGBindings, TConstArrayView<FMLTensorBinding> InBindings);
-	virtual void AddTensorReadbacks_RenderThread(FRDGBuilder& GraphBuilder, TConstArrayView<int32> InReadbackIndices, TConstArrayView<FTensorRDG> InRDGBindings, TConstArrayView<FMLTensorBinding> InBindings);
-
-	//Tensor descriptor
-	TArray<FTensorDesc>			AllSymbolicTensorDescs;
-
-	//Tensor indices for models
-	TArray<int32>				IntermediateTensorIndices;
-	TArray<int32>				WeightTensorIndices;
-	TArray<int32>				InputTensorIndices;
-	TArray<int32>				OutputTensorIndices;
-	
-	//Tensor indices by operator
-	TArray<TArray<uint32>>		OperatorInputTensorIndices;
-	TArray<TArray<uint32>>		OperatorOutputTensorIndices;
-
-	//RDG Tensors
-	FTensorRDGRefArray			AllTensorRDGs;
-	FTensorRDGArray				InputTensorRDGs;
-	FTensorRDGArray				OutputTensorRDGs;
-	FTensorRDGArray				IntermediateTensorRDGs;
-	FTensorRDGArray				WeightTensorRDGs;
-	
-	TArray<FReadbackEntry>		Readbacks;
-	bool						bUseManualTransitions;
-};
-
-//TODO jira 167584 remove default validation and declare contract in all DML operator (see HLSL Gemm for current example)
+//Note: jira 167584 remove default validation and declare contract in all DML operator (see HLSL Gemm for current example)
 bool AlwaysValidValidationFunction(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes);
 
 class FInputValidator
@@ -225,7 +147,7 @@ public:
 
 		if (!Fn)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("RDG MLOperator:%s is not registered"), *Name);
+			UE_LOG(LogNNE, Warning, TEXT("RDG MLOperator:%s is not registered"), *Name);
 			return nullptr;
 		}
 
@@ -238,7 +160,7 @@ public:
 
 		if (!Fn)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("RDG MLOperator:%s is not registered"), *Name);
+			UE_LOG(LogNNE, Warning, TEXT("RDG MLOperator:%s is not registered"), *Name);
 			return nullptr;
 		}
 
@@ -249,7 +171,7 @@ public:
 	{
 		if (Operators.Find(Name) != nullptr)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("RDG MLOperator is already registered:%s"), *Name);
+			UE_LOG(LogNNE, Warning, TEXT("RDG MLOperator is already registered:%s"), *Name);
 			return false;
 		}
 
@@ -283,7 +205,7 @@ public:
 		ENNXInferenceFormat FormatType = InputModel.Format;
 		if (FormatType != ENNXInferenceFormat::NNXRT)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Unsupported format type for validator %s"), *GetName());
+			UE_LOG(LogNNE, Warning, TEXT("Unsupported format type for validator %s"), *GetName());
 			return false;
 		}
 
@@ -315,13 +237,13 @@ public:
 
 			if (!ValidationFn)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Hlsl MLOperatorRegistry failed to find validation for operator:%s"), *OpType);
+				UE_LOG(LogNNE, Warning, TEXT("Hlsl MLOperatorRegistry failed to find validation for operator:%s"), *OpType);
 				return false;
 			}
 			
 			if (!ValidationFn(AttributeMap, InputTensorTypes, InputTensorShapes))
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Hlsl MLOperatorRegistry failed to validate operator:%s"), *OpType);
+				UE_LOG(LogNNE, Warning, TEXT("Hlsl MLOperatorRegistry failed to validate operator:%s"), *OpType);
 				return false;
 			}
 		}
@@ -330,69 +252,4 @@ public:
 	}
 };
 
-TArray<uint8> ConvertToModelData(TArrayView<uint8> ModelBuffer);
-
 } // UE::NNERuntimeRDG::Private
-
-namespace UE::NNERuntimeRDG::Private::Dml
-{
-
-// NOTE: For now we only have DML on Windows, we should add support for XSX
-#ifdef NNE_USE_DIRECTML
-
-	extern IRuntime* FRuntimeDmlStartup();
-	extern void FRuntimeDmlShutdown();
-
-#endif
-	
-}
-
-namespace UE::NNERuntimeRDG::Private::Hlsl
-{
-
-	extern IRuntime* FRuntimeHlslStartup();
-	extern void FRuntimeHlslShutdown();
-}
-
-///// OperatorId
-//class FOperatorId
-//{
-//public:
-//
-//	FOperatorId(uint32 InType, uint32 InIndex)
-//		: Type(InType)
-//		, Index(InIndex)
-//	{
-//	}
-//
-//	uint32 GetIndex() const
-//	{
-//		return Index;
-//	}
-//
-//	uint32 GetType() const
-//	{
-//		return Type;
-//	}
-//
-//private:
-//
-//	uint32	Type : 8;
-//	uint32	Index : 16;
-//};
-
-///// Base class
-//class FRDGOperator
-//{};
-
-///// Base class for RDG runtime
-//class FRDGRuntime : public IRuntime
-//{
-//public:
-//
-//	virtual FRDGOperator OpCreate(const FString& Name, const TArrayView<uint32>& TensorSizes) = 0;
-//
-//};
-
-
- 

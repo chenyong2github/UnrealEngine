@@ -1,5 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "NNERuntimeRDGHlsl.h"
+#include "NNECoreAttributeMap.h"
+#include "NNECoreModelData.h"
+#include "NNERuntimeRDG.h"
+#include "NNERuntimeRDGHlslHelper.h"
+#include "NNERuntimeRDGModelHlsl.h"
+#include "NNEUtilsModelOptimizer.h"
+#include "NNXModelOptimizerInterface.h"
 #include "Hlsl/NNERuntimeRDGConv.h"
 #include "Hlsl/NNERuntimeRDGConv.h"
 #include "Hlsl/NNERuntimeRDGConvTranspose.h"
@@ -11,144 +19,94 @@
 #include "Hlsl/NNERuntimeRDGPad.h"
 #include "Hlsl/NNERuntimeRDGUpsample.h"
 #include "Hlsl/NNERuntimeRDGMatMul.h"
-#include "NNECoreAttributeMap.h"
-#include "NNERuntimeRDGModelHlsl.h"
-#include "NNXInferenceModel.h"
-#include "NNEUtilsModelOptimizer.h"
-#include "NNXRuntimeFormat.h"
-#include "NNERuntimeRDGHlslHelper.h"
-#include "NNERuntimeRDG.h"
 
-namespace UE::NNERuntimeRDG::Private::Hlsl
+using namespace UE::NNERuntimeRDG::Private::Hlsl;
+
+FGuid UNNERuntimeRDGHlslImpl::GUID = FGuid((int32)'R', (int32)'D', (int32)'G', (int32)'H');
+int32 UNNERuntimeRDGHlslImpl::Version = 0x00000001;
+
+bool UNNERuntimeRDGHlslImpl::Init()
 {
+	FOperatorRegistryHlsl* registry = FOperatorRegistryHlsl::Get();
+	check(registry != nullptr);
 
-#define NNX_RUNTIME_HLSL_NAME TEXT("NNXRuntimeHlsl")
+	RegisterElementWiseUnaryOperators(*registry);
+	RegisterElementWiseBinaryOperators(*registry);
+	RegisterElementWiseVariadicOperators(*registry);
+	RegisterGemmOperator(*registry);
+	RegisterConvOperator(*registry);
+	RegisterConvTransposeOperator(*registry);
+	RegisterMatMulOperator(*registry);
+	RegisterInstanceNormalizationOperator(*registry);
+	RegisterUpsampleOperator(*registry);
+	RegisterPadOperator(*registry);
 
-//
-//
-//
-class FRuntimeHlsl : public FRuntimeRDG
+	return true;
+}
+
+bool UNNERuntimeRDGHlslImpl::CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const
 {
-public:
+	return FileType.Compare("onnx", ESearchCase::IgnoreCase) == 0;
+}
 
-	FRuntimeHlsl() = default;
-
-	virtual ~FRuntimeHlsl()
+bool UNNERuntimeRDGHlslImpl::CanCreateModelRDG(TObjectPtr<UNNEModelData> ModelData) const
+{
+	int32 GuidSize = sizeof(GUID);
+	int32 VersionSize = sizeof(Version);
+	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
+	
+	if (Data.Num() <= GuidSize + VersionSize)
 	{
+		return false;
 	}
-
-	bool Init()
-	{
-		FOperatorRegistryHlsl* registry = FOperatorRegistryHlsl::Get();
-		check(registry != nullptr);
-
-		RegisterElementWiseUnaryOperators(*registry);
-		RegisterElementWiseBinaryOperators(*registry);
-		RegisterElementWiseVariadicOperators(*registry);
-		RegisterGemmOperator(*registry);
-		RegisterConvOperator(*registry);
-		RegisterConvTransposeOperator(*registry);
-		RegisterMatMulOperator(*registry);
-		RegisterInstanceNormalizationOperator(*registry);
-		RegisterUpsampleOperator(*registry);
-		RegisterPadOperator(*registry);
-
-		return true;
-	}
-
-	virtual FString GetRuntimeName() const override
-	{
-		return NNX_RUNTIME_HLSL_NAME;
-	}
-
-	// Returns flags from ERuntimeSupportFlags
-	virtual NNX::EMLRuntimeSupportFlags GetSupportFlags() const override
-	{
-		return NNX::EMLRuntimeSupportFlags::RDG;
-	}
-
-	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData) override
-	{
-		if (!CanCreateModelData(FileType, FileData))
-		{
-			return {};
-		}
-
-		TUniquePtr<NNX::IModelOptimizer> Optimizer = NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
-		Optimizer->AddValidator(MakeShared<FModelValidatorHlsl>());
-
-		FNNIModelRaw InputModel;
-		InputModel.Data = FileData;
-		InputModel.Format = ENNXInferenceFormat::ONNX;
-
-		FNNIModelRaw OutputModel;
-		if (!Optimizer->Optimize(InputModel, OutputModel, {}))
-		{
-			return {};
-		}
-
-		return ConvertToModelData(OutputModel.Data);
-	};
-
-	virtual TUniquePtr<NNX::FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData) override
-	{
-		if (!CanCreateModel(ModelData))
-		{
-			return TUniquePtr<NNX::FMLInferenceModel>();
-		}
-
-		// Create the model and initialize it with the data not including the header
-		FModel* Model = new FModel();
-		if (!Model->Init(ModelData))
-		{
-			delete Model;
-			return TUniquePtr<NNX::FMLInferenceModel>();
-		}
-		return TUniquePtr<NNX::FMLInferenceModel>(Model);
-	}
+	bool bResult = FGenericPlatformMemory::Memcmp(&(Data[0]), &(GUID), GuidSize) == 0;
+	bResult &= FGenericPlatformMemory::Memcmp(&(Data[GuidSize]), &(Version), VersionSize) == 0;
+	return bResult;
 };
 
-/** Globally accessible runtime */
-static TUniquePtr<NNERuntimeRDG::Private::Hlsl::FRuntimeHlsl> GHlslRuntime;
-
-//
-//
-//
-static TUniquePtr<NNERuntimeRDG::Private::Hlsl::FRuntimeHlsl> FRuntimeHlslCreate()
+TArray<uint8> UNNERuntimeRDGHlslImpl::CreateModelData(FString FileType, TConstArrayView<uint8> FileData)
 {
-	auto Runtime = MakeUnique<NNERuntimeRDG::Private::Hlsl::FRuntimeHlsl>();
-
-	if (!Runtime->Init())
+	if (!CanCreateModelData(FileType, FileData))
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Failed to create NNX HLSL runtime"));
-		Runtime.Release();
+		return {};
 	}
 
-	return Runtime;
-}
+	TUniquePtr<NNX::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
+	Optimizer->AddValidator(MakeShared<FModelValidatorHlsl>());
 
-//
-// Called on RDG runtime startup
-//
-IRuntime* FRuntimeHlslStartup()
-{
-	if (!GHlslRuntime)
+	FNNIModelRaw InputModel;
+	InputModel.Data = FileData;
+	InputModel.Format = ENNXInferenceFormat::ONNX;
+
+	FNNIModelRaw OutputModel;
+	if (!Optimizer->Optimize(InputModel, OutputModel, {}))
 	{
-		GHlslRuntime = FRuntimeHlslCreate();
+		return {};
 	}
 
-	return GHlslRuntime.Get();
-}
+	TArray<uint8> Result;
+	FMemoryWriter Writer(Result);
+	
+	Writer << GUID;
+	Writer << Version;
+	Writer.Serialize(OutputModel.Data.GetData(), OutputModel.Data.Num());
+	return Result;
+};
 
-//
-// Called on RDG runtime shutdown
-//
-void FRuntimeHlslShutdown()
+TUniquePtr<UE::NNECore::IModelRDG> UNNERuntimeRDGHlslImpl::CreateModelRDG(TObjectPtr<UNNEModelData> ModelData)
 {
-	if (GHlslRuntime)
+	if (!CanCreateModelRDG(ModelData))
 	{
-		GHlslRuntime.Release();
+		return TUniquePtr<UE::NNECore::IModelRDG>();
 	}
-}
 
-} // namespace UE::NNERuntimeRDG::Private::Hlsl
+	UE::NNERuntimeRDG::Private::Hlsl::FModel* Model = new UE::NNERuntimeRDG::Private::Hlsl::FModel();
+	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
+	
+	if (!Model->Init(Data))
+	{
+		delete Model;
+		return TUniquePtr<UE::NNECore::IModelRDG>();
+	}
+	return TUniquePtr<UE::NNECore::IModelRDG>(Model);
+}

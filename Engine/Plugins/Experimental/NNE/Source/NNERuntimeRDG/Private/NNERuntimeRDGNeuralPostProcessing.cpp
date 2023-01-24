@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGNeuralPostProcessing.h"
-#include "NNXCore.h"
+#include "NNECore.h"
 #include "PostProcess/PostProcessMaterial.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "ScreenPass.h"
@@ -25,36 +25,40 @@ int32 FNNENeuralPostProcessing::Add(FString RuntimeName, UNNEModelData* ModelDat
 {
 	FScopeLock Lock(&CriticalSection);
 
+	UE_LOG(LogNNE, Error, TEXT("DISABLED FOR NOW"));
+	return -1;
+	
+	/*
 	// Create the model
 	NNX::IRuntime* Runtime = NNX::GetRuntime(RuntimeName);
 	if (!Runtime)
 	{
-		UE_LOG(LogNNX, Error, TEXT("FNNENeuralPostProcessing: No runtime '%s' found. Valid runtimes are: "), *RuntimeName);
+		UE_LOG(LogNNE, Error, TEXT("FNNENeuralPostProcessing: No runtime '%s' found. Valid runtimes are: "), *RuntimeName);
 		TArray<NNX::IRuntime*> Runtimes = NNX::GetAllRuntimes();
 		for (int32 i = 0; i < Runtimes.Num(); i++)
 		{
-			UE_LOG(LogNNX, Error, TEXT("- %s"), *Runtimes[i]->GetRuntimeName());
+			UE_LOG(LogNNE, Error, TEXT("- %s"), *Runtimes[i]->GetRuntimeName());
 		}
 		return -1;
 	}
 
 	if (!ModelData)
 	{
-		UE_LOG(LogNNX, Error, TEXT("FNNENeuralPostProcessing: Valid model data required to load the model"));
+		UE_LOG(LogNNE, Error, TEXT("FNNENeuralPostProcessing: Valid model data required to load the model"));
 		return -1;
 	}
 
 	TConstArrayView<uint8> Data = ModelData->GetModelData(RuntimeName);
 	if (Data.Num() < 1)
 	{
-		UE_LOG(LogNNX, Error, TEXT("FNNENeuralPostProcessing: No model data for %s found"), *RuntimeName);
+		UE_LOG(LogNNE, Error, TEXT("FNNENeuralPostProcessing: No model data for %s found"), *RuntimeName);
 		return -1;
 	}
 
 	TSharedPtr<NNX::FMLInferenceModel> Model = TSharedPtr<NNX::FMLInferenceModel>(Runtime->CreateModel(Data).Release());
 	if (!Model.IsValid())
 	{
-		UE_LOG(LogNNX, Error, TEXT("FNNENeuralPostProcessing: Could not create model using %s"), *RuntimeName);
+		UE_LOG(LogNNE, Error, TEXT("FNNENeuralPostProcessing: Could not create model using %s"), *RuntimeName);
 		return -1;
 	}
 
@@ -68,6 +72,7 @@ int32 FNNENeuralPostProcessing::Add(FString RuntimeName, UNNEModelData* ModelDat
 	SetInputSize(LastId, FIntPoint(-1, -1));
 
 	return LastId;
+	*/
 }
 
 bool FNNENeuralPostProcessing::Remove(int32 ModelId)

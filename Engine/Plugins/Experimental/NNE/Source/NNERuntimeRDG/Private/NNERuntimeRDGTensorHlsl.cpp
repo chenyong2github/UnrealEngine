@@ -26,7 +26,7 @@ void FTensorHLSL::EnqueueDownloadRdg(FRDGBuilder& GraphBuilder, bool bUseManualT
 
 	Readback = MakeUnique<FRHIGPUBufferReadback>(FName(TEXT("FMLTensorReadback_") + GetName()));
 
-	FMLTensorReadbackParameters* TensorReadbackParams = GraphBuilder.AllocParameters<FMLTensorReadbackParameters>();
+	FNNETensorReadbackParameters* TensorReadbackParams = GraphBuilder.AllocParameters<FNNETensorReadbackParameters>();
 	TensorReadbackParams->Buffer = GetBuffer();
 
 	GraphBuilder.AddPass(

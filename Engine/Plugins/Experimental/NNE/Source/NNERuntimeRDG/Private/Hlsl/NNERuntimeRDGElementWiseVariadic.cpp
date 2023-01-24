@@ -119,7 +119,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 					int32 InputValue = InputIndex >= 0 ? InputTensors[InputIdx]->GetShape().GetData()[InputIndex] : 1;
 					if (InputValue != OutputValue && InputValue != 1 && OutputValue != 1)
 					{
-						UE_LOG(LogNNX, Warning, TEXT("Error while computing shape for element wise variadic op, input shapes are not compatible"));
+						UE_LOG(LogNNE, Warning, TEXT("Error while computing shape for element wise variadic op, input shapes are not compatible"));
 						return -1;
 					}
 					OutputValue = FMath::Max(InputValue, OutputValue);
@@ -188,14 +188,14 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 		if (InputTypes.Num() == 0)
 		{
-			UE_LOG(LogNNX, Error, TEXT("Element-wise variadic operator requires at least 1 input"));
+			UE_LOG(LogNNE, Error, TEXT("Element-wise variadic operator requires at least 1 input"));
 			bIsValid = false;
 		}
 		for (int32 i = 0; i < InputTypes.Num(); ++i)
 		{
 			if (InputTypes[i] != ENNETensorDataType::Float)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Element-wise variadic operator input '%d' of type '%d' is not supported, should be float at the moment."), i, InputTypes[i]);
+				UE_LOG(LogNNE, Warning, TEXT("Element-wise variadic operator input '%d' of type '%d' is not supported, should be float at the moment."), i, InputTypes[i]);
 				bIsValid = false;
 			}
 		}

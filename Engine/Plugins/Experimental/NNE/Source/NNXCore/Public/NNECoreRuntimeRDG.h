@@ -42,7 +42,7 @@ public:
 
 	/** Enqueue the execution on the Render graph render thread. It's caller's responsibility to actually run the graph.
 	* Bindings should point to a buffers big enough */
-	virtual bool EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<FTensorBindingRDG> Inputs, TConstArrayView<FTensorBindingRDG> Outputs) = 0;
+	virtual int EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<FTensorBindingRDG> Inputs, TConstArrayView<FTensorBindingRDG> Outputs) = 0;
 };
 
 } // UE::NNECore

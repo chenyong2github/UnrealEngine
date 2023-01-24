@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNEQAUtils.h"
+#include "NNEQAModel.h"
 #include "HAL/UnrealMemory.h"
 #include "Kismet/GameplayStatics.h"
 #include "NNECore.h"
@@ -8,16 +9,20 @@
 #include "NNECoreModelData.h"
 #include "NNECoreRuntime.h"
 #include "NNECoreRuntimeCPU.h"
+#include "NNECoreRuntimeRDG.h"
 #include "NNXCore.h"
 #include "NNXInferenceModel.h"
 #include "NNXModelOptimizerInterface.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/WeakInterfacePtr.h"
+#include "RenderGraphBuilder.h"
+#include "RenderGraphUtils.h"
+#include "RHIGPUReadback.h"
 
 namespace UE::NNEQA::Private 
 {
 	using namespace NNX;
-	
+
 	static void FillTensors(
 		TConstArrayView<NNECore::Internal::FTensor> TensorsFromTestSetup,
 		TConstArrayView<NNECore::FTensorDesc> TensorDescsFromModel,
@@ -151,45 +156,6 @@ namespace UE::NNEQA::Private
 			char constexpr MagicNumber = 0x5b;
 			FMemory::Memset(MemBuffer.GetData(), MagicNumber, MemBuffer.Num());
 			OutBindings.Emplace(NNECore::FTensorBindingCPU{ (void*)MemBuffer.GetData(),(uint64)MemBuffer.Num() });
-		}
-	}
-
-	static void FillInputTensorBindings(TConstArrayView<NNECore::Internal::FTensor> Tensors, TConstArrayView<FTests::FTensorData> TensorsData,
-		TArray<TArray<char>>& OutMemBuffers, TArray<FMLTensorBinding>& OutBindings)
-	{
-		OutBindings.Empty();
-		OutMemBuffers.Empty();
-		check(TensorsData.Num() == 0 || Tensors.Num() == TensorsData.Num());
-
-		for (int Index = 0; Index < Tensors.Num(); ++Index)
-		{
-			const NNECore::Internal::FTensor& Tensor = Tensors[Index];
-			TArray<char>& MemBuffer = OutMemBuffers.Emplace_GetRef();
-			if (TensorsData.Num() == 0 || TensorsData[Index].Num() == 0)
-			{
-				ElementWiseCosTensorInitializer Initializer(Tensor.GetDataType(), Index);
-				MemBuffer = GenerateTensorDataForTest(Tensor, Initializer);
-			}
-			else
-			{
-				MemBuffer = TensorsData[Index];
-			}
-			check(MemBuffer.Num() == Tensor.GetDataSize());
-			OutBindings.Emplace(FMLTensorBinding::FromCPU((void*)(MemBuffer.GetData()), MemBuffer.Num()));
-		}
-	}
-
-	static void FillOutputTensorBindings(TConstArrayView<NNECore::Internal::FTensor> Tensors, TArray<TArray<char>>& OutMemBuffers, TArray<FMLTensorBinding>& OutBindings)
-	{
-		OutBindings.Empty();
-		OutMemBuffers.Empty();
-		for (int Index = 0; Index < Tensors.Num(); ++Index)
-		{
-			TArray<char>& MemBuffer = OutMemBuffers.Emplace_GetRef();
-			MemBuffer.SetNumUninitialized(Tensors[Index].GetDataSize());
-			char constexpr MagicNumber = 0x5b;
-			FMemory::Memset(MemBuffer.GetData(), MagicNumber, MemBuffer.Num());
-			OutBindings.Emplace(FMLTensorBinding::FromCPU((void*)(MemBuffer.GetData()), MemBuffer.Num()));
 		}
 	}
 
@@ -415,29 +381,12 @@ namespace UE::NNEQA::Private
 		return true;
 	}
 
-	TUniquePtr<NNECore::IModelCPU> GetInferenceModel(const FNNIModelRaw& ONNXModelData, const FString& RuntimeName)
-	{
-		TWeakInterfacePtr<INNERuntime>    RuntimeForModelData      = NNECore::GetRuntime<INNERuntime>(RuntimeName);
-		TWeakInterfacePtr<INNERuntimeCPU> RuntimeForInferenceModel = NNECore::GetRuntime<INNERuntimeCPU>(RuntimeName);
-		if (!RuntimeForModelData.IsValid() || !RuntimeForInferenceModel.IsValid())
-		{
-			UE_LOG(LogNNE, Error, TEXT("Can't get %s runtime."), *RuntimeName);
-			return TUniquePtr<NNECore::IModelCPU>();
-		}
-
-		TObjectPtr<UNNEModelData> ModelData = NewObject<UNNEModelData>();
-		ModelData->Init(FString("onnx"), ONNXModelData.Data);
-		TUniquePtr<NNECore::IModelCPU> InferenceModel = RuntimeForInferenceModel->CreateModelCPU(ModelData);
-		return InferenceModel;
-	}
-	
-	bool RunTestInferenceCPU(const FNNIModelRaw& ONNXModelData, const FTests::FTestSetup& TestSetup,
+	bool RunTestInference(const FNNIModelRaw& ONNXModelData, const FTests::FTestSetup& TestSetup,
 		const FString& RuntimeName, TArray<NNECore::Internal::FTensor>& OutOutputTensors, TArray<TArray<char>>& OutOutputMemBuffers)
 	{
 		OutOutputMemBuffers.Empty();
 
-		TUniquePtr<NNECore::IModelCPU> InferenceModel = GetInferenceModel(ONNXModelData, RuntimeName);
-
+		TUniquePtr<FModelQA> InferenceModel = FModelQA::MakeModelQA(ONNXModelData, RuntimeName);
 		if (!InferenceModel.IsValid())
 		{
 			UE_LOG(LogNNE, Error, TEXT("Could not create Inference model."));
@@ -518,128 +467,6 @@ namespace UE::NNEQA::Private
 		return true;
 	}
 
-	static bool RunTestInference(const FNNIModelRaw& ONNXModelData, const FTests::FTestSetup& TestSetup, 
-		IRuntime* Runtime, TArray<NNECore::Internal::FTensor>& OutOutputTensors, TArray<TArray<char>>& OutOutputMemBuffers)
-	{
-		OutOutputMemBuffers.Empty();
-
-		TUniquePtr<FMLInferenceModel> InferenceModel = Runtime->CreateModel(Runtime->CreateModelData(FString("onnx"), ONNXModelData.Data));
-		
-		if (!InferenceModel.IsValid())
-		{
-			UE_LOG(LogNNE, Error, TEXT("Could not create Inference model."));
-			return false;
-		}
-
-		// If test does not ask for specific input/output, fill with model default converting variable dim to 1 if any.
-		TArray<NNECore::Internal::FTensor> InputTensors;
-		
-		FillTensors(TestSetup.Inputs, InferenceModel->GetInputTensorDescs(), InputTensors);
-		FillTensors(TestSetup.Outputs, InferenceModel->GetOutputTensorDescs(), OutOutputTensors);
-		
-		// bind tensors to memory (CPU) and initialize
-		TArray<FMLTensorBinding> InputBindings;
-		TArray<FMLTensorBinding> OutputBindings;
-		TArray<TArray<char>> InputMemBuffers;
-		
-		FillInputTensorBindings(InputTensors, TestSetup.InputsData, InputMemBuffers, InputBindings);
-		FillOutputTensorBindings(OutOutputTensors, OutOutputMemBuffers, OutputBindings);
-
-		// To help for debugging sessions.
-		#ifdef UE_BUILD_DEBUG
-		const constexpr int32 NumTensorPtrForDebug = 3;
-		float* InputsAsFloat[NumTensorPtrForDebug];
-		float* OutputsAsFloat[NumTensorPtrForDebug];
-		FMemory::Memzero(InputsAsFloat, NumTensorPtrForDebug * sizeof(float*));
-		FMemory::Memzero(OutputsAsFloat, NumTensorPtrForDebug * sizeof(float*));
-		for (int32 i = 0; i < NumTensorPtrForDebug && i < InputMemBuffers.Num(); ++i)
-		{
-			InputsAsFloat[i] = (float*)InputMemBuffers[i].GetData();
-		}
-		for (int32 i = 0; i < NumTensorPtrForDebug && i < OutOutputMemBuffers.Num(); ++i)
-		{
-			OutputsAsFloat[i] = (float*)OutOutputMemBuffers[i].GetData();
-		}
-		#endif //UE_BUILD_DEBUG
-
-		TArray<NNECore::FTensorShape> InputShapes;
-		for (const NNECore::Internal::FTensor& Tensor : InputTensors)
-		{
-			InputShapes.Emplace(Tensor.GetShape());
-		}
-
-		// Setup inputs
-		if (0 != InferenceModel->SetInputTensorShapes(InputShapes))
-		{
-			UE_LOG(LogNNE, Error, TEXT("Failed to set input tensor shapes."));
-			return false;
-		}
-
-		// Run inference
-		if (0 != InferenceModel->RunSync(InputBindings, OutputBindings))
-		{
-			UE_LOG(LogNNE, Error, TEXT("Failed to run the model."));
-			return false;
-		}
-
-		// Verify output shapes are as expected
-		TConstArrayView<NNECore::FTensorShape> OutputShapes = InferenceModel->GetOutputTensorShapes();
-		if (OutputShapes.Num() != OutOutputTensors.Num())
-		{
-			UE_LOG(LogNNE, Error, TEXT("Expected %d output tensors, got %d."), OutOutputTensors.Num(), OutputShapes.Num());
-			return false;
-		}
-		for (int i = 0; i < OutOutputTensors.Num(); ++i)
-		{
-			const NNECore::FTensorShape& RefTensorShape = OutOutputTensors[i].GetShape();
-			const NNECore::FTensorShape& OtherTensorShape = OutputShapes[i];
-			if (RefTensorShape != OtherTensorShape)
-			{
-				TArrayView<const uint32> RefShape(RefTensorShape.GetData());
-				TArrayView<const uint32> OtherShape(OtherTensorShape.GetData());
-				UE_LOG(LogNNE, Error, TEXT("Output shape do not match at index %d.\nExpected: %s\nGot:      %s"), i, *ShapeToString(RefShape), *ShapeToString(OtherShape));
-				return false;
-			}
-		}
-		
-		return true;
-	}
-
-	bool RunTestInferenceAndCompareToRef(const FTests::FTestSetup& TestSetup, IRuntime* Runtime, const FNNIModelRaw& ONNXModel, 
-		TArrayView<TArray<char>> RefOutputMemBuffers, TArrayView<NNECore::Internal::FTensor> RefOutputTensors)
-	{
-		TArray<TArray<char>> OutputMemBuffers;
-		TArray<NNECore::Internal::FTensor> OutputTensors;
-
-		const FString& RuntimeName = Runtime->GetRuntimeName();
-		const float AbsoluteTolerance = TestSetup.GetAbsoluteToleranceForRuntime(RuntimeName);
-		const float RelativeTolerance = TestSetup.GetRelativeToleranceForRuntime(RuntimeName);
-		bool bTestSuceeded = true;
-	
-		if (!RunTestInference(ONNXModel, TestSetup, Runtime, OutputTensors, OutputMemBuffers))
-		{
-			UE_LOG(LogNNE, Error, TEXT("Error running inference for engine %s."), *RuntimeName);
-			return false;
-		}
-
-		if (OutputTensors.Num() == RefOutputTensors.Num())
-		{
-			for (int i = 0; i < OutputTensors.Num(); ++i)
-			{
-				bTestSuceeded &= VerifyTensorResult(
-					RefOutputTensors[i], RefOutputMemBuffers[i],
-					OutputTensors[i], OutputMemBuffers[i],
-					AbsoluteTolerance, RelativeTolerance);
-			}
-		}
-		else
-		{
-			UE_LOG(LogNNE, Error, TEXT("Expecting %d output tensor(s), got %d."), RefOutputTensors.Num(), OutputTensors.Num());
-			bTestSuceeded = false;
-		}
-		return bTestSuceeded;
-	}
-
 	bool RunTestInferenceAndCompareToRef(const FTests::FTestSetup& TestSetup, const FString& RuntimeName, const FNNIModelRaw& ONNXModel,
 		TArrayView<TArray<char>> RefOutputMemBuffers, TArrayView<NNECore::Internal::FTensor> RefOutputTensors)
 	{
@@ -650,7 +477,7 @@ namespace UE::NNEQA::Private
 		const float RelativeTolerance = TestSetup.GetRelativeToleranceForRuntime(RuntimeName);
 		bool bTestSuceeded = true;
 
-		if (!RunTestInferenceCPU(ONNXModel, TestSetup, RuntimeName, OutputTensors, OutputMemBuffers))
+		if (!RunTestInference(ONNXModel, TestSetup, RuntimeName, OutputTensors, OutputMemBuffers))
 		{
 			UE_LOG(LogNNE, Error, TEXT("Error running inference for engine %s."), *RuntimeName);
 			return false;
@@ -692,7 +519,7 @@ namespace UE::NNEQA::Private
 		TArray<NNECore::Internal::FTensor> RefOutputTensors;
 		bool bAllTestsSucceeded = true;
 
-		if (!RunTestInferenceCPU(ONNXModel, TestSetup, RefName, RefOutputTensors, RefOutputMemBuffers))
+		if (!RunTestInference(ONNXModel, TestSetup, RefName, RefOutputTensors, RefOutputMemBuffers))
 		{
 			UE_LOG(LogNNE, Error, TEXT("Error running reference inference with engine %s."), *RefName);
 			return false;
@@ -714,53 +541,6 @@ namespace UE::NNEQA::Private
 			UE_LOG(LogNNE, Error, TEXT("Expecting output from test setup are no matched by reference runtime."));
 		}
 
-		// Test against other runtime
-		//NNX Registry
-		for (auto Runtime : GetAllRuntimes())
-		{
-			const FString& RuntimeName = Runtime->GetRuntimeName();
-			if (RuntimeName == TEXT("NNXRuntimeCPU"))
-			{
-				continue;
-			}
-			if (!RuntimeFilter.IsEmpty() && !RuntimeFilter.Contains(RuntimeName))
-			{
-				continue;
-			}
-			FString TestResult;
-			if (TestSetup.AutomationExcludedRuntime.Contains(RuntimeName) ||
-				TestSetup.AutomationExcludedPlatformRuntimeCombination.Contains(TPair<FString, FString>(CurrentPlatform, RuntimeName)))
-			{
-				TestResult = TEXT("skipped (by config)");
-			}
-			else
-			{
-				bool bShouldRunVariadicTest = (ONNXModelVariadic.Format != ENNXInferenceFormat::Invalid);
-				bShouldRunVariadicTest &= !(RuntimeName == "NNXRuntimeDML");
-
-				bool bTestSuceeded = RunTestInferenceAndCompareToRef(TestSetup, Runtime, ONNXModel, RefOutputMemBuffers, RefOutputTensors);
-
-				if (bShouldRunVariadicTest)
-				{
-					if (!bTestSuceeded)
-					{
-						UE_LOG(LogNNE, Error, TEXT("Failed running static test."));
-					}
-					bool bVariadicTestSuceeded = RunTestInferenceAndCompareToRef(TestSetup, Runtime, ONNXModelVariadic, RefOutputMemBuffers, RefOutputTensors);
-					if (!bVariadicTestSuceeded)
-					{
-						bTestSuceeded = false;
-						UE_LOG(LogNNE, Error, TEXT("Failed running variadic test."));
-					}
-				}
-				TestResult = bTestSuceeded ? TEXT("SUCCESS") : TEXT("FAILED");
-				bAllTestsSucceeded &= bTestSuceeded;
-			}
-
-			UE_LOG(LogNNE, Display, TEXT("  %s tests: %s"), *RuntimeName, *TestResult);
-		}
-
-		//NNE Registry
 		for (auto Runtime : NNECore::GetAllRuntimes())
 		{
 			const FString& RuntimeName = Runtime->GetRuntimeName();
@@ -781,8 +561,8 @@ namespace UE::NNEQA::Private
 			else
 			{
 				bool bShouldRunVariadicTest = (ONNXModelVariadic.Format != ENNXInferenceFormat::Invalid);
-				bShouldRunVariadicTest &= !(RuntimeName == "NNEXRuntimeDML");
-
+				bShouldRunVariadicTest &= !(RuntimeName == "NNERuntimeDml");
+				
 				bool bTestSuceeded = RunTestInferenceAndCompareToRef(TestSetup, Runtime->GetRuntimeName(), ONNXModel, RefOutputMemBuffers, RefOutputTensors);
 
 				if (bShouldRunVariadicTest)

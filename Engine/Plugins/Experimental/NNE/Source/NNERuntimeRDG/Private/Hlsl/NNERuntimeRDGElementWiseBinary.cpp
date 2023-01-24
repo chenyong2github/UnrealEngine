@@ -46,7 +46,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 				int32 RHSValue = RHSIndex >= 0 ? RHSInput.GetData()[RHSIndex] : 1;
 				if (LHSValue != RHSValue && LHSValue != 1 && RHSValue != 1)
 				{
-					UE_LOG(LogNNX, Warning, TEXT("Error while computing shape for element wise binary op, input shapes are not compatible"));
+					UE_LOG(LogNNE, Warning, TEXT("Error while computing shape for element wise binary op, input shapes are not compatible"));
 					return -1;
 				}
 				int32 OutputValue = FMath::Max(LHSValue, RHSValue);

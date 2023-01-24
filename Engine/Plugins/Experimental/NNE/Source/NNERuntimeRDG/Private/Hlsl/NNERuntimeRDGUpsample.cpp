@@ -32,7 +32,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			
 			if (!Scales.HasPreparedData())
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Upsample input 'Scale' (name: %s) should be constant for shape inference to succeed, however it is not."), *Scales.GetName());
+				UE_LOG(LogNNE, Warning, TEXT("Upsample input 'Scale' (name: %s) should be constant for shape inference to succeed, however it is not."), *Scales.GetName());
 				return -1;
 			}
 
@@ -40,7 +40,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 			if (ScalesData.Num() != X.GetShape().Rank())
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Upsample input 'Scale' (name: %s) have %d elements. While it should be the same as the rank of input 'X' (name : %s) witch is %d"), *Scales.GetName(), ScalesData.Num(), *X.GetName(), X.GetShape().Rank());
+				UE_LOG(LogNNE, Warning, TEXT("Upsample input 'Scale' (name: %s) have %d elements. While it should be the same as the rank of input 'X' (name : %s) witch is %d"), *Scales.GetName(), ScalesData.Num(), *X.GetName(), X.GetShape().Rank());
 				return -1;
 			}
 
@@ -127,7 +127,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		FString Mode = AttributeMap.GetValueOrDefault<FString>(TEXT("mode"), TEXT("nearest"));
 		if (!Mode.Equals(TEXT("nearest")))
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Upsample HLSL operator only supports nearest mode for now"));
+			UE_LOG(LogNNE, Warning, TEXT("Upsample HLSL operator only supports nearest mode for now"));
 			return false;
 		}
 

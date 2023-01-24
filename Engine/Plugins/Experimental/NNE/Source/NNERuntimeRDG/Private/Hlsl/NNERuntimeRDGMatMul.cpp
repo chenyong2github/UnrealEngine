@@ -32,17 +32,17 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 			if (InputA.Rank() < 2)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Matmul first input should be at least of rank 2"));
+				UE_LOG(LogNNE, Warning, TEXT("Matmul first input should be at least of rank 2"));
 				return -1;
 			}
 			if (InputB.Rank() < 2)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Matmul second input should be at least of rank 2"));
+				UE_LOG(LogNNE, Warning, TEXT("Matmul second input should be at least of rank 2"));
 				return -1;
 			}
 			if (InputA.GetData()[InputA.Rank() - 1] != InputB.GetData()[InputB.Rank() - 2])
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Matmul first input last dimension should be equal to second input last dimension"));
+				UE_LOG(LogNNE, Warning, TEXT("Matmul first input last dimension should be equal to second input last dimension"));
 				return -1;
 			}
 
@@ -82,12 +82,12 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 			if (InputA.GetShape().Rank() < 2)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Matmul first input should be at least of rank 2"));
+				UE_LOG(LogNNE, Warning, TEXT("Matmul first input should be at least of rank 2"));
 				return false;
 			}
 			if (InputB.GetShape().Rank() < 2)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Matmul second input should be at least of rank 2"));
+				UE_LOG(LogNNE, Warning, TEXT("Matmul second input should be at least of rank 2"));
 				return false;
 			}
 

@@ -43,7 +43,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 				int32 OutputDim = PrePad + X.GetShape().GetData()[i] + PostPad;
 				if (OutputDim < 1)
 				{
-					UE_LOG(LogNNX, Warning, TEXT("Pads cannot reduce dimension below 1, but would for tensor (name:%s) at rank %d of size %d with prepad %d and postpad %d."), *X.GetName(), i, X.GetShape().GetData()[i], PrePad, PostPad);
+					UE_LOG(LogNNE, Warning, TEXT("Pads cannot reduce dimension below 1, but would for tensor (name:%s) at rank %d of size %d with prepad %d and postpad %d."), *X.GetName(), i, X.GetShape().GetData()[i], PrePad, PostPad);
 					return -1;
 				}
 				OutputShapeData.Emplace(OutputDim);
@@ -68,7 +68,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 			if ((2*InputTensorDescs[0].GetShape().Rank()) != Pads.Num())
 			{
-				UE_LOG(LogNNX, Warning, TEXT("pads attribute lenght (%d) should be twice the rank of input X (%d)."), Pads.Num(), InputTensorDescs[0].GetShape().Rank());
+				UE_LOG(LogNNE, Warning, TEXT("pads attribute lenght (%d) should be twice the rank of input X (%d)."), Pads.Num(), InputTensorDescs[0].GetShape().Rank());
 				return false;
 			}
 
@@ -141,7 +141,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		{
 			if (Pad < 0)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Pad operator does not support negative padding at the moment."));
+				UE_LOG(LogNNE, Warning, TEXT("Pad operator does not support negative padding at the moment."));
 				return false;
 			}
 		}

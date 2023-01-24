@@ -23,7 +23,9 @@ public class NNEQA : ModuleRules
 				"Json",
 				"CoreUObject",
 				"NNXCore",
-				"NNEUtils"
+				"NNEUtils",
+				"RHI",
+				"RenderCore"
 			}
 		);
 

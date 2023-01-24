@@ -13,29 +13,29 @@ int ValidateInput(const UE::NNECore::FTensorShape& Input, const UE::NNECore::FTe
 {
 	if (Input.Rank() < 3)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("InstanceNormalization input data should be at least of rank 4: %d"), Input.Rank());
+		UE_LOG(LogNNE, Warning, TEXT("InstanceNormalization input data should be at least of rank 4: %d"), Input.Rank());
 		return -1;
 	}
 
 	if (Scale.Rank() != 1)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("InstanceNormalization input scale should be of rank 1: %d"), Scale.Rank());
+		UE_LOG(LogNNE, Warning, TEXT("InstanceNormalization input scale should be of rank 1: %d"), Scale.Rank());
 		return -1;
 	}
 	if (Scale.GetData()[0] != Input.GetData()[1])
 	{
-		UE_LOG(LogNNX, Warning, TEXT("InstanceNormalization input scale size should be equal to channel count: %d vs %d"), Scale.GetData()[0], Input.GetData()[1]);
+		UE_LOG(LogNNE, Warning, TEXT("InstanceNormalization input scale size should be equal to channel count: %d vs %d"), Scale.GetData()[0], Input.GetData()[1]);
 		return -1;
 	}
 
 	if (Bias.GetData()[0] != Input.GetData()[1])
 	{
-		UE_LOG(LogNNX, Warning, TEXT("InstanceNormalization intput B size should be equal to channel count: : %d vs %d"), Bias.GetData()[0], Input.GetData()[1]);
+		UE_LOG(LogNNE, Warning, TEXT("InstanceNormalization intput B size should be equal to channel count: : %d vs %d"), Bias.GetData()[0], Input.GetData()[1]);
 		return -1;
 	}
 	if (Bias.Rank() != 1)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("InstanceNormalization input B should be of rank 1: %d"), Bias.Rank());
+		UE_LOG(LogNNE, Warning, TEXT("InstanceNormalization input B should be of rank 1: %d"), Bias.Rank());
 		return -1;
 	}
 

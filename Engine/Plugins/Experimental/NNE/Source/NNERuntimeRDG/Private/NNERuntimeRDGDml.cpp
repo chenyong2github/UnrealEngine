@@ -1,18 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "NNERuntimeRDGDml.h"
 #include "NNERuntimeRDG.h"
-#include "NNXInferenceModel.h"
+#include "NNERuntimeRDGModel.h"
 #include "NNXRuntimeFormat.h"
 #include "NNEUtilsModelOptimizer.h"
 #include "NNECoreOperator.h"
-
 #include "NNECoreAttributeMap.h"
-
+#include "NNECoreModelData.h"
 #include "HAL/FileManager.h"
-
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
-
 #include "Algo/Find.h"
 
 #ifdef NNE_USE_DIRECTML
@@ -35,8 +33,6 @@ THIRD_PARTY_INCLUDES_END
 #include "ID3D12DynamicRHI.h"
 
 #define NNE_USE_D3D12_RESOURCES
-#define NNX_RUNTIME_DML_NAME TEXT("NNXRuntimeDml")
-
 
 namespace UE::NNERuntimeRDG::Private::Dml
 {
@@ -386,7 +382,7 @@ protected:
 			DmlUtil::SetTensorSizesAndStridesForBroadcast(DmlTensorDesc, TensorDesc, BroadcastDesc);
 		}
 
-		//UE_LOG(LogNNX, Warning, TEXT("DmlTensorDesc:%d,%d,%d -> %d,%d,%d"),
+		//UE_LOG(LogNNE, Warning, TEXT("DmlTensorDesc:%d,%d,%d -> %d,%d,%d"),
 		//	TensorDesc.Sizes[0],
 		//	TensorDesc.Dimension > 1 ? TensorDesc.Sizes[1] : 0,
 		//	TensorDesc.Dimension > 2 ? TensorDesc.Sizes[2] : 0,
@@ -395,7 +391,7 @@ protected:
 		//	DmlTensorDesc.Dimension > 2 ? DmlTensorDesc.Sizes[2] : 0
 		//);
 
-		//UE_LOG(LogNNX, Warning, TEXT("DmlTensorStrides:%d,%d,%d"),
+		//UE_LOG(LogNNE, Warning, TEXT("DmlTensorStrides:%d,%d,%d"),
 		//	DmlTensorDesc.Strides[0], DmlTensorDesc.Strides[1], DmlTensorDesc.Strides[2]
 		//);
 
@@ -429,7 +425,7 @@ protected:
 		Res = Device->CreateOperator(&DmlOpDesc, DML_PPV_ARGS(&Op));
 		if (!Op)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Error:Failed to create DML operator, hres:%d"), Res);
+			UE_LOG(LogNNE, Warning, TEXT("Error:Failed to create DML operator, hres:%d"), Res);
 			return false;
 		}
 
@@ -497,7 +493,7 @@ public:
 
 		if (!InitDmlTensorDesc(DmlTensorDesc, InputTensorDesc))
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
@@ -627,19 +623,19 @@ public:
 
 		if (!InitDmlTensorDesc(DmlInputATensorDesc, InputATensorDesc, OutputTensorDesc))
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
 		if (!InitDmlTensorDesc(DmlInputBTensorDesc, InputBTensorDesc, OutputTensorDesc))
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
 		if (!InitDmlTensorDesc(DmlOutputTensorDesc, OutputTensorDesc))
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
@@ -722,13 +718,13 @@ public:
 
 		if (!InitDmlTensorDesc(DmlInputATensorDesc, InputATensorDesc))
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
 		if (!InitDmlTensorDesc(DmlInputBTensorDesc, InputBTensorDesc))
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
@@ -738,14 +734,14 @@ public:
 
 			if (!InitDmlTensorDesc(DmlInputCTensorDesc, InputCTensorDesc, OutputTensorDesc))
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+				UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 				return false;
 			}
 		}
 
 		if (!InitDmlTensorDesc(DmlOutputTensorDesc, OutputTensorDesc))
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
@@ -770,266 +766,7 @@ public:
 
 };
 
-//
-//
-//
-class FInferenceModelDml : public FInferenceModelRDG
-{
-	class FGraphBuilder;
-	class FBindingTable;
-	class FDebugName;
-
-public:
-
-	FInferenceModelDml();
-	~FInferenceModelDml();
-
-	bool Init(TConstArrayView<uint8> ModelData, FDeviceContextDml* InDevCtx);
-
-protected:
-
-	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) override;
-	virtual int PrepareTensorShapesAndData() override;
-
-private:
-
-	bool InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 TensorDataSize);
-
-	FOperatorDml* OpCreate(const FString& Name, TArrayView<const NNECore::Internal::FTensor> InputTensorDesc, TArrayView<const NNECore::Internal::FTensor> OutputTensorDescs, const NNECore::FAttributeMap& Attributes);
-		
-	FBufferRHIRef CreateRHIBuffer(FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, ERHIAccess Access, const TCHAR* DbgName);
-	ID3D12Resource* CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_STATES ResourceState = D3D12_RESOURCE_STATE_COMMON, D3D12_HEAP_TYPE HeapType = D3D12_HEAP_TYPE_DEFAULT, const TCHAR* DebugName = nullptr);
-	
-	// TODO: FIXME: This should go into RDG
-	static constexpr int32 MaxNumInputs = 32;
-	static constexpr int32 MaxNumOutputs = 4;
-
-	using FRHIBufferInputArray = TArray<FRHIBuffer*, TInlineAllocator<MaxNumInputs>>;
-	using FRHIBufferOutputArray = TArray<FRHIBuffer*, TInlineAllocator<MaxNumOutputs>>;
-
-	TComPtr<IDMLOperatorInitializer>	OpInit;
-	TComPtr<IDMLCompiledOperator>		CompiledOp;
-	FDeviceContextDml*					DevCtx;
-	TUniquePtr<FBindingTable>			BindingTable;
-	TComPtr<ID3D12DescriptorHeap>		DescHeap;
-	uint32								DescCount;
-	uint32								DescSize;
-
-	FRHIBufferInputArray				InputBuffers;
-	FRHIBufferOutputArray				OutputBuffers;
-#ifdef NNE_USE_D3D12_RESOURCES
-	TComPtr<ID3D12Resource>				PersistBuff;
-	TComPtr<ID3D12Resource>				TempBuff;
-#else
-	FBufferRHIRef						PersistBuff;
-#endif
-	uint64								MemSizeTemp;
-	uint64								MemSizePersist;
-	ID3D12DynamicRHI*					DynamicRHI;
-};
-
-//
-//
-//
-class FRuntimeDml : public FRuntimeRDG
-{
-public:
-
-	FRuntimeDml() = default;
-	virtual ~FRuntimeDml();
-
-	virtual FString GetRuntimeName() const override
-	{
-		return NNX_RUNTIME_DML_NAME;
-	}
-	
-	virtual EMLRuntimeSupportFlags GetSupportFlags() const override
-	{
-		return EMLRuntimeSupportFlags::RDG;
-	}
-
-	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData) override
-	{
-		if (!CanCreateModelData(FileType, FileData))
-		{
-			return {};
-		}
-
-		TUniquePtr<IModelOptimizer> Optimizer = NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
-
-		FNNIModelRaw InputModel;
-		InputModel.Data = FileData;
-		InputModel.Format = ENNXInferenceFormat::ONNX;
-
-		FNNIModelRaw OutputModel;
-		if (!Optimizer->Optimize(InputModel, OutputModel, {}))
-		{
-			return {};
-		}
-
-		return ConvertToModelData(OutputModel.Data);
-	};
-
-	virtual TUniquePtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData) override
-	{
-		if (!CanCreateModel(ModelData))
-		{
-			return TUniquePtr<FMLInferenceModel>();
-		}
-
-		// Create the model and initialize it with the data not including the header
-		FInferenceModelDml* Model = new FInferenceModelDml();
-		if (!Model->Init(ModelData, &Ctx))
-		{
-			delete Model;
-			return TUniquePtr<FMLInferenceModel>();
-		}
-		return TUniquePtr<FMLInferenceModel>(Model);
-	}
-
-	bool Init(bool bRegisterOnlyOperators);
-
-private:
-
-	bool RegisterElementWiseUnaryOperators();
-	bool RegisterElementWiseBinaryOperators();
-	bool RegisterGemmOperator();
-	
-	FDeviceContextDml		Ctx;
-};
-
-//
-//
-//
-static TUniquePtr<FRuntimeDml> GDmlRuntime;
-
-//
-//
-//
-FRuntimeDml::~FRuntimeDml()
-{
-}
-
-//
-//
-//
-bool FRuntimeDml::Init(bool bRegisterOnlyOperators)
-{
-	RegisterElementWiseUnaryOperators();
-	RegisterElementWiseBinaryOperators();
-	RegisterGemmOperator();
-
-	if (bRegisterOnlyOperators)
-	{
-		UE_LOG(LogNNX, Display, TEXT("Registering only operators"));
-		return true;
-	}
-
-	HRESULT Res;
-
-	// In order to use DirectML we need D3D12
-	ID3D12DynamicRHI* RHI = nullptr;
-
-	if (GDynamicRHI && GDynamicRHI->GetInterfaceType() == ERHIInterfaceType::D3D12)
-	{
-		RHI = GetID3D12PlatformDynamicRHI();
-
-		if (!RHI)
-		{
-			UE_LOG(LogNNX, Warning, TEXT("Error:%s RHI is not supported by DirectML"), GDynamicRHI->GetName());
-			return false;
-		}
-	}
-	else
-	{
-		if (GDynamicRHI)
-		{
-			UE_LOG(LogNNX, Warning, TEXT("Error:%s RHI is not supported by DirectML"), GDynamicRHI->GetName());
-			return false;
-		}
-		else
-		{
-			UE_LOG(LogNNX, Warning, TEXT("Error:No RHI found"));
-			return false;
-		}
-	}
-
-	Ctx.DeviceIndex = 0;
-	Ctx.D3D12Device = RHI->RHIGetDevice(Ctx.DeviceIndex);
-
-#if PLATFORM_WINDOWS
-	ID3D12Device5* D3D12Device5 = nullptr;
-	
-	Res = Ctx.D3D12Device->QueryInterface(&D3D12Device5);
-	if (D3D12Device5)
-	{
-		uint32	NumCommands = 0;
-
-		Res = D3D12Device5->EnumerateMetaCommands(&NumCommands, nullptr);
-		if (NumCommands)
-		{
-			UE_LOG(LogNNX, Verbose, TEXT("D3D12 Meta commands:%u"), NumCommands);
-
-			TArray<D3D12_META_COMMAND_DESC>	MetaCmds;
-
-			MetaCmds.SetNumUninitialized(NumCommands);
-
-			Res = D3D12Device5->EnumerateMetaCommands(&NumCommands, MetaCmds.GetData());
-			for (uint32 Idx = 0; Idx < NumCommands; ++Idx)
-			{
-				const D3D12_META_COMMAND_DESC& Desc = MetaCmds[Idx];
-
-				UE_LOG(LogNNX, Verbose, TEXT("   %s"), Desc.Name);
-			}
-		}
-	}
-#endif
-
-	DML_CREATE_DEVICE_FLAGS DmlCreateFlags = DML_CREATE_DEVICE_FLAG_NONE;
-
-	// Set debugging flags
-	if (RHI->IsD3DDebugEnabled())
-	{
-		DmlCreateFlags |= DML_CREATE_DEVICE_FLAG_DEBUG;
-	}
-
-	Res = DMLCreateDevice(Ctx.D3D12Device, DmlCreateFlags, DML_PPV_ARGS(&Ctx.Device));
-	if (!Ctx.Device)
-	{
-		UE_LOG(LogNNX, Warning, TEXT("Failed to create DirectML device, res:%x"), Res);
-		return false;
-	}
-
-	DML_FEATURE_QUERY_TENSOR_DATA_TYPE_SUPPORT	Fp16Query = { DML_TENSOR_DATA_TYPE_FLOAT16 };
-	DML_FEATURE_DATA_TENSOR_DATA_TYPE_SUPPORT	Fp16Supported = {};
-	
-	Ctx.Device->CheckFeatureSupport(DML_FEATURE_TENSOR_DATA_TYPE_SUPPORT, sizeof(Fp16Query), &Fp16Query, sizeof(Fp16Supported), &Fp16Supported);
-
-	DML_FEATURE_LEVEL					FeatureLevels[] = { DML_FEATURE_LEVEL_5_0 };
-	DML_FEATURE_QUERY_FEATURE_LEVELS	FeatureLevelQuery = { UE_ARRAY_COUNT(FeatureLevels), FeatureLevels };
-	DML_FEATURE_DATA_FEATURE_LEVELS		FeatureLevelSupported = {};
-
-	Res = Ctx.Device->CheckFeatureSupport(DML_FEATURE_FEATURE_LEVELS, sizeof(FeatureLevelQuery), &FeatureLevelQuery, sizeof(FeatureLevelSupported), &FeatureLevelSupported);
-	if (FAILED(Res) || FeatureLevelSupported.MaxSupportedFeatureLevel < DML_FEATURE_LEVEL_5_0)
-	{
-		UE_LOG(LogNNX, Warning, TEXT("DirectML feature level %x not supported"), FeatureLevels[0]);
-		return false;
-	}
-
-	Res = Ctx.Device->CreateCommandRecorder(DML_PPV_ARGS(&Ctx.CmdRec));
-	if (!Ctx.CmdRec)
-	{
-		UE_LOG(LogNNX, Warning, TEXT("Failed to create DML command recorder, res:%x"), Res);
-		return false;
-	}
-
-	return true;
-}
-
-//
-//
-//
-bool FRuntimeDml::RegisterElementWiseUnaryOperators()
+bool RegisterElementWiseUnaryOperators()
 {
 #define OP(DmlOpDesc, OpName) FOperatorRegistryDml::Get()->OpAdd(TEXT(#OpName), FOperatorDmlElementWiseUnary<DmlOpDesc, NNECore::Internal::EElementWiseUnaryOperatorType::OpName>::Create)
 
@@ -1074,10 +811,7 @@ bool FRuntimeDml::RegisterElementWiseUnaryOperators()
 	return true;
 }
 
-//
-//
-//
-bool FRuntimeDml::RegisterElementWiseBinaryOperators()
+bool RegisterElementWiseBinaryOperators()
 {
 #define OP(DmlOpDesc, OpName) FOperatorRegistryDml::Get()->OpAdd(TEXT(#OpName), FOperatorDmlElementWiseBinary<DmlOpDesc, NNECore::Internal::EElementWiseBinaryOperatorType::OpName>::Create)
 
@@ -1102,10 +836,7 @@ bool FRuntimeDml::RegisterElementWiseBinaryOperators()
 	return true;
 }
 
-//
-//
-//
-bool FRuntimeDml::RegisterGemmOperator()
+bool RegisterGemmOperator()
 {
 	FOperatorRegistryDml::Get()->OpAdd(TEXT("Gemm"), FOperatorDmlGemm::Create);
 	return true;
@@ -1114,7 +845,65 @@ bool FRuntimeDml::RegisterGemmOperator()
 //
 //
 //
-class FInferenceModelDml::FDebugName
+class FModel : public FModelRDG
+{
+	class FGraphBuilder;
+	class FBindingTable;
+	class FDebugName;
+
+public:
+
+	FModel();
+	~FModel();
+
+	bool Init(TConstArrayView<uint8> ModelData, FDeviceContextDml* InDevCtx);
+
+protected:
+
+	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) override;
+	virtual int PrepareTensorShapesAndData() override;
+
+private:
+
+	bool InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 TensorDataSize);
+
+	FOperatorDml* OpCreate(const FString& Name, TArrayView<const NNECore::Internal::FTensor> InputTensorDesc, TArrayView<const NNECore::Internal::FTensor> OutputTensorDescs, const NNECore::FAttributeMap& Attributes);
+
+	FBufferRHIRef CreateRHIBuffer(FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, ERHIAccess Access, const TCHAR* DbgName);
+	ID3D12Resource* CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_STATES ResourceState = D3D12_RESOURCE_STATE_COMMON, D3D12_HEAP_TYPE HeapType = D3D12_HEAP_TYPE_DEFAULT, const TCHAR* DebugName = nullptr);
+
+	// TODO: FIXME: This should go into RDG
+	static constexpr int32 MaxNumInputs = 32;
+	static constexpr int32 MaxNumOutputs = 4;
+
+	using FRHIBufferInputArray = TArray<FRHIBuffer*, TInlineAllocator<MaxNumInputs>>;
+	using FRHIBufferOutputArray = TArray<FRHIBuffer*, TInlineAllocator<MaxNumOutputs>>;
+
+	TComPtr<IDMLOperatorInitializer>	OpInit;
+	TComPtr<IDMLCompiledOperator>		CompiledOp;
+	FDeviceContextDml*					DevCtx;
+	TUniquePtr<FBindingTable>			BindingTable;
+	TComPtr<ID3D12DescriptorHeap>		DescHeap;
+	uint32								DescCount;
+	uint32								DescSize;
+
+	FRHIBufferInputArray				InputBuffers;
+	FRHIBufferOutputArray				OutputBuffers;
+#ifdef NNE_USE_D3D12_RESOURCES
+	TComPtr<ID3D12Resource>				PersistBuff;
+	TComPtr<ID3D12Resource>				TempBuff;
+#else
+	FBufferRHIRef						PersistBuff;
+#endif
+	uint64								MemSizeTemp;
+	uint64								MemSizePersist;
+	ID3D12DynamicRHI* DynamicRHI;
+};
+
+//
+//
+//
+class FModel::FDebugName
 {
 	static constexpr int32 Size = 128;
 
@@ -1161,11 +950,11 @@ private:
 //
 //
 //
-class FInferenceModelDml::FBindingTable
+class FModel::FBindingTable
 {
 public:
 
-	bool Init(FInferenceModelDml* InModel)
+	bool Init(FModel* InModel)
 	{
 		Model = InModel;
 		DynamicRHI = InModel->DynamicRHI;
@@ -1308,7 +1097,7 @@ private:
 			Res = Model->DevCtx->Device->CreateBindingTable(&Desc, DML_PPV_ARGS(&BindingTable));
 			if (!BindingTable)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Failed to create DML binding table, res:%d"), Res);
+				UE_LOG(LogNNE, Warning, TEXT("Failed to create DML binding table, res:%d"), Res);
 				return false;
 			}
 		}
@@ -1348,13 +1137,13 @@ private:
 	TArray<DML_BUFFER_BINDING, TInlineAllocator<MaxNumOutputs>>		OutputBinds;
 	TArray<DML_BINDING_DESC, TInlineAllocator<MaxNumOutputs>>		OutputBindDescs;
 	ID3D12DynamicRHI*												DynamicRHI;
-	FInferenceModelDml*												Model;
+	FModel*															Model;
 };
 
 //
 //
 //
-class FInferenceModelDml::FGraphBuilder
+class FModel::FGraphBuilder
 {
 public:
 
@@ -1573,7 +1362,7 @@ public:
 		Res = Device1->CompileGraph(&Graph, DML_EXECUTION_FLAG_NONE, DML_PPV_ARGS(&Op));
 		if (FAILED(Res))
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Error:Failed to compile DML graph"));
+			UE_LOG(LogNNE, Warning, TEXT("Error:Failed to compile DML graph"));
 			Op = nullptr;
 		};
 
@@ -1775,27 +1564,28 @@ private:
 //
 //
 //
-FInferenceModelDml::FInferenceModelDml()
-{
-	bUseManualTransitions = true;
-}
-
-//
-//
-//
-FInferenceModelDml::~FInferenceModelDml()
+FModel::FModel()
 {
 }
 
 //
 //
 //
-bool FInferenceModelDml::Init(TConstArrayView<uint8> ModelData, FDeviceContextDml* InDevCtx)
+FModel::~FModel()
+{
+}
+
+//
+//
+//
+bool FModel::Init(TConstArrayView<uint8> ModelData, FDeviceContextDml* InDevCtx)
 {
 	check(ModelData.Num() > 0);
 	FMLRuntimeFormat	Format;
+	int32 GuidSize = sizeof(UNNERuntimeRDGDmlImpl::GUID);
+	int32 VersionSize = sizeof(UNNERuntimeRDGDmlImpl::Version);
 
-	if (!LoadModel(ModelData, Format))
+	if (!LoadModel(ModelData, Format, GuidSize + VersionSize))
 	{
 		return false;
 	}
@@ -1806,7 +1596,7 @@ bool FInferenceModelDml::Init(TConstArrayView<uint8> ModelData, FDeviceContextDm
 	HRESULT Res = DevCtx->Device->CreateOperatorInitializer(0, nullptr, DML_PPV_ARGS(&OpInit));
 	if (!OpInit)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Error:Failed to create DML operator initializer"));
+		UE_LOG(LogNNE, Warning, TEXT("Error:Failed to create DML operator initializer"));
 		return false;
 	}
 
@@ -1885,7 +1675,7 @@ bool FInferenceModelDml::Init(TConstArrayView<uint8> ModelData, FDeviceContextDm
 
 		if (!OpDesc.Op)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Error:Failed to create operator:%s"), *TypeName);
+			UE_LOG(LogNNE, Warning, TEXT("Error:Failed to create operator:%s"), *TypeName);
 			return false;
 		}
 
@@ -1912,7 +1702,7 @@ bool FInferenceModelDml::Init(TConstArrayView<uint8> ModelData, FDeviceContextDm
 //
 //
 //
-bool FInferenceModelDml::InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 TensorDataSize)
+bool FModel::InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 TensorDataSize)
 {
 	static constexpr EBufferUsageFlags	WeightBuffUsage = BUF_UnorderedAccess;
 	static constexpr ERHIAccess			WeightBuffAccess = ERHIAccess::UAVMask;
@@ -1930,7 +1720,7 @@ bool FInferenceModelDml::InitCompiledOp(TConstArrayView<int32> OpInputIndices, u
 	Res = OpInit->Reset(UE_ARRAY_COUNT(CompiledOps), CompiledOps);
 	if (FAILED(Res))
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Error:Failed to reset DirectML operator initializer"));
+		UE_LOG(LogNNE, Warning, TEXT("Error:Failed to reset DirectML operator initializer"));
 		return false;
 	}
 
@@ -1948,7 +1738,7 @@ bool FInferenceModelDml::InitCompiledOp(TConstArrayView<int32> OpInputIndices, u
 	Res = DevCtx->D3D12Device->CreateDescriptorHeap(&HeapDesc, IID_PPV_ARGS(&DescHeap));
 	if (!DescHeap)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Failed to create descriptor heap, res:%x"), Res);
+		UE_LOG(LogNNE, Warning, TEXT("Failed to create descriptor heap, res:%x"), Res);
 		return false;
 	}
 
@@ -1965,7 +1755,7 @@ bool FInferenceModelDml::InitCompiledOp(TConstArrayView<int32> OpInputIndices, u
 
 	FEvent* Signal = FGenericPlatformProcess::GetSynchEventFromPool(false);
 
-	ENQUEUE_RENDER_COMMAND(FInferenceModelDml_SetTensorData)
+	ENQUEUE_RENDER_COMMAND(FModel_SetTensorData)
 	(
 		[
 			this, 
@@ -1999,7 +1789,7 @@ bool FInferenceModelDml::InitCompiledOp(TConstArrayView<int32> OpInputIndices, u
 
 					FBufferRHIRef WeightBuff;
 
-					WeightBuff = CreateRHIBuffer(RHICmdList, TensorData.Num(), WeightBuffUsage, WeightBuffAccess, TEXT("FInferenceModelDml_TensorWeights"));
+					WeightBuff = CreateRHIBuffer(RHICmdList, TensorData.Num(), WeightBuffUsage, WeightBuffAccess, TEXT("FModel_TensorWeights"));
 				
 					FMemory::Memcpy(UploadBuffPtr + UploadOffset, TensorData.GetData(), TensorData.Num());
 					RHICmdList.CopyBufferRegion(WeightBuff, 0, UploadBuff, UploadOffset, TensorData.Num());
@@ -2097,7 +1887,7 @@ END_SHADER_PARAMETER_STRUCT()
 //
 //
 //
-void FInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
+void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 {
 	const ERDGPassFlags TransitionBuffFlags = ERDGPassFlags::Compute | ERDGPassFlags::NeverCull;
 
@@ -2110,7 +1900,7 @@ void FInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 		Params->Buffer = AllTensorRDGs[InputTensorIndices[Idx]]->GetBuffer();
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("FInferenceModelDml_Dispatch_GetInputBuffer"),
+			RDG_EVENT_NAME("FModel_Dispatch_GetInputBuffer"),
 			Params,
 			TransitionBuffFlags,
 			[this, Idx, Params](FRHICommandListImmediate& RHICmdList)
@@ -2131,7 +1921,7 @@ void FInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 		Params->Buffer = AllTensorRDGs[OutputTensorIndices[Idx]]->GetBuffer();
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("FInferenceModelDml_Dispatch_GetOutputBuffer"),
+			RDG_EVENT_NAME("FModel_Dispatch_GetOutputBuffer"),
 			Params,
 			TransitionBuffFlags,
 			[this, Idx, Params](FRHICommandListImmediate& RHICmdList)
@@ -2142,7 +1932,7 @@ void FInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 	}
 	
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("FInferenceModelDml_Dispatch"),
+		RDG_EVENT_NAME("FModel_Dispatch"),
 		ERDGPassFlags::None | ERDGPassFlags::NeverCull,
 		[this](FRHICommandListImmediate& RHICmdList)
 		{
@@ -2170,7 +1960,7 @@ void FInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 					}
 
 					// TODO: We should use this instead of NNE_USE_D3D12_RESOURCES
-					//FBufferRHIRef TempBuff = MemSizeTemp ? CreateRHIBuffer(RHICmdList, MemSizeTemp, TempBuffUsage, TempBuffAccess, TEXT("FInferenceModelDml_Dispatch_TempBuff")) : nullptr;
+					//FBufferRHIRef TempBuff = MemSizeTemp ? CreateRHIBuffer(RHICmdList, MemSizeTemp, TempBuffUsage, TempBuffAccess, TEXT("FModel_Dispatch_TempBuff")) : nullptr;
 
 					BindingTable->Bind(CompiledOp, InputBuffers, OutputBuffers, PersistBuff, TempBuff);
 
@@ -2191,13 +1981,13 @@ void FInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 //
 // Create operator
 //
-FOperatorDml* FInferenceModelDml::OpCreate(const FString& OpName, TArrayView<const NNECore::Internal::FTensor> InputTensorDescs, TArrayView<const NNECore::Internal::FTensor> OutputTensorDescs, const NNECore::FAttributeMap& Attributes)
+FOperatorDml* FModel::OpCreate(const FString& OpName, TArrayView<const NNECore::Internal::FTensor> InputTensorDescs, TArrayView<const NNECore::Internal::FTensor> OutputTensorDescs, const NNECore::FAttributeMap& Attributes)
 {
 	FOperatorRegistryDml::OperatorCreateFunc CreateFn = FOperatorRegistryDml::Get()->OpFind(OpName);
 
 	if (!CreateFn)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Dml MLOperatorRegistry failed to find operator:%s"), *OpName);
+		UE_LOG(LogNNE, Warning, TEXT("Dml MLOperatorRegistry failed to find operator:%s"), *OpName);
 		return nullptr;
 	}
 
@@ -2207,7 +1997,7 @@ FOperatorDml* FInferenceModelDml::OpCreate(const FString& OpName, TArrayView<con
 	{
 		delete Op;
 
-		UE_LOG(LogNNX, Warning, TEXT("Error:Failed to initialize operator:%s"), *OpName);
+		UE_LOG(LogNNE, Warning, TEXT("Error:Failed to initialize operator:%s"), *OpName);
 		return nullptr;
 	}
 
@@ -2216,7 +2006,7 @@ FOperatorDml* FInferenceModelDml::OpCreate(const FString& OpName, TArrayView<con
 	return Op;
 }
 
-FBufferRHIRef FInferenceModelDml::CreateRHIBuffer(FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, ERHIAccess Access, const TCHAR* DbgName)
+FBufferRHIRef FModel::CreateRHIBuffer(FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, ERHIAccess Access, const TCHAR* DbgName)
 {
 	FBufferRHIRef Buff = nullptr;
 
@@ -2231,7 +2021,7 @@ FBufferRHIRef FInferenceModelDml::CreateRHIBuffer(FRHICommandListImmediate& RHIC
 	return Buff;
 }
 
-ID3D12Resource* FInferenceModelDml::CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_STATES ResourceState, D3D12_HEAP_TYPE HeapType, const TCHAR* DebugName)
+ID3D12Resource* FModel::CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_STATES ResourceState, D3D12_HEAP_TYPE HeapType, const TCHAR* DebugName)
 {
 	ID3D12Resource* Resource = nullptr;
 
@@ -2249,7 +2039,7 @@ ID3D12Resource* FInferenceModelDml::CreateD3D12Buffer(uint32 Size, D3D12_RESOURC
 
 	if (FAILED(Res))
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Error:FInferenceModel failed to create D3D12 resource"));
+		UE_LOG(LogNNE, Warning, TEXT("Error:FInferenceModel failed to create D3D12 resource"));
 		return nullptr;
 	}
 
@@ -2264,13 +2054,13 @@ ID3D12Resource* FInferenceModelDml::CreateD3D12Buffer(uint32 Size, D3D12_RESOURC
 //
 //
 //
-int FInferenceModelDml::PrepareTensorShapesAndData()
+int FModel::PrepareTensorShapesAndData()
 {
 	for (FTensorDesc SymbolicTensorDesc : AllSymbolicTensorDescs)
 	{
 		if (!SymbolicTensorDesc.GetShape().IsConcrete())
 		{
-			UE_LOG(LogNNX, Warning, TEXT("DML engine does not support model with variable shapes yet."));
+			UE_LOG(LogNNE, Warning, TEXT("DML engine does not support model with variable shapes yet."));
 			return -1;
 		}
 	}
@@ -2279,91 +2069,268 @@ int FInferenceModelDml::PrepareTensorShapesAndData()
 }
 
 //
-//
-//
-static TUniquePtr<FRuntimeDml> FDmlRuntimeCreate(bool bRegisterOnlyOperators)
-{
-	auto Runtime = MakeUnique<FRuntimeDml>();
-
-	if (!Runtime->Init(bRegisterOnlyOperators))
-	{
-		UE_LOG(LogNNX, Warning, TEXT("Failed to create NNX DML runtime"));
-		Runtime.Release();
-	}
-
-	return Runtime;
-}
-
-//
 // Called on RDG runtime startup
 //
-IRuntime* FRuntimeDmlStartup()
+bool FRuntimeDmlStartup()
 {
-	if (!GDmlRuntime)
-	{
-		bool bIsD3D12RHI = GDynamicRHI && GDynamicRHI->GetInterfaceType() == ERHIInterfaceType::D3D12;		
-		bool bLoadDirectML = true;
+	bool bIsD3D12RHI = GDynamicRHI && GDynamicRHI->GetInterfaceType() == ERHIInterfaceType::D3D12;		
+	bool bLoadDirectML = true;
 
-		if (IsRunningCommandlet() && !IsAllowCommandletRendering())
-		{
-			UE_LOG(LogNNX, Display, TEXT("Running inside commandlet without rendering"));
-			bLoadDirectML = false;
-		}
+	if (IsRunningCommandlet() && !IsAllowCommandletRendering())
+	{
+		UE_LOG(LogNNE, Display, TEXT("Running inside commandlet without rendering"));
+		bLoadDirectML = false;
+	}
 
 #ifdef DIRECTML_BIN_PATH
 		
-		if (bIsD3D12RHI && bLoadDirectML)
-		{
-			const FString DirectMLRuntimeBinPath = TEXT(PREPROCESSOR_TO_STRING(DIRECTML_BIN_PATH));
-			FString DirectMLDLLPaths[2];
-			int32	NumPaths = 1;
+	if (bIsD3D12RHI && bLoadDirectML)
+	{
+		const FString DirectMLRuntimeBinPath = TEXT(PREPROCESSOR_TO_STRING(DIRECTML_BIN_PATH));
+		FString DirectMLDLLPaths[2];
+		int32	NumPaths = 1;
 		
-			DirectMLDLLPaths[0] = DirectMLRuntimeBinPath / TEXT("DirectML.dll");
+		DirectMLDLLPaths[0] = DirectMLRuntimeBinPath / TEXT("DirectML.dll");
 
-			if (GetID3D12PlatformDynamicRHI()->IsD3DDebugEnabled())
-			{
-				DirectMLDLLPaths[1] = DirectMLRuntimeBinPath / TEXT("DirectML.Debug.dll");
-				++NumPaths;
-			}
-
-			FPlatformProcess::PushDllDirectory(*DirectMLRuntimeBinPath);
-
-			for (int32 Idx = 0; Idx < NumPaths; ++Idx)
-			{
-				if (!FPaths::FileExists(DirectMLDLLPaths[Idx]))
-				{
-					const FString ErrorMessage = FString::Format(TEXT("DirectML DLL file not found in \"{0}\"."),
-						{ IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*DirectMLDLLPaths[Idx])});
-					UE_LOG(LogNNX, Warning, TEXT("NNXRuntimeDll:%s"), *ErrorMessage);
-					checkf(false, TEXT("%s"), *ErrorMessage);
-				}
-
-				FPlatformProcess::GetDllHandle(*DirectMLDLLPaths[Idx]);
-			}
-
-			FPlatformProcess::PopDllDirectory(*DirectMLRuntimeBinPath);
+		if (GetID3D12PlatformDynamicRHI()->IsD3DDebugEnabled())
+		{
+			DirectMLDLLPaths[1] = DirectMLRuntimeBinPath / TEXT("DirectML.Debug.dll");
+			++NumPaths;
 		}
+
+		FPlatformProcess::PushDllDirectory(*DirectMLRuntimeBinPath);
+
+		for (int32 Idx = 0; Idx < NumPaths; ++Idx)
+		{
+			if (!FPaths::FileExists(DirectMLDLLPaths[Idx]))
+			{
+				const FString ErrorMessage = FString::Format(TEXT("DirectML DLL file not found in \"{0}\"."),
+					{ IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*DirectMLDLLPaths[Idx])});
+				UE_LOG(LogNNE, Warning, TEXT("NNXRuntimeDll:%s"), *ErrorMessage);
+				checkf(false, TEXT("%s"), *ErrorMessage);
+			}
+
+			FPlatformProcess::GetDllHandle(*DirectMLDLLPaths[Idx]);
+		}
+
+		FPlatformProcess::PopDllDirectory(*DirectMLRuntimeBinPath);
+	}
 #endif
 
-		const bool bRegisterOnlyOperators = !bLoadDirectML;
-
-		GDmlRuntime = FDmlRuntimeCreate(bRegisterOnlyOperators);
-	}
-
-	return GDmlRuntime.Get();
-}
-
-//
-// Called on RDG runtime shutdown
-//
-void FRuntimeDmlShutdown()
-{
-	if (GDmlRuntime)
-	{
-		GDmlRuntime.Release();
-	}
+	const bool bRegisterOnlyOperators = !bLoadDirectML;
+	return bRegisterOnlyOperators;
 }
 
 } // namespace UE::NNERuntimeRDG::Private::Dml
- 
+
 #endif
+
+using namespace UE::NNERuntimeRDG::Private::Dml;
+
+FGuid UNNERuntimeRDGDmlImpl::GUID = FGuid((int32)'R', (int32)'D', (int32)'G', (int32)'D');
+int32 UNNERuntimeRDGDmlImpl::Version = 0x00000001;
+
+bool UNNERuntimeRDGDmlImpl::CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const
+{
+	return FileType.Compare("onnx", ESearchCase::IgnoreCase) == 0;
+}
+
+TArray<uint8> UNNERuntimeRDGDmlImpl::CreateModelData(FString FileType, TConstArrayView<uint8> FileData)
+{
+	if (!CanCreateModelData(FileType, FileData))
+	{
+		return {};
+	}
+
+	TUniquePtr<IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
+
+	FNNIModelRaw InputModel;
+	InputModel.Data = FileData;
+	InputModel.Format = ENNXInferenceFormat::ONNX;
+
+	FNNIModelRaw OutputModel;
+	if (!Optimizer->Optimize(InputModel, OutputModel, {}))
+	{
+		return {};
+	}
+
+	TArray<uint8> Result;
+	FMemoryWriter Writer(Result);
+
+	Writer << GUID;
+	Writer << Version;
+	Writer.Serialize(OutputModel.Data.GetData(), OutputModel.Data.Num());
+	return Result;
+};
+
+bool UNNERuntimeRDGDmlImpl::CanCreateModelRDG(TObjectPtr<UNNEModelData> ModelData) const
+{
+#ifdef NNE_USE_DIRECTML
+	int32 GuidSize = sizeof(GUID);
+	int32 VersionSize = sizeof(Version);
+	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
+
+	if (Data.Num() <= GuidSize + VersionSize)
+	{
+		return false;
+	}
+	bool bResult = FGenericPlatformMemory::Memcmp(&(Data[0]), &(GUID), GuidSize) == 0;
+	bResult &= FGenericPlatformMemory::Memcmp(&(Data[GuidSize]), &(Version), VersionSize) == 0;
+	return bResult;
+#else
+	return false;
+#endif
+};
+
+TUniquePtr<UE::NNECore::IModelRDG> UNNERuntimeRDGDmlImpl::CreateModelRDG(TObjectPtr<UNNEModelData> ModelData)
+{
+#ifdef NNE_USE_DIRECTML
+	if (!CanCreateModelRDG(ModelData))
+	{
+		return TUniquePtr<UE::NNECore::IModelRDG>();
+	}
+
+	// Create the model and initialize it with the data not including the header
+	FModel* Model = new FModel();
+	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
+
+	if (!Model->Init(Data, Ctx))
+	{
+		delete Model;
+		return TUniquePtr<UE::NNECore::IModelRDG>();
+	}
+	return TUniquePtr<UE::NNECore::IModelRDG>(Model);
+#else
+	return TUniquePtr<UE::NNECore::IModelRDG>();
+#endif
+}
+
+UNNERuntimeRDGDmlImpl::~UNNERuntimeRDGDmlImpl()
+{
+#ifdef NNE_USE_DIRECTML
+	if (Ctx)
+	{
+		delete Ctx;
+		Ctx = nullptr;
+	}
+#endif
+}
+
+bool UNNERuntimeRDGDmlImpl::Init(bool bRegisterOnlyOperators)
+{
+#ifdef NNE_USE_DIRECTML
+	RegisterElementWiseUnaryOperators();
+	RegisterElementWiseBinaryOperators();
+	RegisterGemmOperator();
+
+	if (bRegisterOnlyOperators)
+	{
+		UE_LOG(LogNNE, Display, TEXT("Registering only operators"));
+		return true;
+	}
+
+	HRESULT Res;
+
+	// In order to use DirectML we need D3D12
+	ID3D12DynamicRHI* RHI = nullptr;
+
+	if (GDynamicRHI && GDynamicRHI->GetInterfaceType() == ERHIInterfaceType::D3D12)
+	{
+		RHI = GetID3D12PlatformDynamicRHI();
+
+		if (!RHI)
+		{
+			UE_LOG(LogNNE, Warning, TEXT("Error:%s RHI is not supported by DirectML"), GDynamicRHI->GetName());
+			return false;
+		}
+	}
+	else
+	{
+		if (GDynamicRHI)
+		{
+			UE_LOG(LogNNE, Warning, TEXT("Error:%s RHI is not supported by DirectML"), GDynamicRHI->GetName());
+			return false;
+		}
+		else
+		{
+			UE_LOG(LogNNE, Warning, TEXT("Error:No RHI found"));
+			return false;
+		}
+	}
+
+	check(Ctx == nullptr);
+	Ctx = new FDeviceContextDml();
+	Ctx->DeviceIndex = 0;
+	Ctx->D3D12Device = RHI->RHIGetDevice(Ctx->DeviceIndex);
+
+#if PLATFORM_WINDOWS
+	ID3D12Device5* D3D12Device5 = nullptr;
+
+	Res = Ctx->D3D12Device->QueryInterface(&D3D12Device5);
+	if (D3D12Device5)
+	{
+		uint32	NumCommands = 0;
+
+		Res = D3D12Device5->EnumerateMetaCommands(&NumCommands, nullptr);
+		if (NumCommands)
+		{
+			UE_LOG(LogNNE, Verbose, TEXT("D3D12 Meta commands:%u"), NumCommands);
+
+			TArray<D3D12_META_COMMAND_DESC>	MetaCmds;
+
+			MetaCmds.SetNumUninitialized(NumCommands);
+
+			Res = D3D12Device5->EnumerateMetaCommands(&NumCommands, MetaCmds.GetData());
+			for (uint32 Idx = 0; Idx < NumCommands; ++Idx)
+			{
+				const D3D12_META_COMMAND_DESC& Desc = MetaCmds[Idx];
+
+				UE_LOG(LogNNE, Verbose, TEXT("   %s"), Desc.Name);
+			}
+		}
+	}
+#endif
+
+	DML_CREATE_DEVICE_FLAGS DmlCreateFlags = DML_CREATE_DEVICE_FLAG_NONE;
+
+	// Set debugging flags
+	if (RHI->IsD3DDebugEnabled())
+	{
+		DmlCreateFlags |= DML_CREATE_DEVICE_FLAG_DEBUG;
+	}
+
+	Res = DMLCreateDevice(Ctx->D3D12Device, DmlCreateFlags, DML_PPV_ARGS(&(Ctx->Device)));
+	if (!Ctx->Device)
+	{
+		UE_LOG(LogNNE, Warning, TEXT("Failed to create DirectML device, res:%x"), Res);
+		return false;
+	}
+
+	DML_FEATURE_QUERY_TENSOR_DATA_TYPE_SUPPORT	Fp16Query = { DML_TENSOR_DATA_TYPE_FLOAT16 };
+	DML_FEATURE_DATA_TENSOR_DATA_TYPE_SUPPORT	Fp16Supported = {};
+
+	Ctx->Device->CheckFeatureSupport(DML_FEATURE_TENSOR_DATA_TYPE_SUPPORT, sizeof(Fp16Query), &Fp16Query, sizeof(Fp16Supported), &Fp16Supported);
+
+	DML_FEATURE_LEVEL					FeatureLevels[] = { DML_FEATURE_LEVEL_5_0 };
+	DML_FEATURE_QUERY_FEATURE_LEVELS	FeatureLevelQuery = { UE_ARRAY_COUNT(FeatureLevels), FeatureLevels };
+	DML_FEATURE_DATA_FEATURE_LEVELS		FeatureLevelSupported = {};
+
+	Res = Ctx->Device->CheckFeatureSupport(DML_FEATURE_FEATURE_LEVELS, sizeof(FeatureLevelQuery), &FeatureLevelQuery, sizeof(FeatureLevelSupported), &FeatureLevelSupported);
+	if (FAILED(Res) || FeatureLevelSupported.MaxSupportedFeatureLevel < DML_FEATURE_LEVEL_5_0)
+	{
+		UE_LOG(LogNNE, Warning, TEXT("DirectML feature level %x not supported"), FeatureLevels[0]);
+		return false;
+	}
+
+	Res = Ctx->Device->CreateCommandRecorder(DML_PPV_ARGS(&Ctx->CmdRec));
+	if (!Ctx->CmdRec)
+	{
+		UE_LOG(LogNNE, Warning, TEXT("Failed to create DML command recorder, res:%x"), Res);
+		return false;
+	}
+
+	return true;
+#else
+	return false;
+#endif
+}

@@ -1,61 +1,64 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNXCore.h"
-#include "NNXRuntime.h"
+#include "NNERuntimeRDGModule.h"
+#include "NNECore.h"
+#include "NNERuntimeRDGDml.h"
+#include "NNERuntimeRDGHlsl.h"
+#include "UObject/WeakInterfacePtr.h"
 
-#include "NNERuntimeRDG.h"
 
-#include "Modules/ModuleManager.h"
-
-//
-//
-//
-class FNNXRuntimeRDGModule : public IModuleInterface
+void FNNERuntimeRDGModule::StartupModule()
 {
-	NNX::IRuntime* DmlRuntime { nullptr };
-	NNX::IRuntime* HlslRuntime{ nullptr };
-
-public:
-
-	virtual void StartupModule() override
+	// NNE runtime ORT Cpu startup
+	NNERuntimeRDGHlsl = NewObject<UNNERuntimeRDGHlslImpl>();
+	if (NNERuntimeRDGHlsl.IsValid())
 	{
-#ifdef NNE_USE_DIRECTML
-		DmlRuntime = UE::NNERuntimeRDG::Private::Dml::FRuntimeDmlStartup();
+		TWeakInterfacePtr<INNERuntime> RuntimeCPUInterface(NNERuntimeRDGHlsl.Get());
 
-		if (DmlRuntime)
-		{
-			NNX::RegisterRuntime(DmlRuntime);
-		}
-#endif
-
-		HlslRuntime = UE::NNERuntimeRDG::Private::Hlsl::FRuntimeHlslStartup();
-
-		if (HlslRuntime)
-		{
-			NNX::RegisterRuntime(HlslRuntime);
-		}
+		NNERuntimeRDGHlsl->Init();
+		NNERuntimeRDGHlsl->AddToRoot();
+		UE::NNECore::RegisterRuntime(RuntimeCPUInterface);
 	}
 
-	virtual void ShutdownModule() override
-	{
 #ifdef NNE_USE_DIRECTML
-		if (DmlRuntime)
-		{
-			NNX::UnregisterRuntime(DmlRuntime);
-			DmlRuntime = nullptr;
-		}
+	// NNE runtime ORT Dml startup
+	NNERuntimeRDGDml = NewObject<UNNERuntimeRDGDmlImpl>();
+	if (NNERuntimeRDGDml.IsValid())
+	{
+		TWeakInterfacePtr<INNERuntime> RuntimeDmlInterface(NNERuntimeRDGDml.Get());
+		
+		bool bRegisterOnlyOperators = UE::NNERuntimeRDG::Private::Dml::FRuntimeDmlStartup();
+		NNERuntimeRDGDml->Init(bRegisterOnlyOperators);
+		NNERuntimeRDGDml->AddToRoot();
+		UE::NNECore::RegisterRuntime(RuntimeDmlInterface);
+	}
+#endif
+}
 
-		UE::NNERuntimeRDG::Private::Dml::FRuntimeDmlShutdown();
+void FNNERuntimeRDGModule::ShutdownModule()
+{
+	// NNE runtime ORT Cpu shutdown
+	if (NNERuntimeRDGHlsl.IsValid())
+	{
+		TWeakInterfacePtr<INNERuntime> RuntimeCPUInterface(NNERuntimeRDGHlsl.Get());
+
+		UE::NNECore::UnregisterRuntime(RuntimeCPUInterface);
+		NNERuntimeRDGHlsl->RemoveFromRoot();
+		NNERuntimeRDGHlsl = TWeakObjectPtr<UNNERuntimeRDGHlslImpl>(nullptr);
+	}
+
+#ifdef NNE_USE_DIRECTML
+	// NNE runtime ORT Dml shutdown
+	if (NNERuntimeRDGDml.IsValid())
+	{
+		TWeakInterfacePtr<INNERuntime> RuntimeDmlInterface(NNERuntimeRDGDml.Get());
+
+		UE::NNECore::UnregisterRuntime(RuntimeDmlInterface);
+		NNERuntimeRDGDml->RemoveFromRoot();
+		NNERuntimeRDGDml = TWeakObjectPtr<UNNERuntimeRDGDmlImpl>(nullptr);
+	}
 #endif
 
-		if (HlslRuntime)
-		{
-			NNX::UnregisterRuntime(HlslRuntime);
-			HlslRuntime = nullptr;
-		}
+}
 
-		UE::NNERuntimeRDG::Private::Hlsl::FRuntimeHlslShutdown();
-	}
-};
-
-IMPLEMENT_MODULE(FNNXRuntimeRDGModule, NNERuntimeRDG)
+IMPLEMENT_MODULE(FNNERuntimeRDGModule, NNERuntimeRDG);

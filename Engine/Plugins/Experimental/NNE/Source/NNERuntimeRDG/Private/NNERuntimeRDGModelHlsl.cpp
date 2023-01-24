@@ -2,6 +2,7 @@
 
 #include "NNERuntimeRDGModelHlsl.h"
 #include "NNECoreTensor.h"
+#include "NNERuntimeRDGHlsl.h"
 #include "NNERuntimeRDGHlslOp.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
@@ -9,7 +10,7 @@
 namespace UE::NNERuntimeRDG::Private::Hlsl
 {
 
-namespace
+namespace ModelUtils
 {
 
 FOperatorHlsl* OpCreate(const FString& OpName, TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& AttributeMap)
@@ -18,7 +19,7 @@ FOperatorHlsl* OpCreate(const FString& OpName, TConstArrayView<NNX::FTensorDesc>
 
 	if (!CreateFn)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Hlsl MLOperatorRegistry failed to find operator:%s"), *OpName);
+		UE_LOG(LogNNE, Warning, TEXT("Hlsl MLOperatorRegistry failed to find operator:%s"), *OpName);
 		return nullptr;
 	}
 
@@ -26,7 +27,7 @@ FOperatorHlsl* OpCreate(const FString& OpName, TConstArrayView<NNX::FTensorDesc>
 
 	if (!Op->Initialize(InputTensorDescs, OutputTensorDescs, AttributeMap))
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Hlsl engine: Error initializing operator:%s"), *OpName);
+		UE_LOG(LogNNE, Warning, TEXT("Hlsl engine: Error initializing operator:%s"), *OpName);
 		delete Op;
 		return nullptr;
 	}
@@ -62,29 +63,20 @@ void InternAddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder, TConstArrayVie
 	}
 }
 
-int ApplyBinding(TArray<FTensorHLSL>& OutTensorsHLSL, TConstArrayView<NNX::FMLTensorBinding> InBindings, bool bIsInput)
+int ApplyBinding(TArray<FTensorHLSL>& OutTensorsHLSL, TConstArrayView<NNECore::FTensorBindingRDG> InBindings, bool bIsInput)
 {
 	check(OutTensorsHLSL.Num() == InBindings.Num());
 	
 	for (int32 Idx = 0; Idx < InBindings.Num(); ++Idx)
 	{
-		const NNX::FMLTensorBinding& Binding = InBindings[Idx];
+		const NNECore::FTensorBindingRDG& Binding = InBindings[Idx];
 		FTensorHLSL& Tensor = OutTensorsHLSL[Idx];
-
-		if (Binding.BindingType == NNX::EMLTensorBindingDataType::CPUMemory)
+		
+		if (Binding.Buffer == nullptr)
 		{
-			if (bIsInput) Tensor.SetUploadBuffer(Binding.CpuMemory);
-			else Tensor.SetDownloadBuffer(Binding.CpuMemory);
+			return -1;
 		}
-		else if (Binding.BindingType == NNX::EMLTensorBindingDataType::RDGBuffer)
-		{
-			Tensor.SetBuffer(Binding.Buffer);
-		}
-		else
-		{
-			// Unsupported tensor binding type
-			return Idx;
-		}
+		Tensor.SetBuffer(Binding.Buffer);
 	}
 
 	return 0;
@@ -111,8 +103,10 @@ bool FModel::Init(TConstArrayView<uint8> ModelData)
 {
 	check(ModelData.Num() > 0);
 	FMLRuntimeFormat	Format;
-
-	if (!LoadModel(ModelData, Format))
+	int32 GuidSize = sizeof(UNNERuntimeRDGHlslImpl::GUID);
+	int32 VersionSize = sizeof(UNNERuntimeRDGHlslImpl::Version);
+	
+	if (!LoadModel(ModelData, Format, GuidSize+VersionSize))
 	{
 		return false;
 	}
@@ -142,11 +136,11 @@ bool FModel::Init(TConstArrayView<uint8> ModelData)
 			AttributeMap.SetAttribute(Desc.Name, Desc.Value);
 		}
 
-		FOperatorHlsl* Op = OpCreate(TypeName, Inputs, Outputs, AttributeMap);
+		FOperatorHlsl* Op = ModelUtils::OpCreate(TypeName, Inputs, Outputs, AttributeMap);
 
 		if (!Op) //Op.Shader.IsNull())
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to create operator:%s"), *TypeName);
+			UE_LOG(LogNNE, Warning, TEXT("Failed to create operator:%s"), *TypeName);
 
 			// TODO: Cleanup operators
 			return false;
@@ -160,7 +154,7 @@ bool FModel::Init(TConstArrayView<uint8> ModelData)
 
 int FModel::SetInputTensorShapes(TConstArrayView<NNX::FTensorShape> InputShapes)
 {
-	int Res = FInferenceModelRDG::SetInputTensorShapes(InputShapes);
+	int Res = FModelRDG::SetInputTensorShapes(InputShapes);
 	if (Res < 0) return Res;
 
 	auto ConvertTensors = [this] (TArray<FTensorHLSLRef> &TensorRefs, TArray<FTensorHLSL> &Tensors, const FTensorRDGArray &TensorRDGs, const TArray<int32>& TensorIndices)
@@ -190,59 +184,7 @@ int FModel::SetInputTensorShapes(TConstArrayView<NNX::FTensorShape> InputShapes)
 	return 0;
 }
 
-int FModel::RunSync(TConstArrayView<NNX::FMLTensorBinding> InInputBindings, TConstArrayView<NNX::FMLTensorBinding> InOutputBindings)
-{
-	// Verify the model inputs were prepared
-	if (InputTensorShapes.Num() == 0)
-	{
-		UE_LOG(LogNNX, Error, TEXT("Run(): Input shapes are not set, please call SetInputTensorShapes."));
-		return -1;
-	}
-	
-	int Res = 0;
-	FEvent* Signal = FGenericPlatformProcess::GetSynchEventFromPool(false);
-
-	ENQUEUE_RENDER_COMMAND(FMLInferenceModel_Run)
-	(
-		[&Signal, &Res, this, InInputBindings, InOutputBindings](FRHICommandListImmediate& RHICmdList)
-		{
-			TOptional<ERHIPipeline>		Pipeline = RHICmdList.GetPipeline();
-
-			if (Pipeline == ERHIPipeline::None)
-			{
-				RHICmdList.SwitchPipeline(ERHIPipeline::Graphics);
-			}
-
-			FRDGBuilder	RDGBuilder(RHICmdList);
-
-			Res = EnqueueRDG(RDGBuilder, InInputBindings, InOutputBindings);
-			if (Res == 0)
-			{
-				RDGBuilder.Execute();
-
-				// FIXME: Using BlockUntilGPUIdle() prevents hang on Linux
-				// FIXME: Adapt to redesigned readback API (UE 5.2)
-				RHICmdList.BlockUntilGPUIdle();
-
-				for (FTensorHLSLRef Tensor : AllTensorHLSLRefs)
-				{
-					Tensor->Resolve();
-				}
-			}
-			
-			Signal->Trigger();
-		}
-	);
-
-	// We need to wait for render thread to finish
-	Signal->Wait();
-
-	FGenericPlatformProcess::ReturnSynchEventToPool(Signal);
-
-	return Res;
-}
-
-int FModel::EnqueueRDG(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FMLTensorBinding> InInputBindings, TConstArrayView<NNX::FMLTensorBinding> InOutputBindings)
+int FModel::EnqueueRDG(FRDGBuilder& GraphBuilder, TConstArrayView<NNECore::FTensorBindingRDG> InInputBindings, TConstArrayView<NNECore::FTensorBindingRDG> InOutputBindings)
 {
 	check(IsInRenderingThread());
 
@@ -251,27 +193,27 @@ int FModel::EnqueueRDG(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FMLTensor
 	// Verify the model inputs were prepared
 	if (InputTensorShapes.Num() == 0)
 	{
-		UE_LOG(LogNNX, Error, TEXT("EnqueueRDG(): Input shapes are not set, please call SetInputTensorShapes."));
+		UE_LOG(LogNNE, Error, TEXT("EnqueueRDG(): Input shapes are not set, please call SetInputTensorShapes."));
 		return -1;
 	}
 
-	Res = ApplyBinding(InputTensorHLSLs, InInputBindings, true);
+	Res = ModelUtils::ApplyBinding(InputTensorHLSLs, InInputBindings, true);
 	if (Res != 0)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Invalid input tensor binding type for tensor index:%d"), Res);
+		UE_LOG(LogNNE, Warning, TEXT("Invalid input tensor binding for tensor index:%d"), Res);
 		return -1;
 	}
 
-	Res = ApplyBinding(OutputTensorHLSLs, InOutputBindings, false);
+	Res = ModelUtils::ApplyBinding(OutputTensorHLSLs, InOutputBindings, false);
 	if (Res != 0)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Invalid output tensor binding type for tensor index:%d"), Res);
+		UE_LOG(LogNNE, Warning, TEXT("Invalid output tensor binding for tensor index:%d"), Res);
 		return -1;
 	}
 
-	if (!ApplyWeights(GraphBuilder, WeightTensorHLSLs, WeightsExternalRDGResources))
+	if (!ModelUtils::ApplyWeights(GraphBuilder, WeightTensorHLSLs, WeightsExternalRDGResources))
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Could not register the weights for graph execution."));
+		UE_LOG(LogNNE, Warning, TEXT("Could not register the weights for graph execution."));
 		return -1;
 	}
 
@@ -292,17 +234,7 @@ int FModel::EnqueueRDG(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FMLTensor
 		}
 	}
 
-	for (FTensorHLSLRef Tensor : AllTensorHLSLRefs)
-	{
-		Tensor->EnqueueUploadRdg(GraphBuilder);
-	}
-
-	InternAddDispatchOps_RenderThread<FOperatorHlsl*>(GraphBuilder, AllTensorHLSLRefs, OperatorInputTensorIndices, OperatorOutputTensorIndices, Operators);
-
-	for (FTensorHLSLRef Tensor : AllTensorHLSLRefs)
-	{
-		Tensor->EnqueueDownloadRdg(GraphBuilder, bUseManualTransitions);
-	}
+	ModelUtils::InternAddDispatchOps_RenderThread<FOperatorHlsl*>(GraphBuilder, AllTensorHLSLRefs, OperatorInputTensorIndices, OperatorOutputTensorIndices, Operators);
 
 	return 0;
 }
@@ -313,7 +245,7 @@ int FModel::PrepareTensorShapesAndData()
 	
 	if (Operators.Num() == 0)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("No operators in model"));
+		UE_LOG(LogNNE, Warning, TEXT("No operators in model"));
 		return -1;
 	}
 
@@ -363,7 +295,7 @@ int FModel::PrepareTensorShapesAndData()
 		{
 			//Operator could not prepare the output tensors, meaning we can't allocate
 			//output buffer before running the model. This engine does not support this.
-			UE_LOG(LogNNX, Warning, TEXT("Could not deduce tensor shapes for this model during shape inference, HLSL engine wont support the model as it need to precompute all shapes for performance reasons."));
+			UE_LOG(LogNNE, Warning, TEXT("Could not deduce tensor shapes for this model during shape inference, HLSL engine wont support the model as it need to precompute all shapes for performance reasons."));
 			AllTensorRDGs.Empty();
 			return -1;
 		}

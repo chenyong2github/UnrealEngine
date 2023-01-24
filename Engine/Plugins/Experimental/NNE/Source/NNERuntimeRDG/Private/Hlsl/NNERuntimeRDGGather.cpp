@@ -32,7 +32,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		{
 			check(InputTensors.Num() == 2)
 			check(OutputTensors.Num() == 1)
-			UE_LOG(LogNNX, Warning, TEXT("Gather shape inference is not implemented at the moment"));
+			UE_LOG(LogNNE, Warning, TEXT("Gather shape inference is not implemented at the moment"));
 			return -1;
 		};
 		
@@ -49,34 +49,34 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 			if (Output.GetShape().Rank() <= MaxNumDimensions)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Gather first input should be of rank %d or less"), MaxNumDimensions);
+				UE_LOG(LogNNE, Warning, TEXT("Gather first input should be of rank %d or less"), MaxNumDimensions);
 				return false;
 			}
 			if (Data.GetShape().Rank() == 0)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Gather first input should be at least of rank 1"));
+				UE_LOG(LogNNE, Warning, TEXT("Gather first input should be at least of rank 1"));
 				return false;
 			}
 			if (Indices.GetShape().Rank() == 0)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Gather second input should be at least of rank 1"));
+				UE_LOG(LogNNE, Warning, TEXT("Gather second input should be at least of rank 1"));
 				return false;
 			}
 			if ((Data.GetShape().Rank() + Indices.GetShape().Rank() - 1) > MaxNumDimensions)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Gather sum of input 0 and 1 ranks -1 should be less than %d"), MaxNumDimensions);
+				UE_LOG(LogNNE, Warning, TEXT("Gather sum of input 0 and 1 ranks -1 should be less than %d"), MaxNumDimensions);
 				return false;
 			}
 
 			Axis = Attributes.GetValueOrDefault(TEXT("axis"), Axis);
 			if (Axis >= Data.GetShape().Rank())
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Gather Axis attribute should be inferior to first input rank"));
+				UE_LOG(LogNNE, Warning, TEXT("Gather Axis attribute should be inferior to first input rank"));
 				return false;
 			}
 			if (Axis < -Data.GetShape().Rank())
 {
-				UE_LOG(LogNNX, Warning, TEXT("Gather Axis attribute should be superior or equal to minus the first input rank"));
+				UE_LOG(LogNNE, Warning, TEXT("Gather Axis attribute should be superior or equal to minus the first input rank"));
 				return false;
 			}
 			Axis = Axis >= 0 ? Axis : Data.GetShape().Rank() + Axis;
