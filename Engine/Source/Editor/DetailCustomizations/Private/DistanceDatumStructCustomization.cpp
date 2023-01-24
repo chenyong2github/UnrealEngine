@@ -3,6 +3,7 @@
 #include "DistanceDatumStructCustomization.h"
 
 #include "Containers/Array.h"
+#include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "HAL/Platform.h"
 #include "IDetailChildrenBuilder.h"
@@ -23,14 +24,14 @@
 
 TSharedRef<IPropertyTypeCustomization> FDistanceDatumStructCustomization::MakeInstance()
 {
-	return MakeShareable(new FDistanceDatumStructCustomization);
+	return MakeShared<FDistanceDatumStructCustomization>(FDistanceDatumStructCustomization::FPrivateToken());
 }
 
 FDistanceDatumStructCustomization::~FDistanceDatumStructCustomization()
 {
 }
 
-FDistanceDatumStructCustomization::FDistanceDatumStructCustomization()
+FDistanceDatumStructCustomization::FDistanceDatumStructCustomization(FPrivateToken)
 {
 }
 
@@ -88,22 +89,55 @@ void FDistanceDatumStructCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 		{
 			if (Child->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FDistanceDatum, FadeInDistanceStart))
 			{
-				ChildRow.DisplayName(FText::Format(LOCTEXT("FadeInStart", "Fade In {0} Value Start"), ParamDesc));
+				ChildRow.DisplayName(FText::Format(LOCTEXT("FadeInStart", "Fade In {0} Start"), ParamDesc));
+				ChildRow.ToolTip(LOCTEXT("FadeInStartText", "The param value at which to start hearing this sound."));
 			}
 			else if (Child->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FDistanceDatum, FadeInDistanceEnd))
 			{
-				ChildRow.DisplayName(FText::Format(LOCTEXT("FadeInEnd", "Fade In {0} Value End"), ParamDesc));
+				ChildRow.DisplayName(FText::Format(LOCTEXT("FadeInEnd", "Fade In {0} End"), ParamDesc));
+				ChildRow.ToolTip(LOCTEXT("FadeInEndText", "The param value at which this sound has faded in completely."));
 			}
 			else if (Child->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FDistanceDatum, FadeOutDistanceStart))
 			{
-				ChildRow.DisplayName(FText::Format(LOCTEXT("FadeOutStart", "Fade Out {0} Value Start"), ParamDesc));
+				ChildRow.DisplayName(FText::Format(LOCTEXT("FadeOutStart", "Fade Out {0} Start"), ParamDesc));
+				ChildRow.ToolTip(LOCTEXT("FadeOutStartText", "The param value at which this sound starts fading out"));
 			}
 			else if (Child->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FDistanceDatum, FadeOutDistanceEnd))
 			{
-				ChildRow.DisplayName(FText::Format(LOCTEXT("FadeOutEnd", "Fade Out {0} Value End"), ParamDesc));
+				ChildRow.DisplayName(FText::Format(LOCTEXT("FadeOutEnd", "Fade Out {0} End"), ParamDesc));
+				ChildRow.ToolTip(LOCTEXT("FadeOutEndText", "The param value at which this sound is no longer audible."));
 			}
 		}
 	}
 }
+
+void FCrossFadeCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	
+	TArray< TWeakObjectPtr< UObject > > Objects;
+	DetailBuilder.GetObjectsBeingCustomized(Objects);
+
+	//Restrict this to one object at a time
+	if (Objects.Num() != 1)
+	{
+		return;
+	}
+
+	//We only need to change the tooltips if we're working with a SoundNodeParamCrossFade
+	if (Objects[0]->IsA(USoundNodeParamCrossFade::StaticClass()))
+	{
+		TSharedRef< IPropertyHandle > CrossFadeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USoundNodeDistanceCrossFade, CrossFadeInput));
+		ensure(CrossFadeHandle->IsValidHandle());
+
+		CrossFadeHandle->SetToolTipText(LOCTEXT("CrossFadeInputText", "Each input needs to have the correct data filled in so the SoundNodeParamCrossFade is able to determine which sounds to play"));
+	}
+
+}
+
+TSharedRef< IDetailCustomization > FCrossFadeCustomization::MakeInstance()
+{
+	return MakeShared<FCrossFadeCustomization>();
+}
+
 
 #undef LOCTEXT_NAMESPACE

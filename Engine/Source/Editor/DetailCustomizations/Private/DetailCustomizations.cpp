@@ -142,6 +142,7 @@
 #include "SoftClassPathCustomization.h"
 #include "SoftObjectPathCustomization.h"
 #include "SoundBaseDetails.h"
+#include "Sound/SoundNodeDistanceCrossFade.h"
 #include "SoundSourceBusDetails.h"
 #include "SoundWaveDetails.h"
 #include "SourceCodeAccessSettingsDetails.h"
@@ -476,6 +477,8 @@ void FDetailCustomizationsModule::RegisterObjectCustomizations()
 	RegisterCustomClassLayout("LandscapeGrassType", FOnGetDetailCustomizationInstance::CreateStatic(&FLandscapeGrassTypeDetails::MakeInstance));
 
 	RegisterCustomClassLayout("BoundsCopyComponent", FOnGetDetailCustomizationInstance::CreateStatic(&FBoundsCopyComponentDetailsCustomization::MakeInstance));
+
+	RegisterCustomClassLayout("SoundNodeDistanceCrossFade", FOnGetDetailCustomizationInstance::CreateStatic(&FCrossFadeCustomization::MakeInstance));
 }
 
 #define LOCTEXT_NAMESPACE "DetailsSections"
