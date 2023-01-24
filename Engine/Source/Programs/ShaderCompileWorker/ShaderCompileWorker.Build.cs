@@ -29,11 +29,9 @@ public class ShaderCompileWorker : ModuleRules
 		PrivateIncludePaths.Add("Runtime/Launch/Private");      // For LaunchEngineLoop.cpp include
 
 		// Include D3D compiler binaries
-		string EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			RuntimeDependencies.Add(EngineDir + "Binaries/ThirdParty/Windows/DirectX/x64/d3dcompiler_47.dll");
+			RuntimeDependencies.Add(DirectX.GetDllDir(Target) + "d3dcompiler_47.dll");
 		}
 	}
 }

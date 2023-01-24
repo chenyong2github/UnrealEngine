@@ -526,6 +526,15 @@ namespace UnrealBuildTool
 				{
 					throw new BuildException("No valid constructor found for {0}.", ModuleName);
 				}
+
+				// Add the parent assemblies to the assembly cache so the types in them can be used when the constructor is called
+				var CurrentParent = Parent;
+				while (CurrentParent != null && CurrentParent.CompiledAssembly != null)
+				{
+					EpicGames.Core.AssemblyUtils.AddFileToAssemblyCache(CurrentParent.CompiledAssembly.Location);
+					CurrentParent = CurrentParent.Parent;
+				}
+
 				Constructor.Invoke(RulesObject, new object[] { Target });
 
 				if (Target.IsTestTarget && !RulesObject.IsTestModule)

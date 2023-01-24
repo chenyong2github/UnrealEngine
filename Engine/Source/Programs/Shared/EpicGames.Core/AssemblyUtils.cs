@@ -64,24 +64,10 @@ namespace EpicGames.Core
 			{
 				// Name is fully qualified assembly definition - e.g. "p4dn, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ff968dc1933aba6f"
 				string assemblyName = args.Name!.Split(',')[0];
-				if (s_assemblyLocationCache.TryGetValue(assemblyName, out string? assemblyLocation))
-				{
-					// We have this assembly in our folder.					
-					if (File.Exists(assemblyLocation))
-					{
-						// The assembly still exists, so load it.
-						return Assembly.LoadFile(assemblyLocation);
-					}
-					else
-					{
-						// The assembly no longer exists on disk, so remove it from our cache.
-						s_assemblyLocationCache.Remove(assemblyName);
-					}
-				}
 
-				// The assembly wasn't found, though may have been compiled or copied as a dependency
+				// The assembly wasn't found by other resolvers, though may have been compiled or copied as a dependency
 				RefreshAssemblyCache(rootDirectory, String.Format("{0}.dll", assemblyName));
-				if (s_assemblyLocationCache.TryGetValue(assemblyName, out assemblyLocation))
+				if (s_assemblyLocationCache.TryGetValue(assemblyName, out string? assemblyLocation))
 				{
 					return Assembly.LoadFile(assemblyLocation);
 				}
@@ -129,12 +115,41 @@ namespace EpicGames.Core
 				s_assemblyLocationCache.Add(assemblyName, assemblyPath);
 				s_assemblyWriteTimes.Add(assemblyName, assemblyLastWriteTime);
 			}
+
+			if (!s_addedToAssemblyResolver)
+			{
+				AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
+				{
+					// Name is fully qualified assembly definition - e.g. "p4dn, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ff968dc1933aba6f"
+					string assemblyName = args.Name!.Split(',')[0];
+					if (s_assemblyLocationCache.TryGetValue(assemblyName, out string? assemblyLocation))
+					{
+						// We have this assembly in our folder.					
+						if (File.Exists(assemblyLocation))
+						{
+							// The assembly still exists, so load it.
+							return Assembly.LoadFile(assemblyLocation);
+						}
+						else
+						{
+							// The assembly no longer exists on disk, so remove it from our cache.
+							s_assemblyLocationCache.Remove(assemblyName);
+						}
+					}
+
+					return null;
+				};
+
+				s_addedToAssemblyResolver = true;
+			}
 		}
 
 		// Map of assembly name to path on disk
 		private static readonly Dictionary<string, string> s_assemblyLocationCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 		// Track last modified date of each assembly, so we can ensure we always reference the latest one in the case of stale assemblies on disk.
 		private static readonly Dictionary<string, DateTime> s_assemblyWriteTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+		// Flag used to make sure we don't redundantly add resolvers
+		private static bool s_addedToAssemblyResolver = false;
 
 	}
 }
