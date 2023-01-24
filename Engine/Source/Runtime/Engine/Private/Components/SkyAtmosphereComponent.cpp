@@ -55,9 +55,9 @@ USkyAtmosphereComponent::USkyAtmosphereComponent(const FObjectInitializer& Objec
 	RayleighScatteringScale = RayleightScatteringRaw.B;
 	RayleighExponentialDistribution = EarthRayleighScaleHeight;
 
-	MieScattering = FColor(FColor::White);
+	MieScattering = FColor::White;
 	MieScatteringScale = 0.003996f;
-	MieAbsorption = FColor(FColor::White);
+	MieAbsorption = FColor::White;
 	MieAbsorptionScale = 0.000444f;
 	MieAnisotropy = 0.8f;
 	MieExponentialDistribution = EarthMieScaleHeight;
