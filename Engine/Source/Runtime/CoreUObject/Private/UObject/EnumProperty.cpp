@@ -9,7 +9,7 @@
 #include "Templates/IsSigned.h"
 #include "Algo/Find.h"
 #include "UObject/LinkerLoad.h"
-#include "Misc/NetworkVersion.h"
+#include "Misc/EngineNetworkCustomVersion.h"
 #include "Hash/Blake3.h"
 
 namespace UEEnumProperty_Private
@@ -198,7 +198,9 @@ void FEnumProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, v
 
 bool FEnumProperty::NetSerializeItem(FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8>* MetaData) const
 {
-	if (Ar.EngineNetVer() < HISTORY_FIX_ENUM_SERIALIZATION)
+	Ar.UsingCustomVersion(FEngineNetworkCustomVersion::Guid);
+
+	if (Ar.EngineNetVer() < FEngineNetworkCustomVersion::FixEnumSerialization)
 	{
 		Ar.SerializeBits(Data, FMath::CeilLogTwo64(Enum->GetMaxEnumValue()));
 	}

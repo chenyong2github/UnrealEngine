@@ -56,6 +56,8 @@ private:
 	void SetPlaybackNetworkVersions(FArchive& Ar);
 	void SetPlaybackNetworkVersions(UNetConnection* Connection);
 
+	FReplayCustomVersion::Type GetPlaybackReplayVersion() const;
+
 	void StartRecording(UNetConnection* Connection);
 	void StopReplay();
 

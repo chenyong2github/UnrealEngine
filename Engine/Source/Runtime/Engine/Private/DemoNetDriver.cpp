@@ -4,11 +4,6 @@
 	UDemoNetDriver.cpp: Simulated network driver for recording and playing back game sessions.
 =============================================================================*/
 
-
-// @todo: LowLevelSend now includes the packet size in bits, but this is ignored locally.
-//			Tracking of this must be added, if demos are to support PacketHandler's in the future (not presently needed).
-
-
 #include "Engine/DemoNetDriver.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Engine/DemoNetConnection.h"
@@ -3234,7 +3229,7 @@ void UDemoNetDriver::ReplayStreamingReady(const FStartStreamingResult& Result)
 			UE_LOG(LogDemo, Log, TEXT("ReplayStreamingReady: playing back replay [%s] %s, which was recorded on engine version %s with flags [%s]"),
 				*ReplayHelper.GetPlaybackGuid().ToString(EGuidFormats::Digits), *ReplayHelper.DemoURL.Map, *ReplayHelper.PlaybackDemoHeader.EngineVersion.ToString(), *HeaderFlags);
 
-			if (ReplayHelper.PlaybackDemoHeader.Version >= ENetworkVersionHistory::HISTORY_RECORDING_METADATA)
+			if (GetPlaybackReplayVersion() >= FReplayCustomVersion::RecordingMetadata)
 			{
 				UE_LOG(LogDemo, Log, TEXT("ReplayStreamingReady: replay was recorded with: MinHz: %0.2f MaxHz: %0.2f FrameMS: %0.2f CheckpointMS: %0.2f Platform: [%s] Config: [%s] Target: [%s]"),
 					ReplayHelper.PlaybackDemoHeader.MinRecordHz, ReplayHelper.PlaybackDemoHeader.MaxRecordHz,
@@ -3681,7 +3676,7 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 
 			TGuardValue<bool> LoadingCheckpointGuard(ReplayHelper.bIsLoadingCheckpoint, true);
 
-			uint32 PlaybackVersion = GetPlaybackDemoVersion();
+			FReplayCustomVersion::Type PlaybackReplayVersion = GetPlaybackReplayVersion();
 
 			do 
 			{
@@ -3972,7 +3967,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	LastProcessedPacketTime = 0.f;
 	ReplayHelper.LatestReadFrameTime = 0.f;
 
-	uint32 PlaybackVersion = GetPlaybackDemoVersion();
+	FReplayCustomVersion::Type PlaybackReplayVersion = GetPlaybackReplayVersion();
 
 	if (GotoCheckpointArchive->TotalSize() > 0)
 	{
@@ -4333,7 +4328,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 			FString PathName;
 
-			if (PlaybackVersion < HISTORY_GUID_NAMETABLE)
+			if (PlaybackReplayVersion < FReplayCustomVersion::GuidNameTable)
 			{
 				*GotoCheckpointArchive << PathName;
 			}
@@ -4371,7 +4366,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 			CacheObject.PathName = FName(*PathName);
 
-			if (PlaybackVersion < HISTORY_GUIDCACHE_CHECKSUMS)
+			if (PlaybackReplayVersion < FReplayCustomVersion::GuidCacheChecksums)
 			{
 				*GotoCheckpointArchive << CacheObject.NetworkChecksum;
 			}

@@ -221,7 +221,7 @@ bool WritePackedVector(FVector3d Vector, FArchive& Ar)
 template<int32 ScaleFactor, int32 MaxBitsPerComponent>
 bool ReadPackedVector(FVector3f& Value, FArchive& Ar)
 {
-	if (Ar.EngineNetVer() >= HISTORY_PACKED_VECTOR_LWC_SUPPORT && Ar.EngineNetVer() != HISTORY_21_AND_VIEWPITCH_ONLY_DO_NOT_USE)
+	if (Ar.EngineNetVer() >= FEngineNetworkCustomVersion::PackedVectorLWCSupport && Ar.EngineNetVer() != FEngineNetworkCustomVersion::Ver21AndViewPitchOnly_DONOTUSE)
 	{
 		return UE::Net::ReadQuantizedVector(ScaleFactor, Value, Ar);
 	}
@@ -234,7 +234,7 @@ bool ReadPackedVector(FVector3f& Value, FArchive& Ar)
 template<int32 ScaleFactor, int32 MaxBitsPerComponent>
 bool ReadPackedVector(FVector3d& Value, FArchive& Ar)
 {
-	if (Ar.EngineNetVer() >= HISTORY_PACKED_VECTOR_LWC_SUPPORT && Ar.EngineNetVer() != HISTORY_21_AND_VIEWPITCH_ONLY_DO_NOT_USE)
+	if (Ar.EngineNetVer() >= FEngineNetworkCustomVersion::PackedVectorLWCSupport && Ar.EngineNetVer() != FEngineNetworkCustomVersion::Ver21AndViewPitchOnly_DONOTUSE)
 	{
 		return UE::Net::ReadQuantizedVector(ScaleFactor, Value, Ar);
 	}
@@ -250,7 +250,9 @@ bool ReadPackedVector(FVector3d& Value, FArchive& Ar)
 template<int32 ScaleFactor, int32 MaxBitsPerComponent>
 bool SerializePackedVector(FVector3f& Value, FArchive& Ar)
 {
-	if (Ar.EngineNetVer() >= HISTORY_PACKED_VECTOR_LWC_SUPPORT && Ar.EngineNetVer() != HISTORY_21_AND_VIEWPITCH_ONLY_DO_NOT_USE)
+	Ar.UsingCustomVersion(FEngineNetworkCustomVersion::Guid);
+
+	if (Ar.EngineNetVer() >= FEngineNetworkCustomVersion::PackedVectorLWCSupport && Ar.EngineNetVer() != FEngineNetworkCustomVersion::Ver21AndViewPitchOnly_DONOTUSE)
 	{
 		return UE::Net::SerializeQuantizedVector<ScaleFactor>(Value, Ar);
 	}
@@ -264,7 +266,9 @@ bool SerializePackedVector(FVector3f& Value, FArchive& Ar)
 template<int32 ScaleFactor, int32 MaxBitsPerComponent>
 bool SerializePackedVector(FVector3d& Value, FArchive& Ar)
 {
-	if (Ar.EngineNetVer() >= HISTORY_PACKED_VECTOR_LWC_SUPPORT && Ar.EngineNetVer() != HISTORY_21_AND_VIEWPITCH_ONLY_DO_NOT_USE)
+	Ar.UsingCustomVersion(FEngineNetworkCustomVersion::Guid);
+
+	if (Ar.EngineNetVer() >= FEngineNetworkCustomVersion::PackedVectorLWCSupport && Ar.EngineNetVer() != FEngineNetworkCustomVersion::Ver21AndViewPitchOnly_DONOTUSE)
 	{
 		return UE::Net::SerializeQuantizedVector<ScaleFactor>(Value, Ar);
 	}

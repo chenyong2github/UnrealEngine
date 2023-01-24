@@ -11,7 +11,7 @@
 #include "UObject/LinkerPlaceholderClass.h"
 #include "Hash/Blake3.h"
 #include "UObject/CoreNet.h"
-#include "Misc/NetworkVersion.h"
+#include "Misc/EngineNetworkCustomVersion.h"
 
 /*-----------------------------------------------------------------------------
 	FInterfaceProperty.
@@ -159,7 +159,9 @@ void FInterfaceProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Va
 
 bool FInterfaceProperty::NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData ) const
 {
-	if (Ar.EngineNetVer() >= HISTORY_INTERFACE_PROPERTY_SERIALIZATION)
+	Ar.UsingCustomVersion(FEngineNetworkCustomVersion::Guid);
+
+	if (Ar.EngineNetVer() >= FEngineNetworkCustomVersion::InterfacePropertySerialization)
 	{ 
 		FScriptInterface* InterfaceValue = (FScriptInterface*)Data;
 		bool Result = Map->SerializeObject(Ar, InterfaceClass, InterfaceValue->GetObjectRef());

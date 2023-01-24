@@ -4467,7 +4467,7 @@ UObject* UActorChannel::ReadContentBlockHeader(FInBunch& Bunch, bool& bObjectDel
 	bool bSerializeClass = true;
 	ESubObjectDeleteFlag DeleteFlag = ESubObjectDeleteFlag::Destroyed;
 
-	if (Bunch.EngineNetVer() >= HISTORY_SUBOBJECT_DESTROY_FLAG)
+	if (Bunch.EngineNetVer() >= FEngineNetworkCustomVersion::SubObjectDestroyFlag)
 	{
 		const bool bIsDestroyMessage = Bunch.ReadBit() != 0 ? true : false;
 
@@ -4576,7 +4576,7 @@ UObject* UActorChannel::ReadContentBlockHeader(FInBunch& Bunch, bool& bObjectDel
 	}
 
 	UObject* ObjOuter = Actor;
-	if (Bunch.EngineNetVer() >= HISTORY_SUBOBJECT_OUTER_CHAIN)
+	if (Bunch.EngineNetVer() >= FEngineNetworkCustomVersion::SubObjectOuterChain)
 	{
 		const bool bActorIsOuter = Bunch.ReadBit() != 0;
 
@@ -4919,7 +4919,7 @@ FNetFieldExportGroup* UActorChannel::GetNetFieldExportGroupForClassNetCache(UCla
 
 	FString NetFieldExportGroupName;
 	
-	if (Connection->EngineNetworkProtocolVersion < HISTORY_CLASSNETCACHE_FULLNAME)
+	if (Connection->GetNetworkCustomVersion(FEngineNetworkCustomVersion::Guid) < FEngineNetworkCustomVersion::ClassNetCacheFullName)
 	{
 		NetFieldExportGroupName = ObjectClass->GetName() + ClassNetCacheSuffix;
 	}

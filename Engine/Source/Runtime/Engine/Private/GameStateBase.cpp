@@ -167,7 +167,7 @@ void AGameStateBase::OnRep_ReplicatedWorldTimeSeconds()
 		const UDemoNetDriver* DemoNetDriver = World ? World->GetDemoNetDriver() : nullptr;
 
 		// Support old replays.
-		if (DemoNetDriver && DemoNetDriver->IsPlaying() && (DemoNetDriver->GetPlaybackEngineNetworkProtocolVersion() < EEngineNetworkVersionHistory::HISTORY_GAMESTATE_REPLCIATED_TIME_AS_DOUBLE))
+		if (DemoNetDriver && DemoNetDriver->IsPlaying() && (DemoNetDriver->GetPlaybackEngineNetworkProtocolVersion() < FEngineNetworkCustomVersion::GameStateReplicatedTimeAsDouble))
 		{
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			ReplicatedWorldTimeSecondsDouble = ReplicatedWorldTimeSeconds;

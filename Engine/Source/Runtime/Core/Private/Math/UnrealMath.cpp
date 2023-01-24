@@ -1130,6 +1130,8 @@ namespace Math
 	template<typename T>
 	bool TQuat<T>::NetSerialize(FArchive& Ar, class UPackageMap*, bool& bOutSuccess)
 	{
+		Ar.UsingCustomVersion(FEngineNetworkCustomVersion::Guid);
+
 		TQuat<T> Q;
 
 		if (Ar.IsSaving())
@@ -1159,7 +1161,7 @@ namespace Math
 			}
 		}
 
-		if (Ar.EngineNetVer() >= HISTORY_SERIALIZE_DOUBLE_VECTORS_AS_DOUBLES && Ar.EngineNetVer() != HISTORY_21_AND_VIEWPITCH_ONLY_DO_NOT_USE)
+		if (Ar.EngineNetVer() >= FEngineNetworkCustomVersion::SerializeDoubleVectorsAsDoubles && Ar.EngineNetVer() != FEngineNetworkCustomVersion::Ver21AndViewPitchOnly_DONOTUSE)
 		{
 			Ar << Q.X << Q.Y << Q.Z;
 		}

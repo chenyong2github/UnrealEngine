@@ -6,6 +6,8 @@
 
 bool FGameplayAbilityRepAnimMontage::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
+	Ar.UsingCustomVersion(FEngineNetworkCustomVersion::Guid);
+
 	uint8 RepPosition = bRepPosition;
 	Ar.SerializeBits(&RepPosition, 1);
 	if (RepPosition)
@@ -38,7 +40,7 @@ bool FGameplayAbilityRepAnimMontage::NetSerialize(FArchive& Ar, class UPackageMa
 	Ar.SerializeBits(&bIsStopped, 1);
 	IsStopped = bIsStopped & 1;
 
-	if (Ar.EngineNetVer() < HISTORY_MONTAGE_PLAY_INST_ID_SERIALIZATION)
+	if (Ar.EngineNetVer() < FEngineNetworkCustomVersion::MontagePlayInstIdSerialization)
 	{
 		uint8 bForcePlayBit = 0;
 		Ar.SerializeBits(&bForcePlayBit, 1);
@@ -62,7 +64,7 @@ bool FGameplayAbilityRepAnimMontage::NetSerialize(FArchive& Ar, class UPackageMa
 	Ar << PlayRate;
 	Ar << BlendTime;
 	Ar << NextSectionID;
-	if (Ar.EngineNetVer() >= HISTORY_MONTAGE_PLAY_INST_ID_SERIALIZATION)
+	if (Ar.EngineNetVer() >= FEngineNetworkCustomVersion::MontagePlayInstIdSerialization)
 	{
 		Ar << PlayInstanceId;
 	}

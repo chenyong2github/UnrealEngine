@@ -8,6 +8,7 @@
 #include "Tickable.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/ArrayWriter.h"
+#include "Serialization/CustomVersion.h"
 #include "Serialization/MemoryReader.h"
 #include "Async/Async.h"
 #include "Templates/SharedPointer.h"
@@ -16,6 +17,32 @@
 
 class FNetworkReplayVersion;
 class FLocalFileNetworkReplayStreamer;
+
+struct LOCALFILENETWORKREPLAYSTREAMING_API FLocalFileReplayCustomVersion
+{
+	enum Type
+	{
+		// Before any version changes were made
+		BeforeCustomVersionWasAdded = 0,
+
+		FixedSizeFriendlyName = 1,
+		CompressionSupport = 2,
+		RecordingTimestamp = 3,
+		StreamChunkTimes = 4,
+		FriendlyNameCharEncoding = 5,
+		EncryptionSupport = 6,
+		CustomVersions = 7,
+
+		// -----<new versions can be added above this line>-------------------------------------------------
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+
+	// The GUID for this custom version number
+	const static FGuid Guid;
+
+	FLocalFileReplayCustomVersion() = delete;
+};
 
 enum class ELocalFileChunkType : uint32
 {
@@ -629,8 +656,13 @@ protected:
 	{
 		FLocalFileSerializationInfo();
 
+		FLocalFileReplayCustomVersion::Type GetLocalFileReplayVersion() const;
+
+		UE_DEPRECATED(5.2, "Replaced by FileCustomVersions.")
 		uint32 FileVersion;
+
 		FString FileFriendlyName;
+		FCustomVersionContainer FileCustomVersions;
 	};
 
 	bool ReadReplayInfo(const FString& StreamName, FLocalFileReplayInfo& OutReplayInfo) const
@@ -703,10 +735,10 @@ public:
 	static bool CleanUpOldReplays(const FString& DemoPath = GetDefaultDemoSavePath(), TArrayView<const FString> AdditionalRelativeDemoPaths = {});
 	static bool GetDemoFreeStorageSpace(uint64& DiskFreeSpace, const FString& DemoPath);
 
-
-
 	static const uint32 FileMagic;
 	static const uint32 MaxFriendlyNameLen;
+
+	UE_DEPRECATED(5.2, "No longer used, replaced with custom version.")
 	static const uint32 LatestVersion;
 };
 

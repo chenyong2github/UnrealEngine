@@ -6,7 +6,7 @@
 
 #include "UObject/CoreNet.h"
 #include "UObject/UnrealType.h"
-#include "Misc/NetworkVersion.h"
+#include "Misc/EngineNetworkCustomVersion.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCoreNet, Log, All);
 
@@ -294,7 +294,7 @@ bool UPackageMap::StaticSerializeName(FArchive& Ar, FName& InName)
 		{
 			// replicated by hardcoded index
 			uint32 NameIndex;
-			if (Ar.EngineNetVer() < HISTORY_CHANNEL_NAMES)
+			if (Ar.EngineNetVer() < FEngineNetworkCustomVersion::ChannelNames)
 			{
 				Ar.SerializeInt(NameIndex, MAX_NETWORKED_HARDCODED_NAME + 1);
 			}
@@ -445,8 +445,9 @@ FArchive& FNetBitWriter::operator<<(FSoftObjectPath& Value)
 FArchive& FNetBitWriter::operator<<(FSoftObjectPtr& Value)
 {
 	// Keep in sync with FNetBitReader::operator<<(FSoftObjectPtr&)
+	UsingCustomVersion(FEngineNetworkCustomVersion::Guid);
 
-	if (EngineNetVer() >= EEngineNetworkVersionHistory::HISTORY_SOFTOBJECTPTR_NETGUIDS)
+	if (EngineNetVer() >= FEngineNetworkCustomVersion::SoftObjectPtrNetGuids)
 	{
 		// Treat soft pointers to dynamic (non-stably named) objects as weak pointers.
 		// This allows these objects to be resolved on clients and to only replicate a NetGUID.
@@ -536,8 +537,9 @@ FArchive& FNetBitReader::operator<<(FSoftObjectPath& Value)
 FArchive& FNetBitReader::operator<<(FSoftObjectPtr& Value)
 {
 	// Keep in sync with FNetBitWriter::operator<<(FSoftObjectPtr&)
+	UsingCustomVersion(FEngineNetworkCustomVersion::Guid);
 
-	if (EngineNetVer() >= EEngineNetworkVersionHistory::HISTORY_SOFTOBJECTPTR_NETGUIDS)
+	if (EngineNetVer() >= FEngineNetworkCustomVersion::SoftObjectPtrNetGuids)
 	{
 		// Treat soft pointers to dynamic (non-stably named) objects as weak pointers.
 		// This allows these objects to be resolved on clients and to only replicate a NetGUID.

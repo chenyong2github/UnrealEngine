@@ -537,7 +537,7 @@ bool UPackageMapClient::SerializeNewActor(FArchive& Ar, class UActorChannel *Cha
 		FNetworkGUID ArchetypeNetGUID;
 		SerializeObject(Ar, UObject::StaticClass(), Archetype, &ArchetypeNetGUID);
 
-		if (Ar.IsSaving() || (Connection && (Connection->EngineNetworkProtocolVersion >= EEngineNetworkVersionHistory::HISTORY_NEW_ACTOR_OVERRIDE_LEVEL)))
+		if (Ar.IsSaving() || (Connection && (Connection->GetNetworkCustomVersion(FEngineNetworkCustomVersion::Guid) >= FEngineNetworkCustomVersion::NewActorOverrideLevel)))
 		{
 			SerializeObject(Ar, ULevel::StaticClass(), ActorLevel);
 		}
@@ -601,7 +601,7 @@ bool UPackageMapClient::SerializeNewActor(FArchive& Ar, class UActorChannel *Cha
 				Ar.SerializeBits(&bWasSerialized, 1);
 				if (bWasSerialized)
 				{
-					if (Ar.EngineNetVer() < HISTORY_OPTIONALLY_QUANTIZE_SPAWN_INFO)
+					if (Ar.IsLoading() && Ar.EngineNetVer() < FEngineNetworkCustomVersion::OptionallyQuantizeSpawnInfo)
 					{
 						bShouldQuantize = true;
 					}
@@ -3706,7 +3706,7 @@ void FNetGUIDCache::GenerateFullNetGUIDPath_r( const FNetworkGUID& NetGUID, FStr
 
 	const FNetGuidCacheObject* CacheObject = ObjectLookup.Find( NetGUID );
 
-	if ( CacheObject == NULL )
+	if ( CacheObject == nullptr )
 	{
 		// Doh, this shouldn't be possible, but if this happens, we can't continue
 		// So warn, and return
@@ -3725,7 +3725,7 @@ void FNetGUIDCache::GenerateFullNetGUIDPath_r( const FNetworkGUID& NetGUID, FStr
 	if ( CacheObject->Object.IsValid() )
 	{
 		// Sanity check that the names match if the path was stored
-		if ( CacheObject->PathName != NAME_None && CacheObject->Object->GetName() != CacheObject->PathName.ToString() )
+		if ( !CacheObject->PathName.IsNone() && CacheObject->Object->GetFName() != CacheObject->PathName )
 		{
 			UE_LOG( LogNetPackageMap, Warning, TEXT( "GenerateFullNetGUIDPath_r: Name mismatch! %s != %s" ), *CacheObject->PathName.ToString(), *CacheObject->Object->GetName() );	
 		}
@@ -3734,7 +3734,7 @@ void FNetGUIDCache::GenerateFullNetGUIDPath_r( const FNetworkGUID& NetGUID, FStr
 	}
 	else
 	{
-		if ( CacheObject->PathName == NAME_None )
+		if (CacheObject->PathName.IsNone())
 		{
 			// This can happen when a non stably named object is NULL
 			FullPath += FString::Printf( TEXT( "[%s]EMPTY" ), *NetGUID.ToString() );
@@ -3901,7 +3901,7 @@ FArchive& operator<<(FArchive& Ar, FNetFieldExport& C)
 		Ar.SerializeIntPacked(C.Handle);
 		Ar << C.CompatibleChecksum;
 
-		if (Ar.IsLoading() && Ar.EngineNetVer() < HISTORY_NETEXPORT_SERIALIZATION)
+		if (Ar.IsLoading() && Ar.EngineNetVer() < FEngineNetworkCustomVersion::NetExportSerialization)
 		{
 			FName TempName;
 			FString TempType;
@@ -3913,7 +3913,7 @@ FArchive& operator<<(FArchive& Ar, FNetFieldExport& C)
 		}
 		else
 		{
-			if (Ar.IsLoading() && Ar.EngineNetVer() < HISTORY_NETEXPORT_SERIALIZE_FIX)
+			if (Ar.IsLoading() && Ar.EngineNetVer() < FEngineNetworkCustomVersion::NetExportSerializeFix)
 			{
 				Ar << C.ExportName;
 			}

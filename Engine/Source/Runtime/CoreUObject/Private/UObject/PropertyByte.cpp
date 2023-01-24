@@ -10,7 +10,7 @@
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 #include "Algo/Find.h"
 #include "UObject/LinkerLoad.h"
-#include "Misc/NetworkVersion.h"
+#include "Misc/EngineNetworkCustomVersion.h"
 #include "Hash/Blake3.h"
 
 /*-----------------------------------------------------------------------------
@@ -102,7 +102,9 @@ void FByteProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value, 
 }
 bool FByteProperty::NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData ) const
 {
-	if (Ar.EngineNetVer() < HISTORY_ENUM_SERIALIZATION_COMPAT)
+	Ar.UsingCustomVersion(FEngineNetworkCustomVersion::Guid);
+
+	if (Ar.EngineNetVer() < FEngineNetworkCustomVersion::EnumSerializationCompat)
 	{
 		Ar.SerializeBits(Data, Enum ? FMath::CeilLogTwo(Enum->GetMaxEnumValue()) : 8);
 	}

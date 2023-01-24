@@ -15,6 +15,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "Serialization/BitWriter.h"
+#include "Serialization/CustomVersion.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/NetworkGuid.h"
 #include "GameFramework/OnlineReplStructs.h"
@@ -604,8 +605,18 @@ public:
 	int32				InitInReliable;
 
 	// Network version
+	UE_DEPRECATED(5.2, "Deprecated in favor of NetworkCustomVersions, please use GetNetworkCustomVersion instead")
 	uint32				EngineNetworkProtocolVersion;
+	UE_DEPRECATED(5.2, "Deprecated in favor of NetworkCustomVersions, please use GetNetworkCustomVersion instead")
 	uint32				GameNetworkProtocolVersion;
+
+	uint32 GetNetworkCustomVersion(const FGuid& VersionGuid) const;
+	void SetNetworkCustomVersions(const FCustomVersionContainer& CustomVersions);
+
+private:
+	FCustomVersionContainer NetworkCustomVersions;
+
+public:
 
 	// Log tracking
 	double			LogCallLastTime;

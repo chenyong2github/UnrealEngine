@@ -961,7 +961,7 @@ static uint32 GetRepLayoutCmdCompatibleChecksum(
 	
 	// Evolve by StaticArrayIndex (to make all unrolled static array elements unique)
 	if ((ServerConnection == nullptr) ||
-		(ServerConnection->EngineNetworkProtocolVersion >= EEngineNetworkVersionHistory::HISTORY_REPCMD_CHECKSUM_REMOVE_PRINTF))
+		(ServerConnection->GetNetworkCustomVersion(FEngineNetworkCustomVersion::Guid) >= FEngineNetworkCustomVersion::RepCmdChecksumRemovePrintf))
 	{
 		CompatibleChecksum = FCrc::MemCrc32(&StaticArrayIndex, sizeof(StaticArrayIndex), CompatibleChecksum);
 	}
@@ -972,7 +972,7 @@ static uint32 GetRepLayoutCmdCompatibleChecksum(
 
 	// Evolve by enum max value bits required
 	if ((ServerConnection == nullptr) ||
-		(ServerConnection->EngineNetworkProtocolVersion >= EEngineNetworkVersionHistory::HISTORY_ENUM_SERIALIZATION_COMPAT))
+		(ServerConnection->GetNetworkCustomVersion(FEngineNetworkCustomVersion::Guid) >= FEngineNetworkCustomVersion::EnumSerializationCompat))
 	{
 		if (const FEnumProperty* EnumProp = CastField<FEnumProperty>(Property))
 		{
@@ -4564,7 +4564,7 @@ bool FRepLayout::ReceiveCustomDeltaProperty(
 	FNetDeltaSerializeInfo& Params,
 	FStructProperty* Property) const
 {
-	if (Params.Connection->EngineNetworkProtocolVersion >= EEngineNetworkVersionHistory::HISTORY_FAST_ARRAY_DELTA_STRUCT)
+	if (Params.Connection->GetNetworkCustomVersion(FEngineNetworkCustomVersion::Guid) >= FEngineNetworkCustomVersion::FastArrayDeltaStruct)
 	{
 		Params.bSupportsFastArrayDeltaStructSerialization = !!Params.Reader->ReadBit();
 	}

@@ -25,6 +25,7 @@
 #include "UObject/NameTypes.h"
 #include "Compression/CompressionUtil.h"
 #include "UObject/UnrealNames.h"
+#include "Misc/EngineNetworkCustomVersion.h"
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
@@ -155,8 +156,10 @@ void FArchiveState::Reset()
 	ArUEVer								= GPackageFileUEVersion;
 	ArLicenseeUEVer						= GPackageFileLicenseeUEVersion;
 	ArEngineVer							= FEngineVersion::Current();
-	ArEngineNetVer						= FNetworkVersion::GetEngineNetworkProtocolVersion();
-	ArGameNetVer						= FNetworkVersion::GetGameNetworkProtocolVersion();
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ArEngineNetVer						= FNetworkVersion::GetNetworkProtocolVersion(FEngineNetworkCustomVersion::Guid);
+	ArGameNetVer						= FNetworkVersion::GetNetworkProtocolVersion(FGameNetworkCustomVersion::Guid);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	ArIsLoading							= false;
 	ArIsLoadingFromCookedPackage		= false;
 	ArIsSaving							= false;
@@ -215,8 +218,10 @@ void FArchiveState::CopyTrivialFArchiveStatusMembers(const FArchiveState& Archiv
 	ArUEVer                              = ArchiveToCopy.ArUEVer;
 	ArLicenseeUEVer                      = ArchiveToCopy.ArLicenseeUEVer;
 	ArEngineVer                          = ArchiveToCopy.ArEngineVer;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ArEngineNetVer                       = ArchiveToCopy.ArEngineNetVer;
 	ArGameNetVer                         = ArchiveToCopy.ArGameNetVer;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	ArIsLoading                          = ArchiveToCopy.ArIsLoading;
 	ArIsLoadingFromCookedPackage         = ArchiveToCopy.ArIsLoadingFromCookedPackage;
 	ArIsSaving                           = ArchiveToCopy.ArIsSaving;
@@ -1373,12 +1378,28 @@ void FArchiveState::SetEngineVer(const FEngineVersionBase& InVer)
 
 void FArchiveState::SetEngineNetVer(const uint32 InEngineNetVer)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ArEngineNetVer = InEngineNetVer;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	SetCustomVersion(FEngineNetworkCustomVersion::Guid, InEngineNetVer, TEXT("EngineNetworkVersion"));
+}
+
+uint32 FArchiveState::EngineNetVer() const
+{
+	return CustomVer(FEngineNetworkCustomVersion::Guid);
 }
 
 void FArchiveState::SetGameNetVer(const uint32 InGameNetVer)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ArGameNetVer = InGameNetVer;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	SetCustomVersion(FGameNetworkCustomVersion::Guid, InGameNetVer, TEXT("GameNetworkVersion"));
+}
+
+uint32 FArchiveState::GameNetVer() const
+{
+	return CustomVer(FGameNetworkCustomVersion::Guid);
 }
 
 void FArchiveState::SetIsLoading(bool bInIsLoading)

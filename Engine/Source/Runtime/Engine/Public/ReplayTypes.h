@@ -12,6 +12,7 @@
 #include "Net/ReplayResult.h"
 #include "IPAddress.h"
 #include "Serialization/BitReader.h"
+#include "Serialization/CustomVersion.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
 #include "ReplayTypes.generated.h"
 
@@ -90,7 +91,7 @@ struct FLevelNameAndTime
 	}
 };
 
-enum ENetworkVersionHistory
+enum UE_DEPRECATED(5.2, "Using custom versions instead going forward, see FReplayCustomVersion") ENetworkVersionHistory
 {
 	HISTORY_REPLAY_INITIAL = 1,
 	HISTORY_SAVE_ABS_TIME_MS = 2,				// We now save the abs demo time in ms for each frame (solves accumulation errors)
@@ -110,26 +111,85 @@ enum ENetworkVersionHistory
 	HISTORY_GUIDCACHE_CHECKSUMS = 16,			// Removing guid export checksums from saved data, they are ignored during playback
 	HISTORY_SAVE_PACKAGE_VERSION_UE = 17,		// Save engine and licensee package version as well, in case serialization functions need them for compatibility
 	HISTORY_RECORDING_METADATA = 18,			// Adding additional record-time information to the header
+	HISTORY_USE_CUSTOM_VERSION = 19,			// Serializing replay and network versions as custom verions going forward
 
 	// -----<new versions can be added before this line>-------------------------------------------------
 	HISTORY_PLUS_ONE,
 	HISTORY_LATEST = HISTORY_PLUS_ONE - 1
 };
 
-inline static const uint32 NETWORK_DEMO_MAGIC = 0x2CF5A13D;
-inline static const uint32 NETWORK_DEMO_VERSION = HISTORY_LATEST;
-inline static const uint32 MIN_NETWORK_DEMO_VERSION = HISTORY_CHARACTER_MOVEMENT;
+struct ENGINE_API FReplayCustomVersion
+{
+	enum Type
+	{
+		// Before any version changes were made
+		BeforeCustomVersionWasAdded = 0,
 
+		// Original replay versions from ENetworkVersionHistory
+		ReplayInitial = 1,
+		SaveAbsTimeMs = 2,					// We now save the abs demo time in ms for each frame (solves accumulation errors)
+		IncreaseBuffer = 3,					// Increased buffer size of packets, which invalidates old replays
+		SaveEngineVersion = 4,				// Now saving engine net version + InternalProtocolVersion
+		ExtraVersion = 5,					// We now save engine/game protocol version, checksum, and changelist
+		MultipleLevels = 6,					// Replays support seamless travel between levels
+		MultipleLvelsTimeChanges,			// Save out the time that level changes happen
+		DeletedStartupActors = 8,			// Save DeletedNetStartupActors inside checkpoints
+		HeaderFlags = 9,					// Save out enum flags with demo header
+		LevelStreamingFixes = 10,			// Optional level streaming fixes.
+		SaveFullEngineVersion = 11,			// Now saving the entire FEngineVersion including branch name
+		HeaderGuid = 12,					// Save guid to demo header
+		CharacterMovement = 13,				// Change to using replicated movement and not interpolation
+		CharacterMovementNoInterp = 14,		// No longer recording interpolated movement samples
+		GuidNameTable = 15,					// Added a string table for exported guids
+		GuidCacheChecksums = 16,			// Removing guid export checksums from saved data, they are ignored during playback
+		SavePackageVersionUE = 17,			// Save engine and licensee package version as well, in case serialization functions need them for compatibility
+		RecordingMetadata = 18,				// Adding additional record-time information to the header
+		CustomVersions = 19,				// Serializing replay and network versions as custom verions going forward
+
+		// -----<new versions can be added above this line>-------------------------------------------------
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1,
+
+		MinSupportedVersion = CharacterMovement	// Minimum supported playback version
+	};
+
+	// The GUID for this custom version number
+	const static FGuid Guid;
+
+	FReplayCustomVersion() = delete;
+};
+
+inline static const uint32 NETWORK_DEMO_MAGIC = 0x2CF5A13D;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+UE_DEPRECATED(5.2, "Now using custom versions, see FReplayCustomVersion::Latest")
+inline static const uint32 NETWORK_DEMO_VERSION = ENetworkVersionHistory::HISTORY_LATEST;
+UE_DEPRECATED(5.2, "Using custom versions instead going forward.")
+inline static const uint32 MIN_NETWORK_DEMO_VERSION = ENetworkVersionHistory::HISTORY_CHARACTER_MOVEMENT;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+UE_DEPRECATED(5.2, "No longer used.")
 inline static const uint32 NETWORK_DEMO_METADATA_MAGIC = 0x3D06B24E;
+UE_DEPRECATED(5.2, "No longer used.")
 inline static const uint32 NETWORK_DEMO_METADATA_VERSION = 0;
 
-struct FNetworkDemoHeader
+struct ENGINE_API FNetworkDemoHeader
 {
 	uint32	Magic;									// Magic to ensure we're opening the right file.
+	
+	UE_DEPRECATED(5.2, "No longer used in favor of custom versions, kept for backwards compatibility.")
 	uint32	Version;								// Version number to detect version mismatches.
+
+	UE_DEPRECATED(5.2, "No longer used.")
 	uint32	NetworkChecksum;						// Network checksum
+
+	UE_DEPRECATED(5.2, "No longer used in favor of custom versions, kept for backwards compatibility.")
 	uint32	EngineNetworkProtocolVersion;			// Version of the engine internal network format
+
+	UE_DEPRECATED(5.2, "No longer used in favor of custom versions, kept for backwards compatibility.")
 	uint32	GameNetworkProtocolVersion;				// Version of the game internal network format
+
+	FCustomVersionContainer CustomVersions;
+
 	FGuid	Guid;									// Unique identifier
 
 	float MinRecordHz;
@@ -148,120 +208,20 @@ struct FNetworkDemoHeader
 	FPackageFileVersion PackageVersionUE;			// Engine package version on which the replay was recorded
 	int32 PackageVersionLicenseeUE;					// Licensee package version on which the replay was recorded
 
-	FNetworkDemoHeader() :
-		Magic(NETWORK_DEMO_MAGIC),
-		Version(NETWORK_DEMO_VERSION),
-		NetworkChecksum(FNetworkVersion::GetLocalNetworkVersion()),
-		EngineNetworkProtocolVersion(FNetworkVersion::GetEngineNetworkProtocolVersion()),
-		GameNetworkProtocolVersion(FNetworkVersion::GetGameNetworkProtocolVersion()),
-		Guid(),
-		MinRecordHz(0.0f),
-		MaxRecordHz(0.0f),
-		FrameLimitInMS(0.0f),
-		CheckpointLimitInMS(0.0f),
-		BuildConfig(EBuildConfiguration::Unknown),
-		BuildTarget(EBuildTargetType::Unknown),
-		EngineVersion(FEngineVersion::Current()),
-		HeaderFlags(EReplayHeaderFlags::None),
-		PackageVersionUE(GPackageFileUEVersion),
-		PackageVersionLicenseeUE(GPackageFileLicenseeUEVersion)
-	{
-	}
+	FNetworkDemoHeader();
 
-	friend FArchive& operator << (FArchive& Ar, FNetworkDemoHeader& Header)
-	{
-		Ar << Header.Magic;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FNetworkDemoHeader(const FNetworkDemoHeader&) = default;
+	FNetworkDemoHeader& operator=(const FNetworkDemoHeader&) = default;
+	FNetworkDemoHeader(FNetworkDemoHeader&&) = default;
+	FNetworkDemoHeader& operator=(FNetworkDemoHeader&&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-		// Check magic value
-		if (Header.Magic != NETWORK_DEMO_MAGIC)
-		{
-			UE_LOG(LogDemo, Error, TEXT("Header.Magic != NETWORK_DEMO_MAGIC"));
-			Ar.SetError();
-			return Ar;
-		}
+	ENGINE_API friend FArchive& operator << (FArchive& Ar, FNetworkDemoHeader& Header);
 
-		Ar << Header.Version;
+	void CountBytes(FArchive& Ar) const;
 
-		// Check version
-		if (Header.Version < MIN_NETWORK_DEMO_VERSION)
-		{
-			UE_LOG(LogDemo, Error, TEXT("Header.Version < MIN_NETWORK_DEMO_VERSION. Header.Version: %i, MIN_NETWORK_DEMO_VERSION: %i"), Header.Version, MIN_NETWORK_DEMO_VERSION);
-			Ar.SetError();
-			return Ar;
-		}
-
-		Ar << Header.NetworkChecksum;
-		Ar << Header.EngineNetworkProtocolVersion;
-		Ar << Header.GameNetworkProtocolVersion;
-		Ar << Header.Guid;
-		Ar << Header.EngineVersion;
-
-		if (Header.Version >= HISTORY_SAVE_PACKAGE_VERSION_UE)
-		{
-			Ar << Header.PackageVersionUE;
-			Ar << Header.PackageVersionLicenseeUE;
-		}
-		else
-		{
-			if (Ar.IsLoading())
-			{
-				// Fix up for LWC compatibility.
-				// Vectors were using operator<< to serialize in some network cases (instead of
-				// the NetSerialize function), but this operator uses EUnrealEngineObjectUE5Version
-				// and not EEngineNetworkVersionHistory for versioning. Therefore, pre-LWC replays
-				// that did not save the EUnrealEngineObjectUE5Version will try to read doubles
-				// from these vectors instead of floats.
-				//
-				// However, EEngineNetworkVersionHistory::HISTORY_SERIALIZE_DOUBLE_VECTORS_AS_DOUBLES was
-				// added around the same time as EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES,
-				// so we use the network version as an approximation the package version to allow
-				// most pre-LWC replays to play back correctly. The compromise is that any replays recorded
-				// between when HISTORY_SERIALIZE_DOUBLE_VECTORS_AS_DOUBLES and LARGE_WORLD_COORDINATES
-				// were added won't play back correctly since they didn't store accurate version information.
-				if (Header.EngineNetworkProtocolVersion < HISTORY_SERIALIZE_DOUBLE_VECTORS_AS_DOUBLES)
-				{
-					// If the replay was recorded before vectors were serialized with LWC, and before replays
-					// saved the UE package version, set the package version to one before LARGE_WORLD_COORDINATES
-					// so that vectors will be read properly by operator<<.
-					Header.PackageVersionUE = FPackageFileVersion(VER_LATEST_ENGINE_UE4, EUnrealEngineObjectUE5Version::OPTIONAL_RESOURCES);
-				}
-			}
-		}
-
-		Ar << Header.LevelNamesAndTimes;
-		Ar << Header.HeaderFlags;
-		Ar << Header.GameSpecificData;
-
-		if (Header.Version >= HISTORY_RECORDING_METADATA)
-		{
-			Ar << Header.MinRecordHz;
-			Ar << Header.MaxRecordHz;
-
-			Ar << Header.FrameLimitInMS;
-			Ar << Header.CheckpointLimitInMS;
-
-			Ar << Header.Platform;
-			Ar << Header.BuildConfig;
-			Ar << Header.BuildTarget;
-		}
-
-		return Ar;
-	}
-
-	void CountBytes(FArchive& Ar) const
-	{
-		LevelNamesAndTimes.CountBytes(Ar);
-		for (const FLevelNameAndTime& LevelNameAndTime : LevelNamesAndTimes)
-		{
-			LevelNameAndTime.CountBytes(Ar);
-		}
-
-		GameSpecificData.CountBytes(Ar);
-		for (const FString& Datum : GameSpecificData)
-		{
-			Datum.CountBytes(Ar);
-		}
-	}
+	uint32 GetCustomVersion(const FGuid& VersionGuid) const;
 };
 
 // The type we use to store offsets in the archive
@@ -542,23 +502,29 @@ public:
 // Using an indirect array here since FReplayExternalData stores an FBitReader, and it's not safe to store an FArchive directly in a TArray.
 typedef TIndirectArray<FReplayExternalData> FReplayExternalDataArray;
 
-
 // Can be used to override Version Data in a Replay's Header either Right Before Writing a Replay Header or Right After Reading a Replay Header.
-struct FOverridableReplayVersionData
+struct ENGINE_API FOverridableReplayVersionData
 {
 public:
+	UE_DEPRECATED(5.2, "No longer used in favor of CustomVersions")
 	uint32 Version;                       // Version number to detect version mismatches.
+	UE_DEPRECATED(5.2, "No longer used in favor of CustomVersions")
 	uint32 EngineNetworkProtocolVersion;  // Version of the engine internal network format
+	UE_DEPRECATED(5.2, "No longer used in favor of CustomVersions")
 	uint32 GameNetworkProtocolVersion;    // Version of the game internal network format
+
+	FCustomVersionContainer CustomVersions;
 	FEngineVersion EngineVersion;         // Full engine version on which the replay was recorded
 	FPackageFileVersion PackageVersionUE; // Engine package version on which the replay was recorded
 	int32 PackageVersionLicenseeUE;       // Licensee package version on which the replay was recorded
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Init with Demo Header Version Data
 	FOverridableReplayVersionData(const FNetworkDemoHeader& DemoHeader)
 		: Version                     (DemoHeader.Version)
 		, EngineNetworkProtocolVersion(DemoHeader.EngineNetworkProtocolVersion)
 		, GameNetworkProtocolVersion  (DemoHeader.GameNetworkProtocolVersion)
+		, CustomVersions              (DemoHeader.CustomVersions)
 		, EngineVersion               (DemoHeader.EngineVersion)
 		, PackageVersionUE            (DemoHeader.PackageVersionUE)
 		, PackageVersionLicenseeUE    (DemoHeader.PackageVersionLicenseeUE)
@@ -571,8 +537,12 @@ public:
 		DemoHeader.Version                      = Version;
 		DemoHeader.EngineNetworkProtocolVersion = EngineNetworkProtocolVersion;
 		DemoHeader.GameNetworkProtocolVersion   = GameNetworkProtocolVersion;
+		DemoHeader.CustomVersions               = CustomVersions;
 		DemoHeader.EngineVersion                = EngineVersion;
 		DemoHeader.PackageVersionUE             = PackageVersionUE;
 		DemoHeader.PackageVersionLicenseeUE     = PackageVersionLicenseeUE;
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	uint32 GetCustomVersion(const FGuid& VersionGuid) const;
 };

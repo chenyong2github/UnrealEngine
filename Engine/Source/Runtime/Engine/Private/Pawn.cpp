@@ -27,6 +27,7 @@
 #include "GameFramework/GameNetworkManager.h"
 #include "GameFramework/InputSettings.h"
 #include "Engine/DemoNetDriver.h"
+#include "Misc/EngineNetworkCustomVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Pawn)
 
@@ -979,7 +980,7 @@ FRotator APawn::GetBaseAimRotation() const
 			const UWorld* World = GetWorld();
 			const UDemoNetDriver* DemoNetDriver = World ? World->GetDemoNetDriver() : nullptr;
 
-			if (DemoNetDriver && DemoNetDriver->IsPlaying() && (DemoNetDriver->GetPlaybackEngineNetworkProtocolVersion() < EEngineNetworkVersionHistory::HISTORY_PAWN_REMOTEVIEWPITCH))
+			if (DemoNetDriver && DemoNetDriver->IsPlaying() && (DemoNetDriver->GetPlaybackEngineNetworkProtocolVersion() < FEngineNetworkCustomVersion::PawnRemoteViewPitch))
 			{
 				POVRot.Pitch = RemoteViewPitch;
 				POVRot.Pitch = POVRot.Pitch * 360.0f / 255.0f;

@@ -47,23 +47,8 @@ DECLARE_CYCLE_STAT(TEXT("Local replay flush stream"), STAT_LocalReplay_FlushStre
 DECLARE_CYCLE_STAT(TEXT("Local replay flush header"), STAT_LocalReplay_FlushHeader, STATGROUP_LocalReplay);
 DECLARE_CYCLE_STAT(TEXT("Local replay flush event"), STAT_LocalReplay_FlushEvent, STATGROUP_LocalReplay);
 
-namespace LocalFileReplay
+namespace UE::Net::LocalFileReplay
 {
-	enum ELocalFileVersionHistory : uint32
-	{
-		HISTORY_INITIAL							= 0,
-		HISTORY_FIXEDSIZE_FRIENDLY_NAME			= 1,
-		HISTORY_COMPRESSION						= 2,
-		HISTORY_RECORDED_TIMESTAMP				= 3,
-		HISTORY_STREAM_CHUNK_TIMES				= 4,
-		HISTORY_FRIENDLY_NAME_ENCODING			= 5,
-		HISTORY_ENCRYPTION						= 6,
-
-		// -----<new versions can be added before this line>-------------------------------------------------
-		HISTORY_PLUS_ONE,
-		HISTORY_LATEST 							= HISTORY_PLUS_ONE - 1
-	};
-
 	TAutoConsoleVariable<int32> CVarMaxCacheSize(TEXT("localReplay.MaxCacheSize"), 1024 * 1024 * 10, TEXT(""));
 	TAutoConsoleVariable<int32> CVarMaxBufferedStreamChunks(TEXT("localReplay.MaxBufferedStreamChunks"), 10, TEXT(""));
 	TAutoConsoleVariable<int32> CVarAllowLiveStreamDelete(TEXT("localReplay.AllowLiveStreamDelete"), 1, TEXT(""));
@@ -79,11 +64,30 @@ namespace LocalFileReplay
 
 const uint32 FLocalFileNetworkReplayStreamer::FileMagic = 0x1CA2E27F;
 const uint32 FLocalFileNetworkReplayStreamer::MaxFriendlyNameLen = 256;
-const uint32 FLocalFileNetworkReplayStreamer::LatestVersion = LocalFileReplay::HISTORY_LATEST;
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+const uint32 FLocalFileNetworkReplayStreamer::LatestVersion = FLocalFileReplayCustomVersion::LatestVersion;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+const FGuid FLocalFileReplayCustomVersion::Guid =  FGuid(0x95A4f03E, 0x7E0B49E4, 0xBA43D356, 0x94FF87D9);
+FCustomVersionRegistration GRegisterLocalFileReplayCustomVersion(FLocalFileReplayCustomVersion::Guid, FLocalFileReplayCustomVersion::LatestVersion, TEXT("LocalFileReplay"));
 
 FLocalFileNetworkReplayStreamer::FLocalFileSerializationInfo::FLocalFileSerializationInfo() 
-	: FileVersion(LocalFileReplay::HISTORY_LATEST)
+	: FileVersion(FLocalFileReplayCustomVersion::CustomVersions)
 {
+	FileCustomVersions.SetVersion(FLocalFileReplayCustomVersion::Guid, FLocalFileReplayCustomVersion::LatestVersion, TEXT("LocalFileReplay"));
+}
+
+FLocalFileReplayCustomVersion::Type FLocalFileNetworkReplayStreamer::FLocalFileSerializationInfo::GetLocalFileReplayVersion() const
+{
+	if (const FCustomVersion* CustomVer = FileCustomVersions.GetVersion(FLocalFileReplayCustomVersion::Guid))
+	{
+		return (FLocalFileReplayCustomVersion::Type)CustomVer->Version;
+	}
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return (FLocalFileReplayCustomVersion::Type)FileVersion;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FLocalFileStreamFArchive::Serialize(void* V, int64 Length) 
@@ -204,12 +208,55 @@ bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(FArchive& Archive, FLocalFi
 		uint32 MagicNumber;
 		Archive << MagicNumber;
 
-		uint32 FileVersion;
-		Archive << FileVersion;
+		uint32 DoNotUse_FileVersion;
+		Archive << DoNotUse_FileVersion;
 
 		if (MagicNumber == FLocalFileNetworkReplayStreamer::FileMagic)
 		{
-			SerializationInfo.FileVersion = FileVersion;
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			FCustomVersionContainer FileCustomVersions;
+
+			if (DoNotUse_FileVersion >= FLocalFileReplayCustomVersion::CustomVersions)
+			{
+				FileCustomVersions.Serialize(Archive);
+
+				TArray<FCustomVersionDifference> VersionDiffs = FCurrentCustomVersions::Compare(FileCustomVersions.GetAllVersions(), TEXT("LocalFileReplay"));
+				for (const FCustomVersionDifference& Diff : VersionDiffs)
+				{
+					if (Diff.Type == ECustomVersionDifference::Missing)
+					{
+						UE_LOG(LogLocalFileReplay, Error, TEXT("Replay was saved with a custom version that is not present. Tag %s Version %d"), *Diff.Version->Key.ToString(), Diff.Version->Version);
+						Archive.SetError();
+						return false;
+					}
+					else if (Diff.Type == ECustomVersionDifference::Invalid)
+					{
+						UE_LOG(LogLocalFileReplay, Error, TEXT("Replay was saved with an invalid custom version. Tag %s Version %d"), *Diff.Version->Key.ToString(), Diff.Version->Version);
+						Archive.SetError();
+						return false;
+					}
+					else if (Diff.Type == ECustomVersionDifference::Newer)
+					{
+						const FCustomVersion MaxExpectedVersion = FCurrentCustomVersions::Get(Diff.Version->Key).GetValue();
+
+						UE_LOG(LogLocalFileReplay, Error, TEXT("Replay was saved with a newer custom version than the current. Tag %s Name '%s' ReplayVersion %d  MaxExpected %d"),
+							*Diff.Version->Key.ToString(), *MaxExpectedVersion.GetFriendlyName().ToString(), Diff.Version->Version, MaxExpectedVersion.Version);
+						Archive.SetError();
+						return false;
+					}
+				}
+
+				Archive.SetCustomVersions(FileCustomVersions);
+			}
+			else
+			{
+				Archive.SetCustomVersion(FLocalFileReplayCustomVersion::Guid, DoNotUse_FileVersion, TEXT("LocalFileReplay"));
+				FileCustomVersions.SetVersion(FLocalFileReplayCustomVersion::Guid, DoNotUse_FileVersion, TEXT("LocalFileReplay"));
+			}
+
+			SerializationInfo.FileVersion = DoNotUse_FileVersion;
+			SerializationInfo.FileCustomVersions = FileCustomVersions;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			// read summary info
 			Archive << Info.LengthInMS;
@@ -221,7 +268,7 @@ bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(FArchive& Archive, FLocalFi
 
 			SerializationInfo.FileFriendlyName = FriendlyName;
 
-			if (FileVersion >= LocalFileReplay::HISTORY_FIXEDSIZE_FRIENDLY_NAME)
+			if (SerializationInfo.GetLocalFileReplayVersion() >= FLocalFileReplayCustomVersion::FixedSizeFriendlyName)
 			{
 				// trim whitespace since this may have been padded
 				Info.FriendlyName = FriendlyName.TrimEnd();
@@ -238,12 +285,12 @@ bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(FArchive& Archive, FLocalFi
 
 			Info.bIsLive = (IsLive != 0);
 
-			if (FileVersion >= LocalFileReplay::HISTORY_RECORDED_TIMESTAMP)
+			if (SerializationInfo.GetLocalFileReplayVersion() >= FLocalFileReplayCustomVersion::RecordingTimestamp)
 			{
 				Archive << Info.Timestamp;
 			}
 
-			if (FileVersion >= LocalFileReplay::HISTORY_COMPRESSION)
+			if (SerializationInfo.GetLocalFileReplayVersion() >= FLocalFileReplayCustomVersion::CompressionSupport)
 			{
 				uint32 Compressed;
 				Archive << Compressed;
@@ -251,7 +298,7 @@ bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(FArchive& Archive, FLocalFi
 				Info.bCompressed = (Compressed != 0);
 			}
 
-			if (FileVersion >= LocalFileReplay::HISTORY_ENCRYPTION)
+			if (SerializationInfo.GetLocalFileReplayVersion() >= FLocalFileReplayCustomVersion::EncryptionSupport)
 			{
 				uint32 Encrypted;
 				Archive << Encrypted;
@@ -342,7 +389,7 @@ bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(FArchive& Archive, FLocalFi
 					DataChunk.ChunkIndex = Idx;
 					DataChunk.StreamOffset = Info.TotalDataSizeInBytes;
 
-					if (FileVersion >= LocalFileReplay::HISTORY_STREAM_CHUNK_TIMES)
+					if (SerializationInfo.GetLocalFileReplayVersion() >= FLocalFileReplayCustomVersion::StreamChunkTimes)
 					{
 						Archive << DataChunk.Time1;
 						Archive << DataChunk.Time2;
@@ -353,7 +400,7 @@ bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(FArchive& Archive, FLocalFi
 						DataChunk.SizeInBytes = Chunk.SizeInBytes;
 					}
 
-					if (FileVersion < LocalFileReplay::HISTORY_ENCRYPTION)
+					if (SerializationInfo.GetLocalFileReplayVersion() < FLocalFileReplayCustomVersion::EncryptionSupport)
 					{
 						DataChunk.ReplayDataOffset = Archive.Tell();
 	
@@ -432,7 +479,7 @@ bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(FArchive& Archive, FLocalFi
 			}
 		}
 
-		if (FileVersion < LocalFileReplay::HISTORY_STREAM_CHUNK_TIMES)
+		if (SerializationInfo.GetLocalFileReplayVersion() < FLocalFileReplayCustomVersion::StreamChunkTimes)
 		{
 			for(int i=0; i < Info.DataChunks.Num(); ++i)
 			{
@@ -528,7 +575,7 @@ bool FLocalFileNetworkReplayStreamer::AllowEncryptedWrite() const
 	bool bAllowWrite = SupportsEncryption();
 
 #if !UE_BUILD_SHIPPING
-	bAllowWrite = bAllowWrite && (LocalFileReplay::CVarAllowEncryptedRecording.GetValueOnAnyThread() != 0);
+	bAllowWrite = bAllowWrite && (UE::Net::LocalFileReplay::CVarAllowEncryptedRecording.GetValueOnAnyThread() != 0);
 
 	UE_LOG(LogLocalFileReplay, VeryVerbose, TEXT("FLocalFileNetworkReplayStreamer::AllowEncryptedWrite: %s"), *LexToString(bAllowWrite));
 #endif
@@ -538,7 +585,7 @@ bool FLocalFileNetworkReplayStreamer::AllowEncryptedWrite() const
 
 bool FLocalFileNetworkReplayStreamer::WriteReplayInfo(FArchive& Archive, const FLocalFileReplayInfo& InReplayInfo, FLocalFileSerializationInfo& SerializationInfo)
 {
-	if (SerializationInfo.FileVersion < LocalFileReplay::HISTORY_FIXEDSIZE_FRIENDLY_NAME)
+	if (SerializationInfo.GetLocalFileReplayVersion() < FLocalFileReplayCustomVersion::FixedSizeFriendlyName)
 	{
 		UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkRepalyStreamer::WriteReplayInfo: Unable to safely rewrite old replay info"));
 		return false;
@@ -549,7 +596,16 @@ bool FLocalFileNetworkReplayStreamer::WriteReplayInfo(FArchive& Archive, const F
 	uint32 MagicNumber = FLocalFileNetworkReplayStreamer::FileMagic;
 	Archive << MagicNumber;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Archive << SerializationInfo.FileVersion;
+
+	if (SerializationInfo.GetLocalFileReplayVersion() >= FLocalFileReplayCustomVersion::CustomVersions)
+	{
+		SerializationInfo.FileCustomVersions.Serialize(Archive);
+
+		Archive.SetCustomVersions(SerializationInfo.FileCustomVersions);
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	Archive << const_cast<int32&>(InReplayInfo.LengthInMS);
 	Archive << const_cast<uint32&>(InReplayInfo.NetworkVersion);
@@ -558,7 +614,7 @@ bool FLocalFileNetworkReplayStreamer::WriteReplayInfo(FArchive& Archive, const F
 	FString FixedSizeName;
 	FixupFriendlyNameLength(InReplayInfo.FriendlyName, FixedSizeName);
 
-	if (SerializationInfo.FileVersion < LocalFileReplay::HISTORY_FRIENDLY_NAME_ENCODING)
+	if (SerializationInfo.GetLocalFileReplayVersion() < FLocalFileReplayCustomVersion::FriendlyNameCharEncoding)
 	{
 		// if the new name contains non-ANSI characters and the old does not, serializing would corrupt the file
 		if (!FCString::IsPureAnsi(*FixedSizeName) && FCString::IsPureAnsi(*SerializationInfo.FileFriendlyName))
@@ -595,18 +651,18 @@ bool FLocalFileNetworkReplayStreamer::WriteReplayInfo(FArchive& Archive, const F
 
 	// It's possible we're updating an older replay (e.g., for a rename)
 	// Therefore, we can't write out any data that the replay wouldn't have had.
-	if (SerializationInfo.FileVersion >= LocalFileReplay::HISTORY_RECORDED_TIMESTAMP)
+	if (SerializationInfo.GetLocalFileReplayVersion() >= FLocalFileReplayCustomVersion::RecordingTimestamp)
 	{
 		Archive << const_cast<FDateTime&>(InReplayInfo.Timestamp);
 	}
 
-	if (SerializationInfo.FileVersion >= LocalFileReplay::HISTORY_COMPRESSION)
+	if (SerializationInfo.GetLocalFileReplayVersion() >= FLocalFileReplayCustomVersion::CompressionSupport)
 	{
 		uint32 Compressed = SupportsCompression() ? 1 : 0;
 		Archive << Compressed;
 	}
 
-	if (SerializationInfo.FileVersion >= LocalFileReplay::HISTORY_ENCRYPTION)
+	if (SerializationInfo.GetLocalFileReplayVersion() >= FLocalFileReplayCustomVersion::EncryptionSupport)
 	{
 		uint32 Encrypted = AllowEncryptedWrite() ? 1 : 0;
 		Archive << Encrypted;
@@ -996,7 +1052,7 @@ void FLocalFileNetworkReplayStreamer::DeleteFinishedStream_Internal(const FStrin
 
 			const bool bIsLive = IsNamedStreamLive(StreamName);
 
-			if (LocalFileReplay::CVarAllowLiveStreamDelete.GetValueOnAnyThread() || !bIsLive)
+			if (UE::Net::LocalFileReplay::CVarAllowLiveStreamDelete.GetValueOnAnyThread() || !bIsLive)
 			{
 				UE_CLOG(bIsLive, LogLocalFileReplay, Warning, TEXT("Deleting network replay stream %s that is currently live!"), *StreamName);
 
@@ -1600,7 +1656,7 @@ void FLocalFileNetworkReplayStreamer::RenameReplayFriendlyName_Internal(const FS
 					return;
 				}
 
-				if (SerializationInfo.FileVersion < LocalFileReplay::HISTORY_FIXEDSIZE_FRIENDLY_NAME)
+				if (SerializationInfo.GetLocalFileReplayVersion() < FLocalFileReplayCustomVersion::FixedSizeFriendlyName)
 				{
 					UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::RenameReplayFriendlyName: Replay too old to rename safely %s"), *ReplayName);
 					return;
@@ -2695,7 +2751,7 @@ bool FLocalFileNetworkReplayStreamer::CleanUpOldReplays(const FString& DemoPath,
 			return true;
 		}
 
-		uint64 MinFreeSpace = LocalFileReplay::CVarReplayRecordingMinSpace.GetValueOnAnyThread();
+		uint64 MinFreeSpace = UE::Net::LocalFileReplay::CVarReplayRecordingMinSpace.GetValueOnAnyThread();
 
 		// build an array of replay info sorted by timestamps
 		struct FAutoReplayInfo
@@ -3064,7 +3120,7 @@ void FLocalFileNetworkReplayStreamer::ConditionallyFlushStream()
 		return;
 	}
 
-	const float FLUSH_TIME_IN_SECONDS = LocalFileReplay::CVarChunkUploadDelayInSeconds.GetValueOnGameThread();
+	const float FLUSH_TIME_IN_SECONDS = UE::Net::LocalFileReplay::CVarChunkUploadDelayInSeconds.GetValueOnGameThread();
 
 	if ( FPlatformTime::Seconds() - LastChunkTime > FLUSH_TIME_IN_SECONDS )
 	{
@@ -3103,7 +3159,7 @@ void FLocalFileNetworkReplayStreamer::ConditionallyLoadNextChunk()
 		const double LoadElapsedTime = FPlatformTime::Seconds() - LastChunkTime;
 
 		// Unless it's critical (i.e. bReallyNeedToLoadChunk is true), never try faster than the min delay
-		if (LoadElapsedTime < LocalFileReplay::CVarMinLoadNextChunkDelaySeconds.GetValueOnAnyThread())
+		if (LoadElapsedTime < UE::Net::LocalFileReplay::CVarMinLoadNextChunkDelaySeconds.GetValueOnAnyThread())
 		{
 			return;		
 		}
@@ -3117,7 +3173,7 @@ void FLocalFileNetworkReplayStreamer::ConditionallyLoadNextChunk()
 			const float TimeLeft		= TotalStreamTimeSeconds - CurrentTime;
 
 			// Determine if we have enough buffer to stop streaming for now
-			const float MaxBufferedTimeSeconds = LocalFileReplay::CVarChunkUploadDelayInSeconds.GetValueOnAnyThread() * 0.5f;
+			const float MaxBufferedTimeSeconds = UE::Net::LocalFileReplay::CVarChunkUploadDelayInSeconds.GetValueOnAnyThread() * 0.5f;
 
 			if (TimeLeft > MaxBufferedTimeSeconds)
 			{
@@ -3249,7 +3305,7 @@ void FLocalFileNetworkReplayStreamer::ConditionallyLoadNextChunk()
 				check(StreamTimeRange.IsValid());
 
 				// make space before appending
-				int32 MaxBufferedChunks = LocalFileReplay::CVarMaxBufferedStreamChunks.GetValueOnAnyThread();
+				int32 MaxBufferedChunks = UE::Net::LocalFileReplay::CVarMaxBufferedStreamChunks.GetValueOnAnyThread();
 				if (MaxBufferedChunks > 0)
 				{
 					int32 MinChunkIndex = FMath::Max(0, (RequestedStreamChunkIndex + 1) - MaxBufferedChunks);
@@ -3383,7 +3439,7 @@ void FLocalFileNetworkReplayStreamer::CleanupRequestCache()
 
 		check(OldestKey != INDEX_NONE);
 
-		const uint32 MaxCacheSize = LocalFileReplay::CVarMaxCacheSize.GetValueOnAnyThread();
+		const uint32 MaxCacheSize = UE::Net::LocalFileReplay::CVarMaxCacheSize.GetValueOnAnyThread();
 
 		if (TotalSize <= MaxCacheSize)
 		{

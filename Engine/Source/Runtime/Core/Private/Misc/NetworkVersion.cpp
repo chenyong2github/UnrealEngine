@@ -11,8 +11,10 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Crc.h"
 #include "Misc/EngineVersion.h"
+#include "Misc/Guid.h"
 #include "Misc/NetworkGuid.h" // IWYU pragma: keep
 #include "Misc/Parse.h"
+#include "Serialization/CustomVersion.h"
 #include "Trace/Detail/Channel.h"
 #include "Misc/StringBuilder.h"
 
@@ -21,6 +23,12 @@ DEFINE_LOG_CATEGORY( LogNetVersion );
 FNetworkVersion::FGetLocalNetworkVersionOverride FNetworkVersion::GetLocalNetworkVersionOverride;
 FNetworkVersion::FIsNetworkCompatibleOverride FNetworkVersion::IsNetworkCompatibleOverride;
 FNetworkVersion::FGetReplayCompatibleChangeListOverride FNetworkVersion::GetReplayCompatibleChangeListOverride;
+
+const FGuid FEngineNetworkCustomVersion::Guid = FGuid(0x62915CA3, 0x1C8E4BF7, 0xA30E12C7, 0xC8219DF7);
+FCustomVersionRegistration GRegisterEngineNetworkCustomVersion(FEngineNetworkCustomVersion::Guid, FEngineNetworkCustomVersion::LatestVersion, TEXT("EngineNetworkVersion"));
+
+const FGuid FGameNetworkCustomVersion::Guid = FGuid(0xCC400D24, 0xE0E94E7B, 0x9BF9A283, 0xDCC0C027);
+FCustomVersionRegistration GRegisterGameNetworkCustomVersion(FGameNetworkCustomVersion::Guid, FGameNetworkCustomVersion::LatestVersion, TEXT("GameNetworkVersion"));
 
 FString& FNetworkVersion::GetProjectVersion_Internal()
 {
@@ -31,11 +39,19 @@ FString& FNetworkVersion::GetProjectVersion_Internal()
 bool FNetworkVersion::bHasCachedNetworkChecksum			= false;
 uint32 FNetworkVersion::CachedNetworkChecksum			= 0;
 
-uint32 FNetworkVersion::EngineNetworkProtocolVersion	= HISTORY_ENGINENETVERSION_LATEST;
+bool FNetworkVersion::bHasCachedReplayChecksum = false;
+uint32 FNetworkVersion::CachedReplayChecksum = 0;
+
+uint32 FNetworkVersion::EngineNetworkProtocolVersion	= FEngineNetworkCustomVersion::LatestVersion;
 uint32 FNetworkVersion::GameNetworkProtocolVersion		= 0;
 
-uint32 FNetworkVersion::EngineCompatibleNetworkProtocolVersion		= HISTORY_REPLAY_BACKWARDS_COMPAT;
+uint32 FNetworkVersion::EngineCompatibleNetworkProtocolVersion		= FEngineNetworkCustomVersion::ReplayBackwardsCompat;
 uint32 FNetworkVersion::GameCompatibleNetworkProtocolVersion		= 0;
+
+FCustomVersionContainer FNetworkVersion::NetworkCustomVersions;
+FCustomVersionContainer FNetworkVersion::CompatibleNetworkCustomVersions;
+
+bool FNetworkVersion::bInitializedCustomVersions = false;
 
 void FNetworkVersion::SetProjectVersion(const TCHAR* InVersion)
 {
@@ -52,18 +68,30 @@ void FNetworkVersion::SetProjectVersion(const TCHAR* InVersion)
 
 void FNetworkVersion::SetGameNetworkProtocolVersion(const uint32 InGameNetworkProtocolVersion)
 {
+	InitCustomVersions();
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	GameNetworkProtocolVersion = InGameNetworkProtocolVersion;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	NetworkCustomVersions.SetVersion(FGameNetworkCustomVersion::Guid, InGameNetworkProtocolVersion, TEXT("GameNetworkVersion"));
 	bHasCachedNetworkChecksum = false;
 
-	UE_LOG(LogNetVersion, Log, TEXT("Set GameNetworkProtocolVersion to %ud. Version Checksum will be recalculated on next use."), GameNetworkProtocolVersion);
+	UE_LOG(LogNetVersion, Log, TEXT("Set GameNetworkProtocolVersion to %ud. Version Checksum will be recalculated on next use."), InGameNetworkProtocolVersion);
 }
 
 void FNetworkVersion::SetGameCompatibleNetworkProtocolVersion(const uint32 InGameCompatibleNetworkProtocolVersion)
 {
-	GameCompatibleNetworkProtocolVersion = InGameCompatibleNetworkProtocolVersion;
-	bHasCachedNetworkChecksum = false;
+	InitCustomVersions();
 
-	UE_LOG(LogNetVersion, Log, TEXT("Set GameCompatibleNetworkProtocolVersion to %ud. Version Checksum will be recalculated on next use."), GameCompatibleNetworkProtocolVersion);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	GameCompatibleNetworkProtocolVersion = InGameCompatibleNetworkProtocolVersion;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	CompatibleNetworkCustomVersions.SetVersion(FGameNetworkCustomVersion::Guid, InGameCompatibleNetworkProtocolVersion, TEXT("GameNetworkVersion"));
+	
+	bHasCachedNetworkChecksum = false;
+	bHasCachedReplayChecksum = false;
+
+	UE_LOG(LogNetVersion, Log, TEXT("Set GameCompatibleNetworkProtocolVersion to %ud. Version Checksum will be recalculated on next use."), InGameCompatibleNetworkProtocolVersion);
 }
 
 uint32 FNetworkVersion::GetNetworkCompatibleChangelist()
@@ -106,24 +134,90 @@ uint32 FNetworkVersion::GetReplayCompatibleChangelist()
 	return FEngineVersion::CompatibleWith().GetChangelist();
 }
 
+uint32 FNetworkVersion::GetNetworkProtocolVersion(const FGuid& VersionGuid)
+{
+	InitCustomVersions();
+
+	const FCustomVersion* CustomVersion = NetworkCustomVersions.GetVersion(VersionGuid);
+	return CustomVersion ? CustomVersion->Version : 0;
+}
+
+uint32 FNetworkVersion::GetCompatibleNetworkProtocolVersion(const FGuid& VersionGuid)
+{
+	InitCustomVersions();
+
+	const FCustomVersion* CustomVersion = CompatibleNetworkCustomVersions.GetVersion(VersionGuid);
+	return CustomVersion ? CustomVersion->Version : 0;
+}
+
 uint32 FNetworkVersion::GetEngineNetworkProtocolVersion()
 {
-	return EngineNetworkProtocolVersion;
+	return GetNetworkProtocolVersion(FEngineNetworkCustomVersion::Guid);
 }
 
 uint32 FNetworkVersion::GetEngineCompatibleNetworkProtocolVersion()
 {
-	return EngineCompatibleNetworkProtocolVersion;
+	return GetCompatibleNetworkProtocolVersion(FEngineNetworkCustomVersion::Guid);
 }
 
 uint32 FNetworkVersion::GetGameNetworkProtocolVersion()
 {
-	return GameNetworkProtocolVersion;
+	return GetNetworkProtocolVersion(FGameNetworkCustomVersion::Guid);
 }
 
 uint32 FNetworkVersion::GetGameCompatibleNetworkProtocolVersion()
 {
-	return GameCompatibleNetworkProtocolVersion;
+	return GetCompatibleNetworkProtocolVersion(FGameNetworkCustomVersion::Guid);
+}
+
+const FCustomVersionContainer& FNetworkVersion::GetNetworkCustomVersions()
+{
+	InitCustomVersions();
+
+	return NetworkCustomVersions;
+}
+
+void FNetworkVersion::InitCustomVersions()
+{
+	if (!bInitializedCustomVersions)
+	{
+		FCustomVersion RegisteredEngineVersion = FCurrentCustomVersions::Get(FEngineNetworkCustomVersion::Guid).GetValue();
+		FCustomVersion RegisteredGameVersion = FCurrentCustomVersions::Get(FGameNetworkCustomVersion::Guid).GetValue();
+
+		NetworkCustomVersions.SetVersion(FEngineNetworkCustomVersion::Guid, RegisteredEngineVersion.Version, RegisteredEngineVersion.GetFriendlyName());
+		NetworkCustomVersions.SetVersion(FGameNetworkCustomVersion::Guid, RegisteredGameVersion.Version, RegisteredGameVersion.GetFriendlyName());
+
+		CompatibleNetworkCustomVersions.SetVersion(FEngineNetworkCustomVersion::Guid, FEngineNetworkCustomVersion::ReplayBackwardsCompat, RegisteredEngineVersion.GetFriendlyName());
+		CompatibleNetworkCustomVersions.SetVersion(FGameNetworkCustomVersion::Guid, RegisteredGameVersion.Version, RegisteredGameVersion.GetFriendlyName());
+
+		bInitializedCustomVersions = true;
+	}
+}
+
+void FNetworkVersion::RegisterNetworkCustomVersion(const FGuid& VersionGuid, int32 Version, int32 CompatibleVersion, const FName& FriendlyName)
+{
+	if (const FCustomVersion* ExistingVersion = NetworkCustomVersions.GetVersion(VersionGuid))
+	{
+		if (ExistingVersion->Version != Version)
+		{
+			UE_LOG(LogNetVersion, Warning, TEXT("RegisterNetworkCustomVersion: Overwriting previous version %d with %d for %s"), ExistingVersion->Version, Version, *FriendlyName.ToString());
+		}
+	}
+
+	NetworkCustomVersions.SetVersion(VersionGuid, Version, FriendlyName);
+
+	if (const FCustomVersion* ExistingVersion = CompatibleNetworkCustomVersions.GetVersion(VersionGuid))
+	{
+		if (ExistingVersion->Version != CompatibleVersion)
+		{
+			UE_LOG(LogNetVersion, Warning, TEXT("RegisterNetworkCustomVersion: Overwriting previous compatible version %d with %d for %s"), ExistingVersion->Version, CompatibleVersion, *FriendlyName.ToString());
+		}
+	}
+
+	CompatibleNetworkCustomVersions.SetVersion(VersionGuid, CompatibleVersion, FriendlyName);
+
+	bHasCachedNetworkChecksum = false;
+	bHasCachedReplayChecksum = false;
 }
 
 uint32 FNetworkVersion::GetLocalNetworkVersion( bool AllowOverrideDelegate /*=true*/ )
@@ -144,12 +238,18 @@ uint32 FNetworkVersion::GetLocalNetworkVersion( bool AllowOverrideDelegate /*=tr
 		return CachedNetworkChecksum;
 	}
 
-	FString VersionString = FString::Printf(TEXT("%s %s, NetCL: %d, EngineNetVer: %d, GameNetVer: %d"),
+	InitCustomVersions();
+
+	FString VersionString = FString::Printf(TEXT("%s %s, NetCL: %d"),
 		FApp::GetProjectName(),
 		*FNetworkVersion::GetProjectVersion(),
-		GetNetworkCompatibleChangelist(),
-		FNetworkVersion::GetEngineNetworkProtocolVersion(),
-		FNetworkVersion::GetGameNetworkProtocolVersion());
+		GetNetworkCompatibleChangelist());
+
+	const FCustomVersionArray& CustomVers = NetworkCustomVersions.GetAllVersions();
+	for (const FCustomVersion& CustomVer : CustomVers)
+	{
+		VersionString += FString::Printf(TEXT(", %s: %d"), *CustomVer.GetFriendlyName().ToString(), CustomVer.Version);
+	}
 
 	CachedNetworkChecksum = FCrc::StrCrc32(*VersionString.ToLower());
 
@@ -172,9 +272,22 @@ bool FNetworkVersion::IsNetworkCompatible( const uint32 LocalNetworkVersion, con
 
 FNetworkReplayVersion FNetworkVersion::GetReplayVersion()
 {
-	const uint32 ReplayVersion = ( GameCompatibleNetworkProtocolVersion << 16 ) | EngineCompatibleNetworkProtocolVersion;
+	if (!bHasCachedReplayChecksum)
+	{
+		FString VersionString = FApp::GetProjectName();
 
-	return FNetworkReplayVersion( FApp::GetProjectName(), ReplayVersion, GetReplayCompatibleChangelist() );
+		const FCustomVersionArray& CustomVers = CompatibleNetworkCustomVersions.GetAllVersions();
+		for (const FCustomVersion& CustomVer : CustomVers)
+		{
+			VersionString += FString::Printf(TEXT(", %s: %d"), *CustomVer.GetFriendlyName().ToString(), CustomVer.Version);
+		}
+
+		CachedReplayChecksum = FCrc::StrCrc32(*VersionString.ToLower());
+		
+		bHasCachedReplayChecksum = true;
+	}
+
+	return FNetworkReplayVersion(FApp::GetProjectName(), CachedReplayChecksum, GetReplayCompatibleChangelist());
 }
 
 bool FNetworkVersion::AreNetworkRuntimeFeaturesCompatible(EEngineNetworkRuntimeFeatures LocalFeatures, EEngineNetworkRuntimeFeatures RemoteFeatures)
@@ -193,4 +306,3 @@ void FNetworkVersion::DescribeNetworkRuntimeFeaturesBitset(EEngineNetworkRuntime
 		OutVerboseDescription.Append(TEXT("LegacyReplication"));
 	}
 }
-

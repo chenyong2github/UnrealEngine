@@ -229,16 +229,10 @@ public:
 	}
 
 	/** Returns the engine-global network protocol version for this archive. */
-	FORCEINLINE uint32 EngineNetVer() const
-	{
-		return ArEngineNetVer;
-	}
+	uint32 EngineNetVer() const;
 
 	/** Returns the game-specific network protocol version for this archive. */
-	FORCEINLINE uint32 GameNetVer() const
-	{
-		return ArGameNetVer;
-	}
+	uint32 GameNetVer() const;
 
 	/**
 	 * Queries a custom version from the archive.  If the archive is being used to write, the custom version must have already been registered.
@@ -973,9 +967,11 @@ protected:
 	FEngineVersionBase ArEngineVer;
 
 	/** Holds the engine network protocol version. */
+	UE_DEPRECATED(5.2, "Engine net version moved to custom versions")
 	uint32 ArEngineNetVer;
 
 	/** Holds the game network protocol version. */
+	UE_DEPRECATED(5.2, "Game net version moved to custom versions")
 	uint32 ArGameNetVer;
 
 	/**

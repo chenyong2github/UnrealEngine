@@ -92,25 +92,36 @@ TSharedPtr<INetworkReplayStreamer> FReplayHelper::Init(const FURL& URL)
 
 void FReplayHelper::SetPlaybackNetworkVersions(FArchive& Ar)
 {
-	Ar.SetEngineNetVer(PlaybackDemoHeader.EngineNetworkProtocolVersion);
-	Ar.SetGameNetVer(PlaybackDemoHeader.GameNetworkProtocolVersion);
+	Ar.SetEngineNetVer(PlaybackDemoHeader.GetCustomVersion(FEngineNetworkCustomVersion::Guid));
+	Ar.SetGameNetVer(PlaybackDemoHeader.GetCustomVersion(FGameNetworkCustomVersion::Guid));
+
 	Ar.SetUEVer(PlaybackDemoHeader.PackageVersionUE);
 	Ar.SetLicenseeUEVer(PlaybackDemoHeader.PackageVersionLicenseeUE);
 	// Base archives only store FEngineVersionBase, but the header stores FEngineVersion.
 	// This will slice off the branch name and anything else stored in FEngineVersion.
 	Ar.SetEngineVer(PlaybackDemoHeader.EngineVersion);
+
+	Ar.SetCustomVersions(PlaybackDemoHeader.CustomVersions);
 }
 
 void FReplayHelper::SetPlaybackNetworkVersions(UNetConnection* Connection)
 {
 	if (Connection)
 	{
-		Connection->EngineNetworkProtocolVersion = PlaybackDemoHeader.EngineNetworkProtocolVersion;
-		Connection->GameNetworkProtocolVersion = PlaybackDemoHeader.GameNetworkProtocolVersion;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		Connection->EngineNetworkProtocolVersion = PlaybackDemoHeader.GetCustomVersion(FEngineNetworkCustomVersion::Guid);
+		Connection->GameNetworkProtocolVersion = PlaybackDemoHeader.GetCustomVersion(FGameNetworkCustomVersion::Guid);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		Connection->SetNetworkCustomVersions(PlaybackDemoHeader.CustomVersions);
 		Connection->SetPackageVersionUE(PlaybackDemoHeader.PackageVersionUE);
 		Connection->SetPackageVersionLicenseeUE(PlaybackDemoHeader.PackageVersionLicenseeUE);
 		Connection->SetEngineVersion(PlaybackDemoHeader.EngineVersion);
 	}
+}
+
+FReplayCustomVersion::Type FReplayHelper::GetPlaybackReplayVersion() const
+{
+	return (FReplayCustomVersion::Type)PlaybackDemoHeader.GetCustomVersion(FReplayCustomVersion::Guid);
 }
 
 void FReplayHelper::OnStartRecordingComplete(const FStartStreamingResult& Result)
@@ -202,7 +213,8 @@ void FReplayHelper::WriteNetworkDemoHeader(UNetConnection* Connection)
 
 		FNetworkReplayDelegates::OnWriteGameSpecificDemoHeader.Broadcast(DemoHeader.GameSpecificData);
 
-		if (UWorld* LocalWorld = World.Get())
+		UWorld* LocalWorld = World.Get();
+		if (LocalWorld)
 		{
 			// intentionally not checking for a demo net driver
 			if (LocalWorld->GetNetDriver() != nullptr && !LocalWorld->GetNetDriver()->IsServer())
@@ -395,7 +407,9 @@ bool FReplayHelper::ReadPlaybackDemoHeader(FString& Error)
 {
 	UGameInstance* GameInstance = World->GetGameInstance();
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PlaybackDemoHeader = FNetworkDemoHeader();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FArchive* FileAr = ReplayStreamer->GetHeaderArchive();
 	if (!FileAr)
@@ -405,6 +419,10 @@ bool FReplayHelper::ReadPlaybackDemoHeader(FString& Error)
 		NotifyReplayError(EReplayResult::ReplayNotFound);
 		return false;
 	}
+
+	// sanity checking for string/array sizes when reading the header
+	FileAr->ArIsNetArchive = true;
+	FileAr->ArMaxSerializeSize = FReplayHelper::MAX_DEMO_STRING_SERIALIZATION_SIZE;
 
 	(*FileAr) << PlaybackDemoHeader;
 
@@ -1683,16 +1701,6 @@ bool FReplayHelper::SetExternalDataForObject(UNetConnection* Connection, UObject
 	}
 
 	return false;
-}
-
-void FDeltaCheckpointData::CountBytes(FArchive& Ar) const
-{
-	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FDeltaCheckpointData::CountBytes");
-
-	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RecordingDeletedNetStartupActors", RecordingDeletedNetStartupActors.CountBytes(Ar));
-	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DestroyedNetStartupActors", DestroyedNetStartupActors.CountBytes(Ar));
-	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DestroyedDynamicActors", DestroyedDynamicActors.CountBytes(Ar));
-	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ChannelsToClose", ChannelsToClose.CountBytes(Ar));
 }
 
 void FReplayHelper::FCheckpointSaveStateContext::CountBytes(FArchive& Ar) const

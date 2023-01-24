@@ -305,13 +305,11 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	OutPacketId			( 0 ) // must be initialized as OutAckPacketId + 1 so loss of first packet can be detected
 ,	OutAckPacketId		( -1 )
 ,	bLastHasServerFrameTime( false )
-	, DefaultMaxChannelSize(32767)
+,	DefaultMaxChannelSize(32767)
 ,	InitOutReliable		( 0 )
 ,	InitInReliable		( 0 )
-,	EngineNetworkProtocolVersion( FNetworkVersion::GetEngineNetworkProtocolVersion() )
-,	GameNetworkProtocolVersion( FNetworkVersion::GetGameNetworkProtocolVersion() )
-	, PackageVersionUE( GPackageFileUEVersion )
-	, PackageVersionLicenseeUE( GPackageFileLicenseeUEVersion )
+,	PackageVersionUE( GPackageFileUEVersion )
+,	PackageVersionLicenseeUE( GPackageFileLicenseeUEVersion )
 ,	ResendAllDataState( EResendAllDataState::None )
 #if !UE_BUILD_SHIPPING
 ,	ReceivedRawPacketDel()
@@ -329,6 +327,12 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	bFlushingPacketOrderCache(false)
 ,	ConnectionId(0)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	EngineNetworkProtocolVersion = FNetworkVersion::GetEngineNetworkProtocolVersion();
+	GameNetworkProtocolVersion = FNetworkVersion::GetGameNetworkProtocolVersion();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	NetworkCustomVersions = FNetworkVersion::GetNetworkCustomVersions();
 }
 
 UNetConnection::UNetConnection(FVTableHelper& Helper)
@@ -2576,7 +2580,7 @@ bool UNetConnection::ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPaylo
 		bLastHasServerFrameTime = bHasServerFrameTime;
 	}
 
-	if (Reader.EngineNetVer() < HISTORY_JITTER_IN_HEADER)
+	if (Reader.EngineNetVer() < FEngineNetworkCustomVersion::JitterInHeader)
 	{
 		uint8 RemoteInKBytesPerSecondByte = 0;
 		Reader << RemoteInKBytesPerSecondByte;
@@ -2762,7 +2766,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 
 		bool bHasPacketInfoPayload = true;
 
-		if (Reader.EngineNetVer() >= HISTORY_JITTER_IN_HEADER)
+		if (Reader.EngineNetVer() >= FEngineNetworkCustomVersion::JitterInHeader)
 		{
 			bHasPacketInfoPayload = Reader.ReadBit() == 1u;
 
@@ -2981,7 +2985,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 		while( !Reader.AtEnd() && GetConnectionState()!=USOCK_Closed )
 		{
 			// For demo backwards compatibility, old replays still have this bit
-			if (IsInternalAck() && EngineNetworkProtocolVersion < EEngineNetworkVersionHistory::HISTORY_ACKS_INCLUDED_IN_HEADER)
+			if (IsInternalAck() && GetNetworkCustomVersion(FEngineNetworkCustomVersion::Guid) < FEngineNetworkCustomVersion::AcksIncludedInHeader)
 			{
 				const bool IsAckDummy = Reader.ReadBit() == 1u;
 			}
@@ -2999,7 +3003,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 				Bunch.bOpen					= bControl ? Reader.ReadBit() : 0;
 				Bunch.bClose				= bControl ? Reader.ReadBit() : 0;
 			
-				if (Bunch.EngineNetVer() < HISTORY_CHANNEL_CLOSE_REASON)
+				if (Bunch.EngineNetVer() < FEngineNetworkCustomVersion::ChannelCloseReason)
 				{
 					const uint8 bDormant = Bunch.bClose ? Reader.ReadBit() : 0;
 					Bunch.CloseReason = bDormant ? EChannelCloseReason::Dormancy : EChannelCloseReason::Destroyed;
@@ -3013,7 +3017,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 				Bunch.bIsReplicationPaused  = Reader.ReadBit();
 				Bunch.bReliable				= Reader.ReadBit();
 
-				if (Bunch.EngineNetVer() < HISTORY_MAX_ACTOR_CHANNELS_CUSTOMIZATION)
+				if (Bunch.EngineNetVer() < FEngineNetworkCustomVersion::MaxActorChannelsCustomization)
 				{
 					static const int OLD_MAX_ACTOR_CHANNELS = 10240;
 					Bunch.ChIndex = Reader.ReadInt(OLD_MAX_ACTOR_CHANNELS);
@@ -3039,7 +3043,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 
 				// if flag is set, remap channel index values, we're fast forwarding a replay checkpoint
 				// and there should be no bunches for existing channels
-				if (IsInternalAck() && bAllowExistingChannelIndex && (Bunch.EngineNetVer() >= HISTORY_REPLAY_DORMANCY))
+				if (IsInternalAck() && bAllowExistingChannelIndex && (Bunch.EngineNetVer() >= FEngineNetworkCustomVersion::ReplayDormancy))
 				{
 					if (ChannelIndexMap.Contains(Bunch.ChIndex))
 					{
@@ -3118,7 +3122,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 				Bunch.bPartialInitial = Bunch.bPartial ? Reader.ReadBit() : 0;
 				Bunch.bPartialFinal = Bunch.bPartial ? Reader.ReadBit() : 0;
 
-				if (Bunch.EngineNetVer() < HISTORY_CHANNEL_NAMES)
+				if (Bunch.EngineNetVer() < FEngineNetworkCustomVersion::ChannelNames)
 				{
 					uint32 ChType = (Bunch.bReliable || Bunch.bOpen) ? Reader.ReadInt(CHTYPE_MAX) : CHTYPE_None;
 					switch (ChType)
@@ -3296,7 +3300,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 				// In that case, we can generally ignore these bunches.
 				if (IsInternalAck() && bAllowExistingChannelIndex)
 				{
-					if (Bunch.EngineNetVer() < HISTORY_REPLAY_DORMANCY)
+					if (Bunch.EngineNetVer() < FEngineNetworkCustomVersion::ReplayDormancy)
 					{
 						if (Channel)
 						{
@@ -5365,13 +5369,35 @@ void UNetConnection::NotifyActorChannelCleanedUp(UActorChannel* Channel, EChanne
 
 void UNetConnection::SetNetVersionsOnArchive(FArchive& Ar) const
 {
-	Ar.SetEngineNetVer(EngineNetworkProtocolVersion);
-	Ar.SetGameNetVer(GameNetworkProtocolVersion);
+	Ar.SetEngineNetVer(GetNetworkCustomVersion(FEngineNetworkCustomVersion::Guid));
+	Ar.SetGameNetVer(GetNetworkCustomVersion(FGameNetworkCustomVersion::Guid));
+
+	const FCustomVersionArray& AllVersions = NetworkCustomVersions.GetAllVersions();
+	for (const FCustomVersion& Version : AllVersions)
+	{
+		Ar.SetCustomVersion(Version.Key, Version.Version, Version.GetFriendlyName());
+	}
+
 	Ar.SetUEVer(PackageVersionUE);
 	Ar.SetLicenseeUEVer(PackageVersionLicenseeUE);
 	// Base archives only store FEngineVersionBase, but net connections store FEngineVersion.
 	// This will slice off the branch name and anything else stored in FEngineVersion.
 	Ar.SetEngineVer(EngineVersion);
+}
+
+uint32 UNetConnection::GetNetworkCustomVersion(const FGuid& VersionGuid) const
+{
+	const FCustomVersion* CustomVer = NetworkCustomVersions.GetVersion(VersionGuid);
+	return CustomVer != nullptr ? CustomVer->Version : 0;
+}
+
+void UNetConnection::SetNetworkCustomVersions(const FCustomVersionContainer& CustomVersions)
+{
+	const FCustomVersionArray& AllVersions = CustomVersions.GetAllVersions();
+	for (const FCustomVersion& Version : AllVersions)
+	{
+		NetworkCustomVersions.SetVersion(Version.Key, Version.Version, Version.GetFriendlyName());
+	}
 }
 
 /*-----------------------------------------------------------------------------
