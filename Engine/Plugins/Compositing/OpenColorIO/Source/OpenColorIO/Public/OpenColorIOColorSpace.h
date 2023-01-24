@@ -180,10 +180,11 @@ public:
 			&& DestinationDisplayView == Other.DestinationDisplayView
 			&& DisplayViewDirection   == Other.DisplayViewDirection;
 	}
-
-private:
+	
 	/** Whether or not these settings are of the display-view type. */
 	bool IsDisplayView() const;
+
+private:
 
 	FOnConversionSettingsChange ConversionSettingsChanged;
 };

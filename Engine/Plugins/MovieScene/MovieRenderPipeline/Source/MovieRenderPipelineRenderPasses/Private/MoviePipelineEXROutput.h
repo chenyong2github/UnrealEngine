@@ -22,6 +22,8 @@ THIRD_PARTY_INCLUDES_END
 
 #include "MoviePipelineEXROutput.generated.h"
 
+class UMoviePipelineColorSetting;
+
 UENUM(BlueprintType)
 enum class EEXRCompressionFormat : uint8
 {
@@ -73,6 +75,9 @@ public:
 
 	/** Overscan info used to create apropriate dataWindow for EXR output. Goes from 0.0 to 1.0. */
 	float OverscanPercentage;
+
+	/** Color space chromaticity metadata. */
+	TArray<FVector2d> ColorSpaceChromaticities;
 
 	FEXRImageWriteTask()
 		: bOverwriteFile(true)
@@ -143,4 +148,17 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EXR")
 	bool bMultilayer;
+
+protected:
+	struct FColorSpaceMetadata
+	{
+		FString SourceName;
+		FString DestinationName;
+		TArray<FVector2d> Chromaticities;
+	};
+
+	/**
+	* Get color space chromaticities, source and destination names from the color settings or working color space.
+	*/
+	static FColorSpaceMetadata GetColorSpaceMetadata(UMoviePipelineColorSetting* InColorSettings);
 };
