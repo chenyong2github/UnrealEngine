@@ -5209,14 +5209,19 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		new DeviceInfoData(0x0738, 0x5266, "Mad Catz C.T.R.L.R"),
 		new DeviceInfoData(0x045e, 0x028e, "Xbox Wired Controller"),
 		new DeviceInfoData(0x045e, 0x02e0, "Xbox Wireless Controller"),
+		new DeviceInfoData(0x045e, 0x02fd, "Xbox Wireless Controller"),
 		new DeviceInfoData(0x045e, 0x0b05, "Xbox Elite Wireless Controller"),
+		new DeviceInfoData(0x045e, 0x0b12, "Generic X-Box pad"),
+		new DeviceInfoData(0x045e, 0x0b13, "Xbox Wireless Controller"),
 		new DeviceInfoData(0x0111, 0x1419, "SteelSeries Stratus XL"), 
 		new DeviceInfoData(0x054c, 0x05c4, "PS4 Wireless Controller"),
 		new DeviceInfoData(0x054c, 0x09cc, "PS4 Wireless Controller (v2)"),
 		new DeviceInfoData(0x054c, 0x0ce6, "PS5 Wireless Controller"),
 		new DeviceInfoData(0x05ac, 0x056a, "glap QXPGP001"),
 		new DeviceInfoData(0x0483, 0x5750, "STMicroelectronics Lenovo GamePad"),
-		new DeviceInfoData(0x1532, 0x0705, "Razer Razer Claire T1 Wired")
+		new DeviceInfoData(0x1532, 0x0705, "Razer Razer Claire T1 Wired"),
+		new DeviceInfoData(0x1532, 0x0712, "Razer Kishi V2"),
+		new DeviceInfoData(0x1532, 0x0718, "Razer Kishi V2 Pro XBox360")
 	};
 
 	public class InputDeviceInfo {

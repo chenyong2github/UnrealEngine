@@ -930,6 +930,17 @@ void FAndroidInputInterface::SendControllerEvents()
 						{
 							CurrentDevice.bSupportsHat = true;
 						}
+						else if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("Generic X-Box pad")))
+						{
+							CurrentDevice.ControllerClass = ControllerClassType::XBoxWired;
+							CurrentDevice.bSupportsHat = true;
+							CurrentDevice.bTriggersUseThresholdForClick = true;
+							CurrentDevice.bRightStickZRZ = false;
+							CurrentDevice.bRightStickRXRY = true;
+							CurrentDevice.bMapZRZToTriggers = true;
+							CurrentDevice.LTAnalogRangeMinimum = -1.0f;
+							CurrentDevice.RTAnalogRangeMinimum = -1.0f;
+						}
 						else if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("Xbox Wired Controller")))
 						{
 							CurrentDevice.ControllerClass = ControllerClassType::XBoxWired;
@@ -996,6 +1007,22 @@ void FAndroidInputInterface::SendControllerEvents()
 						else if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("Razer")))
 						{
 							CurrentDevice.bSupportsHat = true;
+							if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("Razer Kishi V2 Pro XBox360")))
+							{
+								CurrentDevice.ControllerClass = ControllerClassType::XBoxWired;
+								CurrentDevice.bSupportsHat = true;
+								CurrentDevice.bTriggersUseThresholdForClick = true;
+								CurrentDevice.bRightStickZRZ = false;
+								CurrentDevice.bRightStickRXRY = true;
+								CurrentDevice.bMapZRZToTriggers = true;
+								CurrentDevice.LTAnalogRangeMinimum = -1.0f;
+								CurrentDevice.RTAnalogRangeMinimum = -1.0f;
+							}
+							else if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("Razer Kishi V2")))
+							{
+								CurrentDevice.ControllerClass = ControllerClassType::XBoxWired;
+								CurrentDevice.bTriggersUseThresholdForClick = true;
+							}
 						}
 
 						IPlatformInputDeviceMapper& DeviceMapper = IPlatformInputDeviceMapper::Get();
