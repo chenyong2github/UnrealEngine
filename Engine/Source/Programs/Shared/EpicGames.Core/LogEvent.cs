@@ -443,9 +443,13 @@ namespace EpicGames.Core
 		/// </summary>
 		public static LogEvent FromState<TState>(LogLevel level, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
 		{
-			if(state is LogEvent logEvent)
+			if (state is LogEvent logEvent)
 			{
 				return logEvent;
+			}
+			if (state is JsonLogEvent jsonLogEvent)
+			{
+				return Read(jsonLogEvent.Data.Span);
 			}
 
 			DateTime time = DateTime.UtcNow;
