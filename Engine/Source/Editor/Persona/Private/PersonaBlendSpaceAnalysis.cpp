@@ -302,12 +302,12 @@ FVector BlendSpaceAnalysis::CalculateSampleValue(const UBlendSpace& BlendSpace, 
 		const UAnalysisProperties* AnalysisProperties = BlendSpace.AnalysisProperties[Index].Get();
 		for (const IBlendSpaceAnalysisFeature* Feature : ModularFeatures)
 		{
-			float FloatValue = (float) AdjustedPosition[Index];
+			float NewPosition = FloatCastChecked<float>(AdjustedPosition[Index], UE::LWC::DefaultFloatPrecision);
 			bAnalyzed[Index] = Feature->CalculateSampleValue(
-				FloatValue, BlendSpace, AnalysisProperties, Animation, RateScale);
+				NewPosition, BlendSpace, AnalysisProperties, Animation, RateScale);
 			if (bAnalyzed[Index])
 			{
-				AdjustedPosition[Index] = (FVector::FReal) FloatValue;
+				AdjustedPosition[Index] = NewPosition;
 				break;
 			}
 		}

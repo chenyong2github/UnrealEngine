@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UObject/NameTypes.h"
+#include "Math/Vector.h"
 
 struct FBodyInstance;
 struct FPhysicsControlData;
@@ -17,26 +18,11 @@ namespace PhysicsControlComponent
 {
 
 /** 
- * Converts strength/damping ratio/extra damping into spring stiffness/damping.
- */
-void ConvertStrengthToSpringParams(
-	double& OutSpring, double& OutDamping, 
-	double InStrength, double InDampingRatio, double InExtraDamping);
-
-/** 
  * Converts strength/damping ratio/extra damping into spring stiffness/damping 
  */
 void ConvertStrengthToSpringParams(
 	FVector& OutSpring, FVector& OutDamping, 
 	const FVector& InStrength, float InDampingRatio, const FVector& InExtraDamping);
-
-/**
- * Converts spring/damping values into strength/damping ratio/extra damping. This tries to get
- * as much damping into the damping ratio term as possible, without letting it go above 1.
- */
-void ConvertSpringToStrengthParams(
-	double& OutStrength, double& OutDampingRatio, double& OutExtraDamping,
-	double InSpring, double InDamping);
 
 /**
  * Converts the drive settings from the constraint profile into the control data strength/damping etc. 
@@ -59,6 +45,56 @@ FBodyInstance* GetBodyInstance(UMeshComponent* MeshComponent, const FName BoneNa
  * the root without finding a physical bone.
  */
 FName GetPhysicalParentBone(USkeletalMeshComponent* SkeletalMeshComponent, FName BoneName);
+
+/**
+ * Converts strength/damping ratio/extra damping into spring stiffness/damping.
+ */
+template<typename TOut>
+void ConvertStrengthToSpringParams(
+	TOut& OutSpring, TOut& OutDamping,
+	double InStrength, double InDampingRatio, double InExtraDamping)
+{
+	TOut AngularFrequency = FloatCastChecked<TOut>(InStrength * UE_DOUBLE_TWO_PI, UE::LWC::DefaultFloatPrecision);
+	TOut Stiffness = AngularFrequency * AngularFrequency;
+
+	OutSpring = Stiffness;
+	OutDamping = FloatCastChecked<TOut>(InExtraDamping + 2 * InDampingRatio * AngularFrequency, UE::LWC::DefaultFloatPrecision);
+}
+
+
+/**
+ * Converts spring/damping values into strength/damping ratio/extra damping. This tries to get
+ * as much damping into the damping ratio term as possible, without letting it go above 1.
+ */
+template<typename TOut>
+static void ConvertSpringToStrengthParams(
+	TOut& OutStrength, TOut& OutDampingRatio, TOut& OutExtraDamping,
+	const double InSpring, const double InDamping)
+{
+	// Simple calculation to get the strength
+	TOut AngularFrequency = FloatCastChecked<TOut>(FMath::Sqrt(InSpring), UE::LWC::DefaultFloatPrecision);
+	OutStrength = AngularFrequency / UE_TWO_PI;
+
+	// For damping, try to put as much into the damping ratio as possible, up to a max DR of 1. Then
+	// the rest goes into extra damping.
+	OutDampingRatio = 1;
+	TOut ImpliedDamping = FloatCastChecked<TOut>(2.0 * OutDampingRatio * AngularFrequency, UE::LWC::DefaultFloatPrecision);
+
+	if (ImpliedDamping < InDamping)
+	{
+		OutExtraDamping = FloatCastChecked<TOut>(InDamping, UE::LWC::DefaultFloatPrecision) - ImpliedDamping;
+	}
+	else if (AngularFrequency > 0)
+	{
+		OutExtraDamping = 0;
+		OutDampingRatio = FloatCastChecked<TOut>(InDamping, UE::LWC::DefaultFloatPrecision) / (2 * AngularFrequency);
+	}
+	else
+	{
+		OutDampingRatio = 1;
+		OutExtraDamping = FloatCastChecked<TOut>(InDamping, UE::LWC::DefaultFloatPrecision);
+	}
+}
 
 } // namespace PhysicsControlComponent
 } // namespace UE

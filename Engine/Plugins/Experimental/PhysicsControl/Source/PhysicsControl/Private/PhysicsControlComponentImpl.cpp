@@ -427,7 +427,7 @@ void FPhysicsControlComponentImpl::CalculateControlTargetData(
 
 				if (bCalculateVelocity)
 				{
-					if (Record.PhysicsControl.ControlSettings.SkeletalAnimationVelocityMultiplier)
+					if (Record.PhysicsControl.ControlSettings.SkeletalAnimationVelocityMultiplier != 0)
 					{
 						// Offset of the control point from the target child bone TM, in world space.
 						FVector WorldControlPointOffset =
@@ -470,7 +470,7 @@ void FPhysicsControlComponentImpl::CalculateControlTargetData(
 					OutTargetVelocity = ChildBoneTM.GetRotation() * OutTargetVelocity;
 					OutTargetAngularVelocity = ChildBoneTM.GetRotation() * OutTargetAngularVelocity;
 
-					if (Record.PhysicsControl.ControlSettings.SkeletalAnimationVelocityMultiplier)
+					if (Record.PhysicsControl.ControlSettings.SkeletalAnimationVelocityMultiplier != 0)
 					{
 						FVector WorldControlPointOffset =
 							ChildBoneTM.GetRotation() * Record.PhysicsControl.ControlSettings.ControlPoint;
@@ -530,9 +530,9 @@ bool FPhysicsControlComponentImpl::ApplyControlStrengths(
 	const FPhysicsControlData& Data = Record.PhysicsControl.ControlData;
 	const FPhysicsControlMultiplier& Multiplier = Record.PhysicsControl.ControlMultiplier;
 
-	double AngularSpring;
-	double AngularDamping;
-	double MaxTorque = Data.MaxTorque * Multiplier.MaxTorqueMultiplier;
+	float AngularSpring;
+	float AngularDamping;
+	float MaxTorque = Data.MaxTorque * Multiplier.MaxTorqueMultiplier;
 
 	FVector LinearSpring;
 	FVector LinearDamping;
@@ -549,25 +549,25 @@ bool FPhysicsControlComponentImpl::ApplyControlStrengths(
 		Data.LinearDampingRatio,
 		Data.LinearExtraDamping * Multiplier.LinearExtraDampingMultiplier);
 
-	if (Multiplier.MaxTorqueMultiplier <= 0.0)
+	if (Multiplier.MaxTorqueMultiplier <= 0)
 	{
-		AngularSpring = 0.0;
-		AngularDamping = 0.0;
+		AngularSpring = 0;
+		AngularDamping = 0;
 	}
-	if (Multiplier.MaxForceMultiplier.X <= 0.0)
+	if (Multiplier.MaxForceMultiplier.X <= 0)
 	{
-		LinearSpring.X = 0.0;
-		LinearDamping.X = 0.0;
+		LinearSpring.X = 0;
+		LinearDamping.X = 0;
 	}
-	if (Multiplier.MaxForceMultiplier.Y <= 0.0)
+	if (Multiplier.MaxForceMultiplier.Y <= 0)
 	{
-		LinearSpring.Y = 0.0;
-		LinearDamping.Y = 0.0;
+		LinearSpring.Y = 0;
+		LinearDamping.Y = 0;
 	}
-	if (Multiplier.MaxForceMultiplier.Z <= 0.0)
+	if (Multiplier.MaxForceMultiplier.Z <= 0)
 	{
-		LinearSpring.Z = 0.0;
-		LinearDamping.Z = 0.0;
+		LinearSpring.Z = 0;
+		LinearDamping.Z = 0;
 	}
 
 	ConstraintInstance->SetAngularDriveParams(AngularSpring, AngularDamping, MaxTorque);
@@ -579,7 +579,7 @@ bool FPhysicsControlComponentImpl::ApplyControlStrengths(
 		FMath::Max(UE_SMALL_NUMBER, MaxForce.Y),
 		FMath::Max(UE_SMALL_NUMBER, MaxForce.Z));
 	double Test = TestAngular + TestLinear.GetMax();
-	return Test > 0.0;
+	return Test > 0;
 }
 
 //======================================================================================================================

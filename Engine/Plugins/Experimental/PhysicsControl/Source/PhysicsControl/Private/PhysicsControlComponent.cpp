@@ -1024,7 +1024,7 @@ bool UPhysicsControlComponent::SetControlTargetPosition(
 	FPhysicsControlRecord* Record = Implementation->FindControlRecord(Name);
 	if (Record)
 	{
-		if (VelocityDeltaTime)
+		if (VelocityDeltaTime != 0)
 		{
 			Record->PhysicsControl.ControlTarget.TargetVelocity =
 				(Position - Record->PhysicsControl.ControlTarget.TargetPosition) / VelocityDeltaTime;
@@ -1055,7 +1055,7 @@ bool UPhysicsControlComponent::SetControlTargetOrientation(
 	FPhysicsControlRecord* Record = Implementation->FindControlRecord(Name);
 	if (Record)
 	{
-		if (AngularVelocityDeltaTime)
+		if (AngularVelocityDeltaTime != 0)
 		{
 			FQuat OldQ = Record->PhysicsControl.ControlTarget.TargetOrientation.Quaternion();
 			FQuat OrientationQ = Orientation.Quaternion();
@@ -1100,7 +1100,7 @@ bool UPhysicsControlComponent::SetControlTargetPoses(
 		FVector Position = OffsetTM.GetTranslation();
 		FQuat OrientationQ = OffsetTM.GetRotation();
 
-		if (VelocityDeltaTime)
+		if (VelocityDeltaTime != 0)
 		{
 			FQuat OldQ = Record->PhysicsControl.ControlTarget.TargetOrientation.Quaternion();
 			OldQ.EnforceShortestArcWith(OrientationQ);
@@ -1952,11 +1952,11 @@ void UPhysicsControlComponent::DebugDrawControl(
 			DrawCoordinateSystem(
 				PDI, WorldTargetTM.GetTranslation(), WorldTargetTM.Rotator(),
 				VisualizationSizeScale, SDPG_Foreground, 4.0f * GizmoWidthScale);
-			if (VelocityPredictionTime)
+			if (VelocityPredictionTime != 0)
 			{
 				DrawCoordinateSystem(
 					PDI, PredictedTargetTM.GetTranslation(), PredictedTargetTM.Rotator(),
-					VisualizationSizeScale * 0.5, SDPG_Foreground, 4.0f * GizmoWidthScale);
+					VisualizationSizeScale * 0.5f, SDPG_Foreground, 4.0f * GizmoWidthScale);
 			}
 		}
 		else
@@ -1967,16 +1967,16 @@ void UPhysicsControlComponent::DebugDrawControl(
 			DrawWireSphere(
 				PDI, WorldTargetTM, TargetColor, 
 				VisualizationSizeScale, 8, SDPG_Foreground, 3.0f * GizmoWidthScale);
-			if (VelocityPredictionTime)
+			if (VelocityPredictionTime != 0)
 			{
 				DrawWireSphere(
 					PDI, PredictedTargetTM, TargetColor, 
-					VisualizationSizeScale * 0.5, 8, SDPG_Foreground, 3.0f * GizmoWidthScale);
+					VisualizationSizeScale * 0.5f, 8, SDPG_Foreground, 3.0f * GizmoWidthScale);
 			}
 		}
 
 
-		if (VelocityPredictionTime)
+		if (VelocityPredictionTime != 0)
 		{
 			PDI->DrawLine(
 				WorldTargetTM.GetTranslation(), 

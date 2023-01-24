@@ -251,7 +251,7 @@ void GetFrameDirs(
 */
 template<typename FunctionType, typename T>
 static bool CalculateComponentSampleValue(
-	float&                     Result,
+	double&                    Result,
 	const FunctionType&        Fn,
 	const UBlendSpace&         BlendSpace, 
 	const T*                   AnalysisProperties, 
@@ -262,10 +262,29 @@ static bool CalculateComponentSampleValue(
 	int32 ComponentIndex = (int32) AnalysisProperties->FunctionAxis;
 	if (Fn(Value, BlendSpace, AnalysisProperties, Animation, RateScale))
 	{
-		Result = static_cast<float>(Value[ComponentIndex]);
+		Result = Value[ComponentIndex];
 		return true;
 	}
 	return false;
+}
+
+//======================================================================================================================
+/**
+* Helper to extract the component from the FVector functions
+*/
+template<typename FunctionType, typename T>
+static bool CalculateComponentSampleValue(
+	float&               Result,
+	const FunctionType&  Fn,
+	const UBlendSpace&   BlendSpace,
+	const T*             AnalysisProperties,
+	const UAnimSequence& Animation,
+	const float          RateScale)
+{
+	double DoubleResult = Result;
+	bool bResult = CalculateComponentSampleValue(DoubleResult, Fn, BlendSpace, AnalysisProperties, Animation, RateScale);
+	Result = FloatCastChecked<float>(DoubleResult, UE::LWC::DefaultFloatPrecision);
+	return bResult;
 }
 
 //======================================================================================================================
@@ -291,9 +310,9 @@ static bool CalculatePosition(
 	}
 
 	int32 FirstKey = FMath::Clamp(
-		(int32) (NumSampledKeys * AnalysisProperties->StartTimeFraction), 0, NumSampledKeys);
+		(int32) (float(NumSampledKeys) * AnalysisProperties->StartTimeFraction), 0, NumSampledKeys);
 	int32 LastKey = FMath::Clamp(
-		(int32) (NumSampledKeys * AnalysisProperties->EndTimeFraction), FirstKey, NumSampledKeys);
+		(int32) (float(NumSampledKeys) * AnalysisProperties->EndTimeFraction), FirstKey, NumSampledKeys);
 
 	FTransform FrameTM;
 	bool bNeedToUpdateFrameTM = true;
@@ -335,9 +354,9 @@ static bool CalculateDeltaPosition(
 	}
 
 	int32 FirstKey = FMath::Clamp(
-		(int32) (NumSampledKeys * AnalysisProperties->StartTimeFraction), 0, NumSampledKeys);
+		(int32) (float(NumSampledKeys) * AnalysisProperties->StartTimeFraction), 0, NumSampledKeys);
 	int32 LastKey = FMath::Clamp(
-		(int32) (NumSampledKeys * AnalysisProperties->EndTimeFraction), FirstKey, NumSampledKeys);
+		(int32) (float(NumSampledKeys) * AnalysisProperties->EndTimeFraction), FirstKey, NumSampledKeys);
 
 	FTransform FrameTM;
 	bool bNeedToUpdateFrameTM = true;
@@ -384,12 +403,12 @@ static bool CalculateVelocity(
 		return false;
 	}
 
-	float DeltaTime = Animation.GetPlayLength() / NumSampledKeys;
+	double DeltaTime = Animation.GetPlayLength() / double(NumSampledKeys);
 
 	int32 FirstKey = FMath::Clamp(
-		(int32) (NumSampledKeys * AnalysisProperties->StartTimeFraction), 0, NumSampledKeys);
+		(int32) (float(NumSampledKeys) * AnalysisProperties->StartTimeFraction), 0, NumSampledKeys);
 	int32 LastKey = FMath::Clamp(
-		(int32) (NumSampledKeys * AnalysisProperties->EndTimeFraction), FirstKey, NumSampledKeys-1);
+		(int32) (float(NumSampledKeys) * AnalysisProperties->EndTimeFraction), FirstKey, NumSampledKeys-1);
 
 	// First and Last key are for averaging. However, the finite differencing always goes from one frame to the next
 	int32 NumKeys = FMath::Max(1 + LastKey - FirstKey, 1);
@@ -500,9 +519,9 @@ static bool CalculateOrientation(
 	}
 
 	int32 FirstKey = FMath::Clamp(
-		(int32) (NumSampledKeys * AnalysisProperties->StartTimeFraction), 0, NumSampledKeys);
+		(int32) (float(NumSampledKeys) * AnalysisProperties->StartTimeFraction), 0, NumSampledKeys);
 	int32 LastKey = FMath::Clamp(
-		(int32) (NumSampledKeys * AnalysisProperties->EndTimeFraction), FirstKey, NumSampledKeys);
+		(int32) (float(NumSampledKeys) * AnalysisProperties->EndTimeFraction), FirstKey, NumSampledKeys);
 
 	FTransform FrameTM;
 	bool bNeedToUpdateFrameTM = true;
@@ -555,9 +574,9 @@ static bool CalculateDeltaOrientation(
 	}
 
 	int32 FirstKey = FMath::Clamp(
-		(int32) (NumSampledKeys * AnalysisProperties->StartTimeFraction), 0, NumSampledKeys);
+		(int32) (float(NumSampledKeys) * AnalysisProperties->StartTimeFraction), 0, NumSampledKeys);
 	int32 LastKey = FMath::Clamp(
-		(int32) (NumSampledKeys * AnalysisProperties->EndTimeFraction), FirstKey, NumSampledKeys);
+		(int32) (float(NumSampledKeys) * AnalysisProperties->EndTimeFraction), FirstKey, NumSampledKeys);
 
 	FTransform FrameTM;
 	bool bNeedToUpdateFrameTM = true;
@@ -610,12 +629,12 @@ static bool CalculateAngularVelocity(
 		return false;
 	}
 
-	float DeltaTime = Animation.GetPlayLength() / NumSampledKeys;
+	double DeltaTime = Animation.GetPlayLength() / double(NumSampledKeys);
 
 	int32 FirstKey = FMath::Clamp(
-		(int32) (NumSampledKeys * AnalysisProperties->StartTimeFraction), 0, NumSampledKeys);
+		(int32) (float(NumSampledKeys) * AnalysisProperties->StartTimeFraction), 0, NumSampledKeys);
 	int32 LastKey = FMath::Clamp(
-		(int32) (NumSampledKeys * AnalysisProperties->EndTimeFraction), FirstKey, NumSampledKeys-1);
+		(int32) (float(NumSampledKeys) * AnalysisProperties->EndTimeFraction), FirstKey, NumSampledKeys-1);
 
 	// First and Last key are for averaging. However, the finite differencing always goes from one frame to the next
 	int32 NumKeys = FMath::Max(1 + LastKey - FirstKey, 1);
@@ -646,7 +665,7 @@ static bool CalculateAngularVelocity(
 
 		FQuat Rotation = RelativeQuat2 * RelativeQuat1.Inverse();
 		FVector Axis;
-		float Angle;
+		double Angle;
 		Rotation.ToAxisAndAngle(Axis, Angle);
 		FVector AngularVelocity = FMath::RadiansToDegrees(Axis * (Angle / DeltaTime));
 #ifdef ANALYSIS_VERBOSE_LOG
@@ -688,12 +707,12 @@ static bool CalculateOrientationRate(
 		return false;
 	}
 
-	float DeltaTime = Animation.GetPlayLength() / NumSampledKeys;
+	double DeltaTime = Animation.GetPlayLength() / double(NumSampledKeys);
 
 	int32 FirstKey = FMath::Clamp(
-		(int32) (NumSampledKeys * AnalysisProperties->StartTimeFraction), 0, NumSampledKeys);
+		(int32) (float(NumSampledKeys) * AnalysisProperties->StartTimeFraction), 0, NumSampledKeys);
 	int32 LastKey = FMath::Clamp(
-		(int32) (NumSampledKeys * AnalysisProperties->EndTimeFraction), FirstKey, NumSampledKeys-1);
+		(int32) (float(NumSampledKeys) * AnalysisProperties->EndTimeFraction), FirstKey, NumSampledKeys-1);
 
 	// First and Last key are for averaging. However, the finite differencing always goes from one frame to the next
 	int32 NumKeys = FMath::Max(1 + LastKey - FirstKey, 1);

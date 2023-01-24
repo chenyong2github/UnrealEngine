@@ -74,9 +74,9 @@ static bool CalculateRootMotionVelocity(
 		FVector FrameFacingDir = BlendSpaceAnalysis::GetAxisFromTM(FrameTM, AnalysisProperties->CharacterFacingAxis);
 		FVector FrameUpDir = BlendSpaceAnalysis::GetAxisFromTM(FrameTM, AnalysisProperties->CharacterUpAxis);
 		FVector FrameRightDir = FVector::CrossProduct(FrameUpDir, FrameFacingDir);
-		float ForwardVel = Velocity | FrameFacingDir;
-		float RightVel = Velocity | FrameRightDir;
-		float UpVel = Velocity | FrameUpDir;
+		double ForwardVel = Velocity | FrameFacingDir;
+		double RightVel = Velocity | FrameRightDir;
+		double UpVel = Velocity | FrameUpDir;
 		Result.Set(ForwardVel, RightVel, UpVel);
 		return true;
 	}
@@ -86,7 +86,7 @@ static bool CalculateRootMotionVelocity(
 //======================================================================================================================
 // Calculates the movement speed (magnitude) 
 static bool CalculateRootMotionSpeed(
-	float&                               Result,
+	double&                              Result,
 	const UBlendSpace&                   BlendSpace,
 	const URootMotionAnalysisProperties* AnalysisProperties,
 	const UAnimSequence&                 Animation,
@@ -104,7 +104,7 @@ static bool CalculateRootMotionSpeed(
 //======================================================================================================================
 // Calculates the movement speed (magnitude) 
 static bool CalculateRootMotionDirection(
-	float&                               Result,
+	double&                              Result,
 	const UBlendSpace&                   BlendSpace,
 	const URootMotionAnalysisProperties* AnalysisProperties,
 	const UAnimSequence&                 Animation,
@@ -122,7 +122,7 @@ static bool CalculateRootMotionDirection(
 //======================================================================================================================
 // Calculates the locomotion speed in the character's facing direction
 static bool CalculateRootMotionForwardSpeed(
-	float&                               Result,
+	double&                              Result,
 	const UBlendSpace&                   BlendSpace,
 	const URootMotionAnalysisProperties* AnalysisProperties,
 	const UAnimSequence&                 Animation,
@@ -140,7 +140,7 @@ static bool CalculateRootMotionForwardSpeed(
 //======================================================================================================================
 // Calculates the locomotion speed in the character's upwards direction
 static bool CalculateRootMotionUpwardSpeed(
-	float&                               Result,
+	double&                              Result,
 	const UBlendSpace&                   BlendSpace,
 	const URootMotionAnalysisProperties* AnalysisProperties,
 	const UAnimSequence&                 Animation,
@@ -158,7 +158,7 @@ static bool CalculateRootMotionUpwardSpeed(
 //======================================================================================================================
 // Calculates the locomotion speed in the character's right direction
 static bool CalculateRootMotionRightwardSpeed(
-	float&                               Result,
+	double&                              Result,
 	const UBlendSpace&                   BlendSpace,
 	const URootMotionAnalysisProperties* AnalysisProperties,
 	const UAnimSequence&                 Animation,
@@ -176,7 +176,7 @@ static bool CalculateRootMotionRightwardSpeed(
 //======================================================================================================================
 // Calculates the locomotion slope angle (degrees) going in the facing direction
 static bool CalculateRootMotionForwardSlope(
-	float&                               Result,
+	double&                              Result,
 	const UBlendSpace&                   BlendSpace,
 	const URootMotionAnalysisProperties* AnalysisProperties,
 	const UAnimSequence&                 Animation,
@@ -185,7 +185,7 @@ static bool CalculateRootMotionForwardSlope(
 	FVector Movement;
 	if (CalculateRootMotionVelocity(Movement, BlendSpace, AnalysisProperties, Animation, RateScale))
 	{
-		if (Movement.X >= 0.0f)
+		if (Movement.X >= 0)
 		{
 			Result = FMath::RadiansToDegrees(FMath::Atan2(Movement.Z, Movement.X));
 		}
@@ -202,7 +202,7 @@ static bool CalculateRootMotionForwardSlope(
 //======================================================================================================================
 // Calculates the locomotion slope angle (degrees) going in the rightwards direction
 static bool CalculateRootMotionRightwardSlope(
-	float&                               Result,
+	double&                              Result,
 	const UBlendSpace&                   BlendSpace,
 	const URootMotionAnalysisProperties* AnalysisProperties,
 	const UAnimSequence&                 Animation,
@@ -211,7 +211,7 @@ static bool CalculateRootMotionRightwardSlope(
 	FVector Movement;
 	if (CalculateRootMotionVelocity(Movement, BlendSpace, AnalysisProperties, Animation, RateScale))
 	{
-		if (Movement.Y > 0.0f)
+		if (Movement.Y > 0)
 		{
 			Result = FMath::RadiansToDegrees(FMath::Atan2(Movement.Z, Movement.Y));
 		}
@@ -226,9 +226,8 @@ static bool CalculateRootMotionRightwardSlope(
 
 
 //======================================================================================================================
-// Calculates the movement speed (magnitude) 
-bool CalculateRootMotion(
-	float&                               Result,
+static bool CalculateRootMotion(
+	double&                              Result,
 	const UBlendSpace&                   BlendSpace,
 	const URootMotionAnalysisProperties* AnalysisProperties,
 	const UAnimSequence&                 Animation,
@@ -266,6 +265,22 @@ bool CalculateRootMotion(
 	default:
 		return false;
 	}
+}
+
+//======================================================================================================================
+// Note that it is easier to do the calculations involving world-space positions in doubles, and
+// then cast Result to float here, than it is to be casting in all the functions above.
+bool CalculateRootMotion(
+	float&                               Result,
+	const UBlendSpace&                   BlendSpace,
+	const URootMotionAnalysisProperties* AnalysisProperties,
+	const UAnimSequence&                 Animation,
+	const float                          RateScale)
+{
+	double DoubleResult = Result;
+	bool bResult = CalculateRootMotion(DoubleResult, BlendSpace, AnalysisProperties, Animation, RateScale);
+	Result = FloatCastChecked<float>(DoubleResult, UE::LWC::DefaultFloatPrecision);
+	return bResult;
 }
 
 #undef LOCTEXT_NAMESPACE

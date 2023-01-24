@@ -175,7 +175,7 @@ int32 SBlendSpaceEditor::OnSampleAdded(UAnimSequence* Animation, const FVector& 
 
 	if(BlendSpace->IsAsset() && bRunAnalysis)
 	{
-		AdjustedValue = BlendSpaceAnalysis::CalculateSampleValue(*BlendSpace, *Animation, 1.0f, Value, bAnalyzed);
+		AdjustedValue = BlendSpaceAnalysis::CalculateSampleValue(*BlendSpace, *Animation, 1.0, Value, bAnalyzed);
 	}
 		
 	int32 NewSampleIndex = -1;

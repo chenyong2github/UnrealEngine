@@ -48,14 +48,16 @@ public:
 	EAnalysisLinearAxis CharacterUpAxis = EAnalysisLinearAxis::PlusZ;
 };
 
-//======================================================================================================================
+/**
+ * Calculates the locomotion speed from the animation (which may be playrate scaled), 
+ * according to the analysis properties.
+ */
 bool CalculateLocomotion(
 	float&                               Result,
 	const UBlendSpace&                   BlendSpace,
 	const ULocomotionAnalysisProperties* AnalysisProperties,
 	const UAnimSequence&                 Animation,
 	const float                          RateScale);
-
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"

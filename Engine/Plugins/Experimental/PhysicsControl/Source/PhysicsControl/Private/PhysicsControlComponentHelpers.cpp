@@ -14,55 +14,12 @@ namespace PhysicsControlComponent
 
 //======================================================================================================================
 void ConvertStrengthToSpringParams(
-	double& OutSpring, double& OutDamping, 
-	double InStrength, double InDampingRatio, double InExtraDamping)
-{
-	double AngularFrequency = InStrength * UE_DOUBLE_TWO_PI;
-	double Stiffness = AngularFrequency * AngularFrequency;
-
-	OutSpring = Stiffness;
-	OutDamping = 2.0 * InDampingRatio * AngularFrequency;
-	OutDamping += InExtraDamping;
-}
-
-//======================================================================================================================
-void ConvertStrengthToSpringParams(
 	FVector& OutSpring, FVector& OutDamping, 
 	const FVector& InStrength, float InDampingRatio, const FVector& InExtraDamping)
 {
 	ConvertStrengthToSpringParams(OutSpring.X, OutDamping.X, InStrength.X, InDampingRatio, InExtraDamping.X);
 	ConvertStrengthToSpringParams(OutSpring.Y, OutDamping.Y, InStrength.Y, InDampingRatio, InExtraDamping.Y);
 	ConvertStrengthToSpringParams(OutSpring.Z, OutDamping.Z, InStrength.Z, InDampingRatio, InExtraDamping.Z);
-}
-
-//======================================================================================================================
-void ConvertSpringToStrengthParams(
-	float& OutStrength, float& OutDampingRatio, float& OutExtraDamping,
-	double InSpring, double InDamping)
-{
-	// Simple calculation to get the strength
-	double AngularFrequency = FMath::Sqrt(InSpring);
-	OutStrength = AngularFrequency / UE_DOUBLE_TWO_PI;
-
-	// For damping, try to put as much into the damping ratio as possible, up to a max DR of 1. Then
-	// the rest goes into extra damping.
-	OutDampingRatio = 1.0;
-	double ImpliedDamping = 2.0 * OutDampingRatio * AngularFrequency;
-
-	if (ImpliedDamping < InDamping)
-	{
-		OutExtraDamping = InDamping - ImpliedDamping;
-	}
-	else if (AngularFrequency > 0)
-	{
-		OutExtraDamping = 0;
-		OutDampingRatio = InDamping / (2.0 * AngularFrequency);
-	}
-	else
-	{
-		OutDampingRatio = 1.0;
-		OutExtraDamping = InDamping;
-	}
 }
 
 inline double GetLinearDriveStiffness(const FLinearDriveConstraint& InDrive)
@@ -137,7 +94,8 @@ void ConvertConstraintProfileToControlData(
 		GetLinearDriveStiffness(InProfileProperties.LinearDrive), 
 		GetLinearDriveDamping(InProfileProperties.LinearDrive));
 
-	OutControlData.MaxForce = GetLinearDriveMaxForce(InProfileProperties.LinearDrive);
+	OutControlData.MaxForce = FloatCastChecked<float>(
+		GetLinearDriveMaxForce(InProfileProperties.LinearDrive), UE::LWC::DefaultFloatPrecision);
 
 	ConvertSpringToStrengthParams(
 		OutControlData.AngularStrength,
@@ -146,7 +104,8 @@ void ConvertConstraintProfileToControlData(
 		GetAngularDriveStiffness(InProfileProperties.AngularDrive),
 		GetAngularDriveDamping(InProfileProperties.AngularDrive));
 
-	OutControlData.MaxTorque = GetAngularDriveMaxTorque(InProfileProperties.AngularDrive);
+	OutControlData.MaxTorque = FloatCastChecked<float>(
+		GetAngularDriveMaxTorque(InProfileProperties.AngularDrive), UE::LWC::DefaultFloatPrecision);
 }
 
 //======================================================================================================================
