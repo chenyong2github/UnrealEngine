@@ -556,12 +556,13 @@ bool UNiagaraDataInterfaceRenderTargetVolume::GetExposedVariableValue(const FNia
 	return false;
 }
 
-UObject* UNiagaraDataInterfaceRenderTargetVolume::SimCacheBeginWrite(UObject* SimCache, FNiagaraSystemInstance* NiagaraSystemInstance, const void* OptionalPerInstanceData) const
+UObject* UNiagaraDataInterfaceRenderTargetVolume::SimCacheBeginWrite(UObject* InSimCache, FNiagaraSystemInstance* NiagaraSystemInstance, const void* OptionalPerInstanceData) const
 {
 	if (NDIRenderTargetVolumeLocal::GSimCacheUseOpenVDB)
 	{		
 		UVolumeCache* OpenVDBSimCacheData = nullptr;
 
+		UNiagaraSimCache* SimCache = CastChecked<UNiagaraSimCache>(InSimCache);
 		OpenVDBSimCacheData = NewObject<UVolumeCache>(SimCache);
 
 		FString SystemInstanceName = NiagaraSystemInstance->GetSystem()->GetName();
@@ -572,18 +573,9 @@ UObject* UNiagaraDataInterfaceRenderTargetVolume::SimCacheBeginWrite(UObject* Si
 			return nullptr;
 		}
 
-		FString ActorName = NiagaraSystemInstance->GetAttachComponent()->GetName();
-
-#if WITH_EDITOR
-		// if we are caching from the editor, use the label of the actor to name the cache files
-		if (AActor* Owner = NiagaraSystemInstance->GetAttachComponent()->GetOwner())
-		{
-			ActorName = Owner->GetActorLabel();
-		}
-#endif
-
-		FString DIName = Proxy->SourceDIName.ToString();
-		FString FullFilePathSpec = GetDefault<UNiagaraSettings>()->SimCacheAuxiliaryFileBasePath + "/" + ActorName + "/" + DIName + "_SimCache.{FrameIndex}.vdb";
+		const FGuid& CacheGuid = SimCache->GetCacheGuid();
+		const FString DIName = Proxy->SourceDIName.ToString();
+		FString FullFilePathSpec = GetDefault<UNiagaraSettings>()->SimCacheAuxiliaryFileBasePath + "/" + CacheGuid.ToString() + "/" + DIName + "_SimCache.{FrameIndex}.vdb";
 		FullFilePathSpec.ReplaceInline(TEXT("//"), TEXT("/"));		
 		
 		FullFilePathSpec.ReplaceInline(TEXT("{project_dir}"), *FPaths::ProjectDir());
@@ -617,7 +609,7 @@ UObject* UNiagaraDataInterfaceRenderTargetVolume::SimCacheBeginWrite(UObject* Si
 		UNDIRenderTargetVolumeSimCacheData* SimCacheData = nullptr;
 		if (NDIRenderTargetVolumeLocal::GSimCacheEnabled)
 		{
-			SimCacheData = NewObject<UNDIRenderTargetVolumeSimCacheData>(SimCache);
+			SimCacheData = NewObject<UNDIRenderTargetVolumeSimCacheData>(InSimCache);
 			SimCacheData->CompressionType = NDIRenderTargetVolumeLocal::GetSimCacheCompressionType();
 		}
 

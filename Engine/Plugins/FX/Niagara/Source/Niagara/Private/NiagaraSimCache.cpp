@@ -43,6 +43,11 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 		return false;
 	}
 
+	if (CacheGuid.IsValid() == false)
+	{
+		CacheGuid = FGuid::NewGuid();
+	}
+
 	Modify();
 #if WITH_EDITOR
 	PostEditChange();

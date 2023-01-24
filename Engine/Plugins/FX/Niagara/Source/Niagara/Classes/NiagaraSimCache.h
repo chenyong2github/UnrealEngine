@@ -267,6 +267,11 @@ public:
 	virtual bool IsReadyForFinishDestroy() override;
 	// UObject Interface
 
+	/** Get the caches assigned GUID, this can be set from a user or will be auto created on first write of the cache. */
+	const FGuid& GetCacheGuid() { return CacheGuid; }
+	/** Set the caches GUID to use. */
+	void SetCacheGuid(const FGuid& InGuid) { CacheGuid = InGuid; }
+
 	/** A valid cache is one that contains at least 1 frames worth of data. */
 	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache, meta=(DisplayName="IsValid"))
 	bool IsCacheValid() const { return SoftNiagaraSystem.IsNull() == false; }
@@ -416,6 +421,9 @@ public:
 	void ReadQuatAttributeWithRebase(TArray<FQuat>& OutValues, FQuat Quat, FName AttributeName = FName("MeshOrientation"), FName EmitterName = NAME_None, int FrameIndex = 0) const;
 
 private:
+	UPROPERTY(VisibleAnywhere, Category=SimCache)
+	FGuid CacheGuid;
+
 	UPROPERTY(VisibleAnywhere, Category=SimCache, meta=(DisplayName="Niagara System"))
 	TSoftObjectPtr<UNiagaraSystem> SoftNiagaraSystem;
 
