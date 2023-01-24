@@ -32,7 +32,7 @@ private:
     TArray<FString>* TestNames;
 };
 
-IMPLEMENT_COMPLEX_AUTOMATION_TEST(FRigLogicLibTestSuite, "ControlRig.Units.FRigUnit_RigLogicLib", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_COMPLEX_AUTOMATION_TEST(FRigLogicLibTestSuite, "RigLogicLib", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 void FRigLogicLibTestSuite::GetTests(TArray<FString>& OutBeautifiedNames, TArray<FString>& OutTestCommands) const
 {

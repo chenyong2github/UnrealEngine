@@ -3,9 +3,7 @@
 #pragma once
 
 #include "riglogic/TypeDefs.h"
-#include "riglogic/blendshapes/BlendShapes.h"
-
-#include <pma/MemoryResource.h>
+#include "riglogic/blendshapes/BlendShapesImpl.h"
 
 #ifdef _MSC_VER
     #pragma warning(push)
@@ -30,10 +28,14 @@ static const std::uint16_t LODs[] = {LOD0, LOD1, LOD2, LOD3};
 static const std::array<float, 15ul> blendShapeInputs = {
     1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
 };
-static const std::uint16_t blendShapeInputIndices[] = {0, 1, 3, 4, 6, 7, 8, 10, 12, 14};
-static const std::uint16_t blendShapeOutputIndices[] = {0, 2, 1, 3, 4, 5, 6, 7, 8, 9};
+static const std::uint16_t blendShapeCount = 10u;
+static const std::uint16_t blendShapeInputIndices[blendShapeCount] = {0, 1, 3, 4, 6, 7, 8, 10, 12, 14};
+static const std::uint16_t blendShapeOutputIndices[blendShapeCount] = {0, 2, 1, 3, 4, 5, 6, 7, 8, 9};
 static const std::array<float, 10ul> blendShapeOutputs = {1.0f, 4.0f, 2.0f, 5.0f, 7.0f, 8.0f, 9.0f, 11.0f, 13.0f, 15.0f};
 
-rl4::BlendShapes createTestBlendShapes(rl4::MemoryResource* memRes);
+struct BlendShapesFactory {
+    static rl4::BlendShapesImpl createTestBlendShapes(rl4::MemoryResource* memRes);
+    static rl4::BlendShapesOutputInstance::Factory getInstanceFactory(std::uint16_t animatedMapCount);
+};
 
 }  // namespace rltests

@@ -2,6 +2,7 @@
 
 #include "riglogic/joints/Joints.h"
 
+#include "riglogic/joints/JointsEvaluator.h"
 #include "riglogic/riglogic/RigInstance.h"
 #include "riglogic/transformation/Transformation.h"
 #include "riglogic/types/Aliases.h"
@@ -10,14 +11,14 @@
 
 namespace rl4 {
 
-Joints::Joints(JointsEvaluatorPtr evaluator_, MemoryResource* memRes) :
+Joints::Joints(JointsEvaluator::Pointer evaluator_, MemoryResource* memRes) :
     evaluator{std::move(evaluator_)},
     neutralValues{memRes},
     variableAttributeIndices{memRes},
     jointGroupCount{} {
 }
 
-Joints::Joints(JointsEvaluatorPtr evaluator_,
+Joints::Joints(JointsEvaluator::Pointer evaluator_,
                Vector<float>&& neutralValues_,
                Matrix<std::uint16_t>&& variableAttributeIndices_,
                std::uint16_t jointGroupCount_) :
@@ -27,11 +28,17 @@ Joints::Joints(JointsEvaluatorPtr evaluator_,
     jointGroupCount{jointGroupCount_} {
 }
 
-void Joints::calculate(ConstArrayView<float> inputs, ArrayView<float> outputs, std::uint16_t lod) const {
+JointsOutputInstance::Pointer Joints::createInstance(MemoryResource* instanceMemRes) const {
+    return evaluator->createInstance(instanceMemRes);
+}
+
+void Joints::calculate(const ControlsInputInstance* inputs, JointsOutputInstance* outputs, std::uint16_t lod) const {
     evaluator->calculate(inputs, outputs, lod);
 }
 
-void Joints::calculate(ConstArrayView<float> inputs, ArrayView<float> outputs, std::uint16_t lod,
+void Joints::calculate(const ControlsInputInstance* inputs,
+                       JointsOutputInstance* outputs,
+                       std::uint16_t lod,
                        std::uint16_t jointGroupIndex) const {
     evaluator->calculate(inputs, outputs, lod, jointGroupIndex);
 }

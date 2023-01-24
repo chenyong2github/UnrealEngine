@@ -51,12 +51,29 @@ class RLAPI RigInstance {
         static void destroy(RigInstance* instance);
 
         virtual std::uint16_t getGUIControlCount() const = 0;
+        virtual float getGUIControl(std::uint16_t index) const = 0;
         virtual void setGUIControl(std::uint16_t index, float value) = 0;
+        virtual ConstArrayView<float> getGUIControlValues() const = 0;
         virtual void setGUIControlValues(const float* values) = 0;
 
         virtual std::uint16_t getRawControlCount() const = 0;
+        virtual float getRawControl(std::uint16_t index) const = 0;
         virtual void setRawControl(std::uint16_t index, float value) = 0;
+        virtual ConstArrayView<float> getRawControlValues() const = 0;
         virtual void setRawControlValues(const float* values) = 0;
+
+        virtual std::uint16_t getPSDControlCount() const = 0;
+        virtual float getPSDControl(std::uint16_t index) const = 0;
+        virtual ConstArrayView<float> getPSDControlValues() const = 0;
+
+        virtual std::uint16_t getMLControlCount() const = 0;
+        virtual float getMLControl(std::uint16_t index) const = 0;
+        virtual ConstArrayView<float> getMLControlValues() const = 0;
+
+        virtual std::uint16_t getNeuralNetworkCount() const = 0;
+        virtual float getNeuralNetworkMask(std::uint16_t neuralNetIndex) const = 0;
+        virtual void setNeuralNetworkMask(std::uint16_t neuralNetIndex, float value) = 0;
+
         /**
             @brief Calculated values for joint transformations.
             @note

@@ -14,4 +14,12 @@ bool Status::isOk() {
     return StatusStorage::isOk();
 }
 
+HookFunction Status::getHook() {
+    return StatusStorage::getHook();
+}
+
+void Status::setHook(HookFunction hook) {
+    StatusStorage::setHook(hook);
+}
+
 }  // namespace sc

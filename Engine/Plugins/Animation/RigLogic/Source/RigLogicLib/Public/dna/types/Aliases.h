@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "dna/types/ArrayView.h"
-#include "dna/types/StringView.h"
-
+#include <arrayview/ArrayView.h>
+#include <arrayview/StringView.h>
 #include <pma/MemoryResource.h>
 #include <pma/ScopedPtr.h>
 #include <status/Status.h>
@@ -16,18 +15,13 @@
 
 namespace dna {
 
-template<typename T>
-using ArrayView = trust::ArrayView<T>;
-
-template<typename T>
-using ConstArrayView = trust::ConstArrayView<T>;
-
+using sc::Status;
 using trio::BoundedIOStream;
 using trio::FileStream;
 using trio::MemoryMappedFileStream;
 using trio::MemoryStream;
-using sc::Status;
 
+using namespace av;
 using namespace pma;
 
 }  // namespace dna

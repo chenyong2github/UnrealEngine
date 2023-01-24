@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include <dna/Reader.h>
-#include <pma/TypeDefs.h>
+#include "riglogic/TypeDefs.h"
 
 namespace rltests {
 
@@ -12,9 +11,9 @@ using namespace pma;
 
 namespace raw {
 
-extern const unsigned char header[39];
+extern const unsigned char header[91];
 extern const unsigned char descriptor[87];
-extern const unsigned char definition[796];
+extern const unsigned char definition[794];
 extern const unsigned char controls[2];
 extern const unsigned char conditionals[324];
 extern const unsigned char psds[204];
@@ -22,9 +21,9 @@ extern const unsigned char joints[444];
 extern const unsigned char blendshapes[44];
 extern const unsigned char animatedmaps[8];
 extern const unsigned char geometry[1080];
-extern const unsigned char footer[3];
+extern const unsigned char machineLearnedBehavior[762];
 
-std::vector<unsigned char> getBytes();
+std::vector<char> getBytes();
 
 }  // namespace raw
 
@@ -43,8 +42,8 @@ extern const Vector<StringPair> metadata;
 extern const TranslationUnit translationUnit;
 extern const RotationUnit rotationUnit;
 extern const CoordinateSystem coordinateSystem;
-extern const std::uint16_t lodCount[2ul];
-extern const std::uint16_t maxLOD[2ul];
+extern const std::uint16_t lodCount[3ul];
+extern const std::uint16_t maxLODs[3ul];
 extern const String<char> complexity;
 extern const String<char> dbName;
 
@@ -63,7 +62,7 @@ extern const Vector<Matrix<Vector3> > neutralJointRotations;
 // Behavior
 extern const std::uint16_t guiControlCount;
 extern const std::uint16_t rawControlCount;
-extern const std::uint16_t psdCount;
+extern const std::uint16_t psdControlCount;
 extern const Vector<Matrix<std::uint16_t> > conditionalInputIndices;
 extern const Vector<Matrix<std::uint16_t> > conditionalOutputIndices;
 extern const Vector<Matrix<float> > conditionalFromValues;
@@ -100,6 +99,19 @@ extern const Matrix<Matrix<std::uint16_t> > skinWeightsJointIndices;
 extern const Vector<Matrix<std::uint16_t> > correctiveBlendShapeIndices;
 extern const Matrix<Matrix<Vector3> > correctiveBlendShapeDeltas;
 extern const Matrix<Matrix<std::uint32_t> > correctiveBlendShapeVertexIndices;
+
+// Machine learned behavior
+extern const Vector<String<char> > mlControlNames;
+extern const VectorOfCharStringMatrix regionNames;
+extern const Matrix<std::uint16_t> neuralNetworkIndicesPerLOD;
+extern const Matrix<Matrix<std::uint16_t> > neuralNetworkIndicesPerMeshRegion;
+extern const Vector<Matrix<std::uint16_t> > neuralNetworkInputIndices;
+extern const Vector<Matrix<std::uint16_t> > neuralNetworkOutputIndices;
+extern const Matrix<std::uint16_t> neuralNetworkLayerCount;
+extern const Vector<Matrix<std::uint16_t> > neuralNetworkActivationFunction;
+extern const Matrix<Matrix<float> > neuralNetworkActivationFunctionParameters;
+extern const Matrix<Matrix<float> > neuralNetworkBiases;
+extern const Matrix<Matrix<float> > neuralNetworkWeights;
 
 }  // namespace decoded
 

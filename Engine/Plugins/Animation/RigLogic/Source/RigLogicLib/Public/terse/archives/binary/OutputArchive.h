@@ -66,6 +66,11 @@ class ExtendableBinaryOutputArchive : public Archive<TExtender> {
     protected:
         template<typename T>
         void process(Transparent<T>&& source) {
+            process(source);
+        }
+
+        template<typename T>
+        void process(Transparent<T>& source) {
             process(source.data);
         }
 
@@ -146,26 +151,50 @@ class ExtendableBinaryOutputArchive : public Archive<TExtender> {
 
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_save_member<T, V>::value,
-                                void>::type process(const Versioned<T, V>& source) {
-            const_cast<T&>(source.data).save(*static_cast<TExtender*>(this), V{});
+                                void>::type process(Versioned<T, V>&& source) {
+            process(source);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_save_member<T, V>::value,
+                                void>::type process(Versioned<T, V>& source) {
+            source.data.save(*static_cast<TExtender*>(this), V{});
         }
 
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_serialize_member<T, V>::value,
-                                void>::type process(const Versioned<T, V>& source) {
-            const_cast<T&>(source.data).serialize(*static_cast<TExtender*>(this), V{});
+                                void>::type process(Versioned<T, V>&& source) {
+            process(source);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_serialize_member<T, V>::value,
+                                void>::type process(Versioned<T, V>& source) {
+            source.data.serialize(*static_cast<TExtender*>(this), V{});
         }
 
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_save_function<T, V>::value,
-                                void>::type process(const Versioned<T, V>& source) {
-            save(*static_cast<TExtender*>(this), V{}, const_cast<T&>(source.data));
+                                void>::type process(Versioned<T, V>&& source) {
+            process(source);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_save_function<T, V>::value,
+                                void>::type process(Versioned<T, V>& source) {
+            save(*static_cast<TExtender*>(this), V{}, source.data);
         }
 
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_serialize_function<T, V>::value,
-                                void>::type process(const Versioned<T, V>& source) {
-            serialize(*static_cast<TExtender*>(this), V{}, const_cast<T&>(source.data));
+                                void>::type process(Versioned<T, V>&& source) {
+            process(source);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_serialize_function<T, V>::value,
+                                void>::type process(Versioned<T, V>& source) {
+            serialize(*static_cast<TExtender*>(this), V{}, source.data);
         }
 
         template<typename T, typename V>
@@ -173,7 +202,16 @@ class ExtendableBinaryOutputArchive : public Archive<TExtender> {
                                 !traits::has_versioned_serialize_member<T, V>::value &&
                                 !traits::has_versioned_save_function<T, V>::value &&
                                 !traits::has_versioned_serialize_function<T, V>::value,
-                                void>::type process(Versioned<T, V>&& dest) {
+                                void>::type process(Versioned<T, V>&& source) {
+            process(source);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<!traits::has_versioned_save_member<T, V>::value &&
+                                !traits::has_versioned_serialize_member<T, V>::value &&
+                                !traits::has_versioned_save_function<T, V>::value &&
+                                !traits::has_versioned_serialize_function<T, V>::value,
+                                void>::type process(Versioned<T, V>& dest) {
             // If no versioned serializer is found, but version information was passed along, fall back to unversioned
             // functions if available.
             BaseArchive::dispatch(dest.data);

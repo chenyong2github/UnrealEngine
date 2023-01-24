@@ -8,6 +8,10 @@
 #include <pma/TypeDefs.h>
 #include <pma/resources/AlignedMemoryResource.h>
 #include <pma/resources/DefaultMemoryResource.h>
+#include <pma/utils/ManagedInstance.h>
+#include <terse/archives/binary/InputArchive.h>
+#include <terse/archives/binary/OutputArchive.h>
+#include <terse/utils/VirtualSerializerProxy.h>
 
 #include <cstddef>
 

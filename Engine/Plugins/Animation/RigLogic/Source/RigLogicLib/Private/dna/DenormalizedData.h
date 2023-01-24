@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "dna/layers/DefinitionReader.h"
 #include "dna/LODMapping.h"
 #include "dna/types/Aliases.h"
 #include "dna/utils/Extd.h"

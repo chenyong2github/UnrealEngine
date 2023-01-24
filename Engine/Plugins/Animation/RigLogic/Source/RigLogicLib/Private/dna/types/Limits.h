@@ -15,6 +15,11 @@ struct LODLimits {
         return 32u;
     }
 
+    static constexpr std::uint16_t count() {
+        static_assert(min() >= max(), "Min LOD value cannot be lower than Max LOD value.");
+        return static_cast<std::uint16_t>(min() - max() + 1);
+    }
+
 };
 
 }  // namespace dna

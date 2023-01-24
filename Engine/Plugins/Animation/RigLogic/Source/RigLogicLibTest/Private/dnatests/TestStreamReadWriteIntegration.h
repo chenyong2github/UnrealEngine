@@ -4,20 +4,65 @@
 
 #include "dnatests/Defs.h"
 
-struct LODParameters {
-    std::uint16_t maxLOD;
-    std::uint16_t currentLOD;
+#include "dna/DNA.h"
+
+template<typename TReader,
+         typename TWriter,
+         typename TRawBytes,
+         typename TDecodedData,
+         std::uint16_t MaxLOD,
+         std::uint16_t MinLOD,
+         std::uint16_t CurrentLOD>
+struct APICopyParameters {
+    using Reader = TReader;
+    using Writer = TWriter;
+    using RawBytes = TRawBytes;
+    using DecodedData = TDecodedData;
+
+    static constexpr std::uint16_t maxLOD() {
+        return MaxLOD;
+    }
+
+    static constexpr std::uint16_t minLOD() {
+        return MinLOD;
+    }
+
+    static constexpr std::uint16_t currentLOD() {
+        return CurrentLOD;
+    }
+
 };
 
-class StreamReadWriteIntegrationTest : public ::testing::TestWithParam<LODParameters> {
-    public:
-        ~StreamReadWriteIntegrationTest();
-
+template<typename TAPICopyParameters>
+class StreamReadWriteAPICopyIntegrationTest : public ::testing::Test {
     protected:
-        void SetUp() override {
-            params = GetParam();
-        }
+        using Parameters = TAPICopyParameters;
 
+};
+
+template<typename TRawBytes, typename TExpectedBytes, dna::UnknownLayerPolicy Policy, std::uint16_t SaveAsGeneration,
+         std::uint16_t SaveAsVersion>
+struct RawCopyParameters {
+    using RawBytes = TRawBytes;
+    using ExpectedBytes = TExpectedBytes;
+
+    static constexpr dna::UnknownLayerPolicy policy() {
+        return Policy;
+    }
+
+    static constexpr std::uint16_t generation() {
+        return SaveAsGeneration;
+    }
+
+    static constexpr std::uint16_t version() {
+        return SaveAsVersion;
+    }
+
+};
+
+template<typename TRawCopyParameters>
+class StreamReadWriteRawCopyIntegrationTest : public ::testing::Test {
     protected:
-        LODParameters params;
+        using Parameters = TRawCopyParameters;
+
 };

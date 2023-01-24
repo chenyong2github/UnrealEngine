@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "dnatests/Defs.h"
-#include "dnatests/Fixtures.h"
 
 #include "dna/LODConstraint.h"
 #include "dna/LODMapping.h"

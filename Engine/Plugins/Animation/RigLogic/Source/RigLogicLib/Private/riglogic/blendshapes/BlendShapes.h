@@ -3,27 +3,27 @@
 #pragma once
 
 #include "riglogic/TypeDefs.h"
-#include "riglogic/types/Aliases.h"
+#include "riglogic/blendshapes/BlendShapesOutputInstance.h"
 
-#include <cstddef>
+#include <cstdint>
 
 namespace rl4 {
 
+class ControlsInputInstance;
+
 class BlendShapes {
     public:
-        BlendShapes(Vector<std::uint16_t>&& lods_, Vector<std::uint16_t>&& inputIndices_, Vector<std::uint16_t>&& outputIndices_);
+        using Pointer = UniqueInstance<BlendShapes>::PointerType;
 
-        void calculate(ConstArrayView<float> inputs, ArrayView<float> outputs, std::uint16_t lod) const;
+    protected:
+        virtual ~BlendShapes();
 
-        template<class Archive>
-        void serialize(Archive& archive) {
-            archive(lods, inputIndices, outputIndices);
-        }
-
-    private:
-        Vector<std::uint16_t> lods;
-        Vector<std::uint16_t> inputIndices;
-        Vector<std::uint16_t> outputIndices;
+    public:
+        virtual BlendShapesOutputInstance::Pointer createInstance(MemoryResource* instanceMemRes) const = 0;
+        virtual void calculate(const ControlsInputInstance* inputs, BlendShapesOutputInstance* outputs,
+                               std::uint16_t lod) const = 0;
+        virtual void load(terse::BinaryInputArchive<BoundedIOStream>& archive) = 0;
+        virtual void save(terse::BinaryOutputArchive<BoundedIOStream>& archive) = 0;
 
 };
 

@@ -101,6 +101,11 @@ class ExtendableJSONInputArchive : public Archive<TExtender> {
     protected:
         template<typename T>
         void process(Transparent<T>&& dest) {
+            process(dest);
+        }
+
+        template<typename T>
+        void process(Transparent<T>& dest) {
             pushTransparency();
             process(dest.data);
         }
@@ -136,6 +141,12 @@ class ExtendableJSONInputArchive : public Archive<TExtender> {
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_load_member<T, V>::value,
                                 void>::type process(Versioned<T, V>&& dest) {
+            process(dest);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_load_member<T, V>::value,
+                                void>::type process(Versioned<T, V>& dest) {
             if (state.malformed) {
                 return;
             }
@@ -155,6 +166,12 @@ class ExtendableJSONInputArchive : public Archive<TExtender> {
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_serialize_member<T, V>::value,
                                 void>::type process(Versioned<T, V>&& dest) {
+            process(dest);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_serialize_member<T, V>::value,
+                                void>::type process(Versioned<T, V>& dest) {
             if (state.malformed) {
                 return;
             }
@@ -174,6 +191,12 @@ class ExtendableJSONInputArchive : public Archive<TExtender> {
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_load_function<T, V>::value,
                                 void>::type process(Versioned<T, V>&& dest) {
+            process(dest);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_load_function<T, V>::value,
+                                void>::type process(Versioned<T, V>& dest) {
             if (state.malformed) {
                 return;
             }
@@ -193,6 +216,12 @@ class ExtendableJSONInputArchive : public Archive<TExtender> {
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_serialize_function<T, V>::value,
                                 void>::type process(Versioned<T, V>&& dest) {
+            process(dest);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_serialize_function<T, V>::value,
+                                void>::type process(Versioned<T, V>& dest) {
             if (state.malformed) {
                 return;
             }
@@ -215,6 +244,15 @@ class ExtendableJSONInputArchive : public Archive<TExtender> {
                                 !traits::has_versioned_load_function<T, V>::value &&
                                 !traits::has_versioned_serialize_function<T, V>::value,
                                 void>::type process(Versioned<T, V>&& dest) {
+            process(dest);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<!traits::has_versioned_load_member<T, V>::value &&
+                                !traits::has_versioned_serialize_member<T, V>::value &&
+                                !traits::has_versioned_load_function<T, V>::value &&
+                                !traits::has_versioned_serialize_function<T, V>::value,
+                                void>::type process(Versioned<T, V>& dest) {
             // If no versioned serializer is found, but version information was passed along, fall back to unversioned
             // functions if available.
             BaseArchive::dispatch(dest.data);

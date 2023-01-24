@@ -4,34 +4,32 @@
 
 #include "riglogic/TypeDefs.h"
 #include "riglogic/joints/JointsEvaluator.h"
+#include "riglogic/joints/JointsOutputInstance.h"
 #include "riglogic/transformation/Transformation.h"
-#include "riglogic/types/Aliases.h"
 
-#ifdef _MSC_VER
-    #pragma warning(push)
-    #pragma warning(disable : 4365 4987)
-#endif
 #include <cstdint>
-#include <functional>
-#include <memory>
-#ifdef _MSC_VER
-    #pragma warning(pop)
-#endif
 
 namespace rl4 {
 
-class RigInstance;
+class ControlsInputInstance;
+class JointsOutputInstance;
 
 class Joints {
     public:
-        Joints(JointsEvaluatorPtr evaluator_, MemoryResource* memRes);
-        Joints(JointsEvaluatorPtr evaluator_,
+        using Pointer = UniqueInstance<Joints>::PointerType;
+
+    public:
+        Joints(JointsEvaluator::Pointer evaluator_, MemoryResource* memRes);
+        Joints(JointsEvaluator::Pointer evaluator_,
                Vector<float>&& neutralValues_,
                Matrix<std::uint16_t>&& variableAttributeIndices_,
                std::uint16_t jointGroupCount_);
 
-        void calculate(ConstArrayView<float> inputs, ArrayView<float> outputs, std::uint16_t lod) const;
-        void calculate(ConstArrayView<float> inputs, ArrayView<float> outputs, std::uint16_t lod,
+        JointsOutputInstance::Pointer createInstance(MemoryResource* instanceMemRes) const;
+        void calculate(const ControlsInputInstance* inputs, JointsOutputInstance* outputs, std::uint16_t lod) const;
+        void calculate(const ControlsInputInstance* inputs,
+                       JointsOutputInstance* outputs,
+                       std::uint16_t lod,
                        std::uint16_t jointGroupIndex) const;
 
         template<class Archive>
@@ -52,7 +50,7 @@ class Joints {
         ConstArrayView<std::uint16_t> getVariableAttributeIndices(std::uint16_t lod) const;
 
     private:
-        JointsEvaluatorPtr evaluator;
+        JointsEvaluator::Pointer evaluator;
         Vector<float> neutralValues;
         Matrix<std::uint16_t> variableAttributeIndices;
         std::uint16_t jointGroupCount;

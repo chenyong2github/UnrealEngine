@@ -108,15 +108,20 @@ inline impl::LUTFilter<TLookUpTable, impl::LUTStrategy::ByPosition> byPosition(c
     return impl::LUTFilter<TLookUpTable, impl::LUTStrategy::ByPosition>{lookUpTable};
 }
 
+template<class TContainer, class TComparator>
+inline typename TContainer::value_type maxOf(const TContainer& container, TComparator&& comparator) {
+    using ValueType = typename TContainer::value_type;
+    const auto it = std::max_element(container.begin(), container.end(), comparator);
+    return (it == container.end() ? ValueType{} : *it);
+}
+
 template<class TContainer>
 inline typename TContainer::value_type maxOf(const TContainer& container) {
-    assert(!container.empty());
     using ValueType = typename TContainer::value_type;
     const auto compare = [](const ValueType& lhs, const ValueType& rhs) {
-            return lhs.second < rhs.second;
+            return lhs < rhs;
         };
-    const auto it = std::max_element(container.begin(), container.end(), compare);
-    return (it == container.end() ? ValueType{} : *it);
+    return maxOf(container, compare);
 }
 
 template<class TSource, class TDestination>

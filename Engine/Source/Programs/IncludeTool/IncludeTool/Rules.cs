@@ -591,14 +591,24 @@ namespace IncludeTool
 			{
 				return true;
 			}
-			if (Markup.Type == PreprocessorMarkupType.Define && (Markup.Tokens[0].Text == "RLAPI" || Markup.Tokens[0].Text == "DNAAPI" || Markup.Tokens[0].Text == "TRIOAPI" || Markup.Tokens[0].Text == "SCAPI" || Markup.Tokens[0].Text == "PMAAPI"))
+			// Start of RigLogic exclusions
+			if (Markup.Type == PreprocessorMarkupType.Define && (Markup.Tokens[0].Text == "RLAPI" || Markup.Tokens[0].Text == "DNAAPI" || Markup.Tokens[0].Text == "TRIOAPI" || Markup.Tokens[0].Text == "SCAPI" || Markup.Tokens[0].Text == "PMAAPI" || Markup.Tokens[0].Text == "RAFAPI" || Markup.Tokens[0].Text == "GSAPI"))
 			{
 				return true;
 			}
-			if (Markup.Type == PreprocessorMarkupType.Elif && Markup.Tokens.Count == 4 && Markup.Tokens[2].Text == "RL_SHARED")
+			if (Markup.Type == PreprocessorMarkupType.Elif && Markup.Tokens.Count == 4 && (Markup.Tokens[2].Text == "RL_SHARED" || Markup.Tokens[2].Text == "GS_SHARED"))
 			{
 				return true;
 			}
+			if (Markup.Type == PreprocessorMarkupType.If && Markup.Tokens.Count == 4 && Markup.Tokens[2].Text == "_MSC_VER")
+			{
+				return true;
+			}
+			if (Markup.Type == PreprocessorMarkupType.Define && Markup.Tokens.Count == 8 && Markup.Tokens[0].Text == "FORCE_INLINE")
+			{
+				return true;
+			}
+			// End of RigLogic exclusions
 			if((File.Flags & SourceFileFlags.External) != 0)
 			{
 				return true;

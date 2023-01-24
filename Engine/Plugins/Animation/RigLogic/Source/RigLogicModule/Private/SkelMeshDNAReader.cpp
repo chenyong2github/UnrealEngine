@@ -17,11 +17,11 @@
 
 DEFINE_LOG_CATEGORY(LogSkelMeshDNAReader);
 
-FSkelMeshDNAReader::FSkelMeshDNAReader(UDNAAsset* DNAAsset) : GeometryStreamReader{ nullptr }
+FSkelMeshDNAReader::FSkelMeshDNAReader(UDNAAsset* DNAAsset) : GeometryReader{nullptr}
 {
-	BehaviorStreamReader = DNAAsset->GetBehaviorReader().Get();
+	BehaviorReader = DNAAsset->GetBehaviorReader();
 #if WITH_EDITORONLY_DATA
-	GeometryStreamReader = DNAAsset->GetGeometryReader().Get();
+	GeometryReader = DNAAsset->GetGeometryReader();
 #endif
 }
 
@@ -30,435 +30,446 @@ dna::Reader* FSkelMeshDNAReader::Unwrap() const
 	return nullptr;  // Unused in SkelMeshDNAReader
 }
 
+/** HEADER READER **/
+uint16 FSkelMeshDNAReader::GetFileFormatGeneration() const
+{
+	return BehaviorReader->GetFileFormatGeneration();
+}
+
+uint16 FSkelMeshDNAReader::GetFileFormatVersion() const
+{
+	return BehaviorReader->GetFileFormatVersion();
+}
+
 /** DESCRIPTOR READER **/
 
 FString FSkelMeshDNAReader::GetName() const
 {
-	return BehaviorStreamReader->GetName();
+	return BehaviorReader->GetName();
 }
 
 EArchetype FSkelMeshDNAReader::GetArchetype() const
 {
-	return BehaviorStreamReader->GetArchetype();
+	return BehaviorReader->GetArchetype();
 }
 
 EGender FSkelMeshDNAReader::GetGender() const
 {
-	return BehaviorStreamReader->GetGender();
+	return BehaviorReader->GetGender();
 }
 
 uint16 FSkelMeshDNAReader::GetAge() const
 {
-	return BehaviorStreamReader->GetAge();
+	return BehaviorReader->GetAge();
 }
 
 uint32 FSkelMeshDNAReader::GetMetaDataCount() const
 {
-	return BehaviorStreamReader->GetMetaDataCount();
+	return BehaviorReader->GetMetaDataCount();
 }
 
 FString FSkelMeshDNAReader::GetMetaDataKey(uint32 Index) const
 {
-	return BehaviorStreamReader->GetMetaDataKey(Index);
+	return BehaviorReader->GetMetaDataKey(Index);
 }
 
 FString FSkelMeshDNAReader::GetMetaDataValue(const FString& Key) const
 {
-	return BehaviorStreamReader->GetMetaDataValue(Key);
+	return BehaviorReader->GetMetaDataValue(Key);
 }
 
 ETranslationUnit FSkelMeshDNAReader::GetTranslationUnit() const
 {
-	return BehaviorStreamReader->GetTranslationUnit();
+	return BehaviorReader->GetTranslationUnit();
 }
 
 ERotationUnit FSkelMeshDNAReader::GetRotationUnit() const
 {
-	return BehaviorStreamReader->GetRotationUnit();
+	return BehaviorReader->GetRotationUnit();
 }
 
 FCoordinateSystem FSkelMeshDNAReader::GetCoordinateSystem() const
 {
-	return BehaviorStreamReader->GetCoordinateSystem();
+	return BehaviorReader->GetCoordinateSystem();
 }
 
 uint16 FSkelMeshDNAReader::GetLODCount() const
 {
-	return BehaviorStreamReader->GetLODCount();
+	return BehaviorReader->GetLODCount();
 }
 
 uint16 FSkelMeshDNAReader::GetDBMaxLOD() const
 {
-	return BehaviorStreamReader->GetDBMaxLOD();
+	return BehaviorReader->GetDBMaxLOD();
 }
 
 FString FSkelMeshDNAReader::GetDBComplexity() const
 {
-	return BehaviorStreamReader->GetDBComplexity();
+	return BehaviorReader->GetDBComplexity();
 }
 
 FString FSkelMeshDNAReader::GetDBName() const
 {
-	return BehaviorStreamReader->GetDBName();
+	return BehaviorReader->GetDBName();
 }
 
 /** DEFINITION READER **/
 
 uint16 FSkelMeshDNAReader::GetGUIControlCount() const
 {
-	return BehaviorStreamReader->GetGUIControlCount();
+	return BehaviorReader->GetGUIControlCount();
 }
 
 FString FSkelMeshDNAReader::GetGUIControlName(uint16 Index) const
 {
-	return BehaviorStreamReader->GetGUIControlName(Index);
+	return BehaviorReader->GetGUIControlName(Index);
 }
 
 uint16 FSkelMeshDNAReader::GetRawControlCount() const
 {
-	return BehaviorStreamReader->GetRawControlCount();
+	return BehaviorReader->GetRawControlCount();
 }
 
 FString FSkelMeshDNAReader::GetRawControlName(uint16 Index) const
 {
-	return BehaviorStreamReader->GetRawControlName(Index);
+	return BehaviorReader->GetRawControlName(Index);
 }
 
 uint16 FSkelMeshDNAReader::GetJointCount() const
 {
-	return BehaviorStreamReader->GetJointCount();
+	return BehaviorReader->GetJointCount();
 }
 
 FString FSkelMeshDNAReader::GetJointName(uint16 Index) const
 {
-	return BehaviorStreamReader->GetJointName(Index);
+	return BehaviorReader->GetJointName(Index);
 }
 
 uint16 FSkelMeshDNAReader::GetJointIndexListCount() const
 {
-	return BehaviorStreamReader->GetJointIndexListCount();
+	return BehaviorReader->GetJointIndexListCount();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetJointIndicesForLOD(uint16 LOD) const
 {
-	return BehaviorStreamReader->GetJointIndicesForLOD(LOD);
+	return BehaviorReader->GetJointIndicesForLOD(LOD);
 }
 
 uint16 FSkelMeshDNAReader::GetBlendShapeChannelCount() const
 {
-	return BehaviorStreamReader->GetBlendShapeChannelCount();
+	return BehaviorReader->GetBlendShapeChannelCount();
 }
 
 FString FSkelMeshDNAReader::GetBlendShapeChannelName(uint16 Index) const
 {
-	return BehaviorStreamReader->GetBlendShapeChannelName(Index);
+	return BehaviorReader->GetBlendShapeChannelName(Index);
 }
 
 uint16 FSkelMeshDNAReader::GetBlendShapeChannelIndexListCount() const
 {
-	return BehaviorStreamReader->GetBlendShapeChannelIndexListCount();
+	return BehaviorReader->GetBlendShapeChannelIndexListCount();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetBlendShapeChannelIndicesForLOD(uint16 LOD) const
 {
-	return BehaviorStreamReader->GetBlendShapeChannelIndicesForLOD(LOD);
+	return BehaviorReader->GetBlendShapeChannelIndicesForLOD(LOD);
 }
 
 uint16 FSkelMeshDNAReader::GetAnimatedMapCount() const
 {
-	return BehaviorStreamReader->GetAnimatedMapCount();
+	return BehaviorReader->GetAnimatedMapCount();
 }
 
 FString FSkelMeshDNAReader::GetAnimatedMapName(uint16 Index) const
 {
-	return BehaviorStreamReader->GetAnimatedMapName(Index);
+	return BehaviorReader->GetAnimatedMapName(Index);
 }
 
 uint16 FSkelMeshDNAReader::GetAnimatedMapIndexListCount() const
 {
-	return BehaviorStreamReader->GetAnimatedMapIndexListCount();
+	return BehaviorReader->GetAnimatedMapIndexListCount();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetAnimatedMapIndicesForLOD(uint16 LOD) const
 {
-	return BehaviorStreamReader->GetAnimatedMapIndicesForLOD(LOD);
+	return BehaviorReader->GetAnimatedMapIndicesForLOD(LOD);
 }
 
 uint16 FSkelMeshDNAReader::GetMeshCount() const
 {
-	return BehaviorStreamReader->GetMeshCount();
+	return BehaviorReader->GetMeshCount();
 }
 
 FString FSkelMeshDNAReader::GetMeshName(uint16 Index) const
 {
-	return BehaviorStreamReader->GetMeshName(Index);
+	return BehaviorReader->GetMeshName(Index);
 }
 
 uint16 FSkelMeshDNAReader::GetMeshIndexListCount() const
 {
-	return BehaviorStreamReader->GetMeshIndexListCount();
+	return BehaviorReader->GetMeshIndexListCount();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetMeshIndicesForLOD(uint16 LOD) const
 {
-	return BehaviorStreamReader->GetMeshIndicesForLOD(LOD);
+	return BehaviorReader->GetMeshIndicesForLOD(LOD);
 }
 
 uint16 FSkelMeshDNAReader::GetMeshBlendShapeChannelMappingCount() const
 {
-	return BehaviorStreamReader->GetMeshBlendShapeChannelMappingCount();
+	return BehaviorReader->GetMeshBlendShapeChannelMappingCount();
 }
 
 FMeshBlendShapeChannelMapping FSkelMeshDNAReader::GetMeshBlendShapeChannelMapping(uint16 Index) const
 {
-	return BehaviorStreamReader->GetMeshBlendShapeChannelMapping(Index);
+	return BehaviorReader->GetMeshBlendShapeChannelMapping(Index);
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetMeshBlendShapeChannelMappingIndicesForLOD(uint16 LOD) const
 {
-	return BehaviorStreamReader->GetMeshBlendShapeChannelMappingIndicesForLOD(LOD);
+	return BehaviorReader->GetMeshBlendShapeChannelMappingIndicesForLOD(LOD);
 }
 
 FVector FSkelMeshDNAReader::GetNeutralJointTranslation(uint16 Index) const
 {
-	return BehaviorStreamReader->GetNeutralJointTranslation(Index);
+	return BehaviorReader->GetNeutralJointTranslation(Index);
 }
 
 FVector FSkelMeshDNAReader::GetNeutralJointRotation(uint16 Index) const
 {
-	return BehaviorStreamReader->GetNeutralJointRotation(Index);
+	return BehaviorReader->GetNeutralJointRotation(Index);
 }
 
 uint16 FSkelMeshDNAReader::GetJointParentIndex(uint16 Index) const
 {
-	return BehaviorStreamReader->GetJointParentIndex(Index);
+	return BehaviorReader->GetJointParentIndex(Index);
 }
 
 /** BEHAVIOR READER **/
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetGUIToRawInputIndices() const
 {
-	return BehaviorStreamReader->GetGUIToRawInputIndices();
+	return BehaviorReader->GetGUIToRawInputIndices();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetGUIToRawOutputIndices() const
 {
-	return BehaviorStreamReader->GetGUIToRawOutputIndices();
+	return BehaviorReader->GetGUIToRawOutputIndices();
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetGUIToRawFromValues() const
 {
-	return BehaviorStreamReader->GetGUIToRawFromValues();
+	return BehaviorReader->GetGUIToRawFromValues();
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetGUIToRawToValues() const
 {
-	return  BehaviorStreamReader->GetGUIToRawToValues();
+	return  BehaviorReader->GetGUIToRawToValues();
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetGUIToRawSlopeValues() const
 {
-	return BehaviorStreamReader->GetGUIToRawSlopeValues();
+	return BehaviorReader->GetGUIToRawSlopeValues();
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetGUIToRawCutValues() const
 {
-	return BehaviorStreamReader->GetGUIToRawCutValues();
+	return BehaviorReader->GetGUIToRawCutValues();
 }
 
 uint16 FSkelMeshDNAReader::GetPSDCount() const
 {
-	return BehaviorStreamReader->GetPSDCount();
+	return BehaviorReader->GetPSDCount();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetPSDRowIndices() const
 {
-	return BehaviorStreamReader->GetPSDRowIndices();
+	return BehaviorReader->GetPSDRowIndices();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetPSDColumnIndices() const
 {
-	return BehaviorStreamReader->GetPSDColumnIndices();
+	return BehaviorReader->GetPSDColumnIndices();
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetPSDValues() const
 {
-	return BehaviorStreamReader->GetPSDValues();
+	return BehaviorReader->GetPSDValues();
 }
 
 uint16 FSkelMeshDNAReader::GetJointRowCount() const
 {
-	return BehaviorStreamReader->GetJointRowCount();
+	return BehaviorReader->GetJointRowCount();
 }
 
 uint16 FSkelMeshDNAReader::GetJointColumnCount() const
 {
-	return BehaviorStreamReader->GetJointColumnCount();
+	return BehaviorReader->GetJointColumnCount();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetJointGroupJointIndices(uint16 JointGroupIndex) const
 {
-	return BehaviorStreamReader->GetJointGroupJointIndices(JointGroupIndex);
+	return BehaviorReader->GetJointGroupJointIndices(JointGroupIndex);
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetJointVariableAttributeIndices(uint16 LOD) const
 {
-	return BehaviorStreamReader->GetJointVariableAttributeIndices(LOD);
+	return BehaviorReader->GetJointVariableAttributeIndices(LOD);
 }
 
 uint16 FSkelMeshDNAReader::GetJointGroupCount() const
 {
-	return BehaviorStreamReader->GetJointGroupCount();
+	return BehaviorReader->GetJointGroupCount();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetJointGroupLODs(uint16 JointGroupIndex) const
 {
-	return BehaviorStreamReader->GetJointGroupLODs(JointGroupIndex);
+	return BehaviorReader->GetJointGroupLODs(JointGroupIndex);
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetJointGroupInputIndices(uint16 JointGroupIndex) const
 {
-	return BehaviorStreamReader->GetJointGroupInputIndices(JointGroupIndex);
+	return BehaviorReader->GetJointGroupInputIndices(JointGroupIndex);
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetJointGroupOutputIndices(uint16 JointGroupIndex) const
 {
-	return BehaviorStreamReader->GetJointGroupOutputIndices(JointGroupIndex);
+	return BehaviorReader->GetJointGroupOutputIndices(JointGroupIndex);
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetJointGroupValues(uint16 JointGroupIndex) const
 {
-	return BehaviorStreamReader->GetJointGroupValues(JointGroupIndex);
+	return BehaviorReader->GetJointGroupValues(JointGroupIndex);
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetBlendShapeChannelLODs() const
 {
-	return BehaviorStreamReader->GetBlendShapeChannelLODs();
+	return BehaviorReader->GetBlendShapeChannelLODs();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetBlendShapeChannelInputIndices() const
 {
-	return BehaviorStreamReader->GetBlendShapeChannelInputIndices();
+	return BehaviorReader->GetBlendShapeChannelInputIndices();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetBlendShapeChannelOutputIndices() const
 {
-	return BehaviorStreamReader->GetBlendShapeChannelOutputIndices();
+	return BehaviorReader->GetBlendShapeChannelOutputIndices();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetAnimatedMapLODs() const
 {
-	return BehaviorStreamReader->GetAnimatedMapLODs();
+	return BehaviorReader->GetAnimatedMapLODs();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetAnimatedMapInputIndices() const
 {
-	return BehaviorStreamReader->GetAnimatedMapInputIndices();
+	return BehaviorReader->GetAnimatedMapInputIndices();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetAnimatedMapOutputIndices() const
 {
-	return BehaviorStreamReader->GetAnimatedMapOutputIndices();
+	return BehaviorReader->GetAnimatedMapOutputIndices();
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetAnimatedMapFromValues() const
 {
-	return BehaviorStreamReader->GetAnimatedMapFromValues();
+	return BehaviorReader->GetAnimatedMapFromValues();
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetAnimatedMapToValues() const
 {
-	return BehaviorStreamReader->GetAnimatedMapToValues();
+	return BehaviorReader->GetAnimatedMapToValues();
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetAnimatedMapSlopeValues() const
 {
-	return BehaviorStreamReader->GetAnimatedMapSlopeValues();
+	return BehaviorReader->GetAnimatedMapSlopeValues();
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetAnimatedMapCutValues() const
 {
-	return BehaviorStreamReader->GetAnimatedMapCutValues();
+	return BehaviorReader->GetAnimatedMapCutValues();
 }
 
 /** GEOMETRY READER **/
 uint32 FSkelMeshDNAReader::GetVertexPositionCount(uint16 MeshIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetVertexPositionCount(MeshIndex);
+		return GeometryReader->GetVertexPositionCount(MeshIndex);
 	}
 	return {};
 }
 
 FVector FSkelMeshDNAReader::GetVertexPosition(uint16 MeshIndex, uint32 PositionIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetVertexPosition(MeshIndex, PositionIndex);
+		return GeometryReader->GetVertexPosition(MeshIndex, PositionIndex);
 	}
 	return {};
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetVertexPositionXs(uint16 MeshIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetVertexPositionXs(MeshIndex);
+		return GeometryReader->GetVertexPositionXs(MeshIndex);
 	}
 	return {};
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetVertexPositionYs(uint16 MeshIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetVertexPositionYs(MeshIndex);
+		return GeometryReader->GetVertexPositionYs(MeshIndex);
 	}
 	return {};
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetVertexPositionZs(uint16 MeshIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetVertexPositionZs(MeshIndex);
+		return GeometryReader->GetVertexPositionZs(MeshIndex);
 	}
 	return {};
 }
 
 uint32 FSkelMeshDNAReader::GetVertexTextureCoordinateCount(uint16 MeshIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetVertexTextureCoordinateCount(MeshIndex);
+		return GeometryReader->GetVertexTextureCoordinateCount(MeshIndex);
 	}
 	return {};
 }
 
 FTextureCoordinate FSkelMeshDNAReader::GetVertexTextureCoordinate(uint16 MeshIndex, uint32 TextureCoordinateIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetVertexTextureCoordinate(MeshIndex, TextureCoordinateIndex);
+		return GeometryReader->GetVertexTextureCoordinate(MeshIndex, TextureCoordinateIndex);
 	}
 	return {};
 }
 
 uint32 FSkelMeshDNAReader::GetVertexNormalCount(uint16 MeshIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetVertexNormalCount(MeshIndex);
+		return GeometryReader->GetVertexNormalCount(MeshIndex);
 	}
 	return {};
 }
 
 FVector FSkelMeshDNAReader::GetVertexNormal(uint16 MeshIndex, uint32 NormalIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetVertexNormal(MeshIndex, NormalIndex);
+		return GeometryReader->GetVertexNormal(MeshIndex, NormalIndex);
 	}
 	return {};
 }
@@ -466,9 +477,9 @@ FVector FSkelMeshDNAReader::GetVertexNormal(uint16 MeshIndex, uint32 NormalIndex
 /* not needed for gene splicer */
 uint32 FSkelMeshDNAReader::GetVertexLayoutCount(uint16 MeshIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetVertexLayoutCount(MeshIndex);
+		return GeometryReader->GetVertexLayoutCount(MeshIndex);
 	}
 	return {};
 }
@@ -476,9 +487,9 @@ uint32 FSkelMeshDNAReader::GetVertexLayoutCount(uint16 MeshIndex) const
 /* not needed for gene splicer */
 FVertexLayout FSkelMeshDNAReader::GetVertexLayout(uint16 MeshIndex, uint32 VertexIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetVertexLayout(MeshIndex, VertexIndex);
+		return GeometryReader->GetVertexLayout(MeshIndex, VertexIndex);
 	}
 	return {};
 }
@@ -486,9 +497,9 @@ FVertexLayout FSkelMeshDNAReader::GetVertexLayout(uint16 MeshIndex, uint32 Verte
 /* not needed for gene splicer */
 uint32 FSkelMeshDNAReader::GetFaceCount(uint16 MeshIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetFaceCount(MeshIndex);
+		return GeometryReader->GetFaceCount(MeshIndex);
 	}
 	return {};
 }
@@ -496,121 +507,198 @@ uint32 FSkelMeshDNAReader::GetFaceCount(uint16 MeshIndex) const
 /* not needed for gene splicer */
 TArrayView<const uint32> FSkelMeshDNAReader::GetFaceVertexLayoutIndices(uint16 MeshIndex, uint32 FaceIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetFaceVertexLayoutIndices(MeshIndex, FaceIndex);
+		return GeometryReader->GetFaceVertexLayoutIndices(MeshIndex, FaceIndex);
 	}
 	return {};
 }
 
 uint16 FSkelMeshDNAReader::GetMaximumInfluencePerVertex(uint16 MeshIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetMaximumInfluencePerVertex(MeshIndex);
+		return GeometryReader->GetMaximumInfluencePerVertex(MeshIndex);
 	}
 	return {};
 }
 
 uint32 FSkelMeshDNAReader::GetSkinWeightsCount(uint16 MeshIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetSkinWeightsCount(MeshIndex);
+		return GeometryReader->GetSkinWeightsCount(MeshIndex);
 	}
 	return {};
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetSkinWeightsValues(uint16 MeshIndex, uint32 VertexIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetSkinWeightsValues(MeshIndex, VertexIndex);
+		return GeometryReader->GetSkinWeightsValues(MeshIndex, VertexIndex);
 	}
 	return {};
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetSkinWeightsJointIndices(uint16 MeshIndex, uint32 VertexIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetSkinWeightsJointIndices(MeshIndex, VertexIndex);
+		return GeometryReader->GetSkinWeightsJointIndices(MeshIndex, VertexIndex);
 	}
 	return {};
 }
 
 uint16 FSkelMeshDNAReader::GetBlendShapeTargetCount(uint16 MeshIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetBlendShapeTargetCount(MeshIndex);
+		return GeometryReader->GetBlendShapeTargetCount(MeshIndex);
 	}
 	return {};
 }
 
 uint16 FSkelMeshDNAReader::GetBlendShapeChannelIndex(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetBlendShapeChannelIndex(MeshIndex, BlendShapeTargetIndex);
+		return GeometryReader->GetBlendShapeChannelIndex(MeshIndex, BlendShapeTargetIndex);
 	}
 	return {};
 }
 
 uint32 FSkelMeshDNAReader::GetBlendShapeTargetDeltaCount(uint16 MeshIndex, uint16 BlendShapeIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetBlendShapeTargetDeltaCount(MeshIndex, BlendShapeIndex);
+		return GeometryReader->GetBlendShapeTargetDeltaCount(MeshIndex, BlendShapeIndex);
 	}
 	return {};
 }
 
 FVector FSkelMeshDNAReader::GetBlendShapeTargetDelta(uint16 MeshIndex, uint16 BlendShapeIndex, uint32 DeltaIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetBlendShapeTargetDelta(MeshIndex, BlendShapeIndex, DeltaIndex);
+		return GeometryReader->GetBlendShapeTargetDelta(MeshIndex, BlendShapeIndex, DeltaIndex);
 	}
 	return {};
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetBlendShapeTargetDeltaXs(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetBlendShapeTargetDeltaXs(MeshIndex, BlendShapeTargetIndex);
+		return GeometryReader->GetBlendShapeTargetDeltaXs(MeshIndex, BlendShapeTargetIndex);
 	}
 	return {};
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetBlendShapeTargetDeltaYs(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetBlendShapeTargetDeltaYs(MeshIndex, BlendShapeTargetIndex);
+		return GeometryReader->GetBlendShapeTargetDeltaYs(MeshIndex, BlendShapeTargetIndex);
 	}
 	return {};
 }
 
 TArrayView<const float> FSkelMeshDNAReader::GetBlendShapeTargetDeltaZs(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetBlendShapeTargetDeltaZs(MeshIndex, BlendShapeTargetIndex);
+		return GeometryReader->GetBlendShapeTargetDeltaZs(MeshIndex, BlendShapeTargetIndex);
 	}
 	return {};
 }
 
 TArrayView<const uint32> FSkelMeshDNAReader::GetBlendShapeTargetVertexIndices(uint16 MeshIndex, uint16 BlendShapeIndex) const
 {
-	if (GeometryStreamReader)
+	if (GeometryReader)
 	{
-		return GeometryStreamReader->GetBlendShapeTargetVertexIndices(MeshIndex, BlendShapeIndex);
+		return GeometryReader->GetBlendShapeTargetVertexIndices(MeshIndex, BlendShapeIndex);
 	}
 	return {};
 }
 
-void FSkelMeshDNAReader::Unload(EDNADataLayer Layer) {
+/** MACHINE LEARNED BEHAVIOR READER **/
+uint16 FSkelMeshDNAReader::GetMLControlCount() const
+{
+	return BehaviorReader->GetMLControlCount();
+}
+
+FString FSkelMeshDNAReader::GetMLControlName(uint16 Index) const
+{
+	return BehaviorReader->GetMLControlName(Index);
+}
+
+uint16 FSkelMeshDNAReader::GetNeuralNetworkCount() const
+{
+	return BehaviorReader->GetNeuralNetworkCount();
+}
+
+uint16 FSkelMeshDNAReader::GetNeuralNetworkIndexListCount() const
+{
+	return BehaviorReader->GetNeuralNetworkIndexListCount();
+}
+
+TArrayView<const uint16> FSkelMeshDNAReader::GetNeuralNetworkIndicesForLOD(uint16 LOD) const
+{
+	return BehaviorReader->GetNeuralNetworkIndicesForLOD(LOD);
+}
+
+uint16 FSkelMeshDNAReader::GetMeshRegionCount(uint16 MeshIndex) const
+{
+	return BehaviorReader->GetMeshRegionCount(MeshIndex);
+}
+
+FString FSkelMeshDNAReader::GetMeshRegionName(uint16 MeshIndex, uint16 RegionIndex) const
+{
+	return BehaviorReader->GetMeshRegionName(MeshIndex, RegionIndex);
+}
+
+TArrayView<const uint16> FSkelMeshDNAReader::GetNeuralNetworkIndicesForMeshRegion(uint16 MeshIndex, uint16 RegionIndex) const
+{
+	return BehaviorReader->GetNeuralNetworkIndicesForMeshRegion(MeshIndex, RegionIndex);
+}
+
+TArrayView<const uint16> FSkelMeshDNAReader::GetNeuralNetworkInputIndices(uint16 NetIndex) const
+{
+	return BehaviorReader->GetNeuralNetworkInputIndices(NetIndex);
+}
+
+TArrayView<const uint16> FSkelMeshDNAReader::GetNeuralNetworkOutputIndices(uint16 NetIndex) const
+{
+	return BehaviorReader->GetNeuralNetworkOutputIndices(NetIndex);
+}
+
+uint16 FSkelMeshDNAReader::GetNeuralNetworkLayerCount(uint16 NetIndex) const
+{
+	return BehaviorReader->GetNeuralNetworkLayerCount(NetIndex);
+}
+
+EActivationFunction FSkelMeshDNAReader::GetNeuralNetworkLayerActivationFunction(uint16 NetIndex, uint16 LayerIndex) const
+{
+	return BehaviorReader->GetNeuralNetworkLayerActivationFunction(NetIndex, LayerIndex);
+}
+
+TArrayView<const float> FSkelMeshDNAReader::GetNeuralNetworkLayerActivationFunctionParameters(uint16 NetIndex, uint16 LayerIndex) const
+{
+	return BehaviorReader->GetNeuralNetworkLayerActivationFunctionParameters(NetIndex, LayerIndex);
+}
+
+TArrayView<const float> FSkelMeshDNAReader::GetNeuralNetworkLayerBiases(uint16 NetIndex, uint16 LayerIndex) const
+{
+	return BehaviorReader->GetNeuralNetworkLayerBiases(NetIndex, LayerIndex);
+}
+
+TArrayView<const float> FSkelMeshDNAReader::GetNeuralNetworkLayerWeights(uint16 NetIndex, uint16 LayerIndex) const
+{
+	return BehaviorReader->GetNeuralNetworkLayerWeights(NetIndex, LayerIndex);
+}
+
+void FSkelMeshDNAReader::Unload(EDNADataLayer Layer)
+{
 	ensureMsgf(false, TEXT("Assest are not unloadable"));
 }

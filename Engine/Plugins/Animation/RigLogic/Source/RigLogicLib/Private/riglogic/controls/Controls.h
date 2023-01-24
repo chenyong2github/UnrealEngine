@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "riglogic/TypeDefs.h"
 #include "riglogic/conditionaltable/ConditionalTable.h"
+#include "riglogic/controls/ControlsInputInstance.h"
 #include "riglogic/psdmatrix/PSDMatrix.h"
-#include "riglogic/types/Aliases.h"
 
 #include <cstdint>
 
@@ -12,10 +13,15 @@ namespace rl4 {
 
 class Controls {
     public:
-        Controls(ConditionalTable&& guiToRawMapping_, PSDMatrix&& psds_);
+        using Pointer = UniqueInstance<Controls>::PointerType;
 
-        void mapGUIToRaw(ConstArrayView<float> guiValues, ArrayView<float> inputs) const;
-        void calculate(ArrayView<float> inputs) const;
+    public:
+        Controls(ConditionalTable&& guiToRawMapping_, PSDMatrix&& psds_, ControlsInputInstance::Factory instanceFactory_);
+
+        ControlsInputInstance::Pointer createInstance(MemoryResource* instanceMemRes) const;
+        void mapGUIToRaw(ControlsInputInstance* instance) const;
+        void mapRawToGUI(ControlsInputInstance* instance) const;
+        void calculate(ControlsInputInstance* instance) const;
 
         template<class Archive>
         void serialize(Archive& archive) {
@@ -25,6 +31,7 @@ class Controls {
     private:
         ConditionalTable guiToRawMapping;
         PSDMatrix psds;
+        ControlsInputInstance::Factory instanceFactory;
 
 };
 

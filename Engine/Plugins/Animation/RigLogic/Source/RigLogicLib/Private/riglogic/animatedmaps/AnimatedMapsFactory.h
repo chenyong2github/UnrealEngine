@@ -2,24 +2,17 @@
 
 #pragma once
 
+#include "riglogic/TypeDefs.h"
 #include "riglogic/animatedmaps/AnimatedMaps.h"
-
-#include <pma/utils/ManagedInstance.h>
-
-namespace dna {
-
-class BehaviorReader;
-
-}  // namespace dna
 
 namespace rl4 {
 
-struct AnimatedMapsFactory {
-    using ManagedAnimatedMaps = pma::UniqueInstance<AnimatedMaps>;
-    using AnimatedMapsPtr = typename ManagedAnimatedMaps::PointerType;
+struct Configuration;
+struct RigMetrics;
 
-    static AnimatedMapsPtr create(MemoryResource* memRes);
-    static AnimatedMapsPtr create(const dna::BehaviorReader* reader, MemoryResource* memRes);
+struct AnimatedMapsFactory {
+    static AnimatedMaps::Pointer create(const Configuration& config, const dna::BehaviorReader* reader, MemoryResource* memRes);
+    static AnimatedMaps::Pointer create(const Configuration& config, const RigMetrics& metrics, MemoryResource* memRes);
 };
 
 }  // namespace rl4

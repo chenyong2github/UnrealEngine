@@ -5,16 +5,23 @@
 // *INDENT-OFF*
 #if !defined(RL_USE_HALF_FLOATS) && defined(RL_BUILD_WITH_AVX)
 
-#include "riglogic/joints/bpcm/builders/Float.h"
+#include "riglogic/joints/bpcm/BuilderCommon.h"
+#include "riglogic/joints/bpcm/Consts.h"
+#include "riglogic/joints/bpcm/strategies/AVX.h"
 #include "riglogic/types/Aliases.h"
 
 namespace rl4 {
 
 namespace bpcm {
 
-class AVXJointsBuilder : public FloatStorageBuilder {
+class AVXJointsBuilder : public JointsBuilderCommon<float, block16Height, block8Height, trimd::avx::F256> {
+    private:
+        using Super = JointsBuilderCommon<float, block16Height, block8Height, trimd::avx::F256>;
+
     public:
-        explicit AVXJointsBuilder(MemoryResource* memRes_);
+        explicit AVXJointsBuilder(MemoryResource* memRes_) : Super{UniqueInstance<AVXJointCalculationStrategy<float>, CalculationStrategy>::with(memRes_).create(), memRes_} {
+        }
+
         ~AVXJointsBuilder();
 
 };

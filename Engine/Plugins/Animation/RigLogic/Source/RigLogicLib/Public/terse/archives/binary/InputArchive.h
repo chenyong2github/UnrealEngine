@@ -66,6 +66,11 @@ class ExtendableBinaryInputArchive : public Archive<TExtender> {
     protected:
         template<typename T>
         void process(Transparent<T>&& dest) {
+            process(dest);
+        }
+
+        template<typename T>
+        void process(Transparent<T>& dest) {
             process(dest.data);
         }
 
@@ -106,24 +111,48 @@ class ExtendableBinaryInputArchive : public Archive<TExtender> {
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_load_member<T, V>::value,
                                 void>::type process(Versioned<T, V>&& dest) {
+            process(dest);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_load_member<T, V>::value,
+                                void>::type process(Versioned<T, V>& dest) {
             dest.data.load(*static_cast<TExtender*>(this), V{});
         }
 
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_serialize_member<T, V>::value,
                                 void>::type process(Versioned<T, V>&& dest) {
+            process(dest);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_serialize_member<T, V>::value,
+                                void>::type process(Versioned<T, V>& dest) {
             dest.data.serialize(*static_cast<TExtender*>(this), V{});
         }
 
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_load_function<T, V>::value,
                                 void>::type process(Versioned<T, V>&& dest) {
+            process(dest);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_load_function<T, V>::value,
+                                void>::type process(Versioned<T, V>& dest) {
             load(*static_cast<TExtender*>(this), V{}, dest.data);
         }
 
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_serialize_function<T, V>::value,
                                 void>::type process(Versioned<T, V>&& dest) {
+            process(dest);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_serialize_function<T, V>::value,
+                                void>::type process(Versioned<T, V>& dest) {
             serialize(*static_cast<TExtender*>(this), V{}, dest.data);
         }
 
@@ -133,6 +162,15 @@ class ExtendableBinaryInputArchive : public Archive<TExtender> {
                                 !traits::has_versioned_load_function<T, V>::value &&
                                 !traits::has_versioned_serialize_function<T, V>::value,
                                 void>::type process(Versioned<T, V>&& dest) {
+            process(dest);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<!traits::has_versioned_load_member<T, V>::value &&
+                                !traits::has_versioned_serialize_member<T, V>::value &&
+                                !traits::has_versioned_load_function<T, V>::value &&
+                                !traits::has_versioned_serialize_function<T, V>::value,
+                                void>::type process(Versioned<T, V>& dest) {
             // If no versioned serializer is found, but version information was passed along, fall back to unversioned
             // functions if available.
             BaseArchive::dispatch(dest.data);

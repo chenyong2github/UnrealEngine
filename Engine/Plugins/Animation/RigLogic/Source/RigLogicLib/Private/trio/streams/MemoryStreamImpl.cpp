@@ -133,7 +133,7 @@ std::size_t MemoryStreamImpl::read(Writable* destination, std::size_t size) {
 
     const std::size_t available = data.size() - position;
     const std::size_t bytesToRead = std::min(size, available);
-    const std::size_t bytesCopied = destination->write(&data[position], bytesToRead);
+    const std::size_t bytesCopied = (bytesToRead > 0ul ? destination->write(&data[position], bytesToRead) : 0ul);
     position += bytesCopied;
     return bytesCopied;
 }

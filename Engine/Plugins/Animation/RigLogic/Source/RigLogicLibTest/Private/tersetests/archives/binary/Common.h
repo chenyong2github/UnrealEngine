@@ -127,22 +127,22 @@ struct UpgradedSerializableType {
     std::uint16_t b;
 
     template<class Archive>
-    void load(Archive& archive, terse::Version<1>) {
+    void load(Archive& archive, terse::Version<1>  /*unused*/) {
         archive(a);
     }
 
     template<class Archive>
-    void load(Archive& archive, terse::Version<2>) {
+    void load(Archive& archive, terse::Version<2>  /*unused*/) {
         archive(a, b);
     }
 
     template<class Archive>
-    void save(Archive& archive, terse::Version<1>) {
+    void save(Archive& archive, terse::Version<1>  /*unused*/) {
         archive(a);
     }
 
     template<class Archive>
-    void save(Archive& archive, terse::Version<2>) {
+    void save(Archive& archive, terse::Version<2>  /*unused*/) {
         archive(a, b);
     }
 

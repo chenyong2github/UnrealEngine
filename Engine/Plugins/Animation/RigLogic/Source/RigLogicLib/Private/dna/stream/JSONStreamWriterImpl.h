@@ -10,11 +10,20 @@
 
 namespace dna {
 
+class BinaryStreamReader;
+class JSONStreamReader;
+
 class JSONStreamWriterImpl : public WriterImpl<JSONStreamWriter> {
     public:
         JSONStreamWriterImpl(BoundedIOStream* stream_, std::uint32_t indentWidth, MemoryResource* memRes_);
 
         void write() override;
+
+        using JSONStreamWriter::setFrom;
+        void setFrom(const BinaryStreamReader* source, DataLayer layer, UnknownLayerPolicy policy,
+                     MemoryResource* memRes_) override;
+        void setFrom(const JSONStreamReader* source, DataLayer layer, UnknownLayerPolicy policy,
+                     MemoryResource* memRes_) override;
 
     private:
         BoundedIOStream* stream;

@@ -31,7 +31,17 @@ bool StatusProvider::isOk() {
 }
 
 void StatusProvider::set(StatusCode status) {
+    status.message = execHook(status, 0ul, status.message);
+    execSet(status);
+}
+
+void StatusProvider::execSet(StatusCode status) {
     StatusStorage::set(status);
+}
+
+const char* StatusProvider::execHook(StatusCode status, std::size_t index, const char* data) {
+    auto hook = StatusStorage::getHook();
+    return (hook == nullptr ? data : hook(status, index, data));
 }
 
 }  // namespace sc

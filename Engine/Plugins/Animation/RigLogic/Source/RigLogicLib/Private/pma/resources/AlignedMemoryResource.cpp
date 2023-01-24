@@ -18,7 +18,7 @@
     #define ALIGNED_FREE(ptr) ::free(ptr)
 #elif defined(__cplusplus) && (__cplusplus >= 201703L) && (defined(_GLIBCXX_HAVE_ALIGNED_ALLOC) || \
     defined(_LIBCPP_HAS_ALIGNED_ALLOC) || defined(_LIBCPP_HAS_C11_FEATURES))
-    #define ALIGNED_ALLOC(ptr, alignment, size) ptr = std::aligned_alloc(alignment, size)
+    #define ALIGNED_ALLOC(ptr, alignment, size) ptr = std::aligned_alloc(alignment, (size % alignment == 0) ? size : (size + alignment - (size % alignment)))
     #define ALIGNED_FREE(ptr) std::free(ptr)
 #elif ((defined(_POSIX_VERSION) && (_POSIX_VERSION >= 200112L)) || defined(__linux__) || defined(__APPLE__))
     #define ALIGNED_ALLOC(ptr, alignment, size) if (::posix_memalign(&(ptr), alignment, size)) \

@@ -8,6 +8,9 @@
 
 namespace dna {
 
+class BinaryStreamReader;
+class JSONStreamReader;
+
 class DNAAPI BinaryStreamWriter : public StreamWriter {
     public:
         /**
@@ -32,6 +35,16 @@ class DNAAPI BinaryStreamWriter : public StreamWriter {
         static void destroy(BinaryStreamWriter* instance);
 
         ~BinaryStreamWriter() override;
+
+        using StreamWriter::setFrom;
+        virtual void setFrom(const BinaryStreamReader* source,
+                             DataLayer layer = DataLayer::All,
+                             UnknownLayerPolicy policy = UnknownLayerPolicy::Preserve,
+                             MemoryResource* memRes = nullptr) = 0;
+        virtual void setFrom(const JSONStreamReader* source,
+                             DataLayer layer = DataLayer::All,
+                             UnknownLayerPolicy policy = UnknownLayerPolicy::Preserve,
+                             MemoryResource* memRes = nullptr) = 0;
 };
 
 }  // namespace dna

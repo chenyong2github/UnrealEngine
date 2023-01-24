@@ -4,9 +4,6 @@
 
 #include "dna/BaseImpl.h"
 #include "dna/DenormalizedData.h"
-#include "dna/layers/DefinitionReader.h"
-#include "dna/layers/Descriptor.h"
-#include "dna/layers/Geometry.h"
 #include "dna/TypeDefs.h"
 
 #ifdef _MSC_VER
@@ -27,7 +24,11 @@ class ReaderImpl : public TReaderBase, public virtual BaseImpl {
     public:
         explicit ReaderImpl(MemoryResource* memRes_);
 
-        // DescriptorReader methods start
+        // HeaderReader methods
+        std::uint16_t getFileFormatGeneration() const override;
+        std::uint16_t getFileFormatVersion() const override;
+
+        // DescriptorReader methods
         StringView getName() const override;
         Archetype getArchetype() const override;
         Gender getGender() const override;
@@ -43,7 +44,7 @@ class ReaderImpl : public TReaderBase, public virtual BaseImpl {
         StringView getDBComplexity() const override;
         StringView getDBName() const override;
 
-        // DefinitionReader methods start
+        // DefinitionReader methods
         std::uint16_t getGUIControlCount() const override;
         StringView getGUIControlName(std::uint16_t index) const override;
         std::uint16_t getRawControlCount() const override;
@@ -77,7 +78,7 @@ class ReaderImpl : public TReaderBase, public virtual BaseImpl {
         ConstArrayView<float> getNeutralJointRotationYs() const override;
         ConstArrayView<float> getNeutralJointRotationZs() const override;
 
-        // BehaviorReader methods start
+        // BehaviorReader methods
         ConstArrayView<std::uint16_t> getGUIToRawInputIndices() const override;
         ConstArrayView<std::uint16_t> getGUIToRawOutputIndices() const override;
         ConstArrayView<float> getGUIToRawFromValues() const override;
@@ -108,7 +109,7 @@ class ReaderImpl : public TReaderBase, public virtual BaseImpl {
         ConstArrayView<float> getAnimatedMapSlopeValues() const override;
         ConstArrayView<float> getAnimatedMapCutValues() const override;
 
-        // GeometryReader methods start
+        // GeometryReader methods
         std::uint32_t getVertexPositionCount(std::uint16_t meshIndex) const override;
         Position getVertexPosition(std::uint16_t meshIndex, std::uint32_t vertexIndex) const override;
         ConstArrayView<float> getVertexPositionXs(std::uint16_t meshIndex) const override;
@@ -149,6 +150,25 @@ class ReaderImpl : public TReaderBase, public virtual BaseImpl {
                                                          std::uint16_t blendShapeTargetIndex) const override;
         ConstArrayView<std::uint32_t> getBlendShapeTargetVertexIndices(std::uint16_t meshIndex,
                                                                        std::uint16_t blendShapeTargetIndex) const override;
+        // MachineLearnedBehaviorReader methods
+        std::uint16_t getMLControlCount() const override;
+        StringView getMLControlName(std::uint16_t index) const override;
+        std::uint16_t getNeuralNetworkCount() const override;
+        std::uint16_t getNeuralNetworkIndexListCount() const override;
+        ConstArrayView<std::uint16_t> getNeuralNetworkIndicesForLOD(std::uint16_t lod) const override;
+        std::uint16_t getMeshRegionCount(std::uint16_t meshIndex) const override;
+        StringView getMeshRegionName(std::uint16_t meshIndex, std::uint16_t regionIndex) const override;
+        ConstArrayView<std::uint16_t> getNeuralNetworkIndicesForMeshRegion(std::uint16_t meshIndex,
+                                                                           std::uint16_t regionIndex) const override;
+        ConstArrayView<std::uint16_t> getNeuralNetworkInputIndices(std::uint16_t netIndex) const override;
+        ConstArrayView<std::uint16_t> getNeuralNetworkOutputIndices(std::uint16_t netIndex) const override;
+        std::uint16_t getNeuralNetworkLayerCount(std::uint16_t netIndex) const override;
+        ActivationFunction getNeuralNetworkLayerActivationFunction(std::uint16_t netIndex,
+                                                                   std::uint16_t layerIndex) const override;
+        ConstArrayView<float> getNeuralNetworkLayerActivationFunctionParameters(std::uint16_t netIndex,
+                                                                                std::uint16_t layerIndex) const override;
+        ConstArrayView<float> getNeuralNetworkLayerBiases(std::uint16_t netIndex, std::uint16_t layerIndex) const override;
+        ConstArrayView<float> getNeuralNetworkLayerWeights(std::uint16_t netIndex, std::uint16_t layerIndex) const override;
 
     protected:
         mutable DenormalizedData<TReaderBase> cache;
@@ -172,6 +192,16 @@ inline ReaderImpl<TReaderBase>::ReaderImpl(MemoryResource* memRes_) : BaseImpl{m
     #pragma warning(push)
     #pragma warning(disable : 4505)
 #endif
+template<class TReaderBase>
+inline std::uint16_t ReaderImpl<TReaderBase>::getFileFormatGeneration() const {
+    return dna.version.generation;
+}
+
+template<class TReaderBase>
+inline std::uint16_t ReaderImpl<TReaderBase>::getFileFormatVersion() const {
+    return dna.version.version;
+}
+
 template<class TReaderBase>
 inline StringView ReaderImpl<TReaderBase>::getName() const {
     return {dna.descriptor.name.data(), dna.descriptor.name.size()};
@@ -960,6 +990,133 @@ const {
     if ((meshIndex < meshes.size()) && (blendShapeTargetIndex < meshes[meshIndex].blendShapeTargets.size())) {
         const auto& vertexIndices = meshes[meshIndex].blendShapeTargets[blendShapeTargetIndex].vertexIndices;
         return {vertexIndices.data(), vertexIndices.size()};
+    }
+    return {};
+}
+
+template<class TReaderBase>
+inline std::uint16_t ReaderImpl<TReaderBase>::getMLControlCount() const {
+    return static_cast<std::uint16_t>(dna.machineLearnedBehavior.mlControlNames.size());
+}
+
+template<class TReaderBase>
+inline StringView ReaderImpl<TReaderBase>::getMLControlName(std::uint16_t index) const {
+    if (index < dna.machineLearnedBehavior.mlControlNames.size()) {
+        const auto& mlControlName = dna.machineLearnedBehavior.mlControlNames[index];
+        return {mlControlName.data(), mlControlName.size()};
+    }
+    return {};
+}
+
+template<class TReaderBase>
+inline std::uint16_t ReaderImpl<TReaderBase>::getNeuralNetworkCount() const {
+    return static_cast<std::uint16_t>(dna.machineLearnedBehavior.neuralNetworks.size());
+}
+
+template<class TReaderBase>
+inline std::uint16_t ReaderImpl<TReaderBase>::getNeuralNetworkIndexListCount() const {
+    return dna.machineLearnedBehavior.lodNeuralNetworkMapping.getIndexListCount();
+}
+
+template<class TReaderBase>
+ConstArrayView<std::uint16_t> ReaderImpl<TReaderBase>::getNeuralNetworkIndicesForLOD(std::uint16_t lod) const {
+    return dna.machineLearnedBehavior.lodNeuralNetworkMapping.getIndices(lod);
+}
+
+template<class TReaderBase>
+inline std::uint16_t ReaderImpl<TReaderBase>::getMeshRegionCount(std::uint16_t meshIndex) const {
+    if (meshIndex < dna.machineLearnedBehavior.neuralNetworkToMeshRegion.regionNames.size()) {
+        return static_cast<std::uint16_t>(dna.machineLearnedBehavior.neuralNetworkToMeshRegion.regionNames[meshIndex].size());
+    }
+    return {};
+}
+
+template<class TReaderBase>
+inline StringView ReaderImpl<TReaderBase>::getMeshRegionName(std::uint16_t meshIndex, std::uint16_t regionIndex) const {
+    if ((meshIndex < dna.machineLearnedBehavior.neuralNetworkToMeshRegion.regionNames.size()) &&
+        (regionIndex < dna.machineLearnedBehavior.neuralNetworkToMeshRegion.regionNames[meshIndex].size())) {
+        return StringView{dna.machineLearnedBehavior.neuralNetworkToMeshRegion.regionNames[meshIndex][regionIndex]};
+    }
+    return {};
+}
+
+template<class TReaderBase>
+ConstArrayView<std::uint16_t> ReaderImpl<TReaderBase>::getNeuralNetworkIndicesForMeshRegion(std::uint16_t meshIndex,
+                                                                                            std::uint16_t regionIndex) const {
+    if (meshIndex < dna.machineLearnedBehavior.neuralNetworkToMeshRegion.indices.size()) {
+        const auto& mesh = dna.machineLearnedBehavior.neuralNetworkToMeshRegion.indices[meshIndex];
+        if (regionIndex < mesh.size()) {
+            const auto& region = mesh[regionIndex];
+            return {region.data(), region.size()};
+        }
+    }
+    return {};
+}
+
+template<class TReaderBase>
+inline ConstArrayView<std::uint16_t> ReaderImpl<TReaderBase>::getNeuralNetworkInputIndices(std::uint16_t netIndex) const {
+    const auto& neuralNets = dna.machineLearnedBehavior.neuralNetworks;
+    if (netIndex < neuralNets.size()) {
+        return ConstArrayView<std::uint16_t>{neuralNets[netIndex].inputIndices};
+    }
+    return {};
+}
+
+template<class TReaderBase>
+inline ConstArrayView<std::uint16_t> ReaderImpl<TReaderBase>::getNeuralNetworkOutputIndices(std::uint16_t netIndex) const {
+    const auto& neuralNets = dna.machineLearnedBehavior.neuralNetworks;
+    if (netIndex < neuralNets.size()) {
+        return ConstArrayView<std::uint16_t>{neuralNets[netIndex].outputIndices};
+    }
+    return {};
+}
+
+template<class TReaderBase>
+inline std::uint16_t ReaderImpl<TReaderBase>::getNeuralNetworkLayerCount(std::uint16_t netIndex) const {
+    const auto& neuralNets = dna.machineLearnedBehavior.neuralNetworks;
+    if (netIndex < neuralNets.size()) {
+        return static_cast<std::uint16_t>(neuralNets[netIndex].layers.size());
+    }
+    return {};
+}
+
+template<class TReaderBase>
+inline ActivationFunction ReaderImpl<TReaderBase>::getNeuralNetworkLayerActivationFunction(std::uint16_t netIndex,
+                                                                                           std::uint16_t layerIndex) const {
+    const auto& neuralNets = dna.machineLearnedBehavior.neuralNetworks;
+    if ((netIndex < neuralNets.size()) && (layerIndex < neuralNets[netIndex].layers.size())) {
+        return static_cast<ActivationFunction>(neuralNets[netIndex].layers[layerIndex].activationFunction.functionId);
+    }
+    return {};
+}
+
+template<class TReaderBase>
+inline ConstArrayView<float> ReaderImpl<TReaderBase>::getNeuralNetworkLayerActivationFunctionParameters(std::uint16_t netIndex,
+                                                                                                        std::uint16_t layerIndex)
+const {
+    const auto& neuralNets = dna.machineLearnedBehavior.neuralNetworks;
+    if ((netIndex < neuralNets.size()) && (layerIndex < neuralNets[netIndex].layers.size())) {
+        return ConstArrayView<float>{neuralNets[netIndex].layers[layerIndex].activationFunction.parameters};
+    }
+    return {};
+}
+
+template<class TReaderBase>
+inline ConstArrayView<float> ReaderImpl<TReaderBase>::getNeuralNetworkLayerBiases(std::uint16_t netIndex,
+                                                                                  std::uint16_t layerIndex) const {
+    const auto& neuralNets = dna.machineLearnedBehavior.neuralNetworks;
+    if ((netIndex < neuralNets.size()) && (layerIndex < neuralNets[netIndex].layers.size())) {
+        return ConstArrayView<float>{neuralNets[netIndex].layers[layerIndex].biases};
+    }
+    return {};
+}
+
+template<class TReaderBase>
+inline ConstArrayView<float> ReaderImpl<TReaderBase>::getNeuralNetworkLayerWeights(std::uint16_t netIndex,
+                                                                                   std::uint16_t layerIndex) const {
+    const auto& neuralNets = dna.machineLearnedBehavior.neuralNetworks;
+    if ((netIndex < neuralNets.size()) && (layerIndex < neuralNets[netIndex].layers.size())) {
+        return ConstArrayView<float>{neuralNets[netIndex].layers[layerIndex].weights};
     }
     return {};
 }

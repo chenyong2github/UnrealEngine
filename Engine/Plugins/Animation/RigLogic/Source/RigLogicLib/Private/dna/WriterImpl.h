@@ -3,8 +3,6 @@
 #pragma once
 
 #include "dna/BaseImpl.h"
-#include "dna/layers/Descriptor.h"
-#include "dna/layers/Geometry.h"
 #include "dna/TypeDefs.h"
 #include "dna/utils/Extd.h"
 
@@ -37,6 +35,10 @@ template<class TWriterBase>
 class WriterImpl : public TWriterBase, public virtual BaseImpl {
     public:
         explicit WriterImpl(MemoryResource* memRes_);
+
+        // HeaderWriter methods
+        void setFileFormatGeneration(std::uint16_t generation) override;
+        void setFileFormatVersion(std::uint16_t version) override;
 
         // DescriptorWriter methods
         void setName(const char* name) override;
@@ -158,6 +160,43 @@ class WriterImpl : public TWriterBase, public virtual BaseImpl {
                                               const std::uint32_t* vertexIndices,
                                               std::uint32_t count) override;
 
+        // MachineLearnedBehaviorWriter methods
+        void clearMLControlNames() override;
+        void setMLControlName(std::uint16_t index, const char* name) override;
+        void clearNeuralNetworks() override;
+        void clearNeuralNetworkIndices() override;
+        void setNeuralNetworkIndices(std::uint16_t index, const std::uint16_t* netIndices, std::uint16_t count) override;
+        void clearMeshRegionNames() override;
+        void clearMeshRegionNames(std::uint16_t meshIndex) override;
+        void setMeshRegionName(std::uint16_t meshIndex, std::uint16_t regionIndex, const char* name) override;
+        void clearLODNeuralNetworkMappings() override;
+        void setLODNeuralNetworkMapping(std::uint16_t lod, std::uint16_t index) override;
+        void clearNeuralNetworkIndicesPerMeshRegion() override;
+        void setNeuralNetworkIndicesForMeshRegion(std::uint16_t meshIndex,
+                                                  std::uint16_t regionIndex,
+                                                  const std::uint16_t* netIndices,
+                                                  std::uint16_t count) override;
+        void deleteNeuralNetwork(std::uint16_t netIndex) override;
+        void setNeuralNetworkInputIndices(std::uint16_t netIndex, const std::uint16_t* inputIndices,
+                                          std::uint16_t count) override;
+        void setNeuralNetworkOutputIndices(std::uint16_t netIndex, const std::uint16_t* outputIndices,
+                                           std::uint16_t count) override;
+        void clearNeuralNetworkLayers(std::uint16_t netIndex) override;
+        void setNeuralNetworkLayerActivationFunction(std::uint16_t netIndex, std::uint16_t layerIndex,
+                                                     ActivationFunction function) override;
+        void setNeuralNetworkLayerActivationFunctionParameters(std::uint16_t netIndex,
+                                                               std::uint16_t layerIndex,
+                                                               const float* activationFunctionParameters,
+                                                               std::uint16_t count) override;
+        void setNeuralNetworkLayerBiases(std::uint16_t netIndex,
+                                         std::uint16_t layerIndex,
+                                         const float* biases,
+                                         std::uint32_t count) override;
+        void setNeuralNetworkLayerWeights(std::uint16_t netIndex,
+                                          std::uint16_t layerIndex,
+                                          const float* weights,
+                                          std::uint32_t count) override;
+
 };
 
 
@@ -177,6 +216,16 @@ WriterImpl<TWriterBase>::WriterImpl(MemoryResource* memRes_) : BaseImpl{memRes_}
     #pragma warning(push)
     #pragma warning(disable : 4505)
 #endif
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::setFileFormatGeneration(std::uint16_t generation) {
+    dna.version.generation = generation;
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::setFileFormatVersion(std::uint16_t version) {
+    dna.version.version = version;
+}
+
 template<class TWriterBase>
 inline void WriterImpl<TWriterBase>::setName(const char* name) {
     dna.descriptor.name = name;
@@ -751,6 +800,155 @@ inline void WriterImpl<TWriterBase>::setBlendShapeTargetVertexIndices(std::uint1
     auto& blendShapeTargets = dna.geometry.meshes[meshIndex].blendShapeTargets;
     ensureHasSize(blendShapeTargets, blendShapeTargetIndex + 1ul, memRes);
     blendShapeTargets[blendShapeTargetIndex].vertexIndices.assign(vertexIndices, vertexIndices + count);
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::clearMLControlNames() {
+    dna.machineLearnedBehavior.mlControlNames.clear();
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::setMLControlName(std::uint16_t index, const char* name) {
+    ensureHasSize(dna.machineLearnedBehavior.mlControlNames, index + 1ul, memRes);
+    dna.machineLearnedBehavior.mlControlNames[index] = name;
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::clearNeuralNetworks() {
+    dna.machineLearnedBehavior.neuralNetworks.clear();
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::clearNeuralNetworkIndices() {
+    dna.machineLearnedBehavior.lodNeuralNetworkMapping.resetIndices();
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::setNeuralNetworkIndices(std::uint16_t index,
+                                                             const std::uint16_t* netIndices,
+                                                             std::uint16_t count) {
+    dna.machineLearnedBehavior.lodNeuralNetworkMapping.clearIndices(index);
+    dna.machineLearnedBehavior.lodNeuralNetworkMapping.addIndices(index, netIndices, count);
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::clearLODNeuralNetworkMappings() {
+    dna.machineLearnedBehavior.lodNeuralNetworkMapping.resetLODs();
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::setLODNeuralNetworkMapping(std::uint16_t lod, std::uint16_t index) {
+    dna.machineLearnedBehavior.lodNeuralNetworkMapping.associateLODWithIndices(lod, index);
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::clearMeshRegionNames() {
+    dna.machineLearnedBehavior.neuralNetworkToMeshRegion.regionNames.clear();
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::clearMeshRegionNames(std::uint16_t meshIndex) {
+    if (meshIndex < dna.machineLearnedBehavior.neuralNetworkToMeshRegion.regionNames.size()) {
+        dna.machineLearnedBehavior.neuralNetworkToMeshRegion.regionNames[meshIndex].clear();
+    }
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::setMeshRegionName(std::uint16_t meshIndex, std::uint16_t regionIndex, const char* name) {
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworkToMeshRegion.regionNames, meshIndex + 1ul, memRes);
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworkToMeshRegion.regionNames[meshIndex], regionIndex + 1ul, memRes);
+    dna.machineLearnedBehavior.neuralNetworkToMeshRegion.regionNames[meshIndex][regionIndex] = name;
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::clearNeuralNetworkIndicesPerMeshRegion() {
+    dna.machineLearnedBehavior.neuralNetworkToMeshRegion.indices.clear();
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::setNeuralNetworkIndicesForMeshRegion(std::uint16_t meshIndex,
+                                                                          std::uint16_t regionIndex,
+                                                                          const std::uint16_t* netIndices,
+                                                                          std::uint16_t count) {
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworkToMeshRegion.indices, meshIndex + 1ul, memRes);
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworkToMeshRegion.indices[meshIndex], regionIndex + 1ul, memRes);
+    auto& region = dna.machineLearnedBehavior.neuralNetworkToMeshRegion.indices[meshIndex][regionIndex];
+    region.assign(netIndices, netIndices + count);
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::deleteNeuralNetwork(std::uint16_t netIndex) {
+    if (netIndex < dna.machineLearnedBehavior.neuralNetworks.size()) {
+        auto it = extd::advanced(dna.machineLearnedBehavior.neuralNetworks.begin(), netIndex);
+        dna.machineLearnedBehavior.neuralNetworks.erase(it);
+    }
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::setNeuralNetworkInputIndices(std::uint16_t netIndex,
+                                                                  const std::uint16_t* inputIndices,
+                                                                  std::uint16_t count) {
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworks, netIndex + 1ul, memRes);
+    auto& neuralNet = dna.machineLearnedBehavior.neuralNetworks[netIndex];
+    neuralNet.inputIndices.assign(inputIndices, inputIndices + count);
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::setNeuralNetworkOutputIndices(std::uint16_t netIndex,
+                                                                   const std::uint16_t* outputIndices,
+                                                                   std::uint16_t count) {
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworks, netIndex + 1ul, memRes);
+    auto& neuralNet = dna.machineLearnedBehavior.neuralNetworks[netIndex];
+    neuralNet.outputIndices.assign(outputIndices, outputIndices + count);
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::clearNeuralNetworkLayers(std::uint16_t netIndex) {
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworks, netIndex + 1ul, memRes);
+    dna.machineLearnedBehavior.neuralNetworks[netIndex].layers.clear();
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::setNeuralNetworkLayerActivationFunction(std::uint16_t netIndex,
+                                                                             std::uint16_t layerIndex,
+                                                                             ActivationFunction function) {
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworks, netIndex + 1ul, memRes);
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworks[netIndex].layers, layerIndex + 1ul, memRes);
+    auto& layer = dna.machineLearnedBehavior.neuralNetworks[netIndex].layers[layerIndex];
+    layer.activationFunction.functionId = static_cast<std::uint16_t>(function);
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::setNeuralNetworkLayerActivationFunctionParameters(std::uint16_t netIndex,
+                                                                                       std::uint16_t layerIndex,
+                                                                                       const float* activationFunctionParameters,
+                                                                                       std::uint16_t count) {
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworks, netIndex + 1ul, memRes);
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworks[netIndex].layers, layerIndex + 1ul, memRes);
+    auto& layer = dna.machineLearnedBehavior.neuralNetworks[netIndex].layers[layerIndex];
+    layer.activationFunction.parameters.assign(activationFunctionParameters, activationFunctionParameters + count);
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::setNeuralNetworkLayerBiases(std::uint16_t netIndex,
+                                                                 std::uint16_t layerIndex,
+                                                                 const float* biases,
+                                                                 std::uint32_t count) {
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworks, netIndex + 1ul, memRes);
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworks[netIndex].layers, layerIndex + 1ul, memRes);
+    auto& layer = dna.machineLearnedBehavior.neuralNetworks[netIndex].layers[layerIndex];
+    layer.biases.assign(biases, biases + count);
+}
+
+template<class TWriterBase>
+inline void WriterImpl<TWriterBase>::setNeuralNetworkLayerWeights(std::uint16_t netIndex,
+                                                                  std::uint16_t layerIndex,
+                                                                  const float* weights,
+                                                                  std::uint32_t count) {
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworks, netIndex + 1ul, memRes);
+    ensureHasSize(dna.machineLearnedBehavior.neuralNetworks[netIndex].layers, layerIndex + 1ul, memRes);
+    auto& layer = dna.machineLearnedBehavior.neuralNetworks[netIndex].layers[layerIndex];
+    layer.weights.assign(weights, weights + count);
 }
 
 #ifdef _MSC_VER

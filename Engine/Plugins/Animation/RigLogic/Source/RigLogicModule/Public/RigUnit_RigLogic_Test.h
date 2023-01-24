@@ -17,15 +17,25 @@ struct FRigUnit_RigLogic_JointUpdateParams;
 
 //** A unit test-only helper class to prevent FString from being deleted as it is converted from FString*//
 
-class TestBehaviorReader: public IBehaviorReader
+class TestBehaviorReader: public IDNAReader
 {
 public:
 	void Unload(EDNADataLayer Layer) override
 	{
-
 	}
 
-	// DescriptorReader methods start
+	// IHeaderReader methods
+	uint16 GetFileFormatGeneration() const
+	{
+		return {};
+	}
+
+	uint16 GetFileFormatVersion() const
+	{
+		return {};
+	}
+
+	// IDescriptorReader methods
 	FString GetName() const override
 	{
 		return {};
@@ -96,7 +106,7 @@ public:
 		return {};
 	}
 
-	// DefinitionReader methods start
+	// IDefinitionReader methods
 	uint16 GetGUIControlCount() const override
 	{
 		return {};
@@ -262,7 +272,7 @@ public:
 		return {};
 	}
 
-	// BehaviorReader methods start
+	// IBehaviorReader methods
 	TArrayView<const uint16> GetGUIToRawInputIndices() const override
 	{
 		return {};
@@ -404,6 +414,208 @@ public:
 	}
 
 	TArrayView<const float> GetAnimatedMapCutValues() const override
+	{
+		return {};
+	}
+
+	// IGeometryReader methods
+	uint32 GetVertexPositionCount(uint16 MeshIndex) const
+	{
+		return {};
+	}
+
+	FVector GetVertexPosition(uint16 MeshIndex, uint32 PositionIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const float> GetVertexPositionXs(uint16 MeshIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const float> GetVertexPositionYs(uint16 MeshIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const float> GetVertexPositionZs(uint16 MeshIndex) const
+	{
+		return {};
+	}
+
+	uint32 GetVertexTextureCoordinateCount(uint16 MeshIndex) const
+	{
+		return {};
+	}
+
+	FTextureCoordinate GetVertexTextureCoordinate(uint16 MeshIndex, uint32 TextureCoordinateIndex) const
+	{
+		return {};
+	}
+
+	uint32 GetVertexNormalCount(uint16 MeshIndex) const
+	{
+		return {};
+	}
+
+	FVector GetVertexNormal(uint16 MeshIndex, uint32 NormalIndex) const
+	{
+		return {};
+	}
+
+	uint32 GetVertexLayoutCount(uint16 MeshIndex) const
+	{
+		return {};
+	}
+
+	FVertexLayout GetVertexLayout(uint16 MeshIndex, uint32 VertexIndex) const
+	{
+		return {};
+	}
+
+	uint32 GetFaceCount(uint16 MeshIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const uint32> GetFaceVertexLayoutIndices(uint16 MeshIndex, uint32 FaceIndex) const
+	{
+		return {};
+	}
+
+	uint16 GetMaximumInfluencePerVertex(uint16 MeshIndex) const
+	{
+		return {};
+	}
+
+	uint32 GetSkinWeightsCount(uint16 MeshIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const float> GetSkinWeightsValues(uint16 MeshIndex, uint32 VertexIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const uint16> GetSkinWeightsJointIndices(uint16 MeshIndex, uint32 VertexIndex) const
+	{
+		return {};
+	}
+
+	uint16 GetBlendShapeTargetCount(uint16 MeshIndex) const
+	{
+		return {};
+	}
+
+	uint16 GetBlendShapeChannelIndex(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const
+	{
+		return {};
+	}
+
+	uint32 GetBlendShapeTargetDeltaCount(uint16 MeshIndex, uint16 BlendShapeIndex) const
+	{
+		return {};
+	}
+
+	FVector GetBlendShapeTargetDelta(uint16 MeshIndex, uint16 BlendShapeIndex, uint32 DeltaIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const float> GetBlendShapeTargetDeltaXs(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const float> GetBlendShapeTargetDeltaYs(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const float> GetBlendShapeTargetDeltaZs(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const uint32> GetBlendShapeTargetVertexIndices(uint16 MeshIndex, uint16 BlendShapeIndex) const
+	{
+		return {};
+	}
+
+	// IMachineLearnedBehaviorReader methods
+	uint16 GetMLControlCount() const
+	{
+		return {};
+	}
+
+	FString GetMLControlName(uint16 Index) const
+	{
+		return {};
+	}
+
+	uint16 GetNeuralNetworkCount() const
+	{
+		return {};
+	}
+
+	uint16 GetNeuralNetworkIndexListCount() const
+	{
+		return {};
+	}
+
+	TArrayView<const uint16> GetNeuralNetworkIndicesForLOD(uint16 LOD) const
+	{
+		return {};
+	}
+
+	uint16 GetMeshRegionCount(uint16 MeshIndex) const
+	{
+		return {};
+	}
+
+	FString GetMeshRegionName(uint16 MeshIndex, uint16 RegionIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const uint16> GetNeuralNetworkIndicesForMeshRegion(uint16 MeshIndex, uint16 RegionIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const uint16> GetNeuralNetworkInputIndices(uint16 NetIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const uint16> GetNeuralNetworkOutputIndices(uint16 NetIndex) const
+	{
+		return {};
+	}
+
+	uint16 GetNeuralNetworkLayerCount(uint16 NetIndex) const
+	{
+		return {};
+	}
+
+	EActivationFunction GetNeuralNetworkLayerActivationFunction(uint16 NetIndex, uint16 LayerIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const float> GetNeuralNetworkLayerActivationFunctionParameters(uint16 NetIndex, uint16 LayerIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const float> GetNeuralNetworkLayerBiases(uint16 NetIndex, uint16 LayerIndex) const
+	{
+		return {};
+	}
+
+	TArrayView<const float> GetNeuralNetworkLayerWeights(uint16 NetIndex, uint16 LayerIndex) const
 	{
 		return {};
 	}

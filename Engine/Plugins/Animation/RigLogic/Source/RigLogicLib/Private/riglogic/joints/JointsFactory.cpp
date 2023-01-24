@@ -2,14 +2,13 @@
 
 #include "riglogic/joints/JointsFactory.h"
 
+#include "riglogic/TypeDefs.h"
 #include "riglogic/joints/JointsBuilder.h"
 #include "riglogic/joints/JointsEvaluator.h"
+#include "riglogic/joints/JointsNullEvaluator.h"
 #include "riglogic/riglogic/Configuration.h"
+#include "riglogic/riglogic/RigMetrics.h"
 #include "riglogic/transformation/Transformation.h"
-#include "riglogic/types/Aliases.h"
-
-#include <dna/layers/BehaviorReader.h>
-#include <pma/utils/ManagedInstance.h>
 
 #ifdef _MSC_VER
     #pragma warning(push)
@@ -68,26 +67,35 @@ static Matrix<std::uint16_t> copyVariableAttributeIndices(const dna::BehaviorRea
     return variableAttributeIndices;
 }
 
-JointsFactory::JointsPtr JointsFactory::create(const Configuration& config,
-                                               const dna::BehaviorReader* reader,
-                                               MemoryResource* memRes) {
+Joints::Pointer JointsFactory::create(const Configuration& config, const dna::BehaviorReader* reader, MemoryResource* memRes) {
+    if (!config.loadJoints) {
+        auto evaluator = UniqueInstance<JointsNullEvaluator, JointsEvaluator>::with(memRes).create();
+        return UniqueInstance<Joints>::with(memRes).create(std::move(evaluator), memRes);
+    }
+
     auto neutralValues = copyNeutralValues(reader, memRes);
     auto variableAttributeIndices = copyVariableAttributeIndices(reader, memRes);
     auto builder = JointsBuilder::create(config, memRes);
+    builder->computeStorageRequirements(reader);
     builder->allocateStorage(reader);
     builder->fillStorage(reader);
     auto evaluator = builder->build();
-    return pma::UniqueInstance<Joints>::with(memRes).create(std::move(evaluator),
-                                                            std::move(neutralValues),
-                                                            std::move(variableAttributeIndices),
-                                                            reader->getJointGroupCount());
+    return UniqueInstance<Joints>::with(memRes).create(std::move(evaluator),
+                                                       std::move(neutralValues),
+                                                       std::move(variableAttributeIndices),
+                                                       reader->getJointGroupCount());
 }
 
-JointsFactory::JointsPtr JointsFactory::create(const Configuration& config, const RigMetrics&  /*unused*/,
-                                               MemoryResource* memRes) {
+Joints::Pointer JointsFactory::create(const Configuration& config, const RigMetrics& metrics, MemoryResource* memRes) {
+    if (!config.loadJoints) {
+        auto evaluator = UniqueInstance<JointsNullEvaluator, JointsEvaluator>::with(memRes).create();
+        return UniqueInstance<Joints>::with(memRes).create(std::move(evaluator), memRes);
+    }
+
     auto builder = JointsBuilder::create(config, memRes);
+    builder->computeStorageRequirements(metrics);
     auto evaluator = builder->build();
-    return pma::UniqueInstance<Joints>::with(memRes).create(std::move(evaluator), memRes);
+    return UniqueInstance<Joints>::with(memRes).create(std::move(evaluator), memRes);
 }
 
 }  // namespace rl4

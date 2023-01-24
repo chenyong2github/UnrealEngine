@@ -2,24 +2,18 @@
 
 #pragma once
 
+#include "riglogic/TypeDefs.h"
 #include "riglogic/controls/Controls.h"
-
-#include <pma/utils/ManagedInstance.h>
-
-namespace dna {
-
-class BehaviorReader;
-
-}  // namespace dna
 
 namespace rl4 {
 
-struct ControlsFactory {
-    using ManagedControls = pma::UniqueInstance<Controls>;
-    using ControlsPtr = typename ManagedControls::PointerType;
+struct Configuration;
+struct RigMetrics;
 
-    static ControlsPtr create(MemoryResource* memRes);
-    static ControlsPtr create(const dna::BehaviorReader* reader, MemoryResource* memRes);
+struct ControlsFactory {
+    static Controls::Pointer create(const Configuration& config, const dna::Reader* reader, MemoryResource* memRes);
+    static Controls::Pointer create(const Configuration& config, const RigMetrics& metrics, MemoryResource* memRes);
+
 };
 
 }  // namespace rl4

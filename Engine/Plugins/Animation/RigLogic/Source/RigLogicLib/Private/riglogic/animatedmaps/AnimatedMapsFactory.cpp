@@ -2,21 +2,47 @@
 
 #include "riglogic/animatedmaps/AnimatedMapsFactory.h"
 
+#include "riglogic/TypeDefs.h"
+#include "riglogic/animatedmaps/AnimatedMapsImpl.h"
+#include "riglogic/animatedmaps/AnimatedMapsImplOutputInstance.h"
+#include "riglogic/animatedmaps/AnimatedMapsNull.h"
+#include "riglogic/animatedmaps/AnimatedMapsOutputInstance.h"
 #include "riglogic/conditionaltable/ConditionalTable.h"
+#include "riglogic/riglogic/Configuration.h"
+#include "riglogic/riglogic/RigMetrics.h"
 #include "riglogic/utils/Extd.h"
 
-#include <dna/layers/BehaviorReader.h>
-
 #include <cstddef>
+#include <cstdint>
 
 namespace rl4 {
 
-AnimatedMapsFactory::AnimatedMapsPtr AnimatedMapsFactory::create(MemoryResource* memRes) {
-    return ManagedAnimatedMaps::with(memRes).create(Vector<std::uint16_t>{memRes},
-                                                    ConditionalTable{memRes});
+static AnimatedMapsOutputInstance::Factory createAnimatedMapsOutputInstanceFactory(const Configuration&  /*unused*/,
+                                                                                   std::uint16_t animatedMapCount) {
+    return [ = ](MemoryResource* memRes) {
+               return UniqueInstance<AnimatedMapsImplOutputInstance, AnimatedMapsOutputInstance>::with(memRes).create(
+                   animatedMapCount,
+                   memRes);
+    };
 }
 
-AnimatedMapsFactory::AnimatedMapsPtr AnimatedMapsFactory::create(const dna::BehaviorReader* reader, MemoryResource* memRes) {
+AnimatedMaps::Pointer AnimatedMapsFactory::create(const Configuration& config, const RigMetrics& metrics,
+                                                  MemoryResource* memRes) {
+    if (!config.loadAnimatedMaps) {
+        return UniqueInstance<AnimatedMapsNull, AnimatedMaps>::with(memRes).create();
+    }
+    auto instanceFactory = createAnimatedMapsOutputInstanceFactory(config, metrics.animatedMapCount);
+    auto moduleFactory = UniqueInstance<AnimatedMapsImpl, AnimatedMaps>::with(memRes);
+    return moduleFactory.create(Vector<std::uint16_t>{memRes}, ConditionalTable{memRes}, instanceFactory);
+}
+
+AnimatedMaps::Pointer AnimatedMapsFactory::create(const Configuration& config,
+                                                  const dna::BehaviorReader* reader,
+                                                  MemoryResource* memRes) {
+    if (!config.loadAnimatedMaps) {
+        return UniqueInstance<AnimatedMapsNull, AnimatedMaps>::with(memRes).create();
+    }
+
     Vector<std::uint16_t> lods{memRes};
     Vector<std::uint16_t> inputIndices{memRes};
     Vector<std::uint16_t> outputIndices{memRes};
@@ -52,7 +78,10 @@ AnimatedMapsFactory::AnimatedMapsPtr AnimatedMapsFactory::create(const dna::Beha
                                   inputCount,
                                   outputCount,
                                   memRes};
-    return ManagedAnimatedMaps::with(memRes).create(std::move(lods), std::move(conditionals));
+
+    auto instanceFactory = createAnimatedMapsOutputInstanceFactory(config, outputCount);
+    auto moduleFactory = UniqueInstance<AnimatedMapsImpl, AnimatedMaps>::with(memRes);
+    return moduleFactory.create(std::move(lods), std::move(conditionals), instanceFactory);
 }
 
 }  // namespace rl4

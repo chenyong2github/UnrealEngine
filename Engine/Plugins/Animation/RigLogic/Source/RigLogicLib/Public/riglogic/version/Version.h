@@ -2,7 +2,7 @@
 
 #pragma once
 
-#define RL_MAJOR_VERSION 8
+#define RL_MAJOR_VERSION 9
 #define RL_MINOR_VERSION 1
-#define RL_PATCH_VERSION 0
-#define RL_VERSION_STRING "8.1.0"
+#define RL_PATCH_VERSION 1
+#define RL_VERSION_STRING "9.1.1"

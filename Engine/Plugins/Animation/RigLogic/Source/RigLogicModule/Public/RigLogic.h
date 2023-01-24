@@ -12,7 +12,7 @@
 #include "TransformArrayView.h"
 
 class FRigInstance;
-class IBehaviorReader;
+class IDNAReader;
 
 namespace rl4
 {
@@ -32,7 +32,7 @@ enum class ERigLogicCalculationType: uint8
 class RIGLOGICMODULE_API FRigLogic
 {
 public:
-	FRigLogic(const IBehaviorReader* Reader, ERigLogicCalculationType CalculationType = ERigLogicCalculationType::SSE);
+	FRigLogic(const IDNAReader* Reader, ERigLogicCalculationType CalculationType = ERigLogicCalculationType::SSE);
 	~FRigLogic();
 
 	FRigLogic(const FRigLogic&) = delete;
@@ -44,10 +44,18 @@ public:
 	uint16 GetLODCount() const;
 	TArrayView<const float> GetRawNeutralJointValues() const;
 	FTransformArrayView GetNeutralJointValues() const;
-	uint16 GetJointGroupCount() const;
 	TArrayView<const uint16> GetJointVariableAttributeIndices(uint16 LOD) const;
+	uint16 GetJointGroupCount() const;
+	uint16 GetNeuralNetworkCount() const;
+	uint16 GetMeshCount() const;
+	uint16 GetMeshRegionCount(uint16 MeshIndex) const;
+	TArrayView<const uint16> GetNeuralNetworkIndices(uint16 MeshIndex, uint16 RegionIndex) const;
+
 	void MapGUIToRawControls(FRigInstance* Instance) const;
+	void MapRawToGUIControls(FRigInstance* Instance) const;
 	void CalculateControls(FRigInstance* Instance) const;
+	void CalculateMachineLearnedBehaviorControls(FRigInstance* Instance) const;
+	void CalculateMachineLearnedBehaviorControls(FRigInstance* Instance, uint16 NeuralNetIndex) const;
 	void CalculateJoints(FRigInstance* Instance) const;
 	void CalculateJoints(FRigInstance* Instance, uint16 JointGroupIndex) const;
 	void CalculateBlendShapes(FRigInstance* Instance) const;

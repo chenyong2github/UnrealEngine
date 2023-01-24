@@ -5,8 +5,6 @@
 #include "riglogic/TypeDefs.h"
 #include "riglogic/conditionaltable/ConditionalTable.h"
 
-#include <pma/MemoryResource.h>
-
 #ifdef _MSC_VER
     #pragma warning(push)
     #pragma warning(disable : 4365 4987)
@@ -32,5 +30,6 @@ struct ConditionalTableFactory {
                                                 rl4::MemoryResource* memRes);
     static rl4::ConditionalTable withSingleIODefaults(rl4::MemoryResource* memRes);
     static rl4::ConditionalTable withMultipleIODefaults(rl4::MemoryResource* memRes);
+    static rl4::ConditionalTable withInterleavedIO(rl4::MemoryResource* memRes);
 
 };

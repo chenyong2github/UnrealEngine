@@ -6,6 +6,7 @@
 #include "dna/Defs.h"
 #include "dna/layers/BehaviorWriter.h"
 #include "dna/layers/GeometryWriter.h"
+#include "dna/layers/MachineLearnedBehaviorWriter.h"
 #include "dna/types/Aliases.h"
 
 namespace dna {
@@ -20,7 +21,7 @@ class Reader;
         structure of the Reader hierarchy, as it's not possible to selectively write only
         specific layers.
 */
-class DNAAPI Writer : public BehaviorWriter, public GeometryWriter {
+class DNAAPI Writer : public BehaviorWriter, public GeometryWriter, public MachineLearnedBehaviorWriter {
     public:
         ~Writer() override;
         /**
@@ -35,10 +36,15 @@ class DNAAPI Writer : public BehaviorWriter, public GeometryWriter {
                 The source DNA Reader from which the data needs to be copied.
             @param layer
                 Limit which layers should be taken over from the given source reader.
+            @param policy
+                Specify whether unknown layers are to be preserved or just ignored.
             @param memRes
                 Optional memory resource to use for temporary allocations during copying.
         */
-        void setFrom(const Reader* source, DataLayer layer = DataLayer::All, MemoryResource* memRes = nullptr);
+        virtual void setFrom(const Reader* source,
+                             DataLayer layer = DataLayer::All,
+                             UnknownLayerPolicy policy = UnknownLayerPolicy::Preserve,
+                             MemoryResource* memRes = nullptr);
 };
 
 }  // namespace dna

@@ -24,41 +24,35 @@ class DNAAPI BehaviorReader : public virtual DefinitionReader {
         /**
             @brief Input indices used for mapping gui to raw controls.
             @return View over the array of input indices.
-            @see Controls
         */
         virtual ConstArrayView<std::uint16_t> getGUIToRawInputIndices() const = 0;
         /**
             @brief Output indices used for mapping gui to raw controls.
             @return View over the array of output indices.
-            @see Controls
         */
         virtual ConstArrayView<std::uint16_t> getGUIToRawOutputIndices() const = 0;
         /**
             @brief Filter values(lower-bounds) used to decide whether a particular
                 entry should be evaluated or not during gui to raw control mapping.
             @return View over the array of filter values.
-            @see Controls
         */
         virtual ConstArrayView<float> getGUIToRawFromValues() const = 0;
         /**
             @brief Filter values(upper-bounds) used to decide whether a particular
                 entry should be evaluated or not during gui to raw control mapping.
             @return View over the array of filter values.
-            @see Controls
         */
         virtual ConstArrayView<float> getGUIToRawToValues() const = 0;
         /**
             @brief Computational values(slope/gradient) used for calculating the
                 output value during gui to raw control mapping.
             @return View over the array of computational values.
-            @see Controls
         */
         virtual ConstArrayView<float> getGUIToRawSlopeValues() const = 0;
         /**
             @brief Computational values(vertical intercept) used for calculating the
                 output value during gui to raw control mapping.
             @return View over the array of computational values.
-            @see Controls
         */
         virtual ConstArrayView<float> getGUIToRawCutValues() const = 0;
         /**
@@ -68,19 +62,16 @@ class DNAAPI BehaviorReader : public virtual DefinitionReader {
         /**
             @brief PSD(input) indices.
             @return View over the array of PSD indices.
-            @see Controls
         */
         virtual ConstArrayView<std::uint16_t> getPSDRowIndices() const = 0;
         /**
             @brief Control(input) indices.
             @return View over the array of control indices.
-            @see Controls
         */
         virtual ConstArrayView<std::uint16_t> getPSDColumnIndices() const = 0;
         /**
             @brief Weights associated with each PSD row and column pair.
             @return View over the array of weights.
-            @see Controls
         */
         virtual ConstArrayView<float> getPSDValues() const = 0;
         /**

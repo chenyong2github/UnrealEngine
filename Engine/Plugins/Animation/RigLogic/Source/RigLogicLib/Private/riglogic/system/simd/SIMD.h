@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "riglogic/system/simd/Detect.h"
+
 #if defined(RL_USE_HALF_FLOATS) && !defined(TRIMD_ENABLE_F16C)
     #define TRIMD_ENABLE_F16C
 #endif  // RL_USE_HALF_FLOATS

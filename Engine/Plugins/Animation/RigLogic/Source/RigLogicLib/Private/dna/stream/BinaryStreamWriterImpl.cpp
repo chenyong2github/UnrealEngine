@@ -3,12 +3,21 @@
 #include "dna/stream/BinaryStreamWriterImpl.h"
 
 #include "dna/TypeDefs.h"
+#include "dna/stream/BinaryStreamReaderImpl.h"
+#include "dna/stream/JSONStreamReaderImpl.h"
 
+#ifdef _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable : 4365 4987)
+#endif
 #include <cassert>
 #include <cstddef>
 #include <cstring>
 #include <tuple>
 #include <utility>
+#ifdef _MSC_VER
+    #pragma warning(pop)
+#endif
 
 namespace dna {
 
@@ -27,7 +36,7 @@ void BinaryStreamWriter::destroy(BinaryStreamWriter* instance) {
 }
 
 BinaryStreamWriterImpl::BinaryStreamWriterImpl(BoundedIOStream* stream_, MemoryResource* memRes_) :
-    BaseImpl{memRes_},
+    BaseImpl{UnknownLayerPolicy::Preserve, UpgradeFormatPolicy::Allowed, memRes_},
     WriterImpl{memRes_},
     stream{stream_},
     archive{stream_} {
@@ -38,6 +47,22 @@ void BinaryStreamWriterImpl::write() {
     archive << dna;
     archive.sync();
     stream->close();
+}
+
+void BinaryStreamWriterImpl::setFrom(const BinaryStreamReader* source,
+                                     DataLayer layer,
+                                     UnknownLayerPolicy policy,
+                                     MemoryResource* memRes_) {
+    auto reader = const_cast<BinaryStreamReaderImpl*>(static_cast<const BinaryStreamReaderImpl*>(source));
+    reader->rawCopyInto(dna, layer, policy, memRes_);
+}
+
+void BinaryStreamWriterImpl::setFrom(const JSONStreamReader* source,
+                                     DataLayer layer,
+                                     UnknownLayerPolicy policy,
+                                     MemoryResource* memRes_) {
+    auto reader = const_cast<JSONStreamReaderImpl*>(static_cast<const JSONStreamReaderImpl*>(source));
+    reader->rawCopyInto(dna, layer, policy, memRes_);
 }
 
 }  // namespace dna

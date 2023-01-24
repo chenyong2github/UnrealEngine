@@ -2,7 +2,7 @@
 
 #pragma once
 
-#define DNA_MAJOR_VERSION 7
+#define DNA_MAJOR_VERSION 9
 #define DNA_MINOR_VERSION 1
-#define DNA_PATCH_VERSION 0
-#define DNA_VERSION_STRING "7.1.0"
+#define DNA_PATCH_VERSION 1
+#define DNA_VERSION_STRING "9.1.1"

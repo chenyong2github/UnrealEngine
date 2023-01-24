@@ -40,7 +40,7 @@ void JSONStreamReader::destroy(JSONStreamReader* instance) {
 }
 
 JSONStreamReaderImpl::JSONStreamReaderImpl(BoundedIOStream* stream_, MemoryResource* memRes_) :
-    BaseImpl{memRes_},
+    BaseImpl{UnknownLayerPolicy::Preserve, UpgradeFormatPolicy::Disallowed, memRes_},
     ReaderImpl{memRes_},
     stream{stream_},
     archive{stream_} {
@@ -48,14 +48,16 @@ JSONStreamReaderImpl::JSONStreamReaderImpl(BoundedIOStream* stream_, MemoryResou
 
 void JSONStreamReaderImpl::unload(DataLayer layer) {
     if ((layer == DataLayer::All) ||
-        (layer == DataLayer::AllWithoutBlendShapes) ||
         (layer == DataLayer::Descriptor)) {
-        dna = DNA{memRes};
+        dna = DNA{dna.layers.unknownPolicy, dna.layers.upgradePolicy, memRes};
+    } else if (layer == DataLayer::MachineLearnedBehavior) {
+        dna.unloadMachineLearnedBehavior();
     } else if ((layer == DataLayer::Geometry) || (layer == DataLayer::GeometryWithoutBlendShapes)) {
         dna.unloadGeometry();
     } else if (layer == DataLayer::Behavior) {
         dna.unloadBehavior();
     } else if (layer == DataLayer::Definition) {
+        dna.unloadMachineLearnedBehavior();
         dna.unloadGeometry();
         dna.unloadBehavior();
         dna.unloadDefinition();
@@ -77,16 +79,17 @@ void JSONStreamReaderImpl::read() {
         return;
     }
 
+    if (!archive.isOk()) {
+        status.set(InvalidDataError);
+        return;
+    }
+
     if (!dna.signature.matches()) {
         status.set(SignatureMismatchError, dna.signature.value.expected.data(), dna.signature.value.got.data());
         return;
     }
-    if (!dna.version.matches()) {
-        status.set(VersionMismatchError,
-                   dna.version.generation.expected,
-                   dna.version.version.expected,
-                   dna.version.generation.got,
-                   dna.version.version.got);
+    if (!dna.version.supported()) {
+        status.set(VersionMismatchError, dna.version.generation, dna.version.version);
         return;
     }
 }

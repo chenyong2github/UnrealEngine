@@ -4,6 +4,7 @@
 
 #include "dna/Defs.h"
 #include "dna/layers/Descriptor.h"
+#include "dna/layers/HeaderReader.h"
 #include "dna/types/Aliases.h"
 
 #include <cstdint>
@@ -14,11 +15,9 @@ namespace dna {
     @brief Read-only accessors for various metadata about the character and the rig.
     @warning
         Implementors should inherit from Reader itself and not this class.
-    @note
-        The inherited LODExtentReader provides the interface to access the LOD count.
     @see Reader
 */
-class DNAAPI DescriptorReader {
+class DNAAPI DescriptorReader : public HeaderReader {
     protected:
         virtual ~DescriptorReader();
 

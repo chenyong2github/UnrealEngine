@@ -33,12 +33,29 @@ public:
 	FRigInstance& operator=(FRigInstance&&) = default;
 
 	uint16 GetGUIControlCount() const;
+	float GetGUIControl(uint16 Index) const;
 	void SetGUIControl(uint16 Index, float Value);
+	TArrayView<const float> GetGUIControlValues() const;
 	void SetGUIControlValues(const float* Values);
 
 	uint16 GetRawControlCount() const;
+	float GetRawControl(uint16 Index) const;
 	void SetRawControl(uint16 Index, float Value);
+	TArrayView<const float> GetRawControlValues() const;
 	void SetRawControlValues(const float* Values);
+
+	uint16 GetPSDControlCount() const;
+	float GetPSDControl(uint16 Index) const;
+	TArrayView<const float> GetPSDControlValues() const;
+
+	uint16 GetMLControlCount() const;
+	float GetMLControl(uint16 Index) const;
+	TArrayView<const float> GetMLControlValues() const;
+
+	uint16 GetNeuralNetworkCount() const;
+	float GetNeuralNetworkMask(uint16 NeuralNetIndex) const;
+	void SetNeuralNetworkMask(uint16 NeuralNetIndex, float Value);
+
 	TArrayView<const float> GetRawJointOutputs() const;
 	FTransformArrayView GetJointOutputs() const;
 	TArrayView<const float> GetBlendShapeOutputs() const;

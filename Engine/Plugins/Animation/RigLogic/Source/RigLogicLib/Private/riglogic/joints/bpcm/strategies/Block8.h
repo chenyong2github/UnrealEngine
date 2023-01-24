@@ -3,9 +3,9 @@
 #pragma once
 
 #include "riglogic/joints/bpcm/Consts.h"
-#include "riglogic/joints/bpcm/JointCalculationStrategy.h"
+#include "riglogic/joints/bpcm/CalculationStrategy.h"
 #include "riglogic/joints/bpcm/JointGroup.h"
-#include "riglogic/joints/bpcm/JointStorageView.h"
+#include "riglogic/joints/bpcm/StorageView.h"
 #include "riglogic/joints/bpcm/LODRegion.h"
 #include "riglogic/utils/Macros.h"
 

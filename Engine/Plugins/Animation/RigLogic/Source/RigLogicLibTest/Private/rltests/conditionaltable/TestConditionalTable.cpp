@@ -3,19 +3,20 @@
 #include "rltests/Defs.h"
 #include "rltests/conditionaltable/ConditionalTableFixtures.h"
 
+#include "riglogic/TypeDefs.h"
 #include "riglogic/conditionaltable/ConditionalTable.h"
-
-#include <pma/resources/AlignedMemoryResource.h>
 
 namespace {
 
-struct CalcTestData {
-    float fromValues[2];
-    float toValues[2];
-    float cutValues[2];
-    float inValues[1];
-    float expected[1];
+template<std::size_t EntryCount, std::size_t InputCount, std::size_t OutputCount>
+struct TCalcTestData {
+    float fromValues[EntryCount];
+    float toValues[EntryCount];
+    float cutValues[EntryCount];
+    float inValues[InputCount];
+    float expected[OutputCount];
 };
+using CalcTestData = TCalcTestData<2, 1, 1>;
 
 class ConditionalTableTest : public ::testing::TestWithParam<CalcTestData> {
 };
@@ -33,7 +34,7 @@ TEST_P(ConditionalTableTest, CheckCalculationBorderCases) {
         &amr
         );
     float outputs[] = {0.0f};
-    conditionals.calculate(testData.inValues, outputs);
+    conditionals.calculateForward(testData.inValues, outputs);
     ASSERT_ELEMENTS_NEAR(outputs, testData.expected, 1, 0.00001f);
 }
 
@@ -77,7 +78,7 @@ TEST(ConditionalTableTest, OutputClamped) {
                                        inputCount,
                                        outputCount,
                                        &amr};
-    conditionals.calculate(conditionalTableInputs.data(), outputs);
+    conditionals.calculateForward(conditionalTableInputs.data(), outputs);
     const float expected[] = {1.0f};
     ASSERT_ELEMENTS_EQ(outputs, expected, 1ul);
 }
@@ -102,7 +103,7 @@ TEST(ConditionalTableTest, OutputIsAccumulated) {
                                        inputCount,
                                        outputCount,
                                        &amr};
-    conditionals.calculate(conditionalTableInputs.data(), outputs);
+    conditionals.calculateForward(conditionalTableInputs.data(), outputs);
     const float expected[] = {0.9f};
     ASSERT_ELEMENTS_NEAR(outputs, expected, 1ul, 0.00001f);
 }
@@ -114,9 +115,98 @@ TEST(ConditionalTableTest, OutputIsResetOnEachCalculation) {
     float outputs[1ul] = {};
     const float expected[] = {0.2f};
 
-    conditionals.calculate(conditionalTableInputs.data(), outputs);
+    conditionals.calculateForward(conditionalTableInputs.data(), outputs);
     ASSERT_ELEMENTS_NEAR(outputs, expected, 1ul, 0.00001f);
 
-    conditionals.calculate(conditionalTableInputs.data(), outputs);
+    conditionals.calculateForward(conditionalTableInputs.data(), outputs);
     ASSERT_ELEMENTS_NEAR(outputs, expected, 1ul, 0.00001f);
 }
+
+namespace {
+
+template<std::size_t InputCount, std::size_t OutputCount>
+struct TIOTestData {
+
+    static constexpr std::size_t inputCount() {
+        return InputCount;
+    }
+
+    static constexpr std::size_t outputCount() {
+        return OutputCount;
+    }
+
+    float inputs[InputCount];
+    float outputs[OutputCount];
+    float reverseOutputs[InputCount];
+};
+using IOTestData = TIOTestData<9, 17>;
+
+class IRLConditionalTableTest : public ::testing::TestWithParam<IOTestData> {
+};
+
+}  // namespace
+
+TEST_P(IRLConditionalTableTest, InterleavedInputsAndOutputs) {
+    pma::AlignedMemoryResource amr;
+    auto conditionals = ConditionalTableFactory::withInterleavedIO(&amr);
+
+    auto testData = GetParam();
+    std::vector<float> inputs{testData.inputs, testData.inputs + testData.inputCount()};
+    float outputs[testData.outputCount()] = {};
+
+    conditionals.calculateForward(inputs.data(), outputs);
+    ASSERT_ELEMENTS_NEAR(outputs, testData.outputs, testData.outputCount(), 0.00001f);
+
+    conditionals.calculateReverse(inputs.data(), outputs);
+    ASSERT_ELEMENTS_NEAR(inputs, testData.reverseOutputs, testData.inputCount(), 0.00001f);
+}
+
+INSTANTIATE_TEST_SUITE_P(IRLConditionalTableTest,
+                         IRLConditionalTableTest,
+                         ::testing::Values(
+                             IOTestData{
+    {-1.0f, -1.0f, -1.5f, -1.5f, -1.5f, -1.5f, -1.5f, -1.5f, -0.5f},
+    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}
+},
+                             IOTestData{
+    {0.0f, 0.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 0.0f},
+    {0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+    {0.0f, 0.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 0.0f}
+},
+                             IOTestData{
+    {0.5f, 0.5f, -0.5f, -0.5f, -0.5f, -0.5f, -0.5f, -0.5f, 0.15f},
+    {0.5f, 0.5f, 0.0f, 0.0f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.454545f, 0.0f, 0.0f},
+    {0.5f, 0.5f, -0.5f, -0.5f, -0.5f, -0.5f, -0.5f, -0.5f, 0.15f}
+},
+                             IOTestData{
+    {1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.33f},
+    {1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.999999f, 0.0f, 0.0f},
+    {1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.33f}
+},
+                             IOTestData{
+    {1.5f, 1.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f},
+    {0.0f, 0.0f, 0.5f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.5f, 0.5f, 0.5f, 0.48485f, 0.51515f, 0.0f},
+    {0.0f, 0.0f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f}
+},
+                             IOTestData{
+    {0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.66f},
+    {0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.000002f, 0.999998f, -0.0000012f},
+    {0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.66f}
+},
+                             IOTestData{
+    {0.0f, 0.0f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 0.75f},
+    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.735295f, 0.264705f},
+    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.75f}
+},
+                             IOTestData{
+    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f}
+},
+                             IOTestData{
+    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.5f},
+    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}
+}
+                             ));

@@ -33,6 +33,7 @@ using dna::BinaryStreamWriter;
 using dna::JSONStreamReader;
 using dna::JSONStreamWriter;
 using dna::StringView;
+using dna::UnknownLayerPolicy;
 using dna::Vector3;
 
 template<typename T>

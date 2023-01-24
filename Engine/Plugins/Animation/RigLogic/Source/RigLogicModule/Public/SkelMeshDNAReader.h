@@ -20,6 +20,9 @@ class RIGLOGICMODULE_API FSkelMeshDNAReader: public IDNAReader
 public:
 	explicit FSkelMeshDNAReader(UDNAAsset* DNAAsset);
 
+	// Header
+	uint16 GetFileFormatGeneration() const override;
+	uint16 GetFileFormatVersion() const override;
 	// Descriptor
 	FString GetName() const override;
 	EArchetype GetArchetype() const override;
@@ -118,18 +121,35 @@ public:
 	TArrayView<const float> GetBlendShapeTargetDeltaYs(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const override;
 	TArrayView<const float> GetBlendShapeTargetDeltaZs(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const override;
 	TArrayView<const uint32> GetBlendShapeTargetVertexIndices(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const override;
+	// Machine Learned Behavior
+	uint16 GetMLControlCount() const override;
+	FString GetMLControlName(uint16 Index) const override;
+	uint16 GetNeuralNetworkCount() const override;
+	uint16 GetNeuralNetworkIndexListCount() const override;
+	TArrayView<const uint16> GetNeuralNetworkIndicesForLOD(uint16 LOD) const override;
+	uint16 GetMeshRegionCount(uint16 MeshIndex) const override;
+	FString GetMeshRegionName(uint16 MeshIndex, uint16 RegionIndex) const override;
+	TArrayView<const uint16> GetNeuralNetworkIndicesForMeshRegion(uint16 MeshIndex, uint16 RegionIndex) const override;
+	TArrayView<const uint16> GetNeuralNetworkInputIndices(uint16 NetIndex) const override;
+	TArrayView<const uint16> GetNeuralNetworkOutputIndices(uint16 NetIndex) const override;
+	uint16 GetNeuralNetworkLayerCount(uint16 NetIndex) const override;
+	EActivationFunction GetNeuralNetworkLayerActivationFunction(uint16 NetIndex, uint16 LayerIndex) const override;
+	TArrayView<const float> GetNeuralNetworkLayerActivationFunctionParameters(uint16 NetIndex, uint16 LayerIndex) const override;
+	TArrayView<const float> GetNeuralNetworkLayerBiases(uint16 NetIndex, uint16 LayerIndex) const override;
+	TArrayView<const float> GetNeuralNetworkLayerWeights(uint16 NetIndex, uint16 LayerIndex) const override;
+
 	void Unload(EDNADataLayer /*unused*/) override;
 
 private:
 	dna::Reader* Unwrap() const override;
 
 private:
-	/** Both BehaviorReader and DesignDataStreamReader are StreamReaders from DNAAsset 	   
+	/** Both BehaviorReader and GeometryReader are StreamReaders from DNAAsset
 	  * split out into run-time and in-editor parts from a full DNA that is either:
 	  * 1) imported manually into SkeletalMesh asset through ContentBrowser
 	  *	2) overwritten by GeneSplicer (GeneSplicerDNAReader) in a transient SkeletalMesh copy
 	  * They both just borrow DNAAsset's readers and are not owned by SkelMeshDNAReader
 	 **/
-	IBehaviorReader* BehaviorStreamReader = nullptr;
-	IGeometryReader* GeometryStreamReader = nullptr;
+	TSharedPtr<IDNAReader> BehaviorReader = nullptr;
+	TSharedPtr<IDNAReader> GeometryReader = nullptr;
 };

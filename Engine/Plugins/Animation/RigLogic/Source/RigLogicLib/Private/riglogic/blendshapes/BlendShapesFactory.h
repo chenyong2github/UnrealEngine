@@ -2,24 +2,17 @@
 
 #pragma once
 
+#include "riglogic/TypeDefs.h"
 #include "riglogic/blendshapes/BlendShapes.h"
-
-#include <pma/utils/ManagedInstance.h>
-
-namespace dna {
-
-class BehaviorReader;
-
-}  // namespace dna
 
 namespace rl4 {
 
-struct BlendShapesFactory {
-    using ManagedBlendShapes = pma::UniqueInstance<BlendShapes>;
-    using BlendShapesPtr = typename ManagedBlendShapes::PointerType;
+struct Configuration;
+struct RigMetrics;
 
-    static BlendShapesPtr create(MemoryResource* memRes);
-    static BlendShapesPtr create(const dna::BehaviorReader* reader, MemoryResource* memRes);
+struct BlendShapesFactory {
+    static BlendShapes::Pointer create(const Configuration& config, const dna::BehaviorReader* reader, MemoryResource* memRes);
+    static BlendShapes::Pointer create(const Configuration& config, const RigMetrics& metrics, MemoryResource* memRes);
 };
 
 }  // namespace rl4

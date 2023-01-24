@@ -19,7 +19,29 @@ class Reader;
 
 }  // namespace dna
 
-class IDescriptorReader
+class IDNAReaderBase
+{
+protected:
+	virtual ~IDNAReaderBase() = default;
+
+public:
+	virtual dna::Reader* Unwrap() const = 0;
+	virtual void Unload(EDNADataLayer Layer) = 0;
+
+};
+
+class IHeaderReader : public IDNAReaderBase
+{
+protected:
+	virtual ~IHeaderReader() = default;
+
+public:
+	virtual uint16 GetFileFormatGeneration() const = 0;
+	virtual uint16 GetFileFormatVersion() const = 0;
+
+};
+
+class IDescriptorReader : public IHeaderReader
 {
 protected:
 	virtual ~IDescriptorReader() = default;
@@ -39,9 +61,6 @@ public:
 	virtual uint16 GetDBMaxLOD() const = 0;
 	virtual FString GetDBComplexity() const = 0;
 	virtual FString GetDBName() const = 0;
-
-	virtual dna::Reader* Unwrap() const = 0;
-	virtual void Unload(EDNADataLayer Layer) = 0;
 
 };
 
@@ -149,10 +168,34 @@ public:
 	virtual TArrayView<const uint32> GetBlendShapeTargetVertexIndices(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const = 0;
 };
 
+class IMachineLearnedBehaviorReader : public virtual IDefinitionReader
+{
+protected:
+	virtual ~IMachineLearnedBehaviorReader() = default;
+
+public:
+	virtual uint16 GetMLControlCount() const = 0;
+	virtual FString GetMLControlName(uint16 Index) const = 0;
+	virtual uint16 GetNeuralNetworkCount() const = 0;
+	virtual uint16 GetNeuralNetworkIndexListCount() const = 0;
+	virtual TArrayView<const uint16> GetNeuralNetworkIndicesForLOD(uint16 LOD) const = 0;
+	virtual uint16 GetMeshRegionCount(uint16 MeshIndex) const = 0;
+	virtual FString GetMeshRegionName(uint16 MeshIndex, uint16 RegionIndex) const = 0;
+	virtual TArrayView<const uint16> GetNeuralNetworkIndicesForMeshRegion(uint16 MeshIndex, uint16 RegionIndex) const = 0;
+	virtual TArrayView<const uint16> GetNeuralNetworkInputIndices(uint16 NetIndex) const = 0;
+	virtual TArrayView<const uint16> GetNeuralNetworkOutputIndices(uint16 NetIndex) const = 0;
+	virtual uint16 GetNeuralNetworkLayerCount(uint16 NetIndex) const = 0;
+	virtual EActivationFunction GetNeuralNetworkLayerActivationFunction(uint16 NetIndex, uint16 LayerIndex) const = 0;
+	virtual TArrayView<const float> GetNeuralNetworkLayerActivationFunctionParameters(uint16 NetIndex, uint16 LayerIndex) const = 0;
+	virtual TArrayView<const float> GetNeuralNetworkLayerBiases(uint16 NetIndex, uint16 LayerIndex) const = 0;
+	virtual TArrayView<const float> GetNeuralNetworkLayerWeights(uint16 NetIndex, uint16 LayerIndex) const = 0;
+
+};
+
 /**
 	@brief UE interface for DNA Reader wrappers.
 */
-class IDNAReader : public IBehaviorReader, public IGeometryReader
+class IDNAReader : public IBehaviorReader, public IGeometryReader, public IMachineLearnedBehaviorReader
 {
 public:
 	virtual ~IDNAReader() = default;

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "riglogic/TypeDefs.h"
-#include "riglogic/joints/bpcm/Extent.h"
+#include "riglogic/types/Extent.h"
 
 #include <cstddef>
 
@@ -17,6 +17,7 @@ struct JointGroupSize {
 };
 
 struct StorageSize {
+    std::size_t attributeCount;
     std::size_t valueCount;
     std::size_t inputIndexCount;
     std::size_t outputIndexCount;

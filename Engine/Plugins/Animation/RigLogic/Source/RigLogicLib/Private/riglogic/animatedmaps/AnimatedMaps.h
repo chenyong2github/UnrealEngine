@@ -3,27 +3,27 @@
 #pragma once
 
 #include "riglogic/TypeDefs.h"
-#include "riglogic/conditionaltable/ConditionalTable.h"
-#include "riglogic/types/Aliases.h"
+#include "riglogic/animatedmaps/AnimatedMapsOutputInstance.h"
 
-#include <cstddef>
+#include <cstdint>
 
 namespace rl4 {
 
+class ControlsInputInstance;
+
 class AnimatedMaps {
     public:
-        AnimatedMaps(Vector<std::uint16_t>&& lods_, ConditionalTable&& conditionals_);
+        using Pointer = UniqueInstance<AnimatedMaps>::PointerType;
 
-        void calculate(ConstArrayView<float> inputs, ArrayView<float> outputs, std::uint16_t lod) const;
+    protected:
+        virtual ~AnimatedMaps();
 
-        template<class Archive>
-        void serialize(Archive& archive) {
-            archive(lods, conditionals);
-        }
-
-    private:
-        Vector<std::uint16_t> lods;
-        ConditionalTable conditionals;
+    public:
+        virtual AnimatedMapsOutputInstance::Pointer createInstance(MemoryResource* memRes) const = 0;
+        virtual void calculate(const ControlsInputInstance* inputs, AnimatedMapsOutputInstance* outputs,
+                               std::uint16_t lod) const = 0;
+        virtual void load(terse::BinaryInputArchive<BoundedIOStream>& archive) = 0;
+        virtual void save(terse::BinaryOutputArchive<BoundedIOStream>& archive) = 0;
 
 };
 

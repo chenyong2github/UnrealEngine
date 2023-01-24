@@ -5,7 +5,7 @@
 #include "dna/BinaryStreamReader.h"
 #include "dna/ReaderImpl.h"
 #include "dna/TypeDefs.h"
-#include "dna/stream/FilteredInputArchive.h"
+#include "dna/stream/FilteredBinaryInputArchive.h"
 
 #include <status/Provider.h>
 
@@ -15,13 +15,12 @@ class BinaryStreamReaderImpl : public ReaderImpl<BinaryStreamReader> {
     public:
         BinaryStreamReaderImpl(BoundedIOStream* stream_,
                                DataLayer layer_,
+                               UnknownLayerPolicy policy_,
                                std::uint16_t maxLOD_,
                                std::uint16_t minLOD_,
                                MemoryResource* memRes_);
-        BinaryStreamReaderImpl(BoundedIOStream* stream_,
-                               DataLayer layer_,
-                               ConstArrayView<std::uint16_t> lods,
-                               MemoryResource* memRes_);
+        BinaryStreamReaderImpl(BoundedIOStream* stream_, DataLayer layer_, UnknownLayerPolicy policy_,
+                               ConstArrayView<std::uint16_t> lods, MemoryResource* memRes_);
 
         void unload(DataLayer layer) override;
         void read() override;
@@ -31,7 +30,7 @@ class BinaryStreamReaderImpl : public ReaderImpl<BinaryStreamReader> {
         static sc::StatusProvider status;
 
         BoundedIOStream* stream;
-        FilteredInputArchive archive;
+        FilteredBinaryInputArchive archive;
         bool lodConstrained;
 };
 

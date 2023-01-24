@@ -2,40 +2,32 @@
 
 #pragma once
 
+#include "riglogic/TypeDefs.h"
 #include "riglogic/animatedmaps/AnimatedMaps.h"
+#include "riglogic/animatedmaps/AnimatedMapsOutputInstance.h"
 #include "riglogic/blendshapes/BlendShapes.h"
+#include "riglogic/blendshapes/BlendShapesOutputInstance.h"
 #include "riglogic/controls/Controls.h"
+#include "riglogic/controls/ControlsInputInstance.h"
 #include "riglogic/joints/Joints.h"
+#include "riglogic/joints/JointsOutputInstance.h"
+#include "riglogic/ml/MachineLearnedBehavior.h"
+#include "riglogic/ml/MachineLearnedBehaviorOutputInstance.h"
 #include "riglogic/riglogic/Configuration.h"
 #include "riglogic/riglogic/RigLogic.h"
 #include "riglogic/riglogic/RigMetrics.h"
 
-#ifdef _MSC_VER
-    #pragma warning(push)
-    #pragma warning(disable : 4365 4987)
-#endif
-#include <functional>
-#include <memory>
-#ifdef _MSC_VER
-    #pragma warning(pop)
-#endif
-
 namespace rl4 {
 
 class RigLogicImpl : public RigLogic {
-    private:
-        using ControlsPtr = std::unique_ptr<Controls, std::function<void (Controls*)> >;
-        using JointsPtr = std::unique_ptr<Joints, std::function<void (Joints*)> >;
-        using BlendShapesPtr = std::unique_ptr<BlendShapes, std::function<void (BlendShapes*)> >;
-        using AnimatedMapsPtr = std::unique_ptr<AnimatedMaps, std::function<void (AnimatedMaps*)> >;
-
     public:
         RigLogicImpl(Configuration config_,
-                     RigMetrics metrics_,
-                     ControlsPtr controls_,
-                     JointsPtr joints_,
-                     BlendShapesPtr blendShapes_,
-                     AnimatedMapsPtr animatedMaps_,
+                     RigMetrics::Pointer metrics_,
+                     Controls::Pointer controls_,
+                     MachineLearnedBehavior::Pointer machineLearnedBehavior_,
+                     Joints::Pointer joints_,
+                     BlendShapes::Pointer blendShapes_,
+                     AnimatedMaps::Pointer animatedMaps_,
                      MemoryResource* memRes_);
 
         void dump(BoundedIOStream* destination) const override;
@@ -44,10 +36,24 @@ class RigLogicImpl : public RigLogic {
         std::uint16_t getLODCount() const override;
         ConstArrayView<float> getRawNeutralJointValues() const override;
         TransformationArrayView getNeutralJointValues() const override;
-        std::uint16_t getJointGroupCount() const override;
         ConstArrayView<std::uint16_t> getJointVariableAttributeIndices(std::uint16_t lod) const override;
+        std::uint16_t getJointGroupCount() const override;
+        std::uint16_t getNeuralNetworkCount() const override;
+        std::uint16_t getMeshCount() const override;
+        std::uint16_t getMeshRegionCount(std::uint16_t meshIndex) const override;
+        ConstArrayView<std::uint16_t> getNeuralNetworkIndices(std::uint16_t meshIndex, std::uint16_t regionIndex) const override;
+
+        ControlsInputInstance::Pointer createControlsInstance(MemoryResource* instanceMemRes) const;
+        MachineLearnedBehaviorOutputInstance::Pointer createMachineLearnedBehaviorInstance(MemoryResource* instanceMemRes) const;
+        JointsOutputInstance::Pointer createJointsInstance(MemoryResource* instanceMemRes) const;
+        BlendShapesOutputInstance::Pointer createBlendShapesInstance(MemoryResource* instanceMemRes) const;
+        AnimatedMapsOutputInstance::Pointer createAnimatedMapsInstance(MemoryResource* instanceMemRes) const;
+
         void mapGUIToRawControls(RigInstance* instance) const override;
+        void mapRawToGUIControls(RigInstance* instance) const override;
         void calculateControls(RigInstance* instance) const override;
+        void calculateMachineLearnedBehaviorControls(RigInstance* instance) const override;
+        void calculateMachineLearnedBehaviorControls(RigInstance* instance, std::uint16_t neuralNetIndex) const override;
         void calculateJoints(RigInstance* instance) const override;
         void calculateJoints(RigInstance* instance, std::uint16_t jointGroupIndex) const override;
         void calculateBlendShapes(RigInstance* instance) const override;
@@ -58,12 +64,13 @@ class RigLogicImpl : public RigLogic {
 
     private:
         MemoryResource* memRes;
-        ControlsPtr controls;
-        JointsPtr joints;
-        BlendShapesPtr blendShapes;
-        AnimatedMapsPtr animatedMaps;
         Configuration config;
-        RigMetrics metrics;
+        RigMetrics::Pointer metrics;
+        Controls::Pointer controls;
+        MachineLearnedBehavior::Pointer machineLearnedBehavior;
+        Joints::Pointer joints;
+        BlendShapes::Pointer blendShapes;
+        AnimatedMaps::Pointer animatedMaps;
 
 };
 

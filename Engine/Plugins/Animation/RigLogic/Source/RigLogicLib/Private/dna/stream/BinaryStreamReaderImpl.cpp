@@ -34,28 +34,31 @@ BinaryStreamReader::~BinaryStreamReader() = default;
 
 BinaryStreamReader* BinaryStreamReader::create(BoundedIOStream* stream,
                                                DataLayer layer,
+                                               UnknownLayerPolicy policy,
                                                std::uint16_t maxLOD,
                                                MemoryResource* memRes) {
     PolyAllocator<BinaryStreamReaderImpl> alloc{memRes};
-    return alloc.newObject(stream, layer, maxLOD, LODLimits::min(), memRes);
+    return alloc.newObject(stream, layer, policy, maxLOD, LODLimits::min(), memRes);
 }
 
 BinaryStreamReader* BinaryStreamReader::create(BoundedIOStream* stream,
                                                DataLayer layer,
+                                               UnknownLayerPolicy policy,
                                                std::uint16_t maxLOD,
                                                std::uint16_t minLOD,
                                                MemoryResource* memRes) {
     PolyAllocator<BinaryStreamReaderImpl> alloc{memRes};
-    return alloc.newObject(stream, layer, maxLOD, minLOD, memRes);
+    return alloc.newObject(stream, layer, policy, maxLOD, minLOD, memRes);
 }
 
 BinaryStreamReader* BinaryStreamReader::create(BoundedIOStream* stream,
                                                DataLayer layer,
+                                               UnknownLayerPolicy policy,
                                                std::uint16_t* lods,
                                                std::uint16_t lodCount,
                                                MemoryResource* memRes) {
     PolyAllocator<BinaryStreamReaderImpl> alloc{memRes};
-    return alloc.newObject(stream, layer, ConstArrayView<std::uint16_t>{lods, lodCount}, memRes);
+    return alloc.newObject(stream, layer, policy, ConstArrayView<std::uint16_t>{lods, lodCount}, memRes);
 }
 
 void BinaryStreamReader::destroy(BinaryStreamReader* instance) {
@@ -67,10 +70,11 @@ void BinaryStreamReader::destroy(BinaryStreamReader* instance) {
 
 BinaryStreamReaderImpl::BinaryStreamReaderImpl(BoundedIOStream* stream_,
                                                DataLayer layer_,
+                                               UnknownLayerPolicy policy_,
                                                std::uint16_t maxLOD_,
                                                std::uint16_t minLOD_,
                                                MemoryResource* memRes_) :
-    BaseImpl{memRes_},
+    BaseImpl{policy_, UpgradeFormatPolicy::Disallowed, memRes_},
     ReaderImpl{memRes_},
     stream{stream_},
     archive{stream_, layer_, maxLOD_, minLOD_, memRes_},
@@ -79,9 +83,10 @@ BinaryStreamReaderImpl::BinaryStreamReaderImpl(BoundedIOStream* stream_,
 
 BinaryStreamReaderImpl::BinaryStreamReaderImpl(BoundedIOStream* stream_,
                                                DataLayer layer_,
+                                               UnknownLayerPolicy policy_,
                                                ConstArrayView<std::uint16_t> lods_,
                                                MemoryResource* memRes_) :
-    BaseImpl{memRes_},
+    BaseImpl{policy_, UpgradeFormatPolicy::Disallowed, memRes_},
     ReaderImpl{memRes_},
     stream{stream_},
     archive{stream_, layer_, lods_, memRes_},
@@ -94,14 +99,16 @@ bool BinaryStreamReaderImpl::isLODConstrained() const {
 
 void BinaryStreamReaderImpl::unload(DataLayer layer) {
     if ((layer == DataLayer::All) ||
-        (layer == DataLayer::AllWithoutBlendShapes) ||
         (layer == DataLayer::Descriptor)) {
-        dna = DNA{memRes};
+        dna = DNA{dna.layers.unknownPolicy, dna.layers.upgradePolicy, memRes};
+    } else if (layer == DataLayer::MachineLearnedBehavior) {
+        dna.unloadMachineLearnedBehavior();
     } else if ((layer == DataLayer::Geometry) || (layer == DataLayer::GeometryWithoutBlendShapes)) {
         dna.unloadGeometry();
     } else if (layer == DataLayer::Behavior) {
         dna.unloadBehavior();
     } else if (layer == DataLayer::Definition) {
+        dna.unloadMachineLearnedBehavior();
         dna.unloadGeometry();
         dna.unloadBehavior();
         dna.unloadDefinition();
@@ -123,16 +130,17 @@ void BinaryStreamReaderImpl::read() {
         return;
     }
 
+    if (!archive.isOk()) {
+        status.set(InvalidDataError);
+        return;
+    }
+
     if (!dna.signature.matches()) {
         status.set(SignatureMismatchError, dna.signature.value.expected.data(), dna.signature.value.got.data());
         return;
     }
-    if (!dna.version.matches()) {
-        status.set(VersionMismatchError,
-                   dna.version.generation.expected,
-                   dna.version.version.expected,
-                   dna.version.generation.got,
-                   dna.version.version.got);
+    if (!dna.version.supported()) {
+        status.set(VersionMismatchError, dna.version.generation, dna.version.version);
         return;
     }
 }

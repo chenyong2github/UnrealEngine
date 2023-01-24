@@ -37,6 +37,12 @@ void MeshFilter::apply(RawDefinition& dest) {
     dest.meshBlendShapeChannelMapping.updateFrom(remappedIndices);
 }
 
+void MeshFilter::apply(RawMachineLearnedBehavior& dest) {
+    // Delete region names belonging to meshes that are not referenced by the new subset of LODs
+    extd::filter(dest.neuralNetworkToMeshRegion.regionNames, extd::byPosition(passingIndices));
+    extd::filter(dest.neuralNetworkToMeshRegion.indices, extd::byPosition(passingIndices));
+}
+
 bool MeshFilter::passes(std::uint16_t index) const {
     return extd::contains(passingIndices, index);
 }

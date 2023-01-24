@@ -27,7 +27,6 @@ class DNAAPI BehaviorWriter : public virtual DefinitionWriter {
                 The source address from which the input indices are to be copied.
             @param count
                 The number of input indices to copy.
-            @see Controls
         */
         virtual void setGUIToRawInputIndices(const std::uint16_t* inputIndices, std::uint16_t count) = 0;
         /**
@@ -36,7 +35,6 @@ class DNAAPI BehaviorWriter : public virtual DefinitionWriter {
                 The source address from which the output indices are to be copied.
             @param count
                 The number of output indices to copy.
-            @see Controls
         */
         virtual void setGUIToRawOutputIndices(const std::uint16_t* outputIndices, std::uint16_t count) = 0;
         /**
@@ -46,7 +44,6 @@ class DNAAPI BehaviorWriter : public virtual DefinitionWriter {
                 The source address from which the filter values are to be copied.
             @param count
                 The number of filter values to copy.
-            @see Controls
         */
         virtual void setGUIToRawFromValues(const float* fromValues, std::uint16_t count) = 0;
         /**
@@ -56,7 +53,6 @@ class DNAAPI BehaviorWriter : public virtual DefinitionWriter {
                 The source address from which the filter values are to be copied.
             @param count
                 The number of filter values to copy.
-            @see Controls
         */
         virtual void setGUIToRawToValues(const float* toValues, std::uint16_t count) = 0;
         /**
@@ -66,7 +62,6 @@ class DNAAPI BehaviorWriter : public virtual DefinitionWriter {
                 The source address from which the computational values are to be copied.
             @param count
                 The number of computational values to copy.
-            @see Controls
         */
         virtual void setGUIToRawSlopeValues(const float* slopeValues, std::uint16_t count) = 0;
         /**
@@ -76,7 +71,6 @@ class DNAAPI BehaviorWriter : public virtual DefinitionWriter {
                 The source address from which the computational values are to be copied.
             @param count
                 The number of computational values to copy.
-            @see Controls
         */
         virtual void setGUIToRawCutValues(const float* cutValues, std::uint16_t count) = 0;
         /**
@@ -89,7 +83,6 @@ class DNAAPI BehaviorWriter : public virtual DefinitionWriter {
                 The source address from which the PSD indices are to be copied.
             @param count
                 The number of PSD indices to copy.
-            @see Controls
         */
         virtual void setPSDRowIndices(const std::uint16_t* rowIndices, std::uint16_t count) = 0;
         /**
@@ -98,7 +91,6 @@ class DNAAPI BehaviorWriter : public virtual DefinitionWriter {
                 The source address from which the control indices are to be copied.
             @param count
                 The number of control indices to copy.
-            @see Controls
         */
         virtual void setPSDColumnIndices(const std::uint16_t* columnIndices, std::uint16_t count) = 0;
         /**
@@ -107,7 +99,6 @@ class DNAAPI BehaviorWriter : public virtual DefinitionWriter {
                 The source address from which the weight values are to be copied.
             @param count
                 The number of weight values to copy.
-            @see Controls
         */
         virtual void setPSDValues(const float* weights, std::uint16_t count) = 0;
         /**

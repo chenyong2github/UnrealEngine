@@ -30,6 +30,9 @@ class DNAAPI DefinitionReader : public DescriptorReader {
         virtual ~DefinitionReader();
 
     public:
+        /**
+            @brief Number of GUI controls.
+        */
         virtual std::uint16_t getGUIControlCount() const = 0;
         /**
             @brief Name of the requested GUI control.
@@ -38,10 +41,11 @@ class DNAAPI DefinitionReader : public DescriptorReader {
             @warning
                 The index must be less than the value returned by getGUIControlCount.
             @return View over the GUI control name string.
-            @see Controls
         */
         virtual StringView getGUIControlName(std::uint16_t index) const = 0;
-
+        /**
+            @brief Number of raw controls.
+        */
         virtual std::uint16_t getRawControlCount() const = 0;
         /**
             @brief Name of the requested raw control.
@@ -50,10 +54,11 @@ class DNAAPI DefinitionReader : public DescriptorReader {
             @warning
                 The index must be less than the value returned by getRawControlCount.
             @return View over the control name string.
-            @see Controls
         */
         virtual StringView getRawControlName(std::uint16_t index) const = 0;
-
+        /**
+            @brief Number of raw joints.
+        */
         virtual std::uint16_t getJointCount() const = 0;
         /**
             @brief Name of the requested joint.
@@ -106,14 +111,16 @@ class DNAAPI DefinitionReader : public DescriptorReader {
                 The joint index which parent is being requested.
         */
         virtual std::uint16_t getJointParentIndex(std::uint16_t index) const = 0;
-
+        /**
+            @brief Number of blend shape channels.
+        */
         virtual std::uint16_t getBlendShapeChannelCount() const = 0;
         /**
             @brief Name of the requested blend shape channel.
             @param index
                 A name's position in the zero-indexed array of blend shape channel names.
             @warning
-                The index must be less than the value returned by BlendShapeChannelExtentReader::getBlendShapeChannelCount.
+                The index must be less than the value returned by getBlendShapeChannelCount.
             @return View over the blend shape channel name string.
             @see BlendShapes
         */
@@ -129,15 +136,17 @@ class DNAAPI DefinitionReader : public DescriptorReader {
             @param lod
                 The level of detail which blend shape channels are being requested.
             @warning
-                The lod index must be less than the value returned by LODExtentReader::getLODCount.
+                The lod index must be less than the value returned by DescriptorReader::getLODCount.
             @return View over the blend shape channel indices.
             @warning
                 These LOD indices are not interchangeable with the LOD values from BehaviorReader::getBlendShapeChannelLODs.
-            @see LODExtentReader::getLODCount
+            @see DescriptorReader::getLODCount
             @see getBlendShapeChannelName
         */
         virtual ConstArrayView<std::uint16_t> getBlendShapeChannelIndicesForLOD(std::uint16_t lod) const = 0;
-
+        /**
+            @brief Number of animated maps.
+        */
         virtual std::uint16_t getAnimatedMapCount() const = 0;
         /**
             @brief Name of the requested animated map.
@@ -166,7 +175,9 @@ class DNAAPI DefinitionReader : public DescriptorReader {
             @see getAnimatedMapName
         */
         virtual ConstArrayView<std::uint16_t> getAnimatedMapIndicesForLOD(std::uint16_t lod) const = 0;
-
+        /**
+            @brief Number of meshes.
+        */
         virtual std::uint16_t getMeshCount() const = 0;
         /**
             @brief Name of the requested mesh.

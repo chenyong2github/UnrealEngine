@@ -1,17 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "rltests/Defs.h"
-#include "rltests/joints/bpcm/JointFixturesBlock4.h"
+#include "rltests/joints/bpcm/BPCMFixturesBlock4.h"
 
 #include "riglogic/RigLogic.h"
+#include "riglogic/TypeDefs.h"
 #include "riglogic/joints/JointsFactory.h"
-
-#include <pma/resources/AlignedMemoryResource.h>
+#include "riglogic/riglogic/Configuration.h"
+#include "riglogic/riglogic/RigMetrics.h"
 
 TEST(ScalarJointsFactoryTest, NeutralJointsAreCopied) {
     pma::AlignedMemoryResource memRes;
     block4::CanonicalReader reader;
-    rl4::Configuration config{rl4::RigLogic::CalculationType::Scalar};
+    rl4::Configuration config{};
+    config.calculationType = rl4::CalculationType::Scalar;
     auto joints = rl4::JointsFactory::create(config, &reader, &memRes);
     const float expected[] = {
         0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 1.0f, 1.0f, 1.0f,

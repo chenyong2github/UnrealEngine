@@ -2,23 +2,40 @@
 
 #include "riglogic/controls/ControlsFactory.h"
 
+#include "riglogic/TypeDefs.h"
 #include "riglogic/conditionaltable/ConditionalTable.h"
 #include "riglogic/controls/Controls.h"
+#include "riglogic/controls/instances/StandardControlsInputInstance.h"
 #include "riglogic/psdmatrix/PSDMatrix.h"
+#include "riglogic/riglogic/Configuration.h"
+#include "riglogic/riglogic/RigMetrics.h"
 #include "riglogic/utils/Extd.h"
 
-#include <dna/layers/BehaviorReader.h>
-
-#include <cstddef>
-#include <cstring>
+#include <cstdint>
 
 namespace rl4 {
 
-ControlsFactory::ControlsPtr ControlsFactory::create(MemoryResource* memRes) {
-    return ManagedControls::with(memRes).create(ConditionalTable{memRes}, PSDMatrix{memRes});
+static ControlsInputInstance::Factory createInstanceFactory(const Configuration&  /*unused*/,
+                                                            std::uint16_t guiControlCount,
+                                                            std::uint16_t rawControlCount,
+                                                            std::uint16_t psdControlCount,
+                                                            std::uint16_t mlControlCount) {
+    return [ = ](MemoryResource* memRes) {
+               auto factory = UniqueInstance<StandardControlsInputInstance, ControlsInputInstance>::with(memRes);
+               return factory.create(guiControlCount, rawControlCount, psdControlCount, mlControlCount, memRes);
+    };
 }
 
-ControlsFactory::ControlsPtr ControlsFactory::create(const dna::BehaviorReader* reader, MemoryResource* memRes) {
+Controls::Pointer ControlsFactory::create(const Configuration& config, const RigMetrics& metrics, MemoryResource* memRes) {
+    auto instanceFactory = createInstanceFactory(config,
+                                                 metrics.guiControlCount,
+                                                 metrics.rawControlCount,
+                                                 metrics.psdControlCount,
+                                                 metrics.mlControlCount);
+    return UniqueInstance<Controls>::with(memRes).create(ConditionalTable{memRes}, PSDMatrix{memRes}, instanceFactory);
+}
+
+Controls::Pointer ControlsFactory::create(const Configuration& config, const dna::Reader* reader, MemoryResource* memRes) {
     Vector<std::uint16_t> inputIndices{memRes};
     Vector<std::uint16_t> outputIndices{memRes};
     Vector<float> fromValues{memRes};
@@ -61,7 +78,13 @@ ControlsFactory::ControlsPtr ControlsFactory::create(const dna::BehaviorReader* 
                    std::move(psdColumns),
                    std::move(psdValues)};
 
-    return ManagedControls::with(memRes).create(std::move(conditionals), std::move(psds));
+    auto instanceFactory = createInstanceFactory(config,
+                                                 conditionals.getInputCount(),
+                                                 conditionals.getOutputCount(),
+                                                 psds.getDistinctPSDCount(),
+                                                 reader->getMLControlCount());
+
+    return UniqueInstance<Controls>::with(memRes).create(std::move(conditionals), std::move(psds), instanceFactory);
 }
 
 }  // namespace rl4

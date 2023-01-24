@@ -175,7 +175,11 @@ std::uint16_t JointFilter::remapped(std::uint16_t oldIndex) const {
 }
 
 std::uint16_t JointFilter::maxRemappedIndex() const {
-    return (remappedIndices.empty() ? static_cast<std::uint16_t>(0) : extd::maxOf(remappedIndices).second);
+    using IndexPair = std::pair<std::uint16_t, std::uint16_t>;
+    const auto compare = [](const IndexPair& lhs, const IndexPair& rhs) {
+            return lhs.second < rhs.second;
+        };
+    return (remappedIndices.empty() ? static_cast<std::uint16_t>(0) : extd::maxOf(remappedIndices, compare).second);
 }
 
 }  // namespace dna

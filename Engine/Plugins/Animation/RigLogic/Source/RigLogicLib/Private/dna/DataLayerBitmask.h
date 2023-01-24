@@ -13,32 +13,41 @@ enum class DataLayerBitmask {
     Behavior = 4,
     GeometryBlendShapesOnly = 8,
     GeometryRest = 16,
+    MachineLearnedBehavior = 32
 };
 
 inline DataLayerBitmask computeDataLayerBitmask(DataLayer layer) {
     DataLayerBitmask result = DataLayerBitmask::Descriptor;
-    if (layer == DataLayer::Definition) {
-        result |= DataLayerBitmask::Definition;
-    } else if (layer == DataLayer::Behavior) {
+    if (layer == DataLayer::All) {
         result |= DataLayerBitmask::Definition;
         result |= DataLayerBitmask::Behavior;
-    } else if (layer == DataLayer::Geometry) {
-        result |= DataLayerBitmask::Definition;
         result |= DataLayerBitmask::GeometryBlendShapesOnly;
         result |= DataLayerBitmask::GeometryRest;
-    } else if (layer == DataLayer::GeometryWithoutBlendShapes) {
+        result |= DataLayerBitmask::MachineLearnedBehavior;
+        return result;
+    }
+
+    if (contains(layer, DataLayer::Definition)) {
         result |= DataLayerBitmask::Definition;
-        result |= DataLayerBitmask::GeometryRest;
-    } else if (layer == DataLayer::AllWithoutBlendShapes) {
-        result |= DataLayerBitmask::Definition;
+    }
+
+    if (contains(layer, DataLayer::Behavior)) {
         result |= DataLayerBitmask::Behavior;
-        result |= DataLayerBitmask::GeometryRest;
-    } else if (layer == DataLayer::All) {
-        result |= DataLayerBitmask::Definition;
-        result |= DataLayerBitmask::Behavior;
+    }
+
+    if (contains(layer, DataLayer::Geometry)) {
         result |= DataLayerBitmask::GeometryBlendShapesOnly;
         result |= DataLayerBitmask::GeometryRest;
     }
+
+    if (contains(layer, DataLayer::GeometryWithoutBlendShapes)) {
+        result |= DataLayerBitmask::GeometryRest;
+    }
+
+    if (contains(layer, DataLayer::MachineLearnedBehavior)) {
+        result |= DataLayerBitmask::MachineLearnedBehavior;
+    }
+
     return result;
 }
 

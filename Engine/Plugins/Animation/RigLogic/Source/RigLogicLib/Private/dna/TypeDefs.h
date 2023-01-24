@@ -9,6 +9,7 @@
 #include <pma/resources/AlignedMemoryResource.h>
 #include <pma/resources/ArenaMemoryResource.h>
 #include <pma/resources/DefaultMemoryResource.h>
+#include <terse/types/Blob.h>
 #include <terse/types/DynArray.h>
 
 namespace dna {
@@ -17,6 +18,9 @@ using namespace pma;
 
 template<typename T>
 using AlignedAllocator = PolyAllocator<T, 64ul, AlignedMemoryResource>;
+
+template<typename T>
+using Blob = terse::Blob<T, PolyAllocator<T> >;
 
 template<typename T>
 using DynArray = terse::DynArray<T, PolyAllocator<T> >;

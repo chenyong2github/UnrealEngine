@@ -4,7 +4,7 @@
 
 #include "rltests/Defs.h"
 
-#include "riglogic/joints/bpcm/JointsEvaluator.h"
+#include "riglogic/joints/bpcm/Evaluator.h"
 
 namespace rl4 {
 

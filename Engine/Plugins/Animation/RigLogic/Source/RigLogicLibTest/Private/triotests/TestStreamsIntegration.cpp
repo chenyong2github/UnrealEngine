@@ -141,7 +141,14 @@ TYPED_TEST(StreamTest, LFSIntegrationTest) {
     ASSERT_STATUS_OK();
     ASSERT_EQ(stream->tell(), (expectedPosition += smallBuffer.size()));
 
+    #if !defined(__clang__) && defined(__GNUC__)
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wuseless-cast"
+    #endif
     const std::uint64_t expectedSize = (5ull * static_cast<std::uint64_t>(largeBuffer.size())) + (6ull * static_cast<std::uint64_t>(smallBuffer.size()));
+    #if !defined(__clang__) && defined(__GNUC__)
+        #pragma GCC diagnostic pop
+    #endif
     ASSERT_EQ(stream->size(), expectedSize);
 
     // Verify written data

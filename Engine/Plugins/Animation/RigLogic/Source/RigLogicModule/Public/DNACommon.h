@@ -55,13 +55,29 @@ enum class EDirection: uint8
 UENUM(BlueprintType)
 enum class EDNADataLayer : uint8
 {
-	Descriptor,
-	Definition,  // Includes Descriptor
-	Behavior,  // Includes Descriptor and Definition
-	Geometry,  // Includes Descriptor and Definition
-	GeometryWithoutBlendShapes,  // Includes Descriptor and Definition
-	AllWithoutBlendShapes,  // Includes everything except blend shapes from Geometry
-	All
+	None,
+	Descriptor = 1,
+	Definition = 2 | Descriptor,  // Implicitly loads Descriptor
+	Behavior = 4 | Definition,  // Implicitly loads Descriptor and Definition
+	Geometry = 8 | Definition,  // Implicitly loads Descriptor and Definition
+	GeometryWithoutBlendShapes = 16 | Definition,  // Implicitly loads Descriptor and Definition
+	MachineLearnedBehavior = 32 | Definition,  // Implicitly loads Definition
+	All = Behavior | Geometry | MachineLearnedBehavior
+};
+
+inline EDNADataLayer operator|(EDNADataLayer LHS, EDNADataLayer RHS)
+{
+	return static_cast<EDNADataLayer>(static_cast<uint8>(LHS) | static_cast<uint8>(RHS));
+}
+
+UENUM(BlueprintType)
+enum class EActivationFunction : uint8
+{
+	Linear,
+	ReLU,
+	LeakyReLU,
+	Tanh,
+	Sigmoid
 };
 
 USTRUCT(BlueprintType)

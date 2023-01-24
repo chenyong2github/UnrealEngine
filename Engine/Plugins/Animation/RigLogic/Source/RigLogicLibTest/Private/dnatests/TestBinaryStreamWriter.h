@@ -17,7 +17,11 @@ class BinaryStreamWriterTest : public ::testing::Test {
         void SetUp() override {
             stream = pma::makeScoped<trio::MemoryStream>();
             writer = dna::BinaryStreamWriter::create(stream.get(), &memRes);
-            reader = dna::BinaryStreamReader::create(stream.get(), dna::DataLayer::All, 0u, &memRes);
+            reader = dna::BinaryStreamReader::create(stream.get(),
+                                                     dna::DataLayer::All,
+                                                     dna::UnknownLayerPolicy::Preserve,
+                                                     0u,
+                                                     &memRes);
         }
 
         void TearDown() override {

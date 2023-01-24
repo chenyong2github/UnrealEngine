@@ -75,6 +75,11 @@ class ExtendableJSONOutputArchive : public Archive<TExtender> {
     protected:
         template<typename T>
         void process(Transparent<T>&& source) {
+            process(source);
+        }
+
+        template<typename T>
+        void process(Transparent<T>& source) {
             pushTransparency();
             process(source.data);
         }
@@ -109,7 +114,13 @@ class ExtendableJSONOutputArchive : public Archive<TExtender> {
 
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_save_member<T, V>::value,
-                                void>::type process(const Versioned<T, V>& source) {
+                                void>::type process(Versioned<T, V>&& source) {
+            process(source);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_save_member<T, V>::value,
+                                void>::type process(Versioned<T, V>& source) {
             const bool transparent = popTransparency();
             if (!transparent) {
                 preStructOutput();
@@ -122,7 +133,13 @@ class ExtendableJSONOutputArchive : public Archive<TExtender> {
 
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_serialize_member<T, V>::value,
-                                void>::type process(const Versioned<T, V>& source) {
+                                void>::type process(Versioned<T, V>&& source) {
+            process(source);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_serialize_member<T, V>::value,
+                                void>::type process(Versioned<T, V>& source) {
             const bool transparent = popTransparency();
             if (!transparent) {
                 preStructOutput();
@@ -135,7 +152,13 @@ class ExtendableJSONOutputArchive : public Archive<TExtender> {
 
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_save_function<T, V>::value,
-                                void>::type process(const Versioned<T, V>& source) {
+                                void>::type process(Versioned<T, V>&& source) {
+            process(source);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_save_function<T, V>::value,
+                                void>::type process(Versioned<T, V>& source) {
             const bool transparent = popTransparency();
             if (!transparent) {
                 preStructOutput();
@@ -148,7 +171,13 @@ class ExtendableJSONOutputArchive : public Archive<TExtender> {
 
         template<typename T, typename V>
         typename std::enable_if<traits::has_versioned_serialize_function<T, V>::value,
-                                void>::type process(const Versioned<T, V>& source) {
+                                void>::type process(Versioned<T, V>&& source) {
+            process(source);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<traits::has_versioned_serialize_function<T, V>::value,
+                                void>::type process(Versioned<T, V>& source) {
             const bool transparent = popTransparency();
             if (!transparent) {
                 preStructOutput();
@@ -165,6 +194,15 @@ class ExtendableJSONOutputArchive : public Archive<TExtender> {
                                 !traits::has_versioned_save_function<T, V>::value &&
                                 !traits::has_versioned_serialize_function<T, V>::value,
                                 void>::type process(Versioned<T, V>&& dest) {
+            process(dest);
+        }
+
+        template<typename T, typename V>
+        typename std::enable_if<!traits::has_versioned_save_member<T, V>::value &&
+                                !traits::has_versioned_serialize_member<T, V>::value &&
+                                !traits::has_versioned_save_function<T, V>::value &&
+                                !traits::has_versioned_serialize_function<T, V>::value,
+                                void>::type process(Versioned<T, V>& dest) {
             // If no versioned serializer is found, but version information was passed along, fall back to unversioned
             // functions if available.
             BaseArchive::dispatch(dest.data);

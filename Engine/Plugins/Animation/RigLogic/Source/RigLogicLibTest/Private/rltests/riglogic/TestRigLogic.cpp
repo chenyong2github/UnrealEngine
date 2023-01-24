@@ -4,8 +4,7 @@
 #include "rltests/dna/DNAFixtures.h"
 
 #include "riglogic/RigLogic.h"
-
-#include <pma/resources/AlignedMemoryResource.h>
+#include "riglogic/TypeDefs.h"
 
 namespace {
 
@@ -14,28 +13,22 @@ class RigLogicTest : public ::testing::Test {
         void SetUp() override {
             const auto bytes = rltests::raw::getBytes();
             stream = pma::makeScoped<trio::MemoryStream>();
-            stream->write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+            stream->write(bytes.data(), bytes.size());
             stream->seek(0);
 
-            reader = dna::BinaryStreamReader::create(stream.get());
+            reader = pma::makeScoped<dna::BinaryStreamReader>(stream.get());
             reader->read();
 
-            rigLogic = rl4::RigLogic::create(reader);
-            rigInstance = rl4::RigInstance::create(rigLogic, &memRes);
-        }
-
-        void TearDown() override {
-            rl4::RigInstance::destroy(rigInstance);
-            rl4::RigLogic::destroy(rigLogic);
-            dna::BinaryStreamReader::destroy(reader);
+            rigLogic = pma::makeScoped<rl4::RigLogic>(reader.get());
+            rigInstance = pma::makeScoped<rl4::RigInstance>(rigLogic.get(), &memRes);
         }
 
     protected:
         pma::AlignedMemoryResource memRes;
-        pma::ScopedPtr<trio::MemoryStream, pma::FactoryDestroy<trio::MemoryStream> > stream;
-        dna::BinaryStreamReader* reader;
-        rl4::RigLogic* rigLogic;
-        rl4::RigInstance* rigInstance;
+        pma::ScopedPtr<trio::MemoryStream> stream;
+        pma::ScopedPtr<dna::BinaryStreamReader> reader;
+        pma::ScopedPtr<rl4::RigLogic> rigLogic;
+        pma::ScopedPtr<rl4::RigInstance> rigInstance;
 };
 
 }  // namespace
@@ -44,12 +37,12 @@ TEST_F(RigLogicTest, EvaluateRigInstance) {
     // Try both approaches
     float guiControls[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
     rigInstance->setGUIControlValues(static_cast<const float*>(guiControls));
-    rigLogic->mapGUIToRawControls(rigInstance);
+    rigLogic->mapGUIToRawControls(rigInstance.get());
     // Regardless that this overwrites the computed gui to raw values
     float rawControls[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
     rigInstance->setRawControlValues(static_cast<const float*>(rawControls));
 
-    rigLogic->calculate(rigInstance);
+    rigLogic->calculate(rigInstance.get());
 
     ASSERT_EQ(rigInstance->getRawJointOutputs().size(), reader->getJointRowCount());
     ASSERT_EQ(rigInstance->getBlendShapeOutputs().size(), reader->getBlendShapeChannelCount());
@@ -69,14 +62,14 @@ TEST_F(RigLogicTest, DumpStateThenRestore) {
     auto dumpedState = pma::makeScoped<trio::MemoryStream>();
     rigLogic->dump(dumpedState.get());
     dumpedState->seek(0);
-    auto cloneRigLogic = rl4::RigLogic::restore(dumpedState.get());
-    auto cloneRigInstance = rl4::RigInstance::create(cloneRigLogic);
+    auto cloneRigLogic = rl4::RigLogic::restore(dumpedState.get(), &memRes);
+    auto cloneRigInstance = rl4::RigInstance::create(cloneRigLogic, &memRes);
 
     for (std::uint16_t lod = 0u; lod < rigLogic->getLODCount(); ++lod) {
         rigInstance->setLOD(lod);
         rigInstance->setGUIControlValues(static_cast<const float*>(guiControls));
-        rigLogic->mapGUIToRawControls(rigInstance);
-        rigLogic->calculate(rigInstance);
+        rigLogic->mapGUIToRawControls(rigInstance.get());
+        rigLogic->calculate(rigInstance.get());
 
         cloneRigInstance->setLOD(lod);
         cloneRigInstance->setGUIControlValues(static_cast<const float*>(guiControls));

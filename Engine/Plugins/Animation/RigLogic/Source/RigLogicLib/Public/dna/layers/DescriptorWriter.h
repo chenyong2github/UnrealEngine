@@ -4,6 +4,7 @@
 
 #include "dna/Defs.h"
 #include "dna/layers/Descriptor.h"
+#include "dna/layers/HeaderWriter.h"
 #include "dna/types/Aliases.h"
 
 #include <cstdint>
@@ -16,7 +17,7 @@ namespace dna {
         Implementors should inherit from Writer itself and not this class.
     @see Writer
 */
-class DNAAPI DescriptorWriter {
+class DNAAPI DescriptorWriter : public HeaderWriter {
     protected:
         virtual ~DescriptorWriter();
 

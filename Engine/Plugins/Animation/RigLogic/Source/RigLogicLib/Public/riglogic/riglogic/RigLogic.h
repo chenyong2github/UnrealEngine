@@ -3,7 +3,7 @@
 #pragma once
 
 #include "riglogic/Defs.h"
-#include "riglogic/riglogic/CalculationType.h"
+#include "riglogic/riglogic/Configuration.h"
 #include "riglogic/transformation/Transformation.h"
 #include "riglogic/types/Aliases.h"
 
@@ -12,7 +12,6 @@
 namespace rl4 {
 
 class RigInstance;
-class Stream;
 
 /**
     @brief RigLogic calculates rig output values based on input control values.
@@ -24,7 +23,7 @@ class Stream;
 */
 class RLAPI RigLogic {
     public:
-        using CalculationType = rl4::CalculationType;
+        using Configuration = rl4::Configuration;
 
     protected:
         virtual ~RigLogic();
@@ -34,8 +33,8 @@ class RLAPI RigLogic {
             @brief Factory method for the creation of RigLogic.
             @param reader
                 Source from which to copy and optimize DNA data, which is used for rig evaluation
-            @param calculationType
-                Determines which algorithm implementation is used for rig evaluation
+            @param config
+                Determines which algorithm implementation is used for rig evaluation and which submodules to load (affects memory allocations)
             @param memRes
                 A custom memory resource to be used for allocations.
             @note
@@ -44,9 +43,14 @@ class RLAPI RigLogic {
                 User is responsible for releasing the returned pointer by calling destroy.
             @see destroy
         */
-        static RigLogic* create(const dna::BehaviorReader* reader,
-                                CalculationType calculationType = CalculationType::SSE,
-                                MemoryResource* memRes = nullptr);
+        static RigLogic* create(const dna::Reader* reader, Configuration config = {}, MemoryResource* memRes = nullptr);
+        /**
+            @brief Method for freeing RigLogic.
+            @param instance
+                Instance of RigLogic to be freed.
+            @see create
+        */
+        static void destroy(RigLogic* instance);
         /**
             @brief Factory method for restoring an instance of RigLogic from a memory dump.
             @note
@@ -65,13 +69,6 @@ class RLAPI RigLogic {
             @see destroy
         */
         static RigLogic* restore(BoundedIOStream* source, MemoryResource* memRes = nullptr);
-        /**
-            @brief Method for freeing RigLogic.
-            @param instance
-                Instance of RigLogic to be freed.
-            @see create
-        */
-        static void destroy(RigLogic* instance);
         /**
             @brief Create a snapshot of an initialized RigLogic instance.
             @param destination
@@ -102,21 +99,46 @@ class RLAPI RigLogic {
         */
         virtual TransformationArrayView getNeutralJointValues() const = 0;
         /**
+            @brief All joint output indices concatenated into a single chunk per each LOD.
+        */
+        virtual ConstArrayView<std::uint16_t> getJointVariableAttributeIndices(std::uint16_t lod) const = 0;
+        /**
             @brief Number of joint groups present in the entire joint matrix.
             @see calculateJoints
         */
         virtual std::uint16_t getJointGroupCount() const = 0;
         /**
-            @brief All joint output indices concatenated into a single chunk per each LOD.
+            @brief Number of neural networks for driving machine learned behavior.
+            @see calculateMachineLearnedBehavior
         */
-        virtual ConstArrayView<std::uint16_t> getJointVariableAttributeIndices(std::uint16_t lod) const = 0;
+        virtual std::uint16_t getNeuralNetworkCount() const = 0;
+        /**
+            @brief Number of meshes.
+        */
+        virtual std::uint16_t getMeshCount() const = 0;
+        /**
+            @brief Number of regions within the specified mesh.
+        */
+        virtual std::uint16_t getMeshRegionCount(std::uint16_t meshIndex) const = 0;
+        /**
+            @brief Map a mesh and region index pair to the neural network indices that drive it.
+            @see RigInstance::getNeuralNetworkMask
+            @see RigInstance::setNeuralNetworkMask
+        */
+        virtual ConstArrayView<std::uint16_t> getNeuralNetworkIndices(std::uint16_t meshIndex,
+                                                                      std::uint16_t regionIndex) const = 0;
         /**
             @brief Maps GUI controls to raw controls.
             @note
-                This method must be called after either RigInstance::setGUIControlValues call
-                or RigInstance::::setGUIControl calls were issued.
+                This method may be called after either RigInstance::setGUIControlValues or RigInstance::setGUIControl was used.
         */
         virtual void mapGUIToRawControls(RigInstance* instance) const = 0;
+        /**
+            @brief Maps raw controls to GUI controls.
+            @note
+                This method may be called after either RigInstance::setRawControlValues or RigInstance::setRawControl was used.
+        */
+        virtual void mapRawToGUIControls(RigInstance* instance) const = 0;
         /**
             @brief Calculate only the input control values of the rig.
             @note
@@ -125,16 +147,38 @@ class RLAPI RigLogic {
             @note
                 This is considered as an advanced usage use case.
             @param instance
-                The rig instance which outputs are to be calculated.
+                The rig instance whose outputs are to be calculated.
             @see calculate
         */
         virtual void calculateControls(RigInstance* instance) const = 0;
+        /**
+            @brief Calculate controls driving the machine learned behavior of the rig.
+            @note
+                This is considered as an advanced usage use case.
+            @param instance
+                The rig instance whose controls for driving machine learned behavior are to be calculated.
+            @see calculate
+        */
+        virtual void calculateMachineLearnedBehaviorControls(RigInstance* instance) const = 0;
+        /**
+            @brief Calculate controls driving the machine learned behavior of the rig.
+            @note
+                This is considered as an advanced usage use case.
+            @param instance
+                The rig instance whose controls for driving machine learned behavior are to be calculated.
+            @param neuralNetIndex
+                The neural network whose outputs need to be calculated.
+            @warning
+                The index must be less than the value returned by getNeuralNetworkCount.
+            @see calculate
+        */
+        virtual void calculateMachineLearnedBehaviorControls(RigInstance* instance, std::uint16_t neuralNetIndex) const = 0;
         /**
             @brief Calculate only the joint outputs of the rig.
             @note
                 This is considered as an advanced usage use case.
             @param instance
-                The rig instance which outputs are to be calculated.
+                The rig instance whose outputs are to be calculated.
             @see calculate
         */
         virtual void calculateJoints(RigInstance* instance) const = 0;
@@ -146,7 +190,7 @@ class RLAPI RigLogic {
             @note
                 This is considered as an expert usage use case.
             @param instance
-                The rig instance which outputs are to be calculated.
+                The rig instance whose outputs are to be calculated.
             @param jointGroupIndex
                 A joint group's position in the zero-indexed array of joint groups.
             @warning
@@ -155,11 +199,11 @@ class RLAPI RigLogic {
         */
         virtual void calculateJoints(RigInstance* instance, std::uint16_t jointGroupIndex) const = 0;
         /**
-            @brief Calculate only the blend shape outputs of the rig.
+            @brief Calculate only the blend shape channel weights of the rig.
             @note
                 This is considered as an advanced usage use case.
             @param instance
-                The rig instance which outputs are to be calculated.
+                The rig instance whose blend shape channel weights are to be calculated.
             @see calculate
         */
         virtual void calculateBlendShapes(RigInstance* instance) const = 0;
@@ -168,7 +212,7 @@ class RLAPI RigLogic {
             @note
                 This is considered as an advanced usage use case.
             @param instance
-                The rig instance which outputs are to be calculated.
+                The rig instance whose outputs are to be calculated.
             @see calculate
         */
         virtual void calculateAnimatedMaps(RigInstance* instance) const = 0;
@@ -181,7 +225,7 @@ class RLAPI RigLogic {
                   - Calculate blend shape output values
                   - Calculate animated map output values
             @param instance
-                The rig instance which outputs are to be calculated.
+                The rig instance whose outputs are to be calculated.
         */
         virtual void calculate(RigInstance* instance) const = 0;
 

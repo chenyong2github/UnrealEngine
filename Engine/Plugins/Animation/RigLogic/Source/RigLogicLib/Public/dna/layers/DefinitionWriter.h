@@ -37,7 +37,6 @@ class DNAAPI DefinitionWriter : public DescriptorWriter {
                 A null-terminated string.
             @note
                 The passed in name is copied, which will involve an additional allocation.
-            @see Controls
         */
         virtual void setGUIControlName(std::uint16_t index, const char* name) = 0;
         /**
@@ -55,7 +54,6 @@ class DNAAPI DefinitionWriter : public DescriptorWriter {
                 A null-terminated string.
             @note
                 The passed in name is copied, which will involve an additional allocation.
-            @see Controls
         */
         virtual void setRawControlName(std::uint16_t index, const char* name) = 0;
         /**

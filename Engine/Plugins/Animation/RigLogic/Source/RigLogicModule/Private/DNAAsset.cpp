@@ -33,11 +33,12 @@ DEFINE_LOG_CATEGORY(LogDNAAsset);
 
 static constexpr uint32 AVG_EMPTY_SIZE = 4 * 1024;
 static constexpr uint32 AVG_BEHAVIOR_SIZE = 5 * 1024 * 1024;
+static constexpr uint32 AVG_MACHINE_LEARNED_BEHAVIOR_SIZE = 15 * 1024 * 1024;
 static constexpr uint32 AVG_GEOMETRY_SIZE = 50 * 1024 * 1024;
 
 static TSharedPtr<IDNAReader> ReadDNAFromStream(rl4::BoundedIOStream* Stream, EDNADataLayer Layer, uint16 MaxLOD)
 {
-	auto DNAStreamReader = rl4::makeScoped<dna::BinaryStreamReader>(Stream, static_cast<dna::DataLayer>(Layer), MaxLOD, FMemoryResource::Instance());
+	auto DNAStreamReader = rl4::makeScoped<dna::BinaryStreamReader>(Stream, static_cast<dna::DataLayer>(Layer), dna::UnknownLayerPolicy::Preserve, MaxLOD, FMemoryResource::Instance());
 	DNAStreamReader->read();
 	if (!rl4::Status::isOk())
 	{
@@ -52,7 +53,7 @@ static void WriteDNAToStream(const IDNAReader* Source, EDNADataLayer Layer, rl4:
 	auto DNAWriter = rl4::makeScoped<dna::BinaryStreamWriter>(Destination, FMemoryResource::Instance());
 	if (Source != nullptr)
 	{
-		DNAWriter->setFrom(Source->Unwrap(), static_cast<dna::DataLayer>(Layer), FMemoryResource::Instance());
+		DNAWriter->setFrom(Source->Unwrap(), static_cast<dna::DataLayer>(Layer), dna::UnknownLayerPolicy::Preserve, FMemoryResource::Instance());
 	}
 	DNAWriter->write();
 }
@@ -93,14 +94,14 @@ UDNAAsset::UDNAAsset() : RigRuntimeContext{nullptr}
 
 UDNAAsset::~UDNAAsset() = default;
 
-TSharedPtr<IBehaviorReader> UDNAAsset::GetBehaviorReader()
+TSharedPtr<IDNAReader> UDNAAsset::GetBehaviorReader()
 {
 	FScopeLock ScopeLock{&DNAUpdateSection};
 	return BehaviorReader;
 }
 
 #if WITH_EDITORONLY_DATA
-TSharedPtr<IGeometryReader> UDNAAsset::GetGeometryReader()
+TSharedPtr<IDNAReader> UDNAAsset::GetGeometryReader()
 {
 	FScopeLock ScopeLock{&DNAUpdateSection};
 	return GeometryReader;
@@ -110,7 +111,8 @@ TSharedPtr<IGeometryReader> UDNAAsset::GetGeometryReader()
 void UDNAAsset::SetBehaviorReader(TSharedPtr<IDNAReader> SourceDNAReader)
 {
 	FScopeLock ScopeLock{&DNAUpdateSection};
-	BehaviorReader = CopyDNALayer(SourceDNAReader.Get(), EDNADataLayer::Behavior, AVG_BEHAVIOR_SIZE);
+	const size_t PredictedSize = (SourceDNAReader->GetNeuralNetworkCount() != 0) ? AVG_BEHAVIOR_SIZE + AVG_MACHINE_LEARNED_BEHAVIOR_SIZE : AVG_BEHAVIOR_SIZE;
+	BehaviorReader = CopyDNALayer(SourceDNAReader.Get(), EDNADataLayer::Behavior | EDNADataLayer::MachineLearnedBehavior, PredictedSize);
 	InvalidateRigRuntimeContext();
 }
 
@@ -153,6 +155,7 @@ TSharedPtr<FSharedRigRuntimeContext> UDNAAsset::GetRigRuntimeContext(EDNARetenti
 				{
 					BehaviorReader->Unload(EDNADataLayer::Behavior);
 					BehaviorReader->Unload(EDNADataLayer::Geometry);
+					BehaviorReader->Unload(EDNADataLayer::MachineLearnedBehavior);
 				}
 #endif  // !WITH_EDITOR
 			}

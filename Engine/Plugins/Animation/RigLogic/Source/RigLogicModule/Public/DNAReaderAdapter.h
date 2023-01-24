@@ -18,6 +18,9 @@ public:
 	FDNAReader(FDNAReader&&) = default;
 	FDNAReader& operator=(FDNAReader&&) = default;
 
+	// Header
+	uint16 GetFileFormatGeneration() const override;
+	uint16 GetFileFormatVersion() const override;
 	// Descriptor
 	FString GetName() const override;
 	EArchetype GetArchetype() const override;
@@ -116,6 +119,22 @@ public:
 	TArrayView<const float> GetBlendShapeTargetDeltaYs(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const override;
 	TArrayView<const float> GetBlendShapeTargetDeltaZs(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const override;
 	TArrayView<const uint32> GetBlendShapeTargetVertexIndices(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const override;
+	// Machine Learned Behavior
+	uint16 GetMLControlCount() const override;
+	FString GetMLControlName(uint16 Index) const override;
+	uint16 GetNeuralNetworkCount() const override;
+	uint16 GetNeuralNetworkIndexListCount() const override;
+	TArrayView<const uint16> GetNeuralNetworkIndicesForLOD(uint16 LOD) const override;
+	uint16 GetMeshRegionCount(uint16 MeshIndex) const override;
+	FString GetMeshRegionName(uint16 MeshIndex, uint16 RegionIndex) const override;
+	TArrayView<const uint16> GetNeuralNetworkIndicesForMeshRegion(uint16 MeshIndex, uint16 RegionIndex) const override;
+	TArrayView<const uint16> GetNeuralNetworkInputIndices(uint16 NetIndex) const override;
+	TArrayView<const uint16> GetNeuralNetworkOutputIndices(uint16 NetIndex) const override;
+	uint16 GetNeuralNetworkLayerCount(uint16 NetIndex) const override;
+	EActivationFunction GetNeuralNetworkLayerActivationFunction(uint16 NetIndex, uint16 LayerIndex) const override;
+	TArrayView<const float> GetNeuralNetworkLayerActivationFunctionParameters(uint16 NetIndex, uint16 LayerIndex) const override;
+	TArrayView<const float> GetNeuralNetworkLayerBiases(uint16 NetIndex, uint16 LayerIndex) const override;
+	TArrayView<const float> GetNeuralNetworkLayerWeights(uint16 NetIndex, uint16 LayerIndex) const override;
 
 	void Unload(EDNADataLayer Layer) override;
 
@@ -158,6 +177,18 @@ void FDNAReader<TWrappedReader>::FWrappedReaderDeleter::operator()(TWrappedReade
 	{
 		TWrappedReader::destroy(Pointer);
 	}
+}
+
+template <class TWrappedReader>
+uint16 FDNAReader<TWrappedReader>::GetFileFormatGeneration() const
+{
+	return ReaderPtr->getFileFormatGeneration();
+}
+
+template <class TWrappedReader>
+uint16 FDNAReader<TWrappedReader>::GetFileFormatVersion() const
+{
+	return ReaderPtr->getFileFormatVersion();
 }
 
 template <class TWrappedReader>
@@ -787,4 +818,101 @@ TArrayView<const uint32> FDNAReader<TWrappedReader>::GetBlendShapeTargetVertexIn
 {
 	const auto Indices = ReaderPtr->getBlendShapeTargetVertexIndices(MeshIndex, BlendShapeTargetIndex);
 	return TArrayView<const uint32>(Indices.data(), static_cast<int32>(Indices.size()));
+}
+
+template <class TWrappedReader>
+uint16 FDNAReader<TWrappedReader>::GetMLControlCount() const
+{
+	return ReaderPtr->getMLControlCount();
+}
+
+template <class TWrappedReader>
+FString FDNAReader<TWrappedReader>::GetMLControlName(uint16 Index) const
+{
+	return FString(ANSI_TO_TCHAR(ReaderPtr->getMLControlName(Index).data()));
+}
+
+template <class TWrappedReader>
+uint16 FDNAReader<TWrappedReader>::GetNeuralNetworkCount() const
+{
+	return ReaderPtr->getNeuralNetworkCount();
+}
+
+template <class TWrappedReader>
+uint16 FDNAReader<TWrappedReader>::GetNeuralNetworkIndexListCount() const
+{
+	return ReaderPtr->getNeuralNetworkIndexListCount();
+}
+
+template <class TWrappedReader>
+TArrayView<const uint16> FDNAReader<TWrappedReader>::GetNeuralNetworkIndicesForLOD(uint16 LOD) const
+{
+	const auto Values = ReaderPtr->getNeuralNetworkIndicesForLOD(LOD);
+	return TArrayView<const uint16>(Values.data(), static_cast<int32>(Values.size()));
+}
+
+template <class TWrappedReader>
+uint16 FDNAReader<TWrappedReader>::GetMeshRegionCount(uint16 MeshIndex) const
+{
+	return ReaderPtr->getMeshRegionCount(MeshIndex);
+}
+
+template <class TWrappedReader>
+FString FDNAReader<TWrappedReader>::GetMeshRegionName(uint16 MeshIndex, uint16 RegionIndex) const
+{
+	return FString(ANSI_TO_TCHAR(ReaderPtr->getMeshRegionName(MeshIndex, RegionIndex).data()));
+}
+
+template <class TWrappedReader>
+TArrayView<const uint16> FDNAReader<TWrappedReader>::GetNeuralNetworkIndicesForMeshRegion(uint16 MeshIndex, uint16 RegionIndex) const
+{
+	const auto Values = ReaderPtr->getNeuralNetworkIndicesForMeshRegion(MeshIndex, RegionIndex);
+	return TArrayView<const uint16>(Values.data(), static_cast<int32>(Values.size()));
+}
+
+template <class TWrappedReader>
+TArrayView<const uint16> FDNAReader<TWrappedReader>::GetNeuralNetworkInputIndices(uint16 NetIndex) const
+{
+	const auto Values = ReaderPtr->getNeuralNetworkInputIndices(NetIndex);
+	return TArrayView<const uint16>(Values.data(), static_cast<int32>(Values.size()));
+}
+
+template <class TWrappedReader>
+TArrayView<const uint16> FDNAReader<TWrappedReader>::GetNeuralNetworkOutputIndices(uint16 NetIndex) const
+{
+	const auto Values = ReaderPtr->getNeuralNetworkOutputIndices(NetIndex);
+	return TArrayView<const uint16>(Values.data(), static_cast<int32>(Values.size()));
+}
+
+template <class TWrappedReader>
+uint16 FDNAReader<TWrappedReader>::GetNeuralNetworkLayerCount(uint16 NetIndex) const
+{
+	return ReaderPtr->getNeuralNetworkLayerCount(NetIndex);
+}
+
+template <class TWrappedReader>
+EActivationFunction FDNAReader<TWrappedReader>::GetNeuralNetworkLayerActivationFunction(uint16 NetIndex, uint16 LayerIndex) const
+{
+	return static_cast<EActivationFunction>(ReaderPtr->getNeuralNetworkLayerActivationFunction(NetIndex, LayerIndex));
+}
+
+template <class TWrappedReader>
+TArrayView<const float> FDNAReader<TWrappedReader>::GetNeuralNetworkLayerActivationFunctionParameters(uint16 NetIndex, uint16 LayerIndex) const
+{
+	const auto Values = ReaderPtr->getNeuralNetworkLayerActivationFunctionParameters(NetIndex, LayerIndex);
+	return TArrayView<const float>(Values.data(), static_cast<int32>(Values.size()));
+}
+
+template <class TWrappedReader>
+TArrayView<const float> FDNAReader<TWrappedReader>::GetNeuralNetworkLayerBiases(uint16 NetIndex, uint16 LayerIndex) const
+{
+	const auto Values = ReaderPtr->getNeuralNetworkLayerBiases(NetIndex, LayerIndex);
+	return TArrayView<const float>(Values.data(), static_cast<int32>(Values.size()));
+}
+
+template <class TWrappedReader>
+TArrayView<const float> FDNAReader<TWrappedReader>::GetNeuralNetworkLayerWeights(uint16 NetIndex, uint16 LayerIndex) const
+{
+	const auto Values = ReaderPtr->getNeuralNetworkLayerWeights(NetIndex, LayerIndex);
+	return TArrayView<const float>(Values.data(), static_cast<int32>(Values.size()));
 }

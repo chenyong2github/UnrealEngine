@@ -17,6 +17,7 @@ namespace {
 struct StatusCodeStorage {
     int code;
     char message[512];
+    HookFunction hook;
 };
 
 void strcopy(char* destination, const char* source, std::size_t bufferSize) {
@@ -29,7 +30,7 @@ void strcopy(char* destination, const char* source, std::size_t bufferSize) {
 
 }  // namespace
 
-thread_local static StatusCodeStorage currentStatus{0, "Ok"};
+thread_local static StatusCodeStorage currentStatus{0, "Ok", nullptr};
 
 void StatusStorage::set(StatusCode status) {
     // The Release build will eliminate this call, as it's really just a sanity check
@@ -54,6 +55,14 @@ bool StatusStorage::isOk() {
 
 constexpr std::size_t StatusStorage::bufferSize() {
     return sizeof(currentStatus.message);
+}
+
+HookFunction StatusStorage::getHook() {
+    return currentStatus.hook;
+}
+
+void StatusStorage::setHook(HookFunction hook) {
+    currentStatus.hook = hook;
 }
 
 }  // namespace sc

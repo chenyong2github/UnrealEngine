@@ -27,7 +27,6 @@ struct Versioned {
     using WrappedType = T;
     using TypeVersion = V;
     WrappedType& data;
-
 };
 
 template<typename T, typename V>

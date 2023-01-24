@@ -2,10 +2,8 @@
 
 #include "rltests/Defs.h"
 
+#include "riglogic/TypeDefs.h"
 #include "riglogic/psdmatrix/PSDMatrix.h"
-
-#include <pma/resources/AlignedMemoryResource.h>
-#include <pma/utils/ManagedInstance.h>
 
 TEST(PSDMatrixTest, OutputsAreClamped) {
     pma::AlignedMemoryResource amr;

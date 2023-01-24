@@ -21,6 +21,9 @@ class DNAAPI BinaryStreamReader : public StreamReader {
                 The Definition data layer depends on and thus implicitly loads the Descriptor layer.
                 The Behavior data layer depends on and thus implicitly loads the Definition layer.
                 The Geometry data layer depends on and thus also implicitly loads the Definition layer.
+                The MachineLearnedBehavior data layer depends on and thus also implicitly loads the Definition layer.
+            @param policy
+                Specify whether unknown layers are to be preserved or just ignored.
             @param maxLOD
                 The maximum level of details to be loaded.
             @note
@@ -38,6 +41,7 @@ class DNAAPI BinaryStreamReader : public StreamReader {
         */
         static BinaryStreamReader* create(BoundedIOStream* stream,
                                           DataLayer layer = DataLayer::All,
+                                          UnknownLayerPolicy policy = UnknownLayerPolicy::Preserve,
                                           std::uint16_t maxLOD = 0u,
                                           MemoryResource* memRes = nullptr);
         /**
@@ -50,6 +54,9 @@ class DNAAPI BinaryStreamReader : public StreamReader {
                 The Definition data layer depends on and thus implicitly loads the Descriptor layer.
                 The Behavior data layer depends on and thus implicitly loads the Definition layer.
                 The Geometry data layer depends on and thus also implicitly loads the Definition layer.
+                The MachineLearnedBehavior data layer depends on and thus also implicitly loads the Definition layer.
+            @param policy
+                Specify whether unknown layers are to be preserved or just ignored.
             @param maxLOD
                 The maximum level of details to be loaded.
             @param minLOD
@@ -69,6 +76,7 @@ class DNAAPI BinaryStreamReader : public StreamReader {
         */
         static BinaryStreamReader* create(BoundedIOStream* stream,
                                           DataLayer layer,
+                                          UnknownLayerPolicy policy,
                                           std::uint16_t maxLOD,
                                           std::uint16_t minLOD,
                                           MemoryResource* memRes = nullptr);
@@ -82,6 +90,9 @@ class DNAAPI BinaryStreamReader : public StreamReader {
                 The Definition data layer depends on and thus implicitly loads the Descriptor layer.
                 The Behavior data layer depends on and thus implicitly loads the Definition layer.
                 The Geometry data layer depends on and thus also implicitly loads the Definition layer.
+                The MachineLearnedBehavior data layer depends on and thus also implicitly loads the Definition layer.
+            @param policy
+                Specify whether unknown layers are to be preserved or just ignored.
             @param lods
                 An array specifying which exact lods to load.
             @warning
@@ -102,6 +113,7 @@ class DNAAPI BinaryStreamReader : public StreamReader {
         */
         static BinaryStreamReader* create(BoundedIOStream* stream,
                                           DataLayer layer,
+                                          UnknownLayerPolicy policy,
                                           std::uint16_t* lods,
                                           std::uint16_t lodCount,
                                           MemoryResource* memRes = nullptr);

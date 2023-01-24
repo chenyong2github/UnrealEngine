@@ -6,6 +6,7 @@
 #include "dna/DataLayer.h"
 #include "dna/layers/BehaviorReader.h"
 #include "dna/layers/GeometryReader.h"
+#include "dna/layers/MachineLearnedBehaviorReader.h"
 
 namespace dna {
 
@@ -18,13 +19,13 @@ namespace dna {
         selectively loaded, it might be convenient to slice-off interfaces which layers were
         not loaded.
 */
-class DNAAPI Reader : public BehaviorReader, public GeometryReader {
+class DNAAPI Reader : public BehaviorReader, public GeometryReader, public MachineLearnedBehaviorReader {
     public:
         ~Reader() override;
         /**
             @brief Unload all data of the specified layer and all layers dependent on it.
             @param layer
-                Layer which data should be unloaded.
+                Layer whose data should be unloaded.
         */
         virtual void unload(DataLayer layer) = 0;
 };
