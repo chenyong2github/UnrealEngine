@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraCommon.h"
+#include "UObject/Interface.h"
 #include "NiagaraSimCacheCustomStorageInterface.generated.h"
 
 class FNiagaraSystemInstance;
