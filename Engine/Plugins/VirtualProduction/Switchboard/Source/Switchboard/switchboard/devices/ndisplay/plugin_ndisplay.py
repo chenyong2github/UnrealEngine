@@ -21,7 +21,7 @@ from switchboard.config import CONFIG, BoolSetting, IntSetting, FilePathSetting,
     StringListSetting, migrate_comma_separated_string_to_list
 from switchboard.devices.device_widget_base import AddDeviceDialog
 from switchboard.devices.unreal.plugin_unreal import DeviceUnreal, \
-    DeviceWidgetUnreal, LiveLinkPresetSetting
+    DeviceWidgetUnreal, LiveLinkPresetSetting, MediaProfileSetting
 from switchboard.devices.unreal.uassetparser import UassetParser
 from switchboard.switchboard_logging import LOGGER
 
@@ -470,6 +470,12 @@ class DevicenDisplay(DeviceUnreal):
                 "- 0, 1, .. : The specified gpu index \n"
             ),
         ),
+        'mediaprofile': MediaProfileSetting(
+            attr_name='mediaprofile',
+            nice_name='Media Profile',
+            value='',
+            tool_tip=('Adds the selected Media Profile to the command line')
+        ),
     }
 
     ndisplay_monitor_ui = None
@@ -611,6 +617,7 @@ class DevicenDisplay(DeviceUnreal):
             DevicenDisplay.csettings['udpmessaging_unicast_endpoint'],
             DevicenDisplay.csettings['udpmessaging_extra_static_endpoints'],
             DevicenDisplay.csettings['livelink_preset'],
+            DevicenDisplay.csettings['mediaprofile'],
             DevicenDisplay.csettings['graphics_adapter'],
             CONFIG.ENGINE_DIR,
             CONFIG.SOURCE_CONTROL_WORKSPACE,
@@ -809,22 +816,12 @@ class DevicenDisplay(DeviceUnreal):
         if DevicenDisplay.csettings['disable_all_screen_messages'].get_value() and 'DisableAllScreenMessages' not in exec_cmds:
             exec_cmds.append('DisableAllScreenMessages')
         
-        # LiveLink presets can be applied as ExecCmds
-        # e.g. of command:
-        #   "LiveLink.Preset.Apply Preset=/Game/Folder/MyLiveLinkPreset.MyLiveLinkPreset"
-
-        livelink_preset_gamepath = DeviceUnreal.csettings["livelink_preset"].get_value(self.name)
-
+        # LiveLink preset
+        livelink_preset_gamepath = DevicenDisplay.csettings["livelink_preset"].get_value(self.name)
         if livelink_preset_gamepath:
+            exec_cmds.append(self.exec_command_for_livelink_preset(livelink_preset_gamepath))
 
-            ext = '.uasset'
-
-            if livelink_preset_gamepath.endswith(ext):
-                livelink_preset_gamepath = livelink_preset_gamepath[:len(livelink_preset_gamepath)-len(ext)]
-            
-            preset_name = os.path.basename(os.path.normpath(livelink_preset_gamepath))
-            exec_cmds.append(f"LiveLink.Preset.Apply Preset={livelink_preset_gamepath}.{preset_name}")
-
+        # Format exec cmds
         exec_cmds = [cmd for cmd in exec_cmds if len(cmd.strip())]
 
         if len(exec_cmds):
@@ -902,6 +899,11 @@ class DevicenDisplay(DeviceUnreal):
 
         # Always tell Chaos to be deterministic
         dp_cvars.append('p.Chaos.Solver.Deterministic=1')
+
+        # mediaprofile
+        mediaprofile_gamepath = DevicenDisplay.csettings["mediaprofile"].get_value(self.name)
+        if mediaprofile_gamepath:
+            dp_cvars.append(self.dpcvar_for_mediaprofile(mediaprofile_gamepath))
 
         # Add user set dp cvars, overriding any of the forced ones.
         user_dp_cvars = self.csettings['ndisplay_dp_cvars'].get_value(self.name)

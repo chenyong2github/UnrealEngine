@@ -346,6 +346,21 @@ class LiveLinkPresetSetting(Setting):
 
         self._on_widget_value_changed(value_str, override_device_name=override_device_name)
 
+
+    def asset_is_relevant(self, itemData) -> bool:
+        ''' Convenience function to filter the relevant assets for this setting '''
+
+        # Only return assets of the correct live link preset class
+        if itemData['classname'] not in DeviceUnreal.LIVELINKPRESET_CLASS_NAMES:
+            return False
+            
+        # Only return live link presets that have a valid gamepath. 
+        # We wouldn't be able to build the command line otherwise
+        if itemData['gamepath'] == '':
+            return False
+
+        return True
+
     def _update_combo_items(self, combo:QtWidgets.QComboBox, override_device_name):
         '''
         Populate the combobox itself with known list of live link presets available.
@@ -364,23 +379,9 @@ class LiveLinkPresetSetting(Setting):
 
         itemDatas = DeviceUnreal.csettings['asset_itemDatas'].get_value()
 
-        def asset_is_livelink_preset(itemData) -> bool:
-            ''' Convenience function to filter the live link preset assets '''
-
-            # Only return assets of the correct live link preset class
-            if itemData['classname'] not in DeviceUnreal.LIVELINKPRESET_CLASS_NAMES:
-                return False
-                
-            # Only return live link presets that have a valid gamepath. 
-            # We wouldn't be able to build the command line otherwise
-            if itemData['gamepath'] == '':
-                return False
-
-            return True
-
         # generate the combo box items
         try:
-            for itemData in [itemData for itemData in itemDatas if asset_is_livelink_preset(itemData)]:
+            for itemData in [itemData for itemData in itemDatas if self.asset_is_relevant(itemData)]:
                 name = itemData['name']
 
                 # trim the expected .uasset extension
@@ -390,8 +391,8 @@ class LiveLinkPresetSetting(Setting):
 
                 combo.addItem(name, itemData)
 
-        except Exception:
-            LOGGER.error('Error recalling asset itemDatas')
+        except Exception as e:
+            LOGGER.error(f'Error recalling asset itemDatas: {e}')
 
         # set the current index to the live link preset that was already selected
         for item_idx in range(combo.count()):
@@ -420,6 +421,24 @@ class LiveLinkPresetSetting(Setting):
                     combo.setCurrentIndex(item_idx)
                     break
 
+class MediaProfileSetting(LiveLinkPresetSetting):
+    ''' Container of the MediaProfile setting.
+    '''
+
+    #@override
+    def asset_is_relevant(self, itemData) -> bool:
+        # Only return assets of the correct live link preset class
+        if itemData['classname'] not in DeviceUnreal.MEDIAPROFILE_CLASS_NAMES:
+            return False
+            
+        # Only return live link presets that have a valid gamepath. 
+        # We wouldn't be able to build the command line otherwise
+        if itemData['gamepath'] == '':
+            return False
+
+        return True
+
+
 class DeviceUnreal(Device):
 
     NDISPLAY_CLASS_NAMES =  (
@@ -431,7 +450,12 @@ class DeviceUnreal(Device):
         'LiveLinkPreset',
         '/Script/LiveLink.LiveLinkPreset',
     )
-    
+
+    MEDIAPROFILE_CLASS_NAMES = (
+        'MediaProfile',
+        '/Script/MediaFrameworkUtilities.MediaProfile',
+    )
+
     csettings = {
         'buffer_size': IntSetting(
             attr_name="buffer_size",
@@ -612,6 +636,12 @@ class DeviceUnreal(Device):
             value=[],
             tool_tip="Remember the last analyzed list of project and plugin assets",
             show_ui=False,
+        ),
+        'mediaprofile': MediaProfileSetting(
+            attr_name='mediaprofile',
+            nice_name='Media Profile',
+            value='',
+            tool_tip=('Adds the selected Media Profile to the command line')
         ),
     }
 
@@ -951,6 +981,7 @@ class DeviceUnreal(Device):
             DeviceUnreal.csettings['udpmessaging_extra_static_endpoints'],
             DeviceUnreal.csettings['unrealgamesync_lib_dir'],
             DeviceUnreal.csettings['livelink_preset'],
+            DeviceUnreal.csettings['mediaprofile'],
             CONFIG.ENGINE_DIR,
             CONFIG.SOURCE_CONTROL_WORKSPACE,
             CONFIG.UPROJECT_PATH,
@@ -996,6 +1027,43 @@ class DeviceUnreal(Device):
             valid = False
 
         return valid
+
+    def conform_asset_gamepath(self, gamepath : str, ext : str = '.uasset') -> str:
+        ''' Conforms the given gamepath, which can include file extension, to the //Game/../MyAsset.MyAsset convention
+        e.g.
+            /Game/Folder/MyAssetName.uasset -> /Game/Folder/MyAssetName.MyAssetName
+        '''
+
+        if gamepath.endswith(ext):
+            gamepath = gamepath[:len(gamepath)-len(ext)]
+        
+        name = os.path.basename(os.path.normpath(gamepath))
+
+        return f"{gamepath}.{name}"
+
+    def exec_command_for_livelink_preset(self, livelink_preset_gamepath : str) -> str:
+        ''' Returns the exec command string to enable the given livelink preset gamepath
+        LiveLink presets can be applied as ExecCmds
+        e.g. of command:
+            "LiveLink.Preset.Apply Preset=/Game/Folder/MyLiveLinkPreset.MyLiveLinkPreset"
+        '''
+
+        if not livelink_preset_gamepath:
+            raise ValueError
+
+        return f"LiveLink.Preset.Apply Preset={self.conform_asset_gamepath(livelink_preset_gamepath)}"
+
+    def dpcvar_for_mediaprofile(self, mediaprofile_gamepath : str) -> str:
+        ''' Returns the dpcvar assignment string to enable the given mediaprofile gamepath
+        Media profiles can be applied as early cvars
+        e.g.:
+          "MediaUtils.StartupProfile=/Game/Media/MyMediaProfile.MyMediaProfile"
+        '''
+
+        if not mediaprofile_gamepath:
+            raise ValueError
+
+        return f"MediaUtils.StartupProfile={self.conform_asset_gamepath(mediaprofile_gamepath)}"
 
     @classmethod
     def plugin_header_widget_config(cls):
@@ -1652,21 +1720,10 @@ class DeviceUnreal(Device):
 
         exec_cmds = DeviceUnreal.csettings["exec_cmds"].get_value(self.name).copy()
 
-        # LiveLink presets can be applied as ExecCmds
-        # e.g. of command:
-        #   "LiveLink.Preset.Apply Preset=/Game/Folder/MyLiveLinkPreset.MyLiveLinkPreset"
-
+        # LiveLink preset
         livelink_preset_gamepath = DeviceUnreal.csettings["livelink_preset"].get_value(self.name)
-
         if livelink_preset_gamepath:
-
-            ext = '.uasset'
-
-            if livelink_preset_gamepath.endswith(ext):
-                livelink_preset_gamepath = livelink_preset_gamepath[:len(livelink_preset_gamepath)-len(ext)]
-            
-            preset_name = os.path.basename(os.path.normpath(livelink_preset_gamepath))
-            exec_cmds.append(f"LiveLink.Preset.Apply Preset={livelink_preset_gamepath}.{preset_name}")
+            exec_cmds.append(self.exec_command_for_livelink_preset(livelink_preset_gamepath))
 
         # Exec Commands
 
@@ -1709,6 +1766,11 @@ class DeviceUnreal(Device):
         # Slate.bAllowThrottling. Makes ICVFX panel and Vcam more responsive to Editor interactive changes.
         slate_allow_throttling = DeviceUnreal.csettings["slate_allow_throttling"].get_value()
         dp_cvars.append(f'Slate.bAllowThrottling={int(slate_allow_throttling)}')
+
+        # mediaprofile
+        mediaprofile_gamepath = DeviceUnreal.csettings["mediaprofile"].get_value(self.name)
+        if mediaprofile_gamepath:
+            dp_cvars.append(self.dpcvar_for_mediaprofile(mediaprofile_gamepath))
 
         # Add user set dp cvars, overriding any of the forced ones.
         user_dp_cvars = DeviceUnreal.csettings["dp_cvars"].get_value(self.name)
@@ -2508,9 +2570,12 @@ class DeviceUnreal(Device):
         # Looks much better without the window frame.
         progressDiag.setWindowFlag(QtCore.Qt.FramelessWindowHint)
 
-        INTERESTING_CLASS_NAMES = DeviceUnreal.NDISPLAY_CLASS_NAMES + DeviceUnreal.LIVELINKPRESET_CLASS_NAMES
-
-        def validateInterestingAsset(asset):
+        INTERESTING_CLASS_NAMES = \
+            DeviceUnreal.NDISPLAY_CLASS_NAMES \
+            + DeviceUnreal.LIVELINKPRESET_CLASS_NAMES \
+            + DeviceUnreal.MEDIAPROFILE_CLASS_NAMES
+        
+        def validateInterestingAsset(asset):                                                                                                
             ''' Returns the asset if it is an interesting asset '''
 
             with open(asset['path'], 'rb') as file:
