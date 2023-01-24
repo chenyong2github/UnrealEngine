@@ -196,9 +196,7 @@ public:
 	// right after importing a skeleton, we ask user what solver they want to use 
 	bool PromptToAddDefaultSolver() const;
 	// show user the new retarget chain they are about to create (provides option to edit name) 
-	FName PromptToAddNewRetargetChain(const FBoneChain& BoneChain) const;
-	// prompt user if they want to add a goal to a newly created chain
-	FName PromptToAddGoalToNewChain(const FBoneChain& BoneChain) const;
+	FName PromptToAddNewRetargetChain(FBoneChain& BoneChain) const;
 	// right after creating a goal, we ask user if they want it assigned to a retarget chain 
 	void PromptToAssignGoalToChain(FName NewGoalName) const;
 
