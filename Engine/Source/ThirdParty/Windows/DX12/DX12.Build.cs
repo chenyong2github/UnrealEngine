@@ -10,8 +10,8 @@ public class DX12 : ModuleRules
 {
 	protected bool IsX64Target { get => Target.Architecture.bIsX64; }
 	protected virtual bool bUsesWindowsD3D12 { get => Target.Platform.IsInGroup(UnrealPlatformGroup.Windows); }
-	protected virtual bool bUsesWindowsD3D12Libs { get => Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && !IsX64Target; }
-	protected virtual bool bUsesAgilitySDK { get => Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && !IsX64Target; }
+	protected virtual bool bUsesWindowsD3D12Libs { get => Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && IsX64Target; }
+	protected virtual bool bUsesAgilitySDK { get => Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && IsX64Target; }
 
 	public DX12(ReadOnlyTargetRules Target) : base(Target)
 	{
