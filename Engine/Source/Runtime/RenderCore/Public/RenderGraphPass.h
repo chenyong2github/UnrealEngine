@@ -288,18 +288,6 @@ public:
 		return Producers;
 	}
 
-	/** Returns the producer pass on the other pipeline, if it exists. */
-	FRDGPassHandle GetCrossPipelineProducer() const
-	{
-		return CrossPipelineProducer;
-	}
-
-	/** Returns the consumer pass on the other pipeline, if it exists. */
-	FRDGPassHandle GetCrossPipelineConsumer() const
-	{
-		return CrossPipelineConsumer;
-	}
-
 	/** Returns the graphics pass responsible for forking the async interval this pass is in. */
 	FRDGPassHandle GetGraphicsForkPass() const
 	{
@@ -432,9 +420,8 @@ protected:
 		uint32 PacketBits2 = 0;
 	};
 
-	/** Handle of the latest cross-pipeline producer and earliest cross-pipeline consumer. */
+	/** Handle of the latest cross-pipeline producer. */
 	FRDGPassHandle CrossPipelineProducer;
-	FRDGPassHandle CrossPipelineConsumer;
 
 	/** (AsyncCompute only) Graphics passes which are the fork / join for async compute interval this pass is in. */
 	FRDGPassHandle GraphicsForkPass;
@@ -444,7 +431,8 @@ protected:
 	FRDGPassHandle PrologueBarrierPass;
 	FRDGPassHandle EpilogueBarrierPass;
 
-	/** Lists of producer passes. */
+	/** Lists of producer passes and the full list of cross-pipeline consumer passes. */
+	FRDGPassHandleArray CrossPipelineConsumers;
 	FRDGPassHandleArray Producers;
 
 	struct FTextureState

@@ -1043,11 +1043,21 @@ void FRDGBuilder::AddPassDependency(FRDGPass* Producer, FRDGPass* Consumer)
 
 		if (Producer->Pipeline != Consumer->Pipeline)
 		{
-			// Finds the earliest consumer on the other pipeline for the producer.
-			if (Producer->CrossPipelineConsumer.IsNull() || Consumer->Handle < Producer->CrossPipelineConsumer)
+			const auto BinarySearchOrAdd = [](FRDGPassHandleArray& Range, FRDGPassHandle Handle)
 			{
-				Producer->CrossPipelineConsumer = Consumer->Handle;
-			}
+				const int32 LowerBoundIndex = Algo::LowerBound(Range, Handle);
+				if (LowerBoundIndex < Range.Num())
+				{
+					if (Range[LowerBoundIndex] == Handle)
+					{
+						return;
+					}
+				}
+				Range.Insert(Handle, LowerBoundIndex);
+			};
+
+			// Consumers could be culled, so we have to store all of them in a sorted list.
+			BinarySearchOrAdd(Producer->CrossPipelineConsumers, Consumer->Handle);
 
 			// Finds the latest producer on the other pipeline for the consumer.
 			if (Consumer->CrossPipelineProducer.IsNull() || Producer->Handle > Consumer->CrossPipelineProducer)
@@ -1283,8 +1293,6 @@ void FRDGBuilder::Compile()
 			{
 				AddLastProducersToCullStack(LastProducer);
 			}
-
-			Texture->ReferenceCount++;
 		}
 
 		for (const FExtractedBuffer& ExtractedBuffer : ExtractedBuffers)
@@ -1292,8 +1300,6 @@ void FRDGBuilder::Compile()
 			FRDGBufferRef Buffer = ExtractedBuffer.Buffer;
 
 			AddLastProducersToCullStack(Buffer->LastProducer);
-
-			Buffer->ReferenceCount++;
 		}
 
 		for (const auto& Pair : ExternalTextures)
@@ -1313,7 +1319,7 @@ void FRDGBuilder::Compile()
 			AddLastProducersToCullStack(Buffer->LastProducer);
 		}
 	}
-	else
+	else if (!bParallelSetupEnabled)
 	{
 		for (FRDGPassHandle PassHandle = ProloguePassHandle + 1; PassHandle < EpiloguePassHandle; ++PassHandle)
 		{
@@ -1331,6 +1337,16 @@ void FRDGBuilder::Compile()
 				PassState.Buffer->ReferenceCount += PassState.ReferenceCount;
 			}
 		}
+	}
+
+	for (const FExtractedTexture& ExtractedTexture : ExtractedTextures)
+	{
+		ExtractedTexture.Texture->ReferenceCount++;
+	}
+
+	for (const FExtractedBuffer& ExtractedBuffer : ExtractedBuffers)
+	{
+		ExtractedBuffer.Buffer->ReferenceCount++;
 	}
 
 	// All dependencies in the raw graph have been specified; if enabled, all passes are marked as culled and a
@@ -1580,7 +1596,21 @@ void FRDGBuilder::Compile()
 				continue;
 			}
 
-			FRDGPassHandle GraphicsJoinPassHandle = FRDGPassHandle::Min(AsyncComputePass->CrossPipelineConsumer, FRDGPassHandle::Min(CurrentGraphicsJoinPassHandle, EpiloguePassHandle));
+			FRDGPassHandle CrossPipelineConsumer;
+
+			// Cross pipeline consumers are sorted. Find the earliest consumer that isn't culled.
+			for (FRDGPassHandle ConsumerHandle : AsyncComputePass->CrossPipelineConsumers)
+			{
+				FRDGPass* Consumer = Passes[ConsumerHandle];
+
+				if (!Consumer->bCulled)
+				{
+					CrossPipelineConsumer = ConsumerHandle;
+					break;
+				}
+			}
+
+			FRDGPassHandle GraphicsJoinPassHandle = FRDGPassHandle::Min(CrossPipelineConsumer, FRDGPassHandle::Min(CurrentGraphicsJoinPassHandle, EpiloguePassHandle));
 			FRDGPass* GraphicsJoinPass = Passes[GraphicsJoinPassHandle];
 
 			AsyncComputePass->GraphicsJoinPass = GraphicsJoinPassHandle;
@@ -3005,6 +3035,8 @@ void FRDGBuilder::AddEpilogueTransition(FRDGTextureRef Texture)
 		return;
 	}
 
+	check(IsImmediateMode() || Texture->bExtracted || Texture->ReferenceCount == FRDGViewableResource::DeallocatedReferenceCount);
+
 	if (!EnumHasAnyFlags(Texture->Flags, ERDGTextureFlags::SkipTracking))
 	{
 		const FRDGPassHandle EpiloguePassHandle = GetEpiloguePassHandle();
@@ -3052,6 +3084,8 @@ void FRDGBuilder::AddEpilogueTransition(FRDGBufferRef Buffer)
 	{
 		return;
 	}
+
+	check(IsImmediateMode() || Buffer->bExtracted || Buffer->ReferenceCount == FRDGViewableResource::DeallocatedReferenceCount);
 
 	if (!EnumHasAnyFlags(Buffer->Flags, ERDGBufferFlags::SkipTracking))
 	{
