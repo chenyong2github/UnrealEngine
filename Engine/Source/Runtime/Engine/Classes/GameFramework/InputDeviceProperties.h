@@ -485,25 +485,9 @@ struct FAudioBasedVibrationData
 
 	FAudioBasedVibrationData();
 	
-	/** The sound to play on the gamepad */
+	/** The sound to play on the gamepad. Make sure the set the sound's submix sends to the gamepad audio and vibration endpoints! */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
 	TObjectPtr<USoundBase> Sound;
-
-	/** The audio endpoint that the sound will be played on for gamepad vibration. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vibration Audio")
-	TObjectPtr<UEndpointSubmix> VibrationEndpoint;
-
-	/** The audio endpoint that the sound will be played on for gamepad audio. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gamepad Audio")
-	TObjectPtr<UEndpointSubmix> GamepadAudioEndpoint;
-
-	/** The amount of sound to send to the Vibration endpoint submix */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vibration Audio", meta = (UIMin = "0.0"))
-	float VibrationSoundLevel;
-
-	/** The amount of sound to send to the Gamepad Audio endpoint submix */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gamepad Audio", meta = (UIMin = "0.0"))
-	float GamepadAudioSoundLevel;
 };
 
 /**

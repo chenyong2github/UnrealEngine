@@ -428,43 +428,17 @@ int32 UInputDeviceTriggerVibrationProperty::GetVibrationAmplitudeValue(const FDe
 
 FAudioBasedVibrationData::FAudioBasedVibrationData()
 	: Sound(nullptr)
-	, VibrationEndpoint(nullptr)
-	, GamepadAudioEndpoint(nullptr)
-	, VibrationSoundLevel(1.0f)
-	, GamepadAudioSoundLevel(1.0f)
 {
 }
 
 void UInputDeviceAudioBasedVibrationProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration)
 {
-	if (const FAudioBasedVibrationData* DataToUse = GetRelevantData(PlatformUser, DeviceId))
-	{
-		// Set the endpoints to use on this sound
-		if (DataToUse->Sound)
-		{
-			if (DataToUse->VibrationEndpoint)
-			{
-				FSoundSubmixSendInfo SendInfo;
-				SendInfo.SoundSubmix = DataToUse->VibrationEndpoint;
-				SendInfo.SendLevel = DataToUse->VibrationSoundLevel;
-				DataToUse->Sound->SoundSubmixSends.Emplace(MoveTemp(SendInfo));
-			}
-
-			if (DataToUse->GamepadAudioEndpoint)
-			{
-				FSoundSubmixSendInfo SendInfo;
-				SendInfo.SoundSubmix = DataToUse->GamepadAudioEndpoint;
-				SendInfo.SendLevel = DataToUse->GamepadAudioSoundLevel;
-				DataToUse->Sound->SoundSubmixSends.Emplace(MoveTemp(SendInfo));
-			}
-		}
-	}
+	// There is nothing to do here, the endpoints are set on the sound asset.
 }
 
 void UInputDeviceAudioBasedVibrationProperty::ApplyDeviceProperty(const FPlatformUserId UserId, const FInputDeviceId DeviceId)
 {
-	// Audio Endpoints can already play vibrations and audio on an input device, if the device implements
-	// the interface for it. We can just do that! Woot
+	// This sound should have the submix sends set that it wants, all we have to do is play it.
 	if (const FAudioBasedVibrationData* DataToUse = GetRelevantData(UserId, DeviceId))
 	{
 		if (DataToUse->Sound)
@@ -474,7 +448,7 @@ void UInputDeviceAudioBasedVibrationProperty::ApplyDeviceProperty(const FPlatfor
 			{
 				// The sound endpoints will have been populated above in the Evaluate function
 				PC->ClientPlaySound(DataToUse->Sound);
-			}	
+			}
 		}		
 	}
 }
