@@ -94,8 +94,8 @@ void FDMXControlConsoleEditorModule::ExtendDMXMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.AddMenuEntry(FDMXControlConsoleEditorCommands::Get().OpenControlConsole,
 			NAME_None,
-			LOCTEXT("DMXControlConsoleMenuLabel", "DMX Control Console"),
-			LOCTEXT("DMXControlConsoleMenuTooltip", "Opens a console that can send DMX to the network"),
+			LOCTEXT("DMXControlConsoleMenuLabel", "Control Console"),
+			LOCTEXT("DMXControlConsoleMenuTooltip", "Opens a small console that can send DMX locally or over the network"),
 			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.TabIcon")
 		);
 }
