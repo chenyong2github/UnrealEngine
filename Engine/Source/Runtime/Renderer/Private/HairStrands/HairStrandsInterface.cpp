@@ -428,8 +428,14 @@ bool IsHairStrandsVisibleInShadows(const FViewInfo& View, const FHairStrandsInst
 	bool bIsVisibleInShadow = false;
 	if (const FHairGroupPublicData* HairData = Instance.GetHairData())
 	{
-		const bool bIsStrands = HairData->LODIndex >= 0 && Instance.GetHairGeometry() == EHairGeometryType::Strands;
-		if (!bIsStrands)
+		// Run simulation if the instance is either Strands geometry, have simulation, or has global interpolation enabled.
+		// This ensures that the groom is correctly updated if visible in shadows
+		const bool bNeedUpdate = 
+			HairData->LODIndex >= 0 && 
+			(Instance.GetHairGeometry() == EHairGeometryType::Strands || 
+			 HairData->IsSimulationEnable(HairData->LODIndex) || 
+			 HairData->IsGlobalInterpolationEnable(HairData->LODIndex));
+		if (!bNeedUpdate)
 		{
 			return false;
 		}
@@ -632,10 +638,16 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 	const int32 ActiveInstanceCount = Scene->HairStrandsSceneData.RegisteredProxies.Num();
 	TBitArray InstancesVisibility(false, ActiveInstanceCount);
 
+	static bool bDebug = false;
+	if (Scene->HairStrandsSceneData.RegisteredProxies.Num() > 0)
+	{
+		bDebug = true;
+	}
+
 	FHairStrandsBookmarkParameters Out;
 	Out.VisibleInstances.Reserve(View.HairStrandsMeshElements.Num());
 
-	// 1. Add all visible strands instances
+	// 1. Strands - Add all visible strands instances
 	for (const FMeshBatchAndRelevance& MeshBatch : View.HairStrandsMeshElements)
 	{
 		check(MeshBatch.PrimitiveSceneProxy && MeshBatch.PrimitiveSceneProxy->ShouldRenderInMainPass());
@@ -651,12 +663,13 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 	}
 	Out.InstanceCountPerType[HairInstanceCount_StrandsPrimaryView] = Out.VisibleInstances.Num();
 
-	// 2. Add all instances non-visible primary view(s) but visible in shadow view(s)
+	// 2. Strands - Add all instances non-visible primary view(s) but visible in shadow view(s)
 	if (IsHairStrandsNonVisibleShadowCastingEnable())
 	{
 		for (FHairStrandsInstance* Instance : Scene->HairStrandsSceneData.RegisteredProxies)
 		{
-			if (Instance->RegisteredIndex >= 0 && Instance->RegisteredIndex < ActiveInstanceCount && !InstancesVisibility[Instance->RegisteredIndex])
+			const bool bStrands = Instance->GetHairGeometry() == EHairGeometryType::Strands;
+			if (Instance->RegisteredIndex >= 0 && Instance->RegisteredIndex < ActiveInstanceCount && !InstancesVisibility[Instance->RegisteredIndex] && bStrands)
 			{
 				if (IsHairStrandsVisibleInShadows(View, *Instance))
 				{
@@ -667,7 +680,7 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 	}
 	Out.InstanceCountPerType[HairInstanceCount_StrandsShadowView] = Out.VisibleInstances.Num() - Out.InstanceCountPerType[HairInstanceCount_StrandsPrimaryView];
 
-	// 3. Add all visible cards instances
+	// 3. Cards/Meshes - Add all visible cards instances
 	for (const FMeshBatchAndRelevance& MeshBatch : View.HairCardsMeshElements)
 	{
 		check(MeshBatch.PrimitiveSceneProxy && MeshBatch.PrimitiveSceneProxy->ShouldRenderInMainPass());
@@ -681,7 +694,24 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 			}
 		}
 	}
-	Out.InstanceCountPerType[HairInstanceCount_CardsOrMeshes] = Out.VisibleInstances.Num() - Out.InstanceCountPerType[HairInstanceCount_StrandsShadowView];
+	Out.InstanceCountPerType[HairInstanceCount_CardsOrMeshesPrimaryView] = Out.VisibleInstances.Num() - Out.InstanceCountPerType[HairInstanceCount_StrandsShadowView];
+
+	// 4. Cards/Meshes - Add all instances non-visible primary view(s) but visible in shadow view(s)
+	if (IsHairStrandsNonVisibleShadowCastingEnable())
+	{
+		for (FHairStrandsInstance* Instance : Scene->HairStrandsSceneData.RegisteredProxies)
+		{
+			const bool bCardsOrMeshes = Instance->GetHairGeometry() == EHairGeometryType::Cards || Instance->GetHairGeometry() == EHairGeometryType::Meshes;
+			if (Instance->RegisteredIndex >= 0 && Instance->RegisteredIndex < ActiveInstanceCount && !InstancesVisibility[Instance->RegisteredIndex] && bCardsOrMeshes)
+			{
+				if (IsHairStrandsVisibleInShadows(View, *Instance))
+				{
+					Out.VisibleInstances.Add(Instance);
+				}
+			}
+		}
+	}
+	Out.InstanceCountPerType[HairInstanceCount_CardsOrMeshesShadowView] = Out.VisibleInstances.Num() - Out.InstanceCountPerType[HairInstanceCount_CardsOrMeshesPrimaryView];
 
 	Out.ShaderPrintData			= ShaderPrint::IsEnabled(View.ShaderPrintData) ? &View.ShaderPrintData : nullptr;
 	Out.ShaderMap				= View.ShaderMap;

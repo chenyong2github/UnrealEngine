@@ -429,7 +429,8 @@ enum EHairInstanceCount : uint8
 {
 	HairInstanceCount_StrandsPrimaryView = 0,
 	HairInstanceCount_StrandsShadowView = 1,
-	HairInstanceCount_CardsOrMeshes = 2,
+	HairInstanceCount_CardsOrMeshesPrimaryView = 2,
+	HairInstanceCount_CardsOrMeshesShadowView = 3
 };
 
 struct FHairStrandsBookmarkParameters

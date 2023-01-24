@@ -811,7 +811,8 @@ class FHairDebugPrintInstanceCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, NameCharacterCount)
 		SHADER_PARAMETER(uint32, InstanceCount_StrandsPrimaryView)
 		SHADER_PARAMETER(uint32, InstanceCount_StrandsShadowView)
-		SHADER_PARAMETER(uint32, InstanceCount_CardsOrMeshes)
+		SHADER_PARAMETER(uint32, InstanceCount_CardsOrMeshesPrimaryView)
+		SHADER_PARAMETER(uint32, InstanceCount_CardsOrMeshesShadowView)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, NameInfos)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint8>, Names)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint4>, Infos)
@@ -931,10 +932,9 @@ static void AddHairDebugPrintInstancePass(
 				}
 
 				{
-					Data2.X = InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsPrimaryView] ? 3 : 2; // Visible in primary & shadow (3) or only in shadow (2)
-					Data2.Y = 0;
-					Data2.Z = 0;
-					Data2.W = 0;
+					Data2 = FUintVector4(0);
+					Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsPrimaryView] ? 0x1u : 0u;
+					Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsShadowView]  ? 0x2u : 0u;
 				}
 			}
 			break;
@@ -943,7 +943,10 @@ static void AddHairDebugPrintInstancePass(
 			{
 				Data0.Z = Instance->Cards.LODs[IntLODIndex].Guides.IsValid() ? Instance->Cards.LODs[IntLODIndex].Guides.Data->GetNumCurves() : 0;
 				Data0.W = Instance->Cards.LODs[IntLODIndex].Data->GetNumVertices();
-				Data2.X = 3; // Visible in primary & shadow
+
+				Data2 = FUintVector4(0);
+				Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesPrimaryView] ? 0x1u : 0u;
+				Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesShadowView]  ? 0x2u : 0u;
 			}
 			break;
 		case EHairGeometryType::Meshes:
@@ -951,7 +954,10 @@ static void AddHairDebugPrintInstancePass(
 			{
 				Data0.Z = 0;
 				Data0.W = Instance->Meshes.LODs[IntLODIndex].Data->GetNumVertices();
-				Data2.X = 3; // Visible in primary & shadow
+
+				Data2 = FUintVector4(0);
+				Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesPrimaryView] ? 0x1u : 0u;
+				Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesShadowView]  ? 0x2u : 0u;
 			}
 			break;
 		}
@@ -982,7 +988,8 @@ static void AddHairDebugPrintInstancePass(
 		Parameters->InstanceCount = InstanceCount;
 		Parameters->InstanceCount_StrandsPrimaryView = InstanceCountPerType[HairInstanceCount_StrandsPrimaryView];
 		Parameters->InstanceCount_StrandsShadowView = InstanceCountPerType[HairInstanceCount_StrandsShadowView];
-		Parameters->InstanceCount_CardsOrMeshes = InstanceCountPerType[HairInstanceCount_CardsOrMeshes];
+		Parameters->InstanceCount_CardsOrMeshesPrimaryView = InstanceCountPerType[HairInstanceCount_CardsOrMeshesPrimaryView];
+		Parameters->InstanceCount_CardsOrMeshesShadowView = InstanceCountPerType[HairInstanceCount_CardsOrMeshesShadowView];
 		Parameters->NameInfoCount = NameInfos.Num();
 		Parameters->NameCharacterCount = Names.Num();
 		Parameters->Names = GraphBuilder.CreateSRV(NameBuffer, PF_R8_UINT);

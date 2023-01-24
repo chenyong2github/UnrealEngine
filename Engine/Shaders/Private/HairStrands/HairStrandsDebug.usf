@@ -1066,7 +1066,8 @@ int2					MaxResolution;
 uint					InstanceCount;
 uint					InstanceCount_StrandsPrimaryView;
 uint					InstanceCount_StrandsShadowView;
-uint					InstanceCount_CardsOrMeshes;
+uint					InstanceCount_CardsOrMeshesPrimaryView;
+uint					InstanceCount_CardsOrMeshesShadowView;
 
 Buffer<uint>			Infos;
 
@@ -1239,16 +1240,20 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Newline(Context);
 
 	{
-		Print(Context, TEXT("Total Strand primary: "), FontWhite);
+		Print(Context, TEXT("Total Strand (primary)        : "), FontWhite);
 		Print(Context,InstanceCount_StrandsPrimaryView, FontYellow, 8);
 		Newline(Context);
 
-		Print(Context, TEXT("Total Strand shadow : "), FontWhite);
+		Print(Context, TEXT("Total Strand (shadow)         : "), FontWhite);
 		Print(Context,InstanceCount_StrandsShadowView, FontYellow, 8);
 		Newline(Context);
 
-		Print(Context, TEXT("Total Cards / Meshes: "), FontWhite);
-		Print(Context,InstanceCount_CardsOrMeshes, FontYellow, 8);
+		Print(Context, TEXT("Total Cards / Meshes (primary): "), FontWhite);
+		Print(Context,InstanceCount_CardsOrMeshesPrimaryView, FontYellow, 8);
+		Newline(Context);
+
+		Print(Context, TEXT("Total Cards / Meshes (shadow) : "), FontWhite);
+		Print(Context, InstanceCount_CardsOrMeshesShadowView, FontYellow, 8);
 		Newline(Context);
 	}
 	Newline(Context);
