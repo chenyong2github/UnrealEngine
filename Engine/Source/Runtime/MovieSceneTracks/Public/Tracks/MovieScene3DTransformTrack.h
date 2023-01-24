@@ -85,5 +85,6 @@ public:
 private:
 
 	/** User-defined blender system to use for this track */
+	UPROPERTY()
 	TSubclassOf<UMovieSceneBlenderSystem> BlenderSystemClass;
 };
