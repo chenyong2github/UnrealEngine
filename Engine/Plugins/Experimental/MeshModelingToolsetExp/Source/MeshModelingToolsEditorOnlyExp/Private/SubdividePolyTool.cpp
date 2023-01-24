@@ -220,7 +220,7 @@ void USubdividePolyTool::Setup()
 		return;
 	}
 
-	if (!ensure(Properties->SubdivisionLevel >= 1)) // Should be enforced by UPROPERTY meta tags
+	if (Properties->SubdivisionLevel < 1)
 	{
 		Properties->SubdivisionLevel = 1;
 	}
