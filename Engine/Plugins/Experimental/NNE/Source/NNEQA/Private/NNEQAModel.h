@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "NNEQAModel.h"
 #include "CoreMinimal.h"
 #include "NNECore.h"
 #include "NNECoreRuntimeCPU.h"
