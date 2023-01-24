@@ -61,5 +61,5 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyKeyName("")]
 [assembly: AssemblyFileVersion("1.0.0.21")]
 
-// todo: We don't need com visibility for every class. Only for the Addin and whatever we'd want to expose and automation API
-// [assembly: ComVisible(false)]
+// We don't need com visibility for every class. Only for the Addin and whatever we'd want to expose as automation API
+[assembly: ComVisible(false)]

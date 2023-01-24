@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 
 namespace DatasmithSolidworks
 {
-    [ComVisible(false)]
     public class FGeometryChunk
     {
         public FVec3[] Vertices { get; set; } = null;

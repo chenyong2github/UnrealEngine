@@ -13,7 +13,6 @@ using static DatasmithSolidworks.FConfigurationTree;
 
 namespace DatasmithSolidworks
 {
-	[ComVisible(false)]
 	public class FConfigurationData
 	{
 		public string Name;
@@ -22,7 +21,6 @@ namespace DatasmithSolidworks
 		public Dictionary<FComponentName, bool> ComponentVisibility = new Dictionary<FComponentName, bool>();
 		public Dictionary<FComponentName, FObjectMaterials> ComponentMaterials = new Dictionary<FComponentName, FObjectMaterials>();
 
-		[ComVisible(false)]
 		public struct FComponentGeometryVariant
 		{
 			public FActorName VisibleActor; // Actor enabled for this variant
@@ -40,14 +38,12 @@ namespace DatasmithSolidworks
 		}
 	};
 
-	[ComVisible(false)]
 	public class FMeshes
 	{
 		private Dictionary<string, FConfiguration> Configurations = new Dictionary<string, FConfiguration>();
 
 		private HashSet<FMesh> Meshes = new HashSet<FMesh>();
 
-		[ComVisible(false)]
 		public struct FMesh
 		{
 			public FMeshData MeshData;
@@ -228,7 +224,6 @@ namespace DatasmithSolidworks
 		}
 	}
 
-	[ComVisible(false)]
 	public class FConfigurationExporter
 	{
 		public readonly FMeshes Meshes;

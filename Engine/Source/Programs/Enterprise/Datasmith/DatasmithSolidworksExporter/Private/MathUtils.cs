@@ -7,7 +7,6 @@ using System.Runtime.InteropServices;
 
 namespace DatasmithSolidworks
 {
-	[ComVisible(false)]
     public static class MathUtils
     {
 		public static float Rad2Deg { get { return (float)(180.0 / Math.PI); } }

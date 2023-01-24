@@ -5,7 +5,6 @@ using System.Runtime.InteropServices;
 
 namespace DatasmithSolidworks
 {
-	[ComVisible(false)]
 	public class FMatrix4
 	{
 		public FVec3 XBasis { get { return new FVec3(Data[0], Data[1], Data[2]); } }

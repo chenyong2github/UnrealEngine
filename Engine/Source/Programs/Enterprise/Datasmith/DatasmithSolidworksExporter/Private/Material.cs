@@ -10,7 +10,6 @@ using SolidWorks.Interop.sldworks;
 
 namespace DatasmithSolidworks
 {
-	[ComVisible(false)]
 	public class FMaterial
 	{
 		private static List<Tuple<string, string>> SpecialFinishes = new List<Tuple<string, string>>();

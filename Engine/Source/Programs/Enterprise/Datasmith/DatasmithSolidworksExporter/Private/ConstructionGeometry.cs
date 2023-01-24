@@ -7,7 +7,6 @@ using System.Runtime.InteropServices;
 
 namespace DatasmithSolidworks
 {
-	[ComVisible(false)]
 	public class FConstructionGeometry
 	{
 		public List<FVec3> CVertices;

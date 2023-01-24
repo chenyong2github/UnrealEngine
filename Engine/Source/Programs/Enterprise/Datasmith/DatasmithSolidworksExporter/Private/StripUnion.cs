@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 
 namespace DatasmithSolidworks
 {
-    [ComVisible(false)]
     [StructLayout(LayoutKind.Explicit)]
     public struct FStripUnion
     {

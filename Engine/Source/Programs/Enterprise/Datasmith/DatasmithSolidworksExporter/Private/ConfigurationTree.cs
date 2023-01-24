@@ -9,7 +9,6 @@ using DatasmithSolidworks.Names;
 
 namespace DatasmithSolidworks
 {
-	[ComVisible(false)]
 	public class FConfigurationTree
 	{
 		// Component state for a single configuration
@@ -49,12 +48,10 @@ namespace DatasmithSolidworks
 		};
 
 		// A node contains all the configuration data for a single component
-		[ComVisible(false)]
 		public class FComponentTreeNode
 		{
 			public readonly Component2 Component;
 
-			[ComVisible(false)]
 			public struct FComponentInfo
 			{
 				public FComponentName ComponentName;

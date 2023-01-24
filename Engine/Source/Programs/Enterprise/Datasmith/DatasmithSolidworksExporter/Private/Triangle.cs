@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 
 namespace DatasmithSolidworks
 {
-	[ComVisible(false)]
 	public class FTriangle
 	{
 		private int[] Indices = new int[3];

@@ -11,7 +11,6 @@ using DatasmithSolidworks.Names;
 
 namespace DatasmithSolidworks
 {
-	[ComVisible(false)]
 	public class FObjectMaterials
 	{
 		// Note: part document might be a different document than the owner one:

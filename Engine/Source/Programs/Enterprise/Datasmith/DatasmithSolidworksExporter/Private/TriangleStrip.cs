@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 
 namespace DatasmithSolidworks
 {
-	[ComVisible(false)]
 	public class FTriangleStrip
 	{
 		public FStripUnion Vertices { get; set; }

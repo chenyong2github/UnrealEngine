@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 
 namespace DatasmithSolidworks
 {
-	[ComVisible(false)]
 	public class FStripGeometryBody
 	{
 		public FBoundingBox Bounds { get; set; } = null;
@@ -26,7 +25,6 @@ namespace DatasmithSolidworks
 		}
 	}
 
-	[ComVisible(false)]
 	public class FStripGeometryFace
 	{
 		public FMaterial Material { get; set; } = null;
@@ -61,7 +59,6 @@ namespace DatasmithSolidworks
 		}
 	}
 
-	[ComVisible(false)]
 	public class FStripGeometry
 	{
 		private ConcurrentBag<FStripGeometryBody> Bodies { get; set; } = new ConcurrentBag<FStripGeometryBody>();

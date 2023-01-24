@@ -5,7 +5,6 @@ using System.Runtime.InteropServices;
 
 namespace DatasmithSolidworks
 {
-    [ComVisible(false)]
     public class FBoundingBox
     {
 		public FVec3 Min { get; private set; }

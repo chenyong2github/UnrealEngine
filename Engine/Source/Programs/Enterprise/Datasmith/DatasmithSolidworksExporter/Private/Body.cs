@@ -9,14 +9,12 @@ using System.Collections.Concurrent;
 
 namespace DatasmithSolidworks
 {
-	[ComVisible(false)]
 	public class FBody
 	{
 		public List<FBodyFace> Faces { get; set; } = new List<FBodyFace>();
 		public Body2 Body { get; private set; } = null;
 		public FBoundingBox Bounds { get; private set; }
 
-		[ComVisible(false)]
 		public class FBodyFace
 		{
 			public Face2 Face { get; private set; } = null;

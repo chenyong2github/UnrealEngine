@@ -47,7 +47,6 @@ namespace DatasmithSolidworks
 		}
 	}
 
-	[ComVisible(false)]
 	public class FMetadata
 	{
 		public enum EOwnerType

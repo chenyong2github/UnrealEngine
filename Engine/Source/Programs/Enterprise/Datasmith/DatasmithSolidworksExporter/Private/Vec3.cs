@@ -6,7 +6,6 @@ using System.Runtime.InteropServices;
 
 namespace DatasmithSolidworks
 {
-    [ComVisible(false)]
     public class FVec3
     {
         public float X = 0f;

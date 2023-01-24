@@ -20,7 +20,6 @@ namespace DatasmithSolidworks
 	//  - avoid using sanitized(Datasmith) name to check component's name and vice versa
 	namespace Names
 	{
-		[ComVisible(false)]
 		public struct FActorName : IEquatable<FActorName>
 		{
 			private string Value;
@@ -47,7 +46,6 @@ namespace DatasmithSolidworks
 			public override int GetHashCode() => Value.GetHashCode();
 		}
 
-		[ComVisible(false)]
 		public struct FComponentName: IEquatable<FComponentName>
 		{
 			private string Value;
@@ -103,7 +101,6 @@ namespace DatasmithSolidworks
 			public override int GetHashCode() => Value.GetHashCode();
 		}
 
-		[ComVisible(false)]
 		public struct FMeshName : IEquatable<FMeshName>
 		{
 			private string Value;
@@ -167,7 +164,6 @@ namespace DatasmithSolidworks
 
 		private FDatasmithFacadeScene DatasmithScene = null;
 
-		[ComVisible(false)]
 		public struct FMeshExportInfo
 		{
 			public FComponentName ComponentName;
