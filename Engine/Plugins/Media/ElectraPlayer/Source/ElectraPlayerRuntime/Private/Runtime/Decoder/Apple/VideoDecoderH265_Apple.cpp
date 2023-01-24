@@ -786,7 +786,7 @@ bool FVideoDecoderH265::InternalDecoderCreate(CMFormatDescriptionRef InputFormat
 
 	// Choice of: kCVPixelBufferOpenGLCompatibilityKey (all)  kCVPixelBufferOpenGLESCompatibilityKey (iOS only)   kCVPixelBufferMetalCompatibilityKey (all)
 	CFDictionarySetValue(OutputImageFormat, kCVPixelBufferMetalCompatibilityKey, kCFBooleanTrue);
-#if PLATFORM_IOS
+#if PLATFORM_IOS || PLATFORM_TVOS
 	CFDictionarySetValue(OutputImageFormat, kCVPixelBufferOpenGLESCompatibilityKey, kCFBooleanFalse);
 #endif
 

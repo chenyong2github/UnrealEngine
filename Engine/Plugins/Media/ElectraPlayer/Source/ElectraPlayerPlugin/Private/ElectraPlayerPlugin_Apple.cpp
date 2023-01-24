@@ -2,7 +2,7 @@
 
 #include "CoreTypes.h"
 
-#if PLATFORM_MAC || PLATFORM_IOS
+#if PLATFORM_MAC || PLATFORM_IOS || PLATFORM_TVOS
 
 #include <ElectraPlayerPlugin.h>
 
@@ -15,4 +15,4 @@ void FElectraPlayerPlugin::PlatformSetupResourceParams(Electra::FParamDict& Para
 {
 }
 
-#endif // PLATFORM_MAC || PLATFORM_IOS
+#endif // PLATFORM_MAC || PLATFORM_IOS || PLATFORM_TVOS
