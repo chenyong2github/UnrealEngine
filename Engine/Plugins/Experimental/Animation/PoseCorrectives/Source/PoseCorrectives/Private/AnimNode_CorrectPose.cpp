@@ -16,7 +16,7 @@ void FAnimNode_CorrectPose::Initialize_AnyThread(const FAnimationInitializeConte
 
 	SourcePose.Initialize(Context);
 
-	if (PoseCorrectivesProcessor && IsInGameThread())
+	if (!PoseCorrectivesProcessor && IsInGameThread())
 	{
 		PoseCorrectivesProcessor = NewObject<UPoseCorrectivesProcessor>();	
 	}
@@ -107,7 +107,7 @@ void FAnimNode_CorrectPose::Evaluate_AnyThread(FPoseContext& Output)
 	SourcePose.Evaluate(SourceData);
 	Output = SourceData;
 
-	if (!IsValid(PoseCorrectivesAsset) || EditMode)
+	if (!IsValid(PoseCorrectivesAsset) || EditMode || !PoseCorrectivesProcessor)
 	{
 		return;
 	}

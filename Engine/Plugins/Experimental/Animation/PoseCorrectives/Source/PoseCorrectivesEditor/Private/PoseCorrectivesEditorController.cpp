@@ -95,6 +95,14 @@ void FPoseCorrectivesEditorController::UninitializeTargetControlRigBP()
 	}
 }
 
+void FPoseCorrectivesEditorController::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(ControlRig);
+	Collector.AddReferencedObject(SourceAnimInstance);
+	Collector.AddReferencedObject(TargetAnimInstance);
+};
+
+
 USkeletalMesh* FPoseCorrectivesEditorController::GetSourceSkeletalMesh() const
 {
 	if (!Asset)
@@ -117,7 +125,7 @@ USkeletalMesh* FPoseCorrectivesEditorController::GetTargetSkeletalMesh() const
 
 void FPoseCorrectivesEditorController::PlayAnimationAsset(UAnimationAsset* AssetToPlay)
 {
-	if (AssetToPlay && SourceAnimInstance.IsValid())
+	if (AssetToPlay && SourceAnimInstance.Get())
 	{
 		ExitEditMode();
 

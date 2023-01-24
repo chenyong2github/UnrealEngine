@@ -46,8 +46,8 @@ public:
 	UDebugSkelMeshComponent* TargetSkelMeshComponent;
 
 	/** viewport anim instance */
-	TWeakObjectPtr<UPoseCorrectivesAnimSourceInstance> SourceAnimInstance;
-	TWeakObjectPtr<UPoseCorrectivesAnimInstance> TargetAnimInstance;	
+	TObjectPtr<UPoseCorrectivesAnimSourceInstance> SourceAnimInstance;
+	TObjectPtr<UPoseCorrectivesAnimInstance> TargetAnimInstance;	
 	
 	/** asset properties tab */
 	TSharedPtr<IDetailsView> DetailsView;
@@ -63,10 +63,7 @@ public:
 	UAnimationAsset* PreviousAsset = nullptr;
 	/** END Sequence Browser */
 
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
-	{
-		Collector.AddReferencedObject(ControlRig);
-	};
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override {return "PoseCorrectivesEditorController";};
 
 	void HandleEditCorrective(const FName& CorrectiveName);
