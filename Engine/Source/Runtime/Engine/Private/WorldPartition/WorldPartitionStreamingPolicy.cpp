@@ -46,6 +46,13 @@ static FAutoConsoleVariableRef CVarBlockOnSlowStreaming(
 	GBlockOnSlowStreaming,
 	TEXT("Set if streaming needs to block when to slow to catchup."));
 
+static FString GServerDisallowStreamingOutDataLayersString;
+static FAutoConsoleVariableRef CVarServerDisallowStreamingOutDataLayers(
+	TEXT("wp.Runtime.ServerDisallowStreamingOutDataLayers"),
+	GServerDisallowStreamingOutDataLayersString,
+	TEXT("Comma separated list of data layer names that aren't allowed to be unloaded or deactivated on the server"),
+	ECVF_ReadOnly);
+
 bool UWorldPartitionStreamingPolicy::IsUpdateOptimEnabled = false;
 FAutoConsoleVariableRef UWorldPartitionStreamingPolicy::CVarUpdateOptimEnabled(
 	TEXT("wp.Runtime.UpdateStreaming.EnableOptimization"),
@@ -353,6 +360,35 @@ bool UWorldPartitionStreamingPolicy::GetIntersectingCells(const TArray<FWorldPar
 	return true;
 }
 
+const TSet<FName>& UWorldPartitionStreamingPolicy::GetServerDisallowedStreamingOutDataLayers()
+{
+	if (!CachedServerDisallowStreamingOutDataLayers.IsSet())
+	{
+		TSet<FName> ServerDisallowStreamingOutDataLayers;
+
+		if (!GServerDisallowStreamingOutDataLayersString.IsEmpty())
+		{
+			TArray<FString> AllDLAssetsStrings;
+			GServerDisallowStreamingOutDataLayersString.ParseIntoArray(AllDLAssetsStrings, TEXT(","));
+
+			if (const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+			{
+				for (const FString& DataLayerAssetName : AllDLAssetsStrings)
+				{
+					if (const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstanceFromAssetName(FName(DataLayerAssetName)))
+					{
+						ServerDisallowStreamingOutDataLayers.Add(DataLayerInstance->GetDataLayerFName());
+					}
+				}
+			}
+		}
+
+		CachedServerDisallowStreamingOutDataLayers = ServerDisallowStreamingOutDataLayers;
+	}
+	
+	return CachedServerDisallowStreamingOutDataLayers.GetValue();
+}
+
 void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState);
@@ -437,7 +473,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		if (bIsServer)
 		{
 			const bool bCanServerDeactivateOrUnloadCells = WorldPartition->IsServerStreamingOutEnabled();
-			const bool bCanServerDeactivateOrUnloadDataLayerCells = WorldPartition->IsServerDataLayerStreamingOutEnabled();
+			const TSet<FName>& ServerDisallowStreamingOutDataLayers = GetServerDisallowedStreamingOutDataLayers();
 
 			TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState_ServerUpdate);
 
@@ -468,10 +504,23 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			TSet<FName> EffectiveActiveDataLayerNames = DataLayerSubsystem->GetEffectiveActiveDataLayerNames();
 			TSet<FName> EffectiveLoadedDataLayerNames = DataLayerSubsystem->GetEffectiveLoadedDataLayerNames();
 
-			auto AddServerFrameCell = [this, bCanServerDeactivateOrUnloadDataLayerCells, &EffectiveLoadedDataLayerNames, &EffectiveActiveDataLayerNames](const UWorldPartitionRuntimeCell* Cell)
+			auto CanServerDeactivateOrUnloadDataLayerCell = [&ServerDisallowStreamingOutDataLayers](const UWorldPartitionRuntimeCell* Cell)
 			{
-				// Keep Data Layer cells is their current state if server cannot deactivate/unload data layer cells
-				if (!bCanServerDeactivateOrUnloadDataLayerCells && Cell->HasDataLayers())
+				if (Cell->HasDataLayers())
+				{
+					if (Cell->HasAnyDataLayer(ServerDisallowStreamingOutDataLayers))
+					{
+						return false;
+					}
+				}
+
+				return true;
+			};
+
+			auto AddServerFrameCell = [this, CanServerDeactivateOrUnloadDataLayerCell, &EffectiveLoadedDataLayerNames, &EffectiveActiveDataLayerNames](const UWorldPartitionRuntimeCell* Cell)
+			{
+				// Keep Data Layer cells in their current state if server cannot deactivate/unload data layer cells
+				if (!CanServerDeactivateOrUnloadDataLayerCell(Cell))
 				{
 					if (ActivatedCells.Contains(Cell))
 					{

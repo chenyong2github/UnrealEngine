@@ -103,15 +103,6 @@ FAutoConsoleVariableRef UWorldPartition::CVarEnableServerStreamingOut(
 	TEXT("Changing the value while the game is running won't be considered."),
 	WorldPartition::ECVF_Runtime_ReadOnly);
 
-
-bool UWorldPartition::bEnableServerDataLayerStreamingOut = true;
-FAutoConsoleVariableRef UWorldPartition::CVarEnableServerDataLayerStreamingOut(
-	TEXT("wp.Runtime.EnableServerDataLayerStreamingOut"),
-	UWorldPartition::bEnableServerDataLayerStreamingOut,
-	TEXT("Turn on/off to allow or not the server to stream out levels of runtime cells linked to runtime data layers.\n")
-	TEXT("Changing the value while the game is running won't be considered."),
-	WorldPartition::ECVF_Runtime_ReadOnly);
-
 bool UWorldPartition::bUseMakingVisibleTransactionRequests = false;
 FAutoConsoleVariableRef UWorldPartition::CVarUseMakingVisibleTransactionRequests(
 	TEXT("wp.Runtime.UseMakingVisibleTransactionRequests"),
@@ -1073,18 +1064,6 @@ bool UWorldPartition::IsServerStreamingOutEnabled() const
 	}
 
 	return bCachedIsServerStreamingOutEnabled.Get(false);
-}
-
-bool UWorldPartition::IsServerDataLayerStreamingOutEnabled() const
-{
-	// Resolve once (we don't allow changing the state at runtime)
-	if (!bCachedIsServerDataLayerStreamingOutEnabled.IsSet())
-	{
-		UWorld* OwningWorld = GetWorld();
-		bCachedIsServerDataLayerStreamingOutEnabled = OwningWorld && OwningWorld->IsGameWorld() && IsServer() && UWorldPartition::bEnableServerDataLayerStreamingOut;
-	}
-
-	return bCachedIsServerDataLayerStreamingOutEnabled.Get(false);
 }
 
 bool UWorldPartition::UseMakingVisibleTransactionRequests() const

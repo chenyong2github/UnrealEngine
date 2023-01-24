@@ -127,6 +127,8 @@ private:
 	uint32 ComputeStreamingSourceHash(const FWorldPartitionStreamingSource& Source) const;
 	int32 ComputeServerStreamingEnabledEpoch() const;
 
+	const TSet<FName>& GetServerDisallowedStreamingOutDataLayers();
+
 	static bool IsUpdateStreamingOptimEnabled();
 
 	// CVars to control update optimization
@@ -147,6 +149,8 @@ private:
 	int32 ServerStreamingEnabledEpoch;
 	uint32 UpdateStreamingHash;
 	uint32 UpdateStreamingStateCalls;
+
+	TOptional<TSet<FName>> CachedServerDisallowStreamingOutDataLayers;
 
 	EWorldPartitionStreamingPerformance StreamingPerformance;
 #if !UE_BUILD_SHIPPING

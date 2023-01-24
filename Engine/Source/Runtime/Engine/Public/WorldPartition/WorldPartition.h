@@ -255,7 +255,6 @@ public:
 	bool IsServer() const;
 	bool IsServerStreamingEnabled() const;
 	bool IsServerStreamingOutEnabled() const;
-	bool IsServerDataLayerStreamingOutEnabled() const;
 	bool UseMakingVisibleTransactionRequests() const;
 	bool UseMakingInvisibleTransactionRequests() const;
 
@@ -360,7 +359,6 @@ private:
 	mutable TOptional<bool> bCachedUseMakingVisibleTransactionRequests;
 	mutable TOptional<bool> bCachedIsServerStreamingEnabled;
 	mutable TOptional<bool> bCachedIsServerStreamingOutEnabled;
-	mutable TOptional<bool> bCachedIsServerDataLayerStreamingOutEnabled;
 
 	UPROPERTY(Transient)
 	mutable TObjectPtr<UWorldPartitionStreamingPolicy> StreamingPolicy;
@@ -384,12 +382,10 @@ private:
 
 	static int32 EnableServerStreaming;
 	static bool bEnableServerStreamingOut;
-	static bool bEnableServerDataLayerStreamingOut;
 	static bool bUseMakingVisibleTransactionRequests;
 	static bool bUseMakingInvisibleTransactionRequests;
 	static FAutoConsoleVariableRef CVarEnableServerStreaming;
 	static FAutoConsoleVariableRef CVarEnableServerStreamingOut;
-	static FAutoConsoleVariableRef CVarEnableServerDataLayerStreamingOut;
 	static FAutoConsoleVariableRef CVarUseMakingVisibleTransactionRequests;
 	static FAutoConsoleVariableRef CVarUseMakingInvisibleTransactionRequests;
 
