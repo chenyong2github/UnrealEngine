@@ -6,6 +6,7 @@
 #include "IPixelStreamingStreamer.h"
 #include "PixelStreamingMediaCapture.h"
 #include "PixelStreamingVideoInput.h"
+#include "Delegates/DelegateCombinations.h"
 #include "PixelStreamingMediaOutput.generated.h"
 
 
@@ -28,20 +29,28 @@ protected:
 
 public:
 	TSharedPtr<IPixelStreamingStreamer> GetStreamer() const { return Streamer; }
-
 	void SetSignallingServerURL(FString InURL);
 	void SetSignallingStreamID(FString InStreamID);
 	void StartStreaming();
 	void StopStreaming();
+
+	DECLARE_EVENT_OneParam(UPixelStreamingMediaOutput, FRemoteResolutionChangedEvent, const FIntPoint&)
+	FRemoteResolutionChangedEvent& OnRemoteResolutionChanged() { return RemoteResolutionChangedEvent; }
 
 private:
 	UPixelStreamingMediaCapture* Capture = nullptr;
 	TSharedPtr<IPixelStreamingStreamer> Streamer;
 	TSharedPtr<FPixelStreamingVideoInput> VideoInput;
 
+	/** Broadcasts whenever the layer changes */
+	FRemoteResolutionChangedEvent RemoteResolutionChangedEvent;
+
 	FString SignallingServerURL;
 	FString StreamID = TEXT("VCam");
 
 	void OnCaptureStateChanged();
 	void OnCaptureViewportInitialized();
+
+	/* When the remote device sends a resolution change request back to the VCam we can respond here. */
+	void RegisterRemoteResolutionCommandHandler();
 };

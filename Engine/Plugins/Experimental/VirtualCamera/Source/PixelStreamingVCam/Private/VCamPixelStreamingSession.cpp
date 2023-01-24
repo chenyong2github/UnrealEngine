@@ -75,6 +75,7 @@ void UVCamPixelStreamingSession::Activate()
 	if (MediaOutput == nullptr)
 	{
 		MediaOutput = NewObject<UPixelStreamingMediaOutput>(GetTransientPackage(), UPixelStreamingMediaOutput::StaticClass());
+		MediaOutput->OnRemoteResolutionChanged().AddUObject(this, &UVCamPixelStreamingSession::OnRemoteResolutionChanged);
 	}
 
 	UEditorPerformanceSettings* Settings = GetMutableDefault<UEditorPerformanceSettings>();
@@ -152,6 +153,25 @@ void UVCamPixelStreamingSession::OnCaptureStateChanged()
 		default:
 			break;
 	}
+}
+
+void UVCamPixelStreamingSession::OnRemoteResolutionChanged(const FIntPoint& RemoteResolution)
+{
+	// Early out if match remote resolution is not enabled.
+	if(!bMatchRemoteResolution)
+	{
+		return;
+	}
+
+	// Ensure override resolution is being used
+	if(!bUseOverrideResolution)
+	{
+		bUseOverrideResolution = true;
+	}
+
+	// Set the override resolution on the output provider base, this will trigger a resize
+	OverrideResolution = RemoteResolution;
+	ApplyOverrideResolutionForViewport(GetTargetViewport());
 }
 
 void UVCamPixelStreamingSession::SetupCustomInputHandling()

@@ -29,6 +29,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	int32 FromComposureOutputProviderIndex = INDEX_NONE;
 
+	// If true the streamed UE viewport will match the resolution of the remote device.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
+	bool bMatchRemoteResolution = true;
+
 	// Check this if you wish to control the corresponding CineCamera with transform data received from the LiveLink app
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	bool EnableARKitTracking = true;
@@ -60,6 +64,7 @@ private:
 	void SetupCustomInputHandling();
 	void OnCaptureStateChanged();
 	void OnARKitTransformReceived(FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data);
+	void OnRemoteResolutionChanged(const FIntPoint& RemoteResolution);
 private:
 	FHitResult 	LastViewportTouchResult;
 	bool 		bUsingDummyUMG = false;
