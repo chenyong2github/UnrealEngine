@@ -36,7 +36,7 @@ static FAutoConsoleVariableRef CVarCachedChannelEvaluationParityThreshold(
 	TEXT("Threshold for testing Evaluate parity with cached/uncached routines."),
 	ECVF_Default);
 
-MOVIESCENE_API bool GEnableCachedChannelEvaluation = false;
+MOVIESCENE_API bool GEnableCachedChannelEvaluation = true;
 static FAutoConsoleVariableRef CVarEnableCachedChannelEvaluation(
 	TEXT("Sequencer.EnableCachedChannelEvaluation"),
 	GEnableCachedChannelEvaluation,
