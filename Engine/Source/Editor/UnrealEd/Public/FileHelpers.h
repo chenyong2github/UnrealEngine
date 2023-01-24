@@ -409,6 +409,18 @@ public:
 	 */
 	UNREALED_API static void GetDirtyPackages(TArray<UPackage*>& OutDirtyPackages, const FShouldIgnorePackageFunctionRef& ShouldIgnorePackageFunction = FShouldIgnorePackage::Default);
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPrepareWorldsForExplicitSave, TArray<UWorld*> Worlds);
+	UNREALED_API static FOnPrepareWorldsForExplicitSave OnPrepareWorldsForExplicitSave;
+
+	/**
+	 * Broadcasts the OnPrepareWorldsForExplicitSave event to allow validation and changes to worlds before they're saved.
+	 * Used for Editor triggered explicit saves caused by user input such as ctrl+s, or clicking the save button.
+	 * Changes to worlds include dirtying the world itself or affecting its ExternalActors through Adds/Removes/Edits.
+	 * 
+	 * 
+	 * @param Worlds A list of the worlds that will be broadcasted.
+	 */
+	UNREALED_API static void PrepareWorldsForExplicitSave(TArray<UWorld*> Worlds);
 
 	/**
 	 * Saves the active level, prompting the use for checkout if necessary.
