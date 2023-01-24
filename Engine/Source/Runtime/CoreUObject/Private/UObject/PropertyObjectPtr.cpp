@@ -158,7 +158,9 @@ UObject* FObjectPtrProperty::GetObjectPropertyValue(const void* PropertyValueAdd
 
 UObject* FObjectPtrProperty::GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex) const
 {
-	return GetWrappedObjectPropertyValue_InContainer<FObjectPtr>(ContainerAddress, ArrayIndex);
+	UObject* Result = nullptr;
+	GetWrappedUObjectPtrValues_InContainer<FObjectPtr>(&Result, ContainerAddress, ArrayIndex, 1);
+	return Result;
 }
 
 void FObjectPtrProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const

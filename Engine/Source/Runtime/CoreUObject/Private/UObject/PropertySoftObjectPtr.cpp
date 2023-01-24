@@ -243,7 +243,9 @@ UObject* FSoftObjectProperty::GetObjectPropertyValue(const void* PropertyValueAd
 
 UObject* FSoftObjectProperty::GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex) const
 {
-	return GetWrappedObjectPropertyValue_InContainer<FSoftObjectPtr>(ContainerAddress, ArrayIndex);
+	UObject* Result = nullptr;
+	GetWrappedUObjectPtrValues_InContainer<FSoftObjectPtr>(&Result, ContainerAddress, ArrayIndex, 1);
+	return Result;
 }
 
 void FSoftObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const

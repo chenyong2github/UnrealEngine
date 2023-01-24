@@ -192,7 +192,7 @@ UObject* FObjectProperty::GetObjectPropertyValue(const void* PropertyValueAddres
 
 UObject* FObjectProperty::GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex) const
 {
-	// Dummy struct to satisfy GetWrappedObjectPropertyValue_InContainer API requirements (Get() function)
+	// Dummy struct to satisfy GetWrappedUObjectPtrValues_InContainer API requirements (Get() function)
 	struct FWrappedObjectPtr
 	{
 		UObject* Obj = nullptr;
@@ -201,7 +201,9 @@ UObject* FObjectProperty::GetObjectPropertyValue_InContainer(const void* Contain
 			return Obj;
 		}
 	};
-	return GetWrappedObjectPropertyValue_InContainer<FWrappedObjectPtr>(ContainerAddress, ArrayIndex);
+	UObject* Result = nullptr;
+	GetWrappedUObjectPtrValues_InContainer<FWrappedObjectPtr>(&Result, ContainerAddress, ArrayIndex, 1);
+	return Result;
 }
 
 void FObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const

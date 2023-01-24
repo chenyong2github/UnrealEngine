@@ -2745,31 +2745,52 @@ protected:
 
 	/* Helper functions for UObject property types that wrap the object pointer in a smart pointer */
 	template <typename T>
-	UObject* GetWrappedObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex) const
+	void GetWrappedUObjectPtrValues_InContainer(UObject** OutObjects, const void* ContainerAddress, int32 ArrayIndex, int32 ArrayCount) const
 	{
+		// Ensure required range is valid
+		checkf(ArrayIndex >= 0 && ArrayCount >= 0 && ArrayIndex <= ArrayDim && ArrayCount <= ArrayDim && ArrayIndex <= ArrayDim - ArrayCount, TEXT("ArrayIndex (%d) and ArrayCount (%d) is invalid for an array of size %d"), ArrayIndex, ArrayCount, ArrayDim);
+
 		if (!HasGetter())
 		{
 			// Fast path - direct memory access
-			return GetObjectPropertyValue(ContainerPtrToValuePtr<void>(ContainerAddress, ArrayIndex));
+			const uint8* ObjAddress = (const uint8*)ContainerPtrToValuePtr<void>(ContainerAddress, ArrayIndex);
+
+			if (ArrayCount == 1)
+			{
+				*OutObjects = GetObjectPropertyValue(ObjAddress);
+			}
+			else
+			{
+				int32 LocalElementSize = ElementSize;
+				for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
+				{
+					OutObjects[OutIndex] = GetObjectPropertyValue(ObjAddress + OutIndex * LocalElementSize);
+				}
+			}
 		}
 		else
 		{
-			T Value;
-			if (ArrayDim == 1)
+			if (ArrayCount == 1)
 			{
 				// Slower but no mallocs. We can copy the value directly to the resulting param
+				T Value;
 				GetValue_InContainer(ContainerAddress, &Value);
+				*OutObjects = Value.Get();
 			}
 			else
 			{
 				// Malloc a temp value that is the size of the array. Getter will then copy the entire array to the temp value
 				T* ValueArray = (T*)AllocateAndInitializeValue();
 				FProperty::GetValue_InContainer(ContainerAddress, ValueArray);
-				// Grab the item we care about and free the temp array
-				Value = ValueArray[ArrayIndex];
+
+				// Grab the items we care about and free the temp array
+				int32 LocalElementSize = ElementSize;
+				for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
+				{
+					OutObjects[OutIndex] = ValueArray[ArrayIndex + OutIndex].Get();
+				}
 				DestroyAndFreeValue(ValueArray);
 			}
-			return Value.Get();
 		}
 	}
 	template <typename T>
