@@ -26,7 +26,7 @@ struct DATAFLOWCORE_API FDataflowSelection
 	void SetFromArray(const TArray<int32>& SelectionArr);
 	
 	/**
-	* Sets the selection from a dense array (it contains element for every item)
+	* Sets the selection from a dense array (it contains a true/false element for every item)
 	* (for example from the "Internal" attr from FacesGroup)
 	*/
 	void SetFromArray(const TArray<bool>& SelectionArr);
@@ -35,6 +35,7 @@ struct DATAFLOWCORE_API FDataflowSelection
 	void XOR(const FDataflowSelection& Other, FDataflowSelection& Result) const;
 	void Invert() { SelectionArray.BitwiseNOT(); }
 	void SetWithMask(const bool Value, const FDataflowSelection& Mask);
+	const TBitArray<>& GetBitArray() const { return SelectionArray; };
 
 private:
 

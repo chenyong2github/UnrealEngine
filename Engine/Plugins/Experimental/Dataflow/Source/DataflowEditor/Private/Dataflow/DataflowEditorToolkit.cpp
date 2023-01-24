@@ -38,6 +38,7 @@ const FName FDataflowEditorToolkit::GraphCanvasTabId(TEXT("DataflowEditor_GraphC
 const FName FDataflowEditorToolkit::AssetDetailsTabId(TEXT("DataflowEditor_AssetDetails"));
 const FName FDataflowEditorToolkit::NodeDetailsTabId(TEXT("DataflowEditor_NodeDetails"));
 const FName FDataflowEditorToolkit::SkeletalTabId(TEXT("DataflowEditor_Skeletal"));
+const FName FDataflowEditorToolkit::SelectionViewTabId(TEXT("DataflowEditor_SelectionView"));
 
 
 UDataflow* GetDataflowFrom(UObject* InObject)
@@ -88,6 +89,15 @@ bool FDataflowEditorToolkit::CanOpenDataflowEditor(UObject* ObjectToEdit)
 	return Dataflow != nullptr;
 }
 
+FDataflowEditorToolkit::~FDataflowEditorToolkit()
+{
+	if (GraphEditor)
+	{
+		GraphEditor->OnSelectionChangedMulticast.Remove(OnSelectionChangedMulticastDelegateHandle);
+		GraphEditor->OnNodeDeletedMulticast.Remove(OnNodeDeletedMulticastDelegateHandle);
+	}
+}
+
 void FDataflowEditorToolkit::InitializeEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit)
 {
 	Asset = nullptr;
@@ -104,15 +114,15 @@ void FDataflowEditorToolkit::InitializeEditor(const EToolkitMode::Type Mode, con
 
 	if (Dataflow != nullptr)
 	{
+		Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FAssetContext(Asset, Dataflow, FPlatformTime::Cycles64()));
+		LastNodeTimestamp = Context->GetTimestamp();
+
 		Dataflow->Schema = UDataflowSchema::StaticClass();
 
 		NodeDetailsEditor = CreateNodeDetailsEditorWidget(ObjectToEdit);
 		AssetDetailsEditor = CreateAssetDetailsEditorWidget(ObjectToEdit);
 		GraphEditor = CreateGraphEditorWidget(Dataflow, NodeDetailsEditor);
 		SkeletalEditor = CreateSkeletalEditorWidget(ObjectToEdit);
-
-		Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FAssetContext(Asset, Dataflow, FPlatformTime::Cycles64()));
-		LastNodeTimestamp = Context->GetTimestamp();
 
 		const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Dataflow_Layout.V1")
 			->AddArea
@@ -161,7 +171,7 @@ void FDataflowEditorToolkit::InitializeEditor(const EToolkitMode::Type Mode, con
 
 void FDataflowEditorToolkit::OnPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent)
 {
-	FDataflowEditorCommands::OnPropertyValueChanged(this->GetDataflow(), Context, LastNodeTimestamp, PropertyChangedEvent);
+	FDataflowEditorCommands::OnPropertyValueChanged(this->GetDataflow(), Context, LastNodeTimestamp, PropertyChangedEvent, PrevNodeSelection);
 }
 
 bool FDataflowEditorToolkit::OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* GraphNode, FText& OutErrorMessage)
@@ -172,6 +182,74 @@ bool FDataflowEditorToolkit::OnNodeVerifyTitleCommit(const FText& NewText, UEdGr
 void FDataflowEditorToolkit::OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode)
 {
 	FDataflowEditorCommands::OnNodeTitleCommitted(InNewText, InCommitType, GraphNode);
+}
+
+void FDataflowEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>& NewSelection)
+{
+	if (Dataflow)
+	{
+		// Only keep UDataflowEdNode from NewSelection
+		TSet<UObject*> ValidatedSelection;
+
+		for (UObject* Item : NewSelection)
+		{
+			if (UDataflowEdNode* Node = Cast<UDataflowEdNode>(Item))
+			{
+				ValidatedSelection.Add(Item);
+			}
+		}
+
+		if (ValidatedSelection.Num() > 0)
+		{
+			TSet<UObject*> SelectionToUse, SelectionDifference;
+
+			if (PrevNodeSelection.Num() > 0)
+			{
+				SelectionDifference = ValidatedSelection.Difference(PrevNodeSelection);
+
+				if (SelectionDifference.Num() > 0)
+				{
+					SelectionToUse.Add(SelectionDifference.Array()[SelectionDifference.Num() - 1]);
+				}
+				else
+				{
+					SelectionToUse.Add(ValidatedSelection.Array()[ValidatedSelection.Num() - 1]);
+				}
+			}
+			else
+			{
+				SelectionToUse.Add(ValidatedSelection.Array()[ValidatedSelection.Num() - 1]);
+			}
+
+			if (UDataflowEdNode* Node = Cast<UDataflowEdNode>(SelectionToUse.Array()[0]))
+			{
+				for (IDataflowViewListener* Listener : ViewListeners)
+				{
+					Listener->OnSelectedNodeChanged(Node);
+				}
+			}
+		}
+		else
+		{
+			for (IDataflowViewListener* Listener : ViewListeners)
+			{
+				Listener->OnSelectedNodeChanged(nullptr);
+			}
+		}
+		
+		PrevNodeSelection = ValidatedSelection;
+	}
+}
+
+void FDataflowEditorToolkit::OnNodeDeleted(const TSet<UObject*>& NewSelection)
+{
+	for (UObject* Node : NewSelection)
+	{
+		if (PrevNodeSelection.Contains(Node))
+		{
+			PrevNodeSelection.Remove(Node);
+		}
+	}
 }
 
 void FDataflowEditorToolkit::Tick(float DeltaTime)
@@ -193,7 +271,7 @@ TStatId FDataflowEditorToolkit::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FDataflowEditorToolkit, STATGROUP_Tickables);
 }
 
-TSharedRef<SGraphEditor> FDataflowEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit, TSharedPtr<IStructureDetailsView> InNodeDetailsEditor)
+TSharedRef<SDataflowGraphEditor> FDataflowEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit, TSharedPtr<IStructureDetailsView> InNodeDetailsEditor)
 {
 	ensure(DataflowToEdit);
 	using namespace Dataflow;
@@ -213,12 +291,16 @@ TSharedRef<SGraphEditor> FDataflowEditorToolkit::CreateGraphEditorWidget(UDatafl
 	InEvents.OnVerifyTextCommit = FOnNodeVerifyTextCommit::CreateSP(this, &FDataflowEditorToolkit::OnNodeVerifyTitleCommit);
 	InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FDataflowEditorToolkit::OnNodeTitleCommitted);
 
-	return SNew(SDataflowGraphEditor, DataflowToEdit)
+	TSharedRef<SDataflowGraphEditor> NewGraphEditor = SNew(SDataflowGraphEditor, DataflowToEdit)
 		.GraphToEdit(DataflowToEdit)
 		.GraphEvents(InEvents)
 		.DetailsView(InNodeDetailsEditor)
 		.EvaluateGraph(Evaluate);
 
+	OnSelectionChangedMulticastDelegateHandle = NewGraphEditor->OnSelectionChangedMulticast.AddSP(this, &FDataflowEditorToolkit::OnNodeSelectionChanged);
+	OnNodeDeletedMulticastDelegateHandle = NewGraphEditor->OnNodeDeletedMulticast.AddSP(this, &FDataflowEditorToolkit::OnNodeDeleted);
+
+	return NewGraphEditor;
 }
 
 TSharedPtr<IStructureDetailsView> FDataflowEditorToolkit::CreateNodeDetailsEditorWidget(UObject* ObjectToEdit)
@@ -378,6 +460,35 @@ TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_Skeletal(const FSpawnTabAr
 		];
 }
 
+
+TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_SelectionView(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == SelectionViewTabId);
+
+	DataflowSelectionView = MakeShared<FDataflowSelectionView>(FDataflowSelectionView());
+	ViewListeners.Add(DataflowSelectionView.Get());
+
+	TSharedPtr<SSelectionViewWidget> SelectionViewWidget;
+
+	TSharedRef<SDockTab> DockableTab = SNew(SDockTab)
+	[
+		SAssignNew(SelectionViewWidget, SSelectionViewWidget)
+	];
+
+	if (SelectionViewWidget)
+	{
+		DataflowSelectionView->SetSelectionView(SelectionViewWidget);
+
+		// Set the Context on the interface
+		if (TSharedPtr<Dataflow::FContext> CurrentContext = this->GetContext())
+		{
+			DataflowSelectionView->SetContext(CurrentContext);
+		}
+	}
+
+	return DockableTab;
+}
+
 void FDataflowEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
 	TSharedRef<FWorkspaceItem> WorkspaceMenuCategoryRef = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_DataflowEditor", "Dataflow Editor"));
@@ -406,6 +517,11 @@ void FDataflowEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& 
 		.SetDisplayName(LOCTEXT("DataflowSkeletalTab", "Skeletal Hierarchy"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.SkeletalHierarchy"));
+
+	InTabManager->RegisterTabSpawner(SelectionViewTabId, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_SelectionView))
+		.SetDisplayName(LOCTEXT("DataflowSelectionViewTab", "Selection View"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.SelectionView"));
 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 }

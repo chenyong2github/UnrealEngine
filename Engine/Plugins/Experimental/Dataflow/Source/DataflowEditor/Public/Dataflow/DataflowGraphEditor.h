@@ -54,6 +54,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionChangedMulticast, const FGraphPanelSelectionSet&)
 	FOnSelectionChangedMulticast OnSelectionChangedMulticast;
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNodeDeletedMulticast, const FGraphPanelSelectionSet&)
+	FOnNodeDeletedMulticast OnNodeDeletedMulticast;
+
 	// SWidget overrides
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;

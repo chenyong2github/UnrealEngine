@@ -1327,7 +1327,7 @@ int32 FGeometryCollectionEngineConversion::AppendSkeletalMeshMaterials(const USk
 
 void FGeometryCollectionEngineConversion::AppendGeometryCollectionSource(const FGeometryCollectionSource& GeometryCollectionSource, FGeometryCollection& GeometryCollectionInOut, TArray<UMaterial*>& MaterialsInOut, bool ReindexMaterials)
 {
-	if (const UObject* SourceObject = GeometryCollectionSource.SourceGeometryObject.ResolveObject())
+	if (const UObject* SourceObject = GeometryCollectionSource.SourceGeometryObject.TryLoad())
 	{
 		const int32 StartMaterialIndex = MaterialsInOut.Num();
 

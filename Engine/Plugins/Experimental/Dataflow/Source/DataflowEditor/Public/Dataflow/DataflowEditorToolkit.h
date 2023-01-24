@@ -8,6 +8,8 @@
 #include "Misc/NotifyHook.h"
 #include "GraphEditor.h"
 #include "TickableEditorObject.h"
+#include "Dataflow/DataflowSelectionView.h"
+#include "Dataflow/SelectionViewWidget.h"
 
 class FEditorViewportTabContent;
 class IDetailsView;
@@ -16,6 +18,7 @@ class IStructureDetailsView;
 class IToolkitHost;
 class UDataflow;
 class USkeletalMesh;
+class SDataflowGraphEditor;
 
 namespace Dataflow
 {
@@ -33,6 +36,8 @@ namespace Dataflow
 class DATAFLOWEDITOR_API FDataflowEditorToolkit : public FAssetEditorToolkit, public FTickableEditorObject, public FNotifyHook, public FGCObject
 {
 public:
+	~FDataflowEditorToolkit();
+
 	static bool CanOpenDataflowEditor(UObject* ObjectToEdit);
 
 	virtual void InitializeEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit);
@@ -61,6 +66,7 @@ public:
 	TSharedRef<SDockTab> SpawnTab_AssetDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_NodeDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Skeletal(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_SelectionView(const FSpawnTabArgs& Args);
 
 
 	// Member Access
@@ -79,8 +85,8 @@ public:
 	TSharedPtr<IStructureDetailsView> GetNodeDetailsEditor() { return NodeDetailsEditor; }
 	const TSharedPtr<IStructureDetailsView> GetNodeDetailsEditor() const { return NodeDetailsEditor; }
 
-	TSharedPtr<SGraphEditor> GetGraphEditor() { return GraphEditor; }
-	const TSharedPtr<SGraphEditor> GetGraphEditor() const { return GraphEditor; }
+	TSharedPtr<SDataflowGraphEditor> GetGraphEditor() { return GraphEditor; }
+	const TSharedPtr<SDataflowGraphEditor> GetGraphEditor() const { return GraphEditor; }
 
 protected:
 
@@ -88,6 +94,8 @@ protected:
 	void OnPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent);
 	bool OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* GraphNode, FText& OutErrorMessage);
 	void OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode);
+	void OnNodeSelectionChanged(const TSet<UObject*>& NewSelection);
+	void OnNodeDeleted(const TSet<UObject*>& NewSelection);
 	//~ End DataflowEditorActions
 
 private:
@@ -100,9 +108,9 @@ private:
 	TSharedPtr<FEditorViewportTabContent> ViewportEditor;
 
 	static const FName GraphCanvasTabId;
-	TSharedPtr<SGraphEditor> GraphEditor;
+	TSharedPtr<SDataflowGraphEditor> GraphEditor;
 	TSharedPtr<FUICommandList> GraphEditorCommands;
-	TSharedRef<SGraphEditor> CreateGraphEditorWidget(UDataflow* ObjectToEdit, TSharedPtr<IStructureDetailsView> PropertiesEditor);
+	TSharedRef<SDataflowGraphEditor> CreateGraphEditorWidget(UDataflow* ObjectToEdit, TSharedPtr<IStructureDetailsView> PropertiesEditor);
 
 	static const FName AssetDetailsTabId;
 	TSharedPtr<IDetailsView> AssetDetailsEditor;
@@ -118,6 +126,18 @@ private:
 	TSharedPtr<class ISkeletonTree> SkeletalEditor;
 	TSharedPtr<ISkeletonTree> CreateSkeletalEditorWidget(UObject* ObjectToEdit);
 
+	static const FName SelectionViewTabId;
+
+	TSet<UObject*> PrevNodeSelection;
+	Dataflow::FTimestamp LastContextRefreshTimestamp = Dataflow::FTimestamp::Invalid;
+	int32 ContextRefreshCounter = 0;
+
+	TSharedPtr<FDataflowSelectionView> DataflowSelectionView;
+	TArray<IDataflowViewListener*> ViewListeners;
+
 	TSharedPtr<Dataflow::FEngineContext> Context;
 	Dataflow::FTimestamp LastNodeTimestamp = Dataflow::FTimestamp::Invalid;
+
+	FDelegateHandle OnSelectionChangedMulticastDelegateHandle;
+	FDelegateHandle OnNodeDeletedMulticastDelegateHandle;
 };

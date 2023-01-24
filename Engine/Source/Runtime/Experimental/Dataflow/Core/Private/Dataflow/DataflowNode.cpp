@@ -227,6 +227,8 @@ void FDataflowNode::Invalidate()
 		FDataflowOutput* Con = Elem.Value;
 		Con->Invalidate();
 	}
+
+	OnNodeInvalidatedDelegate.Broadcast(this);
 }
 
 void FDataflowNode::RegisterInputConnection(const void* InProperty)

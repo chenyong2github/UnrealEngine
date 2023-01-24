@@ -1097,7 +1097,7 @@ namespace GeometryCollection::Facades
 	{
 		TArray<int32> OutSelection;
 
-		if (TransformIndexAttribute.IsValid() && FaceStartAttribute.IsValid() && FaceCountAttribute.IsValid())
+		if (TransformToGeometryIndexAttribute.IsValid() && FaceStartAttribute.IsValid() && FaceCountAttribute.IsValid())
 		{
 			const TManagedArray<int32>& TransformToGeometryIndices = TransformToGeometryIndexAttribute.Get();
 			const TManagedArray<int32>& FaceStarts = FaceStartAttribute.Get();

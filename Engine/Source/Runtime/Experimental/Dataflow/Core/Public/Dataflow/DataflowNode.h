@@ -231,12 +231,17 @@ struct DATAFLOWCORE_API FDataflowNode
 		return nullptr;
 	}
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNodeInvalidated, FDataflowNode*);
+	FOnNodeInvalidated& GetOnNodeInvalidatedDelegate() { return OnNodeInvalidatedDelegate; }
 
 private:
 	virtual TArray<Dataflow::FRenderingParameter> GetRenderParametersImpl() const { return TArray<Dataflow::FRenderingParameter>(); }
 
 
 	bool bValid = true;
+
+protected:
+	FOnNodeInvalidated OnNodeInvalidatedDelegate;
 
 };
 

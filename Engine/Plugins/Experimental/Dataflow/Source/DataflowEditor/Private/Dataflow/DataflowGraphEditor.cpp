@@ -132,7 +132,10 @@ void SDataflowGraphEditor::DeleteNode()
 			DetailsView->SetStructureData(nullptr);
 		}
 
-		FDataflowEditorCommands::DeleteNodes(DataflowAsset.Get(), GetSelectedNodes());
+		const FGraphPanelSelectionSet& SelectedNodes = GetSelectedNodes();
+		FDataflowEditorCommands::DeleteNodes(DataflowAsset.Get(), SelectedNodes);
+
+		OnNodeDeletedMulticast.Broadcast(SelectedNodes);
 	}
 }
 

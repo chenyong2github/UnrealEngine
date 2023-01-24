@@ -226,28 +226,24 @@ void FDataflowEditorCommands::OnNodeTitleCommitted(const FText& InNewText, EText
 }
 
 
-void FDataflowEditorCommands::OnPropertyValueChanged(UDataflow* OutDataflow, TSharedPtr<Dataflow::FEngineContext>& Context, Dataflow::FTimestamp& OutLastNodeTimestamp, const FPropertyChangedEvent& InPropertyChangedEvent)
+void FDataflowEditorCommands::OnPropertyValueChanged(UDataflow* OutDataflow, TSharedPtr<Dataflow::FEngineContext>& Context, Dataflow::FTimestamp& OutLastNodeTimestamp, const FPropertyChangedEvent& InPropertyChangedEvent, const TSet<UObject*>& SelectedNodes)
 {
 	if (InPropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
 	{
 		TSharedPtr<const FDataflowNode> UpdatedNode = nullptr;
 		if (OutDataflow && InPropertyChangedEvent.Property && InPropertyChangedEvent.Property->GetOwnerUObject())
 		{
-			OutDataflow->MarkPackageDirty();
+//			OutDataflow->MarkPackageDirty();
+			OutDataflow->Modify();
 
-			FString Name = InPropertyChangedEvent.Property->GetOwnerUObject()->GetName();
-			Name = Name.Left(Name.Len() - FString("DataflowNode").Len());
+			for (UObject* SelectedNode : SelectedNodes)
 			{
-				FDataflowAssetEdit Edit = OutDataflow->EditDataflow();
-
-				Dataflow::FGraph* Graph = Edit.GetGraph();
-				for (auto Node : Graph->GetNodes())
+				if (UDataflowEdNode* Node = Cast<UDataflowEdNode>(SelectedNode))
 				{
-					FString NodeName = Node->GetName().ToString();
-					if (NodeName.StartsWith(Name))
+					if (TSharedPtr<FDataflowNode> DataflowNode = Node->GetDataflowNode())
 					{
-						UpdatedNode = Node;
-						Node->Invalidate();
+						UpdatedNode = DataflowNode;
+						DataflowNode->Invalidate();
 					}
 				}
 			}
