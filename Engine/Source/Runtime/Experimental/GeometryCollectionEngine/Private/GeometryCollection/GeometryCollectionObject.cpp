@@ -299,6 +299,15 @@ void UGeometryCollection::UpdateGeometryDependentProperties()
 #endif
 }
 
+void UGeometryCollection::UpdateConvexGeometryIfMissing()
+{
+	const bool bConvexAttributeMissing = !GeometryCollection->HasAttribute("ConvexHull", "Convex");
+	if (GeometryCollection && bConvexAttributeMissing)
+	{
+		UpdateConvexGeometry();
+	}
+}
+
 void UGeometryCollection::UpdateConvexGeometry()
 {
 #if WITH_EDITOR
@@ -402,7 +411,7 @@ void UGeometryCollection::ResetFrom(const FManagedArrayCollection& InCollection,
 		InCollection.CopyTo(GeometryCollection.Get());
 
 		// todo(Chaos) : we could certainly run a "dependent attribute update method here instead of having to known about convex specifically 
-		UpdateConvexGeometry();
+		UpdateConvexGeometryIfMissing();
 				
 		Materials.Append(InMaterials);
 		InitializeMaterials(bHasInternalMaterials);
