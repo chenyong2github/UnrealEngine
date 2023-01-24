@@ -31,7 +31,7 @@ namespace UE::StateTree
 			FMemoryReader Reader(Data);
 			NewInstance->Serialize(Reader);
 				
-			UE_LOG(LogStateTree, Warning, TEXT("FStateTreeInstanceData: Duplicating '%s' with old class '%s' as '%s', potential data loss."),
+			UE_LOG(LogStateTree, Display, TEXT("FStateTreeInstanceData: Duplicating '%s' with old class '%s' as '%s', potential data loss."),
 				*GetFullNameSafe(&Instance), *GetNameSafe(InstanceClass), *GetNameSafe(AuthoritativeClass));
 
 			return NewInstance;
