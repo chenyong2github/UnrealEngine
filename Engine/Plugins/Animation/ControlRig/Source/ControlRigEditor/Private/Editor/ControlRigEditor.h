@@ -115,6 +115,9 @@ public:
 	virtual void PasteNodes() override;
 	virtual bool CanPasteNodes() const override;
 
+	virtual bool IsNativeParentClassCodeLinkEnabled() const override { return false; }
+	virtual bool ReparentBlueprint_IsVisible() const override { return false; }
+
 	virtual FReply OnSpawnGraphNodeByShortcut(FInputChord InChord, const FVector2D& InPosition, UEdGraph* InGraph) override;
 
 	// Control Rig BP does not use regular BP function libraries, no need to load them.

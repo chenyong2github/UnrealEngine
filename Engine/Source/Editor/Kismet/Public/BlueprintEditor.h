@@ -448,7 +448,7 @@ public:
 	bool IsParentClassNative() const;
 
 	/** Returns true if the parent class is native and the link to it's header can be shown*/
-	bool IsNativeParentClassCodeLinkEnabled() const;
+	virtual bool IsNativeParentClassCodeLinkEnabled() const;
 
 	/** Handles opening the header file of native parent class */
 	void OnEditParentClassNativeCodeClicked();
@@ -593,7 +593,7 @@ public:
 
 	/** Reparent the current blueprint */
 	void ReparentBlueprint_Clicked();
-	bool ReparentBlueprint_IsVisible() const;
+	virtual bool ReparentBlueprint_IsVisible() const;
 	void ReparentBlueprint_NewParentChosen(UClass* ChosenClass);
 
 	/** Utility function to handle all steps required to rename a newly added action */

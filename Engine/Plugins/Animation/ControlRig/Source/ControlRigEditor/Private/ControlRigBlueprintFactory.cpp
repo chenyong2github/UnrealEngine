@@ -270,8 +270,9 @@ UControlRigBlueprintFactory::UControlRigBlueprintFactory()
 
 bool UControlRigBlueprintFactory::ConfigureProperties()
 {
-	TSharedRef<SControlRigBlueprintCreateDialog> Dialog = SNew(SControlRigBlueprintCreateDialog);
-	return Dialog->ConfigureProperties(this);
+	// we don't need to do anything,
+	// let's return true to indicate that all properties have been configured to produce a control rig
+	return true;
 };
 
 UObject* UControlRigBlueprintFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn, FName CallingContext)
