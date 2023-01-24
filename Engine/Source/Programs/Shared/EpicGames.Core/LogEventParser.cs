@@ -402,7 +402,7 @@ namespace EpicGames.Core
 				if (JsonLogEvent.TryParse(data, out jsonEvent))
 				{
 					ProcessData(true);
-					_logger.Log(jsonEvent.Level, jsonEvent.EventId, jsonEvent, null, JsonLogEvent.Format);
+					_logger.LogJsonLogEvent(jsonEvent);
 					return;
 				}
 			}
