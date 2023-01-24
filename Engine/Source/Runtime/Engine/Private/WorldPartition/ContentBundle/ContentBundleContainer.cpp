@@ -52,9 +52,12 @@ void FContentBundleContainer::Initialize()
 	RegisterContentBundleClientEvents();
 
 #if WITH_EDITOR
-	UWorldPartition* WorldPartition = GetInjectedWorld()->GetWorldPartition();
-	WorldPartition->OnPreGenerateStreaming.AddRaw(this, &FContentBundleContainer::OnPreGenerateStreaming);
-	WorldPartition->OnBeginCook.AddRaw(this, &FContentBundleContainer::OnBeginCook);
+	if (UseEditorContentBundle())
+	{
+		UWorldPartition* WorldPartition = GetInjectedWorld()->GetWorldPartition();
+		WorldPartition->OnPreGenerateStreaming.AddRaw(this, &FContentBundleContainer::OnPreGenerateStreaming);
+		WorldPartition->OnBeginCook.AddRaw(this, &FContentBundleContainer::OnBeginCook);
+	}
 #endif
 }
 
@@ -67,9 +70,12 @@ void FContentBundleContainer::Deinitialize()
 		UE_LOG(LogContentBundle, Log, TEXT("%s Deleting container."), *ContentBundle::Log::MakeDebugInfoString(*this));
 
 #if WITH_EDITOR
-		UWorldPartition* WorldPartition = GetInjectedWorld()->GetWorldPartition();
-		WorldPartition->OnPreGenerateStreaming.RemoveAll(this);
-		WorldPartition->OnBeginCook.RemoveAll(this);
+		if (UseEditorContentBundle())
+		{
+			UWorldPartition* WorldPartition = GetInjectedWorld()->GetWorldPartition();
+			WorldPartition->OnPreGenerateStreaming.RemoveAll(this);
+			WorldPartition->OnBeginCook.RemoveAll(this);
+		}
 #endif
 	}
 
