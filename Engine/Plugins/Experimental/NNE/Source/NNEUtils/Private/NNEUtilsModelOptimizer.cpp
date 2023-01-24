@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNEUtilsModelOptimizer.h"
+
 #include "NNECore.h"
+#include "NNECoreModelOptimizerInterface.h"
+#include "NNECoreRuntimeFormat.h"
 #include "NNEUtilsModelBuilder.h"
-#include "NNXModelOptimizerInterface.h"
-#include "NNXRuntimeFormat.h"
 
-
-#ifdef PLATFORM_NNX_MICROSOFT
+#ifdef PLATFORM_NNE_MICROSOFT
 // Prevent some of false-positives when doing static analysis
 __pragma(warning(disable: 6385))
 #endif
@@ -18,13 +18,13 @@ __pragma(warning(disable: 6385))
 #define ORT_STRING_CAST TCHAR_TO_ANSI
 #endif
 
-#include "NNXThirdPartyWarningDisabler.h"
-NNX_THIRD_PARTY_INCLUDES_START
+#include "NNEThirdPartyWarningDisabler.h"
+NNE_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #include "core/session/ort_model_optimizer_api.h"
 #include "core/session/onnxruntime_cxx_api.h"
-NNX_THIRD_PARTY_INCLUDES_END
+NNE_THIRD_PARTY_INCLUDES_END
 
 
 #define Print(Format, ...) UE_LOG(LogNNE, Display, Format, __VA_ARGS__)
@@ -264,17 +264,16 @@ ENNETensorDataType GetDataTypeFromGraphTensor(Ort::GraphTensorDataType TensorDat
 
 namespace UE::NNEUtils::Internal
 {
-using namespace NNX;
 
-class FModelOptimizerBase : public IModelOptimizer
+class FModelOptimizerBase : public NNECore::Internal::IModelOptimizer
 {
 protected:
-	TArray<TSharedPtr<IModelOptimizerPass>> OptimizationPasses;
-	TArray<TSharedPtr<IModelValidator>> Validators;
+	TArray<TSharedPtr<NNECore::Internal::IModelOptimizerPass>> OptimizationPasses;
+	TArray<TSharedPtr<NNECore::Internal::IModelValidator>> Validators;
 
-	virtual bool ValidateInputModel(const FNNIModelRaw& InputModel)
+	virtual bool ValidateInputModel(const FNNEModelRaw& InputModel)
 	{
-		if (InputModel.Format != ENNXInferenceFormat::ONNX)
+		if (InputModel.Format != ENNEInferenceFormat::ONNX)
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Optimizer %s is expecting ONNX input format."), *GetName());
 			return false;
@@ -291,7 +290,7 @@ protected:
 	}
 	
 public:
-	virtual void AddOptimizationPass(TSharedPtr<IModelOptimizerPass> ModelOptimizerPass) override
+	virtual void AddOptimizationPass(TSharedPtr<NNECore::Internal::IModelOptimizerPass> ModelOptimizerPass) override
 	{
 		if (ModelOptimizerPass.IsValid())
 		{
@@ -299,7 +298,7 @@ public:
 		}
 	}
 
-	virtual void AddValidator(TSharedPtr<IModelValidator> ModelValidator) override
+	virtual void AddValidator(TSharedPtr<NNECore::Internal::IModelValidator> ModelValidator) override
 	{
 		if (ModelValidator.IsValid())
 		{
@@ -307,11 +306,11 @@ public:
 		}
 	}
 
-	bool IsModelValid(const FNNIModelRaw& ModelToValidate, const FOptimizerOptionsMap& Options)
+	bool IsModelValid(const FNNEModelRaw& ModelToValidate, const FOptimizerOptionsMap& Options)
 	{
 		bool bIsModelValid = true;
 
-		for (TSharedPtr<IModelValidator>& Validator : Validators)
+		for (TSharedPtr<NNECore::Internal::IModelValidator>& Validator : Validators)
 		{
 			check(Validator.IsValid());
 			if (!Validator->ValidateModel(ModelToValidate, Options))
@@ -323,7 +322,7 @@ public:
 		return bIsModelValid;
 	}
 
-	bool ApplyAllPassesAndValidations(FNNIModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options)
+	bool ApplyAllPassesAndValidations(FNNEModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options)
 	{
 		if (!IsModelValid(OptimizedModel, Options))
 		{
@@ -331,7 +330,7 @@ public:
 			return false;
 		}
 		
-		for (TSharedPtr<IModelOptimizerPass>& Pass : OptimizationPasses)
+		for (TSharedPtr<NNECore::Internal::IModelOptimizerPass>& Pass : OptimizationPasses)
 		{
 			check(Pass.IsValid());
 			
@@ -350,9 +349,9 @@ public:
 		return true;
 	}
 
-	bool Optimize(const FNNIModelRaw& InputModel, FNNIModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options) override
+	bool Optimize(const FNNEModelRaw& InputModel, FNNEModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options) override
 	{
-		OptimizedModel = FNNIModelRaw{};
+		OptimizedModel = FNNEModelRaw{};
 		
 		if (!ValidateInputModel(InputModel))
 		{
@@ -364,7 +363,7 @@ public:
 	}
 };
 
-class FONNXModelValidator : public IModelValidator
+class FONNXModelValidator : public NNECore::Internal::IModelValidator
 {
 public:
 	virtual FString GetName() const
@@ -372,12 +371,12 @@ public:
 		return TEXT("ONNX Model validator");
 	}
 
-	virtual bool ValidateModel(const FNNIModelRaw& InputModel, const FOptimizerOptionsMap& Options) const override
+	virtual bool ValidateModel(const FNNEModelRaw& InputModel, const FOptimizerOptionsMap& Options) const override
 	{
-		FMLRuntimeFormat	Format;
+		FNNERuntimeFormat	Format;
 
-		ENNXInferenceFormat FormatType = InputModel.Format;
-		if (FormatType != ENNXInferenceFormat::ONNX)
+		ENNEInferenceFormat FormatType = InputModel.Format;
+		if (FormatType != ENNEInferenceFormat::ONNX)
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Unsupported format type for validator %s"), *GetName());
 			return false;
@@ -402,7 +401,7 @@ public:
 		return TEXT("NNEModelOptimizerFromONNXToONNX");
 	}
 
-	//TODO jira 167591: investigate if it is possible to optimize ONNX model and serialize it back as ONNX.
+	//Notes: investigate if it is possible to optimize ONNX model and serialize it back as ONNX.
 	//Among other benefits applying L1 could cut down on the model size. Atm this optimizer is a pass trough.
 	//Bonus: Can we get a validator for onnx format?
 };
@@ -420,9 +419,9 @@ public:
 		return TEXT("NNEModelOptimizerONNXToORT");
 	}
 
-	virtual bool Optimize(const FNNIModelRaw& InputModel, FNNIModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options) override
+	virtual bool Optimize(const FNNEModelRaw& InputModel, FNNEModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options) override
 	{
-		OptimizedModel = FNNIModelRaw{};
+		OptimizedModel = FNNEModelRaw{};
 		
 		if (!ValidateInputModel(InputModel))
 		{
@@ -431,8 +430,8 @@ public:
 
 		TUniquePtr<Ort::IModelGraph> Graph = ConvertONNXToORTModelGraph(InputModel.Data);
 
-		//TODO jira 167588: Serialize the Graph to a buffer and store it in OutModel.Data
-		//allowing to initiate a session from ORT format for NN engine supporting this.
+		//Notes: Serializing the Graph to a buffer and store it in OutModel.Data
+		//would allows to initiate a session from ORT format for NN runtime supporting this.
 		//Allowing model optimization to be applyed at cooking time.
 		//OptimizedModel = Graph.Serialize;
 		//return ApplyAllPasses(OptimizedModel, Options);
@@ -467,9 +466,9 @@ public:
 		return TEXT("FNNEModelOptimizerONNXToNNE");
 	}
 	
-	virtual bool Optimize(const FNNIModelRaw& InputModel, FNNIModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options) override
+	virtual bool Optimize(const FNNEModelRaw& InputModel, FNNEModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options) override
 	{
-		OptimizedModel = FNNIModelRaw{};
+		OptimizedModel = FNNEModelRaw{};
 		
 		if (!ValidateInputModel(InputModel))
 		{
@@ -484,7 +483,7 @@ public:
 			return false;
 		}
 
-		OptimizedModel.Format = ENNXInferenceFormat::NNXRT;
+		OptimizedModel.Format = ENNEInferenceFormat::NNERT;
 
 		return ApplyAllPassesAndValidations(OptimizedModel, Options);
 	}
@@ -573,7 +572,7 @@ private:
 				}
 				else
 				{
-					//TODO: better error reporting add type (example: sparse tensor) and name of the actual node if any (not the op name but the node one)
+					//Note: Would be good to have better error reporting add type (example: sparse tensor) and name of the actual node if any (not the op name but the node one)
 					UE_LOG(LogNNE, Warning, TEXT("Unsupported attribute type for attribute '%s' in node '%s'"), ANSI_TO_TCHAR(AttrInfo.name), ANSI_TO_TCHAR(NodeInfo.opName));
 				}
 			}
@@ -634,15 +633,15 @@ private:
 };
 
 /** Create a model optimizer */
-NNEUTILS_API TUniquePtr<IModelOptimizer> CreateModelOptimizer(ENNXInferenceFormat InputFormat, ENNXInferenceFormat OutputFormat)
+NNEUTILS_API TUniquePtr<NNECore::Internal::IModelOptimizer> CreateModelOptimizer(ENNEInferenceFormat InputFormat, ENNEInferenceFormat OutputFormat)
 {
-	if (InputFormat == ENNXInferenceFormat::ONNX)
+	if (InputFormat == ENNEInferenceFormat::ONNX)
 	{
-		if (OutputFormat == ENNXInferenceFormat::NNXRT)
+		if (OutputFormat == ENNEInferenceFormat::NNERT)
 		{
 			return MakeUnique<FModelOptimizerONNXToNNERT>();
 		}
-		else if (OutputFormat == ENNXInferenceFormat::ONNX)
+		else if (OutputFormat == ENNEInferenceFormat::ONNX)
 		{
 			return MakeUnique<FModelOptimizerONNXToONNX>();
 		}
@@ -651,13 +650,6 @@ NNEUTILS_API TUniquePtr<IModelOptimizer> CreateModelOptimizer(ENNXInferenceForma
 			return MakeUnique<FModelOptimizerONNXToORT>();
 		}
 	}
-
-	//TODO jira 167592: Investigate how to conditionally compile the above,
-	//removing the dependencies to ORT in runtime build (we will then
-	//need a way to run tests without ability to create onnx
-	//model at runtime). One could also make NNXUtils editor only
-	//then the interface for optimization and validation should be in a
-	//different module than the implementation.
 
 	return nullptr;
 }

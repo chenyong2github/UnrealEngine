@@ -29,7 +29,7 @@ enum class ENNETensorDataType : uint8
 
 namespace UE::NNECore
 {
-	class NNXCORE_API FSymbolicTensorShape
+	class NNECORE_API FSymbolicTensorShape
 	{
 	public:
 		constexpr static int32	MaxRank = 8;
@@ -49,7 +49,7 @@ namespace UE::NNECore
 		void operator=(const FSymbolicTensorShape& OtherShape);
 	};
 
-	class NNXCORE_API FTensorShape
+	class NNECORE_API FTensorShape
 	{
 	public:
 		constexpr static int32	MaxRank = FSymbolicTensorShape::MaxRank;
@@ -72,9 +72,9 @@ namespace UE::NNECore
 	};
 
 	/** Return data size in bytes for tensor data type */
-	size_t NNXCORE_API GetTensorDataTypeSizeInBytes(ENNETensorDataType InType);
+	size_t NNECORE_API GetTensorDataTypeSizeInBytes(ENNETensorDataType InType);
 
-	class NNXCORE_API FTensorDesc
+	class NNECORE_API FTensorDesc
 	{
 		FString					Name;
 		ENNETensorDataType		DataType;

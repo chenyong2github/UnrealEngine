@@ -3,8 +3,8 @@
 
 #include "core/common/common.h"
 
-#include "NNXThirdPartyWarningDisabler.h" // WITH_UE
-NNX_THIRD_PARTY_INCLUDES_START
+#include "NNEThirdPartyWarningDisabler.h" // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_START
 #undef TEXT
 #undef check
 
@@ -13,7 +13,7 @@ NNX_THIRD_PARTY_INCLUDES_START
 #include <assert.h>
 #endif
 
-NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 #ifdef ORT_NO_EXCEPTIONS
 #if defined(__ANDROID__)

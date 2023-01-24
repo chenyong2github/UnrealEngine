@@ -6,8 +6,8 @@
 
 #include "NNECoreModelData.generated.h"
 
-UCLASS(BlueprintType, Category = "NNE - Neural Network Engine")
-class NNXCORE_API UNNEModelData : public UObject
+UCLASS(BlueprintType, Category = "NNE")
+class NNECORE_API UNNEModelData : public UObject
 {
 	GENERATED_BODY()
 

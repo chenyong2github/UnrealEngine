@@ -2,7 +2,7 @@
 
 #include "Modules/ModuleManager.h"
 
-class FNNXCoreModule : public IModuleInterface
+class FNNECoreModule : public IModuleInterface
 {
 public:
 
@@ -16,4 +16,4 @@ public:
 
 };
 
-IMPLEMENT_MODULE(FNNXCoreModule, NNXCore)
+IMPLEMENT_MODULE(FNNECoreModule, NNECore)

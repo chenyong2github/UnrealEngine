@@ -11,8 +11,8 @@
 #ifndef __WIL_RESULT_INCLUDED
 #define __WIL_RESULT_INCLUDED
 
-#include "NNXThirdPartyWarningDisabler.h"
-NNX_THIRD_PARTY_INCLUDES_START
+#include "NNEThirdPartyWarningDisabler.h"
+NNE_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 
@@ -277,9 +277,9 @@ namespace wil
                 }
             }
 
-NNX_THIRD_PARTY_INCLUDES_START // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_START // WITH_UE
             static HRESULT Acquire(PCSTR staticNameWithVersion, _Outptr_result_nullonfailure_ ProcessLocalStorageData<T>** data)
-NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_END // WITH_UE
             {
                 *data = nullptr;
 
@@ -390,9 +390,9 @@ NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
                     while (pNode != nullptr)
                     {
                         auto pCurrent = pNode;
-NNX_THIRD_PARTY_INCLUDES_START // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_START // WITH_UE
                         pNode = pNode->pNext;
-NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_END // WITH_UE
                         pCurrent->~Node();
                         ::HeapFree(::GetProcessHeap(), 0, pCurrent);
                     }
@@ -1282,7 +1282,7 @@ NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
 #pragma warning(pop)
 
 
-NNX_THIRD_PARTY_INCLUDES_END
+NNE_THIRD_PARTY_INCLUDES_END
 
 #endif
 

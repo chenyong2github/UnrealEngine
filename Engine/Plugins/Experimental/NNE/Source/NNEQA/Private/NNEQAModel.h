@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "NNECore.h"
 #include "NNECoreRuntimeCPU.h"
+#include "NNECoreRuntimeFormat.h"
 #include "NNECoreRuntimeRDG.h"
 #include "NNECoreTypes.h"
-#include "NNXRuntimeFormat.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "RHIGPUReadback.h"
@@ -49,7 +49,7 @@ public:
 
 	virtual int RunSync(TConstArrayView<NNECore::FTensorBindingCPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingCPU> InOutputBindings);
 
-	static TUniquePtr<FModelQA> MakeModelQA(const FNNIModelRaw& ONNXModelData, const FString& RuntimeName);
+	static TUniquePtr<FModelQA> MakeModelQA(const FNNEModelRaw& ONNXModelData, const FString& RuntimeName);
 };
 	
 } // namespace UE::NNEQA::Private

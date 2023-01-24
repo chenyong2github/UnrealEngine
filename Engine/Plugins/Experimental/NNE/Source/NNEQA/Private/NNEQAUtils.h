@@ -5,10 +5,9 @@
 #include "Containers/UnrealString.h"
 #include <functional>
 #include "NNECoreAttributeMap.h"
-#include "NNXRuntime.h"
-#include "NNXRuntimeFormat.h"
-#include "NNECoreTypes.h"
+#include "NNECoreRuntimeFormat.h"
 #include "NNECoreTensor.h"
+#include "NNECoreTypes.h"
 
 
 namespace UE::NNEQA::Private
@@ -69,7 +68,7 @@ namespace UE::NNEQA::Private
 		TArray<FTestSetup> TestSetups;
 	};
 
-	bool CompareONNXModelInferenceAcrossRuntimes(const FNNIModelRaw& ONNXModel, const FNNIModelRaw& ONNXModelVariadic, 
+	bool CompareONNXModelInferenceAcrossRuntimes(const FNNEModelRaw& ONNXModel, const FNNEModelRaw& ONNXModelVariadic, 
 		const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter = TEXT(""));
 	
 	class ElementWiseCosTensorInitializer

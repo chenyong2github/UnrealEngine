@@ -4,12 +4,12 @@
 #pragma once
 #ifdef _WIN32
 
-#include "NNXThirdPartyWarningDisabler.h" // WITH_UE
-NNX_THIRD_PARTY_INCLUDES_START
+#include "NNEThirdPartyWarningDisabler.h" // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_START
 #undef TEXT
 #undef check
 #include <Windows.h>
-NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 #include <mutex>
 namespace onnxruntime {

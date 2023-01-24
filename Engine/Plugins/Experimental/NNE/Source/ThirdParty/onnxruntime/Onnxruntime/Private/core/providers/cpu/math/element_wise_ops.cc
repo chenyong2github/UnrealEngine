@@ -7,12 +7,12 @@
 #include "core/framework/math.h"
 #include "core/providers/cpu/tensor/utils.h"
 #include "core/providers/op_kernel_type_control.h"
-#include "NNXThirdPartyWarningDisabler.h" // WITH_UE
-NNX_THIRD_PARTY_INCLUDES_START
+#include "NNEThirdPartyWarningDisabler.h" // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_START
 #undef TEXT
 #undef check
 #include <unsupported/Eigen/SpecialFunctions>
-NNX_THIRD_PARTY_INCLUDES_END
+NNE_THIRD_PARTY_INCLUDES_END
 
 #include "core/util/math.h"
 #include "core/mlas/inc/mlas.h"

@@ -7,8 +7,8 @@
 #include "NNECoreTensor.h"
 #include "NNECoreTypes.h"
 #include "NNECore.h"
-#include "NNXModelOptimizerInterface.h"
-#include "NNXRuntimeFormat.h"
+#include "NNECoreModelOptimizerInterface.h"
+#include "NNECoreRuntimeFormat.h"
 #include "RenderGraphResources.h"
 #include "Serialization/MemoryReader.h"
 #include "ShaderParameterUtils.h"
@@ -20,11 +20,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNNETensorReadbackParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 class FRDGBuilder;
-struct FNNIModelRaw;
+struct FNNEModelRaw;
 
 namespace UE::NNECore { class FTensorDesc; }
-
-using namespace NNX;
 
 namespace UE::NNERuntimeRDG::Private
 {
@@ -76,7 +74,6 @@ using FTensorRDGArray = TArray<FTensorRDG, TInlineAllocator<16>>;
 using FTensorRDGRefArray = TArray<FTensorRDGRef, TInlineAllocator<64>>;
 using FIntArray = TArray<int32, TInlineAllocator<16>>;
 
-//Note: jira 167584 remove default validation and declare contract in all DML operator (see HLSL Gemm for current example)
 bool AlwaysValidValidationFunction(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes);
 
 class FInputValidator
@@ -190,7 +187,7 @@ private:
  * Validator for RDG ML operators
  */
 template<class TOperatorType>
-class TModelValidatorRDG : public IModelValidator
+class TModelValidatorRDG : public UE::NNECore::Internal::IModelValidator
 {
 public:
 	virtual FString GetName() const 
@@ -198,19 +195,19 @@ public:
 		return TEXT("RDG Model validator");
 	}
 	
-	virtual bool ValidateModel(const FNNIModelRaw& InputModel, const FOptimizerOptionsMap& Options) const override
+	virtual bool ValidateModel(const FNNEModelRaw& InputModel, const UE::NNECore::Internal::FOptimizerOptionsMap& Options) const override
 	{
-		FMLRuntimeFormat	Format;
+		FNNERuntimeFormat	Format;
 
-		ENNXInferenceFormat FormatType = InputModel.Format;
-		if (FormatType != ENNXInferenceFormat::NNXRT)
+		ENNEInferenceFormat FormatType = InputModel.Format;
+		if (FormatType != ENNEInferenceFormat::NNERT)
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Unsupported format type for validator %s"), *GetName());
 			return false;
 		}
 
 		FMemoryReader Reader(InputModel.Data);
-		FMLRuntimeFormat::StaticStruct()->SerializeBin(Reader, &Format);
+		FNNERuntimeFormat::StaticStruct()->SerializeBin(Reader, &Format);
 
 		TOperatorRegistryRDG<TOperatorType>* Registry = TOperatorRegistryRDG<TOperatorType>::Get();
 		check(Registry != nullptr);
@@ -226,7 +223,7 @@ public:
 				InputTensorTypes.Add(Format.Tensors[InputTensorIndex].DataType);
 				InputTensorShapes.Add(NNECore::FSymbolicTensorShape::Make(Format.Tensors[InputTensorIndex].Shape));
 			}
-			for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
+			for (const FNNEFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 			{
 				AttributeMap.SetAttribute(Desc.Name, Desc.Value);
 			}

@@ -17,7 +17,7 @@
 #include "DirectML.h"
 #endif
 
-NNX_THIRD_PARTY_INCLUDES_START
+NNE_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 
@@ -33,7 +33,7 @@ NNX_THIRD_PARTY_INCLUDES_START
 #endif
 #endif
 
-NNX_THIRD_PARTY_INCLUDES_END
+NNE_THIRD_PARTY_INCLUDES_END
 
 namespace UE::NNERuntimeORT::Private
 {

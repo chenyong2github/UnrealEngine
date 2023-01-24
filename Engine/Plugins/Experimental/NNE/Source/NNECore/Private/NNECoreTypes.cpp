@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNECoreTypes.h"
-#include "NNXCore.h"
+#include "NNECore.h"
 
 namespace UE::NNECore::TypesUtils
 {
@@ -54,7 +54,7 @@ FSymbolicTensorShape FSymbolicTensorShape::Make(TConstArrayView<int32> Data)
 {
 	if (Data.Num() > MaxRank)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Cannot create symbolic tensor shape, input is rank %d while max rank is %d"), Data.Num(), MaxRank);
+		UE_LOG(LogNNE, Warning, TEXT("Cannot create symbolic tensor shape, input is rank %d while max rank is %d"), Data.Num(), MaxRank);
 		return {};
 	}
 
@@ -108,7 +108,7 @@ FTensorShape FTensorShape::Make(TConstArrayView<uint32> Data)
 {
 	if (Data.Num() > MaxRank)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Cannot create tensor shape, input is rank %d while max rank is %d"), Data.Num(), MaxRank);
+		UE_LOG(LogNNE, Warning, TEXT("Cannot create tensor shape, input is rank %d while max rank is %d"), Data.Num(), MaxRank);
 		return {};
 	}
 

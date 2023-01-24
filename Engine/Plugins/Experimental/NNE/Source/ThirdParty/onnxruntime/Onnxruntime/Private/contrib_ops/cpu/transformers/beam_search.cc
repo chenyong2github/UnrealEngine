@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 
-#include "NNXThirdPartyWarningDisabler.h"
-NNX_THIRD_PARTY_INCLUDES_START
+#include "NNEThirdPartyWarningDisabler.h"
+NNE_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 
@@ -225,4 +225,4 @@ Status BeamSearch::Compute(OpKernelContext* ctx) const {
 }  // namespace transformers
 }  // namespace contrib
 }  // namespace onnxruntime
-NNX_THIRD_PARTY_INCLUDES_END
+NNE_THIRD_PARTY_INCLUDES_END

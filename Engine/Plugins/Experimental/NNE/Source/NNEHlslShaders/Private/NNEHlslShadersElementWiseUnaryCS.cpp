@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNEHlslShadersElementWiseUnaryCS.h"
-#include "NNXCore.h"
+#include "NNECore.h"
 
 namespace UE::NNEHlslShaders::Internal
 {
@@ -72,7 +72,7 @@ namespace UE::NNEHlslShaders::Internal
 
 		if (OpFunc == "")
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Undefined ElementWise Unary operator name for operator:%d"), OpType);
+			UE_LOG(LogNNE, Warning, TEXT("Undefined ElementWise Unary operator name for operator:%d"), OpType);
 		}
 
 		return OpFunc;

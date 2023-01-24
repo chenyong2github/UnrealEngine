@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "NNXRuntimeFormat.h"
+#include "NNECoreRuntimeFormat.h"
 
 namespace UE::NNECore { class FAttributeMap; }
-namespace NNX { class IModelOptimizer; }
+namespace UE::NNECore::Internal { class IModelOptimizer; }
 
 namespace UE::NNEUtils::Internal
 {
@@ -12,21 +12,21 @@ namespace UE::NNEUtils::Internal
 using FOptimizerOptionsMap = NNECore::FAttributeMap;
 	
 /** Create a model optimizer */
-NNEUTILS_API TUniquePtr<NNX::IModelOptimizer> CreateModelOptimizer(ENNXInferenceFormat InputFormat, ENNXInferenceFormat OutputFormat);
+NNEUTILS_API TUniquePtr<NNECore::Internal::IModelOptimizer> CreateModelOptimizer(ENNEInferenceFormat InputFormat, ENNEInferenceFormat OutputFormat);
 
-inline TUniquePtr<NNX::IModelOptimizer> CreateONNXToNNEModelOptimizer()
+inline TUniquePtr<NNECore::Internal::IModelOptimizer> CreateONNXToNNEModelOptimizer()
 {
-	return CreateModelOptimizer(ENNXInferenceFormat::ONNX, ENNXInferenceFormat::NNXRT);
+	return CreateModelOptimizer(ENNEInferenceFormat::ONNX, ENNEInferenceFormat::NNERT);
 }
 
-inline TUniquePtr<NNX::IModelOptimizer> CreateONNXToORTModelOptimizer()
+inline TUniquePtr<NNECore::Internal::IModelOptimizer> CreateONNXToORTModelOptimizer()
 {
-	return CreateModelOptimizer(ENNXInferenceFormat::ONNX, ENNXInferenceFormat::ORT);
+	return CreateModelOptimizer(ENNEInferenceFormat::ONNX, ENNEInferenceFormat::ORT);
 }
 
-inline TUniquePtr<NNX::IModelOptimizer> CreateONNXToONNXModelOptimizer()
+inline TUniquePtr<NNECore::Internal::IModelOptimizer> CreateONNXToONNXModelOptimizer()
 {
-	return CreateModelOptimizer(ENNXInferenceFormat::ONNX, ENNXInferenceFormat::ONNX);
+	return CreateModelOptimizer(ENNEInferenceFormat::ONNX, ENNEInferenceFormat::ONNX);
 }
 
 } // UE::NNEUtils::Internal

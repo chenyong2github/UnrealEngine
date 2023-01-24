@@ -1,5 +1,5 @@
-#include "NNXThirdPartyWarningDisabler.h" // WITH_UE
-NNX_THIRD_PARTY_INCLUDES_START
+#include "NNEThirdPartyWarningDisabler.h" // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_START
 
 //*********************************************************
 //
@@ -5526,4 +5526,4 @@ namespace wil
 #endif // defined(__cplusplus) && !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 #endif // __WIL_RESULTMACROS_INCLUDED
 
-NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_END // WITH_UE

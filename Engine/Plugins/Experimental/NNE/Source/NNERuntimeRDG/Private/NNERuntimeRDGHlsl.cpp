@@ -3,11 +3,11 @@
 #include "NNERuntimeRDGHlsl.h"
 #include "NNECoreAttributeMap.h"
 #include "NNECoreModelData.h"
+#include "NNECoreModelOptimizerInterface.h"
 #include "NNERuntimeRDG.h"
 #include "NNERuntimeRDGHlslHelper.h"
 #include "NNERuntimeRDGModelHlsl.h"
 #include "NNEUtilsModelOptimizer.h"
-#include "NNXModelOptimizerInterface.h"
 #include "Hlsl/NNERuntimeRDGConv.h"
 #include "Hlsl/NNERuntimeRDGConv.h"
 #include "Hlsl/NNERuntimeRDGConvTranspose.h"
@@ -71,14 +71,14 @@ TArray<uint8> UNNERuntimeRDGHlslImpl::CreateModelData(FString FileType, TConstAr
 		return {};
 	}
 
-	TUniquePtr<NNX::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
+	TUniquePtr<UE::NNECore::Internal::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
 	Optimizer->AddValidator(MakeShared<FModelValidatorHlsl>());
 
-	FNNIModelRaw InputModel;
+	FNNEModelRaw InputModel;
 	InputModel.Data = FileData;
-	InputModel.Format = ENNXInferenceFormat::ONNX;
+	InputModel.Format = ENNEInferenceFormat::ONNX;
 
-	FNNIModelRaw OutputModel;
+	FNNEModelRaw OutputModel;
 	if (!Optimizer->Optimize(InputModel, OutputModel, {}))
 	{
 		return {};

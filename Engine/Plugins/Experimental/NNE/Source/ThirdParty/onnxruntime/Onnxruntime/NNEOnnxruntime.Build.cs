@@ -145,7 +145,7 @@ public class NNEOnnxruntime : ModuleRules
 			PublicDefinitions.Add("NOMINMAX");
 			PublicDefinitions.Add("WIN32_LEAN_AND_MEAN");
 			PublicDefinitions.Add("PLATFORM_WIN64");
-			PublicDefinitions.Add("PLATFORM_NNX_MICROSOFT");
+			PublicDefinitions.Add("PLATFORM_NNE_MICROSOFT");
 			//PublicDefinitions.Add("DML_TARGET_VERSION_USE_LATEST");
 			//PublicDefinitions.Add("USE_DML = 1");
 		}

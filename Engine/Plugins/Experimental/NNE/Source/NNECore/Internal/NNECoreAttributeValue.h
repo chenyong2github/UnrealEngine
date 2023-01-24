@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "UObject/Class.h"
-#include "UObject/Object.h"
+#include "NNECoreAttributeValueTraits.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
-#include "NNECoreAttributeValueTraits.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
 
 #include "NNECoreAttributeValue.generated.h"
 

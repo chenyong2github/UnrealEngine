@@ -14,7 +14,7 @@ public class NNEEditorTools : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"NNXCore"
+				"NNECore"
 			}
 		);
 

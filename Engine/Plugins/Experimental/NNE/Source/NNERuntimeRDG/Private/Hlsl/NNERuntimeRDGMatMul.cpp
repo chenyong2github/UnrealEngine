@@ -27,8 +27,8 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			check(InputTensors.Num() == 2);
 			check(OutputTensors.Num() == 1);
 
-			const NNX::FTensorShape& InputA = InputTensors[0]->GetShape();
-			const NNX::FTensorShape& InputB = InputTensors[1]->GetShape();
+			const NNECore::FTensorShape& InputA = InputTensors[0]->GetShape();
+			const NNECore::FTensorShape& InputB = InputTensors[1]->GetShape();
 
 			if (InputA.Rank() < 2)
 			{

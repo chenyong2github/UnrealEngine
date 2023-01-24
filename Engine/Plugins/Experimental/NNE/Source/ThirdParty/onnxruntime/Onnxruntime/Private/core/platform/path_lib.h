@@ -8,12 +8,12 @@
 #include <assert.h>
 #include <stdexcept>
 #ifdef _WIN32
-#include "NNXThirdPartyWarningDisabler.h" // WITH_UE
-NNX_THIRD_PARTY_INCLUDES_START
+#include "NNEThirdPartyWarningDisabler.h" // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #include <Windows.h>
-NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_END // WITH_UE
 #include <time.h>  //strftime
 #elif __PROSPERO__ // WITH_UE
 #include <sys/types.h>

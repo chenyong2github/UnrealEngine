@@ -18,10 +18,9 @@ enum class ENNEAttributeDataType : uint8
 	Int32,								//!< 32-bit signed integer
 	Int32Array,							//!< TArray of 32-bit signed integers
 	String								//!< built-in FString
-	//TODO add more AttributeDataType support
 };
 
 /**
  * @return ENNEAttributeDataType from the string passed in
  */
-NNXCORE_API void LexFromString(ENNEAttributeDataType& OutValue, const TCHAR* StringVal);
+NNECORE_API void LexFromString(ENNEAttributeDataType& OutValue, const TCHAR* StringVal);

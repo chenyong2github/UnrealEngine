@@ -33,7 +33,7 @@ public:
 		this->PreparedData = TensorRDG.GetPreparedData<uint8>();//This copy the data, we should find another way
 	}
 	
-	FTensorHLSL(const FString& Name, ENNETensorDataType DataType, const NNX::FTensorShape& Shape)
+	FTensorHLSL(const FString& Name, ENNETensorDataType DataType, const NNECore::FTensorShape& Shape)
 	{
 		this->Name = Name;
 		this->DataType = DataType;

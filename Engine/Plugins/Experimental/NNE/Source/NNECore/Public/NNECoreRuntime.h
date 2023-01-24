@@ -8,12 +8,12 @@
 #include "NNECoreRuntime.generated.h"
 
 UINTERFACE()
-class NNXCORE_API UNNERuntime : public UInterface
+class NNECORE_API UNNERuntime : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class NNXCORE_API INNERuntime
+class NNECORE_API INNERuntime
 {
 	GENERATED_BODY()
 

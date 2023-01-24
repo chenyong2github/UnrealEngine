@@ -1,18 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNEQAUtils.h"
-#include "NNEQAModel.h"
+
 #include "HAL/UnrealMemory.h"
 #include "Kismet/GameplayStatics.h"
 #include "NNECore.h"
 #include "NNECoreAttributeMap.h"
 #include "NNECoreModelData.h"
+#include "NNECoreModelOptimizerInterface.h"
 #include "NNECoreRuntime.h"
 #include "NNECoreRuntimeCPU.h"
 #include "NNECoreRuntimeRDG.h"
-#include "NNXCore.h"
-#include "NNXInferenceModel.h"
-#include "NNXModelOptimizerInterface.h"
+#include "NNEQAModel.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/WeakInterfacePtr.h"
 #include "RenderGraphBuilder.h"
@@ -21,8 +20,6 @@
 
 namespace UE::NNEQA::Private 
 {
-	using namespace NNX;
-
 	static void FillTensors(
 		TConstArrayView<NNECore::Internal::FTensor> TensorsFromTestSetup,
 		TConstArrayView<NNECore::FTensorDesc> TensorDescsFromModel,
@@ -381,7 +378,7 @@ namespace UE::NNEQA::Private
 		return true;
 	}
 
-	bool RunTestInference(const FNNIModelRaw& ONNXModelData, const FTests::FTestSetup& TestSetup,
+	bool RunTestInference(const FNNEModelRaw& ONNXModelData, const FTests::FTestSetup& TestSetup,
 		const FString& RuntimeName, TArray<NNECore::Internal::FTensor>& OutOutputTensors, TArray<TArray<char>>& OutOutputMemBuffers)
 	{
 		OutOutputMemBuffers.Empty();
@@ -467,7 +464,7 @@ namespace UE::NNEQA::Private
 		return true;
 	}
 
-	bool RunTestInferenceAndCompareToRef(const FTests::FTestSetup& TestSetup, const FString& RuntimeName, const FNNIModelRaw& ONNXModel,
+	bool RunTestInferenceAndCompareToRef(const FTests::FTestSetup& TestSetup, const FString& RuntimeName, const FNNEModelRaw& ONNXModel,
 		TArrayView<TArray<char>> RefOutputMemBuffers, TArrayView<NNECore::Internal::FTensor> RefOutputTensors)
 	{
 		TArray<TArray<char>> OutputMemBuffers;
@@ -479,7 +476,7 @@ namespace UE::NNEQA::Private
 
 		if (!RunTestInference(ONNXModel, TestSetup, RuntimeName, OutputTensors, OutputMemBuffers))
 		{
-			UE_LOG(LogNNE, Error, TEXT("Error running inference for engine %s."), *RuntimeName);
+			UE_LOG(LogNNE, Error, TEXT("Error running inference for runtime %s."), *RuntimeName);
 			return false;
 		}
 
@@ -501,7 +498,7 @@ namespace UE::NNEQA::Private
 		return bTestSuceeded;
 	}
 
-	bool CompareONNXModelInferenceAcrossRuntimes(const FNNIModelRaw& ONNXModel, const FNNIModelRaw& ONNXModelVariadic, const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter)
+	bool CompareONNXModelInferenceAcrossRuntimes(const FNNEModelRaw& ONNXModel, const FNNEModelRaw& ONNXModelVariadic, const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter)
 	{
 		FString CurrentPlatform = UGameplayStatics::GetPlatformName();
 		if (TestSetup.AutomationExcludedPlatform.Contains(CurrentPlatform))
@@ -521,7 +518,7 @@ namespace UE::NNEQA::Private
 
 		if (!RunTestInference(ONNXModel, TestSetup, RefName, RefOutputTensors, RefOutputMemBuffers))
 		{
-			UE_LOG(LogNNE, Error, TEXT("Error running reference inference with engine %s."), *RefName);
+			UE_LOG(LogNNE, Error, TEXT("Error running reference inference with runtime %s."), *RefName);
 			return false;
 		}
 
@@ -560,7 +557,7 @@ namespace UE::NNEQA::Private
 			}
 			else
 			{
-				bool bShouldRunVariadicTest = (ONNXModelVariadic.Format != ENNXInferenceFormat::Invalid);
+				bool bShouldRunVariadicTest = (ONNXModelVariadic.Format != ENNEInferenceFormat::Invalid);
 				bShouldRunVariadicTest &= !(RuntimeName == "NNERuntimeDml");
 				
 				bool bTestSuceeded = RunTestInferenceAndCompareToRef(TestSetup, Runtime->GetRuntimeName(), ONNXModel, RefOutputMemBuffers, RefOutputTensors);

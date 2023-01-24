@@ -22,12 +22,12 @@ public class NNERuntimeRDG : ModuleRules
 
         PrivateDependencyModuleNames.AddRange(new string[]
         {
-            "NNXCore",
+            "NNECore",
 			"NNEUtils",
 			"NNEHlslShaders",
             "RHI",
 			"Projects"
-		});
+        });
 
         if (Target.Platform == UnrealTargetPlatform.Win64)
 		{

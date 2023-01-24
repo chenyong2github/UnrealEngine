@@ -6,16 +6,16 @@
 #include "NNECoreRuntime.h"
 #include "UObject/WeakInterfacePtr.h"
 
-NNXCORE_API DECLARE_LOG_CATEGORY_EXTERN(LogNNE, Log, All);
+NNECORE_API DECLARE_LOG_CATEGORY_EXTERN(LogNNE, Log, All);
 
 namespace UE::NNECore
 {
-	NNXCORE_API bool RegisterRuntime(TWeakInterfacePtr<INNERuntime> Runtime);
+	NNECORE_API bool RegisterRuntime(TWeakInterfacePtr<INNERuntime> Runtime);
 
-	NNXCORE_API bool UnregisterRuntime(TWeakInterfacePtr<INNERuntime> Runtime);
+	NNECORE_API bool UnregisterRuntime(TWeakInterfacePtr<INNERuntime> Runtime);
 	
 	// Enumerate all available runtime modules
-	NNXCORE_API TArrayView<TWeakInterfacePtr<INNERuntime>> GetAllRuntimes();
+	NNECORE_API TArrayView<TWeakInterfacePtr<INNERuntime>> GetAllRuntimes();
 
 	/// Get runtime by name
 	template<class T> TWeakInterfacePtr<T> GetRuntime(const FString& Name)

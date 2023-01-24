@@ -23,11 +23,11 @@ namespace Json
 		//	FString Initializer;
 		//	JSON_SERIALIZE("initializer", ...);
 		//		if (initializer && source)
-		//			InEngineTensorData = initializer(source) <-- To add
+		//			InRuntimeTensorData = initializer(source) <-- To add
 		//		if (!initializer && source)
-		//			InEngineTensorData = element-wise( static_cast<Type>(source[i]) ) <-- Current behavior
+		//			InRuntimeTensorData = element-wise( static_cast<Type>(source[i]) ) <-- Current behavior
 		//		if (!initializer && !source)
-		//			InEngineTensorData = random from seed <-- Current behavior
+		//			InRuntimeTensorData = random from seed <-- Current behavior
 		//Idea: Extend by adding source CPU or GPU resident data
 		//	bool OnGpu;
 		//	JSON_SERIALIZE("on_gpu", OnGpu);

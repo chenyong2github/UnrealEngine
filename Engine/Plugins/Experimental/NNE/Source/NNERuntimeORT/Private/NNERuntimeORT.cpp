@@ -4,15 +4,13 @@
 #include "NNERuntimeORTModel.h"
 #include "NNERuntimeORTUtils.h"
 #include "NNEUtilsModelOptimizer.h"
-#include "NNXModelOptimizerInterface.h"
 #include "NNECoreAttributeMap.h"
 #include "NNECoreModelData.h"
+#include "NNECoreModelOptimizerInterface.h"
 #include "NNEProfilingTimer.h"
 #include "RedirectCoutAndCerrToUeLog.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NNERuntimeORT)
-
-using namespace NNX;
 
 FGuid UNNERuntimeORTDmlImpl::GUID = FGuid((int32)'O', (int32)'D', (int32)'M', (int32)'L');
 int32 UNNERuntimeORTDmlImpl::Version = 0x00000001;
@@ -29,13 +27,13 @@ TArray<uint8> UNNERuntimeORTDmlImpl::CreateModelData(FString FileType, TConstArr
 		return {};
 	}
 
-	TUniquePtr<IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToONNXModelOptimizer();
+	TUniquePtr<UE::NNECore::Internal::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToONNXModelOptimizer();
 
-	FNNIModelRaw InputModel;
+	FNNEModelRaw InputModel;
 	InputModel.Data = FileData;
-	InputModel.Format = ENNXInferenceFormat::ONNX;
-	FNNIModelRaw OutputModel;
-	FOptimizerOptionsMap Options;
+	InputModel.Format = ENNEInferenceFormat::ONNX;
+	FNNEModelRaw OutputModel;
+	UE::NNECore::Internal::FOptimizerOptionsMap Options;
 	if (!Optimizer->Optimize(InputModel, OutputModel, Options))
 	{
 		return {};

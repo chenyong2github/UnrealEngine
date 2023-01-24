@@ -2,14 +2,14 @@
 // Licensed under the MIT License.
 
 
-#include "NNXThirdPartyWarningDisabler.h" // WITH_UE: Avoids cryptic protobuf/stubs/strutil.h(364): warning C4127: conditional expression is constant; note: consider using 'if constexpr' statement instead
-NNX_THIRD_PARTY_INCLUDES_START
+#include "NNEThirdPartyWarningDisabler.h" // WITH_UE: Avoids cryptic protobuf/stubs/strutil.h(364): warning C4127: conditional expression is constant; note: consider using 'if constexpr' statement instead
+NNE_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #include "core/common/inlined_containers.h"
 #include "core/providers/cpu/reduction/reduction_ops.h"
 #include "core/providers/common.h"
-NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 //TODO: fix the warnings
 #if defined(_MSC_VER) && !defined(__clang__)

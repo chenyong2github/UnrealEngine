@@ -20,7 +20,7 @@
 	],
 	"Modules": [
 		{
-			"Name": "NNXCore",
+			"Name": "NNECore",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
 			"PlatformAllowList": [ "Win64", "Linux", "Mac" ]

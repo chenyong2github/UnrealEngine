@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGDml.h"
+
 #include "NNERuntimeRDG.h"
 #include "NNERuntimeRDGModel.h"
-#include "NNXRuntimeFormat.h"
 #include "NNEUtilsModelOptimizer.h"
 #include "NNECoreOperator.h"
 #include "NNECoreAttributeMap.h"
 #include "NNECoreModelData.h"
+#include "NNECoreRuntimeFormat.h"
 #include "HAL/FileManager.h"
 #include "Interfaces/IPluginManager.h"
 #include "RenderGraphBuilder.h"
@@ -162,8 +163,8 @@ namespace DmlUtil
 	{
 		DML_BUFFER_TENSOR_DESC										BuffDesc;
 		DML_TENSOR_DESC												Desc;
-		TArray<uint32, TInlineAllocator<FTensorShape::MaxRank>>		Sizes;
-		TArray<uint32, TInlineAllocator<FTensorShape::MaxRank>>		Strides;
+		TArray<uint32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>	Sizes;
+		TArray<uint32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>	Strides;
 	};
 
 	void SetTensorStrides(FTensorDesc& TensorDesc, const NNECore::Internal::FTensor& InputDesc)
@@ -181,7 +182,7 @@ namespace DmlUtil
 
 	void SetTensorSizesAndStridesForBroadcast(FTensorDesc& TensorDesc, const NNECore::Internal::FTensor& InputDesc, const NNECore::Internal::FTensor& TargetDesc)
 	{
-		static_assert(FTensorShape::MaxRank <= 8);
+		static_assert(NNECore::FTensorShape::MaxRank <= 8);
 		
 		const uint32 TargetDimension = TargetDesc.GetShape().Rank() != -1 ? TargetDesc.GetShape().Rank() : InputDesc.GetShape().Rank();
 		checkf(TargetDesc.GetShape().Rank() >= InputDesc.GetShape().Rank(), TEXT("Can't broadcast tensor from rank %d to rank %d, should be inferior or equal."), InputDesc.GetShape().Rank(), TargetDimension);
@@ -339,7 +340,7 @@ protected:
 		}
 
 		DmlTensorDesc.Sizes = TensorDesc.GetShape().GetData();
-		// TODO: Support tensor padding using strides defined in FMLTensorDesc
+		//Note: We should support tensor padding using strides defined in FTensorDesc
 		//DmlUtil::SetTensorStrides(DmlTensorDesc, TensorDesc.Strides);
 		
 		DML_BUFFER_TENSOR_DESC& BuffDesc = DmlTensorDesc.BuffDesc;
@@ -608,7 +609,6 @@ public:
 	//
 	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) override
 	{
-		// TODO: Setup attributes
 		Num = OutputTensors[0].GetVolume();
 
 		DevCtx = InDevCtx;
@@ -873,7 +873,7 @@ private:
 	FBufferRHIRef CreateRHIBuffer(FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, ERHIAccess Access, const TCHAR* DbgName);
 	ID3D12Resource* CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_STATES ResourceState = D3D12_RESOURCE_STATE_COMMON, D3D12_HEAP_TYPE HeapType = D3D12_HEAP_TYPE_DEFAULT, const TCHAR* DebugName = nullptr);
 
-	// TODO: FIXME: This should go into RDG
+	//Note: This should go into RDG
 	static constexpr int32 MaxNumInputs = 32;
 	static constexpr int32 MaxNumOutputs = 4;
 
@@ -1405,7 +1405,7 @@ private:
 			AddOp(OpDesc, InGraph);
 		}
 
-		// TODO: FIXME: Validate edges here
+		//Note: Validate edges here
 		
 		return true;
 	}
@@ -1582,7 +1582,7 @@ FModel::~FModel()
 bool FModel::Init(TConstArrayView<uint8> ModelData, FDeviceContextDml* InDevCtx)
 {
 	check(ModelData.Num() > 0);
-	FMLRuntimeFormat	Format;
+	FNNERuntimeFormat	Format;
 	int32 GuidSize = sizeof(UNNERuntimeRDGDmlImpl::GUID);
 	int32 VersionSize = sizeof(UNNERuntimeRDGDmlImpl::Version);
 
@@ -1602,7 +1602,7 @@ bool FModel::Init(TConstArrayView<uint8> ModelData, FDeviceContextDml* InDevCtx)
 	}
 
 	// DirectML requires all tensors to be concrete
-	// TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
+	// Notes: to handle dynamic tensor desc, op should init from symbolic shapes
 	TArray<NNECore::Internal::FTensor>	Tensors;
 
 	Tensors.Reset(AllSymbolicTensorDescs.Num());
@@ -1651,8 +1651,8 @@ bool FModel::Init(TConstArrayView<uint8> ModelData, FDeviceContextDml* InDevCtx)
 			}
 			else
 			{
-				FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[InputTensorIndex];
-				//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
+				NNECore::FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[InputTensorIndex];
+				// Notes: to handle dynamic tensor desc, op should init from symbolic shapes
 				OpInputTensors.Emplace(NNECore::Internal::FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
 			}
 
@@ -1661,13 +1661,13 @@ bool FModel::Init(TConstArrayView<uint8> ModelData, FDeviceContextDml* InDevCtx)
 
 		for (int32 OutputTensorIndex : Format.Operators[Idx].OutTensors)
 		{
-			FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[OutputTensorIndex];
-			//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
+			NNECore::FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[OutputTensorIndex];
+			// Notes: to handle dynamic tensor desc, op should init from symbolic shapes
 			OpOutputTensors.Emplace(NNECore::Internal::FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
 			OpOutputIndices.Emplace(OutputTensorIndex);
 		}
 
-		for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
+		for (const FNNEFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 		{
 			AttributeMap.SetAttribute(Desc.Name, Desc.Value);
 		}
@@ -1815,7 +1815,7 @@ bool FModel::InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 Tensor
 #ifdef NNE_USE_D3D12_RESOURCES
 				PersistBuff = CreateD3D12Buffer(MemSizePersist);
 #else		
-				PersistBuff = CreateRHIBuffer(RHICmdList, MemSizePersist, PersistBuffFlags, PersistBuffAccess, TEXT("FMLInferendeModelDml_PeristBuff"));
+				PersistBuff = CreateRHIBuffer(RHICmdList, MemSizePersist, PersistBuffFlags, PersistBuffAccess, TEXT("FModelDml_PeristBuff"));
 #endif
 			}
 
@@ -1824,7 +1824,7 @@ bool FModel::InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 Tensor
 #ifdef NNE_USE_D3D12_RESOURCES
 				TempBuff = CreateD3D12Buffer(MemSizeTemp);
 #else
-				TempBuff = CreateRHIBuffer(RHICmdList, MemSizeTemp, TempBuffFlags, TempBuffAccess, TEXT("FMLInferendeModelDml_TempBuff"));
+				TempBuff = CreateRHIBuffer(RHICmdList, MemSizeTemp, TempBuffFlags, TempBuffAccess, TEXT("FModelDml_TempBuff"));
 #endif
 			}
 
@@ -1839,7 +1839,7 @@ bool FModel::InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 Tensor
 #ifdef NNE_USE_D3D12_RESOURCES
 				InitTempBuff = CreateD3D12Buffer(InitTempMemSize);
 #else
-				TempBuff = CreateRHIBuffer(RHICmdList, InitTempMemSize, TempBuffFlags, TempBuffAccess, TEXT("FMLInferendeModelDml_InitTempBuff"));
+				TempBuff = CreateRHIBuffer(RHICmdList, InitTempMemSize, TempBuffFlags, TempBuffAccess, TEXT("FModelDml_InitTempBuff"));
 #endif
 			}
 
@@ -1951,7 +1951,7 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 
 						ID3D12Resource* Resource = DynamicRHI->RHIGetResource(Buffer);
 
-						// TODO: FIXME: Don't assume COPY_DEST state
+						//Note: We should not assume COPY_DEST state
 						Barriers.Emplace(
 							CD3DX12_RESOURCE_BARRIER::Transition(
 								Resource,
@@ -1960,7 +1960,7 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 						);
 					}
 
-					// TODO: We should use this instead of NNE_USE_D3D12_RESOURCES
+					//Note: We should use this instead of NNE_USE_D3D12_RESOURCES
 					//FBufferRHIRef TempBuff = MemSizeTemp ? CreateRHIBuffer(RHICmdList, MemSizeTemp, TempBuffUsage, TempBuffAccess, TEXT("FModel_Dispatch_TempBuff")) : nullptr;
 
 					BindingTable->Bind(CompiledOp, InputBuffers, OutputBuffers, PersistBuff, TempBuff);
@@ -2057,11 +2057,11 @@ ID3D12Resource* FModel::CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_STATES Res
 //
 int FModel::PrepareTensorShapesAndData()
 {
-	for (FTensorDesc SymbolicTensorDesc : AllSymbolicTensorDescs)
+	for (NNECore::FTensorDesc SymbolicTensorDesc : AllSymbolicTensorDescs)
 	{
 		if (!SymbolicTensorDesc.GetShape().IsConcrete())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("DML engine does not support model with variable shapes yet."));
+			UE_LOG(LogNNE, Warning, TEXT("DML runtime does not support model with variable shapes yet."));
 			return -1;
 		}
 	}
@@ -2109,7 +2109,7 @@ bool FRuntimeDmlStartup()
 			{
 				const FString ErrorMessage = FString::Format(TEXT("DirectML DLL file not found in \"{0}\"."),
 					{ IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*DirectMLDLLPaths[Idx])});
-				UE_LOG(LogNNE, Warning, TEXT("NNXRuntimeDll:%s"), *ErrorMessage);
+				UE_LOG(LogNNE, Warning, TEXT("NNERuntimeDll:%s"), *ErrorMessage);
 				checkf(false, TEXT("%s"), *ErrorMessage);
 			}
 
@@ -2145,13 +2145,13 @@ TArray<uint8> UNNERuntimeRDGDmlImpl::CreateModelData(FString FileType, TConstArr
 		return {};
 	}
 
-	TUniquePtr<IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
+	TUniquePtr<UE::NNECore::Internal::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
 
-	FNNIModelRaw InputModel;
+	FNNEModelRaw InputModel;
 	InputModel.Data = FileData;
-	InputModel.Format = ENNXInferenceFormat::ONNX;
+	InputModel.Format = ENNEInferenceFormat::ONNX;
 
-	FNNIModelRaw OutputModel;
+	FNNEModelRaw OutputModel;
 	if (!Optimizer->Optimize(InputModel, OutputModel, {}))
 	{
 		return {};

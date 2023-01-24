@@ -3,21 +3,20 @@
 #include "NNECoreModelData.h"
 
 #include "NNECore.h"
-#include "NNXCore.h"
-#include "NNXRuntimeFormat.h"
-#include "NNXModelOptimizerInterface.h"
 #include "NNECoreAttributeMap.h"
+#include "NNECoreModelOptimizerInterface.h"
+#include "NNECoreRuntimeFormat.h"
 #include "Serialization/CustomVersion.h"
 #include "UObject/WeakInterfacePtr.h"
 
 #if WITH_EDITOR
-#include "Misc/Guid.h"
 #include "Containers/StringFwd.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCache.h"
-#include "Memory/SharedBuffer.h"
 #include "DerivedDataRequestOwner.h"
 #include "Internationalization/TextLocalizationResource.h"
+#include "Memory/SharedBuffer.h"
+#include "Misc/Guid.h"
 #endif
 
 const FGuid UNNEModelData::GUID(0x9513202e, 0xeba1b279, 0xf17fe5ba, 0xab90c3f2);
@@ -61,12 +60,6 @@ inline void PutIntoDDC(const FGuid& FileDataId, const FString& RuntimeName, FSha
 
 inline TArray<uint8> Create(const FString& RuntimeName, FString FileType, const TArray<uint8>& FileData)
 {
-	NNX::IRuntime* NNXRuntime = NNX::GetRuntime(RuntimeName);
-	if (NNXRuntime)
-	{
-		return NNXRuntime->CreateModelData(FileType, FileData);
-	}
-
 	TWeakInterfacePtr<INNERuntime> NNERuntime = UE::NNECore::GetRuntime<INNERuntime>(RuntimeName);
 	if (NNERuntime.IsValid())
 	{
@@ -74,11 +67,11 @@ inline TArray<uint8> Create(const FString& RuntimeName, FString FileType, const 
 	}
 	else
 	{
-		UE_LOG(LogNNX, Error, TEXT("UNNEModelData: No runtime '%s' found. Valid runtimes are: "), *RuntimeName);
+		UE_LOG(LogNNE, Error, TEXT("UNNEModelData: No runtime '%s' found. Valid runtimes are: "), *RuntimeName);
 		TArrayView<TWeakInterfacePtr<INNERuntime>> Runtimes = UE::NNECore::GetAllRuntimes();
 		for (int i = 0; i < Runtimes.Num(); i++)
 		{
-			UE_LOG(LogNNX, Error, TEXT("- %s"), *Runtimes[i]->GetRuntimeName());
+			UE_LOG(LogNNE, Error, TEXT("- %s"), *Runtimes[i]->GetRuntimeName());
 		}
 		return {};
 	}
@@ -95,8 +88,6 @@ void UNNEModelData::Init(const FString& Type, TConstArrayView<uint8> Buffer)
 TConstArrayView<uint8> UNNEModelData::GetModelData(const FString& RuntimeName)
 {
 #if WITH_EDITOR
-
-	using namespace NNX;
 
 	// Check if we have a local cache hit
 	TArray<uint8>* LocalData = ModelData.Find(RuntimeName);
@@ -145,8 +136,6 @@ TConstArrayView<uint8> UNNEModelData::GetModelData(const FString& RuntimeName)
 
 void UNNEModelData::Serialize(FArchive& Ar)
 {
-	using namespace NNX;
-
 	// Store the asset version (no effect in load)
 	Ar.UsingCustomVersion(UNNEModelData::GUID);
 
@@ -157,7 +146,8 @@ void UNNEModelData::Serialize(FArchive& Ar)
 	if (Ar.IsCooking() && Ar.IsSaving())
 	{
 		ModelData.Empty();
-		TArray<NNX::IRuntime*> Runtimes = GetAllRuntimes();
+		
+		TArrayView<TWeakInterfacePtr<INNERuntime>> Runtimes = UE::NNECore::GetAllRuntimes();
 		for (int i = 0; i < Runtimes.Num(); i++)
 		{
 			TArray<uint8> CreatedData = Create(Runtimes[i]->GetRuntimeName(), FileType, FileData);

@@ -463,15 +463,15 @@ static FParametricTests ParametricTests;
 
 static FString GetFullModelPath(const FString& ModelName)
 {
-	//Note: This mean model tests can only run in the context of the current projects (example: NNXIncubator)
+	//Note: This mean model tests can only run in the context of the current projects (example: NNEIncubator)
 	return FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir() / TEXT("OnnxModels") / ModelName);
 }
 	
 static bool RunParametricTest(FTests::FTestSetup& TestSetup, const FString& RuntimeFilter)
 {
-	FNNIModelRaw ONNXModel;
-	FNNIModelRaw ONNXModelVariadic;
-	ONNXModelVariadic.Format = ENNXInferenceFormat::Invalid;
+	FNNEModelRaw ONNXModel;
+	FNNEModelRaw ONNXModelVariadic;
+	ONNXModelVariadic.Format = ENNEInferenceFormat::Invalid;
 
 	if (TestSetup.IsModelTest)
 	{
@@ -483,7 +483,7 @@ static bool RunParametricTest(FTests::FTestSetup& TestSetup, const FString& Runt
 			UE_LOG(LogNNE, Error, TEXT("Can't load model from disk at path '%s'. Tests ABORTED!"), *ModelPath);
 			return false;
 		}
-		ONNXModel.Format = ENNXInferenceFormat::ONNX;
+		ONNXModel.Format = ENNEInferenceFormat::ONNX;
 	}
 	else
 	{
@@ -608,7 +608,7 @@ static FAutoConsoleCommand RunTestCommand(
 );
 
 static FAutoConsoleCommand RunSmokeTestCommand(
-	TEXT("nne.test.smokerun"), TEXT("Run all smoke tests. Use -name to additionaly filter by name. Use -runtime to only run for the provided runtime, default is to run on all runtime but NNXRuntimeCPU (too slow at the moment, see comment in code)."),
+	TEXT("nne.test.smokerun"), TEXT("Run all smoke tests. Use -name to additionaly filter by name. Use -runtime to only run for the provided runtime, default is to run on all runtime."),
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray< FString >& Args)
 		{
@@ -632,16 +632,16 @@ static FAutoConsoleCommand RunSmokeTestCommand(
 
 #if WITH_DEV_AUTOMATION_TESTS
 	
-IMPLEMENT_SIMPLE_AUTOMATION_TEST_PRIVATE(FNNXParametricTestBase, FAutomationTestBase, "NNXParametricTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::FeatureMask | EAutomationTestFlags::EngineFilter, __FILE__, __LINE__)
-bool FNNXParametricTestBase::RunTest(const FString& Parameters) { return false; }
+IMPLEMENT_SIMPLE_AUTOMATION_TEST_PRIVATE(FNNEParametricTestBase, FAutomationTestBase, "NNEParametricTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::FeatureMask | EAutomationTestFlags::EngineFilter, __FILE__, __LINE__)
+bool FNNEParametricTestBase::RunTest(const FString& Parameters) { return false; }
 
-class FNNXParametricTest : public FNNXParametricTestBase
+class FNNEParametricTest : public FNNEParametricTestBase
 {
 	FTests::FTestSetup Test;
 
 public:
-	FNNXParametricTest(const FTests::FTestSetup& InTest) : FNNXParametricTestBase(InTest.TestName), Test(InTest) {}
-	virtual ~FNNXParametricTest() {}
+	FNNEParametricTest(const FTests::FTestSetup& InTest) : FNNEParametricTestBase(InTest.TestName), Test(InTest) {}
+	virtual ~FNNEParametricTest() {}
 	virtual FString GetTestSourceFileName() const override { return "From Json"; }//Should return source json file path
 	virtual int32 GetTestSourceFileLine() const override { return 0; }
 protected:
@@ -655,7 +655,7 @@ protected:
 class FParametricTestAutomationRegistry
 {
 	
-	TArray<FNNXParametricTest*> RegisteredTests;
+	TArray<FNNEParametricTest*> RegisteredTests;
 
 public:
 	FParametricTestAutomationRegistry()
@@ -670,7 +670,7 @@ public:
 
 	void Clear()
 	{
-		for (FNNXParametricTest* Test : RegisteredTests)
+		for (FNNEParametricTest* Test : RegisteredTests)
 		{
 			delete Test;
 		}
@@ -683,7 +683,7 @@ public:
 
 		for (const FTests::FTestSetup& Test : ParametricTests.TestSetups)
 		{
-			RegisteredTests.Emplace(new FNNXParametricTest(Test));
+			RegisteredTests.Emplace(new FNNEParametricTest(Test));
 		}
 	}
 };
@@ -693,7 +693,7 @@ static FParametricTestAutomationRegistry ParametricTestAutomationRegistry;
 #endif //WITH_DEV_AUTOMATION_TESTS
 
 static FAutoConsoleCommand TestReloadCommand(
-	TEXT("nne.test.reload"), TEXT("Reload NNX tests definition from Json."),
+	TEXT("nne.test.reload"), TEXT("Reload NNE tests definition from Json."),
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray< FString >& Args)
 		{

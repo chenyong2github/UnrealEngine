@@ -5,11 +5,11 @@
 #include "UObject/Object.h"
 #include "NNECoreAttributeValue.h"
 #include "NNECoreTypes.h"
-#include "NNXRuntime.h"
-#include "NNXRuntimeFormat.generated.h"
+
+#include "NNECoreRuntimeFormat.generated.h"
 
 UENUM()
-enum class EMLFormatTensorType : uint8
+enum class ENNEFormatTensorType : uint8
 {
 	None,	
 	Input,
@@ -20,18 +20,17 @@ enum class EMLFormatTensorType : uint8
 	NUM
 };
 
-//TODO jira 167589: convert EMLInferenceFormat to a CCCC for easier extension of the framework
 UENUM()
-enum class ENNXInferenceFormat : uint8
+enum class ENNEInferenceFormat : uint8
 {
 	Invalid,
 	ONNX,				//!< ONNX Open Neural Network Exchange
 	ORT,				//!< ONNX Runtime (only for CPU)
-	NNXRT				//!< NNX Runtime format
+	NNERT				//!< NNE Runtime format
 };
 
 USTRUCT()
-struct FNNIModelRaw
+struct FNNEModelRaw
 {
 	GENERATED_USTRUCT_BODY()
 	
@@ -39,12 +38,12 @@ struct FNNIModelRaw
 	TArray<uint8>		Data;
 	
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	ENNXInferenceFormat	Format { ENNXInferenceFormat::Invalid };
+	ENNEInferenceFormat	Format { ENNEInferenceFormat::Invalid };
 };
 
 // Required by LoadModel() when loading operators in HLSL and DirectML runtime
 USTRUCT()
-struct FMLFormatAttributeDesc
+struct FNNEFormatAttributeDesc
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -56,7 +55,7 @@ struct FMLFormatAttributeDesc
 };
 
 USTRUCT()
-struct FMLFormatOperatorDesc
+struct FNNEFormatOperatorDesc
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -70,11 +69,11 @@ struct FMLFormatOperatorDesc
 	TArray<uint32> OutTensors;
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	TArray<FMLFormatAttributeDesc> Attributes;
+	TArray<FNNEFormatAttributeDesc> Attributes;
 };
 
 USTRUCT()
-struct FMLFormatTensorDesc
+struct FNNEFormatTensorDesc
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -85,7 +84,7 @@ struct FMLFormatTensorDesc
 	TArray<int32> Shape;
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	EMLFormatTensorType	Type = EMLFormatTensorType::None;
+	ENNEFormatTensorType	Type = ENNEFormatTensorType::None;
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	ENNETensorDataType	DataType = ENNETensorDataType::None;
@@ -97,17 +96,17 @@ struct FMLFormatTensorDesc
 	uint64	DataOffset = 0;
 };
 
-/// NNX Runtime format
+/// NNE Runtime format
 USTRUCT()
-struct FMLRuntimeFormat
+struct FNNERuntimeFormat
 {
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	TArray<FMLFormatTensorDesc> Tensors;
+	TArray<FNNEFormatTensorDesc> Tensors;
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	TArray<FMLFormatOperatorDesc> Operators;
+	TArray<FNNEFormatOperatorDesc> Operators;
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	TArray<uint8> TensorData;

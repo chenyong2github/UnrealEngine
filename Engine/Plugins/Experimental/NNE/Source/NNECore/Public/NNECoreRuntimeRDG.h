@@ -14,12 +14,12 @@ class UNNEModelData;
 namespace UE::NNECore
 {
 
-struct NNXCORE_API FTensorBindingRDG
+struct NNECORE_API FTensorBindingRDG
 {
 	FRDGBufferRef Buffer;
 };
 
-class NNXCORE_API IModelRDG
+class NNECORE_API IModelRDG
 {
 public:
 
@@ -33,7 +33,7 @@ public:
 	virtual TConstArrayView<FTensorShape> GetInputTensorShapes() const = 0;
 
 	/** Getters for outputs shapes if they were already resolved. Empty list otherwise.
-	* Output shape might be resolved after a call to SetInputTensorShapes() if the model and engine support it
+	* Output shape might be resolved after a call to SetInputTensorShapes() if the model and runtime support it
 	* otherwise they will be resolved during Run() or EnqueueRDG() */
 	virtual TConstArrayView<FTensorShape> GetOutputTensorShapes() const = 0;
 	
@@ -48,12 +48,12 @@ public:
 } // UE::NNECore
 
 UINTERFACE()
-class NNXCORE_API UNNERuntimeRDG : public UInterface
+class NNECORE_API UNNERuntimeRDG : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class NNXCORE_API INNERuntimeRDG
+class NNECORE_API INNERuntimeRDG
 {
 	GENERATED_BODY()
 

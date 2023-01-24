@@ -1,14 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDG.h"
-#include "NNXInferenceModel.h"
-#include "NNXRuntimeFormat.h"
-#include "NNEUtilsModelOptimizer.h"
 
+#include "NNECoreRuntimeFormat.h"
+#include "NNEUtilsModelOptimizer.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "RHIGPUReadback.h"
-
 #include "Serialization/MemoryReader.h"
 
 namespace UE::NNERuntimeRDG::Private

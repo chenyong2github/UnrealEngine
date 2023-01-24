@@ -16,7 +16,7 @@ public class NNERuntimeORTCpu : ModuleRules
 			{
 				"Core",
 				"Engine",
-				"NNXCore",
+				"NNECore",
 				"NNEProfiling",
 				"ORTHelper",
 			}

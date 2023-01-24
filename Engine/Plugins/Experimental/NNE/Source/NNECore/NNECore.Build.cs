@@ -2,9 +2,9 @@
 
 namespace UnrealBuildTool.Rules
 {
-    public class NNXCore : ModuleRules
+    public class NNECore : ModuleRules
     {
-        public NNXCore(ReadOnlyTargetRules Target) : base(Target)
+        public NNECore(ReadOnlyTargetRules Target) : base(Target)
         {
             PublicDependencyModuleNames.AddRange(
 				new string[]

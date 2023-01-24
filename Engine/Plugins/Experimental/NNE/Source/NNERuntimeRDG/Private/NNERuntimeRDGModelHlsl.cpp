@@ -13,7 +13,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 namespace ModelUtils
 {
 
-FOperatorHlsl* OpCreate(const FString& OpName, TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& AttributeMap)
+FOperatorHlsl* OpCreate(const FString& OpName, TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& AttributeMap)
 {
 	FOperatorRegistryHlsl::OperatorCreateFunc CreateFn = FOperatorRegistryHlsl::Get()->OpFind(OpName);
 
@@ -27,7 +27,7 @@ FOperatorHlsl* OpCreate(const FString& OpName, TConstArrayView<NNX::FTensorDesc>
 
 	if (!Op->Initialize(InputTensorDescs, OutputTensorDescs, AttributeMap))
 	{
-		UE_LOG(LogNNE, Warning, TEXT("Hlsl engine: Error initializing operator:%s"), *OpName);
+		UE_LOG(LogNNE, Warning, TEXT("Hlsl runtime: Error initializing operator:%s"), *OpName);
 		delete Op;
 		return nullptr;
 	}
@@ -102,7 +102,7 @@ bool ApplyWeights(FRDGBuilder& GraphBuilder, TArray<FTensorHLSL>& OutTensorsHLSL
 bool FModel::Init(TConstArrayView<uint8> ModelData)
 {
 	check(ModelData.Num() > 0);
-	FMLRuntimeFormat	Format;
+	FNNERuntimeFormat	Format;
 	int32 GuidSize = sizeof(UNNERuntimeRDGHlslImpl::GUID);
 	int32 VersionSize = sizeof(UNNERuntimeRDGHlslImpl::Version);
 	
@@ -119,8 +119,8 @@ bool FModel::Init(TConstArrayView<uint8> ModelData)
 	{
 		const FString TypeName = Format.Operators[Idx].TypeName;
 
-		TArray<NNX::FTensorDesc> Inputs;
-		TArray<NNX::FTensorDesc> Outputs;
+		TArray<NNECore::FTensorDesc> Inputs;
+		TArray<NNECore::FTensorDesc> Outputs;
 		UE::NNECore::FAttributeMap AttributeMap;
 
 		for (int32 InputTensorIndex : Format.Operators[Idx].InTensors)
@@ -131,7 +131,7 @@ bool FModel::Init(TConstArrayView<uint8> ModelData)
 		{
 			Outputs.Emplace(AllSymbolicTensorDescs[OutputTensorIndex]);
 		}
-		for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
+		for (const FNNEFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 		{
 			AttributeMap.SetAttribute(Desc.Name, Desc.Value);
 		}
@@ -142,7 +142,7 @@ bool FModel::Init(TConstArrayView<uint8> ModelData)
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to create operator:%s"), *TypeName);
 
-			// TODO: Cleanup operators
+			//Note: Need to cleanup operators
 			return false;
 		}
 
@@ -152,7 +152,7 @@ bool FModel::Init(TConstArrayView<uint8> ModelData)
 	return true;
 }
 
-int FModel::SetInputTensorShapes(TConstArrayView<NNX::FTensorShape> InputShapes)
+int FModel::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InputShapes)
 {
 	int Res = FModelRDG::SetInputTensorShapes(InputShapes);
 	if (Res < 0) return Res;
@@ -250,7 +250,7 @@ int FModel::PrepareTensorShapesAndData()
 	}
 
 	// Run model preparation (including shape inference) on all operators
-	// This loop could be abstracted to a different engine/system as it apply on FTensorRef & IPrepareOperator witch are RDG agnostics.
+	// This loop could be abstracted to a different runtime/system as it apply on FTensorRef & IPrepareOperator witch are RDG agnostics.
 	static constexpr int32 MaxExpectedInput = 10;
 	TArray<NNECore::Internal::FTensorRef, TInlineAllocator<MaxExpectedInput>> InputTensors;
 	TArray<NNECore::Internal::FTensorRef> OutputTensors;
@@ -294,8 +294,8 @@ int FModel::PrepareTensorShapesAndData()
 		if (Op->PrepareOutputs(InputTensors, OutputTensors) != 0)
 		{
 			//Operator could not prepare the output tensors, meaning we can't allocate
-			//output buffer before running the model. This engine does not support this.
-			UE_LOG(LogNNE, Warning, TEXT("Could not deduce tensor shapes for this model during shape inference, HLSL engine wont support the model as it need to precompute all shapes for performance reasons."));
+			//output buffer before running the model. This runtime does not support this.
+			UE_LOG(LogNNE, Warning, TEXT("Could not deduce tensor shapes for this model during shape inference, HLSL runtime wont support the model as it need to precompute all shapes for performance reasons."));
 			AllTensorRDGs.Empty();
 			return -1;
 		}

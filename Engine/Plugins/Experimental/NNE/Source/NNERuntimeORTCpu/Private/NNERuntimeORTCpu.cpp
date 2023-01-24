@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeORTCpu.h"
+
+#include "NNECoreAttributeMap.h"
+#include "NNECoreModelData.h"
+#include "NNECoreModelOptimizerInterface.h"
+#include "NNEProfilingTimer.h"
 #include "NNERuntimeORTCpuModel.h"
 #include "NNERuntimeORTCpuUtils.h"
 #include "NNEUtilsModelOptimizer.h"
-#include "NNECoreAttributeMap.h"
-#include "NNECoreModelData.h"
-#include "NNEProfilingTimer.h"
 #include "RedirectCoutAndCerrToUeLog.h"
-
-#include "NNXModelOptimizerInterface.h"
 
 FGuid UNNERuntimeORTCpuImpl::GUID = FGuid((int32)'O', (int32)'C', (int32)'P', (int32)'U');
 int32 UNNERuntimeORTCpuImpl::Version = 0x00000001;
@@ -26,12 +26,12 @@ TArray<uint8> UNNERuntimeORTCpuImpl::CreateModelData(FString FileType, TConstArr
 		return {};
 	}
 
-	TUniquePtr<NNX::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToONNXModelOptimizer();
+	TUniquePtr<UE::NNECore::Internal::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToONNXModelOptimizer();
 
-	FNNIModelRaw InputModel;
+	FNNEModelRaw InputModel;
 	InputModel.Data = FileData;
-	InputModel.Format = ENNXInferenceFormat::ONNX;
-	FNNIModelRaw OutputModel;
+	InputModel.Format = ENNEInferenceFormat::ONNX;
+	FNNEModelRaw OutputModel;
 	UE::NNEUtils::Internal::FOptimizerOptionsMap Options;
 	if (!Optimizer->Optimize(InputModel, OutputModel, Options))
 	{

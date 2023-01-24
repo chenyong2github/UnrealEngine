@@ -13,14 +13,14 @@ public class NNEUtils : ModuleRules
 
 		PublicIncludePaths.AddRange(
 			new string[] {
-				Path.GetFullPath(Path.Combine(EngineDirectory, "Plugins/Experimental/NNE/Source/NNXCore/Private")),
+				Path.GetFullPath(Path.Combine(EngineDirectory, "Plugins/Experimental/NNE/Source/NNECore/Private")),
 			}
 		);
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"NNXCore"
+				"NNECore"
 			}
 		);
 

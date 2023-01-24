@@ -8,12 +8,12 @@
 #include "Misc/Paths.h"
 #include "UObject/WeakInterfacePtr.h"
 
-#include "NNXThirdPartyWarningDisabler.h"
-NNX_THIRD_PARTY_INCLUDES_START
+#include "NNEThirdPartyWarningDisabler.h"
+NNE_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #include "core/session/onnxruntime_cxx_api.h"
-NNX_THIRD_PARTY_INCLUDES_END
+NNE_THIRD_PARTY_INCLUDES_END
 
 void FNNERuntimeORTModule::StartupModule()
 {
@@ -22,11 +22,6 @@ void FNNERuntimeORTModule::StartupModule()
 		"onnxruntime",
 	};
 
-	//IPluginManager& PluginManager = IPluginManager::Get();
-	//const FString PluginDir = PluginManager.FindPlugin(TEXT("NNXIncubator"))->GetBaseDir();
-
-	//const FString ORTDefaultModuleDir = PluginDir / "ThirdParty//ORTDefault";
-	//const FString ORTDefaultRuntimeBinPath = ORTDefaultModuleDir / TEXT(PREPROCESSOR_TO_STRING(ORTDEFAULT_PLATFORM_PATH));;
 	const FString ORTDefaultRuntimeBinPath = TEXT(PREPROCESSOR_TO_STRING(ORTDEFAULT_PLATFORM_BIN_PATH));
 
 	FPlatformProcess::PushDllDirectory(*ORTDefaultRuntimeBinPath);
@@ -48,7 +43,7 @@ void FNNERuntimeORTModule::StartupModule()
 		{
 			const FString ErrorMessage = FString::Format(TEXT("DLL file not found in \"{0}\"."),
 				{ IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*DLLFilePath) });
-			//UE_LOG(LogNNX, Error, TEXT("ORT StartupModule(): %s"), *ErrorMessage);
+			//UE_LOG(LogNNE, Error, TEXT("ORT StartupModule(): %s"), *ErrorMessage);
 			//checkf(false, TEXT("%s"), *ErrorMessage);
 		}
 		DLLHandles.Add(FPlatformProcess::GetDllHandle(*DLLFilePath));

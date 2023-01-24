@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGModel.h"
-#include "NNXInferenceModel.h"
-#include "NNXRuntimeFormat.h"
-#include "NNEUtilsModelOptimizer.h"
 
+#include "NNECoreRuntimeFormat.h"
+#include "NNEUtilsModelOptimizer.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "RHIGPUReadback.h"
@@ -14,13 +13,13 @@
 namespace UE::NNERuntimeRDG::Private
 {
 
-bool FModelRDG::LoadModel(TConstArrayView<uint8> ModelData, FMLRuntimeFormat& Format, int32 GuidAndVersionSize)
+bool FModelRDG::LoadModel(TConstArrayView<uint8> ModelData, FNNERuntimeFormat& Format, int32 GuidAndVersionSize)
 {
 	TConstArrayView<uint8> ModelBuffer = { &(ModelData.GetData()[GuidAndVersionSize]), ModelData.Num() - GuidAndVersionSize };
 
 	FMemoryReaderView Reader(ModelBuffer);
 
-	FMLRuntimeFormat::StaticStruct()->SerializeBin(Reader, &Format);
+	FNNERuntimeFormat::StaticStruct()->SerializeBin(Reader, &Format);
 
 	// Data for base class
 	InputSymbolicTensors.Empty();
@@ -38,28 +37,28 @@ bool FModelRDG::LoadModel(TConstArrayView<uint8> ModelData, FMLRuntimeFormat& Fo
 	// Add tensors
 	for (int32 Idx = 0; Idx < Format.Tensors.Num(); ++Idx)
 	{
-		const FMLFormatTensorDesc& FormatTensorDesc = Format.Tensors[Idx];
+		const FNNEFormatTensorDesc& FormatTensorDesc = Format.Tensors[Idx];
 
 		const NNECore::FSymbolicTensorShape SymbolicShape = NNECore::FSymbolicTensorShape::Make(FormatTensorDesc.Shape);
 		const NNECore::FTensorDesc SymbolicTensor = NNECore::FTensorDesc::Make(FormatTensorDesc.Name, SymbolicShape, FormatTensorDesc.DataType);
 
 		AllSymbolicTensorDescs.Emplace(SymbolicTensor);
 
-		if (FormatTensorDesc.Type == EMLFormatTensorType::Input)
+		if (FormatTensorDesc.Type == ENNEFormatTensorType::Input)
 		{
 			InputTensorIndices.Emplace(Idx);
 			InputSymbolicTensors.Emplace(SymbolicTensor);
 		}
-		else if (FormatTensorDesc.Type == EMLFormatTensorType::Output)
+		else if (FormatTensorDesc.Type == ENNEFormatTensorType::Output)
 		{
 			OutputTensorIndices.Emplace(Idx);
 			OutputSymbolicTensors.Emplace(SymbolicTensor);
 		}
-		else if (FormatTensorDesc.Type == EMLFormatTensorType::Intermediate)
+		else if (FormatTensorDesc.Type == ENNEFormatTensorType::Intermediate)
 		{
 			IntermediateTensorIndices.Emplace(Idx);
 		}
-		else if (FormatTensorDesc.Type == EMLFormatTensorType::Initializer)
+		else if (FormatTensorDesc.Type == ENNEFormatTensorType::Initializer)
 		{
 			WeightTensorIndices.Emplace(Idx);
 			if (!SymbolicTensor.GetShape().IsConcrete())
@@ -82,7 +81,7 @@ bool FModelRDG::LoadModel(TConstArrayView<uint8> ModelData, FMLRuntimeFormat& Fo
 
 			WeightRDG.SetPreparedData(DataView);
 		}
-		checkf(FormatTensorDesc.Type != EMLFormatTensorType::None, TEXT("Unsupported tensor type None"));
+		checkf(FormatTensorDesc.Type != ENNEFormatTensorType::None, TEXT("Unsupported tensor type None"));
 	}
 
 	// Loop over all operators in the model and store tensor indices for input/output
@@ -97,7 +96,7 @@ bool FModelRDG::LoadModel(TConstArrayView<uint8> ModelData, FMLRuntimeFormat& Fo
 
 
 
-int FModelRDG::SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes)
+int FModelRDG::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes)
 {
 	OutputTensorShapes.Empty();
 
@@ -114,8 +113,8 @@ int FModelRDG::SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes)
 	for (int32 i = 0; i < InputTensorIndices.Num(); ++i)
 	{
 		const int32 Idx = InputTensorIndices[i];
-		const FTensorDesc& TensorDesc = InputSymbolicTensors[i];
-		const FTensorShape& TensorShape = InputTensorShapes[i];
+		const NNECore::FTensorDesc& TensorDesc = InputSymbolicTensors[i];
+		const NNECore::FTensorShape& TensorShape = InputTensorShapes[i];
 
 		InputTensorRDGs.Emplace(FTensorRDG::Make(TensorDesc, TensorShape, nullptr));
 		AllTensorRDGs[Idx] = &InputTensorRDGs[i];
@@ -132,8 +131,8 @@ int FModelRDG::SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes)
 	for (int32 i = 0; i < IntermediateTensorIndices.Num(); ++i)
 	{
 		const int32 Idx = IntermediateTensorIndices[i];
-		const FTensorDesc& TensorDesc = AllSymbolicTensorDescs[Idx];
-		const FTensorShape TensorShape = FTensorShape::MakeFromSymbolic(TensorDesc.GetShape());
+		const NNECore::FTensorDesc& TensorDesc = AllSymbolicTensorDescs[Idx];
+		const NNECore::FTensorShape TensorShape = NNECore::FTensorShape::MakeFromSymbolic(TensorDesc.GetShape());
 
 		IntermediateTensorRDGs.Emplace(FTensorRDG::Make(TensorDesc, TensorShape, nullptr));
 		AllTensorRDGs[Idx] = &IntermediateTensorRDGs[i];
@@ -143,8 +142,8 @@ int FModelRDG::SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes)
 	for (int32 i = 0; i < OutputTensorIndices.Num(); ++i)
 	{
 		const int32 Idx = OutputTensorIndices[i];
-		const FTensorDesc& TensorDesc = OutputSymbolicTensors[i];
-		const FTensorShape TensorShape = FTensorShape::MakeFromSymbolic(TensorDesc.GetShape());
+		const NNECore::FTensorDesc& TensorDesc = OutputSymbolicTensors[i];
+		const NNECore::FTensorShape TensorShape = NNECore::FTensorShape::MakeFromSymbolic(TensorDesc.GetShape());
 
 		OutputTensorRDGs.Emplace(FTensorRDG::Make(TensorDesc, TensorShape, nullptr));
 		AllTensorRDGs[Idx] = &OutputTensorRDGs[i];
@@ -157,7 +156,7 @@ int FModelRDG::SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes)
 		};
 	);
 
-	//Allow the specific engine to run shape inference if supported
+	//Allow the specific runtime to run shape inference if supported
 	if (PrepareTensorShapesAndData() != 0)
 	{
 		return -1;
@@ -234,7 +233,7 @@ int FModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<NNECore::FTen
 		TensorRDG.SetBuffer(TensorBuffer);
 	}
 
-	// TODO: FIXME: DirectML uses RHI buffers instead of RDG buffers
+	//Note: DirectML uses RHI buffers instead of RDG buffers
 	//For now weights tensors are not uploaded to GPU thus GetBuffer will return nullptr for them.
 	//checkCode(for (const FTensorRDG* TensorRDG : AllTensorRDGs) { if (TensorRDG != nullptr) { check(TensorRDG->GetBuffer() != nullptr); } });
 

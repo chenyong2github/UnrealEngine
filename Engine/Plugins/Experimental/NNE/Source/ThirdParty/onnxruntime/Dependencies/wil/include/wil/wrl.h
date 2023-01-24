@@ -11,8 +11,8 @@
 #ifndef __WIL_WRL_INCLUDED
 #define __WIL_WRL_INCLUDED
 
-#include "NNXThirdPartyWarningDisabler.h" // WITH_UE
-NNX_THIRD_PARTY_INCLUDES_START
+#include "NNEThirdPartyWarningDisabler.h" // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 
@@ -94,6 +94,6 @@ namespace wil
 #endif // WIL_ENABLE_EXCEPTIONS
 } // namespace wil
 
-NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNE_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 #endif // __WIL_WRL_INCLUDED

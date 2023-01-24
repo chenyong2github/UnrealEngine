@@ -24,20 +24,20 @@ void FTensorHLSL::EnqueueDownloadRdg(FRDGBuilder& GraphBuilder, bool bUseManualT
 	check(HasBuffer());
 	check(!Readback);
 
-	Readback = MakeUnique<FRHIGPUBufferReadback>(FName(TEXT("FMLTensorReadback_") + GetName()));
+	Readback = MakeUnique<FRHIGPUBufferReadback>(FName(TEXT("FTensorReadback_") + GetName()));
 
 	FNNETensorReadbackParameters* TensorReadbackParams = GraphBuilder.AllocParameters<FNNETensorReadbackParameters>();
 	TensorReadbackParams->Buffer = GetBuffer();
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("FMLInferenceModelAddTensorReadback:%s", *GetName()),
+		RDG_EVENT_NAME("FModelHlslAddTensorReadback:%s", *GetName()),
 		TensorReadbackParams,
 		ERDGPassFlags::Readback | ERDGPassFlags::NeverCull,
 		[this, bUseManualTransitions, TensorReadbackParams](FRHICommandListImmediate& RHICmdList)
 		{
 			FRHIBuffer* OutputBuffer = TensorReadbackParams->Buffer->GetRHI();
 
-			// TODO: FIXME: We need to transition the resources for DirectML
+			//Note: We need to transition the resources for DirectML
 			if (bUseManualTransitions)
 			{
 				FRHITransitionInfo Transitions[] =

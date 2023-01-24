@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNEUtilsModelBuilder.h"
+
 #include "NNECore.h"
 #include "NNECoreAttributeMap.h"
-#include "NNXRuntimeFormat.h"
-
+#include "NNECoreRuntimeFormat.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/MemoryWriter.h"
 
@@ -17,7 +17,7 @@ class FModelPrinterNNE
 {
 public:
 
-	void Visit(const FMLRuntimeFormat& Format)
+	void Visit(const FNNERuntimeFormat& Format)
 	{
 		for (int Idx = 0; Idx < Format.Tensors.Num(); ++Idx)
 		{
@@ -30,7 +30,7 @@ public:
 		}
 	}
 
-	void Visit(const FMLFormatTensorDesc& Tensor)
+	void Visit(const FNNEFormatTensorDesc& Tensor)
 	{
 		FStringBuilderBase Str;
 
@@ -52,7 +52,7 @@ public:
 		
 	}
 
-	void Visit(const FMLFormatOperatorDesc& Op)
+	void Visit(const FNNEFormatOperatorDesc& Op)
 	{
 		Print(TEXT("Op:%s in:%d out:%d"), *Op.TypeName, Op.InTensors.Num(), Op.OutTensors.Num());
 	}
@@ -103,7 +103,7 @@ public:
 
 		FMemoryWriter Writer(Data);
 
-		FMLRuntimeFormat::StaticStruct()->SerializeBin(Writer, &Format);
+		FNNERuntimeFormat::StaticStruct()->SerializeBin(Writer, &Format);
 
 		return !Data.IsEmpty();
 	}
@@ -133,13 +133,13 @@ public:
 			return false;
 		}
 		
-		if (Format.Tensors[Idx].Type != EMLFormatTensorType::None)
+		if (Format.Tensors[Idx].Type != ENNEFormatTensorType::None)
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to add input tensor, tensor usage already set up"));
 			return false;
 		}
 		
-		Format.Tensors[Idx].Type = EMLFormatTensorType::Input;
+		Format.Tensors[Idx].Type = ENNEFormatTensorType::Input;
 
 		return true;
 	}
@@ -155,13 +155,13 @@ public:
 			return false;
 		}
 
-		if (Format.Tensors[Idx].Type != EMLFormatTensorType::None)
+		if (Format.Tensors[Idx].Type != ENNEFormatTensorType::None)
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to add output tensor, tensor usage already set up"));
 			return false;
 		}
 
-		Format.Tensors[Idx].Type = EMLFormatTensorType::Output;
+		Format.Tensors[Idx].Type = ENNEFormatTensorType::Output;
 
 		return true;
 	}
@@ -171,7 +171,7 @@ public:
 	{
 		int Idx = Format.Operators.Num();
 
-		FMLFormatOperatorDesc	Operator{};
+		FNNEFormatOperatorDesc	Operator{};
 
 		Operator.TypeName = TypeName;
 		Format.Operators.Emplace(Operator);
@@ -208,15 +208,15 @@ public:
 			return false;
 		}
 
-		if (Format.Tensors[TensorIdx].Type == EMLFormatTensorType::Input)
+		if (Format.Tensors[TensorIdx].Type == ENNEFormatTensorType::Input)
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to add output tensor, tensor usage already set up to input"));
 			return false;
 		}
 
-		if (Format.Tensors[TensorIdx].Type == EMLFormatTensorType::None)
+		if (Format.Tensors[TensorIdx].Type == ENNEFormatTensorType::None)
 		{
-			Format.Tensors[TensorIdx].Type = EMLFormatTensorType::Intermediate;
+			Format.Tensors[TensorIdx].Type = ENNEFormatTensorType::Intermediate;
 		}
 		
 		Format.Operators[OpIdx].OutTensors.Emplace(TensorIdx);
@@ -229,7 +229,7 @@ public:
 	{
 		int OpIdx = NNEOperatorCast(Op);
 
-		FMLFormatAttributeDesc& Attribute = Format.Operators[OpIdx].Attributes.Emplace_GetRef();
+		FNNEFormatAttributeDesc& Attribute = Format.Operators[OpIdx].Attributes.Emplace_GetRef();
 		Attribute.Name = Name;
 		Attribute.Value = Value;
 		
@@ -250,16 +250,16 @@ private:
 		}
 		else
 		{
-			FMLFormatTensorDesc	Desc{};
+			FNNEFormatTensorDesc	Desc{};
 
 			Desc.Name = InName;
 			Desc.Shape = InShape;
-			Desc.Type = EMLFormatTensorType::None;
+			Desc.Type = ENNEFormatTensorType::None;
 			Desc.DataType = InDataType;
 			
 			if (Data)
 			{
-				Desc.Type = EMLFormatTensorType::Initializer;
+				Desc.Type = ENNEFormatTensorType::Initializer;
 				Desc.DataOffset = Format.TensorData.AddUninitialized(DataSize);
 				Desc.DataSize = DataSize;
 
@@ -281,7 +281,7 @@ private:
 	}
 
 
-	FMLRuntimeFormat		Format;
+	FNNERuntimeFormat		Format;
 	TMap<FString, int>		TensorMap;	
 };
 

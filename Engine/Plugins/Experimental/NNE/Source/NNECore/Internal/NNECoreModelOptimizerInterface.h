@@ -1,26 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
-struct FNNIModelRaw;
+struct FNNEModelRaw;
 namespace UE::NNECore { class FAttributeMap; }
 
-namespace NNX
+namespace UE::NNECore::Internal
 {
 	
-//TODO create a dedicated FOptimizerOptionsMap when function diverge with FAttributeMap
-//example introduction of sparse tensor to FMLAttribute witch make no sense as an optimizer attribute
+//Note: create a dedicated FOptimizerOptionsMap when function diverge with FAttributeMap
+//example introduction of sparse tensor to FAttribute witch make no sense as an optimizer attribute
 using FOptimizerOptionsMap = UE::NNECore::FAttributeMap;
 
-/** Interface class for NNX model validator */
+/** Interface class for NNE model validator */
 class IModelValidator
 {
 public:
 	virtual ~IModelValidator() = default;
 	virtual FString GetName() const = 0;
-	virtual bool ValidateModel(const FNNIModelRaw& InputModel, const FOptimizerOptionsMap& Options) const = 0;
+	virtual bool ValidateModel(const FNNEModelRaw& InputModel, const FOptimizerOptionsMap& Options) const = 0;
 };
 
-/** Interface class for NNX model optimizer pass */
+/** Interface class for NNE model optimizer pass */
 class IModelOptimizerPass
 {
 public:
@@ -28,10 +29,10 @@ public:
 	virtual FString GetName() const = 0;
 
 	//Optimize the model in place, potentially changing the format
-	virtual bool ApplyPass(FNNIModelRaw& Model, const FOptimizerOptionsMap& Options) const = 0;
+	virtual bool ApplyPass(FNNEModelRaw& Model, const FOptimizerOptionsMap& Options) const = 0;
 };
 
-/** Interface class for NNX model optimizer */
+/** Interface class for NNE model optimizer */
 class IModelOptimizer
 {
 public:
@@ -45,7 +46,7 @@ public:
 	virtual void AddValidator(TSharedPtr<IModelValidator>) = 0;
 	
 	//Apply all passes and validators to the input model, produce an optimized model potentially in a different format
-	virtual bool Optimize(const FNNIModelRaw& InputModel, FNNIModelRaw& OutModel, const FOptimizerOptionsMap& Options) = 0;
+	virtual bool Optimize(const FNNEModelRaw& InputModel, FNNEModelRaw& OutModel, const FOptimizerOptionsMap& Options) = 0;
 };
 
-} // NNX
+} // namespace UE::NNECore::Internal

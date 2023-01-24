@@ -85,7 +85,7 @@ namespace FModelQAHelpers
 				{
 					FRHIBuffer* OutputBuffer = TensorReadbackParams->Buffer->GetRHI();
 
-					// TODO: FIXME: We need to transition the resources for DirectML
+					//Notes: We need to transition the resources for DirectML
 					/*if (bUseManualTransitions)
 					{
 						FRHITransitionInfo Transitions[] =
@@ -192,7 +192,7 @@ int FModelQA::RunSync(TConstArrayView<NNECore::FTensorBindingCPU> InInputBinding
 	}
 	else if (ModelRDG.IsValid())
 	{
-		// TODO ok if pending?
+		//Note: ok if pending?
 		Readbacks.Empty();
 
 		int Res = 0;
@@ -246,7 +246,7 @@ int FModelQA::RunSync(TConstArrayView<NNECore::FTensorBindingCPU> InInputBinding
 	}
 }
 
-TUniquePtr<FModelQA> FModelQA::MakeModelQA(const FNNIModelRaw& ONNXModelData, const FString& RuntimeName)
+TUniquePtr<FModelQA> FModelQA::MakeModelQA(const FNNEModelRaw& ONNXModelData, const FString& RuntimeName)
 {
 	TUniquePtr<FModelQA> ModelQA = MakeUnique<FModelQA>();
 	TWeakInterfacePtr<INNERuntime> Runtime = NNECore::GetRuntime<INNERuntime>(RuntimeName);

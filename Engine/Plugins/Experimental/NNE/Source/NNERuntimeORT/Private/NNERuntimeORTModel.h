@@ -9,12 +9,12 @@
 #include "NNECoreTypes.h"
 #include "NNEProfilingStatistics.h"
 
-#include "NNXThirdPartyWarningDisabler.h"
-NNX_THIRD_PARTY_INCLUDES_START
+#include "NNEThirdPartyWarningDisabler.h"
+NNE_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #include "core/session/onnxruntime_cxx_api.h"
-NNX_THIRD_PARTY_INCLUDES_END
+NNE_THIRD_PARTY_INCLUDES_END
 
 namespace UE::NNERuntimeORT::Private
 {

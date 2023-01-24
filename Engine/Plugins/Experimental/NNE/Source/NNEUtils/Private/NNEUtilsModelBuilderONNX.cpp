@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNXCore.h"
+#include "NNECore.h"
 #include "NNEUtilsModelBuilder.h"
-#include "NNXRuntimeFormat.h"
 #include "NNECoreAttributeMap.h"
+#include "NNECoreRuntimeFormat.h"
 
-#include "NNXThirdPartyWarningDisabler.h"
-NNX_THIRD_PARTY_INCLUDES_START
+#include "NNEThirdPartyWarningDisabler.h"
+NNE_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 
@@ -19,7 +19,7 @@ NNX_THIRD_PARTY_INCLUDES_START
 //#include "core/session/environment.h"
 #include "core/session/onnxruntime_cxx_api.h"
 
-NNX_THIRD_PARTY_INCLUDES_END
+NNE_THIRD_PARTY_INCLUDES_END
 
 namespace UE::NNEUtils::Internal
 {
@@ -49,7 +49,7 @@ inline onnx::NodeProto* OnnxOperatorCast(IModelBuilder::HOperator& Handle)
  * NOTE:
  * - We plan to use this only for generating simple networks for testing operators and simple models
  */
-class FMLModelBuilderONNX : public IModelBuilder
+class FModelBuilderONNX : public IModelBuilder
 {
 	static constexpr const char* kOnnxDomain = onnx::ONNX_DOMAIN;
 
@@ -60,7 +60,7 @@ class FMLModelBuilderONNX : public IModelBuilder
 	
 public:
 
-	FMLModelBuilderONNX(int64 InIrVersion = OnnxIrVersion, int64 InOpsetVersion = OnnxOpsetVersion)
+	FModelBuilderONNX(int64 InIrVersion = OnnxIrVersion, int64 InOpsetVersion = OnnxOpsetVersion)
 		: IrVersion(InIrVersion)
 		, OpsetVersion(InOpsetVersion)
 	{
@@ -97,13 +97,13 @@ public:
 		// Validate model
 		if (res)
 		{
-			UE_LOG(LogNNX, Display, TEXT("OrtValidateModelFromMemory... (note: might abort if i.e. shapes are not correct!)"));
+			UE_LOG(LogNNE, Display, TEXT("OrtValidateModelFromMemory... (note: might abort if i.e. shapes are not correct!)"));
 
 			OrtStatusPtr status = OrtValidateModelFromMemory(Data.GetData(), Data.Num());
 
 			if (status)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("ModelBuilder error:%s"), ANSI_TO_TCHAR(Ort::GetApi().GetErrorMessage(status)));
+				UE_LOG(LogNNE, Warning, TEXT("ModelBuilder error:%s"), ANSI_TO_TCHAR(Ort::GetApi().GetErrorMessage(status)));
 				return false;
 			}
 		}
@@ -328,9 +328,9 @@ void BuildShapeForModel(bool ConvertToVariadicShape, const NNECore::FTensorShape
 NNEUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName,
 	TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors,
 	TConstArrayView<FTensor> InWeightTensors, TConstArrayView<TArray<char>> InWeightTensorsData,
-	const UE::NNECore::FAttributeMap& Attributes, FNNIModelRaw& Model)
+	const UE::NNECore::FAttributeMap& Attributes, FNNEModelRaw& Model)
 {
-	Model = FNNIModelRaw{};
+	Model = FNNEModelRaw{};
 	
 	int64 IrVersion = OnnxIrVersion;
 	int64 OpsetVersion = OnnxOpsetVersion;
@@ -409,7 +409,7 @@ NNEUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, cons
 
 	
 	Builder->End(Model.Data);
-	Model.Format = ENNXInferenceFormat::ONNX;
+	Model.Format = ENNEInferenceFormat::ONNX;
 	
 	return true;
 }
@@ -417,7 +417,7 @@ NNEUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, cons
 /** Return instance of ONNX model builder */
 NNEUTILS_API IModelBuilder* CreateONNXModelBuilder(int64 IrVersion, int64 OpsetVersion)
 {
-	return new FMLModelBuilderONNX(IrVersion, OpsetVersion);
+	return new FModelBuilderONNX(IrVersion, OpsetVersion);
 }
 
 } // namespace UE::NNEUtils::Internal

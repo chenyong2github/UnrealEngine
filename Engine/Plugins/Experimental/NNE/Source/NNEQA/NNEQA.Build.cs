@@ -22,7 +22,7 @@ public class NNEQA : ModuleRules
 				"Projects",
 				"Json",
 				"CoreUObject",
-				"NNXCore",
+				"NNECore",
 				"NNEUtils",
 				"RHI",
 				"RenderCore"

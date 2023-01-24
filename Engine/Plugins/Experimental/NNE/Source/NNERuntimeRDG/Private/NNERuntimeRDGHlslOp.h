@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "NNXRuntime.h"
 #include "NNERuntimeRDG.h"
 
 namespace UE::NNERuntimeRDG::Private::Hlsl
@@ -13,7 +12,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 	struct FOperatorHlsl : public IOperatorRDG, public IPrepareOperator
 	{
 		virtual ~FOperatorHlsl() = default;
-		virtual bool Initialize(TConstArrayView<FTensorDesc> InputTensorDescs, TConstArrayView<FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) = 0;
+		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) = 0;
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InInputTensors, TConstArrayView<FTensorRDGRef> InOutputTensors) = 0;
 	};
 

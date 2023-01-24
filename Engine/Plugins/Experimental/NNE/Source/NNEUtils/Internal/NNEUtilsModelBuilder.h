@@ -6,7 +6,7 @@
 
 namespace UE::NNECore { class FAttributeMap; }
 struct FNNEAttributeValue;
-struct FNNIModelRaw;
+struct FNNEModelRaw;
 
 namespace UE::NNEUtils::Internal
 {
@@ -92,10 +92,10 @@ NNEUTILS_API IModelBuilder* CreateONNXModelBuilder(int64 IrVersion = OnnxIrVersi
 NNEUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName, 
 	TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors,
 	TConstArrayView<FTensor> InWeightTensors, TConstArrayView<TArray<char>> InWeightTensorsData,
-	const UE::NNECore::FAttributeMap& Attributes, FNNIModelRaw& ModelData);
+	const UE::NNECore::FAttributeMap& Attributes, FNNEModelRaw& ModelData);
 
 /**
- * Create an instance of NNX model builder that creates NNX model/format in memory
+ * Create an instance of NNE model builder that creates NNE model/format in memory
  */
 NNEUTILS_API IModelBuilder* CreateNNEModelBuilder();
 
