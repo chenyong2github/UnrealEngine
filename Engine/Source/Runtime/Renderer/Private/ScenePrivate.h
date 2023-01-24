@@ -3348,15 +3348,14 @@ public:
 		VelocityData.StartFrame(this);
 	}
 
-	virtual uint32 GetFrameNumber() const override
-	{
-		return SceneFrameNumber;
-	}
+	/**
+	 * Returns the current "FrameNumber" where frame corresponds to how many times FRendererModule::BeginRenderingViewFamilies has been called.
+	 * Thread safe, and returns a different copy for game/render thread. GetFrameNumberRenderThread can only be called from the render thread. 
+	 */
+	virtual uint32 GetFrameNumber() const override;
+	inline uint32 GetFrameNumberRenderThread() const { return SceneFrameNumberRenderThread; }
 
-	virtual void IncrementFrameNumber() override
-	{
-		++SceneFrameNumber;
-	}
+	virtual void IncrementFrameNumber() override;
 
 	void DumpMeshDrawCommandMemoryStats();
 
@@ -3618,8 +3617,9 @@ private:
 	 */
 	int32 NumEnabledSkylights_GameThread;
 
-	/** Frame number incremented per-family viewing this scene. */
+	/** Frame number incremented per-family (except if there are multiple view families in one render call) viewing this scene. */
 	uint32 SceneFrameNumber;
+	uint32 SceneFrameNumberRenderThread;
 
 	/** Whether world settings has bForceNoPrecomputedLighting set */
 	bool bForceNoPrecomputedLighting;

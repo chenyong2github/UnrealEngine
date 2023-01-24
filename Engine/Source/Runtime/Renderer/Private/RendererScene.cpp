@@ -1861,6 +1861,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	NumVisibleLights_GameThread(0)
 ,	NumEnabledSkylights_GameThread(0)
 ,	SceneFrameNumber(0)
+,	SceneFrameNumberRenderThread(0)
 ,	bForceNoPrecomputedLighting(InWorld->GetWorldSettings()->bForceNoPrecomputedLighting)
 {
 	FMemory::Memzero(MobileDirectionalLights);
@@ -6594,4 +6595,26 @@ void FRendererModule::InvalidatePathTracedOutput()
 	{
 		Scene->InvalidatePathTracedOutput();
 	}
+}
+
+uint32 FScene::GetFrameNumber() const
+{
+	if (IsInGameThread())
+	{
+		return SceneFrameNumber;
+	}
+	else
+	{
+		return SceneFrameNumberRenderThread;
+	}
+}
+
+void FScene::IncrementFrameNumber()
+{
+	// Increment game-tread version
+	++SceneFrameNumber;
+	ENQUEUE_RENDER_COMMAND(SceneStartFrame)([this,NewNumber = SceneFrameNumber](FRHICommandListImmediate& RHICmdList)
+	{
+		SceneFrameNumberRenderThread = NewNumber;
+	});
 }
