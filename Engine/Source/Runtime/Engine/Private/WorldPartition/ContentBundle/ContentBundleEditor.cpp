@@ -138,7 +138,7 @@ bool FContentBundleEditor::AddActor(AActor* InActor)
 {
 	check(GetStatus() == EContentBundleStatus::ContentInjected || GetStatus() == EContentBundleStatus::ReadyToInject);
 
-	if (InActor->GetWorld() != ActorDescContainer->GetWorld() || InActor->HasAllFlags(RF_Transient) || !InActor->IsMainPackageActor())
+	if (InActor->GetWorld() != GetInjectedWorld() || InActor->HasAllFlags(RF_Transient) || !InActor->IsMainPackageActor())
 	{
 		return false;
 	}
