@@ -117,7 +117,7 @@ struct FCurveAssetEditorTreeItem : public ICurveEditorTreeItem
 
 		TUniquePtr<FRichCurveEditorModelRaw> NewCurve = MakeUnique<FRichCurveEditorModelRaw>(static_cast<FRichCurve*>(EditInfo.CurveToEdit), CurveOwner.Get());
 		NewCurve->SetShortDisplayName(CurveName);
-		NewCurve->SetColor(CurveColor);
+		NewCurve->SetColor(CurveColor, false);
 		OutCurveModels.Add(MoveTemp(NewCurve));
 	}
 	
