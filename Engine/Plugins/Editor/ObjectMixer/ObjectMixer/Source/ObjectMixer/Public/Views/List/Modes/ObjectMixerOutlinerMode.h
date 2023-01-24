@@ -25,6 +25,29 @@ namespace ObjectMixerOutliner
 	{
 		bool operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, TObjectPtr<UActorComponent>& DataOut) const;
 	};
+
+	/** Functor which can be used to get weak actor pointers from a selection */
+	struct FWeakActorSelector
+	{
+		bool operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, TWeakObjectPtr<AActor>& DataOut) const;
+	};
+
+	/** Functor which can be used to get actors from a selection including component parents */
+	struct FActorSelector
+	{
+		bool operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, AActor*& ActorPtrOut) const;
+	};
+
+	/** Functor which can be used to get actor descriptors from a selection  */
+	struct FActorDescSelector
+	{
+		bool operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, FWorldPartitionActorDesc*& ActorDescPtrOut) const;
+	};
+
+	struct FFolderPathSelector
+	{
+		bool operator()(TWeakPtr<ISceneOutlinerTreeItem> Item, FFolder& DataOut) const;
+	};
 }
 
 USTRUCT()
