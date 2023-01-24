@@ -20,9 +20,6 @@ class ENGINE_API UWorldPartitionSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
-protected:
-	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
-
 public:
 	UWorldPartitionSubsystem();
 

@@ -163,11 +163,6 @@ void UWorldPartitionSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-bool UWorldPartitionSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
-{
-	return Super::DoesSupportWorldType(WorldType) || WorldType == EWorldType::Inactive;
-}
-
 #if WITH_EDITOR
 void UWorldPartitionSubsystem::ForEachWorldPartition(TFunctionRef<bool(UWorldPartition*)> Func)
 {
