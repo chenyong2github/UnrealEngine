@@ -504,7 +504,7 @@ class WebViewControl
 
 	public boolean SendKeyEvent(boolean bDown, int keycode)
 	{
-		if (keycode < 0 && keycode > 127)
+		if (keycode < 0 || keycode > 127)
 		{
 			return false;
 		}
