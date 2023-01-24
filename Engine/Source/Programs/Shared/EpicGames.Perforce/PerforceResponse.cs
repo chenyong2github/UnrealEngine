@@ -28,7 +28,9 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// True if the response is successful
 		/// </summary>
-		public bool Succeeded => InternalData is not PerforceError;
+#pragma warning disable IDE0083 // Use pattern matching - "is not" is not supported by version 8 of the language and this library is used by UGS
+		public bool Succeeded => !(InternalData is PerforceError);
+#pragma warning restore IDE0083 // Use pattern matching
 
 		/// <summary>
 		/// True if the response is an error
