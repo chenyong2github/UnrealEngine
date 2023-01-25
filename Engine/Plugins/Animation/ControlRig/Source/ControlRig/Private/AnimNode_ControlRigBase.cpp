@@ -77,6 +77,10 @@ void FAnimNode_ControlRigBase::Initialize_AnyThread(const FAnimationInitializeCo
 		bControlRigRequiresInitialization = true;
 		LastBonesSerialNumberForCacheBones = 0;
 	}
+	else
+	{
+		SetTargetInstance(nullptr);
+	}
 }
 
 void FAnimNode_ControlRigBase::GatherDebugData(FNodeDebugData& DebugData)
