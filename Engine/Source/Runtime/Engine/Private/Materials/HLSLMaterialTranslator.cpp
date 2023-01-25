@@ -202,6 +202,7 @@ static inline EMaterialValueType GetMaterialValueType(EMaterialParameterType Typ
 	case EMaterialParameterType::Scalar: return MCT_Float;
 	case EMaterialParameterType::Vector: return MCT_Float4;
 	case EMaterialParameterType::DoubleVector: return MCT_LWCVector4;
+	case EMaterialParameterType::StaticSwitch: return MCT_Bool;
 	default: checkNoEntry(); return MCT_Unknown;
 	}
 }
@@ -3374,7 +3375,55 @@ int32 FHLSLMaterialTranslator::AccessUniformExpression(int32 Index)
 	check(!(CodeChunk.Type & MCT_TextureVirtual) || TextureUniformExpression);
 
 	TStringBuilder<1024> FormattedCode;
-	if (IsFloatNumericType(CodeChunk.Type))
+
+	if (CodeChunk.Type == MCT_Bool)
+	{
+		check(CodeChunk.UniformExpression->GetType() == &FMaterialUniformExpressionStaticBoolParameter::StaticType);
+		FMaterialUniformExpressionStaticBoolParameter* StaticBoolParameter = static_cast<FMaterialUniformExpressionStaticBoolParameter*>(CodeChunk.UniformExpression.GetReference());
+		check(!bIsLWC);
+
+		const uint32 NumComponents = GetNumComponents(CodeChunk.Type);
+
+		if (CodeChunk.UniformExpression->UniformOffset == INDEX_NONE)
+		{
+			// 'Bool' uniforms are packed into bits
+			if (CurrentNumBoolComponents + NumComponents > 32u)
+			{
+				CurrentBoolUniformOffset = UniformPreshaderOffset++;
+				CurrentNumBoolComponents = 0u;
+			}
+
+			int32 UniformOffset = CurrentBoolUniformOffset * 32u + CurrentNumBoolComponents;
+
+			FUniformExpressionSet& UniformExpressionSet = MaterialCompilationOutput.UniformExpressionSet;
+			FMaterialUniformPreshaderHeader& PreshaderHeader = UniformExpressionSet.UniformPreshaders.AddDefaulted_GetRef();
+			PreshaderHeader.FieldIndex = UniformExpressionSet.UniformPreshaderFields.Num();
+			PreshaderHeader.NumFields = 1;
+			PreshaderHeader.OpcodeOffset = UniformExpressionSet.UniformPreshaderData.Num();
+			CodeChunk.UniformExpression->WriteNumberOpcodes(UniformExpressionSet.UniformPreshaderData);
+			PreshaderHeader.OpcodeSize = UniformExpressionSet.UniformPreshaderData.Num() - PreshaderHeader.OpcodeOffset;
+
+			FMaterialUniformPreshaderField& PreshaderField = MaterialCompilationOutput.UniformExpressionSet.UniformPreshaderFields.AddDefaulted_GetRef();
+			PreshaderField.BufferOffset = UniformOffset;
+			PreshaderField.Type = UE::Shader::MakeValueType(UE::Shader::EValueComponentType::Bool, NumComponents);
+			PreshaderField.ComponentIndex = 0;
+
+			CodeChunk.UniformExpression->UniformOffset = UniformOffset;
+			CurrentNumBoolComponents += NumComponents;
+		}
+
+		const uint32 UniformOffset = CodeChunk.UniformExpression->UniformOffset / 32u;
+		const uint32 NumBoolComponents = CodeChunk.UniformExpression->UniformOffset % 32u;
+
+		const uint32 RegisterIndex = UniformOffset / 4;
+		const uint32 RegisterOffset = UniformOffset % 4;
+		FormattedCode.Appendf(TEXT("UnpackUniform_%s(asuint(Material.PreshaderBuffer[%u][%u]), %u)"),
+			TEXT("bool"),
+			RegisterIndex,
+			RegisterOffset,
+			NumBoolComponents);
+	}
+	else if (IsFloatNumericType(CodeChunk.Type))
 	{
 		check(CodeChunk.DerivativeStatus != EDerivativeStatus::Valid);
 		const uint32 NumComponents = GetNumComponents(CodeChunk.Type);
@@ -5504,6 +5553,64 @@ int32 FHLSLMaterialTranslator::ActorWorldPosition()
 	return CastToNonLWCIfDisabled(Result);
 }
 
+int32 FHLSLMaterialTranslator::DynamicBranch(int32 Condition, int32 A, int32 B)
+{
+	if (Condition == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (B == INDEX_NONE)
+	{
+		return A;
+	}
+
+	if (A == INDEX_NONE)
+	{
+		return B;
+	}
+
+	EMaterialValueType TypeA = GetParameterType(A);
+	EMaterialValueType TypeB = GetParameterType(B);
+	if (IsLWCType(TypeA) || IsLWCType(TypeB))
+	{
+		TypeA = MakeLWCType(TypeA);
+		TypeB = MakeLWCType(TypeB);
+	}
+
+	EMaterialValueType ResultType = MCT_Unknown;
+	if (TypeA == TypeB)
+	{
+		ResultType = TypeA;
+	}
+	else if (!IsFloatNumericType(TypeA) || !IsFloatNumericType(TypeB))
+	{
+		Errorf(TEXT("Cannot branch on non float numeric Types if they are not equal: %s %s"), DescribeType(TypeA), DescribeType(TypeB));
+		return INDEX_NONE;
+	}
+	else
+	{
+		ResultType = GetNumComponents(TypeA) > GetNumComponents(TypeB) ? TypeA : TypeB;
+	}
+
+	A = ForceCast(A, ResultType, MFCF_ReplicateValue);
+	B = ForceCast(B, ResultType, MFCF_ReplicateValue);
+	FString SymbolName = CreateSymbolName(TEXT("Static"));
+
+	checkf(Condition >= 0 && Condition < CurrentScopeChunks->Num(), TEXT("Index %d/%d, Platform=%d"), Condition, CurrentScopeChunks->Num(), (int)Platform);
+	const FShaderCodeChunk& CodeChunk = (*CurrentScopeChunks)[Condition];
+
+	if (CodeChunk.UniformExpression && CodeChunk.UniformExpression->GetType() == &FMaterialUniformExpressionStaticBoolParameter::StaticType)
+	{
+		FMaterialUniformExpressionStaticBoolParameter* StaticBoolParameter = static_cast<FMaterialUniformExpressionStaticBoolParameter*>(CodeChunk.UniformExpression.GetReference());
+		AddCodeChunk(MCT_VoidStatement, TEXT("//%s"), *StaticBoolParameter->GetParameterName().ToString());
+	}
+
+	AddCodeChunk(MCT_VoidStatement, TEXT("%s %s;"), HLSLTypeString(ResultType), *SymbolName);
+	AddCodeChunk(MCT_VoidStatement, TEXT("[branch] switch (int(%s)){ default: %s = %s; break; case 0: %s = %s; break;}"), *GetParameterCode(Condition), *SymbolName, *GetParameterCode(A), *SymbolName, *GetParameterCode(B));
+	return AddCodeChunk(ResultType, *SymbolName);
+}
+
 // Compare two inputs and return true if they are either the same, or if they evaluate to equal constant expressions.
 static bool AreEqualExpressions(int32 A, int32 B, TArray<FShaderCodeChunk> const& InCurrentScopeChunks, FMaterial const& InMaterial)
 {
@@ -7299,6 +7406,33 @@ UObject* FHLSLMaterialTranslator::GetReferencedTexture(int32 Index)
 int32 FHLSLMaterialTranslator::StaticBool(bool bValue)
 {
 	return AddInlinedCodeChunk(MCT_StaticBool,(bValue ? TEXT("true") : TEXT("false")));
+}
+
+int32 FHLSLMaterialTranslator::DynamicBoolParameter(FName ParameterName, bool bDefaultValue)
+{
+	// Look up the value we are compiling with for this static parameter.
+	bool bValue = bDefaultValue;
+
+	FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
+	ParameterInfo.Name = ParameterName;
+
+	const UE::Shader::EValueType ValueType = GetShaderValueType(EMaterialParameterType::StaticSwitch);
+	UE::Shader::FValue DefaultValue(bValue);
+
+	const uint32* PrevDefaultOffset = DefaultUniformValues.Find(DefaultValue);
+	uint32 DefaultOffset;
+	if (PrevDefaultOffset)
+	{
+		DefaultOffset = *PrevDefaultOffset;
+	}
+	else
+	{
+		DefaultOffset = MaterialCompilationOutput.UniformExpressionSet.AddDefaultParameterValue(DefaultValue);
+		DefaultUniformValues.Add(DefaultValue, DefaultOffset);
+	}
+
+	const int32 ParameterIndex = MaterialCompilationOutput.UniformExpressionSet.FindOrAddNumericParameter(EMaterialParameterType::StaticSwitch, ParameterInfo, DefaultOffset);
+	return AddUniformExpression(new FMaterialUniformExpressionStaticBoolParameter(ParameterInfo, ParameterIndex), MCT_Bool, TEXT(""));
 }
 
 int32 FHLSLMaterialTranslator::StaticBoolParameter(FName ParameterName,bool bDefaultValue)

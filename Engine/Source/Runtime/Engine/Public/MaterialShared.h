@@ -222,6 +222,8 @@ inline uint32 GetNumComponents(EMaterialValueType Type)
 	case MCT_LWCVector2: return 2;
 	case MCT_LWCVector3: return 3;
 	case MCT_LWCVector4: return 4;
+	case MCT_StaticBool: return 1;
+	case MCT_Bool: return 1;
 	default: return 0;
 	}
 }

@@ -394,6 +394,8 @@ private:
 	/** The game thread accessible parent of the material instance. */
 	UMaterialInterface* GameThreadParent;
 	
+	/** StaticSwitch parameters to select material permutation **/
+	THashedMaterialParameterMap<bool> StaticSwitchParameterArray;
 	/** Vector parameters for this material instance. */
 	THashedMaterialParameterMap<FLinearColor> VectorParameterArray;
 	/** DoubleVector parameters for this material instance. */
@@ -410,12 +412,14 @@ private:
 	TArray<int32> ParentLayerIndexRemap;
 };
 
+template <> FORCEINLINE THashedMaterialParameterMap<bool>& FMaterialInstanceResource::GetValueArray() { return StaticSwitchParameterArray; }
 template <> FORCEINLINE THashedMaterialParameterMap<float>& FMaterialInstanceResource::GetValueArray() { return ScalarParameterArray; }
 template <> FORCEINLINE THashedMaterialParameterMap<FLinearColor>& FMaterialInstanceResource::GetValueArray() { return VectorParameterArray; }
 template <> FORCEINLINE THashedMaterialParameterMap<FVector4d>& FMaterialInstanceResource::GetValueArray() { return DoubleVectorParameterArray; }
 template <> FORCEINLINE THashedMaterialParameterMap<const UTexture*>& FMaterialInstanceResource::GetValueArray() { return TextureParameterArray; }
 template <> FORCEINLINE THashedMaterialParameterMap<const URuntimeVirtualTexture*>& FMaterialInstanceResource::GetValueArray() { return RuntimeVirtualTextureParameterArray; }
 template <> FORCEINLINE THashedMaterialParameterMap<const USparseVolumeTexture*>& FMaterialInstanceResource::GetValueArray() { return SparseVolumeTextureParameterArray; }
+template <> FORCEINLINE const THashedMaterialParameterMap<bool>& FMaterialInstanceResource::GetValueArray() const { return StaticSwitchParameterArray; }
 template <> FORCEINLINE const THashedMaterialParameterMap<float>& FMaterialInstanceResource::GetValueArray() const { return ScalarParameterArray; }
 template <> FORCEINLINE const THashedMaterialParameterMap<FLinearColor>& FMaterialInstanceResource::GetValueArray() const { return VectorParameterArray; }
 template <> FORCEINLINE const THashedMaterialParameterMap<FVector4d>& FMaterialInstanceResource::GetValueArray() const { return DoubleVectorParameterArray; }
@@ -425,6 +429,7 @@ template <> FORCEINLINE const THashedMaterialParameterMap<const USparseVolumeTex
 
 struct FMaterialInstanceParameterSet
 {
+	TArray<THashedMaterialParameterMap<bool>::TNamedParameter>							StaticSwitchParameters;
 	TArray<THashedMaterialParameterMap<float>::TNamedParameter>							ScalarParameters;
 	TArray<THashedMaterialParameterMap<FLinearColor>::TNamedParameter>					VectorParameters;
 	TArray<THashedMaterialParameterMap<FVector4d>::TNamedParameter>						DoubleVectorParameters;

@@ -141,7 +141,7 @@ struct FMaterialCachedExpressionEditorOnlyData
 	FMaterialCachedParameterEditorEntry EditorEntries[NumMaterialParameterTypes];
 
 	UPROPERTY()
-	TArray<bool> StaticSwitchValues;
+	TArray<bool> StaticSwitchValues_DEPRECATED;
 
 	UPROPERTY()
 	TArray<FStaticComponentMaskValue> StaticComponentMaskValues;
@@ -253,6 +253,8 @@ struct FMaterialCachedExpressionData
 		PropertyConnectedBitmask |= (1 << (uint32)Property);
 	}
 
+	void PostSerialize(const FArchive& Ar);
+
 #if WITH_EDITORONLY_DATA
 	TSharedPtr<FMaterialCachedExpressionEditorOnlyData> EditorOnlyData;
 #endif // WITH_EDITORONLY_DATA
@@ -269,6 +271,12 @@ struct FMaterialCachedExpressionData
 	UPROPERTY()
 	TArray<float> ScalarValues;
 
+	UPROPERTY()
+	TArray<bool> StaticSwitchValues;
+
+	UPROPERTY()
+	TArray<bool> DynamicSwitchValues;
+	
 	UPROPERTY()
 	TArray<FLinearColor> VectorValues;
 

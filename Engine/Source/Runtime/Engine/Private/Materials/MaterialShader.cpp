@@ -498,7 +498,10 @@ void FStaticParameterSet::AddParametersOfType(EMaterialParameterType Type, const
 		{
 			const FMaterialParameterMetadata& Meta = It.Value;
 			check(Meta.Value.Type == Type);
-			StaticSwitchParameters.Emplace(It.Key, Meta.Value.AsStaticSwitch(), Meta.bOverride, Meta.ExpressionGuid);
+			if(!Meta.bDynamicSwitchParameter)
+			{
+				StaticSwitchParameters.Emplace(It.Key, Meta.Value.AsStaticSwitch(), Meta.bOverride, Meta.ExpressionGuid);
+			}
 		}
 		break;
 	case EMaterialParameterType::StaticComponentMask:

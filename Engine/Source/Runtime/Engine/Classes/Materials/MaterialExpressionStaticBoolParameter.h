@@ -17,16 +17,21 @@ class UMaterialExpressionStaticBoolParameter : public UMaterialExpressionParamet
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionStaticBoolParameter, meta = (ShowAsInputPin = "Primary"))
 	uint32 DefaultValue:1;
 
+	/**Change Parameter from "static bool" to (dynamic) bool type which enables it to be used with dynamic branching*/
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionStaticBoolParameter)
+	uint32 DynamicBranch:1;
+
 public:
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual int32 CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual uint32 GetOutputType(int32 OutputIndex) override {return MCT_StaticBool;}
+	virtual uint32 GetOutputType(int32 OutputIndex) override {return DynamicBranch ? MCT_Bool : MCT_StaticBool;}
 	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
 	{
 		OutMeta.Value = (bool)DefaultValue;
+		OutMeta.bDynamicSwitchParameter = DynamicBranch;
 		return Super::GetParameterValue(OutMeta);
 	}
 	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override

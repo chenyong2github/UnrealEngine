@@ -127,7 +127,7 @@ namespace Generator
 		}
 		else if (Expression->IsA<UMaterialExpressionFunctionInput>())
 		{
-			return (Cast<UMaterialExpressionFunctionInput>(Expression)->InputType == FunctionInput_StaticBool);
+			return (Cast<UMaterialExpressionFunctionInput>(Expression)->InputType == FunctionInput_StaticBool) || (Cast<UMaterialExpressionFunctionInput>(Expression)->InputType == FunctionInput_Bool);
 		}
 		else if (Expression->IsA<UMaterialExpressionMaterialFunctionCall>())
 		{
@@ -626,6 +626,7 @@ namespace Generator
 			case FunctionInput_TextureCube:
 			case FunctionInput_VolumeTexture:
 			case FunctionInput_StaticBool:
+			case FunctionInput_Bool:
 			case FunctionInput_MaterialAttributes:
 			default:
 				ensure(false);

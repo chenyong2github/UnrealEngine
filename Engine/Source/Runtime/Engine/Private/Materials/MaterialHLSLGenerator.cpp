@@ -494,6 +494,7 @@ const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireFunctionInputExp
 			case FunctionInput_Texture2DArray:
 			case FunctionInput_VolumeTexture:
 			case FunctionInput_StaticBool:
+			case FunctionInput_Bool:
 			case FunctionInput_TextureExternal:
 				Errorf(TEXT("Missing Preview connection for function input '%s'"), *MaterialExpression->InputName.ToString());
 				return nullptr;

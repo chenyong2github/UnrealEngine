@@ -272,6 +272,7 @@ bool FMaterialInstanceResource::GetParameterValue(EMaterialParameterType Type, c
 		// Check for instances overrides
 		switch (Type)
 		{
+		case EMaterialParameterType::StaticSwitch: bResult = RenderThread_GetParameterValue<bool>(ParameterInfo, OutValue); break;
 		case EMaterialParameterType::Scalar: bResult = RenderThread_GetParameterValue<float>(ParameterInfo, OutValue); break;
 		case EMaterialParameterType::Vector: bResult = RenderThread_GetParameterValue<FLinearColor>(ParameterInfo, OutValue); break;
 		case EMaterialParameterType::DoubleVector: bResult = RenderThread_GetParameterValue<FVector4d>(ParameterInfo, OutValue); break;
@@ -371,14 +372,17 @@ void FMaterialInstanceResource::InitMIParameters(FMaterialInstanceParameterSet& 
 	ParameterSet.RuntimeVirtualTextureParameters.Sort(SortMaterialInstanceParametersPredicate<const URuntimeVirtualTexture*>);
 	ParameterSet.SparseVolumeTextureParameters.Sort(SortMaterialInstanceParametersPredicate<const USparseVolumeTexture*>);
 
-	Swap(ScalarParameterArray.Array, ParameterSet.ScalarParameters);
-	Swap(VectorParameterArray.Array, ParameterSet.VectorParameters);
-	Swap(DoubleVectorParameterArray.Array, ParameterSet.DoubleVectorParameters);
-	Swap(TextureParameterArray.Array, ParameterSet.TextureParameters);
-	Swap(RuntimeVirtualTextureParameterArray.Array, ParameterSet.RuntimeVirtualTextureParameters);
-	Swap(SparseVolumeTextureParameterArray.Array, ParameterSet.SparseVolumeTextureParameters);
+	StaticSwitchParameterArray.Array = MoveTemp(ParameterSet.StaticSwitchParameters);
+	ScalarParameterArray.Array = MoveTemp(ParameterSet.ScalarParameters);
+	VectorParameterArray.Array = MoveTemp(ParameterSet.VectorParameters);
+	DoubleVectorParameterArray.Array = MoveTemp(ParameterSet.DoubleVectorParameters);
+	TextureParameterArray.Array = MoveTemp(ParameterSet.TextureParameters);
+	RuntimeVirtualTextureParameterArray.Array = MoveTemp(ParameterSet.RuntimeVirtualTextureParameters);
+	SparseVolumeTextureParameterArray.Array = MoveTemp(ParameterSet.SparseVolumeTextureParameters);
+
 
 	// Build hash tables.
+	StaticSwitchParameterArray.HashAddAllItems();
 	ScalarParameterArray.HashAddAllItems();
 	VectorParameterArray.HashAddAllItems();
 	DoubleVectorParameterArray.HashAddAllItems();
@@ -759,6 +763,20 @@ void GameThread_InitMIParameters(const UMaterialInstance& Instance)
 		ParamRef.Value = FSparseVolumeTextureParameterValue::GetValue(Parameter);
 	}
 	
+	FStaticParameterSet StaticParamSet = Instance.GetStaticParameters();
+	ParameterSet.StaticSwitchParameters.Reserve(StaticParamSet.StaticSwitchParameters.Num());
+	for(const FStaticSwitchParameter& Param : StaticParamSet.StaticSwitchParameters)
+	{
+		if(Param.IsOverride())
+		{
+			FMaterialParameterMetadata Result;
+			Param.GetValue(Result);
+			auto& ParamRef = ParameterSet.StaticSwitchParameters.AddDefaulted_GetRef();
+			ParamRef.Info = FHashedMaterialParameterInfo(Param.ParameterInfo);
+			ParamRef.Value = Result.Value.AsStaticSwitch();
+		}
+	}
+
 	ENQUEUE_RENDER_COMMAND(InitMIParameters)(
 		[Resource, Parameters = MoveTemp(ParameterSet)](FRHICommandListImmediate& RHICmdList) mutable
 		{

@@ -111,6 +111,9 @@ void FMaterialGraphSchemaAction_NewNode::SetFunctionInputType(UMaterialExpressio
 	case MCT_StaticBool:
 		FunctionInput->InputType = FunctionInput_StaticBool;
 		break;
+	case MCT_Bool:
+		FunctionInput->InputType = FunctionInput_Bool;
+		break;
 	case MCT_MaterialAttributes:
 		FunctionInput->InputType = FunctionInput_MaterialAttributes;
 		break;

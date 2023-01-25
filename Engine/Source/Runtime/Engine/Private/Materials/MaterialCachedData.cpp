@@ -200,7 +200,8 @@ bool FMaterialCachedExpressionData::AddParameter(const FMaterialParameterInfo& P
 			break;
 
 		case EMaterialParameterType::StaticSwitch:
-			EditorOnlyData->StaticSwitchValues.Insert(ParameterMeta.Value.AsStaticSwitch(), Index);
+			StaticSwitchValues.Insert(ParameterMeta.Value.AsStaticSwitch(), Index);
+			DynamicSwitchValues.Insert(ParameterMeta.bDynamicSwitchParameter, Index);
 			break;
 
 		case EMaterialParameterType::StaticComponentMask:
@@ -666,13 +667,11 @@ void FMaterialCachedExpressionData::GetParameterValueByIndex(EMaterialParameterT
 	case EMaterialParameterType::Font:
 		OutResult.Value = FMaterialParameterValue(FontValues[ParameterIndex].LoadSynchronous(), FontPageValues[ParameterIndex]);
 		break;
-#if WITH_EDITORONLY_DATA
 	case EMaterialParameterType::StaticSwitch:
-		if (EditorOnlyData && !bIsEditorOnlyDataStripped)
-		{
-			OutResult.Value = EditorOnlyData->StaticSwitchValues[ParameterIndex];
-		}
+		OutResult.Value = StaticSwitchValues[ParameterIndex];
+		OutResult.bDynamicSwitchParameter = DynamicSwitchValues[ParameterIndex];
 		break;
+#if WITH_EDITORONLY_DATA
 	case EMaterialParameterType::StaticComponentMask:
 		if (EditorOnlyData && !bIsEditorOnlyDataStripped)
 		{
@@ -684,6 +683,28 @@ void FMaterialCachedExpressionData::GetParameterValueByIndex(EMaterialParameterT
 		checkNoEntry();
 		break;
 	}
+}
+
+void FMaterialCachedExpressionData::PostSerialize(const FArchive& Ar)
+{
+#if WITH_EDITORONLY_DATA
+	if(Ar.IsLoading())
+	{
+		bool bIsEditorOnlyDataStripped = true;
+		if (EditorOnlyData)
+		{
+			const FMaterialCachedParameterEditorEntry& EditorEntry = EditorOnlyData->EditorEntries[(int32)EMaterialParameterType::StaticSwitch];
+			bIsEditorOnlyDataStripped = EditorEntry.EditorInfo.Num() == 0;
+		}
+
+		if (EditorOnlyData && !bIsEditorOnlyDataStripped)
+		{
+			StaticSwitchValues = EditorOnlyData->StaticSwitchValues_DEPRECATED;
+			check(DynamicSwitchValues.Num() == 0);
+			DynamicSwitchValues.AddDefaulted(StaticSwitchValues.Num());
+		}
+	}
+#endif
 }
 
 bool FMaterialCachedExpressionData::GetParameterValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult) const

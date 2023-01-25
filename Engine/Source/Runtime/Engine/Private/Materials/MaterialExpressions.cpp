@@ -428,6 +428,8 @@ void GetMaterialValueTypeDescriptions(const uint32 MaterialValueType, TArray<FTe
 
 	if (MaterialValueType & MCT_StaticBool)
 		OutDescriptions.Add(LOCTEXT("StaticBool", "Bool"));
+	if (MaterialValueType & MCT_Bool)
+		OutDescriptions.Add(LOCTEXT("Bool", "Bool"));
 	if (MaterialValueType & MCT_MaterialAttributes)
 		OutDescriptions.Add(LOCTEXT("MaterialAttributes", "Material Attributes"));
 	if (MaterialValueType & MCT_ShadingModel)
@@ -467,7 +469,7 @@ bool CanConnectMaterialValueTypes(const uint32 InputType, const uint32 OutputTyp
 	{
 		return true;
 	}
-	if (InputType == MCT_StaticBool && OutputType == MCT_Bool)
+	if (InputType == MCT_Bool && OutputType == MCT_StaticBool)
 	{
 		// StaticBool is allowed to connect to Bool (but not the other way around)
 		return true;
@@ -9027,6 +9029,26 @@ FExpressionInput* UMaterialExpressionStaticSwitchParameter::GetEffectiveInput(cl
 
 int32 UMaterialExpressionStaticSwitchParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
+	if(DynamicBranch)
+	{
+		int32 V = Compiler->DynamicBoolParameter(ParameterName, DefaultValue);
+		if (V != INDEX_NONE)
+		{
+			return Compiler->DynamicBranch(V, A.Compile(Compiler), B.Compile(Compiler));
+		}
+		else
+		{
+			if(DefaultValue)
+			{
+				return A.Compile(Compiler);
+			}
+			else
+			{
+				return B.Compile(Compiler);
+			}
+		}
+	}
+
 	FExpressionInput* EffectiveInput = GetEffectiveInput(Compiler);
 	if (EffectiveInput)
 	{
@@ -9101,7 +9123,7 @@ UMaterialExpressionStaticBoolParameter::UMaterialExpressionStaticBoolParameter(c
 #if WITH_EDITOR
 int32 UMaterialExpressionStaticBoolParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compiler->StaticBoolParameter(ParameterName,DefaultValue);
+	return DynamicBranch ? Compiler->DynamicBoolParameter(ParameterName, DefaultValue) : Compiler->StaticBoolParameter(ParameterName,DefaultValue);
 }
 
 int32 UMaterialExpressionStaticBoolParameter::CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex)
@@ -9236,12 +9258,29 @@ FExpressionInput* UMaterialExpressionStaticSwitch::GetEffectiveInput(class FMate
 
 int32 UMaterialExpressionStaticSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	FExpressionInput* EffectiveInput = GetEffectiveInput(Compiler);
-	if (EffectiveInput)
+	int32 V = INDEX_NONE;
+	if (Value.GetTracedInput().Expression)
 	{
-		return EffectiveInput->Compile(Compiler);
+		V = Value.Compile(Compiler);
 	}
-	return INDEX_NONE;
+
+	if(V != INDEX_NONE && Compiler->GetParameterType(V) == MCT_Bool)
+	{
+		return Compiler->DynamicBranch(V, A.Compile(Compiler), B.Compile(Compiler));
+	}
+
+	bool bValue = DefaultValue;
+	if (V != INDEX_NONE)
+	{
+		bool bSucceeded;
+		bValue = Compiler->GetStaticBoolValue(V, bSucceeded);
+		if (!bSucceeded)
+		{
+			return INDEX_NONE;
+		}
+	}
+
+	return bValue ? A.Compile(Compiler) : B.Compile(Compiler);
 }
 
 void UMaterialExpressionStaticSwitch::GetCaption(TArray<FString>& OutCaptions) const
@@ -9273,15 +9312,7 @@ uint32 UMaterialExpressionStaticSwitch::GetInputType(int32 InputIndex)
 	}
 	else
 	{
-		if (IsUsingNewHLSLGenerator())
-		{
-			// Allow non-static bool when using new HLSL generator
-			return MCT_Bool;
-		}
-		else
-		{
-			return MCT_StaticBool;
-		}
+		return MCT_Bool;
 	}
 }
 
@@ -16686,7 +16717,8 @@ void UMaterialExpressionFunctionInput::GetCaption(TArray<FString>& OutCaptions) 
 		TEXT("VolumeTexture"),
 		TEXT("StaticBool"),
 		TEXT("MaterialAttributes"),
-		TEXT("External")
+		TEXT("External"),
+		TEXT("Bool")
 	};
 	check(InputType < FunctionInput_MAX);
 	OutCaptions.Add(FString(TEXT("Input ")) + InputName.ToString() + TEXT(" (") + TypeNames[InputType] + TEXT(")"));
@@ -16736,6 +16768,7 @@ int32 UMaterialExpressionFunctionInput::CompilePreviewValue(FMaterialCompiler* C
 		case FunctionInput_Texture2DArray:
 		case FunctionInput_TextureExternal:
 		case FunctionInput_StaticBool:
+		case FunctionInput_Bool:
 			return Compiler->Errorf(TEXT("Missing Preview connection for function input '%s'"), *InputName.ToString());
 		default:
 			return Compiler->Errorf(TEXT("Unknown input type"));
@@ -16912,6 +16945,8 @@ uint32 UMaterialExpressionFunctionInput::GetInputType(int32 InputIndex)
 		return MCT_VolumeTexture;
 	case FunctionInput_StaticBool:
 		return MCT_StaticBool;
+	case FunctionInput_Bool:
+		return MCT_Bool;
 	case FunctionInput_MaterialAttributes:
 		return MCT_MaterialAttributes;
 	default:

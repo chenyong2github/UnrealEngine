@@ -194,12 +194,12 @@ enum class EMaterialParameterType : uint8
 	Font,
 	RuntimeVirtualTexture,
 	SparseVolumeTexture,
+	StaticSwitch,
 
 	NumRuntime, // Runtime parameter types must go above here, and editor-only ones below
 
 	// TODO - Would be nice to make static parameter values editor-only, but will save that for a future-refactor
-	StaticSwitch = NumRuntime,
-	StaticComponentMask,
+	StaticComponentMask = NumRuntime,
 
 	Num,
 	None = 0xff,
@@ -458,6 +458,9 @@ struct FMaterialParameterMetadata
 	/** Is the parameter overriden on the material it was queried from? */
 	bool bOverride = false;
 #endif // WITH_EDITORONLY_DATA
+
+	/** Is a Static Switch parameter using a dynamic branch? */
+	bool bDynamicSwitchParameter = false;
 };
 
 class FSHA1;

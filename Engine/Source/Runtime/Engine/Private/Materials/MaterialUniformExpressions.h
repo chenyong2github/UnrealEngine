@@ -312,6 +312,57 @@ private:
 	int32 ParameterIndex;
 };
 
+/**
+ */
+class FMaterialUniformExpressionStaticBoolParameter : public FMaterialUniformExpression
+{
+	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionStaticBoolParameter);
+public:
+
+	FMaterialUniformExpressionStaticBoolParameter() {}
+	FMaterialUniformExpressionStaticBoolParameter(const FMaterialParameterInfo& InParameterInfo, uint32 InParameterIndex)
+		: ParameterIndex(InParameterIndex)
+		, ParameterInfo(InParameterInfo)
+	{
+		check(InParameterIndex >= 0 && InParameterIndex <= 0xffff);
+	}
+
+	// FMaterialUniformExpression interface.
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
+	{
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Parameter);
+		OutData.Write((uint16)ParameterIndex);
+	}
+
+	virtual bool IsConstant() const
+	{
+		return false;
+	}
+
+	const FHashedMaterialParameterInfo& GetParameterInfo() const
+	{
+		return ParameterInfo;
+	}
+
+	FName GetParameterName() const
+	{
+		return ParameterInfo.GetName();
+	}
+
+	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const
+	{
+		if (GetType() != OtherExpression->GetType())
+		{
+			return false;
+		}
+		FMaterialUniformExpressionStaticBoolParameter* OtherParameter = (FMaterialUniformExpressionStaticBoolParameter*)OtherExpression;
+		return ParameterInfo == OtherParameter->ParameterInfo && ParameterIndex == OtherParameter->ParameterIndex;
+	}
+private:
+	uint32 ParameterIndex;
+	FHashedMaterialParameterInfo ParameterInfo;
+};
+
 /** @return The texture that was associated with the given index when the given material had its uniform expressions/HLSL code generated. */
 template<typename TextureType>
 static TextureType* GetIndexedTexture(const FMaterial& Material, int32 TextureIndex)
