@@ -9,6 +9,7 @@
 #include "MVVM/Extensions/IOutlinerExtension.h"
 #include "MVVM/Extensions/ITrackAreaExtension.h"
 #include "MVVM/Extensions/ITrackLaneExtension.h"
+#include "MVVM/ViewModels/CategoryModel.h"
 #include "MVVM/ViewModels/ChannelModel.h"
 #include "MVVM/ViewModels/TrackModel.h"
 #include "MVVM/ViewModels/ViewModel.h"
@@ -157,24 +158,10 @@ void FSequencerEntityWalker::VisitAnyChannels(const ISequencerEntityVisitor& Vis
 	FChannelGroupModel* ChannelGroup = nullptr;
 	if (FChannelGroupModel* ChannelGroupNode = InNode->CastThis<FChannelGroupModel>())
 	{
-		ChannelGroup = ChannelGroupNode;
-	}
-	if (FTrackModel* TrackModel = InNode->CastThis<FTrackModel>())
-	{
-		// TODO: Top-level channel group -- there used to be only one at most but this assumption isn't necessarily true anymore
-		for (const TViewModelPtr<FChannelGroupModel>& TopLevelChannel : TrackModel->GetTopLevelChannels().IterateSubList<FChannelGroupModel>())
-		{
-			ChannelGroup = TopLevelChannel.Get();
-			break;
-		}
-	}
-
-	if (ChannelGroup)
-	{
-		const IOutlinerExtension* OutlinerItem = ChannelGroup->CastThis<IOutlinerExtension>();
+		const IOutlinerExtension* OutlinerItem = ChannelGroupNode->CastThis<IOutlinerExtension>();
 		if (!OutlinerItem || OutlinerItem->IsFilteredOut() == false)
 		{
-			for (const TWeakViewModelPtr<FChannelModel>& WeakChannel : ChannelGroup->GetChannels())
+			for (const TWeakViewModelPtr<FChannelModel>& WeakChannel : ChannelGroupNode->GetChannels())
 			{
 				if (TViewModelPtr<FChannelModel> Channel = WeakChannel.Pin())
 				{
@@ -183,15 +170,51 @@ void FSequencerEntityWalker::VisitAnyChannels(const ISequencerEntityVisitor& Vis
 			}
 		}
 	}
-	// Otherwise it might be a collapsed node that contains key areas as children. If so we visit them as if they were a part of this track so that key groupings are visited properly.
-	else if (bAnyParentCollapsed)
+	else if (FCategoryGroupModel* CategoryGroupNode = InNode->CastThis<FCategoryGroupModel>())
 	{
-		const IOutlinerExtension* OutlinerItem = InNode->CastThis<IOutlinerExtension>();
-		const bool bIsExpanded = !OutlinerItem || OutlinerItem->IsExpanded();
-
-		for (TSharedPtr<FViewModel> ChildNode : InNode->GetChildren(EViewModelListType::Outliner))
+		if (!CategoryGroupNode->IsExpanded())
 		{
-			VisitAnyChannels(Visitor, ChildNode.ToSharedRef(), bAnyParentCollapsed || !bIsExpanded);
+			for (const TWeakViewModelPtr<FCategoryModel>& WeakCategory : CategoryGroupNode->GetCategories())
+			{
+				if (TViewModelPtr<FCategoryModel> Category = WeakCategory.Pin())
+				{
+					TSharedPtr<FViewModel> Model = Category->GetLinkedOutlinerItem().AsModel();
+					for (TSharedPtr<FChannelGroupModel> DescandantChannelGroup : Model->GetDescendantsOfType<FChannelGroupModel>())
+					{
+						const IOutlinerExtension* OutlinerItem = DescandantChannelGroup->CastThis<IOutlinerExtension>();
+						if (!OutlinerItem || OutlinerItem->IsFilteredOut() == false)
+						{
+							for (const TWeakViewModelPtr<FChannelModel>& WeakChannel : DescandantChannelGroup->GetChannels())
+							{
+								if (TViewModelPtr<FChannelModel> Channel = WeakChannel.Pin())
+								{
+									VisitChannel(Visitor, Channel);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	else if (FTrackModel* TrackModel = InNode->CastThis<FTrackModel>())
+	{
+		if (!TrackModel->IsExpanded())
+		{
+			for (TSharedPtr<FChannelGroupModel> DescandantChannelGroup : TrackModel->GetDescendantsOfType<FChannelGroupModel>())
+			{
+				const IOutlinerExtension* OutlinerItem = DescandantChannelGroup->CastThis<IOutlinerExtension>();
+				if (!OutlinerItem || OutlinerItem->IsFilteredOut() == false)
+				{
+					for (const TWeakViewModelPtr<FChannelModel>& WeakChannel : DescandantChannelGroup->GetChannels())
+					{
+						if (TViewModelPtr<FChannelModel> Channel = WeakChannel.Pin())
+						{
+							VisitChannel(Visitor, Channel);
+						}
+					}
+				}
+			}
 		}
 	}
 }
