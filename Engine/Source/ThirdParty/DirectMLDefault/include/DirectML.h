@@ -4,8 +4,10 @@
 #define DIRECTML_H
 #pragma once
 
-#ifdef _GAMING_XBOX
+#ifdef _GAMING_XBOX_SCARLETT
 #include "d3d12_xs.h"
+#elif _GAMING_XBOX_XBOXONE
+#include "d3d12_x.h"
 #else
 #include "d3d12.h"
 #endif
@@ -19,6 +21,8 @@
 #ifndef DML_TARGET_VERSION
 
 #if !defined(NTDDI_VERSION) || defined(DML_TARGET_VERSION_USE_LATEST) // Use the latest if using redist or no Windows target set.
+#define DML_TARGET_VERSION 0x5100
+#elif defined(NTDDI_WIN10_NI) && NTDDI_VERSION >= NTDDI_WIN10_NI
 #define DML_TARGET_VERSION 0x5000
 #elif defined(NTDDI_WIN10_CO) && NTDDI_VERSION >= NTDDI_WIN10_CO
 #define DML_TARGET_VERSION 0x4000
@@ -26,7 +30,7 @@
 #define DML_TARGET_VERSION 0x3000
 #elif defined(NTDDI_WIN10_VB) && NTDDI_VERSION >= NTDDI_WIN10_VB // Windows 10 2004 Update
 #define DML_TARGET_VERSION 0x2000
-#else defined(NTDDI_WIN10_19H1) && NTDDI_VERSION >= NTDDI_WIN10_19H1 // Windows 10 1903 Update
+#else // defined(NTDDI_WIN10_19H1) && NTDDI_VERSION >= NTDDI_WIN10_19H1 // Windows 10 1903 Update
 #define DML_TARGET_VERSION 0x1000
 #endif
 
@@ -302,6 +306,16 @@ enum DML_OPERATOR_TYPE
     DML_OPERATOR_PADDING1,
     DML_OPERATOR_ELEMENT_WISE_NEGATE,
 #endif // DML_TARGET_VERSION >= 0x5000
+
+#if DML_TARGET_VERSION >= 0x5100
+    DML_OPERATOR_ACTIVATION_GELU,
+    DML_OPERATOR_ACTIVATION_SOFTMAX1,
+    DML_OPERATOR_ACTIVATION_LOG_SOFTMAX1,
+    DML_OPERATOR_ACTIVATION_HARDMAX1,
+    DML_OPERATOR_RESAMPLE2,
+    DML_OPERATOR_RESAMPLE_GRAD1,
+    DML_OPERATOR_DIAGONAL_MATRIX1,
+#endif // DML_TARGET_VERSION >= 0x5100
 };
 
 // ===================================================================================================================
@@ -1850,6 +1864,74 @@ struct DML_ELEMENT_WISE_NEGATE_OPERATOR_DESC
 
 #endif // DML_TARGET_VERSION >= 0x5000
 
+#if DML_TARGET_VERSION >= 0x5100
+
+struct DML_ACTIVATION_GELU_OPERATOR_DESC
+{
+    const DML_TENSOR_DESC* InputTensor;
+    const DML_TENSOR_DESC* OutputTensor;
+};
+
+struct DML_ACTIVATION_SOFTMAX1_OPERATOR_DESC
+{
+    const DML_TENSOR_DESC* InputTensor;
+    const DML_TENSOR_DESC* OutputTensor;
+    UINT AxisCount;
+    _Field_size_(AxisCount) const UINT* Axes;
+};
+
+struct DML_ACTIVATION_LOG_SOFTMAX1_OPERATOR_DESC
+{
+    const DML_TENSOR_DESC* InputTensor;
+    const DML_TENSOR_DESC* OutputTensor;
+    UINT AxisCount;
+    _Field_size_(AxisCount) const UINT* Axes;
+};
+
+struct DML_ACTIVATION_HARDMAX1_OPERATOR_DESC
+{
+    const DML_TENSOR_DESC* InputTensor;
+    const DML_TENSOR_DESC* OutputTensor;
+    UINT AxisCount;
+    _Field_size_(AxisCount) const UINT* Axes;
+};
+
+struct DML_RESAMPLE2_OPERATOR_DESC
+{
+    const DML_TENSOR_DESC* InputTensor;
+    const DML_TENSOR_DESC* OutputTensor;
+    DML_INTERPOLATION_MODE InterpolationMode;
+    DML_AXIS_DIRECTION RoundingDirection;
+    UINT DimensionCount;
+    _Field_size_(DimensionCount) const FLOAT* Scales;
+    _Field_size_(DimensionCount) const FLOAT* InputPixelOffsets;
+    _Field_size_(DimensionCount) const FLOAT* OutputPixelOffsets;
+};
+
+struct DML_RESAMPLE_GRAD1_OPERATOR_DESC
+{
+    const DML_TENSOR_DESC* InputGradientTensor;
+    const DML_TENSOR_DESC* OutputGradientTensor;
+    DML_INTERPOLATION_MODE InterpolationMode;
+    DML_AXIS_DIRECTION RoundingDirection;
+    UINT DimensionCount;
+    _Field_size_(DimensionCount) const FLOAT* Scales;
+    _Field_size_(DimensionCount) const FLOAT* InputPixelOffsets;
+    _Field_size_(DimensionCount) const FLOAT* OutputPixelOffsets;
+};
+
+struct DML_DIAGONAL_MATRIX1_OPERATOR_DESC
+{
+    _Maybenull_ const DML_TENSOR_DESC* InputTensor;
+    const DML_TENSOR_DESC* OutputTensor;
+    DML_TENSOR_DATA_TYPE ValueDataType;
+    DML_SCALAR_UNION Value;
+    INT DiagonalFillBegin;
+    INT DiagonalFillEnd;
+};
+
+#endif // DML_TARGET_VERSION >= 0x5100
+
 // ===================================================================================================================
 //   DML feature support queries
 // ===================================================================================================================
@@ -1866,6 +1948,7 @@ enum DML_FEATURE_LEVEL
     DML_FEATURE_LEVEL_4_0 = 0x4000,
     DML_FEATURE_LEVEL_4_1 = 0x4100,
     DML_FEATURE_LEVEL_5_0 = 0x5000,
+    DML_FEATURE_LEVEL_5_1 = 0x5100,
 };
 
 #endif // DML_TARGET_VERSION >= 0x2000
