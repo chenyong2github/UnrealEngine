@@ -473,24 +473,6 @@ void FSubTrackEditor::HandleAddSubTrackMenuEntryExecute()
 	}
 }
 
-/** Helper function - get the first PIE world (or first PIE client world if there is more than one) */
-static UWorld* GetFirstPIEWorld()
-{
-	for (const FWorldContext& Context : GEngine->GetWorldContexts())
-	{
-		if (Context.World()->IsPlayInEditor())
-		{
-			if(Context.World()->GetNetMode() == ENetMode::NM_Standalone ||
-				(Context.World()->GetNetMode() == ENetMode::NM_Client && Context.PIEInstance == 2))
-			{
-				return Context.World();
-			}
-		}
-	}
-
-	return nullptr;
-}
-
 TSharedRef<SWidget> FSubTrackEditor::HandleAddSubSequenceComboButtonGetMenuContent(UMovieSceneTrack* InTrack)
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
