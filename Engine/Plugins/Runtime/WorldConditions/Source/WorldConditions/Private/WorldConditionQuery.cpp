@@ -288,6 +288,11 @@ void UWorldConditionQuerySharedDefinition::PostLoad()
 // FWorldConditionQueryDefinition
 //
 
+void FWorldConditionQueryDefinition::SetSchemaClass(const TSubclassOf<UWorldConditionSchema> InSchema)
+{
+	SchemaClass = InSchema;
+}
+
 bool FWorldConditionQueryDefinition::IsValid() const
 {
 	return SharedDefinition != nullptr;

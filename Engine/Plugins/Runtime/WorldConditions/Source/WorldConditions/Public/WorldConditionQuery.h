@@ -114,6 +114,9 @@ struct WORLDCONDITIONS_API FWorldConditionQueryDefinition
 {
 	GENERATED_BODY()
 
+	/** Sets the schema class that is used to create the conditions. */
+	void SetSchemaClass(const TSubclassOf<UWorldConditionSchema> InSchema);
+
 	/** @return true of the definition has conditions and has been initialized. */
 	bool IsValid() const;
 
