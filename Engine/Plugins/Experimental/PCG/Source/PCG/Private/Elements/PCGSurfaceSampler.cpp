@@ -396,6 +396,31 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	return true;
 }
 
+void FPCGSurfaceSamplerElement::GetDependenciesCrc(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, UPCGComponent* InComponent, FPCGCrc& OutCrc) const
+{
+	FPCGCrc Crc;
+	FSimplePCGElement::GetDependenciesCrc(InInput, InSettings, InComponent, Crc);
+
+	if (const UPCGSurfaceSamplerSettings* Settings = Cast<UPCGSurfaceSamplerSettings>(InSettings))
+	{
+		const UPCGParamData* Params = InInput.GetParams();
+		const bool bUnbounded = PCG_GET_OVERRIDEN_VALUE(Settings, bUnbounded, Params);
+		const bool bBoundsConnected = InInput.GetInputsByPin(PCGSurfaceSamplerConstants::BoundingShapeLabel).Num() > 0;
+
+		// If we're operating in bounded mode and there is no bounding shape connected then we'll use actor bounds, and therefore take
+		// dependency on actor data.
+		if (!bUnbounded && !bBoundsConnected && InComponent)
+		{
+			if (const UPCGData* Data = InComponent->GetActorPCGData())
+			{
+				Crc.Combine(Data->ComputeCrc());
+			}
+		}
+	}
+
+	OutCrc = Crc;
+}
+
 #if WITH_EDITOR
 void UPCGSurfaceSamplerSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
 {

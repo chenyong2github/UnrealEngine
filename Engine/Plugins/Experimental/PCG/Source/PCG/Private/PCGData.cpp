@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGData.h"
-#include "PCGSettings.h"
+
 #include "PCGParamData.h"
+#include "PCGSettings.h"
+#include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 
+#include "Serialization/ArchiveCrc32.h"
 #include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGData)
@@ -66,6 +69,29 @@ void FPCGRootSet::RemoveInternal(UObject* InObject)
 			RootSet.Remove(InObject);
 		}
 	}
+}
+
+UPCGData::UPCGData(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		UID = ++UIDCounter;
+	}
+}
+
+FPCGCrc UPCGData::ComputeCrc() const
+{
+	FArchiveCrc32 Ar;
+	AddToCrc(Ar);
+	return FPCGCrc(Ar.GetCrc());
+}
+
+void UPCGData::AddToCrc(FArchiveCrc32& Ar) const
+{
+	// Fallback implementation uses UID to ensure every object returns a different Crc.
+	uint64 UIDValue = UID;
+	Ar << UIDValue;
 }
 
 bool FPCGTaggedData::operator==(const FPCGTaggedData& Other) const
@@ -241,6 +267,26 @@ void FPCGDataCollection::RemoveFromRootSet(FPCGRootSet& RootSet) const
 			RootSet.Remove(Cast<UObject>(Data.Data));
 		}
 	}
+}
+
+FPCGCrc FPCGDataCollection::ComputeCrc()
+{
+	// If there is no data, will return valid Crc==0 which is fine. No such thing as an invalid FPCGDataCollection
+	FArchiveCrc32 Ar;
+
+	for (FPCGTaggedData& Data : TaggedData)
+	{
+		Ar << Data.Pin;
+
+		if (Data.Data)
+		{
+			Data.Data->AddToCrc(Ar);
+		}
+
+		Ar << Data.Tags;
+	}
+
+	return FPCGCrc(Ar.GetCrc());
 }
 
 void FPCGDataCollection::Reset()

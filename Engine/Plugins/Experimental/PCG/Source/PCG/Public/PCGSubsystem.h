@@ -23,6 +23,7 @@ class FPCGGraphCompiler;
 class FPCGGraphExecutor;
 struct FPCGContext;
 struct FPCGDataCollection;
+class UPCGSettings;
 
 class IPCGElement;
 typedef TSharedPtr<IPCGElement, ESPMode::ThreadSafe> FPCGElementPtr;
@@ -128,6 +129,9 @@ public:
 	/* Call the InFunc function to all local component registered to the original component. Thread safe*/
 	void ForAllRegisteredLocalComponents(UPCGComponent* OriginalComponent, const TFunction<void(UPCGComponent*)>& InFunc) const;
 
+	/** True if graph cache debugging is enabled. */
+	bool IsGraphCacheDebuggingEnabled() const;
+
 #if WITH_EDITOR
 public:
 	/** Schedule refresh on the current or next frame */
@@ -146,8 +150,8 @@ public:
 	/** Propagate to the graph compiler graph changes */
 	void NotifyGraphChanged(UPCGGraph* InGraph);
 
-	/** Cleans up the graph cache on an element basis */
-	void CleanFromCache(const IPCGElement* InElement);
+	/** Cleans up the graph cache on an element basis. InSettings is used for debugging and is optional. */
+	void CleanFromCache(const IPCGElement* InElement, const UPCGSettings* InSettings = nullptr);
 
 	/** Move all resources from sub actors to a new actor */
 	void ClearPCGLink(UPCGComponent* InComponent, const FBox& InBounds, AActor* InNewActor);
@@ -163,6 +167,9 @@ public:
 
 	/** Returns the graph compiler so we can figure out task info in the profiler view **/
 	const FPCGGraphCompiler* GetGraphCompiler() const;
+
+	/** Returns how many times InElement is present in the cache. */
+	uint32 GetGraphCacheEntryCount(IPCGElement* InElement) const;
 
 private:
 	enum class EOperation : uint32

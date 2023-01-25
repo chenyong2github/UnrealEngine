@@ -2,13 +2,15 @@
 
 #include "Elements/PCGTextureSampler.h"
 
-#include "Engine/Texture2D.h"
-#include "GameFramework/Actor.h"
 #include "PCGComponent.h"
 #include "PCGContext.h"
+#include "PCGCrc.h"
 #include "PCGHelpers.h"
 #include "Helpers/PCGBlueprintHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
+
+#include "Engine/Texture2D.h"
+#include "GameFramework/Actor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGTextureSampler)
 
@@ -23,14 +25,6 @@ TArray<FPCGPinProperties> UPCGTextureSamplerSettings::InputPinProperties() const
 	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/false);
 
 	return PinProperties;
-}
-
-bool FPCGTextureSamplerElement::IsCacheable(const UPCGSettings* InSettings) const
-{
-	// It is currently possible to cache the texture sampler only if using an absolute transform
-	// since otherwise it depends on the source component.
-	// However, more tricky here is that the bUseAbsoluteTransform can be overriden, in which case we can't take a decision
-	return false;
 }
 
 bool FPCGTextureSamplerElement::ExecuteInternal(FPCGContext* Context) const
@@ -91,4 +85,26 @@ bool FPCGTextureSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	TextureData->TileBounds = FBox2D(TileBoundsMin, TileBoundsMax);
 
 	return true;
+}
+
+void FPCGTextureSamplerElement::GetDependenciesCrc(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, UPCGComponent* InComponent, FPCGCrc& OutCrc) const
+{
+	FPCGCrc Crc;
+	FSimplePCGElement::GetDependenciesCrc(InInput, InSettings, InComponent, Crc);
+
+	if (const UPCGTextureSamplerSettings* Settings = Cast<UPCGTextureSamplerSettings>(InSettings))
+	{
+		// If not using absolute transform, depend on actor transform and bounds, and therefore take dependency on actor data.
+		const UPCGParamData* Params = InInput.GetParams();
+		const bool bUseAbsoluteTransform = PCG_GET_OVERRIDEN_VALUE(Settings, bUseAbsoluteTransform, Params);
+		if (!bUseAbsoluteTransform && InComponent)
+		{
+			if (const UPCGData* Data = InComponent->GetActorPCGData())
+			{
+				Crc.Combine(Data->ComputeCrc());
+			}
+		}
+	}
+
+	OutCrc = Crc;
 }

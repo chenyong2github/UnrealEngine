@@ -1,0 +1,73 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Misc/Crc.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
+
+/** Crc with valid flag and helper functionality. */
+struct PCG_API FPCGCrc
+{
+	/** Creates an invalid Crc. */
+	FPCGCrc() = default;
+
+	/** Initializes a valid Crc set to InValue. */
+	explicit FPCGCrc(uint32 InValue)
+		: Value(InValue)
+		, bValid(true)
+	{
+	}
+
+	bool IsValid() const { return bValid; }
+
+	uint32 GetValue() const { return Value; }
+
+	/** Combines another Crc into this Crc to chain them. */
+	void Combine(const FPCGCrc& InOtherCrc)
+	{
+#if WITH_EDITOR
+		ensure(IsValid() && InOtherCrc.IsValid());
+#endif
+
+		Value = HashCombineFast(Value, InOtherCrc.Value);
+	}
+
+	/** Combines another Crc value into this Crc to chain them. */
+	void Combine(uint32 InOtherCrcValue)
+	{
+#if WITH_EDITOR
+		ensure(IsValid());
+#endif
+
+		Value = HashCombineFast(Value, InOtherCrcValue);
+	}
+
+	/** Computes Crc of given FName and combines it into this Crc. */
+	void Combine(FName InName)
+	{
+#if WITH_EDITOR
+		ensure(IsValid());
+#endif
+
+		uint32 Crc = 0;
+		FCrc::StrCrc32(*InName.ToString(), Crc);
+		Combine(Crc);
+	}
+
+	/** Compares Crc. This and other Crc must be valid. */
+	bool operator==(const FPCGCrc& InOtherCrc) const
+	{
+#if WITH_EDITOR
+		ensure(IsValid() && InOtherCrc.IsValid());
+#endif
+
+		return IsValid() && InOtherCrc.IsValid() && Value == InOtherCrc.Value;
+	}
+
+private:
+	/** Crc32 value. */
+	uint32 Value = 0;
+
+	bool bValid = false;
+};

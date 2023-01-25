@@ -2,13 +2,15 @@
 
 #include "PCGElement.h"
 
+#include "PCGComponent.h"
 #include "PCGContext.h"
+#include "PCGGraph.h"
 #include "Data/PCGPointData.h"
 #include "Elements/PCGDebugElement.h"
 #include "Elements/PCGSelfPruning.h"
+
 #include "HAL/IConsoleManager.h"
 #include "Utils/PCGExtraCapture.h"
-
 
 static TAutoConsoleVariable<bool> CVarPCGValidatePointMetadata(
 	TEXT("pcg.debug.ValidatePointMetadata"),
@@ -169,6 +171,21 @@ void IPCGElement::PostExecute(FPCGContext* Context) const
 		{
 			Context->OutputData.TaggedData[TaggedDataIdx].Tags.Append(Settings->TagsAppliedOnOutput);
 		}
+	}
+
+	if (IsCacheableInstance(SettingsInterface))
+	{
+		// If cacheable, then assume that the dependencies Crc is a good Crc to use from the output data - assumes changes
+		// in inputs and settings are 1:1 with changes in output. In general this is not the case as some settings changes will
+		// have no impact on the output. And since we are unlikely to do full Crc's of landscapes, a landscape data may produce
+		// a different Crc on each regenerate, triggering unnecessary executions. Removing this branch (always doing a full Crc)
+		// would avoid such triggers propagating.
+		Context->OutputData.Crc = Context->DependenciesCrc;
+	}
+	else
+	{
+		// Compute Crc from output data
+		Context->OutputData.Crc = Context->OutputData.ComputeCrc();
 	}
 
 	// Additional debug things (check for duplicates),
@@ -384,10 +401,22 @@ bool IPCGElement::IsCacheableInstance(const UPCGSettingsInterface* InSettingsInt
 	}
 }
 
-#if WITH_EDITOR
+void IPCGElement::GetDependenciesCrc(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, UPCGComponent* InComponent, FPCGCrc& OutCrc) const
+{
+	FPCGCrc Crc = InInput.Crc;
 
+	if (InSettings)
+	{
+		Crc.Combine(InSettings->GetCrc32());
+	}
 
-#endif // WITH_EDITOR
+	if (InComponent)
+	{
+		Crc.Combine(InComponent->Seed);
+	}
+
+	OutCrc = Crc;
+}
 
 FPCGContext* FSimplePCGElement::Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node)
 {

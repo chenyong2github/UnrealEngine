@@ -78,6 +78,9 @@ public:
 
 class FPCGSurfaceSamplerElement : public FSimplePCGElement
 {
+public:
+	virtual void GetDependenciesCrc(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, UPCGComponent* InComponent, FPCGCrc& OutCrc) const override;
+
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 };

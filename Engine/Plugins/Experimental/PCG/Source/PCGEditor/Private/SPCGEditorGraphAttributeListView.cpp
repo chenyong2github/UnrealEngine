@@ -7,6 +7,7 @@
 #include "PCGEditor.h"
 #include "PCGEditorGraphNodeBase.h"
 #include "PCGParamData.h"
+#include "PCGSubsystem.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 
@@ -81,6 +82,13 @@ namespace PCGEditorGraphAttributeListView
 	const FText TEXT_PointSeedLabel = LOCTEXT("PointSeedLabel", "Seed");
 	const FText TEXT_PointMetadataEntryLabel = LOCTEXT("PointMetadataEntryLabel", "Entry Key");
 	const FText TEXT_PointMetadataEntryParentLabel = LOCTEXT("PointMetadataEntryParentLabel", "Parent Key");
+
+	bool IsGraphCacheDebuggingEnabled()
+	{
+		UWorld* World = GEditor ? (GEditor->PlayWorld ? GEditor->PlayWorld.Get() : GEditor->GetEditorWorldContext().World()) : nullptr;
+		UPCGSubsystem* Subsystem = World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
+		return Subsystem && Subsystem->IsGraphCacheDebuggingEnabled();
+	}
 }
 
 void SPCGListViewItemRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const PCGListviewItemPtr& Item)
@@ -644,7 +652,15 @@ void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 				ListViewItems.Add(ListViewItem);
 			}
 
-			InfoTextBlock->SetText(FText::Format(LOCTEXT("MetadataInfoTextBlockFmt", "Number of metadata: {0}"), ItemKeyUpperBound - ItemKeyLowerBound));
+			if (!PCGEditorGraphAttributeListView::IsGraphCacheDebuggingEnabled())
+			{
+				InfoTextBlock->SetText(FText::Format(LOCTEXT("MetadataInfoTextBlockFmt", "Number of metadata: {0}"), ItemKeyUpperBound - ItemKeyLowerBound));
+			}
+			else
+			{
+				// If cache debugging enabled, write CRC to help diagnose missed-dependency issues
+				InfoTextBlock->SetText(FText::Format(LOCTEXT("MetadataInfoTextBlockWithCrcFmt", "Number of metadata: {0}  CRC: {1}"), ItemKeyUpperBound - ItemKeyLowerBound, InspectionData->Crc.GetValue()));
+			}
 		}
 	}
 	else if (const UPCGSpatialData* PCGSpatialData = Cast<const UPCGSpatialData>(PCGData))
@@ -671,8 +687,16 @@ void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 				ListViewItem->MetadataInfos = &MetadataInfos;
 				ListViewItems.Add(ListViewItem);
 			}
-
-			InfoTextBlock->SetText(FText::Format(LOCTEXT("PointInfoTextBlockFmt", "Number of points: {0}"), NumPoints));
+			
+			if (!PCGEditorGraphAttributeListView::IsGraphCacheDebuggingEnabled())
+			{
+				InfoTextBlock->SetText(FText::Format(LOCTEXT("PointInfoTextBlockFmt", "Number of points: {0}"), NumPoints));
+			}
+			else
+			{
+				// If cache debugging enabled, write CRC to help diagnose missed-dependency issues
+				InfoTextBlock->SetText(FText::Format(LOCTEXT("PointInfoTextBlockFmt", "Number of points: {0}, CRC: {1}"), NumPoints, InspectionData->Crc.GetValue()));
+			}
 		}
 	}
 

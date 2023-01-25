@@ -185,7 +185,7 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 #if WITH_EDITOR
 	const bool bHasDirtyInput = InputType != NewInputType;
 	const bool bHasDirtyExclusions = !(ExcludedTags.Num() == Original->ExcludedTags.Num() && ExcludedTags.Includes(Original->ExcludedTags));
-	const bool bIsDirty = bHasDirtyInput || bHasDirtyExclusions || Seed != Original->Seed || Graph != Original->Graph;
+	const bool bIsDirty = bHasDirtyInput || bHasDirtyExclusions || Graph != Original->Graph;
 
 	if (bHasDirtyExclusions)
 	{
@@ -1506,6 +1506,11 @@ void UPCGComponent::OnActorChanged(AActor* Actor, UObject* InObject, bool bActor
 
 void UPCGComponent::DirtyGenerated(EPCGComponentDirtyFlag DirtyFlag)
 {
+	if (GetSubsystem() && GetSubsystem()->IsGraphCacheDebuggingEnabled())
+	{
+		UE_LOG(LogPCG, Log, TEXT("[%s] --- DIRTY GENERATED ---"), *GetOwner()->GetName());
+	}
+
 	bDirtyGenerated = true;
 
 	// Dirty data as a waterfall from basic values
@@ -1666,6 +1671,11 @@ UPCGData* UPCGComponent::GetPCGData()
 	if (!CachedPCGData)
 	{
 		CachedPCGData = CreatePCGData();
+
+		if (GetSubsystem() && GetSubsystem()->IsGraphCacheDebuggingEnabled())
+		{
+			UE_LOG(LogPCG, Log, TEXT("         [%s] CACHE REFRESH CachedPCGData"), *GetOwner()->GetName());
+		}
 	}
 
 	return CachedPCGData;
@@ -1676,6 +1686,11 @@ UPCGData* UPCGComponent::GetInputPCGData()
 	if (!CachedInputData)
 	{
 		CachedInputData = CreateInputPCGData();
+
+		if (GetSubsystem() && GetSubsystem()->IsGraphCacheDebuggingEnabled())
+		{
+			UE_LOG(LogPCG, Log, TEXT("         [%s] CACHE REFRESH CachedInputData"), *GetOwner()->GetName());
+		}
 	}
 
 	return CachedInputData;
@@ -1687,6 +1702,11 @@ UPCGData* UPCGComponent::GetActorPCGData()
 	if (!CachedActorData || IsLandscapeCachedDataDirty(CachedActorData))
 	{
 		CachedActorData = CreateActorPCGData();
+
+		if (GetSubsystem() && GetSubsystem()->IsGraphCacheDebuggingEnabled())
+		{
+			UE_LOG(LogPCG, Log, TEXT("         [%s] CACHE REFRESH CachedActorData"), *GetOwner()->GetName());
+		}
 	}
 
 	return CachedActorData;
@@ -1697,6 +1717,11 @@ UPCGData* UPCGComponent::GetLandscapePCGData()
 	if (!CachedLandscapeData || IsLandscapeCachedDataDirty(CachedLandscapeData))
 	{
 		CachedLandscapeData = CreateLandscapePCGData(/*bHeightOnly=*/false);
+
+		if (GetSubsystem() && GetSubsystem()->IsGraphCacheDebuggingEnabled())
+		{
+			UE_LOG(LogPCG, Log, TEXT("         [%s] CACHE REFRESH CachedLandscapeData"), *GetOwner()->GetName());
+		}
 	}
 
 	return CachedLandscapeData;
@@ -1707,6 +1732,11 @@ UPCGData* UPCGComponent::GetLandscapeHeightPCGData()
 	if (!CachedLandscapeHeightData || IsLandscapeCachedDataDirty(CachedLandscapeHeightData))
 	{
 		CachedLandscapeHeightData = CreateLandscapePCGData(/*bHeightOnly=*/true);
+
+		if (GetSubsystem() && GetSubsystem()->IsGraphCacheDebuggingEnabled())
+		{
+			UE_LOG(LogPCG, Log, TEXT("         [%s] CACHE REFRESH CachedLandscapeHeightData"), *GetOwner()->GetName());
+		}
 	}
 
 	return CachedLandscapeHeightData;
@@ -2282,7 +2312,7 @@ void UPCGComponent::DirtyCacheFromTag(const FName& InTag)
 		{
 			if (Settings.IsValid() && GetSubsystem())
 			{
-				GetSubsystem()->CleanFromCache(Settings->GetElement().Get());
+				GetSubsystem()->CleanFromCache(Settings->GetElement().Get(), Settings.Get());
 			}
 		}
 	}
@@ -2296,7 +2326,7 @@ void UPCGComponent::DirtyCacheForAllTrackedTags()
 		{
 			if (Settings.IsValid() && GetSubsystem())
 			{
-				GetSubsystem()->CleanFromCache(Settings->GetElement().Get());
+				GetSubsystem()->CleanFromCache(Settings->GetElement().Get(), Settings.Get());
 			}
 		}
 	}

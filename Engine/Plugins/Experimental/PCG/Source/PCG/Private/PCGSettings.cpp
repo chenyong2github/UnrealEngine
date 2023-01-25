@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGSettings.h"
+
 #include "PCGContext.h"
 #include "PCGCustomVersion.h"
 #include "PCGPin.h"
 #include "PCGSubsystem.h"
+
 #include "Serialization/ArchiveObjectCrc32.h"
 #include "UObject/ObjectSaveContext.h"
 
@@ -14,18 +16,24 @@
 #include "Editor.h"
 #endif
 
-/** In order to reuse the cache when only debug settings change, we must make sure to ignore these from the CRC check */
+/** Custom Crc computation that ignores properties that will not affect the computed result of a node. */
 class FPCGSettingsObjectCrc32 : public FArchiveObjectCrc32
 {
 public:
+#if WITH_EDITOR
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 	{
-#if WITH_EDITOR
-		return InProperty && (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, DebugSettings) || InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, DeterminismSettings));
-#else
-		return FArchiveObjectCrc32::ShouldSkipProperty(InProperty);
-#endif // WITH_EDITOR
+		const bool bSkip = InProperty && (
+			InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, DebugSettings)
+			|| InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, DeterminismSettings)
+			|| InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, bDebug)
+			|| InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, Category)
+			|| InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, Description)
+			|| InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, bExposeToLibrary)
+			);
+		return bSkip;
 	}
+#endif // WITH_EDITOR
 };
 
 bool UPCGSettingsInterface::IsInstance() const
@@ -160,14 +168,12 @@ TArray<FPCGPinProperties> UPCGSettings::OutputPinProperties() const
 	return PinProperties;
 }
 
-TArray<FPCGPinProperties>
-UPCGSettings::DefaultInputPinProperties() const
+TArray<FPCGPinProperties> UPCGSettings::DefaultInputPinProperties() const
 {
 	return InputPinProperties();
 }
 
-TArray<FPCGPinProperties>
-UPCGSettings::DefaultOutputPinProperties() const
+TArray<FPCGPinProperties> UPCGSettings::DefaultOutputPinProperties() const
 {
 	return OutputPinProperties();
 }
@@ -213,7 +219,7 @@ void UPCGSettings::DirtyCache()
 		UPCGSubsystem* PCGSubsystem = World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
 		if (PCGSubsystem)
 		{
-			PCGSubsystem->CleanFromCache(GetElement().Get());
+			PCGSubsystem->CleanFromCache(GetElement().Get(), this);
 		}
 	}
 }

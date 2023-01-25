@@ -1,42 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PCGGraphCache.h"
-#include "PCGComponent.h"
+#include "Graph/PCGGraphCache.h"
 
+#include "PCGComponent.h"
+#include "PCGModule.h"
+
+#include "HAL/IConsoleManager.h"
+#include "GameFramework/Actor.h"
 #include "Misc/ScopeRWLock.h"
 
-namespace PCGGraphCache
+static TAutoConsoleVariable<bool> CVarCacheDebugging(
+	TEXT("pcg.CacheDebugging"),
+	false,
+	TEXT("Enable various features for debugging the graph cache system."));
+
+FPCGGraphCacheEntry::FPCGGraphCacheEntry(const FPCGCrc& InDependenciesCrc, const FPCGDataCollection& InOutput, FPCGRootSet& OutRootSet)
+	: Output(InOutput)
+	, DependenciesCrc(InDependenciesCrc)
 {
-	constexpr int32 NullComponentSeed = 0;
-	constexpr int32 NullSettingsCrc32 = 0;
-
-	// Component seed is only get if we have a component and either no settings or the settings use seed.
-	// TODO: Perhaps we should not get the component seed if we have no settings...
-	int32 GetComponentSeed(const UPCGSettings* InSettings, const UPCGComponent* InComponent)
-	{
-		if ((!InSettings || InSettings->UseSeed()) && InComponent)
-		{
-			return InComponent->Seed;
-		}
-
-		return PCGGraphCache::NullComponentSeed;
-	}
-}
-
-FPCGGraphCacheEntry::FPCGGraphCacheEntry(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, const UPCGComponent* InComponent, const FPCGDataCollection& InOutput, TWeakObjectPtr<UObject> InOwner, FPCGRootSet& OutRootSet)
-	: Input(InInput)
-	, Output(InOutput)
-{
-	SettingsCrc32 = InSettings ? InSettings->GetCrc32() : PCGGraphCache::NullSettingsCrc32;
-	ComponentSeed = PCGGraphCache::GetComponentSeed(InSettings, InComponent);
-
-	Input.AddToRootSet(OutRootSet);
 	Output.AddToRootSet(OutRootSet);
-}
-
-bool FPCGGraphCacheEntry::Matches(const FPCGDataCollection& InInput, int32 InSettingsCrc32, int32 InComponentSeed) const
-{
-	return (SettingsCrc32 == InSettingsCrc32) && (Input == InInput) && (ComponentSeed == InComponentSeed);
 }
 
 FPCGGraphCache::FPCGGraphCache(TWeakObjectPtr<UObject> InOwner, FPCGRootSet* InRootSet)
@@ -50,39 +32,61 @@ FPCGGraphCache::~FPCGGraphCache()
 	ClearCache();
 }
 
-bool FPCGGraphCache::GetFromCache(const IPCGElement* InElement, const FPCGDataCollection& InInput, const UPCGSettings* InSettings, const UPCGComponent* InComponent, FPCGDataCollection& OutOutput) const
+bool FPCGGraphCache::GetFromCache(const UPCGNode* InNode, const IPCGElement* InElement, const FPCGCrc& InDependenciesCrc, const FPCGDataCollection& InInput, const UPCGSettings* InSettings, const UPCGComponent* InComponent, FPCGDataCollection& OutOutput) const
 {
 	if (!Owner.IsValid())
 	{
 		return false;
 	}
+
+	if(!InDependenciesCrc.IsValid())
+	{
+		UE_LOG(LogPCG, Warning, TEXT("Invalid dependencies passed to FPCGGraphCache::GetFromCache(), lookup aborted."));
+		return false;
+	}
+
+	const bool bDebuggingEnabled = IsDebuggingEnabled() && InComponent && InComponent->GetOwner() && InNode;
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphCache::GetFromCache);
 	FReadScopeLock ScopedReadLock(CacheLock);
 
 	if (const FPCGGraphCacheEntries* Entries = CacheData.Find(InElement))
 	{
-		int32 InSettingsCrc32 = (InSettings ? InSettings->GetCrc32() : PCGGraphCache::NullSettingsCrc32);
-		int32 InComponentSeed = PCGGraphCache::GetComponentSeed(InSettings, InComponent);
-
 		for (const FPCGGraphCacheEntry& Entry : *Entries)
 		{
-			if (Entry.Matches(InInput, InSettingsCrc32, InComponentSeed))
+			if (Entry.DependenciesCrc == InDependenciesCrc)
 			{
 				OutOutput = Entry.Output;
+
+				if (bDebuggingEnabled)
+				{
+					// Leading spaces to align log content with warnings below - helps readability a lot.
+					UE_LOG(LogPCG, Log, TEXT("         [%s] %s\t\tCACHE HIT %u"), *InComponent->GetOwner()->GetName(), *InNode->GetNodeTitle().ToString(), InDependenciesCrc.GetValue());
+				}
+
 				return true;
 			}
+		}
+
+		if (bDebuggingEnabled)
+		{
+			UE_LOG(LogPCG, Warning, TEXT("[%s] %s\t\tCACHE MISS %u"), *InComponent->GetOwner()->GetName() , *InNode->GetNodeTitle().ToString(), InDependenciesCrc.GetValue());
 		}
 
 		return false;
 	}
 
+	if (bDebuggingEnabled)
+	{
+		UE_LOG(LogPCG, Warning, TEXT("[%s] %s\t\tCACHE MISS NOELEMENT"), *InComponent->GetOwner()->GetName() , *InNode->GetNodeTitle().ToString());
+	}
+
 	return false;
 }
 
-void FPCGGraphCache::StoreInCache(const IPCGElement* InElement, const FPCGDataCollection& InInput, const UPCGSettings* InSettings, const UPCGComponent* InComponent, const FPCGDataCollection& InOutput)
+void FPCGGraphCache::StoreInCache(const IPCGElement* InElement, const FPCGCrc& InDependenciesCrc, const FPCGDataCollection& InInput, const UPCGSettings* InSettings, const UPCGComponent* InComponent, const FPCGDataCollection& InOutput)
 {
-	if (!Owner.IsValid())
+	if (!Owner.IsValid() || !ensure(InDependenciesCrc.IsValid()))
 	{
 		return;
 	}
@@ -96,7 +100,7 @@ void FPCGGraphCache::StoreInCache(const IPCGElement* InElement, const FPCGDataCo
 		Entries = &(CacheData.Add(InElement));
 	}
 
-	Entries->Emplace(InInput, InSettings, InComponent, InOutput, Owner, *RootSet);
+	Entries->Emplace(InDependenciesCrc, InOutput, *RootSet);
 }
 
 void FPCGGraphCache::ClearCache()
@@ -108,7 +112,6 @@ void FPCGGraphCache::ClearCache()
 	{
 		for (FPCGGraphCacheEntry& Entry : CacheEntry.Value)
 		{
-			Entry.Input.RemoveFromRootSet(*RootSet);
 			Entry.Output.RemoveFromRootSet(*RootSet);
 		}
 	}
@@ -118,11 +121,16 @@ void FPCGGraphCache::ClearCache()
 }
 
 #if WITH_EDITOR
-void FPCGGraphCache::CleanFromCache(const IPCGElement* InElement)
+void FPCGGraphCache::CleanFromCache(const IPCGElement* InElement, const UPCGSettings* InSettings/*= nullptr*/)
 {
 	if (!InElement)
 	{
 		return;
+	}
+
+	if (IsDebuggingEnabled() && InSettings)
+	{
+		UE_LOG(LogPCG, Warning, TEXT("CACHE: PURGED [%s]"), *InSettings->GetDefaultNodeName().ToString());
 	}
 
 	FWriteScopeLock ScopeWriteLock(CacheLock);
@@ -131,7 +139,6 @@ void FPCGGraphCache::CleanFromCache(const IPCGElement* InElement)
 	{
 		for (FPCGGraphCacheEntry& Entry : *Entries)
 		{
-			Entry.Input.RemoveFromRootSet(*RootSet);
 			Entry.Output.RemoveFromRootSet(*RootSet);
 		}
 	}
@@ -139,4 +146,22 @@ void FPCGGraphCache::CleanFromCache(const IPCGElement* InElement)
 	// Finally, remove all entries matching that element
 	CacheData.Remove(InElement);
 }
+
+uint32 FPCGGraphCache::GetGraphCacheEntryCount(IPCGElement* InElement) const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphCache::GetFromCache);
+	FReadScopeLock ScopedReadLock(CacheLock);
+
+	if (const FPCGGraphCacheEntries* Entries = CacheData.Find(InElement))
+	{
+		return Entries->Num();
+	}
+
+	return 0;
+}
 #endif // WITH_EDITOR
+
+bool FPCGGraphCache::IsDebuggingEnabled() const
+{
+	return CVarCacheDebugging.GetValueOnAnyThread();
+}

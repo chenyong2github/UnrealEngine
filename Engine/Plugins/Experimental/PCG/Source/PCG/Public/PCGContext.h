@@ -49,6 +49,8 @@ struct PCG_API FPCGContext
 	TWeakObjectPtr<UPCGComponent> SourceComponent = nullptr;
 	int32 NumAvailableTasks = 0;
 
+	FPCGCrc DependenciesCrc;
+
 	// TODO: add RNG source
 	// TODO: replace this by a better identification mechanism
 	const UPCGNode* Node = nullptr;

@@ -3,8 +3,8 @@
 #pragma once
 
 #include "PCGElement.h"
-#include "PCGGraphCache.h"
 #include "PCGSubsystem.h"
+#include "Graph/PCGGraphCache.h"
 
 #if WITH_EDITOR
 #include "AsyncCompilationHelpers.h"
@@ -114,6 +114,8 @@ public:
 	/** So the profiler can decode graph task ids **/
 	FPCGGraphCompiler* GetCompiler() const { return GraphCompiler.Get(); }
 
+	/** Returns the number of entries currently in the cache for InElement. */
+	uint32 GetGraphCacheEntryCount(IPCGElement* InElement) const { return GraphCache.GetGraphCacheEntryCount(InElement); }
 #endif
 
 	/** "Tick" of the graph executor. This call is NOT THREADSAFE */
@@ -121,6 +123,9 @@ public:
 
 	/** Expose cache so it can be dirtied */
 	FPCGGraphCache& GetCache() { return GraphCache; }
+
+	/** True if graph cache debugging is enabled. */
+	bool IsGraphCacheDebuggingEnabled() const { return GraphCache.IsDebuggingEnabled(); }
 
 private:
 	void Cancel(TFunctionRef<bool(TWeakObjectPtr<UPCGComponent>)> CancelFilter);

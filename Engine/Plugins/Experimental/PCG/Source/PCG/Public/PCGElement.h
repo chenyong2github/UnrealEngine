@@ -7,6 +7,7 @@
 
 class UPCGSettingsInterface;
 struct FPCGContext;
+struct FPCGCrc;
 struct FPCGDataCollection;
 
 class IPCGElement;
@@ -49,6 +50,13 @@ public:
 
 	/** Returns true if the node can be cached (e.g. does not create artifacts & does not depend on untracked data */
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const { return true; }
+
+	/**
+	 * Calculate a Crc that provides a receipt for the input data that can be paired with output data from the cache. If any dependency (setting, node input or
+	 * external data) changes then this value should change. For some elements it is inefficient or not possible to output a Crc here. These can return an invalid
+	 * Crc and the Crc can either be computed during execution, or afterwards based on output data.
+	 */
+	virtual void GetDependenciesCrc(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, UPCGComponent* InComponent, FPCGCrc& OutCrc) const;
 
 	/** Public function that executes the element on the appropriately created context.
 	* The caller should call the Execute function until it returns true.

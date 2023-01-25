@@ -482,6 +482,11 @@ void UPCGSubsystem::ForAllRegisteredLocalComponents(UPCGComponent* OriginalCompo
 	DispatchToRegisteredLocalComponents(OriginalComponent, WrapperFunc);
 }
 
+bool UPCGSubsystem::IsGraphCacheDebuggingEnabled() const
+{
+	return GraphExecutor && GraphExecutor->IsGraphCacheDebuggingEnabled();
+}
+
 TArray<FPCGTaskId> UPCGSubsystem::DispatchToRegisteredLocalComponents(UPCGComponent* OriginalComponent, const TFunction<FPCGTaskId(UPCGComponent*)>& InFunc) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSubsystem::DispatchToRegisteredLocalComponents);
@@ -1579,11 +1584,11 @@ void UPCGSubsystem::NotifyGraphChanged(UPCGGraph* InGraph)
 	}
 }
 
-void UPCGSubsystem::CleanFromCache(const IPCGElement* InElement)
+void UPCGSubsystem::CleanFromCache(const IPCGElement* InElement, const UPCGSettings* InSettings/*= nullptr*/)
 {
 	if (GraphExecutor)
 	{
-		GraphExecutor->GetCache().CleanFromCache(InElement);
+		GraphExecutor->GetCache().CleanFromCache(InElement, InSettings);
 	}
 }
 
@@ -1616,6 +1621,11 @@ const FPCGGraphCompiler* UPCGSubsystem::GetGraphCompiler() const
 	}
 
 	return nullptr;
+}
+
+uint32 UPCGSubsystem::GetGraphCacheEntryCount(IPCGElement* InElement) const
+{
+	return GraphExecutor ? GraphExecutor->GetGraphCacheEntryCount(InElement) : 0;
 }
 
 void UPCGSubsystem::ResetPartitionActorsMap()

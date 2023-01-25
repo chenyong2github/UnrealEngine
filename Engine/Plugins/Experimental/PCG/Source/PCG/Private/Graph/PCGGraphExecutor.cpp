@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGGraphExecutor.h"
+
 #include "PCGComponent.h"
-#include "Graph/PCGGraphCache.h"
-#include "PCGGraph.h"
 #include "PCGContext.h"
+#include "PCGCrc.h"
+#include "PCGGraph.h"
 #include "PCGGraphCompiler.h"
 #include "PCGHelpers.h"
 #include "PCGInputOutputSettings.h"
+#include "Graph/PCGGraphCache.h"
 
 #include "Async/Async.h"
 #include "PCGModule.h"
@@ -80,6 +82,11 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGComponent* Component, const TArray<FP
 
 FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& ExternalDependencies)
 {
+	if (SourceComponent && IsGraphCacheDebuggingEnabled())
+	{
+		UE_LOG(LogPCG, Log, TEXT("[%s] --- SCHEDULE GRAPH ---"), *SourceComponent->GetOwner()->GetName());
+	}
+
 	FPCGTaskId ScheduledId = InvalidPCGTaskId;
 
 	// Get compiled tasks from compiler
@@ -370,6 +377,7 @@ void FPCGGraphExecutor::Execute()
 	const double EndTime = StartTime + VarTimePerFrame;
 	const int32 MaxNumThreads = FMath::Max(0, FMath::Min(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, CVarMaxNumTasks.GetValueOnAnyThread() - 1));
 	const bool bAllowMultiDispatch = CVarGraphMultithreading.GetValueOnAnyThread();
+	const bool bGraphCacheDebuggingEnabled = IsGraphCacheDebuggingEnabled();
 
 #if WITH_EDITOR
 	UpdateGenerationNotification();
@@ -482,8 +490,17 @@ void FPCGGraphExecutor::Execute()
 				// there is an execution mode that would prevent us from doing so.
 				const UPCGSettingsInterface* TaskSettingsInterface = TaskInput.GetSettingsInterface(Task.Node ? Task.Node->GetSettingsInterface() : nullptr);
 				const UPCGSettings* TaskSettings = TaskSettingsInterface ? TaskSettingsInterface->GetSettings() : nullptr;
+				const bool bCacheable = Task.Element->IsCacheableInstance(TaskSettingsInterface);
+
+				// Calculate Crc of dependencies (input data Crcs, settings) and use this as the key in the cache lookup
+				FPCGCrc DependenciesCrc;
+				if (TaskSettings && bCacheable)
+				{
+					Task.Element->GetDependenciesCrc(TaskInput, TaskSettings, Task.SourceComponent.Get(), DependenciesCrc);
+				}
+
 				FPCGDataCollection CachedOutput;
-				const bool bResultAlreadyInCache = Task.Element->IsCacheableInstance(TaskSettingsInterface) && GraphCache.GetFromCache(Task.Element.Get(), TaskInput, TaskSettings, Task.SourceComponent.Get(), CachedOutput);
+				const bool bResultAlreadyInCache = bCacheable && DependenciesCrc.IsValid() && GraphCache.GetFromCache(Task.Node, Task.Element.Get(), DependenciesCrc, TaskInput, TaskSettings, Task.SourceComponent.Get(), CachedOutput);
 #if WITH_EDITOR
 				const bool bNeedsToCreateActiveTask = !bResultAlreadyInCache || TaskSettingsInterface->bDebug;
 #else
@@ -511,12 +528,19 @@ void FPCGGraphExecutor::Execute()
 					continue;
 				}
 
+				if (bGraphCacheDebuggingEnabled && Task.SourceComponent.Get() && Task.Node)
+				{
+					UE_LOG(LogPCG, Log, TEXT("         [%s] %s\t\tACTIVETASK"), *Task.SourceComponent->GetOwner()->GetName(), *Task.Node->GetNodeTitle().ToString());
+				}
+
 				// Allocate context if not previously done
 				if (!Task.Context)
 				{
 					Task.Context = Task.Element->Initialize(TaskInput, Task.SourceComponent, Task.Node);
 					Task.Context->TaskId = Task.NodeId;
 					Task.Context->CompiledTaskId = Task.CompiledTaskId;
+					Task.Context->InputData.Crc = TaskInput.Crc;
+					Task.Context->DependenciesCrc = DependenciesCrc;
 				}
 
 				// Validate that we can start this task now
@@ -604,7 +628,7 @@ void FPCGGraphExecutor::Execute()
 			}
 		}
 
-		auto PostTaskExecute = [this, &bAnyTaskEnded](int32 TaskIndex)
+		auto PostTaskExecute = [this, &bAnyTaskEnded, bGraphCacheDebuggingEnabled](int32 TaskIndex)
 		{
 			FPCGGraphActiveTask& ActiveTask = ActiveTasks[TaskIndex];
 
@@ -612,12 +636,17 @@ void FPCGGraphExecutor::Execute()
 			if (!ActiveTask.bIsBypassed)
 #endif
 			{
+				if (bGraphCacheDebuggingEnabled && ActiveTask.Context->SourceComponent.Get() && ActiveTask.Context->Node)
+				{
+					UE_LOG(LogPCG, Log, TEXT("         [%s] %s\t\tOUTPUT CRC %u"), *ActiveTask.Context->SourceComponent->GetOwner()->GetName(), *ActiveTask.Context->Node->GetNodeTitle().ToString(), ActiveTask.Context->OutputData.Crc.GetValue());
+				}
+
 				// Store result in cache as needed - done here because it needs to be done on the main thread
 				const UPCGSettingsInterface* ActiveTaskSettingsInterface = ActiveTask.Context->GetInputSettingsInterface();
 				if (ActiveTaskSettingsInterface && ActiveTask.Element->IsCacheableInstance(ActiveTaskSettingsInterface))
 				{
 					const UPCGSettings* ActiveTaskSettings = ActiveTaskSettingsInterface ? ActiveTaskSettingsInterface->GetSettings() : nullptr;
-					GraphCache.StoreInCache(ActiveTask.Element.Get(), ActiveTask.Context->InputData, ActiveTaskSettings, ActiveTask.Context->SourceComponent.Get(), ActiveTask.Context->OutputData);
+					GraphCache.StoreInCache(ActiveTask.Element.Get(), ActiveTask.Context->DependenciesCrc, ActiveTask.Context->InputData, ActiveTaskSettings, ActiveTask.Context->SourceComponent.Get(), ActiveTask.Context->OutputData);
 				}
 			}
 
@@ -758,6 +787,11 @@ void FPCGGraphExecutor::Execute()
 			// Call the notification update here to prevent it from sticking around - needed because we early out before this
 			UpdateGenerationNotification();
 #endif
+
+			if (bGraphCacheDebuggingEnabled)
+			{
+				UE_LOG(LogPCG, Log, TEXT("--- FINISH FPCGGRAPHEXECUTOR::EXECUTE ---"));
+			}
 		}
 
 #if WITH_EDITOR
@@ -827,6 +861,10 @@ void FPCGGraphExecutor::CancelNextTasks(FPCGTaskId CancelledTask)
 void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollection& TaskInput)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphExecutor::BuildTaskInput);
+
+	// Initialize a Crc onto which each input Crc will be combined.
+	FPCGCrc Crc(Task.Inputs.Num());
+
 	for (const FPCGGraphTaskInput& Input : Task.Inputs)
 	{
 		check(OutputData.Contains(Input.TaskId));
@@ -846,6 +884,9 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 		if (Input.InPin)
 		{
 			TaskInput.TaggedData.Append(InputCollection.GetInputsByPin(Input.InPin->Properties.Label));
+
+			// Write pin name Crc to uniquely identify inputs per-pin.
+			Crc.Combine(Input.InPin->Properties.Label);
 		}
 		else
 		{
@@ -855,6 +896,12 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 		if (TaskInput.TaggedData.Num() == TaggedDataOffset && InputCollection.bCancelExecutionOnEmpty)
 		{
 			TaskInput.bCancelExecution = true;
+		}
+
+		// This chains the Crc of each input to produce a Crc that covers all of them.
+		if (InputCollection.Crc.IsValid())
+		{
+			Crc.Combine(InputCollection.Crc);
 		}
 
 		// Apply labelling on data; technically, we should ensure that we do this only for pass-through nodes,
@@ -867,6 +914,8 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 			}
 		}
 	}
+
+	TaskInput.Crc = Crc;
 }
 
 void FPCGGraphExecutor::StoreResults(FPCGTaskId InTaskId, const FPCGDataCollection& InTaskOutput)

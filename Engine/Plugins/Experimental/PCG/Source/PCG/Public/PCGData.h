@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "Kismet/BlueprintFunctionLibrary.h"
-
 #include "PCGCommon.h"
+#include "PCGCrc.h"
+
+#include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "PCGData.generated.h"
 
+class FArchiveCrc32;
 class UPCGSettings;
 class UPCGSettingsInterface;
 class UPCGParamData;
@@ -23,7 +25,22 @@ class PCG_API UPCGData : public UObject
 	GENERATED_BODY()
 
 public:
+	UPCGData(const FObjectInitializer& ObjectInitializer);
 	virtual EPCGDataType GetDataType() const { return EPCGDataType::None; }
+
+	/** Computes a Crc for this data. */
+	FPCGCrc ComputeCrc() const;
+
+	/** Contributes to Crc. Fallback implementation that writes object instance UID. */
+	virtual void AddToCrc(FArchiveCrc32& Ar) const;
+
+	/** Unique ID for this object instance. */
+	UPROPERTY(Transient)
+	uint64 UID = 0;
+
+private:
+	/** Serves unique ID values to instances of this object. */
+	static inline std::atomic<uint64> UIDCounter{ 1 };
 };
 
 USTRUCT(BlueprintType)
@@ -94,6 +111,9 @@ struct PCG_API FPCGDataCollection
 	void AddToRootSet(FPCGRootSet& RootSet) const;
 	void RemoveFromRootSet(FPCGRootSet& RootSet) const;
 
+	/** Computes Crc for this data. */
+	FPCGCrc ComputeCrc();
+
 	/** Cleans up the collection, but does not unroot any previously rooted data. */
 	void Reset();
 
@@ -105,6 +125,9 @@ struct PCG_API FPCGDataCollection
 
 	/** This flag is used to cancel further computation or for the debug/isolate feature */
 	bool bCancelExecution = false;
+
+	/** A snapshot of the internal state of the data. If any dependency (setting, node input or external data) changes then this value should change. */
+	FPCGCrc Crc;
 };
 
 template<typename SettingsType>

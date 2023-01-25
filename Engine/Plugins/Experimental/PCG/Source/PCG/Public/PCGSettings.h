@@ -196,7 +196,7 @@ protected:
 	void DirtyCache();
 #endif
 
-	// By default, settings won't use a seed. Set this bool at true in the child ctor to allow edition and use it.
+	// By default, settings won't use a seed. Set this bool to true in the child ctor to allow edition and use it.
 	UPROPERTY(VisibleAnywhere, Transient, Category = Settings, meta = (EditCondition = false, EditConditionHides))
 	bool bUseSeed = false;
 
