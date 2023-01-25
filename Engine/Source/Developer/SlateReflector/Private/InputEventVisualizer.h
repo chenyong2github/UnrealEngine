@@ -54,7 +54,7 @@ private:
 	{
 		FKey Key;
 		double EventTime;
-		FVector2D CursorPingPosition;
+		FVector2f CursorPingPosition;
 		FLinearColor PingColor;
 	};
 	
