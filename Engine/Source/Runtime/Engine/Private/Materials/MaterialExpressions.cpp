@@ -16174,9 +16174,10 @@ static const TCHAR* GetInputTypeName(uint8 InputType)
 		TEXT("TCube"),
 		TEXT("T2dArr"),
 		TEXT("TVol"),
-		TEXT("B"),
+		TEXT("SB"),
 		TEXT("MA"),
 		TEXT("TExt"),
+		TEXT("B"),
 		TEXT("Stra")
 	};
 
@@ -16802,6 +16803,7 @@ int32 UMaterialExpressionFunctionInput::Compile(class FMaterialCompiler* Compile
 		MCT_StaticBool,
 		MCT_MaterialAttributes,
 		MCT_TextureExternal,
+		MCT_Bool,
 		MCT_Strata
 	};
 	check(InputType < FunctionInput_MAX);
