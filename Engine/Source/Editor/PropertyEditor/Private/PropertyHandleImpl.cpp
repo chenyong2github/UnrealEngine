@@ -124,6 +124,19 @@ FPropertyAccess::Result FPropertyValueImpl::GetValueData( void*& OutAddress ) co
 	return Res;
 }
 
+FPropertyAccess::Result FPropertyValueImpl::GetValueEditStack(FPropertyNodeEditStack& OutStack) const
+{
+	FPropertyAccess::Result Res = FPropertyAccess::Fail;
+
+	TSharedPtr<FPropertyNode> PropertyNodePin = PropertyNode.Pin();
+	if (PropertyNodePin.IsValid())
+	{
+		Res = PropertyNodePin->GetSingleEditStack(OutStack);
+	}
+
+	return Res;
+}
+
 FPropertyAccess::Result FPropertyValueImpl::ImportText( const FString& InValue, EPropertyValueSetFlags::Type Flags )
 {
 	TSharedPtr<FPropertyNode> PropertyNodePin = PropertyNode.Pin();
@@ -394,12 +407,19 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 			}
 
 			// Set the new value.
-			EPropertyPortFlags PortFlags = (Flags & EPropertyValueSetFlags::InstanceObjects) != 0 ? PPF_InstanceSubobjects : PPF_None;
-			FPropertyTextUtilities::TextToPropertyHelper(*NewValue, InPropertyNode, NodeProperty, Cur, PortFlags);
+			{
+				EPropertyPortFlags PortFlags = (Flags & EPropertyValueSetFlags::InstanceObjects) != 0 ? PPF_InstanceSubobjects : PPF_None;
+				FPropertyNodeEditStack PropStack(InPropertyNode, CurObject);
+				FPropertyTextUtilities::TextToPropertyHelper(*NewValue, InPropertyNode, NodeProperty, PropStack.GetDirectPropertyAddress(), CurObject, PortFlags);
+				PropStack.CommitChanges();
+			}
 
 			// Cache the value of the property after having modified it.
 			FString ValueAfterImport;
-			FPropertyTextUtilities::PropertyToTextHelper(ValueAfterImport, InPropertyNode, NodeProperty, Cur, PPF_None);
+			{
+				FPropertyNodeEditStack PropStack(InPropertyNode, CurObject);
+				FPropertyTextUtilities::PropertyToTextHelper(ValueAfterImport, InPropertyNode, NodeProperty, PropStack.GetDirectPropertyAddress(), CurObject, PPF_None);
+			}
 
 			if (CurObject)
 			{
@@ -1025,58 +1045,67 @@ void FPropertyValueImpl::AddChild()
 
 						if (Array)
 						{
-							FScriptArrayHelper	ArrayHelper(Array, Addr);
-							Index = ArrayHelper.AddValue();
+							Array->PerformOperationWithSetter(Obj, Addr, [Obj, Array, &Index](void* DirectAddress)
+							{								
+								FScriptArrayHelper	ArrayHelper(Array, DirectAddress);
+								Index = ArrayHelper.AddValue();
 
-							// check whether the inner type is flagged as a non-nullable. if so, create it.
-							FObjectProperty* InnerObjectProperty = CastField<FObjectProperty>(Array->Inner);
-							if (InnerObjectProperty && InnerObjectProperty->HasAnyPropertyFlags(CPF_NonNullable))
-							{
-								UObject* NewItem = NewObject<UObject>(Obj, InnerObjectProperty->PropertyClass);
-								InnerObjectProperty->SetObjectPropertyValue(ArrayHelper.GetRawPtr(Index), NewItem);
-							}
+								// check whether the inner type is flagged as a non-nullable. if so, create it.
+								FObjectProperty* InnerObjectProperty = CastField<FObjectProperty>(Array->Inner);
+								if (InnerObjectProperty && InnerObjectProperty->HasAnyPropertyFlags(CPF_NonNullable))
+								{
+									UObject* NewItem = NewObject<UObject>(Obj, InnerObjectProperty->PropertyClass);
+									InnerObjectProperty->SetObjectPropertyValue(ArrayHelper.GetRawPtr(Index), NewItem);
+								}
+							});
 						}
 						else if (Set)
 						{
-							FScriptSetHelper	SetHelper(Set, Addr);
-							Index = SetHelper.AddDefaultValue_Invalid_NeedsRehash();
-
-							// check whether the element type is flagged as a non-nullable. if so, create it.
-							FObjectProperty* ElementObjectProperty = CastField<FObjectProperty>(Set->ElementProp);
-							if (ElementObjectProperty && ElementObjectProperty->HasAnyPropertyFlags(CPF_NonNullable))
+							Set->PerformOperationWithSetter(Obj, Addr, [Obj, Set, &Index](void* DirectAddress)
 							{
-								UObject* NewItem = NewObject<UObject>(Obj, ElementObjectProperty->PropertyClass);
-								ElementObjectProperty->SetObjectPropertyValue(SetHelper.GetElementPtr(Index), NewItem);
-							}
+								FScriptSetHelper	SetHelper(Set, DirectAddress);
+								Index = SetHelper.AddDefaultValue_Invalid_NeedsRehash();
 
-							SetHelper.Rehash();
+								// check whether the element type is flagged as a non-nullable. if so, create it.
+								FObjectProperty* ElementObjectProperty = CastField<FObjectProperty>(Set->ElementProp);
+								if (ElementObjectProperty && ElementObjectProperty->HasAnyPropertyFlags(CPF_NonNullable))
+								{
+									UObject* NewItem = NewObject<UObject>(Obj, ElementObjectProperty->PropertyClass);
+									ElementObjectProperty->SetObjectPropertyValue(SetHelper.GetElementPtr(Index), NewItem);
+								}
+
+								SetHelper.Rehash();
+							});
 						}
 						else if (Map)
 						{
-							FScriptMapHelper	MapHelper(Map, Addr);
-							Index = MapHelper.AddDefaultValue_Invalid_NeedsRehash();
-
-							// check whether the key or value type is flagged as a non-nullable. if so, create it.
+							Map->PerformOperationWithSetter(Obj, Addr, [Obj, Map, &Index, &bAddedMapEntry](void* DirectAddress)
 							{
-								FObjectProperty* KeyObjectProperty = CastField<FObjectProperty>(Map->KeyProp);
-								if (KeyObjectProperty && KeyObjectProperty->HasAnyPropertyFlags(CPF_NonNullable))
-								{
-									UObject* NewItem = NewObject<UObject>(Obj, KeyObjectProperty->PropertyClass);
-									KeyObjectProperty->SetObjectPropertyValue(MapHelper.GetKeyPtr(Index), NewItem);
-								}
-							}
+								FScriptMapHelper	MapHelper(Map, DirectAddress);
+								Index = MapHelper.AddDefaultValue_Invalid_NeedsRehash();
 
-							{
-								FObjectProperty* ValueObjectProperty = CastField<FObjectProperty>(Map->ValueProp);
-								if (ValueObjectProperty && ValueObjectProperty->HasAnyPropertyFlags(CPF_NonNullable))
+								// check whether the key or value type is flagged as a non-nullable. if so, create it.
 								{
-									UObject* NewItem = NewObject<UObject>(Obj, ValueObjectProperty->PropertyClass);
-									ValueObjectProperty->SetObjectPropertyValue(MapHelper.GetValuePtr(Index), NewItem);
+									FObjectProperty* KeyObjectProperty = CastField<FObjectProperty>(Map->KeyProp);
+									if (KeyObjectProperty && KeyObjectProperty->HasAnyPropertyFlags(CPF_NonNullable))
+									{
+										UObject* NewItem = NewObject<UObject>(Obj, KeyObjectProperty->PropertyClass);
+										KeyObjectProperty->SetObjectPropertyValue(MapHelper.GetKeyPtr(Index), NewItem);
+									}
 								}
-							}
 
-							MapHelper.Rehash();
-							bAddedMapEntry = true;
+								{
+									FObjectProperty* ValueObjectProperty = CastField<FObjectProperty>(Map->ValueProp);
+									if (ValueObjectProperty && ValueObjectProperty->HasAnyPropertyFlags(CPF_NonNullable))
+									{
+										UObject* NewItem = NewObject<UObject>(Obj, ValueObjectProperty->PropertyClass);
+										ValueObjectProperty->SetObjectPropertyValue(MapHelper.GetValuePtr(Index), NewItem);
+									}
+								}
+
+								MapHelper.Rehash();
+								bAddedMapEntry = true;
+							});
 						}
 
 						ArrayIndicesPerObject[i].Add(NodeProperty->GetName(), Index);
@@ -3367,20 +3396,20 @@ bool FPropertyHandleInt::Supports( TSharedRef<FPropertyNode> PropertyNode )
 }
 
 template <typename PropertyClass, typename ValueType>
-ValueType GetIntegerValue(void* PropValue, FPropertyValueImpl& Implementation )
+ValueType GetIntegerValue(FPropertyNodeEditStack& PropStack, FPropertyValueImpl& Implementation)
 {
-	check( Implementation.IsPropertyTypeOf( PropertyClass::StaticClass() ) );
-	return Implementation.GetPropertyValue<PropertyClass>(PropValue);
+	check(Implementation.IsPropertyTypeOf(PropertyClass::StaticClass()));
+	return Implementation.GetPropertyValue<PropertyClass>(PropStack.GetDirectPropertyAddress());
 }
 
 FPropertyAccess::Result FPropertyHandleInt::GetValue(int8& OutValue) const
 {
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData(PropValue);
+	FPropertyNodeEditStack PropStack;
+	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
 
 	if (Res == FPropertyAccess::Success)
 	{
-		OutValue = GetIntegerValue<FInt8Property, int8>(PropValue, *Implementation);
+		OutValue = GetIntegerValue<FInt8Property, int8>(PropStack, *Implementation);
 	}
 
 	return Res;
@@ -3388,12 +3417,12 @@ FPropertyAccess::Result FPropertyHandleInt::GetValue(int8& OutValue) const
 
 FPropertyAccess::Result FPropertyHandleInt::GetValue(int16& OutValue) const
 {
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData(PropValue);
+	FPropertyNodeEditStack PropStack;
+	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
 
 	if (Res == FPropertyAccess::Success)
 	{
-		OutValue = GetIntegerValue<FInt16Property, int16>(PropValue, *Implementation);
+		OutValue = GetIntegerValue<FInt16Property, int16>(PropStack, *Implementation);
 	}
 
 	return Res;
@@ -3401,24 +3430,24 @@ FPropertyAccess::Result FPropertyHandleInt::GetValue(int16& OutValue) const
 
 FPropertyAccess::Result FPropertyHandleInt::GetValue(int32& OutValue) const
 {
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData(PropValue);
+	FPropertyNodeEditStack PropStack;
+	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
 
 	if (Res == FPropertyAccess::Success)
 	{
-		OutValue = GetIntegerValue<FIntProperty, int32>(PropValue, *Implementation);
+		OutValue = GetIntegerValue<FIntProperty, int32>(PropStack, *Implementation);
 	}
 
 	return Res;
 }
 FPropertyAccess::Result FPropertyHandleInt::GetValue( int64& OutValue ) const
 {
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData( PropValue );
+	FPropertyNodeEditStack PropStack;
+	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
 
 	if( Res == FPropertyAccess::Success )
 	{
-		OutValue = GetIntegerValue<FInt64Property,int64>(PropValue, *Implementation);
+		OutValue = GetIntegerValue<FInt64Property,int64>(PropStack, *Implementation);
 	}
 
 	return Res;
@@ -3426,12 +3455,12 @@ FPropertyAccess::Result FPropertyHandleInt::GetValue( int64& OutValue ) const
 
 FPropertyAccess::Result FPropertyHandleInt::GetValue(uint16& OutValue) const
 {
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData(PropValue);
+	FPropertyNodeEditStack PropStack;
+	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
 
 	if (Res == FPropertyAccess::Success)
 	{
-		OutValue = GetIntegerValue<FUInt16Property, uint16>(PropValue, *Implementation);
+		OutValue = GetIntegerValue<FUInt16Property, uint16>(PropStack, *Implementation);
 	}
 
 	return Res;
@@ -3439,12 +3468,12 @@ FPropertyAccess::Result FPropertyHandleInt::GetValue(uint16& OutValue) const
 
 FPropertyAccess::Result FPropertyHandleInt::GetValue(uint32& OutValue) const
 {
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData(PropValue);
+	FPropertyNodeEditStack PropStack;
+	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
 
 	if (Res == FPropertyAccess::Success)
 	{
-		OutValue = GetIntegerValue<FUInt32Property, uint32>(PropValue, *Implementation);
+		OutValue = GetIntegerValue<FUInt32Property, uint32>(PropStack, *Implementation);
 	}
 
 	return Res;
@@ -3452,12 +3481,12 @@ FPropertyAccess::Result FPropertyHandleInt::GetValue(uint32& OutValue) const
 
 FPropertyAccess::Result FPropertyHandleInt::GetValue(uint64& OutValue) const
 {
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData(PropValue);
+	FPropertyNodeEditStack PropStack;
+	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
 
 	if (Res == FPropertyAccess::Success)
 	{
-		OutValue = GetIntegerValue<FUInt64Property, uint64>(PropValue, *Implementation);
+		OutValue = GetIntegerValue<FUInt64Property, uint64>(PropStack, *Implementation);
 	}
 
 	return Res;
@@ -3564,8 +3593,9 @@ bool FPropertyHandleFloat::Supports( TSharedRef<FPropertyNode> PropertyNode )
 
 FPropertyAccess::Result FPropertyHandleFloat::GetValue( float& OutValue ) const
 {
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData( PropValue );
+	FPropertyNodeEditStack PropStack;
+	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
+	void* PropValue = PropStack.GetDirectPropertyAddress();
 
 	if( Res == FPropertyAccess::Success )
 	{
@@ -3602,8 +3632,9 @@ bool FPropertyHandleDouble::Supports( TSharedRef<FPropertyNode> PropertyNode )
 
 FPropertyAccess::Result FPropertyHandleDouble::GetValue( double& OutValue ) const
 {
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData( PropValue );
+	FPropertyNodeEditStack PropStack;
+	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
+	void* PropValue = PropStack.GetDirectPropertyAddress();
 
 	if (Res == FPropertyAccess::Success)
 	{
@@ -3642,8 +3673,9 @@ bool FPropertyHandleBool::Supports( TSharedRef<FPropertyNode> PropertyNode )
 
 FPropertyAccess::Result FPropertyHandleBool::GetValue( bool& OutValue ) const
 {
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData( PropValue );
+	FPropertyNodeEditStack PropStack;
+	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
+	void* PropValue = PropStack.GetDirectPropertyAddress();
 
 	if( Res == FPropertyAccess::Success )
 	{
@@ -3687,8 +3719,9 @@ bool FPropertyHandleByte::Supports( TSharedRef<FPropertyNode> PropertyNode )
 
 FPropertyAccess::Result FPropertyHandleByte::GetValue( uint8& OutValue ) const
 {
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData( PropValue );
+	FPropertyNodeEditStack PropStack;
+	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
+	void* PropValue = PropStack.GetDirectPropertyAddress();
 
 	if( Res == FPropertyAccess::Success )
 	{
@@ -3776,8 +3809,9 @@ FPropertyAccess::Result FPropertyHandleString::SetValue( const TCHAR* NewValue, 
 
 FPropertyAccess::Result FPropertyHandleString::GetValue( FName& OutValue ) const
 {
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData( PropValue );
+	FPropertyNodeEditStack PropStack;
+	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
+	void* PropValue = PropStack.GetDirectPropertyAddress();
 
 	if( Res == FPropertyAccess::Success )
 	{
@@ -3814,8 +3848,9 @@ FPropertyAccess::Result FPropertyHandleObject::GetValue( UObject*& OutValue ) co
 
 FPropertyAccess::Result FPropertyHandleObject::GetValue( const UObject*& OutValue ) const
 {
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData( PropValue );
+	FPropertyNodeEditStack PropStack;
+	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
+	void* PropValue = PropStack.GetDirectPropertyAddress();
 
 	if( Res == FPropertyAccess::Success )
 	{
@@ -4211,8 +4246,9 @@ bool FPropertyHandleMixed::Supports(TSharedRef<FPropertyNode> PropertyNode)
 
 FPropertyAccess::Result FPropertyHandleMixed::GetValue(double& OutValue) const
 {
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData(PropValue);
+	FPropertyNodeEditStack PropStack;
+	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
+	void* PropValue = PropStack.GetDirectPropertyAddress();
 
 	if (Res == FPropertyAccess::Success)
 	{

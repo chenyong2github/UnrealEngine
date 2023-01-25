@@ -136,6 +136,12 @@ public:
 		return (Pair.Object.IsValid() || Pair.bIsStruct) ? Pair.ReadAddress : 0;
 	}
 
+	const UObject* GetObject(int32 Index)
+	{
+		const FAddressPair& Pair = ReadAddresses[Index];
+		return Pair.Object.Get();
+	}
+
 	bool IsValidIndex( int32 Index ) const
 	{
 		return ReadAddresses.IsValidIndex(Index);
@@ -175,6 +181,11 @@ public:
 		return ReadAddressListData->GetAddress( Index );
 	}
 	
+	const UObject* GetObject(int32 Index)
+	{
+		return ReadAddressListData->GetObject(Index);
+	}
+
 	bool IsValidIndex( int32 Index ) const
 	{
 		return ReadAddressListData->IsValidIndex( Index );
@@ -273,6 +284,65 @@ enum EPropertyDataValidationResult : uint8
 	ChildrenRebuilt,
 	/** All data is valid */
 	DataValid,
+};
+
+/** Helper class for modifying property values with setters and getters */
+class FPropertyNodeEditStack
+{
+	struct FMemoryFrame
+	{
+		FMemoryFrame() = default;
+		FMemoryFrame(const FProperty* InProperty, uint8* InMemory)
+			: Property(InProperty)
+			, Memory(InMemory)
+		{
+		}
+		/** Property that points to the memory in this frame */
+		const FProperty* Property = nullptr;
+		/** Property address */
+		uint8* Memory = nullptr;
+	};
+public:
+
+	/**
+	* Constructs property stack for the specified node
+	* InNode Property node to construct the stack for
+	* InObj Object instance that contains the property being modified
+	*/
+	FPropertyNodeEditStack(const FPropertyNode* InNode, const UObject* InObj);
+	FPropertyNodeEditStack() = default;
+	~FPropertyNodeEditStack();
+
+	FPropertyNodeEditStack& operator = (const FPropertyNodeEditStack& Other) = delete;
+	FPropertyNodeEditStack(const FPropertyNodeEditStack& Other) = delete;
+
+	/**
+	* Initializes property stack for the specified node
+	* InNode Property node to construct the stack for
+	* InObj Object instance that contains the property being modified
+	*/
+	void Initialize(const FPropertyNode* InNode, const UObject* InObj);
+
+	/**
+	* Returns the address of the property being modified.
+	* If anywhere in the property stack is a property with a setter or getter this will point to a temporarily allocated memory.
+	*/
+	uint8* GetDirectPropertyAddress()
+	{
+		return MemoryStack.Last().Memory;
+	}
+
+	/**
+	* Commits all modifications to temporarily allocated property values back to the actual member variables using setters and getters where available
+	*/
+	void CommitChanges();
+
+private:
+
+	void InitializeInternal(const FPropertyNode* InNode, const UObject* InObj);
+	void Cleanup();
+
+	TArray<FMemoryFrame> MemoryStack;
 };
 
 /**
@@ -492,6 +562,19 @@ public:
 	 * @param OutValueAddress	The address of the item
 	 */
 	FPropertyAccess::Result GetSingleReadAddress(uint8*& OutValueAddress) const;
+
+	/**
+	 * Fills in the OutObject with the address of the object of all the available objects.
+	 * If multiple items are selected, this will return a null address unless they are all the same value.
+	 * @param OutObject	The address of the Object
+	 */
+	FPropertyAccess::Result GetSingleObject(UObject*& OutObject) const;
+
+	/**
+	 * Fills in the OutContainer with the address of the container (struct or UObject instance) that owns the property this node represents.
+	 * @param OutContainer	The address of the container instance
+	 */
+	FPropertyAccess::Result GetSingleEditStack(FPropertyNodeEditStack& OutStack) const;
 
 	/**
 	 * Gets read addresses without accessing cached data.  Is less efficient but gets the must up to date data

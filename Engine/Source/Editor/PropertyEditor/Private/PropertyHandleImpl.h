@@ -82,6 +82,14 @@ public:
 	FPropertyAccess::Result GetValueData( void*& OutAddress ) const;
 
 	/**
+	 * Gets edit stack for this property
+	 *
+	 * @param OutStack	Edit stack
+	 * @return The result of the query
+	 */
+	FPropertyAccess::Result GetValueEditStack(FPropertyNodeEditStack& OutStack) const;
+
+	/**
 	 * Given an address and a property type, get the actual value out
 	 *
 	 * @param Address	The location of the property value

@@ -723,18 +723,132 @@ EPropertyDataValidationResult FPropertyNode::EnsureDataIsValid()
 	return FinalResult;
 }
 
+FPropertyNodeEditStack::FPropertyNodeEditStack(const FPropertyNode* InNode, const UObject* InObj)
+{
+	InitializeInternal(InNode, InObj);
+}
+
+void FPropertyNodeEditStack::Initialize(const FPropertyNode* InNode, const UObject* InObj)
+{
+	Cleanup();
+	InitializeInternal(InNode, InObj);
+}
+
+void FPropertyNodeEditStack::InitializeInternal(const FPropertyNode* InNode, const UObject* InObj)
+{
+	const FPropertyNode* Parent = InNode->GetParentNode();
+	const FProperty* Property = InNode->GetProperty();
+	if (Parent && Parent->GetProperty())
+	{
+		// Recursively initialize the stack
+		InitializeInternal(Parent, InObj);
+
+		// Get the direct memory pointer for the current property
+		const FProperty* ParentProperty = Parent->GetProperty();
+		if (Property == ParentProperty) // Static array items
+		{
+			// Static array property node creates subnodes that point to individual array items
+			MemoryStack.Add(FMemoryFrame(Property, MemoryStack.Last().Memory + InNode->GetArrayIndex() * Property->ElementSize));
+		}
+		else if (const FStructProperty* StructProp = CastField<FStructProperty>(ParentProperty)) // structs
+		{
+			if (Property->HasSetterOrGetter())
+			{
+				// If a property has a setter or getter we allocate temp memory to hold its value so that we can
+				// change the value using direct memory pointer access. After we're done editing we will copy the memory back to the property in CommitChanges
+				FMemoryFrame PropertyFrame(Property, (uint8*)Property->AllocateAndInitializeValue());
+				int32 StackIndex = MemoryStack.Add(PropertyFrame);
+				Property->GetValue_InContainer(MemoryStack[StackIndex - 1].Memory, PropertyFrame.Memory);
+			}
+			else
+			{
+				MemoryStack.Add(FMemoryFrame(Property, Property->ContainerPtrToValuePtr<uint8>(MemoryStack.Last().Memory)));
+			}
+		}
+		else if (Property->GetOwner<FProperty>() == ParentProperty) // TArrays, TMaps and TSets
+		{
+			MemoryStack.Add(FMemoryFrame(Property, (uint8*)ParentProperty->GetValueAddressAtIndex_Direct(Property, (void*)MemoryStack.Last().Memory, InNode->GetArrayIndex())));
+		}
+		else
+		{
+			checkf(false, TEXT("Unsupported property chain: Current: %s, Parent: %s"), *Property->GetFullName(), *ParentProperty->GetFullName());
+		}
+	}
+	else
+	{
+		// Determine the root container object (UObject instance or sparse class data) for this property stack
+		uint8* Container = nullptr;
+		if (InNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData))
+		{
+			Container = (uint8*)InObj->GetClass()->GetOrCreateSparseClassData();
+		}
+		else
+		{
+			Container = (uint8*)InObj;
+		}
+		MemoryStack.Add(FMemoryFrame(nullptr, (uint8*)Container));
+		
+		// Get the direct memory pointer for the root property
+		if (Property->HasSetterOrGetter())
+		{
+			FMemoryFrame PropertyFrame(Property, (uint8*)Property->AllocateAndInitializeValue());
+			int32 StackIndex = MemoryStack.Add(PropertyFrame);
+			Property->GetValue_InContainer(MemoryStack[StackIndex - 1].Memory, PropertyFrame.Memory);
+		}
+		else
+		{
+			MemoryStack.Add(FMemoryFrame(Property, (uint8*)Property->ContainerPtrToValuePtr<uint8>(Container)));
+		}
+	}
+}
+
+void FPropertyNodeEditStack::CommitChanges()
+{
+	for (int32 Index = MemoryStack.Num() - 1; Index > 0; --Index)
+	{
+		if (MemoryStack[Index].Property->HasSetterOrGetter() &&
+			MemoryStack[Index].Property != MemoryStack[Index - 1].Property) // If this property is identical to the one below then it represents an item from an array
+		{
+			// Set the actual property value with the temp allocated memory
+			MemoryStack[Index].Property->SetValue_InContainer(MemoryStack[Index - 1].Memory, MemoryStack[Index].Memory);
+		}
+	}
+}
+
+void FPropertyNodeEditStack::Cleanup()
+{
+	for (int32 Index = MemoryStack.Num() - 1; Index > 0; --Index)
+	{
+		if (MemoryStack[Index].Property->HasSetterOrGetter() &&
+			MemoryStack[Index].Property != MemoryStack[Index - 1].Property) // If this property is identical to the one below then it represents an item from an array
+		{
+			MemoryStack[Index].Property->DestroyAndFreeValue(MemoryStack[Index].Memory);
+			MemoryStack[Index].Memory = nullptr;
+		}
+	}
+	MemoryStack.Empty();
+}
+
+FPropertyNodeEditStack::~FPropertyNodeEditStack()
+{
+	Cleanup();
+}
+
 FPropertyAccess::Result FPropertyNode::GetPropertyValueString(FString& OutString, const bool bAllowAlternateDisplayValue, EPropertyPortFlags PortFlags) const
 {
-	uint8* ValueAddress = nullptr;
-	FPropertyAccess::Result Result = GetSingleReadAddress(ValueAddress);
+	UObject* ValueContainer = nullptr;
+	FPropertyAccess::Result Result = GetSingleObject(ValueContainer);
 
-	if (ValueAddress != nullptr)
+	if (ValueContainer != nullptr)
 	{
 		const FProperty* PropertyPtr = GetProperty();
 
 		// Check for bogus data
 		if (PropertyPtr != nullptr && GetParentNode() != nullptr)
 		{
+			FPropertyNodeEditStack PropStack(this, ValueContainer);
+			uint8* ValueAddress = PropStack.GetDirectPropertyAddress();
+
 			FPropertyTextUtilities::PropertyToTextHelper(OutString, this, PropertyPtr, ValueAddress, nullptr, PortFlags);
 
 			UEnum* Enum = nullptr;
@@ -781,14 +895,17 @@ FPropertyAccess::Result FPropertyNode::GetPropertyValueString(FString& OutString
 
 FPropertyAccess::Result FPropertyNode::GetPropertyValueText(FText& OutText, const bool bAllowAlternateDisplayValue) const
 {
-	uint8* ValueAddress = nullptr;
-	FPropertyAccess::Result Result = GetSingleReadAddress(ValueAddress);
+	UObject* ValueContainer = nullptr;
+	FPropertyAccess::Result Result = GetSingleObject(ValueContainer);
 
-	if (ValueAddress != nullptr)
+	if (ValueContainer != nullptr)
 	{
 		const FProperty* PropertyPtr = GetProperty();
 		if (PropertyPtr)
 		{
+			FPropertyNodeEditStack PropStack(this, ValueContainer);
+			uint8* ValueAddress = PropStack.GetDirectPropertyAddress();
+
 			if (PropertyPtr->IsA(FTextProperty::StaticClass()))
 			{
 				OutText = CastField<FTextProperty>(PropertyPtr)->GetPropertyValue(ValueAddress);
@@ -1309,6 +1426,37 @@ FPropertyAccess::Result FPropertyNode::GetSingleReadAddress(uint8*& OutValueAddr
 	}
 
 	return ReadAddresses.Num() > 1 ? FPropertyAccess::MultipleValues : FPropertyAccess::Fail;
+}
+
+FPropertyAccess::Result FPropertyNode::GetSingleObject(UObject*& OutObject) const
+{
+	OutObject = nullptr;
+	FReadAddressList ReadAddresses;
+	bool bAllValuesTheSame = GetReadAddress(HasNodeFlags(EPropertyNodeFlags::SingleSelectOnly), ReadAddresses, false, true);
+
+	if ((ReadAddresses.Num() > 0 && bAllValuesTheSame) || ReadAddresses.Num() == 1)
+	{
+		OutObject = (UObject*)ReadAddresses.GetObject(0);
+
+		return FPropertyAccess::Success;
+	}
+
+	return ReadAddresses.Num() > 1 ? FPropertyAccess::MultipleValues : FPropertyAccess::Fail;
+}
+
+FPropertyAccess::Result FPropertyNode::GetSingleEditStack(FPropertyNodeEditStack& OutStack) const
+{
+	UObject* Object = nullptr;
+	FPropertyAccess::Result Result = FPropertyAccess::Fail;
+	if (GetProperty())
+	{
+		Result = GetSingleObject(Object);
+		if (Result == FPropertyAccess::Success)
+		{
+			OutStack.Initialize(this, Object);
+		}
+	}
+	return Result;
 }
 
 uint8* FPropertyNode::GetStartAddressFromObject(const UObject* Obj) const
