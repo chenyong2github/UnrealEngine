@@ -7,6 +7,8 @@
 class ENGINE_API ISubmixBufferListener
 {
 public:
+	virtual ~ISubmixBufferListener() = default;
+	
 	/**
 	Called when a new buffer has been rendered for a given submix
 	@param OwningSubmix	The submix object which has rendered a new buffer

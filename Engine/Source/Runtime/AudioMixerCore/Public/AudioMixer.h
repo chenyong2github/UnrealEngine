@@ -398,6 +398,8 @@ namespace Audio
 	class AUDIOMIXERCORE_API IAudioMixerDeviceChangedListener
 	{
 	public:
+		virtual ~IAudioMixerDeviceChangedListener() = default;
+
 		struct FFormatChangedData
 		{
 			int32 NumChannels = 0;
