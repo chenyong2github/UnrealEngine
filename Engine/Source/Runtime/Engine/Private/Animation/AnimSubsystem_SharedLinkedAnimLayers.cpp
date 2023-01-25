@@ -118,7 +118,11 @@ FAnimSubsystem_SharedLinkedAnimLayers* FAnimSubsystem_SharedLinkedAnimLayers::Ge
 		return nullptr;
 	}
 #endif
-	check(SkelMesh && SkelMesh->GetAnimInstance());
+	if (!SkelMesh)
+	{
+		return nullptr;
+	}
+	check(SkelMesh->GetAnimInstance());
 	return SkelMesh->GetAnimInstance()->FindSubsystem<FAnimSubsystem_SharedLinkedAnimLayers>();
 }
 
