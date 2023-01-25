@@ -31,7 +31,7 @@ namespace UnrealBuildTool.Rules
                     "Json",
                     "JsonUtilities",
                     "GameplayAbilities",
-					"NeuralNetworkInference"
+					"NNECore"
 				}
             );
 

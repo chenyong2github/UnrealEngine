@@ -37,7 +37,7 @@
 			"Enabled": true
 		},
 		{
-			"Name": "NeuralNetworkInference",
+			"Name": "NNE",
 			"Enabled": true
 		}
 	]

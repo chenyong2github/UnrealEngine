@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "Templates/UniquePtr.h"
 #include "UObject/SoftObjectPath.h"
 #include "Agents/MLAdapterAgent.h"
-#include "NeuralNetwork.h"
+#include "NNECoreModelData.h"
+#include "NNECoreRuntimeCPU.h"
 #include "MLAdapterAgent_Inference.generated.h"
 
 /**
@@ -17,17 +19,20 @@ class MLADAPTER_API UMLAdapterAgent_Inference : public UMLAdapterAgent
 {
 	GENERATED_BODY()
 public:
-	/** Tries to load the neural network from the NeuralNetworkPath. */
+	/** Tries to load the neural network from the ModelDataPath. */
 	virtual void PostInitProperties() override;
 
 	/** Process observations from the sensors with the neural network and populate the actuators with data. */
 	virtual void Think(const float DeltaTime) override;
 
-	/** The path to the neural network asset to be loaded. */
-	UPROPERTY(EditDefaultsOnly, Category = MLAdapter, meta = (AllowedClasses = "NeuralNetwork"))
-	FSoftObjectPath NeuralNetworkPath;
+	/** Reference to neural network asset data. */
+	UPROPERTY(EditAnywhere, Category = MLAdapter)
+	TObjectPtr<UNNEModelData> ModelData;
 
 	/** The neural network controlling this agent. */
-	UPROPERTY()
-	TObjectPtr<UNeuralNetwork> Brain;
+	TUniquePtr<UE::NNECore::IModelCPU> Brain;
+
+private:
+	uint32 InputTensorSizeInBytes = 0;
+	uint32 OutputTensorSizeInBytes = 0;
 };
