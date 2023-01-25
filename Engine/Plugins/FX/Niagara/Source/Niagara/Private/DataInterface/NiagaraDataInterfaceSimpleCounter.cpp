@@ -41,7 +41,7 @@ struct FNDISimpleCounterInstanceData_GameThread
 	std::atomic<int32>	Counter;
 };
 
-struct FNDISimpleCounterProxy : public FNiagaraDataInterfaceProxy
+struct FNDISimpleCounterProxy : public FNiagaraDataInterfaceProxyRW
 {
 	FNDISimpleCounterProxy(UNiagaraDataInterfaceSimpleCounter* Owner)
 		: WeakOwner(Owner)
@@ -51,6 +51,14 @@ struct FNDISimpleCounterProxy : public FNiagaraDataInterfaceProxy
 
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override {}
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
+
+	virtual void GetDispatchArgs(const FNDIGpuComputeDispatchArgsGenContext& Context) override
+	{
+		if (const FNDISimpleCounterInstanceData_RenderThread* InstanceData = PerInstanceData_RenderThread.Find(Context.GetSystemInstanceID()))
+		{
+			Context.CreateIndirect(InstanceData->CountOffset);
+		}
+	}
 
 	virtual void PreStage(const FNDIGpuComputePreStageContext& Context) override
 	{

@@ -4,7 +4,7 @@
 #include "NiagaraCommon.h"
 #include "NiagaraShared.h"
 #include "VectorVM.h"
-#include "NiagaraDataInterface.h"
+#include "NiagaraDataInterfaceRW.h"
 #include "HAL/PlatformAtomics.h"
 #include "NiagaraDataInterfaceSimpleCounter.generated.h"
 
@@ -13,7 +13,7 @@ Thread safe counter starts at the initial value on start / reset.
 When operating between CPU & GPU ensure you set the appropriate sync mode.
 */
 UCLASS(EditInlineNew, Category = "Counting", meta = (DisplayName = "Simple Counter"))
-class NIAGARA_API UNiagaraDataInterfaceSimpleCounter : public UNiagaraDataInterface
+class NIAGARA_API UNiagaraDataInterfaceSimpleCounter : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -45,6 +45,9 @@ public:
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+#endif
+#if WITH_EDITOR
+	virtual bool GetGpuUseIndirectDispatch() const override { return true; }
 #endif
 	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
 	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
