@@ -97,7 +97,7 @@ public:
 	 */
 	FORCEINLINE static void Log(EAVResult Value, FString const& Message = "", FString const& Vendor = "", int32 VendorValue = EMPTY_VENDOR_VALUE)
 	{
-		FAVResult(Value, Message, Vendor, VendorValue);
+		FAVResult(Value, Message, Vendor, VendorValue).Log();
 	}
 
 	/**

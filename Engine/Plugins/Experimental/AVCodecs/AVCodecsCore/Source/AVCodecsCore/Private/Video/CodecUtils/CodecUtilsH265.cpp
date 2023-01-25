@@ -485,7 +485,7 @@ namespace UE::AVCodecCore::H265
 
 					if (sizeId == 0)
 					{
-						FMemory::Memset(ScalingList0[matrixId], 0, sizeof(ScalingList0[matrixId]));
+						FMemory::Memset(ScalingList0[matrixId], 0, sizeof(ScalingList0[0]));
 						for (uint8 i = 0; i < coefNum; i++)
 						{
 							Bitstream.Read(scaling_list_delta_coef);
@@ -495,7 +495,7 @@ namespace UE::AVCodecCore::H265
 					}
 					else
 					{
-						FMemory::Memset(ScalingList1to3[sizeId - 1], 0, sizeof(ScalingList1to3[sizeId - 1][matrixId]));
+						FMemory::Memset(ScalingList1to3[sizeId - 1], 0, sizeof(ScalingList1to3[0]));
 						for (uint8 i = 0; i < coefNum; i++)
 						{
 							Bitstream.Read(scaling_list_delta_coef);

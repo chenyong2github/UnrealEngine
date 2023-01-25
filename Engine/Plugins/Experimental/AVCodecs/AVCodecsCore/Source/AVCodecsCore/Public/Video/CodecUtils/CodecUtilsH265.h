@@ -451,27 +451,28 @@ namespace UE::AVCodecCore::H265
 private:
 		static constexpr uint32 TBlockSize = 1u << Tlog2blkSize;
 		
+		// TODO: This algorithm doesn't make sense, fix
 		static constexpr TStaticArray<FIntPoint, TBlockSize * TBlockSize> MakeUpperRightDiagonal()
 		{
 			TStaticArray<FIntPoint, TBlockSize * TBlockSize> diagScan;			
-			int32 i = 0, x = 0, y = 0;
-			do
-			{
-				while (y >= 0)
-				{
-					if (x < TBlockSize && y < TBlockSize)
-					{
-						diagScan[i] = { x, y };
-						i++;
-					}
-				}
-				y = x;
-				x = 0;
-				if (i >= TBlockSize * TBlockSize)
-				{
-					break;
-				}
-			} while (i >= TBlockSize * TBlockSize);
+			// int32 i = 0, x = 0, y = 0;
+			// do
+			// {
+			// 	while (y >= 0)
+			// 	{
+			// 		if (x < TBlockSize && y < TBlockSize)
+			// 		{
+			// 			diagScan[i] = { x, y };
+			// 			i++;
+			// 		}
+			// 	}
+			// 	y = x;
+			// 	x = 0;
+			// 	if (i >= TBlockSize * TBlockSize)
+			// 	{
+			// 		break;
+			// 	}
+			// } while (i >= TBlockSize * TBlockSize);
 			
 			return diagScan;
 		}

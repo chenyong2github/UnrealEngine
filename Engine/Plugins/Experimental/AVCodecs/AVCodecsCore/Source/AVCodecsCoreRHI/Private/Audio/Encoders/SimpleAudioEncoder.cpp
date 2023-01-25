@@ -163,7 +163,7 @@ bool USimpleAudioEncoder::SendFrame(float const* ResourceData, double Timestamp,
 				ResourceLayout,
 				ResourceDescriptor);
 
-		FMemory::Memcpy(Resource.Get(), ResourceData, ResourceLayout.Size);
+		FMemory::Memcpy(Resource->GetRaw().Get(), ResourceData, ResourceLayout.Size);
 
 		return this->Child->SendFrame(Resource, Timestamp * 1000);
 	}

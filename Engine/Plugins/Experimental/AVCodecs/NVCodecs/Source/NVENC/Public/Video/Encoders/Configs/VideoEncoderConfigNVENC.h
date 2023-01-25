@@ -68,7 +68,7 @@ public:
 		const_cast<FVideoEncoderConfigNVENC*>(this)->encodeConfig = Other.encodeConfig;
 
 		bool const IsEqual = !FMemory::Memcmp(this, &Other, sizeof(FVideoEncoderConfigNVENC))
-			|| !FMemory::Memcmp(&encodeConfig, &Other.encodeConfig, sizeof(NV_ENC_CONFIG));
+			|| !FMemory::Memcmp(encodeConfig, Other.encodeConfig, sizeof(NV_ENC_CONFIG));
 
 		const_cast<FVideoEncoderConfigNVENC*>(this)->encodeConfig = TempEncodeConfig;
 

@@ -131,8 +131,8 @@ FVideoResourceD3D12::~FVideoResourceD3D12()
 {
 	if (Raw.D3DResource.IsValid() && Raw.D3DResourceShared)
 	{
-		HRESULT const Result = CloseHandle(Raw.D3DResourceShared);
-		if (FAILED(Result))
+		BOOL const Result = CloseHandle(Raw.D3DResourceShared);
+		if (!Result)
 		{
 			FAVResult::Log(EAVResult::ErrorDestroying, TEXT("Failed to close shared D3D12 resource handle"), TEXT("D3D12"), Result);
 		}
@@ -140,8 +140,8 @@ FVideoResourceD3D12::~FVideoResourceD3D12()
 
 	if (Raw.D3DHeap.IsValid() && Raw.D3DHeapShared)
 	{
-		HRESULT const Result = CloseHandle(Raw.D3DHeapShared);
-		if (FAILED(Result))
+		BOOL const Result = CloseHandle(Raw.D3DHeapShared);
+		if (!Result)
 		{
 			FAVResult::Log(EAVResult::ErrorDestroying, TEXT("Failed to close shared D3D12 heap handle"), TEXT("D3D12"), Result);
 		}
@@ -149,8 +149,8 @@ FVideoResourceD3D12::~FVideoResourceD3D12()
 
 	if (Raw.D3DFence.IsValid() && Raw.D3DFenceShared)
 	{
-		HRESULT const Result = CloseHandle(Raw.D3DFenceShared);
-		if (FAILED(Result))
+		BOOL const Result = CloseHandle(Raw.D3DFenceShared);
+		if (!Result)
 		{
 			FAVResult::Log(EAVResult::ErrorDestroying, TEXT("Failed to close shared D3D12 fence handle"), TEXT("D3D12"), Result);
 		}
