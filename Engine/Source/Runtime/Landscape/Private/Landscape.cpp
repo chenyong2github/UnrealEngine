@@ -1433,6 +1433,11 @@ FTransform ALandscapeProxy::LandscapeActorToWorld() const
 	return TM;
 }
 
+void ALandscapeProxy::UpdateSharedProperties(ULandscapeInfo* InLandscapeInfo)
+{
+	check(LandscapeGuid == InLandscapeInfo->LandscapeGuid);
+}
+
 static TArray<float> GetLODScreenSizeArray(const ALandscapeProxy* InLandscapeProxy, const int32 InNumLODLevels)
 {
 	static TConsoleVariableData<float>* CVarSMLODDistanceScale = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.StaticMeshLODDistanceScale"));
@@ -4282,6 +4287,12 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck, bool 
 			LandscapeActor = Landscape;
 
 #if WITH_EDITOR
+			// Update registered splines so they can pull the actor pointer
+			for (TScriptInterface<ILandscapeSplineInterface> SplineActor : SplineActors)
+			{
+				SplineActor->UpdateSharedProperties(this);
+			}
+
 			// In world composition user is not allowed to move landscape in editor, only through WorldBrowser 
 			bool bIsLockLocation = LandscapeActor->IsLockLocation();
 			bIsLockLocation |= OwningWorld != nullptr ? OwningWorld->WorldComposition != nullptr : false;
@@ -4491,6 +4502,8 @@ void ULandscapeInfo::RegisterSplineActor(TScriptInterface<ILandscapeSplineInterf
 		SplineActors.Insert(SplineActor, LBoundIdx);
 	}
 
+	SplineActor->UpdateSharedProperties(this);
+
 	if (SplineActor->GetSplinesComponent())
 	{
 		RequestSplineLayerUpdate();
@@ -4505,6 +4518,39 @@ void ULandscapeInfo::UnregisterSplineActor(TScriptInterface<ILandscapeSplineInte
 	if (SplineActor->GetSplinesComponent())
 	{
 		RequestSplineLayerUpdate();
+	}
+}
+
+void ULandscapeInfo::UpdateRegistrationForSplineActor(UWorld* InWorld, TScriptInterface<ILandscapeSplineInterface> InSplineActor)
+{
+	if (InWorld == nullptr)
+		return;
+
+	ULandscapeInfoMap& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(InWorld);
+	FGuid SplineLandscapeGUID = InSplineActor->GetLandscapeGuid();
+
+	// first let's unregister from any landscapes that have it (incorrectly) registered
+	for (const TPair<FGuid, ULandscapeInfo*>& pair : LandscapeInfoMap.Map)
+	{
+		ULandscapeInfo* LandscapeInfo = pair.Value;
+
+		// only unregister if the landscape guids don't match
+		if ((LandscapeInfo->LandscapeGuid != SplineLandscapeGUID) &&
+			LandscapeInfo->SplineActors.Contains(InSplineActor))
+		{
+			LandscapeInfo->UnregisterSplineActor(InSplineActor);
+		}
+	}
+
+	// then let's make sure it is registered with the correct landscape info
+	if (SplineLandscapeGUID.IsValid())
+	{
+		ULandscapeInfo* LandscapeInfo = InSplineActor->GetLandscapeInfo();
+		check(LandscapeInfo);
+		if (!LandscapeInfo->SplineActors.Contains(InSplineActor))
+		{
+			LandscapeInfo->RegisterSplineActor(InSplineActor);
+		}
 	}
 }
 

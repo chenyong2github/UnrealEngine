@@ -22,7 +22,7 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	/** Landscape **/
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Target Landscape")
 	TObjectPtr<ALandscape> LandscapeActor;
 #endif
 	
@@ -31,6 +31,7 @@ public:
 	virtual ULandscapeSplinesComponent* GetSplinesComponent() const override;
 	virtual FTransform LandscapeActorToWorld() const override;
 	virtual ULandscapeInfo* GetLandscapeInfo() const override;
+	virtual void UpdateSharedProperties(ULandscapeInfo* InLandscapeInfo) override;
 		
 #if WITH_EDITOR
 	LANDSCAPE_API bool HasGeneratedLandscapeSplineMeshesActors() const;
@@ -43,6 +44,7 @@ public:
 	virtual void PostRegisterAllComponents() override;
 	virtual void UnregisterAllComponents(bool bForReregister = false) override;
 	virtual void PostEditMove(bool bFinished) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool EditorCanAttachTo(const AActor* InParent, FText& OutReason) const override { return false; }
 	virtual AActor* GetSceneOutlinerParent() const;
 	virtual bool SupportsForeignSplineMesh() const override { return false; }

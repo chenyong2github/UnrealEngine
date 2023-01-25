@@ -168,6 +168,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	TSet<TWeakObjectPtr<UObject>> PackagesToDeprecate;
 
+	// SORTED list of all actors implementing the spline interface that are registered with this landscape info
 	UPROPERTY()
 	TArray<TScriptInterface<ILandscapeSplineInterface>> SplineActors;
 
@@ -405,6 +406,10 @@ public:
 
 	LANDSCAPE_API void RegisterSplineActor(TScriptInterface<ILandscapeSplineInterface> SplineActor);
 	LANDSCAPE_API void UnregisterSplineActor(TScriptInterface<ILandscapeSplineInterface> SplineActor);
+
+	/** Updates the spline registrations (with ALL landscape infos) when a spline has changed the landscape it is targeting
+	 */
+	LANDSCAPE_API static void UpdateRegistrationForSplineActor(UWorld* InWorld, TScriptInterface<ILandscapeSplineInterface> InSplineActor);
 
 	LANDSCAPE_API void RequestSplineLayerUpdate();
 	LANDSCAPE_API void ForceLayersFullUpdate();
