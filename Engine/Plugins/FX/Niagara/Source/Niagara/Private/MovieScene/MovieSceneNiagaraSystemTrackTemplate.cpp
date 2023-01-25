@@ -9,6 +9,8 @@
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
+#include "Evaluation/MovieSceneEvaluationTrack.h"
+#include "MovieScene/MovieSceneNiagaraSystemTrack.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNiagaraSystemTrackTemplate)
 
@@ -280,9 +282,20 @@ FMovieSceneNiagaraSystemTrackImplementation::FMovieSceneNiagaraSystemTrackImplem
 
 void FMovieSceneNiagaraSystemTrackImplementation::Evaluate(const FMovieSceneEvaluationTrack& Track, TArrayView<const FMovieSceneFieldEntry_ChildTemplate> Children, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {
+	if (Track.GetSourceTrack()->IsEvalDisabled())
+	{
+		return;
+	}
 	ExecutionTokens.SetContext(Context);
-	ExecutionTokens.Add(FNiagaraSystemUpdateDesiredAgeExecutionToken(
+
+	// only add a token if there isn't one already, otherwise another track's token takes precendence
+	FMovieSceneSharedDataId TokenID = UMovieSceneNiagaraSystemTrack::SharedDataId;
+	FNiagaraSharedMarkerToken* SharedCacheToken = static_cast<FNiagaraSharedMarkerToken*>(ExecutionTokens.FindShared(TokenID));
+	if (SharedCacheToken == nullptr || !SharedCacheToken->BoundObjectIDs.Contains(Operand.ObjectBindingID))
+	{
+		ExecutionTokens.Add(FNiagaraSystemUpdateDesiredAgeExecutionToken(
 		SpawnSectionStartFrame, SpawnSectionEndFrame,
 		SpawnSectionStartBehavior, SpawnSectionEvaluateBehavior,
 		SpawnSectionEndBehavior, AgeUpdateMode, bAllowScalability));
+	}
 }

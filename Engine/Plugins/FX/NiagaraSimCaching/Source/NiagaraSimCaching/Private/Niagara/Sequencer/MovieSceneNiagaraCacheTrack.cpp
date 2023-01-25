@@ -2,9 +2,11 @@
 
 #include "Niagara/Sequencer/MovieSceneNiagaraCacheTrack.h"
 #include "MovieScene.h"
-#include "Niagara/Sequencer/MovieSceneNiagaraCacheSection.h"
 #include "MovieSceneNiagaraCacheTemplate.h"
+#include "Niagara/Sequencer/MovieSceneNiagaraCacheSection.h"
 #include "NiagaraSimCache.h"
+#include "Evaluation/MovieSceneEvalTemplate.h"
+#include "Evaluation/MovieSceneEvaluationTrack.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneNiagaraCacheTrack"
 
@@ -57,7 +59,7 @@ TArray<UMovieSceneSection*> UMovieSceneNiagaraCacheTrack::GetAnimSectionsAtTime(
 
 FMovieSceneEvalTemplatePtr UMovieSceneNiagaraCacheTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
 {
-	return FMovieSceneNiagaraCacheSectionTemplate(*CastChecked<UMovieSceneNiagaraCacheSection>(&InSection));
+	return FMovieSceneEvalTemplatePtr();
 }
 
 /* UMovieSceneTrack interface
@@ -79,6 +81,35 @@ UMovieSceneSection* UMovieSceneNiagaraCacheTrack::CreateNewSection()
 	MovieSceneNiagaraCacheSection->Params.SimCache = NewObject<UNiagaraSimCache>(MovieSceneNiagaraCacheSection, NAME_None, RF_Transactional);
 	MovieSceneNiagaraCacheSection->Params.CacheParameters.AttributeCaptureMode = ENiagaraSimCacheAttributeCaptureMode::RenderingOnly;
 	return MovieSceneNiagaraCacheSection;
+}
+
+bool UMovieSceneNiagaraCacheTrack::PopulateEvaluationTree(TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData) const
+{
+	UMovieSceneNiagaraCacheTrack* This = const_cast<UMovieSceneNiagaraCacheTrack*>(this);
+	// We always want to evaluate everything
+	OutData.Add(TRange<FFrameNumber>::All(), FMovieSceneTrackEvaluationData::FromTrack(This));
+
+	return true;
+}
+
+void UMovieSceneNiagaraCacheTrack::PostCompile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const
+{
+	TArray<FMovieSceneNiagaraSectionTemplateParameter> TemplateParams;
+	for (UMovieSceneSection* Section : AnimationSections)
+	{
+		if (UMovieSceneNiagaraCacheSection* NiagaraCacheSection = Cast<UMovieSceneNiagaraCacheSection>(Section))
+		{
+			if (NiagaraCacheSection->IsActive() && NiagaraCacheSection->Params.SimCache)
+			{
+				FMovieSceneNiagaraSectionTemplateParameter& Param = TemplateParams.AddDefaulted_GetRef();
+				Param.SectionRange = NiagaraCacheSection->SectionRange;
+				Param.Params = NiagaraCacheSection->Params;
+			}
+		}
+	}
+	
+	OutTrack.SetTrackImplementation(FMovieSceneNiagaraCacheSectionTemplate(TemplateParams));
+	OutTrack.SetEvaluationPriority(10000);
 }
 
 void UMovieSceneNiagaraCacheTrack::RemoveAllAnimationData()
@@ -119,5 +150,30 @@ FText UMovieSceneNiagaraCacheTrack::GetDefaultDisplayName() const
 }
 
 #endif
+
+void UMovieSceneNiagaraCacheTrack::ResetCache()
+{
+	for (TObjectPtr<UMovieSceneSection>& Section : AnimationSections)
+	{
+		if (UMovieSceneNiagaraCacheSection* NiagaraCacheSection = Cast<UMovieSceneNiagaraCacheSection>(Section))
+		{
+			if (UNiagaraSimCache* NiagaraSimCache = NiagaraCacheSection->Params.SimCache)
+			{
+				//TODO (mga) not sure if we need to do anything here, as the cache is cleared when BeginWrite is called on it
+				//NiagaraSimCache->ResetCache();
+			}
+		}
+	}
+}
+
+void UMovieSceneNiagaraCacheTrack::SetCacheRecordingAllowed(bool bShouldRecord)
+{
+	bCacheRecordingEnabled = bShouldRecord;
+}
+
+bool UMovieSceneNiagaraCacheTrack::IsCacheRecordingAllowed() const
+{
+	return bCacheRecordingEnabled;
+}
 
 #undef LOCTEXT_NAMESPACE

@@ -51,6 +51,11 @@
 			"Name": "TakeSequencer",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "CacheTrackRecorder",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PostDefault"
 		}
 	]
 }

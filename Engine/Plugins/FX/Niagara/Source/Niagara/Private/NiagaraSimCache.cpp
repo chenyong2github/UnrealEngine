@@ -2,14 +2,11 @@
 
 #include "NiagaraSimCache.h"
 
-#include "NiagaraClearCounts.h"
 #include "NiagaraConstants.h"
 #include "NiagaraComponent.h"
-#include "NiagaraComputeExecutionContext.h"
 #include "NiagaraDataInterfaceUtilities.h"
 #include "NiagaraDataSetReadback.h"
 #include "NiagaraEmitterInstance.h"
-#include "NiagaraGPUInstanceCountManager.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraSimCacheAttributeReaderHelper.h"
 #include "NiagaraSimCacheCustomStorageInterface.h"
@@ -168,31 +165,36 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 	return true;
 }
 
-bool UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
+FNiagaraSimCacheWriteResult UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
 {
+	FNiagaraSimCacheWriteResult Result;
 	FNiagaraSimCacheHelper Helper(NiagaraComponent);
 	if (Helper.HasValidSimulationData() == false)
 	{
 		SoftNiagaraSystem.Reset();
-		return false;
+		Result.ErrorMsg = FString::Printf(TEXT("No valid simulation data for %s"), *GetPathNameSafe(Helper.NiagaraSystem));
+		return Result;
 	}
 
 	if ( SoftNiagaraSystem.Get() != Helper.NiagaraSystem )
 	{
+		Result.ErrorMsg = FString::Printf(TEXT("System %s != System %s"), *GetPathNameSafe(SoftNiagaraSystem.Get()), *GetPathNameSafe(Helper.NiagaraSystem));
 		SoftNiagaraSystem.Reset();
-		return false;
+		return Result;
 	}
 
 	// Simulation is complete nothing to cache
 	if ( Helper.SystemInstance->IsComplete() )
 	{
-		return false;
+		Result.ErrorMsg = FString::Printf(TEXT("System already completed its simulation. %s"), *Helper.SystemInstance->GetCrashReporterTag());
+		return Result;
 	}
 
 	// Is the simulation running?  If not nothing to cache yet
 	if ( Helper.SystemInstance->SystemInstanceState != ENiagaraSystemInstanceState::Running )
 	{
-		return false;
+		Result.ErrorMsg = FString::Printf(TEXT("System is not running, so there is no data to cache. %s"), *Helper.SystemInstance->GetCrashReporterTag());
+		return Result;
 	}
 
 	// First frame we are about to cache?
@@ -204,14 +206,16 @@ bool UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
 	// If our tick counter hasn't moved then we won't capture a frame as there's nothing new to process
 	else if (CaptureTickCount == Helper.SystemInstance->GetTickCount())
 	{
-		return false;
+		Result.ErrorMsg = FString::Printf(TEXT("System was not ticked since the last capture. %s"), *Helper.SystemInstance->GetCrashReporterTag());
+		return Result;
 	}
 
 	// If the tick counter is lower than the previous value then the system was reset so we won't capture
 	if ( Helper.SystemInstance->GetTickCount() < CaptureTickCount )
 	{
+		Result.ErrorMsg = FString::Printf(TEXT("System was was reset since the last capture, skipping further cache writes. %s"), *Helper.SystemInstance->GetCrashReporterTag());
 		SoftNiagaraSystem.Reset();
-		return false;
+		return Result;
 	}
 
 	DurationSeconds = Helper.SystemInstance->GetAge() - StartSeconds;
@@ -275,6 +279,7 @@ bool UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
 	{
 		const int FrameIndex = CacheFrames.Num() - 1;
 		bool bDataInterfacesSucess = true;
+		FString DataInterfaceName;
 
 		FNiagaraDataInterfaceUtilities::ForEachDataInterface(
 			Helper.SystemInstance,
@@ -284,7 +289,11 @@ bool UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
 				{
 					INiagaraSimCacheCustomStorageInterface* SimCacheCustomStorageInterface = CastChecked<INiagaraSimCacheCustomStorageInterface>(DataInterface);
 					const void* PerInstanceData = Helper.SystemInstance->FindDataInterfaceInstanceData(DataInterface);
-					bDataInterfacesSucess &= SimCacheCustomStorageInterface->SimCacheWriteFrame(StorageObject, FrameIndex, Helper.SystemInstance, PerInstanceData);
+					if (!SimCacheCustomStorageInterface->SimCacheWriteFrame(StorageObject, FrameIndex, Helper.SystemInstance, PerInstanceData))
+					{
+						bDataInterfacesSucess = false;
+						DataInterfaceName += FString::Printf(TEXT("%s "), *DataInterface->GetName());
+					}
 				}
 				return true;
 			}
@@ -293,11 +302,13 @@ bool UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
 		// A data interface failed to write information
 		if (bDataInterfacesSucess == false)
 		{
+			Result.ErrorMsg = FString::Printf(TEXT("Data interface(s) %s failed to write information for system %s"), *DataInterfaceName, *Helper.SystemInstance->GetCrashReporterTag());
 			SoftNiagaraSystem.Reset();
-			return false;
+			return Result;
 		}
 	}
-	return true;
+	Result.bSuccess = true;
+	return Result;
 }
 
 bool UNiagaraSimCache::EndWrite()

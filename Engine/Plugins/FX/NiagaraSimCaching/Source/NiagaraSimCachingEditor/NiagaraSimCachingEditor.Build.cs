@@ -33,6 +33,7 @@ namespace UnrealBuildTool.Rules
 					"TakesCore",
 					"TakeRecorder",
 					"TakeTrackRecorders",
+					"CacheTrackRecorder",
 				});
 		}
 	}

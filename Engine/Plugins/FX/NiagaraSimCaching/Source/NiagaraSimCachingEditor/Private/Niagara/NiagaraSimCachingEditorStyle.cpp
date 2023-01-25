@@ -6,13 +6,15 @@
 
 FName FNiagaraSimCachingEditorStyle::StyleName("NiagaraSimCachingEditorStyle");
 
-FNiagaraSimCachingEditorStyle::FNiagaraSimCachingEditorStyle()
-	: FSlateStyleSet(StyleName)
+FNiagaraSimCachingEditorStyle::FNiagaraSimCachingEditorStyle() : FSlateStyleSet(StyleName)
 {
-	const FVector2D IconSize(20.0f, 20.0f);
-	const FVector2D LabelIconSize(16.0f, 16.0f);
+	FVector2D Icon16x16(16.0f, 16.0f);
+	
+	SetContentRoot(FPaths::EnginePluginsDir() / TEXT("FX/NiagaraSimCaching/Content"));
+	SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
-	FSlateStyleSet::SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
+	Set("Niagara.SimCaching.StatusIcon.Color", FLinearColor(0, 1.f, 1.f));
+	Set("Niagara.SimCaching.RecordIconSmall", new FSlateImageBrush(RootToContentDir(TEXT("RecordButton_Idle.png")), Icon16x16));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*this);
 }

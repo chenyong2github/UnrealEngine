@@ -2,37 +2,57 @@
 
 #pragma once
 
-#include "Evaluation/MovieSceneBaseCacheTemplate.h"
+#include "Evaluation/MovieSceneTrackImplementation.h"
 #include "Niagara/Sequencer/MovieSceneNiagaraCacheSection.h"
 #include "MovieSceneNiagaraCacheTemplate.generated.h"
 
 USTRUCT()
-struct FMovieSceneNiagaraCacheSectionTemplateParameters : public FMovieSceneBaseCacheSectionTemplateParameters
+struct FMovieSceneNiagaraSectionTemplateParameter
 {
 	GENERATED_BODY()
-
-	FMovieSceneNiagaraCacheSectionTemplateParameters() {}
-
-	FMovieSceneNiagaraCacheSectionTemplateParameters(const FMovieSceneNiagaraCacheParams& InNiagaraCacheParams, FFrameNumber InSectionStartTime, FFrameNumber InSectionEndTime)
-		: FMovieSceneBaseCacheSectionTemplateParameters(InSectionStartTime, InSectionEndTime), NiagaraCacheParams(InNiagaraCacheParams)
- 
-	{}
+	
+	UPROPERTY()
+	FMovieSceneFrameRange SectionRange;
 
 	UPROPERTY()
-	FMovieSceneNiagaraCacheParams NiagaraCacheParams;
+	FMovieSceneNiagaraCacheParams Params;
+	
+	bool IsTimeWithinSection(const FFrameNumber& Position) const 
+	{
+		return SectionRange.Value.Contains(Position);
+	}
+
+	FFrameNumber GetInclusiveStartFrame() const
+	{
+		TRangeBound<FFrameNumber> LowerBound = SectionRange.GetLowerBound();
+		return LowerBound.IsInclusive() ? LowerBound.GetValue() : LowerBound.GetValue() + 1;
+	}
+
+	FFrameNumber GetExclusiveEndFrame() const
+	{
+		TRangeBound<FFrameNumber> UpperBound = SectionRange.GetUpperBound();
+		return UpperBound.IsInclusive() ? UpperBound.GetValue() + 1 : UpperBound.GetValue();
+	}
 };
 
 USTRUCT()
-struct FMovieSceneNiagaraCacheSectionTemplate : public FMovieSceneEvalTemplate
+struct FMovieSceneNiagaraCacheSectionTemplate : public FMovieSceneTrackImplementation
 {
 	GENERATED_BODY()
 
 	FMovieSceneNiagaraCacheSectionTemplate() {}
-	FMovieSceneNiagaraCacheSectionTemplate(const UMovieSceneNiagaraCacheSection& Section);
+	FMovieSceneNiagaraCacheSectionTemplate(TArray<FMovieSceneNiagaraSectionTemplateParameter> CacheSections);
 
+	virtual void SetupOverrides() override
+	{
+		EnableOverrides(CustomEvaluateFlag);
+	}
+
+private:
 	virtual UScriptStruct& GetScriptStructImpl() const override { return *StaticStruct(); }
-	virtual void Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const override;
+	virtual void Evaluate(const FMovieSceneEvaluationTrack& Track, TArrayView<const FMovieSceneFieldEntry_ChildTemplate> Children, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const override;
+
 
 	UPROPERTY()
-	FMovieSceneNiagaraCacheSectionTemplateParameters Params;
+	TArray<FMovieSceneNiagaraSectionTemplateParameter> CacheSections;
 };

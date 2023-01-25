@@ -4,9 +4,7 @@
 
 #include "TrackRecorders/MovieSceneTrackRecorder.h"
 #include "CoreMinimal.h"
-#include "MovieScene.h"
 #include "TrackRecorders/IMovieSceneTrackRecorderFactory.h"
-#include "Channels/MovieSceneFloatChannel.h"
 
 #include "MovieSceneNiagaraTrackRecorder.generated.h"
 
@@ -26,6 +24,7 @@ public:
 	// ~Begin IMovieSceneTrackRecorderFactory Interface
 	virtual bool CanRecordObject(class UObject* InObjectToRecord) const override;
 	virtual UMovieSceneTrackRecorder* CreateTrackRecorderForObject() const override;
+	virtual class UMovieSceneTrackRecorder* CreateTrackRecorderForCacheTrack(IMovieSceneCachedTrack* CachedTrack, TObjectPtr<ULevelSequence> Sequence, TSharedPtr<ISequencer> Sequencer) const override;
 
 	// Particle Systems are entire components and you can't animate them as a property
 	virtual bool CanRecordProperty(class UObject* InObjectToRecord, class FProperty* InPropertyToRecord) const override { return false; }
@@ -35,8 +34,7 @@ public:
 };
 
 UCLASS(BlueprintType)
-class NIAGARASIMCACHINGEDITOR_API UMovieSceneNiagaraTrackRecorder
-	: public UMovieSceneTrackRecorder
+class NIAGARASIMCACHINGEDITOR_API UMovieSceneNiagaraTrackRecorder : public UMovieSceneTrackRecorder
 {
 	GENERATED_BODY()
 
@@ -47,6 +45,7 @@ public:
 	virtual void SetSectionStartTimecodeImpl(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame) override;
 	virtual UMovieSceneSection* GetMovieSceneSection() const override;
 	virtual void CreateTrackImpl() override;
+	virtual bool ShouldContinueRecording(const FQualifiedFrameTime& FrameTime) const override;
 	// ~End UMovieSceneTrackRecorder Interface
 
 	/** Returns the Niagara cache track on which the cache manager will be recorded */
@@ -68,5 +67,9 @@ private:
 
 	/** The frame at the start of this recording section */
 	FFrameNumber RecordStartFrame;
+
+	TOptional<FFrameNumberRange> RecordRange;
+
+	friend FMovieSceneNiagaraTrackRecorderFactory;
 };
 

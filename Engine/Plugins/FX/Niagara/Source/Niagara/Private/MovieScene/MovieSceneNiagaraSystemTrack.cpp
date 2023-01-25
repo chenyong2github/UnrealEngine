@@ -7,12 +7,10 @@
 #include "MovieScene/MovieSceneNiagaraSystemTrackTemplate.h"
 #include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
-#include "Compilation/IMovieSceneTemplateGenerator.h"
-#include "Compilation/MovieSceneSegmentCompiler.h"
-#include "Compilation/MovieSceneCompilerRules.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNiagaraSystemTrack)
 
+FMovieSceneSharedDataId UMovieSceneNiagaraSystemTrack::SharedDataId = FMovieSceneSharedDataId::Allocate();
 
 bool UMovieSceneNiagaraSystemTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
 {
@@ -35,7 +33,6 @@ void UMovieSceneNiagaraSystemTrack::PostCompile(FMovieSceneEvaluationTrack& OutT
 	if (SpawnSectionPtr != nullptr)
 	{
 		UMovieSceneNiagaraSystemSpawnSection* SpawnSection = CastChecked<UMovieSceneNiagaraSystemSpawnSection>(*SpawnSectionPtr);
-		UMovieScene* ParentMovieScene = GetTypedOuter<UMovieScene>();
 		OutTrack.SetTrackImplementation(FMovieSceneNiagaraSystemTrackImplementation(
 			SpawnSection->GetInclusiveStartFrame(), SpawnSection->GetExclusiveEndFrame(),
 			SpawnSection->GetSectionStartBehavior(), SpawnSection->GetSectionEvaluateBehavior(),

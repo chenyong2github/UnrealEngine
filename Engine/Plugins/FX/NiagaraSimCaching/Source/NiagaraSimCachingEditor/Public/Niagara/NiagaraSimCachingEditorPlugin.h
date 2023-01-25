@@ -14,6 +14,8 @@ class UToolMenu;
 struct FToolMenuSection;
 class AActor;
 
+DECLARE_LOG_CATEGORY_EXTERN(LogNiagaraSimCachingEditor, Verbose, All);
+
 /**
  * The public interface to this module
  */

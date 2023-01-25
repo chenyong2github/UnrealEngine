@@ -127,6 +127,14 @@ public:
 		StopRecordingImpl();
 	}
 
+	/**
+	* Returns false if the track for this recorder has finished recording data
+	*/
+	virtual bool ShouldContinueRecording(const FQualifiedFrameTime& FrameTime) const
+	{
+		return true;
+	}
+
 	void InvalidateObjectToRecord()
 	{
 		ObjectToRecord = nullptr;

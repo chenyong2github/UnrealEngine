@@ -100,7 +100,7 @@ bool FNiagaraSimCacheCapture::OnFrameTick(float DeltaTime)
 	{
 		// If we fail to capture the frame it might be because things became invalid
 		// Or it might be because the simulation was not ticked since the last capture in which case don't advance the counter
-		if ( CaptureSimCache->WriteFrame(CaptureComponent) == false )
+		if ( CaptureSimCache->WriteFrame(CaptureComponent).bSuccess == false )
 		{
 			if ( CaptureSimCache->IsCacheValid() == false )
 			{

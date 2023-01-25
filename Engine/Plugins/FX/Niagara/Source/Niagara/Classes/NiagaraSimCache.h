@@ -250,6 +250,12 @@ struct FNiagaraSimCacheLayout
 	TArray<FNiagaraSimCacheDataBuffersLayout> EmitterLayouts;
 };
 
+struct FNiagaraSimCacheWriteResult
+{
+	bool bSuccess = false;
+	FString ErrorMsg;
+};
+
 UCLASS(Experimental, BlueprintType)
 class NIAGARA_API UNiagaraSimCache : public UObject
 {
@@ -285,7 +291,7 @@ public:
 	ENiagaraSimCacheAttributeCaptureMode GetAttributeCaptureMode() const { return CreateParameters.AttributeCaptureMode; }
 
 	bool BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent);
-	bool WriteFrame(UNiagaraComponent* NiagaraComponent);
+	FNiagaraSimCacheWriteResult WriteFrame(UNiagaraComponent* NiagaraComponent);
 	bool EndWrite();
 
 	bool CanRead(UNiagaraSystem* NiagaraSystem);

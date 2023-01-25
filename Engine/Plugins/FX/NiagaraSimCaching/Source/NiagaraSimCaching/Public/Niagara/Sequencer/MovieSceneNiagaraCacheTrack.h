@@ -4,6 +4,7 @@
 
 #include "MovieSceneNameableTrack.h"
 #include "Compilation/IMovieSceneTrackTemplateProducer.h"
+#include "Tracks/MovieSceneCachedTrack.h"
 #include "MovieSceneNiagaraCacheTrack.generated.h"
 
 /**
@@ -13,6 +14,7 @@ UCLASS(MinimalAPI)
 class UMovieSceneNiagaraCacheTrack
 	: public UMovieSceneNameableTrack
 	, public IMovieSceneTrackTemplateProducer
+	, public IMovieSceneCachedTrack
 {
 	GENERATED_UCLASS_BODY()
 
@@ -34,6 +36,8 @@ public:
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
 	virtual UMovieSceneSection* CreateNewSection() override;
+	virtual bool PopulateEvaluationTree(TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData) const override;
+	virtual void PostCompile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const override;
 
 	// ~IMovieSceneTrackTemplateProducer interface
 	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
@@ -42,9 +46,20 @@ public:
 	virtual FText GetDefaultDisplayName() const override;
 #endif
 
+	// ~IMovieSceneCachedTrack interface
+	virtual void ResetCache() override;
+	virtual void SetCacheRecordingAllowed(bool bShouldRecord) override;
+	virtual bool IsCacheRecordingAllowed() const override;
+	
+	UPROPERTY(Transient)
+	bool bIsRecording = false;
+
 private:
 
 	/** List of all animation sections */
 	UPROPERTY()
 	TArray<TObjectPtr<UMovieSceneSection>> AnimationSections;
+
+	UPROPERTY()
+	bool bCacheRecordingEnabled = true;
 };

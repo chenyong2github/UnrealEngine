@@ -20,7 +20,7 @@ namespace UnrealBuildTool.Rules
 					"Niagara",
 					"MovieScene",
 					"MovieSceneTracks",
-					"LevelSequence",
+					"LevelSequence", 
 				});
 
 			if(Target.bBuildEditor)
@@ -31,7 +31,8 @@ namespace UnrealBuildTool.Rules
 					{
 						"UnrealEd",
 						"SlateCore",
-						"Slate"
+						"Slate",
+						"TakeRecorder"
 					});
             }
 		}
