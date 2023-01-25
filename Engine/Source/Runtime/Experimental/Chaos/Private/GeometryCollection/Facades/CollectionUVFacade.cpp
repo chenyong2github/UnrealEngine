@@ -18,7 +18,7 @@ namespace GeometryCollection::UV
 		"UVLayer7"
 	};
 
-	const FName VerticesGroupName = FGeometryCollection::VerticesGroup;
+	const FName VerticesGroupName = "Vertices";
 
 	bool HasValidUVs(const FManagedArrayCollection& Collection)
 	{
