@@ -157,8 +157,7 @@ FTargetChainSettings UIKRetargeterController::GetRetargetChainSettings(const FNa
 
 bool UIKRetargeterController::SetRetargetChainSettings(const FName& TargetChainName, const FTargetChainSettings& Settings) const
 {
-	URetargetChainSettings* ChainSettings = GetChainSettings(TargetChainName);
-	if (!ChainSettings)
+	if (URetargetChainSettings* ChainSettings = GetChainSettings(TargetChainName))
 	{
 		ChainSettings->Settings = Settings;
 		return true;
