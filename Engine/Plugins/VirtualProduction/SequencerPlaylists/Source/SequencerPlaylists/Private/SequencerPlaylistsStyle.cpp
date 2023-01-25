@@ -128,10 +128,10 @@ TSharedRef<FSlateStyleSet> FSequencerPlaylistsStyle::Create()
 
 	const FLinearColor PlayColor = FStyleColors::AccentGreen.GetSpecifiedColor();
 	const FLinearColor StopColor = FStyleColors::AccentRed.GetSpecifiedColor();
-	const FLinearColor ResetColor = FStyleColors::AccentBlue.GetSpecifiedColor();
+	const FLinearColor PauseResetColor = FStyleColors::AccentBlue.GetSpecifiedColor();
 	const FLinearColor PlayPressedColor = MakeColorVariation(PlayColor, EColorVariation::Dimmed);
 	const FLinearColor StopPressedColor = MakeColorVariation(StopColor, EColorVariation::Dimmed);
-	const FLinearColor ResetPressedColor = MakeColorVariation(ResetColor, EColorVariation::Dimmed);
+	const FLinearColor PauseResetPressedColor = MakeColorVariation(PauseResetColor, EColorVariation::Dimmed);
 
 	const float CornerRadius = 4.0f;
 	const FVector4 AllCorners(CornerRadius, CornerRadius, CornerRadius, CornerRadius);
@@ -186,7 +186,15 @@ TSharedRef<FSlateStyleSet> FSequencerPlaylistsStyle::Create()
 		.SetNormalPadding(FMargin(6.f, 4.f, 8.f, 4.f))
 		.SetPressedPadding(FMargin(6.f, 4.f, 8.f, 4.f));
 
-	const FButtonStyle PlayTransportButton = FButtonStyle(LeftTransportButton)
+	const FButtonStyle PlayReverseTransportButton = FButtonStyle(LeftTransportButton)
+		.SetHoveredForeground(PlayColor)
+		.SetPressedForeground(PlayPressedColor);
+
+	const FButtonStyle PauseTransportButton = FButtonStyle(MiddleTransportButton)
+		.SetHoveredForeground(PauseResetColor)
+		.SetPressedForeground(PauseResetPressedColor);
+
+	const FButtonStyle PlayTransportButton = FButtonStyle(MiddleTransportButton)
 		.SetHoveredForeground(PlayColor)
 		.SetPressedForeground(PlayPressedColor);
 
@@ -195,9 +203,11 @@ TSharedRef<FSlateStyleSet> FSequencerPlaylistsStyle::Create()
 		.SetPressedForeground(StopPressedColor);
 
 	const FButtonStyle ResetTransportButton = FButtonStyle(RightTransportButton)
-		.SetHoveredForeground(ResetColor)
-		.SetPressedForeground(ResetPressedColor);
+		.SetHoveredForeground(PauseResetColor)
+		.SetPressedForeground(PauseResetPressedColor);
 
+	Style->Set("SequencerPlaylists.TransportButton.PlayReverse", PlayReverseTransportButton);
+	Style->Set("SequencerPlaylists.TransportButton.Pause", PauseTransportButton);
 	Style->Set("SequencerPlaylists.TransportButton.Play", PlayTransportButton);
 	Style->Set("SequencerPlaylists.TransportButton.Stop", StopTransportButton);
 	Style->Set("SequencerPlaylists.TransportButton.Reset", ResetTransportButton);
@@ -214,17 +224,27 @@ TSharedRef<FSlateStyleSet> FSequencerPlaylistsStyle::Create()
 		.SetHoveredForeground(PlayColor)
 		.SetPressedForeground(PlayPressedColor);
 
+	const FButtonStyle PauseHoverTransportButton = FButtonStyle(HoverTransportButtonStyle)
+		.SetHoveredForeground(PauseResetColor)
+		.SetPressedForeground(PauseResetPressedColor);
+
 	const FButtonStyle StopHoverTransportButton = FButtonStyle(HoverTransportButtonStyle)
 		.SetHoveredForeground(StopColor)
 		.SetPressedForeground(StopPressedColor);
 
 	const FButtonStyle ResetHoverTransportButton = FButtonStyle(HoverTransportButtonStyle)
-		.SetHoveredForeground(ResetColor)
-		.SetPressedForeground(ResetPressedColor);
+		.SetHoveredForeground(PauseResetColor)
+		.SetPressedForeground(PauseResetPressedColor);
+
+	const FButtonStyle PlayReverseHoverTransportButton = FButtonStyle(HoverTransportButtonStyle)
+		.SetHoveredForeground(PlayColor)
+		.SetPressedForeground(PlayPressedColor);
 
 	Style->Set("SequencerPlaylists.HoverTransport.Play", PlayHoverTransportButton);
+	Style->Set("SequencerPlaylists.HoverTransport.Pause", PauseHoverTransportButton);
 	Style->Set("SequencerPlaylists.HoverTransport.Stop", StopHoverTransportButton);
 	Style->Set("SequencerPlaylists.HoverTransport.Reset", ResetHoverTransportButton);
+	Style->Set("SequencerPlaylists.HoverTransport.PlayReverse", PlayReverseHoverTransportButton);
 
 	FEditableTextBoxStyle EditableTextStyle = FEditableTextBoxStyle()
 		.SetTextStyle(FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
@@ -259,6 +279,10 @@ TSharedRef<FSlateStyleSet> FSequencerPlaylistsStyle::Create()
 
 			Style->Set("SequencerPlaylists.Play", new IMAGE_BRUSH_SVG("Starship/Common/play", Icon20x20));
 			Style->Set("SequencerPlaylists.Play.Small", new IMAGE_BRUSH_SVG("Starship/Common/play", Icon12x12));
+			Style->Set("SequencerPlaylists.Pause", new IMAGE_BRUSH_SVG("Starship/MainToolbar/pause", Icon20x20)); // FIXME
+			Style->Set("SequencerPlaylists.Pause.Small", new IMAGE_BRUSH_SVG("Starship/MainToolbar/pause", Icon12x12)); // FIXME
+			Style->Set("SequencerPlaylists.PlayReverse", new IMAGE_BRUSH("Sequencer/Transport_Bar/Backwards_24x", Icon20x20)); // FIXME
+			Style->Set("SequencerPlaylists.PlayReverse.Small", new IMAGE_BRUSH("Sequencer/Transport_Bar/Backwards_24x", Icon12x12)); // FIXME
 			Style->Set("SequencerPlaylists.Stop", new IMAGE_BRUSH_SVG("Starship/Common/stop", Icon20x20));
 			Style->Set("SequencerPlaylists.Stop.Small", new IMAGE_BRUSH_SVG("Starship/Common/stop", Icon12x12));
 			Style->Set("SequencerPlaylists.Reset", new IMAGE_BRUSH_SVG("Starship/Common/Reset", Icon20x20));

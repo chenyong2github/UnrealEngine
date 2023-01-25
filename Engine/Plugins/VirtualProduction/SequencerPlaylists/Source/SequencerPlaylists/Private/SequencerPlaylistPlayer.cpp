@@ -58,7 +58,10 @@ void USequencerPlaylistPlayer::SetPlaylist(USequencerPlaylist* InPlaylist)
 }
 
 
-bool USequencerPlaylistPlayer::PlayItem(USequencerPlaylistItem* Item)
+bool USequencerPlaylistPlayer::PlayItem(
+	USequencerPlaylistItem* Item,
+	ESequencerPlaylistPlaybackDirection Direction // = ESequencerPlaylistPlaybackDirection::Forward
+)
 {
 	if (!Item)
 	{
@@ -69,7 +72,28 @@ bool USequencerPlaylistPlayer::PlayItem(USequencerPlaylistItem* Item)
 
 	EnterUnboundedPlayIfNotRecording();
 
-	if (GetCheckedItemPlayer(Item)->Play(Item))
+	if (GetCheckedItemPlayer(Item)->Play(Item, Direction))
+	{
+		GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshAllImmediately);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+
+bool USequencerPlaylistPlayer::PauseItem(USequencerPlaylistItem* Item)
+{
+	if (!Item)
+	{
+		return false;
+	}
+
+	FScopedTransaction Transaction(FText::Format(LOCTEXT("PauseItemTransaction", "Toggle pause of {0}"), Item->GetDisplayName()));
+
+	if (GetCheckedItemPlayer(Item)->Pause(Item))
 	{
 		GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshAllImmediately);
 		return true;
@@ -125,17 +149,24 @@ bool USequencerPlaylistPlayer::ResetItem(USequencerPlaylistItem* Item)
 
 bool USequencerPlaylistPlayer::IsPlaying(USequencerPlaylistItem* Item)
 {
+	return GetPlaybackState(Item).bIsPlaying;
+}
+
+
+FSequencerPlaylistPlaybackState USequencerPlaylistPlayer::GetPlaybackState(USequencerPlaylistItem* Item)
+{
 	if (!Item)
 	{
-		return false;
+		return FSequencerPlaylistPlaybackState();
 	}
 
+	// If Sequencer isn't already open, don't open it
 	if (!WeakSequencer.IsValid())
 	{
-		return false;
+		return FSequencerPlaylistPlaybackState();
 	}
 
-	return GetCheckedItemPlayer(Item)->IsPlaying(Item);
+	return GetCheckedItemPlayer(Item)->GetPlaybackState(Item);
 }
 
 
@@ -257,7 +288,9 @@ void USequencerPlaylistPlayer::EnterUnboundedPlayIfNotRecording()
 	}
 }
 
-bool USequencerPlaylistPlayer::PlayAll()
+bool USequencerPlaylistPlayer::PlayAll(
+	ESequencerPlaylistPlaybackDirection Direction // = ESequencerPlaylistPlaybackDirection::Forward
+)
 {
 	if (!ensure(Playlist) || !Playlist->Items.Num())
 	{
@@ -277,7 +310,7 @@ bool USequencerPlaylistPlayer::PlayAll()
 			continue;
 		}
 
-		bAnyChange |= GetCheckedItemPlayer(Item)->Play(Item);
+		bAnyChange |= GetCheckedItemPlayer(Item)->Play(Item, Direction);
 	}
 
 	if (bAnyChange)
@@ -443,23 +476,6 @@ void USequencerPlaylistPlayer::OnTakeRecorderInitialized(UTakeRecorder* InRecord
 
 void USequencerPlaylistPlayer::OnTakeRecorderStarted(UTakeRecorder* InRecorder)
 {
-	if (!ensure(Playlist))
-	{
-		return;
-	}
-
-	if (TSharedPtr<ISequencer> Sequencer = GetValidatedSequencer())
-	{
-		FScopedTransaction Transaction(LOCTEXT("TakeRecorderStartedTransaction", "Playlist - Take Recorder started"));
-
-		for (USequencerPlaylistItem* Item : Playlist->Items)
-		{
-			if (Item->bHoldAtFirstFrame && !Item->bMute)
-			{
-				GetCheckedItemPlayer(Item)->AddHold(Item);
-			}
-		}
-	}
 }
 
 

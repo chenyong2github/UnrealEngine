@@ -6,11 +6,36 @@
 #include "Delegates/Delegate.h"
 #include "Modules/ModuleManager.h"
 #include "Templates/SubclassOf.h"
+#include "ISequencerPlaylistsModule.generated.h"
 
 
 class ISequencer;
 class USequencerPlaylistItem;
 class USequencerPlaylistPlayer;
+
+
+UENUM(BlueprintType)
+enum class ESequencerPlaylistPlaybackDirection : uint8
+{
+	Forward,
+	Reverse,
+};
+
+
+USTRUCT(BlueprintType)
+struct FSequencerPlaylistPlaybackState
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category="Sequencer Playlists")
+	uint8 bIsPlaying : 1;
+
+	UPROPERTY(BlueprintReadWrite, Category="Sequencer Playlists")
+	uint8 bIsPaused : 1;
+
+	UPROPERTY(BlueprintReadWrite, Category="Sequencer Playlists")
+	ESequencerPlaylistPlaybackDirection PlaybackDirection;
+};
 
 
 /** Interface for derived classes that play one or more subclasses of USequencerPlaylistItem. */
@@ -23,7 +48,14 @@ public:
 	 * Initiate playback of the specified item.
 	 * @return True if the current sequence was modified, otherwise false.
 	 */
-	virtual bool Play(USequencerPlaylistItem* Item) = 0;
+	virtual bool Play(USequencerPlaylistItem* Item,
+	                  ESequencerPlaylistPlaybackDirection Direction = ESequencerPlaylistPlaybackDirection::Forward) = 0;
+
+	/**
+	 * Suspend playback of the specified item and begin a hold.
+	 * @return True if the current sequence was modified, otherwise false.
+	 */
+	virtual bool Pause(USequencerPlaylistItem* Item) = 0;
 
 	/**
 	 * Halt any current playback of the specified item.
@@ -44,8 +76,14 @@ public:
 	 */
 	virtual bool Reset(USequencerPlaylistItem* Item) = 0;
 
+	virtual FSequencerPlaylistPlaybackState GetPlaybackState(USequencerPlaylistItem* Item) const = 0;
+
 	/** Returns whether we're currently playing the specified item. */
-	virtual bool IsPlaying(USequencerPlaylistItem* Item) const = 0;
+	UE_DEPRECATED(5.2, "Use GetPlaybackState(Item).bIsPlaying instead.")
+	virtual bool IsPlaying(USequencerPlaylistItem* Item) const
+	{
+		return GetPlaybackState(Item).bIsPlaying;
+	}
 };
 
 

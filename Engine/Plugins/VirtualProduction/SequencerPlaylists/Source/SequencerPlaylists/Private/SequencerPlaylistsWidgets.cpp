@@ -48,7 +48,7 @@ const float SSequencerPlaylistPanel::DefaultWidth = 300.0f;
 const FName SSequencerPlaylistPanel::ColumnName_HoverTransport(TEXT("HoverTransport"));
 const FName SSequencerPlaylistPanel::ColumnName_Items(TEXT("Items"));
 const FName SSequencerPlaylistPanel::ColumnName_Offset(TEXT("Offset"));
-const FName SSequencerPlaylistPanel::ColumnName_Hold(TEXT("Hold"));
+const FName SSequencerPlaylistPanel::ColumnName_Pause(TEXT("Pause"));
 const FName SSequencerPlaylistPanel::ColumnName_Loop(TEXT("Loop"));
 const FName SSequencerPlaylistPanel::ColumnName_HoverDetails(TEXT("HoverDetails"));
 
@@ -324,6 +324,38 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_Transport()
 		.AutoWidth()
 		[
 			SNew(SButton)
+			.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.TransportButton.PlayReverse")
+			.ContentPadding(FMargin(0.0f, 2.0f))
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked(this, &SSequencerPlaylistPanel::HandleClicked_PlayAllReverse)
+			.ToolTipText(LOCTEXT("PlayAllReverseButtonTooltip", "Play all items in reverse simultaneously."))
+			[
+				SNew(SImage)
+				.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.PlayReverse"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.TransportButton.Pause")
+			.ContentPadding(FMargin(0.0f, 2.0f))
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked(this, &SSequencerPlaylistPanel::HandleClicked_PlayAll)
+			.ToolTipText(LOCTEXT("PlayAllReverseButtonTooltip", "Pause all items."))
+			[
+				SNew(SImage)
+				.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Pause"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SButton)
 			.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.TransportButton.Play")
 			.ContentPadding(FMargin(0.0f, 2.0f))
 			.HAlign(HAlign_Center)
@@ -404,12 +436,24 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_ItemListView()
 			{
 				return SNew(SSequencerPlaylistItemWidget, InData, OwnerTableView)
 					.PlayMode(this, &SSequencerPlaylistPanel::InPlayMode)
-					.IsPlaying_Lambda([this, WeakItem = InData->WeakItem]() {
+					.IsPlaying_Lambda([this, WeakItem = InData->WeakItem]() -> bool {
 						USequencerPlaylistItem* Item = WeakItem.Get();
 						USequencerPlaylistPlayer* Player = WeakPlayer.Get();
 						if (Item && Player)
 						{
-							return Player->IsPlaying(Item);
+							return Player->GetPlaybackState(Item).bIsPlaying;
+						}
+						else
+						{
+							return false;
+						}
+					})
+					.IsPaused_Lambda([this, WeakItem = InData->WeakItem]() -> bool {
+						USequencerPlaylistItem* Item = WeakItem.Get();
+						USequencerPlaylistPlayer* Player = WeakPlayer.Get();
+						if (Item && Player)
+						{
+							return Player->GetPlaybackState(Item).bIsPaused;
 						}
 						else
 						{
@@ -417,6 +461,8 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_ItemListView()
 						}
 					})
 					.OnPlayClicked(this, &SSequencerPlaylistPanel::HandleClicked_Item_Play)
+					.OnPlayReverseClicked(this, &SSequencerPlaylistPanel::HandleClicked_Item_PlayReverse)
+					.OnPauseClicked(this, &SSequencerPlaylistPanel::HandleClicked_Item_Pause)
 					.OnStopClicked(this, &SSequencerPlaylistPanel::HandleClicked_Item_Stop)
 					.OnResetClicked(this, &SSequencerPlaylistPanel::HandleClicked_Item_Reset)
 					.OnRemoveClicked(this, &SSequencerPlaylistPanel::HandleClicked_Item_Remove)
@@ -435,8 +481,8 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_ItemListView()
 			+ SHeaderRow::Column(ColumnName_Offset)
 				.DefaultLabel(LOCTEXT("ColumnLabelOffset", "Offset"))
 				.FillSized(45.0f)
-			+ SHeaderRow::Column(ColumnName_Hold)
-				.DefaultLabel(LOCTEXT("ColumnLabelHold", "Hold"))
+			+ SHeaderRow::Column(ColumnName_Pause)
+				.DefaultLabel(LOCTEXT("ColumnLabelPause", "Pause"))
 				.FillSized(35.0f)
 				.HAlignCell(HAlign_Center)
 			+ SHeaderRow::Column(ColumnName_Loop)
@@ -766,6 +812,19 @@ FReply SSequencerPlaylistPanel::HandleClicked_PlayAll()
 }
 
 
+FReply SSequencerPlaylistPanel::HandleClicked_PlayAllReverse()
+{
+	USequencerPlaylistPlayer* Player = WeakPlayer.Get();
+	if (!ensure(Player))
+	{
+		return FReply::Unhandled();
+	}
+
+	Player->PlayAll(ESequencerPlaylistPlaybackDirection::Reverse);
+	return FReply::Handled();
+}
+
+
 FReply SSequencerPlaylistPanel::HandleClicked_StopAll()
 {
 	USequencerPlaylistPlayer* Player = WeakPlayer.Get();
@@ -825,6 +884,32 @@ FReply SSequencerPlaylistPanel::HandleClicked_Item_Play(SSequencerPlaylistItemWi
 }
 
 
+FReply SSequencerPlaylistPanel::HandleClicked_Item_PlayReverse(SSequencerPlaylistItemWidget& ItemWidget)
+{
+	USequencerPlaylistPlayer* Player = WeakPlayer.Get();
+	if (!ensure(Player))
+	{
+		return FReply::Unhandled();
+	}
+
+	Player->PlayItem(ItemWidget.GetItem(), ESequencerPlaylistPlaybackDirection::Reverse);
+	return FReply::Handled();
+}
+
+
+FReply SSequencerPlaylistPanel::HandleClicked_Item_Pause(SSequencerPlaylistItemWidget& ItemWidget)
+{
+	USequencerPlaylistPlayer* Player = WeakPlayer.Get();
+	if (!ensure(Player))
+	{
+		return FReply::Unhandled();
+	}
+
+	Player->PauseItem(ItemWidget.GetItem());
+	return FReply::Handled();
+}
+
+
 FReply SSequencerPlaylistPanel::HandleClicked_Item_Stop(SSequencerPlaylistItemWidget& ItemWidget)
 {
 	USequencerPlaylistPlayer* Player = WeakPlayer.Get();
@@ -878,7 +963,6 @@ bool SSequencerPlaylistPanel::HandleItemDetailsIsPropertyVisible(const FProperty
 
 		PropertyNameToColumnName.Add("StartFrameOffset", ColumnName_Offset);
 		PropertyNameToColumnName.Add("EndFrameOffset", ColumnName_Offset);
-		PropertyNameToColumnName.Add("bHoldAtFirstFrame", ColumnName_Hold);
 		PropertyNameToColumnName.Add("NumLoops", ColumnName_Loop);
 
 		bMapInitialized = true;
@@ -993,8 +1077,10 @@ FSequencerPlaylistItemDragDropOp::~FSequencerPlaylistItemDragDropOp()
 
 
 const FText SSequencerPlaylistItemWidget::PlayItemTooltipText(LOCTEXT("PlayItemTooltip", "Play just this item."));
-const FText SSequencerPlaylistItemWidget::StopItemTooltipText(LOCTEXT("StopItemTooltip", "Stop all running sequences created by this item."));
-const FText SSequencerPlaylistItemWidget::ResetItemTooltipText(LOCTEXT("ResetItemTooltip", "Stop all running sequences created by this item and re-hold, if specified."));
+const FText SSequencerPlaylistItemWidget::PlayReverseItemTooltipText(LOCTEXT("PlayReverseItemTooltip", "Play just this item in reverse."));
+const FText SSequencerPlaylistItemWidget::PauseItemTooltipText(LOCTEXT("PauseItemTooltip", "Pause just this item. If not recording or playing back, creates a hold section for this item."));
+const FText SSequencerPlaylistItemWidget::StopItemTooltipText(LOCTEXT("StopItemTooltip", "Stop all sequences created by this item."));
+const FText SSequencerPlaylistItemWidget::ResetItemTooltipText(LOCTEXT("ResetItemTooltip", "Stop all sequences created by this item and re-hold, if specified."));
 
 
 void SSequencerPlaylistItemWidget::Construct(const FArguments& InArgs, TSharedPtr<FSequencerPlaylistRowData> InRowData, const TSharedRef<STableViewBase>& OwnerTableView)
@@ -1006,8 +1092,11 @@ void SSequencerPlaylistItemWidget::Construct(const FArguments& InArgs, TSharedPt
 
 	PlayMode = InArgs._PlayMode;
 	IsPlaying = InArgs._IsPlaying;
+	IsPaused = InArgs._IsPaused;
 
 	PlayClickedDelegate = InArgs._OnPlayClicked;
+	PlayReverseClickedDelegate = InArgs._OnPlayReverseClicked;
+	PauseClickedDelegate = InArgs._OnPauseClicked;
 	StopClickedDelegate = InArgs._OnStopClicked;
 	ResetClickedDelegate = InArgs._OnResetClicked;
 	RemoveClickedDelegate = InArgs._OnRemoveClicked;
@@ -1139,7 +1228,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 	{
 		return SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
-			.Padding(8.0f, 4.0f, 0.0f, 0.0f)
+			.Padding(8.0f, 4.0f, 0.0f, 2.0f)
 			[
 				SNew(SButton)
 				.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.Play")
@@ -1156,7 +1245,24 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 				]
 			]
 			+ SVerticalBox::Slot()
-			.Padding(8.0f, 0.0f, 0.0f, 0.0f)
+			.Padding(8.0f, 2.0f, 0.0f, 2.0f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.PlayReverse")
+				.ContentPadding(0)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.Visibility_Lambda([this]() { return (IsHovered() && !InPlayMode()) ? EVisibility::Visible : EVisibility::Hidden; })
+				.OnClicked_Lambda([this]() { return PlayReverseClickedDelegate.Execute(*this); })
+				.ToolTipText(PlayReverseItemTooltipText)
+				[
+					SNew(SImage)
+					.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.PlayReverse.Small"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+			+ SVerticalBox::Slot()
+			.Padding(8.0f, 2.0f, 0.0f, 2.0f)
 			[
 				SNew(SButton)
 				.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.Stop")
@@ -1174,7 +1280,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 				]
 			]
 			+ SVerticalBox::Slot()
-			.Padding(8.0f, 0.0f, 0.0f, 4.0f)
+			.Padding(8.0f, 2.0f, 0.0f, 4.0f)
 			[
 				SNew(SButton)
 				.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.Reset")
@@ -1212,6 +1318,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 	{
 		return SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
+			.Padding(0.0f, 4.0f, 0.0f, 0.0f)
 			[
 				SNew(SNumericEntryBox<int32>)
 				.AllowSpin(true)
@@ -1233,6 +1340,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 				})
 			]
 			+ SVerticalBox::Slot()
+			.Padding(0.0f, 0.0f, 0.0f, 4.0f)
 			[
 				SNew(SNumericEntryBox<int32>)
 				.AllowSpin(true)
@@ -1255,31 +1363,27 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 			];
 	}
 
-	if (ColumnName == SSequencerPlaylistPanel::ColumnName_Hold)
+	if (ColumnName == SSequencerPlaylistPanel::ColumnName_Pause)
 	{
-		TSharedRef<SWidget> HoldToggle = SNew(SCheckBox)
+		TSharedRef<SWidget> PauseToggle = SNew(SCheckBox)
 			.Padding(FMargin(4.0f, 2.0f))
 			.HAlign(HAlign_Center)
-			.ToolTipText(LOCTEXT("ToggleHoldTooltip", "Enable or disable hold. Hold will infinitely hold the first frame of this item until manually played. Items are put into a hold state at the start of a take, or manually by hitting \"Reset.\""))
+			.ToolTipText(LOCTEXT("TogglePauseTooltip", "Enable or disable hold. Hold will infinitely hold the first frame of this item until manually played. Items are put into a hold state at the start of a take, or manually by hitting \"Reset.\""))
 			.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
-			.IsChecked_Lambda([WeakItem]() { return (WeakItem.IsValid() && WeakItem->bHoldAtFirstFrame) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-			.OnCheckStateChanged_Lambda([WeakItem](ECheckBoxState InState) {
-				if (WeakItem.IsValid())
-				{
-					WeakItem->bHoldAtFirstFrame = (InState == ECheckBoxState::Checked);
-				}
-			})
+			.IsChecked_Lambda([this]() { return IsPaused.Get() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+			.OnCheckStateChanged_Lambda([this](ECheckBoxState InState) { PauseClickedDelegate.Execute(*this); })
 			[
 				SNew(SImage)
-				.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.HoldFrame"))
-				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Pause"))
+				//.ColorAndOpacity(FStyleColors::AccentBlue)
 			];
 
 		return SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
+			.Padding(0.0f, 1.0f, 0.0f, 0.0f)
 			.VAlign(VAlign_Center)
 			[
-				HoldToggle
+				PauseToggle
 			]
 			+ SVerticalBox::Slot()
 			[
@@ -1344,6 +1448,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 
 		return SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
+			.Padding(0.0f, 2.0f, 0.0f, 0.0f)
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
