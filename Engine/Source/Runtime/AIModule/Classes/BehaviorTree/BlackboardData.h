@@ -11,7 +11,7 @@
 
 /** blackboard entry definition */
 USTRUCT()
-struct FBlackboardEntry
+struct AIMODULE_API FBlackboardEntry
 {
 	GENERATED_USTRUCT_BODY()
 
