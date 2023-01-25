@@ -2,12 +2,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Interface.h"
+#include "WorldPartitionRuntimeCellInterface.generated.h"
 
 class UDataLayerInstance;
 class UDataLayerAsset;
+class IWorldPartitionRuntimeCellOwner;
+
+UINTERFACE()
+class ENGINE_API UWorldPartitionCell : public UInterface
+{
+	GENERATED_UINTERFACE_BODY()
+};
 
 class IWorldPartitionCell
 {
+	GENERATED_IINTERFACE_BODY()
+
 public:
 	/** Returns the cell content associated data layer instances. */
 	virtual TArray<const UDataLayerInstance*> GetDataLayerInstances() const = 0;
@@ -27,6 +38,8 @@ public:
 	virtual FBox GetCellBounds() const = 0;
 	/** Returns the associated level package name. */
 	virtual FName GetLevelPackageName() const = 0;
+	/** Returns cell owner */
+	virtual IWorldPartitionRuntimeCellOwner* GetCellOwner() const = 0;
 
 #if WITH_EDITOR
 	/** Returns the referenced actor packages. */

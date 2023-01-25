@@ -180,8 +180,6 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	virtual FGuid const& GetContentBundleID() const { return ContentBundleID; }
 	virtual TArray<FName> GetActors() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActors, return TArray<FName>(););
 
-	IWorldPartitionRuntimeCellOwner* GetCellOwner() const { return CastChecked<IWorldPartitionRuntimeCellOwner>(GetOuter()); }
-
 	/** Caches information on streaming source that will be used later on to sort cell. */
 	bool ShouldResetStreamingSourceInfo() const;
 	void ResetStreamingSourceInfo() const;
@@ -202,6 +200,7 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	virtual const FBox& GetContentBounds() const override;
 	virtual FBox GetCellBounds() const override;
 	virtual FName GetLevelPackageName() const override;
+	virtual IWorldPartitionRuntimeCellOwner* GetCellOwner() const override { return CastChecked<IWorldPartitionRuntimeCellOwner>(GetOuter()); }
 	//~End IWorldPartitionCell Interface
 
 	bool GetBlockOnSlowLoading() const { return bBlockOnSlowLoading; }
