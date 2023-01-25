@@ -568,6 +568,11 @@ namespace UnrealBuildTool
 				if (Options.HasFlag(ClangToolChainOptions.EnableSharedSanitizer))
 				{
 					Arguments.Add("-shared-libsan");
+
+					// LLVM 15 compiler-rt introduced a new bug causing ASan to crash when going over net code
+					// https://github.com/llvm/llvm-project/issues/59007
+					// adding this fixes it, may be required now?
+					Arguments.Add("-lresolv");
 				}
 
 				if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
