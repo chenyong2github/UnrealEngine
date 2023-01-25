@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Interfaces/OnlineExternalUIInterface.h"
+#include "OnlineSubsystemApplePackage.h"
 
 class FOnlineSubsystemApple;
 
