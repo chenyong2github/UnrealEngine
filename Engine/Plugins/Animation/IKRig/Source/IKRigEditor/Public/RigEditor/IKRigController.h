@@ -42,7 +42,7 @@ public:
 	
 	// Sets the preview mesh to use. Loads the hierarchy into the asset's IKRigSkeleton.
 	// Returns true if the mesh was able to be set. False if it was incompatible for any reason. 
-	UFUNCTION(BlueprintCallable, Category=IKRig)
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool SetSkeletalMesh(USkeletalMesh* SkeletalMesh, bool bTransact=false) const;
 
 	// Get the skeletal mesh this asset is initialized with 
@@ -185,6 +185,11 @@ public:
 	// Get access to the list of Goals. 
 	UFUNCTION(BlueprintCallable, Category=IKRig)
 	TArray<UIKRigEffectorGoal*>& GetAllGoals() const;
+
+	// Get the UObject for the settings associated with the given Goal in the given Solver.
+	// Solvers can define their own per-Goal settings depending on their needs. These are termed "Effectors".
+	UFUNCTION(BlueprintCallable, Category=IKRig)
+	UObject* GetGoalSettingsForSolver(const FName GoalName, int32 SolverIndex) const;
 	
 	//
 	// GOALS C++ ONLY API
@@ -192,10 +197,6 @@ public:
 	
 	// Get the index of the given Goal in the list of Goals. 
 	int32 GetGoalIndex(const FName InGoalName, const ENameCase CompareMethod = ENameCase::IgnoreCase) const;
-
-	// Get the UObject for the settings associated with the given Goal in the given Solver.
-	// Solvers can define their own per-Goal settings depending on their needs. These are termed "Effectors". 
-	UObject* GetGoalSettingsForSolver(const FName GoalName, int32 SolverIndex) const;
 
 	// Get the global-space transform of the given Goal. This may be set by the user in the editor, or at runtime. 
 	FTransform GetGoalCurrentTransform(const FName GoalName) const;
@@ -239,8 +240,8 @@ public:
 	bool RemoveBoneSetting(const FName BoneName, int32 SolverIndex) const;
 
 	// Get the generic (Solver-specific) Bone settings UObject for this Bone in the given Solver.
-	UFUNCTION(BlueprintCallable, Category=IKRig)
-	UObject* GetSettingsForBone(const FName BoneName, int32 SolverIndex) const;
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
+	UObject* GetBoneSettings(const FName BoneName, int32 SolverIndex) const;
 
 	// Get the global-space retarget pose transform of the given Bone.
 	UFUNCTION(BlueprintCallable, Category=IKRig)

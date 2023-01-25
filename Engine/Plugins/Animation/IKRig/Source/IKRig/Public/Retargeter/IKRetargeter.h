@@ -47,15 +47,15 @@ public:
 	// END UObject 
 	
 	// The chain on the Source IK Rig asset to copy animation FROM. 
-	UPROPERTY(VisibleAnywhere, Category = "Chain Mapping")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Chain Mapping")
 	FName SourceChain;
 
 	// The chain on the Target IK Rig asset to copy animation TO. 
-	UPROPERTY(VisibleAnywhere, Category = "Chain Mapping")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Chain Mapping")
 	FName TargetChain;
 
 	// The settings used to control the motion on this target chain. 
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
 	FTargetChainSettings Settings;
 
 #if WITH_EDITORONLY_DATA

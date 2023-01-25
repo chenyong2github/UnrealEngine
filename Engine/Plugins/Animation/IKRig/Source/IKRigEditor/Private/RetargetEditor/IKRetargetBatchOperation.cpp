@@ -459,7 +459,7 @@ void UIKRetargetBatchOperation::GetNewAssets(TArray<UObject*>& NewAssets) const
 }
 
 
-TArray<FAssetData> UIKRetargetBatchOperation::RunRetarget(
+TArray<FAssetData> UIKRetargetBatchOperation::DuplicateAndRetarget(
 	const TArray<FAssetData>& AssetsToRetarget,
 	USkeletalMesh* SourceMesh,
 	USkeletalMesh* TargetMesh,
@@ -486,14 +486,18 @@ TArray<FAssetData> UIKRetargetBatchOperation::RunRetarget(
 	Context.bRemapReferencedAssets = bRemapReferencedAssets;
 
 	// actually run the batch operation
-	RunRetarget(Context);
+	UIKRetargetBatchOperation* BatchOperation = NewObject<UIKRetargetBatchOperation>();
+	BatchOperation->AddToRoot();
+	BatchOperation->RunRetarget(Context);
 
 	// create array of FAssetData to return
 	TArray<FAssetData> Results;
-	for (const UAnimationAsset* RetargetedAsset : AnimationAssetsToRetarget)
+	for (const UAnimationAsset* RetargetedAsset : BatchOperation->AnimationAssetsToRetarget)
 	{
 		Results.Add(FAssetData(RetargetedAsset));
 	}
+	
+	BatchOperation->RemoveFromRoot();
 	return Results;
 }
 

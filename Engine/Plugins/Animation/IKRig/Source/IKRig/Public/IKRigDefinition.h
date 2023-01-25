@@ -147,7 +147,7 @@ struct IKRIG_API FBoneChain
 		, IKGoalName(InGoalName)
 	{}
 
-	UPROPERTY(EditAnywhere, Category = BoneChain)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = BoneChain)
 	FName ChainName;
 
 	UPROPERTY(VisibleAnywhere, Category = BoneChain)
@@ -156,7 +156,7 @@ struct IKRIG_API FBoneChain
 	UPROPERTY(VisibleAnywhere, Category = BoneChain)
 	FBoneReference EndBone;
 	
-	UPROPERTY(VisibleAnywhere, Category = BoneChain)
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = BoneChain)
 	FName IKGoalName;
 };
 

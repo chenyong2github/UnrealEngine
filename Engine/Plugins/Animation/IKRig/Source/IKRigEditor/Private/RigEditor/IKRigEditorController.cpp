@@ -770,7 +770,7 @@ void FIKRigEditorController::ShowDetailsForBone(const FName BoneName) const
 
 void FIKRigEditorController::ShowDetailsForBoneSettings(const FName& BoneName, int32 SolverIndex) const
 {
-	if (UObject* BoneSettings = AssetController->GetSettingsForBone(BoneName, SolverIndex))
+	if (UObject* BoneSettings = AssetController->GetBoneSettings(BoneName, SolverIndex))
 	{
 		DetailsView->SetObject(BoneSettings);
 	}

@@ -9,7 +9,7 @@
 
 #include "IKRig_PBIKSolver.generated.h"
 
-UCLASS()
+UCLASS(BlueprintType)
 class IKRIG_API UIKRig_FBIKEffector : public UObject
 {
 	GENERATED_BODY()
@@ -18,18 +18,18 @@ public:
 	UIKRig_FBIKEffector() { SetFlags(RF_Transactional); }
 	
 	/** The Goal that is driving this effector's transform. */
-	UPROPERTY(VisibleAnywhere, Category = "Full Body IK Effector")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Full Body IK Effector")
 	FName GoalName;
 	
 	/** The bone that this effector will pull on. */
-	UPROPERTY(VisibleAnywhere, Category = "Full Body IK Effector")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Full Body IK Effector")
 	FName BoneName;
 
 	/** Range 0-1 (default is 1.0). The strength of the effector when pulling the bone towards it's target location.
 	* At 0.0, the effector does not pull at all, but the bones between the effector and the root will still slightly resist motion from other effectors.
 	* This can thus act as a "stabilizer" for parts of the body that you do not want to behave in a pure FK fashion.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Full Body IK Effector", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Full Body IK Effector", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
 	float StrengthAlpha = 1.0f;
 
 	/** Range 0-1 (default is 1.0). When enabled (greater than 0.0), the solver internally partitions the skeleton into 'chains' which extend from the effector to the nearest fork in the skeleton.
@@ -37,12 +37,12 @@ public:
 	*This can improve the results for sparse bone chains, and significantly improve convergence on dense bone chains.
 	*But it may cause undesirable results in highly constrained bone chains (like robot arms).
 	*/
-	UPROPERTY(EditAnywhere, Category = "Full Body IK Effector", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Full Body IK Effector", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
 	float PullChainAlpha = 1.0f;
 
 	/** Range 0-1 (default is 1.0).
 	*Blends the effector bone rotation between the rotation of the effector transform (1.0) and the rotation of the input bone (0.0).*/
-	UPROPERTY(EditAnywhere, Category = "Full Body IK Effector", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Full Body IK Effector", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
 	float PinRotation = 1.0f;
 
 	UPROPERTY(Transient)
@@ -56,7 +56,7 @@ public:
 	}
 };
 
-UCLASS()
+UCLASS(BlueprintType)
 class IKRIG_API UIKRig_PBIKBoneSettings : public UObject
 {
 	GENERATED_BODY()
@@ -74,65 +74,65 @@ public:
 	}
 
 	/** The bone these settings are applied to. */
-	UPROPERTY(VisibleAnywhere, Category = Bone, meta = (Constant, CustomWidget = "BoneName"))
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Bone, meta = (Constant, CustomWidget = "BoneName"))
 	FName Bone;
 	
 	/** Range is 0 to 1 (Default is 0). At higher values, the bone will resist rotating (forcing other bones to compensate). */
-	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Stiffness, meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
 	float RotationStiffness = 0.0f;
 
 	/** Range is 0 to 1 (Default is 0). At higher values, the bone will resist translational motion (forcing other bones to compensate). */
-	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Stiffness, meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
 	float PositionStiffness = 0.0f;
 
 	/** Limit the rotation angle of the bone on the X axis.
 	 *Free: can rotate freely in this axis.
 	 *Limited: rotation is clamped between the min/max angles relative to the Skeletal Mesh reference pose.
 	 *Locked: no rotation is allowed in this axis (will remain at reference pose angle). */
-	UPROPERTY(EditAnywhere, Category = Limits)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits)
 	EPBIKLimitType X;
 	/**Range is -180 to 0 (Default is 0). Degrees of rotation in the negative X direction to allow when joint is in "Limited" mode. */
-	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "0", UIMin = "-180.0", UIMax = "0.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "0", UIMin = "-180.0", UIMax = "0.0"))
 	float MinX = 0.0f;
 	/**Range is 0 to 180 (Default is 0). Degrees of rotation in the positive X direction to allow when joint is in "Limited" mode. */
-	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "0", ClampMax = "180", UIMin = "0.0", UIMax = "180.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits, meta = (ClampMin = "0", ClampMax = "180", UIMin = "0.0", UIMax = "180.0"))
 	float MaxX = 0.0f;
 
 	/** Limit the rotation angle of the bone on the Y axis.
 	*Free: can rotate freely in this axis.
 	*Limited: rotation is clamped between the min/max angles relative to the Skeletal Mesh reference pose.
 	*Locked: no rotation is allowed in this axis (will remain at input pose angle). */
-	UPROPERTY(EditAnywhere, Category = Limits)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits)
 	EPBIKLimitType Y;
 	/**Range is -180 to 0 (Default is 0). Degrees of rotation in the negative Y direction to allow when joint is in "Limited" mode. */
-	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "0", UIMin = "-180.0", UIMax = "0.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "0", UIMin = "-180.0", UIMax = "0.0"))
 	float MinY = 0.0f;
 	/**Range is 0 to 180 (Default is 0). Degrees of rotation in the positive Y direction to allow when joint is in "Limited" mode. */
-	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "0", ClampMax = "180", UIMin = "0.0", UIMax = "180.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits, meta = (ClampMin = "0", ClampMax = "180", UIMin = "0.0", UIMax = "180.0"))
 	float MaxY = 0.0f;
 
 	/** Limit the rotation angle of the bone on the Z axis.
 	*Free: can rotate freely in this axis.
 	*Limited: rotation is clamped between the min/max angles relative to the Skeletal Mesh reference pose.
 	*Locked: no rotation is allowed in this axis (will remain at input pose angle). */
-	UPROPERTY(EditAnywhere, Category = Limits)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits)
 	EPBIKLimitType Z;
 	/**Range is -180 to 0 (Default is 0). Degrees of rotation in the negative Z direction to allow when joint is in "Limited" mode. */
-	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "0", UIMin = "-180.0", UIMax = "0.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "0", UIMin = "-180.0", UIMax = "0.0"))
 	float MinZ = 0.0f;
 	/**Range is 0 to 180 (Default is 0). Degrees of rotation in the positive Z direction to allow when joint is in "Limited" mode. */
-	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "0", ClampMax = "180", UIMin = "0.0", UIMax = "180.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits, meta = (ClampMin = "0", ClampMax = "180", UIMin = "0.0", UIMax = "180.0"))
 	float MaxZ = 0.0f;
 
 	/**When true, this bone will "prefer" to rotate in the direction specified by the Preferred Angles when the chain it belongs to is compressed.
 	 * Preferred Angles should be the first method used to fix bones that bend in the wrong direction (rather than limits).
 	 * The resulting angles can be visualized on their own by temporarily setting the Solver iterations to 0 and moving the effectors.*/
-	UPROPERTY(EditAnywhere, Category = PreferredAngles)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = PreferredAngles)
 	bool bUsePreferredAngles = false;
 	/**The local Euler angles (in degrees) used to rotate this bone when the chain it belongs to is squashed.
 	 * This happens by moving the effector at the tip of the chain towards the root of the chain.
 	 * This can be used to coerce knees and elbows to bend in the anatomically "correct" direction without resorting to limits (which may require more iterations to converge).*/
-	UPROPERTY(EditAnywhere, Category = PreferredAngles)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = PreferredAngles)
 	FVector PreferredAngles;
 
 	void CopyToCoreStruct(PBIK::FBoneSettings& Settings) const
@@ -184,48 +184,48 @@ public:
 	 *
 	 * If you want to use the solver on a single chain of bones, and NOT translate the chain, ensure that "PinRoot" is
 	 * checked on to disable the root from translating to reach the effector goals.*/
-	UPROPERTY(VisibleAnywhere, Category = "Full Body IK Settings")
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "Full Body IK Settings")
 	FName RootBone;
 
 	/** High iteration counts can help solve complex joint configurations with competing constraints, but will increase runtime cost. Default is 20. */
-	UPROPERTY(EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", ClampMax = "1000", UIMin = "0.0", UIMax = "200.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", ClampMax = "1000", UIMin = "0.0", UIMax = "200.0"))
 	int32 Iterations = 20;
 
 	/** A global mass multiplier; higher values will make the joints more stiff, but require more iterations. Typical range is 0.0 to 10.0. */
-	UPROPERTY(EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
 	float MassMultiplier = 1.0f;
 
 	/** If true, joints will translate to reach the effectors; causing bones to lengthen if necessary. Good for cartoon effects. Default is false. */
-	UPROPERTY(EditAnywhere, Category = SolverSettings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SolverSettings)
 	bool bAllowStretch = false;
 
 	/** (Default is PrePull) Set the behavior of the solver root.
 	*Pre Pull: translates and rotates the root (and all children) by the average motion of the stretched effectors to help achieve faster convergence when reaching far.
 	*Pin to Input: locks the translation and rotation of the root bone to the input pose. Overrides any bone settings applied to the root. Good for partial-body solves.
 	*Free: treats the root bone like any other and allows it to move freely or according to any bone settings applied to it. */
-	UPROPERTY(EditAnywhere, Category = RootBehavior)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = RootBehavior)
 	EPBIKRootBehavior RootBehavior = EPBIKRootBehavior::PrePull;
 
 	/** Settings only applicable when Root Behavior is set to "PrePull". Use these values to adjust the gross movement and orientation of the entire skeleton. */
-	UPROPERTY(EditAnywhere, Category = RootBehavior)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = RootBehavior)
 	FRootPrePullSettings PrePullRootSettings;
 
 	/** A global multiplier for all Pull Chain Alpha values on all effectors. Range is 0.0 to 1.0. Default is 1.0. */
-	UPROPERTY(EditAnywhere, Category = AdvancedSettings, meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AdvancedSettings, meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
 	float PullChainAlpha = 1.0f;
 
 	/** Maximum angle that a joint can be rotated per constraint iteration. Lower this value if the solve is diverging. Range is 0.0 to 180.0. Default is 30. */
-	UPROPERTY(EditAnywhere, Category = AdvancedSettings, meta = (ClampMin = "0", ClampMax = "45", UIMin = "0.0", UIMax = "180.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AdvancedSettings, meta = (ClampMin = "0", ClampMax = "45", UIMin = "0.0", UIMax = "180.0"))
 	float MaxAngle = 30.f;
 
 	/** Pushes constraints beyond their normal amount to speed up convergence. Increasing this may speed up convergence, but at the cost of stability. Range is 1.0 - 2.0. Default is 1.3. */
-	UPROPERTY(EditAnywhere, Category = AdvancedSettings, meta = (ClampMin = "1", UIMin = "1.0", UIMax = "10.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AdvancedSettings, meta = (ClampMin = "1", UIMin = "1.0", UIMax = "10.0"))
 	float OverRelaxation = 1.3f;
 	
 	/** When true, the solver is reset each tick to start from the current input pose. Default is true.
 	 * If false, incoming animated poses are ignored and the solver starts from the results of the previous solve.
 	 * In very limited circumstances, it can be beneficial to use the pose from the previous frame.*/
-	UPROPERTY(EditAnywhere, Category = AdvancedSettings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AdvancedSettings)
 	bool bStartSolveFromInputPose = true;
 	
 	UPROPERTY()

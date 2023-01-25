@@ -79,7 +79,7 @@ public:
 	 * 
 	 * Return: list of new animation files created. */
 	UFUNCTION(BlueprintCallable, Category=IKBatchRetarget)
-	TArray<FAssetData> RunRetarget(
+	static TArray<FAssetData> DuplicateAndRetarget(
 		const TArray<FAssetData>& AssetsToRetarget,
 		USkeletalMesh* SourceMesh,
 		USkeletalMesh* TargetMesh,

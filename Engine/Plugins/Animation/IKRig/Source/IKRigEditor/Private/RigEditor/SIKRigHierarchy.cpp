@@ -60,7 +60,7 @@ TWeakObjectPtr< UObject > FIKRigTreeElement::GetObject() const
 		}
 		return OptionalBoneDetails;
 	case IKRigTreeElementType::BONE_SETTINGS:
-		return Controller->AssetController->GetSettingsForBone(BoneSettingBoneName, BoneSettingsSolverIndex);
+		return Controller->AssetController->GetBoneSettings(BoneSettingBoneName, BoneSettingsSolverIndex);
 	case IKRigTreeElementType::GOAL:
 		return Controller->AssetController->GetGoal(GoalName);
 	case IKRigTreeElementType::SOLVERGOAL:

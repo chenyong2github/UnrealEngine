@@ -138,7 +138,7 @@ bool UIKRigController::CanRemoveBoneSetting(const FName BoneName, int32 SolverIn
 	return true;
 }
 
-UObject* UIKRigController::GetSettingsForBone(const FName BoneName, int32 SolverIndex) const
+UObject* UIKRigController::GetBoneSettings(const FName BoneName, int32 SolverIndex) const
 {
 	const UIKRigSolver* Solver = GetSolverAtIndex(SolverIndex);
 	if (!Solver)
@@ -1117,7 +1117,7 @@ bool UIKRigController::ConnectGoalToSolver(const FName GoalName, int32 SolverInd
 	// can't add goal that is not present
 	if (GoalIndex == INDEX_NONE)
 	{
-		UE_LOG(LogIKRigEditor, Warning, TEXT("Trying to connect unknown Goal, {0} to a solve."), *GoalName.ToString());
+		UE_LOG(LogIKRigEditor, Warning, TEXT("Trying to connect unknown Goal, {0} to a solver."), *GoalName.ToString());
 		return false;
 	}
 	

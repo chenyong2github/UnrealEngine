@@ -124,6 +124,49 @@ USkeletalMesh* UIKRetargeterController::GetPreviewMesh(const ERetargetSourceOrTa
 	return IKRig->GetPreviewMesh();
 }
 
+FTargetRootSettings UIKRetargeterController::GetRootSettings() const
+{
+	return GetAsset()->GetRootSettingsUObject()->Settings;
+}
+
+void UIKRetargeterController::SetRootSettings(const FTargetRootSettings& RootSettings) const
+{
+	GetAsset()->GetRootSettingsUObject()->Settings = RootSettings;
+}
+
+FRetargetGlobalSettings UIKRetargeterController::GetGlobalSettings() const
+{
+	return GetAsset()->GetGlobalSettingsUObject()->Settings;
+}
+
+void UIKRetargeterController::SetGlobalSettings(const FRetargetGlobalSettings& GlobalSettings) const
+{
+	GetAsset()->GetGlobalSettingsUObject()->Settings = GlobalSettings;
+}
+
+FTargetChainSettings UIKRetargeterController::GetRetargetChainSettings(const FName& TargetChainName) const
+{
+	URetargetChainSettings* ChainSettings = GetChainSettings(TargetChainName);
+	if (!ChainSettings)
+	{
+		return FTargetChainSettings();
+	}
+
+	return ChainSettings->Settings;
+}
+
+bool UIKRetargeterController::SetRetargetChainSettings(const FName& TargetChainName, const FTargetChainSettings& Settings) const
+{
+	URetargetChainSettings* ChainSettings = GetChainSettings(TargetChainName);
+	if (!ChainSettings)
+	{
+		ChainSettings->Settings = Settings;
+		return true;
+	}
+
+	return false;
+}
+
 bool UIKRetargeterController::GetAskedToFixRootHeightForMesh(USkeletalMesh* Mesh) const
 {
 	return GetAsset()->MeshesAskedToFixRootHeightFor.Contains(Mesh);

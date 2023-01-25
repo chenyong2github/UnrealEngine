@@ -6,6 +6,9 @@
 
 #include "IKRetargeterController.generated.h"
 
+struct FRetargetGlobalSettings;
+struct FTargetRootSettings;
+struct FTargetChainSettings;
 struct FIKRetargetPose;
 enum class ERetargetSourceOrTarget : uint8;
 class FIKRetargetEditorController;
@@ -65,6 +68,34 @@ public:
 	// Get the preview skeletal mesh
 	UFUNCTION(BlueprintCallable, Category=IKRetargeter)
 	USkeletalMesh* GetPreviewMesh(const ERetargetSourceOrTarget SourceOrTarget) const;
+
+	//
+	// GET/SET SETTINGS PUBLIC/SCRIPTING API
+	//
+	
+	// Get a copy of the retarget root settings for this asset.
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
+	FTargetRootSettings GetRootSettings() const;
+	
+	// Set the retarget root settings for this asset.
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
+	void SetRootSettings(const FTargetRootSettings& RootSettings) const;
+
+	// Get a copy of the global settings for this asset.
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
+	FRetargetGlobalSettings GetGlobalSettings() const;
+
+	// Get a copy of the global settings for this asset.
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
+	void SetGlobalSettings(const FRetargetGlobalSettings& GlobalSettings) const;
+
+	// Get a copy of the settings for the target chain by name.
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
+	FTargetChainSettings GetRetargetChainSettings(const FName& TargetChainName) const;
+
+	// Set the settings for the target chain by name. Returns true if the chain settings were applied, false otherwise.
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
+	bool SetRetargetChainSettings(const FName& TargetChainName, const FTargetChainSettings& Settings) const;
 
 	//
 	// GENERAL C++ ONLY API
@@ -134,12 +165,12 @@ private:
 	
 	// Get names of all the bone chains.
 	void GetChainNames(const ERetargetSourceOrTarget SourceOrTarget, TArray<FName>& OutNames) const;
-	
-	// convenience to get chain settings by name
-	URetargetChainSettings* GetChainSettings(const FName& TargetChainName) const;
 
 	// Sort the Asset ChainMapping based on the StartBone of the target chains. 
 	void SortChainMapping() const;
+
+	// convenience to get chain settings UObject by name
+	URetargetChainSettings* GetChainSettings(const FName& TargetChainName) const;
 
 	//
 	// RETARGET POSE PUBLIC/SCRIPTING API

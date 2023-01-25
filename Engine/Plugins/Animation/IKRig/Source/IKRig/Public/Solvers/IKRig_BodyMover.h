@@ -7,7 +7,7 @@
 
 #include "IKRig_BodyMover.generated.h"
 
-UCLASS()
+UCLASS(BlueprintType)
 class IKRIG_API UIKRig_BodyMoverEffector : public UObject
 {
 	GENERATED_BODY()
@@ -15,14 +15,14 @@ class IKRIG_API UIKRig_BodyMoverEffector : public UObject
 public:
 	UIKRig_BodyMoverEffector() { SetFlags(RF_Transactional); }
 	
-	UPROPERTY(VisibleAnywhere, Category = "Body Mover Effector")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Body Mover Effector")
 	FName GoalName;
 
-	UPROPERTY(VisibleAnywhere, Category = "Body Mover Effector")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Body Mover Effector")
 	FName BoneName;
 
 	/** Scale the influence this effector has on the body. Range is 0-10. Default is 1.0. */
-	UPROPERTY(EditAnywhere, Category = "Body Mover Effector", meta = (ClampMin = "0", ClampMax = "10", UIMin = "0.0", UIMax = "10.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Body Mover Effector", meta = (ClampMin = "0", ClampMax = "10", UIMin = "0.0", UIMax = "10.0"))
 	float InfluenceMultiplier = 1.0f;
 };
 
