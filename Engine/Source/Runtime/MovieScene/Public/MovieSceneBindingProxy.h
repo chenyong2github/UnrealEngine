@@ -6,6 +6,7 @@
 #include "Misc/Guid.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
+#include "Templates/TypeHash.h"
 
 #include "MovieSceneBindingProxy.generated.h"
 
@@ -30,6 +31,21 @@ struct MOVIESCENE_API FMovieSceneBindingProxy
 		: BindingID(InBindingID)
 		, Sequence(InSequence)
 	{}
+
+	FORCEINLINE friend bool operator==(const FMovieSceneBindingProxy &LHS, const FMovieSceneBindingProxy &RHS)
+	{
+		return LHS.BindingID == RHS.BindingID && LHS.Sequence == RHS.Sequence;
+	}
+
+	FORCEINLINE friend bool operator!=(const FMovieSceneBindingProxy &LHS, const FMovieSceneBindingProxy &RHS)
+	{
+		return LHS.BindingID != RHS.BindingID || LHS.Sequence != RHS.Sequence;
+	}
+
+	FORCEINLINE friend uint32 GetTypeHash(const FMovieSceneBindingProxy& In)
+	{
+		return HashCombine(GetTypeHash(In.BindingID), GetTypeHash(In.Sequence));
+	}
 
 	UMovieScene* GetMovieScene() const;
 

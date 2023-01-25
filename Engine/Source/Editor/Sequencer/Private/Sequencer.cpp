@@ -7869,7 +7869,7 @@ void FSequencer::CopySelectedObjects(TArray<TSharedPtr<UE::Sequencer::FObjectBin
 	using namespace UE::Sequencer;
 
 	// Gather guids for the object nodes and any child object nodes
-	TArray<FMovieSceneBindingProxy> Bindings;
+	TSet<FMovieSceneBindingProxy> Bindings;
 	for (TSharedPtr<FObjectBindingModel> ObjectNode : ObjectNodes)
 	{
 		Bindings.Add(FMovieSceneBindingProxy(ObjectNode->GetObjectGuid(), GetFocusedMovieSceneSequence()));
@@ -7887,7 +7887,8 @@ void FSequencer::CopySelectedObjects(TArray<TSharedPtr<UE::Sequencer::FObjectBin
 		}
 	}
 
-	FSequencerUtilities::CopyBindings(AsShared(), Bindings, Folders, ExportedText);
+	TArray<FMovieSceneBindingProxy> BindingsArray = Bindings.Array();
+	FSequencerUtilities::CopyBindings(AsShared(), BindingsArray, Folders, ExportedText);
 		
 	// Make sure to clear the clipboard for the keys
 	GClipboardStack.Empty();
