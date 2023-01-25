@@ -100,15 +100,17 @@ struct FPendingPage
 	FSharedBuffer			SharedBuffer;
 	enum class EState
 	{
-		Pending,
-		Ready,
-		Failed,
-	} State = EState::Pending;
+		None,
+		DDC_Pending,
+		DDC_Ready,
+		DDC_Failed,
+		Memory,
+		Disk,
+	} State = EState::None;
 	uint32					RetryCount = 0;
-#else
+#endif
 	FIoBuffer				RequestBuffer;
 	FBulkDataBatchReadRequest Request;
-#endif
 
 	uint32					GPUPageIndex = INDEX_NONE;
 	FPageKey				InstallKey;
@@ -263,9 +265,7 @@ private:
 	TArray< FFixupChunk* >					StreamingPageFixupChunks;			// Fixup information for resident streaming pages. We need to keep this around to be able to uninstall pages.
 
 	TArray< FPendingPage >					PendingPages;
-#if !WITH_EDITOR
 	TArray< uint8 >							PendingPageStagingMemory;
-#endif
 
 	FRequestsHashTable*						RequestsHashTable = nullptr;
 	FStreamingPageUploader*					PageUploader = nullptr;
