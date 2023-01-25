@@ -218,7 +218,7 @@ private:
 	FName OwnerName;
 #endif
 
-	static FRHIResource* CurrentlyDeleting;
+	RHI_API static FRHIResource* CurrentlyDeleting;
 
 	friend FRHICommandListImmediate;
 };
