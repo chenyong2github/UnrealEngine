@@ -44,17 +44,6 @@ static void FixCorruptEngineVersion(const FPackageFileVersion& ObjectVersion, FE
 	{
 		Version.Set(4, 26, 0, Version.GetChangelist(), Version.GetBranch());
 	}
-
-	// Temporarily support the loading of 5.2.1 assets in 5.2.0 as version.h was incorrectly merged back from Release-5.1 when 5.1.1 was set. 
-	// This must be removed from Release-5.2 when the engine version is bumped to 5.2.1 and can be removed from UE5/Main when it is bumped to 5.3.0
-	// Also remove version.h #include when removing this block
-	if (Version.GetMajor() == 5
-		&& Version.GetMinor() == 2
-		&& Version.GetPatch() == 1)
-	{
-		static_assert(ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION == 2 && ENGINE_PATCH_VERSION == 0); //-V501
-		Version.Set(5, 2, 0, Version.GetChangelist(), Version.GetBranch());
-	}
 }
 
 void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
