@@ -187,47 +187,40 @@ void UUVEditorBackgroundPreview::UpdateBackground()
 	BackgroundMaterial->SetScalarParameterValue(TEXT("BackgroundPixelDepthOffset"), FUVEditorUXSettings::BackgroundQuadDepthOffset);	
 	BackgroundComponent->Clear();
 
-	TArray<FVector2f> UDimBlocksToRender;
+	TArray<FIndex2i> UDimBlocksToRender;
 	if (Settings->bUDIMsEnabled)
 	{
 		// TODO: Find a way to access the list of UDIMs from the context object instead? 
 		for (int32 BlockIndex = 0; BlockIndex < Settings->UDIMBlocks.Num(); ++BlockIndex)
 		{
-			FVector2f Block;
-			int32 UCoord, VCoord;
-			UE::TextureUtilitiesCommon::ExtractUDIMCoordinates(Settings->UDIMBlocks[BlockIndex], UCoord, VCoord);
-			Block.X = static_cast<float>(UCoord);
-			Block.Y = static_cast<float>(VCoord);
+			FIndex2i Block;
+			UE::TextureUtilitiesCommon::ExtractUDIMCoordinates(Settings->UDIMBlocks[BlockIndex], Block.A, Block.B);
 			UDimBlocksToRender.Push(Block);
 		}
 	}
 	if (UDimBlocksToRender.Num() == 0)
 	{
-		UDimBlocksToRender.Push(FVector2f(0, 0));
+		UDimBlocksToRender.Push(FIndex2i(0, 0));
 	}
 
-	for (const FVector2f& GridStep : UDimBlocksToRender)
+	for (const FIndex2i& Block : UDimBlocksToRender)
 	{
-		FVector2f UV00 = { (GridStep.X + 0.0f) , (GridStep.Y + 0.0f) };
-		FVector2f UV01 = { (GridStep.X + 1.0f) , (GridStep.Y + 0.0f) };		
-		FVector2f UV10 = { (GridStep.X + 0.0f) , (GridStep.Y + 1.0f) };
-		FVector2f UV11 = { (GridStep.X + 1.0f) , (GridStep.Y + 1.0f) };
+		auto MakeQuadVert = [&Block, &Normal, &BackgroundColor](int32 CornerX, int32 CornerY)
+		{
+			FVector2f ExternalUV(static_cast<float>(Block.A + CornerX), static_cast<float>(Block.B + CornerY));
 
-		UV00 = FUVEditorUXSettings::ExternalUVToInternalUV(UV00);
-		UV01 = FUVEditorUXSettings::ExternalUVToInternalUV(UV01);
-		UV10 = FUVEditorUXSettings::ExternalUVToInternalUV(UV10);
-		UV11 = FUVEditorUXSettings::ExternalUVToInternalUV(UV11);
+			return FRenderableTriangleVertex(FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition(ExternalUV),
+				(FVector2D)FUVEditorUXSettings::ExternalUVToInternalUV(ExternalUV),
+				Normal, BackgroundColor);
+		};
 
-		FRenderableTriangleVertex A((FVector)FUVEditorUXSettings::UVToVertPosition(UV00), (FVector2D)UV00, Normal, BackgroundColor);
-		FRenderableTriangleVertex B((FVector)FUVEditorUXSettings::UVToVertPosition(UV10), (FVector2D)UV10, Normal, BackgroundColor);
-		FRenderableTriangleVertex C((FVector)FUVEditorUXSettings::UVToVertPosition(UV01), (FVector2D)UV01, Normal, BackgroundColor);
-		FRenderableTriangleVertex D((FVector)FUVEditorUXSettings::UVToVertPosition(UV11), (FVector2D)UV11, Normal, BackgroundColor);
+		FRenderableTriangleVertex V00 = MakeQuadVert(0,0);
+		FRenderableTriangleVertex V10 = MakeQuadVert(1, 0);
+		FRenderableTriangleVertex V11 = MakeQuadVert(1, 1);
+		FRenderableTriangleVertex V01 = MakeQuadVert(0,1);
 
-		FRenderableTriangle Lower(BackgroundMaterial, A, D, B);
-		FRenderableTriangle Upper(BackgroundMaterial, A, C, D);
-
-		BackgroundComponent->AddTriangle(Lower);
-		BackgroundComponent->AddTriangle(Upper);
+		BackgroundComponent->AddTriangle(FRenderableTriangle(BackgroundMaterial, V00, V10, V11));
+		BackgroundComponent->AddTriangle(FRenderableTriangle(BackgroundMaterial, V00, V11, V01));
 	}
 }
 

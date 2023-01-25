@@ -128,25 +128,43 @@ FLinearColor FUVEditorUXSettings::GetBoundaryColorByTargetIndex(int32 TargetInde
 	return BoundaryColorHSV.HSVToLinearRGB();
 }
 
+// The mappings here depend on the way we view the unwrap world, set up in UVEditorToolkit.cpp.
+// Currently, we look at the world with Z pointing towards the camera, the positive X axis pointing right,
+// and the positive Y axis pointing down. This means that we have to flip the V coordinate to map it
+// to the up direction.
+FVector3d FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition(const FVector2f& UV)
+{
+	return FVector3d(UV.X * UVMeshScalingFactor, -UV.Y * UVMeshScalingFactor, 0);
+}
+FVector2f FUVEditorUXSettings::UnwrapWorldPositionToExternalUV(const FVector3d& VertPosition)
+{
+	return FVector2f(static_cast<float>(VertPosition.X) / UVMeshScalingFactor, -(static_cast<float>(VertPosition.Y) / UVMeshScalingFactor));
+}
+
+// Unreal stores its UVs with V subtracted from 1.
 FVector2f FUVEditorUXSettings::ExternalUVToInternalUV(const FVector2f& UV)
 {
 	return FVector2f(UV.X, 1-UV.Y);
 }
-
 FVector2f FUVEditorUXSettings::InternalUVToExternalUV(const FVector2f& UV)
 {
 	return FVector2f(UV.X, 1-UV.Y);
 }
 
+// Should be equivalent to converting from unreal's UV to regular (external) and then to unwrap world,
+// i.e. ExternalUVToUnwrapWorldPosition(InternalUVToExternalUV(UV))
 FVector3d FUVEditorUXSettings::UVToVertPosition(const FVector2f& UV)
 {
-	return FVector3d((1 - UV.Y) * UVMeshScalingFactor, UV.X * UVMeshScalingFactor, 0);
+	return FVector3d(UV.X * UVMeshScalingFactor, (UV.Y - 1) * UVMeshScalingFactor, 0);
 }
 
+// Should be equivalent to converting from world to regular (external) UV, and then to unreal's representation,
+// i.e. ExternalUVToInternalUV(UnwrapWorldPositionToExternalUV(VertPosition))
 FVector2f FUVEditorUXSettings::VertPositionToUV(const FVector3d& VertPosition)
 {
-	return FVector2f(static_cast<float>(VertPosition.Y) / UVMeshScalingFactor, 1.0f - (static_cast<float>(VertPosition.X) / UVMeshScalingFactor));
+	return FVector2f(static_cast<float>(VertPosition.X) / UVMeshScalingFactor, 1.0 + (static_cast<float>(VertPosition.Y) / UVMeshScalingFactor));
 };
+
 
 float FUVEditorUXSettings::LocationSnapValue(int32 LocationSnapMenuIndex)
 {

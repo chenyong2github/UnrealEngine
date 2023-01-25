@@ -125,9 +125,9 @@ namespace FUVEditor2DViewportClientLocals {
 
 	bool ConvertUVToPixel(const FVector2D& UVIn, FVector2D& PixelOut, const FSceneView& View)
 	{
-		FVector TestWorld = FUVEditorUXSettings::UVToVertPosition(FUVEditorUXSettings::ExternalUVToInternalUV((FVector2f)UVIn));
-		FVector4 TestProjectedHomogenous = View.WorldToScreen(TestWorld);
-		bool bValid = View.ScreenToPixel(TestProjectedHomogenous, PixelOut);
+		FVector WorldPosition = FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition((FVector2f)UVIn);
+		FVector4 ProjectedHomogenous = View.WorldToScreen(WorldPosition);
+		bool bValid = View.ScreenToPixel(ProjectedHomogenous, PixelOut);
 		return bValid;
 	}
 
@@ -138,8 +138,7 @@ namespace FUVEditor2DViewportClientLocals {
 		FVector WorldPoint(WorldPointHomogenous.X / WorldPointHomogenous.W,
 			               WorldPointHomogenous.Y / WorldPointHomogenous.W,
 			               WorldPointHomogenous.Z / WorldPointHomogenous.W);
-		UVOut = (FVector2D)FUVEditorUXSettings::VertPositionToUV(WorldPoint);
-		UVOut = (FVector2D)FUVEditorUXSettings::InternalUVToExternalUV((FVector2f)UVOut);
+		UVOut = (FVector2D)FUVEditorUXSettings::UnwrapWorldPositionToExternalUV(WorldPoint);
 	}
 
 };
@@ -287,11 +286,13 @@ void FUVEditor2DViewportClient::DrawGrid(const FSceneView* View, FPrimitiveDrawI
 			PDI, Transform);
 	}
 
-	double AxisExtent = UVScale;
-
 	// Draw colored axis lines
-	PDI->DrawLine(FVector(0, 0, 0), FVector(AxisExtent, 0, 0), FUVEditorUXSettings::XAxisColor, SDPG_World, FUVEditorUXSettings::AxisThickness, 0, true);
-	PDI->DrawLine(FVector(0, 0, 0), FVector(0, AxisExtent, 0), FUVEditorUXSettings::YAxisColor, SDPG_World, FUVEditorUXSettings::AxisThickness, 0, true);
+	PDI->DrawLine(FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition(FVector2f(0,0)), 
+		FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition(FVector2f(1, 0)), 
+		FUVEditorUXSettings::XAxisColor, SDPG_World, FUVEditorUXSettings::AxisThickness, 0, true);
+	PDI->DrawLine(FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition(FVector2f(0, 0)), 
+		FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition(FVector2f(0, 1)), 
+		FUVEditorUXSettings::YAxisColor, SDPG_World, FUVEditorUXSettings::AxisThickness, 0, true);
 
 	// TODO: Draw a little UV axis thing in the lower left, like the XYZ things that normal viewports have.
 }

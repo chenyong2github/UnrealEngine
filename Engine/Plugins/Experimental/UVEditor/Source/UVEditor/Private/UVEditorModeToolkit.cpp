@@ -208,12 +208,12 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 		// Make our displays show 0-1 units instead of world units.
 		.InternalToDisplayFunction([](const FVector3d& WorldPosition)
 		{
-			FVector2f UV = FUVEditorUXSettings::InternalUVToExternalUV(FUVEditorUXSettings::VertPositionToUV(WorldPosition));
+			FVector2f UV = FUVEditorUXSettings::UnwrapWorldPositionToExternalUV(WorldPosition);
 			return FVector3d(UV.X, UV.Y, 0);
 		})
 		.DisplayToInternalFunction([](const FVector3d& UVPosition)
 		{
-			return FUVEditorUXSettings::UVToVertPosition(FUVEditorUXSettings::ExternalUVToInternalUV(FVector2f(UVPosition.X, UVPosition.Y)));
+			return FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition(FVector2f(UVPosition.X, UVPosition.Y));
 		})
 		.TranslationScrubSensitivity(1 / FUVEditorUXSettings::UVMeshScalingFactor)
 		;

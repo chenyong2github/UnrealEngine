@@ -113,25 +113,54 @@ public:
 	//---------------------------
 
 
-	// When creating UV unwraps or transforming between UV coordinate and positions in the 2D viewport,
-	// these functions will determine the mapping between UV values and the
-	// resulting unwrap mesh vertex positions. 
-	// If we're looking down on the unwrapped mesh, with the Z axis towards us, we want U's to be right, and
-	// V's to be up. In Unreal's left-handed coordinate system, this means that we map U's to world Y
-	// and V's to world X.
-	// Also, Unreal changes the V coordinates of imported meshes to 1-V internally, and we undo this
-	// while displaying the UV's because the users likely expect to see the original UV's (it would
-	// be particularly confusing for users working with UDIM assets, where internally stored V's 
-	// frequently end up negative).
-	// The ScaleFactor just scales the mesh up. Scaling the mesh up makes it easier to zoom in
-	// further into the display before getting issues with the camera near plane distance.
+	// Note about the conversions from unwrap world to UV, below:
+	// Nothing should make assumptions about the mapping between world space and UV coordinates. Instead,
+	// tools should use the conversion functions below so that the mapping is free to change without affecting 
+	// the tools.
+
+	/**
+	 * Converts from UV value as displayed to user or seen before import, to point in unwrap world space. This
+	 * is useful for mapping visualizations to world unwrap space.
+	 *
+	 * Like other world-UV conversion functions, clients should not know about the details of this conversion.
+	 */
+	static FVector3d ExternalUVToUnwrapWorldPosition(const FVector2f& UV);
+
+	/**
+	 * Converts from point in unwrap world space, to UV value as displayed to user or seen before import. This
+	 * is useful for labeling UV values in the unwrap world, even though the UV values are stored slightly differently
+	 * inside the mesh itself.
+	 *
+	 * Like other world-UV conversion functions, clients should not know about the details of this conversion.
+	 */
+	static FVector2f UnwrapWorldPositionToExternalUV(const FVector3d& VertPosition);
+
+	/**
+	 * Converts from UV value as displayed to user or seen before import, to UV as stored on a mesh in Unreal.
+	 */
 	static FVector2f ExternalUVToInternalUV(const FVector2f& UV);
 
+	/**
+	 * Converts from UV as stored on a mesh in Unreal to UV as displayed to user or seen in an external program.
+	 */
 	static FVector2f InternalUVToExternalUV(const FVector2f& UV);
 
+	/**
+	 * Convert from UV as stored on a mesh in Unreal to world position in the UV editor unwrap world. This allows
+	 * changes in UVs of a mesh to be mapped to its unwrap representation.
+	 * 
+	 * Like other world-UV conversion functions, clients should not know about the details of this conversion.
+	 */
 	static FVector3d UVToVertPosition(const FVector2f& UV);
 
+	/**
+	 * Converts from position in UV editor unwrap world to UV value as stored on a mesh in Unreal. This allows
+	 * changes in the unwrap world to be mapped to actual mesh UVs.
+	 * 
+	 * Like other world-UV conversion functions, clients should not know about the details of this conversion.
+	 */
 	static FVector2f VertPositionToUV(const FVector3d& VertPosition);
+
 
 	//--------------------------------
 	// CVARs for Experimental Features

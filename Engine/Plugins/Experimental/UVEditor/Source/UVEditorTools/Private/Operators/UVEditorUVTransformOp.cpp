@@ -16,15 +16,7 @@ using namespace UE::Geometry;
 
 namespace TransformOpLocals
 {
-	FVector2f UnwrapPositionToUV(const FVector3d& Position)
-	{
-		return FUVEditorUXSettings::ExternalUVToInternalUV(FUVEditorUXSettings::VertPositionToUV(Position));
-	}
 
-	FVector3d UVToUnwrapPosition(const FVector2f& UV)
-	{
-		return FUVEditorUXSettings::UVToVertPosition(FUVEditorUXSettings::InternalUVToExternalUV(UV));
-	}
 }
 
 void FUVEditorUVTransformBaseOp::SetTransform(const FTransformSRT3d& Transform)
@@ -82,7 +74,7 @@ void FUVEditorUVTransformBaseOp::RebuildBoundingBoxes()
 			const TArray<int>& Vertices = (*UVComponents)[k].Indices;
 			for (int32 Vid : Vertices)
 			{				
-				PerComponentBoundingBoxes[k].Contain((FVector2d)TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid)));
+				PerComponentBoundingBoxes[k].Contain((FVector2d)FUVEditorUXSettings::UnwrapWorldPositionToExternalUV(ResultMesh->GetVertexRef(Vid)));
 			}
 		});
 
@@ -306,17 +298,17 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 	auto ScaleFunc = [this](int32 Vid)
 	{
 		FVector2f ScalePivot = GetPivotFromMode(Vid, PivotMode);
-		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
+		FVector2f UV = FUVEditorUXSettings::UnwrapWorldPositionToExternalUV(ResultMesh->GetVertexRef(Vid));
 		UV = (UV - ScalePivot);
 		UV[0] *= static_cast<float>(Scale[0]);
 		UV[1] *= static_cast<float>(Scale[1]);
 		UV = (UV + ScalePivot);
-		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
+		ResultMesh->SetVertex(Vid, FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition(UV));
 	};
 
 	auto BaseRotFunc = [this](int32 Vid, float RotationIn, const FVector2f& Pivot)
 	{
-		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
+		FVector2f UV = FUVEditorUXSettings::UnwrapWorldPositionToExternalUV(ResultMesh->GetVertexRef(Vid));
 		FVector2f UV_Rotated;
 		// We are flipping the sign here to match the conventions in other UV editors
 		// where positive values are clockwise and negative values are counterclockwise.
@@ -325,7 +317,7 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 		UV_Rotated[0] = UV[0] * static_cast<float>(FMath::Cos(RotationInRadians)) - UV[1] * static_cast<float>(FMath::Sin(RotationInRadians));
 		UV_Rotated[1] = UV[0] * static_cast<float>(FMath::Sin(RotationInRadians)) + UV[1] * static_cast<float>(FMath::Cos(RotationInRadians));
 		UV = (UV_Rotated + Pivot);
-		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
+		ResultMesh->SetVertex(Vid, FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition(UV));
 	};
 
 	auto QuickRotFunc = [this, &BaseRotFunc](int32 Vid)
@@ -342,9 +334,9 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 
 	auto QuickTranslateFunc = [this](int32 Vid)
 	{
-		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
+		FVector2f UV = FUVEditorUXSettings::UnwrapWorldPositionToExternalUV(ResultMesh->GetVertexRef(Vid));
 		UV = (UV + FVector2f(QuickTranslation));
-		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
+		ResultMesh->SetVertex(Vid, FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition(UV));
 	};
 
 	auto TranslateFunc = [this](int32 Vid)
@@ -354,9 +346,9 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 		{
 			RotationPivot = GetPivotFromMode(Vid, PivotMode);
 		}				
-		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
+		FVector2f UV = FUVEditorUXSettings::UnwrapWorldPositionToExternalUV(ResultMesh->GetVertexRef(Vid));
 		UV = (UV + FVector2f(Translation) - RotationPivot);
-		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
+		ResultMesh->SetVertex(Vid, FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition(UV));
 	};
 
 	auto ApplyTransformFunc = [this, &Progress](TFunction<void(int32 Vid)> TransformFunc)
@@ -446,9 +438,9 @@ void FUVEditorUVAlignOp::HandleTransformationOp(FProgressCancel* Progress)
 
 	auto TranslateFunc = [this](const FVector2f& Translation, int32 Vid)
 	{
-		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
+		FVector2f UV = FUVEditorUXSettings::UnwrapWorldPositionToExternalUV(ResultMesh->GetVertexRef(Vid));
 		UV = (UV + Translation);
-		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
+		ResultMesh->SetVertex(Vid, FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition(UV));
 	};
 
 	auto TranslationFromAlignmentPoints = [this](const FVector2f& PointTo, const FVector2f& PointFrom)
@@ -481,7 +473,7 @@ void FUVEditorUVAlignOp::HandleTransformationOp(FProgressCancel* Progress)
 	};
 	auto UVElementToUDIM = [this](int32 Vid)
 	{
-		return FDynamicMeshUDIMClassifier::ClassifyPointToUDIM(TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid)));
+		return FDynamicMeshUDIMClassifier::ClassifyPointToUDIM(FUVEditorUXSettings::UnwrapWorldPositionToExternalUV(ResultMesh->GetVertexRef(Vid)));
 	};
 	auto ComponentToPoint = [this](int32 ComponentID)
 	{
@@ -489,7 +481,7 @@ void FUVEditorUVAlignOp::HandleTransformationOp(FProgressCancel* Progress)
 	};
 	auto UVElementToPoint = [this](int32 Vid)
 	{
-		return TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
+		return FUVEditorUXSettings::UnwrapWorldPositionToExternalUV(ResultMesh->GetVertexRef(Vid));
 	};
 
 
@@ -757,9 +749,9 @@ void FUVEditorUVDistributeOp::HandleTransformationOp(FProgressCancel* Progress)
 
 	auto TranslateFunc = [this](const FVector2f& Translation, int32 Vid)
 	{
-		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
+		FVector2f UV = FUVEditorUXSettings::UnwrapWorldPositionToExternalUV(ResultMesh->GetVertexRef(Vid));
 		UV = (UV + Translation);
-		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
+		ResultMesh->SetVertex(Vid, FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition(UV));
 	};
 
 	if (TransformingElements.IsSet())

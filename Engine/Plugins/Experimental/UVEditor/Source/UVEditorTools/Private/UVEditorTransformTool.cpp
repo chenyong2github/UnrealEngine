@@ -366,7 +366,7 @@ void UUVEditorTransformTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* Re
 
 	auto ConvertUVToPixel = [RenderAPI](const FVector2D& UVIn, FVector2D& PixelOut)
 	{
-		FVector WorldPoint = FUVEditorUXSettings::UVToVertPosition(FUVEditorUXSettings::ExternalUVToInternalUV((FVector2f)UVIn));
+		FVector WorldPoint = FUVEditorUXSettings::ExternalUVToUnwrapWorldPosition((FVector2f)UVIn);
 		FVector4 TestProjectedHomogenous = RenderAPI->GetSceneView()->WorldToScreen(WorldPoint);
 		bool bValid = RenderAPI->GetSceneView()->ScreenToPixel(TestProjectedHomogenous, PixelOut);
 		return bValid;
