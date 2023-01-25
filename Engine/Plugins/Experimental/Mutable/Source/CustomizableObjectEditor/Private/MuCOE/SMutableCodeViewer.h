@@ -247,13 +247,21 @@ private:
 	 */
 	
 	/** Slate object that provides the user a way of selecting what kind of operation it wants to navigate.*/
-	TSharedPtr<SComboBox<TSharedPtr<FMutableOperationElement>>> TargetedTypeSelector;
+	TSharedPtr<SComboBox<TSharedPtr<const FMutableOperationElement>>> TargetedTypeSelector;
 
 	/** Data backend for the list displayed for the navigation type selection */
-	TArray<TSharedPtr<FMutableOperationElement>> FoundModelOperationTypeElements;
+	TArray<TSharedPtr<const FMutableOperationElement>> FoundModelOperationTypeElements;
 
+	/** Navigation operation entry representing the NONE type */
+	TSharedPtr<const FMutableOperationElement> NoneOperationEntry;
+
+	/** Navigation operation entry used to be able to set the UI to show we are performing a constant resource based 
+	 * navigation
+	 */
+	TSharedPtr<const FMutableOperationElement> ConstantBasedNavigationEntry;
+	
 	/** Currently selected element on the TargetedTypeSelector slate. Actively used by the ui */
-	TSharedPtr<FMutableOperationElement> CurrentlySelectedOperationTypeElement;
+	TSharedPtr<const FMutableOperationElement> CurrentlySelectedOperationTypeElement;
 	
 	/** Operation type we are using to search for tree nodes. Driven primarily by the UI */
 	mu::OP_TYPE OperationTypeToSearch = mu::OP_TYPE::NONE;
@@ -291,12 +299,12 @@ private:
 	/** Callback invoked by the ComboBox used for displaying and selecting operation types for navigation. it gets invoked
 	 * each time the slate object requires to draw a line representing one of the elements set on FoundModelOperationTypeElements
 	 */
-	TSharedRef<SWidget> OnGenerateOpNavigationDropDownWidget(TSharedPtr<FMutableOperationElement> MutableOperationElement) const;
+	TSharedRef<SWidget> OnGenerateOpNavigationDropDownWidget(TSharedPtr<const FMutableOperationElement> MutableOperationElement) const;
 
 	/** Callback invoked each time the selected operation on our navigation slate changes. It can change due to UI interaction
 	 * or also due to direct change by invoking the SetSelectedOption on the SComboBox TargetedTypeSelector
 	 */
-	void OnNavigationSelectedOperationChanged(TSharedPtr<FMutableOperationElement, ESPMode::ThreadSafe> MutableOperationElement, ESelectInfo::Type Arg);
+	void OnNavigationSelectedOperationChanged(TSharedPtr<const FMutableOperationElement, ESPMode::ThreadSafe> MutableOperationElement, ESelectInfo::Type Arg);
 
 	/** Callback used to print on screen the amount of operations found on the tree that share the same operation type that
 	 * the one currently selected on the navigation system.
@@ -726,6 +734,12 @@ public:
 	mu::OP_TYPE OperationType;
 	FText OperationTypeText;
 	FSlateColor OperationTextColor;
+
+	/** Get the type of visibility an slate representing this objects should have. */
+	EVisibility GetEntryVisibility() const
+	{
+		return OperationType == mu::OP_TYPE::NONE ? EVisibility::Collapsed : EVisibility::Visible;
+	}
 };
 
 
