@@ -818,6 +818,16 @@ void UPCGSubsystem::RegisterPartitionActor(APCGPartitionActor* Actor, bool bDoCo
 		PartitionActorsMap.Add(GridCoord, Actor);
 	}
 
+	// For deprecration: bUse2DGrid is now true by default. But if we already have Partition Actors that were created when the flag was false by default,
+	// we keep this flag
+	if (APCGWorldActor* WorldActor = GetPCGWorldActor())
+	{
+		if (WorldActor->bUse2DGrid != Actor->IsUsing2DGrid())
+		{
+			WorldActor->bUse2DGrid = Actor->IsUsing2DGrid();
+		}
+	}
+
 	// And then register itself to all the components that intersect with it
 	{
 		FWriteScopeLock WriteLock(ComponentToPartitionActorsMapLock);

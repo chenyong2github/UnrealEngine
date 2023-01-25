@@ -387,7 +387,7 @@ void APCGPartitionActor::PostCreation()
 	}
 	else
 	{
-		bUse2DGrid = false;
+		bUse2DGrid = true;
 	}
 
 #if WITH_EDITOR
