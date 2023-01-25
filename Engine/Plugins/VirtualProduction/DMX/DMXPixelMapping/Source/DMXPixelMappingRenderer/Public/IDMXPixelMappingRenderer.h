@@ -46,6 +46,7 @@ struct FDMXPixelMappingDownsamplePixelPreviewParam
  * Downsample pixel rendering params
  * Using for pixel rendering in downsample rendering pipeline
  */
+struct UE_DEPRECATED(5.2, "Deprecated in favor of FDMXPixelMappingDownsamplePixelParamsV2. To apply color spaces, all color values are now computed at all times.") FDMXPixelMappingDownsamplePixelParam;
 struct FDMXPixelMappingDownsamplePixelParam
 {
 	/** RGBA pixel multiplication */
@@ -73,6 +74,28 @@ struct FDMXPixelMappingDownsamplePixelParam
 	bool bStaticCalculateUV;
 };
 
+struct FDMXPixelMappingDownsamplePixelParamsV2
+{
+	/** Position in screen pixels of the top left corner of the quad */
+	FIntPoint Position;
+
+	/** Position in texels of the top left corner of the quad's UV's */
+	FVector2D UV;
+
+	/** Size in texels of the quad's total UV space */
+	FVector2D UVSize;
+
+	/** Size in texels of UV.May match UVSize */
+	FVector2D UVCellSize;
+
+	/** The quality of color samples in the pixel shader(number of samples) */
+	EDMXPixelBlendingQuality CellBlendingQuality;
+
+	/** Calculates the UV point to sample purely on the UV position/size. Works best for renderers which represent a single pixel */
+	bool bStaticCalculateUV;
+};
+
+
 /**
  * The public interface of the Pixel Mapping renderer instance interface.
  */
@@ -98,7 +121,7 @@ public:
 		const FTextureResource* InputTexture,
 		const FTextureResource* DstTexture,
 		const FTextureRenderTargetResource* DstTextureTargetResource,
-		const TArray<FDMXPixelMappingDownsamplePixelParam>& InDownsamplePixelPass,
+		const TArray<FDMXPixelMappingDownsamplePixelParamsV2>& InDownsamplePixelPass,
 		DownsampleReadCallback InCallback
 	) const = 0;
 

@@ -3,9 +3,11 @@
 #pragma once
 
 #include "DMXPixelMappingRuntimeCommon.h"
+
+#include "Tickable.h"
 #include "UObject/Object.h"
 #include "Stats/Stats.h"
-#include "Tickable.h"
+
 #include "DMXPixelMappingBaseComponent.generated.h"
 
 
@@ -16,9 +18,9 @@ class UDMXPixelMappingRendererComponent;
 
 
 /**
- * Base class for all DMX Pixel Mapping components
+ * Base class for all DMX Pixel Mapping components. 
  */
-UCLASS(BlueprintType, Blueprintable, Abstract)
+UCLASS(BlueprintType, NotBlueprintable, Abstract)
 class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingBaseComponent
 	: public UObject
 	, public FTickableGameObject
@@ -42,15 +44,14 @@ public:
 	/** Gets an Event broadcast when a component was renamed */
 	static FDMXPixelMappingOnComponentRenamed& GetOnComponentRenamed();
 	
-protected:
 	//~ Begin UObject interface
-	virtual void Serialize(FArchive& Ar) override;
+protected:
 	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif // WITH_EDITOR
 	//~ End UObject interface
-
 
 public:
 	/**
@@ -190,7 +191,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX|PixelMapping")
 	virtual void ResetDMX() {};
 
-	/** Send DMX values of this component and all children */
+	/** Send DMX values of this component and all children. */
 	UFUNCTION(BlueprintCallable, Category = "DMX|PixelMapping")
 	virtual void SendDMX() {};
 

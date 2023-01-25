@@ -3,9 +3,11 @@
 #include "Components/DMXPixelMappingMatrixComponent.h"
 
 #include "DMXPixelMapping.h"
-#include "DMXPixelMappingRuntimeObjectVersion.h"
+#include "DMXPixelMappingMainStreamObjectVersion.h"
+#include "DMXPixelMappingRuntimeCommon.h"
 #include "DMXPixelMappingRuntimeUtils.h"
 #include "DMXPixelMappingTypes.h"
+#include "ColorSpace/DMXPixelMappingColorSpace_RGBCMY.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "IO/DMXOutputPort.h"
@@ -19,38 +21,54 @@
 #endif // WITH_EDITOR
 
 
-
 #define LOCTEXT_NAMESPACE "DMXPixelMappingMatrixComponent"
 
 UDMXPixelMappingMatrixComponent::UDMXPixelMappingMatrixComponent()
-{	
+{
+	ColorSpace = CreateDefaultSubobject<UDMXPixelMappingColorSpace_RGBCMY>("ColorSpace");
+
 	SetSize(FVector2D(32.f, 32.f));
-
-	AttributeR.SetFromName("Red");
-	AttributeG.SetFromName("Green");
-	AttributeB.SetFromName("Blue");
-
-	ColorMode = EDMXColorMode::CM_RGB;
-	AttributeRExpose = true;
-	AttributeGExpose = true;
-	AttributeBExpose = true;
-
-	bMonochromeExpose = true;
 }
 
 void UDMXPixelMappingMatrixComponent::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	Ar.UsingCustomVersion(FDMXPixelMappingRuntimeObjectVersion::GUID);
+#if WITH_EDITOR
+	Ar.UsingCustomVersion(FDMXPixelMappingMainStreamObjectVersion::GUID);
 	if(Ar.IsLoading())
 	{
-		if (Ar.CustomVer(FDMXPixelMappingRuntimeObjectVersion::GUID) < FDMXPixelMappingRuntimeObjectVersion::ChangePixelMappingMatrixComponentToFixturePatchReference)
+		if (Ar.CustomVer(FDMXPixelMappingMainStreamObjectVersion::GUID) < FDMXPixelMappingMainStreamObjectVersion::ChangePixelMappingMatrixComponentToFixturePatchReference)
 		{
 			// Upgrade from custom FixturePatchMatrixRef to FixturePatchRef
 			FixturePatchRef.SetEntity(FixturePatchMatrixRef_DEPRECATED.GetFixturePatch());
 		}
+
+		if (Ar.CustomVer(FDMXPixelMappingMainStreamObjectVersion::GUID) < FDMXPixelMappingMainStreamObjectVersion::UseDMXPixelMappingColorSpace)
+		{		
+			// Upgrade to the DMXPixelMappingColorSpace default subobject
+			UDMXPixelMappingColorSpace_RGBCMY* ColorSpace_RGBCMY = Cast<UDMXPixelMappingColorSpace_RGBCMY>(ColorSpace);
+			if (!ensureMsgf(ColorSpace_RGBCMY, TEXT("Missing default Subobject ColorSpace")))
+			{
+				ColorSpace = NewObject<UDMXPixelMappingColorSpace_RGBCMY>(this, "ColorSpace");
+			}
+
+			if (bMonochromeExpose_DEPRECATED)
+			{
+				ColorSpace_RGBCMY->LuminanceAttribute = MonochromeIntensity_DEPRECATED;
+			}
+			else
+			{
+				ColorSpace_RGBCMY->bSendCyan = AttributeRInvert_DEPRECATED;
+				ColorSpace_RGBCMY->bSendMagenta = AttributeGInvert_DEPRECATED;
+				ColorSpace_RGBCMY->bSendYellow = AttributeBInvert_DEPRECATED;
+				ColorSpace_RGBCMY->RedAttribute = AttributeR_DEPRECATED;
+				ColorSpace_RGBCMY->GreenAttribute = AttributeG_DEPRECATED;
+				ColorSpace_RGBCMY->BlueAttribute = AttributeB_DEPRECATED;
+			}
+		}
 	}
+#endif
 }
 
 void UDMXPixelMappingMatrixComponent::PostLoad()
@@ -74,6 +92,12 @@ void UDMXPixelMappingMatrixComponent::PostLoad()
 				break;
 			}
 		}
+	}
+
+	// Set the transient Color Space Class property to the initial value
+	if (ensureMsgf(ColorSpace, TEXT("Unexpected invalid Color Space in Pixel Mapping Fixture Group Item %s."), *GetName()))
+	{
+		ColorSpaceClass = ColorSpace->GetClass();
 	}
 }
 
@@ -117,8 +141,7 @@ void UDMXPixelMappingMatrixComponent::LogInvalidProperties()
 #if WITH_EDITOR
 void UDMXPixelMappingMatrixComponent::PreEditChange(FProperty* PropertyAboutToChange)
 {
-	// Explicitly recording the state here is required since many properties propagonate to the child cells and cause otherwise malformed transactions
-	Modify();
+	Super::PreEditChange(PropertyAboutToChange);
 
 	if (PropertyAboutToChange)
 	{
@@ -141,8 +164,18 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeProperty(FPropertyChangedEve
 	// Call the parent at the first place
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetPositionXPropertyName() ||
-		PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetPositionYPropertyName())
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, ColorSpaceClass))
+	{
+		if (ensureAlwaysMsgf(ColorSpaceClass, TEXT("Color Space Class was set to nullptr. This is not supported.")))
+		{
+			ColorSpace = NewObject<UDMXPixelMappingColorSpace>(this, ColorSpaceClass);
+		}
+	}
+	
+	if (PropertyName == UDMXPixelMappingOutputComponent::GetPositionXPropertyName() ||
+		PropertyName == UDMXPixelMappingOutputComponent::GetPositionYPropertyName())
 	{
 		constexpr bool bUpdateSizeRecursive = false;
 		ForEachChildOfClass<UDMXPixelMappingMatrixCellComponent>([this](UDMXPixelMappingMatrixCellComponent* ChildComponent)
@@ -154,9 +187,10 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeProperty(FPropertyChangedEve
 
 		HandlePositionChanged();
 	}
-	if (PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeXPropertyName() ||
-		PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeYPropertyName() ||
-		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, CellSize))
+	
+	if (PropertyName == UDMXPixelMappingOutputComponent::GetSizeXPropertyName() ||
+		PropertyName == UDMXPixelMappingOutputComponent::GetSizeYPropertyName() ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, CellSize))
 	{
 		HandleSizeChanged();
 
@@ -164,12 +198,10 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeProperty(FPropertyChangedEve
 		const FVector2D NewSize(CellSize.X * CoordinateGrid.X, CellSize.Y * CoordinateGrid.Y);
 		SetSize(NewSize);
 	}
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, FixturePatchRef) ||
-		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, CoordinateGrid))
-	{
-		HandleMatrixChanged();
-	}
-	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXEntityReference, DMXLibrary))
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, FixturePatchRef) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, CoordinateGrid) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXEntityReference, DMXLibrary))
 	{
 		HandleMatrixChanged();
 	}

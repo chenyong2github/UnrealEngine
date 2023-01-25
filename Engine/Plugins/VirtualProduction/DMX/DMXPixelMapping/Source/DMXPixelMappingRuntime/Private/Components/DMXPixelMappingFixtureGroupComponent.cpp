@@ -11,9 +11,7 @@
 #endif // WITH_EDITOR
 
 
-
 #define LOCTEXT_NAMESPACE "DMXPixelMappingFixtureGroupComponent"
-
 
 UDMXPixelMappingFixtureGroupComponent::UDMXPixelMappingFixtureGroupComponent()
 {

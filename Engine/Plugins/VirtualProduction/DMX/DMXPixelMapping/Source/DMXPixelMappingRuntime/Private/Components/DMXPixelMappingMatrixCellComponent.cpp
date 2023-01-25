@@ -3,11 +3,13 @@
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 
 #include "DMXPixelMappingTypes.h"
+#include "IDMXPixelMappingRenderer.h"
+#include "ColorSpace/DMXPixelMappingColorSpace.h"
+#include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
-#include "IDMXPixelMappingRenderer.h"
 #include "Library/DMXEntityFixturePatch.h"
-#include "TextureResource.h"
+#include "Library/DMXEntityFixtureType.h"
 
 #if WITH_EDITOR
 #include "DMXPixelMappingComponentWidget.h"
@@ -15,13 +17,13 @@
 #include "SDMXPixelMappingComponentLabel.h"
 #endif // WITH_EDITOR
 
+#include "TextureResource.h"
 #include "Engine/Texture.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("Send Matrix Cell"), STAT_DMXPixelMaping_SendMatrixCell, STATGROUP_DMXPIXELMAPPING);
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingMatrixPixelComponent"
-
 
 UDMXPixelMappingMatrixCellComponent::UDMXPixelMappingMatrixCellComponent()
 	: DownsamplePixelIndex(0)
@@ -248,26 +250,9 @@ void UDMXPixelMappingMatrixCellComponent::QueueDownsample()
 	const FVector2D UVSize(GetSize().X / TextureSizeX, GetSize().Y / TextureSizeY);
 	const FVector2D UVCellSize = UVSize / 2.f;
 	constexpr bool bStaticCalculateUV = true;
-
-	FVector4 ExposeFactor;
-	FIntVector4 InvertFactor{};
-	if (MatrixComponent->ColorMode == EDMXColorMode::CM_RGB)
-	{
-		ExposeFactor = FVector4(MatrixComponent->AttributeRExpose ? 1.f : 0.f, MatrixComponent->AttributeGExpose ? 1.f : 0.f, MatrixComponent->AttributeBExpose ? 1.f : 0.f, 1.f);
-		InvertFactor = FIntVector4(MatrixComponent->AttributeRInvert, MatrixComponent->AttributeGInvert, MatrixComponent->AttributeBInvert, 0);
-	}
-	else if (MatrixComponent->ColorMode == EDMXColorMode::CM_Monochrome)
-	{
-		static const FVector4 Expose(1.f, 1.f, 1.f, 1.f);
-		static const FVector4 NoExpose(0.f, 0.f, 0.f, 0.f);
-		ExposeFactor = FVector4(MatrixComponent->bMonochromeExpose ? Expose : NoExpose);
-		InvertFactor = FIntVector4(MatrixComponent->bMonochromeInvert, MatrixComponent->bMonochromeInvert, MatrixComponent->bMonochromeInvert, 0);
-	}
 			
-	FDMXPixelMappingDownsamplePixelParam DownsamplePixelParam
-	{
-		ExposeFactor,
-		InvertFactor,
+	FDMXPixelMappingDownsamplePixelParamsV2 DownsamplePixelParam
+	{ 
 		PixelPosition,
 		UV,
 		UVSize,
@@ -315,51 +300,33 @@ TMap<FDMXAttributeName, float> UDMXPixelMappingMatrixCellComponent::CreateAttrib
 {
 	TMap<FDMXAttributeName, float> AttributeToNormalizedValueMap;
 
-	if (UDMXPixelMappingMatrixComponent* ParentMatrix = Cast<UDMXPixelMappingMatrixComponent>(GetParent()))
+	UDMXPixelMappingMatrixComponent* ParentMatrix = Cast<UDMXPixelMappingMatrixComponent>(GetParent());
+	if (!ParentMatrix)
 	{
-		UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent();
-		if (RendererComponent)
-		{
-			// Get the color data from the rendered component
-			FLinearColor PixelColor;
-			if (RendererComponent->GetDownsampleBufferPixel(DownsamplePixelIndex, PixelColor))
-			{
-				if (ParentMatrix->ColorMode == EDMXColorMode::CM_RGB)
-				{
-					if (ParentMatrix->AttributeRExpose)
-					{
-						const float AttributeRValue = FMath::Clamp(PixelColor.R, 0.f, 1.f);
-						AttributeToNormalizedValueMap.Add(ParentMatrix->AttributeR, AttributeRValue);
-					}
+		return AttributeToNormalizedValueMap;
+	}
 
-					if (ParentMatrix->AttributeGExpose)
-					{
-						const float AttributeGValue = FMath::Clamp(PixelColor.G, 0.f, 1.f);
-						AttributeToNormalizedValueMap.Add(ParentMatrix->AttributeG, AttributeGValue);
-					}
+	UDMXPixelMappingColorSpace* ColorSpace = ParentMatrix->ColorSpace;
+	if (!ColorSpace)
+	{
+		return AttributeToNormalizedValueMap;
+	}
 
-					if (ParentMatrix->AttributeBExpose)
-					{
-						const float AttributeBValue = FMath::Clamp(PixelColor.B, 0.f, 1.f);
-						AttributeToNormalizedValueMap.Add(ParentMatrix->AttributeB, AttributeBValue);
-					}
-				}
-				else if (ParentMatrix->ColorMode == EDMXColorMode::CM_Monochrome)
-				{
-					if (ParentMatrix->bMonochromeExpose)
-					{
-						// https://www.w3.org/TR/AERT/#color-contrast
-						float Intensity = 0.299f * PixelColor.R + 0.587f * PixelColor.G + 0.114f * PixelColor.B;
-						Intensity = FMath::Clamp(Intensity, 0.f, 1.f);
+	UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent();
+	if (!RendererComponent)
+	{
+		return AttributeToNormalizedValueMap;
+	}
 
-						AttributeToNormalizedValueMap.Add(ParentMatrix->MonochromeIntensity, Intensity);
-					}
-				}
-			}
-		}
+	// Get the color data from the rendered component
+	FLinearColor PixelColor;
+	if (RendererComponent->GetDownsampleBufferPixel(DownsamplePixelIndex, PixelColor))
+	{
+		ColorSpace->SetRGBA(PixelColor);
+		AttributeToNormalizedValueMap = ColorSpace->GetAttributeNameToValueMap();
 	}
 
 	return AttributeToNormalizedValueMap;
-
 }
+
 #undef LOCTEXT_NAMESPACE

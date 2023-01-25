@@ -3,17 +3,15 @@
 #pragma once
 
 #include "IDetailCustomization.h"
-#include "Misc/Attribute.h"
-#include "UObject/WeakObjectPtr.h" // IWYU pragma: keep
-
 #include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "UObject/WeakObjectPtr.h"
+
 
 class IPropertyUtilities;
 
 class FDMXPixelMappingToolkit;
 class IDetailLayoutBuilder;
-class ITableRow;
-class STableViewBase;
 class IPropertyHandle;
 class UDMXPixelMappingFixtureGroupItemComponent;
 enum class EDMXColorMode : uint8;
@@ -51,38 +49,16 @@ public:
 	//~ IPropertyTypeCustomization interface end
 
 private:
-
-	EVisibility GetRGBAttributeRowVisibilty(FFunctionAttribute* Attribute) const;
-
-	EVisibility GetRGBAttributesVisibility() const;
-
-	EVisibility GetMonochromeRowVisibilty(FFunctionAttribute* Attribute) const;
-
-	EVisibility GetMonochromeAttributesVisibility() const;
-
-	TSharedRef<ITableRow> GenerateExposeAndInvertRow(TSharedPtr<FFunctionAttribute> InAttribute, const TSharedRef<STableViewBase>& OwnerTable);
-
-private:
-	bool CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const;
-
 	/** Creates Details for the Output Modulators */
 	void CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout);
 
 	/** Forces the layout to redraw */
 	void ForceRefresh();
 
-	IDetailLayoutBuilder* DetailLayout;
-
+	/** Fixture Group Item Components that are being edited */
 	TArray<TWeakObjectPtr<UDMXPixelMappingFixtureGroupItemComponent>> FixtureGroupItemComponents;
 
-	TArray<TSharedPtr<FName>> ActiveModeFunctions;
-
-	TArray<TSharedPtr<FFunctionAttribute>> RGBAttributes;
-
-	TArray<TSharedPtr<FFunctionAttribute>> MonochromeAttributes;
-
-	TSharedPtr<SListView<TSharedPtr<FFunctionAttribute>>> ExposeAndInvertListView;
-
+	/** Property utilities for this customization */
 	TSharedPtr<IPropertyUtilities> PropertyUtilities;
 
 	/** Weak reference to the DMX editor */

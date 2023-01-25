@@ -2,8 +2,8 @@
 
 #include "Views/SDMXPixelMappingDetailsView.h"
 
-#include "DetailsViewArgs.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
+#include "DMXPixelMappingComponentReference.h"
+#include "ColorSpace/DMXPixelMappingColorSpace_RGBCMY.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
@@ -11,16 +11,21 @@
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
+#include "Customizations/DMXPixelMappingColorSpaceDetails_RGBCMY.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroup.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroupItem.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_Screen.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_Renderer.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_Matrix.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_MatrixCell.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
 
+#include "DetailsViewArgs.h"
 #include "IDetailsView.h"
+#include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
+
 
 void SDMXPixelMappingDetailsView::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit)
 {
@@ -49,7 +54,7 @@ void SDMXPixelMappingDetailsView::Construct(const FArguments& InArgs, const TSha
 		]
 	];
 
-	InToolkit->GetOnSelectedComponentsChangedDelegate().AddRaw(this, &SDMXPixelMappingDetailsView::OnSelectedComponentsChanged);
+	InToolkit->GetOnSelectedComponentsChangedDelegate().AddSP(this, &SDMXPixelMappingDetailsView::OnSelectedComponentsChanged);
 
 	OnSelectedComponentsChanged();
 }
@@ -62,6 +67,10 @@ SDMXPixelMappingDetailsView::~SDMXPixelMappingDetailsView()
 		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
 		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingScreenComponent::StaticClass());
 		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingRendererComponent::StaticClass());
+		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingMatrixComponent::StaticClass());
+		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingMatrixCellComponent::StaticClass());
+		
+		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingColorSpace_RGBCMY::StaticClass());
 	}
 }
 
@@ -123,4 +132,7 @@ void SDMXPixelMappingDetailsView::RegisterCustomizations()
 
 	FOnGetDetailCustomizationInstance MatrixCellCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_MatrixCell::MakeInstance, ToolkitWeakPtr);
 	PropertyView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingMatrixCellComponent::StaticClass(), MatrixCellCustomizationInstance);
+
+	FOnGetDetailCustomizationInstance ColorSpaceCustomizationInstance_RGBCMY = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingColorSpaceDetails_RGBCMY::MakeInstance);
+	PropertyView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingColorSpace_RGBCMY::StaticClass(), ColorSpaceCustomizationInstance_RGBCMY);
 }

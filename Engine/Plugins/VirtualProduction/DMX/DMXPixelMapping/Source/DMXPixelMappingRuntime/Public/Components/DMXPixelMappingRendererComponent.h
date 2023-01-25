@@ -22,10 +22,10 @@ class UTextureRenderTarget2D;
 class UWorld;
 
 
-/**
- * Component for rendering input texture
+/** 
+ * Component for rendering input texture.  
  */
-UCLASS(BlueprintType, Blueprintable)
+UCLASS(BlueprintType)
 class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingRendererComponent
 	: public UDMXPixelMappingOutputComponent
 {
@@ -42,7 +42,6 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
-
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
 #endif // WITH_EDITOR
@@ -105,10 +104,10 @@ public:
 	 *
 	 * @param InDownsamplePixelParam pixel rendering params
 	 */
-	void AddPixelToDownsampleSet(FDMXPixelMappingDownsamplePixelParam&& InDownsamplePixelParam);
+	void AddPixelToDownsampleSet(FDMXPixelMappingDownsamplePixelParamsV2&& InDownsamplePixelParam);
 
 	/** Get amount of downsample pixels */
-	int32 GetDownsamplePixelNum() const { return DownsamplePixelParams.Num(); }
+	int32 GetDownsamplePixelNum();
 
 	/**
 	 * Pass the downsample CPU buffer from Render Thread to Game Thread and store 
@@ -237,10 +236,13 @@ private:
 	int32 DownsamplePixelCount;
 
 	/** Critical section for set, update and get color array */
-	FCriticalSection DownsampleBufferCS;
+	mutable FCriticalSection DownsampleBufferCS;
 
 	/** Hold the params of the pixels for downsamle rendering */
-	TArray<FDMXPixelMappingDownsamplePixelParam> DownsamplePixelParams;
+	TArray<FDMXPixelMappingDownsamplePixelParamsV2> DownsamplePixelParams;
+
+	/** True once the first render pass completed */
+	bool bWasEverRendered = false;
 
 	/** Initial texture color */
 	static const FLinearColor ClearTextureColor;

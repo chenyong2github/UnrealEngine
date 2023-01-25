@@ -4,8 +4,8 @@
 
 #include "IDetailCustomization.h"
 #include "Misc/Attribute.h"
-#include "UObject/WeakObjectPtr.h" // IWYU pragma: keep
 #include "Layout/Visibility.h"
+#include "UObject/WeakObjectPtr.h"
 
 class FDMXPixelMappingToolkit;
 struct FDMXCellAttributeGroup;
@@ -46,41 +46,17 @@ public:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
-private:
-	EVisibility GetRGBAttributeRowVisibilty(FDMXCellAttributeGroup* Attribute) const;
-
-	EVisibility GetRGBAttributesVisibility() const;
-
-	EVisibility GetMonochromeRowVisibilty(FDMXCellAttributeGroup* Attribute) const;
-
-	EVisibility GetMonochromeAttributesVisibility() const;
-
-	TSharedRef<ITableRow> GenerateExposeAndInvertRow(TSharedPtr<FDMXCellAttributeGroup> InAtribute, const TSharedRef<STableViewBase>& OwnerTable);
-
-
 private:	
-	bool CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const;
-
 	/** Creates Details for the Output Modulators */
 	void CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout);
 
 	/** Forces the layout to redraw */
 	void ForceRefresh();
 
+	/** Matrix Components that are being edited */
 	TArray<TWeakObjectPtr<UDMXPixelMappingMatrixComponent>> MatrixComponents;
 
-	IDetailLayoutBuilder* DetailLayout;
-
-	TArray<TSharedPtr<FName>> ActiveModeFunctions;
-
-	TArray<TSharedPtr<FDMXCellAttributeGroup>> RGBAttributes;
-
-	TArray<TSharedPtr<FDMXCellAttributeGroup>> MonochromeAttributes;
-
-	TSharedPtr<IPropertyHandle> ColorModePropertyHandle;
-
-	TSharedPtr<SListView<TSharedPtr<FDMXCellAttributeGroup>>> ExposeAndInvertListView;
-
+	/** Property utilities for this customization */
 	TSharedPtr<IPropertyUtilities> PropertyUtilities;
 
 	/** Weak reference to the DMX editor */

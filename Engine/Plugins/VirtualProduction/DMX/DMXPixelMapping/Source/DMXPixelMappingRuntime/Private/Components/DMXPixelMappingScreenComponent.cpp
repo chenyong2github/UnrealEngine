@@ -410,10 +410,8 @@ void UDMXPixelMappingScreenComponent::QueueDownsample()
             const FIntPoint PixelPosition = RendererComponent->GetPixelPosition(InXYIndex + PixelDownsamplePositionRange.Key);
             const FVector2D UV = FVector2D((GetPosition().X + SizePixel.X * XIndex) / TextureSizeX, (GetPosition().Y + SizePixel.Y * YIndex) / TextureSizeY);
 
-            FDMXPixelMappingDownsamplePixelParam DownsamplePixelParam
+            FDMXPixelMappingDownsamplePixelParamsV2 DownsamplePixelParam
             {
-                PixelFactor,
-                InvertPixel,
                 PixelPosition,
                 UV,
                 UVSize,

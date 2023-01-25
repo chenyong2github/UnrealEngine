@@ -9,7 +9,6 @@
 
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "Framework/Views/TableViewMetadata.h"
 #include "IPropertyUtilities.h"
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
@@ -17,24 +16,23 @@
 
 #define LOCTEXT_NAMESPACE "FixtureGroupItem"
 
+
 void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)
 {
-	DetailLayout = &InDetailLayout;
 	PropertyUtilities = InDetailLayout.GetPropertyUtilities();
 
 	// Get editing object
 	TArray<TWeakObjectPtr<UObject>> Objects;
-	DetailLayout->GetObjectsBeingCustomized(Objects);
+	InDetailLayout.GetObjectsBeingCustomized(Objects);
 
 	FixtureGroupItemComponents.Empty();
-	
 	for (TWeakObjectPtr<UObject> SelectedObject : Objects)
 	{
 		FixtureGroupItemComponents.Add(Cast<UDMXPixelMappingFixtureGroupItemComponent>(SelectedObject));
 	}
 
 	// Get editing categories
-	IDetailCategoryBuilder& OutputSettingsCategory = DetailLayout->EditCategory("Output Settings", FText::GetEmpty(), ECategoryPriority::Important);
+	IDetailCategoryBuilder& OutputSettingsCategory = InDetailLayout.EditCategory("Output Settings", FText::GetEmpty(), ECategoryPriority::Important);
 
 	// Hide absolute postition property handles
 	TSharedPtr<IPropertyHandle> PositionXPropertyHandle = InDetailLayout.GetProperty(UDMXPixelMappingOutputComponent::GetPositionXPropertyName());
@@ -46,214 +44,62 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDet
 	TSharedPtr<IPropertyHandle> SizeYPropertyHandle = InDetailLayout.GetProperty(UDMXPixelMappingOutputComponent::GetSizeYPropertyName());
 	InDetailLayout.HideProperty(SizeXPropertyHandle);
 
-	// Add Function and ColorMode properties at the beginning
-	TSharedPtr<IPropertyHandle> ColorModePropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ColorMode));
-	OutputSettingsCategory.AddProperty(ColorModePropertyHandle);
-
-	// Register attributes
-	TSharedPtr<FFunctionAttribute> AttributeR = MakeShared<FFunctionAttribute>();
-	AttributeR->Handle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, AttributeR));
-	AttributeR->ExposeHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, AttributeRExpose));
-	AttributeR->InvertHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, AttributeRInvert));
-
-	TSharedPtr<FFunctionAttribute> AttributeG = MakeShared<FFunctionAttribute>();
-	AttributeG->Handle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, AttributeG));
-	AttributeG->ExposeHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, AttributeGExpose));
-	AttributeG->InvertHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, AttributeGInvert));
-
-	TSharedPtr<FFunctionAttribute> AttributeB = MakeShared<FFunctionAttribute>();
-	AttributeB->Handle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, AttributeB));
-	AttributeB->ExposeHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, AttributeBExpose));
-	AttributeB->InvertHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, AttributeBInvert));
-
-	RGBAttributes.Add(AttributeR);
-	RGBAttributes.Add(AttributeG);
-	RGBAttributes.Add(AttributeB);
-
-	// Register Monochrome attribute
-	TSharedPtr<FFunctionAttribute> MonochromeAttribute = MakeShared<FFunctionAttribute>();
-	MonochromeAttribute->Handle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, MonochromeIntensity));
-	MonochromeAttribute->ExposeHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, bMonochromeExpose));
-	MonochromeAttribute->InvertHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, bMonochromeInvert));
-	MonochromeAttributes.Add(MonochromeAttribute);
-
-	// Generate all RGB Expose and Invert rows
-	OutputSettingsCategory.AddCustomRow(FText::GetEmpty())
-		.Visibility(TAttribute<EVisibility>(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetRGBAttributesVisibility))
-		.NameContent()
-		[
-			SNew(STextBlock).Text(LOCTEXT("ColorSample", "Color Sample"))
-		]
-		.ValueContent()
-		[
-			SAssignNew(ExposeAndInvertListView, SListView<TSharedPtr<FFunctionAttribute>>)
-			.ListItemsSource(&RGBAttributes)
-			.OnGenerateRow(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GenerateExposeAndInvertRow)
-		];
-
-	// Update RGB attributes
-	for (TSharedPtr<FFunctionAttribute>& Attribute : RGBAttributes)
-	{
-		DetailLayout->HideProperty(Attribute->ExposeHandle);
-		DetailLayout->HideProperty(Attribute->InvertHandle);
-
-		OutputSettingsCategory
-			.AddProperty(Attribute->Handle)
-			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetRGBAttributeRowVisibilty, Attribute.Get())));
-	}
-
-	// Generate all Monochrome Expose and Invert rows
-	OutputSettingsCategory.AddCustomRow(FText::GetEmpty())
-		.Visibility(TAttribute<EVisibility>(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetMonochromeAttributesVisibility))
-		.NameContent()
-		[
-			SNew(STextBlock).Text(LOCTEXT("ColorSample", "Color Sample"))
-		]
-		.ValueContent()
-		[
-			SAssignNew(ExposeAndInvertListView, SListView<TSharedPtr<FFunctionAttribute>>)
-			.ListItemsSource(&MonochromeAttributes)
-			.OnGenerateRow(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GenerateExposeAndInvertRow)
-		];
-
-	// Update Monochrome attributes
-	for (TSharedPtr<FFunctionAttribute>& Attribute : MonochromeAttributes)
-	{
-		DetailLayout->HideProperty(Attribute->ExposeHandle);
-		DetailLayout->HideProperty(Attribute->InvertHandle);
-
-		OutputSettingsCategory
-			.AddProperty(Attribute->Handle)
-			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetMonochromeRowVisibilty, Attribute.Get())));
-	}
-
 	CreateModulatorDetails(InDetailLayout);
-}
 
-bool FDMXPixelMappingDetailCustomization_FixtureGroupItem::CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const
-{
-	for (TWeakObjectPtr<UDMXPixelMappingFixtureGroupItemComponent> ItemComponent : FixtureGroupItemComponents)
-	{
-		if (ItemComponent.IsValid() && ItemComponent->ColorMode == DMXColorMode)
+	// Sort categories
+	InDetailLayout.SortCategories([](const TMap<FName, IDetailCategoryBuilder*>& CategoryMap)
 		{
-			return true;
-		}
-	}
+			int32 MinSortOrder = TNumericLimits<int32>::Max();
+			for (const TPair<FName, IDetailCategoryBuilder*>& Pair : CategoryMap)
+			{
+				int32 SortOrder = Pair.Value->GetSortOrder();
+				MinSortOrder = FMath::Min(SortOrder, MinSortOrder);
+			}
 
-	return false;
-}
+			IDetailCategoryBuilder* const* ColorSpaceCategoryPtr = CategoryMap.Find("Color Space");
+			if (ColorSpaceCategoryPtr)
+			{
+				(*ColorSpaceCategoryPtr)->SetSortOrder(MinSortOrder - 3);
+			}
 
-EVisibility FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetRGBAttributeRowVisibilty(FFunctionAttribute* Attribute) const
-{
-	bool bIsVisible = false;
+			// Either 'RGB' 'XY' or 'XYZ' is displayed
+			IDetailCategoryBuilder* const* RGBCategoryPtr = CategoryMap.Find("RGB");
+			if (RGBCategoryPtr)
+			{
+				(*RGBCategoryPtr)->SetSortOrder(MinSortOrder - 2);
+			}
 
-	// 1. Check if current attribute is sampling now
-	FPropertyAccess::Result Result = Attribute->ExposeHandle->GetValue(bIsVisible);
-	if (Result == FPropertyAccess::Result::MultipleValues)
-	{
-		bIsVisible = true;
-	}
+			IDetailCategoryBuilder* const* XYCategoryPtr = CategoryMap.Find("XY");
+			if (XYCategoryPtr)
+			{
+				(*XYCategoryPtr)->SetSortOrder(MinSortOrder - 2);
+			}
 
-	// 2. Check if current color mode is RGB
-	if (!CheckComponentsDMXColorMode(EDMXColorMode::CM_RGB))
-	{
-		bIsVisible = false;
-	}
+			IDetailCategoryBuilder* const* XYZCategoryPtr = CategoryMap.Find("XYZ");
+			if (XYZCategoryPtr)
+			{
+				(*XYZCategoryPtr)->SetSortOrder(MinSortOrder - 2);
+			}
 
-	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-EVisibility FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetRGBAttributesVisibility() const
-{
-	return CheckComponentsDMXColorMode(EDMXColorMode::CM_RGB) ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-EVisibility FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetMonochromeRowVisibilty(FFunctionAttribute* Attribute) const
-{
-	bool bIsVisible = false;
-
-	// 1. Check if current attribute is sampling now
-	FPropertyAccess::Result Result = Attribute->ExposeHandle->GetValue(bIsVisible);
-	if (Result == FPropertyAccess::Result::MultipleValues)
-	{
-		bIsVisible = true;
-	}
-
-	// 2. Check if current color mode is Monochrome
-	if (!CheckComponentsDMXColorMode(EDMXColorMode::CM_Monochrome))
-	{
-		bIsVisible = false;
-	}
-
-	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-EVisibility FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetMonochromeAttributesVisibility() const
-{
-	return (GetRGBAttributesVisibility() == EVisibility::Visible) ? EVisibility::Collapsed : EVisibility::Visible;
-}
-
-TSharedRef<ITableRow> FDMXPixelMappingDetailCustomization_FixtureGroupItem::GenerateExposeAndInvertRow(TSharedPtr<FFunctionAttribute> InAttribute, const TSharedRef<STableViewBase>& OwnerTable)
-{
-	if (!InAttribute.IsValid())
-	{
-		return SNew(STableRow<TSharedPtr<FString>>, OwnerTable);
-	}
-
-	return SNew(STableRow<TSharedPtr<FString>>, OwnerTable)
-		.Padding(2.0f)
-		.ShowSelection(false)
-		[
-			SNew(SBox)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.FillWidth(1)
-				.AutoWidth()
-				.Padding(2.0f, 0.0f)
-				.HAlign(HAlign_Left)
-				[
-					InAttribute->ExposeHandle->CreatePropertyNameWidget()
-				]
-				+ SHorizontalBox::Slot()
-				.FillWidth(1)
-				.AutoWidth()
-				.Padding(2.0f, 0.0f)
-				.HAlign(HAlign_Left)
-				[
-					InAttribute->ExposeHandle->CreatePropertyValueWidget()
-				]
-				+ SHorizontalBox::Slot()
-				.FillWidth(1)
-				.AutoWidth()
-				.Padding(2.0f, 0.0f)
-				.HAlign(HAlign_Left)
-				[
-					InAttribute->InvertHandle->CreatePropertyNameWidget()
-				]
-				+ SHorizontalBox::Slot()
-				.FillWidth(1)
-				.AutoWidth()
-				.Padding(2.0f, 0.0f)
-				.HAlign(HAlign_Left)
-				[
-					InAttribute->InvertHandle->CreatePropertyValueWidget()
-				]
-			]
-		];
+			IDetailCategoryBuilder* const* IntensityCategoryPtr = CategoryMap.Find("Luminance");
+			if (IntensityCategoryPtr)
+			{
+				(*IntensityCategoryPtr)->SetSortOrder(MinSortOrder - 1);
+			}
+		});
 }
 
 void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout)
 {
 	IDetailCategoryBuilder& ModualtorsCategory = InDetailLayout.EditCategory("Modulators", LOCTEXT("DMXModulatorsCategory", "Modulators"), ECategoryPriority::Important);
 
-	TSharedPtr<IPropertyHandle> ModulatorClassesHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ModulatorClasses), UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
+	TSharedPtr<IPropertyHandle> ModulatorClassesHandle = InDetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ModulatorClasses), UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
 	ModulatorClassesHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::ForceRefresh));
 	ModulatorClassesHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::ForceRefresh));
 
 	ModualtorsCategory.AddProperty(ModulatorClassesHandle);
 
-	TSharedPtr<IPropertyHandle> ModulatorsHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, Modulators), UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
+	TSharedPtr<IPropertyHandle> ModulatorsHandle = InDetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, Modulators), UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
 	InDetailLayout.HideProperty(ModulatorsHandle);
 
 	// Create detail views for the modulators

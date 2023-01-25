@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CoreTypes.h"
+#include "Misc/Guid.h"
 
-struct FGuid;
 
-
-// Custom serialization version for changes to DMX Pixel Mapping Runtime Objects
-struct FDMXPixelMappingRuntimeObjectVersion
+// Custom serialization version for changes to DMX Pixel Mapping Objects in the Main Stream
+struct FDMXPixelMappingMainStreamObjectVersion
 {
 	enum Type
 	{
@@ -22,6 +22,9 @@ struct FDMXPixelMappingRuntimeObjectVersion
 		// Update DMXPixelMappingRendererComponent to lock those components that use a texture in designer to trigger the edit condition of the size property
 		LockRendererComponentsThatUseTextureInDesigner,
 
+		// Update DMXPixelMappingFixtureGroupItemComponent and DMXPixelMappingMatrixCellComponent to use DMXPixelMappingColorSpace
+		UseDMXPixelMappingColorSpace,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -31,5 +34,5 @@ struct FDMXPixelMappingRuntimeObjectVersion
 	const static FGuid GUID;
 
 private:
-	FDMXPixelMappingRuntimeObjectVersion() {}
+	FDMXPixelMappingMainStreamObjectVersion() {}
 };

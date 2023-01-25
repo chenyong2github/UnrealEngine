@@ -3,10 +3,10 @@
 #include "Components/DMXPixelMappingBaseComponent.h"
 
 #include "DMXPixelMapping.h"
-#include "DMXPixelMappingRuntimeObjectVersion.h"
+#include "DMXPixelMappingRuntimeCommon.h"
+#include "DMXPixelMappingMainStreamObjectVersion.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
-
 
 
 UDMXPixelMappingBaseComponent::FDMXPixelMappingOnComponentAdded UDMXPixelMappingBaseComponent::OnComponentAdded;
@@ -35,10 +35,10 @@ void UDMXPixelMappingBaseComponent::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	Ar.UsingCustomVersion(FDMXPixelMappingRuntimeObjectVersion::GUID);
+	Ar.UsingCustomVersion(FDMXPixelMappingMainStreamObjectVersion::GUID);
 	if (Ar.IsLoading())
 	{
-		if (Ar.CustomVer(FDMXPixelMappingRuntimeObjectVersion::GUID) < FDMXPixelMappingRuntimeObjectVersion::UseWeakPtrForPixelMappingComponentParent)
+		if (Ar.CustomVer(FDMXPixelMappingMainStreamObjectVersion::GUID) < FDMXPixelMappingMainStreamObjectVersion::UseWeakPtrForPixelMappingComponentParent)
 		{
 			// Upgrade from strong object references for parent to weak ones
 			WeakParent = Parent_DEPRECATED;
@@ -52,8 +52,7 @@ void UDMXPixelMappingBaseComponent::PostRename(UObject* OldOuter, const FName Ol
 {
 	Super::PostRename(OldOuter, OldName);
 
-	// Broadcast the change
-	GetOnComponentRenamed().Broadcast(GetPixelMapping(), this, OldOuter, OldName);
+	OnComponentRenamed.Broadcast(GetPixelMapping(), this, OldOuter, OldName);
 }
 
 #if WITH_EDITOR
@@ -205,7 +204,7 @@ void UDMXPixelMappingBaseComponent::AddChild(UDMXPixelMappingBaseComponent* InCo
 		InComponent->NotifyAddedToParent();
 
 		// Broadcast the change
-		GetOnComponentAdded().Broadcast(GetPixelMapping(), InComponent);
+		OnComponentAdded.Broadcast(GetPixelMapping(), InComponent);
 	}
 }
 
@@ -220,8 +219,7 @@ void UDMXPixelMappingBaseComponent::RemoveChild(UDMXPixelMappingBaseComponent* C
 
 		ChildComponent->SetFlags(RF_Transactional);
 
-		// Broadcast the change
-		GetOnComponentRemoved().Broadcast(GetPixelMapping(), ChildComponent);
+		OnComponentRemoved.Broadcast(GetPixelMapping(), ChildComponent);
 	}
 
 	ensure(ChildComponent && !Children.Contains(ChildComponent) && ChildComponent->Children.Num() == 0 && !ChildComponent->Parent_DEPRECATED);

@@ -2,7 +2,6 @@
 
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroup.h"
 
-#include "Algo/Find.h"
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingLayoutSettings.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
@@ -19,6 +18,7 @@
 #include "DetailWidgetRow.h"
 #include "IPropertyUtilities.h"
 #include "ScopedTransaction.h"
+#include "Algo/Find.h"
 #include "Misc/CoreDelegates.h"
 #include "Widgets/Input/SButton.h"
 
@@ -84,6 +84,8 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::CreateAddAllPatchesButton
 
 void FDMXPixelMappingDetailCustomization_FixtureGroup::CreateFixturePatchDetailRows(IDetailLayoutBuilder& InDetailLayout)
 {
+	
+
 	UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = WeakFixtureGroupComponent.Get();
 	if (!FixtureGroupComponent)
 	{
@@ -103,6 +105,7 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::CreateFixturePatchDetailR
 	EntitiesHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::ForceRefresh));
 
 	// Add fixture patches as custom rows
+	NumFixturePatchRows = 0;
 	TArray<UDMXEntityFixturePatch*> AllFixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 	for (UDMXEntityFixturePatch* FixturePatch : AllFixturePatches)
 	{

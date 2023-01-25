@@ -2,10 +2,11 @@
 
 #include "Customizations/DMXPixelMappingDetailCustomization_MatrixCell.h"
 
-
 #include "Components/DMXPixelMappingOutputComponent.h"
+
 #include "DetailLayoutBuilder.h"
 #include "PropertyHandle.h"
+
 
 void FDMXPixelMappingDetailCustomization_MatrixCell::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)
 {

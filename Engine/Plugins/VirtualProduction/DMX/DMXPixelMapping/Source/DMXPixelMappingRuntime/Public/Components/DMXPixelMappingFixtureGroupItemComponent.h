@@ -12,32 +12,40 @@
 
 #include "DMXPixelMappingFixtureGroupItemComponent.generated.h"
 
+enum class EDMXColorMode : uint8;
 struct FDMXAttributeName;
 class UDMXModulator;
-enum class EDMXColorMode : uint8;
+class UDMXPixelMappingColorSpace;
 
+class FEditPropertyChain;
 class STextBlock;
 class UTextureRenderTarget2D;
 
 
-/**
- * Fixture Item pixel component
+/** 
+ * A component that holds a single Fixture Patch in the Pixel Mapping, and actually sends DMX.
  */
 UCLASS(AutoExpandCategories = ("Output Settings"))
 class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingFixtureGroupItemComponent
 	: public UDMXPixelMappingOutputDMXComponent
 {
 	GENERATED_BODY()
+
 public:
 	/** Default Constructor */
 	UDMXPixelMappingFixtureGroupItemComponent();
 
 protected:
+	//~ Begin UObject interface
+	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
 #endif // WITH_EDITOR
+
+	//~ End UObject interface
 
 public:
 	//~ Begin UDMXPixelMappingBaseComponent implementation
@@ -58,7 +66,6 @@ public:
 	virtual void SetSize(const FVector2D& NewSize) override;
 	//~ End UDMXPixelMappingOutputComponent implementation
 
-public:
 	//~ Begin UDMXPixelMappingOutputDMXComponent implementation
 	virtual void RenderWithInputAndSendDMX() override;
 	//~ End UDMXPixelMappingOutputDMXComponent implementation
@@ -66,63 +73,84 @@ public:
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
 
-private:
-	/** Helper that returns the renderer component this component belongs to */
-	UDMXPixelMappingRendererComponent* GetRendererComponent() const;
-
-public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Selected Patch")
 	FDMXEntityFixturePatchRef FixturePatchRef;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings")
-	EDMXColorMode ColorMode;
+	/** Sets which color space Pixel Mapping sends */
+	UPROPERTY(Transient, EditAnywhere, NoClear, Category = "Color Space", Meta = (DisplayPriority = 2, DisplayName = "Output Mode", ShowDisplayNames))
+	TSubclassOf<UDMXPixelMappingColorSpace> ColorSpaceClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "R"))
-	bool AttributeRExpose;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "G"))
-	bool AttributeGExpose;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "B"))
-	bool AttributeBExpose;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Expose"))
-	bool bMonochromeExpose;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Invert R"))
-	bool AttributeRInvert;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Invert G"))
-	bool AttributeGInvert;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Invert B"))
-	bool AttributeBInvert;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Invert"))
-	bool bMonochromeInvert;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "R Attribute"))
-	FDMXAttributeName AttributeR;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "G Attribute"))
-	FDMXAttributeName AttributeG;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "B Attribute"))
-	FDMXAttributeName AttributeB;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Intensity Attribute"))
-	FDMXAttributeName MonochromeIntensity;
+	/** The Color Space currently in use */
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "Color Space")
+	TObjectPtr<UDMXPixelMappingColorSpace> ColorSpace;
 
 	/** Modulators applied to the output before sending DMX */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Transient, Category = "Output Settings", meta = (DisplayName = "Output Modulators"))
+	UPROPERTY(Transient, EditAnywhere, BlueprintReadOnly, Transient, Category = "Output Settings", meta = (DisplayName = "Output Modulators"))
 	TArray<TSubclassOf<UDMXModulator>> ModulatorClasses;
 
+	/** Modulator instances applied to this component */
 	UPROPERTY()
 	TArray<TObjectPtr<UDMXModulator>> Modulators;
 
 	/** Index of the cell pixel in downsample target buffer */
 	int32 DownsamplePixelIndex;
 
-	/** Creates attribute values from current data */
+private:
+#if WITH_EDITOR
+	/** Called post edit change properties of the color space member */
+	void OnColorSpacePostEditChangeProperties(FPropertyChangedEvent& PropertyChangedEvent);
+#endif // WITH_EDITOR
+
+	/** Helper that returns the renderer component this component belongs to */
+	UDMXPixelMappingRendererComponent* GetRendererComponent() const;
+
+
+	//////////////////////
+	// Deprecated Members
+	
+public:
+	/** DEPRECATED 5.2 */
+	UE_DEPRECATED(5.2, "Instead use UDMXPixelMappingColorSpace::Update and UDMXPixelMappingColorSpace::GetAttributeNameToValueMap using the ColorSpace member of this class.")
 	TMap<FDMXAttributeName, float> CreateAttributeValues() const;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of DMXPixelMappingColorSpace. See ColorSpace member."))
+	EDMXColorMode ColorMode_DEPRECATED;
+
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of DMXPixelMappingColorSpace. See ColorSpace member."))
+	bool AttributeRExpose_DEPRECATED;
+
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of DMXPixelMappingColorSpace. See ColorSpace member."))
+	bool AttributeGExpose_DEPRECATED;
+
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of DMXPixelMappingColorSpace. See ColorSpace member."))
+	bool AttributeBExpose_DEPRECATED;
+
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of DMXPixelMappingColorSpace. See ColorSpace member."))
+	bool bMonochromeExpose_DEPRECATED;
+
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of DMXPixelMappingColorSpace. See ColorSpace member."))
+	bool AttributeRInvert_DEPRECATED;
+
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of DMXPixelMappingColorSpace. See ColorSpace member."))
+	bool AttributeGInvert_DEPRECATED;
+
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of DMXPixelMappingColorSpace. See ColorSpace member."))
+	bool AttributeBInvert_DEPRECATED;
+
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of DMXPixelMappingColorSpace. See ColorSpace member."))
+	bool bMonochromeInvert_DEPRECATED;
+
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of DMXPixelMappingColorSpace. See ColorSpace member."))
+	FDMXAttributeName AttributeR_DEPRECATED;
+
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of DMXPixelMappingColorSpace. See ColorSpace member."))
+	FDMXAttributeName AttributeG_DEPRECATED;
+
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of DMXPixelMappingColorSpace. See ColorSpace member."))
+	FDMXAttributeName AttributeB_DEPRECATED;
+
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of DMXPixelMappingColorSpace. See ColorSpace member."))
+	FDMXAttributeName MonochromeIntensity_DEPRECATED;
+#endif // WITH_EDITORONLY_DATA
 };

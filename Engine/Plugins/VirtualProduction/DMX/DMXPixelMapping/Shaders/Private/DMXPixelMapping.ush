@@ -19,8 +19,6 @@ SamplerState InputSampler;
 // PS Parameters
 int2 InputTextureSize;
 int2 OutputTextureSize;
-float4 PixelFactor;
-int4 InvertPixel;
 float2 UVCellSize;
 
 struct InputVS

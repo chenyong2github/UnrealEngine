@@ -27,7 +27,7 @@ public:
 		const FTextureResource* InputTexture,
 		const FTextureResource* DstTexture,
 		const FTextureRenderTargetResource* DstTextureTargetResource,
-		const TArray<FDMXPixelMappingDownsamplePixelParam>& InDownsamplePixelPass,
+		const TArray<FDMXPixelMappingDownsamplePixelParamsV2>& InDownsamplePixelPass,
 		DownsampleReadCallback InCallback
 	) const override;
 
