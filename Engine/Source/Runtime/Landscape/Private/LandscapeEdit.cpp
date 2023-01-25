@@ -1332,6 +1332,7 @@ void ULandscapeComponent::RecreateCollisionComponent(bool bUseSimpleCollision)
 	TArray<uint8> DominantLayerData;
 	TArray<ULandscapeLayerInfoObject*> LayerInfos;
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
+	ULandscapeInfo* Info = GetLandscapeInfo();
 	const FCollisionSize CollisionSize = FCollisionSize::Create(NumSubsections, SubsectionSizeQuads, CollisionMipLevel);
 	const FCollisionSize SimpleCollisionSize = FCollisionSize::CreateSimple(bUseSimpleCollision, NumSubsections, SubsectionSizeQuads, SimpleCollisionMipLevel);
 	const int32 TotalCollisionSize = CollisionSize.SizeVertsSquare + SimpleCollisionSize.SizeVertsSquare;
@@ -1353,6 +1354,10 @@ void ULandscapeComponent::RecreateCollisionComponent(bool bUseSimpleCollision)
 			LayerInfos = CollisionComp->ComponentLayerInfos;
 		}
 
+		if (Info)
+		{
+			Info->Modify();
+		}
 		Proxy->Modify();
 		CollisionComp->DestroyComponent();
 		CollisionComp = nullptr;
