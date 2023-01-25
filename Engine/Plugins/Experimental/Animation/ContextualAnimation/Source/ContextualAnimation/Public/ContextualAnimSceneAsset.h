@@ -174,6 +174,9 @@ struct FContextualAnimActorPreviewData
 	UPROPERTY(EditAnywhere, Category = "Defaults", meta = (EditCondition = "Type==EContextualAnimActorPreviewType::SkeletalMesh", EditConditionHides))
 	TSoftObjectPtr<class USkeletalMesh> PreviewSkeletalMesh;
 
+	UPROPERTY(EditAnywhere, Category = "Defaults", meta = (EditCondition = "Type==EContextualAnimActorPreviewType::SkeletalMesh", EditConditionHides))
+	TSoftClassPtr<class UAnimInstance> PreviewAnimInstance;
+
 	UPROPERTY(EditAnywhere, Category = "Defaults", meta = (EditCondition = "Type==EContextualAnimActorPreviewType::StaticMesh", EditConditionHides))
 	TSoftObjectPtr<class UStaticMesh> PreviewStaticMesh;
 
