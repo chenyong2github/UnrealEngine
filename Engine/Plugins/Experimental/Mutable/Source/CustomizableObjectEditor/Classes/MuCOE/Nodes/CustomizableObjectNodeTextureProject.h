@@ -27,7 +27,7 @@ public:
 
 	// Layout to use for the generated images.
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
-	int32 Layout = 0;
+	uint8 Layout = 0;
 	
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	bool bEnableAngleFadeOutForRGB = true;
@@ -35,16 +35,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	bool bEnableAngleFadeOutForAlpha = true;
 
-	/** Set the width of the Texture. If the reference texture is not null, it overrdies the Size X property */
+	/** Set the width of the Texture. If the reference texture is not null, it overrides the Size X property */
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
-	int32 TextureSizeX = 0;
+	uint32 TextureSizeX = 0;
 
-	/** Set the height of the Texture. If the reference texture is not null, it overrdies the Size Y property */
+	/** Set the height of the Texture. If the reference texture is not null, it overrides the Size Y property */
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
-	int32 TextureSizeY = 0;
+	uint32 TextureSizeY = 0;
 
-	UPROPERTY(EditAnywhere, Category = CustomizableObject)
-	int32 Textures = 0;
+	UPROPERTY(EditAnywhere, Category = CustomizableObject, meta=( ClampMin = 1))
+	uint32 Textures = 0;
 
 	/** Reference Texture used to decide the texture properties of the mutable-generated textures
 	* connected to this material (e.g. LODBias, Size X,...). If null, mutable default texture properties will be applied. */
