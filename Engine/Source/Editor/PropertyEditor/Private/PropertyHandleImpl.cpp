@@ -3595,10 +3595,10 @@ FPropertyAccess::Result FPropertyHandleFloat::GetValue( float& OutValue ) const
 {
 	FPropertyNodeEditStack PropStack;
 	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
-	void* PropValue = PropStack.GetDirectPropertyAddress();
 
 	if( Res == FPropertyAccess::Success )
 	{
+		void* PropValue = PropStack.GetDirectPropertyAddress();
 		OutValue = Implementation->GetPropertyValue<FFloatProperty>(PropValue);
 	}
 
@@ -3634,10 +3634,10 @@ FPropertyAccess::Result FPropertyHandleDouble::GetValue( double& OutValue ) cons
 {
 	FPropertyNodeEditStack PropStack;
 	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
-	void* PropValue = PropStack.GetDirectPropertyAddress();
 
 	if (Res == FPropertyAccess::Success)
 	{
+		void* PropValue = PropStack.GetDirectPropertyAddress();
 		OutValue = Implementation->GetPropertyValue<FDoubleProperty>(PropValue);
 	}
 
@@ -3675,10 +3675,10 @@ FPropertyAccess::Result FPropertyHandleBool::GetValue( bool& OutValue ) const
 {
 	FPropertyNodeEditStack PropStack;
 	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
-	void* PropValue = PropStack.GetDirectPropertyAddress();
 
 	if( Res == FPropertyAccess::Success )
 	{
+		void* PropValue = PropStack.GetDirectPropertyAddress();
 		OutValue = Implementation->GetPropertyValue<FBoolProperty>(PropValue);
 	}
 
@@ -3721,10 +3721,10 @@ FPropertyAccess::Result FPropertyHandleByte::GetValue( uint8& OutValue ) const
 {
 	FPropertyNodeEditStack PropStack;
 	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
-	void* PropValue = PropStack.GetDirectPropertyAddress();
 
 	if( Res == FPropertyAccess::Success )
 	{
+		void* PropValue = PropStack.GetDirectPropertyAddress();
 		TSharedPtr<FPropertyNode> PropertyNodePin = Implementation->GetPropertyNode();
 
 		FProperty* Property = PropertyNodePin->GetProperty();
@@ -3811,10 +3811,10 @@ FPropertyAccess::Result FPropertyHandleString::GetValue( FName& OutValue ) const
 {
 	FPropertyNodeEditStack PropStack;
 	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
-	void* PropValue = PropStack.GetDirectPropertyAddress();
 
 	if( Res == FPropertyAccess::Success )
 	{
+		void* PropValue = PropStack.GetDirectPropertyAddress();
 		OutValue = Implementation->GetPropertyValue<FNameProperty>(PropValue);
 	}
 
@@ -3850,10 +3850,10 @@ FPropertyAccess::Result FPropertyHandleObject::GetValue( const UObject*& OutValu
 {
 	FPropertyNodeEditStack PropStack;
 	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
-	void* PropValue = PropStack.GetDirectPropertyAddress();
 
 	if( Res == FPropertyAccess::Success )
 	{
+		void* PropValue = PropStack.GetDirectPropertyAddress();
 		FProperty* Property = GetProperty();
 
 		if (Property->IsA(FObjectPropertyBase::StaticClass()))
@@ -4248,10 +4248,10 @@ FPropertyAccess::Result FPropertyHandleMixed::GetValue(double& OutValue) const
 {
 	FPropertyNodeEditStack PropStack;
 	FPropertyAccess::Result Res = Implementation->GetValueEditStack(PropStack);
-	void* PropValue = PropStack.GetDirectPropertyAddress();
 
 	if (Res == FPropertyAccess::Success)
 	{
+		void* PropValue = PropStack.GetDirectPropertyAddress();
 		if(Implementation->IsPropertyTypeOf(FFloatProperty::StaticClass()))
 		{
 			OutValue = Implementation->GetPropertyValue<FFloatProperty>(PropValue);
