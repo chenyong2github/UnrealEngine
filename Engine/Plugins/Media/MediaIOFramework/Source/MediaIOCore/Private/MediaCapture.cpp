@@ -1804,8 +1804,6 @@ void UMediaCapture::InitializeOutputResources(int32 InNumberOfBuffers)
 	bSyncHandlersInitialized = false;
 	NumberOfCaptureFrame = InNumberOfBuffers;
 
-	check(NumberOfCaptureFrame >= 2);
-
 	UMediaCapture* This = this;
 	ENQUEUE_RENDER_COMMAND(MediaOutputCaptureFrameCreateResources)(
 	[This](FRHICommandListImmediate& RHICmdList)
