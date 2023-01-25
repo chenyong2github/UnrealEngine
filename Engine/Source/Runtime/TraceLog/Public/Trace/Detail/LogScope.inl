@@ -165,17 +165,18 @@ inline FScopedStampedLogScope::~FScopedStampedLogScope()
 		return;
 	}
 
+	uint8 LeaveUid = uint8(EKnownEventUids::LeaveScope_TA << EKnownEventUids::_UidShift);
+	uint64 Stamp = TimeGetTimestamp();
+
 	FWriteBuffer* Buffer = Writer_GetBuffer();
-
-	uint64 Stamp = Writer_GetTimestamp(Buffer);
-
-	if (UNLIKELY(int32((uint8*)Buffer - Buffer->Cursor) < int32(sizeof(Stamp))))
+	if (UNLIKELY(int32((uint8*)Buffer - Buffer->Cursor) < int32(sizeof(LeaveUid)) + int32(sizeof(Stamp))))
 	{
 		Buffer = Writer_NextBuffer();
 	}
 
-	Stamp <<= 8;
-	Stamp += uint8(EKnownEventUids::LeaveScope_T) << EKnownEventUids::_UidShift;
+	Buffer->Cursor[0] = LeaveUid;
+	Buffer->Cursor += sizeof(LeaveUid);
+
 	memcpy((uint64*)(Buffer->Cursor), &Stamp, sizeof(Stamp));
 	Buffer->Cursor += sizeof(Stamp);
 
@@ -223,17 +224,19 @@ FORCENOINLINE auto FLogScope::ScopedEnter()
 template <class EventType>
 FORCENOINLINE auto FLogScope::ScopedStampedEnter()
 {
+	uint8 EnterUid = uint8(EKnownEventUids::EnterScope_TA << EKnownEventUids::_UidShift);
 	uint64 Stamp;
 
 	FWriteBuffer* Buffer = Writer_GetBuffer();
-	if (UNLIKELY(int32((uint8*)Buffer - Buffer->Cursor) < int32(sizeof(Stamp))))
+	if (UNLIKELY(int32((uint8*)Buffer - Buffer->Cursor) < int32(sizeof(EnterUid)) + int32(sizeof(Stamp))))
 	{
 		Buffer = Writer_NextBuffer();
 	}
 
-	Stamp = Writer_GetTimestamp(Buffer);
-	Stamp <<= 8;
-	Stamp += uint8(EKnownEventUids::EnterScope_T) << EKnownEventUids::_UidShift;
+	Buffer->Cursor[0] = EnterUid;
+	Buffer->Cursor += sizeof(EnterUid);
+
+	Stamp = TimeGetTimestamp();
 	memcpy((uint64*)(Buffer->Cursor), &Stamp, sizeof(Stamp));
 	Buffer->Cursor += sizeof(Stamp);
 

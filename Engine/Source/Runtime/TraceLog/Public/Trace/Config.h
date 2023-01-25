@@ -17,5 +17,5 @@
 #endif
 
 #if UE_TRACE_ENABLED
-#	define TRACE_PRIVATE_PROTOCOL_6
+#	define TRACE_PRIVATE_PROTOCOL_7
 #endif

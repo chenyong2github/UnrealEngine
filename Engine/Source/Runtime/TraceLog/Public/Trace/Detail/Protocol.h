@@ -17,6 +17,7 @@
 #include "Protocols/Protocol4.h"
 #include "Protocols/Protocol5.h"
 #include "Protocols/Protocol6.h"
+#include "Protocols/Protocol7.h"
 
 #if defined(_MSC_VER)
 	#pragma warning(pop)
