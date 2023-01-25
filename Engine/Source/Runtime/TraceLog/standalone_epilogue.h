@@ -31,6 +31,8 @@ inline void SerializeToCborImpl(TArray<uint8>&, const IAnalyzer::FEventData&, ui
 #	endif
 #endif
 
+#undef check
+
 #endif // TRACE_UE_COMPAT_LAYER
 
 
