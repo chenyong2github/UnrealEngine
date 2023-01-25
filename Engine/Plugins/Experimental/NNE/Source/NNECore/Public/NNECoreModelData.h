@@ -6,6 +6,13 @@
 
 #include "NNECoreModelData.generated.h"
 
+/**
+ * This class represents assets that store neural network model data.
+ *
+ * Neural network models typically consist of a graph of operations and corresponding parameters as e.g. weights.
+ * UNNEModelData assets store such model data as imported e.g. by the UNNEModelDataFactory class.
+ * An INNERuntime object retrieved by UE::NNECore::GetRuntime<T>(const FString& Name) can be used to create an inferable neural network model.
+ */
 UCLASS(BlueprintType, Category = "NNE")
 class NNECORE_API UNNEModelData : public UObject
 {
@@ -14,44 +21,51 @@ class NNECORE_API UNNEModelData : public UObject
 public:
 
 	/**
-	 * Function to initialize the data (will do a copy).
-	 * Called by the NNEModelDataFactory.
-	 * Type corresponds to the file extension.
+	 * Initialize the model data with a copy of the data inside Buffer.
+	 *
+	 * This function is called by the UNNEModelDataFactory class when importing a neural netowkr model file.
+	 *
+	 * @param Type A string identifying the type of data inside this asset. Corresponds to the extension of the imported file.
+	 * @param Buffer The raw binary file data of the imported model to be copied into this asset.
 	 */
 	void Init(const FString& Type, TConstArrayView<uint8> Buffer);
 
 	/**
-	 * The function returns the cached (editor) or cooked (game) optimized model data for a given runtime.
-	 * In editor, the function will create the model data with the passed runtime in case it has not been cached yet.
-	 * Returns an empty view in case of a failure.
+	 * Get the cached (editor) or cooked (game) optimized model data for a given runtime.
+	 *
+	 * This function is used by runtimes when creating a model. In editor, the function will create the optimized model data with the passed runtime in case it has not been cached yet. In game, the cooked data is accessed.
+	 *
+	 * @param RuntimeName The name of the runtime for which the data should be returned.
+	 * @return The optimized and runtime specific model data or an empty view in case of a failure.
 	 */
 	TConstArrayView<uint8> GetModelData(const FString& RuntimeName);
 
 public:
 
+	/**
+	 * Implements custom serialization of this asset.
+	 */
 	virtual void Serialize(FArchive& Ar) override;
 
 	/**
-	 * A GUID used for versioning.
+	 * A Guid used for asset versioning.
 	 */
 	const static FGuid GUID;
 
 private:
 
 	/**
-	 * The file type passed by the factory when importing a model.
-	 * Corresponds to the file extension.
+	 * A string identifying the type of data inside this asset. Corresponds to the extension of the imported file.
 	 */
 	FString FileType;
 
 	/**
-	 * Raw binary file data of the imported model.
+	 * The raw binary file data of the imported model.
 	 */
 	TArray<uint8> FileData;
 
 	/**
-	 * Guid that uniquely identifies this model.
-	 * This is used to cache optimized models in the editor.
+	 * A Guid that uniquely identifies this model. This is used to cache optimized models in the editor.
 	 */
 	FGuid FileDataId;
 
