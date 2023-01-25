@@ -815,18 +815,19 @@ void FModelingToolsEditorModeToolkit::CreateNewPresetInCollection(const FString&
 
 		for (UObject* PropertySet : PropertySets)
 		{
-			UObject* StoredPropertySet = NewObject<UObject>(&Preset, PropertySet->GetClass());
-			StoredPropertySet->ClearFlags(EObjectFlags::RF_Transient);
+			UObject* StoredPropertySet = NewObject<UObject>(&Preset, PropertySet->GetClass());			
 			if (StoredPropertySet != nullptr)
 			{
+				StoredPropertySet->ClearFlags(EObjectFlags::RF_Transient);
 				for (FProperty* Prop : TFieldRange<FProperty>(PropertySet->GetClass()))
 				{
 					void* SrcValue = Prop->ContainerPtrToValuePtr<void>(PropertySet);
 					void* DestValue = Prop->ContainerPtrToValuePtr<void>(StoredPropertySet);
 					Prop->CopySingleValue(DestValue, SrcValue);
 				}
+				PropertyStore.Add(StoredPropertySet);
 			}
-			PropertyStore.Add(StoredPropertySet);
+			
 		}
 
 		Preset.PerToolPresets[Tool.GetClass()->GetName()].NamedPresets.Add(NewPresetName, PresetValuesToCreate);
