@@ -5,10 +5,15 @@
 #include "DMXAttribute.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroupRow.h"
+#include "DMXControlConsoleFixturePatchCellAttributeFader.h"
 #include "DMXControlConsoleFixturePatchFunctionFader.h"
+#include "DMXControlConsoleFixturePatchMatrixCell.h"
 #include "DMXControlConsoleRawFader.h"
 #include "DMXSubsystem.h"
 #include "Library/DMXEntityFixturePatch.h"
+#include "Library/DMXEntityFixtureType.h"
+
+#include "Algo/Sort.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleFaderGroup"
@@ -22,7 +27,7 @@ UDMXControlConsoleRawFader* UDMXControlConsoleFaderGroup::AddRawFader()
 	UDMXControlConsoleRawFader* Fader = NewObject<UDMXControlConsoleRawFader>(this, NAME_None, RF_Transactional);
 	Fader->SetUniverseID(Universe);
 	Fader->SetAddressRange(Address);
-	Faders.Add(Fader);
+	Elements.Add(Fader);
 
 	return Fader;
 }
@@ -31,29 +36,55 @@ UDMXControlConsoleFixturePatchFunctionFader* UDMXControlConsoleFaderGroup::AddFi
 {
 	UDMXControlConsoleFixturePatchFunctionFader* Fader = NewObject<UDMXControlConsoleFixturePatchFunctionFader>(this, NAME_None, RF_Transactional);
 	Fader->SetPropertiesFromFixtureFunction(FixtureFunction, InUniverseID, StartingChannel);
-	Faders.Add(Fader);
+	Elements.Add(Fader);
 
 	return Fader;
 }
 
-void UDMXControlConsoleFaderGroup::DeleteFader(const TObjectPtr<UDMXControlConsoleFaderBase>& Fader)
+UDMXControlConsoleFixturePatchMatrixCell* UDMXControlConsoleFaderGroup::AddFixturePatchMatrixCell(const FDMXCell& Cell, const int32 InUniverseID, const int32 StartingChannel)
 {
-	if (!ensureMsgf(Fader, TEXT("Invalid fader, cannot delete from '%s'."), *GetName()))
-	{
-		return;
-	}
+	UDMXControlConsoleFixturePatchMatrixCell* MatrixCell = NewObject<UDMXControlConsoleFixturePatchMatrixCell>(this, NAME_None, RF_Transactional);
+	MatrixCell->SetPropertiesFromCell(Cell, InUniverseID, StartingChannel);
+	Elements.Add(MatrixCell);
 
-	if (!ensureMsgf(Faders.Contains(Fader), TEXT("'%s' fader group is not owner of '%s'. Cannot delete fader correctly."), *GetName(), *Fader->GetName()))
-	{
-		return;
-	}
-
-	Faders.Remove(Fader);
+	return MatrixCell;
 }
 
-void UDMXControlConsoleFaderGroup::ClearFaders()
+void UDMXControlConsoleFaderGroup::DeleteElement(const TScriptInterface<IDMXControlConsoleFaderGroupElement>& Element)
 {
-	Faders.Reset();
+	if (!ensureMsgf(Element, TEXT("Invalid element, cannot delete from '%s'."), *GetName()))
+	{
+		return;
+	}
+
+	if (!ensureMsgf(Elements.Contains(Element), TEXT("'%s' fader group is not owner of '%s'. Cannot delete element correctly."), *GetName(), *Element.GetObject()->GetName()))
+	{
+		return;
+	}
+
+	Elements.Remove(Element);
+}
+
+void UDMXControlConsoleFaderGroup::ClearElements()
+{
+	Elements.Reset();
+}
+
+TArray<UDMXControlConsoleFaderBase*> UDMXControlConsoleFaderGroup::GetAllFaders() const
+{
+	TArray<UDMXControlConsoleFaderBase*> AllFaders;
+
+	for (const TScriptInterface<IDMXControlConsoleFaderGroupElement>& Element : Elements)
+	{
+		if (!Element)
+		{
+			continue;
+		}
+
+		AllFaders.Append(Element->GetFaders());
+	}
+
+	return AllFaders;
 }
 
 int32 UDMXControlConsoleFaderGroup::GetIndex() const
@@ -67,7 +98,7 @@ int32 UDMXControlConsoleFaderGroup::GetIndex() const
 UDMXControlConsoleFaderGroupRow& UDMXControlConsoleFaderGroup::GetOwnerFaderGroupRowChecked() const
 {
 	UDMXControlConsoleFaderGroupRow* Outer = Cast<UDMXControlConsoleFaderGroupRow>(GetOuter());
-	checkf(Outer, TEXT("Invalid outer for '%s', cannot get fader group index correctly."), *GetName());
+	checkf(Outer, TEXT("Invalid outer for '%s', cannot get fader group owner correctly."), *GetName());
 
 	return *Outer;
 }
@@ -95,17 +126,40 @@ void UDMXControlConsoleFaderGroup::GenerateFromFixturePatch(UDMXEntityFixturePat
 	EditorColor = InFixturePatch->EditorColor;
 #endif // WITH_EDITOR
 	
-	ClearFaders();
+	ClearElements();
 
+	const int32 UniverseID = InFixturePatch->GetUniverseID();
+	const int32 StartingChannel = InFixturePatch->GetStartingChannel();
+
+	// Generate Faders from Fixture Functions
 	const TMap<FDMXAttributeName, FDMXFixtureFunction> FunctionsMap = InFixturePatch->GetAttributeFunctionsMap();
 	for (const TTuple<FDMXAttributeName, FDMXFixtureFunction>& FunctionTuple : FunctionsMap)
 	{
 		const FDMXFixtureFunction FixtureFunction = FunctionTuple.Value;
-		const int32 UniverseID = InFixturePatch->GetUniverseID();
-		const int32 StartingChannel = InFixturePatch->GetStartingChannel();
-
 		AddFixturePatchFunctionFader(FixtureFunction, UniverseID, StartingChannel);
 	}
+
+	// Generate Faders from Fixture Matrices
+	FDMXFixtureMatrix FixtureMatrix;
+	if (InFixturePatch->GetMatrixProperties(FixtureMatrix))
+	{
+		TArray<FDMXCell> Cells;
+		InFixturePatch->GetAllMatrixCells(Cells);
+		for (const FDMXCell& Cell : Cells)
+		{
+			AddFixturePatchMatrixCell(Cell, UniverseID, StartingChannel);
+		}
+	}
+
+	auto SortElementsByEndingAddressLambda = [](const TScriptInterface<IDMXControlConsoleFaderGroupElement>& ItemA, const TScriptInterface<IDMXControlConsoleFaderGroupElement>& ItemB)
+	{
+		const int32 EndingAddressA = ItemA->GetStartingAddress();
+		const int32 EndingAddressB = ItemB->GetStartingAddress();
+
+		return EndingAddressA < EndingAddressB;
+	};
+
+	Algo::Sort(Elements, SortElementsByEndingAddressLambda);
 
 	bForceRefresh = true;
 }
@@ -113,6 +167,18 @@ void UDMXControlConsoleFaderGroup::GenerateFromFixturePatch(UDMXEntityFixturePat
 bool UDMXControlConsoleFaderGroup::HasFixturePatch() const
 {
 	return GetFixturePatch() != nullptr;
+}
+
+bool UDMXControlConsoleFaderGroup::HasMatrixProperties() const
+{
+	if (!HasFixturePatch())
+	{
+		return false;
+	}
+
+	FDMXFixtureMatrix FixtureMatrix;
+	const UDMXEntityFixturePatch* FixturePatch = GetFixturePatch();
+	return FixturePatch->GetMatrixProperties(FixtureMatrix);
 }
 
 TMap<int32, TMap<int32, uint8>> UDMXControlConsoleFaderGroup::GetUniverseToFragmentMap() const
@@ -127,7 +193,7 @@ TMap<int32, TMap<int32, uint8>> UDMXControlConsoleFaderGroup::GetUniverseToFragm
 	UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
 	check(DMXSubsystem);
 
-	for (const UDMXControlConsoleFaderBase* Fader : Faders)
+	for (const UDMXControlConsoleFaderBase* Fader : GetAllFaders())
 	{
 		if (!Fader || Fader->IsMuted())
 		{
@@ -164,7 +230,7 @@ TMap<FDMXAttributeName, int32> UDMXControlConsoleFaderGroup::GetAttributeMap() c
 		return AttributeMap;
 	}
 
-	for (const UDMXControlConsoleFaderBase* Fader : Faders)
+	for (const UDMXControlConsoleFaderBase* Fader : GetAllFaders())
 	{
 		if (!Fader || Fader->IsMuted())
 		{
@@ -185,6 +251,46 @@ TMap<FDMXAttributeName, int32> UDMXControlConsoleFaderGroup::GetAttributeMap() c
 	return AttributeMap;
 }
 
+TMap<FIntPoint, TMap<FDMXAttributeName, float>> UDMXControlConsoleFaderGroup::GetMatrixCoordinateToAttributeMap() const
+{
+	TMap<FIntPoint, TMap<FDMXAttributeName, float>> CoordinateToMatrixAttributeMap;
+
+	if (!HasFixturePatch() || !HasMatrixProperties())
+	{
+		return CoordinateToMatrixAttributeMap;
+	}
+
+	for (const TScriptInterface<IDMXControlConsoleFaderGroupElement>& Element : Elements)
+	{
+		const UDMXControlConsoleFixturePatchMatrixCell* MatrixCell = Cast<UDMXControlConsoleFixturePatchMatrixCell>(Element.GetObject());
+		if (!MatrixCell)
+		{
+			continue;
+		}
+
+		// Get cell coordinates
+		const int32 CellX = MatrixCell->GetCellX();
+		const int32 CellY = MatrixCell->GetCellY();
+		const FIntPoint CellCoordinates(CellX, CellY);
+		TMap<FDMXAttributeName, float>& AttributeValueMapRef = CoordinateToMatrixAttributeMap.FindOrAdd(CellCoordinates);
+
+		//Get attribute to value map
+		const TArray<UDMXControlConsoleFaderBase*>& MatrixCellFaders = MatrixCell->GetFaders();
+		for (const UDMXControlConsoleFaderBase* Fader : MatrixCellFaders)
+		{
+			const UDMXControlConsoleFixturePatchCellAttributeFader* CellAttributeFader = CastChecked<UDMXControlConsoleFixturePatchCellAttributeFader>(Fader);
+			const FDMXAttributeName& AttributeName = CellAttributeFader->GetAttributeName();
+			const float ValueRange = CellAttributeFader->GetMaxValue() - CellAttributeFader->GetMinValue();
+			const uint32 Value = CellAttributeFader->GetValue();
+			const float RelativeValue = (Value - CellAttributeFader->GetMinValue()) / ValueRange;
+
+			AttributeValueMapRef.FindOrAdd(AttributeName) = RelativeValue;
+		}
+	}
+
+	return CoordinateToMatrixAttributeMap;
+}
+
 void UDMXControlConsoleFaderGroup::Reset()
 {
 	FaderGroupName = GetName();
@@ -194,7 +300,7 @@ void UDMXControlConsoleFaderGroup::Reset()
 
 	EditorColor = FLinearColor::White;
 
-	ClearFaders();
+	ClearElements();
 }
 
 void UDMXControlConsoleFaderGroup::Destroy()
@@ -202,7 +308,7 @@ void UDMXControlConsoleFaderGroup::Destroy()
 	UDMXControlConsoleFaderGroupRow& FaderGroupRow = GetOwnerFaderGroupRowChecked();
 
 #if WITH_EDITOR
-	FaderGroupRow.PreEditChange(UDMXControlConsoleFaderGroup::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroup::GetFadersPropertyName()));
+	FaderGroupRow.PreEditChange(UDMXControlConsoleFaderGroupRow::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroupRow::GetFaderGroupsPropertyName()));
 #endif // WITH_EDITOR
 
 	FaderGroupRow.DeleteFaderGroup(this);
@@ -217,11 +323,16 @@ void UDMXControlConsoleFaderGroup::ForceRefresh()
 	bForceRefresh = false;
 }
 
+void UDMXControlConsoleFaderGroup::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	FaderGroupName = GetName();
+}
+
 void UDMXControlConsoleFaderGroup::PostLoad()
 {
 	Super::PostLoad();
-
-	FaderGroupName = GetName();
 
 	CachedWeakFixturePatch = Cast<UDMXEntityFixturePatch>(SoftFixturePatchPtr.ToSoftObjectPath().TryLoad());
 }
@@ -241,9 +352,9 @@ void UDMXControlConsoleFaderGroup::PostEditChangeProperty(FPropertyChangedEvent&
 
 void UDMXControlConsoleFaderGroup::GetNextAvailableUniverseAndAddress(int32& OutUniverse, int32& OutAddress) const
 {
-	if (!Faders.IsEmpty())
+	if (!Elements.IsEmpty())
 	{
-		const UDMXControlConsoleRawFader* LastFader = Cast<UDMXControlConsoleRawFader>(Faders.Last());
+		const UDMXControlConsoleRawFader* LastFader = Cast<UDMXControlConsoleRawFader>(Elements.Last().GetObject());
 		if (LastFader)
 		{
 			OutAddress = LastFader->GetEndingAddress() + 1;

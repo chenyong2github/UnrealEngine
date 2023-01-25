@@ -6,6 +6,7 @@
 #include "DMXControlConsoleFaderGroupRow.h"
 #include "IO/DMXOutputPort.h"
 #include "Library/DMXEntityFixturePatch.h"
+#include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXLibrary.h"
 
 #include "Algo/Sort.h"
@@ -179,11 +180,31 @@ void UDMXControlConsole::Tick(float InDeltaTime)
 		UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
 		if (FixturePatch)
 		{
+			// Send Fixture Patch Function DMX data
 			const TMap<FDMXAttributeName, int32> AttributeMap = FaderGroup->GetAttributeMap();
 			FixturePatch->SendDMX(AttributeMap);
+
+			// Send Fixture Patch Matrix DMX data
+			if (FaderGroup->HasMatrixProperties())
+			{
+				const TMap<FIntPoint, TMap<FDMXAttributeName, float>> CoordinateToAttributeMap = FaderGroup->GetMatrixCoordinateToAttributeMap();
+				for (const TTuple<FIntPoint, TMap<FDMXAttributeName, float>>& CoordinateToAttribute : CoordinateToAttributeMap)
+				{
+					const FIntPoint CellCoordinate = CoordinateToAttribute.Key;
+
+					TMap<FDMXAttributeName, float> AttributeToRelativeValueMap = CoordinateToAttribute.Value;
+					for (const TTuple<FDMXAttributeName, float>& AttributeToRelativeValue : AttributeToRelativeValueMap)
+					{
+						const FDMXAttributeName& AttributeName = AttributeToRelativeValue.Key;
+						const float RelativeValue = AttributeToRelativeValue.Value;
+						FixturePatch->SendNormalizedMatrixCellValue(CellCoordinate, AttributeName, RelativeValue);
+					}
+				}
+			}
 		}
 		else
 		{
+			// Send Raw DMX data
 			const TMap<int32, TMap<int32, uint8>> UniverseToFragmentMap = FaderGroup->GetUniverseToFragmentMap();
 			for (const TTuple<int32, TMap<int32, uint8>>& UniverseToFragement : UniverseToFragmentMap)
 			{

@@ -7,6 +7,19 @@
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleFaderBase"
 
+UDMXControlConsoleFaderGroup& UDMXControlConsoleFaderBase::GetOwnerFaderGroupChecked() const
+{
+	UDMXControlConsoleFaderGroup* Outer = Cast<UDMXControlConsoleFaderGroup>(GetOuter());
+	checkf(Outer, TEXT("Invalid outer for '%s', cannot get fader owner correctly."), *GetName());
+
+	return *Outer;
+}
+
+UDMXControlConsoleFaderBase::UDMXControlConsoleFaderBase()
+{
+	ThisFaderAsArray.Add(this);
+}
+
 int32 UDMXControlConsoleFaderBase::GetIndex() const
 {
 	int32 Index = -1;
@@ -17,18 +30,29 @@ int32 UDMXControlConsoleFaderBase::GetIndex() const
 		return Index;
 	}
 
-	const TArray<UDMXControlConsoleFaderBase*> Faders = Outer->GetFaders();
-	Index = Faders.IndexOfByKey(this);
+	const TArray<TScriptInterface<IDMXControlConsoleFaderGroupElement>>& Elements = Outer->GetElements();
+	Index = Elements.IndexOfByKey(this);
 
 	return Index;
 }
 
-UDMXControlConsoleFaderGroup& UDMXControlConsoleFaderBase::GetOwnerFaderGroupChecked() const
+void UDMXControlConsoleFaderBase::Destroy()
 {
 	UDMXControlConsoleFaderGroup* Outer = Cast<UDMXControlConsoleFaderGroup>(GetOuter());
-	checkf(Outer, TEXT("Invalid outer for '%s', cannot get fader index correctly."), *GetName());
+	if (!ensureMsgf(Outer, TEXT("Invalid outer for '%s', cannot destroy fader correctly."), *GetName()))
+	{
+		return;
+	}
 
-	return *Outer;
+#if WITH_EDITOR
+	Outer->PreEditChange(UDMXControlConsoleFaderGroup::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroup::GetElementsPropertyName()));
+#endif // WITH_EDITOR
+
+	Outer->DeleteElement(this);
+
+#if WITH_EDITOR
+	Outer->PostEditChange();
+#endif // WITH_EDITOR
 }
 
 void UDMXControlConsoleFaderBase::SetFaderName(const FString& NewName)
@@ -41,28 +65,14 @@ void UDMXControlConsoleFaderBase::SetValue(const uint32 NewValue)
 	Value = FMath::Clamp(NewValue, MinValue, MaxValue);
 }
 
+void UDMXControlConsoleFaderBase::SetMute(bool bMute)
+{
+	bIsMuted = bMute;
+}
+
 void UDMXControlConsoleFaderBase::ToggleMute()
 {
 	bIsMuted = !bIsMuted;
-}
-
-void UDMXControlConsoleFaderBase::Destroy()
-{
-	UDMXControlConsoleFaderGroup* Outer = Cast<UDMXControlConsoleFaderGroup>(GetOuter());
-	if (!ensureMsgf(Outer, TEXT("Invalid outer for '%s', cannot destroy fader correctly."), *GetName()))
-	{
-		return;
-	}
-
-#if WITH_EDITOR
-	Outer->PreEditChange(UDMXControlConsoleFaderGroup::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroup::GetFadersPropertyName()));
-#endif // WITH_EDITOR
-
-	Outer->DeleteFader(this);
-
-#if WITH_EDITOR
-	Outer->PostEditChange();
-#endif // WITH_EDITOR
 }
 
 void UDMXControlConsoleFaderBase::PostInitProperties()

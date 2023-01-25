@@ -27,50 +27,43 @@ void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TO
 	[
 		SNew(SBox)
 		.WidthOverride(80.f)
-		.HeightOverride(320.f)
-		.Padding(5.f, 0.f)
+		.HeightOverride(300.f)
+		.Padding(InArgs._Padding)
 		[
-			SNew(SScaleBox)
-			.Stretch(EStretch::Fill)
-			[
+			SNew(SBorder)
+			.BorderBackgroundColor(FLinearColor::White)
+			 [
 				SNew(SBorder)
 				.BorderImage(this, &SDMXControlConsoleEditorFader::GetBorderImage)
 				[
 					SNew(SVerticalBox)
 
+					// Top section
 					+ SVerticalBox::Slot()
-					.VAlign(VAlign_Top)
-					.HAlign(HAlign_Fill)
-					.Padding(1.0f, 5.0f, 1.0f, 1.0f)
+					.HAlign(HAlign_Center)
+					.Padding(1.f, 4.f, 1.f, 0.f)
 					.AutoHeight()
-					[					
+					[			
 						SNew(SHorizontalBox)
 		
 						// Fader Name
 						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Fill)					
-						.FillWidth(1.0f)
+						.MaxWidth(40.f)
+						.AutoWidth()
 						[
 							SNew(SBorder)
-							.BorderBackgroundColor(FLinearColor::Black)
-							.OnMouseButtonDown(this, &SDMXControlConsoleEditorFader::OnFaderNameBorderClicked)
+							.BorderBackgroundColor(FLinearColor::White)
 							[
-								SAssignNew(FaderNameTextBox, SInlineEditableTextBlock)
-								.MultiLine(false)
-								.Text(this, &SDMXControlConsoleEditorFader::GetFaderNameText)		
-								.Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+								SNew(STextBlock)
+								.Text(this, &SDMXControlConsoleEditorFader::GetFaderNameText)
+								.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 								.ColorAndOpacity(FLinearColor::White)
-								.Style(FCoreStyle::Get(), "InlineEditableTextBlockSmallStyle")
-								.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnFaderNameCommitted)
 							]
 						]
 
 						// Delete Button
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Top)
-						.HAlign(HAlign_Right)					
-						.Padding(FMargin(1.0f, 0.0f, 0.0f, 0.0f))
+						+ SHorizontalBox::Slot()			
+						.Padding(0.8f, 0.f)
 						.AutoWidth()
 						[
 							SNew(SButton)
@@ -80,49 +73,45 @@ void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TO
 							[
 								SNew(STextBlock)
 								.Text(FText::FromString(TEXT("x")))
-								.Font(FCoreStyle::GetDefaultFontStyle("Regular", 7))
+								.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 								.ColorAndOpacity(FLinearColor::White)
 							]
 						]
 					]
 
+					// Middle section
 					+ SVerticalBox::Slot()
-					.VAlign(VAlign_Top)
 					.HAlign(HAlign_Center)
+					.Padding(0.f, 8.f, 0.f, 0.f)
 					.AutoHeight()
 					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.MaxWidth(50.0f)
+						SNew(SBox)
+						.WidthOverride(30.f)
 						[
-							// Max Value
 							SNew(SVerticalBox)
+					
+							// Max Value
 							+ SVerticalBox::Slot()
-							.VAlign(VAlign_Bottom)
-							.HAlign(HAlign_Fill)
 							.AutoHeight()
 							[
 								SNew(SBorder)
-								.BorderBackgroundColor(FLinearColor::Black)
-								.Padding(5.0f)
+								.BorderBackgroundColor(FLinearColor::White)
+								.Padding(1.0f)
 								[
-									SNew(SInlineEditableTextBlock)
-									.MultiLine(false)
+									SNew(STextBlock)
 									.Text(this, &SDMXControlConsoleEditorFader::GetMaxValueAsText)
+									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 									.Justification(ETextJustify::Center)
-									.Style(FCoreStyle::Get(), "InlineEditableTextBlockSmallStyle")
 								]
 							]
 								
 							// Fader Control
 							+ SVerticalBox::Slot()
-							.VAlign(VAlign_Top)
-							.HAlign(HAlign_Center)
-							.Padding(0.0f, 1.0f, 0.0f, 1.0f)
+							.Padding(4.f, 1.0f)
 							.AutoHeight()
 							[
 								SNew(SBorder)
-								.BorderBackgroundColor(FLinearColor::Black)
+								.BorderBackgroundColor(FLinearColor::White)
 								[
 									SAssignNew(FaderSpinBox, SDMXControlConsoleEditorSpinBoxVertical<uint32>)
 									.Value(this, &SDMXControlConsoleEditorFader::GetValue)
@@ -139,28 +128,22 @@ void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TO
 
 							// Fader Min Value
 							+ SVerticalBox::Slot()
-							.VAlign(VAlign_Bottom)
-							.HAlign(HAlign_Fill)
 							.AutoHeight()
 							[
-								SNew(SScaleBox)
-								.IgnoreInheritedScale(true)
+								SNew(SBorder)
+								.BorderBackgroundColor(FLinearColor::White)
+								.Padding(1.0f)
 								[
-									SNew(SBorder)
-									.BorderBackgroundColor(FLinearColor::Black)
-									.Padding(5.0f)
-									[
-										SNew(SInlineEditableTextBlock)
-										.MultiLine(false)
-										.Text(this, &SDMXControlConsoleEditorFader::GetMinValueAsText)
-										.Justification(ETextJustify::Center)
-										.Style(FCoreStyle::Get(), "InlineEditableTextBlockSmallStyle")
-									]
+									SNew(STextBlock)
+									.Text(this, &SDMXControlConsoleEditorFader::GetMinValueAsText)
+									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+									.Justification(ETextJustify::Center)
 								]
 							]
 						]
 					]
 
+					// Bottom section
 					+ SVerticalBox::Slot()
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
@@ -289,8 +272,8 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFader::GenerateMuteButtonWidget()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SBox)
-				.WidthOverride(20.f)
-				.HeightOverride(20.f)
+				.WidthOverride(16)
+				.HeightOverride(16.f)
 				[
 					SNew(SButton)
 					.ButtonColorAndOpacity(this, &SDMXControlConsoleEditorFader::GetMuteButtonColor)
@@ -301,7 +284,7 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFader::GenerateMuteButtonWidget()
 	
 		+SVerticalBox::Slot()
 		.HAlign(HAlign_Center)
-		.Padding(0.f, 8.f, 0.f, 0.f)
+		.Padding(0.f, 4.f, 0.f, 0.f)
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("MuteButton", "On/Off"))
@@ -330,38 +313,6 @@ FString SDMXControlConsoleEditorFader::GetFaderName() const
 FText SDMXControlConsoleEditorFader::GetFaderNameText() const
 {
 	return Fader.IsValid() ? FText::FromString(Fader->GetFaderName()) : FText::GetEmpty();
-}
-
-FReply SDMXControlConsoleEditorFader::OnFaderNameBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
-{
-	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
-	{
-		FaderNameTextBox->EnterEditingMode();
-	}
-
-	return FReply::Handled();
-}
-
-void SDMXControlConsoleEditorFader::OnFaderNameCommitted(const FText& NewFaderName, ETextCommit::Type InCommit)
-{
-	if (!ensureMsgf(Fader.IsValid(), TEXT("Invalid fader, cannot update fader name correctly.")))
-	{
-		return;
-	}
-
-	if (!FaderNameTextBox.IsValid())
-	{
-		return;
-	}
-
-	const FScopedTransaction EditFaderNameTransaction(LOCTEXT("EditFaderNameTransaction", "Edit Fader Name"));
-	Fader->PreEditChange(UDMXControlConsoleFaderBase::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderBase::GetFaderNamePropertyName()));
-
-	Fader->SetFaderName(NewFaderName.ToString());
-
-	FaderNameTextBox->SetText(FText::FromString(Fader->GetFaderName()));
-
-	Fader->PostEditChange();
 }
 
 uint32 SDMXControlConsoleEditorFader::GetValue() const
@@ -485,14 +436,11 @@ FReply SDMXControlConsoleEditorFader::OnMuteClicked()
 {
 	if (Fader.IsValid())
 	{
+		Fader->ToggleMute();
+
 		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
 		const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
-
-		if (SelectedFadersObjects.IsEmpty() || !SelectedFadersObjects.Contains(Fader))
-		{
-			Fader->ToggleMute();
-		}
-		else
+		if (!SelectedFadersObjects.IsEmpty() && SelectedFadersObjects.Contains(Fader))
 		{
 			for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
 			{
@@ -502,11 +450,11 @@ FReply SDMXControlConsoleEditorFader::OnMuteClicked()
 					continue;
 				}
 
-				SelectedFader->ToggleMute();
-
-				return FReply::Handled();
+				SelectedFader->SetMute(Fader->IsMuted());
 			}
 		}
+
+		return FReply::Handled();
 	}
 
 	return FReply::Unhandled();

@@ -18,6 +18,10 @@ class DMXCONTROLCONSOLE_API UDMXControlConsoleRawFader
 	GENERATED_BODY()
 
 public:
+	//~ Being IDMXControlConsoleFaderGroupElementInterface
+	virtual int32 GetStartingAddress() const override { return StartingAddress; }
+	//~ End IDMXControlConsoleFaderGroupElementInterface
+
 	/** Constructor */
 	UDMXControlConsoleRawFader();
 
@@ -29,9 +33,6 @@ public:
 
 	/** Returns the universe ID to which to should send DMX to */
 	EDMXFixtureSignalFormat GetDataType() const { return DataType; }
-
-	/** Returns the Starting Channel of where to send DMX to */
-	int32 GetStartingAddress() const { return StartingAddress; }
 
 	/** Sets starting/ending address range, according to the number of channels  */
 	virtual void SetAddressRange(int32 InStartingAddress);

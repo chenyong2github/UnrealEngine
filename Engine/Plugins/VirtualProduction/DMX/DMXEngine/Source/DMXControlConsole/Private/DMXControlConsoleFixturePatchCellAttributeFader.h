@@ -6,33 +6,38 @@
 #include "DMXAttribute.h"
 #include "DMXControlConsoleFaderBase.h"
 
-#include "DMXControlConsoleFixturePatchFunctionFader.generated.h"
+#include "DMXControlConsoleFixturePatchCellAttributeFader.generated.h"
 
 enum class EDMXFixtureSignalFormat : uint8;
 struct FDMXAttributeName;
-struct FDMXFixtureFunction;
+struct FDMXFixtureCellAttribute;
+class UDMXControlConsoleFixturePatchMatrixCell;
 
 
-/** A fader matching a Fixture Patch Function in the DMX Control Console. */
+/** A fader matching a Fixture Cell Attribute in the DMX Control Console. */
 UCLASS()
-class DMXCONTROLCONSOLE_API UDMXControlConsoleFixturePatchFunctionFader
+class DMXCONTROLCONSOLE_API UDMXControlConsoleFixturePatchCellAttributeFader
 	: public UDMXControlConsoleFaderBase
 {
 	GENERATED_BODY()
 
 public:
 	//~ Being IDMXControlConsoleFaderGroupElementInterface
+	virtual UDMXControlConsoleFaderGroup& GetOwnerFaderGroupChecked() const override;
+	virtual int32 GetIndex() const override;
 	virtual int32 GetStartingAddress() const override { return StartingAddress; }
+	virtual int32 GetEndingAddress() const override { return EndingAddress; }
+	virtual void Destroy() override;
 	//~ End IDMXControlConsoleFaderGroupElementInterface
 
 	/** Constructor */
-	UDMXControlConsoleFixturePatchFunctionFader();
+	UDMXControlConsoleFixturePatchCellAttributeFader();
 
-	/** Sets Fader's properties values using the given Fixture Function */
-	void SetPropertiesFromFixtureFunction(const FDMXFixtureFunction& FixtureFunction, const int32 InUniverseID, const int32 StartingChannel);
+	/** Sets Matrix Cell Fader's properties values using the given Fixture Cell Attribute */
+	void SetPropertiesFromFixtureCellAttribute(const FDMXFixtureCellAttribute& FixtureCellAttribute, const int32 InUniverseID, const int32 StartingChannel);
 
-	/** Returns the universe ID to which to should send DMX to */
-	int32 GetUniverseID() const { return UniverseID; }
+	/** Gets the owner Matrix Cell of this Matrix Cell Fader */
+	UDMXControlConsoleFixturePatchMatrixCell& GetOwnerMatrixCellChecked() const;
 
 	/** Returns the universe ID to which to should send DMX to */
 	EDMXFixtureSignalFormat GetDataType() const { return DataType; }
@@ -44,14 +49,10 @@ public:
 	const FDMXAttributeName& GetAttributeName() const { return Attribute; }
 
 	// Property Name getters
-	FORCEINLINE static FName GetUniverseIDPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFixturePatchFunctionFader, UniverseID); }
-	FORCEINLINE static FName GetStartingAddressPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFixturePatchFunctionFader, StartingAddress); }
-	FORCEINLINE static FName GetAttributePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFixturePatchFunctionFader, Attribute); }
+	FORCEINLINE static FName GetStartingAddressPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFixturePatchCellAttributeFader, StartingAddress); }
+	FORCEINLINE static FName GetAttributePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFixturePatchCellAttributeFader, Attribute); }
 
 private:
-	/** Sets a new universe ID */
-	virtual void SetUniverseID(int32 InUniversID);
-
 	/** Sets this fader's number of channels */
 	virtual void SetDataType(EDMXFixtureSignalFormat InDataType);
 
@@ -61,10 +62,6 @@ private:
 	/** Sets starting/ending address range, according to the number of channels  */
 	virtual void SetAddressRange(int32 InStartingAddress);
 
-	/** The universe DMX data should be send to */
-	UPROPERTY(VisibleAnywhere, meta = (DisplayPriority = "3"), Category = "DMX Fader")
-	int32 UniverseID = 1;
-
 	/** The starting channel Address to send DMX to */
 	UPROPERTY(VisibleAnywhere, meta = (DisplayPriority = "4"), Category = "DMX Fader")
 	int32 StartingAddress = 1;
@@ -73,6 +70,7 @@ private:
 	UPROPERTY(VisibleAnywhere, meta = (DisplayPriority = "9"), Category = "DMX Fader")
 	bool bUseLSBMode = false;
 
+	/** Name of the attribute mapped to this Fader */
 	UPROPERTY(VisibleAnywhere, meta = (DisplayName = "Attribute Mapping", DisplayPriority = "2"), Category = "DMX Fader")
 	FDMXAttributeName Attribute;
 

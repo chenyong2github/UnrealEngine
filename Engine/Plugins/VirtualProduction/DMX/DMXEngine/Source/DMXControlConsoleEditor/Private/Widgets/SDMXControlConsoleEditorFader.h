@@ -19,11 +19,16 @@ class SDMXControlConsoleEditorFader
 public:
 	SLATE_BEGIN_ARGS(SDMXControlConsoleEditorFader)
 	{}
+		
+		SLATE_ARGUMENT(FMargin, Padding)
 
 	SLATE_END_ARGS()
 
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs, const TObjectPtr<UDMXControlConsoleFaderBase>& InFader);
+
+	/** Gets the Fader this Fader widget is based on */
+	UDMXControlConsoleFaderBase* GetFader() const { return Fader.Get(); }
 
 	/** Sets the value of the fader by a percentage value */
 	void SetValueByPercentage(float InNewPercentage);
@@ -47,12 +52,6 @@ private:
 
 	/**  Gets current FaderName */
 	FText GetFaderNameText() const;
-
-	/** Called when the FaderName border was Clicked */
-	FReply OnFaderNameBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
-
-	/** Called when the fader name changes */
-	void OnFaderNameCommitted(const FText& NewFaderName, ETextCommit::Type InCommit);
 
 	/** Gets Fader's value */
 	uint32 GetValue() const;
@@ -95,9 +94,6 @@ private:
 
 	/** Reference to the Fader being displayed */
 	TWeakObjectPtr<UDMXControlConsoleFaderBase> Fader;
-
-	/** Widget showing the freely definable name of the fader */
-	TSharedPtr<SInlineEditableTextBlock> FaderNameTextBox;
 
 	/** The actual editable fader */
 	TSharedPtr<SDMXControlConsoleEditorSpinBoxVertical<uint32>> FaderSpinBox;

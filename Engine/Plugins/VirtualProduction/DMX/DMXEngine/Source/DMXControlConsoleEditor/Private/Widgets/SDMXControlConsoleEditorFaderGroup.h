@@ -8,6 +8,7 @@
 #include "Widgets/Input/SButton.h"
 
 class SDMXControlConsoleEditorFaderGroupView;
+class SDMXControlConsoleEditorExpandArrowButton;
 class UDMXControlConsoleFaderGroup;
 
 struct FSlateBrush;
@@ -36,6 +37,9 @@ public:
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs, const TWeakPtr<SDMXControlConsoleEditorFaderGroupView>& InFaderGroupView);
 
+	/** Gets a reference to this widget's ExpandArrow button */
+	TSharedPtr<SDMXControlConsoleEditorExpandArrowButton>& GetExpandArrowButton() { return ExpandArrowButton; }
+
 protected:
 	//~ Begin SWidget interface
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
@@ -50,9 +54,6 @@ private:
 	/** Gets wheter this Fader Group is selected or not */
 	bool IsSelected() const;
 
-	/** Generates ExpanderArrow widget  */
-	TSharedRef<SButton> GenerateExpanderArrow();
-
 	/** Called when fader group selection changes */
 	void OnSelectionChanged(UDMXControlConsoleFaderGroup* InFaderGroup);
 
@@ -65,9 +66,6 @@ private:
 	/** Manages vertical Add Button widget's visibility */
 	EVisibility GetAddRowButtonVisibility() const;
 
-	/** Gets brush for the Expander Button */
-	const FSlateBrush* GetExpanderImage() const;
-
 	/** Gets border color according to the Fader Group */
 	FSlateColor GetFaderGroupBorderColor() const;
 
@@ -78,7 +76,7 @@ private:
 	TWeakPtr<SDMXControlConsoleEditorFaderGroupView> FaderGroupView;
 
 	/** Faders Widget's expander arrow button */
-	TSharedPtr<SButton> ExpanderArrow;
+	TSharedPtr<SDMXControlConsoleEditorExpandArrowButton> ExpandArrowButton;
 
 	/** Shows/Modifies Fader Group Name */
 	TSharedPtr<SEditableTextBox> FaderGroupNameTextBox;
@@ -86,5 +84,4 @@ private:
 	// Slate Arguments
 	FOnClicked OnAddFaderGroup;
 	FOnClicked OnAddFaderGroupRow;
-	FOnClicked OnExpanded;
 };

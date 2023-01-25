@@ -9,6 +9,7 @@
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "Views/SDMXControlConsoleEditorFaderGroupView.h"
 #include "Widgets/SDMXControlConsoleEditorAddButton.h"
+#include "Widgets/SDMXControlConsoleEditorExpandArrowButton.h"
 
 #include "ScopedTransaction.h"
 #include "Framework/Application/SlateApplication.h"
@@ -35,7 +36,6 @@ void SDMXControlConsoleEditorFaderGroup::Construct(const FArguments& InArgs, con
 
 	OnAddFaderGroup = InArgs._OnAddFaderGroup;
 	OnAddFaderGroupRow = InArgs._OnAddFaderGroupRow;
-	OnExpanded = InArgs._OnExpanded;
 
 	ChildSlot
 	[
@@ -44,67 +44,49 @@ void SDMXControlConsoleEditorFaderGroup::Construct(const FArguments& InArgs, con
 		.HeightOverride(300.f)
 		[
 			SNew(SBorder)
-			.BorderBackgroundColor(this, &SDMXControlConsoleEditorFaderGroup::GetFaderGroupBorderColor)
-			.BorderImage(FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.WhiteBrush"))
+			.BorderImage(this, &SDMXControlConsoleEditorFaderGroup::GetFaderGroupBorderImage)
 			[
-				SNew(SBorder)
-				.BorderImage(this, &SDMXControlConsoleEditorFaderGroup::GetFaderGroupBorderImage)
+				SNew(SVerticalBox)
+
+				// Top interface
+				+ SVerticalBox::Slot()
+				.FillHeight(.1f)
+				.Padding(2.f, 2.f, 2.f, 0.f)
 				[
-					SNew(SVerticalBox)
-
-					//Top interface
-					+ SVerticalBox::Slot()
-					.FillHeight(.1f)
-					.Padding(2.f, 2.f, 2.f, 0.f)
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.FillWidth(.8f)
 					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.FillWidth(.8f)
-						[
-							SAssignNew(FaderGroupNameTextBox, SEditableTextBox)
-							.Text(this, &SDMXControlConsoleEditorFaderGroup::OnGetFaderGroupNameText)
-							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-							.OnTextCommitted(this, &SDMXControlConsoleEditorFaderGroup::OnFaderGroupNameCommitted)
-						]
-						+ SHorizontalBox::Slot()
-						.FillWidth(.2f)
-						[
-							GenerateExpanderArrow()
-						]
+						SAssignNew(FaderGroupNameTextBox, SEditableTextBox)
+						.Text(this, &SDMXControlConsoleEditorFaderGroup::OnGetFaderGroupNameText)
+						.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						.OnTextCommitted(this, &SDMXControlConsoleEditorFaderGroup::OnFaderGroupNameCommitted)
 					]
-
-					//Add slot button
-					+ SVerticalBox::Slot()
-					.FillHeight(.6f)
+					+ SHorizontalBox::Slot()
+					.FillWidth(.2f)
 					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.FillWidth(.8f)
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						[
-							SNew(SBox)
-						]
-
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						[
-							SNew(SBox)
-							.WidthOverride(25.f)
-							.HeightOverride(25.f)
-							.Padding(5.f)
-							[
-								SNew(SDMXControlConsoleEditorAddButton)
-								.OnClicked(OnAddFaderGroup)
-							]
-						]
+						SAssignNew(ExpandArrowButton, SDMXControlConsoleEditorExpandArrowButton)
 					]
+				]
 
-					//Add row button
-					+ SVerticalBox::Slot()
+				// Add slot button
+				+ SVerticalBox::Slot()
+				.FillHeight(.6f)
+				[
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.FillWidth(.8f)
 					.HAlign(HAlign_Center)
-					.AutoHeight()
+					.VAlign(VAlign_Center)
+					.Padding(12.f, 0.f, 0.f, 0.f)
+					[
+						SNew(SBox)
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
 					[
 						SNew(SBox)
 						.WidthOverride(25.f)
@@ -112,9 +94,24 @@ void SDMXControlConsoleEditorFaderGroup::Construct(const FArguments& InArgs, con
 						.Padding(5.f)
 						[
 							SNew(SDMXControlConsoleEditorAddButton)
-							.OnClicked(OnAddFaderGroupRow)
-							.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroup::GetAddRowButtonVisibility))
+							.OnClicked(OnAddFaderGroup)
 						]
+					]
+				]
+
+				// Add row button
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Center)
+				.AutoHeight()
+				[
+					SNew(SBox)
+					.WidthOverride(25.f)
+					.HeightOverride(25.f)
+					.Padding(5.f)
+					[
+						SNew(SDMXControlConsoleEditorAddButton)
+						.OnClicked(OnAddFaderGroupRow)
+						.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroup::GetAddRowButtonVisibility))
 					]
 				]
 			]
@@ -194,7 +191,6 @@ FReply SDMXControlConsoleEditorFaderGroup::OnMouseButtonDown(const FGeometry& My
 				if (!bWasInitiallySelected)
 				{
 					SelectionHandler->AddToSelection(FaderGroup);
-					FaderGroupView.Pin()->ExpandFadersWidget();
 				}
 				else
 				{
@@ -204,6 +200,12 @@ FReply SDMXControlConsoleEditorFaderGroup::OnMouseButtonDown(const FGeometry& My
 			else 
 			{
 				SelectionHandler->Multiselect(FaderGroup);
+			}
+
+			// Expand/Collapse ExpandArrowButton according to Fader Group selection state
+			if (ExpandArrowButton.IsValid())
+			{
+				ExpandArrowButton->SetExpandArrow(!bWasInitiallySelected);
 			}
 		}
 	}
@@ -226,26 +228,6 @@ bool SDMXControlConsoleEditorFaderGroup::IsSelected() const
 
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
 	return SelectionHandler->IsSelected(FaderGroup);
-}
-
-TSharedRef<SButton> SDMXControlConsoleEditorFaderGroup::GenerateExpanderArrow()
-{
-	SAssignNew(ExpanderArrow, SButton)
-		.ButtonStyle(FCoreStyle::Get(), "NoBorder")
-		.ClickMethod(EButtonClickMethod::MouseDown)
-		.ContentPadding(0.f)
-		.ForegroundColor(FSlateColor::UseForeground())
-		.IsFocusable(false)
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		.OnClicked(OnExpanded)
-		[
-			SNew(SImage)
-			.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-			.Image(this, &SDMXControlConsoleEditorFaderGroup::GetExpanderImage)
-		];
-
-	return ExpanderArrow.ToSharedRef();
 }
 
 void SDMXControlConsoleEditorFaderGroup::OnSelectionChanged(UDMXControlConsoleFaderGroup* InFaderGroup)
@@ -304,44 +286,6 @@ EVisibility SDMXControlConsoleEditorFaderGroup::GetAddRowButtonVisibility() cons
 
 	const int32 Index = FaderGroupView.Pin()->GetIndex();
 	return Index == 0 ? EVisibility::Visible : EVisibility::Hidden;
-}
-
-const FSlateBrush* SDMXControlConsoleEditorFaderGroup::GetExpanderImage() const
-{
-	if (!FaderGroupView.IsValid())
-	{
-		return nullptr;
-	}
-
-	FName ResourceName;
-	if (FaderGroupView.Pin()->IsExpanded())
-	{
-		if (ExpanderArrow->IsHovered())
-		{
-			constexpr TCHAR ExpandedHoveredName[] = TEXT("TreeArrow_Collapsed_Hovered");
-			ResourceName = ExpandedHoveredName;
-		}
-		else
-		{
-			constexpr TCHAR ExpandedName[] = TEXT("TreeArrow_Collapsed");
-			ResourceName = ExpandedName;
-		}
-	}
-	else
-	{
-		if (ExpanderArrow->IsHovered())
-		{
-			constexpr TCHAR CollapsedHoveredName[] = TEXT("TreeArrow_Expanded_Hovered");
-			ResourceName = CollapsedHoveredName;
-		}
-		else
-		{
-			constexpr TCHAR CollapsedName[] = TEXT("TreeArrow_Expanded");
-			ResourceName = CollapsedName;
-		}
-	}
-
-	return FCoreStyle::Get().GetBrush(ResourceName);
 }
 
 FSlateColor SDMXControlConsoleEditorFaderGroup::GetFaderGroupBorderColor() const

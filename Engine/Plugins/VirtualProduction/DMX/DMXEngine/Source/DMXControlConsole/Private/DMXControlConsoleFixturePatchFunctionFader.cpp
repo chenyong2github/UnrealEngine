@@ -15,7 +15,7 @@ UDMXControlConsoleFixturePatchFunctionFader::UDMXControlConsoleFixturePatchFunct
 void UDMXControlConsoleFixturePatchFunctionFader::SetPropertiesFromFixtureFunction(const FDMXFixtureFunction& FixtureFunction, const int32 InUniverseID, const int32 StartingChannel)
 {
 	// Order of initialization matters
-	FaderName = FixtureFunction.FunctionName;
+	FaderName = FixtureFunction.Attribute.Name.ToString();
 	Attribute = FixtureFunction.Attribute;
 
 	SetUniverseID(InUniverseID);

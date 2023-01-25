@@ -55,7 +55,7 @@ int32 UDMXControlConsoleFaderGroupRow::GetRowIndex() const
 UDMXControlConsole& UDMXControlConsoleFaderGroupRow::GetOwnerControlConsoleChecked() const
 {
 	UDMXControlConsole* Outer = Cast<UDMXControlConsole>(GetOuter());
-	checkf(Outer, TEXT("Invalid outer for '%s', cannot get fader group row index correctly."), *GetName());
+	checkf(Outer, TEXT("Invalid outer for '%s', cannot get fader group row owner correctly."), *GetName());
 
 	return *Outer;
 }

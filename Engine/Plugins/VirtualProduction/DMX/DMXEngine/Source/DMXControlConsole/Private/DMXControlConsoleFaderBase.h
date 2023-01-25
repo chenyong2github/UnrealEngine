@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "IDMXControlConsoleFaderGroupElement.h"
+
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 
@@ -14,24 +16,28 @@ class UDMXControlConsoleFaderGroup;
 UCLASS(Abstract)
 class DMXCONTROLCONSOLE_API UDMXControlConsoleFaderBase
 	: public UObject
+	, public IDMXControlConsoleFaderGroupElement
 {
 	GENERATED_BODY()
 
 public:
-	/** Gets this Fader's index according to its Fader Group owner */
-	virtual int32 GetIndex() const;
+	/** Constructor */
+	UDMXControlConsoleFaderBase();
 
-	/** Gets the owner Fader Group of this Fader */
-	UDMXControlConsoleFaderGroup& GetOwnerFaderGroupChecked() const;
+	//~ Being IDMXControlConsoleFaderGroupElementInterface
+	virtual UDMXControlConsoleFaderGroup& GetOwnerFaderGroupChecked() const override;
+	virtual int32 GetIndex() const override;
+	virtual const TArray<UDMXControlConsoleFaderBase*>& GetFaders() const override { return ThisFaderAsArray; }
+	virtual int32 GetStartingAddress() const override PURE_VIRTUAL(UDMXControlConsoleFaderBase::GetStartingAddress, return 0;);
+	virtual int32 GetEndingAddress() const override { return EndingAddress; }
+	virtual void Destroy() override;
+	//~ End IDMXControlConsoleFaderGroupElementInterface
 
 	/** Gets the name of the Fader */
 	const FString& GetFaderName() const { return FaderName; };
 
 	/** Sets the name of the Fader */
 	virtual void SetFaderName(const FString& NewName); 
-
-	/** Returns the Ending Channel to which to send DMX to */
-	int32 GetEndingAddress() const { return EndingAddress; }
 
 	/** Returns the current value of the fader */
 	uint32 GetValue() const { return Value; }
@@ -48,11 +54,11 @@ public:
 	/** Gets wheter this Fader cans send DMX data */
 	bool IsMuted() const { return bIsMuted; }
 
-	/** Mutes/Unmutes this fader */
-	void ToggleMute();
+	/** Sets mute state of thi fader */
+	virtual void SetMute(bool bMute);
 
-	/** Destroys this Fader */
-	virtual void Destroy();
+	/** Mutes/Unmutes this fader */
+	virtual void ToggleMute();
 
 	// Property Name getters
 	FORCEINLINE static FName GetFaderNamePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, FaderName); }
@@ -88,6 +94,9 @@ protected:
 	/** The maximum Fader Value */
 	UPROPERTY(VisibleAnywhere, meta = (DisplayPriority = "8"), Category = "DMX Fader")
 	uint32 MaxValue = 255;
+
+	/** This fader as an array for fast access */
+	TArray<UDMXControlConsoleFaderBase*> ThisFaderAsArray;
 
 	/** If true, the fader doesn't send DMX */
 	bool bIsMuted = false;

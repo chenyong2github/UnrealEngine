@@ -8,10 +8,13 @@
 #include "DMXControlConsoleFaderGroup.generated.h"
 
 struct FDMXAttributeName;
+struct FDMXCell;
 struct FDMXFixtureFunction;
+class IDMXControlConsoleFaderGroupElement;
 class UDMXControlConsoleFaderBase;
 class UDMXControlConsoleFaderGroupRow;
 class UDMXControlConsoleFixturePatchFunctionFader;
+class UDMXControlConsoleFixturePatchMatrixCell;
 class UDMXControlConsoleRawFader;
 class UDMXEntityFixturePatch;
 
@@ -30,14 +33,20 @@ public:
 	/** Adds a fixture patch function fader to this Fader Group */
 	UDMXControlConsoleFixturePatchFunctionFader* AddFixturePatchFunctionFader(const FDMXFixtureFunction& FixtureFunction, const int32 InUniverseID, const int32 StartingChannel);
 
-	/** Deletes a fader from this Fader Group */
-	void DeleteFader(const TObjectPtr<UDMXControlConsoleFaderBase>& Fader);
+	/** Adds a fixture patch matrix cell to this Fader Group */
+	UDMXControlConsoleFixturePatchMatrixCell* AddFixturePatchMatrixCell(const FDMXCell& Cell, const int32 InUniverseID, const int32 StartingChannel);
 
-	/** Clears Faders array */
-	void ClearFaders();
+	/** Deletes an Element from this Fader Group */
+	void DeleteElement(const TScriptInterface<IDMXControlConsoleFaderGroupElement>& Element);
+
+	/** Clears all Elements in this Group */
+	void ClearElements();
 
 	/** Gets the Faders array of this Fader Group */
-	const TArray<UDMXControlConsoleFaderBase*>& GetFaders() const { return Faders; }
+	TArray<TScriptInterface<IDMXControlConsoleFaderGroupElement>> GetElements() const { return Elements; };
+
+	/** Gets all single faders from Faders array Fader Group */
+	TArray<UDMXControlConsoleFaderBase*> GetAllFaders() const;
 
 	/** Gets this Fader Group's index according to its Fader Group Row owner */
 	int32 GetIndex() const;
@@ -63,11 +72,17 @@ public:
 	/** Gets wheter this Fader Group is binded to a Fixture Patch */
 	bool HasFixturePatch() const;
 
+	/** Gets wheter this Fader Group has Matrix Faders */
+	bool HasMatrixProperties() const;
+
 	/** Gets a universeID to fragment map for the current list of Raw Faders */
 	TMap<int32, TMap<int32, uint8>> GetUniverseToFragmentMap() const;
 
 	/** Gets an AttributeName to values map for the current list of Fixture Patch Function Faders */
 	TMap<FDMXAttributeName, int32> GetAttributeMap() const;
+
+	/** Gets a cell coordinate to AttributeName/Value map for the current list of Fixture Patch Matrix Faders */
+	TMap<FIntPoint, TMap<FDMXAttributeName, float>> GetMatrixCoordinateToAttributeMap() const;
 
 	/** Resets this Fader Group to its default parameters */
 	void Reset();
@@ -82,13 +97,14 @@ public:
 	bool HasForceRefresh() const { return bForceRefresh; }
 
 	// Property Name getters
-	FORCEINLINE static FName GetFadersPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, Faders); }
+	FORCEINLINE static FName GetElementsPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, Elements); }
 	FORCEINLINE static FName GetFaderGroupNamePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, FaderGroupName); }
 	FORCEINLINE static FName GetSoftFixturePatchPtrPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, SoftFixturePatchPtr); }
 	FORCEINLINE static FName GetEditorColorPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, EditorColor); }
 
 protected:
 	//~ Begin UObject interface
+	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -110,10 +126,10 @@ private:
 	/** Cached fixture patch for faster access */
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UDMXEntityFixturePatch> CachedWeakFixturePatch;
-	
-	/** Faders array of this Fader Group */
+
+	/** Elements in this Fader Group */
 	UPROPERTY()
-	TArray<TObjectPtr<UDMXControlConsoleFaderBase>> Faders;
+	TArray<TScriptInterface<IDMXControlConsoleFaderGroupElement>> Elements;
 
 	/** Color for Fader Group representation on the Editor */
 	UPROPERTY(EditAnywhere, Category = "DMX Fader Group")

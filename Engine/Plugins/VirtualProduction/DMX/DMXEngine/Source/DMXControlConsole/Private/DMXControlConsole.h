@@ -33,7 +33,7 @@ public:
 	/** Gets this DMX Control Console's Fader Group Rows array */
 	const TArray<UDMXControlConsoleFaderGroupRow*>& GetFaderGroupRows() const { return FaderGroupRows; }
 
-	/** Gets an array of alla Fader Groups in this DMX Control Console */
+	/** Gets an array of all Fader Groups in this DMX Control Console */
 	TArray<UDMXControlConsoleFaderGroup*> GetAllFaderGroups() const;
 
 	/** Generates sorted Fader Groups based on the DMX Control Console's current DMX Library */
