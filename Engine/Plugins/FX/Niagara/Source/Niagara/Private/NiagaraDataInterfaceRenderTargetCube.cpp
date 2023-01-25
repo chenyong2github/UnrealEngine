@@ -723,13 +723,12 @@ void FNiagaraDataInterfaceProxyRenderTargetCubeProxy::PostSimulate(const FNDIGpu
 	ProxyData->TransientRDGUAV = nullptr;
 }
 
-FIntVector FNiagaraDataInterfaceProxyRenderTargetCubeProxy::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const
+void FNiagaraDataInterfaceProxyRenderTargetCubeProxy::GetDispatchArgs(const FNDIGpuComputeDispatchArgsGenContext& Context)
 {
-	if ( const FRenderTargetCubeRWInstanceData_RenderThread* TargetData = SystemInstancesToProxyData_RT.Find(SystemInstanceID) )
+	if ( const FRenderTargetCubeRWInstanceData_RenderThread* TargetData = SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID()) )
 	{
-		return FIntVector(TargetData->Size, TargetData->Size, 6);
+		Context.SetDirect(FIntVector(TargetData->Size, TargetData->Size, 6));
 	}
-	return FIntVector::ZeroValue;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -2694,23 +2694,22 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostSimulate(const FNDIGpu
 	}
 }
 
-FIntVector FNiagaraDataInterfaceProxyGrid2DCollectionProxy::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const
+void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::GetDispatchArgs(const FNDIGpuComputeDispatchArgsGenContext& Context)
 {
-	if ( const FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(SystemInstanceID) )
+	if ( const FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID()) )
 	{
 		// support a grid reader acting as an iteration source
 		if (ProxyData->OtherProxy != nullptr)
 		{
 			FNiagaraDataInterfaceProxyGrid2DCollectionProxy* OtherGrid2DProxy = static_cast<FNiagaraDataInterfaceProxyGrid2DCollectionProxy*>(ProxyData->OtherProxy);
-			const FGrid2DCollectionRWInstanceData_RenderThread* OtherProxyData = OtherGrid2DProxy->SystemInstancesToProxyData_RT.Find(SystemInstanceID);
-			return  FIntVector(OtherProxyData->NumCells.X, OtherProxyData->NumCells.Y, 1);
+			const FGrid2DCollectionRWInstanceData_RenderThread* OtherProxyData = OtherGrid2DProxy->SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID());
+			Context.SetDirect(OtherProxyData->NumCells);
 		}
 		else
 		{
-			return FIntVector(ProxyData->NumCells.X, ProxyData->NumCells.Y, 1);
+			Context.SetDirect(ProxyData->NumCells);
 		}		
 	}
-	return FIntVector::ZeroValue;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -745,13 +745,12 @@ void FNiagaraDataInterfaceProxyNeighborGrid3D::PostSimulate(const FNDIGpuCompute
 	}
 }
 
-FIntVector FNiagaraDataInterfaceProxyNeighborGrid3D::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const
+void FNiagaraDataInterfaceProxyNeighborGrid3D::GetDispatchArgs(const FNDIGpuComputeDispatchArgsGenContext& Context)
 {
-	if ( const FNDINeighborGrid3DInstanceData_RT* TargetData = SystemInstancesToProxyData_RT.Find(SystemInstanceID) )
+	if ( const FNDINeighborGrid3DInstanceData_RT* TargetData = SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID()) )
 	{
-		return TargetData->NumCells;
+		Context.SetDirect(TargetData->NumCells);
 	}
-	return FIntVector::ZeroValue;
 }
 
 bool UNiagaraDataInterfaceNeighborGrid3D::CopyToInternal(UNiagaraDataInterface* Destination) const

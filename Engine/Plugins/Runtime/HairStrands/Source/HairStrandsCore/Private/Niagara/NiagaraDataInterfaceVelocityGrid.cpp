@@ -739,14 +739,12 @@ void FNDIVelocityGridProxy::ResetData(const FNDIGpuComputeResetContext& Context)
 	}
 }
 
-// Get the element count for this instance
-FIntVector FNDIVelocityGridProxy::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const
+void FNDIVelocityGridProxy::GetDispatchArgs(const FNDIGpuComputeDispatchArgsGenContext& Context)
 {
-	if  ( const FNDIVelocityGridData* ProxyData = SystemInstancesToProxyData.Find(SystemInstanceID) )
+	if  ( const FNDIVelocityGridData* ProxyData = SystemInstancesToProxyData.Find(Context.GetSystemInstanceID()) )
 	{
-		return FIntVector(ProxyData->GridSize.X + 1, ProxyData->GridSize.Y + 1, ProxyData->GridSize.Z + 1);
+		Context.SetDirect(FIntVector(ProxyData->GridSize.X + 1, ProxyData->GridSize.Y + 1, ProxyData->GridSize.Z + 1));
 	}
-	return FIntVector::ZeroValue;
 }
 
 #undef LOCTEXT_NAMESPACE

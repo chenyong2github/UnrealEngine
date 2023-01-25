@@ -78,7 +78,7 @@ struct FNiagaraDataInterfaceProxyRenderTarget2DProxy : public FNiagaraDataInterf
 	virtual void PostStage(const FNDIGpuComputePostStageContext& Context) override;
 	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override;
 
-	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override;
+	virtual void GetDispatchArgs(const FNDIGpuComputeDispatchArgsGenContext& Context) override;
 
 	/* List of proxy data for each system instances*/
 	// #todo(dmp): this should all be refactored to avoid duplicate code

@@ -152,8 +152,8 @@ struct FNDIVelocityGridProxy : public FNiagaraDataInterfaceProxyRW
 	/** Reset the buffers  */
 	virtual void ResetData(const FNDIGpuComputeResetContext& Context) override;
 
-	// Get the element count for this instance
-	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override;
+	// Get the dispatch arguments for this instance
+	virtual void GetDispatchArgs(const FNDIGpuComputeDispatchArgsGenContext& Context) override;
 
 	/** List of proxy data for each system instances*/
 	TMap<FNiagaraSystemInstanceID, FNDIVelocityGridData> SystemInstancesToProxyData;

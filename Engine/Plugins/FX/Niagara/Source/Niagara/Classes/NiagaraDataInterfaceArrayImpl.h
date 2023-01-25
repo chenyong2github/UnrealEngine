@@ -472,22 +472,12 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 		GameToRenderInstanceData->~FGameToRenderInstanceData();
 	}
 
-	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override
+	virtual void GetDispatchArgs(const FNDIGpuComputeDispatchArgsGenContext& Context) override
 	{
-		if (const FNDIArrayInstanceData_RenderThread<TArrayType>* InstanceData_RT = PerInstanceData_RenderThread.Find(SystemInstanceID))
+		if (const FNDIArrayInstanceData_RenderThread<TArrayType>* InstanceData_RT = PerInstanceData_RenderThread.Find(Context.GetSystemInstanceID()))
 		{
-			return FIntVector(InstanceData_RT->NumElements, 1, 1);
+			Context.SetDirect(InstanceData_RT->NumElements, InstanceData_RT->CountOffset);
 		}
-		return FIntVector::ZeroValue;
-	}
-
-	virtual uint32 GetGPUInstanceCountOffset(FNiagaraSystemInstanceID SystemInstanceID) const override
-	{
-		if (const FNDIArrayInstanceData_RenderThread<TArrayType>* InstanceData_RT = PerInstanceData_RenderThread.Find(SystemInstanceID))
-		{
-			return InstanceData_RT->CountOffset;
-		}
-		return INDEX_NONE;
 	}
 
 	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override

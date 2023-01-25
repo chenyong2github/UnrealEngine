@@ -1189,13 +1189,12 @@ void FNiagaraDataInterfaceProxyRasterizationGrid3D::PostSimulate(const FNDIGpuCo
 	}
 }
 
-FIntVector FNiagaraDataInterfaceProxyRasterizationGrid3D::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const
+void FNiagaraDataInterfaceProxyRasterizationGrid3D::GetDispatchArgs(const FNDIGpuComputeDispatchArgsGenContext& Context)
 {
-	if ( const RasterizationGrid3DRWInstanceData* TargetData = SystemInstancesToProxyData.Find(SystemInstanceID) )
+	if ( const RasterizationGrid3DRWInstanceData* TargetData = SystemInstancesToProxyData.Find(Context.GetSystemInstanceID()) )
 	{
-		return TargetData->NumCells;
+		Context.SetDirect(TargetData->NumCells);
 	}
-	return FIntVector::ZeroValue;
 }
 
 bool UNiagaraDataInterfaceRasterizationGrid3D::CopyToInternal(UNiagaraDataInterface* Destination) const

@@ -72,7 +72,7 @@ namespace NDIIntRenderTarget2DLocal
 
 struct FNDIIntRenderTarget2DInstanceData_GameThread
 {
-	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
+	FIntVector2 Size = FIntVector2(EForceInit::ForceInitToZero);
 	EPixelFormat Format = EPixelFormat::PF_R32_SINT;
 #if WITH_EDITORONLY_DATA
 	bool bPreviewRenderTarget = false;
@@ -87,7 +87,7 @@ struct FNDIIntRenderTarget2DInstanceData_GameThread
 
 struct FNDIIntRenderTarget2DInstanceData_RenderThread
 {
-	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
+	FIntVector2 Size = FIntVector2(EForceInit::ForceInitToZero);
 #if WITH_EDITORONLY_DATA
 	bool bPreviewRenderTarget = false;
 	FVector2D PreviewDisplayRange = FVector2D(0.0f, 255.0f);
@@ -154,13 +154,12 @@ struct FNDIIntRenderTarget2DProxy : public FNiagaraDataInterfaceProxyRW
 		}
 	}
 
-	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override
+	virtual void GetDispatchArgs(const FNDIGpuComputeDispatchArgsGenContext& Context) override
 	{
-		if (const FNDIIntRenderTarget2DInstanceData_RenderThread* InstanceData = SystemInstancesToProxyData_RT.Find(SystemInstanceID))
+		if (const FNDIIntRenderTarget2DInstanceData_RenderThread* InstanceData = SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID()))
 		{
-			return FIntVector(InstanceData->Size.X, InstanceData->Size.Y, 1);
+			Context.SetDirect(InstanceData->Size);
 		}
-		return FIntVector::ZeroValue;
 	}
 
 	TMap<FNiagaraSystemInstanceID, FNDIIntRenderTarget2DInstanceData_RenderThread> SystemInstancesToProxyData_RT;

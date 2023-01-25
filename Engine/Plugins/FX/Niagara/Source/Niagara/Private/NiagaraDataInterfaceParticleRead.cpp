@@ -257,9 +257,9 @@ struct FNiagaraDataInterfaceProxyParticleRead : public FNiagaraDataInterfaceProx
 		return SystemsRenderData.Find(InstanceID);
 	}
 
-	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override
+	virtual void GetDispatchArgs(const FNDIGpuComputeDispatchArgsGenContext& Context) override
 	{
-		const FNDIParticleRead_RenderInstanceData* InstanceData = SystemsRenderData.Find(SystemInstanceID);
+		const FNDIParticleRead_RenderInstanceData* InstanceData = SystemsRenderData.Find(Context.GetSystemInstanceID());
 		if (ensure(InstanceData))
 		{
 			if ( InstanceData->SourceEmitterGPUContext != nullptr )
@@ -268,32 +268,11 @@ struct FNiagaraDataInterfaceProxyParticleRead : public FNiagaraDataInterfaceProx
 				{
 					if ( const FNiagaraDataBuffer* CurrentData = SourceDataSet->GetCurrentData() )
 					{
-						return FIntVector(CurrentData->GetNumInstances(), 1, 1);
+						Context.SetDirect(CurrentData->GetNumInstances(), CurrentData->GetGPUInstanceCountBufferOffset());
 					}
 				}
 			}
 		}
-		return FIntVector::ZeroValue;
-	}
-
-	virtual uint32 GetGPUInstanceCountOffset(FNiagaraSystemInstanceID SystemInstanceID) const override
-	{
-		const FNDIParticleRead_RenderInstanceData* InstanceData = SystemsRenderData.Find(SystemInstanceID);
-		if (ensure(InstanceData))
-		{
-			if ( InstanceData->SourceEmitterGPUContext != nullptr )
-			{
-				if ( FNiagaraDataSet* SourceDataSet = InstanceData->SourceEmitterGPUContext->MainDataSet )
-				{
-					if ( const FNiagaraDataBuffer* CurrentData = SourceDataSet->GetCurrentData() )
-					{
-						return CurrentData->GetGPUInstanceCountBufferOffset();
-					}
-				}
-			}
-		}
-
-		return INDEX_NONE;
 	}
 
 private:
