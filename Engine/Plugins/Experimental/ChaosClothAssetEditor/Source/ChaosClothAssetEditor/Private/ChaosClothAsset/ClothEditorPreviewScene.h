@@ -75,6 +75,8 @@ public:
 
 	void SetModeManager(TSharedPtr<FAssetEditorModeManager> InClothPreviewEditorModeManager);
 
+	const TSharedPtr<const FAssetEditorModeManager> GetClothPreviewEditorModeManager() const;
+
 private:
 
 	void SkeletalMeshTransformChanged(USceneComponent* UpdatedComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);

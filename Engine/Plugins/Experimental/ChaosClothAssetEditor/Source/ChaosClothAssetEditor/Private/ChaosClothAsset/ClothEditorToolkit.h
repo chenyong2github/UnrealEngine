@@ -16,6 +16,8 @@ class SDataflowGraphEditor;
 class IStructureDetailsView;
 class UEdGraphNode;
 class UChaosClothComponent;
+class SChaosClothAssetEditorRestSpaceViewport;
+class SChaosClothAssetEditor3DViewport;
 
 namespace Dataflow
 {
@@ -107,7 +109,8 @@ private:
 	TSharedPtr<FChaosClothAssetEditor3DViewportClient> ClothPreviewViewportClient;
 	TSharedPtr<FAssetEditorModeManager> ClothPreviewEditorModeManager;
 
-	TWeakPtr<SEditorViewport> RestSpaceViewport;
+	TSharedPtr<SChaosClothAssetEditorRestSpaceViewport> RestSpaceViewportWidget;
+	TSharedPtr<SChaosClothAssetEditor3DViewport> PreviewViewportWidget;
 
 	TSharedPtr<SDockTab> PreviewSceneDockTab;
 	TSharedPtr<SWidget> AdvancedPreviewSettingsWidget;

@@ -12,6 +12,7 @@
 #include "ChaosClothAsset/ClothComponent.h"
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothCollection.h"
+#include "ChaosClothAsset/ClothEditorModeToolkit.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "AssetEditorModeManager.h"
 #include "AdvancedPreviewScene.h"
@@ -179,7 +180,7 @@ FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwn
 
 	ClothPreviewViewportDelegate = [this](FAssetEditorViewportConstructionArgs InArgs)
 	{
-		return SNew(SChaosClothAssetEditor3DViewport, InArgs)
+		return SAssignNew(PreviewViewportWidget, SChaosClothAssetEditor3DViewport, InArgs)
 			.EditorViewportClient(ClothPreviewViewportClient);
 	};
 
@@ -253,6 +254,13 @@ void FChaosClothAssetEditorToolkit::InitializeEdMode(UBaseCharacterFXEditorMode*
 	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
 
 	ClothMode->InitializeTargets(ObjectsToEdit);
+
+	if (TSharedPtr<FModeToolkit> ModeToolkit = ClothMode->GetToolkit().Pin())
+	{
+		FChaosClothAssetEditorModeToolkit* ClothModeToolkit = static_cast<FChaosClothAssetEditorModeToolkit*>(ModeToolkit.Get());
+		ClothModeToolkit->SetRestSpaceViewportWidget(RestSpaceViewportWidget);
+		ClothModeToolkit->SetPreviewViewportWidget(PreviewViewportWidget);
+	}
 }
 
 void FChaosClothAssetEditorToolkit::CreateEditorModeUILayer()
@@ -296,7 +304,7 @@ AssetEditorViewportFactoryFunction FChaosClothAssetEditorToolkit::GetViewportDel
 {
 	AssetEditorViewportFactoryFunction TempViewportDelegate = [this](FAssetEditorViewportConstructionArgs InArgs)
 	{
-		return SAssignNew(RestSpaceViewport, SChaosClothAssetEditorRestSpaceViewport, InArgs)
+		return SAssignNew(RestSpaceViewportWidget, SChaosClothAssetEditorRestSpaceViewport, InArgs)
 			.EditorViewportClient(ViewportClient);
 	};
 
@@ -388,7 +396,7 @@ void FChaosClothAssetEditorToolkit::PostInitAssetEditor()
 	{
 		// when CreateEditorViewportClient() is called, RestSpaceViewport is null. Set it here instead
 		TSharedPtr<FChaosClothEditorRestSpaceViewportClient> VC = StaticCastSharedPtr<FChaosClothEditorRestSpaceViewportClient>(ViewportClient);
-		VC->SetEditorViewportWidget(RestSpaceViewport);
+		VC->SetEditorViewportWidget(RestSpaceViewportWidget);
 	}
 
 	SetCommonViewportClientOptions(ViewportClient.Get());

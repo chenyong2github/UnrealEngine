@@ -90,6 +90,11 @@ void FChaosClothPreviewScene::SetModeManager(TSharedPtr<FAssetEditorModeManager>
 	ClothPreviewEditorModeManager = InClothPreviewEditorModeManager;
 }
 
+const TSharedPtr<const FAssetEditorModeManager> FChaosClothPreviewScene::GetClothPreviewEditorModeManager() const
+{
+	return ClothPreviewEditorModeManager;
+}
+
 void FChaosClothPreviewScene::SkeletalMeshTransformChanged(USceneComponent* UpdatedComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
 	ensure(UpdatedComponent == SkeletalMeshActor->GetSkeletalMeshComponent());

@@ -52,6 +52,7 @@
 #include "ToolSetupUtil.h"
 #include "Dataflow/DataflowComponent.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "ToolTargets/SkeletalMeshComponentToolTarget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothEditorMode)
 
@@ -167,6 +168,54 @@ void UChaosClothAssetEditorMode::AddToolTargetFactories()
 	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UClothComponentToolTargetFactory>(GetToolManager()));
 }
 
+
+void UChaosClothAssetEditorMode::RegisterClothTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder, UEditorInteractiveToolsContext* const ToolsContext, EToolsContextScope ToolScope)
+{
+	if (!Toolkit.IsValid())
+	{
+		return;
+	}
+
+	if (!ToolsContext)
+	{
+		return;
+	}
+
+	if (ToolScope == EToolsContextScope::Default)
+	{
+		ToolScope = GetDefaultToolScope();
+	}
+	ensure(ToolScope != EToolsContextScope::Editor);
+
+	ToolsContext->ToolManager->RegisterToolType(ToolIdentifier, Builder);
+
+	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
+
+	CommandList->MapAction(UICommand,
+		FExecuteAction::CreateWeakLambda(ToolsContext, [this, ToolsContext, ToolIdentifier]()
+		{
+			ActiveToolsContext = ToolsContext;
+			ToolsContext->StartTool(ToolIdentifier);
+		}),
+		FCanExecuteAction::CreateWeakLambda(ToolsContext, [this, ToolIdentifier, ToolsContext]() 
+		{
+			return ShouldToolStartBeAllowed(ToolIdentifier) &&
+			ToolsContext->ToolManager->CanActivateTool(EToolSide::Mouse, ToolIdentifier);
+		}),
+		FIsActionChecked::CreateUObject(ToolsContext, &UEdModeInteractiveToolsContext::IsToolActive, EToolSide::Mouse, ToolIdentifier),
+		EUIActionRepeatMode::RepeatDisabled);
+
+}
+
+void UChaosClothAssetEditorMode::RegisterPreviewTools()
+{
+	UEditorInteractiveToolsContext* const PreviewSceneToolsContext = PreviewScene->GetClothPreviewEditorModeManager()->GetInteractiveToolsContext();
+
+	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();
+	RegisterClothTool(CommandInfos.BeginClothTrainingTool, FChaosClothAssetEditorCommands::BeginClothTrainingToolIdentifier, NewObject<UClothTrainingToolBuilder>(), PreviewSceneToolsContext);
+	RegisterClothTool(CommandInfos.BeginTransferSkinWeightsTool, FChaosClothAssetEditorCommands::BeginTransferSkinWeightsToolIdentifier, NewObject<UClothTransferSkinWeightsToolBuilder>(), PreviewSceneToolsContext);
+}
+
 void UChaosClothAssetEditorMode::RegisterTools()
 {
 	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();
@@ -178,20 +227,28 @@ void UChaosClothAssetEditorMode::RegisterTools()
 	// TODO: Re-add the remesh tool when we have a way to remesh both 2d and 3d rest space meshes at the same time
 	//RegisterTool(CommandInfos.BeginRemeshTool, FChaosClothAssetEditorCommands::BeginRemeshToolIdentifier, NewObject<URemeshMeshToolBuilder>());
 
-	RegisterTool(CommandInfos.BeginAttributeEditorTool, FChaosClothAssetEditorCommands::BeginAttributeEditorToolIdentifier, NewObject<UAttributeEditorToolBuilder>());
-	RegisterTool(CommandInfos.BeginWeightMapPaintTool, FChaosClothAssetEditorCommands::BeginWeightMapPaintToolIdentifier, NewObject<UClothEditorWeightMapPaintToolBuilder>());
-	RegisterTool(CommandInfos.BeginClothTrainingTool, FChaosClothAssetEditorCommands::BeginClothTrainingToolIdentifier, NewObject<UClothTrainingToolBuilder>());
-	RegisterTool(CommandInfos.BeginTransferSkinWeightsTool, FChaosClothAssetEditorCommands::BeginTransferSkinWeightsToolIdentifier, NewObject<UClothTransferSkinWeightsToolBuilder>());
+	UEditorInteractiveToolsContext* const RestSpaceToolsContext = GetInteractiveToolsContext();
+
+	RegisterClothTool(CommandInfos.BeginAttributeEditorTool, FChaosClothAssetEditorCommands::BeginAttributeEditorToolIdentifier, NewObject<UAttributeEditorToolBuilder>(), RestSpaceToolsContext);
+	RegisterClothTool(CommandInfos.BeginWeightMapPaintTool, FChaosClothAssetEditorCommands::BeginWeightMapPaintToolIdentifier, NewObject<UClothEditorWeightMapPaintToolBuilder>(), RestSpaceToolsContext);
 }
 
 bool UChaosClothAssetEditorMode::ShouldToolStartBeAllowed(const FString& ToolIdentifier) const
 {
-	// For now we've decided to disallow switch-away on accept/cancel tools in the Cloth editor.
-	if (GetInteractiveToolsContext()->ActiveToolHasAccept())
+	// For now we've decided to disallow switch-away on any tools in the Cloth editor.
+	if (GetInteractiveToolsContext()->HasActiveTool())
 	{
 		return false;
 	}
 	
+	if (PreviewScene && PreviewScene->GetClothPreviewEditorModeManager() && PreviewScene->GetClothPreviewEditorModeManager()->GetInteractiveToolsContext())
+	{
+		if (PreviewScene->GetClothPreviewEditorModeManager()->GetInteractiveToolsContext()->HasActiveTool())
+		{
+			return false;
+		}
+	}
+
 	return Super::ShouldToolStartBeAllowed(ToolIdentifier);
 }
 
@@ -212,6 +269,7 @@ void UChaosClothAssetEditorMode::OnToolEnded(UInteractiveToolManager* Manager, U
 	FChaosClothAssetEditorCommands::UpdateToolCommandBinding(Tool, ToolCommandList, true);
 
 	bCanTogglePattern2DMode = true;
+	ActiveToolsContext = nullptr;
 
 	UpdateSimulationMeshes();
 	ReinitializeDynamicMeshComponents();
@@ -276,6 +334,26 @@ void UChaosClothAssetEditorMode::Exit()
 void UChaosClothAssetEditorMode::SetPreviewScene(FChaosClothPreviewScene* InPreviewScene)
 {
 	PreviewScene = InPreviewScene;
+
+
+	UEditorInteractiveToolsContext* const PreviewToolsContext = PreviewScene->GetClothPreviewEditorModeManager()->GetInteractiveToolsContext();
+	UInteractiveToolManager* const PreviewToolManager = PreviewToolsContext->ToolManager;
+	PreviewToolsContext->TargetManager->AddTargetFactory(NewObject<UClothComponentToolTargetFactory>(PreviewToolManager));
+	PreviewToolsContext->TargetManager->AddTargetFactory(NewObject<USkeletalMeshComponentToolTargetFactory>(PreviewToolManager));
+
+	PreviewToolManager->OnToolStarted.AddUObject(this, &UChaosClothAssetEditorMode::OnToolStarted);
+	PreviewToolManager->OnToolEnded.AddUObject(this, &UChaosClothAssetEditorMode::OnToolEnded);
+
+	check(Toolkit.IsValid());
+	
+	// FBaseToolkit's OnToolStarted and OnToolEnded are protected, so we use the subclass to get at them
+	FChaosClothAssetEditorModeToolkit* const ClothModeToolkit = static_cast<FChaosClothAssetEditorModeToolkit*>(Toolkit.Get());	
+
+	PreviewToolManager->OnToolStarted.AddSP(ClothModeToolkit, &FChaosClothAssetEditorModeToolkit::OnToolStarted);
+	PreviewToolManager->OnToolEnded.AddSP(ClothModeToolkit, &FChaosClothAssetEditorModeToolkit::OnToolEnded);
+
+	// TODO: It would be nice if the PreviewScene could be specified before the UBaseCharacterFXEditorMode::Enter() function is called. Then we could register both sets of tools from there.
+	RegisterPreviewTools();
 }
 
 void UChaosClothAssetEditorMode::UpdateSimulationMeshes()

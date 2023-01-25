@@ -30,6 +30,7 @@
 #include "InteractiveToolManager.h"
 
 #include "Engine/SkeletalMesh.h"
+#include "TargetInterfaces/SkeletalMeshBackedTarget.h"
 
 #define LOCTEXT_NAMESPACE "ClothSkinWeightRetargetingTool"
 
@@ -57,7 +58,12 @@ const FToolTargetTypeRequirements& UClothTransferSkinWeightsToolBuilder::GetTarg
 
 bool UClothTransferSkinWeightsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return (SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1);
+	const bool ClothComponentSelected = (SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1);
+	
+	const static FToolTargetTypeRequirements SourceMeshRequirements(USkeletalMeshBackedTarget::StaticClass());
+	const bool SkeletalMeshComponentSelected = (SceneState.TargetManager->CountSelectedAndTargetable(SceneState, SourceMeshRequirements) == 1);
+
+	return ClothComponentSelected && SkeletalMeshComponentSelected;
 }
 
 UInteractiveTool* UClothTransferSkinWeightsToolBuilder::BuildTool(const FToolBuilderState& SceneState) const

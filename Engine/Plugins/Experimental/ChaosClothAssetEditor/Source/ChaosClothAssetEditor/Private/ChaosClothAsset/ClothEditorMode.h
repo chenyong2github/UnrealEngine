@@ -28,6 +28,7 @@ class FChaosClothEditorRestSpaceViewportClient;
 class FViewport;
 class UDataflowComponent;
 class FChaosClothPreviewScene;
+class FChaosClothAssetEditor3DViewportClient;
 
 /**
  * The cloth editor mode is the mode used in the cloth asset editor. It holds most of the inter-tool state.
@@ -64,9 +65,15 @@ public:
 
 	UDataflowComponent* GetDataflowComponent() const;
 
+	TObjectPtr<UEditorInteractiveToolsContext> GetActiveToolsContext()
+	{
+		return ActiveToolsContext;
+	}
+
 private:
 
 	friend class FChaosClothAssetEditorToolkit;
+	friend class FChaosClothAssetEditorModeToolkit;
 
 	// UEdMode
 	virtual void Enter() final;
@@ -91,6 +98,16 @@ private:
 	// Gets the tool target requirements for the mode. The resulting targets undergo further processing
 	// to turn them into the input objects that tools get (since these need preview meshes, etc).
 	static const FToolTargetTypeRequirements& GetToolTargetRequirements();
+
+	// Use this function to register tools rather than UEdMode::RegisterTool() because we need to specify the ToolsContext
+	void RegisterClothTool(TSharedPtr<FUICommandInfo> UICommand, 
+		FString ToolIdentifier, 
+		UInteractiveToolBuilder* Builder, 
+		UEditorInteractiveToolsContext* UseToolsContext, 
+		EToolsContextScope ToolScope = EToolsContextScope::Default);
+
+	// Register the set of tools that operate on objects in the 3D preview world 
+	void RegisterPreviewTools();
 
 	void SetPreviewScene(FChaosClothPreviewScene* PreviewScene);
 
@@ -162,5 +179,8 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UDataflowComponent> DataflowComponent = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UEditorInteractiveToolsContext> ActiveToolsContext = nullptr;
 };
 
