@@ -1927,6 +1927,7 @@ void FAnalysisBridge::EnterScope(uint64 Timestamp)
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisBridge::EnterScopeA(uint64 Timestamp)
 {
+	Timestamp -= State.Timing.BaseTimestamp;
 	ThreadInfo->ScopeRoutes.Push(~Timestamp);
 }
 
@@ -1949,6 +1950,7 @@ void FAnalysisBridge::LeaveScope(uint64 Timestamp)
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisBridge::LeaveScopeA(uint64 Timestamp)
 {
+	Timestamp -= State.Timing.BaseTimestamp;
 	State.Timing.EventTimestamp = Timestamp;
 	DispatchLeaveScope();
 	State.Timing.EventTimestamp = 0;
