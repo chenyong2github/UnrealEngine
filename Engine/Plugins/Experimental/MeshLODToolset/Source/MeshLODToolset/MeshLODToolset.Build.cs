@@ -52,6 +52,7 @@ public class MeshLODToolset : ModuleRules
 				"EditorScriptingUtilities",
 				"Slate",
 				"SlateCore",
+				"AssetDefinition"
 				// ... add private dependencies that you statically link with here ...
 			}
 		);
