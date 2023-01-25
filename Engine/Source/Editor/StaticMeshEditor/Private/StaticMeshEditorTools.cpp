@@ -5158,12 +5158,22 @@ FNaniteSettingsLayout::FNaniteSettingsLayout(FStaticMeshEditor& InStaticMeshEdit
 	check(StaticMesh);
 	NaniteSettings = StaticMesh->NaniteSettings;
 
+	// Position options
 	PositionPrecisionOptions.Add(MakeShared<FString>(LOCTEXT("PositionPrecisionAuto", "Auto").ToString()));
 	for (int32 i = DisplayPositionPrecisionMin; i <= DisplayPositionPrecisionMax; i++)
 	{
 		PositionPrecisionOptions.Add(MakeShared<FString>(PositionPrecisionValueToDisplayString(i)));
 	}
 
+	// Normal options
+	const FText NormalAutoTest = FText::Format(LOCTEXT("NormalPrecisionAuto", "Auto ({0} bits)"), 8);	//TODO: Just use Auto=8 for now
+	NormalPrecisionOptions.Add(MakeShared<FString>(NormalAutoTest.ToString()));
+	for (int32 i = DisplayNormalPrecisionMin; i <= DisplayNormalPrecisionMax; i++)
+	{
+		NormalPrecisionOptions.Add(MakeShared<FString>(NormalPrecisionValueToDisplayString(i)));
+	}
+
+	// Residency options
 	const FText ResidencyMinimalText = FText::Format(LOCTEXT("ResidencyMinimum", "Minimal ({0}KB)"), NANITE_ROOT_PAGE_GPU_SIZE >> 10);
 	ResidencyOptions.Add(MakeShared<FString>(ResidencyMinimalText.ToString()));
 	for (int32 i = DisplayMinimumResidencyExpRangeMin; i <= DisplayMinimumResidencyExpRangeMax; i++)
@@ -5294,6 +5304,27 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 			.OptionsSource(&PositionPrecisionOptions)
 			.InitiallySelectedItem(PositionPrecisionOptions[PositionPrecisionValueToIndex(NaniteSettings.PositionPrecision)])
 			.OnSelectionChanged(this, &FNaniteSettingsLayout::OnPositionPrecisionChanged)
+		];
+	}
+
+	{
+		TSharedPtr<STextComboBox> TerminationCriterionCombo;
+		NaniteSettingsCategory.AddCustomRow(LOCTEXT("NormalPrecision", "Normal Precision"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("NormalPrecision", "Normal Precision"))
+			.ToolTipText(LOCTEXT("NormalPrecisionTooltip", "Precision of vertex normals."))
+		]
+		.ValueContent()
+		.VAlign(VAlign_Center)
+		[
+			SAssignNew(TerminationCriterionCombo, STextComboBox)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.OptionsSource(&NormalPrecisionOptions)
+			.InitiallySelectedItem(NormalPrecisionOptions[NormalPrecisionValueToIndex(NaniteSettings.NormalPrecision)])
+			.OnSelectionChanged(this, &FNaniteSettingsLayout::OnNormalPrecisionChanged)
 		];
 	}
 
@@ -5598,7 +5629,7 @@ int32 FNaniteSettingsLayout::PositionPrecisionIndexToValue(int32 Index)
 
 	if (Index == 0)
 	{
-		return MIN_int32;
+		return DisplayPositionPrecisionAuto;
 	}
 	else
 	{
@@ -5610,7 +5641,7 @@ int32 FNaniteSettingsLayout::PositionPrecisionIndexToValue(int32 Index)
 
 int32 FNaniteSettingsLayout::PositionPrecisionValueToIndex(int32 Value)
 {
-	if (Value == MIN_int32)
+	if (Value == DisplayPositionPrecisionAuto)
 	{
 		return 0;
 	}
@@ -5623,7 +5654,7 @@ int32 FNaniteSettingsLayout::PositionPrecisionValueToIndex(int32 Value)
 
 FString FNaniteSettingsLayout::PositionPrecisionValueToDisplayString(int32 Value)
 {
-	check(Value != MIN_int32);
+	check(Value != DisplayPositionPrecisionAuto);
 	
 	if(Value <= 0)
 	{
@@ -5634,6 +5665,41 @@ FString FNaniteSettingsLayout::PositionPrecisionValueToDisplayString(int32 Value
 		const float fValue = static_cast<float>(FMath::Exp2((double)-Value));
 		return FString::Printf(TEXT("1/%dcm (%.3gcm)"), 1 << Value, fValue);
 	}
+}
+
+int32 FNaniteSettingsLayout::NormalPrecisionIndexToValue(int32 Index)
+{
+	check(Index >= 0);
+
+	if (Index == 0)
+	{
+		return DisplayNormalPrecisionAuto;
+	}
+	else
+	{
+		int32 Value = DisplayNormalPrecisionMin + (Index - 1);
+		Value = FMath::Min(Value, DisplayNormalPrecisionMax);
+		return Value;
+	}
+}
+
+int32 FNaniteSettingsLayout::NormalPrecisionValueToIndex(int32 Value)
+{
+	if (Value == DisplayNormalPrecisionAuto)
+	{
+		return 0;
+	}
+	else
+	{
+		Value = FMath::Clamp(Value, DisplayNormalPrecisionMin, DisplayNormalPrecisionMax);
+		return Value - DisplayNormalPrecisionMin + 1;
+	}
+}
+
+FString FNaniteSettingsLayout::NormalPrecisionValueToDisplayString(int32 Value)
+{
+	check(Value != DisplayNormalPrecisionAuto);
+	return FString::Printf(TEXT("%d bits"), Value);
 }
 
 uint32 FNaniteSettingsLayout::MinimumResidencyIndexToValue(int32 Index)
@@ -5713,6 +5779,20 @@ void FNaniteSettingsLayout::OnPositionPrecisionChanged(TSharedPtr<FString> NewVa
 		NaniteSettings.PositionPrecision = NewValueInt;
 	}
 }
+
+void FNaniteSettingsLayout::OnNormalPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo)
+{
+	int32 NewValueInt = NormalPrecisionIndexToValue(NormalPrecisionOptions.Find(NewValue));
+	if (NaniteSettings.NormalPrecision != NewValueInt)
+	{
+		if (FEngineAnalytics::IsAvailable())
+		{
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.NaniteSettings"), TEXT("NormalPrecision"), *NewValue.Get());
+		}
+		NaniteSettings.NormalPrecision = NewValueInt;
+	}
+}
+
 
 void FNaniteSettingsLayout::OnResidencyChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo)
 {

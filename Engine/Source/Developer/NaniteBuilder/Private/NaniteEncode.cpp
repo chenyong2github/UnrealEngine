@@ -115,22 +115,25 @@ struct FPage
 // TODO: optimize me
 struct FUVRange
 {
-	FIntPoint	Min;
-	FIntPoint	GapStart;
-	FIntPoint	GapLength;
+	FIntPoint	Min = FIntPoint::ZeroValue;
+	FIntPoint	GapStart = FIntPoint::ZeroValue;
+	FIntPoint	GapLength = FIntPoint::ZeroValue;
 	int32		Precision = 0;
 	int32		Pad = 0;
 };
 
 struct FEncodingInfo
 {
-	uint32 BitsPerIndex;
-	uint32 BitsPerAttribute;
-	uint32 UVPrec;
+	uint32		BitsPerIndex = 0;
+	uint32		BitsPerAttribute = 0;
+
+	uint32		NormalPrecision = 0;
+	uint32		UVPrec = 0;
 	
-	uint32		ColorMode;
-	FIntVector4 ColorMin;
-	FIntVector4 ColorBits;
+	
+	uint32		ColorMode = 0;
+	FIntVector4 ColorMin = FIntVector4(0, 0, 0, 0);
+	FIntVector4 ColorBits = FIntVector4(0, 0, 0, 0);
 
 	FPageSections GpuSizes;
 
@@ -662,6 +665,7 @@ static void PackCluster(Nanite::FPackedCluster& OutCluster, const Nanite::FClust
 	static_assert(NANITE_MAX_UVS <= 4, "UV_Prev encoding only supports up to 4 channels");
 
 	OutCluster.SetBitsPerAttribute(EncodingInfo.BitsPerAttribute);
+	OutCluster.SetNormalPrecision(EncodingInfo.NormalPrecision);
 	OutCluster.SetNumUVs(NumTexCoords);
 	OutCluster.SetColorMode(EncodingInfo.ColorMode);
 	OutCluster.UV_Prec									= EncodingInfo.UVPrec;
@@ -862,7 +866,7 @@ static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters
 	return PositionPrecision;
 }
 
-static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& Cluster, bool bHasColors, uint32 NumTexCoords)
+static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& Cluster, int32 NormalPrecision, bool bHasColors, uint32 NumTexCoords)
 {
 	const uint32 NumClusterVerts = Cluster.NumVerts;
 	const uint32 NumClusterTris = Cluster.NumTris;
@@ -888,15 +892,19 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 	Info.ColorMin = FIntVector4(0, 0, 0, 0);
 	Info.ColorBits = FIntVector4(8, 8, 8, 8);
 	Info.ColorMode = NANITE_VERTEX_COLOR_MODE_VARIABLE;
+	Info.NormalPrecision = 0;
 	Info.UVPrec = 0;
 
 	GpuSizes.Position = NumClusterVerts * 3 * sizeof(float);
 	GpuSizes.Attribute = NumClusterVerts * AttribBytesPerVertex;
 #else
-	Info.BitsPerAttribute = 2 * NANITE_NORMAL_QUANTIZATION_BITS;
+	Info.BitsPerAttribute = 2 * NormalPrecision;
 
 	check(NumClusterVerts > 0);
 	const bool bIsLeaf = (Cluster.GeneratingGroupIndex == MAX_uint32);
+
+	// Normals
+	Info.NormalPrecision = NormalPrecision;
 
 	// Vertex colors
 	Info.ColorMode = NANITE_VERTEX_COLOR_MODE_WHITE;
@@ -1050,14 +1058,14 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 #endif
 }
 
-static void CalculateEncodingInfos(TArray<FEncodingInfo>& EncodingInfos, const TArray<Nanite::FCluster>& Clusters, bool bHasColors, uint32 NumTexCoords)
+static void CalculateEncodingInfos(TArray<FEncodingInfo>& EncodingInfos, const TArray<Nanite::FCluster>& Clusters, int32 NormalPrecision, bool bHasColors, uint32 NumTexCoords)
 {
 	uint32 NumClusters = Clusters.Num();
 	EncodingInfos.SetNumUninitialized(NumClusters);
 
 	for (uint32 i = 0; i < NumClusters; i++)
 	{
-		CalculateEncodingInfo(EncodingInfos[i], Clusters[i], bHasColors, NumTexCoords);
+		CalculateEncodingInfo(EncodingInfos[i], Clusters[i], NormalPrecision, bHasColors, NumTexCoords);
 	}
 }
 
@@ -1282,8 +1290,8 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 	for (uint32 VertexIndex : UniqueToVertexIndex)
 	{
 		// Normal
-		uint32 PackedNormal = PackNormal(Cluster.GetNormal( VertexIndex ), NANITE_NORMAL_QUANTIZATION_BITS);
-		BitWriter_Attribute.PutBits(PackedNormal, 2 * NANITE_NORMAL_QUANTIZATION_BITS);
+		uint32 PackedNormal = PackNormal(Cluster.GetNormal(VertexIndex), EncodingInfo.NormalPrecision);
+		BitWriter_Attribute.PutBits(PackedNormal, 2 * EncodingInfo.NormalPrecision);
 
 		// Color
 		if(EncodingInfo.ColorMode == NANITE_VERTEX_COLOR_MODE_VARIABLE)
@@ -4321,6 +4329,13 @@ void Encode(
 	}
 
 	{
+		// Select appropriate Auto precision Normals.
+		// Just use hard-coded default of 8 for now.
+		Resources.NormalPrecision = (Settings.NormalPrecision < 0) ? 8 : FMath::Clamp(Settings.NormalPrecision, 0, NANITE_MAX_NORMAL_QUANTIZATION_BITS);
+	}
+	
+
+	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::PrintMaterialRangeStats);
 		PrintMaterialRangeStats( Clusters );
 	}
@@ -4331,7 +4346,7 @@ void Encode(
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::CalculateEncodingInfos);
-		CalculateEncodingInfos(EncodingInfos, Clusters, bHasColors, NumTexCoords);
+		CalculateEncodingInfos(EncodingInfos, Clusters, Resources.NormalPrecision, bHasColors, NumTexCoords);
 	}
 
 	{

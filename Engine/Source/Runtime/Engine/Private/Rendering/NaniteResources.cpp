@@ -268,6 +268,7 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner, bool bCooked)
 		Ar << ImposterAtlas;
 		Ar << NumRootPages;
 		Ar << PositionPrecision;
+		Ar << NormalPrecision;
 		Ar << NumInputTriangles;
 		Ar << NumInputVertices;
 		Ar << NumInputMeshes;

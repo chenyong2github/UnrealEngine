@@ -271,7 +271,7 @@ void TranscodeVertexAttributes(FPageDiskHeader PageDiskHeader, FCluster Cluster,
 								uint CompileTimeNumTexCoords
 )
 {
-	const uint CompileTimeMaxVertexBits = 2 * NANITE_NORMAL_QUANTIZATION_BITS + 4 * NANITE_MAX_COLOR_QUANTIZATION_BITS + CompileTimeNumTexCoords * 2 * NANITE_MAX_TEXCOORD_QUANTIZATION_BITS;
+	const uint CompileTimeMaxVertexBits = 2 * NANITE_MAX_NORMAL_QUANTIZATION_BITS + 4 * NANITE_MAX_COLOR_QUANTIZATION_BITS + CompileTimeNumTexCoords * 2 * NANITE_MAX_TEXCOORD_QUANTIZATION_BITS;
 
 	const uint BaseAddress = GPUPageIndexToGPUOffset(ParentGPUPageIndex);
 
@@ -282,8 +282,8 @@ void TranscodeVertexAttributes(FPageDiskHeader PageDiskHeader, FCluster Cluster,
 	FBitStreamReaderState InputStream = BitStreamReader_Create(Address, SrcCodedVertexIndex * BitsPerAttribute, CompileTimeMaxVertexBits);
 
 	// Normal
-    uint PackedNormal = BitStreamReader_Read_RORW(SrcPageBuffer, DstPageBuffer, bIsParentRef, InputStream, 2 * NANITE_NORMAL_QUANTIZATION_BITS, 2 * NANITE_NORMAL_QUANTIZATION_BITS);
-    BitStreamWriter_Writer(DstPageBuffer, OutputStream, PackedNormal, 2 * NANITE_NORMAL_QUANTIZATION_BITS, 2 * NANITE_NORMAL_QUANTIZATION_BITS);
+    uint PackedNormal = BitStreamReader_Read_RORW(SrcPageBuffer, DstPageBuffer, bIsParentRef, InputStream, 2 * Cluster.NormalPrecision, 2 * NANITE_MAX_NORMAL_QUANTIZATION_BITS);
+    BitStreamWriter_Writer(DstPageBuffer, OutputStream, PackedNormal, 2 * Cluster.NormalPrecision, 2 * NANITE_MAX_NORMAL_QUANTIZATION_BITS);
 
 	// Color
     {

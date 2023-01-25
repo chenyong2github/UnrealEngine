@@ -53,6 +53,7 @@ struct FCluster
 	uint	BitsPerIndex;
 	int		PosPrecision;
 	uint3	PosBits;
+	uint	NormalPrecision;
 
 	float4	LODBounds;
 
@@ -359,6 +360,7 @@ FCluster UnpackCluster(uint4 ClusterData[NANITE_NUM_PACKED_CLUSTER_FLOAT4S])
 	Cluster.PosBits.x			= BitFieldExtractU32(ClusterData[1].w, 5, 9);
 	Cluster.PosBits.y			= BitFieldExtractU32(ClusterData[1].w, 5, 14);
 	Cluster.PosBits.z			= BitFieldExtractU32(ClusterData[1].w, 5, 19);
+	Cluster.NormalPrecision		= BitFieldExtractU32(ClusterData[1].w, 4, 24);
 
 	Cluster.LODBounds			= asfloat(ClusterData[2]);
 

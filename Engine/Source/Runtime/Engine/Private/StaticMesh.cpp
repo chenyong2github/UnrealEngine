@@ -2516,6 +2516,7 @@ static void SerializeNaniteSettingsForDDC(FArchive& Ar, FMeshNaniteSettings& Nan
 	FArchive_Serialize_BitfieldBool(Ar, NaniteSettings.bEnabled);
 	FArchive_Serialize_BitfieldBool(Ar, NaniteSettings.bPreserveArea);
 	Ar << NaniteSettings.PositionPrecision;
+	Ar << NaniteSettings.NormalPrecision;
 	Ar << NaniteSettings.TargetMinimumResidencyInKB;
 	Ar << NaniteSettings.KeepPercentTriangles;
 	Ar << NaniteSettings.TrimRelativeError;

@@ -225,7 +225,7 @@ void CalculateTriangleBarycentrics(
 
 uint CalculateMaxAttributeBits(uint NumTexCoordInterpolators)
 {
-	return (2 * NANITE_NORMAL_QUANTIZATION_BITS + 4 * NANITE_MAX_COLOR_QUANTIZATION_BITS + NumTexCoordInterpolators * (2 * NANITE_MAX_TEXCOORD_QUANTIZATION_BITS));
+	return (2 * NANITE_MAX_NORMAL_QUANTIZATION_BITS + 4 * NANITE_MAX_COLOR_QUANTIZATION_BITS + NumTexCoordInterpolators * (2 * NANITE_MAX_TEXCOORD_QUANTIZATION_BITS));
 }
 
 void DecodeMaterialRange(uint EncodedRange, out uint TriStart, out uint TriLength, out uint MaterialIndex)
@@ -525,8 +525,8 @@ void GetRawAttributeDataN(inout FNaniteRawAttributeData RawAttributeData[3],
 	for (i = 0; i < CompileTimeN; i++)
 	{
 		AttributeStream[i] = BitStreamReader_Create_Aligned(AttributeDataOffset, TriIndices[i] * Cluster.BitsPerAttribute, MaxAttributeBits);
-		const uint NormalBits = BitStreamReader_Read_RO(ClusterPageData, AttributeStream[i], 2 * NANITE_NORMAL_QUANTIZATION_BITS, 2 * NANITE_NORMAL_QUANTIZATION_BITS);
-		RawAttributeData[i].TangentZ = UnpackNormal(NormalBits, NANITE_NORMAL_QUANTIZATION_BITS);
+		const uint NormalBits = BitStreamReader_Read_RO(ClusterPageData, AttributeStream[i], 2 * Cluster.NormalPrecision, 2 * NANITE_MAX_NORMAL_QUANTIZATION_BITS);
+		RawAttributeData[i].TangentZ = UnpackNormal(NormalBits, Cluster.NormalPrecision);
 
 		const uint4 ColorDelta = BitStreamReader_Read4_RO(ClusterPageData, AttributeStream[i], NumComponentBits, NANITE_MAX_COLOR_QUANTIZATION_BITS);
 		RawAttributeData[i].Color = float4(ColorMin + ColorDelta) * (1.0f / 255.0f);
@@ -720,7 +720,7 @@ FTexCoord GetTexCoord(
 	const uint UVBitsOffset_8888 = NumUVBits_8888 * 0x01010100u;											// 8:8:8:8 (0, UV0, UV0+UV1, UV0+UV1+UV2)
 	const uint TexCoord_OffsetBits = (UVBitsOffset_8888 >> (8 * TexCoordIndex)) & 0xFFu;
 
-	const uint BitOffset = 2 * NANITE_NORMAL_QUANTIZATION_BITS + dot(NumColorComponentBits, 1u) + TexCoord_OffsetBits;
+	const uint BitOffset = 2 * Cluster.NormalPrecision + dot(NumColorComponentBits, 1u) + TexCoord_OffsetBits;
 
 	FBitStreamReaderState AttributeStream0 = BitStreamReader_Create_Aligned(AttributeDataOffset, BitOffset + TriIndices.x * Cluster.BitsPerAttribute, 2 * NANITE_MAX_TEXCOORD_QUANTIZATION_BITS);
 	FBitStreamReaderState AttributeStream1 = BitStreamReader_Create_Aligned(AttributeDataOffset, BitOffset + TriIndices.y * Cluster.BitsPerAttribute, 2 * NANITE_MAX_TEXCOORD_QUANTIZATION_BITS);

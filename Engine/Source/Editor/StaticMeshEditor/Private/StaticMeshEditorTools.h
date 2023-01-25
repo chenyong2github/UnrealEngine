@@ -697,6 +697,7 @@ public:
 	void ApplyChanges();
 
 	/** Position Precision range selectable in the UI. */
+	static const int32 DisplayPositionPrecisionAuto = MIN_int32;
 	static const int32 DisplayPositionPrecisionMin = -6;
 	static const int32 DisplayPositionPrecisionMax = 13;
 
@@ -706,10 +707,23 @@ public:
 	/** Display string to show in menus. */
 	static FString PositionPrecisionValueToDisplayString(int32 Value);
 
+
+	/** Normal Precision range selectable in the UI. */
+	static const int32 DisplayNormalPrecisionAuto = -1;
+	static const int32 DisplayNormalPrecisionMin = 5;
+	static const int32 DisplayNormalPrecisionMax = 15;
+
+	static int32 NormalPrecisionIndexToValue(int32 Index);
+	static int32 NormalPrecisionValueToIndex(int32 Value);
+
+	/** Display string to show in menus. */
+	static FString NormalPrecisionValueToDisplayString(int32 Value);
+
+
 	/** Residency range selectable in the UI. */
 	static const int32 DisplayMinimumResidencyMinimalIndex = 0;
-	static const int32 DisplayMinimumResidencyExpRangeMin = 6;
-	static const int32 DisplayMinimumResidencyExpRangeMax = 16;
+	static const int32 DisplayMinimumResidencyExpRangeMin = 5;
+	static const int32 DisplayMinimumResidencyExpRangeMax = 15;
 	static const int32 DisplayMinimumResidencyFullIndex = DisplayMinimumResidencyExpRangeMax - DisplayMinimumResidencyExpRangeMin + 2;
 
 	static uint32 MinimumResidencyIndexToValue(int32 Index);
@@ -727,6 +741,7 @@ private:
 	void OnPreserveAreaChanged(ECheckBoxState NewState);
 
 	void OnPositionPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
+	void OnNormalPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
 	void OnResidencyChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
 
 	float GetKeepPercentTriangles() const;
@@ -764,5 +779,6 @@ private:
 	FMeshNaniteSettings NaniteSettings;
 
 	TArray<TSharedPtr<FString> > PositionPrecisionOptions;
+	TArray<TSharedPtr<FString> > NormalPrecisionOptions;
 	TArray<TSharedPtr<FString> > ResidencyOptions;
 };

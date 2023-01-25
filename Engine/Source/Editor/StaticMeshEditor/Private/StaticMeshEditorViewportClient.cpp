@@ -804,6 +804,9 @@ void FStaticMeshEditorViewportClient::DrawCanvas(FViewport& InViewport, FSceneVi
 				const FString PositionStr = FNaniteSettingsLayout::PositionPrecisionValueToDisplayString(Resources.PositionPrecision);
 				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "NanitePositionPrecision", "Position Precision: {0}"), FText::FromString(PositionStr)));
 
+				const FString NormalStr = FNaniteSettingsLayout::NormalPrecisionValueToDisplayString(Resources.NormalPrecision);
+				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "NaniteNormalPrecision", "Normal Precision: {0}"), FText::FromString(NormalStr)));
+
 				const uint32 NumStreamingPages = Resources.PageStreamingStates.Num() - Resources.NumRootPages;
 				const uint64 RootKB = uint64(Resources.NumRootPages) * NANITE_ROOT_PAGE_GPU_SIZE;
 				const uint64 StreamingKB = uint64(NumStreamingPages) * NANITE_STREAMING_PAGE_GPU_SIZE;

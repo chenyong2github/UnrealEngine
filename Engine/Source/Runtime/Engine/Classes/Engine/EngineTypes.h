@@ -2750,6 +2750,10 @@ struct FMeshNaniteSettings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
 	int32 PositionPrecision = MIN_int32;
 
+	/** Normal Precision in bits. -1 is auto. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
+	int32 NormalPrecision = -1;
+
 	/** How much of the resource should always be resident (In KB). Approximate due to paging. 0: Minimum size (single page). MAX_uint32: Entire mesh.*/
 	UPROPERTY(EditAnywhere, Category = NaniteSettings)
 	uint32 TargetMinimumResidencyInKB = 0;
@@ -2797,6 +2801,7 @@ struct FMeshNaniteSettings
 		return bEnabled == Other.bEnabled
 			&& bPreserveArea == Other.bPreserveArea
 			&& PositionPrecision == Other.PositionPrecision
+			&& NormalPrecision == Other.NormalPrecision
 			&& TargetMinimumResidencyInKB == Other.TargetMinimumResidencyInKB
 			&& KeepPercentTriangles == Other.KeepPercentTriangles
 			&& TrimRelativeError == Other.TrimRelativeError
