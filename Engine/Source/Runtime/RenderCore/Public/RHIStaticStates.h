@@ -6,8 +6,6 @@
 
 #pragma once
 
-// HEADER_UNIT_SKIP - This can't be built by itself since it includes RenderResource.h which is not part of this module's additional include paths
-
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "Async/TaskGraphInterfaces.h"
@@ -15,8 +13,6 @@
 #include "RHI.h"
 #include "RenderResource.h"
 #include "Misc/ScopedEvent.h"
-
-extern RHI_API FCriticalSection StaticStateRHICriticalSection;
 
 /**
  * Helper task to initialize a static resource on the render thread.
