@@ -2754,6 +2754,11 @@ void UCookOnTheFlyServer::QueueDiscoveredPackageData(UE::Cook::FPackageData& Pac
 		return;
 	}
 
+	if (!PackageData.CanCookForPlatforms())
+	{
+		return;
+	}
+
 	if (PackageData.IsInProgress())
 	{
 		return;

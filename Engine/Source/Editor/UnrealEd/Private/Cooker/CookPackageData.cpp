@@ -50,7 +50,7 @@ static FAutoConsoleVariableRef CVarPollAsyncPeriod(
 //////////////////////////////////////////////////////////////////////////
 // FPackageData
 FPackageData::FPlatformData::FPlatformData()
-	: bRequested(false), bCookAttempted(false), bCookSucceeded(false), bExplored(false), bSaveTimedOut(false)
+	: bRequested(false), bCookAttempted(false), bCookSucceeded(false), bExplored(false), bSaveTimedOut(false), bCookable(true)
 {
 }
 
@@ -189,6 +189,31 @@ bool FPackageData::HasAllExploredPlatforms(const TArrayView<const ITargetPlatfor
 	}
 	return true;
 }
+
+bool FPackageData::CanCookForPlatforms() const
+{
+	if (PlatformDatas.Num() == 0)
+	{
+		return true;
+	}
+
+	if (AreAllRequestedPlatformsExplored())
+	{
+		for (const TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
+		{
+			if (Pair.Value.bCookable)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+	else
+	{
+		return true;
+	}
+}
+
 
 void FPackageData::SetIsUrgent(bool Value)
 {

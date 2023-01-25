@@ -146,6 +146,7 @@ public:
 		bool bCookSucceeded : 1;
 		bool bExplored : 1;
 		bool bSaveTimedOut : 1;
+		bool bCookable : 1;
 	};
 
 	FPackageData(FPackageDatas& PackageDatas, const FName& InPackageName, const FName& InFileName);
@@ -206,6 +207,12 @@ public:
 
 	/** Return true if and only if every element of Platforms has been explored. Returns true if Platforms is empty. */
 	bool HasAllExploredPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms) const;
+
+	/**
+	 * Return true if this package is cookable for at least one of the platforms.
+	 * If this package has not been explored will return true
+	 */
+	bool CanCookForPlatforms() const;
 
 	/**
 	 * Get the flag for whether this InProgress PackageData has been marked as an urgent request

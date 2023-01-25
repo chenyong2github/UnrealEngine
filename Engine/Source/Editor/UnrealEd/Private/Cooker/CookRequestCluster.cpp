@@ -826,7 +826,9 @@ void FRequestCluster::FGraphSearch::VisitVertex(const FVertexData& VertexData)
 
 	for (const ITargetPlatform* TargetPlatform : Cluster.Platforms)
 	{
-		PackageData->FindOrAddPlatformData(TargetPlatform).bExplored = true;
+		FPackageData::FPlatformData& PlatformData = PackageData->FindOrAddPlatformData(TargetPlatform);
+		PlatformData.bExplored = true;
+		PlatformData.bCookable = VertexData.bCookable;
 	}
 	bool bAlreadyCooked = PackageData->AreAllRequestedPlatformsCooked(true /* bAllowFailedCooks */);
 
