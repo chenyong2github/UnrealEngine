@@ -1529,6 +1529,9 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 
 	// Initialize Trace
 	UE::Trace::FInitializeDesc Desc;
+#if WITH_EDITOR
+	Desc.TailSizeBytes = 32 << 20;
+#endif
 	SetupInitFromConfig(Desc);
 	
 	Desc.bUseWorkerThread = bShouldStartWorkerThread;

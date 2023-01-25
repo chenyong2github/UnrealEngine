@@ -81,11 +81,7 @@ using OnConnectFunc = void(void);
 
 struct FInitializeDesc
 {
-#if WITH_EDITOR
-	uint32			TailSizeBytes = 32 << 20;
-#else
-	uint32			TailSizeBytes = 4 << 20; // can be set to 0 to disable the tail buffer
-#endif
+	uint32			TailSizeBytes		= 4 << 20; // can be set to 0 to disable the tail buffer
 	uint32			ThreadSleepTimeInMS = 0;
 	bool			bUseWorkerThread	= true;
 	bool			bUseImportantCache	= true;
