@@ -184,6 +184,7 @@ private:
 	bool bShowActiveSelectionActions = true;
 };
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
 #include "ModelingToolsEditorMode.h"
 #include "Widgets/Input/SEditableTextBox.h"
