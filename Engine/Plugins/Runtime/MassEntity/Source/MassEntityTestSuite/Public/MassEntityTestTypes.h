@@ -129,7 +129,7 @@ public:
 
 	FMassEntityQuery& TestGetQuery() { return EntityQuery; }
 
-	void SetShouldAllowDuplicates(const bool bInShouldAllowDuplicated) { bAllowDuplicates = bInShouldAllowDuplicated; }
+	void SetShouldAllowMultipleInstances(const bool bInShouldAllowDuplicated) { bAllowMultipleInstances = bInShouldAllowDuplicated; }
 
 protected:
 	FMassEntityQuery EntityQuery;

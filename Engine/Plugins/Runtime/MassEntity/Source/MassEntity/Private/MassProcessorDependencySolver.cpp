@@ -357,13 +357,25 @@ void FMassProcessorDependencySolver::CreateSubGroupNames(FName InGroupName, TArr
 int32 FMassProcessorDependencySolver::CreateNodes(UMassProcessor& Processor)
 {
 	check(Processor.GetClass());
-	const FName ProcName = Processor.GetClass()->GetFName();
+	FName ProcName = Processor.GetClass()->GetFName();
 
 	if (const int32* NodeIndexPtr = NodeIndexMap.Find(ProcName))
 	{
-		UE_LOG(LogMass, Warning, TEXT("%s Processor %s already registered. Duplicates are not supported.")
-			, ANSI_TO_TCHAR(__FUNCTION__), *ProcName.ToString());
-		return *NodeIndexPtr;
+		// we can accept another instance of this processor class if the processor itself supports that.
+		// Note that the first instance is added with the class while the subsequent instances are added with 
+		// the instance name. This is done on purpose. The class name is used as dependency, so if at least the first 
+		// processor is placed with the class name, like other processors, it can still be used to influence execution
+		// order via ExecuteBefore and ExecuteAfter.
+		if (Processor.ShouldAllowMultipleInstances())
+		{
+			ProcName = Processor.GetFName();
+		}
+		else
+		{
+			UE_LOG(LogMass, Warning, TEXT("%s Processor %s already registered. Duplicates are not supported.")
+				, ANSI_TO_TCHAR(__FUNCTION__), *ProcName.ToString());
+			return *NodeIndexPtr;
+		}
 	}
 
 	const FMassProcessorExecutionOrder& ExecutionOrder = Processor.GetExecutionOrder();

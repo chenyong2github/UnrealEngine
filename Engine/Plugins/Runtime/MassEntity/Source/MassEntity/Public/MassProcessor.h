@@ -56,7 +56,14 @@ public:
 	bool ShouldExecute(const EProcessorExecutionFlags CurrentExecutionFlags) const { return (GetExecutionFlags() & CurrentExecutionFlags) != EProcessorExecutionFlags::None; }
 	void CallExecute(FMassEntityManager& EntityManager, FMassExecutionContext& Context);
 
-	bool AllowDuplicates() const { return bAllowDuplicates; }
+	/** 
+	 * Controls whether there can be multiple instances of a given class in a single FMassRuntimePipeline and during 
+	 * dependency solving. 
+	 */
+	bool ShouldAllowMultipleInstances() const { return bAllowMultipleInstances; }
+
+	UE_DEPRECATED(5.2, "This function is deprecated. Use ShouldAllowDuplicates instead.")
+	bool AllowDuplicates() const { return ShouldAllowMultipleInstances(); }
 
 	virtual void DebugOutputDescription(FOutputDevice& Ar, int32 Indent = 0) const;
 	virtual FString GetProcessorName() const { return GetName(); }
@@ -127,6 +134,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = Processor, config)
 	bool bAutoRegisterWithProcessingPhases = true;
 
+	/** Meant as a class property, make sure to set it in subclass' constructor. Controls whether there can be multiple
+	 *  instances of a given class in a single FMassRuntimePipeline and during dependency solving. */
+	bool bAllowMultipleInstances = false;
+
+	UE_DEPRECATED(5.2, "This property is deprecated. Use bAllowMultipleInstances instead")
 	/** meant as a class property, make sure to set it in subclass' constructor. Controls whether there can be multiple 
 	 *  instances of a given class in a single FMassRuntimePipeline */
 	bool bAllowDuplicates = false;

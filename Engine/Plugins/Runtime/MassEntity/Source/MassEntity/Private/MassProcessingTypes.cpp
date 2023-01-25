@@ -140,7 +140,7 @@ void FMassRuntimePipeline::AppendUniqueRuntimeProcessorCopies(TConstArrayView<co
 	for (const UMassProcessor* Proc : InProcessors)
 	{
 		if (Proc && Proc->ShouldExecute(WorldExecutionFlags)
-			&& (Proc->AllowDuplicates() || (HasProcessorOfExactClass(Proc->GetClass()) == false)))
+			&& (Proc->ShouldAllowMultipleInstances() || (HasProcessorOfExactClass(Proc->GetClass()) == false)))
 		{
 			// unfortunately the const cast is required since NewObject doesn't support const Template object
 			UMassProcessor* ProcCopy = NewObject<UMassProcessor>(&InOwner, Proc->GetClass(), FName(), RF_NoFlags, const_cast<UMassProcessor*>(Proc));
@@ -153,7 +153,7 @@ void FMassRuntimePipeline::AppendUniqueRuntimeProcessorCopies(TConstArrayView<co
 			{
 				UE_VLOG(&InOwner, LogMass, Log, TEXT("Skipping %s due to ExecutionFlags"), *Proc->GetName());
 			}
-			else if (Proc->AllowDuplicates() == false)
+			else if (Proc->ShouldAllowMultipleInstances() == false)
 			{
 				UE_VLOG(&InOwner, LogMass, Log, TEXT("Skipping %s due to it being a duplicate"), *Proc->GetName());
 			}
@@ -183,7 +183,7 @@ void FMassRuntimePipeline::AppendOrOverrideRuntimeProcessorCopies(TConstArrayVie
 			UMassProcessor* ProcCopy = NewObject<UMassProcessor>(&InOwner, Proc->GetClass(), FName(), RF_NoFlags, const_cast<UMassProcessor*>(Proc));
 			check(ProcCopy);
 
-			if (ProcCopy->AllowDuplicates())
+			if (ProcCopy->ShouldAllowMultipleInstances())
 			{
 				// we don't care if there are instances of this class in Processors already
 				Processors.Add(ProcCopy);
