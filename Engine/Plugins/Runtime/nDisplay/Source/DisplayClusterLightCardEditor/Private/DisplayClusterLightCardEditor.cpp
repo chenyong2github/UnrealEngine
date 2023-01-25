@@ -842,6 +842,7 @@ void FDisplayClusterLightCardEditor::CreateLightCardTemplate()
 	}
 	
 	FString DefaultAssetName = LightCardActor->GetActorLabel();
+	DefaultAssetName.RemoveSpacesInline();
 	if (!DefaultAssetName.EndsWith(TEXT("Template")))
 	{
 		DefaultAssetName += TEXT("Template");

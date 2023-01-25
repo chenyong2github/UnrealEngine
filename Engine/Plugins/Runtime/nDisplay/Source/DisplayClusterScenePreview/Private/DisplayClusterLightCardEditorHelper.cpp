@@ -804,7 +804,7 @@ AActor* FDisplayClusterLightCardEditorHelper::SpawnStageActor(const FSpawnActorA
 	check(RootActor)
 	check(ActorClass || Template);
 	
-	const FName ActorName = InSpawnArgs.ActorName;
+	FName ActorName = InSpawnArgs.ActorName;
 	const EDisplayClusterMeshProjectionType ProjectionMode = InSpawnArgs.ProjectionMode;
 	ULevel* Level = InSpawnArgs.Level ? InSpawnArgs.Level : RootActor->GetWorld()->GetCurrentLevel();
 	const bool bIsPreview = InSpawnArgs.bIsPreview;
@@ -829,6 +829,7 @@ AActor* FDisplayClusterLightCardEditorHelper::SpawnStageActor(const FSpawnActorA
 		// specifically the static mesh override textures. They will be parented to the template, not the level instance
 		// and prevent the map from saving.
 		ADisplayClusterLightCardActor* NewLightCard = CastChecked<ADisplayClusterLightCardActor>(StaticDuplicateObject(TemplateActor, Level, UniqueName));
+		ActorName = UniqueName;
 
 #if WITH_EDITOR
 		Level->AddLoadedActor(NewLightCard);
