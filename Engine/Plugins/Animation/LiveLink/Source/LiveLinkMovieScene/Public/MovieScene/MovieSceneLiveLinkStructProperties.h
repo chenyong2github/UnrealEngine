@@ -24,8 +24,8 @@ struct FLiveLinkPropertyData
 	GENERATED_BODY()
 
 public:
-	FLiveLinkPropertyData();
-	~FLiveLinkPropertyData();
+	LIVELINKMOVIESCENE_API FLiveLinkPropertyData();
+	LIVELINKMOVIESCENE_API ~FLiveLinkPropertyData();
 
 	UPROPERTY()
 	FName PropertyName;
