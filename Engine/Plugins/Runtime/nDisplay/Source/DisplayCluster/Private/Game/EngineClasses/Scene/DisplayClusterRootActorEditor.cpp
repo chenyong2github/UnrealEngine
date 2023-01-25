@@ -212,7 +212,7 @@ bool ADisplayClusterRootActor::IsPreviewEnabled() const
 	if (IsRunningGameOrPIE())
 	{
 		// Only PIE is currently supported
-		return bPIEPreviewEnable && GIsPlayInEditorWorld && (PreviewNodeId == DisplayClusterConfigurationStrings::gui::preview::PreviewNodeNone);
+		return bPreviewEnable && GIsPlayInEditorWorld && (PreviewNodeId == DisplayClusterConfigurationStrings::gui::preview::PreviewNodeNone);
 	}
 
 	// Editor case
