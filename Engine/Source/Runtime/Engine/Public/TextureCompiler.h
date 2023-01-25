@@ -102,6 +102,7 @@ private:
 
 	double LastReschedule = 0.0f;
 	bool bHasShutdown = false;
+	bool bIsRoutingPostCompilation = false;
 	TArray<TSet<TWeakObjectPtr<UTexture>>> RegisteredTextureBuckets;
 	FAsyncCompilationNotification Notification;
 
