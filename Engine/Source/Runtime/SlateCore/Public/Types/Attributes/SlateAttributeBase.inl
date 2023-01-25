@@ -70,19 +70,19 @@ namespace SlateAttributePrivate
 			}
 			else if constexpr (std::is_same<FVector2f, InObjectType>::value)
 			{
-				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector2f properly (see FVector2D::EForceInit)"));
+				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector2f properly (see FVector2f::EForceInit)"));
 			}
 			else if constexpr (std::is_same<FVector2d, InObjectType>::value)
 			{
-				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector2d properly (see FVector2D::EForceInit)"));
+				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector2d properly (see FVector2d::EForceInit)"));
 			}
 			else if constexpr (std::is_same<FVector3f, InObjectType>::value)
 			{
-				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector3f properly (see FVector::EForceInit)"));
+				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector3f properly (see FVector3f::EForceInit)"));
 			}
 			else if constexpr (std::is_same<FVector3d, InObjectType>::value)
 			{
-				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector3d properly (see FVector::EForceInit)"));
+				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector3d properly (see FVector3d::EForceInit)"));
 			}
 			else if constexpr (std::is_same<FVector4f, InObjectType>::value)
 			{

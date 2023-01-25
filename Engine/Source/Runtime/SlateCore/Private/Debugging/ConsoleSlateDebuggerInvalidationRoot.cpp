@@ -189,10 +189,10 @@ void FConsoleSlateDebuggerInvalidationRoot::HandlePaintDebugInfo(const FPaintArg
 	if (bShowLegend)
 	{
 		//const TSharedRef<FSlateFontMeasure>& FontMeasureService = FSlateApplicationBase::Get().GetRenderer()->GetFontMeasureService();
-		//FVector2D FontSize = FontMeasureService->Measure(TEXT("No Paint occurred"), FontInfo);
+		//FVector2f FontSize = FontMeasureService->Measure(TEXT("No Paint occurred"), FontInfo);
 		//FontSize.Y *= 3;
 		//const FSlateBrush* BoxBrush = FCoreStyle::Get().GetBrush("WhiteBrush");
-		//const FGeometry Geometry = FGeometry::MakeRoot(FontSize, FSlateLayoutTransform(1.f, FVector2D(10.f, 10.f + 0.f)));
+		//const FGeometry Geometry = FGeometry::MakeRoot(FontSize, FSlateLayoutTransform(1.f, FVector2f(10.f, 10.f + 0.f)));
 
 		//FSlateDrawElement::MakeBox(
 		//	InOutDrawElements,

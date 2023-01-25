@@ -156,7 +156,7 @@ void LogAllWidgetsDebugInfoImpl(FOutputDevice& Ar, const FLogAllWidgetsDebugInfo
 
 		if (DebugInfoFlags.bPaint)
 		{
-			FVector2D AbsoluteSize = Widget->GetPersistentState().AllottedGeometry.GetAbsoluteSize();
+			FVector2f AbsoluteSize = Widget->GetPersistentState().AllottedGeometry.GetAbsoluteSize();
 			MessageBuilder << TEXT(";");
 			MessageBuilder << Widget->Debug_GetLastPaintFrame();
 			MessageBuilder << TEXT(";");
