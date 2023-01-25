@@ -7,6 +7,7 @@
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "Algo/Find.h"
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
+#include "Misc/ScopeExit.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionReplay.h"
