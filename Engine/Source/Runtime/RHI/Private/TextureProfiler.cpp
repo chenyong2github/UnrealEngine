@@ -3,6 +3,7 @@
 #include "TextureProfiler.h"
 
 #include "Misc/CoreDelegates.h"
+#include "HAL/IConsoleManager.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "RHIDefinitions.h"
 #include "RHIResources.h"

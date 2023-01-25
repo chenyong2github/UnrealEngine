@@ -9,6 +9,7 @@ DynamicRHI.h: Dynamically bound Render Hardware Interface definitions.
 #include "CoreTypes.h"
 #include "RHIContext.h"
 #include "RHIFeatureLevel.h"
+#include "RHIShaderLibrary.h"
 #include "MultiGPU.h"
 #include "Serialization/MemoryLayout.h"
 #include "Containers/ArrayView.h"
