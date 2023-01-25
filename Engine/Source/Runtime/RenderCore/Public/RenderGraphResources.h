@@ -887,6 +887,15 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FRDGBufferDesc& operator=(const FRDGBufferDesc&) = default;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	static FRDGBufferDesc CreateIndirectDesc(uint32 BytesPerElement, uint32 NumElements)
+	{
+		FRDGBufferDesc Desc;
+		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::DrawIndirect | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::VertexBuffer;
+		Desc.BytesPerElement = BytesPerElement;
+		Desc.NumElements = NumElements;
+		return Desc;
+	}
+
 	/** Create the descriptor for an indirect RHI call.
 	 *
 	 * Note, IndirectParameterStruct should be one of the:
@@ -897,20 +906,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	template<typename IndirectParameterStruct>
 	static FRDGBufferDesc CreateIndirectDesc(uint32 NumElements = 1)
 	{
-		FRDGBufferDesc Desc;
-		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::DrawIndirect | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::VertexBuffer;
-		Desc.BytesPerElement = sizeof(IndirectParameterStruct);
-		Desc.NumElements = NumElements;
-		return Desc;
+		return CreateIndirectDesc(sizeof(IndirectParameterStruct), NumElements);
 	}
 
 	static FRDGBufferDesc CreateIndirectDesc(uint32 NumElements = 1)
 	{
-		FRDGBufferDesc Desc;
-		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::DrawIndirect | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::VertexBuffer;
-		Desc.BytesPerElement = 4;
-		Desc.NumElements = NumElements;
-		return Desc;
+		return CreateIndirectDesc(4u, NumElements);
 	}
 
 	static FRDGBufferDesc CreateStructuredDesc(uint32 BytesPerElement, uint32 NumElements)
