@@ -16,9 +16,6 @@ private:
 	TUniquePtr<Chaos::FFleshCacheAdapter> FleshCacheAdapter;
 };
 
-IMPLEMENT_MODULE( FChaosFleshEnginePlugin, FleshEngine )
-
-
 
 void FChaosFleshEnginePlugin::StartupModule()
 {
@@ -33,4 +30,5 @@ void FChaosFleshEnginePlugin::ShutdownModule()
 }
 
 
+IMPLEMENT_MODULE(FChaosFleshEnginePlugin, ChaosFleshEngine)
 
