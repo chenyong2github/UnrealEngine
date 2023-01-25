@@ -818,7 +818,15 @@ UEdGraphPin* UK2Node_PromotableOperator::AddInputPinImpl(int32 PinIndex)
 bool UK2Node_PromotableOperator::IsAdditionalPin(const UEdGraphPin* Pin) const
 {
 	// Quickly check if this input pin is one of the two default input pins
-	return Pin && Pin->Direction == EGPD_Input && Pin->PinName != InputPinA_Name && Pin->PinName != InputPinB_Name && !IsTolerancePin(Pin);
+	bool bIsDefaultPinA =
+		(Pin->PinName == InputPinA_Name) ||
+		(Pin->ParentPin && (Pin->ParentPin->PinName == InputPinA_Name));
+
+	bool bIsDefaultPinB =
+		(Pin->PinName == InputPinB_Name) ||
+		(Pin->ParentPin && (Pin->ParentPin->PinName == InputPinB_Name));
+
+	return Pin && (Pin->Direction == EGPD_Input) && !bIsDefaultPinA && !bIsDefaultPinB && !IsTolerancePin(Pin);
 }
 
 bool UK2Node_PromotableOperator::HasAnyConnectionsOrDefaults() const
