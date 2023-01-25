@@ -18,6 +18,7 @@ struct FSceneWithoutWaterTextures;
 struct FMinimalSceneTextures;
 
 void InitVolumetricRenderTargetForViews(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views);
+void ResetVolumetricRenderTargetForViews(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views);
 
 void ReconstructVolumetricRenderTarget(
 	FRDGBuilder& GraphBuilder,

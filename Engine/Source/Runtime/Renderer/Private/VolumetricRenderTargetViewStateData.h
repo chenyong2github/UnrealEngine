@@ -24,7 +24,10 @@ public:
 	void Initialise(
 		FIntPoint& ViewRectResolutionIn,
 		int32 Mode,
-		int32 UpsamplingMode);
+		int32 UpsamplingMode,
+		bool bCameraCut);
+
+	void Reset();
 
 	FRDGTextureRef GetOrCreateVolumetricTracingRT(FRDGBuilder& GraphBuilder);
 	FRDGTextureRef GetOrCreateVolumetricSecondaryTracingRT(FRDGBuilder& GraphBuilder);

@@ -3290,6 +3290,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		InitVolumetricRenderTargetForViews(GraphBuilder, Views);
 	}
+	else
+	{
+		ResetVolumetricRenderTargetForViews(GraphBuilder, Views);
+	}
 
 	InitVolumetricCloudsForViews(GraphBuilder, bShouldRenderVolumetricCloudBase, InstanceCullingManager);
 
