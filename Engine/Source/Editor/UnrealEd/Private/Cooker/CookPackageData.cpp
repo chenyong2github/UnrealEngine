@@ -886,6 +886,13 @@ bool FPackageData::TryPreload()
 	}
 	if (FindObjectFast<UPackage>(nullptr, GetPackageName()))
 	{
+		if (AsyncRequest && !AsyncRequest->bHasFinished)
+		{
+			// In case of async loading, the object can be found while still being asynchronously serialized, we need to wait until 
+			// the callback is called and the async request is completely done.
+			return false;
+		}
+
 		// If the package has already loaded, then there is no point in further preloading
 		ClearPreload();
 		SetIsPreloadAttempted(true);
@@ -897,6 +904,24 @@ bool FPackageData::TryPreload()
 		ClearPreload();
 		SetIsPreloadAttempted(true);
 		return true;
+	}
+	if (IsAsyncLoadingMultithreaded())
+	{
+		if (!AsyncRequest.IsValid())
+		{
+			PackageDatas.GetMonitor().OnPreloadAllocatedChanged(*this, true);
+			AsyncRequest = MakeShared<FAsyncRequest>();
+			AsyncRequest->RequestID = LoadPackageAsync(
+				GetFileName().ToString(), 
+				FLoadPackageAsyncDelegate::CreateLambda(
+					[AsyncRequest = AsyncRequest](const FName&, UPackage*, EAsyncLoadingResult::Type) { AsyncRequest->bHasFinished = true; }
+				),
+				32 /* Use arbitrary higher priority for preload as we're going to need them very soon */
+			);
+		}
+
+		// always return false so we continue to check the status of the load until FindObjectFast above finds the loaded object
+		return false;
 	}
 	if (!PreloadableFile.Get())
 	{
@@ -989,6 +1014,17 @@ void FPackageData::FTrackedPreloadableFilePtr::Reset(FPackageData& Owner)
 
 void FPackageData::ClearPreload()
 {
+	if (AsyncRequest)
+	{
+		if (!AsyncRequest->bHasFinished)
+		{
+			FlushAsyncLoading(AsyncRequest->RequestID);
+			check(AsyncRequest->bHasFinished);
+		}
+		PackageDatas.GetMonitor().OnPreloadAllocatedChanged(*this, false);
+		AsyncRequest.Reset();
+	}
+
 	const TSharedPtr<FPreloadableArchive>& FilePtr = PreloadableFile.Get();
 	if (GetIsPreloaded())
 	{
@@ -1015,6 +1051,7 @@ void FPackageData::ClearPreload()
 
 void FPackageData::CheckPreloadEmpty()
 {
+	check(!AsyncRequest);
 	check(!GetIsPreloadAttempted());
 	check(!PreloadableFile.Get());
 	check(!GetIsPreloaded());

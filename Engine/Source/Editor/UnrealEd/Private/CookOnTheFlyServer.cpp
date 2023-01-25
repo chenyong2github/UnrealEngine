@@ -1391,6 +1391,7 @@ void UCookOnTheFlyServer::TickCookStatus(UE::Cook::FTickStackData& StackData)
 	}
 
 	UpdateDisplay(StackData, false /* bForceDisplay */);
+	ProcessAsyncLoading(false, false, 0.0f);
 	ProcessUnsolicitedPackages();
 	UpdatePackageFilter();
 	PumpExternalRequests(StackData.Timer);
@@ -5994,11 +5995,14 @@ void UCookOnTheFlyServer::SetInitializeConfigSettings(UE::Cook::FInitializeConfi
 {
 	Settings.MoveToLocal(*this);
 
-	MaxPreloadAllocated = 16;
+	// For preload to actually be able to pipeline with load/batch, we need both RequestBatchSize
+	// and MaxPreloadAllocated to be bigger than LoadBatchSize so that we won't consume all preloads
+	// for every iteration.
+	MaxPreloadAllocated = 32;
 	DesiredSaveQueueLength = 8;
 	DesiredLoadQueueLength = 8;
 	LoadBatchSize = 16;
-	RequestBatchSize = 16;
+	RequestBatchSize = 32;
 	WaitForAsyncSleepSeconds = 1.0f;
 
 

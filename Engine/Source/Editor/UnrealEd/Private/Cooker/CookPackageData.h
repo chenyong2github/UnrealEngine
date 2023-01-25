@@ -579,6 +579,14 @@ private:
 	FCompletionCallback CompletionCallback;
 	FName PackageName;
 	FName FileName;
+
+	struct FAsyncRequest
+	{
+		int32 RequestID { 0 };
+		std::atomic<bool> bHasFinished { false };
+	};
+	TSharedPtr<FAsyncRequest> AsyncRequest;
+
 	TWeakObjectPtr<UPackage> Package;
 	/** The one-per-CookOnTheFlyServer owner of this PackageData. */
 	FPackageDatas& PackageDatas;
