@@ -86,7 +86,7 @@ private:
 
 	IManifest::FResult GetMediaStreamForID(TSharedPtrTS<FManifestHLSInternal::FPlaylistBase>& OutPlaylist, TSharedPtrTS<FManifestHLSInternal::FMediaStream>& OutMediaStream, uint32 UniqueID) const;
 
-	IManifest::FResult GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options, bool bRetry);
+	IManifest::FResult GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, bool& OutWaitForRemoteElement, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options, bool bRetry);
 
 	IManifest::FResult FindSegment(TSharedPtrTS<FStreamSegmentRequestHLSfmp4>& OutRequest, TSharedPtrTS<FManifestHLSInternal::FPlaylistBase> InPlaylist, TSharedPtrTS<FManifestHLSInternal::FMediaStream> InStream, uint32 StreamUniqueID, EStreamType StreamType, const FSegSearchParam& SearchParam, IManifest::ESearchType SearchType);
 
@@ -1056,7 +1056,7 @@ IManifest::FResult FPlayPeriodHLS::GetLoopingSegment(TSharedPtrTS<IStreamSegment
 
 
 
-IManifest::FResult FPlayPeriodHLS::GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, const FPlayStartOptions& Options, bool bRetry)
+IManifest::FResult FPlayPeriodHLS::GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, bool& OutWaitForRemoteElement, TSharedPtrTS<const IStreamSegment> InCurrentSegment, const FPlayStartOptions& Options, bool bRetry)
 {
 	// Need to have a current segment to find the next one.
 	if (!InCurrentSegment.IsValid())
@@ -1135,6 +1135,7 @@ IManifest::FResult FPlayPeriodHLS::GetNextOrRetrySegment(TSharedPtrTS<IStreamSeg
 				NextSegmentRequest->NumOverallRetries = CurrentRequest->NumOverallRetries + 1;
 			}
 			OutSegment = NextSegmentRequest;
+			OutWaitForRemoteElement = false;
 			return IManifest::FResult(IManifest::FResult::EType::Found);
 		}
 		if (Result.GetType() == IManifest::FResult::EType::TryAgainLater)
@@ -1155,6 +1156,7 @@ IManifest::FResult FPlayPeriodHLS::GetNextOrRetrySegment(TSharedPtrTS<IStreamSeg
 			check(Playlist.IsValid());
 
 			Playlist->Internal.LoadState = FManifestHLSInternal::FPlaylistBase::FInternal::ELoadState::Pending;
+			OutWaitForRemoteElement = true;
 
 			FURL_RFC3986 UrlBuilder;
 			UrlBuilder.Parse(InternalManifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
@@ -1187,7 +1189,8 @@ IManifest::FResult FPlayPeriodHLS::GetNextOrRetrySegment(TSharedPtrTS<IStreamSeg
  */
 IManifest::FResult FPlayPeriodHLS::GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, const FPlayStartOptions& Options)
 {
-	return GetNextOrRetrySegment(OutSegment, InCurrentSegment, Options, false);
+	bool bNeedRemoteElement = false;
+	return GetNextOrRetrySegment(OutSegment, bNeedRemoteElement, InCurrentSegment, Options, false);
 }
 
 
@@ -1205,7 +1208,12 @@ IManifest::FResult FPlayPeriodHLS::GetRetrySegment(TSharedPtrTS<IStreamSegment>&
 		OutSegment = NewRequest;
 		return IManifest::FResult(IManifest::FResult::EType::Found);
 	}
-	return GetNextOrRetrySegment(OutSegment, InCurrentSegment, Options, true);
+
+	// Pass the download stats bWaitingForRemoteRetryElement to convey if the retry segment needs to wait for
+	// the variant playlist download.
+	FStreamSegmentRequestHLSfmp4* CurrentRequest = const_cast<FStreamSegmentRequestHLSfmp4*>(static_cast<const FStreamSegmentRequestHLSfmp4*>(InCurrentSegment.Get()));
+	IManifest::FResult Result = GetNextOrRetrySegment(OutSegment, CurrentRequest->DownloadStats.bWaitingForRemoteRetryElement, InCurrentSegment, Options, true);
+	return Result;
 }
 
 

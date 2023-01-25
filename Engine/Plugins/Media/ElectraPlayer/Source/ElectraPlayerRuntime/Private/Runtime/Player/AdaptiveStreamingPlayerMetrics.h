@@ -147,6 +147,7 @@ namespace Metrics
 		bool			bParseFailure = false;				//!< true if the segment could not be parsed
 		bool			bInsertedFillerData = false;
 		bool			bIsCachedResponse = false;
+		bool			bWaitingForRemoteRetryElement = false;
 
 		// Chunk timing
 		struct FMovieChunkInfo

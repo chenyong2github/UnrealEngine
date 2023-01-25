@@ -177,7 +177,7 @@ private:
 		SamePeriodStartOver,
 		NextPeriod,
 	};
-	IManifest::FResult GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, ENextSegType InNextType, const FPlayStartOptions& Options);
+	IManifest::FResult GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, bool& OutWaitForRemoteElement, TSharedPtrTS<const IStreamSegment> InCurrentSegment, ENextSegType InNextType, const FPlayStartOptions& Options);
 
 	bool PrepareDRM(const TArray<FManifestDASHInternal::FAdaptationSet::FContentProtection>& InContentProtections);
 
@@ -1308,17 +1308,19 @@ IManifest::FResult FDASHPlayPeriod::GetContinuationSegment(TSharedPtrTS<IStreamS
 {
 	// Create a dummy request we can use to pass into GetNextOrRetrySegment().
 	// Only set the values that that method requires.
+	bool bNeedRemoteElement = false;
 	auto DummyReq = MakeSharedTS<FStreamSegmentRequestFMP4DASH>();
 	DummyReq->StreamType = StreamType;
 	DummyReq->PeriodStart = StartPosition.Time;
 	DummyReq->TimestampSequenceIndex = SequenceState.SequenceIndex;
-	return GetNextOrRetrySegment(OutSegment, DummyReq, ENextSegType::SamePeriodStartOver, StartPosition.Options);
+	return GetNextOrRetrySegment(OutSegment, bNeedRemoteElement, DummyReq, ENextSegType::SamePeriodStartOver, StartPosition.Options);
 }
 
 
 
-IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, ENextSegType InNextType, const FPlayStartOptions& Options)
+IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, bool& OutWaitForRemoteElement, TSharedPtrTS<const IStreamSegment> InCurrentSegment, ENextSegType InNextType, const FPlayStartOptions& Options)
 {
+	OutWaitForRemoteElement = false;
 	TSharedPtrTS<const FStreamSegmentRequestFMP4DASH> Current = StaticCastSharedPtr<const FStreamSegmentRequestFMP4DASH>(InCurrentSegment);
 	if (Current->bIsInitialStartRequest)
 	{
@@ -1440,6 +1442,7 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 		{
 			return IManifest::FResult(IManifest::FResult::EType::NotFound).SetErrorDetail(FErrorDetail().SetMessage("Entity loader disappeared"));
 		}
+		OutWaitForRemoteElement = true;
 		IPlaylistReaderDASH* Reader = static_cast<IPlaylistReaderDASH*>(ManifestReader.Get());
 		Reader->AddElementLoadRequests(RemoteElementLoadRequests);
 		return IManifest::FResult().RetryAfterMilliseconds(100);
@@ -1543,18 +1546,19 @@ IManifest::FResult FDASHPlayPeriod::GetNextSegment(TSharedPtrTS<IStreamSegment>&
 	const FStreamSegmentRequestFMP4DASH* CurrentRequest = static_cast<const FStreamSegmentRequestFMP4DASH*>(InCurrentSegment.Get());
 
 	// Check if we moved across a period.
+	bool bNeedRemoteElement = false;
 	if (CurrentRequest->Period->GetUniqueIdentifier().Equals(PeriodID))
 	{
 		if (CurrentRequest->Segment.bSawLMSG)
 		{
 			return IManifest::FResult(IManifest::FResult::EType::PastEOS);
 		}
-		return GetNextOrRetrySegment(OutSegment, InCurrentSegment, ENextSegType::SamePeriodNext, Options);
+		return GetNextOrRetrySegment(OutSegment, bNeedRemoteElement, InCurrentSegment, ENextSegType::SamePeriodNext, Options);
 	}
 	else
 	{
 		// Moved into a new period. This here is the new period.
-		return GetNextOrRetrySegment(OutSegment, InCurrentSegment, ENextSegType::NextPeriod, Options);
+		return GetNextOrRetrySegment(OutSegment, bNeedRemoteElement, InCurrentSegment, ENextSegType::NextPeriod, Options);
 	}
 }
 
@@ -1576,7 +1580,12 @@ IManifest::FResult FDASHPlayPeriod::GetRetrySegment(TSharedPtrTS<IStreamSegment>
 		OutSegment = NewRequest;
 		return IManifest::FResult(IManifest::FResult::EType::Found);
 	}
-	return GetNextOrRetrySegment(OutSegment, InCurrentSegment, ENextSegType::SamePeriodRetry, Options);
+	
+	// Pass the download stats bWaitingForRemoteRetryElement to convey if the retry segment needs to wait for a remote element,
+	// which is either some xlink or an index segment.
+	FStreamSegmentRequestFMP4DASH* CurrentRequest = const_cast<FStreamSegmentRequestFMP4DASH*>(static_cast<const FStreamSegmentRequestFMP4DASH*>(InCurrentSegment.Get()));
+	IManifest::FResult Result = GetNextOrRetrySegment(OutSegment, CurrentRequest->DownloadStats.bWaitingForRemoteRetryElement, InCurrentSegment, ENextSegType::SamePeriodRetry, Options);
+	return Result;
 }
 
 
