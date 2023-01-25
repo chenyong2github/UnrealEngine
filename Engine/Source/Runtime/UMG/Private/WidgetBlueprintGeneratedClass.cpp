@@ -505,7 +505,7 @@ void UWidgetBlueprintGeneratedClass::InitializeFieldNotification(const UUserWidg
 	}
 }
 
-void UWidgetBlueprintGeneratedClass::ForEachField(TFunctionRef<bool(::UE::FieldNotification::FFieldId FielId)> Callback) const
+void UWidgetBlueprintGeneratedClass::ForEachField(TFunctionRef<bool(::UE::FieldNotification::FFieldId FielId)> Callback, bool bIncludeSuper) const
 {
 	ensureMsgf(FieldNotifyStartBitNumber >= 0, TEXT("The FieldNotifyStartIndex is negative. The number of field should be positive."));
 	for (int32 Index = 0; Index < FieldNotifyNames.Num(); ++Index)
@@ -515,9 +515,16 @@ void UWidgetBlueprintGeneratedClass::ForEachField(TFunctionRef<bool(::UE::FieldN
 			break;
 		}
 	}
+	if (bIncludeSuper)
+	{
+		if (UWidgetBlueprintGeneratedClass* ParentClass = Cast<UWidgetBlueprintGeneratedClass>(GetSuperClass()))
+		{
+			ParentClass->ForEachField(Callback);
+		}
+	}
 }
 
-UWidgetBlueprintGeneratedClassExtension* UWidgetBlueprintGeneratedClass::GetExtension(TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType)
+UWidgetBlueprintGeneratedClassExtension* UWidgetBlueprintGeneratedClass::GetExtension(TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType, bool bIncludeSuper)
 {
 	for (UWidgetBlueprintGeneratedClassExtension* Extension : Extensions)
 	{
@@ -526,21 +533,39 @@ UWidgetBlueprintGeneratedClassExtension* UWidgetBlueprintGeneratedClass::GetExte
 			return Extension;
 		}
 	}
+	if (bIncludeSuper)
+	{
+		if (UWidgetBlueprintGeneratedClass* ParentClass = Cast<UWidgetBlueprintGeneratedClass>(GetSuperClass()))
+		{
+			return ParentClass->GetExtension(InExtensionType);
+		}
+	}
 	return nullptr;
 }
 
-
-TArray<UWidgetBlueprintGeneratedClassExtension*> UWidgetBlueprintGeneratedClass::GetExtensions(TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType)
+TArray<UWidgetBlueprintGeneratedClassExtension*> UWidgetBlueprintGeneratedClass::GetExtensions(TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType, bool bIncludeSuper)
 {
 	TArray<UWidgetBlueprintGeneratedClassExtension*> Result;
+	GetExtensions(Result, InExtensionType, bIncludeSuper);
+	return Result;
+}
+
+void UWidgetBlueprintGeneratedClass::GetExtensions(TArray<UWidgetBlueprintGeneratedClassExtension*>& OutExtensions, TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType, bool bIncludeSuper)
+{
 	for (UWidgetBlueprintGeneratedClassExtension* Extension : Extensions)
 	{
 		if (Extension->IsA(InExtensionType))
 		{
-			Result.Add(Extension);
+			OutExtensions.Add(Extension);
 		}
 	}
-	return Result;
+	if (bIncludeSuper)
+	{
+		if (UWidgetBlueprintGeneratedClass* ParentClass = Cast<UWidgetBlueprintGeneratedClass>(GetSuperClass()))
+		{
+			ParentClass->GetExtensions(OutExtensions, InExtensionType, bIncludeSuper);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
