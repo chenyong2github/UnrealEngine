@@ -4,6 +4,7 @@
 #include "PrimitiveViewRelevance.h"
 #include "SceneManagement.h"
 #include "MaterialDomain.h"
+#include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "PhysicsEngine/BodySetup.h"

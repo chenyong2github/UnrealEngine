@@ -7,6 +7,7 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "MaterialDomain.h"
+#include "MaterialShared.h"
 #include "MaterialShaderType.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"

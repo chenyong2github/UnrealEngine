@@ -65,6 +65,7 @@
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 #include "MaterialUtilities.h"
+#include "MaterialShared.h"
 #include "InstancedFoliageActor.h"
 #include "LandscapeProxy.h"
 #include "Landscape.h"

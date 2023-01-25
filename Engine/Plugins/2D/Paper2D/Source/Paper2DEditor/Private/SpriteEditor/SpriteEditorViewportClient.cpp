@@ -3,6 +3,7 @@
 #include "SpriteEditor/SpriteEditorViewportClient.h"
 #include "InputKeyEventArgs.h"
 #include "Materials/MaterialInterface.h"
+#include "MaterialShared.h"
 #include "CanvasItem.h"
 #include "Misc/PackageName.h"
 #include "Utils.h"

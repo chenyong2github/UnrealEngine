@@ -2,6 +2,7 @@
 
 #include "TileMapEditing/TileMapEditorViewportClient.h"
 #include "Materials/MaterialInterface.h"
+#include "MaterialShared.h"
 #include "PaperTileMapComponent.h"
 #include "SceneView.h"
 #include "ScopedTransaction.h"
