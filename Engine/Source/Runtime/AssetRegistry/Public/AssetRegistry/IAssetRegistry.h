@@ -4,7 +4,6 @@
 
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetIdentifier.h"
-#include "AssetRegistry/AssetDataTagMap.h"
 #include "Containers/Array.h"
 #include "Containers/BitArray.h"
 #include "Containers/StringFwd.h"
