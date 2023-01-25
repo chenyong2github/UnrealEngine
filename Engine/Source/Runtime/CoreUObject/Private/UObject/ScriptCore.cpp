@@ -3341,8 +3341,8 @@ public:
 				if(NULL != Stack.MostRecentPropertyAddress)
 				{
 					check(Property->IsInContainer(SignatureFunction->ParmsSize));
-					uint8* ConstRefCopyParamAdress = Property->ContainerPtrToValuePtr<uint8>(Parameters);
-					Property->CopyCompleteValueToScriptVM(ConstRefCopyParamAdress, Stack.MostRecentPropertyAddress);
+					uint8* ConstRefCopyParamAddress = Property->ContainerPtrToValuePtr<uint8>(Parameters);
+					Property->CopyCompleteValueToScriptVM(ConstRefCopyParamAddress, Stack.MostRecentPropertyAddress);
 				}
 			}
 			else

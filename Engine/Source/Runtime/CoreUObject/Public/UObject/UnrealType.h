@@ -571,15 +571,15 @@ public:
 		return ImportText_Internal(Buffer, PropertyPtr, EPropertyPointerType::Direct, OwnerObject, PortFlags, ErrorText);
 	}
 
-	FORCEINLINE void SetValue_InContainer(void* InContainer, const void* InValue) const
+	FORCEINLINE void SetValue_InContainer(void* OutContainer, const void* InValue) const
 	{
 		if (!HasSetter())
 		{
-			CopyCompleteValue(ContainerVoidPtrToValuePtrInternal(InContainer, 0), InValue);
+			CopyCompleteValue(ContainerVoidPtrToValuePtrInternal(OutContainer, 0), InValue);
 		}
 		else
 		{
-			CallSetter(InContainer, InValue);
+			CallSetter(OutContainer, InValue);
 		}
 	}
 	FORCEINLINE void GetValue_InContainer(void const* InContainer, void* OutValue) const
@@ -596,11 +596,11 @@ public:
 
 	/**
 	* Copies a single value to the property even if the property represents a static array of values
-	* @param InContainer Instance owner of the property
+	* @param OutContainer Instance owner of the property
 	* @param InValue Pointer to the memory that the value will be copied from. Must be at least ElementSize big
 	* @param ArrayIndex Index into the static array to copy the value from. If the property is not a static array it should be 0
 	*/
-	void SetSingleValue_InContainer(void* InContainer, const void* InValue, int32 ArrayIndex) const;
+	void SetSingleValue_InContainer(void* OutContainer, const void* InValue, int32 ArrayIndex) const;
 
 	/**
 	* Copies a single value to OutValue even if the property represents a static array of values
@@ -618,19 +618,19 @@ public:
 
 	/**
 	 * Helper function for setting container / struct property value and performing operation directly on the value memory
-	 * @param InContainer Pointer to the container that owns the property. Can be null but then setters and getters will not be used.
-	 * @param DirectPropertyAddress Direct property value address. Can be null only if InContainer is a valid pointer.
-	 * @param DirectValueAccessFunc Function that manipulates directly on property value address. The value address can be different than the passed in DirectPropertyAddress if setters and getters are present and InContainer pointer is valid.
+	 * @param OutContainer Pointer to the container that owns the property. Can be null but then setters and getters will not be used.
+	 * @param DirectPropertyAddress Direct property value address. Can be null only if OutContainer is a valid pointer.
+	 * @param DirectValueAccessFunc Function that manipulates directly on property value address. The value address can be different than the passed in DirectPropertyAddress if setters and getters are present and OutContainer pointer is valid.
 	 */
-	void PerformOperationWithSetter(void* InContainer, void* DirectPropertyAddress, TFunctionRef<void(void*)> DirectValueAccessFunc) const;
+	void PerformOperationWithSetter(void* OutContainer, void* DirectPropertyAddress, TFunctionRef<void(void*)> DirectValueAccessFunc) const;
 
 	/**
 	 * Helper function for getting container / struct property value and performing operation directly on the value memory
-	 * @param InContainer Pointer to the container that owns the property. Can be null but then setters and getters will not be used.
-	 * @param DirectPropertyAddress Direct property value address. Can be null only if InContainer is a valid pointer.
-	 * @param DirectValueAccessFunc Function that manipulates directly on property value address. The value address can be different than the passed in DirectPropertyAddress if setters and getters are present and InContainer pointer is valid.
+	 * @param OutContainer Pointer to the container that owns the property. Can be null but then setters and getters will not be used.
+	 * @param DirectPropertyAddress Direct property value address. Can be null only if OutContainer is a valid pointer.
+	 * @param DirectValueAccessFunc Function that manipulates directly on property value address. The value address can be different than the passed in DirectPropertyAddress if setters and getters are present and OutContainer pointer is valid.
 	 */
-	void PerformOperationWithGetter(void* InContainer, const void* DirectPropertyAddress, TFunctionRef<void(const void*)> DirectValueAccessFunc) const;
+	void PerformOperationWithGetter(void* OutContainer, const void* DirectPropertyAddress, TFunctionRef<void(const void*)> DirectValueAccessFunc) const;
 
 	/** 
 	 * Gets value address at given index inside of a static array or container
@@ -1472,9 +1472,9 @@ public:
 		*GetPropertyValuePtr_InContainer(A, ArrayIndex) = Value;
 	}
 
-	FORCEINLINE void SetValue_InContainer(void* InContainer, const TCppType& InValue) const
+	FORCEINLINE void SetValue_InContainer(void* OutContainer, const TCppType& InValue) const
 	{
-		TInPropertyBaseClass::SetValue_InContainer(InContainer, &InValue);
+		TInPropertyBaseClass::SetValue_InContainer(OutContainer, &InValue);
 	}
 
 	FORCEINLINE void GetValue_InContainer(void const* InContainer, TCppType* OutValue) const
