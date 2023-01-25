@@ -323,10 +323,8 @@ public:
 
 	// Some platform have a System UI Overlay that can draw on top of the application.
 	// The game might want to be notified so it can pause, etc...
-	static TMulticastDelegate<void()> ApplicationSystemUIOverlayAppearedDelegate;
-
-	// Called when the UI Overlay was hidden
-	static TMulticastDelegate<void()> ApplicationSystemUIOverlayDisappearedDelegate;
+	// Parameter (bool) should be true if the system UI is displayed, otherwise false should be passed
+	static TMulticastDelegate<void(bool)> ApplicationSystemUIOverlayStateChangedDelegate;
 
 	// Called when in the background, if the OS is giving CPU time to the device. It is very likely
 	// this will never be called due to mobile OS backgrounded CPU restrictions. But if, for instance,
