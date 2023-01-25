@@ -655,7 +655,9 @@ void FStreamingManager::InitRHI()
 
 	PendingPages.SetNum( MaxPendingPages );
 
+#if !WITH_EDITOR
 	PendingPageStagingMemory.SetNumUninitialized(MaxPendingPages * NANITE_MAX_PAGE_DISK_SIZE);
+#endif
 
 	RequestsHashTable	= new FRequestsHashTable();
 	PageUploader		= new FStreamingPageUploader();
@@ -1160,14 +1162,13 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 
 				ModifiedResources.Add(PendingPage.InstallKey.RuntimeResourceID);
 
-				const uint8* SrcPtr;
 #if WITH_EDITOR
-				if(PendingPage.State == FPendingPage::EState::DDC_Ready)
+				const uint8* SrcPtr;
+				if ((*Resources)->ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC)
 				{
-					check((*Resources)->ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC);
 					SrcPtr = (const uint8*)PendingPage.SharedBuffer.GetData();
 				}
-				else if(PendingPage.State == FPendingPage::EState::Memory)
+				else
 				{
 					// Make sure we only lock each resource BulkData once.
 					const uint8** BulkDataPtrPtr = ResourceToBulkPointer.Find(*Resources);
@@ -1184,14 +1185,9 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 						SrcPtr = BulkDataPtr + PageStreamingState.BulkOffset;
 					}
 				}
-				else
+#else
+				const uint8* SrcPtr = PendingPage.RequestBuffer.GetData();
 #endif
-				{
-#if WITH_EDITOR
-					check(PendingPage.State == FPendingPage::EState::Disk);
-#endif
-					SrcPtr = PendingPage.RequestBuffer.GetData();
-				}
 
 				const uint32 FixupChunkSize = ((const FFixupChunk*)SrcPtr)->GetSize();
 				FFixupChunk* FixupChunk = (FFixupChunk*)FMemory::Realloc(StreamingPageFixupChunks[PendingPage.GPUPageIndex], FixupChunkSize, sizeof(uint16));	// TODO: Get rid of this alloc. Can we come up with a tight conservative bound, so we could preallocate?
@@ -1505,7 +1501,7 @@ uint32 FStreamingManager::DetermineReadyPages(uint32& TotalPageSize)
 			FPendingPage& PendingPage = PendingPages[ PendingPageIndex ];
 			
 #if WITH_EDITOR
-			if (PendingPage.State == FPendingPage::EState::DDC_Ready)
+			if (PendingPage.State == FPendingPage::EState::Ready)
 			{
 				if (PendingPage.RetryCount > 0)
 				{
@@ -1516,17 +1512,17 @@ uint32 FStreamingManager::DetermineReadyPages(uint32& TotalPageSize)
 					}
 				}
 			}
-			else if (PendingPage.State == FPendingPage::EState::DDC_Pending)
+			else if (PendingPage.State == FPendingPage::EState::Pending)
 			{
 				break;
 			}
-			else if (PendingPage.State == FPendingPage::EState::DDC_Failed)
+			else if (PendingPage.State == FPendingPage::EState::Failed)
 			{
 				FResources** Resources = RuntimeResourceMap.Find(PendingPage.InstallKey.RuntimeResourceID);
 				if (Resources)
 				{
 					// Resource is still there. Retry the request.
-					PendingPage.State = FPendingPage::EState::DDC_Pending;
+					PendingPage.State = FPendingPage::EState::Pending;
 					PendingPage.RetryCount++;
 					
 					if(PendingPage.RetryCount == 0)	// Only warn on first retry to prevent spam
@@ -1541,26 +1537,16 @@ uint32 FStreamingManager::DetermineReadyPages(uint32& TotalPageSize)
 				else
 				{
 					// Resource is no longer there. Just mark as ready so it will be skipped in InstallReadyPages
-					PendingPage.State = FPendingPage::EState::DDC_Ready;
+					PendingPage.State = FPendingPage::EState::Ready;
 				}
 				break;
 			}
-			else if (PendingPage.State == FPendingPage::EState::Memory)
+#else
+			if (PendingPage.Request.IsCompleted() == false)
 			{
-				// Memory is always ready
+				break;
 			}
-			else
 #endif
-			{
-#if WITH_EDITOR
-				check(PendingPage.State == FPendingPage::EState::Disk);
-#endif
-				if (!PendingPage.Request.IsCompleted())
-				{
-					break;
-				}
-			}
-
 
 #if !UE_BUILD_SHIPPING
 			if( GNaniteStreamingBandwidthLimit >= 0.0 )
@@ -2100,19 +2086,17 @@ void FStreamingManager::AsyncUpdate()
 					FResources** Resources = RuntimeResourceMap.Find(SelectedKey.RuntimeResourceID);
 					check(Resources);
 					FByteBulkData& BulkData = (*Resources)->StreamablePages;
+
 #if WITH_EDITOR
-					const bool bDiskRequest = !((*Resources)->ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC) && !BulkData.IsBulkDataLoaded();
+					bool bLegacyRequest = false;
 #else
-					const bool bDiskRequest = true;
-#endif
-
-					const bool bLegacyRequest = bDiskRequest && !BulkData.IsUsingIODispatcher();
-
+					bool bLegacyRequest = !BulkData.IsUsingIODispatcher();
 					if (bLegacyRequest)
 					{
 						if (NumLegacyRequestsIssued == MAX_LEGACY_REQUESTS_PER_UPDATE)
 							break;
 					}
+#endif
 
 					if (FreePage)
 					{
@@ -2123,35 +2107,25 @@ void FStreamingManager::AsyncUpdate()
 					check( !(*Resources)->IsRootPage( SelectedKey.PageIndex ) );
 
 #if WITH_EDITOR
-					if(!bDiskRequest)
+					if((*Resources)->ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC)
 					{
-						if((*Resources)->ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC)
-						{
-							DDCRequests.Add(BuildDDCRequest(**Resources, PageStreamingState, NextPendingPageIndex));
-							PendingPage.State = FPendingPage::EState::DDC_Pending;
-						}
-						else
-						{
-							PendingPage.State = FPendingPage::EState::DDC_Ready;
-						}
+						DDCRequests.Add(BuildDDCRequest(**Resources, PageStreamingState, NextPendingPageIndex));
 					}
 					else
-#endif
 					{
-						uint8* Dst = PendingPageStagingMemory.GetData() + NextPendingPageIndex * NANITE_MAX_PAGE_DISK_SIZE;
-						PendingPage.RequestBuffer = FIoBuffer(FIoBuffer::Wrap, Dst, PageStreamingState.BulkSize);
-						Batch.Read(BulkData, PageStreamingState.BulkOffset, PageStreamingState.BulkSize, AIOP_Low, PendingPage.RequestBuffer, PendingPage.Request);
-						bIssueIOBatch = true;
-
-						if (bLegacyRequest)
-						{
-							NumLegacyRequestsIssued++;
-						}	
-#if WITH_EDITOR
-						PendingPage.State = FPendingPage::EState::Disk;
-#endif
+						PendingPage.State = FPendingPage::EState::Ready;
 					}
-
+#else
+					uint8* Dst = PendingPageStagingMemory.GetData() + NextPendingPageIndex * NANITE_MAX_PAGE_DISK_SIZE;
+					PendingPage.RequestBuffer = FIoBuffer(FIoBuffer::Wrap, Dst, PageStreamingState.BulkSize);
+					Batch.Read(BulkData, PageStreamingState.BulkOffset, PageStreamingState.BulkSize, AIOP_Low, PendingPage.RequestBuffer, PendingPage.Request);
+					bIssueIOBatch = true;
+					
+					if (bLegacyRequest)
+					{
+						NumLegacyRequestsIssued++;
+					}	
+#endif
 					TotalIORequestSizeMB += PageStreamingState.BulkSize * (1.0f / 1048576.0f);
 
 					// Grab a free page
@@ -2184,14 +2158,14 @@ void FStreamingManager::AsyncUpdate()
 				RequestDDCData(DDCRequests);
 				DDCRequests.Empty();
 			}
-#endif
-
+#else
 			if (bIssueIOBatch)
 			{
 				// Issue batch
 				TRACE_CPUPROFILER_EVENT_SCOPE(FIoBatch::Issue);
 				(void)Batch.Issue();
 			}
+#endif
 		}
 
 #if !WITH_EDITOR
@@ -2492,11 +2466,11 @@ void FStreamingManager::RequestDDCData(TConstArrayView<FCacheGetChunkRequest> DD
 			if (Response.Status == EStatus::Ok && !bRandomFalure)
 			{
 				PendingPage.SharedBuffer = MoveTemp(Response.RawData);
-				PendingPage.State = FPendingPage::EState::DDC_Ready;
+				PendingPage.State = FPendingPage::EState::Ready;
 			}
 			else
 			{
-				PendingPage.State = FPendingPage::EState::DDC_Failed;
+				PendingPage.State = FPendingPage::EState::Failed;
 			}
 		});
 }
