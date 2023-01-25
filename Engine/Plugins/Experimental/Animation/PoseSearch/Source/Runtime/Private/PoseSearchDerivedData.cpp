@@ -126,10 +126,12 @@ static TArray<float> ComputeChannelsDeviations(TConstArrayView<FPoseSearchIndexB
 
 			FeatureChannelLayoutSet.CurrentSchemaIndex = SchemaIndex;
 			FeatureChannelLayoutSet.CurrentSchema = Schema;
-			for (int ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
+			for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->Channels)
 			{
-				const UPoseSearchFeatureChannel* Channel = Schema->Channels[ChannelIdx].Get();
-				Channel->PopulateChannelLayoutSet(FeatureChannelLayoutSet);
+				if (ChannelPtr)
+				{
+					ChannelPtr->PopulateChannelLayoutSet(FeatureChannelLayoutSet);
+				}
 			}
 		}
 
@@ -307,10 +309,13 @@ static void PreprocessSearchIndexWeights(FPoseSearchIndex& SearchIndex, const UP
 {
 	const int32 NumDimensions = Schema->SchemaCardinality;
 	SearchIndex.WeightsSqrt.Init(1.f, NumDimensions);
-	for (int ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
+
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->Channels)
 	{
-		const UPoseSearchFeatureChannel* Channel = Schema->Channels[ChannelIdx].Get();
-		Channel->FillWeights(SearchIndex.WeightsSqrt);
+		if (ChannelPtr)
+		{
+			ChannelPtr->FillWeights(SearchIndex.WeightsSqrt);
+		}
 	}
 
 	EPoseSearchDataPreprocessor DataPreprocessor = Schema->DataPreprocessor;
@@ -679,6 +684,9 @@ void FPoseSearchDatabaseAsyncCacheTask::Wait(FCriticalSection& OuterMutex)
 	if (!bFailedIndexing)
 	{
 		Database->SetSearchIndex(SearchIndex); // @todo: implement FPoseSearchIndex move ctor and assignment operator and use a MoveTemp(SearchIndex) here
+
+		check(Database->Schema && Database->Schema->IsValid() && !SearchIndex.IsEmpty() && SearchIndex.WeightsSqrt.Num() == Database->Schema->SchemaCardinality && SearchIndex.KDTree.Impl);
+
 		SetState(EState::Ended);
 		bBroadcastOnDerivedDataRebuild = true;
 	}
@@ -718,6 +726,7 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 	const FCacheKey FullIndexKey = Response.Record.GetKey();
 
 	// The database is part of the derived data cache and up to date, skip re-building it.
+	bool bCacheCorrupted = false;
 	if (Response.Status == EStatus::Ok)
 	{
 		COOK_STAT(auto Timer = UsageStats.TimeAsyncWait());
@@ -728,16 +737,30 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 		FMemoryReaderView Reader(RawData);
 		Reader << SearchIndex;
 
-		UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex From Cache"), *LexToString(FullIndexKey.Hash), *Database->GetName());
+		check(Database->Schema && Database->Schema->IsValid());
+		// cache can be corrupted in case the version of the derived data cache has not being updated while 
+		// developing channels that changes their cardinality without impacting any asset properties
+		// so to account for this, we just reindex the database and update the associated DDC 
+		if (!SearchIndex.IsEmpty() && SearchIndex.WeightsSqrt.Num() == Database->Schema->SchemaCardinality && SearchIndex.KDTree.Impl)
+		{
+			UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex From Cache"), *LexToString(FullIndexKey.Hash), *Database->GetName());
+		}
+		else
+		{
+			UE_LOG(LogPoseSearch, Warning, TEXT("%s - %s BuildIndex From Cache Corrupted!"), *LexToString(FullIndexKey.Hash), *Database->GetName());
+			bCacheCorrupted = true;
+		}
 
 		COOK_STAT(Timer.AddHit(RawData.GetSize()));
 	}
-	else if (Response.Status == EStatus::Canceled)
+	
+	if (Response.Status == EStatus::Canceled)
 	{
 		SearchIndex.Reset();
 		UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
 	}
-	else if (Response.Status == EStatus::Error)
+	
+	if (Response.Status == EStatus::Error || bCacheCorrupted)
 	{
 		// we didn't find the cached data associated to the PendingDerivedDataKey: we'll BuildIndex to update SearchIndex and "Put" the data over the DDC
 		Owner.LaunchTask(TEXT("PoseSearchDatabaseBuild"), [this, FullIndexKey]

@@ -128,35 +128,4 @@ public:
 			const FTrajectorySampleRange& Trajectory,
 			float Speed = 0.0f,
 			float Tolerance = 0.001f);
-	/**
-	 * Returns true if the trajectory has a sharp velocity direction change. This function will compare the total 
-	 * turning of the trajectory against the extrapolation of the final angular velocity in the trajectory. This ensures
-	 * the function distinguishes sharp turns from smooth circling. Note this is not detecting facing changes,
-	 * this function will return true in a strafing turn in which the character is always facing the same direction.
-	 * 
-	 * @param Trajectory				Trajectory being evaluated.
-	 * @param MinSharpTurnAngleDegrees	How many degrees of turning must be in the trajectory that can't be explained by 
-	 *									extrapolating the angular velocity at the end of the trajectory.
-	 * @param RotationConstraintDomain	Specifies if the turn must happen unconstrained, within a given distance or
-	 *									within a given time
-	 * @param RotationConstraintValue	If RotationConstraintDomain is not None, this value will specify the constraint
-	 *									threshold
-	 * @param MaxAlignmentAngleDegrees	If the current trajectory sample velocity and facing are well aligned with the 
-	 *									last point in the trajectory future, there's no turn.
-	 * @param MinLinearSpeed			Minimum linear speed at the end points of the trajectory required for this
-	 *									function to return true, so it's possible to ignore turning starts/stops
-	 * @param TurnAxis					Specifies the axis along which turns will be evaluated.
-	 * @param ForwardAxis				Specifies the trajectory forward angle, used to evaluate alignment.
-	 *									
-	 * @return True if a sharp turn is detected, false otherwise.
-	 */
-	UFUNCTION(BlueprintPure, Category = "Motion Trajectory", meta = (BlueprintThreadSafe))
-	static bool IsSharpVelocityDirChange(
-		const FTrajectorySampleRange& Trajectory,
-		float MinSharpTurnAngleDegrees = 45.0f,
-		float RotationConstraintValue = 0.0f,
-		float MaxAlignmentAngleDegrees = 5.0f,
-		float MinLinearSpeed = 1.0f,
-		FVector TurnAxis = FVector::UpVector,
-		FVector ForwardAxis = FVector::RightVector);
 };

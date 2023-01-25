@@ -67,11 +67,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	EPoseSearchDataPreprocessor DataPreprocessor = EPoseSearchDataPreprocessor::Normalize;
 
-	UPROPERTY(meta = (ExcludeFromHash))
+	UPROPERTY(Transient)
 	int32 SchemaCardinality = 0;
 
 	// @todo: used only for indexing: cache it somewhere else
-	UPROPERTY(meta = (ExcludeFromHash))
+	UPROPERTY(Transient)
 	TArray<FBoneReference> BoneReferences;
 
 	UPROPERTY(Transient)
@@ -110,13 +110,14 @@ public:
 		return nullptr;
 	}
 
-
 	// UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	virtual void PostLoad() override;
 
+	int32 AddBoneReference(const FBoneReference& BoneReference);
+
 	// IBoneReferenceSkeletonProvider
-	class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override { bInvalidSkeletonIsError = false; return Skeleton; }
+	USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
 
 #if WITH_EDITOR
 	void ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData) const;
@@ -124,12 +125,12 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
-	int32 AddBoneReference(const FBoneReference& BoneReference) { return BoneReferences.AddUnique(BoneReference); }
+	void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const;
+
+	static constexpr FBoneIndexType RootBoneIdx = 0xFFFF;
+	FBoneIndexType GetBoneIndexType(int8 SchemaBoneIdx) const;
 
 private:
-	void Finalize(bool bRemoveEmptyChannels = true);
+	void Finalize();
 	void ResolveBoneReferences();
-
-public:
-	void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const;
 };

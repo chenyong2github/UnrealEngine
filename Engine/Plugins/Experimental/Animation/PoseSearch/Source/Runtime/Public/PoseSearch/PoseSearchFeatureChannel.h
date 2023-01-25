@@ -41,27 +41,25 @@ public:
 	static void EncodeQuat(TArrayView<float> Values, int32& DataOffset, const FQuat& Quat);
 	static void EncodeQuat(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
 	static FQuat DecodeQuat(TConstArrayView<float> Values, int32& DataOffset);
+	static FQuat DecodeQuatAtOffset(TConstArrayView<float> Values, int32 DataOffset);
 
 	enum { EncodeVectorCardinality = 3 };
 	static void EncodeVector(TArrayView<float> Values, int32& DataOffset, const FVector& Vector);
 	static void EncodeVector(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue, bool bNormalize = false);
 	static FVector DecodeVector(TConstArrayView<float> Values, int32& DataOffset);
+	static FVector DecodeVectorAtOffset(TConstArrayView<float> Values, int32 DataOffset);
 
 	enum { EncodeVector2DCardinality = 2 };
 	static void EncodeVector2D(TArrayView<float> Values, int32& DataOffset, const FVector2D& Vector2D);
 	static void EncodeVector2D(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
 	static FVector2D DecodeVector2D(TConstArrayView<float> Values, int32& DataOffset);
+	static FVector2D DecodeVector2DAtOffset(TConstArrayView<float> Values, int32 DataOffset);
 
 	enum { EncodeFloatCardinality = 1 };
 	static void EncodeFloat(TArrayView<float> Values, int32& DataOffset, const float Value);
 	static void EncodeFloat(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
 	static float DecodeFloat(TConstArrayView<float> Values, int32& DataOffset);
-
-private:
-	static FQuat DecodeQuatInternal(TConstArrayView<float> Values, int32 DataOffset);
-	static FVector DecodeVectorInternal(TConstArrayView<float> Values, int32 DataOffset);
-	static FVector2D DecodeVector2DInternal(TConstArrayView<float> Values, int32 DataOffset);
-	static float DecodeFloatInternal(TConstArrayView<float> Values, int32 DataOffset);
+	static float DecodeFloatAtOffset(TConstArrayView<float> Values, int32 DataOffset);
 };
 
 #if WITH_EDITOR
@@ -151,7 +149,7 @@ public:
 	int32 GetChannelDataOffset() const { checkSlow(ChannelDataOffset >= 0); return ChannelDataOffset; }
 
 	// Called during UPoseSearchSchema::Finalize to prepare the schema for this channel
-	virtual void InitializeSchema(UPoseSearchSchema* Schema) PURE_VIRTUAL(UPoseSearchFeatureChannel::InitializeSchema, );
+	virtual void Finalize(UPoseSearchSchema* Schema) PURE_VIRTUAL(UPoseSearchFeatureChannel::Finalize, );
 	
 	// Called at database build time to collect feature weights.
 	// Weights is sized to the cardinality of the schema and the feature channel should write
@@ -163,6 +161,9 @@ public:
 
 	// Called at runtime to add this channel's data to the query pose vector
 	virtual void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, );
+
+	// API called before DebugDraw to collect shared channel informations such as decoded positions form the PoseVector
+	virtual void PreDebugDraw(UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const {}
 
 	// Draw this channel's data for the given pose vector
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
@@ -180,9 +181,9 @@ private:
 protected:
 	friend class ::UPoseSearchSchema;
 
-	UPROPERTY(meta = (ExcludeFromHash))
+	UPROPERTY(Transient)
 	int32 ChannelDataOffset = INDEX_NONE;
 
-	UPROPERTY(meta = (ExcludeFromHash))
+	UPROPERTY(Transient)
 	int32 ChannelCardinality = INDEX_NONE;
 };

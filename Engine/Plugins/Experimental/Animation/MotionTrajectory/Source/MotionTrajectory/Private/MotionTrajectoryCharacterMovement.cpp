@@ -12,31 +12,26 @@ FTrajectorySample UCharacterMovementTrajectoryComponent::CalcWorldSpacePresentTr
 {
 	FTrajectorySample ReturnValue;
 	
-	const APawn* Pawn = TryGetOwnerPawn();
-	if (!Pawn)
+	if (const APawn* Pawn = TryGetOwnerPawn())
 	{
-		return ReturnValue;
-	}
-
-	const UCharacterMovementComponent* MovementComponent = Cast<UCharacterMovementComponent>(Pawn->GetMovementComponent());
-	if (MovementComponent)
-	{
-		if (MovementComponent->MovementMode == EMovementMode::MOVE_Walking)
+		if (const UCharacterMovementComponent* MovementComponent = Cast<UCharacterMovementComponent>(Pawn->GetMovementComponent()))
 		{
-			FTransform ComponentWorldTransform = Pawn->GetActorTransform();
+			if (MovementComponent->MovementMode == EMovementMode::MOVE_Walking)
+			{
+				FTransform ComponentWorldTransform = Pawn->GetActorTransform();
 
-			ReturnValue.Transform = ComponentWorldTransform;
-			ReturnValue.LinearVelocity = MovementComponent->Velocity;
+				ReturnValue.Transform = ComponentWorldTransform;
+				ReturnValue.LinearVelocity = MovementComponent->Velocity;
+			}
+		}
+		else
+		{
+			UE_LOG(
+				LogMotionTrajectory,
+				Error,
+				TEXT("UCharacterMovementTrajectoryComponent expects the owner to have a CharacterMovementComponent"));
 		}
 	}
-	else
-	{
-		UE_LOG(
-			LogMotionTrajectory,
-			Error,
-			TEXT("UCharacterMovementTrajectoryComponent expects the owner to have a CharacterMovementComponent"));
-	}
-
 	return ReturnValue;
 }
 
@@ -136,37 +131,31 @@ FTrajectorySampleRange UCharacterMovementTrajectoryComponent::GetTrajectory() co
 	return GetTrajectoryWithSettings(PredictionSettings, bPredictionIncludesHistory);
 }
 
-FTrajectorySampleRange UCharacterMovementTrajectoryComponent::GetTrajectoryWithSettings(const FMotionTrajectorySettings& Settings
-	, bool bIncludeHistory) const
+FTrajectorySampleRange UCharacterMovementTrajectoryComponent::GetTrajectoryWithSettings(const FMotionTrajectorySettings& Settings, bool bIncludeHistory) const
 {
-	const APawn* Pawn = TryGetOwnerPawn();
-	if (!Pawn)
-	{
-		return FTrajectorySampleRange(SampleRate);
-	}
+	FTrajectorySampleRange Prediction;
 
-	const UCharacterMovementComponent* MovementComponent = Cast<UCharacterMovementComponent>(Pawn->GetMovementComponent());
-
-	// Currently the trajectory prediction only supports the walking movement mode of the character movement component
-	if (ensure(MovementComponent) && MovementComponent->MovementMode == EMovementMode::MOVE_Walking)
+	if (const APawn* Pawn = TryGetOwnerPawn())
 	{
-		// Step the prediction iteratively towards the specified domain horizon(s)
-		FTrajectorySampleRange Prediction(SampleRate);
-		PredictTrajectory(
-			SampleRate, 
-			MaxSamples, 
-			Settings, 
-			PresentTrajectorySampleLS, 
-			DesiredControlRotationVelocity,
-			Prediction);
+		const UCharacterMovementComponent* MovementComponent = Cast<UCharacterMovementComponent>(Pawn->GetMovementComponent());
 
-		// Combine past, present, and future into a uniformly sampled complete trajectory
-		return CombineHistoryPresentPrediction(bIncludeHistory, Prediction);
+		// Currently the trajectory prediction only supports the walking movement mode of the character movement component
+		if (ensure(MovementComponent) && MovementComponent->MovementMode == EMovementMode::MOVE_Walking)
+		{
+			// Step the prediction iteratively towards the specified domain horizon(s)
+			PredictTrajectory(
+				SampleRate,
+				MaxSamples,
+				Settings,
+				PresentTrajectorySampleLS,
+				DesiredControlRotationVelocity,
+				Prediction);
+
+			// Combine past, present, and future into a uniformly sampled complete trajectory
+			Prediction = CombineHistoryPresentPrediction(bIncludeHistory, Prediction);
+		}
 	}
-	else
-	{
-		return FTrajectorySampleRange(SampleRate);
-	}
+	return Prediction;
 }
 
 void UCharacterMovementTrajectoryComponent::PredictTrajectory(
@@ -177,7 +166,7 @@ void UCharacterMovementTrajectoryComponent::PredictTrajectory(
 	const FRotator& InDesiredControlRotationVelocity,
 	FTrajectorySampleRange& OutTrajectoryRange) const
 {
-	OutTrajectoryRange.SampleRate = InSampleRate;
+	check(InSampleRate > UE_KINDA_SMALL_NUMBER);
 	const float IntegrationDelta = 1.f / static_cast<float>(InSampleRate);
 
 	FTrajectorySample Sample = PresentTrajectory;

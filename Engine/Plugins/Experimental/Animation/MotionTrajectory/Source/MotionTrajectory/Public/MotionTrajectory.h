@@ -100,10 +100,6 @@ public:
 	UFUNCTION(BlueprintPure, Category="Motion Trajectory", meta=(AutoCreateRefTerm="Settings", DisplayName="Get Trajectory (With Settings)"))
 	virtual FTrajectorySampleRange GetTrajectoryWithSettings(const FMotionTrajectorySettings& Settings, bool bIncludeHistory) const;
 	
-	// Changes the history and prediction sample rate for the component
-	UFUNCTION(BlueprintCallable, Category="Motion Trajectory")
-	void SetSampleRate(int32 Rate);
-
 	// Retrieves the historical trajectory
 	UFUNCTION(BlueprintCallable, Category="Motion Trajectory")
 	FTrajectorySampleRange GetHistory() const;
@@ -116,7 +112,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Settings")
 	FMotionTrajectorySettings HistorySettings;
 
-	// The trajectory sampling rate for both prediction and history
+	// The trajectory sampling rate for prediction
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Settings", meta=(ClampMin="5", ClampMax="120"))
 	int32 SampleRate = 30;
 
@@ -129,16 +125,6 @@ public:
 	// Example: No Motion Matching historical sample times or distances are defined in the Pose Search Schema
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Settings")
 	bool bPredictionIncludesHistory = true;
-
-	// Determines if history will be sampled by the specified Sample Rate (true) or the Component Tick Rate (false)
-	// Consider disabling this option when the engine frame rate and component sample rate are the same
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Settings")
-	bool bUniformSampledHistory = true;
-
-	// History samples will use Centripetal Catmull–Rom spline interpolation (true) (slow, accurate) instead of linear interpolation (false) (fast, approximate)
-	// Consider enabling this option when accurate trajectory sample speed at low tick rates (high interpolation usage) is important
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings")
-	bool bSmoothInterpolation = false;
 
 #if WITH_EDITORONLY_DATA
 	// Debug drawing options for the complete trajectory range

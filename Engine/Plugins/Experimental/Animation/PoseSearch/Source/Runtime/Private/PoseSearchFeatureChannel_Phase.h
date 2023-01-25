@@ -4,21 +4,10 @@
 
 #include "PoseSearch/PoseSearchFeatureChannel.h"
 #include "BoneContainer.h"
-#include "PoseSearchFeatureChannel_Heading.generated.h"
+#include "PoseSearchFeatureChannel_Phase.generated.h"
 
-UENUM(BlueprintType)
-enum class EHeadingAxis : uint8
-{
-	X,
-	Y,
-	Z,
-
-	Num UMETA(Hidden),
-	Invalid = Num UMETA(Hidden)
-};
-
-UCLASS(BlueprintType, EditInlineNew, meta = (DisplayName = "Heading Channel"), CollapseCategories)
-class POSESEARCH_API UPoseSearchFeatureChannel_Heading : public UPoseSearchFeatureChannel
+UCLASS(BlueprintType, EditInlineNew, meta = (DisplayName = "Phase Channel"), CollapseCategories)
+class POSESEARCH_API UPoseSearchFeatureChannel_Phase : public UPoseSearchFeatureChannel
 {
 	GENERATED_BODY()
 
@@ -28,12 +17,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	float Weight = 1.f;
-
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	float SampleTimeOffset = 0.f;
-
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	EHeadingAxis HeadingAxis = EHeadingAxis::X;	
 
 	UPROPERTY()
 	int8 SchemaBoneIdx = 0;
@@ -50,6 +33,4 @@ public:
 	virtual void IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const override;
 	virtual void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const override;
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const override;
-
-	FVector GetAxis(const FQuat& Rotation) const;
 };

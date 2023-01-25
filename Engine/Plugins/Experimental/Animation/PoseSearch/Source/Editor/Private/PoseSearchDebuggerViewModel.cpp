@@ -461,20 +461,21 @@ const USkinnedMeshComponent* FDebuggerViewModel::GetMeshComponent() const
 void FDebuggerViewModel::FillCompactPoseAndComponentRefRotations()
 {
 	bool bResetMirrorBonesAndRotations = true;
-	const UPoseSearchDatabase* Database = GetCurrentDatabase();
-	if (Database)
+	if (const UPoseSearchDatabase* Database = GetCurrentDatabase())
 	{
-		UMirrorDataTable* MirrorDataTable = Database->Schema->MirrorDataTable;
-		if (MirrorDataTable != nullptr && Skeletons[ActivePose].Component->RequiredBones.IsValid())
+		if (UMirrorDataTable* MirrorDataTable = Database->Schema->MirrorDataTable)
 		{
-			if (CompactPoseMirrorBones.Num() == 0 || ComponentSpaceRefRotations.Num() == 0)
+			if (UPoseSearchMeshComponent* MeshComponent = Skeletons[ActivePose].Component.Get())
 			{
-				MirrorDataTable->FillCompactPoseAndComponentRefRotations(
-					Skeletons[ActivePose].Component->RequiredBones,
-					CompactPoseMirrorBones,
-					ComponentSpaceRefRotations);
+				if (MeshComponent->RequiredBones.IsValid())
+				{
+					if (CompactPoseMirrorBones.Num() == 0 || ComponentSpaceRefRotations.Num() == 0)
+					{
+						MirrorDataTable->FillCompactPoseAndComponentRefRotations(MeshComponent->RequiredBones, CompactPoseMirrorBones, ComponentSpaceRefRotations);
+					}
+					bResetMirrorBonesAndRotations = false;
+				}
 			}
-			bResetMirrorBonesAndRotations = false;
 		}
 	}
 

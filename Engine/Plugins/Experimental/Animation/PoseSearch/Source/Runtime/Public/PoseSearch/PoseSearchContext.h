@@ -63,13 +63,64 @@ enum class EPoseCandidateFlags : uint8
 };
 ENUM_CLASS_FLAGS(EPoseCandidateFlags);
 
+template<typename FTransformType>
+struct POSESEARCH_API FCachedTransform
+{
+	FCachedTransform()
+		: SampleTime(0.f)
+		, BoneIndexType(-1)
+		, Transform()
+	{
+	}
+
+	FCachedTransform(float InSampleTime, FBoneIndexType InBoneIndexType, const FTransformType& InTransform)
+		: SampleTime(InSampleTime)
+		, BoneIndexType(InBoneIndexType)
+		, Transform(InTransform)
+	{
+	}
+
+	float SampleTime;
+	
+	// if -1 it represents the root bone
+	FBoneIndexType BoneIndexType;
+
+	// associated transform to BoneIndexType in ComponentSpace (except for the root bone stored in global space)
+	FTransformType Transform;
+};
+
+template<typename FTransformType>
+struct FCachedTransforms
+{
+	const FCachedTransform<FTransformType>* Find(float SampleTime, FBoneIndexType BoneIndexType) const
+	{
+		// @todo: use an hashmap if we end up having too many entries
+		return CachedTransforms.FindByPredicate([SampleTime, BoneIndexType](const FCachedTransform<FTransformType>& CachedTransform)
+			{
+				return CachedTransform.SampleTime == SampleTime && CachedTransform.BoneIndexType == BoneIndexType;
+			});
+	}
+
+	void Add(float SampleTime, FBoneIndexType BoneIndexType, const FTransformType& Transform)
+	{
+		CachedTransforms.Emplace(SampleTime, BoneIndexType, Transform);
+	}
+
+	void Reset()
+	{
+		CachedTransforms.Reset();
+	}
+
+private:
+	TArray<FCachedTransform<FTransformType>, TInlineAllocator<64>> CachedTransforms;
+};
+
 // @todo: FDebugDrawParams should be enclosed with #if ENABLE_DRAW_DEBUG
 struct POSESEARCH_API FDebugDrawParams
 {
 	const UWorld* World = nullptr;
 	const UPoseSearchDatabase* Database = nullptr;
 	EDebugDrawFlags Flags = EDebugDrawFlags::None;
-	uint32 ChannelMask = (uint32)-1;
 
 	float DefaultLifeTime = 5.f;
 	float PointSize = 1.f;
@@ -83,10 +134,17 @@ struct POSESEARCH_API FDebugDrawParams
 	FColor GetColor(int32 ColorPreset) const;
 	const FPoseSearchIndex* GetSearchIndex() const;
 	const UPoseSearchSchema* GetSchema() const;
+
+	void ClearCachedPositions();
+	void AddCachedPosition(float TimeOffset, int8 SchemaBoneIdx, const FVector& Position);
+	FVector GetCachedPosition(float TimeOffset, int8 SchemaBoneIdx = -1) const;
+
+private:
+	FCachedTransforms<FVector> CachedPositions;
 };
 
-POSESEARCH_API void DrawFeatureVector(const FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector);
-POSESEARCH_API void DrawFeatureVector(const FDebugDrawParams& DrawParams, int32 PoseIdx);
+POSESEARCH_API void DrawFeatureVector(FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector);
+POSESEARCH_API void DrawFeatureVector(FDebugDrawParams& DrawParams, int32 PoseIdx);
 
 struct POSESEARCH_API FSearchContext
 {
@@ -125,28 +183,11 @@ struct POSESEARCH_API FSearchContext
 	const FPoseIndicesHistory* PoseIndicesHistory = nullptr;
 
 private:
-	struct FCachedEntry
-	{
-		FCachedEntry(float InSampleTime = 0.f, const FTransform& InTransform = FTransform::Identity, FBoneIndexType InBoneIndexType = -1)
-			: SampleTime(InSampleTime)
-			, Transform(InTransform)
-			, BoneIndexType(InBoneIndexType)
-		{
-		}
-
-		float SampleTime = 0.f;
-
-		// associated transform to BoneIndexType in ComponentSpace (except for the root bone stored in global space)
-		FTransform Transform = FTransform::Identity;
-
-		// if -1 it represents the root bone
-		FBoneIndexType BoneIndexType = -1;
-	};
-
-	TArray<FCachedEntry, TInlineAllocator<64>> CachedEntries;
+	FCachedTransforms<FTransform> CachedTransforms;
 	
 	struct FCachedQuery
 	{
+		// @todo: why do we need to hold on to a Database? isn't the FeatureVectorBuilder.Schema enough?
 		const UPoseSearchDatabase* Database = nullptr;
 		FPoseSearchFeatureVectorBuilder FeatureVectorBuilder;
 	};

@@ -53,7 +53,7 @@ public:
 	float AllowedTolerance = 0.3f;
 
 	// UPoseSearchFeatureChannel interface
-	virtual void InitializeSchema(UPoseSearchSchema* Schema) override;
+	virtual void Finalize(UPoseSearchSchema* Schema) override;
 	virtual void FillWeights(TArray<float>& Weights) const override;
 	virtual void IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const override;
 	virtual void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const override;

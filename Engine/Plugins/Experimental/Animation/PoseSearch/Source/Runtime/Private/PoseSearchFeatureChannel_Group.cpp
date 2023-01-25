@@ -4,22 +4,22 @@
 #include "DrawDebugHelpers.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
-void UPoseSearchFeatureChannel_Group::InitializeSchema(UPoseSearchSchema* Schema)
+void UPoseSearchFeatureChannel_GroupBase::Finalize(UPoseSearchSchema* Schema)
 {
 	ChannelDataOffset = Schema->SchemaCardinality;
-	for (TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : SubChannels)
+	for (TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
 	{
 		if (UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
 		{
-			SubChannel->InitializeSchema(Schema);
+			SubChannel->Finalize(Schema);
 		}
 	}
 	ChannelCardinality = Schema->SchemaCardinality - ChannelDataOffset;
 }
 
-void UPoseSearchFeatureChannel_Group::FillWeights(TArray<float>& Weights) const
+void UPoseSearchFeatureChannel_GroupBase::FillWeights(TArray<float>& Weights) const
 {
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : SubChannels)
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
 	{
 		if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
 		{
@@ -28,9 +28,9 @@ void UPoseSearchFeatureChannel_Group::FillWeights(TArray<float>& Weights) const
 	}
 }
 
-void UPoseSearchFeatureChannel_Group::IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const
+void UPoseSearchFeatureChannel_GroupBase::IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const
 {
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : SubChannels)
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
 	{
 		if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
 		{
@@ -39,9 +39,9 @@ void UPoseSearchFeatureChannel_Group::IndexAsset(UE::PoseSearch::IAssetIndexer& 
 	}
 }
 
-void UPoseSearchFeatureChannel_Group::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
+void UPoseSearchFeatureChannel_GroupBase::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : SubChannels)
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
 	{
 		if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
 		{
@@ -50,10 +50,23 @@ void UPoseSearchFeatureChannel_Group::BuildQuery(UE::PoseSearch::FSearchContext&
 	}
 }
 
-void UPoseSearchFeatureChannel_Group::DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
+void UPoseSearchFeatureChannel_GroupBase::PreDebugDraw(UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
 {
 #if ENABLE_DRAW_DEBUG
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : SubChannels)
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
+	{
+		if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
+		{
+			SubChannel->PreDebugDraw(DrawParams, PoseVector);
+		}
+	}
+#endif // ENABLE_DRAW_DEBUG
+}
+
+void UPoseSearchFeatureChannel_GroupBase::DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
+{
+#if ENABLE_DRAW_DEBUG
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
 	{
 		if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
 		{
@@ -64,9 +77,9 @@ void UPoseSearchFeatureChannel_Group::DebugDraw(const UE::PoseSearch::FDebugDraw
 }
 
 // IPoseFilter interface
-bool UPoseSearchFeatureChannel_Group::IsPoseFilterActive() const
+bool UPoseSearchFeatureChannel_GroupBase::IsPoseFilterActive() const
 {
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : SubChannels)
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
 	{
 		if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
 		{
@@ -80,9 +93,9 @@ bool UPoseSearchFeatureChannel_Group::IsPoseFilterActive() const
 	return false;
 }
 
-bool UPoseSearchFeatureChannel_Group::IsPoseValid(TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues, int32 PoseIdx, const FPoseSearchPoseMetadata& Metadata) const
+bool UPoseSearchFeatureChannel_GroupBase::IsPoseValid(TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues, int32 PoseIdx, const FPoseSearchPoseMetadata& Metadata) const
 {
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : SubChannels)
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
 	{
 		if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
 		{

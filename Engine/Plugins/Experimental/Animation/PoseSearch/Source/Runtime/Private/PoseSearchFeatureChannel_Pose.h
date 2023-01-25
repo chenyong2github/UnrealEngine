@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "PoseSearch/PoseSearchFeatureChannel.h"
-#include "BoneContainer.h"
+#include "PoseSearchFeatureChannel_Group.h"
 #include "PoseSearchFeatureChannel_Pose.generated.h"
 
 UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
@@ -38,7 +37,7 @@ struct POSESEARCH_API FPoseSearchBone
 
 // UPoseSearchFeatureChannel_Pose
 UCLASS(BlueprintType, EditInlineNew, meta = (DisplayName = "Pose Channel"), CollapseCategories)
-class POSESEARCH_API UPoseSearchFeatureChannel_Pose : public UPoseSearchFeatureChannel
+class POSESEARCH_API UPoseSearchFeatureChannel_Pose : public UPoseSearchFeatureChannel_GroupBase
 {
 	GENERATED_BODY()
 
@@ -55,25 +54,24 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	EInputQueryPose InputQueryPose = EInputQueryPose::UseContinuingPose;
 
-	// if bUseCharacterSpaceVelocities is true, velocities will be calculated as from the positions in character space, otherwise they will be calculated using global space positions
+	// if bUseCharacterSpaceVelocities is true, velocities will be calculated from the positions in character space, otherwise they will be calculated using global space positions
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bUseCharacterSpaceVelocities = true;
 
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UPoseSearchFeatureChannel>> SubChannels;
+
+	// UPoseSearchFeatureChannel_GroupBase interface
+	virtual TArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() override { return SubChannels; }
+	virtual TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() const override { return SubChannels; }
+
 	// UPoseSearchFeatureChannel interface
-	virtual void InitializeSchema(UPoseSearchSchema* Schema) override;
-	virtual void FillWeights(TArray<float>& Weights) const override;
-	virtual void IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const override;
-	virtual void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const override;
-	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const override;
+	virtual void Finalize(UPoseSearchSchema* Schema) override;
 
 #if WITH_EDITOR
 	virtual void PopulateChannelLayoutSet(UE::PoseSearch::FFeatureChannelLayoutSet& FeatureChannelLayoutSet) const override;
 	virtual void ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const override;
 #endif
-
-protected:
-	void AddPoseFeatures(UE::PoseSearch::IAssetIndexer& Indexer, int32 SampleIdx, TArrayView<float> FeatureVector, const TArray<TArray<FVector2D>>& Phases) const;
-	void CalculatePhases(UE::PoseSearch::IAssetIndexer& Indexer, TArray<TArray<FVector2D>>& OutPhases) const;
 };
 
 

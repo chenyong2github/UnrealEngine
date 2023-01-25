@@ -39,7 +39,7 @@ private:
 
 	struct FPose
 	{
-		FTransform RootTransform;
+		FTransform RootTransform; // @todo: remove RootTransform: this should be unnecessary, since FTrajectorySampleRange already contains the past as well as the prediction for the RootTransform
 		TArray<FTransform> LocalTransforms;
 		float Time = 0.0f;
 	};

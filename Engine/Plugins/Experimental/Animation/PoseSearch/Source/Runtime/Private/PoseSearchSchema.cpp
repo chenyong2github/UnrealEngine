@@ -8,14 +8,7 @@
 
 bool UPoseSearchSchema::IsValid() const
 {
-	bool bValid = Skeleton != nullptr;
-
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel: Channels)
-	{
-		bValid &= Channel != nullptr;
-	}
-
-	return bValid;
+	return Skeleton != nullptr;
 }
 
 void UPoseSearchSchema::ResolveBoneReferences()
@@ -51,31 +44,31 @@ void UPoseSearchSchema::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext
 
 	InOutQuery.Init(this);
 
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel : Channels)
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Channels)
 	{
-		Channel->BuildQuery(SearchContext, InOutQuery);
+		if (ChannelPtr)
+		{
+			ChannelPtr->BuildQuery(SearchContext, InOutQuery);
+		}
 	}
 }
 
-void UPoseSearchSchema::Finalize(bool bRemoveEmptyChannels)
+FBoneIndexType UPoseSearchSchema::GetBoneIndexType(int8 SchemaBoneIdx) const
 {
-	using namespace UE::PoseSearch;
+	return SchemaBoneIdx >= 0 && BoneReferences[SchemaBoneIdx].HasValidSetup() ? BoneReferences[SchemaBoneIdx].BoneIndex : RootBoneIdx;
+}
 
-	if (bRemoveEmptyChannels)
-	{
-		Channels.RemoveAll([](TObjectPtr<UPoseSearchFeatureChannel>& Channel) { return !Channel; });
-	}
-
+void UPoseSearchSchema::Finalize()
+{
 	BoneReferences.Reset();
 
-	int32 CurrentChannelDataOffset = 0;
-
 	SchemaCardinality = 0;
-	for (int32 ChannelIdx = 0; ChannelIdx != Channels.Num(); ++ChannelIdx)
+
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Channels)
 	{
-		if (UPoseSearchFeatureChannel* Channel = Channels[ChannelIdx].Get())
+		if (ChannelPtr)
 		{
-			Channel->InitializeSchema(this);
+			ChannelPtr->Finalize(this);
 		}
 	}
 
@@ -85,30 +78,40 @@ void UPoseSearchSchema::Finalize(bool bRemoveEmptyChannels)
 void UPoseSearchSchema::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	Finalize();
-
 	Super::PreSave(ObjectSaveContext);
 }
 
 void UPoseSearchSchema::PostLoad()
 {
 	Super::PostLoad();
-	ResolveBoneReferences();
+	Finalize();
+}
+
+int32 UPoseSearchSchema::AddBoneReference(const FBoneReference& BoneReference)
+{
+	return BoneReferences.AddUnique(BoneReference);
+}
+
+USkeleton* UPoseSearchSchema::GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle)
+{
+	bInvalidSkeletonIsError = false;
+	return Skeleton;
 }
 
 #if WITH_EDITOR
 void UPoseSearchSchema::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Finalize(false);
+	Finalize();
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 void UPoseSearchSchema::ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData) const
 {
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel : Channels)
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Channels)
 	{
-		if (Channel)
+		if (ChannelPtr)
 		{
-			Channel->ComputeCostBreakdowns(CostBreakDownData, this);
+			ChannelPtr->ComputeCostBreakdowns(CostBreakDownData, this);
 		}
 	}
 }

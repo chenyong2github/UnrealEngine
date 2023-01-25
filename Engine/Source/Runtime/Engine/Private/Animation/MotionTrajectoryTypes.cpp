@@ -156,6 +156,38 @@ void FTrajectorySampleRange::TransformReferenceFrame(const FTransform& Transform
 	}
 }
 
+FTrajectorySample FTrajectorySampleRange::GetSampleAtTime(float Time, bool bExtrapolate) const
+{
+	const int32 Num = Samples.Num();
+	if (Num > 1)
+	{
+		const int32 LowerBoundIdx = Algo::LowerBound(Samples, Time, [](const FTrajectorySample& TrajectorySample, float Value)
+			{
+				return Value > TrajectorySample.AccumulatedSeconds;
+			});
+
+		const int32 NextIdx = FMath::Clamp(LowerBoundIdx, 1, Samples.Num() - 1);
+		const int32 PrevIdx = NextIdx - 1;
+
+		const float Denominator = Samples[NextIdx].AccumulatedSeconds - Samples[PrevIdx].AccumulatedSeconds;
+		if (!FMath::IsNearlyZero(Denominator))
+		{
+			const float Numerator = Time - Samples[PrevIdx].AccumulatedSeconds;
+			const float LerpValue = bExtrapolate ? Numerator / Denominator : FMath::Clamp(Numerator / Denominator, 0.f, 1.f);
+			return Samples[PrevIdx].Lerp(Samples[NextIdx], LerpValue);
+		}
+
+		return Samples[PrevIdx];
+	}
+
+	if (Num > 0)
+	{
+		return Samples[0];
+	}
+
+	return FTrajectorySample();
+}
+
 void FTrajectorySampleRange::DebugDrawTrajectory(bool bEnable
 	, const UWorld* World
 	, const FTransform& WorldTransform

@@ -61,18 +61,18 @@ void FFeatureVectorHelper::EncodeQuat(TArrayView<float> Values, int32& DataOffse
 
 void FFeatureVectorHelper::EncodeQuat(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue)
 {
-	FQuat Quat = DecodeQuatInternal(CurValues, DataOffset);
+	FQuat Quat = DecodeQuatAtOffset(CurValues, DataOffset);
 
 	// linear interpolation
 	if (!FMath::IsNearlyZero(LerpValue))
 	{
 		if (LerpValue < 0.f)
 		{
-			Quat = FQuat::Slerp(Quat, DecodeQuatInternal(PrevValues, DataOffset), -LerpValue);
+			Quat = FQuat::Slerp(Quat, DecodeQuatAtOffset(PrevValues, DataOffset), -LerpValue);
 		}
 		else
 		{
-			Quat = FQuat::Slerp(Quat, DecodeQuatInternal(NextValues, DataOffset), LerpValue);
+			Quat = FQuat::Slerp(Quat, DecodeQuatAtOffset(NextValues, DataOffset), LerpValue);
 		}
 	}
 
@@ -82,12 +82,12 @@ void FFeatureVectorHelper::EncodeQuat(TArrayView<float> Values, int32& DataOffse
 
 FQuat FFeatureVectorHelper::DecodeQuat(TConstArrayView<float> Values, int32& DataOffset)
 {
-	const FQuat Quat = DecodeQuatInternal(Values, DataOffset);
+	const FQuat Quat = DecodeQuatAtOffset(Values, DataOffset);
 	DataOffset += EncodeQuatCardinality;
 	return Quat;
 }
 
-FQuat FFeatureVectorHelper::DecodeQuatInternal(TConstArrayView<float> Values, int32 DataOffset)
+FQuat FFeatureVectorHelper::DecodeQuatAtOffset(TConstArrayView<float> Values, int32 DataOffset)
 {
 	// reconstructing the chosen 2 axis (X,Y - from EncodeQuat) from the 6 floats from Values 
 	const FVector X(Values[DataOffset + 0], Values[DataOffset + 1], Values[DataOffset + 2]);
@@ -109,18 +109,18 @@ void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32& DataOff
 
 void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue, bool bNormalize)
 {
-	FVector Vector = DecodeVectorInternal(CurValues, DataOffset);
+	FVector Vector = DecodeVectorAtOffset(CurValues, DataOffset);
 
 	// linear interpolation
 	if (!FMath::IsNearlyZero(LerpValue))
 	{
 		if (LerpValue < 0.f)
 		{
-			Vector = FMath::Lerp(Vector, DecodeVectorInternal(PrevValues, DataOffset), -LerpValue);
+			Vector = FMath::Lerp(Vector, DecodeVectorAtOffset(PrevValues, DataOffset), -LerpValue);
 		}
 		else
 		{
-			Vector = FMath::Lerp(Vector, DecodeVectorInternal(NextValues, DataOffset), LerpValue);
+			Vector = FMath::Lerp(Vector, DecodeVectorAtOffset(NextValues, DataOffset), LerpValue);
 		}
 	}
 
@@ -135,12 +135,12 @@ void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32& DataOff
 
 FVector FFeatureVectorHelper::DecodeVector(TConstArrayView<float> Values, int32& DataOffset)
 {
-	const FVector Vector = DecodeVectorInternal(Values, DataOffset);
+	const FVector Vector = DecodeVectorAtOffset(Values, DataOffset);
 	DataOffset += EncodeVectorCardinality;
 	return Vector;
 }
 
-FVector FFeatureVectorHelper::DecodeVectorInternal(TConstArrayView<float> Values, int32 DataOffset)
+FVector FFeatureVectorHelper::DecodeVectorAtOffset(TConstArrayView<float> Values, int32 DataOffset)
 {
 	return FVector(Values[DataOffset + 0], Values[DataOffset + 1], Values[DataOffset + 2]);
 }
@@ -154,18 +154,18 @@ void FFeatureVectorHelper::EncodeVector2D(TArrayView<float> Values, int32& DataO
 
 void FFeatureVectorHelper::EncodeVector2D(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue)
 {
-	FVector2D Vector2D = DecodeVector2DInternal(CurValues, DataOffset);
+	FVector2D Vector2D = DecodeVector2DAtOffset(CurValues, DataOffset);
 
 	// linear interpolation
 	if (!FMath::IsNearlyZero(LerpValue))
 	{
 		if (LerpValue < 0.f)
 		{
-			Vector2D = FMath::Lerp(Vector2D, DecodeVector2DInternal(PrevValues, DataOffset), -LerpValue);
+			Vector2D = FMath::Lerp(Vector2D, DecodeVector2DAtOffset(PrevValues, DataOffset), -LerpValue);
 		}
 		else
 		{
-			Vector2D = FMath::Lerp(Vector2D, DecodeVector2DInternal(NextValues, DataOffset), LerpValue);
+			Vector2D = FMath::Lerp(Vector2D, DecodeVector2DAtOffset(NextValues, DataOffset), LerpValue);
 		}
 	}
 
@@ -175,12 +175,12 @@ void FFeatureVectorHelper::EncodeVector2D(TArrayView<float> Values, int32& DataO
 
 FVector2D FFeatureVectorHelper::DecodeVector2D(TConstArrayView<float> Values, int32& DataOffset)
 {
-	const FVector2D Vector2D = DecodeVector2DInternal(Values, DataOffset);
+	const FVector2D Vector2D = DecodeVector2DAtOffset(Values, DataOffset);
 	DataOffset += EncodeVector2DCardinality;
 	return Vector2D;
 }
 
-FVector2D FFeatureVectorHelper::DecodeVector2DInternal(TConstArrayView<float> Values, int32 DataOffset)
+FVector2D FFeatureVectorHelper::DecodeVector2DAtOffset(TConstArrayView<float> Values, int32 DataOffset)
 {
 	return FVector2D(Values[DataOffset + 0], Values[DataOffset + 1]);
 }
@@ -193,18 +193,18 @@ void FFeatureVectorHelper::EncodeFloat(TArrayView<float> Values, int32& DataOffs
 
 void FFeatureVectorHelper::EncodeFloat(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue)
 {
-	float Value = DecodeFloatInternal(CurValues, DataOffset);
+	float Value = DecodeFloatAtOffset(CurValues, DataOffset);
 
 	// linear interpolation
 	if (!FMath::IsNearlyZero(LerpValue))
 	{
 		if (LerpValue < 0.f)
 		{
-			Value = FMath::Lerp(Value, DecodeFloatInternal(PrevValues, DataOffset), -LerpValue);
+			Value = FMath::Lerp(Value, DecodeFloatAtOffset(PrevValues, DataOffset), -LerpValue);
 		}
 		else
 		{
-			Value = FMath::Lerp(Value, DecodeFloatInternal(NextValues, DataOffset), LerpValue);
+			Value = FMath::Lerp(Value, DecodeFloatAtOffset(NextValues, DataOffset), LerpValue);
 		}
 	}
 
@@ -214,12 +214,12 @@ void FFeatureVectorHelper::EncodeFloat(TArrayView<float> Values, int32& DataOffs
 
 float FFeatureVectorHelper::DecodeFloat(TConstArrayView<float> Values, int32& DataOffset)
 {
-	const float Value = DecodeFloatInternal(Values, DataOffset);
+	const float Value = DecodeFloatAtOffset(Values, DataOffset);
 	DataOffset += EncodeFloatCardinality;
 	return Value;
 }
 
-float FFeatureVectorHelper::DecodeFloatInternal(TConstArrayView<float> Values, int32 DataOffset)
+float FFeatureVectorHelper::DecodeFloatAtOffset(TConstArrayView<float> Values, int32 DataOffset)
 {
 	return Values[DataOffset];
 }

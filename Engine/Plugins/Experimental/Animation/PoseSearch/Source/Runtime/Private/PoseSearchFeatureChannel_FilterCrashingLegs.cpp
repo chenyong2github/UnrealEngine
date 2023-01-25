@@ -27,7 +27,7 @@ static float ComputeCrashingLegsValue(const FVector& RightThighPos, const FVecto
 	return CrashingLegsValue;
 }
 
-void UPoseSearchFeatureChannel_FilterCrashingLegs::InitializeSchema(UPoseSearchSchema* Schema)
+void UPoseSearchFeatureChannel_FilterCrashingLegs::Finalize(UPoseSearchSchema* Schema)
 {
 	ChannelDataOffset = Schema->SchemaCardinality;
 	ChannelCardinality = UE::PoseSearch::FFeatureVectorHelper::EncodeFloatCardinality;
@@ -104,23 +104,22 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::DebugDraw(const UE::PoseSearc
 #if ENABLE_DRAW_DEBUG
 	using namespace UE::PoseSearch;
 
-	int32 DataOffset = ChannelDataOffset;
-	const float CrashingLegsValue = FFeatureVectorHelper::DecodeFloat(PoseVector, DataOffset);
+	const float CrashingLegsValue = FFeatureVectorHelper::DecodeFloatAtOffset(PoseVector, ChannelDataOffset);
 
 	const float LifeTime = DrawParams.DefaultLifeTime;
 	const uint8 DepthPriority = ESceneDepthPriorityGroup::SDPG_Foreground + 2;
 	const bool bPersistent = EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::Persistent);
 
-	const FTransform LeftThighTransform = DrawParams.Mesh != nullptr ? DrawParams.Mesh->GetSocketTransform(LeftThigh.BoneName) : DrawParams.RootTransform;
-	const FTransform RightThighTransform = DrawParams.Mesh != nullptr ? DrawParams.Mesh->GetSocketTransform(RightThigh.BoneName) : DrawParams.RootTransform;
-	const FTransform LeftFootTransform = DrawParams.Mesh != nullptr ? DrawParams.Mesh->GetSocketTransform(LeftFoot.BoneName) : DrawParams.RootTransform;
-	const FTransform RightFootTransform = DrawParams.Mesh != nullptr ? DrawParams.Mesh->GetSocketTransform(RightFoot.BoneName) : DrawParams.RootTransform;
-	
-	const float FeetDistance = (RightFootTransform.GetTranslation() - LeftFootTransform.GetTranslation()).Length();
+	const FVector LeftThighPosition = DrawParams.GetCachedPosition(0.f, LeftThighIdx);
+	const FVector RightThighPosition = DrawParams.GetCachedPosition(0.f, RightThighIdx);
+	const FVector LeftFootPosition = DrawParams.GetCachedPosition(0.f, LeftFootIdx);
+	const FVector RightFootPosition = DrawParams.GetCachedPosition(0.f, RightFootIdx);
+
+	const float FeetDistance = (RightFootPosition - LeftFootPosition).Length();
 
 	FVector ThighsSide;
 	FVector ThighsForward;
-	ComputeThighsSideAndForward(RightThighTransform.GetTranslation(), LeftThighTransform.GetTranslation(), ThighsSide, ThighsForward);
+	ComputeThighsSideAndForward(RightThighPosition, LeftThighPosition, ThighsSide, ThighsForward);
 	const FVector CrossingLegsVector = (FMath::Cos(CrashingLegsValue * UE_PI) * ThighsSide + FMath::Sin(CrashingLegsValue * UE_PI) * ThighsForward) * FeetDistance;
 
 	auto LerpColor = [](FColor A, FColor B, float T) -> FColor
@@ -138,8 +137,8 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::DebugDraw(const UE::PoseSearc
 		LerpColor(FColor::Green, FColor::Red, LerpValue) :
 		LerpColor(FColor::Green, FColor::Orange, -LerpValue);
 
-	DrawDebugLine(DrawParams.World, LeftFootTransform.GetTranslation(), LeftFootTransform.GetTranslation() + CrossingLegsVector, Color, bPersistent, LifeTime, DepthPriority);
-	DrawDebugLine(DrawParams.World, RightFootTransform.GetTranslation(), RightFootTransform.GetTranslation() - CrossingLegsVector, Color, bPersistent, LifeTime, DepthPriority);
+	DrawDebugLine(DrawParams.World, LeftFootPosition, LeftFootPosition + CrossingLegsVector, Color, bPersistent, LifeTime, DepthPriority);
+	DrawDebugLine(DrawParams.World, RightFootPosition, RightFootPosition - CrossingLegsVector, Color, bPersistent, LifeTime, DepthPriority);
 #endif // ENABLE_DRAW_DEBUG
 }
 
@@ -153,11 +152,8 @@ bool UPoseSearchFeatureChannel_FilterCrashingLegs::IsPoseValid(TConstArrayView<f
 {
 	using namespace UE::PoseSearch;
 
-	int32 DataOffset = ChannelDataOffset;
-	const float PoseValue = FFeatureVectorHelper::DecodeFloat(PoseValues, DataOffset);
-
-	DataOffset = ChannelDataOffset;
-	const float QueryValue = FFeatureVectorHelper::DecodeFloat(QueryValues, DataOffset);
+	const float PoseValue = FFeatureVectorHelper::DecodeFloatAtOffset(PoseValues, ChannelDataOffset);
+	const float QueryValue = FFeatureVectorHelper::DecodeFloatAtOffset(QueryValues, ChannelDataOffset);
 
 	bool bIsPoseValid = true;
 	if (FMath::Abs(QueryValue - PoseValue) > AllowedTolerance)

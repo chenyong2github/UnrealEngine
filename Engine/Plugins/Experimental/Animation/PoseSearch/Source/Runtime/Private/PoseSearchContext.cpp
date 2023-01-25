@@ -71,9 +71,41 @@ const UPoseSearchSchema* FDebugDrawParams::GetSchema() const
 	return Database ? Database->Schema : nullptr;
 }
 
-void DrawFeatureVector(const FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector)
+void FDebugDrawParams::ClearCachedPositions()
+{
+	CachedPositions.Reset();
+}
+
+void FDebugDrawParams::AddCachedPosition(float TimeOffset, int8 SchemaBoneIdx, const FVector& Position)
+{
+	if (const UPoseSearchSchema* Schema = GetSchema())
+	{
+		CachedPositions.Add(TimeOffset, Schema->GetBoneIndexType(SchemaBoneIdx), Position);
+	}
+}
+
+FVector FDebugDrawParams::GetCachedPosition(float TimeOffset, int8 SchemaBoneIdx) const
+{
+	if (const UPoseSearchSchema* Schema = GetSchema())
+	{
+		if (auto CachedPosition = CachedPositions.Find(TimeOffset, Schema->GetBoneIndexType(SchemaBoneIdx)))
+		{
+			return CachedPosition->Transform;
+		}
+
+		if (Mesh.IsValid() && SchemaBoneIdx >= 0)
+		{
+			return Mesh->GetSocketTransform(Schema->BoneReferences[SchemaBoneIdx].BoneName).GetLocation();
+		}
+	}
+	return RootTransform.GetTranslation();
+}
+
+void DrawFeatureVector(FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector)
 {
 #if ENABLE_DRAW_DEBUG
+	DrawParams.ClearCachedPositions();
+
 	if (DrawParams.CanDraw())
 	{
 		const UPoseSearchSchema* Schema = DrawParams.GetSchema();
@@ -81,11 +113,19 @@ void DrawFeatureVector(const FDebugDrawParams& DrawParams, TConstArrayView<float
 
 		if (PoseVector.Num() == Schema->SchemaCardinality)
 		{
-			for (int32 ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
+			for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->Channels)
 			{
-				if (DrawParams.ChannelMask & (1 << ChannelIdx))
+				if (ChannelPtr)
 				{
-					Schema->Channels[ChannelIdx]->DebugDraw(DrawParams, PoseVector);
+					ChannelPtr->PreDebugDraw(DrawParams, PoseVector);
+				}
+			}
+
+			for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->Channels)
+			{
+				if (ChannelPtr)
+				{
+					ChannelPtr->DebugDraw(DrawParams, PoseVector);
 				}
 			}
 		}
@@ -93,7 +133,7 @@ void DrawFeatureVector(const FDebugDrawParams& DrawParams, TConstArrayView<float
 #endif // ENABLE_DRAW_DEBUG
 }
 
-void DrawFeatureVector(const FDebugDrawParams& DrawParams, int32 PoseIdx)
+void DrawFeatureVector(FDebugDrawParams& DrawParams, int32 PoseIdx)
 {
 #if ENABLE_DRAW_DEBUG
 	// if we're editing the schema while in PIE with Rewind Debugger active, PoseIdx could be out of bound / stale
@@ -110,21 +150,13 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 {
 	check(History && Schema);
 
-	static constexpr FBoneIndexType RootBoneIdx = 0xFFFF;
-	const FBoneIndexType BoneIndexType = SchemaBoneIdx >= 0 && Schema->BoneReferences[SchemaBoneIdx].HasValidSetup() ? Schema->BoneReferences[SchemaBoneIdx].BoneIndex : RootBoneIdx;
-
-	// @todo: use an hashmap if we end up having too many entries
-	const FCachedEntry* Entry = CachedEntries.FindByPredicate([SampleTime, BoneIndexType](const FSearchContext::FCachedEntry& Entry)
+	const FBoneIndexType BoneIndexType = Schema->GetBoneIndexType(SchemaBoneIdx);
+	if (const FCachedTransform<FTransform>* CachedTransform = CachedTransforms.Find(SampleTime, BoneIndexType))
 	{
-		return Entry.SampleTime == SampleTime && Entry.BoneIndexType == BoneIndexType;
-	});
-
-	if (Entry)
-	{
-		return Entry->Transform;
+		return CachedTransform->Transform;
 	}
 
-	if (BoneIndexType != RootBoneIdx)
+	if (BoneIndexType != UPoseSearchSchema::RootBoneIdx)
 	{
 		TArray<FTransform> SampledLocalPose;
 		if (History->TrySampleLocalPose(-SampleTime, &Schema->BoneIndicesWithParents, &SampledLocalPose, nullptr))
@@ -135,7 +167,7 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 			// adding bunch of entries, without caring about adding eventual duplicates
 			for (const FBoneIndexType NewEntryBoneIndexType : Schema->BoneIndicesWithParents)
 			{
-				CachedEntries.Emplace(SampleTime, SampledComponentPose[NewEntryBoneIndexType], NewEntryBoneIndexType);
+				CachedTransforms.Add(SampleTime, NewEntryBoneIndexType, SampledComponentPose[NewEntryBoneIndexType]);
 			}
 
 			return SampledComponentPose[BoneIndexType];
@@ -147,11 +179,7 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 	FTransform SampledRootTransform;
 	if (History->TrySampleLocalPose(-SampleTime, nullptr, nullptr, &SampledRootTransform))
 	{
-		FCachedEntry& NewEntry = CachedEntries[CachedEntries.AddDefaulted()];
-		NewEntry.SampleTime = SampleTime;
-		NewEntry.BoneIndexType = BoneIndexType;
-		NewEntry.Transform = SampledRootTransform;
-
+		CachedTransforms.Add(SampleTime, BoneIndexType, SampledRootTransform);
 		return SampledRootTransform;
 	}
 	
@@ -160,7 +188,7 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 
 void FSearchContext::ClearCachedEntries()
 {
-	CachedEntries.Reset();
+	CachedTransforms.Reset();
 }
 
 void FSearchContext::ResetCurrentBestCost()

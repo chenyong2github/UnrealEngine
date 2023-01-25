@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "PoseSearch/PoseSearchFeatureChannel.h"
-#include "BoneContainer.h"
+#include "PoseSearchFeatureChannel_Group.h"
 #include "UObject/ObjectSaveContext.h"
 #include "PoseSearchFeatureChannel_Trajectory.generated.h"
+
+struct FTrajectorySampleRange;
 
 UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
 enum class EPoseSearchTrajectoryFlags : uint32
@@ -40,9 +41,8 @@ struct POSESEARCH_API FPoseSearchTrajectorySample
 	UPROPERTY(EditAnywhere, Category = Config, meta = (ExcludeFromHash))
 	int32 ColorPresetIndex = 0;
 };
-
 UCLASS(BlueprintType, EditInlineNew, meta = (DisplayName = "Trajectory Channel"), CollapseCategories)
-class POSESEARCH_API UPoseSearchFeatureChannel_Trajectory : public UPoseSearchFeatureChannel
+class POSESEARCH_API UPoseSearchFeatureChannel_Trajectory : public UPoseSearchFeatureChannel_GroupBase
 {
 	GENERATED_BODY()
 
@@ -53,24 +53,25 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	TArray<FPoseSearchTrajectorySample> Samples;
 
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UPoseSearchFeatureChannel>> SubChannels;
+
+	// UPoseSearchFeatureChannel_GroupBase interface
+	virtual TArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() override { return SubChannels; }
+	virtual TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() const override { return SubChannels; }
+
 	// UObject interface
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
 	// UPoseSearchFeatureChannel interface
-	virtual void InitializeSchema(UPoseSearchSchema* Schema) override;
-	virtual void FillWeights(TArray<float>& Weights) const override;
-	virtual void IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const override;
-	virtual void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const override;
+	virtual void Finalize(UPoseSearchSchema* Schema) override;
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const override;
+
+	float GetEstimatedSpeedRatio(TConstArrayView<float> QueryVector, TConstArrayView<float> PoseVector) const;
 
 #if WITH_EDITOR
 	virtual void PopulateChannelLayoutSet(UE::PoseSearch::FFeatureChannelLayoutSet& FeatureChannelLayoutSet) const override;
 	virtual void ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const override;
 #endif
-
-	bool GetEstimatedSpeedRatio(TConstArrayView<float> QueryVector, TConstArrayView<float> PoseVector, float& EstimatedSpeedRatio) const;
-
-protected:
-	void IndexAssetPrivate(const UE::PoseSearch::IAssetIndexer& Indexer, int32 SampleIdx, TArrayView<float> FeatureVector) const;
 };
 

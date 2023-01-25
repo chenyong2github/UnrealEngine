@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "Algo/BinarySearch.h"
 #include "UObject/ObjectMacros.h"
-
 #include "MotionTrajectoryTypes.generated.h"
 
 USTRUCT(BlueprintType, Category="Motion Trajectory")
@@ -49,27 +49,9 @@ struct ENGINE_API FTrajectorySampleRange
 {
 	GENERATED_BODY()
 
-	// Debug rendering contants
-	static constexpr FLinearColor DebugDefaultPredictionColor{ 0.f, 1.f, 0.f };
-	static constexpr FLinearColor DebugDefaultHistoryColor{ 0.f, 0.f, 1.f };
-	static constexpr float DebugDefaultTransformScale = 10.f;
-	static constexpr float DebugDefaultTransformThickness = 2.f;
-	static constexpr float DebugDefaultArrowScale = 0.025f;
-	static constexpr float DebugDefaultArrowSize = 40.f;
-	static constexpr float DebugDefaultArrowThickness = 2.f;
-
 	// Linearly ordered container for past, present, and future trajectory samples
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Motion Trajectory")
 	TArray<FTrajectorySample> Samples;
-
-	// Per-second sample rate of the trajectory sample container
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Motion Trajectory")
-	int32 SampleRate = 30;
-
-	// Constructors
-	FTrajectorySampleRange() = default;
-
-	FTrajectorySampleRange(int32 Rate) : Samples(), SampleRate(Rate) { }
 
 	// Removes history samples from trajectory (retains present and future)
 	void RemoveHistory();
@@ -89,74 +71,17 @@ struct ENGINE_API FTrajectorySampleRange
 	// Determine if all trajectory samples are default values
 	bool HasOnlyZeroSamples() const;
 
+	FTrajectorySample GetSampleAtTime(float Time, bool bExtrapolate = false) const;
+
 	// Debug draw in-world trajectory samples and optional corresponding information
 	void DebugDrawTrajectory(bool bEnable
 		, const UWorld* World
 		, const FTransform& WorldTransform
-		, const FLinearColor PredictionColor = DebugDefaultPredictionColor
-		, const FLinearColor HistoryColor = DebugDefaultHistoryColor
-		, float TransformScale = DebugDefaultTransformScale
-		, float TransformThickness = DebugDefaultTransformThickness
-		, float VelArrowScale = DebugDefaultArrowScale
-		, float VelArrowSize = DebugDefaultArrowSize
-		, float VelArrowThickness = DebugDefaultArrowThickness) const;
-
-	// Iterator for precise subsampling of the trajectory
-	template <typename Container> static FTrajectorySample IterSampleTrajectory(const Container& Samples, float DomainValue, int32& InitialIdx, bool bSmoothInterp = false)
-	{
-		auto SafeNextIndex = [](float Idx, float Num)
-		{
-			return FMath::Min(Idx + 1, Num - 1);
-		};
-
-		auto SafePrevIndex = [](float Idx)
-		{
-			return Idx > 0 ? Idx - 1 : 0;
-		};
-
-		// Iterative invocations of this function should use the NextIdx output parameter as a method of short circuiting a full linear traversal of the range
-		for (int32 Idx = InitialIdx, Num = Samples.Num(); Idx < Num; ++Idx)
-		{
-			const FTrajectorySample& NextSample = Samples[Idx];
-			const float NextDomainValue = NextSample.AccumulatedSeconds;
-
-			// Continue traversing the samples until an appropriate "right-hand" side domain value is found for interpolation 
-			if (NextDomainValue < DomainValue)
-			{
-				continue;
-			}
-			else
-			{
-				// Range check to disallow a right-hand 0 index from using -1 as a left index
-				InitialIdx = SafePrevIndex(Idx);
-
-				// Find the interpolation factor of P between: [P1 .. P .. P2] by mapping the domain values to [0 ... 1]
-				// Note: NextIdx is biased to equal P1 rather than P2 to account for cases where subsequent trajectory iterations may require subsampling between [P1 ... P2] again
-				const FTrajectorySample& InitialSample = Samples[InitialIdx];
-				const float PrevDomainValue = InitialSample.AccumulatedSeconds;
-				const float Alpha = FMath::GetMappedRangeValueUnclamped(FVector2f(PrevDomainValue, NextDomainValue), FVector2f(0.f, 1.f), DomainValue);
-
-				FTrajectorySample InterpSample;
-				if (bSmoothInterp)
-				{
-					// Apply Centripetal Catmull–Rom spline interpolation when four valid control points can be established during sub-sampling
-					const int32 PrevIdx = SafePrevIndex(InitialIdx);
-					const int32 NextIdx = SafeNextIndex(Idx, Num);
-
-					if (PrevIdx != InitialIdx && InitialIdx != Idx && Idx != NextIdx)
-					{
-						InterpSample = InitialSample.SmoothInterp(Samples[PrevIdx], NextSample, Samples[NextIdx], Alpha);
-						return InterpSample;
-					}
-				}
-
-				// For now, we will by default defer to linear interpolation
-				InterpSample = InitialSample.Lerp(NextSample, Alpha);
-				return InterpSample;
-			}
-		}
-
-		// Sampling beyond the available range will extrapolate as the last sample
-		return !Samples.IsEmpty() ? Samples.Last() : FTrajectorySample();
-	}
+		, const FLinearColor PredictionColor = { 0.f, 1.f, 0.f }
+		, const FLinearColor HistoryColor = { 0.f, 0.f, 1.f }
+		, float TransformScale = 10.f
+		, float TransformThickness = 2.f
+		, float VelArrowScale = 0.025f
+		, float VelArrowSize = 40.f
+		, float VelArrowThickness = 2.f) const;
 };

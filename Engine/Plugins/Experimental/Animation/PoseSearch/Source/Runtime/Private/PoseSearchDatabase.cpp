@@ -151,7 +151,7 @@ struct FPoseFilters
 
 		for (const IPoseFilter* ChannelPoseFilter : Schema->Channels)
 		{
-			if (ChannelPoseFilter->IsPoseFilterActive())
+			if (ChannelPoseFilter && ChannelPoseFilter->IsPoseFilterActive())
 			{
 				AllPoseFilters.Add(ChannelPoseFilter);
 			}

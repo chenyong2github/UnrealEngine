@@ -234,9 +234,8 @@ static void TraceMotionMatchingState(
 	if (DeltaTime > SMALL_NUMBER)
 	{
 		// simulation
-		int32 FirstIdx = 0;
-		const FTrajectorySample PrevSample = FTrajectorySampleRange::IterSampleTrajectory(Trajectory.Samples, -DeltaTime, FirstIdx);
-		const FTrajectorySample CurrSample = FTrajectorySampleRange::IterSampleTrajectory(Trajectory.Samples, 0.f, FirstIdx);
+		const FTrajectorySample PrevSample = Trajectory.GetSampleAtTime(-DeltaTime);
+		const FTrajectorySample CurrSample = Trajectory.GetSampleAtTime(0.f);
 
 		const FTransform SimDelta = CurrSample.Transform.GetRelativeTransform(PrevSample.Transform);
 
@@ -379,18 +378,9 @@ void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchCon
 				{
 					TConstArrayView<float> QueryData = PoseSearchFeatureVectorBuilder->GetValues();
 					TConstArrayView<float> ResultData = CurrentSearchResult.Database->GetSearchIndex().GetPoseValues(CurrentSearchResult.PoseIdx);
-					float EstimatedSpeedRatio = 1.f;
-					if (TrajectoryChannel->GetEstimatedSpeedRatio(QueryData, ResultData, EstimatedSpeedRatio))
-					{
-						check(Settings.PlayRateMin <= Settings.PlayRateMax);
-						WantedPlayRate = FMath::Clamp(EstimatedSpeedRatio, Settings.PlayRateMin, Settings.PlayRateMax);
-					}
-					else
-					{
-						UE_LOG(LogPoseSearch, Warning,
-							TEXT("Couldn't update the WantedPlayRate in FMotionMatchingState::UpdateWantedPlayRate, because Schema '%s' UPoseSearchFeatureChannel_Trajectory::GetEstimatedSpeedRatio failed to compute, because of missing EPoseSearchTrajectoryFlags::Velocity samples"),
-							*GetNameSafe(CurrentSearchResult.Database->Schema));
-					}
+					const float EstimatedSpeedRatio = TrajectoryChannel->GetEstimatedSpeedRatio(QueryData, ResultData);
+					check(Settings.PlayRateMin <= Settings.PlayRateMax);
+					WantedPlayRate = FMath::Clamp(EstimatedSpeedRatio, Settings.PlayRateMin, Settings.PlayRateMax);
 				}
 				else
 				{

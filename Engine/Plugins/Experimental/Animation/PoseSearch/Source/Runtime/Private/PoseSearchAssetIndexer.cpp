@@ -118,9 +118,12 @@ bool FAssetIndexer::Process()
 	if (IndexingContext.Schema->SchemaCardinality > 0)
 	{
 		// Index each channel
-		for (int32 ChannelIdx = 0; ChannelIdx != IndexingContext.Schema->Channels.Num(); ++ChannelIdx)
+		for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : IndexingContext.Schema->Channels)
 		{
-			IndexingContext.Schema->Channels[ChannelIdx]->IndexAsset(*this, Output.FeatureVectorTable);
+			if (ChannelPtr)
+			{
+				ChannelPtr->IndexAsset(*this, Output.FeatureVectorTable);
+			}
 		}
 	}
 
