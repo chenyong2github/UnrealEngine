@@ -187,7 +187,7 @@ public:
 			ParticleCount,
 			InConstraints,
 			StiffnessMultipliers,
-			FSolverVec2(GetWeightedFloatXPBDAreaSpringStiffness(PropertyCollection)),
+			FSolverVec2(GetWeightedFloatXPBDAreaSpringStiffness(PropertyCollection, MaxStiffness)),
 			bTrimKinematicConstraints)
 	{}
 

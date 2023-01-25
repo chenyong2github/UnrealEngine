@@ -52,7 +52,7 @@ public:
 			bTrimKinematicConstraints,
 			MaxStiffness)
 		, DampingRatio(
-			FSolverVec2(GetWeightedFloatXPBDBendingElementDamping(PropertyCollection, 0.f)).ClampAxes(MinDamping, MaxDamping),
+			FSolverVec2(GetWeightedFloatXPBDBendingElementDamping(PropertyCollection, MinDamping)).ClampAxes(MinDamping, MaxDamping),
 			DampingMultipliers,
 			TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
 			ParticleOffset,

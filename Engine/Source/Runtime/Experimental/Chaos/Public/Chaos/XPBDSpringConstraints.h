@@ -179,8 +179,8 @@ public:
 			InConstraints,
 			StiffnessMultipliers,
 			DampingMultipliers,
-			FSolverVec2(GetWeightedFloatXPBDEdgeSpringStiffness(PropertyCollection)),
-			FSolverVec2(GetWeightedFloatXPBDEdgeSpringDamping(PropertyCollection)),
+			FSolverVec2(GetWeightedFloatXPBDEdgeSpringStiffness(PropertyCollection, MaxStiffness)),
+			FSolverVec2(GetWeightedFloatXPBDEdgeSpringDamping(PropertyCollection, MinDampingRatio)),
 			bTrimKinematicConstraints)
 	{}
 
@@ -230,8 +230,8 @@ public:
 			InConstraints,
 			StiffnessMultipliers,
 			DampingMultipliers,
-			FSolverVec2(GetWeightedFloatXPBDBendingSpringStiffness(PropertyCollection)),
-			FSolverVec2(GetWeightedFloatXPBDBendingSpringDamping(PropertyCollection)),
+			FSolverVec2(GetWeightedFloatXPBDBendingSpringStiffness(PropertyCollection, MaxStiffness)),
+			FSolverVec2(GetWeightedFloatXPBDBendingSpringDamping(PropertyCollection, MinDampingRatio)),
 			bTrimKinematicConstraints)
 	{}
 

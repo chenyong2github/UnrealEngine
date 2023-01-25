@@ -40,8 +40,8 @@ public:
 			InTethers,
 			StiffnessMultipliers,
 			ScaleMultipliers,
-			FSolverVec2(GetWeightedFloatXPBDTetherStiffness(PropertyCollection)),
-			FSolverVec2(GetWeightedFloatXPBDTetherScale(PropertyCollection)),  // Scale clamping done in constructor
+			FSolverVec2(GetWeightedFloatXPBDTetherStiffness(PropertyCollection, MaxStiffness)),
+			FSolverVec2(GetWeightedFloatXPBDTetherScale(PropertyCollection, 1.f)),  // Scale clamping done in constructor
 			MaxStiffness)
 	{
 		NumTethers = 0;
@@ -82,7 +82,7 @@ public:
 
 	virtual ~FXPBDLongRangeConstraints() override {}
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection, FSolverReal MeshScale)
 	{
 		if (IsXPBDTetherStiffnessMutable(PropertyCollection))
 		{
@@ -90,15 +90,15 @@ public:
 		}
 		if (IsXPBDTetherScaleMutable(PropertyCollection))
 		{
-			TetherScale.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDTetherScale(PropertyCollection)).ClampAxes(Base::MinTetherScale, Base::MaxTetherScale));
+			TetherScale.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDTetherScale(PropertyCollection)).ClampAxes(Base::MinTetherScale, Base::MaxTetherScale) * MeshScale);
 		}
 	}
 
 	// Set the stiffness and scale values used by the constraint
-	void SetProperties(const FSolverVec2& InStiffness, const FSolverVec2& InScale)
+	void SetProperties(const FSolverVec2& InStiffness, const FSolverVec2& InTetherScale, FSolverReal MeshScale = (FSolverReal)1)
 	{
 		Stiffness.SetWeightedValue(InStiffness, MaxStiffness);
-		TetherScale.SetWeightedValue(InScale.ClampAxes(Base::MinTetherScale, Base::MaxTetherScale));
+		TetherScale.SetWeightedValue(InTetherScale.ClampAxes(Base::MinTetherScale, Base::MaxTetherScale) * MeshScale);
 	}
 
 	// Set stiffness offset and range, as well as the simulation stiffness exponent

@@ -37,8 +37,8 @@ public:
 			InTethers,
 			StiffnessMultipliers,
 			ScaleMultipliers,
-			FSolverVec2(GetWeightedFloatTetherStiffness(PropertyCollection)),
-			FSolverVec2(GetWeightedFloatTetherScale(PropertyCollection)),  // Scale clamping done in constructor
+			FSolverVec2(GetWeightedFloatTetherStiffness(PropertyCollection, 1.f)),
+			FSolverVec2(GetWeightedFloatTetherScale(PropertyCollection, 1.f)),  // Scale clamping done in constructor
 			FPBDStiffness::DefaultPBDMaxStiffness,
 			MeshScale)
 	{}
