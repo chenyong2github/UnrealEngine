@@ -2794,19 +2794,35 @@ protected:
 		}
 	}
 	template <typename T>
-	void SetWrappedObjectPropertyValue_InContainer(void* ContainerAddress, UObject* InValue, int32 ArrayIndex) const
+	void SetWrappedUObjectPtrValues_InContainer(void* ContainerAddress, UObject** InValues, int32 ArrayIndex, int32 ArrayCount) const
 	{
+		// Ensure required range is valid
+		checkf(ArrayIndex >= 0 && ArrayCount >= 0 && ArrayIndex <= ArrayDim && ArrayCount <= ArrayDim && ArrayIndex <= ArrayDim - ArrayCount, TEXT("ArrayIndex (%d) and ArrayCount (%d) is invalid for an array of size %d"), ArrayIndex, ArrayCount, ArrayDim);
+
 		if (!HasSetter())
 		{
 			// Fast path - direct memory access
-			SetObjectPropertyValue(ContainerPtrToValuePtr<void>(ContainerAddress, ArrayIndex), InValue);
+			uint8* ObjAddress = (uint8*)ContainerPtrToValuePtr<void>(ContainerAddress, ArrayIndex);
+
+			if (ArrayCount == 1)
+			{
+				SetObjectPropertyValue(ObjAddress, *InValues);
+			}
+			else
+			{
+				int32 LocalElementSize = ElementSize;
+				for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
+				{
+					SetObjectPropertyValue(ObjAddress + OutIndex * LocalElementSize, InValues[OutIndex]);
+				}
+			}
 		}
 		else
-		{			
-			if (ArrayDim == 1)
+		{
+			if (ArrayCount == 1)
 			{
 				// Slower but no mallocs. We can copy a local wrapped value directly to the resulting param
-				T WrappedValue(InValue);
+				T WrappedValue(*InValues);
 				SetValue_InContainer(ContainerAddress, &WrappedValue);
 			}
 			else
@@ -2814,8 +2830,14 @@ protected:
 				// Malloc a temp value that is the size of the array. Getter will then copy the entire array to the temp value
 				T* ValueArray = (T*)AllocateAndInitializeValue();
 				FProperty::GetValue_InContainer(ContainerAddress, ValueArray);
-				// Replace the item we care about
-				ValueArray[ArrayIndex] = InValue;
+
+				// Replace the items we care about
+				int32 LocalElementSize = ElementSize;
+				for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
+				{
+					ValueArray[ArrayIndex + OutIndex] = InValues[OutIndex];
+				}
+
 				// Now copy the entire array back to the property using a setter
 				SetValue_InContainer(ContainerAddress, ValueArray);
 				DestroyAndFreeValue(ValueArray);

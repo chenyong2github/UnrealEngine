@@ -74,7 +74,7 @@ void FClassPtrProperty::SetObjectPropertyValue_InContainer(void* ContainerAddres
 {
 	if (Value || !HasAnyPropertyFlags(CPF_NonNullable))
 	{
-		SetWrappedObjectPropertyValue_InContainer<FObjectPtr>(ContainerAddress, Value, ArrayIndex);
+		SetWrappedUObjectPtrValues_InContainer<FObjectPtr>(ContainerAddress, &Value, ArrayIndex, 1);
 	}
 	else
 	{

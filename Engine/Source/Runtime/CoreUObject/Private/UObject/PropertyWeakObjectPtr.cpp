@@ -110,7 +110,7 @@ void FWeakObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UOb
 
 void FWeakObjectProperty::SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex) const
 {
-	SetWrappedObjectPropertyValue_InContainer<FWeakObjectPtr>(ContainerAddress, Value, ArrayIndex);
+	SetWrappedUObjectPtrValues_InContainer<FWeakObjectPtr>(ContainerAddress, &Value, ArrayIndex, 1);
 }
 
 uint32 FWeakObjectProperty::GetValueTypeHashInternal(const void* Src) const

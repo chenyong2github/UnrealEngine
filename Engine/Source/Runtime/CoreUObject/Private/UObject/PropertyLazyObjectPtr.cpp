@@ -138,7 +138,7 @@ void FLazyObjectProperty::SetObjectPropertyValue_InContainer(void* ContainerAddr
 {
 	if (Value || !HasAnyPropertyFlags(CPF_NonNullable))
 	{
-		SetWrappedObjectPropertyValue_InContainer<FLazyObjectPtr>(ContainerAddress, Value, ArrayIndex);
+		SetWrappedUObjectPtrValues_InContainer<FLazyObjectPtr>(ContainerAddress, &Value, ArrayIndex, 1);
 	}
 	else
 	{

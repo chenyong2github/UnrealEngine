@@ -220,7 +220,7 @@ void FObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject
 
 void FObjectProperty::SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex) const
 {
-	// Dummy struct to satisfy SetWrappedObjectPropertyValue_InContainer API requirements
+	// Dummy struct to satisfy SetWrappedUObjectPtrValues_InContainer API requirements
 	struct FWrappedObjectPtr
 	{
 		FWrappedObjectPtr() = default;
@@ -232,7 +232,7 @@ void FObjectProperty::SetObjectPropertyValue_InContainer(void* ContainerAddress,
 	};
 	if (Value || !HasAnyPropertyFlags(CPF_NonNullable))
 	{
-		SetWrappedObjectPropertyValue_InContainer<FWrappedObjectPtr>(ContainerAddress, Value, ArrayIndex);
+		SetWrappedUObjectPtrValues_InContainer<FWrappedObjectPtr>(ContainerAddress, &Value, ArrayIndex, 1);
 	}
 	else
 	{

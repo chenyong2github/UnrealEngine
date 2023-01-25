@@ -255,7 +255,7 @@ void FSoftObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UOb
 
 void FSoftObjectProperty::SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex) const
 {
-	SetWrappedObjectPropertyValue_InContainer<FSoftObjectPtr>(ContainerAddress, Value, ArrayIndex);
+	SetWrappedUObjectPtrValues_InContainer<FSoftObjectPtr>(ContainerAddress, &Value, ArrayIndex, 1);
 }
 
 bool FSoftObjectProperty::AllowCrossLevel() const
