@@ -4647,8 +4647,8 @@ void FKismetCompilerContext::CompileClassLayout(EInternalCompilerFlags InternalF
 		TargetClass = NewClass;
 
 		// Fix up the reference in the blueprint to the new class
-			Blueprint->GeneratedClass = TargetClass;
-		}
+		Blueprint->GeneratedClass = TargetClass;
+	}
 
 	// Early validation
 	if (CompileOptions.CompileType == EKismetCompileType::Full)
