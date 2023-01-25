@@ -282,19 +282,19 @@ public:
 	UFUNCTION(BlueprintPure, Category="Render Grid Job")
 	bool HasRemoteControlValue(const FGuid& FieldId) const;
 
-	bool ConstGetRemoteControlValue(const FGuid& FieldId, FString& OutJson) const;
+	bool ConstGetRemoteControlValue(const FGuid& FieldId, FString& Json) const;
 
 	UFUNCTION(BlueprintPure, Category="Render Grid Job")
-	bool GetRemoteControlValue(const FGuid& FieldId, FString& OutJson);
+	bool GetRemoteControlValue(const FGuid& FieldId, FString& Json);
 
 	UFUNCTION(BlueprintCallable, Category="Render Grid Job")
 	bool SetRemoteControlValue(const FGuid& FieldId, const FString& Json);
 
 	UFUNCTION(BlueprintPure, Category="Render Grid Job")
-	bool GetRemoteControlFieldIdFromLabel(const FString& Label, FGuid& OutFieldId);
+	bool GetRemoteControlFieldIdFromLabel(const FString& Label, FGuid& FieldId);
 
 	UFUNCTION(BlueprintPure, Category="Render Grid Job")
-	bool GetRemoteControlLabelFromFieldId(const FGuid& FieldId, FString& OutLabel);
+	bool GetRemoteControlLabelFromFieldId(const FGuid& FieldId, FString& Label);
 
 	UFUNCTION(BlueprintCallable, Category="Render Grid Job")
 	TMap<FGuid, FString> GetRemoteControlValues();

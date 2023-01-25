@@ -9,7 +9,7 @@
 #include "RenderGrid/RenderGrid.h"
 #include "RenderGrid/RenderGridQueue.h"
 #include "IRenderGridEditor.h"
-#include "RenderGridUtils.h"
+#include "Utils/RenderGridUtils.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/MessageDialog.h"

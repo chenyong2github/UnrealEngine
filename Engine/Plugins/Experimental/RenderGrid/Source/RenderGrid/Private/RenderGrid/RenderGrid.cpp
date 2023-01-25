@@ -10,7 +10,7 @@
 #include "MovieScene.h"
 #include "RenderGrid/RenderGridManager.h"
 #include "RenderGrid/RenderGridQueue.h"
-#include "RenderGridUtils.h"
+#include "Utils/RenderGridUtils.h"
 #include "UObject/ObjectSaveContext.h"
 
 
@@ -546,27 +546,27 @@ bool URenderGridJob::HasRemoteControlValue(const FGuid& FieldId) const
 	return HasRemoteControlValueBytes(FieldId);
 }
 
-bool URenderGridJob::ConstGetRemoteControlValue(const FGuid& FieldId, FString& OutJson) const
+bool URenderGridJob::ConstGetRemoteControlValue(const FGuid& FieldId, FString& Json) const
 {
-	OutJson.Empty();
+	Json.Empty();
 	TArray<uint8> Bytes;
 	if (!ConstGetRemoteControlValueBytes(FieldId, Bytes))
 	{
 		return false;
 	}
-	OutJson.Append(UE::RenderGrid::Private::FRenderGridUtils::GetRemoteControlValueJsonFromBytes(Bytes));
+	Json.Append(UE::RenderGrid::Private::FRenderGridUtils::GetRemoteControlValueJsonFromBytes(Bytes));
 	return true;
 }
 
-bool URenderGridJob::GetRemoteControlValue(const FGuid& FieldId, FString& OutJson)
+bool URenderGridJob::GetRemoteControlValue(const FGuid& FieldId, FString& Json)
 {
-	OutJson.Empty();
+	Json.Empty();
 	TArray<uint8> Bytes;
 	if (!GetRemoteControlValueBytes(FieldId, Bytes))
 	{
 		return false;
 	}
-	OutJson.Append(UE::RenderGrid::Private::FRenderGridUtils::GetRemoteControlValueJsonFromBytes(Bytes));
+	Json.Append(UE::RenderGrid::Private::FRenderGridUtils::GetRemoteControlValueJsonFromBytes(Bytes));
 	return true;
 }
 
@@ -580,24 +580,24 @@ bool URenderGridJob::SetRemoteControlValue(const FGuid& FieldId, const FString& 
 	return SetRemoteControlValueBytes(FieldId, UE::RenderGrid::Private::FRenderGridUtils::GetRemoteControlValueBytesFromJson(Bytes, Json));
 }
 
-bool URenderGridJob::GetRemoteControlFieldIdFromLabel(const FString& Label, FGuid& OutFieldId)
+bool URenderGridJob::GetRemoteControlFieldIdFromLabel(const FString& Label, FGuid& FieldId)
 {
-	OutFieldId.Invalidate();
+	FieldId.Invalidate();
 	const FName LabelName = FName(Label);
 	for (URemoteControlPreset* RemoteControlPreset : GetRemoteControlPresets())
 	{
-		if (const FGuid FieldId = RemoteControlPreset->GetExposedEntityId(LabelName); FieldId.IsValid())
+		if (const FGuid RemoteControlFieldId = RemoteControlPreset->GetExposedEntityId(LabelName); FieldId.IsValid())
 		{
-			OutFieldId = FieldId;
+			FieldId = RemoteControlFieldId;
 			return true;
 		}
 	}
 	return false;
 }
 
-bool URenderGridJob::GetRemoteControlLabelFromFieldId(const FGuid& FieldId, FString& OutLabel)
+bool URenderGridJob::GetRemoteControlLabelFromFieldId(const FGuid& FieldId, FString& Label)
 {
-	OutLabel.Empty();
+	Label.Empty();
 	for (URemoteControlPreset* RemoteControlPreset : GetRemoteControlPresets())
 	{
 		for (const TWeakPtr<FRemoteControlEntity>& PropWeakPtr : RemoteControlPreset->GetExposedEntities<FRemoteControlEntity>())
@@ -606,7 +606,7 @@ bool URenderGridJob::GetRemoteControlLabelFromFieldId(const FGuid& FieldId, FStr
 			{
 				if (Prop->GetId() == FieldId)
 				{
-					OutLabel = Prop->GetLabel().ToString();
+					Label = Prop->GetLabel().ToString();
 					return true;
 				}
 			}

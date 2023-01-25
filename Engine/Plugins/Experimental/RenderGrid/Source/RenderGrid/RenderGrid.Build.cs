@@ -17,6 +17,7 @@ public class RenderGrid : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"RemoteControl",
+				"StructUtils",
 			}
 		);
 

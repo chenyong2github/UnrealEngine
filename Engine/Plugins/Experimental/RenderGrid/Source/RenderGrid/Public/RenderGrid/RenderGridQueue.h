@@ -3,7 +3,7 @@
 #pragma once
 
 #include "RenderGridManager.h"
-#include "RenderGridUtils.h"
+#include "Utils/RenderGridUtils.h"
 #include "Tickable.h"
 #include "Containers/Queue.h"
 #include "UObject/ObjectPtr.h"
