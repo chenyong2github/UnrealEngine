@@ -12,12 +12,14 @@
 #include "Settings.h"
 #include "UnrealEngine.h"
 #include "Interfaces/IMainFrameModule.h"
-#include "PixelStreamingProtocol.h"
+#include "PixelStreamingInputProtocol.h"
 #include "PixelStreamingUtils.h"
 #include "GenericPlatform/GenericPlatformHttp.h"
 #include "LevelEditorViewport.h"
 #include "Slate/SceneViewport.h"
 #include "SLevelViewport.h"
+#include "PixelStreamingInputEnums.h"
+#include "IPixelStreamingInputModule.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingEditor, Log, All);
 DEFINE_LOG_CATEGORY(LogPixelStreamingEditor);
@@ -41,7 +43,8 @@ void FPixelStreamingEditorModule::StartupModule()
 	Settings->PostEditChange();
 
 	Settings::InitialiseSettings();
-		
+	bUseExternalSignallingServer = Settings::CVarEditorPixelStreamingUseRemoteSignallingServer.GetValueOnAnyThread();
+
 	IPixelStreamingModule& Module = IPixelStreamingModule::Get();
 	Module.OnReady().AddRaw(this, &FPixelStreamingEditorModule::InitEditorStreaming);
 }
@@ -59,27 +62,39 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 		return;
 	}
 
+	IPixelStreamingInputModule& InputModule = IPixelStreamingInputModule::Get();
+
+	// TODO: This code diverged and needs attention from subject matter exports to appropriately reconcile
 	// Add custom handle for { type: "Command", Resolution.Width: "1920", Resolution.Height: "1080" } when doing Editor streaming
 	// because we cannot resize the game viewport, but instead want to resize the parent window.
-	TSharedPtr<IPixelStreamingInputHandler> InputHandler = Streamer->GetInputHandler().Pin();
-	if(InputHandler) 
-	{
-		InputHandler->SetCommandHandler("Resolution.Width", [](FString Descriptor, FString WidthString){
-			bool bSuccess;
-			FString HeightString;
-			UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
-			int Width = FCString::Atoi(*WidthString);
-			int Height = FCString::Atoi(*HeightString);
-			if (Width < 1 || Height < 1)
-			{
-				return;
-			}
+	// TSharedPtr<IPixelStreamingInputHandler> InputHandler = Streamer->GetInputHandler().Pin();
+	// if(InputHandler) 
+	// {
+	// 	InputHandler->SetCommandHandler("Resolution.Width", [](FString Descriptor, FString WidthString){
+	// 		bool bSuccess;
+	// 		FString HeightString;
+	// 		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
+	// 		int Width = FCString::Atoi(*WidthString);
+	// 		int Height = FCString::Atoi(*HeightString);
+	// 		if (Width < 1 || Height < 1)
+	// 		{
+	// 			return;
+	// 		}
 
-			TSharedPtr<SWindow> ParentWindow = IMainFrameModule::Get().GetParentWindow();
-			ParentWindow->Resize(FVector2D(Width, Height));
-			FSlateApplication::Get().OnSizeChanged(ParentWindow->GetNativeWindow().ToSharedRef(), Width, Height);
-		});
-	}
+	// 		TSharedPtr<SWindow> ParentWindow = IMainFrameModule::Get().GetParentWindow();
+	// 		ParentWindow->Resize(FVector2D(Width, Height));
+	// 		FSlateApplication::Get().OnSizeChanged(ParentWindow->GetNativeWindow().ToSharedRef(), Width, Height);
+	// 	});
+	// }
+	
+	// InputModule.RegisterMessage(
+	// 	EPixelStreamingMessageDirection::ToStreamer,
+	// 	"Command",
+	// 	FPixelStreamingInputMessage(51),
+	// 	[ExtendedHandler](FMemoryReader Ar) {
+	// 		ExtendedHandler(Ar);
+	// 	});
+	// }
 
 	// Give the editor streamer the default url if the user hasn't specified one when launching the editor
 	if (Streamer->GetSignallingServerURL().IsEmpty())
@@ -89,15 +104,15 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 		SignallingDomain = TEXT("ws://127.0.0.1");
 
 		Streamer->SetSignallingServerURL(FString::Printf(TEXT("%s:%d"), *SignallingDomain, StreamerPort));
-	} 
+	}
 	else
 	{
 		FString SpecifiedSignallingURL = Streamer->GetSignallingServerURL();
 		TOptional<uint16> ExtractedStreamerPort = FGenericPlatformHttp::GetUrlPort(SpecifiedSignallingURL);
-		StreamerPort = (int32) ExtractedStreamerPort.Get(8888);
+		StreamerPort = (int32)ExtractedStreamerPort.Get(8888);
 
 		FString ExtractedSignallingDomain = FGenericPlatformHttp::GetUrlDomain(SpecifiedSignallingURL);
-		if(FGenericPlatformHttp::IsSecureProtocol(SpecifiedSignallingURL).Get(false))
+		if (FGenericPlatformHttp::IsSecureProtocol(SpecifiedSignallingURL).Get(false))
 		{
 			SignallingDomain = FString::Printf(TEXT("wss://%s"), *ExtractedSignallingDomain);
 		}
@@ -107,15 +122,14 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 		}
 	}
 
-	IMainFrameModule::Get().OnMainFrameCreationFinished().AddLambda([&](TSharedPtr<SWindow> RootWindow, bool bIsRunningStartupDialog)
-	{
+	IMainFrameModule::Get().OnMainFrameCreationFinished().AddLambda([&](TSharedPtr<SWindow> RootWindow, bool bIsRunningStartupDialog) {
 		MaybeResizeEditor(RootWindow);
 
 		// We don't want to show tooltips in render off screen as they're currently broken
 		bool bIsRenderingOffScreen = FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"));
 		FSlateApplication::Get().SetAllowTooltips(!bIsRenderingOffScreen);
 
-		if(UE::EditorPixelStreaming::Settings::CVarEditorPixelStreamingStartOnLaunch.GetValueOnAnyThread())
+		if (UE::EditorPixelStreaming::Settings::CVarEditorPixelStreamingStartOnLaunch.GetValueOnAnyThread())
 		{
 			StartStreaming(UE::EditorPixelStreaming::EStreamTypes::Editor);
 		}
@@ -133,7 +147,7 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 	}
 
 	StreamType = InStreamType;
-	switch(InStreamType)
+	switch (InStreamType)
 	{
 		case UE::EditorPixelStreaming::EStreamTypes::LevelEditorViewport:
 		{
@@ -150,7 +164,7 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 			Streamer->SetTargetWindow(SceneViewport->FindWindow());
 			Streamer->SetInputHandlerType(EPixelStreamingInputType::RouteToWindow);
 			Streamer->SetVideoInput(FPixelStreamingVideoInputViewport::Create());
-		}	
+		}
 		break;
 		case UE::EditorPixelStreaming::EStreamTypes::Editor:
 		{
@@ -164,11 +178,11 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 		{
 			UE_LOG(LogPixelStreamingEditor, Warning, TEXT("Specified Stream Type doesn't have an associated FPixelStreamingVideoInput"));
 		}
-		// Return here as we don't want to start streaming if we didn't set a viewport
-		return;
+			// Return here as we don't want to start streaming if we didn't set a viewport
+			return;
 	}
 
-	if(!bUseExternalSignallingServer)
+	if (!bUseExternalSignallingServer)
 	{
 		Streamer->SetSignallingServerURL(FString::Printf(TEXT("%s:%d"), *SignallingDomain, StreamerPort));
 		StartSignalling();
@@ -187,7 +201,7 @@ void FPixelStreamingEditorModule::StopStreaming()
 		return;
 	}
 
-	if(!bUseExternalSignallingServer)
+	if (!bUseExternalSignallingServer)
 	{
 		StopSignalling();
 	}
@@ -206,19 +220,19 @@ UE::EditorPixelStreaming::EStreamTypes FPixelStreamingEditorModule::GetStreamTyp
 void FPixelStreamingEditorModule::StartSignalling()
 {
 	bool bAlreadyLaunched = SignallingServer.IsValid() && SignallingServer->HasLaunched();
-	if(bAlreadyLaunched)
+	if (bAlreadyLaunched)
 	{
 		return;
 	}
 
 	// Download Pixel Streaming servers/frontend if we want to use a browser to view Pixel Streaming output
 	// but only attempt this is we haven't already started a download before.
-	if(!DownloadProcess.IsValid())
+	if (!DownloadProcess.IsValid())
 	{
 		DownloadProcess = UE::PixelStreamingServers::DownloadPixelStreamingServers(/*bSkipIfPresent*/ true);
-		if(DownloadProcess.IsValid())
+		if (DownloadProcess.IsValid())
 		{
-			DownloadProcess->OnCompleted().BindLambda([this](int ExitCode){
+			DownloadProcess->OnCompleted().BindLambda([this](int ExitCode) {
 				StopSignalling();
 				StartSignalling();
 			});
@@ -241,16 +255,16 @@ void FPixelStreamingEditorModule::StartSignalling()
 
 void FPixelStreamingEditorModule::StopSignalling()
 {
-	if(SignallingServer.IsValid())
+	if (SignallingServer.IsValid())
 	{
 		SignallingServer->Stop();
 		SignallingServer.Reset();
 	}
 }
 
-TSharedPtr<UE::PixelStreamingServers::IServer> FPixelStreamingEditorModule::GetSignallingServer() 
+TSharedPtr<UE::PixelStreamingServers::IServer> FPixelStreamingEditorModule::GetSignallingServer()
 {
-	if(SignallingServer.IsValid())
+	if (SignallingServer.IsValid())
 	{
 		return SignallingServer;
 	}
@@ -288,7 +302,7 @@ FPixelStreamingEditorModule* FPixelStreamingEditorModule::GetModule()
 
 bool FPixelStreamingEditorModule::ParseResolution(const TCHAR* InResolution, uint32& OutX, uint32& OutY)
 {
-	if(*InResolution)
+	if (*InResolution)
 	{
 		FString CmdString(InResolution);
 		CmdString = CmdString.TrimStartAndEnd().ToLower();
@@ -301,9 +315,9 @@ bool FPixelStreamingEditorModule::ParseResolution(const TCHAR* InResolution, uin
 
 		// Find separator between values (Example of expected format: 1280x768)
 		const TCHAR* YValue = NULL;
-		if(FCString::Strchr(*CmdString,'x'))
+		if (FCString::Strchr(*CmdString, 'x'))
 		{
-			YValue = const_cast<TCHAR*> (FCString::Strchr(*CmdString,'x')+1);
+			YValue = const_cast<TCHAR*>(FCString::Strchr(*CmdString, 'x') + 1);
 			YString = YValue;
 			// Remove any whitespace from the end of the string
 			YString = YString.TrimStartAndEnd();
@@ -311,7 +325,7 @@ bool FPixelStreamingEditorModule::ParseResolution(const TCHAR* InResolution, uin
 
 		// If the Y dimensional value exists then setup to use the specified resolution.
 		uint32 Y = 0;
-		if ( YValue && YString.Len() > 0 )
+		if (YValue && YString.Len() > 0)
 		{
 			if (YString.IsNumeric())
 			{
@@ -351,7 +365,7 @@ void FPixelStreamingEditorModule::MaybeResizeEditor(TSharedPtr<SWindow> RootWind
 		}
 	}
 
-	if(bSuccess)
+	if (bSuccess)
 	{
 		RootWindow->Resize(FVector2D(ResolutionX, ResolutionY));
 		FSlateApplication::Get().OnSizeChanged(RootWindow->GetNativeWindow().ToSharedRef(), ResolutionX, ResolutionY);

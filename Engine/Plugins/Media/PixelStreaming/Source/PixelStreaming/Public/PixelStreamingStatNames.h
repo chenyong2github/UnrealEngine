@@ -9,8 +9,8 @@ namespace PixelStreamingStatNames
 
 	const FName JitterBufferDelay		  = FName(TEXT("jitterBufferDelay"));
 	const FName FramesSent				  = FName(TEXT("framesSent"));
-	const FName FramesPerSecond			  = FName(TEXT("framesPerSecond"));
 	const FName FramesReceived			  = FName(TEXT("framesReceived"));
+	const FName FramesPerSecond			  = FName(TEXT("framesPerSecond"));
 	const FName FramesDecoded			  = FName(TEXT("framesDecoded"));
 	const FName FramesDropped			  = FName(TEXT("framesDropped"));
 	const FName FramesCorrupted			  = FName(TEXT("framesCorrupted"));
@@ -35,6 +35,7 @@ namespace PixelStreamingStatNames
 	const FName FrameWidth				  = FName(TEXT("frameWidth"));
 	const FName FrameHeight				  = FName(TEXT("frameHeight"));
 	const FName BytesSent				  = FName(TEXT("bytesSent"));
+	const FName BytesReceived			  = FName(TEXT("bytesReceived"));
 	const FName QPSum					  = FName(TEXT("qpSum"));
 	const FName TotalEncodeTime			  = FName(TEXT("totalEncodeTime"));
 	const FName TotalPacketSendDelay	  = FName(TEXT("totalPacketSendDelay"));
@@ -44,12 +45,15 @@ namespace PixelStreamingStatNames
 	const FName AvgSendDelay			  = FName(TEXT("packetSendDelay"));
 
 	// Calculated stats
-	const FName FramesSentPerSecond	   = FName(TEXT("transmitFps"));
-	const FName Bitrate				   = FName(TEXT("bitrate"));
-	const FName MeanQPPerSecond		   = FName(TEXT("qp"));
-	const FName MeanEncodeTime		   = FName(TEXT("encodeTime"));
-	const FName EncodedFramesPerSecond = FName(TEXT("encodeFps"));
-	const FName MeanSendDelay		   = FName(TEXT("captureToSend"));
-	const FName SourceFps			   = FName(TEXT("captureFps"));
+	const FName FramesSentPerSecond		= FName(TEXT("transmitFps"));
+	const FName FramesReceivedPerSecond	= FName(TEXT("receiveFps"));
+	const FName Bitrate					= FName(TEXT("bitrate"));
+	const FName MeanQPPerSecond			= FName(TEXT("qp"));
+	const FName MeanEncodeTime			= FName(TEXT("encodeTime"));
+	const FName EncodedFramesPerSecond	= FName(TEXT("encodeFps"));
+	const FName DecodedFramesPerSecond	= FName(TEXT("decodeFps"));
+	const FName MeanSendDelay			= FName(TEXT("captureToSend"));
+	const FName SourceFps				= FName(TEXT("captureFps"));
+	const FName Fps						= FName(TEXT("captureFps"));
 
 } // namespace PixelStreamingStatNames

@@ -51,7 +51,13 @@ public:
 					IVulkanDynamicRHI::AddEnabledDeviceExtensionsAndLayers(ExtentionsToAdd, TArray<const ANSICHAR*>());
 				}
 
-				FCoreDelegates::OnPostEngineInit.AddLambda([]() {FVideoEncoderAmf_H264::Register(FVideoEncoderFactory::Get());});
+				FCoreDelegates::OnPostEngineInit.AddLambda([]()
+				{
+					if (IsRHIDeviceAMD())
+					{
+						FVideoEncoderAmf_H264::Register(FVideoEncoderFactory::Get());
+					}
+				});
 				
 				AMFStarted = true;
 			}

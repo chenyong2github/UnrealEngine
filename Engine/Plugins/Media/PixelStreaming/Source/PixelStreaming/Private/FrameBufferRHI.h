@@ -2,27 +2,25 @@
 
 #pragma once
 
-#include "RHI.h"
 #include "WebRTCIncludes.h"
+#include "Video/Resources/VideoResourceRHI.h"
 
 namespace UE::PixelStreaming
 {
 	/**
-	 * A frame buffer for our NVENC encoders (h264). Contains a single RHI texture.
+	 * A frame buffer for RHI Video Resources.
 	 */
 	class FFrameBufferRHI : public webrtc::VideoFrameBuffer
 	{
 	public:
-		FFrameBufferRHI(FTexture2DRHIRef InFrameTexture)
-		:FrameTexture(InFrameTexture)
-		{
-		}
+		FFrameBufferRHI(TSharedPtr<FVideoResourceRHI> VideoResourceRHI) : VideoResourceRHI(VideoResourceRHI) {}
+
 
 		virtual ~FFrameBufferRHI() = default;
 
 		virtual webrtc::VideoFrameBuffer::Type type() const override { return webrtc::VideoFrameBuffer::Type::kNative; }
-		virtual int width() const override { return FrameTexture->GetDesc().Extent.X; }
-		virtual int height() const override { return FrameTexture->GetDesc().Extent.Y; }
+		virtual int width() const override { return VideoResourceRHI->GetDescriptor().Width; }
+		virtual int height() const override { return VideoResourceRHI->GetDescriptor().Height; }
 
 		virtual rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override
 		{
@@ -36,9 +34,9 @@ namespace UE::PixelStreaming
 			return nullptr;
 		}
 
-		FTexture2DRHIRef GetFrameTexture() const { return FrameTexture; }
+		TSharedPtr<FVideoResourceRHI> GetVideoResource() { return VideoResourceRHI; }
 
 	private:
-		FTexture2DRHIRef FrameTexture;
+		TSharedPtr<FVideoResourceRHI> VideoResourceRHI;
 	};
 } // namespace UE::PixelStreaming

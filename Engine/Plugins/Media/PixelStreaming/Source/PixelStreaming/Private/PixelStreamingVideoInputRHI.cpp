@@ -16,9 +16,9 @@ TSharedPtr<FPixelCaptureCapturer> FPixelStreamingVideoInputRHI::CreateCapturer(i
 		case PixelCaptureBufferFormat::FORMAT_RHI:
 		{
 			// "Safe Texture Copy" polls a fence to ensure a GPU copy is complete
-			// the RDG pathway does not poll a fence so is more unsafe but offers 
+			// the RDG pathway does not poll a fence so is more unsafe but offers
 			// a significant performance increase
-			if (UE::PixelStreaming::Settings::IsUsingSafeTextureCopy())
+			if (UE::PixelStreaming::Settings::CVarPixelStreamingCaptureUseFence.GetValueOnAnyThread())
 			{
 				return FPixelCaptureCapturerRHI::Create(FinalScale);
 			}

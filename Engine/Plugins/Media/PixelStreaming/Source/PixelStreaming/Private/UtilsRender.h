@@ -9,6 +9,9 @@
 #include "ScreenPass.h"
 #include "ScreenRendering.h"
 #include "Utils.h"
+#include "MediaShaders.h"
+#include "RHI.h"
+#include "Runtime/Renderer/Private/ScreenPass.h"
 
 namespace UE::PixelStreaming
 {
@@ -104,6 +107,68 @@ namespace UE::PixelStreaming
 			RHICmdList.WriteGPUFence(Fence);
 		}
 	}
+
+	inline void CopyTextureRDG(FRHICommandListImmediate& RHICmdList, FTextureRHIRef SourceTexture, FTextureRHIRef DestTexture)
+	{
+		FRDGBuilder GraphBuilder(RHICmdList);
+
+		// Register an external RDG rexture from the source texture
+		FRDGTexture* InputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(SourceTexture, TEXT("PixelCaptureCopySourceTexture")));
+
+		// Register an external RDG texture from the output buffer
+		FRDGTexture* OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(DestTexture, TEXT("PixelCaptureCopyDestTexture")));
+
+		if (InputTexture->Desc.Format == OutputTexture->Desc.Format &&
+			InputTexture->Desc.Extent.X == OutputTexture->Desc.Extent.X &&
+			InputTexture->Desc.Extent.Y == OutputTexture->Desc.Extent.Y)
+		{
+			// The formats are the same and size are the same. simple copy
+			AddDrawTexturePass(
+				GraphBuilder,
+				GetGlobalShaderMap(GMaxRHIFeatureLevel),
+				InputTexture,
+				OutputTexture,
+				FRDGDrawTextureInfo()
+			);
+		}
+		else
+		{
+			// The formats or size differ to pixel shader stuff
+			//Configure source/output viewport to get the right UV scaling from source texture to output texture
+			FScreenPassTextureViewport InputViewport(InputTexture);
+			FScreenPassTextureViewport OutputViewport(OutputTexture);
+
+			FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+			TShaderMapRef<FScreenPassVS> VertexShader(GlobalShaderMap);
+
+			// In cases where texture is converted from a format that doesn't have A channel, we want to force set it to 1.
+			int32 ConversionOperation = 0; // None
+			FModifyAlphaSwizzleRgbaPS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FModifyAlphaSwizzleRgbaPS::FConversionOp>(ConversionOperation);
+
+			// Rectangle area to use from source
+			const FIntRect ViewRect(FIntPoint(0, 0), InputTexture->Desc.Extent);
+
+			//Dummy ViewFamily/ViewInfo created to use built in Draw Screen/Texture Pass
+			FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(nullptr, nullptr, FEngineShowFlags(ESFIM_Game))
+				.SetTime(FGameTime())
+				.SetGammaCorrection(1.0f));
+			FSceneViewInitOptions ViewInitOptions;
+			ViewInitOptions.ViewFamily = &ViewFamily;
+			ViewInitOptions.SetViewRectangle(ViewRect);
+			ViewInitOptions.ViewOrigin = FVector::ZeroVector;
+			ViewInitOptions.ViewRotationMatrix = FMatrix::Identity;
+			ViewInitOptions.ProjectionMatrix = FMatrix::Identity;
+			FViewInfo ViewInfo = FViewInfo(ViewInitOptions);
+
+			TShaderMapRef<FModifyAlphaSwizzleRgbaPS> PixelShader(GlobalShaderMap, PermutationVector);
+			FModifyAlphaSwizzleRgbaPS::FParameters* Parameters = PixelShader->AllocateAndSetParameters(GraphBuilder, InputTexture, OutputTexture);
+			AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("PixelCapturerSwizzle"), ViewInfo, OutputViewport, InputViewport, VertexShader, PixelShader, Parameters);
+		}
+		GraphBuilder.Execute();
+	}
+
+
 
 	inline void CopyTextureToReadbackTexture(FTextureRHIRef SourceTexture, TSharedPtr<FRHIGPUTextureReadback> GPUTextureReadback, void* OutBuffer)
 	{

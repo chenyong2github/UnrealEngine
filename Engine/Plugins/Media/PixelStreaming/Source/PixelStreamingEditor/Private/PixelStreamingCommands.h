@@ -26,6 +26,7 @@ namespace UE::EditorPixelStreaming
         TSharedPtr<FUICommandInfo> VP8;
         TSharedPtr<FUICommandInfo> VP9;
         TSharedPtr<FUICommandInfo> H264;
+		TSharedPtr<FUICommandInfo> H265;
         TSharedPtr<FUICommandInfo> StartSignalling;
         TSharedPtr<FUICommandInfo> StopSignalling;
         TSharedPtr<FUICommandInfo> StreamLevelEditor;

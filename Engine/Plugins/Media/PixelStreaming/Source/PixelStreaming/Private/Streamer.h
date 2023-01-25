@@ -11,13 +11,15 @@
 #include "IPixelStreamingInputHandler.h"
 #include "PixelStreamingSignallingConnection.h"
 #include "Templates/SharedPointer.h"
+#include "PlayerContext.h"
 
 class IPixelStreamingModule;
 
 namespace UE::PixelStreaming
 {
-	class FStreamer : public IPixelStreamingStreamer, public IPixelStreamingSignallingConnectionObserver, public TSharedFromThis<FStreamer>
+	class FStreamer : public IPixelStreamingStreamer, public TSharedFromThis<FStreamer>
 	{
+		friend class FPixelStreamingSignallingConnectionObserver;
 	public:
 		static TSharedPtr<FStreamer> Create(const FString& StreamerId);
 		virtual ~FStreamer();
@@ -35,6 +37,9 @@ namespace UE::PixelStreaming
 		virtual void SetTargetScreenSize(TWeakPtr<FIntPoint> InTargetScreenSize) override;
 		virtual TWeakPtr<FIntPoint> GetTargetScreenSize() override;
 
+		virtual TWeakPtr<IPixelStreamingSignallingConnection> GetSignallingConnection() override;
+		virtual void SetSignallingConnection(TSharedPtr<IPixelStreamingSignallingConnection> InSignallingConnection) override;
+		virtual TWeakPtr<IPixelStreamingSignallingConnectionObserver> GetSignallingConnectionObserver() override;
 		virtual void SetSignallingServerURL(const FString& InSignallingServerURL) override;
 		virtual FString GetSignallingServerURL() override;
 		virtual FString GetId() override { return StreamerId; };
@@ -74,17 +79,6 @@ namespace UE::PixelStreaming
 		bool CreateSession(FPixelStreamingPlayerId PlayerId);
 		void AddStreams(FPixelStreamingPlayerId PlayerId);
 
-		// IPixelStreamingSignallingConnectionObserver impl
-		virtual void OnSignallingConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config) override;
-		virtual void OnSignallingSessionDescription(FPixelStreamingPlayerId PlayerId, webrtc::SdpType Type, const FString& Sdp) override;
-		virtual void OnSignallingRemoteIceCandidate(FPixelStreamingPlayerId PlayerId, const FString& SdpMid, int SdpMLineIndex, const FString& Sdp) override;
-		virtual void OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig) override;
-		virtual void OnSignallingPlayerDisconnected(FPixelStreamingPlayerId PlayerId) override;
-		virtual void OnSignallingSFUPeerDataChannels(FPixelStreamingPlayerId SFUId, FPixelStreamingPlayerId PlayerId, int32 SendStreamId, int32 RecvStreamId) override;
-		virtual void OnSignallingConnected() override;
-		virtual void OnSignallingDisconnected(int32 StatusCode, const FString& Reason, bool bWasClean) override;
-		virtual void OnSignallingError(const FString& ErrorMsg) override;
-
 		// own methods
 		void OnProtocolUpdated();
 		void ConsumeStats(FPixelStreamingPlayerId PlayerId, FName StatName, float StatValue);
@@ -113,17 +107,12 @@ namespace UE::PixelStreaming
 		FString CurrentSignallingServerURL;
 
 		TSharedPtr<IPixelStreamingInputHandler> InputHandler;
-		TUniquePtr<FPixelStreamingSignallingConnection> SignallingServerConnection;
+		TSharedPtr<IPixelStreamingSignallingConnection> SignallingServerConnection;
+		TSharedPtr<IPixelStreamingSignallingConnectionObserver> Observer;
+
 		double LastSignallingServerConnectionAttemptTimestamp = 0;
 
 		webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig;
-
-		struct FPlayerContext
-		{
-			FPixelStreamingPlayerConfig Config;
-			TSharedPtr<FPixelStreamingPeerConnection> PeerConnection;
-			TSharedPtr<FPixelStreamingDataChannel> DataChannel;
-		};
 
 		TThreadSafeMap<FPixelStreamingPlayerId, FPlayerContext> Players;
 

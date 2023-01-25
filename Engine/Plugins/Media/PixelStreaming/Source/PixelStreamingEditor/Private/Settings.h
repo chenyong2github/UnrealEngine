@@ -12,5 +12,6 @@ namespace UE::EditorPixelStreaming::Settings
 
 	// Begin Editor CVars
 	extern TAutoConsoleVariable<bool> CVarEditorPixelStreamingStartOnLaunch;
+	extern TAutoConsoleVariable<bool> CVarEditorPixelStreamingUseRemoteSignallingServer;
     // End Editor CVars
 }

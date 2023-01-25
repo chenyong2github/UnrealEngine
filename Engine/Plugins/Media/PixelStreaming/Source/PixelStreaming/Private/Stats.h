@@ -89,6 +89,8 @@ namespace UE::PixelStreaming
 	class FStats : FTickableGameObject
 	{
 	public:
+		virtual bool IsTickableInEditor() const override { return true; }
+
 		static constexpr double SmoothingPeriod = 3.0 * 60.0;
 		static constexpr double SmoothingFactor = 10.0 / 100.0;
 		static FStats* Get();

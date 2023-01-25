@@ -17,7 +17,6 @@
 
 namespace UE::PixelStreaming
 {
-
 	struct FMockVideoFrameConfig
 	{
 		int Height;
@@ -73,8 +72,7 @@ namespace UE::PixelStreaming
 	public:
 		FMockPlayer()
 		{
-			FPixelStreamingSignallingConnection::FWebSocketFactory WebSocketFactory = [](const FString& Url) { return FWebSocketsModule::Get().CreateWebSocket(Url, TEXT("")); };
-			SignallingServerConnection = MakeUnique<FPixelStreamingSignallingConnection>(WebSocketFactory, *this, TEXT("FMockPlayer"));
+			SignallingServerConnection = MakeUnique<FPixelStreamingSignallingConnection>(MakeShareable(this), TEXT("FMockPlayer"));
 
 			UE::PixelStreaming::DoOnGameThreadAndWait(MAX_uint32, []() {
 				Settings::CVarPixelStreamingSuppressICECandidateErrors->Set(true, ECVF_SetByCode);
@@ -205,6 +203,11 @@ namespace UE::PixelStreaming
 
 		virtual void OnSignallingPlayerCount(uint32 Count) override {}
 		virtual void OnSignallingPeerDataChannels(int32 SendStreamId, int32 RecvStreamId) override {}
+		virtual void OnSignallingSessionDescription(FPixelStreamingPlayerId PlayerId, webrtc::SdpType Type, const FString& Sdp) override {}
+		virtual void OnSignallingRemoteIceCandidate(FPixelStreamingPlayerId PlayerId, const FString& SdpMid, int SdpMLineIndex, const FString& Sdp) override {}
+		virtual void OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig) override{};
+		virtual void OnSignallingPlayerDisconnected(FPixelStreamingPlayerId PlayerId) override {}
+		virtual void OnSignallingSFUPeerDataChannels(FPixelStreamingPlayerId SFUId, FPixelStreamingPlayerId PlayerId, int32 SendStreamId, int32 RecvStreamId) override {}
 
 		DECLARE_MULTICAST_DELEGATE(FOnConnectionEstablished);
 		FOnConnectionEstablished OnConnectionEstablished;
@@ -213,12 +216,11 @@ namespace UE::PixelStreaming
 		FOnMessageReceived OnMessageReceived;
 
 		EMode Mode = EMode::Unknown;
-		TUniquePtr<FPixelStreamingSignallingConnection> SignallingServerConnection;
+		TUniquePtr<IPixelStreamingSignallingConnection> SignallingServerConnection;
 		TUniquePtr<FPixelStreamingPeerConnection> PeerConnection;
 		TSharedPtr<FPixelStreamingDataChannel> DataChannel;
 		bool Completed = false;
 		TSharedPtr<rtc::VideoSinkInterface<webrtc::VideoFrame>> VideoSink;
-
 	};
 
 } // namespace UE::PixelStreaming

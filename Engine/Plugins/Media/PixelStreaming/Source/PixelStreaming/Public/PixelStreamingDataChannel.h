@@ -3,7 +3,6 @@
 #pragma once
 
 #include "PixelStreamingBufferBuilder.h"
-#include "PixelStreamingProtocol.h"
 #include "PixelStreamingWebRTCIncludes.h"
 
 class FPixelStreamingPeerConnection;

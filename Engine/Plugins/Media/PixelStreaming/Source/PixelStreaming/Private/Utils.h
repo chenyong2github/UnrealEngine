@@ -78,20 +78,7 @@ namespace UE::PixelStreaming
 			FPlatformProcess::ReturnSynchEventToPool(TaskEvent);
 		}
 	}
-#if WEBRTC_VERSION == 84
-	inline webrtc::SdpVideoFormat CreateH264Format(webrtc::H264::Profile profile, webrtc::H264::Level level)
-	{
-		const absl::optional<std::string> ProfileString =
-			webrtc::H264::ProfileLevelIdToString(webrtc::H264::ProfileLevelId(profile, level));
-		check(ProfileString);
-		return webrtc::SdpVideoFormat(
-			cricket::kH264CodecName,
-			{ { cricket::kH264FmtpProfileLevelId, *ProfileString },
-				{ cricket::kH264FmtpLevelAsymmetryAllowed, "1" },
-				{ cricket::kH264FmtpPacketizationMode, "1" } });
 
-	}
-#elif WEBRTC_VERSION == 96
 	inline webrtc::SdpVideoFormat CreateH264Format(webrtc::H264Profile profile, webrtc::H264Level level)
 	{
 		const absl::optional<std::string> ProfileString =
@@ -102,9 +89,8 @@ namespace UE::PixelStreaming
 			{ { cricket::kH264FmtpProfileLevelId, *ProfileString },
 				{ cricket::kH264FmtpLevelAsymmetryAllowed, "1" },
 				{ cricket::kH264FmtpPacketizationMode, "1" } });
-
 	}
-#endif
+
 	inline void MemCpyStride(void* Dest, const void* Src, size_t DestStride, size_t SrcStride, size_t Height)
 	{
 		char* DestPtr = static_cast<char*>(Dest);
@@ -118,11 +104,7 @@ namespace UE::PixelStreaming
 
 	inline size_t SerializeToBuffer(rtc::CopyOnWriteBuffer& Buffer, size_t Pos, const void* Data, size_t DataSize)
 	{
-#if WEBRTC_VERSION == 84
-		FMemory::Memcpy(&Buffer[Pos], Data, DataSize);
-#elif WEBRTC_VERSION == 96
 		FMemory::Memcpy(Buffer.MutableData() + Pos, Data, DataSize);
-#endif
 		return Pos + DataSize;
 	}
 

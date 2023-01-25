@@ -9,10 +9,10 @@
 #include "AudioCapturer.h"
 #include "PixelStreamingAudioDeviceModule.h"
 #include "ToStringExtensions.h"
-#include "PixelStreamingProtocol.h"
 #include "PixelStreamingDataChannel.h"
 #include "Stats.h"
 #include "AudioInputMixer.h"
+#include "absl/strings/match.h"
 
 namespace
 {
@@ -82,6 +82,42 @@ namespace
 		return bSyncVideoAndAudio ? "pixelstreaming_av_stream_id" : "pixelstreaming_video_stream_id";
 	}
 
+	EPixelStreamingCodec ExtractVideoCodec(cricket::SessionDescription* SessionDescription)
+	{
+		std::vector<cricket::ContentInfo>& ContentInfos = SessionDescription->contents();
+		for (cricket::ContentInfo& ContentInfo : ContentInfos)
+		{
+			cricket::MediaContentDescription* MediaDescription = ContentInfo.media_description();
+			cricket::MediaType MediaType = MediaDescription->type();
+
+			if (MediaDescription->type() == cricket::MediaType::MEDIA_TYPE_VIDEO)
+			{
+				cricket::VideoContentDescription* VideoDescription = MediaDescription->as_video();
+				std::vector<cricket::VideoCodec> CodecsCopy = VideoDescription->codecs();
+				for (cricket::VideoCodec& Codec : CodecsCopy)
+				{
+					if (absl::EqualsIgnoreCase(Codec.name, cricket::kVp8CodecName))
+					{
+						return EPixelStreamingCodec::VP8;
+					}
+					else if (absl::EqualsIgnoreCase(Codec.name, cricket::kVp9CodecName))
+					{
+						return EPixelStreamingCodec::VP9;
+					}
+					else if (absl::EqualsIgnoreCase(Codec.name, cricket::kH265CodecName))
+					{
+						return EPixelStreamingCodec::H265;
+					}
+					else if (absl::EqualsIgnoreCase(Codec.name, cricket::kH264CodecName))
+					{
+						return EPixelStreamingCodec::H264;
+					}
+				}
+			}
+		}
+		return EPixelStreamingCodec::Invalid;
+	}
+
 	void MungeLocalSDP(cricket::SessionDescription* SessionDescription)
 	{
 		std::vector<cricket::ContentInfo>& ContentInfos = SessionDescription->contents();
@@ -89,32 +125,36 @@ namespace
 		{
 			cricket::MediaContentDescription* MediaDescription = ContentInfo.media_description();
 			cricket::MediaType MediaType = MediaDescription->type();
-			if (MediaType != cricket::MediaType::MEDIA_TYPE_AUDIO)
+
+			if (MediaDescription->type() == cricket::MediaType::MEDIA_TYPE_VIDEO)
 			{
-				continue;
+				// todo: munge local video sdp if required
 			}
-			cricket::AudioContentDescription* AudioDescription = MediaDescription->as_audio();
-			if (AudioDescription == nullptr)
+			else if (MediaDescription->type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
 			{
-				continue;
-			}
-			std::vector<cricket::AudioCodec> CodecsCopy = AudioDescription->codecs();
-			for (cricket::AudioCodec& Codec : CodecsCopy)
-			{
-				if (Codec.name == "opus")
+				cricket::AudioContentDescription* AudioDescription = MediaDescription->as_audio();
+				if (AudioDescription == nullptr)
 				{
-					Codec.SetParam(cricket::kCodecParamPTime, "20");
-					Codec.SetParam(cricket::kCodecParamMaxPTime, "120");
-					Codec.SetParam(cricket::kCodecParamMinPTime, "3");
-					Codec.SetParam(cricket::kCodecParamSPropStereo, "1");
-					Codec.SetParam(cricket::kCodecParamStereo, "1");
-					Codec.SetParam(cricket::kCodecParamUseInbandFec, "1");
-					Codec.SetParam(cricket::kCodecParamUseDtx, "0");
-					Codec.SetParam(cricket::kCodecParamMaxAverageBitrate, "510000");
-					Codec.SetParam(cricket::kCodecParamMaxPlaybackRate, "48000");
+					continue;
 				}
+				std::vector<cricket::AudioCodec> CodecsCopy = AudioDescription->codecs();
+				for (cricket::AudioCodec& Codec : CodecsCopy)
+				{
+					if (Codec.name == "opus")
+					{
+						Codec.SetParam(cricket::kCodecParamPTime, "20");
+						Codec.SetParam(cricket::kCodecParamMaxPTime, "120");
+						Codec.SetParam(cricket::kCodecParamMinPTime, "3");
+						Codec.SetParam(cricket::kCodecParamSPropStereo, "1");
+						Codec.SetParam(cricket::kCodecParamStereo, "1");
+						Codec.SetParam(cricket::kCodecParamUseInbandFec, "1");
+						Codec.SetParam(cricket::kCodecParamUseDtx, "0");
+						Codec.SetParam(cricket::kCodecParamMaxAverageBitrate, "510000");
+						Codec.SetParam(cricket::kCodecParamMaxPlaybackRate, "48000");
+					}
+				}
+				AudioDescription->set_codecs(CodecsCopy);
 			}
-			AudioDescription->set_codecs(CodecsCopy);
 		}
 	}
 
@@ -128,6 +168,7 @@ namespace
 			if (MediaDescription->type() == cricket::MediaType::MEDIA_TYPE_VIDEO)
 			{
 				cricket::VideoContentDescription* VideoDescription = MediaDescription->as_video();
+
 				std::vector<cricket::VideoCodec> CodecsCopy = VideoDescription->codecs();
 				for (cricket::VideoCodec& Codec : CodecsCopy)
 				{
@@ -143,12 +184,8 @@ namespace
 
 	void SetTransceiverDirection(webrtc::RtpTransceiverInterface& InTransceiver, webrtc::RtpTransceiverDirection InDirection)
 	{
-		#if WEBRTC_VERSION == 84
-			InTransceiver.SetDirection(InDirection);
-		#else
-			webrtc::RTCError Result = InTransceiver.SetDirectionWithError(InDirection);
-			checkf(Result.ok(), TEXT("Failed to add Video transceiver to PeerConnection. Msg=%s"), *FString(Result.message()));
-		#endif
+		webrtc::RTCError Result = InTransceiver.SetDirectionWithError(InDirection);
+		checkf(Result.ok(), TEXT("Failed to add Video transceiver to PeerConnection. Msg=%s"), *FString(Result.message()));
 	}
 } // namespace
 
@@ -176,7 +213,16 @@ public:
 			{
 				if (Transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO)
 				{
-					PeerConnection->GetStats(Transceiver->sender(), WebRTCStatsCallback);
+					const webrtc::RtpTransceiverDirection TransceiverDirection = Transceiver->direction();
+					if (TransceiverDirection == webrtc::RtpTransceiverDirection::kSendRecv || TransceiverDirection == webrtc::RtpTransceiverDirection::kSendOnly)
+					{
+						PeerConnection->GetStats(Transceiver->sender(), WebRTCStatsCallback);
+					}
+
+					if (TransceiverDirection == webrtc::RtpTransceiverDirection::kSendRecv || TransceiverDirection == webrtc::RtpTransceiverDirection::kRecvOnly)
+					{
+						PeerConnection->GetStats(Transceiver->receiver(), WebRTCStatsCallback);
+					}
 				}
 			}
 		}
@@ -238,13 +284,9 @@ TUniquePtr<FPixelStreamingPeerConnection> FPixelStreamingPeerConnection::Create(
 	TUniquePtr<FPixelStreamingPeerConnection> NewPeerConnection = TUniquePtr<FPixelStreamingPeerConnection>(new FPixelStreamingPeerConnection());
 	NewPeerConnection->IsSFU = IsSFU;
 
-	#if WEBRTC_VERSION == 84
-		NewPeerConnection->PeerConnection = PeerConnectionFactory->CreatePeerConnection(RTCConfig, nullptr, nullptr, NewPeerConnection.Get());
-	#else
-		webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::PeerConnectionInterface>> Result = PeerConnectionFactory->CreatePeerConnectionOrError(RTCConfig, webrtc::PeerConnectionDependencies(NewPeerConnection.Get()));
-		checkf(Result.ok(), TEXT("Failed to create Peer Connection. Msg=%s"), *FString(Result.error().message()));
-		NewPeerConnection->PeerConnection = Result.MoveValue();
-	#endif
+	webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::PeerConnectionInterface>> Result = PeerConnectionFactory->CreatePeerConnectionOrError(RTCConfig, webrtc::PeerConnectionDependencies(NewPeerConnection.Get()));
+	checkf(Result.ok(), TEXT("Failed to create Peer Connection. Msg=%s"), *FString(Result.error().message()));
+	NewPeerConnection->PeerConnection = Result.MoveValue();
 
 	// Setup suggested bitrate settings on the Peer Connection based on our CVars
 	webrtc::BitrateSettings BitrateSettings;
@@ -336,6 +378,10 @@ void FPixelStreamingPeerConnection::SetLocalDescription(webrtc::SessionDescripti
 
 	FPixelStreamingSetSessionDescriptionObserver* SetLocalDescriptionObserver = FPixelStreamingSetSessionDescriptionObserver::Create(OnSetLocalDescriptionSuccess, OnSetLocalDescriptionFail);
 	MungeLocalSDP(SDP->description());
+
+	// Get the negotiated codec from the SDP
+	NegotiatedVideoCodec = ExtractVideoCodec(SDP->description());
+
 	PeerConnection->SetLocalDescription(SetLocalDescriptionObserver, SDP);
 }
 
@@ -358,6 +404,10 @@ void FPixelStreamingPeerConnection::SetRemoteDescription(webrtc::SessionDescript
 
 	FPixelStreamingSetSessionDescriptionObserver* SetRemoteDescriptionObserver = FPixelStreamingSetSessionDescriptionObserver::Create(OnSetRemoteDescriptionSuccess, OnSetRemoteDescriptionFail);
 	MungeRemoteSDP(SDP->description());
+
+	// Get the negotiated codec from the SDP
+	NegotiatedVideoCodec = ExtractVideoCodec(SDP->description());
+
 	PeerConnection->SetRemoteDescription(SetRemoteDescriptionObserver, SDP);
 }
 
@@ -369,6 +419,11 @@ const webrtc::SessionDescriptionInterface* FPixelStreamingPeerConnection::GetLoc
 const webrtc::SessionDescriptionInterface* FPixelStreamingPeerConnection::GetRemoteDescription() const
 {
 	return PeerConnection->remote_description();
+}
+
+EPixelStreamingCodec FPixelStreamingPeerConnection::GetNegotiatedVideoCodec() const
+{
+	return NegotiatedVideoCodec;
 }
 
 void FPixelStreamingPeerConnection::SetVideoSource(rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> InVideoSource)
@@ -525,6 +580,9 @@ void FPixelStreamingPeerConnection::SetAudioSink(TSharedPtr<IPixelStreamingAudio
 					if (rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> Track = Receiver->track())
 					{
 						webrtc::AudioTrackInterface* AudioTrack = static_cast<webrtc::AudioTrackInterface*>(Track.get());
+						// There's no mechanism to check if this sink already exists on the track, so attempt to remove it first to make sure we
+						// don't accidentally add it twice (note it is always safe to call remove because it is a no-op if the sink is not found).
+						AudioTrack->RemoveSink(AudioSink.Get());
 						AudioTrack->AddSink(AudioSink.Get());
 					}
 				}
@@ -559,13 +617,9 @@ TSharedPtr<FPixelStreamingDataChannel> FPixelStreamingPeerConnection::CreateData
 	DataChannelConfig.negotiated = Negotiated;
 	DataChannelConfig.id = Id;
 
-	#if WEBRTC_VERSION == 84
-		return FPixelStreamingDataChannel::Create(PeerConnection->CreateDataChannel("datachannel", &DataChannelConfig));
-	#else
-		webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::DataChannelInterface>> Result = PeerConnection->CreateDataChannelOrError("datachannel", &DataChannelConfig);
-		checkf(Result.ok(), TEXT("Failed to create Data Channel. Msg=%s"), *FString(Result.error().message()));
-		return FPixelStreamingDataChannel::Create(Result.MoveValue());
-	#endif
+	webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::DataChannelInterface>> Result = PeerConnection->CreateDataChannelOrError("datachannel", &DataChannelConfig);
+	checkf(Result.ok(), TEXT("Failed to create Data Channel. Msg=%s"), *FString(Result.error().message()));
+	return FPixelStreamingDataChannel::Create(Result.MoveValue());
 }
 
 void FPixelStreamingPeerConnection::SetWebRTCStatsCallback(rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> InCallback)
@@ -697,6 +751,10 @@ void FPixelStreamingPeerConnection::OnTrack(rtc::scoped_refptr<webrtc::RtpTransc
 	else if (AudioSink && Transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
 	{
 		webrtc::AudioTrackInterface* AudioTrack = static_cast<webrtc::AudioTrackInterface*>(Transceiver->receiver()->track().get());
+		// There's no mechanism to check if this sink already exists on the track, so attempt to remove it first to make sure we
+		// don't accidentally add it twice (note it is always safe to call remove because it is a no-op if the sink is not found).
+		// To future maintainers: yes, this code exsists in two spots, this is intentional.
+		AudioTrack->RemoveSink(AudioSink.Get());
 		AudioTrack->AddSink(AudioSink.Get());
 	}
 
@@ -775,11 +833,7 @@ void FPixelStreamingPeerConnection::CreatePeerConnectionFactory()
 {
 	using namespace UE::PixelStreaming;
 
-#if WEBRTC_VERSION == 84
-	SignallingThread = MakeUnique<rtc::Thread>(rtc::SocketServer::CreateDefault());
-#elif WEBRTC_VERSION == 96
 	SignallingThread = MakeUnique<rtc::Thread>(rtc::CreateDefaultSocketServer());
-#endif
 	SignallingThread->SetName("FPixelStreamingPeerConnection SignallingThread", nullptr);
 	SignallingThread->Start();
 
@@ -792,7 +846,7 @@ void FPixelStreamingPeerConnection::CreatePeerConnectionFactory()
 		else
 		{
 			// If experimental audio input is enabled we pass the mixer, if not we don't - no mixer means only use the UE submix.
-			if (Settings::IsExperimentalAudioInputEnabled())
+			if (Settings::CVarPixelStreamingExperimentalAudioInput.GetValueOnAnyThread())
 			{
 				AudioDeviceModule = new rtc::RefCountedObject<FAudioDeviceModule>(AudioMixer);
 				UE_LOG(LogPixelStreaming, Log, TEXT("Using -PixelStreamingExperimentalAudioInput. Pixel Streaming audio will mix the UE submix with user audio inputs."));

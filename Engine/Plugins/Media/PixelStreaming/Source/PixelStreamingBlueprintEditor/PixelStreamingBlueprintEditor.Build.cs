@@ -29,8 +29,10 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Core",
 					"CoreUObject",
+					"SlateCore",
 					"PixelStreaming",
 					"PixelStreamingBlueprint",
+					"PixelStreamingEditor",
 					"UnrealEd"
 				});
 		}

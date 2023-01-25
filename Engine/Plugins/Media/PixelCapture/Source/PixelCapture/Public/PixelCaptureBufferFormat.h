@@ -13,6 +13,8 @@ namespace PixelCaptureBufferFormat
     static const int32 FORMAT_UNKNOWN = 0;
     static const int32 FORMAT_RHI = 1;
     static const int32 FORMAT_I420 = 2;
+    static const int32 FORMAT_NV12 = 3;
+    static const int32 FORMAT_P010 = 4;
 
     static const int32 FORMAT_USER = 128;
 }

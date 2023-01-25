@@ -7,6 +7,7 @@
 
 #include "PixelCaptureBufferFormat.h"
 #include "PixelCaptureOutputFrameI420.h"
+#include "PixelStreamingTrace.h"
 
 namespace UE::PixelStreaming
 {
@@ -67,6 +68,7 @@ namespace UE::PixelStreaming
 
 	int32 FVideoEncoderSingleLayerVPX::Encode(webrtc::VideoFrame const& frame, std::vector<webrtc::VideoFrameType> const* frame_types)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR("PixelStreaming VPX Encoding", PixelStreamingChannel);
 		checkf(WebRTCVPXEncoder, TEXT("WebRTCVPXEncoder was null. Should never happen."));
 
 		const FFrameBufferMultiFormat* FrameBuffer = StaticCast<FFrameBufferMultiFormat*>(frame.video_frame_buffer().get());

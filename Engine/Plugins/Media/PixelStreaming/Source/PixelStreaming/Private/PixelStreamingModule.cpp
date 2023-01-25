@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PixelStreamingModule.h"
+#include "IPixelStreamingInputModule.h"
 #include "Streamer.h"
 #include "PixelStreamingInputComponent.h"
 #include "PixelStreamingDelegates.h"
@@ -13,6 +14,7 @@
 #include "UObject/UObjectIterator.h"
 #include "Engine/Texture2D.h"
 #include "Slate/SceneViewport.h"
+#include "PixelStreamingUtils.h"
 #include "Utils.h"
 #include "UtilsRender.h"
 
@@ -43,7 +45,6 @@ THIRD_PARTY_INCLUDES_END
 #include "Misc/MessageDialog.h"
 #include "Async/Async.h"
 #include "Engine/Engine.h"
-#include "VideoEncoderFactory.h"
 #include "VideoEncoderFactoryLayered.h"
 #include "WebRTCLogging.h"
 #include "WebSocketsModule.h"
@@ -56,9 +57,9 @@ THIRD_PARTY_INCLUDES_END
 #include "VideoSourceGroup.h"
 #include "PixelStreamingPeerConnection.h"
 #include "Engine/GameEngine.h"
-#include "PixelStreamingApplicationWrapper.h"
-#include "PixelStreamingInputHandler.h"
-#include "InputHandlers.h"
+#include "Stats.h"
+#include "Video/Resources/VideoResourceRHI.h"
+#include "PixelStreamingInputEnums.h"
 
 DEFINE_LOG_CATEGORY(LogPixelStreaming);
 
@@ -66,7 +67,7 @@ IPixelStreamingModule* UE::PixelStreaming::FPixelStreamingModule::PixelStreaming
 
 namespace UE::PixelStreaming
 {
-	typedef Protocol::EPixelStreamingMessageTypes EType;
+	typedef EPixelStreamingMessageTypes EType;
 	/**
 	 * IModuleInterface implementation
 	 */
@@ -87,54 +88,59 @@ namespace UE::PixelStreaming
 		}
 
 		const ERHIInterfaceType RHIType = GDynamicRHI ? RHIGetInterfaceType() : ERHIInterfaceType::Hidden;
-
-		IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
-		PopulateProtocol();
-		
 		// only D3D11/D3D12/Vulkan is supported
-		if (RHIType == ERHIInterfaceType::D3D11 || RHIType == ERHIInterfaceType::D3D12 || RHIType == ERHIInterfaceType::Vulkan)
+		if (!(RHIType == ERHIInterfaceType::D3D11 || RHIType == ERHIInterfaceType::D3D12 || RHIType == ERHIInterfaceType::Vulkan))
 		{
-			// By calling InitDefaultStreamer post engine init we can use pixel streaming in standalone editor mode
-			FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([this]() {
-				// Check to see if we can use the Pixel Streaming plugin on this platform.
-				// If not then we avoid setting up our delegates to prevent access to the plugin.
-				if (!IsPlatformCompatible())
-				{
-					return;
-				}
-
-				if (!ensure(GEngine != nullptr))
-				{
-					return;
-				}
-
-				FApp::SetUnfocusedVolumeMultiplier(1.0f);
-
-				// Allow Pixel Streaming to broadcast to various delegates bound in the application-specific blueprint.
-				UPixelStreamingDelegates::CreateInstance();
-
-				// Ensure we have ImageWrapper loaded, used in Freezeframes
-				verify(FModuleManager::Get().LoadModule(FName("ImageWrapper")));
-				InitDefaultStreamer();
-				bModuleReady = true;
-				ReadyEvent.Broadcast(*this);
-				// We don't want to start immediately streaming in editor
-				if (!GIsEditor)
-				{
-					StartStreaming();
-				}
-			});
+#if !WITH_DEV_AUTOMATION_TESTS
+			UE_LOG(LogPixelStreaming, Warning, TEXT("Only D3D11/D3D12/Vulkan Dynamic RHI is supported. Detected %s"), GDynamicRHI != nullptr ? GDynamicRHI->GetName() : TEXT("[null]"));
+#endif
+			return;
 		}
-		else
-		{
-			#if !WITH_DEV_AUTOMATION_TESTS
-				UE_LOG(LogPixelStreaming, Warning, TEXT("Only D3D11/D3D12/Vulkan Dynamic RHI is supported. Detected %s"), GDynamicRHI != nullptr ? GDynamicRHI->GetName() : TEXT("[null]"));
-			#endif
-		}
+
+		PopulateProtocol();
+		RegisterCustomHandlers();
+
+		// By calling InitDefaultStreamer post engine init we can use pixel streaming in standalone editor mode
+		FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([this, RHIType]() {
+			// Check to see if we can use the Pixel Streaming plugin on this platform.
+			// If not then we avoid setting up our delegates to prevent access to the plugin.
+			if (!IsPlatformCompatible())
+			{
+				return;
+			}
+
+			if (!ensure(GEngine != nullptr))
+			{
+				return;
+			}
+
+			// HACK (Luke): Until or if we ever find a workaround for fencing, we need to ensure capture always uses a fence
+			// if we don't then we get frequent and intermittent stuttering as textures are rendered to while being encoded.
+			// From testing NVENC + CUDA pathway seems acceptable without a fence in most cases so we use the faster, unsafer path there.
+			if (RHIType == ERHIInterfaceType::D3D11 || IsRHIDeviceAMD())
+			{
+				Settings::CVarPixelStreamingCaptureUseFence.AsVariable()->Set(true);
+			}
+
+			FApp::SetUnfocusedVolumeMultiplier(1.0f);
+
+			// Allow Pixel Streaming to broadcast to various delegates bound in the application-specific blueprint.
+			UPixelStreamingDelegates::CreateInstance();
+
+			// Ensure we have ImageWrapper loaded, used in Freezeframes
+			verify(FModuleManager::Get().LoadModule(FName("ImageWrapper")));
+			InitDefaultStreamer();
+			bModuleReady = true;
+			ReadyEvent.Broadcast(*this);
+			// We don't want to start immediately streaming in editor
+			if (!GIsEditor)
+			{
+				StartStreaming();
+			}
+		});
 
 		rtc::InitializeSSL();
 		RedirectWebRtcLogsToUnreal(rtc::LoggingSeverity::LS_VERBOSE);
-		FModuleManager::LoadModuleChecked<IModuleInterface>(TEXT("AVEncoder"));
 		FModuleManager::LoadModuleChecked<FWebSocketsModule>("WebSockets");
 
 		// ExternalVideoSourceGroup is used so that we can have a video source without a streamer
@@ -142,6 +148,8 @@ namespace UE::PixelStreaming
 		// ExternalVideoSourceGroup->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
 		// ExternalVideoSourceGroup->Start();
 
+		// Call FStats::Get() to initialize the singleton
+		FStats::Get();
 		bStartupCompleted = true;
 	}
 
@@ -159,7 +167,6 @@ namespace UE::PixelStreaming
 		FPixelStreamingPeerConnection::Shutdown();
 
 		rtc::CleanupSSL();
-		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 
 		bStartupCompleted = false;
 	}
@@ -208,8 +215,7 @@ namespace UE::PixelStreaming
 	bool FPixelStreamingModule::StartStreaming()
 	{
 		bool bSuccess = true;
-		ForEachStreamer([&bSuccess](TSharedPtr<IPixelStreamingStreamer> Streamer)
-		{
+		ForEachStreamer([&bSuccess](TSharedPtr<IPixelStreamingStreamer> Streamer) {
 			if (Streamer.IsValid())
 			{
 				Streamer->StartStreaming();
@@ -225,8 +231,7 @@ namespace UE::PixelStreaming
 
 	void FPixelStreamingModule::StopStreaming()
 	{
-		ForEachStreamer([this](TSharedPtr<IPixelStreamingStreamer> Streamer)
-		{
+		ForEachStreamer([this](TSharedPtr<IPixelStreamingStreamer> Streamer) {
 			if (Streamer.IsValid())
 			{
 				Streamer->StopStreaming();
@@ -342,46 +347,6 @@ namespace UE::PixelStreaming
 		}
 	}
 
-	const Protocol::FPixelStreamingProtocol& FPixelStreamingModule::GetProtocol()
-	{
-		return MessageProtocol;
-	}
-
-	void FPixelStreamingModule::RegisterMessage(Protocol::EPixelStreamingMessageDirection MessageDirection, const FString& MessageType, Protocol::FPixelStreamingInputMessage Message, const TFunction<void(FMemoryReader)>& Handler)
-	{
-		if(MessageDirection == Protocol::EPixelStreamingMessageDirection::ToStreamer)
-		{
-			MessageProtocol.ToStreamerProtocol.Add(MessageType, Message);
-			ForEachStreamer([&Handler = Handler, &MessageType = MessageType](TSharedPtr<IPixelStreamingStreamer> Streamer)
-			{
-				TWeakPtr<IPixelStreamingInputHandler> WeakInputHandler = Streamer->GetInputHandler();
-				TSharedPtr<IPixelStreamingInputHandler> InputHandler = WeakInputHandler.Pin();
-				if (InputHandler)
-				{
-					InputHandler->RegisterMessageHandler(MessageType, Handler);
-				}
-			});
-		}
-		else if (MessageDirection == Protocol::EPixelStreamingMessageDirection::FromStreamer)
-		{
-			MessageProtocol.FromStreamerProtocol.Add(MessageType, Message);
-		}
-		OnProtocolUpdated.Broadcast();
-	}
-
-	TFunction<void(FMemoryReader)> FPixelStreamingModule::FindMessageHandler(const FString& MessageType)
-	{
-		// All streamers have the same protocol so we just use the first streamers input channel to get the message handler
-		TSharedPtr<IPixelStreamingStreamer> Streamer = Streamers.begin()->Value;
-		TWeakPtr<IPixelStreamingInputHandler> WeakInputHandler = Streamer->GetInputHandler();
-		if (TSharedPtr<IPixelStreamingInputHandler> InputHandler = WeakInputHandler.Pin())
-		{
-			return InputHandler->FindMessageHandler(MessageType);
-		}
-		// If the channel doesn't exist, just return an empty function
-		return ([](FMemoryReader Ar) {});
-	}
-
 	/**
 	 * End IPixelStreamingModule implementation
 	 */
@@ -405,6 +370,10 @@ namespace UE::PixelStreaming
 		}
 
 		TSharedPtr<IPixelStreamingStreamer> Streamer = CreateStreamer(Settings::GetDefaultStreamerID());
+		TSharedPtr<IPixelStreamingSignallingConnection> SignallingConnection = MakeShared<FPixelStreamingSignallingConnection>(Streamer->GetSignallingConnectionObserver().Pin(), Settings::GetDefaultStreamerID());
+		SignallingConnection->SetAutoReconnect(true);
+		Streamer->SetSignallingConnection(SignallingConnection);
+
 		// The PixelStreamingEditorModule handles setting video input in the editor
 		if (!GIsEditor)
 		{
@@ -428,7 +397,7 @@ namespace UE::PixelStreaming
 		{
 			// The user has specified a URL on the command line meaning their intention is to start streaming immediately
 			// in that case, set up the video input for them (as long as we're not in editor)
-			if(!GIsEditor)
+			if (!GIsEditor)
 			{
 				Streamer->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
 			}
@@ -453,94 +422,249 @@ namespace UE::PixelStreaming
 		}
 #endif
 
-		if (Settings::CVarPixelStreamingEncoderCodec.GetValueOnAnyThread() == "H264"
-			&& !AVEncoder::FVideoEncoderFactory::Get().HasEncoderForCodec(AVEncoder::ECodecType::H264))
+		if ((Settings::CVarPixelStreamingEncoderCodec.GetValueOnAnyThread() == "H264" && !FVideoEncoder::IsSupported<FVideoResourceRHI, FVideoEncoderConfigH264>())
+			|| (Settings::CVarPixelStreamingEncoderCodec.GetValueOnAnyThread() == "H265" && !FVideoEncoder::IsSupported<FVideoResourceRHI, FVideoEncoderConfigH265>()))
 		{
-			UE_LOG(LogPixelStreaming, Warning, TEXT("Could not setup hardware encoder for H.264. This is usually a driver issue, try reinstalling your drivers."));
+			UE_LOG(LogPixelStreaming, Warning, TEXT("Could not setup hardware encoder. This is usually a driver issue, try reinstalling your drivers."));
 			UE_LOG(LogPixelStreaming, Warning, TEXT("Falling back to VP8 software video encoding."));
 			Settings::CVarPixelStreamingEncoderCodec.AsVariable()->Set(TEXT("VP8"), ECVF_SetByCommandline);
 		}
 
 		return bCompatible;
 	}
-	/**
-	 * End own methods
-	 */
-
-	TSharedPtr<IInputDevice> FPixelStreamingModule::CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
-	{
-		return MakeShared<FInputHandlers>(InMessageHandler);
-	}
 
 	void FPixelStreamingModule::PopulateProtocol()
 	{
-		using namespace Protocol;
-
 		// Old EToStreamerMsg Commands
 		/*
 		 * Control Messages.
 		 */
 		// Simple command with no payload
 		// Note, we only specify the ID when creating these messages to preserve backwards compatability
-		// when adding your own message type, you can simply do MessageProtocol.Direction.Add("XXX");
-		MessageProtocol.ToStreamerProtocol.Add("IFrameRequest", FPixelStreamingInputMessage(0, 0, {}));
-		MessageProtocol.ToStreamerProtocol.Add("RequestQualityControl", FPixelStreamingInputMessage(1, 0, {}));
-		MessageProtocol.ToStreamerProtocol.Add("FpsRequest", FPixelStreamingInputMessage(2, 0, {}));
-		MessageProtocol.ToStreamerProtocol.Add("AverageBitrateRequest", FPixelStreamingInputMessage(3, 0, {}));
-		MessageProtocol.ToStreamerProtocol.Add("StartStreaming", FPixelStreamingInputMessage(4, 0, {}));
-		MessageProtocol.ToStreamerProtocol.Add("StopStreaming", FPixelStreamingInputMessage(5, 0, {}));
-		MessageProtocol.ToStreamerProtocol.Add("LatencyTest", FPixelStreamingInputMessage(6, 0, {}));
-		MessageProtocol.ToStreamerProtocol.Add("RequestInitialSettings", FPixelStreamingInputMessage(7, 0, {}));
-		MessageProtocol.ToStreamerProtocol.Add("TestEcho", FPixelStreamingInputMessage(8, 0, {}));
+		// when adding your own message type, you can simply do FPixelStreamingInputProtocol.Direction.Add("XXX");
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("IFrameRequest", FPixelStreamingInputMessage(0));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("RequestQualityControl", FPixelStreamingInputMessage(1));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("FpsRequest", FPixelStreamingInputMessage(2));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("AverageBitrateRequest", FPixelStreamingInputMessage(3));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("StartStreaming", FPixelStreamingInputMessage(4));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("StopStreaming", FPixelStreamingInputMessage(5));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("LatencyTest", FPixelStreamingInputMessage(6));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("RequestInitialSettings", FPixelStreamingInputMessage(7));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("TestEcho", FPixelStreamingInputMessage(8));
 
 		/*
 		 * Input Messages.
 		 */
 		// Generic Input Messages.
-		MessageProtocol.ToStreamerProtocol.Add("UIInteraction", FPixelStreamingInputMessage(50, 0, {}));
-		MessageProtocol.ToStreamerProtocol.Add("Command", FPixelStreamingInputMessage(51, 0, {}));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("UIInteraction", FPixelStreamingInputMessage(50));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("Command", FPixelStreamingInputMessage(51));
 
 		// Keyboard Input Message.
 		// Complex command with payload, therefore we specify the length of the payload (bytes) as well as the structure of the payload
-		MessageProtocol.ToStreamerProtocol.Add("KeyDown", FPixelStreamingInputMessage(60, 2, { EType::Uint8, EType::Uint8 }));
-		MessageProtocol.ToStreamerProtocol.Add("KeyUp", FPixelStreamingInputMessage(61, 1, { EType::Uint8 }));
-		MessageProtocol.ToStreamerProtocol.Add("KeyPress", FPixelStreamingInputMessage(62, 2, { EType::Uint16 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("KeyDown", FPixelStreamingInputMessage(60, { EType::Uint8, EType::Uint8 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("KeyUp", FPixelStreamingInputMessage(61, { EType::Uint8 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("KeyPress", FPixelStreamingInputMessage(62, { EType::Uint16 }));
 
 		// Mouse Input Messages.
-		MessageProtocol.ToStreamerProtocol.Add("MouseEnter", FPixelStreamingInputMessage(70));
-		MessageProtocol.ToStreamerProtocol.Add("MouseLeave", FPixelStreamingInputMessage(71));
-		MessageProtocol.ToStreamerProtocol.Add("MouseDown", FPixelStreamingInputMessage(72, 5, { EType::Uint8, EType::Uint16, EType::Uint16 }));
-		MessageProtocol.ToStreamerProtocol.Add("MouseUp", FPixelStreamingInputMessage(73, 5, { EType::Uint8, EType::Uint16, EType::Uint16 }));
-		MessageProtocol.ToStreamerProtocol.Add("MouseMove", FPixelStreamingInputMessage(74, 8, { EType::Uint16, EType::Uint16, EType::Uint16, EType::Uint16 }));
-		MessageProtocol.ToStreamerProtocol.Add("MouseWheel", FPixelStreamingInputMessage(75, 6, { EType::Int16, EType::Uint16, EType::Uint16 }));
-		MessageProtocol.ToStreamerProtocol.Add("MouseDouble", FPixelStreamingInputMessage(76, 5, { EType::Uint8, EType::Uint16, EType::Uint16 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("MouseEnter", FPixelStreamingInputMessage(70));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("MouseLeave", FPixelStreamingInputMessage(71));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("MouseDown", FPixelStreamingInputMessage(72, { EType::Uint8, EType::Uint16, EType::Uint16 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("MouseUp", FPixelStreamingInputMessage(73, { EType::Uint8, EType::Uint16, EType::Uint16 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("MouseMove", FPixelStreamingInputMessage(74, { EType::Uint16, EType::Uint16, EType::Uint16, EType::Uint16 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("MouseWheel", FPixelStreamingInputMessage(75, { EType::Int16, EType::Uint16, EType::Uint16 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("MouseDouble", FPixelStreamingInputMessage(76, { EType::Uint8, EType::Uint16, EType::Uint16 }));
 
 		// Touch Input Messages.
-		MessageProtocol.ToStreamerProtocol.Add("TouchStart", FPixelStreamingInputMessage(80, 8, { EType::Uint8, EType::Uint16, EType::Uint16, EType::Uint8, EType::Uint8, EType::Uint8}));
-		MessageProtocol.ToStreamerProtocol.Add("TouchEnd", FPixelStreamingInputMessage(81, 8, { EType::Uint8, EType::Uint16, EType::Uint16, EType::Uint8, EType::Uint8, EType::Uint8}));
-		MessageProtocol.ToStreamerProtocol.Add("TouchMove", FPixelStreamingInputMessage(82, 8, { EType::Uint8, EType::Uint16, EType::Uint16, EType::Uint8, EType::Uint8, EType::Uint8}));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("TouchStart", FPixelStreamingInputMessage(80, { EType::Uint8, EType::Uint16, EType::Uint16, EType::Uint8, EType::Uint8, EType::Uint8 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("TouchEnd", FPixelStreamingInputMessage(81, { EType::Uint8, EType::Uint16, EType::Uint16, EType::Uint8, EType::Uint8, EType::Uint8 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("TouchMove", FPixelStreamingInputMessage(82, { EType::Uint8, EType::Uint16, EType::Uint16, EType::Uint8, EType::Uint8, EType::Uint8 }));
 
 		// Gamepad Input Messages.
-		MessageProtocol.ToStreamerProtocol.Add("GamepadButtonPressed", FPixelStreamingInputMessage(90, 3, { EType::Uint8, EType::Uint8, EType::Uint8 }));
-		MessageProtocol.ToStreamerProtocol.Add("GamepadButtonReleased", FPixelStreamingInputMessage(91, 3, { EType::Uint8, EType::Uint8, EType::Uint8 }));
-		MessageProtocol.ToStreamerProtocol.Add("GamepadAnalog", FPixelStreamingInputMessage(92, 3, { EType::Uint8, EType::Uint8, EType::Double }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("GamepadButtonPressed", FPixelStreamingInputMessage(90, { EType::Uint8, EType::Uint8, EType::Uint8 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("GamepadButtonReleased", FPixelStreamingInputMessage(91, { EType::Uint8, EType::Uint8, EType::Uint8 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("GamepadAnalog", FPixelStreamingInputMessage(92, { EType::Uint8, EType::Uint8, EType::Double }));
+
+		// XR Input Messages.
+		// clang-format off
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRHMDTransform", FPixelStreamingInputMessage(110, {	// 4x4 Transform
+																													EType::Float, EType::Float, EType::Float, EType::Float,
+																													EType::Float, EType::Float, EType::Float, EType::Float,
+																													EType::Float, EType::Float, EType::Float, EType::Float,
+																													EType::Float, EType::Float, EType::Float, EType::Float,
+																												}));
+		
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRControllerTransform", FPixelStreamingInputMessage(111, {// 4x4 Transform
+																														EType::Float, EType::Float, EType::Float, EType::Float, 
+																														EType::Float, EType::Float, EType::Float, EType::Float, 
+																														EType::Float, EType::Float, EType::Float, EType::Float, 
+																														EType::Float, EType::Float, EType::Float, EType::Float,
+																														// Handedness (L, R, Any)
+																														EType::Uint8 
+																														}));
+		
+		// clang-format on
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRButtonPressed", FPixelStreamingInputMessage(112, // Handedness,   ButtonIdx,      IsRepeat
+																												{ EType::Uint8, EType::Uint8, EType::Uint8 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRButtonTouched", FPixelStreamingInputMessage(113, // Handedness,   ButtonIdx,      IsRepeat
+																												{ EType::Uint8, EType::Uint8, EType::Uint8 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRButtonReleased", FPixelStreamingInputMessage(114, // Handedness,   ButtonIdx,     IsRepeat
+																					 							{ EType::Uint8, EType::Uint8, EType::Uint8 }));
+																												
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRAnalog", FPixelStreamingInputMessage(115, { EType::Uint8, EType::Uint8, EType::Double }));
+
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRSystem", FPixelStreamingInputMessage(116, { EType::Uint8 }));
 
 		// Old EToPlayerMsg commands
-		MessageProtocol.FromStreamerProtocol.Add("QualityControlOwnership", FPixelStreamingInputMessage(0));
-		MessageProtocol.FromStreamerProtocol.Add("Response", FPixelStreamingInputMessage(1));
-		MessageProtocol.FromStreamerProtocol.Add("Command", FPixelStreamingInputMessage(2));
-		MessageProtocol.FromStreamerProtocol.Add("FreezeFrame", FPixelStreamingInputMessage(3));
-		MessageProtocol.FromStreamerProtocol.Add("UnfreezeFrame", FPixelStreamingInputMessage(4));
-		MessageProtocol.FromStreamerProtocol.Add("VideoEncoderAvgQP", FPixelStreamingInputMessage(5));
-		MessageProtocol.FromStreamerProtocol.Add("LatencyTest", FPixelStreamingInputMessage(6));
-		MessageProtocol.FromStreamerProtocol.Add("InitialSettings", FPixelStreamingInputMessage(7));
-		MessageProtocol.FromStreamerProtocol.Add("FileExtension", FPixelStreamingInputMessage(8));
-		MessageProtocol.FromStreamerProtocol.Add("FileMimeType", FPixelStreamingInputMessage(9));
-		MessageProtocol.FromStreamerProtocol.Add("FileContents", FPixelStreamingInputMessage(10));
-		MessageProtocol.FromStreamerProtocol.Add("TestEcho", FPixelStreamingInputMessage(11));
-		MessageProtocol.FromStreamerProtocol.Add("InputControlOwnership", FPixelStreamingInputMessage(12));
-		MessageProtocol.FromStreamerProtocol.Add("Protocol", FPixelStreamingInputMessage(255));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("QualityControlOwnership", FPixelStreamingInputMessage(0));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("Response", FPixelStreamingInputMessage(1));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("Command", FPixelStreamingInputMessage(2));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("FreezeFrame", FPixelStreamingInputMessage(3));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("UnfreezeFrame", FPixelStreamingInputMessage(4));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("VideoEncoderAvgQP", FPixelStreamingInputMessage(5));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("LatencyTest", FPixelStreamingInputMessage(6));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("InitialSettings", FPixelStreamingInputMessage(7));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("FileExtension", FPixelStreamingInputMessage(8));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("FileMimeType", FPixelStreamingInputMessage(9));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("FileContents", FPixelStreamingInputMessage(10));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("TestEcho", FPixelStreamingInputMessage(11));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("InputControlOwnership", FPixelStreamingInputMessage(12));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("Protocol", FPixelStreamingInputMessage(255));
 	}
+
+	void FPixelStreamingModule::RegisterCustomHandlers()
+	{
+		IPixelStreamingInputModule& InputModule = IPixelStreamingInputModule::Get();
+		InputModule.RegisterMessage(EPixelStreamingMessageDirection::ToStreamer,
+			"UIInteraction",
+			FPixelStreamingInputMessage(50),
+			[this](FMemoryReader Ar) { HandleUIInteraction(Ar); });
+
+		// The current handler is the function that will currently be executed if a message with type "Command" is received
+		TFunction<void(FMemoryReader)> BaseOnCommandHandler = InputModule.FindMessageHandler("Command");
+		// We then create our new handler which will execute the "base" handler
+		TFunction<void(FMemoryReader)> ExtendedOnCommandHandler = [this, BaseOnCommandHandler](FMemoryReader Ar) {
+			// and then perform out extended functionality after.
+			// equivalent to the super::DoSomeFunc pattern
+			BaseOnCommandHandler(Ar);
+
+			// In this case, the base handler handles raw console commands. Our extended functionality parses the commands
+			// for PS specific parameters
+			HandleOnCommand(Ar);
+		};
+
+		// Handle receiving commands from peers
+		InputModule.RegisterMessage(EPixelStreamingMessageDirection::ToStreamer, "Command", FPixelStreamingInputMessage(51), ExtendedOnCommandHandler);
+		// Handle sending commands to peers
+		InputModule.OnSendMessage.AddRaw(this, &UE::PixelStreaming::FPixelStreamingModule::HandleSendCommand);
+	}
+
+	void FPixelStreamingModule::HandleOnCommand(FMemoryReader Ar)
+	{
+		FString Res;
+		Res.GetCharArray().SetNumUninitialized(Ar.TotalSize() / 2 + 1);
+		Ar.Serialize(Res.GetCharArray().GetData(), Ar.TotalSize());
+		FString Descriptor = Res.Mid(1);
+		bool bSuccess = false;
+
+		/**
+		 * Encoder Settings
+		 */
+		FString MinQPString;
+		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Encoder.MinQP"), MinQPString, bSuccess);
+		if (bSuccess)
+		{
+			int MinQP = FCString::Atoi(*MinQPString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMinQP->Set(MinQP, ECVF_SetByCommandline);
+			return;
+		}
+
+		FString MaxQPString;
+		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Encoder.MaxQP"), MaxQPString, bSuccess);
+		if (bSuccess)
+		{
+			int MaxQP = FCString::Atoi(*MaxQPString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMaxQP->Set(MaxQP, ECVF_SetByCommandline);
+			return;
+		}
+
+		/**
+		 * WebRTC Settings
+		 */
+		FString FPSString;
+		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("WebRTC.Fps"), FPSString, bSuccess);
+		if (bSuccess)
+		{
+			int FPS = FCString::Atoi(*FPSString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCFps->Set(FPS, ECVF_SetByCommandline);
+			return;
+		}
+
+		FString MinBitrateString;
+		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("WebRTC.MinBitrate"), MinBitrateString, bSuccess);
+		if (bSuccess)
+		{
+			int MinBitrate = FCString::Atoi(*MinBitrateString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCMinBitrate->Set(MinBitrate, ECVF_SetByCommandline);
+			return;
+		}
+
+		FString MaxBitrateString;
+		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("WebRTC.MaxBitrate"), MaxBitrateString, bSuccess);
+		if (bSuccess)
+		{
+			int MaxBitrate = FCString::Atoi(*MaxBitrateString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCMaxBitrate->Set(MaxBitrate, ECVF_SetByCommandline);
+			return;
+		}
+	}
+
+	void FPixelStreamingModule::HandleSendCommand(FMemoryReader Ar)
+	{
+		FString Descriptor;
+		Ar << Descriptor;
+		ForEachStreamer([&Descriptor, this](TSharedPtr<IPixelStreamingStreamer> Streamer) {
+			Streamer->SendPlayerMessage(FPixelStreamingInputProtocol::FromStreamerProtocol.Find("Command")->GetID(), Descriptor);
+		});
+	}
+
+	void FPixelStreamingModule::HandleUIInteraction(FMemoryReader Ar)
+	{
+		FString Res;
+		Res.GetCharArray().SetNumUninitialized(Ar.TotalSize() / 2 + 1);
+		Ar.Serialize(Res.GetCharArray().GetData(), Ar.TotalSize());
+
+		FString Descriptor = Res.Mid(1);
+
+		UE_LOG(LogPixelStreaming, Verbose, TEXT("UIInteraction: %s"), *Descriptor);
+		for (UPixelStreamingInput* InputComponent : InputComponents)
+		{
+			InputComponent->OnInputEvent.Broadcast(Descriptor);
+		}
+	}
+	/**
+	 * End own methods
+	 */
+
+	/**
+	 * Deprecated methods
+	 */
+	const FPixelStreamingInputProtocol FPixelStreamingModule::GetProtocol()
+	{
+		return FPixelStreamingInputProtocol();
+	}
+
+	void FPixelStreamingModule::RegisterMessage(EPixelStreamingMessageDirection MessageDirection, const FString& MessageType, FPixelStreamingInputMessage Message, const TFunction<void(FMemoryReader)>& Handler)
+	{
+		IPixelStreamingInputModule::Get().RegisterMessage(MessageDirection, MessageType, Message, Handler);
+	}
+
+	TFunction<void(FMemoryReader)> FPixelStreamingModule::FindMessageHandler(const FString& MessageType)
+	{
+		return IPixelStreamingInputModule::Get().FindMessageHandler(MessageType);
+	}
+	/**
+	 * End deprecated methods
+	 */
 } // namespace UE::PixelStreaming
 
 IMPLEMENT_MODULE(UE::PixelStreaming::FPixelStreamingModule, PixelStreaming)

@@ -28,10 +28,8 @@ private:
 
 	TArray<TSharedRef<SWindow>> TopLevelWindows;
 	TMap<SWindow*, FTextureRHIRef> TopLevelWindowTextures;
+	TMap<FString, FTextureRHIRef> StagingTextures;
 
 	FCriticalSection TopLevelWindowsCriticalSection;
-	FTexture2DRHIRef CompositedFrame;
 	TSharedPtr<FIntPoint> CompositedFrameSize;
-	bool bRecreateTexture = false;
-	FIntPoint DefaultSize = FIntPoint(1, 1);
 };

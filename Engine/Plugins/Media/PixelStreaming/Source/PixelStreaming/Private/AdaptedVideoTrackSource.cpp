@@ -13,11 +13,7 @@ namespace UE::PixelStreaming
 
 	bool FAdaptedVideoTrackSource::GetStats(Stats* stats)
 	{
-#if WEBRTC_VERSION == 84
-		rtc::CritScope lock(&stats_crit_);
-#elif WEBRTC_VERSION == 96
 		webrtc::MutexLock lock(&stats_mutex_);
-#endif
 
 		if (!stats_)
 		{
@@ -39,7 +35,7 @@ namespace UE::PixelStreaming
 			pending rotation despite some sink with wants.rotation_applied ==
 			true was just added. The VideoBroadcaster enforces
 			synchronization for us in this case, by not passing the frame on
-			to sinks which don't want it. 
+			to sinks which don't want it.
 		*/
 		if (apply_rotation() && frame.rotation() != webrtc::kVideoRotation_0 && buffer->type() == webrtc::VideoFrameBuffer::Type::kI420)
 		{
@@ -93,11 +89,7 @@ namespace UE::PixelStreaming
 		int* crop_y)
 	{
 		{
-#if WEBRTC_VERSION == 84
-			rtc::CritScope lock(&stats_crit_);
-#elif WEBRTC_VERSION == 96
 			webrtc::MutexLock lock(&stats_mutex_);
-#endif
 			stats_ = Stats{ width, height };
 		}
 
@@ -120,4 +112,4 @@ namespace UE::PixelStreaming
 		return true;
 	}
 
-} // namespace rtc
+} // namespace UE::PixelStreaming

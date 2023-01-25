@@ -46,27 +46,28 @@ UMediaCapture* UPixelStreamingMediaOutput::CreateMediaCaptureImpl()
 
 void UPixelStreamingMediaOutput::RegisterRemoteResolutionCommandHandler()
 {
+	// TODO: Complete integration work from dev stream
 	// Override resolution command as we this to set the output provider override resolution
-	TSharedPtr<IPixelStreamingInputHandler> InputHandler = Streamer->GetInputHandler().Pin();
-	if(InputHandler)
-	{
-		InputHandler->SetCommandHandler(TEXT("Resolution.Width"), [this](FString Descriptor, FString WidthString){
-			bool bSuccess = false;
-			FString HeightString;
-			UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
-			if (bSuccess)
-			{
-				int Width = FCString::Atoi(*WidthString);
-				int Height = FCString::Atoi(*HeightString);
-				if (Width < 1 || Height < 1)
-				{
-					return;
-				}
+	// TSharedPtr<IPixelStreamingInputHandler> InputHandler = Streamer->GetInputHandler().Pin();
+	// if(InputHandler)
+	// {
+	// 	InputHandler->SetCommandHandler(TEXT("Resolution.Width"), [this](FString Descriptor, FString WidthString){
+	// 		bool bSuccess = false;
+	// 		FString HeightString;
+	// 		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
+	// 		if (bSuccess)
+	// 		{
+	// 			int Width = FCString::Atoi(*WidthString);
+	// 			int Height = FCString::Atoi(*HeightString);
+	// 			if (Width < 1 || Height < 1)
+	// 			{
+	// 				return;
+	// 			}
 
-				RemoteResolutionChangedEvent.Broadcast(FIntPoint(Width, Height));
-			}
-		});
-	}
+	// 			RemoteResolutionChangedEvent.Broadcast(FIntPoint(Width, Height));
+	// 		}
+	// 	});
+	// }
 }
 
 void UPixelStreamingMediaOutput::StartStreaming()

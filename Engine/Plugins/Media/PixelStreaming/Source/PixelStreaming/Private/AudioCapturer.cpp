@@ -3,6 +3,7 @@
 #include "AudioCapturer.h"
 #include "AudioMixerDevice.h"
 #include "SampleBuffer.h"
+#include "PixelStreamingTrace.h"
 #include "Engine/GameEngine.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingAudioCapturer, Log, All);
@@ -31,6 +32,7 @@ namespace UE::PixelStreaming
 
 	void FAudioCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 InNumChannels, const int32 InSampleRate, double AudioClock)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR("PixelStreaming FAudioCapturer::OnNewSubmixBuffer", PixelStreamingChannel);
 		if (!(bInitialized && bRecordingInitialized))
 		{
 			return;

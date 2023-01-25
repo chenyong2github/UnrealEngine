@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioSink.h"
+#include "PixelStreamingTrace.h"
 
 namespace UE::PixelStreaming
 {
@@ -19,7 +20,7 @@ namespace UE::PixelStreaming
 
 	void FAudioSink::OnData(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames, absl::optional<int64_t> absolute_capture_timestamp_ms)
 	{
-
+		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR("PixelStreaming FAudioSink::OnData", PixelStreamingChannel);
 		// This data is populated from the internals of WebRTC, basically each audio track sent from the browser has its RTP audio source received and decoded.
 		// The sample rate and number of channels here has absolutely no relationship with PixelStreamingAudioDeviceModule.
 		// The sample rate and number of channels here is determined adaptively by WebRTC's NetEQ class that selects sample rate/number of channels

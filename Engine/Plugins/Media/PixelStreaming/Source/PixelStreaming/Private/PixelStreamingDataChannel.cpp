@@ -31,13 +31,9 @@ FPixelStreamingDataChannel::FPixelStreamingDataChannel(FPixelStreamingPeerConnec
 	SendConfig.negotiated = true;
 	SendConfig.id = SendStreamId;
 
-	#if WEBRTC_VERSION == 84
-		RecvChannel = SendChannel = PeerConnection->CreateDataChannel((SendStreamId == RecvStreamId) ? "datachannel" : "senddatachannel", &SendConfig);
-	#else
-		webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::DataChannelInterface>> SendRecvResult = PeerConnection->CreateDataChannelOrError((SendStreamId == RecvStreamId) ? "datachannel" : "senddatachannel", &SendConfig);
-		checkf(SendRecvResult.ok(), TEXT("Failed to create Data Channel. Msg=%s"), *FString(SendRecvResult.error().message()));
-		RecvChannel = SendChannel = SendRecvResult.MoveValue();
-	#endif
+	webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::DataChannelInterface>> SendRecvResult = PeerConnection->CreateDataChannelOrError((SendStreamId == RecvStreamId) ? "datachannel" : "senddatachannel", &SendConfig);
+	checkf(SendRecvResult.ok(), TEXT("Failed to create Data Channel. Msg=%s"), *FString(SendRecvResult.error().message()));
+	RecvChannel = SendChannel = SendRecvResult.MoveValue();
 
 	if (SendStreamId != RecvStreamId)
 	{
@@ -45,13 +41,9 @@ FPixelStreamingDataChannel::FPixelStreamingDataChannel(FPixelStreamingPeerConnec
 		RecvConfig.negotiated = true;
 		RecvConfig.id = RecvStreamId;
 
-		#if WEBRTC_VERSION == 84
-			RecvChannel = PeerConnection->CreateDataChannel("recvdatachannel", &RecvConfig);
-		#else
-			webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::DataChannelInterface>> RecvResult = PeerConnection->CreateDataChannelOrError("recvdatachannel", &RecvConfig);
-			checkf(RecvResult.ok(), TEXT("Failed to create Data Channel. Msg=%s"), *FString(RecvResult.error().message()));
-			RecvChannel = RecvResult.MoveValue();
-		#endif
+		webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::DataChannelInterface>> RecvResult = PeerConnection->CreateDataChannelOrError("recvdatachannel", &RecvConfig);
+		checkf(RecvResult.ok(), TEXT("Failed to create Data Channel. Msg=%s"), *FString(RecvResult.error().message()));
+		RecvChannel = RecvResult.MoveValue();
 	}
 
 	checkf(SendChannel, TEXT("Send channel cannot be null"));

@@ -31,9 +31,9 @@ void UPixelStreamingStreamerComponent::StartStreaming()
 		CreateStreamer();
 	}
 
-	if (StreamerInput && StreamerInput->GetVideoInput())
+	if (VideoInput && VideoInput->GetVideoInput())
 	{
-		Streamer->SetVideoInput(StreamerInput->GetVideoInput());
+		Streamer->SetVideoInput(VideoInput->GetVideoInput());
 	}
 
 	Streamer->SetCoupleFramerate(CoupleFramerate);

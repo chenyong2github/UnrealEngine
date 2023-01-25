@@ -13,6 +13,7 @@ namespace UE::PixelStreaming
 	FRTCStatsCollector::FStreamStatsSink::FStreamStatsSink(FString InRid)
 		: Rid(InRid)
 	{
+		// basic values to display
 		Add(PixelStreamingStatNames::FirCount, 0);
 		Add(PixelStreamingStatNames::PliCount, 0);
 		Add(PixelStreamingStatNames::NackCount, 0);
@@ -26,11 +27,142 @@ namespace UE::PixelStreaming
 		Add(PixelStreamingStatNames::HugeFramesSent, 0);
 		Add(PixelStreamingStatNames::AvgSendDelay, 0);
 
-		AddForCalculation(PixelStreamingStatNames::FramesSent);
-		AddForCalculation(PixelStreamingStatNames::BytesSent);
-		AddForCalculation(PixelStreamingStatNames::QPSum);
-		AddForCalculation(PixelStreamingStatNames::TotalEncodeTime);
-		AddForCalculation(PixelStreamingStatNames::FramesEncoded);
+		// these are values used to calculate extra values (stores time deltas etc)
+		AddMonitored(PixelStreamingStatNames::FramesSent);
+		AddMonitored(PixelStreamingStatNames::FramesReceived);
+		AddMonitored(PixelStreamingStatNames::BytesSent);
+		AddMonitored(PixelStreamingStatNames::BytesReceived);
+		AddMonitored(PixelStreamingStatNames::QPSum);
+		AddMonitored(PixelStreamingStatNames::TotalEncodeTime);
+		AddMonitored(PixelStreamingStatNames::FramesEncoded);
+		AddMonitored(PixelStreamingStatNames::FramesDecoded);
+
+		// below is the logic for calculating each of the stats we want to calculate
+
+		// FrameSent Per Second
+		AddStatCalculator([](FStatsSink& StatSource, double Period) -> TOptional<FStatData> {
+			FMonitoredStat* FramesSentStat = StatSource.GetMonitoredStat(PixelStreamingStatNames::FramesSent);
+			if (FramesSentStat && FramesSentStat->LatestStat.StatValue > 0)
+			{
+				const double FramesSentPerSecond = FramesSentStat->CalculateDelta(Period);
+				return FStatData(PixelStreamingStatNames::FramesSentPerSecond, FramesSentPerSecond, 0);
+			}
+			return {};
+		});
+
+		// FramesReceived Per Second
+		AddStatCalculator([](FStatsSink& StatSource, double Period) -> TOptional<FStatData> {
+			FMonitoredStat* FramesReceivedStat = StatSource.GetMonitoredStat(PixelStreamingStatNames::FramesReceived);
+			if (FramesReceivedStat && FramesReceivedStat->LatestStat.StatValue > 0)
+			{
+				const double FramesReceivedPerSecond = FramesReceivedStat->CalculateDelta(Period);
+				return FStatData(PixelStreamingStatNames::FramesReceivedPerSecond, FramesReceivedPerSecond, 0);
+			}
+			return {};
+		});
+
+		// BytesSent Per Second
+		AddStatCalculator([](FStatsSink& StatSource, double Period) -> TOptional<FStatData> {
+			FMonitoredStat* BytesSentStat = StatSource.GetMonitoredStat(PixelStreamingStatNames::BytesSent);
+			if (BytesSentStat && BytesSentStat->LatestStat.StatValue > 0)
+			{
+				const double BytesSentPerSecond = BytesSentStat->CalculateDelta(Period);
+				const double MegabitsPerSecond = BytesSentPerSecond / 1000.0 * 8.0;
+				return FStatData(PixelStreamingStatNames::Bitrate, MegabitsPerSecond, 0);
+			}
+			return {};
+		});
+
+		// BytesReceived Per Second
+		AddStatCalculator([](FStatsSink& StatSource, double Period) -> TOptional<FStatData> {
+			FMonitoredStat* BytesReceivedStat = StatSource.GetMonitoredStat(PixelStreamingStatNames::BytesReceived);
+			if (BytesReceivedStat && BytesReceivedStat->LatestStat.StatValue > 0)
+			{
+				const double BytesReceivedPerSecond = BytesReceivedStat->CalculateDelta(Period);
+				const double MegabitsPerSecond = BytesReceivedPerSecond / 1000.0 * 8.0;
+				return FStatData(PixelStreamingStatNames::Bitrate, MegabitsPerSecond, 0);
+			}
+			return {};
+		});
+
+		// Encoded fps
+		AddStatCalculator([](FStatsSink& StatSource, double Period) -> TOptional<FStatData> {
+			FMonitoredStat* EncodedFramesStat = StatSource.GetMonitoredStat(PixelStreamingStatNames::FramesEncoded);
+			if (EncodedFramesStat && EncodedFramesStat->LatestStat.StatValue > 0)
+			{
+				const double EncodedFramesPerSecond = EncodedFramesStat->CalculateDelta(Period);
+				return FStatData(PixelStreamingStatNames::EncodedFramesPerSecond, EncodedFramesPerSecond, 0);
+			}
+			return {};
+		});
+
+		// Decoded fps
+		AddStatCalculator([](FStatsSink& StatSource, double Period) -> TOptional<FStatData> {
+			FMonitoredStat* DecodedFramesStat = StatSource.GetMonitoredStat(PixelStreamingStatNames::FramesDecoded);
+			if (DecodedFramesStat && DecodedFramesStat->LatestStat.StatValue > 0)
+			{
+				const double DecodedFramesPerSecond = DecodedFramesStat->CalculateDelta(Period);
+				return FStatData(PixelStreamingStatNames::DecodedFramesPerSecond, DecodedFramesPerSecond, 0);
+			}
+			return {};
+		});
+
+		// Avg QP Per Second
+		AddStatCalculator([](FStatsSink& StatSource, double Period) -> TOptional<FStatData> {
+			FMonitoredStat* QPSumStat = StatSource.GetMonitoredStat(PixelStreamingStatNames::QPSum);
+			FStatData* EncodedFramesPerSecond = StatSource.GetCalculatedStat(PixelStreamingStatNames::EncodedFramesPerSecond);
+			if (QPSumStat && QPSumStat->LatestStat.StatValue > 0
+				&& EncodedFramesPerSecond && EncodedFramesPerSecond->StatValue > 0.0)
+			{
+				const double QPSumDeltaPerSecond = QPSumStat->CalculateDelta(Period);
+				const double MeanQPPerFrame = QPSumDeltaPerSecond / EncodedFramesPerSecond->StatValue;
+				FName StatName = PixelStreamingStatNames::MeanQPPerSecond;
+				return FStatData(StatName, MeanQPPerFrame, 0);
+			}
+			return {};
+		});
+
+		// Mean EncodeTime (ms) Per Frame
+		AddStatCalculator([](FStatsSink& StatSource, double Period) -> TOptional<FStatData> {
+			FMonitoredStat* TotalEncodeTimeStat = StatSource.GetMonitoredStat(PixelStreamingStatNames::TotalEncodeTime);
+			FStatData* EncodedFramesPerSecond = StatSource.GetCalculatedStat(PixelStreamingStatNames::EncodedFramesPerSecond);
+			if (TotalEncodeTimeStat && TotalEncodeTimeStat->LatestStat.StatValue > 0
+				&& EncodedFramesPerSecond && EncodedFramesPerSecond->StatValue > 0.0)
+			{
+				const double TotalEncodeTimePerSecond = TotalEncodeTimeStat->CalculateDelta(Period);
+				const double MeanEncodeTimePerFrameMs = TotalEncodeTimePerSecond / EncodedFramesPerSecond->StatValue * 1000.0;
+				return FStatData(PixelStreamingStatNames::MeanEncodeTime, MeanEncodeTimePerFrameMs, 2);
+			}
+			return {};
+		});
+
+		// Mean SendDelay (ms) Per Frame
+		AddStatCalculator([](FStatsSink& StatSource, double Period) -> TOptional<FStatData> {
+			FMonitoredStat* TotalSendDelayStat = StatSource.GetMonitoredStat(PixelStreamingStatNames::TotalPacketSendDelay);
+			FStatData* FramesSentPerSecond = StatSource.GetCalculatedStat(PixelStreamingStatNames::FramesSentPerSecond);
+			if (TotalSendDelayStat && TotalSendDelayStat->LatestStat.StatValue > 0
+				&& FramesSentPerSecond && FramesSentPerSecond->StatValue > 0.0)
+			{
+				const double TotalSendDelayPerSecond = TotalSendDelayStat->CalculateDelta(Period);
+				const double MeanSendDelayPerFrameMs = TotalSendDelayPerSecond / FramesSentPerSecond->StatValue * 1000.0;
+				return FStatData(PixelStreamingStatNames::MeanSendDelay, MeanSendDelayPerFrameMs, 2);
+			}
+			return {};
+		});
+
+		// JitterBufferDelay (ms)
+		AddStatCalculator([](FStatsSink& StatSource, double Period) -> TOptional<FStatData> {
+			FMonitoredStat* JitterBufferDelayStat = StatSource.GetMonitoredStat(PixelStreamingStatNames::JitterBufferDelay);
+			FStatData* FramesReceivedPerSecond = StatSource.GetCalculatedStat(PixelStreamingStatNames::FramesReceivedPerSecond);
+			if (JitterBufferDelayStat && JitterBufferDelayStat->LatestStat.StatValue > 0
+				&& FramesReceivedPerSecond && FramesReceivedPerSecond->StatValue > 0.0)
+			{
+				const double TotalJitterBufferDelayPerSecond = JitterBufferDelayStat->CalculateDelta(Period);
+				const double MeanJitterBufferDelayMs = TotalJitterBufferDelayPerSecond / FramesReceivedPerSecond->StatValue * 1000.0;
+				return FStatData(PixelStreamingStatNames::JitterBufferDelay, MeanJitterBufferDelayMs, 2);
+			}
+			return {};
+		});
 	}
 
 	// ------------- FRTCStatsCollector-------------------
@@ -47,7 +179,7 @@ namespace UE::PixelStreaming
 	{
 		FStatsSink TrackStatsSink;
 		TrackStatsSink.Add(PixelStreamingStatNames::JitterBufferDelay, 2);
-		TrackStatsSink.Add(PixelStreamingStatNames::FramesReceived, 0);
+		TrackStatsSink.Add(PixelStreamingStatNames::FramesPerSecond, 0);
 		TrackStatsSink.Add(PixelStreamingStatNames::FramesDecoded, 0);
 		TrackStatsSink.Add(PixelStreamingStatNames::FramesDropped, 0);
 		TrackStatsSink.Add(PixelStreamingStatNames::FramesCorrupted, 0);
@@ -82,11 +214,48 @@ namespace UE::PixelStreaming
 		return rtc::RefCountReleaseStatus::kOtherRefsRemained;
 	}
 
-	void FRTCStatsCollector::ExtractValueAndSet(const webrtc::RTCStatsMemberInterface* ExtractFrom, FStatData* SetValueHere)
+	// returns true if the value is worth storing (false if it started and remains zero)
+	bool FRTCStatsCollector::ExtractValueAndSet(const webrtc::RTCStatsMemberInterface* ExtractFrom, FStatData* SetValueHere)
 	{
+		const bool bZeroInitially = SetValueHere->StatValue == 0.0;
 		FString StatValueStr = ExtractFrom->is_defined() ? ToString(ExtractFrom->ValueToString()) : TEXT("0.0");
 		double StatValueDouble = FCString::Atod(*StatValueStr);
 		SetValueHere->StatValue = StatValueDouble;
+		const bool bZeroStill = SetValueHere->StatValue == 0.0;
+		return !(bZeroInitially && bZeroStill);
+	}
+
+	FRTCStatsCollector::FStatsSink* FRTCStatsCollector::FindSink(const FString& StatsType, const std::vector<const webrtc::RTCStatsMemberInterface*>& StatMembers, FString& OutSsrc)
+	{
+		FStatsSink* Sink = nullptr;
+
+		if (StatsType == "outbound-rtp" || StatsType == "inbound-rtp")
+		{
+			// Extract the `ssrc` to uniquely id the stream
+			for (const webrtc::RTCStatsMemberInterface* StatMember : StatMembers)
+			{
+				const FString StatName = FString(StatMember->name());
+				if (StatName == "ssrc")
+				{
+					OutSsrc = StatMember->is_defined() ? ToString(StatMember->ValueToString()) : TEXT("");
+					if (!StreamStatsSinks.Contains(OutSsrc))
+					{
+						Sink = &StreamStatsSinks.Add(OutSsrc, FStreamStatsSink(OutSsrc));
+					}
+					else
+					{
+						Sink = StreamStatsSinks.Find(OutSsrc);
+					}
+					break;
+				}
+			}
+		}
+		else
+		{
+			Sink = StatSinks.Find(StatsType);
+		}
+
+		return Sink;
 	}
 
 	void FRTCStatsCollector::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& Report)
@@ -100,7 +269,7 @@ namespace UE::PixelStreaming
 
 		for (auto&& Stats : *Report)
 		{
-			FString StatsType = FString(Stats.type());
+			const FString StatsType = FString(Stats.type());
 			std::vector<const webrtc::RTCStatsMemberInterface*> StatMembers = Stats.Members();
 
 			// For debugging
@@ -111,76 +280,37 @@ namespace UE::PixelStreaming
 			// }
 
 			// Find relevant FStatsSink
-			FStatsSink* StatsSink = nullptr;
-			FString Rid;
+			FString Ssrc;
 
-			if (StatsType == "outbound-rtp")
+			if (FStatsSink* StatsSink = FindSink(StatsType, StatMembers, Ssrc))
 			{
-				// Extract the `rid`
+				const bool bSimulcastStat = Ssrc.Contains(TEXT("Simulcast"), ESearchCase::IgnoreCase, ESearchDir::FromStart);
+				const FString Id = bSimulcastStat ? Ssrc : AssociatedPlayerId;
+
 				for (const webrtc::RTCStatsMemberInterface* StatMember : StatMembers)
 				{
-					FString StatName = FString(StatMember->name());
-					if (StatName == "rid")
-					{
+					const FName StatName = FName(StatMember->name());
 
-						Rid = StatMember->is_defined() ? ToString(StatMember->ValueToString()) : TEXT("");
-						if (!StreamStatsSinks.Contains(Rid))
+					// Check if the stat is a stat we use for calculation, if so, extract the value and store it
+					if (FMonitoredStat* MonitoredStat = StatsSink->GetMonitoredStat(StatName))
+					{
+						ExtractValueAndSet(StatMember, &MonitoredStat->LatestStat);
+					}
+					else if (FStatData* StatToEmit = StatsSink->Get(StatName))
+					{
+						if (ExtractValueAndSet(StatMember, StatToEmit))
 						{
-							StreamStatsSinks.Add(Rid, FStreamStatsSink(Rid));
+							PSStats->StorePeerStat(Id, *StatToEmit);
 						}
-						StatsSink = StreamStatsSinks.Find(Rid);
-						break;
 					}
 				}
+
+				PostDeliverCalculateStats(PSStats);
 			}
-			else
-			{
-				StatsSink = StatSinks.Find(StatsType);
-			}
-
-			if (!StatsSink)
-			{
-				continue;
-			}
-
-			bool bSimulcastStat = Rid.Contains(TEXT("Simulcast"), ESearchCase::IgnoreCase, ESearchDir::FromStart);
-			FString Id = bSimulcastStat ? Rid : AssociatedPlayerId;
-
-			for (const webrtc::RTCStatsMemberInterface* StatMember : StatMembers)
-			{
-				FName StatName = FName(StatMember->name());
-
-				// Check if the stat is a stat we use for calculation, if so, extract the value and store it
-				FCalculatedStat* CalcStat = StatsSink->GetCalcStat(StatName);
-				if (CalcStat)
-				{
-					ExtractValueAndSet(StatMember, &CalcStat->LatestStat);
-					continue;
-				}
-
-				// Check if stat is a stat we emit immediately, if so, extract the value and emit it
-				FStatData* StatToEmit = StatsSink->Get(StatName);
-				if (StatToEmit)
-				{
-					const bool bZeroInitially = StatToEmit->StatValue == 0.0;
-					ExtractValueAndSet(StatMember, StatToEmit);
-					const bool bZeroStill = StatToEmit->StatValue == 0.0;
-
-					// Don't bother emitting a zero value
-					if (!bZeroInitially && !bZeroStill)
-					{
-						PSStats->StorePeerStat(Id, *StatToEmit);
-					}
-
-					continue;
-				}
-			}
-
-			CalculateStats(PSStats);
 		}
 	}
 
-	void FRTCStatsCollector::CalculateStats(FStats* PSStats)
+	void FRTCStatsCollector::PostDeliverCalculateStats(FStats* PSStats)
 	{
 		uint64 CyclesNow = FPlatformTime::Cycles64();
 		double SecondsDelta = FGenericPlatformTime::ToSeconds64(CyclesNow - LastCalculationCycles);
@@ -191,75 +321,23 @@ namespace UE::PixelStreaming
 			return;
 		}
 
-		// This will bring the calculations into a 1 second window
-		double PerSecondRatio = 1.0 / SecondsDelta;
-		double FramesSentPerSecond = 0.0;
-		double EncodedFramesPerSecond = 0.0;
-
 		// Calculate stats based on each of the stream stats sinks
-
 		for (auto& Entry : StreamStatsSinks)
 		{
-			FString& Rid = Entry.Key;
+			const FString& Ssrc = Entry.Key;
+			const bool bSimulcastStat = Ssrc.Contains(TEXT("Simulcast"), ESearchCase::IgnoreCase, ESearchDir::FromStart);
+			const FString Id = bSimulcastStat ? Ssrc : AssociatedPlayerId;
 			FStatsSink& StreamSink = Entry.Value;
-			bool bSimulcastStat = Rid.Contains(TEXT("Simulcast"), ESearchCase::IgnoreCase, ESearchDir::FromStart);
-			FString Id = bSimulcastStat ? Rid : AssociatedPlayerId;
 
-			// --------- FrameSent Per Second -----------
-			FCalculatedStat* FramesSentStat = StreamSink.GetCalcStat(PixelStreamingStatNames::FramesSent);
-			if (FramesSentStat && FramesSentStat->LatestStat.StatValue > 0)
+			for (auto& Calculator : StreamSink.Calculators)
 			{
-				FramesSentPerSecond = FramesSentStat->CalculateDelta(PerSecondRatio);
-				PSStats->StorePeerStat(Id, FStatData(PixelStreamingStatNames::FramesSentPerSecond, FramesSentPerSecond, 0));
-			}
-
-			// --------- BytesSent Per Second -----------
-			FCalculatedStat* BytesSentStat = StreamSink.GetCalcStat(PixelStreamingStatNames::BytesSent);
-			if (BytesSentStat && BytesSentStat->LatestStat.StatValue > 0)
-			{
-				double BytesSentPerSecond = BytesSentStat->CalculateDelta(PerSecondRatio);
-				double MegabitsPerSecond = BytesSentPerSecond / 1000.0 * 8.0;
-				FName StatName = PixelStreamingStatNames::Bitrate;
-				PSStats->StorePeerStat(Id, FStatData(StatName, MegabitsPerSecond, 0));
-			}
-
-			// ------------- Encoded fps -------------
-			FCalculatedStat* EncodedFramesStat = StreamSink.GetCalcStat(PixelStreamingStatNames::FramesEncoded);
-			if (EncodedFramesStat && EncodedFramesStat->LatestStat.StatValue > 0)
-			{
-				EncodedFramesPerSecond = EncodedFramesStat->CalculateDelta(PerSecondRatio);
-				FName StatName = PixelStreamingStatNames::EncodedFramesPerSecond;
-				PSStats->StorePeerStat(Id, FStatData(StatName, EncodedFramesPerSecond, 0));
-			}
-
-			// ------------- Avg QP Per Second -------------
-			FCalculatedStat* QPSumStat = StreamSink.GetCalcStat(PixelStreamingStatNames::QPSum);
-			if (QPSumStat && QPSumStat->LatestStat.StatValue > 0 && EncodedFramesPerSecond > 0.0)
-			{
-				double QPSumDeltaPerSecond = QPSumStat->CalculateDelta(PerSecondRatio);
-				double MeanQPPerFrame = QPSumDeltaPerSecond / EncodedFramesPerSecond;
-				FName StatName = PixelStreamingStatNames::MeanQPPerSecond;
-				PSStats->StorePeerStat(Id, FStatData(StatName, MeanQPPerFrame, 0));
-			}
-
-			// ------------- Mean EncodeTime (ms) Per Frame -------------
-			FCalculatedStat* TotalEncodeTimeStat = StreamSink.GetCalcStat(PixelStreamingStatNames::TotalEncodeTime);
-			if (TotalEncodeTimeStat && TotalEncodeTimeStat->LatestStat.StatValue > 0 && EncodedFramesPerSecond > 0.0)
-			{
-				double TotalEncodeTimePerSecond = TotalEncodeTimeStat->CalculateDelta(PerSecondRatio);
-				double MeanEncodeTimePerFrameMs = TotalEncodeTimePerSecond / EncodedFramesPerSecond * 1000.0;
-				FName StatName = PixelStreamingStatNames::MeanEncodeTime;
-				PSStats->StorePeerStat(Id, FStatData(StatName, MeanEncodeTimePerFrameMs, 2));
-			}
-
-			// ------------- Mean SendDelay (ms) Per Frame -------------
-			FCalculatedStat* TotalSendDelayStat = StreamSink.GetCalcStat(PixelStreamingStatNames::TotalPacketSendDelay);
-			if (TotalSendDelayStat && TotalSendDelayStat->LatestStat.StatValue > 0 && FramesSentPerSecond > 0)
-			{
-				double TotalSendDelayPerSecond = TotalSendDelayStat->CalculateDelta(PerSecondRatio);
-				double MeanSendDelayPerFrameMs = TotalSendDelayPerSecond / FramesSentPerSecond * 1000.0;
-				FName StatName = PixelStreamingStatNames::MeanSendDelay;
-				PSStats->StorePeerStat(Id, FStatData(StatName, MeanSendDelayPerFrameMs, 2));
+				TOptional<FStatData> OptStatData = Calculator(StreamSink, SecondsDelta);
+				if (OptStatData.IsSet())
+				{
+					FStatData& StatData = *OptStatData;
+					StreamSink.CalculatedStats.Add(StatData.StatName, StatData);
+					PSStats->StorePeerStat(Id, StatData);
+				}
 			}
 		}
 

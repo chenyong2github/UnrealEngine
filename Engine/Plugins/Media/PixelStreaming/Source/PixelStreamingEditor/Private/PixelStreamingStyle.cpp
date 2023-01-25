@@ -65,7 +65,7 @@ namespace UE::EditorPixelStreaming
         }
     }
     
-    const ISlateStyle& FPixelStreamingStyle::Get()
+    FSlateStyleSet& FPixelStreamingStyle::Get()
     {
         return *StyleInstance;
     }

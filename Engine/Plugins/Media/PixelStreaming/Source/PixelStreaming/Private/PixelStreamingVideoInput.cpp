@@ -3,6 +3,8 @@
 #include "PixelStreamingVideoInput.h"
 #include "Settings.h"
 #include "FrameBufferMultiFormat.h"
+#include "PixelCaptureBufferFormat.h"
+#include "PixelStreamingTrace.h"
 
 FPixelStreamingVideoInput::FPixelStreamingVideoInput()
 {
@@ -17,6 +19,7 @@ void FPixelStreamingVideoInput::AddOutputFormat(int32 Format)
 
 void FPixelStreamingVideoInput::OnFrame(const IPixelCaptureInputFrame& InputFrame)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR("PixelStreaming Video Input Frame", PixelStreamingChannel);
 	if (LastFrameWidth != -1 && LastFrameHeight != -1)
 	{
 		if (InputFrame.GetWidth() != LastFrameWidth || InputFrame.GetHeight() != LastFrameHeight)

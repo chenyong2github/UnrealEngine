@@ -65,21 +65,16 @@ namespace UnrealBuildTool.Rules
 				"ApplicationCore",
 				"InputDevice",
 				"WebRTC",
-				"PixelCapture"
+				"PixelCapture",
+				"PixelStreamingInput"
 			});
 
 			// NOTE: General rule is not to access the private folder of another module
 			PrivateIncludePaths.AddRange(new string[]
 			{
-				System.IO.Path.Combine(GetModuleDirectory("AudioMixer"), "Private"),
-				System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
+				Path.Combine(GetModuleDirectory("AudioMixer"), "Private"),
+				Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 			});
-
-			// WebRTC third party includes (just libyuv for colour format conversions for now)
-			PublicIncludePaths.AddRange(new string[]
-				{
-					Path.Combine(EngineDir, "Source/ThirdParty/WebRTC/4147/Include/third_party/libyuv/include"),
-				});
 
 			PrivateDependencyModuleNames.AddRange(new string[]
 			{
@@ -101,10 +96,15 @@ namespace UnrealBuildTool.Rules
 				"Sockets",
 				"MediaUtils",
 				"DeveloperSettings",
-				"AVEncoder",
+				"AVCodecsCore",
+				"AVCodecsCoreRHI",
 				"PixelCaptureShaders",
 				"PixelStreamingServers",
+				"PixelStreamingHMD",
+				"TraceLog",
 			});
+
+			PrivateDefinitions.Add("PIXELSTREAMING_DUMP_ENCODING=0");
 
 			PrivateDependencyModuleNames.Add("VulkanRHI");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan", "CUDA");

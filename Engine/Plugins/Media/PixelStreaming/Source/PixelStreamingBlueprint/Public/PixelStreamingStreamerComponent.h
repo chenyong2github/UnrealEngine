@@ -5,7 +5,7 @@
 #include "IPixelStreamingStreamer.h"
 #include "PixelStreamingPlayerId.h"
 #include "Components/ActorComponent.h"
-#include "PixelStreamingStreamerInput.h"
+#include "PixelStreamingStreamerVideoInput.h"
 #include "PixelStreamingStreamerComponent.generated.h"
 
 UCLASS(BlueprintType, Blueprintable, Category = "PixelStreaming", META = (DisplayName = "Streamer Component", BlueprintSpawnableComponent))
@@ -63,7 +63,7 @@ public:
 	bool CoupleFramerate = false;
 
 	UPROPERTY(EditAnywhere, Category = "PixelStreaming")
-	TObjectPtr<UPixelStreamingStreamerInput> StreamerInput = nullptr;
+	TObjectPtr<UPixelStreamingStreamerVideoInput> VideoInput = nullptr;
 
 private:
 	TSharedPtr<IPixelStreamingStreamer> Streamer;

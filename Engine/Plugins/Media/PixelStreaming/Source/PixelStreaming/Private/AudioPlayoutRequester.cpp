@@ -6,6 +6,7 @@
 #include "HAL/RunnableThread.h"
 #include "HAL/PlatformProcess.h"
 #include "WebRTCIncludes.h"
+#include "PixelStreamingTrace.h"
 
 namespace UE::PixelStreaming
 {
@@ -145,8 +146,11 @@ namespace UE::PixelStreaming
 			// Update request time to now seeing as the 10ms delta has elapsed
 			LastAudioRequestTimeMs = Now;
 
-			// Actually request playout
-			RequestPlayoutFunc();
+			{
+				// Actually request playout
+				TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR("PixelStreaming FAudioPlayoutRequester::Run RequestPlayoutFunc", PixelStreamingChannel);
+				RequestPlayoutFunc();
+			}
 		}
 
 		return 0;

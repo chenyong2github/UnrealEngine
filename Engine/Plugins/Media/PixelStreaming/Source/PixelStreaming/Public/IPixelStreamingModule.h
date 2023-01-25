@@ -9,19 +9,17 @@
 #include "Templates/RefCounting.h"
 #include "PixelStreamingPlayerId.h"
 #include "IPixelStreamingAudioSink.h"
-#include "IPixelStreamingInputHandler.h"
 #include "PixelStreamingWebRTCIncludes.h"
 #include "IPixelStreamingStreamer.h"
-#include "IInputDeviceModule.h"
 #include "PixelStreamingCodec.h"
-#include "PixelStreamingProtocol.h"
+#include "PixelStreamingInputProtocol.h"
 
 class UPixelStreamingInput;
 
 /**
  * The public interface of the Pixel Streaming module.
  */
-class PIXELSTREAMING_API IPixelStreamingModule : public IInputDeviceModule
+class PIXELSTREAMING_API IPixelStreamingModule : public IModuleInterface
 {
 public:
 	/**
@@ -110,30 +108,34 @@ public:
 	virtual TSharedPtr<IPixelStreamingStreamer> DeleteStreamer(const FString& StreamerId) = 0;
 
 	/**
-	 * Get the protocol currently used by each peer. 
+	 * Get the protocol currently used by each peer.
 	 */
-	virtual const Protocol::FPixelStreamingProtocol& GetProtocol() = 0;
+	UE_DEPRECATED(5.2, "GetProtocol() is deprecated. Simply access the required direction with FPixelStreamingInputProtocol::ToStreamerProcol or FPixelStreamingInputProtocol::FromStreamerProcol")
+	virtual const FPixelStreamingInputProtocol GetProtocol() = 0;
 
 	/**
-	 * Register a new message type that peers can send and pixel streaming can receive
+	 * @brief Register a new message that peers can send and pixel streaming can receive
+	 *
 	 * @param MessageDirection The direction the message will travel. eg Streamer->Player or Player->Streamer
 	 * @param MessageType The human readable identifier (eg "TouchStarted")
 	 * @param Message The object used to define the structure of the message
-	 * @param Handler The handler for this message type. This function will be executed whenever the corresponding message type is received 
+	 * @param Handler The handler for this message. This function will be executed whenever the corresponding message is received
 	 */
-	virtual void RegisterMessage(Protocol::EPixelStreamingMessageDirection MessageDirection, const FString& MessageType, Protocol::FPixelStreamingInputMessage Message, const TFunction<void(FMemoryReader)>& Handler) = 0;
+	UE_DEPRECATED(5.2, "RegisterMessage(...) has been moved from the PixelStreaming module to the PixelStreamingInput module")
+	virtual void RegisterMessage(EPixelStreamingMessageDirection MessageDirection, const FString& MessageType, FPixelStreamingInputMessage Message, const TFunction<void(FMemoryReader)>& Handler) = 0;
 
 	/**
-	 * @brief Find the function to be called whenever the specified message type is received.
-	 * 
+	 * @brief Find the function to be called whenever the specified message is received.
+	 *
 	 * @param MessageType The human readable identifier for the message
-	 * @return TFunction<void(FMemoryReader)> The function called when this message type is received.
+	 * @return TFunction<void(FMemoryReader)> The function called when this message is received.
 	 */
+	UE_DEPRECATED(5.2, "FindMessageHandler(...) has been moved from the PixelStreaming module to the PixelStreamingInput module")
 	virtual TFunction<void(FMemoryReader)> FindMessageHandler(const FString& MessageType) = 0;
 
 	/**
 	 * Sets the target FPS for Externally Consumed video Tracks
-	 * @param InFPS new FPS for the ExternalVideoSource to output at. 
+	 * @param InFPS new FPS for the ExternalVideoSource to output at.
 	 */
 	virtual void SetExternalVideoSourceFPS(uint32 InFPS) = 0;
 
@@ -185,11 +187,8 @@ public:
 
 	/**
 	 * @brief A method for iterating through all of the streamers on the module
-	 * 
+	 *
 	 * @param Func The lambda to execute with each streamer
 	 */
 	virtual void ForEachStreamer(const TFunction<void(TSharedPtr<IPixelStreamingStreamer>)>& Func) = 0;
-
-	DECLARE_MULTICAST_DELEGATE(FOnProtocolUpdated);
-	FOnProtocolUpdated OnProtocolUpdated;
 };

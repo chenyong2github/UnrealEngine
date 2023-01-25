@@ -14,11 +14,15 @@ namespace UnrealBuildTool.Rules
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
 			// This is so for game projects using our public headers don't have to include extra modules they might not know about.
-			PublicDependencyModuleNames.AddRange(new string[] {});
+			PublicDependencyModuleNames.AddRange(new string[] {
+				"RHI",
+			});
 
+			
 			// NOTE: General rule is not to access the private folder of another module
+			string WebRtcIncludeDir = Path.Combine(EngineDir, "Source/ThirdParty/WebRTC/4664/Include");
 			PrivateIncludePaths.AddRange(new string[] {
-				Path.Combine(EngineDir, "Source/ThirdParty/WebRTC/4147/Include/third_party/libyuv/include"),
+				Path.Combine(WebRtcIncludeDir, "third_party/libyuv/include"),
 				Path.Combine(EngineDir, "Source/Runtime/Renderer/Private"),
 			});
 
@@ -28,12 +32,8 @@ namespace UnrealBuildTool.Rules
 				"PixelCaptureShaders",
 				"RenderCore",
 				"Renderer",
-				"RHI",
 				"WebRTC",
 			});
-
-			// required for casting UE4 BackBuffer to Vulkan Texture2D for NvEnc
-			PrivateDependencyModuleNames.AddRange(new string[] {});
 		}
 	}
 }

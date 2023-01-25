@@ -9,11 +9,13 @@
 #include "Editor/EditorPerformanceSettings.h"
 #include "IPixelStreamingInputHandler.h"
 #include "IPixelStreamingModule.h"
+#include "IPixelStreamingInputModule.h"
 #include "Modules/ModuleManager.h"
 #include "Math/Matrix.h"
 #include "PixelStreamingEditorModule.h"
 #include "PixelStreamingVCamLog.h"
-#include "PixelStreamingProtocol.h"
+#include "PixelStreamingInputProtocol.h"
+#include "PixelStreamingInputMessage.h"
 #include "PixelStreamingServers.h"
 #include "Serialization/MemoryReader.h"
 #include "VCamComponent.h"
@@ -21,11 +23,12 @@
 #include "VCamPixelStreamingLiveLink.h"
 #include "VPFullScreenUserWidget.h"
 #include "Widgets/SVirtualWindow.h"
+#include "PixelStreamingInputEnums.h"
 
 namespace UE::VCamPixelStreamingSession::Private
 {
 	static const FSoftClassPath EmptyUMGSoftClassPath(TEXT("/VCamCore/Assets/VCam_EmptyVisibleUMG.VCam_EmptyVisibleUMG_C"));
-} // namespace VCamPixelStreamingSession
+} // namespace UE::VCamPixelStreamingSession::Private
 
 void UVCamPixelStreamingSession::Initialize()
 {
@@ -103,14 +106,13 @@ void UVCamPixelStreamingSession::Activate()
 	int32 StreamerPort = FPixelStreamingEditorModule::GetModule()->GetStreamerPort();
 	MediaOutput->SetSignallingServerURL(FString::Printf(TEXT("%s:%s"), *SignallingDomain, *FString::FromInt(StreamerPort)));
 	UE_LOG(LogPixelStreamingVCam, Log, TEXT("Activating PixelStreaming VCam Session. Endpoint: %s:%s"), *SignallingDomain, *FString::FromInt(StreamerPort));
-	
 }
 
 void UVCamPixelStreamingSession::SetupCapture()
 {
 	UE_LOG(LogPixelStreamingVCam, Log, TEXT("Create new media capture for Pixel Streaming VCam."));
 
-	if(MediaCapture)
+	if (MediaCapture)
 	{
 		MediaCapture->OnStateChangedNative.RemoveAll(this);
 	}
@@ -123,7 +125,7 @@ void UVCamPixelStreamingSession::SetupCapture()
 
 void UVCamPixelStreamingSession::OnCaptureStateChanged()
 {
-	if(!MediaCapture || !MediaOutput)
+	if (!MediaCapture || !MediaOutput)
 	{
 		return;
 	}
@@ -135,7 +137,7 @@ void UVCamPixelStreamingSession::OnCaptureStateChanged()
 			MediaOutput->StartStreaming();
 			break;
 		case EMediaCaptureState::Stopped:
-			if(MediaCapture->WasViewportResized())
+			if (MediaCapture->WasViewportResized())
 			{
 				UE_LOG(LogPixelStreamingVCam, Log, TEXT("Pixel Streaming VCam capture was stopped due to resize, going to restart capture."));
 				// If it was stopped and viewport resized we assume resize caused the stop, so try a restart of capture here.
@@ -209,30 +211,24 @@ void UVCamPixelStreamingSession::SetupCustomInputHandling()
 		UE_LOG(LogPixelStreamingVCam, Log, TEXT("InputChannel callback - Routing input to active viewport"));
 	}
 
-	if(MediaOutput)
+	if (MediaOutput)
 	{
-		IPixelStreamingModule& PixelStreamingModule = IPixelStreamingModule::Get();
-		typedef Protocol::EPixelStreamingMessageTypes EType;		
-		Protocol::EPixelStreamingMessageDirection MessageDirection = Protocol::EPixelStreamingMessageDirection::ToStreamer;
-		TMap<FString, Protocol::FPixelStreamingInputMessage> Protocol = PixelStreamingModule.GetProtocol().ToStreamerProtocol;
+		IPixelStreamingInputModule& PixelStreamingInputModule = IPixelStreamingInputModule::Get();
+		typedef EPixelStreamingMessageTypes EType;
+		EPixelStreamingMessageDirection MessageDirection = EPixelStreamingMessageDirection::ToStreamer;
+		TMap<FString, FPixelStreamingInputMessage> Protocol = FPixelStreamingInputProtocol::ToStreamerProtocol;
 		/*
-		* ====================
-		* ARKit Transform
-		* ====================
-		*/
-		Protocol::FPixelStreamingInputMessage ARKitMessage = Protocol::FPixelStreamingInputMessage(100, 72, {
-			// 4x4 Transform
-			EType::Float, EType::Float, EType::Float, EType::Float,
-			EType::Float, EType::Float, EType::Float, EType::Float,
-			EType::Float, EType::Float, EType::Float, EType::Float,
-			EType::Float, EType::Float, EType::Float, EType::Float,
-			// Timestamp
-			EType::Double
-		});
-		
-		const TFunction<void(FMemoryReader)>& ARKitHandler = [this](FMemoryReader Ar) { 
+		 * ====================
+		 * ARKit Transform
+		 * ====================
+		 */
+		FPixelStreamingInputMessage ARKitMessage = FPixelStreamingInputMessage(100, { // 4x4 Transform
+																						EType::Float, EType::Float, EType::Float, EType::Float, EType::Float, EType::Float, EType::Float, EType::Float, EType::Float, EType::Float, EType::Float, EType::Float, EType::Float, EType::Float, EType::Float, EType::Float,
+																						// Timestamp
+																						EType::Double });
 
-			if(!EnableARKitTracking)
+		const TFunction<void(FMemoryReader)>& ARKitHandler = [this](FMemoryReader Ar) {
+			if (!EnableARKitTracking)
 			{
 				return;
 			}
@@ -254,12 +250,12 @@ void UVCamPixelStreamingSession::SetupCustomInputHandling()
 			double Timestamp;
 			Ar << Timestamp;
 
-			if(TSharedPtr<FPixelStreamingLiveLinkSource> LiveLinkSource = UVCamPixelStreamingSubsystem::Get()->TryGetLiveLinkSource(this))
+			if (TSharedPtr<FPixelStreamingLiveLinkSource> LiveLinkSource = UVCamPixelStreamingSubsystem::Get()->TryGetLiveLinkSource(this))
 			{
 				LiveLinkSource->PushTransformForSubject(GetFName(), FTransform(ARKitMatrix), Timestamp);
 			}
 		};
-		PixelStreamingModule.RegisterMessage(MessageDirection, "ARKitTransform", ARKitMessage, ARKitHandler);
+		PixelStreamingInputModule.RegisterMessage(MessageDirection, "ARKitTransform", ARKitMessage, ARKitHandler);
 	}
 	else
 	{
@@ -269,7 +265,7 @@ void UVCamPixelStreamingSession::SetupCustomInputHandling()
 
 void UVCamPixelStreamingSession::StartCapture()
 {
-	if(!MediaCapture)
+	if (!MediaCapture)
 	{
 		return;
 	}

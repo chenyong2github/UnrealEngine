@@ -4,6 +4,7 @@
 #include "VideoSource.h"
 #include "Settings.h"
 #include "PixelStreamingPrivate.h"
+#include "PixelStreamingTrace.h"
 
 namespace UE::PixelStreaming
 {
@@ -13,7 +14,7 @@ namespace UE::PixelStreaming
 	}
 
 	FVideoSourceGroup::FVideoSourceGroup()
-		: bCoupleFramerate(Settings::CoupleFrameRate() || !Settings::IsUsingSafeTextureCopy())
+		: bCoupleFramerate(Settings::IsCoupledFramerate() || !Settings::CVarPixelStreamingCaptureUseFence.GetValueOnAnyThread()) /* Only couple framerate if not using fence */
 		, FramesPerSecond(Settings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread())
 	{
 	}
@@ -107,6 +108,7 @@ namespace UE::PixelStreaming
 
 	void FVideoSourceGroup::Tick()
 	{
+	    TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR("PixelStreaming Video Source Group Tick", PixelStreamingChannel);
 		FScopeLock Lock(&CriticalSection);
 		// for each player session, push a frame
 		for (auto& VideoSource : VideoSources)

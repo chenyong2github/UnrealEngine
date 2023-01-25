@@ -7,96 +7,33 @@
 #include "Engine/EngineTypes.h"
 #include "PixelStreamingPlayerId.h"
 #include "IPixelStreamingSignallingConnectionObserver.h"
+#include "IPixelStreamingSignallingConnection.h"
 
 class IWebSocket;
 
 /**
- * A specialized signalling server connection object for Pixel Streaming signalling servers.
+ * A specialized signalling server connection object for web socket based Pixel Streaming signalling servers.
  */
-class PIXELSTREAMING_API FPixelStreamingSignallingConnection final
+class PIXELSTREAMING_API FPixelStreamingSignallingConnection : public IPixelStreamingSignallingConnection
 {
 public:
-	using FWebSocketFactory = TFunction<TSharedPtr<IWebSocket>(const FString&)>;
+	FPixelStreamingSignallingConnection(TSharedPtr<IPixelStreamingSignallingConnectionObserver> InObserver, FString InStreamerId = "");
+	virtual ~FPixelStreamingSignallingConnection();
 
-	FPixelStreamingSignallingConnection(const FWebSocketFactory& InWebSocketFactory, IPixelStreamingSignallingConnectionObserver& Observer, FString InStreamerId = "");
-	~FPixelStreamingSignallingConnection();
-
-	/**
-	 * Connect to a specified signalling server at ths given URL
-	 * @param URL The url of the destination signalling server.
-	 */
-	void TryConnect(FString URL);
-
-	/**
-	 * Disconnects from the signalling server. Safe to call even when not connected.
-	 */
-	void Disconnect();
-
-	/**
-	 * Checks if the connection is established.
-	 * @returns True when the signalling server is connected.
-	 */
-	bool IsConnected() const;
-
-	/**
-	 * [Streamer only] Sends an offer to the specified player.
-	 * @param PlayerId The Id of the destination player.
-	 * @param SDP The offer session description for the player.
-	 */
-	void SendOffer(FPixelStreamingPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP);
-
-	/**
-	 * [Streamer only] Sends an answer to the specified player.
-	 * @param PlayerId The Id of the destination player.
-	 * @param SDP The answer session description for the player.
-	 */
-	void SendAnswer(FPixelStreamingPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP);
-
-	/**
-	 * [Streamer only] Sends ice candidate information to the specified player.
-	 * @param PlayerId The Id of the destination player.
-	 * @param IceCandidate The ice candidate information to send.
-	 */
-	void SendIceCandidate(FPixelStreamingPlayerId PlayerId, const webrtc::IceCandidateInterface& IceCandidate);
-
-	/**
-	 * [Streamer only] Send a disconnect message to the specified player.
-	 * @param PlayerId The Id of the destination player.
-	 * @param Reason An optional reason for the disconnection.
-	 */
-	void SendDisconnectPlayer(FPixelStreamingPlayerId PlayerId, const FString& Reason);
-
-	/**
-	 * [Player only] Sends an offer to the streamer.
-	 * @param SDP The local description offer.
-	 */
-	void SendOffer(const webrtc::SessionDescriptionInterface& SDP);
-
-	/**
-	 * [Player only] Sends an answer back to the streamer after receiving an offer.
-	 * @param SDP The local description answer.
-	 */
-	void SendAnswer(const webrtc::SessionDescriptionInterface& SDP);
-
-	/**
-	 * [Player only] Sends ICE candidate information to the streamer.
-	 * @param IceCandidate The ICE candidate information.
-	 */
-	void SendIceCandidate(const webrtc::IceCandidateInterface& IceCandidate);
-
-	/**
-	 * Enables or disables the keep alive pings on this connection. Receiving connections
-	 * should disable the keep alive since the reference signalling server will reject
-	 * pings from players and close the connection.
-	 * @param bKeepAlive True to enable keep alive pings. False to disable.
-	 */
-	void SetKeepAlive(bool bKeepAlive);
-
-	/**
-	 * Toggles automatic reconnecting when websocket is closed or unreachable.
-	 * @param bAutoReconnect True to enable auto reconnect. False to disable.
-	 */
-	void SetAutoReconnect(bool bAutoReconnect);
+	/* IPixelStreamingSignallingConnection Interface */
+	virtual void TryConnect(FString URL) override;
+	virtual void Disconnect() override;
+	virtual bool IsConnected() const override;
+	virtual void SendOffer(FPixelStreamingPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP) override;
+	virtual void SendAnswer(FPixelStreamingPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP) override;
+	virtual void SendIceCandidate(FPixelStreamingPlayerId PlayerId, const webrtc::IceCandidateInterface& IceCandidate) override;
+	virtual void SendDisconnectPlayer(FPixelStreamingPlayerId PlayerId, const FString& Reason) override;
+	virtual void SendOffer(const webrtc::SessionDescriptionInterface& SDP) override;
+	virtual void SendAnswer(const webrtc::SessionDescriptionInterface& SDP) override;
+	virtual void SendIceCandidate(const webrtc::IceCandidateInterface& IceCandidate) override;
+	virtual void SetKeepAlive(bool bKeepAlive) override;
+	virtual void SetAutoReconnect(bool bAutoReconnect) override;
+	virtual void SendMessage(const FString& Msg) override;
 
 private:
 	void Connect(FString Url, bool bIsReconnect);
@@ -130,8 +67,6 @@ private:
 	void StartReconnectTimer();
 	void StopReconnectTimer();
 
-	void SendMessage(const FString& Msg);
-
 	template <typename FmtType, typename... T>
 	void PlayerError(FPixelStreamingPlayerId PlayerId, const FmtType& Msg, T... args)
 	{
@@ -141,8 +76,7 @@ private:
 	void PlayerError(FPixelStreamingPlayerId PlayerId, const FString& Msg);
 
 private:
-	FWebSocketFactory WebSocketFactory;
-	IPixelStreamingSignallingConnectionObserver& Observer;
+	TSharedPtr<IPixelStreamingSignallingConnectionObserver> Observer;
 	FString StreamerId;
 	FString Url;
 

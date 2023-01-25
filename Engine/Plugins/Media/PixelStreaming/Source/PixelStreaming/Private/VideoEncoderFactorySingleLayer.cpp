@@ -2,43 +2,36 @@
 
 #include "VideoEncoderFactorySingleLayer.h"
 #include "absl/strings/match.h"
-#include "VideoEncoderSingleLayerH264.h"
+#include "VideoEncoderSingleLayerHardware.h"
 #include "VideoEncoderSingleLayerVPX.h"
 #include "Settings.h"
-#include "VideoEncoderFactory.h"
 #include "PixelStreamingPrivate.h"
 #include "Utils.h"
+#include "Stats.h"
 
-namespace
+namespace UE::PixelStreaming
 {
-	// the list of each individual codec we have encoder support for
-	const TArray<EPixelStreamingCodec> SupportedCodecList{ EPixelStreamingCodec::H264, EPixelStreamingCodec::VP8, EPixelStreamingCodec::VP9 };
+	// the list of each individual codec we have encoder support for (order of this array is preference order after selected codec)
+	const TArray<EPixelStreamingCodec> SupportedEncoderCodecList{ EPixelStreamingCodec::VP8, EPixelStreamingCodec::VP9, EPixelStreamingCodec::H264, EPixelStreamingCodec::H265 };
 
 	// mapping of codec to a list of video formats
 	// done this way so we can order the list of formats based on selected codec in GetSupportedFormats
-	TMap<EPixelStreamingCodec, std::vector<webrtc::SdpVideoFormat>> CreateSupportedFormatMap()
+	TMap<EPixelStreamingCodec, std::vector<webrtc::SdpVideoFormat>> CreateSupportedEncoderFormatMap()
 	{
 		TMap<EPixelStreamingCodec, std::vector<webrtc::SdpVideoFormat>> Codecs;
-		for (auto& Codec : SupportedCodecList)
+		for (auto& Codec : SupportedEncoderCodecList)
 		{
 			Codecs.Add(Codec);
 		}
 
 		Codecs[EPixelStreamingCodec::VP8].push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
 		Codecs[EPixelStreamingCodec::VP9].push_back(webrtc::SdpVideoFormat(cricket::kVp9CodecName));
-#if WEBRTC_VERSION == 84
-		Codecs[EPixelStreamingCodec::H264].push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264::kProfileConstrainedBaseline, webrtc::H264::kLevel3_1));
-		Codecs[EPixelStreamingCodec::H264].push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264::kProfileBaseline, webrtc::H264::kLevel3_1));
-#elif WEBRTC_VERSION == 96
 		Codecs[EPixelStreamingCodec::H264].push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264Profile::kProfileConstrainedBaseline, webrtc::H264Level::kLevel3_1));
 		Codecs[EPixelStreamingCodec::H264].push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264Profile::kProfileBaseline, webrtc::H264Level::kLevel3_1));
-#endif
+		Codecs[EPixelStreamingCodec::H265].push_back(webrtc::SdpVideoFormat(cricket::kH265CodecName));
+
 		return Codecs;
 	}
-} // namespace
-
-namespace UE::PixelStreaming
-{
 
 	// we want this method to return all the formats we have encoders for but the selected codecs formats should be first in the list.
 	// the reason for this is weird. when we receive video from another pixel streaming source, for some reason webrtc will query
@@ -48,7 +41,7 @@ namespace UE::PixelStreaming
 	{
 
 		// static so we dont create the list every time this is called since the list will not change during runtime.
-		static TMap<EPixelStreamingCodec, std::vector<webrtc::SdpVideoFormat>> CodecMap = CreateSupportedFormatMap();
+		static TMap<EPixelStreamingCodec, std::vector<webrtc::SdpVideoFormat>> CodecMap = CreateSupportedEncoderFormatMap();
 
 		// since this method is const we need to store this state statically. it means all instances will share this state
 		// but that actually works in our favor since we're describing more about the plugin state than the actual
@@ -56,7 +49,7 @@ namespace UE::PixelStreaming
 		static std::vector<webrtc::SdpVideoFormat> SupportedFormats;
 
 		// If we are not negotiating codecs simply return just the one codec that is selected in UE
-		if(!Settings::ShouldNegotiateCodecs())
+		if (!Settings::CVarPixelStreamingWebRTCNegotiateCodecs.GetValueOnAnyThread())
 		{
 			const EPixelStreamingCodec SelectedCodec = UE::PixelStreaming::Settings::GetSelectedCodec();
 			if (CodecMap.Contains(SelectedCodec))
@@ -85,7 +78,7 @@ namespace UE::PixelStreaming
 			// order the codecs so the selected is first
 			TArray<EPixelStreamingCodec> OrderedCodecList;
 			OrderedCodecList.Add(SelectedCodec);
-			for (auto& SupportedCodec : SupportedCodecList)
+			for (auto& SupportedCodec : SupportedEncoderCodecList)
 			{
 				if (SupportedCodec != SelectedCodec)
 				{
@@ -112,9 +105,6 @@ namespace UE::PixelStreaming
 	FVideoEncoderFactorySingleLayer::CodecInfo FVideoEncoderFactorySingleLayer::QueryVideoEncoder(const webrtc::SdpVideoFormat& format) const
 	{
 		webrtc::VideoEncoderFactory::CodecInfo CodecInfo;
-#if WEBRTC_VERSION == 84
-		CodecInfo.is_hardware_accelerated = true;
-#endif
 		CodecInfo.has_internal_source = false;
 		return CodecInfo;
 	}
@@ -123,104 +113,131 @@ namespace UE::PixelStreaming
 	{
 		if (absl::EqualsIgnoreCase(format.name, cricket::kVp8CodecName))
 		{
+			FStats::Get()->StoreApplicationStat(FStatData(FName(TEXT("Video Codec - VP8")), 1, 0));
 			return std::make_unique<FVideoEncoderSingleLayerVPX>(8);
 		}
 		else if (absl::EqualsIgnoreCase(format.name, cricket::kVp9CodecName))
 		{
+			FStats::Get()->StoreApplicationStat(FStatData(FName(TEXT("Video Codec - VP9")), 1, 0));
 			return std::make_unique<FVideoEncoderSingleLayerVPX>(9);
+		}
+		else if (absl::EqualsIgnoreCase(format.name, cricket::kH265CodecName))
+		{
+			FStats::Get()->StoreApplicationStat(FStatData(FName(TEXT("Video Codec - H265")), 1, 0));
+			FScopeLock Lock(&ActiveEncodersGuard);
+			auto VideoEncoder = std::make_unique<FVideoEncoderSingleLayerHardware>(*this, EPixelStreamingCodec::H265);
+			ActiveEncoders.Add(VideoEncoder.get());
+			return VideoEncoder;
 		}
 		else
 		{
 			// Lock during encoder creation
+			FStats::Get()->StoreApplicationStat(FStatData(FName(TEXT("Video Codec - H264")), 1, 0));
 			FScopeLock Lock(&ActiveEncodersGuard);
-			auto VideoEncoder = std::make_unique<FVideoEncoderSingleLayerH264>(*this);
+			auto VideoEncoder = std::make_unique<FVideoEncoderSingleLayerHardware>(*this, EPixelStreamingCodec::H264);
 			ActiveEncoders.Add(VideoEncoder.get());
 			return VideoEncoder;
 		}
 	}
 
-#if WEBRTC_VERSION == 84
-	void FVideoEncoderFactorySingleLayer::OnEncodedImage(const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info, const webrtc::RTPFragmentationHeader* fragmentation)
-#elif WEBRTC_VERSION == 96
 	void FVideoEncoderFactorySingleLayer::OnEncodedImage(const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info)
-#endif
 	{
 		// Lock as we send encoded image to each encoder.
 		FScopeLock Lock(&ActiveEncodersGuard);
 
-		// Go through each encoder and send our encoded image to its callback
-		for (FVideoEncoderSingleLayerH264* Encoder : ActiveEncoders)
+		if (codec_specific_info->codecType == webrtc::kVideoCodecH264 || codec_specific_info->codecType == webrtc::kVideoCodecH265)
 		{
-			Encoder->SendEncodedImage(encoded_image, codec_specific_info
-#if WEBRTC_VERSION == 84
-				,
-				fragmentation
-#endif
-			);
+			// Go through each encoder and send our encoded image to its callback
+			for (FVideoEncoderSingleLayerHardware* Encoder : ActiveEncoders)
+			{
+				Encoder->SendEncodedImage(encoded_image, codec_specific_info);
+			}
 		}
 	}
 
-	void FVideoEncoderFactorySingleLayer::ReleaseVideoEncoder(FVideoEncoderSingleLayerH264* Encoder)
+	void FVideoEncoderFactorySingleLayer::ReleaseVideoEncoder(FVideoEncoderSingleLayerHardware* Encoder)
 	{
 		// Lock during deleting an encoder
 		FScopeLock Lock(&ActiveEncodersGuard);
 		ActiveEncoders.Remove(Encoder);
 	}
 
-	FVideoEncoderWrapperHardware* FVideoEncoderFactorySingleLayer::GetOrCreateHardwareEncoder(int Width, int Height, int MaxBitrate, int TargetBitrate, int MaxFramerate)
+	TWeakPtr<TVideoEncoder<FVideoResourceRHI>> FVideoEncoderFactorySingleLayer::GetHardwareEncoder() const
+	{
+		return HardwareEncoder;
+	}
+
+	TWeakPtr<TVideoEncoder<FVideoResourceRHI>> FVideoEncoderFactorySingleLayer::GetOrCreateHardwareEncoder(const FVideoEncoderConfigH264& VideoConfig)
 	{
 		FScopeLock InitLock(&InitEncoderGuard);
 
-		if (HardwareEncoder != nullptr)
- 		{
-			return HardwareEncoder.Get();
+		if (HardwareEncoder.IsValid())
+		{
+			return HardwareEncoder;
 		}
 		else
 		{
-			// Make AVEncoder frame factory.
-			TUniquePtr<FEncoderFrameFactory> FrameFactory = MakeUnique<FEncoderFrameFactory>();
+			// Make the hardware encoder wrapper
+			HardwareEncoder = FVideoEncoder::Create<FVideoResourceRHI>(FAVDevice::GetHardwareDevice(), VideoConfig);
 
-			// Make the encoder config
-			AVEncoder::FVideoEncoder::FLayerConfig EncoderConfig;
-			EncoderConfig.Width = Width;
-			EncoderConfig.Height = Height;
-			EncoderConfig.MaxFramerate = MaxFramerate;
-			EncoderConfig.TargetBitrate = TargetBitrate;
-			EncoderConfig.MaxBitrate = MaxBitrate;
-
-			// Make the actual AVEncoder encoder.
-			const TArray<AVEncoder::FVideoEncoderInfo>& Available = AVEncoder::FVideoEncoderFactory::Get().GetAvailable();
-			TUniquePtr<AVEncoder::FVideoEncoder> Encoder = AVEncoder::FVideoEncoderFactory::Get().Create(Available[0].ID, FrameFactory->GetOrCreateVideoEncoderInput(), EncoderConfig);
-			if (Encoder.IsValid())
-			{
-				Encoder->SetOnEncodedPacket([this](uint32 InLayerIndex, const TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InFrame, const AVEncoder::FCodecPacket& InPacket) {
-					// Note: this is a static method call.
-					FVideoEncoderWrapperHardware::OnEncodedPacket(this, InLayerIndex, InFrame, InPacket);
-				});
-
-				// Make the hardware encoder wrapper
-				HardwareEncoder = MakeUnique<FVideoEncoderWrapperHardware>(MoveTemp(FrameFactory), MoveTemp(Encoder));
-				return HardwareEncoder.Get();
-			}
-			else
+			if (!HardwareEncoder.IsValid())
 			{
 				UE_LOG(LogPixelStreaming, Error, TEXT("Could not create encoder. Check encoder config or perhaps you used up all your HW encoders."));
 				// We could not make the encoder, so indicate the id was not set successfully.
 				return nullptr;
 			}
+
+			return HardwareEncoder;
 		}
 	}
 
-	FVideoEncoderWrapperHardware* FVideoEncoderFactorySingleLayer::GetHardwareEncoder()
+	TWeakPtr<TVideoEncoder<FVideoResourceRHI>> FVideoEncoderFactorySingleLayer::GetOrCreateHardwareEncoder(const FVideoEncoderConfigH265& VideoConfig)
 	{
-		return HardwareEncoder.Get();
+		FScopeLock InitLock(&InitEncoderGuard);
+
+		if (HardwareEncoder.IsValid())
+		{
+			return HardwareEncoder;
+		}
+		else
+		{
+			// Make the hardware encoder wrapper
+			HardwareEncoder = FVideoEncoder::Create<FVideoResourceRHI>(FAVDevice::GetHardwareDevice(), VideoConfig);
+
+			if (!HardwareEncoder.IsValid())
+			{
+				UE_LOG(LogPixelStreaming, Error, TEXT("Could not create encoder. Check encoder config or perhaps you used up all your HW encoders."));
+				// We could not make the encoder, so indicate the id was not set successfully.
+				return nullptr;
+			}
+
+			return HardwareEncoder;
+		}
 	}
 
 	void FVideoEncoderFactorySingleLayer::ForceKeyFrame()
 	{
 		if (HardwareEncoder)
 		{
-			HardwareEncoder->SetForceNextKeyframe();
+			bForceNextKeyframe = true;
+		}
+	}
+
+	bool FVideoEncoderFactorySingleLayer::ShouldForceKeyframe() const
+	{
+		if (HardwareEncoder)
+		{
+			return bForceNextKeyframe;
+		}
+
+		return false;
+	}
+
+	void FVideoEncoderFactorySingleLayer::UnforceKeyFrame()
+	{
+		if (HardwareEncoder)
+		{
+			bForceNextKeyframe = false;
 		}
 	}
 } // namespace UE::PixelStreaming

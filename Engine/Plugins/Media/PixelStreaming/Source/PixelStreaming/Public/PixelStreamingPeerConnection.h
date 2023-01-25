@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "PixelStreamingProtocol.h"
 #include "IPixelStreamingAudioSink.h"
 #include "IPixelStreamingAudioInput.h"
 #include "PixelStreamingWebRTCIncludes.h"
+#include "PixelStreamingCodec.h"
 
 class FPixelStreamingDataChannel;
 
@@ -191,6 +191,12 @@ public:
 	void SetWebRTCStatsCallback(rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> InCallback);
 
 	/**
+	 * @return The negotiated video codec as parsed from the SDP offer/answer.
+	 * Note: This changes as new offer/answers come in potentially.
+	 */
+	EPixelStreamingCodec GetNegotiatedVideoCodec() const;
+
+	/**
 	 * Called when the ICE candidate is emitted.
 	 */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnIceCandidate, const webrtc::IceCandidateInterface*);
@@ -225,7 +231,11 @@ public:
 	template <typename FunctorT>
 	static void PostSignalingTask(FunctorT&& InFunc)
 	{
-		SignallingThread->PostTask(RTC_FROM_HERE, Forward<FunctorT>(InFunc));
+		// Someone may accidentally call this static function without calling FPixelStreamingPeerConnection::Create first
+		if (SignallingThread != nullptr)
+		{
+			SignallingThread->PostTask(RTC_FROM_HERE, Forward<FunctorT>(InFunc));
+		}
 	}
 
 	static TSharedPtr<IPixelStreamingAudioInput> CreateAudioInput();
@@ -266,6 +276,9 @@ private:
 
 	rtc::VideoSinkInterface<webrtc::VideoFrame>* VideoSink = nullptr;
 	TSharedPtr<IPixelStreamingAudioSink> AudioSink;
+
+	/* The video codec that is negotiated and extracted from the SDP. */
+	EPixelStreamingCodec NegotiatedVideoCodec = EPixelStreamingCodec::Invalid;
 
 	// using unique_ptr here because TUniquePtr does not like incomplete types with -disableunity and -nopch
 	std::unique_ptr<class FPeerWebRTCStatsSource> StatsSource;

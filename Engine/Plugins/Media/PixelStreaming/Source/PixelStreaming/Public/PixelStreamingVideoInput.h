@@ -6,6 +6,7 @@
 #include "PixelCaptureCapturerMultiFormat.h"
 #include "Delegates/IDelegateInstance.h"
 #include "PixelStreamingWebRTCIncludes.h"
+#include "PixelCaptureBufferFormat.h"
 
 /**
  * The input of the Pixel Streaming system. Frames enter the system when OnFrame is called.

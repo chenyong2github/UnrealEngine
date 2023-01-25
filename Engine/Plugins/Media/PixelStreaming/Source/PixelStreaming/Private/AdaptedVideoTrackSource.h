@@ -94,14 +94,8 @@ namespace UE::PixelStreaming
 		void RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override {}
 
 		cricket::VideoAdapter video_adapter_;
-
-#if WEBRTC_VERSION == 84
-		rtc::CriticalSection stats_crit_;
-		absl::optional<Stats> stats_ RTC_GUARDED_BY(stats_crit_);
-#elif WEBRTC_VERSION == 96
 		webrtc::Mutex stats_mutex_;
 		absl::optional<Stats> stats_ RTC_GUARDED_BY(stats_mutex_);
-#endif
 
 		rtc::VideoBroadcaster broadcaster_;
 	};

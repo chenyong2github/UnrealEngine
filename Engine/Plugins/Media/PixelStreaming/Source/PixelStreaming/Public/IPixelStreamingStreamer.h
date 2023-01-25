@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "PixelStreamingProtocol.h"
 #include "PixelStreamingPlayerId.h"
 #include "PixelStreamingVideoInput.h"
 #include "CoreMinimal.h"
@@ -12,8 +11,11 @@
 #include "IPixelStreamingAudioSink.h"
 #include "IPixelStreamingAudioInput.h"
 #include "IPixelStreamingInputHandler.h"
+#include "IPixelStreamingSignallingConnection.h"
+#include "PixelStreamingInputEnums.h"
 
 class UTexture2D;
+class FPixelStreamingSignallingConnection;
 
 class PIXELSTREAMING_API IPixelStreamingStreamer
 {
@@ -104,7 +106,7 @@ public:
 
 	/**
 	 * @brief Get this streamer's ID
-	 * 
+	 *
 	 */
 	virtual FString GetId() = 0;
 
@@ -208,6 +210,26 @@ public:
 	 * @return The streamer's input handler
 	 */
 	virtual TWeakPtr<IPixelStreamingInputHandler> GetInputHandler() = 0;
+
+	/**
+	 * @brief Get the connection to the signalling server.
+	 * @return The connection to the signalling server.
+	 */
+	virtual TWeakPtr<IPixelStreamingSignallingConnection> GetSignallingConnection() = 0;
+
+	/**
+	 * @brief Set the connection to the signalling server
+	 *
+	 * @param InSignallingConnection The connection to the signalling server
+	 */
+	virtual void SetSignallingConnection(TSharedPtr<IPixelStreamingSignallingConnection> InSignallingConnection) = 0;
+
+	/**
+	 * @brief Get the Signalling Connection Observer object
+	 * 
+	 * @return TWeakPtr<IPixelStreamingSignallingConnectionObserver> 
+	 */
+	virtual TWeakPtr<IPixelStreamingSignallingConnectionObserver> GetSignallingConnectionObserver() = 0;
 
 	/**
 	 * @brief Set the type for this streamers input handler. This controls whether input is routed to widgets or windows

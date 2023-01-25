@@ -52,7 +52,7 @@ namespace UnrealBuildTool.Rules
 			{
 				// libVPX is linked inside WebRTC so just use those headers and binaries where avaliable
 				// In order to get rid of this need to rebuild webrtc without libvpx included (win64, macos, linux where editor runs)
-				PrivateIncludePaths.Add(Path.Join(EngineDirectory, "Source", "ThirdParty", WebRTC.WebRtcVersionPath, "Include", "third_party", "libvpx", "source", "libvpx"));
+				PrivateIncludePaths.Add(Path.Join(EngineDirectory, "Source", "ThirdParty", "WebRTC", "4664", "Include", "third_party", "libvpx", "source", "libvpx"));
 
 				PublicDependencyModuleNames.AddRange(
 					new string[] {

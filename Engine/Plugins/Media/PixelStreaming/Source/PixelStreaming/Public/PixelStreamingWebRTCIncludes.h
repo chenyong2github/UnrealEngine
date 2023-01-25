@@ -17,6 +17,8 @@ THIRD_PARTY_INCLUDES_START
 	#pragma warning(disable : 6319 6323)
 #endif // PLATFORM_WINDOWS
 
+#include "api/rtc_error.h"
+
 #include "api/data_channel_interface.h"
 #include "api/media_stream_interface.h"
 #include "api/peer_connection_interface.h"
@@ -35,6 +37,6 @@ THIRD_PARTY_INCLUDES_START
 	#ifdef PF_MAX
 		#undef PF_MAX
 	#endif
-#endif //PLATFORM_WINDOWS
+#endif // PLATFORM_WINDOWS
 
 THIRD_PARTY_INCLUDES_END

@@ -41,11 +41,7 @@ namespace UE::PixelStreaming
 		webrtc::EncodedImageCallback::Result OnEncodedImage(
 			size_t stream_idx,
 			const webrtc::EncodedImage& encoded_image,
-			const webrtc::CodecSpecificInfo* codec_specific_info
-#if WEBRTC_VERSION == 84
-			, const webrtc::RTPFragmentationHeader* fragmentation
-#endif
-		);
+			const webrtc::CodecSpecificInfo* codec_specific_info);
 
 		EncoderInfo GetEncoderInfo() const override;
 

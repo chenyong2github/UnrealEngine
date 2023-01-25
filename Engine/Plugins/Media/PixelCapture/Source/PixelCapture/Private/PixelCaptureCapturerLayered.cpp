@@ -52,26 +52,32 @@ void FPixelCaptureCapturerLayered::Capture(const IPixelCaptureInputFrame& Source
 		return;
 	}
 
-	FScopeLock LayersLock(&LayersGuard);
-
-	// initial setup. Should only be called on the first frame.
-	// We do this lazily because CreateCaptureProcess is a pure virtual function
-	// so we cannot call it in our constructor. Another option would be to
-	// require the user to call a SetupLayers method or something but that
-	// could be prone to errors.
-	if (LayerCapturers.IsEmpty())
+	// work on a temp list so we dont over lock
+	TArray<TSharedPtr<FPixelCaptureCapturer>> TempLayerCapturers;
 	{
-		for (auto& Scale : LayerScales)
+		FScopeLock LayersLock(&LayersGuard);
+
+		// initial setup. Should only be called on the first frame.
+		// We do this lazily because CreateCaptureProcess is a pure virtual function
+		// so we cannot call it in our constructor. Another option would be to
+		// require the user to call a SetupLayers method or something but that
+		// could be prone to errors.
+		if (LayerCapturers.IsEmpty())
 		{
-			AddLayer(Scale);
+			for (auto& Scale : LayerScales)
+			{
+				AddLayer(Scale);
+			}
 		}
+
+		TempLayerCapturers = LayerCapturers;
 	}
 
 	// set this before calling process since the process might immediately complete
-	PendingLayers = LayerCapturers.Num();
+	PendingLayers = TempLayerCapturers.Num();
 
 	// capture the frame for encoder use
-	for (auto& LayerCapturer : LayerCapturers)
+	for (auto& LayerCapturer : TempLayerCapturers)
 	{
 		LayerCapturer->Capture(SourceFrame);
 	}

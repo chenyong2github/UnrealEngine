@@ -3,6 +3,10 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
+#include "GenericPlatform/GenericWindowDefinition.h"
+#include "RHIResources.h"
+
+class SWindow;
 
 namespace UE::EditorPixelStreaming
 {
@@ -13,18 +17,7 @@ namespace UE::EditorPixelStreaming
 		VCam = 2
 	};
 
-	inline FString ToString(EStreamTypes StreamType)
-	{
-		switch(StreamType)
-		{
-			case EStreamTypes::LevelEditorViewport:
-				return TEXT("the Level Editor");
-			case EStreamTypes::Editor:
-				return TEXT("the Full Editor");
-			case EStreamTypes::VCam:
-				return TEXT("a Virtual Camera");
-			default:
-				return TEXT("Unknown stream type!");
-		}
-	}
+	FString ToString(EStreamTypes StreamType);
+	const TCHAR* ToString(EWindowType Type);
+	const FString HashWindow(SWindow& SlateWindow, const FTexture2DRHIRef& FrameBuffer);
 }

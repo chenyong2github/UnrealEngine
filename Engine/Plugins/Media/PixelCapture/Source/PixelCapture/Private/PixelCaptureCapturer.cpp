@@ -37,7 +37,7 @@ void FPixelCaptureCapturer::Capture(const IPixelCaptureInputFrame& InputFrame)
 	checkf(InputWidth == ExpectedInputWidth && InputHeight == ExpectedInputHeight, TEXT("Capturer input resolution changes are not supported"));
 
 	CurrentOutputBuffer = Buffer->LockProduceBuffer();
-	if (CurrentOutputBuffer == nullptr)
+	if (!CurrentOutputBuffer)
 	{
 		UE_LOG(LogPixelCapture, Error, TEXT("Failed to obtain a produce buffer."));
 		return;
@@ -46,6 +46,7 @@ void FPixelCaptureCapturer::Capture(const IPixelCaptureInputFrame& InputFrame)
 	InitMetadata(InputFrame.Metadata.Copy());
 	StartTime = FPlatformTime::Cycles64();
 	CPUStartTime = 0;
+	GPUEnqueueTime = 0;
 	GPUStartTime = 0;
 
 	BeginProcess(InputFrame, CurrentOutputBuffer.Get());
@@ -74,6 +75,8 @@ void FPixelCaptureCapturer::MarkCPUWorkEnd()
 {
 	CurrentOutputBuffer->Metadata.CaptureProcessCPUTime += FPlatformTime::Cycles64() - CPUStartTime;
 	CPUStartTime = 0;
+
+	GPUEnqueueTime = FPlatformTime::Cycles64();
 }
 
 void FPixelCaptureCapturer::MarkGPUWorkStart()
@@ -83,6 +86,9 @@ void FPixelCaptureCapturer::MarkGPUWorkStart()
 		MarkGPUWorkEnd();
 	}
 	GPUStartTime = FPlatformTime::Cycles64();
+	
+	CurrentOutputBuffer->Metadata.CaptureProcessGPUDelay += GPUStartTime - GPUEnqueueTime;
+	GPUEnqueueTime = 0;
 }
 
 void FPixelCaptureCapturer::MarkGPUWorkEnd()

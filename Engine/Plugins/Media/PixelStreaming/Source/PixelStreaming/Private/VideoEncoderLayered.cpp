@@ -5,6 +5,7 @@
 #include "modules/video_coding/codecs/vp9/include/vp9.h"
 #include "VideoEncoderFactorySingleLayer.h"
 #include "Settings.h"
+#include "PixelStreamingTrace.h"
 
 namespace
 {
@@ -75,22 +76,12 @@ namespace
 		{
 		}
 
-#if WEBRTC_VERSION == 84
-		EncodedImageCallback::Result OnEncodedImage(
-			const webrtc::EncodedImage& encoded_image,
-			const webrtc::CodecSpecificInfo* codec_specific_info,
-			const webrtc::RTPFragmentationHeader* fragmentation) override
-		{
-			return adapter_->OnEncodedImage(stream_idx_, encoded_image, codec_specific_info, fragmentation);
-		}
-#elif WEBRTC_VERSION == 96
 		EncodedImageCallback::Result OnEncodedImage(
 			const webrtc::EncodedImage& encoded_image,
 			const webrtc::CodecSpecificInfo* codec_specific_info) override
 		{
 			return adapter_->OnEncodedImage(stream_idx_, encoded_image, codec_specific_info);
 		}
-#endif
 
 	private:
 		UE::PixelStreaming::FVideoEncoderLayered* const adapter_;
@@ -146,6 +137,7 @@ namespace UE::PixelStreaming
 		// clang-format off
 		const webrtc::SdpVideoFormat Format(CurrentCodec.codecType == webrtc::kVideoCodecVP8 ? "VP8"
 										  : CurrentCodec.codecType == webrtc::kVideoCodecVP9 ? "VP9"
+										  : CurrentCodec.codecType == webrtc::kVideoCodecH265 ? "H265"
 																							 : "H264",
 			                                VideoFormat.parameters);
 		// clang-format on
@@ -211,6 +203,7 @@ namespace UE::PixelStreaming
 
 	int FVideoEncoderLayered::Encode(const webrtc::VideoFrame& input_image, const std::vector<webrtc::VideoFrameType>* frame_types)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR("PixelStreaming Encoding Layer", PixelStreamingChannel);
 		if (!IsInitialized())
 		{
 			return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
@@ -261,12 +254,8 @@ namespace UE::PixelStreaming
 			rtc::scoped_refptr<FFrameBufferMultiFormat> LayerFrameBuffer = FrameBuffer->GetLayer(LayerIndex);
 			NewFrame.set_video_frame_buffer(LayerFrameBuffer);
 
-#if WEBRTC_VERSION == 84
-			const uint32_t FrameTimestampMs = 1000 * NewFrame.timestamp() / 90000; // kVideoPayloadTypeFrequency;
-#elif WEBRTC_VERSION == 96
 			// Convert timestamp from RTP 90kHz clock.
 			webrtc::Timestamp FrameTimestamp = webrtc::Timestamp::Micros((1000 * NewFrame.timestamp()) / 90);
-#endif
 			// If adapter is passed through and only one sw encoder does simulcast,
 			// frame types for all streams should be passed to the encoder unchanged.
 			// Otherwise a single per-encoder frame type is passed.
@@ -278,19 +267,12 @@ namespace UE::PixelStreaming
 			}
 			else
 			{
-#if WEBRTC_VERSION == 84
-				if (StreamInfos[StreamIdx].FramerateController->DropFrame(FrameTimestampMs))
-#elif WEBRTC_VERSION == 96
 				if (StreamInfos[StreamIdx].FramerateController->ShouldDropFrame(FrameTimestamp.us() * 1000))
-#endif
 				{
 					continue;
 				}
 				std::fill(StreamFrameTypes.begin(), StreamFrameTypes.end(), webrtc::VideoFrameType::kVideoFrameDelta);
 			}
-#if WEBRTC_VERSION == 84
-			StreamInfos[StreamIdx].FramerateController->AddFrame(FrameTimestampMs);
-#endif
 			const int RtcError = StreamInfos[StreamIdx].Encoder->Encode(NewFrame, &StreamFrameTypes);
 			if (RtcError != WEBRTC_VIDEO_CODEC_OK)
 			{
@@ -365,12 +347,7 @@ namespace UE::PixelStreaming
 						webrtc::DataRate::BitsPerSec(StreamParameters.bitrate.get_sum_bps());
 				}
 			}
-#if WEBRTC_VERSION == 84
-			StreamParameters.framerate_fps = std::min<double>(parameters.framerate_fps, StreamInfos[StreamIdx].FramerateController->GetTargetRate());
-#elif WEBRTC_VERSION == 96
 			StreamParameters.framerate_fps = std::min<double>(parameters.framerate_fps, StreamInfos[StreamIdx].FramerateController->GetMaxFramerate());
-#endif
-
 			StreamInfos[StreamIdx].Encoder->SetRates(StreamParameters);
 		}
 	}
@@ -402,24 +379,14 @@ namespace UE::PixelStreaming
 	webrtc::EncodedImageCallback::Result FVideoEncoderLayered::OnEncodedImage(
 		size_t stream_idx,
 		const webrtc::EncodedImage& encodedImage,
-		const webrtc::CodecSpecificInfo* codecSpecificInfo
-#if WEBRTC_VERSION == 84
-		,
-		const webrtc::RTPFragmentationHeader* fragmentation
-#endif
-	)
+		const webrtc::CodecSpecificInfo* codecSpecificInfo)
 	{
 		webrtc::EncodedImage StreamImage(encodedImage);
 		webrtc::CodecSpecificInfo StreamCodecSpecific = *codecSpecificInfo;
 
 		StreamImage.SetSpatialIndex(stream_idx);
 
-		return EncodedCompleteCallback->OnEncodedImage(StreamImage, &StreamCodecSpecific
-#if WEBRTC_VERSION == 84
-			,
-			fragmentation
-#endif
-		);
+		return EncodedCompleteCallback->OnEncodedImage(StreamImage, &StreamCodecSpecific);
 	}
 
 	bool FVideoEncoderLayered::IsInitialized() const

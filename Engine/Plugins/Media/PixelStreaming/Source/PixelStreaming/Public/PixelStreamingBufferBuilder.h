@@ -45,12 +45,7 @@ namespace UE::PixelStreaming
 		{
 			const size_t VSize = ValueSize(Forward<T>(Value));
 			const void* VLoc = ValueLoc(Forward<T>(Value));
-
-#if WEBRTC_VERSION == 84
-			FMemory::Memcpy(&Buffer[Pos], VLoc, VSize);
-#elif WEBRTC_VERSION == 96
 			FMemory::Memcpy(Buffer.MutableData() + Pos, VLoc, VSize);
-#endif
 			Pos += VSize;
 		}
 	};

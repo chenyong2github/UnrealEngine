@@ -39,7 +39,13 @@ public:
 					IVulkanDynamicRHI::AddEnabledDeviceExtensionsAndLayers(ExtentionsToAdd, TArray<const ANSICHAR*>());
 				}
 
-				FModuleManager::LoadModuleChecked<FCUDAModule>("CUDA").OnPostCUDAInit.AddLambda([]() {FVideoEncoderNVENC_H264::Register(FVideoEncoderFactory::Get());});
+				FModuleManager::LoadModuleChecked<FCUDAModule>("CUDA").OnPostCUDAInit.AddLambda([]()
+				{
+					if (IsRHIDeviceNVIDIA())
+					{
+						FVideoEncoderNVENC_H264::Register(FVideoEncoderFactory::Get());
+					}
+				});
 			}
 		}
 	}

@@ -6,7 +6,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/CommandLine.h"
 #include "InputCoreTypes.h"
-#include "VideoEncoder.h"
+#include "Video/Encoders/Configs/VideoEncoderConfigH264.h"
+#include "Video/Encoders/Configs/VideoEncoderConfigH265.h"
 #include "WebRTCIncludes.h"
 #include "PixelStreamingCodec.h"
 
@@ -24,9 +25,12 @@ namespace UE::PixelStreaming::Settings
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingEnableFillerData;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderMultipass;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingH264Profile;
+	extern TAutoConsoleVariable<FString> CVarPixelStreamingH265Profile;
+	extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderPreset;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderKeyframeInterval;
+	extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderIntraRefreshPeriodFrames;
+	extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderIntraRefreshCountFrames;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderCodec;
-	extern TAutoConsoleVariable<FString> CVarPixelStreamingVideoTracks;
 	// End Encoder CVars
 
 	// Begin WebRTC CVars
@@ -43,10 +47,10 @@ namespace UE::PixelStreaming::Settings
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCUseLegacyAudioDevice;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableStats;
 	extern TAutoConsoleVariable<float> CVarPixelStreamingWebRTCAudioGain;
+	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCNegotiateCodecs;
 	// End WebRTC CVars
 
 	// Begin Pixel Streaming Plugin CVars
-	extern TAutoConsoleVariable<bool> CVarPixelStreamingAllowConsoleCommands;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingOnScreenStats;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingLogStats;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingFreezeFrameQuality;
@@ -56,13 +60,10 @@ namespace UE::PixelStreaming::Settings
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingInputController;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingSuppressICECandidateErrors;
 	extern TAutoConsoleVariable<float> CVarPixelStreamingSignalingReconnectInterval;
-
-	extern TArray<FKey> FilteredKeys;
+	extern TAutoConsoleVariable<bool> CVarPixelStreamingExperimentalAudioInput;
+	extern TAutoConsoleVariable<bool> CVarPixelStreamingCaptureUseFence;
+	extern TAutoConsoleVariable<bool> CVarPixelStreamingDecoupleFramerate;
 	// Ends Pixel Streaming Plugin CVars
-
-	// Begin TextureSource CVars
-	extern TAutoConsoleVariable<float> CVarPixelStreamingFrameScale;
-	// End TextureSource CVars
 
 	/* Pixel Streaming can limit who can send input (keyboard, mouse, etc). */
 	enum EInputControllerMode
@@ -74,16 +75,24 @@ namespace UE::PixelStreaming::Settings
 	};
 
 	// Begin utility functions etc.
+	bool IsCoupledFramerate();
 	bool IsCodecVPX();
 	void SetCodec(EPixelStreamingCodec Codec);
 	EPixelStreamingCodec GetSelectedCodec();
-	AVEncoder::FVideoEncoder::RateControlMode GetRateControlCVar();
-	AVEncoder::FVideoEncoder::MultipassMode GetMultipassCVar();
+	ERateControlMode GetRateControlCVar();
+	EMultipassMode GetMultipassCVar();
 	webrtc::DegradationPreference GetDegradationPreference();
-	AVEncoder::FVideoEncoder::H264Profile GetH264Profile();
+	EH264Profile GetH264Profile();
+	EH265Profile GetH265Profile();
+	EAVPreset GetEncoderPreset();
 	EInputControllerMode GetInputControllerMode();
 	FString GetDefaultStreamerID();
 	FString GetDefaultSignallingURL();
+	bool GetControlScheme(FString& OutControlScheme);
+	bool GetFastPan(float& OutFastPan);
+	bool GetSignallingServerUrl(FString& OutSignallingServerURL);
+	bool GetSignallingServerIP(FString& OutSignallingServerIP);
+	bool GetSignallingServerPort(uint16& OutSignallingServerPort);
 	// End utility functions etc.
 
 	struct FSimulcastParameters
@@ -100,56 +109,4 @@ namespace UE::PixelStreaming::Settings
 
 	extern FSimulcastParameters SimulcastParameters;
 
-	// Begin Command line args
-	inline bool IsExperimentalAudioInputEnabled()
-	{
-		return FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingExperimentalAudioInput"));
-	}
-
-	inline bool IsPixelStreamingHideCursor()
-	{
-		return FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingHideCursor"));
-	}
-
-	inline bool ShouldNegotiateCodecs()
-	{
-		return FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingNegotiateCodecs"));
-	}
-
-	inline bool IsUsingSafeTextureCopy()
-	{
-		return FParse::Param(FCommandLine::Get(), TEXT("PixelCaptureUseFence"));
-	}
-
-	inline bool CoupleFrameRate()
-	{
-		return !FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingDecoupleFrameRate"));
-	}
-
-	inline bool GetSignallingServerUrl(FString& OutSignallingServerURL)
-	{
-		return FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingURL="), OutSignallingServerURL);
-	}
-
-	inline bool GetSignallingServerIP(FString& OutSignallingServerIP)
-	{
-		return FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingIP="), OutSignallingServerIP);
-	}
-
-	inline bool GetSignallingServerPort(uint16& OutSignallingServerPort)
-	{
-		return FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingPort="), OutSignallingServerPort);
-	}
-
-	inline bool GetControlScheme(FString& OutControlScheme)
-	{
-		return FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingControlScheme="), OutControlScheme);
-	}
-
-	inline bool GetFastPan(float& OutFastPan)
-	{
-		return FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingFastPan="), OutFastPan);
-	}
-
-	// End Command line args
 } // namespace UE::PixelStreaming::Settings

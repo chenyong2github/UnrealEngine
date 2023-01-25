@@ -12,7 +12,7 @@ void FPixelCaptureCapturerI420::Initialize(int32 InputWidth, int32 InputHeight)
 
 IPixelCaptureOutputFrame* FPixelCaptureCapturerI420::CreateOutputBuffer(int32 InputWidth, int32 InputHeight)
 {
-	return new FPixelCaptureOutputFrameI420(MakeShared<FPixelCaptureI420Buffer>(InputWidth, InputHeight));
+	return new FPixelCaptureOutputFrameI420(MakeShared<FPixelCaptureBufferI420>(InputWidth, InputHeight));
 }
 
 void FPixelCaptureCapturerI420::BeginProcess(const IPixelCaptureInputFrame& InputFrame, IPixelCaptureOutputFrame* OutputBuffer)

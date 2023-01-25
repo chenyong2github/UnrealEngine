@@ -47,6 +47,7 @@ void FPixelCaptureCapturerRHIRDG::BeginProcess(const IPixelCaptureInputFrame& In
 	checkf(InputFrame.GetType() == StaticCast<int32>(PixelCaptureBufferFormat::FORMAT_RHI), TEXT("Incorrect source frame coming into frame capture process."));
 
 	MarkCPUWorkStart();
+	MarkCPUWorkEnd();
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
@@ -55,16 +56,15 @@ void FPixelCaptureCapturerRHIRDG::BeginProcess(const IPixelCaptureInputFrame& In
 	FPixelCaptureOutputFrameRHI* OutputH264Buffer = StaticCast<FPixelCaptureOutputFrameRHI*>(OutputBuffer);
 	CopyTextureRDG(RHICmdList, RHISourceFrame.FrameTexture, OutputH264Buffer->GetFrameTexture());
 
+	MarkGPUWorkEnd();
 	OnRHIStageComplete();
 }
 
 void FPixelCaptureCapturerRHIRDG::CheckComplete()
 {
-
 }
 
 void FPixelCaptureCapturerRHIRDG::OnRHIStageComplete()
 {
-	MarkGPUWorkEnd();
 	EndProcess();
 }

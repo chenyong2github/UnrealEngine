@@ -132,6 +132,7 @@ private:
 
 	uint64 StartTime;
 	uint64 CPUStartTime;
+	uint64 GPUEnqueueTime;
 	uint64 GPUStartTime;
 
 	TUniquePtr<UE::PixelCapture::FOutputFrameBuffer> Buffer;

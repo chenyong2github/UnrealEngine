@@ -27,9 +27,9 @@ namespace UnrealBuildTool.Rules
 				"Engine",
 				"Projects",
 				"RenderCore",
+				"Renderer",
 				"RHI",
 				"PixelStreaming",
-				"AVEncoder",
 				"Slate",
 				"SlateCore",
 				"EngineSettings",
@@ -38,7 +38,9 @@ namespace UnrealBuildTool.Rules
 				"PixelCapture",
 				"PixelStreamingServers",
 				"HTTP",
-				"Sockets"
+				"Sockets",
+				"ApplicationCore",
+				"PixelStreamingInput"
 			});
 
 			if(Target.bBuildEditor)

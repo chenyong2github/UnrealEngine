@@ -3,6 +3,7 @@
 #include "AudioInputMixer.h"
 #include "Settings.h"
 #include "SampleBuffer.h"
+#include "PixelStreamingTrace.h"
 
 namespace UE::PixelStreaming
 {
@@ -110,6 +111,7 @@ namespace UE::PixelStreaming
 
 	void FMixerRunnable::Tick()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR("PixelStreaming FAudioInputMixer::FMixerRunnable::Tick", PixelStreamingChannel);
 		if (!Mixers.IsValid())
 		{
 			return;
@@ -159,6 +161,7 @@ namespace UE::PixelStreaming
 
 	void FAudioInput::PushAudio(const float* InBuffer, int32 NumSamples, int32 InNumChannels, int32 InSampleRate)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR("PixelStreaming FAudioInputMixer::PushAudio", PixelStreamingChannel);
 		// Todo(Luke): we could resample instead of throwing this assertion.
 		verifyf(SampleRate == InSampleRate, TEXT("Sample rate was mismatched."));
 

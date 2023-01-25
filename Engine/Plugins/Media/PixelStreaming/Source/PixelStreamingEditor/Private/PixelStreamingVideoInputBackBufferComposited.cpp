@@ -2,6 +2,7 @@
 
 #include "PixelStreamingVideoInputBackBufferComposited.h"
 #include "Settings.h"
+#include "PixelStreamingEditorUtils.h"
 #include "Utils.h"
 #include "UtilsRender.h"
 #include "ToStringExtensions.h"
@@ -17,6 +18,8 @@
 #include "Application/SlateApplicationBase.h"
 #include "Widgets/SWindow.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingBackBufferComposited, Log, VeryVerbose);
+DEFINE_LOG_CATEGORY(LogPixelStreamingBackBufferComposited);
 
 TSharedPtr<FPixelStreamingVideoInputBackBufferComposited> FPixelStreamingVideoInputBackBufferComposited::Create()
 {
@@ -36,9 +39,7 @@ TSharedPtr<FPixelStreamingVideoInputBackBufferComposited> FPixelStreamingVideoIn
 
 FPixelStreamingVideoInputBackBufferComposited::FPixelStreamingVideoInputBackBufferComposited()
 {
-	// Initialize our composited frame texture to a default size. It'll be enlarged / shrunk as needed
-	CompositedFrame = UE::PixelStreaming::CreateRHITexture(DefaultSize.X, DefaultSize.Y);
-	CompositedFrameSize = MakeShared<FIntPoint>(DefaultSize);
+	CompositedFrameSize = MakeShared<FIntPoint>();
 	UE::PixelStreaming::DoOnGameThread([this]() {
 		FSlateApplication::Get().OnPreTick().AddLambda([this](float DeltaTime) {
 			TopLevelWindowsCriticalSection.Lock();
@@ -69,10 +70,24 @@ void FPixelStreamingVideoInputBackBufferComposited::OnBackBufferReady(SWindow& S
 		}
 	}
 
+	UE_LOG(LogPixelStreamingBackBufferComposited, Verbose, TEXT("=== Window Rendered ==="));
+	UE_LOG(LogPixelStreamingBackBufferComposited, Verbose, TEXT("Type: %s"), UE::EditorPixelStreaming::ToString(SlateWindow.GetType()));
+
+	uint32 FrameX = FrameBuffer->GetSizeXY().X;
+	uint32 FrameY = FrameBuffer->GetSizeXY().Y;
+	FString Hash = UE::EditorPixelStreaming::HashWindow(SlateWindow, FrameBuffer);
+	FTextureRHIRef StagingTexture = StagingTextures.FindRef(Hash);
+	if(!StagingTexture.IsValid()) 
+	{
+		UE_LOG(LogPixelStreamingBackBufferComposited, Verbose, TEXT("Creating new staging texture: %dx%d"), FrameX, FrameY);
+		StagingTexture = UE::PixelStreaming::CreateRHITexture(FrameX, FrameY);
+		StagingTextures.Add(Hash, StagingTexture);
+	}
+
+
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FTextureRHIRef StagingTexture = UE::PixelStreaming::CreateRHITexture(FrameBuffer->GetSizeXY().X, FrameBuffer->GetSizeXY().Y);
 	// Re-render FrameBuffer to StagingTexture (ensure format match)
-	UE::PixelStreaming::CopyTexture(RHICmdList, FrameBuffer, StagingTexture, nullptr);
+	UE::PixelStreaming::CopyTextureRDG(RHICmdList, FrameBuffer, StagingTexture);
 	
 	TopLevelWindowTextures.Add(&SlateWindow, StagingTexture);
 	TopLevelWindowsCriticalSection.Lock();
@@ -82,14 +97,16 @@ void FPixelStreamingVideoInputBackBufferComposited::OnBackBufferReady(SWindow& S
 	{
 		if (TopLevelWindowTextures.FindRef(&Window.Get()))
 		{
-			WindowsRendered += 1;
+			++WindowsRendered;
 		}
 	}
 
+	
 	if (WindowsRendered == TopLevelWindows.Num())
 	{
 		// We have all the textures needed, let's composite them
 		// Need to iterate over the TopLevelWindows array as this array contains the ordered windows
+		FTextureRHIRef CompositedFrame;
 		for (TSharedRef<SWindow> Window : TopLevelWindows)
 		{
 			FTextureRHIRef Texture = TopLevelWindowTextures.FindRef(&Window.Get());
@@ -98,7 +115,14 @@ void FPixelStreamingVideoInputBackBufferComposited::OnBackBufferReady(SWindow& S
 				Window->GetSizeInScreen() == FVector2D(0, 0))
 			{
 				continue;
-			}			
+			}	
+
+			if(!CompositedFrame.IsValid()) 
+			{
+				// This is the first texture being processed, make it our base for the composited frame
+				CompositedFrame = Texture;
+				continue;
+			}
 
 			uint32 CompositedX = CompositedFrame->GetSizeXY().X;
 			uint32 CompositedY = CompositedFrame->GetSizeXY().Y;
@@ -155,13 +179,6 @@ void FPixelStreamingVideoInputBackBufferComposited::OnBackBufferReady(SWindow& S
 		*CompositedFrameSize.Get() = CompositedFrame->GetSizeXY();
 		IPixelStreamingModule& Module = IPixelStreamingModule::Get();
 		Module.GetStreamer(Module.GetDefaultStreamerID())->SetTargetScreenSize(CompositedFrameSize);
-		bRecreateTexture = true;
 	}
 	TopLevelWindowsCriticalSection.Unlock();
-
-	if (bRecreateTexture)
-	{
-		CompositedFrame = UE::PixelStreaming::CreateRHITexture(DefaultSize.X, DefaultSize.Y);
-		bRecreateTexture = false;
-	}
 }

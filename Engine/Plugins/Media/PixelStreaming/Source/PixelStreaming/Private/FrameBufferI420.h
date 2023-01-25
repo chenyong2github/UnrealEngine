@@ -3,7 +3,7 @@
 #pragma once
 
 #include "WebRTCIncludes.h"
-#include "PixelCaptureI420Buffer.h"
+#include "PixelCaptureBufferI420.h"
 
 namespace UE::PixelStreaming
 {
@@ -13,7 +13,7 @@ namespace UE::PixelStreaming
 	class WebRTCI420BufferWrapper : public webrtc::I420BufferInterface
 	{
 	public:
-		WebRTCI420BufferWrapper(TSharedPtr<FPixelCaptureI420Buffer> InCaptureBuffer)
+		WebRTCI420BufferWrapper(TSharedPtr<FPixelCaptureBufferI420> InCaptureBuffer)
 			: CaptureBuffer(InCaptureBuffer) {}
 		virtual ~WebRTCI420BufferWrapper() = default;
 		virtual int width() const override { return CaptureBuffer->GetWidth(); }
@@ -26,7 +26,7 @@ namespace UE::PixelStreaming
 		virtual int StrideV() const override { return CaptureBuffer->GetStrideUV(); }
 
 	private:
-		TSharedPtr<FPixelCaptureI420Buffer> CaptureBuffer;
+		TSharedPtr<FPixelCaptureBufferI420> CaptureBuffer;
 	};
 
 	/**
@@ -35,7 +35,7 @@ namespace UE::PixelStreaming
 	class FFrameBufferI420 : public webrtc::VideoFrameBuffer
 	{
 	public:
-		FFrameBufferI420(TSharedPtr<FPixelCaptureI420Buffer> Buffer)
+		FFrameBufferI420(TSharedPtr<FPixelCaptureBufferI420> Buffer)
 			: I420BufferWrapper(new rtc::RefCountedObject<WebRTCI420BufferWrapper>(Buffer)) {}
 
 		virtual ~FFrameBufferI420() = default;

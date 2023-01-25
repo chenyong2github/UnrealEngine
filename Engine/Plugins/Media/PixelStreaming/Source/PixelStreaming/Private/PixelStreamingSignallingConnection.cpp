@@ -9,16 +9,14 @@
 #include "Settings.h"
 #include "TimerManager.h"
 #include "PixelStreamingDelegates.h"
-#include "PixelStreamingProtocol.h"
 #include "Utils.h"
 #include "ToStringExtensions.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingSS, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(LogPixelStreamingSS);
 
-FPixelStreamingSignallingConnection::FPixelStreamingSignallingConnection(const FWebSocketFactory& InWebSocketFactory, IPixelStreamingSignallingConnectionObserver& InObserver, FString InStreamerId)
-	: WebSocketFactory(InWebSocketFactory)
-	, Observer(InObserver)
+FPixelStreamingSignallingConnection::FPixelStreamingSignallingConnection(TSharedPtr<IPixelStreamingSignallingConnectionObserver> InObserver, FString InStreamerId)
+	: Observer(InObserver)
 	, StreamerId(InStreamerId)
 {
 	RegisterHandler("identify", [this](FJsonObjectPtr JsonMsg) { OnIdRequested(); });
@@ -58,7 +56,8 @@ void FPixelStreamingSignallingConnection::Connect(FString InUrl, bool bIsReconne
 	Disconnect();
 
 	Url = InUrl;
-	WebSocket = WebSocketFactory(Url);
+
+	WebSocket = FWebSocketsModule::Get().CreateWebSocket(Url, TEXT(""));
 	verifyf(WebSocket, TEXT("Web Socket Factory failed to return a valid Web Socket."));
 
 	OnConnectedHandle = WebSocket->OnConnected().AddLambda([this]() { OnConnected(); });
@@ -123,6 +122,11 @@ void FPixelStreamingSignallingConnection::SendOffer(FPixelStreamingPlayerId Play
 	SDP.ToString(&SdpAnsi);
 	FString SdpStr = UE::PixelStreaming::ToString(SdpAnsi);
 	OfferJson->SetStringField(TEXT("sdp"), SdpStr);
+
+#if WITH_EDITOR
+	// Default hover preference needs to be sent with the offer to prevent error messages on older infrastructure
+	OfferJson->SetStringField(TEXT("defaultToHover"), TEXT("true"));
+#endif // WITH_EDITOR
 
 	UE_LOG(LogPixelStreamingSS, Log, TEXT("Sending player=%s \"offer\" to SS %s"), *PlayerId, *Url);
 	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("SDP offer\n%s"), *SdpStr);
@@ -288,7 +292,7 @@ void FPixelStreamingSignallingConnection::OnConnected()
 	// No need to to do reconnect now that we are connected
 	StopReconnectTimer();
 
-	Observer.OnSignallingConnected();
+	Observer->OnSignallingConnected();
 
 	if (bKeepAliveEnabled)
 	{
@@ -315,7 +319,7 @@ void FPixelStreamingSignallingConnection::OnConnectionError(const FString& Error
 {
 	UE_LOG(LogPixelStreamingSS, Log, TEXT("Failed to connect to SS %s - signalling server may not be up yet. Message: \"%s\""), *Url, *Error);
 
-	Observer.OnSignallingError(Error);
+	Observer->OnSignallingError(Error);
 
 	StopKeepAliveTimer();
 
@@ -335,7 +339,7 @@ void FPixelStreamingSignallingConnection::OnClosed(int32 StatusCode, const FStri
 {
 	UE_LOG(LogPixelStreamingSS, Log, TEXT("Closed connection to SS %s - \n\tstatus %d\n\treason: %s\n\twas clean: %s"), *Url, StatusCode, *Reason, bWasClean ? TEXT("true") : TEXT("false"));
 
-	Observer.OnSignallingDisconnected(StatusCode, Reason, bWasClean);
+	Observer->OnSignallingDisconnected(StatusCode, Reason, bWasClean);
 
 	StopKeepAliveTimer();
 
@@ -472,7 +476,7 @@ void FPixelStreamingSignallingConnection::OnConfig(const FJsonObjectPtr& Json)
 	// force `UnifiedPlan` as we control both ends of WebRTC streaming
 	RTCConfig.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
 
-	Observer.OnSignallingConfig(RTCConfig);
+	Observer->OnSignallingConfig(RTCConfig);
 }
 
 void FPixelStreamingSignallingConnection::OnSessionDescription(const FJsonObjectPtr& Json)
@@ -490,11 +494,11 @@ void FPixelStreamingSignallingConnection::OnSessionDescription(const FJsonObject
 	bool bGotPlayerId = GetPlayerIdJson(Json, PlayerId);
 	if (!bGotPlayerId)
 	{
-		Observer.OnSignallingSessionDescription(Type, Sdp);
+		Observer->OnSignallingSessionDescription(Type, Sdp);
 	}
 	else
 	{
-		Observer.OnSignallingSessionDescription(PlayerId, Type, Sdp);
+		Observer->OnSignallingSessionDescription(PlayerId, Type, Sdp);
 	}
 }
 
@@ -529,11 +533,11 @@ void FPixelStreamingSignallingConnection::OnIceCandidate(const FJsonObjectPtr& J
 
 	if (bGotPlayerId)
 	{
-		Observer.OnSignallingRemoteIceCandidate(PlayerId, SdpMid, SdpMLineIndex, CandidateStr);
+		Observer->OnSignallingRemoteIceCandidate(PlayerId, SdpMid, SdpMLineIndex, CandidateStr);
 	}
 	else
 	{
-		Observer.OnSignallingRemoteIceCandidate(SdpMid, SdpMLineIndex, CandidateStr);
+		Observer->OnSignallingRemoteIceCandidate(SdpMid, SdpMLineIndex, CandidateStr);
 	}
 }
 
@@ -546,7 +550,7 @@ void FPixelStreamingSignallingConnection::OnPlayerCount(const FJsonObjectPtr& Js
 		return;
 	}
 
-	Observer.OnSignallingPlayerCount(Count);
+	Observer->OnSignallingPlayerCount(Count);
 }
 
 void FPixelStreamingSignallingConnection::OnPlayerConnected(const FJsonObjectPtr& Json)
@@ -571,7 +575,7 @@ void FPixelStreamingSignallingConnection::OnPlayerConnected(const FJsonObjectPtr
 	bool bIsSFU = false;
 	Json->TryGetBoolField(TEXT("sfu"), PlayerConfig.IsSFU);
 
-	Observer.OnSignallingPlayerConnected(PlayerId, PlayerConfig);
+	Observer->OnSignallingPlayerConnected(PlayerId, PlayerConfig);
 }
 
 void FPixelStreamingSignallingConnection::OnPlayerDisconnected(const FJsonObjectPtr& Json)
@@ -584,7 +588,7 @@ void FPixelStreamingSignallingConnection::OnPlayerDisconnected(const FJsonObject
 		return;
 	}
 
-	Observer.OnSignallingPlayerDisconnected(PlayerId);
+	Observer->OnSignallingPlayerDisconnected(PlayerId);
 }
 
 void FPixelStreamingSignallingConnection::OnSFUPeerDataChannels(const FJsonObjectPtr& Json)
@@ -621,7 +625,7 @@ void FPixelStreamingSignallingConnection::OnSFUPeerDataChannels(const FJsonObjec
 		return;
 	}
 
-	Observer.OnSignallingSFUPeerDataChannels(SFUId, PlayerId, SendStreamId, RecvStreamId);
+	Observer->OnSignallingSFUPeerDataChannels(SFUId, PlayerId, SendStreamId, RecvStreamId);
 }
 
 void FPixelStreamingSignallingConnection::OnPeerDataChannels(const FJsonObjectPtr& Json)
@@ -638,7 +642,7 @@ void FPixelStreamingSignallingConnection::OnPeerDataChannels(const FJsonObjectPt
 		UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to get `recvStreamId` from remote `peerDataChannels` message\n%s"), *UE::PixelStreaming::ToString(Json));
 		return;
 	}
-	Observer.OnSignallingPeerDataChannels(SendStreamId, RecvStreamId);
+	Observer->OnSignallingPeerDataChannels(SendStreamId, RecvStreamId);
 }
 
 void FPixelStreamingSignallingConnection::SetPlayerIdJson(FJsonObjectPtr& JsonObject, FPixelStreamingPlayerId PlayerId)

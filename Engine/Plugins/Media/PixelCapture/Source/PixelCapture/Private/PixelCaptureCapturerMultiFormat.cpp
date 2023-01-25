@@ -63,14 +63,14 @@ void FPixelCaptureCapturerMultiFormat::Capture(const IPixelCaptureInputFrame& So
 		// (and their callback events) is ok.
 		// Note: When considering whether the lifetime of this lock can be shorter consider the deadlock issue we had in UE-173694
 
-		TArray<TSharedPtr<FPixelCaptureCapturerLayered>> TempCopy;
+		TArray<TSharedPtr<FPixelCaptureCapturerLayered>> AllFormatCapturers;
 		for (auto& FormatCapturer : FormatCapturers)
 		{
-			TempCopy.Add(FormatCapturer.Value);
+			AllFormatCapturers.Add(FormatCapturer.Value);
 		}
 		// start all the format captures
-		PendingFormats = FormatCapturers.Num();
-		for (auto& Capturer : TempCopy)
+		PendingFormats = AllFormatCapturers.Num();
+		for (auto& Capturer : AllFormatCapturers)
 		{
 			Capturer->Capture(SourceFrame);
 		}

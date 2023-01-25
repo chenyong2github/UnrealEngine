@@ -33,6 +33,7 @@ namespace UnrealBuildTool.Rules
 				"LiveLinkInterface",
 				"PixelCapture",
 				"PixelStreamingEditor",
+				"PixelStreamingInput",
 				"SlateCore",
 				"Slate",
 				"VPUtilities",

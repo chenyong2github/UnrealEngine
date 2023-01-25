@@ -66,7 +66,7 @@ IPixelCaptureOutputFrame* FPixelCaptureCapturerRHIToI420CPU::CreateOutputBuffer(
 {
 	const int32 Width = InputWidth * Scale;
 	const int32 Height = InputHeight * Scale;
-	return new FPixelCaptureOutputFrameI420(MakeShared<FPixelCaptureI420Buffer>(Width, Height));
+	return new FPixelCaptureOutputFrameI420(MakeShared<FPixelCaptureBufferI420>(Width, Height));
 }
 
 void FPixelCaptureCapturerRHIToI420CPU::BeginProcess(const IPixelCaptureInputFrame& InputFrame, IPixelCaptureOutputFrame* OutputBuffer)
@@ -108,7 +108,7 @@ void FPixelCaptureCapturerRHIToI420CPU::OnRHIStageComplete(IPixelCaptureOutputFr
 	MarkCPUWorkStart();
 
 	FPixelCaptureOutputFrameI420* OutputI420Buffer = StaticCast<FPixelCaptureOutputFrameI420*>(OutputBuffer);
-	TSharedPtr<FPixelCaptureI420Buffer> I420Buffer = OutputI420Buffer->GetI420Buffer();
+	TSharedPtr<FPixelCaptureBufferI420> I420Buffer = OutputI420Buffer->GetI420Buffer();
 	libyuv::ARGBToI420(
 		static_cast<uint8*>(ResultsBuffer),
 		MappedStride * 4,
