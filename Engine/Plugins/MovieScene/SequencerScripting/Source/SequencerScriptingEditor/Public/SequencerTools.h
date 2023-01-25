@@ -2,15 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "LevelSequence.h"
-#include "Modules/ModuleManager.h"
 #include "MovieSceneCaptureDialogModule.h"
-#include "Channels/MovieSceneEvent.h"
 #include "MovieSceneBindingProxy.h"
-#include "SequencerScriptingRange.h"
+#include "MovieSceneTrack.h"
 #include "SequencerTools.generated.h"
+
+class IModuleInterface;
+class ULevelSequence;
+class UMovieSceneUserImportFBXSettings;
+struct FMovieSceneEvent;
+struct FSequencerScriptingRange;
 
 class UFbxExportOption;
 class UAnimSequenceExportOption;
@@ -276,3 +278,10 @@ public:
 		UMovieSceneUserImportFBXControlRigSettings* ImportFBXControlRigSettings,
 		const FString& ImportFilename);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Channels/MovieSceneEvent.h"
+#include "CoreMinimal.h"
+#include "LevelSequence.h"
+#include "SequencerScriptingRange.h"
+#endif

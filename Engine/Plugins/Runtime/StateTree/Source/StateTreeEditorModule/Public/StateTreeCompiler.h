@@ -2,10 +2,14 @@
 
 #pragma once
 
-#include "StateTreeTypes.h"
-#include "InstancedStruct.h"
 #include "StateTreePropertyBindingCompiler.h"
-#include "StateTreeCompilerLog.h"
+
+struct FStructView;
+
+enum class EStateTreeConditionOperand : uint8;
+enum class EStateTreePropertyUsage : uint8;
+struct FStateTreeDataView;
+struct FStateTreeStateHandle;
 
 class UStateTree;
 class UStateTreeState;
@@ -153,3 +157,7 @@ namespace UE::StateTree::Compiler
 
 
 }; // UE::StateTree::Compiler
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "StateTreeCompilerLog.h"
+#endif

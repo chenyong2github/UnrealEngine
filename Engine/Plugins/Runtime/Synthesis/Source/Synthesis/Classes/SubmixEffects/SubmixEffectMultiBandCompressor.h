@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "DSP/DynamicsProcessor.h"
-#include "Sound/SoundEffectSubmix.h"
 #include "DSP/LinkwitzRileyBandSplitter.h"
 #include "SubmixEffects/AudioMixerSubmixEffectDynamicsProcessor.h"
 #include "SubmixEffectMultiBandCompressor.generated.h"
+
+namespace Audio { class FDynamicsProcessor; }
 
 USTRUCT(BlueprintType)
 struct SYNTHESIS_API FDynamicsBandSettings

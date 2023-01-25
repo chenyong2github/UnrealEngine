@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "UObject/StrongObjectPtr.h"
 #include "Misc/SecureHash.h"
 
 namespace GLTF
@@ -472,3 +471,7 @@ namespace GLTF
 	}
 
 }  // namespace GLTF
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "UObject/StrongObjectPtr.h"
+#endif

@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "Containers/Map.h"
-#include "Containers/Set.h"
 
 #include "Online/CoreOnline.h"
-#include "Online/OnlineAsyncOpHandle.h"
-#include "Online/OnlineMeta.h"
-#include "Online/Schema.h"
+#include "Online/SchemaTypes.h"
+
+namespace UE::Online { template <typename DelegateSignature> class TOnlineEvent; }
+namespace UE::Online { template <typename OpType> class TOnlineAsyncOpHandle; }
+namespace UE::Online { template <typename OpType> class TOnlineResult; }
 
 namespace UE::Online {
 
@@ -652,3 +652,8 @@ END_ONLINE_STRUCT_META()
 /* Meta*/ }
 
 /* UE::Online */ }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Online/OnlineAsyncOpHandle.h"
+#include "Online/Schema.h"
+#endif

@@ -4,6 +4,8 @@
 
 #include "Stats/Stats2.h"
 
+enum class EStatFlags : uint8;
+
 DECLARE_STATS_GROUP(TEXT("ChaosUserDataPT"), STATGROUP_ChaosUserDataPT, STATCAT_Advanced);
 
 namespace Chaos

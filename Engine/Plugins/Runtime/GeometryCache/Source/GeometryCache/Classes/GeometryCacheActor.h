@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
 #include "GeometryCacheActor.generated.h"
 
@@ -28,3 +26,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")
 	UGeometryCacheComponent* GetGeometryCacheComponent() const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

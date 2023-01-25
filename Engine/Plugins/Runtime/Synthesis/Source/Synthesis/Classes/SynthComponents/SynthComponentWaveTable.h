@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Components/SynthComponent.h"
 #include "DSP/SampleBufferReader.h"
-#include "SampleBuffer.h"
 #include "Sound/SampleBufferIO.h"
-#include "Sound/SoundWave.h"
 #include "SynthComponentWaveTable.generated.h"
 
 UENUM(BlueprintType)
@@ -98,3 +95,7 @@ protected:
 
 	bool bIsLoaded;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

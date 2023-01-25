@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/ContainersFwd.h" // IWYU pragma: keep
 #include "Features/IModularFeature.h"
+
+class FName;
 
 class FOutputDevice;
 
@@ -40,3 +42,8 @@ protected:
 
 	virtual void EndContextImpl(FName ContextName) = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#endif

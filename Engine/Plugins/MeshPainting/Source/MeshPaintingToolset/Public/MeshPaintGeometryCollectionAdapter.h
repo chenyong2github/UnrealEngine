@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BaseMeshPaintComponentAdapter.h"
 #include "MeshPaintComponentAdapterFactory.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 #include "UObject/WeakObjectPtr.h"
 
 class UBodySetup;
@@ -81,3 +79,7 @@ public:
 	virtual void AddReferencedObjectsGlobals(FReferenceCollector& Collector) override { FMeshPaintGeometryCollectionComponentAdapter::AddReferencedObjectsGlobals(Collector); }
 	virtual void CleanupGlobals() override { FMeshPaintGeometryCollectionComponentAdapter::CleanupGlobals(); }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

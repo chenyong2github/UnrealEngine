@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Internationalization/Text.h"
-#include "Misc/Timespan.h"
+
+class FText;
+struct FTimespan;
 
 
 /**
@@ -57,3 +58,8 @@ public:
 	/** Virtual destructor. */
 	virtual ~IUdpMessageTunnelConnection() { }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Internationalization/Text.h"
+#include "Misc/Timespan.h"
+#endif

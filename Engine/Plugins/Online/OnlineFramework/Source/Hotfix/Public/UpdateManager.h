@@ -2,16 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Engine/EngineTypes.h"
-#include "Templates/Casts.h"
-#include "Interfaces/OnlineIdentityInterface.h"
-#include "PatchCheck.h"
-#include "InstallBundleTypes.h"
 #include "Containers/Ticker.h"
+#include "Misc/DateTime.h"
 #include "UpdateManager.generated.h"
+
+enum class EInstallBundleManagerPatchCheckResult : uint32;
+enum class EPatchCheckResult : uint8;
+struct FOnlineError;
 
 class Error;
 class UGameInstance;
@@ -490,3 +487,11 @@ protected:
 	/** @return a pointer to the game instance */
 	UGameInstance* GetGameInstance() const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "InstallBundleTypes.h"
+#include "Interfaces/OnlineIdentityInterface.h"
+#include "PatchCheck.h"
+#endif

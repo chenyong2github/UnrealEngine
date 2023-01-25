@@ -2,11 +2,13 @@
 
 #pragma once
 
+#include "Metadata/PCGMetadataTypesConstantStruct.h"
 #include "PCGSettings.h"
-#include "MatchAndSet/PCGMatchAndSetBase.h"
 #include "Metadata/PCGAttributePropertySelector.h"
 
 #include "PCGPointMatchAndSet.generated.h"
+
+class UPCGMatchAndSetBase;
 
 /** This settings class is used to create a PCG node that will apply a "Match and Set" operation
 * on the point data it consumes as input.
@@ -83,3 +85,7 @@ class FPCGPointMatchAndSetElement : public FSimplePCGElement
 public:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MatchAndSet/PCGMatchAndSetBase.h"
+#endif

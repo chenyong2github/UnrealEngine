@@ -2,16 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "UI/SynthSlateStyle.h"
 
-#include "UObject/ObjectMacros.h"
-#include "Styling/SlateTypes.h"
-#include "Widgets/SWidget.h"
-#include "Components/Widget.h"
+#include "Styling/SlateBrush.h"
 #include "Styling/SlateWidgetStyle.h"
-#include "Brushes/SlateImageBrush.h"
 #include "SynthKnobStyle.generated.h"
 
 UENUM(BlueprintType)
@@ -80,3 +74,12 @@ struct SYNTHESIS_API FSynthKnobStyle : public FSlateWidgetStyle
 
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Brushes/SlateImageBrush.h"
+#include "Components/Widget.h"
+#include "CoreMinimal.h"
+#include "Styling/SlateTypes.h"
+#include "UI/SynthSlateStyle.h"
+#include "Widgets/SWidget.h"
+#endif

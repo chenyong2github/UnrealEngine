@@ -3,7 +3,6 @@
 #include "MovieScene/MovieSceneLiveLinkSubSectionProperties.h"
 
 #include "Channels/MovieSceneBoolChannel.h"
-#include "Channels/MovieSceneChannelProxy.h"
 
 #include "Channels/MovieSceneByteChannel.h"
 #include "LiveLinkMovieScenePrivate.h"

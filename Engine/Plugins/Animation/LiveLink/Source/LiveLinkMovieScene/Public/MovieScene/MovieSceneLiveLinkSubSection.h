@@ -2,17 +2,15 @@
 
 #pragma once
 
-#include "MovieSceneSection.h"
 
-#include "Channels/MovieSceneChannelProxy.h"
-#include "Channels/MovieSceneFloatChannel.h"
-#include "Evaluation/MovieSceneEvalTemplate.h"
-#include "LiveLinkRole.h"
+#include "Channels/MovieSceneChannelProxy.h" // IWYU pragma: keep
 #include "LiveLinkTypes.h"
 #include "MovieSceneLiveLinkStructProperties.h"
 #include "Templates/SubclassOf.h"
-
 #include "MovieSceneLiveLinkSubSection.generated.h"
+
+class ULiveLinkRole;
+struct FMovieSceneChannelProxyData;
 
 class UMovieScenePropertyTrack;
 struct FKeyDataOptimizationParams;
@@ -105,3 +103,10 @@ protected:
 	TSharedPtr<FLiveLinkStaticDataStruct> StaticData;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Channels/MovieSceneFloatChannel.h"
+#include "Evaluation/MovieSceneEvalTemplate.h"
+#include "LiveLinkRole.h"
+#include "MovieSceneSection.h"
+#endif

@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GeometryCacheModule.h"
 #include "GeometryCacheTrackEditor.h"
 #include "ISequencerModule.h"
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 
 /**
  * The public interface to this module
@@ -39,3 +36,7 @@ public:
 	FDelegateHandle TrackEditorBindingHandle;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

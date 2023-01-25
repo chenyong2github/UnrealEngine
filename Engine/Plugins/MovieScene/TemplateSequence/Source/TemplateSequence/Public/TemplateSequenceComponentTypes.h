@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "EntitySystem/MovieScenePropertyBinding.h"
 #include "Evaluation/MovieSceneEvaluationOperand.h"
-#include "Sections/TemplateSequenceSection.h"
+
+enum class ETemplateSectionPropertyScaleType;
 
 struct FMovieSceneFloatChannel;
 
@@ -55,3 +54,8 @@ private:
 } // namespace MovieScene
 } // namespace UE
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Sections/TemplateSequenceSection.h"
+#endif

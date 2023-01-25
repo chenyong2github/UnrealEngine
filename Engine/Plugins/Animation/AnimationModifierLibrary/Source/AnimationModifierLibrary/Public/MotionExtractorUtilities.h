@@ -3,8 +3,14 @@
 #pragma once
 
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "MotionExtractorTypes.h"
+#include "UObject/Package.h"
 #include "MotionExtractorUtilities.generated.h"
+
+class UAnimSequence;
+enum class EMotionExtractor_Axis : uint8;
+enum class EMotionExtractor_MotionType : uint8;
+struct FBoneContainer;
+struct FCompactPoseBoneIndex;
 
 UCLASS(meta=(ScriptName="MotionExtractorUtilityLibrary"))
 class  UMotionExtractorUtilityLibrary : public UBlueprintFunctionLibrary
@@ -72,3 +78,7 @@ public:
 	/** Helper function to calculate the magnitude of a vector only considering a specific axis or axes */
 	static float CalculateMagnitude(const FVector& Vector, EMotionExtractor_Axis Axis);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MotionExtractorTypes.h"
+#endif

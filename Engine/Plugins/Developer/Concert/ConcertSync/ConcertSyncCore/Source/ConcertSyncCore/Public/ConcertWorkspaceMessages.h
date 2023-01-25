@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ConcertSyncSessionTypes.h"
 #include "ConcertWorkspaceMessages.generated.h"
 
@@ -239,3 +238,7 @@ struct FConcertIgnoreActivityStateChangedEvent
 	UPROPERTY()
 	bool bIgnore = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

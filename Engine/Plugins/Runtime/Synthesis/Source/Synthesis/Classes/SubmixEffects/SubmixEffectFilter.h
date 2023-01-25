@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AudioEffect.h"
 #include "DSP/Filter.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "SubmixEffectFilter.generated.h"
@@ -169,3 +167,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixEffectPreset, Meta = (ShowOnlyInnerProperties))
 	FSubmixEffectFilterSettings Settings;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioEffect.h"
+#include "CoreMinimal.h"
+#endif

@@ -3,9 +3,11 @@
 #pragma once
 
 #include "StateTree.h"
-#include "StateTreeInstanceData.h"
 #include "StateTreeNodeBase.h"
 #include "Experimental/ConcurrentLinearAllocator.h"
+
+struct FGameplayTag;
+struct FInstancedPropertyBag;
 
 struct FStateTreeEvaluatorBase;
 struct FStateTreeTaskBase;

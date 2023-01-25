@@ -2,19 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Components/AudioComponent.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "Engine/EngineTypes.h"
-#include "Sound/SoundWaveProcedural.h"
 #include "Engine/DataTable.h"
 #include "Components/SynthComponent.h"
 #include "EpicSynth1.h"
-#include "EpicSynth1Types.h"
-#include "DSP/Osc.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
 #include "EpicSynth1Component.generated.h"
 
 USTRUCT(BlueprintType)
@@ -665,3 +655,7 @@ public:
 protected:
 	Audio::FEpicSynth1 EpicSynth1;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

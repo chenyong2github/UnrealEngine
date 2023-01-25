@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "AlphaBlend.h"
 #include "AnimNotifyState_IKWindow.generated.h"
@@ -33,3 +32,7 @@ public:
 
 	static float GetIKAlphaValue(const FName& GoalName, const struct FAnimMontageInstance* MontageInstance);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

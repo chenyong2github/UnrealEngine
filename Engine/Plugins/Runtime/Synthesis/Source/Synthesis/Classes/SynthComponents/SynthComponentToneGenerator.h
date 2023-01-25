@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Components/SynthComponent.h"
-#include "Sound/SoundBase.h"
 #include "DSP/SinOsc.h"
 #include "DSP/AudioBufferDistanceAttenuation.h"
-#include "Sound/SoundGenerator.h"
 
 
 #include "SynthComponentToneGenerator.generated.h"
@@ -86,3 +83,7 @@ private:
 	Audio::FAudioBufferDistanceAttenuationSettings DistanceAttenuationSettings;
 	ISoundGeneratorPtr ToneGenerator;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

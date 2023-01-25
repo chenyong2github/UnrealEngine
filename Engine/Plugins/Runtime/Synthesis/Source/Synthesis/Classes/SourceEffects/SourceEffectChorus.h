@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Containers/Set.h"
 #include "DSP/Chorus.h"
 #include "Sound/SoundEffectSource.h"
 #include "Sound/SoundModulationDestination.h"

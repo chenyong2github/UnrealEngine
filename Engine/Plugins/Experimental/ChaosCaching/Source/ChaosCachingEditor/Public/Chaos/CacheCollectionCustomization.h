@@ -3,9 +3,9 @@
 #pragma once
 
 #include "IDetailCustomization.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtr.h"
+
+namespace ETextCommit { enum Type : int; }
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
@@ -39,3 +39,7 @@ private:
 
 	TMap< int, TSharedPtr<SEditableTextBox>> NameEditBoxes;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Types/SlateEnums.h"
+#endif

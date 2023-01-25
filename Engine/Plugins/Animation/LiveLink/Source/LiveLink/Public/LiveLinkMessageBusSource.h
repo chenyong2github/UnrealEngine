@@ -5,9 +5,11 @@
 #include "ILiveLinkSource.h"
 
 #include "HAL/ThreadSafeBool.h"
-#include "IMessageContext.h"
-#include "LiveLinkRole.h"
 #include "MessageEndpoint.h"
+
+class ULiveLinkRole;
+class ULiveLinkSourceSettings;
+struct FMessageEndpointBuilder;
 
 class ILiveLinkClient;
 struct FLiveLinkPongMessage;
@@ -120,3 +122,7 @@ private:
 	// Offset between sender's machine engine time and receiver's machine engine time
 	double MachineTimeOffset;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "LiveLinkRole.h"
+#endif

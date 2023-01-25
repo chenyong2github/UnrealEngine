@@ -3,11 +3,9 @@
 #pragma once
 
 #include "Camera/CameraShakeBase.h"
-#include "CineCameraComponent.h"
-#include "CameraAnimationSequence.h"
-#include "EntitySystem/MovieSceneEntityIDs.h"
-#include "UObject/WeakObjectPtr.h"
 #include "SequenceCameraShake.generated.h"
+
+struct FMinimalViewInfo;
 
 class UCameraAnimationSequenceCameraStandIn;
 class UMovieSceneEntitySystemLinker;
@@ -83,3 +81,9 @@ private:
 	UPROPERTY(Instanced, Transient)
 	TObjectPtr<UCameraAnimationSequenceCameraStandIn> CameraStandIn;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CameraAnimationSequence.h"
+#include "CineCameraComponent.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
+#endif

@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Animation/AnimSequence.h"
 #include "AlphaBlend.h"
+#include "Animation/AnimSequenceBase.h"
 #include "RootMotionModifier.generated.h"
 
 class UMotionWarpingComponent;
@@ -356,3 +355,8 @@ public:
 		UPARAM(DisplayName = "End Time") float InEndTime,
 		UPARAM(DisplayName = "Scale") FVector InScale = FVector(1.f));
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Animation/AnimSequence.h"
+#include "CoreMinimal.h"
+#endif

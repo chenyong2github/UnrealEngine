@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "StateTreeAnyEnum.generated.h"
 
 /**
@@ -39,3 +38,7 @@ struct STATETREEMODULE_API FStateTreeAnyEnum
 	TObjectPtr<UEnum> Enum = nullptr;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

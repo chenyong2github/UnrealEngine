@@ -6,7 +6,6 @@
 #include "ConcertSyncSessionTypes.h"
 #include "HistoryEdition/ActivityDependencyEdge.h"
 #include "HistoryEdition/ActivityDependencyGraph.h"
-#include "HistoryEdition/ActivityGraphIDs.h"
 #include "HistoryEdition/ActivityNode.h"
 
 namespace UE::ConcertSyncCore

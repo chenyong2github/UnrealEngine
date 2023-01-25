@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
 #include "Components/PrimitiveComponent.h"
 #include "SmartObjectContainerRenderingComponent.generated.h"
 

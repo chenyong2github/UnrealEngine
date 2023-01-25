@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Online/CoreOnline.h"
-#include "OnlineSubsystemTypes.h"
 #include "OnlineDelegateMacros.h"
+
+class FOnlineUser;
 
 ONLINESUBSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogOnlineUser, Log, All);
 #define UE_LOG_ONLINE_USER(Verbosity, Format, ...) \
@@ -164,3 +164,8 @@ public:
 	 */
 	virtual FUniqueNetIdPtr GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId) = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineSubsystemTypes.h"
+#endif

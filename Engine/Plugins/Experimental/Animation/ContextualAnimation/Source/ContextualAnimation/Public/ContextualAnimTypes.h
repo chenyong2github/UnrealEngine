@@ -3,10 +3,11 @@
 #pragma once
 
 #include "Animation/AnimSequence.h"
-#include "Templates/SubclassOf.h"
 #include "GameFramework/Actor.h"
 #include "GameplayTagContainer.h"
 #include "ContextualAnimTypes.generated.h"
+
+struct FContextualAnimSceneBindingContext;
 
 CONTEXTUALANIMATION_API DECLARE_LOG_CATEGORY_EXTERN(LogContextualAnim, Log, All);
 

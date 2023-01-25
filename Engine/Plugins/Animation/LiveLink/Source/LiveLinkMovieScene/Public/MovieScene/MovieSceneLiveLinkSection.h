@@ -4,12 +4,12 @@
 
 #include "MovieSceneSection.h"
 
-#include "Channels/MovieSceneFloatChannel.h"
-#include "Evaluation/MovieSceneEvalTemplate.h"
 #include "LiveLinkPresetTypes.h"
-#include "LiveLinkRole.h"
 
 #include "MovieSceneLiveLinkSection.generated.h"
+
+struct FMovieSceneEvalTemplatePtr;
+struct FMovieSceneFloatChannel;
 
 class UMovieScenePropertyTrack;
 struct FKeyDataOptimizationParams;
@@ -100,3 +100,9 @@ public:
 	TArray <FMovieSceneFloatChannel> PropertyFloatChannels_DEPRECATED;
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Channels/MovieSceneFloatChannel.h"
+#include "Evaluation/MovieSceneEvalTemplate.h"
+#include "LiveLinkRole.h"
+#endif

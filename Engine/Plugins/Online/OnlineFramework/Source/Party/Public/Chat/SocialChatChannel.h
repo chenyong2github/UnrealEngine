@@ -2,11 +2,15 @@
 
 #pragma once
 
+#include "Interfaces/OnlineChatInterface.h"
 #include "OnlineSubsystem.h"
-#include "User/ISocialUserList.h"
-#include "User/SocialUser.h"
-#include "SocialChatMessage.h"
+#include "SocialTypes.h"
 #include "SocialChatChannel.generated.h"
+
+class FSocialLocalChatMessage;
+class USocialChatManager;
+class USocialToolkit;
+class USocialUser;
 
 UENUM(BlueprintType)
 enum class ESocialChannelType : uint8
@@ -107,3 +111,9 @@ private:
 	mutable FOnChannelDisplayNameChanged OnChannelDisplayNameChangedEvent;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "SocialChatMessage.h"
+#include "User/ISocialUserList.h"
+#include "User/SocialUser.h"
+#endif

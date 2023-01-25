@@ -4,6 +4,7 @@
 
 #include "CacheAdapter.h"
 #include "Chaos/CacheEvents.h"
+#include "Chaos/Framework/PhysicsSolverBase.h"
 #include "EventsData.h"
 #include "GeometryCollectionComponentCacheAdapter.generated.h"
 

@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "UObject/Class.h"
 #include "StructView.h"
-#include "Templates/UnrealTypeTraits.h"
 
 #ifndef WITH_STRUCTUTILS_DEBUG
 #define WITH_STRUCTUTILS_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && 1)

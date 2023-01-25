@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "CoreMinimal.h"
-#include "DSP/Filter.h"
 #include "DSP/Delay.h"
-#include "DSP/AllPassFilter.h"
-#include "DSP/OnePole.h"
+
+namespace Audio { class FDelayAPF; }
+namespace Audio { class FOnePoleLPF; }
 
 namespace Audio
 {
@@ -94,3 +93,10 @@ namespace Audio
 		int32 ScatteringMatrixLength;
 	};
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DSP/AllPassFilter.h"
+#include "DSP/Filter.h"
+#include "DSP/OnePole.h"
+#endif

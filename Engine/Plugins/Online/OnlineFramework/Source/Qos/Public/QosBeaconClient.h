@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "OnlineBeaconClient.h"
 #include "QosBeaconClient.generated.h"
 
@@ -85,3 +83,7 @@ protected:
 
 	friend class AQosBeaconHost;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

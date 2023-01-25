@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "ContextualAnimTypes.h"
 #include "ContextualAnimSelectionCriterion.generated.h"
+
+class UContextualAnimSceneAsset;
+struct FContextualAnimSceneBindingContext;
 
 UENUM(BlueprintType)
 enum class EContextualAnimCriterionType : uint8
@@ -143,3 +143,8 @@ public:
 
 	virtual bool DoesQuerierPassCondition(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ContextualAnimTypes.h"
+#include "CoreMinimal.h"
+#endif

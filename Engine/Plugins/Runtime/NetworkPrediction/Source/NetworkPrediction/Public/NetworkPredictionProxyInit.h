@@ -5,7 +5,6 @@
 #include "Engine/World.h"
 #include "NetworkPredictionProxy.h"
 #include "NetworkPredictionWorldManager.h"
-#include "Trace/Trace.inl"
 
 struct FNetworkPredictionSettings;
 

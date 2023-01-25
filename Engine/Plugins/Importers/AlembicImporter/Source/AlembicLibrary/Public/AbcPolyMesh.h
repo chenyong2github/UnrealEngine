@@ -3,7 +3,8 @@
 #pragma once
 
 #include "AbcObject.h"
-#include "Components.h"
+#include "Math/BoxSphereBounds.h"
+#include "MeshUVChannelInfo.h"
 
 enum class ESampleReadFlags : uint8;
 
@@ -138,3 +139,7 @@ protected:
 	/** Whether or not the mesh is visible in the first Frame */
 	bool bFirstFrameVisibility;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components.h"
+#endif

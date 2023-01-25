@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "FBIKConstraint.h"
 
 struct FFBIKConstraintOption;
@@ -19,3 +17,8 @@ namespace FBIKConstraintLib
 		const TMap<FRigElementKey, int32>& HierarchyToLinkDataMap);
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#endif

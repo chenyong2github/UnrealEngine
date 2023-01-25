@@ -4,7 +4,6 @@
 
 #include "GLTFLogger.h"
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
 namespace GLTF
@@ -61,3 +60,7 @@ namespace GLTF
 	};
 
 }  // namespace GLTF
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

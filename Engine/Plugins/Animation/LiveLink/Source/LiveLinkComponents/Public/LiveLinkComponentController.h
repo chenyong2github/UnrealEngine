@@ -3,8 +3,11 @@
 #pragma once
 
 #include "Components/ActorComponent.h"
-#include "ILiveLinkClient.h"
+#include "LiveLinkRole.h"
 #include "LiveLinkComponentController.generated.h"
+
+class ULiveLinkComponentController;
+struct FLiveLinkSubjectFrameData;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLiveLinkTickDelegate, float, DeltaTime);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnControllerMapUpdatedDelegate);
@@ -138,3 +141,7 @@ protected:
 private:
 	FLiveLinkControllersTicked LiveLinkControllersTickedDelegate;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ILiveLinkClient.h"
+#endif

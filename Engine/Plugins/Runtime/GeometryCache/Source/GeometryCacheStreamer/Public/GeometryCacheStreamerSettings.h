@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
-#include "UObject/ObjectMacros.h"
 
 #include "GeometryCacheStreamerSettings.generated.h"
 

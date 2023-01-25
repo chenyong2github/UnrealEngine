@@ -6,6 +6,8 @@
 #include "WaterQuadTree.h"
 #include "WaterMeshComponent.generated.h"
 
+struct FPSOPrecacheParams;
+
 /**
  * Water Mesh Component responsible for generating and rendering a continuous water mesh on top of all the existing water body actors in the world
  * The component contains a quadtree which defines where there are water tiles. A function for traversing the quadtree and outputing a list of instance data for each tile to be rendered from a point of view is included

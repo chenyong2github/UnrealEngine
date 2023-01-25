@@ -3,10 +3,11 @@
 #pragma once
 
 #include "AITypes.h"
-#include "InstancedStruct.h"
 #include "StateTreeConditionBase.h"
 #include "StateTreeAnyEnum.h"
 #include "StateTreeCommonConditions.generated.h"
+
+struct FStateTreeDataView;
 
 USTRUCT()
 struct STATETREEMODULE_API FStateTreeCompareIntConditionInstanceData

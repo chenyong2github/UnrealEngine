@@ -5,9 +5,11 @@
 #include "TrackRecorders/IMovieSceneTrackRecorderFactory.h"
 #include "TrackRecorders/MovieSceneTrackRecorder.h"
 
-#include "MovieSceneLiveLinkControllerTrackRecorder.h"
 
 #include "MovieSceneLiveLinkControllerMapTrackRecorder.generated.h"
+
+class ULiveLinkControllerBase;
+class UMovieSceneLiveLinkControllerTrackRecorder;
 
 /** Movie Scene track recorder factory for the LiveLink Component's Controller Map */
 class LIVELINKSEQUENCER_API FMovieSceneLiveLinkControllerMapTrackRecorderFactory : public IMovieSceneTrackRecorderFactory
@@ -51,3 +53,7 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMovieSceneLiveLinkControllerTrackRecorder>> ControllerRecorders;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MovieSceneLiveLinkControllerTrackRecorder.h"
+#endif

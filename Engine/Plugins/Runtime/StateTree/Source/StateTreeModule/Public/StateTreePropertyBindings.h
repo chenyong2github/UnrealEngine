@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "StateTreeTypes.h"
-#include "Misc/Guid.h"
-#include "StructView.h"
 #include "StateTreePropertyBindings.generated.h"
 
 class FProperty;
@@ -418,3 +415,7 @@ struct STATETREEMODULE_API IStateTreeBindingLookup
 	/** @return Leaf property based on property path. */
 	virtual const FProperty* GetPropertyPathLeafProperty(const FStateTreeEditorPropertyPath& InPath) const PURE_VIRTUAL(IStateTreeBindingLookup::GetPropertyPathLeafProperty, return nullptr; );
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

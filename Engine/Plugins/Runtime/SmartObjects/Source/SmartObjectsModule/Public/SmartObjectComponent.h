@@ -7,6 +7,8 @@
 #include "SmartObjectDefinition.h"
 #include "SmartObjectComponent.generated.h"
 
+namespace EEndPlayReason { enum Type : int; }
+
 class UAbilitySystemComponent;
 struct FSmartObjectRuntime;
 

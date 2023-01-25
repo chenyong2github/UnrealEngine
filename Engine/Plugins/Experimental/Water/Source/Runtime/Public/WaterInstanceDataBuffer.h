@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "Containers/ClosableMpscQueue.h"
 #include "RenderingThread.h"
-#include "RHI.h"
-#include "RHIFwd.h"
 
 template <bool bWithWaterSelectionSupport>
 class TWaterInstanceDataBuffers
@@ -101,5 +98,6 @@ private:
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "RHI.h"
 #include "CoreMinimal.h"
 #endif

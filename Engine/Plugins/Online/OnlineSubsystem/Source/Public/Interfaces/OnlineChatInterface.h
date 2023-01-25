@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
+#include "Delegates/Delegate.h"
 #include "OnlineDelegateMacros.h"
+#include "Online/CoreOnlineFwd.h"
+
+struct FDateTime;
 
 ONLINESUBSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogOnlineChat, Log, All);
 
@@ -394,3 +396,8 @@ public:
 	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnChatRoomMessageReceived, const FUniqueNetId&, const FChatRoomId&, const TSharedRef<FChatMessage>&);
 	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnChatPrivateMessageReceived, const FUniqueNetId&, const TSharedRef<FChatMessage>&);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Online/CoreOnline.h"
+#endif

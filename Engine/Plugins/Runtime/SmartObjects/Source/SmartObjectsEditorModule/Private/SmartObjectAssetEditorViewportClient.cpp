@@ -2,13 +2,11 @@
 
 #include "SmartObjectAssetEditorViewportClient.h"
 #include "Components/StaticMeshComponent.h"
-#include "PreviewScene.h"
 #include "SmartObjectAssetToolkit.h"
 #include "SmartObjectAssetEditorSettings.h"
 #include "SmartObjectComponentVisualizer.h"
 #include "ScopedTransaction.h"
 #include "SmartObjectDefinition.h"
-#include "SmartObjectTypes.h"
 #include "SmartObjectAnnotation.h"
 
 

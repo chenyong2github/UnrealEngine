@@ -3,9 +3,8 @@
 #pragma once
 
 #include "InstancedStructContainer.h"
-#include "InstancedStruct.h"
-#include "StructView.h"
 #include "StateTreeEvents.h"
+#include "StateTreeTypes.h"
 #include "StateTreeInstanceData.generated.h"
 
 struct FStateTreeTransitionRequest;

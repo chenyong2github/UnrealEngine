@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Online/CoreOnline.h"
 #include "OnlineKeyValuePair.h"
-#include "Online/CoreOnlineFwd.h"
-#include "OnlineSubsystemTypes.h"
 #include "OnlineDelegateMacros.h"
 
 class FJsonObject;
@@ -330,3 +328,8 @@ public:
 	 */
 	DEFINE_ONLINE_PLAYER_DELEGATE_THREE_PARAM(MAX_LOCAL_PLAYERS, OnDeleteMessageComplete, bool, const FUniqueMessageId&, const FString&);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineSubsystemTypes.h"
+#endif

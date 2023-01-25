@@ -3,9 +3,9 @@
 #pragma once
 
 #include "MassEntityTypes.h"
-#include "Containers/UnrealString.h"
 #include "EngineDefines.h"
 #include "GameplayTagContainer.h"
+#include "Math/Box.h"
 #include "SmartObjectTypes.generated.h"
 
 class FDebugRenderSceneProxy;

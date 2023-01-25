@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Script/AssetDefinition_BlueprintGeneratedClass.h"
 

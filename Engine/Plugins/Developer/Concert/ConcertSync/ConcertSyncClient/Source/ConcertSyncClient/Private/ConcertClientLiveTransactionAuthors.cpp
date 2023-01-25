@@ -3,6 +3,7 @@
 #include "ConcertClientLiveTransactionAuthors.h"
 #include "ConcertSyncClientLiveSession.h"
 #include "ConcertSyncSessionDatabase.h"
+#include "ConcertSyncSessionTypes.h"
 #include "IConcertSession.h"
 
 FConcertClientLiveTransactionAuthors::FConcertClientLiveTransactionAuthors(TSharedRef<FConcertSyncClientLiveSession> InLiveSession)

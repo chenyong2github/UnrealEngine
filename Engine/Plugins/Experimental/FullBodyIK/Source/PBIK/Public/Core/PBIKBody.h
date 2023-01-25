@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "UObject/NameTypes.h"
-#include "Math/Vector.h"
 #include "Math/Quat.h"
 
 struct FPBIKSolverSettings;

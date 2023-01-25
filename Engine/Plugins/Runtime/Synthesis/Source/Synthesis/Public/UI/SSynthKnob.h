@@ -2,18 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Input/Reply.h"
+#include "Styling/SlateStyle.h"
 #include "Styling/SlateWidgetStyleAsset.h"
+#include "UI/SynthSlateStyle.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/SlateColor.h"
-#include "Styling/SlateTypes.h"
-#include "Styling/CoreStyle.h"
 #include "Framework/SlateDelegates.h"
 #include "Widgets/SLeafWidget.h"
 #include "UI/SynthKnobStyle.h"
-#include "UI/SSynthTooltip.h"
 
 class FPaintArgs;
 class FSlateWindowElementList;
@@ -217,3 +212,10 @@ private:
 	// Holds a delegate that is executed when the slider's value changed.
 	FOnFloatValueChanged OnValueChanged;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/SlateTypes.h"
+#include "UI/SSynthTooltip.h"
+#endif

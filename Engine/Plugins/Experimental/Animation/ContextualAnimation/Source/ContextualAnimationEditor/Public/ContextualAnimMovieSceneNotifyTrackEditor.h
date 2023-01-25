@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "ISequencerSection.h"
 #include "MovieSceneTrackEditor.h"
-#include "ContextualAnimTypes.h"
-#include "BoneContainer.h"
+#include "UObject/GCObject.h"
+
+struct FBuildEditWidgetParams;
 
 class AActor;
 class UAnimMontage;
@@ -80,3 +81,9 @@ public:
 
 	static void PaintNotifyName(FSequencerSectionPainter& Painter, int32 LayerId, const FString& InEventString, float PixelPos, bool bIsEventValid);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BoneContainer.h"
+#include "ContextualAnimTypes.h"
+#include "CoreMinimal.h"
+#endif

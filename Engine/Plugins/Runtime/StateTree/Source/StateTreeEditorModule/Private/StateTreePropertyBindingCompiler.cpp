@@ -3,6 +3,7 @@
 #include "IPropertyAccessEditor.h"
 #include "PropertyPathHelpers.h"
 #include "StateTreeCompiler.h"
+#include "StateTreeCompilerLog.h"
 #include "StateTreeEditorPropertyBindings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreePropertyBindingCompiler)

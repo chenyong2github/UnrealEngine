@@ -1,15 +1,14 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "TrackRecorders/MovieSceneTrackRecorder.h"
-#include "CoreMinimal.h"
-#include "MovieScene.h"
 #include "TrackRecorders/IMovieSceneTrackRecorderFactory.h"
-#include "Channels/MovieSceneFloatChannel.h"
-#include "Chaos/CacheManagerActor.h"
 
 #include "MovieSceneChaosCacheTrackRecorder.generated.h"
+
+class AChaosCacheManager;
+enum class ECacheMode : uint8;
 
 class  UMovieSceneChaosCacheTrack;
 class  UMovieSceneChaosCacheSection;
@@ -76,3 +75,9 @@ private:
 	FFrameNumber RecordStartFrame;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Channels/MovieSceneFloatChannel.h"
+#include "Chaos/CacheManagerActor.h"
+#include "CoreMinimal.h"
+#endif

@@ -2,9 +2,11 @@
  
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineSubsystemTypes.h"
+#include "Delegates/Delegate.h"
 #include "OnlineDelegateMacros.h"
+
+class FSharedContentHandle;
+class FUniqueNetId;
 
 /**
  * Delegate fired when a shared file read from the network platform's storage is complete
@@ -107,3 +109,8 @@ public:
 };
 
 typedef TSharedPtr<IOnlineSharedCloud, ESPMode::ThreadSafe> IOnlineSharedCloudPtr;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineSubsystemTypes.h"
+#endif

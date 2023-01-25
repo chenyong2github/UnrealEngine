@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 
-#include "LiveLinkRole.h"
-#include "LiveLinkControllerBase.h"
 #include "Templates/SubclassOf.h"
 
 #include "LiveLinkComponentSettings.generated.h"
+
+class ULiveLinkControllerBase;
+class ULiveLinkRole;
 
 
 /**
@@ -26,3 +25,8 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "LiveLink", meta = (AllowAbstract = "false"))
 	TMap<TSubclassOf<ULiveLinkRole>, TSubclassOf<ULiveLinkControllerBase>> DefaultControllerForRole;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "LiveLinkControllerBase.h"
+#include "LiveLinkRole.h"
+#endif

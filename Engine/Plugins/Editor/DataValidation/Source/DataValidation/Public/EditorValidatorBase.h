@@ -2,19 +2,12 @@
 
 #pragma once
 
-#include "EditorSubsystem.h"
 
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/Interface.h"
-#include "UObject/ObjectMacros.h"
-#include "Logging/LogVerbosity.h"
-#include "Internationalization/Text.h"
-#include "UObject/TextProperty.h"
-#include "DataValidationModule.h"
 
+#include "UObject/Package.h"
 #include "EditorValidatorBase.generated.h"
+
+enum class EDataValidationUsecase : uint8;
 
 /*
 * The EditorValidatorBase is a class which verifies that an asset meets a specific ruleset.
@@ -91,3 +84,11 @@ private:
 
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "DataValidationModule.h"
+#include "EditorSubsystem.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Interface.h"
+#include "UObject/TextProperty.h"
+#endif

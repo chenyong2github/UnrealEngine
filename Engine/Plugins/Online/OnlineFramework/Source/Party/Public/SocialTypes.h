@@ -2,11 +2,6 @@
 
 #pragma once
 
-#include "PartyModule.h"
-#include "OnlineSubsystemTypes.h"
-#include "GameFramework/OnlineReplStructs.h"
-#include "Templates/SubclassOf.h"
-#include "Interactions/SocialInteractionHandle.h"
 #include "SocialSettings.h"
 
 #include "SocialTypes.generated.h"
@@ -196,3 +191,11 @@ inline const TCHAR* LexToString(ECrossplayPreference Preference)
 	}
 	return TEXT("Unknown");
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GameFramework/OnlineReplStructs.h"
+#include "Interactions/SocialInteractionHandle.h"
+#include "OnlineSubsystemTypes.h"
+#include "PartyModule.h"
+#include "Templates/SubclassOf.h"
+#endif

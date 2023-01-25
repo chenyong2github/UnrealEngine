@@ -5,7 +5,7 @@
 #include "IMeshPaintComponentAdapter.h"
 #include "TMeshPaintOctree.h"
 #include "MeshAdapter.h"
-#include "Spatial/MeshAABBTree3.h"
+#include "Spatial/MeshAABBTree3.h" // IWYU pragma: keep
 #include "UObject/GCObject.h"
 
 typedef UE::Geometry::TIndexMeshArrayAdapter<uint32, double> FIndexMeshArrayAdapterd;

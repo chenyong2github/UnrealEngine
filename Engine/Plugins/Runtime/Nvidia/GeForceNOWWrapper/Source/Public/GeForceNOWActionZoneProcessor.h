@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 #if NV_GEFORCENOW
 
-#include "CoreMinimal.h"
 #include "Layout/SlateRect.h"
 #include "Containers/Ticker.h"
 

@@ -4,7 +4,6 @@
 
 #include "AssetDefinition.h"
 #include "AssetDefinitionRegistry.h"
-#include "AssetRegistry/ARFilter.h"
 #include "Engine/Blueprint.h"
 #include "Engine/UserDefinedStruct.h"
 #include "Engine/UserDefinedEnum.h"

@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldConditions/SmartObjectWorldConditionSchema.h"
-#include "GameFramework/Actor.h"
 #include "SmartObjectSubsystem.h"
 #include "WorldConditions/SmartObjectWorldConditionBase.h"
-#include "SmartObjectTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectWorldConditionSchema)
 

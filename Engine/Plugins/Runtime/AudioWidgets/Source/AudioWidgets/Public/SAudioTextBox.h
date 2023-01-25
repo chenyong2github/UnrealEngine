@@ -3,18 +3,16 @@
 #pragma once
 
 #include "AudioWidgetsSlateTypes.h"
-#include "Fonts/FontMeasure.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Styling/CoreStyle.h"
+#include "Framework/SlateDelegates.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Styling/ISlateStyle.h"
 #include "Styling/SlateWidgetStyleAsset.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/NumericTypeInterface.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SEditableText.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
+
+class SBorder;
+class SEditableText;
 
 // FVariablePrecisionNumericInterface
 // Taken from PropertyEditor/VariablePrecisionNumericInterface.h
@@ -104,3 +102,12 @@ protected:
 	/** Used to convert and format value text strings **/
 	static const FVariablePrecisionNumericInterface NumericInterface;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Styling/CoreStyle.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SEditableText.h"
+#include "Widgets/Layout/SBorder.h"
+#endif

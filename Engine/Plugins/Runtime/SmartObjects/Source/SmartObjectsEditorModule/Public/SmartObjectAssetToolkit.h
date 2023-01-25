@@ -1,8 +1,11 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "AdvancedPreviewScene.h" // IWYU pragma: keep
 #include "Tools/BaseAssetToolkit.h"
-#include "AdvancedPreviewScene.h"
+
+class FAdvancedPreviewScene;
+class FSpawnTabArgs;
 
 class FEditorViewportClient;
 class UAssetEditor;

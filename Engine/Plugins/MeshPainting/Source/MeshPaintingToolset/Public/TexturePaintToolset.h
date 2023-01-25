@@ -7,6 +7,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "TexturePaintToolset.generated.h"
 
+class FTexture;
+
 class UMeshComponent;
 class UTexture;
 class UTexture2D;

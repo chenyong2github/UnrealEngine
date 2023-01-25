@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreMinimal.h"
-#include "Engine/StaticMeshActor.h"
 
-#include "MSAssetImportData.h"
-#include "Materials/MaterialInstanceConstant.h"
+#include "Templates/SharedPointer.h"
 
 class MEGASCANSPLUGIN_API FAssetsImportController
 {
@@ -22,3 +19,10 @@ public:
 	static TSharedPtr<FAssetsImportController> Get();
 	void DataReceived(const FString DataFromBridge);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/StaticMeshActor.h"
+#include "MSAssetImportData.h"
+#include "Materials/MaterialInstanceConstant.h"
+#endif

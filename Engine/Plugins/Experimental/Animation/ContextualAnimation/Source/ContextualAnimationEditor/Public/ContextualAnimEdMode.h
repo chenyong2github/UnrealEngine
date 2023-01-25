@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EdMode.h"
+#include "GenericPlatform/ICursor.h"
 #include "HitProxies.h"
 
 class AActor;
@@ -58,3 +58,7 @@ private:
 
 	FContextualAnimViewModel* ViewModel = nullptr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Sound/SoundEffectSource.h"
-#include "DSP/Dsp.h"
 #include "DSP/Filter.h"
-#include "DSP/BufferVectorOperations.h"
 #include "SourceEffectMotionFilter.generated.h"
+
+namespace Audio { class FLinearEase; }
 
 UENUM(BlueprintType)
 enum class ESourceEffectMotionFilterModSource : uint8
@@ -361,3 +360,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|Effects")
 	FSourceEffectMotionFilterSettings Settings;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DSP/BufferVectorOperations.h"
+#endif

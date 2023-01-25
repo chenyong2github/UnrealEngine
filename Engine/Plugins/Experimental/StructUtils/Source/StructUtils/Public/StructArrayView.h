@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "StructUtils.h"
-#include "InstancedStruct.h"
-#include "SharedStruct.h"
+#include "UObject/Class.h"
 
 ///////////////////////////////////////////////////////////////// FStructArrayView /////////////////////////////////////////////////////////////////
 
@@ -103,3 +101,9 @@ private:
 	int32 NumElements = 0;
 	UScriptStruct& FragmentType;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "InstancedStruct.h"
+#include "SharedStruct.h"
+#include "StructUtils.h"
+#endif

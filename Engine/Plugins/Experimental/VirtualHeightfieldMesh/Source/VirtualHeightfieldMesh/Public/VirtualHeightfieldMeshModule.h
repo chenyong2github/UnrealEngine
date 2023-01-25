@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 
 /** Implements the VirtualHeightfieldMesh module  */
 class FVirtualHeightfieldMeshModule : public IModuleInterface
@@ -14,3 +13,7 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface Interface.
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Modules/ModuleManager.h"
+#endif

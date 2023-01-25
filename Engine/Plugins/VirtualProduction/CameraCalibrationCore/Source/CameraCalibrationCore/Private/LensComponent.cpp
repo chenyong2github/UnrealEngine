@@ -7,6 +7,7 @@
 #include "Controllers/LiveLinkTransformController.h"
 #include "Engine/Engine.h"
 #include "ILiveLinkComponentModule.h"
+#include "Modules/ModuleManager.h"
 #include "Roles/LiveLinkCameraTypes.h"
 #include "Roles/LiveLinkCameraRole.h"
 #include "Roles/LiveLinkTransformRole.h"

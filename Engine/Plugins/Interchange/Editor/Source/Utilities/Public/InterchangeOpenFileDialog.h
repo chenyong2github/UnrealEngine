@@ -2,11 +2,7 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
 #include "InterchangeFilePickerBase.h"
-#include "InterchangeTranslatorBase.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 
 #include "InterchangeOpenFileDialog.generated.h"
 
@@ -22,3 +18,7 @@ protected:
 	virtual bool FilePickerForTranslatorAssetType(const EInterchangeTranslatorAssetType TranslatorAssetType, FInterchangeFilePickerParameters& Parameters, TArray<FString>& OutFilenames) override;
 	virtual bool FilePickerForTranslatorType(const EInterchangeTranslatorType TranslatorType, FInterchangeFilePickerParameters& Parameters, TArray<FString>& OutFilenames) override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "InterchangeTranslatorBase.h"
+#endif

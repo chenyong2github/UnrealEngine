@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "MovieScene/IMovieSceneLiveLinkPropertyHandler.h"
-#include "MovieScene/MovieSceneLiveLinkStructProperties.h"
 #include "MovieScene/MovieSceneLiveLinkStructPropertyBindings.h"
+
+struct FLiveLinkPropertyData;
 
 
 struct FKeyDataOptimizationParams;
@@ -57,3 +57,8 @@ protected:
 
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "MovieScene/MovieSceneLiveLinkStructProperties.h"
+#endif

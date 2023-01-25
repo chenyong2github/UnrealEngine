@@ -6,7 +6,6 @@
 #include "OnlineServicesEngineUtilsImpl.h"
 #include "OnlineDelegates.h"
 #include "OnlinePIESettings.h"
-#include "OnlineSubsystemNames.h"
 
 IMPLEMENT_MODULE(FOnlineSubsystemUtilsModule, OnlineSubsystemUtils);
 

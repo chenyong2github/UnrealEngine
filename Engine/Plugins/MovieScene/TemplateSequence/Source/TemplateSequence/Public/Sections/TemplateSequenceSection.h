@@ -2,15 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Channels/MovieSceneFloatChannel.h"
-#include "EntitySystem/BuiltInComponentTypes.h"
-#include "EntitySystem/IMovieSceneEntityProvider.h"
-#include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieScenePropertyBinding.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "TemplateSequenceSection.generated.h"
+
+enum class EMovieSceneChannelProxyType : uint8;
 
 /**
  * Defines the type of property scaling for a template sequence.
@@ -79,3 +76,8 @@ public:
 	UPROPERTY()
 	TArray<FTemplateSectionPropertyScale> PropertyScales;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "EntitySystem/BuiltInComponentTypes.h"
+#endif

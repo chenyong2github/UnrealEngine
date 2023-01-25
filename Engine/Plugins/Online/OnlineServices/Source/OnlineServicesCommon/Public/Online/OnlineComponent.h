@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
-#include "Online/OnlineAsyncOp.h"
 #include "Online/IOnlineComponent.h"
+#include "Online/OnlineExecHandler.h"
 #include "Online/OnlineServicesCommon.h"
 
 namespace UE::Online {

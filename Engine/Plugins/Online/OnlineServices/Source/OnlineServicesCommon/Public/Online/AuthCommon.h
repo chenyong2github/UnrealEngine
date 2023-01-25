@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Online/Auth.h"
 #include "Online/OnlineComponent.h"
 
 namespace UE::Online {

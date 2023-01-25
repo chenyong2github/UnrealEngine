@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MovieSceneNameableTrack.h"
 #include "ContextualAnimMovieSceneNotifyTrack.generated.h"
+
+enum class EMovieSceneSectionMovedResult;
+struct FMovieSceneSectionMovedParams;
 
 class UAnimSequenceBase;
 struct FAnimNotifyTrack;
@@ -71,3 +73,7 @@ private:
 	UPROPERTY()
 	TWeakObjectPtr<UAnimSequenceBase> Animation;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

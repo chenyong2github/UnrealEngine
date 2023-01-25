@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Templates/ValueOrError.h"
-#include "MovieSceneSequenceID.h"
-#include "MovieSceneSpawnRegister.h"
 #include "LevelSequenceSpawnRegister.h"
 #include "UObject/ObjectKey.h"
+
+struct FNewSpawnable;
 
 class IMovieScenePlayer;
 class ISequencer;
@@ -107,3 +105,7 @@ private:
 	/** Handle to a delegate that is bound to FCoreUObjectDelegates::OnObjectPreSave to harvest changes to spawned objects. */
 	FDelegateHandle OnObjectSavedHandle;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

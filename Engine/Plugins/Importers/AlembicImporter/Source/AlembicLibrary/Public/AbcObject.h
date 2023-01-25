@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "HAL/ThreadSafeBool.h"
+#include "Math/Matrix.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
@@ -72,3 +71,8 @@ protected:
 	int32 ResidentSampleIndices[MaxNumberOfResidentSamples];
 	bool InUseSamples[MaxNumberOfResidentSamples];
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "HAL/ThreadSafeBool.h"
+#endif

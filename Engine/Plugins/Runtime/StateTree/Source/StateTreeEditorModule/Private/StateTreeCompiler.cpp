@@ -3,6 +3,7 @@
 #include "StateTreeCompiler.h"
 #include "StateTree.h"
 #include "StateTreeAnyEnum.h"
+#include "StateTreeCompilerLog.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "Kismet/BlueprintFunctionLibrary.h"
-#include "Animation/AnimSequence.h"
 #include "ContextualAnimTypes.h"
 #include "ContextualAnimUtilities.generated.h"
 

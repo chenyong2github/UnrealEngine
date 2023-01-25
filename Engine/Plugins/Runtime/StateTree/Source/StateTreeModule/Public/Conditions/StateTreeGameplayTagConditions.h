@@ -1,9 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "StateTreeConditionBase.h"
-#include "GameplayTagContainer.h"
 #include "StateTreeGameplayTagConditions.generated.h"
 
 USTRUCT()

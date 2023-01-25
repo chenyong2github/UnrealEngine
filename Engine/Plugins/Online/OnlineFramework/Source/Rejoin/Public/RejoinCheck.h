@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Engine/EngineTypes.h"
+#include "Engine/TimerHandle.h"
 #include "OnlineSessionSettings.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Engine/EngineTypes.h"
 #include "RejoinCheck.generated.h"
 
 class FTimerManager;
@@ -325,3 +322,7 @@ inline const TCHAR* ToString(ERejoinAttemptResult Result)
 	return TEXT("");
 }
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/EngineTypes.h"
+#endif

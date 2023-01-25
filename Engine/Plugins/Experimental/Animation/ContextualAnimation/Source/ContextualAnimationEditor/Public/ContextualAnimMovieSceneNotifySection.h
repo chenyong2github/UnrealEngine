@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MovieSceneSection.h"
 #include "ContextualAnimMovieSceneNotifySection.generated.h"
 
@@ -46,3 +45,7 @@ private:
 	FGuid AnimNotifyEventGuid;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

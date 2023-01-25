@@ -2,9 +2,13 @@
 
 #pragma once
 
-#include "Online/NboSerializer.h"
 
-#include "Online/SessionsCommon.h"
+#include "Online/Sessions.h"
+
+class FNboSerializeFromBuffer;
+class FNboSerializeToBuffer;
+namespace UE::Online { class FSchemaVariant; }
+namespace UE::Online { class FSessionCommon; }
 
 /**
  * Serializes data in network byte order form into a buffer
@@ -32,3 +36,8 @@ ONLINESERVICESCOMMON_API void SerializeFromBuffer(FNboSerializeFromBuffer& Packe
 /* NboSerializerCommonSvc */ }
 
 /* UE::Online */ }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Online/NboSerializer.h"
+#include "Online/SessionsCommon.h"
+#endif

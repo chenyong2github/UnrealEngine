@@ -3,12 +3,13 @@
 #pragma once
 
 #include "SmartObjectPersistentCollection.h"
-#include "Templates/SubclassOf.h"
-#include "SmartObjectTypes.h"
 #include "SmartObjectRuntime.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "WorldConditionContext.h"
 #include "SmartObjectSubsystem.generated.h"
+
+class UCanvas;
+class USmartObjectBehaviorDefinition;
 
 class USmartObjectComponent;
 class UWorldPartitionSmartObjectCollectionBuilder;

@@ -2,6 +2,7 @@
 
 #include "ConcertMessages.h"
 #include "CoreMinimal.h"
+#include "ConcertSyncSessionTypes.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"

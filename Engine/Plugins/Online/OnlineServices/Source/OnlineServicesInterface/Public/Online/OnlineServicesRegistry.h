@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "Containers/Map.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/UniquePtr.h"
 
-#include "Online/OnlineServices.h"
+#include "Online/CoreOnline.h"
+
+namespace UE::Online { class IOnlineServices; }
 
 class FLazySingleton;
 
@@ -149,3 +148,7 @@ private:
 };
 
 /* UE::Online */ }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Online/OnlineServices.h"
+#endif

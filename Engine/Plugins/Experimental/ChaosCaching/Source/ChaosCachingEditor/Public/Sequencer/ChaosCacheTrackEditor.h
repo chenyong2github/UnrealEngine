@@ -1,11 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "ISequencer.h"
 #include "ISequencerSection.h"
-#include "ISequencerTrackEditor.h"
 #include "MovieSceneTrackEditor.h"
+
+struct FBuildEditWidgetParams;
 
 /**
  * Editor for chaos Cache tracks

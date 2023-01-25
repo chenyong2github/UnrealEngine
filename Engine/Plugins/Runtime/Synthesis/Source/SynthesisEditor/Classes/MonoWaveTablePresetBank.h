@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "AssetToolsModule.h"
 #include "Factories/Factory.h"
 #include "AssetTypeActions_Base.h"
 #include "MonoWaveTablePresetBank.generated.h"
@@ -31,3 +28,7 @@ class UMonoWaveTableSynthPresetFactory : public UFactory
 
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

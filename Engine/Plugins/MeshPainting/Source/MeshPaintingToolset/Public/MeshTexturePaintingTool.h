@@ -2,20 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
-#include "InteractiveToolBuilder.h"
 #include "BaseTools/BaseBrushTool.h"
-#include "InteractiveTool.h"
-#include "Delegates/DelegateCombinations.h"
-#include "Components/MeshComponent.h"
 #include "MeshPaintHelpers.h"
+#include "MeshPaintInteractions.h"
 #include "MeshPaintingToolsetTypes.h"
-#include "MeshVertexPaintingTool.h"
 #include "Misc/ITransaction.h"
-#include "TexturePaintToolset.h"
 
 #include "MeshTexturePaintingTool.generated.h"
+
+class UMeshToolManager;
+enum class EToolShutdownType : uint8;
+struct FTexturePaintMeshSectionInfo;
 
 
 struct FToolBuilderState;
@@ -242,3 +239,12 @@ private:
 	/** Hold the transaction while we are painting */
 	TUniquePtr<FScopedTransaction> PaintingTransaction;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components/MeshComponent.h"
+#include "CoreMinimal.h"
+#include "Delegates/DelegateCombinations.h"
+#include "MeshVertexPaintingTool.h"
+#include "TexturePaintToolset.h"
+#include "UObject/NoExportTypes.h"
+#endif

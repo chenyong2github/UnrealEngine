@@ -3,9 +3,10 @@
 #pragma once
 
 #include "MatchAndSet/PCGMatchAndSetBase.h"
-#include "Metadata/PCGMetadataTypesConstantStruct.h"
 
 #include "PCGMatchAndSetByAttribute.generated.h"
+
+struct FPropertyChangedEvent;
 
 USTRUCT(BlueprintType)
 struct PCG_API FPCGMatchAndSetByAttributeEntry

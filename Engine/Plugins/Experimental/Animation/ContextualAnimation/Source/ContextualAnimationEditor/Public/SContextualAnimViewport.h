@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "SEditorViewport.h"
 #include "SCommonEditorViewportToolbarBase.h"
 
@@ -61,3 +60,7 @@ protected:
 	/** Asset editor toolkit we are embedded in */
 	TWeakPtr<FContextualAnimAssetEditorToolkit> AssetEditorToolkitPtr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

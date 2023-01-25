@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "SocialTypes.h"
 
+#include "GameFramework/OnlineReplStructs.h"
 #include "PartyTypes.generated.h"
 
 class USocialParty;
@@ -700,3 +700,7 @@ namespace PartyJoinMethod
 	const FName Unspecified = FName(TEXT("Unspecified"));
 	
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "SocialTypes.h"
+#endif

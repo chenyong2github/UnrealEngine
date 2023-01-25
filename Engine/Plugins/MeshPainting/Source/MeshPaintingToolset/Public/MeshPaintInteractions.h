@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "InteractionMechanic.h"
 #include "UObject/Interface.h"
 #include "MeshPaintInteractions.generated.h"
+
+struct FInputDeviceRay;
+struct FInputRayHit;
 
 class IMeshPaintComponentAdapter;
 class AActor;
@@ -49,3 +51,7 @@ protected:
 	TArray<TObjectPtr<AActor>> CachedClickedActors;
 	bool bAddToSelectionSet;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

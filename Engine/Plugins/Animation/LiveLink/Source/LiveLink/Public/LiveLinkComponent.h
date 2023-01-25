@@ -3,11 +3,11 @@
 #pragma once
 
 #include "Components/ActorComponent.h"
-#include "CoreMinimal.h"
-#include "ILiveLinkClient.h"
-#include "LiveLinkTypes.h"
-#include "Roles/LiveLinkAnimationBlueprintStructs.h"
 #include "LiveLinkComponent.generated.h"
+
+class ILiveLinkClient;
+struct FSubjectFrameHandle;
+struct FTimecode;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLiveLinkTickSignature, float, DeltaTime);
 
@@ -68,3 +68,10 @@ private:
 
 	ILiveLinkClient* LiveLinkClient;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "ILiveLinkClient.h"
+#include "LiveLinkTypes.h"
+#include "Roles/LiveLinkAnimationBlueprintStructs.h"
+#endif

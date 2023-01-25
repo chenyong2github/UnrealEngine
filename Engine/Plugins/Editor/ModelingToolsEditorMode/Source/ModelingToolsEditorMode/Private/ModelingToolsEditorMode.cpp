@@ -20,7 +20,6 @@
 #include "ToolTargets/SkeletalMeshComponentToolTarget.h"
 #include "EngineAnalytics.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
-#include "Selection/StoredMeshSelectionUtil.h"
 #include "Snapping/ModelingSceneSnappingManager.h"
 #include "Scene/LevelObjectsObserver.h"
 

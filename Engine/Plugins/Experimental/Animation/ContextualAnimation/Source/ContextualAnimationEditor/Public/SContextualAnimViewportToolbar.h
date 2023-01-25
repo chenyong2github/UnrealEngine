@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "SCommonEditorViewportToolbarBase.h"
 
 class SContextualAnimViewport;
@@ -21,3 +20,7 @@ public:
 	virtual TSharedRef<SWidget> GenerateShowMenu() const override;
 	// ~End of SCommonEditorViewportToolbarBase interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

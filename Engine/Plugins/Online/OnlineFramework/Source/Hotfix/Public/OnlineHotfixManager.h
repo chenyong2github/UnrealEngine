@@ -2,16 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/ScriptMacros.h"
-#include "OnlineSubsystemTypes.h"
-#include "OnlineDelegateMacros.h"
-#include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Interfaces/OnlineTitleFileInterface.h"
 #include "OnlineHotfixManager.generated.h"
+
+struct FCloudFileHeader;
 
 HOTFIX_API DECLARE_LOG_CATEGORY_EXTERN(LogHotfixManager, Display, All);
 
@@ -371,3 +366,7 @@ public:
 	/** Factory method that returns the configured hotfix manager */
 	static UOnlineHotfixManager* Get(UWorld* World);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

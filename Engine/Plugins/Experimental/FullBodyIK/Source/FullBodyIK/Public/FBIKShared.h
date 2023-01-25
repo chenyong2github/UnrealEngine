@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "JacobianSolver.h"
-#include "Rigs/RigHierarchyDefines.h"
 #include "FBIKShared.generated.h"
+
+namespace JacobianIK { struct FFBIKEffectorTarget; }
 
 class FULLBODYIK_API FJacobianSolver_FullbodyIK : public FJacobianSolverBase
 {
@@ -74,3 +74,8 @@ struct FSolverInput
 	bool bUseJacobianTranspose = false;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Rigs/RigHierarchyDefines.h"
+#endif

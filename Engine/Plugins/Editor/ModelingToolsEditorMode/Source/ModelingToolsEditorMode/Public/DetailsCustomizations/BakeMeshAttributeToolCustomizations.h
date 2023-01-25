@@ -3,7 +3,6 @@
 #pragma once
 
 #include "IDetailCustomization.h"
-#include "Templates/SharedPointer.h"
 
 // Customization for UBakeMeshAttributeMapsToolProperties
 class FBakeMeshAttributeMapsToolDetails : public IDetailCustomization

@@ -6,6 +6,8 @@
 #include "LiveLinkSourceFactory.h"
 #include "LiveLinkMessageBusSourceFactory.generated.h"
 
+struct FMessageAddress;
+
 
 UCLASS()
 class LIVELINK_API ULiveLinkMessageBusSourceFactory : public ULiveLinkSourceFactory

@@ -4,7 +4,6 @@
 
 #include "Flexiverb.h"
 #include "Sound/SoundEffectSubmix.h"
-#include "AudioEffect.h"
 #include "SubmixEffectFlexiverb.generated.h"
 
 USTRUCT(BlueprintType)
@@ -82,3 +81,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixEffectPreset)
 	FSubmixEffectFlexiverbSettings Settings;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioEffect.h"
+#endif

@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Serialization/BulkData.h"
 
 #include "GeometryCacheCodecBase.generated.h"
+
+struct FResourceSizeEx;
 
 struct FGeometryCacheMeshData;
 class UGeometryCacheTrackStreamable;
@@ -150,3 +150,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = GeometryCache)
 	TArray<int32> TopologyRanges;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

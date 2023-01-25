@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AnimationModifier.h"
-#include "MotionExtractorTypes.h"
 #include "MotionExtractorModifier.generated.h"
+
+enum class EMotionExtractor_Axis : uint8;
+enum class EMotionExtractor_MathOperation : uint8;
+enum class EMotionExtractor_MotionType : uint8;
 
 /** Extracts motion from a bone in the animation and bakes it into a curve */
 UCLASS()
@@ -80,3 +82,8 @@ public:
 	/** Returns the desired value from the extracted poses */
 	float GetDesiredValue(const FTransform& BoneTransform, const FTransform& LastBoneTransform, float DeltaTime) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "MotionExtractorTypes.h"
+#endif

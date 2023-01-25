@@ -4,12 +4,11 @@
 
 #include "LiveLinkVirtualSubject.h"
 
-#include "CoreMinimal.h"
-#include "ILiveLinkClient.h"
-#include "LiveLinkRefSkeleton.h"
-#include "LiveLinkTypes.h"
 
 #include "LiveLinkAnimationVirtualSubject.generated.h"
+
+struct FLiveLinkSubjectFrameData;
+struct FLiveLinkSubjectKey;
 
 
 // A Skeleton virtual subject is an assembly of different subjects supporting the animation role
@@ -50,3 +49,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bAppendSubjectNameToBones;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "ILiveLinkClient.h"
+#endif

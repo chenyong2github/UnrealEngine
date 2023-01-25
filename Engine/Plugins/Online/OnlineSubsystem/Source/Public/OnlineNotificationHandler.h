@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineSubsystemPackage.h"
+#include "Delegates/Delegate.h"
 
 class FUniqueNetId;
 struct FOnlineNotification;
@@ -93,3 +92,8 @@ public:
 typedef TSharedPtr<FOnlineNotificationHandler, ESPMode::ThreadSafe> FOnlineNotificationHandlerPtr;
 typedef TSharedRef<FOnlineNotificationHandler, ESPMode::ThreadSafe> FOnlineNotificationHandlerRef;
 typedef TWeakPtr<FOnlineNotificationHandler, ESPMode::ThreadSafe> FOnlineNotificationHandlerWeakPtr;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineSubsystemPackage.h"
+#endif

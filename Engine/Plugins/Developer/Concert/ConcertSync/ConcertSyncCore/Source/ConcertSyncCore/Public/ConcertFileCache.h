@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/LruCache.h"
+#include "Misc/DateTime.h"
+#include "Templates/SharedPointer.h"
 
 /**
  * Maintains an in-memory cache of file data, attempting to keep the cache within the given upper memory threshold.
@@ -115,3 +116,7 @@ private:
 	uint64 TotalCachedFileDataBytes;
 	TLruCache<FString, TSharedPtr<FInternalCacheEntry>> InternalCache;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

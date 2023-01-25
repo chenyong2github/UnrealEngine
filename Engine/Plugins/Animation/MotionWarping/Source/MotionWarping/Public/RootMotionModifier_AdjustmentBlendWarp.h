@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "BonePose.h"
-#include "CoreMinimal.h"
+#include "Animation/AnimSequence.h"
 #include "RootMotionModifier.h"
 #include "RootMotionModifier_AdjustmentBlendWarp.generated.h"
+
+class ACharacter;
+template <class PoseType> struct FCSPose;
 
 USTRUCT()
 struct FMotionDeltaTrack
@@ -101,3 +103,8 @@ protected:
 
 	static void AdjustmentBlendWarp(const FBoneContainer& BoneContainer, const FCSPose<FCompactPose>& AdditivePose, const FMotionDeltaTrackContainer& MotionDeltaTracks, FAnimSequenceTrackContainer& Output);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BonePose.h"
+#include "CoreMinimal.h"
+#endif

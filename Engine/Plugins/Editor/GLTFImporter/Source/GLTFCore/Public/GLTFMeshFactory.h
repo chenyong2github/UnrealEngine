@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Map.h"
 #include "GLTFLogger.h"
-#include "MeshTypes.h"
+
+struct FVertexID;
 
 struct FMeshDescription;
 
@@ -38,3 +39,8 @@ namespace GLTF
 		TUniquePtr<FMeshFactoryImpl> Impl;
 	};
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "MeshTypes.h"
+#endif

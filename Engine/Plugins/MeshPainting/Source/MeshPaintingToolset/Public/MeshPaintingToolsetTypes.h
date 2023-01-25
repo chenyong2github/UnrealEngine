@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "Engine/Texture.h"
-#include "Engine/TextureRenderTarget2D.h"
 
 #include "MeshPaintingToolsetTypes.generated.h"
 
+class UMaterialInterface;
 class UMeshComponent;
+class UTexture2D;
+class UTexture;
+class UTextureRenderTarget2D;
 
 class FMeshPaintParameters;
 DECLARE_MULTICAST_DELEGATE_FourParams(FApplyVertexPaintData, const FMeshPaintParameters& /* &InParams*/, const FLinearColor& /*OldColor*/, FLinearColor& /*NewColor*/, const float /*PaintAmount*/);
@@ -198,3 +200,9 @@ struct FMeshSelectedMaterialInfo
 		, SelectedMaterialIndex(0)
 	{}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/Texture.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Materials/MaterialInterface.h"
+#endif

@@ -4,9 +4,6 @@
 
 #include "MovieSceneLiveLinkSubSection.h"
 
-#include "LiveLinkRole.h"
-#include "LiveLinkTypes.h"
-#include "MovieScene/MovieSceneLiveLinkPropertyHandler.h"
 
 #include "MovieSceneLiveLinkSubSectionProperties.generated.h"
 
@@ -46,3 +43,8 @@ protected:
 	TArray<TSharedPtr<IMovieSceneLiveLinkPropertyHandler>> PropertyHandlers;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "LiveLinkRole.h"
+#include "MovieScene/MovieSceneLiveLinkPropertyHandler.h"
+#endif

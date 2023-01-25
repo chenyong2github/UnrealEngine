@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "OnlineDelegateMacros.h"
 
 /**
@@ -52,3 +52,7 @@ public:
 };
 
 typedef TSharedPtr<IOnlineTime, ESPMode::ThreadSafe> IOnlineTimePtr;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

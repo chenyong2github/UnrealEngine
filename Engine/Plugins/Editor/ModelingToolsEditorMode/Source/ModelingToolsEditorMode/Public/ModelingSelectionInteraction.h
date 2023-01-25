@@ -5,12 +5,15 @@
 
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "InputBehaviorSet.h"
-#include "BaseGizmos/TransformGizmoUtil.h"
 #include "FrameTypes.h"
-#include "Mechanics/RectangleMarqueeMechanic.h"
-#include "Mechanics/PolyLassoMarqueeMechanic.h"
-#include "Selections/GeometrySelection.h"
+#include "UObject/Package.h"
 #include "ModelingSelectionInteraction.generated.h"
+
+class UCombinedTransformGizmo;
+class URectangleMarqueeInteraction;
+class UTransformProxy;
+namespace UE::Geometry { struct FGeometrySelectionUpdateConfig; }
+struct FCameraRectangle;
 
 class UGeometrySelectionManager;
 class USingleClickInputBehavior;
@@ -239,3 +242,10 @@ protected:
 	virtual void OnTerminateDragSequence() override;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BaseGizmos/TransformGizmoUtil.h"
+#include "Mechanics/PolyLassoMarqueeMechanic.h"
+#include "Mechanics/RectangleMarqueeMechanic.h"
+#include "Selections/GeometrySelection.h"
+#endif

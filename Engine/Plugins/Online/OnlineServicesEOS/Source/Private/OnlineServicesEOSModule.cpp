@@ -2,6 +2,7 @@
 
 #include "Modules/ModuleManager.h"
 
+#include "Online/OnlineExecHandler.h"
 #include "Online/OnlineServicesRegistry.h"
 #include "Online/OnlineServicesEOS.h"
 #include "Online/OnlineIdEOS.h"

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 
 /**
  * Implements a file sharing service used as a side channel to ConcertTransport to exchange large files. This API is designed to
@@ -62,3 +62,7 @@ public:
 	 */
 	virtual TSharedPtr<FArchive> CreateReader(const FString& InFileId) = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

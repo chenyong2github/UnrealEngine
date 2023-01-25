@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Styling/ISlateStyle.h"
 
 class FAssetTypeActions_InterchangeBlueprintPipelineBase;
 class FAssetTypeActions_InterchangePipelineBase;
@@ -47,3 +44,8 @@ public:
 	TSharedPtr<FAssetTypeActions_InterchangePythonPipelineBase> PythonPipelineBase_TypeActions;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Styling/ISlateStyle.h"
+#endif

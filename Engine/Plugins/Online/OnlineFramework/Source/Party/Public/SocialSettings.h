@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "UObject/Object.h"
 
 #include "SocialSettings.generated.h"
 

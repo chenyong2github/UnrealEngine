@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "Core/PBIKSolver.h"
 
+#include "Core/PBIKBody.h"
 #include "PBIK_Shared.generated.h"
 
 UENUM(BlueprintType)
@@ -109,3 +108,8 @@ struct PBIK_API FPBIKBoneSetting
 		Settings.PreferredAngles.Roll = PreferredAngles.X;
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Core/PBIKSolver.h"
+#include "CoreMinimal.h"
+#endif

@@ -2,10 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Map.h"
 #include "Misc/TVariant.h"
+#include "Misc/TVariantMeta.h"
 #include "Online/OnlineMeta.h"
-#include "Online/OnlineResult.h"
+#include "UObject/NameTypes.h"
+
+namespace UE::Online::Meta { template <typename StructType> struct TStructDetails; }
 
 namespace UE::Online {
 
@@ -715,3 +718,8 @@ END_ONLINE_STRUCT_META()
 /* Meta*/ }
 
 /* UE::Online */ }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Online/OnlineResult.h"
+#endif

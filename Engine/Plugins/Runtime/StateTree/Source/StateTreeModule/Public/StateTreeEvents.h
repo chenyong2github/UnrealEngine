@@ -1,9 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "GameplayTagContainer.h"
-#include "InstancedStruct.h"
 #include "StructView.h"
 #include "StateTreeEvents.generated.h"
 

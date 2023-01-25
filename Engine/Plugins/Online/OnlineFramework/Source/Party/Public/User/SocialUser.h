@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "Interactions/SocialInteractionHandle.h"
-#include "OnlineSessionSettings.h"
+#include "OnlineSubsystemTypes.h"
 #include "Party/PartyTypes.h"
 #include "SocialTypes.h"
-#include "UObject/Object.h"
 
 #include "SocialUser.generated.h"
+
+class FSocialInteractionHandle;
+class USocialToolkit;
+class USocialUser;
 
 class IOnlinePartyJoinInfo;
 class FOnlineUserPresence;
@@ -262,3 +264,8 @@ private:
 	mutable FOnSubsystemIdEstablished OnSubsystemIdEstablishedEvent;
 	mutable FOnUserGameSpecificStatusChanged OnUserGameSpecificStatusChangedEvent;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Interactions/SocialInteractionHandle.h"
+#include "OnlineSessionSettings.h"
+#endif

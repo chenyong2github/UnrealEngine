@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AudioMeterTypes.generated.h"
 
 USTRUCT(BlueprintType)
@@ -26,3 +25,7 @@ inline bool operator==(const FMeterChannelInfo& lhs, const FMeterChannelInfo& rh
 		FMath::IsNearlyEqual(lhs.PeakValue, rhs.PeakValue) &&
 		FMath::IsNearlyEqual(lhs.ClippingValue, rhs.ClippingValue);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

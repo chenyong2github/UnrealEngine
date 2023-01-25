@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "AssetDefinition_ClassTypeBase.h"
 #include "Engine/Blueprint.h"
-
+#include "Script/AssetDefinition_ClassTypeBase.h"
 #include "AssetDefinition_Blueprint.generated.h"
+
+struct FAssetFilterData;
 
 struct FToolMenuContext;
 struct FAssetData;

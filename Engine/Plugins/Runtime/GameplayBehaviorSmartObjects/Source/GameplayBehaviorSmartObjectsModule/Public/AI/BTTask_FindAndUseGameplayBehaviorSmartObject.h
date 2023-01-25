@@ -3,9 +3,10 @@
 #pragma once
 
 #include "BehaviorTree/BTTaskNode.h"
-#include "AI/AITask_UseGameplayBehaviorSmartObject.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "BTTask_FindAndUseGameplayBehaviorSmartObject.generated.h"
+
+class UAITask_UseGameplayBehaviorSmartObject;
 
 
 class AITask_UseSmartObject;
@@ -56,3 +57,7 @@ protected:
 
 	FQueryFinishedSignature EQSQueryFinishedDelegate; 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AI/AITask_UseGameplayBehaviorSmartObject.h"
+#endif

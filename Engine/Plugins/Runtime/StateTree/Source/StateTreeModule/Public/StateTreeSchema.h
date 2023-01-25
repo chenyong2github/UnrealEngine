@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "StateTreeTypes.h"
 #include "StateTreeSchema.generated.h"
+
+struct FStateTreeExternalDataDesc;
 
 /**
  * Schema describing which inputs, evaluators, and tasks a StateTree can contain.
@@ -53,3 +54,7 @@ public:
 	
 #endif // WITH_EDITOR
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "StateTreeTypes.h"
+#endif

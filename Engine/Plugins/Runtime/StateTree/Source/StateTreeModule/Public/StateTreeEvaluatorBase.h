@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "StateTreeTypes.h"
 #include "StateTreeNodeBase.h"
 #include "StateTreeEvaluatorBase.generated.h"
 

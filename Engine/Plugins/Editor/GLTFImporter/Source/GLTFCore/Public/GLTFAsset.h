@@ -2,14 +2,23 @@
 
 #pragma once
 
-#include "GLTFAnimation.h"
-#include "GLTFMaterial.h"
-#include "GLTFMesh.h"
-#include "GLTFNode.h"
-#include "GLTFTexture.h"
 
 #include "Containers/Set.h"
-#include "CoreMinimal.h"
+
+namespace GLTF { struct FAnimation; }
+namespace GLTF { struct FBuffer; }
+namespace GLTF { struct FBufferView; }
+namespace GLTF { struct FCamera; }
+namespace GLTF { struct FImage; }
+namespace GLTF { struct FLight; }
+namespace GLTF { struct FMaterial; }
+namespace GLTF { struct FMesh; }
+namespace GLTF { struct FNode; }
+namespace GLTF { struct FSampler; }
+namespace GLTF { struct FSkinInfo; }
+namespace GLTF { struct FTexture; }
+namespace GLTF { struct FValidAccessor; }
+struct FScriptContainerElement;
 
 namespace GLTF
 {
@@ -131,3 +140,12 @@ namespace GLTF
 	GLTFCORE_API const TCHAR* ToString(EExtension Extension);
 
 }  // namespace GLTF
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GLTFAnimation.h"
+#include "GLTFMaterial.h"
+#include "GLTFMesh.h"
+#include "GLTFNode.h"
+#include "GLTFTexture.h"
+#endif

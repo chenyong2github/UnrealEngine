@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Math/Quat.h"
 
 class URigHierarchy;
 struct FRigElementKey;
@@ -16,3 +16,7 @@ namespace FBIKUtil
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

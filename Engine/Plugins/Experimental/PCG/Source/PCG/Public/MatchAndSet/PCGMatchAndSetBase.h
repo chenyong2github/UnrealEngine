@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Metadata/PCGMetadataTypesConstantStruct.h"
 
 #include "PCGMatchAndSetBase.generated.h"
+
+class UPCGPointData;
 
 struct FPCGAttributePropertySelector;
 struct FPCGContext;
@@ -69,3 +70,7 @@ protected:
 	UPROPERTY()
 	EPCGMetadataTypesConstantStructStringMode StringMode = EPCGMetadataTypesConstantStructStringMode::String;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

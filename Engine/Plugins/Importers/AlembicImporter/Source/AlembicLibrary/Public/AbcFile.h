@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/EnumClassFlags.h"
+#include "Math/BoxSphereBounds.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
@@ -171,3 +170,8 @@ protected:
 
 	TMap<FString, FString> CustomAttributes;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "UObject/NoExportTypes.h"
+#include "CoreMinimal.h"
+#endif

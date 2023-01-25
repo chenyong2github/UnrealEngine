@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "CoreGlobals.h"
 #include "Misc/TVariant.h"
 
-#include "Online/OnlineError.h"
+
+namespace UE::Online { class FOnlineError; }
 
 namespace UE::Online {
 
@@ -218,3 +220,7 @@ FString ToLogString(const TOnlineResult<T>& Result)
 }
 
 /* UE::Online */ }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Online/OnlineError.h"
+#endif

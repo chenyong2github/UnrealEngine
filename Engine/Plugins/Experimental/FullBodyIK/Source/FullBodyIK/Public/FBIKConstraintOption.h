@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Rigs/RigHierarchyDefines.h"
 #include "FBIKConstraintOption.generated.h"
 
@@ -131,3 +130,7 @@ struct FMotionProcessInput
 	UPROPERTY(EditAnywhere, Category = FMotionProcessInput)
 	bool	bOnlyApplyWhenReachedToTarget = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

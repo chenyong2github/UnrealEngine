@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ActivityDependencyEdge.h"
-#include "ActivityGraphIDs.h"
-#include "Misc/Optional.h"
-#include "Templates/NonNullPointer.h"
+#include "Containers/Array.h"
+#include "HistoryEdition/ActivityGraphIDs.h"
+#include "Misc/Optional.h" // IWYU pragma: keep
+
+struct FScriptContainerElement;
 
 namespace UE::ConcertSyncCore
 {
@@ -69,3 +70,9 @@ namespace UE::ConcertSyncCore
 		TArray<FActivityNodeID> AffectedChildren;
 	};
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Misc/Optional.h"
+#include "Templates/NonNullPointer.h"
+#endif

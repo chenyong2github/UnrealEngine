@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Logging/LogMacros.h"
 
 namespace Chaos {
 	class FGeometryCollectionCacheAdapter;
@@ -48,3 +45,7 @@ private:
 
 	FDelegateHandle OnCreateMovieSceneObjectSpawnerHandle;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

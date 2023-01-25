@@ -3,9 +3,7 @@
 #pragma once
 
 #include "Chat/ChatSlashCommands.h"
-#include "Containers/UnrealString.h"
-#include "SocialTypes.h"
-#include "Chat/SocialChatChannel.h"
+#include "UObject/Object.h"
 
 class ULocalPlayer;
 class USocialUser;
@@ -70,3 +68,8 @@ private:
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Chat/SocialChatChannel.h"
+#include "SocialTypes.h"
+#endif

@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Algo/Transform.h"
 #include "IAudioProxyInitializer.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ObjectSaveContext.h"
 #include "WaveTable.h"
 #include "WaveTableTransform.h"
 
 #include "WaveTableBank.generated.h"
+
+struct FPropertyChangedEvent;
 
 
 USTRUCT()
@@ -92,3 +90,7 @@ protected:
 	TArray<WaveTable::FWaveTable> WaveTables;
 };
 using FWaveTableBankAssetProxyPtr = TSharedPtr<FWaveTableBankAssetProxy, ESPMode::ThreadSafe>;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "UObject/ObjectSaveContext.h"
+#endif

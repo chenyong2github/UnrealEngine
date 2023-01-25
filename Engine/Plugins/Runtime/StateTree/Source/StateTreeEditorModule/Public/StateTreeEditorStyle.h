@@ -4,6 +4,8 @@
 
 #include "Styling/SlateStyle.h"
 
+class ISlateStyle;
+
 class STATETREEEDITORMODULE_API FStateTreeEditorStyle
 {
 public:

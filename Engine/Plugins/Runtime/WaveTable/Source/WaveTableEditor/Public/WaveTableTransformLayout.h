@@ -1,16 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Containers/Map.h"
-#include "Curves/SimpleCurve.h"
 #include "IPropertyTypeCustomization.h"
-#include "Layout/Visibility.h"
-#include "Misc/Attribute.h"
-#include "PropertyCustomizationHelpers.h"
-#include "PropertyHandle.h"
-#include "SCurveEditor.h"
-#include "WaveTableSettings.h"
-#include "WaveTableTransform.h"
+
+enum class EWaveTableCurve : uint8;
+struct FWaveTableTransform;
 
 
 namespace WaveTable
@@ -59,3 +53,14 @@ namespace WaveTable
 		};
 	} // namespace Editor
 } // namespace WaveTable
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Curves/SimpleCurve.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "PropertyCustomizationHelpers.h"
+#include "PropertyHandle.h"
+#include "SCurveEditor.h"
+#include "WaveTableSettings.h"
+#include "WaveTableTransform.h"
+#endif

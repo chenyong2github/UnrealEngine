@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "Chat/SocialChatChannel.h"
-#include "Online/CoreOnline.h"
 #include "Interfaces/OnlineGroupsInterface.h"
+#include "User/SocialUser.h"
 #include "SocialGroupChannel.generated.h"
 
 class USocialUser;
@@ -46,3 +45,7 @@ private:
 
 	TWeakPtr<IOnlineGroups, ESPMode::ThreadSafe> GroupInterfacePtr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Chat/SocialChatChannel.h"
+#endif

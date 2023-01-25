@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "Online/OnlineAsyncOp.h"
 
-#include "Containers/Queue.h"
 #include "Containers/SpscQueue.h"
+#include "Online/OnlineAsyncOpHandle.h"
+
+namespace UE::Online { template <typename OpType> class TOnlineAsyncOp; }
 
 namespace UE::Online {
 
@@ -155,3 +156,8 @@ protected:
 };
 
 /* UE::Online */ }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Containers/Queue.h"
+#include "Online/OnlineAsyncOp.h"
+#endif

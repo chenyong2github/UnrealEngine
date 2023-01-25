@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "Math/Box.h"
+#include "Math/Range.h"
 #include "GeometryCacheTrack.generated.h"
+
+struct FResourceSizeEx;
 
 struct FGeometryCacheMeshData;
 struct FGeometryCacheTrackSampleInfo;
@@ -195,3 +196,7 @@ struct GEOMETRYCACHE_API FVisibilitySample
 	static const FVisibilitySample VisibleSample;
 	static const FVisibilitySample InvisibleSample;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

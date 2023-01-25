@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/PlatformMath.h"
 #include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace UE::ConcertSyncCore
 {
@@ -47,3 +48,7 @@ namespace UE::ConcertSyncCore
 		}
 	};
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

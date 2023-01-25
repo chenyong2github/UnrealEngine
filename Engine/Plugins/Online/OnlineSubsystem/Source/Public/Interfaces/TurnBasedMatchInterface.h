@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/Interface.h"
 #include "TurnBasedMatchInterface.generated.h"
 
@@ -24,3 +22,7 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Online|TurnBased")
 	void OnMatchEnded(const FString& Match);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

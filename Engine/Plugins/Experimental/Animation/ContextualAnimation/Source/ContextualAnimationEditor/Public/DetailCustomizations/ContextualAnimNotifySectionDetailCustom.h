@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
 #include "IDetailCustomization.h"
 
@@ -23,3 +22,7 @@ protected:
 
 	TWeakObjectPtr<UContextualAnimMovieSceneNotifySection> Section;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

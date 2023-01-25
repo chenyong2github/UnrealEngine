@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "ContextualAnimActorInterface.generated.h"
 
@@ -19,3 +18,7 @@ class IContextualAnimActorInterface : public IInterface
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Contextual Animation System")
 	class USkeletalMeshComponent* GetMesh() const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

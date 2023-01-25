@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/Texture.h"
 #include "HeightfieldMinMaxTexture.generated.h"
+
+struct FPropertyChangedEvent;
 
 #if WITH_EDITOR
 
@@ -77,3 +77,8 @@ protected:
 	//~ End UObject Interface
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/Texture.h"
+#endif

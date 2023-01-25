@@ -6,9 +6,7 @@
 #include "CacheEvents.h"
 #include "Containers/Queue.h"
 #include "Curves/RichCurve.h"
-#include "Logging/LogMacros.h"
 
-#include <atomic>
 
 #include "ChaosCache.generated.h"
 

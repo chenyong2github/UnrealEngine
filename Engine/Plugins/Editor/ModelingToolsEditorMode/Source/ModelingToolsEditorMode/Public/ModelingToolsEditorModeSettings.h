@@ -3,8 +3,9 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
-#include "Engine/EngineTypes.h"
 #include "ModelingToolsEditorModeSettings.generated.h"
+
+struct FCollectionReference;
 
 
 
@@ -353,3 +354,7 @@ public:
 
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/EngineTypes.h"
+#endif

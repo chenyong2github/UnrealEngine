@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ComponentAssetBroker.h"
 
 /** AssetBroker class for GeometryCache assets*/
@@ -15,3 +14,7 @@ public:
 	virtual UObject* GetAssetFromComponent(UActorComponent* InComponent) override;
 	// End IComponentAssetBroker Implementation
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

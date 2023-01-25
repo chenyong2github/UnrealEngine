@@ -2,13 +2,7 @@
 
 #pragma once
 
-#include "EditorSubsystem.h"
 
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Interface.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/EngineTypes.h"
 
 #include "ISourceControlChangelist.h"
 
@@ -41,3 +35,9 @@ public:
 	/** Change description */
 	//FText Description;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "EditorSubsystem.h"
+#include "Engine/EngineTypes.h"
+#include "UObject/Interface.h"
+#endif

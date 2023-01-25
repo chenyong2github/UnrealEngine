@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Misc/InlineValue.h"
-#include "Compilation/MovieSceneSegmentCompiler.h"
 #include "Tracks/MovieSceneSubTrack.h"
 #include "TemplateSequenceTrack.generated.h"
 
@@ -35,3 +31,7 @@ public:
 private:
 	static uint16 GetEvaluationPriority() { return uint16(0x1000); }  // One more than spawn tracks.
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

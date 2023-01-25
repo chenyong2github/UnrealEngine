@@ -16,6 +16,7 @@
 #include "PropertyEditorModule.h"
 #include "StateTree.h"
 #include "StateTreeCompiler.h"
+#include "StateTreeCompilerLog.h"
 #include "StateTreeDelegates.h"
 #include "StateTreeEditor.h"
 #include "StateTreeEditorCommands.h"

@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
+#include "Online/CoreOnlineFwd.h"
 
 /**
  * Information about a user we are observing the play time and instituting limits for
@@ -106,3 +105,8 @@ protected:
 
 typedef FPlayTimeLimitUser* FPlayTimeLimitUserRawPtr;
 typedef TSharedPtr<FPlayTimeLimitUser, ESPMode::ThreadSafe> FPlayTimeLimitUserPtr;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Online/CoreOnline.h"
+#endif

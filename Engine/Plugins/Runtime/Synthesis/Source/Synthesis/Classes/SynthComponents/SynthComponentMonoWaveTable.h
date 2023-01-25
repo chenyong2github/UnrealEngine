@@ -2,24 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Components/SynthComponent.h"
-#include "DSP/Osc.h"
-#include "DSP/LFO.h"
-#include "Components/AudioComponent.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "Engine/EngineTypes.h"
-#include "Sound/SoundWaveProcedural.h"
-#include "Engine/DataTable.h"
 #include "Components/SynthComponent.h"
-#include "DSP/Osc.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
 #include "MonoWaveTable.h"
-#include "EpicSynth1Types.h"
-#include "SynthesisModule.h"
 #include "SynthComponentMonoWaveTable.generated.h"
+
+enum class ESynthLFOType : uint8;
 
 
 class USynthComponentMonoWaveTable;
@@ -403,3 +391,10 @@ protected:
 	Audio::FMonoWaveTable Synth;
 	Audio::DefaultWaveTableIndexType SampleRate;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/DataTable.h"
+#include "EpicSynth1Types.h"
+#include "SynthesisModule.h"
+#endif

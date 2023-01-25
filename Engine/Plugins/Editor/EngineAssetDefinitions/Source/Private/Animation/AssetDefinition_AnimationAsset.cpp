@@ -1,21 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetDefinition_AnimationAsset.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IAnimationEditor.h"
 #include "Misc/MessageDialog.h"
-#include "Styling/AppStyle.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "IAssetTools.h"
 #include "ContentBrowserMenuContexts.h"
 #include "SSkeletonWidget.h"
 #include "IAnimationEditorModule.h"
 #include "Preferences/PersonaOptions.h"
+#include "ToolMenu.h"
 #include "ToolMenus.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Algo/Transform.h"
 #include "IPersonaToolkit.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "Editor.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

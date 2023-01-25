@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "GeometryCache.h"
-#include "NiagaraCommon.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraGeometryCacheRendererProperties.generated.h"
+
+class UGeometryCache;
+struct FNiagaraVariable;
+struct FVersionedNiagaraEmitter;
 
 class FNiagaraEmitterInstance;
 class SWidget;
@@ -125,3 +126,8 @@ protected:
 private:
 	static TArray<TWeakObjectPtr<UNiagaraGeometryCacheRendererProperties>> GeometryCacheRendererPropertiesToDeferredInit;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GeometryCache.h"
+#endif

@@ -2,15 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "Channels/MovieSceneBoolChannel.h"
-#include "Channels/MovieSceneByteChannel.h"
-#include "Channels/MovieSceneFloatChannel.h"
-#include "Channels/MovieSceneIntegerChannel.h"
-#include "Channels/MovieSceneStringChannel.h"
+#include "UObject/UnrealType.h"
 #include "UObject/WeakFieldPtr.h"
-#include "LiveLinkTypes.h"
 
 
 /**
@@ -293,3 +287,13 @@ LIVELINKMOVIESCENE_API void FLiveLinkStructPropertyBindings::SetCurrentValue<boo
 
 template<> LIVELINKMOVIESCENE_API bool FLiveLinkStructPropertyBindings::GetCurrentValueAt<bool>(int32 InIndex, const UScriptStruct& InStruct, const void* InSourceAddress);
 template<> LIVELINKMOVIESCENE_API void FLiveLinkStructPropertyBindings::SetCurrentValueAt<bool>(int32 InIndex, const UScriptStruct& InStruct, void* InSourceAddress, TCallTraits<bool>::ParamType InValue);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Channels/MovieSceneBoolChannel.h"
+#include "Channels/MovieSceneByteChannel.h"
+#include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneIntegerChannel.h"
+#include "Channels/MovieSceneStringChannel.h"
+#include "CoreMinimal.h"
+#include "LiveLinkTypes.h"
+#endif

@@ -5,7 +5,6 @@
 #include "Online/NboSerializer.h"
 
 #include "OnlineSessionSettings.h"
-#include "OnlineKeyValuePair.h"
 
 /**
  * Serializes data in network byte order form into a buffer

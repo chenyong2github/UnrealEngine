@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ActivityDependencyGraph.h"
+#include "HAL/Platform.h"
+
+namespace UE::ConcertSyncCore { class FActivityDependencyGraph; }
 
 class FConcertSyncSessionDatabase;
 
@@ -14,3 +15,8 @@ namespace UE::ConcertSyncCore
 	 */
 	CONCERTSYNCCORE_API FActivityDependencyGraph BuildDependencyGraphFrom(const FConcertSyncSessionDatabase& SessionDatabase);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ActivityDependencyGraph.h"
+#include "CoreMinimal.h"
+#endif

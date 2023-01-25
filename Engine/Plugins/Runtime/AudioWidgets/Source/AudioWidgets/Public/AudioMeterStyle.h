@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Widgets/SWidget.h"
-#include "Components/Widget.h"
+#include "Fonts/SlateFontInfo.h"
 #include "Styling/SlateWidgetStyle.h"
+#include "Styling/SlateBrush.h"
 #include "AudioMeterStyle.generated.h"
+
+struct FCompositeFont;
 
 /**
  * Represents the appearance of an SAudioMeter
@@ -139,3 +139,9 @@ struct AUDIOWIDGETS_API FAudioMeterStyle : public FSlateWidgetStyle
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components/Widget.h"
+#include "CoreMinimal.h"
+#include "Widgets/SWidget.h"
+#endif

@@ -2,13 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UI/SSynth2DSlider.h"
-#include "UI/SynthTypes.h"
 #include "UI/Synth2DSliderStyle.h"
-#include "UObject/ObjectMacros.h"
-#include "Styling/SlateTypes.h"
-#include "Widgets/SWidget.h"
 #include "Components/Widget.h"
 #include "Synth2DSlider.generated.h"
 
@@ -152,3 +146,11 @@ protected:
 	PROPERTY_BINDING_IMPLEMENTATION(float, ValueX);
 	PROPERTY_BINDING_IMPLEMENTATION(float, ValueY);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Styling/SlateTypes.h"
+#include "UI/SSynth2DSlider.h"
+#include "UI/SynthTypes.h"
+#include "Widgets/SWidget.h"
+#endif

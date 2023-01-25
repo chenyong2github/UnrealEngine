@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreMinimal.h"
 
-#include "GeometryCollection/GeometryCollection.h"
 
-#include "Image/ImageBuilder.h"
+#include "Math/Vector4.h"
+
+class FGeometryCollection;
+namespace UE::Geometry { struct FIndex4i; }
+namespace UE::Geometry { template <typename PixelType> class TImageBuilder; }
 
 class FProgressCancel;
 
@@ -122,3 +124,9 @@ bool PLANARCUT_API TextureInternalSurfaces(
 );
 
 }} // namespace UE::PlanarCut
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GeometryCollection/GeometryCollection.h"
+#include "Image/ImageBuilder.h"
+#endif

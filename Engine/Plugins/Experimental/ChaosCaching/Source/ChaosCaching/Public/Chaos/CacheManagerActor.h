@@ -5,12 +5,11 @@
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "ChaosCache.h"
-#include "Adapters/CacheAdapter.h"
-#include "Engine/EngineTypes.h"
-#include "Chaos/Core.h"
 #include "GameFramework/Actor.h"
 
 #include "CacheManagerActor.generated.h"
+
+namespace Chaos { class FPhysicsSolverEvents; }
 
 class UChaosCacheCollection;
 class UPrimitiveComponent;
@@ -338,3 +337,8 @@ public:
 	AChaosCachePlayer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Adapters/CacheAdapter.h"
+#include "Chaos/Core.h"
+#endif

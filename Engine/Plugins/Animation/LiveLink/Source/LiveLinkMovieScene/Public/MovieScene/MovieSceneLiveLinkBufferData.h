@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Channels/MovieSceneFloatChannel.h"
-#include "Channels/MovieSceneChannelProxy.h"
 
 
 /** Data structure to handle buffering transform keys. Inspired from 3d Transform Track Recorder */
@@ -137,3 +136,7 @@ struct FLiveLinkTransformKeys
 		}
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Channels/MovieSceneChannelProxy.h"
+#endif

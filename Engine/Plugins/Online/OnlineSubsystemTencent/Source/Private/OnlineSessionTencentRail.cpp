@@ -4,6 +4,7 @@
 
 #if WITH_TENCENT_RAIL_SDK
 #include "Interfaces/OnlineIdentityInterface.h"
+#include "Online/OnlineBase.h"
 #include "OnlineAsyncTasksTencent.h"
 #include "OnlinePresenceTencent.h"
 #include "OnlineSubsystemTencent.h"

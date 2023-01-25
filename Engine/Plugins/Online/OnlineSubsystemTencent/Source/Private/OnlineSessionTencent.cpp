@@ -2,7 +2,6 @@
 
 #include "OnlineSessionTencent.h"
 #include "OnlineSubsystemTencent.h"
-#include "OnlineSubsystemTencentTypes.h"
 #include "OnlineIdentityTencent.h"
 #include "Misc/ScopeLock.h"
 

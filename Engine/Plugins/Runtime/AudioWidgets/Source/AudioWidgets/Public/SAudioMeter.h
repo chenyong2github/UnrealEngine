@@ -2,15 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Input/Reply.h"
+#include "Styling/ISlateStyle.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/SlateColor.h"
-#include "Styling/SlateTypes.h"
-#include "Styling/CoreStyle.h"
-#include "Framework/SlateDelegates.h"
 #include "Widgets/SLeafWidget.h"
 #include "AudioMeterStyle.h"
 #include "AudioMeterTypes.h"
@@ -129,3 +123,10 @@ protected:
 
 	TAttribute<TArray<FMeterChannelInfo>> MeterChannelInfoAttribute;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Framework/SlateDelegates.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/SlateTypes.h"
+#endif

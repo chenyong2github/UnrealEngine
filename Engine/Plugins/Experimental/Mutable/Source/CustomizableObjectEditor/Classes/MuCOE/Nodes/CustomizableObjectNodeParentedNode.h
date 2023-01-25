@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "HAL/Platform.h"
 
 struct FGuid;
 
@@ -31,5 +30,6 @@ protected:
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "HAL/Platform.h"
 #include "Misc/Guid.h"
 #endif

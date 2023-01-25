@@ -3,20 +3,17 @@
 #pragma once
 
 #include "AudioWidgetsSlateTypes.h"
-#include "Curves/CurveFloat.h"
 #include "Framework/SlateDelegates.h"
-#include "Misc/Attribute.h"
 #include "SAudioInputWidget.h"
-#include "SAudioTextBox.h"
+#include "Styling/ISlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/SOverlay.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SEditableText.h"
-#include "Widgets/Input/SSlider.h"
-#include "Widgets/Layout/SConstraintCanvas.h"
-#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Styling/SlateWidgetStyleAsset.h"
+
+class SAudioTextBox;
+class SImage;
+class SSlider;
+class SWidgetSwitcher;
+class UCurveFloat;
 
 /**
  * Slate audio sliders that wrap SSlider and provides additional audio specific functionality.
@@ -217,3 +214,14 @@ public:
 	const float GetOutputValue(const float InSliderValue);
 	const float GetSliderValue(const float OutputValue);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Curves/CurveFloat.h"
+#include "SAudioTextBox.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SEditableText.h"
+#include "Widgets/Input/SSlider.h"
+#include "Widgets/Layout/SConstraintCanvas.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/SOverlay.h"
+#endif

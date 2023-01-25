@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "HAL/Platform.h"
 
 #if WITH_TENCENTSDK
 #if WITH_TENCENT_RAIL_SDK
@@ -137,6 +136,7 @@ inline EOnlinePresenceState::Type RailOnlineStateToOnlinePresence(rail::EnumRail
 #endif // WITH_TENCENTSDK
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "HAL/Platform.h"
 #include "CoreMinimal.h"
 #include "Interfaces/OnlinePresenceInterface.h"
 #endif

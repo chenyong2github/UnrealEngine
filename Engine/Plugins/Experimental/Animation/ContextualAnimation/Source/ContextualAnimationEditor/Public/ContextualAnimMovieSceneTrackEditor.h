@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "ISequencerSection.h"
 #include "MovieSceneTrackEditor.h"
-#include "ContextualAnimTypes.h"
+
+struct FBuildEditWidgetParams;
 
 /** Handles section drawing and manipulation of a ContextualAnimMovieSceneTrack */
 class FContextualAnimMovieSceneTrackEditor : public FMovieSceneTrackEditor
@@ -41,3 +42,8 @@ public:
 	virtual float GetSectionHeight() const override;
 	virtual bool SectionIsResizable() const override { return false; }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ContextualAnimTypes.h"
+#include "CoreMinimal.h"
+#endif

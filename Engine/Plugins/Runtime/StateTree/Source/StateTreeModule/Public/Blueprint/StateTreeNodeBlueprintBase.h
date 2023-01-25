@@ -3,10 +3,11 @@
 #pragma once
 
 #include "StateTreeTypes.h"
-#include "StateTreeEvents.h"
-#include "StateTreeExecutionContext.h"
 #include "StateTreeNodeBlueprintBase.generated.h"
 
+struct FStateTreeEvent;
+struct FStateTreeEventQueue;
+struct FStateTreeInstanceStorage;
 struct FStateTreeLinker;
 struct FStateTreeExecutionContext;
 
@@ -68,3 +69,8 @@ private:
 	UPROPERTY()
 	mutable TObjectPtr<UObject> CachedOwner = nullptr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "StateTreeEvents.h"
+#include "StateTreeExecutionContext.h"
+#endif

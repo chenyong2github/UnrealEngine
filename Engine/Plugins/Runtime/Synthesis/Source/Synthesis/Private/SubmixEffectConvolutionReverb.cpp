@@ -2,6 +2,8 @@
 
 #include "SubmixEffects/SubmixEffectConvolutionReverb.h"
 
+#include "AudioDefines.h"
+#include "DSP/AlignedBlockBuffer.h" // IWYU pragma: keep
 #include "DSP/FloatArrayMath.h"
 #include "EffectConvolutionReverb.h"
 

@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Misc/FrameRate.h"
-#include "Math/Range.h"
 
 #include "SequencerScriptingRange.generated.h"
 

@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+
+class FString;
 
 namespace UE::Online::Errors {
 using ErrorCodeType = uint64;
@@ -93,3 +94,7 @@ namespace ErrorCode { namespace Category { \
 	UE_ONLINE_ERROR_INTERNAL(CategoryName, Name, ErrorCodeValue, ErrorMessage, ErrorText)
 
 } /* namespace UE::Online::Errors */
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Containers/UnrealString.h"
+#endif

@@ -28,6 +28,7 @@
 #include "MuT/Streams.h"
 #include "MuT/Table.h"
 #include "MuT/TypeInfo.h"
+#include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SComboBox.h"

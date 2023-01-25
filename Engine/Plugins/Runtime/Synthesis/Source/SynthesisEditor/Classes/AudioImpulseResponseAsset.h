@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Factories/Factory.h"
-#include "AssetTypeCategories.h"
 #include "AssetTypeActions_Base.h"
-#include "Sound/SoundWave.h"
 #include "Sound/SampleBufferIO.h"
 #include "AudioImpulseResponseAsset.generated.h"
 
@@ -42,3 +39,8 @@ class UAudioImpulseResponseFactory : public UFactory
 private:
 	Audio::FSoundWavePCMLoader Loader;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Sound/SoundWave.h"
+#endif

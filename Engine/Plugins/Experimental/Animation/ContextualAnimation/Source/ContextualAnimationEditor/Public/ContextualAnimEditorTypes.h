@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ContextualAnimTypes.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 #include "ContextualAnimEditorTypes.generated.h"
+
+class IPropertyHandle;
 
 class UContextualAnimSceneAsset;
 
@@ -97,3 +98,7 @@ struct FContextualAnimNewAnimSetParams
 	UPROPERTY(EditAnywhere, Category = "Settings", meta = (ClampMin = "0", UIMin = "0", ClampMax = "1", UIMax = "1"))
 	float RandomWeight = 1.f;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "MovieScene/IMovieSceneLiveLinkPropertyHandler.h"
 #include "MovieScene/MovieSceneLiveLinkStructProperties.h"
@@ -85,3 +84,7 @@ protected:
 	/** The keys that are being recorded */
 	TArray<TArray<FLiveLinkPropertyKey<PropertyType>>> Keys;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

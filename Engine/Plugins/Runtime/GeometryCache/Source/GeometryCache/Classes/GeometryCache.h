@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "RenderCommandFence.h"
 
@@ -99,3 +96,7 @@ protected:
 	UPROPERTY()
 	uint64 Hash;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

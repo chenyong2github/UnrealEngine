@@ -2,11 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
-#include "MeshPaintingToolsetTypes.h"
 #include "EditorSubsystem.h"
-#include "IMeshPaintComponentAdapter.h"
 
 class FMeshPaintParameters;
 class UImportVertexColorOptions;
@@ -74,3 +70,10 @@ public:
 	void SaveModifiedTextures();
 	bool CanSaveModifiedTextures();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "IMeshPaintComponentAdapter.h"
+#include "MeshPaintingToolsetTypes.h"
+#endif

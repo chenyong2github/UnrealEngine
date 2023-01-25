@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MovieSceneNameableTrack.h"
 #include "ContextualAnimMovieSceneTrack.generated.h"
+
+enum class EMovieSceneSectionMovedResult;
+struct FMovieSceneSectionMovedParams;
 
 class FContextualAnimViewModel;
 
@@ -66,3 +68,7 @@ private:
 
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

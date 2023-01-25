@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ThumbnailHelpers.h"
 
 class AGeometryCacheActor;
@@ -25,3 +24,7 @@ private:
 	/** The static mesh actor used to display all static mesh thumbnails */
 	AGeometryCacheActor* PreviewActor;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

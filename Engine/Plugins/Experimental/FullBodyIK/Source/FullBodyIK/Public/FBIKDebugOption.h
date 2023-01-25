@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "FBIKDebugOption.generated.h"
 
 USTRUCT(BlueprintType)
@@ -41,3 +40,7 @@ struct FFBIKDebugOption
 		DrawWorldOffset.SetLocation(FVector(30.f, 0.f, 0.f));
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

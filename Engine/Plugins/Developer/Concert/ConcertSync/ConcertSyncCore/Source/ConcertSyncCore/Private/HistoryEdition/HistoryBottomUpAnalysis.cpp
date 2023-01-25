@@ -3,7 +3,6 @@
 #include "HistoryEdition/HistoryAnalysis.h"
 
 #include "HistoryEdition/ActivityDependencyEdge.h"
-#include "HistoryEdition/ActivityGraphIDs.h"
 
 #include "Containers/Queue.h"
 #include "HistoryEdition/ActivityDependencyGraph.h"

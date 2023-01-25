@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "ActorFactories/ActorFactory.h"
 
 #include "ActorFactoryCacheManager.generated.h"
@@ -24,3 +22,7 @@ class CHAOSCACHINGEDITOR_API UActorFactoryCacheManager : public UActorFactory
 	virtual UObject* GetAssetFromActorInstance(AActor* ActorInstance) override;
 	//~ End UActorFactory Interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

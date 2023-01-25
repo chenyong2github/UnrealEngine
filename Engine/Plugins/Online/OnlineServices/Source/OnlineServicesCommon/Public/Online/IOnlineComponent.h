@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
-#include "Online/OnlineAsyncOp.h"
 
 namespace UE::Online {
 
@@ -26,3 +24,8 @@ public:
 };
 
 /* UE::Online */ }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Online/OnlineAsyncOp.h"
+#include "Templates/SharedPointer.h"
+#endif

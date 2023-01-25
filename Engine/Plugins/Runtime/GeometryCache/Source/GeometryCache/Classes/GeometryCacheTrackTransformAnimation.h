@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ScriptMacros.h"
 #include "GeometryCacheTrack.h"
 #include "GeometryCacheMeshData.h"
 
@@ -33,3 +30,7 @@ class GEOMETRYCACHE_API UDEPRECATED_GeometryCacheTrack_TransformAnimation : publ
 private:
 	FGeometryCacheMeshData MeshData;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+
+class IOnlineFactory;
 
 class IOnlineSubsystem;
 
@@ -246,3 +248,7 @@ private:
 /** Public references to the online subsystem module pointer should use this */
 typedef TSharedPtr<FOnlineSubsystemModule, ESPMode::ThreadSafe> FOnlineSubsystemModulePtr;
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

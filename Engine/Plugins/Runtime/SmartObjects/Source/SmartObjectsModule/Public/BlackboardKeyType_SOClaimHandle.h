@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "BehaviorTree/Blackboard/BlackboardKeyEnums.h"
 #include "SmartObjectRuntime.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType.h"
 #include "BlackboardKeyType_SOClaimHandle.generated.h"

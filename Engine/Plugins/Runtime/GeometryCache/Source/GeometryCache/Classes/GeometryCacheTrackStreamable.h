@@ -1,16 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ScriptMacros.h"
 #include "GeometryCacheCodecBase.h"
 #include "GeometryCacheTrack.h"
-#include "GeometryCacheMeshData.h"
 #include "RenderResource.h"
 #include "RenderCommandFence.h"
 
 #include "GeometryCacheTrackStreamable.generated.h"
+
+class UGeometryCacheTrackStreamable;
 
 class FGeometryCachePreprocessor;
 
@@ -227,3 +225,8 @@ private:
 	uint64 Hash;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GeometryCacheMeshData.h"
+#endif

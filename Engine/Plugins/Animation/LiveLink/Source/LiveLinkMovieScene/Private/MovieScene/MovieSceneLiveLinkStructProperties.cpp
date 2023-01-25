@@ -2,13 +2,19 @@
 
 #include "MovieScene/MovieSceneLiveLinkStructProperties.h"
 
+#include "Channels/MovieSceneBoolChannel.h"
 #include "MovieScene/MovieSceneLiveLinkEnumHandler.h"
+#include "Channels/MovieSceneByteChannel.h"
 #include "MovieScene/MovieSceneLiveLinkPropertyHandler.h"
+#include "Channels/MovieSceneIntegerChannel.h"
 #include "MovieScene/MovieSceneLiveLinkTransformHandler.h"
+#include "Channels/MovieSceneStringChannel.h"
 #include "UObject/EnumProperty.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkStructProperties)
 
+FLiveLinkPropertyData::FLiveLinkPropertyData() = default;
+FLiveLinkPropertyData::~FLiveLinkPropertyData() = default;
 
 namespace LiveLinkPropertiesUtils
 {

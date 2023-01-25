@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include "Delegates/Delegate.h"
 #include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 
-#include "LiveLinkComponentController.h"
+
+class ULiveLinkComponentController;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FLiveLinkComponentRegistered, ULiveLinkComponentController*);
 
@@ -22,3 +23,8 @@ public:
 	virtual ~ILiveLinkComponentsModule() { }
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "LiveLinkComponentController.h"
+#include "Modules/ModuleManager.h"
+#endif

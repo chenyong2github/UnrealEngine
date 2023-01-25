@@ -3,9 +3,11 @@
 #pragma once
 
 #include "MatchAndSet/PCGMatchAndSetBase.h"
-#include "Metadata/PCGMetadataTypesConstantStruct.h"
 
 #include "PCGMatchAndSetWeighted.generated.h"
+
+enum class EPCGMetadataTypes : uint8;
+struct FPropertyChangedEvent;
 
 USTRUCT(BlueprintType)
 struct PCG_API FPCGMatchAndSetWeightedEntry

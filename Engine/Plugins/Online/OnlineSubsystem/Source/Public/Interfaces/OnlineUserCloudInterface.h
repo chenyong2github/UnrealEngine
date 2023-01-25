@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineSubsystemTypes.h"
+#include "Delegates/Delegate.h"
 #include "OnlineDelegateMacros.h"
+
+class FUniqueNetId;
+struct FCloudFileHeader;
+template <typename OptionalType> struct TOptional;
 
 ONLINESUBSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogOnlineCloud, Log, All);
 
@@ -308,3 +311,8 @@ public:
 };
 
 typedef TSharedPtr<IOnlineUserCloud, ESPMode::ThreadSafe> IOnlineUserCloudPtr;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineSubsystemTypes.h"
+#endif

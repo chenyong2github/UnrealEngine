@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/Ticker.h"
-#include "OnlineSubsystem.h"
 #include "SocialToolkit.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Stats/Stats.h"
 
 DECLARE_DELEGATE_TwoParams(FOnQueryCompleted, FName, const TSharedRef<class FSocialQueryBase>&);
 
@@ -164,3 +160,8 @@ private:
 	FTSTicker::FDelegateHandle TickExecuteHandle;
 	TMap<FName, TArray<TSharedRef<FSocialQueryBase>>> CurrentQueriesById;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineSubsystem.h"
+#endif

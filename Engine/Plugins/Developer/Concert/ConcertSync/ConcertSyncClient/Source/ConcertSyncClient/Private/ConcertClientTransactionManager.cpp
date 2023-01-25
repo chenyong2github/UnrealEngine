@@ -3,6 +3,7 @@
 #include "ConcertClientTransactionManager.h"
 #include "Algo/AnyOf.h"
 #include "Components/SceneComponent.h"
+#include "ConcertSyncSessionTypes.h"
 #include "ConcertTransactionEvents.h"
 #include "GameFramework/Actor.h"
 #include "IConcertSession.h"

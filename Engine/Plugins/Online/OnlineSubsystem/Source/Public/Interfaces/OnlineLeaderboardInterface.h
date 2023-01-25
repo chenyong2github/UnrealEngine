@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
 #include "OnlineDelegateMacros.h"
 #include "OnlineStats.h"
 
@@ -158,3 +156,7 @@ public:
 
 typedef TSharedPtr<IOnlineLeaderboards, ESPMode::ThreadSafe> IOnlineLeaderboardsPtr;
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

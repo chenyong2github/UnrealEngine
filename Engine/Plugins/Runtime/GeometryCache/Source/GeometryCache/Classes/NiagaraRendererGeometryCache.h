@@ -6,8 +6,8 @@ NiagaraRendererGeometryCache.h: Renderer for geometry cache components.
 #pragma once
 
 #include "NiagaraRenderer.h"
-#include "CoreMinimal.h"
-#include "GeometryCacheComponent.h"
+
+class UGeometryCacheComponent;
 
 class UNiagaraGeometryCacheRendererProperties;
 class FNiagaraDataSet;
@@ -45,3 +45,8 @@ private:
 	// all of the spawned components
 	TArray<FComponentPoolEntry> ComponentPool;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GeometryCacheComponent.h"
+#endif

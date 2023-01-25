@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Logging/TokenizedMessage.h"
+#include "Templates/SharedPointer.h"
+
+class FTokenizedMessage;
 
 class FAbcImportLogger
 {
@@ -22,3 +23,8 @@ private:
 	static FCriticalSection MessageLock;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Logging/TokenizedMessage.h"
+#endif

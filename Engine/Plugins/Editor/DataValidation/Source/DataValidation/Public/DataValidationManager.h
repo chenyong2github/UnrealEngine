@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "AssetRegistry/AssetData.h"
-#include "Engine/EngineTypes.h"
+#include "UObject/Package.h"
 #include "DataValidationManager.generated.h"
 
 class FLogWindowManager;
@@ -110,3 +107,9 @@ private:
 	UPROPERTY(config)
 	FSoftClassPath DataValidationManagerClassName;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AssetRegistry/AssetData.h"
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#endif

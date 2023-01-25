@@ -2,17 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
-#include "MeshPaintingToolsetTypes.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
-#include "IMeshPaintComponentAdapter.h"
-#include "InteractiveToolManager.h"
-#include "EdModeInteractiveToolsContext.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
-#include "Subsystems/EngineSubsystem.h"
+#include "Math/Ray.h"
+#include "UObject/Package.h"
 #include "MeshPaintHelpers.generated.h"
+
+enum class EMeshPaintModeAction : uint8;
 
 class FMeshPaintParameters;
 class UImportVertexColorOptions;
@@ -303,3 +299,12 @@ void UMeshPaintingSubsystem::ApplyBrushToVertex(const FVector& VertexPosition, c
 		InOutValue = FMath::LerpStable(OldValue, PaintValue, PaintStrength);
 	}	
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "EdModeInteractiveToolsContext.h"
+#include "IMeshPaintComponentAdapter.h"
+#include "InteractiveToolManager.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "MeshPaintingToolsetTypes.h"
+#endif

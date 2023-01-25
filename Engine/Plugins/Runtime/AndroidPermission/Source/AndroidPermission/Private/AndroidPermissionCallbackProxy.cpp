@@ -3,7 +3,7 @@
 #include "AndroidPermissionCallbackProxy.h"
 #include "AndroidPermission.h"
 
-#include "Async/TaskGraphInterfaces.h"
+#include "Trace/Trace.inl"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AndroidPermissionCallbackProxy)
 

@@ -4,13 +4,10 @@
 
 #include "MovieSceneLiveLinkSubSection.h"
 
-#include "Channels/MovieSceneFloatChannel.h"
-#include "Containers/Array.h"
-#include "LiveLinkRole.h"
-#include "LiveLinkTypes.h"
-#include "MovieScene/MovieSceneLiveLinkTransformHandler.h"
 
 #include "MovieSceneLiveLinkSubSectionAnimation.generated.h"
+
+class FMovieSceneLiveLinkTransformHandler;
 
 
 /**
@@ -42,3 +39,9 @@ protected:
 	/** Helper struct to manage filling channels from transforms */
 	TSharedPtr<FMovieSceneLiveLinkTransformHandler> TransformHandler;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Channels/MovieSceneFloatChannel.h"
+#include "LiveLinkRole.h"
+#include "MovieScene/MovieSceneLiveLinkTransformHandler.h"
+#endif

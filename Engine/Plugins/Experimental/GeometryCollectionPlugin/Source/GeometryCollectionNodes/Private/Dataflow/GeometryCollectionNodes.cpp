@@ -5,6 +5,7 @@
 
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
+#include "GeometryCollection/Facades/CollectionMeshFacade.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "GeometryCollection/GeometryCollection.h"

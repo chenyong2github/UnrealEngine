@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ConcertDataStoreMessages.h"
+
+struct FConcertSessionSerializedPayload;
 
 /**
  * Maintains a type-safe key/value map where the values are USTRUCT() structs
@@ -131,3 +132,7 @@ private:
 	/** Maps keyName/keyValue. */
 	TMap<FName, FConcertDataStoreValueRef> KeyValueMap;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

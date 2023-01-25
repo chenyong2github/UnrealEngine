@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include <Containers/Array.h>
-#include <Templates/UniquePtr.h>
 
-#include "Online/IOnlineComponent.h"
 #include "Online/OnlineTypeInfo.h"
 #include "Online/OnlineMeta.h"
+
+namespace UE::Online { class IOnlineComponent; }
 
 namespace UE::Online {
 
@@ -120,3 +119,7 @@ private:
 };
 
 /* UE::Online */ }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Online/IOnlineComponent.h"
+#endif

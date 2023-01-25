@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "QosRegionManager.h"
 #include "UObject/GCObject.h"
+
+class UQosRegionManager;
+struct FRegionQosInstance;
 
 class IAnalyticsProvider;
 
@@ -148,3 +149,8 @@ private:
 	UQosRegionManager* RegionManager;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "QosRegionManager.h"
+#endif

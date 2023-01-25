@@ -6,6 +6,9 @@
 
 #include "MotionTrajectoryCharacterMovement.generated.h"
 
+struct FTrajectorySample;
+struct FTrajectorySampleRange;
+
 class UCharacterMovementComponent;
 
 // Example motion trajectory component implementation for encapsulating: Character Movement ground locomotion

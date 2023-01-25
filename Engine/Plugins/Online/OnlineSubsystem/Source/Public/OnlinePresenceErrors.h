@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "OnlineError.h"
+#include "OnlineError.h" // IWYU pragma: keep
 #define LOCTEXT_NAMESPACE "OnlinePresence"
 #define ONLINE_ERROR_NAMESPACE "errors.com.epicgames.oss.presence"
 

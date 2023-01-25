@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ConcertMessages.h"
-#include "UObject/ObjectMacros.h"
+#include "ConcertMessageData.h"
 #include "UObject/StructOnScope.h"
 #include "ConcertDataStoreMessages.generated.h"
 
@@ -512,3 +510,8 @@ private:
 	/** The weakly-typed operation result. */
 	FConcertDataStoreResult Result;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ConcertMessages.h"
+#include "CoreMinimal.h"
+#endif

@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineSubsystemPackage.h"
+#include "Templates/SharedPointer.h"
+
+class FJsonObject;
+class UStruct;
 
 namespace EOnlineKeyValuePairDataType
 {
@@ -628,3 +630,8 @@ private:
 	static bool ConvertScalarVariantToFProperty(const FVariantData* Variant, FProperty* Property, void* OutValue, int64 CheckFlags, int64 SkipFlags);
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineSubsystemPackage.h"
+#endif

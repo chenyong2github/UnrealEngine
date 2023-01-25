@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 
 /** Module interface for VirtualHeightfieldMesh editor  extensions. */
 class IVirtualHeightfieldMeshEditorModule : public IModuleInterface
@@ -14,3 +13,7 @@ public:
 	/** Build the contents of the streaming low mips. */
 	virtual bool BuildMinMaxHeightTexture(class UVirtualHeightfieldMeshComponent* InComponent) const = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Modules/ModuleManager.h"
+#endif

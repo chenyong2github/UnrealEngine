@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "DSP/Filter.h"
 #include "DSP/LFO.h"
 #include "DSP/Envelope.h"
@@ -132,3 +131,7 @@ namespace Audio
 		uint8 bIsSustainPedalPressed : 1;
 	};
 } // namespace Audio
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,9 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "LiveLinkTypes.h"
+#include "Misc/FrameNumber.h"
+
+class UScriptStruct;
+struct FFrameTime;
+struct FLiveLinkBaseFrameData;
+struct FLiveLinkWorldTime;
+struct FQualifiedFrameTime;
+template <typename OptionalType> struct TOptional;
 
 
 struct FKeyDataOptimizationParams;
@@ -35,3 +41,8 @@ public:
 	virtual void FillFrameInterpolated(const FFrameTime& InFrameTime, const FLiveLinkWorldTime& InWorldTime, const TOptional<FQualifiedFrameTime>& InTimecodeTime, const UScriptStruct& InStruct, FLiveLinkBaseFrameData* OutFrame) = 0;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "LiveLinkTypes.h"
+#endif

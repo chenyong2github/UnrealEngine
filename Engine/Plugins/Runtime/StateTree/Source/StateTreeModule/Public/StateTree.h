@@ -3,13 +3,9 @@
 #pragma once
 
 #include "Engine/DataAsset.h"
-#include "StateTreeTypes.h"
 #include "StateTreeSchema.h"
-#include "InstancedStruct.h"
-#include "InstancedStructContainer.h"
 #include "StateTreePropertyBindings.h"
 #include "StateTreeInstanceData.h"
-#include "Misc/ScopeRWLock.h"
 #include "StateTree.generated.h"
 
 
@@ -244,3 +240,7 @@ private:
 #endif
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Misc/ScopeRWLock.h"
+#endif

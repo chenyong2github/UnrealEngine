@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Math/MathFwd.h"
 #include "LiveLinkControllerBase.h"
-#include "Engine/EngineTypes.h"
 #include "LiveLinkTransformController.generated.h"
+
+class ULiveLinkRole;
 
 struct FLiveLinkTransformStaticData;
 class USceneComponent;

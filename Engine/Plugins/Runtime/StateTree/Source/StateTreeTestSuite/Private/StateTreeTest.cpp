@@ -2,6 +2,7 @@
 
 #include "StateTreeTest.h"
 #include "AITestsCommon.h"
+#include "StateTreeCompilerLog.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeCompiler.h"
 #include "Conditions/StateTreeCommonConditions.h"

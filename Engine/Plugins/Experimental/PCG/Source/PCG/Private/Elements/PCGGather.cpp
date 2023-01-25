@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGGather.h"
-#include "Helpers/PCGSettingsHelpers.h"
 #include "PCGContext.h"
 #include "PCGPin.h"
 	

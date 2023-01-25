@@ -3,8 +3,9 @@
 #pragma once
 
 #include "Sound/SoundEffectSource.h"
-#include "DSP/EQ.h"
 #include "SourceEffectEQ.generated.h"
+
+namespace Audio { class FBiquadFilter; }
 
 
 USTRUCT(BlueprintType)
@@ -88,3 +89,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|Effects")
 	FSourceEffectEQSettings Settings;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "DSP/EQ.h"
+#endif

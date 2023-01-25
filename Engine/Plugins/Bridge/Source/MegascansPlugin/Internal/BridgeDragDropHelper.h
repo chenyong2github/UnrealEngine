@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AssetRegistry/AssetData.h"
+#include "Delegates/Delegate.h"
+
+class AActor;
+struct FAssetData;
 
 class AStaticMeshActor;
 
@@ -23,3 +25,8 @@ public:
 	static void Initialize();
 	static TSharedPtr<FBridgeDragDropHelperImpl> Instance;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AssetRegistry/AssetData.h"
+#include "CoreMinimal.h"
+#endif

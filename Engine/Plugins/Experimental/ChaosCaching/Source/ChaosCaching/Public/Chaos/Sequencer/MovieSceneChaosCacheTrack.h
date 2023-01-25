@@ -3,7 +3,6 @@
 #pragma once
 
 #include "MovieSceneNameableTrack.h"
-#include "Chaos/CacheManagerActor.h"
 #include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneChaosCacheTrack.generated.h"
 
@@ -51,3 +50,7 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UMovieSceneSection>> AnimationSections;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Chaos/CacheManagerActor.h"
+#endif

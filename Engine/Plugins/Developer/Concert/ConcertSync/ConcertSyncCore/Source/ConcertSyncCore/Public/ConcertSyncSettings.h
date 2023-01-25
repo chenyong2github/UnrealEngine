@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
+#include "UObject/FieldPath.h"
 #include "ConcertSyncSettings.generated.h"
 
 USTRUCT()

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
 #include "UIFLocalSettings.generated.h"
 
@@ -61,3 +60,7 @@ private:
 	TObjectPtr<UObject> ErrorResourcePtr;
 	TObjectPtr<UObject> LoadingResourcePtr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

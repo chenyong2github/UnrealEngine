@@ -5,6 +5,10 @@
 #include "Stats/Stats2.h"
 #include "Tickable.h"
 
+enum class EStatFlags : uint8;
+struct FStatGroup_STATGROUP_Tickables;
+struct TStatIdData;
+
 DECLARE_LOG_CATEGORY_EXTERN(LogRenderTrace, Log, All);
 
 DECLARE_DELEGATE_ThreeParams(FRenderTraceDelegate, uint32 TaskID, class UPhysicalMaterial const*, int64 UserData);

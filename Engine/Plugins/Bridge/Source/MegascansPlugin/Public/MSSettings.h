@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Materials/Material.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Engine/EngineTypes.h"
-#include "UObject/SoftObjectPath.h"
 #include "MSSettings.generated.h"
+
+struct FPropertyChangedEvent;
 
 
 UCLASS(Config = Editor)
@@ -103,3 +99,9 @@ public:
 
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "Materials/Material.h"
+#endif

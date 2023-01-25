@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Containers/Array.h"
-#include "WaveTableSettings.h"
 #include "WaveTableSampler.h"
+
+struct FWaveTableSettings;
 
 
 namespace WaveTable
@@ -23,3 +23,7 @@ namespace WaveTable
 		FWaveTableSampler Sampler;
 	};
 } // namespace WaveTable
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "WaveTableSettings.h"
+#endif

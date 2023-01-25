@@ -6,6 +6,8 @@
 #include "Modules/ModuleInterface.h"
 #include "Stats/Stats2.h"
 
+enum class EStatFlags : uint8;
+
 #define PAPER2D_MODULE_NAME "Paper2D"
 
 //////////////////////////////////////////////////////////////////////////

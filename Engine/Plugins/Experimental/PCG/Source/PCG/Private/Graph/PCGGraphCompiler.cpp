@@ -2,6 +2,7 @@
 
 #include "PCGGraphCompiler.h"
 #include "Graph/PCGGraphExecutor.h"
+#include "Misc/ScopeRWLock.h"
 #include "PCGGraph.h"
 #include "PCGEdge.h"
 #include "PCGModule.h"

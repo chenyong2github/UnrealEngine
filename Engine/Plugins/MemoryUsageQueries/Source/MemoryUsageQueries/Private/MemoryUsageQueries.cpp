@@ -9,7 +9,6 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Misc/PackageName.h"
 #include "Modules/ModuleManager.h"
-#include "UObject/GCObject.h"
 #include "Templates/Greater.h"
 #include "UObject/UObjectAllocator.h"
 #include "UObject/UObjectIterator.h"

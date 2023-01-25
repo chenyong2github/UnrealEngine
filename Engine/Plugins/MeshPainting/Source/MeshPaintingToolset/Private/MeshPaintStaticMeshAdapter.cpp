@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshPaintStaticMeshAdapter.h"
-#include "Spatial/MeshAABBTree3.h"
 #include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshResources.h"
 #include "ComponentReregisterContext.h"

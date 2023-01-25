@@ -2,15 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnlineFwd.h"
-#include "Stats/Stats.h"
 #include "Modules/ModuleManager.h"
 #include "OnlineSubsystemModule.h"
 #include "OnlineSubsystemTypes.h"
 #include "OnlineDelegateMacros.h"
-#include "OnlineSubsystemNames.h"
-#include "HAL/LowLevelMemTracker.h"
+#include "OnlineSubsystemNames.h" // IWYU pragma: keep
+
+class IModuleInterface;
 
 class FOnlineNotificationHandler;
 class FOnlineNotificationTransportManager;
@@ -692,3 +690,7 @@ ONLINESUBSYSTEM_API int32 GetBeaconPortFromSessionSettings(const class FOnlineSe
 
 /** Temp solution for some hardcoded access to logged in user 0, please avoid using this */
 ONLINESUBSYSTEM_API FUniqueNetIdPtr GetFirstSignedInUser(IOnlineIdentityPtr IdentityInt);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

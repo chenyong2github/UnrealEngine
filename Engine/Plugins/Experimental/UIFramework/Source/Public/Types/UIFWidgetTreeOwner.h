@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "HAL/Platform.h"
+#include "HAL/Platform.h" // IWYU pragma: keep
 
 struct FUIFrameworkWidgetOwner;
 
@@ -37,5 +37,6 @@ public:
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "HAL/Platform.h"
 #include "Types/UIFWidgetOwner.h"
 #endif

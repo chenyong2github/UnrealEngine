@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
-#include "StateTreeTypes.h"
 #include "StateTreeEvaluatorBase.h"
-#include "StateTreeEvents.h"
 #include "StateTreeNodeBlueprintBase.h"
 #include "StateTreeEvaluatorBlueprintBase.generated.h"
 
@@ -60,3 +57,8 @@ struct STATETREEMODULE_API FStateTreeBlueprintEvaluatorWrapper : public FStateTr
 	UPROPERTY()
 	TSubclassOf<UStateTreeEvaluatorBlueprintBase> EvaluatorClass = nullptr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "StateTreeEvents.h"
+#endif

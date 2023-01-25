@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "Online.h"
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "Interfaces/OnlineFriendsInterface.h"
@@ -184,3 +183,7 @@ public:
 	FDelegateHandle OnUnblockedPlayerCompleteDelegateHandle;
 	FDelegateHandle OnSendMessageCompleteDelegateHandle;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Online.h"
+#endif

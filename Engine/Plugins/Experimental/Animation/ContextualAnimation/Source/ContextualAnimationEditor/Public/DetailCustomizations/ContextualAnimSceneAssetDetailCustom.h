@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
 #include "IDetailCustomization.h"
 
 class IDetailLayoutBuilder;
@@ -25,3 +23,8 @@ protected:
 
 	TWeakPtr<FContextualAnimViewModel> ViewModelPtr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/WeakObjectPtr.h"
+#endif

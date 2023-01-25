@@ -3,10 +3,10 @@
 #pragma once
 
 #include "Party/PartyTypes.h"
+#include "PartyModule.h"
 #include "UObject/GCObject.h"
 #include "Containers/Ticker.h"
 #include "Interfaces/OnlinePartyInterface.h"
-#include "Stats/Stats.h"
 
 /** Util exclusively for use by TPartyDataReplicator to circumvent circular include header issues (we can't include SocialParty.h or PartyMember.h here) */
 class FPartyDataReplicatorHelper

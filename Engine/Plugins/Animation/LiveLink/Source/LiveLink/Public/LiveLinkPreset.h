@@ -2,15 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
-#include "Engine/LatentActionManager.h"
-#include "LiveLinkPresetTypes.h"
-#include "Templates/PimplPtr.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 
 #include "LiveLinkPreset.generated.h"
+
+struct FLatentActionInfo;
+struct FLiveLinkSourcePreset;
+struct FLiveLinkSubjectPreset;
 
 UCLASS(BlueprintType)
 class LIVELINK_API ULiveLinkPreset : public UObject
@@ -74,3 +71,10 @@ private:
 	/** Holds the current ApplyToClient async operation. Only one operation for all presets can be done at a time. */
 	static TPimplPtr<struct FApplyToClientPollingOperation> ApplyToClientPollingOperation;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/LatentActionManager.h"
+#include "LiveLinkPresetTypes.h"
+#endif

@@ -18,8 +18,6 @@
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "STransformGizmoNumericalUIOverlay.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Input/SComboButton.h"
 

@@ -1,12 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "InstancedStruct.h"
+#include "Misc/TVariantMeta.h"
 #include "StructView.h"
 #include "Templates/ValueOrError.h"
-#include "UObject/UnrealType.h"
-#include <atomic>
 #include "PropertyBag.generated.h"
 
 /** Property bag property type, loosely based on BluePrint pin types. */

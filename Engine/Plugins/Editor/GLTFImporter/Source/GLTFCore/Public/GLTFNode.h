@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "GLTFMaterial.h"
-#include "GLTFMesh.h"
-#include "GLTFTexture.h"
 
-#include "Containers/Set.h"
-#include "CoreMinimal.h"
+#include "Math/Transform.h"
+
+namespace GLTF { struct FAccessor; }
 
 namespace GLTF
 {
@@ -150,3 +148,10 @@ namespace GLTF
 	};
 
 }  // namespace GLTF
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GLTFMaterial.h"
+#include "GLTFMesh.h"
+#include "GLTFTexture.h"
+#endif

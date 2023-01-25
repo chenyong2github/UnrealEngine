@@ -4,11 +4,12 @@
 
 #include "Engine/DeveloperSettings.h"
 
-#include "LiveLinkControllerBase.h"
-#include "MovieSceneLiveLinkControllerTrackRecorder.h"
 #include "Templates/SubclassOf.h"
 
 #include "LiveLinkSequencerSettings.generated.h"
+
+class ULiveLinkControllerBase;
+class UMovieSceneLiveLinkControllerTrackRecorder;
 
 
 /**
@@ -34,3 +35,8 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "LiveLink", meta = (AllowAbstract = "false"))
 	TMap<TSubclassOf<ULiveLinkControllerBase>, TSubclassOf<UMovieSceneLiveLinkControllerTrackRecorder>> DefaultTrackRecordersForController;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "LiveLinkControllerBase.h"
+#include "MovieSceneLiveLinkControllerTrackRecorder.h"
+#endif

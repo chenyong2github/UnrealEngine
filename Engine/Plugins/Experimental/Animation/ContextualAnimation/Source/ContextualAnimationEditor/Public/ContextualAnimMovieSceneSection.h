@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MovieSceneSection.h"
 #include "ContextualAnimMovieSceneSection.generated.h"
 
@@ -38,3 +37,7 @@ private:
 	UPROPERTY()
 	int32 AnimTrackIdx = INDEX_NONE;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

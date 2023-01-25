@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "AudioWidgetsStyle.h"
+#include "AudioWidgetsSlateTypes.h"
 #include "Components/Widget.h"
-#include "SAudioRadialSlider.h"
-#include "Styling/StyleColors.h"
-#include "UObject/ObjectMacros.h"
-#include "Widgets/SWidget.h"
 #include "AudioRadialSlider.generated.h"
+
+class SAudioRadialSlider;
+enum EAudioRadialSliderLayout : int;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAudioRadialSliderValueChangedEvent, float, Value);
 
@@ -196,3 +195,10 @@ class AUDIOWIDGETS_API UAudioFrequencyRadialSlider : public UAudioRadialSlider
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioWidgetsStyle.h"
+#include "SAudioRadialSlider.h"
+#include "Styling/StyleColors.h"
+#include "Widgets/SWidget.h"
+#endif

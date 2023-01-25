@@ -6,6 +6,9 @@
 #include "SmartObjectTypes.h"
 #include "SmartObjectHashGrid.generated.h"
 
+struct FInstancedStruct;
+struct FStructView;
+
 struct FSmartObjectHandle;
 
 typedef THierarchicalHashGrid2D<2, 4, FSmartObjectHandle> FSmartObjectHashGrid2D;

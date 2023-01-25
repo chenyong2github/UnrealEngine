@@ -11,7 +11,7 @@
 #include "Types/MVVMAvailableBinding.h"
 #include "Types/MVVMBindingSource.h"
 #include "WidgetBlueprint.h"
-#include "Widgets/Images/SLayeredImage.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "SSourceBindingList"

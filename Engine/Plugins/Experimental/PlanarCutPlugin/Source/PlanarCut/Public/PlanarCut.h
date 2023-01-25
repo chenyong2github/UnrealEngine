@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreMinimal.h"
 
-#include "Math/Plane.h"
 
-#include "Voronoi/Voronoi.h"
 #include "GeometryCollection/GeometryCollection.h"
-#include "GeometryCollection/Facades/CollectionMeshFacade.h"
-#include "MeshDescription.h"
 #include "DynamicMesh/DynamicMesh3.h"
+
+class FVoronoiDiagram;
+namespace GeometryCollection::Facades { class FCollectionMeshFacade; }
+struct FMeshDescription;
 
 class FProgressCancel;
 
@@ -509,3 +508,10 @@ void PLANARCUT_API ConvertToMeshDescription(
 	const TArrayView<const int32>& TransformIndices
 );
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GeometryCollection/Facades/CollectionMeshFacade.h"
+#include "MeshDescription.h"
+#include "Voronoi/Voronoi.h"
+#endif

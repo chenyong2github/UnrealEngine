@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "StructUtils.h"
 #include "InstancedStruct.h"
 #include "SharedStruct.h"
 

@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "DSP/Dsp.h"
-#include "EffectConvolutionReverb.h"
 #include "Sound/SoundEffectSource.h"
 #include "SourceEffectConvolutionReverb.generated.h"
+
+class UAudioImpulseResponse;
+class USourceEffectConvolutionReverbPreset;
+enum class ESubmixEffectConvolutionReverbBlockSize : uint8;
+namespace Audio { class FEffectConvolutionReverb; }
+namespace AudioConvReverbIntrinsics { struct FVersionData; }
 
 USTRUCT(BlueprintType)
 struct SYNTHESIS_API FSourceEffectConvolutionReverbSettings
@@ -168,3 +170,9 @@ private:
 #endif
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DSP/Dsp.h"
+#include "EffectConvolutionReverb.h"
+#endif

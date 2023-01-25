@@ -7,9 +7,6 @@
 #include "PCGEditor.h"
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphNode.h"
-#include "PCGGraph.h"
-#include "PCGSubgraph.h"
-#include "PCGSubsystem.h"
 
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"

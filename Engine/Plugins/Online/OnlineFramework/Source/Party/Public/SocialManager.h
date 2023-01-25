@@ -2,16 +2,17 @@
 
 #pragma once
 
-#include "UObject/Object.h"
-#include "OnlineSubsystem.h"
-#include "OnlineSubsystemTypes.h"
-#include "Engine/EngineBaseTypes.h"
 
 #include "Party/PartyTypes.h"
 #include "Interfaces/OnlinePartyInterface.h"
-#include "Interactions/SocialInteractionHandle.h"
 
+#include "SocialTypes.h"
+#include "Templates/SubclassOf.h"
 #include "SocialManager.generated.h"
+
+class FSocialInteractionHandle;
+class IOnlineSubsystem;
+struct FOnlineError;
 
 class ULocalPlayer;
 class USocialUser;
@@ -290,3 +291,9 @@ private:
 	mutable FOnSocialToolkitCreated OnSocialToolkitCreatedEvent;
 	mutable FOnPartyMembershipChanged OnPartyJoinedEvent;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/EngineBaseTypes.h"
+#include "Interactions/SocialInteractionHandle.h"
+#include "OnlineSubsystem.h"
+#endif

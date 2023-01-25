@@ -7,6 +7,7 @@
 
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "Interfaces/OnlineUserInterface.h"
+#include "Online/OnlineBase.h"
 #include "OnlineIdentityTencent.h"
 #include "OnlinePresenceTencent.h"
 #include "OnlineSubsystemTencent.h"

@@ -2,7 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+
+class FString;
+class UObject;
 
 class UWorld;
 
@@ -55,3 +58,7 @@ MODELINGTOOLSEDITORMODE_API bool AutoSaveAsset(UObject* Asset);
 
 }
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

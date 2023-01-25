@@ -1,7 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmartObjectAssetToolkit.h"
-#include "AdvancedPreviewScene.h"
 #include "AssetEditorModeManager.h"
 #include "Engine/StaticMesh.h"
 #include "PropertyCustomizationHelpers.h"

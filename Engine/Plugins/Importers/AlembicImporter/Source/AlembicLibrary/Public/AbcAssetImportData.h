@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "EditorFramework/AssetImportData.h"
 #include "AbcImportSettings.h"
@@ -40,3 +39,7 @@ public:
 	UPROPERTY()
 	FAbcConversionSettings ConversionSettings;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineEventsInterface.h"
+#include "Math/Vector.h"
 #include "OnlineDelegateMacros.h"
+
+class FOnlineEventParms;
+template <typename OptionalType> struct TOptional;
 
 class FUniqueNetId;
 struct FOnlineError;
@@ -246,3 +248,8 @@ public:
 	 */
 	virtual void UpdatePlayerLocation(const FUniqueNetId& LocalUserId, TOptional<FOnlineActivityPlayerLocation>& ActivityPlayerLocation) = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineEventsInterface.h"
+#endif

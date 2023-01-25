@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "OnlineSubsystemPackage.h"
 #include "OnlineSubsystemTypes.h"
 #include "Misc/Guid.h"
-#include "OnlineSubsystemNames.h"
+#include "OnlineSubsystemTencentPackage.h"
 
 #if WITH_TENCENTSDK
 

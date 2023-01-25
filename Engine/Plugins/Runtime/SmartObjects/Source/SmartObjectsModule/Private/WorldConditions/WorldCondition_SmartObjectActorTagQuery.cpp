@@ -5,7 +5,6 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "SmartObjectTypes.h"
-#include "WorldConditionSchema.h"
 #include "WorldConditionContext.h"
 #include "VisualLogger/VisualLogger.h"
 #include "WorldConditions/SmartObjectWorldConditionSchema.h"

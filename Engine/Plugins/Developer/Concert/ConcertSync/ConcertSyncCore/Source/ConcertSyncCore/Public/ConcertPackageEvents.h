@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "Misc/Guid.h"
 
 struct FConcertPackageInfo;
 
@@ -65,3 +66,7 @@ namespace UE::ConcertSyncCore::ConcertPackageEvents
 	/** Called when we finished receiving a package from a remote endpoint but decided to reject the data. Called only on the server. RemoteEndpointId is to be interpreted as the sender. */
 	CONCERTSYNCCORE_API FConcertRejectSendPackageDelegate& OnRejectRemoteSendPackage();
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

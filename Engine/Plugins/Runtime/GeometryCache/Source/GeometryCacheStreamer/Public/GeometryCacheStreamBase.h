@@ -2,8 +2,9 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "IGeometryCacheStream.h"
-#include <atomic>
+#include "HAL/CriticalSection.h"
 
 struct FGeometryCacheStreamReadRequest;
 

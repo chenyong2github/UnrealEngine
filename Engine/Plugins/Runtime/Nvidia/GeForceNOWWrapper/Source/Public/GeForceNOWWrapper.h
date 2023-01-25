@@ -2,9 +2,9 @@
 
 #pragma once
 
-#if NV_GEFORCENOW
+#include "HAL/Platform.h"
 
-#include "CoreMinimal.h"
+#if NV_GEFORCENOW
 
 THIRD_PARTY_INCLUDES_START
 #include "GfnRuntimeSdk_CAPI.h"

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Math/MathFwd.h"
 
 class FRDGBuilder;
 class FRDGTexture;
@@ -19,3 +19,7 @@ namespace VirtualHeightfieldMesh
 	/** Utility function to generate all additional mips from mip0 for a MinMax height texture already packed in RGBA8. */
 	VIRTUALHEIGHTFIELDMESH_API void GenerateMinMaxTextureMips(FRDGBuilder& GraphBuilder, FRDGTexture* Texture, FIntPoint SrcSize, int32 NumMips);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

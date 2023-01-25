@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "OnlineSubsystemTypes.h"
 
 class IOnlineSubsystem;
@@ -102,3 +101,7 @@ struct FOnlineTransportTap
 	FString AddressPattern;
 	FOnTapStateChanged StateChangeHandler;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

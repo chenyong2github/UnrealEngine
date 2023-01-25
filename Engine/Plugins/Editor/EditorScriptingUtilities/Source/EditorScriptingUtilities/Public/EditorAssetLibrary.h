@@ -3,8 +3,8 @@
 #pragma once
 
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "AssetRegistry/AssetData.h"
 
+#include "UObject/Package.h"
 #include "EditorAssetLibrary.generated.h"
 
 /**
@@ -383,3 +383,7 @@ public:
 	static void SyncBrowserToObjects(const TArray<FString>& AssetPaths);
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AssetRegistry/AssetData.h"
+#endif

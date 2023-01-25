@@ -3,16 +3,15 @@
 #pragma once
 
 #include "CurveEditorTypes.h"
-#include "Curves/CurveOwnerInterface.h"
 #include "EditorUndoClient.h"
-#include "Framework/Docking/TabManager.h"
-#include "Math/Color.h"
 #include "Misc/NotifyHook.h"
-#include "WaveTableCurveEditorViewStacked.h"
 #include "Toolkits/AssetEditorToolkit.h"
-#include "Toolkits/IToolkitHost.h"
 #include "WaveTableSettings.h"
-#include "Widgets/SWidget.h"
+
+class FSpawnTabArgs;
+enum class EWaveTableCurveSource : uint8;
+namespace WaveTable::Editor { class FWaveTableCurveModel; }
+struct FRichCurve;
 
 
 // Forward Declarations
@@ -148,3 +147,9 @@ namespace WaveTable
 		};
 	} // namespace Editor
 } // namespace WaveTable
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Curves/CurveOwnerInterface.h"
+#include "Toolkits/IToolkitHost.h"
+#include "WaveTableCurveEditorViewStacked.h"
+#endif

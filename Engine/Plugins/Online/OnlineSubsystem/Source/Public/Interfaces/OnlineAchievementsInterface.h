@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Misc/DateTime.h"
 #include "OnlineDelegateMacros.h"
 #include "OnlineStats.h"
 
@@ -180,3 +180,7 @@ public:
 	 */
 	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnAchievementUnlocked, const FUniqueNetId&, const FString&);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

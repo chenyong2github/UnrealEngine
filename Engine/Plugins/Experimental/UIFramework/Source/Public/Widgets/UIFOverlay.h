@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "Components/SlateWrapperTypes.h"
-#include "Layout/Margin.h"
-#include "Types/SlateEnums.h"
 #include "Types/UIFSlotBase.h"
 #include "UIFWidget.h"
-#include "Widgets/Layout/Anchors.h"
 
 #include "UIFOverlay.generated.h"
+
+struct FUIFrameworkWidgetId;
 
 class UUIFrameworkOverlay;
 struct FUIFrameworkOverlaySlotList;
@@ -116,3 +114,7 @@ private:
 	UPROPERTY(Replicated)
 	FUIFrameworkOverlaySlotList ReplicatedSlotList;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Widgets/Layout/Anchors.h"
+#endif

@@ -4,7 +4,7 @@
 
 #include "GLTFLogger.h"
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 
 class FJsonObject;
 
@@ -83,3 +83,7 @@ namespace GLTF
 	};
 
 }  // namespace GLTF
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

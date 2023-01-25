@@ -2,16 +2,15 @@
 #pragma once
 
 
-#include "CoreMinimal.h"
+#include "Containers/UnrealString.h"
 #include <string>
-#include "Sockets.h"
-#include "Misc/DateTime.h"
-#include "Async/AsyncWork.h"
-#include "Sockets.h"
-#include "Common/TcpListener.h"
-#include "Sockets.h"
 #include "Containers/Queue.h"
-#include "Common/UdpSocketReceiver.h"
+#include "HAL/Runnable.h"
+
+class FRunnableThread;
+class FSocket;
+struct FIPv4Endpoint;
+struct FScriptContainerElement;
 
 class MEGASCANSPLUGIN_API FTCPServer : public FRunnable
 {
@@ -49,3 +48,12 @@ private:
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Async/AsyncWork.h"
+#include "Common/TcpListener.h"
+#include "Common/UdpSocketReceiver.h"
+#include "CoreMinimal.h"
+#include "Misc/DateTime.h"
+#include "Sockets.h"
+#endif

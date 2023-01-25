@@ -1,19 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "HitProxies.h"
-#include "Stats/Stats.h"
-#include "Containers/ResourceArray.h"
-#include "RenderResource.h"
+#include "Materials/MaterialRelevance.h"
 #include "RayTracingGeometry.h"
-#include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "Materials/MaterialInterface.h"
 #include "GeometryCacheVertexFactory.h"
 #include "DynamicMeshBuilder.h"
-#include "StaticMeshResources.h"
-#include "Logging/LogMacros.h"
+
+class FDynamicPrimitiveUniformBuffer;
+class FHitProxyId;
+struct FRayTracingMaterialGatheringContext;
 
 class FMeshElementCollector;
 struct FGeometryCacheMeshData;
@@ -410,3 +407,9 @@ private:
 	/** Function used to create a new track proxy at construction */
 	TFunction<FGeomCacheTrackProxy*()> CreateTrackProxy;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "PrimitiveViewRelevance.h"
+#include "StaticMeshResources.h"
+#endif

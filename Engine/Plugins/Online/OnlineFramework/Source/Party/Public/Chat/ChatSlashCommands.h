@@ -4,14 +4,9 @@
 #pragma once
 //#include "UObject/Interface.h"
 
-#include "UObject/Object.h"
-#include "Templates/SharedPointer.h"
-#include "Internationalization/Text.h"
-#include "Engine/LocalPlayer.h"
 #include "Interactions/SocialInteractionHandle.h"
 
-#include "Internationalization/Internationalization.h"
-#include "Internationalization/CulturePointer.h"
+#include "UObject/WeakObjectPtr.h"
 
 class FSocialUserList;
 class FChatSlashCommand;
@@ -147,3 +142,9 @@ private:
 	*/
 	void CacheStringDataForLocalization() const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/LocalPlayer.h"
+#include "Internationalization/Internationalization.h"
+#include "UObject/Object.h"
+#endif

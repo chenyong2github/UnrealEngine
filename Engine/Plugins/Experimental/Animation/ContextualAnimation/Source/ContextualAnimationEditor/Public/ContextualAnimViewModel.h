@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "MovieScene.h"
 #include "UObject/GCObject.h"
-#include "MovieSceneFwd.h"
 #include "ContextualAnimTypes.h"
 #include "ContextualAnimMovieSceneSequence.h"
-#include "ISequencer.h"
 #include "EditorUndoClient.h"
+
+class ISequencer;
+enum class EMovieSceneDataChangeType;
+namespace EMovieScenePlayerStatus { enum Type : int; }
 
 class UWorld;
 class FContextualAnimPreviewScene;
@@ -233,3 +235,8 @@ private:
 private:
 	bool bInitialized = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "ISequencer.h"
+#endif

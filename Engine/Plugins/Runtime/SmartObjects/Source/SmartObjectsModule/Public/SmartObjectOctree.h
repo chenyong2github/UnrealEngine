@@ -2,10 +2,13 @@
 
 #pragma once
 
+#include "Math/GenericOctreePublic.h"
 #include "SmartObjectTypes.h"
-#include "Templates/SharedPointer.h"
 #include "Math/GenericOctree.h"
 #include "SmartObjectOctree.generated.h"
+
+struct FInstancedStruct;
+struct FStructView;
 
 typedef TSharedRef<struct FSmartObjectOctreeID, ESPMode::ThreadSafe> FSmartObjectOctreeIDSharedRef;
 

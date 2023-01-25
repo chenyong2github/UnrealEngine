@@ -5,7 +5,6 @@
 #include "Algo/Find.h"
 
 #include "HistoryEdition/ActivityDependencyEdge.h"
-#include "HistoryEdition/ActivityGraphIDs.h"
 #include "HistoryEdition/ActivityDependencyGraph.h"
 #include "HistoryEdition/DependencyGraphBuilder.h"
 

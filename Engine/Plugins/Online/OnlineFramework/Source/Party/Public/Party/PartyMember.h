@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "Party/PartyTypes.h"
 #include "Party/PartyDataReplicator.h"
 
+#include "SocialTypes.h"
 #include "PartyMember.generated.h"
 
 class USocialUser;

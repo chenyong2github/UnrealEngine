@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Interfaces/OnlineEntitlementsInterface.h"
 #include "Interfaces/OnlineStoreInterfaceV2.h"
 #include "OnlineJsonSerializer.h"
-#include "OnlineError.h"
+
+struct FOnlineError;
 
 #define PURCHASE_REDEMPTION_CODE_USED "errors.com.epicgames.coderedemption.code_used"
 #define PURCHASE_REDEMPTION_CODE_NOT_FOUND "errors.com.epicgames.coderedemption.code_not_found"
@@ -361,3 +361,8 @@ inline const TCHAR* LexToString(EPurchaseTransactionState State)
 	default: return TEXT("Unknown");
 	}
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineError.h"
+#endif

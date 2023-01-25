@@ -2,6 +2,7 @@
 
 #pragma once
 #include "ISourceControlProvider.h"
+#include "Misc/PackagePath.h"
 #include "SourceControlOperations.h"
 #include "Widgets/Views/SHeaderRow.h"
 

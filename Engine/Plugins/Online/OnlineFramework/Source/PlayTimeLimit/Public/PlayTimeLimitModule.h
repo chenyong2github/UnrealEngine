@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "Misc/CoreMisc.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
 PLAYTIMELIMIT_API DECLARE_LOG_CATEGORY_EXTERN(LogPlayTimeLimit, Log, All);
@@ -62,3 +58,8 @@ private:
 	bool bPlayTimeLimitEnabled = false;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Stats/Stats.h"
+#endif

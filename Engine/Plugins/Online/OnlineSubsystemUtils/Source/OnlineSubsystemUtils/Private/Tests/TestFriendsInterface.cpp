@@ -2,7 +2,6 @@
 
 #include "Tests/TestFriendsInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
-#include "OnlineSubsystemNames.h"
 #include "OnlineSubsystemUtils.h"
 #include "Interfaces/OnlineSharingInterface.h"
 

@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Misc/Guid.h"
 #include "StateTreePropertyBindings.h"
 #include "StateTreeEditorPropertyBindings.generated.h"
 
@@ -137,3 +135,7 @@ struct STATETREEEDITORMODULE_API FStateTreeBindingLookup : public IStateTreeBind
 
 	IStateTreeEditorPropertyBindingsOwner* BindingOwner = nullptr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

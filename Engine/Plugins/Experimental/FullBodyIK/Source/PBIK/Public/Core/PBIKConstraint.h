@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "PBIKBody.h"
+#include "Math/Quat.h"
+
+namespace PBIK { struct FRigidBody; }
 
 namespace PBIK
 {
@@ -122,3 +124,7 @@ private:
 
 } // namespace
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "PBIKBody.h"
+#endif

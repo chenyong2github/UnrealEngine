@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "MovieSceneBindingProxy.h"
 
 #include "MovieSceneFolderExtensions.generated.h"
+
+struct FMovieSceneBindingProxy;
 
 class UMovieSceneFolder;
 class UMovieSceneTrack;
@@ -158,3 +157,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
 	static bool RemoveChildObjectBinding(UMovieSceneFolder* Folder, const FMovieSceneBindingProxy InObjectBinding);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MovieSceneBindingProxy.h"
+#endif

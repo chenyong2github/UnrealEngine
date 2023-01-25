@@ -6,9 +6,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "NamedInterfaces.generated.h"
 
 /** Holds a named object interface for dynamically bound interfaces */
@@ -97,3 +94,7 @@ private:
 	FOnCleanup CleanupDelegates;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

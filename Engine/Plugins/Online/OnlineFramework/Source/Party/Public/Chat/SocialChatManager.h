@@ -4,13 +4,9 @@
 
 #include "SocialChatChannel.h"
 #include "SocialToolkit.h"
-#include "OnlineSubsystem.h"
-#include "Interfaces/OnlineChatInterface.h"
 #include "SocialReadOnlyChatChannel.h"
 #include "SocialPrivateMessageChannel.h"
-#include "SocialChatRoom.h"
 #include "SocialGroupChannel.h"
-#include "Interfaces/OnlineGroupsInterface.h"
 #include "SocialChatManager.generated.h"
 
 class USocialChatRoom;
@@ -193,3 +189,7 @@ private:
 	mutable FOnChatChannelFocusRequested OnChannelFocusRequestedEvent;
 	mutable FOnChatChannelDisplayRequested OnChannelDisplayRequestedEvent;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "SocialChatRoom.h"
+#endif

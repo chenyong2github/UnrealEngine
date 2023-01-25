@@ -4,7 +4,6 @@
 
 #include "Interactions/SocialInteractionHandle.h"
 #include "SocialQuery.h"
-#include "OnlineSubsystemNames.h"
 #include "SocialManager.h"
 #include "Party/SocialParty.h"
 #include "Party/PartyMember.h"

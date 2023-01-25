@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "AssetToolsModule.h"
 #include "Factories/Factory.h"
 #include "AssetTypeActions_Base.h"
 #include "EpicSynth1PresetBank.generated.h"
@@ -28,3 +25,7 @@ class UModularSynthPresetBankFactory : public UFactory
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	//~ Begin UFactory Interface	
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

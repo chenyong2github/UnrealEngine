@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "DSP/AlignedBlockBuffer.h"
 #include "DSP/AudioChannelFormatConverter.h"
-#include "DSP/BufferVectorOperations.h"
 #include "DSP/ConvolutionAlgorithm.h"
 
-#include <type_traits>
+
+namespace Audio { class FAlignedBlockBuffer; }
 
 namespace Audio
 {
@@ -263,3 +261,9 @@ namespace Audio
 		bool bIsConvertingOutputChannelFormat;
 	};
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DSP/AlignedBlockBuffer.h"
+#include "DSP/BufferVectorOperations.h"
+#endif

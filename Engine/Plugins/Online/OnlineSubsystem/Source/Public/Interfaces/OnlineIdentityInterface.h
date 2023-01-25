@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
 #include "OnlineSubsystemTypes.h"
 #include "OnlineDelegateMacros.h"
-#include "OnlineIdentityErrors.h"
+
+struct FOnlineError;
 
 
 
@@ -534,3 +533,8 @@ ONLINESUBSYSTEM_API FString ToDebugString(IOnlineIdentity::EPrivilegeResults Pri
 ONLINESUBSYSTEM_API FString ToDebugString(EUserPrivileges::Type UserPrivilege);
 
 ONLINESUBSYSTEM_API FString ToDebugString(const FControllerPairingChangedUserInfo& ControllerPairingChangedUserInfo);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineIdentityErrors.h"
+#endif

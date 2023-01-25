@@ -2,15 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Tools/LegacyEdModeWidgetHelpers.h"
 
-#include "InputState.h"
-#include "InteractiveToolManager.h"
-#include "EdModeInteractiveToolsContext.h"
-#include "ModelingToolsActions.h"
 
 #include "ModelingToolsEditorMode.generated.h"
+
+class IToolsContextRenderAPI;
+enum class EModelingModeActionCommands;
+enum class EToolSide;
+struct FInputDeviceRay;
+struct FToolBuilderState;
 
 class FEditorComponentSourceFactory;
 class FUICommandList;
@@ -151,3 +152,11 @@ protected:
 	static FDateTime LastModeStartTimestamp;
 	static FDateTime LastToolStartTimestamp;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "EdModeInteractiveToolsContext.h"
+#include "InputState.h"
+#include "InteractiveToolManager.h"
+#include "ModelingToolsActions.h"
+#endif

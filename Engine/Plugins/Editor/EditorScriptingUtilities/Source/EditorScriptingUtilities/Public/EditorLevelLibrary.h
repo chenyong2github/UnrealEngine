@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/MeshMerging.h"
-#include "GameFramework/Actor.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "StaticMeshEditorSubsystem.h"
 
 #include "EditorLevelLibrary.generated.h"
+
+struct FCreateProxyMeshActorOptions;
+struct FJoinStaticMeshActorsOptions;
+struct FMergeStaticMeshActorsOptions;
 
 USTRUCT(BlueprintType)
 struct FEditorScriptingJoinStaticMeshActorsOptions_Deprecated
@@ -433,3 +434,9 @@ public:
 	static bool CreateProxyMeshActor(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FCreateProxyMeshActorOptions& MergeOptions, class AStaticMeshActor*& OutMergedActor);
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "StaticMeshEditorSubsystem.h"
+#endif

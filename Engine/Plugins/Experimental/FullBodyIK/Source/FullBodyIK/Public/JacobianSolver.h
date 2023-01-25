@@ -3,6 +3,7 @@
 #pragma once
 
 #include "JacobianIK.h"
+#include "Math/Transform.h"
 
 using namespace JacobianIK;
 

@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LiveLinkLogInstance.h"
-
+#include "HAL/IConsoleManager.h"
 #include "LiveLinkClient.h"
-
 
 #if WITH_EDITOR
 #include "IMessageLogListing.h"

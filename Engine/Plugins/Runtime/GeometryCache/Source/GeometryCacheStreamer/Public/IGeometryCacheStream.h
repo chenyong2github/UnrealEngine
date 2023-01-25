@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/ContainersFwd.h" // IWYU pragma: keep
 
 struct FGeometryCacheMeshData;
 struct FGeometryCacheStreamStats;
@@ -47,3 +47,7 @@ struct FGeometryCacheStreamStats
 	float MemoryUsed = 0.0f;	// in MB
 	float AverageBitrate = 0.0f;// in MB/s
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

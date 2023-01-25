@@ -4,6 +4,7 @@
 
 #include "Async/Future.h"
 #include "Online/Lobbies.h"
+#include "Online/OnlineAsyncOpHandle.h"
 #include "Online/Schema.h"
 
 namespace UE::Online {

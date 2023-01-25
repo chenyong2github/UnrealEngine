@@ -3,9 +3,11 @@
 #pragma once
 
 #include "Animation/AnimComposite.h"
-#include "AssetDefinition_AnimationAsset.h"
+#include "Animation/AssetDefinition_AnimationAsset.h"
 
 #include "AssetDefinition_AnimComposite.generated.h"
+
+class UAssetDefinition_AnimationAsset;
 
 UCLASS()
 class UAssetDefinition_AnimComposite : public UAssetDefinition_AnimationAsset

@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/List.h"
-#include "Animation/MorphTarget.h"
-#include "Animation/AnimSequence.h"
-#include "AbcPolyMesh.h"
+#include "MeshUVChannelInfo.h"
+#include "UObject/Object.h" // IWYU pragma: keep
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
@@ -21,6 +18,9 @@ THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
+class IAnimationDataController;
+class UAnimSequence;
+class USkeleton;
 class FSkeletalMeshLODModel;
 class UMaterial;
 class UStaticMesh;
@@ -33,6 +33,8 @@ class UAbcImportSettings;
 class FSkeletalMeshImportData;
 class UAbcAssetImportData;
 
+struct FMorphTargetDelta;
+struct FReferenceSkeleton;
 struct FMeshDescription;
 struct FAbcImportData;
 struct FGeometryCacheMeshData;
@@ -221,3 +223,10 @@ private:
 	/** ABC file representation for currently opened filed */
 	class FAbcFile* AbcFile;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AbcPolyMesh.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/MorphTarget.h"
+#include "CoreMinimal.h"
+#endif

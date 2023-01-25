@@ -4,10 +4,11 @@
 
 #include "Engine/TimecodeProvider.h"
 
-#include "HAL/CriticalSection.h"
 #include "LiveLinkTypes.h"
-#include "Templates/Atomic.h"
 #include "LiveLinkTimecodeProvider.generated.h"
+
+struct FPropertyChangedEvent;
+struct FQualifiedFrameTime;
 
 class ILiveLinkClient;
 class IModularFeature;

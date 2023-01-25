@@ -11,6 +11,7 @@
 #include "SStateTreeView.h"
 #include "StateTree.h"
 #include "StateTreeCompiler.h"
+#include "StateTreeCompilerLog.h"
 #include "StateTreeDelegates.h"
 #include "StateTreeEditorCommands.h"
 #include "StateTreeEditorData.h"

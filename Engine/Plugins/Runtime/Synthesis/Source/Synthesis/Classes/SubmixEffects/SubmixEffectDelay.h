@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AudioEffect.h"
-#include "DSP/Delay.h"
 #include "DSP/Dsp.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "SubmixEffectDelay.generated.h"
+
+namespace Audio { class FDelay; }
 
 // ========================================================================
 // FSubmixEffectDelaySettings
@@ -172,3 +171,9 @@ public:
 	UPROPERTY(transient)
 	FSubmixEffectDelaySettings DynamicSettings;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioEffect.h"
+#include "CoreMinimal.h"
+#include "DSP/Delay.h"
+#endif

@@ -4,7 +4,6 @@
 #include "Misc/ConfigCacheIni.h"
 #include "OnlineSubsystemImpl.h"
 #include "OnlineDelegates.h"
-#include "OnlineSubsystemNames.h"
 
 IMPLEMENT_MODULE( FOnlineSubsystemModule, OnlineSubsystem );
 

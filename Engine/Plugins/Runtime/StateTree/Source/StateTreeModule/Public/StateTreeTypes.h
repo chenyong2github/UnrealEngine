@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "StructView.h"
 #include "PropertyBag.h"
 #include "GameplayTagContainer.h"
-#include "Misc/Guid.h"
 #include "StateTreeTypes.generated.h"
 
 STATETREEMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogStateTree, Warning, All);

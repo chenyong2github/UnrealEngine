@@ -2,6 +2,7 @@
 
 #pragma once
 #include "SocialInteractionMacros.h"
+#include "User/SocialUser.h"
 
 /**
 * Default Party interactions supported by the Social framework

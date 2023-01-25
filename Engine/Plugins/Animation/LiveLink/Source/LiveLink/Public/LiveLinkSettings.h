@@ -2,19 +2,16 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 
-#include "Engine/EngineTypes.h"
-#include "LiveLinkFrameInterpolationProcessor.h"
-#include "LiveLinkFramePreProcessor.h"
-#include "LiveLinkRole.h"
-#include "LiveLinkSourceSettings.h"
-#include "LiveLinkSubjectSettings.h"
 #include "Templates/SubclassOf.h"
 
 #include "LiveLinkSettings.generated.h"
+
+class ULiveLinkFrameInterpolationProcessor;
+class ULiveLinkFramePreProcessor;
+class ULiveLinkRole;
+class ULiveLinkSubjectSettings;
+enum class ELiveLinkSourceMode : uint8;
 
 
 class ULiveLinkPreset;
@@ -159,3 +156,12 @@ public:
 	double GetMessageBusHeartbeatTimeout() const { return MessageBusHeartbeatTimeout; }
 	double GetMessageBusTimeBeforeRemovingDeadSource() const { return MessageBusTimeBeforeRemovingInactiveSource; }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/EngineTypes.h"
+#include "LiveLinkFrameInterpolationProcessor.h"
+#include "LiveLinkFramePreProcessor.h"
+#include "LiveLinkRole.h"
+#include "LiveLinkSourceSettings.h"
+#include "LiveLinkSubjectSettings.h"
+#endif

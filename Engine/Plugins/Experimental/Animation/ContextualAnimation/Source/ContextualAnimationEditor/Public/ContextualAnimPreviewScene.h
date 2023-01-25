@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AdvancedPreviewScene.h"
 
 class FContextualAnimAssetEditorToolkit;
@@ -23,3 +22,7 @@ private:
 	/** The asset editor toolkit we are embedded in */
 	TWeakPtr<FContextualAnimAssetEditorToolkit> EditorToolkitPtr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

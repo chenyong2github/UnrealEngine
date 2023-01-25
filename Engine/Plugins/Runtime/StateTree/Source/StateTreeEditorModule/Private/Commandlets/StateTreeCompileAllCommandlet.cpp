@@ -7,6 +7,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "SourceControlOperations.h"
 #include "SourceControlHelpers.h"
+#include "StateTreeCompilerLog.h"
 #include "StateTreeEditor.h"
 #include "StateTreeCompiler.h"
 #include "StateTreeDelegates.h"

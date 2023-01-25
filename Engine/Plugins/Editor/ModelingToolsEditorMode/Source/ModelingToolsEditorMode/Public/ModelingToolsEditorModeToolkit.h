@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Toolkits/BaseToolkit.h"
-#include "ModelingToolsEditorMode.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "Widgets/Input/SEditableTextBox.h"
 #include "StatusBarSubsystem.h"
 #include "UObject/GCObject.h"
+
+class IAssetViewport;
+class SEditableTextBox;
+class STextComboBox;
+namespace ETextCommit { enum Type : int; }
 
 #include "ModelingToolsEditorModeToolkit.generated.h"
 
@@ -183,4 +184,8 @@ private:
 	bool bShowActiveSelectionActions = true;
 };
 
-#undef LOCTEXT_NAMESPACE
+#include "CoreMinimal.h"
+#include "ModelingToolsEditorMode.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Input/STextComboBox.h"
+#endif

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "OnlineBeaconHostObject.h"
 #include "QosBeaconHost.generated.h"
 
@@ -44,3 +42,7 @@ protected:
 	/** Running total of Qos requests received since the beacon was created */
 	int32 NumQosRequests;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

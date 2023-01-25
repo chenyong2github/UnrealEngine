@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ConcertMessageData.h"
 #include "ConcertWorkspaceData.generated.h"
 
@@ -103,3 +102,7 @@ struct FConcertPackage
 		return (static_cast<uint64>(TNumericLimits<decltype(PackageData.Bytes)::SizeType>::Max()) * 8) / 10;
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

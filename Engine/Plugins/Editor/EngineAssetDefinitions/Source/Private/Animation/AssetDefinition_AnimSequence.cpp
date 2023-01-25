@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetDefinition_AnimSequence.h"
-#include "Animation/AnimSequence.h"
+#include "ToolMenuSection.h"
 #include "ToolMenus.h"
-#include "Styling/AppStyle.h"
 #include "EditorReimportHandler.h"
 #include "Animation/AnimMontage.h"
 #include "Factories/AnimCompositeFactory.h"
@@ -14,7 +13,6 @@
 #include "Animation/AnimStreamable.h"
 #include "Animation/PoseAsset.h"
 #include "IAssetTools.h"
-#include "Algo/Transform.h"
 #include "ToolMenu.h"
 #include "ToolMenus.h"
 #include "ContentBrowserMenuContexts.h"

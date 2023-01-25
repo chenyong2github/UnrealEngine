@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "GameplayTagContainer.h"
-#include "GameFramework/Actor.h"
-#include "SmartObjectTypes.h"
 #include "SmartObjectPersistentCollection.h"
 #include "SmartObjectCollection.generated.h"
 

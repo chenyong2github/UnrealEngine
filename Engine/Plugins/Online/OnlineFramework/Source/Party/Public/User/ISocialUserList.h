@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "PartyModule.h"
 #include "SocialTypes.h"
-#include "Misc/EnumClassFlags.h"
-#include "SocialUser.h"
+
+class USocialUser;
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCustomFilterUser, const USocialUser&);
 
@@ -102,3 +103,7 @@ public:
 
 	virtual void SetAllowSortDuringUpdate(bool bIsEnabled) = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "SocialUser.h"
+#endif

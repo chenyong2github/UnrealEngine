@@ -1,11 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "StateTreeTypes.h"
 #include "StateTreeNodeBase.h"
-#include "Misc/Guid.h"
-#include "InstancedStruct.h"
 #include "StateTreeEditorNode.generated.h"
 
 UENUM()

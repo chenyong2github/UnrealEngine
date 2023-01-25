@@ -2,11 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
 #include "Misc/QualifiedFrameTime.h"
-#include "Math/Range.h"
 #include "ConcertSequencerMessages.generated.h"
 
 
@@ -131,3 +127,7 @@ struct FConcertSequencerTimeAdjustmentEvent
 	UPROPERTY()
 	FString SequenceObjectPath;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

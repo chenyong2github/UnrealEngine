@@ -3,7 +3,6 @@
 #include "ContentBrowserAssetDataCore.h"
 
 #include "AssetDefinition.h"
-#include "AssetRegistry/ARFilter.h"
 #include "ContentBrowserDataSource.h"
 #include "ContentBrowserAssetDataPayload.h"
 #include "IAssetTools.h"

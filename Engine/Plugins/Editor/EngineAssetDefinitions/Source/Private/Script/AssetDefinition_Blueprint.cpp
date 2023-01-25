@@ -5,7 +5,6 @@
 #include "AssetDefinitionRegistry.h"
 #include "AssetToolsModule.h"
 #include "Blueprint/BlueprintSupport.h"
-#include "BlueprintEditorModule.h"
 #include "ContentBrowserMenuContexts.h"
 #include "ContentBrowserModule.h"
 #include "IAssetTools.h"
@@ -19,12 +18,10 @@
 #include "Misc/PackageName.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
-#include "Toolkits/AssetEditorToolkit.h"
 #include "BlueprintEditor.h"
 #include "SBlueprintDiff.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
-#include "Misc/AssetFilterData.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_Blueprint"
 

@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreMinimal.h"
-#include "Async/Async.h"
 #include "ConvolutionReverb.h"
-#include "DSP/ConvolutionAlgorithm.h"
 #include "DSP/Dsp.h"
-#include "SynthesisModule.h"
 #include "EffectConvolutionReverb.generated.h"
+
+struct FPropertyChangedEvent;
 
 /** Block size of convolution reverb algorithm. */
 UENUM()
@@ -153,3 +151,9 @@ namespace Audio
 		float SampleRate = 0.f;
 	};
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Async/Async.h"
+#include "CoreMinimal.h"
+#include "SynthesisModule.h"
+#endif

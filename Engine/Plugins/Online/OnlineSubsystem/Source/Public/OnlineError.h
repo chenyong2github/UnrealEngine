@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Internationalization/Internationalization.h" // IWYU pragma: keep
 
 #define ONLINE_ERROR_LEGACY 1
 
@@ -192,3 +192,7 @@ protected:
 /** must be defined to a valid namespace for using ONLINE_ERROR factory macro */
 #undef ONLINE_ERROR_NAMESPACE
 #define ONLINE_ERROR(...) FOnlineError::CreateError(TEXT(ONLINE_ERROR_NAMESPACE), __VA_ARGS__)
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

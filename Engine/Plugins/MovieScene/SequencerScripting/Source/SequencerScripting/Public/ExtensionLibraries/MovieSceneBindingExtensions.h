@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "MovieSceneTrack.h"
-#include "Templates/SubclassOf.h"
-#include "MovieSceneBindingProxy.h"
 
 #include "MovieSceneBindingExtensions.generated.h"
+
+class UMovieSceneTrack;
+struct FMovieSceneBindingProxy;
+template <typename T> class TSubclassOf;
 
 
 /**
@@ -199,3 +198,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
 	static void MoveBindingContents(const FMovieSceneBindingProxy& SourceBindingId, const FMovieSceneBindingProxy& DestinationBindingId);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MovieSceneBindingProxy.h"
+#include "MovieSceneTrack.h"
+#include "Templates/SubclassOf.h"
+#endif

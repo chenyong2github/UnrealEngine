@@ -2,10 +2,11 @@
 #pragma once
 
 
-#include "CoreMinimal.h"
-#include "MSSettings.h"
 
-#include "Widgets/SWindow.h"
+#include "Templates/SharedPointer.h"
+
+class SWindow;
+class UMegascansSettings;
 
 class FTabManager;
 
@@ -23,3 +24,9 @@ public:
 
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "MSSettings.h"
+#include "Widgets/SWindow.h"
+#endif

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "OnlineSubsystemImpl.h"
-#include "OnlineSubsystemNames.h"
 #include "OnlineSubsystemNullPackage.h"
 
 class FThreadSafeCounter;

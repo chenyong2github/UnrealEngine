@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Features/IModularFeature.h"
 
 class FUniqueNetId;
@@ -64,3 +64,7 @@ public:
 	 */
 	virtual FWarnUserPlayTime& GetWarnUserPlayTimeDelegate() = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

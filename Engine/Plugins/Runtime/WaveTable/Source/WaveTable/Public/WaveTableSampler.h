@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Containers/Array.h"
-#include "DSP/Filter.h"
-#include "HAL/Platform.h"
-#include "WaveTableSettings.h"
+#include "Containers/ArrayView.h"
 
 
 namespace WaveTable
@@ -91,3 +88,8 @@ namespace WaveTable
 		FSettings Settings;
 	};
 } // namespace WaveTable
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "DSP/Filter.h"
+#include "WaveTableSettings.h"
+#endif

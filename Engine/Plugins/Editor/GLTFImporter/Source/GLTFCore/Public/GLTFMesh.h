@@ -4,7 +4,6 @@
 
 #include "GLTFAccessor.h"
 
-#include "CoreMinimal.h"
 
 struct FMD5Hash;
 
@@ -225,3 +224,7 @@ namespace GLTF
 	}
 
 }  // namespace GLTF
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

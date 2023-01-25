@@ -2,17 +2,17 @@
 
 #pragma once
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-#include "Input/Reply.h"
 #include "LiveLinkRole.h"
-#include "LiveLinkPreset.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/SlateWidgetStyleAsset.h"
-#include "Types/SlateEnums.h"
-#include "Widgets/Views/SListView.h"
+
+class ULiveLinkPreset;
+namespace ESelectInfo { enum Type : int; }
+namespace ETextCommit { enum Type : int; }
+template <typename ItemType> class SListView;
 
 struct FAssetData;
 struct FLiveLinkSubjectRepresentationPickerEntry;
@@ -144,3 +144,8 @@ private:
 	bool bShowSource;
 	bool bShowRole;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "LiveLinkPreset.h"
+#include "Widgets/Views/SListView.h"
+#endif

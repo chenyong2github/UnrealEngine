@@ -3,9 +3,6 @@
 #pragma once
 
 #include "Styling/SlateStyle.h"
-#include "Styling/SlateStyleMacros.h"
-#include "Styling/SlateStyleRegistry.h"
-#include "Styling/SlateTypes.h"
 
 /**
  * Slate style set that defines all the styles for audio widgets
@@ -25,3 +22,9 @@ private:
 	FAudioWidgetsStyle();
 	~FAudioWidgetsStyle();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Styling/SlateStyleMacros.h"
+#include "Styling/SlateStyleRegistry.h"
+#include "Styling/SlateTypes.h"
+#endif

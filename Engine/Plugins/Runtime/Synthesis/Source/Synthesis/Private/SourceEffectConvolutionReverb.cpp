@@ -2,6 +2,8 @@
 
 #include "SourceEffects/SourceEffectConvolutionReverb.h"
 
+#include "AudioMixerNullDevice.h"
+#include "DSP/AlignedBlockBuffer.h" // IWYU pragma: keep
 #include "DSP/FloatArrayMath.h"
 #include "EffectConvolutionReverb.h"
 

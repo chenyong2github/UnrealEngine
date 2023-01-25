@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "K2Node.h"
-#include "Textures/SlateIcon.h"
 
 #include "K2Node_UpdateVirtualSubjectDataBase.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class FBlueprintActionDatabaseRegistrar;
 class FKismetCompilerContext;
@@ -80,3 +80,8 @@ private:
 	/** Struct pin description */
 	static const FText LiveLinkStructPinDescription;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Textures/SlateIcon.h"
+#endif

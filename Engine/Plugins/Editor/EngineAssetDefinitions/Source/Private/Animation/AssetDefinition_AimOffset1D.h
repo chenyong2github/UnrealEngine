@@ -3,9 +3,11 @@
 #pragma once
 
 #include "Animation/AimOffsetBlendSpace1D.h"
-#include "AssetDefinition_BlendSpace1D.h"
+#include "Animation/AssetDefinition_BlendSpace1D.h"
 
 #include "AssetDefinition_AimOffset1D.generated.h"
+
+class UAssetDefinition_BlendSpace1D;
 
 UCLASS()
 class UAssetDefinition_AimOffset1D : public UAssetDefinition_BlendSpace1D

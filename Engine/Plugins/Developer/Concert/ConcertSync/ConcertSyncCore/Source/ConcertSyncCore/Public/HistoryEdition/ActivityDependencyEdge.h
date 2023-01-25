@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ActivityGraphIDs.h"
 
 namespace UE::ConcertSyncCore
@@ -133,3 +132,7 @@ namespace UE::ConcertSyncCore
 		const EDependencyStrength DependencyStrength;
 	};
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

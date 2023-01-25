@@ -2,12 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "InterchangePipelineBase.h"
-#include "InterchangeSourceData.h"
-#include "Nodes/InterchangeBaseNodeContainer.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 
 #include "InterchangeGraphInspectorPipeline.generated.h"
 
@@ -51,3 +46,9 @@ private:
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "InterchangeSourceData.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
+#endif

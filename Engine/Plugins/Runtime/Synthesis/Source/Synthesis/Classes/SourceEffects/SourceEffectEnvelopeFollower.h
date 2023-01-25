@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Tickable.h"
 #include "Sound/SoundEffectSource.h"
 #include "DSP/EnvelopeFollower.h"
 #include "Components/ActorComponent.h"
 #include "SourceEffectEnvelopeFollower.generated.h"
+
+class UEnvelopeFollowerListener;
 
 UENUM(BlueprintType)
 enum class EEnvelopeFollowerPeakMode : uint8
@@ -148,3 +148,8 @@ public:
 	FSourceEffectEnvelopeFollowerSettings Settings;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Tickable.h"
+#endif

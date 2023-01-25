@@ -1,16 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CurveModel.h"
-#include "Curves/RichCurve.h"
-#include "Internationalization/Text.h"
 #include "RichCurveEditorModel.h"
-#include "SGraphActionMenu.h"
-#include "UObject/Object.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 #include "Views/SCurveEditorViewStacked.h"
-#include "Views/SInteractiveCurveEditorView.h"
+
+enum class ECurveEditorViewID : uint64;
 
 #include "WaveTableCurveEditorViewStacked.generated.h"
 
@@ -146,3 +140,8 @@ namespace WaveTable
 		};
 	} // namespace Editor
 } // namespace WaveTable
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Curves/RichCurve.h"
+#include "SGraphActionMenu.h"
+#endif

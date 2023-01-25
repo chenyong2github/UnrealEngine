@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "Framework/Commands/UICommandInfo.h"
-#include "Framework/Commands/Commands.h"
 #include "Styling/AppStyle.h"
 #include "Tools/InteractiveToolsCommands.h"
+#include "Tools/StandardToolModeCommands.h"
 
 
 class FMeshPaintEditorModeCommands : public TCommands<FMeshPaintEditorModeCommands>

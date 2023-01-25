@@ -2,13 +2,17 @@
 
 #pragma once
 
-#include "GameplayTagContainer.h"
-#include "StateTreeExecutionContext.h"
 #include "BrainComponent.h"
+#include "GameplayTaskOwnerInterface.h"
 #include "StateTreeReference.h"
-#include "Tasks/AITask.h"
-#include "PropertyBag.h"
+#include "StateTreeInstanceData.h"
+#include "UObject/Package.h"
 #include "StateTreeComponent.generated.h"
+
+enum class EStateTreeRunStatus : uint8;
+struct FGameplayTag;
+struct FStateTreeEvent;
+struct FStateTreeExecutionContext;
 
 class UStateTree;
 
@@ -100,3 +104,8 @@ protected:
 	/** if set, execution requests will be postponed */
 	uint8 bIsPaused : 1;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "StateTreeExecutionContext.h"
+#include "Tasks/AITask.h"
+#endif

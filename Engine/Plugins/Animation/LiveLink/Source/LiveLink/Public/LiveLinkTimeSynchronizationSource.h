@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "TimeSynchronizationSource.h"
 #include "LiveLinkClient.h"
-#include "Misc/Guid.h"
 #include "LiveLinkTimeSynchronizationSource.generated.h"
+
+struct FFrameRate;
 
 UCLASS(EditInlineNew)
 class LIVELINK_API ULiveLinkTimeSynchronizationSource : public UTimeSynchronizationSource
@@ -53,3 +53,7 @@ private:
 	void OnModularFeatureUnregistered(const FName& FeatureName, class IModularFeature* Feature);
 	void UpdateCachedState() const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

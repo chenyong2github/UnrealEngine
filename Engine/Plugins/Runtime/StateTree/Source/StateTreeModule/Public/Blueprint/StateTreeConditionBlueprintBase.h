@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
 #include "StateTreeConditionBase.h"
 #include "StateTreeNodeBlueprintBase.h"
@@ -45,3 +44,7 @@ struct STATETREEMODULE_API FStateTreeBlueprintConditionWrapper : public FStateTr
 	UPROPERTY()
 	TSubclassOf<UStateTreeConditionBlueprintBase> ConditionClass = nullptr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

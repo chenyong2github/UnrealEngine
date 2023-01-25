@@ -3,15 +3,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EditorSubsystem.h"
-#include "ISequencer.h"
 
 #include "SequenceTimeUnit.h"
-#include "MovieSceneBindingProxy.h"
-#include "SequencerUtilities.h"
 
 #include "LevelSequenceEditorSubsystem.generated.h"
+
+class FUICommandList;
+class ISequencer;
+class UMovieSceneTrack;
+struct FMovieSceneBindingProxy;
+struct FMovieScenePasteBindingsParams;
+struct FMovieScenePasteFoldersParams;
+struct FMovieScenePasteSectionsParams;
+struct FMovieScenePasteTracksParams;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLevelSequenceEditor, Log, All);
 
@@ -205,3 +210,10 @@ private:
 	TSharedPtr<FExtender> AssignActorMenuExtender;
 	TSharedPtr<FExtender> RebindComponentMenuExtender;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "ISequencer.h"
+#include "MovieSceneBindingProxy.h"
+#include "SequencerUtilities.h"
+#endif

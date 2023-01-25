@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EpicSynth1Types.generated.h"
 
 UENUM(BlueprintType)
@@ -166,3 +164,7 @@ struct SYNTHESIS_API FPatchId
 	int32 Id = INDEX_NONE;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

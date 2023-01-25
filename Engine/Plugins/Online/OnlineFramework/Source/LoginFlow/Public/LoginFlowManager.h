@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "ILoginFlowModule.h"
 #include "ILoginFlowManager.h"
 #include "Interfaces/OnlineExternalUIInterface.h"
+
+enum class ELoginFlowErrorResult : uint8;
+struct FBrowserContextSettings;
 
 class FOnlineSubsystemMcp;
 class SWidget;
@@ -110,3 +112,7 @@ private:
 	TUniquePtr<FAccountCreationFlowProperties> PendingAccountCreation;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ILoginFlowModule.h"
+#endif

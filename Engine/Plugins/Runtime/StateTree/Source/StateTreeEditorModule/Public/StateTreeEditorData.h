@@ -6,6 +6,9 @@
 #include "StateTreeEditorPropertyBindings.h"
 #include "StateTreeEditorData.generated.h"
 
+struct FStateTreeBindableStructDesc;
+struct FStateTreeEditorPropertyPath;
+
 class UStateTreeSchema;
 
 UENUM()

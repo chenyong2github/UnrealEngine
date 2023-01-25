@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Online/CoreOnlineFwd.h"
-#include "OnlineSubsystemTypes.h"
 #include "OnlineKeyValuePair.h"
+
+struct FDateTime;
+struct FTimespan;
 
 ONLINESUBSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogOnlineTournament, Display, All);
 
@@ -809,3 +811,8 @@ public:
 	virtual void DumpCachedTeamInfo(const FUniqueNetIdRef UserId) const = 0;
 #endif // !UE_BUILD_SHIPPING
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineSubsystemTypes.h"
+#endif

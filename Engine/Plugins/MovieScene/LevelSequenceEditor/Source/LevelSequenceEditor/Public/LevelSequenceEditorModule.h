@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Modules/ModuleInterface.h"
 
 
@@ -22,3 +22,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FAllowPlaybackContext, bool&);
 	virtual FAllowPlaybackContext& OnComputePlaybackContext() = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

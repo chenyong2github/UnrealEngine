@@ -3,10 +3,12 @@
 #pragma once
 
 #include "IDetailCustomization.h"
-#include "Templates/SharedPointer.h"
-#include "IPropertyTypeCustomization.h"
-#include "Widgets/Input/SComboBox.h"
-#include "Widgets/Views/STileView.h"
+#include "UObject/WeakObjectPtr.h"
+
+class FReply;
+class SButton;
+class SWidget;
+enum class ECheckBoxState : uint8;
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
@@ -59,3 +61,9 @@ public:
 
 	TSharedPtr<FRecentAlphasProvider> RecentAlphasProvider;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "IPropertyTypeCustomization.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Views/STileView.h"
+#endif

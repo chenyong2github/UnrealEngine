@@ -2,18 +2,22 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
-#include "Containers/ArrayView.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "MovieSceneBindingProxy.h"
-#include "SequencerScriptingRange.h"
-#include "Templates/SubclassOf.h"
-#include "MovieSceneTrack.h"
 #include "MovieSceneObjectBindingID.h" // for EMovieSceneObjectBindingSpace
-#include "MovieScene.h" // only for FMovieSceneMarkedFrame in the .gen.cpp
 
 #include "MovieSceneSequenceExtensions.generated.h"
+
+class UMovieScene;
+class UMovieSceneFolder;
+class UMovieSceneTrack;
+enum class EMovieSceneEvaluationType : uint8;
+enum class EUpdateClockSource : uint8;
+struct FFrameRate;
+struct FMovieSceneBindingProxy;
+struct FMovieSceneMarkedFrame;
+struct FSequencerScriptingRange;
+struct FTimecode;
+template <typename T> class TSubclassOf;
 
 /**
  * Function library containing methods that should be hoisted onto UMovieSceneSequences for scripting purposes
@@ -632,3 +636,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
 	static bool IsReadOnly(UMovieSceneSequence* Sequence);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MovieScene.h" // only for FMovieSceneMarkedFrame in the .gen.cpp
+#include "MovieSceneBindingProxy.h"
+#include "MovieSceneTrack.h"
+#include "SequencerScriptingRange.h"
+#include "Templates/SubclassOf.h"
+#endif

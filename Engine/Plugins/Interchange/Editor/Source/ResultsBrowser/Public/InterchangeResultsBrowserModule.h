@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Styling/ISlateStyle.h"
 
 
 /**
@@ -37,3 +34,8 @@ public:
 		return FModuleManager::Get().IsModuleLoaded("InterchangeResultsBrowser");
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Styling/ISlateStyle.h"
+#endif

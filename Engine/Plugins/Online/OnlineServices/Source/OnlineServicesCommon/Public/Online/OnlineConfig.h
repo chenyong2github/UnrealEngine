@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Misc/ConfigCacheIni.h"
+#include "Internationalization/Text.h"
 #include "Online/OnlineMeta.h"
-#include "Online/SchemaTypes.h"
-#include "Algo/Transform.h"
+
+namespace UE::Online { class FSchemaVariant; }
 
 namespace UE::Online {
 
@@ -453,3 +453,9 @@ auto LoadConfig(IOnlineConfigProvider& Provider, const TArray<FString>& SectionH
 }
 
 /* UE::Online */ }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Algo/Transform.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Online/SchemaTypes.h"
+#endif

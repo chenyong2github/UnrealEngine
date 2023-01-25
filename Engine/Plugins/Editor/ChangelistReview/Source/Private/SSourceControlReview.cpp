@@ -3,12 +3,9 @@
 #include "SSourceControlReview.h"
 
 #include "AssetRegistry/AssetData.h"
-#include "HAL/FileManager.h"
 #include "ClassIconFinder.h"
 #include "Framework/Views/TableViewMetadata.h"
 #include "ISourceControlModule.h"
-#include "SourceControlHelpers.h"
-#include "Misc/PackageName.h"
 #include "SourceControlOperations.h"
 #include "SSourceControlReviewEntry.h"
 #include "AssetRegistry/AssetRegistryModule.h"

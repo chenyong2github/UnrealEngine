@@ -2,11 +2,6 @@
 
 #pragma once
 
-#include "StateTreeTypes.h"
-#include "StateTreeNodeBase.h"
-#include "Misc/Guid.h"
-#include "InstancedStruct.h"
-#include "PropertyBag.h"
 #include "StateTreeEditorNode.h"
 #include "StateTreeState.generated.h"
 

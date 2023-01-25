@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Features/IModularFeature.h"
 
 struct FOnlineError;
@@ -171,3 +171,7 @@ public:
 	 */
 	virtual void SetDisplayName(const FString& InDisplayName) = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

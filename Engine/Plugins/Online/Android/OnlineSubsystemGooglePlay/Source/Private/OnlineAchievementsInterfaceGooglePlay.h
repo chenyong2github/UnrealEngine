@@ -6,6 +6,7 @@
 #include "Interfaces/OnlineAchievementsInterface.h"
 #include "OnlineSubsystemTypes.h"
 #include "AndroidRuntimeSettings.h"
+#include "OnlineSubsystemGooglePlayPackage.h"
 
 THIRD_PARTY_INCLUDES_START
 #include <jni.h>

@@ -2,8 +2,7 @@
 
 #pragma  once
 
-#include "CoreMinimal.h"
-#include "Toolkits/IToolkitHost.h"
+#include "Modules/ModuleInterface.h"
 #include "Toolkits/AssetEditorToolkit.h"
 
 class UStateTree;
@@ -39,3 +38,8 @@ protected:
 
 	TSharedPtr<FStateTreeNodeClassCache> NodeClassCache;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Toolkits/IToolkitHost.h"
+#endif

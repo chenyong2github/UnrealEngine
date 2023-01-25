@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SubmixEffects/SubmixEffectFlexiverb.h"
+#include "DSP/AllPassFilter.h" // IWYU pragma: keep
+#include "DSP/OnePole.h" // IWYU pragma: keep
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SubmixEffectFlexiverb)
 

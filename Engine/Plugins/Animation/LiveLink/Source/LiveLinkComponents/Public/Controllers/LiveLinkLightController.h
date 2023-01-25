@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "LiveLinkControllerBase.h"
 #include "LiveLinkTransformController.h"
-#include "Engine/EngineTypes.h"
 #include "LiveLinkLightController.generated.h"
 
 

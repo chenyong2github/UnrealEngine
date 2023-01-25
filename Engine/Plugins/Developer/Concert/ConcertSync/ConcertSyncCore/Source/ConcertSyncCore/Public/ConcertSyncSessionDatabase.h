@@ -2,9 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ConcertSyncSessionTypes.h"
-#include "Templates/SharedPointerInternals.h"
+#include "Delegates/Delegate.h"
+#include "Templates/PimplPtr.h"
+
+class FStructOnScope;
+enum class EConcertSyncActivityEventType : uint8;
+enum class EConcertSyncActivityFlags : uint8;
+struct FConcertPackageDataStream;
+struct FConcertPackageInfo;
+struct FConcertSessionFilter;
+struct FConcertSyncActivity;
+struct FConcertSyncConnectionActivity;
+struct FConcertSyncConnectionEvent;
+struct FConcertSyncEndpointData;
+struct FConcertSyncEndpointIdAndData;
+struct FConcertSyncLockActivity;
+struct FConcertSyncLockEvent;
+struct FConcertSyncPackageEventData;
+struct FConcertSyncTransactionActivity;
+struct FConcertSyncTransactionEvent;
+struct FConcertTransactionFinalizedEvent;
+struct FScriptContainerElement;
+template <typename OptionalType> struct TOptional;
 
 class FConcertFileCache;
 class FConcertSyncSessionDatabaseStatements;
@@ -1004,3 +1023,9 @@ namespace ConcertSyncSessionDatabaseFilterUtil
 	CONCERTSYNCCORE_API bool PackageEventPassesFilter(const int64 InPackageEventId, const FConcertSessionFilter& InSessionFilter, const FConcertSyncSessionDatabase& InDatabase);
 
 } // namespace ConcertSyncSessionDatabaseFilterUtil
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ConcertSyncSessionTypes.h"
+#include "CoreMinimal.h"
+#include "Templates/SharedPointerInternals.h"
+#endif

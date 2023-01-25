@@ -9,7 +9,6 @@
 #include "ConcertLogGlobal.h"
 #include "ConcertSyncSessionDatabase.h"
 #include "HistoryEdition/ActivityDependencyGraph.h"
-#include "HistoryEdition/ActivityGraphIDs.h"
 
 void UE::ConcertSyncCore::Graphviz::MakeNodeTitle(FGraphStringBuilder& WriteTo, FActivityNodeID ToStringify, const FActivityDependencyGraph& Graph, const FConcertSyncSessionDatabase& SessionDatabase, ENodeTitleFlags NodeTitleFlags)
 {

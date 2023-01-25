@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Delegates/Delegate.h"
-#include "Templates/SharedPointer.h"
 
 class IOnlineSubsystem;
 class SWidget;

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MeshPaintStaticMeshAdapter.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -22,3 +21,7 @@ class MESHPAINTINGTOOLSET_API FMeshPaintSplineMeshComponentAdapterFactory : publ
 public:
 	virtual TSharedPtr<IMeshPaintComponentAdapter> Construct(class UMeshComponent* InComponent, int32 MeshLODIndex) const override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

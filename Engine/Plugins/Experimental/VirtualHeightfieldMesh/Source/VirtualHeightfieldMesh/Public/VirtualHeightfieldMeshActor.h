@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "VirtualHeightfieldMeshActor.generated.h"
 
@@ -27,3 +26,7 @@ protected:
 	virtual bool NeedsLoadForServer() const override { return false; }
 	//~ End UObject Interface.
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

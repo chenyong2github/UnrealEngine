@@ -2,15 +2,18 @@
 
 #pragma once
 
-#include "UObject/Object.h"
-#include "SocialTypes.h"
-#include "User/ISocialUserList.h"
-#include "OnlineSubsystem.h"
 #include "Interfaces/OnlinePartyInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
 #include "Containers/Ticker.h"
 
+#include "PartyModule.h"
+#include "Templates/SubclassOf.h"
+#include "User/SocialUser.h"
 #include "SocialToolkit.generated.h"
+
+class FSocialUserListConfig;
+class IOnlineSubsystem;
+class USocialManager;
 
 class ULocalPlayer;
 class USocialUser;
@@ -335,3 +338,8 @@ private:
 	mutable FOnPartyRequestToJoinReceivedEvent OnPartyRequestToJoinReceivedEvent;
 	mutable FOnPartyRequestToJoinRemovedEvent OnPartyRequestToJoinRemovedEvent;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "OnlineSubsystem.h"
+#include "User/ISocialUserList.h"
+#endif

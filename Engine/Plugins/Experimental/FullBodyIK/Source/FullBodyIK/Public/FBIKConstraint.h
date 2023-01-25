@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Math/Transform.h"
 #include "Misc/TVariant.h"
 
 enum class EConstraintType : uint8
@@ -350,3 +349,8 @@ struct FULLBODYIK_API FPoleVectorConstraint
 
 
 using ConstraintType = TVariant<FRotationLimitConstraint, FPositionLimitConstraint, FPoleVectorConstraint>;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#endif

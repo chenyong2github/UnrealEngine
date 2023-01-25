@@ -4,8 +4,7 @@
 
 #include "Online/CoreOnline.h"
 #include "Online/OnlineAsyncOp.h"
-#include "Containers/Map.h"
-#include "Templates/SharedPointer.h"
+#include "Online/OnlineMeta.h" // IWYU pragma: keep
 
 namespace UE::Online {
 

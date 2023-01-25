@@ -2,9 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ActivityDependencyGraph.h"
-#include "ActivityGraphIDs.h"
+#include "Containers/StringFwd.h"
+#include "Misc/EnumClassFlags.h"
+
+class FString;
+namespace UE::ConcertSyncCore { class FActivityDependencyEdge; }
+namespace UE::ConcertSyncCore { class FActivityDependencyGraph; }
+namespace UE::ConcertSyncCore { struct FActivityNodeID; }
+template <typename FuncType> class TFunctionRef;
 
 class FConcertSyncSessionDatabase;
 
@@ -62,3 +67,9 @@ namespace UE::ConcertSyncCore::Graphviz
 	 */
 	CONCERTSYNCCORE_API FString ExportToGraphviz(const FActivityDependencyGraph& Graph, FMakeNodeTitle MakeNodeTitleFunc, FGetNodeStyle GetNodeStyleFunc, FGetEdgeStyle GetEdgeStyleFunc);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ActivityDependencyGraph.h"
+#include "ActivityGraphIDs.h"
+#include "CoreMinimal.h"
+#endif

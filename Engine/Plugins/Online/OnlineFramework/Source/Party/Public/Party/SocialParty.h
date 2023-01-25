@@ -2,17 +2,19 @@
 
 #pragma once
 
-#include "Party/PartyTypes.h"
 #include "Party/PartyDataReplicator.h"
 
-#include "PartyBeaconState.h"
-#include "SpectatorBeaconState.h"
+#include "SocialTypes.h"
 #include "SpectatorBeaconClient.h"
-#include "Interfaces/OnlinePartyInterface.h"
 #include "Interfaces/OnlineChatInterface.h"
 #include "Containers/Queue.h"
-#include "Engine/EngineBaseTypes.h"
 #include "SocialParty.generated.h"
+
+class AOnlineBeaconClient;
+class FOnlinePartyId;
+class FOnlinePartyTypeId;
+enum ETravelType : int;
+namespace EPartyReservationResult { enum Type : int; }
 
 class APartyBeaconClient;
 class UNetDriver;
@@ -495,3 +497,7 @@ private:
 	mutable FOnPartyJIPApproved OnPartyJIPApprovedEvent;
 	mutable FOnPartyJIPResponse OnPartyJIPResponseEvent;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "PartyBeaconState.h"
+#endif

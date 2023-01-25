@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "SequencerScriptingRange.h"
-#include "MovieSceneScriptingChannel.h"
 #include "MovieSceneSectionExtensions.generated.h"
+
+class UMovieSceneScriptingChannel;
+class UMovieSceneSequence;
+class UMovieSceneSubSection;
+struct FSequencerScriptingRange;
 
 class UMovieSceneSection;
 
@@ -269,3 +269,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section", meta = (ScriptMethod))
 	static int32 GetParentSequenceFrame(UMovieSceneSubSection* Section, int32 InFrame, UMovieSceneSequence* ParentSequence);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MovieSceneScriptingChannel.h"
+#include "SequencerScriptingRange.h"
+#include "Templates/SubclassOf.h"
+#endif

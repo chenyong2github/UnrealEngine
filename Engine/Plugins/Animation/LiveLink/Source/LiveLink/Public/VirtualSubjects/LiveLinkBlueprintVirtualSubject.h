@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ILiveLinkClient.h"
-#include "LiveLinkTypes.h"
 #include "LiveLinkVirtualSubject.h"
 
 #include "LiveLinkBlueprintVirtualSubject.generated.h"
@@ -49,3 +46,8 @@ private:
 	DECLARE_FUNCTION(execUpdateVirtualSubjectStaticData_Internal);
 	DECLARE_FUNCTION(execUpdateVirtualSubjectFrameData_Internal);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "ILiveLinkClient.h"
+#endif

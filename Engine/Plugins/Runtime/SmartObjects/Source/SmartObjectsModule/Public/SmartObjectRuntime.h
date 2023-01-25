@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include "MassEntityTypes.h"
 #include "MassEntityView.h"
-#include "Delegates/DelegateCombinations.h"
 #include "SmartObjectTypes.h"
 #include "SmartObjectDefinition.h"
-#include "WorldConditionQuery.h"
 #include "SmartObjectRuntime.generated.h"
 
 class USmartObjectComponent;

@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "GameplayTagContainer.h"
 #include "GameFramework/Actor.h"
 #include "SmartObjectTypes.h"
 #include "SmartObjectPersistentCollection.generated.h"
+
+class UBillboardComponent;
+namespace EEndPlayReason { enum Type : int; }
 
 class USmartObjectDefinition;
 class USmartObjectComponent;

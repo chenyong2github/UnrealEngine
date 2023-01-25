@@ -5,6 +5,8 @@
 #include "MovieSceneSequencePlayer.h"
 #include "TemplateSequencePlayer.generated.h"
 
+struct FMovieSceneSequencePlaybackSettings;
+
 class ATemplateSequenceActor;
 class UTemplateSequence;
 

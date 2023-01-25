@@ -2,10 +2,13 @@
 
 #pragma once
 
-#include "IPropertyTypeCustomization.h"
 #include "InstancedStructDetails.h"
 #include "EdGraphSchema_K2.h"
 #include "PropertyBagDetails.generated.h"
+
+class FReply;
+enum class EPinContainerType : uint8;
+struct FEdGraphSchemaAction;
 
 class IPropertyHandle;
 class IPropertyUtilities;

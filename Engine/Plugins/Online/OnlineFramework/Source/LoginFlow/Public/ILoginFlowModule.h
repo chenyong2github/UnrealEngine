@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Modules/ModuleManager.h"
-#include "ILoginFlowManager.h"
+
+class ILoginFlowManager;
 
 class IOnlineSubsystem;
 class ISlateStyle;
@@ -110,3 +111,7 @@ public:
 	/** Virtual destructor. */
 	virtual ~ILoginFlowModule() { }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ILoginFlowManager.h"
+#endif

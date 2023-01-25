@@ -2,14 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Input/Reply.h"
 #include "Styling/SlateWidgetStyleAsset.h"
+#include "UI/SynthSlateStyle.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/SlateColor.h"
-#include "Styling/SlateTypes.h"
-#include "Styling/CoreStyle.h"
 #include "Framework/SlateDelegates.h"
 #include "Widgets/SLeafWidget.h"
 #include "Styling/SlateStyle.h"
@@ -205,3 +200,9 @@ private:
 	FOnFloatValueChanged OnValueChangedX;
 	FOnFloatValueChanged OnValueChangedY;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/SlateTypes.h"
+#endif

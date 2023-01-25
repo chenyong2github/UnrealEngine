@@ -2,11 +2,7 @@
 
 #pragma  once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
-#include "AssetTypeCategories.h"
-#include "Toolkits/IToolkitHost.h"
-#include "Toolkits/AssetEditorToolkit.h"
+#include "Modules/ModuleInterface.h"
 
 
 class IStructUtilsEditor;
@@ -23,3 +19,11 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AssetTypeCategories.h"
+#include "CoreMinimal.h"
+#include "Modules/ModuleManager.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#include "Toolkits/IToolkitHost.h"
+#endif

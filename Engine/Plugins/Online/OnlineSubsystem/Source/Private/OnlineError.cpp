@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineError.h"
-#include "Internationalization/Internationalization.h"
 
 #define LOCTEXT_NAMESPACE "OnlineError"
 #define ONLINE_ERROR_NAMESPACE "errors.com.epicgames.online.generic"

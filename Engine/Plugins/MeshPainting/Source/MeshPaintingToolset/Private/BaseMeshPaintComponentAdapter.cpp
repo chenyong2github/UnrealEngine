@@ -2,7 +2,6 @@
 
 #include "BaseMeshPaintComponentAdapter.h"
 #include "Distance/DistLine3Segment3.h"
-#include "Spatial/MeshAABBTree3.h"
 #include "Distance/DistLine3Triangle3.h"
 #include "Distance/DistSegment3Triangle3.h"
 

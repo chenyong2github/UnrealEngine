@@ -3,13 +3,14 @@
 #pragma once
 
 #include "GameplayTagContainer.h"
-#include "InstancedStruct.h"
 #include "MassEntityTypes.h"
 #include "Engine/DataAsset.h"
-#include "SmartObjectTypes.h"
+#include "Math/Box.h"
 #include "WorldConditionQuery.h"
 #include "WorldConditions/SmartObjectWorldConditionSchema.h"
 #include "SmartObjectDefinition.generated.h"
+
+struct FSmartObjectSlotIndex;
 
 class UGameplayBehaviorConfig;
 enum class ESmartObjectTagFilteringPolicy: uint8;
@@ -317,3 +318,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinitionFragment : public FMassS
 	/** Pointer to the slot definition contained by the SmartObject definition. */
 	const FSmartObjectSlotDefinition* SlotDefinition = nullptr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "SmartObjectTypes.h"
+#endif

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Math/UnrealMath.h"
+#include "Math/UnrealMathUtility.h"
 
 struct GeometyCacheHelpers 
 {
@@ -14,3 +14,7 @@ struct GeometyCacheHelpers
 		return Time - Duration * FMath::FloorToFloat(Time / Duration);
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Math/UnrealMath.h"
+#endif

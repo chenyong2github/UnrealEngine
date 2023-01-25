@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
 #include "OnlineSubsystem.h"
 #include "Containers/Queue.h"
-#include "OnlineSubsystemPackage.h"
 #include "Containers/Ticker.h"
 
 struct FOnlineError;
@@ -164,3 +162,8 @@ public:
 	static const FName DefaultInstanceName;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineSubsystemPackage.h"
+#endif

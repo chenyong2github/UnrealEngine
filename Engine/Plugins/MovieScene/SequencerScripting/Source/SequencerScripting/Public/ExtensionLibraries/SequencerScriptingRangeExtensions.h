@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "SequencerScriptingRange.h"
 
 #include "SequencerScriptingRangeExtensions.generated.h"
+
+struct FSequencerScriptingRange;
 
 /**
  * Function library containing methods that should be hoisted onto FSequencerScriptingRanges
@@ -113,3 +112,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
 	static void SetEndFrame(UPARAM(ref) FSequencerScriptingRange& Range, int32 End);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "SequencerScriptingRange.h"
+#endif

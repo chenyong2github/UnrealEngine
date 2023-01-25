@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSessionEOS.h"
+
+#if WITH_EOS_SDK
+
 #include "Misc/Guid.h"
+#include "Online/OnlineBase.h"
+#include "Online/OnlineSessionNames.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemEOS.h"
 #include "OnlineSubsystemEOSPrivate.h"
@@ -16,10 +21,9 @@
 #include "NetDriverEOS.h"
 #include "EOSVoiceChatUser.h"
 
-#if WITH_EOS_SDK
-	#include "eos_sessions.h"
-	#include "eos_metrics.h"
-	#include "eos_lobby.h"
+#include "eos_sessions.h"
+#include "eos_metrics.h"
+#include "eos_lobby.h"
 
 /** This is the game name plus version in ansi done once for optimization */
 char BucketIdAnsi[EOS_OSS_BUCKET_ID_STRING_LENGTH + 1]; // X characters plus null terminator
@@ -4517,4 +4521,4 @@ void FOnlineSessionEOS::CopyLobbyMemberAttributes(const FLobbyDetailsEOS& LobbyD
 	}
 }
 
-#endif
+#endif // WITH_EOS_SDK

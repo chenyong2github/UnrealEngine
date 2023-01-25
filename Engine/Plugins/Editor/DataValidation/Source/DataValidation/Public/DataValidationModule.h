@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "AssetRegistry/AssetData.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/ObjectMacros.h"
+
+struct FAssetData;
 
 #include "DataValidationModule.generated.h"
 
@@ -67,3 +66,8 @@ public:
 	/** Validates selected assets and opens a window to report the results. If bValidateDependencies is true it will also validate any assets that the selected assets depend on. */
 	virtual void ValidateAssets(const TArray<FAssetData>& SelectedAssets, bool bValidateDependencies, const EDataValidationUsecase InValidationUsecase) = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AssetRegistry/AssetData.h"
+#include "CoreMinimal.h"
+#endif

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Misc/DateTime.h"
 #include "OnlineDelegateMacros.h"
 #include "OnlineStoreInterfaceV2.generated.h"
 
@@ -275,3 +275,7 @@ public:
 	 */
 	virtual TSharedPtr<FOnlineStoreOffer> GetOffer(const FUniqueOfferId& OfferId) const = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

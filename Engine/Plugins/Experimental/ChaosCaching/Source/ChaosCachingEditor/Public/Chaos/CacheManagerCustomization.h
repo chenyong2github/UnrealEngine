@@ -3,9 +3,10 @@
 #pragma once
 
 #include "IDetailCustomization.h"
-#include "Templates/SharedPointer.h"
 #include "IPropertyTypeCustomization.h"
-#include "Widgets/Input/SComboBox.h"
+
+class SWidget;
+namespace ESelectInfo { enum Type : int; }
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
@@ -40,3 +41,7 @@ public:
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Widgets/Input/SComboBox.h"
+#endif

@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include "Animation/AssetDefinition_AnimationAsset.h"
 #include "Animation/BlendSpace1D.h"
-#include "AssetDefinition_AnimationAsset.h"
 
 #include "AssetDefinition_BlendSpace1D.generated.h"
+
+class UAssetDefinition_AnimationAsset;
 
 UCLASS()
 class UAssetDefinition_BlendSpace1D : public UAssetDefinition_AnimationAsset

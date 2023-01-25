@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "UObject/Object.h"
-#include "SocialTypes.h"
 #include "SocialDebugTools.generated.h"
+
+class FOnlinePartyId;
+class FUniqueNetId;
+class IOnlinePartyJoinInfo;
+class USocialManager;
 
 class IOnlineSubsystem;
 class FOnlineAccountCredentials;
@@ -103,3 +106,7 @@ private:
 	void HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& Invitation);
 	void HandlePartyJoinRequestReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const IOnlinePartyPendingJoinRequestInfo& JoinRequestInfo);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "SocialTypes.h"
+#endif

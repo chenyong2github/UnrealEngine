@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineSubsystemTypes.h"
+#include "Online/CoreOnline.h"
 #include "OnlineKeyValuePair.h"
-#include "Misc/Optional.h"
 
 struct FOnlineError;
 
@@ -310,3 +308,8 @@ public:
 
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineSubsystemTypes.h"
+#endif

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "MovieSceneNameableTrack.h"
 #include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneGeometryCacheTrack.generated.h"
@@ -55,3 +53,7 @@ private:
 	TArray<TObjectPtr<UMovieSceneSection>> AnimationSections;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,13 +2,8 @@
 
 #include "MovieScene/MovieSceneLiveLinkSubSectionAnimation.h"
 
-#include "Channels/MovieSceneBoolChannel.h"
-#include "Channels/MovieSceneChannelProxy.h"
-#include "Channels/MovieSceneByteChannel.h"
 #include "Roles/LiveLinkAnimationRole.h"
-#include "Channels/MovieSceneIntegerChannel.h"
 #include "Roles/LiveLinkAnimationTypes.h"
-#include "Channels/MovieSceneStringChannel.h"
 #include "MovieScene/MovieSceneLiveLinkStructProperties.h"
 #include "MovieScene/MovieSceneLiveLinkSubSection.h"
 #include "MovieScene/MovieSceneLiveLinkTransformHandler.h"

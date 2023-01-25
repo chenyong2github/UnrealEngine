@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Styling/SlateBrush.h"
 #include "UIFWidget.h"
 
 #include "UIFImageBlock.generated.h"

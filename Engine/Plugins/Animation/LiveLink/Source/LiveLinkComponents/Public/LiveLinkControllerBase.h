@@ -2,15 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
 
 #include "Components/ActorComponent.h"
-#include "ILiveLinkClient.h"
 
+#include "LiveLinkRole.h"
 #include "LiveLinkControllerBase.generated.h"
+
+struct FLiveLinkSubjectFrameData;
 
 class AActor;
 
@@ -107,3 +105,8 @@ protected:
 	FLiveLinkSubjectRepresentation SelectedSubject;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "ILiveLinkClient.h"
+#endif

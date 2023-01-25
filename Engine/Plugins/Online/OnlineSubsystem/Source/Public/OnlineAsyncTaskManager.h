@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreGlobals.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/Runnable.h"
@@ -10,7 +10,6 @@
 #include "Misc/SingleThreadRunnable.h"
 #include "OnlineSubsystemPackage.h"
 #include "Containers/Queue.h"
-#include <atomic>
 
 /**
  * Base class of any async task that can be returned to the game thread by the async task manager
@@ -500,3 +499,7 @@ public:
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

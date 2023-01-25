@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "StateTreeTypes.h"
+#include "PropertyBag.h"
 #include "StateTreeReference.generated.h"
 
 class UStateTree;
@@ -80,3 +80,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "", meta = (FixedLayout))
 	FInstancedPropertyBag Parameters;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "StateTreeTypes.h"
+#endif

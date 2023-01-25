@@ -4,6 +4,7 @@
 
 #include "SmartObjectTypes.h"
 #include "Engine/DeveloperSettings.h"
+#include "Templates/SubclassOf.h"
 #include "WorldConditions/SmartObjectWorldConditionSchema.h"
 #include "SmartObjectSettings.generated.h"
 

@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AudioEffect.h"
 #include "DSP/Delay.h"
-#include "DSP/Dsp.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "SubmixEffectTapDelay.generated.h"
 
@@ -222,3 +219,8 @@ public:
 
 	FSubmixEffectTapDelaySettings DynamicSettings;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioEffect.h"
+#include "CoreMinimal.h"
+#endif

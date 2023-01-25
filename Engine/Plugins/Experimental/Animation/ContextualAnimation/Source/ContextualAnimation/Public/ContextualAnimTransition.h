@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "UObject/Object.h"
 #include "ContextualAnimTransition.generated.h"
 
 class AActor;

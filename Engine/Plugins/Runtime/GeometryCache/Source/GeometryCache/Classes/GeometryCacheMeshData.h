@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "ProfilingDebugging/ResourceSize.h"
-#include "DynamicMeshBuilder.h"
-#include "UObject/GeometryObjectVersion.h"
+#include "Math/Box.h"
+#include "PackedNormal.h"
 #include "GeometryCacheMeshData.generated.h"
 
 /** Stores per-batch data used for rendering */
@@ -177,3 +174,9 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 private:
 	mutable uint64 Hash;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DynamicMeshBuilder.h"
+#include "UObject/GeometryObjectVersion.h"
+#endif

@@ -3,10 +3,11 @@
 #pragma once
 
 #include "MatchAndSet/PCGMatchAndSetBase.h"
-#include "MatchAndSet/PCGMatchAndSetWeighted.h"
-#include "Metadata/PCGMetadataTypesConstantStruct.h"
 
 #include "PCGMatchAndSetWeightedByCategory.generated.h"
+
+struct FPCGMatchAndSetWeightedEntry;
+struct FPropertyChangedEvent;
 
 USTRUCT(BlueprintType)
 struct PCG_API FPCGMatchAndSetWeightedByCategoryEntryList
@@ -75,3 +76,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bShouldMutateSeed = true;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MatchAndSet/PCGMatchAndSetWeighted.h"
+#endif

@@ -4,16 +4,11 @@
 
 #include "TrackRecorders/MovieSceneTrackRecorder.h"
 
-#include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
-#include "ILiveLinkClient.h"
-#include "LiveLinkTypes.h"
-#include "Misc/Guid.h"
-#include "MovieScene.h"
-#include "TrackRecorders/IMovieSceneTrackRecorderFactory.h"
 #include "MovieScene/MovieSceneLiveLinkSection.h"
 
 #include "MovieSceneLiveLinkTrackRecorder.generated.h"
+
+class UMovieSceneTrackRecorderSettings;
 
 
 class UMovieSceneLiveLinkTrack;
@@ -107,3 +102,10 @@ private:
 
 	TArray<FLiveLinkFrameDataStruct> FramesToProcess;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "ILiveLinkClient.h"
+#include "TrackRecorders/IMovieSceneTrackRecorderFactory.h"
+#endif

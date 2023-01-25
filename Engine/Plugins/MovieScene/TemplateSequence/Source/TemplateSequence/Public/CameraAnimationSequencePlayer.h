@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CineCameraComponent.h"
-#include "Engine/Scene.h"
+#include "CineCameraSettings.h"
 #include "TemplateSequencePlayer.h"
 #include "CameraAnimationSequencePlayer.generated.h"
+
+struct FMinimalViewInfo;
 
 /**
  * A dummy class that we give to a sequence in lieu of an actual camera actor.
@@ -189,3 +190,7 @@ private:
 	TEnumAsByte<EMovieScenePlayerStatus::Type> Status;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CineCameraComponent.h"
+#endif

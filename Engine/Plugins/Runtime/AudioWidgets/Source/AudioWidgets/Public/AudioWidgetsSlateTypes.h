@@ -2,12 +2,7 @@
 
 #pragma once
 
-#include "Styling/StyleDefaults.h"
-#include "Styling/SlateStyle.h"
-#include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateTypes.h"
-#include "Styling/SlateWidgetStyle.h"
-#include "UObject/ObjectMacros.h"
 
 #include "AudioWidgetsSlateTypes.generated.h"
 
@@ -174,3 +169,9 @@ struct AUDIOWIDGETS_API FAudioRadialSliderStyle : public FSlateWidgetStyle
 	float DefaultSliderRadius;
 	FAudioRadialSliderStyle& SetDefaultSliderRadius(const float& InDefaultSliderRadius) { DefaultSliderRadius = InDefaultSliderRadius; return *this; }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Styling/SlateStyle.h"
+#include "Styling/SlateStyleMacros.h"
+#include "Styling/StyleDefaults.h"
+#endif

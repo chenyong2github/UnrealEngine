@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ILiveLinkSource.h"
-#include "LiveLinkTypes.h"
-#include "Misc/ScopeLock.h"
-#include "MessageEndpoint.h"
+#include "IMessageContext.h"
 #include "LatentActions.h"
 #include "Engine/LatentActionManager.h"
 #include "LiveLinkMessageBusFinder.generated.h"
+
+class FMessageEndpoint;
+struct FLiveLinkSourceHandle;
 
 struct FLiveLinkPongMessage;
 
@@ -158,3 +157,11 @@ public:
 	}
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "ILiveLinkSource.h"
+#include "LiveLinkTypes.h"
+#include "MessageEndpoint.h"
+#include "Misc/ScopeLock.h"
+#endif

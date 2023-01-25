@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
+#include "Internationalization/Internationalization.h"
 #include "OnlineSubsystemTypes.h"
+#include "Misc/DateTime.h"
 #include "OnlineDelegateMacros.h"
 #include "OnlineKeyValuePair.h"
 
@@ -380,3 +380,7 @@ public:
 	*/
 	virtual EOnlineCachedResult::Type GetCachedPresenceForApp(const FUniqueNetId& LocalUserId, const FUniqueNetId& User, const FString& AppId, TSharedPtr<FOnlineUserPresence>& OutPresence) = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
 #include "Styling/AppStyle.h"
 
@@ -36,3 +35,7 @@ public:
 
 	TSharedPtr<FUICommandInfo> Simulate;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

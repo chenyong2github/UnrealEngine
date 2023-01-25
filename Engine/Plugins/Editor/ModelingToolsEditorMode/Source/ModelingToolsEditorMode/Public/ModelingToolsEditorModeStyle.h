@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/ISlateStyle.h"
-#include "Styling/SlateStyle.h"
+#include "Templates/SharedPointer.h"
+
+struct FSlateBrush;
 
 class MODELINGTOOLSEDITORMODE_API FModelingToolsEditorModeStyle
 {
@@ -26,3 +26,9 @@ private:
 private:
 	static TSharedPtr< class FSlateStyleSet > StyleSet;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateStyle.h"
+#endif

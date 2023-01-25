@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "Misc/CString.h"
 #include "Misc/GeneratedTypeName.h"
-#include "Templates/RemoveReference.h"
 
-#include "Online/OnlineMeta.h"
+#include "Templates/Models.h"
+#include "Templates/TypeHash.h"
+
+namespace UE::Online::Meta { struct CSuperDefined; }
 
 namespace UE::Online {
 
@@ -55,3 +56,8 @@ struct TOnlineTypeInfo
 };
 
 /* UE::Online */ }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Online/OnlineMeta.h"
+#include "Templates/RemoveReference.h"
+#endif

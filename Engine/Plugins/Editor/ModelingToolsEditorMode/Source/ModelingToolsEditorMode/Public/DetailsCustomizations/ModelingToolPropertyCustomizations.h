@@ -3,9 +3,6 @@
 #pragma once
 
 #include "IPropertyTypeCustomization.h"
-#include "Input/Reply.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SButton.h"
 
 class IDetailLayoutBuilder;
 
@@ -18,3 +15,9 @@ public:
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Input/Reply.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Text/STextBlock.h"
+#endif

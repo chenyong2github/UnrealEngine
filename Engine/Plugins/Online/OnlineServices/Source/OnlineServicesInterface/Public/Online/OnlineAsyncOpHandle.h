@@ -2,16 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/OnlineError.h"
-#include "Online/OnlineResult.h"
 #include "Online/OnlineErrorDefinitions.h"
-#include "Templates/Models.h"
 
-#include "Templates/SharedPointer.h"
-#include "Delegates/Delegate.h"
 
-#include <type_traits>
+
+namespace UE::Online { template <typename OpType> class TOnlineResult; }
 
 class UObjectBase;
 
@@ -500,3 +495,8 @@ private:
 };
 
 /* UE::Online */ }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Online/OnlineResult.h"
+#endif

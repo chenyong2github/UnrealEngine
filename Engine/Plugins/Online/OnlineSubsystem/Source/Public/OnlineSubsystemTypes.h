@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Online/CoreOnline.h"
-#include "Online/OnlineBase.h"
-#include "OnlineSubsystemNames.h"  // can be removed once we have no more temporary FUniqueNetId subtypes
-#include "OnlineSubsystemPackage.h"
+#include "OnlineSubsystemNames.h" // IWYU pragma: keep
 
 
 #if UE_GAME && UE_BUILD_SHIPPING
@@ -1642,3 +1639,10 @@ inline void ParseOnlineSubsystemConfigPairs(TArrayView<const FString> InEntries,
 		OutPairs.Emplace(MoveTemp(KeyString), MoveTemp(ValueString));
 	}
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Online/OnlineBase.h"
+#include "OnlineSubsystemNames.h"  // can be removed once we have no more temporary FUniqueNetId subtypes
+#include "OnlineSubsystemPackage.h"
+#endif

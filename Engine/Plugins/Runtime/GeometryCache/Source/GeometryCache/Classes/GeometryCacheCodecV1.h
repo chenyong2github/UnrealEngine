@@ -1,12 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ScriptMacros.h"
 #include "GeometryCacheCodecBase.h"
-#include "Serialization/MemoryWriter.h"
-#include "Serialization/BufferReader.h"
 
 #include "GeometryCacheCodecV1.generated.h"
 
@@ -56,3 +51,8 @@ private:
 #endif
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Serialization/MemoryWriter.h"
+#endif

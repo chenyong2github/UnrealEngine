@@ -5,7 +5,6 @@
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "RenderingThread.h"
-#include "Spatial/MeshAABBTree3.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMeshPaintGeometryCollectionComponentAdapter, Log, All);
 //////////////////////////////////////////////////////////////////////////

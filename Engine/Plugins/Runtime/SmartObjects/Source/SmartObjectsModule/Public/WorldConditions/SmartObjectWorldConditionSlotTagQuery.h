@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "GameplayTagContainer.h"
+#include "SmartObjectTypes.h"
 #include "WorldConditions/SmartObjectWorldConditionBase.h"
-#include "SmartObjectRuntime.h"
 #include "SmartObjectWorldConditionSlotTagQuery.generated.h"
 
 /**
@@ -46,3 +45,7 @@ protected:
 	FGameplayTagQuery TagQuery;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "SmartObjectRuntime.h"
+#endif

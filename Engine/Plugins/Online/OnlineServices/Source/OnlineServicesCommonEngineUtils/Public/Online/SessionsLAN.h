@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/LANBeacon.h"
-#include "Online/NboSerializer.h"
 #include "Online/SessionsCommon.h"
+
+class FInternetAddr;
+class FLANSession;
+class FNboSerializeFromBuffer;
+class FNboSerializeToBuffer;
 
 namespace UE::Online {
 
@@ -81,3 +83,9 @@ protected:
 };
 
 /* UE::Online */ }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Online/LANBeacon.h"
+#include "Online/NboSerializer.h"
+#endif

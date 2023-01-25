@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
 #include "AbcImportSettings.generated.h"
 
 /** Enum that describes type of asset to import */
@@ -345,3 +343,7 @@ class ALEMBICLIBRARY_API UAbcImportSettings : public UObject
 public:
 	virtual void Serialize(class FArchive& Archive) override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

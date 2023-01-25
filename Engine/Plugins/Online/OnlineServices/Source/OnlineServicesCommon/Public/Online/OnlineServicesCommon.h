@@ -8,13 +8,10 @@
 #include "Online/OnlineAsyncOpCache.h"
 #include "Online/OnlineAsyncOpQueue.h"
 #include "Online/OnlineConfig.h"
-#include "Online/OnlineExecHandler.h"
-#include "Online/OnlineServicesLog.h"
 
-#include "Async/Async.h"
 #include "Containers/Ticker.h"
-#include "Misc/CoreMisc.h"
-#include "Templates/SharedPointer.h"
+
+namespace UE::Online { class IOnlineExecHandler; }
 
 namespace UE::Online {
 
@@ -340,3 +337,8 @@ protected:
 
 /* UE::Online */ }
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Online/OnlineExecHandler.h"
+#include "Online/OnlineServicesLog.h"
+#endif

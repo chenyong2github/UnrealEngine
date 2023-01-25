@@ -2,15 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Styling/SlateTypes.h"
-#include "Widgets/SWidget.h"
-#include "Components/Widget.h"
 #include "Styling/SlateWidgetStyle.h"
-#include "Styling/SlateStyle.h"
-#include "Brushes/SlateImageBrush.h"
 #include "SynthSlateStyle.generated.h"
+
+struct FSlateDynamicImageBrush;
 
 UENUM(BlueprintType)
 enum class ESynthSlateSizeType : uint8
@@ -94,3 +89,12 @@ protected:
 	static ISynthSlateResources* SynthSlateResources;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Brushes/SlateImageBrush.h"
+#include "Components/Widget.h"
+#include "CoreMinimal.h"
+#include "Styling/SlateStyle.h"
+#include "Styling/SlateTypes.h"
+#include "Widgets/SWidget.h"
+#endif

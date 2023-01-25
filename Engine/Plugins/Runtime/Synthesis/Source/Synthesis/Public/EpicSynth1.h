@@ -2,16 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "DSP/Osc.h"
-#include "DSP/LFO.h"
-#include "DSP/Dsp.h"
 #include "DSP/Envelope.h"
 #include "DSP/Amp.h"
 #include "DSP/DelayStereo.h"
-#include "DSP/Filter.h"
-#include "DSP/ModulationMatrix.h"
 #include "DSP/Chorus.h"
 #include "EpicSynth1Types.h"
 
@@ -271,3 +265,7 @@ namespace Audio
 	};
 
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

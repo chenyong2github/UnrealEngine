@@ -4,6 +4,9 @@
 
 #include "Online/OnlineMeta.h"
 
+namespace UE::Online { struct FOperationConfig; }
+namespace UE::Online::Meta { template <typename StructType> struct TStructDetails; }
+
 namespace UE::Online::Meta {
 
 BEGIN_ONLINE_STRUCT_META(FOperationConfig)

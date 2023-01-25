@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Online/OnlineError.h"
+#include "Online/OnlineErrorCode.h"
 
 #define LOCTEXT_NAMESPACE "OnlineErrors"
 

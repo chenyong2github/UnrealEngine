@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
-#include "JsonObjectWrapper.h"
+#include "Online/CoreOnlineFwd.h"
+
+class FJsonObject;
+class UStruct;
 
 class FJsonValue;
 
@@ -97,3 +98,9 @@ struct ONLINESUBSYSTEM_API FOnlineNotification
 	/** String representing the client_request_id for this notification. Used to tie a server request back to the client. Can be empty. */
 	FString ClientRequestIdStr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "JsonObjectWrapper.h"
+#include "Online/CoreOnline.h"
+#endif

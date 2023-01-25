@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Widgets/Layout/SBox.h"
 
 struct FAssetData;
@@ -23,3 +22,7 @@ private:
 	void OnAssetDoubleClicked(const FAssetData& AssetData);
 	bool OnShouldFilterAsset(const FAssetData& AssetData);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

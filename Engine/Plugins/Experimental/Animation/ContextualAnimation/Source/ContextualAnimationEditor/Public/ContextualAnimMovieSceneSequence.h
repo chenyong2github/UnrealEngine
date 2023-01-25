@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "MovieSceneSequence.h"
 #include "ContextualAnimMovieSceneSequence.generated.h"
 
@@ -43,3 +41,7 @@ private:
 	/** Pointer to the view model that owns this sequence. */
 	TWeakPtr<FContextualAnimViewModel> ViewModelPtr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

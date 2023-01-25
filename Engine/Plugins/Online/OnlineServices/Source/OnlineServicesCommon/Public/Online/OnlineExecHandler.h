@@ -2,18 +2,16 @@
 
 #pragma once
 
-#include "Online/CoreOnline.h"
-#include "Online/OnlineUtils.h"
+#include "Online/OnlineAsyncOpHandle.h"
 #include "Online/OnlineServicesLog.h"
 #include "Online/OnlineResult.h"
-#include "Online/OnlineAsyncOp.h"
 
-#include "Online/OnlineServicesRegistry.h"
 #include "Online/Auth.h"
 
-#include "Templates/Invoke.h"
-#include "Templates/Models.h"
-#include "Templates/Tuple.h"
+#include "Online/OnlineServices.h"
+#include "Trace/Trace.inl"
+
+template <typename OptionalType> struct TOptional;
 
 /*
 	This file facilitates online command execution.
@@ -969,3 +967,9 @@ private:
 };
 
 /* UE::Online */ }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Online/OnlineAsyncOp.h"
+#include "Online/OnlineServicesRegistry.h"
+#include "Online/OnlineUtils.h"
+#endif

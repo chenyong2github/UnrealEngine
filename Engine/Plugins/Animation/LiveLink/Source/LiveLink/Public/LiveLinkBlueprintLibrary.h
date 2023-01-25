@@ -2,14 +2,25 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "LiveLinkRole.h"
-#include "Roles/LiveLinkAnimationBlueprintStructs.h"
-#include "Roles/LiveLinkBasicTypes.h"
 
 #include "LiveLinkBlueprintLibrary.generated.h"
+
+class ULiveLinkRole;
+struct FLiveLinkAnimationFrameData;
+struct FLiveLinkBaseBlueprintData;
+struct FLiveLinkBasicBlueprintData;
+struct FLiveLinkSkeletonStaticData;
+struct FLiveLinkSourceHandle;
+struct FLiveLinkSubjectKey;
+struct FLiveLinkSubjectName;
+struct FLiveLinkSubjectRepresentation;
+struct FLiveLinkTransform;
+struct FSubjectFrameHandle;
+struct FSubjectMetadata;
+struct FTimecode;
+template <typename T> class TSubclassOf;
 
 UCLASS()
 class LIVELINK_API ULiveLinkBlueprintLibrary : public UBlueprintFunctionLibrary
@@ -194,3 +205,10 @@ private:
 	DECLARE_FUNCTION(execEvaluateLiveLinkFrameAtWorldTimeOffset);
 	DECLARE_FUNCTION(execEvaluateLiveLinkFrameAtSceneTime);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "LiveLinkRole.h"
+#include "Roles/LiveLinkAnimationBlueprintStructs.h"
+#include "Roles/LiveLinkBasicTypes.h"
+#endif

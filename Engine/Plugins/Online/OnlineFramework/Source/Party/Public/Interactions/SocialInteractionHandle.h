@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "CoreMinimal.h"
+#include "Containers/Map.h" // IWYU pragma: keep
+
+class FName;
+class FText;
 
 class USocialUser;
 class ISocialInteractionWrapper;
@@ -34,3 +37,7 @@ private:
 
 	const ISocialInteractionWrapper* InteractionWrapper = nullptr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

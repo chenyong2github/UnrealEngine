@@ -2,26 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "OnlineSubsystem.h"
 
-#include "OnlineSessionSettings.h"
-#include "Interfaces/OnlineChatInterface.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "Interfaces/OnlineFriendsInterface.h"
-#include "Interfaces/OnlineEventsInterface.h"
 #include "Interfaces/OnlineSessionInterface.h"
-#include "Interfaces/OnlinePartyInterface.h"
 #include "Interfaces/OnlineExternalUIInterface.h"
 #include "Interfaces/VoiceInterface.h"
 #include "Interfaces/OnlineTitleFileInterface.h"
-#include "Interfaces/OnlineAchievementsInterface.h"
-#include "Interfaces/OnlinePresenceInterface.h"
-#include "Interfaces/OnlinePurchaseInterface.h"
 #include "Interfaces/OnlineEntitlementsInterface.h"
 #include "Interfaces/OnlineUserCloudInterface.h"
-#include "Interfaces/OnlineUserInterface.h"
-#include "Interfaces/OnlineStatsInterface.h"
 
 /** Macro to handle the boilerplate of accessing the proper online subsystem and getting the requested interface */
 #define IMPLEMENT_GET_INTERFACE(InterfaceType) \
@@ -175,3 +165,16 @@ namespace Online
 };
 
 #undef IMPLEMENT_GET_INTERFACE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Interfaces/OnlineAchievementsInterface.h"
+#include "Interfaces/OnlineChatInterface.h"
+#include "Interfaces/OnlineEventsInterface.h"
+#include "Interfaces/OnlinePartyInterface.h"
+#include "Interfaces/OnlinePresenceInterface.h"
+#include "Interfaces/OnlinePurchaseInterface.h"
+#include "Interfaces/OnlineStatsInterface.h"
+#include "Interfaces/OnlineUserInterface.h"
+#include "OnlineSessionSettings.h"
+#endif

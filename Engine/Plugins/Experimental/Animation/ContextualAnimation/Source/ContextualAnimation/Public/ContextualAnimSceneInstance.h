@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "Animation/AnimNotifies/AnimNotify.h"
-#include "GameFramework/Actor.h"
 #include "ContextualAnimTypes.h"
 #include "ContextualAnimSceneInstance.generated.h"
+
+struct FBranchingPointNotifyPayload;
 
 struct FAnimMontageInstance;
 struct FContextualAnimTrack;
@@ -153,3 +151,8 @@ private:
 	/** Helper to play an AnimSequenceBase as montage. If Animation is not a montage it plays it as dynamic montage  */
 	UAnimMontage* PlayAnimation(UAnimInstance& AnimInstance, UAnimSequenceBase& Animation);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Animation/AnimNotifies/AnimNotify.h"
+#include "CoreMinimal.h"
+#endif

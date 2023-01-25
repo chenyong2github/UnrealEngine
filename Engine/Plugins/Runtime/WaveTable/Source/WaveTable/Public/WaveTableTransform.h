@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/ArrayView.h"
-#include "Curves/CurveFloat.h"
 #include "Curves/RichCurve.h"
 #include "WaveTableSettings.h"
 
 #include "WaveTableTransform.generated.h"
+
+class UCurveFloat;
 
 // use a value outside the [-1,1] range to detect uninitialized values
 namespace WaveTable
@@ -80,3 +79,7 @@ private:
 	/** Clamps & applies transform to provided values as unipolar signal */
 	void SampleCurveUnipolar(TArrayView<float> InOutValues, float& OutFinalValue) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Curves/CurveFloat.h"
+#endif

@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ScriptMacros.h"
 #include "GeometryCacheTrack.h"
-#include "GeometryCacheMeshData.h"
 
 #include "GeometryCacheTrackFlipbookAnimation.generated.h"
 
@@ -47,3 +43,8 @@ private:
 	TArray<float> MeshSampleTimes;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GeometryCacheMeshData.h"
+#endif

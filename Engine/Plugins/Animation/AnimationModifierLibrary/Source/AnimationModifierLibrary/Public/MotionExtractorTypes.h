@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AnimationBlueprintLibrary.h"
 #include "MotionExtractorTypes.generated.h"
 
 /** Type of motion to extract */
@@ -40,3 +38,8 @@ enum class EMotionExtractor_MathOperation : uint8
 	Division,
 	Multiplication
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AnimationBlueprintLibrary.h"
+#include "CoreMinimal.h"
+#endif

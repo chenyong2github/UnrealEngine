@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 
 class ILiveLinkClient;
 
@@ -12,3 +12,7 @@ struct LIVELINK_API FLiveLinkClientReference
 public:
 	ILiveLinkClient* GetClient() const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

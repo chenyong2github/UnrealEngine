@@ -3,9 +3,14 @@
 #pragma once
 
 #include "Online/CoreOnline.h"
-#include "Online/OnlineAsyncOpHandle.h"
+#include "Online/OnlineErrorCode.h"
 #include "Online/OnlineMeta.h"
 #include "Online/OnlineError.h"
+
+namespace UE::Online { template <typename DelegateSignature> class TOnlineEvent; }
+namespace UE::Online { template <typename OpType> class TOnlineAsyncOpHandle; }
+namespace UE::Online { template <typename OpType> class TOnlineResult; }
+namespace UE::Online::Meta { template <typename StructType> struct TStructDetails; }
 
 #define LOCTEXT_NAMESPACE "Presence"
 
@@ -426,3 +431,7 @@ END_ONLINE_STRUCT_META()
 /* UE::Online */ }
 
 #undef LOCTEXT_NAMESPACE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Online/OnlineAsyncOpHandle.h"
+#endif

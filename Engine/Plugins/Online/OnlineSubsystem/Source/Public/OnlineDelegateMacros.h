@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #define DEFINE_ONLINE_DELEGATE_BASE(DelegateName) \
 public: \
@@ -189,3 +188,7 @@ public: \
 		} \
 	}
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

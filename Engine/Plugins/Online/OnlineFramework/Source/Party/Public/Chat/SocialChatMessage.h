@@ -2,6 +2,7 @@
 
 #pragma once
 #include "Interfaces/OnlineChatInterface.h"
+#include "Misc/DateTime.h"
 #include "User/SocialUser.h"
 
 enum class ESocialChannelType : uint8;

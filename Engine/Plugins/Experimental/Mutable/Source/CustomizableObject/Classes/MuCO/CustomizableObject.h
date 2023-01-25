@@ -6,7 +6,6 @@
 #include "MuCO/CustomizableObjectIdentifier.h"
 #include "MuCO/CustomizableObjectUIData.h"
 #include "RHIDefinitions.h"
-#include "Delegates/IDelegateInstance.h"
 
 class FReply;
 

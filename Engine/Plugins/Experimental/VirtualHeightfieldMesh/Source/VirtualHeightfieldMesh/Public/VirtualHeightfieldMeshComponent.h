@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Components/PrimitiveComponent.h"
+#include "Physics/PhysicsInterfaceTypes.h"
 #include "VirtualHeightfieldMeshComponent.generated.h"
 
 class ARuntimeVirtualTextureVolume;
@@ -149,3 +149,7 @@ protected:
 	virtual bool SupportsWorldPositionOffsetVelocity() const override { return bWorldPositionOffsetVelocity; }
 	//~ End UPrimitiveComponent Interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

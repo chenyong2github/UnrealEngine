@@ -2,15 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "TemplateSequencePlayer.h"
 #include "IMovieScenePlaybackClient.h"
-#include "MovieSceneBindingOwnerInterface.h"
 #include "GameFramework/Actor.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/SoftObjectPath.h"
+#include "MovieSceneSequencePlaybackSettings.h"
 #include "TemplateSequenceActor.generated.h"
+
+class UTemplateSequencePlayer;
+namespace EEndPlayReason { enum Type : int; }
 
 class UTemplateSequence;
 
@@ -134,3 +132,9 @@ private:
 
 	void OnSequenceLoaded(const FName& PackageName, UPackage* Package, EAsyncLoadingResult::Type Result);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "MovieSceneBindingOwnerInterface.h"
+#include "TemplateSequencePlayer.h"
+#endif

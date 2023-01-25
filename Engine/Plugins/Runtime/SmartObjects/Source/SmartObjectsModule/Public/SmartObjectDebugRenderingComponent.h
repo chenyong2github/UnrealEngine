@@ -5,6 +5,8 @@
 #include "Debug/DebugDrawComponent.h"
 #include "SmartObjectDebugRenderingComponent.generated.h"
 
+class FDebugRenderSceneProxy;
+
 /**
  * Simple UDebugDrawComponent to inherit from to use a FSmartObjectDebugSceneProxy.
  * Derived classes can set ViewFlagName at construction to control relevancy.

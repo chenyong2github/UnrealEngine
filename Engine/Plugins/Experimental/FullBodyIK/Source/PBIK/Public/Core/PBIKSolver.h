@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "PBIKBody.h"
-#include "PBIKConstraint.h"
 #include "PBIKDebug.h"
 
 #include "PBIKSolver.generated.h"
+
+namespace PBIK { struct FBone; }
+namespace PBIK { struct FBoneSettings; }
+namespace PBIK { struct FConstraint; }
+namespace PBIK { struct FPinConstraint; }
 
 DECLARE_CYCLE_STAT(TEXT("PBIK Solve"), STAT_PBIK_Solve, STATGROUP_Anim);
 
@@ -283,3 +286,8 @@ private:
 	PBIK::FDebugDraw DebugDraw;
 	friend PBIK::FDebugDraw;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "PBIKBody.h"
+#include "PBIKConstraint.h"
+#endif

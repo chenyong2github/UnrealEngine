@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 
 
 namespace WaveTable
@@ -15,3 +14,7 @@ namespace WaveTable
 		} // namespace FileUtilities
 	} // namespace Editor
 } // namespace WaveTable
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Containers/UnrealString.h"
+#endif

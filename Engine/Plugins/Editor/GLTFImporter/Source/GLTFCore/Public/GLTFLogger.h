@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "Templates/Tuple.h"
 
 namespace GLTF
@@ -29,3 +27,7 @@ namespace GLTF
 		return Messages;
 	}
 }  // namespace GLTF
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Containers/UnrealString.h"
+#endif

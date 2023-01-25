@@ -2,14 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "MovieSceneSection.h"
-#include "GeometryCacheComponent.h"
-#include "GeometryCache.h"
-#include "Channels/MovieSceneFloatChannel.h"
-#include "UObject/SoftObjectPath.h"
 #include "MovieSceneGeometryCacheSection.generated.h"
+
+class UGeometryCache;
+struct FQualifiedFrameTime;
 
 USTRUCT(BlueprintType)
  struct GEOMETRYCACHETRACKS_API FMovieSceneGeometryCacheParams
@@ -98,3 +95,10 @@ public:
 #endif
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Channels/MovieSceneFloatChannel.h"
+#include "CoreMinimal.h"
+#include "GeometryCache.h"
+#include "GeometryCacheComponent.h"
+#endif

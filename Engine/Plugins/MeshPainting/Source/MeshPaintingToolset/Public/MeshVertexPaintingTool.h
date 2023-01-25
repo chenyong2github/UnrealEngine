@@ -2,17 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
-#include "InteractiveToolBuilder.h"
 #include "BaseTools/BaseBrushTool.h"
-#include "InteractiveTool.h"
-#include "Delegates/DelegateCombinations.h"
-#include "Components/MeshComponent.h"
-#include "MeshPaintHelpers.h"
 #include "MeshPaintingToolsetTypes.h"
 #include "MeshPaintInteractions.h"
 #include "MeshVertexPaintingTool.generated.h"
+
+enum class EToolShutdownType : uint8;
+struct FPerVertexPaintActionArgs;
 
 
 struct FToolBuilderState;
@@ -294,3 +290,10 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UMeshWeightPaintingToolProperties> WeightProperties;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components/MeshComponent.h"
+#include "CoreMinimal.h"
+#include "MeshPaintHelpers.h"
+#include "UObject/NoExportTypes.h"
+#endif

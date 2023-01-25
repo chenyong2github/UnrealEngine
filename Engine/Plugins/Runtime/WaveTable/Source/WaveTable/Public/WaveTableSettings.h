@@ -1,13 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/ArrayView.h"
-#include "GenericPlatform/GenericPlatformMath.h"
-#include "HAL/Platform.h"
-#include "UObject/SoftObjectPath.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 
 #include "WaveTableSettings.generated.h"
 

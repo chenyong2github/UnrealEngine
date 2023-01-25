@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
 #include "Tickable.h"
-#include "ContextualAnimTypes.h"
 #include "ContextualAnimManager.generated.h"
+
+struct FContextualAnimStartSceneParams;
 
 class UContextualAnimSceneActorComponent;
 class UContextualAnimSceneAsset;
@@ -77,3 +76,8 @@ protected:
 	UFUNCTION()
 	void OnSceneInstanceEnded(UContextualAnimSceneInstance* SceneInstance);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ContextualAnimTypes.h"
+#include "CoreMinimal.h"
+#endif

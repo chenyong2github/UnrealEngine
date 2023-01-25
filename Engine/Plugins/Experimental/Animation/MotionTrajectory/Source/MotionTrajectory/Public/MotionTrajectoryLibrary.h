@@ -4,7 +4,6 @@
 
 #include "Animation/MotionTrajectoryTypes.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "UObject/ObjectMacros.h"
 
 #include "MotionTrajectoryLibrary.generated.h"
 

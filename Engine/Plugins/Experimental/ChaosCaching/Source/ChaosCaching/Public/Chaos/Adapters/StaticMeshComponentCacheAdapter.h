@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CacheAdapter.h"
+#include "Chaos/Framework/PhysicsSolverBase.h"
 
 namespace Chaos
 {

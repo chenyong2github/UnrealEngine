@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "TakeRecorderSource.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "TakeRecorderChaosCacheSource.generated.h"
+
+struct FPropertyChangedEvent;
 
 class ULevelSequence;
 class UMovieSceneFolder;
@@ -60,3 +60,7 @@ private:
 	 */
 	TWeakObjectPtr<UMovieSceneChaosCacheTrack> CachedChaosCacheTrack;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

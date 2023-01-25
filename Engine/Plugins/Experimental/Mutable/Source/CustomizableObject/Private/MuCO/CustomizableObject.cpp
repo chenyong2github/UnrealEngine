@@ -5,7 +5,6 @@
 #include "Algo/Copy.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Async/AsyncFileHandle.h"
-#include "Delegates/IDelegateInstance.h"
 #include "EdGraph/EdGraph.h"
 #include "Engine/SkeletalMesh.h"
 #include "HAL/FileManager.h"
@@ -26,7 +25,6 @@
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "UObject/ObjectSaveContext.h"
-#include "Templates/UniquePtr.h"
 
 #if WITH_EDITOR
 #include "Editor.h"

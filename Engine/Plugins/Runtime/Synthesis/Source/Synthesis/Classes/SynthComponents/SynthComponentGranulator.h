@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Components/SynthComponent.h"
 #include "DSP/Granulator.h"
 #include "Sound/SampleBufferIO.h"
-#include "Sound/SoundWave.h"
 #include "SynthComponentGranulator.generated.h"
 
 
@@ -135,3 +133,7 @@ protected:
 
 	bool bIsLoading;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,18 +2,12 @@
 
 #pragma once
 
-#include "StateTreeTypes.h"
 #include "StateTreeNodeBase.h"
-#include "StateTreeExecutionContext.h"
-#if WITH_EDITOR
-#include "StateTreePropertyBindings.h"
-#endif
 #include "StateTreeConditionBase.generated.h"
 
-#if WITH_EDITOR
-struct IStateTreeBindingLookup;
 struct FStateTreeEditorPropertyPath;
-#endif
+struct FStateTreeExecutionContext;
+struct IStateTreeBindingLookup;
 
 enum class EStateTreeCompare : uint8
 {
@@ -73,3 +67,8 @@ struct TStructOpsTypeTraits<Type> : public TStructOpsTypeTraitsBase2<Type> \
 		WithNoDestructor = true, \
 	}; \
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "StateTreeExecutionContext.h"
+#include "StateTreePropertyBindings.h"
+#endif

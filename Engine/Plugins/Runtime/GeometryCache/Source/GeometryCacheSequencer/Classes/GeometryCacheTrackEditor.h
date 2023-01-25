@@ -2,15 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
-#include "Templates/SubclassOf.h"
-#include "Widgets/SWidget.h"
-#include "ISequencer.h"
-#include "MovieSceneTrack.h"
 #include "ISequencerSection.h"
-#include "ISequencerTrackEditor.h"
 #include "MovieSceneTrackEditor.h"
+
+struct FBuildEditWidgetParams;
 
 struct FAssetData;
 class FMenuBuilder;
@@ -105,3 +100,7 @@ private:
 	/** Cached start time valid only during resize */
 	FFrameNumber InitialStartTimeDuringResize;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

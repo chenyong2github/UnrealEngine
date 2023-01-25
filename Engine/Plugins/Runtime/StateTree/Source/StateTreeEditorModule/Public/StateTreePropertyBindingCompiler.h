@@ -2,15 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
-#include "InstancedStruct.h"
-#include "UObject/Interface.h"
-#include "IPropertyAccessEditor.h"
-#include "StateTreeEditorPropertyBindings.h"
 #include "StateTreePropertyBindings.h"
-#include "StateTreeCompilerLog.h"
 #include "StateTreePropertyBindingCompiler.generated.h"
+
+enum class EPropertyAccessCompatibility;
+struct FStateTreeCompilerLog;
+struct FStateTreeEditorPropertyBinding;
 
 /**
  * Helper class to compile editor representation of property bindings into runtime representation.
@@ -94,3 +91,11 @@ protected:
 
 	FStateTreeCompilerLog* Log = nullptr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "IPropertyAccessEditor.h"
+#include "StateTreeCompilerLog.h"
+#include "StateTreeEditorPropertyBindings.h"
+#include "UObject/Interface.h"
+#endif

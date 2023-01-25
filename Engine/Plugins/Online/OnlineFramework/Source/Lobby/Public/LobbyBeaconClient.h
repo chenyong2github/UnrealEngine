@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "GameFramework/OnlineReplStructs.h"
-#include "UObject/TextProperty.h"
 #include "OnlineBeaconClient.h"
 
 
 #include "LobbyBeaconClient.generated.h"
+
+struct FJoinabilitySettings;
 
 class ALobbyBeaconPlayerState;
 class ALobbyBeaconState;
@@ -256,3 +254,9 @@ protected:
 
 	friend class ALobbyBeaconHost;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GameFramework/OnlineReplStructs.h"
+#include "UObject/TextProperty.h"
+#endif

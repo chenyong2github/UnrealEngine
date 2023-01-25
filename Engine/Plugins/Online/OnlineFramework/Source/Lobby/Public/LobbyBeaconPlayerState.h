@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "GameFramework/Info.h"
 #include "GameFramework/OnlineReplStructs.h"
 #include "LobbyBeaconPlayerState.generated.h"
@@ -84,3 +82,7 @@ private:
 	/** Delegate fired when party owner changes */
 	FOnPlayerStateChanged PartyOwnerChangedEvent;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "ActorFactories/ActorFactory.h"
 #include "ActorFactoryGeometryCache.generated.h"
 
@@ -22,3 +20,7 @@ class UActorFactoryGeometryCache : public UActorFactory
 	virtual void PostCreateBlueprint(UObject* Asset, AActor* CDO) override;	
 	// End UActorFactory Interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

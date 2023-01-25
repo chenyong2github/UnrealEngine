@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "Engine/EngineTypes.h"
-#include "Editor.h"
+#include "UObject/Package.h"
 #include "EditorSkeletalMeshLibrary.generated.h"
+
+class UTexture2D;
+struct FSkeletalMeshBuildSettings;
 
 class UPhysicsAsset;
 class USkeletalMesh;
@@ -141,3 +142,9 @@ public:
 	static UPhysicsAsset* CreatePhysicsAsset(USkeletalMesh* SkeletalMesh);
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Editor.h"
+#include "Engine/EngineTypes.h"
+#endif

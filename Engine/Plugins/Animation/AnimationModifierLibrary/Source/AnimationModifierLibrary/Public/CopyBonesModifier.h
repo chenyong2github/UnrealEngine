@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AnimationModifier.h"
 #include "AnimPose.h"
+#include "BoneContainer.h"
 #include "CopyBonesModifier.generated.h"
 
 USTRUCT(BlueprintType)
@@ -43,3 +43,7 @@ public:
 	virtual void OnRevert_Implementation(UAnimSequence* Animation) override;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

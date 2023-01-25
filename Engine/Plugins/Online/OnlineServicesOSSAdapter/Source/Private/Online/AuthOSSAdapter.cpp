@@ -9,6 +9,7 @@
 #include "Online/OnlineErrorDefinitions.h"
 #include "Online/DelegateAdapter.h"
 
+#include "Online/OnlineUtils.h"
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 

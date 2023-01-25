@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
 #include "StateTreeEditorSettings.generated.h"
 
@@ -23,3 +22,7 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "Compiler")
 	EStateTreeSaveOnCompile SaveOnCompile = EStateTreeSaveOnCompile::Never;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

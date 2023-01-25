@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AnimationModifier.h"
 #include "ReOrientRootBoneModifier.generated.h"
 
@@ -28,3 +27,7 @@ private:
 	void ReOrientRootBone_Internal(UAnimSequence* Animation, const FQuat& Quat);
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

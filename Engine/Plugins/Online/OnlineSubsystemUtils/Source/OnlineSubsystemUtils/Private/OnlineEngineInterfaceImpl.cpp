@@ -6,7 +6,6 @@
 #include "OnlineSubsystemUtils.h"
 #include "Engine/NetConnection.h"
 #include "Interfaces/OnlineSessionDelegates.h"
-#include "OnlineSubsystemNames.h"
 #include "Online.h"
 #include "OnlineSessionSettings.h"
 

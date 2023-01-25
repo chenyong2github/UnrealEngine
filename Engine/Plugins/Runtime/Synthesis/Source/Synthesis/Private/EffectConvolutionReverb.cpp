@@ -2,6 +2,7 @@
 
 #include "EffectConvolutionReverb.h"
 #include "Async/AsyncWork.h"
+#include "DSP/AlignedBlockBuffer.h" // IWYU pragma: keep
 #include "SynthesisModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EffectConvolutionReverb)

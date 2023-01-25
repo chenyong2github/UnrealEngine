@@ -3,7 +3,6 @@
 #pragma once
 
 #include "SocialChatChannel.h"
-#include "Interfaces/OnlineChatInterface.h"
 #include "SocialChatRoom.generated.h"
 
 class USocialChatManager;

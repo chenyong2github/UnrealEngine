@@ -1,12 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
-#include "StateTreeTypes.h"
 #include "StateTreeTaskBase.h"
-#include "StateTreeEvents.h"
 #include "StateTreeNodeBlueprintBase.h"
 #include "StateTreeTaskBlueprintBase.generated.h"
 
@@ -101,3 +98,8 @@ struct STATETREEMODULE_API FStateTreeBlueprintTaskWrapper : public FStateTreeTas
 	UPROPERTY()
 	TSubclassOf<UStateTreeTaskBlueprintBase> TaskClass = nullptr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "StateTreeEvents.h"
+#endif

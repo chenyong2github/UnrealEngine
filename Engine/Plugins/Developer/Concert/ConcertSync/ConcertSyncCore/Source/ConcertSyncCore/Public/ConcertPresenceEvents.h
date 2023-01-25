@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ConcertPresenceEvents.generated.h"
 
 USTRUCT()
@@ -137,3 +136,7 @@ struct FConcertClientVRPresenceUpdateEvent : public FConcertClientPresenceEventB
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

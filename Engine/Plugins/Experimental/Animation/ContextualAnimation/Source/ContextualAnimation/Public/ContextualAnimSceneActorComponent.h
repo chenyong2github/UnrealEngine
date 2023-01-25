@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ContextualAnimTypes.h"
 #include "ActorComponents/IKRigInterface.h"
 #include "Components/PrimitiveComponent.h"
@@ -131,3 +130,7 @@ private:
 	bool bRegistered = false;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
@@ -21,3 +20,7 @@ public:
 
 	TSharedPtr<FUICommandInfo> CreateCacheManager;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

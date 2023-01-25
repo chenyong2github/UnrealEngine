@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Tools/InteractiveToolsCommands.h"
 
 
@@ -88,3 +87,7 @@ DECLARE_TOOL_ACTION_COMMANDS(FCubeGridToolActionCommands);
 DECLARE_TOOL_ACTION_COMMANDS(FEditMeshPolygonsToolActionCommands);
 DECLARE_TOOL_ACTION_COMMANDS(FDrawAndRevolveToolActionCommands);
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

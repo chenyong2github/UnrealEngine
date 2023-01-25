@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Serialization/JsonSerializerMacros.h"
-#include "OnlineKeyValuePair.h"
+
+class FVariantData;
 
 #define BEGIN_ONLINE_JSON_SERIALIZER																BEGIN_JSON_SERIALIZER
 #define END_ONLINE_JSON_SERIALIZER																	END_JSON_SERIALIZER
@@ -28,3 +28,8 @@ typedef FJsonSerializerWriter<> FOnlineJsonSerializerWriter;
 
 typedef TMap<FString, FVariantData> FJsonSerializeableKeyValueMapVariant;
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineKeyValuePair.h"
+#endif

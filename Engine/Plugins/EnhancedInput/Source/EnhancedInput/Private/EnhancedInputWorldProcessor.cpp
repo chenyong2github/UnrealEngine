@@ -2,11 +2,9 @@
 
 #include "EnhancedInputWorldProcessor.h"
 #include "EnhancedInputSubsystems.h"
-#include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
 #include "EnhancedInputDeveloperSettings.h"
 #include "UObject/UObjectIterator.h"
-#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 
 void FEnhancedInputWorldProcessor::Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor)
 {

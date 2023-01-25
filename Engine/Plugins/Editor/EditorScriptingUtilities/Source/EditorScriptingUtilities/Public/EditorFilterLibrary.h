@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "EditorFilterLibrary.generated.h"
+
+template <typename T> class TSubclassOf;
 
 UENUM()
 enum class EEditorScriptingFilterType : uint8
@@ -114,3 +114,8 @@ public:
 	static TArray<class AActor*> BySelection(const TArray<class AActor*>& TargetArray, EEditorScriptingFilterType FilterType = EEditorScriptingFilterType::Include);
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#endif

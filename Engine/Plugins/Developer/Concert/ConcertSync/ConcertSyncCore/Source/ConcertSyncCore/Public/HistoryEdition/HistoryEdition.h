@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "HistoryAnalysis.h"
+#include "ConcertMessageData.h"
+
+namespace UE::ConcertSyncCore { struct FHistoryAnalysisResult; }
 
 class IConcertServer;
 class IConcertSyncServer;
@@ -28,3 +29,8 @@ namespace UE::ConcertSyncCore
 	/** Utility functions that converts FHistoryDeletionRequirements into a single TSet. */
 	CONCERTSYNCCORE_API TSet<FActivityID> CombineRequirements(const FHistoryAnalysisResult& ToDelete);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "HistoryAnalysis.h"
+#endif

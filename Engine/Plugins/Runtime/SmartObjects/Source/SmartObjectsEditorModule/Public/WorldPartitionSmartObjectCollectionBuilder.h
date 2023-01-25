@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "SmartObjectPersistentCollection.h"
 #include "WorldPartition/WorldPartitionBuilder.h"
 #include "WorldPartitionSmartObjectCollectionBuilder.generated.h"
 
@@ -29,3 +28,7 @@ protected:
 
 	bool bRemoveEmptyCollections = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "SmartObjectPersistentCollection.h"
+#endif

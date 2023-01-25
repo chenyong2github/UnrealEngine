@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "UObject/ObjectMacros.h"
 #include "CameraAnimationSequenceSubsystem.generated.h"
 
 class UMovieSceneEntitySystemLinker;
@@ -93,3 +91,7 @@ private:
 	TSharedPtr<FMovieSceneEntitySystemRunner> Runner;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

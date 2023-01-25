@@ -6,6 +6,7 @@
 #include "Misc/TrackedActivity.h"
 #include "HAL/IConsoleManager.h"
 #include "Online/OnlineSessionNames.h"
+#include "OnlineIdentityErrors.h" // IWYU pragma: keep
 #include "OnlineSessionSettings.h"
 
 #include "Interfaces/OnlineChatInterface.h"
@@ -25,7 +26,6 @@
 #include "Interfaces/OnlineLeaderboardInterface.h"
 #include "Interfaces/OnlineTournamentInterface.h"
 #include "Interfaces/OnlineStatsInterface.h"
-#include "OnlineSubsystemNames.h"
 
 LLM_DEFINE_TAG(OnlineSubsystem);
 

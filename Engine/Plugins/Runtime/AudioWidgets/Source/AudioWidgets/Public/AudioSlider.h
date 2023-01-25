@@ -5,13 +5,9 @@
 #include "AudioDefines.h"
 #include "AudioWidgetsSlateTypes.h"
 #include "Components/Slider.h"
-#include "Components/Widget.h"
-#include "Curves/CurveFloat.h"
-#include "Styling/StyleColors.h"
-#include "Styling/SlateTypes.h"
-#include "UObject/ObjectMacros.h"
-#include "Widgets/SWidget.h"
 #include "AudioSlider.generated.h"
+
+class UCurveFloat;
 
 class SAudioSliderBase;
 
@@ -230,3 +226,9 @@ class AUDIOWIDGETS_API UAudioFrequencySlider : public UAudioSliderBase
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Curves/CurveFloat.h"
+#include "Styling/StyleColors.h"
+#include "Widgets/SWidget.h"
+#endif

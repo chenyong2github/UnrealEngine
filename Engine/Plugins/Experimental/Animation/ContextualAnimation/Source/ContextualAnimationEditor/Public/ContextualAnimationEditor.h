@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
+#include "Delegates/IDelegateInstance.h"
+#include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
 
 class IAssetTypeActions;
 
@@ -23,3 +24,8 @@ private:
 
 	TSharedPtr<IAssetTypeActions> ContextualAnimAssetActions;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Modules/ModuleManager.h"
+#endif

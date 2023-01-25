@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ActivityDependencyEdge.h"
-#include "ActivityGraphIDs.h"
 #include "ActivityNode.h"
-#include "Misc/Optional.h"
-#include "Templates/NonNullPointer.h"
+
+template <typename OptionalType> struct TOptional;
+
+namespace UE::ConcertSyncCore { class FActivityDependencyEdge; }
+namespace UE::ConcertSyncCore { struct FActivityNodeID; }
 
 namespace UE::ConcertSyncCore
 {
@@ -82,3 +82,9 @@ namespace UE::ConcertSyncCore
 	};
 }
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Misc/Optional.h"
+#include "Templates/NonNullPointer.h"
+#endif

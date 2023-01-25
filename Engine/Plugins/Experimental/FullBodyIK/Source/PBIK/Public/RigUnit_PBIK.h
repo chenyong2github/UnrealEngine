@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "RigVMCore/RigVMFunction.h"
 #include "Units/Highlevel/RigUnit_HighlevelBase.h"
 
 #include "Core/PBIKSolver.h"
@@ -9,7 +10,10 @@
 
 #include "PBIK_Shared.h"
 
+#include "RigVMCore/RigVMMemoryStorage.h"
 #include "RigUnit_PBIK.generated.h"
+
+struct FControlRigExecuteContext;
 
 using PBIK::FDebugLine;
 

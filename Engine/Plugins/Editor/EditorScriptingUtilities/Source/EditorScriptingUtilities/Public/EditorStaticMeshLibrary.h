@@ -2,14 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Editor.h"
-#include "Engine/StaticMesh.h"
-#include "Engine/MeshMerging.h"
-#include "GameFramework/Actor.h"
-#include "BodySetupEnums.h"
-#include "UVMapSettings.h"
 #include "StaticMeshEditorSubsystemHelpers.h"
 #include "StaticMeshEditorSubsystem.h"
 #include "EditorStaticMeshLibrary.generated.h"
@@ -542,3 +536,10 @@ public:
 	}
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BodySetupEnums.h"
+#include "CoreMinimal.h"
+#include "Engine/StaticMesh.h"
+#include "UVMapSettings.h"
+#endif

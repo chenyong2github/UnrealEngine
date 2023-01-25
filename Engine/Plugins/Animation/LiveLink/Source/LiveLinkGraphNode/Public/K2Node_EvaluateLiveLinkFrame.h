@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EdGraph/EdGraphNodeUtils.h"
-#include "LiveLinkRole.h"
 #include "K2Node.h"
-#include "Textures/SlateIcon.h"
-#include "UObject/ObjectMacros.h"
 
+#include "UObject/Package.h"
 #include "K2Node_EvaluateLiveLinkFrame.generated.h"
+
+class ULiveLinkRole;
 
 class FBlueprintActionDatabaseRegistrar;
 class FKismetCompilerContext;
@@ -94,3 +92,10 @@ protected:
 	/** Verify if selected role class is valid for evaluation */
 	bool IsRoleValidForEvaluation(TSubclassOf<ULiveLinkRole> InRoleClass) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraphNodeUtils.h"
+#include "LiveLinkRole.h"
+#include "Textures/SlateIcon.h"
+#endif

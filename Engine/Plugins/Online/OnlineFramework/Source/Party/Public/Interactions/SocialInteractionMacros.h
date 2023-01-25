@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "User/SocialUser.h"
+#include "Interactions/SocialInteractionHandle.h"
+#include "Internationalization/Text.h"
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCustomIsInteractionAvailable, const USocialUser&);
 
@@ -91,3 +92,7 @@ private: \
 }
 
 #define DECLARE_SOCIAL_INTERACTION(InteractionName) DECLARE_SOCIAL_INTERACTION_EXPORT(, InteractionName)
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "User/SocialUser.h"
+#endif

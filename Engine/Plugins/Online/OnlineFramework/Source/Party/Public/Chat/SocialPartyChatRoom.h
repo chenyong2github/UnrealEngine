@@ -5,6 +5,9 @@
 #include "SocialChatRoom.h"
 #include "SocialPartyChatRoom.generated.h"
 
+class UPartyMember;
+enum class ESocialChannelType : uint8;
+
 class USocialChatManager;
 enum class EMemberExitedReason : uint8;
 

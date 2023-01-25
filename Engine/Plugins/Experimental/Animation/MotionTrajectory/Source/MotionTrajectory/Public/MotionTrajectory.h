@@ -5,9 +5,8 @@
 #include "Animation/MotionTrajectoryTypes.h"
 #include "Components/ActorComponent.h"
 #include "Containers/RingBuffer.h"
-#include "Modules/ModuleManager.h"
-#include "UObject/ObjectMacros.h"
 
+#include "Modules/ModuleInterface.h"
 #include "MotionTrajectory.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMotionTrajectory, Log, All);
@@ -135,3 +134,7 @@ public:
 	bool bDebugDrawTrajectory = false;
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Modules/ModuleManager.h"
+#endif

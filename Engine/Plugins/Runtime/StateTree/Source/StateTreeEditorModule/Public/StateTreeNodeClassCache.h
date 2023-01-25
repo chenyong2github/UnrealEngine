@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/WeakObjectPtr.h"
 #include "StateTreeNodeClassCache.generated.h"
+
+enum class EReloadCompleteReason;
 
 struct FAssetData;
 
@@ -116,3 +115,7 @@ private:
 	TArray<FRootClassContainer> RootClasses;
 	TMap<FString, int32> RootClassNameToIndex;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

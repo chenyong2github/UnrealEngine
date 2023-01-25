@@ -7,6 +7,7 @@
 #include "OnlineAsyncTaskManager.h"
 
 #if WITH_TENCENT_RAIL_SDK
+#include "Containers/Set.h"
 #include "RailSDK.h"
 #endif
 

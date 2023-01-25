@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Containers/Set.h"
 #include "DSP/BitCrusher.h"
 #include "Sound/SoundEffectSource.h"
 #include "Sound/SoundModulationDestination.h"

@@ -5,11 +5,9 @@
 #include "ConcertLogGlobal.h"
 #include "CoreGlobals.h"
 #include "HistoryEdition/ActivityDependencyEdge.h"
-#include "HistoryEdition/ActivityGraphIDs.h"
 #include "HistoryEdition/ActivityNode.h"
 
 #include "Algo/ForEach.h"
-#include "Misc/Optional.h"
 
 UE::ConcertSyncCore::FActivityNodeID UE::ConcertSyncCore::FActivityDependencyGraph::AddActivity(int64 ActivityIndex, EActivityNodeFlags NodeFlags)
 {

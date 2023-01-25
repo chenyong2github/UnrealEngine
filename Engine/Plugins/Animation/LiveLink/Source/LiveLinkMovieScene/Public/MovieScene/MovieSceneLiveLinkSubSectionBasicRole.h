@@ -4,11 +4,6 @@
 
 #include "MovieSceneLiveLinkSubSection.h"
 
-#include "Channels/MovieSceneFloatChannel.h"
-#include "Containers/Array.h"
-#include "LiveLinkRole.h"
-#include "LiveLinkTypes.h"
-#include "MovieScene/MovieSceneLiveLinkPropertyHandler.h"
 
 #include "MovieSceneLiveLinkSubSectionBasicRole.generated.h"
 
@@ -42,3 +37,9 @@ protected:
 	/** Helper struct to manage filling channels from property array */
 	TSharedPtr<IMovieSceneLiveLinkPropertyHandler> PropertyHandler;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Channels/MovieSceneFloatChannel.h"
+#include "LiveLinkRole.h"
+#include "MovieScene/MovieSceneLiveLinkPropertyHandler.h"
+#endif

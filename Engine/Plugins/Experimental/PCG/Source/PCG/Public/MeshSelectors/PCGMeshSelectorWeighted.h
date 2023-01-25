@@ -4,7 +4,6 @@
 
 #include "PCGMeshSelectorBase.h"
 
-#include "Engine/CollisionProfile.h"
 
 #include "PCGMeshSelectorWeighted.generated.h"
 

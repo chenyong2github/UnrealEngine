@@ -1,11 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "EngineDefines.h"
-#include "Math/MathFwd.h"
 #include "Math/Transform.h"
-#include "Math/Color.h"
 
 class FCanvas;
 class FSceneView;

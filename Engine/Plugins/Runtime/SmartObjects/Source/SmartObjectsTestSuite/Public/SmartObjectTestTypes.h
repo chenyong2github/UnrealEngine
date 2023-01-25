@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "SmartObjectDefinition.h"
-#include "SmartObjectTypes.h"
-#include "SmartObjectPersistentCollection.h"
 #include "SmartObjectSubsystem.h"
 #include "SmartObjectTestTypes.generated.h"
 

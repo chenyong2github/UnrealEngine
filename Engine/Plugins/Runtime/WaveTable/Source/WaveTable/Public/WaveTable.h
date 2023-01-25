@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
-#include "HAL/Platform.h"
 
 
 namespace WaveTable

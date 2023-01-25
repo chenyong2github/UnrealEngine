@@ -1,8 +1,7 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Logging/TokenizedMessage.h"
 #include "StateTreePropertyBindings.h"
 #include "StateTreeCompilerLog.generated.h"
@@ -121,3 +120,7 @@ struct FStateTreeCompilerLogStateScope
 	FStateTreeCompilerLog& Log; 
 	const UStateTreeState* State = nullptr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

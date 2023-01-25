@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "InstancedStruct.h"
 #include "StructView.h"
-#include "Templates/ChooseClass.h"
 #include "InstancedStructContainer.generated.h"
+
+struct FInstancedStruct;
 
 /**
  * Array of heterogeneous structs. Can be used as a property, supports serialization,

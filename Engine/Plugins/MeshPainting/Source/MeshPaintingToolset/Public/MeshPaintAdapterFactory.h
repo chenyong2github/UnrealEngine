@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 
 class UMeshComponent;
 class IMeshPaintComponentAdapterFactory;
@@ -19,3 +19,7 @@ public:
 	static void AddReferencedObjectsGlobals(FReferenceCollector& Collector);
 	static void CleanupGlobals();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

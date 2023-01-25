@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "UObject/Package.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "IdentifierTable/ConcertIdentifierTableData.h"
 #include "ConcertTransactionEvents.generated.h"
@@ -225,3 +221,8 @@ struct FConcertTransactionRejectedEvent
 	UPROPERTY()
 	FGuid TransactionId;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/Package.h"
+#endif

@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/GCObject.h"
-#include "Modules/ModuleManager.h"
 #include "Engine/World.h"
+#include "Modules/ModuleInterface.h"
 
 class UContextualAnimManager;
 
@@ -41,3 +39,8 @@ private:
 	FDelegateHandle OnPreWorldInitDelegateHandle;
 	FDelegateHandle OnPostWorldCleanupDelegateHandle;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Modules/ModuleManager.h"
+#endif

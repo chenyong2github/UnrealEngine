@@ -4,19 +4,10 @@
 
 #include "ILiveLinkClient.h"
 
-#include "Algo/Transform.h"
-#include "HAL/CriticalSection.h"
-#include "ILiveLinkSource.h"
-#include "LiveLinkSourceSettings.h"
-#include "LiveLinkRefSkeleton.h"
-#include "LiveLinkTypes.h"
-#include "LiveLinkVirtualSubject.h"
-#include "LiveLinkProvider.h"
-#include "Misc/Optional.h"
-#include "Misc/QualifiedFrameTime.h"
-#include "Misc/Timecode.h"
-#include "Tickable.h"
-#include "UObject/GCObject.h"
+
+class ILiveLinkSubject;
+struct FPropertyChangedEvent;
+struct ILiveLinkProvider;
 
 class ULiveLinkPreset;
 class ULiveLinkSourceSettings;
@@ -302,3 +293,12 @@ private:
 	TOptional<FQualifiedFrameTime> CachedEngineFrameTime;
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ILiveLinkSource.h"
+#include "LiveLinkProvider.h"
+#include "LiveLinkSourceSettings.h"
+#include "LiveLinkVirtualSubject.h"
+#include "Tickable.h"
+#include "UObject/GCObject.h"
+#endif

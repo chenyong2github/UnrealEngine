@@ -150,13 +150,15 @@ protected:
 	PROPERTY_BINDING_IMPLEMENTATION(TArray<FMeterChannelInfo>, MeterChannelInfo);
 };
 
-namespace AudioWidgets
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Styling/SlateTypes.h"
 {
 	class AUDIOWIDGETS_API FAudioMeter
 	{
 	public:
 		FAudioMeter();
-
+#endif
 		UAudioBus* GetAudioBus() const;
 
 		TSharedRef<SAudioMeter> GetWidget() const;

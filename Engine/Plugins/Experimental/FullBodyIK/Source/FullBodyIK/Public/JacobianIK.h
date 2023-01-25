@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "FBIKConstraint.h"
+#include "Math/Quat.h"
 
 // Just to be sure, also added this in Eigen.Build.cs
 #ifndef EIGEN_MPL2_ONLY
@@ -23,6 +21,8 @@ PRAGMA_DEFAULT_VISIBILITY_END
 #if defined(_MSC_VER) && USING_CODE_ANALYSIS
 #pragma warning(pop)
 #endif
+
+struct FFBIKLinkData;
 
 namespace JacobianIK
 {
@@ -183,3 +183,9 @@ namespace JacobianIK
 		const FSolverParameter& SolverParam);
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "FBIKConstraint.h"
+#include "UObject/ObjectMacros.h"
+#endif

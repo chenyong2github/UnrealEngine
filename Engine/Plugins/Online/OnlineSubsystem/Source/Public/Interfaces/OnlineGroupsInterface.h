@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
+#include "Misc/DateTime.h"
 #include "OnlineSubsystemTypes.h"
 
 class Error;
@@ -855,3 +854,7 @@ public:
 };
 
 typedef TSharedPtr<IOnlineGroups, ESPMode::ThreadSafe> IOnlineGroupsPtr;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

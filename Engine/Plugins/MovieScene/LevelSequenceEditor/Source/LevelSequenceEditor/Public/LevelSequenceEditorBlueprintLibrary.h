@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "Misc/QualifiedFrameTime.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "MovieSceneSequencePlayer.h"
-#include "MovieSceneObjectBindingID.h"
-#include "MovieSceneBindingProxy.h"
 #include "LevelSequenceEditorBlueprintLibrary.generated.h"
+
+struct FMovieSceneBindingProxy;
+struct FMovieSceneObjectBindingID;
+struct FMovieSceneSequencePlaybackParams;
 
 class ISequencer;
 class ULevelSequence;
@@ -291,3 +291,10 @@ public:
 	 */
 	static void SetSequencer(TSharedRef<ISequencer> InSequencer);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Misc/QualifiedFrameTime.h"
+#include "MovieSceneBindingProxy.h"
+#include "MovieSceneObjectBindingID.h"
+#include "MovieSceneSequencePlayer.h"
+#endif

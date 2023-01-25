@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Toolkits/AssetEditorToolkit.h"
-#include "Misc/NotifyHook.h"
+
+class FSpawnTabArgs;
 
 class IDetailsView;
 class FToolBarBuilder;
@@ -68,3 +68,8 @@ private:
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Misc/NotifyHook.h"
+#endif

@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateStyle.h"
+#include "Templates/SharedPointer.h"
+
+class ISlateStyle;
 
 class FContextualAnimEditorStyle
 {
@@ -27,3 +28,8 @@ private:
 
 	static TSharedPtr< class FSlateStyleSet > StyleInstance;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Styling/SlateStyle.h"
+#endif

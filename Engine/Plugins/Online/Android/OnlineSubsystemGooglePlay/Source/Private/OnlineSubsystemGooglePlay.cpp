@@ -3,6 +3,7 @@
 //Google Play Services
 
 #include "OnlineSubsystemGooglePlay.h"
+#include "OnlineIdentityErrors.h"
 #include "OnlineIdentityInterfaceGooglePlay.h"
 #include "OnlineStoreGooglePlayCommon.h"
 #include "OnlineAchievementsInterfaceGooglePlay.h"

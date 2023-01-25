@@ -7,6 +7,8 @@
 
 #include "AnimGraphNode_LiveLinkPose.generated.h"
 
+namespace ENodeTitleType { enum Type : int; }
+
 
 
 UCLASS()

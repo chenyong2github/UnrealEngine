@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineError.h"
-#include "OnlineEventsInterface.h"
+#include "Delegates/Delegate.h"
+
+struct FOnlineError;
 
 class FUniqueNetId;
 
@@ -123,3 +123,9 @@ public:
 	 */
 	virtual void ItemLoadoutChange(const FUniqueNetId& LocalUserId, const TArray<FString>& EquippedItems, const TArray<FString>& UnequippedItems, FOnItemLoadoutChangeComplete CompletionDelegate) = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineError.h"
+#include "OnlineEventsInterface.h"
+#endif

@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Sound/SoundEffectSource.h"
-#include "UObject/ObjectMacros.h"
-#include "DSP/Dsp.h"
 #include "SourceEffectMidSideSpreader.generated.h"
 
 // Stereo channel mode
@@ -108,3 +105,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|Effects")
 	FSourceEffectMidSideSpreaderSettings Settings;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DSP/Dsp.h"
+#endif

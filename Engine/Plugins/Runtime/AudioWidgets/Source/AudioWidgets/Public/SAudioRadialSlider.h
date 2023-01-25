@@ -2,21 +2,17 @@
 
 #pragma once
 
-#include "AudioDefines.h"
 #include "AudioWidgetsSlateTypes.h"
 #include "Curves/CurveFloat.h"
 #include "Framework/SlateDelegates.h"
 #include "SAudioInputWidget.h"
-#include "SAudioTextBox.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateWidgetStyleAsset.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/SOverlay.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SEditableText.h"
-#include "Widgets/Layout/SWidgetSwitcher.h"
+
+class SAudioTextBox;
+class SImage;
+class SWidgetSwitcher;
 
 #include "SAudioRadialSlider.generated.h"
 
@@ -200,3 +196,13 @@ public:
 	const float GetOutputValue(const float InSliderValue);
 	const float GetSliderValue(const float OutputValue);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioDefines.h"
+#include "SAudioTextBox.h"
+#include "Styling/CoreStyle.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SEditableText.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/SOverlay.h"
+#endif

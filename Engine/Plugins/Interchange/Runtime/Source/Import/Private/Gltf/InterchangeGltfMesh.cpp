@@ -3,8 +3,10 @@
 #include "Gltf/InterchangeGltfPrivate.h"
 
 #include "GLTFAsset.h"
+#include "GLTFMaterial.h"
+#include "GLTFMesh.h"
 #include "GLTFMeshFactory.h"
-
+#include "GLTFNode.h"
 #include "StaticMeshAttributes.h"
 #include "SkeletalMeshAttributes.h"
 

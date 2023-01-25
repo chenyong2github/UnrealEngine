@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "MovieSceneVectorTrackExtensions.generated.h"

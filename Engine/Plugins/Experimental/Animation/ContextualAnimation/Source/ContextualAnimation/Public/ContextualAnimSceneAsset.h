@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Engine/DataAsset.h"
-#include "Templates/SubclassOf.h"
 #include "ContextualAnimTypes.h"
 #include "ContextualAnimSceneAsset.generated.h"
 

@@ -1,8 +1,7 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Annotations/SmartObjectSlotEntryAnnotation.h"
 #include "SmartObjectDefinition.h"
-#include "SmartObjectTypes.h"
 #include "SmartObjectVisualizationContext.h"
 #include "SceneManagement.h" // FPrimitiveDrawInterface
 

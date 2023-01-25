@@ -2,9 +2,14 @@
 
 #include "Gltf/InterchangeGltfTranslator.h"
 
+#include "GLTFAccessor.h"
+#include "GLTFAnimation.h"
 #include "GLTFAsset.h"
+#include "GLTFMesh.h"
 #include "GLTFMeshFactory.h"
+#include "GLTFNode.h"
 #include "GLTFReader.h"
+#include "GLTFTexture.h"
 
 #include "InterchangeAnimationTrackSetNode.h"
 #include "InterchangeCameraNode.h"

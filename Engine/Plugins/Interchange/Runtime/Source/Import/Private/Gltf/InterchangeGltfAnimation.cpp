@@ -3,10 +3,11 @@
 #include "Gltf/InterchangeGltfPrivate.h"
 
 #include "Animation/InterchangeAnimationPayload.h"
-#include "InterchangeImportLog.h"
-
+#include "GLTFAccessor.h"
+#include "GLTFAnimation.h"
 #include "GLTFAsset.h"
-
+#include "GLTFNode.h"
+#include "InterchangeImportLog.h"
 #include "Animation/AnimTypes.h"
 
 namespace UE::Interchange::Gltf::Private

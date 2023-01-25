@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Delegates/IDelegateInstance.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Sequencer/MovieSceneChaosCacheTrackRecorder.h"
+
+class FExtender;
+class FMenuBuilder;
+class FUICommandList;
+class IConsoleObject;
 
 class FAssetTypeActions_ChaosCacheCollection;
 
@@ -58,3 +59,8 @@ private:
 
 	FMovieSceneChaosCacheTrackRecorderFactory MovieSceneChaosCacheTrackRecorder;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
+#endif

@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Online/CoreOnlineFwd.h"
-#include "OnlineDelegateMacros.h"
-#include "OnlineStatsInterface.h"
+#include "OnlineKeyValuePair.h"
 
 struct FOnlineError;
 
@@ -408,3 +407,9 @@ public:
 	virtual void ProvideGameMatchFeedback(const FUniqueNetId& UserId, const FString& MatchId, const bool bReviewTeam, const FOnGameMatchFeedbackComplete& CompletionDelegate) {}
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineDelegateMacros.h"
+#include "OnlineStatsInterface.h"
+#endif

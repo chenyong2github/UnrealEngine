@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ActivityDependencyGraph.h"
 #include "ConcertMessageData.h"
+
+namespace UE::ConcertSyncCore { class FActivityDependencyGraph; }
 
 class FConcertSyncSessionDatabase;
 
@@ -55,3 +55,8 @@ namespace UE::ConcertSyncCore
 	CONCERTSYNCCORE_API FHistoryAnalysisResult AnalyseActivityDependencies_BottomUp(const TSet<FActivityID>& ActivitiesToEdit, const FActivityDependencyGraph& DependencyGraph, bool bAddEditedAsHardDependencies = false);
 }
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ActivityDependencyGraph.h"
+#include "CoreMinimal.h"
+#endif

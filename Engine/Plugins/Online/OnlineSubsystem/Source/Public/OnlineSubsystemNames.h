@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "UObject/NameTypes.h"
 
 
 #define OSS_PLATFORM_NAME_PS4		TEXT("PSN")
@@ -97,4 +97,8 @@ UE_DEPRECATED(5.2, "OnlineSubsystemOculus has been deprecated and will be remove
 
 #ifndef EOS_SUBSYSTEM
 #define EOS_SUBSYSTEM FName(TEXT("EOS"))
+#endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
 #endif

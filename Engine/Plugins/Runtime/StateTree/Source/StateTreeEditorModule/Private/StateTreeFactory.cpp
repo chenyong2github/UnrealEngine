@@ -4,6 +4,7 @@
 #include "StateTree.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "ClassViewerFilter.h"
+#include "StateTreeCompilerLog.h"
 #include "StateTreeEditorModule.h"
 #include "StateTreeNodeClassCache.h"
 #include "StateTreeEditorData.h"

@@ -2,6 +2,7 @@
 
 #pragma once
 #include "SocialInteractionMacros.h"
+#include "User/SocialUser.h"
 
 /**
  * Core set of user/friend interactions supported by the Social framework

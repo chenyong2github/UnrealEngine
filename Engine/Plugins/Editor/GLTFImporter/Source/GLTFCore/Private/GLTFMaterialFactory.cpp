@@ -2,14 +2,17 @@
 
 #include "GLTFMaterialFactory.h"
 
+// IWYU pragma: begin_keep
+#include "GLTFAnimation.h"
 #include "GLTFMapFactory.h"
 #include "GLTFMaterial.h"
 #include "GLTFMaterialExpressions.h"
-
 #include "GLTFAsset.h"
-
 #include "Engine/EngineTypes.h"
+#include "GLTFMesh.h"
+#include "GLTFNode.h"
 #include "GLTFTexture.h"
+// IWYU pragma: end_keep
 
 namespace GLTF
 {

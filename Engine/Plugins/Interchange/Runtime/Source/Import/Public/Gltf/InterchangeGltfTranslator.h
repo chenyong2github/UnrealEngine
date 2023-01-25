@@ -2,6 +2,7 @@
 #pragma once
 
 #include "GLTFAsset.h"
+#include "GLTFMaterial.h"
 #include "InterchangeTranslatorBase.h"
 #include "Animation/InterchangeAnimationPayloadInterface.h"
 #include "Mesh/InterchangeStaticMeshPayload.h"

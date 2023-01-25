@@ -4,18 +4,13 @@
 
 #include "EditorSubsystem.h"
 
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/Interface.h"
-#include "UObject/ObjectMacros.h"
-#include "EditorValidatorBase.h"
-#include "Engine/EngineTypes.h"
-#include "AssetRegistry/AssetData.h"
-#include "Logging/LogMacros.h"
 #include "DataValidationModule.h"
 
+#include "UObject/Package.h"
 #include "EditorValidatorSubsystem.generated.h"
+
+class UEditorValidatorBase;
+struct FDirectoryPath;
 
 struct FAssetData;
 class ISourceControlChangelist;
@@ -218,3 +213,11 @@ protected:
 
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AssetRegistry/AssetData.h"
+#include "EditorValidatorBase.h"
+#include "Engine/EngineTypes.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Interface.h"
+#endif

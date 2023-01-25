@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Templates/SharedPointer.h"
+#include "Internationalization/Internationalization.h"
 #include "OnlineErrorCode.h"
-#include "CoreMinimal.h"
 
 namespace UE::Online {
 
@@ -187,3 +186,7 @@ inline FString ToLogString(const FOnlineError& Error)
 } // namespace UE::Online
 
 #undef LOCTEXT_NAMESPACE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

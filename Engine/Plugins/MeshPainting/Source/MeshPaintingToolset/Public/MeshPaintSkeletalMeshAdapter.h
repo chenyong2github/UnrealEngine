@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RawIndexBuffer.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "BaseMeshPaintComponentAdapter.h"
 #include "MeshPaintComponentAdapterFactory.h"
@@ -84,3 +82,8 @@ public:
 	virtual void AddReferencedObjectsGlobals(FReferenceCollector& Collector) override { FMeshPaintSkeletalMeshComponentAdapter::AddReferencedObjectsGlobals(Collector); }
 	virtual void CleanupGlobals() override { FMeshPaintSkeletalMeshComponentAdapter::CleanupGlobals(); }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "RawIndexBuffer.h"
+#endif
