@@ -307,9 +307,9 @@ public:
 	/**
 	* Constructs property stack for the specified node
 	* InNode Property node to construct the stack for
-	* InObj Object instance that contains the property being modified
+	* InObj Optional Object instance that contains the property being modified (if not provided the root container pointer will be acquired from the provided node hierarchy)
 	*/
-	FPropertyNodeEditStack(const FPropertyNode* InNode, const UObject* InObj);
+	FPropertyNodeEditStack(const FPropertyNode* InNode, const UObject* InObj = nullptr);
 	FPropertyNodeEditStack() = default;
 	~FPropertyNodeEditStack();
 

@@ -776,17 +776,33 @@ void FPropertyNodeEditStack::InitializeInternal(const FPropertyNode* InNode, con
 	}
 	else
 	{
-		// Determine the root container object (UObject instance or sparse class data) for this property stack
+		const UObject* Object = InObj;
+		if (!Object)
+		{
+			UObject* NodeObject = nullptr;
+			FPropertyAccess::Result Result = InNode->GetSingleObject(NodeObject);
+			Object = NodeObject;
+			checkf(Result == FPropertyAccess::Success, TEXT("Unable to get object for property %s"), *GetNameSafe(Property));
+		}
+
+		// Determine the root container address (Struct address, UObject instance or sparse class data) for this property stack
 		uint8* Container = nullptr;
 		if (InNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData))
 		{
-			Container = (uint8*)InObj->GetClass()->GetOrCreateSparseClassData();
+			checkf(Object != nullptr, TEXT("No object pointer for property %s"), *GetNameSafe(Property));
+			Container = (uint8*)Object->GetClass()->GetOrCreateSparseClassData();
+		}
+		else if (Object)
+		{
+			Container = (uint8*)Object;
 		}
 		else
 		{
-			Container = (uint8*)InObj;
+			FPropertyAccess::Result Result = InNode->GetSingleReadAddress(Container);
+			checkf(Result == FPropertyAccess::Success, TEXT("Unable to get read address for property %s"), *GetNameSafe(Property));
 		}
-		MemoryStack.Add(FMemoryFrame(nullptr, (uint8*)Container));
+		checkf(Container, TEXT("Container pointer can't be null. Creating edit stack for property %s"), *GetNameSafe(Property));
+		MemoryStack.Add(FMemoryFrame(nullptr, Container));
 		
 		// Get the direct memory pointer for the root property
 		if (Property->HasSetterOrGetter())
