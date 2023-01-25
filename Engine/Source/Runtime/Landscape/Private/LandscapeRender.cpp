@@ -2527,7 +2527,7 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 				const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 				const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(((FSceneInterface*)Context.Scene)->GetFeatureLevel(), FallbackMaterialRenderProxyPtr);
 
-				if (Material.HasVertexPositionOffsetConnected())
+				if (Material.GetRenderingThreadShaderMap()->UsesWorldPositionOffset())
 				{
 					const FMaterialRenderProxy* MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? FallbackMaterialRenderProxyPtr : MeshBatch.MaterialRenderProxy;
 
