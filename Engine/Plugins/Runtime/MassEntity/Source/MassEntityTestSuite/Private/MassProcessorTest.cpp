@@ -19,12 +19,9 @@ int32 SimpleProcessorRun(FMassEntityManager& EntityManager)
 {
 	int32 EntityProcessedCount = 0;
 	TProcessor* Processor = NewObject<TProcessor>();
-	Processor->ExecutionFunction = [Processor, &EntityProcessedCount](FMassEntityManager& InEntitySubsystem, FMassExecutionContext& Context) {
-		check(Processor);
-		Processor->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [Processor, &EntityProcessedCount](FMassExecutionContext& Context)
-			{
-				EntityProcessedCount += Context.GetNumEntities();
-			});
+	Processor->ForEachEntityChunkExecutionFunction = [&EntityProcessedCount](FMassExecutionContext& Context) 
+	{
+		EntityProcessedCount += Context.GetNumEntities();
 	};
 
 	FMassProcessingContext ProcessingContext(EntityManager, /*DeltaSeconds=*/0.f);

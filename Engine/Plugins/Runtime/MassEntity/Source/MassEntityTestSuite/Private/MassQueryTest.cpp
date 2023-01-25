@@ -33,7 +33,7 @@ struct FQueryTest_ProcessorRequirements : FEntityTestBase
 		CA_ASSUME(EntityManager);
 
 		UMassTestProcessor_Floats* Processor = NewObject<UMassTestProcessor_Floats>();
-		TConstArrayView<FMassFragmentRequirementDescription> Requirements = Processor->TestGetQuery().GetFragmentRequirements();
+		TConstArrayView<FMassFragmentRequirementDescription> Requirements = Processor->EntityQuery.GetFragmentRequirements();
 		
 		AITEST_TRUE("Query should have extracted some requirements from the given Processor", Requirements.Num() > 0);
 		AITEST_TRUE("There should be exactly one requirement", Requirements.Num() == 1);
@@ -75,19 +75,13 @@ struct FQueryTest_FragmentViewBinding : FEntityTestBase
 		AITEST_TRUE("Initial value of the fragment should match expectations", TestedFragment.Value == 0.f);
 
 		UMassTestProcessor_Floats* Processor = NewObject<UMassTestProcessor_Floats>();
-		Processor->ExecutionFunction = [Processor](FMassEntityManager& InEntitySubsystem, FMassExecutionContext& Context) {
-			check(Processor);
-			//FMassEntityQuery Query(*Processor);
-
-			Processor->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [](FMassExecutionContext& Context)
-				{
-					TArrayView<FTestFragment_Float> Floats = Context.GetMutableFragmentView<FTestFragment_Float>();
-
-					for (int32 i = 0; i < Context.GetNumEntities(); ++i)
-					{
-						Floats[i].Value = 13.f;
-					}
-				});
+		Processor->ForEachEntityChunkExecutionFunction = [](FMassExecutionContext& Context) 
+		{
+			TArrayView<FTestFragment_Float> Floats = Context.GetMutableFragmentView<FTestFragment_Float>();
+			for (int32 i = 0; i < Context.GetNumEntities(); ++i)
+			{
+				Floats[i].Value = 13.f;
+			}
 		};
 
 		FMassProcessingContext ProcessingContext(*EntityManager, /*DeltaSeconds=*/0.f);
@@ -542,6 +536,55 @@ struct FQueryTest_AnyTag : FEntityTestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FQueryTest_AnyTag, "System.Mass.Query.AnyTag");
+
+
+struct FQueryTest_AutoRecache : FEntityTestBase
+{
+	virtual bool InstantTest() override
+	{
+		CA_ASSUME(EntityManager);
+
+		FMassEntityQuery Query;
+		// at least one fragment requirement needs to be present for the query to be valid
+		Query.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadOnly);
+		
+		int32 EntitiesFound = 0;
+		const FMassExecuteFunction QueryExecFunction = [&EntitiesFound](FMassExecutionContext& Context)
+		{
+			EntitiesFound += Context.GetNumEntities();
+		};
+		
+		FMassExecutionContext ExecutionContext(*EntityManager, /*DeltaSeconds=*/0.f);
+		Query.ForEachEntityChunk(*EntityManager, ExecutionContext, QueryExecFunction);
+		
+		AITEST_EQUAL("No entities have been created so we expect counting to yield 0", EntitiesFound, 0);
+
+		constexpr int32 NumberOfEntitiesMatching = 17;
+		TArray<FMassEntityHandle> MatchingEntities;
+		EntityManager->BatchCreateEntities(IntsArchetype, NumberOfEntitiesMatching, MatchingEntities);
+
+		EntitiesFound = 0;
+		Query.ForEachEntityChunk(*EntityManager, ExecutionContext, QueryExecFunction);
+		AITEST_EQUAL("The number of entities found should match the number of entities created in the matching archetype", EntitiesFound, MatchingEntities.Num());
+
+		// create more entities, but in an archetype not matching the query
+		constexpr int32 NumberOfEntitiesNotMatching = 13;
+		TArray<FMassEntityHandle> NotMatchingEntities;
+		EntityManager->BatchCreateEntities(FloatsArchetype, NumberOfEntitiesNotMatching, NotMatchingEntities);
+		EntitiesFound = 0;
+		Query.ForEachEntityChunk(*EntityManager, ExecutionContext, QueryExecFunction);
+		AITEST_EQUAL("The number of entities found should not change with addition of entities not matching the query", EntitiesFound, MatchingEntities.Num());
+
+		// create some more in another matching archetype
+		EntityManager->BatchCreateEntities(FloatsIntsArchetype, NumberOfEntitiesMatching, MatchingEntities);
+		EntitiesFound = 0;
+		Query.ForEachEntityChunk(*EntityManager, ExecutionContext, QueryExecFunction);
+		AITEST_EQUAL("The total number of entities found should include entities from both matching archetypes", EntitiesFound, MatchingEntities.Num());
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_AutoRecache, "System.Mass.Query.AutoReCaching");
 
 } // FMassQueryTest
 

@@ -25,7 +25,7 @@ struct FDynamicProcessorsAddTrivial : FProcessingPhasesTestBase
 	UMassTestProcessorBase* DynamicProcessor = nullptr;
 	TWeakObjectPtr<UMassTestProcessorBase> WeakDynamicProcessor;
 
-	virtual bool PopulatePhasesConfig()
+	virtual bool PopulatePhasesConfig() override
 	{
 		// there are going to be no processors initially
 		return true;
@@ -39,7 +39,7 @@ struct FDynamicProcessorsAddTrivial : FProcessingPhasesTestBase
 		{
 			// on second tick we're adding a dynamic processor
 			DynamicProcessor = NewObject<UMassTestProcessorBase>(World);
-			DynamicProcessor->ExecutionFunction = [this](FMassEntityManager& InEntitySubsystem, FMassExecutionContext& Context)
+			DynamicProcessor->ExecutionFunction = [this](FMassEntityManager& InEntityManager, FMassExecutionContext& Context)
 			{
 				++NumberOfTimesTicked;
 			};
@@ -149,6 +149,63 @@ struct FDynamicProcessorsRemoveGCShield : FDynamicProcessorsRemoveTrivial
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FDynamicProcessorsRemoveGCShield, "System.Mass.ProcessingPhases.DynamicProcessors.RemoveGCShield");
+
+
+struct FDynamicProcessorMultipleInstances : FProcessingPhasesTestBase
+{
+	using Super = FProcessingPhasesTestBase;
+	int32 AllowedTicksCount = 2;
+	int32 AddDynamicProcessorOnTickIndex = 1;
+	int32 NumberOfProcessorsToInstantiate = 3;
+	// using atomic here since due to how the dynamic processors are being configured for this test will execute 
+	// in parallel so the accumulation needs to be thread-safe
+	std::atomic<int32> AccumulatedValue = 0;
+	int32 ExpectedAccumulatedValue = 0;
+
+	virtual bool PopulatePhasesConfig() override
+	{
+		// there are going to be no processors initially
+		return true;
+	}
+
+	virtual bool Update() override
+	{
+		Super::Update();
+
+		if (TickIndex == 1)
+		{
+			// if we Register the processor at this point we risk that the change will be picked up during the tick we just 
+			// triggered via the Super::Update() call. We need to wait for those to ticks to be processed before we can continue
+			if (CompletionEvent)
+			{
+				CompletionEvent->Wait();
+			}
+
+			for (int i = 0; i < NumberOfProcessorsToInstantiate; ++i)
+			{
+				UMassTestProcessorBase* DynamicProcessor = NewObject<UMassTestProcessorBase>(World);
+				DynamicProcessor->SetShouldAllowMultipleInstances(true);
+				DynamicProcessor->ExecutionFunction = [this, i](FMassEntityManager& InEntityManager, FMassExecutionContext& Context)
+				{
+					AccumulatedValue += (i + 1);
+				};
+				ExpectedAccumulatedValue += (i + 1);
+
+				PhaseManager->RegisterDynamicProcessor(*DynamicProcessor);
+			}
+			ExpectedAccumulatedValue *= AllowedTicksCount;
+		}
+
+		return TickIndex >= AllowedTicksCount + AddDynamicProcessorOnTickIndex;
+	}
+
+	virtual void VerifyLatentResults() override
+	{
+		Super::VerifyLatentResults();
+		AITEST_EQUAL_LATENT("Expecting the accumulated value to match the prediction", AccumulatedValue.load(), ExpectedAccumulatedValue);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FDynamicProcessorMultipleInstances, "System.Mass.ProcessingPhases.DynamicProcessors.MultipleInstances");
 
 } // FMassDynamicProcessorsTest
 

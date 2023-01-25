@@ -114,24 +114,28 @@ class MASSENTITYTESTSUITE_API UMassTestProcessorBase : public UMassProcessor
 public:
 	UMassTestProcessorBase();
 	FMassProcessorExecutionOrder& GetMutableExecutionOrder() { return ExecutionOrder; }
-	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override 
-	{
-		ExecutionFunction(EntityManager, Context);
-	}
-	virtual void ConfigureQueries() override
-	{
-		RequirementsFunction(EntityQuery);
-	}
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
 	virtual bool ShouldAllowQueryBasedPruning(const bool bRuntimeMode = true) const { return false; }
+	/** 
+	 * ConfigureQueries is called in PostInitProperties, so there's no point in calling anything here, 
+	 * since the EntityQuery configuration will take place after a processor instance gets created
+	 * (so after PostInitProperties has already been called). Use EntityQuery directly instead. 
+	 */
+	virtual void ConfigureQueries() override {}
 
-	TFunction<void(FMassEntityManager& EntityManager, FMassExecutionContext& Context)> ExecutionFunction;
-	TFunction<void(FMassEntityQuery& Query)> RequirementsFunction;
+	using FExecutionFunction = TFunction<void(FMassEntityManager& EntityManager, FMassExecutionContext& Context)>;
+	FExecutionFunction ExecutionFunction;
 
-	FMassEntityQuery& TestGetQuery() { return EntityQuery; }
+	/** 
+	 * By default ExecutionFunction is configured to pass this function over to EntityQuery.ForEachEntityChunk call. 
+	 * Note that this function won't be used if you override ExecutionFunction's default value.
+	 */
+	FMassExecuteFunction ForEachEntityChunkExecutionFunction;
+
 
 	void SetShouldAllowMultipleInstances(const bool bInShouldAllowDuplicated) { bAllowMultipleInstances = bInShouldAllowDuplicated; }
 
-protected:
+	/** public on purpose, this is a test processor, no worries about access*/
 	FMassEntityQuery EntityQuery;
 };
 

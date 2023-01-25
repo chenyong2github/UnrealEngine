@@ -53,33 +53,32 @@ UMassTestProcessorBase::UMassTestProcessorBase()
 	bAutoRegisterWithProcessingPhases = false;
 	ExecutionFlags = int32(EProcessorExecutionFlags::All);
 
-	ExecutionFunction = [](FMassEntityManager& InEntitySubsystem, FMassExecutionContext& Context) {};
-	RequirementsFunction = [](FMassEntityQuery& Query){};
+	ForEachEntityChunkExecutionFunction = [](FMassExecutionContext& Context) {};
+	ExecutionFunction = [this](FMassEntityManager& InEntitySubsystem, FMassExecutionContext& Context) 
+	{
+		EntityQuery.ForEachEntityChunk(InEntitySubsystem, Context, ForEachEntityChunkExecutionFunction);
+	};
+}
+
+void UMassTestProcessorBase::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
+{
+	ExecutionFunction(EntityManager, Context);
 }
 
 UMassTestProcessor_Floats::UMassTestProcessor_Floats()
 {
-	RequirementsFunction = [this](FMassEntityQuery& Query)
-	{
-		EntityQuery.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite);
-	};
+	EntityQuery.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite);
 }
 
 UMassTestProcessor_Ints::UMassTestProcessor_Ints()
 {
-	RequirementsFunction = [this](FMassEntityQuery& Query)
-	{
-		EntityQuery.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite);
-	};
+	EntityQuery.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite);
 }
 
 UMassTestProcessor_FloatsInts::UMassTestProcessor_FloatsInts()
 {
-	RequirementsFunction = [this](FMassEntityQuery& Query)
-	{
-		EntityQuery.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite);
-		EntityQuery.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite);
-	};
+	EntityQuery.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite);
 }
 
  int UMassTestStaticCounterProcessor::StaticCounter = 0;

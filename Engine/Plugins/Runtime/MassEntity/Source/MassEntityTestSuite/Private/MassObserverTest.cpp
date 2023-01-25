@@ -38,14 +38,11 @@ struct FTagBaseOperation : FEntityTestBase
 		if (FEntityTestBase::SetUp())
 		{
 			TagObserver = NewObject<UMassTestProcessorBase>();
-			TagObserver->TestGetQuery().AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadOnly);
-			TagObserver->TestGetQuery().AddTagRequirement<FTestTag_A>(EMassFragmentPresence::All);
-			TagObserver->ExecutionFunction = [this](FMassEntityManager& InEntitySubsystem, FMassExecutionContext& Context)
+			TagObserver->EntityQuery.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadOnly);
+			TagObserver->EntityQuery.AddTagRequirement<FTestTag_A>(EMassFragmentPresence::All);
+			TagObserver->ForEachEntityChunkExecutionFunction = [this](FMassExecutionContext& Context)
 			{
-				TagObserver->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [this](FMassExecutionContext& Context)
-					{
-						AffectedEntities.Append(Context.GetEntities().GetData(), Context.GetEntities().Num());
-					});
+				AffectedEntities.Append(Context.GetEntities().GetData(), Context.GetEntities().Num());
 			};
 
 			return true;
