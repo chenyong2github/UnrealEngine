@@ -3,6 +3,7 @@
 #include "RHICommandList.h"
 #include "Misc/App.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Containers/ConsumeAllMpmcQueue.h"
 #include "RHI.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
@@ -1133,6 +1134,9 @@ void FRHICommandListExecutor::WaitOnRHIThreadFence(FGraphEventRef& Fence)
 
 DECLARE_CYCLE_STAT(TEXT("Delete Resources"), STAT_DeleteResources, STATGROUP_RHICMDLIST);
 
+extern UE::TConsumeAllMpmcQueue<FRHIResource*> PendingDeletes;
+extern UE::TConsumeAllMpmcQueue<FRHIResource*> PendingDeletesWithLifetimeExtension;
+
 int32 FRHICommandListImmediate::FlushPendingDeletes()
 {
 	SCOPE_CYCLE_COUNTER(STAT_DeleteResources);
@@ -1144,12 +1148,12 @@ int32 FRHICommandListImmediate::FlushPendingDeletes()
 		? PersistentState.ExtendedLifetimeResources 
 		: DeletedResources;
 
-	FRHIResource::PendingDeletesWithLifetimeExtension.ConsumeAllLifo([&DeletedResourcesWithLifetimeExtension](FRHIResource* Resource)
+	PendingDeletesWithLifetimeExtension.ConsumeAllLifo([&DeletedResourcesWithLifetimeExtension](FRHIResource* Resource)
 	{
 		DeletedResourcesWithLifetimeExtension.Emplace(Resource);
 	});
 
-	FRHIResource::PendingDeletes.ConsumeAllLifo([&DeletedResources](FRHIResource* Resource)
+	PendingDeletes.ConsumeAllLifo([&DeletedResources](FRHIResource* Resource)
 	{
 		DeletedResources.Push(Resource);
 	});

@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RHIResources.h"
-#include "Containers/ClosableMpscQueue.h"
+#include "Containers/ConsumeAllMpmcQueue.h"
 #include "RHI.h"
 #include "Experimental/Containers/HazardPointer.h"
 #include "Misc/MemStack.h"
 #include "Stats/Stats.h"
 #include "TextureProfiler.h"
 
-static UE::TConsumeAllMpmcQueue<FRHIResource*> PendingDeletes;
-static UE::TConsumeAllMpmcQueue<FRHIResource*> PendingDeletesWithLifetimeExtension;
+UE::TConsumeAllMpmcQueue<FRHIResource*> PendingDeletes;
+UE::TConsumeAllMpmcQueue<FRHIResource*> PendingDeletesWithLifetimeExtension;
 
 FRHIResource* FRHIResource::CurrentlyDeleting = nullptr;
 
