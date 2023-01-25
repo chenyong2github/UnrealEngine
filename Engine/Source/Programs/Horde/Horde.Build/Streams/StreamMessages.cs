@@ -395,6 +395,7 @@ namespace Horde.Build.Streams
 			Id = stream.Id.ToString();
 			ProjectId = stream.Config.ProjectConfig.Id.ToString();
 			Name = stream.Config.Name;
+			ConfigPath = stream.Config.Path ?? String.Empty;
 			ConfigRevision = stream.Config.Revision;
 			Order = stream.Config.Order;
 			NotificationChannel = stream.Config.NotificationChannel;
