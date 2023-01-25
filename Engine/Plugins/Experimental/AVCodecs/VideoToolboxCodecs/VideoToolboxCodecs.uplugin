@@ -1,0 +1,28 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1",
+	"FriendlyName": "VideoToolboxCodecs",
+	"Description": "Adds codecs from the Apple Video Toolbox to AVCodecs",
+	"Category": "Codecs",
+	"CreatedBy": "Epic Games, Inc.",
+	"CreatedByURL": "http://epicgames.com",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EnabledByDefault": false,
+	"CanContainContent": false,
+	"IsExperimentalVersion": true,
+	"Installed": true,
+	"Hidden": true,
+	"Modules": [ ],
+	"Plugins": [
+		{
+			"Name": "AVCodecsCore",
+			"Enabled": true
+		}
+	],
+	"SupportedTargetPlatforms": [
+		"Mac",
+		"IOS"
+	]
+}
