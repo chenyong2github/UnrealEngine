@@ -640,11 +640,11 @@ void FFrame::KismetExecutionMessage(const TCHAR* Message, ELogVerbosity::Type Ve
 	{
 #if DO_BLUEPRINT_GUARD
 		if (Verbosity <= ELogVerbosity::Error || ShowKismetScriptStackOnWarnings())
-		{
-			ScriptStack = TEXT("Script call stack:\n");
-			GetScriptCallstack(ScriptStack);
+	{
+		ScriptStack = TEXT("Script call stack:\n");
+		GetScriptCallstack(ScriptStack);
 			return;
-		}
+	}
 #endif
 
 		if (const FFrame* CurrentFrame = GetThreadLocalTopStackFrame())
