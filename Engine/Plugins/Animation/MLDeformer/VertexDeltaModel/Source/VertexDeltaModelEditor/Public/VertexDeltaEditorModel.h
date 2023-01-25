@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "MLDeformerGeomCacheEditorModel.h"
 
+class UNeuralNetwork;
+class UVertexDeltaModel;
+
 namespace UE::VertexDeltaModel
 {
 	using namespace UE::MLDeformer;
@@ -25,6 +28,12 @@ namespace UE::VertexDeltaModel
 	
 		// FMLDeformerEditorModel overrides.
 		virtual ETrainingResult Train() override;
+		virtual bool LoadTrainedNetwork() const override;
+		virtual bool IsTrained() const override;
+		virtual FString GetHeatMapDeformerGraphPath() const override;
 		// ~END FMLDeformerEditorModel overrides.
+
+		UNeuralNetwork* LoadNeuralNetworkFromOnnx(const FString& Filename) const;
+		UVertexDeltaModel* GetVertexDeltaModel() const;
 	};
 }	// namespace UE::VertexDeltaModel

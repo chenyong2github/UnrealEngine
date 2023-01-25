@@ -10,7 +10,6 @@
 #include "BoneContainer.h"
 #include "RenderCommandFence.h"
 #include "RenderResource.h"
-#include "NeuralNetwork.h"
 #include "Animation/AnimSequence.h"
 #include "MLDeformerCurveReference.h"
 #include "MLDeformerModel.generated.h"
@@ -20,6 +19,7 @@ class UMLDeformerVizSettings;
 class UMLDeformerModelInstance;
 class UMLDeformerComponent;
 class UMLDeformerInputInfo;
+class UNeuralNetwork;
 
 /** The channel to get the mask data from. */
 UENUM()
@@ -186,6 +186,12 @@ public:
 	 */
 	void SetSkeletalMesh(USkeletalMesh* SkelMesh)			{ SkeletalMesh = SkelMesh; }
 
+	UE_DEPRECATED(5.2, "This method will be deleted. We are moving neural networks into the derived models instead. This method will not do anything.")
+	virtual void SetNeuralNetwork(UNeuralNetwork* InNeuralNetwork) {}
+
+	UE_DEPRECATED(5.2, "This method will be deleted. We are moving neural networks into the derived models instead. A nullptr will be returned.")
+	UNeuralNetwork* GetNeuralNetwork() const				{ return nullptr; }
+
 #if WITH_EDITORONLY_DATA
 	/**
 	 * Check whether this model currently has a training mesh setup or not.
@@ -314,19 +320,6 @@ public:
 	 * @see GetVertexMap
 	 */
 	const UE::MLDeformer::FVertexMapBuffer& GetVertexMapBuffer() const { return VertexMapBuffer; }
-
-	/**
-	 * Get the neural network that we have trained. This can return a nullptr when no network has been trained yet.
-	 * This network is used during inference.
-	 * @return A pointer to the neural network, or nullptr when the network has not yet been trained.
-	 */
-	UNeuralNetwork* GetNeuralNetwork() const					{ return NeuralNetwork.Get(); }
-
-	/**
-	 * Set the neural network object that we use during inference.
-	 * @param InNeuralNetwork The new neural network to use inside this deformer model.
-	 */
-	virtual void SetNeuralNetwork(UNeuralNetwork* InNeuralNetwork);
 
 	/**
 	 * Get the neural network modified delegate.
@@ -593,10 +586,6 @@ private:
 	/** This is an index per vertex in the mesh, indicating the imported vertex number from the source asset. */
 	UPROPERTY()
 	TArray<int32> VertexMap;
-
-	/** The neural network that is used during inference. */
-	UPROPERTY()
-	TObjectPtr<UNeuralNetwork> NeuralNetwork = nullptr;
 
 	/** The skeletal mesh that represents the linear skinned mesh. */
 	UPROPERTY(EditAnywhere, Category = "Base Mesh")

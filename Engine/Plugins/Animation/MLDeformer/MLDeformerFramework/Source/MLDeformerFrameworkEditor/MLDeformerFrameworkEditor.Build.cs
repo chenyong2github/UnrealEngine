@@ -45,7 +45,6 @@ namespace UnrealBuildTool.Rules
 					"GeometryCache",
 					"SequencerWidgets",
 					"TimeManagement",
-					"NeuralNetworkInference",
 					"RenderCore",
 					"RHI"
 				}

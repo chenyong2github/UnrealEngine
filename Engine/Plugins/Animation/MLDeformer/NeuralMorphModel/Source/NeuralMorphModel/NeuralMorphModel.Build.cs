@@ -38,7 +38,6 @@ public class NeuralMorphModel : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"GeometryCache",
-				"NeuralNetworkInference",
 				"OptimusCore",
 				"Projects",
 				"RenderCore",

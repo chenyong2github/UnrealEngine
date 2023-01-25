@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "0.1",
+	"VersionName": "0.2",
 	"FriendlyName": "ML Deformer Nearest Neighbor Model",
 	"Description": "Nearest Neighbor Model for the ML Deformer Framework",
 	"Category": "Animation",

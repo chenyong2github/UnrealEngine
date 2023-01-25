@@ -55,14 +55,6 @@ namespace UE::NeuralMorphModel
 
 	bool FNeuralMorphEditorModel::IsTrained() const
 	{
-#if NEURALMORPHMODEL_FORCE_USE_NNI
-		return GetMorphModel()->GetNeuralNetwork() != nullptr;
-#else
-		if (GetMorphModel()->GetNeuralNetwork() != nullptr)
-		{
-			return true;
-		}
-
 		UNeuralMorphNetwork* MorphNetwork = GetNeuralMorphModel()->GetNeuralMorphNetwork();
 		if (MorphNetwork != nullptr && MorphNetwork->GetMainMLP() != nullptr)
 		{
@@ -70,7 +62,6 @@ namespace UE::NeuralMorphModel
 		}
 
 		return false;
-#endif
 	}
 
 	ETrainingResult FNeuralMorphEditorModel::Train()
@@ -80,14 +71,6 @@ namespace UE::NeuralMorphModel
 
 	bool FNeuralMorphEditorModel::LoadTrainedNetwork() const
 	{
-#if NEURALMORPHMODEL_FORCE_USE_NNI
-		const bool bSuccess = FMLDeformerMorphModelEditorModel::LoadTrainedNetwork();
-		if (bSuccess)
-		{
-			GetNeuralMorphModel()->SetNeuralMorphNetwork(nullptr);	// Force disable custom inference.
-		}
-		return bSuccess;
-#else
 		// Load the specialized neural morph model network.
 		// Base the filename on the onnx filename, and replace the file extension.
 		FString NetworkFilename = GetTrainedNetworkOnnxFile();
@@ -112,9 +95,7 @@ namespace UE::NeuralMorphModel
 			NeuralNet = nullptr;
 		}
 
-		GetNeuralMorphModel()->SetNeuralNetwork(nullptr);			// Disable NNI inference.
 		GetNeuralMorphModel()->SetNeuralMorphNetwork(NeuralNet);	// Use our custom inference.
-#endif
 		return true;
 	}
 

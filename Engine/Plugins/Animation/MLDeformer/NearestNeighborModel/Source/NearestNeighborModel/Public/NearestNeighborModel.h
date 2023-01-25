@@ -33,7 +33,7 @@ namespace UE::NearestNeighborModel
 	private:
 		void InitRHI() override;
 
-		TArray<T> *Array = nullptr;
+		TArray<T>* Array = nullptr;
 		FString DebugName;
 	};
 
@@ -244,6 +244,9 @@ public:
 	void SetOptimizedNetwork(UNearestNeighborOptimizedNetwork* InOptimizedNetwork);
 	bool LoadOptimizedNetwork(const FString& OnnxPath);
 
+	UNeuralNetwork* GetNNINetwork() const;
+	void SetNNINetwork(UNeuralNetwork* InNeuralNetwork);
+
 #if WITH_EDITORONLY_DATA
 	TObjectPtr<UAnimSequence> GetNearestNeighborSkeletons(int32 PartId);
 	const TObjectPtr<UAnimSequence> GetNearestNeighborSkeletons(int32 PartId) const;
@@ -423,4 +426,8 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UNearestNeighborOptimizedNetwork> OptimizedNetwork = nullptr;
+
+	/** The NNI neural network. */
+	UPROPERTY()
+	TObjectPtr<UNeuralNetwork> NNINetwork;
 };

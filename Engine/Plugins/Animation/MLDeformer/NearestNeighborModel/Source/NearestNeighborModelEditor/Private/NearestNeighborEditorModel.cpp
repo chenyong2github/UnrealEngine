@@ -90,6 +90,36 @@ namespace UE::NearestNeighborModel
 		}
 	}
 
+	UNeuralNetwork* FNearestNeighborEditorModel::LoadNeuralNetworkFromOnnx(const FString& Filename) const
+	{
+		const FString OnnxFile = FPaths::ConvertRelativePathToFull(Filename);
+		if (FPaths::FileExists(OnnxFile))
+		{
+			UE_LOG(LogNearestNeighborModel, Display, TEXT("Loading Onnx file '%s'..."), *OnnxFile);
+			UNeuralNetwork* Result = NewObject<UNeuralNetwork>(Model, UNeuralNetwork::StaticClass());		
+			if (Result->Load(OnnxFile))
+			{
+				Result->SetDeviceType(ENeuralDeviceType::GPU, ENeuralDeviceType::CPU, ENeuralDeviceType::GPU);	
+				if (Result->GetDeviceType() != ENeuralDeviceType::GPU || Result->GetOutputDeviceType() != ENeuralDeviceType::GPU || Result->GetInputDeviceType() != ENeuralDeviceType::CPU)
+				{
+					UE_LOG(LogNearestNeighborModel, Error, TEXT("Neural net in ML Deformer '%s' cannot run on the GPU, it will not be active."), *Model->GetDeformerAsset()->GetName());
+				}
+				UE_LOG(LogNearestNeighborModel, Display, TEXT("Successfully loaded Onnx file '%s'..."), *OnnxFile);
+				return Result;
+			}
+			else
+			{
+				UE_LOG(LogNearestNeighborModel, Error, TEXT("Failed to load Onnx file '%s'"), *OnnxFile);
+			}
+		}
+		else
+		{
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("Onnx file '%s' does not exist!"), *OnnxFile);
+		}
+
+		return nullptr;
+	}
+
 	bool FNearestNeighborEditorModel::LoadTrainedNetwork() const
 	{
 		UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
@@ -101,7 +131,7 @@ namespace UE::NearestNeighborModel
 			{
 				if (NearestNeighborModel->DoesUseOptimizedNetwork())
 				{
-					Model->SetNeuralNetwork(Network);
+					NearestNeighborModel->SetNNINetwork(Network);
 					const bool bSuccess = NearestNeighborModel->LoadOptimizedNetwork(OnnxFile);
 					if (bSuccess)
 					{
@@ -115,7 +145,7 @@ namespace UE::NearestNeighborModel
 				}
 				else
 				{
-					Model->SetNeuralNetwork(Network);
+					NearestNeighborModel->SetNNINetwork(Network);
 					return true;
 				}
 			}
@@ -132,7 +162,7 @@ namespace UE::NearestNeighborModel
 		const UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
 		if (NearestNeighborModel)
 		{
-			return NearestNeighborModel->DoesUseOptimizedNetwork() ? NearestNeighborModel->GetOptimizedNetwork() != nullptr : NearestNeighborModel->GetNeuralNetwork() != nullptr;
+			return NearestNeighborModel->DoesUseOptimizedNetwork() ? NearestNeighborModel->GetOptimizedNetwork() != nullptr : NearestNeighborModel->GetNNINetwork() != nullptr;
 		}
 		return false;
 	}
@@ -414,7 +444,7 @@ namespace UE::NearestNeighborModel
 			return EUpdateResult::SUCCESS;
 		}
 
-		const UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
+		const UNeuralNetwork* NeuralNetwork = NearestNeighborModel->GetNNINetwork();
 		if(NeuralNetwork && NeuralNetwork->IsLoaded())
 		{
 			const FString SavePath = GetTrainedNetworkOnnxFile();
@@ -505,10 +535,10 @@ namespace UE::NearestNeighborModel
 	void FNearestNeighborEditorModel::KMeansClusterPoses()
 	{
 		KMeansClusterResult = EUpdateResult::SUCCESS;
-		UNearestNeighborModel *NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
+		UNearestNeighborModel* NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
 		check(NearestNeighborModel != nullptr);
 
-		const UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
+		const UNeuralNetwork* NeuralNetwork = NearestNeighborModel->GetNNINetwork();
 		if(NeuralNetwork && NeuralNetwork->IsLoaded())
 		{
 			const FString SavePath = GetTrainedNetworkOnnxFile();
@@ -685,7 +715,7 @@ namespace UE::NearestNeighborModel
 
 		UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
 		// Convert NNI network to  optimized network
-		const UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
+		const UNeuralNetwork* NeuralNetwork = NearestNeighborModel->GetNNINetwork();
 		if (NearestNeighborModel->DoesUseOptimizedNetwork() && NeuralNetwork != nullptr && NearestNeighborModel->GetOptimizedNetwork() == nullptr)
 		{
 			const FString SavePath = GetTrainedNetworkOnnxFile();
@@ -879,7 +909,7 @@ namespace UE::NearestNeighborModel
 		}
 		else
 		{
-			const UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
+			const UNeuralNetwork* NeuralNetwork = NearestNeighborModel->GetNNINetwork();
 			const UMLDeformerComponent* MLDeformerComponent = GetTestMLDeformerComponent();
 			if(NeuralNetwork && NeuralNetwork->IsLoaded() && MLDeformerComponent && MLDeformerComponent->GetModelInstance())
 			{
@@ -901,7 +931,7 @@ namespace UE::NearestNeighborModel
 	bool FNearestNeighborEditorModel::IsNeuralNetworkLoaded()
 	{
 		const UNearestNeighborModel *NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
-		const UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
+		const UNeuralNetwork* NeuralNetwork = NearestNeighborModel->GetNNINetwork();
 		return NeuralNetwork && NeuralNetwork->IsLoaded();
 	}
 

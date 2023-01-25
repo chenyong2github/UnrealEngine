@@ -34,7 +34,6 @@
 #include "GeometryCache.h"
 #include "GeometryCacheMeshData.h"
 #include "GeometryCacheTrack.h"
-#include "NeuralNetwork.h"
 #include "BoneContainer.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerEditorModel"
@@ -1526,43 +1525,6 @@ namespace UE::MLDeformer
 		return nullptr;
 	}
 
-	UNeuralNetwork* FMLDeformerEditorModel::LoadNeuralNetworkFromOnnx(const FString& Filename) const
-	{
-		const FString OnnxFile = FPaths::ConvertRelativePathToFull(Filename);
-		if (FPaths::FileExists(OnnxFile))
-		{
-			UE_LOG(LogMLDeformer, Display, TEXT("Loading Onnx file '%s'..."), *OnnxFile);
-			UNeuralNetwork* Result = NewObject<UNeuralNetwork>(Model, UNeuralNetwork::StaticClass());		
-			if (Result->Load(OnnxFile))
-			{
-				if (Model->IsNeuralNetworkOnGPU())
-				{
-					Result->SetDeviceType(ENeuralDeviceType::GPU, ENeuralDeviceType::CPU, ENeuralDeviceType::GPU);	
-					if (Result->GetDeviceType() != ENeuralDeviceType::GPU || Result->GetOutputDeviceType() != ENeuralDeviceType::GPU || Result->GetInputDeviceType() != ENeuralDeviceType::CPU)
-					{
-						UE_LOG(LogMLDeformer, Error, TEXT("Neural net in ML Deformer '%s' cannot run on the GPU, it will not be active."), *Model->GetDeformerAsset()->GetName());
-					}
-				}
-				else
-				{
-					Result->SetDeviceType(ENeuralDeviceType::CPU, ENeuralDeviceType::CPU, ENeuralDeviceType::CPU);
-				}
-				UE_LOG(LogMLDeformer, Display, TEXT("Successfully loaded Onnx file '%s'..."), *OnnxFile);
-				return Result;
-			}
-			else
-			{
-				UE_LOG(LogMLDeformer, Error, TEXT("Failed to load Onnx file '%s'"), *OnnxFile);
-			}
-		}
-		else
-		{
-			UE_LOG(LogMLDeformer, Error, TEXT("Onnx file '%s' does not exist!"), *OnnxFile);
-		}
-
-		return nullptr;
-	}
-
 	bool FMLDeformerEditorModel::IsEditorReadyForTrainingBasicChecks()
 	{
 		// Make sure we have picked required assets.
@@ -1582,24 +1544,6 @@ namespace UE::MLDeformer
 		}
 
 		return true;
-	}
-
-	bool FMLDeformerEditorModel::LoadTrainedNetwork() const
-	{
-		const FString OnnxFile = GetTrainedNetworkOnnxFile();
-		UNeuralNetwork* Network = LoadNeuralNetworkFromOnnx(OnnxFile);
-		if (Network)
-		{
-			Model->SetNeuralNetwork(Network);
-			return true;
-		}
-
-		return false;
-	}
-
-	bool FMLDeformerEditorModel::IsTrained() const
-	{
-		return (Model->GetNeuralNetwork() != nullptr);
 	}
 
 	void FMLDeformerEditorModel::UpdateMemoryUsage()

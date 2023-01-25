@@ -15,11 +15,8 @@ void UNeuralMorphModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)
 	Super::Init(SkelMeshComponent);
 
 	UNeuralMorphModel* MorphModel = Cast<UNeuralMorphModel>(Model);
-
-#if !NEURALMORPHMODEL_FORCE_USE_NNI
 	UNeuralMorphNetwork* MorphNetwork = MorphModel->GetNeuralMorphNetwork();
 	NetworkInstance = MorphNetwork ? MorphNetwork->CreateInstance() : nullptr;
-#endif
 
 	UNeuralMorphInputInfo* InputInfo = Cast<UNeuralMorphInputInfo>(Model->GetInputInfo());
 	if (InputInfo == nullptr)
@@ -186,21 +183,17 @@ bool UNeuralMorphModelInstance::SetupInputs()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UNeuralMorphModelInstance::SetupInputs)
 
-#if NEURALMORPHMODEL_FORCE_USE_NNI
-	return Super::SetupInputs();
-#else
-	// If we have no neural morph network, fall back to the default NNI path.
+	// Make sure we have a valid network.
 	UNeuralMorphModel* MorphModel = Cast<UNeuralMorphModel>(Model);
 	UNeuralMorphNetwork* MorphNetwork = MorphModel->GetNeuralMorphNetwork();
-	if (MorphNetwork == nullptr)
+	if (MorphNetwork == nullptr || MorphNetwork->GetMainMLP() == nullptr)
 	{		
-		return Super::SetupInputs();
+		return false;
 	}
 
-	// Some safety checks.
+	// Some additional safety checks.
 	if (SkeletalMeshComponent == nullptr ||
 		SkeletalMeshComponent->GetSkeletalMeshAsset() == nullptr ||
-		MorphNetwork->GetMainMLP() == nullptr ||
 		!bIsCompatible)
 	{
 		return false;
@@ -220,17 +213,12 @@ bool UNeuralMorphModelInstance::SetupInputs()
 	FillNetworkInputs();
 
 	return true;
-#endif
 }
 
 void UNeuralMorphModelInstance::Execute(float ModelWeight)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UNeuralMorphModelInstance::Execute)
 
-#if NEURALMORPHMODEL_FORCE_USE_NNI
-	Super::Execute(ModelWeight);
-	return;
-#else
 	UNeuralMorphModel* MorphModel = Cast<UNeuralMorphModel>(Model);
 	UNeuralMorphNetwork* MorphNetwork = MorphModel->GetNeuralMorphNetwork();
 	if (MorphNetwork == nullptr)
@@ -303,5 +291,4 @@ void UNeuralMorphModelInstance::Execute(float ModelWeight)
 			WeightData->Weights[MorphIndex + 1] = NetworkOutputs[MorphIndex] * ModelWeight;
 		}
 	}
-#endif
 }

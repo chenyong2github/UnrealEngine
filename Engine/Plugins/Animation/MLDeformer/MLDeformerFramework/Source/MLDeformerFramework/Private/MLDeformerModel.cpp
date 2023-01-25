@@ -10,7 +10,6 @@
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
-#include "NeuralNetwork.h"
 #include "Animation/AnimSequence.h"
 #include "UObject/UObjectGlobals.h"
 
@@ -124,33 +123,9 @@ void UMLDeformerModel::PostLoad()
 		InputInfo->OnPostLoad();
 	}
 
-	UNeuralNetwork* Network = GetNeuralNetwork();
-	if (Network)
-	{
-		// If we run the neural network on the GPU.
-		if (IsNeuralNetworkOnGPU())
-		{
-			Network->SetDeviceType(ENeuralDeviceType::GPU, ENeuralDeviceType::CPU, ENeuralDeviceType::GPU);
-			if (Network->GetDeviceType() != ENeuralDeviceType::GPU || Network->GetOutputDeviceType() != ENeuralDeviceType::GPU || Network->GetInputDeviceType() != ENeuralDeviceType::CPU)
-			{
-				UE_LOG(LogMLDeformer, Error, TEXT("Neural net in ML Deformer '%s' cannot run on the GPU, it will not be active."), *GetDeformerAsset()->GetName());
-			}
-		}
-		else // We run our neural network on the CPU.
-		{
-			Network->SetDeviceType(ENeuralDeviceType::CPU, ENeuralDeviceType::CPU, ENeuralDeviceType::CPU);
-		}
-	}
-
 	#if WITH_EDITOR
 		UpdateMemoryUsage();
 	#endif
-}
-
-void UMLDeformerModel::SetNeuralNetwork(UNeuralNetwork* InNeuralNetwork)
-{
-	NeuralNetworkModifyDelegate.Broadcast();
-	NeuralNetwork = InNeuralNetwork;
 }
 
 // Used for the FBoenReference, so it knows what skeleton to pick bones from.
@@ -269,19 +244,6 @@ void UMLDeformerModel::FloatArrayToVector3Array(const TArray<float>& FloatArray,
 		if (VertexMapBuffer.VertexBufferRHI.IsValid())
 		{
 			GPUMemUsageInBytes += VertexMapBuffer.VertexBufferRHI->GetSize();
-		}
-
-		// Check if the neural network is on the GPU, if so, count the memory to the GPU and remove it from Main memory, as we added it to 
-		// that already when we did the Model->GetResourceSizeBytes.
-		if (NeuralNetwork)
-		{
-			if (NeuralNetwork->GetDeviceType() == ENeuralDeviceType::GPU)
-			{
-				const uint64 NeuralNetSize = static_cast<uint64>(NeuralNetwork->GetResourceSizeBytes(EResourceSizeMode::Type::EstimatedTotal));
-				GPUMemUsageInBytes += NeuralNetSize;
-				MemUsageInBytes -= NeuralNetSize;
-				CookedMemUsageInBytes -= NeuralNetSize;
-			}
 		}
 	}
 #endif	// #if WITH_EDITOR

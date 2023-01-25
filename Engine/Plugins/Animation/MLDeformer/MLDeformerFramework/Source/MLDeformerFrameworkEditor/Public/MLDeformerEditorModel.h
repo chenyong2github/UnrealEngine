@@ -513,6 +513,9 @@ namespace UE::MLDeformer
 		 */
 		virtual void UpdateDeformerGraph();
 
+		UE_DEPRECATED(5.2, "This method will be deleted and will just return a nullptr right now.")
+		UNeuralNetwork* LoadNeuralNetworkFromOnnx(const FString& Filename) const { return nullptr; }
+
 		/**
 		 * Sample the vertex deltas between the training base model and target model.
 		 * This will initialize the sampler if needed and set the sampler space to post-skinning deltas, and then samples them using the sampler.
@@ -525,7 +528,7 @@ namespace UE::MLDeformer
 		 * Load the trained network from an onnx file.
 		 * The filename of the onnx file is determined by the GetTrainedNetworkOnnxFile method.
 		 */
-		virtual bool LoadTrainedNetwork() const;
+		virtual bool LoadTrainedNetwork() const { return false; }
 
 		/**
 		 * Get the onnx file name of the trained network.
@@ -541,7 +544,7 @@ namespace UE::MLDeformer
 		 * This is determined by looking whether the neural network pointer is nullptr or not.
 		 * @return Returns true when the model is trained already, or false if it hasn't been trained yet.
 		 */
-		virtual bool IsTrained() const;
+		virtual bool IsTrained() const { return false; }
 
 		/**
 		 * Get the editor actor that defines the timeline play position.
@@ -743,13 +746,6 @@ namespace UE::MLDeformer
 		 * @return The number of curves found on the skeletal mesh.
 		 */
 		int32 GetNumCurvesOnSkeletalMesh(USkeletalMesh* SkelMesh) const;
-
-		/**
-		 * Load a neural network from a given Onnx file.
-		 * @param Filename The onnx file name.
-		 * @return A pointer to the newly created neural network, or nullptr in case it failed to load.
-		 */
-		UNeuralNetwork* LoadNeuralNetworkFromOnnx(const FString& Filename) const;
 
 		/**
 		 * Get the currently desired training frame number.

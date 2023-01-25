@@ -9,6 +9,8 @@
 
 VERTEXDELTAMODEL_API DECLARE_LOG_CATEGORY_EXTERN(LogVertexDeltaModel, Log, All);
 
+class UNeuralNetwork;
+
 /** 
  * The vertex delta model, which uses a GPU based neural network.
  * This model acts more as an example of how to implement a model that only uses the GPU.
@@ -25,11 +27,22 @@ class VERTEXDELTAMODEL_API UVertexDeltaModel
 public:
 	UVertexDeltaModel(const FObjectInitializer& ObjectInitializer);
 
+	// UObject overrides.
+	void PostLoad() override;
+	// ~END UObject overrides.
+
 	// UMLDeformerModel overrides.
 	virtual FString GetDisplayName() const override			{ return "Vertex Delta Model"; }
+	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;
 	virtual bool IsNeuralNetworkOnGPU() const override		{ return true; }	// GPU neural network.
 	virtual FString GetDefaultDeformerGraphAssetPath() const override;
+#if WITH_EDITOR
+	virtual void UpdateMemoryUsage() override;
+#endif
 	// ~END UMLDeformerModel overrides.
+
+	UNeuralNetwork* GetNNINetwork() const;
+	void SetNNINetwork(UNeuralNetwork* InNeuralNetwork);
 
 #if WITH_EDITORONLY_DATA
 	int32 GetNumHiddenLayers() const						{ return NumHiddenLayers; }
@@ -37,8 +50,15 @@ public:
 	int32 GetNumIterations() const							{ return NumIterations; }
 	int32 GetBatchSize() const								{ return BatchSize; }
 	float GetLearningRate() const							{ return LearningRate; }
+#endif
+
 
 public:
+	/** The NNI neural network. */
+	UPROPERTY()
+	TObjectPtr<UNeuralNetwork> NNINetwork;
+
+#if WITH_EDITORONLY_DATA
 	/** The number of hidden layers that the neural network model will have.\nHigher numbers will slow down performance but can deal with more complex deformations. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "10"))
 	int32 NumHiddenLayers = 3;

@@ -71,9 +71,9 @@ void UNearestNeighborModel::Serialize(FArchive& Archive)
 	{
 		if (DoesUseOptimizedNetwork())
 		{
-			if (GetNeuralNetwork() != nullptr)
+			if (GetNNINetwork() != nullptr)
 			{
-				SetNeuralNetwork(nullptr);
+				SetNNINetwork(nullptr);
 			}
 		}
 		else
@@ -100,6 +100,16 @@ void UNearestNeighborModel::PostLoad()
 #endif
 }
 
+void UNearestNeighborModel::SetNNINetwork(UNeuralNetwork* InNeuralNetwork)
+{
+	GetNeuralNetworkModifyDelegate().Broadcast();
+	NNINetwork = InNeuralNetwork;
+}
+
+UNeuralNetwork* UNearestNeighborModel::GetNNINetwork() const
+{ 
+	return NNINetwork.Get();
+}
 
 TArray<uint32> ReadTxt(const FString &Path)
 {
@@ -400,7 +410,7 @@ int32 UNearestNeighborModel::GetNumNeighborsFromAnimSequence(int32 PartId) const
 
 void UNearestNeighborModel::UpdateNetworkSize()
 {
-	UNeuralNetwork* Network = GetNeuralNetwork();
+	UNeuralNetwork* Network = GetNNINetwork();
 	if (Network != nullptr)
 	{
 		const SIZE_T NumBytes = Network->GetResourceSizeBytes(EResourceSizeMode::EstimatedTotal);
@@ -510,7 +520,7 @@ bool UNearestNeighborModel::LoadOptimizedNetwork(const FString& OnnxPath)
 	}
 	else
 	{
-		UE_LOG(LogMLDeformer, Error, TEXT("Onnx file '%s' does not exist!"), *OnnxFile);
+		UE_LOG(LogNearestNeighborModel, Error, TEXT("Onnx file '%s' does not exist!"), *OnnxFile);
 	}
 
 	return false;

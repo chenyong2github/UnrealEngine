@@ -26,13 +26,6 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Training Model")
 	int32 Train() const;
 
-	/**
-	 * Do we want to force using NNI for inference, instead of our custom inference?
-	 * @result Returns true when NNI should be used for inference, or false if custom (faster) inference should be used.
-	 */
-	UFUNCTION(BlueprintPure, Category = "Training Model")
-	bool ForceUseNNI() const;
-
 	UFUNCTION(BlueprintPure, Category = "Training Model")
 	int32 GetNumBoneGroups() const;
 

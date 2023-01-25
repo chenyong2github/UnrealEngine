@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "0.21",
+	"VersionName": "0.3",
 	"FriendlyName": "ML Deformer Vertex Delta Model",
 	"Description": "Vertex Delta Model for the ML Deformer Framework",
 	"Category": "Animation",

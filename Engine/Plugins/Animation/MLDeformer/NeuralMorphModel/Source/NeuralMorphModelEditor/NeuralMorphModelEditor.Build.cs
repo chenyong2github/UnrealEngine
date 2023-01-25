@@ -31,7 +31,6 @@ namespace UnrealBuildTool.Rules
 					"MLDeformerFrameworkEditor",
 					"NeuralMorphModel",
 					"PropertyEditor",
-					"NeuralNetworkInference",
 					"ToolWidgets",
 					"ComputeFramework",
 					"RenderCore",

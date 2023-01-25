@@ -9,7 +9,6 @@
 #include "MLDeformerEditorModel.h"
 #include "MLDeformerEditorModule.h"
 #include "MLDeformerGeomCacheHelpers.h"
-#include "NeuralNetwork.h"
 #include "GeometryCache.h"
 #include "GeometryCacheTrack.h"
 #include "Animation/AnimSequence.h"

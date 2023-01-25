@@ -17,12 +17,6 @@ namespace UE::NeuralMorphModel
 	class NEURALMORPHMODEL_API FNeuralMorphModelModule
 		: public IModuleInterface
 	{
-		void StartupModule() override
-		{
-			#if NEURALMORPHMODEL_FORCE_USE_NNI
-				UE_LOG(LogNeuralMorphModel, Warning, TEXT("Running neural morph model with NNI. The faster custom inference code path will be disabled."));
-			#endif
-		}
 	};
 }
 IMPLEMENT_MODULE(UE::NeuralMorphModel::FNeuralMorphModelModule, NeuralMorphModel)
@@ -55,26 +49,15 @@ UMLDeformerInputInfo* UNeuralMorphModel::CreateInputInfo()
 
 void UNeuralMorphModel::Serialize(FArchive& Archive)
 {
-#if !NEURALMORPHMODEL_FORCE_USE_NNI
-	if (Archive.IsSaving() || Archive.IsCooking())
+	if (Archive.IsSaving() && Archive.IsCooking())
 	{
-		UNeuralNetwork* NNINeuralNetwork = GetNeuralNetwork();
-
-		// Show a warning when we are not using custom inference yet on this model.
-		if (NeuralMorphNetwork == nullptr && NNINeuralNetwork != nullptr)
+		if (NeuralMorphNetwork == nullptr)
 		{
-			UE_LOG(LogNeuralMorphModel, Display, TEXT("Neural Morph Model in MLD asset '%s' should be retrained to get higher performance by taking advantage of custom inference."), *GetDeformerAsset()->GetName());
-		}
-
-		// If we have a custom inference network, make sure we don't save out the NNI network.
-		if (NeuralMorphNetwork != nullptr && NNINeuralNetwork != nullptr)
-		{
-			SetNeuralNetwork(nullptr);
+			UE_LOG(LogNeuralMorphModel, Display, TEXT("Neural Morph Model in MLD asset '%s' still needs to be trained."), *GetDeformerAsset()->GetName());
 		}
 	}
-#endif
 
-	// Convert the UMLDeformerInputInfo object into a UNeuralMorphInputInfo object.
+	// Convert the UMLDeformerInputInfo object into a UNeuralMorphInputInfo object for backward compatiblity.
 	UMLDeformerInputInfo* CurInputInfo = GetInputInfo();
 	if (CurInputInfo)
 	{
@@ -87,19 +70,6 @@ void UNeuralMorphModel::Serialize(FArchive& Archive)
 	}
 
 	Super::Serialize(Archive);
-}
-
-void UNeuralMorphModel::PostLoad()
-{
-	Super::PostLoad();
-
-#if !NEURALMORPHMODEL_FORCE_USE_NNI
-	// Show a warning when we are not using custom inference yet on this model.
-	if (NeuralMorphNetwork == nullptr && GetNeuralNetwork() != nullptr)
-	{
-		UE_LOG(LogNeuralMorphModel, Display, TEXT("Neural Morph Model in MLD asset '%s' should be retrained to get higher performance by taking advantage of custom inference."), *GetDeformerAsset()->GetName());
-	}
-#endif
 }
 
 #undef LOCTEXT_NAMESPACE

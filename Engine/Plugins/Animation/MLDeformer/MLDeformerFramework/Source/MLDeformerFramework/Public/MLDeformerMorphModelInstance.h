@@ -28,7 +28,6 @@ public:
 	virtual void PostMLDeformerComponentInit() override;
 	virtual void Release() override;
 	virtual void Tick(float DeltaTime, float ModelWeight) override;
-	virtual void Execute(float ModelWeight) override;
 	virtual void HandleZeroModelWeight() override;
 	virtual bool IsValidForDataProvider() const override;
 	// ~END UMLDeformerModelInstance overrides.

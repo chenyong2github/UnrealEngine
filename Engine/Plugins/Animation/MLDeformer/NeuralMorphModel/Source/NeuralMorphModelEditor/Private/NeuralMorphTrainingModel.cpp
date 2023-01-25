@@ -5,16 +5,6 @@
 #include "NeuralMorphModel.h"
 #include "NeuralMorphInputInfo.h"
 
-
-bool UNeuralMorphTrainingModel::ForceUseNNI() const
-{
-	#if NEURALMORPHMODEL_FORCE_USE_NNI
-		return true;
-	#else
-		return false;
-	#endif
-}
-
 int32 UNeuralMorphTrainingModel::GetNumBoneGroups() const
 {
 	UNeuralMorphInputInfo* InputInfo = Cast<UNeuralMorphInputInfo>(EditorModel->GetEditorInputInfo());

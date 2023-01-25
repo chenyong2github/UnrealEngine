@@ -39,7 +39,6 @@ public class MLDeformerFramework : ModuleRules
 				"RenderCore",
 				"RHI",
 				"GeometryCache",
-				"NeuralNetworkInference",
 				"OptimusCore",
 				"ComputeFramework",
 				"Projects"

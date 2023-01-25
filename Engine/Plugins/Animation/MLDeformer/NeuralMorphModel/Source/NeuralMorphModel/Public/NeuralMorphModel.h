@@ -11,14 +11,10 @@ class USkeletalMesh;
 class UGeometryCache;
 class UAnimSequence;
 class UNeuralMorphNetwork;
-class UNeuralNetwork;
 class UMLDeformerAsset;
 class UMLDeformerModelInstance;
 class USkeleton;
 struct FExternalMorphSet;
-
-/** Set this to 1 if you like to force to use NNI for inference, rather than the (faster) custom inference, otherwise set to 0. */
-#define NEURALMORPHMODEL_FORCE_USE_NNI 0
 
 /** 
  * Specify whether we want to use ISPC if available.
@@ -53,7 +49,6 @@ public:
 
 	// UObject overrides.
 	virtual void Serialize(FArchive& Archive) override;
-	virtual void PostLoad() override;
 	// ~END UObject overrides.
 
 	// UMLDeformerModel overrides.

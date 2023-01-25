@@ -277,7 +277,7 @@ void UNearestNeighborModelInstance::GetInputDataPointer(float*& OutInputData, in
 	}
 	else
 	{
-		UNeuralNetwork* NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
+		UNeuralNetwork* NeuralNetwork = NearestNeighborModel->GetNNINetwork();
 		if (NeuralNetwork)
 		{
 			OutInputData = static_cast<float*>(NeuralNetwork->GetInputDataPointerMutableForContext(NeuralNetworkInferenceHandle));
@@ -305,7 +305,7 @@ void UNearestNeighborModelInstance::GetOutputDataPointer(float*& OutOutputData, 
 	}
 	else
 	{
-		UNeuralNetwork* NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
+		UNeuralNetwork* NeuralNetwork = NearestNeighborModel->GetNNINetwork();
 		if (NeuralNetwork)
 		{
 			const FNeuralTensor& OutputTensor = NeuralNetwork->GetOutputTensorForContext(NeuralNetworkInferenceHandle);
@@ -331,7 +331,7 @@ FString UNearestNeighborModelInstance::CheckCompatibility(USkeletalMeshComponent
 		ErrorText += "\n";
 		if (LogIssues)
 		{
-			UE_LOG(LogMLDeformer, Error, TEXT("ML Deformer '%s' isn't compatible with Skeletal Mesh '%s'.\nReason(s):\n%s"), 
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("ML Deformer '%s' isn't compatible with Skeletal Mesh '%s'.\nReason(s):\n%s"), 
 				*Model->GetDeformerAsset()->GetName(), 
 				*SkelMesh->GetName(), 
 				*ErrorText);
@@ -356,7 +356,7 @@ FString UNearestNeighborModelInstance::CheckCompatibility(USkeletalMeshComponent
 	}
 	else
 	{
-		UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
+		UNeuralNetwork* NeuralNetwork = NearestNeighborModel->GetNNINetwork();
 		if (NeuralNetwork && NeuralNetwork->IsLoaded())
 		{
 			NumNeuralNetInputs = NeuralNetwork->GetInputTensor().Num();
@@ -370,7 +370,7 @@ FString UNearestNeighborModelInstance::CheckCompatibility(USkeletalMeshComponent
 		ErrorText += InputErrorString + "\n";
 		if (LogIssues && Model->GetDeformerAsset())
 		{
-				UE_LOG(LogMLDeformer, Error, TEXT("Deformer '%s': %s"), *(Model->GetDeformerAsset()->GetName()), *InputErrorString);
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("Deformer '%s': %s"), *(Model->GetDeformerAsset()->GetName()), *InputErrorString);
 		}
 	}
 

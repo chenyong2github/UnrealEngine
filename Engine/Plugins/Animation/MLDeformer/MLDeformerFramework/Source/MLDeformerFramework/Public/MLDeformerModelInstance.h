@@ -9,7 +9,6 @@
 #include "MLDeformerModelInstance.generated.h"
 
 class UMLDeformerModel;
-class UNeuralNetwork;
 class USkeletalMeshComponent;
 class UMLDeformerComponent;
 
@@ -67,11 +66,11 @@ public:
 	 * Check whether the deformer is compatible with a given skeletal mesh component.
 	 * This internally also edits the value returned by GetCompatibilityErrorText().
 	 * @param InSkelMeshComponent The skeletal mesh component to check compatibility with.
-	 * @param LogIssues Set to true to automatically log any compatibility errors.
+	 * @param bLogIssues Set to true to automatically log any compatibility errors.
 	 * @return Returns the error string. When the returned string is empty, there were no errors and thus
 	 *         the specified skeletal mesh component is compatible.
 	 */
-	virtual FString CheckCompatibility(USkeletalMeshComponent* InSkelMeshComponent, bool LogIssues=false);
+	virtual FString CheckCompatibility(USkeletalMeshComponent* InSkelMeshComponent, bool bLogIssues=false);
 
 	/**
 	 * Check if we are in a valid state for the deformer graph's data provider.
@@ -146,15 +145,14 @@ protected:
 	 * @return Returns true when the setup is done correctly and the neural network is ready to be executed. Otherwise false is returned, which 
 	 * can happen when the NeuralNetwork pointer is invalid, when the model is not set, when the network is not compatible, etc.
 	 */
-	virtual bool SetupInputs();
+	virtual bool SetupInputs() { return true; }
 
 	/**
 	 * Execute the model instance, which can run the neural network inference in case the model uses a neural network.
 	 * This already assumes that compatibility checks are done, and that the network inputs are set etc.
-	 * Internally this will typically execute the UNeuralNetwork::Run() method, either on GPU or CPU.
 	 * @param ModelWeight The weight of the model, must be between 0 and 1.
 	 */
-	virtual void Execute(float ModelWeight);
+	virtual void Execute(float ModelWeight) {}
 
 	/**
 	 * Handle when the model weight is zero.

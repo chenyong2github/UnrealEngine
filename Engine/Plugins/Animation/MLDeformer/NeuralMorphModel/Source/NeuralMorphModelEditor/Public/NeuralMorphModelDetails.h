@@ -25,7 +25,6 @@ namespace UE::NeuralMorphModel
 		// ~END ILayoutDetails overrides.
 
 		// FMLDeformerModelDetails overrides.
-		virtual void AddTrainingSettingsErrors() override;
 		virtual void AddTrainingInputFilters() override;
 		// ~END FMLDeformerModelDetails overrides.
 	};

@@ -6,7 +6,6 @@
 #include "NeuralMorphEditorModel.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
-
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "SWarningOrErrorBox.h"
@@ -68,44 +67,6 @@ namespace UE::NeuralMorphModel
 
 		InputOutputCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, CurveGroups), UNeuralMorphModel::StaticClass())
 			.Visibility(NeuralMorphModel->Mode == ENeuralMorphMode::Local ? EVisibility::Visible : EVisibility::Collapsed);
-	}
-
-	void FNeuralMorphModelDetails::AddTrainingSettingsErrors()
-	{
-		FMLDeformerMorphModelDetails::AddTrainingSettingsErrors();
-
-		UNeuralMorphModel* NeuralMorphModel = Cast<UNeuralMorphModel>(Model);
-		check(NeuralMorphModel);
-
-		#if !NEURALMORPHMODEL_FORCE_USE_NNI
-			const bool bShowWarning = (NeuralMorphModel->GetNeuralNetwork() != nullptr) && (NeuralMorphModel->GetNeuralMorphNetwork() == nullptr);
-			FDetailWidgetRow& PerformanceWarningRow = TrainingSettingsCategoryBuilder->AddCustomRow(FText::FromString("NeuralNetPerformanceWarning"))
-				.Visibility(bShowWarning ? EVisibility::Visible : EVisibility::Collapsed)
-				.WholeRowContent()
-				[
-					SNew(SBox)
-					.Padding(FMargin(0.0f, 4.0f))
-					[
-						SNew(SWarningOrErrorBox)
-						.MessageStyle(EMessageStyle::Warning)
-						.Message(LOCTEXT("NeuralNetPerformanceWarning", "The model must be retrained in order to make use of higher performance inference."))
-					]
-				];
-		#else
-			const bool bShowWarning = (NeuralMorphModel->GetNeuralNetwork() == nullptr) && (NeuralMorphModel->GetNeuralMorphNetwork() != nullptr);
-			FDetailWidgetRow& PerformanceWarningRow = TrainingSettingsCategoryBuilder->AddCustomRow(FText::FromString("NeuralNetWrongInferenceWarning"))
-				.Visibility(bShowWarning ? EVisibility::Visible : EVisibility::Collapsed)
-				.WholeRowContent()
-				[
-					SNew(SBox)
-					.Padding(FMargin(0.0f, 4.0f))
-					[
-						SNew(SWarningOrErrorBox)
-						.MessageStyle(EMessageStyle::Warning)
-						.Message(LOCTEXT("NeuralNetWrongInferenceWarning", "The model was trained using custom inference, but NNI is set as active inference engine. Please retrain the model or switch back to custom inference by recompiling the plugin."))
-					]
-				];
-		#endif
 	}
 }	// namespace UE::NeuralMorphModel
 
