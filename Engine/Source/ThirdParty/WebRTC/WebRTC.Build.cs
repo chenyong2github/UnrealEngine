@@ -15,21 +15,6 @@ public class WebRTC : ModuleRules
 			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture == UnrealArch.X64);
 	}
 
-	private static bool bWebRtcVersion96
-	{
-		get
-		{
-			return true;
-		}
-	}
-	public static string WebRtcVersionPath
-	{
-		get
-		{
-			return bWebRtcVersion96 ? Path.Join("WebRTC", "4664") :   // Branch head 4664 is Release 96
-									  Path.Join("WebRTC", "4147");    // Branch head 4147 is Release 84
-		}
-	}
 
 	public WebRTC(ReadOnlyTargetRules Target) : base(Target)
 	{
@@ -37,7 +22,7 @@ public class WebRTC : ModuleRules
 
 		// WebRTC binaries with debug symbols are huge hence the Release binaries do not have any
 		// if you want to have debug symbols with shipping you will need to build with debug instead  
-		if (Target.Configuration == UnrealTargetConfiguration.Shipping)
+		if (Target.Configuration != UnrealTargetConfiguration.Debug)
 		{
 			ConfigPath = "Release";
 		}
@@ -51,7 +36,7 @@ public class WebRTC : ModuleRules
 
 		if (bShouldUseWebRTC)
 		{
-			string WebRtcSdkPath = Target.UEThirdPartySourceDirectory + WebRtcVersionPath;
+			string WebRtcSdkPath = Target.UEThirdPartySourceDirectory + Path.Join("WebRTC", "4664");
 			string VS2013Friendly_WebRtcSdkPath = Target.UEThirdPartySourceDirectory;
 
 			string PlatformSubdir = Target.Platform.ToString();
@@ -94,8 +79,6 @@ public class WebRTC : ModuleRules
 			}
 		}
 
-		string WebRtcDefinitionVersion = bWebRtcVersion96 ? "96" : "84";
-		PublicDefinitions.Add("WEBRTC_VERSION=" + WebRtcDefinitionVersion);
 		PublicDefinitions.Add("ABSL_ALLOCATOR_NOTHROW=1");
 	}
 }
