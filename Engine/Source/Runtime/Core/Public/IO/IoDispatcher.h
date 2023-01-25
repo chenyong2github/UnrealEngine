@@ -645,13 +645,17 @@ public:
 		return BytesToHex(Hash, 20);
 	}
 
-	static FIoChunkHash HashBuffer(const void* Data, uint64 DataSize)
+	static FIoChunkHash CreateFromIoHash(const FIoHash& IoHash)
 	{
 		FIoChunkHash Result;
-		FIoHash IoHash = FIoHash::HashBuffer(Data, DataSize);
 		FMemory::Memcpy(Result.Hash, &IoHash, sizeof IoHash);
 		FMemory::Memset(Result.Hash + 20, 0, 12);
 		return Result;
+	}
+
+	static FIoChunkHash HashBuffer(const void* Data, uint64 DataSize)
+	{
+		return CreateFromIoHash(FIoHash::HashBuffer(Data, DataSize));
 	}
 
 private:
@@ -1041,6 +1045,8 @@ public:
 	{
 		uint64 TotalChunksCount = 0;
 		uint64 HashedChunksCount = 0;
+		// Number of chunks where we avoided reading and hashing, and instead used the result from the hashdb
+		uint64 HashDbChunksCount = 0;
 		uint64 CompressedChunksCount = 0;
 		uint64 SerializedChunksCount = 0;
 		uint64 ScheduledCompressionTasksCount = 0;
@@ -1149,6 +1155,19 @@ public:
 	CORE_API virtual bool RetrieveChunk(const TPair<FIoContainerId, FIoChunkHash>& InChunkKey, const FName& InCompressionMethod, uint64 InUncompressedSize, uint64 InNumChunkBlocks, TUniqueFunction<void(TIoStatusOr<FIoStoreCompressedReadResult>)> InCompletionCallback) = 0;
 };
 
+/**
+*	Allows the IIoStoreWriter to avoid loading and hashing chunks, saving pak/stage time, as the normal
+*	process involved loading the chunks, hashing them, freeing them, making some decisions, then loading
+*	them _again_ for compression/writting. It's completely fine for this to not have all available hashes,
+*	but they have to match when provided!
+*/
+class IIoStoreWriterHashDatabase
+{
+public:
+	CORE_API virtual ~IIoStoreWriterHashDatabase() = default;
+	CORE_API virtual bool FindHashForChunkId(const FIoChunkId& ChunkId, FIoChunkHash& OutHash) const = 0;
+};
+
 
 class IIoStoreWriter
 {
@@ -1160,6 +1179,7 @@ public:
 	*	from previous containers instead of recompressing input data. This must be set before any writes are appended.
 	*/
 	CORE_API virtual void SetReferenceChunkDatabase(TSharedPtr<IIoStoreWriterReferenceChunkDatabase> ReferenceChunkDatabase) = 0;
+	CORE_API virtual void SetHashDatabase(TSharedPtr<IIoStoreWriterHashDatabase> HashDatabase, bool bVerifyHashDatabase) = 0;
 	CORE_API virtual void EnableDiskLayoutOrdering(const TArray<TUniquePtr<FIoStoreReader>>& PatchSourceReaders = TArray<TUniquePtr<FIoStoreReader>>()) = 0;
 	CORE_API virtual void Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, uint64 OrderHint = MAX_uint64) = 0;
 	CORE_API virtual void Append(const FIoChunkId& ChunkId, IIoStoreWriteRequest* Request, const FIoWriteOptions& WriteOptions) = 0;

@@ -350,6 +350,7 @@ public:
 	FIoStoreWriterContext::FProgress GetProgress() const
 	{
 		FIoStoreWriterContext::FProgress Progress;
+		Progress.HashDbChunksCount = HashDbChunksCount.Load();
 		Progress.TotalChunksCount = TotalChunksCount.Load();
 		Progress.HashedChunksCount = HashedChunksCount.Load();
 		Progress.CompressedChunksCount = CompressedChunksCount.Load();
@@ -440,6 +441,7 @@ private:
 	FIoStoreWriteQueue WriterQueue;
 	TAtomic<uint64> TotalChunksCount{ 0 };
 	TAtomic<uint64> HashedChunksCount{ 0 };
+	TAtomic<uint64> HashDbChunksCount{ 0 };
 	TAtomic<uint64> CompressedChunksCount{ 0 };
 	TAtomic<uint64> SerializedChunksCount{ 0 };
 	TAtomic<uint64> ScheduledCompressionTasksCount{ 0 };
@@ -657,6 +659,11 @@ public:
 	{
 		ReferenceChunkDatabase = InReferenceChunkDatabase;
 	}
+	void SetHashDatabase(TSharedPtr<IIoStoreWriterHashDatabase> InHashDatabase, bool bInVerifyHashDatabase)
+	{
+		HashDatabase = InHashDatabase;
+		bVerifyHashDatabase = bInVerifyHashDatabase;
+	}
 
 	void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
 	{
@@ -758,6 +765,16 @@ public:
 
 	virtual void Append(const FIoChunkId& ChunkId, IIoStoreWriteRequest* Request, const FIoWriteOptions& WriteOptions) override
 	{
+		//
+		// This function sets up the sequence of events that takes a chunk from source data on disc
+		// to written to a container. The first thing that happens is the source data is read in order
+		// to hash it to detect whether or not it's modified as well as look up in reference databases.
+		// Load the data -> PrepareSourceBufferAsync
+		// Hash the data -> HashTask lambda
+		//
+		// The hash task itself doesn't continue to the next steps - the Flush() call
+		// waits for all hashes to be complete before kicking the next steps.
+		//
 		TRACE_CPUPROFILER_EVENT_SCOPE(AppendWriteRequest);
 		check(!bHasFlushed);
 		checkf(ChunkId.IsValid(), TEXT("ChunkId is not valid!"));
@@ -769,22 +786,54 @@ public:
 		Entries.Add(Entry);
 		Entry->ChunkId = ChunkId;
 		Entry->Options = WriteOptions;
-		Entry->Request = Request;
-		Entry->HashBarrier = FGraphEvent::CreateGraphEvent();
+		Entry->Request = Request;		
 		Entry->BeginCompressionBarrier = FGraphEvent::CreateGraphEvent();
 		Entry->FinishCompressionBarrier = FGraphEvent::CreateGraphEvent();
 		Entry->FinishEncryptionAndSigningBarrier = FGraphEvent::CreateGraphEvent();
 		Entry->BeginWriteBarrier = FGraphEvent::CreateGraphEvent();
 		Entry->WriteFinishedEvent = FGraphEvent::CreateGraphEvent();
 		
+		bool bTestHashValid = false;
+		FIoChunkHash TestHash;
+		// If we can get the hash without reading the whole thing and hashing it, do so
+		// to avoid the IO.
+		if (HashDatabase.IsValid() &&
+			HashDatabase->FindHashForChunkId(ChunkId, Entry->ChunkHash))
+		{
+			if (bVerifyHashDatabase == false)
+			{
+				// If we aren't validating then we just use it and bail.
+				WriterContext->HashDbChunksCount.IncrementExchange();
+				WriterContext->HashedChunksCount.IncrementExchange();
+				return;
+			}
+
+			// If we are validating, copy the hash out and run the normal path
+			// to check against it.
+			TestHash = Entry->ChunkHash;
+			bTestHashValid = true;
+		}
+		// Otherwise, we have to do the load & hash
+
+		Entry->HashBarrier = FGraphEvent::CreateGraphEvent();
+
 		FGraphEventArray HashPrereqs;
 		HashPrereqs.Add(Entry->HashBarrier);
-		Entry->HashTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this, Entry]()
+		Entry->HashTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this, Entry, TestHash, bTestHashValid]()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(HashChunk);
 			const FIoBuffer* SourceBuffer = Entry->Request->GetSourceBuffer();
 			Entry->ChunkHash = FIoChunkHash::HashBuffer(SourceBuffer->Data(), SourceBuffer->DataSize());
 			WriterContext->HashedChunksCount.IncrementExchange();
+
+			if (bVerifyHashDatabase && bTestHashValid)
+			{
+				if (TestHash != Entry->ChunkHash)
+				{
+					UE_LOG(LogIoStore, Warning, TEXT("HashDb Validation Failed: ChunkId %s has mismatching hash"), *LexToString(Entry->ChunkId));
+				}
+			}
+
 			// Release the source data buffer, it will be reloaded later when we start compressing the chunk
 			Entry->Request->FreeSourceBuffer();
 		}, TStatId(), &HashPrereqs, ENamedThreads::AnyHiPriThreadHiPriTask);
@@ -1779,6 +1828,8 @@ private:
 	bool						bHasFlushed = false;
 	bool						bHasResult = false;
 	TSharedPtr<IIoStoreWriterReferenceChunkDatabase> ReferenceChunkDatabase;
+	TSharedPtr<IIoStoreWriterHashDatabase> HashDatabase;
+	bool						bVerifyHashDatabase = false;
 
 
 	friend class FIoStoreWriterContextImpl;
@@ -1839,9 +1890,11 @@ void FIoStoreWriterContextImpl::Flush()
 
 	// Classically there were so few writers that this didn't need to be multi threaded, but it
 	// involves writing files, and with content on demand this ends up being thousands of iterations. 
-	// 10x speedup in testing.
 	double FinalizeStart = FPlatformTime::Seconds();	
-	ParallelFor(TEXT("IoStoreWriter::Finalize.PF"), IoStoreWriters.Num(), 1, [this](int Index){ IoStoreWriters[Index]->Finalize(); });
+	ParallelFor(TEXT("IoStoreWriter::Finalize.PF"), IoStoreWriters.Num(), 1, [this](int Index)
+	{ 
+		IoStoreWriters[Index]->Finalize(); 
+	});
 	double FinalizeEnd = FPlatformTime::Seconds();
 	UE_LOG(LogIoStore, Display, TEXT("Finalize took %.1f seconds for %d writers"), FinalizeEnd - FinalizeStart, IoStoreWriters.Num());
 }

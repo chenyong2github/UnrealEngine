@@ -132,7 +132,7 @@ public:
 			TUniquePtr<FIoStoreReader> Reader = CreateIoStoreReader(*ContainerFilePath, InDecryptionKeychain);
 			if (Reader.IsValid() == false)
 			{
-				UE_LOG(LogIoStore, Error, TEXT("Failed to open reference chunk container %s"), *InGlobalContainerFileName);
+				UE_LOG(LogIoStore, Error, TEXT("Failed to open reference chunk container %s"), *ContainerFilePath);
 				return false;
 			}
 			FReaderChunks& ReaderChunks = ChunkDatabase.FindOrAdd(Reader->GetContainerId());
@@ -867,6 +867,7 @@ struct FIoStoreArguments
 	FReleasedPackages ReleasedPackages;
 	TUniquePtr<FCookedPackageStore> PackageStore;
 	TUniquePtr<FIoBuffer> ScriptObjects;
+	bool bVerifyHashDatabase = false;
 	bool bSign = false;
 	bool bRemapPluginContentToGame = false;
 	bool bCreateDirectoryIndex = true;
@@ -3160,6 +3161,42 @@ int32 DoAssetRegistryWritebackAfterStage(const FString& InAssetRegistryFileName,
 	return SaveAssetRegistry(InAssetRegistryFileName, AssetRegistry, true) ? 0 : 1;
 }
 
+static bool FindAndLoadDevelopmentAssetRegistry(const FString& InCookedDir, FAssetRegistryState& OutAssetRegistry, FString* OutAssetRegistryFileName /*optional, set on success*/)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(LoadingAssetRegistry);
+
+	// Look for the development registry. Should be in \\GameName\\Metadata\\DevelopmentAssetRegistry.bin, but we don't know what "GameName" is.
+	TArray<FString> PossibleAssetRegistryFiles;
+	IFileManager::Get().FindFilesRecursive(PossibleAssetRegistryFiles, *InCookedDir, GetDevelopmentAssetRegistryFilename(), true, false);
+
+	if (PossibleAssetRegistryFiles.Num() > 1)
+	{
+		UE_LOG(LogIoStore, Warning, TEXT("Found multiple possible development asset registries:"));
+		for (FString& Filename : PossibleAssetRegistryFiles)
+		{
+			UE_LOG(LogIoStore, Warning, TEXT("    %s"), *Filename);
+		}
+	}
+
+	if (PossibleAssetRegistryFiles.Num() == 0)
+	{
+		UE_LOG(LogIoStore, Error, TEXT("No development asset registry file found!"));
+		return false;
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Using input asset registry: %s"), *PossibleAssetRegistryFiles[0]);
+	if (LoadAssetRegistry(PossibleAssetRegistryFiles[0], OutAssetRegistry) == false)
+	{
+		return false; // already logged
+	}
+
+	if (OutAssetRegistryFileName)
+	{
+		*OutAssetRegistryFileName = MoveTemp(PossibleAssetRegistryFiles[0]);
+	}
+	return true;
+}
+
 bool DoAssetRegistryWritebackDuringStage(EAssetRegistryWritebackMethod InMethod, const FString& InCookedDir, TArray<TSharedPtr<IIoStoreWriter>>& InIoStoreWriters)
 {
 	// This version called during container creation.
@@ -3170,37 +3207,10 @@ bool DoAssetRegistryWritebackDuringStage(EAssetRegistryWritebackMethod InMethod,
 	// The overwhelming majority of time for the asset registry writeback is loading and saving.
 	FString AssetRegistryFileName;
 	FAssetRegistryState AssetRegistry;
+	if (FindAndLoadDevelopmentAssetRegistry(InCookedDir, AssetRegistry, &AssetRegistryFileName) == false)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(LoadingAssetRegistry);
-
-		// Look for the development registry. Should be in \\GameName\\Metadata\\DevelopmentAssetRegistry.bin, but we don't know what "GameName" is.
-		TArray<FString> PossibleAssetRegistryFiles;
-		IFileManager::Get().FindFilesRecursive(PossibleAssetRegistryFiles, *InCookedDir, GetDevelopmentAssetRegistryFilename(), true, false);
-
-		if (PossibleAssetRegistryFiles.Num() > 1)
-		{
-			UE_LOG(LogIoStore, Warning, TEXT("Found multiple possible development asset registries:"));
-			for (FString& Filename : PossibleAssetRegistryFiles)
-			{
-				UE_LOG(LogIoStore, Warning, TEXT("    %s"), *Filename);
-			}
-		}
-
-		if (PossibleAssetRegistryFiles.Num() == 0)
-		{
-			UE_LOG(LogIoStore, Error, TEXT("No development asset registry file found!"));
-			return false;
-		}
-		else
-		{
-			AssetRegistryFileName = MoveTemp(PossibleAssetRegistryFiles[0]);
-			UE_LOG(LogIoStore, Display, TEXT("Using input asset registry: %s"), *AssetRegistryFileName);
-
-			if (LoadAssetRegistry(AssetRegistryFileName, AssetRegistry) == false)
-			{
-				return false; // already logged
-			}
-		}
+		// already logged
+		return false;
 	}
 
 	// Create a map off the package id to all of its chunks. 2 inline allocation
@@ -3251,6 +3261,59 @@ bool DoAssetRegistryWritebackDuringStage(EAssetRegistryWritebackMethod InMethod,
 	return true;
 }
 
+// Implements providing the chunk hashes that exist in the asset registry to the
+// iostore writer to avoid reading and hashing redundently.
+class FIoStoreHashDb : public IIoStoreWriterHashDatabase
+{
+public:
+	virtual ~FIoStoreHashDb() {}
+
+	TMap<FIoChunkId, FIoHash> Hashes;
+
+	bool Initialize(const FString& InCookedDir)
+	{
+		FString AssetRegistryFileName;
+		FAssetRegistryState AssetRegistry;
+		if (FindAndLoadDevelopmentAssetRegistry(InCookedDir, AssetRegistry, nullptr) == false)
+		{
+			// already logged
+			return false;
+		}
+
+		double StartTime = FPlatformTime::Seconds();
+
+		const TMap<FName, const FAssetPackageData*>& Packages = AssetRegistry.GetAssetPackageDataMap();
+		for (auto PackageIter : Packages)
+		{
+			for (const TPair<FIoChunkId, FIoHash>& HashIter : PackageIter.Value->ChunkHashes)
+			{
+				// For the moment, only bulk data types are added to teh asset registry - gate here so that
+				// we remember to verify all the hashes match when they eventually get added during cook.
+				if (HashIter.Key.GetChunkType() == EIoChunkType::BulkData ||
+					HashIter.Key.GetChunkType() == EIoChunkType::OptionalBulkData)
+				{
+					Hashes.Add(HashIter.Key, HashIter.Value);
+				}
+			}
+		}
+
+		double EndTime = FPlatformTime::Seconds();
+		UE_LOG(LogIoStore, Display, TEXT("Added %d hashes to the hash database, init took %f seconds"), Hashes.Num(), EndTime - StartTime);
+		return true;
+	}
+
+	virtual bool FindHashForChunkId(const FIoChunkId& ChunkId, FIoChunkHash& OutHash) const override
+	{
+		const FIoHash* Exists = Hashes.Find(ChunkId);
+		if (Exists)
+		{
+			OutHash = FIoChunkHash::CreateFromIoHash(*Exists);
+			return true;
+		}
+		return false;
+	}
+};
+
 int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSettings& GeneralIoWriterSettings)
 {
 	TGuardValue<int32> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, 1);
@@ -3268,6 +3331,16 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			UE_LOG(LogIoStore, Error, TEXT("Failed to initialize reference chunk store."));
 			return 1;
 		}
+	}
+
+	TSharedPtr<IIoStoreWriterHashDatabase> HashDatabase = MakeShared<FIoStoreHashDb>();
+	if (((FIoStoreHashDb&)*HashDatabase).Initialize(Arguments.CookedDir) == false)
+	{
+		UE_LOG(LogIoStore, Warning, TEXT("Unabled to initialize the hash database from the asset registry!"));
+	}
+	if (Arguments.bVerifyHashDatabase)
+	{
+		UE_LOG(LogIoStore, Display, TEXT("Hash database verification on: hashes will be checked for accuracy during this run."));
 	}
 
 	TArray<FLegacyCookedPackage*> Packages;
@@ -3330,6 +3403,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				ContainerTarget->IoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OutputPath, ContainerSettings);
 				ContainerTarget->IoStoreWriter->EnableDiskLayoutOrdering(ContainerTarget->PatchSourceReaders);
 				ContainerTarget->IoStoreWriter->SetReferenceChunkDatabase(ChunkDatabase);
+				ContainerTarget->IoStoreWriter->SetHashDatabase(HashDatabase, Arguments.bVerifyHashDatabase);
 				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
 				if (!ContainerTarget->OptionalSegmentOutputPath.IsEmpty())
 				{
@@ -3571,7 +3645,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		}
 		else
 		{
-			UE_LOG(LogIoStore, Display, TEXT("Hashing chunks (%llu/%llu)..."), Progress.HashedChunksCount, Progress.TotalChunksCount);
+			UE_LOG(LogIoStore, Display, TEXT("Hashing chunks (%llu/%llu) %llu from hash database..."), Progress.HashedChunksCount, Progress.TotalChunksCount, Progress.HashDbChunksCount);
 		}
 	}
 	if (GeneralIoWriterSettings.bCompressionEnableDDC)
@@ -6326,6 +6400,11 @@ bool ParseContainerGenerationArguments(FIoStoreArguments& Arguments, FIoStoreWri
 		UE_LOG(LogIoStore, Display, TEXT("Parsing reference container crypto keys from a crypto key cache file '%s'"), *CryptoKeysCacheFilename);
 		KeyChainUtilities::LoadKeyChainFromFile(CryptoKeysCacheFilename, Arguments.ReferenceChunkKeys);
 	}
+
+	// By default, we use any hashes in the asset registry that exist in order to avoid reading and hashing
+	// chunk unnecessarily. This flag causes us to read and hash anyway, and then ensure they match what is
+	// in the asset registry. It is very bad if this fails!
+	Arguments.bVerifyHashDatabase = FParse::Param(FCommandLine::Get(), TEXT("-verifyhashdatabase"));
 
 
 	uint64 PatchPaddingAlignment = 0;
