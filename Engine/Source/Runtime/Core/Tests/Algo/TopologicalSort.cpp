@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_TESTS
+
 #include "Algo/TopologicalSort.h"
-#include "Misc/AutomationTest.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
+#include "Tests/TestHarnessAdapter.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSystemCoreAlgoTopologicalSortTest, "System.Core.Algo.TopologicalSort", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
-
-bool FSystemCoreAlgoTopologicalSortTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FSystemCoreAlgoTopologicalSortTest, "System::Core::Algo::TopologicalSort", "[ApplicationContextMask][EngineFilter]")
 {
 	using namespace Algo;
 
@@ -16,27 +15,27 @@ bool FSystemCoreAlgoTopologicalSortTest::RunTest(const FString& Parameters)
 
 		// Test the sort when each node depends on the previous one
 		bool bHasSucceeded = TopologicalSort(Array, [](int32 Element) { return Element > 1 ? TArray<int32>{ Element - 1 } : TArray<int32>{}; });
-		TestEqual(TEXT("TopologicalSort returned true when each node depends on the previous one"), bHasSucceeded, true);
-		TestEqual(TEXT("TopologicalSort sorted correctly when each node depends on the previous one"), Array, TArray<int32>{1, 2, 3});
+		CHECK_MESSAGE(TEXT("TopologicalSort returned true when each node depends on the previous one"), bHasSucceeded == true);
+		CHECK_MESSAGE(TEXT("TopologicalSort sorted correctly when each node depends on the previous one"), (Array == TArray<int32>{1, 2, 3}));
 	}
 	{
 		TArray<int32> Array{ 1, 2, 3 };
 		
 		// Test the sort when each node depends on the next one
 		bool bHasSucceeded = TopologicalSort(Array, [](int32 Element) { return Element < 3 ? TArray<int32>{ Element + 1 } : TArray<int32>{}; });
-		TestEqual(TEXT("TopologicalSort returned true when each node depends on the next one"), bHasSucceeded, true);
-		TestEqual(TEXT("TopologicalSort sorted correctly when each node depends on the next one"), Array, TArray<int32>{3, 2, 1});
+		CHECK_MESSAGE(TEXT("TopologicalSort returned true when each node depends on the next one"), bHasSucceeded == true);
+		CHECK_MESSAGE(TEXT("TopologicalSort sorted correctly when each node depends on the next one"), (Array == TArray<int32>{3, 2, 1}));
 	}
 	{
 		TArray<int32> Array{ 1, 2 };
 		
 		// Test the sort with a cycle between 1 and 2
 		bool bHasSucceeded = TopologicalSort(Array, [](int32 Element) { return TArray<int32>{ 1 + Element % 2 }; }, ETopologicalSort::None);
-		TestEqual(TEXT("TopologicalSort returned false when a cycle is detected and AllowCycles is not specified"), bHasSucceeded, false);
-		TestEqual(TEXT("TopologicalSort does not modify the array when a cycle is detected and AllowCycles is not specified"), Array, TArray<int32>{1, 2});
+		CHECK_MESSAGE(TEXT("TopologicalSort returned false when a cycle is detected and AllowCycles is not specified"), bHasSucceeded == false);
+		CHECK_MESSAGE(TEXT("TopologicalSort does not modify the array when a cycle is detected and AllowCycles is not specified"), (Array == TArray<int32>{1, 2}));
 
 		bHasSucceeded = TopologicalSort(Array, [](int32 Element) { return TArray<int32>{ 1 + Element % 2 }; }, ETopologicalSort::AllowCycles);
-		TestEqual(TEXT("TopologicalSort returned true when a cycle is detected but AllowCycles is specified"), bHasSucceeded, true);
+		CHECK_MESSAGE(TEXT("TopologicalSort returned true when a cycle is detected but AllowCycles is specified"), bHasSucceeded == true);
 	}
 	{
 		TArray<int32> Array;
@@ -47,8 +46,8 @@ bool FSystemCoreAlgoTopologicalSortTest::RunTest(const FString& Parameters)
 
 		// Make sure node 500 makes it on top if every other node depends on it
 		bool bHasSucceeded = TopologicalSort(Array, [](int32 Element) { return Element == 500 ? TArray<int32>{} : TArray<int32>{ 500 }; });
-		TestEqual(TEXT("TopologicalSort returned true when every node has a dependency on a single node"), bHasSucceeded, true);
-		TestEqual(TEXT("TopologicalSort sorted correctly when every node has a dependency on a single node"), Array[0], 500);
+		CHECK_MESSAGE(TEXT("TopologicalSort returned true when every node has a dependency on a single node"), bHasSucceeded == true);
+		CHECK_MESSAGE(TEXT("TopologicalSort sorted correctly when every node has a dependency on a single node"), Array[0] == 500);
 	}
 	{
 		TArray<int32> Array{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
@@ -77,14 +76,14 @@ bool FSystemCoreAlgoTopologicalSortTest::RunTest(const FString& Parameters)
 		Links.Add(5, 2);
 
 		bool bHasSucceeded = TopologicalSort(Array, [&Links](int32 Element) { TArray<int32> Dependencies; Links.MultiFind(Element, Dependencies); return Dependencies; });
-		TestEqual(TEXT("TopologicalSort returned true on sketched-out-example-1"), bHasSucceeded, true);
+		CHECK_MESSAGE(TEXT("TopologicalSort returned true on sketched-out-example-1"), bHasSucceeded == true);
 
 		// There might be multiple valid answers, so test each condition separately to make sure they are all met.
 		for (const auto& Pair : Links)
 		{
 			int32 ChildIndex = Array.IndexOfByKey(Pair.Key);
 			int32 ParentIndex = Array.IndexOfByKey(Pair.Value);
-			TestEqual(TEXT("TopologicalSort sorted correctly on sketched-out-example-1"), ParentIndex < ChildIndex, true);
+			CHECK_MESSAGE(TEXT("TopologicalSort sorted correctly on sketched-out-example-1"), ParentIndex < ChildIndex);
 		}
 	}
 
@@ -100,10 +99,10 @@ bool FSystemCoreAlgoTopologicalSortTest::RunTest(const FString& Parameters)
 		bool bHasSucceeded = TopologicalSort(Array,
 			[&Links](int32 Element) { TArray<int32> Dependencies; Links.MultiFind(Element, Dependencies); return Dependencies; },
 			ETopologicalSort::AllowCycles);
-		TestEqual(TEXT("TopologicalSort returned true with a cycle in the root and with the root cycle depending on a chain of non-cycle verts"),
-			bHasSucceeded, true);
-		TestTrue(TEXT("TopologicalSort sorted correctly with a cycle in the root and with the root cycle depending on a chain of non-cycle verts"),
-			Array == TArray<int32>{4, 3, 2, 1} || Array == TArray<int32>{4, 3, 1, 2});
+		CHECK_MESSAGE(TEXT("TopologicalSort returned true with a cycle in the root and with the root cycle depending on a chain of non-cycle verts"),
+			bHasSucceeded == true);
+		CHECK_MESSAGE(TEXT("TopologicalSort sorted correctly with a cycle in the root and with the root cycle depending on a chain of non-cycle verts"),
+			(Array == TArray<int32>{4, 3, 2, 1}) || (Array == TArray<int32>{4, 3, 1, 2}));
 	}
 	{
 		// Test the sort with a cycle in the root and with the root cycle depending on a chain of non-cycle verts, submitted in revese
@@ -118,10 +117,10 @@ bool FSystemCoreAlgoTopologicalSortTest::RunTest(const FString& Parameters)
 			[&Links](int32 Element) { TArray<int32> Dependencies; Links.MultiFind(Element, Dependencies); return Dependencies; },
 			ETopologicalSort::AllowCycles);
 
-		TestEqual(TEXT("TopologicalSort returned true with a cycle in the root and with the root cycle depending on a chain of non-cycle verts, submitted in revese"),
-			bHasSucceeded, true);
-		TestTrue(TEXT("TopologicalSort sorted correctly with a cycle in the root and with the root cycle depending on a chain of non-cycle verts, submitted in revese"),
-			Array == TArray<int32>{1, 2, 3, 4} || Array == TArray<int32>{1, 2, 4, 3});
+		CHECK_MESSAGE(TEXT("TopologicalSort returned true with a cycle in the root and with the root cycle depending on a chain of non-cycle verts, submitted in revese"),
+			bHasSucceeded == true);
+		CHECK_MESSAGE(TEXT("TopologicalSort sorted correctly with a cycle in the root and with the root cycle depending on a chain of non-cycle verts, submitted in revese"),
+			(Array == TArray<int32>{1, 2, 3, 4}) || (Array == TArray<int32>{1, 2, 4, 3}));
 	}
 	{
 		// Test the sort with a cycle at a leaf and a chain from the root depending on that cycle
@@ -136,10 +135,13 @@ bool FSystemCoreAlgoTopologicalSortTest::RunTest(const FString& Parameters)
 			[&Links](int32 Element) { TArray<int32> Dependencies; Links.MultiFind(Element, Dependencies); return Dependencies; },
 			ETopologicalSort::AllowCycles);
 
-		TestEqual(TEXT("TopologicalSort returned true with a cycle at a leaf and a chain from the root depending on that cycle"), bHasSucceeded, true);
+		CHECK_MESSAGE(TEXT("TopologicalSort returned true with a cycle at a leaf and a chain from the root depending on that cycle"),
+			bHasSucceeded == true);
 		// There might be multiple valid answers, so test each condition separately to make sure they are all met.
-		TestTrue(TEXT("TopologicalSort sorted correctly with a cycle at a leaf and a chain from the root depending on that cycle"), Array.IndexOfByKey(2) < Array.IndexOfByKey(1));
-		TestTrue(TEXT("TopologicalSort sorted correctly with a cycle at a leaf and a chain from the root depending on that cycle"), Array[0] == 3 || Array[0] == 4);
+		CHECK_MESSAGE(TEXT("TopologicalSort sorted correctly with a cycle at a leaf and a chain from the root depending on that cycle"),
+			Array.IndexOfByKey(2) < Array.IndexOfByKey(1));
+		CHECK_MESSAGE(TEXT("TopologicalSort sorted correctly with a cycle at a leaf and a chain from the root depending on that cycle"),
+			(Array[0] == 3) || (Array[0] == 4));
 	}
 	{
 		// Test the sort with a cycle in the root and with the root cycle depending on a chain of non-cycle verts, submitted in reverse
@@ -154,13 +156,13 @@ bool FSystemCoreAlgoTopologicalSortTest::RunTest(const FString& Parameters)
 			[&Links](int32 Element) { TArray<int32> Dependencies; Links.MultiFind(Element, Dependencies); return Dependencies; },
 			ETopologicalSort::AllowCycles);
 
-		TestEqual(TEXT("TopologicalSort returned true with a cycle in the root and with the root cycle depending on a chain of non-cycle verts, submitted in reverse"),
-			bHasSucceeded, true);
+		CHECK_MESSAGE(TEXT("TopologicalSort returned true with a cycle in the root and with the root cycle depending on a chain of non-cycle verts, submitted in reverse"),
+			bHasSucceeded == true);
 		// There might be multiple valid answers, so test each condition separately to make sure they are all met.
-		TestTrue(TEXT("TopologicalSort sorted correctly with a cycle in the root and with the root cycle depending on a chain of non-cycle verts, submitted in reverse"),
+		CHECK_MESSAGE(TEXT("TopologicalSort sorted correctly with a cycle in the root and with the root cycle depending on a chain of non-cycle verts, submitted in reverse"),
 			Array.IndexOfByKey(3) < Array.IndexOfByKey(4));
-		TestTrue(TEXT("TopologicalSort sorted correctly with a cycle in the root and with the root cycle depending on a chain of non-cycle verts, submitted in reverse"),
-			Array[0] == 1 || Array[0] == 2);
+		CHECK_MESSAGE(TEXT("TopologicalSort sorted correctly with a cycle in the root and with the root cycle depending on a chain of non-cycle verts, submitted in reverse"),
+			(Array[0] == 1) || (Array[0] == 2));
 	}
 	{
 		// Verify that when breaking a cycle a member of the cycle is selected rather than an element that depends on but is not in the cycle
@@ -179,9 +181,9 @@ bool FSystemCoreAlgoTopologicalSortTest::RunTest(const FString& Parameters)
 			[&Links](int32 Element) { TArray<int32> Dependencies; Links.MultiFind(Element, Dependencies); return Dependencies; },
 			ETopologicalSort::AllowCycles);
 
-		TestEqual(TEXT("TopologicalSort returned true with a vertex dependent upon a cycle"), bHasSucceeded, true);
+		CHECK_MESSAGE(TEXT("TopologicalSort returned true with a vertex dependent upon a cycle"),bHasSucceeded == true);
 		// There might be multiple valid answers, so test each condition separately to make sure they are all met.
-		TestTrue(TEXT("TopologicalSort sorted correctly with a vertex dependent upon a cycle"), Array.IndexOfByKey(2) < Array.IndexOfByKey(1));
+		CHECK_MESSAGE(TEXT("TopologicalSort sorted correctly with a vertex dependent upon a cycle"), Array.IndexOfByKey(2) < Array.IndexOfByKey(1));
 	}
 	{
 		// Verify that when two cycles are present and one cycle depends on the other, the independent cycle is taken
@@ -224,13 +226,13 @@ bool FSystemCoreAlgoTopologicalSortTest::RunTest(const FString& Parameters)
 				[&Links](int32 Element) { TArray<int32> Dependencies; Links.MultiFind(Element, Dependencies); return Dependencies; },
 				ETopologicalSort::AllowCycles);
 
-			TestEqual(TEXT("TopologicalSort returned true for one cycle dependent upon another"), bHasSucceeded, true);
+			CHECK_MESSAGE(TEXT("TopologicalSort returned true for one cycle dependent upon another"), bHasSucceeded == true);
 			// Vertex 1 comes last because it depends on the top cycle which depends on the bottom cycle
-			TestTrue(TEXT("TopologicalSort sorted correctly for one cycle dependent upon another"), Array.Last() == 1);
+			CHECK_MESSAGE(TEXT("TopologicalSort sorted correctly for one cycle dependent upon another"), Array.Last() == 1);
 			// Test that all elements of the bottom cycle come before all elements of the top cycle
 			int32 LastIndexOfBottom = FMath::Max3(Array.IndexOfByKey(5), Array.IndexOfByKey(6), Array.IndexOfByKey(7));
 			int32 FirstIndexOfTop = FMath::Min3(Array.IndexOfByKey(2), Array.IndexOfByKey(3), Array.IndexOfByKey(4));
-			TestTrue(TEXT("TopologicalSort sorted correctly for one cycle dependent upon another"), LastIndexOfBottom < FirstIndexOfTop);
+			CHECK_MESSAGE(TEXT("TopologicalSort sorted correctly for one cycle dependent upon another"), LastIndexOfBottom < FirstIndexOfTop);
 		}
 	}
 	{
@@ -262,14 +264,11 @@ bool FSystemCoreAlgoTopologicalSortTest::RunTest(const FString& Parameters)
 			[&Links](int32 Element) { TArray<int32> Dependencies; Links.MultiFind(Element, Dependencies); return Dependencies; },
 			ETopologicalSort::AllowCycles);
 
-		TestEqual(TEXT("TopologicalSort returned true for MutuallyReachableSet Problem1"), bHasSucceeded, true);
+		CHECK_MESSAGE(TEXT("TopologicalSort returned true for MutuallyReachableSet Problem1"), bHasSucceeded == true);
 		// 3,4 comes first
-		TestTrue(TEXT("TopologicalSort sorted correctly for MutuallyReachableSet Problem1"),
-			(Array[0] == 3 && Array[1] == 4) || (Array[0] == 4 && Array[1] == 3));
+		CHECK_MESSAGE(TEXT("TopologicalSort sorted correctly for MutuallyReachableSet Problem1"), (Array[0] == 3 && Array[1] == 4) || (Array[0] == 4 && Array[1] == 3));
 		// Any order of 0,1,2,5 is valid since they are mutually reachable, so there's nothing else to test
 	}
-
-	return true;
 }
 
-#endif //WITH_DEV_AUTOMATION_TESTS
+#endif // WITH_TESTS

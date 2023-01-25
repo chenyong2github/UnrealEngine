@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Containers/BitArray.h"
-#include "Misc/AutomationTest.h"
+#if WITH_TESTS
 
-#if WITH_DEV_AUTOMATION_TESTS
+#include "Containers/BitArray.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+
+#include "Tests/TestHarnessAdapter.h"
 
 namespace UE
 {
@@ -68,12 +69,12 @@ namespace BitArrayTest
 } // namespace BitArrayTest
 } // namespace UE
 
-class FBitArrayTest : public FAutomationTestBase
+
+class FBitArrayTest
 {
 public:
-	FBitArrayTest(const FString& InName, const bool bInComplexTask)
-		: FAutomationTestBase(InName, bInComplexTask)
-		, bGrowingTrue{ true, false, true, true, false, true, true, true, false, true }
+	FBitArrayTest()
+		: bGrowingTrue{ true, false, true, true, false, true, true, true, false, true }
 		, GrowingTrueInt(0x1 | /*(0 * 0x2) |*/ 0x4 | 0x8 | /*(0 * 0x10) |*/ 0x20 | 0x40 | 0x80 | /*(0 * 0x100) |*/ 0x200)
 		, NumGrowingTrue(sizeof(bGrowingTrue) / sizeof(bGrowingTrue[0]))
 		, ArrGrowingTrue(true, NumGrowingTrue)
@@ -98,22 +99,24 @@ public:
 
 	bool ConstructAndTestConstructors()
 	{
+		bool bHasAnyErrors(false);
+
 		ArrTrue.CheckInvariants();
-		TestEqual(TEXT("ArrTrue Size"), ArrTrue.Num(), 10);
+		CHECK_AND_SET_ERROR_ON_FAIL(TEXT("ArrTrue Size"), ArrTrue.Num() == 10, bHasAnyErrors);
 		ArrFalse.CheckInvariants();
-		TestEqual(TEXT("ArrFalse Size"), ArrFalse.Num(), 10);
+		CHECK_AND_SET_ERROR_ON_FAIL(TEXT("ArrFalse Size"), ArrFalse.Num() == 10, bHasAnyErrors);
 		for (int n = 0; n < 10; ++n)
 		{
-			TestEqual(TEXT("ArrTrue elements"), ArrTrue[n], true);
-			TestEqual(TEXT("ArrFalse elements"), ArrFalse[n], false);
+			CHECK_AND_SET_ERROR_ON_FAIL(TEXT("ArrTrue elements"), ArrTrue[n] == true, bHasAnyErrors);
+			CHECK_AND_SET_ERROR_ON_FAIL(TEXT("ArrFalse elements"), ArrFalse[n] == false, bHasAnyErrors);
 		}
 
 		ArrGrowingTrue.CheckInvariants();
-		TestEqual(TEXT("ArrGrowingTrue Size"), ArrGrowingTrue.Num(), NumGrowingTrue);
+		CHECK_AND_SET_ERROR_ON_FAIL(TEXT("ArrGrowingTrue Size"), ArrGrowingTrue.Num() == NumGrowingTrue, bHasAnyErrors);
 		for (int n = 0; n < NumGrowingTrue; ++n)
 		{
 			ArrGrowingTrue[n] = bGrowingTrue[n];
-			TestEqual(TEXT("ArrGrowingTrue elements"), ArrGrowingTrue[n], bGrowingTrue[n]);
+			CHECK_AND_SET_ERROR_ON_FAIL(TEXT("ArrGrowingTrue elements"), ArrGrowingTrue[n] == bGrowingTrue[n], bHasAnyErrors);
 		}
 		ArrSquareWave.CheckInvariants();
 		for (int n = 0; n < NumSquareWave; ++n)
@@ -126,7 +129,8 @@ public:
 			ArrGrowingTrueTwice[n] = bGrowingTrue[n];
 			ArrGrowingTrueTwice[n + NumGrowingTrue] = bGrowingTrue[n];
 		}
-		return !this->HasAnyErrors();
+
+		return !bHasAnyErrors;
 	}
 
 	void TestEqualityOperator()
@@ -143,14 +147,14 @@ public:
 		}
 		ArrGrowingTrue2[NumGrowingTrue - 1] = bGrowingTrue[NumGrowingTrue - 1];
 		ArrAlmostGrowingTrue[NumGrowingTrue - 1] = !bGrowingTrue[NumGrowingTrue - 1];
-		TestTrue(TEXT("Equality operator on equal arrays"), ArrGrowingTrue == ArrGrowingTrue2);
-		TestFalse(TEXT("Inequality operator on equal arrays"), ArrGrowingTrue != ArrGrowingTrue2);
-		TestFalse(TEXT("Equality operator on nonequal arrays"), ArrGrowingTrue == ArrAlmostGrowingTrue);
-		TestTrue(TEXT("Inequality operator on nonequal arrays"), ArrGrowingTrue != ArrAlmostGrowingTrue);
-		TestFalse(TEXT("Equality operator when lhs is superset of rhs"), ArrGrowingTrue == ArrSubsetGrowingTrue);
-		TestTrue(TEXT("Inequality operator when lhs is superset of rhs"), ArrGrowingTrue != ArrSubsetGrowingTrue);
-		TestFalse(TEXT("Equality operator when lhs is subset of rhs"), ArrSubsetGrowingTrue == ArrGrowingTrue);
-		TestTrue(TEXT("Inequality operator when lhs is subset of rhs"), ArrSubsetGrowingTrue != ArrGrowingTrue);
+		CHECK_MESSAGE(TEXT("Equality operator on equal arrays"), ArrGrowingTrue == ArrGrowingTrue2);
+		CHECK_MESSAGE(TEXT("Inequality operator on equal arrays"), !(ArrGrowingTrue != ArrGrowingTrue2));
+		CHECK_MESSAGE(TEXT("Equality operator on nonequal arrays"), !(ArrGrowingTrue == ArrAlmostGrowingTrue));
+		CHECK_MESSAGE(TEXT("Inequality operator on nonequal arrays"), ArrGrowingTrue != ArrAlmostGrowingTrue);
+		CHECK_MESSAGE(TEXT("Equality operator when lhs is superset of rhs"), !(ArrGrowingTrue == ArrSubsetGrowingTrue));
+		CHECK_MESSAGE(TEXT("Inequality operator when lhs is superset of rhs"), ArrGrowingTrue != ArrSubsetGrowingTrue);
+		CHECK_MESSAGE(TEXT("Equality operator when lhs is subset of rhs"), !(ArrSubsetGrowingTrue == ArrGrowingTrue));
+		CHECK_MESSAGE(TEXT("Inequality operator when lhs is subset of rhs"), ArrSubsetGrowingTrue != ArrGrowingTrue);
 	}
 
 	void TestOtherConstructorAndAssignment()
@@ -182,14 +186,14 @@ public:
 			ArrVictim.CheckInvariants();
 			TBitArray<> Arr(MoveTemp(ArrVictim));
 			Arr.CheckInvariants();
-			TestTrue(TEXT("Copy Constructor"), Arr == ArrGrowingTrue);
+			CHECK_MESSAGE(TEXT("Copy Constructor"), Arr == ArrGrowingTrue);
 		}
 
 		// Copy constructor
 		{
 			TBitArray<> Arr(ArrGrowingTrue);
 			Arr.CheckInvariants();
-			TestTrue(TEXT("Copy Constructor"), Arr == ArrGrowingTrue);
+			CHECK_MESSAGE(TEXT("Copy Constructor"), Arr == ArrGrowingTrue);
 		}
 
 		// Assignment operator
@@ -198,7 +202,7 @@ public:
 			Arr.CheckInvariants();
 			Arr = ArrGrowingTrue;
 			Arr.CheckInvariants();
-			TestTrue(TEXT("Assignment operator"), Arr == ArrGrowingTrue);
+			CHECK_MESSAGE(TEXT("Assignment operator"), Arr == ArrGrowingTrue);
 		}
 
 		// Move Assignment operator
@@ -208,7 +212,7 @@ public:
 			TBitArray<> Arr;
 			Arr.CheckInvariants();
 			Arr = MoveTemp(ArrVictim);
-			TestTrue(TEXT("Move Assignment operator"), Arr == ArrGrowingTrue);
+			CHECK_MESSAGE(TEXT("Move Assignment operator"), Arr == ArrGrowingTrue);
 		}
 	}
 
@@ -219,23 +223,23 @@ public:
 		TBitArray<> MediumFalse(false, 5);
 		TBitArray<> MediumTrue(true, 5);
 		TBitArray<> Long(false, 6);
-		TestFalse(TEXT("! x < x"), Short.operator<(Short));
-		TestTrue(TEXT("Sorted by length first, so Short < MediumFalse"), Short < MediumFalse);
-		TestFalse(TEXT("Sorted by length first, so !MediumFalse < Short"), MediumFalse < Short);
-		TestTrue(TEXT("Sorted by length first, so Short < MediumTrue"), Short < MediumTrue);
-		TestFalse(TEXT("Sorted by length first, so !MediumTrue < Short"), MediumTrue < Short);
-		TestTrue(TEXT("Sorted by length first, so MediumTrue < Long"), MediumFalse < Long);
-		TestFalse(TEXT("Sorted by length first, so !Long < MediumTrue"), Long < MediumFalse);
-		TestTrue(TEXT("Sorted by length first, so MediumFalse < Long"), MediumTrue < Long);
-		TestFalse(TEXT("Sorted by length first, so !Long < MediumFalse"), Long < MediumTrue);
+		CHECK_MESSAGE(TEXT("! x < x"), !(Short.operator<(Short)));
+		CHECK_MESSAGE(TEXT("Sorted by length first, so Short < MediumFalse"), Short < MediumFalse);
+		CHECK_MESSAGE(TEXT("Sorted by length first, so !MediumFalse < Short"), !(MediumFalse < Short));
+		CHECK_MESSAGE(TEXT("Sorted by length first, so Short < MediumTrue"), Short < MediumTrue);
+		CHECK_MESSAGE(TEXT("Sorted by length first, so !MediumTrue < Short"), !(MediumTrue < Short));
+		CHECK_MESSAGE(TEXT("Sorted by length first, so MediumTrue < Long"), MediumFalse < Long);
+		CHECK_MESSAGE(TEXT("Sorted by length first, so !Long < MediumTrue"), !(Long < MediumFalse));
+		CHECK_MESSAGE(TEXT("Sorted by length first, so MediumFalse < Long"), MediumTrue < Long);
+		CHECK_MESSAGE(TEXT("Sorted by length first, so !Long < MediumFalse"), !(Long < MediumTrue));
 
 		TBitArray<> MediumTrueAtEnd(false, 5);
 		MediumTrueAtEnd[4] = true;
 		TBitArray<> MediumTrueAtStart(false, 5);
 		MediumTrueAtStart[0] = true;
-		TestTrue(TEXT("Sorted lexigraphically second, so MediumFalse < MediumTrueAtEnd"), MediumFalse < MediumTrueAtEnd);
-		TestTrue(TEXT("Sorted lexigraphically second, so MediumTrueAtEnd < MediumTrueAtStart"), MediumFalse < MediumTrueAtEnd);
-		TestTrue(TEXT("Sorted lexigraphically second, so MediumTrueAtStart < MediumTrue"), MediumTrueAtEnd < MediumTrue);
+		CHECK_MESSAGE(TEXT("Sorted lexigraphically second, so MediumFalse < MediumTrueAtEnd"), MediumFalse < MediumTrueAtEnd);
+		CHECK_MESSAGE(TEXT("Sorted lexigraphically second, so MediumTrueAtEnd < MediumTrueAtStart"), MediumFalse < MediumTrueAtEnd);
+		CHECK_MESSAGE(TEXT("Sorted lexigraphically second, so MediumTrueAtStart < MediumTrue"), MediumTrueAtEnd < MediumTrue);
 	}
 
 	void TestRemoveAt()
@@ -244,32 +248,32 @@ public:
 			TBitArray<> Arr(ArrSquareWave);
 			Arr.RemoveAt(Arr.Num() - 1, 1);
 			Arr.CheckInvariants();
-			TestEqual(TEXT("RemoveAt from end size"), Arr.Num(), NumSquareWave - 1);
+			CHECK_MESSAGE(TEXT("RemoveAt from end size"), Arr.Num() == (NumSquareWave - 1));
 			for (int n = 0; n < NumSquareWave - 1; ++n)
 			{
-				TestEqual(TEXT("RemoveAt from end elements"), Arr[n], ArrSquareWave[n]);
+				CHECK_MESSAGE(TEXT("RemoveAt from end elements"), Arr[n] == ArrSquareWave[n]);
 			}
 
 			Arr = ArrSquareWave;
 			Arr.RemoveAt(0, 1);
 			Arr.CheckInvariants();
-			TestEqual(TEXT("RemoveAt from start size"), Arr.Num(), NumSquareWave - 1);
+			CHECK_MESSAGE(TEXT("RemoveAt from start size"), Arr.Num() == (NumSquareWave - 1));
 			for (int n = 0; n < NumSquareWave - 1; ++n)
 			{
-				TestEqual(TEXT("RemoveAt from start elements"), Arr[n], ArrSquareWave[n + 1]);
+				CHECK_MESSAGE(TEXT("RemoveAt from start elements"), Arr[n] == ArrSquareWave[n + 1]);
 			}
 
 			Arr = ArrSquareWave;
 			Arr.RemoveAt(5, 1);
 			Arr.CheckInvariants();
-			TestEqual(TEXT("RemoveAt from middle size"), Arr.Num(), NumSquareWave - 1);
+			CHECK_MESSAGE(TEXT("RemoveAt from middle size"), Arr.Num() == (NumSquareWave - 1));
 			for (int n = 0; n < 5; ++n)
 			{
-				TestEqual(TEXT("RemoveAt from middle elements"), Arr[n], ArrSquareWave[n]);
+				CHECK_MESSAGE(TEXT("RemoveAt from middle elements"), Arr[n] == ArrSquareWave[n]);
 			}
 			for (int n = 5; n < NumSquareWave - 1; ++n)
 			{
-				TestEqual(TEXT("RemoveAt from middle elements"), Arr[n], ArrSquareWave[n + 1]);
+				CHECK_MESSAGE(TEXT("RemoveAt from middle elements"), Arr[n] == ArrSquareWave[n + 1]);
 			}
 
 			Arr = TBitArray<>(true, 20);
@@ -279,14 +283,14 @@ public:
 			}
 			Arr.RemoveAt(5, 5);
 			Arr.CheckInvariants();
-			TestEqual(TEXT("RemoveAt multiple size"), Arr.Num(), 15);
+			CHECK_MESSAGE(TEXT("RemoveAt multiple size"), Arr.Num() == 15);
 			for (int n = 0; n < 5; ++n)
 			{
-				TestEqual(TEXT("RemoveAt multiple elements"), Arr[n], true);
+				CHECK_MESSAGE(TEXT("RemoveAt multiple elements"), Arr[n] == true);
 			}
 			for (int n = 5; n < 15; ++n)
 			{
-				TestEqual(TEXT("RemoveAt multiple elements"), Arr[n], false);
+				CHECK_MESSAGE(TEXT("RemoveAt multiple elements"), Arr[n] == false);
 			}
 		}
 
@@ -312,29 +316,30 @@ public:
 			TBitArray<> Arr(ArrSquareWave);
 			Arr.RemoveAtSwap(Arr.Num() - 1, 1);
 			Arr.CheckInvariants();
-			TestEqual(TEXT("RemoveAtSwap from end size"), Arr.Num(), NumSquareWave - 1);
+			CHECK_MESSAGE(TEXT("RemoveAtSwap from end size"), Arr.Num() == (NumSquareWave - 1));
 			for (int n = 0; n < NumSquareWave - 1; ++n)
 			{
-				TestEqual(TEXT("RemoveAtSwap from end elements"), Arr[n], ArrSquareWave[n]);
+				CHECK_MESSAGE(TEXT("RemoveAtSwap from end elements"), Arr[n] == ArrSquareWave[n]);
 			}
 
 			Arr = ArrSquareWave;
 			Arr.RemoveAtSwap(0, 1);
 			Arr.CheckInvariants();
-			TestEqual(TEXT("RemoveAtSwap from start size"), Arr.Num(), NumSquareWave - 1);
-			TestEqual(TEXT("RemoveAtSwap from start elements"), Arr[0], ArrSquareWave[NumSquareWave - 1]);
+			CHECK_MESSAGE(TEXT("RemoveAtSwap from start size"), Arr.Num() == (NumSquareWave - 1));
+			CHECK_MESSAGE(TEXT("RemoveAtSwap from start elements"), Arr[0] == (ArrSquareWave[NumSquareWave - 1]));
 			for (int n = 1; n < NumSquareWave - 1; ++n)
 			{
-				TestEqual(TEXT("RemoveAtSwap from start elements"), Arr[n], ArrSquareWave[n]);
+				CHECK_MESSAGE(TEXT("RemoveAtSwap from start elements"), Arr[n] == ArrSquareWave[n]);
 			}
 
 			Arr = ArrSquareWave;
 			Arr.RemoveAtSwap(5, 1);
 			Arr.CheckInvariants();
-			TestEqual(TEXT("RemoveAtSwap from middle size"), Arr.Num(), NumSquareWave - 1);
+			CHECK_MESSAGE(TEXT("RemoveAtSwap from middle size"), Arr.Num() == (NumSquareWave - 1));
 			for (int n = 0; n < NumSquareWave - 1; ++n)
 			{
-				TestEqual(TEXT("RemoveAtSwap from middle elements"), Arr[n], n != 5 ? ArrSquareWave[n] : ArrSquareWave[NumSquareWave - 1]);
+				CHECK_MESSAGE(TEXT("RemoveAtSwap from middle elements"),
+					Arr[n] == (n != 5 ? ArrSquareWave[n] : ArrSquareWave[NumSquareWave - 1]));
 			}
 
 			Arr = TBitArray<>(true, 20);
@@ -344,22 +349,22 @@ public:
 			}
 			Arr.RemoveAtSwap(5, 2);
 			Arr.CheckInvariants();
-			TestEqual(TEXT("RemoveAtSwap, multiple, size"), Arr.Num(), 18);
+			CHECK_MESSAGE(TEXT("RemoveAtSwap, multiple, size"), Arr.Num() == 18);
 			for (int n = 0; n < 5; ++n)
 			{
-				TestEqual(TEXT("RemoveAtSwap, multiple, elements"), Arr[n], true);
+				CHECK_MESSAGE(TEXT("RemoveAtSwap, multiple, elements"), Arr[n] == true);
 			}
 			for (int n = 5; n < 7; ++n)
 			{
-				TestEqual(TEXT("RemoveAtSwap, multiple, elements"), Arr[n], false);
+				CHECK_MESSAGE(TEXT("RemoveAtSwap, multiple, elements"), Arr[n] == false);
 			}
 			for (int n = 7; n < 10; ++n)
 			{
-				TestEqual(TEXT("RemoveAtSwap, multiple, elements"), Arr[n], true);
+				CHECK_MESSAGE(TEXT("RemoveAtSwap, multiple, elements"), Arr[n] == true);
 			}
 			for (int n = 10; n < 18; ++n)
 			{
-				TestEqual(TEXT("RemoveAtSwap, multiple, elements"), Arr[n], false);
+				CHECK_MESSAGE(TEXT("RemoveAtSwap, multiple, elements"), Arr[n] == false);
 			}
 		}
 
@@ -394,9 +399,9 @@ public:
 			Writer << Spacer << ArrEmpty << Spacer << ArrOnes << Spacer << ArrZeroes << Spacer;
 		}
 		// serialize into a loading archive should not modify the array
-		TestTrue(TEXT("Serialize Empty"), ArrEmpty == ArrEmptyOriginal);
-		TestTrue(TEXT("Serialize Ones"), ArrOnes == ArrOnesOriginal);
-		TestTrue(TEXT("Serialize Ones"), ArrZeroes == ArrZeroesOriginal);
+		CHECK_MESSAGE(TEXT("Serialize Empty"), ArrEmpty == ArrEmptyOriginal);
+		CHECK_MESSAGE(TEXT("Serialize Ones"), ArrOnes == ArrOnesOriginal);
+		CHECK_MESSAGE(TEXT("Serialize Ones"), ArrZeroes == ArrZeroesOriginal);
 
 		TBitArray<> ArrEmptyCopy;
 		TBitArray<> ArrZeroesCopy(false, NumBitsPerDWORD + NumBitsPerDWORD / 2);
@@ -406,16 +411,16 @@ public:
 			FMemoryReader Reader(Bytes);
 			Reader << SpacerCopies[0] << ArrEmptyCopy << SpacerCopies[1] << ArrOnesCopy << SpacerCopies[2] << ArrZeroesCopy << SpacerCopies[3];
 		}
-		TestEqual(TEXT("Serialize Empty Underflow"), SpacerCopies[0], Spacer);
-		TestTrue(TEXT("Serialize Empty"), ArrEmpty == ArrEmptyCopy);
+		CHECK_MESSAGE(TEXT("Serialize Empty Underflow"), SpacerCopies[0] == Spacer);
+		CHECK_MESSAGE(TEXT("Serialize Empty"), ArrEmpty == ArrEmptyCopy);
 		ArrEmptyCopy.CheckInvariants();
-		TestEqual(TEXT("Serialize Ones Underflow"), SpacerCopies[1], Spacer);
-		TestTrue(TEXT("Serialize Ones"), ArrOnes == ArrOnesCopy);
+		CHECK_MESSAGE(TEXT("Serialize Ones Underflow"), SpacerCopies[1] == Spacer);
+		CHECK_MESSAGE(TEXT("Serialize Ones"), ArrOnes == ArrOnesCopy);
 		ArrOnesCopy.CheckInvariants();
-		TestEqual(TEXT("Serialize Zeroes Underflow"), SpacerCopies[2], Spacer);
-		TestTrue(TEXT("Serialize Ones"), ArrZeroes == ArrZeroesCopy);
+		CHECK_MESSAGE(TEXT("Serialize Zeroes Underflow"), SpacerCopies[2] == Spacer);
+		CHECK_MESSAGE(TEXT("Serialize Ones"), ArrZeroes == ArrZeroesCopy);
 		ArrZeroesCopy.CheckInvariants();
-		TestEqual(TEXT("Serialize Zeroes Overflow"), SpacerCopies[3], Spacer);
+		CHECK_MESSAGE(TEXT("Serialize Zeroes Overflow"), SpacerCopies[3] == Spacer);
 
 		TArray<uint8> Bytes2;
 		TBitArray<> ArrSmall(true, 16);
@@ -431,8 +436,10 @@ public:
 			FMemoryReader Reader(Bytes2);
 			Reader << Arr;
 		}
-		TestEqual(TEXT("Serialize from a dynamic allocation with an inline allocator sets num down to the size of the loaded array"), Arr.Num(), ArrSmall.Num());
-		TestEqual(TEXT("Serialize from a dynamic allocation with an inline allocator sets max back to the size of the inline allocation"), Arr.Max(), InitialMax);
+		CHECK_MESSAGE(TEXT("Serialize from a dynamic allocation with an inline allocator sets num down to the size of the loaded array"),
+			Arr.Num() == ArrSmall.Num());
+		CHECK_MESSAGE(TEXT("Serialize from a dynamic allocation with an inline allocator sets max back to the size of the inline allocation"),
+			Arr.Max() == InitialMax);
 	}
 
 	void TestAdd()
@@ -441,31 +448,31 @@ public:
 		// Add one bit
 		{
 			TBitArray<FDefaultAllocator> Arr;
-			TestEqual(TEXT("With DefaultAllocator MaxBits starts at 0"), Arr.Max(), 0);
+			CHECK_MESSAGE(TEXT("With DefaultAllocator MaxBits starts at 0"), Arr.Max() == 0);
 			for (int n = 0; n < 10; ++n)
 			{
 				Arr.Add(n % 3 == 0);
 				Arr.CheckInvariants();
 			}
-			TestEqual(TEXT("Add one bit size"), Arr.Num(), 10);
+			CHECK_MESSAGE(TEXT("Add one bit size"), Arr.Num() == 10);
 			for (int n = 0; n < 10; ++n)
 			{
-				TestEqual(TEXT("Add one bit elements"), Arr[n], n % 3 == 0);
+				CHECK_MESSAGE(TEXT("Add one bit elements"), Arr[n] == (n % 3 == 0));
 			}
 
 			Arr.RemoveAt(0, 10);
 			Arr.CheckInvariants();
-			TestEqual(TEXT("Removed all elements leaves size at 0"), Arr.Num(), 0);
-			TestTrue(TEXT("Removed all elements keeps max at original"), Arr.Max() >= 10);
+			CHECK_MESSAGE(TEXT("Removed all elements leaves size at 0"), Arr.Num() == 0);
+			CHECK_MESSAGE(TEXT("Removed all elements keeps max at original"), Arr.Max() >= 10);
 			for (int n = 0; n < 10; ++n)
 			{
 				Arr.Add(n % 2 == 0);
 				Arr.CheckInvariants();
 			}
-			TestEqual(TEXT("Add one bit no resize size"), Arr.Num(), 10);
+			CHECK_MESSAGE(TEXT("Add one bit no resize size"), Arr.Num() == 10);
 			for (int n = 0; n < 10; ++n)
 			{
-				TestEqual(TEXT("Add one bit no resize elements"), Arr[n], n % 2 == 0);
+				CHECK_MESSAGE(TEXT("Add one bit no resize elements"), Arr[n] == (n % 2 == 0));
 			}
 		}
 
@@ -477,8 +484,8 @@ public:
 			ArrTrueCopy.CheckInvariants();
 			ArrFalseCopy.Add(false, ArrFalse.Num());
 			ArrFalseCopy.CheckInvariants();
-			TestTrue(TEXT("Add multiple true bits from empty into unallocated space"), AreEqual(ArrTrueCopy, ArrTrue));
-			TestTrue(TEXT("Add multiple false bits from empty into unallocated space"), AreEqual(ArrFalseCopy, ArrFalse));
+			CHECK_MESSAGE(TEXT("Add multiple true bits from empty into unallocated space"), AreEqual(ArrTrueCopy, ArrTrue));
+			CHECK_MESSAGE(TEXT("Add multiple false bits from empty into unallocated space"), AreEqual(ArrFalseCopy, ArrFalse));
 
 			ArrTrueCopy.RemoveAt(0, ArrTrueCopy.Num());
 			ArrTrueCopy.CheckInvariants();
@@ -488,8 +495,8 @@ public:
 			ArrFalseCopy.CheckInvariants();
 			ArrFalseCopy.Add(false, ArrFalse.Num());
 			ArrFalseCopy.CheckInvariants();
-			TestTrue(TEXT("Add multiple true bits from empty into previously-allocated space"), AreEqual(ArrTrueCopy, ArrTrue));
-			TestTrue(TEXT("Add multiple false bits from empty into previously-allocated space"), AreEqual(ArrFalseCopy, ArrFalse));
+			CHECK_MESSAGE(TEXT("Add multiple true bits from empty into previously-allocated space"), AreEqual(ArrTrueCopy, ArrTrue));
+			CHECK_MESSAGE(TEXT("Add multiple false bits from empty into previously-allocated space"), AreEqual(ArrFalseCopy, ArrFalse));
 
 			TBitArray<> ArrTrue2(true, 5);
 			TBitArray<> ArrTrue3(true, 10);
@@ -500,8 +507,8 @@ public:
 			ArrTrue2.CheckInvariants();
 			ArrFalse2.Add(false, 5);
 			ArrFalse2.CheckInvariants();
-			TestTrue(TEXT("Add multiple true bits on non-empty"), ArrTrue2 == ArrTrue3);
-			TestTrue(TEXT("Add multiple false bits on non-empty"), ArrFalse2 == ArrFalse3);
+			CHECK_MESSAGE(TEXT("Add multiple true bits on non-empty"), ArrTrue2 == ArrTrue3);
+			CHECK_MESSAGE(TEXT("Add multiple false bits on non-empty"), ArrFalse2 == ArrFalse3);
 		}
 
 		// AddUninitialized
@@ -512,8 +519,8 @@ public:
 			ArrTrueCopy.CheckInvariants();
 			ArrFalseCopy.AddUninitialized(ArrFalse.Num());
 			ArrFalseCopy.CheckInvariants();
-			TestEqual(TEXT("AddUninitialized multiple true bits from empty into unallocated space"), ArrTrueCopy.Num(), ArrTrue.Num());
-			TestEqual(TEXT("AddUninitialized multiple false bits from empty into unallocated space"), ArrFalseCopy.Num(), ArrFalse.Num());
+			CHECK_MESSAGE(TEXT("AddUninitialized multiple true bits from empty into unallocated space"), ArrTrueCopy.Num() == ArrTrue.Num());
+			CHECK_MESSAGE(TEXT("AddUninitialized multiple false bits from empty into unallocated space"), ArrFalseCopy.Num() == ArrFalse.Num());
 
 			ArrTrueCopy.RemoveAt(0, ArrTrueCopy.Num());
 			ArrTrueCopy.CheckInvariants();
@@ -523,8 +530,10 @@ public:
 			ArrFalseCopy.CheckInvariants();
 			ArrFalseCopy.AddUninitialized(ArrFalse.Num());
 			ArrFalseCopy.CheckInvariants();
-			TestEqual(TEXT("AddUninitialized multiple true bits from empty into previously-allocated space"), ArrTrueCopy.Num(), ArrTrue.Num());
-			TestEqual(TEXT("AddUninitialized multiple false bits from empty into previously-allocated space"), ArrFalseCopy.Num(), ArrFalse.Num());
+			CHECK_MESSAGE(TEXT("AddUninitialized multiple true bits from empty into previously-allocated space"),
+				ArrTrueCopy.Num() == ArrTrue.Num());
+			CHECK_MESSAGE(TEXT("AddUninitialized multiple false bits from empty into previously-allocated space"),
+				ArrFalseCopy.Num() == ArrFalse.Num());
 
 			TBitArray<> ArrTrue2(true, 5);
 			TBitArray<> ArrTrue3(true, 10);
@@ -537,8 +546,8 @@ public:
 			ArrFalse2.CheckInvariants();
 			for (int n = 0; n < 5; ++n)
 			{
-				TestTrue(TEXT("AddUninitialized multiple true bits on non-empty"), ArrTrue2[n]);
-				TestFalse(TEXT("AddUninitialized multiple false bits on non-empty"), ArrFalse2[n]);
+				CHECK_MESSAGE(TEXT("AddUninitialized multiple true bits on non-empty"), ArrTrue2[n]);
+				CHECK_MESSAGE(TEXT("AddUninitialized multiple false bits on non-empty"), !(ArrFalse2[n]));
 			}
 		}
 	}
@@ -550,11 +559,11 @@ public:
 			TBitArray<> Arr;
 			Arr.AddRange(&GrowingTrueInt, NumGrowingTrue);
 			Arr.CheckInvariants();
-			TestTrue(TEXT("Add from uint32 with ReadOffset 0 from empty"), Arr == ArrGrowingTrue);
+			CHECK_MESSAGE(TEXT("Add from uint32 with ReadOffset 0 from empty"), Arr == ArrGrowingTrue);
 
 			Arr.AddRange(&GrowingTrueInt, NumGrowingTrue);
 			Arr.CheckInvariants();
-			TestTrue(TEXT("Add from uint32 with ReadOffset 0 to nonempty"), Arr == ArrGrowingTrueTwice);
+			CHECK_MESSAGE(TEXT("Add from uint32 with ReadOffset 0 to nonempty"), Arr == ArrGrowingTrueTwice);
 
 			TBitArray<> Arr2;
 			uint32 AllZeroes = 0;
@@ -565,38 +574,38 @@ public:
 			Arr2.CheckInvariants();
 			for (int n = 0; n < 20; ++n)
 			{
-				TestEqual(TEXT("Add from uint32 with ReadOffset 0, Zeroes, Then Ones"), Arr2[n], n >= 10);
+				CHECK_MESSAGE(TEXT("Add from uint32 with ReadOffset 0, Zeroes, Then Ones"), Arr2[n] == (n >= 10));
 			}
 
 			TBitArray<> Arr3;
 			uint32 MultipleInts[] = { 0xffff0000, 0x0f0f0f0f };
 			Arr3.AddRange(MultipleInts, 64);
 			Arr3.CheckInvariants();
-			TestEqual(TEXT("Add from uint32 with ReadOffset 0, size"), Arr3.Num(), 64);
+			CHECK_MESSAGE(TEXT("Add from uint32 with ReadOffset 0, size"), Arr3.Num() == 64);
 			for (int n = 0; n < 32; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Add from uint32 with ReadOffset 0, MultipleInts, %d"), n).ToString(), Arr3[n], n >= 16);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Add from uint32 with ReadOffset 0, MultipleInts, %d"), n).ToString(), Arr3[n] == (n >= 16));
 			}
 			for (int n = 32; n < 64; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Add from uint32 with ReadOffset 0, MultipleInts, %d"), n).ToString(), Arr3[n], (n / 4) % 2 == 0);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Add from uint32 with ReadOffset 0, MultipleInts, %d"), n).ToString(), Arr3[n] == ((n / 4) % 2 == 0));
 			}
 
 			TBitArray<> Arr4;
 			Arr4.AddRange(MultipleInts, 32, 16);
 			Arr4.CheckInvariants();
-			TestEqual(TEXT("Add from uint32 with ReadOffset 16, MultipleInts, size"), Arr4.Num(), 32);
+			CHECK_MESSAGE(TEXT("Add from uint32 with ReadOffset 16, MultipleInts, size"), Arr4.Num() == 32);
 			for (int n = 0; n < 16; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Add from uint32 with ReadOffset 16, MultipleInts, %d"), n).ToString(), Arr4[n], true);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Add from uint32 with ReadOffset 16, MultipleInts, %d"), n).ToString(), Arr4[n] == true);
 			}
 			for (int n = 16; n < 32; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Add from uint32 with ReadOffset 16, MultipleInts, %d"), n).ToString(), Arr4[n], (n / 4) % 2 == 0);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Add from uint32 with ReadOffset 16, MultipleInts, %d"), n).ToString(), Arr4[n] == ((n / 4) % 2 == 0));
 			}
 		}
 
@@ -605,11 +614,11 @@ public:
 			TBitArray<> Arr;
 			Arr.AddRange(ArrGrowingTrue, NumGrowingTrue);
 			Arr.CheckInvariants();
-			TestTrue(TEXT("Add from BitArray with ReadOffset 0 from empty"), Arr == ArrGrowingTrue);
+			CHECK_MESSAGE(TEXT("Add from BitArray with ReadOffset 0 from empty"), Arr == ArrGrowingTrue);
 
 			Arr.AddRange(ArrGrowingTrue, NumGrowingTrue);
 			Arr.CheckInvariants();
-			TestTrue(TEXT("Add from BitArray with ReadOffset 0 to nonempty"), Arr == ArrGrowingTrueTwice);
+			CHECK_MESSAGE(TEXT("Add from BitArray with ReadOffset 0 to nonempty"), Arr == ArrGrowingTrueTwice);
 
 			TBitArray<> Arr2;
 			Arr2.AddRange(ArrFalse, 10);
@@ -618,7 +627,7 @@ public:
 			Arr2.CheckInvariants();
 			for (int n = 0; n < 20; ++n)
 			{
-				TestEqual(TEXT("Add from BitArray with ReadOffset 0, Zeroes, Then Ones"), Arr2[n], n >= 10);
+				CHECK_MESSAGE(TEXT("Add from BitArray with ReadOffset 0, Zeroes, Then Ones"), Arr2[n] == (n >= 10));
 			}
 
 			TBitArray<> Arr3;
@@ -628,21 +637,22 @@ public:
 			ArrMultipleInts.CheckInvariants();
 			Arr3.AddRange(ArrMultipleInts, 64);
 			Arr3.CheckInvariants();
-			TestTrue(TEXT("Add from BitArray with ReadOffset 0"), Arr3 == ArrMultipleInts);
+			CHECK_MESSAGE(TEXT("Add from BitArray with ReadOffset 0"), Arr3 == ArrMultipleInts);
 
 			TBitArray<> Arr4;
 			Arr4.AddRange(ArrMultipleInts, 32, 16);
 			Arr4.CheckInvariants();
-			TestEqual(TEXT("Add from BitArray with ReadOffset 16, MultipleInts, size"), Arr4.Num(), 32);
+			CHECK_MESSAGE(TEXT("Add from BitArray with ReadOffset 16, MultipleInts, size"), Arr4.Num() == 32);
 			for (int n = 0; n < 16; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Add from BitArray with ReadOffset 16, MultipleInts, %d"), n).ToString(), Arr4[n], true);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Add from BitArray with ReadOffset 16, MultipleInts, %d"), n).ToString(), Arr4[n] == true);
 			}
 			for (int n = 16; n < 32; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Add from BitArray with ReadOffset 16, MultipleInts, %d"), n).ToString(), Arr4[n], (n / 4) % 2 == 0);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Add from BitArray with ReadOffset 16, MultipleInts, %d"), n).ToString(),
+					Arr4[n] == ((n / 4) % 2 == 0));
 			}
 		}
 	}
@@ -653,63 +663,63 @@ public:
 		// Insert one bit
 		{
 			TBitArray<FDefaultAllocator> Arr;
-			TestEqual(TEXT("With DefaultAllocator MaxBits starts at 0"), Arr.Max(), 0);
+			CHECK_MESSAGE(TEXT("With DefaultAllocator MaxBits starts at 0"), Arr.Max() == 0);
 			for (int n = 0; n < 10; ++n)
 			{
 				Arr.Insert(n % 3 == 0, Arr.Num());
 				Arr.CheckInvariants();
 			}
-			TestEqual(TEXT("Insert one bit at end size"), Arr.Num(), 10);
+			CHECK_MESSAGE(TEXT("Insert one bit at end size"), Arr.Num() == 10);
 			for (int n = 0; n < 10; ++n)
 			{
-				TestEqual(TEXT("Insert one bit at end elements"), Arr[n], n % 3 == 0);
+				CHECK_MESSAGE(TEXT("Insert one bit at end elements"), Arr[n] == (n % 3 == 0));
 			}
 
 			Arr.Insert(false, 5);
 			Arr.CheckInvariants();
 			Arr.Insert(true, 5);
 			Arr.CheckInvariants();
-			TestEqual(TEXT("Insert one bit in middle size"), Arr.Num(), 12);
+			CHECK_MESSAGE(TEXT("Insert one bit in middle size"), Arr.Num() == 12);
 			for (int n = 0; n < 5; ++n)
 			{
-				TestEqual(TEXT("Insert one bit in middle elements"), Arr[n], n % 3 == 0);
+				CHECK_MESSAGE(TEXT("Insert one bit in middle elements"), Arr[n] == (n % 3 == 0));
 			}
-			TestEqual(TEXT("Insert one bit in middle elements"), Arr[5], true);
-			TestEqual(TEXT("Insert one bit in middle elements"), Arr[6], false);
+			CHECK_MESSAGE(TEXT("Insert one bit in middle elements"), Arr[5] == true);
+			CHECK_MESSAGE(TEXT("Insert one bit in middle elements"), Arr[6] == false);
 			for (int n = 7; n < 12; ++n)
 			{
-				TestEqual(TEXT("Insert one bit in middle elements"), Arr[n], (n - 2) % 3 == 0);
+				CHECK_MESSAGE(TEXT("Insert one bit in middle elements"), Arr[n] == ((n - 2) % 3 == 0));
 			}
 
 			Arr.RemoveAt(0, 12);
 			Arr.CheckInvariants();
-			TestEqual(TEXT("Removed all elements leaves size at 0"), Arr.Num(), 0);
-			TestTrue(TEXT("Removed all elements keeps max at original"), Arr.Max() >= 12);
+			CHECK_MESSAGE(TEXT("Removed all elements leaves size at 0"), Arr.Num() == 0);
+			CHECK_MESSAGE(TEXT("Removed all elements keeps max at original"), Arr.Max() >= 12);
 			for (int n = 0; n < 10; ++n)
 			{
 				Arr.Insert(n % 2 == 0, Arr.Num());
 				Arr.CheckInvariants();
 			}
-			TestEqual(TEXT("Insert one bit at end no resize size"), Arr.Num(), 10);
+			CHECK_MESSAGE(TEXT("Insert one bit at end no resize size"), Arr.Num() == 10);
 			for (int n = 0; n < 10; ++n)
 			{
-				TestEqual(TEXT("Insert one bit at end no resize elements"), Arr[n], n % 2 == 0);
+				CHECK_MESSAGE(TEXT("Insert one bit at end no resize elements"), Arr[n] == (n % 2 == 0));
 			}
 
 			Arr.Insert(false, 5);
 			Arr.CheckInvariants();
 			Arr.Insert(true, 5);
 			Arr.CheckInvariants();
-			TestEqual(TEXT("Insert one bit in middle no resize size"), Arr.Num(), 12);
+			CHECK_MESSAGE(TEXT("Insert one bit in middle no resize size"), Arr.Num() == 12);
 			for (int n = 0; n < 5; ++n)
 			{
-				TestEqual(TEXT("Insert one bit in middle elements"), Arr[n], n % 2 == 0);
+				CHECK_MESSAGE(TEXT("Insert one bit in middle elements"), Arr[n] == (n % 2 == 0));
 			}
-			TestEqual(TEXT("Insert one bit in middle no resize elements"), Arr[5], true);
-			TestEqual(TEXT("Insert one bit in middle no resize elements"), Arr[6], false);
+			CHECK_MESSAGE(TEXT("Insert one bit in middle no resize elements"), Arr[5] == true);
+			CHECK_MESSAGE(TEXT("Insert one bit in middle no resize elements"), Arr[6] == false);
 			for (int n = 7; n < 12; ++n)
 			{
-				TestEqual(TEXT("Insert one bit in middle no resize elements"), Arr[n], (n - 2) % 2 == 0);
+				CHECK_MESSAGE(TEXT("Insert one bit in middle no resize elements"), Arr[n] == ((n - 2) % 2 == 0));
 			}
 		}
 
@@ -721,23 +731,23 @@ public:
 			ArrTrueCopy.CheckInvariants();
 			ArrFalseCopy.Insert(false, 0, ArrFalse.Num());
 			ArrFalseCopy.CheckInvariants();
-			TestTrue(TEXT("Insert multiple true bits at end from empty into unallocated space"), AreEqual(ArrTrueCopy, ArrTrue));
-			TestTrue(TEXT("Insert multiple false bits at end from empty into unallocated space"), AreEqual(ArrFalseCopy, ArrFalse));
+			CHECK_MESSAGE(TEXT("Insert multiple true bits at end from empty into unallocated space"), AreEqual(ArrTrueCopy, ArrTrue));
+			CHECK_MESSAGE(TEXT("Insert multiple false bits at end from empty into unallocated space"), AreEqual(ArrFalseCopy, ArrFalse));
 
 			ArrTrueCopy.Insert(false, 5, 5);
 			ArrTrueCopy.CheckInvariants();
-			TestEqual(TEXT("Insert multiple bits in middle from empty into unallocated space size"), ArrTrueCopy.Num(), ArrTrue.Num() + 5);
+			CHECK_MESSAGE(TEXT("Insert multiple bits in middle from empty into unallocated space size"), ArrTrueCopy.Num() == (ArrTrue.Num() + 5));
 			for (int n = 0; n < 5; ++n)
 			{
-				TestEqual(TEXT("Insert multiple bits in middle from empty into unallocated space elements"), ArrTrueCopy[n], true);
+				CHECK_MESSAGE(TEXT("Insert multiple bits in middle from empty into unallocated space elements"), ArrTrueCopy[n] == true);
 			}
 			for (int n = 5; n < 10; ++n)
 			{
-				TestEqual(TEXT("Insert multiple bits in middle from empty into unallocated space elements"), ArrTrueCopy[n], false);
+				CHECK_MESSAGE(TEXT("Insert multiple bits in middle from empty into unallocated space elements"), ArrTrueCopy[n] == false);
 			}
 			for (int n = 10; n < 5 + ArrTrue.Num(); ++n)
 			{
-				TestEqual(TEXT("Insert multiple bits in middle from empty into unallocated space elements"), ArrTrueCopy[n], true);
+				CHECK_MESSAGE(TEXT("Insert multiple bits in middle from empty into unallocated space elements"), ArrTrueCopy[n] == true);
 			}
 
 			ArrTrueCopy.RemoveAt(0, ArrTrueCopy.Num());
@@ -748,24 +758,24 @@ public:
 			ArrFalseCopy.CheckInvariants();
 			ArrFalseCopy.Insert(false, 0, ArrFalse.Num());
 			ArrFalseCopy.CheckInvariants();
-			TestTrue(TEXT("Insert multiple true bits at end from empty into previously-allocated space"), AreEqual(ArrTrueCopy, ArrTrue));
-			TestTrue(TEXT("Insert multiple false bits at end from empty into previously-allocated space"), AreEqual(ArrFalseCopy, ArrFalse));
+			CHECK_MESSAGE(TEXT("Insert multiple true bits at end from empty into previously-allocated space"), AreEqual(ArrTrueCopy, ArrTrue));
+			CHECK_MESSAGE(TEXT("Insert multiple false bits at end from empty into previously-allocated space"), AreEqual(ArrFalseCopy, ArrFalse));
 			ArrTrueCopy.Insert(true, 5, 3);
 			ArrTrueCopy.CheckInvariants();
 			ArrTrueCopy.Insert(false, 5, 2);
 			ArrTrueCopy.CheckInvariants();
-			TestEqual(TEXT("Insert multiple bits in middle from empty into previously-allocated size"), ArrTrueCopy.Num(), ArrTrue.Num() + 5);
+			CHECK_MESSAGE(TEXT("Insert multiple bits in middle from empty into previously-allocated size"), ArrTrueCopy.Num() == (ArrTrue.Num() + 5));
 			for (int n = 0; n < 5; ++n)
 			{
-				TestEqual(TEXT("Insert multiple bits in middle from empty into previously-allocated elements"), ArrTrueCopy[n], true);
+				CHECK_MESSAGE(TEXT("Insert multiple bits in middle from empty into previously-allocated elements"), ArrTrueCopy[n] == true);
 			}
 			for (int n = 5; n < 7; ++n)
 			{
-				TestEqual(TEXT("Insert multiple bits in middle from empty into previously-allocated elements"), ArrTrueCopy[n], false);
+				CHECK_MESSAGE(TEXT("Insert multiple bits in middle from empty into previously-allocated elements"), ArrTrueCopy[n] == false);
 			}
 			for (int n = 7; n < 5 + ArrTrue.Num(); ++n)
 			{
-				TestEqual(TEXT("Insert multiple bits in middle from empty into previously-allocated elements"), ArrTrueCopy[n], true);
+				CHECK_MESSAGE(TEXT("Insert multiple bits in middle from empty into previously-allocated elements"), ArrTrueCopy[n] == true);
 			}
 
 			TBitArray<> ArrTrue2(true, 5);
@@ -777,8 +787,8 @@ public:
 			ArrTrue2.CheckInvariants();
 			ArrFalse2.Insert(false, ArrFalse2.Num(), 5);
 			ArrFalse2.CheckInvariants();
-			TestTrue(TEXT("Insert multiple true bits at end on non-empty"), ArrTrue2 == ArrTrue3);
-			TestTrue(TEXT("Insert multiple false bits at end on non-empty"), ArrFalse2 == ArrFalse3);
+			CHECK_MESSAGE(TEXT("Insert multiple true bits at end on non-empty"), ArrTrue2 == ArrTrue3);
+			CHECK_MESSAGE(TEXT("Insert multiple false bits at end on non-empty"), ArrFalse2 == ArrFalse3);
 
 			TBitArray<> ArrTrue4(true, 5);
 			TBitArray<> ArrFalse4(false, 5);
@@ -787,8 +797,8 @@ public:
 			ArrTrue4.CheckInvariants();
 			ArrFalse4.Insert(false, 1, 5);
 			ArrFalse4.CheckInvariants();
-			TestTrue(TEXT("Insert multiple true bits at middle on non-empty"), ArrTrue4 == ArrTrue3);
-			TestTrue(TEXT("Insert multiple false bits at middle on non-empty"), ArrFalse4 == ArrFalse3);
+			CHECK_MESSAGE(TEXT("Insert multiple true bits at middle on non-empty"), ArrTrue4 == ArrTrue3);
+			CHECK_MESSAGE(TEXT("Insert multiple false bits at middle on non-empty"), ArrFalse4 == ArrFalse3);
 		}
 
 		// InsertUninitialized
@@ -796,7 +806,7 @@ public:
 			TBitArray<FDefaultAllocator> Arr;
 			Arr.InsertUninitialized(0, ArrTrue.Num());
 			Arr.CheckInvariants();
-			TestEqual(TEXT("InsertUninitialized multiple bits at end from empty into unallocated space"), Arr.Num(), ArrTrue.Num());
+			CHECK_MESSAGE(TEXT("InsertUninitialized multiple bits at end from empty into unallocated space"), Arr.Num() == ArrTrue.Num());
 
 			TBitArray<FDefaultAllocator> ArrTrueDefaultAlloc(true, ArrTrue.Num());
 			TBitArray<FDefaultAllocator> ArrFalseDefaultAlloc(false, ArrFalse.Num());
@@ -808,16 +818,20 @@ public:
 			ArrTrueCopy.CheckInvariants();
 			ArrFalseCopy.InsertUninitialized(5, 5);
 			ArrFalseCopy.CheckInvariants();
-			TestEqual(TEXT("InsertUninitialized multiple bits in middle from empty into unallocated space size"), ArrTrueCopy.Num(), ArrTrue.Num() + 5);
+			CHECK_MESSAGE(TEXT("InsertUninitialized multiple bits in middle from empty into unallocated space size"), ArrTrueCopy.Num() == (ArrTrue.Num() + 5));
 			for (int n = 0; n < 5; ++n)
 			{
-				TestEqual(TEXT("InsertUninitialized multiple bits in middle from empty into unallocated space elements"), ArrTrueCopy[n], true);
-				TestEqual(TEXT("InsertUninitialized multiple bits in middle from empty into unallocated space elements"), ArrFalseCopy[n], false);
+				CHECK_MESSAGE(TEXT("InsertUninitialized multiple bits in middle from empty into unallocated space elements"), 
+					ArrTrueCopy[n] == true);
+				CHECK_MESSAGE(TEXT("InsertUninitialized multiple bits in middle from empty into unallocated space elements"),
+					ArrFalseCopy[n] == false);
 			}
 			for (int n = 10; n < 5 + ArrTrue.Num(); ++n)
 			{
-				TestEqual(TEXT("InsertUninitialized multiple bits in middle from empty into unallocated space elements"), ArrTrueCopy[n], true);
-				TestEqual(TEXT("InsertUninitialized multiple bits in middle from empty into unallocated space elements"), ArrFalseCopy[n], false);
+				CHECK_MESSAGE(TEXT("InsertUninitialized multiple bits in middle from empty into unallocated space elements"),
+					ArrTrueCopy[n] == true);
+				CHECK_MESSAGE(TEXT("InsertUninitialized multiple bits in middle from empty into unallocated space elements"),
+					ArrFalseCopy[n] == false);
 			}
 
 			ArrTrueCopy.RemoveAt(0, ArrTrueCopy.Num());
@@ -828,22 +842,27 @@ public:
 			ArrFalseCopy.CheckInvariants();
 			ArrFalseCopy.InsertUninitialized(0, ArrFalse.Num());
 			ArrFalseCopy.CheckInvariants();
-			TestEqual(TEXT("InsertUninitialized multiple true bits at end from empty into previously-allocated space"), ArrTrueCopy.Num(), ArrTrue.Num());
-			TestEqual(TEXT("InsertUninitialized multiple false bits at end from empty into previously-allocated space"), ArrFalseCopy.Num(), ArrFalse.Num());
+			CHECK_MESSAGE(TEXT("InsertUninitialized multiple true bits at end from empty into previously-allocated space"),
+				ArrTrueCopy.Num() == ArrTrue.Num());
+			CHECK_MESSAGE(TEXT("InsertUninitialized multiple false bits at end from empty into previously-allocated space"),
+				ArrFalseCopy.Num() == ArrFalse.Num());
 			ArrTrueCopy.RemoveAt(0, ArrTrueCopy.Num());
 			ArrTrueCopy.CheckInvariants();
 			ArrTrueCopy.Insert(true, 0, ArrTrue.Num());
 			ArrTrueCopy.CheckInvariants();
 			ArrTrueCopy.InsertUninitialized(5, 5);
 			ArrTrueCopy.CheckInvariants();
-			TestEqual(TEXT("InsertUninitialized multiple bits in middle from empty into previously-allocated size"), ArrTrueCopy.Num(), ArrTrue.Num() + 5);
+			CHECK_MESSAGE(TEXT("InsertUninitialized multiple bits in middle from empty into previously-allocated size"),
+				ArrTrueCopy.Num() == (ArrTrue.Num() + 5));
 			for (int n = 0; n < 5; ++n)
 			{
-				TestEqual(TEXT("InsertUninitialized multiple bits in middle from empty into previously-allocated elements"), ArrTrueCopy[n], true);
+				CHECK_MESSAGE(TEXT("InsertUninitialized multiple bits in middle from empty into previously-allocated elements"),
+					ArrTrueCopy[n] == true);
 			}
 			for (int n = 10; n < 5 + ArrTrue.Num(); ++n)
 			{
-				TestEqual(TEXT("InsertUninitialized multiple bits in middle from empty into previously-allocated elements"), ArrTrueCopy[n], true);
+				CHECK_MESSAGE(TEXT("InsertUninitialized multiple bits in middle from empty into previously-allocated elements"),
+					ArrTrueCopy[n] == true);
 			}
 
 			TBitArray<> ArrTrue2(true, 5);
@@ -855,8 +874,8 @@ public:
 			ArrFalse2.CheckInvariants();
 			for (int n = 0; n < 5; ++n)
 			{
-				TestEqual(TEXT("InsertUninitialized multiple true bits at end on non-empty"), ArrTrue2[n], true);
-				TestEqual(TEXT("InsertUninitialized multiple false bits at end on non-empty"), ArrFalse2[n], false);
+				CHECK_MESSAGE(TEXT("InsertUninitialized multiple true bits at end on non-empty"), ArrTrue2[n] == true);
+				CHECK_MESSAGE(TEXT("InsertUninitialized multiple false bits at end on non-empty"), ArrFalse2[n] == false);
 			}
 
 			TBitArray<> ArrTrue4(true, 5);
@@ -870,8 +889,8 @@ public:
 			{
 				if (n < 1 || n >= 6)
 				{
-					TestEqual(TEXT("InsertUninitialized multiple true bits at end on non-empty"), ArrTrue4[n], true);
-					TestEqual(TEXT("InsertUninitialized multiple false bits at end on non-empty"), ArrFalse4[n], false);
+					CHECK_MESSAGE(TEXT("InsertUninitialized multiple true bits at end on non-empty"), ArrTrue4[n] == true);
+					CHECK_MESSAGE(TEXT("InsertUninitialized multiple false bits at end on non-empty"), ArrFalse4[n] == false);
 				}
 			}
 		}
@@ -884,18 +903,18 @@ public:
 			TBitArray<> Arr;
 			Arr.InsertRange(&GrowingTrueInt, 0, NumGrowingTrue);
 			Arr.CheckInvariants();
-			TestTrue(TEXT("Insert from uint32 with ReadOffset 0 at end from empty"), Arr == ArrGrowingTrue);
+			CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at end from empty"), Arr == ArrGrowingTrue);
 
 			Arr.InsertRange(&GrowingTrueInt, Arr.Num(), NumGrowingTrue);
 			Arr.CheckInvariants();
-			TestTrue(TEXT("Insert from uint32 with ReadOffset 0 at end to nonempty"), Arr == ArrGrowingTrueTwice);
+			CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at end to nonempty"), Arr == ArrGrowingTrueTwice);
 
 			TBitArray<> Arr1Insert2;
 			Arr1Insert2.InsertRange(&GrowingTrueInt, 0, NumGrowingTrue);
 			Arr1Insert2.CheckInvariants();
 			Arr1Insert2.InsertRange(&GrowingTrueInt, 0, NumGrowingTrue);
 			Arr1Insert2.CheckInvariants();
-			TestTrue(TEXT("Insert from uint32 with ReadOffset 0 at beginning to nonempty"), Arr1Insert2 == ArrGrowingTrueTwice);
+			CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at beginning to nonempty"), Arr1Insert2 == ArrGrowingTrueTwice);
 
 			uint32 AllZeroes = 0;
 			uint32 AllOnes = 0xffffffff;
@@ -904,18 +923,18 @@ public:
 			Arr1Insert3.CheckInvariants();
 			Arr1Insert3.InsertRange(&AllZeroes, 5, 5);
 			Arr1Insert3.CheckInvariants();
-			TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty size"), Arr1Insert3.Num(), NumGrowingTrue + 5);
+			CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty size"), Arr1Insert3.Num() == (NumGrowingTrue + 5));
 			for (int n = 0; n < 5; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty"), Arr1Insert3[n], ArrGrowingTrue[n]);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty"), Arr1Insert3[n] == ArrGrowingTrue[n]);
 			}
 			for (int n = 5; n < 10; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty"), Arr1Insert3[n], false);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty"), Arr1Insert3[n] == false);
 			}
 			for (int n = 10; n < NumGrowingTrue + 5; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty"), Arr1Insert3[n], ArrGrowingTrue[n - 5]);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty"), Arr1Insert3[n] == ArrGrowingTrue[n - 5]);
 			}
 
 			TBitArray<> Arr2;
@@ -925,7 +944,7 @@ public:
 			Arr2.CheckInvariants();
 			for (int n = 0; n < 20; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at end, Zeroes, Then Ones"), Arr2[n], n >= 10);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at end, Zeroes, Then Ones"), Arr2[n] == (n >= 10));
 			}
 
 			TBitArray<> Arr2Insert1;
@@ -935,7 +954,7 @@ public:
 			Arr2Insert1.CheckInvariants();
 			for (int n = 0; n < 20; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at beginning, Zeroes, Then Ones"), Arr2Insert1[n], n < 10);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at beginning, Zeroes, Then Ones"), Arr2Insert1[n] == (n < 10));
 			}
 			TBitArray<> Arr2Insert2;
 			Arr2Insert2.InsertRange(&AllZeroes, 0, 10);
@@ -944,46 +963,50 @@ public:
 			Arr2Insert2.CheckInvariants();
 			for (int n = 0; n < 5; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at middle, Zeroes, Then Ones"), Arr2Insert2[n], false);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at middle, Zeroes, Then Ones"), Arr2Insert2[n] == false);
 			}
 			for (int n = 5; n < 15; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at middle, Zeroes, Then Ones"), Arr2Insert2[n], true);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at middle, Zeroes, Then Ones"), Arr2Insert2[n] == true);
 			}
 			for (int n = 15; n < 20; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at middle, Zeroes, Then Ones"), Arr2Insert2[n], false);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at middle, Zeroes, Then Ones"), Arr2Insert2[n] == false);
 			}
 
 			TBitArray<> Arr3;
 			uint32 MultipleInts[] = { 0xffff0000, 0x0f0f0f0f };
 			Arr3.InsertRange(MultipleInts, 0, 64);
 			Arr3.CheckInvariants();
-			TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at end, MutlipleInts, size"), Arr3.Num(), 64);
+			CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at end, MutlipleInts, size"), Arr3.Num() == 64);
 			for (int n = 0; n < 32; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 0 at end, MultipleInts, %d"), n).ToString(), Arr3[n], n >= 16);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 0 at end, MultipleInts, %d"), n).ToString(),
+					Arr3[n] == (n >= 16));
 			}
 			for (int n = 32; n < 64; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 0 at end, MultipleInts, %d"), n).ToString(), Arr3[n], (n / 4) % 2 == 0);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 0 at end, MultipleInts, %d"), n).ToString(),
+					Arr3[n] == ((n / 4) % 2 == 0));
 			}
 
 			TBitArray<> Arr4;
 			Arr4.InsertRange(MultipleInts, 0, 32, 16);
 			Arr4.CheckInvariants();
-			TestEqual(TEXT("Insert from uint32 with ReadOffset 16 at end, MultipleInts, size"), Arr4.Num(), 32);
+			CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 16 at end, MultipleInts, size"), Arr4.Num() == 32);
 			for (int n = 0; n < 16; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at end, MultipleInts, %d"), n).ToString(), Arr4[n], true);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at end, MultipleInts, %d"), n).ToString(),
+					Arr4[n] == true);
 			}
 			for (int n = 16; n < 32; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at end, MultipleInts, %d"), n).ToString(), Arr4[n], (n / 4) % 2 == 0);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at end, MultipleInts, %d"), n).ToString(),
+					Arr4[n] == ((n / 4) % 2 == 0));
 			}
 
 			TBitArray<> Arr5;
@@ -992,26 +1015,30 @@ public:
 			Arr5.CheckInvariants();
 			Arr5.InsertRange(MultipleIntsBackwards, 0, 32, 16);
 			Arr5.CheckInvariants();
-			TestEqual(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, size"), Arr5.Num(), 64);
+			CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, size"), Arr5.Num() == 64);
 			for (int n = 0; n < 16; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(), Arr5[n], (n / 4) % 2 == 0);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(),
+					Arr5[n] == ((n / 4) % 2 == 0));
 			}
 			for (int n = 16; n < 32; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(), Arr5[n], false);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(),
+					Arr5[n] == false);
 			}
 			for (int n = 32; n < 48; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(), Arr5[n], true);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(),
+					Arr5[n] == true);
 			}
 			for (int n = 48; n < 64; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(), Arr5[n], (n / 4) % 2 == 0);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(),
+					Arr5[n] == ((n / 4) % 2 == 0));
 			}
 		}
 
@@ -1020,36 +1047,36 @@ public:
 			TBitArray<> Arr;
 			Arr.InsertRange(ArrGrowingTrue, 0, NumGrowingTrue);
 			Arr.CheckInvariants();
-			TestTrue(TEXT("Insert from uint32 with ReadOffset 0 at end from empty"), Arr == ArrGrowingTrue);
+			CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at end from empty"), Arr == ArrGrowingTrue);
 
 			Arr.InsertRange(ArrGrowingTrue, Arr.Num(), NumGrowingTrue);
 			Arr.CheckInvariants();
-			TestTrue(TEXT("Insert from uint32 with ReadOffset 0 at end to nonempty"), Arr == ArrGrowingTrueTwice);
+			CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at end to nonempty"), Arr == ArrGrowingTrueTwice);
 
 			TBitArray<> Arr1Insert2;
 			Arr1Insert2.InsertRange(ArrGrowingTrue, 0, NumGrowingTrue);
 			Arr1Insert2.CheckInvariants();
 			Arr1Insert2.InsertRange(ArrGrowingTrue, 0, NumGrowingTrue);
 			Arr1Insert2.CheckInvariants();
-			TestTrue(TEXT("Insert from uint32 with ReadOffset 0 at beginning to nonempty"), Arr1Insert2 == ArrGrowingTrueTwice);
+			CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at beginning to nonempty"), Arr1Insert2 == ArrGrowingTrueTwice);
 
 			TBitArray<> Arr1Insert3;
 			Arr1Insert3.InsertRange(ArrGrowingTrue, 0, NumGrowingTrue);
 			Arr1Insert3.CheckInvariants();
 			Arr1Insert3.InsertRange(ArrFalse, 5, 5);
 			Arr1Insert3.CheckInvariants();
-			TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty size"), Arr1Insert3.Num(), NumGrowingTrue + 5);
+			CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty size"), Arr1Insert3.Num() == (NumGrowingTrue + 5));
 			for (int n = 0; n < 5; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty"), Arr1Insert3[n], ArrGrowingTrue[n]);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty"), Arr1Insert3[n] == ArrGrowingTrue[n]);
 			}
 			for (int n = 5; n < 10; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty"), Arr1Insert3[n], false);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty"), Arr1Insert3[n] == false);
 			}
 			for (int n = 10; n < NumGrowingTrue + 5; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty"), Arr1Insert3[n], ArrGrowingTrue[n - 5]);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at middle to nonempty"), Arr1Insert3[n] == ArrGrowingTrue[n - 5]);
 			}
 
 			TBitArray<> Arr2;
@@ -1059,7 +1086,7 @@ public:
 			Arr2.CheckInvariants();
 			for (int n = 0; n < 20; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at end, Zeroes, Then Ones"), Arr2[n], n >= 10);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at end, Zeroes, Then Ones"), Arr2[n] == (n >= 10));
 			}
 
 			TBitArray<> Arr2Insert1;
@@ -1069,7 +1096,7 @@ public:
 			Arr2Insert1.CheckInvariants();
 			for (int n = 0; n < 20; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at beginning, Zeroes, Then Ones"), Arr2Insert1[n], n < 10);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at beginning, Zeroes, Then Ones"), Arr2Insert1[n] == (n < 10));
 			}
 			TBitArray<> Arr2Insert2;
 			Arr2Insert2.InsertRange(ArrFalse, 0, 10);
@@ -1078,15 +1105,15 @@ public:
 			Arr2Insert2.CheckInvariants();
 			for (int n = 0; n < 5; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at middle, Zeroes, Then Ones"), Arr2Insert2[n], false);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at middle, Zeroes, Then Ones"), Arr2Insert2[n] == false);
 			}
 			for (int n = 5; n < 15; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at middle, Zeroes, Then Ones"), Arr2Insert2[n], true);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at middle, Zeroes, Then Ones"), Arr2Insert2[n] == true);
 			}
 			for (int n = 15; n < 20; ++n)
 			{
-				TestEqual(TEXT("Insert from uint32 with ReadOffset 0 at middle, Zeroes, Then Ones"), Arr2Insert2[n], false);
+				CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at middle, Zeroes, Then Ones"), Arr2Insert2[n] == false);
 			}
 
 			TBitArray<> Arr3;
@@ -1096,21 +1123,23 @@ public:
 			ArrMultipleInts.CheckInvariants();
 			Arr3.InsertRange(ArrMultipleInts, 0, 64);
 			Arr3.CheckInvariants();
-			TestTrue(TEXT("Insert from uint32 with ReadOffset 0 at end, MutlipleInts, size"), Arr3 == ArrMultipleInts);
+			CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 0 at end, MutlipleInts, size"), Arr3 == ArrMultipleInts);
 
 			TBitArray<> Arr4;
 			Arr4.InsertRange(ArrMultipleInts, 0, 32, 16);
 			Arr4.CheckInvariants();
-			TestEqual(TEXT("Insert from uint32 with ReadOffset 16 at end, MultipleInts, size"), Arr4.Num(), 32);
+			CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 16 at end, MultipleInts, size"), Arr4.Num() == 32);
 			for (int n = 0; n < 16; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at end, MultipleInts, %d"), n).ToString(), Arr4[n], true);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at end, MultipleInts, %d"), n).ToString(),
+					Arr4[n] == true);
 			}
 			for (int n = 16; n < 32; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at end, MultipleInts, %d"), n).ToString(), Arr4[n], (n / 4) % 2 == 0);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at end, MultipleInts, %d"), n).ToString(),
+					Arr4[n] == ((n / 4) % 2 == 0));
 			}
 
 			TBitArray<> Arr5;
@@ -1122,26 +1151,30 @@ public:
 			Arr5.CheckInvariants();
 			Arr5.InsertRange(ArrMultipleIntsBackwards, 0, 32, 16);
 			Arr5.CheckInvariants();
-			TestEqual(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, size"), Arr5.Num(), 64);
+			CHECK_MESSAGE(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, size"), Arr5.Num() == 64);
 			for (int n = 0; n < 16; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(), Arr5[n], (n / 4) % 2 == 0);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(),
+					Arr5[n] == ((n / 4) % 2 == 0));
 			}
 			for (int n = 16; n < 32; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(), Arr5[n], false);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(),
+					Arr5[n] == false);
 			}
 			for (int n = 32; n < 48; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(), Arr5[n], true);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(),
+					Arr5[n] == true);
 			}
 			for (int n = 48; n < 64; ++n)
 			{
 				Label.Reset();
-				TestEqual(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(), Arr5[n], (n / 4) % 2 == 0);
+				CHECK_MESSAGE(Label.Appendf(TEXT("Insert from uint32 with ReadOffset 16 at beginning, MultipleInts, %d"), n).ToString(),
+					Arr5[n] == ((n / 4) % 2 == 0));
 			}
 		}
 	}
@@ -1206,11 +1239,13 @@ public:
 					ZeroesText[DisplayIndex] = TEXT('\0');
 					if (!bOnesMatchesExpected)
 					{
-						AddError(FString::Printf(TEXT("SetRange bool BitWidth=%d WriteOffset=%d, Ones\nExpected=%s\nActual  =%s"), BitWidth, WriteOffset, OnesExpectedText, OnesText));
+						CHECK_MESSAGE(FString::Printf(TEXT("SetRange bool BitWidth=%d WriteOffset=%d, Ones\nExpected=%s\nActual  =%s"), BitWidth, WriteOffset, OnesExpectedText, OnesText),
+							bOnesMatchesExpected);
 					}
 					else if (!bZeroesMatchesExpected)
 					{
-						AddError(FString::Printf(TEXT("SetRange bool BitWidth=%d WriteOffset=%d, Zeroes\nExpected=%s\nActual  =%s"), BitWidth, WriteOffset, ZeroesExpectedText, ZeroesText));
+						CHECK_MESSAGE(FString::Printf(TEXT("SetRange bool BitWidth=%d WriteOffset=%d, Zeroes\nExpected=%s\nActual  =%s"), BitWidth, WriteOffset, ZeroesExpectedText, ZeroesText),
+							bZeroesMatchesExpected);
 					}
 				}
 			}
@@ -1239,8 +1274,8 @@ public:
 			ArrOnes.SetRangeFromRange(20, 12, &ZeroesInt, 20);
 			ArrOnes.CheckInvariants();
 
-			TestTrue(TEXT("SetRangeFromRange Zeroes"), ArrZeroes == ArrRefOnes);
-			TestTrue(TEXT("SetRangeFromRange Ones"), ArrOnes == ArrRefZeroes);
+			CHECK_MESSAGE(TEXT("SetRangeFromRange Zeroes"), ArrZeroes == ArrRefOnes);
+			CHECK_MESSAGE(TEXT("SetRangeFromRange Ones"), ArrOnes == ArrRefZeroes);
 		}
 
 		// SetRange that takes a bitarray
@@ -1264,8 +1299,8 @@ public:
 			ArrOnes.SetRangeFromRange(20, 12, ArrRefZeroes, 20);
 			ArrOnes.CheckInvariants();
 
-			TestTrue(TEXT("SetRange bitarray Zeroes"), ArrZeroes == ArrRefOnes);
-			TestTrue(TEXT("SetRange bitarray Ones"), ArrOnes == ArrRefZeroes);
+			CHECK_MESSAGE(TEXT("SetRange bitarray Zeroes"), ArrZeroes == ArrRefOnes);
+			CHECK_MESSAGE(TEXT("SetRange bitarray Ones"), ArrOnes == ArrRefZeroes);
 		}
 	}
 
@@ -1286,8 +1321,8 @@ public:
 		ArrZeroes.GetRange(10, 10, &OnesInt, 10);
 		ArrZeroes.GetRange(20, 12, &OnesInt, 20);
 
-		TestEqual(TEXT("GetRange Zeroes"), ZeroesInt, OnesIntRef);
-		TestEqual(TEXT("GetRange Ones"), OnesInt, ZeroesIntRef);
+		CHECK_MESSAGE(TEXT("GetRange Zeroes"), ZeroesInt == OnesIntRef);
+		CHECK_MESSAGE(TEXT("GetRange Ones"), OnesInt == ZeroesIntRef);
 	}
 
 	void TestEmpty()
@@ -1297,16 +1332,16 @@ public:
 		Arr.CheckInvariants();
 		Arr.Empty();
 		Arr.CheckInvariants();
-		TestEqual(TEXT("Empty with no arguments sets num to 0"), Arr.Num(), 0);
-		TestEqual(TEXT("Empty with no arguments sets max to 0"), Arr.Max(), 0);
+		CHECK_MESSAGE(TEXT("Empty with no arguments sets num to 0"), Arr.Num() == 0);
+		CHECK_MESSAGE(TEXT("Empty with no arguments sets max to 0"), Arr.Max() == 0);
 
 		TBitArray<FDefaultAllocator> Arr2;
 		Arr2.Add(true, 10);
 		Arr2.CheckInvariants();
 		Arr2.Empty(5);
 		Arr2.CheckInvariants();
-		TestEqual(TEXT("Empty with an arguments sets num to 0"), Arr2.Num(), 0);
-		TestEqual(TEXT("Empty with an argument sets max to rounded up input"), Arr2.Max(), NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Empty with an arguments sets num to 0"), Arr2.Num() == 0);
+		CHECK_MESSAGE(TEXT("Empty with an argument sets max to rounded up input"), Arr2.Max() == NumBitsPerDWORD);
 
 		TBitArray<TInlineAllocator<4>> Arr3;
 		int32 InitialMax = Arr3.Max();
@@ -1314,8 +1349,9 @@ public:
 		Arr3.CheckInvariants();
 		Arr3.Empty(0);
 		Arr3.CheckInvariants();
-		TestEqual(TEXT("Empty from a dynamic allocation with an inline allocator sets num to 0"), Arr3.Num(), 0);
-		TestEqual(TEXT("Empty from a dynamic allocation with an inline allocator sets max back to the size of the inline allocation"), Arr3.Max(), InitialMax);
+		CHECK_MESSAGE(TEXT("Empty from a dynamic allocation with an inline allocator sets num to 0"), Arr3.Num() == 0);
+		CHECK_MESSAGE(TEXT("Empty from a dynamic allocation with an inline allocator sets max back to the size of the inline allocation"),
+			Arr3.Max() == InitialMax);
 	}
 
 	void TestReserve()
@@ -1323,15 +1359,15 @@ public:
 		TBitArray<FDefaultAllocator> Arr;
 		Arr.Reserve(NumBitsPerDWORD + NumBitsPerDWORD / 2);
 		Arr.CheckInvariants();
-		TestEqual(TEXT("Reserve from empty does not change num"), Arr.Num(), 0);
-		TestTrue(TEXT("Reserve from empty sets max to rounded up request"), Arr.Max() >= NumBitsPerDWORD * 2);
+		CHECK_MESSAGE(TEXT("Reserve from empty does not change num"), Arr.Num() == 0);
+		CHECK_MESSAGE(TEXT("Reserve from empty sets max to rounded up request"), Arr.Max() >= (NumBitsPerDWORD * 2));
 
 		TBitArray<FDefaultAllocator> Arr2Ref(true, NumBitsPerDWORD);
 		TBitArray<FDefaultAllocator> Arr2(true, NumBitsPerDWORD);
 		Arr2.Reserve(NumBitsPerDWORD + NumBitsPerDWORD / 2);
 		Arr2.CheckInvariants();
-		TestTrue(TEXT("Reserve from filled does not size or elements"), Arr2 == Arr2Ref);
-		TestTrue(TEXT("Reserve from filled sets max to rounded up request"), Arr.Max() >= NumBitsPerDWORD * 2);
+		CHECK_MESSAGE(TEXT("Reserve from filled does not size or elements"), Arr2 == Arr2Ref);
+		CHECK_MESSAGE(TEXT("Reserve from filled sets max to rounded up request"), Arr.Max() >= (NumBitsPerDWORD * 2));
 	}
 
 	void TestReset()
@@ -1339,14 +1375,14 @@ public:
 		TBitArray<FDefaultAllocator> Arr;
 		Arr.Reset();
 		Arr.CheckInvariants();
-		TestEqual(TEXT("Reset from empty keeps num at 0"), Arr.Num(), 0);
-		TestEqual(TEXT("Reserve from empty keeps max at 0"), Arr.Max(), 0);
+		CHECK_MESSAGE(TEXT("Reset from empty keeps num at 0"), Arr.Num() == 0);
+		CHECK_MESSAGE(TEXT("Reserve from empty keeps max at 0"), Arr.Max() == 0);
 
 		TBitArray<FDefaultAllocator> Arr2(true, NumBitsPerDWORD);
 		Arr2.Reset();
 		Arr2.CheckInvariants();
-		TestEqual(TEXT("Reset from filled sets num to 0"), Arr2.Num(), 0);
-		TestEqual(TEXT("Reset from filled sets not change max"), Arr2.Max(), NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Reset from filled sets num to 0"), Arr2.Num() == 0);
+		CHECK_MESSAGE(TEXT("Reset from filled sets not change max"), Arr2.Max() == NumBitsPerDWORD);
 	}
 
 	void TestInitAndSetNumUninitialized()
@@ -1356,55 +1392,59 @@ public:
 			TBitArray<FDefaultAllocator> Arr;
 			Arr.SetNumUninitialized(0);
 			Arr.CheckInvariants();
-			TestEqual(TEXT("SetNumUninitialized 0 from empty keeps num at 0"), Arr.Num(), 0);
-			TestEqual(TEXT("SetNumUninitialized 0 from empty keeps max at 0"), Arr.Max(), 0);
+			CHECK_MESSAGE(TEXT("SetNumUninitialized 0 from empty keeps num at 0"), Arr.Num() == 0);
+			CHECK_MESSAGE(TEXT("SetNumUninitialized 0 from empty keeps max at 0"), Arr.Max() == 0);
 
 			TBitArray<FDefaultAllocator> Arr2(true, NumBitsPerDWORD);
 			Arr2.SetNumUninitialized(0);
 			Arr2.CheckInvariants();
-			TestEqual(TEXT("SetNumUninitialized 0 from filled sets num to 0"), Arr2.Num(), 0);
-			TestEqual(TEXT("SetNumUninitialized 0 from filled does not change max"), Arr2.Max(), NumBitsPerDWORD);
+			CHECK_MESSAGE(TEXT("SetNumUninitialized 0 from filled sets num to 0"), Arr2.Num() == 0);
+			CHECK_MESSAGE(TEXT("SetNumUninitialized 0 from filled does not change max"), Arr2.Max() == NumBitsPerDWORD);
 
 			TBitArray<FDefaultAllocator> Arr3;
 			Arr3.SetNumUninitialized(20);
 			Arr3.CheckInvariants();
-			TestEqual(TEXT("SetNumUninitialized 20 from empty sets num at 20"), Arr3.Num(), 20);
-			// Depending on defines, requesting the bitarray's grow to handle a single int might reserve multiple ints. Just confirm the max is a multiple of bitsperdword > num
-			TestTrue(TEXT("SetNumUninitialized 20 sets max at rounded up"), Arr3.Max() >= NumBitsPerDWORD && (Arr3.Max() % NumBitsPerDWORD) == 0);
+			CHECK_MESSAGE(TEXT("SetNumUninitialized 20 from empty sets num at 20"), Arr3.Num() == 20);
+				// Depending on defines, requesting the bitarray's grow to handle a single int might reserve multiple ints. Just confirm the max is a multiple of bitsperdword > num
+			CHECK_MESSAGE(TEXT("SetNumUninitialized 20 sets max at rounded up"), (Arr3.Max() >= NumBitsPerDWORD) && ((Arr3.Max() % NumBitsPerDWORD) == 0));
 
 			TBitArray<FDefaultAllocator> Arr4Ones(true, NumBitsPerDWORD);
 			Arr4Ones.SetNumUninitialized(NumBitsPerDWORD + NumBitsPerDWORD / 2);
 			Arr4Ones.CheckInvariants();
-			TestEqual(TEXT("SetNumUninitialized to a higher number sets num to the higher number"), Arr4Ones.Num(), NumBitsPerDWORD + NumBitsPerDWORD / 2);
+			CHECK_MESSAGE(TEXT("SetNumUninitialized to a higher number sets num to the higher number"),
+				Arr4Ones.Num() == (NumBitsPerDWORD + NumBitsPerDWORD / 2));
 			// Depending on defines, requesting the bitarray's grow to handle a single int might reserve multiple ints. Just confirm the max is a multiple of bitsperdword > num
-			TestTrue(TEXT("SetNumUninitialized to a higher number sets max to rounded up"), Arr4Ones.Max() >= NumBitsPerDWORD * 2 && (Arr4Ones.Max() % NumBitsPerDWORD) == 0);
+			CHECK_MESSAGE(TEXT("SetNumUninitialized to a higher number sets max to rounded up"),
+				(Arr4Ones.Max() >= NumBitsPerDWORD * 2) && ((Arr4Ones.Max() % NumBitsPerDWORD) == 0));
 			for (int n = 0; n < NumBitsPerDWORD; ++n)
 			{
-				TestEqual(TEXT("SetNumUninitialized to a higher number keeps the old elements - ones"), Arr4Ones[n], true);
+				CHECK_MESSAGE(TEXT("SetNumUninitialized to a higher number keeps the old elements - ones"), Arr4Ones[n] == true);
 			}
 			TBitArray<FDefaultAllocator> Arr4Zeroes(false, NumBitsPerDWORD);
 			Arr4Zeroes.SetNumUninitialized(NumBitsPerDWORD + NumBitsPerDWORD / 2);
 			Arr4Zeroes.CheckInvariants();
 			for (int n = 0; n < NumBitsPerDWORD; ++n)
 			{
-				TestEqual(TEXT("SetNumUninitialized to a higher number keeps the old elements - zeroes"), Arr4Zeroes[n], false);
+				CHECK_MESSAGE(TEXT("SetNumUninitialized to a higher number keeps the old elements - zeroes"), Arr4Zeroes[n] == false);
 			}
 
 			TBitArray<FDefaultAllocator> Arr5Ones(true, NumBitsPerDWORD * 2);
 			Arr5Ones.SetNumUninitialized(NumBitsPerDWORD / 2);
 			Arr5Ones.CheckInvariants();
-			TestEqual(TEXT("SetNumUninitialized to a lower number sets num to the lowernumber"), Arr5Ones.Num(), NumBitsPerDWORD / 2);
-			TestEqual(TEXT("SetNumUninitialized to a lower number does not change max"), Arr5Ones.Max(), NumBitsPerDWORD * 2);
+			CHECK_MESSAGE(TEXT("SetNumUninitialized to a lower number sets num to the lowernumber"), Arr5Ones.Num() == NumBitsPerDWORD / 2);
+			CHECK_MESSAGE(TEXT("SetNumUninitialized to a lower number does not change max"), Arr5Ones.Max() == NumBitsPerDWORD * 2);
 			for (int n = 0; n < NumBitsPerDWORD / 2; ++n)
 			{
-				TestEqual(TEXT("SetNumUninitialized to a lower number keeps the old elements below the lower number - ones"), Arr5Ones[n], true);
+				CHECK_MESSAGE(TEXT("SetNumUninitialized to a lower number keeps the old elements below the lower number - ones"),
+					Arr5Ones[n] == true);
 			}
 			TBitArray<FDefaultAllocator> Arr5Zeroes(false, NumBitsPerDWORD * 2);
 			Arr5Zeroes.SetNumUninitialized(NumBitsPerDWORD / 2);
 			Arr5Zeroes.CheckInvariants();
 			for (int n = 0; n < NumBitsPerDWORD / 2; ++n)
 			{
-				TestEqual(TEXT("SetNumUninitialized to a lower number keeps the old elements below the lower number - zeroes"), Arr5Zeroes[n], false);
+				CHECK_MESSAGE(TEXT("SetNumUninitialized to a lower number keeps the old elements below the lower number - zeroes"),
+					Arr5Zeroes[n] == false);
 			}
 		}
 
@@ -1413,14 +1453,14 @@ public:
 			TBitArray<FDefaultAllocator> Arr;
 			Arr.Init(true, 0);
 			Arr.CheckInvariants();
-			TestEqual(TEXT("Init 0 from empty keeps num at 0"), Arr.Num(), 0);
-			TestEqual(TEXT("Init 0 from empty keeps max at 0"), Arr.Max(), 0);
+			CHECK_MESSAGE(TEXT("Init 0 from empty keeps num at 0"), Arr.Num() == 0);
+			CHECK_MESSAGE(TEXT("Init 0 from empty keeps max at 0"), Arr.Max() == 0);
 
 			TBitArray<FDefaultAllocator> Arr2(true, NumBitsPerDWORD);
 			Arr2.Init(true, 0);
 			Arr2.CheckInvariants();
-			TestEqual(TEXT("Init 0 from filled sets num to 0"), Arr2.Num(), 0);
-			TestEqual(TEXT("Init 0 from filled does not change max"), Arr2.Max(), NumBitsPerDWORD);
+			CHECK_MESSAGE(TEXT("Init 0 from filled sets num to 0"), Arr2.Num() == 0);
+			CHECK_MESSAGE(TEXT("Init 0 from filled does not change max"), Arr2.Max() == NumBitsPerDWORD);
 
 			TBitArray<FDefaultAllocator> Arr3True;
 			TBitArray<FDefaultAllocator> Arr3False;
@@ -1428,49 +1468,53 @@ public:
 			TBitArray<FDefaultAllocator> Arr3FalseRef(false, 20);
 			Arr3True.Init(true, 20);
 			Arr3True.CheckInvariants();
-			TestTrue(TEXT("Init true 20 from empty sets size and elements"), Arr3True == Arr3TrueRef);
-			TestEqual(TEXT("Init true 20 sets max at rounded up"), Arr3True.Max(), NumBitsPerDWORD);
+			CHECK_MESSAGE(TEXT("Init true 20 from empty sets size and elements"), Arr3True == Arr3TrueRef);
+			CHECK_MESSAGE(TEXT("Init true 20 sets max at rounded up"), Arr3True.Max() == NumBitsPerDWORD);
 			Arr3False.Init(false, 20);
 			Arr3False.CheckInvariants();
-			TestTrue(TEXT("Init false 20 from empty sets size and elements"), Arr3False == Arr3FalseRef);
-			TestEqual(TEXT("Init false 20 sets max at rounded up"), Arr3False.Max(), NumBitsPerDWORD);
+			CHECK_MESSAGE(TEXT("Init false 20 from empty sets size and elements"), Arr3False == Arr3FalseRef);
+			CHECK_MESSAGE(TEXT("Init false 20 sets max at rounded up"), Arr3False.Max() == NumBitsPerDWORD);
 
 			TBitArray<FDefaultAllocator> Arr4Ones(true, NumBitsPerDWORD);
 			Arr4Ones.Init(false, NumBitsPerDWORD + NumBitsPerDWORD / 2);
 			Arr4Ones.CheckInvariants();
-			TestEqual(TEXT("Init false to a higher number sets num to the higher number"), Arr4Ones.Num(), NumBitsPerDWORD + NumBitsPerDWORD / 2);
-			TestEqual(TEXT("Init false to a higher number sets max to rounded up"), Arr4Ones.Max(), NumBitsPerDWORD * 2);
+			CHECK_MESSAGE(TEXT("Init false to a higher number sets num to the higher number"),
+				Arr4Ones.Num() == (NumBitsPerDWORD + NumBitsPerDWORD / 2));
+			CHECK_MESSAGE(TEXT("Init false to a higher number sets max to rounded up"),
+				Arr4Ones.Max() == NumBitsPerDWORD * 2);
 			for (int n = 0; n < Arr4Ones.Num(); ++n)
 			{
-				TestEqual(TEXT("Init false to a higher number overwrites all elements"), Arr4Ones[n], false);
+				CHECK_MESSAGE(TEXT("Init false to a higher number overwrites all elements"), Arr4Ones[n] == false);
 			}
 			TBitArray<FDefaultAllocator> Arr4Zeroes(false, NumBitsPerDWORD);
 			Arr4Zeroes.Init(true, NumBitsPerDWORD + NumBitsPerDWORD / 2);
 			Arr4Zeroes.CheckInvariants();
-			TestEqual(TEXT("Init true to a higher number sets num to the higher number"), Arr4Zeroes.Num(), NumBitsPerDWORD + NumBitsPerDWORD / 2);
-			TestEqual(TEXT("Init true to a higher number sets max to rounded up"), Arr4Zeroes.Max(), NumBitsPerDWORD * 2);
+			CHECK_MESSAGE(TEXT("Init true to a higher number sets num to the higher number"),
+				Arr4Zeroes.Num() == NumBitsPerDWORD + NumBitsPerDWORD / 2);
+			CHECK_MESSAGE(TEXT("Init true to a higher number sets max to rounded up"),
+				Arr4Zeroes.Max() == NumBitsPerDWORD * 2);
 			for (int n = 0; n < Arr4Zeroes.Num(); ++n)
 			{
-				TestEqual(TEXT("Init true to a higher number overwrites all elements"), Arr4Zeroes[n], true);
+				CHECK_MESSAGE(TEXT("Init true to a higher number overwrites all elements"), Arr4Zeroes[n] == true);
 			}
 
 			TBitArray<FDefaultAllocator> Arr5Ones(true, NumBitsPerDWORD * 2);
 			Arr5Ones.Init(false, NumBitsPerDWORD / 2);
 			Arr5Ones.CheckInvariants();
-			TestEqual(TEXT("Init false to a lower number sets num to the lowernumber"), Arr5Ones.Num(), NumBitsPerDWORD / 2);
-			TestEqual(TEXT("Init false to a lower number does not change max"), Arr5Ones.Max(), NumBitsPerDWORD * 2);
+			CHECK_MESSAGE(TEXT("Init false to a lower number sets num to the lowernumber"), Arr5Ones.Num() == NumBitsPerDWORD / 2);
+			CHECK_MESSAGE(TEXT("Init false to a lower number does not change max"), Arr5Ones.Max() == NumBitsPerDWORD * 2);
 			for (int n = 0; n < Arr5Ones.Num(); ++n)
 			{
-				TestEqual(TEXT("Init false to a lower number overwrites all elements"), Arr5Ones[n], false);
+				CHECK_MESSAGE(TEXT("Init false to a lower number overwrites all elements"), Arr5Ones[n] == false);
 			}
 			TBitArray<FDefaultAllocator> Arr5Zeroes(false, NumBitsPerDWORD * 2);
 			Arr5Zeroes.Init(true, NumBitsPerDWORD / 2);
 			Arr5Zeroes.CheckInvariants();
-			TestEqual(TEXT("Init true to a lower number sets num to the lowernumber"), Arr5Zeroes.Num(), NumBitsPerDWORD / 2);
-			TestEqual(TEXT("Init true to a lower number does not change max"), Arr5Zeroes.Max(), NumBitsPerDWORD * 2);
+			CHECK_MESSAGE(TEXT("Init true to a lower number sets num to the lowernumber"), Arr5Zeroes.Num() == NumBitsPerDWORD / 2);
+			CHECK_MESSAGE(TEXT("Init true to a lower number does not change max"), Arr5Zeroes.Max() == NumBitsPerDWORD * 2);
 			for (int n = 0; n < Arr5Zeroes.Num(); ++n)
 			{
-				TestEqual(TEXT("Init true to a lower number overwrites all elements"), Arr5Zeroes[n], true);
+				CHECK_MESSAGE(TEXT("Init true to a lower number overwrites all elements"), Arr5Zeroes[n] == true);
 			}
 		}
 	}
@@ -1488,38 +1532,32 @@ public:
 	// TODO: Reverse Iteration
 };
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FBitArrayTestMisc, FBitArrayTest, "System.Core.Containers.BitArray.Misc", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-bool FBitArrayTestMisc::RunTest(const FString& InParameters)
+TEST_CASE_NAMED(FBitArrayTestMisc, "System::Core::Containers::BitArray::Misc", "[ApplicationContextMask][EngineFilter]")
 {
-	bool Constructed = ConstructAndTestConstructors();
-	if (!Constructed)
-	{
-		return false;
-	}
+	FBitArrayTest Instance;
 
-	TestEqualityOperator();
-	TestOtherConstructorAndAssignment();
-	TestLessThan();
-	TestRemoveAt();
-	TestRemoveAtSwap();
-	TestSerialize();
-	TestAdd();
-	TestAddFromRange();
-	TestInsert();
-	TestInsertFromRange();
-	TestSetRange();
-	TestGetRange();
-	TestEmpty();
-	TestReserve();
-	TestReset();
-	TestInitAndSetNumUninitialized();
+	const bool bConstructed = Instance.ConstructAndTestConstructors();
+	REQUIRE(bConstructed);
 
-	return !HasAnyErrors();
+	Instance.TestEqualityOperator();
+	Instance.TestOtherConstructorAndAssignment();
+	Instance.TestLessThan();
+	Instance.TestRemoveAt();
+	Instance.TestRemoveAtSwap();
+	Instance.TestSerialize();
+	Instance.TestAdd();
+	Instance.TestAddFromRange();
+	Instance.TestInsert();
+	Instance.TestInsertFromRange();
+	Instance.TestSetRange();
+	Instance.TestGetRange();
+	Instance.TestEmpty();
+	Instance.TestReserve();
+	Instance.TestReset();
+	Instance.TestInitAndSetNumUninitialized();
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBitArrayInvariantsTest, "System.Core.Containers.BitArray.Invariants", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FBitArrayInvariantsTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FBitArrayInvariantsTest, "System::Core::Containers::BitArray::Invariants", "[ApplicationContextMask][SmokeFilter]")
 {
 	using namespace UE::BitArrayTest;
 
@@ -1607,13 +1645,9 @@ bool FBitArrayInvariantsTest::RunTest(const FString& Parameters)
 		Temp.Init(true, 32);
 		Temp.CheckInvariants();
 	}
-
-	return true;
 }
 
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBitArrayCountSetBitsTest, "System.Core.Containers.BitArray.CountSetBits", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FBitArrayCountSetBitsTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FBitArrayCountSetBitsTest, "System::Core::Containers::BitArray::CountSetBits", "[ApplicationContextMask][SmokeFilter]")
 {
 	using namespace UE::BitArrayTest;
 
@@ -1638,10 +1672,8 @@ bool FBitArrayCountSetBitsTest::RunTest(const FString& Parameters)
 			const TBitArray<> Array = ConstructBitArray(Test.Bits);
 
 			const int32 SetBits = Array.CountSetBits();
-			if (SetBits != Test.Expected)
-			{
-				AddError(*FString::Printf(TEXT("CountSetBits: Unexpected number of set bits for array %s. Expected: %i, Actual: %i"), *BitArrayToString(Array), Test.Expected, SetBits));
-			}
+			CHECK_MESSAGE(FString::Printf(TEXT("CountSetBits: Unexpected number of set bits for array %s. Expected: %i, Actual: %i"), *BitArrayToString(Array), Test.Expected, SetBits),
+				!(SetBits != Test.Expected));
 		}
 	}
 
@@ -1665,20 +1697,15 @@ bool FBitArrayCountSetBitsTest::RunTest(const FString& Parameters)
 			const TBitArray<> Array = ConstructBitArray(Test.Bits);
 
 			const int32 SetBits = Array.CountSetBits(Test.StartIndex, Test.EndIndex);
-			if (SetBits != Test.Expected)
-			{
-				AddError(*FString::Printf(TEXT("CountSetBits: Unexpected number of set bits for array %s between index %d and %d. Expected: %i, Actual: %i"), *BitArrayToString(Array), Test.StartIndex, Test.EndIndex, Test.Expected, SetBits));
-			}
+			CHECK_MESSAGE(FString::Printf(TEXT("CountSetBits: Unexpected number of set bits for array %s between index %d and %d. Expected: %i, Actual: %i"), *BitArrayToString(Array), Test.StartIndex, Test.EndIndex, Test.Expected, SetBits),
+				!(SetBits != Test.Expected));
 		}
 	}
-
-	return true;
 }
 
 
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBitArrayBitwiseNOTTest, "System.Core.Containers.BitArray.BitwiseNOT", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FBitArrayBitwiseNOTTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FBitArrayBitwiseNOTTest, "System::Core::Containers::BitArray::BitwiseNOT", "[ApplicationContextMask][SmokeFilter]")
 {
 	using namespace UE::BitArrayTest;
 
@@ -1714,19 +1741,14 @@ bool FBitArrayBitwiseNOTTest::RunTest(const FString& Parameters)
 
 		TBitArray<> Result   = Input;
 		Result.BitwiseNOT();
-		if (Result != Expected)
-		{
-			AddError(*FString::Printf(TEXT("Bitwise NOT: Unexpected result for source %hs. Expected: %hs, Actual: %s"), Test.Input, Test.Expected, *BitArrayToString(Result)));
-		}
+		CHECK_MESSAGE(FString::Printf(TEXT("Bitwise NOT: Unexpected result for source %hs. Expected: %hs, Actual: %s"), Test.Input, Test.Expected, *BitArrayToString(Result)),
+			!(Result != Expected));
 	}
-
-	return true;
 }
 
 
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBitArrayBitwiseANDTest, "System.Core.Containers.BitArray.BitwiseAND", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FBitArrayBitwiseANDTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FBitArrayBitwiseANDTest, "System::Core::Containers::BitArray::BitwiseAND", "[ApplicationContextMask][SmokeFilter]")
 {
 	using namespace UE::BitArrayTest;
 
@@ -1748,7 +1770,7 @@ bool FBitArrayBitwiseANDTest::RunTest(const FString& Parameters)
 		const char* Expected;
 	};
 
-	auto RunBinaryTestImpl = [this](const TCHAR* Description, TArrayView<const FTestInput> Tests, TArrayView<const FTestResult> Results, BinaryCallable BinaryOp)
+	auto RunBinaryTestImpl = [](const TCHAR* Description, TArrayView<const FTestInput> Tests, TArrayView<const FTestResult> Results, BinaryCallable BinaryOp)
 	{
 		check(Tests.Num() == Results.Num());
 		for (int32 Index = 0; Index < Tests.Num(); ++Index)
@@ -1761,21 +1783,17 @@ bool FBitArrayBitwiseANDTest::RunTest(const FString& Parameters)
 			const TBitArray<> Expected = ConstructBitArray(TestResult.Expected);
 
 			TBitArray<> Result = BinaryOp(InputA, InputB);
-
-			if (Result != Expected)
-			{
-				AddError(*FString::Printf(TEXT("%s: Unexpected result for source %hs & %hs. Expected: %hs, Actual: %s"), Description, Test.InputA, Test.InputB, TestResult.Expected, *BitArrayToString(Result)));
-			}
+			
+			CHECK_MESSAGE(FString::Printf(TEXT("%s: Unexpected result for source %hs & %hs. Expected: %hs, Actual: %s"), Description, Test.InputA, Test.InputB, TestResult.Expected, *BitArrayToString(Result)),
+				!(Result != Expected));
 
 			Result = BinaryOp(InputB, InputA);
-			if (Result != Expected)
-			{
-				AddError(*FString::Printf(TEXT("%s: Unexpected result for source %hs & %hs. Expected: %hs, Actual: %s"), Description, Test.InputB, Test.InputA, TestResult.Expected, *BitArrayToString(Result)));
-			}
+			CHECK_MESSAGE(FString::Printf(TEXT("%s: Unexpected result for source %hs & %hs. Expected: %hs, Actual: %s"), Description, Test.InputB, Test.InputA, TestResult.Expected, *BitArrayToString(Result)),
+				!(Result != Expected));
 		}
 	};
 
-	auto RunMutatingTestImpl = [this](const TCHAR* Description, TArrayView<const FTestInput> Tests, TArrayView<const FTestResult> Results, MutatingCallable MutatingOp)
+	auto RunMutatingTestImpl = [](const TCHAR* Description, TArrayView<const FTestInput> Tests, TArrayView<const FTestResult> Results, MutatingCallable MutatingOp)
 	{
 		for (int32 Index = 0; Index < Tests.Num(); ++Index)
 		{
@@ -1788,10 +1806,8 @@ bool FBitArrayBitwiseANDTest::RunTest(const FString& Parameters)
 
 			TBitArray<> Result = InputA;
 			MutatingOp(Result, InputB);
-			if (Result != Expected)
-			{
-				AddError(*FString::Printf(TEXT("%s: Unexpected result for source %hs & %hs. Expected: %hs, Actual: %s"), Description, Test.InputA, Test.InputB, TestResult.Expected, *BitArrayToString(Result)));
-			}
+			CHECK_MESSAGE(FString::Printf(TEXT("%s: Unexpected result for source %hs & %hs. Expected: %hs, Actual: %s"), Description, Test.InputA, Test.InputB, TestResult.Expected, *BitArrayToString(Result)),
+				!(Result != Expected));
 		}
 	};
 
@@ -1901,14 +1917,11 @@ bool FBitArrayBitwiseANDTest::RunTest(const FString& Parameters)
 
 		RunMutatingTestImpl(TEXT("CombineWithBitwiseAND (MaintainSize | OneFillMissingBits)"), Tests, Results, [](TBitArray<>& Mutate, const TBitArray<>& InB){ Mutate.CombineWithBitwiseAND(InB, EBitwiseOperatorFlags::MaintainSize | EBitwiseOperatorFlags::OneFillMissingBits); });
 	}
-
-	return true;
 }
 
 
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBitArrayBitwiseORTest, "System.Core.Containers.BitArray.BitwiseOR", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FBitArrayBitwiseORTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FBitArrayBitwiseORTest, "System::Core::Containers::BitArray::BitwiseOR", "[ApplicationContextMask][SmokeFilter]")
 {
 	using namespace UE::BitArrayTest;
 
@@ -1942,32 +1955,23 @@ bool FBitArrayBitwiseORTest::RunTest(const FString& Parameters)
 		const TBitArray<> Expected = ConstructBitArray(Test.Expected);
 
 		TBitArray<> Result = TBitArray<>::BitwiseOR(InputA, InputB, EBitwiseOperatorFlags::MaxSize);
-		if (Result != Expected)
-		{
-			AddError(*FString::Printf(TEXT("BitwiseOR: Unexpected result for source %hs | %hs. Expected: %hs, Actual: %s"), Test.InputA, Test.InputB, Test.Expected, *BitArrayToString(Result)));
-		}
+		CHECK_MESSAGE(FString::Printf(TEXT("BitwiseOR: Unexpected result for source %hs | %hs. Expected: %hs, Actual: %s"), Test.InputA, Test.InputB, Test.Expected, *BitArrayToString(Result)),
+			!(Result != Expected));
 
 		Result = TBitArray<>::BitwiseOR(InputB, InputA, EBitwiseOperatorFlags::MaxSize);
-		if (Result != Expected)
-		{
-			AddError(*FString::Printf(TEXT("BitwiseOR: Unexpected result for source %hs | %hs. Expected: %hs, Actual: %s"), Test.InputB, Test.InputA, Test.Expected, *BitArrayToString(Result)));
-		}
+		CHECK_MESSAGE(FString::Printf(TEXT("BitwiseOR: Unexpected result for source %hs | %hs. Expected: %hs, Actual: %s"), Test.InputB, Test.InputA, Test.Expected, *BitArrayToString(Result)),
+			!(Result != Expected));
 
 		Result = InputA;
 		Result.CombineWithBitwiseOR(InputB, EBitwiseOperatorFlags::MaxSize);
-		if (Result != Expected)
-		{
-			AddError(*FString::Printf(TEXT("CombineWithBitwiseOR: Unexpected result for source %hs | %hs. Expected: %hs, Actual: %s"), Test.InputA, Test.InputB, Test.Expected, *BitArrayToString(Result)));
-		}
+		CHECK_MESSAGE(FString::Printf(TEXT("CombineWithBitwiseOR: Unexpected result for source %hs | %hs. Expected: %hs, Actual: %s"), Test.InputA, Test.InputB, Test.Expected, *BitArrayToString(Result)),
+			!(Result != Expected));
 	}
-
-	return true;
 }
 
 
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBitArrayBitwiseXORTest, "System.Core.Containers.BitArray.BitwiseXOR", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FBitArrayBitwiseXORTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FBitArrayBitwiseXORTest, "System::Core::Containers::BitArray::BitwiseXOR", "[ApplicationContextMask][SmokeFilter]")
 {
 	using namespace UE::BitArrayTest;
 
@@ -2004,39 +2008,27 @@ bool FBitArrayBitwiseXORTest::RunTest(const FString& Parameters)
 		const TBitArray<> Expected = ConstructBitArray(Test.Expected);
 
 		TBitArray<> Result = TBitArray<>::BitwiseXOR(InputA, InputB, EBitwiseOperatorFlags::MaxSize);
-		if (Result != Expected)
-		{
-			AddError(*FString::Printf(TEXT("BitwiseXOR: Unexpected result for source %hs | %hs. Expected: %hs, Actual: %s"), Test.InputA, Test.InputB, Test.Expected, *BitArrayToString(Result)));
-		}
+		CHECK_MESSAGE(FString::Printf(TEXT("BitwiseXOR: Unexpected result for source %hs | %hs. Expected: %hs, Actual: %s"), Test.InputA, Test.InputB, Test.Expected, *BitArrayToString(Result)),
+			!(Result != Expected));
 
 		Result = TBitArray<>::BitwiseXOR(InputB, InputA, EBitwiseOperatorFlags::MaxSize);
-		if (Result != Expected)
-		{
-			AddError(*FString::Printf(TEXT("BitwiseXOR: Unexpected result for source %hs | %hs. Expected: %hs, Actual: %s"), Test.InputB, Test.InputA, Test.Expected, *BitArrayToString(Result)));
-		}
+		CHECK_MESSAGE(FString::Printf(TEXT("BitwiseXOR: Unexpected result for source %hs | %hs. Expected: %hs, Actual: %s"), Test.InputB, Test.InputA, Test.Expected, *BitArrayToString(Result)),
+			!(Result != Expected));
 
 		Result = InputA;
 		Result.CombineWithBitwiseXOR(InputB, EBitwiseOperatorFlags::MaxSize);
-		if (Result != Expected)
-		{
-			AddError(*FString::Printf(TEXT("CombineWithBitwiseXOR: Unexpected result for source %hs | %hs. Expected: %hs, Actual: %s"), Test.InputA, Test.InputB, Test.Expected, *BitArrayToString(Result)));
-		}
+		CHECK_MESSAGE(FString::Printf(TEXT("CombineWithBitwiseXOR: Unexpected result for source %hs | %hs. Expected: %hs, Actual: %s"), Test.InputA, Test.InputB, Test.Expected, *BitArrayToString(Result)),
+			!(Result != Expected));
 	}
-
-	return true;
 }
 
 
-class FBitArrayMemoryTest : public FAutomationTestBase
+class FBitArrayMemoryTest
 {
 public:
-	FBitArrayMemoryTest(const FString& InName, const bool bInComplexTask)
-		: FAutomationTestBase(InName, bInComplexTask)
-	{
-	}
+	FBitArrayMemoryTest() = default;
 
-protected:
-	bool TestMemmoveBitsWordOrder(const FString& Parameters)
+	void TestMemmoveBitsWordOrder()
 	{
 		// This function also fully tests MemmoveBitsWordOrderAlignedInternal; all of its calls occur when ReadOffset == WriteOffset
 		constexpr uint32 NumPatterns = 1;
@@ -2199,11 +2191,13 @@ protected:
 						ZeroesText[DisplayIndex] = TEXT('\0');
 						if (!bOnesMatchesExpected)
 						{
-							AddError(FString::Printf(TEXT("MemmoveBitsWordOrder BitWidth=%d ReadOffset=%d, WriteOffset=%d, Overlap=%d, Ones\nExpected=%s\nActual  =%s"), BitWidth, ReadOffset, WriteOffset, Overlap, OnesExpectedText, OnesText));
+							CHECK_MESSAGE(FString::Printf(TEXT("MemmoveBitsWordOrder BitWidth=%d ReadOffset=%d, WriteOffset=%d, Overlap=%d, Ones\nExpected=%s\nActual  =%s"), BitWidth, ReadOffset, WriteOffset, Overlap, OnesExpectedText, OnesText),
+								bOnesMatchesExpected);
 						}
 						else if (!bZeroesMatchesExpected)
 						{
-							AddError(FString::Printf(TEXT("MemmoveBitsWordOrder BitWidth=%d ReadOffset=%d, WriteOffset=%d, Overlap=%d, Zeroes\nExpected=%s\nActual  =%s"), BitWidth, ReadOffset, WriteOffset, Overlap, ZeroesExpectedText, ZeroesText));
+							CHECK_MESSAGE(FString::Printf(TEXT("MemmoveBitsWordOrder BitWidth=%d ReadOffset=%d, WriteOffset=%d, Overlap=%d, Zeroes\nExpected=%s\nActual  =%s"), BitWidth, ReadOffset, WriteOffset, Overlap, ZeroesExpectedText, ZeroesText),
+								bZeroesMatchesExpected);
 						}
 					}
 				}
@@ -2255,16 +2249,14 @@ protected:
 				}
 				Expected[Index] = '\0';
 				Actual[Index] = '\0';
-				if (!bMatch)
-				{
-					AddError(FString::Printf(TEXT("MemmoveBitsWordOrder ModularizeWordOffset Offset=%d\nExpected=%s\nActual  =%s"), Offset, ANSI_TO_TCHAR(Expected), ANSI_TO_TCHAR(Actual)));
-				}
+				
+				CHECK_MESSAGE(FString::Printf(TEXT("MemmoveBitsWordOrder ModularizeWordOffset Offset=%d\nExpected=%s\nActual  =%s"), Offset, ANSI_TO_TCHAR(Expected), ANSI_TO_TCHAR(Actual)),
+					bMatch);
 			}
 		}
-		return true;
 	}
 
-	bool TestModularizeWordOffset(const FString& Parameters)
+	void TestModularizeWordOffset()
 	{
 		constexpr int MaxDataLength = 20;
 		uint32 Buffer[MaxDataLength];
@@ -2281,24 +2273,18 @@ protected:
 				FBitArrayMemory::ModularizeWordOffset(Data, Offset);
 				uint32* ExpectedData = BaseData + WordLength;
 				uint32 ExpectedOffset = BitLength;
-				if (Data != ExpectedData || Offset != ExpectedOffset)
-				{
-					AddError(FString::Printf(TEXT("ModularizeWordOffset WordLength=%d, BitLength=%d\nExpected: Data=%d, Offset=%d\nActual:  Data=%d, Offset=%d"), WordLength, BitLength, ExpectedData - BaseData, ExpectedOffset, Data - BaseData, Offset));
-				}
+				CHECK_MESSAGE(FString::Printf(TEXT("ModularizeWordOffset WordLength=%d, BitLength=%d\nExpected: Data=%d, Offset=%d\nActual:  Data=%d, Offset=%d"), WordLength, BitLength, ExpectedData - BaseData, ExpectedOffset, Data - BaseData, Offset),
+					!(Data != ExpectedData || Offset != ExpectedOffset));
 			}
 		}
-
-		return true;
 	}
 };
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FBitArrayMemoryTestSubClass, FBitArrayMemoryTest, "System.Core.Misc.MemmoveBitsWordOrder", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-bool FBitArrayMemoryTestSubClass::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FBitArrayMemoryTestSubClass, "System::Core::Misc::MemmoveBitsWordOrder", "[ApplicationContextMask][EngineFilter]")
 {
-	bool bResult = FBitArrayMemoryTest::TestMemmoveBitsWordOrder(Parameters);
-	bResult = FBitArrayMemoryTest::TestModularizeWordOffset(Parameters) && bResult;
-	return bResult;
+	FBitArrayMemoryTest Instance;
+	Instance.TestMemmoveBitsWordOrder();
+	Instance.TestModularizeWordOffset();
 }
 
-#endif // WITH_DEV_AUTOMATION_TESTS
+#endif // WITH_TESTS

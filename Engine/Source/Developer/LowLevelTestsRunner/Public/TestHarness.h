@@ -113,6 +113,8 @@ struct Catch::StringMaker<TTuple<KeyType, ValueType>>
 	}
 };
 
+#define TEST_CASE_NAMED(ClassName, ...) TEST_CASE(__VA_ARGS__)
+
 #define VERIFY(What, Actual)\
 	CAPTURE(What);\
 	CHECK(Actual == true)
@@ -128,6 +130,11 @@ struct Catch::StringMaker<TTuple<KeyType, ValueType>>
 
 #define CHECK_NOT_EQUAL(Actual, Expected)\
 	CHECK(Actual != Expected)
+
+#define CHECK_MESSAGE(What, Value) do { \
+	INFO(What); \
+	CHECK((Value)==true); \
+} while (false)
 
 #define REQUIRE_EQUAL(Actual, Expected)\
 	REQUIRE(Actual == Expected)

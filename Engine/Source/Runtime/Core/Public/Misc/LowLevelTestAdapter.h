@@ -50,7 +50,7 @@
 #define LLT_JOIN(Prefix, Counter) LLT_JOIN_INNER(Prefix, Counter)
 #define LLT_JOIN_INNER(Prefix, Counter) Prefix##Counter
 
-#define TEST_CASE_NAMED(TClass, StrName, PrettyName, TFlags) \
+#define TEST_CASE_NAMED_STR(TClass, StrName, PrettyName, TFlags) \
 		IMPLEMENT_SIMPLE_AUTOMATION_TEST_PRIVATE_LLT(TClass, PrettyName, TFlags, __FILE__, __LINE__) \
 		namespace \
 		{ \
@@ -63,10 +63,13 @@
 #define LLT_STR(Macro) #Macro
 #define LLT_STR_EXPAND(Macro) LLT_STR(Macro)
 #define TEST_CASE_GENERATED_NAME_UNIQUE_STR LLT_STR_EXPAND(TEST_CASE_GENERATED_NAME_UNIQUE)
-#define TEST_CASE(PrettyName, TFlags) TEST_CASE_NAMED(TEST_CASE_GENERATED_NAME_UNIQUE, TEST_CASE_GENERATED_NAME_UNIQUE_STR, PrettyName, TFlags)
+#define TEST_CASE(PrettyName, TFlags) TEST_CASE_NAMED_STR(TEST_CASE_GENERATED_NAME_UNIQUE, TEST_CASE_GENERATED_NAME_UNIQUE_STR, PrettyName, TFlags)
+#define TEST_CASE_NAMED(ClassName, PrettyName, TFlags) TEST_CASE_NAMED_STR(ClassName, #ClassName, PrettyName, TFlags)
 
+#define INFO(What)
 #define CHECK(Expr) if (!(Expr)) { FAutomationTestFramework::Get().GetCurrentTest()->AddError(TEXT("Condition failed")); }
 #define CHECK_FALSE(Expr) if (Expr) { FAutomationTestFramework::Get().GetCurrentTest()->AddError(TEXT("Condition expected to return false but returned true")); }
+#define CHECK_MESSAGE(Message, Expr) if (!(Expr)) { FAutomationTestFramework::Get().GetCurrentTest()->AddError(Message); }
 #define REQUIRE(Expr) if (!(Expr)) { FAutomationTestFramework::Get().GetCurrentTest()->AddError(TEXT("Required condition failed, interrupting test")); return; }
 
 #define SECTION(Text) AddInfo(TEXT(Text));

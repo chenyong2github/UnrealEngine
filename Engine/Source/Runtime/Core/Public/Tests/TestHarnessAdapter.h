@@ -15,3 +15,10 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/LowLevelTestAdapter.h"
 #endif
+
+#define CHECK_AND_SET_ERROR_ON_FAIL(What, Value, Error) do { \
+	Error = Error || (!(Value)); \
+	CHECK_MESSAGE(What, Value); \
+} while (false)
+
+
