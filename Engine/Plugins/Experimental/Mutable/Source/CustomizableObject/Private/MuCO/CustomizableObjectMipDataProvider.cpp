@@ -113,6 +113,7 @@ namespace impl
 		{
 			MUTABLE_CPUPROFILER_SCOPE(EndUpdate);
 			System->EndUpdate(InstanceID);
+			System->ReleaseInstance(InstanceID);
 		}
 
 		{
