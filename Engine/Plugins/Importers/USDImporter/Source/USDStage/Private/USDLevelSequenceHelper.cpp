@@ -3,10 +3,10 @@
 #include "USDLevelSequenceHelper.h"
 
 #include "GeometryCache.h"
-#include "USDAssetCache.h"
 #include "USDAssetImportData.h"
 #include "USDAttributeUtils.h"
 #include "USDConversionUtils.h"
+#include "USDInfoCache.h"
 #include "USDIntegrationUtils.h"
 #include "USDLayerUtils.h"
 #include "USDListener.h"
@@ -511,7 +511,7 @@ public:
 	~FUsdLevelSequenceHelperImpl();
 
 	ULevelSequence* Init(const UE::FUsdStage& InUsdStage);
-	void SetAssetCache(UUsdAssetCache* AssetCache);
+	void SetInfoCache(TSharedPtr<FUsdInfoCache> InfoCache);
 	bool HasData() const;
 	void Clear();
 
@@ -703,7 +703,7 @@ private:
 	FUsdLevelSequenceHelper::FOnSkelAnimationBaked OnSkelAnimationBaked;
 
 	TWeakObjectPtr<AUsdStageActor> StageActor = nullptr;
-	UUsdAssetCache* AssetCache = nullptr;  // We keep a pointer to this directly because we may be called via the USDStageImporter directly, when we don't have an available actor
+	TSharedPtr<FUsdInfoCache> InfoCache = nullptr;  // We keep a pointer to this directly because we may be called via the USDStageImporter directly, when we don't have an available actor
 	FGuid StageActorBinding;
 
 	// Only when this is zero we write LevelSequence object (tracks, moviescene, sections, etc.) transactions back to the USD stage
@@ -768,9 +768,9 @@ ULevelSequence* FUsdLevelSequenceHelperImpl::Init(const UE::FUsdStage& InUsdStag
 	return MainLevelSequence;
 }
 
-void FUsdLevelSequenceHelperImpl::SetAssetCache(UUsdAssetCache* InAssetCache)
+void FUsdLevelSequenceHelperImpl::SetInfoCache(TSharedPtr<FUsdInfoCache> InInfoCache)
 {
-	AssetCache = InAssetCache;
+	InfoCache = InInfoCache;
 }
 
 bool FUsdLevelSequenceHelperImpl::HasData() const
@@ -902,7 +902,7 @@ void FUsdLevelSequenceHelperImpl::BindToUsdStageActor(AUsdStageActor* InStageAct
 	UnbindFromUsdStageActor();
 
 	StageActor = InStageActor;
-	SetAssetCache(InStageActor ? InStageActor->GetAssetCache() : nullptr);
+	SetInfoCache(InStageActor ? InStageActor->GetInfoCache() : nullptr);
 
 	if (!StageActor.IsValid() || !MainLevelSequence || !MainLevelSequence->GetMovieScene())
 	{
@@ -949,7 +949,7 @@ void FUsdLevelSequenceHelperImpl::UnbindFromUsdStageActor()
 		StageActor.Reset();
 	}
 
-	SetAssetCache(nullptr);
+	SetInfoCache(nullptr);
 
 	OnStageEditTargetChangedHandle.Reset();
 }
@@ -1082,9 +1082,9 @@ ULevelSequence* FUsdLevelSequenceHelperImpl::FindOrAddSequenceForLayer(const UE:
 		// from the transaction buffer, so we would basically end up creating a identical new object on top of an existing one (the new object has the same address as the existing one).
 		// When importing we don't actually want to do this though, because we want these assets name to conflict so that we can publish/replace old assets if desired. The stage
 		// importer will make these names unique later if needed.
-		// We only get an AssetCache when importing (from UUsdStageImporter::ImportFromFile) or when BindToUsdStageActor is called,
+		// We only get an InfoCache when importing (from UUsdStageImporter::ImportFromFile) or when BindToUsdStageActor is called,
 		// which also gives us a stage actor. So if we don't have an actor but have a cache, we're importing
-		const bool bIsImporting = StageActor.IsExplicitlyNull() && AssetCache;
+		const bool bIsImporting = StageActor.IsExplicitlyNull() && InfoCache;
 		FName UniqueSequenceName = bIsImporting
 			? *UsdLevelSequenceHelperImpl::SanitizeObjectName(FPaths::GetBaseFilename(SequenceDisplayName))
 			: MakeUniqueObjectName(GetTransientPackage(), ULevelSequence::StaticClass(), *UsdLevelSequenceHelperImpl::SanitizeObjectName(FPaths::GetBaseFilename(SequenceDisplayName)));
@@ -1839,7 +1839,7 @@ void FUsdLevelSequenceHelperImpl::AddSkeletalTracks(const UUsdPrimTwin& PrimTwin
 		return;
 	}
 
-	if (!AssetCache)
+	if (!InfoCache)
 	{
 		return;
 	}
@@ -1855,8 +1855,11 @@ void FUsdLevelSequenceHelperImpl::AddSkeletalTracks(const UUsdPrimTwin& PrimTwin
 	// Fetch the UAnimSequence asset from the asset cache. Ideally we'd call AUsdStageActor::GetGeneratedAssets,
 	// but we may belong to a FUsdStageImportContext, and so there's no AUsdStageActor at all to use.
 	// At this point it doesn't matter much though, because we shouldn't need to uncollapse a SkelAnimation prim path anyway
-	FString PrimPath = SkelAnimationPrim.GetPrimPath().GetString();
-	UAnimSequence* Sequence = Cast<UAnimSequence>(AssetCache->GetAssetForPrim(PrimPath));
+	const UE::FSdfPath PrimPath = SkelAnimationPrim.GetPrimPath();
+	UAnimSequence* Sequence = Cast<UAnimSequence>(InfoCache->GetSingleAssetForPrim(
+		PrimPath,
+		UAnimSequence::StaticClass()
+	));
 	if (!Sequence)
 	{
 		return;
@@ -1912,20 +1915,23 @@ void FUsdLevelSequenceHelperImpl::AddSkeletalTracks(const UUsdPrimTwin& PrimTwin
 		NewSection->EvalOptions.CompletionMode = EMovieSceneCompletionMode::KeepState;
 	}
 
-	PrimPathByLevelSequenceName.AddUnique(SkelAnimationSequence->GetFName(), PrimPath);
+	PrimPathByLevelSequenceName.AddUnique(SkelAnimationSequence->GetFName(), PrimPath.GetString());
 }
 
 void FUsdLevelSequenceHelperImpl::AddGeometryCacheTracks(const UUsdPrimTwin& PrimTwin, const UE::FUsdPrim& Prim)
 {
 	UGeometryCacheComponent* ComponentToBind = Cast< UGeometryCacheComponent >(PrimTwin.GetSceneComponent());
-	if (!ComponentToBind || !AssetCache)
+	if (!ComponentToBind || !InfoCache)
 	{
 		return;
 	}
 
 	// Fetch the geometry cache asset from the asset cache. If there's none, don't actually need to create track
-	const FString PrimPath = Prim.GetPrimPath().GetString();
-	UGeometryCache* GeometryCache = Cast< UGeometryCache >(AssetCache->GetAssetForPrim(PrimPath));
+	const UE::FSdfPath PrimPath = Prim.GetPrimPath();
+	UGeometryCache* GeometryCache = Cast< UGeometryCache >(InfoCache->GetSingleAssetForPrim(
+		PrimPath,
+		UGeometryCache::StaticClass()
+	));
 	if (!GeometryCache)
 	{
 		return;
@@ -1972,7 +1978,7 @@ void FUsdLevelSequenceHelperImpl::AddGeometryCacheTracks(const UUsdPrimTwin& Pri
 		NewSection->EvalOptions.CompletionMode = EMovieSceneCompletionMode::KeepState;
 	}
 
-	PrimPathByLevelSequenceName.AddUnique(GeometryCacheSequence->GetFName(), PrimPath);
+	PrimPathByLevelSequenceName.AddUnique(GeometryCacheSequence->GetFName(), PrimPath.GetString());
 }
 
 void FUsdLevelSequenceHelperImpl::AddGroomTracks(const UUsdPrimTwin& PrimTwin, const UE::FUsdPrim& Prim)
@@ -1983,7 +1989,7 @@ void FUsdLevelSequenceHelperImpl::AddGroomTracks(const UUsdPrimTwin& PrimTwin, c
 		return;
 	}
 
-	if (!AssetCache)
+	if (!InfoCache)
 	{
 		return;
 	}
@@ -1991,7 +1997,10 @@ void FUsdLevelSequenceHelperImpl::AddGroomTracks(const UUsdPrimTwin& PrimTwin, c
 	// Fetch the groom cache asset from the asset cache. If there's none, don't actually need to create track
 	const FString PrimPath = Prim.GetPrimPath().GetString();
 	const FString GroomCachePath = FString::Printf(TEXT("%s_strands_cache"), *PrimPath);
-	UGroomCache* GroomCache = Cast< UGroomCache >(AssetCache->GetAssetForPrim(GroomCachePath));
+	UGroomCache* GroomCache = Cast<UGroomCache>(InfoCache->GetSingleAssetForPrim(
+		UE::FSdfPath{*GroomCachePath},
+		UGroomCache::StaticClass()
+	));
 	if (!GroomCache)
 	{
 		return;
@@ -2243,8 +2252,11 @@ void FUsdLevelSequenceHelperImpl::UpdateControlRigTracks(UUsdPrimTwin& PrimTwin)
 	// Fetch the UAnimSequence asset from the asset cache. Ideally we'd call AUsdStageActor::GetGeneratedAssets,
 	// but we may belong to a FUsdStageImportContext, and so there's no AUsdStageActor at all to use.
 	// At this point it doesn't matter much though, because we shouldn't need to uncollapse a SkelAnimation prim path anyway
-	FString SkelAnimationPrimPath = SkelAnimationPrim.GetPrimPath().GetString();
-	UAnimSequence* AnimSequence = Cast<UAnimSequence>(AssetCache->GetAssetForPrim(SkelAnimationPrimPath));
+	const UE::FSdfPath SkelAnimationPrimPath = SkelAnimationPrim.GetPrimPath();
+	UAnimSequence* AnimSequence = Cast<UAnimSequence>(InfoCache->GetSingleAssetForPrim(
+		SkelAnimationPrimPath,
+		UAnimSequence::StaticClass()
+	));
 
 	if (!SkelAnimationLayer)
 	{
@@ -3560,7 +3572,7 @@ public:
 	~FUsdLevelSequenceHelperImpl() {}
 
 	ULevelSequence* Init(const UE::FUsdStage& InUsdStage) { return nullptr; }
-	void SetAssetCache(UUsdAssetCache* AssetCache) {};
+	void SetInfoCache(TSharedPtr<FUsdInfoCache> InfoCache) {};
 	bool HasData() const { return false; };
 	void Clear() {};
 
@@ -3626,11 +3638,11 @@ void FUsdLevelSequenceHelper::OnStageActorRenamed()
 	}
 }
 
-void FUsdLevelSequenceHelper::SetAssetCache(UUsdAssetCache * AssetCache)
+void FUsdLevelSequenceHelper::SetInfoCache(TSharedPtr<FUsdInfoCache> InInfoCache)
 {
 	if (UsdSequencerImpl.IsValid())
 	{
-		UsdSequencerImpl->SetAssetCache(AssetCache);
+		UsdSequencerImpl->SetInfoCache(InInfoCache);
 	}
 }
 

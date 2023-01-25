@@ -7,8 +7,10 @@
 
 #include "USDAssetCache.generated.h"
 
+class UE_DEPRECATED(5.2, "Use the UUsdAssetCache2 class instead, which is an actual asset you can create on the Content Browser") UUsdAssetCache;
+
 /** Owns the assets generated and reused by the USD stage, allowing thread-safe retrieval/storage */
-UCLASS()
+UCLASS(meta=(ScriptName="UsdAssetCache_Deprecated"))
 class USDCLASSES_API UUsdAssetCache : public UObject
 {
 	GENERATED_BODY()

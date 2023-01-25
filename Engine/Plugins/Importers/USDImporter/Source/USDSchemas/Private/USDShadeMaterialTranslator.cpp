@@ -129,17 +129,17 @@ namespace UE::UsdShadeTranslator::Private
 #endif // WITH_EDITOR
 						if ( UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>( UserMaterial ) )
 						{
-							if ( Context->AssetCache )
+							if ( Context->AssetCache && Context->InfoCache )
 							{
-								// This is super slow as it will essentially linear search the asset cache twice, but
+								// This is super slow as it will essentially linear search the asset cache, but
 								// not much we can do at runtime without asset import data
-								const FString PrimPath = Context->AssetCache->GetPrimForAsset( MID );
+								const UE::FSdfPath PrimPath = Context->InfoCache->GetPrimForAsset( MID );
 								const FString Hash = Context->AssetCache->GetHashForAsset( MID );
 
 								const FName NewInstanceName = MakeUniqueObjectName(
 									GetTransientPackage(),
 									UMaterialInstance::StaticClass(),
-									*FPaths::GetBaseFilename( PrimPath )
+									PrimPath.IsEmpty() ? TEXT("MaterialInstance") : *FPaths::GetBaseFilename(PrimPath.GetString())
 								);
 
 								// For MID we can't swap the reference material, so we need to create a brand new one and copy
@@ -155,9 +155,15 @@ namespace UE::UsdShadeTranslator::Private
 								}
 								NewMID->CopyParameterOverrides( MID );
 
-								Context->AssetCache->DiscardAsset( Hash );
-								Context->AssetCache->CacheAsset( Hash, NewMID, PrimPath );
-								NewMaterials.Add( NewMID );
+								if (Context->AssetCache->RemoveAsset(Hash))
+								{
+									Context->AssetCache->CacheAsset(Hash, NewMID);
+									if (!PrimPath.IsEmpty())
+									{
+										Context->InfoCache->LinkAssetToPrim(PrimPath, NewMID);
+									}
+									NewMaterials.Add( NewMID );
+								}
 							}
 						}
 						else
@@ -234,16 +240,23 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 
 	if ( !ConvertedMaterial )
 	{
+		const FString PrimPathString = PrimPath.GetString();
 		const bool bIsTranslucent = UsdUtils::IsMaterialTranslucent( ShadeMaterial );
 		const FName InstanceName = MakeUniqueObjectName(
 			GetTransientPackage(),
 			UMaterialInstance::StaticClass(),
-			*FPaths::GetBaseFilename( PrimPath.GetString() )
+			*FPaths::GetBaseFilename(PrimPathString)
 		);
 
+		// TODO: There is an issue here: Note how we're only ever going to write the material prim's primvars into
+		// this PrimvarToUVIndex map when first creating the material, and not if we find it in the asset cache.
+		// This because finding the primvars to use essentially involves parsing the entire material again, so we
+		// likely shouldn't do it every time.
+		// This means that a mesh with float2 UV sets and materials that use them will likely end up with no UVs once
+		// the stage reloads...
 		TMap<FString, int32> Unused;
 		TMap<FString, int32>& PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex
-			? Context->MaterialToPrimvarToUVIndex->FindOrAdd( PrimPath.GetString() )
+			? Context->MaterialToPrimvarToUVIndex->FindOrAdd(PrimPathString)
 			: Unused;
 
 #if WITH_EDITOR
@@ -350,6 +363,8 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 			{
 				if ( UMaterialInstanceDynamic* NewMaterial = UMaterialInstanceDynamic::Create( ReferenceMaterial, GetTransientPackage(), InstanceName ) )
 				{
+					NewMaterial->SetFlags(RF_Transient);
+
 					if ( UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetCache.Get(), PrimvarToUVIndex, *Context->RenderContext.ToString() ) )
 					{
 						TSet<UTexture*> VTTextures;
@@ -371,9 +386,10 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 
 						// We must stash our material and textures *before* we call UpgradeMaterialsAndTexturesToVT, as that
 						// is what will actually swap our reference with a VT one if needed
-						if ( Context->AssetCache )
+						if ( Context->AssetCache && Context->InfoCache )
 						{
-							Context->AssetCache->CacheAsset( MaterialHashString, NewMaterial, PrimPath.GetString() );
+							Context->AssetCache->CacheAsset(MaterialHashString, NewMaterial);
+							Context->InfoCache->LinkAssetToPrim(PrimPath, NewMaterial);
 						}
 						for ( UTexture* Texture : VTTextures.Union( NonVTTextures ) )
 						{
@@ -397,18 +413,32 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 			}
 		}
 	}
-	else if ( Context->MaterialToPrimvarToUVIndex && Context->AssetCache )
+	else if ( Context->MaterialToPrimvarToUVIndex && Context->InfoCache )
 	{
-		if ( TMap<FString, int32>* PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex->Find( Context->AssetCache->GetPrimForAsset( ConvertedMaterial ) ) )
+		const UE::FSdfPath FoundPrimPath = Context->InfoCache->GetPrimForAsset(ConvertedMaterial);
+		if (!FoundPrimPath.IsEmpty())
 		{
-			// Copy the Material -> Primvar -> UV index mapping from the cached material prim path to this prim path
-			Context->MaterialToPrimvarToUVIndex->FindOrAdd( PrimPath.GetString() ) = *PrimvarToUVIndex;
+			if (TMap<FString, int32>* PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex->Find(FoundPrimPath.GetString()))
+			{
+				// Copy the Material -> Primvar -> UV index mapping from the cached material prim path to this prim path
+				Context->MaterialToPrimvarToUVIndex->FindOrAdd(PrimPath.GetString()) = *PrimvarToUVIndex;
+			}
 		}
 	}
 
-	if ( ConvertedMaterial )
+	// Note that this needs to run even if we do find the material from the asset cache, otherwise we won't
+	// re-register the prim asset links when we reload a stage
+	if (ConvertedMaterial)
 	{
-		Context->AssetCache->CacheAsset( MaterialHashString, ConvertedMaterial, PrimPath.GetString() );
+		if (Context->InfoCache)
+		{
+			Context->InfoCache->LinkAssetToPrim(PrimPath, ConvertedMaterial);
+		}
+
+		if (Context->AssetCache)
+		{
+			Context->AssetCache->CacheAsset(MaterialHashString, ConvertedMaterial);
+		}
 	}
 }
 

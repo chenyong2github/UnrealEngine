@@ -106,6 +106,7 @@ void UUsdAssetCache::DiscardAsset( const FString& Hash )
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UObject* UUsdAssetCache::GetCachedAsset( const FString& Hash ) const
 {
 	FScopeLock Lock( &CriticalSection );
@@ -166,6 +167,7 @@ UObject* UUsdAssetCache::GetAssetForPrim( const FString& PrimPath ) const
 
 	return nullptr;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FString UUsdAssetCache::GetPrimForAsset( UObject* Asset ) const
 {

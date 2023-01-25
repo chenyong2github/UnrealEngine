@@ -2,8 +2,7 @@
 
 #include "USDLightConversion.h"
 
-#include "Misc/Paths.h"
-#include "USDAssetCache.h"
+#include "USDAssetCache2.h"
 #include "USDAttributeUtils.h"
 #include "USDConversionUtils.h"
 #include "USDLayerUtils.h"
@@ -25,6 +24,7 @@
 #include "Components/SpotLightComponent.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Engine/TextureCube.h"
+#include "Misc/Paths.h"
 
 #if USE_USD_SDK
 
@@ -215,7 +215,7 @@ bool UsdToUnreal::ConvertSphereLight( const pxr::UsdPrim& Prim, UPointLightCompo
 	return true;
 }
 
-bool UsdToUnreal::ConvertDomeLight( const pxr::UsdPrim& Prim, USkyLightComponent& LightComponent, UUsdAssetCache* TexturesCache )
+bool UsdToUnreal::ConvertDomeLight( const pxr::UsdPrim& Prim, USkyLightComponent& LightComponent, UUsdAssetCache2* TexturesCache )
 {
 	FScopedUsdAllocs UsdAllocs;
 
@@ -291,6 +291,12 @@ bool UsdToUnreal::ConvertLuxShapingAPI( const pxr::UsdPrim& Prim, USpotLightComp
 	LightComponent.SetOuterConeAngle( OuterConeAngle );
 
 	return true;
+}
+
+bool UsdToUnreal::ConvertDomeLight(const pxr::UsdPrim& Prim, USkyLightComponent& LightComponent, UUsdAssetCache* TexturesCache)
+{
+	UUsdAssetCache2* NewCache = nullptr;
+	return UsdToUnreal::ConvertDomeLight(Prim, LightComponent, NewCache);
 }
 
 float UsdToUnreal::ConvertLightIntensityAttr( float UsdIntensity, float UsdExposure )

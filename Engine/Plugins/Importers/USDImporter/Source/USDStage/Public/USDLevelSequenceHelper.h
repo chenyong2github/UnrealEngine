@@ -3,14 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 
 #include "UsdWrappers/ForwardDeclarations.h"
 
 class AUsdStageActor;
 class FScopedBlockMonitoringChangesForTransaction;
+class FUsdInfoCache;
 class FUsdLevelSequenceHelperImpl;
 class ULevelSequence;
-class UUsdAssetCache;
 class UUsdPrimTwin;
 
 /**
@@ -34,7 +35,7 @@ public:
 	ULevelSequence* Init(const UE::FUsdStage& UsdStage);
 
 	/** Sets the asset cache to use when fetching assets and asset info required for the level sequence animation, like UAnimSequences */
-	void SetAssetCache( UUsdAssetCache* AssetCache );
+	void SetInfoCache(TSharedPtr<FUsdInfoCache> InInfoCache);
 
 	/* Returns true if we have at least one possessable or a reference to a subsequence */
 	bool HasData() const;

@@ -82,6 +82,8 @@ namespace UE
 
 		TArray<FSdfPath> GetPrefixes() const;
 
+		bool HasPrefix(const UE::FSdfPath& Prefix) const;
+
 	private:
 		TUniquePtr< Internal::FSdfPathImpl > Impl;
 	};

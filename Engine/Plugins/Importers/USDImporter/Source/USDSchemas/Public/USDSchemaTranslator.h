@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "UnrealUSDWrapper.h"
-#include "USDAssetCache.h"
+#include "USDAssetCache2.h"
 #include "USDInfoCache.h"
 #include "USDMemory.h"
 #include "USDSkeletalDataConversion.h"
@@ -128,7 +128,7 @@ protected:
 
 struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUsdSchemaTranslationContext >
 {
-	explicit FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, UUsdAssetCache& InAssetCache );
+	explicit FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, UUsdAssetCache2& InAssetCache );
 
 	/** True if we're a context created by the USDStageImporter to fully import to persistent assets and actors */
 	bool bIsImporting = false;
@@ -164,7 +164,7 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	int32 NaniteTriangleThreshold;
 
 	/** Where the translated assets will be stored */
-	TStrongObjectPtr< UUsdAssetCache > AssetCache;
+	TStrongObjectPtr< UUsdAssetCache2 > AssetCache;
 
 	/** Caches various information about prims that are expensive to query */
 	TSharedPtr<FUsdInfoCache> InfoCache;

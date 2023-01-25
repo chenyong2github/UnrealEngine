@@ -63,6 +63,11 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
+        {
+			"Name": "USDClassesEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
 		{
 			"Name": "GeometryCacheUSD",
 			"Type": "Editor",

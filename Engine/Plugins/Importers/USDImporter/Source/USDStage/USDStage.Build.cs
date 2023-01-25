@@ -37,7 +37,6 @@ namespace UnrealBuildTool.Rules
 					"MovieScene",
 					"MovieSceneTracks",
 					"Niagara",	// Needed by GroomComponent.h
-					"Projects", // So that we can use the plugin manager to find out our content dir and cook the base materials
 					"Slate",
 					"SlateCore",
 					"StaticMeshDescription",
@@ -61,6 +60,7 @@ namespace UnrealBuildTool.Rules
 						"PropertyEditor", // For the stage actor's details customization
 						"Sequencer",
 						"UnrealEd",
+						"USDClassesEditor",
 					}
 				);
 			}

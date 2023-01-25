@@ -52,4 +52,10 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Counts")
 	static void SetUsdStageCpp(AUsdStageActor* StageActor, const FString& NewStageRootLayer);
+
+	/**
+	 * Clears the editor transaction history (useful to be run before GC, to check for otherwise unreferenced assets)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Transactions")
+	static void ClearTransactionHistory();
 };

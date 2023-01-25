@@ -5,14 +5,13 @@ using System.IO;
 
 namespace UnrealBuildTool.Rules
 {
-	public class USDClasses : ModuleRules
+	public class USDClassesEditor : ModuleRules
 	{
-		public USDClasses(ReadOnlyTargetRules Target) : base(Target)
+		public USDClassesEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"Analytics",
 					"Core",
 					"CoreUObject",
 					"Engine",
@@ -24,9 +23,10 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"DeveloperSettings",
-					"GeometryCache",
-					"Json", // To read/write plugInfo.json files from UnrealUSDWrapper.cpp
+					"ContentBrowser",
+					"InputCore",
+					"UnrealEd",
+					"USDClasses",
 				}
 			);
 		}

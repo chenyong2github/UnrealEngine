@@ -2,10 +2,10 @@
 
 #include "MeshTranslationImpl.h"
 
-#include "UObject/Package.h"
-#include "USDAssetCache.h"
+#include "USDAssetCache2.h"
 #include "USDAssetImportData.h"
 #include "USDGeomMeshConversion.h"
+#include "USDInfoCache.h"
 #include "USDLog.h"
 #include "USDMemory.h"
 #include "USDProjectSettings.h"
@@ -17,6 +17,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/Paths.h"
+#include "UObject/Package.h"
 
 #if USE_USD_SDK
 
@@ -32,7 +33,8 @@
 TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslationImpl::ResolveMaterialAssignmentInfo(
 	const pxr::UsdPrim& UsdPrim,
 	const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& AssignmentInfo,
-	UUsdAssetCache& AssetCache,
+	UUsdAssetCache2& AssetCache,
+	FUsdInfoCache& InfoCache,
 	EObjectFlags Flags
 )
 {
@@ -81,6 +83,9 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 							MaterialInstance = UsdUtils::CreateDisplayColorMaterialInstanceDynamic(DisplayColorDesc.GetValue());
 						}
 
+						// We can only cache transient assets
+						MaterialInstance->SetFlags(RF_Transient);
+
 						AssetCache.CacheAsset(Slot.MaterialSource, MaterialInstance);
 						Material = MaterialInstance;
 					}
@@ -90,21 +95,25 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 			}
 			case UsdUtils::EPrimAssignmentType::MaterialPrim:
 			{
+				// TODO: Instead of using a custom prim suffix, add the material to the same prim and then pick
+				// between all assets on a prim when needed.
+				// Previously the suffix was fine because PrimPathToAssets dealt with strings, now that it has an
+				// SdfPath API we can't use that. It's sort of a hack anyway
 				FString PrimPath = Slot.MaterialSource;
-				const static FString TwoSidedToken = TEXT("!twosided");
+				const static FString TwoSidedToken = TEXT("_twosided");
 				if (Slot.bMeshIsDoubleSided)
 				{
 					PrimPath += TwoSidedToken;
 				}
 
-				Material = Cast< UMaterialInterface >(AssetCache.GetAssetForPrim(PrimPath));
+				Material = Cast<UMaterialInterface>(InfoCache.GetSingleAssetForPrim(UE::FSdfPath{*PrimPath}, UMaterialInterface::StaticClass()));
 
 				// Need to create a two-sided material on-demand
 				if (!Material && Slot.bMeshIsDoubleSided)
 				{
 					// By now we parsed all materials so we must have the single-sided version of this material
 					UMaterialInstance* OneSidedMat = Cast<UMaterialInstance>(
-						AssetCache.GetAssetForPrim(Slot.MaterialSource)
+						InfoCache.GetSingleAssetForPrim(UE::FSdfPath{*Slot.MaterialSource}, UMaterialInterface::StaticClass())
 					);
 					if (!OneSidedMat)
 					{
@@ -112,66 +121,79 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 						continue;
 					}
 
-					// Important to not use GetBaseMaterial() here because if our parent is the translucent we'll
-					// get the reference UsdPreviewSurface instead, as that is also *its* reference
-					UMaterialInterface* ReferenceMaterial = OneSidedMat->Parent.Get();
-					UMaterialInterface* ReferenceMaterialTwoSided =
-						MeshTranslationImpl::GetTwoSidedVersionOfReferencePreviewSurfaceMaterial(ReferenceMaterial);
-					if (!ensure(ReferenceMaterialTwoSided && ReferenceMaterialTwoSided != ReferenceMaterial))
-					{
-						continue;
-					}
-
-					const FName NewInstanceName = MakeUniqueObjectName(
-						GetTransientPackage(),
-						UMaterialInstance::StaticClass(),
-						*(FPaths::GetBaseFilename(Slot.MaterialSource) + UnrealIdentifiers::TwoSidedMaterialSuffix)
+					// Check if for some reason we already have a two-sided material ready due to a complex scenario
+					// related to the global cache
+					const FString OneSidedHash = AssetCache.GetHashForAsset(OneSidedMat);
+					const FString TwoSidedHash = OneSidedHash + TEXT("_TwoSided");
+					UMaterialInstance* TwoSidedMat = Cast<UMaterialInstance>(
+						AssetCache.GetCachedAsset(TwoSidedHash)
 					);
-
-#if WITH_EDITOR
-					UMaterialInstanceConstant* MIC = Cast<UMaterialInstanceConstant>(OneSidedMat);
-					if (GIsEditor && MIC)
+					if (!TwoSidedMat)
 					{
-						UMaterialInstanceConstant* TwoSidedMat = NewObject<UMaterialInstanceConstant>(
-							GetTransientPackage(),
-							NewInstanceName,
-							Flags
-							);
-						if (TwoSidedMat)
+						// Important to not use GetBaseMaterial() here because if our parent is the translucent we'll
+						// get the reference UsdPreviewSurface instead, as that is also *its* reference
+						UMaterialInterface* ReferenceMaterial = OneSidedMat->Parent.Get();
+						UMaterialInterface* ReferenceMaterialTwoSided =
+							MeshTranslationImpl::GetTwoSidedVersionOfReferencePreviewSurfaceMaterial(ReferenceMaterial);
+						if (!ensure(ReferenceMaterialTwoSided && ReferenceMaterialTwoSided != ReferenceMaterial))
 						{
-							UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >(
-								TwoSidedMat,
-								TEXT("USDAssetImportData")
-								);
-							ImportData->PrimPath = Slot.MaterialSource;
-							TwoSidedMat->AssetImportData = ImportData;
+							continue;
 						}
 
-						TwoSidedMat->SetParentEditorOnly(ReferenceMaterialTwoSided);
-						TwoSidedMat->CopyMaterialUniformParametersEditorOnly(OneSidedMat);
+						const FName NewInstanceName = MakeUniqueObjectName(
+							GetTransientPackage(),
+							UMaterialInstance::StaticClass(),
+							*(FPaths::GetBaseFilename(Slot.MaterialSource) + UnrealIdentifiers::TwoSidedMaterialSuffix)
+						);
 
-						AssetCache.CacheAsset(PrimPath, TwoSidedMat, PrimPath);
-						Material = TwoSidedMat;
-					}
-					else
+#if WITH_EDITOR
+						UMaterialInstanceConstant* MIC = Cast<UMaterialInstanceConstant>(OneSidedMat);
+						if (GIsEditor && MIC)
+						{
+							UMaterialInstanceConstant* TwoSidedMIC = NewObject<UMaterialInstanceConstant>(
+								GetTransientPackage(),
+								NewInstanceName,
+								Flags
+								);
+							if (TwoSidedMIC)
+							{
+								UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >(
+									TwoSidedMIC,
+									TEXT("USDAssetImportData")
+									);
+								ImportData->PrimPath = Slot.MaterialSource;
+								TwoSidedMIC->AssetImportData = ImportData;
+							}
+
+							TwoSidedMIC->SetParentEditorOnly(ReferenceMaterialTwoSided);
+							TwoSidedMIC->CopyMaterialUniformParametersEditorOnly(OneSidedMat);
+
+							TwoSidedMat = TwoSidedMIC;
+						}
+						else
 #endif // WITH_EDITOR
 						if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(OneSidedMat))
 						{
-							UMaterialInstanceDynamic* TwoSidedMat = UMaterialInstanceDynamic::Create(
+							UMaterialInstanceDynamic* TwoSidedMID = UMaterialInstanceDynamic::Create(
 								ReferenceMaterialTwoSided,
 								GetTransientPackage(),
 								NewInstanceName
 							);
-							if (!ensure(TwoSidedMat))
+							if (!ensure(TwoSidedMID))
 							{
 								continue;
 							}
 
-							TwoSidedMat->CopyParameterOverrides(MID);
+							TwoSidedMID->CopyParameterOverrides(MID);
 
-							AssetCache.CacheAsset(PrimPath, TwoSidedMat, PrimPath);
-							Material = TwoSidedMat;
+							TwoSidedMat = TwoSidedMID;
 						}
+
+					}
+
+					AssetCache.CacheAsset(TwoSidedHash, TwoSidedMat);
+					InfoCache.LinkAssetToPrim(UE::FSdfPath{*PrimPath}, TwoSidedMat);
+					Material = TwoSidedMat;
 				}
 
 				break;
@@ -216,7 +238,8 @@ void MeshTranslationImpl::SetMaterialOverrides(
 	const pxr::UsdPrim& Prim,
 	const TArray<UMaterialInterface*>& ExistingAssignments,
 	UMeshComponent& MeshComponent,
-	UUsdAssetCache& AssetCache,
+	UUsdAssetCache2& AssetCache,
+	FUsdInfoCache& InfoCache,
 	float Time,
 	EObjectFlags Flags,
 	bool bInterpretLODs,
@@ -301,6 +324,7 @@ void MeshTranslationImpl::SetMaterialOverrides(
 		ValidPrim,
 		LODIndexToAssignments,
 		AssetCache,
+		InfoCache,
 		Flags
 	);
 
@@ -321,6 +345,17 @@ void MeshTranslationImpl::SetMaterialOverrides(
 			else
 			{
 				UE_LOG(LogUsd, Error, TEXT("Lost track of resolved material for slot '%d' of LOD '%d' for mesh '%s'"), LODSlotIndex, LODIndex, *UsdToUnreal::ConvertPath(Prim.GetPath()));
+				continue;
+			}
+
+			// If we don't even have as many existing assignments as we have overrides just stop here.
+			// This should happen often now because we'll always at least attempt at setting overrides on every
+			// component (but only ever set anything if we really need to).
+			// Previously we only attempted setting overrides in case the component didn't "own" the mesh prim,
+			// but now it is not feasible to do that given the global asset cache and how assets may have come
+			// from an entirely new stage/session.
+			if (!ExistingAssignments.IsValidIndex(StaticMeshSlotIndex))
+			{
 				continue;
 			}
 

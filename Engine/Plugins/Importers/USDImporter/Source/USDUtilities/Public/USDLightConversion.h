@@ -29,6 +29,7 @@ template< typename T > class TfRefPtr;
 using UsdStageRefPtr = TfRefPtr< UsdStage >;
 PXR_NAMESPACE_CLOSE_SCOPE
 
+class UUsdAssetCache2;
 class UDirectionalLightComponent;
 class ULightComponentBase;
 class UPointLightComponent;
@@ -59,8 +60,13 @@ namespace UsdToUnreal
 	USDUTILITIES_API bool ConvertRectLight( const pxr::UsdPrim& Prim, URectLightComponent& LightComponent, double UsdTimeCode = UsdUtils::GetDefaultTimeCode() );
 	USDUTILITIES_API bool ConvertDiskLight( const pxr::UsdPrim& Prim, URectLightComponent& LightComponent, double UsdTimeCode = UsdUtils::GetDefaultTimeCode() );
 	USDUTILITIES_API bool ConvertSphereLight( const pxr::UsdPrim& Prim, UPointLightComponent& LightComponent, double UsdTimeCode = UsdUtils::GetDefaultTimeCode() );
-	USDUTILITIES_API bool ConvertDomeLight( const pxr::UsdPrim& Prim, USkyLightComponent& LightComponent, UUsdAssetCache* TexturesCache );
+	USDUTILITIES_API bool ConvertDomeLight( const pxr::UsdPrim& Prim, USkyLightComponent& LightComponent, UUsdAssetCache2* TexturesCache );
 	USDUTILITIES_API bool ConvertLuxShapingAPI( const pxr::UsdPrim& Prim, USpotLightComponent& LightComponent, double UsdTimeCode = UsdUtils::GetDefaultTimeCode() );
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.2, "Use the other overload that receives an UUsdAssetCache2 object instead")
+	USDUTILITIES_API bool ConvertDomeLight( const pxr::UsdPrim& Prim, USkyLightComponent& LightComponent, UUsdAssetCache* TexturesCache );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// These are separately exposed so that they can be reused when reading data into MovieScene tracks.
 	// The other attribute conversions are mostly trivial like a single call to UsdToUnreal::ConvertDistance.

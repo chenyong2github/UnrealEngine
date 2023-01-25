@@ -5,15 +5,25 @@
 #include "USDLog.h"
 
 #include "AnalyticsEventAttribute.h"
+#include "Animation/AnimBlueprint.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/Skeleton.h"
 #include "Engine/Engine.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
 #include "EngineAnalytics.h"
+#include "GeometryCache.h"
 #include "HAL/FileManager.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialInstance.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Misc/SecureHash.h"
-#include "Modules/ModuleManager.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "Serialization/JsonSerializer.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
@@ -279,6 +289,112 @@ UWorld* IUsdClassesModule::GetCurrentWorld( bool bEditorWorldsOnly )
 	}
 
 	return EditorWorld;
+}
+
+TSet<UObject*> IUsdClassesModule::GetAssetDependencies(UObject* Asset)
+{
+	TSet<UObject*> Result;
+
+	if (UMaterial* Material = Cast<UMaterial>(Asset))
+	{
+		TArray<UTexture*> UsedTextures;
+		const bool bAllQualityLevels = true;
+		const bool bAllFeatureLevels = true;
+		Material->GetUsedTextures(UsedTextures, EMaterialQualityLevel::High, bAllQualityLevels, ERHIFeatureLevel::SM5, bAllFeatureLevels);
+
+		Result.Reserve(Result.Num() + UsedTextures.Num());
+		for (UTexture* UsedTexture : UsedTextures)
+		{
+			Result.Add(UsedTexture);
+		}
+	}
+	else if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Asset))
+	{
+		Result.Reserve(Result.Num() + MaterialInstance->TextureParameterValues.Num());
+		for (const FTextureParameterValue& TextureValue : MaterialInstance->TextureParameterValues)
+		{
+			if (UTexture* Texture = TextureValue.ParameterValue)
+			{
+				Result.Add(Texture);
+			}
+		}
+	}
+	else if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Asset))
+	{
+		if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
+		{
+			Result.Add(Skeleton);
+		}
+
+		if (UPhysicsAsset* PhysicsAsset = SkeletalMesh->GetPhysicsAsset())
+		{
+			Result.Add(PhysicsAsset);
+		}
+
+		Result.Reserve(Result.Num() + SkeletalMesh->GetMaterials().Num());
+		for (const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->GetMaterials())
+		{
+			if (UMaterialInterface* UsedMaterial = SkeletalMaterial.MaterialInterface)
+			{
+				Result.Add(UsedMaterial);
+			}
+		}
+	}
+	else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(Asset))
+	{
+		Result.Reserve(Result.Num() + StaticMesh->GetStaticMaterials().Num());
+		for (const FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
+		{
+			if (UMaterialInterface* UsedMaterial = StaticMaterial.MaterialInterface)
+			{
+				Result.Add(UsedMaterial);
+			}
+		}
+	}
+	else if (UGeometryCache* GeometryCache = Cast<UGeometryCache>(Asset))
+	{
+		for (UMaterialInterface* UsedMaterial : GeometryCache->Materials)
+		{
+			if (UsedMaterial)
+			{
+				Result.Add(UsedMaterial);
+			}
+		}
+	}
+	else if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(Asset))
+	{
+		if (USkeletalMesh* Mesh = AnimSequence->GetPreviewMesh())
+		{
+			Result.Add(Mesh);
+		}
+
+		if (USkeleton* Skeleton = AnimSequence->GetSkeleton())
+		{
+			Result.Add(Skeleton);
+		}
+	}
+	else if (UTexture* Texture = Cast<UTexture>(Asset))
+	{
+		// Do nothing. Textures have no additional dependencies
+	}
+	else if (USkeleton* Skeleton = Cast<USkeleton>(Asset))
+	{
+		// Do nothing. Skeletons have no additional dependencies
+	}
+	else if (UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>(Asset))
+	{
+		// Do nothing. PhysicsAssets have no additional dependencies
+	}
+	else if (UAnimBlueprint* AnimBP = Cast<UAnimBlueprint>(Asset))
+	{
+		// Do nothing. AnimBlueprints have no additional dependencies
+	}
+	else
+	{
+		UE_LOG(LogUsd, Warning, TEXT("Unknown asset '%s' encountered when collecting dependencies."), Asset ? *Asset->GetName() : TEXT("nullptr"));
+	}
+
+	return Result;
 }
 
 class FUsdClassesModule : public IUsdClassesModule

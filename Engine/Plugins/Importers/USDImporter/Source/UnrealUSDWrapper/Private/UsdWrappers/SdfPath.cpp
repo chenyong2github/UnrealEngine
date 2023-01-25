@@ -311,4 +311,13 @@ namespace UE
 #endif // #if USE_USD_SDK
 		return Result;
 	}
+
+	bool FSdfPath::HasPrefix(const UE::FSdfPath& Prefix) const
+	{
+#if USE_USD_SDK
+		return Impl->PxrSdfPath.Get().HasPrefix(Prefix);
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
 }

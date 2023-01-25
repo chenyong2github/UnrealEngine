@@ -15,7 +15,7 @@
 
 #include "USDStageImportContext.generated.h"
 
-class UUsdAssetCache;
+class UUsdAssetCache2;
 class UUsdStageImportOptions;
 
 USTRUCT()
@@ -58,7 +58,7 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 	FUsdLevelSequenceHelper LevelSequenceHelper;
 
 	UPROPERTY()
-	TObjectPtr<UUsdAssetCache> AssetCache;
+	TObjectPtr<UUsdAssetCache2> AssetCache;
 
 	/** Caches various information about prims that are expensive to query */
 	TSharedPtr<FUsdInfoCache> InfoCache;

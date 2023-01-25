@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "Editor.h"
+#include "Editor/Transactor.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "UObject/ObjectMacros.h"
@@ -144,4 +145,15 @@ void USDTestsBlueprintLibrary::SetUsdStageCpp(AUsdStageActor* StageActor, const 
 
 	UE::FUsdStage NewStage = UnrealUSDWrapper::OpenStage(*NewStageRootLayer, EUsdInitialLoadSet::LoadAll);
 	StageActor->SetUsdStage(NewStage);
+}
+
+void USDTestsBlueprintLibrary::ClearTransactionHistory()
+{
+	if (GEditor)
+	{
+		if (UTransactor* Transactor = GEditor->Trans)
+		{
+			Transactor->Reset(NSLOCTEXT("USDTests", "ClearTransactionHistoryReason", "USDTestsBlueprintLibrary::ClearTransactionHistory was called"));
+		}
+	}
 }

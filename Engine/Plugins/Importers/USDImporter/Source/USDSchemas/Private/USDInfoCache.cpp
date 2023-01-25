@@ -3,6 +3,7 @@
 #include "USDInfoCache.h"
 
 #include "USDGeomMeshConversion.h"
+#include "USDLog.h"
 #include "USDSchemasModule.h"
 #include "USDSchemaTranslator.h"
 #include "USDTypesConversion.h"
@@ -46,8 +47,13 @@ FArchive& operator <<( FArchive& Ar, UE::UsdInfoCache::Private::FUsdPrimInfo& In
 
 struct FUsdInfoCache::FUsdInfoCacheImpl
 {
-	mutable FRWLock Lock;
+	// Information we must have about all prims on the stage
 	TMap< UE::FSdfPath, UE::UsdInfoCache::Private::FUsdPrimInfo > InfoMap;
+	mutable FRWLock InfoMapLock;
+
+	// Information we may have about a subset of prims
+	TMap<UE::FSdfPath, TSet<TWeakObjectPtr<UObject>>> PrimPathToAssets;
+	mutable FRWLock PrimPathToAssetsLock;
 };
 
 FUsdInfoCache::FUsdInfoCache()
@@ -63,8 +69,14 @@ bool FUsdInfoCache::Serialize( FArchive& Ar )
 {
 	if ( FUsdInfoCacheImpl* ImplPtr = Impl.Get() )
 	{
-		FWriteScopeLock ScopeLock( ImplPtr->Lock );
-		Ar << ImplPtr->InfoMap;
+		{
+			FWriteScopeLock ScopeLock(ImplPtr->InfoMapLock);
+			Ar << ImplPtr->InfoMap;
+		}
+		{
+			FWriteScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
+			Ar << ImplPtr->PrimPathToAssets;
+		}
 	}
 
 	return true;
@@ -74,7 +86,7 @@ bool FUsdInfoCache::ContainsInfoAboutPrim( const UE::FSdfPath& Path ) const
 {
 	if ( FUsdInfoCacheImpl* ImplPtr = Impl.Get() )
 	{
-		FReadScopeLock ScopeLock( ImplPtr->Lock );
+		FReadScopeLock ScopeLock(ImplPtr->InfoMapLock);
 		return ImplPtr->InfoMap.Contains( Path );
 	}
 
@@ -85,7 +97,7 @@ bool FUsdInfoCache::IsPathCollapsed( const UE::FSdfPath& Path, ECollapsingType C
 {
 	if ( FUsdInfoCacheImpl* ImplPtr = Impl.Get() )
 	{
-		FReadScopeLock ScopeLock( ImplPtr->Lock );
+		FReadScopeLock ScopeLock(ImplPtr->InfoMapLock);
 
 		if ( const UE::UsdInfoCache::Private::FUsdPrimInfo* FoundInfo = ImplPtr->InfoMap.Find( Path ) )
 		{
@@ -108,7 +120,7 @@ bool FUsdInfoCache::DoesPathCollapseChildren( const UE::FSdfPath& Path, ECollaps
 {
 	if ( FUsdInfoCacheImpl* ImplPtr = Impl.Get() )
 	{
-		FReadScopeLock ScopeLock( ImplPtr->Lock );
+		FReadScopeLock ScopeLock(ImplPtr->InfoMapLock);
 
 		if ( const UE::UsdInfoCache::Private::FUsdPrimInfo* FoundInfo = ImplPtr->InfoMap.Find( Path ) )
 		{
@@ -132,7 +144,7 @@ UE::FSdfPath FUsdInfoCache::UnwindToNonCollapsedPath( const UE::FSdfPath& Path, 
 {
 	if ( FUsdInfoCacheImpl* ImplPtr = Impl.Get() )
 	{
-		FReadScopeLock ScopeLock( ImplPtr->Lock );
+		FReadScopeLock ScopeLock(ImplPtr->InfoMapLock);
 
 		if ( const UE::UsdInfoCache::Private::FUsdPrimInfo* FoundInfo = ImplPtr->InfoMap.Find( Path ) )
 		{
@@ -219,7 +231,7 @@ namespace UE::USDInfoCacheImpl::Private
 				PrototypeVertexCounts.SetNumZeroed( PrototypePaths.size() );
 
 				{
-					FReadScopeLock ScopeLock( Impl.Lock );
+					FReadScopeLock ScopeLock(Impl.InfoMapLock);
 					for ( uint32 PrototypeIndex = 0; PrototypeIndex < PrototypePaths.size(); ++PrototypeIndex )
 					{
 						const pxr::SdfPath& PrototypePath = PrototypePaths[ PrototypeIndex ];
@@ -363,7 +375,7 @@ namespace UE::USDInfoCacheImpl::Private
 		}
 
 		{
-			FWriteScopeLock ScopeLock( Impl.Lock );
+			FWriteScopeLock ScopeLock(Impl.InfoMapLock);
 
 			UE::UsdInfoCache::Private::FUsdPrimInfo& Info = Impl.InfoMap.FindOrAdd( UE::FSdfPath{ UsdPrimPath } );
 
@@ -467,7 +479,7 @@ namespace UE::USDInfoCacheImpl::Private
 					PointInstancerMaterialSlots
 				);
 
-				FWriteScopeLock Lock{ Impl.Lock };
+				FWriteScopeLock Lock{Impl.InfoMapLock};
 				UE::UsdInfoCache::Private::FUsdPrimInfo& Info = Impl.InfoMap.FindOrAdd( UsdPointInstancerPath );
 
 				Info.ExpectedVertexCountForSubtree = PointInstancerVertexCount;
@@ -520,7 +532,7 @@ namespace UE::USDInfoCacheImpl::Private
 		bool bMergeIdenticalSlots
 	)
 	{
-		FWriteScopeLock Lock{ Impl.Lock };
+		FWriteScopeLock Lock{Impl.InfoMapLock};
 
 		if ( bMergeIdenticalSlots )
 		{
@@ -547,7 +559,7 @@ TOptional<uint64> FUsdInfoCache::GetSubtreeVertexCount( const UE::FSdfPath& Path
 {
 	if ( FUsdInfoCacheImpl* ImplPtr = Impl.Get() )
 	{
-		FReadScopeLock ScopeLock( ImplPtr->Lock );
+		FReadScopeLock ScopeLock(ImplPtr->InfoMapLock);
 
 		if ( const UE::UsdInfoCache::Private::FUsdPrimInfo* FoundInfo = ImplPtr->InfoMap.Find( Path ) )
 		{
@@ -565,7 +577,7 @@ TOptional<uint64> FUsdInfoCache::GetSubtreeMaterialSlotCount( const UE::FSdfPath
 {
 	if ( FUsdInfoCacheImpl* ImplPtr = Impl.Get() )
 	{
-		FReadScopeLock ScopeLock( ImplPtr->Lock );
+		FReadScopeLock ScopeLock(ImplPtr->InfoMapLock);
 
 		if ( const UE::UsdInfoCache::Private::FUsdPrimInfo* FoundInfo = ImplPtr->InfoMap.Find( Path ) )
 		{
@@ -577,6 +589,114 @@ TOptional<uint64> FUsdInfoCache::GetSubtreeMaterialSlotCount( const UE::FSdfPath
 	}
 
 	return {};
+}
+
+void FUsdInfoCache::LinkAssetToPrim(const UE::FSdfPath& Path, UObject* Asset)
+{
+	if (!Asset)
+	{
+		return;
+	}
+
+	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
+	if (!ImplPtr)
+	{
+		return;
+	}
+	FWriteScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
+
+	UE_LOG(LogUsd, Verbose, TEXT("Linking asset '%s' to prim '%s'"),
+		*Asset->GetPathName(),
+		*Path.GetString()
+	);
+
+	ImplPtr->PrimPathToAssets.FindOrAdd(Path).Add(Asset);
+}
+
+TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::RemoveAllAssetPrimLinks(const UE::FSdfPath& Path)
+{
+	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
+	if (!ImplPtr)
+	{
+		return {};
+	}
+	FWriteScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
+
+	TSet<TWeakObjectPtr<UObject>> Values;
+	ImplPtr->PrimPathToAssets.RemoveAndCopyValue(Path, Values);
+	return Values;
+}
+
+UObject* FUsdInfoCache::GetSingleAssetForPrim(const UE::FSdfPath& Path, const UClass* FilterClass) const
+{
+	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
+	if (!ImplPtr)
+	{
+		return nullptr;
+	}
+	FReadScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
+
+	if (const TSet<TWeakObjectPtr<UObject>>* FoundAssets = ImplPtr->PrimPathToAssets.Find(Path))
+	{
+		for (const TWeakObjectPtr<UObject>& FoundAsset : *FoundAssets)
+		{
+			UObject* FoundAssetPtr = FoundAsset.Get();
+			if (FoundAssetPtr && (!FilterClass || FoundAssetPtr->IsA(FilterClass)))
+			{
+				return FoundAssetPtr;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::GetAssetsForPrim(const UE::FSdfPath& Path, const UClass* FilterClass) const
+{
+	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
+	if (!ImplPtr)
+	{
+		return {};
+	}
+	FReadScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
+
+	if (const TSet<TWeakObjectPtr<UObject>>* FoundAssets = ImplPtr->PrimPathToAssets.Find(Path))
+	{
+		return *FoundAssets;
+	}
+
+	return {};
+}
+
+UE::FSdfPath FUsdInfoCache::GetPrimForAsset(UObject* Asset) const
+{
+	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
+	if (!ImplPtr)
+	{
+		return {};
+	}
+	FReadScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
+
+	for (const TPair<UE::FSdfPath, TSet<TWeakObjectPtr<UObject>>>& Pair : ImplPtr->PrimPathToAssets)
+	{
+		if (Pair.Value.Contains(Asset))
+		{
+			return Pair.Key;
+		}
+	}
+
+	return {};
+}
+
+TMap<UE::FSdfPath, TSet<TWeakObjectPtr<UObject>>> FUsdInfoCache::GetAllAssetPrimLinks() const
+{
+	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
+	if (!ImplPtr)
+	{
+		return {};
+	}
+
+	return ImplPtr->PrimPathToAssets;
 }
 
 void FUsdInfoCache::RebuildCacheForSubtree( const UE::FUsdPrim& Prim, FUsdSchemaTranslationContext& Context )
@@ -646,7 +766,7 @@ void FUsdInfoCache::Clear()
 {
 	if ( FUsdInfoCacheImpl* ImplPtr = Impl.Get() )
 	{
-		FWriteScopeLock ScopeLock( ImplPtr->Lock );
+		FWriteScopeLock ScopeLock(ImplPtr->InfoMapLock);
 		ImplPtr->InfoMap.Empty();
 	}
 }
@@ -655,7 +775,7 @@ bool FUsdInfoCache::IsEmpty()
 {
 	if ( FUsdInfoCacheImpl* ImplPtr = Impl.Get() )
 	{
-		FReadScopeLock ScopeLock( ImplPtr->Lock );
+		FReadScopeLock ScopeLock(ImplPtr->InfoMapLock);
 		return ImplPtr->InfoMap.IsEmpty();
 	}
 

@@ -40,4 +40,10 @@ public:
 
 	/** Returns a world that could be suitably described as "the current world". (e.g. when in PIE, the PIE world) */
 	USDCLASSES_API static UWorld* GetCurrentWorld( bool bEditorWorldsOnly = false );
+
+	/**
+	 * Returns the set of assets that this object depends on (e.g. when given a material, will return its textures.
+	 * When given a mesh, will return materials, etc.)
+	 */
+	USDCLASSES_API static TSet<UObject*> GetAssetDependencies(UObject* Asset);
 };

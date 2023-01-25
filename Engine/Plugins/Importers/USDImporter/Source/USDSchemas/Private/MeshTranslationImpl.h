@@ -15,7 +15,8 @@ PXR_NAMESPACE_OPEN_SCOPE
 	class UsdPrim;
 PXR_NAMESPACE_CLOSE_SCOPE
 
-class UUsdAssetCache;
+class FUsdInfoCache;
+class UUsdAssetCache2;
 class UMaterialInterface;
 class UMeshComponent;
 namespace UsdUtils
@@ -31,7 +32,8 @@ namespace MeshTranslationImpl
 	TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolveMaterialAssignmentInfo(
 		const pxr::UsdPrim& UsdPrim,
 		const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& AssignmentInfo,
-		UUsdAssetCache& AssetCache,
+		UUsdAssetCache2& AssetCache,
+		FUsdInfoCache& InfoCache,
 		EObjectFlags Flags
 	);
 
@@ -43,7 +45,8 @@ namespace MeshTranslationImpl
 		const pxr::UsdPrim& Prim,
 		const TArray<UMaterialInterface*>& ExistingAssignments,
 		UMeshComponent& MeshComponent,
-		UUsdAssetCache& AssetCache,
+		UUsdAssetCache2& AssetCache,
+		FUsdInfoCache& InfoCache,
 		float Time,
 		EObjectFlags Flags,
 		bool bInterpretLODs,

@@ -539,7 +539,7 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomXformableTranslator::UpdateComponents );
 
-	if ( SceneComponent )
+	if (SceneComponent && Context->InfoCache)
 	{
 		SceneComponent->Modify();
 
@@ -556,7 +556,11 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 		bool bHasMultipleLODs = false;
 		if ( UStaticMeshComponent* StaticMeshComponent = Cast< UStaticMeshComponent >( SceneComponent ) )
 		{
-			UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->AssetCache->GetAssetForPrim( PrimPath.GetString() ) );
+			UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->InfoCache->GetSingleAssetForPrim(
+				PrimPath,
+				UStaticMesh::StaticClass()
+			));
+
 			if ( PrimStaticMesh )
 			{
 				bHasMultipleLODs = PrimStaticMesh->GetNumLODs() > 1;

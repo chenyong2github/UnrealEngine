@@ -262,7 +262,12 @@ USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
 		return MainSceneComponent;
 	}
 
-	UUsdAssetCache& AssetCache = *Context->AssetCache.Get();
+	if (!Context->AssetCache.IsValid() || !Context->InfoCache.IsValid())
+	{
+		return MainSceneComponent;
+	}
+	UUsdAssetCache2& AssetCache = *Context->AssetCache.Get();
+	FUsdInfoCache& InfoCache = *Context->InfoCache.Get();
 
 	// Lets pretend ParentComponent is pointing to the parent USceneComponent while we create the child HISMs, so they get
 	// automatically attached to it as children
@@ -313,7 +318,10 @@ USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
 			continue;
 		}
 
-		UStaticMesh* StaticMesh = Cast< UStaticMesh >( AssetCache.GetAssetForPrim( PrototypePathStr ) );
+		UStaticMesh* StaticMesh = Cast< UStaticMesh >( InfoCache.GetSingleAssetForPrim(
+			UE::FSdfPath{*PrototypePathStr},
+			UStaticMesh::StaticClass()
+		));
 		UsdGeomPointInstancerTranslatorImpl::SetStaticMesh( StaticMesh, *HISMComponent );
 
 		// Evaluating point instancer can take a long time and is thread-safe. Move to async task while we work on something else.
@@ -335,32 +343,24 @@ USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
 		// Handle material overrides
 		if ( StaticMesh )
 		{
-#if WITH_EDITOR
-			// If the prim paths match, it means that it was this prim that created (and so "owns") the static mesh,
-			// so its material assignments will already be directly on the mesh. If they differ, we're using some other prim's mesh,
-			// so we may need material overrides on our component
-			UUsdAssetImportData* UsdImportData = Cast<UUsdAssetImportData>( StaticMesh->AssetImportData );
-			if ( UsdImportData && UsdImportData->PrimPath != PrototypePathStr )
-#endif // WITH_EDITOR
+			TArray<UMaterialInterface*> ExistingAssignments;
+			for ( FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials() )
 			{
-				TArray<UMaterialInterface*> ExistingAssignments;
-				for ( FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials() )
-				{
-					ExistingAssignments.Add( StaticMaterial.MaterialInterface );
-				}
-
-				MeshTranslationImpl::SetMaterialOverrides(
-					PrototypeUsdPrim,
-					ExistingAssignments,
-					*HISMComponent,
-					AssetCache,
-					Context->Time,
-					Context->ObjectFlags,
-					Context->bAllowInterpretingLODs,
-					Context->RenderContext,
-					Context->MaterialPurpose
-				);
+				ExistingAssignments.Add( StaticMaterial.MaterialInterface );
 			}
+
+			MeshTranslationImpl::SetMaterialOverrides(
+				PrototypeUsdPrim,
+				ExistingAssignments,
+				*HISMComponent,
+				AssetCache,
+				InfoCache,
+				Context->Time,
+				Context->ObjectFlags,
+				Context->bAllowInterpretingLODs,
+				Context->RenderContext,
+				Context->MaterialPurpose
+			);
 		}
 	}
 

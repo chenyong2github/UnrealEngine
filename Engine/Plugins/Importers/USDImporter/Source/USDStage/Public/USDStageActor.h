@@ -13,11 +13,12 @@
 
 #include "USDStageActor.generated.h"
 
+class FUsdInfoCache;
+class UUsdAssetCache2;
 class ULevelSequence;
 class UUsdAssetCache;
 class UUsdPrimTwin;
 class UUsdTransactor;
-struct FUsdInfoCache;
 struct FUsdSchemaTranslationContext;
 namespace UE
 {
@@ -32,6 +33,9 @@ class AUsdStageActor : public AActor
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", meta = (RelativeToGameDir))
 	FFilePath RootLayer;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD")
+	TObjectPtr<UUsdAssetCache2> UsdAssetCache;
 
 	// These properties are configs so that spawned actors read them from the CDO when spawned.
 	// This allows the defaults for them to be configured on EditorPerProjectUserSettings.ini, and allows us to write
@@ -107,6 +111,9 @@ public:
 public:
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	USDSTAGE_API void SetRootLayer(const FString& RootFilePath );
+
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	USDSTAGE_API void SetAssetCache(UUsdAssetCache2* NewCache);
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	USDSTAGE_API void SetInitialLoadSet( EUsdInitialLoadSet NewLoadSet );
@@ -214,7 +221,6 @@ public:
 	// Regenerates our LevelSequence from the USD Stage
 	USDSTAGE_API void ReloadAnimations();
 
-	USDSTAGE_API UUsdAssetCache* GetAssetCache();
 	USDSTAGE_API TSharedPtr<FUsdInfoCache> GetInfoCache();
 	USDSTAGE_API TMap< FString, TMap< FString, int32 > > GetMaterialToPrimvarToUVIndex();
 	USDSTAGE_API const UsdUtils::FBlendShapeMap& GetBlendShapeMap();
@@ -277,6 +283,8 @@ protected:
 	void LoadUsdStage();
 	void UnloadUsdStage();
 
+	void EnsureAssetCache();
+
 	bool HasAuthorityOverStage() const;
 
 	void UpdateSpawnedObjectsTransientFlag(bool bTransient);
@@ -321,7 +329,8 @@ protected:
 	UPROPERTY( Transient )
 	TMap< TObjectPtr<UObject>, FString > ObjectsToWatch;
 
-	UPROPERTY( VisibleAnywhere, Category = "USD", AdvancedDisplay )
+	UE_DEPRECATED(5.2, "Use the new AssetCache property instead, that uses UUsdAssetCache2 objects")
+	UPROPERTY(AdvancedDisplay, meta=(DeprecatedProperty, DeprecationMessage = "Use the new AssetCache property instead, that uses UUsdAssetCache2 objects"))
 	TObjectPtr<UUsdAssetCache> AssetCache;
 
 	UPROPERTY( Transient )

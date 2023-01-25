@@ -20,6 +20,7 @@
 #include "USDLog.h"
 #include "USDPrimConversion.h"
 #include "USDPrimTwin.h"
+#include "USDProjectSettings.h"
 #include "USDSchemasModule.h"
 #include "USDSchemaTranslator.h"
 #include "USDSkelRootTranslator.h"
@@ -53,6 +54,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineAnalytics.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "LevelSequence.h"
@@ -70,8 +72,11 @@
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 #if WITH_EDITOR
+#include "USDClassesEditorModule.h"
+
 #include "Editor.h"
 #include "Editor/TransBuffer.h"
 #include "Editor/UnrealEdEngine.h"
@@ -102,8 +107,8 @@ struct FUsdStageActorImpl
 	{
 		TSharedRef< FUsdSchemaTranslationContext > TranslationContext = MakeShared< FUsdSchemaTranslationContext >(
 			StageActor->GetOrLoadUsdStage(),
-			*StageActor->AssetCache
-			);
+			*StageActor->UsdAssetCache
+		);
 
 		TranslationContext->Level = StageActor->GetLevel();
 		TranslationContext->ObjectFlags = DefaultObjFlag;
@@ -637,8 +642,6 @@ AUsdStageActor::AUsdStageActor()
 
 	RootComponent = SceneComponent;
 
-	AssetCache = CreateDefaultSubobject< UUsdAssetCache >(TEXT("AssetCache"));
-
 	// Note: We can't construct our RootUsdTwin as a default subobject here, it needs to be built on-demand.
 	// Even if we NewObject'd one it will work as a subobject in some contexts (maybe because the CDO will have a dedicated root twin?).
 	// As far as the engine is concerned, our prim twins are static assets like meshes or textures. However, they live on the transient
@@ -649,7 +652,8 @@ AUsdStageActor::AUsdStageActor()
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >(TEXT("USDSchemas"));
 	RenderContext = UsdSchemasModule.GetRenderContextRegistry().GetUnrealRenderContext();
 
-	Transactor = NewObject<UUsdTransactor>(this, TEXT("Transactor"), EObjectFlags::RF_Transactional);
+	const FName UniqueName = MakeUniqueObjectName(this, UUsdTransactor::StaticClass(), TEXT("Transactor"));
+	Transactor = NewObject<UUsdTransactor>(this, UniqueName, EObjectFlags::RF_Transactional);
 	Transactor->Initialize(this);
 
 	if (HasAuthorityOverStage())
@@ -704,7 +708,7 @@ AUsdStageActor::AUsdStageActor()
 						// We have a valid filepath but no objects/assets spawned, so it's likely we were just spawned on the
 						// other client, and were replicated here with our RootLayer path already filled out, meaning we should just load that stage
 						// Note that now our UUsdTransactor may have already caused the stage itself to be loaded, but we may still need to call LoadUsdStage on our end.
-						else if (ObjectsToWatch.Num() == 0 && (!AssetCache || AssetCache->GetNumAssets() == 0))
+						else if (ObjectsToWatch.Num() == 0 && (!UsdAssetCache || UsdAssetCache->GetNumAssets() == 0))
 						{
 							this->LoadUsdStage();
 							AUsdStageActor::OnActorLoaded.Broadcast(this);
@@ -918,6 +922,14 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 		}
 	}
 
+	EnsureAssetCache();
+
+	TOptional<FUsdScopedAssetCacheReferencer> ScopedReferencer;
+	if (UsdAssetCache)
+	{
+		ScopedReferencer.Emplace(UsdAssetCache, this);
+	}
+
 	// Mark the level as dirty since we received a notice about our stage having changed in some way.
 	// The main goal of this is to trigger the "save layers" dialog if we then save the UE level
 	const bool bAlwaysMarkDirty = true;
@@ -1125,14 +1137,20 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 			{
 				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext(this, AssetsPrimPath.GetString());
 
-				if (bInResync)
+				if (bInResync && InfoCache)
 				{
-					UMaterialInterface* ExistingMaterial = Cast<UMaterialInterface>(AssetCache->GetAssetForPrim(AssetsPrimPath.GetString()));
+					UMaterialInterface* ExistingMaterial = Cast<UMaterialInterface>(InfoCache->GetSingleAssetForPrim(
+						AssetsPrimPath,
+						UMaterialInterface::StaticClass()
+					));
 
 					UE::FUsdPrim PrimToResync = GetOrLoadUsdStage().GetPrimAtPath(AssetsPrimPath);
 					LoadAssets(*TranslationContext, PrimToResync);
 
-					UMaterialInterface* NewMaterial = Cast<UMaterialInterface>(AssetCache->GetAssetForPrim(AssetsPrimPath.GetString()));
+					UMaterialInterface* NewMaterial = Cast<UMaterialInterface>(InfoCache->GetSingleAssetForPrim(
+						AssetsPrimPath,
+						UMaterialInterface::StaticClass()
+					));
 
 					// For UE-120185: If we recreated a material for a prim path we also need to update all components that were using it.
 					// This could be fleshed out further if other asset types require this refresh of "dependent components" but materials
@@ -1168,6 +1186,11 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 		{
 			OnPrimChanged.Broadcast(PrimChangedInfo.Key, PrimChangedInfo.Value);
 		}
+	}
+
+	if (bHasResync && UsdAssetCache)
+	{
+		UsdAssetCache->RefreshStorage();
 	}
 #endif // USE_USD_SDK
 }
@@ -1530,6 +1553,52 @@ void AUsdStageActor::SetRootLayer(const FString& RootFilePath)
 	LoadUsdStage();
 }
 
+void AUsdStageActor::SetAssetCache(UUsdAssetCache2* NewCache)
+{
+	const bool bMarkDirty = false;
+	Modify(bMarkDirty);
+
+	// Remove ourselves from our previous cache. We're going to have to create new assets anyway, so it doesn't matter
+	// if we discard our current assets.
+	// Note that these functions may be called when the cache is already set (if via
+	// AUsdStageActor::HandlePropertyChangedEvent) or to set the actual new cache (when called directly)
+	if (UsdAssetCache != NewCache)
+	{
+		if (UsdAssetCache)
+		{
+			UsdAssetCache->RemoveAllAssetReferences(this);
+			UsdAssetCache->RefreshStorage();
+		}
+
+		UsdAssetCache = NewCache;
+	}
+
+	// We can't have no cache while we have a stage loaded, so at least revert the property to a transient cache
+	// instead, as the intent may have been to just have the actor not point at the previous cache anymore.
+	if (!UsdAssetCache && UsdStage)
+	{
+		FNotificationInfo Toast(LOCTEXT("MustHaveCache", "Must have an Asset Cache"));
+		Toast.SubText = LOCTEXT("MustHaveCache_Subtext", "The Stage Actor must always have an Asset Cache while a stage is loaded, so a temporary cache will be created.\n\nClose the stage before clearing the cache if you wish to clear this property.");
+		Toast.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
+		Toast.bUseLargeFont = false;
+		Toast.bFireAndForget = true;
+		Toast.FadeOutDuration = 1.0f;
+		Toast.ExpireDuration = 12.0f;
+		Toast.bUseThrobber = false;
+		Toast.bUseSuccessFailIcons = false;
+		FSlateNotificationManager::Get().AddNotification(Toast);
+
+		UsdAssetCache = NewObject< UUsdAssetCache2 >(GetTransientPackage(), NAME_None, GetMaskedFlags(RF_PropagateToSubObjects));
+	}
+
+	// Here we pretend we just received a root resync so that we re-fetch assets from the cache
+	// and update its components
+	UsdUtils::FObjectChangesByPath InfoChanges;
+	UsdUtils::FObjectChangesByPath ResyncChanges;
+	ResyncChanges.Add({ TEXT("/"), {} });
+	OnUsdObjectsChanged(InfoChanges, ResyncChanges);
+}
+
 void AUsdStageActor::SetInitialLoadSet(EUsdInitialLoadSet NewLoadSet)
 {
 	const bool bMarkDirty = false;
@@ -1692,44 +1761,28 @@ TArray<UObject*> AUsdStageActor::GetGeneratedAssets(const FString& PrimPath)
 		return {};
 	}
 
-	if (!AssetCache)
+	if (!InfoCache)
 	{
 		return {};
 	}
 
-	TSet<UObject*> Result;
-	FString PathToUse = PrimPath;
-
-	// If we found an asset generated specifically for a prim path, use that. If this prim has been collapsed,
-	// the asset generated for it will be assigned to its collapsing root, so we won't find anything here
-	if (UObject* FoundAsset = AssetCache->GetAssetForPrim(PrimPath))
+	// Prefer checking the prim directly, but also check its collapsed root if it is collapsed.
+	// This because we have some exception cases like USkeleton/UAnimSequences that can be found by querying the actual
+	// Skeleton/SKelAnimation prims even though they are collapsed into the SkelRoot prim.
+	TSet<TWeakObjectPtr<UObject>> AssetsSet = InfoCache->GetAssetsForPrim(UsdPath);
+	if (AssetsSet.Num() == 0 && InfoCache->IsPathCollapsed(UsdPath, ECollapsingType::Assets))
 	{
-		Result.Add(FoundAsset);
-	}
-	// If we haven't try seeing if we collapsed into another asset
-	else if (InfoCache.IsValid())
-	{
-		PathToUse = InfoCache->UnwindToNonCollapsedPath(UsdPath, ECollapsingType::Assets).GetString();
-		if (UObject* FoundCollapsedAsset = AssetCache->GetAssetForPrim(PathToUse))
-		{
-			Result.Add(FoundCollapsedAsset);
-		}
+		UsdPath = InfoCache->UnwindToNonCollapsedPath(UsdPath, ECollapsingType::Assets);
+		AssetsSet = InfoCache->GetAssetsForPrim(UsdPath);
 	}
 
-	// Collect any other asset that claims they came from the same prim (e.g. also return the skeleton if we query
-	// the SkelRoot, or return textures if we query a material prim that used them, etc.)
-	for (const TPair<FString, TObjectPtr<UObject>>& HashToAsset : AssetCache->GetCachedAssets())
+	TArray<UObject*> Assets;
+	Assets.Reserve(AssetsSet.Num());
+	for (const TWeakObjectPtr<UObject>& Asset : AssetsSet)
 	{
-		if (UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData(HashToAsset.Value))
-		{
-			if (ImportData->PrimPath == PathToUse)
-			{
-				Result.Add(HashToAsset.Value);
-			}
-		}
+		Assets.Add(Asset.Get());
 	}
-
-	return Result.Array();
+	return Assets;
 }
 
 FString AUsdStageActor::GetSourcePrimPath(UObject* Object)
@@ -1741,26 +1794,12 @@ FString AUsdStageActor::GetSourcePrimPath(UObject* Object)
 			return UsdPrimTwin->PrimPath;
 		}
 	}
-
-	if (AssetCache)
+	else if (InfoCache)
 	{
-		for (const TPair<FString, TWeakObjectPtr<UObject>>& PrimPathToAsset : AssetCache->GetAssetPrimLinks())
+		const UE::FSdfPath FoundPath = InfoCache->GetPrimForAsset(Object);
+		if (!FoundPath.IsEmpty())
 		{
-			if (PrimPathToAsset.Value.Get() == Object)
-			{
-				return PrimPathToAsset.Key;
-			}
-		}
-
-		for (const TPair<FString, TObjectPtr<UObject>>& HashToAsset : AssetCache->GetCachedAssets())
-		{
-			if (HashToAsset.Value == Object)
-			{
-				if (UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData(HashToAsset.Value))
-				{
-					return ImportData->PrimPath;
-				}
-			}
+			return FoundPath.GetString();
 		}
 	}
 
@@ -1934,10 +1973,7 @@ void AUsdStageActor::OnObjectsReplaced(const TMap<UObject*, UObject*>& ObjectRep
 			NewActor->OnPreStageChanged = OnPreStageChanged;
 			NewActor->OnPrimChanged = OnPrimChanged;
 
-			// UEngine::CopyPropertiesForUnrelatedObjects won't copy over the cache's transient assets, but we still
-			// need to ensure their lifetime here, so just take the previous asset cache instead, which still that has the transient assets
-			AssetCache->Rename(nullptr, NewActor);
-			NewActor->AssetCache = AssetCache;
+			NewActor->UsdAssetCache = UsdAssetCache;
 
 			NewActor->InfoCache = InfoCache;
 			InfoCache = nullptr;
@@ -1975,17 +2011,18 @@ void AUsdStageActor::LoadUsdStage()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(AUsdStageActor::LoadUsdStage);
 
+	// Ensure an asset cache if we're going to load something
+	if (!RootLayer.FilePath.IsEmpty())
+	{
+		EnsureAssetCache();
+	}
+
 	double StartTime = FPlatformTime::Cycles64();
 
 	FScopedSlowTask SlowTask(1.f, LOCTEXT("LoadingUDStage", "Loading USD Stage"));
 	SlowTask.MakeDialog();
 
 	OnPreStageChanged.Broadcast();
-
-	if (!AssetCache)
-	{
-		AssetCache = NewObject< UUsdAssetCache >(this, TEXT("AssetCache"), GetMaskedFlags(RF_PropagateToSubObjects));
-	}
 
 	// Block writing level sequence changes back to the USD stage until we finished this transaction, because once we do
 	// the movie scene and tracks will all trigger OnObjectTransacted. We listen for those on FUsdLevelSequenceHelperImpl::OnObjectTransacted,
@@ -2001,6 +2038,12 @@ void AUsdStageActor::LoadUsdStage()
 	RootTwin->PrimPath = TEXT("/");
 
 	FScopedUsdMessageLog ScopedMessageLog;
+
+	TOptional<FUsdScopedAssetCacheReferencer> ScopedReferencer;
+	if (UsdAssetCache)
+	{
+		ScopedReferencer.Emplace(UsdAssetCache, this);
+	}
 
 	// If we have an isolated stage we may have been asked to refresh to display it: We should keep our UsdStage opened
 	UE::FUsdStage StageToLoad;
@@ -2076,6 +2119,11 @@ void AUsdStageActor::LoadUsdStage()
 		}
 	}
 
+	if (UsdAssetCache)
+	{
+		UsdAssetCache->RefreshStorage();
+	}
+
 #if WITH_EDITOR
 	if (GIsEditor && GEditor && !IsGarbageCollecting())
 	{
@@ -2111,12 +2159,6 @@ void AUsdStageActor::UnloadUsdStage()
 	// Stop listening because we'll discard LevelSequence assets, which may trigger transactions
 	// and could lead to stage changes
 	BlockMonitoringLevelSequenceForThisTransaction();
-
-	if (AssetCache)
-	{
-		FUsdStageActorImpl::CloseEditorsForAssets(AssetCache->GetCachedAssets());
-		AssetCache->Reset();
-	}
 
 	if (InfoCache)
 	{
@@ -2156,7 +2198,64 @@ void AUsdStageActor::UnloadUsdStage()
 
 	CloseUsdStage();
 
+	if (UsdAssetCache)
+	{
+		UsdAssetCache->RemoveAllAssetReferences(this);
+		UsdAssetCache->RefreshStorage();
+	}
+
 	OnStageChanged.Broadcast();
+}
+
+void AUsdStageActor::EnsureAssetCache()
+{
+	if (!UsdAssetCache)
+	{
+		if (const UUsdProjectSettings* ProjectSettings = GetDefault<UUsdProjectSettings>())
+		{
+			if (UUsdAssetCache2* DefaultCache = Cast<UUsdAssetCache2>(ProjectSettings->DefaultAssetCache.TryLoad()))
+			{
+				UE_LOG(LogUsd, Log, TEXT("USD Stage Actor '%s' had no previous USD Asset Cache, so it will use the default cache at '%s'. This can be configured on the project settings."),
+					*GetPathName(),
+					*DefaultCache->GetPathName()
+				);
+
+				UsdAssetCache = DefaultCache;
+			}
+		}
+	}
+#if WITH_EDITOR
+	// Show a dialog to let the user create a new default asset cache somewhere
+	if (!UsdAssetCache && GIsEditor && !IsRunningCommandlet() && !IsTemplate())
+	{
+		if (UUsdProjectSettings* ProjectSettings = GetMutableDefault<UUsdProjectSettings>())
+		{
+			if (ProjectSettings->bShowCreateDefaultAssetCacheDialog)
+			{
+				if (UUsdAssetCache2* NewCache = IUsdClassesEditorModule::ShowMissingDefaultAssetCacheDialog())
+				{
+					ProjectSettings->DefaultAssetCache = NewCache;
+					ProjectSettings->SaveConfig();
+
+					UsdAssetCache = NewCache;
+
+					UE_LOG(LogUsd, Log, TEXT("USD Stage Actor '%s' will use newly created, default USD Asset Cache at '%s'. This can be configured on the project settings."),
+						*GetPathName(),
+						*UsdAssetCache->GetPathName()
+					);
+				}
+			}
+		}
+	}
+#endif
+	if (!UsdAssetCache)
+	{
+		UE_LOG(LogUsd, Warning, TEXT("USD Stage Actor '%s' had no previous USD Asset Cache and no default cache is specified on the project settings, so a temporary cache will be generated. For better performance, create a persistent USD Asset Cache asset and point to it with this actor's UsdAssetCache property."),
+			*GetPathName()
+		);
+
+		UsdAssetCache = NewObject< UUsdAssetCache2 >(GetTransientPackage(), NAME_None, GetMaskedFlags(RF_PropagateToSubObjects));
+	}
 }
 
 UUsdPrimTwin* AUsdStageActor::GetRootPrimTwin()
@@ -2234,11 +2333,6 @@ void AUsdStageActor::ReloadAnimations()
 		}
 #endif // WITH_EDITOR
 	}
-}
-
-UUsdAssetCache* AUsdStageActor::GetAssetCache()
-{
-	return AssetCache;
 }
 
 TSharedPtr<FUsdInfoCache> AUsdStageActor::GetInfoCache()
@@ -2454,6 +2548,12 @@ void AUsdStageActor::PostDuplicate(bool bDuplicateForPIE)
 	}
 	else
 	{
+		// Temporary asset caches aren't meant to be shared
+		if (UsdAssetCache && UsdAssetCache->GetOutermost() == GetTransientPackage())
+		{
+			UsdAssetCache = NewObject< UUsdAssetCache2 >(GetTransientPackage(), NAME_None, GetMaskedFlags(RF_PropagateToSubObjects));
+		}
+
 		LoadUsdStage();
 	}
 }
@@ -2483,6 +2583,15 @@ void AUsdStageActor::Serialize(FArchive& Ar)
 
 		InfoCache->Serialize(Ar);
 	}
+
+	// Make sure we clear the old deprecated cache if we still have one, as old scenes may be persisting textures
+	// in there
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (AssetCache && Ar.IsLoading())
+	{
+		AssetCache->Reset();
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void AUsdStageActor::Destroyed()
@@ -2560,7 +2669,7 @@ void AUsdStageActor::PostRegisterAllComponents()
 	// This may fail if our stage happened to not spawn any components, actors or assets, but by that
 	// point "being loaded" doesn't really mean anything anyway
 	const bool bStageIsLoaded = GetBaseUsdStage()
-		&& ((RootUsdTwin && RootUsdTwin->GetSceneComponent() != nullptr) || (AssetCache && AssetCache->GetNumAssets() > 0));
+		&& ((RootUsdTwin && RootUsdTwin->GetSceneComponent() != nullptr) || (UsdAssetCache && UsdAssetCache->GetNumAssets() > 0));
 
 	// Blocks loading stage when going into PIE, if we already have something loaded (we'll want to duplicate stuff instead).
 	// We need to allow loading when going into PIE when we have nothing loaded yet because the MovieRenderQueue (or other callers)
@@ -2653,7 +2762,7 @@ void AUsdStageActor::UnregisterAllComponents(bool bForReregister)
 #endif // WITH_EDITOR
 
 	const bool bStageIsLoaded = GetBaseUsdStage()
-		&& ((RootUsdTwin && RootUsdTwin->GetSceneComponent() != nullptr) || (AssetCache && AssetCache->GetNumAssets() > 0));
+		&& ((RootUsdTwin && RootUsdTwin->GetSceneComponent() != nullptr) || (UsdAssetCache && UsdAssetCache->GetNumAssets() > 0));
 
 	UWorld* World = GetWorld();
 	if (bIsTransitioningIntoPIE && bStageIsLoaded && (!World || World->WorldType == EWorldType::PIE))
@@ -2985,6 +3094,10 @@ void AUsdStageActor::HandlePropertyChangedEvent(FPropertyChangedEvent& PropertyC
 	{
 		SetRootMotionHandling(RootMotionHandling);
 	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AUsdStageActor, UsdAssetCache))
+	{
+		SetAssetCache(UsdAssetCache);
+	}
 
 	bIsModifyingAProperty = false;
 }
@@ -3069,9 +3182,17 @@ void AUsdStageActor::LoadAsset(FUsdSchemaTranslationContext& TranslationContext,
 	PrimPath = UsdToUnreal::ConvertPath(Prim.GetPrimPath());
 #endif // #if USE_USD_SDK
 
-	if (AssetCache)
+	if (InfoCache)
 	{
-		AssetCache->RemoveAssetPrimLink(PrimPath);
+		TSet<TWeakObjectPtr<UObject>> OldAssets = InfoCache->RemoveAllAssetPrimLinks(UE::FSdfPath{*PrimPath});
+
+		if (UsdAssetCache)
+		{
+			for (const TWeakObjectPtr<UObject>& OldAsset : OldAssets)
+			{
+				UsdAssetCache->RemoveAssetReference(OldAsset.Get(), this);
+			}
+		}
 	}
 
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >(TEXT("USDSchemas"));
@@ -3092,21 +3213,29 @@ void AUsdStageActor::LoadAssets(FUsdSchemaTranslationContext& TranslationContext
 	TGuardValue< EObjectFlags > ContextFlagsGuard(TranslationContext.ObjectFlags, TranslationContext.ObjectFlags & ~RF_Transactional);
 
 	// Clear existing prim/asset association
-	if (AssetCache)
+	if (InfoCache)
 	{
-		FString StartPrimPath = StartPrim.GetPrimPath().GetString();
-		TSet<FString> PrimPathsToRemove;
-		for (const TPair< FString, TWeakObjectPtr<UObject> >& PrimPathToAssetIt : AssetCache->GetAssetPrimLinks())
+		UE::FSdfPath StartPrimPath = StartPrim.GetPrimPath();
+		TSet<UE::FSdfPath> PrimPathsToRemove;
+		for (const TPair<UE::FSdfPath, TSet<TWeakObjectPtr<UObject>>>& PrimPathToAssetIt : InfoCache->GetAllAssetPrimLinks())
 		{
-			const FString& PrimPath = PrimPathToAssetIt.Key;
-			if (PrimPath.StartsWith(StartPrimPath) || PrimPath == StartPrimPath)
+			const UE::FSdfPath& PrimPath = PrimPathToAssetIt.Key;
+			if (PrimPath.HasPrefix(StartPrimPath) || PrimPath == StartPrimPath)
 			{
 				PrimPathsToRemove.Add(PrimPath);
 			}
 		}
-		for (const FString& PrimPathToRemove : PrimPathsToRemove)
+
+		if (UsdAssetCache)
 		{
-			AssetCache->RemoveAssetPrimLink(PrimPathToRemove);
+			for (const UE::FSdfPath& PrimPathToRemove : PrimPathsToRemove)
+			{
+				TSet<TWeakObjectPtr<UObject>> OldAssets = InfoCache->RemoveAllAssetPrimLinks(PrimPathToRemove);
+				for (const TWeakObjectPtr<UObject>& OldAsset : OldAssets)
+				{
+					UsdAssetCache->RemoveAssetReference(OldAsset.Get(), this);
+				}
+			}
 		}
 	}
 
