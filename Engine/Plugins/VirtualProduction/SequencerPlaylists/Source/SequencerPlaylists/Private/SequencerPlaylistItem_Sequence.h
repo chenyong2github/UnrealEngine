@@ -45,14 +45,14 @@ public:
 	~FSequencerPlaylistItemPlayer_Sequence() override;
 
 	//~ Begin ISequencerPlaylistItemPlayer
-	bool Play(USequencerPlaylistItem* Item,
-	          ESequencerPlaylistPlaybackDirection Direction = ESequencerPlaylistPlaybackDirection::Forward) override;
-	bool Pause(USequencerPlaylistItem* Item) override;
-	bool Stop(USequencerPlaylistItem* Item) override;
-	bool AddHold(USequencerPlaylistItem* Item) override;
-	bool Reset(USequencerPlaylistItem* Item) override;
+	virtual bool Play(USequencerPlaylistItem* Item,
+	                  ESequencerPlaylistPlaybackDirection Direction = ESequencerPlaylistPlaybackDirection::Forward) override;
+	virtual bool Pause(USequencerPlaylistItem* Item) override;
+	virtual bool Stop(USequencerPlaylistItem* Item) override;
+	virtual bool AddHold(USequencerPlaylistItem* Item) override;
+	virtual bool Reset(USequencerPlaylistItem* Item) override;
 
-	FSequencerPlaylistPlaybackState GetPlaybackState(USequencerPlaylistItem* Item) const override;
+	virtual FSequencerPlaylistPlaybackState GetPlaybackState(USequencerPlaylistItem* Item) const override;
 	//~ End ISequencerPlaylistItemPlayer
 
 private:

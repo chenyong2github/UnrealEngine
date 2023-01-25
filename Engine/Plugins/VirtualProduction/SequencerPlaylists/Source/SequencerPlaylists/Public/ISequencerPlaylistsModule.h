@@ -35,6 +35,13 @@ struct FSequencerPlaylistPlaybackState
 
 	UPROPERTY(BlueprintReadWrite, Category="Sequencer Playlists")
 	ESequencerPlaylistPlaybackDirection PlaybackDirection;
+
+	FSequencerPlaylistPlaybackState()
+		: bIsPlaying(false)
+		, bIsPaused(false)
+		, PlaybackDirection(ESequencerPlaylistPlaybackDirection::Forward)
+	{
+	}
 };
 
 
