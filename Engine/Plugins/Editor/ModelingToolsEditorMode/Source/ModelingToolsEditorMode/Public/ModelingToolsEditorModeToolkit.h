@@ -6,12 +6,12 @@
 #include "StatusBarSubsystem.h"
 #include "UObject/GCObject.h"
 
+#include "ModelingToolsEditorModeToolkit.generated.h"
+
 class IAssetViewport;
 class SEditableTextBox;
 class STextComboBox;
 namespace ETextCommit { enum Type : int; }
-
-#include "ModelingToolsEditorModeToolkit.generated.h"
 
 #define LOCTEXT_NAMESPACE "ModelingToolsEditorModeToolkit"
 
