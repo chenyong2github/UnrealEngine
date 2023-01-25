@@ -408,33 +408,23 @@ uint CalculateSparseTileIndex(uint CompactedTileIndex, uint ShadingBin, uint Til
 	return SparseTileIndex;
 }
 
-// TODO: [Optimization] Remove group shared
-groupshared uint MicroTileIndex;
-groupshared uint MacroTileIndex;
-
 [numthreads(64, 1, 1)]
 void MainCS(uint ThreadIndex : SV_GroupIndex, uint3 GroupID : SV_GroupID, uint3 GroupThreadID : SV_GroupThreadID, uint3 DispatchThreadID : SV_DispatchThreadID)
 {
 	const uint ShadingBin = PassData.x;
 
-	if (ThreadIndex == 0u)
-	{
-		// Compute our compacted macro tile index
-		const uint CompactedMacroTileIndex = GroupID.x / 64u; // New 64x64 macro tile every 4k threads
+	// Compute our compacted macro tile index
+	const uint CompactedMacroTileIndex = GroupID.x / 64u; // New 64x64 macro tile every 4k threads
 
-		// Compute our compacted micro tile index
-		const uint CompactedMicroTileIndex = GroupID.x; // New 8x8 micro tile every 64 threads
+	// Compute our compacted micro tile index
+	const uint CompactedMicroTileIndex = GroupID.x; // New 8x8 micro tile every 64 threads
 
-		// Subtract macro tile's 8x8 index from current micro tile index to make the micro tile index relative
-		MicroTileIndex = CompactedMicroTileIndex - (CompactedMacroTileIndex * 64u);
+	// Subtract macro tile's 8x8 index from current micro tile index to make the micro tile index relative
+	const uint MicroTileIndex = CompactedMicroTileIndex - (CompactedMacroTileIndex * 64u);
 
-		// Compact our sparse macro tile index (produced by material culling)
-		const uint TileRemapCount = Nanite.MaterialConfig.w;
-		MacroTileIndex = CalculateSparseTileIndex(CompactedMacroTileIndex, ShadingBin, TileRemapCount);
-	}
-
-	// TODO: [Optimization] Remove group shared
-	GroupMemoryBarrierWithGroupSync();
+	// Compact our sparse macro tile index (produced by material culling)
+	const uint TileRemapCount = Nanite.MaterialConfig.w;
+	const uint MacroTileIndex = CalculateSparseTileIndex(CompactedMacroTileIndex, ShadingBin, TileRemapCount);
 
 	const uint2 MacroTileDim = uint2(64u, 64u);
 	const uint2 MicroTileDim = uint2(8u,   8u);

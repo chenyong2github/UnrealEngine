@@ -733,45 +733,47 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 	Result.BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures);
 	Result.ActiveShadingBin = ~uint32(0);
 
+	// No possibility of read/write hazard due to fully resolved vbuffer/materials
+	const ERDGUnorderedAccessViewFlags OutTargetFlags = ERDGUnorderedAccessViewFlags::SkipBarrier;
+
 	if (BasePassTextures.Num() > 0)
 	{
-		Result.OutTarget0UAV = GraphBuilder.CreateUAV(BasePassTextures[0].Texture);
+		Result.OutTarget0UAV = GraphBuilder.CreateUAV(BasePassTextures[0].Texture, OutTargetFlags);
 	}
 
 	if (BasePassTextures.Num() > 1)
 	{
-		Result.OutTarget1UAV = GraphBuilder.CreateUAV(BasePassTextures[1].Texture);
+		Result.OutTarget1UAV = GraphBuilder.CreateUAV(BasePassTextures[1].Texture, OutTargetFlags);
 	}
 
 	if (BasePassTextures.Num() > 2)
 	{
-		Result.OutTarget2UAV = GraphBuilder.CreateUAV(BasePassTextures[2].Texture);
+		Result.OutTarget2UAV = GraphBuilder.CreateUAV(BasePassTextures[2].Texture, OutTargetFlags);
 	}
 
 	if (BasePassTextures.Num() > 3)
 	{
-		//Result.OutTarget3UAV = GraphBuilder.CreateUAV(BasePassTextures[3].Texture, ERDGUnorderedAccessViewFlags::None, PF_R32_UINT);
-		Result.OutTarget3UAV = GraphBuilder.CreateUAV(BasePassTextures[3].Texture);
+		Result.OutTarget3UAV = GraphBuilder.CreateUAV(BasePassTextures[3].Texture, OutTargetFlags);
 	}
 
 	if (BasePassTextures.Num() > 4)
 	{
-		Result.OutTarget4UAV = GraphBuilder.CreateUAV(BasePassTextures[4].Texture);
+		Result.OutTarget4UAV = GraphBuilder.CreateUAV(BasePassTextures[4].Texture, OutTargetFlags);
 	}
 
 	if (BasePassTextures.Num() > 5)
 	{
-		Result.OutTarget5UAV = GraphBuilder.CreateUAV(BasePassTextures[5].Texture);
+		Result.OutTarget5UAV = GraphBuilder.CreateUAV(BasePassTextures[5].Texture, OutTargetFlags);
 	}
 
 	if (BasePassTextures.Num() > 6)
 	{
-		Result.OutTarget6UAV = GraphBuilder.CreateUAV(BasePassTextures[6].Texture);
+		Result.OutTarget6UAV = GraphBuilder.CreateUAV(BasePassTextures[6].Texture, OutTargetFlags);
 	}
 
 	if (BasePassTextures.Num() > 7)
 	{
-		Result.OutTarget7UAV = GraphBuilder.CreateUAV(BasePassTextures[7].Texture);
+		Result.OutTarget7UAV = GraphBuilder.CreateUAV(BasePassTextures[7].Texture, OutTargetFlags);
 	}
 
 	return Result;
@@ -793,6 +795,23 @@ void DispatchBasePass(
 
 	LLM_SCOPE_BYTAG(Nanite);
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::BasePass");
+
+	auto& ShadingCommands = GraphBuilder.AllocArray<FNaniteShadingCommand>();
+	const TArray<TPimplPtr<FNaniteShadingCommand>>& SceneShadingCommands = Scene.NaniteShadingCommands[ENaniteMeshPass::BasePass];
+
+	ShadingCommands.Reserve(SceneShadingCommands.Num());
+	for (const TPimplPtr<FNaniteShadingCommand>& ShadingCommandPtr : SceneShadingCommands)
+	{
+		if (ShadingCommandPtr.IsValid())
+		{
+			ShadingCommands.Add(*ShadingCommandPtr);
+		}
+	}
+
+	if (ShadingCommands.Num() == 0)
+	{
+		return;
+	}
 
 	const int32 ViewWidth = View.ViewRect.Max.X - View.ViewRect.Min.X;
 	const int32 ViewHeight = View.ViewRect.Max.Y - View.ViewRect.Min.Y;
@@ -816,23 +835,23 @@ void DispatchBasePass(
 
 	const FIntPoint TileGridDim = FMath::DivideAndRoundUp(ViewSize, { 64, 64 });
 
-	const uint32 MaxMaterialSlots = NANITE_MAX_STATE_BUCKET_ID + 1;
+	const uint32 ShadingBinCount = uint32(ShadingCommands.Num());
+	const uint32 HighestShadingBin = ShadingBinCount - 1u; // Zero based, and contiguous monotonic range
 
-	const uint32 IndirectArgStride = (sizeof(FRHIDrawIndexedIndirectParameters) + sizeof(FRHIDispatchIndirectParametersNoPadding)) >> 2u;
-	FRDGBufferRef MaterialIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(IndirectArgStride * MaxMaterialSlots), TEXT("Nanite.MaterialIndirectArgs"));
+	const uint32 IndirectArgStride = (sizeof(FRHIDrawIndexedIndirectParameters) + sizeof(FRHIDispatchIndirectParametersNoPadding));
+	FRDGBufferRef MaterialIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(IndirectArgStride, 0xFFFFu), TEXT("Nanite.MaterialIndirectArgs"));
 
 	FRDGBufferRef MultiViewIndices = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Nanite.DummyMultiViewIndices"));
 	FRDGBufferRef MultiViewRectScaleOffsets = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), 1), TEXT("Nanite.DummyMultiViewRectScaleOffsets"));
 	FRDGBufferRef ViewsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), 1), TEXT("Nanite.PackedViews"));
 
-	const uint32 HighestMaterialSlot = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHighestMaterialSlot();
-	const uint32 HighestMaterialBin = FMath::DivideAndRoundUp(HighestMaterialSlot, 32u);
+	const uint32 ShadingMaskCount		= FMath::DivideAndRoundUp(ShadingBinCount, 32u);
 
-	const FIntPoint	TileGridSize = FMath::DivideAndRoundUp(View.ViewRect.Max - View.ViewRect.Min, { 64, 64 });
-	const uint32	TileCount = TileGridSize.X * TileGridSize.Y;
-	const uint32	TileRemaps = FMath::DivideAndRoundUp(TileCount, 32u);
+	const FIntPoint	TileGridSize		= FMath::DivideAndRoundUp(View.ViewRect.Max - View.ViewRect.Min, { 64, 64 });
+	const uint32	TileCount			= TileGridSize.X * TileGridSize.Y;
+	const uint32	TileRemaps			= FMath::DivideAndRoundUp(TileCount, 32u);
 
-	FRDGBufferRef MaterialTileRemap = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), TileRemaps * MaxMaterialSlots), TEXT("Nanite.MaterialTileRemap"));
+	FRDGBufferRef MaterialTileRemap = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), TileRemaps * ShadingBinCount), TEXT("Nanite.MaterialTileRemap"));
 
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(MultiViewIndices), 0);
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(MultiViewRectScaleOffsets), 0);
@@ -840,21 +859,20 @@ void DispatchBasePass(
 
 	// Classify materials for tile culling
 	// TODO: Run velocity export in here instead of depth pre-pass?
-	if (HighestMaterialSlot > 0)
 	{
 		// Initialize acceleration/indexing structures for tile classification
 		{
 			auto ComputeShader = View.ShaderMap->GetShader<FInitializeMaterialsCS>();
 			FInitializeMaterialsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitializeMaterialsCS::FParameters>();
-			PassParameters->MaterialSlotCount = HighestMaterialSlot;
-			PassParameters->MaterialTileCount = TileGridSize.X * TileGridSize.Y;
+			PassParameters->MaterialSlotCount = ShadingBinCount;
+			PassParameters->MaterialTileCount = TileCount;
 			PassParameters->MaterialRemapCount = TileRemaps;
 			PassParameters->TopologyIndexCount = GRHISupportsRectTopology ? 3 : 6;
 			PassParameters->MaterialIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(MaterialIndirectArgs, PF_R32_UINT));
 			PassParameters->MaterialTileRemap = GraphBuilder.CreateUAV(MaterialTileRemap);
-			PassParameters->MaterialBinCount = HighestMaterialBin;
+			PassParameters->MaterialBinCount = ShadingMaskCount;
 
-			const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(PassParameters->MaterialSlotCount, 64);
+			const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(PassParameters->MaterialSlotCount, 64u);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
@@ -878,10 +896,10 @@ void DispatchBasePass(
 			PassParameters->MaterialResolve = RasterResults.MaterialResolve;
 			PassParameters->MaterialIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(MaterialIndirectArgs, PF_R32_UINT));
 			PassParameters->MaterialTileRemap = GraphBuilder.CreateUAV(MaterialTileRemap);
-			PassParameters->MaterialSlotCount = HighestMaterialSlot;
-			PassParameters->MaterialTileCount = TileGridSize.X * TileGridSize.Y;
+			PassParameters->MaterialSlotCount = ShadingBinCount;
+			PassParameters->MaterialTileCount = TileCount;
 			PassParameters->MaterialRemapCount = TileRemaps;
-			PassParameters->MaterialBinCount = HighestMaterialBin;
+			PassParameters->MaterialBinCount = ShadingMaskCount;
 
 			uint32 DispatchGroupSize = 0;
 
@@ -910,8 +928,8 @@ void DispatchBasePass(
 		{
 			auto ComputeShader = View.ShaderMap->GetShader<FFinalizeMaterialsCS>();
 			FFinalizeMaterialsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FFinalizeMaterialsCS::FParameters>();
-			PassParameters->MaterialSlotCount = HighestMaterialSlot;
-			PassParameters->MaterialTileCount = TileGridSize.X * TileGridSize.Y;
+			PassParameters->MaterialSlotCount = ShadingBinCount;
+			PassParameters->MaterialTileCount = TileCount;
 			PassParameters->MaterialIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(MaterialIndirectArgs, PF_R32_UINT));
 
 			const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(PassParameters->MaterialSlotCount, 64);
@@ -931,151 +949,137 @@ void DispatchBasePass(
 	Strata::AppendStrataMRTs(SceneRenderer, BasePassTextureCount, BasePassTextures);
 	TArrayView<FTextureRenderTargetBinding> BasePassTexturesView = MakeArrayView(BasePassTextures.GetData(), BasePassTextureCount);
 
-	auto& ShadingCommands = GraphBuilder.AllocArray<FNaniteShadingCommand>();
-	const TArray<TPimplPtr<FNaniteShadingCommand>>& SceneShadingCommands = Scene.NaniteShadingCommands[ENaniteMeshPass::BasePass];
+	const FNaniteVisibilityResults& VisibilityResults = RasterResults.VisibilityResults;
+	const bool bWPOInSecondPass = !IsUsingBasePassVelocity(View.GetShaderPlatform());
 
-	ShadingCommands.Reserve(SceneShadingCommands.Num());
-	for (const TPimplPtr<FNaniteShadingCommand>& ShadingCommandPtr : SceneShadingCommands)
-	{
-		if (ShadingCommandPtr.IsValid())
+	FNaniteShadingPassParameters* ShadingPassParameters = GraphBuilder.AllocParameters<FNaniteShadingPassParameters>();
+	*ShadingPassParameters = CreateNaniteShadingPassParams(
+		GraphBuilder,
+		SceneRenderer,
+		SceneTextures,
+		DBufferTextures,
+		View,
+		RasterResults,
+		TileGridSize,
+		TileRemaps,
+		Scene.NaniteMaterials[ENaniteMeshPass::BasePass],
+		RasterResults.MaterialResolve,
+		VisBuffer64,
+		DbgBuffer64,
+		DbgBuffer32,
+		VisibleClustersSWHW,
+		MaterialTileRemap,
+		MaterialIndirectArgs,
+		MultiViewIndices,
+		MultiViewRectScaleOffsets,
+		ViewsBuffer,
+		BasePassTexturesView
+	);
+
+	const FExclusiveDepthStencil MaterialDepthStencil = UseComputeDepthExport()
+		? FExclusiveDepthStencil::DepthWrite_StencilNop
+		: FExclusiveDepthStencil::DepthWrite_StencilWrite;
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("ShadeGBufferCS"),
+		ShadingPassParameters,
+		ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+		[ShadingPassParameters, &ShadingCommands, IndirectArgStride, ViewRect](FRHIComputeCommandList& RHICmdList)
 		{
-			ShadingCommands.Add(*ShadingCommandPtr);
-		}
-	}
+			ShadingPassParameters->MaterialIndirectArgs->MarkResourceAsUsed();
 
-	if (ShadingCommands.Num() > 0)
-	{
-		const FNaniteVisibilityResults& VisibilityResults = RasterResults.VisibilityResults;
-		const bool bWPOInSecondPass = !IsUsingBasePassVelocity(View.GetShaderPlatform());
-
-		FNaniteShadingPassParameters* ShadingPassParameters = GraphBuilder.AllocParameters<FNaniteShadingPassParameters>();
-		*ShadingPassParameters = CreateNaniteShadingPassParams(
-			GraphBuilder,
-			SceneRenderer,
-			SceneTextures,
-			DBufferTextures,
-			View,
-			RasterResults,
-			TileGridSize,
-			TileRemaps,
-			Scene.NaniteMaterials[ENaniteMeshPass::BasePass],
-			RasterResults.MaterialResolve,
-			VisBuffer64,
-			DbgBuffer64,
-			DbgBuffer32,
-			VisibleClustersSWHW,
-			MaterialTileRemap,
-			MaterialIndirectArgs,
-			MultiViewIndices,
-			MultiViewRectScaleOffsets,
-			ViewsBuffer,
-			BasePassTexturesView
-		);
-
-		const FExclusiveDepthStencil MaterialDepthStencil = UseComputeDepthExport()
-			? FExclusiveDepthStencil::DepthWrite_StencilNop
-			: FExclusiveDepthStencil::DepthWrite_StencilWrite;
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("ShadeGBufferCS"),
-			ShadingPassParameters,
-			ERDGPassFlags::Compute,
-			[ShadingPassParameters, &ShadingCommands, ViewRect, ViewSize /*, &SceneView*/](FRHIComputeCommandList& RHICmdList)
+			TArray<FRHIUnorderedAccessView*, TInlineAllocator<8>> OutputTargets;
+			auto GetOutputTargetRHI = [](const FRDGTextureUAVRef OutputTarget)
 			{
-				ShadingPassParameters->MaterialIndirectArgs->MarkResourceAsUsed();
-
-				TArray<FRHIUnorderedAccessView*, TInlineAllocator<8>> OutputTargets;
-				auto GetOutputTargetRHI = [](const FRDGTextureUAVRef OutputTarget)
+				FRHIUnorderedAccessView* OutputTargetRHI = nullptr;
+				if (OutputTarget != nullptr)
 				{
-					FRHIUnorderedAccessView* OutputTargetRHI = nullptr;
-					if (OutputTarget != nullptr)
-					{
-						OutputTarget->MarkResourceAsUsed();
-						OutputTargetRHI = OutputTarget->GetRHI();
-					}
-					return OutputTargetRHI;
-				};
+					OutputTarget->MarkResourceAsUsed();
+					OutputTargetRHI = OutputTarget->GetRHI();
+				}
+				return OutputTargetRHI;
+			};
 
-				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget0UAV));
-				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget1UAV));
-				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget2UAV));
-				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget3UAV));
-				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget4UAV));
-				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget5UAV));
-				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget6UAV));
-				OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget7UAV));
+			OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget0UAV));
+			OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget1UAV));
+			OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget2UAV));
+			OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget3UAV));
+			OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget4UAV));
+			OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget5UAV));
+			OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget6UAV));
+			OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget7UAV));
 
-				// .X = Active Shading Bin
-				// .Y = VRS Tile Size
-				// .Z = Unused
-				// .W = Unused
-				FUint32Vector4 PassData(
-					0, // Set per shading command
-					0,
-					0,
-					0
+			RHICmdList.BeginUAVOverlap(OutputTargets);
+
+			// .X = Active Shading Bin
+			// .Y = VRS Tile Size
+			// .Z = Unused
+			// .W = Unused
+			FUint32Vector4 PassData(
+				0, // Set per shading command
+				0,
+				0,
+				0
+			);
+
+			if (GNaniteSoftwareVRS != 0)
+			{
+				// Technically these could be different, but currently never in practice
+				// 8x8, 16x16, or 32x32 for DX12 Tier2 HW VRS
+				ensure
+				(
+					GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMinHeight &&
+					GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMaxWidth &&
+					GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMaxHeight
 				);
 
-				if (GNaniteSoftwareVRS != 0)
-				{
-					// Technically these could be different, but currently never in practice
-					// 8x8, 16x16, or 32x32 for DX12 Tier2 HW VRS
-					ensure
-					(
-						GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMinHeight &&
-						GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMaxWidth &&
-						GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMaxHeight
-					);
-
-					PassData.Y = GRHIVariableRateShadingImageTileMinWidth;
-				}
-
-				uint32 ShadingBinTest = 0;
-
-				for (const FNaniteShadingCommand& ShadingCommand : ShadingCommands)
-				{
-				#if WANTS_DRAW_MESH_EVENTS
-					SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, SWShading, GNaniteShowDrawEvents != 0, TEXT("%s"), GetShadingMaterialName(ShadingCommand.MaterialProxy));
-				#endif
-
-					PassData.X = ShadingCommand.ShadingBin;
-
-					FRHIBuffer* IndirectArgsBuffer = ShadingPassParameters->MaterialIndirectArgs->GetIndirectRHICallBuffer();
-
-					FRHIComputeShader* ComputeShaderRHI = ShadingCommand.ComputeShader.GetComputeShader();
-
-					const uint32 IndirectArgSize = sizeof(FRHIDrawIndexedIndirectParameters) + sizeof(FRHIDispatchIndirectParametersNoPadding);
-					const uint32 IndirectOffset = (IndirectArgSize * ShadingCommand.ShadingBin) + 20u; // 6th dword is the start of the dispatch args
-
-					FComputeShaderUtils::ValidateIndirectArgsBuffer(IndirectArgsBuffer->GetSize(), IndirectOffset, IndirectArgsBuffer->GetStride());
-					SetComputePipelineState(RHICmdList, ComputeShaderRHI);
-
-					ShadingCommand.ShaderBindings.SetOnCommandList(RHICmdList, ComputeShaderRHI);
-
-					ShadingCommand.ComputeShader->SetPassParameters(
-						RHICmdList,
-						ComputeShaderRHI,
-						ViewRect,
-						PassData,
-						OutputTargets[0],
-						OutputTargets[1],
-						OutputTargets[2],
-						OutputTargets[3],
-						OutputTargets[4],
-						OutputTargets[5],
-						OutputTargets[6],
-						OutputTargets[7]
-					);
-
-					RHICmdList.DispatchIndirectComputeShader(IndirectArgsBuffer, IndirectOffset);
-					
-					UnsetShaderUAVs(RHICmdList, ShadingCommand.ComputeShader, ComputeShaderRHI);
-				}
+				PassData.Y = GRHIVariableRateShadingImageTileMinWidth;
 			}
-		);
-	}
 
-	ExtractShadingStats(GraphBuilder, View, MaterialIndirectArgs, HighestMaterialSlot);
+			uint32 ShadingBinTest = 0;
+
+			for (const FNaniteShadingCommand& ShadingCommand : ShadingCommands)
+			{
+			#if WANTS_DRAW_MESH_EVENTS
+				SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, SWShading, GNaniteShowDrawEvents != 0, TEXT("%s"), GetShadingMaterialName(ShadingCommand.MaterialProxy));
+			#endif
+
+				PassData.X = ShadingCommand.ShadingBin;
+
+				const uint32 IndirectOffset = (ShadingCommand.ShadingBin * IndirectArgStride) + 20u; // 6th dword is the start of the dispatch args
+				FComputeShaderUtils::ValidateIndirectArgsBuffer(ShadingPassParameters->MaterialIndirectArgs, IndirectOffset);
+
+				FRHIBuffer* IndirectArgsBuffer = ShadingPassParameters->MaterialIndirectArgs->GetIndirectRHICallBuffer();
+
+				FRHIComputeShader* ComputeShaderRHI = ShadingCommand.ComputeShader.GetComputeShader();
+
+				SetComputePipelineState(RHICmdList, ComputeShaderRHI);
+				ShadingCommand.ShaderBindings.SetOnCommandList(RHICmdList, ComputeShaderRHI);
+
+				ShadingCommand.ComputeShader->SetPassParameters(
+					RHICmdList,
+					ComputeShaderRHI,
+					ViewRect,
+					PassData,
+					OutputTargets[0],
+					OutputTargets[1],
+					OutputTargets[2],
+					OutputTargets[3],
+					OutputTargets[4],
+					OutputTargets[5],
+					OutputTargets[6],
+					OutputTargets[7]
+				);
+
+				RHICmdList.DispatchIndirectComputeShader(IndirectArgsBuffer, IndirectOffset);
+				UnsetShaderUAVs(RHICmdList, ShadingCommand.ComputeShader, ComputeShaderRHI);
+			}
+
+			RHICmdList.EndUAVOverlap(OutputTargets);
+		}
+	);
+
+	ExtractShadingStats(GraphBuilder, View, MaterialIndirectArgs, ShadingBinCount);
 }
 
 void DrawBasePass(
