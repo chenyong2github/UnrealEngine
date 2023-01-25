@@ -13,8 +13,6 @@ UGLTFMaterialExporter::UGLTFMaterialExporter(const FObjectInitializer& ObjectIni
 	: Super(ObjectInitializer)
 {
 	SupportedClass = UMaterialInterface::StaticClass();
-
-	 // TODO: remove UGLTFMaterialExporter::DefaultPreviewMesh in 5.2 since it's no longer in use.
 }
 
 bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject* Object)
