@@ -291,7 +291,7 @@ static bool UseMeshShader(EShaderPlatform ShaderPlatform, Nanite::EPipeline Pipe
 {
 	// Disable mesh shaders if global clip planes are enabled and the platform cannot support MS with clip distance output
 	static const auto AllowGlobalClipPlaneVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowGlobalClipPlane"));
-	static const bool bAllowGlobalClipPlane = (AllowGlobalClipPlaneVar && AllowGlobalClipPlaneVar->GetValueOnRenderThread() != 0);
+	static const bool bAllowGlobalClipPlane = (AllowGlobalClipPlaneVar && AllowGlobalClipPlaneVar->GetValueOnAnyThread() != 0);
 	const bool bMSSupportsClipDistance = FDataDrivenShaderPlatformInfo::GetSupportsMeshShadersWithClipDistance(ShaderPlatform);
 
 	// We require tier1 support to utilize primitive attributes
@@ -911,16 +911,16 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualTargetParameters, VirtualShadowMap)
 END_SHADER_PARAMETER_STRUCT()
 
-static uint32 GetMaterialBitFlags(const FMaterial& RasterMaterial, bool bForceDisableWPO)
+static uint32 GetMaterialBitFlags(const FMaterial& RasterMaterial, bool bMaterialUsesWorldPositionOffset, bool bMaterialUsesPixelDepthOffset, bool bForceDisableWPO)
 {
 	uint32 MaterialBitFlags = 0x00000000u;
 
-	if (!bForceDisableWPO && RasterMaterial.MaterialUsesWorldPositionOffset_RenderThread())
+	if (!bForceDisableWPO && bMaterialUsesWorldPositionOffset)
 	{
 		MaterialBitFlags |= NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET;
 	}
 
-	if (RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread())
+	if (bMaterialUsesPixelDepthOffset)
 	{
 		MaterialBitFlags |= NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET;
 	}
@@ -1611,7 +1611,7 @@ void CollectRasterPSOInitializersForPipeline(
 	}
 	else
 	{
-		const uint32 MaterialBitFlags = GetMaterialBitFlags(RasterMaterial, bForceDisableWPO);
+		const uint32 MaterialBitFlags = GetMaterialBitFlags(RasterMaterial, RasterMaterial.MaterialUsesWorldPositionOffset_GameThread(), RasterMaterial.MaterialUsesPixelDepthOffset_GameThread(), bForceDisableWPO);
 		const bool bVertexProgrammable = FNaniteMaterialShader::IsVertexProgrammable(MaterialBitFlags);
 		const bool bPixelProgrammable = FNaniteMaterialShader::IsPixelProgrammable(MaterialBitFlags);
 
@@ -2764,7 +2764,7 @@ FBinningData AddPass_Rasterize(
 			uint32& MaterialBitFlags = HeaderEntry.W;
 
 			const FMaterial& RasterMaterial 	= RasterizerPass.RasterPipeline.RasterMaterial->GetIncompleteMaterialWithFallback(Scene.GetFeatureLevel());
-			MaterialBitFlags = GetMaterialBitFlags(RasterMaterial, RasterEntry.bForceDisableWPO);
+			MaterialBitFlags = GetMaterialBitFlags(RasterMaterial, RasterMaterial.MaterialUsesWorldPositionOffset_RenderThread(), RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread(), RasterEntry.bForceDisableWPO);
 
 			RasterizerPass.bVertexProgrammable = FNaniteMaterialShader::IsVertexProgrammable(MaterialBitFlags);
 			RasterizerPass.bPixelProgrammable  = FNaniteMaterialShader::IsPixelProgrammable(MaterialBitFlags);
