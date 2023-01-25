@@ -24,8 +24,8 @@ from switchboard import config_osc as osc
 from switchboard import message_protocol, switchboard_application
 from switchboard import switchboard_dialog as sb_dialog
 from switchboard import switchboard_utils as sb_utils
-from switchboard.config import (CONFIG, DEFAULT_MAP_TEXT, SETTINGS, BoolSetting, DirectoryPathSetting, EngineSyncMethod,
-                                FilePathSetting, IntSetting, MultiOptionSetting, OptionSetting, Setting,
+from switchboard.config import (CONFIG, DEFAULT_MAP_TEXT, ENABLE_UGS_SUPPORT, SETTINGS, BoolSetting, DirectoryPathSetting,
+                                EngineSyncMethod, FilePathSetting, IntSetting, MultiOptionSetting, OptionSetting, Setting,
                                 StringListSetting, StringSetting, migrate_comma_separated_string_to_list)
 from switchboard.devices.device_base import Device, DeviceStatus, PluginHeaderWidgets
 from switchboard.devices.device_widget_base import DeviceAutoJoinMUServerUI, DeviceWidget
@@ -598,15 +598,6 @@ class DeviceUnreal(Device):
                 'between network messages before considering the connection '
                 'to Switchboard lost and closing it with a timeout error.')
         ),
-        'unrealgamesync_lib_dir': DirectoryPathSetting(
-            attr_name='unrealgamesync_lib_dir',
-            nice_name='UnrealGameSync Dll Dir',
-            value="",
-            tool_tip=(
-                "Expects an absolute path to the device directory containing the ugs.dll library file. \n"
-                "If left blank, switchboard will attempt to find UGS by searching the system PATH and default install locations. \n"
-                "On Windows, the default install location is '${LOCALAPPDATA}/UnrealGameSync/Latest/'.")
-        ),
         'slate_allow_throttling': BoolSetting(
             attr_name='slate_allow_throttling',
             nice_name='Allow Slate Throttling',
@@ -644,6 +635,17 @@ class DeviceUnreal(Device):
             tool_tip=('Adds the selected Media Profile to the command line')
         ),
     }
+
+    if ENABLE_UGS_SUPPORT:
+        csettings['unrealgamesync_lib_dir'] = DirectoryPathSetting(
+            attr_name='unrealgamesync_lib_dir',
+            nice_name='UnrealGameSync Dll Dir',
+            value="",
+            tool_tip=(
+                "Expects an absolute path to the device directory containing the ugs.dll library file. \n"
+                "If left blank, switchboard will attempt to find UGS by searching the system PATH and default install locations. \n"
+                "On Windows, the default install location is '${LOCALAPPDATA}/UnrealGameSync/Latest/'.")
+        )
 
     unreal_started_signal = QtCore.Signal()
 
@@ -969,7 +971,7 @@ class DeviceUnreal(Device):
         return Device.plugin_settings() + list(DeviceUnreal.csettings.values())
 
     def setting_overrides(self):
-        return super().setting_overrides() + [
+        overrides = super().setting_overrides() + [
             Device.csettings['is_recording_device'],
             DeviceUnreal.csettings['command_line_arguments'],
             DeviceUnreal.csettings['exec_cmds'],
@@ -979,13 +981,17 @@ class DeviceUnreal(Device):
             DeviceUnreal.csettings['auto_decline_package_recovery'],
             DeviceUnreal.csettings['udpmessaging_unicast_endpoint'],
             DeviceUnreal.csettings['udpmessaging_extra_static_endpoints'],
-            DeviceUnreal.csettings['unrealgamesync_lib_dir'],
             DeviceUnreal.csettings['livelink_preset'],
             DeviceUnreal.csettings['mediaprofile'],
             CONFIG.ENGINE_DIR,
             CONFIG.SOURCE_CONTROL_WORKSPACE,
             CONFIG.UPROJECT_PATH,
         ]
+
+        if ENABLE_UGS_SUPPORT:
+            overrides.append(DeviceUnreal.csettings['unrealgamesync_lib_dir'])
+
+        return overrides
 
     def device_settings(self):
         return super().device_settings() + [
@@ -1113,7 +1119,7 @@ class DeviceUnreal(Device):
                 self._request_engine_changelist_number()
         else:
             self.widget.engine_changelist_label.hide()
-            self.widget.update_build_info(current_cl=self.engine_changelist, built_cl=self.built_engine_changelist)
+            self.widget.update_build_info(synched_cl=self.engine_changelist, built_cl=self.built_engine_changelist)
 
     def on_setting_exclude_from_build_changed(self, exclude_from_build):
         self.widget.update_exclude_from_build(exclude_from_build, not self.is_disconnected)
@@ -1306,8 +1312,9 @@ class DeviceUnreal(Device):
 
         sync_method = CONFIG.ENGINE_SYNC_METHOD.get_value()
         generate_proj_files = sync_method == EngineSyncMethod.Build_Engine.value
-        sync_precompiled_bins = sync_method == EngineSyncMethod.Sync_PCBs.value
-        sync_using_ugs = sync_precompiled_bins or sync_method == EngineSyncMethod.Sync_From_UGS.value
+        if ENABLE_UGS_SUPPORT:
+            sync_precompiled_bins = sync_method == EngineSyncMethod.Sync_PCBs.value
+            sync_using_ugs = sync_precompiled_bins or sync_method == EngineSyncMethod.Sync_From_UGS.value
 
         project_name = os.path.basename(os.path.dirname(project_path))
         LOGGER.info(
@@ -1349,18 +1356,19 @@ class DeviceUnreal(Device):
         if generate_proj_files:
             sync_args += ' --generate'
 
-        if sync_using_ugs:
-            sync_args += ' --use-ugs'
-            if self.unrealgamesync_lib_dir_setting:
-                sync_args += f' --ugs-lib-dir={self.unrealgamesync_lib_dir_setting}'
+        if ENABLE_UGS_SUPPORT:
+            if sync_using_ugs:
+                sync_args += ' --use-ugs'
+                if self.unrealgamesync_lib_dir_setting:
+                    sync_args += f' --ugs-lib-dir={self.unrealgamesync_lib_dir_setting}'
         
-        if sync_precompiled_bins:
-            sync_args += ' --use-pcbs'
+            if sync_precompiled_bins:
+                sync_args += ' --use-pcbs'
             
-            # If we're syncing 'Precompiled Binaries' one of those binaries may be the SwitchboardListener executable
-            # which means (on Windows atleast) we need to move the executable to make way for the new one
-            _, msg = message_protocol.create_free_listener_bin_message()
-            self.unreal_client.send_message(msg)
+                # If we're syncing 'Precompiled Binaries' one of those binaries may be the SwitchboardListener executable
+                # which means (on Windows atleast) we need to move the executable to make way for the new one
+                _, msg = message_protocol.create_free_listener_bin_message()
+                self.unreal_client.send_message(msg)
 
         puuid, msg = message_protocol.create_start_process_message(
             prog_path=sync_tool,

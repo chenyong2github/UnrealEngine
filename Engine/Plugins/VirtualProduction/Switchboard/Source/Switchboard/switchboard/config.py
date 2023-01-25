@@ -32,6 +32,9 @@ USER_SETTINGS_BACKUP_FILE_PATH = ROOT_CONFIGS_PATH.joinpath(USER_SETTINGS_BACKUP
 
 DEFAULT_MAP_TEXT = '-- Default Map --'
 
+ENABLE_UGS_SUPPORT = False
+
+
 def migrate_comma_separated_string_to_list(value) -> typing.List[str]:
     if isinstance(value, str):
         return value.split(",")
@@ -39,6 +42,7 @@ def migrate_comma_separated_string_to_list(value) -> typing.List[str]:
     if isinstance(value, list):
         return value
     raise NotImplementedError("Migration not handled")
+
 
 class Setting(QtCore.QObject):
     '''
@@ -1869,11 +1873,15 @@ class ConfigPathValidator(QtGui.QValidator):
 
         return QtGui.QValidator.Acceptable
 
+
 class EngineSyncMethod(Enum):
     Use_Existing = "Use Existing (do not sync/build)"
     Build_Engine = "Build Engine"
-    Sync_PCBs = "Sync Precompiled Binaries (requires UnrealGameSync)"
-    Sync_From_UGS = "Sync engine and project together using UnrealGameSync"
+
+    if ENABLE_UGS_SUPPORT:
+        Sync_PCBs = "Sync Precompiled Binaries (requires UnrealGameSync)"
+        Sync_From_UGS = "Sync engine and project together using UnrealGameSync"
+
 
 class Config(object):
 
@@ -2100,7 +2108,7 @@ class Config(object):
             ),
         }
 
-        # Done here outside of the setting's initializor so that values different from the default are flagged in the UI (with a 'reset' option) 
+        # Done here outside of the setting's initializer so that values different from the default are flagged in the UI (with a 'reset' option) 
         if 'engine_sync_method' in data:
             self.basic_project_settings["engine_sync_method"].update_value(data.get('engine_sync_method'))
         # To support backwards compatibility, we check the old 'build_engine' option (from before we had a 'PCB' option)

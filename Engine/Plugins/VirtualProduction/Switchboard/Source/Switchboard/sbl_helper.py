@@ -11,14 +11,13 @@ import logging
 import marshal
 import os
 import pathlib
-from platform import platform
 from queue import Empty, Queue
 import subprocess
 import sys
 import threading
 import tempfile
 import traceback
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Union
 from switchboard import ugs_utils as UGS
 
 
@@ -117,6 +116,23 @@ def p4_changes(
     return p4_get_records('changes', opts, user=user, client=client)
 
 
+def p4_fstat(
+    pathspecs: List[str],
+    *,
+    limit: int = 0,
+    user: Optional[str] = None,
+    client: Optional[str] = None,
+) -> List[dict]:
+    opts: List[str] = []
+
+    if limit > 0:
+        opts.append(f'-m{limit}')
+
+    opts.extend(pathspecs)
+
+    return p4_get_records('fstat', opts, user=user, client=client)
+
+
 def p4_have(
     pathspecs: List[str],
     *,
@@ -189,6 +205,43 @@ def p4_print(
         logging.warning(f'p4_print(): Unhandled record: {record}')
 
     return results
+
+
+def p4_latest_code_change(
+    paths: List[str],
+    *,
+    range: Optional[str] = None,
+    exts: Optional[List[str]] = None,
+    user: Optional[str] = None,
+    client: Optional[str] = None,
+) -> Optional[int]:
+    '''
+    Code CL determination compatible with UGS/precompiled binaries.
+    See `WorkspaceUpdate.ExecuteAsync` in `WorkspaceUpdate.cs`
+    '''
+
+    ALL_CODE_EXTS = [
+        '.c', '.cc', '.cpp', '.inl', '.m', '.mm', '.rc', '.cs', '.csproj',
+        '.h', '.hpp', '.usf', '.ush', '.uproject', '.uplugin', '.sln']
+
+    if exts is None:
+        exts = ALL_CODE_EXTS
+
+    rangespec = f'@{range}' if range is not None else ''
+
+    code_paths: List[str] = []
+    for path in paths:
+        if path.endswith('...'):
+            code_paths.extend([f'{path}/*{ext}{rangespec}'
+                                for ext in exts])
+
+    code_changes = p4_changes(code_paths, limit=1,
+                              user=user, client=client)
+
+    if len(code_changes) > 0:
+        return max(int(x[b'change']) for x in code_changes)
+    else:
+        return None
 
 
 class SyncFile:
@@ -427,6 +480,7 @@ def p4_sync(
     write_workload_file: Optional[io.TextIOWrapper] = None
 ) -> Optional[int]:
     # First, gather complete list of files/revisions that need to be synced.
+    logging.info('Determining files to be synced')
     total_work = p4_get_preview_sync_files(input_specs, user=user,
                                            client=client)
 
@@ -649,6 +703,7 @@ class SbListenerHelper:
 
         self.uproj_path: Optional[pathlib.Path] = None
         self.engine_dir: Optional[pathlib.Path] = None
+        self.additional_paths_to_sync: List[str] = []
         self.sync_engine_cl: Optional[int] = None
         self.sync_project_cl: Optional[int] = None
         self.clobber_engine: bool = False
@@ -675,11 +730,6 @@ class SbListenerHelper:
         sync_parser = subparsers.add_parser('sync')
 
         sync_parser.add_argument(
-            'pathspecs', nargs='*', metavar='pathSpec[revSpec]',
-            help='File/path specifier, supporting * or ... wildcards '
-                 '[and optional # or @ revision specifier suffix]')
-
-        sync_parser.add_argument(
             '--project', type=pathlib.Path, metavar='UPROJECT',
             help='Path to .uproject file')
         sync_parser.add_argument(
@@ -697,13 +747,16 @@ class SbListenerHelper:
             help='Run GenerateProjectFiles after syncing')
         sync_parser.add_argument(
             '--use-ugs', action='store_true',
-            help="Specifies that UnrealGameSync should be used to sync the project and engine together.")
+            help='Specifies that UnrealGameSync should be used to sync the '
+                 'project and engine together.')
         sync_parser.add_argument(
             '--use-pcbs', action='store_true',
-            help="Specifies that precompiled binaries should be sync'd along with the project (requires syncing via UnrealGameSync).")
+            help='Specifies that precompiled binaries should be synced along '
+                 'with the project (requires syncing via UnrealGameSync).')
         sync_parser.add_argument(
             '--ugs-lib-dir', type=pathlib.Path,
-            help='Directory path specifying where to find the UnrealGameSync library (ugs.dll).')
+            help='Directory path specifying where to find the UnrealGameSync '
+                 'library (ugs.dll).')
         sync_parser.add_argument(
             '--clobber-engine', action='store_true',
             help='Override noclobber for engine files')
@@ -740,19 +793,29 @@ class SbListenerHelper:
         assert False
 
     def run_sync(self, options: argparse.Namespace) -> int:
-        pathspecs: List[str] = [*options.pathspecs]
+        engine_paths: List[str] = []
+        project_paths: List[str] = []
+        pathspecs: List[str] = []
 
         self.check_sync_options(options)
+        self.additional_paths_to_sync = self.get_additional_paths_to_sync()
 
         if self.sync_engine_cl:
-            pathspecs.append((f'{self.engine_dir.parent / "*"}'
-                              f'@{self.sync_engine_cl}'))
-            pathspecs.append((f'{self.engine_dir / "..."}'
-                              f'@{self.sync_engine_cl}'))
+            engine_paths.append(f'{self.engine_dir.parent / "*"}')
+            engine_paths.append(f'{self.engine_dir / "..."}')
+
+            pathspecs.extend(
+                [f'{path}@{self.sync_engine_cl}' for path in engine_paths])
 
         if self.sync_project_cl:
-            pathspecs.append((f'{self.uproj_path.parent / "..."}'
-                              f'@{self.sync_project_cl}'))
+            project_paths.append(f'{self.uproj_path.parent / "..."}')
+
+            for path in self.additional_paths_to_sync:
+                path = path.lstrip('/')
+                project_paths.append(f'{self.engine_dir.parent / path}')
+
+            pathspecs.extend(
+                [f'{path}@{self.sync_project_cl}' for path in project_paths])
 
         if len(pathspecs) < 1:
             self.parser.error('Nothing specified to sync')
@@ -761,11 +824,14 @@ class SbListenerHelper:
             for pathspec in pathspecs:
                 logging.info(f' - {pathspec}')
 
-        buildver_info = self.get_buildver_info()
-        if self.sync_engine_cl:
-            # Remove Build.version if present, so we can write our own.
-            if buildver_info.local_path and buildver_info.have_rev:
-                pathspecs.append(f"{buildver_info.local_path}#0")
+        if not self.use_ugs:
+            logging.info('Determining CompatibleChangelist')
+            buildver_info = self.get_buildver_info(engine_paths, project_paths)
+
+            if self.sync_engine_cl:
+                # Remove Build.version if present, so we can write our own.
+                if buildver_info.local_path and buildver_info.have_rev:
+                    pathspecs.append(f"{buildver_info.local_path}#0")
 
         def sync_filter(workload: SyncWorkload):
             # Don't add Build.version to the workspace, but do allow removal.
@@ -822,7 +888,7 @@ class SbListenerHelper:
             return sync_result  # Nothing more to do
 
         # Write updated Build.version.
-        if self.sync_engine_cl:
+        if not self.use_ugs:
             if buildver_info.local_path and buildver_info.updated_text:
                 logging.info('Updating Build.version')
                 try:
@@ -831,9 +897,6 @@ class SbListenerHelper:
                 except Exception as exc:
                     logging.error('Exception writing to Build.version',
                                   exc_info=exc)
-            else:
-                logging.warning('Unable to update Build.version at path '
-                                f'{buildver_info.local_path}')
 
         # Generate project files.
         if self.generate_after_sync:
@@ -856,13 +919,15 @@ class SbListenerHelper:
         depot_text: Optional[str] = None
         updated_text: Optional[str] = None
 
-    def get_buildver_info(self) -> BuildVerInfo:
+    def get_buildver_info(
+        self,
+        engine_paths: List[str],
+        project_paths: List[str],
+    ) -> BuildVerInfo:
         '''
         Read `Build.version` from depot and return its info, depot contents,
         and an updated version of its contents which reflects the local build.
         '''
-        logging.debug('get_buildver_info(): start')
-
         ret_info = SbListenerHelper.BuildVerInfo()
 
         if not self.engine_dir:
@@ -876,8 +941,9 @@ class SbListenerHelper:
 
         ret_info.local_path = buildver_local_path
 
-        ret_info.have_rev = p4_have([buildver_local_path],
-                                    user=self.p4user, client=self.p4client)[0]
+        p4opts = {'user': self.p4user, 'client': self.p4client}
+
+        ret_info.have_rev = p4_have([buildver_local_path], **p4opts)[0]
 
         if not self.sync_engine_cl:
             return ret_info
@@ -885,66 +951,169 @@ class SbListenerHelper:
         prints = p4_print(
             [f'{path}@{self.sync_engine_cl}'
              for path in (epicint_local_path, buildver_local_path)],
-            user=self.p4user, client=self.p4client)
+            **p4opts)
         epicint_print_result = prints[0]
         buildver_print_result = prints[1]
 
         ret_info.depot_text = buildver_print_result.text  # May be None
+        buildver_meta = buildver_print_result.stat
 
-        if buildver_print_result.is_valid:
-            buildver_meta = buildver_print_result.stat
-            ret_info.depot_path = buildver_meta[b'depotFile'].decode()
-
-            # Code CL determination compatible with precompiled binaries.
-            code_exts = ['.cs', '.h', '.cpp', '.usf', '.ush', '.uproject',
-                         '.uplugin']
-            engine_code_paths = [
-                f'{self.engine_dir}/.../*{ext}@<={self.sync_engine_cl}'
-                for ext in code_exts]
-            engine_code_changes = p4_changes(
-                engine_code_paths, limit=1,
-                user=self.p4user, client=self.p4client)
-            if len(engine_code_changes) > 0:
-                code_cl = max(int(x[b'change']) for x in engine_code_changes)
-            else:
-                logging.warning('Unable to determine last code changelist')
-                code_cl = self.sync_engine_cl
-
-            # Generate and return the updated Build.version contents.
-            try:
-                build_ver: Dict[str, Union[int, str]] = json.loads(
-                    ret_info.depot_text)
-            except json.JSONDecodeError:
-                logging.error('Unable to parse depot Build.version JSON',
-                              exc_info=sys.exc_info())
-                return ret_info
-
-            branch_name = ret_info.depot_path.replace(
-                '/Engine/Build/Build.version', '')
-            updates = {
-                'Changelist': self.sync_engine_cl,
-                'IsLicenseeVersion': 0 if epicint_print_result.is_valid else 1,
-                'BranchName': branch_name.replace('/', '+'),
-            }
-
-            # Don't overwrite the compatible changelist if we're in a hotfix
-            # release.
-            no_depot_compat = build_ver['CompatibleChangelist'] == 0
-            licensee_changed = (build_ver['IsLicenseeVersion']
-                                != updates['IsLicenseeVersion'])
-            if no_depot_compat or licensee_changed:
-                updates['CompatibleChangelist'] = code_cl
-
-            logging.debug(f"get_buildver_info(): updates = {updates}")
-
-            build_ver.update(updates)
-            ret_info.updated_text = json.dumps(build_ver, indent=4)
-
-        else:
+        if not buildver_print_result.is_valid:
             logging.error('Unable to p4_print() Build.version '
                           f'({buildver_meta})')
 
+            return ret_info
+
+        ret_info.depot_path = buildver_meta[b'depotFile'].decode()
+
+        # Determine latest code change within each group (by CL) of paths.
+        # First try to narrow using revcx-friendly check (1000 CLs, just *.cpp)
+        lower_bound_cl: Optional[int] = None
+        eng_upper_bound_cl = self.sync_engine_cl
+        proj_upper_bound_cl = self.sync_project_cl
+
+        def quick_narrow_lower_cl(paths: List[str], upper_cl: int,
+                                  in_lower_cl: Optional[int]) -> Optional[int]:
+            quick_lower = upper_cl - 1_000
+            if in_lower_cl and in_lower_cl > quick_lower:
+                quick_lower = in_lower_cl
+            if upper_cl <= quick_lower:
+                return upper_cl
+            if quick_lower > 0:
+                quick_range = f'{quick_lower},{upper_cl}'
+                check_lower = p4_latest_code_change(
+                    paths, range=quick_range, exts=['.cpp'], **p4opts)
+
+                if check_lower:
+                    if in_lower_cl:
+                        return max(in_lower_cl, check_lower)
+                    else:
+                        return check_lower
+
+            return in_lower_cl
+
+        lower_bound_cl = quick_narrow_lower_cl(engine_paths,
+                                               eng_upper_bound_cl,
+                                               lower_bound_cl)
+
+        if proj_upper_bound_cl:
+            lower_bound_cl = quick_narrow_lower_cl(project_paths,
+                                                   proj_upper_bound_cl,
+                                                   lower_bound_cl)
+
+        # Comprehensive check (all exts), but hopefully with narrowed ranges
+        eng_range = f'<={eng_upper_bound_cl}'
+        proj_range = f'<={proj_upper_bound_cl}'
+
+        if lower_bound_cl:
+            eng_range = f'{lower_bound_cl},{eng_upper_bound_cl}'
+            proj_range = f'{lower_bound_cl},{proj_upper_bound_cl}'
+
+        eng_code_cl = p4_latest_code_change(engine_paths, range=eng_range,
+                                            **p4opts)
+        proj_code_cl = p4_latest_code_change(project_paths, range=proj_range,
+                                             **p4opts)
+
+        # These are the values we'll actually write to the JSON
+        ver_cl = max(filter(None, [self.sync_engine_cl, self.sync_project_cl]))
+        ver_compatible_cl = max(filter(None, [eng_code_cl, proj_code_cl]))
+
+        # Generate and return the updated Build.version contents.
+        try:
+            build_ver: Dict[str, Union[int, str]] = json.loads(
+                ret_info.depot_text)
+        except json.JSONDecodeError:
+            logging.error('Unable to parse depot Build.version JSON',
+                          exc_info=sys.exc_info())
+            return ret_info
+
+        branch_name = ret_info.depot_path.replace(
+            '/Engine/Build/Build.version', '')
+        updates = {
+            'Changelist': ver_cl,
+            'IsLicenseeVersion': 0 if epicint_print_result.is_valid else 1,
+            'BranchName': branch_name.replace('/', '+'),
+        }
+
+        # Don't overwrite the compatible changelist if we're in a hotfix
+        # release.
+        no_depot_compat = build_ver['CompatibleChangelist'] == 0
+        licensee_changed = (build_ver['IsLicenseeVersion']
+                            != updates['IsLicenseeVersion'])
+        if no_depot_compat or licensee_changed:
+            updates['CompatibleChangelist'] = ver_compatible_cl
+
+        updated_build_ver = build_ver.copy()
+        updated_build_ver.update(updates)
+        if updated_build_ver == build_ver:
+            logging.info("get_buildver_info(): contents haven't changed")
+        else:
+            logging.info(f"get_buildver_info(): {updates}")
+            ret_info.updated_text = json.dumps(updated_build_ver, indent=4)
+
         return ret_info
+
+    def get_additional_paths_to_sync(self) -> List[str]:
+        # We append depot wildcards to host paths and end up with mixed syntax
+        # here, but fstat separates them into normalized depot/host paths.
+        mixed_config_paths = UGS.get_depot_config_paths(self.engine_dir,
+                                                        self.uproj_path.parent)
+
+        p4opts = {'user': self.p4user, 'client': self.p4client}
+
+        config_fstats = p4_fstat(mixed_config_paths, **p4opts)
+
+        config_contents_map: Dict[str, Optional[str]] = {}
+
+        # First pass: get contents of locally modified files, or depot paths
+        # of files to `p4 print` in the second pass otherwise
+        for record in config_fstats:
+            action: Optional[bytes] = record.get(b'action')
+            head_action: Optional[bytes] = record.get(b'headAction')
+            if record[b'code'] == b'stat':
+                if (b'clientFile' in record) and (b'action' in record):
+                    # If the client file exists and is modified, use local ver
+                    client_path = pathlib.Path(record[b'clientFile'].decode())
+                    if client_path.exists and action == b'edit':
+                        local_contents = client_path.read_text()
+                        config_contents_map[str(client_path)] = local_contents
+                        continue
+                    elif action == b'delete':
+                        continue
+
+                if head_action == b'delete':
+                    continue
+
+                if b'depotFile' in record:
+                    depot_file = record[b'depotFile'].decode()
+                    config_contents_map[depot_file] = None
+                    continue
+
+            logging.warning(f'Unhandled fstat record: {record}')
+
+        # Second pass: p4 prints of depot configs @ head
+        depot_print_paths = [k for k, v in config_contents_map.items()
+                             if v is None]  # configs we didn't read locally
+
+        config_prints = p4_print(depot_print_paths, **p4opts)
+
+        for depot_path, record in zip(depot_print_paths, config_prints):
+            if record.is_valid:
+                config_contents_map[depot_path] = record.text
+            else:
+                logging.warning(f'Invalid P4PrintResult for {depot_path}')
+
+        parser = UGS.IniParser()
+        for path, contents in config_contents_map.items():
+            if contents is None:
+                logging.warning(f'No contents for {path}')
+                continue
+
+            parser.read_string(contents, path)
+
+        paths = parser.try_get('Perforce', 'AdditionalPathsToSync')
+        logging.debug(f'AdditionalPathsToSync: {paths}')
+        return paths or []
 
     def on_sync_progress(
         self,
@@ -996,14 +1165,17 @@ class SbListenerHelper:
         self.sync_engine_cl = options.engine_cl
         self.sync_project_cl = options.project_cl
         self.use_ugs = options.use_ugs
-        self.generate_after_sync = options.generate and not self.use_ugs # UGS will generate the project files by default (no need to duplicate work)
+        # UGS will generate the project files by default (don't duplicate work)
+        self.generate_after_sync = options.generate and not self.use_ugs
         self.sync_pcbs = options.use_pcbs
 
         if self.sync_pcbs and not self.use_ugs:
             self.parser.error('`--use-pcbs` requires `--use-ugs`.')
-        
+
         if self.use_ugs and self.sync_engine_cl:
-            self.parser.error('`--use-ugs` was specified along with `--engine-cl`; these arguments are mutally exclusive and should not be used together.')
+            self.parser.error('`--use-ugs` was specified along with '
+                              '`--engine-cl`; these arguments are mutally '
+                              'exclusive and should not be used together.')
 
         if options.project:
             try:

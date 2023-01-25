@@ -1,4 +1,5 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+
 import csv
 import datetime
 from enum import Enum
@@ -7,8 +8,6 @@ import os
 import subprocess
 import threading
 from typing import Optional
-
-from .switchboard_logging import LOGGER
 
 
 class PriorityModifier(Enum):

@@ -28,7 +28,7 @@ from switchboard import switchboard_application
 from switchboard import switchboard_utils
 from switchboard import switchboard_widgets as sb_widgets
 from switchboard.add_config_dialog import AddConfigDialog
-from switchboard.config import CONFIG, DEFAULT_MAP_TEXT, SETTINGS, EngineSyncMethod
+from switchboard.config import CONFIG, DEFAULT_MAP_TEXT, ENABLE_UGS_SUPPORT, SETTINGS, EngineSyncMethod
 from switchboard.device_list_widget import DeviceListWidget, DeviceWidgetHeader
 from switchboard.devices.device_base import DeviceStatus
 from switchboard.devices.device_manager import DeviceManager
@@ -1768,11 +1768,12 @@ class SwitchboardDialog(QtCore.QObject):
 
         changelists = None
         # If we're syncing 'Precompiled Binaries', then that implies that we should be using UGS:
-        if sync_method == EngineSyncMethod.Sync_PCBs.value or sync_method == EngineSyncMethod.Sync_From_UGS.value:
-            LOGGER.info("Using UnrealGameSync to refresh project changelists.")
-            changelists = ugs_utils.latest_chagelists(Path(CONFIG.UPROJECT_PATH.get_value()), client=CONFIG.SOURCE_CONTROL_WORKSPACE.get_value())
-            if not changelists:
-                LOGGER.error("UnrealGameSync failed to get the project's latest changelists. Falling back to using p4 commands directly.")
+        if ENABLE_UGS_SUPPORT:
+            if sync_method == EngineSyncMethod.Sync_PCBs.value or sync_method == EngineSyncMethod.Sync_From_UGS.value:
+                LOGGER.info("Using UnrealGameSync to refresh project changelists.")
+                changelists = ugs_utils.latest_chagelists(Path(CONFIG.UPROJECT_PATH.get_value()), client=CONFIG.SOURCE_CONTROL_WORKSPACE.get_value())
+                if not changelists:
+                    LOGGER.error("UnrealGameSync failed to get the project's latest changelists. Falling back to using p4 commands directly.")
 
         if not changelists:
             LOGGER.info("Refreshing p4 project changelists")
