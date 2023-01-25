@@ -2,6 +2,7 @@
 
 #include "Online/SessionsOSSAdapter.h"
 
+#include "OnlineError.h"
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineSessionInterface.h"
 #include "Interfaces/OnlineIdentityInterface.h"

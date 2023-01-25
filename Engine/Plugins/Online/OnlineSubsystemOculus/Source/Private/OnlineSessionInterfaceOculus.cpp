@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSessionInterfaceOculus.h"
+#include "Online/OnlineSessionNames.h"
 #include "OnlineSubsystemOculusPrivate.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "OnlineFriendsInterfaceOculus.h"

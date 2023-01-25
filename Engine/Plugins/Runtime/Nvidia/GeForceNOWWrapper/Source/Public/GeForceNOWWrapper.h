@@ -6,6 +6,9 @@
 
 #if NV_GEFORCENOW
 
+#include "Containers/UnrealString.h"
+#include "Misc/Optional.h"
+
 THIRD_PARTY_INCLUDES_START
 #include "GfnRuntimeSdk_CAPI.h"
 THIRD_PARTY_INCLUDES_END

@@ -6,6 +6,7 @@
 #include "Online/Auth.h"
 #include "Online/OnlineIdEOSGS.h"
 #include "Online/Lobbies.h"
+#include "Online/OnlineExecHandler.h"
 #include "Online/OnlineServicesEOSGS.h"
 #include "Online/OnlineServicesLog.h"
 #include "Online/OnlineUtils.h"

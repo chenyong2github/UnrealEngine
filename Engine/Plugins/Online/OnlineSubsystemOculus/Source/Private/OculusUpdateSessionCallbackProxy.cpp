@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OculusUpdateSessionCallbackProxy.h"
+#include "OnlineSessionSettings.h"
 #include "OnlineSubsystemOculusPrivate.h"
 #include "Online/CoreOnline.h"
 #include "Online.h"
