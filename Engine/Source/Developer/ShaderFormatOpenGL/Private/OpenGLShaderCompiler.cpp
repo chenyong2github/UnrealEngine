@@ -1223,10 +1223,48 @@ void WritePackedUBHeader(CrossCompiler::FHlslccHeaderWriter& CCHeaderWriter, con
 	{
 		FString UBName(UBNames[Pair.Key].c_str());
 		
-		for (const PackedUBMemberInfo& MemberInfo : UBMemberInfo[Pair.Key])
+		std::string CurTypeQualifier = "\0";
+		uint32_t CurSrcOffset = 0;
+		uint32_t NextSrcOffset = 0;
+		uint32_t CurDestOffset = 0;
+		uint32_t NextDestOffset = 0;
+		uint32_t TotalSize = 0;
+
+		// Write out UB Copy data
+		// Groups copies together to save time on upload
+		for (int32_t MemberIdx = 0; MemberIdx < UBMemberInfo[Pair.Key].Num(); MemberIdx++)
 		{
+			const PackedUBMemberInfo& MemberInfo = UBMemberInfo[Pair.Key][MemberIdx];
 			CCHeaderWriter.WritePackedUBField(UBName, UTF8_TO_TCHAR(MemberInfo.SanitizedName.c_str()), MemberInfo.SrcOffset, MemberInfo.DestSizeInFloats * sizeof(float));
-			CCHeaderWriter.WritePackedUBCopy(Pair.Key, MemberInfo.SrcOffset / sizeof(float), Pair.Key, MemberInfo.TypeQualifier[0], MemberInfo.DestOffset / sizeof(float), MemberInfo.DestSizeInFloats, true);
+
+			if (TotalSize == 0)
+			{
+				CurTypeQualifier = MemberInfo.TypeQualifier;
+				CurSrcOffset = MemberInfo.SrcOffset / sizeof(float);
+				CurDestOffset = MemberInfo.DestOffset / sizeof(float);
+			}
+			else if(CurTypeQualifier[0] != MemberInfo.TypeQualifier[0] ||
+					NextSrcOffset != MemberInfo.SrcOffset / sizeof(float) ||
+					NextDestOffset != MemberInfo.DestOffset / sizeof(float))
+			{
+				// Write out data before starting new 
+				CCHeaderWriter.WritePackedUBCopy(Pair.Key, CurSrcOffset, Pair.Key, CurTypeQualifier[0], CurDestOffset, TotalSize, true);
+
+				CurTypeQualifier = MemberInfo.TypeQualifier;
+				TotalSize = 0;
+				CurSrcOffset = MemberInfo.SrcOffset / sizeof(float);
+				CurDestOffset = MemberInfo.DestOffset / sizeof(float);
+			}
+
+			TotalSize += MemberInfo.DestSizeInFloats;
+			NextSrcOffset = MemberInfo.SrcOffset / sizeof(float) + MemberInfo.DestSizeInFloats;
+			NextDestOffset = MemberInfo.DestOffset / sizeof(float) + MemberInfo.DestSizeInFloats;
+		}
+
+		// Write out any final data
+		if (TotalSize > 0)
+		{
+			CCHeaderWriter.WritePackedUBCopy(Pair.Key, CurSrcOffset, Pair.Key, CurTypeQualifier[0], CurDestOffset, TotalSize, true);
 		}
 	}
 }
@@ -2291,7 +2329,6 @@ bool GenerateGlslShader(std::string& OutString, GLSLCompileParameters& GLSLCompi
 	}
 
 	// If we are rendering deferred, then we only need SceneDepthAux on devices that don't support framebuffer fetch depth
-	/*
 	if (bIsDeferred)
 	{
 		std::string SceneDepthAux = "layout(location = 4) out highp float out_var_SV_Target4;";
@@ -2318,7 +2355,6 @@ bool GenerateGlslShader(std::string& OutString, GLSLCompileParameters& GLSLCompi
 			}
 		}
 	}
-	*/
 
 	// Fixup packed globals
 	{
