@@ -119,8 +119,11 @@ struct FMacScreen
 	NSRect VisibleFrame;
 	NSRect FramePixels;
 	NSRect VisibleFramePixels;
+	NSEdgeInsets SafeAreaInsets;
 
-	FMacScreen(NSScreen* InScreen) : Screen([InScreen retain]), Frame(InScreen.frame), VisibleFrame(InScreen.visibleFrame), FramePixels(InScreen.frame), VisibleFramePixels(InScreen.visibleFrame) {}
+	FMacScreen(NSScreen* InScreen) : Screen([InScreen retain]), Frame(InScreen.frame), VisibleFrame(InScreen.visibleFrame),
+									 FramePixels(InScreen.frame), VisibleFramePixels(InScreen.visibleFrame),
+									 SafeAreaInsets(InScreen.safeAreaInsets) {}
 	~FMacScreen() { [Screen release]; }
 };
 typedef TSharedRef<FMacScreen, ESPMode::ThreadSafe> FMacScreenRef;

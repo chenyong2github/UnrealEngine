@@ -60,28 +60,17 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 - (NSView*)openGLView
 {
 	SCOPED_AUTORELEASE_POOL;
-	if (FPlatformMisc::IsRunningOnMavericks() && [self styleMask] & (NSWindowStyleMaskTexturedBackground))
-	{
-		NSView* SuperView = [[self contentView] superview];
-		for (NSView* View in [SuperView subviews])
-		{
-			if ([View isKindOfClass:[FCocoaTextView class]])
-			{
-				return View;
-			}
-		}
-		return nil;
-	}
-	else
-	{
-		return [self contentView];
-	}
+	return [self contentView];
 }
 
 - (void)setAcceptsInput:(bool)InAcceptsInput
 {
 	bAcceptsInput = InAcceptsInput;
 }
+
+- (NSApplicationPresentationOptions)window:(NSWindow *)window willUseFullScreenPresentationOptions:(NSApplicationPresentationOptions)proposedOptions {
+		return proposedOptions;
+	  }
 
 - (void)setWindowMode:(EWindowMode::Type)NewWindowMode
 {
@@ -152,7 +141,6 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 		MainThreadCall(^{
 			[super setAlphaValue:WindowAlpha];
 		}, UnrealShowEventMode, false);
-
 	}
 }
 

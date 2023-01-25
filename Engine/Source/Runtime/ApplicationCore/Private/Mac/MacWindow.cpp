@@ -50,8 +50,8 @@ void FMacWindow::Initialize( FMacApplication* const Application, const TSharedRe
 	const double ScreenDPIScaleFactor = FPlatformApplicationMisc::IsHighDPIModeEnabled() ? TargetScreen->Screen.backingScaleFactor : 1.0;
 	const FVector2D CocoaPosition = FMacApplication::ConvertSlatePositionToCocoa(PositionX, PositionY);
 	const NSRect ViewRect = NSMakeRect(CocoaPosition.X, CocoaPosition.Y - (SizeY / ScreenDPIScaleFactor) + 1, SizeX / ScreenDPIScaleFactor, SizeY / ScreenDPIScaleFactor);
-
 	uint32 WindowStyle = 0;
+
 	if( Definition->IsRegularWindow )
 	{
 		if( Definition->HasCloseButton )
@@ -60,7 +60,7 @@ void FMacWindow::Initialize( FMacApplication* const Application, const TSharedRe
 		}
 
 		// In order to support rounded, shadowed windows set the window to be titled - we'll set the content view to cover the whole window
-		WindowStyle |= NSWindowStyleMaskTitled | (FPlatformMisc::IsRunningOnMavericks() ? NSWindowStyleMaskTexturedBackground : NSWindowStyleMaskFullSizeContentView);
+		WindowStyle |= NSWindowStyleMaskTitled | NSWindowStyleMaskFullSizeContentView;
 		
 		if( Definition->SupportsMinimize )
 		{
@@ -79,7 +79,7 @@ void FMacWindow::Initialize( FMacApplication* const Application, const TSharedRe
 	if( Definition->HasOSWindowBorder )
 	{
 		WindowStyle |= NSWindowStyleMaskTitled;
-		WindowStyle &= FPlatformMisc::IsRunningOnMavericks() ? ~NSWindowStyleMaskTexturedBackground : ~NSWindowStyleMaskFullSizeContentView;
+		WindowStyle &= ~NSWindowStyleMaskFullSizeContentView;
 	}
 
 	MainThreadCall(^{
@@ -384,7 +384,8 @@ void FMacWindow::SetWindowMode(EWindowMode::Type NewWindowMode)
 {
 	if(WindowHandle)
 	{
-		ApplySizeAndModeChanges(PositionX, PositionY, FMath::TruncToInt(WindowHandle.contentView.frame.size.width), FMath::TruncToInt(WindowHandle.contentView.frame.size.height), NewWindowMode);
+		ApplySizeAndModeChanges(PositionX, PositionY, FMath::TruncToInt(WindowHandle.contentView.frame.size.width),
+								FMath::TruncToInt(WindowHandle.contentView.frame.size.height), NewWindowMode);
 	}
 }
 
@@ -732,7 +733,9 @@ void FMacWindow::UpdateFullScreenState(bool bToggleFullScreen)
 				WindowedModeSavedState.WindowLevel = WindowHandle.level;
 				[WindowHandle setLevel:CGShieldingWindowLevel() + 1];
 			}
-			[NSApp setPresentationOptions:NSApplicationPresentationHideDock | NSApplicationPresentationHideMenuBar];
+			
+			// -toggleFullScreen implicitly sets these, but it doesn't hurt to set them ourselves to match.
+			[NSApp setPresentationOptions:NSApplicationPresentationAutoHideDock | NSApplicationPresentationAutoHideMenuBar];
 		}
 		else if (WindowHandle.level != WindowedModeSavedState.WindowLevel)
 		{
