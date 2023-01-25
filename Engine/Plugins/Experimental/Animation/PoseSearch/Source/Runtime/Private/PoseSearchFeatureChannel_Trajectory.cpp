@@ -13,16 +13,6 @@
 
 #define LOCTEXT_NAMESPACE "PoseSearchFeatureChannels"
 
-void UPoseSearchFeatureChannel_Trajectory::PreSave(FObjectPreSaveContext ObjectSaveContext)
-{
-	Samples.Sort([](const FPoseSearchTrajectorySample& a, const FPoseSearchTrajectorySample& b)
-		{
-			return a.Offset < b.Offset;
-		});
-
-	Super::PreSave(ObjectSaveContext);
-}
-
 void UPoseSearchFeatureChannel_Trajectory::Finalize(UPoseSearchSchema* Schema)
 {
 	SubChannels.Reset();
