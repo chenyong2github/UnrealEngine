@@ -115,8 +115,6 @@ const FOnlineUserPresence* USocialUser::FSubsystemUserInfo::GetPresenceInfo() co
 // USocialUser
 //////////////////////////////////////////////////////////////////////////
 
-TMap<TWeakObjectPtr<USocialUser>, TArray<FOnNewSocialUserInitialized>> USocialUser::InitEventsByUser;
-
 USocialUser::USocialUser()
 {}
 
@@ -181,7 +179,7 @@ void USocialUser::RegisterInitCompleteHandler(const FOnNewSocialUserInitialized&
 		}
 		else
 		{
-			InitEventsByUser.FindOrAdd(this).Add(OnInitializationComplete);
+			UserInitializedEvents.Add(OnInitializationComplete);
 		}
 	}
 }
@@ -347,20 +345,21 @@ void USocialUser::TryBroadcastInitializationComplete()
 
 				bIsInitialized = true;
 
-				TArray<FOnNewSocialUserInitialized> InitEvents;
-				if (InitEventsByUser.RemoveAndCopyValue(this, InitEvents))
+				TArray<FOnNewSocialUserInitialized> InitEvents = MoveTemp(UserInitializedEvents);
+				UserInitializedEvents.Reset();
+				for (FOnNewSocialUserInitialized& InitEvent : InitEvents)
 				{
-					for (FOnNewSocialUserInitialized& InitEvent : InitEvents)
-					{
-						InitEvent.ExecuteIfBound(*this);
-					}
+					InitEvent.ExecuteIfBound(*this);
 				}
 			}
 			else
 			{
+				ensureAlwaysMsgf(!IsLocalUser(), TEXT("%s LocalUser %s does not have UserInfo!"), ANSI_TO_TCHAR(__FUNCTION__), *ToDebugString());
+				UE_LOG(LogParty, Warning, TEXT("%s User %s does not have UserInfo!"), ANSI_TO_TCHAR(__FUNCTION__), *ToDebugString());
+
 				// User is invalid with no open queries
 				// Assume that this means the sought user doesn't exist
-				InitEventsByUser.Remove(this);
+				UserInitializedEvents.Reset();
 
 				// Remove Toolkit's reference to the SocialUser, GC will clean it
 				GetOwningToolkit().HandleUserInvalidated(*this);

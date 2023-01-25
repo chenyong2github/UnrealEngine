@@ -673,21 +673,16 @@ void USocialToolkit::OnOwnerLoggedOut()
 			IOnlinePartyPtr PartyInterface = OSS->GetPartyInterface();
 			if (PartyInterface.IsValid())
 			{
-				PartyInterface->ClearOnPartyInviteReceivedDelegates(this);
+				PartyInterface->ClearOnPartyInviteReceivedExDelegates(this);
+				PartyInterface->ClearOnPartyInviteRemovedExDelegates(this);
 				PartyInterface->ClearOnPartyRequestToJoinReceivedDelegates(this);
 				PartyInterface->ClearOnPartyRequestToJoinRemovedDelegates(this);
-			}
-
-			IOnlineUserPtr UserInterface = OSS->GetUserInterface();
-			if (UserInterface.IsValid())
-			{
-				UserInterface->ClearOnQueryUserInfoCompleteDelegates(LocalUserNum, this);
 			}
 
 			IOnlinePresencePtr PresenceInterface = OSS->GetPresenceInterface();
 			if (PresenceInterface.IsValid())
 			{
-				PresenceInterface->ClearOnPresenceArrayUpdatedDelegates(this);
+				PresenceInterface->ClearOnPresenceReceivedDelegates(this);
 			}
 		}
 	}

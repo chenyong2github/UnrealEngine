@@ -250,7 +250,7 @@ private:
 	TArray<IOnlinePartyJoinInfoConstRef> ReceivedPartyInvites;
 
 	// Initialization delegates that fire only when a specific user has finishing initializing
-	static TMap<TWeakObjectPtr<USocialUser>, TArray<FOnNewSocialUserInitialized>> InitEventsByUser;
+	TArray<FOnNewSocialUserInitialized> UserInitializedEvents;
 
 	mutable FOnNicknameChanged OnSetNicknameCompletedEvent;
 	mutable FPartyInviteResponseEvent OnPartyInviteAcceptedEvent;
