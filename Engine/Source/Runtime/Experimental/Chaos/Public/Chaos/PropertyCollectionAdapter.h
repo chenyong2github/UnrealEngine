@@ -97,8 +97,8 @@ namespace Chaos::Softs
 		// Update the array views
 		void UpdateArrays();
 
-		// Initialize the array views and the search map
-		void Initialize();
+		// Rebuild the search map
+		void RebuildKeyIndices();
 
 		template<typename T, typename ElementType>
 		T GetValue(int32 KeyIndex, const TConstArrayView<ElementType>& ValueArray) const;
@@ -226,6 +226,9 @@ namespace Chaos::Softs
 
 		/** Add new properties, and return the index of the first added property. */
 		int32 AddProperties(const TArray<FString>& Keys, bool bEnabled = true, bool bAnimatable = false);
+
+		/** Remove all properties and values from this property collection. */
+		void Reset();
 
 		/**
 		 * Append all properties and values from an existing collection to this property collection.
