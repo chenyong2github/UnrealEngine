@@ -31,7 +31,7 @@ class CHAOS_API FPBDSphericalConstraint final
 public:
 	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
 	{
-		return IsMaxDistanceScaleEnabled(PropertyCollection, false);
+		return IsMaxDistanceEnabled(PropertyCollection, false);
 	}
 
 	FPBDSphericalConstraint(
@@ -45,7 +45,7 @@ public:
 		: AnimationPositions(InAnimationPositions)
 		, SphereRadii(InSphereRadii)
 		, ParticleOffset(InParticleOffset)
-		, Scale((FSolverReal)FMath::Max(GetMaxDistanceScale(PropertyCollection, 1.f), 0.f) * MeshScale)
+		, Scale(MeshScale)
 	{
 		check(InSphereRadii.Num() == InParticleCount);
 	}
@@ -67,10 +67,8 @@ public:
 
 	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection, FSolverReal MeshScale)
 	{
-		if (IsMaxDistanceScaleMutable(PropertyCollection))
-		{
-			SetScale((FSolverReal)GetMaxDistanceScale(PropertyCollection), MeshScale);
-		}
+		SetScale((FSolverReal)1., MeshScale);
+		// TODO: MaxDistance
 	}
 
 	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const
@@ -142,7 +140,7 @@ protected:
 private:
 	FSolverReal Scale;
 
-	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(MaxDistanceScale, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(MaxDistance, float);
 };
 
 class CHAOS_API FPBDSphericalBackstopConstraint final
@@ -150,8 +148,8 @@ class CHAOS_API FPBDSphericalBackstopConstraint final
 public:
 	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
 	{
-		return IsBackstopScaleEnabled(PropertyCollection, false) ||
-			IsBackstopScaleAnimatable(PropertyCollection, false);  // Backstop can be re-enabled if animated
+		return IsBackstopDistanceEnabled(PropertyCollection, false) ||
+			IsBackstopDistanceAnimatable(PropertyCollection, false);  // Backstop can be re-enabled if animated
 	}
 
 	FPBDSphericalBackstopConstraint(
@@ -169,7 +167,7 @@ public:
 		, SphereRadii(InSphereRadii)
 		, SphereOffsetDistances(InSphereOffsetDistances)
 		, ParticleOffset(InParticleOffset)
-		, Scale((FSolverReal)FMath::Max(GetBackstopScale(PropertyCollection), 0.f) * MeshScale)
+		, Scale(MeshScale)
 		, bEnabled(true)
 		, bUseLegacyBackstop(false)
 	{
@@ -202,15 +200,8 @@ public:
 
 	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection, FSolverReal MeshScale)
 	{
-		if (IsBackstopScaleDirty(PropertyCollection) && IsBackstopScaleAnimatable(PropertyCollection))
-		{
-			bEnabled = IsBackstopScaleEnabled(PropertyCollection);
-		}
-
-		if (IsBackstopScaleMutable(PropertyCollection))
-		{
-			SetScale((FSolverReal)GetBackstopScale(PropertyCollection), MeshScale);
-		}
+		SetScale((FSolverReal)1., MeshScale);
+		// TODO: BackstopDistance and BackstopRadius
 	}
 
 	void SetEnabled(bool bInEnabled) { bEnabled = bInEnabled; }
@@ -251,9 +242,9 @@ public:
 		}
 	}
 
-	void SetScale(FSolverReal MaxDistanceScale, FSolverReal MeshScale)
+	void SetScale(FSolverReal BackstopScale, FSolverReal MeshScale)
 	{
-		Scale = FMath::Max(MaxDistanceScale, (FSolverReal)0.) * MeshScale;
+		Scale = FMath::Max(BackstopScale, (FSolverReal)0.) * MeshScale;
 	}
 
 	FSolverReal GetScale() const { return Scale; }
@@ -360,7 +351,8 @@ private:
 	bool bEnabled;
 	bool bUseLegacyBackstop;
 
-	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(BackstopScale, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(BackstopDistance, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(BackstopRadius, float);
 };
 
 }  // End namespace Chaos::Softs
