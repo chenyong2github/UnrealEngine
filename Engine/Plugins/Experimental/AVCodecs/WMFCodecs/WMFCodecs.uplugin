@@ -33,7 +33,6 @@
 		}
 	],
 	"SupportedTargetPlatforms": [
-		"Win64",
-		"Hololens"
+		"Win64"
 	]
 }

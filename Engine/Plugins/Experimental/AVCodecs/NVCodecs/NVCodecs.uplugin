@@ -20,7 +20,8 @@
 			"LoadingPhase": "PostConfigInit",
 			"TargetDenyList": [
 				"Server"
-			]
+			],
+			"PlatformAllowList": [ "Win64",	"Linux" ]
 		},
 		{
 			"Name": "NVCodecsRHI",
@@ -28,7 +29,8 @@
 			"LoadingPhase": "PostConfigInit",
 			"TargetDenyList": [
 				"Server"
-			]
+			],
+			"PlatformAllowList": [ "Win64",	"Linux" ]
 		},
 		{
 			"Name": "NVDEC",
@@ -36,7 +38,8 @@
 			"LoadingPhase": "PostConfigInit",
 			"TargetDenyList": [
 				"Server"
-			]
+			],
+			"PlatformAllowList": [ "Win64",	"Linux" ]
 		},
 		{
 			"Name": "NVENC",
@@ -44,7 +47,8 @@
 			"LoadingPhase": "PostConfigInit",
 			"TargetDenyList": [
 				"Server"
-			]
+			],
+			"PlatformAllowList": [ "Win64",	"Linux" ]
 		}
 	],
 	"Plugins": [
