@@ -612,9 +612,6 @@ private:
 	/** Array of sync handlers (fence) to sync when captured buffer is completed */
 	TArray<TSharedPtr<FMediaCaptureSyncData>> SyncHandlers;
 
-	/** Whether capture is active. Used to be queried by sync task */
-	std::atomic<bool> bIsActive = false;
-
 	FCriticalSection PendingReadbackTasksCriticalSection;
 
 	/** List of pending readback tasks, when CVarMediaIOEnableExperimentalScheduling and CVarMediaIOScheduleOnAnyThread are set to true. */
