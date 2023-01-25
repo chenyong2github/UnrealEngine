@@ -396,3 +396,25 @@ void UPoseSearchFeatureChannel_Phase::DebugDraw(const UE::PoseSearch::FDebugDraw
 	DrawDebugCircle(DrawParams.World, CircleTransform, PhaseVector.Length(), Segments, Color, bPersistent, LifeTime, DepthPriority, 0.f, false);
 #endif // ENABLE_DRAW_DEBUG
 }
+
+#if WITH_EDITOR
+FString UPoseSearchFeatureChannel_Phase::GetLabel() const
+{
+	TStringBuilder<256> Label;
+	if (const UPoseSearchFeatureChannel* OuterChannel = Cast<UPoseSearchFeatureChannel>(GetOuter()))
+	{
+		Label.Append(OuterChannel->GetLabel());
+		Label.Append(TEXT("_"));
+	}
+
+	Label.Append(TEXT("Pha"));
+	const FBoneReference& BoneReference = GetSchema()->BoneReferences[SchemaBoneIdx];
+	if (BoneReference.HasValidSetup())
+	{
+		Label.Append(TEXT("_"));
+		Label.Append(BoneReference.BoneName.ToString());
+	}
+
+	return Label.ToString();
+}
+#endif

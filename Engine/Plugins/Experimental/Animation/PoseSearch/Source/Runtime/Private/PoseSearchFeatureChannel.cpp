@@ -9,36 +9,6 @@ namespace UE::PoseSearch
 {
 
 //////////////////////////////////////////////////////////////////////////
-// class ICostBreakDownData
-static inline float ArraySum(TConstArrayView<float> View, int32 StartIndex, int32 Offset)
-{
-	float Sum = 0.f;
-	const int32 EndIndex = StartIndex + Offset;
-	for (int i = StartIndex; i < EndIndex; ++i)
-	{
-		Sum += View[i];
-	}
-	return Sum;
-}
-
-void ICostBreakDownData::AddEntireBreakDownSection(const FText& Label, const UPoseSearchSchema* Schema, int32 DataOffset, int32 Cardinality)
-{
-	BeginBreakDownSection(Label);
-
-	const int32 Count = Num();
-	for (int32 i = 0; i < Count; ++i)
-	{
-		if (IsCostVectorFromSchema(i, Schema))
-		{
-			const float CostBreakdown = ArraySum(GetCostVector(i, Schema), DataOffset, Cardinality);
-			SetCostBreakDown(CostBreakdown, i, Schema);
-		}
-	}
-
-	EndBreakDownSection(Label);
-}
-
-//////////////////////////////////////////////////////////////////////////
 // FFeatureVectorHelper
 void FFeatureVectorHelper::EncodeQuat(TArrayView<float> Values, int32& DataOffset, const FQuat& Quat)
 {
@@ -229,29 +199,43 @@ float FFeatureVectorHelper::DecodeFloatAtOffset(TConstArrayView<float> Values, i
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel
 #if WITH_EDITOR
-void UPoseSearchFeatureChannel::PopulateChannelLayoutSet(UE::PoseSearch::FFeatureChannelLayoutSet& FeatureChannelLayoutSet) const
+FString UPoseSearchFeatureChannel::GetLabel() const
 {
-	FeatureChannelLayoutSet.Add(GetName(), UE::PoseSearch::FKeyBuilder(this).Finalize(), ChannelDataOffset, ChannelCardinality);
+	TStringBuilder<256> Label;
+	if (const UPoseSearchFeatureChannel* OuterChannel = Cast<UPoseSearchFeatureChannel>(GetOuter()))
+	{
+		Label.Append(OuterChannel->GetLabel());
+		Label.Append(TEXT("_"));
+	}
+	Label.Append(GetName());
+	return Label.ToString();
 }
 
-void UPoseSearchFeatureChannel::ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const
+const UPoseSearchSchema* UPoseSearchFeatureChannel::GetSchema() const
 {
-	CostBreakDownData.AddEntireBreakDownSection(FText::FromString(GetName()), Schema, ChannelDataOffset, ChannelCardinality);
-}
-#endif // WITH_EDITOR
-
-class USkeleton* UPoseSearchFeatureChannel::GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle)
-{
-	bInvalidSkeletonIsError = false;
-
 	UObject* Outer = GetOuter();
 	while (Outer != nullptr)
 	{
 		if (const UPoseSearchSchema* Schema = Cast<UPoseSearchSchema>(Outer))
 		{
-			return Schema->Skeleton;
+			return Schema;
 		}
 		Outer = Outer->GetOuter();
 	}
+	checkNoEntry();
 	return nullptr;
 }
+#endif // WITH_EDITOR
+
+USkeleton* UPoseSearchFeatureChannel::GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle)
+{
+	bInvalidSkeletonIsError = false;
+#if WITH_EDITOR
+	return GetSchema()->Skeleton;
+#else
+	checkNoEntry();
+	return nullptr;
+#endif
+}
+
+

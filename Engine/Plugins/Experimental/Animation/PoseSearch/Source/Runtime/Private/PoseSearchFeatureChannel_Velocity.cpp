@@ -161,3 +161,31 @@ void UPoseSearchFeatureChannel_Velocity::DebugDraw(const UE::PoseSearch::FDebugD
 	}
 #endif // ENABLE_DRAW_DEBUG
 }
+
+#if WITH_EDITOR
+FString UPoseSearchFeatureChannel_Velocity::GetLabel() const
+{
+	TStringBuilder<256> Label;
+	if (const UPoseSearchFeatureChannel* OuterChannel = Cast<UPoseSearchFeatureChannel>(GetOuter()))
+	{
+		Label.Append(OuterChannel->GetLabel());
+		Label.Append(TEXT("_"));
+	}
+
+	Label.Append(TEXT("Vel"));
+	if (bNormalize)
+	{
+		Label.Append(TEXT("Dir"));
+	}
+
+	const FBoneReference& BoneReference = GetSchema()->BoneReferences[SchemaBoneIdx];
+	if (BoneReference.HasValidSetup())
+	{
+		Label.Append(TEXT("_"));
+		Label.Append(BoneReference.BoneName.ToString());
+	}
+
+	Label.Appendf(TEXT(" %.1f"), SampleTimeOffset);
+	return Label.ToString();
+}
+#endif

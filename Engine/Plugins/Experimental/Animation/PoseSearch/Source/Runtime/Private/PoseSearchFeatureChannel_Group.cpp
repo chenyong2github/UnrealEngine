@@ -108,3 +108,17 @@ bool UPoseSearchFeatureChannel_GroupBase::IsPoseValid(TConstArrayView<float> Pos
 
 	return true;
 }
+
+#if WITH_EDITOR
+FString UPoseSearchFeatureChannel_Group::GetLabel() const
+{
+	TStringBuilder<256> Label;
+	if (const UPoseSearchFeatureChannel* OuterChannel = Cast<UPoseSearchFeatureChannel>(GetOuter()))
+	{
+		Label.Append(OuterChannel->GetLabel());
+		Label.Append(TEXT("_"));
+	}
+	Label.Append(TEXT("Group"));
+	return Label.ToString();
+}
+#endif // WITH_EDITOR

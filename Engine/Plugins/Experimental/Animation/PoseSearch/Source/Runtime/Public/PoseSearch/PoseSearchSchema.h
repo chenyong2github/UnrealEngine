@@ -15,7 +15,6 @@ class UPoseSearchFeatureChannel;
 namespace UE::PoseSearch
 {
 	struct FSearchContext;
-	class ICostBreakDownData;
 } // namespace UE::PoseSearch
 
 UENUM()
@@ -120,8 +119,6 @@ public:
 	USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
 
 #if WITH_EDITOR
-	void ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData) const;
-
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 

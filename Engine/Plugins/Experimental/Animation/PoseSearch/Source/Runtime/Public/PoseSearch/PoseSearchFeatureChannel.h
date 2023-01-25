@@ -62,67 +62,6 @@ public:
 	static float DecodeFloatAtOffset(TConstArrayView<float> Values, int32 DataOffset);
 };
 
-#if WITH_EDITOR
-// data structure collecting the internal layout representation of UPoseSearchFeatureChannel,
-// so we can aggregate data from different FPoseSearchIndex and calculate mean deviation with a homogeneous data set (ComputeChannelsDeviations
-struct FFeatureChannelLayoutSet
-{
-	// data structure holding DataOffset and Cardinality to find the data of the DebugName (channel breakdown / layout) in the related SearchIndexBases[SchemaIndex]
-	struct FEntry
-	{
-		FString DebugName; // for easier debugging
-		int32 SchemaIndex = -1; // index of the associated Schemas / SearchIndexBases used as input of the algorithm
-		int32 DataOffset = -1; // data offset from the base of SearchIndexBases[SchemaIndex].Values.GetData() from where the data associated to this Item starts
-		int32 Cardinality = -1; // data cardinality
-	};
-
-	// FIoHash is the hash associated to the channel data breakdown (e.g.: it could be a single SampledBones at a specific SampleTimes for a UPoseSearchFeatureChannel_Pose)
-	TMap<FIoHash, TArray<FEntry>> EntriesMap;
-	int32 CurrentSchemaIndex = -1;
-	TWeakObjectPtr<const UPoseSearchSchema> CurrentSchema;
-
-	void Add(FString DebugName, FIoHash Id, int32 DataOffset, int32 Cardinality)
-	{
-		check(DataOffset >= 0 && Cardinality >= 0 && CurrentSchemaIndex >= 0);
-		TArray<FEntry>& Entries = EntriesMap.FindOrAdd(Id);
-
-		// making sure all the FEntry associated with the same Id have the same Cardinality
-		check(Entries.IsEmpty() || Entries[0].Cardinality == Cardinality);
-		Entries.Add({ DebugName, CurrentSchemaIndex, DataOffset, Cardinality });
-	}
-};
-#endif // WITH_EDITOR
-
-class POSESEARCH_API ICostBreakDownData
-{
-public:
-	virtual ~ICostBreakDownData() {}
-
-	// returns the size of the dataset
-	virtual int32 Num() const = 0;
-
-	// returns true if Index-th cost data vector is associated with Schema
-	virtual bool IsCostVectorFromSchema(int32 Index, const UPoseSearchSchema* Schema) const = 0;
-
-	// returns the Index-th cost data vector
-	virtual TConstArrayView<float> GetCostVector(int32 Index, const UPoseSearchSchema* Schema) const = 0;
-
-	// every breakdown section start by calling BeginBreakDownSection...
-	virtual void BeginBreakDownSection(const FText& Label) = 0;
-
-	// ...then add as many SetCostBreakDown into the section...
-	virtual void SetCostBreakDown(float CostBreakDown, int32 Index, const UPoseSearchSchema* Schema) = 0;
-
-	// ...to finally wrap the section up by calling EndBreakDownSection
-	virtual void EndBreakDownSection(const FText& Label) = 0;
-
-	// true if want the channel to be verbose and generate the cost breakdown labels
-	virtual bool IsVerbose() const { return true; }
-
-	// most common case implementation
-	void AddEntireBreakDownSection(const FText& Label, const UPoseSearchSchema* Schema, int32 DataOffset, int32 Cardinality);
-};
-
 } // namespace UE::PoseSearch
 
 class POSESEARCH_API IPoseFilter
@@ -168,15 +107,20 @@ public:
 	// Draw this channel's data for the given pose vector
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
 
+	// UPoseSearchFeatureChannels can hold sub channels
+	virtual TArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() { return TArrayView<TObjectPtr<UPoseSearchFeatureChannel>>(); }
+	virtual TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() const { return TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>>(); }
+
 #if WITH_EDITOR
-	virtual void PopulateChannelLayoutSet(UE::PoseSearch::FFeatureChannelLayoutSet& FeatureChannelLayoutSet) const;
-	virtual void ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const;
+	// returns the FString used editor side to identify this UPoseSearchFeatureChannel (for instance in the pose search debugger)
+	virtual FString GetLabel() const;
+	const UPoseSearchSchema* GetSchema() const;
 #endif
 
 private:
 	// IBoneReferenceSkeletonProvider interface
 	// Note this function is exclusively for FBoneReference details customization
-	class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
+	USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
 
 protected:
 	friend class ::UPoseSearchSchema;

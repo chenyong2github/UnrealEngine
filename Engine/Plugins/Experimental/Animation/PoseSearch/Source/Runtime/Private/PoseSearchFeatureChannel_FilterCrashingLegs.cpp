@@ -163,3 +163,10 @@ bool UPoseSearchFeatureChannel_FilterCrashingLegs::IsPoseValid(TConstArrayView<f
 
 	return bIsPoseValid;
 }
+
+#if WITH_EDITOR
+FString UPoseSearchFeatureChannel_FilterCrashingLegs::GetLabel() const
+{
+	return Super::GetLabel();
+}
+#endif

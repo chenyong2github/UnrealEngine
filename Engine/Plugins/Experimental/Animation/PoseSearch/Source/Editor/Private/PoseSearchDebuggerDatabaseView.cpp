@@ -24,87 +24,66 @@ namespace UE::PoseSearch
 
 void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State)
 {
-	class SCostBreakDownData : public ICostBreakDownData
+	class SCostBreakDownData
 	{
 	public:
-		SCostBreakDownData(TArray<TSharedRef<FDebuggerDatabaseRowData>>& UnfilteredDatabaseRows_, bool bIsVerbose_)
-			: UnfilteredDatabaseRows(UnfilteredDatabaseRows_)
-			, bIsVerbose(bIsVerbose_)
+		SCostBreakDownData(const TArray<FTraceMotionMatchingStateDatabaseEntry>& DatabaseEntries, bool bIsVerbose)
 		{
-		}
-
-		// begin ICostBreakDownData
-		virtual ~SCostBreakDownData()
-		{
-			check(CurrentLabeIndex == -1);
-		}
-
-		virtual int32 Num() const override
-		{
-			return UnfilteredDatabaseRows.Num();
-		}
-
-		virtual bool IsCostVectorFromSchema(int32 Index, const UPoseSearchSchema* Schema) const override
-		{
-			return UnfilteredDatabaseRows[Index]->SourceDatabase->Schema == Schema;
-		}
-
-		virtual TConstArrayView<float> GetCostVector(int32 Index, const UPoseSearchSchema* Schema) const override
-		{
-			check(UnfilteredDatabaseRows[Index]->SourceDatabase->Schema == Schema);
-			return UnfilteredDatabaseRows[Index]->CostVector;
-		}
-
-		virtual void BeginBreakDownSection(const FText& Label) override
-		{
-			check(CurrentLabeIndex == -1);
-			CurrentLabeIndex = GetOrAddLabelIndex(Label);
-		}
-
-		virtual void SetCostBreakDown(float CostBreakDown, int32 Index, const UPoseSearchSchema* Schema) override
-		{
-			FDebuggerDatabaseRowData& UnfilteredDatabaseRow = UnfilteredDatabaseRows[Index].Get();
-			check(UnfilteredDatabaseRow.SourceDatabase->Schema == Schema);
-			TArray<float>& CostBreakdowns = UnfilteredDatabaseRow.CostBreakdowns;
-			CostBreakdowns.SetNumZeroed(CurrentLabeIndex + 1, false);
-			CostBreakdowns[CurrentLabeIndex] = CostBreakDown;
-		}
-
-		virtual void EndBreakDownSection(const FText& Label) override
-		{
-			check(CurrentLabeIndex == GetOrAddLabelIndex(Label));
-			CurrentLabeIndex = INDEX_NONE;
-		}
-
-		virtual bool IsVerbose() const override
-		{
-			return bIsVerbose;
-		}
-		// end ICostBreakDownData
-
-		int32 GetOrAddLabelIndex(const FText& Label)
-		{
-			for (int32 i = 0; i < Labels.Num(); ++i)
+			// processing all the DatabaseEntries to collect the LabelToChannels
+			for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : DatabaseEntries)
 			{
-				if (Labels[i].EqualTo(Label))
+				const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
+				if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 				{
-					return i;
+					for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Database->Schema->Channels)
+					{
+						if (const UPoseSearchFeatureChannel* Channel = ChannelPtr.Get())
+						{
+							AnalyzeChannelRecursively(Channel, bIsVerbose);
+						}
+					}
 				}
 			}
-			Labels.Add(Label);
-			return Labels.Num() - 1;
 		}
 
-		bool AreLabelsEqualTo(TArray<FText> OtherLabels)
+		void ProcessData(TArray<TSharedRef<FDebuggerDatabaseRowData>>& InOutUnfilteredDatabaseRows) const
 		{
-			if (Labels.Num() != OtherLabels.Num())
+			for (TSharedRef<FDebuggerDatabaseRowData>& UnfilteredDatabaseRowRef : InOutUnfilteredDatabaseRows)
+			{
+				FDebuggerDatabaseRowData& UnfilteredDatabaseRow = UnfilteredDatabaseRowRef.Get();
+				UnfilteredDatabaseRow.CostBreakdowns.AddDefaulted(LabelToChannels.Num());
+
+				for (int32 LabelToChannelIndex = 0; LabelToChannelIndex < LabelToChannels.Num(); ++LabelToChannelIndex)
+				{
+					const FLabelToChannels& LabelToChannel = LabelToChannels[LabelToChannelIndex];
+
+					// there should only be at most one channel per schema with the unique label,
+					// but we'll keep this generic allowing multiple channels from the same schema having the same label.
+					// the cost will be the sum of all the channels cost
+					float CostBreakdown = 0.f;
+					for (const UPoseSearchFeatureChannel* Channel : LabelToChannel.Channels)
+					{
+						// checking if the row is associated to the Channel
+						if (UnfilteredDatabaseRow.SourceDatabase->Schema == Channel->GetSchema())
+						{
+							CostBreakdown += ArraySum(UnfilteredDatabaseRow.CostVector, Channel->GetChannelDataOffset(), Channel->GetChannelCardinality());
+						}
+					}
+					UnfilteredDatabaseRow.CostBreakdowns[LabelToChannelIndex] = CostBreakdown;
+				}
+			}
+		}
+
+		bool AreLabelsEqualTo(const TArray<FText>& OtherLabels) const
+		{
+			if (LabelToChannels.Num() != OtherLabels.Num())
 			{
 				return false;
 			}
 
-			for (int32 i = 0; i < Labels.Num(); ++i)
+			for (int32 i = 0; i < LabelToChannels.Num(); ++i)
 			{
-				if (!Labels[i].EqualTo(OtherLabels[i]))
+				if (!LabelToChannels[i].Label.EqualTo(OtherLabels[i]))
 				{
 					return false;
 				}
@@ -113,19 +92,66 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 			return true;
 		}
 
-		const TArray<FText>& GetLabels() const
+		const TArray<FText> GetLabels() const
 		{
+			TArray<FText> Labels;
+			for (const FLabelToChannels& LabelToChannel : LabelToChannels)
+			{
+				Labels.Add(LabelToChannel.Label);
+			}
 			return Labels;
 		}
 
 	private:
-		TArray<TSharedRef<FDebuggerDatabaseRowData>>& UnfilteredDatabaseRows;
+		void AnalyzeChannelRecursively(const UPoseSearchFeatureChannel* Channel, bool bIsVerbose)
+		{
+			const FText Label = FText::FromString(Channel->GetLabel());
 
-		TArray<FText> Labels;
+			bool bLabelFound = false;
+			for (int32 i = 0; i < LabelToChannels.Num(); ++i)
+			{
+				if (LabelToChannels[i].Label.EqualTo(Label))
+				{
+					LabelToChannels[i].Channels.AddUnique(Channel);
+					bLabelFound = true;
+				}
+			}
+			if (!bLabelFound)
+			{
+				LabelToChannels.AddDefaulted();
+				LabelToChannels.Last().Label = Label;
+				LabelToChannels.Last().Channels.Add(Channel);
+			}
 
-		int32 CurrentLabeIndex = INDEX_NONE;
+			if (bIsVerbose)
+			{
+				for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : Channel->GetSubChannels())
+				{
+					if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
+					{
+						AnalyzeChannelRecursively(SubChannel, bIsVerbose);
+					}
+				}
+			}
+		}
 
-		bool bIsVerbose = true;
+		static float ArraySum(TConstArrayView<float> View, int32 StartIndex, int32 Offset)
+		{
+			float Sum = 0.f;
+			const int32 EndIndex = StartIndex + Offset;
+			for (int i = StartIndex; i < EndIndex; ++i)
+			{
+				Sum += View[i];
+			}
+			return Sum;
+		}
+
+		struct FLabelToChannels
+		{
+			FText Label;
+			TArray<const UPoseSearchFeatureChannel*> Channels; // NoTe: channels can be from different schemas
+		};
+		TArray<FLabelToChannels> LabelToChannels;
 	};
 
 	// row cost color palette
@@ -210,17 +236,10 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 		}
 	}
 
-	SCostBreakDownData CostBreakDownData(UnfilteredDatabaseRows, bIsVerbose);
+	SCostBreakDownData CostBreakDownData(State.DatabaseEntries, bIsVerbose);
 	if (!UnfilteredDatabaseRows.IsEmpty())
 	{
-		for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
-		{
-			const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
-			if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
-			{
-				Database->Schema->ComputeCostBreakdowns(CostBreakDownData);
-			}
-		}
+		CostBreakDownData.ProcessData(UnfilteredDatabaseRows);
 
 		// calculating breakdowns min max and colors
 		TArray<float> MinCostBreakdowns;

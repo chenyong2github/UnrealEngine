@@ -135,3 +135,26 @@ void UPoseSearchFeatureChannel_Position::DebugDraw(const UE::PoseSearch::FDebugD
 	}
 #endif // ENABLE_DRAW_DEBUG
 }
+
+#if WITH_EDITOR
+FString UPoseSearchFeatureChannel_Position::GetLabel() const
+{
+	TStringBuilder<256> Label;
+	if (const UPoseSearchFeatureChannel* OuterChannel = Cast<UPoseSearchFeatureChannel>(GetOuter()))
+	{
+		Label.Append(OuterChannel->GetLabel());
+		Label.Append(TEXT("_"));
+	}
+
+	Label.Append(TEXT("Pos"));
+	const FBoneReference& BoneReference = GetSchema()->BoneReferences[SchemaBoneIdx];
+	if (BoneReference.HasValidSetup())
+	{
+		Label.Append(TEXT("_"));
+		Label.Append(BoneReference.BoneName.ToString());
+	}
+
+	Label.Appendf(TEXT(" %.1f"), SampleTimeOffset);
+	return Label.ToString();
+}
+#endif

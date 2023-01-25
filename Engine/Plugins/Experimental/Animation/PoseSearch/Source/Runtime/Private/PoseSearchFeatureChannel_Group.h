@@ -13,9 +13,6 @@ class POSESEARCH_API UPoseSearchFeatureChannel_GroupBase : public UPoseSearchFea
 	GENERATED_BODY()
 
 public:
-	virtual TArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() PURE_VIRTUAL(UPoseSearchFeatureChannel::GetSubChannels, return TArrayView<TObjectPtr<UPoseSearchFeatureChannel>>(); );
-	virtual TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() const PURE_VIRTUAL(UPoseSearchFeatureChannel::GetSubChannels, return TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>>(); );
-
 	// UPoseSearchFeatureChannel interface
 	virtual void Finalize(UPoseSearchSchema* Schema) override;
 	virtual void FillWeights(TArray<float>& Weights) const override;
@@ -36,6 +33,10 @@ class POSESEARCH_API UPoseSearchFeatureChannel_Group : public UPoseSearchFeature
 
 	virtual TArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() override { return SubChannels; }
 	virtual TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() const override { return SubChannels; }
+
+#if WITH_EDITOR
+	virtual FString GetLabel() const;
+#endif
 
 public:
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "SubChannels")

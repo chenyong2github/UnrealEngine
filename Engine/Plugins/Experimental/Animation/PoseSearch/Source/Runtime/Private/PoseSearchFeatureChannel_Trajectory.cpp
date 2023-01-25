@@ -32,51 +32,47 @@ void UPoseSearchFeatureChannel_Trajectory::Finalize(UPoseSearchSchema* Schema)
 		// @todo: implement PositionXY properly as 2 dimension channel
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Position | EPoseSearchTrajectoryFlags::PositionXY))
 		{
-			UPoseSearchFeatureChannel_Position* Position = NewObject<UPoseSearchFeatureChannel_Position>();
+			UPoseSearchFeatureChannel_Position* Position = NewObject<UPoseSearchFeatureChannel_Position>(this, NAME_None, RF_Transient);
 			Position->Weight = Sample.Weight * Weight;
 			Position->SampleTimeOffset = Sample.Offset;
 			Position->ColorPresetIndex = Sample.ColorPresetIndex;
 			Position->InputQueryPose = EInputQueryPose::UseCharacterPose;
-			Position->SetFlags(RF_Transient);
 			SubChannels.Add(Position);
 		}
 
 		// @todo: implement VelocityXY properly as 2 dimension channel
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Velocity | EPoseSearchTrajectoryFlags::VelocityXY))
 		{
-			UPoseSearchFeatureChannel_Velocity* Velocity = NewObject<UPoseSearchFeatureChannel_Velocity>();
+			UPoseSearchFeatureChannel_Velocity* Velocity = NewObject<UPoseSearchFeatureChannel_Velocity>(this, NAME_None, RF_Transient);
 			Velocity->Weight = Sample.Weight * Weight;
 			Velocity->SampleTimeOffset = Sample.Offset;
 			Velocity->ColorPresetIndex = Sample.ColorPresetIndex;
 			Velocity->InputQueryPose = EInputQueryPose::UseCharacterPose;
 			Velocity->bUseCharacterSpaceVelocities = false;
-			Velocity->SetFlags(RF_Transient);
 			SubChannels.Add(Velocity);
 		}
 
 		// @todo: implement VelocityDirectionXY properly as 2 dimension channel
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirection | EPoseSearchTrajectoryFlags::VelocityDirectionXY))
 		{
-			UPoseSearchFeatureChannel_Velocity* Velocity = NewObject<UPoseSearchFeatureChannel_Velocity>();
+			UPoseSearchFeatureChannel_Velocity* Velocity = NewObject<UPoseSearchFeatureChannel_Velocity>(this, NAME_None, RF_Transient);
 			Velocity->Weight = Sample.Weight * Weight;
 			Velocity->SampleTimeOffset = Sample.Offset;
 			Velocity->ColorPresetIndex = Sample.ColorPresetIndex;
 			Velocity->InputQueryPose = EInputQueryPose::UseCharacterPose;
 			Velocity->bUseCharacterSpaceVelocities = false;
 			Velocity->bNormalize = true;
-			Velocity->SetFlags(RF_Transient);
 			SubChannels.Add(Velocity);
 		}
 
 		// @todo: implement FacingDirectionXY properly as 2 dimension channel
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirection | EPoseSearchTrajectoryFlags::FacingDirectionXY))
 		{
-			UPoseSearchFeatureChannel_Heading* Heading = NewObject<UPoseSearchFeatureChannel_Heading>();
+			UPoseSearchFeatureChannel_Heading* Heading = NewObject<UPoseSearchFeatureChannel_Heading>(this, NAME_None, RF_Transient);
 			Heading->Weight = Sample.Weight * Weight;
 			Heading->SampleTimeOffset = Sample.Offset;
 			Heading->ColorPresetIndex = Sample.ColorPresetIndex;
 			Heading->InputQueryPose = EInputQueryPose::UseCharacterPose;
-			Heading->SetFlags(RF_Transient);
 			SubChannels.Add(Heading);
 		}
 	}
@@ -139,82 +135,17 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 }
 
 #if WITH_EDITOR
-void UPoseSearchFeatureChannel_Trajectory::PopulateChannelLayoutSet(UE::PoseSearch::FFeatureChannelLayoutSet& FeatureChannelLayoutSet) const
+FString UPoseSearchFeatureChannel_Trajectory::GetLabel() const
 {
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
+	TStringBuilder<256> Label;
+	if (const UPoseSearchFeatureChannel* OuterChannel = Cast<UPoseSearchFeatureChannel>(GetOuter()))
 	{
-		float Offset;
-		EPoseSearchTrajectoryFlags SampleFlag;
-		const char* Label;
-		const UPoseSearchFeatureChannel* Channel = SubChannelPtr.Get();
-		if (const UPoseSearchFeatureChannel_Position* Position = Cast<UPoseSearchFeatureChannel_Position>(Channel))
-		{
-			Offset = Position->SampleTimeOffset;
-			SampleFlag = EPoseSearchTrajectoryFlags::Position;
-			Label = "Pos";
-		}
-		else if (const UPoseSearchFeatureChannel_Velocity* Velocity = Cast<UPoseSearchFeatureChannel_Velocity>(Channel))
-		{
-			Offset = Velocity->SampleTimeOffset;
-			if (Velocity->bNormalize)
-			{
-				SampleFlag = EPoseSearchTrajectoryFlags::VelocityDirection;
-				Label = "VelDir";
-			}
-			else
-			{
-				SampleFlag = EPoseSearchTrajectoryFlags::Velocity;
-				Label = "Vel";
-			}
-		}
-		else if (const UPoseSearchFeatureChannel_Heading* Heading = Cast<UPoseSearchFeatureChannel_Heading>(Channel))
-		{
-			Offset = Heading->SampleTimeOffset;
-			SampleFlag = EPoseSearchTrajectoryFlags::FacingDirection;
-			Label = "Fac";
-		}
-		else
-		{
-			checkNoEntry();
-			continue;
-		}
-
-		FString SkeletonName = FeatureChannelLayoutSet.CurrentSchema->Skeleton->GetName();
-		UE::PoseSearch::FKeyBuilder KeyBuilder;
-		KeyBuilder << SkeletonName << SampleFlag << Offset;
-		FeatureChannelLayoutSet.Add(FString::Format(TEXT("Traj {0} {1}"), { Label, Offset }), KeyBuilder.Finalize(), Channel->GetChannelDataOffset(), Channel->GetChannelCardinality());
+		Label.Append(OuterChannel->GetLabel());
+		Label.Append(TEXT("_"));
 	}
+	Label.Append(TEXT("Traj"));
+	return Label.ToString();
 }
-
-void UPoseSearchFeatureChannel_Trajectory::ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const
-{
-	CostBreakDownData.AddEntireBreakDownSection(LOCTEXT("ColumnLabelTrajChannelTotal", "Traj Total"), Schema, ChannelDataOffset, ChannelCardinality);
-
-	if (CostBreakDownData.IsVerbose())
-	{
-		for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
-		{
-			const UPoseSearchFeatureChannel* Channel = SubChannelPtr.Get();
-			if (const UPoseSearchFeatureChannel_Position* Position = Cast<UPoseSearchFeatureChannel_Position>(Channel))
-			{
-				CostBreakDownData.AddEntireBreakDownSection(FText::Format(LOCTEXT("ColumnLabelTrajChannelPosition", "Traj Pos {0}"), Position->SampleTimeOffset), Schema, Position->GetChannelDataOffset(), Position->GetChannelCardinality());
-			}
-			else if (const UPoseSearchFeatureChannel_Velocity* Velocity = Cast<UPoseSearchFeatureChannel_Velocity>(Channel))
-			{
-				CostBreakDownData.AddEntireBreakDownSection(FText::Format(LOCTEXT("ColumnLabelTrajChannelVelocity", "Traj Vel {0}"), Velocity->SampleTimeOffset), Schema, Velocity->GetChannelDataOffset(), Velocity->GetChannelCardinality());
-			}
-			else if (const UPoseSearchFeatureChannel_Heading* Heading = Cast<UPoseSearchFeatureChannel_Heading>(Channel))
-			{
-				CostBreakDownData.AddEntireBreakDownSection(FText::Format(LOCTEXT("ColumnLabelTrajChannelFacingDirection", "Traj Fac {0}"), Heading->SampleTimeOffset), Schema, Heading->GetChannelDataOffset(), Heading->GetChannelCardinality());
-			}
-			else
-			{
-				checkNoEntry();
-			}
-		}
-	}
-}
-
 #endif // WITH_EDITOR
 
 float UPoseSearchFeatureChannel_Trajectory::GetEstimatedSpeedRatio(TConstArrayView<float> QueryVector, TConstArrayView<float> PoseVector) const

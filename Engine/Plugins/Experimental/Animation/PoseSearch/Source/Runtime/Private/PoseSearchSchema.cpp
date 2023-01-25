@@ -105,14 +105,4 @@ void UPoseSearchSchema::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-void UPoseSearchSchema::ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData) const
-{
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Channels)
-	{
-		if (ChannelPtr)
-		{
-			ChannelPtr->ComputeCostBreakdowns(CostBreakDownData, this);
-		}
-	}
-}
 #endif

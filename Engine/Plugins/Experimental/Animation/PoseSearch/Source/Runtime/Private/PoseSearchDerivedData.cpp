@@ -39,6 +39,61 @@ static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsM
 	});
 #endif
 
+// data structure collecting the internal layout representation of UPoseSearchFeatureChannel,
+// so we can aggregate data from different FPoseSearchIndex and calculate mean deviation with a homogeneous data set (ComputeChannelsDeviations
+struct FFeatureChannelLayoutSet
+{
+	// data structure holding DataOffset and Cardinality to find the data of the DebugName (channel breakdown / layout) in the related SearchIndexBases[SchemaIndex]
+	struct FEntry
+	{
+		FString DebugName; // for easier debugging
+		int32 SchemaIndex = -1; // index of the associated Schemas / SearchIndexBases used as input of the algorithm
+		int32 DataOffset = -1; // data offset from the base of SearchIndexBases[SchemaIndex].Values.GetData() from where the data associated to this Item starts
+		int32 Cardinality = -1; // data cardinality
+	};
+
+	// FIoHash is the hash associated to the channel data breakdown (e.g.: it could be a single SampledBones at a specific SampleTimes for a UPoseSearchFeatureChannel_Pose)
+	TMap<FIoHash, TArray<FEntry>> EntriesMap;
+	int32 CurrentSchemaIndex = -1;
+	TWeakObjectPtr<const UPoseSearchSchema> CurrentSchema;
+
+	void Add(FString DebugName, FIoHash IoHash, int32 DataOffset, int32 Cardinality)
+	{
+		check(DataOffset >= 0 && Cardinality >= 0 && CurrentSchemaIndex >= 0);
+		TArray<FEntry>& Entries = EntriesMap.FindOrAdd(IoHash);
+
+		// making sure all the FEntry associated with the same IoHash have the same Cardinality
+		check(Entries.IsEmpty() || Entries[0].Cardinality == Cardinality);
+		Entries.Add({ DebugName, CurrentSchemaIndex, DataOffset, Cardinality });
+	}
+
+	void AnalyzeChannelRecursively(const UPoseSearchFeatureChannel* Channel)
+	{
+		const TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> SubChannels = Channel->GetSubChannels();
+		if (SubChannels.Num() == 0)
+		{
+			// @todo: figure out if Label + SkeletonName is enough to identify this channel, if better performances are needed
+			// FString Label = Channel->GetLabel();
+			// FString SkeletonName = Channel->GetSchema()->Skeleton->GetName();
+			// UE::PoseSearch::FKeyBuilder KeyBuilder;
+			// KeyBuilder << SkeletonName << Label;
+
+			Add(Channel->GetLabel(), UE::PoseSearch::FKeyBuilder(Channel).Finalize(), Channel->GetChannelDataOffset(), Channel->GetChannelCardinality());
+		}
+		else
+		{
+			// the channel is a group channel, so we AnalyzeChannelRecursively
+			for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : Channel->GetSubChannels())
+			{
+				if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
+				{
+					AnalyzeChannelRecursively(SubChannel);
+				}
+			}
+		}
+	}
+};
+
 static float ComputeFeatureMeanDeviation(TConstArrayView<FFeatureChannelLayoutSet::FEntry> Entries, TConstArrayView<FPoseSearchIndexBase> SearchIndexBases, TConstArrayView<const UPoseSearchSchema*> Schemas)
 {
 	check(Schemas.Num() == SearchIndexBases.Num());
@@ -128,9 +183,9 @@ static TArray<float> ComputeChannelsDeviations(TConstArrayView<FPoseSearchIndexB
 			FeatureChannelLayoutSet.CurrentSchema = Schema;
 			for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->Channels)
 			{
-				if (ChannelPtr)
+				if (const UPoseSearchFeatureChannel* Channel = ChannelPtr.Get())
 				{
-					ChannelPtr->PopulateChannelLayoutSet(FeatureChannelLayoutSet);
+					FeatureChannelLayoutSet.AnalyzeChannelRecursively(Channel);
 				}
 			}
 		}

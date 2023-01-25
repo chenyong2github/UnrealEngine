@@ -69,8 +69,7 @@ public:
 	virtual void Finalize(UPoseSearchSchema* Schema) override;
 
 #if WITH_EDITOR
-	virtual void PopulateChannelLayoutSet(UE::PoseSearch::FFeatureChannelLayoutSet& FeatureChannelLayoutSet) const override;
-	virtual void ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const override;
+	virtual FString GetLabel() const;
 #endif
 };
 
