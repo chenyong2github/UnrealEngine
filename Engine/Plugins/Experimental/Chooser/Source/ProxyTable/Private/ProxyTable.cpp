@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ProxyTable.h"
+#include "ProxyTableFunctionLibrary.h"
 
 FLookupProxy::FLookupProxy()
 {
@@ -70,4 +71,9 @@ bool FProxyTableContextProperty::GetValue(const UObject* ContextObject, const UP
 	}
 
 	return false;
+}
+
+UObject* UProxyTableFunctionLibrary::EvaluateProxyTable(const UObject* ContextObject, const UProxyTable* ProxyTable, FName Key)
+{
+	return FindProxyObject(ProxyTable, Key, ContextObject);
 }
