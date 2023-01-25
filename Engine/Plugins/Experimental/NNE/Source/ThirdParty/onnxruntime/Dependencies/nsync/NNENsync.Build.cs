@@ -4,9 +4,9 @@ using System;
 using System.IO;
 using UnrealBuildTool;
 
-public class NNX_Nsync : ModuleRules
+public class NNENsync : ModuleRules
 {
-	public NNX_Nsync(ReadOnlyTargetRules Target) : base(Target)
+	public NNENsync(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 		// All platforms not Win64

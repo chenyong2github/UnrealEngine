@@ -110,14 +110,14 @@ public:
 
 	virtual HTensor AddTensor(const FString& Name, ENNETensorDataType DataType, TArrayView<const int32> Shape, const void* Data, uint64 DataSize)
 	{
-		TArray<int32, TInlineAllocator<NNECore::FTensorShape::MaxRank>> NNIShape;
+		TArray<int32, TInlineAllocator<NNECore::FTensorShape::MaxRank>> NNEShape;
 		for (int i = 0; i < Shape.Num(); ++i)
 		{
-			//ORT Graph return 0 for variable dimensions, NNI use -1.
-			NNIShape.Emplace(Shape[i] == 0 ? -1 : Shape[i]);
+			//ORT Graph return 0 for variable dimensions, NNE use -1.
+			NNEShape.Emplace(Shape[i] == 0 ? -1 : Shape[i]);
 		}
 		
-		int Idx = AddTensor(Name, NNIShape, DataType, Data, DataSize);
+		int Idx = AddTensor(Name, NNEShape, DataType, Data, DataSize);
 
 		return MakeTensorHandle(reinterpret_cast<void*>((int64) Idx));
 	}

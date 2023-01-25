@@ -4,28 +4,29 @@ using System;
 using System.IO;
 using UnrealBuildTool;
 
-public class NNX_FlatBuffers : ModuleRules
+public class NNEONNXRuntimeMLAS_2022_4_1 : ModuleRules
 {
-	public NNX_FlatBuffers(ReadOnlyTargetRules Target) : base(Target)
+	public NNEONNXRuntimeMLAS_2022_4_1(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 		// Win64, Linux and PS5
 		if (Target.Platform == UnrealTargetPlatform.Win64 ||
 			Target.Platform == UnrealTargetPlatform.Linux ||
-			Target.Platform == UnrealTargetPlatform.Mac 
+			Target.Platform == UnrealTargetPlatform.Mac
 			)
 		{
 			// PublicSystemIncludePaths
 			string IncPath = Path.Combine(ModuleDirectory, "include/");
 			PublicSystemIncludePaths.Add(IncPath);
-			
+			IncPath = Path.Combine(ModuleDirectory, "include/core/mlas/inc");
+			PublicSystemIncludePaths.Add(IncPath);
+
 			// PublicAdditionalLibraries
 			string PlatformDir = Target.Platform.ToString();
 			string LibDirPath = Path.Combine(ModuleDirectory, "lib", PlatformDir);
 			string[] LibFileNames = new string[] {
-				"flatbuffers"
+				"onnxruntime_mlas",
 			};
-
 			foreach (string LibFileName in LibFileNames)
 			{
 				if(Target.Platform == UnrealTargetPlatform.Win64)
@@ -37,6 +38,9 @@ public class NNX_FlatBuffers : ModuleRules
 					PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, "lib" + LibFileName + ".a"));
 				}
 			}
+
+			// PublicDefinitions
+			PublicDefinitions.Add("WITH_ONNXRUNTIME_MLAS");
 		}
 	}
 }

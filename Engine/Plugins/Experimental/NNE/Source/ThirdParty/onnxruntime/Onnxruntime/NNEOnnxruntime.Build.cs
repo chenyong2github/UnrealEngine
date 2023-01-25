@@ -6,7 +6,7 @@ public class NNEOnnxruntime : ModuleRules
 {
 	public NNEOnnxruntime( ReadOnlyTargetRules Target ) : base( Target )
 	{
-		ShortName = "NNX_ORT"; // Shorten to avoid path-too-long errors
+		ShortName = "NNEORT"; // Shorten to avoid path-too-long errors
 
 		if (Target.StaticAnalyzer == StaticAnalyzer.None)
 		{
@@ -62,7 +62,7 @@ public class NNEOnnxruntime : ModuleRules
 			(
 			new string[] {
 				"Eigen",
-				"NNX_FlatBuffers",
+				"NNEFlatBuffers",
 				"NNEOnnx",
 				"NNEOnnxProto",
 				"NNEOnnxruntimeMlas",

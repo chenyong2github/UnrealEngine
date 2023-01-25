@@ -83,7 +83,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("NNI.Operator.Hlsl.ElementWise.Unary.Dispatch"),
+				RDG_EVENT_NAME("NNE.Operator.Hlsl.ElementWise.Unary.Dispatch"),
 				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				ComputeShader,
 				Params,

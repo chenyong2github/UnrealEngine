@@ -4,9 +4,9 @@ using System;
 using System.IO;
 using UnrealBuildTool;
 
-public class NNX_AbseilCpp : ModuleRules
+public class NNEAbseilCpp : ModuleRules
 {
-	public NNX_AbseilCpp(ReadOnlyTargetRules Target) : base(Target)
+	public NNEAbseilCpp(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 		// Win64, Linux and PS5

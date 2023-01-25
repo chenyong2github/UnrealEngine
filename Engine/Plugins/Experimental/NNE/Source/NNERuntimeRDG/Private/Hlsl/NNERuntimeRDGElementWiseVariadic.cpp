@@ -74,7 +74,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		TShaderMapRef<TElementWiseVariadicCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("NNI.Operator.Hlsl.ElementWise.Variadic.Dispatch"),
+			RDG_EVENT_NAME("NNE.Operator.Hlsl.ElementWise.Variadic.Dispatch"),
 			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 			ComputeShader,
 			Params,
