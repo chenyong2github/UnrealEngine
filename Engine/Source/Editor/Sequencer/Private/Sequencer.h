@@ -69,6 +69,7 @@ struct FMovieSceneSequencePlaybackParams;
 struct FMovieScenePossessable;
 struct FTransformData;
 struct FKeyAttributes;
+class USequencerTimeChangeUndoRedoProxy;
 struct FNotificationInfo;
 struct FEditorViewportViewModifierParams;
 
@@ -666,6 +667,10 @@ public:
 	//~ FGCObject Interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override;
+
+private:
+	//gco object for undo redo support for changing time
+	USequencerTimeChangeUndoRedoProxy* UndoRedoProxy;
 
 public:
 

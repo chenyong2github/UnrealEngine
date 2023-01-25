@@ -128,6 +128,7 @@
 #include "ISequencerChannelInterface.h"
 #include "IMovieRendererInterface.h"
 #include "SequencerKeyCollection.h"
+#include "SequencerTimeChangeUndoRedoProxy.h"
 #include "CurveEditor.h"
 #include "CurveEditorScreenSpace.h"
 #include "CurveDataAbstraction.h"
@@ -522,7 +523,12 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	OverlayCurve = OverlayAnimation.AddCurve(0.f, 0.2f, ECurveEaseFunction::QuadIn);
 	RecordingAnimation = FCurveSequence();
 	RecordingAnimation.AddCurve(0.f, 1.5f, ECurveEaseFunction::Linear);
-
+	
+	{
+		UndoRedoProxy = NewObject<USequencerTimeChangeUndoRedoProxy>(GetTransientPackage(), NAME_None);
+		UndoRedoProxy->SetSequencer(SharedThis(this));
+		UndoRedoProxy->SetFlags(RF_Transactional);
+	}
 	// Update initial movie scene data
 	NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::ActiveMovieSceneChanged );
 
@@ -4248,7 +4254,7 @@ void FSequencer::AddReferencedObjects( FReferenceCollector& Collector )
 {
 	Collector.AddReferencedObject( CompiledDataManager );
 	Collector.AddReferencedObject( Settings );
-
+	Collector.AddReferencedObject( UndoRedoProxy );
 	if (UMovieSceneSequence* RootSequencePtr = RootSequence.Get())
 	{
 		Collector.AddReferencedObject( RootSequencePtr );
