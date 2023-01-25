@@ -50,6 +50,8 @@ public:
 
 	bool GetEnableDefaultInputConfig() const { return bEnableDefaultInputConfig; }
 
+	bool GetEnableEnhancedInputSupport() const { return bEnableEnhancedInputSupport; }
+
 	TObjectPtr<UCommonInputActionDomainTable> GetActionDomainTable() const { return ActionDomainTablePtr; }
 
 private:
@@ -86,6 +88,10 @@ private:
 	*/
 	UPROPERTY(config, EditAnywhere, Category = "Input")
 	bool bEnableDefaultInputConfig = true;
+
+	/** Controls if Enhanced Input Support plugin-wide. Requires restart due to caching. */
+	UPROPERTY(config, EditAnywhere, Category = "Input", meta = (ConfigRestartRequired = true))
+	bool bEnableEnhancedInputSupport = false;
 
 	/** Create a derived asset from UCommonInputActionDomainTable to store ordered ActionDomain data for your game */
 	UPROPERTY(config, EditAnywhere, Category = "Action Domain")

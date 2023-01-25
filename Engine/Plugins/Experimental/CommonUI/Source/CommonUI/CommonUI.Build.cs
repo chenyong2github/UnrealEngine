@@ -17,7 +17,8 @@ public class CommonUI : ModuleRules
 				"Slate",
                 "UMG",
                 "WidgetCarousel",
-                "CommonInput",
+				"CommonInput",
+				"EnhancedInput",
 				"MediaAssets",
 				"GameplayTags"
 			}

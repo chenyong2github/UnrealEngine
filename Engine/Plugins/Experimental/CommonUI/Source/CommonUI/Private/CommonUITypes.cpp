@@ -1,10 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
  
 #include "CommonUITypes.h"
+
 #include "CommonInputBaseTypes.h"
-#include "CommonUIPrivate.h"
 #include "CommonInputSubsystem.h"
+#include "CommonUIPrivate.h"
+#include "EnhancedInputSubsystems.h"
+#include "Engine/LocalPlayer.h"
 #include "HAL/PlatformInput.h"
+#include "ICommonInputModule.h"
+#include "InputAction.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/StyleDefaults.h"
 
@@ -217,6 +222,32 @@ FSlateBrush CommonUI::GetIconForInputActions(const UCommonInputSubsystem* Common
 
 	FSlateBrush SlateBrush;
 	if (UCommonInputPlatformSettings::Get()->TryGetInputBrush(SlateBrush, Keys, CommonInputSubsystem->GetCurrentInputType(), CommonInputSubsystem->GetCurrentGamepadName()))
+	{
+		return SlateBrush;
+	}
+
+	return *FStyleDefaults::GetNoBrush();
+}
+
+bool CommonUI::IsEnhancedInputSupportEnabled()
+{
+	static bool bEnabled = ICommonInputModule::Get().GetSettings().GetEnableEnhancedInputSupport();
+	return bEnabled;
+}
+
+FSlateBrush CommonUI::GetIconForEnhancedInputAction(const UCommonInputSubsystem* CommonInputSubsystem, const TObjectPtr<UInputAction> InputAction)
+{
+	TArray<FKey> Keys;
+	if (ULocalPlayer* LocalPlayer = CommonInputSubsystem->GetLocalPlayer())
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* EnhancedInputLocalPlayerSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+		{
+			Keys = EnhancedInputLocalPlayerSubsystem->QueryKeysMappedToAction(InputAction);
+		}
+	}
+
+	FSlateBrush SlateBrush;
+	if (Keys.Num() && UCommonInputPlatformSettings::Get()->TryGetInputBrush(SlateBrush, Keys[0], CommonInputSubsystem->GetCurrentInputType(), CommonInputSubsystem->GetCurrentGamepadName()))
 	{
 		return SlateBrush;
 	}

@@ -43,6 +43,9 @@ public:
 	FText GetDisplayText() const;
 
 	UFUNCTION(BlueprintCallable, Category = CommonActionWidget)
+	void SetEnhancedInputAction(UInputAction* InInputAction);
+
+	UFUNCTION(BlueprintCallable, Category = CommonActionWidget)
 	void SetInputAction(FDataTableRowHandle InputActionRow);
 
 	void SetInputActionBinding(FUIActionBindingHandle BindingHandle);
@@ -91,6 +94,12 @@ protected:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonActionWidget, meta = (RowType = "/Script/CommonUI.CommonInputActionDataBase", TitleProperty = "RowName"))
 	TArray<FDataTableRowHandle> InputActions;
+
+	/**
+	 * Input Action this common action widget is intended to represent. Optional if using EnhancedInputs
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonActionWidget)
+	TObjectPtr<class UInputAction> EnhancedInputAction;
 
 	//@todo DanH: Create clearer split between support for the new & legacy system in here
 	FUIActionBindingHandle DisplayedBindingHandle;
