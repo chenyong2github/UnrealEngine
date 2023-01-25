@@ -445,6 +445,8 @@ void FManagedArrayCollection::CopyMatchingAttributesFrom(
 	const FManagedArrayCollection& InCollection,
 	const TMap<FName, TSet<FName>>* SkipList)
 {
+	MatchOptionalDefaultAttributes(InCollection);
+
 	for (const auto& Pair : InCollection.GroupInfo)
 	{
 		SyncGroupSizeFrom(InCollection, Pair.Key);

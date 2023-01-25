@@ -57,7 +57,7 @@ int32 UFractureAutoUVSettings::GetSelectedChannelIndex(bool bForceToZeroOnFailur
 void UFractureAutoUVSettings::ChangeNumUVChannels(int32 Delta)
 {
 	int32 Target = UVChannelNamesList.Num() + Delta;
-	if (Target > 0 && Target < GeometryCollectionUV::MAX_NUM_UV_CHANNELS)
+	if (Target > 0 && Target <= GeometryCollectionUV::MAX_NUM_UV_CHANNELS)
 	{
 		UFractureToolAutoUV* AutoUVTool = Cast<UFractureToolAutoUV>(OwnerTool.Get());
 		AutoUVTool->UpdateUVChannels(Target);
@@ -168,11 +168,12 @@ void UFractureToolAutoUV::UpdateUVChannels(int32 TargetNumUVChannels)
 				{
 					// Copy UV layer 0 into new UV layer
 					FGeometryCollection& Collection = *GeometryCollectionComponent->GetRestCollection()->GetGeometryCollection();
-					for (int32 Idx = 0; Idx < Collection.UVs.Num(); Idx++)
+					GeometryCollection::UV::FUVLayers Layers = GeometryCollection::UV::FindActiveUVLayers(Collection);
+					for (int32 Idx = 0; Idx < Layers[0].Num(); Idx++)
 					{
 						for (int32 Ch = NumChannels; Ch < TargetNumUVChannels; Ch++)
 						{
-							Collection.UVs[Idx][Ch] = Collection.UVs[Idx][0];
+							Layers[Ch][Idx] = Layers[0][Idx];
 						}
 					}
 				}

@@ -5,12 +5,12 @@
 #include "GeometryCollection/ManagedArrayAccessor.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "GeometryCollection/GeometryCollection.h"
-
+#include "GeometryCollection/Facades/CollectionUVFacade.h"
 
 namespace GeometryCollection::Facades
 {
 
-	class CHAOS_API FCollectionMeshFacade
+	class CHAOS_API FCollectionMeshFacade : public FCollectionUVFacade
 	{
 	public:
 		FCollectionMeshFacade(FManagedArrayCollection& InCollection);
@@ -62,7 +62,6 @@ namespace GeometryCollection::Facades
 		TManagedArrayAccessor<FVector3f> TangentUAttribute;
 		TManagedArrayAccessor<FVector3f> TangentVAttribute;
 		TManagedArrayAccessor<FVector3f> NormalAttribute;
-		TManagedArrayAccessor<TArray<FVector2f>> UVsAttribute;
 		TManagedArrayAccessor<FLinearColor> ColorAttribute;
 		TManagedArrayAccessor<int32> BoneMapAttribute;
 		TManagedArrayAccessor<int32> VertexStartAttribute;

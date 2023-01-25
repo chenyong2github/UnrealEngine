@@ -39,7 +39,7 @@ namespace GeometryCollection
 		TManagedArray<FVector3f>& Normals = RestCollection->Normal;
 		TManagedArray<FVector3f>& TangentU = RestCollection->TangentU;
 		TManagedArray<FVector3f>& TangentV = RestCollection->TangentV;
-		TManagedArray<TArray<FVector2f>>& UVs = RestCollection->UVs;
+		TManagedArray<FVector2f>& UV0 = *RestCollection->FindUVLayer(0);
 		TManagedArray<FLinearColor>& Colors = RestCollection->Color;
 		TManagedArray<FIntVector>& Indices = RestCollection->Indices;
 		TManagedArray<bool>& Visible = RestCollection->Visible;
@@ -60,7 +60,7 @@ namespace GeometryCollection
 			Normals[Idx] = NormalsIn.Num() > Idx ? FVector3f(NormalsIn[Idx][0], NormalsIn[Idx][1], NormalsIn[Idx][2]) : FVector3f(0);
 
 			FVector2D UV = UVsIn.Num() > Idx ? FVector2D(UVsIn[Idx][0], UVsIn[Idx][1]) : FVector2D(0);
-			UVs[Idx].Add(FVector2f(UV));
+			UV0[Idx] = FVector2f(UV);
 			
 			Colors[Idx] = FLinearColor::White;
 		}

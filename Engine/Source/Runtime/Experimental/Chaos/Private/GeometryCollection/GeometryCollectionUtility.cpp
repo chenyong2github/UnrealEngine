@@ -32,7 +32,7 @@ namespace GeometryCollection
 		TManagedArray<FVector3f>&  Normals = RestCollection->Normal;
 		TManagedArray<FVector3f>&  TangentU = RestCollection->TangentU;
 		TManagedArray<FVector3f>&  TangentV = RestCollection->TangentV;
-		TManagedArray<TArray<FVector2f>>& UVs = RestCollection->UVs;
+		TManagedArray<FVector2f>& UV0 = *RestCollection->FindUVLayer(0);
 		TManagedArray<FLinearColor>&  Colors = RestCollection->Color;
 		TManagedArray<FIntVector>&  Indices = RestCollection->Indices;
 		TManagedArray<bool>&  Visible = RestCollection->Visible;
@@ -67,14 +67,14 @@ namespace GeometryCollection
 		Normals[6] = FVector3f(-1.f, 1.f, 1.f).GetSafeNormal();
 		Normals[7] = FVector3f(1.f, 1.f, 1.f).GetSafeNormal();
 
-		UVs[0].Add(FVector2f(0, 0));
-		UVs[1].Add(FVector2f(1, 0));
-		UVs[2].Add(FVector2f(0, 1));
-		UVs[3].Add(FVector2f(1, 1));
-		UVs[4].Add(FVector2f(0, 0));
-		UVs[5].Add(FVector2f(1, 0));
-		UVs[6].Add(FVector2f(0, 1));
-		UVs[7].Add(FVector2f(1, 1));
+		UV0[0] = FVector2f(0, 0);
+		UV0[1] = FVector2f(1, 0);
+		UV0[2] = FVector2f(0, 1);
+		UV0[3] = FVector2f(1, 1);
+		UV0[4] = FVector2f(0, 0);
+		UV0[5] = FVector2f(1, 0);
+		UV0[6] = FVector2f(0, 1);
+		UV0[7] = FVector2f(1, 1);
 
 		Colors[0] = FLinearColor::White;
 		Colors[1] = FLinearColor::White;

@@ -89,7 +89,7 @@ int32 FInternalSurfaceMaterials::GetDefaultMaterialIDForGeometry(const FGeometry
 void FInternalSurfaceMaterials::SetUVScaleFromCollection(const GeometryCollection::Facades::FCollectionMeshFacade& CollectionMesh, int32 GeometryIdx)
 {
 	const auto& VertexArray = CollectionMesh.VertexAttribute.Get();
-	const auto& UVsArray = CollectionMesh.UVsAttribute.Get();
+	const auto& UV0Array = CollectionMesh.GetUVLayer(0);
 	const auto& IndicesArray = CollectionMesh.IndicesAttribute.Get();
 	const auto& FaceStartArray = CollectionMesh.FaceStartAttribute.Get();
 	const auto& FaceCountArray = CollectionMesh.FaceCountAttribute.Get();
@@ -107,11 +107,11 @@ void FInternalSurfaceMaterials::SetUVScaleFromCollection(const GeometryCollectio
 	{
 		const FIntVector& Tri = IndicesArray[FaceIdx];
 		WorldDistance += FVector3f::Distance(VertexArray[Tri.X], VertexArray[Tri.Y]);
-		UVDistance += FVector2D::Distance(FVector2D(UVsArray[Tri.X][0]), FVector2D(UVsArray[Tri.Y][0]));
+		UVDistance += FVector2D::Distance(FVector2D(UV0Array[Tri.X]), FVector2D(UV0Array[Tri.Y]));
 		WorldDistance += FVector3f::Distance(VertexArray[Tri.Z], VertexArray[Tri.Y]);
-		UVDistance += FVector2D::Distance(FVector2D(UVsArray[Tri.Z][0]), FVector2D(UVsArray[Tri.Y][0]));
+		UVDistance += FVector2D::Distance(FVector2D(UV0Array[Tri.Z]), FVector2D(UV0Array[Tri.Y]));
 		WorldDistance += FVector3f::Distance(VertexArray[Tri.X], VertexArray[Tri.Z]);
-		UVDistance += FVector2D::Distance(FVector2D(UVsArray[Tri.X][0]), FVector2D(UVsArray[Tri.Z][0]));
+		UVDistance += FVector2D::Distance(FVector2D(UV0Array[Tri.X]), FVector2D(UV0Array[Tri.Z]));
 	}
 
 	if (WorldDistance > 0)

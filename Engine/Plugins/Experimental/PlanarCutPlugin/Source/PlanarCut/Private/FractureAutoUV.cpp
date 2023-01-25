@@ -168,10 +168,12 @@ struct FGeomMesh : public UE::Geometry::FUVPacker::IUVMeshView
 	TArray<FVector3d> GlobalVertices; // vertices transformed to global space
 	TArray<FVector3f> GlobalNormals; // normals transformed to global space
 	int32 UVLayer = 0;
+	TManagedArray<FVector2f>* CollectionUVs;
 
 	// Construct a mesh from a geometry collection and a mask of active triangles
 	FGeomMesh(int32 UVLayer, FGeometryCollection* Collection, TArrayView<bool> ActiveTriangles, int32 NumTriangles) 
-		: Collection(Collection), ActiveTriangles(ActiveTriangles), NumTriangles(NumTriangles), UVLayer(UVLayer)
+		: Collection(Collection), ActiveTriangles(ActiveTriangles), NumTriangles(NumTriangles), UVLayer(UVLayer),
+		CollectionUVs(Collection->FindUVLayer(UVLayer))
 	{
 		ValidateUVLayer();
 		InitVertices();
@@ -180,7 +182,7 @@ struct FGeomMesh : public UE::Geometry::FUVPacker::IUVMeshView
 	// Construct a mesh from an existing FGeomMesh and a mask of active triangles
 	FGeomMesh(const FGeomMesh& OtherMesh, TArrayView<bool> ActiveTriangles, int32 NumTriangles)
 		: Collection(OtherMesh.Collection), ActiveTriangles(ActiveTriangles), NumTriangles(NumTriangles),
-		  UVLayer(OtherMesh.UVLayer)
+		  UVLayer(OtherMesh.UVLayer), CollectionUVs(OtherMesh.Collection->FindUVLayer(OtherMesh.UVLayer))
 	{
 		ValidateUVLayer();
 		GlobalVertices = OtherMesh.GlobalVertices;
@@ -191,7 +193,9 @@ struct FGeomMesh : public UE::Geometry::FUVPacker::IUVMeshView
 		if (!ensure(UVLayer >= 0 && UVLayer < Collection->NumUVLayers()))
 		{
 			UVLayer = FMath::Clamp(UVLayer, 0, Collection->NumUVLayers());
+			CollectionUVs = Collection->FindUVLayer(UVLayer);
 		}
+		check(CollectionUVs);
 	}
 
 	void InitVertices()
@@ -227,14 +231,14 @@ struct FGeomMesh : public UE::Geometry::FUVPacker::IUVMeshView
 		return GlobalVertices[VID];
 	}
 
-	virtual FVector2f GetUV(int32 EID) const
+	virtual FVector2f GetUV(int32 VID) const
 	{
-		return FVector2f(Collection->UVs[EID][UVLayer]);
+		return (*CollectionUVs)[VID];
 	}
 
-	virtual void SetUV(int32 EID, FVector2f UVIn)
+	virtual void SetUV(int32 VID, FVector2f UVIn)
 	{
-		FVector2f& UV = Collection->UVs[EID][UVLayer];
+		FVector2f& UV = (*CollectionUVs)[VID];
 		UV.X = UVIn.X;
 		UV.Y = UVIn.Y;
 	}
@@ -300,9 +304,10 @@ struct FGeomFlatUVMesh
 	const TArrayView<bool> ActiveTriangles;
 	int32 NumTriangles;
 	int32 UVLayer;
+	TManagedArray<FVector2f>* CollectionUVs;
 
 	FGeomFlatUVMesh(int32 UVLayer, FGeometryCollection* Collection, TArrayView<bool> ActiveTriangles, int32 NumTriangles)
-		: Collection(Collection), ActiveTriangles(ActiveTriangles), NumTriangles(NumTriangles), UVLayer(UVLayer)
+		: Collection(Collection), ActiveTriangles(ActiveTriangles), NumTriangles(NumTriangles), UVLayer(UVLayer), CollectionUVs(Collection->FindUVLayer(UVLayer))
 	{
 		ValidateUVLayer();
 	}
@@ -312,7 +317,9 @@ struct FGeomFlatUVMesh
 		if (!ensure(UVLayer >= 0 && UVLayer < Collection->NumUVLayers()))
 		{
 			UVLayer = FMath::Clamp(UVLayer, 0, Collection->NumUVLayers());
+			CollectionUVs = Collection->FindUVLayer(UVLayer);
 		}
+		check(CollectionUVs);
 	}
 
 	inline FIndex3i GetTriangle(int32 TID) const
@@ -322,7 +329,7 @@ struct FGeomFlatUVMesh
 
 	inline FVector3d GetVertex(int32 VID) const
 	{
-		const FVector2f& UV = Collection->UVs[VID][UVLayer];
+		const FVector2f& UV = (*CollectionUVs)[VID];
 		return FVector3d(UV.X, UV.Y, 0);
 	}
 
@@ -340,7 +347,7 @@ struct FGeomFlatUVMesh
 	}
 	inline int32 MaxVertexID() const
 	{
-		return Collection->UVs.Num();
+		return (*CollectionUVs).Num();
 	}
 	inline int32 TriangleCount() const
 	{
@@ -348,7 +355,7 @@ struct FGeomFlatUVMesh
 	}
 	inline int32 VertexCount() const
 	{
-		return Collection->UVs.Num();
+		return (*CollectionUVs).Num();
 	}
 	constexpr inline uint64 GetChangeStamp() const
 	{

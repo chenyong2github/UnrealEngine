@@ -26,7 +26,8 @@ namespace UnrealBuildTool.Rules
 					"TypedElementRuntime",
 					"UnrealEd",
 					"InterchangeEngine",
-					"InterchangePipelines"
+					"InterchangePipelines",
+					"Chaos"
 				}
                 );
 

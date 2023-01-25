@@ -60,7 +60,7 @@ void FGeometryCollection::DefineGeometrySchema(FManagedArrayCollection& InCollec
 	// Vertices Group
 	InCollection.AddAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
 	InCollection.AddAttribute<FVector3f>("Normal", FGeometryCollection::VerticesGroup);
-	InCollection.AddAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup);
+	GeometryCollection::UV::DefineUVSchema(InCollection);
 	InCollection.AddAttribute<FLinearColor>("Color", FGeometryCollection::VerticesGroup);
 	InCollection.AddAttribute<FVector3f>("TangentU", FGeometryCollection::VerticesGroup);
 	InCollection.AddAttribute<FVector3f>("TangentV", FGeometryCollection::VerticesGroup);
@@ -102,11 +102,11 @@ void FGeometryCollection::Construct()
 	// Vertices Group
 	AddExternalAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup, Vertex);
 	AddExternalAttribute<FVector3f>("Normal", FGeometryCollection::VerticesGroup, Normal);
-	AddExternalAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup, UVs);
 	AddExternalAttribute<FLinearColor>("Color", FGeometryCollection::VerticesGroup, Color);
 	AddExternalAttribute<FVector3f>("TangentU", FGeometryCollection::VerticesGroup, TangentU);
 	AddExternalAttribute<FVector3f>("TangentV", FGeometryCollection::VerticesGroup, TangentV);
 	AddExternalAttribute<int32>("BoneMap", FGeometryCollection::VerticesGroup, BoneMap, TransformDependency);
+	GeometryCollection::UV::DefineUVSchema(*this);
 
 	// Faces Group
 	AddExternalAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup, Indices, VerticesDependency);
@@ -167,7 +167,6 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 	int NumNewVertices = Element.NumElements(FGeometryCollection::VerticesGroup);
 	const TManagedArray<FVector3f>& ElementVertices = Element.Vertex;
 	const TManagedArray<FVector3f>& ElementNormals = Element.Normal;
-	const TManagedArray<TArray<FVector2f>>& ElementUVs = Element.UVs;
 	const TManagedArray<FLinearColor>& ElementColors = Element.Color;
 	const TManagedArray<FVector3f>& ElementTangentUs = Element.TangentU;
 	const TManagedArray<FVector3f>& ElementTangentVs = Element.TangentV;
@@ -211,23 +210,28 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 	int VerticesIndex = AddElements(NumNewVertices, FGeometryCollection::VerticesGroup);
 	TManagedArray<FVector3f>& Vertices = Vertex;
 	TManagedArray<FVector3f>& Normals = Normal;
-	TManagedArray<TArray<FVector2f>>& AllUVs = UVs;
 	TManagedArray<FLinearColor>& Colors = Color;
 	TManagedArray<FVector3f>& TangentUs = TangentU;
 	TManagedArray<FVector3f>& TangentVs = TangentV;
 	TManagedArray<int32>& BoneMaps = BoneMap;
 	TManagedArray<FIntVector>& FaceIndices = Indices;
 
+	// Make sure we have enough UV layers to copy all the Element's UVs
+	int32 ExistingUVLayers = NumUVLayers();
+	int32 ElementUVLayers = Element.NumUVLayers();
+	if (ElementUVLayers > ExistingUVLayers)
+	{
+		SetNumUVLayers(ElementUVLayers);
+	}
+
 	for (int vdx = 0; vdx < NumNewVertices; vdx++)
 	{
 		Vertices[VerticesIndex + vdx] = ElementVertices[vdx];
 		Normals[VerticesIndex + vdx] = ElementNormals[vdx];
 		
-		const int32 NumUVLayers = ElementUVs[vdx].Num();
-		AllUVs[VerticesIndex + vdx].SetNum(NumUVLayers);
-		for (int UVChannelIndex = 0; UVChannelIndex < NumUVLayers; UVChannelIndex++)
+		for (int UVLayerIndex = 0; UVLayerIndex < ElementUVLayers; UVLayerIndex++)
 		{
-			AllUVs[VerticesIndex + vdx][UVChannelIndex] = ElementUVs[vdx][UVChannelIndex];
+			ModifyUV(VerticesIndex + vdx, UVLayerIndex) = Element.GetUV(vdx, UVLayerIndex);
 		}
 
 		Colors[VerticesIndex + vdx] = ElementColors[vdx];
@@ -672,6 +676,7 @@ void FGeometryCollection::Empty()
 	}
 	// re-initialize interfaces
 	InitializeInterfaces();
+	SetNumUVLayers(1);
 }
 
 void FGeometryCollection::InitializeInterfaces()
@@ -1151,7 +1156,7 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 			{
 				// Note: As UVs is an external attribute that is always added by Construct, this should never be encountered
 				UE_LOG(FGeometryCollectionLogging, Log, TEXT("GeometryCollection updated to multiple UV sets."));
-				AddExternalAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup, UVs);
+				AddAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup);
 			}
 
 			TManagedArray<TArray<FVector2f>>& MultipleUVs = ModifyAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup);
@@ -1260,6 +1265,46 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 			// We now compute this during cook and need to serialize, so convert attribute to bSave = true
 			// this is handled by the facade 
 			HierarchyFacade.GenerateLevelAttribute();
+		}
+
+		if (Version < 10 && 
+			(!HasAttribute(GeometryCollection::UV::UVLayerNames[0], VerticesGroup) || HasAttribute("UVs", VerticesGroup)) )
+		{
+			TManagedArray<TArray<FVector2f>>* OrigUVs = FindAttributeTyped<TArray<FVector2f>>("UVs", VerticesGroup);
+			if (OrigUVs)
+			{
+				// Note: We take the max of the num layers because in practice there have been some vertices with inconsistent layer counts
+				// and it seems better to transfer all the data (with missing data left as zeros) than to potentially lose data
+				int32 NumLayers = 1;
+				for (int32 Idx = 0; Idx < OrigUVs->Num(); ++Idx)
+				{
+					NumLayers = FMath::Max((*OrigUVs)[Idx].Num(), NumLayers);
+				}
+				NumLayers = FMath::Min((int32)GeometryCollectionUV::MAX_NUM_UV_CHANNELS, NumLayers); // make sure we never exceed max layers
+				SetNumUVLayers(NumLayers);
+
+				for (int32 Idx = 0; Idx < OrigUVs->Num(); ++Idx)
+				{
+					TArray<FVector2f>& VertexLayers = (*OrigUVs)[Idx];
+					int32 NumVertexLayers = FMath::Min(VertexLayers.Num(), NumLayers);
+					for (int32 LayerIdx = 0; LayerIdx < NumVertexLayers; ++LayerIdx)
+					{
+						ModifyUV(Idx, LayerIdx) = VertexLayers[LayerIdx];
+					}
+					for (int32 LayerIdx = NumVertexLayers; LayerIdx < NumLayers; ++LayerIdx)
+					{
+						ModifyUV(Idx, LayerIdx) = FVector2f(0, 0); // explicitly zero UVs of any missing layers
+					}
+				}
+				
+				RemoveAttribute("UVs", VerticesGroup);
+			}
+			else
+			{
+				SetNumUVLayers(1);
+			}
+
+			Version = 10;
 		}
 
 		// Finally, make sure expected interfaces are initialized
@@ -1405,34 +1450,12 @@ bool FGeometryCollection::HasContiguousRenderFaces() const
 
 int32 FGeometryCollection::NumUVLayers() const
 {
-	if (NumElements(VerticesGroup) == 0)
-	{
-		return 0;
-	}
-
-	// A valid GeometryCollection has the same number of UVs on every vertex.
-	// For safety, we consider only the smallest number of layers.
-	int32 MinUVLayers = UVs[0].Num();
-	for (int32 VertIdx = 0; VertIdx < NumElements(FGeometryCollection::VerticesGroup); ++VertIdx)
-	{
-		MinUVLayers = FMath::Min(MinUVLayers, UVs[VertIdx].Num());
-	}
-
-	return MinUVLayers;
+	return GeometryCollection::UV::GetNumUVLayers(*this);
 }
 
 bool FGeometryCollection::SetNumUVLayers(int32 NumLayers)
 {
-	if (NumLayers < 1 || NumLayers >= GeometryCollectionUV::MAX_NUM_UV_CHANNELS)
-	{
-		return false;
-	}
-
-	for (int32 VertIdx = 0; VertIdx < NumElements(FGeometryCollection::VerticesGroup); ++VertIdx)
-	{
-		UVs[VertIdx].SetNum(NumLayers);
-	}
-	return true;
+	return GeometryCollection::UV::SetNumUVLayers(*this, NumLayers);
 }
 
 bool FGeometryCollection::IsVisible(int32 Element) const
@@ -1481,7 +1504,6 @@ void FGeometryCollection::Init(FGeometryCollection* Collection, const TArray<flo
 		TManagedArray<FVector3f>& Normals = Collection->Normal;
 		TManagedArray<FVector3f>& TangentU = Collection->TangentU;
 		TManagedArray<FVector3f>& TangentV = Collection->TangentV;
-		TManagedArray<TArray<FVector2f>>& UVs = Collection->UVs;
 		TManagedArray<FLinearColor>& Colors = Collection->Color;
 		TManagedArray<FIntVector>& Indices = Collection->Indices;
 		TManagedArray<bool>& Visible = Collection->Visible;
@@ -1496,9 +1518,10 @@ void FGeometryCollection::Init(FGeometryCollection* Collection, const TArray<flo
 			Vertices[Idx] = FVector3f(RawVertexArray[3 * Idx], RawVertexArray[3 * Idx + 1], RawVertexArray[3 * Idx + 2]);
 			TempVertices += FVector3d(Vertices[Idx]);
 
-			UVs[Idx].SetNumZeroed(GeometryCollectionUV::MAX_NUM_UV_CHANNELS);
 			Colors[Idx] = FLinearColor::White;
 		}
+
+		Collection->SetNumUVLayers(1);
 
 		// set the particle information
 		TempVertices /= (float)NumNewVertices;
@@ -1794,7 +1817,6 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 	TManagedArray<FVector3f>&  Normals = RestCollection->Normal;
 	TManagedArray<FVector3f>&  TangentU = RestCollection->TangentU;
 	TManagedArray<FVector3f>&  TangentV = RestCollection->TangentV;
-	TManagedArray<TArray<FVector2f>>& UVs = RestCollection->UVs;
 	TManagedArray<FLinearColor>&  Colors = RestCollection->Color;
 	TManagedArray<int32>& BoneMap = RestCollection->BoneMap;
 	TManagedArray<FIntVector>&  Indices = RestCollection->Indices;
@@ -1814,9 +1836,10 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 		Vertices[Idx] = FVector3f(RawVertexArray[3 * Idx], RawVertexArray[3 * Idx + 1], RawVertexArray[3 * Idx + 2]);
 		BoneMap[Idx] = RawBoneMapArray[Idx];
 
-		UVs[Idx].SetNumZeroed(GeometryCollectionUV::MAX_NUM_UV_CHANNELS);
 		Colors[Idx] = FLinearColor::White;
 	}
+
+	RestCollection->SetNumUVLayers(1);
 
 	// Transforms
 	int NumNewTransforms = RawTransformArray.Num(); // 1 particle for this geometry structure

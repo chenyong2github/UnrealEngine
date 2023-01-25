@@ -250,10 +250,10 @@ void FMeshPaintGeometryCollectionComponentAdapter::ApplyOrRemoveTextureOverride(
 
 void FMeshPaintGeometryCollectionComponentAdapter::GetTextureCoordinate(int32 VertexIndex, int32 ChannelIndex, FVector2D& OutTextureCoordinate) const
 {
-	const TArray<FVector2f>& UV = GetGeometryCollectionObject()->GetGeometryCollection()->UVs[VertexIndex];
-	if (ChannelIndex < UV.Num())
+	const TManagedArray<FVector2f>* UVLayer = GetGeometryCollectionObject()->GetGeometryCollection()->FindUVLayer(ChannelIndex);
+	if (UVLayer)
 	{
-		OutTextureCoordinate = (FVector2D)UV[ChannelIndex];
+		OutTextureCoordinate = (FVector2D)(*UVLayer)[VertexIndex];
 	}
 }
 

@@ -1852,7 +1852,6 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 		const TManagedArray<FVector3f>& TangentU = Collection->TangentU;
 		const TManagedArray<FVector3f>& TangentV = Collection->TangentV;
 		const TManagedArray<FVector3f>& Normal = Collection->Normal;
-		const TManagedArray<TArray<FVector2f>>& UVs = Collection->UVs;
 		const TManagedArray<FLinearColor>& Color = Collection->Color;
 		const TManagedArray<FLinearColor>& BoneColors = Collection->BoneColor;
 		
@@ -1868,13 +1867,8 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 		ConstantData->Normals = TArray<FVector3f>(Normal.GetData(), Normal.Num());
 		ConstantData->Colors = TArray<FLinearColor>(Color.GetData(), Color.Num());
 
-		// find the maximum number of channels 
-		int32 NumUVChannels = 0;
-		for (const TArray<FVector2f>& VertexUVs : Collection->UVs.GetConstArray())
-		{
-			NumUVChannels = FMath::Max(NumUVChannels, VertexUVs.Num());
-		}
-
+		int32 NumUVChannels = Collection->NumUVLayers();
+		GeometryCollection::UV::FConstUVLayers CollectionUVs = GeometryCollection::UV::FindActiveUVLayers(*Collection);
 		ConstantData->UVChannels.SetNum(NumUVChannels);
 		for (int32 UVChannelIndex = 0; UVChannelIndex < NumUVChannels; UVChannelIndex++)
 		{
@@ -1891,14 +1885,9 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 					const int32 BoneIndex = ConstantData->BoneMap[InPointIndex];
 					ConstantData->BoneColors[InPointIndex] = BoneColors[BoneIndex];
 
-					const TArray<FVector2f>& VertexUVs = Collection->UVs[InPointIndex];
-					for (int32 UVChannelIndex = 0; UVChannelIndex < VertexUVs.Num(); UVChannelIndex++)
+					for (int32 UVChannelIndex = 0; UVChannelIndex < NumUVChannels; UVChannelIndex++)
 					{
-						ConstantData->UVChannels[UVChannelIndex][InPointIndex] = Collection->UVs[InPointIndex][UVChannelIndex];
-					}
-					for (int32 UVChannelIndex = VertexUVs.Num(); UVChannelIndex < NumUVChannels; UVChannelIndex++)
-					{
-						ConstantData->UVChannels[UVChannelIndex][InPointIndex] = FVector2f::ZeroVector;
+						ConstantData->UVChannels[UVChannelIndex][InPointIndex] = CollectionUVs[UVChannelIndex][InPointIndex];
 					}
 				});
 		}
@@ -1914,7 +1903,7 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 			{
 				for (int32 PointIndex = 0; PointIndex < NumPoints; PointIndex++)
 				{
-					ConstantData->UVChannels[UVChannelIndex][PointIndex] = Collection->UVs[PointIndex][UVChannelIndex];
+					ConstantData->UVChannels[UVChannelIndex][PointIndex] = CollectionUVs[UVChannelIndex][PointIndex];
 				}
 			}
 		}

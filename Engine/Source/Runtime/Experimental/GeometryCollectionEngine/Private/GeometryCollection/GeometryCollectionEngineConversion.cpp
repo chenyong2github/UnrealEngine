@@ -126,11 +126,15 @@ void FGeometryCollectionEngineConversion::AppendMeshDescription(
 	TManagedArray<FVector3f>& TargetTangentU = GeometryCollection->TangentU;
 	TManagedArray<FVector3f>& TargetTangentV = GeometryCollection->TangentV;
 	TManagedArray<FVector3f>& TargetNormal = GeometryCollection->Normal;
-	TManagedArray<TArray<FVector2f>>& TargetUVs = GeometryCollection->UVs;
 	TManagedArray<FLinearColor>& TargetColor = GeometryCollection->Color;
 	TManagedArray<int32>& TargetBoneMap = GeometryCollection->BoneMap;
 	TManagedArray<FLinearColor>& TargetBoneColor = GeometryCollection->BoneColor;
 	TManagedArray<FString>& TargetBoneName = GeometryCollection->BoneName;
+
+	if (GeometryCollection->NumUVLayers() < NumUVLayers)
+	{
+		GeometryCollection->SetNumUVLayers(NumUVLayers);
+	}
 
 	const int32 VertexStart = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
 	int32 VertexCount = 0;
@@ -177,7 +181,7 @@ void FGeometryCollectionEngineConversion::AppendMeshDescription(
 			TargetTangentU[CurrentVertex] = SourceTangent[ExemplarInstanceID];
 			TargetTangentV[CurrentVertex] = (FVector3f)SourceBinormalSign[ExemplarInstanceID] * FVector3f::CrossProduct(TargetNormal[CurrentVertex], TargetTangentU[CurrentVertex]);
 
-			TargetUVs[CurrentVertex] = SplitVertex.Key.UVs;
+			GeometryCollection::UV::SetUVs(*GeometryCollection, CurrentVertex, SplitVertex.Key.UVs);
 
 			if (SourceColor.Num() > 0)
 			{
@@ -693,7 +697,6 @@ bool FGeometryCollectionEngineConversion::AppendGeometryCollection(const FGeomet
 	const TManagedArray<FVector3f>& SourceTangentU = SourceGeometryCollectionPtr->TangentU;
 	const TManagedArray<FVector3f>& SourceTangentV = SourceGeometryCollectionPtr->TangentV;
 	const TManagedArray<FVector3f>& SourceNormal = SourceGeometryCollectionPtr->Normal;
-	const TManagedArray<TArray<FVector2f>>& SourceUVs = SourceGeometryCollectionPtr->UVs;
 	const TManagedArray<FLinearColor>& SourceColor = SourceGeometryCollectionPtr->Color;
 	const TManagedArray<int32>& SourceBoneMap = SourceGeometryCollectionPtr->BoneMap;
 
@@ -702,9 +705,12 @@ bool FGeometryCollectionEngineConversion::AppendGeometryCollection(const FGeomet
 	TManagedArray<FVector3f>& TargetTangentU = TargetGeometryCollection->TangentU;
 	TManagedArray<FVector3f>& TargetTangentV = TargetGeometryCollection->TangentV;
 	TManagedArray<FVector3f>& TargetNormal = TargetGeometryCollection->Normal;
-	TManagedArray<TArray<FVector2f>>& TargetUVs = TargetGeometryCollection->UVs;
 	TManagedArray<FLinearColor>& TargetColor = TargetGeometryCollection->Color;
 	TManagedArray<int32>& TargetBoneMap = TargetGeometryCollection->BoneMap;
+
+	TargetGeometryCollection->SetNumUVLayers(FMath::Max(TargetGeometryCollection->NumUVLayers(), SourceGeometryCollectionPtr->NumUVLayers()));
+	GeometryCollection::UV::FUVLayers TargetUVLayers = GeometryCollection::UV::FindActiveUVLayers(*TargetGeometryCollection);
+	GeometryCollection::UV::FConstUVLayers SourceUVLayers = GeometryCollection::UV::FindActiveUVLayers(*SourceGeometryCollectionPtr);
 
 	// append vertices
 	for (int32 VertexIndex = 0; VertexIndex < VertexCount; VertexIndex++)
@@ -715,7 +721,11 @@ bool FGeometryCollectionEngineConversion::AppendGeometryCollection(const FGeomet
 		TargetTangentU[VertexOffset] = SourceTangentU[VertexIndex];
 		TargetTangentV[VertexOffset] = SourceTangentV[VertexIndex];
 		TargetNormal[VertexOffset] = SourceNormal[VertexIndex];
-		TargetUVs[VertexOffset] = SourceUVs[VertexIndex];
+
+		for (int32 UVLayer = 0; UVLayer < SourceUVLayers.Num(); ++UVLayer)
+		{
+			TargetUVLayers[UVLayer][VertexOffset] = SourceUVLayers[UVLayer][VertexIndex];
+		}
 		TargetColor[VertexOffset] = SourceColor[VertexIndex];
 
 		TargetBoneMap[VertexOffset] = SourceBoneMap[VertexIndex] + TransformStart;
@@ -1115,7 +1125,6 @@ bool FGeometryCollectionEngineConversion::AppendSkeletalMesh(const USkeletalMesh
 	//
 	TManagedArray<FVector3f>& Vertex = InCollection->ModifyAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
 	TManagedArray<FVector3f>& Normal = InCollection->ModifyAttribute<FVector3f>("Normal", FGeometryCollection::VerticesGroup);
-	TManagedArray<TArray<FVector2f>>& UVs = InCollection->ModifyAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup);
 	TManagedArray<FLinearColor>& Color = InCollection->ModifyAttribute<FLinearColor>("Color", FGeometryCollection::VerticesGroup);
 	TManagedArray<FVector3f>& TangentU = InCollection->ModifyAttribute<FVector3f>("TangentU", FGeometryCollection::VerticesGroup);
 	TManagedArray<FVector3f>& TangentV = InCollection->ModifyAttribute<FVector3f>("TangentV", FGeometryCollection::VerticesGroup);
@@ -1131,6 +1140,8 @@ bool FGeometryCollectionEngineConversion::AppendSkeletalMesh(const USkeletalMesh
 	int InitialNumVertices = InCollection->NumElements(FGeometryCollection::VerticesGroup);
 	int VertexBaseIndex = InCollection->AddElements(VertexCount, FGeometryCollection::VerticesGroup);
 	const int32 NumUVLayers = VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+	GeometryCollection::UV::SetNumUVLayers(*InCollection, NumUVLayers);
+	GeometryCollection::UV::FUVLayers UVLayers = GeometryCollection::UV::FindActiveUVLayers(*InCollection);
 	for (int32 VertexIndex = 0; VertexIndex < VertexCount; VertexIndex++)
 	{
 		int VertexOffset = VertexBaseIndex + VertexIndex;
@@ -1147,10 +1158,9 @@ bool FGeometryCollectionEngineConversion::AppendSkeletalMesh(const USkeletalMesh
 		TangentV[VertexOffset] = VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(VertexIndex);
 		Normal[VertexOffset] = VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIndex);
 
-		UVs[VertexOffset].SetNum(NumUVLayers);
 		for (int32 UVLayerIdx = 0; UVLayerIdx < NumUVLayers; ++UVLayerIdx)
 		{
-			UVs[VertexOffset][UVLayerIdx] = VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, UVLayerIdx);
+			UVLayers[UVLayerIdx][VertexOffset] = VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, UVLayerIdx);
 		}
 
 		if (VertexBuffers.ColorVertexBuffer.GetNumVertices() == VertexCount)

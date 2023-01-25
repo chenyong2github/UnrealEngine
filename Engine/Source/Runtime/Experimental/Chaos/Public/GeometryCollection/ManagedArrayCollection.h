@@ -657,6 +657,13 @@ private:
 protected:
 
 	/**
+	 * Virtual helper function called by CopyMatchingAttributesFrom; adds attributes 'default, but optional' attributes that are present in InCollection
+	 * This is used by FGeometryCollection to make sure all UV layers are copied over by CopyMatchingAttributesFrom()
+	 */
+	virtual void MatchOptionalDefaultAttributes(const FManagedArrayCollection& InCollection)
+	{}
+
+	/**
 	* Size and order a group so that it matches the group found in the input collection.
 	* @param InCollection - The collection we are ordering our group against. 
 	* @param Group - The group that manages the attribute

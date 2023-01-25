@@ -9,6 +9,7 @@
 #include "GeometryCollection/GeometryCollectionConvexPropertiesInterface.h"
 #include "GeometryCollection/GeometryCollectionProximityPropertiesInterface.h"
 #include "GeometryCollection/ManagedArrayAccessor.h"
+#include "GeometryCollection/Facades/CollectionUVFacade.h"
 
 namespace Chaos
 {
@@ -17,13 +18,6 @@ namespace Chaos
 class FGeometryCollectionConvexPropertiesInterface;
 class FGeometryCollectionProximityPropertiesInterface;
 
-namespace GeometryCollectionUV
-{
-	enum
-	{
-		MAX_NUM_UV_CHANNELS = 8,
-	};
-}
 
 /**
 * FGeometryCollection (FTransformCollection)
@@ -284,8 +278,28 @@ public:
 
 	// Vertices Group
 	TManagedArray<FVector3f>		 Vertex;
-	// Outer array is the array of vertices, inner array is the uv channels
-	TManagedArray<TArray<FVector2f>> UVs;
+
+	// Note: UVs have been reworked, and unfortunately there is not a safe path to provide the original UVs managed array as a deprecated accessor.
+	// They are now stored in dynamically allocated attributes per UV channel (/ layer)
+	// See Facades/CollectionUVFacade.h for a more complete interface to access UV layers,
+	// but accesses of the form Collection.UVs[Vertex][Layer] can be replaced with Collection.GetUV(Vertex, Layer) (or ModifyUV)
+	FVector2f& ModifyUV(int32 VertexIndex, int32 UVLayer)
+	{
+		return GeometryCollection::UV::ModifyUVLayer(*this, UVLayer)[VertexIndex];
+	}
+	const FVector2f& GetUV(int32 VertexIndex, int32 UVLayer) const
+	{
+		return GeometryCollection::UV::GetUVLayer(*this, UVLayer)[VertexIndex];
+	}
+	inline TManagedArray<FVector2f>* FindUVLayer(int32 UVLayer)
+	{
+		return GeometryCollection::UV::FindUVLayer(*this, UVLayer);
+	}
+	inline const TManagedArray<FVector2f>* FindUVLayer(int32 UVLayer) const
+	{
+		return GeometryCollection::UV::FindUVLayer(*this, UVLayer);
+	}
+
 	TManagedArray<FLinearColor>      Color;
 	TManagedArray<FVector3f>         TangentU;
 	TManagedArray<FVector3f>         TangentV;
@@ -312,6 +326,15 @@ public:
 	TManagedArray<FGeometryCollectionSection> Sections;
 	
 protected:
+
+	/**
+	 * Virtual helper function called by CopyMatchingAttributesFrom; adds attributes 'default, but optional' attributes that are present in InCollection
+	 * This is used by FGeometryCollection to make sure all UV layers are copied over by CopyMatchingAttributesFrom()
+	 */
+	virtual void MatchOptionalDefaultAttributes(const FManagedArrayCollection& InCollection) override
+	{
+		GeometryCollection::UV::MatchUVLayerCount(*this, InCollection);
+	}
 
 	void Construct();
 

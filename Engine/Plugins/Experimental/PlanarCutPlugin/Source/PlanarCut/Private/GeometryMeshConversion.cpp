@@ -2477,7 +2477,8 @@ void FCellMeshes::CreateMeshesForSinglePlane(const FPlanarCells& Cells, const FA
 
 void FDynamicMeshCollection::Init(const FGeometryCollection* Collection, const TManagedArray<FTransform>& Transforms, const TArrayView<const int32>& TransformIndices, FTransform TransformCollection, bool bSaveIsolatedVertices)
 {
-	int32 NumUVLayers = Collection->NumUVLayers();
+	GeometryCollection::UV::FConstUVLayers UVLayers = GeometryCollection::UV::FindActiveUVLayers(*Collection);
+	int32 NumUVLayers = UVLayers.Num();
 	Meshes.Reset();
 	Bounds = FAxisAlignedBox3d::Empty();
 
@@ -2501,9 +2502,6 @@ void FDynamicMeshCollection::Init(const FGeometryCollection* Collection, const T
 		Mesh.EnableAttributes();
 		Mesh.Attributes()->EnableMaterialID();
 
-		//int32 NumUVLayers = Collection->NumUVLayers();
-		//AugmentedDynamicMesh::InitializeOverlayToPerVertexUVs(Mesh, NumUVLayers);
-
 		int32 VertexStart = Collection->VertexStart[GeometryIdx];
 		int32 VertexCount = Collection->VertexCount[GeometryIdx];
 		int32 FaceCount = Collection->FaceCount[GeometryIdx];
@@ -2524,7 +2522,7 @@ void FDynamicMeshCollection::Init(const FGeometryCollection* Collection, const T
 			
 			for (int32 UVLayer = 0; UVLayer < NumUVLayers; ++UVLayer)
 			{
-				AugmentedDynamicMesh::SetUV(Mesh, VID, Collection->UVs[Idx][UVLayer], UVLayer);
+				AugmentedDynamicMesh::SetUV(Mesh, VID, UVLayers[UVLayer][Idx], UVLayer);
 			}
 		}
 		FIntVector VertexOffset(VertexStart, VertexStart, VertexStart);
@@ -2547,7 +2545,7 @@ void FDynamicMeshCollection::Init(const FGeometryCollection* Collection, const T
 
 					for (int32 UVLayer = 0; UVLayer < NumUVLayers; ++UVLayer)
 					{
-						AugmentedDynamicMesh::SetUV(Mesh, NewVID, Collection->UVs[SrcIdx][UVLayer], UVLayer);
+						AugmentedDynamicMesh::SetUV(Mesh, NewVID, UVLayers[UVLayer][SrcIdx], UVLayer);
 					}
 
 					NewTri[SubIdx] = NewVID;
@@ -3221,6 +3219,7 @@ bool FDynamicMeshCollection::UpdateCollection(const FTransform& FromCollection, 
 
 	int32 UVLayerCount = AugmentedDynamicMesh::NumEnabledUVChannels(Mesh);
 	Output.SetNumUVLayers(UVLayerCount);
+	GeometryCollection::UV::FUVLayers OutputUVLayers = GeometryCollection::UV::FindActiveUVLayers(Output);
 
 	int32 NewVertexCount = Mesh.VertexCount();
 	int32 NewTriangleCount = Mesh.TriangleCount();
@@ -3245,7 +3244,7 @@ bool FDynamicMeshCollection::UpdateCollection(const FTransform& FromCollection, 
 		{
 			FVector2f UV;
 			AugmentedDynamicMesh::GetUV(Mesh, VID, UV, UVLayer);
-			Output.UVs[CopyToIdx][UVLayer] = UV;
+			OutputUVLayers[UVLayer][CopyToIdx] = UV;
 		}
 		
 		FVector3f TangentU, TangentV;
@@ -3335,6 +3334,9 @@ int32 FDynamicMeshCollection::AppendToCollection(const FTransform& FromCollectio
 	int32 FacesStart = Output.AddElements(NumTriangles, FGeometryCollection::FacesGroup);
 	int32 VerticesStart = Output.AddElements(NumVertices, FGeometryCollection::VerticesGroup);
 
+	Output.SetNumUVLayers(UVLayerCount);
+	GeometryCollection::UV::FUVLayers OutputUVLayers = GeometryCollection::UV::FindActiveUVLayers(Output);
+
 	for (int32 VID = 0; VID < Mesh.MaxVertexID(); VID++)
 	{
 		checkSlow(Mesh.IsVertex(VID)); // mesh is compact
@@ -3342,12 +3344,11 @@ int32 FDynamicMeshCollection::AppendToCollection(const FTransform& FromCollectio
 		Output.Vertex[CopyToIdx] = (FVector3f)FromCollection.InverseTransformPosition(FVector(Mesh.GetVertex(VID)));
 		Output.Normal[CopyToIdx] = (FVector3f)FromCollection.InverseTransformVectorNoScale(FVector(Mesh.GetVertexNormal(VID)));
 		
-		Output.UVs[CopyToIdx].SetNum(UVLayerCount);
 		for (int32 UVLayer = 0; UVLayer < UVLayerCount; ++UVLayer)
 		{
 			FVector2f UV;
 			AugmentedDynamicMesh::GetUV(Mesh, VID, UV, UVLayer);
-			Output.UVs[CopyToIdx][UVLayer] = UV;
+			OutputUVLayers[UVLayer][CopyToIdx] = UV;
 		}
 
 		FVector3f TangentU, TangentV;

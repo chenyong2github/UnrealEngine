@@ -11,12 +11,12 @@
 namespace GeometryCollection::Facades
 {
 	FCollectionMeshFacade::FCollectionMeshFacade(FManagedArrayCollection& InCollection)
-		: TransformToGeometryIndexAttribute(InCollection, "TransformToGeometryIndex", FGeometryCollection::TransformGroup)
+		: FCollectionUVFacade(InCollection)
+		, TransformToGeometryIndexAttribute(InCollection, "TransformToGeometryIndex", FGeometryCollection::TransformGroup)
 		, VertexAttribute(InCollection, "Vertex", FGeometryCollection::VerticesGroup)
 		, TangentUAttribute(InCollection, "TangentU", FGeometryCollection::VerticesGroup)
 		, TangentVAttribute(InCollection, "TangentV", FGeometryCollection::VerticesGroup)
 		, NormalAttribute(InCollection, "Normal", FGeometryCollection::VerticesGroup)
-		, UVsAttribute(InCollection, "UVs", FGeometryCollection::VerticesGroup)
 		, ColorAttribute(InCollection, "Color", FGeometryCollection::VerticesGroup)
 		, BoneMapAttribute(InCollection, "BoneMap", FGeometryCollection::VerticesGroup)
 		, VertexStartAttribute(InCollection, "VertexStart", FGeometryCollection::GeometryGroup)
@@ -31,12 +31,12 @@ namespace GeometryCollection::Facades
 	}
 
 	FCollectionMeshFacade::FCollectionMeshFacade(const FManagedArrayCollection& InCollection)
-		: TransformToGeometryIndexAttribute(InCollection, "TransformToGeometryIndex", FGeometryCollection::TransformGroup)
+		: FCollectionUVFacade(InCollection)
+		, TransformToGeometryIndexAttribute(InCollection, "TransformToGeometryIndex", FGeometryCollection::TransformGroup)
 		, VertexAttribute(InCollection, "Vertex", FGeometryCollection::VerticesGroup)
 		, TangentUAttribute(InCollection, "TangentU", FGeometryCollection::VerticesGroup)
 		, TangentVAttribute(InCollection, "TangentV", FGeometryCollection::VerticesGroup)
 		, NormalAttribute(InCollection, "Normal", FGeometryCollection::VerticesGroup)
-		, UVsAttribute(InCollection, "UVs", FGeometryCollection::VerticesGroup)
 		, ColorAttribute(InCollection, "Color", FGeometryCollection::VerticesGroup)
 		, BoneMapAttribute(InCollection, "BoneMap", FGeometryCollection::VerticesGroup)
 		, VertexStartAttribute(InCollection, "VertexStart", FGeometryCollection::GeometryGroup)
@@ -52,12 +52,12 @@ namespace GeometryCollection::Facades
 
 	bool FCollectionMeshFacade::IsValid() const
 	{
-		return TransformToGeometryIndexAttribute.IsValid()
+		return FCollectionUVFacade::IsValid()
+			&& TransformToGeometryIndexAttribute.IsValid()
 			&& VertexAttribute.IsValid()
 			&& TangentUAttribute.IsValid()
 			&& TangentVAttribute.IsValid()
 			&& NormalAttribute.IsValid()
-			&& UVsAttribute.IsValid()
 			&& ColorAttribute.IsValid()
 			&& BoneMapAttribute.IsValid()
 			&& VertexStartAttribute.IsValid()
@@ -73,12 +73,12 @@ namespace GeometryCollection::Facades
 
 	void FCollectionMeshFacade::DefineSchema()
 	{
+		FCollectionUVFacade::DefineSchema();
 		TransformToGeometryIndexAttribute.Add();
 		VertexAttribute.Add();
 		TangentUAttribute.Add();
 		TangentVAttribute.Add();
 		NormalAttribute.Add();
-		UVsAttribute.Add();
 		ColorAttribute.Add();
 		BoneMapAttribute.Add();
 		VertexStartAttribute.Add();
