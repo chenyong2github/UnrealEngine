@@ -25,11 +25,11 @@ TEST_CASE("DerivedData::Cache::Hierarchy::PartialRecordPropagation", "[DerivedDa
 	ICacheStoreOwner* StoreOwner = nullptr;
 	TUniquePtr<ILegacyCacheStore> Hierarchy(CreateCacheStoreHierarchy(StoreOwner, nullptr));
 
-	TUniquePtr<ITestCacheStore> Store0(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, /*bAsync*/ true));
+	TUniquePtr<ITestCacheStore> Store0(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, ETestCacheStoreFlags::Async));
 	StoreOwner->Add(Store0.Get(), Store0->GetFlags());
-	TUniquePtr<ITestCacheStore> Store1(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, /*bAsync*/ true));
+	TUniquePtr<ITestCacheStore> Store1(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, ETestCacheStoreFlags::Async));
 	StoreOwner->Add(Store1.Get(), Store1->GetFlags());
-	TUniquePtr<ITestCacheStore> Store2(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, /*bAsync*/ true));
+	TUniquePtr<ITestCacheStore> Store2(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, ETestCacheStoreFlags::Async));
 	StoreOwner->Add(Store2.Get(), Store2->GetFlags());
 
 	const FValueId Id0 = FValueId::FromName("0");
@@ -141,11 +141,11 @@ TEST_CASE("DerivedData::Cache::Hierarchy::PartialNonDeterministicRecordPropagati
 	ICacheStoreOwner* StoreOwner = nullptr;
 	TUniquePtr<ILegacyCacheStore> Hierarchy(CreateCacheStoreHierarchy(StoreOwner, nullptr));
 
-	TUniquePtr<ITestCacheStore> Store0(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, /*bAsync*/ true));
+	TUniquePtr<ITestCacheStore> Store0(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, ETestCacheStoreFlags::Async));
 	StoreOwner->Add(Store0.Get(), Store0->GetFlags());
-	TUniquePtr<ITestCacheStore> Store1(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, /*bAsync*/ true));
+	TUniquePtr<ITestCacheStore> Store1(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, ETestCacheStoreFlags::Async));
 	StoreOwner->Add(Store1.Get(), Store1->GetFlags());
-	TUniquePtr<ITestCacheStore> Store2(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, /*bAsync*/ true));
+	TUniquePtr<ITestCacheStore> Store2(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, ETestCacheStoreFlags::Async));
 	StoreOwner->Add(Store2.Get(), Store2->GetFlags());
 
 	const FValueId Id0 = FValueId::FromName("0");
@@ -281,6 +281,38 @@ TEST_CASE("DerivedData::Cache::Hierarchy::PartialNonDeterministicRecordPropagati
 	}
 
 	StoreOwner->RemoveNotSafe(Store2.Get());
+	StoreOwner->RemoveNotSafe(Store1.Get());
+	StoreOwner->RemoveNotSafe(Store0.Get());
+}
+
+TEST_CASE("DerivedData::Cache::Hierarchy::BlockingRequestOwner", "[DerivedData]")
+{
+	ICacheStoreOwner* StoreOwner = nullptr;
+	TUniquePtr<ILegacyCacheStore> Hierarchy(CreateCacheStoreHierarchy(StoreOwner, nullptr));
+
+	TUniquePtr<ITestCacheStore> Store0(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, ETestCacheStoreFlags::Async | ETestCacheStoreFlags::Wait));
+	StoreOwner->Add(Store0.Get(), Store0->GetFlags());
+	TUniquePtr<ITestCacheStore> Store1(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, ETestCacheStoreFlags::Async));
+	StoreOwner->Add(Store1.Get(), Store1->GetFlags());
+
+	const FCacheKey Key{FCacheBucket("Test"), FIoHash::HashBuffer(MakeMemoryView<uint8>({0, 1, 2, 3}))};
+
+	SECTION("Owner has correct request barriers in place when requests are created within a blocking operation")
+	{
+		FRequestOwner Owner(EPriority::Blocking);
+		Hierarchy->GetValue({{{TEXTVIEW("Get")}, Key, ECachePolicy::Default, 12345}}, Owner, [](FCacheGetValueResponse&& Response)
+		{
+			CHECK(Response.UserData == 12345);
+			CHECK(Response.Status == EStatus::Error);
+		});
+
+		CHECK(Store0->GetTotalRequestCount() == 1);
+		CHECK(Store1->GetTotalRequestCount() == 1);
+		Store1->ExecuteAsync();
+
+		Owner.Wait();
+	}
+
 	StoreOwner->RemoveNotSafe(Store1.Get());
 	StoreOwner->RemoveNotSafe(Store0.Get());
 }

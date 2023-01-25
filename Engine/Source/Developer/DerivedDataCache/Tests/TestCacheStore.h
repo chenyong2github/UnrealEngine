@@ -5,6 +5,7 @@
 #if WITH_LOW_LEVEL_TESTS
 
 #include "DerivedDataLegacyCacheStore.h"
+#include "Misc/EnumClassFlags.h"
 
 namespace UE::DerivedData
 {
@@ -34,7 +35,18 @@ public:
 	virtual void ExecuteAsync() = 0;
 };
 
-ITestCacheStore* CreateTestCacheStore(ECacheStoreFlags Flags, bool bAsync);
+enum class ETestCacheStoreFlags : uint32
+{
+	None            = 0,
+	/** Async execution of requests. */
+	Async           = 1 << 0,
+	/** Waits on async execution of requests. */
+	Wait            = 1 << 1,
+};
+
+ENUM_CLASS_FLAGS(ETestCacheStoreFlags);
+
+ITestCacheStore* CreateTestCacheStore(ECacheStoreFlags Flags, ETestCacheStoreFlags TestFlags);
 
 } // UE::DerivedData
 

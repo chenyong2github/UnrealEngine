@@ -18,7 +18,7 @@ namespace UE::DerivedData
 class FTestCacheStore final : public ITestCacheStore
 {
 public:
-	explicit FTestCacheStore(ECacheStoreFlags Flags, bool bAsync = false);
+	FTestCacheStore(ECacheStoreFlags Flags, ETestCacheStoreFlags TestFlags);
 	~FTestCacheStore() final;
 
 	FTestCacheStore(const FTestCacheStore&) = delete;
@@ -95,7 +95,7 @@ private:
 	uint32 CanceledRequestCount = 0;
 	ECachePolicy CacheStorePolicy;
 	const ECacheStoreFlags CacheStoreFlags;
-	const bool bAsync;
+	const ETestCacheStoreFlags TestFlags;
 };
 
 class FTestCacheStore::FAsyncRequest final : public FRequestBase
@@ -137,10 +137,10 @@ private:
 	TUniqueFunction<void (bool bCancel)> Body;
 };
 
-FTestCacheStore::FTestCacheStore(const ECacheStoreFlags Flags, const bool bInAsync)
+FTestCacheStore::FTestCacheStore(const ECacheStoreFlags Flags, const ETestCacheStoreFlags InTestFlags)
 	: CacheStorePolicy(ECachePolicy::None)
 	, CacheStoreFlags(Flags)
-	, bAsync(bInAsync)
+	, TestFlags(InTestFlags)
 {
 	CacheStorePolicy |= EnumHasAllFlags(Flags, ECacheStoreFlags::Query | ECacheStoreFlags::Local) ? ECachePolicy::QueryLocal : ECachePolicy::None;
 	CacheStorePolicy |= EnumHasAllFlags(Flags, ECacheStoreFlags::Store | ECacheStoreFlags::Local) ? ECachePolicy::StoreLocal : ECachePolicy::None;
@@ -489,9 +489,17 @@ void FTestCacheStore::GetChunks(
 
 void FTestCacheStore::ExecuteOrQueue(IRequestOwner& Owner, TUniqueFunction<void (bool bCancel)>&& Function)
 {
-	if (bAsync)
+	if (EnumHasAnyFlags(TestFlags, ETestCacheStoreFlags::Async))
 	{
-		Queue.Emplace(new FAsyncRequest(Owner, MoveTemp(Function)));
+		TRefCountPtr<FAsyncRequest> Request = new FAsyncRequest(Owner, MoveTemp(Function));
+		if (EnumHasAnyFlags(TestFlags, ETestCacheStoreFlags::Wait))
+		{
+			Request->Wait();
+		}
+		else
+		{
+			Queue.Emplace(MoveTemp(Request));
+		}
 	}
 	else
 	{
@@ -509,9 +517,9 @@ void FTestCacheStore::ExecuteAsync()
 	}
 }
 
-ITestCacheStore* CreateTestCacheStore(const ECacheStoreFlags Flags, const bool bAsync)
+ITestCacheStore* CreateTestCacheStore(const ECacheStoreFlags Flags, const ETestCacheStoreFlags TestFlags)
 {
-	return new FTestCacheStore(Flags, bAsync);
+	return new FTestCacheStore(Flags, TestFlags);
 }
 
 } // UE::DerivedData

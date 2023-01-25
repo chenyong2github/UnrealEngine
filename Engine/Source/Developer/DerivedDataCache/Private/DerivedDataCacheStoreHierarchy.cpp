@@ -79,6 +79,7 @@ private:
 	void UpdateNodeFlags();
 
 	class FCounterEvent;
+	class FDynamicRequestBarrier;
 
 	class FBatchBase;
 	template <typename Params> class TPutBatch;
@@ -133,6 +134,35 @@ public:
 
 private:
 	std::atomic<int32> Count{0};
+};
+
+class FCacheStoreHierarchy::FDynamicRequestBarrier
+{
+public:
+	FDynamicRequestBarrier() = default;
+	FDynamicRequestBarrier(const FDynamicRequestBarrier&) = delete;
+	FDynamicRequestBarrier& operator=(const FDynamicRequestBarrier&) = delete;
+
+	void Begin(IRequestOwner& NewOwner)
+	{
+		if (!Owner)
+		{
+			NewOwner.BeginBarrier(ERequestBarrierFlags::Priority);
+			Owner = &NewOwner;
+		}
+		check(Owner == &NewOwner);
+	}
+
+	~FDynamicRequestBarrier()
+	{
+		if (Owner)
+		{
+			Owner->EndBarrier(ERequestBarrierFlags::Priority);
+		}
+	}
+
+private:
+	IRequestOwner* Owner = nullptr;
 };
 
 class FCacheStoreHierarchy::FBatchBase
@@ -401,6 +431,7 @@ template <typename Params>
 void FCacheStoreHierarchy::TPutBatch<Params>::DispatchRequests()
 {
 	FReadScopeLock Lock(Hierarchy.NodesLock);
+	FDynamicRequestBarrier Barrier;
 
 	for (const int32 NodeCount = Hierarchy.Nodes.Num(); NodePutIndex < NodeCount && !BatchOwner.IsCanceled(); ++NodePutIndex)
 	{
@@ -408,6 +439,7 @@ void FCacheStoreHierarchy::TPutBatch<Params>::DispatchRequests()
 		{
 			return;
 		}
+		Barrier.Begin(BatchOwner);
 	}
 
 	int32 RequestIndex = 0;
@@ -635,6 +667,7 @@ template <typename Params>
 void FCacheStoreHierarchy::TGetBatch<Params>::DispatchRequests()
 {
 	FReadScopeLock Lock(Hierarchy.NodesLock);
+	FDynamicRequestBarrier Barrier;
 
 	TArray<FGetRequest, TInlineAllocator<8>> NodeRequests;
 	TArray<FPutRequest, TInlineAllocator<8>> AsyncNodeRequests;
@@ -705,7 +738,7 @@ void FCacheStoreHierarchy::TGetBatch<Params>::DispatchRequests()
 
 		if (!AsyncNodeRequests.IsEmpty())
 		{
-			FRequestBarrier Barrier(AsyncOwner);
+			FRequestBarrier AsyncBarrier(AsyncOwner);
 			Invoke(Put(), Node.AsyncCache, AsyncNodeRequests, AsyncOwner, [](auto&&){});
 			AsyncNodeRequests.Reset();
 		}
@@ -724,6 +757,8 @@ void FCacheStoreHierarchy::TGetBatch<Params>::DispatchRequests()
 				return;
 			}
 		}
+
+		Barrier.Begin(Owner);
 	}
 
 	for (FState& State : States)
@@ -773,7 +808,7 @@ void FCacheStoreHierarchy::TGetBatch<Params>::CompleteRequest(FGetResponse&& Res
 			const FCacheStoreNode& PutNode = Hierarchy.Nodes[PutNodeIndex];
 			if (CanStore(GetCombinedPolicy(State.Request.Policy), PutNode.CacheFlags))
 			{
-				FRequestBarrier Barrier(AsyncOwner);
+				FRequestBarrier AsyncBarrier(AsyncOwner);
 				Invoke(Put(), PutNode.AsyncCache, MakeArrayView(&PutRequest, 1), AsyncOwner, [](auto&&){});
 			}
 		}
@@ -1119,6 +1154,7 @@ void FCacheStoreHierarchy::FGetChunksBatch::Begin(
 void FCacheStoreHierarchy::FGetChunksBatch::DispatchRequests()
 {
 	FReadScopeLock Lock(Hierarchy.NodesLock);
+	FDynamicRequestBarrier Barrier;
 
 	TArray<FCacheGetChunkRequest, TInlineAllocator<8>> NodeRequests;
 	NodeRequests.Reserve(States.Num());
@@ -1152,6 +1188,8 @@ void FCacheStoreHierarchy::FGetChunksBatch::DispatchRequests()
 				return;
 			}
 		}
+
+		Barrier.Begin(Owner);
 	}
 
 	for (const FState& State : States)
