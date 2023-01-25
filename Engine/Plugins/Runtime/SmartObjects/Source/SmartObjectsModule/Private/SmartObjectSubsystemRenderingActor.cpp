@@ -45,6 +45,10 @@ ASmartObjectSubsystemRenderingActor::ASmartObjectSubsystemRenderingActor()
 {
 	RenderingComponent = CreateDefaultSubobject<USmartObjectSubsystemRenderingComponent>(TEXT("RenderingComp"));
 	RootComponent = RenderingComponent;
+
+#if WITH_EDITORONLY_DATA
+	bListedInSceneOutliner = false;
+#endif
 }
 
 
