@@ -238,3 +238,5 @@ FString FDNAImporter::PromptForDNAImportFile()
 
 	return ChosenFilename;
 }
+
+#undef LOCTEXT_NAMESPACE
