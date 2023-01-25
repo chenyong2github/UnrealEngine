@@ -158,7 +158,8 @@ namespace Horde.Build.Perforce
 			public string BasePath { get; }
 			public DateTime DateUtc { get; }
 
-			IReadOnlyList<string>? _files;
+			IReadOnlyList<string> _files = Array.Empty<string>();
+			bool _hasAllFiles;
 
 			public Commit(PerforceService owner, StreamConfig streamConfig, int number, int originalChange, UserId authorId, UserId ownerId, string description, string basePath, DateTime dateUtc)
 			{
@@ -174,35 +175,57 @@ namespace Horde.Build.Perforce
 				DateUtc = dateUtc;
 			}
 
-			public void SetFiles(IReadOnlyList<string> files)
+			public void SetFiles(IReadOnlyList<string> files, int? maxFiles)
 			{
 				_files = files;
+				_hasAllFiles = (maxFiles == null || files.Count < maxFiles.Value);
 			}
 
 			public async ValueTask<IReadOnlyList<CommitTag>> GetTagsAsync(CancellationToken cancellationToken)
 			{
 				List<CommitTag> commitTags = new List<CommitTag>();
-
-				IReadOnlyList<string> files = await GetFilesAsync(cancellationToken);
-				foreach (CommitTagConfig tagConfig in _streamConfig.GetAllCommitTags())
+				foreach (CommitTagConfig commitTagConfig in _streamConfig.GetAllCommitTags())
 				{
-					if (_streamConfig.TryGetCommitTagFilter(tagConfig.Name, out FileFilter? filter) && filter.ApplyTo(files).Any())
+					if (_streamConfig.TryGetCommitTagFilter(commitTagConfig.Name, out FileFilter? filter) && await MatchesFilterAsync(filter, cancellationToken))
 					{
-						commitTags.Add(tagConfig.Name);
+						commitTags.Add(commitTagConfig.Name);
 					}
 				}
-
 				return commitTags;
 			}
 
-			public async ValueTask<IReadOnlyList<string>> GetFilesAsync(CancellationToken cancellationToken)
+			public async ValueTask<bool> MatchesFilterAsync(FileFilter filter, CancellationToken cancellationToken)
 			{
-				if (_files == null)
+				int maxFiles = 1000;
+				for(; ;)
+				{
+					// Query the files up to the current maximum
+					IReadOnlyList<string> files = await GetFilesAsync(maxFiles, cancellationToken);
+					if (filter.ApplyTo(files).Any())
+					{
+						return true;
+					}
+
+					// If we've already got the full file list for this change, also don't need to query any more
+					if (_hasAllFiles)
+					{
+						return false;
+					}
+
+					// Query more files next time
+					maxFiles = Math.Max(files.Count, maxFiles) * 10;
+				}
+			}
+
+			public async ValueTask<IReadOnlyList<string>> GetFilesAsync(int maxFiles, CancellationToken cancellationToken)
+			{
+				if (maxFiles > _files.Count && !_hasAllFiles)
 				{
 					using (IPooledPerforceConnection perforce = await _owner.ConnectAsync(_streamConfig.ClusterName, null, cancellationToken))
 					{
-						DescribeRecord describeRecord = await perforce.DescribeAsync(Number, cancellationToken);
+						DescribeRecord describeRecord = await perforce.DescribeAsync(DescribeOptions.None, maxFiles, Number, cancellationToken);
 						_files = await perforce.GetStreamFilesAsync(_streamConfig, describeRecord, cancellationToken);
+						_hasAllFiles = _files.Count < maxFiles;
 					}
 				}
 				return _files;
@@ -595,16 +618,6 @@ namespace Horde.Build.Perforce
 			return user!;
 		}
 
-		PerforceCluster GetCluster(string? clusterName, string? serverAndPort = null)
-		{
-			PerforceCluster? cluster = _globalConfig.CurrentValue.FindPerforceCluster(clusterName, serverAndPort);
-			if (cluster == null)
-			{
-				throw new Exception($"Unknown Perforce cluster '{clusterName}'");
-			}
-			return cluster;
-		}
-
 		async Task<IPerforceServer> GetServerAsync(PerforceCluster cluster)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.SelectServer").StartActive();
@@ -667,7 +680,7 @@ namespace Horde.Build.Perforce
 			return new Commit(this, streamConfig, number, originalChange, authorUser.Id, ownerUser.Id, description, basePath ?? String.Empty, dateUtc);
 		}
 
-		protected async ValueTask<ICommit> CreateCommitAsync(IPooledPerforceConnection perforce, StreamConfig streamConfig, DescribeRecord describeRecord, InfoRecord serverInfo, CancellationToken cancellationToken)
+		protected async ValueTask<ICommit> CreateCommitAsync(IPooledPerforceConnection perforce, StreamConfig streamConfig, DescribeRecord describeRecord, int maxFiles, InfoRecord serverInfo, CancellationToken cancellationToken)
 		{
 			DateTime timeUtc = new DateTime(describeRecord.Time.Ticks - serverInfo.TimeZoneOffsetSecs * TimeSpan.TicksPerSecond, DateTimeKind.Utc);
 
@@ -678,7 +691,7 @@ namespace Horde.Build.Perforce
 			{
 				throw new PerforceException($"Changelist {commit.Number} does not contain any files in {streamConfig.Id}");
 			}
-			commit.SetFiles(files);
+			commit.SetFiles(files, maxFiles);
 
 			return commit;
 		}
@@ -742,13 +755,14 @@ namespace Horde.Build.Perforce
 
 			using (PooledConnectionHandle perforce = await ConnectAsync(cluster, null, cancellationToken))
 			{
-				DescribeRecord record = await perforce.DescribeAsync(changeNumber, cancellationToken);
+				const int MaxFiles = 1000;
+				DescribeRecord describeRecord = await perforce.DescribeAsync(DescribeOptions.None, MaxFiles, changeNumber, cancellationToken);
 
 				InfoRecord info = await perforce.GetInfoAsync(cancellationToken);
 
-				DateTime timeUtc = new DateTime(record.Time.Ticks - info.TimeZoneOffsetSecs * TimeSpan.TicksPerSecond, DateTimeKind.Utc);
+				DateTime timeUtc = new DateTime(describeRecord.Time.Ticks - info.TimeZoneOffsetSecs * TimeSpan.TicksPerSecond, DateTimeKind.Utc);
 
-				ICommit commit = await CreateCommitAsync(perforce, streamConfig, record, info, cancellationToken);
+				ICommit commit = await CreateCommitAsync(perforce, streamConfig, describeRecord, MaxFiles, info, cancellationToken);
 				return commit;
 			}
 		}
@@ -818,29 +832,6 @@ namespace Horde.Build.Perforce
 
 				return (CheckShelfResult.Ok, new ShelfInfo(change.Description, tags));
 			}
-		}
-
-		/// <inheritdoc/>
-		public async Task<List<ICommit>> GetChangeDetailsAsync(StreamConfig streamConfig, IReadOnlyList<int> changeNumbers, CancellationToken cancellationToken)
-		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangeDetailsAsync").StartActive();
-			scope.Span.SetTag("ClusterName", streamConfig.ClusterName);
-			scope.Span.SetTag("StreamName", streamConfig.Name);
-			scope.Span.SetTag("ChangeNumbers.Count", changeNumbers.Count);
-
-			List<ICommit> results = new List<ICommit>();
-			using (PooledConnectionHandle perforce = await ConnectWithStreamClientAsync(streamConfig, null, cancellationToken))
-			{
-				InfoRecord info = await perforce.GetInfoAsync(cancellationToken);
-
-				List<DescribeRecord> records = await perforce.DescribeAsync(DescribeOptions.Shelved, -1, changeNumbers.ToArray(), cancellationToken);
-				foreach (DescribeRecord record in records)
-				{
-					ICommit commit = await CreateCommitAsync(perforce, streamConfig, record, info, cancellationToken);
-					results.Add(commit);
-				}
-			}
-			return results;
 		}
 
 		/// <inheritdoc/>
@@ -1158,11 +1149,13 @@ namespace Horde.Build.Perforce
 		{
 			protected readonly PerforceService _perforceService;
 			protected readonly StreamConfig _streamConfig;
+			protected readonly ILogger _logger;
 
-			public CommitSource(PerforceService perforceService, StreamConfig streamConfig)
+			public CommitSource(PerforceService perforceService, StreamConfig streamConfig, ILogger logger)
 			{
 				_perforceService = perforceService;
 				_streamConfig = streamConfig;
+				_logger = logger;
 			}
 
 			public async Task<int> CreateNewAsync(string path, string description, CancellationToken cancellationToken = default)
@@ -1203,27 +1196,13 @@ namespace Horde.Build.Perforce
 					}
 					else
 					{
-						const int BatchSize = 20;
-
-						// Construct filters for all the tags we're searching for
-						List<FileFilter> filters = new List<FileFilter>();
-						foreach (CommitTag tag in tags)
-						{
-							FileFilter? filter;
-							if (_streamConfig.TryGetCommitTagFilter(tag, out filter))
-							{
-								filters.Add(filter);
-							}
-						}
-
-						// Get the stream view
-						PerforceViewMap viewMap = await perforce.GetCachedStreamViewAsync(_streamConfig, cancellationToken);
-
 						// Do the query in batches
 						int numResults = maxResults ?? Int32.MaxValue;
 						while (numResults > 0)
 						{
 							string filter = GetFilter($"//{perforce.Settings.ClientName}/...", minChange, maxChange);
+
+							const int BatchSize = 20;
 
 							List<ChangesRecord> changesRecords = await perforce.GetChangesAsync(ChangesOptions.None, null, BatchSize, ChangeStatus.Submitted, null, filter, cancellationToken);
 							if (changesRecords.Count == 0)
@@ -1231,15 +1210,17 @@ namespace Horde.Build.Perforce
 								break;
 							}
 
-							List<DescribeRecord> describeRecords = await perforce.DescribeAsync(DescribeOptions.None, -1, changesRecords.Select(x => x.Number).ToArray(), cancellationToken);
+							const int MaxFiles = 1000;
+
+							List<DescribeRecord> describeRecords = await perforce.DescribeAsync(DescribeOptions.None, MaxFiles, changesRecords.Select(x => x.Number).ToArray(), cancellationToken);
 							foreach (DescribeRecord describeRecord in describeRecords)
 							{
-								List<string> files = viewMap.MapFiles(describeRecord.Files.Select(x => x.DepotFile), info.PathComparison).ToList();
-								if (files.Any(x => filters.Any(y => y.Matches(x))))
-								{
-									ICommit commit = await _perforceService.CreateCommitAsync(perforce, _streamConfig, describeRecord, info, cancellationToken);
-									yield return commit;
+								ICommit commit = await _perforceService.CreateCommitAsync(perforce, _streamConfig, describeRecord, MaxFiles, info, cancellationToken);
 
+								IReadOnlyList<CommitTag> commitTags = await commit.GetTagsAsync(cancellationToken);
+								if (commitTags.Intersect(tags).Any())
+								{
+									yield return commit;
 									if (--numResults == 0)
 									{
 										yield break;
@@ -1276,7 +1257,7 @@ namespace Horde.Build.Perforce
 		/// <inheritdoc/>
 		public virtual ICommitCollection GetCommits(StreamConfig streamConfig)
 		{
-			return new CommitSource(this, streamConfig);
+			return new CommitSource(this, streamConfig, _logger);
 		}
 	}
 }

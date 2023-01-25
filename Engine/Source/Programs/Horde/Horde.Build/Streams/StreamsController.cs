@@ -275,12 +275,13 @@ namespace Horde.Build.Streams
 		/// </summary>
 		/// <param name="streamId">The stream id</param>
 		/// <param name="changeNumber">The changelist number</param>
+		/// <param name="maxFiles">Maximum number of files to return</param>
 		/// <param name="filter">The filter to apply to the results</param>
 		/// <returns>Http result code</returns>
 		[HttpGet]
 		[Route("/api/v1/streams/{streamId}/changes/{changeNumber}")]
 		[ProducesResponseType(typeof(GetCommitResponse), 200)]
-		public async Task<ActionResult<object>> GetChangeDetailsAsync(StreamId streamId, int changeNumber, PropertyFilter? filter = null)
+		public async Task<ActionResult<object>> GetChangeDetailsAsync(StreamId streamId, int changeNumber, int maxFiles = 100, PropertyFilter? filter = null)
 		{
 			StreamConfig? streamConfig;
 			if (!_globalConfig.Value.TryGetStream(streamId, out streamConfig))
@@ -300,7 +301,7 @@ namespace Horde.Build.Streams
 
 			IUser? author = await _userCollection.GetCachedUserAsync(changeDetails.AuthorId);
 			IReadOnlyList<CommitTag> tags = await changeDetails.GetTagsAsync(HttpContext.RequestAborted);
-			IReadOnlyList<string> files = await changeDetails.GetFilesAsync(CancellationToken.None);
+			IReadOnlyList<string> files = await changeDetails.GetFilesAsync(maxFiles, CancellationToken.None);
 
 			return PropertyFilter.Apply(new GetCommitResponse(changeDetails, author!, tags, files), filter);
 		}

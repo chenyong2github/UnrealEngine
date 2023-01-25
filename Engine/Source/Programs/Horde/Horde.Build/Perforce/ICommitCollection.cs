@@ -77,7 +77,7 @@ namespace Horde.Build.Perforce
 		/// <param name="maxChange">Maximum code change to query</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The last code change</returns>
-		public static async ValueTask<ICommit?> GetLastCodeChange(this ICommitCollection source, int? maxChange, CancellationToken cancellationToken = default)
+		public static async ValueTask<ICommit?> GetLastCodeChangeAsync(this ICommitCollection source, int? maxChange, CancellationToken cancellationToken = default)
 		{
 			return await source.FindAsync(null, maxChange, 1, new[] { CommitTag.Code }, cancellationToken).FirstOrDefaultAsync(cancellationToken);
 		}

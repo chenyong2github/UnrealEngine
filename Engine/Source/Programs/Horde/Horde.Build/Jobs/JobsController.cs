@@ -177,7 +177,7 @@ namespace Horde.Build.Jobs
 			int change = await GetChangeToBuildAsync(create, streamConfig.Id, template, shelfInfo, commits, HttpContext.RequestAborted);
 
 			// And get the matching code changelist
-			ICommit? lastCodeCommit = await commits.GetLastCodeChange(change, HttpContext.RequestAborted);
+			ICommit? lastCodeCommit = await commits.GetLastCodeChangeAsync(change, HttpContext.RequestAborted);
 			int codeChange = lastCodeCommit?.Number ?? change;
 
 			// New properties for the job

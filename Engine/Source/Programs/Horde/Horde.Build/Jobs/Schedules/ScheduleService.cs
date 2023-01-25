@@ -399,11 +399,11 @@ namespace Horde.Build.Jobs.Schedules
 				}
 
 				// Adjust the changelist for the desired filter
-				if (commit == null || await ShouldBuildChangeAsync(commit, schedule.Config.Commits, fileFilter))
+				if (commit == null || await ShouldBuildChangeAsync(commit, schedule.Config.Commits, fileFilter, cancellationToken))
 				{
 					int codeChange = change;
 
-					ICommit? lastCodeCommit = await commits.GetLastCodeChange(change, cancellationToken);
+					ICommit? lastCodeCommit = await commits.GetLastCodeChangeAsync(change, cancellationToken);
 					if (lastCodeCommit != null)
 					{
 						codeChange = lastCodeCommit.Number;
@@ -448,7 +448,7 @@ namespace Horde.Build.Jobs.Schedules
 			if (template.SubmitNewChange != null)
 			{
 				int newChange = await commits.CreateNewAsync(template, cancellationToken);
-				ICommit? newCodeChange = await commits.GetLastCodeChange(newChange, cancellationToken);
+				ICommit? newCodeChange = await commits.GetLastCodeChangeAsync(newChange, cancellationToken);
 				triggerChanges = new List<(int, int)> { (newChange, newCodeChange?.Number ?? newChange) };
 			}
 
@@ -472,31 +472,31 @@ namespace Horde.Build.Jobs.Schedules
 		/// <summary>
 		/// Tests whether a schedule should build a particular change, based on its requested change filters
 		/// </summary>
-		/// <param name="details">The change details</param>
-		/// <param name="filterTags"></param>
+		/// <param name="commit">The commit details</param>
+		/// <param name="filterTags">Filter for the tags to trigger a build</param>
 		/// <param name="fileFilter">Filter for the files to trigger a build</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		private async ValueTask<bool> ShouldBuildChangeAsync(ICommit details, List<CommitTag>? filterTags, FileFilter? fileFilter)
+		private async ValueTask<bool> ShouldBuildChangeAsync(ICommit commit, List<CommitTag>? filterTags, FileFilter? fileFilter, CancellationToken cancellationToken)
 		{
-			if (Regex.IsMatch(details.Description, @"^\s*#\s*skipci", RegexOptions.Multiline))
+			if (Regex.IsMatch(commit.Description, @"^\s*#\s*skipci", RegexOptions.Multiline))
 			{
 				return false;
 			}
 			if (filterTags != null && filterTags.Count > 0)
 			{
-				IReadOnlyList<CommitTag> commitTags = await details.GetTagsAsync(CancellationToken.None);
+				IReadOnlyList<CommitTag> commitTags = await commit.GetTagsAsync(cancellationToken);
 				if (!commitTags.Any(x => filterTags.Contains(x)))
 				{
-					_logger.LogDebug("Not building change {Change} ({ChangeTags}) due to filter tags ({FilterTags})", details.Number, String.Join(", ", commitTags.Select(x => x.ToString())), String.Join(", ", filterTags.Select(x => x.ToString())));
+					_logger.LogDebug("Not building change {Change} ({ChangeTags}) due to filter tags ({FilterTags})", commit.Number, String.Join(", ", commitTags.Select(x => x.ToString())), String.Join(", ", filterTags.Select(x => x.ToString())));
 					return false;
 				}
 			}
 			if (fileFilter != null)
 			{
-				IReadOnlyList<string> files = await details.GetFilesAsync(CancellationToken.None);
-				if (!files.Any(x => fileFilter.Matches(x)))
+				if (await commit.MatchesFilterAsync(fileFilter, cancellationToken))
 				{
-					_logger.LogDebug("Not building change {Change} due to file filter", details.Number);
+					_logger.LogDebug("Not building change {Change} due to file filter", commit.Number);
 					return false;
 				}
 			}

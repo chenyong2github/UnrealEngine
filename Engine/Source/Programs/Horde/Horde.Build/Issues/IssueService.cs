@@ -1126,6 +1126,11 @@ namespace Horde.Build.Issues
 		}
 
 		/// <summary>
+		/// Maximum number of files to look at when looking for suspects
+		/// </summary>
+		const int MaxFilesForSuspects = 1000;
+
+		/// <summary>
 		/// Find suspects that can match a given span
 		/// </summary>
 		/// <param name="streamConfig">The stream name</param>
@@ -1148,7 +1153,7 @@ namespace Horde.Build.Issues
 				List<SuspectChange> suspectChanges = new List<SuspectChange>(changes.Count);
 				foreach (ICommit commit in changes)
 				{
-					IReadOnlyList<string> files = await commit.GetFilesAsync(CancellationToken.None);
+					IReadOnlyList<string> files = await commit.GetFilesAsync(MaxFilesForSuspects, CancellationToken.None);
 					suspectChanges.Add(new SuspectChange(commit, files));
 				}
 				handler.RankSuspects(fingerprint, suspectChanges);

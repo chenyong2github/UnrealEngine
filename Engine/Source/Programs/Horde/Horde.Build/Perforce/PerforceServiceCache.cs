@@ -158,14 +158,24 @@ namespace Horde.Build.Perforce
 				return new ValueTask<IReadOnlyList<CommitTag>>(CommitTags);
 			}
 
-			public async ValueTask<IReadOnlyList<string>> GetFilesAsync(CancellationToken cancellationToken)
+			public async ValueTask<bool> MatchesFilterAsync(FileFilter filter, CancellationToken cancellationToken)
+			{
+				ICommit? other = await _owner!.GetChangeDetailsAsync(_streamConfig, Number, cancellationToken);
+				if (other == null)
+				{
+					return false;
+				}
+				return await other.MatchesFilterAsync(filter, cancellationToken);
+			}
+
+			public async ValueTask<IReadOnlyList<string>> GetFilesAsync(int maxFiles, CancellationToken cancellationToken)
 			{
 				ICommit? other = await _owner!.GetChangeDetailsAsync(_streamConfig, Number, cancellationToken);
 				if (other == null)
 				{
 					return Array.Empty<string>();
 				}
-				return await other.GetFilesAsync(cancellationToken);
+				return await other.GetFilesAsync(maxFiles, cancellationToken);
 			}
 		}
 
@@ -414,8 +424,11 @@ namespace Horde.Build.Perforce
 				// Create a buffer for files
 				List<string> files = new List<string>();
 
+				// Maximum number of files to query by default
+				const int MaxFiles = 1000;
+
 				// Describe the changes and create records for them
-				List<DescribeRecord> describeRecords = await perforce.DescribeAsync(changes.Select(x => x.Number).ToArray(), cancellationToken);
+				List<DescribeRecord> describeRecords = await perforce.DescribeAsync(DescribeOptions.None, MaxFiles, changes.Select(x => x.Number).ToArray(), cancellationToken);
 				foreach (StreamInfo streamInfo in streamInfos)
 				{
 					foreach (DescribeRecord describeRecord in describeRecords)
@@ -432,7 +445,7 @@ namespace Horde.Build.Perforce
 
 						if (files.Count > 0)
 						{
-							ICommit commit = await CreateCommitAsync(perforce, streamInfo.StreamConfig, describeRecord, info, cancellationToken);
+							ICommit commit = await CreateCommitAsync(perforce, streamInfo.StreamConfig, describeRecord, MaxFiles, info, cancellationToken);
 							_logger.LogInformation("Replicating {StreamId} commit {Change}", streamInfo.StreamConfig.Id, describeRecord.Number);
 
 							List<CommitTag> commitTags = new List<CommitTag>();
@@ -486,8 +499,8 @@ namespace Horde.Build.Perforce
 		{
 			readonly PerforceServiceCache _owner;
 
-			public CachedCommitSource(PerforceServiceCache owner, StreamConfig stream)
-				: base(owner, stream)
+			public CachedCommitSource(PerforceServiceCache owner, StreamConfig stream, ILogger logger)
+				: base(owner, stream, logger)
 			{
 				_owner = owner;
 			}
@@ -693,7 +706,7 @@ namespace Horde.Build.Perforce
 		/// <inheritdoc/>
 		public override ICommitCollection GetCommits(StreamConfig streamConfig)
 		{
-			return new CachedCommitSource(this, streamConfig);
+			return new CachedCommitSource(this, streamConfig, _logger);
 		}
 
 		#endregion

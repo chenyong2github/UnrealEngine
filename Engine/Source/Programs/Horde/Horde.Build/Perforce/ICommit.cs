@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using EpicGames.Perforce;
 using Horde.Build.Streams;
 using Horde.Build.Users;
@@ -68,10 +69,19 @@ namespace Horde.Build.Perforce
 		ValueTask<IReadOnlyList<CommitTag>> GetTagsAsync(CancellationToken cancellationToken);
 
 		/// <summary>
+		/// Determine if this commit matches the given filter. Prefer using commit tags rather than this method; the results can be cached.
+		/// </summary>
+		/// <param name="filter">Filter to test</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		ValueTask<bool> MatchesFilterAsync(FileFilter filter, CancellationToken cancellationToken);
+
+		/// <summary>
 		/// Gets the files for this change, relative to the root of the stream
 		/// </summary>
+		/// <param name="maxFiles">Maximum number of files to return. Querying large number of files may cause performance issues with merge commits.</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>List of files modified by this commit</returns>
-		ValueTask<IReadOnlyList<string>> GetFilesAsync(CancellationToken cancellationToken);
+		ValueTask<IReadOnlyList<string>> GetFilesAsync(int maxFiles, CancellationToken cancellationToken);
 	}
 }
