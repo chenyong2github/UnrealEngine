@@ -29,6 +29,7 @@ enum EFunctionInputType : int
 	FunctionInput_MaterialAttributes,
 	FunctionInput_TextureExternal,
 	FunctionInput_Bool,
+	FunctionInput_Strata,
 	FunctionInput_MAX,
 };
 
@@ -108,6 +109,10 @@ class UMaterialExpressionFunctionInput : public UMaterialExpression
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 
+
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
+	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
+	virtual FStrataOperator* StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex) override;
 	virtual bool IsResultMaterialAttributes(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override;

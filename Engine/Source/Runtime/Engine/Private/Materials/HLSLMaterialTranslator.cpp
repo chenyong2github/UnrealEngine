@@ -789,7 +789,10 @@ bool FHLSLMaterialTranslator::Translate()
 
 		bEnableExecutionFlow = Material->IsUsingControlFlow();
 		bCompileForComputeShader = Material->IsLightFunction();
-
+		
+		//
+		// Process the strata tree representing the material topology.
+		//
 		const bool bStrataEnabled = Engine_IsStrataEnabled();
 		FStrataMaterialInput* FrontMaterialInput = Material->GetMaterialInterface() ? &Material->GetMaterialInterface()->GetMaterial()->GetEditorOnlyData()->FrontMaterial : nullptr;
 		UMaterialExpression* FrontMaterialExpr = FrontMaterialInput ? FrontMaterialInput->GetTracedInput().Expression : nullptr;
