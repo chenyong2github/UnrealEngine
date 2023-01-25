@@ -40,10 +40,10 @@ public:
 private:
 	int32 ToIndex(uint64 TextureId) const;
 
-	uint64 ToTextureId(int32 Index) const;
+	uint64 ToTextureId(int32 TextureIndex) const;
 	
 	/** Change it to avoid TextureId collisions with other Image Providers. */
-	const int32 BASE_ID = 0;
+	const int32 BASE_ID = 1;
 	const int32 MAX_IDS = 1000;
 
 	UPROPERTY()
