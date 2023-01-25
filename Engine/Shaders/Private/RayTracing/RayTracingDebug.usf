@@ -80,7 +80,6 @@ float4 DebugRayTracingMaterial(FRayDesc Ray, bool bIsFarField)
 		InstanceInclusionMask,
 		Ray,
 		RayCone,
-		PixelCoord,
 		bEnableSkyLightContribution,
 		bIgnoreTranslucentMaterials);
 

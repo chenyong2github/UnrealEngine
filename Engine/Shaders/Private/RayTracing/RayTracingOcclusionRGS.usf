@@ -187,7 +187,6 @@ float ComputeDiffuseTransmission(
 			TLAS,
 			RayFlags,
 			InstanceInclusionMask,
-			PixelCoord,
 			RejectionTestRay);
 		TMax = (RejectionTestPayload.IsHit() ? RejectionTestPayload.HitT : RejectionTestRay.TMax);
 		if (RejectionTestPayload.IsMiss())
@@ -239,7 +238,6 @@ float ComputeDiffuseTransmission(
 		TLAS,
 		RayFlags,
 		InstanceInclusionMask,
-		PixelCoord,
 		SSSRay);
 
 	if (SSSPayload.IsHit())
@@ -251,7 +249,6 @@ float ComputeDiffuseTransmission(
 			TLAS,
 			RayFlags,
 			InstanceInclusionMask,
-			PixelCoord,
 			SSSRay);
 		if (VisibilityPayload.IsMiss())
 		{
@@ -456,7 +453,6 @@ FOcclusionResult ComputeOcclusion(
 					TLAS,
 					RayFlags | RayFlagsForOpaque | RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
 					RaytracingMask,
-					PixelCoord,
 					EpsilonRay);
 			}
 		}
@@ -469,7 +465,6 @@ FOcclusionResult ComputeOcclusion(
 				TLAS,
 				RayFlags | RayFlagsForOpaque,
 				RaytracingMask,
-				PixelCoord,
 				Ray);
 		}
 #else
@@ -477,7 +472,6 @@ FOcclusionResult ComputeOcclusion(
 			TLAS,
 			RayFlags | RayFlagsForOpaque,
 			RaytracingMask,
-			PixelCoord,
 			Ray);
 #endif
 
@@ -507,7 +501,6 @@ FOcclusionResult ComputeOcclusion(
 					TLAS,
 					RayFlags,
 					RaytracingMask,
-					PixelCoord,
 					InvertedRay);
 
 				if (SubsurfacePayload.IsHit())

@@ -539,16 +539,12 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	 
 	// float FMinimalPayload::HitT                       // 4  bytes
 	uint PackedRayCone;                                  // 4  bytes (fp16 width, fp16 spread) aliased with RayDirection for MS lighting payload
-	uint PackedPixelCoord;                               // 4  bytes (todo: store on 26 bits (13|13) with 8192 max res)
 	uint Flags;											 // 4  bytes (see layout above)
 	uint Radiance;										 // 4  bytes
 	uint SceneInstanceIndex;                             // 4  bytes - GPUSceneInstanceIndex
 														 //=24 bytes
-	FStrataRaytracingPayload StrataData;				 // 40 bytes
+	FStrataRaytracingPayload StrataData;				 // 44 bytes
 														 //=64 bytes total
-
-	void SetPixelCoord(uint2 PixelCoord)	{ PackedPixelCoord = (PixelCoord.x & 0xFFFF) | (PixelCoord.y << 16); }
-	uint2 GetPixelCoord()					{ return uint2(PackedPixelCoord & 0xFFFF, PackedPixelCoord >> 16); }
 
 	void SetMinimalPayloadMode()			{ Flags |= RAY_TRACING_PAYLOAD_INPUT_FLAG_MINIMAL_PAYLOAD; }
 	bool IsMinimalPayloadMode()				{ return (Flags & RAY_TRACING_PAYLOAD_INPUT_FLAG_MINIMAL_PAYLOAD) != 0; }
@@ -708,11 +704,8 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	uint PackedIndirectIrradiance[2];                    // 8  bytes
 	uint PackedCustomData;                               // 4  bytes
 	uint WorldTangentAndAnisotropy[2];                   // 8  bytes
-	uint PackedPixelCoord;                               // 4  bytes
+	uint Unused;                                         // 4  bytes (available for future extension)
 	                                                     // 64 bytes total
-
-	void SetPixelCoord(uint2 PixelCoord) { PackedPixelCoord = (PixelCoord.x & 0xFFFF) | (PixelCoord.y << 16); }
-	uint2 GetPixelCoord() { return uint2(PackedPixelCoord & 0xFFFF, PackedPixelCoord >> 16); }
 
 	void SetMinimalPayloadMode() { IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask |= RAY_TRACING_PAYLOAD_INPUT_FLAG_MINIMAL_PAYLOAD << 23; }
 	bool IsMinimalPayloadMode() { return ((IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 23) & RAY_TRACING_PAYLOAD_INPUT_FLAG_MINIMAL_PAYLOAD) != 0; }
@@ -1006,7 +999,6 @@ void TraceVisibilityRayPacked(
 	in RaytracingAccelerationStructure TLAS,
 	in uint RayFlags,
 	in uint InstanceInclusionMask,
-	in uint2 PixelCoord,
 	in FRayDesc Ray)
 {
 	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_SHADOW;
@@ -1016,8 +1008,6 @@ void TraceVisibilityRayPacked(
 	// By enabling minimal payload mode all other payload information is ignored, meaning these functions need no payload inputs
 	PackedPayload.SetMinimalPayloadMode();
 	PackedPayload.HitT = 0;
-
-	PackedPayload.SetPixelCoord(PixelCoord);
 
 	// Trace the ray
 
@@ -1037,7 +1027,6 @@ FMinimalPayload TraceVisibilityRay(
 	in uint RayFlags,
 	in uint PayloadFlags,
 	in uint InstanceInclusionMask,
-	in uint2 PixelCoord,
 	in FRayDesc Ray)
 {
 	FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
@@ -1047,7 +1036,7 @@ FMinimalPayload TraceVisibilityRay(
 		PackedPayload.SetIgnoreTranslucentMaterials();
 	}
 
-	TraceVisibilityRayPacked(PackedPayload, TLAS, RayFlags, InstanceInclusionMask, PixelCoord, Ray);
+	TraceVisibilityRayPacked(PackedPayload, TLAS, RayFlags, InstanceInclusionMask, Ray);
 
 	// Unpack the payload
 
@@ -1065,7 +1054,6 @@ FMinimalPayload TraceVisibilityRay(
 	in RaytracingAccelerationStructure TLAS,
 	in uint RayFlags,
 	in uint InstanceInclusionMask,
-	in uint2 PixelCoord,
 	in FRayDesc Ray)
 {
 	return TraceVisibilityRay(
@@ -1073,7 +1061,6 @@ FMinimalPayload TraceVisibilityRay(
 		RayFlags,
 		RAY_TRACING_PAYLOAD_INPUT_FLAG_NONE,
 		InstanceInclusionMask,
-		PixelCoord,
 		Ray);
 }
 
@@ -1085,7 +1072,6 @@ void TraceMaterialRayPacked(
 	in FRayDesc Ray,
 	// Payload Inputs
 	inout FRayCone RayCone,
-	in uint2 PixelCoord,
 	in bool bEnableSkyLightContribution)
 {
 	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_MATERIAL;
@@ -1095,7 +1081,6 @@ void TraceMaterialRayPacked(
 	// Set payload inputs
 
 	Payload.SetRayCone(RayCone);
-	Payload.SetPixelCoord(PixelCoord);
 
 	if (bEnableSkyLightContribution)
 	{
@@ -1127,7 +1112,6 @@ FMaterialClosestHitPayload TraceMaterialRay(
 	in FRayDesc Ray,
 	// Payload Inputs
 	inout FRayCone RayCone,
-	in uint2 PixelCoord,
 	in bool bEnableSkyLightContribution,
 	in bool bIgnoreTranslucentMaterials)
 {
@@ -1140,7 +1124,6 @@ FMaterialClosestHitPayload TraceMaterialRay(
 	// Set payload inputs
 
 	PackedPayload.SetRayCone(RayCone);
-	PackedPayload.SetPixelCoord(PixelCoord);
 
 	if (bEnableSkyLightContribution)
 	{

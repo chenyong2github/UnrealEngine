@@ -1639,13 +1639,9 @@ FStrataData GetStrataSingleLayerWaterBSDF(
 // Raytracing material buffer
 
 #ifndef STRATA_RT_PAYLOAD_NUM_UINTS
-  // When STRATA_NORMAL_QUALITY == 1, PackedTopLayerData is a uint2. To keep FPackedMaterialClosestHitPayload 
-  // at 64 bytes (see declaration in BuiltInRayTracingShaders.cpp), we make data payload 4 bytes shorter)
-  #if STRATA_NORMAL_QUALITY == 0
-	#define STRATA_RT_PAYLOAD_NUM_UINTS  9
-  #else
-	#define STRATA_RT_PAYLOAD_NUM_UINTS  8
-  #endif
+ // When STRATA_NORMAL_QUALITY == 1, PackedTopLayerData is a uint2. To keep FPackedMaterialClosestHitPayload 
+ // at 64 bytes (see declaration in BuiltInRayTracingShaders.cpp), we make data payload 4 bytes shorter)
+ #define STRATA_RT_PAYLOAD_NUM_UINTS  (10 - STRATA_NORMAL_QUALITY)
 #endif
 
 struct FStrataRaytracingPayload

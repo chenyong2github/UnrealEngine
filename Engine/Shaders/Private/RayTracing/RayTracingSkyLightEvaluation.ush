@@ -168,7 +168,6 @@ void SkyLightEvaluate(
 			TLAS,
 			RayFlags,
 			InstanceInclusionMask,
-			PixelCoord,
 			Ray);
 
 		#if USE_HAIR_LIGHTING
@@ -279,7 +278,6 @@ void SkyLightEvaluate(
 				TLAS,
 				RayFlagsLocal,
 				InstanceInclusionMaskLocal,
-				PixelCoord,
 				RayLocal);
 
 			float3 P = RayLocal.Origin + RayLocal.Direction * MinimalPayloadLocal.HitT;

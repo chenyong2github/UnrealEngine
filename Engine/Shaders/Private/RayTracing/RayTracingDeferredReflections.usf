@@ -65,14 +65,13 @@ RaytracingAccelerationStructure                 TLAS;
 // used during to reduce ray intersection overhead during Shading.
 RWStructuredBuffer<FRayIntersectionBookmark>    BookmarkBuffer;
 
-FPackedMaterialClosestHitPayload InitializePackedPayload(uint2 PixelPos, bool bSkyLightAffectReflection)
+FPackedMaterialClosestHitPayload InitializePackedPayload(bool bSkyLightAffectReflection)
 {
 	FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
 	if (bSkyLightAffectReflection)
 	{
 		PackedPayload.SetEnableSkyLightContribution();
 	}
-	PackedPayload.SetPixelCoord(PixelPos);
 	PackedPayload.SetMipBias(TextureMipBias);
 	return PackedPayload;
 }
@@ -162,7 +161,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 	//float ResultDistance = DENOISER_INVALID_HIT_DISTANCE;
 	float ResultDistance = 1.0e20;
 
-	FPackedMaterialClosestHitPayload PackedPayload = InitializePackedPayload(PixelPos, bSkyLightAffectReflection);
+	FPackedMaterialClosestHitPayload PackedPayload = InitializePackedPayload(bSkyLightAffectReflection);
 	float3 RayHitWorldPos = ReflectionRay.Origin + ReflectionRay.GetDirection() * DENOISER_MISS_HIT_DISTANCE;
 
 	if (DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS)
@@ -193,7 +192,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 			&& ReflectionRay.Roughness <= AnyHitMaxRoughness)
 		{
 			// Reset the payload to a known initial state, as previous Trace() call may have overwritten some of the fields.
-			PackedPayload = InitializePackedPayload(PixelPos, bSkyLightAffectReflection);
+			PackedPayload = InitializePackedPayload(bSkyLightAffectReflection);
 
 			FRayCone RayCone = (FRayCone)0;
 			TraceMaterialRayPacked(
@@ -203,7 +202,6 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 				RAY_TRACING_MASK_OPAQUE,
 				Ray,
 				RayCone,
-				PixelPos,
 				bTopLayerRayTraceSkyLightContribution);
 		}
 

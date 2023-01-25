@@ -62,7 +62,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenShortRangeAOHardwareRayTracing)
 					TLAS,
 					RayFlags,
 					InstanceInclusionMask,
-					PixelCoord,
 					Ray);
 
 				bool bHit = MinimalPayload.IsHit();

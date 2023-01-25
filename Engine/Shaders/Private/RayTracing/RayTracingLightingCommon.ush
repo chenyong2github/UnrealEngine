@@ -215,10 +215,8 @@ void TraceShadowRayMissShaderLighting(
 	in uint InstanceInclusionMask,
 	in RaytracingAccelerationStructure TLAS,
 	in uint MissShaderIndex,
-	in uint2 PixelCoord,
 	inout FPackedMaterialClosestHitPayload PackedPayload)
 {
-	PackedPayload.SetPixelCoord(PixelCoord);
 	TraceRay
 	(
 		TLAS,
@@ -382,7 +380,6 @@ float3 ComputeDirectLighting(
 	in float3 TranslatedWorldPosition,
 	in float3 ViewDirection,
 	in FRayCone RayCone,
-	in uint2 PixelCoord,
 	in RaytracingAccelerationStructure TLAS,
 	inout FPackedMaterialClosestHitPayload Payload,
 	inout RandomSequence RandSequence,
@@ -494,7 +491,7 @@ float3 ComputeDirectLighting(
 		if (bMissFarField)
 		{
 			uint MissShaderIndex = Lit ? LightMissShaderIndex : RAY_TRACING_MISS_SHADER_SLOT_DEFAULT;
-			TraceShadowRayMissShaderLighting(ShadowRay, RayFlags, InstanceInclusionMask, TLAS, MissShaderIndex, PixelCoord, Payload);
+			TraceShadowRayMissShaderLighting(ShadowRay, RayFlags, InstanceInclusionMask, TLAS, MissShaderIndex, Payload);
 		}
 	}
 
@@ -538,7 +535,7 @@ void AccumulateResults(
 		// Save and restore original payload HitT, as it's modified during shadow ray tracing
 		float OldHitT = Payload.HitT;
 
-		DirectLighting = ComputeDirectLighting(TranslatedWorldPosition, ViewDirection, RayCone, PixelCoord, TLAS, Payload, RandSequence, ReflectedShadowsType, ShadowMaxNormalBias);
+		DirectLighting = ComputeDirectLighting(TranslatedWorldPosition, ViewDirection, RayCone, TLAS, Payload, RandSequence, ReflectedShadowsType, ShadowMaxNormalBias);
 
 		Payload.HitT = OldHitT;
 	}
@@ -597,7 +594,6 @@ FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 		InstanceInclusionMask,
 		Ray,
 		RayCone,
-		PixelCoord,
 		bEnableSkyLightContribution);
 
 	float3 TranslatedWorldPosition = Ray.Origin + Ray.Direction * Payload.HitT;
@@ -653,7 +649,6 @@ FMaterialClosestHitPayload TraceRayAndAccumulateBottomLayerResults(
 		InstanceInclusionMask,
 		Ray,
 		RayCone,
-		PixelCoord,
 		bEnableSkyLightContribution,
 		bIgnoreTranslucentMaterials);
 
