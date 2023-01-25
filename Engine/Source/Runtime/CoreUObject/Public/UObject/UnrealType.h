@@ -890,6 +890,12 @@ public:
 	virtual void CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const;
 
 	/**
+	 * Equivalent to the above functions, but using the container and aware of getters/setters when the container has them.
+	 */
+	virtual void CopyCompleteValueToScriptVM_InContainer( void* OutValue, void const* InContainer ) const;
+	virtual void CopyCompleteValueFromScriptVM_InContainer( void* OutContainer, void const* InValue ) const;
+
+	/**
 	 * Copy the value for a single element of this property. From the script VM.
 	 * 
 	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET + INDEX * SIZE, where
@@ -2970,6 +2976,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 public:
+	virtual void CopyCompleteValueToScriptVM_InContainer( void* OutValue, void const* InContainer ) const override;
+	virtual void CopyCompleteValueFromScriptVM_InContainer( void* OutContainer, void const* InValue ) const override;
 	// End of FProperty interface
 
 	// FObjectPropertyBase interface
@@ -3017,6 +3025,8 @@ class COREUOBJECT_API FObjectPtrProperty : public FObjectProperty
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual bool Identical(const void* A, const void* B, uint32 PortFlags) const override;
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
+	virtual void CopyCompleteValueToScriptVM_InContainer( void* OutValue, void const* InContainer ) const override;
+	virtual void CopyCompleteValueFromScriptVM_InContainer( void* OutContainer, void const* InValue ) const override;
 	// End of FProperty interface
 
 	// Helper method for sharing code with FClassPtrProperty even though one doesn't inherit from the other
@@ -3089,6 +3099,8 @@ protected:
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 public:
+	virtual void CopyCompleteValueToScriptVM_InContainer( void* OutValue, void const* InContainer ) const override;
+	virtual void CopyCompleteValueFromScriptVM_InContainer( void* OutContainer, void const* InValue ) const override;
 	// End of FProperty interface
 
 	// FObjectProperty interface
@@ -3147,6 +3159,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
 	virtual void SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults ) const override;
 	virtual void EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper) override;
+	virtual void CopyCompleteValueToScriptVM_InContainer( void* OutValue, void const* InContainer ) const override;
+	virtual void CopyCompleteValueFromScriptVM_InContainer( void* OutContainer, void const* InValue ) const override;
 	// End of FProperty interface
 
 	// FObjectProperty interface
@@ -3366,6 +3380,8 @@ class COREUOBJECT_API FClassPtrProperty : public FClassProperty
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual bool Identical(const void* A, const void* B, uint32 PortFlags) const override;
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
+	virtual void CopyCompleteValueToScriptVM_InContainer( void* OutValue, void const* InContainer ) const override;
+	virtual void CopyCompleteValueFromScriptVM_InContainer( void* OutContainer, void const* InValue ) const override;
 	// End of FProperty interface
 
 	// FObjectProperty interface

@@ -499,25 +499,7 @@ void FFrame::StepExplicitProperty(void*const Result, FProperty* Property)
 	{
 		MostRecentPropertyAddress = Property->ContainerPtrToValuePtr<uint8>(Locals);
 		MostRecentPropertyContainer = Locals;
-		if (Property->HasGetter())
-		{
-			// Temporary hack to fix TWeakObjectPtrs with getters being copied wrongly to the VM -
-			// hacked here because we cannot change UnrealType.h
-			// Object properties are copied to the VM by UObject*, except for FSoftObjectProperty (see overrides for FSoftObjectProperty::CopyCompleteValueToScriptVM).
-			FObjectPropertyBase* ObjProperty = CastField<FObjectPropertyBase>(Property);
-			if (ObjProperty && !ObjProperty->IsA<FSoftObjectProperty>())
-			{
-				*(UObject**)Result = ObjProperty->GetObjectPropertyValue_InContainer(MostRecentPropertyContainer);
-			}
-			else
-			{
-				Property->GetValue_InContainer(MostRecentPropertyContainer, Result);
-			}
-		}
-		else
-		{
-			Property->CopyCompleteValueToScriptVM(Result, MostRecentPropertyAddress);
-		}
+		Property->CopyCompleteValueToScriptVM_InContainer(Result, MostRecentPropertyContainer);
 	}
 }
 
@@ -2206,25 +2188,7 @@ DEFINE_VM_FUNCTION(UObject::execLocalVariable)
 
 		if (RESULT_PARAM)
 		{
-			if (VarProperty->HasGetter())
-			{
-				// Temporary hack to fix TWeakObjectPtrs with getters being copied wrongly to the VM -
-				// hacked here because we cannot change UnrealType.h
-				// Object properties are copied to the VM by UObject*, except for FSoftObjectProperty (see overrides for FSoftObjectProperty::CopyCompleteValueToScriptVM).
-				FObjectPropertyBase* ObjProperty = CastField<FObjectPropertyBase>(VarProperty);
-				if (ObjProperty && !ObjProperty->IsA<FSoftObjectProperty>())
-				{
-					*(UObject**)RESULT_PARAM = ObjProperty->GetObjectPropertyValue_InContainer(Stack.MostRecentPropertyContainer);
-				}
-				else
-				{
-					ObjProperty->GetValue_InContainer(Stack.MostRecentPropertyContainer, RESULT_PARAM);
-				}
-			}
-			else
-			{
-				VarProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
-			}
+			VarProperty->CopyCompleteValueToScriptVM_InContainer(RESULT_PARAM, Stack.MostRecentPropertyContainer);
 		}
 	}
 }
@@ -2249,25 +2213,7 @@ DEFINE_VM_FUNCTION(UObject::execInstanceVariable)
 		Stack.MostRecentPropertyContainer = (uint8*)P_THIS;
 		if (RESULT_PARAM)
 		{
-			if (VarProperty->HasGetter())
-			{
-				// Temporary hack to fix TWeakObjectPtrs with getters being copied wrongly to the VM -
-				// hacked here because we cannot change UnrealType.h
-				// Object properties are copied to the VM by UObject*, except for FSoftObjectProperty (see overrides for FSoftObjectProperty::CopyCompleteValueToScriptVM).
-				FObjectPropertyBase* ObjProperty = CastField<FObjectPropertyBase>(VarProperty);
-				if (ObjProperty && !ObjProperty->IsA<FSoftObjectProperty>())
-				{
-					*(UObject**)RESULT_PARAM = ObjProperty->GetObjectPropertyValue_InContainer(Stack.MostRecentPropertyContainer);
-				}
-				else
-				{
-					VarProperty->GetValue_InContainer(Stack.MostRecentPropertyContainer, RESULT_PARAM);
-				}
-			}
-			else
-			{
-				VarProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
-			}
+			VarProperty->CopyCompleteValueToScriptVM_InContainer(RESULT_PARAM, Stack.MostRecentPropertyContainer);
 		}
 	}
 
@@ -2296,25 +2242,7 @@ DEFINE_VM_FUNCTION(UObject::execClassSparseDataVariable)
 
 		if (RESULT_PARAM)
 		{
-			if (VarProperty->HasGetter())
-			{
-				// Temporary hack to fix TWeakObjectPtrs with getters being copied wrongly to the VM -
-				// hacked here because we cannot change UnrealType.h
-				// Object properties are copied to the VM by UObject*, except for FSoftObjectProperty (see overrides for FSoftObjectProperty::CopyCompleteValueToScriptVM).
-				FObjectPropertyBase* ObjProperty = CastField<FObjectPropertyBase>(VarProperty);
-				if (ObjProperty && !ObjProperty->IsA<FSoftObjectProperty>())
-				{
-					*(UObject**)RESULT_PARAM = ObjProperty->GetObjectPropertyValue_InContainer(Stack.MostRecentPropertyContainer);
-				}
-				else
-				{
-					VarProperty->GetValue_InContainer(Stack.MostRecentPropertyContainer, RESULT_PARAM);
-				}
-			}
-			else
-			{
-				VarProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
-			}
+			VarProperty->CopyCompleteValueToScriptVM_InContainer(RESULT_PARAM, Stack.MostRecentPropertyContainer);
 		}
 	}
 }
@@ -2351,25 +2279,7 @@ DEFINE_VM_FUNCTION(UObject::execDefaultVariable)
 
 			if(RESULT_PARAM)
 			{
-				if (VarProperty->HasGetter())
-				{
-					// Temporary hack to fix TWeakObjectPtrs with getters being copied wrongly to the VM -
-					// hacked here because we cannot change UnrealType.h
-					// Object properties are copied to the VM by UObject*, except for FSoftObjectProperty (see overrides for FSoftObjectProperty::CopyCompleteValueToScriptVM).
-					FObjectPropertyBase* ObjProperty = CastField<FObjectPropertyBase>(VarProperty);
-					if (ObjProperty && !ObjProperty->IsA<FSoftObjectProperty>())
-					{
-						*(UObject**)RESULT_PARAM = ObjProperty->GetObjectPropertyValue_InContainer(Stack.MostRecentPropertyContainer);
-					}
-					else
-					{
-						VarProperty->GetValue_InContainer(Stack.MostRecentPropertyContainer, RESULT_PARAM);
-					}
-				}
-				else
-				{
-					VarProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
-				}
+				VarProperty->CopyCompleteValueToScriptVM_InContainer(RESULT_PARAM, Stack.MostRecentPropertyContainer);
 			}
 		}
 		else
@@ -3246,25 +3156,7 @@ DEFINE_VM_FUNCTION(UObject::execStructMemberContext)
 		// Handle variable reads
 		if (RESULT_PARAM)
 		{
-			if (StructProperty->HasGetter())
-			{
-				// Temporary hack to fix TWeakObjectPtrs with getters being copied wrongly to the VM -
-				// hacked here because we cannot change UnrealType.h
-				// Object properties are copied to the VM by UObject*, except for FSoftObjectProperty (see overrides for FSoftObjectProperty::CopyCompleteValueToScriptVM).
-				FObjectPropertyBase* ObjProperty = CastField<FObjectPropertyBase>(StructProperty);
-				if (ObjProperty && !ObjProperty->IsA<FSoftObjectProperty>())
-				{
-					*(UObject**)RESULT_PARAM = ObjProperty->GetObjectPropertyValue_InContainer(Stack.MostRecentPropertyContainer);
-				}
-				else
-				{
-					StructProperty->GetValue_InContainer(Stack.MostRecentPropertyContainer, RESULT_PARAM);
-				}
-			}
-			else
-			{
-				StructProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
-			}
+			StructProperty->CopyCompleteValueToScriptVM_InContainer(RESULT_PARAM, Stack.MostRecentPropertyContainer);
 		}
 	}
 	else

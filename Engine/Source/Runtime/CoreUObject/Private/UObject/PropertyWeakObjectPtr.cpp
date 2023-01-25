@@ -117,3 +117,13 @@ uint32 FWeakObjectProperty::GetValueTypeHashInternal(const void* Src) const
 {
 	return GetTypeHash(*(FWeakObjectPtr*)Src);
 }
+
+void FWeakObjectProperty::CopyCompleteValueToScriptVM_InContainer(void* OutValue, void const* InContainer) const
+{
+	GetWrappedUObjectPtrValues_InContainer<FWeakObjectPtr>((UObject**)OutValue, InContainer, 0, ArrayDim);
+}
+
+void FWeakObjectProperty::CopyCompleteValueFromScriptVM_InContainer(void* OutContainer, void const* InValue) const
+{
+	SetWrappedUObjectPtrValues_InContainer<FWeakObjectPtr>(OutContainer, (UObject**)InValue, 0, ArrayDim);
+}

@@ -945,6 +945,32 @@ void FProperty::CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) con
 	CopyCompleteValue(Dest, Src);
 }
 
+void FProperty::CopyCompleteValueToScriptVM_InContainer( void* OutValue, void const* InContainer ) const
+{
+	if (HasGetter())
+	{
+		CallGetter(InContainer, OutValue);
+	}
+	else
+	{
+		const void* InObj = ContainerPtrToValuePtr<uint8>(InContainer);
+		CopyCompleteValue(OutValue, InObj);
+	}
+}
+
+void FProperty::CopyCompleteValueFromScriptVM_InContainer( void* OutContainer, void const* InValue ) const
+{
+	if (HasSetter())
+	{
+		CallSetter(OutContainer, InValue);
+	}
+	else
+	{
+		void* OutObj = ContainerPtrToValuePtr<uint8>(OutContainer);
+		CopyCompleteValue(OutObj, InValue);
+	}
+}
+
 void FProperty::ClearValueInternal( void* Data ) const
 {
 	checkf(0, TEXT("%s failed to handle ClearValueInternal, but it was not CPF_NoDestructor | CPF_ZeroConstructor"), *GetFullName());
