@@ -615,7 +615,7 @@ bool UPoseAsset::GetAnimationPose(struct FAnimationPoseData& OutAnimationPoseDat
 					{
 						const FSkeletonPoseBoneIndex SkeletonBoneIndex = FSkeletonPoseBoneIndex(SkeletonRemapping.IsValid() ? SkeletonRemapping.GetTargetSkeletonBoneIndex(PoseContainer.TrackBoneIndices[TrackIndex]) : PoseContainer.TrackBoneIndices[TrackIndex]);
 
-						UE_CLOG(!RequiredBones.IsSkeletonPoseIndexValid(SkeletonBoneIndex), LogAnimation, Warning, TEXT("PoseAsset [%s] with skeleton [%s] has bones not present in the evaluation container. Bone index(%d) not found."), *GetPathName(), MySkeleton ? *MySkeleton->GetPathName() : TEXT("<Skeleton Not Found>"), SkeletonBoneIndex.GetInt());
+						//UE_CLOG(!RequiredBones.IsSkeletonPoseIndexValid(SkeletonBoneIndex), LogAnimation, Warning, TEXT("PoseAsset [%s] with skeleton [%s] has bones not present in the evaluation container. Bone index(%d) not found."), *GetPathName(), MySkeleton ? *MySkeleton->GetPathName() : TEXT("<Skeleton Not Found>"), SkeletonBoneIndex.GetInt());
 
 						const FCompactPoseBoneIndex CompactIndex = RequiredBones.GetCompactPoseIndexFromSkeletonPoseIndex(SkeletonBoneIndex);
 						
@@ -679,7 +679,7 @@ bool UPoseAsset::GetAnimationPose(struct FAnimationPoseData& OutAnimationPoseDat
 			{
 				const FSkeletonPoseBoneIndex SkeletonBoneIndex = FSkeletonPoseBoneIndex(SkeletonRemapping.IsValid() ? SkeletonRemapping.GetTargetSkeletonBoneIndex(PoseContainer.TrackBoneIndices[TrackIndex]) : PoseContainer.TrackBoneIndices[TrackIndex]);
 
-				UE_CLOG(!RequiredBones.IsSkeletonPoseIndexValid(SkeletonBoneIndex), LogAnimation, Warning, TEXT("PoseAsset [%s] with skeleton [%s] has bones not present in the evaluation container. Bone index(%d) not found."), *GetPathName(), MySkeleton ? *MySkeleton->GetPathName() : TEXT("<Skeleton Not Found>"), SkeletonBoneIndex.GetInt());
+				//UE_CLOG(!RequiredBones.IsSkeletonPoseIndexValid(SkeletonBoneIndex), LogAnimation, Warning, TEXT("PoseAsset [%s] with skeleton [%s] has bones not present in the evaluation container. Bone index(%d) not found."), *GetPathName(), MySkeleton ? *MySkeleton->GetPathName() : TEXT("<Skeleton Not Found>"), SkeletonBoneIndex.GetInt());
 
 				const FCompactPoseBoneIndex CompactIndex = RequiredBones.GetCompactPoseIndexFromSkeletonPoseIndex(SkeletonBoneIndex);
 
