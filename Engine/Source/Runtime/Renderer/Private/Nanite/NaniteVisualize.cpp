@@ -277,10 +277,14 @@ public:
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
+	static bool IsPlatformSupported(EShaderPlatform ShaderPlatform)
+	{
+		return DoesPlatformSupportNanite(ShaderPlatform) && FDataDrivenShaderPlatformInfo::GetSupportsDebugViewShaders(ShaderPlatform);
+	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return DoesPlatformSupportNanite(Parameters.Platform) && FDataDrivenShaderPlatformInfo::GetSupportsDebugViewShaders(Parameters.Platform);
+		return IsPlatformSupported(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -841,6 +845,12 @@ void RenderDebugViewMode(
 	LLM_SCOPE_BYTAG(Nanite);
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::DebugView");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteDebug);
+
+	if (!FExportDebugViewPS::IsPlatformSupported(View.GetShaderPlatform()))
+	{
+		UE_CALL_ONCE([](){ UE_LOG(LogNanite, Error, TEXT("Platform does not support Nanite debug view shaders")); });
+		return;
+	}
 
 	const uint32 GlobalShaderBudget = GetMaxShaderComplexityCount(View.GetFeatureLevel());
 
