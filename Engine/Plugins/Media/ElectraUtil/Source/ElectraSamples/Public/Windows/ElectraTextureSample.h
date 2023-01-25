@@ -12,6 +12,10 @@
 #error "Should only be used on Windows"
 #endif
 
+THIRD_PARTY_INCLUDES_START
+#include "d3d12.h"
+THIRD_PARTY_INCLUDES_END
+
 class ELECTRASAMPLES_API FElectraTextureSample final
 	: public IElectraTextureSampleBase
 	, public IMediaTextureSampleConverter
@@ -64,6 +68,10 @@ private:
 
 	/** Output data from video decoder. Baseclass holds reference */
 	FVideoDecoderOutputPC* VideoDecoderOutputPC;
+
+	/** DX12 related resources */
+	TRefCountPtr<ID3D12GraphicsCommandList> D3DCmdList;
+	TRefCountPtr<ID3D12CommandAllocator> D3DCmdAllocator;
 };
 
 using FElectraTextureSamplePtr = TSharedPtr<FElectraTextureSample, ESPMode::ThreadSafe>;

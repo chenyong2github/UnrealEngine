@@ -57,11 +57,13 @@ public:
 
 	virtual uint32 GetStride() const override;
 
-	virtual TRefCountPtr<ID3D11Texture2D> GetTexture() const override;
+	virtual TRefCountPtr<IUnknown> GetTexture() const override;
 
 	virtual TRefCountPtr<ID3D11Device> GetDevice() const override;
 
 	virtual FIntPoint GetDim() const override;
+
+	virtual TRefCountPtr<IUnknown> GetSync(uint64& SyncValue) const override;
 
 private:
 	// Decoder output type

@@ -60,16 +60,12 @@ TRefCountPtr<IMFSample> TextureMediaPlayerVideoDecoderOutput::GetMFSample() cons
 	return nullptr;
 }
 
-// TODO: Use commented lines to replace following lines once Electra changes are integrated
-//TRefCountPtr<IUnknown> TextureMediaPlayerVideoDecoderOutput::GetTexture() const
-TRefCountPtr<ID3D11Texture2D> TextureMediaPlayerVideoDecoderOutput::GetTexture() const
+TRefCountPtr<IUnknown> TextureMediaPlayerVideoDecoderOutput::GetTexture() const
 {
-	//IUnknown* Result = nullptr;
-	ID3D11Texture2D* Result = nullptr;
+	IUnknown* Result = nullptr;
 	if (Texture.IsValid())
 	{
-		//Result = static_cast<IUnknown*>(Texture->GetNativeResource());
-		Result = static_cast<ID3D11Texture2D*>(Texture->GetNativeResource());
+		Result = static_cast<IUnknown*>(Texture->GetNativeResource());
 	}
 	return Result;
 }

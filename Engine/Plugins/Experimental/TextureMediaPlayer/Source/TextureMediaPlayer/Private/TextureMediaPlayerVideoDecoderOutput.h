@@ -36,11 +36,8 @@ public:
 #if PLATFORM_WINDOWS
 	virtual TRefCountPtr<IMFSample> GetMFSample() const override;
 
-	// TODO: Use commented line to replace following line once Electra changes are integrated
-	//virtual TRefCountPtr<IUnknown> GetTexture() const override;
-	virtual TRefCountPtr<ID3D11Texture2D> GetTexture() const override;
-	// TODO: Re-add override specifier once Electra changes are integrated
-	virtual TRefCountPtr<IUnknown> GetSync(uint64& SyncValue) const;
+	virtual TRefCountPtr<IUnknown> GetTexture() const override;
+	virtual TRefCountPtr<IUnknown> GetSync(uint64& SyncValue) const override;
 	virtual TRefCountPtr<ID3D11Device> GetDevice() const override;
 #endif // PLATFORM_WINDOWS
 

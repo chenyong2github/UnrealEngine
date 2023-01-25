@@ -44,9 +44,9 @@ uint32 FElectraPlayerVideoDecoderOutputPC::GetStride() const
 	return Stride;
 }
 
-TRefCountPtr<ID3D11Texture2D> FElectraPlayerVideoDecoderOutputPC::GetTexture() const
+TRefCountPtr<IUnknown> FElectraPlayerVideoDecoderOutputPC::GetTexture() const
 {
-	return Texture;
+	return static_cast<IUnknown*>(Texture.GetReference());
 }
 
 TRefCountPtr<ID3D11Device> FElectraPlayerVideoDecoderOutputPC::GetDevice() const
@@ -58,6 +58,13 @@ TRefCountPtr<ID3D11Device> FElectraPlayerVideoDecoderOutputPC::GetDevice() const
 FIntPoint FElectraPlayerVideoDecoderOutputPC::GetDim() const
 {
 	return SampleDim;
+}
+
+TRefCountPtr<IUnknown> FElectraPlayerVideoDecoderOutputPC::GetSync(uint64& SyncValue) const
+{
+	TRefCountPtr<IUnknown> KeyedMutex;
+	HRESULT res = Texture->QueryInterface(_uuidof(IDXGIKeyedMutex), (void**)&KeyedMutex);
+	return KeyedMutex;
 }
 
 bool FElectraPlayerVideoDecoderOutputPC::PreInitForDecode(FIntPoint OutputDim, const TFunction<void(int32 /*ApiReturnValue*/, const FString& /*Message*/, uint16 /*Code*/, UEMediaError /*Error*/ )>& PostError)
