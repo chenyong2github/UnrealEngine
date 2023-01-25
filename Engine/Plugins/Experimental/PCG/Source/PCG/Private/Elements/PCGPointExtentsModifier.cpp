@@ -2,7 +2,6 @@
 
 #include "Elements/PCGPointExtentsModifier.h"
 
-#include "Helpers/PCGSettingsHelpers.h"
 #include "PCGContext.h"
 #include "PCGPoint.h"
 
@@ -17,7 +16,6 @@ TArray<FPCGPinProperties> UPCGPointExtentsModifierSettings::InputPinProperties()
 {
 	TArray<FPCGPinProperties> PinProperties;
 	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);	
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param);
 	return PinProperties;
 }
 
@@ -30,10 +28,9 @@ bool FPCGPointExtentsModifier::ExecuteInternal(FPCGContext* Context) const
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputsByPin(PCGPinConstants::DefaultInputLabel);
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
-	UPCGParamData* Params = Context->InputData.GetParams();
 
-	const EPCGPointExtentsModifierMode Mode = PCG_GET_OVERRIDEN_VALUE(Settings, Mode, Params);
-	const FVector Extents = PCG_GET_OVERRIDEN_VALUE(Settings, Extents, Params);
+	const EPCGPointExtentsModifierMode Mode = Settings->Mode;
+	const FVector& Extents = Settings->Extents;
 
 	switch (Mode)
 	{

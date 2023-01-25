@@ -10,6 +10,7 @@
 #include "PCGData.generated.h"
 
 class FArchiveCrc32;
+class UPCGNode;
 class UPCGSettings;
 class UPCGSettingsInterface;
 class UPCGParamData;
@@ -93,10 +94,17 @@ struct PCG_API FPCGDataCollection
 	TArray<FPCGTaggedData> GetTaggedParams(const FString& InTag) const;
 	/** Returns all params on a given pin */
 	TArray<FPCGTaggedData> GetParamsByPin(const FName& InPinLabel) const;
+
+	UE_DEPRECATED(5.2, "GetParams is deprecated, please use GetParamsByPin or GetFirstParamsOnParamsPin.")
 	/** Returns the first params found in the collection */
-	UPCGParamData* GetParams() const; 
+	UPCGParamData* GetParams() const;
+
+	// Only used as a temporary solution for old graph with nodes that didn't have params pins.
+	// Should NOT be used with new nodes.
+	UPCGParamData* GetParamsWithDeprecation(const UPCGNode* Node) const;
+
 	/** Returns the first/only param found on the default params pin */
-	UPCGParamData* GetParamsOnParamsPin() const;
+	UPCGParamData* GetFirstParamsOnParamsPin() const;
 
 	const UPCGSettingsInterface* GetSettingsInterface() const;
 	const UPCGSettingsInterface* GetSettingsInterface(const UPCGSettingsInterface* InDefaultSettingsInterface) const;

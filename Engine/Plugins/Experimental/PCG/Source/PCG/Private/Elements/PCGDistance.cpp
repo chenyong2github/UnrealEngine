@@ -3,7 +3,6 @@
 #include "Elements/PCGDistance.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"
-#include "Helpers/PCGSettingsHelpers.h"
 #include "Data/PCGPointData.h"
 #include "PCGContext.h"
 #include "PCGPin.h"
@@ -71,13 +70,11 @@ bool FPCGDistanceElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGDistanceSettings* Settings = Context->GetInputSettings<UPCGDistanceSettings>();
 	check(Settings);
 
-	UPCGParamData* Params = Context->InputData.GetParams();
-
-	const FName AttributeName = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDistanceSettings, AttributeName), Settings->AttributeName, Params);
-	const bool bSetDensity = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDistanceSettings, bSetDensity), Settings->bSetDensity, Params);
-	const double MaximumDistance = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDistanceSettings, MaximumDistance), Settings->MaximumDistance, Params);
-	const PCGDistanceShape SourceShape = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDistanceSettings, SourceShape), Settings->SourceShape, Params);
-	const PCGDistanceShape TargetShape = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDistanceSettings, TargetShape), Settings->TargetShape, Params);
+	const FName AttributeName = Settings->AttributeName;
+	const bool bSetDensity = Settings->bSetDensity;
+	const double MaximumDistance = Settings->MaximumDistance;
+	const PCGDistanceShape SourceShape = Settings->SourceShape;
+	const PCGDistanceShape TargetShape = Settings->TargetShape;
 
 	TArray<FPCGTaggedData> Sources = Context->InputData.GetInputsByPin(PCGDistance::SourceLabel);
 	TArray<FPCGTaggedData> Targets = Context->InputData.GetInputsByPin(PCGDistance::TargetLabel);

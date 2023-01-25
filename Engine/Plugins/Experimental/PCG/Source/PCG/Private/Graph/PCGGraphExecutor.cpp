@@ -9,11 +9,13 @@
 #include "PCGGraphCompiler.h"
 #include "PCGHelpers.h"
 #include "PCGInputOutputSettings.h"
+#include "PCGModule.h"
+#include "PCGParamData.h"
+#include "PCGPin.h"
 #include "Graph/PCGGraphCache.h"
+#include "Metadata/PCGMetadata.h"
 
 #include "Async/Async.h"
-#include "PCGModule.h"
-#include "PCGPin.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -537,6 +539,7 @@ void FPCGGraphExecutor::Execute()
 				if (!Task.Context)
 				{
 					Task.Context = Task.Element->Initialize(TaskInput, Task.SourceComponent, Task.Node);
+					Task.Context->InitializeSettings();
 					Task.Context->TaskId = Task.NodeId;
 					Task.Context->CompiledTaskId = Task.CompiledTaskId;
 					Task.Context->InputData.Crc = TaskInput.Crc;
@@ -671,6 +674,13 @@ void FPCGGraphExecutor::Execute()
 			// Book-keeping
 			QueueNextTasks(ActiveTask.NodeId);
 			bAnyTaskEnded = true;
+
+			// Un-root temporary input data
+			if (FPCGDataCollection* TemporaryInput = InputTemporaryData.Find(ActiveTask.NodeId))
+			{
+				TemporaryInput->RemoveFromRootSet(DataRootSet);
+				InputTemporaryData.Remove(ActiveTask.NodeId);
+			}
 
 			// Remove current active task from list
 			ActiveTasks.RemoveAtSwap(TaskIndex);
@@ -915,7 +925,52 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 		}
 	}
 
+	// Then combine params if needed
+	CombineParams(Task.NodeId, TaskInput);
+
 	TaskInput.Crc = Crc;
+}
+
+void FPCGGraphExecutor::CombineParams(FPCGTaskId InTaskId, FPCGDataCollection& InTaskInput)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphExecutor::CombineParams);
+
+	TArray<FPCGTaggedData> AllParamsData = InTaskInput.GetParamsByPin(PCGPinConstants::DefaultParamsLabel);
+	if (AllParamsData.Num() > 1)
+	{
+		UPCGParamData* CombinedParamData = NewObject<UPCGParamData>();
+		for (const FPCGTaggedData& TaggedDatum : AllParamsData)
+		{
+			const UPCGParamData* ParamData = CastChecked<UPCGParamData>(TaggedDatum.Data);
+			CombinedParamData->Metadata->AddAttributes(ParamData->Metadata);
+		}
+
+		const int32 NewNumberOfInputs = InTaskInput.TaggedData.Num() - AllParamsData.Num() + 1;
+		check(NewNumberOfInputs >= 1);
+
+		TArray<FPCGTaggedData> TempTaggedData{};
+		TempTaggedData.Reserve(NewNumberOfInputs);
+		for (FPCGTaggedData& TaggedData : InTaskInput.TaggedData)
+		{
+			if (TaggedData.Pin != PCGPinConstants::DefaultParamsLabel)
+			{
+				TempTaggedData.Add(std::move(TaggedData));
+			}
+		}
+
+		// Add to the root set since we created a new object, that needs to be kept alive for the duration of the task.
+		DataRootSet.Add(CombinedParamData);
+		FPCGTaggedData CombineParams{};
+		CombineParams.Data = CombinedParamData;
+		CombineParams.Pin = PCGPinConstants::DefaultParamsLabel;
+		TempTaggedData.Add(CombineParams);
+
+		InTaskInput.TaggedData = std::move(TempTaggedData);
+
+		// Also store it into the TemporaryMap to track it down
+		FPCGDataCollection& TemporaryInput = InputTemporaryData.FindOrAdd(InTaskId);
+		TemporaryInput.TaggedData.Add(CombineParams);
+	}
 }
 
 void FPCGGraphExecutor::StoreResults(FPCGTaskId InTaskId, const FPCGDataCollection& InTaskOutput)
@@ -938,6 +993,12 @@ void FPCGGraphExecutor::ClearResults()
 	{
 		NextTaskId = 0;
 	}
+
+	for (const TPair<FPCGTaskId, FPCGDataCollection>& TaskTemporaryInput : InputTemporaryData)
+	{
+		TaskTemporaryInput.Value.RemoveFromRootSet(DataRootSet);
+	}
+	InputTemporaryData.Reset();
 
 	for (const TPair<FPCGTaskId, FPCGDataCollection>& TaskOutput : OutputData)
 	{

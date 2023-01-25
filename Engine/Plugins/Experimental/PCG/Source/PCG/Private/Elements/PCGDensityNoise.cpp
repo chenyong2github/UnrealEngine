@@ -5,7 +5,6 @@
 #include "PCGContext.h"
 #include "PCGCustomVersion.h"
 #include "PCGHelpers.h"
-#include "Helpers/PCGSettingsHelpers.h"
 
 #include "Math/RandomStream.h"
 #include "PCGPoint.h"
@@ -22,7 +21,6 @@ TArray<FPCGPinProperties> UPCGDensityNoiseSettings::InputPinProperties() const
 	TArray<FPCGPinProperties> PinProperties;
 	// TODO in the future type checking of edges will be stricter and a conversion node will be added to convert from other types
 	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/false);
 
 	return PinProperties;
 }
@@ -41,15 +39,14 @@ bool FPCGDensityNoiseElement::ExecuteInternal(FPCGContext* Context) const
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
-	UPCGParamData* Params = Context->InputData.GetParams();
 
-	const EPCGDensityNoiseMode DensityMode = PCG_GET_OVERRIDEN_VALUE(Settings, DensityMode, Params);
-	const float DensityNoiseMin = PCG_GET_OVERRIDEN_VALUE(Settings, DensityNoiseMin, Params);
-	const float DensityNoiseMax = PCG_GET_OVERRIDEN_VALUE(Settings, DensityNoiseMax, Params);
-	const bool bInvertSourceDensity = PCG_GET_OVERRIDEN_VALUE(Settings, bInvertSourceDensity, Params);
+	const EPCGDensityNoiseMode DensityMode = Settings->DensityMode;
+	const float DensityNoiseMin = Settings->DensityNoiseMin;
+	const float DensityNoiseMax = Settings->DensityNoiseMax;
+	const bool bInvertSourceDensity = Settings->bInvertSourceDensity;
 
 	// Precompute a seed based on the settings one and the component one
-	const int Seed = PCGSettingsHelpers::ComputeSeedWithOverride(Settings, Context->SourceComponent, Params);
+	const int Seed = Context->GetSeed();
 
 	ProcessPoints(Context, Inputs, Outputs, [Seed, DensityNoiseMin, DensityNoiseMax, bInvertSourceDensity, DensityMode](const FPCGPoint& InPoint, FPCGPoint& OutPoint)
 	{
@@ -94,17 +91,3 @@ bool FPCGDensityNoiseElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
-
-#if WITH_EDITOR
-void UPCGDensityNoiseSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
-{
-	Super::ApplyDeprecationBeforeUpdatePins(InOutNode, InputPins, OutputPins);
-
-	check(InOutNode);
-
-	if (DataVersion < FPCGCustomVersion::MoveParamsOffFirstPinDensityNodes)
-	{
-		PCGSettingsHelpers::DeprecationBreakOutParamsToNewPin(InOutNode, InputPins, OutputPins);
-	}
-}
-#endif // WITH_EDITOR

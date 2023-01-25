@@ -6,7 +6,6 @@
 #include "PCGCustomVersion.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
-#include "Helpers/PCGSettingsHelpers.h"
 
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSelfPruning)
@@ -249,7 +248,6 @@ TArray<FPCGPinProperties> UPCGSelfPruningSettings::InputPinProperties() const
 	TArray<FPCGPinProperties> PinProperties;
 	// TODO in the future type checking of edges will be stricter and a conversion node will be added to convert from other types
 	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/false);
 
 	return PinProperties;
 }
@@ -266,27 +264,11 @@ bool FPCGSelfPruningElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGSelfPruningSettings* Settings = Context->GetInputSettings<UPCGSelfPruningSettings>();
 	check(Settings);
 
-	UPCGParamData* Params = Context->InputData.GetParams();
-
-	const EPCGSelfPruningType PruningType = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSelfPruningSettings, PruningType), Settings->PruningType, Params);
-	const float RadiusSimilarityFactor = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSelfPruningSettings, RadiusSimilarityFactor), Settings->RadiusSimilarityFactor, Params);
-	const bool bRandomizedPruning = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSelfPruningSettings, bRandomizedPruning), Settings->bRandomizedPruning, Params);
+	const EPCGSelfPruningType PruningType = Settings->PruningType;
+	const float RadiusSimilarityFactor = Settings->RadiusSimilarityFactor;
+	const bool bRandomizedPruning = Settings->bRandomizedPruning;
 
 	PCGSelfPruningElement::Execute(Context, PruningType, RadiusSimilarityFactor, bRandomizedPruning);
 
 	return true;
 }
-
-#if WITH_EDITOR
-void UPCGSelfPruningSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
-{
-	Super::ApplyDeprecationBeforeUpdatePins(InOutNode, InputPins, OutputPins);
-
-	check(InOutNode);
-
-	if (DataVersion < FPCGCustomVersion::MoveSelfPruningParamsOffFirstPin)
-	{
-		PCGSettingsHelpers::DeprecationBreakOutParamsToNewPin(InOutNode, InputPins, OutputPins);
-	}
-}
-#endif // WITH_EDITOR

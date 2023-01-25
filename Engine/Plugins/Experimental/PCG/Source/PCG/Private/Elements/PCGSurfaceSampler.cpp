@@ -34,24 +34,18 @@ namespace PCGSurfaceSampler
 
 		if (Settings)
 		{
-			UPCGParamData* Params = Context ? Context->InputData.GetParams() : nullptr;
-			
 			// Compute used values
-			PointsPerSquaredMeter = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, PointsPerSquaredMeter), Settings->PointsPerSquaredMeter, Params);
-			PointExtents = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, PointExtents), Settings->PointExtents, Params);
-			Looseness = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, Looseness), Settings->Looseness, Params);
-			bApplyDensityToPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, bApplyDensityToPoints), Settings->bApplyDensityToPoints, Params);
-			PointSteepness = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, PointSteepness), Settings->PointSteepness, Params);
+			PointsPerSquaredMeter = Settings->PointsPerSquaredMeter;
+			PointExtents = Settings->PointExtents;
+			Looseness = Settings->Looseness;
+			bApplyDensityToPoints = Settings->bApplyDensityToPoints;
+			PointSteepness = Settings->PointSteepness;
 #if WITH_EDITOR
-			bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
+			bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
 #endif
+		}
 
-			Seed = PCGSettingsHelpers::ComputeSeedWithOverride(InSettings, Context ? Context->SourceComponent : nullptr, Params);
-		}
-		else
-		{
-			Seed = (Context && Context->SourceComponent.IsValid()) ? Context->SourceComponent->Seed : 42;
-		}
+		Seed = Context->GetSeed();
 
 		// Conceptually, we will break down the surface bounds in a N x M grid
 		InterstitialDistance = PointExtents * 2;
@@ -243,7 +237,6 @@ TArray<FPCGPinProperties> UPCGSurfaceSamplerSettings::InputPinProperties() const
 		"All sampled points must be contained within this shape. If this input is omitted then bounds will be taken from the actor so that points are contained within actor bounds. "
 		"The Unbounded property disables this and instead generates over the entire bounds of Surface."
 	));
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/false);
 
 	return PinProperties;
 }
@@ -260,11 +253,13 @@ void UPCGSurfaceSamplerSettings::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITOR
 	if (PointRadius_DEPRECATED != 0)
 	{
 		PointExtents = FVector(PointRadius_DEPRECATED);
 		PointRadius_DEPRECATED = 0;
 	}
+#endif // WITH_EDITOR
 }
 
 #if WITH_EDITOR
@@ -347,11 +342,9 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		PCGE_LOG(Warning, "No Surface input was provided, and no surface could be found in the Bounding Shape input for sampling. Connect the surface to be sampled to the Surface input.");
 	}
 
-	UPCGParamData* Params = Context->InputData.GetParams();
-
 	// Early out on invalid settings
 	// TODO: we could compute an approximate radius based on the points per squared meters if that's useful
-	const FVector PointExtents = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, PointExtents), Settings->PointExtents, Params);
+	const FVector& PointExtents = Settings->PointExtents;
 	if(PointExtents.X <= 0 || PointExtents.Y <= 0)
 	{
 		PCGE_LOG(Warning, "Skipped - Invalid point extents");
@@ -403,8 +396,8 @@ void FPCGSurfaceSamplerElement::GetDependenciesCrc(const FPCGDataCollection& InI
 
 	if (const UPCGSurfaceSamplerSettings* Settings = Cast<UPCGSurfaceSamplerSettings>(InSettings))
 	{
-		const UPCGParamData* Params = InInput.GetParams();
-		const bool bUnbounded = PCG_GET_OVERRIDEN_VALUE(Settings, bUnbounded, Params);
+		bool bUnbounded;
+		PCGSettingsHelpers::GetOverrideValue(InInput, Settings, GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, bUnbounded), Settings->bUnbounded, bUnbounded);
 		const bool bBoundsConnected = InInput.GetInputsByPin(PCGSurfaceSamplerConstants::BoundingShapeLabel).Num() > 0;
 
 		// If we're operating in bounded mode and there is no bounding shape connected then we'll use actor bounds, and therefore take

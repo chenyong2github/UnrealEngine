@@ -42,7 +42,7 @@ struct PCG_API FPCGContext
 {
 	GENERATED_BODY()
 
-	virtual ~FPCGContext() = default;
+	virtual ~FPCGContext();
 
 	FPCGDataCollection InputData;
 	FPCGDataCollection OutputData;
@@ -51,7 +51,6 @@ struct PCG_API FPCGContext
 
 	FPCGCrc DependenciesCrc;
 
-	// TODO: add RNG source
 	// TODO: replace this by a better identification mechanism
 	const UPCGNode* Node = nullptr;
 	FPCGTaskId TaskId = InvalidPCGTaskId;
@@ -68,14 +67,37 @@ struct PCG_API FPCGContext
 	bool bIsRunningAsyncCall = false;
 
 	const UPCGSettingsInterface* GetInputSettingsInterface() const;
+	
+	// After initializing the context, we can call this method to prepare for parameter override
+	// It will create a copy of the original settings if there is indeed a possible override.
+	void InitializeSettings();
 
+	// If we any any parameter override, it will read from the params and override matching values
+	// in the settings copy.
+	void OverrideSettings();
+
+	// Return the seed, possibly overriden by params, and combined with the source component (if any).
+	int GetSeed() const;
+
+	// Return the settings casted in the wanted type.
+	// If there is any override, those settings will already contains all the overriden values.
 	template<typename SettingsType>
 	const SettingsType* GetInputSettings() const
 	{
-		return PCGContextHelpers::GetInputSettings<SettingsType>(Node, InputData);
+		return SettingsWithOverride ? Cast<SettingsType>(SettingsWithOverride) : GetOriginalSettings<SettingsType>();
 	}
 
 	FString GetTaskName() const;
 	FString GetComponentName() const;
 	bool ShouldStop() const;
+
+private:
+	template<typename SettingsType>
+	const SettingsType* GetOriginalSettings() const 
+	{
+		return PCGContextHelpers::GetInputSettings<SettingsType>(Node, InputData);
+	}
+
+	// Copy of the settings that will be used to apply overrides.
+	TObjectPtr<UPCGSettings> SettingsWithOverride = nullptr;
 };

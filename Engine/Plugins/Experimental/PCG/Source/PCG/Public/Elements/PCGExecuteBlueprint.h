@@ -189,6 +189,8 @@ public:
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 
+	/** To be removed when we support automatic override of BP params. For now always return true to force params pin. */
+	virtual bool HasOverridableParams() const override { return true; }
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
 	// ~End UPCGSettings interface

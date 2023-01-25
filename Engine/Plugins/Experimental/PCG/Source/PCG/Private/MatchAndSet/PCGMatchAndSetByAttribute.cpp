@@ -94,19 +94,19 @@ void UPCGMatchAndSetByAttribute::MatchAndSet_Implementation(
 	auto CreateConstantMatchSourceAccessor = [&EntryMatchSourceAccessors](auto&& Value)
 	{
 		using ConstantType = std::decay_t<decltype(Value)>;
-		EntryMatchSourceAccessors.Emplace(MakeUnique<FPCGConstantValueAccessor<ConstantType>>(std::forward<ConstantType>(Value)));
+		EntryMatchSourceAccessors.Emplace(MakeUnique<FPCGConstantValueAccessor<ConstantType>>(std::forward<decltype(Value)>(Value)));
 	};
 
 	auto CreateConstantSetValueAccessor = [&EntrySetValueAccessors](auto&& Value)
 	{
 		using ConstantType = std::decay_t<decltype(Value)>;
-		EntrySetValueAccessors.Emplace(MakeUnique<FPCGConstantValueAccessor<ConstantType>>(std::forward<ConstantType>(Value)));
+		EntrySetValueAccessors.Emplace(MakeUnique<FPCGConstantValueAccessor<ConstantType>>(std::forward<decltype(Value)>(Value)));
 	};
 
 	for (const FPCGMatchAndSetByAttributeEntry& Entry : Entries)
 	{
-		Entry.ValueToMatch.DispatcherWithOverride(nullptr, CreateConstantMatchSourceAccessor);
-		Entry.Value.DispatcherWithOverride(nullptr, CreateConstantSetValueAccessor);
+		Entry.ValueToMatch.Dispatcher(CreateConstantMatchSourceAccessor);
+		Entry.Value.Dispatcher(CreateConstantSetValueAccessor);
 	}
 
 	//TODO: implement async loop?

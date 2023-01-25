@@ -227,7 +227,6 @@ TArray<FPCGPinProperties> UPCGAttributeSelectSettings::InputPinProperties() cons
 {
 	TArray<FPCGPinProperties> PinProperties;
 	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Spatial, /*bInAllowMultipleConnections=*/ false);
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/ false);
 
 	return PinProperties;
 }

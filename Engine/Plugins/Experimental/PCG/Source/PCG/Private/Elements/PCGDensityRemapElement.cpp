@@ -4,7 +4,6 @@
 
 #include "PCGContext.h"
 #include "PCGCustomVersion.h"
-#include "Helpers/PCGSettingsHelpers.h"
 
 #include "PCGPoint.h"
 
@@ -15,7 +14,6 @@ TArray<FPCGPinProperties> UPCGDensityRemapSettings::InputPinProperties() const
 	TArray<FPCGPinProperties> PinProperties;
 	// TODO in the future type checking of edges will be stricter and a conversion node will be added to convert from other types
 	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/false);
 
 	return PinProperties;
 }
@@ -34,13 +32,12 @@ bool FPCGDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
-	UPCGParamData* Params = Context->InputData.GetParams();
 
-	const float InRangeMin = PCG_GET_OVERRIDEN_VALUE(Settings, InRangeMin, Params);
-	const float InRangeMax = PCG_GET_OVERRIDEN_VALUE(Settings, InRangeMax, Params);
-	const float OutRangeMin = PCG_GET_OVERRIDEN_VALUE(Settings, OutRangeMin, Params);
-	const float OutRangeMax = PCG_GET_OVERRIDEN_VALUE(Settings, OutRangeMax, Params);
-	const bool bExcludeValuesOutsideInputRange = PCG_GET_OVERRIDEN_VALUE(Settings, bExcludeValuesOutsideInputRange, Params);
+	const float InRangeMin = Settings->InRangeMin;
+	const float InRangeMax = Settings->InRangeMax;
+	const float OutRangeMin = Settings->OutRangeMin;
+	const float OutRangeMax = Settings->OutRangeMax;
+	const bool bExcludeValuesOutsideInputRange = Settings->bExcludeValuesOutsideInputRange;
 
 	// used to determine if a density value lies between TrueMin and TrueMax
 	const float InRangeTrueMin = FMath::Min(InRangeMin, InRangeMax);
@@ -83,17 +80,3 @@ bool FPCGDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
-
-#if WITH_EDITOR
-void UPCGDensityRemapSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
-{
-	Super::ApplyDeprecationBeforeUpdatePins(InOutNode, InputPins, OutputPins);
-
-	check(InOutNode);
-
-	if (DataVersion < FPCGCustomVersion::MoveParamsOffFirstPinDensityNodes)
-	{
-		PCGSettingsHelpers::DeprecationBreakOutParamsToNewPin(InOutNode, InputPins, OutputPins);
-	}
-}
-#endif // WITH_EDITOR

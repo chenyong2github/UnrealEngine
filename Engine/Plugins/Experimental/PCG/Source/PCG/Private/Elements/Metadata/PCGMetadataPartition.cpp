@@ -3,7 +3,6 @@
 #include "Elements/Metadata/PCGMetadataPartition.h"
 #include "Data/PCGSpatialData.h"
 #include "Data/PCGPointData.h"
-#include "Helpers/PCGSettingsHelpers.h"
 
 #include "Algo/Find.h"
 #include "PCGContext.h"
@@ -24,13 +23,12 @@ bool FPCGMetadataPartitionElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	UPCGParamData* Params = Context->InputData.GetParams();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
 	// Forward any non-input data
 	Outputs.Append(Context->InputData.GetAllSettings());
 
-	const FName PartitionAttribute = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGMetadataPartitionSettings, PartitionAttribute), Settings->PartitionAttribute, Params);
+	const FName PartitionAttribute = Settings->PartitionAttribute;
 
 	for (const FPCGTaggedData& Input : Inputs)
 	{

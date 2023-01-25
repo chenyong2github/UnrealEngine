@@ -2,11 +2,18 @@
 
 #include "Elements/PCGUnionElement.h"
 #include "Data/PCGSpatialData.h"
-#include "Helpers/PCGSettingsHelpers.h"
 #include "PCGContext.h"
 #include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGUnionElement)
+
+TArray<FPCGPinProperties> UPCGUnionSettings::InputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Spatial);
+
+	return PinProperties;
+}
 
 TArray<FPCGPinProperties> UPCGUnionSettings::OutputPinProperties() const
 {
@@ -29,10 +36,9 @@ bool FPCGUnionElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	UPCGParamData* Params = Context->InputData.GetParams();
 
-	const EPCGUnionType Type = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGUnionSettings, Type), Settings->Type, Params);
-	const EPCGUnionDensityFunction DensityFunction = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGUnionSettings, DensityFunction), Settings->DensityFunction, Params);
+	const EPCGUnionType Type = Settings->Type;
+	const EPCGUnionDensityFunction DensityFunction = Settings->DensityFunction;
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 

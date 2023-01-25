@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Helpers/PCGSettingsHelpers.h"
+#include "Metadata/PCGMetadataAttributeTraits.h"
 
 #include "PCGMetadataTypesConstantStruct.generated.h"
 
@@ -26,7 +26,7 @@ struct PCG_API FPCGMetadataTypesConstantStruct
 	GENERATED_BODY()
 public:
 	template <typename Func>
-	decltype(auto) DispatcherWithOverride(const UPCGParamData* Params, Func Callback) const;
+	decltype(auto) Dispatcher(Func Callback) const;
 
 	FString ToString() const;
 
@@ -87,50 +87,50 @@ public:
 };
 
 template <typename Func>
-decltype(auto) FPCGMetadataTypesConstantStruct::DispatcherWithOverride(const UPCGParamData* Params, Func Callback) const
+decltype(auto) FPCGMetadataTypesConstantStruct::Dispatcher(Func Callback) const
 {
 	using ReturnType = decltype(Callback(double{}));
 
 	switch (Type)
 	{
 	case EPCGMetadataTypes::Integer64:
-		return Callback(PCG_GET_OVERRIDEN_VALUE(this, IntValue, Params));
+		return Callback(IntValue);
 	case EPCGMetadataTypes::Integer32:
-		return Callback(PCG_GET_OVERRIDEN_VALUE(this, Int32Value, Params));
+		return Callback(Int32Value);
 	case EPCGMetadataTypes::Float:
-		return Callback(PCG_GET_OVERRIDEN_VALUE(this, FloatValue, Params));
+		return Callback(FloatValue);
 	case EPCGMetadataTypes::Double:
-		return Callback(PCG_GET_OVERRIDEN_VALUE(this, DoubleValue, Params));
+		return Callback(DoubleValue);
 	case EPCGMetadataTypes::Vector2:
-		return Callback(PCG_GET_OVERRIDEN_VALUE(this, Vector2Value, Params));
+		return Callback(Vector2Value);
 	case EPCGMetadataTypes::Vector:
-		return Callback(PCG_GET_OVERRIDEN_VALUE(this, VectorValue, Params));
+		return Callback(VectorValue);
 	case EPCGMetadataTypes::Vector4:
-		return Callback(PCG_GET_OVERRIDEN_VALUE(this, Vector4Value, Params));
+		return Callback(Vector4Value);
 	case EPCGMetadataTypes::Quaternion:
-		return Callback(PCG_GET_OVERRIDEN_VALUE(this, QuatValue, Params));
+		return Callback(QuatValue);
 	case EPCGMetadataTypes::Transform:
-		return Callback(PCG_GET_OVERRIDEN_VALUE(this, TransformValue, Params));
+		return Callback(TransformValue);
 	case EPCGMetadataTypes::String:
 	{
 		switch (StringMode)
 		{
 		case EPCGMetadataTypesConstantStructStringMode::String:
-			return Callback(PCG_GET_OVERRIDEN_VALUE(this, StringValue, Params));
+			return Callback(StringValue);
 		case EPCGMetadataTypesConstantStructStringMode::SoftObjectPath:
-			return Callback(PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, SoftObjectPathValue), SoftObjectPathValue.ToString(), Params));
+			return Callback(SoftObjectPathValue.ToString());
 		case EPCGMetadataTypesConstantStructStringMode::SoftClassPath:
-			return Callback(PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, SoftClassPathValue), SoftClassPathValue.ToString(), Params));
+			return Callback(SoftClassPathValue.ToString());
 		default:
 			break;
 		}
 	}
 	case EPCGMetadataTypes::Boolean:
-		return Callback(PCG_GET_OVERRIDEN_VALUE(this, BoolValue, Params));
+		return Callback(BoolValue);
 	case EPCGMetadataTypes::Rotator:
-		return Callback(PCG_GET_OVERRIDEN_VALUE(this, RotatorValue, Params));
+		return Callback(RotatorValue);
 	case EPCGMetadataTypes::Name:
-		return Callback(PCG_GET_OVERRIDEN_VALUE(this, NameValue, Params));
+		return Callback(NameValue);
 	default:
 		break;
 	}

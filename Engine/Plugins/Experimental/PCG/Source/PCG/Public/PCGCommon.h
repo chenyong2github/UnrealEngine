@@ -60,3 +60,16 @@ namespace PCGPinConstants
 	const FName DefaultOutputLabel = TEXT("Out");
 	const FName DefaultParamsLabel = TEXT("Params");
 }
+
+// Metadata used by PCG
+namespace PCGObjectMetadata
+{
+	const FName Overridable = TEXT("PCG_Overridable");
+
+	// Metadata usable in UPROPERTY for customizing the behavior when displaying the property in a property panel or graph node
+	enum
+	{
+		/// [PropertyMetadata] Indicates that the property is overridable by params.
+		PCG_Overridable
+	};
+}

@@ -2,7 +2,6 @@
 
 #include "Elements/PCGBoundsModifier.h"
 
-#include "Helpers/PCGSettingsHelpers.h"
 #include "PCGContext.h"
 #include "PCGPoint.h"
 
@@ -19,7 +18,6 @@ TArray<FPCGPinProperties> UPCGBoundsModifierSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
 	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param);
 	return PinProperties;
 }
 
@@ -39,13 +37,12 @@ bool FPCGBoundsModifier::ExecuteInternal(FPCGContext* Context) const
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputsByPin(PCGPinConstants::DefaultInputLabel);
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
-	UPCGParamData* Params = Context->InputData.GetParams();
 
-	const EPCGBoundsModifierMode Mode = PCG_GET_OVERRIDEN_VALUE(Settings, Mode, Params);
-	const FVector BoundsMin = PCG_GET_OVERRIDEN_VALUE(Settings, BoundsMin, Params);
-	const FVector BoundsMax = PCG_GET_OVERRIDEN_VALUE(Settings, BoundsMax, Params);
-	const bool bAffectSteepness = PCG_GET_OVERRIDEN_VALUE(Settings, bAffectSteepness, Params);
-	const float Steepness = PCG_GET_OVERRIDEN_VALUE(Settings, Steepness, Params);
+	const EPCGBoundsModifierMode Mode = Settings->Mode;
+	const FVector& BoundsMin = Settings->BoundsMin;
+	const FVector& BoundsMax = Settings->BoundsMax;
+	const bool bAffectSteepness = Settings->bAffectSteepness;
+	const float Steepness = Settings->Steepness;
 
 	const FBox Bounds(BoundsMin, BoundsMax);
 

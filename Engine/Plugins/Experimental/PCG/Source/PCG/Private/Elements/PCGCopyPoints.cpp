@@ -7,7 +7,6 @@
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"
-#include "Helpers/PCGSettingsHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGCopyPoints)
 
@@ -16,8 +15,6 @@ TArray<FPCGPinProperties> UPCGCopyPointsSettings::InputPinProperties() const
 	TArray<FPCGPinProperties> PinProperties;
 	PinProperties.Emplace(PCGCopyPointsConstants::SourcePointsLabel, EPCGDataType::Point, /*bAllowMultipleConnections=*/false);
 	PinProperties.Emplace(PCGCopyPointsConstants::TargetPointsLabel, EPCGDataType::Point, /*bAllowMultipleConnections=*/false);
-	PinProperties.Emplace(PCGCopyPointsConstants::ParamsLabel, EPCGDataType::Param, /*bAllowMultipleConnections=*/false);
-
 	return PinProperties;
 }
 
@@ -33,12 +30,11 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGCopyPointsSettings* Settings = Context->GetInputSettings<UPCGCopyPointsSettings>();
 	check(Settings);
 
-	UPCGParamData* Params = Context->InputData.GetParams();
-	const EPCGCopyPointsInheritanceMode RotationInheritance = PCG_GET_OVERRIDEN_VALUE(Settings, RotationInheritance, Params);
-	const EPCGCopyPointsInheritanceMode ScaleInheritance = PCG_GET_OVERRIDEN_VALUE(Settings, ScaleInheritance, Params);
-	const EPCGCopyPointsInheritanceMode ColorInheritance = PCG_GET_OVERRIDEN_VALUE(Settings, ColorInheritance, Params);
-	const EPCGCopyPointsInheritanceMode SeedInheritance = PCG_GET_OVERRIDEN_VALUE(Settings, SeedInheritance, Params);
-	const EPCGCopyPointsMetadataInheritanceMode AttributeInheritance = PCG_GET_OVERRIDEN_VALUE(Settings, AttributeInheritance, Params);
+	const EPCGCopyPointsInheritanceMode RotationInheritance = Settings->RotationInheritance;
+	const EPCGCopyPointsInheritanceMode ScaleInheritance = Settings->ScaleInheritance;
+	const EPCGCopyPointsInheritanceMode ColorInheritance = Settings->ColorInheritance;
+	const EPCGCopyPointsInheritanceMode SeedInheritance = Settings->SeedInheritance;
+	const EPCGCopyPointsMetadataInheritanceMode AttributeInheritance = Settings->AttributeInheritance;
 
 	const TArray<FPCGTaggedData> Sources = Context->InputData.GetInputsByPin(PCGCopyPointsConstants::SourcePointsLabel);
 	const TArray<FPCGTaggedData> Targets = Context->InputData.GetInputsByPin(PCGCopyPointsConstants::TargetPointsLabel);

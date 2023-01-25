@@ -2,22 +2,14 @@
 
 #include "Elements/Metadata/PCGMetadataRenameElement.h"
 
-#include "Data/PCGSpatialData.h"
-#include "Elements/Metadata/PCGMetadataElementCommon.h"
-#include "Helpers/PCGSettingsHelpers.h"
 #include "PCGContext.h"
 #include "PCGPin.h"
+#include "PCGParamData.h"
+#include "Data/PCGSpatialData.h"
+#include "Elements/Metadata/PCGMetadataElementCommon.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataRenameElement)
 
-TArray<FPCGPinProperties> UPCGMetadataRenameSettings::InputPinProperties() const
-{
-	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Any, /*bInAllowMultipleConnections=*/ true);
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/ false);
-
-	return PinProperties;
-}
 
 TArray<FPCGPinProperties> UPCGMetadataRenameSettings::OutputPinProperties() const
 {
@@ -40,13 +32,10 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputsByPin(PCGPinConstants::DefaultInputLabel);
-	TArray<FPCGTaggedData> InputParams = Context->InputData.GetInputsByPin(PCGPinConstants::DefaultParamsLabel);
-	const UPCGParamData* Params = InputParams.IsEmpty() ? nullptr : Cast<const UPCGParamData>(InputParams[0].Data);
-
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 	
-	const FName AttributeToRename = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGMetadataRenameSettings, AttributeToRename), Settings->AttributeToRename, Params);
-	const FName NewAttributeName = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGMetadataRenameSettings, NewAttributeName), Settings->NewAttributeName, Params);
+	const FName AttributeToRename = Settings->AttributeToRename;
+	const FName NewAttributeName = Settings->NewAttributeName;
 
 	if (NewAttributeName == NAME_None)
 	{

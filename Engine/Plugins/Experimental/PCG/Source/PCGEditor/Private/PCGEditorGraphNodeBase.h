@@ -65,6 +65,10 @@ protected:
 
 	void CreatePins(const TArray<UPCGPin*>& InInputPins, const TArray<UPCGPin*>& InOutputPins);
 
+	// Custom logic to hide some pins to the user (by not creating a UI pin, even if the model pin exists).
+	// Useful for deprecation
+	virtual bool ShouldCreatePin(const UPCGPin* InPin) const;
+
 	UPROPERTY()
 	TObjectPtr<UPCGNode> PCGNode = nullptr;
 

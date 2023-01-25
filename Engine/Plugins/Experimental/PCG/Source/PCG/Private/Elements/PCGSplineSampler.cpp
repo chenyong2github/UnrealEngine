@@ -9,7 +9,6 @@
 #include "Data/PCGSplineData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGBlueprintHelpers.h"
-#include "Helpers/PCGSettingsHelpers.h"
 
 #include "Components/SplineComponent.h"
 #include "PCGContext.h"
@@ -902,20 +901,8 @@ bool FPCGSplineSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	UPCGParamData* Params = Context->InputData.GetParams();
 
-	FPCGSplineSamplerParams SamplerParams = Settings->Params;
-	SamplerParams.Mode = PCG_GET_OVERRIDEN_VALUE(&SamplerParams, Mode, Params);
-	SamplerParams.Dimension = PCG_GET_OVERRIDEN_VALUE(&SamplerParams, Dimension, Params);
-	SamplerParams.Fill = PCG_GET_OVERRIDEN_VALUE(&SamplerParams, Fill, Params);
-	SamplerParams.SubdivisionsPerSegment = PCG_GET_OVERRIDEN_VALUE(&SamplerParams, SubdivisionsPerSegment, Params);
-	SamplerParams.DistanceIncrement = PCG_GET_OVERRIDEN_VALUE(&SamplerParams, DistanceIncrement, Params);
-	SamplerParams.NumPlanarSubdivisions = PCG_GET_OVERRIDEN_VALUE(&SamplerParams, NumPlanarSubdivisions, Params);
-	SamplerParams.NumHeightSubdivisions = PCG_GET_OVERRIDEN_VALUE(&SamplerParams, NumHeightSubdivisions, Params);
-	SamplerParams.InteriorSampleSpacing = PCG_GET_OVERRIDEN_VALUE(&SamplerParams, InteriorSampleSpacing, Params);
-	SamplerParams.InteriorBorderSampleSpacing = PCG_GET_OVERRIDEN_VALUE(&SamplerParams, InteriorBorderSampleSpacing, Params);
-	SamplerParams.InteriorOrientation = PCG_GET_OVERRIDEN_VALUE(&SamplerParams, InteriorOrientation, Params);
-	SamplerParams.bProjectOntoSurface = PCG_GET_OVERRIDEN_VALUE(&SamplerParams, bProjectOntoSurface, Params);
+	const FPCGSplineSamplerParams& SamplerParams = Settings->SamplerParams;
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 

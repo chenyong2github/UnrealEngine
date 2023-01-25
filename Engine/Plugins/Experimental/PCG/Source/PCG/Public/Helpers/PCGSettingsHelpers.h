@@ -2,13 +2,19 @@
 
 #pragma once
 
+#include "PCGModule.h"
 #include "PCGParamData.h"
-
+#include "PCGSettings.h"
+#include "Metadata/PCGMetadataAttributeTpl.h"
+#include "Metadata/PCGMetadataAttributeTraits.h"
+#include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 
 class UPCGComponent;
 class UPCGNode;
 class UPCGPin;
-class UPCGSettings;
+struct FPCGDataCollection;
 
 namespace PCGSettingsHelpers
 {
@@ -19,6 +25,7 @@ namespace PCGSettingsHelpers
 	* @param InKey - Metadata Entry Key to get the value from.
 	*/
 	template<typename T, typename TEnableIf<!TIsEnumClass<T>::Value>::Type* = nullptr>
+	UE_DEPRECATED(5.2, "GetValue is deprecated as overrides are now automatically applied on the settings. You should just query the settings value.")
 	T GetValue(const FName& InName, const T& InValue, const UPCGParamData* InParams, PCGMetadataEntryKey InKey)
 	{
 
@@ -61,13 +68,17 @@ namespace PCGSettingsHelpers
 		}
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	template<typename T, typename TEnableIf<!TIsEnumClass<T>::Value>::Type* = nullptr>
+	UE_DEPRECATED(5.2, "GetValue is deprecated as overrides are now automatically applied on the settings. You should just query the settings value.")
 	T GetValue(const FName& InName, const T& InValue, const UPCGParamData* InParams)
 	{
 		return GetValue(InName, InValue, InParams, 0);
 	}
 
 	template<typename T, typename TEnableIf<!TIsEnumClass<T>::Value>::Type* = nullptr>
+	UE_DEPRECATED(5.2, "GetValue is deprecated as overrides are now automatically applied on the settings. You should just query the settings value.")
 	T GetValue(const FName& InName, const T& InValue, const UPCGParamData* InParams, const FName& InParamName)
 	{
 		if (InParams && InParamName != NAME_None)
@@ -82,18 +93,21 @@ namespace PCGSettingsHelpers
 
 	/** Specialized versions for enums */
 	template<typename T, typename TEnableIf<TIsEnumClass<T>::Value>::Type* = nullptr>
+	UE_DEPRECATED(5.2, "GetValue is deprecated as overrides are now automatically applied on the settings. You should just query the settings value.")
 	T GetValue(const FName& InName, const T& InValue, const UPCGParamData* InParams, PCGMetadataEntryKey InKey)
 	{
 		return static_cast<T>(GetValue(InName, static_cast<__underlying_type(T)>(InValue), InParams, InKey));
 	}
 
 	template<typename T, typename TEnableIf<TIsEnumClass<T>::Value>::Type* = nullptr>
+	UE_DEPRECATED(5.2, "GetValue is deprecated as overrides are now automatically applied on the settings. You should just query the settings value.")
 	T GetValue(const FName& InName, const T& InValue, const UPCGParamData* InParams)
 	{
 		return static_cast<T>(GetValue(InName, static_cast<__underlying_type(T)>(InValue), InParams));
 	}
 
 	template<typename T, typename TEnableIf<TIsEnumClass<T>::Value>::Type* = nullptr>
+	UE_DEPRECATED(5.2, "GetValue is deprecated as overrides are now automatically applied on the settings. You should just query the settings value.")
 	T GetValue(const FName& InName, const T& InValue, const UPCGParamData* InParams, const FName& InParamName)
 	{
 		return static_cast<T>(GetValue(InName, static_cast<__underlying_type(T)>(InValue), InParams, InParamName));
@@ -101,18 +115,21 @@ namespace PCGSettingsHelpers
 
 	/** Specialized version for names */
 	template<>
+	UE_DEPRECATED(5.2, "GetValue is deprecated as overrides are now automatically applied on the settings. You should just query the settings value.")
 	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, const UPCGParamData* InParams, PCGMetadataEntryKey InKey)
 	{
 		return FName(GetValue(InName, InValue.ToString(), InParams, InKey));
 	}
 
 	template<>
+	UE_DEPRECATED(5.2, "GetValue is deprecated as overrides are now automatically applied on the settings. You should just query the settings value.")
 	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, const UPCGParamData* InParams)
 	{
 		return FName(GetValue(InName, InValue.ToString(), InParams));
 	}
 
 	template<>
+	UE_DEPRECATED(5.2, "GetValue is deprecated as overrides are now automatically applied on the settings. You should just query the settings value.")
 	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, const UPCGParamData* InParams, const FName& InParamName)
 	{
 		return FName(GetValue(InName, InValue.ToString(), InParams, InParamName));
@@ -121,17 +138,70 @@ namespace PCGSettingsHelpers
 	/** Sets data from the params to a given property, matched on a name basis */
 	void SetValue(UPCGParamData* Params, UObject* Object, FProperty* Property);
 
+	UE_DEPRECATED(5.2, "ComputeSeedWithOverride is deprecated as overrides are now automatically applied on the settings. You should just query the settings value.")
 	int ComputeSeedWithOverride(const UPCGSettings* InSettings, const UPCGComponent* InComponent, UPCGParamData* InParams);
 
+	UE_DEPRECATED(5.2, "ComputeSeedWithOverride is deprecated as overrides are now automatically applied on the settings. You should just query the settings value.")
 	FORCEINLINE int ComputeSeedWithOverride(const UPCGSettings* InSettings, TWeakObjectPtr<UPCGComponent> InComponent, UPCGParamData* InParams)
 	{
 		return ComputeSeedWithOverride(InSettings, InComponent.Get(), InParams);
 	}
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/** Utility to call from before-node-update deprecation. A dedicated pin for params will be added when the pins are updated. Here we detect any params
 	*   connections to the In pin and disconnect them, and move the first params connection to a new params pin.
 	*/
 	void DeprecationBreakOutParamsToNewPin(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins);
+
+	/**
+	* Advanced method to gather override params when you don't have access to FPCGContext (and therefore don't have access to automatic
+	* param override).
+	* Limitation: Only support metadata types for T.
+	*/
+	template <typename T>
+	bool GetOverrideValue(const FPCGDataCollection& InInputData, const UPCGSettings* InSettings, const FName InPropertyName, const T& InDefaultValue, T& OutValue)
+	{
+		check(InSettings);
+
+		// Limitation: Only support metadata types
+		static_assert(PCG::Private::IsPCGType<T>());
+
+		// Try to find the override param associated with the property.
+		const FPCGSettingsOverridableParam* Param = InSettings->OverridableParams().FindByPredicate([InPropertyName](const FPCGSettingsOverridableParam& InParam) { return !InParam.PropertiesNames.IsEmpty() && (InParam.PropertiesNames.Last() == InPropertyName);});
+
+		OutValue = InDefaultValue;
+
+		if (!Param)
+		{
+			return false;
+		}
+
+		FName AttributeName = NAME_None;
+		TUniquePtr<const IPCGAttributeAccessor> AttributeAccessor = PCGAttributeAccessorHelpers::CreateConstAccessorForOverrideParam(InInputData, *Param, &AttributeName);
+
+		if (!AttributeAccessor)
+		{
+			return false;
+		}
+
+		return PCGMetadataAttribute::CallbackWithRightType(PCG::Private::MetadataTypes<T>::Id, [&AttributeAccessor, &Param, &AttributeName, &InDefaultValue, &OutValue](auto Dummy) -> bool
+		{
+			using PropertyType = decltype(Dummy);
+
+			// Override were using the first entry (0) by default.
+			FPCGAttributeAccessorKeysEntries FirstEntry(PCGMetadataEntryKey(0));
+
+			if (!AttributeAccessor->Get<T>(OutValue, FirstEntry, EPCGAttributeAccessorFlags::AllowBroadcast | EPCGAttributeAccessorFlags::AllowConstructible))
+			{
+				UE_LOG(LogPCG, Warning, TEXT("[PCGSettingsHelpers::GetOverrideValue] %s param can't be converted from %s attribute, incompatible types."), *Param->Label.ToString(), *AttributeName.ToString());
+				return false;
+			}
+
+			return true;
+		});
+	}
 }
 
+// Deprecated macro, not necessary anymore. Cf. GetValue
 #define PCG_GET_OVERRIDEN_VALUE(Settings, Variable, Params) PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(TRemovePointer<TRemoveConst<decltype(Settings)>::Type>::Type, Variable), (Settings)->Variable, Params)

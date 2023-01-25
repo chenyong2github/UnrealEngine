@@ -71,7 +71,6 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	UPCGParamData* Params = Context->InputData.GetParams();
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 

@@ -26,8 +26,12 @@ public:
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
 
 	// The name of the row to copy from
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
 	FName RowName = NAME_None;	
+
+	// Path override, hidden to be only presented as param pin
+	UPROPERTY(BlueprintReadWrite, Category = Settings, meta = (PCG_Overridable))
+	FString PathOverride = FString();
 
 	// the data table to copy from
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)

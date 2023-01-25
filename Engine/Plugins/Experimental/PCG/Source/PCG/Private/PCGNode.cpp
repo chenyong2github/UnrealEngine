@@ -631,8 +631,8 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 	}
 
 	UPCGSettings* Settings = GetSettings();
-	TArray<FPCGPinProperties> InboundPinProperties = Settings->InputPinProperties();
-	TArray<FPCGPinProperties> OutboundPinProperties = Settings->OutputPinProperties();
+	TArray<FPCGPinProperties> InboundPinProperties = Settings->AllInputPinProperties();
+	TArray<FPCGPinProperties> OutboundPinProperties = Settings->AllOutputPinProperties();
 
 	auto UpdatePins = [this, &PinAllocator](TArray<UPCGPin*>& Pins, const TArray<FPCGPinProperties>& PinProperties)
 	{

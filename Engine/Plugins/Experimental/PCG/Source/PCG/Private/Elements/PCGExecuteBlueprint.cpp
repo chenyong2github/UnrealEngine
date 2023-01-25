@@ -166,25 +166,7 @@ TSet<FName> UPCGBlueprintElement::OutputLabels() const
 
 int UPCGBlueprintElement::GetSeed(FPCGContext& InContext) const 
 {
-	const UPCGComponent* SourceComponent = InContext.SourceComponent.Get();
-	const UPCGBlueprintSettings* Settings = InContext.GetInputSettings<UPCGBlueprintSettings>();
-
-	if (SourceComponent && Settings)
-	{
-		return PCGHelpers::ComputeSeed(Settings->Seed, SourceComponent->Seed);
-	}
-	else if (Settings)
-	{
-		return Settings->Seed;
-	}
-	else if (SourceComponent)
-	{
-		return SourceComponent->Seed;
-	}
-	else
-	{
-		return 42;
-	}
+	return InContext.GetSeed();
 }
 
 FRandomStream UPCGBlueprintElement::GetRandomStream(FPCGContext& InContext) const
@@ -441,18 +423,14 @@ TArray<FPCGPinProperties> UPCGBlueprintSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
 
+	if (!BlueprintElementInstance || BlueprintElementInstance->bHasDefaultInPin)
+	{
+		PinProperties.Append(Super::InputPinProperties());
+	}
+
 	if (BlueprintElementInstance)
 	{
-		if (BlueprintElementInstance->bHasDefaultInPin)
-		{
-			PinProperties.Append(Super::InputPinProperties());
-		}
-
 		PinProperties.Append(BlueprintElementInstance->CustomInputPins);
-	}
-	else
-	{
-		PinProperties = Super::InputPinProperties();
 	}
 
 	return PinProperties;
@@ -508,7 +486,7 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 #endif
 
 		/** Apply params overrides to variables if any */
-		if (UPCGParamData* Params = Context->InputData.GetParams())
+		if (UPCGParamData* Params = Context->InputData.GetParamsWithDeprecation(Context->Node))
 		{
 			for (TFieldIterator<FProperty> PropertyIt(BPClass); PropertyIt; ++PropertyIt)
 			{

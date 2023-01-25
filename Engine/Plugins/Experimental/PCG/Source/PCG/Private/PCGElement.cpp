@@ -38,6 +38,9 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 			case EPCGExecutionPhase::PrepareData:
 			{
+				// Will override the settings if there is any override.
+				Context->OverrideSettings();
+
 				if (PrepareDataInternal(Context))
 				{
 					Context->CurrentPhase = EPCGExecutionPhase::Execute;
@@ -330,7 +333,7 @@ void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 	{
 		// Cleanup any residual labels if the node isn't supposed to produce them
 		// TODO: this is a bit of a crutch, could be refactored out if we review the way we push tagged data
-		TArray<FPCGPinProperties> OutputPinProperties = Settings->OutputPinProperties();
+		TArray<FPCGPinProperties> OutputPinProperties = Settings->AllOutputPinProperties();
 		if(OutputPinProperties.Num() == 1)
 		{
 			for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)

@@ -143,20 +143,20 @@ void UPCGMatchAndSetWeightedByCategory::MatchAndSet_Implementation(
 	auto CreateConstantCategoryAccessor = [&EntryCategoryAccessors](auto&& Value)
 	{
 		using ConstantType = std::decay_t<decltype(Value)>;
-		EntryCategoryAccessors.Emplace(MakeUnique<FPCGConstantValueAccessor<ConstantType>>(std::forward<ConstantType>(Value)));
+		EntryCategoryAccessors.Emplace(MakeUnique<FPCGConstantValueAccessor<ConstantType>>(std::forward<decltype(Value)>(Value)));
 	};
 
 	for (const FPCGMatchAndSetWeightedByCategoryEntryList& Category : Categories)
 	{
-		Category.CategoryValue.DispatcherWithOverride(nullptr, CreateConstantCategoryAccessor);
+		Category.CategoryValue.Dispatcher(CreateConstantCategoryAccessor);
 
 		TArray<TUniquePtr<const IPCGAttributeAccessor>>& ValuesAccessor = EntryValueAccessors.Emplace_GetRef();
 		for (const FPCGMatchAndSetWeightedEntry& WeightedEntry : Category.WeightedEntries)
 		{
-			WeightedEntry.Value.DispatcherWithOverride(nullptr, [&ValuesAccessor](auto&& Value)
+			WeightedEntry.Value.Dispatcher([&ValuesAccessor](auto&& Value)
 			{
 				using ConstantType = std::decay_t<decltype(Value)>;
-				ValuesAccessor.Emplace(MakeUnique<FPCGConstantValueAccessor<ConstantType>>(std::forward<ConstantType>(Value)));
+				ValuesAccessor.Emplace(MakeUnique<FPCGConstantValueAccessor<ConstantType>>(std::forward<decltype(Value)>(Value)));
 			});
 		}
 	}

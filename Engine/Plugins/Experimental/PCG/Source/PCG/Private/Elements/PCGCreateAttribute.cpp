@@ -2,10 +2,11 @@
 
 #include "Elements/PCGCreateAttribute.h"
 
+#include "PCGContext.h"
+#include "PCGParamData.h"
+#include "PCGPin.h"
 #include "Data/PCGSpatialData.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
-#include "PCGContext.h"
-#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGCreateAttribute)
 
@@ -195,7 +196,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 		}
 		else
 		{
-			Attribute = ClearOrCreateAttribute(Settings, Metadata, nullptr, &OutputAttributeName);
+			Attribute = ClearOrCreateAttribute(Settings, Metadata, &OutputAttributeName);
 		}
 
 		if (!Attribute)
@@ -214,42 +215,42 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 			// If the metadata is empty, we need to add a new entry, so set it to PCGInvalidEntryKey.
 			// Otherwise, use the entry key 0.
 			PCGMetadataEntryKey EntryKey = Metadata->GetItemCountForChild() == 0 ? PCGInvalidEntryKey : 0;
-			SetAttribute(Settings, Attribute, Metadata, EntryKey, nullptr);
+			SetAttribute(Settings, Attribute, Metadata, EntryKey);
 		}
 	}
 
 	return true;
 }
 
-FPCGMetadataAttributeBase* FPCGCreateAttributeElement::ClearOrCreateAttribute(const UPCGCreateAttributeSettings* Settings, UPCGMetadata* Metadata, const UPCGParamData* Params, const FName* OutputAttributeNameOverride) const
+FPCGMetadataAttributeBase* FPCGCreateAttributeElement::ClearOrCreateAttribute(const UPCGCreateAttributeSettings* Settings, UPCGMetadata* Metadata, const FName* OutputAttributeNameOverride) const
 {
 	check(Metadata);
 
 	auto CreateAttribute = [Settings, Metadata, OutputAttributeNameOverride](auto&& Value) -> FPCGMetadataAttributeBase*
 	{
-		return PCGMetadataElementCommon::ClearOrCreateAttribute(Metadata, OutputAttributeNameOverride ? *OutputAttributeNameOverride : Settings->OutputAttributeName, Value);
+		return PCGMetadataElementCommon::ClearOrCreateAttribute(Metadata, OutputAttributeNameOverride ? *OutputAttributeNameOverride : Settings->OutputAttributeName, std::forward<decltype(Value)>(Value));
 	};
 
-	return Settings->AttributeTypes.DispatcherWithOverride(Params, CreateAttribute);
+	return Settings->AttributeTypes.Dispatcher(CreateAttribute);
 }
 
-PCGMetadataEntryKey FPCGCreateAttributeElement::SetAttribute(const UPCGCreateAttributeSettings* Settings, FPCGMetadataAttributeBase* Attribute, UPCGMetadata* Metadata, PCGMetadataEntryKey EntryKey, const UPCGParamData* Params) const
+PCGMetadataEntryKey FPCGCreateAttributeElement::SetAttribute(const UPCGCreateAttributeSettings* Settings, FPCGMetadataAttributeBase* Attribute, UPCGMetadata* Metadata, PCGMetadataEntryKey EntryKey) const
 {
 	check(Attribute && Metadata);
 
 	auto SetAttribute = [Attribute, EntryKey, Metadata](auto&& Value) -> PCGMetadataEntryKey
 	{
-		using AttributeType = std::remove_reference_t<decltype(Value)>;
+		using AttributeType = std::decay_t<decltype(Value)>;
 
 		check(Attribute->GetTypeId() == PCG::Private::MetadataTypes<AttributeType>::Id);
 
 		const PCGMetadataEntryKey FinalKey = (EntryKey == PCGInvalidEntryKey) ? Metadata->AddEntry() : EntryKey;
 
-		static_cast<FPCGMetadataAttribute<AttributeType>*>(Attribute)->SetValue(FinalKey, Value);
+		static_cast<FPCGMetadataAttribute<AttributeType>*>(Attribute)->SetValue(FinalKey, std::forward<decltype(Value)>(Value));
 
 		return FinalKey;
 	};
 
-	return Settings->AttributeTypes.DispatcherWithOverride(Params, SetAttribute);
+	return Settings->AttributeTypes.Dispatcher(SetAttribute);
 }
 

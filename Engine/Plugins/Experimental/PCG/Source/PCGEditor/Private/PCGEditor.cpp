@@ -534,7 +534,7 @@ void FPCGEditor::OnDeterminismNodeTest()
 				TSharedPtr<FDeterminismTestResult> NodeResult = MakeShared<FDeterminismTestResult>();
 				NodeResult->TestResultTitle = PCGNode->GetNodeTitle();
 				NodeResult->TestResultName = PCGNode->GetName();
-				NodeResult->Seed = PCGNode->GetSettings()->Seed;
+				NodeResult->Seed = PCGNode->GetSettings()->GetSeed();
 
 				if (PCGNode->GetSettings()->DeterminismSettings.bNativeTests)
 				{

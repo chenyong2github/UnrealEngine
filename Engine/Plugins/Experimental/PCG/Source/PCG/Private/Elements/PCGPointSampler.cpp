@@ -5,7 +5,6 @@
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
-#include "Helpers/PCGSettingsHelpers.h"
 #include "Math/RandomStream.h"
 #include "PCGContext.h"
 
@@ -29,21 +28,20 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	UPCGParamData* Params = Context->InputData.GetParams();
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
 	// Forward any non-input data, excluding params
 	Outputs.Append(Context->InputData.GetAllSettings());
 
-	const float Ratio = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointSamplerSettings, Ratio), Settings->Ratio, Params);
+	const float Ratio = Settings->Ratio;
 #if WITH_EDITOR
-	const bool bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointSamplerSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
+	const bool bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
 #else
 	const bool bKeepZeroDensityPoints = false;
 #endif
 
-	const int Seed = PCGSettingsHelpers::ComputeSeedWithOverride(Settings, Context->SourceComponent, Params);
+	const int Seed = Context->GetSeed();
 
 	const bool bNoSampling = (Ratio <= 0.0f);
 	const bool bTrivialSampling = (Ratio >= 1.0f);

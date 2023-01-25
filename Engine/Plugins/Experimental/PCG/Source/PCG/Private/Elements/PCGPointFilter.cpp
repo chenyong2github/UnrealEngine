@@ -70,8 +70,6 @@ TArray<FPCGPinProperties> UPCGPointFilterSettings::InputPinProperties() const
 		PinProperties.Emplace(PCGPointFilterConstants::FilterLabel, EPCGDataType::Any, /*bInAllowMultipleConnections=*/ false);
 	}
 
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bAllowMultipleConnections=*/false, /*bAllowMultiData=*/false);
-
 	return PinProperties;
 }
 
@@ -176,19 +174,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR
 }
 
-#if WITH_EDITOR
-void UPCGPointFilterSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
-{
-	Super::ApplyDeprecationBeforeUpdatePins(InOutNode, InputPins, OutputPins);
-
-	check(InOutNode);
-	if (DataVersion < FPCGCustomVersion::MovePointFilterParamsOffFirstPin)
-	{
-		PCGSettingsHelpers::DeprecationBreakOutParamsToNewPin(InOutNode, InputPins, OutputPins);
-	}
-}
-#endif // WITH_EDITOR
-
 bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGPointFilterElement::Execute);
@@ -209,16 +194,15 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> DataToFilter = Context->InputData.GetInputsByPin(PCGPointFilterConstants::DataToFilterLabel);
-	UPCGParamData* Params = Context->InputData.GetParamsOnParamsPin();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 	TArray<FPCGTaggedData> FilterData = Context->InputData.GetInputsByPin(PCGPointFilterConstants::FilterLabel);
 
 	// Forward any non-input data
 	Outputs.Append(Context->InputData.GetAllSettings());
 
-	const EPCGPointFilterOperator Operator = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, Operator), Settings->Operator, Params);
-	const bool bUseSpatialQuery = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, bUseSpatialQuery), Settings->bUseSpatialQuery, Params);
-	const bool bUseConstantThreshold = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, bUseConstantThreshold), Settings->bUseConstantThreshold, Params);
+	const EPCGPointFilterOperator Operator = Settings->Operator;
+	const bool bUseSpatialQuery = Settings->bUseSpatialQuery;
+	const bool bUseConstantThreshold = Settings->bUseConstantThreshold;
 	// TODO: allow selector overrides for ThresholdAttribute and TargetAttribute
 
 	// If there is no input, do nothing
@@ -240,12 +224,12 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 		{
 			using ConstantType = std::decay_t<decltype(Value)>;
 
-			ThresholdAccessor = MakeUnique<FPCGConstantValueAccessor<ConstantType>>(std::forward<ConstantType>(Value));
+			ThresholdAccessor = MakeUnique<FPCGConstantValueAccessor<ConstantType>>(std::forward<decltype(Value)>(Value));
 			// Dummy keys
 			ThresholdKeys = MakeUnique<FPCGAttributeAccessorKeysSingleObjectPtr<void>>();
 		};
 
-		Settings->AttributeTypes.DispatcherWithOverride(Params, ConstantThreshold);
+		Settings->AttributeTypes.Dispatcher(ConstantThreshold);
 	}
 	else
 	{

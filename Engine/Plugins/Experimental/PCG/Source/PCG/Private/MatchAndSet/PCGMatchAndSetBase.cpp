@@ -37,7 +37,7 @@ bool UPCGMatchAndSetBase::CreateAttributeIfNeeded(FPCGContext& Context, const FP
 				return PCGMetadataElementCommon::ClearOrCreateAttribute(OutPointData->Metadata, DestinationAttribute, ConstantType{}) != nullptr;
 			};
 
-			if (!ConstantValue.DispatcherWithOverride(nullptr, CreateAttribute))
+			if (!ConstantValue.Dispatcher(CreateAttribute))
 			{
 				PCGE_LOG_C(Error, &Context, "Unable to create attribute %s on point data", *DestinationAttribute.ToString());
 				return false;

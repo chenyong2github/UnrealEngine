@@ -2,9 +2,31 @@
 
 #include "PCGContext.h"
 #include "PCGComponent.h"
+#include "PCGHelpers.h"
+#include "PCGParamData.h"
+#include "PCGPin.h"
+#include "Metadata/PCGAttributePropertySelector.h"
+#include "Metadata/PCGMetadata.h"
+#include "Metadata/PCGMetadataAttribute.h"
+#include "Metadata/PCGMetadataAttributeTpl.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
+#include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
+
 #include "GameFramework/Actor.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGContext)
+
+FPCGContext::~FPCGContext()
+{
+	if (SettingsWithOverride)
+	{
+		SettingsWithOverride->RemoveFromRoot();
+		SettingsWithOverride->MarkAsGarbage();
+		SettingsWithOverride = nullptr;
+	}
+}
 
 FString FPCGContext::GetTaskName() const
 {
@@ -30,6 +52,22 @@ FString FPCGContext::GetTaskName() const
 	}
 }
 
+int FPCGContext::GetSeed() const
+{
+	if (const UPCGSettings* Settings = GetInputSettings<UPCGSettings>())
+	{
+		return Settings->GetSeed(SourceComponent.Get());
+	}
+	else if (SourceComponent.IsValid())
+	{
+		return SourceComponent->Seed;
+	}
+	else
+	{
+		return 42;
+	}
+}
+
 FString FPCGContext::GetComponentName() const
 {
 	return SourceComponent.IsValid() && SourceComponent->GetOwner() ? SourceComponent->GetOwner()->GetFName().ToString() : TEXT("Non-PCG Component");
@@ -49,5 +87,100 @@ const UPCGSettingsInterface* FPCGContext::GetInputSettingsInterface() const
 	else
 	{
 		return InputData.GetSettingsInterface();
+	}
+}
+
+void FPCGContext::InitializeSettings()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGContext::InitializeSettings);
+
+	if (SettingsWithOverride)
+	{
+		return;
+	}
+
+	if (const UPCGSettings* NodeSettings = GetOriginalSettings<UPCGSettings>())
+	{
+		// Only duplicate the settings if we have overriable params and we have at least one param pin connected.
+		const TArray<FPCGSettingsOverridableParam>& OverridableParams = NodeSettings->OverridableParams();
+		if (!OverridableParams.IsEmpty())
+		{
+			bool bHasParamConnected = InputData.GetParamsWithDeprecation(Node) != nullptr;
+
+			int32 Index = 0;
+			while (!bHasParamConnected && Index < OverridableParams.Num())
+			{
+				bHasParamConnected |= !InputData.GetParamsByPin(OverridableParams[Index++].Label).IsEmpty();
+			}
+
+			if (bHasParamConnected)
+			{
+				SettingsWithOverride = Cast<UPCGSettings>(StaticDuplicateObject(NodeSettings, GetTransientPackage(), NAME_None, RF_Transient));
+				SettingsWithOverride->AddToRoot();
+			}
+		}
+	}
+}
+
+void FPCGContext::OverrideSettings()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGContext::OverrideSettings);
+
+	// Use original settings to avoid recomputing OverridableParams() everytime
+	const UPCGSettings* OriginalSettings = GetOriginalSettings<UPCGSettings>();
+
+	if (!SettingsWithOverride || !OriginalSettings)
+	{
+		return;
+	}
+
+	for (const FPCGSettingsOverridableParam& Param : OriginalSettings->OverridableParams())
+	{
+		check(!Param.Properties.IsEmpty());
+
+		// TODO: Support override on subobjects
+		if (!SettingsWithOverride->IsA(Param.Properties[0]->GetOwnerClass()))
+		{
+			continue;
+		}
+
+		FName AttributeName = NAME_None;
+		TUniquePtr<const IPCGAttributeAccessor> AttributeAccessor = PCGAttributeAccessorHelpers::CreateConstAccessorForOverrideParam(InputData, Param, &AttributeName);
+
+		// Attribute doesn't exist
+		if (!AttributeAccessor)
+		{
+			continue;
+		}
+
+		TUniquePtr<IPCGAttributeAccessor> PropertyAccessor = PCGAttributeAccessorHelpers::CreatePropertyAccessor(Param.Properties.Last());
+		check(PropertyAccessor.IsValid());
+
+		PCGMetadataAttribute::CallbackWithRightType(PropertyAccessor->GetUnderlyingType(), [this, &AttributeAccessor, &PropertyAccessor, &Param, &AttributeName](auto Dummy) -> bool
+		{
+			using PropertyType = decltype(Dummy);
+
+			// Override were using the first entry (0) by default.
+			FPCGAttributeAccessorKeysEntries FirstEntry(PCGMetadataEntryKey(0));
+					
+			PropertyType Value{};
+			if (!AttributeAccessor->Get<PropertyType>(Value, FirstEntry, EPCGAttributeAccessorFlags::AllowBroadcast | EPCGAttributeAccessorFlags::AllowConstructible))
+			{
+				PCGE_LOG_C(Warning, this, "%s param can't be converted from %s attribute", *Param.Label.ToString(), *AttributeName.ToString());
+				return false;
+			}
+			// TODO: Perhaps factorise this code in another property accessor.
+			void* PropertyObjectPtr = SettingsWithOverride.Get();
+			for (int32 i = 0; i < Param.Properties.Num() - 1; ++i)
+			{
+				PropertyObjectPtr = Param.Properties[i]->ContainerPtrToValuePtr<void>(PropertyObjectPtr);
+			}
+
+			FPCGAttributeAccessorKeysSingleObjectPtr PropertyObjectKey(PropertyObjectPtr);
+
+			PropertyAccessor->Set<PropertyType>(Value, PropertyObjectKey);
+
+			return true;
+		});
 	}
 }

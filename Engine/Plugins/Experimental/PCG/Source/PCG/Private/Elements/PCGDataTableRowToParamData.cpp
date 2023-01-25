@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGDataTableRowToParamData.h"
-#include "Helpers/PCGSettingsHelpers.h"
-#include "Engine/DataTable.h"
+
 #include "PCGContext.h"
+#include "PCGParamData.h"
 #include "PCGPin.h"
+#include "PCGModule.h"
+#include "Metadata/PCGMetadata.h"
+
+#include "Engine/DataTable.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDataTableRowToParamData)
 
@@ -15,10 +19,7 @@ FPCGElementPtr UPCGDataTableRowToParamDataSettings::CreateElement() const
 
 TArray<FPCGPinProperties> UPCGDataTableRowToParamDataSettings::InputPinProperties() const
 {
-	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, false);
-
-	return PinProperties;
+	return TArray<FPCGPinProperties>();
 }
 
 TArray<FPCGPinProperties> UPCGDataTableRowToParamDataSettings::OutputPinProperties() const
@@ -38,13 +39,11 @@ bool FPCGDataTableRowToParamData::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGDataTableRowToParamData::Execute);
 
-	UPCGParamData* Params = Context->InputData.GetParams();
-
 	const UPCGDataTableRowToParamDataSettings* Settings = Context->GetInputSettings<UPCGDataTableRowToParamDataSettings>();
 	check(Settings);
 
-	const FString PathOverride = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDataTableRowToParamDataSettings, DataTable), FString(), Params);
-	const FName RowName = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDataTableRowToParamDataSettings, RowName), Settings->RowName, Params);
+	const FString& PathOverride = Settings->PathOverride;
+	const FName RowName = Settings->RowName;
 
 	TSoftObjectPtr<UDataTable> DataTablePtr = Settings->DataTable;
 

@@ -32,7 +32,7 @@ protected:
 
 public:
 	/** Controls whether the resulting merge data will have any metadata */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
 	bool bMergeMetadata = true;
 };
 

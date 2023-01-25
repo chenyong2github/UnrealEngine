@@ -6,7 +6,6 @@
 #include "PCGCustomVersion.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
-#include "Helpers/PCGSettingsHelpers.h"
 #include "PCGContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDensityFilter)
@@ -16,7 +15,6 @@ TArray<FPCGPinProperties> UPCGDensityFilterSettings::InputPinProperties() const
 	TArray<FPCGPinProperties> PinProperties;
 	// TODO in the future type checking of edges will be stricter and a conversion node will be added to convert from other types
 	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/false);
 
 	return PinProperties;
 }
@@ -35,16 +33,15 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
-	UPCGParamData* Params = Context->InputData.GetParams();
 
 	// Forward any non-input data
 	Outputs.Append(Context->InputData.GetAllSettings());
 
-	const bool bInvertFilter = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDensityFilterSettings, bInvertFilter), Settings->bInvertFilter, Params);
-	const float LowerBound = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDensityFilterSettings, LowerBound), Settings->LowerBound, Params);
-	const float UpperBound = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDensityFilterSettings, UpperBound), Settings->UpperBound, Params);
+	const bool bInvertFilter = Settings->bInvertFilter;
+	const float LowerBound = Settings->LowerBound;
+	const float UpperBound = Settings->UpperBound;
 #if WITH_EDITOR
-	const bool bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDensityFilterSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
+	const bool bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
 #else
 	const bool bKeepZeroDensityPoints = false;
 #endif
@@ -124,17 +121,3 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
-
-#if WITH_EDITOR
-void UPCGDensityFilterSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
-{
-	Super::ApplyDeprecationBeforeUpdatePins(InOutNode, InputPins, OutputPins);
-
-	check(InOutNode);
-
-	if (DataVersion < FPCGCustomVersion::MoveParamsOffFirstPinDensityNodes)
-	{
-		PCGSettingsHelpers::DeprecationBreakOutParamsToNewPin(InOutNode, InputPins, OutputPins);
-	}
-}
-#endif // WITH_EDITOR

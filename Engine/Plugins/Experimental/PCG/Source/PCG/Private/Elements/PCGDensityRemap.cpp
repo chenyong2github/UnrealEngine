@@ -1,15 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGDensityRemap.h"
-#include "Data/PCGSpatialData.h"
+
+#include "PCGContext.h"
+#include "PCGCustomVersion.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
+#include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"
-#include "Helpers/PCGSettingsHelpers.h"
+
 #include "Math/RandomStream.h"
-#include "PCGContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDensityRemap)
+
+TArray<FPCGPinProperties> UPCGLinearDensityRemapSettings::InputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Spatial, /*bInAllowMultipleConnections=*/ true);
+
+	return PinProperties;
+}
 
 UPCGLinearDensityRemapSettings::UPCGLinearDensityRemapSettings()
 {
@@ -30,16 +40,15 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
-	UPCGParamData* Params = Context->InputData.GetParams();
 
 	// Forward any non-input data
 	Outputs.Append(Context->InputData.GetAllSettings());
 
-	const float SettingsRemapMin = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGLinearDensityRemapSettings, RemapMin), Settings->RemapMin, Params);
-	const float SettingsRemapMax = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGLinearDensityRemapSettings, RemapMax), Settings->RemapMax, Params);
-	const bool bMultiplyDensity = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGLinearDensityRemapSettings, bMultiplyDensity), Settings->bMultiplyDensity, Params);
+	const float SettingsRemapMin = Settings->RemapMin;
+	const float SettingsRemapMax = Settings->RemapMax;
+	const bool bMultiplyDensity = Settings->bMultiplyDensity;
 
-	const int Seed = PCGSettingsHelpers::ComputeSeedWithOverride(Settings, Context->SourceComponent, Params);
+	const int Seed = Context->GetSeed();
 
 	const float RemapMin = FMath::Min(SettingsRemapMin, SettingsRemapMax);
 	const float RemapMax = FMath::Max(SettingsRemapMin, SettingsRemapMax);

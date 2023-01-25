@@ -9,6 +9,7 @@
 
 #include "PCGSettings.generated.h"
 
+class UPCGComponent;
 class UPCGPin;
 struct FPCGPinProperties;
 struct FPropertyChangedEvent;
@@ -48,6 +49,22 @@ enum class EPCGSettingsType : uint8
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPCGSettingsChanged, UPCGSettings*, EPCGChangeType);
 #endif
+
+USTRUCT()
+struct FPCGSettingsOverridableParam
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName Label = NAME_None;
+
+	UPROPERTY()
+	TArray<FName> PropertiesNames;
+
+	// Transient
+	TArray<const FProperty*> Properties;
+};
+
 
 UCLASS(Abstract)
 class PCG_API UPCGSettingsInterface : public UPCGData
@@ -102,14 +119,18 @@ public:
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
+	virtual void PostInitProperties() override;
 	//~End UObject interface
 
 	// TODO: check if we need this to be virtual, we don't really need if we're always caching
 	/*virtual*/ FPCGElementPtr GetElement() const;
 	virtual UPCGNode* CreateNode() const;
+	
+	/** Return the concatenation of InputPinPropertiesand FillOverridableParamsPins */
+	TArray<FPCGPinProperties> AllInputPinProperties() const;
 
-	virtual TArray<FPCGPinProperties> InputPinProperties() const;
-	virtual TArray<FPCGPinProperties> OutputPinProperties() const;
+	/** For symmetry reason, do the same with output pins. For now forward just the call to OutputPinProperties */
+	TArray<FPCGPinProperties> AllOutputPinProperties() const;
 
 	// Internal functions, should not be used by any user.
 	// Return a different subset for for input/output pin properties, in case of a default object.
@@ -120,9 +141,12 @@ public:
 	uint32 GetCrc32() const;
 	bool UseSeed() const { return bUseSeed; }
 
+	// Get the seed, combined with optional PCGComponent seed
+	int GetSeed(const UPCGComponent* InSourceComponent = nullptr) const;
+
 #if WITH_EDITOR
 	/** UpdatePins will kick off invalid edges, so this is useful for moving edges around in case of pin changes. */
-	virtual void ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins) {}
+	virtual void ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins);
 	/** Any final migration/recovery that can be done after pins are finalized. This function should also set DataVersion to LatestVersion. */
 	virtual void ApplyDeprecation(UPCGNode* InOutNode);
 
@@ -148,7 +172,7 @@ public:
 	/** Returns true if only the first input edge is used from the primary pin when the node is disabled. */
 	virtual bool OnlyPassThroughOneEdgeWhenDisabled() const { return false; }
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta=(EditCondition=bUseSeed, EditConditionHides))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta=(EditCondition=bUseSeed, EditConditionHides, PCG_Overridable))
 	int Seed = 0xC35A9631; // random prime number
 
 	/** TODO: Remove this - Placeholder feature until we have a nodegraph */
@@ -183,6 +207,10 @@ public:
 #endif
 
 protected:
+	// Returns an array of all the input pin properties. You should not add manually a "params" pin, it is handled automatically by FillOverridableParamsPins
+	virtual TArray<FPCGPinProperties> InputPinProperties() const;
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const;
+
 	virtual FPCGElementPtr CreateElement() const PURE_VIRTUAL(UPCGSettings::CreateElement, return nullptr;);
 
 	/** An additional custom version number that external system users can use to track versions. This version will be serialized into the asset and will be provided by UserDataVersion after load. */
@@ -194,6 +222,8 @@ protected:
 
 	/** Method that can be called to dirty the cache data from this settings objects if the operator== does not allow to detect changes */
 	void DirtyCache();
+
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 
 	// By default, settings won't use a seed. Set this bool to true in the child ctor to allow edition and use it.
@@ -215,6 +245,26 @@ public:
 private:
 	mutable FPCGElementPtr CachedElement;
 	mutable FCriticalSection CacheLock;
+
+	// Overridable param section
+public:
+	/** List of all the overridable params available for this settings. */
+	virtual const TArray<FPCGSettingsOverridableParam>& OverridableParams() const { return CachedOverridableParams; }
+	/** Check if we have some override. Can be overriden to force params pin for example */
+	virtual bool HasOverridableParams() const { return !CachedOverridableParams.IsEmpty(); }
+protected:
+	/** Iterate over OverridableParams to automatically add param pins to the list. */
+	void FillOverridableParamsPins(TArray<FPCGPinProperties>& OutPins) const;
+private:
+	/** Called after intialization to construct the list of all overridable params. 
+	* In Editor, it will first gather all the overridable properties names and labels, based on their metadata.
+	* And then, in Editor and Runtime, will gather the FProperty*.
+	*/
+	void InitializeCachedOverridableParams();
+
+	/** Needs to be serialized since property metadata (used to populate this array) is not available at runtime. */
+	UPROPERTY()
+	TArray<FPCGSettingsOverridableParam> CachedOverridableParams;
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))

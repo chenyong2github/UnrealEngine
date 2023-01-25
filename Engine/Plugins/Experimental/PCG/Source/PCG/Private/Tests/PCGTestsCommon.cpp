@@ -253,7 +253,7 @@ bool FPCGTestBaseClass::SmokeTestAnyValidInput(UPCGSettings* InSettings, TFuncti
 		return false;
 	}
 
-	TArray<FPCGPinProperties> InputProperties = InSettings->InputPinProperties();
+	TArray<FPCGPinProperties> InputProperties = InSettings->AllInputPinProperties();
 	// For each pin: take nothing, take 1 of any supported type, take 2 of any supported types (if enabled)
 	TArray<TArray<FPCGDataCollection>> InputsPerProperties;
 	TArray<uint32> InputIndices;

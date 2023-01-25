@@ -4,7 +4,6 @@
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"
-#include "Helpers/PCGSettingsHelpers.h"
 #include "PCGContext.h"
 #include "PCGHelpers.h"
 
@@ -76,6 +75,14 @@ namespace PCGVolumeSampler
 	}
 }
 
+TArray<FPCGPinProperties> UPCGVolumeSamplerSettings::InputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Spatial);
+
+	return PinProperties;
+}
+
 FPCGElementPtr UPCGVolumeSamplerSettings::CreateElement() const
 {
 	return MakeShared<FPCGVolumeSamplerElement>();
@@ -89,9 +96,8 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	UPCGParamData* Params = Context->InputData.GetParams();
 
-	const FVector VoxelSize = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGVolumeSamplerSettings, VoxelSize), Settings->VoxelSize, Params);
+	const FVector& VoxelSize = Settings->VoxelSize;
 	if (VoxelSize.X <= 0 || VoxelSize.Y <= 0 || VoxelSize.Z <= 0)
 	{
 		PCGE_LOG(Warning, "Skipped - Invalid voxel size");

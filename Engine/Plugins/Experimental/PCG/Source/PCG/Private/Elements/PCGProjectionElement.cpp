@@ -6,7 +6,6 @@
 #include "PCGCustomVersion.h"
 #include "Data/PCGSpatialData.h"
 #include "PCGEdge.h"
-#include "Helpers/PCGSettingsHelpers.h"
 #include "PCGContext.h"
 #include "PCGPin.h"
 
@@ -19,7 +18,6 @@ TArray<FPCGPinProperties> UPCGProjectionSettings::InputPinProperties() const
 	TArray<FPCGPinProperties> PinProperties;
 	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Concrete, /*bInAllowMultipleConnections=*/true, /*bAllowMultipleData=*/true,  LOCTEXT("ProjectionSourcePinTooltip", "The data to project."));
 	PinProperties.Emplace(PCGProjectionConstants::ProjectionTargetLabel, EPCGDataType::Concrete, /*bAllowMultipleConnections=*/false, /*bAllowMultipleData=*/false, LOCTEXT("ProjectionTargetPinTooltip", "The projection target."));
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/false, /*bAllowMultipleData=*/false);
 
 	return PinProperties;
 }
@@ -60,18 +58,12 @@ bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 		return true;
 	}
 
-	UPCGParamData* Params = Context->InputData.GetParams();
-
-	FPCGProjectionParams ProjectionParams = Settings->Params;
-	ProjectionParams.bProjectPositions = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(FPCGProjectionParams, bProjectPositions), ProjectionParams.bProjectPositions, Params);
-	ProjectionParams.bProjectRotations = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(FPCGProjectionParams, bProjectRotations), ProjectionParams.bProjectRotations, Params);
-	ProjectionParams.bProjectScales = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(FPCGProjectionParams, bProjectScales), ProjectionParams.bProjectScales, Params);
-	ProjectionParams.bProjectColors = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(FPCGProjectionParams, bProjectColors), ProjectionParams.bProjectColors, Params);
+	const FPCGProjectionParams& ProjectionParams = Settings->ProjectionParams;
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
 #if WITH_EDITOR
-	const bool bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGProjectionSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
+	const bool bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
 #else
 	const bool bKeepZeroDensityPoints = false;
 #endif

@@ -573,12 +573,22 @@ void UPCGEditorGraphNodeBase::UpdatePosition()
 	}
 }
 
+bool UPCGEditorGraphNodeBase::ShouldCreatePin(const UPCGPin* InPin) const
+{
+	return true;
+}
+
 void UPCGEditorGraphNodeBase::CreatePins(const TArray<UPCGPin*>& InInputPins, const TArray<UPCGPin*>& InOutputPins)
 {
 	bool bHasAdvancedPin = false;
 
 	for (const UPCGPin* InputPin : InInputPins)
 	{
+		if (!ShouldCreatePin(InputPin))
+		{
+			continue;
+		}
+
 		UEdGraphPin* Pin = CreatePin(EEdGraphPinDirection::EGPD_Input, GetPinType(InputPin), InputPin->Properties.Label);
 		Pin->bAdvancedView = InputPin->Properties.bAdvancedPin;
 		bHasAdvancedPin |= Pin->bAdvancedView;
@@ -586,6 +596,11 @@ void UPCGEditorGraphNodeBase::CreatePins(const TArray<UPCGPin*>& InInputPins, co
 
 	for (const UPCGPin* OutputPin : InOutputPins)
 	{
+		if (!ShouldCreatePin(OutputPin))
+		{
+			continue;
+		}
+
 		UEdGraphPin* Pin = CreatePin(EEdGraphPinDirection::EGPD_Output, GetPinType(OutputPin), OutputPin->Properties.Label);
 		Pin->bAdvancedView = OutputPin->Properties.bAdvancedPin;
 		bHasAdvancedPin |= Pin->bAdvancedView;

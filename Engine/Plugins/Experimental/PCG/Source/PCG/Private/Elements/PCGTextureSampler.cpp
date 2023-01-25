@@ -21,10 +21,7 @@ FPCGElementPtr UPCGTextureSamplerSettings::CreateElement() const
 
 TArray<FPCGPinProperties> UPCGTextureSamplerSettings::InputPinProperties() const
 {
-	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/false);
-
-	return PinProperties;
+	return TArray<FPCGPinProperties>();
 }
 
 bool FPCGTextureSamplerElement::ExecuteInternal(FPCGContext* Context) const
@@ -34,22 +31,19 @@ bool FPCGTextureSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGTextureSamplerSettings* Settings = Context->GetInputSettings<UPCGTextureSamplerSettings>();
 	check(Settings);
 
-	UPCGParamData* Params = Context->InputData.GetParams();
-
-	FTransform Transform = PCG_GET_OVERRIDEN_VALUE(Settings, Transform, Params);
-	bool bUseAbsoluteTransform = PCG_GET_OVERRIDEN_VALUE(Settings, bUseAbsoluteTransform, Params);
-	//TObjectPtr<UTexture2D> PCG_OVERRIDEABLE_VALUE(Texture);
+	const FTransform& Transform = Settings->Transform;
+	const bool bUseAbsoluteTransform = Settings->bUseAbsoluteTransform;
 	TObjectPtr<UTexture2D> Texture = Settings->Texture;
-	EPCGTextureDensityFunction DensityFunction = PCG_GET_OVERRIDEN_VALUE(Settings, DensityFunction, Params);
-	EPCGTextureColorChannel ColorChannel = PCG_GET_OVERRIDEN_VALUE(Settings, ColorChannel, Params);
-	float TexelSize = PCG_GET_OVERRIDEN_VALUE(Settings, TexelSize, Params);
-	bool bUseAdvancedTiling = PCG_GET_OVERRIDEN_VALUE(Settings, bUseAdvancedTiling, Params);
-	FVector2D Tiling = PCG_GET_OVERRIDEN_VALUE(Settings, Tiling, Params);
-	FVector2D CenterOffset = PCG_GET_OVERRIDEN_VALUE(Settings, CenterOffset, Params);
-	float Rotation = PCG_GET_OVERRIDEN_VALUE(Settings, Rotation, Params);
-	bool bUseTileBounds = PCG_GET_OVERRIDEN_VALUE(Settings, bUseTileBounds, Params);
-	FVector2D TileBoundsMin = PCG_GET_OVERRIDEN_VALUE(Settings, TileBoundsMin, Params);
-	FVector2D TileBoundsMax = PCG_GET_OVERRIDEN_VALUE(Settings, TileBoundsMax, Params);
+	const EPCGTextureDensityFunction DensityFunction = Settings->DensityFunction;
+	const EPCGTextureColorChannel ColorChannel = Settings->ColorChannel;
+	const float TexelSize = Settings->TexelSize;
+	const bool bUseAdvancedTiling = Settings->bUseAdvancedTiling;
+	const FVector2D& Tiling = Settings->Tiling;
+	const FVector2D& CenterOffset = Settings->CenterOffset;
+	const float Rotation = Settings->Rotation;
+	const bool bUseTileBounds = Settings->bUseTileBounds;
+	const FVector2D& TileBoundsMin = Settings->TileBoundsMin;
+	const FVector2D& TileBoundsMax = Settings->TileBoundsMax;
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 	FPCGTaggedData& Output = Outputs.Emplace_GetRef();
@@ -95,8 +89,8 @@ void FPCGTextureSamplerElement::GetDependenciesCrc(const FPCGDataCollection& InI
 	if (const UPCGTextureSamplerSettings* Settings = Cast<UPCGTextureSamplerSettings>(InSettings))
 	{
 		// If not using absolute transform, depend on actor transform and bounds, and therefore take dependency on actor data.
-		const UPCGParamData* Params = InInput.GetParams();
-		const bool bUseAbsoluteTransform = PCG_GET_OVERRIDEN_VALUE(Settings, bUseAbsoluteTransform, Params);
+		bool bUseAbsoluteTransform;
+		PCGSettingsHelpers::GetOverrideValue(InInput, Settings, GET_MEMBER_NAME_CHECKED(UPCGTextureSamplerSettings, bUseAbsoluteTransform), Settings->bUseAbsoluteTransform, bUseAbsoluteTransform);
 		if (!bUseAbsoluteTransform && InComponent)
 		{
 			if (const UPCGData* Data = InComponent->GetActorPCGData())

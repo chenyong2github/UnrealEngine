@@ -7,7 +7,6 @@
 #include "Helpers/PCGAsync.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
-#include "Helpers/PCGSettingsHelpers.h"
 #include "PCGContext.h"
 #include "PCGPin.h"
 
@@ -23,7 +22,6 @@ TArray<FPCGPinProperties> UPCGTransformPointsSettings::InputPinProperties() cons
 	TArray<FPCGPinProperties> PinProperties;
 	// TODO in the future type checking of edges will be stricter and a conversion node will be added to convert from other types
 	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);
-	PinProperties.Emplace(TEXT("Params"), EPCGDataType::Param, /*bInAllowMultipleConnections=*/false);
 
 	return PinProperties;
 }
@@ -51,22 +49,21 @@ bool FPCGTransformPointsElement::ExecuteInternal(FPCGContext* Context) const
 	const TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
-	UPCGParamData* Params = Context->InputData.GetParams();
-	const bool bApplyToAttribute = PCG_GET_OVERRIDEN_VALUE(Settings, bApplyToAttribute, Params);
-	const FName AttributeName = PCG_GET_OVERRIDEN_VALUE(Settings, AttributeName, Params);
-	const FVector OffsetMin = PCG_GET_OVERRIDEN_VALUE(Settings, OffsetMin, Params);
-	const FVector OffsetMax = PCG_GET_OVERRIDEN_VALUE(Settings, OffsetMax, Params);
-	const bool bAbsoluteOffset = PCG_GET_OVERRIDEN_VALUE(Settings, bAbsoluteOffset, Params);
-	const FRotator RotationMin = PCG_GET_OVERRIDEN_VALUE(Settings, RotationMin, Params);
-	const FRotator RotationMax = PCG_GET_OVERRIDEN_VALUE(Settings, RotationMax, Params);
-	const bool bAbsoluteRotation = PCG_GET_OVERRIDEN_VALUE(Settings, bAbsoluteRotation, Params);
-	const FVector ScaleMin = PCG_GET_OVERRIDEN_VALUE(Settings, ScaleMin, Params);
-	const FVector ScaleMax = PCG_GET_OVERRIDEN_VALUE(Settings, ScaleMax, Params);
-	const bool bAbsoluteScale = PCG_GET_OVERRIDEN_VALUE(Settings, bAbsoluteScale, Params);
-	const bool bUniformScale = PCG_GET_OVERRIDEN_VALUE(Settings, bUniformScale, Params);
-	const bool bRecomputeSeed = PCG_GET_OVERRIDEN_VALUE(Settings, bRecomputeSeed, Params);
+	const bool bApplyToAttribute = Settings->bApplyToAttribute;
+	const FName AttributeName = Settings->AttributeName;
+	const FVector& OffsetMin = Settings->OffsetMin;
+	const FVector& OffsetMax = Settings->OffsetMax;
+	const bool bAbsoluteOffset = Settings->bAbsoluteOffset;
+	const FRotator& RotationMin = Settings->RotationMin;
+	const FRotator& RotationMax = Settings->RotationMax;
+	const bool bAbsoluteRotation = Settings->bAbsoluteRotation;
+	const FVector& ScaleMin = Settings->ScaleMin;
+	const FVector& ScaleMax = Settings->ScaleMax;
+	const bool bAbsoluteScale = Settings->bAbsoluteScale;
+	const bool bUniformScale = Settings->bUniformScale;
+	const bool bRecomputeSeed = Settings->bRecomputeSeed;
 
-	const int Seed = PCGSettingsHelpers::ComputeSeedWithOverride(Settings, Context->SourceComponent, Params);
+	const int Seed = Context->GetSeed();
 
 	// Use implicit capture, since we capture a lot
 	//ProcessPoints(Context, Inputs, Outputs, [&](const FPCGPoint& InPoint, FPCGPoint& OutPoint)

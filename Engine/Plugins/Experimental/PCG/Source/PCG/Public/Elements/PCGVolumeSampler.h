@@ -28,7 +28,7 @@ class PCG_API UPCGVolumeSamplerSettings : public UPCGSettings
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data", meta = (PCG_Overridable))
 	FVector VoxelSize = FVector(100.0, 100.0, 100.0);
 
 	//~Begin UPCGSettings interface
@@ -37,6 +37,7 @@ public:
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Sampler; }
 #endif
 
+	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override { return Super::DefaultPointOutputPinProperties(); }
 	
 protected:

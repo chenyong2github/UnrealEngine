@@ -36,7 +36,8 @@ CCC,"C Name","C String","333","3333","3.3","3.33","(X=3.0,Y=3.0)","(X=3.0,Y=3.0,
 
 	while (!TestElement->Execute(Context.Get())) {}
 
-	const UPCGParamData* Params = Context->OutputData.GetParams();
+	TArray<FPCGTaggedData> OutputParamData = Context->OutputData.GetParamsByPin(PCGPinConstants::DefaultOutputLabel);
+	const UPCGParamData* Params = OutputParamData.IsEmpty() ? nullptr : Cast<UPCGParamData>(OutputParamData[0].Data);
 	UTEST_NOT_NULL("Output params", Params);
 
 	UTEST_NOT_NULL("Params has metadata", Params->Metadata.Get());
@@ -97,7 +98,7 @@ CCC,"C Name","C String","333","3333","3.3","3.33","(X=3.0,Y=3.0)","(X=3.0,Y=3.0,
 
 	while (!TestElement->Execute(Context.Get())) {}
 
-	const UPCGParamData* Params = Context->OutputData.GetParams();
+	const UPCGParamData* Params = Context->OutputData.GetFirstParamsOnParamsPin();
 	UTEST_NOT_NULL("Output params", Params);
 
 	UTEST_NOT_NULL("Params has metadata", Params->Metadata.Get());

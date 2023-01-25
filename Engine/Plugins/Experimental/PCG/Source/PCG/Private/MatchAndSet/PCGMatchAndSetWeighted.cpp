@@ -77,7 +77,7 @@ void UPCGMatchAndSetWeighted::MatchAndSet_Implementation(
 	auto CreateConstantAccessor = [&EntryValueAccessors](auto&& Value)
 	{
 		using ConstantType = std::decay_t<decltype(Value)>;
-		EntryValueAccessors.Emplace(MakeUnique<FPCGConstantValueAccessor<ConstantType>>(std::forward<ConstantType>(Value)));
+		EntryValueAccessors.Emplace(MakeUnique<FPCGConstantValueAccessor<ConstantType>>(std::forward<decltype(Value)>(Value)));
 	};
 
 	TArray<int> CumulativeWeights;
@@ -88,7 +88,7 @@ void UPCGMatchAndSetWeighted::MatchAndSet_Implementation(
 	{
 		TotalWeight += Entry.Weight;
 		CumulativeWeights.Add(TotalWeight);
-		Entry.Value.DispatcherWithOverride(nullptr, CreateConstantAccessor);
+		Entry.Value.Dispatcher(CreateConstantAccessor);
 	}
 
 	if (TotalWeight <= 0)

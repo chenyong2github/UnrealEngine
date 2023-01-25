@@ -6,6 +6,7 @@
 #include "PCGEdge.h"
 #include "PCGHelpers.h"
 #include "PCGPin.h"
+
 #include "UObject/EnumProperty.h"
 
 namespace PCGSettingsHelpers
@@ -207,6 +208,7 @@ namespace PCGSettingsHelpers
 		}
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	int ComputeSeedWithOverride(const UPCGSettings* InSettings, const UPCGComponent* InComponent, UPCGParamData* InParams)
 	{
 		check(InSettings);
@@ -214,11 +216,24 @@ namespace PCGSettingsHelpers
 		const int SettingsSeed = InParams ? PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSettings, Seed), InSettings->Seed, InParams) : InSettings->Seed;
 		return InComponent ? PCGHelpers::ComputeSeed(SettingsSeed, InComponent->Seed) : SettingsSeed;
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	void DeprecationBreakOutParamsToNewPin(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
 	{
 		// Check basic conditions for which the code below should run.
-		if(InputPins.IsEmpty() || !InputPins[0] || InputPins[0]->Properties.AllowedTypes != EPCGDataType::Any)
+		if(!InOutNode || InputPins.IsEmpty() || !InputPins[0] || InputPins[0]->Properties.AllowedTypes != EPCGDataType::Any)
+		{
+			return;
+		}
+
+		// Check if the node already has a param pin, if so, nothing to do.
+		if (InOutNode->GetInputPin(PCGPinConstants::DefaultParamsLabel))
+		{
+			return;
+		}
+
+		// Also no need to add a param pin if it has no overriable params
+		if (!InOutNode->GetSettings() || InOutNode->GetSettings()->OverridableParams().IsEmpty())
 		{
 			return;
 		}
@@ -230,7 +245,8 @@ namespace PCGSettingsHelpers
 		NewParamsPin->Node = InOutNode;
 		NewParamsPin->Properties.AllowedTypes = EPCGDataType::Param;
 		NewParamsPin->Properties.Label = PCGPinConstants::DefaultParamsLabel;
-		NewParamsPin->Properties.bAllowMultipleConnections = false;
+		NewParamsPin->Properties.bAllowMultipleConnections = true;
+		NewParamsPin->Properties.bAllowMultipleData = true;
 		InputPins.Add(NewParamsPin);
 
 		// Make list of param pins that In pin is currently connected to.

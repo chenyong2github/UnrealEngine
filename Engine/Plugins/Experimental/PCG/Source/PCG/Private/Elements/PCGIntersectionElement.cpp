@@ -2,11 +2,18 @@
 
 #include "Elements/PCGIntersectionElement.h"
 #include "Data/PCGSpatialData.h"
-#include "Helpers/PCGSettingsHelpers.h"
 #include "PCGContext.h"
 #include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGIntersectionElement)
+
+TArray<FPCGPinProperties> UPCGIntersectionSettings::InputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Spatial);
+
+	return PinProperties;
+}
 
 TArray<FPCGPinProperties> UPCGIntersectionSettings::OutputPinProperties() const
 {
@@ -29,11 +36,10 @@ bool FPCGIntersectionElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	UPCGParamData* Params = Context->InputData.GetParams();
 
-	const EPCGIntersectionDensityFunction DensityFunction = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGIntersectionSettings, DensityFunction), Settings->DensityFunction, Params);
+	const EPCGIntersectionDensityFunction DensityFunction = Settings->DensityFunction;
 #if WITH_EDITOR
-	const bool bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGIntersectionSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
+	const bool bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
 #else
 	const bool bKeepZeroDensityPoints = false;
 #endif

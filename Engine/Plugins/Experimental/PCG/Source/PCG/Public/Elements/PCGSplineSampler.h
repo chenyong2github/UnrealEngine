@@ -128,8 +128,8 @@ protected:
 	// ~End UPCGSettings interface
 
 public:
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ShowOnlyInnerProperties))
-	FPCGSplineSamplerParams Params;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ShowOnlyInnerProperties, PCG_Overridable))
+	FPCGSplineSamplerParams SamplerParams;
 };
 
 class FPCGSplineSamplerElement : public FSimplePCGElement

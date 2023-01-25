@@ -133,6 +133,8 @@ private:
 	void QueueNextTasks(FPCGTaskId FinishedTask);
 	void CancelNextTasks(FPCGTaskId CancelledTask);
 	void BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollection& TaskInput);
+	/** Combine all param data into one on the Params pin, if any.*/
+	void CombineParams(FPCGTaskId InTaskId, FPCGDataCollection& InTaskInput);
 	void StoreResults(FPCGTaskId InTaskId, const FPCGDataCollection& InTaskOutput);
 	void ClearResults();
 
@@ -169,6 +171,8 @@ private:
 	/** Map of node instances to their output, could be cleared once execution is done */
 	/** Note: this should at some point unload based on loaded/unloaded proxies, otherwise memory cost will be unbounded */
 	TMap<FPCGTaskId, FPCGDataCollection> OutputData;
+	/** Map of node instances to their temporary input, could be cleared once execution is done */
+	TMap<FPCGTaskId, FPCGDataCollection> InputTemporaryData;
 	/** Monotonically increasing id. Should be reset once all tasks are executed, should be protected by the ScheduleLock */
 	FPCGTaskId NextTaskId = 0;
 

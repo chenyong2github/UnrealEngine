@@ -2,7 +2,9 @@
 
 #include "PCGData.h"
 
+#include "PCGNode.h"
 #include "PCGParamData.h"
+#include "PCGPin.h"
 #include "PCGSettings.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
@@ -156,6 +158,41 @@ TArray<FPCGTaggedData> FPCGDataCollection::GetTaggedParams(const FString& InTag)
 		});
 }
 
+UPCGParamData* FPCGDataCollection::GetParamsWithDeprecation(const UPCGNode* Node) const
+{
+	// First try with the param pin
+	if (UPCGParamData* ParamData = GetFirstParamsOnParamsPin())
+	{
+		return ParamData;
+	}
+
+	// If there is nothing on the params pin, temporarily supports reading param from the input pin, to avoid breaking graphs with nodes that doesn't have a param pin
+	// Log a warning too
+	if (Node)
+	{
+		for (const UPCGPin* InputPin : Node->GetInputPins())
+		{
+			// To avoid matching the individual parameters pins added by the override system, we'll ignore
+			// any input pin that only accepts params.
+			if (InputPin->Properties.AllowedTypes == EPCGDataType::Param)
+			{
+				continue;
+			}
+
+			for (const FPCGTaggedData& TaggedDatum : GetParamsByPin(InputPin->Properties.Label))
+			{
+				if (UPCGParamData* Params = Cast<UPCGParamData>(TaggedDatum.Data))
+				{
+					UE_LOG(LogPCG, Warning, TEXT("[%s] Found a param data on an input pin that should not accept params. Make sure to re-wire it to the param pin if it is used for overrides"), *Node->GetNodeTitle().ToString());
+					return Params;
+				}
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 UPCGParamData* FPCGDataCollection::GetParams() const
 {
 	for (const FPCGTaggedData& TaggedDatum : TaggedData)
@@ -169,7 +206,7 @@ UPCGParamData* FPCGDataCollection::GetParams() const
 	return nullptr;
 }
 
-UPCGParamData* FPCGDataCollection::GetParamsOnParamsPin() const
+UPCGParamData* FPCGDataCollection::GetFirstParamsOnParamsPin() const
 {
 	TArray<FPCGTaggedData> ParamsOnDefaultPin = GetParamsByPin(PCGPinConstants::DefaultParamsLabel);
 	return (ParamsOnDefaultPin.IsEmpty() ? nullptr : Cast<UPCGParamData>(ParamsOnDefaultPin[0].Data));

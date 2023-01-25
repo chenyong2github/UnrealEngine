@@ -12,12 +12,24 @@ class UClass;
 class UPCGData;
 class UStruct;
 struct FPCGAttributePropertySelector;
+struct FPCGDataCollection;
+struct FPCGSettingsOverridableParam;
+
 
 namespace PCGAttributeAccessorHelpers
 {
+	bool IsPropertyAccessorSupported(const FProperty* InProperty);
+	bool IsPropertyAccessorSupported(const FName InPropertyName, const UClass* InClass);
+	bool IsPropertyAccessorSupported(const FName InPropertyName, const UStruct* InStruct);
+
 	TUniquePtr<IPCGAttributeAccessor> CreatePropertyAccessor(const FProperty* InProperty);
 	TUniquePtr<IPCGAttributeAccessor> CreatePropertyAccessor(const FName InPropertyName, const UClass* InClass);
 	TUniquePtr<IPCGAttributeAccessor> CreatePropertyAccessor(const FName InPropertyName, const UStruct* InStruct);
+
+	/**
+	* Create a const accessor depending on an overridable param
+	*/
+	TUniquePtr<const IPCGAttributeAccessor> CreateConstAccessorForOverrideParam(const FPCGDataCollection& InInputData, const FPCGSettingsOverridableParam& InParam, FName* OutAttributeName = nullptr);
 
 	/** 
 	* Creates a const accessor to the property or attribute pointed at by the InSelector.

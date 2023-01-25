@@ -2,13 +2,13 @@
 
 #include "Elements/PCGAttributeGetFromPointIndexElement.h"
 
+#include "PCGContext.h"
+#include "PCGPin.h"
+#include "PCGParamData.h"
 #include "Data/PCGPointData.h"
-#include "Helpers/PCGSettingsHelpers.h"
 #include "Metadata/Accessors/IPCGAttributeAccessor.h"
 #include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
-#include "PCGContext.h"
-#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeGetFromPointIndexElement)
 
@@ -36,7 +36,6 @@ TArray<FPCGPinProperties> UPCGAttributeGetFromPointIndexSettings::InputPinProper
 {
 	TArray<FPCGPinProperties> PinProperties;
 	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point, /*bInAllowMultipleConnections=*/ false);
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/ false);
 
 	return PinProperties;
 }
@@ -80,9 +79,7 @@ bool FPCGAttributeGetFromPointIndexElement::ExecuteInternal(FPCGContext* Context
 		return true;
 	}
 
-	const UPCGParamData* ParamData = Context->InputData.GetParams();
-
-	const int32 Index = PCG_GET_OVERRIDEN_VALUE(Settings, Index, ParamData);
+	const int32 Index = Settings->Index;
 
 	if (Index < 0 || Index >= PointData->GetPoints().Num())
 	{
