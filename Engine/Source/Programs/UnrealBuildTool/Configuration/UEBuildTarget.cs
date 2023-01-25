@@ -2332,7 +2332,7 @@ namespace UnrealBuildTool
 			}
 
 			// On Mac and Linux we have actions that should be executed after all the binaries are created
-			TargetToolChain.SetupBundleDependencies(Binaries, TargetName);
+			TargetToolChain.SetupBundleDependencies(Rules, Binaries, TargetName);
 
 			// Gather modules we might want to generate headers for
 			HashSet<UEBuildModuleCPP> ModulesToGenerateHeadersFor = GatherDependencyModules(OriginalBinaries.ToList());

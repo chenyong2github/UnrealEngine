@@ -242,13 +242,13 @@ namespace UnrealBuildTool
 
 				foreach (FileItem Executable in ConsoleAppOutputFiles)
 				{
-					OutputFiles.AddRange(ToolChain.PostBuild(Executable, ConsoleAppLinkEvironment, Graph));
+					OutputFiles.AddRange(ToolChain.PostBuild(Target, Executable, ConsoleAppLinkEvironment, Graph));
 				}
 			}
 
 			foreach (FileItem Executable in Executables)
 			{
-				OutputFiles.AddRange(ToolChain.PostBuild(Executable, BinaryLinkEnvironment, Graph));
+				OutputFiles.AddRange(ToolChain.PostBuild(Target, Executable, BinaryLinkEnvironment, Graph));
 			}
 
 			return OutputFiles;

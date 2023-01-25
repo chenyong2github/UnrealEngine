@@ -101,7 +101,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private const string MacArchiver = "libtool";
 
-		private static List<FileItem> BundleDependencies = new List<FileItem>();
+		private static Dictionary<ReadOnlyTargetRules, List<FileItem>> BundleDependencies = new();
 
 		protected override ClangToolChainInfo GetToolChainInfo()
 		{
@@ -996,10 +996,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Creates app bundle for a given executable
 		/// </summary>
+		/// <param name="Target"></param>
 		/// <param name="LinkEnvironment"></param>
 		/// <param name="Executable">FileItem describing the executable to generate app bundle for</param>
 		/// <param name="Graph">List of actions to be executed. Additional actions will be added to this list.</param>
-		FileItem FinalizeAppBundle(LinkEnvironment LinkEnvironment, FileItem Executable, IActionGraphBuilder Graph)
+		FileItem FinalizeAppBundle(ReadOnlyTargetRules Target, LinkEnvironment LinkEnvironment, FileItem Executable, IActionGraphBuilder Graph)
 		{
 			// Make a file item for the source and destination files
 			string FullDestPath = Executable.AbsolutePath.Substring(0, Executable.AbsolutePath.IndexOf(".app") + 4);
@@ -1016,7 +1017,7 @@ namespace UnrealBuildTool
 
 			FinalizeAppBundleAction.CommandArguments = "\"" + BundleScript.AbsolutePath + "\"";
 			FinalizeAppBundleAction.PrerequisiteItems.Add(Executable);
-			foreach (FileItem Dependency in BundleDependencies)
+			foreach (FileItem Dependency in BundleDependencies.GetValueOrDefault(Target, new()))
 			{
 				FinalizeAppBundleAction.PrerequisiteItems.Add(Dependency);
 			}
@@ -1050,13 +1051,18 @@ namespace UnrealBuildTool
 			return TargetItem;
 		}
 
-		public override void SetupBundleDependencies(List<UEBuildBinary> Binaries, string GameName)
+		public override void SetupBundleDependencies(ReadOnlyTargetRules Target, List<UEBuildBinary> Binaries, string GameName)
 		{
-			base.SetupBundleDependencies(Binaries, GameName);
+			base.SetupBundleDependencies(Target, Binaries, GameName);
+
+			if (!BundleDependencies.ContainsKey(Target))
+			{
+				BundleDependencies.Add(Target, new());
+			}
 
 			foreach (UEBuildBinary Binary in Binaries)
 			{
-				BundleDependencies.Add(FileItem.GetItemByFileReference(Binary.OutputFilePath));
+				BundleDependencies[Target].Add(FileItem.GetItemByFileReference(Binary.OutputFilePath));
 			}
 		}
 
@@ -1179,9 +1185,9 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public override ICollection<FileItem> PostBuild(FileItem Executable, LinkEnvironment BinaryLinkEnvironment, IActionGraphBuilder Graph)
+		public override ICollection<FileItem> PostBuild(ReadOnlyTargetRules Target, FileItem Executable, LinkEnvironment BinaryLinkEnvironment, IActionGraphBuilder Graph)
 		{
-			ICollection<FileItem> OutputFiles = base.PostBuild(Executable, BinaryLinkEnvironment, Graph);
+			ICollection<FileItem> OutputFiles = base.PostBuild(Target, Executable, BinaryLinkEnvironment, Graph);
 
 			if (BinaryLinkEnvironment.bIsBuildingLibrary)
 			{
@@ -1216,7 +1222,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					OutputFiles.Add(FinalizeAppBundle(BinaryLinkEnvironment, Executable, Graph));
+					OutputFiles.Add(FinalizeAppBundle(Target, BinaryLinkEnvironment, Executable, Graph));
 				}
 			}
 

@@ -161,15 +161,15 @@ namespace UnrealBuildTool
 			return FileReference.Combine(LinkEnvironment.IntermediateDirectory!, OutputFile.Location.GetFileName() + ".response");
 		}
 
-		public virtual ICollection<FileItem> PostBuild(FileItem Executable, LinkEnvironment ExecutableLinkEnvironment, IActionGraphBuilder Graph)
+		public virtual ICollection<FileItem> PostBuild(ReadOnlyTargetRules Target, FileItem Executable, LinkEnvironment ExecutableLinkEnvironment, IActionGraphBuilder Graph)
 		{
 			return new List<FileItem>();
 		}
 
-		public virtual ICollection<FileItem> PostBuild(FileItem[] Executables, LinkEnvironment ExecutableLinkEnvironment, IActionGraphBuilder Graph)
+		public virtual ICollection<FileItem> PostBuild(ReadOnlyTargetRules Target, FileItem[] Executables, LinkEnvironment ExecutableLinkEnvironment, IActionGraphBuilder Graph)
 		{
 			// by default, run PostBuild for exe Exe and merge results
-			return Executables.SelectMany(x => PostBuild(x, ExecutableLinkEnvironment, Graph)).ToList();
+			return Executables.SelectMany(x => PostBuild(Target, x, ExecutableLinkEnvironment, Graph)).ToList();
 		}
 
 		public virtual void SetUpGlobalEnvironment(ReadOnlyTargetRules Target)
@@ -208,7 +208,7 @@ namespace UnrealBuildTool
 			return OutputFile.ChangeExtension(DebugExtension);
 		}
 
-		public virtual void SetupBundleDependencies(List<UEBuildBinary> Binaries, string GameName)
+		public virtual void SetupBundleDependencies(ReadOnlyTargetRules Target, List<UEBuildBinary> Binaries, string GameName)
 		{
 		}
 

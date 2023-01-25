@@ -1160,9 +1160,9 @@ namespace UnrealBuildTool
 			return new DirectoryReference(ResourcesDir);
 		}
 
-		public override ICollection<FileItem> PostBuild(FileItem Executable, LinkEnvironment BinaryLinkEnvironment, IActionGraphBuilder Graph)
+		public override ICollection<FileItem> PostBuild(ReadOnlyTargetRules Target, FileItem Executable, LinkEnvironment BinaryLinkEnvironment, IActionGraphBuilder Graph)
 		{
-			List<FileItem> OutputFiles = new List<FileItem>(base.PostBuild(Executable, BinaryLinkEnvironment, Graph));
+			List<FileItem> OutputFiles = new List<FileItem>(base.PostBuild(Target, Executable, BinaryLinkEnvironment, Graph));
 
 			if (BinaryLinkEnvironment.bIsBuildingLibrary)
 			{
@@ -1990,9 +1990,9 @@ namespace UnrealBuildTool
 			return TargetItem;
 		}
 
-		public override void SetupBundleDependencies(List<UEBuildBinary> Binaries, string GameName)
+		public override void SetupBundleDependencies(ReadOnlyTargetRules Target, List<UEBuildBinary> Binaries, string GameName)
 		{
-			base.SetupBundleDependencies(Binaries, GameName);
+			base.SetupBundleDependencies(Target, Binaries, GameName);
 
 			foreach (UEBuildBinary Binary in Binaries)
 			{

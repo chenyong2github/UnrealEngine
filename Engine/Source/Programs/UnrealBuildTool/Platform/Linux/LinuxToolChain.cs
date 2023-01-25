@@ -735,7 +735,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Holds all the binaries for a particular target (except maybe the executable itself).
 		/// </summary>
-		private static List<FileItem> AllBinaries = new List<FileItem>();
+		private static Dictionary<ReadOnlyTargetRules, List<FileItem>> AllBinaries = new();
 
 		/// <summary>
 		/// Tracks that information about used C++ library is only printed once
@@ -890,7 +890,7 @@ namespace UnrealBuildTool
 			return OutputFile;
 		}
 
-		public FileItem? FixDependencies(LinkEnvironment LinkEnvironment, FileItem Executable, IActionGraphBuilder Graph, ILogger Logger)
+		public FileItem? FixDependencies(ReadOnlyTargetRules Target, LinkEnvironment LinkEnvironment, FileItem Executable, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			if (bUseFixdeps)
 			{
@@ -924,7 +924,7 @@ namespace UnrealBuildTool
 				// Make sure we don't run this script until the all executables and shared libraries
 				// have been built.
 				PostLinkAction.PrerequisiteItems.Add(Executable);
-				foreach (FileItem Dependency in AllBinaries)
+				foreach (FileItem Dependency in AllBinaries.GetValueOrDefault(Target, new()))
 				{
 					PostLinkAction.PrerequisiteItems.Add(Dependency);
 				}
@@ -1497,20 +1497,24 @@ namespace UnrealBuildTool
 			return OutputFile;
 		}
 
-		public override void SetupBundleDependencies(List<UEBuildBinary> Binaries, string GameName)
+		public override void SetupBundleDependencies(ReadOnlyTargetRules Target, List<UEBuildBinary> Binaries, string GameName)
 		{
 			if (bUseFixdeps)
 			{
+				if (!AllBinaries.ContainsKey(Target))
+				{
+					AllBinaries.Add(Target, new());
+				}
 				foreach (UEBuildBinary Binary in Binaries)
 				{
-					AllBinaries.Add(FileItem.GetItemByFileReference(Binary.OutputFilePath));
+					AllBinaries[Target].Add(FileItem.GetItemByFileReference(Binary.OutputFilePath));
 				}
 			}
 		}
 
-		public override ICollection<FileItem> PostBuild(FileItem Executable, LinkEnvironment BinaryLinkEnvironment, IActionGraphBuilder Graph)
+		public override ICollection<FileItem> PostBuild(ReadOnlyTargetRules Target, FileItem Executable, LinkEnvironment BinaryLinkEnvironment, IActionGraphBuilder Graph)
 		{
-			ICollection<FileItem> OutputFiles = base.PostBuild(Executable, BinaryLinkEnvironment, Graph);
+			ICollection<FileItem> OutputFiles = base.PostBuild(Target, Executable, BinaryLinkEnvironment, Graph);
 
 			if (bUseFixdeps)
 			{
@@ -1519,7 +1523,7 @@ namespace UnrealBuildTool
 					return OutputFiles;
 				}
 
-				FileItem? FixDepsOutputFile = FixDependencies(BinaryLinkEnvironment, Executable, Graph, Logger);
+				FileItem? FixDepsOutputFile = FixDependencies(Target, BinaryLinkEnvironment, Executable, Graph, Logger);
 				if (FixDepsOutputFile != null)
 				{
 					OutputFiles.Add(FixDepsOutputFile);
