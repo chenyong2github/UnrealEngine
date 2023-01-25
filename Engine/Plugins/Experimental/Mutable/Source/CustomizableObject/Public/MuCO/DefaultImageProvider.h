@@ -10,6 +10,11 @@ class UTexture2D;
 class UCustomizableObjectInstance;
 
 
+/** Simple image provider that translates UTexture2D to Mutable IDs.
+ *
+ * Allows the reuse of UTexture2D.
+ * IDs will be garbage collected if they are referenced inside an Instance (GetTextureParameters()) or are not mark explicitly to keep (Keep(...)).
+ */
 UCLASS()
 class CUSTOMIZABLEOBJECT_API UDefaultImageProvider : public UCustomizableSystemImageProvider
 {

@@ -830,11 +830,6 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 	{
 		return; // The requested update is equal to the running update.
 	}
-
-	if (const TObjectPtr<UDefaultImageProvider> DefaultImageProvider = UCustomizableObjectSystem::GetInstance()->DefaultImageProvider)
-	{
-		DefaultImageProvider->CacheTextures(Instance);
-	}
 	
 	// These delegates must be called at the end of the begin update.
 	Instance.BeginUpdateDelegate.Broadcast(&Instance);
@@ -1434,8 +1429,6 @@ namespace impl
 			}
 			else
 			{
-				MUTABLE_CPUPROFILER_SCOPE(GetImage);
-
 				int32 MaxSize = FMath::Max(Image.FullImageSizeX, Image.FullImageSizeY);
 				int32 FullLODCount = FMath::CeilLogTwo(MaxSize) + 1;
 				int32 MinMipsInImage = FMath::Min(FullLODCount, UTexture::GetStaticMinTextureResidentMipCount());
@@ -1957,7 +1950,11 @@ namespace impl
 			ObjectInstancePrivateData->UpdateParameterDecorationsEngineResources(OperationData);
 		}
 
-
+		if (const TObjectPtr<UDefaultImageProvider> DefaultImageProvider = System->GetDefaultImageProvider())
+		{
+			DefaultImageProvider->CacheTextures(*ObjectInstance);
+		}
+		
 		// Selectively lock the resource cache for the object used by this instance to avoid the destruction of resources that we may want to reuse.
 		// When protecting textures there mustn't be any left from a previous update
 		check(System->ProtectedCachedTextures.Num() == 0);
@@ -2558,7 +2555,13 @@ void UCustomizableObjectSystem::UnregisterImageProvider(UCustomizableSystemImage
 }
 
 
-UDefaultImageProvider& UCustomizableObjectSystem::GetDefaultImageProvider()
+TObjectPtr<UDefaultImageProvider> UCustomizableObjectSystem::GetDefaultImageProvider() const
+{
+	return DefaultImageProvider;
+}
+
+
+UDefaultImageProvider& UCustomizableObjectSystem::GetOrCreateDefaultImageProvider()
 {
 	if (!DefaultImageProvider)
 	{

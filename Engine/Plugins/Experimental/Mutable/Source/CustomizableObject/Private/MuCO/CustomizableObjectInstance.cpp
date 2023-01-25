@@ -232,7 +232,7 @@ void UCustomizableObjectInstance::PreEditChange(FProperty* PropertyAboutToChange
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UCustomizableObjectInstance, TextureParameterDeclarations))
 	{
-		UDefaultImageProvider& DefaultImageProvider = UCustomizableObjectSystem::GetInstance()->GetDefaultImageProvider();
+		UDefaultImageProvider& DefaultImageProvider = UCustomizableObjectSystem::GetInstance()->GetOrCreateDefaultImageProvider();
 		
 		for (TObjectPtr<UTexture2D> Texture : TextureParameterDeclarations)
 		{
@@ -256,7 +256,7 @@ void UCustomizableObjectInstance::PostEditChangeProperty(FPropertyChangedEvent& 
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UCustomizableObjectInstance, TextureParameterDeclarations))
 	{
-		UDefaultImageProvider& DefaultImageProvider = UCustomizableObjectSystem::GetInstance()->GetDefaultImageProvider();
+		UDefaultImageProvider& DefaultImageProvider = UCustomizableObjectSystem::GetInstance()->GetOrCreateDefaultImageProvider();
 		
 		for (TObjectPtr<UTexture2D> Texture : TextureParameterDeclarations)
 		{

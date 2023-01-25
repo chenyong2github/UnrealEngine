@@ -297,10 +297,14 @@ public:
 	/** [Texture Parameters] Remove all images from the cache. */
 	void ClearImageCache();
 
-	UDefaultImageProvider& GetDefaultImageProvider();
+	/** Get the default image provider. Returns null if it was not already initialized. */
+	TObjectPtr<UDefaultImageProvider> GetDefaultImageProvider() const;
+
+	/** Initialize (if was not already) and get the default image provider. */
+	UDefaultImageProvider& GetOrCreateDefaultImageProvider();
 
 private:
-	
+	/** Mutable default image provider. Used by the COIEditor and Instance/Descriptor APIs. */
 	UPROPERTY()
 	TObjectPtr<UDefaultImageProvider> DefaultImageProvider = nullptr;
 
