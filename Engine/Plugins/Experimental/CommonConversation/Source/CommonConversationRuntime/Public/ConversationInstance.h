@@ -84,6 +84,7 @@ public:
 	}
 
 	const FConversationNodeHandle& GetCurrentNodeHandle() const { return CurrentBranchPoint.GetNodeHandle(); }
+	const FConversationChoiceReference& GetCurrentChoiceReference() const { return CurrentBranchPoint.ClientChoice.ChoiceReference; }
 	const TArray<FClientConversationOptionEntry>& GetCurrentUserConversationChoices() const { return CurrentUserChoices; }
 
 protected:
@@ -104,7 +105,6 @@ private:
 	void TryStartingConversation();
 
 	const FConversationBranchPoint& GetCurrentBranchPoint() const { return CurrentBranchPoint; }
-	const FConversationChoiceReference& GetCurrentChoiceReference() const { return CurrentBranchPoint.ClientChoice.ChoiceReference; }
 
 	void ResetConversationProgress();
 	void UpdateNextChoices(const FConversationContext& Context);
