@@ -184,6 +184,8 @@ private:
 	bool bShowActiveSelectionActions = true;
 };
 
+#undef LOCTEXT_NAMESPACE
+
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
 #include "ModelingToolsEditorMode.h"

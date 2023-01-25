@@ -2,6 +2,7 @@
 
 #include "USDLevelSequenceHelper.h"
 
+#include "GeometryCache.h"
 #include "USDAssetCache.h"
 #include "USDAssetImportData.h"
 #include "USDAttributeUtils.h"
