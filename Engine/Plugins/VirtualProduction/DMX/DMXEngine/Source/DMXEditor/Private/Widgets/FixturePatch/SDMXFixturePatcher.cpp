@@ -16,6 +16,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SNullWidget.h"
 
+#include "Algo/RemoveIf.h"
 #include "Styling/AppStyle.h"
 #include "ScopedTransaction.h"
 #include "SlateOptMacros.h"
@@ -245,183 +246,133 @@ FReply SDMXFixturePatcher::OnDrop(const FGeometry& MyGeometry, const FDragDropEv
 
 void SDMXFixturePatcher::OnDragEnterChannel(int32 UniverseID, int32 ChannelID, const FDragDropEvent& DragDropEvent)
 {
-	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
-	if (!Operation.IsValid())
-	{
-		return;
-	}
-
-	if (TSharedPtr<FDMXEntityFixturePatchDragDropOperation> FixturePatchDragDropOp = DragDropEvent.GetOperationAs<FDMXEntityFixturePatchDragDropOperation>())
-	{
-		const TArray<TWeakObjectPtr<UDMXEntity>>& DraggedEntities = FixturePatchDragDropOp->GetDraggedEntities();
-
-		if (DraggedEntities.Num() > 1)
-		{
-			FixturePatchDragDropOp->SetFeedbackMessageError(LOCTEXT("CannotDragDropMoreThanOnePatch", "Multi asset drag drop is not supported."));
-		}
-
-		TSharedPtr<FDMXFixturePatchNode> DraggedNode = GetDraggedNode(DraggedEntities);
-
-		if (DraggedNode.IsValid())
-		{
-			if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(DraggedEntities[0]))
-			{
-				const int32 ChannelSpan = FixturePatch->GetChannelSpan();
-				const int32 NewStartingChannel = [this, ChannelID, &FixturePatchDragDropOp, ChannelSpan]()
-				{
-					int32 StartingChannel = ChannelID - FixturePatchDragDropOp->GetChannelOffset();
-					return ClampStartingChannel(StartingChannel, ChannelSpan);
-				}();
-
-
-				// Patch the node but do not transact it (transact on drop instead)
-				const TSharedPtr<SDMXPatchedUniverse>& Universe = PatchedUniversesByID.FindChecked(UniverseID);
-
-				const bool bCreateTransaction = false;
-				bool bPatchSuccess = Universe->Patch(DraggedNode, NewStartingChannel, bCreateTransaction);
-			
-				// If patching wasn't successful, try to move as close to the hovered node as possible
-				if (!bPatchSuccess)
-				{
-					const bool bIsHoveredChannelInFrontOfPatch = [UniverseID, NewStartingChannel, FixturePatch]()
-					{
-						bool bUniverseInFront = UniverseID < FixturePatch->GetUniverseID();
-						bool ChannelInFront = UniverseID == FixturePatch->GetUniverseID() && NewStartingChannel < FixturePatch->GetStartingChannel();
-
-						return bUniverseInFront || ChannelInFront;
-					}();
-
-					if (bIsHoveredChannelInFrontOfPatch)
-					{
-						for (int32 Channel = FixturePatch->GetStartingChannel() - 1; Channel >= NewStartingChannel; Channel--)
-						{
-							// Try to patch as close as possible, but consider any approximation a success
-							bool bCloserApproximation = Universe->Patch(DraggedNode, Channel, bCreateTransaction);
-							bPatchSuccess = bPatchSuccess ? true : bCloserApproximation;
-						}
-					}
-					else
-					{
-						for (int32 Channel = FixturePatch->GetStartingChannel() + 1; Channel <= NewStartingChannel; Channel++)
-						{
-							// Try to patch as close as possible, but consider any approximation a success
-							bool bCloserApproximation = Universe->Patch(DraggedNode, Channel, bCreateTransaction);
-							bPatchSuccess = bPatchSuccess ? true : bCloserApproximation;
-						}
-					}
-				}
-
-				if (bPatchSuccess)
-				{
-					TSharedRef<SWidget> DragDropDecorator = CreateDragDropDecorator(FixturePatch, NewStartingChannel);
-					FixturePatchDragDropOp->SetCustomFeedbackWidget(DragDropDecorator);
-				}
-				else if (!DraggedNode->IsPatched())
-				{
-					if (NewStartingChannel + ChannelSpan > DMX_UNIVERSE_SIZE)
-					{
-						FixturePatchDragDropOp->SetFeedbackMessageError(LOCTEXT("CannotDragDropOnOccupiedChannels", "Channels range overflows max channels address (512)"));
-					}
-				}
-			}
-		}
-	}
+	// Same as dropping onto a channel, but without FReply
+	OnDropOntoChannel(UniverseID, ChannelID, DragDropEvent);
 }
 
 FReply SDMXFixturePatcher::OnDropOntoChannel(int32 UniverseID, int32 ChannelID, const FDragDropEvent& DragDropEvent)
 {
+	const TMap<TSharedRef<FDMXFixturePatchNode>, int64> DraggedNodesToAbsoluteChannelOffsetMap = GetDraggedNodesToAbsoluteChannelOffsetMap(DragDropEvent);
+	if (DraggedNodesToAbsoluteChannelOffsetMap.IsEmpty())
+	{
+		return FReply::Handled().EndDragDrop();
+	}
+
+	int32 PadOffset = 0;
+	for (const TTuple<TSharedRef<FDMXFixturePatchNode>, int64>& DraggedNodesToChannelOffsetPair : DraggedNodesToAbsoluteChannelOffsetMap)
+	{
+		const TSharedRef<FDMXFixturePatchNode>& PatchedNode = DraggedNodesToChannelOffsetPair.Key;
+
+		if (UDMXEntityFixturePatch* FixturePatch = DraggedNodesToChannelOffsetPair.Key->GetFixturePatch().Get())
+		{
+			const int32 ChannelSpan = FixturePatch->GetChannelSpan();
+			const int32 AbsoluteOffset = DraggedNodesToChannelOffsetPair.Value + PadOffset;
+
+			int32 NewUniverseID = UniverseID;
+			int32 DesiredStartingChannel = ChannelID;
+			if (IsUniverseSelectionEnabled())
+			{			
+				// Stay within the current Universe if only one is displayed
+				if (FixturePatch->GetUniverseID() != UniverseID)
+				{
+					continue;
+				}
+
+				DesiredStartingChannel = ChannelID - AbsoluteOffset % DMX_MAX_ADDRESS;
+			}
+			else
+			{
+				int64 AbsoluteDesiredStartingChannel = UniverseID * DMX_MAX_ADDRESS + ChannelID - AbsoluteOffset;
+
+				// Allow drag to another universe if multiple universes are displayed
+				int32 DesiredUniverse = AbsoluteDesiredStartingChannel / DMX_MAX_ADDRESS;
+				if (DesiredUniverse < 1)
+				{
+					DesiredUniverse = 1;
+					AbsoluteDesiredStartingChannel = ChannelID - AbsoluteOffset % DMX_MAX_ADDRESS;
+				}
+				else if (DesiredUniverse > DMX_MAX_UNIVERSE)
+				{
+					DesiredUniverse = DMX_MAX_UNIVERSE;
+					AbsoluteDesiredStartingChannel = DMX_MAX_UNIVERSE * DMX_MAX_ADDRESS - ChannelSpan + 1;
+				}
+				else
+				{
+					NewUniverseID = DesiredUniverse;
+				}
+
+				// Remove from previous universe if needed
+				if (NewUniverseID != PatchedNode->GetUniverseID())
+				{
+					const TSharedPtr<SDMXPatchedUniverse>* OldUniverseWidgetPtr = PatchedUniversesByID.Find(PatchedNode->GetUniverseID());
+					if (OldUniverseWidgetPtr)
+					{
+						(*OldUniverseWidgetPtr)->Remove(PatchedNode);
+						(*OldUniverseWidgetPtr)->RequestRefresh();
+					}
+				}
+
+				DesiredStartingChannel = AbsoluteDesiredStartingChannel % DMX_MAX_ADDRESS;
+			}
+
+			const int32 NewStartingChannel = ClampStartingChannel(DesiredStartingChannel, ChannelSpan);
+			DraggedNodesToChannelOffsetPair.Key->SetAddresses(NewUniverseID, NewStartingChannel, ChannelSpan);
+
+			const TSharedPtr<SDMXPatchedUniverse>* UniverseWidgetPtr = PatchedUniversesByID.Find(NewUniverseID);
+			if (!UniverseWidgetPtr)
+			{
+				AddUniverse(NewUniverseID);
+				UniverseWidgetPtr = &PatchedUniversesByID.FindChecked(NewUniverseID);
+			}
+			check(UniverseWidgetPtr);
+			(*UniverseWidgetPtr)->FindOrAdd(DraggedNodesToChannelOffsetPair.Key);
+
+			// Pad further patches so they can't be offset more than the currently dropped patch
+			PadOffset = FMath::Min(PadOffset, DesiredStartingChannel - NewStartingChannel);
+		}
+	}
+
+	return FReply::Handled().EndDragDrop();
+}
+
+TMap<TSharedRef<FDMXFixturePatchNode>, int64> SDMXFixturePatcher::GetDraggedNodesToAbsoluteChannelOffsetMap(const FDragDropEvent& DragDropEvent) const
+{
+	TMap<TSharedRef<FDMXFixturePatchNode>, int64> DraggedNodesToAbsoluteChannelOffsetMap;
+
 	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
 	if (!Operation.IsValid())
 	{
-		return FReply::Unhandled();
+		return DraggedNodesToAbsoluteChannelOffsetMap;
 	}
 
-	if (TSharedPtr<FDMXEntityFixturePatchDragDropOperation> FixturePatchDragDropOp = DragDropEvent.GetOperationAs<FDMXEntityFixturePatchDragDropOperation>())
+	const TSharedPtr<FDMXEntityFixturePatchDragDropOperation> FixturePatchDragDropOp = DragDropEvent.GetOperationAs<FDMXEntityFixturePatchDragDropOperation>();
+	if (!FixturePatchDragDropOp.IsValid())
 	{
-		const TArray<TWeakObjectPtr<UDMXEntity>>& DraggedEntities = FixturePatchDragDropOp->GetDraggedEntities();
+		return DraggedNodesToAbsoluteChannelOffsetMap;
+	}
 
-		TSharedPtr<FDMXFixturePatchNode> DraggedNode = GetDraggedNode(DraggedEntities);
+	const TMap<TWeakObjectPtr<UDMXEntityFixturePatch>, int64>& FixturePatchToAbsoluteChannelOffsetMap = FixturePatchDragDropOp->GetFixturePatchToAbsoluteChannelOffsetMap();
+	for (const TTuple<TWeakObjectPtr<UDMXEntityFixturePatch>, int64>& FixturePatchToAbsoluteChannelOffsetPair : FixturePatchToAbsoluteChannelOffsetMap)
+	{
+		UDMXEntityFixturePatch* FixturePatch = FixturePatchToAbsoluteChannelOffsetPair.Key.Get();
+		if (!FixturePatch)
+		{
+			continue;
+		}
+
+		TSharedPtr<FDMXFixturePatchNode> DraggedNode = FindPatchNode(FixturePatch);
+		if (!DraggedNode.IsValid())
+		{
+			DraggedNode = FDMXFixturePatchNode::Create(DMXEditorPtr, FixturePatch);
+		}
 
 		if (DraggedNode.IsValid())
 		{
-			if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(DraggedEntities[0]))
-			{
-				const int32 ChannelSpan = FixturePatch->GetChannelSpan();
-				const int32 NewStartingChannel = [this, ChannelID, &FixturePatchDragDropOp, ChannelSpan]()
-				{
-					int32 StartingChannel = ChannelID - FixturePatchDragDropOp->GetChannelOffset();
-					return ClampStartingChannel(StartingChannel, ChannelSpan);
-				}();
-
-				const TSharedPtr<SDMXPatchedUniverse>& Universe = PatchedUniversesByID.FindChecked(UniverseID);
-
-				bool bCreateTransaction = true;
-				if (Universe->Patch(DraggedNode, NewStartingChannel, bCreateTransaction))
-				{
-					return FReply::Handled().EndDragDrop();
-				}
-			}
+			DraggedNodesToAbsoluteChannelOffsetMap.Add(DraggedNode.ToSharedRef(), FixturePatchToAbsoluteChannelOffsetPair.Value);
 		}
 	}
 
-	return FReply::Unhandled();
-}
-
-TSharedPtr<FDMXFixturePatchNode> SDMXFixturePatcher::GetDraggedNode(const TArray<TWeakObjectPtr<UDMXEntity>>& DraggedEntities)
-{
-	if (DraggedEntities.Num() == 1)
-	{
-		if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(DraggedEntities[0]))
-		{
-			const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FixturePatchArray = TArray<TWeakObjectPtr<UDMXEntityFixturePatch>>({ FixturePatch });
-			TSharedPtr<FDMXFixturePatchNode> DraggedNode = FindPatchNode(FixturePatch);
-
-			if (!DraggedNode.IsValid())
-			{
-				DraggedNode = FDMXFixturePatchNode::Create(DMXEditorPtr, FixturePatch);
-			}
-
-			return DraggedNode;
-		}
-	}
-
-	return nullptr;
-}
-
-TSharedRef<SWidget> SDMXFixturePatcher::CreateDragDropDecorator(TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch, int32 ChannelID) const
-{
-	if (FixturePatch.IsValid())
-	{
-		int32 StartingChannel = ChannelID;
-		int32 ChannelSpan = FixturePatch->GetChannelSpan();
-		int32 EndingChannel = StartingChannel + FixturePatch->GetChannelSpan() - 1;
-
-		FText PatchName = FText::Format(LOCTEXT("PatchName", "{0}"), FText::FromString(FixturePatch->GetDisplayName()));;								
-		FText ChannelRangeName = FText::Format(LOCTEXT("ChannelRangeName", "Channel {0} - {1}"), StartingChannel, EndingChannel);
-
-		return SNew(SBorder)
-			.BorderImage(FAppStyle::GetBrush("Graph.ConnectorFeedback.Border"))
-			[
-				SNew(SVerticalBox)				
-				+ SVerticalBox::Slot()
-				.VAlign(VAlign_Fill)
-				[
-					SNew(STextBlock)
-					.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
-					.Text(ChannelRangeName)
-				]
-				+ SVerticalBox::Slot()
-				.VAlign(VAlign_Bottom)
-				[
-					SNew(STextBlock)
-					.Text(PatchName)
-					.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
-					.ColorAndOpacity(FLinearColor(0.9f, 0.9f, 0.9f, 1.0f))
-				]
-			];
-	}
-
-	return SNullWidget::NullWidget;
+	return DraggedNodesToAbsoluteChannelOffsetMap;
 }
 
 void SDMXFixturePatcher::PostUndo(bool bSuccess)
@@ -432,12 +383,12 @@ void SDMXFixturePatcher::PostUndo(bool bSuccess)
 		DMXLibrary->Modify();
 	}
 
-	RefreshFromProperties();
+	RefreshFromLibrary();
 }
 
 void SDMXFixturePatcher::PostRedo(bool bSuccess)
 {
-	RefreshFromProperties();
+	RefreshFromLibrary();
 }
 
 TSharedPtr<FDMXFixturePatchNode> SDMXFixturePatcher::FindPatchNode(const TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch) const

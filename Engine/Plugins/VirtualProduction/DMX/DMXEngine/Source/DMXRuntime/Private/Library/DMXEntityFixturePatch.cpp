@@ -18,6 +18,7 @@
 #include "Library/DMXLibrary.h"
 #include "Modulators/DMXModulator.h"
 
+#include "Algo/Find.h"
 #include "UObject/UObjectGlobals.h"
 
 DECLARE_LOG_CATEGORY_CLASS(DMXEntityFixturePatchLog, Log, All);
@@ -94,14 +95,16 @@ UDMXEntityFixturePatch* UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FDMX
 			}
 			NewFixturePatch->MVRFixtureUUID = ConstructionParams.MVRFixtureUUID;
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 			// Make a nice Editor Color
-			const FLinearColor EditorColor = [DMXLibrary, &ConstructionParams]()
+			const FLinearColor EditorColor = [DMXLibrary, NewFixturePatch]()
 			{
 				const TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
-				const UDMXEntityFixturePatch* const* FixturePatchOfSameTypePtr = FixturePatches.FindByPredicate([&ConstructionParams](const UDMXEntityFixturePatch* FixturePatch)
+				const UDMXEntityFixturePatch* const* FixturePatchOfSameTypePtr = Algo::FindByPredicate(FixturePatches, [NewFixturePatch](const UDMXEntityFixturePatch* FixturePatch)
 					{
-						return FixturePatch->GetFixtureType() == ConstructionParams.FixtureTypeRef.GetFixtureType();
+						return
+							FixturePatch != NewFixturePatch &&
+							FixturePatch->GetFixtureType() == NewFixturePatch->GetFixtureType();
 					});
 				return FixturePatchOfSameTypePtr ? (*FixturePatchOfSameTypePtr)->EditorColor : FLinearColor::MakeRandomColor();
 			}();

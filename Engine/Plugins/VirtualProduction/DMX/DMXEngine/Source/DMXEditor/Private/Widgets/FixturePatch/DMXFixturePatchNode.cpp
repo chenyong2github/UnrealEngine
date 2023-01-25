@@ -16,7 +16,6 @@
 
 #define LOCTEXT_NAMESPACE "DMXFixturePatchNode"
 
-
 /** A fixture patch fragment in a grid. CreateFragments creates DMXFixturePatchFragment from a DMXFixturePatchNode. */
 class FDMXFixturePatchFragment
 	: public TSharedFromThis<FDMXFixturePatchFragment>
@@ -318,9 +317,6 @@ TSharedPtr<FDMXFixturePatchNode> FDMXFixturePatchNode::Create(TWeakPtr<FDMXEdito
 		return nullptr;
 	}
 
-	NewNode->LastTransactedUniverseID = InFixturePatch->GetUniverseID();
-	NewNode->LastTransactedChannelID = InFixturePatch->GetStartingChannel();
-
 	TSharedPtr<FDMXFixturePatchSharedData> SharedData = DMXEditor->GetFixturePatchSharedData();
 	if (!SharedData.IsValid())
 	{
@@ -339,7 +335,7 @@ TSharedPtr<FDMXFixturePatchNode> FDMXFixturePatchNode::Create(TWeakPtr<FDMXEdito
 	return NewNode;
 }
 
-void FDMXFixturePatchNode::SetAddresses(int32 NewUniverseID, int32 NewStartingChannel, int32 NewChannelSpan, bool bTransacted)
+void FDMXFixturePatchNode::SetAddresses(int32 NewUniverseID, int32 NewStartingChannel, int32 NewChannelSpan)
 {
 	if (!FixturePatch.IsValid())
 	{
@@ -350,29 +346,8 @@ void FDMXFixturePatchNode::SetAddresses(int32 NewUniverseID, int32 NewStartingCh
 	StartingChannel = NewStartingChannel;
 	ChannelSpan = NewChannelSpan;
 
-	if (bTransacted)
-	{
-		// As we allow the asset to update even when not transacted,
-		// We have to set the last known values to enable proper undo
-		FixturePatch->SetUniverseID(LastTransactedUniverseID);
-		FixturePatch->SetStartingChannel(LastTransactedChannelID);
-
-		LastTransactedUniverseID = UniverseID;
-		LastTransactedChannelID = StartingChannel;
-
-		const FScopedTransaction Transaction = FScopedTransaction(LOCTEXT("FixturePatchAssigned", "Patched Fixture"));
-		FixturePatch->PreEditChange(nullptr);
-
-		FixturePatch->SetUniverseID(NewUniverseID);
-		FixturePatch->SetStartingChannel(StartingChannel);
-
-		FixturePatch->PostEditChange();
-	}
-	else
-	{
-		FixturePatch->SetUniverseID(NewUniverseID);
-		FixturePatch->SetStartingChannel(StartingChannel);
-	}
+	FixturePatch->SetUniverseID(NewUniverseID);
+	FixturePatch->SetStartingChannel(StartingChannel);
 }
 
 TArray<TSharedPtr<SDMXFixturePatchFragment>> FDMXFixturePatchNode::GenerateWidgets(const TArray<TSharedPtr<FDMXFixturePatchNode>>& FixturePatchNodeGroup)

@@ -10,6 +10,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class FDMXEditor;
+class FDMXEntityFixturePatchDragDropOperation;
 class FDMXFixturePatchNode;
 class FDMXFixturePatchSharedData;
 class FDMXTreeNodeBase;
@@ -60,12 +61,9 @@ protected:
 	/** Called when drag dropped onto a channel */
 	FReply OnDropOntoChannel(int32 UniverseID, int32 ChannelID, const FDragDropEvent& DragDropEvent);
 
-	/** Initilizes the widget for an incoming dragged patch, and the patch so it can be dragged here */
-	TSharedPtr<FDMXFixturePatchNode> GetDraggedNode(const TArray<TWeakObjectPtr<UDMXEntity>>& DraggedEntities);
+	/** Returns a map of nodes being dragged along with their absolute channel offset from the Drag Drop Event */
+	TMap<TSharedRef<FDMXFixturePatchNode>, int64> GetDraggedNodesToAbsoluteChannelOffsetMap(const FDragDropEvent& DragDropEvent) const;
 	
-	/** Creates an info widget for drag dropping */
-	TSharedRef<SWidget> CreateDragDropDecorator(TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch, int32 ChannelID) const;
-
 	//~ Begin FEditorUndoClient Interface
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
@@ -138,7 +136,7 @@ protected:
 	FText GetTooltipText() const;
 
 protected:
-	/** Clamps the starting channel to remain within a valid channel range */
+	/** Creates a valid address given Universe, Starting Channel and Channel Span. Returns false if no valid Address can be found. */
 	int32 ClampStartingChannel(int32 StartingChannel, int32 ChannelSpan) const;
 
 	/** Returns the DMXLibrary or nullptr if not available */

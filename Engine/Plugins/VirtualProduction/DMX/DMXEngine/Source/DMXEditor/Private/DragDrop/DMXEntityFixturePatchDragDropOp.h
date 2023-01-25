@@ -4,24 +4,30 @@
 
 #include "DMXEntityDragDropOp.h"
 
+#include "Input/DragAndDrop.h"
+
 
 class FDMXEntityFixturePatchDragDropOperation
-	: public FDMXEntityDragDropOperation
+	: public FDragDropOperation
 {
 public:
+	DRAG_DROP_OPERATOR_TYPE(FDMXEntityDragDropOperation, FDragDropOperation)
+
 	/** 
 	 * Constructs the fixture patch drag drop operation 
 	 * 
-	 * @param InLibrary					The library that contains the entities. Dragging from different libraries at once is not supported.
-	 * @param InFixturePatches			The dragged fixture patches.
-	 * @param InChannelOffset			The channel offset from the patch starting channel. Usually ChannelOffset = DraggedChannel - StartingChannel.
- 	 */
-	FDMXEntityFixturePatchDragDropOperation(UDMXLibrary* InLibrary, const TArray<TWeakObjectPtr<UDMXEntity>>& InFixturePatches, int32 InChannelOffset);
+	 * @param InLibrary								The library that contains the entities. Dragging from different libraries at once is not supported.
+	 * @param InFixturePatchToChannelOffsetMap		Each Fixture Patch being dragged, along with it's absolute channel offset from the anchor position.
+	 */
+	FDMXEntityFixturePatchDragDropOperation(const TMap<TWeakObjectPtr<UDMXEntityFixturePatch>, int64>& FixturePatchToAbsoluteChannelOffsetMap);
 
-	int32 GetChannelOffset() const { return ChannelOffset; }
+	/** Destructor */
+	virtual ~FDMXEntityFixturePatchDragDropOperation();
 
-	void SetChannelOffset(int32 InChannelOffset) { ChannelOffset = InChannelOffset; }
+	/** Returns Each Fixture Patch being dragged, along with it's channel offset from the anchor position. */
+	const TMap<TWeakObjectPtr<UDMXEntityFixturePatch>, int64>& GetFixturePatchToAbsoluteChannelOffsetMap() const { return FixturePatchToAbsoluteChannelOffsetMap; }
 
 protected:
-	int32 ChannelOffset;
+	/*	Each Fixture Patch being dragged, along with it's channel offset from the anchor position. */
+	TMap<TWeakObjectPtr<UDMXEntityFixturePatch>, int64> FixturePatchToAbsoluteChannelOffsetMap;
 };

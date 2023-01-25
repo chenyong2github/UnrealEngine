@@ -17,6 +17,7 @@
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
 
+#include "Algo/RemoveIf.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -32,6 +33,8 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SDMXPatchedUniverse::Construct(const FArguments& InArgs)
 {
 	check(InArgs._UniverseID != INDEX_NONE);
+
+	SetCanTick(true);
 
 	UniverseID = InArgs._UniverseID;
 
@@ -166,9 +169,12 @@ void SDMXPatchedUniverse::CreateChannelConnectors()
 	}
 }
 
-bool SDMXPatchedUniverse::Patch(const TSharedPtr<FDMXFixturePatchNode>& Node, int32 NewStartingChannel, bool bCreateTransaction)
+bool SDMXPatchedUniverse::FindOrAdd(const TSharedPtr<FDMXFixturePatchNode>& Node)
 {
-	check(Node.IsValid());
+	if (!Node.IsValid())
+	{
+		return false;
+	}
 
 	UDMXEntityFixturePatch* FixturePatch = Node->GetFixturePatch().Get();
 	if (!FixturePatch)
@@ -178,11 +184,26 @@ bool SDMXPatchedUniverse::Patch(const TSharedPtr<FDMXFixturePatchNode>& Node, in
 
 	PatchedNodes.AddUnique(Node);
 
-	const int32 NewChannelSpan = FixturePatch->GetChannelSpan();
-	Node->SetAddresses(UniverseID, NewStartingChannel, NewChannelSpan, bCreateTransaction);
 	RequestRefresh();
 
 	return true;
+}
+
+void SDMXPatchedUniverse::Remove(const TSharedPtr<FDMXFixturePatchNode>& Node)
+{
+	if (PatchedNodes.Contains(Node))
+	{
+		PatchedNodes.RemoveSingle(Node);
+
+		for (const TSharedPtr<SDMXFixturePatchFragment>& Widget : Node->GetGeneratedWidgets())
+		{
+			if (Widget.IsValid())
+			{
+				Grid->RemoveSlot(Widget.ToSharedRef());
+			}
+		}
+		RequestRefresh();
+	}
 }
 
 bool SDMXPatchedUniverse::CanAssignFixturePatch(TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch) const
@@ -288,48 +309,9 @@ TSharedPtr<FDMXFixturePatchNode> SDMXPatchedUniverse::FindPatchNodeOfType(UDMXEn
 
 void SDMXPatchedUniverse::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) 
 {
-	TArray<TSharedPtr<FDMXFixturePatchNode>> RemovedNodes;
-	for (const TSharedPtr<FDMXFixturePatchNode>& Node : PatchedNodes)
-	{
-		if (Node->GetUniverseID() != UniverseID)
-		{
-			RemovedNodes.Add(Node);
-		}
-		else if (Node->NeedsUpdateGrid())
-		{
-			RequestRefresh();
-			break;
-		}
-	}
-
-	for (const TSharedPtr<FDMXFixturePatchNode>& RemovedNode : RemovedNodes)
-	{
-		Unpatch(RemovedNode);
-	}
-
 	if (bMonitorInputs)
 	{
 		UpdateMonitor();
-	}
-}
-
-void SDMXPatchedUniverse::Unpatch(const TSharedPtr<FDMXFixturePatchNode>& Node)
-{
-	check(Node.IsValid());
-	check(Grid.IsValid());
-
-	if (PatchedNodes.Contains(Node))
-	{
-		PatchedNodes.RemoveSingle(Node);
-
-		for (const TSharedPtr<SDMXFixturePatchFragment>& Widget : Node->GetGeneratedWidgets())
-		{
-			if (Widget.IsValid())
-			{
-				Grid->RemoveSlot(Widget.ToSharedRef());
-			}
-		}
-		RequestRefresh();
 	}
 }
 
@@ -340,23 +322,20 @@ void SDMXPatchedUniverse::OnFixturePatchChanged(const UDMXEntityFixturePatch* Fi
 		return;
 	}
 
-	const int32 UniverseIDOfFixturePatch = FixturePatch->GetUniverseID();
-	if (UniverseIDOfFixturePatch == UniverseID)
-	{
-		const TSharedPtr<FDMXFixturePatchNode>* NodePtr = PatchedNodes.FindByPredicate([FixturePatch](const TSharedPtr<FDMXFixturePatchNode>& Node)
-			{
-				return Node->GetFixturePatch() == FixturePatch;
-			});
-
-		// Redraw all if the patch cannot be found.
-		if (!NodePtr)
+	const TSharedPtr<FDMXFixturePatchNode>* NodePtr = PatchedNodes.FindByPredicate([FixturePatch](const TSharedPtr<FDMXFixturePatchNode>& Node)
 		{
-			SetUniverseIDInternal(UniverseID);
-		}
-	}
+			return Node->GetFixturePatch() == FixturePatch;
+		});
 
-	FDMXEditorUtils::ClearAllDMXPortBuffers();
-	FDMXEditorUtils::ClearFixturePatchCachedData();
+	if (NodePtr && (*NodePtr)->GetUniverseID() != UniverseID)
+	{
+		Remove(*NodePtr);
+	}
+	else if (FixturePatch->GetUniverseID() == UniverseID)
+	{
+		// Redraw all if the patch is in this Universe but not found
+		SetUniverseIDInternal(UniverseID);
+	}
 }
 
 void SDMXPatchedUniverse::OnReceiveDMXEnabledChanged(bool bNewEnabled)
@@ -369,7 +348,10 @@ void SDMXPatchedUniverse::OnReceiveDMXEnabledChanged(bool bNewEnabled)
 
 void SDMXPatchedUniverse::SetUniverseIDInternal(int32 NewUniverseID)
 {
-	check(NewUniverseID > -1);
+	if (NewUniverseID < 0)
+	{
+		return;
+	}
 
 	// Find patches in new universe
 	UDMXLibrary* Library = GetDMXLibrary();
@@ -379,7 +361,7 @@ void SDMXPatchedUniverse::SetUniverseIDInternal(int32 NewUniverseID)
 		TArray<TSharedPtr<FDMXFixturePatchNode>> CachedPatchedNodes = PatchedNodes;
 		for (const TSharedPtr<FDMXFixturePatchNode>& Node : CachedPatchedNodes)
 		{
-			Unpatch(Node);
+			Remove(Node);
 		}
 		check(PatchedNodes.Num() == 0);
 
@@ -414,7 +396,7 @@ void SDMXPatchedUniverse::SetUniverseIDInternal(int32 NewUniverseID)
 			}
 			check(Node.IsValid());
 
-			Patch(Node, FixturePatch->GetStartingChannel(), false);
+			FindOrAdd(Node);
 		}
 
 		// Update the channel connectors' Universe ID
@@ -513,47 +495,92 @@ void SDMXPatchedUniverse::ResetMonitor()
 
 FReply SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel(uint32 Channel, const FPointerEvent& PointerEvent)
 {
-	if (PointerEvent.GetEffectingButton() == EKeys::RightMouseButton)
-	{
-		const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> OldSelection = SharedData->GetSelectedFixturePatches();
-		const TArray<UDMXEntityFixturePatch*> FixturePatchesOnChannel = GetFixturePatchesOnChannel(Channel);
-		const bool bOldSelectionContainsPatchesOnChannel = FixturePatchesOnChannel.ContainsByPredicate([&OldSelection](const UDMXEntityFixturePatch* FixturePatch)
-			{
-				return OldSelection.Contains(FixturePatch);
-			});
-		if (!bOldSelectionContainsPatchesOnChannel)
-		{
-			if (UDMXEntityFixturePatch* Patch = GetTopmostFixturePatchOnChannel(Channel))
-			{
-				if (FSlateApplication::Get().GetModifierKeys().IsControlDown())
-				{
-					SharedData->AddFixturePatchToSelection(Patch);
-				}
-				else
-				{
-					SharedData->SelectFixturePatch(Patch);
-				}
-			}
-		}
-	}
-
 	if (PointerEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		if (UDMXEntityFixturePatch* Patch = GetTopmostFixturePatchOnChannel(Channel))
-		{
-			if (FSlateApplication::Get().GetModifierKeys().IsControlDown())
+		// Get valid selection, sorted by Universe/Address
+		TArray<UDMXEntityFixturePatch*> Selection;
+		Algo::TransformIf(SharedData->GetSelectedFixturePatches(), Selection,
+			[](TWeakObjectPtr<UDMXEntityFixturePatch> WeakFixturePatch) { return WeakFixturePatch.IsValid(); },
+			[](TWeakObjectPtr<UDMXEntityFixturePatch> WeakFixturePatch) { return WeakFixturePatch.Get(); }
+		);
+		Algo::SortBy(Selection, [](UDMXEntityFixturePatch* FixturePatch)
 			{
-				SharedData->AddFixturePatchToSelection(Patch);
+				return FixturePatch->GetUniverseID() * DMX_MAX_ADDRESS + FixturePatch->GetStartingChannel();
+			});
+
+		const TArray<UDMXEntityFixturePatch*> FixturePatchesOnChannel = GetFixturePatchesOnChannel(Channel);
+		UDMXEntityFixturePatch* ClickedPatch = GetTopmostFixturePatchOnChannel(Channel);
+
+		// Shift Select
+		if (FSlateApplication::Get().GetModifierKeys().IsShiftDown() &&
+			!Selection.IsEmpty())
+		{
+			ShiftSelectAnchorPatch = ShiftSelectAnchorPatch.IsValid() ? ShiftSelectAnchorPatch : Selection[0];
+			
+			UDMXLibrary* DMXLibrary = ShiftSelectAnchorPatch->GetParentLibrary();
+			if (!DMXLibrary)
+			{
+				return FReply::Handled();
+			}
+			TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+			const int64 AbsoluteClickedChannel = UniverseID * DMX_MAX_ADDRESS + Channel;
+			const int64 ShiftSelectAbsoluteStartingChannel = ShiftSelectAnchorPatch->GetUniverseID() * DMX_MAX_ADDRESS + ShiftSelectAnchorPatch->GetStartingChannel();
+			const int64 ShiftSelectAbsoluteEndingChannel = ShiftSelectAnchorPatch->GetUniverseID() * DMX_MAX_ADDRESS + ShiftSelectAnchorPatch->GetEndingChannel();
+
+			const TRange<int64> SelectedRange(FMath::Min(ShiftSelectAbsoluteStartingChannel, AbsoluteClickedChannel), FMath::Max(ShiftSelectAbsoluteStartingChannel, AbsoluteClickedChannel + 1));
+
+			TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> ShiftSelection;
+			Algo::TransformIf(FixturePatches, ShiftSelection,
+				[&SelectedRange, Channel, this](UDMXEntityFixturePatch* FixturePatch)
+				{			
+					const int64 PatchAbsoluteStartingChannel = FixturePatch->GetUniverseID() * DMX_MAX_ADDRESS + FixturePatch->GetStartingChannel();
+					const int64 PatchAbsoluteEndingChannel = FixturePatch->GetUniverseID() * DMX_MAX_ADDRESS + FixturePatch->GetEndingChannel();
+					const TRange<int64> PatchRange(PatchAbsoluteStartingChannel, PatchAbsoluteEndingChannel + 1);
+					return 
+						SelectedRange.Overlaps(PatchRange);
+				},
+				[](UDMXEntityFixturePatch* FixturePatch)
+				{
+					return FixturePatch;
+				}
+			);
+			SharedData->SelectFixturePatches(ShiftSelection);
+
+			return FReply::Handled();
+		}
+		ShiftSelectAnchorPatch.Reset();
+
+		// Ctrl-Select
+		if (FSlateApplication::Get().GetModifierKeys().IsControlDown() && 
+			ClickedPatch)
+		{		
+			if (const bool bUnselect = Selection.Num() > 1 && Selection.Contains(ClickedPatch))
+			{
+				TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> WeakSelection = SharedData->GetSelectedFixturePatches();
+				WeakSelection.Remove(ClickedPatch);
+				SharedData->SelectFixturePatches(WeakSelection);
 			}
 			else
 			{
-				SharedData->SelectFixturePatch(Patch);
+				SharedData->AddFixturePatchToSelection(ClickedPatch);
 			}
 
-			if (ensureMsgf(ChannelConnectors.IsValidIndex(Channel - 1), TEXT("Trying to drag Fixture Patch, but the dragged channel is not valid.")))
+			return FReply::Handled();
+		}
+
+		// Normal Select and Detect Drag
+		if (ClickedPatch &&
+			ensureMsgf(ChannelConnectors.IsValidIndex(Channel - 1), TEXT("Trying to drag Fixture Patch, but the dragged channel is not valid.")))
+		{
+			ShiftSelectAnchorPatch.Reset();
+
+			// Replace selection with clicked patch if it wasn't selected
+			if (!Selection.Contains(ClickedPatch))
 			{
-				return FReply::Handled().DetectDrag(ChannelConnectors[Channel - 1].ToSharedRef(), EKeys::LeftMouseButton);
+				SharedData->SelectFixturePatch(ClickedPatch);
 			}
+
+			return FReply::Handled().DetectDrag(ChannelConnectors[Channel - 1].ToSharedRef(), EKeys::LeftMouseButton);
 		}
 	}
 
@@ -562,15 +589,32 @@ FReply SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel(uint32 Channel, con
 
 FReply SDMXPatchedUniverse::HandleOnMouseButtonUpOnChannel(uint32 Channel, const FPointerEvent& PointerEvent)
 {
+	if (PointerEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		UDMXEntityFixturePatch* Patch = GetTopmostFixturePatchOnChannel(Channel);
+		if (!Patch)
+		{
+			return FReply::Unhandled();
+		}
+
+		// Normal Select
+		if (!FSlateApplication::Get().GetModifierKeys().IsControlDown() && !FSlateApplication::Get().GetModifierKeys().IsShiftDown())
+		{
+			UDMXEntityFixturePatch* ClickedPatch = GetTopmostFixturePatchOnChannel(Channel);
+			if (ClickedPatch)
+			{
+				SharedData->SelectFixturePatch(ClickedPatch);
+			}
+		}
+	}
+
 	if (PointerEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
-		const FVector2D& SummonLocation = PointerEvent.GetScreenSpacePosition();
+		const FVector2D& ContextMenuSummonLocation = PointerEvent.GetScreenSpacePosition();
 
 		TSharedRef<SWidget> MenuContent = CreateContextMenu(Channel);
 		FWidgetPath WidgetPath = PointerEvent.GetEventPath() ? *PointerEvent.GetEventPath() : FWidgetPath();
-		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuContent, SummonLocation, FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
-
-		return FReply::Handled();
+		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuContent, ContextMenuSummonLocation, FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
 	}
 
 	return FReply::Unhandled();
@@ -578,16 +622,41 @@ FReply SDMXPatchedUniverse::HandleOnMouseButtonUpOnChannel(uint32 Channel, const
 
 FReply SDMXPatchedUniverse::HandleOnDragDetectedOnChannel(uint32 Channel, const FPointerEvent& PointerEvent)
 {
-	if (UDMXEntityFixturePatch* Patch = GetTopmostFixturePatchOnChannel(Channel))
+	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches = SharedData->GetSelectedFixturePatches();
+
+	// Only valid patches, sorted by Universe/Address
+	const int32 NumValidPatches = Algo::RemoveIf(SelectedFixturePatches, [this](TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch) 
+		{ 
+			return !FixturePatch.IsValid();
+		});
+	SelectedFixturePatches.SetNum(NumValidPatches);
+	Algo::SortBy(SelectedFixturePatches, [](TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch)
+		{
+			return (int64)FixturePatch->GetUniverseID() * DMX_MAX_ADDRESS + FixturePatch->GetStartingChannel();
+		}
+	);
+
+	if (SelectedFixturePatches.IsEmpty())
 	{
-		int32 ChannelOffset = Channel - Patch->GetStartingChannel();
-
-		TSharedRef<FDMXEntityFixturePatchDragDropOperation> DragDropOp = MakeShared<FDMXEntityFixturePatchDragDropOperation>(Patch->GetParentLibrary(), TArray<TWeakObjectPtr<UDMXEntity>>{ Patch }, ChannelOffset);
-
-		return FReply::Handled().BeginDragDrop(DragDropOp);
+		return FReply::Unhandled();
 	}
 
-	return FReply::Unhandled();
+	TMap<TWeakObjectPtr<UDMXEntityFixturePatch>, int64> FixturePatchToAbsoluteChannelOffsetMap;
+	for (TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch : SelectedFixturePatches)
+	{
+		if (!FixturePatch.IsValid())
+		{
+			continue;
+		}
+
+		FixturePatch->Modify();
+
+		const int64 AbsoluteOffset = UniverseID * DMX_MAX_ADDRESS + Channel - (FixturePatch->GetUniverseID() * DMX_MAX_ADDRESS + FixturePatch->GetStartingChannel());
+		FixturePatchToAbsoluteChannelOffsetMap.Add(FixturePatch, AbsoluteOffset);
+	}
+
+	const TSharedRef<FDMXEntityFixturePatchDragDropOperation> DragDropOp = MakeShared<FDMXEntityFixturePatchDragDropOperation>(FixturePatchToAbsoluteChannelOffsetMap);
+	return FReply::Handled().BeginDragDrop(DragDropOp);
 }
 
 void SDMXPatchedUniverse::HandleDragEnterChannel(uint32 Channel, const FDragDropEvent& DragDropEvent)
