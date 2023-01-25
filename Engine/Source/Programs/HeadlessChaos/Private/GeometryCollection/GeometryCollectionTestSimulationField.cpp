@@ -860,7 +860,7 @@ namespace GeometryCollectionTest
 		UnitTest.Solver->RegisterSimOneShotCallback([&]()
 		{
 			EXPECT_EQ(ClusterMap.Num(), 3);
-			EXPECT_EQ(ClusteredParticleHandles[1]->Strain(), 101);
+			EXPECT_EQ(ClusteredParticleHandles[1]->GetInternalStrains(), 101);
 		});
 		FName TargetName = GetFieldPhysicsName(EFieldPhysicsType::Field_InternalClusterStrain);
 		FalloffField->Magnitude = 0.0;

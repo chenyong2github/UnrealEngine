@@ -124,7 +124,8 @@ namespace Chaos
 		NewParticle->SetInternalCluster(false);
 		NewParticle->SetClusterId(ClusterId(nullptr, Children.Num()));
 		NewParticle->SetClusterGroupIndex(ClusterGroupIndex);
-		NewParticle->SetStrains(0.0);
+		NewParticle->SetInternalStrains(0.0);
+		UpdateTopLevelParticle(NewParticle);
 		NewParticle->SetIsAnchored(Parameters.bIsAnchored);
 
 		// Update clustering data structures.
@@ -156,7 +157,8 @@ namespace Chaos
 				// TODO: Use INDEX_NONE instead of 0?
 				ClusteredChild->SetClusterGroupIndex(0);
 				ClusteredChild->ClusterIds().Id = NewParticle;
-				NewParticle->Strains() += ClusteredChild->Strains();
+				NewParticle->SetInternalStrains(NewParticle->GetInternalStrains() + ClusteredChild->GetInternalStrains());
+				UpdateTopLevelParticle(NewParticle);
 
 				NewParticle->SetCollisionImpulses(FMath::Max(NewParticle->CollisionImpulses(), ClusteredChild->CollisionImpulses()));
 
@@ -167,7 +169,8 @@ namespace Chaos
 		}
 		if (ChildrenSet.Num())
 		{
-			NewParticle->Strains() /= static_cast<FReal>(ChildrenSet.Num());
+			NewParticle->SetInternalStrains(NewParticle->GetInternalStrains() / static_cast<FReal>(ChildrenSet.Num()));
+			UpdateTopLevelParticle(NewParticle);
 		}
 
 		ensureMsgf(!ProxyGeometry || ForceMassOrientation, TEXT("If ProxyGeometry is passed, we must override the mass orientation as they are tied"));
@@ -568,13 +571,15 @@ namespace Chaos
 
 				MEvolution.SetPhysicsMaterial(NewCluster, MEvolution.GetPhysicsMaterial(ClusteredParent));
 
-				NewCluster->SetStrain(ClusteredParent->Strain());
+				NewCluster->SetInternalStrains(ClusteredParent->GetInternalStrains());
 				NewCluster->SetV(ClusteredParent->V());
 				NewCluster->SetW(ClusteredParent->W());
 				NewCluster->SetPreV(ClusteredParent->PreV());
 				NewCluster->SetPreW(ClusteredParent->PreW());
 				NewCluster->SetP(NewCluster->X());
 				NewCluster->SetQ(NewCluster->R());
+
+				UpdateTopLevelParticle(NewCluster);
 
 				// Need to get the material from the previous particle and apply it to the new one
 				const FShapesArray& ChildShapes = ClusteredParent->ShapesArray();
@@ -601,6 +606,31 @@ namespace Chaos
 			}
 		}
 		return NewClusters;
+	}
+
+	void FRigidClustering::SetInternalStrain(FPBDRigidClusteredParticleHandle* Particle, FReal Strain)
+	{
+		Particle->SetInternalStrains(Strain);
+		UpdateTopLevelParticle(Particle);
+	}
+
+	void FRigidClustering::SetExternalStrain(FPBDRigidClusteredParticleHandle* Particle, FReal Strain)
+	{
+		Particle->SetExternalStrains(Strain);
+		UpdateTopLevelParticle(Particle);
+	}
+
+	void FRigidClustering::UpdateTopLevelParticle(FPBDRigidClusteredParticleHandle* Particle)
+	{
+		FPBDRigidClusteredParticleHandle* Parent = Particle->Parent();
+		if (Parent != nullptr)
+		{
+			TopLevelClusterParentsStrained.Add(Parent);
+		}
+		else
+		{
+			TopLevelClusterParentsStrained.Add(Particle);
+		}
 	}
 	
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::ReleaseClusterParticles(STRAIN)"), STAT_ReleaseClusterParticles_STRAIN, STATGROUP_Chaos);
@@ -673,9 +703,9 @@ namespace Chaos
 				continue;
 			}
 
-			// @todo(chaos) eventually shoudl get rid of collision impulse array and only use external strain
+			// @todo(chaos) eventually should get rid of collision impulse array and only use external strain
 			const FReal MaxAppliedStrain = FMath::Max(Child->CollisionImpulses(), Child->GetExternalStrain());
-			if ((MaxAppliedStrain >= Child->Strain()) || bForceRelease)
+			if ((MaxAppliedStrain >= Child->GetInternalStrains()) || bForceRelease)
 			{
 				//UE_LOG(LogTemp, Warning, TEXT("Releasing child %d from parent %p due to strain %.5f Exceeding internal strain %.5f (Source: %s)"), ChildIdx, ClusteredParticle, ChildStrain, Child->Strain(), bForceRelease ? TEXT("Forced by caller") : ExternalStrainMap ? TEXT("External") : TEXT("Collision"));
 				
@@ -684,6 +714,8 @@ namespace Chaos
 				// breaks (this approach produces more rubble)
 				RemoveChildFromParent(Child, ClusteredParticle);
 				ActivatedChildren.Add(Child);
+
+				UpdateTopLevelParticle(Child);
 
 				// Remove from the children array without freeing memory yet. 
 				// We're looping over Children and it'd be silly to free the array
@@ -696,7 +728,7 @@ namespace Chaos
 			{
 				AppliedStrains.Add(Child, MaxAppliedStrain);
 			}
-			Child->ClearExternalStrain();
+			Child->SetExternalStrains(0.0);
 		}
 
 		// if necessary propagate strain through the graph
@@ -714,7 +746,7 @@ namespace Chaos
 				if (BreakDamagePropagationFactor > 0 && ActivatedChildren.Contains(AppliedStrain.Key))
 				{
 					// break damage propagation case: we only look at the broken pieces and propagate the strain remainder 
-					const FReal RemainingStrain = (AppliedStrainValue - ClusteredChild->Strain());
+					const FReal RemainingStrain = (AppliedStrainValue - ClusteredChild->GetInternalStrains());
 					if (RemainingStrain > 0)
 					{
 						const FReal AdjustedRemainingStrain = (FReal)BreakDamagePropagationFactor * RemainingStrain;
@@ -724,7 +756,7 @@ namespace Chaos
 				}
 				else if (ShockDamagePropagationFactor > 0)
 				{
-					// shock damage propagation case : for all the non broken pieces, proapagate the actual applied strain 
+					// shock damage propagation case : for all the non broken pieces, propagate the actual applied strain 
 					PropagatedStrainPerConnection = (FReal)ShockDamagePropagationFactor * AppliedStrainValue;
 				}
 
@@ -736,8 +768,8 @@ namespace Chaos
 						{
 							if (FPBDRigidClusteredParticleHandle* ClusteredSibling = Edge.Sibling->CastToClustered())
 							{
-								// todo(chaos) this may currently be non optimal as we are in the apply loop and this may be cleareed right after
-								ClusteredSibling->SetExternalStrain(FMath::Max(ClusteredSibling->GetExternalStrain(), PropagatedStrainPerConnection));
+								// todo(chaos) this may currently be non optimal as we are in the apply loop and this may be cleared right after
+								SetExternalStrain(ClusteredSibling, FMath::Max(ClusteredSibling->GetExternalStrain(), PropagatedStrainPerConnection));
 							}
 						}
 					}
@@ -821,7 +853,7 @@ namespace Chaos
 					{
 						if (ensure(!ClusterHandle || ClusteredChildHandle->ClusterIds().Id == ClusterHandle))
 						{
-							ClusteredChildHandle->SetExternalStrain(TNumericLimits<FReal>::Max());
+							SetExternalStrain(ClusteredChildHandle, TNumericLimits<FReal>::Max());
 							ClusterHandle = ClusteredChildHandle->ClusterIds().Id;
 						}
 						else
@@ -877,7 +909,7 @@ namespace Chaos
 			bool bPotentialBreak = false;
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateDirtyImpulses);
-				for (const auto& ActiveCluster : GetTopLevelClusterParents())
+				for (const auto& ActiveCluster : TopLevelClusterParentsStrained)
 				{
 					if (!ActiveCluster->Disabled())
 					{
@@ -888,7 +920,7 @@ namespace Chaos
 							{
 								if (FClusterHandle ClusteredChild = Child->CastToClustered())
 								{
-									if (ClusteredChild->Strain() <= 0.f)
+									if (ClusteredChild->GetInternalStrains() <= 0.f)
 									{
 										ClusteredChild->CollisionImpulse() = FLT_MAX;
 										MCollisionImpulseArrayDirty = true;
@@ -902,6 +934,7 @@ namespace Chaos
 						}
 					}
 				}
+				TopLevelClusterParentsStrained.Reset();
 			}
 
 			if (MCollisionImpulseArrayDirty || bPotentialBreak)
@@ -1350,7 +1383,8 @@ namespace Chaos
 			{
 				if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle = ChildHandle->CastToClustered())
 				{
-					ClusteredChildHandle->SetExternalStrain(MaxStrain);
+					ClusteredChildHandle->SetExternalStrains(MaxStrain);
+					SetExternalStrain(ClusteredChildHandle, MaxStrain);
 				}
 			}
 			if (ChildrenHandles->Num() > 0)
@@ -1380,7 +1414,7 @@ namespace Chaos
 					{
 						if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle = ChildHandle->CastToClustered())
 						{
-							ClusteredChildHandle->SetExternalStrain(MaxStrain);
+							SetExternalStrain(ClusteredChildHandle, MaxStrain);
 						}
 					}
 					if (Children->Num() > 0)
@@ -1400,7 +1434,7 @@ namespace Chaos
 		check(ClusteredChild1 && ClusteredChild2);
 		if (ClusteredChild1 == ClusteredChild2)
 			return;
-		const FReal AvgStrain = (ClusteredChild1->Strains() + ClusteredChild2->Strains()) * (FReal)0.5;
+		const FReal AvgStrain = (ClusteredChild1->GetInternalStrains() + ClusteredChild2->GetInternalStrains()) * (FReal)0.5;
 		TArray<TConnectivityEdge<FReal>>& Edges1 = ClusteredChild1->ConnectivityEdges();
 		TArray<TConnectivityEdge<FReal>>& Edges2 = ClusteredChild2->ConnectivityEdges();
 		if (//Edges1.Num() < Parameters.MaxNumConnections && 

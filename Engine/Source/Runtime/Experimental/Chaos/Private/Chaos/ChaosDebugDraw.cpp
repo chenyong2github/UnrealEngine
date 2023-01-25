@@ -1458,7 +1458,7 @@ namespace Chaos
 						{
 							if (const FRigidClustering::FClusterHandle& Child = Rigid->CastToClustered())
 							{
-								MaxStrain = FMath::Max(MaxStrain, Child->Strain());
+								MaxStrain = FMath::Max(MaxStrain, Child->GetInternalStrains());
 							}
 						}
 						NumConnections += ActiveCluster.Value.Num();

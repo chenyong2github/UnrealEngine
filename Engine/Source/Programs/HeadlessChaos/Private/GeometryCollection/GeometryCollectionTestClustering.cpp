@@ -307,7 +307,7 @@ namespace GeometryCollectionTest
 
 			if (Frame == 2)
 			{
-				ParticleHandles[0]->SetExternalStrain(50.0f);
+				Clustering.SetExternalStrain(ParticleHandles[0], 50.0f);
 				Clustering.BreakingModel();
 			}
 

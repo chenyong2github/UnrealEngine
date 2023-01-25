@@ -258,7 +258,8 @@ namespace ChaosTest {
 		EXPECT_TRUE(RootClusterHandle->Disabled() == false);	//strain > 0 so no fracture yet
 
 		// todo: is this the correct replacement for strain?
-		static_cast<Chaos::FPBDRigidClusteredParticleHandle*>(ClusterHandlesDup[2])->SetStrain((FReal)0);	//fracture the third cluster, this should leave us with three pieces (0, 1), (2), (3,4,5,6,7)
+		//fracture the third cluster, this should leave us with three pieces (0, 1), (2), (3,4,5,6,7)
+		Evolution.GetRigidClustering().SetInternalStrain(static_cast<Chaos::FPBDRigidClusteredParticleHandle*>(ClusterHandlesDup[2]), 0.0);
 
 		Evolution.AdvanceOneTimeStep((FReal)1 / (FReal)60);
 		//EXPECT_TRUE(Evolution.GetParticles().Disabled(RootClusterHandle) == false);	//one of the connected pieces should re-use this

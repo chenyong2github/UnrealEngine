@@ -1851,23 +1851,6 @@ void UGeometryCollectionComponent::SetInitialClusterBreaks(const TArray<int32>& 
 	}
 }
 
-void SetHierarchyStrain(Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* P, TMap<Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>*, TArray<Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>*>>& Map, float Strain)
-{
-	TArray<Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>*>* Children = Map.Find(P);
-
-	if(Children)	
-	{
-		for(Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3> * ChildP : (*Children))
-		{
-			SetHierarchyStrain(ChildP->CastToClustered(), Map, Strain);
-		}
-	}
-
-	if(P)
-	{
-		P->SetStrain(Strain);
-	}
-}
 
 void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantData* ConstantData) const
 {
@@ -2723,11 +2706,11 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 	FPhysScene_Chaos* Scene = GetInnerChaosScene();
 	Scene->AddObject(this, PhysicsProxy);
 
-	// If we're replicating we need some extra setup - check netmode as we don't need this for standalone runtimes where we aren't going to network the component
-	// IMPORTANT this need to happen after the object is registered so this will garantee that the particles are properly created by the time the callback below gets called
+	// If we're replicating we need some extra setup - check netmode as we don't need this for standalone runtime where we aren't going to network the component
+	// IMPORTANT this need to happen after the object is registered so this will guarantee that the particles are properly created by the time the callback below gets called
 	if (GetIsReplicated())
 	{
-		// Client side : geometry collection children of parents below the rep level need to be infintely strong so that client cannot break it 
+		// Client side : geometry collection children of parents below the rep level need to be infinitely strong so that client cannot break it 
 		if (Chaos::FPhysicsSolver* CurrSolver = GetSolver(*this))
 		{
 			CurrSolver->EnqueueCommandImmediate([Proxy = PhysicsProxy, AbandonAfterLevel = ReplicationAbandonAfterLevel, EnableAbandonAfterLevel = bEnableAbandonAfterLevel]()
@@ -2737,7 +2720,6 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 						// As we're not in control we make it so our simulated proxy cannot break clusters
 						// We have to set the strain to a high value but be below the max for the data type
 						// so releasing on authority demand works
-						constexpr Chaos::FReal MaxStrain = TNumericLimits<Chaos::FReal>::Max() - TNumericLimits<Chaos::FReal>::Min();
 						for (Chaos::FPBDRigidClusteredParticleHandle* ParticleHandle : Proxy->GetParticles())
 						{
 							if (ParticleHandle)
@@ -2745,7 +2727,7 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 								const int32 Level = EnableAbandonAfterLevel ? ComputeParticleLevel(ParticleHandle) : -1;
 								if (Level <= AbandonAfterLevel + 1)	//we only replicate up until level X, but it means we should replicate the breaking event of level X+1 (but not X+1's positions)
 								{
-									ParticleHandle->SetStrain(MaxStrain);
+									ParticleHandle->SetMaximumInternalStrain();
 								}
 							}
 						}

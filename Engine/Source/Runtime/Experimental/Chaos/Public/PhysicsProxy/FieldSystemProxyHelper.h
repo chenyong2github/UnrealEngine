@@ -494,6 +494,7 @@ namespace Chaos
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_ExternalClusterStrain);
 			{
+				FRigidClustering& RigidClustering = RigidSolver->GetEvolution()->GetRigidClustering();
 				static_cast<const FFieldNode<float>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
@@ -503,7 +504,7 @@ namespace Chaos
 						if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredParticle = ParticleHandles[Index.Sample]->CastToClustered())
 						{
 							const FReal CurrentExternalStrains = ClusteredParticle->GetExternalStrain();
-							ClusteredParticle->SetExternalStrain(FMath::Max(CurrentExternalStrains, ExternalStrainValue));
+							RigidClustering.SetExternalStrain(ClusteredParticle, FMath::Max(CurrentExternalStrains, ExternalStrainValue));
 						}
 					}
 				}
@@ -559,13 +560,14 @@ namespace Chaos
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_InternalClusterStrain);
 			{
+				FRigidClustering& RigidClustering = RigidSolver->GetEvolution()->GetRigidClustering();
 				static_cast<const FFieldNode<float>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					Chaos::FPBDRigidClusteredParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToClustered();
 					if (RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 					{
-						RigidHandle->Strain() += ResultsView[Index.Result];
+						RigidClustering.SetInternalStrain(RigidHandle, RigidHandle->GetInternalStrains() + ResultsView[Index.Result]);
 					}
 				}
 			}

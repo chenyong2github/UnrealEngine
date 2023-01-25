@@ -345,6 +345,8 @@ public:
 	FRigidEvolution& GetEvolution() { return MEvolution; }
 	const FRigidEvolution& GetEvolution() const { return MEvolution; }
 
+	void SetInternalStrain(FPBDRigidClusteredParticleHandle* Particle, FReal Strain);
+	void SetExternalStrain(FPBDRigidClusteredParticleHandle* Particle, FReal Strain);
 
  protected:
 
@@ -384,11 +386,14 @@ public:
 	using FParticleIsland = TArray<FPBDRigidParticleHandle*>;
 	TArray<FParticleIsland> FindIslandsInChildren(const FPBDRigidClusteredParticleHandle* ClusteredParticle);
 	TArray<FPBDRigidParticleHandle*> CreateClustersFromNewIslands(TArray<FParticleIsland>& Islands, FPBDRigidClusteredParticleHandle* ClusteredParent);
+
+	void UpdateTopLevelParticle(FPBDRigidClusteredParticleHandle* Particle);
 private:
 
 	FRigidEvolution& MEvolution;
 	FPBDRigidClusteredParticles& MParticles;
 	TSet<Chaos::FPBDRigidClusteredParticleHandle*> TopLevelClusterParents;
+	TSet<Chaos::FPBDRigidClusteredParticleHandle*> TopLevelClusterParentsStrained;
 
 	// Cluster data
 	FClusterMap MChildren;
