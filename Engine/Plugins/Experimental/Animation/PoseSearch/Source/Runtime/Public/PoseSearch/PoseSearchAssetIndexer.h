@@ -41,7 +41,6 @@ public:
 		const IAssetSampler* Clip = nullptr;
 		FTransform RootTransform;
 		float ClipTime = 0.0f;
-		float RootDistance = 0.0f;
 		bool bClamped = false;
 
 		bool IsValid() const { return Clip != nullptr; }
