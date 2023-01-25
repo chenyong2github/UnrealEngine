@@ -642,11 +642,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation|Montage")
 	float Montage_GetBlendTime(const UAnimMontage* Montage) const;
 
-	/** Get PlayRate for Montage.
+	/** Get PlayRate for Montage. This does not account for RateScale, so it may not reflect the actual play rate seen in game (see Montage_GetEffectivePlayRate).
 	If Montage reference is NULL, PlayRate for any Active Montage will be returned.
 	If Montage is not playing, 0 is returned. */
 	UFUNCTION(BlueprintPure, Category = "Animation|Montage")
 	float Montage_GetPlayRate(const UAnimMontage* Montage) const;
+
+	/** Get scaled PlayRate for Montage. This accounts for RateScale, so it will reflect the actual play rate seen in game.
+	If Montage reference is NULL, scaled PlayRate for any Active Montage will be returned.
+	If Montage is not playing, 0 is returned. */
+	UFUNCTION(BlueprintPure, Category = "Animation|Montage")
+	float Montage_GetEffectivePlayRate(const UAnimMontage* Montage) const;
 
 	/*********************************************************************************************
 	* AnimMontage sync. See notes in AnimMontage.h

@@ -2704,6 +2704,32 @@ float UAnimInstance::Montage_GetPlayRate(const UAnimMontage* Montage) const
 	return 0.f;
 }
 
+float UAnimInstance::Montage_GetEffectivePlayRate(const UAnimMontage* Montage) const
+{
+	if (Montage)
+	{
+		const FAnimMontageInstance* MontageInstance = GetActiveInstanceForMontage(Montage);
+		if (MontageInstance)
+		{
+			return MontageInstance->GetPlayRate() * Montage->RateScale;
+		}
+	}
+	else
+	{
+		// If no Montage reference, use first active one found.
+		for (int32 InstanceIndex = 0; InstanceIndex < MontageInstances.Num(); InstanceIndex++)
+		{
+			const FAnimMontageInstance* MontageInstance = MontageInstances[InstanceIndex];
+			if (MontageInstance && MontageInstance->IsActive() && MontageInstance->Montage)
+			{
+				return MontageInstance->GetPlayRate() * MontageInstance->Montage->RateScale;
+			}
+		}
+	}
+
+	return 0.f;
+}
+
 void UAnimInstance::MontageSync_Follow(const UAnimMontage* MontageFollower, const UAnimInstance* OtherAnimInstance, const UAnimMontage* MontageLeader)
 {
 	if (!MontageFollower || !OtherAnimInstance || !MontageLeader)
