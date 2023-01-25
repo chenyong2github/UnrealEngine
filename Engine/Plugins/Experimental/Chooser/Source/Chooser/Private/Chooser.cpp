@@ -81,12 +81,15 @@ static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(const UObject* 
 
 	for (const FInstancedStruct& ColumnData : Chooser->ColumnsStructs)
 	{
-		const FChooserColumnBase& Column = ColumnData.Get<FChooserColumnBase>(); 
-		Swap(IndicesIn, IndicesOut);
-		IndicesOut->SetNum(0, false);
-		Column.Filter(ContextObject, *IndicesIn, *IndicesOut);
+		const FChooserColumnBase& Column = ColumnData.Get<FChooserColumnBase>();
+		if (Column.HasFilters())
+		{
+			Swap(IndicesIn, IndicesOut);
+			IndicesOut->SetNum(0, false);
+			Column.Filter(ContextObject, *IndicesIn, *IndicesOut);
+		}
 	}
-
+	
 	// of the rows that passed all column filters, return the first one for which the result row succeeds (could fail eg for a nexted chooser where no rows passed)
 	for (uint32 SelectedIndex : *IndicesOut)
 	{
@@ -95,6 +98,12 @@ static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(const UObject* 
 			const FObjectChooserBase& SelectedResult = Chooser->ResultsStructs[SelectedIndex].Get<FObjectChooserBase>();
 			if (SelectedResult.ChooseMulti(ContextObject, Callback) == FObjectChooserBase::EIteratorStatus::Stop)
 			{
+				// trigger all output columns
+				for (const FInstancedStruct& ColumnData : Chooser->ColumnsStructs)
+				{
+					const FChooserColumnBase& Column = ColumnData.Get<FChooserColumnBase>();
+					Column.SetOutputs(const_cast<UObject*>(ContextObject), SelectedIndex);
+				}
 				return FObjectChooserBase::EIteratorStatus::Stop;
 			}
 		}

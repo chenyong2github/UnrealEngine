@@ -18,6 +18,7 @@ public:
 	TArray<FName> PropertyBindingChain;
 	
 	virtual bool GetValue(const UObject* ContextObject, bool& OutResult) const override;
+	virtual bool SetValue(UObject* ContextObject, bool InValue) const override;
 
 #if WITH_EDITOR
 	static bool CanBind(const FProperty& Property)

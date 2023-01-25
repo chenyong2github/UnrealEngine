@@ -19,6 +19,24 @@ bool FBoolContextProperty::GetValue(const UObject* ContextObject, bool& OutResul
 	return false;
 }
 
+bool FBoolContextProperty::SetValue(UObject* ContextObject, bool InValue) const
+{
+	UStruct* StructType = ContextObject->GetClass();
+	const void* Container = ContextObject;
+	
+	if (UE::Chooser::ResolvePropertyChain(Container, StructType, PropertyBindingChain))
+	{
+		if (FBoolProperty* Property = FindFProperty<FBoolProperty>(StructType, PropertyBindingChain.Last()))
+		{
+			// const cast is here just because ResolvePropertyChain expects a const void*&
+			*Property->ContainerPtrToValuePtr<bool>(const_cast<void*>(Container)) = InValue;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 FBoolColumn::FBoolColumn()
 {
 	InputValue.InitializeAs(FBoolContextProperty::StaticStruct());

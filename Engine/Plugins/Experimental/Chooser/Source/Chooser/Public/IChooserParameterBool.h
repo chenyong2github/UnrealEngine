@@ -29,4 +29,5 @@ struct FChooserParameterBoolBase : public FChooserParameterBase
     
     public:
     	virtual bool GetValue(const UObject* ContextObject, bool& OutResult) const { return false; }
+    	virtual bool SetValue(UObject* ContextObject, bool InValue) const { return false; }
 };

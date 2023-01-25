@@ -578,7 +578,20 @@ void FChooserTableEditor::UpdateTableColumns()
 					return FReply::Handled();
 				})
 				[
-					HeaderWidget ? HeaderWidget.ToSharedRef() : SNullWidget::NullWidget
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SNew(SBorder)
+						.BorderBackgroundColor(FLinearColor(0,0,0,0))
+						.Content()
+						[
+							SNew(SImage).Image(Column.HasOutputs() ? FCoreStyle::Get().GetBrush("Icons.ArrowRight") :  FCoreStyle::Get().GetBrush("Icons.Filter"))
+						]
+					]
+					+ SHorizontalBox::Slot()
+					[
+						HeaderWidget ? HeaderWidget.ToSharedRef() : SNullWidget::NullWidget
+					]
 				]
 				
 			]);
@@ -623,13 +636,35 @@ TSharedRef<SDockTab> FChooserTableEditor::SpawnTableTab( const FSpawnTabArgs& Ar
 			const FScopedTransaction Transaction(LOCTEXT("Add Column Transaction", "Add Column"));
 			Chooser->Modify(true);
 
-			Chooser->ColumnsStructs.SetNum(Chooser->ColumnsStructs.Num()+1);
-			Chooser->ColumnsStructs.Last().InitializeAs(ChosenStruct);
+			FInstancedStruct NewColumn;
+			NewColumn.InitializeAs(ChosenStruct);
+			const FChooserColumnBase& NewColumnRef = NewColumn.Get<FChooserColumnBase>();
+			int InsertIndex = 0;
+			if (NewColumnRef.HasOutputs())
+			{
+				InsertIndex = Chooser->ColumnsStructs.Num();
+				// add output columns at the end
+				Chooser->ColumnsStructs.Add(NewColumn);
+			}
+			else
+			{
+				// add other columns after the loast non-output column
+				while(InsertIndex < Chooser->ColumnsStructs.Num())
+				{
+					const FChooserColumnBase& Column = Chooser->ColumnsStructs[InsertIndex].Get<FChooserColumnBase>();
+					if (Column.HasOutputs())
+					{
+						break;
+					}
+					InsertIndex++;
+				}
+				Chooser->ColumnsStructs.Insert(NewColumn, InsertIndex);
+			}
 			
 			UpdateTableColumns();
 			UpdateTableRows();
 
-			SelectColumn(Chooser->ColumnsStructs.Num() - 1);
+			SelectColumn(InsertIndex);
 		}));
 		return Widget;
 	})

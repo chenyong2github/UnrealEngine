@@ -22,7 +22,6 @@ public:
 	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const {}
 };
 
-
 USTRUCT()
 struct CHOOSER_API FChooserColumnBase
 {
@@ -32,6 +31,11 @@ public:
 	virtual ~FChooserColumnBase() {}
 	virtual void PostLoad() {};
 	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const {}
+
+	virtual bool HasFilters() const { return true; }
+	virtual bool HasOutputs() const { return false; }
+	
+	virtual void SetOutputs(UObject* ContextObject, int RowIndex) const { }
 
 #if WITH_EDITOR
 	virtual void SetNumRows(uint32 NumRows) {}
