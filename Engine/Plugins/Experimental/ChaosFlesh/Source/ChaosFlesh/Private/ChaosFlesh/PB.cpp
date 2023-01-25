@@ -28,7 +28,6 @@
 std::shared_ptr<std::istream>
 SafeOpenInput(const FString& filename, const bool binary = true)
 {
-#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
 	FPlatformFileManager& FileManager = FPlatformFileManager::Get();
 	IPlatformFile& PlatformFile = FileManager.GetPlatformFile();
 	if (!PlatformFile.FileExists(*filename))
@@ -51,7 +50,6 @@ SafeOpenInput(const FString& filename, const bool binary = true)
 		IFileHandle* infile = PlatformFile.OpenRead(*filename, false);
 		return std::shared_ptr<std::istream>(new IFileStream(infile));
 	}
-#endif
 	return nullptr;
 }
 
