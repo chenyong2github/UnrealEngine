@@ -10,7 +10,7 @@ $ Platform (UnrealTargetPlatform): Platform that this target is being built for.
 
 $ Configuration (UnrealTargetConfiguration): The configuration being built.
 
-$ Architecture (String): Architecture that the target is being built for (or an empty string for the default).
+$ Architectures (UnrealArchitectures): Architecture that the target is being built for (or an empty string for the default).
 
 $ ProjectFile (FileReference): Path to the project file for the project containing this target.
 
@@ -21,6 +21,8 @@ $ IsTestTarget (Boolean): Whether this is a low level tests target.
 $ ExplicitTestsTarget (Boolean): Whether this is a test target explicitly defined. Explicitley defined test targets always inherit from TestTargetRules and define their own tests. Implicit test targets are created from existing targets when building with -Mode=Test and they include tests from all dependencies.
 
 $ WithLowLevelTests (Boolean): Controls the value of WITH_LOW_LEVEL_TESTS that dictates whether module-specific low level tests are compiled in or not.
+
+$ Architecture (UnrealArch): Gets the Architecture in the normal case where there is a single Architecture in Architectures (this will throw an exception if there is more than one architecture specified)
 
 $ HostPlatform (UnrealTargetPlatform): Gets the host platform being built on
 

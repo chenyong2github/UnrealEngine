@@ -122,7 +122,7 @@ $ PublicRuntimeLibraryPaths (List&lt;String&gt;): List of search paths for libra
 
 $ PublicAdditionalLibraries (List&lt;String&gt;): List of additional libraries (names of the .lib files including extension) - typically used for External (third party) modules
 
-$ DependenciesToSkipPerArchitecture (Dictionary&lt;String, List&lt;String&gt;&gt;): Per-architecture lists of dependencies for linking to ignore (useful when building for multiple architectures, and a lib only is needed for one architecture), it's up to the Toolchain to use this
+$ DependenciesToSkipPerArchitecture (Dictionary&lt;String, List&lt;UnrealArch&gt;&gt;): Per-architecture lists of dependencies for linking to ignore (useful when building for multiple architectures, and a lib only is needed for one architecture), it's up to the Toolchain to use this
 
 $ PublicPreBuildLibraries (List&lt;String&gt;): List of additional pre-build libraries (names of the .lib files including extension) - typically used for additional targets which are still built, but using either TargetRules.PreBuildSteps or TargetRules.PreBuildTargets.
 
