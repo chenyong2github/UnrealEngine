@@ -74,6 +74,9 @@ public:
 	/** Sets the UniverseID of this connector */
 	void SetUniverseID(int32 InUniverseID) { UniverseID = InUniverseID; }
 
+	/** Sets the displayed value */
+	void SetValue(uint8 Value);
+
 protected:
 	// Begin SWidget interface	
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;

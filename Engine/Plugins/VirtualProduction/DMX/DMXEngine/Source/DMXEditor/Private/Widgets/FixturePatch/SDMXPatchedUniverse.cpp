@@ -109,6 +109,9 @@ void SDMXPatchedUniverse::Construct(const FArguments& InArgs)
 	UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddSP(this, &SDMXPatchedUniverse::OnFixturePatchChanged);
 	SharedData->OnFixturePatchSelectionChanged.AddSP(this, &SDMXPatchedUniverse::OnSelectionChanged);
 	FDMXPortManager::Get().OnPortsChanged.AddSP(this, &SDMXPatchedUniverse::UpdatePatchedUniverseReachability);
+
+	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+	ProtocolSettings->GetOnSetReceiveDMXEnabled().AddSP(this, &SDMXPatchedUniverse::OnReceiveDMXEnabledChanged);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -117,6 +120,16 @@ void SDMXPatchedUniverse::RequestRefresh()
 	if (!RequestRefreshTimerHandle.IsValid())
 	{
 		RequestRefreshTimerHandle = GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXPatchedUniverse::RefreshInternal));
+	}
+}
+
+void SDMXPatchedUniverse::SetMonitorInputsEnabled(bool bEnabled)
+{
+	bMonitorInputs = bEnabled;
+
+	if (!bEnabled)
+	{
+		ResetMonitor();
 	}
 }
 
@@ -293,6 +306,11 @@ void SDMXPatchedUniverse::Tick(const FGeometry& AllottedGeometry, const double I
 	{
 		Unpatch(RemovedNode);
 	}
+
+	if (bMonitorInputs)
+	{
+		UpdateMonitor();
+	}
 }
 
 void SDMXPatchedUniverse::Unpatch(const TSharedPtr<FDMXFixturePatchNode>& Node)
@@ -335,6 +353,17 @@ void SDMXPatchedUniverse::OnFixturePatchChanged(const UDMXEntityFixturePatch* Fi
 		{
 			SetUniverseIDInternal(UniverseID);
 		}
+	}
+
+	FDMXEditorUtils::ClearAllDMXPortBuffers();
+	FDMXEditorUtils::ClearFixturePatchCachedData();
+}
+
+void SDMXPatchedUniverse::OnReceiveDMXEnabledChanged(bool bNewEnabled)
+{
+	if (!bNewEnabled)
+	{
+		ResetMonitor();
 	}
 }
 
@@ -443,6 +472,42 @@ void SDMXPatchedUniverse::RefreshInternal()
 			[
 				NewWidget.ToSharedRef()
 			];
+	}
+}
+
+void SDMXPatchedUniverse::UpdateMonitor()
+{
+	UDMXLibrary* DMXLibrary = GetDMXLibrary();
+	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+	if (!DMXLibrary || !ProtocolSettings || !ProtocolSettings->IsReceiveDMXEnabled())
+	{
+		return;
+	}
+
+
+	const TSet<FDMXInputPortSharedRef>& InputPorts = DMXLibrary->GetInputPorts();
+	for (const FDMXInputPortSharedRef& InputPort : InputPorts)
+	{
+		FDMXSignalSharedPtr Signal;
+		InputPort->GameThreadGetDMXSignal(UniverseID, Signal);
+		if (Signal.IsValid())
+		{
+			for (int32 DataIndex = 0; DataIndex < Signal->ChannelData.Num(); DataIndex++)
+			{
+				if (ensureMsgf(ChannelConnectors.IsValidIndex(DataIndex), TEXT("Missing Channel to display value of Channel %i"), DataIndex))
+				{
+					ChannelConnectors[DataIndex]->SetValue(Signal->ChannelData[DataIndex]);
+				}
+			}
+		}
+	}
+}
+
+void SDMXPatchedUniverse::ResetMonitor()
+{
+	for (const TSharedPtr<SDMXChannelConnector>& Channel : ChannelConnectors)
+	{
+		Channel->SetValue(0);
 	}
 }
 

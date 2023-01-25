@@ -104,8 +104,14 @@ protected:
 	/** Adds a universe widget */
 	void AddUniverse(int32 UniverseID);
 
-	/** Updates the grid depending on entities and selection */
+	/** Called when the display all universe option is turned on or off */
 	void OnToggleDisplayAllUniverses(ECheckBoxState CheckboxState);
+
+	/** Sets if the DMX Monitor feature is enabled */
+	void SetDMXMonitorEnabled(bool bEnabled);
+
+	/** Called when the monitor feature is turned on or off */
+	void OnToggleDMXMonitorEnabled(ECheckBoxState CheckboxState);
 
 	/** Returns true if the patcher allows for the selection of a single universe and show only that */
 	bool IsUniverseSelectionEnabled() const;
@@ -138,8 +144,11 @@ protected:
 	/** Returns the DMXLibrary or nullptr if not available */
 	UDMXLibrary* GetDMXLibrary() const;
 
-	/** Checkbox to determine if all check boxes shoudl be displayed */
+	/** Checkbox to determine if all patched Universes should be displayed */
 	TSharedPtr<SCheckBox> ShowAllUniversesCheckBox;
+
+	/** Checkbox to determine if the DMX Monitor functionality should be enabled */
+	TSharedPtr<SCheckBox> EnableDMXMonitorCheckBox;
 
 	/** Scrollbox containing all patch universes */
 	TSharedPtr<SScrollBox> PatchedUniverseScrollBox;

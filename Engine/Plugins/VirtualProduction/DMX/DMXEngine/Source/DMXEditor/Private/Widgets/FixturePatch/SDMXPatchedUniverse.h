@@ -77,6 +77,9 @@ public:
 	/** Requests to refresh the Widget on the next tick */
 	void RequestRefresh();
 
+	/** Sets if this universe should monitor inputs */
+	void SetMonitorInputsEnabled(bool bEnabled);
+
 	/** 
 	 * Patches the node.
 	 * Patches that have bAutoAssignAddress use their auto assigned address.
@@ -121,11 +124,20 @@ private:
 	/** Called when a Fixture Patch changed */
 	void OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch);
 
+	/** Called when receive DMX was enabled or disabled */
+	void OnReceiveDMXEnabledChanged(bool bNewEnabled);
+
 	/** Shows the universe directly */
 	void SetUniverseIDInternal(int32 NewUniverseID);
 
 	/** Refreshes the widget directly */
 	void RefreshInternal();
+
+	/** Updates the monitor */
+	void UpdateMonitor();
+
+	/** Resets the Monitor */
+	void ResetMonitor();
 
 	/** Creates a a new grid of channels */
 	void CreateChannelConnectors();
@@ -177,6 +189,9 @@ private:
 
 	/** The universe being displayed */
 	int32 UniverseID;
+
+	/** If true, monitors inputs */
+	bool bMonitorInputs = false;
 
 	/** If true the universe ID is out of controllers' ranges */
 	EDMXPatchedUniverseReachability PatchedUniverseReachability;

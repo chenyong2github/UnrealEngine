@@ -138,8 +138,11 @@ public:
 	UPROPERTY(Config)
 	FDMXMVRFixtureListSettings MVRFixtureListSettings;
 
-	// Fixture Type Functions Editor
+	// DMX Library
 public:
+	UPROPERTY(Config)
+	bool bFixturePatcherDMXMonitorEnabled = false;
+
 	UPROPERTY(Config)
 	FDMXFixtureTypeFunctionsEditorSettings FixtureTypeFunctionsEditorSettings;
 

@@ -3,6 +3,7 @@
 #include "SDMXFixturePatcher.h"
 
 #include "DMXEditor.h"
+#include "DMXEditorSettings.h"
 #include "DMXEditorTabNames.h"
 #include "DMXFixturePatchSharedData.h"
 #include "DMXFixturePatchNode.h"
@@ -112,7 +113,7 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 						[
 							SNew(STextBlock)
 							.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
-							.Text(LOCTEXT("UniverseDisplayAllText", "Show all patched Universes"))
+							.Text(LOCTEXT("ShowAllPatchedUniversesLabel", "Show all patched Universes"))
 						]
 
 						+ SHorizontalBox::Slot()
@@ -123,6 +124,27 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 							SAssignNew(ShowAllUniversesCheckBox, SCheckBox)
 							.IsChecked(false)
 							.OnCheckStateChanged(this, &SDMXFixturePatcher::OnToggleDisplayAllUniverses)
+						]
+
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
+						[
+							SNew(STextBlock)
+							.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
+							.Text(LOCTEXT("EnableInputMonitorLabel", "Monitor DMX Inputs"))
+							.ToolTipText(LOCTEXT("EnableInputMonitorTooltip", "If checked, monitors DMX Input Ports used in this DMX Library"))
+						]
+
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
+						[
+							SAssignNew(EnableDMXMonitorCheckBox, SCheckBox)
+							.IsChecked(false)
+							.OnCheckStateChanged(this, &SDMXFixturePatcher::OnToggleDMXMonitorEnabled)
 						]
 					]
 				]
@@ -165,6 +187,8 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 
 	ShowSelectedUniverse();
 
+	const UDMXEditorSettings* DMXEditorSettings = GetDefault<UDMXEditorSettings>();
+	SetDMXMonitorEnabled(DMXEditorSettings->bFixturePatcherDMXMonitorEnabled);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -629,6 +653,36 @@ void SDMXFixturePatcher::OnToggleDisplayAllUniverses(ECheckBoxState CheckboxStat
 	case ECheckBoxState::Unchecked:
 		SelectUniverse(SelectedUniverse);
 		ShowSelectedUniverse();
+		return;
+
+	case ECheckBoxState::Undetermined:
+	default:
+		checkNoEntry();
+	}
+}
+
+void SDMXFixturePatcher::SetDMXMonitorEnabled(bool bEnabled)
+{
+	UDMXEditorSettings* DMXEditorSettings = GetMutableDefault<UDMXEditorSettings>();
+	DMXEditorSettings->bFixturePatcherDMXMonitorEnabled = bEnabled;
+	DMXEditorSettings->SaveConfig();
+
+	for (const TTuple<int32, TSharedPtr<SDMXPatchedUniverse>>& UniverseToWidgetPair : PatchedUniversesByID)
+	{
+		UniverseToWidgetPair.Value->SetMonitorInputsEnabled(bEnabled);
+	}
+}
+
+void SDMXFixturePatcher::OnToggleDMXMonitorEnabled(ECheckBoxState CheckboxState)
+{
+	switch (EnableDMXMonitorCheckBox->GetCheckedState())
+	{
+	case ECheckBoxState::Checked:
+		SetDMXMonitorEnabled(true);
+		return;
+
+	case ECheckBoxState::Unchecked:
+		SetDMXMonitorEnabled(false);
 		return;
 
 	case ECheckBoxState::Undetermined:

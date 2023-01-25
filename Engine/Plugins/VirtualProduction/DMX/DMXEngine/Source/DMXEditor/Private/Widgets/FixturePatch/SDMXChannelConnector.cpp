@@ -40,6 +40,11 @@ void SDMXChannelConnector::Construct(const FArguments& InArgs)
 		];
 }
 
+void SDMXChannelConnector::SetValue(uint8 Value)
+{
+	ChannelValueWidget->SetValue(Value);
+}
+
 FReply SDMXChannelConnector::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	return OnMouseButtonDownOnChannel.Execute(ChannelValueWidget->GetChannelID(), MouseEvent);
