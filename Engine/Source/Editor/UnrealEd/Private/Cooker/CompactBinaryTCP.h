@@ -7,6 +7,7 @@
 #include "Containers/Map.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/Guid.h"
+#include "Serialization/CompactBinaryContainerSerialization.h"
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "UObject/SoftObjectPath.h"
@@ -204,24 +205,6 @@ inline FCbWriter& operator<<(FCbWriter& Writer, const TMap<KeyType, ValueType, S
 	}
 	Writer.EndArray();
 	return Writer;
-}
-
-template <typename Key, typename Value>
-FCbWriter& operator<<(FCbWriter& Writer, const TPair<Key, Value>& Pair)
-{
-	Writer.BeginObject();
-	Writer << "K" << Pair.Key;
-	Writer << "V" << Pair.Value;
-	Writer.EndObject();
-	return Writer;
-}
-
-template <typename Key, typename Value>
-bool LoadFromCompactBinary(FCbFieldView Field, TPair<Key, Value>& Pair)
-{
-	bool bOk = LoadFromCompactBinary(Field["K"], Pair.Key);
-	bOk = LoadFromCompactBinary(Field["V"], Pair.Value) & bOk;
-	return bOk;
 }
 
 // FSoftObjectPath has an implicit constructor from FString for backwards compatibility; if we
