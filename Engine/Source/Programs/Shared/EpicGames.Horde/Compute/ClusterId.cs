@@ -13,6 +13,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Identifier for a compute cluster
 	/// </summary>
+	[JsonSchemaString]
 	[CbConverter(typeof(ClusterIdCbConverter))]
 	[JsonConverter(typeof(ClusterIdJsonConverter))]
 	[TypeConverter(typeof(ClusterIdTypeConverter))]
