@@ -276,10 +276,12 @@ namespace EpicGames.Core
 		{
 			switch (reader.TokenType)
 			{
+				case JsonTokenType.Null:
+					return null!;
 				case JsonTokenType.True:
 					return true;
 				case JsonTokenType.False:
-					return true;
+					return false;
 				case JsonTokenType.StartObject:
 					return ReadStructuredPropertyValue(ref reader);
 				case JsonTokenType.String:
