@@ -433,6 +433,11 @@ namespace Horde.Build.Jobs.Templates
 		public string Name { get; }
 
 		/// <summary>
+		/// Description for the template
+		/// </summary>
+		public string? Description { get; }
+
+		/// <summary>
 		/// Priority of this job
 		/// </summary>
 		public Priority? Priority { get; }

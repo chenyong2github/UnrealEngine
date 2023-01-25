@@ -398,6 +398,11 @@ namespace Horde.Build.Jobs.Templates
 		public string Name { get; set; } = null!;
 
 		/// <summary>
+		/// Description for the template
+		/// </summary>
+		public string? Description { get; set; }
+
+		/// <summary>
 		/// Default priority for this job
 		/// </summary>
 		public Priority? Priority { get; set; }
@@ -470,6 +475,11 @@ namespace Horde.Build.Jobs.Templates
 		public string Name { get; set; }
 
 		/// <summary>
+		/// Description for the template
+		/// </summary>
+		public string? Description { get; set; }
+
+		/// <summary>
 		/// Default priority for this job
 		/// </summary>
 		public Priority? Priority { get; set; }
@@ -522,6 +532,7 @@ namespace Horde.Build.Jobs.Templates
 		public GetTemplateResponseBase(ITemplate template)
 		{
 			Name = template.Name;
+			Description = template.Description;
 			Priority = template.Priority;
 			AllowPreflights = template.AllowPreflights;
 			UpdateIssues = template.UpdateIssues;

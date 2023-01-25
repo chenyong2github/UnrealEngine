@@ -33,6 +33,9 @@ namespace Horde.Build.Jobs.Templates
 			[BsonRequired]
 			public string Name { get; private set; }
 
+			[BsonIgnoreIfNull]
+			public string? Description { get; set; }
+
 			public Priority? Priority { get; private set; }
 			public bool AllowPreflights { get; set; } = true;
 			public bool UpdateIssues { get; set; } = false;
@@ -61,6 +64,7 @@ namespace Horde.Build.Jobs.Templates
 			public TemplateDocument(TemplateConfig config)
 			{
 				Name = config.Name;
+				Description = config.Description;
 				Priority = config.Priority;
 				AllowPreflights = config.AllowPreflights;
 				UpdateIssues = config.UpdateIssues;
