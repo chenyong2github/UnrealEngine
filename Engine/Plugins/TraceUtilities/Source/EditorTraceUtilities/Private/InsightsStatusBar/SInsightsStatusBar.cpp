@@ -215,7 +215,7 @@ void SInsightsStatusBarWidget::Construct(const FArguments& InArgs)
 				SNew(SImage)
 				.DesiredSizeOverride(CoreStyleConstants::Icon16x16)
 				.Image(FEditorTraceUtilitiesStyle::Get().GetBrush("Icons.TraceSnapshot.StatusBar"))
-				.ToolTipText(LOCTEXT("SaveSnapShot","Snapshot: Save Current Trace Buffer To File"))
+				.ToolTipText(LOCTEXT("SaveSnapShot","Snapshot: Save Current Trace Buffer to active destination."))
 			]
 		]
 	];
@@ -649,15 +649,25 @@ bool SInsightsStatusBarWidget::SetTraceDestination_CanExecute()
 
 void SInsightsStatusBarWidget::SaveSnapshot()
 {
-	bool bResult = FTraceAuxiliary::WriteSnapshot(nullptr);
-	if (bResult)
+	if (TraceDestination == ETraceDestination::File)
 	{
-		ShowNotification(LOCTEXT("SnapshotSavedHeading", "Insights Snapshot saved."), LOCTEXT("SnapshotSavedText", "A snapshot .utrace with the most recent events has been saved to your Saved/Profiling/ directory."));
+		const bool bResult = FTraceAuxiliary::WriteSnapshot(nullptr);
+		if (bResult)
+		{
+			ShowNotification(LOCTEXT("SnapshotSavedHeading", "Insights Snapshot saved."), LOCTEXT("SnapshotSavedFileText", "A snapshot .utrace with the most recent events has been saved to your Saved/Profiling/ directory."));
+			return;
+		}
 	}
 	else
 	{
-		LogMessage(LOCTEXT("SnapshotSavedError", "The snapshot could not be saved."));
+		const bool bResult = FTraceAuxiliary::SendSnapshot(nullptr);
+		if (bResult)
+		{
+			ShowNotification(LOCTEXT("SnapshotSavedHeading", "Insights Snapshot saved."), LOCTEXT("SnapshotSavedServerText", "A snapshot .utrace with the most recent events has been saved to your the trace server."));
+			return;
+		}
 	}
+	LogMessage(LOCTEXT("SnapshotSavedError", "The snapshot could not be saved."));
 }
 
 bool SInsightsStatusBarWidget::SaveSnapshot_CanExecute()

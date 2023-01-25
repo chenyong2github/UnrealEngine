@@ -584,6 +584,12 @@ bool FTraceAuxiliaryImpl::SendSnapshot(const TCHAR* InHost, uint32 InPort, const
 {
 	double StartTime = FPlatformTime::Seconds();
 
+	// If no host is set, assume localhost
+	if (!InHost)
+	{
+		InHost = TEXT("localhost");
+	}
+
 	UE_LOG_REF(LogCategory, Log, TEXT("Sending trace snapshot to '%s'..."), InHost);
 
 	const bool bResult = UE::Trace::SendSnapshotTo(InHost, InPort);
@@ -965,10 +971,6 @@ static void TraceAuxiliarySnapshotSend(const TArray<FString>& Args)
 	if (Args.Num() >= 2)
 	{
 		LexFromString(Port, *Args[1]);
-	}
-	if (Args.Num() == 0)
-	{
-		Host = TEXT("localhost");
 	}
 	if (Args.Num() > 2) 
 	{
@@ -1423,6 +1425,16 @@ bool FTraceAuxiliary::WriteSnapshot(const TCHAR* InFilePath)
 {
 #if UE_TRACE_ENABLED
 	return GTraceAuxiliary.WriteSnapshot(InFilePath, LogCore);
+#else
+	return true;
+#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FTraceAuxiliary::SendSnapshot(const TCHAR* Host, uint32 Port)
+{
+#if UE_TRACE_ENABLED
+	return GTraceAuxiliary.SendSnapshot(Host, Port, LogCore);
 #else
 	return true;
 #endif

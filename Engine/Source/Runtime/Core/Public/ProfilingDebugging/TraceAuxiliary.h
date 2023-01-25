@@ -104,6 +104,12 @@ public:
 	 * @param FilePath Path to the file to write the snapshot to. If it is null or empty a file path will be generated.
 	 */
 	static bool WriteSnapshot(const TCHAR* FilePath);
+	
+	/**
+	 * Write tailing memory state to a trace server.
+	 * @param FilePath Path to the file to write the snapshot to. If it is null or empty a file path will be generated.
+	 */
+	static bool SendSnapshot(const TCHAR* Host = nullptr, uint32 Port = 0);
 
 	/**
 	 * Initialize Trace systems.
