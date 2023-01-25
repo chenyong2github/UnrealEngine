@@ -401,6 +401,13 @@ public:
 	void ApplyLinearVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& LinearVelocity);
 	void ApplyAngularVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& AngularVelocity);
 
+	void SetProxyDirty_External();
+
+	void SetEnableDamageFromCollision_External(bool bEnable);
+	void SetNotifyBreakings_External(bool bNotify);
+	void SetNotifyRemovals_External(bool bNotify);
+	void SetNotifyCrumblings_External(bool bNotify, bool bIncludeChildren);
+
 	FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
 	const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }
 

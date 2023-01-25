@@ -140,8 +140,16 @@ class FGeometryCollectioPerFrameData
 {
 public:
 	FGeometryCollectioPerFrameData()
-		: IsWorldTransformDirty(false)
-		, bIsCollisionFilterDataDirty(false) {}
+		: bIsWorldTransformDirty(false)
+		, bIsCollisionFilterDataDirty(false)
+		, bIsNotificationDataDirty(false) 
+		, bIsDamageSettingsDataDirty(false)
+		, bNotifyBreakings(false)
+		, bNotifyRemovals(false)
+		, bNotifyCrumblings(false)
+		, bCrumblingEventIncludesChildren(false)
+		, bEnableStrainOnCollision(false)
+	{}
 
 	const FTransform& GetWorldTransform() const { return WorldTransform; }
 
@@ -150,12 +158,12 @@ public:
 		if (!WorldTransform.Equals(InWorldTransform))
 		{
 			WorldTransform = InWorldTransform;
-			IsWorldTransformDirty = true;
+			bIsWorldTransformDirty = true;
 		}
 	}
 
-	bool GetIsWorldTransformDirty() const { return IsWorldTransformDirty; }
-	void ResetIsWorldTransformDirty() { IsWorldTransformDirty = false; }
+	bool GetIsWorldTransformDirty() const { return bIsWorldTransformDirty; }
+	void ResetIsWorldTransformDirty() { bIsWorldTransformDirty = false; }
 
 	const FCollisionFilterData& GetSimFilter() const { return SimFilter; }
 	void SetSimFilter(const FCollisionFilterData& NewSimFilter)
@@ -174,13 +182,66 @@ public:
 	bool GetIsCollisionFilterDataDirty() const { return bIsCollisionFilterDataDirty; }
 	void ResetIsCollisionFilterDataDirty() { bIsCollisionFilterDataDirty = false; }
 
-private:
-	FTransform WorldTransform;
-	bool IsWorldTransformDirty;
+	void SetNotifyBreakings(bool bNotify)
+	{
+		bNotifyBreakings = bNotify;
+		bIsNotificationDataDirty = true;
+	}
+	bool GetNotifyBreakings() const { return bNotifyBreakings; }
 
+	void SetNotifyRemovals(bool bNotify)
+	{
+		bNotifyRemovals = bNotify;
+		bIsNotificationDataDirty = true;
+	}
+
+	bool GetNotifyRemovals() const { return bNotifyRemovals; }
+
+	void SetNotifyCrumblings(bool bNotify, bool bIncludeChildren)
+	{
+		bNotifyCrumblings = bNotify;
+		bCrumblingEventIncludesChildren = bIncludeChildren;
+		bIsNotificationDataDirty = true;
+	}
+
+	bool GetNotifyCrumblings() const { return bNotifyCrumblings; }
+	bool GetCrumblingEventIncludesChildren() const { return bCrumblingEventIncludesChildren; }
+
+	bool GetIsNotificationDataDirty() const { return bIsNotificationDataDirty; }
+	void ResetIsNotificationDataDirty() { bIsNotificationDataDirty = false; }
+
+	void SetEnableStrainOnCollision(bool bEnable)
+	{
+		bEnableStrainOnCollision = bEnable;
+		bIsDamageSettingsDataDirty = true;
+	}
+
+	bool GetEnableStrainOnCollision() const { return bEnableStrainOnCollision; }
+
+	bool GetIsDamageSettingsDataDirty() const { return bIsDamageSettingsDataDirty; }
+	void ResetIsDamageSettingsDataDirty() { bIsDamageSettingsDataDirty = false; }
+
+private:
+	uint16 bIsWorldTransformDirty : 1;
+	uint16 bIsCollisionFilterDataDirty : 1;
+	uint16 bIsNotificationDataDirty: 1;
+	uint16 bIsDamageSettingsDataDirty : 1;
+
+	/** updated when bNotificationDataDirty is set */
+	uint16 bNotifyBreakings : 1;
+	uint16 bNotifyRemovals : 1;
+	uint16 bNotifyCrumblings : 1;
+	uint16 bCrumblingEventIncludesChildren : 1;
+
+	/** updated when bDamageSettingsDataDirty is set */
+	uint16 bEnableStrainOnCollision : 1;
+
+	/** updated when bIsWorldTransformDirty is set */
+	FTransform WorldTransform; 
+
+	/** updated when bIsCollisionFilterDataDirty is set */
 	FCollisionFilterData SimFilter;
 	FCollisionFilterData QueryFilter;
-	bool bIsCollisionFilterDataDirty;
 };
 
 /**

@@ -2096,6 +2096,43 @@ void FGeometryCollectionPhysicsProxy::ApplyAngularVelocity_External(FGeometryCol
 	}
 }
 
+void FGeometryCollectionPhysicsProxy::SetProxyDirty_External()
+{
+	check(IsInGameThread());
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->AddDirtyProxy(this);
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::SetEnableDamageFromCollision_External(bool bEnable)
+{
+	check(IsInGameThread());
+	GameThreadPerFrameData.SetEnableStrainOnCollision(bEnable);
+	SetProxyDirty_External();
+}
+
+void FGeometryCollectionPhysicsProxy::SetNotifyBreakings_External(bool bNotify)
+{
+	check(IsInGameThread());
+	GameThreadPerFrameData.SetNotifyBreakings(bNotify);
+	SetProxyDirty_External();
+}
+
+void FGeometryCollectionPhysicsProxy::SetNotifyRemovals_External(bool bNotify)
+{
+	check(IsInGameThread());
+	GameThreadPerFrameData.SetNotifyRemovals(bNotify);
+	SetProxyDirty_External();
+}
+
+void FGeometryCollectionPhysicsProxy::SetNotifyCrumblings_External(bool bNotify, bool bIncludeChildren)
+{
+	check(IsInGameThread());
+	GameThreadPerFrameData.SetNotifyCrumblings(bNotify, bIncludeChildren);
+	SetProxyDirty_External();
+}
+
 int32 FGeometryCollectionPhysicsProxy::CalculateHierarchyLevel(const FGeometryDynamicCollection& DynamicCollection, int32 TransformIndex)
 {
 	int32 Level = 0;
@@ -2261,11 +2298,7 @@ void FGeometryCollectionPhysicsProxy::SetWorldTransform_External(const FTransfor
 {
 	check(IsInGameThread());
 	GameThreadPerFrameData.SetWorldTransform(WorldTransform);
-
-	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
-	{
-		RBDSolver->AddDirtyProxy(this);
-	}
+	SetProxyDirty_External();
 }
 
 void FGeometryCollectionPhysicsProxy::PushStateOnGameThread(Chaos::FPBDRigidsSolver* InSolver)
@@ -2286,6 +2319,21 @@ void FGeometryCollectionPhysicsProxy::PushStateOnGameThread(Chaos::FPBDRigidsSol
 		Parameters.QueryFilterData = GameThreadPerFrameData.GetQueryFilter();
 		Parameters.SimulationFilterData = GameThreadPerFrameData.GetSimFilter();
 		GameThreadPerFrameData.ResetIsCollisionFilterDataDirty();
+	}
+
+	if (GameThreadPerFrameData.GetIsNotificationDataDirty())
+	{
+		Parameters.bGenerateBreakingData = GameThreadPerFrameData.GetNotifyBreakings();
+		Parameters.bGenerateRemovalsData = GameThreadPerFrameData.GetNotifyRemovals();
+		Parameters.bGenerateCrumblingData = GameThreadPerFrameData.GetNotifyCrumblings();
+		Parameters.bGenerateCrumblingChildrenData = GameThreadPerFrameData.GetCrumblingEventIncludesChildren();
+		GameThreadPerFrameData.ResetIsNotificationDataDirty();
+	}
+
+	if (GameThreadPerFrameData.GetIsDamageSettingsDataDirty())
+	{
+		Parameters.bEnableStrainOnCollision = GameThreadPerFrameData.GetEnableStrainOnCollision();
+		GameThreadPerFrameData.ResetIsDamageSettingsDataDirty();
 	}
 }
 
@@ -3020,10 +3068,7 @@ void FGeometryCollectionPhysicsProxy::UpdateFilterData_External(const FCollision
 	GameThreadPerFrameData.SetSimFilter(NewSimFilter);
 	GameThreadPerFrameData.SetQueryFilter(NewQueryFilter);
 
-	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
-	{
-		RBDSolver->AddDirtyProxy(this);
-	}
+	SetProxyDirty_External();
 }
 
 //==============================================================================
@@ -3568,6 +3613,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	{
 		MassSpaceParticles.X(Idx) = Vertex[Idx];	//mass space computation done later down
 	}
+	
 	
 	// compute the bounding box in mesh space
 	FVec3 MaxChildBounds(1);

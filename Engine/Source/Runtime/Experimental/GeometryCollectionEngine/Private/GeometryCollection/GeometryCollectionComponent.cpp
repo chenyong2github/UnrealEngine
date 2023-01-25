@@ -737,15 +737,9 @@ void UGeometryCollectionComponent::SetNotifyBreaks(bool bNewNotifyBreaks)
 {
 	if (bNotifyBreaks != bNewNotifyBreaks)
 	{
-		if (Chaos::FPhysicsSolver* Solver = GetSolver(*this); Solver && PhysicsProxy)
+		if (PhysicsProxy)
 		{
-			Solver->EnqueueCommandImmediate(
-				[this, bNewNotifyBreaks]()
-				{
-					FSimulationParameters& SimParams = PhysicsProxy->GetSimParameters();
-					SimParams.bGenerateBreakingData = bNewNotifyBreaks;
-				}
-			);
+			PhysicsProxy->SetNotifyBreakings_External(bNewNotifyBreaks);
 		}
 		bNotifyBreaks = bNewNotifyBreaks;
 		UpdateBreakEventRegistration();
@@ -756,15 +750,9 @@ void UGeometryCollectionComponent::SetNotifyRemovals(bool bNewNotifyRemovals)
 {
 	if (bNotifyRemovals != bNewNotifyRemovals)
 	{
-		if (Chaos::FPhysicsSolver* Solver = GetSolver(*this); Solver && PhysicsProxy)
+		if (PhysicsProxy)
 		{
-			Solver->EnqueueCommandImmediate(
-				[this, bNewNotifyRemovals]()
-				{
-					FSimulationParameters& SimParams = PhysicsProxy->GetSimParameters();
-					SimParams.bGenerateBreakingData = bNewNotifyRemovals;
-				}
-			);
+			PhysicsProxy->SetNotifyRemovals_External(bNewNotifyRemovals);
 		}
 		bNotifyRemovals = bNewNotifyRemovals;
 		UpdateRemovalEventRegistration();
@@ -773,18 +761,12 @@ void UGeometryCollectionComponent::SetNotifyRemovals(bool bNewNotifyRemovals)
 
 void UGeometryCollectionComponent::SetNotifyCrumblings(bool bNewNotifyCrumblings, bool bNewCrumblingEventIncludesChildren)
 {
-	if (bNotifyCrumblings != bNewNotifyCrumblings)
+	if (bNotifyCrumblings != bNewNotifyCrumblings || 
+		bCrumblingEventIncludesChildren != bNewCrumblingEventIncludesChildren)
 	{
-		if (Chaos::FPhysicsSolver* Solver = GetSolver(*this); Solver && PhysicsProxy)
+		if (PhysicsProxy)
 		{
-			Solver->EnqueueCommandImmediate(
-				[this, bNewNotifyCrumblings, bNewCrumblingEventIncludesChildren]()
-				{
-					FSimulationParameters& SimParams = PhysicsProxy->GetSimParameters();
-					SimParams.bGenerateCrumblingData = bNewNotifyCrumblings;
-					SimParams.bGenerateCrumblingChildrenData = bNewCrumblingEventIncludesChildren;
-				}
-			);
+			PhysicsProxy->SetNotifyCrumblings_External(bNewNotifyCrumblings, bNewCrumblingEventIncludesChildren);
 		}
 		bNotifyCrumblings = bNewNotifyCrumblings;
 		bCrumblingEventIncludesChildren = bNewCrumblingEventIncludesChildren;
@@ -4760,16 +4742,9 @@ TArray<Chaos::FPhysicsObject*> UGeometryCollectionComponent::GetAllPhysicsObject
 
 void UGeometryCollectionComponent::SetEnableDamageFromCollision(bool bValue)
 {
-	if (Chaos::FPhysicsSolver* Solver = GetSolver(*this); Solver && PhysicsProxy)
-	{
-		Solver->EnqueueCommandImmediate(
-			[this, bValue]()
-			{
-				FSimulationParameters& SimParams = PhysicsProxy->GetSimParameters();
-				SimParams.bEnableStrainOnCollision = bValue;
-			}
-		);
-	}
-
 	bEnableDamageFromCollision = bValue;
+	if (PhysicsProxy)
+	{
+		PhysicsProxy->SetEnableDamageFromCollision_External(bValue);
+	}
 }
