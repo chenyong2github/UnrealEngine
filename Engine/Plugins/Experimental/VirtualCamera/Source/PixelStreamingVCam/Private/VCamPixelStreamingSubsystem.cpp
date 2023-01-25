@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VCamPixelStreamingSubsystem.h"
+#include "Features/IModularFeatures.h"
 #include "ILiveLinkClient.h"
 #include "VCamPixelStreamingLiveLink.h"
 #include "VCamPixelStreamingSession.h"

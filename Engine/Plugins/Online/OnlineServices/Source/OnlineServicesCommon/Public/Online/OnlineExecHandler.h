@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HAL/IConsoleManager.h"
 #include "Online/OnlineAsyncOpHandle.h"
 #include "Online/OnlineServicesLog.h"
 #include "Online/OnlineResult.h"

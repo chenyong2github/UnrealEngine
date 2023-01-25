@@ -7,9 +7,8 @@
 #include "BTTask_FindAndUseGameplayBehaviorSmartObject.generated.h"
 
 class UAITask_UseGameplayBehaviorSmartObject;
-
-
 class AITask_UseSmartObject;
+struct FSmartObjectClaimHandle;
 
 struct FBTUseSOTaskMemory
 {

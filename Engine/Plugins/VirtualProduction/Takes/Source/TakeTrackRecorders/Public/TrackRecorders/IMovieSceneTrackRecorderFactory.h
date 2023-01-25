@@ -59,7 +59,7 @@ public:
 	*/
 	virtual class UMovieSceneTrackRecorder* CreateTrackRecorderForProperty(UObject* InObjectToRecord, const FName& InPropertyToRecord) const = 0;
 
-	virtual class UMovieSceneTrackRecorder* CreateTrackRecorderForCacheTrack(IMovieSceneCachedTrack* CachedTrack, TObjectPtr<ULevelSequence> Sequence, TSharedPtr<ISequencer> Sequencer) const { return nullptr; };
+	virtual class UMovieSceneTrackRecorder* CreateTrackRecorderForCacheTrack(IMovieSceneCachedTrack* CachedTrack, const TObjectPtr<ULevelSequence>& Sequence, const TSharedPtr<ISequencer>& Sequencer) const { return nullptr; };
 
 	/**
 	* Get the human readable display name for the recorder. Used for debugging purposes to help identify which factory

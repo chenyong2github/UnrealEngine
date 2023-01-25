@@ -6,6 +6,7 @@
 #include "GeometryCacheComponent.h"
 #include "GeometryCacheModule.h"
 #include "GeometryCacheTrackStreamable.h"
+#include "RenderingThread.h"
 #include "StreamingGeometryCacheData.h"
 #include "Async/Async.h"
 #include "Misc/ScopeRWLock.h"

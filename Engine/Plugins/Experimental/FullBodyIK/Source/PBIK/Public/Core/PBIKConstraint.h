@@ -5,6 +5,7 @@
 #include "Math/Quat.h"
 
 namespace PBIK { struct FRigidBody; }
+struct FPBIKSolverSettings;
 
 namespace PBIK
 {

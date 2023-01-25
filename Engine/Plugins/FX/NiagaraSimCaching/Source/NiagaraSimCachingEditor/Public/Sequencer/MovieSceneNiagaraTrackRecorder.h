@@ -24,7 +24,7 @@ public:
 	// ~Begin IMovieSceneTrackRecorderFactory Interface
 	virtual bool CanRecordObject(class UObject* InObjectToRecord) const override;
 	virtual UMovieSceneTrackRecorder* CreateTrackRecorderForObject() const override;
-	virtual class UMovieSceneTrackRecorder* CreateTrackRecorderForCacheTrack(IMovieSceneCachedTrack* CachedTrack, TObjectPtr<ULevelSequence> Sequence, TSharedPtr<ISequencer> Sequencer) const override;
+	virtual class UMovieSceneTrackRecorder* CreateTrackRecorderForCacheTrack(IMovieSceneCachedTrack* CachedTrack, const TObjectPtr<ULevelSequence>& Sequence, const TSharedPtr<ISequencer>& Sequencer) const override;
 
 	// Particle Systems are entire components and you can't animate them as a property
 	virtual bool CanRecordProperty(class UObject* InObjectToRecord, class FProperty* InPropertyToRecord) const override { return false; }

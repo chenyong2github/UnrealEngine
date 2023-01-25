@@ -4,7 +4,7 @@
 
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "MovieSceneObjectBindingID.h" // for EMovieSceneObjectBindingSpace
-
+#include "MovieSceneTrack.h"
 #include "MovieSceneSequenceExtensions.generated.h"
 
 class UMovieScene;
