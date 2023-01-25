@@ -23,7 +23,7 @@ public:
 	/**
 	 * Initialize the model data with a copy of the data inside Buffer.
 	 *
-	 * This function is called by the UNNEModelDataFactory class when importing a neural netowkr model file.
+	 * This function is called by the UNNEModelDataFactory class when importing a neural network model file.
 	 *
 	 * @param Type A string identifying the type of data inside this asset. Corresponds to the extension of the imported file.
 	 * @param Buffer The raw binary file data of the imported model to be copied into this asset.
@@ -33,7 +33,7 @@ public:
 	/**
 	 * Get the cached (editor) or cooked (game) optimized model data for a given runtime.
 	 *
-	 * This function is used by runtimes when creating a model. In editor, the function will create the optimized model data with the passed runtime in case it has not been cached yet. In game, the cooked data is accessed.
+	 * This function is used by runtimes when creating a model. In editor, the function will create the optimized model data with the passed runtime in case it has not been cached in the DCC yet. In game, the cooked data is accessed.
 	 *
 	 * @param RuntimeName The name of the runtime for which the data should be returned.
 	 * @return The optimized and runtime specific model data or an empty view in case of a failure.
@@ -44,6 +44,7 @@ public:
 
 	/**
 	 * Implements custom serialization of this asset.
+	 * @param Ar The archive to serialize from/to.
 	 */
 	virtual void Serialize(FArchive& Ar) override;
 

@@ -17,7 +17,7 @@ namespace UE::NNECore
 /**
  * The tensor binding for passing input and output to IModelCPU.
  *
- * Memory is owned by the caller. The caller must make sure the buffer is large enough and matches SizeInBytes.
+ * Memory is owned by the caller. The caller must make sure the buffer is large enough and at least as large as SizeInBytes.
  */
 struct NNECORE_API FTensorBindingCPU
 {
@@ -130,7 +130,7 @@ public:
 	 * The caller can decide to convert the result into a shared pointer if required (e.g. if the model needs to be shared with an async task for evaluation).
 	 *
 	 * @param ModelData The model data for which to create a model.
-	 * @return A caller owned model representing the neural network stored in ModelData.
+	 * @return A caller owned model representing the neural network created from ModelData.
 	 */
 	virtual TUniquePtr<UE::NNECore::IModelCPU> CreateModelCPU(TObjectPtr<UNNEModelData> ModelData) = 0;
 };

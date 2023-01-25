@@ -38,6 +38,7 @@ public:
 	 *
 	 * This function is used internally in the cooking process of UNNEModelData.
 	 *
+	 * @param TargetPlatform Interface identifying the target platforms.
 	 * @return True if the platform is supported, false otherwise.
 	 */
 	virtual bool IsPlatformSupported(const ITargetPlatform* TargetPlatform) const = 0;
@@ -45,8 +46,8 @@ public:
 	/**
 	 * Check if the runtime is able to create model data given some file data representing a neural network.
 	 *
-	 * param FileType The type of file inside FileData. Corresponds to the file extension (e.g. 'onnx').
-	 * param FileData The raw binary file of a neural network model.
+	 * @param FileType The type of file inside FileData. Corresponds to the file extension (e.g. 'onnx').
+	 * @param FileData The raw binary file of a neural network model.
 	 * @return True if the runtime is able to create model data, false otherwise.
 	 */
 	virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const = 0;
@@ -54,8 +55,8 @@ public:
 	/**
 	 * Create model data given some raw file data.
 	 *
-	 * param FileType The type of file inside FileData. Corresponds to the file extension (e.g. 'onnx').
-	 * param FileData The raw binary file of a neural network model.
+	 * @param FileType The type of file inside FileData. Corresponds to the file extension (e.g. 'onnx').
+	 * @param FileData The raw binary file of a neural network model.
 	 * @return Data representing the runtime specific representation of the model to be stored by UNNEModelData on success or an empty array otherwise.
 	 */
 	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData) = 0;

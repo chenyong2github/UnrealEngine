@@ -129,7 +129,7 @@ public:
 	 * The caller can decide to convert the result into a shared pointer if required (e.g. if the model needs to be shared with the render thread).
 	 *
 	 * @param ModelData The model data for which to create a model.
-	 * @return A caller owned model representing the neural network stored in ModelData.
+	 * @return A caller owned model representing the neural network created from ModelData.
 	 */
 	virtual TUniquePtr<UE::NNECore::IModelRDG> CreateModelRDG(TObjectPtr<UNNEModelData> ModelData) = 0;
 };
