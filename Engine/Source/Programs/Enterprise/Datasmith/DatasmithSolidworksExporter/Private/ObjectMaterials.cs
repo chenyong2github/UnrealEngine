@@ -78,7 +78,12 @@ namespace DatasmithSolidworks
 
 		public override string ToString()
 		{
-			return $"FObjectMaterials:ComponentMaterialID='{ComponentMaterialID}', PartMaterialID='{PartMaterialID}'";
+			return $"FObjectMaterials:ComponentMaterialID='{ComponentMaterialID}', PartMaterialID='{PartMaterialID}', BodyMaterialsMap='{ToString(BodyMaterialsMap)}', FeatureMaterialsMap='{ToString(FeatureMaterialsMap)}', FaceMaterialsMap='{ToString(FaceMaterialsMap)}'";
+		}
+
+		private static string ToString(Dictionary<string, int> Map)
+		{
+			return string.Join(", ", Map.Select(KVP => $"{KVP.Key}:{KVP.Value}" ));
 		}
 
 		public FMaterial GetMaterial(Face2 InFace)
@@ -236,7 +241,7 @@ namespace DatasmithSolidworks
 
 		public static FObjectMaterials LoadComponentMaterials(FDocumentTracker InComponentOwner, Component2 InComponent, swDisplayStateOpts_e InDisplayState, string[] InDisplayStateNames)
 		{
-			Addin.Instance.LogDebug($"LoadComponentMaterials: {InComponentOwner.GetPathName()}, {InDisplayState}, {InDisplayStateNames}");
+			Addin.Instance.LogDebug($"LoadComponentMaterials: '{InComponent.Name2}', '{InComponentOwner.GetPathName()}', {InDisplayState}, {(InDisplayStateNames == null ? "<null>" : string.Join(", ", InDisplayStateNames))}");
 
 			ModelDoc2 ComponentDoc = InComponent.GetModelDoc2() as ModelDoc2;
 			if (ComponentDoc == null || !(ComponentDoc is PartDoc))
@@ -245,8 +250,9 @@ namespace DatasmithSolidworks
 				return null;
 			}
 
+			Addin.Instance.LogDebug($"  GetRenderMaterialsCount2({InDisplayState}, {InDisplayStateNames})");
 			int NumMaterials = InComponent.GetRenderMaterialsCount2((int)InDisplayState, InDisplayStateNames);
-			Addin.Instance.LogDebug($"  GetRenderMaterialsCount2: {NumMaterials}");
+			Addin.Instance.LogDebug($"    GetRenderMaterialsCount2 -> {NumMaterials}");
 
 			if (NumMaterials == 0)
 			{
@@ -262,6 +268,9 @@ namespace DatasmithSolidworks
 				RenderMaterial RenderMat = ObjMat as RenderMaterial;
 				int NumUsers = RenderMat.GetEntitiesCount();
 
+				Addin.Instance.LogDebug($"  FileName: {RenderMat.FileName}");
+				Addin.Instance.LogDebug($"    Users({NumUsers}):");
+
 				if (NumUsers == 0)
 				{
 					continue;
@@ -270,29 +279,41 @@ namespace DatasmithSolidworks
 				object[] ObjUsers = RenderMat.GetEntities();
 				foreach (object ObjUser in ObjUsers)
 				{
-					if (ObjUser is IBody2 Body)
+					switch (ObjUser)
 					{
-						string BodyId = FPartDocumentTracker.GetBodyPath(ComponentDoc as PartDoc, Body);
-						ComponentMaterials.RegisterMaterial(ComponentMaterials.BodyMaterialsMap, InComponentOwner.SwDoc, RenderMat, BodyId);
-						continue;
-					}
-
-					if (ObjUser is IFace2 Face)
-					{
-						uint FaceId = ComponentMaterials.OwnerDoc.GetFaceId(Face);
-						ComponentMaterials.RegisterMaterial(ComponentMaterials.FaceMaterialsMap, InComponentOwner.SwDoc, RenderMat, FaceId.ToString());
-						continue;
-					}
-
-					if (ObjUser is IFeature Feat)
-					{
-						string FeatureId = FPartDocumentTracker.GetFeaturePath(ComponentDoc as PartDoc, Feat);
-						ComponentMaterials.RegisterMaterial(ComponentMaterials.FeatureMaterialsMap, InComponentOwner.SwDoc, RenderMat, FeatureId);
-						continue;
-					}
-					if (ObjUser is IPartDoc Doc)
-					{
-						ComponentMaterials.SetPartMaterial(RenderMat, InComponentOwner.SwDoc);
+						case IBody2 Body:
+						{
+							Addin.Instance.LogDebug($"    Body '{Body.Name}'");
+							string BodyId = FPartDocumentTracker.GetBodyPath(ComponentDoc as PartDoc, Body);
+							ComponentMaterials.RegisterMaterial(ComponentMaterials.BodyMaterialsMap, InComponentOwner.SwDoc, RenderMat, BodyId);
+							break;
+						}
+						case IFace2 Face:
+						{
+							// note: plugins sets FaceId on each face to identify per-face materials later in CreateMeshData
+							uint FaceId = ComponentMaterials.OwnerDoc.GetFaceId(Face);
+							Addin.Instance.LogDebug($"    Face '{Face.GetFaceId()}'");
+							ComponentMaterials.RegisterMaterial(ComponentMaterials.FaceMaterialsMap, InComponentOwner.SwDoc, RenderMat, FaceId.ToString());
+							break;
+						}
+						case IFeature Feat:
+						{
+							Addin.Instance.LogDebug($"    Feature '{Feat.Name}'");
+							string FeatureId = FPartDocumentTracker.GetFeaturePath(ComponentDoc as PartDoc, Feat);
+							ComponentMaterials.RegisterMaterial(ComponentMaterials.FeatureMaterialsMap, InComponentOwner.SwDoc, RenderMat, FeatureId);
+							break;
+						}
+						case IPartDoc Doc:
+						{
+							Addin.Instance.LogDebug($"    Part Doc '{(Doc as ModelDoc2).GetPathName()}'");
+							ComponentMaterials.SetPartMaterial(RenderMat, InComponentOwner.SwDoc);
+							break;
+						}
+						default:
+						{
+							Addin.Instance.LogDebug($"    <unknown>'");
+							break;
+						}
 					}
 				}
 			}
@@ -302,13 +323,13 @@ namespace DatasmithSolidworks
 
 		public static ConcurrentDictionary<FComponentName, FObjectMaterials> LoadAssemblyMaterials(FAssemblyDocumentTracker InAsmDoc, HashSet<FComponentName> InComponentsSet, swDisplayStateOpts_e InDisplayState, string[] InDisplayStateNames)
 		{
-			Addin.Instance.LogDebug($"LoadAssemblyMaterials: {InAsmDoc.GetPathName()}, {InDisplayState}, {InDisplayStateNames}");
-			Addin.Instance.LogDebug($"  for components: {string.Join(", ", InComponentsSet)}");
+			Addin.Instance.LogDebug($"LoadAssemblyMaterials: {InAsmDoc.GetPathName()}, {InDisplayState}, [{(InDisplayStateNames == null ? "" : string.Join(",", InDisplayStateNames))}]");
+			Addin.Instance.LogDebug($"  for components: [{string.Join(", ", InComponentsSet.OrderBy(Name => Name.GetString()))}]");
 
 			IModelDocExtension Ext = InAsmDoc.SwDoc.Extension;
 			int NumMaterials = Ext.GetRenderMaterialsCount2((int)InDisplayState, InDisplayStateNames);
 
-			Addin.Instance.LogDebug($"  NumMaterials={NumMaterials}");
+			Addin.Instance.LogDebug($"  Assembly materials={NumMaterials}");
 
 			ConcurrentDictionary<FComponentName, FObjectMaterials> DocMaterials = new ConcurrentDictionary<FComponentName, FObjectMaterials>();
 
@@ -319,7 +340,12 @@ namespace DatasmithSolidworks
 				foreach (object ObjMat in ObjMaterials)
 				{
 					RenderMaterial RenderMat = ObjMat as RenderMaterial;
+					
+					Addin.Instance.LogDebug($"    Material: '{RenderMat.FileName}' ");
+
 					int NumUsers = RenderMat.GetEntitiesCount();
+
+					Addin.Instance.LogDebug($"    NumUsers: '{NumUsers}' ");
 
 					if (NumUsers == 0)
 					{
@@ -329,57 +355,94 @@ namespace DatasmithSolidworks
 					object[] ObjUsers = RenderMat.GetEntities();
 					foreach (object ObjUser in ObjUsers)
 					{
-						if (ObjUser is Component2 Comp)
+						if (ObjUser is IEntity Entity)
 						{
-							PartDoc CompDoc = Comp.GetModelDoc2() as PartDoc;
-							if (CompDoc != null)
-							{
-								FObjectMaterials ComponentMaterials = new FObjectMaterials(InAsmDoc, CompDoc, ref InAsmDoc.ExportedMaterialsMap);
-								ComponentMaterials.SetComponentMaterial(RenderMat, InAsmDoc.SwDoc);
-								DocMaterials[new FComponentName(Comp)] = ComponentMaterials;
-							}
-							continue;
+							Addin.Instance.LogDebug($"    User: type '{Entity.GetType()}' ");
+							
 						}
-
-						if (ObjUser is IPartDoc Doc)
+						
+						switch (ObjUser)
 						{
-							FObjectMaterials PartMaterials = LoadPartMaterials(InAsmDoc, Doc as PartDoc, InDisplayState, InDisplayStateNames);
-							if (PartMaterials != null)
+							case Component2 Comp:
 							{
-								// todo: why trying to present PathName as component name?
-								//  how it can be a PartDoc in Assembly function
-								DocMaterials[FComponentName.FromCustomString((Doc as ModelDoc2).GetPathName())] = PartMaterials;
+								Addin.Instance.LogDebug($"      Component '{Comp.Name2}' ");
+								if (Comp.GetModelDoc2() is PartDoc CompDoc)
+								{
+									Addin.Instance.LogDebug($"        registering material for Part Component in DocMaterials");
+									FObjectMaterials ComponentMaterials = new FObjectMaterials(InAsmDoc, CompDoc, ref InAsmDoc.ExportedMaterialsMap);
+
+									Addin.Instance.LogIndent();
+									ComponentMaterials.SetComponentMaterial(RenderMat, InAsmDoc.SwDoc);
+									Addin.Instance.LogDedent();
+
+									DocMaterials[new FComponentName(Comp)] = ComponentMaterials;
+								}
+								break;
 							}
-							continue;
+							case IPartDoc Doc:
+							{
+								Addin.Instance.LogDebug($"      Part Doc at '{(Doc as ModelDoc2).GetPathName()}' ");
+
+								Addin.Instance.LogIndent();
+								FObjectMaterials PartMaterials = LoadPartMaterials(InAsmDoc, Doc as PartDoc, InDisplayState, InDisplayStateNames);
+								Addin.Instance.LogDedent();
+
+								if (PartMaterials != null)
+								{
+									// todo: why trying to present PathName as component name?
+									//  how it can be a PartDoc in Assembly function
+									DocMaterials[FComponentName.FromCustomString((Doc as ModelDoc2).GetPathName())] = PartMaterials;
+								}
+								break;
+							}
 						}
 					}
 				}
 			}
 
-			// Check for materials that are not per component (but instead per face, feature, part etc.)
-			// todo: consider replacing Parallel.ForEach with simple loop
-			Parallel.ForEach(InComponentsSet,
-				CompName =>
+			Addin.Instance.LogDebug($"Load Each Component's materials");
+			Addin.Instance.LogIndent();
+			foreach(FComponentName CompName in InComponentsSet.OrderBy(Name => Name.GetString()))
 			{
 				Component2 Comp = null;
+
+				Addin.Instance.LogDebug($"Component '{CompName}' - adding DocMaterials");
+				Addin.Instance.LogIndent();
 
 				if (InAsmDoc.SyncState.ExportedComponentsMap.TryGetValue(CompName, out Comp))
 				{
 					if (!DocMaterials.ContainsKey(CompName))
 					{
+						Addin.Instance.LogDebug($"Adding to DocMaterials");
+
+						Addin.Instance.LogIndent();
 						FObjectMaterials ComponentMaterials = FObjectMaterials.LoadComponentMaterials(InAsmDoc, Comp, swDisplayStateOpts_e.swThisDisplayState, null);
+						Addin.Instance.LogDedent();
 
 						if (ComponentMaterials == null && Comp.GetModelDoc2() is PartDoc)
 						{
+							Addin.Instance.LogIndent();
 							ComponentMaterials = FObjectMaterials.LoadPartMaterials(InAsmDoc, Comp.GetModelDoc2() as PartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
+							Addin.Instance.LogDedent();
 						}
 						if (ComponentMaterials != null)
 						{
 							DocMaterials.TryAdd(CompName, ComponentMaterials);
 						}
 					}
+					else
+					{
+						Addin.Instance.LogDebug($"...already in DocMaterials");
+					}
 				}
-			});
+				else
+				{
+					Addin.Instance.LogDebug($"...not in ExportedComponentsMap");
+				}
+
+				Addin.Instance.LogDedent();
+			}
+			Addin.Instance.LogDedent();
 
 			return DocMaterials.Count > 0 ? DocMaterials : null;
 		}

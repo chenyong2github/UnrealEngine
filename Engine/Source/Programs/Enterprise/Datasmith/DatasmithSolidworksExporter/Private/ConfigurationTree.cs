@@ -229,10 +229,23 @@ namespace DatasmithSolidworks
 				bool bAllMaterialsAreSame = true;
 				for (int Idx = 1; Idx < ConfigList.Count; Idx++)
 				{
-					if (Materials != null && (!ConfigList[Idx].Materials?.EqualMaterials(Materials) ?? false))
+					FObjectMaterials OtherMaterials = ConfigList[Idx].Materials;
+					if (Materials != null && OtherMaterials != null)
 					{
-						bAllMaterialsAreSame = false;
-						break;
+						if (!OtherMaterials.EqualMaterials(Materials))
+						{
+							bAllMaterialsAreSame = false;
+							break;
+						}
+					}
+					else
+					{
+						if (Materials != OtherMaterials)
+						{
+							// One of the material sets is null(empty) but another isn't
+							bAllMaterialsAreSame = false;
+							break;
+						}
 					}
 				}
 
@@ -402,12 +415,9 @@ namespace DatasmithSolidworks
 				}
 				if (!InNode.bMaterialSame)
 				{
-					FObjectMaterials Materials = NodeConfig.Materials;
-					if (Materials == null)
-					{
-						// There's no material set for the config, use default one
-						Materials = InNode.CommonConfig.Materials;
-					}
+					// There's no material set for the config, use default one
+					// todo: handle missing materials for a config/display set by making a 'default' material
+					FObjectMaterials Materials = NodeConfig.Materials ?? InNode.CommonConfig.Materials;
 					if (Materials != null)
 					{
 						OutData.ComponentMaterials.Add(InNode.ComponentName, Materials);

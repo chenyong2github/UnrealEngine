@@ -41,17 +41,80 @@ namespace DatasmithSolidworks
 		public FDocument CurrentDocument { get; private set; } = null;
 
 		// DebugLog is enabled with DatasmithSolidworksDebugOutput conditional compilation symbol
-		private ConcurrentQueue<string> DebugLog;
-		private Thread LogWriterThread;
+
+		class FDebugLog
+		{
+			private readonly int MainThreadId;
+			private ConcurrentQueue<string> MessagesQueue = new ConcurrentQueue<string>();
+			private Thread LogWriterThread;
+			private int Indentation = 0;
+
+			public FDebugLog(int InMainThreadId)
+			{
+				MainThreadId = InMainThreadId;
+				LogWriterThread = new Thread(() =>
+				{
+					LogWriterProc();
+				});
+
+				LogWriterThread.Start();
+			}
+
+			private void LogWriterProc()
+			{
+				string LogPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+					"UnrealDatasmithExporter/Saved/Logs/UnrealDatasmithSolidworksExporterDebug.log");
+
+				StreamWriter LogFile = new StreamWriter(LogPath);
+
+				while (true)
+				{
+					while (MessagesQueue.TryDequeue(out string Message))
+					{
+						LogFile.WriteLine(Message);
+					}
+					LogFile.Flush();
+
+					Thread.Sleep(10);
+				}
+			}
+
+			public void LogDebug(string Message)  
+			{
+				// todo: in general, Solidworks api shouldn't be called from another thread(it's slower) 
+				//   so better to identify all those places and fix them
+				// Debug.Assert(MainThreadId == Thread.CurrentThread.ManagedThreadId);
+				MessagesQueue.Enqueue(new string(' ', Indentation*2)+Message);
+			}
+
+			public void LogDebugThread(string Message)  
+			{
+				MessagesQueue.Enqueue(new string(' ', Indentation*2)+Message);
+			}
+
+			public void Dedent()
+			{
+				Indentation --;
+			}
+
+			public void Indent()
+			{
+				Indentation ++;
+			}
+		};
+
+		private FDebugLog DebugLog;
+
+		int SwThreadId;  // Main thread of Solidworks
 
 		public static Addin Instance { get; private set; } = null;
-
 
 		public Addin()
 		{
 			if (Instance == null)
 			{
 				Instance = this;
+				SwThreadId = Thread.CurrentThread.ManagedThreadId;
 				StartLogWriterTread();
 			}
 		}
@@ -533,40 +596,31 @@ namespace DatasmithSolidworks
 		[Conditional("DatasmithSolidworksDebugOutput")]
 		private void StartLogWriterTread()
 		{
-			DebugLog = new ConcurrentQueue<string>();
-
-			LogWriterThread = new Thread(() =>
-			{
-				LogWriterProc();
-			});
-
-			LogWriterThread.Start();
-		}
-
-		[Conditional("DatasmithSolidworksDebugOutput")]
-		private void LogWriterProc()
-		{
-			string LogPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-				"UnrealDatasmithExporter/Saved/Logs/UnrealDatasmithSolidworksExporterDebug.log");
-
-			StreamWriter LogFile = new StreamWriter(LogPath);
-
-			while (true)
-			{
-				while (DebugLog.TryDequeue(out string Message))
-				{
-					LogFile.WriteLine(Message);
-				}
-				LogFile.Flush();
-
-				Thread.Sleep(10);
-			}
+			DebugLog = new FDebugLog(SwThreadId);
 		}
 
 		[Conditional("DatasmithSolidworksDebugOutput")]
 		public void LogDebug(string Message)  
 		{
-			DebugLog.Enqueue(Message);
+			DebugLog.LogDebug(Message);
+		}
+
+		[Conditional("DatasmithSolidworksDebugOutput")]
+		public void LogDebugThread(string Message)  
+		{
+			DebugLog.LogDebugThread(Message);
+		}
+
+		[Conditional("DatasmithSolidworksDebugOutput")]
+		public void LogIndent()  
+		{
+			DebugLog.Indent();
+		}
+
+		[Conditional("DatasmithSolidworksDebugOutput")]
+		public void LogDedent()  
+		{
+			DebugLog.Dedent();
 		}
 
 		#endregion

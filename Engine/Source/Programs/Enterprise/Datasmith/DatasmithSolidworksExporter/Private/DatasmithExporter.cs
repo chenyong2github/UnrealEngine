@@ -172,6 +172,11 @@ namespace DatasmithSolidworks
 			public FMeshData MeshData;
 
 			public FDatasmithFacadeMeshElement MeshElement;
+
+			public override string ToString()
+			{
+				return $"FMeshExportInfo(ComponentName={ComponentName}, MeshName={MeshName}, ActorName={ActorName}), MeshElement={(MeshElement==null?"<null>":MeshElement.GetName())}";
+			}
 		}
 
 		public FDatasmithExporter(FDatasmithFacadeScene InScene)
@@ -354,13 +359,13 @@ namespace DatasmithSolidworks
 
 			if (InData.Vertices == null || InData.Normals == null || InData.TexCoords == null || InData.Triangles == null)
 			{
-				Addin.Instance.LogDebug($"  skipping(some attributes are null) - Vertices:{InData.Vertices == null}, Normals:{InData.Normals == null}, TexCoords: {InData.TexCoords == null}, Triangles:{InData.Triangles}");
+				Addin.Instance.LogDebugThread($"  skipping(some attributes are null) - Vertices:{InData.Vertices == null}, Normals:{InData.Normals == null}, TexCoords: {InData.TexCoords == null}, Triangles:{InData.Triangles}");
 				return false;
 			}
 
 			if (InData.Vertices.Length == 0 || InData.Normals.Length == 0 || InData.TexCoords.Length == 0 || InData.Triangles.Length == 0)
 			{
-				Addin.Instance.LogDebug($"  skipping - Vertices: {InData.Vertices.Length}, Normals: {InData.Normals.Length}, TexCoords: {InData.TexCoords.Length} Triangles: {InData.Triangles.Length}");
+				Addin.Instance.LogDebugThread($"  skipping - Vertices: {InData.Vertices.Length}, Normals: {InData.Normals.Length}, TexCoords: {InData.TexCoords.Length} Triangles: {InData.Triangles.Length}");
 				return false;
 			}
 
@@ -408,14 +413,14 @@ namespace DatasmithSolidworks
 					{
 						if (!MeshAddedMaterials.Contains(Triangle.MaterialID))
 						{
-							Addin.Instance.LogDebug($"  set material if it's exported: {Triangle.MaterialID}");
+							Addin.Instance.LogDebugThread($"  set material if it's exported: {Triangle.MaterialID}");
 
 							FDatasmithFacadeMaterialInstance Material = null;
 							ExportedMaterialsMap.TryGetValue(Triangle.MaterialID, out Material);
 
 							if (Material != null)
 							{
-								Addin.Instance.LogDebug(
+								Addin.Instance.LogDebugThread(
 									$" SetMaterial({Material.GetName()}, SlotId: {Triangle.MaterialID})");
 
 								MeshAddedMaterials.Add(Triangle.MaterialID);
@@ -433,10 +438,10 @@ namespace DatasmithSolidworks
 					Mesh.SetFaceUV(TriIndex, 0, Triangle[0], Triangle[1], Triangle[2]);
 				}
 
-				Addin.Instance.LogDebug($"  material ids assigned to faces: {string.Join(", ", MeshMaterialIds)})");
+				Addin.Instance.LogDebugThread($"  material ids assigned to faces: {string.Join(", ", MeshMaterialIds)})");
 				if (MeshAddedMaterials.Count > 0)
 				{
-					Addin.Instance.LogDebug($"  assigned materials: {string.Join(", ", MeshAddedMaterials)})");
+					Addin.Instance.LogDebugThread($"  assigned materials: {string.Join(", ", MeshAddedMaterials)})");
 				}
 
 				DatasmithScene.ExportDatasmithMesh(MeshElement, Mesh);
@@ -732,7 +737,7 @@ namespace DatasmithSolidworks
 
 			ConcurrentBag<FDatasmithFacadeTexture> CreatedTextures = new ConcurrentBag<FDatasmithFacadeTexture>();
 			ConcurrentBag<FDatasmithFacadeMaterialInstance> CreatedMaterials = new ConcurrentBag<FDatasmithFacadeMaterialInstance>();
-			Parallel.ForEach(InMaterialsMap, MatKVP =>
+			foreach(KeyValuePair<int, FMaterial> MatKVP in InMaterialsMap)
 			{
 				List<FDatasmithFacadeTexture> NewMaterialTextures = null;
 				FDatasmithFacadeMaterialInstance NewMaterial = null;
@@ -745,7 +750,7 @@ namespace DatasmithSolidworks
 						CreatedTextures.Add(Texture);
 					}
 				}
-			});
+			}
 
 			Addin.Instance.LogDebug($"  AddMaterials");
 			// Adding stuff to a datasmith scene cannot be multithreaded!
@@ -1055,22 +1060,22 @@ namespace DatasmithSolidworks
 		// Export meshes
 		public void ExportMeshes(List<FMeshExportInfo> MeshExportInfos, out List<FMeshExportInfo> OutCreatedMeshes)
 		{
-			List<FMeshExportInfo> CreatedMeshes = new List<FMeshExportInfo>();
+			Addin.Instance.LogDebug($"ExportMeshes: {string.Join(", ", MeshExportInfos)}");
+
+			ConcurrentQueue<FMeshExportInfo> CreatedMeshes = new ConcurrentQueue<FMeshExportInfo>();
 
 			Parallel.ForEach(MeshExportInfos, Info =>
 			{
-				Addin.Instance.LogDebug($"ExportMesh(MeshName: {Info.MeshName}, MeshActor: {Info.ActorName})");
-
 				if (ExportMesh(Info.MeshName, Info.MeshData, out Info.MeshElement))
 				{
-					Addin.Instance.LogDebug($"  exported (DatasmithMeshName: {Info.MeshElement.GetName()})");
-					CreatedMeshes.Add(Info);
+					CreatedMeshes.Enqueue(Info);
 				}
 			});
 
 			// Remember exported meshes and assign to actor
 			foreach (FMeshExportInfo Info in CreatedMeshes)
 			{
+				Addin.Instance.LogDebug($"  AddMesh(DatasmithMeshName: {Info}");
 				// Info.MeshElement should be valid here
 				AddMesh(Info.MeshName, Info.MeshElement);
 
@@ -1086,7 +1091,7 @@ namespace DatasmithSolidworks
 				}
 			}
 
-			OutCreatedMeshes = CreatedMeshes;
+			OutCreatedMeshes = CreatedMeshes.ToList();
 		}
 	}
 }

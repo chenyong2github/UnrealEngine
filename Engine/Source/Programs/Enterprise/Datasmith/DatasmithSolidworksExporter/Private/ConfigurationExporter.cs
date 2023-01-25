@@ -10,6 +10,9 @@ using System.Collections.Concurrent;
 using System.Linq;
 using DatasmithSolidworks.Names;
 using static DatasmithSolidworks.FConfigurationTree;
+using System.ComponentModel;
+using System.Diagnostics;
+using static DatasmithSolidworks.FMeshes;
 
 namespace DatasmithSolidworks
 {
@@ -241,6 +244,7 @@ namespace DatasmithSolidworks
 
 		public List<FConfigurationData> ExportConfigurations(FDocumentTracker InDoc)
 		{
+			Addin.Instance.LogDebug($"FConfigurationExporter.ExportConfigurations [{string.Join(",", ConfigurationNames)}]");
 			// todo: may refactor to union behavior for 'no configuration'(i.e. active) and one-to-many configurations export
 			// Not sure how CfgNames might be technically null though
 			if (ConfigurationNames == null) // || CfgNames.Length <= 1)
@@ -274,12 +278,15 @@ namespace DatasmithSolidworks
 			bool bIsActiveConfiguration = true;
 			foreach (string CfgName in ConfigurationNamesActiveFirst)
 			{
+				Addin.Instance.LogDebug($"Configuration '{CfgName}'");
 				IConfiguration swConfiguration = InDoc.SwDoc.GetConfigurationByName(CfgName) as IConfiguration;
 
 				if (!bIsActiveConfiguration)
 				{
+					Addin.Instance.LogDebug($"ShowConfiguration2 '{CfgName}'");
 					InDoc.SwDoc.ShowConfiguration2(CfgName);
 				}
+				Addin.Instance.LogDebug($"ActiveConfiguration '{ConfigManager.ActiveConfiguration.Name}'");
 
 				string ConfigName = CfgName;
 
@@ -302,11 +309,12 @@ namespace DatasmithSolidworks
 				// Build the tree and get default materials (which aren't affected by any configuration)
 				// Use GetRootComponent3() with Resolve = true to ensure suppressed components will be loaded
 				// todo: docs says that Part document SW returns null. Not the case. But probably better to add a guard
+				Addin.Instance.LogDebug($"Components:");
 				CollectComponentsRecursive(InDoc, swConfiguration.GetRootComponent3(true), ConfigNode, MeshesConfiguration, CfgName);
-
 
 				ExportedConfigurationNames.Add(CfgName, ConfigName);
 
+				Addin.Instance.LogDebug($"Materials:");
 				Dictionary<FComponentName, FObjectMaterials> MaterialsMap = GetComponentMaterials(InDoc, DisplayStates != null ? DisplayStates[0] : null, swConfiguration);
 				SetComponentTreeMaterials(ConfigNode, MaterialsMap, null, false);
 
@@ -317,8 +325,10 @@ namespace DatasmithSolidworks
 					for (int Index = 1; Index < DisplayStateCount; ++Index)
 					{
 						string DisplayState = DisplayStates[Index];
-						MaterialsMap = GetComponentMaterials(InDoc, DisplayState, swConfiguration);
 						string DisplayStateTreeName = $"{CfgName}_DisplayState_{FDatasmithExporter.SanitizeName(DisplayState)}";
+						Addin.Instance.LogDebug($"Linked DisplayState '{DisplayState}' Materials for variant '{DisplayStateTreeName}'");
+
+						MaterialsMap = GetComponentMaterials(InDoc, DisplayState, swConfiguration);
 						SetComponentTreeMaterials(ConfigNode, MaterialsMap, DisplayStateTreeName, false);
 					}
 				}
@@ -360,9 +370,36 @@ namespace DatasmithSolidworks
 				bIsActiveConfiguration = false;  // Next enumerated configurations will be switched to(they weren't active on export start)
 			}
 
-			if (OriginalConfiguration != null)
+			if (OriginalConfiguration != null && ConfigurationNames.Length > 1)
 			{
-				InDoc.SwDoc.ShowConfiguration2(OriginalConfiguration.Name);
+				Addin.Instance.LogDebug($"ShowConfiguration2 '{OriginalConfiguration.Name}'");
+				bool bShowConfigurationResult = InDoc.SwDoc.ShowConfiguration2(OriginalConfiguration.Name);
+				Debug.Assert(bShowConfigurationResult);
+			}
+
+			// Reload components for Original configuration(without this extracting materials for Display States later won't work - old component objects simply return 0) 
+			{
+				Component2 RootComponent = OriginalConfiguration.GetRootComponent3(true);
+				Stack<Component2> Components = new Stack<Component2>();
+				Components.Push(RootComponent);
+
+				while (Components.Count != 0)
+				{
+					Component2 Component = Components.Pop();
+
+					FConfigurationTree.FComponentTreeNode NewNode = new FConfigurationTree.FComponentTreeNode(Component);
+					NewNode.ComponentInfo.ComponentName = new FComponentName(Component);
+					InDoc.AddExportedComponent(NewNode);
+
+					object[] Children = (object[])Component.GetChildren();
+					if (Children != null)
+					{
+						foreach (Component2 Child in Children)
+						{
+							Components.Push(Child);
+						}
+					}
+				}
 			}
 
 			List<string> DisplayStateConfigurations = new List<string>();
@@ -372,13 +409,32 @@ namespace DatasmithSolidworks
 				// Export display states as separate configurations
 				string[] DisplayStates = OriginalConfiguration.GetDisplayStates();
 
-				foreach (string DisplayState in DisplayStates)
+				for (int Index = 0; Index < DisplayStates.Length; Index++)
 				{
+					string DisplayState = DisplayStates[Index];
+					if (Index != 0)
+					{
+						OriginalConfiguration.ApplyDisplayState(DisplayState);
+					}
+
 					string DisplayStateConfigName = $"DisplayState_{FDatasmithExporter.SanitizeName(DisplayState)}";
 					DisplayStateConfigurations.Add(DisplayStateConfigName);
-					Dictionary<FComponentName, FObjectMaterials> MaterialsMap = GetComponentMaterials(InDoc, DisplayState, OriginalConfiguration);
+					Addin.Instance.LogDebug(
+						$"DisplayState '{DisplayState}' Materials for variant '{DisplayStateConfigName}'");
+
+					// Specifying display state doesn't seem to work in the api like this:
+					// GetComponentMaterials(InDoc, DisplayState, OriginalConfiguration);
+					//   (which becomes Ext.GetRenderMaterials2((int)swDisplayStateOpts_e.swSpecifyDisplayState, InDisplayStateNames))
+					// - component materials are empty (Comp.GetRenderMaterialsCount2 gives 0 for assembly components)
+					Dictionary<FComponentName, FObjectMaterials> MaterialsMap = GetComponentMaterials(InDoc, null, OriginalConfiguration);
 
 					SetComponentTreeMaterials(CombinedTree, MaterialsMap, DisplayStateConfigName, true);
+				}
+
+				// Restore original active display state, if there were more than one display state
+				if (DisplayStates.Length > 1)
+				{
+					OriginalConfiguration.ApplyDisplayState(DisplayStates[0]);  // Active display state is the first in the list returned by GetDisplayStates
 				}
 			}
 
@@ -429,15 +485,15 @@ namespace DatasmithSolidworks
 
 			if (InDoc is FAssemblyDocumentTracker AsmDoc)
 			{
-				HashSet<FComponentName> InComponentsSet = new HashSet<FComponentName>();
+				HashSet<FComponentName> ComponentsSet = new HashSet<FComponentName>();
 
 				foreach (FComponentName CompName in AsmDoc.SyncState.ExportedComponentsMap.Keys)
 				{
-					InComponentsSet.Add(CompName);
+					ComponentsSet.Add(CompName);
 				}
 
 				ConcurrentDictionary<FComponentName, FObjectMaterials> ComponentMaterials =
-					FObjectMaterials.LoadAssemblyMaterials(AsmDoc, InComponentsSet, Option, DisplayStates);
+					FObjectMaterials.LoadAssemblyMaterials(AsmDoc, ComponentsSet, Option, DisplayStates);
 
 				if (ComponentMaterials != null)
 				{
@@ -461,6 +517,8 @@ namespace DatasmithSolidworks
 
 		private static void SetComponentTreeMaterials(FConfigurationTree.FComponentTreeNode InComponentTree, Dictionary<FComponentName, FObjectMaterials> InComponentMaterialsMap, string InConfigurationName, bool bIsDisplayState)
 		{
+			Addin.Instance.LogDebug($"SetComponentTreeMaterials: '{InComponentTree.ComponentName}'");
+
 			FConfigurationTree.FComponentConfig TargetConfig = null;
 
 			if (InConfigurationName != null)
@@ -482,15 +540,21 @@ namespace DatasmithSolidworks
 				TargetConfig.Materials = Materials;
 			}
 
+			Addin.Instance.LogDebug($"  Materials: {TargetConfig.Materials}");
+
 			foreach (FConfigurationTree.FComponentTreeNode Child in InComponentTree.EnumChildren())
 			{
+				Addin.Instance.LogIndent();
 				SetComponentTreeMaterials(Child, InComponentMaterialsMap, InConfigurationName, bIsDisplayState);
+				Addin.Instance.LogDedent();
 			}
 		}
 
 		private static void CollectComponentsRecursive(FDocumentTracker InDoc, Component2 InComponent,
 			FComponentTreeNode InParentNode, FMeshes.FConfiguration Meshes, string CfgName)
 		{
+			Addin.Instance.LogDebug($"'{InComponent.Name2}'");
+
 			FConfigurationTree.FComponentTreeNode NewNode = new FConfigurationTree.FComponentTreeNode(InComponent);
 			InParentNode.Children.Add(NewNode);
 
@@ -539,7 +603,9 @@ namespace DatasmithSolidworks
 				foreach (object ObjChild in Children)
 				{
 					Component2 Child = (Component2)ObjChild;
+					Addin.Instance.LogIndent();
 					CollectComponentsRecursive(InDoc, Child, NewNode, Meshes, CfgName);
+					Addin.Instance.LogDedent();
 				}
 
 				// todo: sorting ensures that component order is stable in export(e.g. in variant property bindings order)
