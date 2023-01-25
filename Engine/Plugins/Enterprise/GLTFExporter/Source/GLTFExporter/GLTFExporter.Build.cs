@@ -29,6 +29,7 @@ public class GLTFExporter : ModuleRules
 				"MovieSceneTracks",
 				"VariantManagerContent",
 				"Projects",
+				"EngineSettings",
 				"Analytics",
 			}
 		);
