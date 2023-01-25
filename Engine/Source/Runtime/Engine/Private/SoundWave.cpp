@@ -1681,7 +1681,7 @@ void USoundWave::PostLoad()
 				bool bShouldPrime = (ActualLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad);
 				bShouldPrime |= (GIsEditor && (ActualLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)); // treat this scenario like PrimeOnLoad
 
-				if (bShouldPrime)
+				if (bShouldPrime) 
 				{
 					const bool bHasMultipleChunks = GetNumChunks() > 1;
 					if (bHasMultipleChunks)
