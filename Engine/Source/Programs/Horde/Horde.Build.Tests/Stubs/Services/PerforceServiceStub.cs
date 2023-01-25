@@ -80,7 +80,7 @@ namespace Horde.Build.Tests.Stubs.Services
 
 			public ValueTask<bool> MatchesFilterAsync(FileFilter filter, CancellationToken cancellationToken)
 			{
-				throw new NotImplementedException();
+				return new ValueTask<bool>(filter.ApplyTo(Files).Any());
 			}
 
 			public ValueTask<IReadOnlyList<string>> GetFilesAsync(int maxFiles, CancellationToken cancellationToken)

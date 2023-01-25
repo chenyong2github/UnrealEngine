@@ -494,7 +494,7 @@ namespace Horde.Build.Jobs.Schedules
 			}
 			if (fileFilter != null)
 			{
-				if (await commit.MatchesFilterAsync(fileFilter, cancellationToken))
+				if (!await commit.MatchesFilterAsync(fileFilter, cancellationToken))
 				{
 					_logger.LogDebug("Not building change {Change} due to file filter", commit.Number);
 					return false;
