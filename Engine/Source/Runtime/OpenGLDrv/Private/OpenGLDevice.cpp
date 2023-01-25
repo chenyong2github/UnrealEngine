@@ -1004,6 +1004,9 @@ static void InitRHICapabilitiesForGL()
 		;
 
 	GRHISupportsMultithreadedResources = GRHISupportsRHIThread;
+
+	// OpenGL ES does not support glTextureView
+	GRHISupportsTextureViews = false;
 	
 	// By default use emulated UBs on mobile
 	GUseEmulatedUniformBuffers = IsUsingEmulatedUniformBuffers(GMaxRHIShaderPlatform);

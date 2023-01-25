@@ -16,6 +16,7 @@ struct FVTPhysicalSpaceDescription
 	uint8 Dimensions;
 	uint8 NumLayers;
 	TEnumAsByte<EPixelFormat> Format[VIRTUALTEXTURE_SPACE_MAXLAYERS];
+	bool bHasLayerSrgbView[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 	bool bContinuousUpdate;
 };
 
@@ -34,6 +35,12 @@ inline bool operator==(const FVTPhysicalSpaceDescription& Lhs, const FVTPhysical
 		{
 			return false;
 		}
+
+		if (Lhs.bHasLayerSrgbView[Layer] != Rhs.bHasLayerSrgbView[Layer])
+		{
+			return false;
+		}
+
 	}
 	return true;
 }
@@ -51,6 +58,7 @@ inline uint32 GetTypeHash(const FVTPhysicalSpaceDescription& Desc)
 	for (int32 Layer = 0; Layer < Desc.NumLayers; ++Layer)
 	{
 		Hash = HashCombine(Hash, GetTypeHash(Desc.Format[Layer]));
+		Hash = HashCombine(Hash, GetTypeHash(Desc.bHasLayerSrgbView[Layer]));
 	}
 	return Hash;
 }

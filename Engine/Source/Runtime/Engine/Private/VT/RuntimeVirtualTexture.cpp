@@ -341,6 +341,7 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 	{
 		OutDesc.LayerFormat[Layer] = GetLayerFormat(Layer);
 		OutDesc.PhysicalGroupIndex[Layer] = bSinglePhysicalSpace ? 0 : Layer;
+		OutDesc.bIsLayerSRGB[Layer] = IsLayerSRGB(Layer);
 	}
 }
 

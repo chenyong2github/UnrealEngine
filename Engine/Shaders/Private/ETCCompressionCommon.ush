@@ -177,7 +177,7 @@ uint2 CompressBlock_ETC1S(in float3 Block[16], bool bSRGB, bool bCoCg)
 
 uint2 CompressBlock_ETC2_SRGB(in float3 Block[16])
 {
-	const bool bSRGB = false;// true;
+	const bool bSRGB = true;
 	const bool bCoCg = false;
 	return CompressBlock_ETC1S(Block, bSRGB, bCoCg);
 }

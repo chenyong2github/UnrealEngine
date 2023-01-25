@@ -433,7 +433,7 @@ namespace RuntimeVirtualTexture
 		static void SetupRenderTargetsInfo(ERuntimeVirtualTextureMaterialType MaterialType, ERHIFeatureLevel::Type FeatureLevel, bool bLQFormat, FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo)
 		{
 			const ETextureCreateFlags RTCreateFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
-			const ETextureCreateFlags RTSrgbFlags = FeatureLevel > ERHIFeatureLevel::ES3_1 ? TexCreate_SRGB : TexCreate_None;
+			const ETextureCreateFlags RTSrgbFlags = TexCreate_SRGB;
 
 			switch (MaterialType)
 			{
@@ -501,9 +501,7 @@ namespace RuntimeVirtualTexture
 
 			const ETextureCreateFlags RTClearFlags = Desc.bClearTextures ? TexCreate_None : RTNoClearHackFlags;
 			const ETextureCreateFlags RTCreateFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource | RTClearFlags;
-			
-			// Not all mobile RHIs support sRGB texture views/aliasing, use only linear targets on mobile
-			const ETextureCreateFlags RTSrgbFlags = Desc.FeatureLevel > ERHIFeatureLevel::ES3_1 ? TexCreate_SRGB : TexCreate_None;
+			const ETextureCreateFlags RTSrgbFlags = TexCreate_SRGB;
 
 			const EPixelFormat Compressed64BitFormat = UseRGBA16(GMaxRHIShaderPlatform) ? PF_R16G16B16A16_UINT : PF_R32G32_UINT;
 			const EPixelFormat Compressed128BitFormat = PF_R32G32B32A32_UINT;

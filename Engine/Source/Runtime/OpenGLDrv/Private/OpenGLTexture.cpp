@@ -2087,10 +2087,6 @@ void FOpenGLDynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITextur
 		DestTexture->Target, DestTextureRHI->GetFormat(), DestTextureRHI->GetFlags()
 	);
 	
-	checkf((SourceTextureRHI->GetFlags() & TexCreate_SRGB) == (DestTextureRHI->GetFlags() & TexCreate_SRGB), TEXT("Cannot copy between sRGB and linear, SourceTexture Format=%d, Flags=%x; DestTexture Format=%d, Flags=%x"),
-		SourceTextureRHI->GetFormat(), SourceTextureRHI->GetFlags(),
-		DestTextureRHI->GetFormat(), DestTextureRHI->GetFlags()
-	);
 
 	GLsizei Width, Height, Depth;
 

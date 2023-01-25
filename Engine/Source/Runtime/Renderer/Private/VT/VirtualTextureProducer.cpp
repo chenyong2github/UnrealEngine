@@ -85,6 +85,8 @@ FVirtualTextureProducerHandle FVirtualTextureProducerCollection::RegisterProduce
 			if (InDesc.PhysicalGroupIndex[LayerIndex] == PhysicalGroupIndex)
 			{
 				PhysicalSpaceDesc.Format[PhysicalSpaceDesc.NumLayers] = InDesc.LayerFormat[LayerIndex];
+				// sRGB on/off flag is ignored on platforms that has support for texture aliasing
+				PhysicalSpaceDesc.bHasLayerSrgbView[PhysicalSpaceDesc.NumLayers] = (GRHISupportsTextureViews ? true : InDesc.bIsLayerSRGB[LayerIndex]);
 				PhysicalSpaceDesc.NumLayers++;
 			}
 		}

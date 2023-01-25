@@ -148,12 +148,7 @@ MaterialFloat4 ProcessMaterialColorTextureLookup(MaterialFloat4 TextureValue)
 
 MaterialFloat4 ProcessMaterialVirtualColorTextureLookup(MaterialFloat4 TextureValue)
 {
-	TextureValue = ProcessMaterialColorTextureLookup(TextureValue);
-#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
-	// on mobile all VT physical spaces use linear color formats, do sRGB to Linear conversion in the shader
-	TextureValue = MaterialFloat4(TextureValue.rgb*TextureValue.rgb, TextureValue.a);
-#endif
-	return TextureValue;
+	return ProcessMaterialColorTextureLookup(TextureValue);
 }
 
 MaterialFloat4 ProcessMaterialExternalTextureLookup(MaterialFloat4 TextureValue)

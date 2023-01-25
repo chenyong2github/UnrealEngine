@@ -1326,6 +1326,7 @@ bool GRHISupportsParallelRHIExecute = false;
 bool GSupportsParallelOcclusionQueries = false;
 bool GRHIRequiresRenderTargetForPixelShaderUAVs = false;
 bool GRHISupportsUAVFormatAliasing = false;
+bool GRHISupportsTextureViews = true;
 bool GRHISupportsDirectGPUMemoryLock = false;
 bool GRHISupportsMultithreadedShaderCreation = true;
 bool GRHISupportsMultithreadedResources = false;
