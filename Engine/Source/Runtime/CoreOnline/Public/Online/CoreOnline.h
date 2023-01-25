@@ -235,8 +235,8 @@ enum class EOnlineServices : uint8
 	PSN,
 	// Nintendo
 	Nintendo,
-	// Stadia,
-	Stadia,
+	// Unused,
+	Reserved_5,
 	// Steam
 	Steam,
 	// Google

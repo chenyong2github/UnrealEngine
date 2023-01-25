@@ -16,7 +16,7 @@ const TCHAR* LexToString(EOnlineServices Value)
 	case EOnlineServices::Xbox:				return TEXT("Xbox");
 	case EOnlineServices::PSN:				return TEXT("PSN");
 	case EOnlineServices::Nintendo:			return TEXT("Nintendo");
-	case EOnlineServices::Stadia:			return TEXT("Stadia");
+	case EOnlineServices::Reserved_5:		return TEXT("Reserved_5");
 	case EOnlineServices::Steam:			return TEXT("Steam");
 	case EOnlineServices::Google:			return TEXT("Google");
 	case EOnlineServices::GooglePlay:		return TEXT("GooglePlay");
@@ -72,9 +72,9 @@ void LexFromString(EOnlineServices& OutValue, const TCHAR* InStr)
 	{
 		OutValue = EOnlineServices::Nintendo;
 	}
-	else if (FCString::Stricmp(InStr, TEXT("Stadia")) == 0)
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_5")) == 0)
 	{
-		OutValue = EOnlineServices::Stadia;
+		OutValue = EOnlineServices::Reserved_5;
 	}
 	else if (FCString::Stricmp(InStr, TEXT("Steam")) == 0)
 	{
