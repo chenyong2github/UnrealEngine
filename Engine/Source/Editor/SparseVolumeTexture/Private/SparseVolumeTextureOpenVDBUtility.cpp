@@ -29,35 +29,103 @@ namespace
 	};
 }
 
-static FOpenVDBData GetOpenVDBData(openvdb::GridBase::Ptr GridBase)
+static FOpenVDBGridInfo GetOpenVDBGridInfo(openvdb::GridBase::Ptr Grid, uint32 GridIndex, bool bCreateStrings)
 {
-	FOpenVDBData OpenVDBData;
-	openvdb::CoordBBox VolumeActiveAABB = GridBase->evalActiveVoxelBoundingBox();
-	openvdb::Coord VolumeActiveDim = GridBase->evalActiveVoxelDim();
-	openvdb::Vec3d VolumeVoxelSize = GridBase->voxelSize();
+	openvdb::CoordBBox VolumeActiveAABB = Grid->evalActiveVoxelBoundingBox();
+	openvdb::Coord VolumeActiveDim = Grid->evalActiveVoxelDim();
+	openvdb::Vec3d VolumeVoxelSize = Grid->voxelSize();
+	openvdb::math::MapBase::ConstPtr MapBase = Grid->constTransform().baseMap();
+	openvdb::Vec3d VoxelSize = MapBase->voxelSize();
+	openvdb::Mat4d GridTransformVDB = MapBase->getAffineMap()->getConstMat4();
 
-	OpenVDBData.VolumeActiveAABBMin = FVector(VolumeActiveAABB.min().x(), VolumeActiveAABB.min().y(), VolumeActiveAABB.min().z());
-	OpenVDBData.VolumeActiveAABBMax = FVector(VolumeActiveAABB.max().x(), VolumeActiveAABB.max().y(), VolumeActiveAABB.max().z());
-	OpenVDBData.VolumeActiveDim = FVector(VolumeActiveDim.x(), VolumeActiveDim.y(), VolumeActiveDim.z());
-	OpenVDBData.VolumeVoxelSize = FVector(VolumeVoxelSize.x(), VolumeVoxelSize.y(), VolumeVoxelSize.z());
-	OpenVDBData.bIsInWorldSpace = GridBase->isInWorldSpace();
-	OpenVDBData.bHasUniformVoxels = GridBase->hasUniformVoxels();
+	FOpenVDBGridInfo GridInfo;
+	GridInfo.Index = GridIndex;
+	GridInfo.NumComponents = 0;
+	GridInfo.Type = EOpenVDBGridType::Unknown;
+	GridInfo.VolumeActiveAABBMin = FVector(VolumeActiveAABB.min().x(), VolumeActiveAABB.min().y(), VolumeActiveAABB.min().z());
+	GridInfo.VolumeActiveAABBMax = FVector(VolumeActiveAABB.max().x(), VolumeActiveAABB.max().y(), VolumeActiveAABB.max().z());
+	GridInfo.VolumeActiveDim = FVector(VolumeActiveDim.x(), VolumeActiveDim.y(), VolumeActiveDim.z());
+	GridInfo.VolumeVoxelSize = FVector(VolumeVoxelSize.x(), VolumeVoxelSize.y(), VolumeVoxelSize.z());
+	GridInfo.bIsInWorldSpace = Grid->isInWorldSpace();
+	GridInfo.bHasUniformVoxels = Grid->hasUniformVoxels();
 
-	return OpenVDBData;
+	for (int i = 0; i < 4; ++i)
+	{
+		for (int j = 0; j < 4; ++j)
+		{
+			GridInfo.Transform.M[i][j] = static_cast<float>(GridTransformVDB[j][i]);
+		}
+	}
+
+	// Figure out the type/format of the grid
+	if (Grid->isType<FOpenVDBFloat1Grid>())
+	{
+		GridInfo.NumComponents = 1;
+		GridInfo.Type = EOpenVDBGridType::Float;
+	}
+	else if (Grid->isType<FOpenVDBFloat2Grid>())
+	{
+		GridInfo.NumComponents = 2;
+		GridInfo.Type = EOpenVDBGridType::Float2;
+	}
+	else if (Grid->isType<FOpenVDBFloat3Grid>())
+	{
+		GridInfo.NumComponents = 3;
+		GridInfo.Type = EOpenVDBGridType::Float3;
+	}
+	else if (Grid->isType<FOpenVDBFloat4Grid>())
+	{
+		GridInfo.NumComponents = 4;
+		GridInfo.Type = EOpenVDBGridType::Float4;
+	}
+	else if (Grid->isType<FOpenVDBDouble1Grid>())
+	{
+		GridInfo.NumComponents = 1;
+		GridInfo.Type = EOpenVDBGridType::Double;
+	}
+	else if (Grid->isType<FOpenVDBDouble2Grid>())
+	{
+		GridInfo.NumComponents = 2;
+		GridInfo.Type = EOpenVDBGridType::Double2;
+	}
+	else if (Grid->isType<FOpenVDBDouble3Grid>())
+	{
+		GridInfo.NumComponents = 3;
+		GridInfo.Type = EOpenVDBGridType::Double3;
+	}
+	else if (Grid->isType<FOpenVDBDouble4Grid>())
+	{
+		GridInfo.NumComponents = 4;
+		GridInfo.Type = EOpenVDBGridType::Double4;
+	}
+
+	if (bCreateStrings)
+	{
+		GridInfo.Name = Grid->getName().c_str();
+
+		FStringFormatOrderedArguments FormatArgs;
+		FormatArgs.Add(GridInfo.Index);
+		FormatArgs.Add(OpenVDBGridTypeToString(GridInfo.Type));
+		FormatArgs.Add(GridInfo.Name);
+
+		GridInfo.DisplayString = FString::Format(TEXT("{0}. Type: {1}, Name: \"{2}\""), FormatArgs);
+	}
+
+	return GridInfo;
 }
 
 #endif
 
-bool IsOpenVDBDataValid(const FOpenVDBData& OpenVDBData, const FString& Filename)
+bool IsOpenVDBGridValid(const FOpenVDBGridInfo& GridInfo, const FString& Filename)
 {
-	if (OpenVDBData.VolumeActiveDim.X * OpenVDBData.VolumeActiveDim.Y * OpenVDBData.VolumeActiveDim.Z == 0)
+	if (GridInfo.VolumeActiveDim.X * GridInfo.VolumeActiveDim.Y * GridInfo.VolumeActiveDim.Z == 0)
 	{
 		// SVT_TODO we should gently handle that case
 		UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("OpenVDB grid is empty due to volume size being 0: %s"), *Filename);
 		return false;
 	}
 
-	if (!OpenVDBData.bHasUniformVoxels)
+	if (!GridInfo.bHasUniformVoxels)
 	{
 		UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("OpenVDB importer cannot handle non uniform voxels: %s"), *Filename);
 		return false;
@@ -65,80 +133,7 @@ bool IsOpenVDBDataValid(const FOpenVDBData& OpenVDBData, const FString& Filename
 	return true;
 }
 
-bool FindDensityGridIndex(TArray<uint8>& SourceFile, const FString& Filename, uint32* OutGridIndex, FOpenVDBData* OutOVDBData)
-{
-#if OPENVDB_AVAILABLE
-	FArrayUint8StreamBuf StreamBuf(SourceFile);
-	std::istream IStream(&StreamBuf);
-	openvdb::io::Stream Stream(IStream, false /*delayLoad*/);
-
-	openvdb::GridPtrVecPtr Grids = Stream.getGrids();
-
-	if (!Grids)
-	{
-		UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("OpenVDB file contains no grids: %s"), *Filename);
-		return false;
-	}
-
-	uint32 GridIndex = 0;
-	openvdb::GridBase::Ptr BaseGrid = nullptr;
-	for (openvdb::GridBase::Ptr& Grid : *Grids)
-	{
-		if (Grid->getName() == "density")
-		{
-			if (Grid->isType<openvdb::FloatGrid>())
-			{
-				BaseGrid = Grid;
-				break;
-			}
-			break;
-		}
-		++GridIndex;
-	}
-
-	// If we have not found any density map, let's pick up the first float map
-	if (!BaseGrid)
-	{
-		GridIndex = 0;
-		for (openvdb::GridBase::Ptr& Grid : *Grids)
-		{
-			if (Grid->isType<openvdb::FloatGrid>())
-			{
-				BaseGrid = Grid;
-				break;
-			}
-			++GridIndex;
-		}
-	}
-
-	if (BaseGrid)
-	{
-		openvdb::FloatGrid::Ptr DensityGrid = openvdb::gridPtrCast<openvdb::FloatGrid>(BaseGrid);
-
-		// Only open float grid for now
-		if (DensityGrid == nullptr)
-		{
-			UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Error, TEXT("Could not convert the grid to float: %s"), *Filename);
-			return false;
-		}
-
-		FOpenVDBData OVDBData = GetOpenVDBData(DensityGrid);
-		if (!IsOpenVDBDataValid(OVDBData, Filename))
-		{
-			return false;
-		}
-
-		*OutGridIndex = GridIndex;
-		*OutOVDBData = OVDBData;
-		return true;
-	}
-
-#endif // OPENVDB_AVAILABLE
-
-	return false;
-}
-
-bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, TArray<FOpenVDBGridInfo>* OutGridInfo)
+bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, bool bCreateStrings, TArray<FOpenVDBGridInfo>* OutGridInfo)
 {
 #if OPENVDB_AVAILABLE
 	FArrayUint8StreamBuf StreamBuf(SourceFile);
@@ -152,64 +147,8 @@ bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, TArray<FOpenVDBGridInfo>* Out
 	uint32 GridIndex = 0;
 	for (openvdb::GridBase::Ptr& Grid : *Grids)
 	{
-		// Create entry
-		FOpenVDBGridInfo GridInfo;
-		GridInfo.Index = GridIndex++;
-		GridInfo.NumComponents = 0;
-		GridInfo.Type = EOpenVDBGridType::Unknown;
-		GridInfo.Name = Grid->getName().c_str();
-		GridInfo.OpenVDBData = GetOpenVDBData(Grid);
-
-		// Figure out the type/format of the grid
-		if (Grid->isType<FOpenVDBFloat1Grid>())
-		{
-			GridInfo.NumComponents = 1;
-			GridInfo.Type = EOpenVDBGridType::Float;
-		}
-		else if (Grid->isType<FOpenVDBFloat2Grid>())
-		{
-			GridInfo.NumComponents = 2;
-			GridInfo.Type = EOpenVDBGridType::Float2;
-		}
-		else if (Grid->isType<FOpenVDBFloat3Grid>())
-		{
-			GridInfo.NumComponents = 3;
-			GridInfo.Type = EOpenVDBGridType::Float3;
-		}
-		else if (Grid->isType<FOpenVDBFloat4Grid>())
-		{
-			GridInfo.NumComponents = 4;
-			GridInfo.Type = EOpenVDBGridType::Float4;
-		}
-		else if (Grid->isType<FOpenVDBDouble1Grid>())
-		{
-			GridInfo.NumComponents = 1;
-			GridInfo.Type = EOpenVDBGridType::Double;
-		}
-		else if (Grid->isType<FOpenVDBDouble2Grid>())
-		{
-			GridInfo.NumComponents = 2;
-			GridInfo.Type = EOpenVDBGridType::Double2;
-		}
-		else if (Grid->isType<FOpenVDBDouble3Grid>())
-		{
-			GridInfo.NumComponents = 3;
-			GridInfo.Type = EOpenVDBGridType::Double3;
-		}
-		else if (Grid->isType<FOpenVDBDouble4Grid>())
-		{
-			GridInfo.NumComponents = 4;
-			GridInfo.Type = EOpenVDBGridType::Double4;
-		}
-
-		FStringFormatOrderedArguments FormatArgs;
-		FormatArgs.Add(GridInfo.Index);
-		FormatArgs.Add(OpenVDBGridTypeToString(GridInfo.Type));
-		FormatArgs.Add(GridInfo.Name);
-
-		GridInfo.DisplayString = FString::Format(TEXT("{0}. Type: {1}, Name: \"{2}\""), FormatArgs);
-
-		OutGridInfo->Add(MoveTemp(GridInfo));
+		OutGridInfo->Add(GetOpenVDBGridInfo(Grid, GridIndex, bCreateStrings));
+		++GridIndex;
 	}
 
 	return true;
@@ -400,25 +339,25 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 
 			GridAdapters[PackedDataIdx][CompIdx] = UniqueGridAdapters[SourceGridIndex];
 
-			FOpenVDBData OVDBData = GetOpenVDBData(GridBase);
-			if (!IsOpenVDBDataValid(OVDBData, TEXT("")))
+			FOpenVDBGridInfo GridInfo = GetOpenVDBGridInfo(GridBase, 0, false);
+			if (!IsOpenVDBGridValid(GridInfo, TEXT("")))
 			{
 				return false;
 			}
 
 			if (bOverrideActiveMinMax)
 			{
-				OVDBData.VolumeActiveAABBMin = ActiveMin;
-				OVDBData.VolumeActiveAABBMax = ActiveMax;
-				OVDBData.VolumeActiveDim = ActiveMax + 1 - ActiveMin;
+				GridInfo.VolumeActiveAABBMin = ActiveMin;
+				GridInfo.VolumeActiveAABBMax = ActiveMax;
+				GridInfo.VolumeActiveDim = ActiveMax + 1 - ActiveMin;
 			}
 
-			Header.SourceVolumeResolution.X = FMath::Max(Header.SourceVolumeResolution.X, OVDBData.VolumeActiveDim.X);
-			Header.SourceVolumeResolution.Y = FMath::Max(Header.SourceVolumeResolution.Y, OVDBData.VolumeActiveDim.Y);
-			Header.SourceVolumeResolution.Z = FMath::Max(Header.SourceVolumeResolution.Z, OVDBData.VolumeActiveDim.Z);
-			SmallestAABBMin.X = FMath::Min(SmallestAABBMin.X, OVDBData.VolumeActiveAABBMin.X);
-			SmallestAABBMin.Y = FMath::Min(SmallestAABBMin.Y, OVDBData.VolumeActiveAABBMin.Y);
-			SmallestAABBMin.Z = FMath::Min(SmallestAABBMin.Z, OVDBData.VolumeActiveAABBMin.Z);
+			Header.SourceVolumeResolution.X = FMath::Max(Header.SourceVolumeResolution.X, GridInfo.VolumeActiveDim.X);
+			Header.SourceVolumeResolution.Y = FMath::Max(Header.SourceVolumeResolution.Y, GridInfo.VolumeActiveDim.Y);
+			Header.SourceVolumeResolution.Z = FMath::Max(Header.SourceVolumeResolution.Z, GridInfo.VolumeActiveDim.Z);
+			SmallestAABBMin.X = FMath::Min(SmallestAABBMin.X, GridInfo.VolumeActiveAABBMin.X);
+			SmallestAABBMin.Y = FMath::Min(SmallestAABBMin.Y, GridInfo.VolumeActiveAABBMin.Y);
+			SmallestAABBMin.Z = FMath::Min(SmallestAABBMin.Z, GridInfo.VolumeActiveAABBMin.Z);
 
 			GridBackgroundValues[PackedDataIdx][CompIdx] = GridAdapters[PackedDataIdx][CompIdx]->GetBackgroundValue(SourceComponentIndex);
 			if (bNormalizedFormat[PackedDataIdx] && PackedData[PackedDataIdx]->bRemapInputForUnorm)
@@ -432,6 +371,7 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 			}
 		}
 	}
+	OutResult->Header->SourceVolumeAABBMin = SmallestAABBMin;
 	
 	FIntVector3 PageTableVolumeResolution = FIntVector3(
 		FMath::DivideAndRoundUp(Header.SourceVolumeResolution.X, SPARSE_VOLUME_TILE_RES),

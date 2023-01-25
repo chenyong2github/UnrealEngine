@@ -823,7 +823,7 @@ static void EvaluateSparseTextureUniform(const FMaterialRenderContext& Context, 
 	}
 	if (Texture != nullptr && VectorIndex != INDEX_NONE)
 	{
-		Stack.PushValue(FValue(Texture->GetUniformParameter(VectorIndex)));
+		Stack.PushValue(FValue(Texture->GetUniformParameter(VectorIndex, 0 /*SVT_TODO*/)));
 	}
 	else
 	{

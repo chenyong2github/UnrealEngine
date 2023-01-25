@@ -103,6 +103,7 @@ public:
 	FReply OnImport();
 	FReply OnCancel();
 	bool ShouldImport() const;
+	bool ShouldImportAsSequence() const;
 
 private:
 	FSparseVolumeRawSourcePackedData*					PackedDataA;
@@ -111,12 +112,13 @@ private:
 	TArray<TSharedPtr<ESparseVolumePackedDataFormat>>*	OpenVDBSupportedTargetFormats;
 	TSharedPtr<SOpenVDBPackedDataConfigurator>			PackedDataAConfigurator;
 	TSharedPtr<SOpenVDBPackedDataConfigurator>			PackedDataBConfigurator;
+	TSharedPtr<SCheckBox>								ImportAsSequenceCheckBox;
 	TSharedPtr<SButton>									ImportButton;
 	TWeakPtr<SWindow>									WidgetWindow;
 	bool												bShouldImport;
 
 	EActiveTimerReturnType SetFocusPostConstruct(double InCurrentTime, float InDeltaTime);
-	bool CanImport()  const;
+	bool CanImport() const;
 	FReply OnResetToDefaultClick();
 	FText GetImportTypeDisplayText() const;
 	void SetDefaultGridAssignment();

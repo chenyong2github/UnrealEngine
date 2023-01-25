@@ -20,6 +20,8 @@
 
 #define LOCTEXT_NAMESPACE "SparseVolumeTextureViewerComponent"
 
+constexpr double SVTViewerDefaultVolumeExtent = 100.0;
+
 /*=============================================================================
 	USparseVolumeTextureViewerComponent implementation.
 =============================================================================*/
@@ -75,27 +77,23 @@ void USparseVolumeTextureViewerComponent::Serialize(FArchive& Ar)
 
 FBoxSphereBounds USparseVolumeTextureViewerComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	const float OneMeterInCentimeter = 100.0f;
 	FBoxSphereBounds NormalizedBound;
 	NormalizedBound.Origin = FVector(0.0f, 0.0f, 0.0f);
 
 	if (SparseVolumeTexturePreview)
 	{
-		// We assume that the maximum bound will have a length of 1 meter. 
+		// We assume that the maximum bound will have a length of SVTViewerDefaultVolumeExtent (1 meter). 
 		// Then the other dimensions are scaled relatively.
 		// All this account for the size of volume with page table (they add padding).
 		// TODO can we recover world size from OpenVDB meta data in meter?
-		const FSparseVolumeAssetHeader* SVTHeader = SparseVolumeTexturePreview->GetSparseVolumeTextureHeader();
-		check(SVTHeader);
-		const float MaxDim = (float)FMath::Max(FMath::Max(SVTHeader->PageTableVolumeResolution.X, SVTHeader->PageTableVolumeResolution.Y), SVTHeader->PageTableVolumeResolution.Z);
-
-		NormalizedBound.BoxExtent.X = 0.5f * OneMeterInCentimeter * float(SVTHeader->PageTableVolumeResolution.X) / MaxDim;
-		NormalizedBound.BoxExtent.Y = 0.5f * OneMeterInCentimeter * float(SVTHeader->PageTableVolumeResolution.Y) / MaxDim;
-		NormalizedBound.BoxExtent.Z = 0.5f * OneMeterInCentimeter * float(SVTHeader->PageTableVolumeResolution.Z) / MaxDim;
+		const FBox VolumeBounds = SparseVolumeTexturePreview->GetVolumeBounds();
+		const FVector Extent = VolumeBounds.GetExtent();
+		const double MaxDim = FMath::Max(FMath::Max(Extent.X, Extent.Y), Extent.Z);
+		NormalizedBound.BoxExtent = Extent / MaxDim * SVTViewerDefaultVolumeExtent;
 	}
 	else
 	{
-		NormalizedBound.BoxExtent = FVector(OneMeterInCentimeter, OneMeterInCentimeter, OneMeterInCentimeter);
+		NormalizedBound.BoxExtent = FVector(SVTViewerDefaultVolumeExtent);
 	}
 
 	NormalizedBound.SphereRadius = NormalizedBound.BoxExtent.Size();
@@ -156,23 +154,44 @@ void USparseVolumeTextureViewerComponent::SendRenderTransformCommand()
 {
 	if (SparseVolumeTextureViewerSceneProxy)
 	{
-		FTransform ToWorldMat = GetComponentToWorld();
-		ToWorldMat.SetRotation(FQuat::Identity);								// Do not allow rotation
-		FVector Scale3D = ToWorldMat.GetScale3D();
-		float MaxScaling = FMath::Max(Scale3D.X, FMath::Max(Scale3D.Y, Scale3D.Z));
-		ToWorldMat.SetScale3D(FVector(MaxScaling, MaxScaling, MaxScaling));		// Keep max scaling
-		FBoxSphereBounds ComponentBounds = CalcBounds(ToWorldMat);
-
-		FMatrix44f ToLocalMat = FMatrix44f(FTranslationMatrix(-ToWorldMat.GetTranslation()) * FRotationMatrix(FRotator(GetComponentToWorld().GetRotation().Inverse())) * FScaleMatrix(ComponentBounds.BoxExtent.Reciprocal()));
+		FVector VolumeExtent = FVector(SVTViewerDefaultVolumeExtent);
+		// In order to keep the contents of an animated SVT sequence stable in world space, we need to account for the fact that
+		// different frames of the sequence have different AABBs.
+		FVector UVScale = FVector::One();
+		FVector UVBias = FVector::Zero();
 		
-		uint32 CompToVisualize = (uint32)ComponentToVisualize;
+		if (SparseVolumeTexturePreview)
+		{
+			const FVector VolumeBoundsExtent = SparseVolumeTexturePreview->GetVolumeBounds().GetExtent();
+			const double MaxBoundsDim = FMath::Max(FMath::Max(VolumeBoundsExtent.X, VolumeBoundsExtent.Y), VolumeBoundsExtent.Z);
+			VolumeExtent = VolumeBoundsExtent / MaxBoundsDim * SVTViewerDefaultVolumeExtent;
+
+			SparseVolumeTexturePreview->GetFrameUVScaleBias(FrameIndex, &UVScale, &UVBias);
+		}
+
+		const FTransform ToWorldTransform = GetComponentTransform();
+		const FVector Scale3D = ToWorldTransform.GetScale3D();
+		// Keep max scaling since the DDA algorithm has trouble with non-uniform scale.
+		// Note that using the other components in FScaleMatrix below is fine 
+		// because they cancel out with the actual volume resolution, producing uniformly scaled voxels.
+		const float MaxScaling = FMath::Max(Scale3D.X, FMath::Max(Scale3D.Y, Scale3D.Z));
+
+		const FRotationMatrix WorldToLocalRotation = FRotationMatrix(FRotator(ToWorldTransform.GetRotation().Inverse()));
+		const FMatrix44f ToLocalMatNoScale = FMatrix44f(WorldToLocalRotation);
+		const FMatrix44f ToLocalMat = FMatrix44f(
+			FTranslationMatrix(-ToWorldTransform.GetTranslation()) * WorldToLocalRotation * FScaleMatrix((VolumeExtent * MaxScaling).Reciprocal())
+			* FScaleMatrix(0.5) * FTranslationMatrix(FVector(0.5))
+			* FScaleMatrix(UVScale) * FTranslationMatrix(UVBias)
+			* FScaleMatrix(2.0) * FTranslationMatrix(FVector(-1.0)));
+
+		const uint32 CompToVisualize = (uint32)ComponentToVisualize;
 
 		FSparseVolumeTextureViewerSceneProxy* SVTViewerSceneProxy = SparseVolumeTextureViewerSceneProxy;
 		ENQUEUE_RENDER_COMMAND(FUpdateSparseVolumeTextureViewerProxyTransformCommand)(
-			[SVTViewerSceneProxy, ComponentBounds, ToLocalMat, CompToVisualize](FRHICommandList& RHICmdList)
+			[SVTViewerSceneProxy, ToLocalMat, ToLocalMatNoScale, CompToVisualize](FRHICommandList& RHICmdList)
 			{
-				SVTViewerSceneProxy->VolumeWorldBounds = ComponentBounds;
 				SVTViewerSceneProxy->WorldToLocal = ToLocalMat;
+				SVTViewerSceneProxy->WorldToLocalNoScale = ToLocalMatNoScale;
 				SVTViewerSceneProxy->ComponentToVisualize = CompToVisualize;
 			});
 	}
@@ -182,7 +201,10 @@ void USparseVolumeTextureViewerComponent::TickComponent(float DeltaTime, enum EL
 {
 	if (bAnimate)
 	{
-		FrameIndex++;
+		const int32 NumFrames = SparseVolumeTexturePreview->GetFrameCount();
+		const float AnimationDuration = NumFrames / FrameRate;
+		FrameIndex = int32((AnimationTime / (AnimationDuration + SMALL_NUMBER)) * float(SparseVolumeTexturePreview->GetFrameCount()));
+		AnimationTime = FMath::Fmod(AnimationTime + DeltaTime, (AnimationDuration + SMALL_NUMBER));
 	}
 	else if(SparseVolumeTexturePreview)
 	{

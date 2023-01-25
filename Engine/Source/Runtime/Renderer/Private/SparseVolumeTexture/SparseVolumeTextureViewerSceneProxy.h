@@ -18,8 +18,8 @@ public:
 	virtual ~FSparseVolumeTextureViewerSceneProxy() = default;
 
 	const FSparseVolumeTextureSceneProxy* SparseVolumeTextureSceneProxy = nullptr;
-	FBoxSphereBounds VolumeWorldBounds;
 	FMatrix44f WorldToLocal;
+	FMatrix44f WorldToLocalNoScale;
 	uint32 ComponentToVisualize;
 
 protected:

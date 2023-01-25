@@ -51,7 +51,7 @@ FSparseVolumeTextureViewerSceneProxy::FSparseVolumeTextureViewerSceneProxy(const
 		else
 		{
 			// Regular texture from proxy
-			SparseVolumeTextureSceneProxy = InComponent->SparseVolumeTexturePreview->GetSparseVolumeTextureSceneProxy();
+			SparseVolumeTextureSceneProxy = InComponent->SparseVolumeTexturePreview->GetSparseVolumeTextureSceneProxy(FrameIndex);
 		}
 	}
 }

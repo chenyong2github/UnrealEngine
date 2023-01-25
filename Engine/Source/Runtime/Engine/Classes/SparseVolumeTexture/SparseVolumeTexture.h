@@ -43,32 +43,6 @@ enum class ESparseVolumePackedDataFormat : uint8
 	Float32 = 2,
 };
 
-struct ENGINE_API FSparseVolumeAssetHeader
-{
-	FIntVector3 PageTableVolumeResolution;
-	FIntVector3 TileDataVolumeResolution;
-	FIntVector3 SourceVolumeResolution;
-	EPixelFormat PackedDataAFormat;
-	EPixelFormat PackedDataBFormat;
-
-	// The current data format version for the header.
-	static const uint32 kVersion = 0;
-
-	// This version can be used to convert existing header to new version later.
-	uint32 Version;
-
-	void Serialize(FArchive& Ar);
-
-	FSparseVolumeAssetHeader()
-		: PageTableVolumeResolution(FIntVector3(0, 0, 0))
-		, TileDataVolumeResolution(FIntVector3(0, 0, 0))
-		, SourceVolumeResolution(FIntVector3(0, 0, 0))
-		, PackedDataAFormat(PF_Unknown)
-		, Version(kVersion)
-	{
-	}
-};
-
 // Describes how the grids of a source asset map to the components of a float4 of packed data in a SVT
 struct ENGINE_API FSparseVolumeRawSourcePackedData
 {
@@ -97,6 +71,33 @@ struct ENGINE_API FSparseVolumeRawSource
 
 	FSparseVolumeRawSource()
 		: Version(kVersion)
+	{
+	}
+};
+
+struct ENGINE_API FSparseVolumeAssetHeader
+{
+	FIntVector3 PageTableVolumeResolution;
+	FIntVector3 TileDataVolumeResolution;
+	FIntVector3 SourceVolumeResolution;
+	FIntVector3 SourceVolumeAABBMin;
+	EPixelFormat PackedDataAFormat;
+	EPixelFormat PackedDataBFormat;
+
+	// The current data format version for the header.
+	static const uint32 kVersion = 0;
+
+	// This version can be used to convert existing header to new version later.
+	uint32 Version;
+
+	void Serialize(FArchive& Ar);
+
+	FSparseVolumeAssetHeader()
+		: PageTableVolumeResolution(FIntVector3(0, 0, 0))
+		, TileDataVolumeResolution(FIntVector3(0, 0, 0))
+		, SourceVolumeResolution(FIntVector3(0, 0, 0))
+		, PackedDataAFormat(PF_Unknown)
+		, Version(kVersion)
 	{
 	}
 };
@@ -172,6 +173,7 @@ struct ENGINE_API FSparseVolumeTextureFrame
 {
 	FSparseVolumeTextureFrame();
 	virtual ~FSparseVolumeTextureFrame();
+	bool BuildRuntimeData();
 
 	// The frame data that can be streamed in when in game.
 	FByteBulkData						RuntimeStreamedInData;
@@ -209,12 +211,19 @@ public:
 	virtual ~USparseVolumeTexture() = default;
 
 	virtual int32 GetFrameCount() const { return 0; }
-	virtual const FSparseVolumeAssetHeader* GetSparseVolumeTextureHeader() const { return nullptr; }
-	virtual FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() { return nullptr; }
-	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const { return nullptr; }
+	virtual const FSparseVolumeAssetHeader* GetSparseVolumeTextureHeader(int32 FrameIndex) const { return nullptr; }
+	virtual FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy(int32 FrameIndex) { return nullptr; }
+	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy(int32 FrameIndex) const { return nullptr; }
 
 	/** Getter for the shader uniform parameters with index as ESparseVolumeTextureShaderUniform. */
-	virtual FVector4 GetUniformParameter(int32 Index) const { return FVector4(ForceInitToZero); }
+	virtual FVector4 GetUniformParameter(int32 Index, int32 FrameIndex) const { return FVector4(ForceInitToZero); }
+
+	virtual FBox GetVolumeBounds() const { return FBox(); }
+
+	/** In order to keep the contents of an animated SVT sequence stable in world space, we need to account for the fact that
+		different frames of the sequence have different AABBs. We solve this by scaling and biasing UVs that are relative to
+		the volume bounds into the UV space represented by the AABB of each animation frame.*/
+	void GetFrameUVScaleBias(int32 FrameIndex, FVector* OutScale, FVector* OutBias) const;
 
 	/** Getter for the shader uniform parameter type with index as ESparseVolumeTextureShaderUniform. */
 	static UE::Shader::EValueType GetUniformParameterType(int32 Index);
@@ -229,6 +238,9 @@ class ENGINE_API UStaticSparseVolumeTexture : public USparseVolumeTexture
 	GENERATED_UCLASS_BODY()
 
 public:
+
+	UPROPERTY(VisibleAnywhere, Category = "Rendering", meta = (DisplayName = "Volume Bounds"))
+	FBox VolumeBounds;
 
 	UStaticSparseVolumeTexture();
 	virtual ~UStaticSparseVolumeTexture() = default;
@@ -247,15 +259,14 @@ public:
 
 	//~ Begin USparseVolumeTexture Interface.
 	int32 GetFrameCount() const override { return 1; }
-	const FSparseVolumeAssetHeader* GetSparseVolumeTextureHeader() const override;
-	FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() override;
-	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override;
+	const FSparseVolumeAssetHeader* GetSparseVolumeTextureHeader(int32 FrameIndex) const override;
+	FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy(int32 FrameIndex) override;
+	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy(int32 FrameIndex) const override;
 
 	/** Getter for the shader uniform parameters. */
-	FVector4 GetUniformParameter(int32 Index) const;
-	/** Getter for the shader uniform parameter type. */
-	static UE::Shader::EValueType GetUniformParameterType(int32 Index);
-	//~ Begin USparseVolumeTexture Interface.
+	FVector4 GetUniformParameter(int32 Index, int32 FrameIndex) const override;
+	FBox GetVolumeBounds() const override;
+	//~ End USparseVolumeTexture Interface.
 
 private:
 
@@ -263,7 +274,7 @@ private:
 	friend class USparseVolumeTextureFactory; // Importer
 #endif
 
-	FSparseVolumeTextureFrame	StaticFrame;
+	FSparseVolumeTextureFrame StaticFrame;
 
 	void ConvertRawSourceDataToSparseVolumeTextureRuntime();
 	void GenerateOrLoadDDCRuntimeData();
@@ -277,6 +288,13 @@ class ENGINE_API UAnimatedSparseVolumeTexture : public USparseVolumeTexture
 	GENERATED_UCLASS_BODY()
 
 public:
+
+	// The asset frame count.
+	UPROPERTY(VisibleAnywhere, Category = "Animation", meta = (DisplayName = "Frame Count"))
+	int32 FrameCount = 0;
+
+	UPROPERTY(VisibleAnywhere, Category = "Rendering", meta = (DisplayName = "Volume Bounds"))
+	FBox VolumeBounds;
 
 	UAnimatedSparseVolumeTexture();
 	virtual ~UAnimatedSparseVolumeTexture() = default;
@@ -295,22 +313,17 @@ public:
 
 	//~ Begin USparseVolumeTexture Interface.
 	int32 GetFrameCount() const override { return FrameCount; }
-	const FSparseVolumeAssetHeader* GetSparseVolumeTextureHeader() const override;
-	FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() override;
-	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override;
+	const FSparseVolumeAssetHeader* GetSparseVolumeTextureHeader(int32 FrameIndex) const override;
+	FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy(int32 FrameIndex) override;
+	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy(int32 FrameIndex) const override;
 
 	/** Getter for the shader uniform parameters. */
-	FVector4 GetUniformParameter(int32 Index) const;
-	/** Getter for the shader uniform parameter type. */
-	static UE::Shader::EValueType GetUniformParameterType(int32 Index);
-	//~ Begin USparseVolumeTexture Interface.
+	FVector4 GetUniformParameter(int32 Index, int32 FrameIndex) const override;
+	FBox GetVolumeBounds() const override;
+	//~ End USparseVolumeTexture Interface.
 
 	// Used for debugging a specific frame of an animated sequence.
 	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureFrameSceneProxy(int32 FrameIndex) const;
-
-	// The asset frame count.
-	UPROPERTY(VisibleAnywhere, Category = "Animation", meta = (DisplayName = "Frame Count"))
-	int32 FrameCount = 0;
 
 private:
 
@@ -318,12 +331,10 @@ private:
 	friend class USparseVolumeTextureFactory; // Importer
 #endif
 	
-	const uint32 PreviewFrameIndex = 0;
 	const bool bLoadAllFramesToProxies = true;	// SVT_TODO remove that once streaming is working
-	int32 GetFrameCountToLoad() const ;
+	TArray<FSparseVolumeTextureFrame> AnimationFrames;
 
-	TArray<FSparseVolumeTextureFrame>	AnimationFrames;
-
+	int32 GetFrameCountToLoad() const;
 	void ConvertRawSourceDataToSparseVolumeTextureRuntime(int32 FrameIndex);
 	void GenerateOrLoadDDCRuntimeData(int32 FrameIndex);
 	void GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy(int32 FrameIndex);

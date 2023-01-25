@@ -6,16 +6,6 @@
 
 #include "CoreMinimal.h"
 
-struct FOpenVDBData
-{
-	FVector VolumeActiveAABBMin;
-	FVector VolumeActiveAABBMax;
-	FVector VolumeActiveDim;
-	FVector VolumeVoxelSize;
-	bool bIsInWorldSpace;
-	bool bHasUniformVoxels;
-};
-
 enum class EOpenVDBGridType : uint8
 {
 	Unknown = 0,
@@ -31,19 +21,23 @@ enum class EOpenVDBGridType : uint8
 
 struct FOpenVDBGridInfo
 {
+	FMatrix44f Transform;
+	FVector VolumeActiveAABBMin;
+	FVector VolumeActiveAABBMax;
+	FVector VolumeActiveDim;
+	FVector VolumeVoxelSize;
+	FString Name;
+	FString DisplayString; // Contains Index (into source file grids), Type and Name
 	uint32 Index;
 	uint32 NumComponents;
 	EOpenVDBGridType Type;
-	FString Name;
-	FString DisplayString; // Contains Index (into source file grids), Type and Name
-	FOpenVDBData OpenVDBData;
+	bool bIsInWorldSpace;
+	bool bHasUniformVoxels;
 };
 
-bool IsOpenVDBDataValid(const FOpenVDBData& OpenVDBData, const FString& Filename);
+bool IsOpenVDBGridValid(const FOpenVDBGridInfo& GridInfo, const FString& Filename);
 
-bool FindDensityGridIndex(TArray<uint8>& SourceFile, const FString& Filename, uint32* OutGridIndex, FOpenVDBData* OutOVDBData);
-
-bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, TArray<FOpenVDBGridInfo>* OutGridInfo);
+bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, bool bCreateStrings, TArray<FOpenVDBGridInfo>* OutGridInfo);
 
 bool ConvertOpenVDBToSparseVolumeTexture(
 	TArray<uint8>& SourceFile,

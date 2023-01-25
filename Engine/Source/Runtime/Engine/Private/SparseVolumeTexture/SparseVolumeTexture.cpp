@@ -33,54 +33,38 @@ FConvertOpenVDBToSparseVolumeTextureDelegate& OnConvertOpenVDBToSparseVolumeText
 	return ConvertOpenVDBToSparseVolumeTextureDelegate;
 }
 
-void FSparseVolumeAssetHeader::Serialize(FArchive& Ar)
+namespace UE
 {
-
-	Ar << Version;
-
-	if (Version == 0)
+namespace SVT
+{
+namespace Private
+{
+	// SVT_TODO: This really should be a shared function.
+	template <typename Y, typename T>
+	void SerializeEnumAs(FArchive& Ar, T& Target)
 	{
-		Ar << PageTableVolumeResolution;
-		Ar << TileDataVolumeResolution;
-		Ar << SourceVolumeResolution;
-
-		uint32 FormatAsUint;
-		
-		FormatAsUint = (uint32)PackedDataAFormat;
-		Ar << FormatAsUint;
+		Y Buffer = static_cast<Y>(Target);
+		Ar << Buffer;
 		if (Ar.IsLoading())
 		{
-			PackedDataAFormat = static_cast<EPixelFormat>(FormatAsUint);
-		}
-		
-		FormatAsUint = (uint32)PackedDataBFormat;
-		Ar << FormatAsUint;
-		if (Ar.IsLoading())
-		{
-			PackedDataBFormat = static_cast<EPixelFormat>(FormatAsUint);
+			Target = static_cast<T>(Buffer);
 		}
 	}
-	else
-	{
-		// FSparseVolumeAssetHeader needs to account for new version
-		check(false);
-	}
-}
+} // Private
+} // SVT
+} // UE
 
 FArchive& operator<<(FArchive& Ar, FSparseVolumeRawSourcePackedData& PackedData)
 {
-	uint32 FormatAsUint = (uint32)PackedData.Format;
-	Ar << FormatAsUint;
-	if (Ar.IsLoading())
-	{
-		PackedData.Format = static_cast<ESparseVolumePackedDataFormat>(FormatAsUint);
-	}
+	UE::SVT::Private::SerializeEnumAs<uint8>(Ar, PackedData.Format);
 	Ar << PackedData.SourceGridIndex;
 	Ar << PackedData.SourceComponentIndex;
 	Ar << PackedData.bRemapInputForUnorm;
 
 	return Ar;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FSparseVolumeRawSource::Serialize(FArchive& Ar)
 {
@@ -98,6 +82,30 @@ void FSparseVolumeRawSource::Serialize(FArchive& Ar)
 		check(false);
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FSparseVolumeAssetHeader::Serialize(FArchive& Ar)
+{
+	Ar << Version;
+
+	if (Version == 0)
+	{
+		Ar << PageTableVolumeResolution;
+		Ar << TileDataVolumeResolution;
+		Ar << SourceVolumeResolution;
+		Ar << SourceVolumeAABBMin;
+		UE::SVT::Private::SerializeEnumAs<uint8>(Ar, PackedDataAFormat);
+		UE::SVT::Private::SerializeEnumAs<uint8>(Ar, PackedDataBFormat);
+	}
+	else
+	{
+		// FSparseVolumeAssetHeader needs to account for new version
+		check(false);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FSparseVolumeTextureRuntime::Serialize(FArchive& Ar)
 {
@@ -124,282 +132,6 @@ void FSparseVolumeTextureRuntime::SetAsDefaultTexture()
 	PageTable.SetNumZeroed(VolumeSize * VolumeSize * VolumeSize);
 	PhysicalTileDataA.SetNumZeroed(VolumeSize * VolumeSize * VolumeSize);
 	PhysicalTileDataB.SetNumZeroed(VolumeSize * VolumeSize * VolumeSize);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-
-FSparseVolumeTextureFrame::FSparseVolumeTextureFrame()
-	: RuntimeStreamedInData()
-	, SparseVolumeTextureRuntime()
-	, SparseVolumeTextureSceneProxy()
-#if WITH_EDITORONLY_DATA
-	, RawData()
-#endif
-{
-}
-
-FSparseVolumeTextureFrame::~FSparseVolumeTextureFrame()
-{
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-
-USparseVolumeTexture::USparseVolumeTexture(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
-UE::Shader::EValueType USparseVolumeTexture::GetUniformParameterType(int32 Index)
-{
-	switch (Index)
-	{
-	case ESparseVolumeTexture_PhysicalUVToPageUV:	return UE::Shader::EValueType::Float3;
-	case ESparseVolumeTexture_TileSize:				return UE::Shader::EValueType::Float1;
-	case ESparseVolumeTexture_PageTableSize:		return UE::Shader::EValueType::Float3;
-	default:
-		break;
-	}
-	check(0);
-	return UE::Shader::EValueType::Float4;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-
-UStaticSparseVolumeTexture::UStaticSparseVolumeTexture(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-	, StaticFrame()
-{
-}
-
-void UStaticSparseVolumeTexture::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
-{
-	Super::GetResourceSizeEx(CumulativeResourceSize);
-	// CumulativeResourceSize.AddDedicatedSystemMemoryBytes but not the RawData size
-}
-
-void UStaticSparseVolumeTexture::PostLoad()
-{
-	GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy();
-
-	Super::PostLoad();
-}
-
-void UStaticSparseVolumeTexture::BeginDestroy()
-{
-	Super::BeginDestroy();
-
-	BeginReleaseResource(&StaticFrame.SparseVolumeTextureSceneProxy);
-}
-
-void UStaticSparseVolumeTexture::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-
-	FStripDataFlags StripFlags(Ar);
-
-	// The runtime bulk data for static sparse volume texture is always loaded, not streamed in.
-	StaticFrame.RuntimeStreamedInData.SetBulkDataFlags(BULKDATA_ForceInlinePayload);
-
-	if (StripFlags.IsEditorDataStripped() && Ar.IsLoadingFromCookedPackage())
-	{
-		// In this case we are loading in game with a cooked build so we only need to load the runtime data.
-		{
-			FBulkDataReader RuntimeStreamedInData(StaticFrame.RuntimeStreamedInData);
-			StaticFrame.SparseVolumeTextureRuntime.Serialize(RuntimeStreamedInData);
-		}
-
-		// The bulk data is no longer needed
-		StaticFrame.RuntimeStreamedInData.RemoveBulkData();
-
-		// Runtime data is now valid, create the render thread proxy
-		StaticFrame.SparseVolumeTextureSceneProxy.InitialiseRuntimeData(StaticFrame.SparseVolumeTextureRuntime);
-		BeginInitResource(&StaticFrame.SparseVolumeTextureSceneProxy);
-	}
-	else if (Ar.IsCooking())
-	{
-		// We are cooking the game, serialize the asset out.
-		ConvertRawSourceDataToSparseVolumeTextureRuntime();
-
-		{
-			FBulkDataWriter RuntimeStreamedInData(StaticFrame.RuntimeStreamedInData);
-			StaticFrame.SparseVolumeTextureRuntime.Serialize(RuntimeStreamedInData);
-		}
-	}
-	else if (!Ar.IsObjectReferenceCollector())
-	{
-#if WITH_EDITORONLY_DATA
-		// When in EDITOR:
-		//  - We only serialize raw data 
-		//  - The runtime data is fetched/put from/to DDC
-		//  - This EditorBulk data do not load the full and huge OpenVDB data. That is only done explicitly later.
-		StaticFrame.RawData.Serialize(Ar, this);
-#endif
-	}
-}
-
-void UStaticSparseVolumeTexture::PreSave(FObjectPreSaveContext ObjectSaveContext)
-{
-	Super::PreSave(ObjectSaveContext);
-}
-
-#if WITH_EDITOR
-void UStaticSparseVolumeTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy();
-}
-#endif // WITH_EDITOR
-
-void UStaticSparseVolumeTexture::ConvertRawSourceDataToSparseVolumeTextureRuntime()
-{
-#if WITH_EDITOR
-	// Check if the virtualized bulk data payload is available now
-	if (StaticFrame.RawData.HasPayloadData())
-	{
-		// When cooking, the runtime data must be serialized out.
-
-		// First, read the source data in from the raw data stored as bulk data
-		UE::Serialization::FEditorBulkDataReader RawDataArchiveReader(StaticFrame.RawData);
-		FSparseVolumeRawSource SparseVolumeRawSource;
-		SparseVolumeRawSource.Serialize(RawDataArchiveReader);
-
-		FOpenVDBToSVTConversionResult SVTResult;
-		SVTResult.Header = &StaticFrame.SparseVolumeTextureRuntime.Header;
-		SVTResult.PageTable = &StaticFrame.SparseVolumeTextureRuntime.PageTable;
-		SVTResult.PhysicalTileDataA = &StaticFrame.SparseVolumeTextureRuntime.PhysicalTileDataA;
-		SVTResult.PhysicalTileDataB = &StaticFrame.SparseVolumeTextureRuntime.PhysicalTileDataB;
-
-		// Then, cook the runtime data and serialize it out.
-		const bool bSuccess = ConvertOpenVDBToSparseVolumeTextureDelegate.IsBound() && ConvertOpenVDBToSparseVolumeTextureDelegate.Execute(
-			SparseVolumeRawSource.SourceAssetFile,
-			SparseVolumeRawSource.PackedDataA,
-			SparseVolumeRawSource.PackedDataB,
-			&SVTResult,
-			false, FVector::Zero(), FVector::Zero());
-		ensure(bSuccess);
-
-		// Now unload the raw data
-		StaticFrame.RawData.UnloadData();
-	}
-	else
-	{
-		UE_LOG(LogSparseVolumeTexture, Error, TEXT("SparseVolumeTexture - Raw source data is not available for %s. Using default data."), *GetName());
-		StaticFrame.SparseVolumeTextureRuntime.SetAsDefaultTexture();
-	}
-#endif // WITH_EDITOR
-}
-
-void UStaticSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy()
-{
-	// Release any previously allocated render thread proxy
-	BeginReleaseResource(&StaticFrame.SparseVolumeTextureSceneProxy);
-
-#if WITH_EDITORONLY_DATA
-	// We only fetch/put DDC when in editor. Otherwise, StaticFrame.SparseVolumeTextureRuntime is serialize in.
-	GenerateOrLoadDDCRuntimeData();
-#endif
-
-	// Runtime data is now valid, create the render thread proxy
-	StaticFrame.SparseVolumeTextureSceneProxy.InitialiseRuntimeData(StaticFrame.SparseVolumeTextureRuntime);
-	BeginInitResource(&StaticFrame.SparseVolumeTextureSceneProxy);
-}
-
-void UStaticSparseVolumeTexture::GenerateOrLoadDDCRuntimeData()
-{
-#if WITH_EDITORONLY_DATA
-	static const FString SparseVolumeTextureDDCVersion = TEXT("381AE2A9-A903-4C8F-8486-891E24D6EC70");	// Bump this if you want to ignore all cached data so far.
-	const FString DerivedDataKey = StaticFrame.RawData.GetIdentifier().ToString() + SparseVolumeTextureDDCVersion;
-
-	bool bSuccess = true;
-	TArray<uint8> DerivedData;
-	if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedData, GetPathName()))
-	{
-		UE_LOG(LogSparseVolumeTexture, Display, TEXT("SparseVolumeTexture - Caching %s"), *GetName());
-
-		FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
-
-		int64 UncompressedSize = 0;
-		Ar << UncompressedSize;
-
-		uint8* DecompressionBuffer = reinterpret_cast<uint8*>(FMemory::Malloc(UncompressedSize));
-		Ar.SerializeCompressedNew(DecompressionBuffer, UncompressedSize);
-
-		FLargeMemoryReader LargeMemReader(DecompressionBuffer, UncompressedSize, ELargeMemoryReaderFlags::Persistent | ELargeMemoryReaderFlags::TakeOwnership);
-
-		StaticFrame.SparseVolumeTextureRuntime.Serialize(LargeMemReader);
-	}
-	else
-	{
-		// Using a LargeMemoryWriter for serialization since the data can be bigger than 2 GB
-		FLargeMemoryWriter LargeMemWriter(0, /*bIsPersistent=*/ true);
-
-		ConvertRawSourceDataToSparseVolumeTextureRuntime();
-		StaticFrame.SparseVolumeTextureRuntime.Serialize(LargeMemWriter);
-
-		int64 UncompressedSize = LargeMemWriter.TotalSize();
-
-		// Since the DDC doesn't support data bigger than 2 GB, we only cache for such uncompressed size.
-		constexpr int64 SizeThreshold = 2147483648;	// 2GB
-		const bool bIsCacheable = UncompressedSize < SizeThreshold;
-		if (bIsCacheable)
-		{
-			FMemoryWriter CompressedArchive(DerivedData, true);
-
-			CompressedArchive << UncompressedSize; // needed for allocating decompression buffer
-			CompressedArchive.SerializeCompressedNew(LargeMemWriter.GetData(), UncompressedSize);
-
-			GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData, GetPathName());
-		}
-		else
-		{
-			UE_LOG(LogSparseVolumeTexture, Error, TEXT("SparseVolumeTexture - the asset is too large to fit in Derived Data Cache %s"), *GetName());
-		}
-	}
-#endif // WITH_EDITORONLY_DATA
-}
-
-const FSparseVolumeAssetHeader* UStaticSparseVolumeTexture::GetSparseVolumeTextureHeader() const
-{
-	return &StaticFrame.SparseVolumeTextureRuntime.Header;
-}
-FSparseVolumeTextureSceneProxy* UStaticSparseVolumeTexture::GetSparseVolumeTextureSceneProxy()
-{ 
-	return &StaticFrame.SparseVolumeTextureSceneProxy; 
-}
-const FSparseVolumeTextureSceneProxy* UStaticSparseVolumeTexture::GetSparseVolumeTextureSceneProxy() const
-{ 
-	return &StaticFrame.SparseVolumeTextureSceneProxy; 
-}
-
-FVector4 UStaticSparseVolumeTexture::GetUniformParameter(int32 Index) const
-{
-	const FSparseVolumeTextureSceneProxy* Proxy = GetSparseVolumeTextureSceneProxy();
-	if (Proxy)
-	{
-		const FSparseVolumeAssetHeader& Header = Proxy->GetHeader();
-		switch (Index)
-		{
-		case ESparseVolumeTexture_PhysicalUVToPageUV:
-		{
-			// 3d uv coordinates are specified in [0, 1]. Before addressing the page tables which might have padding,
-			// since source volume resolution might not align to tile resolution, we have to rescale the uv so that [0,1] maps to the source texture boundaries.
-			FVector3f PhysicalUVToPageUV = FVector3f(Header.SourceVolumeResolution)/ FVector3f(Header.PageTableVolumeResolution * SPARSE_VOLUME_TILE_RES);
-			return FVector4(PhysicalUVToPageUV.X, PhysicalUVToPageUV.Y, PhysicalUVToPageUV.Z, 0.0f);
-		}
-		case ESparseVolumeTexture_PageTableSize:
-		{
-			return FVector4(Header.PageTableVolumeResolution.X, Header.PageTableVolumeResolution.Y, Header.PageTableVolumeResolution.Z, 0.0f);
-		}
-		case ESparseVolumeTexture_TileSize:				return FVector4(float(SPARSE_VOLUME_TILE_RES), 0.0f, 0.0f, 0.0f);
-		default:
-			break;
-		}
-		check(0);
-		return FVector4(ForceInitToZero);
-	}
-	// 0 while waiting for the proxy
-	return FVector4(ForceInitToZero);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -460,7 +192,7 @@ void FSparseVolumeTextureSceneProxy::InitRHI()
 			const int32 FormatSize = GPixelFormats[VoxelFormatA].BlockBytes;
 			RHIUpdateTexture3D(PhysicalTileDataATextureRHI, 0, UpdateRegion, UpdateRegion.Width * FormatSize, UpdateRegion.Width * UpdateRegion.Height * FormatSize, (const uint8*)SparseVolumeTextureRuntime->PhysicalTileDataA.GetData());
 		}
-		
+
 		// B
 		if (VoxelFormatB != PF_Unknown)
 		{
@@ -479,6 +211,334 @@ void FSparseVolumeTextureSceneProxy::InitRHI()
 
 void FSparseVolumeTextureSceneProxy::ReleaseRHI()
 {
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+FSparseVolumeTextureFrame::FSparseVolumeTextureFrame()
+	: RuntimeStreamedInData()
+	, SparseVolumeTextureRuntime()
+	, SparseVolumeTextureSceneProxy()
+#if WITH_EDITORONLY_DATA
+	, RawData()
+#endif
+{
+}
+
+FSparseVolumeTextureFrame::~FSparseVolumeTextureFrame()
+{
+}
+
+bool FSparseVolumeTextureFrame::BuildRuntimeData()
+{
+#if WITH_EDITORONLY_DATA
+	// Check if the virtualized bulk data payload is available now
+	if (RawData.HasPayloadData())
+	{
+		// First, read the source data in from the raw data stored as bulk data
+		UE::Serialization::FEditorBulkDataReader RawDataArchiveReader(RawData);
+		FSparseVolumeRawSource SparseVolumeRawSource;
+		SparseVolumeRawSource.Serialize(RawDataArchiveReader);
+
+		// Then, convert the raw source data (OpenVDB) to SVT
+		FOpenVDBToSVTConversionResult SVTResult;
+		SVTResult.Header = &SparseVolumeTextureRuntime.Header;
+		SVTResult.PageTable = &SparseVolumeTextureRuntime.PageTable;
+		SVTResult.PhysicalTileDataA = &SparseVolumeTextureRuntime.PhysicalTileDataA;
+		SVTResult.PhysicalTileDataB = &SparseVolumeTextureRuntime.PhysicalTileDataB;
+
+		const bool bSuccess = ConvertOpenVDBToSparseVolumeTextureDelegate.IsBound() && ConvertOpenVDBToSparseVolumeTextureDelegate.Execute(
+			SparseVolumeRawSource.SourceAssetFile,
+			SparseVolumeRawSource.PackedDataA,
+			SparseVolumeRawSource.PackedDataB,
+			&SVTResult,
+			false, FVector::Zero(), FVector::Zero());
+		
+		if (!bSuccess)
+		{
+			// Clear any writes that may have happened to this data during the cook attempt
+			SparseVolumeTextureRuntime = {};
+			return false;
+		}
+
+		// Now unload the raw data
+		RawData.UnloadData();
+		
+		return true;
+	}
+#endif
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+USparseVolumeTexture::USparseVolumeTexture(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+void USparseVolumeTexture::GetFrameUVScaleBias(int32 FrameIndex, FVector* OutScale, FVector* OutBias) const
+{
+	*OutScale = FVector::One();
+	*OutBias = FVector::Zero();
+	const FSparseVolumeTextureSceneProxy* Proxy = GetSparseVolumeTextureSceneProxy(FrameIndex);
+	if (Proxy)
+	{
+		const FSparseVolumeAssetHeader& Header = Proxy->GetHeader();
+		const FBox VolumeBounds = GetVolumeBounds();
+		check(VolumeBounds.GetVolume() > 0.0);
+		const FBox FrameBounds = FBox(FVector(Header.SourceVolumeAABBMin), FVector(Header.SourceVolumeAABBMin + Header.PageTableVolumeResolution * SPARSE_VOLUME_TILE_RES)); // AABB of current frame
+
+		*OutScale = VolumeBounds.GetExtent() / FrameBounds.GetExtent();
+		*OutBias = -((FrameBounds.Min - VolumeBounds.Min) / (VolumeBounds.Max - VolumeBounds.Min) * *OutScale);
+	}
+}
+
+UE::Shader::EValueType USparseVolumeTexture::GetUniformParameterType(int32 Index)
+{
+	switch (Index)
+	{
+	case ESparseVolumeTexture_PhysicalUVToPageUV:	return UE::Shader::EValueType::Float3;
+	case ESparseVolumeTexture_TileSize:				return UE::Shader::EValueType::Float1;
+	case ESparseVolumeTexture_PageTableSize:		return UE::Shader::EValueType::Float3;
+	default:
+		break;
+	}
+	check(0);
+	return UE::Shader::EValueType::Float4;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+UStaticSparseVolumeTexture::UStaticSparseVolumeTexture(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+	, StaticFrame()
+{
+}
+
+void UStaticSparseVolumeTexture::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+	// CumulativeResourceSize.AddDedicatedSystemMemoryBytes but not the RawData size
+}
+
+void UStaticSparseVolumeTexture::PostLoad()
+{
+	GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy();
+
+	Super::PostLoad();
+}
+
+void UStaticSparseVolumeTexture::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	BeginReleaseResource(&StaticFrame.SparseVolumeTextureSceneProxy);
+}
+
+void UStaticSparseVolumeTexture::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	FStripDataFlags StripFlags(Ar);
+
+	if (StripFlags.IsEditorDataStripped() && Ar.IsLoadingFromCookedPackage())
+	{
+		// In this case we are loading in game with a cooked build so we only need to load the runtime data.
+
+		// Read cooked bulk data from archive
+		StaticFrame.RuntimeStreamedInData.Serialize(Ar, this);
+
+		// Create runtime data from cooked bulk data
+		{
+			FBulkDataReader BulkDataReader(StaticFrame.RuntimeStreamedInData);
+			StaticFrame.SparseVolumeTextureRuntime.Serialize(BulkDataReader);
+		}
+
+		// The bulk data is no longer needed
+		StaticFrame.RuntimeStreamedInData.RemoveBulkData();
+
+		// Runtime data is now valid, create the render thread proxy
+		StaticFrame.SparseVolumeTextureSceneProxy.InitialiseRuntimeData(StaticFrame.SparseVolumeTextureRuntime);
+		BeginInitResource(&StaticFrame.SparseVolumeTextureSceneProxy);
+	}
+	else if (Ar.IsCooking())
+	{
+		// We are cooking the game, serialize the asset out.
+		
+		// The runtime bulk data for static sparse volume texture is always loaded, not streamed in.
+		StaticFrame.RuntimeStreamedInData.SetBulkDataFlags(BULKDATA_ForceInlinePayload);
+
+		const bool bBuiltRuntimeData = StaticFrame.BuildRuntimeData();
+		check(bBuiltRuntimeData); // SVT_TODO: actual error handling
+		
+		// Write runtime data into RuntimeStreamedInData
+		{
+			FBulkDataWriter BulkDataWriter(StaticFrame.RuntimeStreamedInData);
+			StaticFrame.SparseVolumeTextureRuntime.Serialize(BulkDataWriter);
+		}
+
+		// And now write the cooked bulk data to the archive
+		StaticFrame.RuntimeStreamedInData.Serialize(Ar, this);
+	}
+	else if (!Ar.IsObjectReferenceCollector())
+	{
+#if WITH_EDITORONLY_DATA
+		// When in EDITOR:
+		//  - We only serialize raw data 
+		//  - The runtime data is fetched/put from/to DDC
+		//  - This EditorBulk data do not load the full and huge OpenVDB data. That is only done explicitly later.
+		StaticFrame.RawData.Serialize(Ar, this);
+#endif
+	}
+}
+
+void UStaticSparseVolumeTexture::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
+}
+
+#if WITH_EDITOR
+void UStaticSparseVolumeTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy();
+}
+#endif // WITH_EDITOR
+
+const FSparseVolumeAssetHeader* UStaticSparseVolumeTexture::GetSparseVolumeTextureHeader(int32 FrameIndex) const
+{
+	return &StaticFrame.SparseVolumeTextureRuntime.Header;
+}
+FSparseVolumeTextureSceneProxy* UStaticSparseVolumeTexture::GetSparseVolumeTextureSceneProxy(int32 FrameIndex)
+{ 
+	return &StaticFrame.SparseVolumeTextureSceneProxy; 
+}
+const FSparseVolumeTextureSceneProxy* UStaticSparseVolumeTexture::GetSparseVolumeTextureSceneProxy(int32 FrameIndex) const
+{ 
+	return &StaticFrame.SparseVolumeTextureSceneProxy; 
+}
+
+FVector4 UStaticSparseVolumeTexture::GetUniformParameter(int32 Index, int32 FrameIndex) const
+{
+	const FSparseVolumeTextureSceneProxy* Proxy = GetSparseVolumeTextureSceneProxy(0);
+	if (Proxy)
+	{
+		const FSparseVolumeAssetHeader& Header = Proxy->GetHeader();
+		switch (Index)
+		{
+		case ESparseVolumeTexture_PhysicalUVToPageUV:
+		{
+			// 3d uv coordinates are specified in [0, 1]. Before addressing the page tables which might have padding,
+			// since source volume resolution might not align to tile resolution, we have to rescale the uv so that [0,1] maps to the source texture boundaries.
+			FVector3f PhysicalUVToPageUV = FVector3f(Header.SourceVolumeResolution)/ FVector3f(Header.PageTableVolumeResolution * SPARSE_VOLUME_TILE_RES);
+			return FVector4(PhysicalUVToPageUV.X, PhysicalUVToPageUV.Y, PhysicalUVToPageUV.Z, 0.0f);
+		}
+		case ESparseVolumeTexture_PageTableSize:
+		{
+			return FVector4(Header.PageTableVolumeResolution.X, Header.PageTableVolumeResolution.Y, Header.PageTableVolumeResolution.Z, 0.0f);
+		}
+		case ESparseVolumeTexture_TileSize:				return FVector4(float(SPARSE_VOLUME_TILE_RES), 0.0f, 0.0f, 0.0f);
+		default:
+			break;
+		}
+		check(0);
+		return FVector4(ForceInitToZero);
+	}
+	// 0 while waiting for the proxy
+	return FVector4(ForceInitToZero);
+}
+
+FBox UStaticSparseVolumeTexture::GetVolumeBounds() const
+{
+	return VolumeBounds;
+}
+
+void UStaticSparseVolumeTexture::ConvertRawSourceDataToSparseVolumeTextureRuntime()
+{
+#if WITH_EDITOR
+	// Check if the virtualized bulk data payload is available now
+	if (StaticFrame.RawData.HasPayloadData())
+	{
+		const bool bSuccess = StaticFrame.BuildRuntimeData();
+		ensure(bSuccess);
+	}
+	else
+	{
+		UE_LOG(LogSparseVolumeTexture, Error, TEXT("SparseVolumeTexture - Raw source data is not available for %s. Using default data."), *GetName());
+		StaticFrame.SparseVolumeTextureRuntime.SetAsDefaultTexture();
+	}
+#endif // WITH_EDITOR
+}
+
+void UStaticSparseVolumeTexture::GenerateOrLoadDDCRuntimeData()
+{
+#if WITH_EDITORONLY_DATA
+	static const FString SparseVolumeTextureDDCVersion = TEXT("381AE2A9-A903-4C8F-8486-891E24D6EC70");	// Bump this if you want to ignore all cached data so far.
+	const FString DerivedDataKey = StaticFrame.RawData.GetIdentifier().ToString() + SparseVolumeTextureDDCVersion;
+
+	bool bSuccess = true;
+	TArray<uint8> DerivedData;
+	if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedData, GetPathName()))
+	{
+		UE_LOG(LogSparseVolumeTexture, Display, TEXT("SparseVolumeTexture - Caching %s"), *GetName());
+
+		FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
+
+		int64 UncompressedSize = 0;
+		Ar << UncompressedSize;
+
+		uint8* DecompressionBuffer = reinterpret_cast<uint8*>(FMemory::Malloc(UncompressedSize));
+		Ar.SerializeCompressedNew(DecompressionBuffer, UncompressedSize);
+
+		FLargeMemoryReader LargeMemReader(DecompressionBuffer, UncompressedSize, ELargeMemoryReaderFlags::Persistent | ELargeMemoryReaderFlags::TakeOwnership);
+
+		StaticFrame.SparseVolumeTextureRuntime.Serialize(LargeMemReader);
+	}
+	else
+	{
+		// Using a LargeMemoryWriter for serialization since the data can be bigger than 2 GB
+		FLargeMemoryWriter LargeMemWriter(0, /*bIsPersistent=*/ true);
+
+		ConvertRawSourceDataToSparseVolumeTextureRuntime();
+		StaticFrame.SparseVolumeTextureRuntime.Serialize(LargeMemWriter);
+
+		int64 UncompressedSize = LargeMemWriter.TotalSize();
+
+		// Since the DDC doesn't support data bigger than 2 GB, we only cache for such uncompressed size.
+		constexpr int64 SizeThreshold = 2147483648;	// 2GB
+		const bool bIsCacheable = UncompressedSize < SizeThreshold;
+		if (bIsCacheable)
+		{
+			FMemoryWriter CompressedArchive(DerivedData, true);
+
+			CompressedArchive << UncompressedSize; // needed for allocating decompression buffer
+			CompressedArchive.SerializeCompressedNew(LargeMemWriter.GetData(), UncompressedSize);
+
+			GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData, GetPathName());
+		}
+		else
+		{
+			UE_LOG(LogSparseVolumeTexture, Error, TEXT("SparseVolumeTexture - the asset is too large to fit in Derived Data Cache %s"), *GetName());
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+}
+
+void UStaticSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy()
+{
+	// Release any previously allocated render thread proxy
+	BeginReleaseResource(&StaticFrame.SparseVolumeTextureSceneProxy);
+
+#if WITH_EDITORONLY_DATA
+	// We only fetch/put DDC when in editor. Otherwise, StaticFrame.SparseVolumeTextureRuntime is serialize in.
+	GenerateOrLoadDDCRuntimeData();
+#endif
+
+	// Runtime data is now valid, create the render thread proxy
+	StaticFrame.SparseVolumeTextureSceneProxy.InitialiseRuntimeData(StaticFrame.SparseVolumeTextureRuntime);
+	BeginInitResource(&StaticFrame.SparseVolumeTextureSceneProxy);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -507,15 +567,6 @@ void UAnimatedSparseVolumeTexture::PostLoad()
 	Super::PostLoad();
 }
 
-int32 UAnimatedSparseVolumeTexture::GetFrameCountToLoad() const 
-{
-	if (FrameCount > 0)
-	{
-		return bLoadAllFramesToProxies ? FrameCount : 1;
-	}
-	return 0;
-}
-
 void UAnimatedSparseVolumeTexture::BeginDestroy()
 {
 	Super::BeginDestroy();
@@ -536,11 +587,54 @@ void UAnimatedSparseVolumeTexture::Serialize(FArchive& Ar)
 
 	if (StripFlags.IsEditorDataStripped() && Ar.IsLoadingFromCookedPackage())
 	{
-		check(false); // SVT_TODO Implement
+		// In this case we are loading in game with a cooked build so we only need to load the runtime data.
+
+		AnimationFrames.SetNum(FrameCount);
+		for (int32 i = 0; i < FrameCount; ++i)
+		{
+			FSparseVolumeTextureFrame& Frame = AnimationFrames[i];
+			
+			// Read cooked bulk data from archive
+			Frame.RuntimeStreamedInData.Serialize(Ar, this);
+
+			// Create runtime data from cooked bulk data
+			{
+				FBulkDataReader RuntimeStreamedInData(Frame.RuntimeStreamedInData);
+				Frame.SparseVolumeTextureRuntime.Serialize(RuntimeStreamedInData);
+			}
+
+			// The bulk data is no longer needed
+			Frame.RuntimeStreamedInData.RemoveBulkData();
+
+			// Runtime data is now valid, create the render thread proxy
+			Frame.SparseVolumeTextureSceneProxy.InitialiseRuntimeData(Frame.SparseVolumeTextureRuntime);
+			BeginInitResource(&Frame.SparseVolumeTextureSceneProxy);
+		}
 	}
 	else if (Ar.IsCooking())
 	{
-		check(false); // SVT_TODO Implement
+		// We are cooking the game, serialize the asset out.
+
+		check(AnimationFrames.Num() == FrameCount);
+		for (int32 i = 0; i < FrameCount; ++i)
+		{
+			FSparseVolumeTextureFrame& Frame = AnimationFrames[i];
+
+			// SVT_TODO: Until we have streaming, the runtime bulk data for all sparse volume texture frames is always loaded.
+			AnimationFrames[i].RuntimeStreamedInData.SetBulkDataFlags(BULKDATA_ForceInlinePayload);
+
+			const bool bBuiltRuntimeData = Frame.BuildRuntimeData();
+			check(bBuiltRuntimeData); // SVT_TODO
+
+			// Write runtime data into RuntimeStreamedInData
+			{
+				FBulkDataWriter RuntimeStreamedInData(Frame.RuntimeStreamedInData);
+				Frame.SparseVolumeTextureRuntime.Serialize(RuntimeStreamedInData);
+			}
+
+			// And now write the cooked bulk data to the archive
+			Frame.RuntimeStreamedInData.Serialize(Ar, this);
+		}
 	}
 	else if (!Ar.IsObjectReferenceCollector())
 	{
@@ -575,8 +669,95 @@ void UAnimatedSparseVolumeTexture::PreSave(FObjectPreSaveContext ObjectSaveConte
 void UAnimatedSparseVolumeTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const int32 FrameCountToLoad = GetFrameCountToLoad();
+	for (int32 FrameIndex = 0; FrameIndex < FrameCountToLoad; FrameIndex++)
+	{
+		GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy(FrameIndex);
+	}
 }
 #endif // WITH_EDITOR
+
+const FSparseVolumeAssetHeader* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureHeader(int32 FrameIndex) const
+{
+	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using its first frame.
+	check(AnimationFrames.Num() >= 1);
+	FrameIndex = FrameIndex % GetFrameCountToLoad();
+	const FSparseVolumeTextureFrame& Frame = AnimationFrames[FrameIndex];
+	return &Frame.SparseVolumeTextureRuntime.Header;
+}
+
+FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureSceneProxy(int32 FrameIndex)
+{
+	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using its first frame.
+	check(AnimationFrames.Num() >= 1);
+	FrameIndex = FrameIndex % GetFrameCountToLoad();
+	FSparseVolumeTextureFrame& Frame = AnimationFrames[FrameIndex];
+	return &Frame.SparseVolumeTextureSceneProxy;
+}
+
+const FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureSceneProxy(int32 FrameIndex) const
+{
+	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using its first frame.
+	check(AnimationFrames.Num() >= 1);
+	FrameIndex = FrameIndex % GetFrameCountToLoad();
+	const FSparseVolumeTextureFrame& Frame = AnimationFrames[FrameIndex];
+	return &Frame.SparseVolumeTextureSceneProxy;
+}
+
+FVector4 UAnimatedSparseVolumeTexture::GetUniformParameter(int32 Index, int32 FrameIndex) const
+{
+	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using its first frame.
+	const FSparseVolumeTextureSceneProxy* Proxy = GetSparseVolumeTextureSceneProxy(FrameIndex);
+	if (Proxy)
+	{
+		const FSparseVolumeAssetHeader& Header = Proxy->GetHeader();
+		switch (Index)
+		{
+		case ESparseVolumeTexture_PhysicalUVToPageUV:
+		{
+			// 3d uv coordinates are specified in [0, 1]. Before addressing the page tables which might have padding,
+			// since source volume resolution might not align to tile resolution, we have to rescale the uv so that [0,1] maps to the source texture boundaries.
+			FVector3f PhysicalUVToPageUV = FVector3f(Header.SourceVolumeResolution) / FVector3f(Header.PageTableVolumeResolution * SPARSE_VOLUME_TILE_RES);
+			return FVector4(PhysicalUVToPageUV.X, PhysicalUVToPageUV.Y, PhysicalUVToPageUV.Z, 0.0f);
+		}
+		case ESparseVolumeTexture_PageTableSize:
+		{
+			return FVector4(Header.PageTableVolumeResolution.X, Header.PageTableVolumeResolution.Y, Header.PageTableVolumeResolution.Z, 0.0f);
+		}
+		case ESparseVolumeTexture_TileSize:				return FVector4(float(SPARSE_VOLUME_TILE_RES), 0.0f, 0.0f, 0.0f);
+		default:
+			break;
+		}
+		check(0);
+		return FVector4(ForceInitToZero);
+	}
+
+	// 0 while waiting for the proxy
+	return FVector4(ForceInitToZero);
+}
+
+FBox UAnimatedSparseVolumeTexture::GetVolumeBounds() const
+{
+	return VolumeBounds;
+}
+
+const FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureFrameSceneProxy(int32 FrameIndex) const
+{
+	check(AnimationFrames.Num() >= 1);
+	FrameIndex = FrameIndex % GetFrameCountToLoad();
+	// SVT_TODO when streaming is enabled, this will likely change.
+	return &AnimationFrames[FrameIndex].SparseVolumeTextureSceneProxy;
+}
+
+int32 UAnimatedSparseVolumeTexture::GetFrameCountToLoad() const
+{
+	if (FrameCount > 0)
+	{
+		return bLoadAllFramesToProxies ? FrameCount : 1;
+	}
+	return 0;
+}
 
 void UAnimatedSparseVolumeTexture::ConvertRawSourceDataToSparseVolumeTextureRuntime(int32 FrameIndex)
 {
@@ -586,30 +767,8 @@ void UAnimatedSparseVolumeTexture::ConvertRawSourceDataToSparseVolumeTextureRunt
 	// Check if the virtualized bulk data payload is available now
 	if (Frame.RawData.HasPayloadData())
 	{
-		// When cooking, the runtime data must be serialized out.
-
-		// First, read the source data in from the raw data stored as bulk data
-		UE::Serialization::FEditorBulkDataReader RawDataArchiveReader(Frame.RawData);
-		FSparseVolumeRawSource SparseVolumeRawSource;
-		SparseVolumeRawSource.Serialize(RawDataArchiveReader);
-
-		FOpenVDBToSVTConversionResult SVTResult;
-		SVTResult.Header = &Frame.SparseVolumeTextureRuntime.Header;
-		SVTResult.PageTable = &Frame.SparseVolumeTextureRuntime.PageTable;
-		SVTResult.PhysicalTileDataA = &Frame.SparseVolumeTextureRuntime.PhysicalTileDataA;
-		SVTResult.PhysicalTileDataB = &Frame.SparseVolumeTextureRuntime.PhysicalTileDataB;
-
-		// Then, cook the runtime data and serialize it out.
-		const bool bSuccess = ConvertOpenVDBToSparseVolumeTextureDelegate.IsBound() && ConvertOpenVDBToSparseVolumeTextureDelegate.Execute(
-			SparseVolumeRawSource.SourceAssetFile,
-			SparseVolumeRawSource.PackedDataA,
-			SparseVolumeRawSource.PackedDataB,
-			&SVTResult,
-			false, FVector::Zero(), FVector::Zero());
+		const bool bSuccess = Frame.BuildRuntimeData();
 		ensure(bSuccess);
-
-		// Now unload the raw data
-		Frame.RawData.UnloadData();
 	}
 	else
 	{
@@ -617,23 +776,6 @@ void UAnimatedSparseVolumeTexture::ConvertRawSourceDataToSparseVolumeTextureRunt
 		Frame.SparseVolumeTextureRuntime.SetAsDefaultTexture();
 	}
 #endif // WITH_EDITOR
-}
-
-void UAnimatedSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy(int32 FrameIndex)
-{
-	FSparseVolumeTextureFrame& Frame = AnimationFrames[FrameIndex];
-
-	// Release any previously allocated render thread proxy
-	BeginReleaseResource(&Frame.SparseVolumeTextureSceneProxy);
-
-#if WITH_EDITORONLY_DATA
-	// We only fetch/put DDC when in editor. Otherwise, StaticFrame.SparseVolumeTextureRuntime is serialize in.
-	GenerateOrLoadDDCRuntimeData(FrameIndex);
-#endif
-
-	// Runtime data is now valid, create the render thread proxy
-	Frame.SparseVolumeTextureSceneProxy.InitialiseRuntimeData(Frame.SparseVolumeTextureRuntime);
-	BeginInitResource(&Frame.SparseVolumeTextureSceneProxy);
 }
 
 void UAnimatedSparseVolumeTexture::GenerateOrLoadDDCRuntimeData(int32 FrameIndex)
@@ -693,69 +835,21 @@ void UAnimatedSparseVolumeTexture::GenerateOrLoadDDCRuntimeData(int32 FrameIndex
 #endif // WITH_EDITORONLY_DATA
 }
 
-const FSparseVolumeAssetHeader* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureHeader() const
+void UAnimatedSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy(int32 FrameIndex)
 {
-	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using its first frame.
-	check(AnimationFrames.Num() >= 1);
-	const FSparseVolumeTextureFrame& Frame = AnimationFrames[PreviewFrameIndex];
-	return &Frame.SparseVolumeTextureRuntime.Header;
-}
+	FSparseVolumeTextureFrame& Frame = AnimationFrames[FrameIndex];
 
-FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureSceneProxy()
-{
-	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using its first frame.
-	check(AnimationFrames.Num() >= 1);
-	FSparseVolumeTextureFrame& Frame = AnimationFrames[PreviewFrameIndex];
-	return &Frame.SparseVolumeTextureSceneProxy;
-}
+	// Release any previously allocated render thread proxy
+	BeginReleaseResource(&Frame.SparseVolumeTextureSceneProxy);
 
-const FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureSceneProxy() const
-{
-	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using its first frame.
-	check(AnimationFrames.Num() >= 1);
-	const FSparseVolumeTextureFrame& Frame = AnimationFrames[PreviewFrameIndex];
-	return &Frame.SparseVolumeTextureSceneProxy;
-}
+#if WITH_EDITORONLY_DATA
+	// We only fetch/put DDC when in editor. Otherwise, StaticFrame.SparseVolumeTextureRuntime is serialize in.
+	GenerateOrLoadDDCRuntimeData(FrameIndex);
+#endif
 
-FVector4 UAnimatedSparseVolumeTexture::GetUniformParameter(int32 Index) const
-{
-	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using its first frame.
-	const FSparseVolumeTextureSceneProxy* Proxy = GetSparseVolumeTextureSceneProxy();
-	if (Proxy)
-	{
-		const FSparseVolumeAssetHeader& Header = Proxy->GetHeader();
-		switch (Index)
-		{
-		case ESparseVolumeTexture_PhysicalUVToPageUV:
-		{
-			// 3d uv coordinates are specified in [0, 1]. Before addressing the page tables which might have padding,
-			// since source volume resolution might not align to tile resolution, we have to rescale the uv so that [0,1] maps to the source texture boundaries.
-			FVector3f PhysicalUVToPageUV = FVector3f(Header.SourceVolumeResolution) / FVector3f(Header.PageTableVolumeResolution * SPARSE_VOLUME_TILE_RES);
-			return FVector4(PhysicalUVToPageUV.X, PhysicalUVToPageUV.Y, PhysicalUVToPageUV.Z, 0.0f);
-		}
-		case ESparseVolumeTexture_PageTableSize:
-		{
-			return FVector4(Header.PageTableVolumeResolution.X, Header.PageTableVolumeResolution.Y, Header.PageTableVolumeResolution.Z, 0.0f);
-		}
-		case ESparseVolumeTexture_TileSize:				return FVector4(float(SPARSE_VOLUME_TILE_RES), 0.0f, 0.0f, 0.0f);
-		default:
-			break;
-		}
-		check(0);
-		return FVector4(ForceInitToZero);
-	}
-
-	// 0 while waiting for the proxy
-	return FVector4(ForceInitToZero);
-}
-
-
-const FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureFrameSceneProxy(int32 FrameIndex) const
-{
-	check(AnimationFrames.Num() >= 1);
-	FrameIndex = FrameIndex % GetFrameCountToLoad();
-	// SVT_TODO when streaming is enabled, this will likely change.
-	return &AnimationFrames[FrameIndex].SparseVolumeTextureSceneProxy;
+	// Runtime data is now valid, create the render thread proxy
+	Frame.SparseVolumeTextureSceneProxy.InitialiseRuntimeData(Frame.SparseVolumeTextureRuntime);
+	BeginInitResource(&Frame.SparseVolumeTextureSceneProxy);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////

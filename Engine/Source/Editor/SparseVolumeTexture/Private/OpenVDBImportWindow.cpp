@@ -99,25 +99,6 @@ void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 			.AutoHeight()
 			.Padding(2)
 			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("OpenVDBImportWindow_FileInfo", "Source File Grid Info"))
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2)
-			[
-				SNew(SBorder)
-				.Padding(FMargin(3))
-				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
-				[
-					SNew(STextBlock)
-					.Text(FText::FromString(InArgs._FileInfoString))
-				]
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2)
-			[
 				SNew(SUniformGridPanel)
 				.SlotPadding(2)
 				+ SUniformGridPanel::Slot(1, 0)
@@ -145,6 +126,31 @@ void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		.Padding(2)
 		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			.Padding(2.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("ImportAsSequenceCheckBoxLabel", "Import Sequence"))
+			]
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			.Padding(2.0f)
+			[
+				SAssignNew(ImportAsSequenceCheckBox, SCheckBox)
+				.ToolTipText(LOCTEXT("ImportAsSequenceCheckBoxTooltip", "Import multiple sequentially labeled .vdb files as a single animated SparseVirtualTexture sequence."))
+				.IsChecked(false)
+			]
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2)
+		[
 			SAssignNew(PackedDataAConfigurator, SOpenVDBPackedDataConfigurator)
 			.PackedData(PackedDataA)
 			.OpenVDBGridComponentInfo(OpenVDBGridComponentInfo)
@@ -160,6 +166,25 @@ void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 			.OpenVDBGridComponentInfo(OpenVDBGridComponentInfo)
 			.OpenVDBSupportedTargetFormats(OpenVDBSupportedTargetFormats)
 			.PackedDataName(LOCTEXT("OpenVDBImportWindow_PackedDataB", "Packed Data B"))
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("OpenVDBImportWindow_FileInfo", "Source File Grid Info"))
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2)
+		[
+			SNew(SBorder)
+			.Padding(FMargin(3))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(InArgs._FileInfoString))
+			]
 		]
 	);
 
@@ -228,6 +253,11 @@ bool SOpenVDBImportWindow::ShouldImport() const
 	return bShouldImport;
 }
 
+bool SOpenVDBImportWindow::ShouldImportAsSequence() const
+{
+	return ImportAsSequenceCheckBox->IsChecked();
+}
+
 EActiveTimerReturnType SOpenVDBImportWindow::SetFocusPostConstruct(double InCurrentTime, float InDeltaTime)
 {
 	if (ImportButton.IsValid())
@@ -265,7 +295,7 @@ FReply SOpenVDBImportWindow::OnResetToDefaultClick()
 
 FText SOpenVDBImportWindow::GetImportTypeDisplayText() const
 {
-	return LOCTEXT("OpenVDBImportWindow_ImportType", "Import Static OpenVDB");
+	return ShouldImportAsSequence() ? LOCTEXT("OpenVDBImportWindow_ImportTypeAnimated", "Import OpenVDB animation") : LOCTEXT("OpenVDBImportWindow_ImportTypeStatic", "Import static OpenVDB");
 }
 
 void SOpenVDBImportWindow::SetDefaultGridAssignment()

@@ -40,11 +40,12 @@ bool Slabs(float3 p0, float3 p1, float3 rayOrigin, float3 invRaydir, out float o
 	return maxtmin <= mintmax;
 }
 
-float3 VolumeBoundMinWorld;
-float3 VolumeBoundMaxWorld;
 float4 WorldToLocal0;
 float4 WorldToLocal1;
 float4 WorldToLocal2;
+float3 WorldToLocalNoScale0;
+float3 WorldToLocalNoScale1;
+float3 WorldToLocalNoScale2;
 uint ComponentToVisualize;
 
 
@@ -89,7 +90,7 @@ void VisualizeSparseVolumeTexturePS(
 	float TMin = 0.0f;
 	float TMax = 0.0f;
 	float Transmittance = 1.0f;
-	if (Slabs(-1.0f, 1.0f, RayOrig, 1.0 / RayDir, TMin, TMax) && TMax > 0.0f)
+	if (Slabs(-1.0f, 1.0f, RayOrig, 1.0f / RayDir, TMin, TMax) && TMax > 0.0f)
 	{
 		Transmittance = 0.5; // show the bounding box
 
@@ -111,9 +112,15 @@ void VisualizeSparseVolumeTexturePS(
 		if (P.y > (VolumeResolution.y)) P.y = (VolumeResolution.y);
 		if (P.z > (VolumeResolution.z)) P.z = (VolumeResolution.z);
 
+		// DDA requires the ray direction not to be non-(uniformly) scaled.
+		float3 RayDirNoScale;
+		RayDirNoScale.x = dot(WorldToLocalNoScale0, RayDirWorld);
+		RayDirNoScale.y = dot(WorldToLocalNoScale1, RayDirWorld);
+		RayDirNoScale.z = dot(WorldToLocalNoScale2, RayDirWorld);
+
 		// Amanatides 3D-DDA data preparation
-		float3 stepSign = sign(RayDir);
-		float3 tDelta = abs(1.0 / RayDir);
+		float3 stepSign = sign(RayDirNoScale);
+		float3 tDelta = abs(1.0f / RayDirNoScale);
 		float3 tMax = float3(0.0, 0.0, 0.0);
 		float3 refPoint = floor(P);
 		tMax.x = stepSign.x > 0.0 ? refPoint.x + 1.0 - P.x : P.x - refPoint.x;
