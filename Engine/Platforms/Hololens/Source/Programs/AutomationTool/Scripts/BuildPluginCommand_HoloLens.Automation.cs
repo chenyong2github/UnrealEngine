@@ -24,7 +24,7 @@ public class BuildPlugin_HoloLens : BuildPlugin.TargetPlatform
 		{
 			FileReference ManifestFileName = FileReference.Combine(HostProjectFile.Directory, "Saved", String.Format("Manifest-{0}-{1}-{2}-{3}.xml", TargetName, Platform, Configuration, Arch));
 			ManifestFileNames.Add(ManifestFileName);
-			string Arguments = String.Format("-plugin={0} -iwyu -noubtmakefiles -manifest={1} -nohotreload", CommandUtils.MakePathSafeToUseWithCommandLine(HostProjectPluginFile.FullName), CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFileName.FullName));
+			string Arguments = String.Format("-plugin={0} -noubtmakefiles -manifest={1} -nohotreload", CommandUtils.MakePathSafeToUseWithCommandLine(HostProjectPluginFile.FullName), CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFileName.FullName));
 			Arguments += String.Format(" -Architecture={0}", Arch);
 			if (!String.IsNullOrEmpty(InAdditionalArgs))
 			{
@@ -43,7 +43,7 @@ public class BuildPlugin_HoloLens : BuildPlugin.TargetPlatform
 		{
 			FileReference ManifestFileName = FileReference.Combine(HostProjectFile.Directory, "Saved", String.Format("Manifest-{0}-{1}-{2}-{3}.xml", TargetName, Platform, Configuration, Arch));
 			ManifestFileNames.Add(ManifestFileName);
-			string Arguments = String.Format("-plugin={0} -iwyu -noubtmakefiles -manifest={1} -nohotreload", CommandUtils.MakePathSafeToUseWithCommandLine(HostProjectPluginFile.FullName), CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFileName.FullName));
+			string Arguments = String.Format("-plugin={0} -noubtmakefiles -manifest={1} -nohotreload", CommandUtils.MakePathSafeToUseWithCommandLine(HostProjectPluginFile.FullName), CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFileName.FullName));
 			Arguments += String.Format(" -Architecture={0}", Arch);
 			if (!String.IsNullOrEmpty(InAdditionalArgs))
 			{
