@@ -7,6 +7,7 @@ D3D12Stats.cpp:RHI Stats and timing implementation.
 #include "D3D12RHIPrivate.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 
 void D3D12RHI::FD3DGPUProfiler::BeginFrame()
 {
@@ -296,11 +297,24 @@ static FName GetD3D12BufferStat(EBufferUsageFlags InUsageFlags)
 	}
 }
 
-void UpdateBufferStats(EBufferUsageFlags InUsageFlags, int64 RequestedSize)
+void UpdateBufferStats(FD3D12Buffer* Buffer, bool bAllocating)
 {
-	INC_MEMORY_STAT_BY_FName(GetRHIBufferStats(InUsageFlags), RequestedSize);
-	INC_MEMORY_STAT_BY_FName(GetD3D12BufferStat(InUsageFlags), RequestedSize);
+	int64 BufferSize = Buffer->ResourceLocation.GetSize();
+	int64 RequestedSize = bAllocating ? BufferSize : -BufferSize;
+	EBufferUsageFlags UsageFlags = Buffer->GetUsage();
+
+	INC_MEMORY_STAT_BY_FName(GetRHIBufferStats(UsageFlags), RequestedSize);
+	INC_MEMORY_STAT_BY_FName(GetD3D12BufferStat(UsageFlags), RequestedSize);
 	INC_MEMORY_STAT_BY(STAT_D3D12MemoryCurrentTotal, RequestedSize);
+
+	if (bAllocating)
+	{
+		MemoryTrace_Alloc((uint64)Buffer->GetResource(), BufferSize, 0, EMemoryTraceRootHeap::VideoMemory);
+	}
+	else
+	{
+		MemoryTrace_Free((uint64)Buffer->GetResource(), EMemoryTraceRootHeap::VideoMemory);
+	}
 }
 
 #if NV_AFTERMATH

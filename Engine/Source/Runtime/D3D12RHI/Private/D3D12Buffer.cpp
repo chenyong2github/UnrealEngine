@@ -14,11 +14,10 @@ FD3D12Buffer::~FD3D12Buffer()
 		DefaultContext.StateCache.ClearVertexBuffer(&ResourceLocation);
 	}
 
-	int64 BufferSize = ResourceLocation.GetSize();
 	bool bTransient = ResourceLocation.IsTransient();
 	if (!bTransient)
 	{
-		UpdateBufferStats((EBufferUsageFlags)GetUsage(), -BufferSize);
+		UpdateBufferStats(this, false);
 	}
 }
 
@@ -404,7 +403,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 	// Don't track transient buffer stats here
 	if (!BufferOut->ResourceLocation.IsTransient())
 	{
-		UpdateBufferStats((EBufferUsageFlags)InUsage, BufferOut->ResourceLocation.GetSize());
+		UpdateBufferStats(BufferOut, true);
 	}
 
 	return BufferOut;
@@ -461,7 +460,7 @@ void FD3D12Buffer::ReleaseUnderlyingResource()
 	bool bTransient = ResourceLocation.IsTransient();
 	if (!bTransient)
 	{
-		UpdateBufferStats((EBufferUsageFlags)GetUsage(), -BufferSize);
+		UpdateBufferStats(this, false);
 	}
 
 	check(IsHeadLink());

@@ -808,7 +808,7 @@ public:
 	}
 };
 
-extern void UpdateBufferStats(EBufferUsageFlags UsageFlags, int64 RequestedSize);
+extern void UpdateBufferStats(class FD3D12Buffer* Buffer, bool bAllocating);
 
 /** Uniform buffer resource class. */
 class FD3D12UniformBuffer : public FRHIUniformBuffer, public FD3D12DeviceChild, public FD3D12LinkedAdapterObject<FD3D12UniformBuffer>
