@@ -282,10 +282,6 @@ FMovieSceneNiagaraSystemTrackImplementation::FMovieSceneNiagaraSystemTrackImplem
 
 void FMovieSceneNiagaraSystemTrackImplementation::Evaluate(const FMovieSceneEvaluationTrack& Track, TArrayView<const FMovieSceneFieldEntry_ChildTemplate> Children, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {
-	if (Track.GetSourceTrack()->IsEvalDisabled())
-	{
-		return;
-	}
 	ExecutionTokens.SetContext(Context);
 
 	// only add a token if there isn't one already, otherwise another track's token takes precendence
