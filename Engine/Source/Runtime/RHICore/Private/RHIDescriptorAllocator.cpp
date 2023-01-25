@@ -149,7 +149,7 @@ void FRHIDescriptorAllocator::Free(uint32 Offset, uint32 NumDescriptors)
 				{
 					// Merge with next range
 					Ranges[Index].Last = Ranges[Index + 1].Last;
-					Ranges.RemoveAt(Index);
+					Ranges.RemoveAt(Index + 1);
 				}
 				else
 				{
