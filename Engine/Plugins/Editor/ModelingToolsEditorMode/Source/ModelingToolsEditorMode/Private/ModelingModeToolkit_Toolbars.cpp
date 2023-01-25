@@ -111,7 +111,7 @@ void MakeSubMenu_GizmoVisibilityMode(FModelingToolsEditorModeToolkit* Toolkit, F
 	
 
 	MenuBuilder.AddSubMenu(
-		LOCTEXT("NumericalUISubMenu", "Numerical UI"), LOCTEXT("NumericalUISubMenu_ToolTip", "Configure the gizmo numerical UI."),
+		LOCTEXT("TransformPanelSubMenu", "Transform Panel"), LOCTEXT("TransformPanelSubMenu_ToolTip", "Configure the Gizmo Transform Panel."),
 		FNewMenuDelegate::CreateLambda([Toolkit](FMenuBuilder& SubMenuBuilder) {
 			TSharedPtr<STransformGizmoNumericalUIOverlay> NumericalUI = Toolkit->GetGizmoNumericalUIOverlayWidget();
 			if (ensure(NumericalUI.IsValid()))

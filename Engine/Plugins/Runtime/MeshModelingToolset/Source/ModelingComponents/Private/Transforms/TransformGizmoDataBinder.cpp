@@ -70,6 +70,10 @@ void FTransformGizmoDataBinder::UpdateDataValuesFromGizmo()
 	{
 		*BoundEulerAngles = CurrentRotation.Euler();
 	}
+
+	LastTranslation = *BoundTranslation;
+	LastEulerAngles = *BoundEulerAngles;
+	LastScale = *BoundScale;
 }
 
 // Key function for going from values to gizmo
@@ -186,6 +190,10 @@ void FTransformGizmoDataBinder::ResetToDeltaMode()
 	*BoundTranslation = ActualToBoundConversion ? ActualToBoundConversion(FVector::Zero()) : FVector::Zero();
 	*BoundEulerAngles = FVector::Zero();
 	*BoundScale = FVector::One();
+
+	LastTranslation = *BoundTranslation;
+	LastEulerAngles = *BoundEulerAngles;
+	LastScale = *BoundScale;
 }
 
 void FTransformGizmoDataBinder::SetToDestinationMode()
@@ -340,7 +348,9 @@ void FTransformGizmoDataBinder::UpdateAfterDataEdit()
 
 	// See if everything actually stayed the same. This is actually an important early-out because we don't want
 	// to emit undo/redo in this situation, and it arises in UI when a user click to edit a field but then doesn't.
-	bool bScaleChanged = !BoundScale->Equals(LastScale, KINDA_SMALL_NUMBER);
+
+	bool bScaleChanged = !BoundScale->Equals(LastScale, KINDA_SMALL_NUMBER); // saved since used further too
+
 	if (!bScaleChanged
 		&& BoundTranslation->Equals(LastTranslation, KINDA_SMALL_NUMBER)
 		&& BoundEulerAngles->Equals(LastEulerAngles, KINDA_SMALL_NUMBER))
@@ -349,26 +359,28 @@ void FTransformGizmoDataBinder::UpdateAfterDataEdit()
 	}
 
 	// Apply proportionality to the scale, if relevant
-	if (bScaleChanged && (bCurrentGizmoOnlyHasUniformScale ||
-		(bEnforceUniformScaleConstraintsIfPresent && CurrentlyTrackedGizmo.IsValid()
-			&& !CurrentlyTrackedGizmo->IsNonUniformScaleAllowed())))
+
+	auto ShouldEnforceUniformScale = [this]() {
+		return bEnforceUniformScaleConstraintsIfPresent && CurrentlyTrackedGizmo.IsValid()
+			&& !CurrentlyTrackedGizmo->IsNonUniformScaleAllowed();
+	};
+
+	if (bScaleChanged && (bCurrentGizmoOnlyHasUniformScale || ShouldEnforceUniformScale()))
 	{
-		FVector3d ReferenceVector = bInDataEditSequence ? ProportionalDragInitialVector : *BoundScale;
+		// Figure out which component changed.
 		FVector3d Difference = *BoundScale - LastScale;
 		int32 DifferenceMaxElementIndex = UE::Geometry::MaxAbsElementIndex(Difference);
-		double ReferenceValue = ReferenceVector[DifferenceMaxElementIndex];
 
-		if (ReferenceValue == 0)
+		FVector3d ReferenceVectorToUse = bInDataEditSequence ? ProportionalDragInitialVector : LastScale;
+		if (ReferenceVectorToUse[DifferenceMaxElementIndex] == 0)
 		{
-			ReferenceValue = 1;
+			// It's not clear how to apply proporitional scale if the scrubbed/changed value was zero, but the editor 
+			// goes the route of changing it to be 1 beforehand and scaling the result. So, we do the same.
+			ReferenceVectorToUse[DifferenceMaxElementIndex] = 1;
 		}
 
-		*BoundScale = ReferenceVector * ((*BoundScale)[DifferenceMaxElementIndex] / ReferenceValue);
+		*BoundScale = ReferenceVectorToUse * ((*BoundScale)[DifferenceMaxElementIndex] / ReferenceVectorToUse[DifferenceMaxElementIndex]);
 	}
-
-	LastTranslation = *BoundTranslation;
-	LastEulerAngles = *BoundEulerAngles;
-	LastScale = *BoundScale;
 
 	// Apply the bound values to the gizmo
 	if (CurrentlyTrackedGizmo.IsValid() && CurrentlyTrackedGizmo->ActiveTarget)
@@ -391,6 +403,10 @@ void FTransformGizmoDataBinder::UpdateAfterDataEdit()
 				GetGizmoTransformFromDataValues(CurrentlyTrackedGizmo->CurrentCoordinateSystem == EToolContextCoordinateSystem::Local));
 		}
 	}
+
+	LastTranslation = *BoundTranslation;
+	LastEulerAngles = *BoundEulerAngles;
+	LastScale = *BoundScale;
 }
 
 void FTransformGizmoDataBinder::EndDataEditSequence()

@@ -493,8 +493,8 @@ void STransformGizmoNumericalUIOverlay::MakeNumericalUISubMenu(FMenuBuilder& Men
 			}
 			return NumericalUI.Pin()->IsEnabled();
 		}));
-	MenuBuilder.AddMenuEntry(LOCTEXT("NumericalUI_Enabled", "Enabled"), 
-		LOCTEXT("NumericalUI_Enabled_Tooltip", "Show the gizmo numerical UI floating panel when a gizmo is visible."),
+	MenuBuilder.AddMenuEntry(LOCTEXT("TransformPanel_Enabled", "Enabled"), 
+		LOCTEXT("TransformPanel_Enabled_Tooltip", "Show the Gizmo Transform Panel when a gizmo is visible."),
 		FSlateIcon(), NumericalUIAction, NAME_None, EUserInterfaceActionType::ToggleButton);
 
 	const FUIAction GizmoMode_ResetNumericalUIPosition(
@@ -509,8 +509,8 @@ void STransformGizmoNumericalUIOverlay::MakeNumericalUISubMenu(FMenuBuilder& Men
 		{
 			return NumericalUI.IsValid() && NumericalUI.Pin()->IsEnabled();
 		}));
-	MenuBuilder.AddMenuEntry(LOCTEXT("NumericalUI_ResetNumericalUIPosition", "Reset UI Position"),
-		LOCTEXT("NumericalUI_ResetNumericalUIPosition_Tooltip", "Reset the numerical UI position in the viewport."),
+	MenuBuilder.AddMenuEntry(LOCTEXT("TransformPanel_ResetPosition", "Reset Panel Position"),
+		LOCTEXT("TransformPanel_ResetPosition_Tooltip", "Reset the Gizmo Transform Panel position in the viewport."),
 		FSlateIcon(), GizmoMode_ResetNumericalUIPosition, NAME_None, EUserInterfaceActionType::Button);
 }
 
