@@ -7,8 +7,6 @@
 #include "Templates/UniquePtr.h"
 #include "Misc/AssertionMacros.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogChaosFlesh, Verbose, All);
-
 namespace ChaosFlesh 
 {
 	void GetTetFaces(const FIntVector4& Tet, FIntVector3& Face1, FIntVector3& Face2, FIntVector3& Face3, FIntVector3& Face4, const bool invert = false);

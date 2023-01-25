@@ -1112,12 +1112,13 @@ ReadGEO_v19(
 std::unique_ptr<std::istream> 
 unzip(const std::string& filename, std::unique_ptr<IFileHandle>& infile, std::ios::openmode mode=std::ios::in)
 {
+	std::unique_ptr<std::istream> stream;
+#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
 	FPlatformFileManager& FileManager = FPlatformFileManager::Get();
 	IPlatformFile& PlatformFile = FileManager.GetPlatformFile();
 	infile.reset(PlatformFile.OpenRead(*FString(filename.c_str()), false));
 
     FString errmsg;
-    std::unique_ptr<std::istream> stream;
 #ifdef USE_ZLIB
 	if(GZIP_FILE_HEADER header; header.Read(infile.get(), errmsg))
     {
@@ -1132,6 +1133,7 @@ unzip(const std::string& filename, std::unique_ptr<IFileHandle>& infile, std::io
     }
     if(stream)
         stream->imbue(std::locale::classic());
+#endif
     return stream;
 }
 

@@ -4,6 +4,7 @@
 #include "Dataflow/ChaosFleshEngineAssetNodes.h"
 
 #include "Chaos/Deformable/Utilities.h"
+#include "ChaosFlesh/ChaosFlesh.h"
 #include "Chaos/Utilities.h"
 #include "Chaos/UniformGrid.h"
 #include "ChaosFlesh/FleshCollection.h"

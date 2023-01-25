@@ -67,7 +67,7 @@ public:
 	TArray<int32> VertexIndicesIn;
 
 	UPROPERTY(meta = (DataflowInput, DisplayName = "BoneIndex"))
-	int32 BoneIndexIn;
+	int32 BoneIndexIn = INDEX_NONE;
 	
 	FKinematicInitializationDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)

@@ -3,6 +3,7 @@
 #include "Dataflow/ChaosFleshEngineAssetNodes.h"
 
 #include "Chaos/Math/Poisson.h"
+#include "ChaosFlesh/ChaosFlesh.h"
 #include "ChaosFlesh/FleshAsset.h"
 #include "ChaosFlesh/FleshCollection.h"
 #include "ChaosFlesh/FleshCollectionUtility.h"
@@ -12,8 +13,6 @@
 #include "GeometryCollection/TransformCollection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosFleshEngineAssetNodes)
-
-DEFINE_LOG_CATEGORY(LogChaosFlesh);
 
 namespace Dataflow
 {

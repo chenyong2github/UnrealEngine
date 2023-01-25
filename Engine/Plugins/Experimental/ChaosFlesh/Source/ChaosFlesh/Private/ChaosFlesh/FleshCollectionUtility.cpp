@@ -6,6 +6,7 @@
 
 #include "ChaosFlesh/FleshCollectionUtility.h"
 
+#include "ChaosFlesh/ChaosFlesh.h"
 #include "ChaosFlesh/FleshCollection.h"
 #include "ChaosFlesh/GEO.h"
 #include "ChaosFlesh/PB.h"
@@ -15,10 +16,6 @@
 #include "Misc/Paths.h"
 
 #include <fstream>
-
-// logging
-//#include "Logging\LogMacros.h"
-DEFINE_LOG_CATEGORY(LogChaosFlesh);
 
 namespace ChaosFlesh
 {
