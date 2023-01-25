@@ -257,7 +257,23 @@ namespace UnrealBuildTool
 		/// Applied to non-private headers that are part of the Engine folder.
 		/// </summary>
 		[CommandLine("-DeprecateTag")]
-		public string KeepRemovedIncludesInDeprecated = "UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2";
+		private string? HeaderDeprecationTagOverride;
+
+		public string HeaderDeprecationTag
+		{
+			get
+			{
+				if (!String.IsNullOrEmpty(HeaderDeprecationTagOverride))
+				{
+					return HeaderDeprecationTagOverride;
+				}
+				return EngineIncludeOrderHelper.GetLatestDeprecationDefine();
+			}
+			set
+			{
+				HeaderDeprecationTagOverride = value;
+			}
+		}
 
 		private string? GetModuleToUpdateName(TargetDescriptor Descriptor)
 		{
@@ -1216,7 +1232,7 @@ namespace UnrealBuildTool
 				// If file is public, in engine and we have a deprecation tag set we will 
 				// add a deprecated include scope at the end of the file (unless scope already exists, then we'll add it inside that)
 				string EngineDir = Unreal.EngineDirectory.FullName.Replace('\\', '/');
-				if (!IsPrivate && Info.File.StartsWith(EngineDir) && !String.IsNullOrEmpty(KeepRemovedIncludesInDeprecated))
+				if (!IsPrivate && Info.File.StartsWith(EngineDir) && !String.IsNullOrEmpty(HeaderDeprecationTag))
 				{
 					// Remove the includes in LinesRemoved
 					LinesRemoved.RemoveWhere(Line =>
@@ -1239,7 +1255,7 @@ namespace UnrealBuildTool
 					if (LinesRemoved.Count > 0)
 					{
 						int IndexOfDeprecateScope = -1;
-						string Match = "#if " + KeepRemovedIncludesInDeprecated;
+						string Match = "#if " + HeaderDeprecationTag;
 						for (int I = NewLines.Count - 1; I != 0; --I)
 						{
 							if (NewLines[I] == Match)

@@ -292,6 +292,25 @@ namespace UnrealBuildTool
 	/// </summary>
 	public class EngineIncludeOrderHelper
 	{
+		private static string GetDeprecationDefine(EngineIncludeOrderVersion InVersion)
+		{
+			switch (InVersion)
+			{
+				default:
+				case EngineIncludeOrderVersion.Unreal5_2:
+					return "UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2";
+				case EngineIncludeOrderVersion.Unreal5_1:
+					return "UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1";
+				case EngineIncludeOrderVersion.Unreal5_0:
+					return "UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_0";
+			}
+		}
+
+		private static string GetDeprecationDefine(EngineIncludeOrderVersion InTestVersion, EngineIncludeOrderVersion InVersion)
+		{
+			return GetDeprecationDefine(InTestVersion) + "=" + (InVersion < InTestVersion ? "1" : "0");
+		}
+
 		/// <summary>
 		/// Returns a list of every deprecation define available.
 		/// </summary>
@@ -300,8 +319,8 @@ namespace UnrealBuildTool
 		{
 			return new List<string>()
 			{
-				"UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1",
-				"UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2",
+				GetDeprecationDefine(EngineIncludeOrderVersion.Unreal5_1),
+				GetDeprecationDefine(EngineIncludeOrderVersion.Unreal5_2),
 			};
 		}
 
@@ -314,9 +333,18 @@ namespace UnrealBuildTool
 		{
 			return new List<string>()
 			{
-				"UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1=" + (InVersion < EngineIncludeOrderVersion.Unreal5_1 ? "1" : "0"),
-				"UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2=" + (InVersion < EngineIncludeOrderVersion.Unreal5_2 ? "1" : "0"),
+				GetDeprecationDefine(EngineIncludeOrderVersion.Unreal5_1, InVersion),
+				GetDeprecationDefine(EngineIncludeOrderVersion.Unreal5_2, InVersion),
 			};
+		}
+
+		/// <summary>
+		/// Returns the latest deprecation define.
+		/// </summary>
+		/// <returns></returns>
+		public static string GetLatestDeprecationDefine()
+		{
+			return GetDeprecationDefine(EngineIncludeOrderVersion.Latest);
 		}
 	}
 
