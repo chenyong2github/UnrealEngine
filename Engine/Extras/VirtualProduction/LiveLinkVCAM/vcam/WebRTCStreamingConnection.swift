@@ -38,7 +38,7 @@ class WebRTCStreamingConnection : StreamingConnection {
             self._url?.absoluteString ?? ""
         }
         set {
-            self._url = URL(string: "ws://\(newValue):80")!
+            self._url = URL(string: "ws://\(newValue):80")
         }
     }
     
@@ -132,15 +132,19 @@ class WebRTCStreamingConnection : StreamingConnection {
     
     override func connect() throws {
         
+        guard let url = self._url else {
+            throw StreamingConnectionError.runtimeError("The destination address wasn't formatted properly.")
+        }
+        
         if signalClient == nil {
             
             // We will use 3rd party library for websockets.
             let webSocketProvider: WebSocketProvider
             
             if #available(iOS 13.0, *) {
-                webSocketProvider = NativeWebSocketProvider(url: self._url!, timeout: 2.0)
+                webSocketProvider = NativeWebSocketProvider(url: url, timeout: 2.0)
             } else {
-                webSocketProvider = StarscreamWebSocket(url: self._url!)
+                webSocketProvider = StarscreamWebSocket(url: url)
             }
             
             self.signalClient = SignalingClient(webSocket: webSocketProvider)

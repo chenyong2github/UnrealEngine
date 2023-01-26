@@ -238,20 +238,28 @@ class StartViewController : BaseViewController {
             }
 
             do {
-                self.streamingConnection?.destination = self.ipAddress.text!
+                self.streamingConnection?.destination = self.ipAddress.text!.trimmed()
                 try self.streamingConnection?.connect()
                 
+            } catch StreamingConnectionError.runtimeError(let errorMessage) {
+                
+                showConnectionErrorAlert(errorMessage)
+
             } catch {
                 
-                hideConnectingAlertView() {
-
-                    let errorAlert = UIAlertController(title: Localized.titleError(), message: "Couldn't connect : \(error.localizedDescription)", preferredStyle: .alert)
-                    errorAlert.addAction(UIAlertAction(title: Localized.buttonOK(), style: .default, handler: { _ in
-                        self.hideConnectingView { }
-                    }))
-                    self.present(errorAlert, animated: true)
-                }
+                showConnectionErrorAlert("Couldn't connect : \(error.localizedDescription)")
             }
+        }
+    }
+    
+    func showConnectionErrorAlert(_ message : String) {
+        hideConnectingAlertView() {
+
+            let errorAlert = UIAlertController(title: Localized.titleError(), message: "Couldn't connect : \(message)", preferredStyle: .alert)
+            errorAlert.addAction(UIAlertAction(title: Localized.buttonOK(), style: .default, handler: { _ in
+                self.hideConnectingView { }
+            }))
+            self.present(errorAlert, animated: true)
         }
     }
     

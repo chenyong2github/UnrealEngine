@@ -26,6 +26,12 @@ enum StreamingConnectionTouchType : String {
     case ended = "Ended"
 }
 
+enum StreamingConnectionError: Error {
+    case runtimeError(String)
+}
+
+
+
 enum StreamingConnectionControllerInputType : String {
     case thumbstickLeftX = "Gamepad_LeftX"
     case thumbstickLeftY = "Gamepad_LeftY"
