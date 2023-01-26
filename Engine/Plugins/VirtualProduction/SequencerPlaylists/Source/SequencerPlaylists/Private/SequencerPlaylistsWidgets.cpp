@@ -345,7 +345,7 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_Transport()
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked(this, &SSequencerPlaylistPanel::HandleClicked_PlayAll)
-			.ToolTipText(LOCTEXT("PlayAllReverseButtonTooltip", "Pause all items."))
+			.ToolTipText(LOCTEXT("PauseAllButtonTooltip", "Pause all items."))
 			[
 				SNew(SImage)
 				.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Pause"))
