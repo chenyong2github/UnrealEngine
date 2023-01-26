@@ -1302,7 +1302,6 @@ FNiagaraPlatformSet::FPlatformIniSettings& FNiagaraPlatformSet::GetPlatformIniSe
 	{
 		FindCVarValue(TEXT("SystemSettings"), TEXT("sg.EffectsQuality"), EffectsQuality);
 	}
-	EffectsQuality = FMath::Clamp(EffectsQuality, MinQualityLevel, MaxQualityLevel);
 
 	//Get the platforms default quality level setting.
 	//This can be overridden directly in a device profile or indirectly by overriding effects quality.
