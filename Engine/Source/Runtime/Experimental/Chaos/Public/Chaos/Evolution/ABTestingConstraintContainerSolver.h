@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/ConstraintHandle.h"
-
+#include "Chaos/Evolution/SolverBodyContainer.h"
+#include "Chaos/Evolution/SolverConstraintContainer.h"
 #include <functional>
 
 #ifndef CHAOS_ABTEST_CONSTRAINTSOLVER_ENABLED

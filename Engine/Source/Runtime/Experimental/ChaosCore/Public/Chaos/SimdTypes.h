@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/Real.h"
-#include "Chaos/Vector.h"
+#include "Chaos/Core.h"
 
 namespace Chaos
 {
