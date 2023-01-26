@@ -74,7 +74,6 @@ FReply FNiagaraSystemToolkitParameterPanelUtilities::CreateDragEventForParameter
 
 	//@todo(ng) refactor drag action to not carry around the reference collection; graph ptr goes unused.
 	FNiagaraGraphParameterReferenceCollection ReferenceCollection = FNiagaraGraphParameterReferenceCollection(true);
-	ReferenceCollection.Graph = nullptr;
 	ReferenceCollection.ParameterReferences = GraphParameterReferencesForItem;
 	const TArray<FNiagaraGraphParameterReferenceCollection> ReferenceCollectionArray = { ReferenceCollection };
 	const FText Name = FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(DraggedItem.GetVariable().GetName());
@@ -97,7 +96,6 @@ FReply FNiagaraScriptToolkitParameterPanelUtilities::CreateDragEventForParameter
 
 	//@todo(ng) refactor drag action to not carry around the reference collection; graph ptr goes unused.
 	FNiagaraGraphParameterReferenceCollection ReferenceCollection = FNiagaraGraphParameterReferenceCollection(true);
-	ReferenceCollection.Graph = nullptr;
 	ReferenceCollection.ParameterReferences = GraphParameterReferencesForItem;
 	const TArray<FNiagaraGraphParameterReferenceCollection> ReferenceCollectionArray = { ReferenceCollection };
 	const FText Name = FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(DraggedItem.GetVariable().GetName());

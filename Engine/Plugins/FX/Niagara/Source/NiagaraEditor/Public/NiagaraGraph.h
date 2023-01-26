@@ -59,14 +59,12 @@ struct FNiagaraGraphParameterReferenceCollection
 
 	GENERATED_USTRUCT_BODY()
 public:
-	FNiagaraGraphParameterReferenceCollection(const bool bInCreated = false);
+	FNiagaraGraphParameterReferenceCollection() = default;
+	FNiagaraGraphParameterReferenceCollection(bool bInCreated);
 
 	/** All the references in the graph. */
 	UPROPERTY()
 	TArray<FNiagaraGraphParameterReference> ParameterReferences;
-
-	UPROPERTY()
-	TObjectPtr<const UNiagaraGraph> Graph;
 
 	/** Returns true if this parameter was initially created by the user. */
 	bool WasCreatedByUser() const;
@@ -74,7 +72,7 @@ public:
 private:
 	/** Whether this parameter was initially created by the user. */
 	UPROPERTY()
-	bool bCreatedByUser;
+	bool bCreatedByUser = false;
 };
 
 
@@ -282,20 +280,23 @@ class UNiagaraGraph : public UEdGraph
 	/** Walk through the graph for an ParameterMapGet nodes and find all matching default pins for VariableName, irrespective of usage. */
 	TArray<UEdGraphPin*> FindParameterMapDefaultValuePins(const FName VariableName) const;
 
+	/** Rebuilds the internally stored ParameterRefrenceMap if it has been marked dirty.  Used to explicitly trigger the rebuild rather than
+	impliticly rebuilding it through a call to GetParameterReferenceMap(). */
+	NIAGARAEDITOR_API void ConditionalRefreshParameterReferences();
+
+	const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& GetParameterReferenceMap() const; // NOTE: The const is a lie! (This indirectly calls RefreshParameterReferences, which can recreate the entire map)
+
 	/** Gets the meta-data associated with this variable, if it exists.*/
 	TOptional<FNiagaraVariableMetaData> GetMetaData(const FNiagaraVariable& InVar) const;
 
 	/** Sets the meta-data associated with this variable. Creates a new UNiagaraScriptVariable if the target variable cannot be found. Illegal to call on FNiagaraVariables that are Niagara Constants. */
 	void SetMetaData(const FNiagaraVariable& InVar, const FNiagaraVariableMetaData& MetaData);
 
-	const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& GetParameterReferenceMap() const; // NOTE: The const is a lie! (This indirectly calls RefreshParameterReferences, which can recreate the entire map)
-
 	// These functions are not supported for compilation copies
-	NIAGARAEDITOR_API const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& GetAllMetaData() const;
-	NIAGARAEDITOR_API TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& GetAllMetaData();
+	using FScriptVariableMap = TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>;
 
-	UNiagaraScriptVariable* GetScriptVariable(FNiagaraVariable Parameter, bool bUpdateIfPending = false);
-	NIAGARAEDITOR_API UNiagaraScriptVariable* GetScriptVariable(FName ParameterName, bool bUpdateIfPending = false);
+	NIAGARAEDITOR_API const FScriptVariableMap& GetAllMetaData() const;
+	NIAGARAEDITOR_API FScriptVariableMap& GetAllMetaData();
 
 	UNiagaraScriptVariable* GetScriptVariable(FNiagaraVariable Parameter) const;
 	NIAGARAEDITOR_API UNiagaraScriptVariable* GetScriptVariable(FName ParameterName) const;
@@ -435,6 +436,7 @@ protected:
 	TMap<TPair<FGuid, UEdGraphNode*>, FNiagaraTypeDefinition> CachedNumericConversions;
 	void ResolveNumerics(TMap<UNiagaraNode*, bool>& VisitedNodes, UEdGraphNode* Node);
 	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, const TArray<UNiagaraNode*>& InTraversal) const;
+	UNiagaraScriptVariable* CreateScriptVariableInternal(const FNiagaraVariable& Parameter, const FNiagaraVariableMetaData& ParameterMetaData, bool bIsStaticSwitch);
 
 private:
 	virtual void NotifyGraphChanged(const FEdGraphEditAction& InAction) override;
@@ -462,6 +464,7 @@ private:
 	void FixupReferenceCollectionsPostRename(const FNiagaraVariable& OrigVariable, const FNiagaraVariable& DestVariable, bool bParameterMerged, bool bSuppressEvents);
 
 	void PostLoad_LWCFixup(int32 NiagaraVersion);
+	void PostLoad_ManageScriptVariables(int32 NiagaraVersion);
 
 private:
 	/** The current change identifier for this graph overall. Used to sync status with UNiagaraScripts.*/
@@ -491,7 +494,7 @@ private:
 
 	/** Storage of variables defined for use with this graph.*/
 	UPROPERTY()
-	mutable TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>> VariableToScriptVariable;
+	TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>> VariableToScriptVariable;
 
 	/** A map of parameters in the graph to their referencers. */
 	UPROPERTY(Transient)
