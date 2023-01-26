@@ -6,6 +6,8 @@ public class AppFramework : ModuleRules
 {
 	public AppFramework(ReadOnlyTargetRules Target) : base(Target)
 	{
+		NumIncludedBytesPerUnityCPPOverride = 196608; // best unity size found from using UBT ProfileUnitySizes mode
+
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
