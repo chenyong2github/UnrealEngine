@@ -55,7 +55,8 @@ void UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchConte
 	check(InOutQuery.GetSchema());
 	const bool bIsCurrentResultValid = SearchContext.CurrentResult.IsValid();
 	const bool bSkip = InputQueryPose != EInputQueryPose::UseCharacterPose && bIsCurrentResultValid && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
-	if (bSkip || !SearchContext.History)
+	const bool bBoneValid = InOutQuery.GetSchema()->BoneReferences[SchemaBoneIdx].HasValidSetup();
+	if (bSkip || (!SearchContext.History && bBoneValid))
 	{
 		if (bIsCurrentResultValid)
 		{
@@ -68,7 +69,7 @@ void UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchConte
 	else
 	{
 		FTransform Transform;
-		if (InOutQuery.GetSchema()->BoneReferences[SchemaBoneIdx].HasValidSetup())
+		if (bBoneValid)
 		{
 			// calculating the Transform in component space for the bone indexed by SchemaBoneIdx
 			Transform = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema(), SchemaBoneIdx);

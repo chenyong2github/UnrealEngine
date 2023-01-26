@@ -70,12 +70,14 @@ void UPoseSearchFeatureChannel_Heading::BuildQuery(UE::PoseSearch::FSearchContex
 
 	const bool bIsCurrentResultValid = SearchContext.CurrentResult.IsValid();
 	const bool bSkip = InputQueryPose != EInputQueryPose::UseCharacterPose && bIsCurrentResultValid && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
-	if (bSkip || !SearchContext.History)
+	const bool bBoneValid = InOutQuery.GetSchema()->BoneReferences[SchemaBoneIdx].HasValidSetup();
+	if (bSkip || (!SearchContext.History && bBoneValid))
 	{
 		if (bIsCurrentResultValid)
 		{
 			const float LerpValue = InputQueryPose == EInputQueryPose::UseInterpolatedContinuingPose ? SearchContext.CurrentResult.LerpValue : 0.f;
 			int32 DataOffset = ChannelDataOffset;
+			// @todo: we should normalize if LerpValue != 0
 			FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, SearchContext.GetCurrentResultPrevPoseVector(), SearchContext.GetCurrentResultPoseVector(), SearchContext.GetCurrentResultNextPoseVector(), LerpValue, true);
 		}
 		// else leave the InOutQuery set to zero since the SearchContext.History is invalid and it'll fail if we continue
@@ -83,7 +85,7 @@ void UPoseSearchFeatureChannel_Heading::BuildQuery(UE::PoseSearch::FSearchContex
 	else
 	{
 		FTransform Transform;
-		if (InOutQuery.GetSchema()->BoneReferences[SchemaBoneIdx].HasValidSetup())
+		if (bBoneValid)
 		{
 			// calculating the Transform in component space for the bone indexed by SchemaBoneIdx
 			Transform = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema(), SchemaBoneIdx);
