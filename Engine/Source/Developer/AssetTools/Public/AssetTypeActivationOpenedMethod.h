@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UObject/ObjectMacros.h"
+#include "AssetTypeActivationOpenedMethod.generated.h"
 
 /**
  *	(jcotton) This enum has been extracted into a separate header as it would ideally live in IAssetTypeActions.h or AssetTypeActions_Base.h, 

@@ -109,5 +109,11 @@ public class AssetTools : ModuleRules
                 "VirtualTexturingEditor"
             }
 		);
+
+		CircularlyReferencedDependentModules.AddRange(
+			new string[] {
+				"UnrealEd",
+			}
+		);
 	}
 }
