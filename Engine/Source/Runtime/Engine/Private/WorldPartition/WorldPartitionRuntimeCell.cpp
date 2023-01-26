@@ -39,7 +39,7 @@ void UWorldPartitionRuntimeCell::PostDuplicate(bool bDuplicateForPIE)
 		{
 			if (ensure(Actor))
 			{
-				// Don't use AActor::Rename here since the actor is not par of the world, it's only a duplication template.	
+				// Don't use AActor::Rename here since the actor is not part of the world, it's only a duplication template.	
 				Actor->UObject::Rename(nullptr, UnsavedActorsContainer);
 			}
 		}

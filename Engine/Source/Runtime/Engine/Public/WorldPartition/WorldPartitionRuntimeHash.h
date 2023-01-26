@@ -12,6 +12,7 @@
 #include "WorldPartition/WorldPartitionRuntimeCellOwner.h"
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartition/WorldPartitionStreamingGeneration.h"
+#include "WorldPartition/WorldPartitionStreamingGenerationContext.h"
 #if WITH_EDITOR
 #include "CookPackageSplitter.h"
 #include "Misc/HierarchicalLogArchive.h"
@@ -19,7 +20,6 @@
 #include "WorldPartitionRuntimeHash.generated.h"
 
 class FActorDescViewMap;
-class IStreamingGenerationContext;
 struct FHierarchicalLogArchive;
 
 UENUM()
@@ -83,12 +83,13 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject, public IWorldParti
 #if WITH_EDITOR
 	virtual void SetDefaultValues() {}
 	virtual bool SupportsHLODs() const { return false; }
-	virtual bool PrepareGeneratorPackageForCook(TArray<UPackage*>& OutModifiedPackages) { return false; }
-	virtual bool PopulateGeneratorPackageForCook(const TArray<FWorldPartitionCookPackage*>& PackagesToCook, TArray<UPackage*>& OutModifiedPackages) { return false; }
-	virtual bool PopulateGeneratedPackageForCook(const FWorldPartitionCookPackage& PackagesToCook, TArray<UPackage*>& OutModifiedPackages) { return false; }
-	virtual UWorldPartitionRuntimeCell* GetCellForPackage(const FWorldPartitionCookPackage& PackageToCook) const { return nullptr; }
-	virtual bool GenerateStreaming(class UWorldPartitionStreamingPolicy* StreamingPolicy, const IStreamingGenerationContext* StreamingGenerationContext, TArray<FString>* OutPackagesToGenerate) { return false; }
-	virtual void FlushStreaming() {}
+	virtual bool PrepareGeneratorPackageForCook(TArray<UPackage*>& OutModifiedPackages);
+	virtual bool PopulateGeneratorPackageForCook(const TArray<FWorldPartitionCookPackage*>& PackagesToCook, TArray<UPackage*>& OutModifiedPackages);
+	virtual bool PopulateGeneratedPackageForCook(const FWorldPartitionCookPackage& PackagesToCook, TArray<UPackage*>& OutModifiedPackages);
+	virtual UWorldPartitionRuntimeCell* GetCellForPackage(const FWorldPartitionCookPackage& PackageToCook) const;
+	virtual TArray<UWorldPartitionRuntimeCell*> GetAlwaysLoadedCells() const;
+	virtual bool GenerateStreaming(class UWorldPartitionStreamingPolicy* StreamingPolicy, const IStreamingGenerationContext* StreamingGenerationContext, TArray<FString>* OutPackagesToGenerate);
+	virtual void FlushStreaming();
 	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper, const IStreamingGenerationContext* StreamingGenerationContext, bool bCreateActorsOnly) { return false; }
 	virtual bool IsValidGrid(FName GridName) const { return false; }
 	virtual void DrawPreview() const {}
@@ -101,8 +102,17 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject, public IWorldParti
 	void OnBeginPlay();
 	void OnEndPlay();
 
+	inline UWorldPartitionRuntimeCell* CreateRuntimeCell(UClass* CellClass, UClass* CellDataClass, FName CellName)
+	{
+		check(!FindObject<UWorldPartitionRuntimeCell>(this, *CellName.ToString()));
+		UWorldPartitionRuntimeCell* RuntimeCell = NewObject<UWorldPartitionRuntimeCell>(this, CellClass, CellName);
+		RuntimeCell->RuntimeCellData = NewObject<UWorldPartitionRuntimeCellData>(RuntimeCell, CellDataClass);
+		return RuntimeCell;
+	}
+
 protected:
-	bool ConditionalRegisterAlwaysLoadedActorsForPIE(const FWorldPartitionActorDescView& ActorDescView, bool bIsMainWorldPartition, bool bIsMainContainer, bool bIsCellAlwaysLoaded);
+	bool ConditionalRegisterAlwaysLoadedActorsForPIE(const IStreamingGenerationContext::FActorSetInstance* ActorSetInstance, bool bIsMainWorldPartition, bool bIsMainContainer, bool bIsCellAlwaysLoaded);
+	void PopulateRuntimeCell(UWorldPartitionRuntimeCell* RuntimeCell, const TArray<IStreamingGenerationContext::FActorInstance>& ActorInstances, TArray<FString>* OutPackagesToGenerate);
 #endif
 
 public:
@@ -170,6 +180,8 @@ protected:
 	};
 
 	TArray<FAlwaysLoadedActorForPIE> AlwaysLoadedActorsForPIE;
+
+	TMap<FString, UWorldPartitionRuntimeCell*> PackagesToGenerateForCook;
 
 public:
 	mutable FActorDescList ModifiedActorDescListForPIE;

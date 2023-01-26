@@ -6,6 +6,9 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
+#if WITH_EDITOR
+#include "WorldPartition/Cook/WorldPartitionCookPackage.h"
+#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeHash)
 
@@ -48,36 +51,180 @@ void UWorldPartitionRuntimeHash::OnEndPlay()
 	ModifiedActorDescListForPIE.Empty();
 }
 
+bool UWorldPartitionRuntimeHash::GenerateStreaming(class UWorldPartitionStreamingPolicy* StreamingPolicy, const IStreamingGenerationContext* StreamingGenerationContext, TArray<FString>* OutPackagesToGenerate)
+{
+	return PackagesToGenerateForCook.IsEmpty();
+}
+
+void UWorldPartitionRuntimeHash::FlushStreaming()
+{
+	PackagesToGenerateForCook.Empty();
+}
+
 // In PIE, Always loaded cell is not generated. Instead, always loaded actors will be added to AlwaysLoadedActorsForPIE.
 // This will trigger loading/registration of these actors in the PersistentLevel (if not already loaded).
 // Then, duplication of world for PIE will duplicate only these actors. 
 // When stopping PIE, WorldPartition will release these FWorldPartitionReferences which 
 // will unload actors that were not already loaded in the non PIE world.
-bool UWorldPartitionRuntimeHash::ConditionalRegisterAlwaysLoadedActorsForPIE(const FWorldPartitionActorDescView& ActorDescView, bool bIsMainWorldPartition, bool bIsMainContainer, bool bIsCellAlwaysLoaded)
+bool UWorldPartitionRuntimeHash::ConditionalRegisterAlwaysLoadedActorsForPIE(const IStreamingGenerationContext::FActorSetInstance* ActorSetInstance, bool bIsMainWorldPartition, bool bIsMainContainer, bool bIsCellAlwaysLoaded)
 {
 	if (bIsMainWorldPartition && bIsMainContainer && bIsCellAlwaysLoaded && !IsRunningCookCommandlet())
 	{
-		// This will load the actor if it isn't already loaded
-		FWorldPartitionReference Reference(GetOuterUWorldPartition(), ActorDescView.GetGuid());
-
-		if (AActor* AlwaysLoadedActor = FindObject<AActor>(nullptr, *ActorDescView.GetActorSoftPath().ToString()))
+		for (const FGuid& ActorGuid : ActorSetInstance->ActorSet->Actors)
 		{
-			AlwaysLoadedActorsForPIE.Emplace(Reference, AlwaysLoadedActor);
+			IStreamingGenerationContext::FActorInstance ActorInstance(ActorGuid, ActorSetInstance);
+			const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
 
-			// Handle child actors
-			AlwaysLoadedActor->ForEachComponent<UChildActorComponent>(true, [this, &Reference](UChildActorComponent* ChildActorComponent)
+			// This will load the actor if it isn't already loaded
+			FWorldPartitionReference Reference(GetOuterUWorldPartition(), ActorDescView.GetGuid());
+
+			if (AActor* AlwaysLoadedActor = FindObject<AActor>(nullptr, *ActorDescView.GetActorSoftPath().ToString()))
 			{
-				if (AActor* ChildActor = ChildActorComponent->GetChildActor())
+				AlwaysLoadedActorsForPIE.Emplace(Reference, AlwaysLoadedActor);
+
+				// Handle child actors
+				AlwaysLoadedActor->ForEachComponent<UChildActorComponent>(true, [this, &Reference](UChildActorComponent* ChildActorComponent)
 				{
-					AlwaysLoadedActorsForPIE.Emplace(Reference, ChildActor);
-				}
-			});
+					if (AActor* ChildActor = ChildActorComponent->GetChildActor())
+					{
+						AlwaysLoadedActorsForPIE.Emplace(Reference, ChildActor);
+					}
+				});
+			}
 		}
 
 		return true;
 	}
 
 	return false;
+}
+
+void UWorldPartitionRuntimeHash::PopulateRuntimeCell(UWorldPartitionRuntimeCell* RuntimeCell, const TArray<IStreamingGenerationContext::FActorInstance>& ActorInstances, TArray<FString>* OutPackagesToGenerate)
+{
+	for (const IStreamingGenerationContext::FActorInstance& ActorInstance : ActorInstances)
+	{
+		if (ActorInstance.GetContainerID().IsMainContainer())
+		{
+			const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
+			if (AActor* Actor = FindObject<AActor>(nullptr, *ActorDescView.GetActorSoftPath().ToString()))
+			{
+				if (ModifiedActorDescListForPIE.GetActorDesc(ActorDescView.GetGuid()))
+				{
+					// Create an actor container to make sure duplicated actors will share an outer to properly remap inter-actors references
+					RuntimeCell->UnsavedActorsContainer = NewObject<UActorContainer>(RuntimeCell);
+					break;
+				}
+			}
+		}
+	}
+
+	FBox CellContentBounds(ForceInit);
+	for (const IStreamingGenerationContext::FActorInstance& ActorInstance : ActorInstances)
+	{
+		const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
+		RuntimeCell->AddActorToCell(ActorDescView, ActorInstance.GetContainerID(), ActorInstance.GetTransform(), ActorInstance.GetActorDescContainer());
+		CellContentBounds += ActorDescView.GetRuntimeBounds().TransformBy(ActorInstance.GetTransform());
+					
+		if (ActorInstance.GetContainerID().IsMainContainer() && RuntimeCell->UnsavedActorsContainer)
+		{
+			if (AActor* Actor = FindObject<AActor>(nullptr, *ActorDescView.GetActorSoftPath().ToString()))
+			{
+				RuntimeCell->UnsavedActorsContainer->Actors.Add(Actor->GetFName(), Actor);
+
+				// Handle child actors
+				Actor->ForEachComponent<UChildActorComponent>(true, [RuntimeCell](UChildActorComponent* ChildActorComponent)
+				{
+					if (AActor* ChildActor = ChildActorComponent->GetChildActor())
+					{
+						RuntimeCell->UnsavedActorsContainer->Actors.Add(ChildActor->GetFName(), ChildActor);
+					}
+				});
+			}
+		}
+	}
+
+	RuntimeCell->RuntimeCellData->ContentBounds = CellContentBounds;
+
+	// Always loaded cell actors are transfered to World's Persistent Level (see UWorldPartitionRuntimeSpatialHash::PopulateGeneratorPackageForCook)
+	if (OutPackagesToGenerate && RuntimeCell->GetActorCount() && !RuntimeCell->IsAlwaysLoaded())
+	{
+		const FString PackageRelativePath = RuntimeCell->GetPackageNameToCreate();
+		check(!PackageRelativePath.IsEmpty());
+
+		OutPackagesToGenerate->Add(PackageRelativePath);
+
+		// Map relative package to StreamingCell for PopulateGeneratedPackageForCook/PopulateGeneratorPackageForCook/GetCellForPackage
+		PackagesToGenerateForCook.Add(PackageRelativePath, RuntimeCell);
+
+		UE_CLOG(IsRunningCookCommandlet(), LogWorldPartition, Log, TEXT("Creating runtime streaming cells %s."), *RuntimeCell->GetName());
+	}
+}
+
+bool UWorldPartitionRuntimeHash::PopulateGeneratedPackageForCook(const FWorldPartitionCookPackage& InPackagesToCook, TArray<UPackage*>& OutModifiedPackages)
+{
+	OutModifiedPackages.Reset();
+	if (UWorldPartitionRuntimeCell** MatchingCell = PackagesToGenerateForCook.Find(InPackagesToCook.RelativePath))
+	{
+		UWorldPartitionRuntimeCell* Cell = *MatchingCell;
+		if (ensure(Cell))
+		{
+			return Cell->PopulateGeneratedPackageForCook(InPackagesToCook.GetPackage(), OutModifiedPackages);
+		}
+	}
+	return false;
+}
+
+UWorldPartitionRuntimeCell* UWorldPartitionRuntimeHash::GetCellForPackage(const FWorldPartitionCookPackage& PackageToCook) const
+{
+	UWorldPartitionRuntimeCell** MatchingCell = const_cast<UWorldPartitionRuntimeCell**>(PackagesToGenerateForCook.Find(PackageToCook.RelativePath));
+	return MatchingCell ? *MatchingCell : nullptr;
+}
+
+TArray<UWorldPartitionRuntimeCell*> UWorldPartitionRuntimeHash::GetAlwaysLoadedCells() const
+{
+	TArray<UWorldPartitionRuntimeCell*> Result;
+	ForEachStreamingCells([&Result](const UWorldPartitionRuntimeCell* Cell)
+	{
+		if (Cell->IsAlwaysLoaded())
+		{
+			Result.Add(const_cast<UWorldPartitionRuntimeCell*>(Cell));
+		}
+		return true;
+	});
+	return Result;
+}
+
+bool UWorldPartitionRuntimeHash::PrepareGeneratorPackageForCook(TArray<UPackage*>& OutModifiedPackages)
+{
+	check(IsRunningCookCommandlet());
+
+	for (UWorldPartitionRuntimeCell* Cell : GetAlwaysLoadedCells())
+	{
+		check(Cell->IsAlwaysLoaded());
+		if (!Cell->PopulateGeneratorPackageForCook(OutModifiedPackages))
+		{
+			return false;
+		}
+	}
+
+	//@todo_ow: here we can safely remove always loaded cells as they are not part of the OutPackagesToGenerate
+	return true;
+}
+
+bool UWorldPartitionRuntimeHash::PopulateGeneratorPackageForCook(const TArray<FWorldPartitionCookPackage*>& InPackagesToCook, TArray<UPackage*>& OutModifiedPackages)
+{
+	check(IsRunningCookCommandlet());
+
+	for (const FWorldPartitionCookPackage* CookPackage : InPackagesToCook)
+	{
+		UWorldPartitionRuntimeCell** MatchingCell = PackagesToGenerateForCook.Find(CookPackage->RelativePath);
+		UWorldPartitionRuntimeCell* Cell = MatchingCell ? *MatchingCell : nullptr;
+		if (!Cell || !Cell->PrepareCellForCook(CookPackage->GetPackage()))
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 void UWorldPartitionRuntimeHash::DumpStateLog(FHierarchicalLogArchive& Ar)

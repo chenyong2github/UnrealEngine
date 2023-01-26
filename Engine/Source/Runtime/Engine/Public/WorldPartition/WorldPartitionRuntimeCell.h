@@ -15,6 +15,7 @@
 #include "Algo/AnyOf.h"
 #include "WorldPartitionRuntimeCell.generated.h"
 
+class UActorContainer;
 class UDataLayerAsset;
 class UDataLayerInstance;
 struct FHierarchicalLogArchive;
