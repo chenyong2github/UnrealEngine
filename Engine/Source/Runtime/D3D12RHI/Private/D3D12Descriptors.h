@@ -65,7 +65,7 @@ class FD3D12DescriptorManager : public FD3D12DeviceChild, public FRHIHeapDescrip
 {
 public:
 	FD3D12DescriptorManager() = delete;
-	FD3D12DescriptorManager(FD3D12Device* Device, FD3D12DescriptorHeap* InHeap);
+	FD3D12DescriptorManager(FD3D12Device* Device, FD3D12DescriptorHeap* InHeap, TConstArrayView<TStatId> InStats);
 	~FD3D12DescriptorManager();
 
 	void UpdateImmediately(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle);

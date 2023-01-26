@@ -28,3 +28,11 @@ DEFINE_STAT(STAT_VertexBufferMemory);
 DEFINE_STAT(STAT_RTAccelerationStructureMemory);
 DEFINE_STAT(STAT_StructuredBufferMemory);
 DEFINE_STAT(STAT_PixelBufferMemory);
+
+DEFINE_STAT(STAT_SamplerDescriptorsAllocated);
+DEFINE_STAT(STAT_ResourceDescriptorsAllocated);
+
+DEFINE_STAT(STAT_BindlessSamplerHeapMemory);
+DEFINE_STAT(STAT_BindlessResourceHeapMemory);
+DEFINE_STAT(STAT_BindlessSamplerDescriptorsAllocated);
+DEFINE_STAT(STAT_BindlessResourceDescriptorsAllocated);

@@ -14,19 +14,23 @@ FRHIDescriptorAllocator::FRHIDescriptorAllocator()
 {
 }
 
-FRHIDescriptorAllocator::FRHIDescriptorAllocator(uint32 InNumDescriptors)
+FRHIDescriptorAllocator::FRHIDescriptorAllocator(uint32 InNumDescriptors, TConstArrayView<TStatId> InStats)
 {
-	Init(InNumDescriptors);
+	Init(InNumDescriptors, InStats);
 }
 
 FRHIDescriptorAllocator::~FRHIDescriptorAllocator()
 {
 }
 
-void FRHIDescriptorAllocator::Init(uint32 InNumDescriptors)
+void FRHIDescriptorAllocator::Init(uint32 InNumDescriptors, TConstArrayView<TStatId> InStats)
 {
 	Capacity = InNumDescriptors;
 	Ranges.Emplace(0, InNumDescriptors - 1);
+
+#if STATS
+	Stats = InStats;
+#endif
 }
 
 void FRHIDescriptorAllocator::Shutdown()
@@ -77,6 +81,9 @@ bool FRHIDescriptorAllocator::Allocate(uint32 NumDescriptors, uint32& OutSlot)
 					CurrentRange.First += NumDescriptors;
 				}
 				OutSlot = First;
+
+				RecordAlloc(NumDescriptors);
+
 				return true;
 			}
 			++Index;
@@ -121,6 +128,8 @@ void FRHIDescriptorAllocator::Free(uint32 Offset, uint32 NumDescriptors)
 					// Just grow range
 					Ranges[Index].First = Offset;
 				}
+
+				RecordFree(NumDescriptors);
 				return;
 			}
 			else
@@ -135,6 +144,8 @@ void FRHIDescriptorAllocator::Free(uint32 Offset, uint32 NumDescriptors)
 				{
 					// Found our position in the list, insert the deleted range here
 					Ranges.EmplaceAt(Index, Offset, End - 1);
+
+					RecordFree(NumDescriptors);
 					return;
 				}
 			}
@@ -156,6 +167,8 @@ void FRHIDescriptorAllocator::Free(uint32 Offset, uint32 NumDescriptors)
 					// Just grow range
 					Ranges[Index].Last += NumDescriptors;
 				}
+
+				RecordFree(NumDescriptors);
 				return;
 			}
 			else
@@ -170,6 +183,8 @@ void FRHIDescriptorAllocator::Free(uint32 Offset, uint32 NumDescriptors)
 				{
 					// Found our position in the list, insert the deleted range here
 					Ranges.EmplaceAt(Index + 1, Offset, End - 1);
+
+					RecordFree(NumDescriptors);
 					return;
 				}
 			}
@@ -182,8 +197,11 @@ void FRHIDescriptorAllocator::Free(uint32 Offset, uint32 NumDescriptors)
 	}
 }
 
-FRHIHeapDescriptorAllocator::FRHIHeapDescriptorAllocator(ERHIDescriptorHeapType InType, uint32 InDescriptorCount)
-	: FRHIDescriptorAllocator(InDescriptorCount)
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FRHIHeapDescriptorAllocator
+
+FRHIHeapDescriptorAllocator::FRHIHeapDescriptorAllocator(ERHIDescriptorHeapType InType, uint32 InDescriptorCount, TConstArrayView<TStatId> InStats)
+	: FRHIDescriptorAllocator(InDescriptorCount, InStats)
 	, Type(InType)
 {
 }
@@ -210,4 +228,28 @@ bool FRHIHeapDescriptorAllocator::Allocate(uint32 NumDescriptors, uint32& OutSlo
 void FRHIHeapDescriptorAllocator::Free(uint32 Slot, uint32 NumDescriptors)
 {
 	FRHIDescriptorAllocator::Free(Slot, NumDescriptors);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FRHIOffsetHeapDescriptorAllocator
+
+FRHIOffsetHeapDescriptorAllocator::FRHIOffsetHeapDescriptorAllocator(ERHIDescriptorHeapType InType, uint32 InDescriptorCount, uint32 InHeapOffset, TConstArrayView<TStatId> InStats)
+	: FRHIHeapDescriptorAllocator(InType, InDescriptorCount, InStats)
+	, HeapOffset(InHeapOffset)
+{
+}
+
+FRHIDescriptorHandle FRHIOffsetHeapDescriptorAllocator::Allocate()
+{
+	const FRHIDescriptorHandle AlocatorHandle = FRHIHeapDescriptorAllocator::Allocate();
+	return FRHIDescriptorHandle(AlocatorHandle.GetType(), AlocatorHandle.GetIndex() + HeapOffset);
+}
+
+void FRHIOffsetHeapDescriptorAllocator::Free(const FRHIDescriptorHandle InHandle)
+{
+	if (InHandle.IsValid())
+	{
+		const FRHIDescriptorHandle AdjustedHandle(InHandle.GetType(), InHandle.GetIndex() - HeapOffset);
+		FRHIHeapDescriptorAllocator::Free(AdjustedHandle);
+	}
 }

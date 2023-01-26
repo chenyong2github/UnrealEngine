@@ -31,6 +31,17 @@ FD3D12DescriptorHeap::FD3D12DescriptorHeap(FD3D12Device* InDevice, ID3D12Descrip
 	, bIsGlobal(bInIsGlobal)
 	, bIsSuballocation(false)
 {
+#if STATS
+	const size_t MemorySize = DescriptorSize * NumDescriptors;
+	if (Type == ERHIDescriptorHeapType::Standard)
+	{
+		INC_MEMORY_STAT_BY(STAT_BindlessResourceHeapMemory, MemorySize);
+	}
+	else if (Type == ERHIDescriptorHeapType::Sampler)
+	{
+		INC_MEMORY_STAT_BY(STAT_BindlessSamplerHeapMemory, MemorySize);
+	}
+#endif
 }
 
 FD3D12DescriptorHeap::FD3D12DescriptorHeap(FD3D12DescriptorHeap* SubAllocateSourceHeap, uint32 InOffset, uint32 InNumDescriptors)
@@ -48,14 +59,30 @@ FD3D12DescriptorHeap::FD3D12DescriptorHeap(FD3D12DescriptorHeap* SubAllocateSour
 {
 }
 
-FD3D12DescriptorHeap::~FD3D12DescriptorHeap() = default;
+FD3D12DescriptorHeap::~FD3D12DescriptorHeap()
+{
+#if STATS
+	if (!bIsSuballocation)
+	{
+		const size_t MemorySize = DescriptorSize * NumDescriptors;
+		if (Type == ERHIDescriptorHeapType::Standard)
+		{
+			DEC_MEMORY_STAT_BY(STAT_BindlessResourceHeapMemory, MemorySize);
+		}
+		else if (Type == ERHIDescriptorHeapType::Sampler)
+		{
+			DEC_MEMORY_STAT_BY(STAT_BindlessSamplerHeapMemory, MemorySize);
+		}
+	}
+#endif
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FD3D12DescriptorManager
 
-FD3D12DescriptorManager::FD3D12DescriptorManager(FD3D12Device* Device, FD3D12DescriptorHeap* InHeap)
+FD3D12DescriptorManager::FD3D12DescriptorManager(FD3D12Device* Device, FD3D12DescriptorHeap* InHeap, TConstArrayView<TStatId> InStats)
 	: FD3D12DeviceChild(Device)
-	, FRHIHeapDescriptorAllocator(InHeap->GetType(), InHeap->GetNumDescriptors())
+	, FRHIHeapDescriptorAllocator(InHeap->GetType(), InHeap->GetNumDescriptors(), InStats)
 	, Heap(InHeap)
 {
 }
@@ -95,7 +122,14 @@ void FD3D12BindlessDescriptorManager::Init(uint32 InNumResourceDescriptors, uint
 			InNumResourceDescriptors,
 			D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
 		);
-		Managers.Emplace(GetParentDevice(), Heap);
+
+		const TStatId Stats[] =
+		{
+			GET_STATID(STAT_ResourceDescriptorsAllocated),
+			GET_STATID(STAT_BindlessResourceDescriptorsAllocated),
+		};
+
+		Managers.Emplace(GetParentDevice(), Heap, Stats);
 	}
 
 	if (InNumSamplerDescriptors > 0)
@@ -106,7 +140,14 @@ void FD3D12BindlessDescriptorManager::Init(uint32 InNumResourceDescriptors, uint
 			InNumSamplerDescriptors,
 			D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
 		);
-		Managers.Emplace(GetParentDevice(), Heap);
+
+		const TStatId Stats[] =
+		{
+			GET_STATID(STAT_SamplerDescriptorsAllocated),
+			GET_STATID(STAT_BindlessSamplerDescriptorsAllocated),
+		};
+
+		Managers.Emplace(GetParentDevice(), Heap, Stats);
 	}
 }
 
@@ -456,7 +497,8 @@ void FD3D12DescriptorHeapManager::Init(uint32 InNumGlobalResourceDescriptors, ui
 			true /* bIsGlobal */
 		);
 
-		GlobalHeaps.Emplace(GetParentDevice(), Heap);
+		const TStatId Stats[] = {GET_STATID(STAT_ResourceDescriptorsAllocated)};
+		GlobalHeaps.Emplace(GetParentDevice(), Heap, Stats);
 	}
 
 	if (InNumGlobalSamplerDescriptors > 0)
@@ -470,7 +512,8 @@ void FD3D12DescriptorHeapManager::Init(uint32 InNumGlobalResourceDescriptors, ui
 			true /* bIsGlobal */
 		);
 
-		GlobalHeaps.Emplace(GetParentDevice(), Heap);
+		const TStatId Stats[] = { GET_STATID(STAT_SamplerDescriptorsAllocated) };
+		GlobalHeaps.Emplace(GetParentDevice(), Heap, Stats);
 	}
 }
 
