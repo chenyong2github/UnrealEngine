@@ -90,7 +90,7 @@ GC:
 {{- if or (.Values.persistence.enabled) (.Values.persistence.volume) }}
 FileSystem:
   RootDir:  {{ printf "%s/Blobs" .Values.persistence.mountPath }}
-  MaxSizeBytes: {{ required "MaxSizeBytes of the cache volume must be specified" $filesystem.MaxSizeBytes }}
+  MaxSizeBytes: {{ default .Values.persistence.size $filesystem.MaxSizeBytes }}
  {{- if $filesystem.TriggerThresholdPercentage }}
   TriggerThresholdPercentage: {{ $filesystem.TriggerThresholdPercentage }}
 {{- end }}

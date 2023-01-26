@@ -155,7 +155,7 @@ persistence:
 
   ## Persistent Volume size
   ##
-  size: 5Gi
+  size: 5242880 # 5 Gb specified in bytes so it can be used as a setting MaxSizeBytes
 
   ## Persistent Volume Storage Class
   ## If defined, storageClassName: <storageClass>
