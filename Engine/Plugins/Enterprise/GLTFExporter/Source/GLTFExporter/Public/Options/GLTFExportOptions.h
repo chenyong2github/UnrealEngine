@@ -42,8 +42,12 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	bool bExportPreviewMesh;
 
 	/** If enabled, floating-point-based JSON properties that are nearly equal to their default value will not be exported and thus regarded as exactly default, reducing JSON size. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = General)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = General, AdvancedDisplay)
 	bool bSkipNearDefaultValues;
+
+	/** If enabled, the copyright notice from project settings will be included as metadata in the glTF asset. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = General, AdvancedDisplay)
+	bool bIncludeCopyrightNotice;
 
 	/** If enabled, materials that have a proxy defined in their user data, will be exported using that proxy instead. This setting won't affect proxy materials exported or referenced directly. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material)

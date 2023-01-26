@@ -10,7 +10,10 @@ FGLTFJsonBuilder::FGLTFJsonBuilder(const FString& FileName, const UGLTFExportOpt
 	, DefaultScene(JsonRoot.DefaultScene)
 {
 	JsonRoot.Asset.Generator = GetGeneratorString();
-	JsonRoot.Asset.Copyright = GetCopyrightString();
+	if (ExportOptions->bIncludeCopyrightNotice)
+	{
+		JsonRoot.Asset.Copyright = GetCopyrightString();
+	}
 }
 
 void FGLTFJsonBuilder::WriteJsonArchive(FArchive& Archive)
@@ -114,6 +117,5 @@ FString FGLTFJsonBuilder::GetGeneratorString()
 
 FString FGLTFJsonBuilder::GetCopyrightString()
 {
-	FString CopyrightNotice = GetDefault<UGeneralProjectSettings>()->CopyrightNotice;
-	return CopyrightNotice != TEXT("Fill out your copyright notice in the Description page of Project Settings.") ? CopyrightNotice : TEXT("");
+	return GetDefault<UGeneralProjectSettings>()->CopyrightNotice;
 }
