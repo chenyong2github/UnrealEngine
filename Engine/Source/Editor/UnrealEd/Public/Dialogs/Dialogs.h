@@ -146,7 +146,7 @@ public:
 	 * 
 	 * @param FSetupInfo Info - struct used to initialize the dialog. 
 	 */
-	FSuppressableWarningDialog ( const FSuppressableWarningDialog::FSetupInfo& info );
+	FSuppressableWarningDialog ( const FSuppressableWarningDialog::FSetupInfo& Info );
 	
 	/** Launches warning window, returns user response or suppressed */
 	EResult ShowModal() const;
