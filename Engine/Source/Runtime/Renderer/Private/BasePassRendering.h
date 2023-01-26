@@ -49,9 +49,9 @@ class FForwardLocalLightData
 {
 public:
 	FVector4f LightPositionAndInvRadius;
-	FVector4f LightColorAndFalloffExponent;
+	FVector4f LightColorAndIdAndFalloffExponent;
 	FVector4f LightDirectionAndShadowMapChannelMask;
-	FVector4f SpotAnglesAndIdAndSourceRadiusPacked;
+	FVector4f SpotAnglesAndSourceRadiusPacked;
 	FVector4f LightTangentAndIESDataAndSpecularScale;
 	FVector4f RectDataAndVirtualShadowMapId;
 };

@@ -72,8 +72,8 @@ struct FLocalLightData
 {
 	// Raw value form light buffers
 	float4 LightPositionAndInvRadius;
-	float4 LightColorAndFalloffExponent;
-	float4 SpotAnglesAndIdAndSourceRadiusPacked;
+	float4 LightColorAndIdAndFalloffExponent;
+	float4 SpotAnglesAndSourceRadiusPacked;
 	float4 LightDirectionAndShadowMask;
 	float4 LightTangentAndIESDataAndSpecularScale;
 	float4 RectDataAndVirtualShadowMapId;
@@ -183,6 +183,16 @@ struct FDeferredLightData
 /**
  * Helper to unpack the shadow mask part of the FLocalLightData::LightDirectionAndShadowMask.w
  */
+
+float3 UnpackLightColor(float2 In)
+{
+	float3 Dir = float3(
+		((asuint(In.y) >> 0) & 0x3FF),
+		((asuint(In.y) >> 10) & 0x3FF),
+		((asuint(In.y) >> 20) & 0x3FF));
+	return In.x * Dir;
+}
+
 float4 UnpackShadowMapChannelMask(uint In)
 {
 	// 8 ALU
@@ -212,22 +222,22 @@ bool UnpackCastShadow(uint InShadowMapChannelMaskPacked)
 
 float UnpackVolumetricScatteringIntensity(FLocalLightData In)
 {
-	return f16tof32(asuint(In.SpotAnglesAndIdAndSourceRadiusPacked.w) >> 16);
+	return f16tof32(asuint(In.SpotAnglesAndSourceRadiusPacked.w) >> 16);
 }
 
 float UnpackLightSourceRadius(FLocalLightData In)
 {
-	return f16tof32(asuint(In.SpotAnglesAndIdAndSourceRadiusPacked.z) & 0xFFFF);
+	return f16tof32(asuint(In.SpotAnglesAndSourceRadiusPacked.z) & 0xFFFF);
 }
 
 float UnpackLightSoftSourceRadius(FLocalLightData In)
 {
-	return f16tof32(asuint(In.SpotAnglesAndIdAndSourceRadiusPacked.z) >> 16);
+	return f16tof32(asuint(In.SpotAnglesAndSourceRadiusPacked.z) >> 16);
 }
 
 float UnpackLightSourceLength(FLocalLightData In)
 {
-	return f16tof32(asuint(In.SpotAnglesAndIdAndSourceRadiusPacked.w));
+	return f16tof32(asuint(In.SpotAnglesAndSourceRadiusPacked.w));
 }
 
 float GetLightSourceRadius(FLocalLightData In)
@@ -237,9 +247,7 @@ float GetLightSourceRadius(FLocalLightData In)
 
 float2 GetLightSpotAngles(FLocalLightData In)
 {
-	uint SpotAnglesPacked = asuint(In.SpotAnglesAndIdAndSourceRadiusPacked.x);
-	float2 SpotAngles = float2(f16tof32(SpotAnglesPacked & 0xFFFF), f16tof32(SpotAnglesPacked >> 16));
-	return SpotAngles;
+	return In.SpotAnglesAndSourceRadiusPacked.xy;
 }
 
 float UnpackLightSpecularScale(FLocalLightData In)
@@ -278,8 +286,8 @@ FDeferredLightData ConvertToDeferredLight(
 
 	Out.TranslatedWorldPosition = In.LightPositionAndInvRadius.xyz;
 	Out.InvRadius				= In.LightPositionAndInvRadius.w;
-	Out.Color					= In.LightColorAndFalloffExponent.xyz;
-	Out.FalloffExponent			= In.LightColorAndFalloffExponent.w;
+	Out.Color					= UnpackLightColor(In.LightColorAndIdAndFalloffExponent.xy);
+	Out.FalloffExponent			= In.LightColorAndIdAndFalloffExponent.w;
 	Out.Direction				= In.LightDirectionAndShadowMask.xyz;
 	Out.SpotAngles				= GetLightSpotAngles(In);
 	Out.SourceRadius			= UnpackLightSourceRadius(In);
@@ -365,8 +373,8 @@ FLightShaderParameters ConvertFromLocal(const FLocalLightData In)
 	FLightShaderParameters Out	= (FLightShaderParameters)0;
 	Out.TranslatedWorldPosition	= In.LightPositionAndInvRadius.xyz;
 	Out.InvRadius				= In.LightPositionAndInvRadius.w;
-	Out.Color					= In.LightColorAndFalloffExponent.xyz;
-	Out.FalloffExponent			= In.LightColorAndFalloffExponent.w;
+	Out.Color					= UnpackLightColor(In.LightColorAndIdAndFalloffExponent.xy);
+	Out.FalloffExponent			= In.LightColorAndIdAndFalloffExponent.w;
 	Out.Direction				= In.LightDirectionAndShadowMask.xyz;
 	Out.Tangent					= In.LightTangentAndIESDataAndSpecularScale.xyz;
 	Out.SpotAngles				= GetLightSpotAngles(In);
@@ -426,8 +434,8 @@ FSimpleDeferredLightData ConvertToSimpleLight(FLocalLightData In)
 	FSimpleDeferredLightData Out = (FSimpleDeferredLightData)0;
 	Out.TranslatedWorldPosition = In.LightPositionAndInvRadius.xyz;
 	Out.InvRadius				= In.LightPositionAndInvRadius.w;
-	Out.Color					= In.LightColorAndFalloffExponent.xyz;
-	Out.FalloffExponent			= In.LightColorAndFalloffExponent.w;
+	Out.Color					= UnpackLightColor(In.LightColorAndIdAndFalloffExponent.xy);
+	Out.FalloffExponent			= In.LightColorAndIdAndFalloffExponent.w;
 	Out.bInverseSquared			= Out.FalloffExponent == 0;
 	return Out;
 }

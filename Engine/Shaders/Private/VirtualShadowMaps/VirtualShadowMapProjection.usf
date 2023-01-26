@@ -223,13 +223,6 @@ FVirtualShadowMapSampleResult ProjectLight(
 	bool bInLightRadius = InvDist >= Light.InvRadius;
 	bool bInLightCone = SpotAttenuationMask(L, -Light.Direction, Light.SpotAngles) > 0.0f;
 
-	#if ONE_PASS_PROJECTION
-		// Hacky workaround for spot angles being quantized to 16-bit when they are loaded from the light grid!
-		// This avoids potential artifacts at cone edges, and in this path we have the tile culling to lessen the
-		// overhead. Still needs to be fixed though as it is not trivial overhead!
-		bInLightCone = true;
-	#endif
-
 	bool bInLightRegion = bInLightRadius && bInLightCone;
 #endif // DIRECTIONAL_LIGHT
 
