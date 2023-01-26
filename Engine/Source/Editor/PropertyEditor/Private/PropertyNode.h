@@ -321,7 +321,7 @@ public:
 	* InNode Property node to construct the stack for
 	* InObj Object instance that contains the property being modified
 	*/
-	void Initialize(const FPropertyNode* InNode, const UObject* InObj);
+	FPropertyAccess::Result Initialize(const FPropertyNode* InNode, const UObject* InObj);
 
 	/**
 	* Returns the address of the property being modified.
@@ -337,9 +337,15 @@ public:
 	*/
 	void CommitChanges();
 
+	/** Checks if this edit stack is valid */
+	bool IsValid() const
+	{
+		return MemoryStack.Num() > 0;
+	}
+
 private:
 
-	void InitializeInternal(const FPropertyNode* InNode, const UObject* InObj);
+	FPropertyAccess::Result InitializeInternal(const FPropertyNode* InNode, const UObject* InObj);
 	void Cleanup();
 
 	TArray<FMemoryFrame> MemoryStack;
