@@ -1011,6 +1011,9 @@ void UDeviceProfileManager::SetPreviewDeviceProfile(UDeviceProfile* DeviceProfil
 			}
 		}
 	}
+
+	// broadcast cvar sinks now that we are done
+	IConsoleManager::Get().CallAllConsoleVariableSinks();
 }
 
 

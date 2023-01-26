@@ -579,7 +579,7 @@ FNiagaraPlatformSetEnabledState FNiagaraPlatformSet::IsEnabled(const UDeviceProf
 	{
 		if (bQLIsEnabled)//Is the whole quality level disabled?
 		{
-			if (bProfileActiveQL)//The quality level is enabled but this profile is not active for this QL
+			if (bProfileActiveQL || bCheckCurrentStateOnly)//The quality level is enabled but this profile is not active for this QL
 			{
 				Ret.bIsActive = true;
 				Ret.bCanBeActive = true;
