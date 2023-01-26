@@ -2078,6 +2078,8 @@ int32 FindMeshBoneIndexFromBoneName(USkeleton * Skeleton, const FName &BoneName)
 
 	return BoneIndex;
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FillUpTransformBasedOnRig(USkeleton* Skeleton, TArray<FTransform>& NodeSpaceBases, TArray<FTransform> &Rotations, TArray<FVector>& Translations, TArray<bool>& TranslationParentFlags)
 {
 	TArray<FTransform> SpaceBases;
@@ -2182,6 +2184,8 @@ int32 FindValidTransformParentTrack(const URig* Rig, int32 NodeIndex, bool bTran
 	return INDEX_NONE;
 }
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 
 void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConvertSpaces )
 {
@@ -2198,6 +2202,7 @@ void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConv
 	{
 		USkeleton* OldSkeleton = GetSkeleton();
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		// first check if both has same rig, if so, we'll retarget using it
 		if (OldSkeleton && OldSkeleton->GetRig() != nullptr && NewSkeleton->GetRig() == OldSkeleton->GetRig() && OldSkeleton->GetPreviewMesh() && NewSkeleton->GetPreviewMesh())
 		{
@@ -2406,6 +2411,7 @@ void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConv
 			// convert back to animated data with new skeleton
 			ConvertRiggingDataToAnimationData(RiggingAnimationData);
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// @todo end rig testing
 		// @IMPORTANT: now otherwise this will try to do bone to bone mapping
 		else if(OldSkeleton && OldSkeleton != NewSkeleton)
@@ -2691,6 +2697,7 @@ void UAnimSequence::ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnim
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 int32 FindParentNodeIndex(URig* Rig, USkeleton* Skeleton, FName ParentNodeName)
 {
 	const int32& ParentNodeIndex = Rig->FindNode(ParentNodeName);
@@ -2698,6 +2705,7 @@ int32 FindParentNodeIndex(URig* Rig, USkeleton* Skeleton, FName ParentNodeName)
 	
 	return Skeleton->GetReferenceSkeleton().FindBoneIndex(ParentBoneName);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 int32 UAnimSequence::GetSpaceBasedAnimationData(TArray< TArray<FTransform> >& AnimationDataInComponentSpace, FAnimSequenceTrackContainer * RiggingAnimationData) const
 {
@@ -2722,6 +2730,7 @@ int32 UAnimSequence::GetSpaceBasedAnimationData(TArray< TArray<FTransform> >& An
 		AnimationDataInComponentSpace[BoneIndex].AddUninitialized(NumKeys);
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (RiggingAnimationData)
 	{
 		const URig* Rig = MySkeleton->GetRig();
@@ -2873,6 +2882,7 @@ int32 UAnimSequence::GetSpaceBasedAnimationData(TArray< TArray<FTransform> >& An
 			}
 		} while (bCompleted == false);
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	else
 	{
 		// now calculating old animated space bases
@@ -2925,6 +2935,7 @@ int32 UAnimSequence::GetSpaceBasedAnimationData(TArray< TArray<FTransform> >& An
 	return AnimationDataInComponentSpace.Num();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContainer& RiggingAnimationData)
 {
 	USkeleton* MySkeleton = GetSkeleton();
@@ -3058,6 +3069,7 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 
 	return false;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UAnimSequence::ConvertRiggingDataToAnimationData(FAnimSequenceTrackContainer& RiggingAnimationData)
 {
@@ -3096,7 +3108,6 @@ bool UAnimSequence::ConvertRiggingDataToAnimationData(FAnimSequenceTrackContaine
 
 		const int32 NumModelKeys = DataModelInterface->GetNumberOfKeys();
 		const FReferenceSkeleton& RefSkeleton = MySkeleton->GetReferenceSkeleton();
-		const URig* Rig = MySkeleton->GetRig();
 		for (int32 NodeIndex = 0; NodeIndex < ValidNumNodes; ++NodeIndex)
 		{
 			FName BoneName = MySkeleton->GetRigBoneMapping(ValidNodeNames[NodeIndex]);

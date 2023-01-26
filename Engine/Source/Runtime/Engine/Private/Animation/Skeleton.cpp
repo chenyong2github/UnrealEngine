@@ -2075,6 +2075,9 @@ void USkeleton::HandleVirtualBoneChanges()
 }
 
 #if WITH_EDITOR
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 void USkeleton::SetRigConfig(URig * Rig)
 {
 	if (RigConfig.Rig != Rig)
@@ -2226,11 +2229,14 @@ URig * USkeleton::GetRig() const
 {
 	return RigConfig.Rig;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void USkeleton::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
 	Super::GetAssetRegistryTags(OutTags);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FString RigFullName = (RigConfig.Rig)? RigConfig.Rig->GetFullName() : TEXT("");
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	OutTags.Add(FAssetRegistryTag(USkeleton::RigTag, RigFullName, FAssetRegistryTag::TT_Hidden));
 

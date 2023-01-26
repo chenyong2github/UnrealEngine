@@ -159,6 +159,7 @@ public:
 	/** Remove a compatible skeleton */
 	virtual void RemoveCompatibleSkeleton(const USkeleton* InCompatibleSkeleton) = 0;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Refreshes the rig config, validating the mappings */
 	virtual void RefreshRigConfig() = 0;
 
@@ -170,6 +171,7 @@ public:
 
 	/** Set multiple bone mappings */
 	virtual void SetRigBoneMappings(const TMap<FName, FName>& InMappings) = 0;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Remove any bones that are not used by any skeletal meshes */
 	virtual void RemoveUnusedBones() = 0;

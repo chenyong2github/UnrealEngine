@@ -63,6 +63,7 @@ private:
 
 	/** Delegate for closing the containing menu */
 	FSimpleDelegate OnClose;
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	static URig* EngineHumanoidRig;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };

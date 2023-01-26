@@ -41,7 +41,8 @@ class SWidget;
 #define NODE_TABLE_NODENAME		TEXT("NodeName")
 #define NODE_TABLE_PARENTNAME	TEXT("ParentName")
 
-
+// January 2023 - This whole compilation unit is deprecated to be removed in 5.4
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TSharedRef<IDetailCustomization> FRigDetails::MakeInstance()
 {
 	return MakeShareable(new FRigDetails);
@@ -288,7 +289,7 @@ void FRigDetails::GenerateTransformBaseArrayElementWidget(TSharedRef<IPropertyHa
 	// orientation
 	TSharedPtr<IPropertyHandleArray> TransformConstraintsProp_R = ConstraintsProp->GetElement(1)->GetChildHandle(GET_MEMBER_NAME_CHECKED(FTransformBaseConstraint, TransformConstraints))->AsArray();
 	TSharedRef<IPropertyHandle> ParentNameProp_R = TransformConstraintsProp_R->GetElement(0)->GetChildHandle(GET_MEMBER_NAME_CHECKED(FRigTransformConstraint, ParentSpace)).ToSharedRef();
-
+	
 	// the interface will be node [display name] [parent node]
 	// delegate for display name
 	FText NodeName;
@@ -560,3 +561,4 @@ ECheckBoxState FRigDetails::AdvancedCheckBoxIsChecked(TSharedRef<IPropertyHandle
 	return ECheckBoxState::Undetermined;
 }
 #undef LOCTEXT_NAMESPACE
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

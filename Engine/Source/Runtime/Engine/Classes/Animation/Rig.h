@@ -21,9 +21,12 @@
 class USkeleton;
 struct FPropertyChangedEvent;
 
+// January 2023 - Whole compilation unit is being deprecated, so disabled warnings for whole thing. 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /** Rig Controller for bone transform **/
 USTRUCT()
-struct FNode
+struct UE_DEPRECATED(5.2, "URig retargeting is no longer supported. Use the IK Retargeter instead.") FNode
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -67,7 +70,7 @@ struct FNode
 UENUM()
 namespace EControlConstraint
 {
-	enum Type : int
+	enum UE_DEPRECATED(5.2, "URig retargeting is no longer supported. Use the IK Retargeter instead.") Type : int
 	{
 		/** Rotation constraint. */
 		Orientation,
@@ -83,7 +86,7 @@ namespace EControlConstraint
 UENUM()
 namespace EConstraintTransform
 {
-	enum Type : int
+	enum UE_DEPRECATED(5.2, "URig retargeting is no longer supported. Use the IK Retargeter instead.") Type : int
 	{
 		/** Absolute value. */
 		Absolute,
@@ -93,10 +96,10 @@ namespace EConstraintTransform
 }
 
 USTRUCT()
-struct FRigTransformConstraint
+struct UE_DEPRECATED(5.2, "URig retargeting is no longer supported. Use the IK Retargeter instead.") FRigTransformConstraint
 {
 	GENERATED_USTRUCT_BODY()
-
+	
 	/** What transform type **/
 	UPROPERTY(/*EditAnywhere, Category="FTransformBaseConstraint"*/)
 	TEnumAsByte<EConstraintTransform::Type>	TranformType = EConstraintTransform::Absolute;
@@ -112,10 +115,10 @@ struct FRigTransformConstraint
 
 /** This defines what constraint it is defined */
 USTRUCT()
-struct FTransformBaseConstraint
+struct UE_DEPRECATED(5.2, "URig retargeting is no longer supported. Use the IK Retargeter instead.") FTransformBaseConstraint
 {
 	GENERATED_USTRUCT_BODY()
-
+	
 	/** What transform type **/
 	UPROPERTY(EditAnywhere, Category="FTransformBaseConstraint")
 	TArray<FRigTransformConstraint>			TransformConstraints;
@@ -124,7 +127,7 @@ struct FTransformBaseConstraint
 
 /** This is a mapping table between bone in a particular skeletal mesh and bone of this skeleton set. */
 USTRUCT()
-struct FTransformBase
+struct UE_DEPRECATED(5.2, "URig retargeting is no longer supported. Use the IK Retargeter instead.") FTransformBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -143,7 +146,7 @@ DECLARE_DELEGATE_RetVal_OneParam(int32, FGetParentIndex, FName);
  *		- support to share different animations
  */
 UCLASS(hidecategories=Object, MinimalAPI)
-class URig : public UObject, public INodeMappingProviderInterface
+class UE_DEPRECATED(5.2, "URig retargeting is no longer supported. Use the IK Retargeter instead.") URig : public UObject, public INodeMappingProviderInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -222,4 +225,7 @@ private:
 //	void CalculateComponentSpace(int32 NodeIndex, const FTransform& LocalTransform, const TArray<FTransform> & TransformBuffer, const FGetParentIndex& DelegateToGetParentIndex, FTransform& OutComponentSpaceTransform) const;
 //	void CalculateLocalSpace(int32 NodeIndex, const FTransform& ComponentTransform, const TArray<FTransform> & TransformBuffer, const FGetParentIndex& DelegateToGetParentIndex, FTransform& OutLocalSpaceTransform) const;
 };
+
+// January 2023 - Whole compilation unit is being deprecated, so disabled warnings for whole thing. 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 

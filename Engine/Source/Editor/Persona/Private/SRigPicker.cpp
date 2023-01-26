@@ -12,6 +12,7 @@
 
 static const FVector2f ContentBrowserWindowSize(300.0f, 300.0f);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 URig* SRigPicker::EngineHumanoidRig = NULL;
 
 void SRigPicker::Construct(const FArguments& InArgs)
@@ -128,3 +129,5 @@ void SRigPicker::OnSelectDefault()
 }
 
 #undef LOCTEXT_NAMESPACE
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -13,6 +13,9 @@
 
 //@todo should move all this window stuff somewhere else. Persona?
 
+// January 2023 - Whole compilation unit is being deprecated, so disabled warnings for whole thing. 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 #define LOCTEXT_NAMESPACE "Rig"
 
 FName URig::WorldNodeName(TEXT("World"));
@@ -514,3 +517,5 @@ void URig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutNo
 }
 #undef LOCTEXT_NAMESPACE 
 
+// January 2023 - Whole compilation unit is being deprecated, so disabled warnings for whole thing. 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

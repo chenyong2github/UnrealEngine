@@ -16,7 +16,9 @@ public:
 	// UAssetDefinition Begin
 	virtual FText GetAssetDisplayName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_Rig", "Rig"); }
 	virtual FLinearColor GetAssetColor() const override { return FLinearColor(FColor(255,201,14)); }
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return URig::StaticClass(); }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override
 	{
 		static const auto Categories = { EAssetCategoryPaths::Animation };

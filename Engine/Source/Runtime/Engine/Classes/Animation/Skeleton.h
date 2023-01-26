@@ -218,8 +218,10 @@ struct FRigConfiguration
 {
 	GENERATED_USTRUCT_BODY()
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UPROPERTY()
 	TObjectPtr<class URig>  Rig = nullptr;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// @todo in the future we can make this to be run-time data
 	UPROPERTY()
@@ -535,8 +537,10 @@ private:
 	UPROPERTY(duplicatetransient, AssetRegistrySearchable)
 	TSoftObjectPtr<class UDataAsset> AdditionalPreviewSkeletalMeshes;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UPROPERTY()
 	FRigConfiguration RigConfig;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** rig property will be saved separately */
 	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
@@ -950,6 +954,7 @@ public:
 	ENGINE_API static const FName CompatibleSkeletonsNameTag;
 	ENGINE_API static const FString CompatibleSkeletonsTagDelimiter;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// rig Configs
 	ENGINE_API static const FName RigTag;
 	ENGINE_API void SetRigConfig(URig * Rig);
@@ -962,6 +967,7 @@ public:
 	ENGINE_API void RefreshRigConfig();
 	int32 FindRigBoneMapping(const FName& NodeName) const;
 	ENGINE_API URig * GetRig() const;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif
 
