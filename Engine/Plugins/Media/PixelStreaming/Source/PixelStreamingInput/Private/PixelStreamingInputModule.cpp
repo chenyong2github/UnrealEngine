@@ -11,6 +11,11 @@ namespace UE::PixelStreamingInput
 {
 	void FPixelStreamingInputModule::StartupModule()
 	{
+		if (!FSlateApplication::IsInitialized())
+		{
+			return;
+		}
+
 		TSharedPtr<FPixelStreamingApplicationWrapper> PixelStreamerApplicationWrapper = MakeShareable(new FPixelStreamingApplicationWrapper(FSlateApplication::Get().GetPlatformApplication()));
 		TSharedPtr<FGenericApplicationMessageHandler> BaseHandler = FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler();
 		InputHandler = MakeShared<FPixelStreamingInputHandler>(PixelStreamerApplicationWrapper, BaseHandler);
