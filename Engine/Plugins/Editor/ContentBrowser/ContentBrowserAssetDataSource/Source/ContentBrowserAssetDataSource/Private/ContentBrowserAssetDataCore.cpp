@@ -206,10 +206,11 @@ bool CanEditAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetF
 	if (UContentBrowserDataSubsystem* ContentBrowserDataSubsystem = IContentBrowserDataModule::Get().GetSubsystem())
 	{
 		const TSharedRef<FPathPermissionList>& EditableFolderFilter = ContentBrowserDataSubsystem->GetEditableFolderPermissionList();
-		FName FolderPath = InAssetPayload.GetAssetData().PackageName;
-		if (!EditableFolderFilter->PassesStartsWithFilter(FolderPath))
+		FName AssetPackageName = InAssetPayload.GetAssetData().PackageName;
+
+		if (!EditableFolderFilter->PassesStartsWithFilter(AssetPackageName))
 		{
-			SetOptionalErrorMessage(OutErrorMsg, FText::Format(LOCTEXT("Error_FolderIsNotEditable", "Content in folder '{0}' is not editable"), FText::FromName(FolderPath)));
+			SetOptionalErrorMessage(OutErrorMsg, FText::Format(LOCTEXT("Error_FolderIsNotEditable", "Asset '{0}' is in a folder that does not allow edits. Unable to edit read only assets."), FText::FromName(AssetPackageName)));
 			return false;
 		}
 	}
