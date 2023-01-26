@@ -751,7 +751,7 @@ namespace UE::MediaCaptureData
 
 									if (CapturingFrame->bMediaCaptureActive && bWaitedForCompletion)
 									{
-										if (CVarMediaIOScheduleOnAnyThread.GetValueOnAnyThread() == 1)
+										if (MediaCapture->UseAnyThreadCapture())
 										{
 											OnReadbackComplete(FRHICommandListExecutor::GetImmediateCommandList(), MediaCapture, CapturingFrame);
 										}
@@ -1117,6 +1117,15 @@ bool UMediaCapture::StartSourceCapture(TSharedPtr<UE::MediaCapture::Private::FCa
 	MediaCaptureAnalytics::SendCaptureEvent(GetCaptureSourceType());
 #endif
 
+	if (!GRHISupportsMultithreading)
+	{
+		UE_LOG(LogMediaIOCore, Display, TEXT("AnyThread Capture was disabled because the current RHI does not support Multithreading."));
+	}
+	else if (SupportsAnyThreadCapture())
+	{
+		UE_LOG(LogMediaIOCore, Display, TEXT("AnyThread Capture was disabled because the media capture implementation does not have a AnyThread callback."));
+	}
+
 	return bInitialized;
 }
 
@@ -1242,6 +1251,14 @@ bool UMediaCapture::UpdateSource(TSharedPtr<UE::MediaCapture::Private::FCaptureS
 	}
 
 	return true;
+}
+
+bool UMediaCapture::UseAnyThreadCapture() const
+{
+	return GRHISupportsMultithreading
+		&& CVarMediaIOEnableExperimentalScheduling.GetValueOnAnyThread() 
+		&& CVarMediaIOScheduleOnAnyThread.GetValueOnAnyThread()
+		&& SupportsAnyThreadCapture();
 }
 
 bool UMediaCapture::UpdateSceneViewport(TSharedPtr<FSceneViewport>& InSceneViewport)
@@ -1587,7 +1604,7 @@ void UMediaCapture::WaitForSingleExperimentalSchedulingTaskToComplete()
 			}
 		}
 
-		if (!CVarMediaIOScheduleOnAnyThread.GetValueOnAnyThread())
+		if (!UseAnyThreadCapture())
 		{
 			// We flush after task completion in case a render thread task was launched.
 			if (IsInGameThread())
@@ -1632,7 +1649,7 @@ void UMediaCapture::WaitForAllExperimentalSchedulingTasksToComplete()
 		}
 
 		
-		if (!CVarMediaIOScheduleOnAnyThread.GetValueOnGameThread())
+		if (!UseAnyThreadCapture())
 		{
 			// This code might have dispatched a task on the render thread, so we need to wait again
 			if (IsInGameThread())

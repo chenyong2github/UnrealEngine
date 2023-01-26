@@ -376,6 +376,12 @@ protected:
 	virtual void LockDMATexture_RenderThread(FTextureRHIRef InTexture) {}
 	virtual void UnlockDMATexture_RenderThread(FTextureRHIRef InTexture) {}
 
+	/** Whether the capture callbacks can be called on any thread. If true, the _AnyThread callbacks will be used instead of the _RenderThread ones. */
+	virtual bool SupportsAnyThreadCapture() const
+	{
+		return false;
+	}
+
 	friend class UE::MediaCaptureData::FCaptureFrame;
 	friend class UE::MediaCaptureData::FMediaCaptureHelper;
 	struct FCaptureBaseData
@@ -425,6 +431,7 @@ protected:
 	/**
 	 * Callback when the buffer was successfully copied to CPU ram.
 	 * The buffer is only valid for the duration of the callback.
+	 * @Note SupportsAnyThreadCapture must return true in the implementation in order for this to be called.
 	 */
 	virtual void OnFrameCaptured_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, const FMediaCaptureResourceData& InResourceData) { }
 
@@ -439,6 +446,10 @@ protected:
 	virtual void OnRHIResourceCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture) { }
 	virtual void OnRHIResourceCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FBufferRHIRef InBuffer) { }
 	
+	/**
+	 * AnyThread version of the above callbacks.
+	 * @Note SupportsAnyThreadCapture must return true in the implementation in order for this to be called.
+	 */
 	virtual void OnRHIResourceCaptured_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture) { }
 	virtual void OnRHIResourceCaptured_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FBufferRHIRef InBuffer) { }
 	
@@ -543,6 +554,8 @@ private:
 
 	bool StartSourceCapture(TSharedPtr<UE::MediaCapture::Private::FCaptureSource> InSource);
 	bool UpdateSource(TSharedPtr<UE::MediaCapture::Private::FCaptureSource> InCaptureSource);
+
+	bool UseAnyThreadCapture() const;
 
 protected:
 
