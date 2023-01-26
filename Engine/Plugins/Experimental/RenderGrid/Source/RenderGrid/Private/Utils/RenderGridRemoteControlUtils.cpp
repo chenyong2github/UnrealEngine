@@ -107,12 +107,7 @@ void URenderGridRemoteControlUtils::ParseJsonAsInt64(const FString& Json, const 
 	ParseJsonAsNumericType<int64>(Json, DefaultValue, Value, bSuccess);
 }
 
-void URenderGridRemoteControlUtils::ParseJsonAsFloat(const FString& Json, const float DefaultValue, bool& bSuccess, float& Value)
-{
-	ParseJsonAsNumericType<float>(Json, DefaultValue, Value, bSuccess);
-}
-
-void URenderGridRemoteControlUtils::ParseJsonAsDouble(const FString& Json, const double DefaultValue, bool& bSuccess, double& Value)
+void URenderGridRemoteControlUtils::ParseJsonAsFloat(const FString& Json, const double DefaultValue, bool& bSuccess, double& Value)
 {
 	ParseJsonAsNumericType<double>(Json, DefaultValue, Value, bSuccess);
 }
@@ -300,12 +295,7 @@ void URenderGridRemoteControlUtils::Int64ToJson(const int64 Value, FString& Json
 	Json = UE::RenderGrid::Private::FRenderGridUtils::ToJsonString(MakeShareable(new FJsonValueNumber(Value)));
 }
 
-void URenderGridRemoteControlUtils::FloatToJson(const float Value, FString& Json)
-{
-	Json = UE::RenderGrid::Private::FRenderGridUtils::ToJsonString(MakeShareable(new FJsonValueNumber(Value)));
-}
-
-void URenderGridRemoteControlUtils::DoubleToJson(const double Value, FString& Json)
+void URenderGridRemoteControlUtils::FloatToJson(const double Value, FString& Json)
 {
 	Json = UE::RenderGrid::Private::FRenderGridUtils::ToJsonString(MakeShareable(new FJsonValueNumber(Value)));
 }

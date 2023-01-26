@@ -24,11 +24,8 @@ public:
 	UFUNCTION(BlueprintPure, Category="Render Grid Utils", Meta=(Keywords="remote control"))
 	static void ParseJsonAsInt64(const FString& Json, const int64 DefaultValue, bool& bSuccess, int64& Value);
 
-	UFUNCTION(BlueprintPure, Category="Render Grid Utils", Meta=(Keywords="remote control"))
-	static void ParseJsonAsFloat(const FString& Json, const float DefaultValue, bool& bSuccess, float& Value);
-
-	UFUNCTION(BlueprintPure, Category="Render Grid Utils", Meta=(Keywords="remote control"))
-	static void ParseJsonAsDouble(const FString& Json, const double DefaultValue, bool& bSuccess, double& Value);
+	UFUNCTION(BlueprintPure, Category="Render Grid Utils", Meta=(Keywords="remote control double"))
+	static void ParseJsonAsFloat(const FString& Json, const double DefaultValue, bool& bSuccess, double& Value);
 
 	UFUNCTION(BlueprintPure, Category="Render Grid Utils", Meta=(Keywords="remote control"))
 	static void ParseJsonAsBoolean(const FString& Json, bool DefaultValue, bool& bSuccess, bool& Value);
@@ -76,11 +73,8 @@ public:
 	UFUNCTION(BlueprintPure, Category="Render Grid Utils", Meta=(Keywords="remote control"))
 	static void Int64ToJson(int64 Value, FString& Json);
 
-	UFUNCTION(BlueprintPure, Category="Render Grid Utils", Meta=(Keywords="remote control"))
-	static void FloatToJson(float Value, FString& Json);
-
-	UFUNCTION(BlueprintPure, Category="Render Grid Utils", Meta=(Keywords="remote control"))
-	static void DoubleToJson(double Value, FString& Json);
+	UFUNCTION(BlueprintPure, Category="Render Grid Utils", Meta=(Keywords="remote control double"))
+	static void FloatToJson(double Value, FString& Json);
 
 	UFUNCTION(BlueprintPure, Category="Render Grid Utils", Meta=(Keywords="remote control"))
 	static void BooleanToJson(bool Value, FString& Json);
