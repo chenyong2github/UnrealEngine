@@ -3519,6 +3519,13 @@ void UNetDriver::NotifyActorTearOff(AActor* Actor)
 
 void UNetDriver::NotifyActorIsTraveling(AActor* TravelingActor)
 {
+#if UE_WITH_IRIS
+	if (ReplicationSystem)
+	{
+		return;
+	}
+#endif
+
 	NetworkObjects->OnActorIsTraveling(TravelingActor);
 }
 
