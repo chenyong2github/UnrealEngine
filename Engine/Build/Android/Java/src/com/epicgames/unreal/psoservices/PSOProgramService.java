@@ -329,6 +329,7 @@ public class PSOProgramService extends Service implements Logger.ILoggerCallback
 		super.onCreate();
 		try
 		{
+			android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
 			PrepareLogger();
 		} 
 		catch (IOException e)
