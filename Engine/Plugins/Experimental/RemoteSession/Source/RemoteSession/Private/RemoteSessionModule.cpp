@@ -3,20 +3,18 @@
 #include "RemoteSessionModule.h"
 #include "Channels/RemoteSessionChannel.h"
 #include "RemoteSessionHost.h"
-#include "Misc/CoreDelegates.h"
-#include "RemoteSessionClient.h"
-
-
 #include "Misc/CommandLine.h"
+#include "Misc/CoreDelegates.h"
+#include "Modules/ModuleManager.h"
+#include "RemoteSessionClient.h"
 
 #if WITH_EDITOR
 	#include "Editor.h"
 	#include "ISettingsModule.h"
 	#include "ISettingsSection.h"
+#else
+	#include "HAL/IConsoleManager.h"
 #endif
-#include "Modules/ModuleManager.h"
-
-#include "Modules/ModuleManager.h"
 
 
 #define LOCTEXT_NAMESPACE "FRemoteSessionModule"

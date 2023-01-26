@@ -9,6 +9,7 @@
 
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
+#include "Async/TaskGraphInterfaces.h"
 #endif
 
 static UAndroidPermissionCallbackProxy *pProxy = NULL;

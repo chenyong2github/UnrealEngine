@@ -11,6 +11,7 @@ enum class EPatchCheckResult : uint8;
 struct FOnlineError;
 
 class Error;
+class FUniqueNetId;
 class UGameInstance;
 enum class EHotfixResult : uint8;
 

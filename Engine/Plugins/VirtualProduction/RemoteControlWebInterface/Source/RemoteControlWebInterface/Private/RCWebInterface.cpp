@@ -13,6 +13,8 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "RCWebInterfaceCustomizations.h"
+#else
+#include "HAL/IConsoleManager.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "FRemoteControlWebInterfaceModule"

@@ -19,6 +19,8 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#else
+#include "GameFramework/Actor.h"
 #endif
 
 // World partition support for in-editor workflows needs these includes
