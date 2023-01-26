@@ -10,25 +10,27 @@ bool FWorldConditionContext::Activate() const
 		return false;
 	}
 
-	const UWorldConditionQuerySharedDefinition* SharedDefinition = QueryState.SharedDefinition;
+	const FWorldConditionQuerySharedDefinition* SharedDefinition = QueryState.GetSharedDefinition();
 	if (SharedDefinition == nullptr)
 	{
 		// Initialized but no definition means empty query. Activating empty should succeed.
 		return true;
 	}
 
-	for (int32 Index = 0; Index < SharedDefinition->Conditions.Num(); Index++)
+	const FInstancedStructContainer& Conditions = SharedDefinition->GetConditions();
+	
+	for (int32 Index = 0; Index < Conditions.Num(); Index++)
 	{
-		const FWorldConditionBase& Condition = SharedDefinition->Conditions[Index].Get<FWorldConditionBase>();
+		const FWorldConditionBase& Condition = Conditions[Index].Get<FWorldConditionBase>();
 		FWorldConditionItem& Item = QueryState.GetItem(Index);
-		Item.Operator = Condition.Operator;
-		Item.NextExpressionDepth = Condition.NextExpressionDepth;
+		Item.Operator = Condition.GetOperator();
+		Item.NextExpressionDepth = Condition.GetNextExpressionDepth();
 	}
 
 	bool bSuccess = true;
-	for (int32 Index = 0; Index < SharedDefinition->Conditions.Num(); Index++)
+	for (int32 Index = 0; Index < Conditions.Num(); Index++)
 	{
-		const FWorldConditionBase& Condition = SharedDefinition->Conditions[Index].Get<FWorldConditionBase>();
+		const FWorldConditionBase& Condition = Conditions[Index].Get<FWorldConditionBase>();
 		bSuccess &= Condition.Activate(*this);
 	}
 
@@ -52,7 +54,7 @@ bool FWorldConditionContext::IsTrue() const
 		return QueryState.GetCachedResult() == EWorldConditionResultValue::IsTrue;
 	}
 
-	const UWorldConditionQuerySharedDefinition* SharedDefinition = QueryState.SharedDefinition;
+	const FWorldConditionQuerySharedDefinition* SharedDefinition = QueryState.GetSharedDefinition();
 	if (SharedDefinition == nullptr)
 	{
 		// Empty query is true.
@@ -78,15 +80,16 @@ bool FWorldConditionContext::IsTrue() const
 		EWorldConditionResultValue CurrResult = Item.CachedResult;
 		if (CurrResult == EWorldConditionResultValue::Invalid)
 		{
-			check(SharedDefinition->Conditions.Num() == QueryState.GetNumConditions());
-			const FWorldConditionBase& Condition = SharedDefinition->Conditions[Index].Get<FWorldConditionBase>();
+			const FInstancedStructContainer& Conditions = SharedDefinition->GetConditions();
+			check(Conditions.Num() == QueryState.GetNumConditions());
+			const FWorldConditionBase& Condition = Conditions[Index].Get<FWorldConditionBase>();
 			FWorldConditionResult ConditionResult = Condition.IsTrue(*this);
-			CurrResult = UE::WorldCondition::Invert(ConditionResult.Value, Condition.bInvert); 
+			CurrResult = UE::WorldCondition::Invert(ConditionResult.Value, Condition.ShouldInvertResult()); 
 
 			// Cache result if possible; clear cache otherwise
 			Item.CachedResult = ConditionResult.bCanBeCached ? CurrResult : EWorldConditionResultValue::Invalid;
 			
-			bAllConditionsCanBeCached &= Condition.bCanCacheResult;
+			bAllConditionsCanBeCached &= ConditionResult.bCanBeCached;
 		}
 
 		Depth++;
@@ -115,11 +118,12 @@ void FWorldConditionContext::Deactivate() const
 		return;
 	}
 
-	if (const UWorldConditionQuerySharedDefinition* SharedDefinition = QueryState.SharedDefinition)
+	if (const FWorldConditionQuerySharedDefinition* SharedDefinition = QueryState.GetSharedDefinition())
 	{
-		for (int32 Index = 0; Index < SharedDefinition->Conditions.Num(); Index++)
+		const FInstancedStructContainer& Conditions = SharedDefinition->GetConditions();
+		for (int32 Index = 0; Index < Conditions.Num(); Index++)
 		{
-			const FWorldConditionBase& ConditionDef = SharedDefinition->Conditions[Index].Get<FWorldConditionBase>();
+			const FWorldConditionBase& ConditionDef = Conditions[Index].Get<FWorldConditionBase>();
 			ConditionDef.Deactivate(*this);
 		}
 	}

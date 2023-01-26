@@ -141,13 +141,28 @@ struct WORLDCONDITIONS_API FWorldConditionContextData
 		return false;
 	}
 
+	/** @return Type of the referenced context data. */
+	EWorldConditionContextDataType GetContextDataType(const FWorldConditionContextDataRef& Ref) const
+	{
+		check(Ref.IsValid());
+		return Views[Ref.GetIndex()].GetType();
+	}
+
+	/** @todo: Add mutable version with const checking. */
+	/** @return Pointer to referenced context data. */
+	template <typename T>
+	const T* GetContextDataPtr(const FWorldConditionContextDataRef& Ref) const
+	{
+		check(Ref.IsValid());
+		return Views[Ref.GetIndex()].template GetPtr<T>();
+	}
+
 protected:
 	/** Pointer to schema used to initialize the context data. */
 	const UWorldConditionSchema* Schema = nullptr;
+	
 	/** Views to context data. */
 	TArray<FWorldConditionDataView> Views;
-
-	friend struct FWorldConditionContext;
 };
 
 /**
@@ -157,28 +172,25 @@ protected:
 struct WORLDCONDITIONS_API FWorldConditionContext
 {
 	explicit FWorldConditionContext(FWorldConditionQueryState& InQueryState, const FWorldConditionContextData& InContextData)
-		: Owner(*InQueryState.Owner)
-		, QueryState(InQueryState)
+		: QueryState(InQueryState)
 		, ContextData(InContextData)
 	{
-		check(InQueryState.Owner);
-		World = Owner.GetWorld();
+		World = IsValid(QueryState.GetOwner()) ? QueryState.GetOwner()->GetWorld() : nullptr;
 	}
 
 	/** @return Pointer to owner of the world conditions to be updated. */
-	const UObject* GetOwner() const { return &Owner; }
+	const UObject* GetOwner() const { return QueryState.GetOwner(); }
 	
 	/** @return Pointer to world of the owner of the world conditions to be updated. */
 	UWorld* GetWorld() const { return World; }
 	
 	/** @return Pointer to the schema of the context data passed to the conditions. */
-	const UWorldConditionSchema* GetSchema() const { return ContextData.Schema; }
+	const UWorldConditionSchema* GetSchema() const { return ContextData.GetSchema(); }
 
 	/** @return Type of the referenced context data. */
 	EWorldConditionContextDataType GetContextDataType(const FWorldConditionContextDataRef& Ref) const
 	{
-		check(Ref.IsValid());
-		return ContextData.Views[Ref.GetIndex()].GetType();
+		return ContextData.GetContextDataType(Ref);
 	}
 
 	/** @todo: Add mutable version with const checking. */
@@ -186,8 +198,7 @@ struct WORLDCONDITIONS_API FWorldConditionContext
 	template <typename T>
 	const T* GetContextDataPtr(const FWorldConditionContextDataRef& Ref) const
 	{
-		check(Ref.IsValid());
-		return ContextData.Views[Ref.GetIndex()].template GetPtr<T>();
+		return ContextData.template GetContextDataPtr<T>(Ref);
 	}
 
 	/** @return Struct State data of the specific world condition. */
@@ -240,10 +251,7 @@ struct WORLDCONDITIONS_API FWorldConditionContext
 	void Deactivate() const;
 	
 protected:
-	/** Owner object of the query, used as outer for duplicate UObject condition state. */
-	const UObject& Owner;
-	
-	/** World of the owner. */
+	/** World of the QueryState.Owner. */
 	UWorld* World = nullptr;
 	
 	/** Reference to the query state of the query to be updated. */

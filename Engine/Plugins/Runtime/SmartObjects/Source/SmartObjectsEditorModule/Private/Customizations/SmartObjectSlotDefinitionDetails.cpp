@@ -89,8 +89,7 @@ void FSmartObjectSlotDefinitionDetails::OnPaste() const
 				if (FSmartObjectSlotDefinition* Slot = static_cast<FSmartObjectSlotDefinition*>(RawNodeData[Index]))
 				{
 					Slot->ID = FGuid::NewGuid();
-					Slot->SelectionPreconditions.SchemaClass = Definition->GetWorldConditionSchemaClass();
-					Slot->SelectionPreconditions.Initialize(*Outer);
+					Slot->SelectionPreconditions.Initialize(*Outer, Definition->GetWorldConditionSchemaClass(), {});
 				}
 			}
 		}

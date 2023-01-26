@@ -96,7 +96,7 @@ void FWorldConditionContextDataRefDetails::CacheContextData()
 				{
 					if (const FWorldConditionQueryDefinition* QueryDefinition = static_cast<FWorldConditionQueryDefinition*>(Data))
 					{
-						Schema = QueryDefinition->SchemaClass.GetDefaultObject();
+						Schema = QueryDefinition->GetSchemaClass().GetDefaultObject();
 						if (Schema)
 						{
 							break;

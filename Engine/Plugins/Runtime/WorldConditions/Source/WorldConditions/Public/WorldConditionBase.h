@@ -165,6 +165,24 @@ struct WORLDCONDITIONS_API FWorldConditionBase
 	 */
 	virtual void Deactivate(const FWorldConditionContext& Context) const;
 
+	/** @return offset in state memory where the conditions state is stored. */
+	uint16 GetStateDataOffset() const { return StateDataOffset; }
+
+	/** @return condition index. */
+	uint8 GetConditionIndex() const { return ConditionIndex; }
+
+	/** @return true if the state of the condition is UObject. */
+	bool IsStateObject() const { return bIsStateObject; }
+
+	/** @return true if conditions result should be inverted. Applied by the expression evaluator. */
+	bool ShouldInvertResult() const { return bInvert; }
+
+	/** @return operator to apply for this condition in the expression evaluation. */
+	EWorldConditionOperator GetOperator() const { return Operator; }
+
+	/** @return expression depth used by the expression evaluator. */
+	uint8 GetNextExpressionDepth() const { return NextExpressionDepth; }
+	
 protected:
 	/** Used internally, Offset of the data in the State storage. */
 	uint16 StateDataOffset = 0;
@@ -191,8 +209,7 @@ protected:
 	uint8 NextExpressionDepth = 0;
 
 	friend struct FWorldConditionQueryDefinition;
-	friend struct FWorldConditionQueryState;
-	friend struct FWorldConditionContext;
+	friend struct FWorldConditionQuerySharedDefinition;
 };
 
 

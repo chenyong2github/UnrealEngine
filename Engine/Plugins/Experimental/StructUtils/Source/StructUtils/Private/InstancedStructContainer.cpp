@@ -62,6 +62,13 @@ FInstancedStructContainer& FInstancedStructContainer::operator=(TConstArrayView<
 	return *this;
 }
 
+FInstancedStructContainer& FInstancedStructContainer::operator=(TConstArrayView<FStructView> InItems)
+{
+	Reset();
+	InsertAt(0, InItems);
+	return *this;
+}
+
 FInstancedStructContainer& FInstancedStructContainer::operator=(TConstArrayView<FConstStructView> InItems)
 {
 	Reset();
@@ -111,6 +118,17 @@ void FInstancedStructContainer::InsertAt(const int32 InsertAtIndex, TConstArrayV
 	TArray<FConstStructView> Views;
 	Views.Reserve(NewItemValues.Num());
 	for (const FInstancedStruct& Value : NewItemValues)
+	{
+		Views.Add(Value);
+	}
+	InsertAt(InsertAtIndex, Views);
+}
+
+void FInstancedStructContainer::InsertAt(const int32 InsertAtIndex, TConstArrayView<FStructView> NewItemValues)
+{
+	TArray<FConstStructView> Views;
+	Views.Reserve(NewItemValues.Num());
+	for (const FStructView Value : NewItemValues)
 	{
 		Views.Add(Value);
 	}

@@ -225,7 +225,7 @@ void USmartObjectDefinition::PostEditChangeChainProperty(FPropertyChangedChainEv
 			{
 				FSmartObjectSlotDefinition& Slot = Slots[ArrayIndex];
 				Slot.ID = FGuid::NewGuid();
-				Slot.SelectionPreconditions.SchemaClass = WorldConditionSchemaClass;
+				Slot.SelectionPreconditions.SetSchemaClass(WorldConditionSchemaClass);
 			}
 		}
 	}
@@ -241,7 +241,7 @@ void USmartObjectDefinition::PostEditChangeChainProperty(FPropertyChangedChainEv
 	{
 		for (FSmartObjectSlotDefinition& Slot : Slots)
 		{
-			Slot.SelectionPreconditions.SchemaClass = WorldConditionSchemaClass;
+			Slot.SelectionPreconditions.SetSchemaClass(WorldConditionSchemaClass);
 			Slot.SelectionPreconditions.Initialize(*this);
 		}
 	}
@@ -301,9 +301,9 @@ void USmartObjectDefinition::PostLoad()
 		WorldConditionSchemaClass = GetDefault<USmartObjectSettings>()->DefaultWorldConditionSchemaClass;
 	}
 
-	if (!Preconditions.SchemaClass)
+	if (Preconditions.GetSchemaClass().Get() == nullptr)
 	{
-		Preconditions.SchemaClass = WorldConditionSchemaClass;
+		Preconditions.SetSchemaClass(WorldConditionSchemaClass);
 	}
 
 #if WITH_EDITOR
@@ -312,7 +312,7 @@ void USmartObjectDefinition::PostLoad()
 	{
 		FWorldCondition_SmartObjectActorTagQuery NewActorTagQueryCondition;
 		NewActorTagQueryCondition.TagQuery = ObjectTagFilter;
-		Preconditions.EditableConditions.Emplace(0, EWorldConditionOperator::And, FConstStructView::Make(NewActorTagQueryCondition));
+		Preconditions.AddCondition(FWorldConditionEditable(0, EWorldConditionOperator::And, FConstStructView::Make(NewActorTagQueryCondition)));
 		ObjectTagFilter.Clear();
 		UE_ASSET_LOG(LogSmartObject, Log, this, TEXT("Deprecated object tag filter has been replaced by a %s precondition to validate tags on the smart object actor."
 			" If the intent was to validate against instance runtime tags then the condition should be replaced by %s."),
@@ -334,9 +334,9 @@ void USmartObjectDefinition::PostLoad()
 		}
 #endif
 		// Fill in missing world condition schema for old data.
-		if (!Slot.SelectionPreconditions.SchemaClass)
+		if (Slot.SelectionPreconditions.GetSchemaClass().Get() == nullptr)
 		{
-			Slot.SelectionPreconditions.SchemaClass = WorldConditionSchemaClass;
+			Slot.SelectionPreconditions.SetSchemaClass(WorldConditionSchemaClass);
 		}
 
 		Slot.SelectionPreconditions.Initialize(*this);

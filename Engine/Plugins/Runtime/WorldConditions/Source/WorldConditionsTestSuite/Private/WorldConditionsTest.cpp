@@ -13,10 +13,11 @@ struct FWorldConditionTest_Init : FAITestBase
 	virtual bool InstantTest() override
 	{
 		FWorldConditionQueryDefinition Definition;
-		Definition.SchemaClass = UWorldConditionTestSchema::StaticClass();
-		Definition.EditableConditions.Emplace(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest()));
-		Definition.EditableConditions.Emplace(0, EWorldConditionOperator::And, FConstStructView::Make(FWorldConditionTest()));
-		const bool bInitialized = Definition.Initialize(GetWorld());
+		const bool bInitialized = Definition.Initialize(GetWorld(), UWorldConditionTestSchema::StaticClass(),
+			{
+				FWorldConditionEditable(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest())),
+				FWorldConditionEditable(0, EWorldConditionOperator::And, FConstStructView::Make(FWorldConditionTest())),
+			});
 
 		AITEST_TRUE("Query definition should get initialized", bInitialized);
 
