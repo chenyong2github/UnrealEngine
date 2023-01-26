@@ -42,3 +42,18 @@ enum PixelStreamingToStreamerMessage : UInt8, Codable {
     
     case Transform = 100
 }
+
+struct PixelStreamingToStreamerResolutionCommand: Codable {
+    var resolution: Resolution
+    
+    struct Resolution: Codable {
+        var width: Int = 0
+        var height: Int = 0
+    }
+    
+    init(width: Int, height: Int){
+        self.resolution = Resolution(width: width, height: height)
+    }
+}
+
+
