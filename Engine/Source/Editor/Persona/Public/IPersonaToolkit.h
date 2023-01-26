@@ -88,4 +88,7 @@ public:
 	
 	/** Get the context in which this toolkit is being used (usually the class name of the asset) */
 	virtual FName GetContext() const = 0;
+
+	/** Returns true if the preview mesh can use skeletal meshes that don't share the same skeleton as the one being edited. */
+	virtual bool CanPreviewMeshUseDifferentSkeleton() const = 0;
 };

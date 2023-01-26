@@ -53,6 +53,7 @@ public:
 	virtual void SetCustomData(const int32 Key, const int32 CustomData) override;
 	virtual void CustomizeSceneSettings(IDetailLayoutBuilder& DetailBuilder) override;
 	virtual FName GetContext() const override;
+	virtual bool CanPreviewMeshUseDifferentSkeleton() const override;
 
 private:
 	/** Common initialization */
@@ -90,4 +91,7 @@ private:
 
 	/** The class of the initial asset we were created with */
 	UClass* InitialAssetClass;
+
+	/** A flag to indicate whether the preview mesh's skeleton can be incompatible with the editing skeleton */
+	bool bPreviewMeshCanUseDifferentSkeleton = false;
 };

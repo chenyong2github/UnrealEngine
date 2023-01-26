@@ -83,6 +83,12 @@ struct FPersonaToolkitArgs
 	 * for the user to customize the layout however they wish. */
 	FOnPreviewSceneSettingsCustomized::FDelegate OnPreviewSceneSettingsCustomized;
 
+	/**
+	 * Set to true if the preview mesh can be associated with a skeleton different from the one being inspected
+	 * by Persona. Used for editors that are mostly skeleton agnostic.
+	 */
+	bool bPreviewMeshCanUseDifferentSkeleton = false;
+
 	FPersonaToolkitArgs() = default;
 };
 
