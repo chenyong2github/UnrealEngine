@@ -885,13 +885,6 @@ void FModelingToolsEditorModeToolkit::InitializeAfterModeSetup()
 		// ToolTarget Factories that are only available once ModelingToolsEditorMode has been initialized
 		AssetLODMode->SetSelectedItem(AssetLODModes[0]);
 
-		// Attach the gizmo numerical UI to the gizmo context object so that it can show the values for any newly
-		// created gizmos.
-		if (ensure(GizmoNumericalUIOverlayWidget.IsValid()))
-		{
-			GizmoNumericalUIOverlayWidget->BindToGizmoContextObject(GetScriptableEditorMode()->GetInteractiveToolsContext(EToolsContextScope::EdMode));
-		}
-
 		bFirstInitializeAfterModeSetup = false;
 	}
 
@@ -1510,6 +1503,14 @@ void FModelingToolsEditorModeToolkit::ForceToolPaletteRebuild()
 	//{
 	//	bShowActiveSelectionActions = false;
 	//}
+}
+
+void FModelingToolsEditorModeToolkit::BindGizmoNumericalUI()
+{
+	if (ensure(GizmoNumericalUIOverlayWidget.IsValid()))
+	{
+		ensure(GizmoNumericalUIOverlayWidget->BindToGizmoContextObject(GetScriptableEditorMode()->GetInteractiveToolsContext(EToolsContextScope::EdMode)));
+	}
 }
 
 

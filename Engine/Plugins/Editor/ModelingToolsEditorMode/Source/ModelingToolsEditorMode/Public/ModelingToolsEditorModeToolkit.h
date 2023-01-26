@@ -94,6 +94,10 @@ public:
 
 	virtual void ForceToolPaletteRebuild();
 
+	// The mode is expected to call this after setting up the gizmo context object so that any subsequently
+	// created gizmos are bound to the numerical UI.
+	void BindGizmoNumericalUI();
+
 	// This is exposed only for the convenience of being able to create the numerical UI submenu
 	// in a non-member function in ModelingModeToolkit_Toolbars.cpp
 	TSharedPtr<STransformGizmoNumericalUIOverlay> GetGizmoNumericalUIOverlayWidget() { return GizmoNumericalUIOverlayWidget; }

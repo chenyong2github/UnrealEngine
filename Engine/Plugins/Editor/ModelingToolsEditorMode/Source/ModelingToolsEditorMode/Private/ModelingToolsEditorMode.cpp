@@ -384,6 +384,12 @@ void UModelingToolsEditorMode::Enter()
 		GetInteractiveToolsContext()->SetAbsoluteWorldSnappingEnabled(ModelingModeSettings->bEnableAbsoluteWorldSnapping);
 	}
 
+	// Now that we have the gizmo helper, bind the numerical UI.
+	if (ensure(Toolkit.IsValid()))
+	{
+		((FModelingToolsEditorModeToolkit*)Toolkit.Get())->BindGizmoNumericalUI();
+	}
+	
 	// register snapping manager
 	UE::Geometry::RegisterSceneSnappingManager(GetInteractiveToolsContext());
 	SceneSnappingManager = UE::Geometry::FindModelingSceneSnappingManager(GetToolManager());
