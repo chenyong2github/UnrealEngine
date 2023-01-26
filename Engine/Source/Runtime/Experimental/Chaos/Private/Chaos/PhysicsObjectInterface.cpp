@@ -378,6 +378,39 @@ namespace Chaos
 	}
 
 	template<EThreadContext Id>
+	bool FReadPhysicsObjectInterface<Id>::AreAllShapesQueryEnabled(TArrayView<FPhysicsObjectHandle> InObjects)
+	{
+		// This operation isn't particularly defined on the physics thread?
+		if constexpr (Id == EThreadContext::Internal)
+		{
+			return false;
+		}
+
+		if (InObjects.IsEmpty())
+		{
+			return false;
+		}
+
+		for (FPhysicsObjectHandle Object : InObjects)
+		{
+			if (Object)
+			{
+				if (TThreadParticle<Id>* Particle = Object->GetParticle<Id>())
+				{
+					for (const TUniquePtr<FPerShapeData>& ShapeData : Particle->ShapesArray())
+					{
+						if (!ShapeData->GetCollisionData().bQueryCollision)
+						{
+							return false;
+						}
+					}
+				}
+			}
+		}
+		return true;
+	}
+
+	template<EThreadContext Id>
 	float FReadPhysicsObjectInterface<Id>::GetMass(TArrayView<FPhysicsObjectHandle> InObjects)
 	{
 		float Mass = 0.f;
@@ -610,6 +643,50 @@ namespace Chaos
 
 						Rigid->AddTorque(Torque, bInvalidate);
 					}
+				}
+			}
+		}
+	}
+
+	template<EThreadContext Id>
+	void FWritePhysicsObjectInterface<Id>::UpdateShapeCollisionFlags(TArrayView<FPhysicsObjectHandle> InObjects, bool bSimCollision, bool bQueryCollision)
+	{
+		for (FPhysicsObjectHandle Object : InObjects)
+		{
+			if (!Object)
+			{
+				continue;
+			}
+
+			if (TThreadParticle<Id>* Particle = Object->GetParticle<Id>())
+			{
+				for (const TUniquePtr<Chaos::FPerShapeData>& ShapeData : Particle->ShapesArray())
+				{
+					FCollisionData Data = ShapeData->GetCollisionData();
+					Data.bSimCollision = bSimCollision;
+					Data.bQueryCollision = bQueryCollision;
+					ShapeData->SetCollisionData(Data);
+				}
+			}
+		}
+	}
+
+	template<EThreadContext Id>
+	void FWritePhysicsObjectInterface<Id>::UpdateShapeFilterData(TArrayView<FPhysicsObjectHandle> InObjects, const FCollisionFilterData& QueryData, const FCollisionFilterData& SimData)
+	{
+		for (FPhysicsObjectHandle Object : InObjects)
+		{
+			if (!Object)
+			{
+				continue;
+			}
+
+			if (TThreadParticle<Id>* Particle = Object->GetParticle<Id>())
+			{
+				for (const TUniquePtr<Chaos::FPerShapeData>& ShapeData : Particle->ShapesArray())
+				{
+					ShapeData->SetQueryData(QueryData);
+					ShapeData->SetSimData(SimData);
 				}
 			}
 		}

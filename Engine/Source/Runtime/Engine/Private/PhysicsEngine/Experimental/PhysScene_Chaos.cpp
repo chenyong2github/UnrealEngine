@@ -1772,17 +1772,23 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 			// Don't pass in anything here so we don't end up locking anything because we can assume the scene is already locked.
 			FLockedWritePhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockWrite({});
 
+			auto ShouldGCParticleBeInAccelerationStructure = [&Interface](Chaos::FPhysicsObjectHandle Handle)
+			{
+				// It's possible to be an enabled particle and not qualify for query collisions if the GC particle has been replication abandoned. 
+				return !Interface->AreAllDisabled({ &Handle, 1 }) && Interface->AreAllShapesQueryEnabled({ &Handle, 1 });
+			};
+
 			TArray<Chaos::FPhysicsObjectHandle> ActiveHandles = Proxy->GetAllPhysicsObjects().FilterByPredicate(
-				[&Interface](Chaos::FPhysicsObjectHandle Handle)
+				[&ShouldGCParticleBeInAccelerationStructure](Chaos::FPhysicsObjectHandle Handle)
 				{
-					return !Interface->AreAllDisabled({ &Handle, 1 });
+					return ShouldGCParticleBeInAccelerationStructure(Handle);
 				}
 			);
 
 			TArray<Chaos::FPhysicsObjectHandle> DisabledHandles = Proxy->GetAllPhysicsObjects().FilterByPredicate(
-				[&Interface](Chaos::FPhysicsObjectHandle Handle)
+				[&ShouldGCParticleBeInAccelerationStructure](Chaos::FPhysicsObjectHandle Handle)
 				{
-					return Interface->AreAllDisabled({ &Handle, 1 });
+					return !ShouldGCParticleBeInAccelerationStructure(Handle);
 				}
 			);
 			Interface->AddToSpatialAcceleration(ActiveHandles, GetSpacialAcceleration());

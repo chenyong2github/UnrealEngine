@@ -73,6 +73,7 @@ namespace Chaos
 		bool AreAllRigidBody(TArrayView<FPhysicsObjectHandle> InObjects);
 		bool AreAllDynamic(TArrayView<FPhysicsObjectHandle> InObjects);
 		bool AreAllDisabled(TArrayView<FPhysicsObjectHandle> InObjects);
+		bool AreAllShapesQueryEnabled(TArrayView<FPhysicsObjectHandle> InObjects);
 		float GetMass(TArrayView<FPhysicsObjectHandle> InObjects);
 		FBox GetBounds(TArrayView<FPhysicsObjectHandle> InObjects);
 		FBox GetWorldBounds(TArrayView<FPhysicsObjectHandle> InObjects);
@@ -97,6 +98,9 @@ namespace Chaos
 		void WakeUp(TArrayView<FPhysicsObjectHandle> InObjects);
 		void AddForce(TArrayView<FPhysicsObjectHandle> InObjects, const FVector& Force, bool bInvalidate);
 		void AddTorque(TArrayView<FPhysicsObjectHandle> InObjects, const FVector& Torque, bool bInvalidate);
+		
+		void UpdateShapeCollisionFlags(TArrayView<FPhysicsObjectHandle> InObjects, bool bSimCollision, bool bQueryCollision);
+		void UpdateShapeFilterData(TArrayView<FPhysicsObjectHandle> InObjects, const FCollisionFilterData& QueryData, const FCollisionFilterData& SimData);
 
 		template<typename TPayloadType, typename T, int d>
 		void AddToSpatialAcceleration(TArrayView<FPhysicsObjectHandle> InObjects, ISpatialAcceleration<TPayloadType, T, d>* SpatialAcceleration)

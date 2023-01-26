@@ -11,6 +11,7 @@
 #include "ChaosStats.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Components/BoxComponent.h"
+#include "Engine/CollisionProfile.h"
 #include "Engine/Engine.h"
 #include "Engine/InstancedStaticMesh.h"
 #include "Field/FieldSystemComponent.h"
@@ -317,6 +318,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 #endif
 	, bEnableReplication(false)
 	, bEnableAbandonAfterLevel(true)
+	, AbandonedCollisionProfileName(UCollisionProfile::CustomCollisionProfileName)
 	, ReplicationAbandonClusterLevel_DEPRECATED(0)
 	, ReplicationAbandonAfterLevel(0)
 	, bRenderStateDirty(true)
@@ -1525,7 +1527,7 @@ void UGeometryCollectionComponent::UpdateRepData()
 
 		bool bClustersChanged = false;
 
-		const FPBDRigidsSolver* Solver = PhysicsProxy->GetSolver<Chaos::FPBDRigidsSolver>();
+		FPBDRigidsSolver* Solver = PhysicsProxy->GetSolver<Chaos::FPBDRigidsSolver>();
 		const FRigidClustering& RigidClustering = Solver->GetEvolution()->GetRigidClustering();
 
 		const TManagedArray<int32>* InitialLevels = PhysicsProxy->GetPhysicsCollection().FindAttribute<int32>("InitialLevel", FGeometryCollection::TransformGroup);
@@ -1533,6 +1535,7 @@ void UGeometryCollectionComponent::UpdateRepData()
 
 		//see if we have any new clusters that are enabled
 		TSet<FPBDRigidClusteredParticleHandle*> Processed;
+
 		for (FPBDRigidClusteredParticleHandle* Particle : PhysicsProxy->GetParticles())
 		{
 			// Particle can be null if we have embedded geometry 
@@ -1607,12 +1610,13 @@ void UGeometryCollectionComponent::UpdateRepData()
 						if (!Root->Disabled())
 						{
 							Solver->GetEvolution()->DisableParticle(Root);
+							Solver->GetParticles().MarkTransientDirtyParticle(Root);
 						}
 					}
 				}
 			}
 		}
-		
+
 		INC_DWORD_STAT_BY(STAT_GCReplicatedFractures, RepData.OneOffActivated.Num());
 		
 		//build up clusters to replicate and compare with previous frame
@@ -2679,31 +2683,34 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 
 	// If we're replicating we need some extra setup - check netmode as we don't need this for standalone runtime where we aren't going to network the component
 	// IMPORTANT this need to happen after the object is registered so this will guarantee that the particles are properly created by the time the callback below gets called
-	if (GetIsReplicated())
+	if (GetIsReplicated() && PhysicsProxy->GetReplicationMode() == FGeometryCollectionPhysicsProxy::EReplicationMode::Client)
 	{
 		// Client side : geometry collection children of parents below the rep level need to be infinitely strong so that client cannot break it 
 		if (Chaos::FPhysicsSolver* CurrSolver = GetSolver(*this))
 		{
 			CurrSolver->EnqueueCommandImmediate([Proxy = PhysicsProxy, AbandonAfterLevel = ReplicationAbandonAfterLevel, EnableAbandonAfterLevel = bEnableAbandonAfterLevel]()
 				{
-					if (Proxy->GetReplicationMode() == FGeometryCollectionPhysicsProxy::EReplicationMode::Client)
+					// As we're not in control we make it so our simulated proxy cannot break clusters
+					// We have to set the strain to a high value but be below the max for the data type
+					// so releasing on authority demand works
+					for (Chaos::FPBDRigidClusteredParticleHandle* ParticleHandle : Proxy->GetParticles())
 					{
-						// As we're not in control we make it so our simulated proxy cannot break clusters
-						// We have to set the strain to a high value but be below the max for the data type
-						// so releasing on authority demand works
-						for (Chaos::FPBDRigidClusteredParticleHandle* ParticleHandle : Proxy->GetParticles())
+						if (ParticleHandle)
 						{
-							if (ParticleHandle)
+							const int32 Level = EnableAbandonAfterLevel ? ComputeParticleLevel(ParticleHandle) : -1;
+							if (Level <= AbandonAfterLevel + 1)	//we only replicate up until level X, but it means we should replicate the breaking event of level X+1 (but not X+1's positions)
 							{
-								const int32 Level = EnableAbandonAfterLevel ? ComputeParticleLevel(ParticleHandle) : -1;
-								if (Level <= AbandonAfterLevel + 1)	//we only replicate up until level X, but it means we should replicate the breaking event of level X+1 (but not X+1's positions)
-								{
-									ParticleHandle->SetMaximumInternalStrain();
-								}
+								ParticleHandle->SetMaximumInternalStrain();
 							}
 						}
 					}
 				});
+		}
+
+		// We also need to make sure collision is disabled on the game thread side of things if abandoned particles shouldn't have collision.
+		if (bEnableAbandonAfterLevel)
+		{
+			LoadCollisionProfileOnAbandonedParticles();
 		}
 	}
 
@@ -2718,6 +2725,54 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 
 	RegisterForEvents();
 	SetAsyncPhysicsTickEnabled(GetIsReplicated());
+}
+
+void UGeometryCollectionComponent::SetAbandonedParticleCollisionProfileName(FName CollisionProfile)
+{
+	if (!bEnableAbandonAfterLevel)
+	{
+		return;
+	}
+
+	AbandonedCollisionProfileName = CollisionProfile;
+	LoadCollisionProfileOnAbandonedParticles();
+}
+
+void UGeometryCollectionComponent::LoadCollisionProfileOnAbandonedParticles()
+{
+	FCollisionResponseTemplate Template;
+	if (!PhysicsProxy || !UCollisionProfile::Get()->GetProfileTemplate(AbandonedCollisionProfileName, Template))
+	{
+		return;
+	}
+
+	Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(*RestCollection->GetGeometryCollection());
+
+	AActor* Owner = GetOwner();
+	const uint32 ActorID = Owner ? Owner->GetUniqueID() : 0;
+	const uint32 CompID = GetUniqueID();
+
+	FCollisionFilterData AbandonedQueryFilter = InitialQueryFilter;
+	FCollisionFilterData AbandonedSimFilter = InitialSimFilter;
+	CreateShapeFilterData(Template.ObjectType, BodyInstance.GetMaskFilter(), ActorID, Template.ResponseToChannels, CompID, INDEX_NONE, AbandonedQueryFilter, AbandonedSimFilter, BodyInstance.bUseCCD, bNotifyCollisions, false, false);
+
+	// Maintain parity with the rest of the geometry collection filters.
+	AbandonedQueryFilter.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
+	AbandonedSimFilter.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
+
+	TArray<Chaos::FPhysicsObjectHandle> PhysicsObjects = PhysicsProxy->GetAllPhysicsObjects();
+	FLockedWritePhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockWrite(PhysicsObjects);
+
+	for (int32 ParticleIndex = 0; ParticleIndex < PhysicsProxy->GetNumParticles(); ++ParticleIndex)
+	{
+		const int32 Level = HierarchyFacade.GetInitialLevel(ParticleIndex);
+		if (Level >= ReplicationAbandonAfterLevel + 1)
+		{
+			TArrayView<Chaos::FPhysicsObjectHandle> ParticleView{ &PhysicsObjects[ParticleIndex], 1 };
+			Interface->UpdateShapeCollisionFlags(ParticleView, CollisionEnabledHasPhysics(Template.CollisionEnabled), CollisionEnabledHasQuery(Template.CollisionEnabled));
+			Interface->UpdateShapeFilterData(ParticleView, AbandonedQueryFilter, AbandonedSimFilter);
+		}
+	}
 }
 
 #if WITH_EDITORONLY_DATA

@@ -651,6 +651,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	void SetEnableDamageFromCollision(bool bValue);
 
+
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void SetAbandonedParticleCollisionProfileName(FName CollisionProfile);
+
 	/** API for getting at geometry collection data */
 	int32 GetNumElements(FName Group) const;
 
@@ -1082,6 +1086,13 @@ protected:
 	bool bEnableAbandonAfterLevel;
 
 	/**
+	 * Whether abandoned particles on the client should continue to have collision (i.e.
+	 * still be in the external/internal acceleration structure).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter= SetAbandonedParticleCollisionProfileName, Category = Network)
+	FName AbandonedCollisionProfileName;
+
+	/**
 	 * If replicating - the cluster level to stop sending corrections for geometry collection chunks.
 	 * recommended for smaller leaf levels when the size of the objects means they are no longer
 	 * gameplay relevant to cut down on required bandwidth to update a collection.
@@ -1200,6 +1211,8 @@ private:
 	void UpdateAttachedChildrenTransform() const;
 	
 	void BuildInitialFilterData();
+
+	void LoadCollisionProfileOnAbandonedParticles();
 
 	/** The clusters we need to replicate */
 	TUniquePtr<TSet<Chaos::FPBDRigidClusteredParticleHandle*>> ClustersToRep;
