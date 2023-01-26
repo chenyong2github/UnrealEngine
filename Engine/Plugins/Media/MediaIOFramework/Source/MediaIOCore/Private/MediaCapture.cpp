@@ -1121,7 +1121,7 @@ bool UMediaCapture::StartSourceCapture(TSharedPtr<UE::MediaCapture::Private::FCa
 	{
 		UE_LOG(LogMediaIOCore, Display, TEXT("AnyThread Capture was disabled because the current RHI does not support Multithreading."));
 	}
-	else if (SupportsAnyThreadCapture())
+	else if (!SupportsAnyThreadCapture())
 	{
 		UE_LOG(LogMediaIOCore, Display, TEXT("AnyThread Capture was disabled because the media capture implementation does not have a AnyThread callback."));
 	}
