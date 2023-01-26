@@ -166,7 +166,7 @@ void UCharacterMovementTrajectoryComponent::PredictTrajectory(
 	const FRotator& InDesiredControlRotationVelocity,
 	FTrajectorySampleRange& OutTrajectoryRange) const
 {
-	check(InSampleRate > UE_KINDA_SMALL_NUMBER);
+	check(InSampleRate > 0);
 	const float IntegrationDelta = 1.f / static_cast<float>(InSampleRate);
 
 	FTrajectorySample Sample = PresentTrajectory;
