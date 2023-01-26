@@ -269,7 +269,7 @@ void SDMXControlConsoleEditorFaderGroupView::OnElementRemoved()
 		const TSharedPtr<SDMXControlConsoleEditorFader> FaderWidget = StaticCastSharedPtr<SDMXControlConsoleEditorFader>(Widget.Pin());
 		if (FaderWidget.IsValid())
 		{
-			UDMXControlConsoleFaderBase* Fader = Fader = FaderWidget->GetFader();
+			UDMXControlConsoleFaderBase* Fader = FaderWidget->GetFader();
 			if (Fader && Elements.Contains(Fader))
 			{
 				continue;
