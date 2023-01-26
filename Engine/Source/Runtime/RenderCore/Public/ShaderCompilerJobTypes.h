@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "HAL/PlatformTime.h"
 #include "Hash/Blake3.h"
 #include "Shader.h"
