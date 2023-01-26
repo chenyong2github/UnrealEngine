@@ -211,6 +211,9 @@ public:
 		return Result;
 	}
 
+	/** Read-only access to the list of currently selected items */
+	const TArray<FContentBrowserItem>& GetSelectedItems() const;
+
 	/**
 	 * Finds the Content Browser MenuContext from a Menu or Section, and returns the context provided there are some
 	 * selected assets.

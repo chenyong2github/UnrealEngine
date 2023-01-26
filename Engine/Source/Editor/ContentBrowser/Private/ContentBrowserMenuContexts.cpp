@@ -9,6 +9,7 @@
 #include "ToolMenus.h"
 #include "Algo/Copy.h"
 #include "AssetViewUtils.h"
+#include "AssetContextMenu.h"
 
 FName UContentBrowserToolbarMenuContext::GetCurrentPath() const
 {
@@ -80,6 +81,16 @@ const FAssetData* UContentBrowserAssetContextMenuContext::GetSingleSelectedAsset
 	}
 
 	return nullptr;
+}
+
+const TArray<FContentBrowserItem>& UContentBrowserAssetContextMenuContext::GetSelectedItems() const
+{
+	if (TSharedPtr<FAssetContextMenu> PinnedAssetContextMenu = AssetContextMenu.Pin())
+	{
+		return PinnedAssetContextMenu->GetSelectedItems();
+	}
+	static const TArray<FContentBrowserItem> Empty;
+	return Empty;
 }
 
 namespace UE::ContentBrowser

@@ -38,6 +38,9 @@ public:
 	/** Updates the list of currently selected items to those passed in */
 	void SetSelectedItems(TArrayView<const FContentBrowserItem> InSelectedItems);
 
+	/** Read-only access to the list of currently selected items */
+	const TArray<FContentBrowserItem>& GetSelectedItems() const { return SelectedItems; }
+
 	using FOnShowInPathsViewRequested = UContentBrowserDataMenuContext_FileMenu::FOnShowInPathsView;
 	void SetOnShowInPathsViewRequested(const FOnShowInPathsViewRequested& InOnShowInPathsViewRequested);
 
