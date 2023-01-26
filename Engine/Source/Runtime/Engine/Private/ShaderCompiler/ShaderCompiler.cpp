@@ -41,7 +41,6 @@
 #include "RenderUtils.h"
 #include "SceneInterface.h"
 #include "SceneManagement.h"
-#include "Serialization/MemoryHasher.h"
 #include "Serialization/NameAsStringProxyArchive.h"
 #include "ShaderCodeLibrary.h"
 #include "ShaderPlatformCachedIniValue.h"
@@ -133,14 +132,6 @@ bool IsShaderJobCacheDDCEnabled()
 
 	return false;
 }
-
-int32 GShaderCompilerDumpCompileJobInputs = 0;
-static FAutoConsoleVariableRef CVarShaderCompilerDumpCompileJobInputs(
-	TEXT("r.ShaderCompiler.DumpCompileJobInputs"),
-	GShaderCompilerDumpCompileJobInputs,
-	TEXT("if != 0, unpreprocessed input of the shader compiler jobs will be dumped into the debug directory for closer inspection. This is a debugging feature which is disabled by default."),
-	ECVF_Default
-);
 
 int32 GShaderCompilerCacheStatsPrintoutInterval = 180;
 static FAutoConsoleVariableRef CVarShaderCompilerCacheStatsPrintoutInterval(
@@ -313,40 +304,6 @@ namespace ShaderCompiler
 	}
 }
 
-// The Id of 0 is reserved for global shaders
-FThreadSafeCounter FShaderCommonCompileJob::JobIdCounter(2);
-
-uint32 FShaderCommonCompileJob::GetNextJobId()
-{
-	uint32 Id = JobIdCounter.Increment();
-	if (Id == UINT_MAX)
-	{
-		JobIdCounter.Set(2);
-	}
-	return Id;
-}
-
-FShaderPipelineCompileJob::FShaderPipelineCompileJob(uint32 InHash, uint32 InId, EShaderCompileJobPriority InPriroity, const FShaderPipelineCompileJobKey& InKey) :
-	FShaderCommonCompileJob(Type, InHash, InId, InPriroity),
-	Key(InKey)
-{
-	const auto& Stages = InKey.ShaderPipeline->GetStages();
-	StageJobs.Empty(Stages.Num());
-	for (const FShaderType* ShaderType : Stages)
-	{
-		const FShaderCompileJobKey StageKey(ShaderType, InKey.VFType, InKey.PermutationId);
-		StageJobs.Add(new FShaderCompileJob(StageKey.MakeHash(InId), InId, InPriroity, StageKey));
-	}
-}
-
-FString FShaderCompileJobKey::ToString() const
-{
-	return FString::Printf(
-		TEXT("ShaderType:%s VertexFactoryType:%s PermutationId:%d"),
-		ShaderType ? ShaderType->GetName() : TEXT("None"),
-		VFType ? VFType->GetName() : TEXT("None"),
-		PermutationId);
-}
 
 FShaderCompileJobCollection::FShaderCompileJobCollection()
 {
@@ -1193,8 +1150,6 @@ static TAutoConsoleVariable<bool> CVarShadersUseLegacyPreprocessor(
 	TEXT("\tfalse: Disabled - preprocess with STB\n"),
 	ECVF_ReadOnly);
 
-extern bool CompileShaderPipeline(const TArray<const IShaderFormat*>& ShaderFormats, FName Format, FShaderPipelineCompileJob* PipelineJob, const FString& Dir);
-
 #if ENABLE_COOK_STATS
 namespace ShaderCompilerCookStats
 {
@@ -1652,12 +1607,11 @@ bool DoWriteTasksInner(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FAr
 const TCHAR* DebugWorkerInputFileName = TEXT("DebugSCW.in");
 const TCHAR* DebugWorkerOutputFileName = TEXT("DebugSCW.out");
 
-FString CreateShaderCompilerWorkerDebugCommandLine(const FShaderCompileJob* Job)
+FString CreateShaderCompilerWorkerDebugCommandLine(FString DebugWorkerInputFilePath)
 {
 	// 0 is parent PID, pass zero TTL and KeepInput to make SCW process the single job then exit without deleting the input file
-	return FString::Printf(TEXT("\"%s\" 0 \"%s\" %s %s -TimeToLive=0.0f -KeepInput"),
-		*Job->Input.DumpDebugInfoPath, // working directory for SCW
-		*Job->Input.DebugGroupName, // console window title
+	return FString::Printf(TEXT("\"%s\" 0 \"DebugSCW\" %s %s -TimeToLive=0.0f -KeepInput"),
+		*DebugWorkerInputFilePath, // working directory for SCW
 		DebugWorkerInputFileName,
 		DebugWorkerOutputFileName);
 }
@@ -1669,40 +1623,36 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 	{
 		for (const FShaderCommonCompileJobPtr& CommonJob : QueuedJobs)
 		{
-			auto WriteSingleJobFile = [](FShaderCompileJob* Job)
-			{
-				if (Job->Input.DumpDebugInfoEnabled())
-				{
-					TArray<FShaderCommonCompileJobPtr> SingleJobArray;
-					SingleJobArray.Add(Job);
-
-					FString DebugWorkerInputFilePath = Job->Input.DumpDebugInfoPath / DebugWorkerInputFileName;
-					FArchive* DebugWorkerInputFileWriter = IFileManager::Get().CreateFileWriter(*DebugWorkerInputFilePath, FILEWRITE_NoFail);
-					DoWriteTasksInner(
-						SingleJobArray, 
-						*DebugWorkerInputFileWriter, 
-						nullptr,	// Don't pass a IDistributedBuildController, this is only used for conversion to relative paths which we do not want for debug files
-						false,		// As above, use absolute paths not relative
-						true);		// Always compress the debug files; they are rather large so this saves some disk space
-					DebugWorkerInputFileWriter->Close();
-					delete DebugWorkerInputFileWriter;
-
-					FFileHelper::SaveStringToFile(
-						CreateShaderCompilerWorkerDebugCommandLine(Job), 
-						*(Job->Input.DumpDebugInfoPath / TEXT("DebugCompileArgs.txt")));
-				}
-			};
 			FShaderPipelineCompileJob* PipelineJob = CommonJob->GetShaderPipelineJob();
+			FString DebugWorkerInputFilePath;
 			if (PipelineJob)
 			{
-				for (FShaderCompileJob* StageJob : PipelineJob->StageJobs)
-				{
-					WriteSingleJobFile(StageJob);
-				}
+				// for pipeline jobs, write out the worker input for the whole pipeline, but only for the first stage
+				// would be better to put in a parent folder probably...
+				DebugWorkerInputFilePath = PipelineJob->StageJobs[0]->Input.DumpDebugInfoPath;
 			}
 			else
 			{
-				WriteSingleJobFile(CommonJob->GetSingleShaderJob());
+				DebugWorkerInputFilePath = CommonJob->GetSingleShaderJob()->Input.DumpDebugInfoPath;
+			}
+			if (!DebugWorkerInputFilePath.IsEmpty())
+			{
+				TArray<FShaderCommonCompileJobPtr> SingleJobArray;
+				SingleJobArray.Add(CommonJob);
+
+				FArchive* DebugWorkerInputFileWriter = IFileManager::Get().CreateFileWriter(*(DebugWorkerInputFilePath / DebugWorkerInputFileName), FILEWRITE_NoFail);
+				DoWriteTasksInner(
+					SingleJobArray,
+					*DebugWorkerInputFileWriter,
+					nullptr,	// Don't pass a IDistributedBuildController, this is only used for conversion to relative paths which we do not want for debug files
+					false,		// As above, use absolute paths not relative
+					true);		// Always compress the debug files; they are rather large so this saves some disk space
+				DebugWorkerInputFileWriter->Close();
+				delete DebugWorkerInputFileWriter;
+
+				FFileHelper::SaveStringToFile(
+					CreateShaderCompilerWorkerDebugCommandLine(DebugWorkerInputFilePath),
+					*(DebugWorkerInputFilePath / TEXT("DebugCompileArgs.txt")));
 			}
 		}
 	}
@@ -2126,6 +2076,10 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<FShaderCommonCompil
 
 				FString PipelineName;
 				OutputFile << PipelineName;
+				bool bSucceeded = false;
+				OutputFile << bSucceeded;
+				CurrentJob->bSucceeded = bSucceeded;
+				OutputFile << CurrentJob->bFailedRemovingUnused;
 				if (PipelineName != CurrentJob->Key.ShaderPipeline->GetName())
 				{
 					FString Text = FString::Printf(TEXT("Worker returned Pipeline %s, expected %s!"), *PipelineName, CurrentJob->Key.ShaderPipeline->GetName());
@@ -2134,7 +2088,6 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<FShaderCommonCompil
 
 				check(!CurrentJob->bFinalized);
 				CurrentJob->bFinalized = true;
-				CurrentJob->bFailedRemovingUnused = false;
 
 				int32 NumStageJobs = -1;
 				OutputFile << NumStageJobs;
@@ -2146,14 +2099,11 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<FShaderCommonCompil
 				}
 				else
 				{
-					CurrentJob->bSucceeded = true;
 					for (int32 Index = 0; Index < NumStageJobs; Index++)
 					{
 						FShaderCompileJob* SingleJob = CurrentJob->StageJobs[Index];
 						// cannot reissue a single stage of a pipeline job
 						ReadSingleJob(SingleJob, OutputFile);
-						CurrentJob->bFailedRemovingUnused = CurrentJob->bFailedRemovingUnused || SingleJob->Output.bFailedRemovingUnused;
-						CurrentJob->bSucceeded = CurrentJob->bSucceeded && SingleJob->bSucceeded;
 					}
 				}
 			}
@@ -2917,7 +2867,7 @@ void FShaderCompileUtilities::ExecuteShaderCompileJob(FShaderCommonCompileJob& J
 	if (SingleJob)
 	{
 		const FName Format = (SingleJob->Input.ShaderFormat != NAME_None) ? SingleJob->Input.ShaderFormat : LegacyShaderPlatformToShaderFormat(EShaderPlatform(SingleJob->Input.Target.Platform));
-		CompileShader(ShaderFormats, SingleJob->Input, SingleJob->Output, WorkingDir);
+		CompileShader(ShaderFormats, *SingleJob, WorkingDir);
 	}
 	else
 	{
@@ -2941,7 +2891,7 @@ void FShaderCompileUtilities::ExecuteShaderCompileJob(FShaderCommonCompileJob& J
 			}
 		}
 
-		CompileShaderPipeline(ShaderFormats, Format, PipelineJob, WorkingDir);
+		CompileShaderPipeline(ShaderFormats, PipelineJob, WorkingDir);
 	}
 
 	Job.bFinalized = true;
@@ -8411,206 +8361,6 @@ void LoadGlobalShadersForRemoteRecompile(FArchive& Ar, EShaderPlatform ShaderPla
 				delete NewGlobalShaderMap;
 			}
 		}
-	}
-}
-
-FShaderCommonCompileJob::FInputHash FShaderCompileJob::GetInputHash()
-{
-	if (bInputHashSet)
-	{
-		return InputHash;
-	}
-
-	auto SerializeInputs = [this](FArchive& Archive)
-	{
-		checkf(Archive.IsSaving() && !Archive.IsLoading(), TEXT("A loading archive is passed to FShaderCompileJob::GetInputHash(), this is not supported as it may corrupt its data"));
-
-		Archive << Input;
-		Input.Environment.SerializeEverythingButFiles(Archive);
-
-		// hash the source file so changes to files during the development are picked up
-		const FSHAHash& SourceHash = GetShaderFileHash(*Input.VirtualSourceFilePath, Input.Target.GetPlatform());
-		Archive << const_cast<FSHAHash&>(SourceHash);
-
-		// unroll the included files for the parallel processing.
-		// These are temporary arrays that only exist for the ParallelFor
-		TArray<const TCHAR*> IncludeVirtualPaths;
-		TArray<const FString*> Contents;
-		TArray<bool> OnlyHashIncludes;
-		TArray<FBlake3Hash> Hashes;
-
-		// while the contents of this is already hashed (included in Environment's operator<<()), we still need to account for includes in the generated files and hash them, too
-		for (TMap<FString, FString>::TConstIterator It(Input.Environment.IncludeVirtualPathToContentsMap); It; ++It)
-		{
-			const FString& VirtualPath = It.Key();
-			IncludeVirtualPaths.Add(*VirtualPath);
-			Contents.Add(&It.Value());
-			OnlyHashIncludes.Add(true);	// not hashing contents of the file itself, as it was included in Environment's operator<<()
-			Hashes.AddDefaulted();
-		}
-
-		for (TMap<FString, FThreadSafeSharedStringPtr>::TConstIterator It(Input.Environment.IncludeVirtualPathToExternalContentsMap); It; ++It)
-		{
-			const FString& VirtualPath = It.Key();
-			IncludeVirtualPaths.Add(*VirtualPath);
-			check(It.Value());
-			Contents.Add(&(*It.Value()));
-			OnlyHashIncludes.Add(false);
-			Hashes.AddDefaulted();
-		}
-
-		if (Input.SharedEnvironment)
-		{
-			Input.SharedEnvironment->SerializeEverythingButFiles(Archive);
-
-			for (TMap<FString, FString>::TConstIterator It(Input.SharedEnvironment->IncludeVirtualPathToContentsMap); It; ++It)
-			{
-				const FString& VirtualPath = It.Key();
-				IncludeVirtualPaths.Add(*VirtualPath);
-				Contents.Add(&It.Value());
-				OnlyHashIncludes.Add(true);	// not hashing contents of the file itself, as it was included in Environment's operator<<()
-				Hashes.AddDefaulted();
-			}
-
-			for (TMap<FString, FThreadSafeSharedStringPtr>::TConstIterator It(Input.SharedEnvironment->IncludeVirtualPathToExternalContentsMap); It; ++It)
-			{
-				const FString& VirtualPath = It.Key();
-				IncludeVirtualPaths.Add(*VirtualPath);
-				check(It.Value());
-				Contents.Add(&(*It.Value()));
-				OnlyHashIncludes.Add(false);
-				Hashes.AddDefaulted();
-			}
-		}
-
-		check(IncludeVirtualPaths.Num() == Contents.Num());
-		check(Contents.Num() == OnlyHashIncludes.Num());
-		check(OnlyHashIncludes.Num() == Hashes.Num());
-
-		EShaderPlatform Platform = Input.Target.GetPlatform();
-		ParallelFor(Contents.Num(), [&IncludeVirtualPaths, &Contents, &OnlyHashIncludes, &Hashes, &Platform](int32 FileIndex)
-			{ 
-				FMemoryHasherBlake3 MemHasher;
-				HashShaderFileWithIncludes(MemHasher, IncludeVirtualPaths[FileIndex], *Contents[FileIndex], Platform, OnlyHashIncludes[FileIndex]);
-				Hashes[FileIndex] = MemHasher.Finalize();
-			},
-			EParallelForFlags::Unbalanced
-		);
-
-		// include the hashes in the main hash (consider sorting them if includes are found to have a random order)
-		for (int32 HashIndex = 0, NumHashes = Hashes.Num(); HashIndex < NumHashes; ++HashIndex)
-		{
-			Archive << Hashes[HashIndex];
-		}
-	};
-
-	// use faster hasher that doesn't allocate memory
-	FMemoryHasherBlake3 MemHasher;
-	SerializeInputs(MemHasher);
-	InputHash = MemHasher.Finalize();
-
-	if (GShaderCompilerDumpCompileJobInputs)
-	{
-		TArray<uint8> MemoryBlob;
-		FMemoryWriter MemWriter(MemoryBlob);
-
-		SerializeInputs(MemWriter);
-
-		FString IntermediateFormatPath = FPaths::ProjectSavedDir() / TEXT("ShaderJobInputs");
-#if UE_BUILD_DEBUG
-		FString TempPath = IntermediateFormatPath / TEXT("DebugEditor");
-#else
-		FString TempPath = IntermediateFormatPath / TEXT("DevelopmentEditor");
-#endif
-		IFileManager::Get().MakeDirectory(*TempPath, true);
-
-		static int32 InputHashID = 0;
-		FString FileName = Input.DebugGroupName.Replace(TEXT("/"), TEXT("_")).Replace(TEXT("<"), TEXT("_")).Replace(TEXT(">"), TEXT("_")).Replace(TEXT(":"), TEXT("_")).Replace(TEXT("|"), TEXT("_"))
-			+ TEXT("-") + Input.EntryPointName;
-		FString TempFile = TempPath / FString::Printf(TEXT("%s-%d.bin"), *FileName, InputHashID++);
-
-		TUniquePtr<FArchive> DumpAr(IFileManager::Get().CreateFileWriter(*TempFile));
-		DumpAr->Serialize(MemoryBlob.GetData(), MemoryBlob.Num());
-
-		// as an additional debugging feature, make sure that the hash is the same as calculated by the memhasher
-		FBlake3Hash Check = FBlake3::HashBuffer(MemoryBlob.GetData(), MemoryBlob.Num());
-		if (Check != InputHash)
-		{
-			UE_LOG(LogShaderCompilers, Error, TEXT("Job input hash disagrees between FMemoryHasherSHA1 (%s) and FMemoryWriter + FSHA1 (%s, which was dumped to disk)"), *LexToString(InputHash), *LexToString(Check));
-		}
-	}
-
-	bInputHashSet = true;
-	return InputHash;
-}
-
-void FShaderCompileJob::SerializeOutput(FArchive& Ar)
-{
-	double ActualCompileTime = 0.0;
-	double ActualPreprocessTime = 0.0;
-	if (Ar.IsSaving())
-	{
-		// Cached jobs won't have accurate results anyway, so reduce the storage requirements by setting those fields to a known value.
-		// This significantly reduces the memory needed to store the outputs (by more than a half)
-		ActualCompileTime = Output.CompileTime;
-		ActualPreprocessTime = Output.PreprocessTime;
-		Output.CompileTime = 0.0;
-		Output.PreprocessTime = 0.0;
-	}
-
-	Ar << Output;
-	// output hash is now serialized as part of the output, as the shader code is compressed in SCWs
-	checkf(!Output.bSucceeded || Output.OutputHash != FSHAHash(), TEXT("Successful compile job does not have an OutputHash generated."));
-
-	if (Ar.IsLoading())
-	{
-		bFinalized = true;
-		bSucceeded = Output.bSucceeded;
-	}
-	else
-	{
-		// restore the compile time for this jobs. Jobs that will be deserialized from the cache will have a compile time of 0.0
-		Output.CompileTime = ActualCompileTime;
-		Output.PreprocessTime = ActualPreprocessTime;
-	}
-}
-
-FShaderCommonCompileJob::FInputHash FShaderPipelineCompileJob::GetInputHash()
-{
-	if (bInputHashSet)
-	{
-		return InputHash;
-	}
-
-	FBlake3 Hasher;
-	for (int32 Index = 0; Index < StageJobs.Num(); ++Index)
-	{
-		if (StageJobs[Index])
-		{
-			FShaderCommonCompileJob::FInputHash StageHash = StageJobs[Index]->GetInputHash();
-			Hasher.Update(StageHash.GetBytes(), sizeof(decltype(StageHash.GetBytes())));
-		}
-	}
-
-	InputHash = Hasher.Finalize();
-
-	bInputHashSet = true;
-	return InputHash;
-}
-
-void FShaderPipelineCompileJob::SerializeOutput(FArchive& Ar)
-{
-	bool bAllStagesSucceeded = true;
-	for (int32 Index = 0, Num = StageJobs.Num(); Index < Num; ++Index)
-	{
-		StageJobs[Index]->SerializeOutput(Ar);
-		bAllStagesSucceeded = bAllStagesSucceeded && StageJobs[Index]->bSucceeded;
-	}
-
-	if (Ar.IsLoading())
-	{
-		bFinalized = true;
-		bSucceeded = bAllStagesSucceeded;
 	}
 }
 

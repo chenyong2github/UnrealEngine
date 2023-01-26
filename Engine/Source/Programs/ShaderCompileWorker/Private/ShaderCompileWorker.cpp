@@ -8,6 +8,7 @@
 #include "RequiredProgramMainCPPInclude.h"
 #include "ShaderCompilerCore.h"
 #include "ShaderCompilerCommon.h"
+#include "ShaderCompilerJobTypes.h"
 #include "ShaderCore.h"
 #include "HAL/ExceptionHandling.h"
 #include "Interfaces/IShaderFormat.h"
@@ -224,8 +225,9 @@ public:
 
 		while(true)
 		{
-			TArray<FJobResult> SingleJobResults;
-			TArray<FPipelineJobResult> PipelineJobResults;
+			TArray<FShaderCompileJob> SingleJobs;
+			TArray<FShaderPipelineCompileJob> PipelineJobs;
+			TArray<FString> PipelineJobNames;
 
 			// Read & Process Input
 			{
@@ -239,7 +241,7 @@ public:
 
 				UE_LOG(LogShaders, Log, TEXT("Processing shader"));
 
-				ProcessInputFromArchive(InputFilePtr, SingleJobResults, PipelineJobResults);
+				ProcessInputFromArchive(InputFilePtr, SingleJobs, PipelineJobs, PipelineJobNames);
 
 				LastCompileTime = FPlatformTime::Seconds();
 
@@ -253,13 +255,13 @@ public:
 				// write to in-memory bytestream instead for debugging purposes
 				TArray<uint8> MemBlock;
 				FMemoryWriter MemWriter(MemBlock);
-				WriteToOutputArchive(&MemWriter, SingleJobResults, PipelineJobResults);
+				WriteToOutputArchive(&MemWriter, SingleJobs, PipelineJobs, PipelineJobNames);
 			}
 			else
 			{
 				FArchive* OutputFilePtr = CreateOutputArchive();
 				check(OutputFilePtr);
-				WriteToOutputArchive(OutputFilePtr, SingleJobResults, PipelineJobResults);
+				WriteToOutputArchive(OutputFilePtr, SingleJobs, PipelineJobs, PipelineJobNames);
 				// Close the output file.
 				delete OutputFilePtr;
 
@@ -276,7 +278,7 @@ public:
 				break;
 			}
 
-			if (TimeToLive == 0 || AnyJobUsedHLSLccCompiler( SingleJobResults, PipelineJobResults ))
+			if (TimeToLive == 0 || AnyJobUsedHLSLccCompiler(SingleJobs, PipelineJobs))
 			{
 				UE_LOG(LogShaders, Log, TEXT("TimeToLive set to 0, or used HLSLcc compiler, exiting after single job"));
 				break;
@@ -295,17 +297,6 @@ public:
 	}
 
 private:
-	struct FJobResult
-	{
-		FShaderCompilerOutput CompilerOutput;
-	};
-
-	struct FPipelineJobResult
-	{
-		FString PipelineName;
-		TArray<FJobResult> SingleJobs;
-	};
-
 	const int32 ParentProcessId;
 	const FString WorkingDirectory;
 	const FString InputFilename;
@@ -352,7 +343,7 @@ private:
 		}
 	}
 
-	void ProcessInputFromArchive(FArchive* InputFilePtr, TArray<FJobResult>& OutSingleJobResults, TArray<FPipelineJobResult>& OutPipelineJobResults)
+	void ProcessInputFromArchive(FArchive* InputFilePtr, TArray<FShaderCompileJob>& OutSingleJobs, TArray<FShaderPipelineCompileJob>& OutPipelineJobs, TArray<FString>& OutPipelineNames)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ProcessInputFromArchive);
 
@@ -607,29 +598,26 @@ private:
 			InputFile << NumBatches;
 
 			FlushShaderFileCache();
+
+			OutSingleJobs.Reserve(NumBatches);
 			
 			for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
 			{
+				FShaderCompileJob& Job = *new(OutSingleJobs) FShaderCompileJob;
 				// Deserialize the job's inputs.
-				FShaderCompilerInput CompilerInput;
-				InputFile << CompilerInput;
-				CompilerInput.DeserializeSharedInputs(InputFile, ExternalIncludes, SharedEnvironments, ParameterStructures);
+				InputFile << Job.Input;
+				Job.Input.DeserializeSharedInputs(InputFile, ExternalIncludes, SharedEnvironments, ParameterStructures);
 
 				// SCW doesn't run DDPI, GShaderHasCache Initialize is run  at start with no knowledge of the CustomPlatforms
 				// CustomPlatforms are known when we parse the WorkerInput so we populate the Directory here
-				if (IsCustomPlatform((EShaderPlatform)CompilerInput.Target.Platform))
+				if (IsCustomPlatform((EShaderPlatform)Job.Input.Target.Platform))
 				{
-					const EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(CompilerInput.ShaderFormat);
-					UpdateIncludeDirectoryForPreviewPlatform((EShaderPlatform)CompilerInput.Target.Platform, ShaderPlatform);
+					const EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(Job.Input.ShaderFormat);
+					UpdateIncludeDirectoryForPreviewPlatform((EShaderPlatform)Job.Input.Target.Platform, ShaderPlatform);
 				}
 
 				// Process the job.
-				FShaderCompilerOutput CompilerOutput;
-				CompileShader(GetShaderFormats(), CompilerInput, CompilerOutput, WorkingDirectory, &GNumProcessedJobs);
-
-				// Serialize the job's output.
-				FJobResult& JobResult = *new(OutSingleJobResults) FJobResult;
-				JobResult.CompilerOutput = CompilerOutput;
+				CompileShader(GetShaderFormats(), Job, WorkingDirectory, &GNumProcessedJobs); 
 			}
 		}
 
@@ -645,82 +633,36 @@ private:
 			int32 NumPipelines = 0;
 			InputFile << NumPipelines;
 
+			OutPipelineNames.Reserve(NumPipelines);
+			OutPipelineJobs.Reserve(NumPipelines);
+
 			for (int32 Index = 0; Index < NumPipelines; ++Index)
 			{
-				FPipelineJobResult& PipelineJob = *new(OutPipelineJobResults) FPipelineJobResult;
-
-				InputFile << PipelineJob.PipelineName;
-
+				FString& PipelineName = *new(OutPipelineNames) FString();
+				InputFile << PipelineName;
+				
 				int32 NumStages = 0;
 				InputFile << NumStages;
-
-				TArray<FShaderCompilerInput> CompilerInputs;
-				CompilerInputs.AddDefaulted(NumStages);
+				FShaderPipelineCompileJob* PipelineJob = new(OutPipelineJobs) FShaderPipelineCompileJob(NumStages);
 
 				for (int32 StageIndex = 0; StageIndex < NumStages; ++StageIndex)
 				{
 					// Deserialize the job's inputs.
-					InputFile << CompilerInputs[StageIndex];
-					CompilerInputs[StageIndex].DeserializeSharedInputs(InputFile, ExternalIncludes, SharedEnvironments, ParameterStructures);
+					FShaderCompileJob* Job = PipelineJob->StageJobs[StageIndex]->GetSingleShaderJob();
+					InputFile << Job->Input;
+					Job->Input.DeserializeSharedInputs(InputFile, ExternalIncludes, SharedEnvironments, ParameterStructures);
 
 					// SCW doesn't run DDPI, GShaderHasCache Initialize is run  at start with no knowledge of the CustomPlatforms
 					// CustomPlatforms are known when we parse the WorkerInput so we populate the Directory here
-					if (IsCustomPlatform((EShaderPlatform)CompilerInputs[StageIndex].Target.Platform))
+					if (IsCustomPlatform((EShaderPlatform)Job->Input.Target.Platform))
 					{
-						const EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(CompilerInputs[StageIndex].ShaderFormat);
-						UpdateIncludeDirectoryForPreviewPlatform((EShaderPlatform)CompilerInputs[StageIndex].Target.Platform, ShaderPlatform);
+						const EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(Job->Input.ShaderFormat);
+						UpdateIncludeDirectoryForPreviewPlatform((EShaderPlatform)Job->Input.Target.Platform, ShaderPlatform);
 					}
 				}
 
-				ProcessShaderPipelineCompilationJob(PipelineJob, CompilerInputs);
+				CompileShaderPipeline(GetShaderFormats(), PipelineJob, WorkingDirectory, &GNumProcessedJobs);
 			}
-		}
-	}
-
-	void ProcessShaderPipelineCompilationJob(FPipelineJobResult& PipelineJob, TArray<FShaderCompilerInput>& CompilerInputs)
-	{
-		checkf(CompilerInputs.Num() > 0, TEXT("Exiting due to Pipeline %s having zero jobs!"), *PipelineJob.PipelineName);
-
-		// Process the job.
-		FShaderCompilerOutput FirstCompilerOutput;
-		CompilerInputs[0].bCompilingForShaderPipeline = true;
-		CompilerInputs[0].bIncludeUsedOutputs = false;
-		CompileShader(GetShaderFormats(), CompilerInputs[0], FirstCompilerOutput, WorkingDirectory, &GNumProcessedJobs);
-
-		// Serialize the job's output.
-		{
-			FJobResult& JobResult = *new(PipelineJob.SingleJobs) FJobResult;
-			JobResult.CompilerOutput = FirstCompilerOutput;
-		}
-
-		bool bEnableRemovingUnused = true;
-
-		//#todo-rco: Only remove for pure VS & PS stages
-		for (int32 Index = 0; Index < CompilerInputs.Num(); ++Index)
-		{
-			auto Stage = CompilerInputs[Index].Target.Frequency;
-			if (Stage != SF_Vertex && Stage != SF_Pixel)
-			{
-				bEnableRemovingUnused = false;
-				break;
-			}
-		}
-
-		for (int32 Index = 1; Index < CompilerInputs.Num(); ++Index)
-		{
-			if (bEnableRemovingUnused && PipelineJob.SingleJobs.Last().CompilerOutput.bSupportsQueryingUsedAttributes)
-			{
-				CompilerInputs[Index].bIncludeUsedOutputs = true;
-				CompilerInputs[Index].bCompilingForShaderPipeline = true;
-				CompilerInputs[Index].UsedOutputs = PipelineJob.SingleJobs.Last().CompilerOutput.UsedAttributes;
-			}
-
-			FShaderCompilerOutput CompilerOutput;
-			CompileShader(GetShaderFormats(), CompilerInputs[Index], CompilerOutput, WorkingDirectory, &GNumProcessedJobs);
-
-			// Serialize the job's output.
-			FJobResult& JobResult = *new(PipelineJob.SingleJobs) FJobResult;
-			JobResult.CompilerOutput = CompilerOutput;
 		}
 	}
 
@@ -777,7 +719,7 @@ private:
 		return OutputFilePtr;
 	}
 
-	void WriteToOutputArchive(FArchive* OutputFilePtr, TArray<FJobResult>& SingleJobResults, TArray<FPipelineJobResult>& PipelineJobResults)
+	void WriteToOutputArchive(FArchive* OutputFilePtr, TArray<FShaderCompileJob>& SingleJobs, TArray<FShaderPipelineCompileJob>& PipelineJobs, TArray<FString>& PipelineNames)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(WriteToOutputArchive);
 
@@ -790,13 +732,13 @@ private:
 			int32 SingleJobHeader = ShaderCompileWorkerSingleJobHeader;
 			OutputFile << SingleJobHeader;
 
-			int32 NumBatches = SingleJobResults.Num();
+			int32 NumBatches = SingleJobs.Num();
 			OutputFile << NumBatches;
 
-			for (int32 ResultIndex = 0; ResultIndex < SingleJobResults.Num(); ResultIndex++)
+			for (int32 JobIndex = 0; JobIndex < SingleJobs.Num(); JobIndex++)
 			{
-				FJobResult& JobResult = SingleJobResults[ResultIndex];
-				OutputFile << JobResult.CompilerOutput;
+				FShaderCompileJob& Job = SingleJobs[JobIndex];
+				OutputFile << Job.Output;
 				UpdateFileSize(OutputFile, FileSizePosition);
 			}
 		}
@@ -804,19 +746,23 @@ private:
 		{
 			int32 PipelineJobHeader = ShaderCompileWorkerPipelineJobHeader;
 			OutputFile << PipelineJobHeader;
-			int32 NumBatches = PipelineJobResults.Num();
+			int32 NumBatches = PipelineJobs.Num();
 			OutputFile << NumBatches;
 
-			for (int32 ResultIndex = 0; ResultIndex < PipelineJobResults.Num(); ResultIndex++)
+			for (int32 JobIndex = 0; JobIndex < PipelineJobs.Num(); JobIndex++)
 			{
-				auto& PipelineJob = PipelineJobResults[ResultIndex];
-				OutputFile << PipelineJob.PipelineName;
-				int32 NumStageJobs = PipelineJob.SingleJobs.Num();
+				auto& PipelineJob = PipelineJobs[JobIndex];
+				OutputFile << PipelineNames[JobIndex];
+				bool bSucceeded = (bool)PipelineJob.bSucceeded;
+				OutputFile << bSucceeded;
+				OutputFile << PipelineJob.bFailedRemovingUnused;
+				int32 NumStageJobs = PipelineJob.StageJobs.Num();
 				OutputFile << NumStageJobs;
+
 				for (int32 Index = 0; Index < NumStageJobs; ++Index)
 				{
-					FJobResult& JobResult = PipelineJob.SingleJobs[Index];
-					OutputFile << JobResult.CompilerOutput;
+					FShaderCompileJob& JobResult = *PipelineJob.StageJobs[Index];
+					OutputFile << JobResult.Output;
 					UpdateFileSize(OutputFile, FileSizePosition);
 				}
 			}
@@ -896,26 +842,24 @@ private:
 #endif
 	}
 	
-	static bool AnyJobUsedHLSLccCompiler(TArray<FJobResult>& SingleJobResults, TArray<FPipelineJobResult>& PipelineJobResults)
+	static bool AnyJobUsedHLSLccCompiler(TArray<FShaderCompileJob>& SingleJobs, TArray<FShaderPipelineCompileJob>& PipelineJobs)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AnyJobUsedHLSLccCompiler);
 
-		for (int32 ResultIndex = 0; ResultIndex < SingleJobResults.Num(); ResultIndex++)
+		for (int32 JobIndex = 0; JobIndex < SingleJobs.Num(); JobIndex++)
 		{
-			FJobResult& JobResult = SingleJobResults[ResultIndex];
-			if (JobResult.CompilerOutput.bUsedHLSLccCompiler)
+			if (SingleJobs[JobIndex].Output.bUsedHLSLccCompiler)
 			{
 				return true;
 			}
 		}
 
-		for (int32 ResultIndex = 0; ResultIndex < PipelineJobResults.Num(); ResultIndex++)
+		for (int32 JobIndex = 0; JobIndex < PipelineJobs.Num(); JobIndex++)
 		{
-			FPipelineJobResult& PipelineJob = PipelineJobResults[ResultIndex];
-			for (int32 Index = 0; Index < PipelineJob.SingleJobs.Num(); ++Index)
+			FShaderPipelineCompileJob& PipelineJob = PipelineJobs[JobIndex];
+			for (int32 Index = 0; Index < PipelineJob.StageJobs.Num(); ++Index)
 			{
-				FJobResult& JobResult = PipelineJob.SingleJobs[Index];
-				if (JobResult.CompilerOutput.bUsedHLSLccCompiler)
+				if (PipelineJob.StageJobs[Index]->Output.bUsedHLSLccCompiler)
 				{
 					return true;
 				}
@@ -1044,14 +988,14 @@ static void DirectCompile(const TArray<const class IShaderFormat*>& ShaderFormat
 
 	FString Dir = FPlatformProcess::UserTempDir();
 
-	FShaderCompilerInput Input;
-	Input.EntryPointName = Entry;
-	Input.ShaderFormat = FormatName;
-	Input.ShaderPlatformName = ShaderPlatformName;
-	Input.VirtualSourceFilePath = InputFile;
-	Input.Target.Platform =  ShaderFormatNameToShaderPlatform(FormatName);
-	Input.Target.Frequency = Frequency;
-	Input.bSkipPreprocessedCache = !bUseMCPP;
+	FShaderCompileJob Job;
+	Job.Input.EntryPointName = Entry;
+	Job.Input.ShaderFormat = FormatName;
+	Job.Input.ShaderPlatformName = ShaderPlatformName;
+	Job.Input.VirtualSourceFilePath = InputFile;
+	Job.Input.Target.Platform =  ShaderFormatNameToShaderPlatform(FormatName);
+	Job.Input.Target.Frequency = Frequency;
+	Job.Input.bSkipPreprocessedCache = !bUseMCPP;
 
 	uint32 ResourceIndex = 0;
 	auto AddResourceTableEntry = [&ResourceIndex](TMap<FString, FResourceTableEntry>& Map, const FString& Name, const FString& UBName, int32 Type)
@@ -1064,14 +1008,14 @@ static void DirectCompile(const TArray<const class IShaderFormat*>& ShaderFormat
 		++ResourceIndex;
 	};
 
-	Input.Environment.CompilerFlags = FShaderCompilerFlags(CFlags);
+	Job.Input.Environment.CompilerFlags = FShaderCompilerFlags(CFlags);
 
-	Input.bCompilingForShaderPipeline = bPipeline;
-	Input.bIncludeUsedOutputs = bIncludeUsedOutputs;
-	Input.UsedOutputs = UsedOutputs;
+	Job.Input.bCompilingForShaderPipeline = bPipeline;
+	Job.Input.bIncludeUsedOutputs = bIncludeUsedOutputs;
+	Job.Input.UsedOutputs = UsedOutputs;
 
 	FShaderCompilerOutput Output;
-	CompileShader(GetShaderFormats(), Input, Output, Dir, &GNumProcessedJobs);
+	CompileShader(GetShaderFormats(), Job, Dir, &GNumProcessedJobs);
 }
 
 
