@@ -28,14 +28,10 @@
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
 
-#if RHI_RAYTRACING
-#endif
-
 #if NANITE_ENABLE_DEBUG_RENDERING
 #include "AI/Navigation/NavCollisionBase.h"
 #include "PhysicsEngine/BodySetup.h"
 #endif
-
 
 DEFINE_GPU_STAT(NaniteStreaming);
 DEFINE_GPU_STAT(NaniteReadback);
@@ -1007,14 +1003,18 @@ FPrimitiveViewRelevance FSceneProxy::GetViewRelevance(const FSceneView* View) co
 		// Set dynamic relevance for overlays like collision and bounds.
 		bool bSetDynamicRelevance = false;
 	#if !(UE_BUILD_SHIPPING) || WITH_EDITOR
-		bSetDynamicRelevance |= (IsRichView(*View->Family) ||
+		bSetDynamicRelevance |= (
+			// Nanite doesn't respect rich view enabling dynamic relevancy.
+			//IsRichView(*View->Family) ||
 			View->Family->EngineShowFlags.Collision ||
 			bInCollisionView ||
 			View->Family->EngineShowFlags.Bounds ||
-			View->Family->EngineShowFlags.VisualizeInstanceUpdates);
+			View->Family->EngineShowFlags.VisualizeInstanceUpdates
+		);
 	#endif
 	#if WITH_EDITOR
-		bSetDynamicRelevance |= (IsSelected() && View->Family->EngineShowFlags.VertexColors);
+		// Nanite doesn't render debug vertex colors.
+		//bSetDynamicRelevance |= (IsSelected() && View->Family->EngineShowFlags.VertexColors);
 	#endif
 	#if NANITE_ENABLE_DEBUG_RENDERING
 		bSetDynamicRelevance |= bDrawMeshCollisionIfComplex || bDrawMeshCollisionIfSimple;
