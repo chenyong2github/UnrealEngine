@@ -8,6 +8,7 @@
 #include "ChaosClothAsset/ClothSimulationModel.h"
 #include "ChaosCloth/ChaosClothingSimulationCloth.h"
 #include "ChaosCloth/ChaosClothingSimulationCollider.h"
+#include "ChaosCloth/ChaosClothingSimulationConfig.h"
 #include "ChaosCloth/ChaosClothingSimulationSolver.h"
 #include "ChaosCloth/ChaosClothVisualization.h"
 #include "PhysicsEngine/PhysicsSettings.h"
@@ -96,7 +97,7 @@ namespace UE::Chaos::ClothAsset
 		constexpr bool bIsInitialization = true;
 		ClothSimulationContext.Fill(ClothComponent, 0.f, MaxDeltaTime, bIsInitialization);
 
-		// Create mesh node
+		// Create mesh simulation thread object
 		const UChaosClothAsset* const ClothAsset = ClothComponent.GetClothAsset();
 		if (!ClothAsset)
 		{
@@ -113,70 +114,33 @@ namespace UE::Chaos::ClothAsset
 #endif
 		const int32 MeshIndex = Meshes.Emplace(MakeUnique<FClothSimulationMesh>(*ClothSimulationModel, ClothSimulationContext, DebugName));
 
-		// Create collider node
+		// Create collider simulation thread object
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 		const FReferenceSkeleton* const ReferenceSkeleton = &ClothAsset->GetRefSkeleton();
 		const int32 ColliderIndex = ClothComponent.GetPhysicsAsset() ? Colliders.Emplace(MakeUnique<FClothingSimulationCollider>(ClothComponent.GetPhysicsAsset(), ReferenceSkeleton)) : INDEX_NONE;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-		//// Set the external collision data to get updated at every frame
-		//Colliders[ColliderIndex]->SetCollisionData(&ExternalCollisionData);
+		//Colliders[ColliderIndex]->SetCollisionData(&ExternalCollisionData);  // TODO: External collision data
 
-		// Create cloth node
+		// Create cloth config simulation thread object
+		const int32 ClothConfigIndex = Configs.Emplace(MakeUnique<FClothingSimulationConfig>(ClothComponent.GetPropertyCollection()));
+
+		// Create cloth simulation thread object
+		constexpr uint32 GroupId = 0;
+
 		const int32 ClothIndex = Cloths.Emplace(MakeUnique<FClothingSimulationCloth>(
+			Configs[ClothConfigIndex].Get(),
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 			Meshes[MeshIndex].Get(),
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			ColliderIndex != INDEX_NONE ? TArray<FClothingSimulationCollider*>({ Colliders[ColliderIndex].Get() }) : TArray<FClothingSimulationCollider*>(),
-			0,
-			FClothingSimulationCloth::EMassMode::Density,  //	(FClothingSimulationCloth::EMassMode)ClothConfig->MassMode,
-			0.35f,  //	ClothConfig->GetMassValue(),
-			0.0001f,  //	ClothConfig->MinPerParticleMass,
-			TVec2<FRealSingle>(1.f),  //	TVec2<FRealSingle>(ClothConfig->EdgeStiffnessWeighted.Low, ClothConfig->EdgeStiffnessWeighted.High),
-			TVec2<FRealSingle>(1.f),  //	TVec2<FRealSingle>(ClothConfig->BendingStiffnessWeighted.Low, ClothConfig->BendingStiffnessWeighted.High),
-			0.f,  //	ClothConfig->BucklingRatio,
-			TVec2<FRealSingle>(1.f),  //	TVec2<FRealSingle>(ClothConfig->BucklingStiffnessWeighted.Low, ClothConfig->BucklingStiffnessWeighted.High),
-			false,  //	ClothConfig->bUseBendingElements,
-			TVec2<FRealSingle>(1.f),  //	TVec2<FRealSingle>(ClothConfig->AreaStiffnessWeighted.Low, ClothConfig->AreaStiffnessWeighted.High),
-			0.f,  //	ClothConfig->VolumeStiffness,
-			false,  //	ClothConfig->bUseThinShellVolumeConstraints,
-			TVec2<FRealSingle>(1.f),   //	TVec2<FRealSingle>(ClothConfig->TetherStiffness.Low, ClothConfig->TetherStiffness.High),  // Animatable
-			TVec2<FRealSingle>(1.f),   //	TVec2<FRealSingle>(ClothConfig->TetherScale.Low, ClothConfig->TetherScale.High),  // Animatable
-			FClothingSimulationCloth::ETetherMode::Geodesic,  //	ClothConfig->bUseGeodesicDistance ? FClothingSimulationCloth::ETetherMode::Geodesic : FClothingSimulationCloth::ETetherMode::Euclidean,
-			1.f,  //	/*MaxDistancesMultiplier =*/ 1.f,  // Animatable
-			TVec2<FRealSingle>(0.f),  //	TVec2<FRealSingle>(ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High),  // Animatable
-			TVec2<FRealSingle>(0.f),  //	TVec2<FRealSingle>(ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High),  // Animatable
-			0.f,  //	ClothConfig->ShapeTargetStiffness,  // TODO: This is now deprecated
-			false,  //	false, // bUseXPBDEdgeSprings
-			false,  //	false, // bUseXPBDBendingElements
-			false,  //	false, // bUseXPBDAreaSprings
-			.5f,   //	ClothConfig->GravityScale,
-			false,  //	ClothConfig->bUseGravityOverride,
-			TVec3<FRealSingle>(0.f, 0.f, -980.665f),  //	ClothConfig->Gravity,
-			TVec3<FRealSingle>(0.75f),  //	ClothConfig->LinearVelocityScale,
-			0.75f,  //	ClothConfig->AngularVelocityScale,
-			1.f,  //	ClothConfig->FictitiousAngularScale,
-			TVec2<FRealSingle>(0.035f, 1.f),  //	TVec2<FRealSingle>(ClothConfig->Drag.Low, ClothConfig->Drag.High),  // Animatable
-			TVec2<FRealSingle>(0.035f, 1.f),  //	TVec2<FRealSingle>(ClothConfig->Lift.Low, ClothConfig->Lift.High),  // Animatable
-			false,  //	ClothConfig->bUsePointBasedWindModel,
-			TVec2<FRealSingle>(0.f),  //	TVec2<FRealSingle>(ClothConfig->Pressure.Low, ClothConfig->Pressure.High),  // Animatable
-			0.01f,  //	ClothConfig->DampingCoefficient,
-			0.f,  //	ClothConfig->LocalDampingCoefficient,
-			1.f,  //	ClothConfig->CollisionThickness,
-			0.8f,  //	ClothConfig->FrictionCoefficient,
-			false,  //	ClothConfig->bUseCCD,
-			false,  //	ClothConfig->bUseSelfCollisions,
-			2.f,  //	ClothConfig->SelfCollisionThickness,
-			0.f,  //	ClothConfig->SelfCollisionFriction,
-			false,  //	ClothConfig->bUseSelfIntersections,
-			false,  //	ClothConfig->bUseLegacyBackstop,
-			false,  //	/*bUseLODIndexOverride =*/ false,
-			INDEX_NONE));  //	/*LODIndexOverride =*/ INDEX_NONE));
-		
-		Cloths[ClothIndex]->SetAerodynamicsProperties(TVec2<FRealSingle>(0.5f, 1.f), TVec2<FRealSingle>(0.35f, 1.f), 1.225e-6f, TVec3<FRealSingle>(-30.f, -30.f, 200.f));
+			GroupId));
 
-		// Add cloth to solver
 		Solver->AddCloth(Cloths[ClothIndex].Get());
+
+		// Create solver config simulation thread object
+		const int32 SolverConfigIndex = Configs.Emplace(MakeUnique<FClothingSimulationConfig>(ClothComponent.GetPropertyCollection()));  // TODO: Use a separate solver config for outfits
+		Solver->SetConfig(Configs[SolverConfigIndex].Get());
 	}
 
 	FClothSimulationProxy::~FClothSimulationProxy()
@@ -193,6 +157,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (DeltaTime > 0.f && !ClothComponent.IsSimulationSuspended())
 		{
+			// Replace physics thread's configs with the game thread's configs
+			for (const TUniquePtr<::Chaos::FClothingSimulationConfig>& Config : Configs)
+			{
+				Config->Initialize(ClothComponent.GetPropertyCollection());  // TODO: Outfit and multi-cloths/solver config update
+			}
+
 			// Start the the cloth simulation thread
 			ParallelTask = TGraphTask<FClothSimulationProxyParallelTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(*this);
 		}
@@ -226,9 +196,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Solver->SetLocalSpaceRotation((FQuat)ClothSimulationContext.ComponentTransform.GetRotation());
 		Solver->SetWindVelocity(ClothSimulationContext.WindVelocity);
 		Solver->SetGravity(ClothSimulationContext.WorldGravity);
-		Solver->SetNumIterations(8);  // TODO: Solver parameters
-		Solver->SetMaxNumIterations(10);  // TODO: Solver parameters
-		Solver->SetNumSubsteps(1);  // TODO: Solver parameters
 
 		// Check teleport modes
 		for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)

@@ -1198,7 +1198,7 @@ namespace Chaos
 
 			const TConstArrayView<Softs::FSolverVec3> Positions = Cloth->GetParticlePositions(Solver);
 
-			if (const Softs::FPBDSpringConstraints* const EdgeConstraints = ClothConstraints.GetEdgeConstraints().Get())
+			if (const Softs::FPBDEdgeSpringConstraints* const EdgeConstraints = ClothConstraints.GetEdgeSpringConstraints().Get())
 			{
 				DrawSpringConstraintColors(PDI, Positions, LocalSpaceLocation, EdgeConstraints);
 			}
@@ -1227,7 +1227,7 @@ namespace Chaos
 
 			const TConstArrayView<Softs::FSolverVec3> Positions = Cloth->GetParticlePositions(Solver);
 
-			if (const Softs::FPBDSpringConstraints* const BendingConstraints = ClothConstraints.GetBendingConstraints().Get())
+			if (const Softs::FPBDBendingSpringConstraints* const BendingConstraints = ClothConstraints.GetBendingSpringConstraints().Get())
 			{
 				DrawSpringConstraintColors(PDI, Positions, LocalSpaceLocation, BendingConstraints);
 			}

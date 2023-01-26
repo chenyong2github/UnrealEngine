@@ -14,6 +14,7 @@ namespace Chaos
 	class FClothingSimulationSolver;
 	class FClothingSimulationMesh;
 	class FClothingSimulationCloth;
+	class FClothingSimulationConfig;
 	class FClothingSimulationCollider;
 	class FClothVisualization;
 }
@@ -84,6 +85,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_AB
 		TArray<TUniquePtr<::Chaos::FClothingSimulationMesh>> Meshes;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TArray<TUniquePtr<::Chaos::FClothingSimulationCloth>> Cloths;
+		TArray<TUniquePtr<::Chaos::FClothingSimulationConfig>> Configs;
 		TArray<TUniquePtr<::Chaos::FClothingSimulationCollider>> Colliders;
 		TUniquePtr<::Chaos::FClothVisualization> Visualization;
 

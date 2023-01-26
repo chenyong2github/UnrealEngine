@@ -3,16 +3,22 @@
 #pragma once
 
 #include "Components/SkinnedMeshComponent.h"
-
 #include "ClothComponent.generated.h"
 
 class UChaosClothAsset;
 class UChaosClothComponent;
+struct FManagedArrayCollection;
+
+namespace Chaos::Softs
+{
+	class FPropertyCollectionAdapter;
+}
 
 namespace UE::Chaos::ClothAsset
 {
 	class FClothSimulationProxy;
 }
+
 /**
  * Cloth simulation component.
  */
@@ -66,6 +72,17 @@ public:
 	/** Return whether or not the simulation is currently suspended. */
 	UFUNCTION(BlueprintCallable, Category = "Components|Simulation", Meta = (Keywords = "Chaos Cloth Simulation Suspend"))
 	bool IsSimulationSuspended() const;
+
+	/** Reset all cloth simulation config properties to the values stored in the original cloth asset. */
+	UFUNCTION(BlueprintCallable, Category = "Components|Simulation", Meta = (Keywords = "Chaos Cloth Config Property"))
+	void ResetConfigProperties();
+
+	/**
+	 * Return the property collection holding the runtime properties for this cloth component.
+	 * This might be different from the cloth asset's since the component's properties can be modified in code or in blueprints.
+	 * This could also be different from the cloth simulation object until the cloth simulation thread synchronise the properties.
+	 */
+	TSharedPtr<const FManagedArrayCollection> GetPropertyCollection() const { return TSharedPtr<const FManagedArrayCollection>(PropertyCollection); }
 
 protected:
 	//~ Begin UObject Interface
@@ -122,7 +139,6 @@ private:
 	UPROPERTY()
 	uint8 bSuspendSimulation : 1;
 
-
 	/** Whether to use the leader component pose. */
 	UPROPERTY()
 	uint8 bBindToLeaderComponent : 1;
@@ -138,6 +154,9 @@ private:
 	/** Blend amount between the skinned (=0) and the simulated pose (=1). */
 	UPROPERTY()
 	float BlendWeight = 1.f;
+
+	TSharedPtr<FManagedArrayCollection> PropertyCollection;
+	TUniquePtr<::Chaos::Softs::FPropertyCollectionAdapter> PropertyCollectionAdapter;
 
 	TUniquePtr<UE::Chaos::ClothAsset::FClothSimulationProxy> ClothSimulationProxy;
 };

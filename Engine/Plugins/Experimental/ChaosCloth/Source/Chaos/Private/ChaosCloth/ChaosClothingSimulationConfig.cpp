@@ -158,9 +158,6 @@ namespace Chaos
 				const int32 LiftIndex = Properties->AddProperty(TEXT("Lift"), bEnable, bAnimatable);
 				Properties->SetWeightedValue(LiftIndex, ClothConfig->Lift.Low, ClothConfig->Lift.High);
 				Properties->SetStringValue(LiftIndex, TEXT("Lift"));
-
-				constexpr float AirDensity = 1.225e-6f;
-				Properties->AddValue(TEXT("AirDensity"), AirDensity, bEnable, bAnimatable);
 			}
 
 			// Pressure

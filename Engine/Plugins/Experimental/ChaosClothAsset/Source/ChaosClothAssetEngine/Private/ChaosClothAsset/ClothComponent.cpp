@@ -3,8 +3,10 @@
 #include "ChaosClothAsset/ClothComponent.h"
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothAssetPrivate.h"
+#include "ChaosClothAsset/ClothCollection.h"
 #include "ChaosClothAsset/ClothSimulationModel.h"
 #include "ChaosClothAsset/ClothSimulationProxy.h"
+#include "Chaos/PropertyCollectionAdapter.h"
 #include "HAL/IConsoleManager.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "SkeletalRenderPublic.h"
@@ -104,6 +106,10 @@ void UChaosClothComponent::OnRegister()
 				bHasValidBoneTransform = true;
 			}
 
+			// Create cloth property collection, and fill up the collection with the original cloth asset properties
+			PropertyCollection = MakeShared<FManagedArrayCollection>();
+			ResetConfigProperties();
+
 			// Create simulation proxy
 			ClothSimulationProxy = MakeUnique<FClothSimulationProxy>(*this);
 		}
@@ -115,6 +121,26 @@ bool UChaosClothComponent::IsSimulationSuspended() const
 	static IConsoleVariable* const CVarClothPhysics = IConsoleManager::Get().FindConsoleVariable(TEXT("p.ClothPhysics"));
 
 	return bSuspendSimulation || !ClothSimulationProxy.IsValid() || (CVarClothPhysics && !CVarClothPhysics->GetBool());
+}
+
+void UChaosClothComponent::ResetConfigProperties()
+{
+	using namespace UE::Chaos::ClothAsset;
+	using namespace ::Chaos::Softs;
+
+	PropertyCollectionAdapter.Reset();
+
+	if (GetClothAsset())
+	{
+		if (TSharedPtr<const FClothCollection> ClothCollection = GetClothAsset()->GetClothCollection())
+		{
+			// Create a mutable adapter for our component's property collection, and use it to copy the properties from the cloth collection
+			FPropertyCollectionMutableAdapter(PropertyCollection).Copy(TSharedPtr<const FManagedArrayCollection>(ClothCollection));
+
+			// The Adapter used to access the properties shouldn't be mutable, since adding/removing properties would cause issues
+			PropertyCollectionAdapter = MakeUnique<FPropertyCollectionAdapter>(PropertyCollection);
+		}
+	}
 }
 
 void UChaosClothComponent::OnUnregister()

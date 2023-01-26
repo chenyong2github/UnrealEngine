@@ -19,6 +19,7 @@ namespace Chaos
 	class FClothingSimulationCloth;
 	class FClothingSimulationCollider;
 	class FClothingSimulationMesh;
+	class FClothingSimulationConfig;
 
 	// Solver simulation node
 	class CHAOSCLOTH_API FClothingSimulationSolver final : public FPhysicsSolverEvents
@@ -49,12 +50,13 @@ namespace Chaos
 		void SetWindVelocity(const TVec3<FRealSingle>& InWindVelocity, FRealSingle InLegacyWindAdaption = (FRealSingle)0.);
 		const TVec3<FRealSingle>& GetWindVelocity() const { return WindVelocity; }
 
-		void SetNumIterations(int32 InNumIterations) { NumIterations = InNumIterations; }
-		int32 GetNumIterations() const { return NumIterations; }
-		void SetMaxNumIterations(int32 InMaxNumIterations) { MaxNumIterations = InMaxNumIterations; }
-		int32 GetMaxNumIterations() const { return MaxNumIterations; }
-		void SetNumSubsteps(int32 InNumSubsteps) { NumSubsteps = InNumSubsteps; }
-		int32 GetNumSubsteps() const { return NumSubsteps; }
+		void SetNumIterations(int32 InNumIterations);
+		int32 GetNumIterations() const;
+		void SetMaxNumIterations(int32 InMaxNumIterations);
+		int32 GetMaxNumIterations() const;
+		void SetNumSubsteps(int32 InNumSubsteps);
+		int32 GetNumSubsteps() const;
+
 		void SetEnableSolver(bool InbEnableSolver) { bEnableSolver = InbEnableSolver; }
 		bool GetEnableSolver() const { return bEnableSolver; }
 		// ---- End of the animatable property setters ----
@@ -69,6 +71,16 @@ namespace Chaos
 		void RefreshCloths();
 
 		TConstArrayView<const FClothingSimulationCloth*> GetCloths() const { return Cloths; }
+
+		/** Get the solver configuration. */
+		FClothingSimulationConfig* GetConfig() const { return Config; }
+
+		/**
+		 * Set the solver configuration.
+		 * Can use a cloth config if a single cloth is being simulated.
+		 * When a solver configuration is set, the solver shared properties (e.g. NumIterations, MaxNumIterations, NumSubsteps) are overriden.
+		 */
+		void SetConfig(FClothingSimulationConfig* InConfig) { Config = InConfig; }
 
 		/** Advance the simulation. */
 		void Update(FSolverReal InDeltaTime);
@@ -223,6 +235,9 @@ namespace Chaos
 
 		// Object arrays
 		TArray<FClothingSimulationCloth*> Cloths;
+		
+		// Solver config
+		FClothingSimulationConfig* Config = nullptr;
 
 		// Simulation group attributes
 		TArrayCollectionArray<Softs::FSolverRigidTransform3> PreSimulationTransforms;  // Allow a different frame of reference for each cloth groups
@@ -257,6 +272,8 @@ namespace Chaos
 		// Time stepping
 		FSolverReal Time;
 		FSolverReal DeltaTime;
+
+		// Solver config properties, superseded by the config pointer
 		int32 NumIterations;
 		int32 MaxNumIterations;
 		int32 NumSubsteps;

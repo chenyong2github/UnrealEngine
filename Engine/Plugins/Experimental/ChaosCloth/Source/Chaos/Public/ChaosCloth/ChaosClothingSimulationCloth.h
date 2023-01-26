@@ -7,11 +7,14 @@
 #include "Containers/ContainersFwd.h"
 #include "ChaosCloth/ChaosClothConstraints.h"
 
+struct FManagedArrayCollection;
+
 namespace Chaos
 {
 	class FClothingSimulationSolver;
 	class FClothingSimulationMesh;
 	class FClothingSimulationCollider;
+	class FClothingSimulationConfig;
 
 	// Cloth simulation node
 	class CHAOSCLOTH_API FClothingSimulationCloth final
@@ -26,6 +29,15 @@ namespace Chaos
 
 		typedef FClothConstraints::ETetherMode ETetherMode;
 
+		FClothingSimulationCloth(
+			FClothingSimulationConfig* InConfig,
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
+			FClothingSimulationMesh* InMesh,
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			TArray<FClothingSimulationCollider*>&& InColliders,
+			uint32 InGroupId);
+
+		UE_DEPRECATED(5.2, "Use config based constructor instead.")
 		FClothingSimulationCloth(
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 			FClothingSimulationMesh* InMesh,
@@ -61,7 +73,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			FRealSingle InFictitiousAngularScale,
 			const TVec2<FRealSingle>& InDrag,
 			const TVec2<FRealSingle>& InLift,
-			bool bInUseLegacyWind,
+			bool bInUsePointBasedWindModel,
 			const TVec2<FRealSingle>& InPressure,
 			FRealSingle InDampingCoefficient,
 			FRealSingle InLocalDampingCoefficient,
@@ -93,17 +105,17 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// ---- Animatable property setters ----
 		void SetMaxDistancesMultiplier(FRealSingle InMaxDistancesMultiplier) { MaxDistancesMultiplier = InMaxDistancesMultiplier; }
 
-		void SetMaterialProperties(const TVec2<FRealSingle>& InEdgeStiffness, const TVec2<FRealSingle>& InBendingStiffness, const TVec2<FRealSingle>& InAreaStiffness) { EdgeStiffness = InEdgeStiffness; BendingStiffness = InBendingStiffness; AreaStiffness = InAreaStiffness; }
-		void SetLongRangeAttachmentProperties(const TVec2<FRealSingle>& InTetherStiffness, const TVec2<FRealSingle>& InTetherScale) { TetherStiffness = InTetherStiffness; TetherScale = InTetherScale;  }
-		void SetCollisionProperties(FRealSingle InCollisionThickness, FRealSingle InFrictionCoefficient, bool bInUseCCD, FRealSingle InSelfCollisionThickness) { CollisionThickness = InCollisionThickness; FrictionCoefficient = InFrictionCoefficient; bUseCCD = bInUseCCD; SelfCollisionThickness = InSelfCollisionThickness; }
-		void SetBackstopProperties(bool bInEnableBackstop) { bEnableBackstop = bInEnableBackstop; }
-		void SetDampingProperties(FRealSingle InDampingCoefficient, FRealSingle InLocalDampingCoefficient = 0.f) { DampingCoefficient = InDampingCoefficient; LocalDampingCoefficient = InLocalDampingCoefficient; }
-		void SetAerodynamicsProperties(const TVec2<FRealSingle>& InDrag, const TVec2<FRealSingle>& InLift, FRealSingle InAirDensity, const FVec3& InWindVelocity) { Drag = InDrag; Lift = InLift; InAirDensity = AirDensity; WindVelocity = InWindVelocity; }
-		void SetPressureProperties(const TVec2<FRealSingle>& InPressure) { Pressure = InPressure; }
-		void SetGravityProperties(FRealSingle InGravityScale, bool bInIsGravityOverridden, const FVec3& InGravityOverride) { GravityScale = InGravityScale; bIsGravityOverridden = bInIsGravityOverridden; GravityOverride = InGravityOverride; }
-		void SetAnimDriveProperties(const TVec2<FRealSingle>& InAnimDriveStiffness, const TVec2<FRealSingle>& InAnimDriveDamping) { AnimDriveStiffness = InAnimDriveStiffness; AnimDriveDamping = InAnimDriveDamping; }
-		void GetAnimDriveProperties(TVec2<FRealSingle>& OutAnimDriveStiffness, TVec2<FRealSingle>& OutAnimDriveDamping) { OutAnimDriveStiffness = AnimDriveStiffness; OutAnimDriveDamping = AnimDriveDamping; }
-		void SetVelocityScaleProperties(const FVec3& InLinearVelocityScale, FRealSingle InAngularVelocityScale, FRealSingle InFictitiousAngularScale) { LinearVelocityScale = InLinearVelocityScale; AngularVelocityScale = InAngularVelocityScale; FictitiousAngularScale = InFictitiousAngularScale;  }
+		void SetMaterialProperties(const TVec2<FRealSingle>& InEdgeStiffness, const TVec2<FRealSingle>& InBendingStiffness, const TVec2<FRealSingle>& InAreaStiffness);
+		void SetLongRangeAttachmentProperties(const TVec2<FRealSingle>& InTetherStiffness, const TVec2<FRealSingle>& InTetherScale);
+		void SetCollisionProperties(FRealSingle InCollisionThickness, FRealSingle InFrictionCoefficient, bool bInUseCCD, FRealSingle InSelfCollisionThickness);
+		void SetBackstopProperties(bool bInEnableBackstop);
+		void SetDampingProperties(FRealSingle InDampingCoefficient, FRealSingle InLocalDampingCoefficient = 0.f);
+		void SetAerodynamicsProperties(const TVec2<FRealSingle>& InDrag, const TVec2<FRealSingle>& InLift, FRealSingle InAirDensity, const FVec3& InWindVelocity);
+		void SetPressureProperties(const TVec2<FRealSingle>& InPressure);
+		void SetGravityProperties(FRealSingle InGravityScale, bool bInUseGravityOverride, const FVec3& InGravityOverride);
+		void SetAnimDriveProperties(const TVec2<FRealSingle>& InAnimDriveStiffness, const TVec2<FRealSingle>& InAnimDriveDamping);
+		void GetAnimDriveProperties(TVec2<FRealSingle>& OutAnimDriveStiffness, TVec2<FRealSingle>& OutAnimDriveDamping);
+		void SetVelocityScaleProperties(const FVec3& InLinearVelocityScale, FRealSingle InAngularVelocityScale, FRealSingle InFictitiousAngularScale);
 
 		void Reset() { bNeedsReset = true; }
 		void Teleport() { bNeedsTeleport = true; }
@@ -114,6 +126,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FClothingSimulationMesh* GetMesh() const { return Mesh; }
 		void SetMesh(FClothingSimulationMesh* InMesh);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		FClothingSimulationConfig* GetConfig() const { return Config; }
+		void SetConfig(FClothingSimulationConfig* InConfig);
 
 		const TArray<FClothingSimulationCollider*>& GetColliders() const { return Colliders; }
 		void SetColliders(TArray<FClothingSimulationCollider*>&& InColliders);
@@ -173,54 +188,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 		FClothingSimulationMesh* Mesh;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		FClothingSimulationConfig* Config;
 		TArray<FClothingSimulationCollider*> Colliders;
 		uint32 GroupId;
-		EMassMode MassMode;
-		FRealSingle MassValue;
-		FRealSingle MinPerParticleMass;
-		TVec2<FRealSingle> EdgeStiffness;
-		TVec2<FRealSingle> EdgeDampingRatio;
-		TVec2<FRealSingle> BendingStiffness;
-		TVec2<FRealSingle> BendingDampingRatio;
-		FRealSingle BucklingRatio;
-		TVec2<FRealSingle> BucklingStiffness;
-		bool bUseBendingElements;
-		TVec2<FRealSingle> AreaStiffness;
-		FRealSingle VolumeStiffness;
-		bool bUseThinShellVolumeConstraints;
-		TVec2<FRealSingle> TetherStiffness;
-		TVec2<FRealSingle> TetherScale;
-		ETetherMode TetherMode;
-		FRealSingle MaxDistancesMultiplier;  // Animatable
-		TVec2<FRealSingle> AnimDriveStiffness;  // Animatable
-		TVec2<FRealSingle> AnimDriveDamping;  // Animatable
-		FRealSingle ShapeTargetStiffness;
-		bool bUseXPBDEdgeConstraints;
-		bool bUseXPBDBendingConstraints;
-		bool bUseXPBDAreaConstraints;
-		FRealSingle GravityScale;
-		bool bIsGravityOverridden;
-		TVec3<FRealSingle> GravityOverride;
-		TVec3<FRealSingle> LinearVelocityScale;  // Linear ratio applied to the reference bone transforms
-		FRealSingle AngularVelocityScale;  // Angular ratio factor applied to the reference bone transforms
-		FRealSingle FictitiousAngularScale;
-		TVec2<FRealSingle> Drag;
-		TVec2<FRealSingle> Lift;
-		FVec3 WindVelocity;
-		FRealSingle AirDensity;
-		bool bUseLegacyWind;
-		TVec2<FRealSingle> Pressure;
-		FRealSingle DampingCoefficient;
-		FRealSingle LocalDampingCoefficient;
-		FRealSingle CollisionThickness;
-		FRealSingle FrictionCoefficient;
-		bool bUseCCD;
-		bool bUseSelfCollisions;
-		FRealSingle SelfCollisionThickness;
-		FRealSingle SelfCollisionFrictionCoefficient;
-		bool bUseSelfIntersections;
-		bool bEnableBackstop;
-		bool bUseLegacyBackstop;
+
+		TSharedPtr<FManagedArrayCollection> PropertyCollection;  // Used for backward compatibility only, otherwise the properties are owned by the Config
+
+		FRealSingle MaxDistancesMultiplier;  // Legacy multiplier
+
 		bool bUseLODIndexOverride;
 		int32 LODIndexOverride;
 		bool bNeedsReset;

@@ -61,7 +61,7 @@ public:
 		}
 	}
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection, FSolverReal WorldScale)
 	{
 		if (IsFluidDensityMutable(PropertyCollection))
 		{
@@ -86,8 +86,8 @@ public:
 		if (IsPressureMutable(PropertyCollection))
 		{
 			const FSolverVec2 Pressure(GetWeightedFloatPressure(PropertyCollection));
-			PressureBase = Pressure[0];
-			PressureRange = Pressure[1] - PressureBase;
+			PressureBase = Pressure[0] / WorldScale;
+			PressureRange = Pressure[1] / WorldScale - PressureBase;
 		}
 	}
 

@@ -38,73 +38,129 @@ namespace Chaos
 		// ---- End of Solver interface ----
 
 		// ---- Cloth interface ----
+		void AddRules(
+			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const FTriangleMesh& TriangleMesh,
+			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+			const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
+			Softs::FSolverReal MeshScale,
+			bool bEnabled);
+
+		void Update(
+			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			Softs::FSolverReal MeshScale,
+			Softs::FSolverReal MaxDistancesScale = (Softs::FSolverReal)1.);
+
+		void Enable(bool bEnable);
+
+		UE_DEPRECATED(5.2, "Use AddRules() instead.")
 		void SetEdgeConstraints(const TArray<TVec3<int32>>& SurfaceElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, bool bUseXPBDConstraints);
+		UE_DEPRECATED(5.2, "Use AddRules() instead.")
 		void SetXPBDEdgeConstraints(const TArray<TVec3<int32>>& SurfaceElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, const TConstArrayView<FRealSingle>& DampingRatioMultipliers);
+		UE_DEPRECATED(5.2, "Use AddRules() instead.")
 		void SetBendingConstraints(const TArray<TVec2<int32>>& Edges, const TConstArrayView<FRealSingle>& StiffnessMultipliers, bool bUseXPBDConstraints);
+		UE_DEPRECATED(5.2, "Use AddRules() instead.")
 		void SetBendingConstraints(TArray<TVec4<int32>>&& BendingElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers, bool bUseXPBDConstraints);
+		UE_DEPRECATED(5.2, "Use AddRules() instead.")
 		void SetXPBDBendingConstraints(TArray<TVec4<int32>>&& BendingElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers, const TConstArrayView<FRealSingle>& DampingRatioMultipliers);
 		UE_DEPRECATED(5.1, "Use SetBendingConstraints(TArray<TVec4<int32>>&& BendingElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers, bool bUseXPBDConstraints) instead.")
 		void SetBendingConstraints(TArray<TVec4<int32>>&& BendingElements, Softs::FSolverReal BendingStiffness);
+		UE_DEPRECATED(5.2, "Use AddRules() instead.")
 		void SetAreaConstraints(const TArray<TVec3<int32>>& SurfaceElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, bool bUseXPBDConstraints);
+		UE_DEPRECATED(5.2, "Use AddRules() instead.")
 		void SetVolumeConstraints(const TArray<TVec2<int32>>& DoubleBendingEdges, Softs::FSolverReal VolumeStiffness);
+		UE_DEPRECATED(5.2, "Use AddRules() instead.")
 		void SetVolumeConstraints(TArray<TVec3<int32>>&& SurfaceElements, Softs::FSolverReal VolumeStiffness);
-		void SetLongRangeConstraints(const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
-			const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers, const TConstArrayView<FRealSingle>& TetherScaleMultipliers,
-			const Softs::FSolverVec2& TetherScale);
+		UE_DEPRECATED(5.2, "Use AddRules() instead.")
+		void SetLongRangeConstraints(
+			const TArray<TConstArrayView<TTuple<int32,int32, FRealSingle>>>& Tethers,
+			const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers,
+			const TConstArrayView<FRealSingle>& TetherScaleMultipliers,
+			const Softs::FSolverVec2& TetherScale,
+			Softs::FSolverReal MeshScale = (Softs::FSolverReal)1.);
 		UE_DEPRECATED(5.1, "LongRange XPBDConstraints are not supported.")
-		void SetLongRangeConstraints(const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
-			const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers, const TConstArrayView<FRealSingle>& TetherScaleMultipliers,
-			const Softs::FSolverVec2& TetherScale, bool bUseXPBDConstraints) {
-			return SetLongRangeConstraints(Tethers, TetherStiffnessMultipliers, TetherScaleMultipliers, TetherScale);
-		}
+		void SetLongRangeConstraints(
+			const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
+			const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers,
+			const TConstArrayView<FRealSingle>& TetherScaleMultipliers,
+			const Softs::FSolverVec2& TetherScale,
+			bool bUseXPBDConstraints,
+			Softs::FSolverReal MeshScale = (Softs::FSolverReal)1.);
+		UE_DEPRECATED(5.2, "Use AddRules() instead.")
 		void SetMaximumDistanceConstraints(const TConstArrayView<FRealSingle>& MaxDistances);
+		UE_DEPRECATED(5.2, "Use AddRules() instead.")
 		void SetBackstopConstraints(const TConstArrayView<FRealSingle>& BackstopDistances, const TConstArrayView<FRealSingle>& BackstopRadiuses, bool bUseLegacyBackstop);
+		UE_DEPRECATED(5.2, "Use AddRules() instead.")
 		void SetAnimDriveConstraints(const TConstArrayView<FRealSingle>& AnimDriveStiffnessMultipliers, const TConstArrayView<FRealSingle>& AnimDriveDampingMultipliers);
+		UE_DEPRECATED(5.2, "Use AddRules() instead.")
 		void SetShapeTargetConstraints(Softs::FSolverReal ShapeTargetStiffness);
-		void SetSelfCollisionConstraints(const class FTriangleMesh& TriangleMesh, TSet<TVec2<int32>>&& DisabledCollisionElements, Softs::FSolverReal SelfCollisionThickness,
-			Softs::FSolverReal SelfCollisionFriction = Softs::FPBDCollisionSpringConstraintsBase::BackCompatFrictionCoefficient, bool bGlobalIntersectionAnalysis = false,
+		UE_DEPRECATED(5.2, "Use AddRules() instead.")
+		void SetSelfCollisionConstraints(
+			const class FTriangleMesh& TriangleMesh,
+			TSet<TVec2<int32>>&& DisabledCollisionElements,
+			Softs::FSolverReal SelfCollisionThickness,
+			Softs::FSolverReal SelfCollisionFriction = Softs::FPBDCollisionSpringConstraintsBase::BackCompatFrictionCoefficient,
+			bool bGlobalIntersectionAnalysis = false,
 			bool bContourMinimization = false);
 
+		UE_DEPRECATED(5.2, "CreateRules will soon be made private, use AddRules() instead.")
 		void CreateRules();
-		void Enable(bool bEnable);
 
+		UE_DEPRECATED(5.2, "Use Update() instead.")
 		void SetEdgeProperties(const Softs::FSolverVec2& EdgeStiffness, const Softs::FSolverVec2& DampingRatio = Softs::FSolverVec2::ZeroVector);
+		UE_DEPRECATED(5.2, "Use Update() instead.")
 		void SetBendingProperties(const Softs::FSolverVec2& BendingStiffness, Softs::FSolverReal BucklingRatio = 0.f, const Softs::FSolverVec2& BucklingStiffness = Softs::FSolverVec2::UnitVector, const Softs::FSolverVec2& DampingRatio = Softs::FSolverVec2::ZeroVector);
+		UE_DEPRECATED(5.2, "Use Update() instead.")
 		void SetAreaProperties(const Softs::FSolverVec2& AreaStiffness);
+		UE_DEPRECATED(5.2, "Use Update() instead.")
 		void SetThinShellVolumeProperties(Softs::FSolverReal VolumeStiffness);
+		UE_DEPRECATED(5.2, "Use Update() instead.")
 		void SetVolumeProperties(Softs::FSolverReal VolumeStiffness);
+		UE_DEPRECATED(5.2, "Use Update() instead.")
 		void SetLongRangeAttachmentProperties(
 			const Softs::FSolverVec2& TetherStiffness,
 			const Softs::FSolverVec2& TetherScale,
 			Softs::FSolverReal MeshScale = (Softs::FSolverReal)1.);
+		UE_DEPRECATED(5.2, "Use Update() instead.")
 		void SetMaximumDistanceProperties(Softs::FSolverReal MaxDistancesMultiplier);
+		UE_DEPRECATED(5.2, "Use Update() instead.")
 		void SetAnimDriveProperties(const Softs::FSolverVec2& AnimDriveStiffness, const Softs::FSolverVec2& AnimDriveDamping);
+		UE_DEPRECATED(5.2, "Use Update() instead.")
 		void SetSelfCollisionProperties(Softs::FSolverReal SelfCollisionThickness, Softs::FSolverReal SelfCollisionFriction = Softs::FPBDCollisionSpringConstraintsBase::BackCompatFrictionCoefficient, 
 			bool bGlobalIntersectionAnalysis = false, bool bContourMinimization = false);
-		UE_DEPRECATED(5.0, "Use SetBackstopProperties(bool, FSolverReal) instead.")
-		void SetBackstopProperties(bool bEnabled) { SetBackstopProperties(bEnabled, (Softs::FSolverReal)1.); }
+		UE_DEPRECATED(5.2, "Use Update() instead.")
 		void SetBackstopProperties(bool bEnabled, Softs::FSolverReal BackstopDistancesMultiplier);
 		// ---- End of Cloth interface ----
 
 		// ---- Debug functions ----
-		const TSharedPtr<Softs::FPBDSpringConstraints> GetEdgeConstraints() const { return EdgeConstraints; }
-		const TSharedPtr<Softs::FXPBDSpringConstraints>& GetXEdgeConstraints() const { return XEdgeConstraints; }
-		const TSharedPtr<Softs::FPBDSpringConstraints>& GetBendingConstraints() const { return BendingConstraints; }  
-		const TSharedPtr<Softs::FXPBDSpringConstraints>& GetXBendingConstraints() const { return XBendingConstraints; }
+		UE_DEPRECATED(5.2, "Use GetEdgeSpringConstraints() instead.")
+		const TSharedPtr<Softs::FPBDSpringConstraints>& GetEdgeConstraints() const { return EdgeConstraints_Deprecated; }
+		UE_DEPRECATED(5.2, "Use GetXEdgeSpringConstraints() instead.")
+		const TSharedPtr<Softs::FXPBDSpringConstraints>& GetXEdgeConstraints() const { return XEdgeConstraints_Deprecated; }
+		UE_DEPRECATED(5.2, "Use GetBendingSpringConstraints() instead.")
+		const TSharedPtr<Softs::FPBDSpringConstraints>& GetBendingConstraints() const { return BendingConstraints_Deprecated; }
+		UE_DEPRECATED(5.2, "Use GetXBendingSpringConstraints() instead.")
+		const TSharedPtr<Softs::FXPBDSpringConstraints>& GetXBendingConstraints() const { return XBendingConstraints_Deprecated; }
+		UE_DEPRECATED(5.2, "Use GetAreaSpringConstraints() instead.")
+		const TSharedPtr<Softs::FPBDAxialSpringConstraints>& GetAreaConstraints() const { return AreaConstraints_Deprecated; }
+		UE_DEPRECATED(5.2, "Use GetXAreaSpringConstraints() instead.")
+		const TSharedPtr<Softs::FXPBDAxialSpringConstraints>& GetXAreaConstraints() const { return XAreaConstraints_Deprecated; }
+		UE_DEPRECATED(5.2, "ThinShellVolume constraints are no longer supported.")
+		const TSharedPtr<Softs::FPBDSpringConstraints>& GetThinShellVolumeConstraints() const { return ThinShellVolumeConstraints_Deprecated; }
+		UE_DEPRECATED(5.2, "Volume constraints are no longer supported.")
+		const TSharedPtr<Softs::FPBDVolumeConstraint>& GetVolumeConstraints() const { return VolumeConstraints_Deprecated; }
+		UE_DEPRECATED(5.1,"LongRange XPBDConstraints are no longer supported.")
+		const TSharedPtr<Softs::FXPBDLongRangeConstraints>& GetXLongRangeConstraints() const { return XLongRangeConstraints_Deprecated; }
+
+		const TSharedPtr<Softs::FPBDEdgeSpringConstraints>& GetEdgeSpringConstraints() const { return EdgeConstraints; }
+		const TSharedPtr<Softs::FXPBDEdgeSpringConstraints>& GetXEdgeSpringConstraints() const { return XEdgeConstraints; }
+		const TSharedPtr<Softs::FPBDBendingSpringConstraints>& GetBendingSpringConstraints() const { return BendingConstraints; }
+		const TSharedPtr<Softs::FXPBDBendingSpringConstraints>& GetXBendingSpringConstraints() const { return XBendingConstraints; }
 		const TSharedPtr<Softs::FPBDBendingConstraints>& GetBendingElementConstraints() const { return BendingElementConstraints; }
 		const TSharedPtr<Softs::FXPBDBendingConstraints>& GetXBendingElementConstraints() const { return XBendingElementConstraints; }
-		const TSharedPtr<Softs::FPBDAxialSpringConstraints>& GetAreaConstraints() const { return AreaConstraints; }
-		const TSharedPtr<Softs::FXPBDAxialSpringConstraints>& GetXAreaConstraints() const { return XAreaConstraints; }
-		const TSharedPtr<Softs::FPBDSpringConstraints>& GetThinShellVolumeConstraints() const { return ThinShellVolumeConstraints; }
-		const TSharedPtr<Softs::FPBDVolumeConstraint>& GetVolumeConstraints() const { return VolumeConstraints; }
+		const TSharedPtr<Softs::FPBDAreaSpringConstraints>& GetAreaSpringConstraints() const { return AreaConstraints; }
+		const TSharedPtr<Softs::FXPBDAreaSpringConstraints>& GetXAreaSpringConstraints() const { return XAreaConstraints; }
 		const TSharedPtr<Softs::FPBDLongRangeConstraints>& GetLongRangeConstraints() const { return LongRangeConstraints; }
-		UE_DEPRECATED(5.1,"LongRange XPBDConstraints are not supported.")
-		const TSharedPtr<Softs::FXPBDLongRangeConstraints>& GetXLongRangeConstraints() const 
-		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			return XLongRangeConstraints; 
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		}
 		const TSharedPtr<Softs::FPBDSphericalConstraint>& GetMaximumDistanceConstraints() const { return MaximumDistanceConstraints; }
 		const TSharedPtr<Softs::FPBDSphericalBackstopConstraint>& GetBackstopConstraints() const { return BackstopConstraints; }
 		const TSharedPtr<Softs::FPBDAnimDriveConstraint>& GetAnimDriveConstraints() const { return AnimDriveConstraints; }
@@ -115,19 +171,59 @@ namespace Chaos
 		// ---- End of debug functions ----
 
 	private:
-		TSharedPtr<Softs::FPBDSpringConstraints> EdgeConstraints;
-		TSharedPtr<Softs::FXPBDSpringConstraints> XEdgeConstraints;
-		TSharedPtr<Softs::FPBDSpringConstraints> BendingConstraints;
-		TSharedPtr<Softs::FXPBDSpringConstraints> XBendingConstraints;
+		void CreateSelfCollisionConstraints(
+			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const FTriangleMesh& TriangleMesh);
+		void CreateEdgeConstraints(
+			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+			const FTriangleMesh& TriangleMesh);
+		void CreateBendingConstraints(
+			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+			const FTriangleMesh& TriangleMesh);
+		void CreateAreaConstraints(
+			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+			const FTriangleMesh& TriangleMesh);
+		void CreateLongRangeConstraints(
+			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+			const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
+			Softs::FSolverReal MeshScale);
+		void CreateMaxDistanceConstraints(
+			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+			Softs::FSolverReal MeshScale);
+		void CreateBackstopConstraints(
+			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+			Softs::FSolverReal MeshScale);
+		void CreateAnimDriveConstraints(
+			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const TArray<TConstArrayView<FRealSingle>>& WeightMaps);
+
+		//~ Begin deprecated constraints
+		TSharedPtr<Softs::FPBDSpringConstraints> EdgeConstraints_Deprecated;
+		TSharedPtr<Softs::FXPBDSpringConstraints> XEdgeConstraints_Deprecated;
+		TSharedPtr<Softs::FPBDSpringConstraints> BendingConstraints_Deprecated;
+		TSharedPtr<Softs::FXPBDSpringConstraints> XBendingConstraints_Deprecated;
+		TSharedPtr<Softs::FPBDAxialSpringConstraints> AreaConstraints_Deprecated;
+		TSharedPtr<Softs::FXPBDAxialSpringConstraints> XAreaConstraints_Deprecated;
+		TSharedPtr<Softs::FPBDSpringConstraints> ThinShellVolumeConstraints_Deprecated;;
+		TSharedPtr<Softs::FPBDVolumeConstraint> VolumeConstraints_Deprecated;
+		TSharedPtr<Softs::FXPBDLongRangeConstraints> XLongRangeConstraints_Deprecated;
+		//~ End deprecated constraints
+
+		TSharedPtr<Softs::FPBDEdgeSpringConstraints> EdgeConstraints;
+		TSharedPtr<Softs::FXPBDEdgeSpringConstraints> XEdgeConstraints;
+		TSharedPtr<Softs::FPBDBendingSpringConstraints> BendingConstraints;
+		TSharedPtr<Softs::FXPBDBendingSpringConstraints> XBendingConstraints;
 		TSharedPtr<Softs::FPBDBendingConstraints> BendingElementConstraints;
 		TSharedPtr<Softs::FXPBDBendingConstraints> XBendingElementConstraints;
-		TSharedPtr<Softs::FPBDAxialSpringConstraints> AreaConstraints;
-		TSharedPtr<Softs::FXPBDAxialSpringConstraints> XAreaConstraints;
-		TSharedPtr<Softs::FPBDSpringConstraints> ThinShellVolumeConstraints;
-		TSharedPtr<Softs::FPBDVolumeConstraint> VolumeConstraints;
+		TSharedPtr<Softs::FPBDAreaSpringConstraints> AreaConstraints;
+		TSharedPtr<Softs::FXPBDAreaSpringConstraints> XAreaConstraints;
 		TSharedPtr<Softs::FPBDLongRangeConstraints> LongRangeConstraints; 
-		UE_DEPRECATED(5.1, "LongRange XPBDConstraints are not supported.")
-		TSharedPtr<Softs::FXPBDLongRangeConstraints> XLongRangeConstraints;
 		TSharedPtr<Softs::FPBDSphericalConstraint> MaximumDistanceConstraints;
 		TSharedPtr<Softs::FPBDSphericalBackstopConstraint> BackstopConstraints;
 		TSharedPtr<Softs::FPBDAnimDriveConstraint> AnimDriveConstraints;
@@ -138,7 +234,7 @@ namespace Chaos
 		
 		Softs::FPBDEvolution* Evolution;
 		const TArray<Softs::FSolverVec3>* AnimationPositions;
-		const TArray<Softs::FSolverVec3>* OldAnimationPositions_deprecated;
+		const TArray<Softs::FSolverVec3>* OldAnimationPositions_Deprecated;
 		const TArray<Softs::FSolverVec3>* AnimationNormals;
 		const TArray<Softs::FSolverVec3>* AnimationVelocities;
 

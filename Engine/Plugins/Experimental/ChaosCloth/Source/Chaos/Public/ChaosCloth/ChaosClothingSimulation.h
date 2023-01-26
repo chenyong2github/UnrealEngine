@@ -19,6 +19,7 @@ namespace Chaos
 	class FClothingSimulationMesh;
 	class FClothingSimulationCloth;
 	class FClothingSimulationCollider;
+	class FClothingSimulationConfig;
 	class FSkeletalMeshCacheAdapter;
 
 	typedef FClothingSimulationContextCommon FClothingSimulationContext;
@@ -118,8 +119,6 @@ namespace Chaos
 		void ResetStats();
 		void UpdateStats(const FClothingSimulationCloth* Cloth);
 
-		void UpdateSimulationFromSharedSimConfig();
-
 	private:
 		// Visualization object
 		FClothVisualization Visualization;
@@ -131,6 +130,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_AB
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TArray<TUniquePtr<FClothingSimulationCloth>> Cloths;
 		TArray<TUniquePtr<FClothingSimulationCollider>> Colliders;
+		TArray<TUniquePtr<FClothingSimulationConfig>> Configs;
 
 		// External collision Data
 		FClothCollisionData ExternalCollisionData;

@@ -3,6 +3,7 @@
 #include "ChaosCloth/ChaosClothingSimulationCloth.h"
 #include "ChaosCloth/ChaosClothingSimulationCollider.h"
 #include "ChaosCloth/ChaosClothingSimulationMesh.h"
+#include "ChaosCloth/ChaosClothingSimulationConfig.h"
 #include "ChaosCloth/ChaosClothingSimulation.h"
 #include "ChaosCloth/ChaosClothPrivate.h"
 #include "Chaos/PBDEvolution.h"
@@ -72,8 +73,11 @@ namespace ClothingSimulationSolverDefault
 	static const Softs::FSolverVec3 Gravity((Softs::FSolverReal)0., (Softs::FSolverReal)0., (Softs::FSolverReal)-980.665);  // cm/s^2
 	static const Softs::FSolverVec3 WindVelocity((Softs::FSolverReal)0.);
 	static const int32 NumIterations = 1;
+	static const int32 MinNumIterations = 1;
 	static const int32 MaxNumIterations = 10;
 	static const int32 NumSubsteps = 1;
+	static const int32 MinNumSubsteps = 1;
+	static const FRealSingle SolverFrequency = 60.f;
 	static const FRealSingle SelfCollisionThickness = 2.f;
 	static const FRealSingle CollisionThickness = 1.2f;
 	static const FRealSingle FrictionCoefficient = 0.2f;
@@ -696,6 +700,63 @@ void FClothingSimulationSolver::SetWindVelocity(const TVec3<FRealSingle>& InWind
 	LegacyWindAdaption = InLegacyWindAdaption;
 }
 
+void FClothingSimulationSolver::SetNumIterations(int32 InNumIterations)
+{
+	if (Config)
+	{
+		Config->GetProperties().SetValue(TEXT("NumIterations"), InNumIterations);
+	}
+	else
+	{
+		NumIterations = InNumIterations;
+	}
+}
+
+int32 FClothingSimulationSolver::GetNumIterations() const
+{
+	return Config ?
+		Config->GetProperties().GetValue<int32>(TEXT("NumIterations"), ClothingSimulationSolverDefault::NumIterations) :
+		NumIterations;
+}
+
+void FClothingSimulationSolver::SetMaxNumIterations(int32 InMaxNumIterations)
+{
+	if (Config)
+	{
+		Config->GetProperties().SetValue(TEXT("MaxNumIterations"), InMaxNumIterations);
+	}
+	else
+	{
+		MaxNumIterations = InMaxNumIterations;
+	}
+}
+
+int32 FClothingSimulationSolver::GetMaxNumIterations() const
+{
+	return Config?
+		Config->GetProperties().GetValue<int32>(TEXT("MaxNumIterations"), ClothingSimulationSolverDefault::MaxNumIterations) :
+		MaxNumIterations;
+}
+
+void FClothingSimulationSolver::SetNumSubsteps(int32 InNumSubsteps)
+{
+	if (Config)
+	{
+		Config->GetProperties().SetValue(TEXT("NumSubsteps"), InNumSubsteps);
+	}
+	else
+	{
+		NumSubsteps = InNumSubsteps;
+	}
+}
+
+int32 FClothingSimulationSolver::GetNumSubsteps() const
+{
+	return Config?
+		Config->GetProperties().GetValue<int32>(TEXT("NumSubsteps"), ClothingSimulationSolverDefault::NumSubsteps) :
+		NumSubsteps;
+}
+
 void FClothingSimulationSolver::SetWindVelocity(uint32 GroupId, const TVec3<FRealSingle>& InWindVelocity)
 {
 	Softs::FVelocityAndPressureField& VelocityField = Evolution->GetVelocityAndPressureField(GroupId);
@@ -1028,21 +1089,48 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 			SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdateSolverStep);
 			SCOPE_CYCLE_COUNTER(STAT_ClothInternalSolve);
 
+			// Read config properties if any, otherwise go back to using the property setters for this object
+			int32 ConfigNumIterations;
+			int32 ConfigMaxNumIterations;
+			int32 ConfigNumSubsteps;
+			if (Config)
+			{
+				const Softs::FPropertyCollectionConstAdapter& Properties = Config->GetProperties();
+
+				ConfigMaxNumIterations = FMath::Max(
+					Properties.GetValue<int32>(TEXT("MaxNumIterations"), ClothingSimulationSolverDefault::MaxNumIterations),
+					ClothingSimulationSolverDefault::MinNumIterations);
+
+				ConfigNumIterations = FMath::Clamp(
+					Properties.GetValue<int32>(TEXT("NumIterations"), ClothingSimulationSolverDefault::NumIterations),
+					ClothingSimulationSolverDefault::MinNumIterations,
+					ConfigMaxNumIterations);
+
+				ConfigNumSubsteps = FMath::Max(
+					Properties.GetValue<int32>(TEXT("NumSubsteps"), ClothingSimulationSolverDefault::NumSubsteps),
+					ClothingSimulationSolverDefault::MinNumSubsteps);
+			}
+			else
+			{
+				ConfigMaxNumIterations = MaxNumIterations;
+				ConfigNumIterations = NumIterations;
+				ConfigNumSubsteps = NumSubsteps;
+			}
 			// Update solver time dependent parameters
-			constexpr Softs::FSolverReal SolverFrequency = 60.f;  // TODO: This could become a solver property
+			const Softs::FSolverReal SolverFrequency = (Softs::FSolverReal)ClothingSimulationSolverDefault::SolverFrequency;  // 60Hz default TODO: Should this become a solver property?
 
 			const int32 TimeDependentNumIterations = bClothSolverDisableTimeDependentNumIterations ?
-				NumIterations :
-				FMath::RoundToInt32(SolverFrequency * DeltaTime * (Softs::FSolverReal)NumIterations);
+				ConfigNumIterations :
+				FMath::RoundToInt32(SolverFrequency * DeltaTime * (Softs::FSolverReal)ConfigNumIterations);
 
-			Evolution->SetIterations(FMath::Clamp(TimeDependentNumIterations, 1, MaxNumIterations));
+			Evolution->SetIterations(FMath::Clamp(TimeDependentNumIterations, 1, ConfigMaxNumIterations));
 
 			// Advance substeps
-			const Softs::FSolverReal SubstepDeltaTime = DeltaTime / (Softs::FSolverReal)NumSubsteps;
+			const Softs::FSolverReal SubstepDeltaTime = DeltaTime / (Softs::FSolverReal)ConfigNumSubsteps;
 	
-			for (int32 i = 0; i < NumSubsteps; ++i)
+			for (int32 i = 0; i < ConfigNumSubsteps; ++i)
 			{
-				PreSubstep(FMath::Clamp((Softs::FSolverReal)(i + 1) / (Softs::FSolverReal)NumSubsteps, (Softs::FSolverReal)0., (Softs::FSolverReal)1.));
+				PreSubstep(FMath::Clamp((Softs::FSolverReal)(i + 1) / (Softs::FSolverReal)ConfigNumSubsteps, (Softs::FSolverReal)0., (Softs::FSolverReal)1.));
 				Evolution->AdvanceOneTimeStep(SubstepDeltaTime);
 			}
 

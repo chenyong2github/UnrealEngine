@@ -10,6 +10,7 @@
 #include "ChaosCloth/ChaosClothingSimulationSkeletalMesh.h"
 #include "ChaosCloth/ChaosClothingSimulationCloth.h"
 #include "ChaosCloth/ChaosClothingSimulationCollider.h"
+#include "ChaosCloth/ChaosClothingSimulationConfig.h"
 
 #include "PhysicsField/PhysicsFieldComponent.h"
 #include "PhysicsProxy/PerSolverFieldSystem.h"
@@ -258,7 +259,7 @@ namespace ChaosClothingSimulationDefault
 
 FClothingSimulation::FClothingSimulation()
 	: ClothSharedSimConfig(nullptr)
-	, bUseLocalSpaceSimulation(false)
+	, bUseLocalSpaceSimulation(true)
 	, bUseGravityOverride(false)
 	, GravityOverride(ChaosClothingSimulationDefault::Gravity)
 	, MaxDistancesMultipliers(ChaosClothingSimulationDefault::MaxDistancesMultipliers)
@@ -330,8 +331,6 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 	{
 		ClothSharedSimConfig = Asset->GetClothConfig<UChaosClothSharedSimConfig>();
 
-		UpdateSimulationFromSharedSimConfig();
-
 		// Must set the local space location prior to adding any mesh/cloth, as otherwise the start poses would be in the wrong local space
 		const FClothingSimulationContext* const Context = static_cast<const FClothingSimulationContext*>(InOwnerComponent->GetClothingSimulationContext());
 		check(Context);
@@ -352,12 +351,12 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		return;
 	}
 
-	// Create mesh node
+	// Create mesh runtime simulation object
 	const int32 MeshIndex = Meshes.Emplace(MakeUnique<FClothingSimulationSkeletalMesh>(
 		Asset,
 		InOwnerComponent));
 
-	// Create collider node
+	// Create collider runtime simulation object
 	const int32 ColliderIndex = Colliders.Emplace(MakeUnique<FClothingSimulationCollider>(
 		Asset->PhysicsAsset,
 		&CastChecked<USkeletalMesh>(Asset->GetOuter())->GetRefSkeleton()));
@@ -365,61 +364,26 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 	// Set the external collision data to get updated at every frame
 	Colliders[ColliderIndex]->SetCollisionData(&ExternalCollisionData);
 
-	// Create cloth node
+	// Create cloth config runtime simulation object
+	const int32 ClothConfigIndex = Configs.Emplace(MakeUnique<FClothingSimulationConfig>());
+	Configs[ClothConfigIndex]->Initialize(ClothConfig, nullptr);
+
+	// Create cloth runtime simulation object
 	const int32 ClothIndex = Cloths.Emplace(MakeUnique<FClothingSimulationCloth>(
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
+		Configs[ClothConfigIndex].Get(),
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 		Meshes[MeshIndex].Get(),
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TArray<FClothingSimulationCollider*>({ Colliders[ColliderIndex].Get() }),
-		InSimDataIndex,
-		(FClothingSimulationCloth::EMassMode)ClothConfig->MassMode,
-		ClothConfig->GetMassValue(),
-		ClothConfig->MinPerParticleMass,
-		TVec2<FRealSingle>(ClothConfig->EdgeStiffnessWeighted.Low, ClothConfig->EdgeStiffnessWeighted.High),
-		TVec2<FRealSingle>(ClothConfig->BendingStiffnessWeighted.Low, ClothConfig->BendingStiffnessWeighted.High),
-		ClothConfig->BucklingRatio,
-		TVec2<FRealSingle>(ClothConfig->BucklingStiffnessWeighted.Low, ClothConfig->BucklingStiffnessWeighted.High),
-		ClothConfig->bUseBendingElements,
-		TVec2<FRealSingle>(ClothConfig->AreaStiffnessWeighted.Low, ClothConfig->AreaStiffnessWeighted.High),
-		ClothConfig->VolumeStiffness,
-		ClothConfig->bUseThinShellVolumeConstraints,
-		TVec2<FRealSingle>(ClothConfig->TetherStiffness.Low, ClothConfig->TetherStiffness.High),  // Animatable
-		TVec2<FRealSingle>(ClothConfig->TetherScale.Low, ClothConfig->TetherScale.High),  // Animatable
-		ClothConfig->bUseGeodesicDistance ? FClothingSimulationCloth::ETetherMode::Geodesic : FClothingSimulationCloth::ETetherMode::Euclidean,
-		/*MaxDistancesMultiplier =*/ 1.f,  // Animatable
-		TVec2<FRealSingle>(ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High),  // Animatable
-		TVec2<FRealSingle>(ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High),  // Animatable
-		ClothConfig->ShapeTargetStiffness,  // TODO: This is now deprecated
-		false, // bUseXPBDEdgeSprings
-		false, // bUseXPBDBendingElements
-		false, // bUseXPBDAreaSprings
-		ClothConfig->GravityScale,
-		ClothConfig->bUseGravityOverride,
-		ClothConfig->Gravity,
-		ClothConfig->LinearVelocityScale,
-		ClothConfig->AngularVelocityScale,
-		ClothConfig->FictitiousAngularScale,
-		TVec2<FRealSingle>(ClothConfig->Drag.Low, ClothConfig->Drag.High),  // Animatable
-		TVec2<FRealSingle>(ClothConfig->Lift.Low, ClothConfig->Lift.High),  // Animatable
-		ClothConfig->bUsePointBasedWindModel,
-		TVec2<FRealSingle>(ClothConfig->Pressure.Low, ClothConfig->Pressure.High),  // Animatable
-		ClothConfig->DampingCoefficient,
-		ClothConfig->LocalDampingCoefficient,
-		ClothConfig->CollisionThickness,
-		ClothConfig->FrictionCoefficient,
-		ClothConfig->bUseCCD,
-		ClothConfig->bUseSelfCollisions,
-		ClothConfig->SelfCollisionThickness,
-		ClothConfig->SelfCollisionFriction,
-		ClothConfig->bUseSelfIntersections,
-		ClothConfig->bUseLegacyBackstop,
-		/*bUseLODIndexOverride =*/ false,
-		/*LODIndexOverride =*/ INDEX_NONE,
-		TVec2<FRealSingle>(0.f), // EdgeDampingRatio
-		TVec2<FRealSingle>(0.f))); // BendDampingRatio
+		InSimDataIndex));
 
 	// Add cloth to solver
 	Solver->AddCloth(Cloths[ClothIndex].Get());
+
+	// Create solver config runtime simulation object
+	const int32 SolverConfigIndex = Configs.Emplace(MakeUnique<FClothingSimulationConfig>());
+	Configs[SolverConfigIndex]->Initialize(nullptr, ClothSharedSimConfig);
+	Solver->SetConfig(Configs[SolverConfigIndex].Get());
 
 	// Update stats
 	UpdateStats(Cloths[ClothIndex].Get());
@@ -459,21 +423,6 @@ void FClothingSimulation::UpdateStats(const FClothingSimulationCloth* Cloth)
 	NumCloths = Cloths.Num();
 	NumKinematicParticles += Cloth->GetNumActiveKinematicParticles();
 	NumDynamicParticles += Cloth->GetNumActiveDynamicParticles();
-}
-
-void FClothingSimulation::UpdateSimulationFromSharedSimConfig()
-{
-	check(Solver);
-	if (ClothSharedSimConfig) // ClothSharedSimConfig will be a null pointer if all cloth instances are disabled in which case we will use default Evolution parameters
-	{
-		// Update local space simulation switch
-		bUseLocalSpaceSimulation = ClothSharedSimConfig->bUseLocalSpaceSimulation;
-
-		// Set common simulation parameters
-		Solver->SetNumSubsteps(ClothSharedSimConfig->SubdivisionCount);
-		Solver->SetNumIterations(ClothSharedSimConfig->IterationCount);
-		Solver->SetMaxNumIterations(ClothSharedSimConfig->MaxIterationCount);
-	}
 }
 
 void FClothingSimulation::SetNumIterations(int32 InNumIterations)
@@ -791,8 +740,6 @@ void FClothingSimulation::GetCollisions(FClothCollisionData& OutCollisions, bool
 
 void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* InContext)
 {
-	UpdateSimulationFromSharedSimConfig();
-
 	// Update new space location
 	const FClothingSimulationContext* const Context = static_cast<const FClothingSimulationContext*>(InContext);
 	static const bool bReset = true;
@@ -813,55 +760,19 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 		const uint32 GroupId = Cloth->GetGroupId();
 		const UChaosClothConfig* const ClothConfig = Mesh->GetAsset()->GetClothConfig<UChaosClothConfig>();
 
+		// Update cloth config runtime simulation object
+		FClothingSimulationConfig* const Config = Cloth->GetConfig();
+		check(Config);
+		Config->Initialize(ClothConfig, nullptr);
+
+		// Recreate cloth runtime simulation object
 		Cloth = MakeUnique<FClothingSimulationCloth>(
+			Config,
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 			Mesh,
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			MoveTemp(ClothColliders),
-			GroupId,
-			(FClothingSimulationCloth::EMassMode)ClothConfig->MassMode,
-			ClothConfig->GetMassValue(),
-			ClothConfig->MinPerParticleMass,
-			TVec2<FRealSingle>(ClothConfig->EdgeStiffnessWeighted.Low, ClothConfig->EdgeStiffnessWeighted.High),
-			TVec2<FRealSingle>(ClothConfig->BendingStiffnessWeighted.Low, ClothConfig->BendingStiffnessWeighted.High),
-			ClothConfig->BucklingRatio,
-			TVec2<FRealSingle>(ClothConfig->BucklingStiffnessWeighted.Low, ClothConfig->BucklingStiffnessWeighted.High),
-			ClothConfig->bUseBendingElements,
-			TVec2<FRealSingle>(ClothConfig->AreaStiffnessWeighted.Low, ClothConfig->AreaStiffnessWeighted.High),
-			ClothConfig->VolumeStiffness,
-			ClothConfig->bUseThinShellVolumeConstraints,
-			TVec2<FRealSingle>(ClothConfig->TetherStiffness.Low, ClothConfig->TetherStiffness.High),  // Animatable
-			TVec2<FRealSingle>(ClothConfig->TetherScale.Low, ClothConfig->TetherScale.High),  // Animatable
-			ClothConfig->bUseGeodesicDistance ? FClothingSimulationCloth::ETetherMode::Geodesic : FClothingSimulationCloth::ETetherMode::Euclidean,
-			/*MaxDistancesMultiplier =*/ 1.f,  // Animatable
-			TVec2<FRealSingle>(ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High),  // Animatable
-			TVec2<FRealSingle>(ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High),  // Animatable
-			ClothConfig->ShapeTargetStiffness,
-			false, // bUseXPBDEdgeSprings
-			false, // bUseXPBDBendingElements
-			false, // bUseXPBDAreaSprings
-			ClothConfig->GravityScale,
-			ClothConfig->bUseGravityOverride,
-			ClothConfig->Gravity,
-			ClothConfig->LinearVelocityScale,
-			ClothConfig->AngularVelocityScale,
-			ClothConfig->FictitiousAngularScale,
-			TVec2<FRealSingle>(ClothConfig->Drag.Low, ClothConfig->Drag.High),  // Animatable
-			TVec2<FRealSingle>(ClothConfig->Lift.Low, ClothConfig->Lift.High),  // Animatable
-			ClothConfig->bUsePointBasedWindModel,
-			TVec2<FRealSingle>(ClothConfig->Pressure.Low, ClothConfig->Pressure.High),  // Animatable
-			ClothConfig->DampingCoefficient,
-			ClothConfig->LocalDampingCoefficient,
-			ClothConfig->CollisionThickness,
-			ClothConfig->FrictionCoefficient,
-			ClothConfig->bUseCCD,
-			ClothConfig->bUseSelfCollisions,
-			ClothConfig->SelfCollisionThickness,
-			ClothConfig->SelfCollisionFriction,
-			ClothConfig->bUseSelfIntersections,
-			ClothConfig->bUseLegacyBackstop,
-			/*bUseLODIndexOverride =*/ false,
-			/*LODIndexOverride =*/ INDEX_NONE,
-			TVec2<FRealSingle>(0.f), // EdgeDampingRatio
-			TVec2<FRealSingle>(0.f)); // BendDampingRatio
+			GroupId);
 
 		// Re-add cloth to the solver
 		Solver->AddCloth(Cloth.Get());
@@ -869,6 +780,12 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 		// Update stats
 		UpdateStats(Cloth.Get());
 	}
+
+	// Update solver config runtime simulation object
+	FClothingSimulationConfig* const SolverConfig = Solver->GetConfig();
+	check(SolverConfig);
+	SolverConfig->Initialize(nullptr, ClothSharedSimConfig);
+
 	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("RefreshClothConfig, all constraints and self-collisions have been updated for all clothing assets and LODs."));
 }
 
