@@ -192,7 +192,6 @@ void UNavLinkCustomComponent::SetLinkData(const FVector& RelativeStart, const FV
 	LinkDirection = Direction;
 	
 	RefreshNavigationModifiers();
-	MarkRenderStateDirty();
 }
 
 FNavigationLink UNavLinkCustomComponent::GetLinkModifier() const
