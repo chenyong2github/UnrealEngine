@@ -23,6 +23,7 @@
 #include "Internationalization/Regex.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Misc/ConfigCacheIni.h"
+#include "SourceControl/Private/SourceControlModule.h"
 #include "UObject/LinkerLoad.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlReview"
@@ -135,7 +136,9 @@ void SSourceControlReview::Construct(const FArguments& InArgs)
 					[
 						SNew(SButton)
 						.HAlign(HAlign_Center)
+						.IsEnabled(this, &SSourceControlReview::IsSourceControlActive)
 						.OnClicked(this, &SSourceControlReview::OnLoadChangelistClicked)
+						.ToolTipText(this, &SSourceControlReview::LoadChangelistTooltip)
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("LoadChangelistText", "Load"))
@@ -444,6 +447,20 @@ FReply SSourceControlReview::OnLoadChangelistClicked()
 {
 	LoadChangelist(ChangelistNumText->GetText().ToString());
 	return FReply::Handled();
+}
+
+bool SSourceControlReview::IsSourceControlActive() const
+{
+	return FSourceControlModule::Get().IsEnabled();
+}
+
+FText SSourceControlReview::LoadChangelistTooltip() const
+{
+	if (IsSourceControlActive())
+	{
+		return LOCTEXT("LoadChangelistTooltip", "Load Changelist");
+	}
+	return LOCTEXT("LoadChangelistInactive", "Enable Revision Control to load changelist");
 }
 
 void SSourceControlReview::OnChangelistNumChanged(const FText& Text)

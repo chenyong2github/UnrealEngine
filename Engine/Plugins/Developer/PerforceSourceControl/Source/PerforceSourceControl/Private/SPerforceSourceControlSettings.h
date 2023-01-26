@@ -43,7 +43,10 @@ public:
 
 	void Construct(const FArguments& InArgs, FPerforceSourceControlProvider* InSCCProvider);
 
-	/** Get the currently entered password */
+	/** Get the currently entered password
+	 *
+	 *  Note: This can only be called from a game or slate thread. All other threads will return an empty string.
+	 */
 	static FString GetPassword();
 
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime );

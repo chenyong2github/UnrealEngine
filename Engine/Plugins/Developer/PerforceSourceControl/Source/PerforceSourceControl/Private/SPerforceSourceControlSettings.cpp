@@ -218,7 +218,8 @@ void SPerforceSourceControlSettings::Construct(const FArguments& InArgs, FPerfor
 
 FString SPerforceSourceControlSettings::GetPassword()
 {
-	if(PasswordTextBox.IsValid())
+	const bool bIsValidThread = IsInGameThread() || IsInSlateThread();
+	if(PasswordTextBox.IsValid() && bIsValidThread)
 	{
 		return PasswordTextBox.Pin()->GetText().ToString();
 	}
