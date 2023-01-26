@@ -149,6 +149,8 @@ TTuple<FGraphEventRef, TFunction<void()>> FUnrealMutableImageProvider::GetImageA
 		if (!GlobalExternalImages.Contains(id))
 		{
 			// Null case, no image was provided
+			UE_LOG(LogMutable, Warning, TEXT("Failed to get external image. GlobalExternalImage not found."));
+
 			ResultCallback(CreateDummy());
 			return Invoke(TrivialReturn);
 		}
@@ -244,6 +246,7 @@ TTuple<FGraphEventRef, TFunction<void()>> FUnrealMutableImageProvider::GetImageA
 					// Should we do someting different than returning a dummy image if cancelled?
 					if (bWasCancelled)
 					{
+						UE_LOG(LogMutable, Warning, TEXT("Failed to get external image. Cancelled IO Request"));
 						ResultCallback(CreateDummy());
 						return;
 					}
@@ -467,6 +470,7 @@ void FUnrealMutableImageProvider::CacheImage(mu::EXTERNAL_IMAGE_ID id)
 
 	if (!pResult && !UnrealDeferredTexture)
 	{
+		UE_LOG(LogMutable, Warning, TEXT("Failed to catch external image."));
 		pResult = CreateDummy();
 	}
 

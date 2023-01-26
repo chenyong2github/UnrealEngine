@@ -9,6 +9,10 @@
 class UTexture2D;
 class UCustomizableObjectInstance;
 
+namespace mu
+{
+	class Parameters;
+}
 
 /** Simple image provider that translates UTexture2D to Mutable IDs.
  *
@@ -35,12 +39,12 @@ public:
 	/** If the TextureId does not get assigned to an Instance Texture Parameter it will be GC on the next Instance update. */
 	uint64 GetOrAdd(UTexture2D* Texture); 
 
-	void CacheTextures(UCustomizableObjectInstance& Instance);
+	void CacheTextures(const mu::Parameters&);
 
 	/** Keep the TextureId from being collected by the GC. */
 	void Keep(uint64 TextureId, bool bKeep);
 	
-	void GarbageCollectTextureIds();
+	void GarbageCollectTextureIds(const mu::Parameters&);
 
 private:
 	int32 ToIndex(uint64 TextureId) const;

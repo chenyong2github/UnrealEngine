@@ -1952,7 +1952,7 @@ namespace impl
 
 		if (const TObjectPtr<UDefaultImageProvider> DefaultImageProvider = System->GetDefaultImageProvider())
 		{
-			DefaultImageProvider->CacheTextures(*ObjectInstance);
+			DefaultImageProvider->CacheTextures(*OperationData->MutableParameters);
 		}
 		
 		// Selectively lock the resource cache for the object used by this instance to avoid the destruction of resources that we may want to reuse.
