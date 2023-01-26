@@ -38,7 +38,7 @@
 #include "DataInterface/NiagaraDataInterfaceDataChannelRead.h"
 #include "DataInterface/NiagaraDataInterfaceDataChannelSpawn.h"
 
-#if PLATFORM_WINDOWS
+#if NIAGARA_USE_OPENVDB
 #include "NiagaraOpenVDB.h"
 #endif
 
@@ -267,7 +267,7 @@ void INiagaraModule::StartupModule()
 	LLM_SCOPE(ELLMTag::Niagara);
 	FNiagaraTypeDefinition::Init();
 
-#if PLATFORM_WINDOWS
+#if NIAGARA_USE_OPENVDB
 	// Global registration of  the vdb types.
 	openvdb::initialize();
 	if (!Vec4SGrid::isRegistered())

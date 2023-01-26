@@ -78,7 +78,7 @@ public class Niagara : ModuleRules
             });
         }
 
-		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) && Target.Architecture.bIsX64)
 		{ 
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"IntelTBB",
@@ -87,6 +87,20 @@ public class Niagara : ModuleRules
 				"Boost",				
 				"OpenVDB"
 			);
+
+			PublicDefinitions.AddRange(
+				new string[]
+				{
+					"NIAGARA_USE_OPENVDB=1"
+				});
+		}
+		else
+		{
+			PublicDefinitions.AddRange(
+				new string[]
+				{
+					"NIAGARA_USE_OPENVDB=0"
+				});
 		}
 
 		PublicDefinitions.AddRange(

@@ -4,7 +4,7 @@
 
 #include "HAL/Platform.h"
 
-#if PLATFORM_WINDOWS
+#if NIAGARA_USE_OPENVDB
 
 THIRD_PARTY_INCLUDES_START
 
