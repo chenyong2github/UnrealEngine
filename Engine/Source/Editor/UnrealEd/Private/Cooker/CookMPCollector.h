@@ -44,7 +44,13 @@ private:
 class FMPCollectorClientTickPackageContext
 {
 public:
+	struct FPlatformData
+	{
+		const ITargetPlatform* TargetPlatform = nullptr;
+		bool bSuccessful = false;
+	};
 	TConstArrayView<const ITargetPlatform*> GetPlatforms() const { return Platforms; }
+	TConstArrayView<FPlatformData> GetPlatformDatas() const { return PlatformDatas; }
 	FName GetPackageName() const { return PackageName; }
 
 	void AddMessage(FCbObject Object);
@@ -56,6 +62,7 @@ public:
 private:
 	TArray<TPair<const ITargetPlatform*, FCbObject>> Messages;
 	TConstArrayView<const ITargetPlatform*> Platforms;
+	TConstArrayView<FPlatformData> PlatformDatas;
 	FName PackageName;
 
 	friend class FCookWorkerClient;

@@ -1060,4 +1060,39 @@ bool FHeartbeatMessage::TryRead(FCbObjectView Object)
 	return LoadFromCompactBinary(Object["H"], HeartbeatNumber);
 }
 
+FPackageWriterMPCollector::FPackageWriterMPCollector(UCookOnTheFlyServer& InCOTFS)
+	: COTFS(InCOTFS)
+{
+
+}
+
+void FPackageWriterMPCollector::ClientTickPackage(FMPCollectorClientTickPackageContext& Context)
+{
+	for (const FMPCollectorClientTickPackageContext::FPlatformData& PlatformData : Context.GetPlatformDatas())
+	{
+		if (PlatformData.bSuccessful)
+		{
+			ICookedPackageWriter& PackageWriter = COTFS.FindOrCreatePackageWriter(PlatformData.TargetPlatform);
+			FCbObject Object = PackageWriter.WriteMPCookMessageForPackage(Context.GetPackageName());
+			Context.AddPlatformMessage(PlatformData.TargetPlatform, Object);
+		}
+	}
+}
+
+void FPackageWriterMPCollector::ServerReceiveMessage(FMPCollectorServerMessageContext& Context, FCbObjectView Message)
+{
+	FName PackageName = Context.GetPackageName();
+	const ITargetPlatform* TargetPlatform = Context.GetTargetPlatform();
+	check(PackageName.IsValid() && TargetPlatform);
+
+	ICookedPackageWriter& PackageWriter = COTFS.FindOrCreatePackageWriter(TargetPlatform);
+	if (!PackageWriter.TryReadMPCookMessageForPackage(PackageName, Message))
+	{
+		UE_LOG(LogCook, Error, TEXT("CookWorkerServer received invalidly formatted PackageWriter message from CookWorker %d. Ignoring it."),
+			Context.GetProfileId());
+	}
+}
+
+FGuid FPackageWriterMPCollector::MessageType(TEXT("D2B1CE3FD26644AF9EC28FBADB1BD331"));
+
 }

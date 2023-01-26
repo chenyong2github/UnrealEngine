@@ -47,6 +47,7 @@ FCookWorkerClient::FCookWorkerClient(UCookOnTheFlyServer& InCOTFS)
 			HandleHeartbeatMessage(Context, bReadSuccessful, MoveTemp(Message));
 		}, TEXT("HandleHeartbeatMessage")));
 	Register(new FAssetRegistryMPCollector(COTFS));
+	Register(new FPackageWriterMPCollector(COTFS));
 }
 
 FCookWorkerClient::~FCookWorkerClient()
@@ -172,9 +173,17 @@ void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
 		PlatformResults.SetSuccessful(PackagePlatformData.bCookSucceeded);
 	}
 
+	TArray<FMPCollectorClientTickPackageContext::FPlatformData, TInlineAllocator<1>> ContextPlatformDatas;
+	ContextPlatformDatas.Reserve(NumPlatforms);
+	for (FPackageRemoteResult::FPlatformResult& PlatformResult : Result.GetPlatforms())
+	{
+		ContextPlatformDatas.Add(FMPCollectorClientTickPackageContext::FPlatformData
+			{ PlatformResult.GetPlatform(), PlatformResult.IsSuccessful() });
+	}
 	FMPCollectorClientTickPackageContext Context;
 	Context.PackageName = PackageName;
 	Context.Platforms = OrderedSessionPlatforms;
+	Context.PlatformDatas = ContextPlatformDatas;
 
 	for (const TPair<FGuid, TRefCountPtr<IMPCollector>>& CollectorPair : Collectors)
 	{

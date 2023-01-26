@@ -148,6 +148,7 @@ namespace UE::Cook
 	class FCookDirector;
 	class FCookWorkerClient;
 	class FCookWorkerServer;
+	class FPackageWriterMPCollector;
 	class FRequestCluster;
 	class FRequestQueue;
 	class FSaveCookedPackageContext;
@@ -1433,6 +1434,7 @@ private:
 	friend UE::Cook::FGeneratorPackage;
 	friend UE::Cook::FInitializeConfigSettings;
 	friend UE::Cook::FPackageData;
+	friend UE::Cook::FPackageWriterMPCollector;
 	friend UE::Cook::FPendingCookedPlatformData;
 	friend UE::Cook::FPlatformManager;
 	friend UE::Cook::FRequestCluster;

@@ -381,4 +381,19 @@ public:
 	static FGuid MessageType;
 };
 
+class FPackageWriterMPCollector : public UE::Cook::IMPCollector
+{
+public:
+	FPackageWriterMPCollector(UCookOnTheFlyServer& InCOTFS);
+	virtual FGuid GetMessageType() const { return MessageType; }
+	virtual const TCHAR* GetDebugName() const { return TEXT("PackageWriter"); }
+
+	virtual void ClientTickPackage(FMPCollectorClientTickPackageContext& Context) override;
+	virtual void ServerReceiveMessage(FMPCollectorServerMessageContext& Context, FCbObjectView Message) override;
+
+private:
+	UCookOnTheFlyServer& COTFS;
+	static FGuid MessageType;
+};
+
 }
