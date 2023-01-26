@@ -69,38 +69,6 @@ FAutoConsoleVariableRef CVarNaniteOptimizedRelevance(
 	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteErrorOnVertexInterpolator = 0;
-FAutoConsoleVariableRef CVarNaniteErrorOnVertexInterpolator(
-	TEXT("r.Nanite.ErrorOnVertexInterpolator"),
-	GNaniteErrorOnVertexInterpolator,
-	TEXT("Whether to error and use default material if vertex interpolator is present on a Nanite material."),
-	ECVF_RenderThreadSafe
-);
-
-int32 GNaniteErrorOnWorldPositionOffset = 0;
-FAutoConsoleVariableRef CVarNaniteErrorOnWorldPositionOffset(
-	TEXT("r.Nanite.ErrorOnWorldPositionOffset"),
-	GNaniteErrorOnWorldPositionOffset,
-	TEXT("Whether to error and use default material if world position offset is present on a Nanite material."),
-	ECVF_RenderThreadSafe
-);
-
-int32 GNaniteErrorOnPixelDepthOffset = 0;
-FAutoConsoleVariableRef CVarNaniteErrorOnPixelDepthOffset(
-	TEXT("r.Nanite.ErrorOnPixelDepthOffset"),
-	GNaniteErrorOnPixelDepthOffset,
-	TEXT("Whether to error and use default material if pixel depth offset is present on a Nanite material."),
-	ECVF_RenderThreadSafe
-);
-
-int32 GNaniteErrorOnMaskedBlendMode = 0;
-FAutoConsoleVariableRef CVarNaniteErrorOnMaskedBlendMode(
-	TEXT("r.Nanite.ErrorOnMaskedBlendMode"),
-	GNaniteErrorOnMaskedBlendMode,
-	TEXT("Whether to error and use default material if masked blend mode is specified for a Nanite material."),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarRayTracingNaniteProxyMeshes(
 	TEXT("r.RayTracing.Geometry.NaniteProxies"),
 	1,
@@ -2050,21 +2018,6 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 				Entry.bHasUnsupportedBlendMode |
 				Entry.bHasInvalidUsage;
 
-			if (GNaniteErrorOnWorldPositionOffset != 0)
-			{
-				Entry.bHasAnyError |= Entry.bHasWorldPositionOffset;
-			}
-
-			if (GNaniteErrorOnPixelDepthOffset != 0)
-			{
-				Entry.bHasAnyError |= Entry.bHasPixelDepthOffset;
-			}
-
-			if (GNaniteErrorOnVertexInterpolator != 0)
-			{
-				Entry.bHasAnyError |= Entry.bHasVertexInterpolator;
-			}
-
 			Audit.bHasAnyError |= Entry.bHasAnyError;
 		}
 	}
@@ -2111,36 +2064,6 @@ void FixupMaterials(FMaterialAudit& Audit)
 				*BlendModeName
 			);
 		}
-		else if (Entry.bHasWorldPositionOffset && GNaniteErrorOnWorldPositionOffset != 0)
-		{
-			UE_LOG
-			(
-				LogStaticMesh, Warning,
-				TEXT("Invalid material [%s] used on Nanite static mesh [%s] - forcing default material instead. World position offset is not supported by Nanite."),
-				*Entry.Material->GetName(),
-				*Audit.AssetName
-			);
-		}
-		else if (Entry.bHasPixelDepthOffset && GNaniteErrorOnPixelDepthOffset != 0)
-		{
-			UE_LOG
-			(
-				LogStaticMesh, Warning,
-				TEXT("Invalid material [%s] used on Nanite static mesh [%s] - forcing default material instead. Pixel depth offset is not supported by Nanite."),
-				*Entry.Material->GetName(),
-				*Audit.AssetName
-			);
-		}
-		else if (Entry.bHasVertexInterpolator && GNaniteErrorOnVertexInterpolator != 0)
-		{
-			UE_LOG
-			(
-				LogStaticMesh, Warning,
-				TEXT("Invalid material [%s] used on Nanite static mesh [%s] - forcing default material instead. Vertex interpolator nodes are not supported by Nanite."),
-				*Entry.Material->GetName(),
-				*Audit.AssetName
-			);
-		}
 		else
 		{
 			check(false);
@@ -2153,14 +2076,7 @@ void FixupMaterials(FMaterialAudit& Audit)
 
 bool IsSupportedBlendMode(EBlendMode BlendMode)
 {
-	if (GNaniteErrorOnMaskedBlendMode != 0)
-	{
-		return IsOpaqueBlendMode(BlendMode);
-	}
-	else
-	{
-		return IsOpaqueOrMaskedBlendMode(BlendMode);
-	}
+	return IsOpaqueOrMaskedBlendMode(BlendMode);
 }
 bool IsSupportedBlendMode(const FMaterialShaderParameters& In)	{ return IsSupportedBlendMode(In.BlendMode); }
 bool IsSupportedBlendMode(const FMaterial& In)					{ return IsSupportedBlendMode(In.GetBlendMode()); }
@@ -2169,11 +2085,6 @@ bool IsSupportedBlendMode(const UMaterialInterface& In)			{ return IsSupportedBl
 bool IsSupportedMaterialDomain(EMaterialDomain Domain)
 {
 	return Domain == EMaterialDomain::MD_Surface;
-}
-
-bool IsWorldPositionOffsetSupported()
-{
-	return true;
 }
 
 void FVertexFactoryResource::InitRHI()

@@ -1121,7 +1121,6 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("TextureCompressor"),
 			TEXT("MeshUtilities"),
 			TEXT("MovieSceneTools"),
-			TEXT("NaniteTools"),
 			TEXT("ClassViewer"),
 			TEXT("StructViewer"),
 			TEXT("ContentBrowser"),
