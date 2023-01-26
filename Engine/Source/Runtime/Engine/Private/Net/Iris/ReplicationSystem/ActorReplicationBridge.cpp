@@ -102,6 +102,7 @@ UActorReplicationBridge::UActorReplicationBridge()
 , NetDriver(nullptr)
 , MaxPollFrequency(0.0f)
 , ObjectReferencePackageMap(nullptr)
+, SpawnInfoFlags(0U)
 {
 	SetInstancePreUpdateFunction(UE::Net::Private::ActorReplicationBridgePreUpdateFunction);
 	SetInstanceGetWorldLocationFunction(UE::Net::Private::ActorReplicationBridgeGetActorWorldLocation);
@@ -153,6 +154,9 @@ void UActorReplicationBridge::Initialize(UReplicationSystem* InReplicationSystem
 
 	ObjectReferencePackageMap = NewObject<UIrisObjectReferencePackageMap>();
 	ObjectReferencePackageMap->AddToRoot();
+
+	// Get spawn info flags from cvars
+	SpawnInfoFlags = UE::Net::Private::GetActorReplicationBridgeSpawnInfoFlags();
 }
 
 UActorReplicationBridge::~UActorReplicationBridge()
@@ -487,7 +491,7 @@ bool UActorReplicationBridge::WriteCreationHeader(UE::Net::FNetSerializationCont
 		// Serialize the data
 		// Indicate that this is an actor
 		Writer->WriteBool(true);
-		WriteActorCreationHeader(Context, Header);
+		WriteActorCreationHeader(Context, Header, SpawnInfoFlags);
 
 		return !Writer->IsOverflown();
 	}
@@ -605,7 +609,7 @@ FObjectReplicationBridgeInstantiateResult UActorReplicationBridge::BeginInstanti
 					// Set Scale if it differs from Default
 					if (!Header->SpawnInfo.Scale.Equals(DefaultSpawnInfo.Scale, Epsilon))
 					{
-						Actor->SetActorScale3D(Header->SpawnInfo.Scale);
+						Actor->SetActorRelativeScale3D(Header->SpawnInfo.Scale);
 					}
 
 					UE_LOG_ACTORREPLICATIONBRIDGE(Verbose, TEXT("OnBeginInstantiateFromRemote Spawned Actor %s"), *Actor->GetPathName());
@@ -951,6 +955,19 @@ void UActorReplicationBridge::GetActorCreationHeader(const AActor* Actor, UE::Ne
 			Header.SpawnInfo.Location = FRepMovement::RebaseOntoZeroOrigin(Actor->GetActorLocation(), Actor);
 			Header.SpawnInfo.Rotation = Actor->GetActorRotation();
 			Header.SpawnInfo.Scale = Actor->GetActorScale();
+			FVector Scale = Actor->GetActorScale();
+
+			if (USceneComponent* AttachParent = RootComponent->GetAttachParent())
+			{
+				// If this actor is attached, when the scale is serialized on the client, the attach parent property won't be set yet.
+				// USceneComponent::SetWorldScale3D (which got called by AActor::SetActorScale3D, which we used to do but no longer).
+				// would perform this transformation so that what is sent is relative to the parent. If we don't do this, we will
+				// apply the world scale on the client, which will then get applied a second time when the attach parent property is received.
+				FTransform ParentToWorld = AttachParent->GetSocketTransform(RootComponent->GetAttachSocketName());
+				Scale = Scale * ParentToWorld.GetSafeScaleReciprocal(ParentToWorld.GetScale3D());
+			}
+
+			Header.SpawnInfo.Scale = Scale;
 			Header.SpawnInfo.Velocity = Actor->GetVelocity();
 		}
 		else

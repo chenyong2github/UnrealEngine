@@ -14,6 +14,14 @@ namespace UE::Net
 namespace UE::Net::Private
 {
 
+enum EActorReplicationBridgeSpawnInfoFlags : uint32
+{
+	EActorReplicationBridgeSpawnInfoFlags_QuantizeScale = 1U,
+	EActorReplicationBridgeSpawnInfoFlags_QuantizeLocation = EActorReplicationBridgeSpawnInfoFlags_QuantizeScale << 1U,
+	EActorReplicationBridgeSpawnInfoFlags_QuantizeVelocity = EActorReplicationBridgeSpawnInfoFlags_QuantizeLocation << 1U,
+	EActorReplicationBridgeSpawnInfoFlags_BitCount = 3U,
+};
+
 struct FActorReplicationBridgeSpawnInfo
 {
 	FVector Location;
@@ -47,14 +55,16 @@ struct FSubObjectCreationHeader : public FActorReplicationBridgeCreationHeader
 
 const FActorReplicationBridgeSpawnInfo& GetDefaultActorReplicationBridgeSpawnInfo();
 
-void WriteActorReplicationBridgeSpawnInfo(FNetSerializationContext& Context, const FActorReplicationBridgeSpawnInfo& SpawnInfo);
+void WriteActorReplicationBridgeSpawnInfo(FNetSerializationContext& Context, const FActorReplicationBridgeSpawnInfo& SpawnInfo, uint32 Flags);
 void ReadActorReplicationBridgeSpawnInfo(FNetSerializationContext& Context, FActorReplicationBridgeSpawnInfo& SpawnInfo);
 
-void WriteActorCreationHeader(FNetSerializationContext& Context, const FActorCreationHeader& Header);
+void WriteActorCreationHeader(FNetSerializationContext& Context, const FActorCreationHeader& Header, uint32 Flags);
 void ReadActorCreationHeader(FNetSerializationContext& Context, FActorCreationHeader& Header);
 
 void WriteSubObjectCreationHeader(FNetSerializationContext& Context, const FSubObjectCreationHeader& Header);
 void ReadSubObjectCreationHeader(FNetSerializationContext& Context, FSubObjectCreationHeader& Header); 
+
+uint32 GetActorReplicationBridgeSpawnInfoFlags();
 
 }
 

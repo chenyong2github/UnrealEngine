@@ -114,13 +114,19 @@ bool FObjectReferenceCache::CanClientLoadObjectInternal(const UObject* Object, b
 {
 	// PackageMapClient can't load maps, we must wait for the client to load the map when ready
 	// These guids are special guids, where the guid and all child guids resolve once the map has been loaded
-	if (bIsDynamic || Object->GetOutermost()->ContainsMap())
+	if (bIsDynamic)
+	{
+		return false;
+	}
+
+	if (Object->GetPackage()->ContainsMap())
 	{
 		return false;
 	}
 
 #if WITH_EDITOR
 	// For objects using external package, we need to do the test on the package of their outer most object
+	// (this is currently only possible in Editor)
 	UObject* OutermostObject = Object->GetOutermostObject();
 	if (OutermostObject && OutermostObject->GetPackage()->ContainsMap())
 	{
@@ -166,7 +172,7 @@ bool FObjectReferenceCache::ShouldIgnoreWhenMissing(FNetRefHandle RefHandle) con
 			return true;
 		}
 		// Sometimes, other systems async load packages, which we don't track, but still must be aware of
-		if (OutermostCacheObject->Object != nullptr && !OutermostCacheObject->Object->GetOutermost()->IsFullyLoaded())
+		if (OutermostCacheObject->Object != nullptr && !OutermostCacheObject->Object->GetPackage()->IsFullyLoaded())
 		{
 			return true;
 		}
@@ -635,7 +641,7 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHand
 
 	check(!CacheObjectPtr->bIsPending);
 
-	if (!ensure(ObjOuter == nullptr || ObjOuter->GetOutermost()->IsFullyLoaded() || ObjOuter->GetOutermost()->HasAnyPackageFlags(TreatAsLoadedFlags)))
+	if (!ensure(ObjOuter == nullptr || ObjOuter->GetPackage()->IsFullyLoaded() || ObjOuter->GetPackage()->HasAnyPackageFlags(TreatAsLoadedFlags)))
 	{
 		UE_LOG(LogIris, Error, TEXT("GetObjectFromRefHandle: Outer is null or package is not fully loaded. FullPath: %s Outer: %s"), ToCStr(FullPath(RefHandle, ResolveContext)), *GetFullNameSafe(ObjOuter));
 	}
@@ -652,6 +658,13 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHand
 
 	// See if this object is in memory
 	Object = StaticFindObject(UObject::StaticClass(), ObjOuter, *ObjectPath, false);
+#if WITH_EDITOR
+	// Object must be null if the package is a dynamic PIE package with pending external objects still loading, as it would normally while object is async loading
+	if (Object && Object->GetPackage()->IsDynamicPIEPackagePending())
+	{
+		Object = nullptr;
+	}
+#endif
 
 	// Assume this is a package if the outer is invalid and this is a static guid
 	const bool bIsPackage = CacheObjectPtr->bIsPackage;

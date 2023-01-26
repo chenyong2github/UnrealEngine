@@ -104,5 +104,8 @@ private:
 	float MaxPollFrequency;
 
 	UIrisObjectReferencePackageMap* ObjectReferencePackageMap;
+
+	uint32 SpawnInfoFlags;
+
 #endif // UE_WITH_IRIS
 };
