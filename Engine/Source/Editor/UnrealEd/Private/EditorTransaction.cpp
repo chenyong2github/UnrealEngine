@@ -810,7 +810,7 @@ void FTransaction::Apply()
 	UE::Transaction::DiffUtil::FDiffableObjectArchetypeCache ArchetypeCache;
 
 	// Update the package dirty states
-	// We do this prior to applying any object updates as we want to respect if an undo operation causes an object to dirty its own package
+	// We do this prior to applying any object updates since a package cannot be re-dirtied during an undo/redo operation
 	if (bFlip)
 	{
 		for (TTuple<UE::Transaction::FPersistentObjectRef, FPackageRecord>& PackageRecordPair : PackageRecordMap)
