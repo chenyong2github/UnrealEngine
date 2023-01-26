@@ -43,18 +43,6 @@ struct FPathViewConfig
 };
 
 USTRUCT()
-struct FSourcesConfig
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	bool bExpanded = false;
-
-	UPROPERTY()
-	bool bSearchExpanded = false;
-};
-
-USTRUCT()
 struct FContentBrowserInstanceConfig
 {
 	GENERATED_BODY()
@@ -66,28 +54,25 @@ struct FContentBrowserInstanceConfig
 	FPathViewConfig PathView;
 
 	UPROPERTY()
-	FSourcesConfig Sources;
+	bool bShowFavorites = true;
 
 	UPROPERTY()
-	bool bShowFavorites = false;
+	bool bFavoritesExpanded = true;
 
 	UPROPERTY()
-	bool bFavoritesExpanded = false;
-
-	UPROPERTY()
-	bool bSourcesExpanded = false;
+	bool bSourcesExpanded = true;
 
 	UPROPERTY()
 	bool bFilterRecursively = false;
 	
 	UPROPERTY()
-	bool bShowFolders = false;
+	bool bShowFolders = true;
 
 	UPROPERTY()
-	bool bShowEmptyFolders = false;
+	bool bShowEmptyFolders = true;
 
 	UPROPERTY()
-	bool bShowAllFolder = false;
+	bool bShowAllFolder = true;
 
 	UPROPERTY()
 	bool bShowEngineContent = false;

@@ -662,25 +662,25 @@ private:
 	TSharedPtr<SSearchToggleButton> CollectionSearchToggleButton;
 
 	/** The expanded state of the asset tree */
-	bool bSourcesViewExpanded;
+	bool bSourcesViewExpanded = true;
 
 	/** True if this browser is the primary content browser */
-	bool bIsPrimaryBrowser;
+	bool bIsPrimaryBrowser = false;
 
 	/** True if this content browser can be set to the primary browser. */
-	bool bCanSetAsPrimaryBrowser;
+	bool bCanSetAsPrimaryBrowser = true;
 
 	/** True if this content browser is an a drawer */
-	bool bIsDrawer;
-
-	/** Unique name for this Content Browser. */
-	FName InstanceName;
+	bool bIsDrawer = false;
 
 	/** True if source should not be changed from an outside source */
-	bool bIsLocked;
+	bool bIsLocked = false;
 
 	/** Cached result of CanWriteToPath to avoid recalculating it every frame */
 	mutable bool bCachedCanWriteToCurrentPath = false;
+	
+	/** Unique name for this Content Browser. */
+	FName InstanceName;
 
 	/** Path that was last used to determine bCachedCanWriteToCurrentPath */
 	mutable TOptional<FName> CachedCanWriteToCurrentPath;

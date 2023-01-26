@@ -560,7 +560,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 	else
 	{
 		// in case we do not have a config, see what the global default settings are for the Sources Panel
-		bool bSourcesExpanded = GetDefault<UContentBrowserSettings>()->bOpenSourcesPanelByDefault;
+		bool bSourcesExpanded = true;
 		if (EditorConfig != nullptr)
 		{
 			bSourcesExpanded = EditorConfig->bSourcesExpanded;
@@ -4303,7 +4303,6 @@ FContentBrowserInstanceConfig* SContentBrowser::CreateEditorConfigIfRequired()
 	InstanceConfig->bShowCppFolders = Settings->GetDisplayCppFolders();
 	InstanceConfig->bOrganizeFolders = Settings->bOrganizeFolders;
 	InstanceConfig->bFavoritesExpanded = Settings->GetDisplayFavorites();
-	InstanceConfig->bSourcesExpanded = Settings->bOpenSourcesPanelByDefault;
 	InstanceConfig->bRealTimeThumbnails = Settings->RealTimeThumbnails;
 	InstanceConfig->bSearchAssetPaths = Settings->GetIncludeAssetPaths();
 	InstanceConfig->bSearchClasses = Settings->GetIncludeClassNames();

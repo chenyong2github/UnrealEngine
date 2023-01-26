@@ -6,7 +6,6 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
@@ -25,10 +24,6 @@ public:
 	/** The number of objects to load at once in the Content Browser before displaying a warning about loading many assets */
 	UPROPERTY(EditAnywhere, config, Category=ContentBrowser, meta=(DisplayName = "Assets to Load at Once Before Warning", ClampMin = "1"))
 	int32 NumObjectsToLoadBeforeWarning;
-
-	/** Whether the Content Browser should open the Sources Panel by default */
-	UPROPERTY(EditAnywhere, config, Category = ContentBrowser)
-	bool bOpenSourcesPanelByDefault;
 
 	/** Whether to render thumbnails for loaded assets in real-time in the Content Browser */
 	UPROPERTY(config)
