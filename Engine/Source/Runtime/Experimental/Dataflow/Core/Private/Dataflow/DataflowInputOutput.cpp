@@ -23,7 +23,6 @@ FDataflowInput::FDataflowInput(const Dataflow::FInputParameters& Param, FGuid In
 
 bool FDataflowInput::AddConnection(FDataflowConnection* InOutput)
 {
-	ensure(Connection == nullptr);
 	if (ensure(InOutput->GetType() == this->GetType()))
 	{
 		Connection = (FDataflowOutput*)InOutput;
