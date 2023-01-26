@@ -1262,11 +1262,10 @@ private:
 	};
 	BindlessSetState BindlessSetStates[VulkanBindless::NumBindlessSets];
 
-	BindlessSetState BindlessUniformBufferSetState;
-	std::atomic<uint32> UniformBlockIndex = 0;
+	std::atomic<uint32> CurrentUniformBufferDescriptorIndex = 0;
 
-	VkDescriptorBufferBindingInfoEXT BufferBindingInfo[VulkanBindless::NumBindlessSets + 1];
-	uint32_t BufferIndices[VulkanBindless::MaxNumSets];
+	VkDescriptorBufferBindingInfoEXT BufferBindingInfo[VulkanBindless::NumBindlessSets];
+	uint32_t BufferIndices[VulkanBindless::NumBindlessSets];
 
 	VkPipelineLayout BindlessPipelineLayout = VK_NULL_HANDLE;
 

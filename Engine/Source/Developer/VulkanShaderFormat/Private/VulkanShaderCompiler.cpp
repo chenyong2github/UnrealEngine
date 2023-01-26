@@ -918,7 +918,7 @@ static void BuildShaderOutput(
 
 	FOLDVulkanCodeHeader OLDHeader;
 
-	EShaderFrequency Frequency = (EShaderFrequency)ShaderOutput.Target.Frequency;
+	const EShaderFrequency Frequency = (EShaderFrequency)ShaderOutput.Target.Frequency;
 
 	TBitArray<> UsedUniformBufferSlots;
 	UsedUniformBufferSlots.Init(false, 32);
@@ -984,6 +984,10 @@ static void BuildShaderOutput(
 		}
 	}
 
+
+	const bool bSupportsBindless = ShaderInput.Environment.CompilerFlags.Contains(CFLAG_BindlessResources) || ShaderInput.Environment.CompilerFlags.Contains(CFLAG_BindlessSamplers);
+	const int32 StageOffset = bSupportsBindless ? (ShaderStage::GetStageForFrequency(static_cast<EShaderFrequency>(ShaderInput.Target.Frequency)) * VulkanBindless::MaxUniformBuffersPerStage) : 0;
+
 	const TArray<FVulkanBindingTable::FBinding>& HlslccBindings = BindingTable.GetBindings();
 	OLDHeader.NEWDescriptorInfo.NumBufferInfos = 0;
 	OLDHeader.NEWDescriptorInfo.NumImageInfos = 0;
@@ -1010,7 +1014,7 @@ static void BuildShaderOutput(
 			{
 				FOLDVulkanCodeHeader::FPackedUBToVulkanBindingIndex* New = new(OLDHeader.NEWPackedUBToVulkanBindingIndices) FOLDVulkanCodeHeader::FPackedUBToVulkanBindingIndex;
 				New->TypeName = (CrossCompiler::EPackedTypeName)Binding.SubType;
-				New->VulkanBindingIndex = Index;
+				New->VulkanBindingIndex = StageOffset + Index;
 				++OLDHeader.NEWDescriptorInfo.NumBufferInfos;
 			}
 			break;
@@ -1381,7 +1385,8 @@ static void GatherSpirvReflectionBindings(
 	uint32 NumDescriptorSets = 0;
 
 	// If bindless is supported, then offset the descriptor set to fit the bindless heaps at the beginning
-	const uint32 DescSetNo = bSupportsBindless ? VulkanBindless::NumBindlessSets + ShaderStage::GetStageForFrequency(ShaderFrequency) : ShaderStage::GetStageForFrequency(ShaderFrequency);
+	const uint32 StageIndex = (uint32)ShaderStage::GetStageForFrequency(ShaderFrequency);
+	const uint32 DescSetNo = bSupportsBindless ? VulkanBindless::NumBindlessSets + StageIndex : StageIndex;
 
 	SpvReflectResult SpvResult = Reflection.EnumerateDescriptorSets(&NumDescriptorSets, nullptr);
 	check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
@@ -1442,11 +1447,14 @@ static void GatherSpirvReflectionBindings(
 		MoveBindlessHeaps(OutBindings.AccelerationStructures, VulkanBindless::kBindlessResourceArrayPrefix, VulkanBindless::BindlessSamplerSet);
 
 		// Move uniform buffers to the correct set
-		const uint32 BinldessDescSetNo = VulkanBindless::NumBindlessSets + ShaderStage::GetStageForFrequency(ShaderFrequency);
-		for (int32 Index = OutBindings.UniformBuffers.Num() - 1; Index >= 0; --Index)
 		{
-			const SpvReflectDescriptorBinding* pBinding = OutBindings.UniformBuffers[Index];
-			Reflection.ChangeDescriptorBindingNumbers(pBinding, pBinding->binding, BinldessDescSetNo);
+			const uint32 BindingOffset = (StageIndex * VulkanBindless::MaxUniformBuffersPerStage);
+			const uint32 BinldessDescSetNo = VulkanBindless::BindlessUniformBufferSet;
+			for (int32 Index = OutBindings.UniformBuffers.Num() - 1; Index >= 0; --Index)
+			{
+				const SpvReflectDescriptorBinding* pBinding = OutBindings.UniformBuffers[Index];
+				Reflection.ChangeDescriptorBindingNumbers(pBinding, BindingOffset + pBinding->binding, BinldessDescSetNo);
+			}
 		}
 	}
 }
@@ -1690,9 +1698,9 @@ static bool BuildShaderOutputFromSpirv(
 		if (ResourceName == UBOGlobalsNameSpv)
 		{
 			// Register binding for uniform buffer
-			const int32 BindingIndex = MapDescriptorBindingToIndex(Binding);
-			const uint32 BindlessDescSetNumber = VulkanBindless::NumBindlessSets + ShaderStage::GetStageForFrequency(static_cast<EShaderFrequency>(Input.Target.Frequency));
-			const uint32_t DescSetNumber = bSupportsBindless ? BindlessDescSetNumber : SPV_REFLECT_SET_NUMBER_DONT_CHANGE;
+			const int32 StageOffset = bSupportsBindless ? (ShaderStage::GetStageForFrequency(static_cast<EShaderFrequency>(Input.Target.Frequency)) * VulkanBindless::MaxUniformBuffersPerStage) : 0;
+			const int32 BindingIndex = MapDescriptorBindingToIndex(Binding) + StageOffset;
+			const uint32_t DescSetNumber = bSupportsBindless ? VulkanBindless::BindlessUniformBufferSet : SPV_REFLECT_SET_NUMBER_DONT_CHANGE;
 
 			SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex, DescSetNumber);
 			check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
@@ -1722,9 +1730,10 @@ static bool BuildShaderOutputFromSpirv(
 		if (ResourceName != UBOGlobalsNameSpv)
 		{
 			// Register uniform buffer
-
-			int32 BindingIndex = MapDescriptorBindingToIndex(Binding);
-			SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex);//, GlobalSetId);
+			const int32 StageOffset = bSupportsBindless ? (ShaderStage::GetStageForFrequency(static_cast<EShaderFrequency>(Input.Target.Frequency)) * VulkanBindless::MaxUniformBuffersPerStage) : 0;
+			const int32 BindingIndex = MapDescriptorBindingToIndex(Binding) + StageOffset;
+			const uint32_t DescSetNumber = bSupportsBindless ? VulkanBindless::BindlessUniformBufferSet : SPV_REFLECT_SET_NUMBER_DONT_CHANGE;
+			SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex, DescSetNumber);
 			check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
 
 			Spirv.ReflectionInfo.Add(FVulkanSpirv::FEntry(ResourceName, BindingIndex));

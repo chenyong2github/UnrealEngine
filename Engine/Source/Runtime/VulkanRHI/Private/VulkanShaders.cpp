@@ -391,10 +391,15 @@ void FVulkanShader::PurgeShaderModules()
 
 void FVulkanLayout::PatchSpirvBindings(FVulkanShader::FSpirvCode& SprivCode, EShaderFrequency Frequency, const FVulkanShaderHeader& CodeHeader, VkShaderStageFlagBits InStageFlag) const
 {
+	// Bindless shader compilation already places descriptors and bindings in their fixed values based on stage and descriptor type
+	if (Device->SupportsBindless())
+	{
+		return;
+	}
+
 	TArrayView<uint32> Spirv = SprivCode.GetCodeView();	//#todo-rco: Do we need an actual copy of the SPIR-V?
 	ShaderStage::EStage Stage = ShaderStage::GetStageForFrequency(Frequency);
 	const FDescriptorSetRemappingInfo::FStageInfo& StageInfo = DescriptorSetLayout.RemappingInfo.StageInfos[Stage];
-	const uint32 FirstSet = Device->SupportsBindless() ? VulkanBindless::NumBindlessSets : 0;
 
 	checkSlow(StageInfo.UniformBuffers.Num() == CodeHeader.UniformBufferSpirvInfos.Num());
 	for (int32 Index = 0; Index < CodeHeader.UniformBufferSpirvInfos.Num(); ++Index)
@@ -405,7 +410,7 @@ void FVulkanLayout::PatchSpirvBindings(FVulkanShader::FSpirvCode& SprivCode, ESh
 			const uint32 OffsetBindingIndex = CodeHeader.UniformBufferSpirvInfos[Index].BindingIndexOffset;
 			check(OffsetDescriptorSet != UINT32_MAX && OffsetBindingIndex != UINT32_MAX);
 			uint16 NewDescriptorSet = StageInfo.UniformBuffers[Index].Remapping.NewDescriptorSet;
-			Spirv[OffsetDescriptorSet] = FirstSet + NewDescriptorSet;
+			Spirv[OffsetDescriptorSet] = NewDescriptorSet;
 			uint16 NewBindingIndex = StageInfo.UniformBuffers[Index].Remapping.NewBindingIndex;
 			Spirv[OffsetBindingIndex] = NewBindingIndex;
 		}
@@ -418,7 +423,7 @@ void FVulkanLayout::PatchSpirvBindings(FVulkanShader::FSpirvCode& SprivCode, ESh
 		const uint32 OffsetBindingIndex = CodeHeader.GlobalSpirvInfos[Index].BindingIndexOffset;
 		check(OffsetDescriptorSet != UINT32_MAX && OffsetBindingIndex != UINT32_MAX);
 		uint16 NewDescriptorSet = StageInfo.Globals[Index].NewDescriptorSet;
-		Spirv[OffsetDescriptorSet] = FirstSet + NewDescriptorSet;
+		Spirv[OffsetDescriptorSet] = NewDescriptorSet;
 		uint16 NewBindingIndex = StageInfo.Globals[Index].NewBindingIndex;
 		Spirv[OffsetBindingIndex] = NewBindingIndex;
 	}
@@ -429,7 +434,7 @@ void FVulkanLayout::PatchSpirvBindings(FVulkanShader::FSpirvCode& SprivCode, ESh
 		const uint32 OffsetDescriptorSet = CodeHeader.PackedUBs[Index].SPIRVDescriptorSetOffset;
 		const uint32 OffsetBindingIndex = CodeHeader.PackedUBs[Index].SPIRVBindingIndexOffset;
 		check(OffsetDescriptorSet != UINT32_MAX && OffsetBindingIndex != UINT32_MAX);
-		Spirv[OffsetDescriptorSet] = FirstSet + StageInfo.PackedUBDescriptorSet;
+		Spirv[OffsetDescriptorSet] = StageInfo.PackedUBDescriptorSet;
 		Spirv[OffsetBindingIndex] = StageInfo.PackedUBBindingIndices[Index];
 	}
 }

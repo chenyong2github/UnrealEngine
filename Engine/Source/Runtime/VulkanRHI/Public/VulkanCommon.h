@@ -113,6 +113,8 @@ namespace ShaderStage
 
 namespace VulkanBindless
 {
+	static constexpr uint32 MaxUniformBuffersPerStage = 8;
+
 	enum EDescriptorSets
 	{
 		BindlessSamplerSet = 0,
@@ -127,8 +129,9 @@ namespace VulkanBindless
 
 		BindlessAccelerationStructureSet,
 
+		BindlessUniformBufferSet,  // Keep last
 		NumBindlessSets,
-		MaxNumSets = ShaderStage::EStage::NumStages + NumBindlessSets
+		MaxNumSets = NumBindlessSets
 	};
 
 	// Prefix used to declare arrays of samplers/resources for bindless
