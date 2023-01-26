@@ -253,11 +253,13 @@ namespace Chaos
 		 * @brief Net world-space position displacement applied by the constraints
 		*/
 		inline const FSolverVec3& DP() const { return State.DP; }
+		inline void SetDP(const FSolverVec3& InDP) { State.DP = InDP; }
 
 		/**
 		 * @brief Net world-space rotation displacement applied by the constraints (axis-angle vector equivalent to angular velocity but for position)
 		*/
 		inline const FSolverVec3& DQ() const { return State.DQ; }
+		inline void SetDQ(const FSolverVec3& InDQ) { State.DQ = InDQ; }
 
 		/**
 		 * @brief Net world-space position correction applied by the constraints
@@ -422,6 +424,20 @@ namespace Chaos
 		*/
 		void UpdateRotationDependentState();
 
+
+
+		void PrefetchPositionSolverData() const
+		{
+			// The position solver only uses DP,DQ
+			FPlatformMisc::PrefetchBlock(&State.DP, 2 * sizeof(FSolverVec3));
+		}
+
+		void PrefetchVelocitySolverData() const
+		{
+			// The velocity solver only uses V,W
+			FPlatformMisc::PrefetchBlock(&State.V, 2 * sizeof(FSolverVec3));
+		}
+
 	private:
 
 		// The struct exists only so that we can use the variable names
@@ -444,10 +460,10 @@ namespace Chaos
 				InvM = 0;
 				DP = FSolverVec3(0);
 				DQ = FSolverVec3(0);
-				CP = FSolverVec3(0);
-				CQ = FSolverVec3(0);
 				V = FSolverVec3(0);
 				W = FSolverVec3(0);
+				CP = FSolverVec3(0);
+				CQ = FSolverVec3(0);
 				Level = 0;
 			}
 
@@ -488,6 +504,12 @@ namespace Chaos
 			// Net rotation delta applied by all constraints (constantly changing as we iterate over constraints)
 			FSolverVec3 DQ;
 
+			// World-space center of mass velocity
+			FSolverVec3 V;
+
+			// World-space center of mass angular velocity
+			FSolverVec3 W;
+
 			// Net position correction delta applied by all constraints (constantly changing as we iterate over constraints)
 			// Will translate the body without introducing linear velocity
 			FSolverVec3 CP;
@@ -495,12 +517,6 @@ namespace Chaos
 			// Net rotation correction delta applied by all constraints (constantly changing as we iterate over constraints)
 			// Will rotate the body without introducing angular velocity
 			FSolverVec3 CQ;
-
-			// World-space center of mass velocity
-			FSolverVec3 V;
-
-			// World-space center of mass angular velocity
-			FSolverVec3 W;
 
 			// Distance to a kinematic body (through the contact graph). Used by collision shock propagation
 			int32 Level;

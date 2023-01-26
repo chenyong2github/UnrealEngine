@@ -78,6 +78,10 @@ namespace Chaos
 		virtual void ScatterOutput(const FReal Dt) = 0;
 		virtual void ScatterOutput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex) = 0;
 
+		virtual void PreApplyPositionConstraints(const FReal Dt) {}
+		virtual void PreApplyVelocityConstraints(const FReal Dt) {}
+		virtual void PreApplyProjectionConstraints(const FReal Dt) {}
+
 		/**
 		 * Apply the position solve to all constraints in the container
 		*/

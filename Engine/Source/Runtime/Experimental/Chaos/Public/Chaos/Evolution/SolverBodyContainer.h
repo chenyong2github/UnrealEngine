@@ -116,6 +116,15 @@ namespace Chaos
 			bLocked = true;
 		}
 
+		// Used to AB test solvers - not intended for general use (very expensive!)
+		void CopyTo(FSolverBodyContainer& Dest)
+		{
+			Dest.SolverBodies = SolverBodies;
+			Dest.Particles = Particles;
+			Dest.ParticleToIndexMap = ParticleToIndexMap;
+			Dest.bLocked = bLocked;
+		}
+
 	private:
 		int32 AddParticle(FGenericParticleHandle InParticle);
 

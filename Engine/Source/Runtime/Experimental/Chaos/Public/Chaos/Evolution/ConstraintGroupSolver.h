@@ -103,6 +103,14 @@ namespace Chaos
 			void GatherConstraints(const FReal Dt, const int32 BeginConstraintIndex, const int32 EndConstraintIndex);
 
 			/**
+			 * For additional processing after gathering all the data.
+			 * Calls PreApplyConstraints on each container solver.
+			 */
+			void PreApplyPositionConstraints(const FReal Dt);
+			void PreApplyVelocityConstraints(const FReal Dt);
+			void PreApplyProjectionConstraints(const FReal Dt);
+
+			/**
 			 * Apply positional constraints, and set the body velocities
 			*/
 			void ApplyPositionConstraints(const FReal Dt);

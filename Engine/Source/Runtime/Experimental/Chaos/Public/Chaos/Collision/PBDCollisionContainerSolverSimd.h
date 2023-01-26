@@ -33,11 +33,9 @@ namespace Chaos
 			FPBDCollisionContainerSolverSimd(const FPBDCollisionConstraints& InConstraintContainer, const int32 InPriority);
 			~FPBDCollisionContainerSolverSimd();
 
-			int32 NumSolvers() const { return CollisionConstraints.Num(); }
-
 			virtual void Reset(const int32 InMaxCollisions) override final;
 
-			virtual int32 GetNumConstraints() const override final { return NumSolvers(); }
+			virtual int32 GetNumConstraints() const override final { return NumConstraints; }
 
 			//
 			// IslandGroup API
@@ -53,21 +51,60 @@ namespace Chaos
 			virtual void ApplyVelocityConstraints(const FReal Dt, const int32 It, const int32 NumIts) override final;
 			virtual void ApplyProjectionConstraints(const FReal Dt, const int32 It, const int32 NumIts) override final;
 
+			template<int TNumLanes>
+			struct TConstraintIndexSimd
+			{
+				TConstraintIndexSimd()
+				{
+					for (int32 LaneIndex = 0; LaneIndex < TNumLanes; ++LaneIndex)
+					{
+						ConstraintIndex[LaneIndex] = INDEX_NONE;
+					}
+				}
+
+				int32 ConstraintIndex[TNumLanes];
+			};
+
+			// Rows of collision constraints and solvers. 
+			// We solve each row using SIMD. 
+			// NumLanes is the width of a row and will be the same as the float SIMD register width (or less).
+			template<int TNumLanes>
+			struct FDataSimd
+			{
+				FDataSimd()
+					: SimdNumConstraints{ 0, }
+					, SimdNumManifoldPoints{ 0, }
+				{
+				}
+
+				int32 SimdNumConstraints[TNumLanes];
+				int32 SimdNumManifoldPoints[TNumLanes];
+
+				TArray<TSolverBodyPtrPairSimd<TNumLanes>> SimdSolverBodies;
+				TArray<TConstraintIndexSimd<TNumLanes>> SimdConstraintIndices;
+				TArray<TPBDCollisionSolverManifoldPointsSimd<TNumLanes>> SimdManifoldPoints;
+			};
+
+			// For testing
+			const FPBDCollisionSolverSimd& GetConstraintSolver(const int32 ConstraintIndex) const { return Solvers[ConstraintIndex]; }
+			const TPBDCollisionSolverManifoldPointsSimd<4>& GetManifoldPointSolver(const int32 RowIndex) const { return Data.SimdManifoldPoints[RowIndex]; }
+
 		private:
-			void CachePrefetchSolver(const int32 ConstraintIndex) const;
-			void AddConstraint(FPBDCollisionConstraint& Constraint);
-			void UpdatePositionShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings);
-			void UpdateVelocityShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings);
-			bool SolvePositionImpl(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings);
-			bool SolveVelocityImpl(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings);
-			void UpdateCollisions(const FReal InDt, const int32 BeginIndex, const int32 EndIndex);
+			int32 GetNumLanes() const { return 4; }
+			void CreateSolvers();
+			void UpdatePositionShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const FPBDCollisionSolverSettings& SolverSettings);
+			void UpdateVelocityShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const FPBDCollisionSolverSettings& SolverSettings);
+			void UpdateCollisions(const FReal InDt);
 
 			const FPBDCollisionConstraints& ConstraintContainer;
-			TArray<Private::FPBDCollisionSolverSimd> CollisionSolvers;
-			TArray<Private::FPBDCollisionSolverManifoldPointSimd> CollisionSolverManifoldPoints;
-			TArray<FPBDCollisionConstraint*> CollisionConstraints;
-			TArray<bool> bCollisionConstraintPerIterationCollisionDetection;
-			bool bPerIterationCollisionDetection;
+
+			TArray<FPBDCollisionConstraint*> Constraints;
+			TArray<FPBDCollisionSolverSimd> Solvers;
+			FDataSimd<4> Data;
+			int32 NumConstraints;
+
+			FSolverBody DummySolverBody;
+			FConstraintSolverBody DummyConstraintSolverBody;
 		};
 
 	}	// namespace Private

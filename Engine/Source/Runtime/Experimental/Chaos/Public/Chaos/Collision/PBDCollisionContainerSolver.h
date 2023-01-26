@@ -51,6 +51,10 @@ namespace Chaos
 		virtual void ApplyVelocityConstraints(const FReal Dt, const int32 It, const int32 NumIts) override final;
 		virtual void ApplyProjectionConstraints(const FReal Dt, const int32 It, const int32 NumIts) override final;
 
+		// For testing
+		const Private::FPBDCollisionSolver& GetConstraintSolver(const int32 ConstraintIndex) const { return CollisionSolvers[ConstraintIndex]; }
+		const Private::FPBDCollisionSolverManifoldPoint& GetManifoldPointSolver(const int32 RowIndex) const { return CollisionSolverManifoldPoints[RowIndex]; }
+
 	private:
 		void CachePrefetchSolver(const int32 ConstraintIndex) const;
 		void AddConstraint(FPBDCollisionConstraint& Constraint);

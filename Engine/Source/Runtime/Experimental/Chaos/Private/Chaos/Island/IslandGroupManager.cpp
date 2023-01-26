@@ -249,18 +249,21 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraintsPhase1);
 				CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ApplyTotalSerialized, GroupIndex);
 
+				IslandGroup->PreApplyPositionConstraints(Dt);
 				IslandGroup->ApplyPositionConstraints(Dt);
 			}
 			{
 				SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraintsPhase2);
 				CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ApplyPushOutTotalSerialized, GroupIndex);
 
+				IslandGroup->PreApplyVelocityConstraints(Dt);
 				IslandGroup->ApplyVelocityConstraints(Dt);
 			}
 			{
 				SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraintsPhase3);
 				CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ApplyProjectionTotalSerialized, GroupIndex);
 
+				IslandGroup->PreApplyProjectionConstraints(Dt);
 				IslandGroup->ApplyProjectionConstraints(Dt);
 			}
 		}

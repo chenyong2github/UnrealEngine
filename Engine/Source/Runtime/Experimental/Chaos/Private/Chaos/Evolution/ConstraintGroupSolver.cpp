@@ -193,6 +193,17 @@ namespace Chaos
 				});
 		}
 
+		void FPBDConstraintGroupSolver::PreApplyPositionConstraints(const FReal Dt)
+		{
+			for (int32 ContainerIndex = 0; ContainerIndex < ConstraintContainerSolvers.Num(); ++ContainerIndex)
+			{
+				if (ConstraintContainerSolvers[ContainerIndex] != nullptr)
+				{
+					ConstraintContainerSolvers[ContainerIndex]->PreApplyPositionConstraints(Dt);
+				}
+			}
+		}
+
 		void FPBDConstraintGroupSolver::ApplyPositionConstraints(const FReal Dt)
 		{
 			const int32 NumIts = Iterations.GetNumPositionIterations();
@@ -208,9 +219,20 @@ namespace Chaos
 					}
 				}
 			}
+		}
 
+		void FPBDConstraintGroupSolver::PreApplyVelocityConstraints(const FReal Dt)
+		{
 			// Calculate the velocity from the net change in position after applying position constraints
 			SolverBodyContainer.SetImplicitVelocities(Dt);
+
+			for (int32 ContainerIndex = 0; ContainerIndex < ConstraintContainerSolvers.Num(); ++ContainerIndex)
+			{
+				if (ConstraintContainerSolvers[ContainerIndex] != nullptr)
+				{
+					ConstraintContainerSolvers[ContainerIndex]->PreApplyVelocityConstraints(Dt);
+				}
+			}
 		}
 
 		void FPBDConstraintGroupSolver::ApplyVelocityConstraints(const FReal Dt)
@@ -230,14 +252,25 @@ namespace Chaos
 			}
 		}
 
-		void FPBDConstraintGroupSolver::ApplyProjectionConstraints(const FReal Dt)
+		void FPBDConstraintGroupSolver::PreApplyProjectionConstraints(const FReal Dt)
 		{
-			const int32 NumIts = Iterations.GetNumProjectionIterations();
-
 			// Update the body transforms from the deltas calculated in the constraint solve phases 1 and 2
 			// NOTE: deliberately not updating the world-space inertia as it is not used by joint projection
 			// and no other constraints currently implement projection
 			SolverBodyContainer.ApplyCorrections();
+
+			for (int32 ContainerIndex = 0; ContainerIndex < ConstraintContainerSolvers.Num(); ++ContainerIndex)
+			{
+				if (ConstraintContainerSolvers[ContainerIndex] != nullptr)
+				{
+					ConstraintContainerSolvers[ContainerIndex]->PreApplyProjectionConstraints(Dt);
+				}
+			}
+		}
+
+		void FPBDConstraintGroupSolver::ApplyProjectionConstraints(const FReal Dt)
+		{
+			const int32 NumIts = Iterations.GetNumProjectionIterations();
 
 			// NOTE: We loop over prioritized solvers here
 			for (int32 It = 0; It < NumIts; ++It)

@@ -13,6 +13,7 @@
 #include "Chaos/Collision/PBDCollisionContainerSolverSimd.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
+#include "Chaos/Evolution/ABTestingConstraintContainerSolver.h"
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/Island/IslandManager.h"
 #include "Chaos/SpatialAccelerationCollection.h"
@@ -92,6 +93,134 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("Collisions::EndDetect"), STAT_Collisions_EndDetect, STATGROUP_ChaosCollision);
 	DECLARE_CYCLE_STAT(TEXT("Collisions::DetectProbeCollisions"), STAT_Collisions_DetectProbeCollisions, STATGROUP_ChaosCollision);
 
+#if CHAOS_ABTEST_CONSTRAINTSOLVER_ENABLED
+	namespace CVars
+	{
+		bool bCollisionsEnableSolverABTest = false;
+		FAutoConsoleVariableRef CVarCollisionsEnableSolverABTest(TEXT("p.Chaos.Collision.ABTestSolver"), bCollisionsEnableSolverABTest, TEXT(""));
+	}
+
+	// An AB Testing collision solver for use while developing the Simd version
+	using FABTestingCollisionContainerSolver = Private::TABTestingConstraintContainerSolver<FPBDCollisionContainerSolver, Private::FPBDCollisionContainerSolverSimd>;
+
+	// Simd AB testing callback
+	void ABTestCollisionContainerSolver(
+		FABTestingCollisionContainerSolver::ESolverPhase Phase,
+		const FPBDCollisionContainerSolver& SolverA,
+		const Private::FPBDCollisionContainerSolverSimd& SolverB,
+		const FSolverBodyContainer& SolverBodyContainerA,
+		const FSolverBodyContainer& SolverBodyContainerB)
+	{
+		for (int32 ConstraintIndex = 0; ConstraintIndex < SolverA.GetNumConstraints(); ++ConstraintIndex)
+		{
+			const Private::FPBDCollisionSolver& ConstraintSolverA = SolverA.GetConstraintSolver(ConstraintIndex);
+			const Private::FPBDCollisionSolverSimd& ConstraintSolverB = SolverB.GetConstraintSolver(ConstraintIndex);
+
+			if (ConstraintSolverA.NumManifoldPoints() != ConstraintSolverB.NumManifoldPoints())
+			{
+				UE_LOG(LogChaos, Warning, TEXT("ABTestSolverBodies: ManifoldPoint count mismatch"));
+				return;
+			}
+
+			for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < ConstraintSolverA.NumManifoldPoints(); ++ManifoldPointIndex)
+			{
+				const Private::FPBDCollisionSolverManifoldPoint& ManifoldPointSolverA = ConstraintSolverA.GetManifoldPoint(ManifoldPointIndex);
+				const Private::TPBDCollisionSolverManifoldPointsSimd<4>& ManifoldPointSolverB = SolverB.GetManifoldPointSolver(ConstraintSolverB.GetManifoldPointBeginIndex() + ManifoldPointIndex);
+				const int32 LaneIndexB = ConstraintSolverB.GetLaneIndex();
+
+				if (ManifoldPointSolverA.WorldContact.ContactNormal != ManifoldPointSolverB.SimdContactNormal.GetValue(LaneIndexB))
+				{
+					UE_LOG(LogChaos, Warning, TEXT("ABTestSolverBodies: ContactNormal mismatch"));
+				}
+				if (ManifoldPointSolverA.WorldContact.RelativeContactPoints[0] != ManifoldPointSolverB.SimdRelativeContactPoint0.GetValue(LaneIndexB))
+				{
+					UE_LOG(LogChaos, Warning, TEXT("ABTestSolverBodies: RelativeContactPoints mismatch"));
+				}
+				if (ManifoldPointSolverA.WorldContact.RelativeContactPoints[1] != ManifoldPointSolverB.SimdRelativeContactPoint1.GetValue(LaneIndexB))
+				{
+					UE_LOG(LogChaos, Warning, TEXT("ABTestSolverBodies: RelativeContactPoints mismatch"));
+				}
+				if (ManifoldPointSolverA.ContactMassNormal != ManifoldPointSolverB.SimdContactMassNormal.GetValue(LaneIndexB))
+				{
+					UE_LOG(LogChaos, Warning, TEXT("ABTestSolverBodies: ContactMassNormal mismatch"));
+				}
+
+				if (Phase == FABTestingCollisionContainerSolver::ESolverPhase::PostApplyPositionConstraints)
+				{
+					if (ManifoldPointSolverA.NetPushOutNormal != ManifoldPointSolverB.SimdNetPushOutNormal.GetValue(LaneIndexB))
+					{
+						UE_LOG(LogChaos, Warning, TEXT("ABTestSolverBodies: NetPushOutNormal mismatch"));
+					}
+					if (ManifoldPointSolverA.NetPushOutTangentU != ManifoldPointSolverB.SimdNetPushOutTangentU.GetValue(LaneIndexB))
+					{
+						UE_LOG(LogChaos, Warning, TEXT("ABTestSolverBodies: NetPushOutTangentU mismatch"));
+					}
+					if (ManifoldPointSolverA.NetPushOutTangentV != ManifoldPointSolverB.SimdNetPushOutTangentV.GetValue(LaneIndexB))
+					{
+						UE_LOG(LogChaos, Warning, TEXT("ABTestSolverBodies: NetPushOutTangentV mismatch"));
+					}
+				}
+
+				if (Phase == FABTestingCollisionContainerSolver::ESolverPhase::PostApplyVelocityConstraints)
+				{
+					if (ManifoldPointSolverA.NetImpulseNormal != ManifoldPointSolverB.SimdNetImpulseNormal.GetValue(LaneIndexB))
+					{
+						UE_LOG(LogChaos, Warning, TEXT("ABTestSolverBodies: NetImpulseNormal mismatch"));
+					}
+					if (ManifoldPointSolverA.NetImpulseTangentU != ManifoldPointSolverB.SimdNetImpulseTangentU.GetValue(LaneIndexB))
+					{
+						UE_LOG(LogChaos, Warning, TEXT("ABTestSolverBodies: NetImpulseTangentU mismatch"));
+					}
+					if (ManifoldPointSolverA.NetImpulseTangentV != ManifoldPointSolverB.SimdNetImpulseTangentV.GetValue(LaneIndexB))
+					{
+						UE_LOG(LogChaos, Warning, TEXT("ABTestSolverBodies: NetImpulseTangentV mismatch"));
+					}
+				}
+			}
+		}
+
+		if (SolverBodyContainerA.Num() != SolverBodyContainerB.Num())
+		{
+			UE_LOG(LogChaos, Warning, TEXT("ABTestSolverBodies: Body count mismatch"));
+			return;
+		}
+
+		for (int BodyIndex = 0; BodyIndex < SolverBodyContainerA.Num(); ++BodyIndex)
+		{
+			const FSolverBody& BodyA = SolverBodyContainerA.GetSolverBody(BodyIndex);
+			const FSolverBody& BodyB = SolverBodyContainerB.GetSolverBody(BodyIndex);
+
+			if (BodyA.P() != BodyB.P())
+			{
+				UE_LOG(LogChaos, Warning, TEXT("Position mismatch: (%f %f %f) != (%f %f %f)"), 
+					BodyA.P().X, BodyA.P().Y, BodyA.P().Z,
+					BodyB.P().X, BodyB.P().Y, BodyB.P().Z);
+			}
+
+			if (BodyA.DP() != BodyB.DP())
+			{
+				UE_LOG(LogChaos, Warning, TEXT("PositionDelta mismatch: (%f %f %f) != (%f %f %f)"),
+					BodyA.DP().X, BodyA.DP().Y, BodyA.DP().Z,
+					BodyB.DP().X, BodyB.DP().Y, BodyB.DP().Z);
+			}
+
+			if (BodyA.DQ() != BodyB.DQ())
+			{
+				UE_LOG(LogChaos, Warning, TEXT("RotationDelta mismatch: (%f %f %f) != (%f %f %f)"),
+					BodyA.DQ().X, BodyA.DQ().Y, BodyA.DQ().Z,
+					BodyB.DQ().X, BodyB.DQ().Y, BodyB.DQ().Z);
+			}
+
+			if (BodyA.V() != BodyB.V())
+			{
+				UE_LOG(LogChaos, Warning, TEXT("Velocity mismatch: (%f %f %f) != (%f %f %f)"),
+					BodyA.V().X, BodyA.V().Y, BodyA.V().Z,
+					BodyB.V().X, BodyB.V().Y, BodyB.V().Z);
+			}
+		}
+	}
+#endif
+
 	//
 	// Collision Constraint Container
 	//
@@ -145,8 +274,21 @@ namespace Chaos
 		{
 		case Private::ECollisionSolverType::GaussSeidel:
 			return MakeUnique<FPBDCollisionContainerSolver>(*this, Priority);
+
 		case Private::ECollisionSolverType::GaussSeidelSimd:
+#if CHAOS_ABTEST_CONSTRAINTSOLVER_ENABLED
+			if (CVars::bCollisionsEnableSolverABTest)
+			{
+				// Create an AB testing collison solver for simd testing
+				return MakeUnique<FABTestingCollisionContainerSolver>(
+					MakeUnique<FPBDCollisionContainerSolver>(*this, Priority),
+					MakeUnique<Private::FPBDCollisionContainerSolverSimd>(*this, Priority),
+					Priority,
+					&ABTestCollisionContainerSolver);
+			}
+#endif
 			return MakeUnique<Private::FPBDCollisionContainerSolverSimd>(*this, Priority);
+
 		case Private::ECollisionSolverType::PartialJacobi:
 			return MakeUnique<Private::FPBDCollisionContainerSolverJacobi>(*this, Priority);
 		}
