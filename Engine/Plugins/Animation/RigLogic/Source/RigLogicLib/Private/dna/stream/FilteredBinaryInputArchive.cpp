@@ -92,7 +92,7 @@ void FilteredBinaryInputArchive::processSubset(TContainer& dest, std::size_t off
 
 void FilteredBinaryInputArchive::process(RawDescriptor& dest) {
     BaseArchive::process(dest);
-    malformed = (dest.lodCount == static_cast<std::uint16_t>(0)) || (dest.lodCount > LODLimits::count());
+    malformed = (dest.lodCount > LODLimits::count());
     if (malformed) {
         return;
     }

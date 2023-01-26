@@ -66,3 +66,16 @@ class StreamReadWriteRawCopyIntegrationTest : public ::testing::Test {
         using Parameters = TRawCopyParameters;
 
 };
+
+template<typename TRawBytes>
+struct ReadWriteMultipleParameters {
+    using RawBytes = TRawBytes;
+
+};
+
+template<typename TReadWriteMultipleParameters>
+class StreamReadWriteMultipleIntegrationTest : public ::testing::Test {
+    protected:
+        using Parameters = TReadWriteMultipleParameters;
+
+};

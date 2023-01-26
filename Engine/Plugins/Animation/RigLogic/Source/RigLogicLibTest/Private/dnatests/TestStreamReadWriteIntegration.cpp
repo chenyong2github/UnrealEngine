@@ -534,6 +534,8 @@ using TRawCopyTestParameters = ::testing::Types<
     RawCopyParameters<RawV22, RawV21, UnknownLayerPolicy::Ignore, 2, 1>,
     RawCopyParameters<RawV2xNewer, RawV22WithUnknownDataFromNewer2x, UnknownLayerPolicy::Preserve, 2, 2>,
     RawCopyParameters<RawV2xNewer, RawV22Empty, UnknownLayerPolicy::Ignore, 2, 2>,
+    RawCopyParameters<RawV22Empty, RawV22Empty, UnknownLayerPolicy::Preserve, 2, 2>,
+    RawCopyParameters<RawV22Empty, RawV22Empty, UnknownLayerPolicy::Ignore, 2, 2>,
     RawCopyParameters<RawV23, RawV22DowngradedFromV23, UnknownLayerPolicy::Preserve, 2, 2>,
     RawCopyParameters<RawV23, RawV22WithUnknownDataIgnoredAndDNARewritten, UnknownLayerPolicy::Ignore, 2, 2>
     >;
@@ -606,6 +608,105 @@ TEST(StreamReadWriteIntegrationTest, ReadWriteJSON) {
     auto reader = pma::makeScoped<JSONStreamReader>(stream.get());
     reader->read();
     ASSERT_TRUE(dna::Status::isOk());
+}
+
+using TReadWriteMultipleParameters = ::testing::Types<
+    ReadWriteMultipleParameters<RawV21>,
+    ReadWriteMultipleParameters<RawV22>,
+    ReadWriteMultipleParameters<RawV23>,
+    ReadWriteMultipleParameters<RawV22Empty>,
+    ReadWriteMultipleParameters<RawV22WithUnknownDataIgnoredAndDNARewritten>,
+    ReadWriteMultipleParameters<RawV2xNewerWithUnknownDataIgnoredAndDNARewritten>,
+    ReadWriteMultipleParameters<RawV2xNewerWithUnknownDataPreservedAndDNARewritten>,
+    ReadWriteMultipleParameters<RawV22WithUnknownDataFromNewer2x>,
+    ReadWriteMultipleParameters<RawV2xNewer>,
+    ReadWriteMultipleParameters<RawV22DowngradedFromV23>
+    >;
+TYPED_TEST_SUITE(StreamReadWriteMultipleIntegrationTest, TReadWriteMultipleParameters, );
+
+TYPED_TEST(StreamReadWriteMultipleIntegrationTest, ReadWriteTwoDNAsToSameStream) {
+    using CurrentParameters = typename TestFixture::Parameters;
+
+    const auto bytes = CurrentParameters::RawBytes::getBytes();
+    auto source = pma::makeScoped<trio::MemoryStream>();
+    source->write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+
+    source->seek(0);
+    auto sourceReader = pma::makeScoped<BinaryStreamReader>(source.get(),
+                                                            DataLayer::All,
+                                                            UnknownLayerPolicy::Preserve,
+                                                            static_cast<std::uint16_t>(0));
+    sourceReader->read();
+    ASSERT_TRUE(dna::Status::isOk());
+
+    auto clone = pma::makeScoped<trio::MemoryStream>();
+    auto cloneWriter1 = pma::makeScoped<BinaryStreamWriter>(clone.get());
+    cloneWriter1->setFrom(sourceReader.get(), DataLayer::All, UnknownLayerPolicy::Preserve);
+    cloneWriter1->write();
+    ASSERT_TRUE(dna::Status::isOk());
+
+    // Stream position is reset on open / close of stream (by implementation of trio::MemoryStream)
+    const std::uint64_t firstDNASize = clone->size();
+    clone->seek(firstDNASize);
+
+    auto cloneWriter2 = pma::makeScoped<BinaryStreamWriter>(clone.get());
+    cloneWriter2->setFrom(sourceReader.get(), DataLayer::All, UnknownLayerPolicy::Preserve);
+    cloneWriter2->write();
+    ASSERT_TRUE(dna::Status::isOk());
+
+    clone->seek(0ul);
+
+    auto cloneReader1 = pma::makeScoped<BinaryStreamReader>(clone.get(),
+                                                            DataLayer::All,
+                                                            UnknownLayerPolicy::Preserve,
+                                                            static_cast<std::uint16_t>(0));
+    cloneReader1->read();
+    ASSERT_TRUE(dna::Status::isOk());
+
+    // Stream position is reset on open / close of stream (by implementation of trio::MemoryStream)
+    clone->seek(firstDNASize);
+
+    auto cloneReader2 = pma::makeScoped<BinaryStreamReader>(clone.get(),
+                                                            DataLayer::All,
+                                                            UnknownLayerPolicy::Preserve,
+                                                            static_cast<std::uint16_t>(0));
+    cloneReader2->read();
+    ASSERT_TRUE(dna::Status::isOk());
+
+    auto cloneRewritten = pma::makeScoped<trio::MemoryStream>();
+    auto cloneRewriter1 = pma::makeScoped<BinaryStreamWriter>(cloneRewritten.get());
+    cloneRewriter1->setFrom(cloneReader1.get(), DataLayer::All, UnknownLayerPolicy::Preserve);
+    cloneRewriter1->write();
+    ASSERT_TRUE(dna::Status::isOk());
+
+    // Stream position is reset on open / close of stream (by implementation of trio::MemoryStream)
+    cloneRewritten->seek(cloneRewritten->size());
+
+    auto cloneRewriter2 = pma::makeScoped<BinaryStreamWriter>(cloneRewritten.get());
+    cloneRewriter2->setFrom(cloneReader2.get(), DataLayer::All, UnknownLayerPolicy::Preserve);
+    cloneRewriter2->write();
+    ASSERT_TRUE(dna::Status::isOk());
+
+    clone->seek(0ul);
+    cloneRewritten->seek(0ul);
+
+    #if !defined(__clang__) && defined(__GNUC__)
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wuseless-cast"
+    #endif
+    const auto cloneSize = static_cast<std::size_t>(clone->size());
+    const auto cloneRewrittenSize = static_cast<std::size_t>(cloneRewritten->size());
+    #if !defined(__clang__) && defined(__GNUC__)
+        #pragma GCC diagnostic pop
+    #endif
+    std::vector<char> copiedCloneBytes(cloneSize);
+    clone->read(copiedCloneBytes.data(), cloneSize);
+
+    std::vector<char> copiedCloneRewrittenBytes(cloneRewrittenSize);
+    cloneRewritten->read(copiedCloneRewrittenBytes.data(), cloneRewrittenSize);
+
+    ASSERT_EQ(cloneSize, cloneRewrittenSize);
+    ASSERT_EQ(copiedCloneBytes, copiedCloneRewrittenBytes);
 }
 
 }  // namespace dna

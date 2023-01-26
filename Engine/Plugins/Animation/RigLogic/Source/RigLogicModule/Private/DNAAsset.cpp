@@ -33,7 +33,7 @@ DEFINE_LOG_CATEGORY(LogDNAAsset);
 
 static constexpr uint32 AVG_EMPTY_SIZE = 4 * 1024;
 static constexpr uint32 AVG_BEHAVIOR_SIZE = 5 * 1024 * 1024;
-static constexpr uint32 AVG_MACHINE_LEARNED_BEHAVIOR_SIZE = 15 * 1024 * 1024;
+static constexpr uint32 AVG_MACHINE_LEARNED_BEHAVIOR_SIZE = 5 * 1024 * 1024;
 static constexpr uint32 AVG_GEOMETRY_SIZE = 50 * 1024 * 1024;
 
 static TSharedPtr<IDNAReader> ReadDNAFromStream(rl4::BoundedIOStream* Stream, EDNADataLayer Layer, uint16 MaxLOD)
