@@ -24,6 +24,10 @@
 #include "ToolMenus.h"
 #include "LevelEditorViewport.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Misc/ArchiveMD5.h"
+#include "Misc/SecureHash.h"
+#include "UObject/ObjectKey.h"
+
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorDescTreeItem"
 
@@ -223,26 +227,12 @@ private:
 	}
 };
 
-FActorDescTreeItem::FActorDescTreeItem(const FGuid& InActorGuid, UActorDescContainer* Container)
+FActorDescTreeItem::FActorDescTreeItem(const FGuid& InActorGuid, UActorDescContainer* InContainer)
 	: IActorBaseTreeItem(Type)
-	, ActorDescHandle(Container, InActorGuid)
+	, ActorDescHandle(InContainer, InActorGuid)
+	, ID(ComputeTreeItemID(InActorGuid, InContainer))
 	, ActorGuid(InActorGuid)
 {
-	Initialize();
-}
-
-FActorDescTreeItem::FActorDescTreeItem(const FGuid& InActorGuid, FActorDescContainerCollection* ContainerCollection)
-	: IActorBaseTreeItem(Type)
-	, ActorDescHandle(ContainerCollection, InActorGuid)
-	, ActorGuid(InActorGuid)
-{
-	Initialize();
-}
-
-void FActorDescTreeItem::Initialize()
-{
-	ID = FSceneOutlinerTreeItemID(ActorGuid);
-
 	if (const FWorldPartitionActorDesc* const ActorDesc = ActorDescHandle.Get())
 	{
 		DisplayString = ActorDesc->GetActorLabel().ToString();
@@ -251,6 +241,20 @@ void FActorDescTreeItem::Initialize()
 	{
 		DisplayString = LOCTEXT("ActorLabelForMissingActor", "(Deleted Actor)").ToString();
 	}
+}
+
+FSceneOutlinerTreeItemID FActorDescTreeItem::ComputeTreeItemID(FGuid InActorGuid, UActorDescContainer* InContainer)
+{
+	FArchiveMD5 Ar;
+	Ar << InActorGuid;
+
+	FObjectKey ContainerKey(InContainer);
+	Ar << ContainerKey;
+
+	FMD5Hash MD5Hash;
+	Ar.GetHash(MD5Hash);
+	
+	return FSceneOutlinerTreeItemID(MD5HashToGuid(MD5Hash));
 }
 
 FSceneOutlinerTreeItemID FActorDescTreeItem::GetID() const

@@ -9,6 +9,9 @@
 #include "Engine/World.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "Misc/ArchiveMD5.h"
+#include "Misc/SecureHash.h"
+#include "UObject/ObjectKey.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FDataLayerActorTreeItemData
@@ -45,9 +48,19 @@ public:
 	const AActor* GetActor() const { return Actor.Get(); }
 	AActor* GetActor() { return Actor.Get(); }
 
-	static uint32 ComputeTreeItemID(const AActor* InActor, const UDataLayerInstance* InDataLayerInstance)
+	static FSceneOutlinerTreeItemID ComputeTreeItemID(AActor* InActor, const UDataLayerInstance* InDataLayerInstance)
 	{
-		return HashCombine(GetTypeHash(FObjectKey(InActor)), GetTypeHash(FObjectKey(InDataLayerInstance)));
+		FArchiveMD5 Ar;
+		FObjectKey ActorKey(InActor);
+		Ar << ActorKey;
+
+		FObjectKey DataLayerInstanceKey(InDataLayerInstance);
+		Ar << DataLayerInstanceKey;
+
+		FMD5Hash MD5Hash;
+		Ar.GetHash(MD5Hash);
+
+		return FSceneOutlinerTreeItemID(MD5HashToGuid(MD5Hash));
 	}
 
 	bool Filter(FFilterPredicate Pred) const
@@ -94,5 +107,5 @@ private:
 	}
 
 	TWeakObjectPtr<UDataLayerInstance> DataLayerInstance;
-	const uint32 IDDataLayerActor;
+	const FSceneOutlinerTreeItemID IDDataLayerActor;
 };

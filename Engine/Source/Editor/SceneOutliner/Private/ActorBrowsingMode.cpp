@@ -918,24 +918,30 @@ void FActorBrowsingMode::OnLevelActorDeleted(AActor* Actor)
 
 void FActorBrowsingMode::OnSelectUnloadedActors(const TArray<FGuid>& ActorGuids)
 {
-	TArray<FSceneOutlinerTreeItemPtr> ItemsToSelect;
-	ItemsToSelect.Reserve(ActorGuids.Num());
-	for (const FGuid& ActorGuid : ActorGuids)
+	if (UWorldPartition* WorldPartition = RepresentingWorld->GetWorldPartition())
 	{
-		if (FSceneOutlinerTreeItemPtr ItemPtr = SceneOutliner->GetTreeItem(ActorGuid))
+		TArray<FSceneOutlinerTreeItemPtr> ItemsToSelect;
+		ItemsToSelect.Reserve(ActorGuids.Num());
+		for (const FGuid& ActorGuid : ActorGuids)
 		{
-			ItemsToSelect.Add(ItemPtr);
+			if (FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid))
+			{
+				if (FSceneOutlinerTreeItemPtr ItemPtr = SceneOutliner->GetTreeItem(FActorDescTreeItem::ComputeTreeItemID(ActorDesc->GetGuid(), ActorDesc->GetContainer())))
+				{
+					ItemsToSelect.Add(ItemPtr);
+				}
+			}
 		}
-	}
 
-	if (ItemsToSelect.Num())
-	{
-		SceneOutliner->SetItemSelection(ItemsToSelect, true);
-		SceneOutliner->ScrollItemIntoView(ItemsToSelect.Last());
-
-		if (const FActorDescTreeItem* ActorDescItem = ItemsToSelect.Last()->CastTo<FActorDescTreeItem>())
+		if (ItemsToSelect.Num())
 		{
-			ActorDescItem->FocusActorBounds();
+			SceneOutliner->SetItemSelection(ItemsToSelect, true);
+			SceneOutliner->ScrollItemIntoView(ItemsToSelect.Last());
+
+			if (const FActorDescTreeItem* ActorDescItem = ItemsToSelect.Last()->CastTo<FActorDescTreeItem>())
+			{
+				ActorDescItem->FocusActorBounds();
+			}
 		}
 	}
 }

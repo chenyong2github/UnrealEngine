@@ -35,14 +35,13 @@ public:
 	/** Constant identifier for this tree item */
 	FSceneOutlinerTreeItemID ID;
 
+	static FSceneOutlinerTreeItemID ComputeTreeItemID(FGuid InActorGuid, UActorDescContainer* InContainer);
+
 	/** Static type identifier for this tree item class */
 	static const FSceneOutlinerTreeItemType Type;
 
 	/** Construct this item from an actor desc */
-	FActorDescTreeItem(const FGuid& InActorGuid, UActorDescContainer* Container);
-
-	/** Construct this item from an actor desc */
-	FActorDescTreeItem(const FGuid& InActorGuid, FActorDescContainerCollection* ContainerCollection);
+	FActorDescTreeItem(const FGuid& InActorGuid, UActorDescContainer* InContainer);
 
 	/* Begin ISceneOutlinerTreeItem Implementation */
 	virtual bool IsValid() const override { return ActorDescHandle.Get() != nullptr; }
@@ -70,6 +69,5 @@ protected:
 
 private:
 	void CopyActorFilePathtoClipboard() const;
-	void Initialize();
 	FGuid ActorGuid;
 };

@@ -72,7 +72,7 @@ public:
 		CachedHash = CalculateTypeHash();
 	}
 
-	FSceneOutlinerTreeItemID(const FGuid& InGuid) : Type(EType::Guid)
+	explicit FSceneOutlinerTreeItemID(const FGuid& InGuid) : Type(EType::Guid)
 	{
 		new (Data) FGuid(InGuid);
 		CachedHash = CalculateTypeHash();

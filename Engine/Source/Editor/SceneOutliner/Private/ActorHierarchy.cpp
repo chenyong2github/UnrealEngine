@@ -312,7 +312,7 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindOrCreateParentItem(const ISceneOu
 						}
 
 						// Find unloaded parent actor node (from the guid)
-						if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ParentActorGuid))
+						if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(FActorDescTreeItem::ComputeTreeItemID(ParentActorGuid, ActorDescContainer)))
 						{
 							return *ParentItem;
 						}
@@ -638,10 +638,18 @@ void FActorHierarchy::OnLoadedActorAdded(AActor& InActor)
 {
 	OnLevelActorAdded(&InActor);
 
-	FSceneOutlinerHierarchyChangedData EventData;
-	EventData.Type = FSceneOutlinerHierarchyChangedData::Removed;
-	EventData.ItemIDs.Add(InActor.GetActorGuid());
-	HierarchyChangedEvent.Broadcast(EventData);
+	// Loaded actors can be in sub-world partitions so we use the outer world
+	if (UWorldPartition* WorldPartition = FWorldPartitionHelpers::GetWorldPartition(&InActor))
+	{
+		const FGuid& ActorGuid = InActor.GetActorGuid();
+		if (FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid))
+		{
+			FSceneOutlinerHierarchyChangedData EventData;
+			EventData.Type = FSceneOutlinerHierarchyChangedData::Removed;
+			EventData.ItemIDs.Add(FActorDescTreeItem::ComputeTreeItemID(ActorGuid, ActorDesc->GetContainer()));
+			HierarchyChangedEvent.Broadcast(EventData);
+		}
+	}
 }
 
 void FActorHierarchy::OnLoadedActorRemoved(AActor& InActor)
@@ -650,14 +658,14 @@ void FActorHierarchy::OnLoadedActorRemoved(AActor& InActor)
 
 	if (bShowingUnloadedActors)
 	{
-		if (UWorldPartition* WorldPartition = RepresentingWorld->GetWorldPartition())
+		if (UWorldPartition* WorldPartition = FWorldPartitionHelpers::GetWorldPartition(&InActor))
 		{
 			const FGuid& ActorGuid = InActor.GetActorGuid();
-			if (WorldPartition->GetActorDesc(ActorGuid) != nullptr)
+			if (FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid))
 			{
 				FSceneOutlinerHierarchyChangedData EventData;
 				EventData.Type = FSceneOutlinerHierarchyChangedData::Added;
-				EventData.Items.Add(Mode->CreateItemFor<FActorDescTreeItem>(FActorDescTreeItem(ActorGuid, WorldPartition)));
+				EventData.Items.Add(Mode->CreateItemFor<FActorDescTreeItem>(FActorDescTreeItem(ActorDesc->GetGuid(), ActorDesc->GetContainer())));
 				HierarchyChangedEvent.Broadcast(EventData);
 			}
 		}
@@ -668,13 +676,10 @@ void FActorHierarchy::OnActorDescAdded(FWorldPartitionActorDesc* ActorDesc)
 {
 	if (bShowingUnloadedActors && ActorDesc && !ActorDesc->IsLoaded(true))
 	{
-		if (UWorldPartition* WorldPartition = RepresentingWorld->GetWorldPartition())
-		{
-			FSceneOutlinerHierarchyChangedData EventData;
-			EventData.Type = FSceneOutlinerHierarchyChangedData::Added;
-			EventData.Items.Add(Mode->CreateItemFor<FActorDescTreeItem>(FActorDescTreeItem(ActorDesc->GetGuid(), WorldPartition)));
-			HierarchyChangedEvent.Broadcast(EventData);
-		}
+		FSceneOutlinerHierarchyChangedData EventData;
+		EventData.Type = FSceneOutlinerHierarchyChangedData::Added;
+		EventData.Items.Add(Mode->CreateItemFor<FActorDescTreeItem>(FActorDescTreeItem(ActorDesc->GetGuid(), ActorDesc->GetContainer())));
+		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }
 
@@ -684,7 +689,7 @@ void FActorHierarchy::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc)
 	{
 		FSceneOutlinerHierarchyChangedData EventData;
 		EventData.Type = FSceneOutlinerHierarchyChangedData::Removed;
-		EventData.ItemIDs.Add(ActorDesc->GetGuid());
+		EventData.ItemIDs.Add(FActorDescTreeItem::ComputeTreeItemID(ActorDesc->GetGuid(), ActorDesc->GetContainer()));
 		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }

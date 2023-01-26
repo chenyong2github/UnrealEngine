@@ -9,6 +9,10 @@
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/ActorDescContainerCollection.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "Misc/ArchiveMD5.h"
+#include "Misc/SecureHash.h"
+#include "UObject/ObjectKey.h"
+
 
 //////////////////////////////////////////////////////////////////////////
 // FDataLayerActorTreeItemData
@@ -23,12 +27,6 @@ struct FDataLayerActorDescTreeItemData
 		, DataLayer(InDataLayer)
 	{}
 
-	FDataLayerActorDescTreeItemData(const FGuid& InActorGuid, FActorDescContainerCollection* InContainerCollection, UDataLayerInstance* InDataLayer)
-		: ActorGuid(InActorGuid)
-		, Container(InContainerCollection->GetActorDescContainer(InActorGuid))
-		, DataLayer(InDataLayer)
-	{}
-	
 	const FGuid& ActorGuid;
 	UActorDescContainer* const Container;
 	TWeakObjectPtr<UDataLayerInstance> DataLayer;
@@ -46,7 +44,7 @@ public:
 	FDataLayerActorDescTreeItem(const FDataLayerActorDescTreeItemData& InData)
 		: FActorDescTreeItem(InData.ActorGuid, InData.Container)
 		, DataLayer(InData.DataLayer)
-		, IDDataLayerActorDesc(FDataLayerActorDescTreeItem::ComputeTreeItemID(InData.ActorGuid, DataLayer.Get(), FDataLayerActorDescTreeItem::GetParentActors(InData.Container)))
+		, IDDataLayerActorDesc(FDataLayerActorDescTreeItem::ComputeTreeItemID(InData.ActorGuid, InData.Container, InData.DataLayer.Get()))
 	{
 		if (ActorDescHandle.IsValid())
 		{
@@ -54,7 +52,7 @@ public:
 			UWorld* OwningWorld = Container->GetWorld();
 			ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(OwningWorld);
 			ULevel* Level = Container->GetTypedOuter<UWorld>()->PersistentLevel;
-			if (LevelInstanceSubsystem && (Level != OwningWorld->GetCurrentLevel()))
+			if (LevelInstanceSubsystem && Level)
 			{
 				DisplayString = LevelInstanceSubsystem->PrefixWithParentLevelInstanceActorLabels(DisplayString, Level);
 			}
@@ -63,14 +61,21 @@ public:
 
 	UDataLayerInstance* GetDataLayer() const { return DataLayer.Get(); }
 	
-	static uint32 ComputeTreeItemID(const FGuid& InActorGuid, const UDataLayerInstance* InDataLayer, const TArray<AActor*>& InParentActors)
+	static FSceneOutlinerTreeItemID ComputeTreeItemID(FGuid InActorGuid, UActorDescContainer* InContainer, const UDataLayerInstance* InDataLayer)
 	{
-		uint32 ID = HashCombine(GetTypeHash(InActorGuid), GetTypeHash(FObjectKey(InDataLayer)));
-		for (AActor* ParentActor : InParentActors)
-		{
-			ID = HashCombine(ID, GetTypeHash(ParentActor->GetActorGuid()));
-		}
-		return ID;
+		FArchiveMD5 Ar;
+		Ar << InActorGuid;
+
+		FObjectKey ContainerKey(InContainer);
+		Ar << ContainerKey;
+
+		FObjectKey DataLayerInstanceKey(InDataLayer);
+		Ar << DataLayerInstanceKey;
+
+		FMD5Hash MD5Hash;
+		Ar.GetHash(MD5Hash);
+
+		return FSceneOutlinerTreeItemID(MD5HashToGuid(MD5Hash));
 	}
 
 	static TArray<AActor*> GetParentActors(UActorDescContainer* InContainer)
@@ -107,5 +112,5 @@ public:
 
 private:
 	TWeakObjectPtr<UDataLayerInstance> DataLayer;
-	const uint32 IDDataLayerActorDesc;
+	const FSceneOutlinerTreeItemID IDDataLayerActorDesc;
 };
