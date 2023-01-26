@@ -1037,7 +1037,7 @@ FString FUnixPlatformFile::GetFilenameOnDisk(const TCHAR* Filename)
 */
 }
 
-bool FUnixPlatformFile::IsSymlink(const TCHAR* Filename)
+ESymlinkResult FUnixPlatformFile::IsSymlink(const TCHAR* Filename)
 {
 	FString CaseSensitiveFilename;
 	FString NormalizedFilename = NormalizeFilename(Filename, false);
@@ -1045,18 +1045,18 @@ bool FUnixPlatformFile::IsSymlink(const TCHAR* Filename)
 	if (!GCaseInsensMapper.MapCaseInsensitiveFile(NormalizedFilename, CaseSensitiveFilename))
 	{
 		// could not find the file
-		return false;
+		return ESymlinkResult::NonSymlink;
 	}
 #else
 	CaseSensitiveFilename = NormalizedFilename;
 #endif
 
 	struct stat FileInfo;
-	if(stat(TCHAR_TO_UTF8(*CaseSensitiveFilename), &FileInfo) != -1)
+	if(stat(TCHAR_TO_UTF8(*CaseSensitiveFilename), &FileInfo) != -1 && S_ISLNK(FileInfo.st_mode))
 	{
-		return S_ISLNK(FileInfo.st_mode);
+		return ESymlinkResult::Symlink;
 	}
-	return false;
+	return ESymlinkResult::NonSymlink;
 }
 
 IFileHandle* FUnixPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)

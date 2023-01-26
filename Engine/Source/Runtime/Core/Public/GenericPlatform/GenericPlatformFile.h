@@ -76,6 +76,16 @@ enum class EDirectoryVisitorFlags : uint8
 	ThreadSafe = 0x01	// should be set when the Visit function can be called from multiple threads at once.
 };
 
+/**
+ * Enum for IsSymlink() results (added so this func can return ESymlinkResult::Unimplemented)
+ */
+enum class ESymlinkResult : int8
+{
+	Unimplemented = -1,
+	NonSymlink = 0,
+	Symlink = 1,
+};
+
 ENUM_CLASS_FLAGS(EDirectoryVisitorFlags);
 
 /** 
@@ -319,7 +329,7 @@ public:
 	virtual FString GetFilenameOnDisk(const TCHAR* Filename) = 0;
 
 	/** Return true if the file is a symbolic link */
-	virtual bool		IsSymlink(const TCHAR* Filename) { unimplemented(); return false; };
+	virtual ESymlinkResult IsSymlink(const TCHAR* Filename) { return ESymlinkResult::Unimplemented; }
 
 	/** Attempt to open a file for reading.
 	 *

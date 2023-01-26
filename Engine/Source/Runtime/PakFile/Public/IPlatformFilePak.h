@@ -2626,6 +2626,11 @@ public:
 		}
 	}
 
+	virtual ESymlinkResult IsSymlink(const TCHAR* Filename) override
+	{
+		return LowerLevel->IsSymlink(Filename);
+	}
+
 	virtual IFileHandle* OpenRead(const TCHAR* Filename, bool bAllowWrite = false) override;
 
 	virtual IFileHandle* OpenWrite(const TCHAR* Filename, bool bAppend = false, bool bAllowRead = false) override

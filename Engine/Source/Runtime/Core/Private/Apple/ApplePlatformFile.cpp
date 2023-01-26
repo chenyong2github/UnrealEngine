@@ -561,14 +561,14 @@ FString FApplePlatformFile::GetFilenameOnDisk(const TCHAR* Filename)
 	return Filename;
 }
 
-bool FApplePlatformFile::IsSymlink(const TCHAR* Filename)
+ESymlinkResult FApplePlatformFile::IsSymlink(const TCHAR* Filename)
 {
 	struct stat FileInfo;
-	if (Stat(Filename, &FileInfo) != -1)
+	if (Stat(Filename, &FileInfo) != -1 && S_ISLNK(FileInfo.st_mode))
 	{
-		return S_ISLNK(FileInfo.st_mode);
+		return ESymlinkResult::Symlink;
 	}
-	return false;
+	return ESymlinkResult::NonSymlink;
 }
 
 IFileHandle* FApplePlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)
