@@ -14,6 +14,9 @@
 #include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
 
+class FCbFieldView;
+class FCbWriter;
+
 class FPackageStoreManifest
 {
 public:
@@ -53,6 +56,11 @@ public:
 	IOSTOREUTILITIES_API FZenServerInfo& EditZenServerInfo();
 	IOSTOREUTILITIES_API const FZenServerInfo* ReadZenServerInfo() const;
 
+	IOSTOREUTILITIES_API void SetTrackPackageData(bool bInTrackpackageData);
+	IOSTOREUTILITIES_API void WritePackage(FCbWriter& Writer, FName PackageName);
+	IOSTOREUTILITIES_API bool TryReadPackage(FCbFieldView Field, FName PackageName);
+
+
 private:
 	FPackageInfo* GetPackageInfo_NoLock(FName PackageName);
 
@@ -62,4 +70,11 @@ private:
 
 	TMap<FIoChunkId, FString> FileNameByChunkIdMap;
 	TUniquePtr<FZenServerInfo> ZenServerInfo;
+
+	/**
+	 * Transient data used during MPCook to find all Filenames used by a package. Used to replicate all data related to
+	 * the package to the CookDirector.
+	 */
+	TMap<FName, TArray<TPair<FString, FIoChunkId>>> PackageFileChunkIds;
+	bool bTrackPackageData = false;
 };

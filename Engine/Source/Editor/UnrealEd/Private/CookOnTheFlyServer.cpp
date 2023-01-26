@@ -9157,6 +9157,8 @@ void UCookOnTheFlyServer::LoadBeginCookIterativeFlagsLocal(FBeginCookContext& Be
 			}
 		}
 		PlatformData->bFullBuild = PlatformContext.bFullBuild;
+		PlatformData->bIterateSharedBuild = PlatformContext.bIterateSharedBuild;
+		PlatformData->bWorkerOnSharedSandbox = PlatformContext.bWorkerOnSharedSandbox;
 	}
 }
 
@@ -9339,7 +9341,14 @@ void UCookOnTheFlyServer::FinalizePackageStore()
 	UE_LOG(LogCook, Display, TEXT("Finalize package store(s)..."));
 	for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
 	{
-		FindOrCreatePackageWriter(TargetPlatform).EndCook();
+		UE::Cook::FPlatformData* PlatformData = PlatformManager->GetPlatformData(TargetPlatform);
+		ICookedPackageWriter::FCookInfo CookInfo;
+		CookInfo.CookMode = IsDirectorCookOnTheFly() ? ICookedPackageWriter::FCookInfo::CookOnTheFlyMode : ICookedPackageWriter::FCookInfo::CookByTheBookMode;
+		CookInfo.bFullBuild = PlatformData->bFullBuild;
+		CookInfo.bIterateSharedBuild = PlatformData->bIterateSharedBuild;
+		CookInfo.bWorkerOnSharedSandbox = PlatformData->bWorkerOnSharedSandbox;
+
+		FindOrCreatePackageWriter(TargetPlatform).EndCook(CookInfo);
 	}
 	UE_LOG(LogCook, Display, TEXT("Done finalizing package store(s)"));
 }
@@ -10024,9 +10033,15 @@ void UCookOnTheFlyServer::RecordDLCPackagesFromBaseGame(FBeginCookContext& Begin
 
 void UCookOnTheFlyServer::BeginCookPackageWriters(FBeginCookContext& BeginContext)
 {
-	for (const ITargetPlatform* TargetPlatform : BeginContext.TargetPlatforms)
+	for (FBeginCookContextPlatform& Context : BeginContext.PlatformContexts)
 	{
-		FindOrCreatePackageWriter(TargetPlatform).BeginCook();
+		ICookedPackageWriter::FCookInfo CookInfo;
+		CookInfo.CookMode = IsDirectorCookOnTheFly() ? ICookedPackageWriter::FCookInfo::CookOnTheFlyMode : ICookedPackageWriter::FCookInfo::CookByTheBookMode;
+		CookInfo.bFullBuild = Context.bFullBuild;
+		CookInfo.bIterateSharedBuild = Context.bIterateSharedBuild;
+		CookInfo.bWorkerOnSharedSandbox = Context.bWorkerOnSharedSandbox;
+
+		FindOrCreatePackageWriter(Context.TargetPlatform).BeginCook(CookInfo);
 	}
 }
 

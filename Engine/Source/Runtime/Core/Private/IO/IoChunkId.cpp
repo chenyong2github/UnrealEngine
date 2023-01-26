@@ -3,7 +3,9 @@
 #include "IO/IoChunkId.h"
 #include "IO/PackageId.h"
 #include "Hash/Blake3.h"
+#include "Memory/MemoryView.h"
 #include "Serialization/Archive.h"
+#include "Serialization/CompactBinaryWriter.h"
 
 FString LexToString(const EIoChunkType Type)
 {
@@ -50,6 +52,19 @@ FArchive& operator<<(FArchive& Ar, FIoChunkId& ChunkId)
 {
 	Ar.Serialize(&ChunkId.Id, sizeof FIoChunkId::Id);
 	return Ar;
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FIoChunkId& ChunkId)
+{
+	Writer.AddObjectId(FCbObjectId(MakeMemoryView(&ChunkId.Id, sizeof FIoChunkId::Id)));
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FIoChunkId& OutChunkId)
+{
+	FCbObjectId ObjectId = Field.AsObjectId();
+	OutChunkId.Set(ObjectId.GetView());
+	return !Field.HasError();
 }
 
 FIoChunkId CreatePackageDataChunkId(const FPackageId& PackageId)

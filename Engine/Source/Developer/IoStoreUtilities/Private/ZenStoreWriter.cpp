@@ -495,9 +495,16 @@ void FZenStoreWriter::Initialize(const FCookInfo& Info)
 	}
 }
 
-void FZenStoreWriter::BeginCook()
+void FZenStoreWriter::BeginCook(const FCookInfo& Info)
 {
-	PackageStoreManifest.Load(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
+	if (!Info.bWorkerOnSharedSandbox)
+	{
+		PackageStoreManifest.Load(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
+	}
+	else
+	{
+		PackageStoreManifest.SetTrackPackageData(true);
+	}
 	AllPackageHashes.Empty();
 
 	if (CookMode == ICookedPackageWriter::FCookInfo::CookOnTheFlyMode)
@@ -538,7 +545,7 @@ void FZenStoreWriter::BeginCook()
 	}
 }
 
-void FZenStoreWriter::EndCook()
+void FZenStoreWriter::EndCook(const FCookInfo& Info)
 {
 	UE_LOG(LogZenStoreWriter, Display, TEXT("Flushing..."));
 	
@@ -561,7 +568,10 @@ void FZenStoreWriter::EndCook()
 	TIoStatusOr<uint64> Status = HttpClient->EndBuildPass(Pkg);
 	UE_CLOG(!Status.IsOk(), LogZenStoreWriter, Fatal, TEXT("Failed to append OpLog and end the build pass"));
 
-	PackageStoreManifest.Save(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
+	if (!Info.bWorkerOnSharedSandbox)
+	{
+		PackageStoreManifest.Save(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
+	}
 
 	UE_LOG(LogZenStoreWriter, Display, TEXT("Input:\t%d Packages"), PackageStoreOptimizer->GetTotalPackageCount());
 	UE_LOG(LogZenStoreWriter, Display, TEXT("Output:\t%d Export bundles"), PackageStoreOptimizer->GetTotalExportBundleCount());
@@ -1038,6 +1048,21 @@ void FZenStoreWriter::MarkPackagesUpToDate(TArrayView<const FName> UpToDatePacka
 	{
 		BroadcastMarkUpToDate(MarkUpToDateEventArgs);
 	}
+}
+
+FCbObject FZenStoreWriter::WriteMPCookMessageForPackage(FName PackageName)
+{
+	FCbWriter Writer;
+	Writer.BeginObject();
+	Writer.SetName("Manifest");
+	PackageStoreManifest.WritePackage(Writer, PackageName);
+	Writer.EndObject();
+	return Writer.Save().AsObject();
+}
+
+bool FZenStoreWriter::TryReadMPCookMessageForPackage(FName PackageName, FCbObjectView Message)
+{
+	return PackageStoreManifest.TryReadPackage(Message["Manifest"], PackageName);
 }
 
 void FZenStoreWriter::CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj)

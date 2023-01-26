@@ -41,6 +41,7 @@
 #include "Serialization/Archive.h"
 #include "Serialization/ArchiveStackTrace.h"
 #include "Serialization/ArrayReader.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/MemoryWriter.h"
 #include "Tasks/Task.h"
@@ -515,15 +516,25 @@ void FLooseCookedPackageWriter::Initialize(const FCookInfo& Info)
 	}
 }
 
-void FLooseCookedPackageWriter::BeginCook()
+void FLooseCookedPackageWriter::BeginCook(const FCookInfo& Info)
 {
-	PackageStoreManifest.Load(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
+	if (!Info.bWorkerOnSharedSandbox)
+	{
+		PackageStoreManifest.Load(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
+	}
+	else
+	{
+		PackageStoreManifest.SetTrackPackageData(true);
+	}
 	AllPackageHashes.Empty();
 }
 
-void FLooseCookedPackageWriter::EndCook()
+void FLooseCookedPackageWriter::EndCook(const FCookInfo& Info)
 {
-	PackageStoreManifest.Save(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
+	if (!Info.bWorkerOnSharedSandbox)
+	{
+		PackageStoreManifest.Save(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
+	}
 }
 
 TUniquePtr<FAssetRegistryState> FLooseCookedPackageWriter::LoadPreviousAssetRegistry()
@@ -692,6 +703,21 @@ void FLooseCookedPackageWriter::RemoveCookedPackagesByUncookedFilename(const TAr
 
 void FLooseCookedPackageWriter::MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages)
 {
+}
+
+FCbObject FLooseCookedPackageWriter::WriteMPCookMessageForPackage(FName PackageName)
+{
+	FCbWriter Writer;
+	Writer.BeginObject();
+	Writer.SetName("Manifest");
+	PackageStoreManifest.WritePackage(Writer, PackageName);
+	Writer.EndObject();
+	return Writer.Save().AsObject();
+}
+
+bool FLooseCookedPackageWriter::TryReadMPCookMessageForPackage(FName PackageName, FCbObjectView Message)
+{
+	return PackageStoreManifest.TryReadPackage(Message["Manifest"], PackageName);
 }
 
 void FLooseCookedPackageWriter::RemoveCookedPackages()

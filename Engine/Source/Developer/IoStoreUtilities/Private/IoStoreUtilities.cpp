@@ -5794,7 +5794,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 	ICookedPackageWriter::FCookInfo CookInfo;
 	CookInfo.bFullBuild = true;
 	ZenStoreWriter->Initialize(CookInfo);
-	ZenStoreWriter->BeginCook();
+	ZenStoreWriter->BeginCook(CookInfo);
 	int32 LocalPackageIndex = 0;
 	TArray<FPackageInfo> PackagesArray;
 	CollectedData.Packages.GenerateValueArray(PackagesArray);
@@ -5838,7 +5838,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 	}, EParallelForFlags::ForceSingleThread); // Single threaded for now to limit memory usage
 
 	UE_LOG(LogIoStore, Display, TEXT("Waiting for uploads to finish..."));
-	ZenStoreWriter->EndCook();
+	ZenStoreWriter->EndCook(CookInfo);
 	return 0;
 }
 

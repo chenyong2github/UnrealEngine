@@ -67,13 +67,13 @@ public:
 	{
 		Inner->Initialize(Info);
 	}
-	virtual void BeginCook() override
+	virtual void BeginCook(const FCookInfo& Info) override
 	{
-		Inner->BeginCook();
+		Inner->BeginCook(Info);
 	}
-	virtual void EndCook() override
+	virtual void EndCook(const FCookInfo& Info) override
 	{
-		Inner->EndCook();
+		Inner->EndCook(Info);
 	}
 	virtual TUniquePtr<FAssetRegistryState> LoadPreviousAssetRegistry() override
 	{
@@ -100,6 +100,14 @@ public:
 		Inner->UpdateSaveArguments(SaveArgs);
 	}
 	virtual bool IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousResult, FSavePackageArgs& SaveArgs) override;
+	virtual FCbObject WriteMPCookMessageForPackage(FName PackageName) override
+	{
+		return Inner->WriteMPCookMessageForPackage(PackageName);
+	}
+	virtual bool TryReadMPCookMessageForPackage(FName PackageName, FCbObjectView Message) override
+	{
+		return Inner->TryReadMPCookMessageForPackage(PackageName, Message);
+	}
 	virtual TMap<FName, TRefCountPtr<FPackageHashes>>& GetPackageHashes() override
 	{
 		return Inner->GetPackageHashes();
@@ -198,13 +206,13 @@ public:
 	{
 		Inner->Initialize(Info);
 	}
-	virtual void BeginCook() override
+	virtual void BeginCook(const FCookInfo& Info) override
 	{
-		Inner->BeginCook();
+		Inner->BeginCook(Info);
 	}
-	virtual void EndCook() override
+	virtual void EndCook(const FCookInfo& Info) override
 	{
-		Inner->EndCook();
+		Inner->EndCook(Info);
 	}
 	virtual TUniquePtr<FAssetRegistryState> LoadPreviousAssetRegistry() override
 	{
@@ -228,6 +236,14 @@ public:
 	}
 	virtual void UpdateSaveArguments(FSavePackageArgs& SaveArgs) override;
 	virtual bool IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousResult, FSavePackageArgs& SaveArgs) override;
+	virtual FCbObject WriteMPCookMessageForPackage(FName PackageName) override
+	{
+		return Inner->WriteMPCookMessageForPackage(PackageName);
+	}
+	virtual bool TryReadMPCookMessageForPackage(FName PackageName, FCbObjectView Message) override
+	{
+		return Inner->TryReadMPCookMessageForPackage(PackageName, Message);
+	}
 	virtual TMap<FName, TRefCountPtr<FPackageHashes>>& GetPackageHashes() override
 	{
 		return Inner->GetPackageHashes();

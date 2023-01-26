@@ -15,6 +15,8 @@
 #include "Templates/UniquePtr.h"
 
 class FAssetRegistryState;
+class FCbObject;
+class FCbObjectView;
 class FLargeMemoryWriter;
 class ICookedPackageWriter;
 class IPackageStoreWriter;
@@ -255,11 +257,11 @@ public:
 		Package data may only be produced after BeginCook() has been called and
 		before EndCook() is called
 	  */
-	virtual void BeginCook() = 0;
+	virtual void BeginCook(const FCookInfo& Info) = 0;
 
 	/** Signal the end of a cooking pass.
 	  */
-	virtual void EndCook() = 0;
+	virtual void EndCook(const FCookInfo& Info) = 0;
 
 	struct FCookedPackageInfo
 	{
@@ -326,6 +328,17 @@ public:
 	{
 		return false;
 	}
+	/**
+	 * Create a CompactBinary Object message that replicates all of the package data from package save that is
+	 * collected in memory and written at end of cook rather than being written to disk during package save.
+	 * Used during MPCook to transfer this information from CookWorker to CookDirector. Called after CommitPackage,
+	 * and only on CookWorkers.
+	 */
+	virtual FCbObject WriteMPCookMessageForPackage(FName PackageName) = 0;
+
+	/** Read PackageData written by WriteMPCookMessageForPackage on a CookWorker. Called only on CookDirector. */
+	virtual bool TryReadMPCookMessageForPackage(FName PackageName, FCbObjectView Message) = 0;
+
 	/** Downcast function for ICookedPackageWriters that implement the IPackageStoreWriter inherited interface. */
 	virtual IPackageStoreWriter* AsPackageStoreWriter()
 	{

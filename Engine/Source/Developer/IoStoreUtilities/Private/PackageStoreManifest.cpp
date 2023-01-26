@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PackageStoreManifest.h"
+#include "Serialization/CompactBinaryContainerSerialization.h"
+#include "Serialization/CompactBinarySerialization.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Dom/JsonObject.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "IO/IoStore.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/Paths.h"
@@ -44,7 +48,14 @@ void FPackageStoreManifest::AddPackageData(FName PackageName, const FString& Fil
 	PackageInfo->ExportBundleChunkIds.Add(ChunkId);
 	if (!FileName.IsEmpty())
 	{
-		FileNameByChunkIdMap.Add(ChunkId, FileName);
+		if (!bTrackPackageData)
+		{
+			FileNameByChunkIdMap.Add(ChunkId, FileName);
+		}
+		else
+		{
+			PackageFileChunkIds.FindOrAdd(PackageName).Emplace(FileName, ChunkId);
+		}
 	}
 }
 
@@ -57,7 +68,14 @@ void FPackageStoreManifest::AddBulkData(FName PackageName, const FString& FileNa
 	PackageInfo->BulkDataChunkIds.Add(ChunkId);
 	if (!FileName.IsEmpty())
 	{
-		FileNameByChunkIdMap.Add(ChunkId, FileName);
+		if (!bTrackPackageData)
+		{
+			FileNameByChunkIdMap.Add(ChunkId, FileName);
+		}
+		else
+		{
+			PackageFileChunkIds.FindOrAdd(PackageName).Emplace(FileName, ChunkId);
+		}
 	}
 }
 
@@ -290,5 +308,57 @@ const FPackageStoreManifest::FZenServerInfo* FPackageStoreManifest::ReadZenServe
 FPackageStoreManifest::FPackageInfo* FPackageStoreManifest::GetPackageInfo_NoLock(FName PackageName)
 {
 	return PackageInfoByNameMap.Find(PackageName);
+}
+
+void FPackageStoreManifest::SetTrackPackageData(bool bInTrackPackageData)
+{
+	FScopeLock Lock(&CriticalSection);
+	bTrackPackageData = bInTrackPackageData;
+}
+
+void FPackageStoreManifest::WritePackage(FCbWriter& Writer, FName PackageName)
+{
+	FPackageStoreManifest::FPackageInfo PackageInfo;
+	TArray<TPair<FString, FIoChunkId>> FileChunkIds;
+	bool bHasPackageInfo;
+
+	{
+		FScopeLock Lock(&CriticalSection);
+		bHasPackageInfo = PackageInfoByNameMap.RemoveAndCopyValue(PackageName, PackageInfo);
+		PackageFileChunkIds.RemoveAndCopyValue(PackageName, FileChunkIds);
+	}
+
+	UE_CLOG(!bHasPackageInfo, LogIoStore, Error,
+		TEXT("ClientTickPackage was called for package %s, but CommitPackage was not called for that package. We will not have up to date PackageStoreManifest data."),
+		*PackageName.ToString());
+
+	Writer.BeginObject();
+	Writer << "ExportBundleChunkIds" << PackageInfo.ExportBundleChunkIds;
+	Writer << "BulkDataChunkIds" << PackageInfo.BulkDataChunkIds;
+	Writer << "FileChunkIds" << FileChunkIds;
+	Writer.EndObject();
+}
+
+bool FPackageStoreManifest::TryReadPackage(FCbFieldView Field, FName PackageName)
+{
+	FPackageInfo PackageInfo;
+	TArray<TPair<FString, FIoChunkId>> FileChunkIds;
+
+	bool bOk = true;
+	PackageInfo.PackageName = PackageName;
+	bOk = LoadFromCompactBinary(Field["ExportBundleChunkIds"], PackageInfo.ExportBundleChunkIds) & bOk;
+	bOk = LoadFromCompactBinary(Field["BulkDataChunkIds"], PackageInfo.BulkDataChunkIds) & bOk;
+	bOk = LoadFromCompactBinary(Field["FileChunkIds"], FileChunkIds) & bOk;
+
+	{
+		FScopeLock Lock(&CriticalSection);
+		PackageInfoByNameMap.Add(PackageName, MoveTemp(PackageInfo));
+		for (TPair<FString, FIoChunkId>& Pair : FileChunkIds)
+		{
+			FileNameByChunkIdMap.Add(Pair.Value, Pair.Key);
+		}
+	}
+
+	return bOk;
 }
 

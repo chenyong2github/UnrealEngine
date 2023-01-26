@@ -9,6 +9,8 @@
 #include "String/BytesToHex.h"
 
 class FArchive;
+class FCbFieldView;
+class FCbWriter;
 class FPackageId;
 
 /**
@@ -61,6 +63,8 @@ public:
 	}
 
 	friend CORE_API FArchive& operator<<(FArchive& Ar, FIoChunkId& ChunkId);
+	friend CORE_API FCbWriter& operator<<(FCbWriter& Writer, const FIoChunkId& ChunkId);
+	friend CORE_API bool LoadFromCompactBinary(FCbFieldView Field, FIoChunkId& OutChunkId);
 
 	template <typename CharType>
 	friend TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FIoChunkId& ChunkId)

@@ -157,6 +157,8 @@ void FWorkerRequestsRemote::GetBeginCookIterativeFlags(UCookOnTheFlyServer& COTF
 		PlatformContext.bIterateSharedBuild = false; // Not needed on CookWorkerClients
 		PlatformContext.bWorkerOnSharedSandbox = true;
 		PlatformData->bFullBuild = PlatformContext.bFullBuild;
+		PlatformData->bIterateSharedBuild = PlatformContext.bIterateSharedBuild;
+		PlatformData->bWorkerOnSharedSandbox = PlatformContext.bWorkerOnSharedSandbox;
 	}
 }
 

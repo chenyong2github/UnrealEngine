@@ -62,6 +62,12 @@ namespace Cook
 		/* Whether BeginCookSandbox specified a full, non-iterative build for this platform. */
 		bool bFullBuild = false;
 
+		/** If true we are cooking iteratively, from results in a shared build (e.g. from buildfarm) rather than from our previous cook. */
+		bool bIterateSharedBuild = false;
+
+		/** If true we are a CookWorker, and we are working on a Sandbox directory that has already been populated by a remote Director process. */
+		bool bWorkerOnSharedSandbox = false;
+
 		/*
 		 * The last FPlatformTime::GetSeconds() at which this platform was requested in a CookOnTheFly request.
 		 * If equal to 0, the platform was not requested in a CookOnTheFly since the last clear.
