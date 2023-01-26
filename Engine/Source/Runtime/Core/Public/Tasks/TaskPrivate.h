@@ -218,7 +218,7 @@ namespace UE::Tasks
 			template<typename HigherLevelTaskType, decltype(std::declval<HigherLevelTaskType>().Pimpl)* = nullptr>
 			bool AddPrerequisites(const HigherLevelTaskType& Prerequisite)
 			{
-				return AddPrerequisites(*Prerequisite.Pimpl);
+				return Prerequisite.IsValid() ? AddPrerequisites(*Prerequisite.Pimpl) : false;
 			}
 
 			// The task will be executed only when all prerequisites are completed.
@@ -253,6 +253,11 @@ namespace UE::Tasks
 					else
 					{
 						Prerequisite = Prereq.Pimpl;
+					}
+
+					if (Prerequisite == nullptr)
+					{
+						continue;
 					}
 
 					if (Prerequisite->AddSubsequent(*this)) // acq_rel memory order
