@@ -99,11 +99,17 @@ namespace Metasound
 				TDataReadReference<FString> Label = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FString>(InputInterface, METASOUND_GET_PARAM_NAME(InputLabel), InParams.OperatorSettings);
 				TDataReadReference<PrintLogType> ValueToLog = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<PrintLogType>(InputInterface, METASOUND_GET_PARAM_NAME(InputValueToLog), InParams.OperatorSettings);
 
-				FString GraphNameFull = InParams.Environment.GetValue<FString>(Frontend::SourceInterface::Environment::GraphName);
-				TArray<FString> ParsedString;
-				GraphNameFull.ParseIntoArray(ParsedString, TEXT("."), true);
-
-				const FString& GraphName = ParsedString.Last();
+				FString GraphName;
+				if (InParams.Environment.Contains<FString>(Frontend::SourceInterface::Environment::GraphName))
+				{
+					FString GraphNameFull = InParams.Environment.GetValue<FString>(Frontend::SourceInterface::Environment::GraphName);
+					TArray<FString> ParsedString;
+					GraphNameFull.ParseIntoArray(ParsedString, TEXT("."), true);
+					if (ParsedString.Num() > 0)
+					{
+						GraphName = ParsedString.Last();
+					}
+				}
 
 				return MakeUnique<TPrintLogOperator<PrintLogType>>(InParams.OperatorSettings, Trigger, Label, ValueToLog, GraphName);
 			}

@@ -185,7 +185,10 @@ namespace Metasound
 			using namespace Frontend;
 
 #if WITH_METASOUND_DEBUG_ENVIRONMENT
-			GraphName = *InParams.Environment.GetValue<FString>(SourceInterface::Environment::GraphName);
+			if (InParams.Environment.Contains<FString>(SourceInterface::Environment::GraphName))
+			{
+				GraphName = *InParams.Environment.GetValue<FString>(SourceInterface::Environment::GraphName);
+			}
 #endif // WITH_METASOUND_DEBUG_ENVIRONMENT
 
 			// Check to see if this is a global shuffler or a local one. 

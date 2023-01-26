@@ -43,14 +43,14 @@ namespace Metasound
 		{
 			FORCEINLINE void operator()(float& InPhase) const
 			{
-				while (InPhase >= 1.f)
+				if (InPhase >= 1.f)
 				{
-					InPhase -= 1.f;
+					InPhase -= FMath::TruncToFloat(InPhase);
 				}
 
-				while (InPhase < 0.0f)
+				if (InPhase < 0.0f)
 				{
-					InPhase += 1.f;
+					InPhase -= FMath::TruncToFloat(InPhase) + 1.f;
 				}
 			}
 		};

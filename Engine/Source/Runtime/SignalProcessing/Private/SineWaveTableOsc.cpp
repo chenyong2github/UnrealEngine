@@ -89,8 +89,8 @@ namespace Audio
 		for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
 		{
 			// Interpolate between two samples
-			const int32 ReadIndexPrev = (int32)ReadIndex;
-			const float Alpha = ReadIndex - (float)ReadIndexPrev;
+			const int32 ReadIndexPrev = FMath::Clamp((int32)ReadIndex, 0, WaveTableBuffer.Num() - 2);
+			const float Alpha = FMath::Clamp(ReadIndex - (float)ReadIndexPrev, 0.f, 1.f);
 
 			const int32 ReadIndexNext = (ReadIndexPrev + 1) % WaveTableBuffer.Num();
 			OutBuffer[SampleIndex] = FMath::Lerp(WaveTableBuffer[ReadIndexPrev], WaveTableBuffer[ReadIndexNext], Alpha);

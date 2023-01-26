@@ -38,7 +38,7 @@ namespace WaveTable
 	public:
 		FWaveTable() = default;
 
-		FWaveTable(const TArray<float>& InSamples, const float InFinalValue)
+		FWaveTable(const TArray<float>& InSamples, const float InFinalValue=0.f)
 			: Samples(InSamples)
 			, FinalValue(InFinalValue)
 		{

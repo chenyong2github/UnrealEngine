@@ -84,12 +84,22 @@ namespace Metasound
 			using namespace AudioBusReaderNode; 
 			const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 
-			Audio::FDeviceId AudioDeviceId = InParams.Environment.GetValue<Audio::FDeviceId>(SourceInterface::Environment::DeviceID);
-			int32 AudioMixerOutputFrames = InParams.Environment.GetValue<int32>(SourceInterface::Environment::AudioMixerNumOutputFrames);
-
-			FAudioBusAssetReadRef AudioBusIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBusAsset>(METASOUND_GET_PARAM_NAME(InParamAudioBusInput));
+			bool bHasEnvironmentVars = InParams.Environment.Contains<Audio::FDeviceId>(SourceInterface::Environment::DeviceID) && InParams.Environment.Contains<int32>(SourceInterface::Environment::AudioMixerNumOutputFrames);
 			
-			return MakeUnique<TAudioBusReaderOperator<NumChannels>>(InParams.OperatorSettings, AudioMixerOutputFrames, AudioDeviceId, AudioBusIn);
+			if (bHasEnvironmentVars)
+			{
+				Audio::FDeviceId AudioDeviceId = InParams.Environment.GetValue<Audio::FDeviceId>(SourceInterface::Environment::DeviceID);
+				int32 AudioMixerOutputFrames = InParams.Environment.GetValue<int32>(SourceInterface::Environment::AudioMixerNumOutputFrames);
+
+				FAudioBusAssetReadRef AudioBusIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBusAsset>(METASOUND_GET_PARAM_NAME(InParamAudioBusInput));
+				
+				return MakeUnique<TAudioBusReaderOperator<NumChannels>>(InParams.OperatorSettings, AudioMixerOutputFrames, AudioDeviceId, AudioBusIn);
+			}
+			else
+			{
+				UE_LOG(LogMetaSound, Warning, TEXT("Audio bus reader node requires audio device ID '%s' and audio mixer num output frames '%s' environment variables"), *SourceInterface::Environment::DeviceID.ToString(), *SourceInterface::Environment::AudioMixerNumOutputFrames.ToString());
+				return nullptr;
+			}
 		}
 
 		TAudioBusReaderOperator(const FOperatorSettings& InSettings, int32 InAudioMixerOutputFrames, Audio::FDeviceId InAudioDeviceId, const FAudioBusAssetReadRef& InAudioBusAsset)

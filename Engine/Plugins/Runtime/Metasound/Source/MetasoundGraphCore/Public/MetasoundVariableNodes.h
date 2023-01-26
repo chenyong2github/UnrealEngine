@@ -327,6 +327,7 @@ namespace Metasound
 		else 
 		{
 			// Nothing to do if there's no input data.
+			UE_LOG(LogMetaSound, Verbose, TEXT("Missing internal variable connection. Failed to create valid \"SetVariable\" operator"));
 			return MakeUnique<FNoOpOperator>();
 		}
 	}
@@ -433,7 +434,7 @@ namespace Metasound
 
 		const FDataReferenceCollection& Inputs = InParams.InputDataReferences;
 
-		if (ensure(Inputs.ContainsDataWriteReference<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable))))
+		if (Inputs.ContainsDataWriteReference<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable)))
 		{
 			TDataWriteReference<FVariable> DelayedVariable = Inputs.GetDataWriteReference<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable));
 
@@ -442,7 +443,7 @@ namespace Metasound
 		else 
 		{
 			// Nothing to do if there's no input data.
-			UE_LOG(LogMetaSound, Warning, TEXT("Missing internal variable connection. Failed to create valid \"GetDelayedVariable\" operator"));
+			UE_LOG(LogMetaSound, Verbose, TEXT("Missing internal variable connection. Failed to create valid \"GetDelayedVariable\" operator"));
 			return MakeUnique<FNoOpOperator>();
 		}
 	}
@@ -556,7 +557,7 @@ namespace Metasound
 		else 
 		{
 			// Nothing to do if there's no input data.
-			UE_LOG(LogMetaSound, Warning, TEXT("Missing internal variable connection. Failed to create valid \"GetVariable\" operator"));
+			UE_LOG(LogMetaSound, Verbose, TEXT("Missing internal variable connection. Failed to create valid \"GetVariable\" operator"));
 			return MakeUnique<FNoOpOperator>();
 		}
 	}
