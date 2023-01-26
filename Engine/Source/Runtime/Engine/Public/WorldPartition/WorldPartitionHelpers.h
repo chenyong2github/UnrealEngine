@@ -3,16 +3,26 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "WorldPartition/WorldPartitionHandle.h"
 
 #if WITH_EDITOR
+#include "WorldPartition/WorldPartitionHandle.h"
+#endif
 
 class UWorld;
 class UWorldPartition;
+
+#if WITH_EDITOR
 class FWorldPartitionActorDesc;
+#endif
 
 class ENGINE_API FWorldPartitionHelpers
 {
+public:
+	/** Returns the owning World Partition for this object. */
+	static UWorldPartition* GetWorldPartition(const UObject* InObject);
+
+#if WITH_EDITOR
+private:
 	static bool IsActorDescClassCompatibleWith(const FWorldPartitionActorDesc* ActorDesc, const UClass* Class);
 
 public:
@@ -80,6 +90,8 @@ public:
 	// Editor/Runtime conversions
 	static bool ConvertRuntimePathToEditorPath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath);
 	static bool ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath);
-};
 
 #endif // WITH_EDITOR
+};
+
+

@@ -4,13 +4,60 @@
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
+#include "WorldPartition/WorldPartitionRuntimeCellInterface.h"
+#include "WorldPartition/WorldPartitionRuntimeCellOwner.h"
 #include "Engine/World.h"
+#include "Engine/Level.h"
 #include "Algo/AnyOf.h"
 
 #include "Commandlets/Commandlet.h"
 #include "WorldPartition/WorldPartitionLog.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionHelpers, Log, All);
+
+UWorldPartition* FWorldPartitionHelpers::GetWorldPartition(const UObject* InObject)
+{
+	if (!IsValid(InObject))
+	{
+		return nullptr;
+	}
+
+	const UWorld* OuterWorld = nullptr;
+
+	if (const UWorld* InWorld = Cast<const UWorld>(InObject))
+	{
+		return GetWorldPartition(InWorld->PersistentLevel);
+	}
+	else if (const ULevel* Level = Cast<const ULevel>(InObject))
+	{
+		if (const IWorldPartitionCell* Cell = Level->GetWorldPartitionRuntimeCell())
+		{
+			return GetWorldPartition(Cast<UObject>(Cell));
+		}
+	}
+	else if (const IWorldPartitionCell* Cell = Cast<const IWorldPartitionCell>(InObject))
+	{
+		if (const IWorldPartitionRuntimeCellOwner* CellOwner = Cell->GetCellOwner())
+		{
+			return GetWorldPartition(Cast<UObject>(CellOwner));
+		}
+	}
+	else if (const IWorldPartitionRuntimeCellOwner* CellOwner = Cast<const IWorldPartitionRuntimeCellOwner>(InObject))
+	{
+		OuterWorld = CellOwner->GetOuterWorld();
+	}
+	else if (const ULevel* OuterLevel = InObject->GetTypedOuter<ULevel>())
+	{
+		return GetWorldPartition(OuterLevel);
+	}
+
+	if (!OuterWorld)
+	{
+		OuterWorld = InObject ? InObject->GetTypedOuter<UWorld>() : nullptr;
+	}
+
+	return OuterWorld ? OuterWorld->GetWorldPartition() : nullptr;
+}
 
 #if WITH_EDITOR
 
