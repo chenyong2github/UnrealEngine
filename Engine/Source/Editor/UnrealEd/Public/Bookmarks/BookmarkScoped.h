@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 class IBookmarkTypeActions;
+class FEditorViewportClient;
 class UBookMark;
 
 /**
