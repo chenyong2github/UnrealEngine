@@ -1740,6 +1740,49 @@ struct FAITest_BTAbortDuringLatentAbort4 : public FAITest_SimpleBT
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTAbortDuringLatentAbort4, "System.AI.Behavior Trees.Abort: during latent task abort (high pri 2)")
 
+struct FAITest_BTResumingDuringLatentAbort : public FAITest_SimpleBT
+{
+	FAITest_BTResumingDuringLatentAbort()
+	{
+		enum
+		{
+			LatentTaskStart = 0,
+			LatentTaskFinish,
+			LatentTaskAbortStart,
+			LatentTaskAbortFinish,
+			Task1Log,
+			Task2Log,
+		};
+
+
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset); // 0
+		{
+			FBTBuilder::AddTask(CompNode, Task1Log, EBTNodeResult::Succeeded); // 2
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::Set, EBTFlowAbortMode::Both, TEXT("Bool1")); // 1
+			}
+
+			FBTBuilder::AddTask(CompNode, Task2Log, EBTNodeResult::Succeeded); // 4
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::Set, EBTFlowAbortMode::None, TEXT("Bool2")); // 3
+			}
+
+			FBTBuilder::AddTaskLatentFlags(CompNode, EBTNodeResult::Succeeded, // 5
+				/*ExecuteHalfTicks*/2, TEXT("Bool1"), LatentTaskStart, LatentTaskFinish,
+				/*AbortHalfTicks*/3, TEXT("Bool1"), LatentTaskAbortStart, LatentTaskAbortFinish, EBTTestChangeFlagBehavior::Toggle);
+			{
+				FBTBuilder::WithTaskServiceLog(CompNode, /*ActivationIndex*/-1, /*DeactivationIndex*/-1, /*TickIndex*/-1, /*TickBoolKeyName*/TEXT("Bool2")); // 6
+			}
+		}
+
+		ExpectedResult.Add(LatentTaskStart/*0*/);
+		ExpectedResult.Add(LatentTaskAbortStart/*2*/);
+		ExpectedResult.Add(LatentTaskAbortFinish/*3*/);
+		ExpectedResult.Add(Task2Log/*5*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTResumingDuringLatentAbort, "System.AI.Behavior Trees.Resume: during latent task abort")
+
 
 struct FAITest_BTAbortDuringInstantAbort : public FAITest_SimpleBT
 {

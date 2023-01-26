@@ -14,6 +14,13 @@ struct FBTLatentTaskMemory
 	uint8 bIsAborting : 1;
 };
 
+UENUM()
+enum class EBTTestChangeFlagBehavior : uint8
+{
+	Set,
+	Toggle
+};
+
 UCLASS(meta = (HiddenNode))
 class UTestBTTask_LatentWithFlags : public UBTTaskNode
 {
@@ -56,6 +63,9 @@ public:
 	FName KeyNameAbort = TEXT("Bool2");
 
 	UPROPERTY()
+	EBTTestChangeFlagBehavior ChangeFlagBehavior = EBTTestChangeFlagBehavior::Set;
+
+	UPROPERTY()
 	TEnumAsByte<EBTNodeResult::Type> LogResult = EBTNodeResult::Succeeded;
 
 protected:
@@ -65,4 +75,6 @@ protected:
 	void LogExecution(class UBehaviorTreeComponent& OwnerComp, int32 LogNumber);
 
 	virtual void TickTask(class UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
+
+	void ChangeFlag(UBehaviorTreeComponent& OwnerComp, FName FlagToChange) const;
 };

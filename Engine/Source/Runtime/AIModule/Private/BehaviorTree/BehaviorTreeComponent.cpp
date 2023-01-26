@@ -690,6 +690,16 @@ void UBehaviorTreeComponent::DeactivateBranch(const UBTDecorator& RequestedBy)
 	else if (ensureMsgf(RequestedBy.GetParentNode() && RequestedBy.GetParentNode()->Children.IsValidIndex(RequestedBy.GetChildIndex()), 
 				TEXT("The decorator %s does not have a parent or is not a valid child."), *UBehaviorTreeTypes::DescribeNodeHelper(&RequestedBy)))
 	{
+		const bool bAbortPending = IsAbortPending();
+		if (bAbortPending)
+		{
+			// Branch that caused an abort and still waiting on a latent abort to complete might see its decorators changed again causing a call to DeactivateBranch.
+			// In this particular case we explicitly request the parent composite node to reevaluate without specifying a child index (i.e. RequestedByChildIndex = -1) so it will reevaluate all children.
+			UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("%s, Branch deactivation resulted in a reevaluation of the parent composite node because the abort was pending"), *UBehaviorTreeTypes::DescribeNodeHelper(&RequestedBy));
+			const int32 InstanceIdx = FindInstanceContainingNode(&RequestedBy);
+			RequestExecution(RequestedBy.GetParentNode(), InstanceIdx, &RequestedBy, -1, EBTNodeResult::Aborted);
+		}
+
 		UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("%s, Branch deactivation resulted in aux nodes unregistration"), *UBehaviorTreeTypes::DescribeNodeHelper(&RequestedBy));
 		if (const UBTCompositeNode* BranchRoot = RequestedBy.GetParentNode()->Children[RequestedBy.GetChildIndex()].ChildComposite)
 		{

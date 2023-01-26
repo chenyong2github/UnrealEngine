@@ -206,7 +206,8 @@ struct FBTBuilder
 		int32 ExecuteHalfTicks, /** Num of ticks before 'execute start' and `set execute flag` and then the same num of ticks before `execute finish` */
 		FName ExecuteKeyName, int32 ExecuteLogStart, int32 ExecuteLogFinish,
 		int32 AbortHalfTicks = 0, /** Num of ticks before 'abort start' and `set abort flag` and then the same num of ticks before `abort finish` */
-		FName AbortKeyName = NAME_None, int32 AbortLogStart = 0, int32 AbortLogFinish = 0)
+		FName AbortKeyName = NAME_None, int32 AbortLogStart = 0, int32 AbortLogFinish = 0,
+		EBTTestChangeFlagBehavior ChangeFlagBehavior = EBTTestChangeFlagBehavior::Set)
 	{
 		UTestBTTask_LatentWithFlags* TaskNode = NewObject<UTestBTTask_LatentWithFlags>(ParentNode.GetTreeAsset());
 		TaskNode->ExecuteHalfTicks = ExecuteHalfTicks;
@@ -217,6 +218,7 @@ struct FBTBuilder
 		TaskNode->KeyNameAbort = AbortKeyName;
 		TaskNode->LogIndexAbortStart = AbortLogStart;
 		TaskNode->LogIndexAbortFinish = AbortLogFinish;
+		TaskNode->ChangeFlagBehavior = ChangeFlagBehavior;
 
 		const int32 ChildIdx = ParentNode.Children.AddZeroed(1);
 		ParentNode.Children[ChildIdx].ChildTask = TaskNode;

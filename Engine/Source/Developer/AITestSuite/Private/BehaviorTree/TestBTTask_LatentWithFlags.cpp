@@ -22,7 +22,7 @@ EBTNodeResult::Type UTestBTTask_LatentWithFlags::ExecuteTask(UBehaviorTreeCompon
 	LogExecution(OwnerComp, LogIndexExecuteStart);
 	if (ExecuteHalfTicks == 0)
 	{
-		OwnerComp.GetBlackboardComponent()->SetValueAsBool(KeyNameExecute, true);
+		ChangeFlag(OwnerComp, KeyNameExecute);
 		MyMemory->bFlagSet = true;
 
 		LogExecution(OwnerComp, LogIndexExecuteFinish);
@@ -43,7 +43,7 @@ EBTNodeResult::Type UTestBTTask_LatentWithFlags::AbortTask(UBehaviorTreeComponen
 	LogExecution(OwnerComp, LogIndexAbortStart);
 	if (AbortHalfTicks == 0)
 	{
-		OwnerComp.GetBlackboardComponent()->SetValueAsBool(KeyNameAbort, true);
+		ChangeFlag(OwnerComp, KeyNameAbort);
 		MyMemory->bFlagSet = true;
 
 		LogExecution(OwnerComp, LogIndexAbortFinish);
@@ -62,9 +62,7 @@ void UTestBTTask_LatentWithFlags::TickTask(UBehaviorTreeComponent& OwnerComp, ui
 	if (!MyMemory->bFlagSet && FAITestHelpers::FramesCounter() >= MyMemory->FlagFrameIdx)
 	{
 		MyMemory->bFlagSet = true;
-		OwnerComp.GetBlackboardComponent()->SetValueAsBool(
-			MyMemory->bIsAborting ? KeyNameAbort : KeyNameExecute,
-			true);
+		ChangeFlag(OwnerComp, MyMemory->bIsAborting ? KeyNameAbort : KeyNameExecute);
 	}
 
 	if (FAITestHelpers::FramesCounter() >= MyMemory->EndFrameIdx)
@@ -79,6 +77,19 @@ void UTestBTTask_LatentWithFlags::TickTask(UBehaviorTreeComponent& OwnerComp, ui
 			LogExecution(OwnerComp, LogIndexExecuteFinish);
 			FinishLatentTask(OwnerComp, LogResult);
 		}
+	}
+}
+
+void UTestBTTask_LatentWithFlags::ChangeFlag(UBehaviorTreeComponent& OwnerComp, FName FlagToChange) const
+{
+	switch(ChangeFlagBehavior)
+	{
+		case EBTTestChangeFlagBehavior::Set:
+			OwnerComp.GetBlackboardComponent()->SetValueAsBool(FlagToChange, true);
+			break;
+		case EBTTestChangeFlagBehavior::Toggle:
+			OwnerComp.GetBlackboardComponent()->SetValueAsBool(FlagToChange, !OwnerComp.GetBlackboardComponent()->GetValueAsBool(FlagToChange));
+			break;
 	}
 }
 

@@ -102,9 +102,10 @@ void UBTDecorator::ConditionalFlowAbort(UBehaviorTreeComponent& OwnerComp, EBTDe
 	const bool bPass = WrappedCanExecute(OwnerComp, NodeMemory);
 	const bool bAlwaysRequestWhenPassing = (RequestMode == EBTDecoratorAbortRequest::ConditionPassing);
 
-	UE_VLOG(OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("%s, ConditionalFlowAbort(%s) pass:%d"),
+	UE_VLOG(OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("%s, ConditionalFlowAbort(%s) pass:%s"),
 		*UBehaviorTreeTypes::DescribeNodeHelper(this),
-		bAlwaysRequestWhenPassing ? TEXT("always when passing") : TEXT("on change"));
+		bAlwaysRequestWhenPassing ? TEXT("always when passing") : TEXT("on change"), 
+		*LexToString(bPass));
 
 
 	if (!bPass)
