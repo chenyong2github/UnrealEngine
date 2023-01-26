@@ -2,6 +2,7 @@
 
 #include "BlueprintActionMenuBuilder.h"
 #include "UObject/UnrealType.h"
+#include "BlueprintEditorSettings.h"
 #include "Settings/EditorStyleSettings.h"
 #include "Engine/Blueprint.h"
 #include "Editor/EditorEngine.h"
@@ -351,12 +352,6 @@ namespace FBlueprintActionMenuBuilderImpl
 		TArray<FBlueprintActionInfo> PendingActionList;
 	};
 
-	static TAutoConsoleVariable<float> CVarBPContextMenuTimeSlicingThreshold(
-		TEXT("BP.ContextMenuTimeSlicingThreshold"),
-		0.05f,
-		TEXT("The amount of time (in seconds) allowed per frame for time slicing.")
-	);
-
 #if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 	static TAutoConsoleVariable<bool> CVarBPEnableActionMenuDumpToFile(
 		TEXT("BP.EnableActionMenuDumpToFile"),
@@ -698,7 +693,8 @@ bool FBlueprintActionMenuBuilder::ProcessPendingActions()
 	using namespace FBlueprintActionMenuBuilderImpl;
 
 	bool bProcessedActions = false;
-	double StartTime = FPlatformTime::Seconds();
+	const double StartTime = FPlatformTime::Seconds();
+	const float MaxTimeThresholdSeconds = GetDefault<UBlueprintEditorSettings>()->ContextMenuTimeSlicingThresholdMs / 1000.0f;
 
 	FBlueprintActionInfo* CurrentAction = MenuItemListAddHelper->GetNextAction();
 	while (CurrentAction)
@@ -707,7 +703,6 @@ bool FBlueprintActionMenuBuilder::ProcessPendingActions()
 
 		MakeMenuItems(*CurrentAction);
 
-		const float MaxTimeThresholdSeconds = CVarBPContextMenuTimeSlicingThreshold.GetValueOnGameThread();
 		if ((FPlatformTime::Seconds() - StartTime) < MaxTimeThresholdSeconds)
 		{
 			CurrentAction = MenuItemListAddHelper->GetNextAction();
