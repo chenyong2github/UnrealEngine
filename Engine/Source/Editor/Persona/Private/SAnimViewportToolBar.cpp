@@ -796,7 +796,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateCharacterMenu() const
 
 			UDebugSkelMeshComponent* PreviewComp = Viewport.Pin()->GetPreviewScene()->GetPreviewMeshComponent();
 
-			if(PreviewComp)
+			if(PreviewComp && GetDefault<UPersonaOptions>()->bExposeClothingSceneElementMenu)
 			{
 				InMenuBuilder.AddSubMenu(
 					LOCTEXT("CharacterMenu_ClothingSubMenu", "Clothing"),

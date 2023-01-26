@@ -109,6 +109,10 @@ class UNREALED_API UPersonaOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
+	UPersonaOptions()
+		: bExposeClothingSceneElementMenu(true)
+	{}
+
 	/** Whether or not the floor should be aligned to the Skeletal Mesh's bounds by default for the Animation Editor(s)*/
 	UPROPERTY(EditAnywhere, config, Category = "Preview Scene")
 	uint32 bAutoAlignFloorToMesh : 1;
@@ -284,6 +288,8 @@ public:
 	}
 
 	FNamePermissionList& GetAllowedAnimationEditorTracks() { return AllowedAnimationEditorTracks; }
+
+	bool bExposeClothingSceneElementMenu;
 
 protected:
 	// UObject interface
