@@ -8,6 +8,8 @@
 #include "Trace/Config.h"
 #include "Trace/Trace.h"
 
+#include <atomic>
+
 namespace UE { namespace Trace { class FChannel; } }
 
 #if !defined(COUNTERSTRACE_ENABLED)
@@ -40,7 +42,7 @@ struct FCountersTrace
 	CORE_API static void OutputSetValue(uint16 CounterId, int64 Value);
 	CORE_API static void OutputSetValue(uint16 CounterId, double Value);
 
-	template<typename ValueType, ETraceCounterType CounterType>
+	template<typename ValueType, ETraceCounterType CounterType, typename StoredType = ValueType>
 	class TCounter
 	{
 	public:
@@ -98,13 +100,14 @@ struct FCountersTrace
 		}
 
 	private:
-		ValueType Value;
+		StoredType Value;
 		const TCHAR* CounterName;
 		uint16 CounterId;
 		ETraceCounterDisplayHint CounterDisplayHint;
 	};
 
 	using FCounterInt = TCounter<int64, TraceCounterType_Int>;
+	using FCounterAtomicInt = TCounter<int64, TraceCounterType_Int, std::atomic<int64>>;
 	using FCounterFloat = TCounter<double, TraceCounterType_Float>;
 };
 
@@ -126,8 +129,14 @@ struct FCountersTrace
 #define TRACE_DECLARE_INT_COUNTER(CounterName, CounterDisplayName) \
 	FCountersTrace::FCounterInt PREPROCESSOR_JOIN(__GTraceCounter, CounterName)(CounterDisplayName, TraceCounterDisplayHint_None);
 
+#define TRACE_DECLARE_ATOMIC_INT_COUNTER(CounterName, CounterDisplayName) \
+	FCountersTrace::FCounterAtomicInt PREPROCESSOR_JOIN(__GTraceCounter, CounterName)(CounterDisplayName, TraceCounterDisplayHint_None);
+
 #define TRACE_DECLARE_INT_COUNTER_EXTERN(CounterName) \
 	extern FCountersTrace::FCounterInt PREPROCESSOR_JOIN(__GTraceCounter, CounterName);
+
+#define TRACE_DECLARE_ATOMIC_INT_COUNTER_EXTERN(CounterName) \
+	extern FCountersTrace::FCounterAtomicInt PREPROCESSOR_JOIN(__GTraceCounter, CounterName);
 
 #define TRACE_DECLARE_FLOAT_COUNTER(CounterName, CounterDisplayName) \
 	FCountersTrace::FCounterFloat PREPROCESSOR_JOIN(__GTraceCounter, CounterName)(CounterDisplayName, TraceCounterDisplayHint_None);
@@ -140,6 +149,12 @@ struct FCountersTrace
 
 #define TRACE_DECLARE_MEMORY_COUNTER_EXTERN(CounterName) \
 	TRACE_DECLARE_INT_COUNTER_EXTERN(CounterName)
+
+#define TRACE_DECLARE_ATOMIC_MEMORY_COUNTER(CounterName, CounterDisplayName) \
+	FCountersTrace::FCounterAtomicInt PREPROCESSOR_JOIN(__GTraceCounter, CounterName)(CounterDisplayName, TraceCounterDisplayHint_Memory);
+
+#define TRACE_DECLARE_ATOMIC_MEMORY_COUNTER_EXTERN(CounterName) \
+	TRACE_DECLARE_ATOMIC_INT_COUNTER_EXTERN(CounterName)
 
 #define TRACE_COUNTER_SET(CounterName, Value) \
 	PREPROCESSOR_JOIN(__GTraceCounter, CounterName).Set(Value);
@@ -163,10 +178,14 @@ struct FCountersTrace
 #define TRACE_MEMORY_VALUE(CounterDisplayName, Value)
 #define TRACE_DECLARE_INT_COUNTER(CounterName, CounterDisplayName)
 #define TRACE_DECLARE_INT_COUNTER_EXTERN(CounterName)
+#define TRACE_DECLARE_ATOMIC_INT_COUNTER(CounterName, CounterDisplayName)
+#define TRACE_DECLARE_ATOMIC_INT_COUNTER_EXTERN(CounterName)
 #define TRACE_DECLARE_FLOAT_COUNTER(CounterName, CounterDisplayName)
 #define TRACE_DECLARE_FLOAT_COUNTER_EXTERN(CounterName)
 #define TRACE_DECLARE_MEMORY_COUNTER(CounterName, CounterDisplayName)
 #define TRACE_DECLARE_MEMORY_COUNTER_EXTERN(CounterName)
+#define TRACE_DECLARE_ATOMIC_MEMORY_COUNTER(CounterName, CounterDisplayName)
+#define TRACE_DECLARE_ATOMIC_MEMORY_COUNTER_EXTERN(CounterName)
 #define TRACE_COUNTER_SET(CounterName, Value)
 #define TRACE_COUNTER_ADD(CounterName, Value)
 #define TRACE_COUNTER_SUBTRACT(CounterName, Value)

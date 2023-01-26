@@ -52,12 +52,12 @@
 namespace UE::DerivedData
 {
 
-TRACE_DECLARE_INT_COUNTER(FileSystemDDC_Get, TEXT("FileSystemDDC Get"));
-TRACE_DECLARE_INT_COUNTER(FileSystemDDC_GetHit, TEXT("FileSystemDDC Get Hit"));
-TRACE_DECLARE_INT_COUNTER(FileSystemDDC_Put, TEXT("FileSystemDDC Put"));
-TRACE_DECLARE_INT_COUNTER(FileSystemDDC_PutHit, TEXT("FileSystemDDC Put Hit"));
-TRACE_DECLARE_INT_COUNTER(FileSystemDDC_BytesRead, TEXT("FileSystemDDC Bytes Read"));
-TRACE_DECLARE_INT_COUNTER(FileSystemDDC_BytesWritten, TEXT("FileSystemDDC Bytes Written"));
+TRACE_DECLARE_ATOMIC_INT_COUNTER(FileSystemDDC_Get, TEXT("FileSystemDDC Get"));
+TRACE_DECLARE_ATOMIC_INT_COUNTER(FileSystemDDC_GetHit, TEXT("FileSystemDDC Get Hit"));
+TRACE_DECLARE_ATOMIC_INT_COUNTER(FileSystemDDC_Put, TEXT("FileSystemDDC Put"));
+TRACE_DECLARE_ATOMIC_INT_COUNTER(FileSystemDDC_PutHit, TEXT("FileSystemDDC Put Hit"));
+TRACE_DECLARE_ATOMIC_INT_COUNTER(FileSystemDDC_BytesRead, TEXT("FileSystemDDC Bytes Read"));
+TRACE_DECLARE_ATOMIC_INT_COUNTER(FileSystemDDC_BytesWritten, TEXT("FileSystemDDC Bytes Written"));
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
