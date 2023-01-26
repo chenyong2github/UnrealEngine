@@ -289,6 +289,9 @@ void FClothConstraints::CreateBendingConstraints(
 				DampingMultipliers,
 				ConfigProperties,
 				/*bTrimKinematicConstraints =*/ true);
+
+			++NumConstraintInits;  // Uses init to update the property tables
+			++NumConstraintRules;
 		}
 		else if (Softs::FPBDBendingSpringConstraints::IsEnabled(ConfigProperties))
 		{
@@ -303,9 +306,10 @@ void FClothConstraints::CreateBendingConstraints(
 				BendingStiffnessMultipliers,
 				ConfigProperties,
 				/*bTrimKinematicConstraints =*/ true);
+
+			++NumConstraintInits;  // Uses init to update the property tables
+			++NumConstraintRules;
 		}
-		++NumConstraintInits;  // Uses init to update the property tables
-		++NumConstraintRules;
 	}
 }
 
