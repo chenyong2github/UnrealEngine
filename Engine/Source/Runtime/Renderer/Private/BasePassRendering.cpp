@@ -1370,7 +1370,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				RasterResults.VisBuffer64,
 				VelocityBuffer,
 				RasterResults.MaterialDepth,
-				RasterResults.MaterialResolve,
+				RasterResults.ShadingMask,
 				bEmitStencilMask
 			);
 		}

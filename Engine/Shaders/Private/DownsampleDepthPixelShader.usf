@@ -14,7 +14,7 @@
 #define DOWNSAMPLE_DEPTH_FILTER_MAX			1
 #define DOWNSAMPLE_DEPTH_FILTER_CBMINMAX	2
 
-Texture2D<uint2> NaniteMaterialResolve;
+Texture2D<uint> NaniteShadingMask;
 Texture2D<float> DepthTexture;
 float2 DestinationTexelSize;
 float2 SourceMaxUV;
@@ -107,12 +107,12 @@ void CopyStencilToLightingChannelsPS(
 	uint HasDistanceFieldRepresentationMask = 0;
 
 #if NANITE_COMPOSITE
-	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(NaniteMaterialResolve.Load(uint3(IntUV, 0)));
+	FShadingMask UnpackedMask = UnpackShadingMask(NaniteShadingMask.Load(uint3(IntUV, 0)));
 	BRANCH
-	if (ResolvedMaterial.bIsNanitePixel)
+	if (UnpackedMask.bIsNanitePixel)
 	{
-		LightingChannels = ResolvedMaterial.LightingChannels;
-		HasDistanceFieldRepresentationMask = (select(ResolvedMaterial.bHasDistanceField, 1u, 0u) << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT);
+		LightingChannels = UnpackedMask.LightingChannels;
+		HasDistanceFieldRepresentationMask = (select(UnpackedMask.bHasDistanceField, 1u, 0u) << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT);
 	}
 	else
 #endif

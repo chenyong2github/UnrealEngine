@@ -13,7 +13,7 @@
 Texture2D<UlongType> VisBuffer64;
 ByteAddressBuffer MaterialSlotTable;
 ByteAddressBuffer MaterialDepthTable;
-Texture2D<uint2> MaterialResolve;
+Texture2D<uint> ShadingMask;
 
 RWBuffer<uint> MaterialIndirectArgs;
 RWStructuredBuffer<uint> MaterialTileRemap;
@@ -56,25 +56,21 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 	for (uint BlockY = 0; BlockY < 64u; BlockY += 16)
 	{
 		// Overlap all 4 loads for BlockX
-		uint2 MaterialResolveData[4];
+		uint ShadingMaskData[4];
 		UNROLL
 		for (uint i = 0; i < 4; i++)
 		{
 			const uint2 FetchPos = min(GroupPixelStart + uint2(i * 16, BlockY), FetchClamp);
-			MaterialResolveData[i] = MaterialResolve[FetchPos]; 
+			ShadingMaskData[i] = ShadingMask[FetchPos]; 
 		}
 
 		uint PrevShadingBin = ~0u;
 		for (uint i = 0; i < 4; i++)
 		{
-			FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolveData[i]);
-		#if LEGACY_CULLING
-			uint ShadingBin = ResolvedMaterial.LegacyShadingId;
-		#else
-			uint ShadingBin = ResolvedMaterial.ShadingBin;
-		#endif
-			
-			if (ResolvedMaterial.bIsNanitePixel && ShadingBin != PrevShadingBin)	// Skip if it is a shading bin we have already processed
+			FShadingMask UnpackedMask = UnpackShadingMask(ShadingMaskData[i]);
+			uint ShadingBin = UnpackedMask.ShadingBin;
+
+			if (UnpackedMask.bIsNanitePixel && ShadingBin != PrevShadingBin) // Skip if it is a shading bin we have already processed
 			{
 				bool bWrite = false;
 

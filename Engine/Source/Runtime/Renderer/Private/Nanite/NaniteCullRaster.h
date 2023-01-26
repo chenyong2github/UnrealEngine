@@ -147,7 +147,7 @@ struct FRasterResults
 	FRDGTextureRef	DbgBuffer32{};
 
 	FRDGTextureRef	MaterialDepth{};
-	FRDGTextureRef	MaterialResolve{};
+	FRDGTextureRef	ShadingMask{};
 
 	FNaniteVisibilityResults VisibilityResults;
 

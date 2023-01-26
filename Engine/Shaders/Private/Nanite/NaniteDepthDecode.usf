@@ -15,7 +15,7 @@ uint4 HTileConfig;
 
 Texture2D<float> SceneDepth;
 
-Texture2D<uint2>   MaterialResolve;
+Texture2D<uint>   ShadingMask;
 ByteAddressBuffer MaterialDepthTable;
 
 StructuredBuffer<uint> SceneHTileBuffer;
@@ -57,9 +57,9 @@ void DepthDecode(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 		const float2 MaterialTileMinMax		= MaterialTileMinMaxFP / (float2)((1 << 14) - 1); // 14bit fixed point
 		const uint MaterialTileZMask		= BitFieldExtractU32(MaterialHTileEnc, 4u, 0u);
 
-		FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PixelPos.xy]);
+		FShadingMask UnpackedMask = UnpackShadingMask(ShadingMask[PixelPos.xy]);
 
-		const uint MaterialDepthId = GetMaterialDepthId(ResolvedMaterial.LegacyShadingId, MaterialDepthTable);
+		const uint MaterialDepthId = GetMaterialDepthId(UnpackedMask.ShadingBin, MaterialDepthTable);
 		MaterialZDecoded[PixelPos.xy] = asfloat(MaterialDepthId);
 
 		// Raw, Packed Min/Max, ZMask, TileIndex

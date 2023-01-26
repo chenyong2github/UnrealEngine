@@ -21,8 +21,7 @@ Texture2D<float>		SceneZDecoded;
 Texture2D<uint4>		SceneZLayout;
 Texture2D<float>		MaterialZDecoded;
 Texture2D<uint4>		MaterialZLayout;
-Texture2D<uint2>		MaterialResolve;
-Texture2D<uint>			MaterialComplexity;
+Texture2D<uint>			ShadingMask;
 
 ByteAddressBuffer		MaterialSlotTable;
 ByteAddressBuffer		MaterialDepthTable;
@@ -137,7 +136,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 
 	FNaniteView NaniteView = GetNaniteView( 0 );
 
-	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PixelPos]);
+	FShadingMask UnpackedMask = UnpackShadingMask(ShadingMask[PixelPos]);
 
 	float3 Result = float3(0, 0, 0);
 	float3 OutlineColor = 1;
@@ -146,7 +145,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 	bool bDarkOutline = false;
 	bool bApplySobel = true;
 
-	if (VisibleClusterIndex != 0xFFFFFFFF && (!GetCompositeWithSceneDepth() || ResolvedMaterial.bIsNanitePixel))
+	if (VisibleClusterIndex != 0xFFFFFFFF && (!GetCompositeWithSceneDepth() || UnpackedMask.bIsNanitePixel))
 	{
 		// Nanite Pixel
 
@@ -156,11 +155,11 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		UnpackDbgPixel(DbgPixel, DebugDepthInt, DebugValueMax);
 		uint DebugValueAdd = DbgBuffer32[PixelPos];
 
-		FVisibleCluster VisibleCluster           = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData          = GetInstanceSceneData(VisibleCluster, false);
-		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-		FPrimitiveSceneData PrimitiveData        = GetPrimitiveData(InstanceData.PrimitiveId);
-		FCluster Cluster                         = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+		FVisibleCluster VisibleCluster				= GetVisibleCluster(VisibleClusterIndex);
+		FInstanceSceneData InstanceData				= GetInstanceSceneData(VisibleCluster, false);
+		FInstanceDynamicData InstanceDynamicData	= CalculateInstanceDynamicData(NaniteView, InstanceData);
+		FPrimitiveSceneData PrimitiveData			= GetPrimitiveData(InstanceData.PrimitiveId);
+		FCluster Cluster							= GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 		const uint3 TriIndices = DecodeTriangleIndices(Cluster, TriIndex, false);
 
@@ -271,19 +270,9 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_DEPTH)
 		{
-			//const uint LegacyShadingId = GetMaterialLegacyShadingId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
-			const uint LegacyShadingId = ResolvedMaterial.LegacyShadingId;
-			const uint MaterialDepthId = GetMaterialDepthId(LegacyShadingId, MaterialDepthTable);
+			const uint MaterialDepthId = GetMaterialDepthId(UnpackedMask.ShadingBin, MaterialDepthTable);
 			Result = IntToColor(MaterialDepthId);
 		}
-		/*else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_COMPLEXITY)
-		{
-			const uint TileMaterialCount = MaterialComplexity[TilePos];
-			const float ComplexityScale = GetComplexityScale();
-			const float ComplexityCount = TileMaterialCount; // Num of unique materials per tile
-			const float ComplexityColor = 1.0f - exp2(-ComplexityCount * ComplexityScale);
-			Result = ColorMapTurbo(ComplexityColor);
-		}*/
 		else if (VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MIN || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MAX || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_DELTA)// || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MASK)
 		{
 			const uint4 ZLayout = SceneZLayout[PixelPos];
@@ -470,7 +459,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		}
 	}
 
-	if (bApplySobel && ShouldApplySobelFilter() && (!GetCompositeWithSceneDepth() || ResolvedMaterial.bIsNanitePixel))
+	if (bApplySobel && ShouldApplySobelFilter() && (!GetCompositeWithSceneDepth() || UnpackedMask.bIsNanitePixel))
 	{
 		Result = ApplySobelFilter(PixelPos, DepthInt, Result, OutlineColor, bDarkOutline);
 	}
@@ -496,9 +485,9 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 
 	FNaniteView NaniteView = GetNaniteView(0);
 
-	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PickingPos]);
+	FShadingMask UnpackedMask = UnpackShadingMask(ShadingMask[PickingPos]);
 
-	if (VisibleClusterIndex != 0xFFFFFFFFu && ResolvedMaterial.bIsNanitePixel)
+	if (VisibleClusterIndex != 0xFFFFFFFFu && UnpackedMask.bIsNanitePixel)
 	{
 		UlongType DbgPixel = DbgBuffer64[PickingPos];
 		uint DebugDepthInt;
@@ -526,9 +515,9 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		FeedbackResults.RasterMode			= DebugValueMax;
 		FeedbackResults.RasterBin			= GetMaterialRasterBin(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterBinCount, bSecondaryRasterBin, MaterialSlotTable);
 		FeedbackResults.ShadingBin			= GetMaterialShadingBin(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
-		FeedbackResults.LegacyShadingId		= ResolvedMaterial.LegacyShadingId;
+		FeedbackResults.LegacyShadingId		= GetMaterialLegacyShadingId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		FeedbackResults.MaterialDepthId		= GetMaterialDepthId(FeedbackResults.LegacyShadingId, MaterialDepthTable);
 		FeedbackResults.MaterialIndex		= GetRelativeMaterialIndex(Cluster, TriIndex);
-		FeedbackResults.MaterialDepthId		= GetMaterialDepthId(ResolvedMaterial.LegacyShadingId, MaterialDepthTable);
 		FeedbackResults.MaterialCount		= GetMaterialCount(Cluster);
 		FeedbackResults.MaterialMode		= IsMaterialFastPath(Cluster) ? 0u : 1u;
 		FeedbackResults.HierarchyOffset		= InstanceData.NaniteHierarchyOffset;

@@ -462,8 +462,8 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint3 GroupID : SV_GroupID, uint3 
 	uint ShadingRate = D3D12_SHADING_RATE_1X1;
 
 #if IS_NANITE_PASS
-	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(Nanite.MaterialResolve[PixelPos]);
-	if (!ResolvedMaterial.bIsNanitePixel || ShadingBin != ResolvedMaterial.ShadingBin)
+	FShadingMask UnpackedMask = UnpackShadingMask(Nanite.ShadingMask[PixelPos]);
+	if (!UnpackedMask.bIsNanitePixel || ShadingBin != UnpackedMask.ShadingBin)
 	{
 		// TODO: Need to handle inactive "helper lanes" in this case..
 		// Leaves black artifacts around edges of Nanite meshes that render on top of non-Nanite

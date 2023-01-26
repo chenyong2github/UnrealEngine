@@ -579,18 +579,16 @@ bool IsMaterialProgrammable(FNaniteMaterialFlags MaterialFlags)
 	return IsMaterialVertexProgrammable(MaterialFlags) || IsMaterialPixelProgrammable(MaterialFlags);
 }
 
-struct FResolvedMaterial
+struct FShadingMask
 {
 	bool bIsNanitePixel;
 	bool bIsDecalReceiver;
 	bool bHasDistanceField;
 	uint LightingChannels;
 	uint ShadingBin;
-	uint LegacyShadingId;
 };
 
-uint2 PackMaterialResolve(
-	uint LegacyShadingId,
+uint PackShadingMask(
 	uint ShadingBin,
 	bool bIsDecalReceiver,
 	bool bHasDistanceField,
@@ -601,21 +599,20 @@ uint2 PackMaterialResolve(
 	Packed |= (BitFieldMaskU32(14, 4) & (ShadingBin << 4u));
 	Packed |= select(bIsDecalReceiver, 1u << 18u, 0u);
 	Packed |= select(bHasDistanceField, 1u << 19u, 0u);
-	return uint2(Packed, LegacyShadingId);
+	return Packed;
 }
 
-FResolvedMaterial UnpackMaterialResolve(uint2 Packed)
+FShadingMask UnpackShadingMask(uint Packed)
 {
-	FResolvedMaterial Resolved;
+	FShadingMask UnpackedMask;
 
-	Resolved.bIsNanitePixel		= BitFieldExtractU32(Packed.x,  1,  0) != 0;
-	Resolved.LightingChannels	= BitFieldExtractU32(Packed.x,  3,  1);
-	Resolved.ShadingBin			= BitFieldExtractU32(Packed.x, 14,  4);
-	Resolved.bIsDecalReceiver	= BitFieldExtractU32(Packed.x,  1, 18) != 0;
-	Resolved.bHasDistanceField	= BitFieldExtractU32(Packed.x,  1, 19) != 0;
-	Resolved.LegacyShadingId	= Packed.y; // TODO: Remove
+	UnpackedMask.bIsNanitePixel		= BitFieldExtractU32(Packed.x,  1,  0) != 0;
+	UnpackedMask.LightingChannels	= BitFieldExtractU32(Packed.x,  3,  1);
+	UnpackedMask.ShadingBin			= BitFieldExtractU32(Packed.x, 14,  4);
+	UnpackedMask.bIsDecalReceiver	= BitFieldExtractU32(Packed.x,  1, 18) != 0;
+	UnpackedMask.bHasDistanceField	= BitFieldExtractU32(Packed.x,  1, 19) != 0;
 
-	return Resolved;
+	return UnpackedMask;
 }
 
 void UnpackVisPixel(

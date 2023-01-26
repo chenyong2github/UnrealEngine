@@ -9,12 +9,11 @@
 
 Texture2D<UlongType> VisBuffer64;
 Texture2D<float> SceneDepth;
-Texture2D<uint2> MaterialResolve;
+Texture2D<uint> ShadingMask;
 ByteAddressBuffer MaterialSlotTable;
 ByteAddressBuffer MaterialDepthTable;
 ByteAddressBuffer MaterialEditorTable;
 ByteAddressBuffer MaterialHitProxyTable;
-RWTexture2D<uint> MaterialComplexity;
 
 // .xy = min, .zw = max
 uint4 ViewRect;
@@ -170,8 +169,8 @@ void ExportDebugViewPS(
 			FInstanceDynamicData InstanceDynamicData	= CalculateInstanceDynamicData(NaniteView, InstanceData);
 			FCluster Cluster							= GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
-			FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PixelPos]);
-			const uint MaterialEditorData = GetMaterialDepthId(ResolvedMaterial.LegacyShadingId, MaterialEditorTable);
+			FShadingMask UnpackedMask = UnpackShadingMask(ShadingMask[PixelPos]);
+			const uint MaterialEditorData = GetMaterialDepthId(UnpackedMask.ShadingBin, MaterialEditorTable);
 
 			BRANCH
 			if (DebugViewMode == DEBUG_VIEW_WIREFRAME)

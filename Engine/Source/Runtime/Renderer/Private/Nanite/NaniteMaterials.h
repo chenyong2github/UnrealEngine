@@ -490,7 +490,7 @@ void EmitDepthTargets(
 	FRDGTextureRef VisBuffer64,
 	FRDGTextureRef VelocityBuffer,
 	FRDGTextureRef& OutMaterialDepth,
-	FRDGTextureRef& OutMaterialResolve,
+	FRDGTextureRef& OutShadingMask,
 	bool bStencilMask
 );
 

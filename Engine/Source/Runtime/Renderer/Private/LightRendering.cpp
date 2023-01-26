@@ -2897,7 +2897,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float>, SceneStencilTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, NaniteMaterialResolve)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, NaniteShadingMask)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -2926,7 +2926,7 @@ IMPLEMENT_GLOBAL_SHADER(FCopyStencilToLightingChannelsPS, "/Engine/Private/Downs
 FRDGTextureRef FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTexture(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureSRVRef SceneStencilTexture,
-	const TArrayView<FRDGTextureRef> NaniteResolveTextures
+	const TArrayView<FRDGTextureRef> NaniteShadingMasks
 )
 {
 	bool bNeedToCopyStencilToTexture = false;
@@ -2955,7 +2955,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTextur
 
 		const ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ENoAction;
 
-		const bool bNaniteComposite = NaniteResolveTextures.Num() == Views.Num();
+		const bool bNaniteComposite = NaniteShadingMasks.Num() == Views.Num();
 
 		for (int32 ViewIndex = 0, ViewCount = Views.Num(); ViewIndex < ViewCount; ++ViewIndex)
 		{
@@ -2966,13 +2966,13 @@ FRDGTextureRef FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTextur
 			auto* PassParameters = GraphBuilder.AllocParameters<FCopyStencilToLightingChannelsPS::FParameters>();
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(LightingChannelsTexture, View.DecayLoadAction(LoadAction));
 			PassParameters->SceneStencilTexture = SceneStencilTexture;
-			PassParameters->NaniteMaterialResolve = bNaniteComposite ? NaniteResolveTextures[ViewIndex] : nullptr;
+			PassParameters->NaniteShadingMask = bNaniteComposite ? NaniteShadingMasks[ViewIndex] : nullptr;
 			PassParameters->View = View.ViewUniformBuffer;
 
 			const FScreenPassTextureViewport Viewport(LightingChannelsTexture, View.ViewRect);
 
 			FCopyStencilToLightingChannelsPS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FCopyStencilToLightingChannelsPS::FNaniteCompositeDim>(PassParameters->NaniteMaterialResolve != nullptr);
+			PermutationVector.Set<FCopyStencilToLightingChannelsPS::FNaniteCompositeDim>(PassParameters->NaniteShadingMask != nullptr);
 			TShaderMapRef<FCopyStencilToLightingChannelsPS> PixelShader(View.ShaderMap, PermutationVector);
 
 			AddDrawScreenPass(GraphBuilder, {}, View, Viewport, Viewport, PixelShader, PassParameters);

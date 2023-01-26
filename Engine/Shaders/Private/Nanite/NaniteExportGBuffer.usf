@@ -18,7 +18,9 @@ uint StencilDecal;
 uint bWriteCustomStencil; // only used to repurpose EmitSceneDepthStencilPS for custom depth/stencil where possible
 
 Texture2D<UlongType> VisBuffer64;
-Texture2D<uint2> MaterialResolve;
+#if SHADING_MASK
+Texture2D<uint> ShadingMask;
+#endif
 StructuredBuffer<uint> MaterialTileRemap;
 
 // These are only used for custom depth/stencil output
@@ -67,12 +69,12 @@ void EmitMaterialDepthPS(
 )
 {
 	const uint2 PixelPos = (uint2)SvPosition.xy;
-	uint LegacyShadingId = 0;
+	uint ShadingBin = 0;
 
-#if MATERIAL_RESOLVE
-	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PixelPos]);
-	const bool bIsNanitePixel = ResolvedMaterial.bIsNanitePixel;
-	LegacyShadingId = ResolvedMaterial.LegacyShadingId;
+#if SHADING_MASK
+	FShadingMask UnpackedMask = UnpackShadingMask(ShadingMask[PixelPos]);
+	const bool bIsNanitePixel = UnpackedMask.bIsNanitePixel;
+	ShadingBin = UnpackedMask.ShadingBin;
 #else
 	UlongType VisPixel  = VisBuffer64[PixelPos];
 
@@ -87,14 +89,18 @@ void EmitMaterialDepthPS(
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster, false );
 		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-		LegacyShadingId = GetMaterialLegacyShadingId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+	#if LEGACY_CULLING
+		ShadingBin = GetMaterialLegacyShadingId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+	#else
+		ShadingBin = GetMaterialShadingBin(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+	#endif
 	}
 #endif
 
 	if (bIsNanitePixel)
 	{
 		// Export material depth ID as SV_Depth.
-		const uint MaterialDepthId = GetMaterialDepthId(LegacyShadingId, MaterialDepthTable);
+		const uint MaterialDepthId = GetMaterialDepthId(ShadingBin, MaterialDepthTable);
 		OutDepth = asfloat(MaterialDepthId | DummyZero); // Workaround for bug on Geforce 2080Ti. It seems the issue might be related to writing directly to OutDepth in a buffer load instruction.
 	}
 	else
@@ -105,8 +111,8 @@ void EmitMaterialDepthPS(
 
 void EmitSceneDepthPS(
 	in float4  SvPosition			: SV_Position,
-#if MATERIAL_RESOLVE
-	out uint2   OutMaterialResolve	: SV_Target0,
+#if SHADING_MASK
+	out uint   OutShadingMask		: SV_Target0,
 #endif
 #if VELOCITY_EXPORT
 	out float4 OutVelocity			: SV_Target1,
@@ -129,25 +135,27 @@ void EmitSceneDepthPS(
 
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
-	#if VELOCITY_EXPORT || MATERIAL_RESOLVE
+	#if VELOCITY_EXPORT || SHADING_MASK
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 	#endif
 
-	#if MATERIAL_RESOLVE
+#if SHADING_MASK
 		const FCluster ClusterData		= GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-		const uint LegacyShadingId		= GetMaterialLegacyShadingId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+	#if LEGACY_CULLING
+		const uint ShadingBin			= GetMaterialLegacyShadingId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+	#else
 		const uint ShadingBin			= GetMaterialShadingBin(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+	#endif
 		const bool bIsDecalReceiver		= (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
 		const bool bHasDistanceField	= (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_DISTANCE_FIELD_REPRESENTATION) != 0;
-		OutMaterialResolve = PackMaterialResolve(
-			LegacyShadingId,
+		OutShadingMask = PackShadingMask(
 			ShadingBin,
 			bIsDecalReceiver,
 			bHasDistanceField,
 			GetPrimitive_LightingChannelMask_FromFlags(GetPrimitiveData(InstanceData.PrimitiveId).Flags)
 		);
-	#endif
+#endif
 
 	#if VELOCITY_EXPORT
 		// Don't output velocity here for WPO clusters, as their velocity must be calculated in the base pass
@@ -181,6 +189,8 @@ void EmitSceneDepthPS(
 	}
 }
 
+#if SHADING_MASK
+
 void EmitSceneStencilPS(
 	in float4 SvPosition	: SV_Position,
 	out float OutDepth		: SV_Depth
@@ -188,10 +198,10 @@ void EmitSceneStencilPS(
 {
 	const uint2 PixelPos = (uint2)SvPosition.xy;
 
-	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PixelPos]);
+	FShadingMask UnpackedMask = UnpackShadingMask(ShadingMask[PixelPos]);
 
 	BRANCH
-	if (ResolvedMaterial.bIsNanitePixel && ResolvedMaterial.bIsDecalReceiver)
+	if (UnpackedMask.bIsNanitePixel && UnpackedMask.bIsDecalReceiver)
 	{
 		UlongType VisPixel = VisBuffer64[PixelPos];
 		uint DepthInt = 0;
@@ -207,88 +217,7 @@ void EmitSceneStencilPS(
 	}
 }
 
-void EmitSceneDepthStencilPS
-(
-	in float4  SvPosition			: SV_Position,
-	out uint2   OutMaterialResolve	: SV_Target0,
-#if VELOCITY_EXPORT
-	out float4 OutVelocity			: SV_Target1,
 #endif
-	out float  OutDepth				: SV_Depth,
-	out uint   OutStencil			: SV_StencilRef // Requires GRHISupportsStencilRefFromPixelShader
-)
-{
-	uint2 PixelPos = (uint2)SvPosition.xy;
-	UlongType VisPixel = VisBuffer64[PixelPos];
-
-#if VELOCITY_EXPORT
-	FNaniteView NaniteView = GetNaniteView(0);
-	ResolvedView = ResolveView();
-#endif
-
-	uint DepthInt = 0;
-	uint VisibleClusterIndex = 0;
-	uint TriIndex = 0;
-	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
-
-	if (VisibleClusterIndex != 0xFFFFFFFF)
-	{
-		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
-		const FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
-		const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-		const uint LegacyShadingId = GetMaterialLegacyShadingId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
-		const uint ShadingBin = GetMaterialShadingBin(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
-		const bool bIsDecalReceiver = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
-		const bool bHasDistanceField = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_DISTANCE_FIELD_REPRESENTATION) != 0;
-
-#if VELOCITY_EXPORT
-		// Don't output velocity here for WPO clusters, as their velocity must be calculated in the base pass
-		const bool bWPOEnabled = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
-		const bool bOutputVelocity = !bWPOEnabled && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0;
-		if (bOutputVelocity)
-		{
-			FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-
-			const float4 ScreenPos = SvPositionToScreenPosition(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
-			const FLWCVector3 WorldPos  = SvPositionToWorld(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
-			const float3 LocalPos  = LWCMultiply(WorldPos, InstanceData.WorldToLocal);
-
-			const float3 WorldPosPrev = mul(float4(LocalPos, 1), InstanceDynamicData.PrevLocalToTranslatedWorld).xyz;
-			const float4 ScreenPosPrev = mul(float4(WorldPosPrev, 1), NaniteView.PrevTranslatedWorldToClip);
-		
-			const float3 Velocity = Calculate3DVelocity(ScreenPos, ScreenPosPrev);
-			OutVelocity = EncodeVelocityToTexture(Velocity);
-		}
-		else
-		{
-			OutVelocity = 0;
-		}
-#endif
-
-		OutDepth = asfloat(DepthInt);
-		OutMaterialResolve = PackMaterialResolve(
-			LegacyShadingId,
-			ShadingBin,
-			bIsDecalReceiver,
-			bHasDistanceField,
-			GetPrimitive_LightingChannelMask_FromFlags(PrimitiveData.Flags)
-		);
-
-		if (bWriteCustomStencil)
-		{
-			OutStencil = GetCustomStencilValue(PrimitiveData);
-		}
-		else
-		{
-			OutStencil = select(bIsDecalReceiver, StencilDecal, StencilClear);
-		}
-	}
-	else
-	{
-		discard;
-	}
-}
 
 void EmitCustomDepthStencilPS
 (
@@ -444,9 +373,9 @@ void EmitEditorLevelInstanceDepthPS(
 
 #if USE_EDITOR_SHADERS
 	uint2 PixelPos = (uint2)(SvPosition.xy * OutputToInputScale + OutputToInputBias);
-	FResolvedMaterial ResolvedMaterial = UnpackMaterialResolve(MaterialResolve[PixelPos]);
+	FShadingMask UnpackedMask = UnpackShadingMask(ShadingMask[PixelPos]);
 	
-	if (!ResolvedMaterial.bIsNanitePixel)
+	if (!UnpackedMask.bIsNanitePixel)
 	{
 		discard;
 	}
