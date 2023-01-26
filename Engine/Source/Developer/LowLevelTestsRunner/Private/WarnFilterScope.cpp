@@ -26,7 +26,7 @@ namespace UE::Testing
 		{
 			if (!Handler(V, Verbosity, Category))
 			{
-				OldFeedback->Serialize(V, Verbosity, Category);
+				OldFeedback->Serialize(V, Verbosity, Category, Time);
 			}
 		}
 

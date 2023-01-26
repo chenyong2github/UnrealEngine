@@ -16,6 +16,8 @@ namespace UE::Testing
 	{
 		/// @param LogHandler function to filter log messages. returning true filters message from log file
 		FWarnFilterScope(TFunction<bool(const TCHAR* Message, ELogVerbosity::Type Verbosity, const FName& Category)> LogHandler);
+		FWarnFilterScope(const FWarnFilterScope&) = delete;
+		FWarnFilterScope& operator=(const FWarnFilterScope&) = delete;
 
 		~FWarnFilterScope();
 	private:
