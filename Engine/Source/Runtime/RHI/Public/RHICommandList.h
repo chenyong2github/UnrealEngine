@@ -5873,4 +5873,4 @@ namespace UE::RHI
 
 #undef RHICOMMAND_CALLSTACK
 
-#include "RHICommandList.inl" // IWYU pragma: export
+#include "RHICommandList.inl"

@@ -452,7 +452,7 @@ extern RHI_API int32 GDrawUPVertexCheckCount;
  */
 extern RHI_API int32 GDrawUPIndexCheckCount;
 
-#include "MultiGPU.h" // IWYU pragma: export
+#include "MultiGPU.h"
 
 /** Whether the next frame should profile the GPU. */
 extern RHI_API bool GTriggerGPUProfile;
@@ -1183,8 +1183,8 @@ struct FRHIDrawIndexedIndirectParameters
 };
 
 // RHI base resource types.
-#include "RHIResources.h" // IWYU pragma: keep
-#include "DynamicRHI.h" // IWYU pragma: keep
+#include "RHIResources.h"
+#include "DynamicRHI.h"
 
 /** Initializes the RHI. */
 extern RHI_API void RHIInit(bool bHasEditorToken);
@@ -1201,7 +1201,7 @@ DECLARE_DELEGATE_OneParam(FRHIPanicEvent, const FName&);
 extern RHI_API FRHIPanicEvent& RHIGetPanicDelegate();
 
 // RHI utility functions that depend on the RHI definitions.
-#include "RHIUtilities.h" // IWYU pragma: keep
+#include "RHIUtilities.h"
 
 // Return what the expected number of samplers will be supported by a feature level
 // Note that since the Feature Level is pretty orthogonal to the RHI/HW, this is not going to be perfect

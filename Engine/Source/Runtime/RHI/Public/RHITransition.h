@@ -7,7 +7,7 @@
 #include "RHIAccess.h"
 #include "RHIPipeline.h"
 
-#include "RHIValidationCommon.h" // IWYU pragma: export
+#include "RHIValidationCommon.h"
 
 // The size in bytes of the storage required by the platform RHI for each resource transition.
 extern RHI_API uint64 GRHITransitionPrivateData_SizeInBytes;
