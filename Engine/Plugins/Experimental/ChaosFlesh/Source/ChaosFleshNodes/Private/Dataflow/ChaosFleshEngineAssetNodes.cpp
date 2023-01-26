@@ -20,7 +20,6 @@ namespace Dataflow
 	{
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetFleshAssetDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFleshAssetTerminalDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FImportFleshDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FComputeFleshMassNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FComputeFiberFieldNode);
 	}
@@ -57,24 +56,6 @@ void FFleshAssetTerminalDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 	const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 	SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 }
-
-void FImportFleshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FManagedArrayCollection>(&Collection))
-	{
-		FString TempFileName = Filename.FilePath;
-		TempFileName = TempFileName.Replace(TEXT("\\"), TEXT("/"));
-		if (TUniquePtr<FFleshCollection> FleshCollection = ChaosFlesh::ImportTetFromFile(TempFileName))
-		{
-			SetValue<FManagedArrayCollection>(Context, *FleshCollection.Release(), &Collection);
-		}
-		else
-		{
-			SetValue<FManagedArrayCollection>(Context, Collection, &Collection);
-		}
-	}
-}
-
 
 template <class T> using MType = FManagedArrayCollection::TManagedType<T>;
 

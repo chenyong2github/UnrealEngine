@@ -23,7 +23,6 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FKinematicInitializationDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FKinematicTetrahedralBindingsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetVerticesKinematicDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBinVerticesDataflowNode);
 	}
 }
 
@@ -243,38 +242,5 @@ void FSetVerticesKinematicDataflowNode::Evaluate(Dataflow::FContext& Context, co
 			Kinematics.AddKinematicBinding(Kinematics.SetBoneBindings(INDEX_NONE, BoundVerts, BoundWeights));
 		}
 		SetValue<DataType>(Context, InCollection, &Collection);
-	}
-}
-
-
-void FBinVerticesDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<DataType>(&VertexIndicesOut))
-	{	
-		TArray<int32> VertexArray;
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-		FString TempFileName = Filename;
-		TempFileName = TempFileName.Replace(TEXT("\\"), TEXT("/"));
-		if (TUniquePtr<FFleshCollection> FleshCollection = ChaosFlesh::ImportTetFromFile(TempFileName))
-		{	
-			TManagedArray<FVector3f>* VerticesBin = FleshCollection->FindAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
-			TManagedArray<FVector3f>* VerticesCollection = InCollection.FindAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
-			if (VerticesBin && VerticesCollection)
-			{
-				for (int32 i = 0; i < VerticesBin->Num(); i++)
-				{
-					for (int32 j = 0; j < VerticesCollection->Num(); ++j)
-					{
-						if (((*VerticesBin)[i] - (*VerticesCollection)[j]).Length() < Tolerance)
-						{
-							VertexArray.Emplace(j);
-							break;
-						}
-					}
-					ensureMsgf(VertexArray.Num() == i + 1, TEXT("Some vertex is not binned or binned repeatedly at current tolerance"));
-				}
-			}
-		}
-		Out->SetValue<DataType>(VertexArray, Context);
 	}
 }

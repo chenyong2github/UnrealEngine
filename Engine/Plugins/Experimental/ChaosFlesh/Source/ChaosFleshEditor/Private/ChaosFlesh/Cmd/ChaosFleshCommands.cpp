@@ -3,6 +3,7 @@
 #include "ChaosFlesh/Cmd/ChaosFleshCommands.h"
 
 #include "ChaosFlesh/Asset/FleshAssetFactory.h"
+#include "ChaosFlesh/Cmd/FleshAssetConversion.h"
 #include "ChaosFlesh/FleshAsset.h"
 #include "ChaosFlesh/FleshCollection.h"
 #include "ChaosFlesh/FleshCollectionUtility.h"
@@ -35,7 +36,7 @@ void FChaosFleshCommands::ImportFile(const TArray<FString>& Args, UWorld* World)
 				if (FFleshCollection* Collection = EditObject.GetFleshCollection())
 				{
 					UE_LOG(UChaosFleshCommandsLogging, Log, TEXT("FChaosFleshCommands::ImportFile"));
-					if (TUniquePtr<FFleshCollection> InCollection = ChaosFlesh::ImportTetFromFile(Args[0]))
+					if (TUniquePtr<FFleshCollection> InCollection = FFleshAssetConversion::ImportTetFromFile(Args[0]))
 					{
 						Collection->CopyMatchingAttributesFrom(*InCollection);
 					}

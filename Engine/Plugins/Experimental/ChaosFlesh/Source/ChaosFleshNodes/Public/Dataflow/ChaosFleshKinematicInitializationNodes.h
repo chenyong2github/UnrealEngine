@@ -110,34 +110,6 @@ public:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 
-USTRUCT(meta = (DataflowFlesh))
-struct FBinVerticesDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FBinVerticesDataflowNode, "BinVertices", "Flesh", "")
-	DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
-
-public:
-	typedef TArray<int32> DataType;
-	UPROPERTY(EditAnywhere, Category = "Dataflow")
-		FString Filename = FString("D:/UE5/Main/QAGame/Import/example.geo");
-	UPROPERTY(EditAnywhere, Category = "Dataflow")
-		float Tolerance = float(1e-6);
-	UPROPERTY(meta = (DataflowInput, DisplayName = "Collection"))
-		FManagedArrayCollection Collection;
-	UPROPERTY(meta = (DataflowOutput, DisplayName = "SelectionSet"))
-		TArray<int32> VertexIndicesOut;
-
-	FBinVerticesDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Collection);
-		RegisterOutputConnection(&VertexIndicesOut);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-};
-
 namespace Dataflow
 {
 	void RegisterChaosFleshKinematicInitializationNodes();

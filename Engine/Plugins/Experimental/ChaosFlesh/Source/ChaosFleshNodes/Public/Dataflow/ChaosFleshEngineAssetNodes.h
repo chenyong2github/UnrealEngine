@@ -59,32 +59,6 @@ public:
 };
 
 
-
-USTRUCT(meta = (DataflowFlesh))
-struct FImportFleshDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FImportFleshDataflowNode, "ImportFlesh", "Flesh", "")
-	DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
-
-public:
-
-	UPROPERTY(EditAnywhere, Category = "Dataflow")
-	FFilePath Filename;
-
-	UPROPERTY(meta = (DataflowOutput, DisplayName = "Collection"))
-	FManagedArrayCollection Collection;
-	
-	FImportFleshDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterOutputConnection(&Collection);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-};
-
-
 USTRUCT(meta = (DataflowFlesh))
 struct FComputeFleshMassNode : public FDataflowNode
 {
