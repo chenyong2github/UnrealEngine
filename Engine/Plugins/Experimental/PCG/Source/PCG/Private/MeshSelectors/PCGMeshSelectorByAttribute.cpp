@@ -9,6 +9,19 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorByAttribute)
 
+void UPCGMeshSelectorByAttribute::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (bOverrideMaterials_DEPRECATED)
+	{
+		MaterialOverrideMode = EPCGMeshSelectorMaterialOverrideMode::StaticOverride;
+		bOverrideMaterials_DEPRECATED = false;
+	}
+#endif
+}
+
 void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 	FPCGContext& Context, 
 	const UPCGStaticMeshSpawnerSettings* Settings, 
@@ -46,6 +59,13 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 	}
 
 	const FPCGMetadataAttribute<FString>* Attribute = static_cast<const FPCGMetadataAttribute<FString>*>(AttributeBase);
+
+	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper(Context, MaterialOverrideMode, MaterialOverrides, MaterialOverrideAttributes, PointData->Metadata);
+
+	if (!MaterialOverrideHelper.IsValid())
+	{
+		return;
+	}
 
 	TMap<PCGMetadataValueKey, TSoftObjectPtr<UStaticMesh>> ValueKeyToMesh;
 
@@ -91,7 +111,7 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 		}
 
 		const bool bReverseTransform = (Point.Transform.GetDeterminant() < 0);
-		const int32 Index = FindOrAddInstanceList(OutMeshInstances, Mesh, bOverrideCollisionProfile, CollisionProfile, bOverrideMaterials, MaterialOverrides, CullStartDistance, CullEndDistance, bReverseTransform);
+		const int32 Index = FindOrAddInstanceList(OutMeshInstances, Mesh, bOverrideCollisionProfile, CollisionProfile, MaterialOverrideHelper.OverridesMaterials(), MaterialOverrideHelper.GetMaterialOverrides(Point.MetadataEntry), CullStartDistance, CullEndDistance, bReverseTransform);
 		check(Index != INDEX_NONE);
 		
 		OutMeshInstances[Index].Instances.Emplace(Point);

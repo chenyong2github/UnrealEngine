@@ -4,8 +4,16 @@
 
 #include "PCGMeshSelectorBase.h"
 
-
 #include "PCGMeshSelectorWeighted.generated.h"
+
+namespace PCGMeshSelectorWeighted
+{
+	FPCGMeshInstanceList& GetInstanceList(
+		TArray<FPCGMeshInstanceList>& InstanceLists,
+		bool bUseAttributeMaterialOverrides,
+		const TArray<TSoftObjectPtr<UMaterialInterface>>& InMaterialOverrides,
+		bool bInIsLocalToWorldDeterminantNegative);
+}
 
 USTRUCT(BlueprintType)
 struct PCG_API FPCGMeshSelectorWeightedEntry
@@ -24,14 +32,14 @@ struct PCG_API FPCGMeshSelectorWeightedEntry
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bOverrideCollisionProfile = false;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "bOverrideCollisionProfile", EditConditionHides))
 	FCollisionProfileName CollisionProfile = UCollisionProfile::NoCollision_ProfileName;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (InlineEditConditionToggle))
 	bool bOverrideMaterials = false;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TArray<TObjectPtr<UMaterialInterface>> MaterialOverrides;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, DisplayName = "Static Material Overrides", meta = (EditCondition = "bOverrideMaterials"))
+	TArray<TSoftObjectPtr<UMaterialInterface>> MaterialOverrides;
 
 	/** Distance at which instances begin to fade. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
@@ -61,4 +69,10 @@ public:
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	TArray<FPCGMeshSelectorWeightedEntry> MeshEntries;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (InlineEditConditionToggle))
+	bool bUseAttributeMaterialOverrides = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, DisplayName = "By Attribute Material Overrides", Category = Settings, meta = (EditCondition = "bUseAttributeMaterialOverrides"))
+	TArray<FName> MaterialOverrideAttributes;
 };

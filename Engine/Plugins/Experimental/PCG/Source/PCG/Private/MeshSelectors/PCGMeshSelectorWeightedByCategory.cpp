@@ -14,8 +14,7 @@
 
 struct FPCGInstancesAndWeights
 {
-	TArray<int> InstanceListIndices;
-	TArray<int> ReverseInstanceListIndices;
+	TArray<TArray<FPCGMeshInstanceList>> MeshInstances;
 	TArray<int> CumulativeWeights;
 };
 
@@ -26,7 +25,6 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 	TArray<FPCGMeshInstanceList>& OutMeshInstances,
 	UPCGPointData* OutPointData) const
 {
-	TArray<FPCGMeshInstanceList> OutReverseMeshInstances;
 	const UPCGPointData* PointData = InSpatialData->ToPointData(&Context);
 
 	if (!PointData)
@@ -112,15 +110,12 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 				continue;
 			}
 			
-			const int32 Index = FindOrAddInstanceList(OutMeshInstances, WeightedEntry.Mesh, WeightedEntry.bOverrideCollisionProfile, WeightedEntry.CollisionProfile, WeightedEntry.bOverrideMaterials, WeightedEntry.MaterialOverrides, WeightedEntry.CullStartDistance, WeightedEntry.CullEndDistance, /*bReverseCulling=*/false);
-			const int32 ReverseIndex = FindOrAddInstanceList(OutReverseMeshInstances, WeightedEntry.Mesh, WeightedEntry.bOverrideCollisionProfile, WeightedEntry.CollisionProfile, WeightedEntry.bOverrideMaterials, WeightedEntry.MaterialOverrides, WeightedEntry.CullStartDistance, WeightedEntry.CullEndDistance, /*bReverseCulling=*/true);
-			check(Index != INDEX_NONE && ReverseIndex != INDEX_NONE);
+			TArray<FPCGMeshInstanceList>& PickEntry = InstancesAndWeights->MeshInstances.Emplace_GetRef();
+			FindOrAddInstanceList(PickEntry, WeightedEntry.Mesh, WeightedEntry.bOverrideCollisionProfile, WeightedEntry.CollisionProfile, WeightedEntry.bOverrideMaterials, WeightedEntry.MaterialOverrides, WeightedEntry.CullStartDistance, WeightedEntry.CullEndDistance, /*bReverseCulling=*/false);
 
 			// precompute the weights
 			TotalWeight += WeightedEntry.Weight;
 			InstancesAndWeights->CumulativeWeights.Add(TotalWeight);
-			InstancesAndWeights->InstanceListIndices.Add(Index);
-			InstancesAndWeights->ReverseInstanceListIndices.Add(ReverseIndex);
 		}
 
 		// if no weighted entries were collected, discard this InstancesAndWeights
@@ -133,6 +128,13 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 	TArray<FPCGPoint>* OutPoints = nullptr;
 	FPCGMetadataAttribute<FString>* OutAttribute = nullptr;
 	TMap<TSoftObjectPtr<UStaticMesh>, PCGMetadataValueKey> MeshToValueKey;
+
+	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper(Context, bUseAttributeMaterialOverrides, MaterialOverrideAttributes, PointData->Metadata);
+
+	if (!MaterialOverrideHelper.IsValid())
+	{
+		return;
+	}
 
 	if (OutPointData)
 	{
@@ -192,15 +194,15 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 		int RandomWeightedPick = RandomSource.RandRange(0, TotalWeight - 1);
 
 		int RandomPick = 0;
-		while (RandomPick < InstancesAndWeights->InstanceListIndices.Num() && InstancesAndWeights->CumulativeWeights[RandomPick] <= RandomWeightedPick)
+		while(RandomPick < InstancesAndWeights->MeshInstances.Num() && InstancesAndWeights->CumulativeWeights[RandomPick] <= RandomWeightedPick)
 		{
 			++RandomPick;
 		}
 
-		if (RandomPick < InstancesAndWeights->InstanceListIndices.Num())
+		if(RandomPick < InstancesAndWeights->MeshInstances.Num())
 		{
-			const bool bUseReverse = (Point.Transform.GetDeterminant() < 0);
-			FPCGMeshInstanceList& InstanceList = (bUseReverse ? OutReverseMeshInstances[InstancesAndWeights->ReverseInstanceListIndices[RandomPick]] : OutMeshInstances[InstancesAndWeights->InstanceListIndices[RandomPick]]);
+			const bool bNeedsReverseCulling = (Point.Transform.GetDeterminant() < 0);
+			FPCGMeshInstanceList& InstanceList = PCGMeshSelectorWeighted::GetInstanceList(InstancesAndWeights->MeshInstances[RandomPick], bUseAttributeMaterialOverrides, MaterialOverrideHelper.GetMaterialOverrides(Point.MetadataEntry), bNeedsReverseCulling);
 			InstanceList.Instances.Emplace(Point);
 
 			const TSoftObjectPtr<UStaticMesh>& Mesh = InstanceList.Mesh;
@@ -223,9 +225,15 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 		}
 	}
 
-	// Collapse reverse in the out mesh instances array
-	for (int32 Index = 0; Index < OutReverseMeshInstances.Num(); ++Index)
+	// Collapse to OutMeshInstances
+	for (TPair<PCGMetadataValueKey, FPCGInstancesAndWeights>& Entry : CategoryEntryToInstancesAndWeights)
 	{
-		OutMeshInstances.Emplace(MoveTemp(OutReverseMeshInstances[Index]));
+		for (TArray<FPCGMeshInstanceList>& PickedMeshInstances : Entry.Value.MeshInstances)
+		{
+			for (FPCGMeshInstanceList& PickedMeshInstanceEntry : PickedMeshInstances)
+			{
+				OutMeshInstances.Emplace(MoveTemp(PickedMeshInstanceEntry));
+			}
+		}
 	}
 }

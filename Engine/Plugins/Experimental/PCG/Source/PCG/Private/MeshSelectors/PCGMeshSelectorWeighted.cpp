@@ -12,6 +12,63 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorWeighted)
 
+namespace PCGMeshSelectorWeighted
+{
+	FPCGMeshInstanceList& GetInstanceList(
+		TArray<FPCGMeshInstanceList>& InstanceLists,
+		bool bUseAttributeMaterialOverrides,
+		const TArray<TSoftObjectPtr<UMaterialInterface>>& InMaterialOverrides,
+		bool bInIsLocalToWorldDeterminantNegative)
+	{
+		check(InstanceLists.Num() > 0);
+		const bool bOverrideMaterials = (bUseAttributeMaterialOverrides || InstanceLists[0].bOverrideMaterials);
+
+		// First look through previously existing values - note that we scope this to prevent issues with the 0 index access which might become invalid below
+		{
+			const TArray<TSoftObjectPtr<UMaterialInterface>>& MaterialOverrides = (bUseAttributeMaterialOverrides ? InMaterialOverrides : InstanceLists[0].MaterialOverrides);
+
+			for (int Index = 0; Index < InstanceLists.Num(); ++Index)
+			{
+				if (InstanceLists[Index].bOverrideMaterials != bOverrideMaterials)
+				{
+					continue;
+				}
+
+				if (InstanceLists[Index].bIsLocalToWorldDeterminantNegative != bInIsLocalToWorldDeterminantNegative)
+				{
+					continue;
+				}
+
+				if (bOverrideMaterials && InstanceLists[Index].MaterialOverrides != MaterialOverrides)
+				{
+					continue;
+				}
+
+				return InstanceLists[Index];
+			}
+		}
+
+		// If not found, then copy first entry which is our "clean" version and apply the new values
+		{
+			FPCGMeshInstanceList& NewInstanceList = InstanceLists.Emplace_GetRef();
+			const FPCGMeshInstanceList& SourceInstanceList = InstanceLists[0];
+			NewInstanceList.Mesh = SourceInstanceList.Mesh;
+			NewInstanceList.bOverrideCollisionProfile = SourceInstanceList.bOverrideCollisionProfile;
+			NewInstanceList.CollisionProfile = SourceInstanceList.CollisionProfile;
+			NewInstanceList.CullStartDistance = SourceInstanceList.CullStartDistance;
+			NewInstanceList.CullEndDistance = SourceInstanceList.CullEndDistance;
+
+			NewInstanceList.bOverrideMaterials = bOverrideMaterials;
+
+			const TArray<TSoftObjectPtr<UMaterialInterface>>& MaterialOverrides = (bUseAttributeMaterialOverrides ? InMaterialOverrides : SourceInstanceList.MaterialOverrides);
+			NewInstanceList.MaterialOverrides = MaterialOverrides;
+			NewInstanceList.bIsLocalToWorldDeterminantNegative = bInIsLocalToWorldDeterminantNegative;
+
+			return NewInstanceList;
+		}
+	}
+}
+
 void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 	FPCGContext& Context, 
 	const UPCGStaticMeshSpawnerSettings* Settings, 
@@ -19,11 +76,12 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 	TArray<FPCGMeshInstanceList>& OutMeshInstances,
 	UPCGPointData* OutPointData) const
 {
-	TArray<FPCGMeshInstanceList> OutReverseMeshInstances;
+	TArray<TArray<FPCGMeshInstanceList>> MeshInstances;
 	TArray<int> CumulativeWeights;
 
 	int TotalWeight = 0;
 
+	// Prepare common mesh setups which we will use as a kind of map
 	for (const FPCGMeshSelectorWeightedEntry& Entry : MeshEntries)
 	{
 		if (Entry.Weight <= 0)
@@ -32,8 +90,9 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 			continue;
 		}
 
-		FindOrAddInstanceList(OutMeshInstances, Entry.Mesh, Entry.bOverrideCollisionProfile, Entry.CollisionProfile, Entry.bOverrideMaterials, Entry.MaterialOverrides, Entry.CullStartDistance, Entry.CullEndDistance, /*bReverseCulling=*/false);
-		FindOrAddInstanceList(OutReverseMeshInstances, Entry.Mesh, Entry.bOverrideCollisionProfile, Entry.CollisionProfile, Entry.bOverrideMaterials, Entry.MaterialOverrides, Entry.CullStartDistance, Entry.CullEndDistance, /*bReverseCulling=*/true);
+		TArray<FPCGMeshInstanceList>& PickEntry = MeshInstances.Emplace_GetRef();
+		FindOrAddInstanceList(PickEntry, Entry.Mesh, Entry.bOverrideCollisionProfile, Entry.CollisionProfile, Entry.bOverrideMaterials, Entry.MaterialOverrides, Entry.CullStartDistance, Entry.CullEndDistance, /*bReverseCulling=*/false);
+
 		TotalWeight += Entry.Weight;
 		CumulativeWeights.Add(TotalWeight);
 	}
@@ -54,6 +113,13 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 	TArray<FPCGPoint>* OutPoints = nullptr;
 	FPCGMetadataAttribute<FString>* OutAttribute = nullptr;
 	TMap<TSoftObjectPtr<UStaticMesh>, PCGMetadataValueKey> MeshToValueKey;
+
+	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper(Context, bUseAttributeMaterialOverrides, MaterialOverrideAttributes, PointData->Metadata);
+
+	if (!MaterialOverrideHelper.IsValid())
+	{
+		return;
+	}
 
 	if (OutPointData)
 	{
@@ -95,15 +161,15 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 			int RandomWeightedPick = RandomSource.RandRange(0, TotalWeight - 1);
 
 			int RandomPick = 0;
-			while (RandomPick < OutMeshInstances.Num() && CumulativeWeights[RandomPick] <= RandomWeightedPick)
+			while(RandomPick < MeshInstances.Num() && CumulativeWeights[RandomPick] <= RandomWeightedPick)
 			{
 				++RandomPick;
 			}
 
-			if (RandomPick < OutMeshInstances.Num())
+			if(RandomPick < MeshInstances.Num())
 			{
 				const bool bNeedsReverseCulling = (Point.Transform.GetDeterminant() < 0);
-				FPCGMeshInstanceList& InstanceList = (bNeedsReverseCulling ? OutReverseMeshInstances[RandomPick] : OutMeshInstances[RandomPick]);
+				FPCGMeshInstanceList& InstanceList = PCGMeshSelectorWeighted::GetInstanceList(MeshInstances[RandomPick], bUseAttributeMaterialOverrides, MaterialOverrideHelper.GetMaterialOverrides(Point.MetadataEntry), bNeedsReverseCulling);
 				InstanceList.Instances.Emplace(Point);
 
 				const TSoftObjectPtr<UStaticMesh>& Mesh = InstanceList.Mesh;
@@ -127,10 +193,13 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 		}
 	}
 
-	// Collapse reverse entries to the OutMeshInstances
-	for (int32 OutIndex = 0; OutIndex < OutReverseMeshInstances.Num(); ++OutIndex)
+	// Collapse to OutMeshInstances
+	for (TArray<FPCGMeshInstanceList>& PickedMeshInstances : MeshInstances)
 	{
-		OutMeshInstances.Emplace(MoveTemp(OutReverseMeshInstances[OutIndex]));
+		for (FPCGMeshInstanceList& PickedMeshInstanceEntry : PickedMeshInstances)
+		{
+			OutMeshInstances.Emplace(MoveTemp(PickedMeshInstanceEntry));
+		}
 	}
 }
 

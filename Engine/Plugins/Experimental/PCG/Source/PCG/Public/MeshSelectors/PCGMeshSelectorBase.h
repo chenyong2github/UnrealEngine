@@ -3,6 +3,7 @@
 #pragma once
 
 #include "PCGPoint.h"
+#include "Metadata/PCGMetadata.h"
 
 #include "Engine/CollisionProfile.h"
 
@@ -22,8 +23,8 @@ struct FPCGMeshInstanceList
 	GENERATED_BODY()
 
 	FPCGMeshInstanceList() = default;
-	
-	FPCGMeshInstanceList(const TSoftObjectPtr<UStaticMesh>& InMesh, bool bInOverrideCollisionProfile, const FCollisionProfileName& InCollisionProfile, bool bInOverrideMaterials, const TArray<UMaterialInterface*>& InMaterialOverrides, const float InCullStartDistance, const float InCullEndDistance, const bool bInIsLocalToWorldDeterminantNegative)
+
+	FPCGMeshInstanceList(const TSoftObjectPtr<UStaticMesh>& InMesh, bool bInOverrideCollisionProfile, const FCollisionProfileName& InCollisionProfile, bool bInOverrideMaterials, const TArray<TSoftObjectPtr<UMaterialInterface>>& InMaterialOverrides, const float InCullStartDistance, const float InCullEndDistance, const bool bInIsLocalToWorldDeterminantNegative)
 		: Mesh(InMesh), bOverrideCollisionProfile(bInOverrideCollisionProfile), CollisionProfile(InCollisionProfile), bOverrideMaterials(bInOverrideMaterials), MaterialOverrides(InMaterialOverrides), CullStartDistance(InCullStartDistance), CullEndDistance(InCullEndDistance), bIsLocalToWorldDeterminantNegative(bInIsLocalToWorldDeterminantNegative)
 	{}
 
@@ -40,7 +41,7 @@ struct FPCGMeshInstanceList
 	bool bOverrideMaterials = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TArray<TObjectPtr<UMaterialInterface>> MaterialOverrides;
+	TArray<TSoftObjectPtr<UMaterialInterface>> MaterialOverrides;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
     TArray<FPCGPoint> Instances;
@@ -56,6 +57,54 @@ struct FPCGMeshInstanceList
 	/** Whether the culling should be reversed or not (needed to support negative scales) */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bIsLocalToWorldDeterminantNegative = false;
+};
+
+UENUM()
+enum class EPCGMeshSelectorMaterialOverrideMode : uint8
+{
+	NoOverride UMETA(Tooltip = "Does not apply any material overrides to the spawned mesh(es)"),
+	StaticOverride UMETA(Tooltip = "Applies the material overrides provided in the Static Material Overrides array"),
+	ByAttributeOverride UMETA(Tooltip = "Applies the materials overrides using the point data attribute(s) specified in the By Attribute Material Overrides array")
+};
+
+/** Struct used to efficiently gather overrides and cache them during instance packing */
+struct FPCGMeshMaterialOverrideHelper
+{
+	// Use this constructor when you have a 1:1 mapping between attributes or static overrides
+	FPCGMeshMaterialOverrideHelper(
+		FPCGContext& InContext,
+		EPCGMeshSelectorMaterialOverrideMode InMaterialOverrideMode,
+		const TArray<TSoftObjectPtr<UMaterialInterface>>& InStaticMaterialOverrides,
+		const TArray<FName>& InMaterialOverrideAttributeNames,
+		const UPCGMetadata* InMetadata);
+
+	// Use this constructor when you have common attribute usage or separate static overrides
+	FPCGMeshMaterialOverrideHelper(
+		FPCGContext& InContext,
+		bool bInByAttributeOverride,
+		const TArray<FName>& InMaterialOverrideAttributeNames,
+		const UPCGMetadata* InMetadata);
+
+	bool IsValid() const { return bIsValid; }
+	bool OverridesMaterials() const { return MaterialOverrideMode != EPCGMeshSelectorMaterialOverrideMode::NoOverride; }
+	const TArray<TSoftObjectPtr<UMaterialInterface>>& GetMaterialOverrides(PCGMetadataEntryKey EntryKey);
+
+	// Cached data
+	TArray<const FPCGMetadataAttribute<FString>*> MaterialAttributes;
+	TArray<TMap<PCGMetadataValueKey, TSoftObjectPtr<UMaterialInterface>>> ValueKeyToOverrideMaterials;
+	TArray<TSoftObjectPtr<UMaterialInterface>> WorkingMaterialOverrides;
+	TArray<TSoftObjectPtr<UMaterialInterface>> EmptyArray;
+
+	// Data needed to perform operations
+	bool bIsValid = false;
+	EPCGMeshSelectorMaterialOverrideMode MaterialOverrideMode = EPCGMeshSelectorMaterialOverrideMode::NoOverride;
+
+	const TArray<TSoftObjectPtr<UMaterialInterface>>& StaticMaterialOverrides;
+	const TArray<FName>& MaterialOverrideAttributeNames;
+	const UPCGMetadata* Metadata = nullptr;
+
+private:
+	void Initialize(FPCGContext& InContext);
 };
 
 UCLASS(Abstract, BlueprintType, Blueprintable, ClassGroup = (Procedural))
@@ -81,16 +130,16 @@ public:
 
 	/** Searches OutInstanceLists for an InstanceList matching the given parameters. If nothing is found, creates a new InstanceList and adds to OutInstanceLists. Returns index of the matching instance list. */
 	UFUNCTION(BlueprintCallable, Category = MeshSelection)
-	int32 FindOrAddInstanceList(
+	static int32 FindOrAddInstanceList(
 		TArray<FPCGMeshInstanceList>& OutInstanceLists,
 		const TSoftObjectPtr<UStaticMesh>& Mesh,
 		bool bOverrideCollisionProfile,
 		const FCollisionProfileName& CollisionProfile,
 		bool bOverrideMaterials,
-		const TArray<UMaterialInterface*>& MaterialOverrides,
+		const TArray<TSoftObjectPtr<UMaterialInterface>>& MaterialOverrides,
 		const float InCullStartDistance,
 		const float InCullEndDistance, 
-		const bool bInIsLocalToWorldDeterminantNegative) const;
+		const bool bInIsLocalToWorldDeterminantNegative);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

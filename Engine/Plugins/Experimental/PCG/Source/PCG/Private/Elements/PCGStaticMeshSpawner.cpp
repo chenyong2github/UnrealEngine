@@ -12,6 +12,7 @@
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGStaticMeshSpawner)
 
@@ -196,7 +197,11 @@ void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context
 
 	if (InstanceList.bOverrideMaterials)
 	{
-		Params.MaterialOverrides = InstanceList.MaterialOverrides;
+		Params.MaterialOverrides.Reserve(InstanceList.MaterialOverrides.Num());
+		for (TSoftObjectPtr<UMaterialInterface> MaterialOverride : InstanceList.MaterialOverrides)
+		{
+			Params.MaterialOverrides.Add(MaterialOverride.LoadSynchronous());
+		}
 	}
 
 	Params.NumCustomDataFloats = PackedCustomData.NumCustomDataFloats;
