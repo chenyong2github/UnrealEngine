@@ -942,6 +942,11 @@ void FDisplayClusterLightCardEditorHelper::AddLightCardsToRootActor(
 
 			LightCard->AddToLightCardLayer(RootActor);
 		}
+
+#if WITH_EDITOR
+		// Fire this event so that e.g. ICVFX panel can update proxies based on the new root/layer
+		LightCard->PostEditChange();
+#endif
 	}
 }
 
