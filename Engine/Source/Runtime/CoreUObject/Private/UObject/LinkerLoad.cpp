@@ -943,6 +943,9 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const FPackagePath& InPackagePath, 
 , bLockoutLegacyOperations(false)
 , bIsAsyncLoader(false)
 , bIsDestroyingLoader(false)
+#if WITH_EDITOR
+, bDetachedLoader(false)
+#endif // WITH_EDITOR
 , StructuredArchive(nullptr)
 , StructuredArchiveFormatter(nullptr)
 , PackagePath(InPackagePath)
@@ -5753,6 +5756,19 @@ void FLinkerLoad::DestroyLoader()
 		Loader = nullptr;
 	}
 	bIsDestroyingLoader = false;
+}
+
+void FLinkerLoad::DetachLoader()
+{
+#if WITH_EDITOR
+	DetachAllBulkData(true);
+#endif // WITH_EDITOR
+
+	DestroyLoader();
+
+#if WITH_EDITOR
+	bDetachedLoader = true;
+#endif // WITH_EDITOR
 }
 
 void FLinkerLoad::DetachExports()
