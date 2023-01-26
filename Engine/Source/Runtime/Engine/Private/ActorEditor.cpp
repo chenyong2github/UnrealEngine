@@ -96,7 +96,7 @@ bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
 		return false;
 	}
 
-	if (bIsDataLayersProperty && !SupportsDataLayer())
+	if (bIsDataLayersProperty && (!SupportsDataLayer() || !IsUserManaged()))
 	{
 		return false;
 	}
