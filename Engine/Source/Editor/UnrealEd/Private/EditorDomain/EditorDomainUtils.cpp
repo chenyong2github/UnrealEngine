@@ -846,6 +846,11 @@ public:
 		return TEXT("FCustomVersionCollectorArchive");
 	}
 
+	virtual FArchive& operator<<(FObjectPtr& Value) override
+	{
+		return *this;
+	}
+
 private:
 	int64 Pos = 0;
 	int64 Max = 0;
