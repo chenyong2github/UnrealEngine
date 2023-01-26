@@ -28,7 +28,7 @@ class FEvent;
 #	include <intrin.h>
 #	if defined(_M_ARM)
 #		include <armintr.h>
-#	elif defined(_M_ARM64)
+#	elif defined(_M_ARM64) || defined(_M_ARM64EC)
 #		include <arm64intr.h>
 #	endif
 #endif

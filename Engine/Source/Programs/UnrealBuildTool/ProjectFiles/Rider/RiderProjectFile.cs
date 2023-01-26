@@ -767,7 +767,7 @@ namespace UnrealBuildTool
 
 			if (CurrentTarget!.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
-				ToolchainInfo.Architecture = CurrentTarget.Rules.WindowsPlatform.Architecture.WindowsName;
+				ToolchainInfo.Architecture = CurrentTarget.Rules.WindowsPlatform.Architecture.WindowsToolChain;
 				
 				WindowsCompiler WindowsPlatformCompiler = CurrentTarget.Rules.WindowsPlatform.Compiler;
 				ToolchainInfo.bStrictConformanceMode = WindowsPlatformCompiler.IsMSVC() && CurrentTarget.Rules.WindowsPlatform.bStrictConformanceMode;

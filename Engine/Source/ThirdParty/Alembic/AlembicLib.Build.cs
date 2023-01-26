@@ -26,7 +26,7 @@ public class AlembicLib : ModuleRules
 			string LibDirectory = Path.Combine(
 				DeploymentDirectory,
 				"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
-				Target.Architecture.WindowsName,
+				Target.Architecture.WindowsLibDir,
 				"lib");
 
 			string StaticLibName = "Alembic" + LibPostfix + ".lib";

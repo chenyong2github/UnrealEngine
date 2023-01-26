@@ -23,7 +23,7 @@ public class OpenSubdiv : ModuleRules
 			string LibDirectory = Path.Combine(
 				DeploymentDirectory,
 				"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
-				Target.Architecture.WindowsName,
+				Target.Architecture.WindowsLibDir,
 				"lib");
 
 			PublicAdditionalLibraries.Add(

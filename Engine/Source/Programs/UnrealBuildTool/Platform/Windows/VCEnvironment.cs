@@ -196,7 +196,7 @@ namespace UnrealBuildTool
 		/// <returns>Directory containing the 64-bit toolchain binaries</returns>
 		public static DirectoryReference GetVCToolPath(DirectoryReference VCToolChainDir, UnrealArch Architecture)
 		{
-			FileReference CompilerPath = FileReference.Combine(VCToolChainDir, "bin", "Hostx64", Architecture.WindowsName, "cl.exe");
+			FileReference CompilerPath = FileReference.Combine(VCToolChainDir, "bin", "Hostx64", Architecture.WindowsToolChain, "cl.exe");
 			if (FileReference.Exists(CompilerPath))
 			{
 				return CompilerPath.Directory;
@@ -280,7 +280,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected virtual DirectoryReference GetToolChainLibsDir()
 		{
-			string ArchFolder = Architecture.WindowsName;
+			string ArchFolder = Architecture.WindowsSystemLibDir;
 
 			// Add the standard Visual C++ library paths
 			if (ToolChain.IsMSVC())
@@ -306,7 +306,7 @@ namespace UnrealBuildTool
 		[SupportedOSPlatform("windows")]
 		private void SetupEnvironment(ILogger Logger)
 		{
-			string ArchFolder = Architecture.WindowsName;
+			string ArchFolder = Architecture.WindowsSystemLibDir;
 
 			// Add the standard Visual C++ include paths
 			IncludePaths.Add(DirectoryReference.Combine(ToolChainDir, "INCLUDE"));

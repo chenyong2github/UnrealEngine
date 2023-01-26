@@ -65,7 +65,7 @@ namespace UnrealBuildTool.Rules
 					PrivateDefinitions.Add("ELECTRA_HAVE_DX11");	// video decoding for DX11 enabled (Win8+)
 				}
 
-				if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+				if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.WindowsPlatform.Architecture != UnrealArch.Arm64)
 				{
 					PublicAdditionalLibraries.AddRange(new string[] {
 						DirectX.GetLibDir(Target) + "dxerr.lib",
@@ -165,7 +165,7 @@ namespace UnrealBuildTool.Rules
 
 		protected virtual bool WinSupportsDX9()
 		{
-			return true;
+			return Target.WindowsPlatform.Architecture != UnrealArch.Arm64;
 		}
 
 		protected virtual bool WinSupportsDX11()

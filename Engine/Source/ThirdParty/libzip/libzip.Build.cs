@@ -21,7 +21,7 @@ public class libzip : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", Target.Architecture.WindowsName, "Release", "zip.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", Target.Architecture.WindowsLibDir, "Release", "zip.lib"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

@@ -15,9 +15,9 @@ public class DirectShow : ModuleRules
             string DirectShowLibPath = Target.UEThirdPartySourceDirectory
                 + "DirectShow/DirectShow-1.0.0/Lib/Win64/vs" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 
-			if (!Target.Architecture.bIsX64)
+			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{
-				DirectShowLibPath = Path.Combine(DirectShowLibPath, Target.Architecture.WindowsName);
+				DirectShowLibPath = Path.Combine(DirectShowLibPath, Target.Architecture.WindowsLibDir);
 			}
 
 			PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "DirectShow/DirectShow-1.0.0/src/Public");

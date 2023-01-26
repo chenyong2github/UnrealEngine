@@ -102,9 +102,9 @@ public class ICU : ModuleRules
 		{
 			string LibraryPath = Path.Combine(ICULibPath, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 			
-			if (!Target.Architecture.bIsX64)
+			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{
-				LibraryPath = Path.Combine(LibraryPath, Target.Architecture.WindowsName);
+				LibraryPath = Path.Combine(LibraryPath, Target.Architecture.WindowsLibDir);
 			}
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, UseDebugLibs ? "Debug" : "Release", "icu.lib"));

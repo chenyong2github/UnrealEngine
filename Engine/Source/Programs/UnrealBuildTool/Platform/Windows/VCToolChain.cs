@@ -827,7 +827,20 @@ namespace UnrealBuildTool
  			{
  				Arguments.Add("/wd4244");
 				Arguments.Add("/wd4838");
- 			}
+			}
+
+			if (CompileEnvironment.Architecture == UnrealArch.Arm64ec)
+			{
+				Arguments.Add("/arm64EC");
+				// The latest vc toolchain requires that these be manually set for arm64ec.
+				AddDefinition(Arguments, "_ARM64EC_");
+				AddDefinition(Arguments, "_ARM64EC_WORKAROUND_");
+				AddDefinition(Arguments, "ARM64EC");
+				AddDefinition(Arguments, "AMD64");
+				AddDefinition(Arguments, "_AMD64_");
+				AddDefinition(Arguments, "_WINDOWS");
+				AddDefinition(Arguments, "WIN32");
+			}
 		}
 
 		protected virtual void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -847,19 +860,6 @@ namespace UnrealBuildTool
 				}
 
 				Arguments.Add($"-Xclang -x -Xclang \"{FileSpecifier}\"");
-			}
-
-			if (CompileEnvironment.Architecture == UnrealArch.Arm64ec)
-			{
-				Arguments.Add("/arm64EC");
-				// The latest vc toolchain requires that these be manually set for arm64ec.
-				AddDefinition(Arguments, "_ARM64EC_");
-				AddDefinition(Arguments, "_ARM64EC_WORKAROUND_");
-				AddDefinition(Arguments, "ARM64EC");
-				AddDefinition(Arguments, "AMD64");
-				AddDefinition(Arguments, "_AMD64_");
-				AddDefinition(Arguments, "_WINDOWS");
-				AddDefinition(Arguments, "WIN32");
 			}
 
 			if (!CompileEnvironment.bEnableBufferSecurityChecks)
@@ -1314,6 +1314,14 @@ namespace UnrealBuildTool
 			// Suppress warnings about missing PDB files for statically linked libraries.  We often don't want to distribute
 			// PDB files for these libraries.
 			Arguments.Add("/ignore:4099");      // warning LNK4099: PDB '<file>' was not found with '<file>'
+
+			// Workaround for linker errors when linking against static libraries that were compiled with an older msvc
+			// https://github.com/microsoft/STL/issues/2655
+			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64ec)
+			{
+				Arguments.Add("/ALTERNATENAME:__imp___std_init_once_begin_initialize=__imp_InitOnceBeginInitialize");
+				Arguments.Add("/ALTERNATENAME:__imp___std_init_once_complete=__imp_InitOnceComplete");
+			}
 		}
 
 		protected virtual void AppendLibArguments(LinkEnvironment LinkEnvironment, List<string> Arguments)

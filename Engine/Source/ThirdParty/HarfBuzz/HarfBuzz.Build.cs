@@ -74,11 +74,14 @@ public class HarfBuzz : ModuleRules
 		// Libs
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			string VSVersionFolderName = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+			LibPath = Path.Combine(HarfBuzzLibPath, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
-			//BuildTypeFolderName = "RelWithDebInfo";
+			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
+			{
+				LibPath = Path.Combine(LibPath, Target.Architecture.WindowsLibDir);
+			}
 
-			PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, VSVersionFolderName, BuildTypeFolderName, "harfbuzz.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, BuildTypeFolderName, "harfbuzz.lib"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

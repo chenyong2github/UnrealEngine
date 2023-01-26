@@ -607,7 +607,9 @@ static void mi_process_done(void) {
     return 0;
   }
   typedef int(*_crt_cb)(void);
-  #ifdef _M_X64
+  // BEGIN EPIC MOD  - Added _M_ARM64EC support
+  #if defined(_M_X64) || defined(_M_ARM64EC)
+  // END EPIC MOD
     __pragma(comment(linker, "/include:" "_mi_msvc_initu"))
     #pragma section(".CRT$XIU", long, read)
   #else

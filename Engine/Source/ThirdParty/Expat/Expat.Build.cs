@@ -35,9 +35,9 @@ public class Expat : ModuleRules
 		{
 			string LibraryPath = Path.Combine(ExpatPackagePath, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
-			if (!Target.Architecture.bIsX64)
+			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{
-				LibraryPath = Path.Combine(LibraryPath, Target.Architecture.WindowsName);
+				LibraryPath = Path.Combine(LibraryPath, Target.Architecture.WindowsLibDir);
 			}
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)

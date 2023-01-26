@@ -28,7 +28,7 @@ public class IntelTBB : ModuleRules
 			
 			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{
-				LibDirTBBMalloc = Path.Combine(LibDirTBBMalloc, Target.Architecture.WindowsName);
+				LibDirTBBMalloc = Path.Combine(LibDirTBBMalloc, Target.Architecture.WindowsLibDir);
 			}
 
 			PublicSystemLibraryPaths.Add(LibDirTBB);

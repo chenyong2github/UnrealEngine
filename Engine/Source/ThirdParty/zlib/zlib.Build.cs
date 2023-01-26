@@ -17,13 +17,13 @@ public class zlib : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			if (Target.WindowsPlatform.Architecture == UnrealArch.X64)
+			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", "Release", "zlibstatic.lib"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", Target.Architecture.WindowsLibDir, "Release", "zlibstatic.lib"));
 			}
 			else
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", Target.Architecture.WindowsName, "Release", "zlibstatic.lib"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", "Release", "zlibstatic.lib"));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)

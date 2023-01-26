@@ -35,7 +35,7 @@ public class MaterialX : ModuleRules
 			string LibDirectory = Path.Combine(
 				DeploymentDirectory,
 				"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
-				Target.Architecture.WindowsName,
+				Target.Architecture.WindowsLibDir,
 				"lib");
 
 			foreach (string MaterialXLibrary in MaterialXLibraries)

@@ -17,12 +17,12 @@ public class DirectX : ModuleRules
 
 	public static string GetLibDir(ReadOnlyTargetRules Target)
 	{
-		return Path.Combine(GetDir(Target), "Lib", Target.Architecture.WindowsName) + "/";
+		return Path.Combine(GetDir(Target), "Lib", Target.Architecture.WindowsLibDir) + "/";
 	}
 
 	public static string GetDllDir(ReadOnlyTargetRules Target)
 	{
-		return Path.Combine(Target.RelativeEnginePath, "Binaries/ThirdParty/Windows/DirectX", Target.Architecture.WindowsName) + "/";
+		return Path.Combine(Target.RelativeEnginePath, "Binaries/ThirdParty/Windows/DirectX", Target.Architecture.WindowsLibDir) + "/";
 	}
 
 	public DirectX(ReadOnlyTargetRules Target) : base(Target)

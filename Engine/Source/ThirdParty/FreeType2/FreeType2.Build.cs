@@ -78,9 +78,9 @@ public class FreeType2 : ModuleRules
 					"Win64",
 					"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
-			if (!Target.Architecture.bIsX64)
+			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{
-				LibPath = Path.Combine(LibPath, Target.Architecture.WindowsName);
+				LibPath = Path.Combine(LibPath, Target.Architecture.WindowsLibDir);
 			}
 
 			LibPath = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT

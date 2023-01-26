@@ -26,7 +26,7 @@ public class Imath : ModuleRules
 			string LibDirectory = Path.Combine(
 				DeploymentDirectory,
 				"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
-				Target.Architecture.WindowsName,
+				Target.Architecture.WindowsLibDir,
 				"lib");
 
 			string StaticLibName = "Imath-3_1" + LibPostfix + ".lib";

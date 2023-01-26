@@ -21,13 +21,62 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static UnrealArch Arm64ec = FindOrAddByName("arm64ec", bIsX64: false);
 
-
-		private static Dictionary<UnrealArch, string> WindowsToolchainArchitectures = new()
+		private struct WindowsArchInfo
 		{
-			{ UnrealArch.Arm64,         "arm64" },
-			{ UnrealArch.Arm64ec,       "arm64" },
-			{ UnrealArch.X64,           "x64" },
+			public string ToolChain;
+			public string LibDir;
+			public string SystemLibDir;
+
+			public WindowsArchInfo(string ToolChain, string LibDir, string SystemLibDir)
+			{
+				this.ToolChain = ToolChain;
+				this.LibDir = LibDir;
+				this.SystemLibDir = SystemLibDir;
+			}
+		}
+
+		private static Dictionary<UnrealArch, WindowsArchInfo> WindowsToolchainArchitectures = new()
+		{
+			{ UnrealArch.Arm64,         new WindowsArchInfo("arm64", "arm64", "arm64") },
+			{ UnrealArch.Arm64ec,       new WindowsArchInfo("arm64", "x64", "arm64") },
+			{ UnrealArch.X64,           new WindowsArchInfo("x64", "x64", "x64") },
 		};
+
+		/// <summary>
+		/// Windows-specific tool chain to compile with
+		/// </summary>
+		public string WindowsToolChain
+		{
+			get
+			{
+				if (WindowsToolchainArchitectures.ContainsKey(this)) return WindowsToolchainArchitectures[this].ToolChain;
+				throw new BuildException($"Unknown architecture {ToString()} passed to UnrealArch.WindowsToolChain");
+			}
+		}
+
+		/// <summary>
+		/// Windows-specific lib directory for this architecture
+		/// </summary>
+		public string WindowsLibDir
+		{
+			get
+			{
+				if (WindowsToolchainArchitectures.ContainsKey(this)) return WindowsToolchainArchitectures[this].LibDir;
+				throw new BuildException($"Unknown architecture {ToString()} passed to UnrealArch.WindowsLibDir");
+			}
+		}
+
+		/// <summary>
+		/// Windows-specific system lib directory for this architecture
+		/// </summary>
+		public string WindowsSystemLibDir
+		{
+			get
+			{
+				if (WindowsToolchainArchitectures.ContainsKey(this)) return WindowsToolchainArchitectures[this].SystemLibDir;
+				throw new BuildException($"Unknown architecture {ToString()} passed to UnrealArch.WindowsSystemLibDir");
+			}
+		}
 
 		/// <summary>
 		/// Windows-specific low level name for the generic platforms
@@ -36,11 +85,10 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if (WindowsToolchainArchitectures.ContainsKey(this)) return WindowsToolchainArchitectures[this];
+				if (WindowsToolchainArchitectures.ContainsKey(this)) return WindowsToolchainArchitectures[this].ToolChain;
 				throw new BuildException($"Unknown architecture {ToString()} passed to UnrealArch.WindowsName");
 			}
 		}
-
 	}
 
 	/// <summary>
@@ -951,15 +999,23 @@ namespace UnrealBuildTool
 			{
 				Target.WindowsPlatform.Architecture = Target.Architecture;// == UnrealArch.Default ? UnrealArch.X64 : Target.Architecture;
 
-				// Add names of plugins here that are incompatible with arm64
+				// Add names of plugins here that are incompatible with arm64ec or arm64
 				bool bCompilingForArm = !Target.Architecture.bIsX64;
 				if (bCompilingForArm && Target.Name != "UnrealHeaderTool")
 				{
+					if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64ec)
+					{
+						Target.DisablePlugins.AddRange(new string[]
+						{
+							"VirtualCamera", // WebRTC currently does not link properly
+						});
+					}
+
 					Target.DisablePlugins.AddRange(new string[]
 					{
-						"OpenImageDenoise"
+						"OpenImageDenoise",
 					});
-					
+
 					// VTune does not support ARM
 					Target.GlobalDefinitions.Add("UE_EXTERNAL_PROFILING_ENABLED=0");
 				}
