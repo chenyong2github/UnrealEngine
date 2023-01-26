@@ -10,6 +10,7 @@
 #include "UncontrolledChangelistsModule.h"
 #include "AssetViewUtils.h"
 #include "RevisionControlStyle/RevisionControlStyle.h"
+#include "Bookmarks/BookmarkScoped.h"
 
 #define LOCTEXT_NAMESPACE "FSceneOutlinerSCCHandler"
 
@@ -395,6 +396,7 @@ void FSceneOutlinerSCCHandler::ExecuteSCCRevert()
 
 	if (PackagesToRevert.Num() > 0)
 	{
+		FBookmarkScoped BookmarkScoped;
 		SourceControlHelpers::RevertAndReloadPackages(PackagesToRevert, /*bRevertAll=*/false, /*bReloadWorld=*/true);
 	}
 }

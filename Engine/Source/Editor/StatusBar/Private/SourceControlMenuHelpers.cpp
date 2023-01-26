@@ -24,6 +24,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
 #include "RevisionControlStyle/RevisionControlStyle.h"
+#include "Bookmarks/BookmarkScoped.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlCommands"
 
@@ -160,6 +161,7 @@ void FSourceControlCommands::RevertAllModifiedFiles_Clicked()
 	FText Title = LOCTEXT("RevertAllModifiedFiles_Title", "Revert all local changes");
 	if (FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, Message, &Title) == EAppReturnType::Yes)
 	{
+		FBookmarkScoped BookmarkScoped;
 		FSourceControlWindows::RevertAllChangesAndReloadWorld();
 	}
 }
@@ -390,6 +392,7 @@ FReply FSourceControlMenuHelpers::OnSourceControlSyncClicked()
 {
 	if (FSourceControlWindows::CanSyncLatest())
 	{
+		FBookmarkScoped BookmarkScoped;
 		FSourceControlWindows::SyncLatest();
 	}
 

@@ -25,7 +25,6 @@
 #include "PackageTools.h"
 #include "ObjectTools.h"
 #include "FileHelpers.h"
-#include "LevelEditorViewport.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "SourceControlHelpers"
@@ -1036,22 +1035,6 @@ bool USourceControlHelpers::ApplyOperationAndReloadPackages(const TArray<FString
 		return false; // keep package
 	});
 
-	struct FCameraView
-	{
-		FVector Location;
-		FRotator Rotation;
-	};
-	TMap<FLevelEditorViewportClient*, FCameraView> CameraViews;
-
-	if (bReloadWorld)
-	{
-		// As we're reloading the world, we retain the camera views so they can be restored after the reload.
-		for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
-		{
-			CameraViews.Add(LevelVC, { LevelVC->GetViewLocation(), LevelVC->GetViewRotation() });
-		}
-	}
-
 	// Hot-reload the new packages...
 	FText OutReloadErrorMsg;
 	const bool bInteractive = true;
@@ -1059,22 +1042,6 @@ bool USourceControlHelpers::ApplyOperationAndReloadPackages(const TArray<FString
 	if (!OutReloadErrorMsg.IsEmpty())
 	{
 		UE_LOG(LogSourceControl, Warning, TEXT("%s"), *OutReloadErrorMsg.ToString());
-	}
-
-	if (bReloadWorld)
-	{
-		// Restore the camera views after a world reload if necessary...
-		for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
-		{
-			const FCameraView& CameraView = CameraViews.FindChecked(LevelVC);
-			LevelVC->SetViewLocation(CameraView.Location);
-			if (!LevelVC->IsOrtho())
-			{
-				LevelVC->SetViewRotation(CameraView.Rotation);
-			}
-			LevelVC->Invalidate();
-			FEditorDelegates::OnEditorCameraMoved.Broadcast(CameraView.Location, CameraView.Rotation, LevelVC->ViewportType, LevelVC->ViewIndex);
-		}
 	}
 
 	// Delete and Unload assets...

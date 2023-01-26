@@ -56,15 +56,22 @@ public:
 			// Set all level editing cameras to this bookmark
 			for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
 			{
-				LevelVC->SetViewLocation(Bookmark->Location);
-				if (!LevelVC->IsOrtho())
-				{
-					LevelVC->SetViewRotation(Bookmark->Rotation);
-				}
-				LevelVC->Invalidate();
-
-				FEditorDelegates::OnEditorCameraMoved.Broadcast(Bookmark->Location, Bookmark->Rotation, LevelVC->ViewportType, LevelVC->ViewIndex);
+				ApplyBookmarkToViewportClient(Bookmark, LevelVC);
 			}
 		}
+	}
+
+protected:
+
+	void ApplyBookmarkToViewportClient(UBookMark* InBookmark, FEditorViewportClient* InViewportClient)
+	{
+		InViewportClient->SetViewLocation(InBookmark->Location);
+		if (!InViewportClient->IsOrtho())
+		{
+			InViewportClient->SetViewRotation(InBookmark->Rotation);
+		}
+		InViewportClient->Invalidate();
+
+		FEditorDelegates::OnEditorCameraMoved.Broadcast(InBookmark->Location, InBookmark->Rotation, InViewportClient->ViewportType, InViewportClient->ViewIndex);
 	}
 };

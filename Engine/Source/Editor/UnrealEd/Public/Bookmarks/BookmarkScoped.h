@@ -1,0 +1,29 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+class IBookmarkTypeActions;
+class UBookMark;
+
+/**
+ * Provides a way to temporarily bookmark and restore all viewports
+ * This allows camera locations and rotations to be preserved across a map reload
+ */
+class UNREALED_API FBookmarkScoped
+{
+public:
+
+	/** Constructor; bookmark all viewports */
+	FBookmarkScoped();
+
+	/** Destructor; restore all viewports */
+	~FBookmarkScoped();
+
+private:
+
+	/** Action which allows a single viewport to jump to a single bookmark */
+	TSharedPtr<IBookmarkTypeActions> Actions;
+
+	/** Bookmarks for each viewport */
+	TMap<FEditorViewportClient*, UBookMark*> BookMarks;
+};
