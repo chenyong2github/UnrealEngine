@@ -1178,7 +1178,7 @@ void FMassArchetypeData::BatchSetFragmentValues(TConstArrayView<FMassArchetypeEn
 			FStructArrayView FragmentPayload = Payload[i];
 			check(FragmentPayload.Num() - EntitiesHandled >= EntityRange.Length);
 
-			const UScriptStruct& FragmentType = FragmentPayload.GetFragmentType();
+			const UScriptStruct& FragmentType = FragmentPayload.GetElementType();
 
 			const int32 FragmentIndex = FragmentIndexMap.FindChecked(&FragmentType);
 			void* Dst = FragmentConfigs[FragmentIndex].GetFragmentData(Chunk.GetRawMemory(), EntityRange.SubchunkStart);
