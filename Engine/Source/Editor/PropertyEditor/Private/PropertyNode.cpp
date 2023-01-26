@@ -777,7 +777,15 @@ FPropertyAccess::Result FPropertyNodeEditStack::InitializeInternal(const FProper
 		}
 		else if (Property->GetOwner<FProperty>() == ParentProperty) // TArrays, TMaps and TSets
 		{
-			MemoryStack.Add(FMemoryFrame(Property, (uint8*)ParentProperty->GetValueAddressAtIndex_Direct(Property, (void*)MemoryStack.Last().Memory, InNode->GetArrayIndex())));
+			uint8* ItemAddress = (uint8*)ParentProperty->GetValueAddressAtIndex_Direct(Property, (void*)MemoryStack.Last().Memory, InNode->GetArrayIndex());
+			if (ItemAddress)
+			{
+				MemoryStack.Add(FMemoryFrame(Property, ItemAddress));
+			}
+			else
+			{
+				return FPropertyAccess::Fail;
+			}
 		}
 		else
 		{
@@ -879,22 +887,16 @@ FPropertyNodeEditStack::~FPropertyNodeEditStack()
 
 FPropertyAccess::Result FPropertyNode::GetPropertyValueString(FString& OutString, const bool bAllowAlternateDisplayValue, EPropertyPortFlags PortFlags) const
 {
-	FPropertyAccess::Result Result = FPropertyAccess::Fail;
-	const FProperty* PropertyPtr = GetProperty();
-	// Check for bogus data
-	if (PropertyPtr != nullptr && GetParentNode() != nullptr)
-	{
-		UObject* ValueContainer = nullptr;		
-		FPropertyNodeEditStack PropStack;
-		Result = GetSingleObject(ValueContainer);
-		if (Result == FPropertyAccess::Success)
-		{
-			Result = PropStack.Initialize(this, ValueContainer);
-		}
+	uint8* ValueAddress = nullptr;
+	FPropertyAccess::Result Result = GetSingleReadAddress(ValueAddress);
 
-		if (Result == FPropertyAccess::Success)
+	if (ValueAddress != nullptr)
+	{
+		const FProperty* PropertyPtr = GetProperty();
+
+		// Check for bogus data
+		if (PropertyPtr != nullptr && GetParentNode() != nullptr)
 		{
-			uint8* ValueAddress = PropStack.GetDirectPropertyAddress();
 			FPropertyTextUtilities::PropertyToTextHelper(OutString, this, PropertyPtr, ValueAddress, nullptr, PortFlags);
 
 			UEnum* Enum = nullptr;
@@ -930,6 +932,10 @@ FPropertyAccess::Result FPropertyNode::GetPropertyValueString(FString& OutString
 				}
 			}
 		}
+		else
+		{
+			Result = FPropertyAccess::Fail;
+		}
 	}
 
 	return Result;
@@ -937,22 +943,14 @@ FPropertyAccess::Result FPropertyNode::GetPropertyValueString(FString& OutString
 
 FPropertyAccess::Result FPropertyNode::GetPropertyValueText(FText& OutText, const bool bAllowAlternateDisplayValue) const
 {
-	FPropertyAccess::Result Result = FPropertyAccess::Fail;
-	const FProperty* PropertyPtr = GetProperty();
-	if (PropertyPtr)
+	uint8* ValueAddress = nullptr;
+	FPropertyAccess::Result Result = GetSingleReadAddress(ValueAddress);
+
+	if (ValueAddress != nullptr)
 	{
-		UObject* ValueContainer = nullptr;
-		FPropertyNodeEditStack PropStack;
-		Result = GetSingleObject(ValueContainer);
-		if (Result == FPropertyAccess::Success)
+		const FProperty* PropertyPtr = GetProperty();
+		if (PropertyPtr)
 		{
-			Result = PropStack.Initialize(this, ValueContainer);
-		}
-
-		if (Result == FPropertyAccess::Success)
-		{
-			uint8* ValueAddress = PropStack.GetDirectPropertyAddress();
-
 			if (PropertyPtr->IsA(FTextProperty::StaticClass()))
 			{
 				OutText = CastField<FTextProperty>(PropertyPtr)->GetPropertyValue(ValueAddress);
@@ -992,6 +990,10 @@ FPropertyAccess::Result FPropertyNode::GetPropertyValueText(FText& OutText, cons
 					OutText = FText::FromString(ExportedTextString);
 				}
 			}
+		}
+		else
+		{
+			Result = FPropertyAccess::Fail;
 		}
 	}
 
