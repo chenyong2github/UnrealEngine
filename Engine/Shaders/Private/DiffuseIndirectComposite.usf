@@ -38,9 +38,6 @@
 	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_SSGI_HISTORY_R11G11B10
 	#define CONFIG_INPUT_TEXTURE_COUNT 4
 
-	// UE-155845: Enables an energy preservation term to prevent hair from emitting light when Lumen is enabled.
-	#define HAIR_KK_ENERGY_PRESERVATION 1
-
 #else // !DIM_APPLY_DIFFUSE_INDIRECT
 	// NOP
 #endif // !DIM_APPLY_DIFFUSE_INDIRECT
@@ -77,6 +74,7 @@ RWTexture2D<float3> OutSubSurfaceSceneColor;
 #include "Lumen/LumenReflectionsCombine.ush"
 #include "Strata/Strata.ush"
 #include "Strata/StrataEvaluation.ush"
+#include "HairStrands/HairStrandsEnvironmentLightingCommon.ush"
 
 #if DIM_APPLY_DIFFUSE_INDIRECT
 
@@ -86,10 +84,6 @@ RWTexture2D<float3> OutSubSurfaceSceneColor;
 #include "Lumen/LumenScreenSpaceBentNormal.ush"
 
 #endif
-
-#include "HairStrands/HairStrandsCommon.ush"
-#include "HairStrands/HairStrandsDeepTransmittanceCommon.ush"
-#include "HairStrands/HairStrandsDeepTransmittanceDualScattering.ush"
 
 //------------------------------------------------------- PARAMETERS
 
@@ -474,14 +468,10 @@ void MainPS(
 
 			if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 			{
-				IndirectLighting.Diffuse = 0;
+				float3 L = 0;
+				const float3 IndirectDiffuseColor = EvaluateEnvHair(GBuffer, V, N, L /*out*/);
+				IndirectLighting.Diffuse = DiffuseIndirectLighting * Occlusion.DiffuseOcclusion * IndirectDiffuseColor;
 				IndirectLighting.Specular = 0;
-
-				// Evaluate the hair BSDF for a imaginary reflected direction, and uses it a measure of the directional albedo
-				const float3 L = normalize(V - N * dot(V, N));
-				FHairTransmittanceData TransmittanceData = EvaluateDualScattering(GBuffer, V, L.xyz);
-				float3 f_s = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 1, 0.2, uint2(0, 0));
-				IndirectLighting.Diffuse = DiffuseIndirectLighting * Occlusion.DiffuseOcclusion * f_s;
 			}
 			else
 			{

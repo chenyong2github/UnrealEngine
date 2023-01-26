@@ -130,35 +130,20 @@ FBxDFSample SampleDefaultLitBxDF(uint TermMask, FGBufferData GBuffer, float3 V, 
 FBxDFSample SampleHairBxDF(uint TermMask, FGBufferData GBuffer, float3 V, float4 E)
 #if 1
 {
-	float3 N = GBuffer.WorldNormal;
 	float4 L = UniformSampleSphere(E.xy);
-	float NoL = dot(N, L.xyz);
-
-	// Enforce white albedo to insure so that the output contains only the integrated lighting. 
-	// This ensures the hair lighting history i sstored into the same white-albedo space as other 
-	// material, and so that history neighboring clamping works correctly in area with mix materials
-	GBuffer.BaseColor = 1;
-
-	FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
-	#if USE_HAIR_COMPLEX_TRANSMITTANCE
-	//if (ShouldUseHairComplexTransmittance(GBuffer))
-	//{
-	//	TransmittanceData = EvaluateDualScattering(GBuffer, V, L.xyz);
-	//}
-	#endif
 
 	FDirectLighting Lighting;
 	const float OpaqueVisibility = 1;	// No occlusion...
 	const float Area = 0;				// This is used for faking area light sources by increasing the roughness of the surface. Disabled = 0.
 	const float Backlit = 1; 			// This is used for suppressing the R & TT terms when when the lighting direction comes from behind. Disabled = 1.
-	Lighting.Diffuse = HairShading(GBuffer, L.xyz, V, N, OpaqueVisibility, TransmittanceData, Backlit, Area, uint2(0, 0));
+	Lighting.Diffuse = 1; 				// Integrate over the entire sphere, and will reweight this with HairShading() during the composition. This is not correct, but give plausible result.
 	Lighting.Transmission = 0;
 	Lighting.Specular = 0;
 
 	FBxDFSample BxDFSample;
 	BxDFSample.L = L.xyz;
 	BxDFSample.PDF = L.w;
-	BxDFSample.Weight = (Lighting.Diffuse + Lighting.Specular + Lighting.Transmission) * rcp(BxDFSample.PDF);
+	BxDFSample.Weight = 1;
 	BxDFSample.Term = TermMask;
 
 	return BxDFSample;

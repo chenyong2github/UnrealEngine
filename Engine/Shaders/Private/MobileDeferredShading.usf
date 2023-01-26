@@ -23,6 +23,11 @@
 #endif
 #include "LightDataUniforms.ush"
 
+#ifndef USE_HAIR_COMPLEX_TRANSMITTANCE
+#define USE_HAIR_COMPLEX_TRANSMITTANCE 0
+#endif
+#include "HairStrands/HairStrandsEnvironmentLightingCommon.ush"
+
 #ifndef IS_SPOT_LIGHT 
 #define IS_SPOT_LIGHT 0 
 #endif 
@@ -72,11 +77,8 @@ half3 SkyLightDiffuseMobile(FGBufferData GBuffer, half3 DiffuseColor, half3 V, i
 
 	if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 	{
-		half3 N = GBuffer.WorldNormal;
-		half3 L = normalize(V - N * dot(V, N));
-		SkyDiffuseLookUpNormal = L;
-		FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
-		DiffuseColor = 2 * PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0));
+		const half3 N = GBuffer.WorldNormal;
+		DiffuseColorForIndirect = EvaluateEnvHair(GBuffer, V, N, SkyDiffuseLookUpNormal);
 	}
 
 	if (GBuffer.ShadingModelID == SHADINGMODELID_CLOTH)

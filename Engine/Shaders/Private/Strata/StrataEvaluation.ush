@@ -22,6 +22,7 @@
 #include "../HairStrands/HairStrandsCommon.ush"
 #include "../HairStrands/HairStrandsDeepTransmittanceCommon.ush"
 #include "../HairStrands/HairStrandsDeepTransmittanceDualScattering.ush"
+#include "../HairStrands/HairStrandsEnvironmentLightingCommon.ush"
 
 #ifndef STRATA_TRANSLUCENT_ENABLED
 #define STRATA_TRANSLUCENT_ENABLED 0
@@ -1502,18 +1503,11 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			GBuffer.ShadingModelID	= SHADINGMODELID_HAIR;
 			GBuffer.WorldNormal		= BSDFContext.N;
 			
-			float BacklitEnabled = 0.0f;
-			float Area = 0.2;
-			uint2 Random = uint2(0, 0);
-			float TransmissionShadow = 1.0f;
-			FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
-
 			const float3 N = BSDFContext.N;
 			const float3 V = BSDFContext.V;
-			float3 L = normalize(V - N * dot(V, N));
+			float3 L = 0;
+			StrataEnvLightResult.DiffuseWeight = EvaluateEnvHair(GBuffer, V, N, L /*out*/);
 			StrataEnvLightResult.DiffuseNormal = L;
-
-			StrataEnvLightResult.DiffuseWeight = PI * HairShading(GBuffer, L, V, N, TransmissionShadow, TransmittanceData, BacklitEnabled, Area, Random);
 			// No specular environment contribution as of today if not using the special HairStrand render path.
 			// So no need to apply bForceFullyRough neither.
 			break;

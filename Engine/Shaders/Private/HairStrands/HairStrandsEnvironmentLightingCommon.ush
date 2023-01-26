@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 // Roughness remapping functions of each term of the hair BSDF to the default lit model (GGX based)
 // This remapping is done based on the hair longitudinal component. This means it does not take into 
 // around the anistotropic streatching which happen along the azimuthal plane
@@ -55,4 +57,36 @@ float3 ComputePositionBias(float3 SampleDirection, float3 SampleOffset, float Vo
 	const float3 Bias_Constant = SampleOffset;
 	const float3 Bias_Directional = SampleDirection * DepthBiasScale;
 	return VoxelWorldSize * (Bias_Constant + Bias_Directional);
+}
+
+#ifndef USE_HAIR_COMPLEX_TRANSMITTANCE
+#define USE_HAIR_COMPLEX_TRANSMITTANCE 0
+#endif 
+
+#if USE_HAIR_COMPLEX_TRANSMITTANCE
+#include "HairStrandsCommon.ush"
+#include "HairStrandsDeepTransmittanceCommon.ush"
+#include "HairStrandsDeepTransmittanceDualScattering.ush"
+#endif
+
+float3 EvaluateEnvHair(FGBufferData GBuffer, float3 V, float3 N, inout float3 OutL)
+{
+	const float Shadow = 1;
+	const float Backlit = 0;
+	const float Area = 0.2f;
+	const uint2 Random = uint2(0, 0);
+
+	// Evaluate the hair BSDF for a imaginary reflected direction, and uses it a measure of the directional albedo
+	// Use this value to reweight the spherical integration. This is not correct, but give plausible result. 
+	// To ensure there is no energy added, clamp the BSDF evaluation to 1.
+	OutL = normalize(V - N * dot(V, N));
+
+	FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
+#if USE_HAIR_COMPLEX_TRANSMITTANCE
+	if (ShouldUseHairComplexTransmittance(GBuffer))
+	{
+		TransmittanceData = EvaluateDualScattering(GBuffer, V, OutL.xyz);
+	}
+#endif
+	return min(1.f, 2 * PI * HairShading(GBuffer, OutL, V, N, Shadow, TransmittanceData, Backlit, Area, Random));
 }

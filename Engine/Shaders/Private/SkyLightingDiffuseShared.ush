@@ -10,6 +10,7 @@
 #include "ClearCoatCommon.ush"
 #include "ShadingEnergyConservation.ush"
 #include "HairBsdf.ush"
+#include "HairStrands/HairStrandsEnvironmentLightingCommon.ush"
 
 #ifndef APPLY_SKY_SHADOWING
 #define APPLY_SKY_SHADOWING 0
@@ -113,11 +114,10 @@ float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 Buff
 	BRANCH
 	if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 	{
-		float3 L = normalize(V - N * dot(V, N));
-		SkyVisData.SkyDiffuseLookUpNormal = L;
-		FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
-		DiffuseColor = 2 * PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0));
+		float3 L = 0;
+		DiffuseColor = EvaluateEnvHair(GBuffer, V, N, L /*out*/);
 		DiffuseWeight = 1.0f;
+		SkyVisData.SkyDiffuseLookUpNormal = L;
 	}
 
 	if (GBuffer.ShadingModelID == SHADINGMODELID_CLOTH)

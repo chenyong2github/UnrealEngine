@@ -2,9 +2,6 @@
 
 #define USE_HAIR_COMPLEX_TRANSMITTANCE 1
 
-// UE-155845: Enables an energy preservation term to prevent hair from emitting light when Lumen is enabled.
-#define HAIR_KK_ENERGY_PRESERVATION 1
-
 #include "../Common.ush"
 #include "LumenMaterial.ush"
 #include "../DeferredShadingCommon.ush"
@@ -1328,14 +1325,7 @@ void ScreenProbeIntegrateCS(
 
 						if (NdotL > 0 || bHasBackfaceDiffuse)
 						{
-							#if 1
-								float SampleWeight = saturate(NdotL);
-							#else
-								FShadowTerms Shadow = { 1, 1, 1, InitHairTransmittanceData() };
-								FDirectLighting BxDFSample = EvaluateBxDF(GBufferData, Material.WorldNormal, V, WorldConeDirection, saturate(NdotL), Shadow);
-
-								float3 SampleWeight = BxDFSample.Diffuse;
-							#endif
+							float SampleWeight = saturate(NdotL);
 
 							float3 InterpolatedRadiance;
 

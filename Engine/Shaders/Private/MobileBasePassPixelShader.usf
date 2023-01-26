@@ -126,6 +126,13 @@
 #include "/Engine/Private/Strata/StrataExport.ush"
 #endif
 
+#if MATERIAL_SHADINGMODEL_HAIR
+#ifndef USE_HAIR_COMPLEX_TRANSMITTANCE
+#define USE_HAIR_COMPLEX_TRANSMITTANCE 0
+#endif
+#include "HairStrands/HairStrandsEnvironmentLightingCommon.ush"
+#endif
+
 half3 FrameBufferBlendOp(half4 Source)
 {
 	half4 Dest = half4 (0,0,0,0);
@@ -743,12 +750,9 @@ void Main(
 #if MATERIAL_SHADINGMODEL_HAIR
 	if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 	{
-		FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
-		half3 N = MaterialParameters.WorldNormal;
-		half3 V = MaterialParameters.CameraVector;
-		half3 L = normalize(V - N * dot(V, N));
-		DiffuseDir = L;
-		DiffuseColorForIndirect = 2 * PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0));
+		const half3 N = MaterialParameters.WorldNormal;
+		const half3 V = MaterialParameters.CameraVector;
+		DiffuseColorForIndirect = EvaluateEnvHair(GBuffer, V, N, DiffuseDir);
 	}
 #endif
 
