@@ -245,10 +245,8 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)
 
 	Serialize(Ar, Index.KDTree, Index.PCAValues.GetData());
 
-#if WITH_EDITORONLY_DATA
 	Ar << Index.PCAExplainedVariance;
 	Ar << Index.Deviation;
-#endif // WITH_EDITORONLY_DATA
 
 	return Ar;
 }

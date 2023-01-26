@@ -193,13 +193,11 @@ struct POSESEARCH_API FPoseSearchIndex : public FPoseSearchIndexBase
 
 	UE::PoseSearch::FKDTree KDTree;
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
 	float PCAExplainedVariance = 0.f;
 
 	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
 	TArray<float> Deviation;
-#endif // WITH_EDITORONLY_DATA
 
 	FPoseSearchIndex() = default;
 	~FPoseSearchIndex() = default;
