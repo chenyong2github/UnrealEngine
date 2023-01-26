@@ -887,7 +887,12 @@ void* FArrayProperty::GetValueAddressAtIndex_Direct(const FProperty* InInner, vo
 {
 	FScriptArrayHelper ArrayHelper(this, InValueAddress);
 	checkf(Inner == InInner, TEXT("Passed in inner must be identical to the array property inner property"));
-	checkf(Index < ArrayHelper.Num() && Index >= 0, TEXT("Array index (%d) out of range"), Index);
-
-	return ArrayHelper.GetRawPtr(Index);
+	if (Index < ArrayHelper.Num() && Index >= 0)
+	{
+		return ArrayHelper.GetRawPtr(Index);
+	}
+	else
+	{
+		return nullptr;
+	}
 }

@@ -1105,6 +1105,5 @@ void* FSetProperty::GetValueAddressAtIndex_Direct(const FProperty* Inner, void* 
 			Num--;
 		}
 	}
-	checkf(false, TEXT("Set element index (%d) out of range"), Index);
 	return nullptr;
 }

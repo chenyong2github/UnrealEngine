@@ -1333,6 +1333,5 @@ void* FMapProperty::GetValueAddressAtIndex_Direct(const FProperty* Inner, void* 
 			Num--;
 		}
 	}
-	checkf(false, TEXT("Map element index (%d) out of range"), Index);
 	return nullptr;
 }
