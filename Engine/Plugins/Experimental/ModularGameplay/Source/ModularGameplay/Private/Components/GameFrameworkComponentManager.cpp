@@ -343,11 +343,6 @@ void UGameFrameworkComponentManager::RemoveComponentRequest(const TSoftClassPtr<
 				}
 			}
 		}
-		else
-		{
-			// Actor class is not in memory, there will be no actor or component instances.
-			ensure(!ComponentClassToComponentInstanceMap.Contains(ComponentClassPtr));
-		}
 	}
 }
 
