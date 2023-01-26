@@ -558,7 +558,7 @@ namespace UE::NNEQA::Private
 			else
 			{
 				bool bShouldRunVariadicTest = (ONNXModelVariadic.Format != ENNEInferenceFormat::Invalid);
-				bShouldRunVariadicTest &= !(RuntimeName == "NNERuntimeDml");
+				bShouldRunVariadicTest &= !(RuntimeName == "NNERuntimeRDGDml");
 				
 				bool bTestSuceeded = RunTestInferenceAndCompareToRef(TestSetup, Runtime->GetRuntimeName(), ONNXModel, RefOutputMemBuffers, RefOutputTensors);
 
