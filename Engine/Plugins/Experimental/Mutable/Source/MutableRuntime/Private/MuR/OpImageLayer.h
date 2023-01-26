@@ -1235,7 +1235,6 @@ namespace mu
 		}
 	}
 
-
 	//---------------------------------------------------------------------------------------------
 	template< unsigned (*BLEND_FUNC_MASKED)(unsigned, unsigned, unsigned),
 		unsigned (*BLEND_FUNC)(unsigned, unsigned),
@@ -1586,6 +1585,85 @@ namespace mu
 			});
 	}
 
+	//---------------------------------------------------------------------------------------------
+	template< VectorRegister4Int (*RGB_FUNC_MASKED)(VectorRegister4Int, VectorRegister4Int, VectorRegister4Int),
+		int32 (*A_FUNC)(int32, int32),
+		bool CLAMP >
+	inline void BufferLayerCompositeVector(
+		Image* pBase,
+		const Image* pBlend,
+		bool bOnlyFirstLOD)
+	{
+		check(pBase->GetFormat() == EImageFormat::IF_RGBA_UBYTE);
+		check(pBlend->GetFormat() == EImageFormat::IF_RGBA_UBYTE);
+		check(pBase->GetSizeX() == pBlend->GetSizeX() && pBase->GetSizeY() == pBlend->GetSizeY());
+		check(bOnlyFirstLOD || pBase->GetLODCount() <= pBlend->GetLODCount());
+
+		uint8* pBaseBuf = pBase->GetData();
+		const uint8* pBlendedBuf = pBlend->GetData();
+
+		// The base determines the number of lods to process.
+		int32 LODCount = bOnlyFirstLOD ? 1 : pBase->GetLODCount();
+
+		int32 PixelCount = 0;
+		if (bOnlyFirstLOD)
+		{
+			PixelCount = pBase->GetSizeX() * pBase->GetSizeY();
+		}
+		else
+		{
+			PixelCount = pBase->CalculatePixelCount();
+		}
+
+		constexpr int32 NumBatchElems = 4096*2;
+	
+		const int32 NumBatches = (PixelCount / NumBatchElems) + static_cast<int32>((PixelCount % NumBatchElems) != 0);
+		const int32 LastBatchNumElems = (PixelCount % NumBatchElems) > 0 ? (PixelCount % NumBatchElems) : NumBatchElems;
+
+		ParallelFor(NumBatches,
+			[
+				pBaseBuf, pBlendedBuf, NumBatches, LastBatchNumElems
+			] (uint32 BatchId)
+			{
+				const int32 CurrentBatchNumElems = static_cast<int32>(BatchId) < (NumBatches - 1) ? NumBatchElems : LastBatchNumElems;
+				for (int32 BatchElemIndex = 0; BatchElemIndex < CurrentBatchNumElems; ++BatchElemIndex)
+				{
+					const int32 i = BatchId * NumBatchElems + BatchElemIndex;
+
+					// TODO: Optimize this (SIMD?)
+					const int32 BaseAlpha = pBaseBuf[4 * i + 3];
+					const int32 BlendedAlpha = pBlendedBuf[4 * i + 3];
+
+					const VectorRegister4Int Mask = VectorIntSet1(BlendedAlpha);
+					const VectorRegister4Int Blended = MakeVectorRegisterInt(pBlendedBuf[4 * i + 0], pBlendedBuf[4 * i + 1], pBlendedBuf[4 * i + 2], 0);
+					const VectorRegister4Int Base = MakeVectorRegisterInt(pBaseBuf[4 * i + 0], pBaseBuf[4 * i + 1], pBaseBuf[4 * i + 2], 0);
+
+					VectorRegister4Int Result = RGB_FUNC_MASKED(Base, Blended, Mask);
+					if constexpr (CLAMP)
+					{
+						Result = VectorIntMin(VectorIntSet1(255), Result);
+					}
+
+					int32 AlphaResult = A_FUNC(BaseAlpha, BlendedAlpha);
+					if constexpr (CLAMP)
+					{
+						AlphaResult = FMath::Min(255, AlphaResult);
+					}
+
+					struct alignas(alignof(VectorRegister4Int)) AlignedOutputRegister4Int
+					{
+						int32 Data[4];
+					} RegisterOutput;
+
+					VectorIntStoreAligned(Result, &RegisterOutput);
+
+					pBaseBuf[4 * i + 0] = static_cast<uint8>(RegisterOutput.Data[0]);
+					pBaseBuf[4 * i + 1] = static_cast<uint8>(RegisterOutput.Data[1]);
+					pBaseBuf[4 * i + 2] = static_cast<uint8>(RegisterOutput.Data[2]);
+					pBaseBuf[4 * i + 3] = static_cast<uint8>(AlphaResult);
+				}
+			});
+	}
 
 	//---------------------------------------------------------------------------------------------
 	template< unsigned (*BLEND_FUNC)(unsigned,unsigned),

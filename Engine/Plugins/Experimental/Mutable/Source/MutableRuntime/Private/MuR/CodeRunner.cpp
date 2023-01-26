@@ -2687,8 +2687,16 @@ namespace mu
 					{
 						// This is a frequent critical-path case because of multilayer projectors.
 						bDone = true;
-						
-						BufferLayerComposite<BlendChannelMasked, LightenChannel, false>(Base.get(), pBlended.get(), bBlendOnlyOneMip);
+					
+						constexpr bool bUseVectorImpl = false;
+						if constexpr (bUseVectorImpl)
+						{
+							BufferLayerCompositeVector<VectorBlendChannelMasked, VectorLightenChannel, false>(Base.get(), pBlended.get(), bBlendOnlyOneMip);
+						}
+						else
+						{
+							BufferLayerComposite<BlendChannelMasked, LightenChannel, false>(Base.get(), pBlended.get(), bBlendOnlyOneMip);
+						}
 					}
 
                     if (!bDone && args.mask)
@@ -2954,61 +2962,8 @@ namespace mu
 
             case 1:
             {
-				MUTABLE_CPUPROFILER_SCOPE(IM_RESIZE_1)
-            	
-                Ptr<const Image> pBase = GetMemory().GetImage( FCacheAddress(args.source,item) );
-
-				if (!pBase)
-				{
-					GetMemory().SetImage(item, nullptr);
-					break;
-				}
-
-                FImageSize destSize = FImageSize
-                    (
-                        args.size[0],
-                        args.size[1]
-                    );
-
-                ImagePtr pResult;
-
-                if ( destSize[0]!=pBase->GetSizeX()
-                     ||
-                     destSize[1]!=pBase->GetSizeY() )
-                {
-                    //pResult = ImageResize( pBase.get(), destSize );
-                    pResult = ImageResizeLinear( m_pSettings->GetPrivate()->m_imageCompressionQuality, pBase.get(), destSize );
-
-                    // If the source image had mips, generate them as well for the resized image.
-                    // This shouldn't happen often since "ResizeLike" should be usually optimised out
-                    // during model compilation. The mipmap generation below is not very precise with
-                    // the number of mips that are needed and will probably generate too many
-                    bool sourceHasMips = pBase->GetLODCount()>1;
-                    if (sourceHasMips)
-                    {
-                        int levelCount = Image::GetMipmapCount( pResult->GetSizeX(), pResult->GetSizeY() );
-                        ImagePtr pMipmapped = new Image( pResult->GetSizeX(), pResult->GetSizeY(),
-                                                         levelCount,
-                                                         pResult->GetFormat() );
-
-                        SCRATCH_IMAGE_MIPMAP scratch;
-						FMipmapGenerationSettings mipSettings{};
-
-                        ImageMipmap_PrepareScratch( pMipmapped.get(), pResult.get(), levelCount, &scratch );
-                        ImageMipmap( m_pSettings->GetPrivate()->m_imageCompressionQuality,
-                                     pMipmapped.get(), pResult.get(), levelCount, &scratch, mipSettings );
-
-                        pResult = pMipmapped;
-                    }
-
-                }
-                else
-                {
-                    pResult = pBase->Clone();
-                }
-
-                GetMemory().SetImage( item, pResult );
-                break;
+				// This has been moved to a task. It should have been intercepted in IssueOp.
+				check(false);
             }
 
             default:
@@ -3095,42 +3050,9 @@ namespace mu
 
             case 1:
             {
-            	MUTABLE_CPUPROFILER_SCOPE(IM_RESIZEREL_1)
-            	
-                Ptr<const Image> pBase = GetMemory().GetImage( FCacheAddress(args.source,item) );
 
-                FImageSize destSize(
-                            uint16( FMath::Max(1.0, pBase->GetSizeX()*args.factor[0] + 0.5f ) ),
-                            uint16( FMath::Max(1.0, pBase->GetSizeY()*args.factor[1] + 0.5f ) ) );
-
-                //pResult = ImageResize( pBase.get(), destSize );
-                ImagePtr pResult = ImageResizeLinear(
-                    m_pSettings->GetPrivate()->m_imageCompressionQuality, pBase.get(), destSize );
-
-                // If the source image had mips, generate them as well for the resized image.
-                // This shouldn't happen often since "ResizeLike" should be usually optimised out
-                // during model compilation. The mipmap generation below is not very precise with
-                // the number of mips that are needed and will probably generate too many
-                bool sourceHasMips = pBase->GetLODCount()>1;
-                if (sourceHasMips)
-                {
-                    int levelCount = Image::GetMipmapCount( pResult->GetSizeX(), pResult->GetSizeY() );
-                    ImagePtr pMipmapped = new Image( pResult->GetSizeX(), pResult->GetSizeY(),
-                                                     levelCount,
-                                                     pResult->GetFormat() );
-
-                    SCRATCH_IMAGE_MIPMAP scratch;
-					FMipmapGenerationSettings mipSettings{};
-
-                    ImageMipmap_PrepareScratch( pMipmapped.get(), pResult.get(), levelCount, &scratch );
-                    ImageMipmap( m_pSettings->GetPrivate()->m_imageCompressionQuality,
-                                 pMipmapped.get(), pResult.get(), levelCount, &scratch, mipSettings );
-
-                    pResult = pMipmapped;
-                }
-
-                GetMemory().SetImage( item, pResult );
-                break;
+				// This has been moved to a task. It should have been intercepted in IssueOp.
+				check(false);
             }
 
             default:
@@ -3484,15 +3406,8 @@ namespace mu
 
             case 1:
             {
-           		MUTABLE_CPUPROFILER_SCOPE(IM_SATURATE_1)
-           		
-                Ptr<const Image> pBase = GetMemory().GetImage( FCacheAddress(args.base,item) );
-                float factor = GetMemory().GetScalar(FScheduledOp::FromOpAndOptions(args.factor, item, 0));
-
-                ImagePtr pResult = ImageSaturate( pBase.get(), factor );
-
-                GetMemory().SetImage( item, pResult );
-                break;
+				// This has been moved to a task. It should have been intercepted in IssueOp.
+				check(false);
             }
 
             default:
@@ -3704,23 +3619,8 @@ namespace mu
 
 			case 1:
 			{
-				MUTABLE_CPUPROFILER_SCOPE(IM_INVERT_1)
-					
-				Ptr<const Image> pA = GetMemory().GetImage(FCacheAddress(args.base, item));
-
-				ImagePtr pResult;
-				if (pA->IsUnique())
-				{
-					pResult = mu::CloneOrTakeOver<>(pA.get());
-					ImageInvertInPlace(pResult.get());
-				}
-				else
-				{
-					pResult = ImageInvert(pA.get());
-				}
-
-				GetMemory().SetImage(item, pResult);
-				break;
+				// This has been moved to a task. It should have been intercepted in IssueOp.
+				check(false);
 			}
 
 			default:

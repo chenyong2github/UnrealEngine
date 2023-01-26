@@ -26,6 +26,8 @@
 #include "MuR/OpImagePixelFormat.h"
 #include "MuR/OpImageResize.h"
 #include "MuR/OpImageSwizzle.h"
+#include "MuR/OpImageSaturate.h"
+#include "MuR/OpImageInvert.h"
 #include "MuR/Operations.h"
 #include "MuR/Platform.h"
 #include "MuR/Ptr.h"
@@ -447,7 +449,6 @@ namespace mu
 		}
 	}
 
-
 	//---------------------------------------------------------------------------------------------
 	void FImageLayerTask::DoWork()
 	{
@@ -513,7 +514,15 @@ namespace mu
 				// This is a frequent critical-path case because of multilayer projectors.
 				bDone = true;
 
-				BufferLayerComposite<BlendChannelMasked, LightenChannel, false>(pNew.get(), m_blended.get(), bOnlyOneMip);
+				constexpr bool bUseVectorImplementation = false;	
+				if constexpr (bUseVectorImplementation)
+				{
+					BufferLayerCompositeVector<VectorBlendChannelMasked, VectorLightenChannel, false>(pNew.get(), m_blended.get(), bOnlyOneMip);
+				}
+				else
+				{
+					BufferLayerComposite<BlendChannelMasked, LightenChannel, false>(pNew.get(), m_blended.get(), bOnlyOneMip);
+				}
 			}
 
 
@@ -1096,6 +1105,297 @@ namespace mu
 	{
 		// This runs in the runner thread
 		runner->GetMemory().SetImage(Op, Result);
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
+	class FImageSaturateTask : public CodeRunner::FIssuedTask
+	{
+	public:
+		FImageSaturateTask(FScheduledOp, FProgramCache&, const OP::ImageSaturateArgs&);
+
+		// FIssuedTask interface
+		void DoWork() override;
+		void Complete(CodeRunner* staged) override;
+
+	private:
+		Ptr<const Image> Source;
+		Ptr<const Image> Result;
+		float Factor;
+	};
+
+
+	//---------------------------------------------------------------------------------------------
+	FImageSaturateTask::FImageSaturateTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageSaturateArgs& InArgs)
+	{
+		Op = InOp;
+		Source = Memory.GetImage(FCacheAddress(InArgs.base, InOp));
+		Factor = Memory.GetScalar(FScheduledOp::FromOpAndOptions(InArgs.factor, InOp, 0));
+	}
+
+	//---------------------------------------------------------------------------------------------
+	void FImageSaturateTask::DoWork()
+	{
+		MUTABLE_CPUPROFILER_SCOPE(FImageSaturateTask);
+
+		// For now don't enable this optimization 
+		const bool bOptimizeUnchanged = false;//FMath::IsNearlyEqual(Factor, 1.0f);
+
+		if (Source->IsUnique())
+		{
+			Ptr<Image> MutableImage = mu::CloneOrTakeOver<>(Source.get());
+			if (!bOptimizeUnchanged)
+			{
+				constexpr bool bUseVectorIntrinsics = false;
+				ImageSaturateInPlace<bUseVectorIntrinsics>(MutableImage.get(), Factor);
+			}
+
+			Result = MutableImage;
+		}
+		else
+		{
+			if (bOptimizeUnchanged)
+			{
+				Result = Source->Clone();
+			}
+			else
+			{
+				Result = ImageSaturate(Source.get(), Factor);
+			}
+		}
+	}
+
+	//---------------------------------------------------------------------------------------------
+	void FImageSaturateTask::Complete(CodeRunner* Runner)
+	{
+		// This runs in the runner thread
+		Runner->GetMemory().SetImage(Op, Result);
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
+	class FImageResizeTask : public CodeRunner::FIssuedTask
+	{
+	public:
+		FImageResizeTask(FScheduledOp, FProgramCache&, const OP::ImageResizeArgs&, int32 ImageCompressionQuality);
+
+		// FIssuedTask interface
+		void DoWork() override;
+		void Complete(CodeRunner* staged) override;
+
+	private:
+		Ptr<const Image> pBase;
+		Ptr<const Image> Result;
+		OP::ImageResizeArgs Args;
+		int32 ImageCompressionQuality;
+	};
+
+
+	//---------------------------------------------------------------------------------------------
+	FImageResizeTask::FImageResizeTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageResizeArgs& InArgs, int32 InImageCompressionQuality)
+	{
+		Op = InOp;
+		Args = InArgs;
+		pBase = Memory.GetImage(FCacheAddress(InArgs.source, InOp));
+		ImageCompressionQuality = InImageCompressionQuality;
+	}
+
+	//---------------------------------------------------------------------------------------------
+	void FImageResizeTask::DoWork()
+	{
+		MUTABLE_CPUPROFILER_SCOPE(FImageResizeTask);
+
+		if (!pBase)
+		{
+			Result = nullptr;
+			return;
+		}
+
+		FImageSize destSize = FImageSize
+			(
+				Args.size[0],
+				Args.size[1]
+			);
+
+		ImagePtr pResult;
+
+		if ( destSize[0]!=pBase->GetSizeX()
+			 ||
+			 destSize[1]!=pBase->GetSizeY() )
+		{
+			//pResult = ImageResize( pBase.get(), destSize );
+			pResult = ImageResizeLinear( ImageCompressionQuality, pBase.get(), destSize );
+
+			// If the source image had mips, generate them as well for the resized image.
+			// This shouldn't happen often since "ResizeLike" should be usually optimised out
+			// during model compilation. The mipmap generation below is not very precise with
+			// the number of mips that are needed and will probably generate too many
+			bool sourceHasMips = pBase->GetLODCount()>1;
+			if (sourceHasMips)
+			{
+				int levelCount = Image::GetMipmapCount( pResult->GetSizeX(), pResult->GetSizeY() );
+				ImagePtr pMipmapped = new Image( pResult->GetSizeX(), pResult->GetSizeY(),
+												 levelCount,
+												 pResult->GetFormat() );
+
+				SCRATCH_IMAGE_MIPMAP scratch;
+				FMipmapGenerationSettings mipSettings{};
+
+				ImageMipmap_PrepareScratch( pMipmapped.get(), pResult.get(), levelCount, &scratch );
+				ImageMipmap( ImageCompressionQuality,
+							 pMipmapped.get(), pResult.get(), levelCount, &scratch, mipSettings );
+
+				pResult = pMipmapped;
+			}
+
+		}
+		else
+		{
+			pResult = pBase->Clone();
+		}
+
+		Result = pResult;
+	}
+
+	//---------------------------------------------------------------------------------------------
+	void FImageResizeTask::Complete(CodeRunner* Runner)
+	{
+		// This runs in the runner thread
+		Runner->GetMemory().SetImage(Op, Result);
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
+	class FImageResizeRelTask : public CodeRunner::FIssuedTask
+	{
+	public:
+		FImageResizeRelTask(FScheduledOp, FProgramCache&, const OP::ImageResizeRelArgs&, int32 ImageCompressionQuality);
+
+		// FIssuedTask interface
+		void DoWork() override;
+		void Complete(CodeRunner* staged) override;
+
+	private:
+		Ptr<const Image> pBase;
+		Ptr<const Image> Result;
+		OP::ImageResizeRelArgs Args;
+		int32 ImageCompressionQuality;
+	};
+
+
+	//---------------------------------------------------------------------------------------------
+	FImageResizeRelTask::FImageResizeRelTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageResizeRelArgs& InArgs, int32 InImageCompressionQuality)
+	{
+		Op = InOp;
+		Args = InArgs;
+		pBase = Memory.GetImage(FCacheAddress(InArgs.source, InOp));
+		ImageCompressionQuality = InImageCompressionQuality;
+	}
+
+	//---------------------------------------------------------------------------------------------
+	void FImageResizeRelTask::DoWork()
+	{
+		MUTABLE_CPUPROFILER_SCOPE(FImageResizeRelTask);
+
+		if (!pBase)
+		{
+			Result = nullptr;
+			return;
+		}
+
+		FImageSize destSize(
+					uint16( FMath::Max(1.0, pBase->GetSizeX()*Args.factor[0] + 0.5f ) ),
+					uint16( FMath::Max(1.0, pBase->GetSizeY()*Args.factor[1] + 0.5f ) ) );
+
+		//pResult = ImageResize( pBase.get(), destSize );
+		ImagePtr pResult = ImageResizeLinear(
+			ImageCompressionQuality, pBase.get(), destSize );
+
+		// If the source image had mips, generate them as well for the resized image.
+		// This shouldn't happen often since "ResizeLike" should be usually optimised out
+		// during model compilation. The mipmap generation below is not very precise with
+		// the number of mips that are needed and will probably generate too many
+		bool sourceHasMips = pBase->GetLODCount()>1;
+		if (sourceHasMips)
+		{
+			int levelCount = Image::GetMipmapCount(pResult->GetSizeX(), pResult->GetSizeY());
+			ImagePtr pMipmapped = new Image(pResult->GetSizeX(), pResult->GetSizeY(),
+				levelCount,
+				pResult->GetFormat());
+
+			SCRATCH_IMAGE_MIPMAP scratch;
+			FMipmapGenerationSettings mipSettings{};
+
+			ImageMipmap_PrepareScratch(pMipmapped.get(), pResult.get(), levelCount, &scratch);
+			ImageMipmap(ImageCompressionQuality,
+				pMipmapped.get(), pResult.get(), levelCount, &scratch, mipSettings);
+
+			pResult = pMipmapped;
+		}
+
+		Result = pResult;
+	}
+
+	//---------------------------------------------------------------------------------------------
+	void FImageResizeRelTask::Complete(CodeRunner* Runner)
+	{
+		// This runs in the runner thread
+		Runner->GetMemory().SetImage(Op, Result);
+	}
+
+	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
+	class FImageInvertTask : public CodeRunner::FIssuedTask
+	{
+	public:
+		FImageInvertTask(FScheduledOp, FProgramCache&, const OP::ImageInvertArgs&);
+
+		// FIssuedTask interface
+		void DoWork() override;
+		void Complete(CodeRunner* Runner) override;
+
+	private:
+		Ptr<const Image> Source;
+		Ptr<const Image> Result;
+	};
+
+
+	//---------------------------------------------------------------------------------------------
+	FImageInvertTask::FImageInvertTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageInvertArgs& InArgs)
+	{
+		Op = InOp;
+		Source = Memory.GetImage(FCacheAddress(InArgs.base, InOp));
+	}
+
+	//---------------------------------------------------------------------------------------------
+	void FImageInvertTask::DoWork()
+	{
+		MUTABLE_CPUPROFILER_SCOPE(FImageInvertTask);
+
+		if (Source->IsUnique())
+		{
+			Ptr<Image> MutableImage = mu::CloneOrTakeOver<>(Source.get());
+			ImageInvertInPlace(MutableImage.get());
+			Result = MutableImage;
+		}
+		else
+		{
+			Result = ImageInvert(Source.get());
+		}
+	}
+
+	//---------------------------------------------------------------------------------------------
+	void FImageInvertTask::Complete(CodeRunner* Runner)
+	{
+		// This runs in the runner thread
+		Runner->GetMemory().SetImage(Op, Result);
 	}
 
 
@@ -1694,6 +1994,46 @@ namespace mu
 			{
 				OP::ImageSwizzleArgs args = program.GetOpArgs<OP::ImageSwizzleArgs>(item.At);
 				Issued = MakeShared<FImageSwizzleTask>(item, GetMemory(), args);
+			}
+			break;
+		}
+
+		case OP_TYPE::IM_SATURATE:
+		{
+			if (item.Stage == 1)
+			{
+				OP::ImageSaturateArgs Args = program.GetOpArgs<OP::ImageSaturateArgs>(item.At);
+				Issued = MakeShared<FImageSaturateTask>(item, GetMemory(), Args);
+			}
+			break;
+		}
+
+		case OP_TYPE::IM_INVERT:
+		{
+			if (item.Stage == 1)
+			{
+				OP::ImageInvertArgs Args = program.GetOpArgs<OP::ImageInvertArgs>(item.At);
+				Issued = MakeShared<FImageInvertTask>(item, GetMemory(), Args);
+			}
+			break;
+		}
+
+		case OP_TYPE::IM_RESIZE:
+		{
+			if (item.Stage == 1)
+			{
+				OP::ImageResizeArgs Args = program.GetOpArgs<OP::ImageResizeArgs>(item.At);
+				Issued = MakeShared<FImageResizeTask>(item, GetMemory(), Args, m_pSettings->GetPrivate()->m_imageCompressionQuality);
+			}
+			break;
+		}
+
+		case OP_TYPE::IM_RESIZEREL:
+		{
+			if (item.Stage == 1)
+			{
+				OP::ImageResizeRelArgs Args = program.GetOpArgs<OP::ImageResizeRelArgs>(item.At);
+				Issued = MakeShared<FImageResizeRelTask>(item, GetMemory(), Args, m_pSettings->GetPrivate()->m_imageCompressionQuality);
 			}
 			break;
 		}
