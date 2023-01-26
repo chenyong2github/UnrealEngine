@@ -241,9 +241,9 @@ public:
 	}
 
 	/**
-	 * Get configured LOD bias for the local lights (maps to cvar, 
+	 * Get configured LOD bias for the local lights, LightMobilityFactor [0,1] selects between (by interpolation) the two LOD biases for static (non-moving) and moving lights.
 	 */
-	float GetResolutionLODBiasLocal() const;
+	float GetResolutionLODBiasLocal(float LightMobilityFactor) const;
 
 	// Raw size of the physical pool, including both static and dynamic pages (if enabled)
 	FIntPoint GetPhysicalPoolSize() const;
@@ -265,11 +265,11 @@ public:
 	void BuildPageAllocations(
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
-		const TArray<FViewInfo> &Views, 
+		const TConstArrayView<FViewInfo> &Views,
 		const FEngineShowFlags& EngineShowFlags,
 		const FSortedLightSetSceneInfo& SortedLights, 
-		const TArray<FVisibleLightInfo, SceneRenderingAllocator> &VisibleLightInfos, 
-		const TArray<Nanite::FRasterResults, TInlineAllocator<2>> &NaniteRasterResults,
+		const TConstArrayView<FVisibleLightInfo>& VisibleLightInfos,
+		const TFunctionRef<float(int32 LightId)>& GetLightMobilityFactor, // TODO: propagate setup in a better(tm) way
 		const FSingleLayerWaterPrePassResult* SingleLayerWaterPrePassResult);
 
 	bool IsAllocated() const
@@ -322,6 +322,12 @@ public:
 	//
 	bool UseHzbOcclusion() const { return bUseHzbOcclusion; }
 	bool UseTwoPassHzbOcclusion() const { return bUseTwoPassHzbOcclusion; }
+
+	/**
+	 * Helper function to add clamping when interpolating the LOD resolution biases to ensure the bias for moving lights can never be lower than the one for not.
+	 * This could occur fairly easily since it is possible to both set the values through console as well as scalability.
+	 */
+	static float InterpolateResolutionBias(float BiasNonMoving, float BiasMoving, float LightMobilityFactor);
 
 	// We keep a reference to the cache manager that was used to initialize this frame as it owns some of the buffers
 	FVirtualShadowMapArrayCacheManager* CacheManager = nullptr;

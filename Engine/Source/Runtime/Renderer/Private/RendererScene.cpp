@@ -84,6 +84,7 @@
 #include "ShaderPrint.h"
 
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
+#include "Shadows/ShadowScene.h"
 
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
@@ -1923,6 +1924,9 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 	DefaultVirtualShadowMapCache = new FVirtualShadowMapArrayCacheManager(this);
 
 	SceneLightInfoUpdates = new FSceneLightInfoUpdates;
+
+	// Allocate the shadow scene, it is always present but we use a pointer such that it can be forward declared.
+	ShadowScene = new FShadowScene(*this);
 }
 
 FScene::~FScene()
@@ -1961,6 +1965,12 @@ FScene::~FScene()
 	{
 		delete DefaultVirtualShadowMapCache;
 		DefaultVirtualShadowMapCache = nullptr;
+	}
+
+	if (ShadowScene)
+	{
+		delete ShadowScene;
+		ShadowScene = nullptr;
 	}
 
 	if (DefaultLumenSceneData)
@@ -5167,7 +5177,7 @@ FLightSceneChangeSet FScene::UpdateAllLightSceneInfos(FRDGBuilder& GraphBuilder)
 		}
 	}
 	// This can't access the scene light data if done async since it happens before the actual removals.
-	OnPreLigtSceneInfoUpdate.Broadcast(FLightSceneChangeSet{ ChangeSet.RemovedLightIds, TConstArrayView<int32>(), ChangeSet.TransformUpdatedLightIds, ChangeSet.ColorUpdatedLightIds });
+	OnPreLigtSceneInfoUpdate.Broadcast(GraphBuilder, FLightSceneChangeSet{ ChangeSet.RemovedLightIds, TConstArrayView<int32>(), ChangeSet.TransformUpdatedLightIds, ChangeSet.ColorUpdatedLightIds });
 
 	// Batch process all light removes
 	for (int32 LightId : ChangeSet.RemovedLightIds)
@@ -5236,7 +5246,7 @@ FLightSceneChangeSet FScene::UpdateAllLightSceneInfos(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	OnPostLigtSceneInfoUpdate.Broadcast(FLightSceneChangeSet{ ChangeSet.RemovedLightIds, ChangeSet.AddedLightIds, ChangeSet.TransformUpdatedLightIds, ChangeSet.ColorUpdatedLightIds });
+	OnPostLigtSceneInfoUpdate.Broadcast(GraphBuilder, FLightSceneChangeSet{ ChangeSet.RemovedLightIds, ChangeSet.AddedLightIds, ChangeSet.TransformUpdatedLightIds, ChangeSet.ColorUpdatedLightIds });
 
 	SceneLightInfoUpdates->Reset();
 
@@ -6618,3 +6628,10 @@ void FScene::IncrementFrameNumber()
 		SceneFrameNumberRenderThread = NewNumber;
 	});
 }
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+void FScene::DebugRender(TArrayView<FViewInfo> Views)
+{
+	ShadowScene->DebugRender(Views);
+}
+#endif

@@ -38,6 +38,7 @@
 #include "StaticMeshBatch.h"
 #include "UnrealEngine.h"
 #include "CanvasTypes.h"
+#include "Shadows/ShadowScene.h"
 
 /** Number of cube map shadow depth surfaces that will be created and used for rendering one pass point light shadows. */
 static const int32 NumCubeShadowDepthSurfaces = 5;
@@ -5000,7 +5001,8 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					WorldToLight,
 					View.ViewMatrices,
 					View.ViewRect.Size(),
-					&View
+					&View,
+					Scene->ShadowScene->GetLightMobilityFactor(LightSceneInfo.Id)
 				));
 
 				// TODO: Not clear we need both of these in this path, but keep it consistent for now

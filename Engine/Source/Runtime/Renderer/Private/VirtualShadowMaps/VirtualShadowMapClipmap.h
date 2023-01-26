@@ -28,7 +28,8 @@ public:
 		const FMatrix& WorldToLightRotationMatrix,
 		const FViewMatrices& CameraViewMatrices,
 		FIntPoint CameraViewRectSize,
-		const FViewInfo* InDependentView
+		const FViewInfo* InDependentView,
+		float LightMobilityFactor
 	);
 
 	FViewMatrices GetViewMatrices(int32 ClipmapIndex) const;

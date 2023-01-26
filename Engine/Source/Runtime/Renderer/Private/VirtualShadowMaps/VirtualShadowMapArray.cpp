@@ -113,6 +113,12 @@ static TAutoConsoleVariable<float> CVarResolutionLodBiasLocal(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarResolutionLodBiasLocalMoving(
+	TEXT("r.Shadow.Virtual.ResolutionLodBiasLocalMoving"),
+	1.0f,
+	TEXT("Bias applied to LOD calculations for moving local lights. -1.0 doubles resolution, 1.0 halves it and so on."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 static TAutoConsoleVariable<float> CVarPageDilationBorderSizeDirectional(
 	TEXT("r.Shadow.Virtual.PageDilationBorderSizeDirectional"),
 	0.05f,
@@ -395,7 +401,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCacheDataParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,					PrevPageTable )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FPhysicalPageMetaData >,	PrevPhysicalPageMetaData)
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,					PrevPhysicalPageMetaDataOut)
-	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,					PrevProjectionData)
 END_SHADER_PARAMETER_STRUCT()
 
 static void SetCacheDataShaderParameters(FRDGBuilder& GraphBuilder, const TArray<TUniquePtr<FVirtualShadowMap>, SceneRenderingAllocator>& ShadowMaps, FVirtualShadowMapArrayCacheManager* CacheManager, FCacheDataParameters &CacheDataParameters)
@@ -424,7 +429,6 @@ static void SetCacheDataShaderParameters(FRDGBuilder& GraphBuilder, const TArray
 	CacheDataParameters.PrevPageFlags = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageFlags, TEXT("Shadow.Virtual.PrevPageFlags")));
 	CacheDataParameters.PrevPageTable = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageTable, TEXT("Shadow.Virtual.PrevPageTable")));
 	CacheDataParameters.PrevPhysicalPageMetaData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PhysicalPageMetaData, TEXT("Shadow.Virtual.PrevPhysicalPageMetaData")));
-	CacheDataParameters.PrevProjectionData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.ProjectionData, TEXT("Shadow.Virtual.PrevProjectionData")));
 }
 
 
@@ -553,9 +557,9 @@ FVirtualShadowMap* FVirtualShadowMapArray::Allocate(bool bSinglePageShadowMap)
 	return SM;
 }
 
-float FVirtualShadowMapArray::GetResolutionLODBiasLocal() const
+float FVirtualShadowMapArray::GetResolutionLODBiasLocal(float LightMobilityFactor) const
 {
-	return CVarResolutionLodBiasLocal.GetValueOnRenderThread();
+	return InterpolateResolutionBias(CVarResolutionLodBiasLocal.GetValueOnRenderThread(), CVarResolutionLodBiasLocalMoving.GetValueOnRenderThread(), LightMobilityFactor);
 }
 
 FVirtualShadowMapArray::~FVirtualShadowMapArray()
@@ -1180,11 +1184,11 @@ static uint32 GetShadowMapsToAllocate(uint32 NumShadowMaps)
 void FVirtualShadowMapArray::BuildPageAllocations(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	const TArray<FViewInfo>& Views,
+	const TConstArrayView<FViewInfo>& Views,
 	const FEngineShowFlags& EngineShowFlags,
 	const FSortedLightSetSceneInfo& SortedLightsInfo,
-	const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
-	const TArray<Nanite::FRasterResults, TInlineAllocator<2>>& NaniteRasterResults,
+	const TConstArrayView<FVisibleLightInfo>& VisibleLightInfos,
+	const TFunctionRef<float(int32 LightId)>& GetLightMobilityFactor,
 	const FSingleLayerWaterPrePassResult* SingleLayerWaterPrePassResult)
 {
 	check(IsEnabled());
@@ -1246,8 +1250,9 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	FRDGScatterUploadBuffer ProjectionDataUploader;
 	ProjectionDataUploader.Init(GraphBuilder, GetNumShadowMaps(), sizeof(FVirtualShadowMapProjectionShaderData), false, TEXT("Shadow.Virtual.ProjectionData.UploadBuffer"));
 
-	for (const FVisibleLightInfo& VisibleLightInfo : VisibleLightInfos)
+	for (int32 LightId = 0; LightId < VisibleLightInfos.Num(); ++LightId)
 	{
+		const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightId];
 		for (const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap : VisibleLightInfo.VirtualShadowMapClipmaps)
 		{
 			// NOTE: Shader assumes all levels from a given clipmap are contiguous
@@ -1269,12 +1274,12 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			}
 		}
 
-		const float ResolutionLodBiasLocal = GetResolutionLODBiasLocal();
 
 		for (FProjectedShadowInfo* ProjectedShadowInfo : VisibleLightInfo.AllProjectedShadows)
 		{
 			if (ProjectedShadowInfo->HasVirtualShadowMap())
 			{
+				const float ResolutionLodBiasLocal = GetResolutionLODBiasLocal(GetLightMobilityFactor(LightId));
 				check(ProjectedShadowInfo->CascadeSettings.ShadowSplitIndex == INDEX_NONE);		// We use clipmaps for virtual shadow maps, not cascades
 
 				// NOTE: Virtual shadow maps are never atlased, but verify our assumptions
@@ -1294,9 +1299,10 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				int32 NumMaps = ProjectedShadowInfo->bOnePassPointLightShadow ? 6 : 1;
 				for(int32 Index = 0; Index < NumMaps; ++Index)
 				{
-					check(!CacheEntry.IsValid() || CacheEntry->bCurrentIsDistantLight == ProjectedShadowInfo->VirtualShadowMaps[Index]->bIsSinglePageSM);
+					check(!CacheEntry.IsValid() || CacheEntry->Current.bIsDistantLight == ProjectedShadowInfo->VirtualShadowMaps[Index]->bIsSinglePageSM);
 					
 					uint32 Flags = ProjectedShadowInfo->VirtualShadowMaps[Index]->bIsSinglePageSM ? VSM_PROJ_FLAG_CURRENT_DISTANT_LIGHT : 0U;
+					Flags |= CacheEntry.IsValid() && CacheEntry->IsUncached() ? VSM_PROJ_FLAG_UNCACHED : 0U;
 					int32 ID = ProjectedShadowInfo->VirtualShadowMaps[Index]->ID;
 
 					const FViewMatrices ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices(Index, true );
@@ -3235,13 +3241,17 @@ uint32 FVirtualShadowMapArray::AddRenderViews(const TSharedPtr<FVirtualShadowMap
 	BaseParams.PrevTargetLayerIndex = INDEX_NONE;
 	BaseParams.TargetMipLevel = 0;
 	BaseParams.TargetMipCount = 1;	// No mips for clipmaps
-	BaseParams.Flags = GForceInvalidateDirectionalVSM != 0 ? NANITE_VIEW_FLAG_UNCACHED : 0u;
+	BaseParams.Flags = 0u;
 	BaseParams.bOverrideDrawDistanceOrigin = true;
 	BaseParams.DrawDistanceOrigin = CullingViewOrigin;
 
-	if (Clipmap->GetCacheEntry())
+	const TSharedPtr<FVirtualShadowMapPerLightCacheEntry>& CacheEntry = Clipmap->GetCacheEntry();
+	if (CacheEntry.IsValid())
 	{
-		Clipmap->GetCacheEntry()->MarkRendered(Scene.GetFrameNumber());
+		CacheEntry->MarkRendered(Scene.GetFrameNumber());
+
+		// Enable the force-uncaching to remove needless caching overhead if there is nothing to cache (the light is constantly invalidated).
+		BaseParams.Flags |= CacheEntry->IsUncached() ? NANITE_VIEW_FLAG_UNCACHED : 0u;
 	}
 
 	for (int32 ClipmapLevelIndex = 0; ClipmapLevelIndex < Clipmap->GetLevelCount(); ++ClipmapLevelIndex)
@@ -3322,9 +3332,12 @@ uint32 FVirtualShadowMapArray::AddRenderViews(const FProjectedShadowInfo* Projec
 	BaseParams.bOverrideDrawDistanceOrigin = true;
 	BaseParams.DrawDistanceOrigin = ClosestCullingViewOrigin;
 
-	if (ProjectedShadowInfo->VirtualShadowMapPerLightCacheEntry)
+	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> CacheEntry = ProjectedShadowInfo->VirtualShadowMapPerLightCacheEntry;
+	if (CacheEntry.IsValid())
 	{
-		ProjectedShadowInfo->VirtualShadowMapPerLightCacheEntry->MarkRendered(Scene.GetFrameNumber());
+		CacheEntry->MarkRendered(Scene.GetFrameNumber());
+
+		BaseParams.Flags |= CacheEntry->IsUncached() ? NANITE_VIEW_FLAG_UNCACHED : 0U;
 	}
 
 	int32 NumMaps = ProjectedShadowInfo->bOnePassPointLightShadow ? 6 : 1;
@@ -3417,4 +3430,9 @@ void FVirtualShadowMapArray::AddVisualizePass(FRDGBuilder& GraphBuilder, const F
 		}
 	}
 #endif
+}
+
+float FVirtualShadowMapArray::InterpolateResolutionBias(float BiasNonMoving, float BiasMoving, float LightMobilityFactor)
+{
+	return FMath::Lerp(BiasNonMoving, FMath::Max(BiasNonMoving, BiasMoving), LightMobilityFactor);
 }

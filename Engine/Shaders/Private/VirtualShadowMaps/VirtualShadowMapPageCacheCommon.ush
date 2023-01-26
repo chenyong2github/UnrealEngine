@@ -19,7 +19,6 @@ StructuredBuffer<FShadowMapCacheData> ShadowMapCacheData;
 StructuredBuffer<uint> PrevPageFlags;
 StructuredBuffer<uint> PrevPageTable;
 StructuredBuffer<FPhysicalPageMetaData> PrevPhysicalPageMetaData;
-ByteAddressBuffer PrevProjectionData;
 
 // Flags buffer (one bit per PersistentPrimitiveIndex) to track statically cached primitives that are invalidating
 // Currently we use GPU messaging to send these primitives back for the CPU to handle as desired

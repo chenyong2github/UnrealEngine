@@ -1,7 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-/*=============================================================================
-	ShadowSceneRenderer.h:
-=============================================================================*/
 #pragma once
 
 #include "CoreMinimal.h"
@@ -18,6 +15,7 @@ class FWholeSceneProjectedShadowInitializer;
 class FRDGBuilder;
 class FVirtualShadowMapPerLightCacheEntry;
 struct FNaniteVisibilityQuery;
+class FShadowScene;
 
 /**
  * Transient scope for per-frame rendering resources for the shadow rendering.
@@ -89,8 +87,6 @@ private:
 	 */
 	void UpdateDistantLightPriorityRender();
 
-	// TODO: void RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled);
-
 	struct FLocalLightShadowFrameSetup
 	{
 		TArray<FVirtualShadowMap*, TInlineAllocator<6>> VirtualShadowMaps;
@@ -103,7 +99,6 @@ private:
 	// TODO: maybe we want to keep these in a 1:1 sparse array wrt the light scene infos, for easy crossreference & GPU access (maybe)?
 	//       tradeoff is easy to look up (given light ID) but not compact, but OTOH can keep compact lists of indices for various purposes
 	TArray<FLocalLightShadowFrameSetup, SceneRenderingAllocator> LocalLights;
-
 
 	struct FDirectionalLightShadowFrameSetup
 	{
@@ -120,6 +115,7 @@ private:
 	// Links to other systems etc.
 	FDeferredShadingSceneRenderer& SceneRenderer;
 	FScene& Scene;
+	FShadowScene& ShadowScene;
 	FVirtualShadowMapArray& VirtualShadowMapArray;
 
 	FNaniteVisibilityQuery* NaniteVisibilityQuery = nullptr;

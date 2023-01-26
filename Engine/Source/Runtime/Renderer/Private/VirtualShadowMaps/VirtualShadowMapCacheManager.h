@@ -27,7 +27,6 @@ public:
 	void UpdateLocal(int32 VirtualShadowMapId, const FVirtualShadowMapPerLightCacheEntry &PerLightEntry);
 
 	void UpdateClipmap(int32 VirtualShadowMapId,
-		const FMatrix &WorldToLight,
 		FInt64Point PageSpaceLocation,
 		FInt64Point ClipmapCornerOffset,
 		double LevelRadius,
@@ -47,7 +46,6 @@ public:
 
 	struct FClipmapInfo
 	{
-		FMatrix	WorldToLight;
 		double ViewCenterZ;
 		double ViewRadiusZ;
 
@@ -74,11 +72,17 @@ public:
 	void OnPrimitiveRendered(const FPrimitiveSceneInfo* PrimitiveSceneInfo);
 	/**
 	 * The (local) VSM is fully cached if the previous frame if was distant and is distant this frame also.
+	 * "Fully" implies that we know all pages are mapped as well as rendered to (ignoring potential CPU-side object culling).
 	 */
-	inline bool IsFullyCached() const { return bCurrentIsDistantLight && bPrevIsDistantLight && PrevRenderedFrameNumber >= 0; }
-	void MarkRendered(int32 FrameIndex) { CurrentRenderedFrameNumber = FrameIndex; }
-	int32 GetLastScheduledFrameNumber() const { return PrevScheduledFrameNumber; }
-	void UpdateClipmap();
+	inline bool IsFullyCached() const { return Current.bIsDistantLight && Prev.bIsDistantLight && Prev.RenderedFrameNumber >= 0; }
+
+	/**
+	 */
+	inline bool IsUncached() const { return Current.bIsUncached; }
+
+	void MarkRendered(int32 FrameIndex) { Current.RenderedFrameNumber = FrameIndex; }
+	int32 GetLastScheduledFrameNumber() const { return Prev.ScheduledFrameNumber; }
+	void UpdateClipmap(const FMatrix& WorldToLight);
 	/**
 	 * Returns true if the cache entry is valid (has previous state).
 	 */
@@ -89,13 +93,17 @@ public:
 	 */
 	void Invalidate();
 
-	bool bPrevIsDistantLight = false;
-	int32 PrevRenderedFrameNumber = -1;
-	int32 PrevScheduledFrameNumber = -1;
+	struct FFrameState
+	{
+		bool bIsUncached = false;
+		bool bIsDistantLight = false;
+		int32 RenderedFrameNumber = -1;
+		int32 ScheduledFrameNumber = -1;
 
-	bool bCurrentIsDistantLight = false;
-	int32 CurrentRenderedFrameNumber = -1;
-	int32 CurrenScheduledFrameNumber = -1;
+	};
+	FFrameState Prev;
+	FFrameState Current;
+
 	// Primitives that have been rendered (not culled) the previous frame, when a primitive transitions from being culled to not it must be rendered into the VSM
 	// Key culling reasons are small size or distance cutoff.
 	TBitArray<> RenderedPrimitives;
@@ -118,6 +126,11 @@ public:
 
 private:
 	FProjectedShadowInitializer LocalCacheKey;
+	struct FClipmapCacheKey
+	{
+		FMatrix	WorldToLight;
+	};
+	FClipmapCacheKey ClipmapCacheKey;
 };
 
 class FVirtualShadowMapFeedback

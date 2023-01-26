@@ -24,6 +24,14 @@ static TAutoConsoleVariable<float> CVarVirtualShadowMapResolutionLodBiasDirectio
 	TEXT( "Bias applied to LOD calculations for directional lights. -1.0 doubles resolution, 1.0 halves it and so on." ),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
+
+static TAutoConsoleVariable<float> CVarVirtualShadowMapResolutionLodBiasDirectionalMoving(
+	TEXT( "r.Shadow.Virtual.ResolutionLodBiasDirectionalMoving" ),
+	0.5f,
+	TEXT( "Bias applied to LOD calculations for directional lights that are moving. -1.0 doubles resolution, 1.0 halves it and so on." ),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapFirstLevel(
 	TEXT( "r.Shadow.Virtual.Clipmap.FirstLevel" ),
 	6,
@@ -82,7 +90,8 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	const FMatrix& WorldToLightRotationMatrix,
 	const FViewMatrices& CameraViewMatrices,
 	FIntPoint CameraViewRectSize,
-	const FViewInfo* InDependentView)
+	const FViewInfo* InDependentView,
+	float LightMobilityFactor)
 	: LightSceneInfo(InLightSceneInfo),
 	  DependentView(InDependentView)
 {
@@ -114,7 +123,7 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	// For now we adjust resolution by just biasing the page we look up in. This is wasteful in terms of page table vs.
 	// just resizing the virtual shadow maps for each clipmap, but convenient for now. This means we need to additionally bias
 	// which levels are present.
-	ResolutionLodBias = CVarVirtualShadowMapResolutionLodBiasDirectional.GetValueOnRenderThread() + FMath::Log2(LodScale);
+	ResolutionLodBias = FVirtualShadowMapArray::InterpolateResolutionBias(CVarVirtualShadowMapResolutionLodBiasDirectional.GetValueOnRenderThread(), CVarVirtualShadowMapResolutionLodBiasDirectionalMoving.GetValueOnRenderThread(), LightMobilityFactor) + FMath::Log2(LodScale);
 	// Clamp negative absolute resolution biases as they would exceed the maximum resolution/ranges allocated
 	ResolutionLodBias = FMath::Max(0.0f, ResolutionLodBias);
 
@@ -134,7 +143,7 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		PerLightCacheEntry = VirtualShadowMapArrayCacheManager->FindCreateLightCacheEntry(LightSceneInfo.Id, InDependentView->ViewState->GetViewKey());
 		if (PerLightCacheEntry.IsValid())
 		{
-			PerLightCacheEntry->UpdateClipmap();
+			PerLightCacheEntry->UpdateClipmap(WorldToLightRotationMatrix);
 		}
 	}
 
@@ -214,7 +223,6 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 			FInt64Point PageOffset(CornerOffset * (FVirtualShadowMap::Level0DimPagesXY >> 2));
 
 			CacheEntry->UpdateClipmap(Level.VirtualShadowMap->ID,
-				WorldToLightRotationMatrix,
 				PageOffset,
 				CornerOffset,
 				RawLevelRadius,
@@ -317,7 +325,11 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	Data.ResolutionLodBias = ResolutionLodBias;
 	Data.ClipmapCornerRelativeOffset = Level.RelativeCornerOffset;
 	Data.LightSourceRadius = GetLightSceneInfo().Proxy->GetSourceRadius();
-	Data.Flags = GForceInvalidateDirectionalVSM ? VSM_PROJ_FLAG_UNCACHED : 0U;
+	Data.Flags = 0U;
+	if (PerLightCacheEntry.IsValid() && PerLightCacheEntry->IsUncached())
+	{
+		Data.Flags |= VSM_PROJ_FLAG_UNCACHED;
+	}
 
 	return Data;
 }
@@ -387,3 +399,4 @@ void FVirtualShadowMapClipmap::UpdateCachedFrameData()
 		PerLightCacheEntry->RenderedPrimitives = MoveTemp(RenderedPrimitives);
 	}
 }
+

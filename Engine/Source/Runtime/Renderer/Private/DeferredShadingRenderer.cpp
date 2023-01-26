@@ -86,6 +86,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "RenderCore.h"
 #include "VariableRateShadingImageManager.h"
+#include "Shadows/ShadowScene.h"
 
 extern int32 GNaniteShowStats;
 extern int32 GNanitePickingDomain;
@@ -2465,6 +2466,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, AsyncOps);
 	}
+	// kick off dependent scene updates 
+	Scene->ShadowScene->UpdateForRenderedFrame(GraphBuilder);
 
 #if RHI_RAYTRACING
 	// Initialize ray tracing flags, in case they weren't initialized in the CreateSceneRenderers code path
@@ -2794,6 +2797,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			GPUSortManager->OnPreRender(GraphBuilder);
 		}
 	}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	Scene->DebugRender(Views);
+#endif
 
 	FRDGExternalAccessQueue ExternalAccessQueue;
 
@@ -3610,7 +3617,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowDepths);
 
 				ensureMsgf(AreLightsInLightGrid(), TEXT("Virtual shadow map setup requires local lights to be injected into the light grid (this may be caused by 'r.LightCulling.Quality=0')."));
-				VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, SceneTextures, Views, ViewFamily.EngineShowFlags, SortedLightSet, VisibleLightInfos, NaniteRasterResults, SingleLayerWaterPrePassResult);
+
+				// TODO: propagate config in some other way (along with shadowing lights flowing from persistent setup to the VSM setup)
+				auto GetLightMobilityFactor = [this](int32 LightId)->float { return Scene->ShadowScene->GetLightMobilityFactor(LightId); };
+				VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, GetActiveSceneTextures(), Views, ViewFamily.EngineShowFlags, SortedLightSet, VisibleLightInfos, GetLightMobilityFactor, SingleLayerWaterPrePassResult);
 			}
 
 			RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager, ExternalAccessQueue);

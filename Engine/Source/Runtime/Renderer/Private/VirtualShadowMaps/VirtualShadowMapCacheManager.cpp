@@ -73,7 +73,6 @@ static FAutoConsoleVariableRef  CVarForceInvalidateDirectionalVSM(
 
 void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	int32 VirtualShadowMapId,
-	const FMatrix &WorldToLight,
 	FInt64Point PageSpaceLocation,
 	FInt64Point ClipmapCornerOffset,
 	double LevelRadius,
@@ -82,14 +81,8 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	double ViewRadiusZ,
 	const FVirtualShadowMapPerLightCacheEntry& PerLightEntry)
 {
-	bool bCacheValid = (CurrentVirtualShadowMapId != INDEX_NONE) && GForceInvalidateDirectionalVSM == 0;
+	bool bCacheValid = CurrentVirtualShadowMapId != INDEX_NONE;
 	
-	if (bCacheValid && WorldToLight != Clipmap.WorldToLight)
-	{
-		bCacheValid = false;
-		//UE_LOG(LogRenderer, Display, TEXT("Invalidated clipmap level (VSM %d) due to light movement"), VirtualShadowMapId);
-	}
-
 	if (bCacheValid && GClipmapPanning == 0)
 	{
 		if (PageSpaceLocation.X != PrevPageSpaceLocation.X ||
@@ -113,7 +106,7 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	}
 
 	// Not valid if it was never rendered
-	if (PerLightEntry.PrevRenderedFrameNumber < 0)
+	if (PerLightEntry.Prev.RenderedFrameNumber < 0)
 	{
 		bCacheValid = false;
 	}
@@ -134,7 +127,6 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 
 		// New cached level
 		PrevVirtualShadowMapId = INDEX_NONE;
-		Clipmap.WorldToLight = WorldToLight;
 		Clipmap.ViewCenterZ = ViewCenterZ;
 		Clipmap.ViewRadiusZ = ViewRadiusZ;
 	}
@@ -155,13 +147,13 @@ void FVirtualShadowMapCacheEntry::UpdateLocal(int32 VirtualShadowMapId, const FV
 	PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
 
 	// Not valid if it was never rendered
-	if (PerLightEntry.PrevRenderedFrameNumber < 0)
+	if (PerLightEntry.Prev.RenderedFrameNumber < 0)
 	{
 		PrevVirtualShadowMapId = INDEX_NONE;
 	}
 
 	// Invalidate on transition from distant to full
-	if (!PerLightEntry.bCurrentIsDistantLight && PerLightEntry.bPrevIsDistantLight)
+	if (!PerLightEntry.Current.bIsDistantLight && PerLightEntry.Prev.bIsDistantLight)
 	{
 		PrevVirtualShadowMapId = INDEX_NONE;
 	}
@@ -175,17 +167,33 @@ void FVirtualShadowMapCacheEntry::Invalidate()
 	PrevVirtualShadowMapId = INDEX_NONE;
 }
 
-void FVirtualShadowMapPerLightCacheEntry::UpdateClipmap()
+void FVirtualShadowMapPerLightCacheEntry::UpdateClipmap(const FMatrix& WorldToLight)
 {
-	PrevRenderedFrameNumber = FMath::Max(PrevRenderedFrameNumber, CurrentRenderedFrameNumber);
-	CurrentRenderedFrameNumber = -1;
+	Prev.bIsUncached = Current.bIsUncached;
+	Prev.RenderedFrameNumber = FMath::Max(Prev.RenderedFrameNumber, Current.RenderedFrameNumber);
+	Current.RenderedFrameNumber = -1;
+	if (GForceInvalidateDirectionalVSM != 0 || WorldToLight != ClipmapCacheKey.WorldToLight)
+	{
+		Prev.RenderedFrameNumber = -1;
+		//UE_LOG(LogRenderer, Display, TEXT("Invalidated clipmap level (VSM %d) due to light movement"), VirtualShadowMapId);
+	}
+	ClipmapCacheKey.WorldToLight = WorldToLight;
+
+	Current.bIsUncached = GForceInvalidateDirectionalVSM != 0 || Prev.RenderedFrameNumber < 0;
+
+	// On transition from uncached -> cached we must invalidate since the static pages are not initialized at this point.
+	if (!Current.bIsUncached && Prev.bIsUncached)
+	{
+		Prev.RenderedFrameNumber = -1;
+	}
 }
 
 bool FVirtualShadowMapPerLightCacheEntry::UpdateLocal(const FProjectedShadowInitializer& InCacheKey, bool bIsDistantLight, bool bAllowInvalidation)
 {
-	bPrevIsDistantLight = bCurrentIsDistantLight;
-	PrevRenderedFrameNumber = FMath::Max(PrevRenderedFrameNumber, CurrentRenderedFrameNumber);
-	PrevScheduledFrameNumber = FMath::Max(PrevScheduledFrameNumber, CurrenScheduledFrameNumber);
+	Prev.bIsUncached = Current.bIsUncached;
+	Prev.bIsDistantLight = Current.bIsDistantLight;
+	Prev.RenderedFrameNumber = FMath::Max(Prev.RenderedFrameNumber, Current.RenderedFrameNumber);
+	Prev.ScheduledFrameNumber = FMath::Max(Prev.ScheduledFrameNumber, Current.ScheduledFrameNumber);
 
 	// Check cache validity based of shadow setup
 	if (!LocalCacheKey.IsCachedShadowValid(InCacheKey))
@@ -194,22 +202,29 @@ bool FVirtualShadowMapPerLightCacheEntry::UpdateLocal(const FProjectedShadowInit
 		// TODO: track invalidation state somehow for later.
 		if (bAllowInvalidation)
 		{
-			PrevRenderedFrameNumber = -1;
+			Prev.RenderedFrameNumber = -1;
 		}
 		//UE_LOG(LogRenderer, Display, TEXT("Invalidated!"));
 	}
 	LocalCacheKey = InCacheKey;
 
-	bCurrentIsDistantLight = bIsDistantLight;
-	CurrentRenderedFrameNumber = -1;
-	CurrenScheduledFrameNumber = -1;
+	Current.bIsDistantLight = bIsDistantLight;
+	Current.RenderedFrameNumber = -1;
+	Current.ScheduledFrameNumber = -1;
+	Current.bIsUncached = Prev.RenderedFrameNumber < 0;
 
-	return PrevRenderedFrameNumber >= 0;
+	// On transition from uncached -> cached we must invalidate since the static pages are not initialized at this point.
+	if (!Current.bIsUncached && Prev.bIsUncached)
+	{
+		Prev.RenderedFrameNumber = -1;
+	}
+
+	return Prev.RenderedFrameNumber >= 0;
 }
 
 void FVirtualShadowMapPerLightCacheEntry::Invalidate()
 {
-	PrevRenderedFrameNumber = -1;
+	Prev.RenderedFrameNumber = -1;
 
 	for (TSharedPtr<FVirtualShadowMapCacheEntry>& Entry : ShadowMapEntries)
 	{
@@ -1025,19 +1040,6 @@ void FVirtualShadowMapArrayCacheManager::ProcessRemovedOrUpdatedPrimitives(FRDGB
 	}
 }
 
-static void ResizeFlagArray(TBitArray<>& BitArray, int32 NewMax, bool DefaultValue = false)
-{
-	if (BitArray.Num() > NewMax)
-	{
-		// Trim off excess items
-		BitArray.SetNumUninitialized(NewMax);
-	}
-	else if (BitArray.Num() < NewMax)
-	{
-		BitArray.Add(DefaultValue, NewMax - BitArray.Num());
-	}
-}
-
 void FVirtualShadowMapArrayCacheManager::OnSceneChange()
 {
 	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
@@ -1046,13 +1048,13 @@ void FVirtualShadowMapArrayCacheManager::OnSceneChange()
 
 		for (auto& CacheEntry : PrevCacheEntries)
 		{
-			ResizeFlagArray(CacheEntry.Value->CachedPrimitives, MaxPersistentPrimitiveIndex);
-			ResizeFlagArray(CacheEntry.Value->RenderedPrimitives, MaxPersistentPrimitiveIndex);
+			CacheEntry.Value->CachedPrimitives.SetNum(MaxPersistentPrimitiveIndex, false);
+			CacheEntry.Value->RenderedPrimitives.SetNum(MaxPersistentPrimitiveIndex, false);
 		}
 		for (auto& CacheEntry : CacheEntries)
 		{
-			ResizeFlagArray(CacheEntry.Value->CachedPrimitives, MaxPersistentPrimitiveIndex);
-			ResizeFlagArray(CacheEntry.Value->RenderedPrimitives, MaxPersistentPrimitiveIndex);
+			CacheEntry.Value->CachedPrimitives.SetNum(MaxPersistentPrimitiveIndex, false);
+			CacheEntry.Value->RenderedPrimitives.SetNum(MaxPersistentPrimitiveIndex, false);
 		}
 	}
 }

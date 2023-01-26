@@ -87,6 +87,7 @@ class FSparseVolumeTextureViewerSceneProxy;
 class FLandscapeRayTracingStateList;
 class FExponentialHeightFogSceneInfo;
 class FStaticMeshBatch;
+class FShadowScene;
 class FSceneLightInfoUpdates;
 /**
  * Describes all light modifications to the scene by recording the light scene IDs.
@@ -2921,6 +2922,11 @@ public:
 	 */
 	FVirtualShadowMapArrayCacheManager* DefaultVirtualShadowMapCache;
 
+	/**
+	 * Stores scene-aspects needed for shadow rendering.
+	 */
+	FShadowScene* ShadowScene;
+
 	/** Texture layout that tracks current allocations in the PreshadowCache render target. */
 	FTextureLayout PreshadowCacheLayout;
 
@@ -3435,11 +3441,15 @@ public:
 	void LumenInvalidateSurfaceCacheForPrimitive(FPrimitiveSceneInfo* InPrimitive);
 	void LumenRemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 PrimitiveIndex);
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	void DebugRender(TArrayView<FViewInfo> Views);
+#endif
+
 	/**
 	 * Light scene change delegates, may be used to hook in subsystems that need to respond to light scene changes.
 	 * Note, all the light scene changes are applied _before_ all the primitive scene infos are updated.
 	 */
-	DECLARE_MULTICAST_DELEGATE_OneParam(FSceneLightSceneInfoUpdateDelegate, const FLightSceneChangeSet&);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FSceneLightSceneInfoUpdateDelegate, FRDGBuilder& , const FLightSceneChangeSet&);
 	/**
 	 * This delegate is invoked during the scene update phase _before_ the scene has had any light changes applied.
 	 * Thus, AddedLightIds is not valid in the change set as the added lights do not have assigned IDs yet.
