@@ -157,9 +157,13 @@ public:
 	/** Allows handlers of FShaderCacheOpenedDelegate to send state to begin and complete pre-compilation delegates */
 	class FShaderCachePrecompileContext
 	{
-		bool bSlowPrecompileTask;
+		bool bSlowPrecompileTask = false;
+		FString CacheName;
 	public:
-		FShaderCachePrecompileContext() : bSlowPrecompileTask(false) {}
+		FShaderCachePrecompileContext() = default;
+		FShaderCachePrecompileContext(const FString& CacheNameIn) : CacheName(CacheNameIn) {}
+
+		const FString& GetCacheName() const { return CacheName; }
 		void SetPrecompilationIsSlowTask() { bSlowPrecompileTask = true; }
 		bool IsPrecompilationSlowTask() const { return bSlowPrecompileTask; }
 	};

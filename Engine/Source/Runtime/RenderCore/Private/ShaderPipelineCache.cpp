@@ -1997,6 +1997,7 @@ bool FShaderPipelineCacheTask::Open(const FString& Key, FString const& Name, ESh
 {
 	PSOCacheKey = Key;
 	ShaderPlatform = Platform;
+	PrecompileContext = FShaderPipelineCache::FShaderCachePrecompileContext(Name);
 
 	if (bIsUserCache)
 	{
