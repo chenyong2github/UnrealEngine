@@ -36,6 +36,8 @@ static FAutoConsoleVariableRef CVarDisplayClusterSharedMemoryLatency(
 );
 
 
+TSet<FString>FSharedMemoryMediaPlayer::UniqueNamesRegistered;
+
 FSharedMemoryMediaPlayer::FSharedMemoryMediaPlayer()
 	: Super()
 {
@@ -46,6 +48,20 @@ FSharedMemoryMediaPlayer::~FSharedMemoryMediaPlayer()
 {
 	Close();
 	delete Samples;
+}
+
+bool FSharedMemoryMediaPlayer::RegisterUniqueName(FString& InUniqueName)
+{
+	bool bIsAlreadyInSet = false;
+
+	UniqueNamesRegistered.Add(InUniqueName, &bIsAlreadyInSet);
+
+	return !bIsAlreadyInSet;
+}
+
+void FSharedMemoryMediaPlayer::UnregisterUniqueName(FString& InUniqueName)
+{
+	UniqueNamesRegistered.Remove(InUniqueName);
 }
 
 bool FSharedMemoryMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
@@ -99,6 +115,12 @@ bool FSharedMemoryMediaPlayer::Open(const FString& Url, const IMediaOptions* Opt
 			FrameAckFences[BufferIdx] = RHICreateGPUFence(TEXT("SharedMemoryMediaFrameAckFence"));
 			bFrameAckFenceBusy[BufferIdx] = false;
 		}
+	}
+
+	if (!RegisterUniqueName(UniqueName))
+	{
+		UE_LOG(LogDisplayClusterMedia, Error, TEXT("Only one SharedMemoryMediaPlayer the UniqueName '%s' can play at a time"), *UniqueName);
+		return false;
 	}
 
 	return true;
@@ -164,6 +186,9 @@ void FSharedMemoryMediaPlayer::Close()
 
 	// Reset our state variables
 	ModeState.Reset();
+
+	// Allow this or other players with the given UniqueName to play
+	UnregisterUniqueName(UniqueName);
 }
 
 FGuid FSharedMemoryMediaPlayer::GetPlayerPluginGUID() const

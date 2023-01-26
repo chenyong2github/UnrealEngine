@@ -234,6 +234,19 @@ protected:
 
 protected:
 
+	/** Used to make sure that players with the same UniqueName are not allowed to play at the same time, which is not supported.
+	 *  Only access from game thread.
+	 */
+	static TSet<FString> UniqueNamesRegistered;
+
+	/** Used by the player when it opens. The player should not play if the return value is false */
+	static bool RegisterUniqueName(FString& InUniqueName);
+
+	/** Used by the player when it closes. */
+	static void UnregisterUniqueName(FString& InUniqueName);
+
+protected:
+
 	/** Number of resources used for pipelining the data flow */
 	static constexpr int32 NUMSHAREDMEM = UE::SharedMemoryMedia::SenderNumBuffers;
 

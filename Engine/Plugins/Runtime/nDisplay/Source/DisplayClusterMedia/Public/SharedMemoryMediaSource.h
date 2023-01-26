@@ -45,7 +45,7 @@ public:
 	ESharedMemoryMediaSourceMode Mode;
 
 	/** Zero latency option to wait for the cross gpu texture rendered on the same frame. May adversely affect fps. Only applicable in Framelocked mode. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input", meta = (EditCondition = "bUseFrameNumbers"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	bool bZeroLatency = true;
 
 public:
