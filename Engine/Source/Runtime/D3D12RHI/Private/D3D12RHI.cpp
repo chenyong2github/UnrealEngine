@@ -514,7 +514,7 @@ void FD3D12DynamicRHI::RHIPerFrameRHIFlushComplete()
 
 		for (FD3D12Device* Device : Adapter.GetDevices())
 		{
-			Device->GetDefaultCommandContext().ClearState(FD3D12ContextCommon::EClearStateMode::All);
+			Device->GetDefaultCommandContext().ClearState(FD3D12ContextCommon::EClearStateMode::TransientOnly);
 		}
 	}
 }
