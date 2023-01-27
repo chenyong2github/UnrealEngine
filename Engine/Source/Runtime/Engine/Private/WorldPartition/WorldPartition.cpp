@@ -1189,9 +1189,6 @@ bool UWorldPartition::CanBeUsedByLevelInstance() const
 
 void UWorldPartition::SetCanBeUsedByLevelInstance(bool bInCanBeUsedByLevelInstance)
 {
-	// Only allowed to be called when WorldPartition is not initialized
-	check(!IsInitialized());
-
 	if (bCanBeUsedByLevelInstance != bInCanBeUsedByLevelInstance)
 	{
 		const FScopedTransaction Transaction(LOCTEXT("EditorWorldPartitionCanBeUsedByLevelInstance", "Set WorldPartition CanBeUsedByLevelInstance"));

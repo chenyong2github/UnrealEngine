@@ -3,6 +3,7 @@
 #include "WorldPartitionDetailsCustomization.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
+#include "WorldPartition/WorldPartitionEditorSettings.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
 #include "DetailLayoutBuilder.h"
@@ -56,64 +57,86 @@ void FWorldPartitionDetails::CustomizeDetails(IDetailLayoutBuilder& InDetailBuil
 		.Visibility(TAttribute<EVisibility>::CreateLambda([this]() { return WorldPartition.IsValid() && WorldPartition->SupportsStreaming() ? EVisibility::Visible : EVisibility::Hidden; }));
 
 	// Disable world partition button
-	WorldPartitionCategory.AddCustomRow(LOCTEXT("DefaultWorldPartitionSettingsRow", "DefaultWorldPartitionSettings"), true)
-		.NameContent()
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("DisableWorldPartition", "Disable World Partition"))
-			.ToolTipText(LOCTEXT("DisableWorldPartition_ToolTip", "Disable World Partition for this world, only works if streaming is disabled."))
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-		]
-		.ValueContent()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
+	if (GetDefault<UWorldPartitionEditorSettings>()->bAdvancedMode)
+	{
+		// Can be used by level instance checkbox
+		WorldPartitionCategory.AddCustomRow(LOCTEXT("CanBeUsedByLevelInstance", "Can Be Used By Level Instance"), false)
+			.RowTag(TEXT("CanBeUsedByLevelInstance"))
+			.NameContent()
 			[
-				SNew(SButton)
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				.IsEnabled_Lambda([this]()
-				{
-					return !WorldPartition->IsStreamingEnabled();
-				})
-				.OnClicked_Lambda([this]()
-				{
-					if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("RemoveWorldPartitionConfirmation", "You are about to remove world partition from the current level. Continue?")) == EAppReturnType::Yes)
-					{
-						FScopedTransaction Transaction(LOCTEXT("RemoveWorldPartition", "Remove World Partition"));
-						UWorldPartition::RemoveWorldPartition(WorldPartition->GetWorld()->GetWorldSettings());
-					}
-					return FReply::Handled();
-				})
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("DisableButtom", "Disable"))
-					.ToolTipText(LOCTEXT("DisableWorldPartition_ToolTip", "Disable World Partition for this world, only works if streaming is disabled."))
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
+				SNew(STextBlock)
+				.Text(LOCTEXT("WorldPartitionCanBeUsedByLevelInstance", "Can Be Used By Level Instance"))
+				.ToolTipText(LOCTEXT("WorldPartitionCanBeUsedByLevelInstance_ToolTip", "Whether Level Instance can reference this partition."))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
-		];
+			.ValueContent()
+			[
+				SNew(SCheckBox)
+				.IsChecked(MakeAttributeLambda([this]() { return WorldPartition.IsValid() && WorldPartition->CanBeUsedByLevelInstance() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }))
+				.OnCheckStateChanged(this, &FWorldPartitionDetails::HandleWorldPartitionCanBeUsedByLevelInstanceChanged)
+			]
+			.Visibility(TAttribute<EVisibility>::CreateLambda([this]() { return WorldPartition.IsValid() && !WorldPartition->IsStreamingEnabled() ? EVisibility::Visible : EVisibility::Hidden; }));
 
-	// Runtime hash class selector
-	WorldPartitionCategory.AddCustomRow(LOCTEXT("RuntimeHashClass", "Runtime Hash Class"), false)
-		.RowTag(TEXT("RuntimeHashClass"))
-		.NameContent()
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("WorldPartitionRuntimeHashClass", "Runtime Hash Class"))
-			.ToolTipText(LOCTEXT("WorldPartitionRuntimeHashClass_ToolTip", "Set the world partition runtime hash class."))
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-		]
-		.ValueContent()
-		[
-			SNew(SClassPropertyEntryBox)
-			.MetaClass(UWorldPartitionRuntimeHash::StaticClass())
-			.AllowNone(false)
-			.HideViewOptions(true)
-			.SelectedClass_Lambda([this]() { return RuntimeHashClass; })
-			.OnSetClass_Lambda([this](const UClass* Class) { HandleWorldPartitionRuntimeHashClassChanged(Class); })
-		]
-		.Visibility(TAttribute<EVisibility>::CreateLambda([this]() { return WorldPartition.IsValid() && WorldPartition->IsStreamingEnabled() ? EVisibility::Visible : EVisibility::Hidden; }));
+		// Default world partition settings
+		WorldPartitionCategory.AddCustomRow(LOCTEXT("DefaultWorldPartitionSettingsRow", "DefaultWorldPartitionSettings"), true)
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("DisableWorldPartition", "Disable World Partition"))
+				.ToolTipText(LOCTEXT("DisableWorldPartition_ToolTip", "Disable World Partition for this world, only works if streaming is disabled."))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+			.ValueContent()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SButton)
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.IsEnabled_Lambda([this]()
+					{
+						return !WorldPartition->IsStreamingEnabled();
+					})
+					.OnClicked_Lambda([this]()
+					{
+						if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("RemoveWorldPartitionConfirmation", "You are about to remove world partition from the current level. Continue?")) == EAppReturnType::Yes)
+						{
+							FScopedTransaction Transaction(LOCTEXT("RemoveWorldPartition", "Remove World Partition"));
+							UWorldPartition::RemoveWorldPartition(WorldPartition->GetWorld()->GetWorldSettings());
+						}
+						return FReply::Handled();
+					})
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("DisableButtom", "Disable"))
+						.ToolTipText(LOCTEXT("DisableWorldPartition_ToolTip", "Disable World Partition for this world, only works if streaming is disabled."))
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
+				]
+			];
+
+		// Runtime hash class selector
+		WorldPartitionCategory.AddCustomRow(LOCTEXT("RuntimeHashClass", "Runtime Hash Class"), false)
+			.RowTag(TEXT("RuntimeHashClass"))
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("WorldPartitionRuntimeHashClass", "Runtime Hash Class"))
+				.ToolTipText(LOCTEXT("WorldPartitionRuntimeHashClass_ToolTip", "Set the world partition runtime hash class."))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+			.ValueContent()
+			[
+				SNew(SClassPropertyEntryBox)
+				.MetaClass(UWorldPartitionRuntimeHash::StaticClass())
+				.AllowNone(false)
+				.HideViewOptions(true)
+				.SelectedClass_Lambda([this]() { return RuntimeHashClass; })
+				.OnSetClass_Lambda([this](const UClass* Class) { HandleWorldPartitionRuntimeHashClassChanged(Class); })
+			]
+			.Visibility(TAttribute<EVisibility>::CreateLambda([this]() { return WorldPartition.IsValid() && WorldPartition->IsStreamingEnabled() ? EVisibility::Visible : EVisibility::Hidden; }));
+	}
 
 	// Runtime hash properties
 	if (WorldPartition->RuntimeHash)
@@ -173,6 +196,11 @@ void FWorldPartitionDetails::HandleWorldPartitionEnableStreamingChanged(ECheckBo
 			WorldPartition->SetEnableStreaming(false);
 		}
 	}
+}
+
+void FWorldPartitionDetails::HandleWorldPartitionCanBeUsedByLevelInstanceChanged(ECheckBoxState InCheckState)
+{
+	WorldPartition->SetCanBeUsedByLevelInstance((InCheckState == ECheckBoxState::Checked));
 }
 
 void FWorldPartitionDetails::HandleWorldPartitionRuntimeHashClassChanged(const UClass* InRuntimeHashClass)

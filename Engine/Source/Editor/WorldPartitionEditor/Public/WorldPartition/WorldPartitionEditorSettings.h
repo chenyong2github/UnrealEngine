@@ -27,4 +27,5 @@ public:
 	bool bDisableLoadingInEditor;
 	bool bDisableBugIt;
 	bool bDisablePIE;
+	bool bAdvancedMode;
 };

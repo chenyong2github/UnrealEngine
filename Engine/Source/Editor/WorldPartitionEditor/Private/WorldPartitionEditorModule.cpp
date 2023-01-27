@@ -281,6 +281,16 @@ void FWorldPartitionEditorModule::SetDisableBugIt(bool bInDisableBugIt)
 	GetMutableDefault<UWorldPartitionEditorSettings>()->bDisableBugIt = bInDisableBugIt;
 }
 
+bool FWorldPartitionEditorModule::GetAdvancedMode() const
+{
+	return GetDefault<UWorldPartitionEditorSettings>()->bAdvancedMode;
+}
+
+void FWorldPartitionEditorModule::SetAdvancedMode(bool bInAdvancedMode)
+{
+	GetMutableDefault<UWorldPartitionEditorSettings>()->bAdvancedMode = bInAdvancedMode;
+}
+
 void FWorldPartitionEditorModule::OnConvertMap()
 {
 	IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
@@ -748,6 +758,7 @@ UWorldPartitionEditorSettings::UWorldPartitionEditorSettings()
 	bDisableLoadingInEditor = false;
 	bDisablePIE = false;
 	bDisableBugIt = false;
+	bAdvancedMode = true;
 }
 
 FString UWorldPartitionConvertOptions::ToCommandletArgs() const

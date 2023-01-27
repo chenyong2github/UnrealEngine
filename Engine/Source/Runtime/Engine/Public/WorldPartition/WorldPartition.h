@@ -308,7 +308,7 @@ private:
 	bool bShouldCheckEnableStreamingWarning;
 
 	/** Whether Level Instance can reference this partition. */
-	UPROPERTY(EditAnywhere, Category = "WorldPartitionSetup", AdvancedDisplay, meta = (EditConditionHides, HideEditConditionToggle, EditCondition = "!bEnableStreaming"))
+	UPROPERTY()
 	bool bCanBeUsedByLevelInstance;
 #endif
 

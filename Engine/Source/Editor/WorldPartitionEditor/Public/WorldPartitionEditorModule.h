@@ -54,7 +54,7 @@ public:
 	virtual void SetDisableLoadingInEditor(bool bInDisableLoadingInEditor) override;
 
 	/**
-	 * Returns if pie is disabled or not..
+	 * Returns if pie is disabled or not.
 	 */
 	virtual bool GetDisablePIE() const override;
 	virtual void SetDisablePIE(bool bInDisablePIE) override;
@@ -64,6 +64,12 @@ public:
 	 */
 	virtual bool GetDisableBugIt() const override;
 	virtual void SetDisableBugIt(bool bInDisableBugIt) override;
+
+	/**
+	 * Returns if world partition is in advanced mode or not.
+	 */
+	virtual bool GetAdvancedMode() const override;
+	virtual void SetAdvancedMode(bool bInAdvancedMode) override;
 
 	/**
 	 * Convert the specified map to a world partition map.

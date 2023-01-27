@@ -45,6 +45,9 @@ public:
 	virtual bool GetDisableBugIt() const = 0;
 	virtual void SetDisableBugIt(bool bInDisableBugIt) = 0;
 
+	virtual bool GetAdvancedMode() const = 0;
+	virtual void SetAdvancedMode(bool bInAdvancedMode) = 0;
+
 	virtual bool IsEditingContentBundle() const = 0;
 	virtual bool IsEditingContentBundle(const FGuid& ContentBundleGuid) const = 0;
 
