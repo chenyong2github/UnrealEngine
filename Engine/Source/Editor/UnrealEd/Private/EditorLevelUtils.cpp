@@ -777,6 +777,14 @@ ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWo
 	ULevel* NewLevel = nullptr;
 	if (bNewWorldSaved)
 	{
+		// Make sure to uninitialize the world since the level will be used as a streaming level
+		// This will make sure that the initialization order will be respected.
+		// One example is world partition initialization done inside ULevel::OnLevelLoaded.
+		if (NewLevelWorld->bIsWorldInitialized)
+		{
+			NewLevelWorld->CleanupWorld();
+		}
+
 		NewStreamingLevel = AddLevelToWorld(WorldToAddLevelTo, *NewPackageName, LevelStreamingClass, InTransform);
 		if (NewStreamingLevel != nullptr)
 		{

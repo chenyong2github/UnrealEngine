@@ -733,6 +733,8 @@ void UWorldPartition::Uninitialize()
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		OnWorldPartitionUninitialized.Broadcast(this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		World = nullptr;
 	}
 }
 
@@ -1475,8 +1477,9 @@ bool UWorldPartition::IsStreamingCompleted(EWorldPartitionRuntimeCellState Query
 
 void UWorldPartition::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
 {
+	check(IsInitialized());
 	// Discard Cell's LevelStreaming notification when once WorldPartition is unitialized (can happen for instanced WorldPartition)
-	if (GetWorld()->IsGameWorld() && IsInitialized())
+	if (GetWorld()->IsGameWorld())
 	{
 		if (IsStreamingEnabled())
 		{
@@ -1488,8 +1491,9 @@ void UWorldPartition::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
 
 void UWorldPartition::OnCellHidden(const UWorldPartitionRuntimeCell* InCell)
 {
+	check(IsInitialized());
 	// Discard Cell's LevelStreaming notification when once WorldPartition is unitialized (can happen for instanced WorldPartition)
-	if (GetWorld()->IsGameWorld() && IsInitialized())
+	if (GetWorld()->IsGameWorld())
 	{
 		if (IsStreamingEnabled())
 		{

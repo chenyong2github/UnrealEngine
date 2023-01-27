@@ -998,6 +998,20 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 	ULevelStreamingLevelInstanceEditor* LevelStreaming = nullptr;
 	{
 		const bool bIsPartitioned = (CreationParams.Type != ELevelInstanceCreationType::PackedLevelActor) && GetWorld()->IsPartitionedWorld();
+
+		// We want to properly setup the world partition prior to its initialization
+		FDelegateHandle PreWorldInit = FWorldDelegates::OnPreWorldInitialization.AddLambda([&bIsPartitioned](UWorld* World, const UWorld::InitializationValues IVS)
+		{
+			if (bIsPartitioned)
+			{
+				UWorldPartition* WorldPartition = World->GetWorldPartition();
+				if (ensure(WorldPartition))
+				{
+					WorldPartition->SetCanBeUsedByLevelInstance(true);
+				}
+			}
+		});
+
 		LevelStreaming = StaticCast<ULevelStreamingLevelInstanceEditor*>(EditorLevelUtils::CreateNewStreamingLevelForWorld(
 		*GetWorld(), ULevelStreamingLevelInstanceEditor::StaticClass(), CreationParams.UseExternalActors(), LevelFilename, &ActorsToMove, CreationParams.TemplateWorld, /*bUseSaveAs*/true, bIsPartitioned, [this, bIsPartitioned, &ActorsToMove](ULevel* InLevel)
 		{
@@ -1015,9 +1029,9 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 			{
 				UWorldPartition* WorldPartition = InLevel->GetWorldPartition();
 				check(WorldPartition);
-				
-				// Flag the world partition that it can be used by a Level Instance
-				WorldPartition->SetCanBeUsedByLevelInstance(true);
+
+				// Make sure that the world partition can be used by a Level Instance
+				check(WorldPartition->CanBeUsedByLevelInstance());
 
 				// Make sure new level's AWorldDataLayers contains all the necessary Data Layer Instances before moving actors
 				if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
@@ -1045,6 +1059,8 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 				check(!WorldPartition->IsStreamingEnabled());
 			}
 		}));
+
+		FWorldDelegates::OnPreWorldInitialization.Remove(PreWorldInit);
 	}
 
 	if (!LevelStreaming)

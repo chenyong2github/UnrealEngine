@@ -291,11 +291,11 @@ UHLODSubsystem::FCellData* UHLODSubsystem::GetCellData(const UWorldPartitionRunt
 	}
 
 	const UWorldPartition* WorldPartition = InCell->GetCellOwner()->GetOuterWorld()->GetWorldPartition();
-	check(WorldPartition && WorldPartition->IsStreamingEnabled());
-
+	check(WorldPartition);
 	FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(WorldPartition);
 	if (WorldPartitionHLODRuntimeData)
 	{
+		check(WorldPartition->IsStreamingEnabled());
 		return WorldPartitionHLODRuntimeData->CellsData.Find(InCell->GetGuid());
 	}
 
@@ -305,11 +305,11 @@ UHLODSubsystem::FCellData* UHLODSubsystem::GetCellData(const UWorldPartitionRunt
 UHLODSubsystem::FCellData* UHLODSubsystem::GetCellData(AWorldPartitionHLOD* InWorldPartitionHLOD)
 {
 	const UWorldPartition* WorldPartition = FHLODSubsystem::GetWorldPartition(InWorldPartitionHLOD);
-	check(WorldPartition && WorldPartition->IsStreamingEnabled());
-
+	check(WorldPartition);
 	FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(WorldPartition);
 	if (WorldPartitionHLODRuntimeData)
 	{
+		check(WorldPartition->IsStreamingEnabled());
 		const FGuid CellGuid = InWorldPartitionHLOD->GetSourceCellGuid();
 		return WorldPartitionHLODRuntimeData->CellsData.Find(CellGuid);
 	}
