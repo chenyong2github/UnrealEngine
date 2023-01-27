@@ -25,6 +25,8 @@
 
 #if WITH_EDITOR
 #include "LevelEditorViewport.h"
+#else
+#include "Misc/ScopeExit.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "WorldPartitionStreamingPolicy"
