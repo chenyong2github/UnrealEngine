@@ -30,6 +30,8 @@ struct ENGINE_API FHLODCreationParams
 	FGuid CellGuid;
 	FBox  CellBounds;
 	uint32 HLODLevel;
+	FGuid ContentBundleGuid;
+	TArray<const UDataLayerInstance*> DataLayerInstances;
 
 	double MinVisibleDistance;
 };
@@ -50,7 +52,7 @@ public:
 	 * @param	InActors			The actors for which we'll build an HLOD representation
 	 * @param	InDataLayers		The data layers to assign to the newly created HLOD actors
 	 */
-	virtual TArray<AWorldPartitionHLOD*> CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TArray<IStreamingGenerationContext::FActorInstance>& InActors, const TArray<const UDataLayerInstance*>& InDataLayerInstances) = 0;
+	virtual TArray<AWorldPartitionHLOD*> CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TArray<IStreamingGenerationContext::FActorInstance>& InActors) = 0;
 
 	/**
 	 * Build HLOD for the specified AWorldPartitionHLOD actor.
@@ -75,4 +77,12 @@ public:
 	 * @return A newly created UHLODBuilderSettings object, outered to the provided HLOD layer.
 	 */
 	virtual UHLODBuilderSettings* CreateHLODBuilderSettings(UHLODLayer* InHLODLayer) = 0;
+
+
+	UE_DEPRECATED(5.2, "Use the overload that passes the DataLayersInstances via InCreationParams")
+	virtual TArray<AWorldPartitionHLOD*> CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TArray<IStreamingGenerationContext::FActorInstance>& InActors, const TArray<const UDataLayerInstance*>& InDataLayerInstances)
+	{
+		const_cast<FHLODCreationParams&>(InCreationParams).DataLayerInstances = InDataLayerInstances;
+		return CreateHLODActors(InCreationContext, InCreationParams, InActors);
+	}
 };
