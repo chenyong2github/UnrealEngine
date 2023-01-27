@@ -110,6 +110,11 @@ void FIKRetargetAnimInstanceProxy::ConfigureAnimInstance(
 void FIKRetargetAnimInstanceProxy::SetRetargetMode(const ERetargeterOutputMode& InOutputMode)
 {
 	OutputMode = InOutputMode;
+	
+	if (UIKRetargetProcessor* Processor = RetargetNode->GetRetargetProcessor())
+	{
+		Processor->SetNeedsInitialized();
+	}
 }
 
 void FIKRetargetAnimInstanceProxy::SetRetargetPoseBlend(const float& InRetargetPoseBlend) const
