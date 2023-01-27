@@ -675,7 +675,8 @@ void SetGraphicsPipelineState(FRHICommandList& RHICmdList, const FGraphicsPipeli
 	RHICmdList.SetGraphicsPipelineState(Initializer, StencilRef, bApplyAdditionalState);
 #else
 	FGraphicsPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateGraphicsPipelineState(RHICmdList, Initializer, ApplyFlags, PSOPrecacheResult);
-	if (PipelineState && (PipelineState->RHIPipeline || !Initializer.bFromPSOFileCache))
+
+	if (PipelineState && !Initializer.bFromPSOFileCache)
 	{
 #if PIPELINESTATECACHE_VERIFYTHREADSAFE
 		int32 Result = PipelineState->InUseCount.Increment();
