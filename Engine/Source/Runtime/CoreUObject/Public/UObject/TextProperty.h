@@ -67,7 +67,14 @@ public:
 	virtual FString GetCPPTypeForwardDeclaration() const override;
 	// End of FProperty interface
 
+	enum class EIdenticalLexicalCompareMethod : uint8
+	{
+		None,
+		SourceString,
+		DisplayString
+	};
 	static bool Identical_Implementation(const FText& A, const FText& B, uint32 PortFlags);
+	static bool Identical_Implementation(const FText& A, const FText& B, uint32 PortFlags, EIdenticalLexicalCompareMethod LexicalCompareMethod);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
