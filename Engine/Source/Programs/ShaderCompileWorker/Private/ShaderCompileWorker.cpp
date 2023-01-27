@@ -737,8 +737,7 @@ private:
 
 			for (int32 JobIndex = 0; JobIndex < SingleJobs.Num(); JobIndex++)
 			{
-				FShaderCompileJob& Job = SingleJobs[JobIndex];
-				OutputFile << Job.Output;
+				SingleJobs[JobIndex].SerializeWorkerOutput(OutputFile);
 				UpdateFileSize(OutputFile, FileSizePosition);
 			}
 		}
@@ -761,8 +760,7 @@ private:
 
 				for (int32 Index = 0; Index < NumStageJobs; ++Index)
 				{
-					FShaderCompileJob& JobResult = *PipelineJob.StageJobs[Index];
-					OutputFile << JobResult.Output;
+					PipelineJob.StageJobs[Index]->SerializeWorkerOutput(OutputFile);
 					UpdateFileSize(OutputFile, FileSizePosition);
 				}
 			}

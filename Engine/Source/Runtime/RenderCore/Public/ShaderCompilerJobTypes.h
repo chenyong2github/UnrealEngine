@@ -199,6 +199,9 @@ public:
 	virtual RENDERCORE_API FInputHash GetInputHash() override;
 	virtual RENDERCORE_API void SerializeOutput(FArchive& Ar) override;
 
+	// Serializes only the subset of data written by SCW/read back from ShaderCompiler when using worker processes.
+	RENDERCORE_API void SerializeWorkerOutput(FArchive& Ar);
+
 	RENDERCORE_API FShaderCompileJob() : FShaderCommonCompileJob(Type, 0u, 0u, EShaderCompileJobPriority::Num)
 	{}
 

@@ -1750,7 +1750,7 @@ static void ProcessErrors(const FShaderCompileJob& CurrentJob, TArray<FString>& 
 	}
 }
 
-static bool ReadSingleJob(FShaderCompileJob* CurrentJob, FArchive& OutputFile)
+static bool ReadSingleJob(FShaderCompileJob* CurrentJob, FArchive& WorkerOutputFileReader)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ReadSingleJob);
 
@@ -1758,9 +1758,8 @@ static bool ReadSingleJob(FShaderCompileJob* CurrentJob, FArchive& OutputFile)
 	CurrentJob->bFinalized = true;
 
 	// Deserialize the shader compilation output.
-	OutputFile << CurrentJob->Output;
+	CurrentJob->SerializeWorkerOutput(WorkerOutputFileReader);
 
-	CurrentJob->bSucceeded = CurrentJob->Output.bSucceeded;
 	// The job should already have a non-zero output hash
 	checkf(CurrentJob->Output.OutputHash != FSHAHash() || !CurrentJob->bSucceeded, TEXT("OutputHash for a successful job was not set in the shader compile worker!"));
 

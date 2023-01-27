@@ -898,6 +898,8 @@ void CompileShader(const TArray<const IShaderFormat*>& ShaderFormats, FShaderCom
 #else
 	CompileShaderInternal(Compiler, Job, WorkingDirectory, CompileCount);
 #endif
+
+	Job.bSucceeded = Job.Output.bSucceeded;
 }
 
 void CompileShaderPipeline(const TArray<const IShaderFormat*>& ShaderFormats, FShaderPipelineCompileJob* PipelineJob, const FString& Dir, int32* CompileCount)
@@ -2702,6 +2704,14 @@ void FShaderCompileJob::SerializeOutput(FArchive& Ar)
 	}
 }
 
+void FShaderCompileJob::SerializeWorkerOutput(FArchive& Ar)
+{
+	Ar << Output;
+	bool bSucceededTemp = (bool)bSucceeded;
+	Ar << bSucceededTemp;
+	bSucceeded = bSucceededTemp;
+}
+
 FShaderPipelineCompileJob::FShaderPipelineCompileJob(int32 NumStages)
 	: FShaderCommonCompileJob(Type, 0u, 0u, EShaderCompileJobPriority::Num)
 {
@@ -2740,4 +2750,3 @@ void FShaderPipelineCompileJob::SerializeOutput(FArchive& Ar)
 		bSucceeded = bAllStagesSucceeded;
 	}
 }
-
