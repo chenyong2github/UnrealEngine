@@ -868,6 +868,9 @@ bool FDesktopPlatformBase::GetOidcAccessToken(const FString& RootDir, const FStr
 
 				FDateTime::ParseIso8601(*ExpiresAt, OutTokenExpiresAt);
 
+				// Remove the output file if its still around
+				IFileManager::Get().Delete(*ResultFilePath, true, false, true);
+
 				return true;
 			}
 		}
@@ -875,6 +878,8 @@ bool FDesktopPlatformBase::GetOidcAccessToken(const FString& RootDir, const FStr
 
 	UE_LOG(LogDesktopPlatform, Warning, TEXT("Failed to run OidcToken (project file is '%s', exe path is '%s'). No result file found at '%s', closed with exit code: %d"), *ProjectFileName, *GetOidcTokenExecutableFilename(RootDir), *ResultFilePath, ExitCode);
 
+	// Remove the output file if its still around
+	IFileManager::Get().Delete(*ResultFilePath, true, false, true);
 	return false;
 }
 
@@ -913,11 +918,16 @@ bool FDesktopPlatformBase::GetOidcTokenStatus(const FString& RootDir, const FStr
 			{
 				OutStatus = Status;
 
+				// Remove the output file if its still around
+				IFileManager::Get().Delete(*ResultFilePath, true, false, true);
+
 				return true;
 			}
 		}
 	}
 
+	// Remove the output file if its still around
+	IFileManager::Get().Delete(*ResultFilePath, true, false, true);
 	return false;
 }
 

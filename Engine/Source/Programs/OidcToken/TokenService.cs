@@ -52,6 +52,11 @@ namespace OidcToken
 					Logger.LogWarning("Was unable to allocate a token");
 					ExitCode = 10;
 				}
+				catch (HttpServerException e)
+				{
+					Logger.LogWarning("Unable to start http server:" + e.Message);
+					ExitCode = 2;
+				}
 				catch (Exception ex)
 				{
 					Logger.LogError(ex, "Unhandled exception!");

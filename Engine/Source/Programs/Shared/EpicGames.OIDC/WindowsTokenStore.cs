@@ -55,7 +55,16 @@ namespace EpicGames.OIDC
 
 			using FileStream fs = fi.OpenRead();
 			using TextReader tr = new StreamReader(fs);
-			TokenStoreState? state = JsonSerializer.Deserialize<TokenStoreState>(tr.ReadToEnd());
+
+			TokenStoreState? state;
+			try
+			{
+				state = JsonSerializer.Deserialize<TokenStoreState>(tr.ReadToEnd());
+			}
+			catch (JsonException)
+			{
+				state = null;
+			}
 
 			if (state == null)
 			{

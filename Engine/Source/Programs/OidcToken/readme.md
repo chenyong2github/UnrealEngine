@@ -15,6 +15,10 @@ The configuration file can look like this:
 				"ClientId": "<unique-id-from-provider-usually-guid>",
 				"DisplayName": "MyOwnProvider",
 				"RedirectUri": "http://localhost:6556/callback", // this needs to match what is configured as the redirect uri for your IdP
+                "PossibleRedirectUri": [
+					"http://localhost:6556/callback",
+					"http://localhost:6557/callback",
+				], // set of redirect uris that can be used, ports can be in use so it is a good idea to configure a few alternatives. these needs to match configuration in IdP
 				"Scopes": "openid profile offline_access" // these scopes are the basic ones you will need, some system may require more and they may be named differently
 			}
 		}
