@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "ShaderParameterFwd.h"
+#include "ShaderParameterStructDeclaration.h"
 #include "ShaderParameterMetadata.h"
 #include "RenderGraphAllocator.h"
 #include "Algo/Reverse.h"
