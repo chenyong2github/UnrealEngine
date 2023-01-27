@@ -295,7 +295,7 @@ bool FTextLocalizationResource::LoadFromArchive(FArchive& Archive, const FTextKe
 	{
 		uint32 EntriesCount;
 		Archive << EntriesCount;
-		Entries.Reserve(Entries.Num() + EntriesCount);
+		Entries.Reserve(Entries.Num() + FMath::Max(0, (int32)EntriesCount));
 	}
 
 	// Read namespace count
