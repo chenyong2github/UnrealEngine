@@ -250,6 +250,22 @@ ENUM_CLASS_FLAGS(EPixelFormatCapabilities);
 // type conversion warnings
 #define UE_PIXELFORMAT_TO_UINT8(argument) static_cast<uint8>(argument)
 
+static inline bool IsBlockCompressedFormat(EPixelFormat Format)
+{
+	switch (Format)
+	{
+	case PF_DXT1:
+	case PF_DXT3:
+	case PF_DXT5:
+	case PF_BC4:
+	case PF_BC5:
+	case PF_BC6H:
+	case PF_BC7:
+		return true;
+	}
+	return false;
+}
+
 FORCEINLINE bool IsHDR(EPixelFormat PixelFormat)
 {
 	return PixelFormat == PF_FloatRGBA || PixelFormat == PF_BC6H || PixelFormat == PF_R16F || PixelFormat == PF_R32_FLOAT || PixelFormat == PF_A32B32G32R32F;
@@ -275,6 +291,50 @@ FORCEINLINE bool IsInteger(EPixelFormat PixelFormat)
 	case PF_R32G32B32_SINT:
 	case PF_R8_SINT:
 	case PF_R64_UINT:
+		return true;
+	}
+	return false;
+}
+
+static bool IsFloatFormat(EPixelFormat Format)
+{
+	switch (Format)
+	{
+	case PF_A32B32G32R32F:
+	case PF_FloatRGB:
+	case PF_FloatRGBA:
+	case PF_R32_FLOAT:
+	case PF_G16R16F:
+	case PF_G16R16F_FILTER:
+	case PF_G32R32F:
+	case PF_R16F:
+	case PF_R16F_FILTER:
+	case PF_FloatR11G11B10:
+		return true;
+	}
+	return false;
+}
+
+FORCEINLINE bool IsDepthOrStencilFormat(EPixelFormat Format)
+{
+	switch (Format)
+	{
+	case PF_D24:
+	case PF_DepthStencil:
+	case PF_X24_G8:
+	case PF_ShadowDepth:
+	case PF_R32_FLOAT:
+		return true;
+	}
+	return false;
+}
+
+FORCEINLINE bool IsStencilFormat(EPixelFormat Format)
+{
+	switch (Format)
+	{
+	case PF_DepthStencil:
+	case PF_X24_G8:
 		return true;
 	}
 	return false;

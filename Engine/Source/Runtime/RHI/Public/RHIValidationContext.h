@@ -12,7 +12,9 @@
 #if ENABLE_RHI_VALIDATION
 
 #include "RHI.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
 #include "RHIUtilities.h"
+#endif
 
 class FValidationRHI;
 

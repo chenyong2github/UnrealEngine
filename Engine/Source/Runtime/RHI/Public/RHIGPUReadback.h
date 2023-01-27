@@ -10,6 +10,8 @@
 
 #include "CoreMinimal.h"
 #include "RHI.h"
+#include "DynamicRHI.h"
+#include "RHICommandList.h"
 
 /**
  * FRHIGPUMemoryReadback: Represents a memory readback request scheduled with CopyToStagingBuffer

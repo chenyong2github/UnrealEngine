@@ -11,6 +11,7 @@
 #include "Containers/ResourceArray.h"
 #include "Misc/ScopeRWLock.h"
 #include "MetalLLM.h"
+#include "RHILockTracker.h"
 
 volatile int64 FMetalSurface::ActiveUploads = 0;
 

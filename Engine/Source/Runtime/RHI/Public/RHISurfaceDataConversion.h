@@ -11,6 +11,7 @@
 #include "Math/Plane.h"
 #include "Math/UnrealMathUtility.h"
 #include "RHI.h"
+#include "RHITypes.h"
 
 /** Helper for accessing R10G10B10A2 colors. */
 struct FRHIR10G10B10A2

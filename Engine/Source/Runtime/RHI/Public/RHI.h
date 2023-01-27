@@ -1200,9 +1200,6 @@ extern RHI_API void RHIExit();
 DECLARE_DELEGATE_OneParam(FRHIPanicEvent, const FName&);
 extern RHI_API FRHIPanicEvent& RHIGetPanicDelegate();
 
-// RHI utility functions that depend on the RHI definitions.
-#include "RHIUtilities.h"
-
 // Return what the expected number of samplers will be supported by a feature level
 // Note that since the Feature Level is pretty orthogonal to the RHI/HW, this is not going to be perfect
 // If should only be used for a guess at the limit, the real limit will not be known until runtime
@@ -1216,4 +1213,8 @@ RHI_API ERHIBindlessConfiguration RHIGetBindlessSamplersConfiguration(EShaderPla
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIStrings.h"
+#endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "RHIUtilities.h"
 #endif

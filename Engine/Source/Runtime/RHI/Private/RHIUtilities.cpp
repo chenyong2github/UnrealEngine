@@ -27,8 +27,6 @@ TAutoConsoleVariable<FString> FDumpTransitionsHelper::CVarDumpTransitionsForReso
 	TEXT("Name of the resource to dump"),
 	ECVF_Default);
 
-RHI_API FRHILockTracker GRHILockTracker;
-
 FName FDumpTransitionsHelper::DumpTransitionForResource = NAME_None;
 void FDumpTransitionsHelper::DumpTransitionForResourceHandler()
 {
@@ -993,9 +991,4 @@ void RHICreateTargetableShaderResource3D(
 		.SetGPUMask(CreateInfo.GPUMask);
 
 	RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, bForceSeparateTargetAndShaderResource, false, OutTargetableTexture, OutShaderResourceTexture);
-}
-
-void FRHILockTracker::RaiseMismatchError()
-{
-	UE_LOG(LogRHI, Fatal, TEXT("Mismatched RHI buffer locks."));
 }
