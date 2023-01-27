@@ -186,26 +186,28 @@ void FFeedbackManager::Update(FRDGBuilder& GraphBuilder, const FSharedContext& S
 
 void FFeedbackManager::ReportMaterialPerformanceWarning(const FString &MaterialName)
 {
-	if (CVarEmitMaterialPerformanceWarnings.GetValueOnRenderThread() != 0)
+	bool bShouldLogNow = false;
 	{
-		bool bShouldLogNow = false;
-		{
-			FScopeLock Lock(&DelgateCallbackCS);
-			FMaterialWarningItem& Item = MaterialWarningItems.FindOrAdd(MaterialName);
-			const double CurrentTime = FPlatformTime::Seconds();
-			bShouldLogNow = CurrentTime - Item.LastTimeLogged > 5.0f;
-			Item.LastTimeSeen = CurrentTime;
-			if (bShouldLogNow)
-			{
-				Item.LastTimeLogged = CurrentTime;
-			}
-		}
-		// Keep logging outside critical section
+		FScopeLock Lock(&DelgateCallbackCS);
+		FMaterialWarningItem& Item = MaterialWarningItems.FindOrAdd(MaterialName);
+		const double CurrentTime = FPlatformTime::Seconds();
+		bShouldLogNow = CurrentTime - Item.LastTimeLogged > 5.0f;
+		Item.LastTimeSeen = CurrentTime;
 		if (bShouldLogNow)
 		{
-			UE_LOG(LogRenderer, Log, TEXT("Performance Warning: Programmable Nanite material uses PDO or is Masked, %s"), *MaterialName);
+			Item.LastTimeLogged = CurrentTime;
 		}
 	}
+	// Keep logging outside critical section
+	if (bShouldLogNow)
+	{
+		UE_LOG(LogRenderer, Log, TEXT("Performance Warning: Programmable Nanite material uses PDO or is Masked, %s"), *MaterialName);
+	}
+}
+
+bool ShouldReportFeedbackMaterialPerformanceWarning()
+{
+	return CVarEmitMaterialPerformanceWarnings.GetValueOnRenderThread() != 0;
 }
 
 

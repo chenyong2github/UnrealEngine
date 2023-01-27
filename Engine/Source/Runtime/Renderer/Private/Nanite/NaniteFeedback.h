@@ -45,6 +45,9 @@ public:
 	void ReportMaterialPerformanceWarning(const FString& MaterialName);
 
 };
+
+extern bool ShouldReportFeedbackMaterialPerformanceWarning();
+
 #endif
 
 } // namespace Nanite

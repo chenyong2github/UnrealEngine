@@ -407,6 +407,13 @@ public:
 
 class FMaterialRenderProxy;
 
+#define NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE 1
+
+class FHWRasterizePS;
+class FHWRasterizeVS;
+class FHWRasterizeMS;
+class FMicropolyRasterizeCS;
+
 struct FNaniteRasterPipeline
 {
 	const FMaterialRenderProxy* RasterMaterial = nullptr;
@@ -493,8 +500,78 @@ struct FNaniteRasterBin
 	}
 };
 
+#if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
+struct FNaniteRasterMaterialCacheKey
+{
+	FNaniteRasterMaterialCacheKey()
+		: FNaniteRasterMaterialCacheKey(ERHIFeatureLevel::Num)
+	{}
+
+	FNaniteRasterMaterialCacheKey(ERHIFeatureLevel::Type InFeatureLevel)
+	{
+		FeatureLevel = InFeatureLevel;
+	}
+
+	union
+	{
+		struct
+		{
+			uint16 FeatureLevel : 8;
+			uint16 bForceDisableWPO : 1;
+			uint16 bUseMeshShader : 1;
+			uint16 bIsTwoSided : 1;
+		};
+
+		uint16 Packed = 0;
+	};
+
+	bool operator < (FNaniteRasterMaterialCacheKey Other) const
+	{
+		return Packed < Other.Packed;
+	}
+
+	bool operator == (FNaniteRasterMaterialCacheKey Other) const
+	{
+		return Packed == Other.Packed;
+	}
+
+	bool operator != (FNaniteRasterMaterialCacheKey Other) const
+	{
+		return Packed != Other.Packed;
+	}
+};
+
+inline uint32 GetTypeHash(const FNaniteRasterMaterialCacheKey& Key)
+{
+	return Key.Packed;
+}
+
+struct FNaniteRasterMaterialCache
+{
+	const FMaterial* Material = nullptr;
+	const FMaterial* VertexMaterial = nullptr;
+	const FMaterial* PixelMaterial = nullptr;
+	const FMaterial* ComputeMaterial = nullptr;
+	const FMaterialRenderProxy* VertexMaterialProxy = nullptr;
+	const FMaterialRenderProxy* PixelMaterialProxy = nullptr;
+	const FMaterialRenderProxy* ComputeMaterialProxy = nullptr;
+
+	TShaderRef<FHWRasterizePS> RasterPixelShader;
+	TShaderRef<FHWRasterizeVS> RasterVertexShader;
+	TShaderRef<FHWRasterizeMS> RasterMeshShader;
+	TShaderRef<FMicropolyRasterizeCS> RasterComputeShader;
+
+	TOptional<uint32> MaterialBitFlags;
+};
+
+#endif
+
 struct FNaniteRasterEntry
 {
+#if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
+	mutable TMap<FNaniteRasterMaterialCacheKey, FNaniteRasterMaterialCache> CacheMap;
+#endif
+
 	FNaniteRasterPipeline RasterPipeline{};
 	uint32 ReferenceCount = 0;
 	uint16 BinIndex = 0xFFFFu;
