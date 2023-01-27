@@ -3796,7 +3796,7 @@ static void AccumulateBounds(FBox& Bounds, const FStaticMeshLODResources& LODMod
 		const FIndexArrayView IndexBuffer = LODModel.IndexBuffer.GetArrayView();
 		for (int32 Index = FirstIndex; Index < LastIndex; ++Index)
 		{
-			Bounds += Transform.TransformPosition(FVector(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index)));
+			Bounds += Transform.TransformPosition(FVector(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(IndexBuffer[Index])));
 		}
 	}
 }
