@@ -7,7 +7,7 @@
 #include "Core/PBIKSolver.h"
 #include "PBIK_Shared.h"
 
-#include "IKRig_PBIKSolver.generated.h"
+#include "IKRig_FBIKSolver.generated.h"
 
 UCLASS(BlueprintType)
 class IKRIG_API UIKRig_FBIKEffector : public UObject
@@ -57,13 +57,13 @@ public:
 };
 
 UCLASS(BlueprintType)
-class IKRIG_API UIKRig_PBIKBoneSettings : public UObject
+class IKRIG_API UIKRig_FBIKBoneSettings : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	
-	UIKRig_PBIKBoneSettings()
+	UIKRig_FBIKBoneSettings()
 		: Bone(NAME_None), 
 		X(EPBIKLimitType::Free),
 		Y(EPBIKLimitType::Free),
@@ -154,7 +154,7 @@ public:
 		Settings.PreferredAngles.Roll = PreferredAngles.X;
 	}
 
-	void CopySettings(const UIKRig_PBIKBoneSettings* Other)
+	void CopySettings(const UIKRig_FBIKBoneSettings* Other)
 	{	
 		RotationStiffness = Other->RotationStiffness;
 		PositionStiffness = Other->PositionStiffness;
@@ -173,7 +173,7 @@ public:
 };
 
 UCLASS(BlueprintType, EditInlineNew, config = Engine, hidecategories = UObject)
-class IKRIG_API UIKRigPBIKSolver : public UIKRigSolver
+class IKRIG_API UIKRigFBIKSolver : public UIKRigSolver
 {
 	GENERATED_BODY()
 
@@ -232,7 +232,7 @@ public:
 	TArray<TObjectPtr<UIKRig_FBIKEffector>> Effectors;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UIKRig_PBIKBoneSettings>> BoneSettings;
+	TArray<TObjectPtr<UIKRig_FBIKBoneSettings>> BoneSettings;
 
 	/** UIKRigSolver interface */
 	// runtime

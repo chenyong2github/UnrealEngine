@@ -9,7 +9,7 @@
 #include "RigEditor/IKRigToolkit.h"
 #include "RigEditor/SIKRigAssetBrowser.h"
 #include "RigEditor/SIKRigOutputLog.h"
-#include "Solvers/IKRig_PBIKSolver.h"
+#include "Solvers/IKRig_FBIKSolver.h"
 #include "Widgets/Input/SComboBox.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
@@ -711,7 +711,7 @@ bool FIKRigEditorController::PromptToAddDefaultSolver() const
 	TSharedPtr<FIKRigSolverTypeAndName> SelectedSolver = SolverTypes[0];
 	for (TSharedPtr<FIKRigSolverTypeAndName>& SolverType :SolverTypes)
 	{
-		if (SolverType->SolverType == UIKRigPBIKSolver::StaticClass())
+		if (SolverType->SolverType == UIKRigFBIKSolver::StaticClass())
 		{
 			SelectedSolver = SolverType;
 			break;

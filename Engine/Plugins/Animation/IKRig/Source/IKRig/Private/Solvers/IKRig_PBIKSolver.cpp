@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Solvers/IKRig_PBIKSolver.h"
+#include "Solvers/IKRig_FBIKSolver.h"
 
 #include "IKRigDataTypes.h"
 #include "IKRigSkeleton.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRig_PBIKSolver)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRig_FBIKSolver)
 
-#define LOCTEXT_NAMESPACE "UIKRigPBIKSolver"
+#define LOCTEXT_NAMESPACE "UIKRigFBIKSolver"
 
-void UIKRigPBIKSolver::Initialize(const FIKRigSkeleton& InSkeleton)
+void UIKRigFBIKSolver::Initialize(const FIKRigSkeleton& InSkeleton)
 {	
 	// check how many effectors are assigned to a bone
 	int NumEffectors = 0;
@@ -56,7 +56,7 @@ void UIKRigPBIKSolver::Initialize(const FIKRigSkeleton& InSkeleton)
 	Solver.Initialize();
 }
 
-void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalContainer& Goals)
+void UIKRigFBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalContainer& Goals)
 {
 	if (!Solver.IsReadyToSimulate())
 	{
@@ -77,7 +77,7 @@ void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 	}
 
 	// update bone settings
-	for (const UIKRig_PBIKBoneSettings* BoneSetting : BoneSettings)
+	for (const UIKRig_FBIKBoneSettings* BoneSetting : BoneSettings)
 	{
 		const int32 BoneIndex = Solver.GetBoneIndex(BoneSetting->Bone);
 		if (PBIK::FBoneSettings* InternalSettings = Solver.GetBoneSettings(BoneIndex))
@@ -136,9 +136,9 @@ void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 	}
 }
 
-void UIKRigPBIKSolver::GetBonesWithSettings(TSet<FName>& OutBonesWithSettings) const
+void UIKRigFBIKSolver::GetBonesWithSettings(TSet<FName>& OutBonesWithSettings) const
 {
-	for (UIKRig_PBIKBoneSettings* BoneSetting : BoneSettings)
+	for (UIKRig_FBIKBoneSettings* BoneSetting : BoneSettings)
 	{
 		if (BoneSetting)
 		{
@@ -147,9 +147,9 @@ void UIKRigPBIKSolver::GetBonesWithSettings(TSet<FName>& OutBonesWithSettings) c
 	}
 }
 
-void UIKRigPBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
+void UIKRigFBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 {
-	if(UIKRigPBIKSolver* Settings = Cast<UIKRigPBIKSolver>(InSettings))
+	if(UIKRigFBIKSolver* Settings = Cast<UIKRigFBIKSolver>(InSettings))
 	{
 		Iterations = Settings->Iterations;
 		MassMultiplier = Settings->MassMultiplier;
@@ -175,9 +175,9 @@ void UIKRigPBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 		}
 
 		// copy bone settings
-		for (const UIKRig_PBIKBoneSettings* InBoneSetting : Settings->BoneSettings)
+		for (const UIKRig_FBIKBoneSettings* InBoneSetting : Settings->BoneSettings)
 		{
-			for (UIKRig_PBIKBoneSettings* BoneSetting : BoneSettings)
+			for (UIKRig_FBIKBoneSettings* BoneSetting : BoneSettings)
 			{
 				if (BoneSetting && BoneSetting->Bone == InBoneSetting->Bone)
 				{
@@ -189,7 +189,7 @@ void UIKRigPBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 	}
 }
 
-void UIKRigPBIKSolver::RemoveGoal(const FName& GoalName)
+void UIKRigFBIKSolver::RemoveGoal(const FName& GoalName)
 {
 	// ensure goal even exists in this solver
 	const int32 GoalIndex = GetIndexOfGoal(GoalName);
@@ -204,12 +204,12 @@ void UIKRigPBIKSolver::RemoveGoal(const FName& GoalName)
 
 #if WITH_EDITOR
 
-FText UIKRigPBIKSolver::GetNiceName() const
+FText UIKRigFBIKSolver::GetNiceName() const
 {
 	return FText(LOCTEXT("SolverName", "Full Body IK"));
 }
 
-bool UIKRigPBIKSolver::GetWarningMessage(FText& OutWarningMessage) const
+bool UIKRigFBIKSolver::GetWarningMessage(FText& OutWarningMessage) const
 {
 	if (RootBone == NAME_None)
 	{
@@ -226,7 +226,7 @@ bool UIKRigPBIKSolver::GetWarningMessage(FText& OutWarningMessage) const
 	return false;
 }
 
-void UIKRigPBIKSolver::AddGoal(const UIKRigEffectorGoal& NewGoal)
+void UIKRigFBIKSolver::AddGoal(const UIKRigEffectorGoal& NewGoal)
 {
 	UIKRig_FBIKEffector* NewEffector = NewObject<UIKRig_FBIKEffector>(this, UIKRig_FBIKEffector::StaticClass());
 	NewEffector->GoalName = NewGoal.GoalName;
@@ -234,7 +234,7 @@ void UIKRigPBIKSolver::AddGoal(const UIKRigEffectorGoal& NewGoal)
 	Effectors.Add(NewEffector);
 }
 
-void UIKRigPBIKSolver::RenameGoal(const FName& OldName, const FName& NewName)
+void UIKRigFBIKSolver::RenameGoal(const FName& OldName, const FName& NewName)
 {
 	// ensure goal even exists in this solver
 	const int32 GoalIndex = GetIndexOfGoal(OldName);
@@ -248,7 +248,7 @@ void UIKRigPBIKSolver::RenameGoal(const FName& OldName, const FName& NewName)
 	Effectors[GoalIndex]->GoalName = NewName;
 }
 
-void UIKRigPBIKSolver::SetGoalBone(const FName& GoalName, const FName& NewBoneName)
+void UIKRigFBIKSolver::SetGoalBone(const FName& GoalName, const FName& NewBoneName)
 {
 	// ensure goal even exists in this solver
 	const int32 GoalIndex = GetIndexOfGoal(GoalName);
@@ -262,17 +262,17 @@ void UIKRigPBIKSolver::SetGoalBone(const FName& GoalName, const FName& NewBoneNa
 	Effectors[GoalIndex]->BoneName = NewBoneName;
 }
 
-bool UIKRigPBIKSolver::IsGoalConnected(const FName& GoalName) const
+bool UIKRigFBIKSolver::IsGoalConnected(const FName& GoalName) const
 {
 	return GetIndexOfGoal(GoalName) != INDEX_NONE;
 }
 
-void UIKRigPBIKSolver::SetRootBone(const FName& RootBoneName)
+void UIKRigFBIKSolver::SetRootBone(const FName& RootBoneName)
 {
 	RootBone = RootBoneName;
 }
 
-UObject* UIKRigPBIKSolver::GetGoalSettings(const FName& GoalName) const
+UObject* UIKRigFBIKSolver::GetGoalSettings(const FName& GoalName) const
 {
 	const int32 GoalIndex = GetIndexOfGoal(GoalName);
 	if (GoalIndex == INDEX_NONE)
@@ -283,22 +283,22 @@ UObject* UIKRigPBIKSolver::GetGoalSettings(const FName& GoalName) const
 	return Effectors[GoalIndex];
 }
 
-void UIKRigPBIKSolver::AddBoneSetting(const FName& BoneName)
+void UIKRigFBIKSolver::AddBoneSetting(const FName& BoneName)
 {
 	if (GetBoneSetting(BoneName))
 	{
 		return; // already have settings on this bone
 	}
 
-	UIKRig_PBIKBoneSettings* NewBoneSettings = NewObject<UIKRig_PBIKBoneSettings>(this, UIKRig_PBIKBoneSettings::StaticClass());
+	UIKRig_FBIKBoneSettings* NewBoneSettings = NewObject<UIKRig_FBIKBoneSettings>(this, UIKRig_FBIKBoneSettings::StaticClass());
 	NewBoneSettings->Bone = BoneName;
 	BoneSettings.Add(NewBoneSettings);
 }
 
-void UIKRigPBIKSolver::RemoveBoneSetting(const FName& BoneName)
+void UIKRigFBIKSolver::RemoveBoneSetting(const FName& BoneName)
 {
-	UIKRig_PBIKBoneSettings* BoneSettingToRemove = nullptr; 
-	for (UIKRig_PBIKBoneSettings* BoneSetting : BoneSettings)
+	UIKRig_FBIKBoneSettings* BoneSettingToRemove = nullptr; 
+	for (UIKRig_FBIKBoneSettings* BoneSetting : BoneSettings)
 	{
 		if (BoneSetting->Bone == BoneName)
 		{
@@ -313,9 +313,9 @@ void UIKRigPBIKSolver::RemoveBoneSetting(const FName& BoneName)
 	}
 }
 
-UObject* UIKRigPBIKSolver::GetBoneSetting(const FName& BoneName) const
+UObject* UIKRigFBIKSolver::GetBoneSetting(const FName& BoneName) const
 {
-	for (UIKRig_PBIKBoneSettings* BoneSetting : BoneSettings)
+	for (UIKRig_FBIKBoneSettings* BoneSetting : BoneSettings)
 	{
 		if (BoneSetting && BoneSetting->Bone == BoneName)
 		{
@@ -326,7 +326,7 @@ UObject* UIKRigPBIKSolver::GetBoneSetting(const FName& BoneName) const
 	return nullptr;
 }
 
-void UIKRigPBIKSolver::DrawBoneSettings(
+void UIKRigFBIKSolver::DrawBoneSettings(
 	const FName& BoneName,
 	const FIKRigSkeleton& IKRigSkeleton,
 	FPrimitiveDrawInterface* PDI) const
@@ -334,7 +334,7 @@ void UIKRigPBIKSolver::DrawBoneSettings(
 	
 }
 
-bool UIKRigPBIKSolver::IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const
+bool UIKRigFBIKSolver::IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const
 {
 	// nothing is affected by solver without a root bone assigned or at least 1 effector
 	if (RootBone == NAME_None || Effectors.IsEmpty())
@@ -360,7 +360,7 @@ bool UIKRigPBIKSolver::IsBoneAffectedBySolver(const FName& BoneName, const FIKRi
 	return false;
 }
 
-void UIKRigPBIKSolver::PostLoad()
+void UIKRigFBIKSolver::PostLoad()
 {
 	Super::PostLoad();
 	
@@ -382,7 +382,7 @@ void UIKRigPBIKSolver::PostLoad()
 
 #endif
 
-int32 UIKRigPBIKSolver::GetIndexOfGoal(const FName& OldName) const
+int32 UIKRigFBIKSolver::GetIndexOfGoal(const FName& OldName) const
 {
 	for (int32 i=0; i<Effectors.Num(); ++i)
 	{

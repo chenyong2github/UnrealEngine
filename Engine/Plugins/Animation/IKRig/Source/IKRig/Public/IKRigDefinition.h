@@ -17,7 +17,7 @@ class IPropertyHandle;
 class UIKRigSolver;
 
 #if WITH_EDITORONLY_DATA
-UENUM()
+UENUM(BlueprintType)
 enum class EIKRigGoalPreviewMode : uint8
 {
 	Additive		UMETA(DisplayName = "Additive"),
@@ -34,7 +34,7 @@ namespace EIKRigTransformType
 }
 #endif
 
-UCLASS()
+UCLASS(BlueprintType)
 class IKRIG_API UIKRigEffectorGoal : public UObject
 {
 	GENERATED_BODY()
@@ -43,27 +43,27 @@ public:
 
 	/** The name used to refer to this goal from outside systems.
 	 * This is the name to use when referring to this Goal from Blueprint, Anim Graph, Control Rig or IK Retargeter.*/
-	UPROPERTY(VisibleAnywhere, Category = "Goal Settings")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Goal Settings")
 	FName GoalName;
 
 	/** The name of the bone that this Goal is located at.*/
-	UPROPERTY(VisibleAnywhere, Category = "Goal Settings")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Goal Settings")
 	FName BoneName;
 
 	/** Range 0-1, default is 1. Blend between the input bone position (0.0) and the current goal position (1.0).*/
-	UPROPERTY(EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float PositionAlpha = 1.0f;
 	
 	/** Range 0-1, default is 1. Blend between the input bone rotation (0.0) and the current goal rotation (1.0).*/
-	UPROPERTY(EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float RotationAlpha = 1.0f;
 
 	/** The current transform of this Goal, in the Global Space of the character.*/
-	UPROPERTY(EditAnywhere, Category = "Goal Settings")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Goal Settings")
 	FTransform CurrentTransform;
 
 	/** The initial transform of this Goal, as defined by the initial transform of the Goal's bone in the retarget pose.*/
-	UPROPERTY(VisibleAnywhere, Category = "Goal Settings")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Goal Settings")
 	FTransform InitialTransform;
 
 	bool operator==(const UIKRigEffectorGoal& Other) const { return GoalName == Other.GoalName; }
@@ -74,23 +74,23 @@ public:
 	* "Additive" interprets the Goal transform as being relative to the input pose. Useful for previewing animations.
 	* "Absolute" pins the Goal transform to the Gizmo in the viewport.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Goal Settings")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Goal Settings")
 	EIKRigGoalPreviewMode PreviewMode = EIKRigGoalPreviewMode::Additive;
 	
 	/**The size of the Goal gizmo drawing in the editor viewport.*/
-	UPROPERTY(EditAnywhere, Category = "Viewport Goal Settings", meta = (ClampMin = "0.1", ClampMax = "1000.0", UIMin = "0.1", UIMax = "100.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Viewport Goal Settings", meta = (ClampMin = "0.1", ClampMax = "1000.0", UIMin = "0.1", UIMax = "100.0"))
 	float SizeMultiplier = 1.0f;
 
 	/**The thickness of the Goal gizmo drawing in the editor viewport.*/
-	UPROPERTY(EditAnywhere, Category = "Viewport Goal Settings",  meta = (ClampMin = "0.0", ClampMax = "10.0", UIMin = "0.0", UIMax = "5.0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Viewport Goal Settings",  meta = (ClampMin = "0.0", ClampMax = "10.0", UIMin = "0.0", UIMax = "5.0"))
 	float ThicknessMultiplier = 0.7f;
 
 	/** Should position data be exposed in Blueprint */
-	UPROPERTY(EditAnywhere, Category = "Exposure")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Exposure")
 	bool bExposePosition = false;
 
 	/** Should rotation data be exposed in Blueprint */
-	UPROPERTY(EditAnywhere, Category = "Exposure")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Exposure")
 	bool bExposeRotation = false;
 	
 	virtual void PostLoad() override
