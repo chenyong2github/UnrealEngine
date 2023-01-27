@@ -24,6 +24,9 @@ class ENGINE_API UWorldPartitionRuntimeCellData : public UObject
 	virtual const FBox& GetContentBounds() const;
 	virtual FBox GetCellBounds() const;
 
+	virtual bool IsDebugShown() const { return true; }
+	virtual FString GetDebugName() const { return GetName(); }
+
 	static int32 StreamingSourceCacheEpoch;
 	static void DirtyStreamingSourceCacheEpoch() { ++StreamingSourceCacheEpoch; }
 

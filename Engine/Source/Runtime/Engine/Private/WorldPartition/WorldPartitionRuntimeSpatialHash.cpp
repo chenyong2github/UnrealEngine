@@ -1384,7 +1384,6 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				StreamingCell->SetDataLayers(GridCellDataChunk.GetDataLayers());
 				StreamingCell->SetContentBundleUID(GridCellDataChunk.GetContentBundleID());
 				StreamingCell->SetPriority(RuntimeGrid.Priority);
-				StreamingCell->SetDebugInfo(CellGlobalCoords.X, CellGlobalCoords.Y, CellGlobalCoords.Z, CurrentStreamingGrid.GridName);
 				StreamingCell->SetClientOnlyVisible(CurrentStreamingGrid.bClientOnlyVisible);
 				StreamingCell->SetBlockOnSlowLoading(CurrentStreamingGrid.bBlockOnSlowStreaming);
 				StreamingCell->SetIsHLOD(RuntimeGrid.HLODLayer ? true : false);
@@ -1398,6 +1397,44 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				CellDataSpatialHash->Level = Level;
 				CellDataSpatialHash->Position = FVector(Bounds.GetCenter(), 0.f);
 				CellDataSpatialHash->Extent = (float)CellExtent;
+				CellDataSpatialHash->GridName = RuntimeGrid.GridName;
+				
+				auto ComputeCellDebugName = [StreamingCell, CellDataSpatialHash, World, &CellGlobalCoords]()
+				{
+					TStringBuilder<512> Builder;
+					Builder += CellDataSpatialHash->GridName.ToString();
+					Builder += TEXT("_");
+					Builder += FString::Printf(TEXT("L%d_X%d_Y%d"), CellGlobalCoords.Z, CellGlobalCoords.X, CellGlobalCoords.Y);
+
+					const TArray<FName>& DataLayers = StreamingCell->GetDataLayers();
+					int32 DataLayerCount = DataLayers.Num();
+
+					if (DataLayerCount > 0)
+					{
+						if (const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(World))
+						{
+							TArray<const UDataLayerInstance*> DataLayerObjects;
+							Builder += TEXT(" DL[");
+							for (int i = 0; i < DataLayerCount; ++i)
+							{
+								const UDataLayerInstance* DataLayer = DataLayerSubsystem->GetDataLayerInstance(DataLayers[i]);
+								DataLayerObjects.Add(DataLayer);
+								Builder += DataLayer->GetDataLayerShortName();
+								Builder += TEXT(",");
+							}
+							Builder += FString::Printf(TEXT("ID:%X]"), FDataLayersID(DataLayerObjects).GetHash());
+						}
+					}
+
+					if (StreamingCell->GetContentBundleID().IsValid())
+					{
+						Builder += FString::Printf(TEXT(" CB[%s]"), *UContentBundleDescriptor::GetContentBundleCompactString(StreamingCell->GetContentBundleID()));
+					}
+
+					return Builder.ToString();
+				};
+
+				CellDataSpatialHash->DebugName = ComputeCellDebugName();
 
 				PopulateRuntimeCell(StreamingCell, FilteredActors, OutPackagesToGenerate);
 
@@ -1675,13 +1712,12 @@ EWorldPartitionStreamingPerformance UWorldPartitionRuntimeSpatialHash::GetStream
 	const UWorldPartitionRuntimeCell* StreamingCell = Cast<const UWorldPartitionRuntimeCell>(Cell);
 	check(StreamingCell);
 
-	const FSpatialHashStreamingGrid* StreamingGrid = GetStreamingGridByName(StreamingCell->GetGridName());
+	const UWorldPartitionRuntimeCellDataSpatialHash* CellDataSpatialHash = CastChecked<UWorldPartitionRuntimeCellDataSpatialHash>(Cell->RuntimeCellData);
+	const FSpatialHashStreamingGrid* StreamingGrid = GetStreamingGridByName(CellDataSpatialHash->GridName);
 
 	if (ensure(StreamingGrid))
 	{
 		const float LoadingRange = StreamingGrid->LoadingRange;
-
-		UWorldPartitionRuntimeCellDataSpatialHash* CellDataSpatialHash = CastChecked<UWorldPartitionRuntimeCellDataSpatialHash>(Cell->RuntimeCellData);
 
 		if (CellDataSpatialHash->IsBlockingSource())
 		{

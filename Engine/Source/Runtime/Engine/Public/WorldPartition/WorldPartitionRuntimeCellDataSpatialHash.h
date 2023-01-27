@@ -19,6 +19,8 @@ class ENGINE_API UWorldPartitionRuntimeCellDataSpatialHash : public UWorldPartit
 	virtual void MergeStreamingSourceInfo() const override;
 	virtual int32 SortCompare(const UWorldPartitionRuntimeCellData* InOther, bool bCanUseSortingCache = true) const override;
 	virtual FBox GetCellBounds() const override;
+	virtual bool IsDebugShown() const override;
+	virtual FString GetDebugName() const override;
 	//~End UWorldPartitionRuntimeCellData
 
 	bool IsBlockingSource() const { return bCachedIsBlockingSource; }
@@ -32,6 +34,12 @@ class ENGINE_API UWorldPartitionRuntimeCellDataSpatialHash : public UWorldPartit
 
 	UPROPERTY()
 	int32 Level;
+
+	UPROPERTY()
+	FName GridName;
+
+	UPROPERTY()
+	FString DebugName;
 
 private:
 	float ComputeSourceToCellAngleFactor(const FSphericalSector& SourceShape) const;

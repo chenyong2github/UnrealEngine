@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionRuntimeCellDataSpatialHash.h"
+#include "WorldPartition/WorldPartitionDebugHelper.h"
 #include "Engine/Level.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeCellDataSpatialHash)
@@ -162,4 +163,16 @@ FBox UWorldPartitionRuntimeCellDataSpatialHash::GetCellBounds() const
 	Box.Min.Z = GetContentBounds().Min.Z;
 	Box.Max.Z = GetContentBounds().Max.Z;
 	return Box;
+}
+
+bool UWorldPartitionRuntimeCellDataSpatialHash::IsDebugShown() const
+{
+	return Super::IsDebugShown() && 
+		   FWorldPartitionDebugHelper::IsDebugRuntimeHashGridShown(GridName) &&
+		   FWorldPartitionDebugHelper::IsDebugCellNameShown(GetName());
+}
+
+FString UWorldPartitionRuntimeCellDataSpatialHash::GetDebugName() const
+{
+	return DebugName;
 }

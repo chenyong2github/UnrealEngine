@@ -174,19 +174,9 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	virtual void SetStreamingPriority(int32 InStreamingPriority) const PURE_VIRTUAL(UWorldPartitionRuntimeCell::SetStreamingPriority,);
 	virtual EStreamingStatus GetStreamingStatus() const { return LEVEL_Unloaded; }
 	virtual bool IsLoading() const { return false; }
-	virtual const FString& GetDebugName() const { return DebugInfo.Name; }
-	virtual bool IsDebugShown() const;
-	virtual FName GetGridName() const { return DebugInfo.GridName; }
 	bool GetClientOnlyVisible() const { return bClientOnlyVisible; }
 	virtual FGuid const& GetContentBundleID() const { return ContentBundleID; }
 	virtual TArray<FName> GetActors() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActors, return TArray<FName>(););
-
-	/** Caches information on streaming source that will be used later on to sort cell. */
-	bool ShouldResetStreamingSourceInfo() const;
-	void ResetStreamingSourceInfo() const;
-	void AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const;
-	void MergeStreamingSourceInfo() const;
-	int32 SortCompare(const UWorldPartitionRuntimeCell* Other, bool bCanUseSortingCache = true) const;
 
 	//~Begin IWorldPartitionCell Interface
 	virtual TArray<const UDataLayerInstance*> GetDataLayerInstances() const override;
@@ -198,8 +188,6 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	{
 		return Algo::AnyOf(DataLayers, [&InDataLayers](const FName& DataLayer) { return InDataLayers.Contains(DataLayer); });
 	}
-	virtual const FBox& GetContentBounds() const override;
-	virtual FBox GetCellBounds() const override;
 	virtual FName GetLevelPackageName() const override;
 	virtual IWorldPartitionRuntimeCellOwner* GetCellOwner() const override { return CastChecked<IWorldPartitionRuntimeCellOwner>(GetOuter()); }
 	//~End IWorldPartitionCell Interface
@@ -211,7 +199,6 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	void SetClientOnlyVisible(bool bInClientOnlyVisible) { bClientOnlyVisible = bInClientOnlyVisible; }
 	void SetDataLayers(const TArray<const UDataLayerInstance*>& InDataLayerInstances);
 	void SetContentBundleUID(const FGuid& InContentBundleID) { ContentBundleID = InContentBundleID; }
-	void SetDebugInfo(int64 InCoordX, int64 InCoordY, int64 InCoordZ, FName InGridName);
 	void SetLevelPackageName(const FName& InLevelPackageName) { LevelPackageName = InLevelPackageName; }
 	
 	//~Begin IWorldPartitionCell Interface
@@ -249,20 +236,12 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 protected:
 	FLinearColor GetDebugStreamingPriorityColor() const;
 
-#if WITH_EDITOR
-	void UpdateDebugName();
-#endif
-
 	UPROPERTY()
 	bool bIsAlwaysLoaded;
 
 private:
 	UPROPERTY()
 	TArray<FName> DataLayers;
-
-	// Debug Info
-	UPROPERTY()
-	FWorldPartitionRuntimeCellDebugInfo DebugInfo;
 
 	// Custom Priority
 	UPROPERTY()
@@ -294,6 +273,18 @@ protected:
 #endif
 
 public:
+	//~Begin UWorldPartitionRuntimeCellData Proxy
+	bool ShouldResetStreamingSourceInfo() const { return RuntimeCellData->ShouldResetStreamingSourceInfo(); }
+	void ResetStreamingSourceInfo() const { RuntimeCellData->ResetStreamingSourceInfo(); }
+	void AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const { RuntimeCellData->AppendStreamingSourceInfo(Source, SourceShape); }
+	void MergeStreamingSourceInfo() const { RuntimeCellData->MergeStreamingSourceInfo(); }
+	int32 SortCompare(const UWorldPartitionRuntimeCell* Other, bool bCanUseSortingCache = true) const;
+	const FBox& GetContentBounds() const { return RuntimeCellData->GetContentBounds(); }
+	FBox GetCellBounds() const { return RuntimeCellData->GetCellBounds(); }
+	virtual bool IsDebugShown() const;
+	virtual FString GetDebugName() const { return RuntimeCellData->GetDebugName(); }
+	//~End UWorldPartitionRuntimeCellData Proxy
+
 	UPROPERTY()
 	TObjectPtr<UWorldPartitionRuntimeCellData> RuntimeCellData;
 };

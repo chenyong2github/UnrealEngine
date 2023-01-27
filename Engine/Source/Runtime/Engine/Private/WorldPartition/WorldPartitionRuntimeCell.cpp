@@ -62,49 +62,6 @@ void UWorldPartitionRuntimeCell::SetDataLayers(const TArray<const UDataLayerInst
 		DataLayers.Add(DataLayerInstance->GetDataLayerFName());
 	}
 	DataLayers.Sort([](const FName& A, const FName& B) { return A.ToString() < B.ToString(); });
-	UpdateDebugName();
-}
-
-void UWorldPartitionRuntimeCell::SetDebugInfo(int64 InCoordX, int64 InCoordY, int64 InCoordZ, FName InGridName)
-{
-	DebugInfo.CoordX = InCoordX;
-	DebugInfo.CoordY = InCoordY;
-	DebugInfo.CoordZ = InCoordZ;
-	DebugInfo.GridName = InGridName;
-	UpdateDebugName();
-}
-
-void UWorldPartitionRuntimeCell::UpdateDebugName()
-{
-	TStringBuilder<512> Builder;
-	Builder += DebugInfo.GridName.ToString();
-	Builder += TEXT("_");
-	Builder += FString::Printf(TEXT("L%d_X%d_Y%d"), DebugInfo.CoordZ, DebugInfo.CoordX, DebugInfo.CoordY);
-	int32 DataLayerCount = DataLayers.Num();
-
-	if (DataLayerCount > 0)
-	{
-		if (const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetCellOwner()->GetOuterWorld()))
-		{
-			TArray<const UDataLayerInstance*> DataLayerObjects;
-			Builder += TEXT(" DL[");
-			for (int i = 0; i < DataLayerCount; ++i)
-			{
-				const UDataLayerInstance* DataLayer = DataLayerSubsystem->GetDataLayerInstance(DataLayers[i]);
-				DataLayerObjects.Add(DataLayer);
-				Builder += DataLayer->GetDataLayerShortName();
-				Builder += TEXT(",");
-			}
-			Builder += FString::Printf(TEXT("ID:%X]"), FDataLayersID(DataLayerObjects).GetHash());
-		}
-	}
-
-	if (ContentBundleID.IsValid())
-	{
-		Builder += FString::Printf(TEXT(" CB[%s]"), *UContentBundleDescriptor::GetContentBundleCompactString(ContentBundleID));
-	}
-
-	DebugInfo.Name = Builder.ToString();
 }
 
 void UWorldPartitionRuntimeCell::DumpStateLog(FHierarchicalLogArchive& Ar)
@@ -112,26 +69,6 @@ void UWorldPartitionRuntimeCell::DumpStateLog(FHierarchicalLogArchive& Ar)
 	Ar.Printf(TEXT("Actor Count: %d"), GetActorCount());
 }
 #endif
-
-bool UWorldPartitionRuntimeCell::ShouldResetStreamingSourceInfo() const
-{
-	return RuntimeCellData->ShouldResetStreamingSourceInfo();
-}
-
-void UWorldPartitionRuntimeCell::ResetStreamingSourceInfo() const
-{
-	RuntimeCellData->ResetStreamingSourceInfo();
-}
-
-void UWorldPartitionRuntimeCell::AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const
-{
-	RuntimeCellData->AppendStreamingSourceInfo(Source, SourceShape);
-}
-
-void UWorldPartitionRuntimeCell::MergeStreamingSourceInfo() const
-{
-	RuntimeCellData->MergeStreamingSourceInfo();
-}
 
 int32 UWorldPartitionRuntimeCell::SortCompare(const UWorldPartitionRuntimeCell* Other, bool bCanUseSortingCache) const
 {
@@ -143,11 +80,10 @@ int32 UWorldPartitionRuntimeCell::SortCompare(const UWorldPartitionRuntimeCell* 
 
 bool UWorldPartitionRuntimeCell::IsDebugShown() const
 {
-	return FWorldPartitionDebugHelper::IsDebugRuntimeHashGridShown(GetGridName()) &&
-		   FWorldPartitionDebugHelper::IsDebugStreamingStatusShown(GetStreamingStatus()) &&
+	return FWorldPartitionDebugHelper::IsDebugStreamingStatusShown(GetStreamingStatus()) &&
 	       FWorldPartitionDebugHelper::AreDebugDataLayersShown(DataLayers) &&
-		   FWorldPartitionDebugHelper::IsDebugCellNameShown(DebugInfo.Name) &&
-		   (FWorldPartitionDebugHelper::CanDrawContentBundles() || !ContentBundleID.IsValid());
+		   (FWorldPartitionDebugHelper::CanDrawContentBundles() || !ContentBundleID.IsValid()) &&
+			RuntimeCellData->IsDebugShown();
 }
 
 FLinearColor UWorldPartitionRuntimeCell::GetDebugStreamingPriorityColor() const
@@ -187,16 +123,6 @@ bool UWorldPartitionRuntimeCell::ContainsDataLayer(const UDataLayerAsset* DataLa
 bool UWorldPartitionRuntimeCell::ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const
 {
 	return GetDataLayers().Contains(DataLayerInstance->GetDataLayerFName());
-}
-
-const FBox& UWorldPartitionRuntimeCell::GetContentBounds() const
-{
-	return RuntimeCellData->GetContentBounds();
-}
-
-FBox UWorldPartitionRuntimeCell::GetCellBounds() const
-{
-	return RuntimeCellData->GetCellBounds();
 }
 
 FName UWorldPartitionRuntimeCell::GetLevelPackageName() const

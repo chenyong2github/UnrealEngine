@@ -739,7 +739,7 @@ void UWorldPartitionStreamingPolicy::UpdateDebugCellsStreamingPriority(const TSe
 
 		for (const UWorldPartitionRuntimeCell* Cell : Cells)
 		{
-			Cell->RuntimeCellData->MergeStreamingSourceInfo();
+			Cell->MergeStreamingSourceInfo();
 		}
 
 		SortStreamingCellsByImportance(Cells);
