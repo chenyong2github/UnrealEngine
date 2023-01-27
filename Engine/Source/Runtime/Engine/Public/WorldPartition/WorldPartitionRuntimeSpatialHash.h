@@ -268,7 +268,7 @@ public:
 	virtual void SetDefaultValues() override;
 	virtual bool SupportsHLODs() const override { return true; }
 	virtual void FlushStreaming() override;
-	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper, const IStreamingGenerationContext* StreamingGenerationContext, bool bCreateActorsOnly) override;
+	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper, const IStreamingGenerationContext* StreamingGenerationContext, bool bCreateActorsOnly) const override;
 	virtual bool IsValidGrid(FName GridName) const override;
 	virtual void DrawPreview() const override;
 

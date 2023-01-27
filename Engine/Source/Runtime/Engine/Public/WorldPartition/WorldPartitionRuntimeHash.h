@@ -90,7 +90,7 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject, public IWorldParti
 	virtual TArray<UWorldPartitionRuntimeCell*> GetAlwaysLoadedCells() const;
 	virtual bool GenerateStreaming(class UWorldPartitionStreamingPolicy* StreamingPolicy, const IStreamingGenerationContext* StreamingGenerationContext, TArray<FString>* OutPackagesToGenerate);
 	virtual void FlushStreaming();
-	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper, const IStreamingGenerationContext* StreamingGenerationContext, bool bCreateActorsOnly) { return false; }
+	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper, const IStreamingGenerationContext* StreamingGenerationContext, bool bCreateActorsOnly) const { return false; }
 	virtual bool IsValidGrid(FName GridName) const { return false; }
 	virtual void DrawPreview() const {}
 
