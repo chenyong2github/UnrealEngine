@@ -65,6 +65,14 @@ static TAutoConsoleVariable<int32> CVarRayTracingTransmissionSamplingTechnique(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable CVarRayTracingTransmissionMeanFreePathType(
+	TEXT("r.RayTracing.Transmission.MeanFreePathType"),
+	0,
+	TEXT("0: Use the extinction scale from subsurface profile as MFP.")
+	TEXT("1: Use the max MFP from Subsurface profile to generate samples for transmission (Strata is not supported)."),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarRayTracingTransmissionRejectionSamplingTrials(
 	TEXT("r.RayTracing.Transmission.RejectionSamplingTrials"),
 	0,
@@ -104,6 +112,18 @@ static TAutoConsoleVariable<int32> CVarRayTracingShadowsAcceptFirstHit(
 bool EnableRayTracingShadowTwoSidedGeometry()
 {
 	return CVarRayTracingShadowsEnableTwoSidedGeometry.GetValueOnRenderThread() != 0;
+}
+
+uint32 GetRayTracingTransmissionMeanFreePathType()
+{	
+	uint32 MeanFreePathType = FMath::Clamp(CVarRayTracingTransmissionMeanFreePathType.GetValueOnRenderThread(), 0, 1);
+
+	if (Strata::IsStrataEnabled())
+	{
+		MeanFreePathType = 0u;
+	}
+
+	return MeanFreePathType;
 }
 
 class FOcclusionRGS : public FGlobalShader
@@ -164,6 +184,7 @@ class FOcclusionRGS : public FGlobalShader
 		SHADER_PARAMETER(float, AvoidSelfIntersectionTraceDistance)
 		SHADER_PARAMETER(uint32, bTransmissionSamplingDistanceCulling)
 		SHADER_PARAMETER(uint32, TransmissionSamplingTechnique)
+		SHADER_PARAMETER(uint32, TransmissionMeanFreePathType)
 		SHADER_PARAMETER(uint32, RejectionSamplingTrials)
 		SHADER_PARAMETER(uint32, bAcceptFirstHit)
 		SHADER_PARAMETER(uint32, bTwoSidedGeometry)
@@ -315,6 +336,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		PassParameters->SSProfilesTexture = View.RayTracingSubSurfaceProfileTexture;
 		PassParameters->bTransmissionSamplingDistanceCulling = CVarRayTracingTransmissionSamplingDistanceCulling.GetValueOnRenderThread();
 		PassParameters->TransmissionSamplingTechnique = CVarRayTracingTransmissionSamplingTechnique.GetValueOnRenderThread();
+		PassParameters->TransmissionMeanFreePathType = GetRayTracingTransmissionMeanFreePathType();
 		PassParameters->RejectionSamplingTrials = CVarRayTracingTransmissionRejectionSamplingTrials.GetValueOnRenderThread();
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		if (bUseHairLighting)
