@@ -80,10 +80,10 @@ private:
 	UEdGraphPin* AddInputPinImpl(int32 PinIndex);
 
 	/** Returns true if this pin was added via the IK2Node_AddPinInterface interface */
-	bool IsAdditionalPin(const UEdGraphPin* Pin) const;
+	bool IsAdditionalPin(const UEdGraphPin& Pin) const;
 		
 	/** Returns true if the given pin is a tolerance pin for a comparison operator */
-	bool IsTolerancePin(const UEdGraphPin* Pin) const;
+	bool IsTolerancePin(const UEdGraphPin& Pin) const;
 
 	/** Helper function to recombine all split pins that this node may have */
 	void RecombineAllSplitPins();
