@@ -552,8 +552,8 @@ public:
 	static int32 EnableMutableLiveUpdate;
 	static int32 EnableReuseInstanceTextures;
 	static int32 EnableMutableAnimInfoDebugging;
+	static int32 EnableOnlyGenerateRequestedLODs;
 	static bool bEnableMutableReusePreviousUpdateData;
-	static bool bEnableOnlyGenerateRequestedLODs;
 
 	/** */
 	inline void AddGameThreadTask(const FMutableTask& Task)
