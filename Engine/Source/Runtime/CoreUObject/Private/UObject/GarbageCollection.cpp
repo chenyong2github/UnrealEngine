@@ -2263,9 +2263,9 @@ constexpr FORCEINLINE EKillable MayKill(EGCTokenType TokenType, bool bAllowKill)
 FORCEINLINE static bool ClearUnreachableInterlocked(int32& Flags)
 {
 	static constexpr int32 FlagToClear = int32(EInternalObjectFlags::Unreachable);
-	if (Flags & FlagToClear)
+	if (FPlatformAtomics::AtomicRead_Relaxed(&Flags) & FlagToClear)
 	{
-		int Old = FPlatformAtomics::InterlockedAnd(&Flags, ~FlagToClear);
+		int32 Old = FPlatformAtomics::InterlockedAnd(&Flags, ~FlagToClear);
 		return Old & FlagToClear;
 	}
 
