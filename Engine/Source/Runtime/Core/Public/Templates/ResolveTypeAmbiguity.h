@@ -39,13 +39,11 @@
 	template < \
 		typename Arg1, \
 		typename Arg2 \
-		UE_CONSTRAINTS_BEGIN \
-			UE_CONSTRAINT( \
-				!std::is_same_v<Arg1, Arg2> && \
-				std::is_signed_v<Arg1> && std::is_integral_v<Arg1> && \
-				std::is_signed_v<Arg2> && std::is_integral_v<Arg2> \
-			) \
-		UE_CONSTRAINTS_END \
+		UE_REQUIRES( \
+			!std::is_same_v<Arg1, Arg2> && \
+			std::is_signed_v<Arg1> && std::is_integral_v<Arg1> && \
+			std::is_signed_v<Arg2> && std::is_integral_v<Arg2> \
+		) \
 	> \
 	static OptionalMarkup FORCEINLINE auto Func(Arg1 X, Arg2 Y) -> decltype(X * Y) \
 	{ \
@@ -62,18 +60,16 @@
 		typename Arg1, \
 		typename Arg2, \
 		typename Arg3 \
-		UE_CONSTRAINTS_BEGIN \
-			UE_CONSTRAINT( \
-				( \
-					!std::is_same_v<Arg1, Arg2>> || \
-					!std::is_same_v<Arg2, Arg3>> || \
-					!std::is_same_v<Arg1, Arg3>> \
-				) && \
-				std::is_signed_v<Arg1> && std::is_integral_v<Arg1> && \
-				std::is_signed_v<Arg2> && std::is_integral_v<Arg2> && \
-				std::is_signed_v<Arg3> && std::is_integral_v<Arg3> \
-			) \
-		UE_CONSTRAINTS_END \
+		UE_REQUIRES( \
+			( \
+				!std::is_same_v<Arg1, Arg2>> || \
+				!std::is_same_v<Arg2, Arg3>> || \
+				!std::is_same_v<Arg1, Arg3>> \
+			) && \
+			std::is_signed_v<Arg1> && std::is_integral_v<Arg1> && \
+			std::is_signed_v<Arg2> && std::is_integral_v<Arg2> && \
+			std::is_signed_v<Arg3> && std::is_integral_v<Arg3> \
+		) \
 	> \
 	static OptionalMarkup FORCEINLINE auto Func(Arg1 X, Arg2 Y, Arg3 Z) -> decltype(X * Y * Z) \
 	{ \
@@ -90,9 +86,7 @@
 	template < \
 		typename Arg1, \
 		typename Arg2 \
-		UE_CONSTRAINTS_BEGIN \
-			UE_CONSTRAINT((std::is_floating_point_v<Arg1> || std::is_floating_point_v<Arg2>) && !std::is_same_v<Arg1, Arg2>) \
-		UE_CONSTRAINTS_END \
+		UE_REQUIRES((std::is_floating_point_v<Arg1> || std::is_floating_point_v<Arg2>) && !std::is_same_v<Arg1, Arg2>) \
 	> \
 	static FORCEINLINE auto Func(Arg1 X, Arg2 Y) -> decltype(X * Y) \
 	{ \
@@ -106,12 +100,10 @@
 		typename Arg1, \
 		typename Arg2, \
 		typename Arg3 \
-		UE_CONSTRAINTS_BEGIN \
-			UE_CONSTRAINT( \
-				(std::is_floating_point_v<Arg1> || std::is_floating_point_v<Arg2> || std::is_floating_point_v<Arg3>) && \
-				(!std::is_same_v<Arg1, Arg2> || !std::is_same_v<Arg2, Arg3> || !std::is_same_v<Arg1, Arg3>) \
-			) \
-		UE_CONSTRAINTS_END \
+		UE_REQUIRES( \
+			(std::is_floating_point_v<Arg1> || std::is_floating_point_v<Arg2> || std::is_floating_point_v<Arg3>) && \
+			(!std::is_same_v<Arg1, Arg2> || !std::is_same_v<Arg2, Arg3> || !std::is_same_v<Arg1, Arg3>) \
+		) \
 	> \
 	static FORCEINLINE auto Func(Arg1 X, Arg2 Y, Arg3 Z) -> decltype(X * Y * Z) \
 	{ \
@@ -137,12 +129,10 @@
 	template < \
 		typename Arg1, \
 		typename Arg2 \
-		UE_CONSTRAINTS_BEGIN \
-			UE_CONSTRAINT( \
-				(std::is_floating_point_v<Arg1> || std::is_floating_point_v<Arg2>) && \
-				!std::is_same_v<Arg1, Arg2> \
-			) \
-		UE_CONSTRAINTS_END \
+		UE_REQUIRES( \
+			(std::is_floating_point_v<Arg1> || std::is_floating_point_v<Arg2>) && \
+			!std::is_same_v<Arg1, Arg2> \
+		) \
 	> \
 	static FORCEINLINE ReturnType Func(Arg1 X, Arg2 Y) \
 	{ \
@@ -156,12 +146,10 @@
 		typename Arg1, \
 		typename Arg2, \
 		typename Arg3 \
-		UE_CONSTRAINTS_BEGIN \
-			UE_CONSTRAINT( \
-				(std::is_floating_point_v<Arg1> || std::is_floating_point_v<Arg2> || std::is_floating_point_v<Arg3>) && \
-				(!std::is_same_v<Arg1, Arg2> || !std::is_same_v<Arg1, Arg3> || !std::is_same_v<Arg2, Arg3>) \
-			) \
-		UE_CONSTRAINTS_END \
+		UE_REQUIRES( \
+			(std::is_floating_point_v<Arg1> || std::is_floating_point_v<Arg2> || std::is_floating_point_v<Arg3>) && \
+			(!std::is_same_v<Arg1, Arg2> || !std::is_same_v<Arg1, Arg3> || !std::is_same_v<Arg2, Arg3>) \
+		) \
 	> \
 	static FORCEINLINE ReturnType Func(Arg1 X, Arg2 Y, Arg3 Z) \
 	{ \

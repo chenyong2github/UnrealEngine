@@ -194,8 +194,8 @@ public:
 	template <
 		typename OtherT,
 		typename OtherDeleter,
-		typename = typename TEnableIf<!TIsArray<OtherT>::Value>::Type,
 		typename = decltype(ImplicitConv<T*>((OtherT*)nullptr))
+		UE_REQUIRES(!std::is_array_v<OtherT>)
 	>
 	FORCEINLINE TUniquePtr(TUniquePtr<OtherT, OtherDeleter>&& Other)
 		: Deleter(MoveTemp(Other.GetDeleter()))
@@ -229,8 +229,8 @@ public:
 	template <
 		typename OtherT,
 		typename OtherDeleter,
-		typename = typename TEnableIf<!TIsArray<OtherT>::Value>::Type,
 		typename = decltype(ImplicitConv<T*>((OtherT*)nullptr))
+		UE_REQUIRES(!std::is_array_v<OtherT>)
 	>
 	FORCEINLINE TUniquePtr& operator=(TUniquePtr<OtherT, OtherDeleter>&& Other)
 	{
@@ -798,8 +798,12 @@ struct TIsBitwiseConstructible<TUniquePtr<T>, T*>
  *
  * @return A TUniquePtr which points to a newly-constructed T with the specified Args.
  */
-template <typename T, typename... TArgs>
-FORCEINLINE typename TEnableIf<!TIsArray<T>::Value, TUniquePtr<T>>::Type MakeUnique(TArgs&&... Args)
+template <
+	typename T,
+	typename... TArgs
+	UE_REQUIRES(!std::is_array_v<T>)
+>
+FORCEINLINE TUniquePtr<T> MakeUnique(TArgs&&... Args)
 {
 	return TUniquePtr<T>(new T(Forward<TArgs>(Args)...));
 }
@@ -813,7 +817,7 @@ FORCEINLINE typename TEnableIf<!TIsArray<T>::Value, TUniquePtr<T>>::Type MakeUni
  * @return A TUniquePtr which points to a newly-constructed T with the specified Args.
  */
 template <typename T, typename... TArgs>
-FORCEINLINE typename TEnableIf<!TIsArray<T>::Value, TUniquePtr<T>>::Type MakeUniqueForOverwrite()
+FORCEINLINE typename TEnableIf<!std::is_array_v<T>, TUniquePtr<T>>::Type MakeUniqueForOverwrite()
 {
 	return TUniquePtr<T>(new T);
 }

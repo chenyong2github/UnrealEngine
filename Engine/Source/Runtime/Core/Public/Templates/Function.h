@@ -561,10 +561,8 @@ namespace UE::Core::Private::Function
 		}
 
 		template <
-			typename FunctorType,
-			typename = typename TEnableIf<
-				!std::is_same_v<TFunctionRefBase, typename TDecay<FunctorType>::Type>
-			>::Type
+			typename FunctorType
+			UE_REQUIRES(!std::is_same_v<TFunctionRefBase, std::decay_t<FunctorType>>)
 		>
 		TFunctionRefBase(FunctorType&& InFunc)
 		{

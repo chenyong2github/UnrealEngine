@@ -530,9 +530,7 @@ public:
 	 */
 	template <
 		typename IntegralType
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(std::is_integral_v<IntegralType>)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(std::is_integral_v<IntegralType>)
 	>
 	UE_NODISCARD static constexpr FORCEINLINE IntegralType Floor(IntegralType I)
 	{
@@ -695,9 +693,7 @@ public:
 	*/
 	template <
 		typename T
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(std::is_floating_point_v<T>)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(std::is_floating_point_v<T>)
 	>
 	static constexpr FORCEINLINE void SinCos(std::decay_t<T>* ScalarSin, std::decay_t<T>* ScalarCos, T  Value )
 	{
@@ -750,9 +746,7 @@ public:
 	template <
 		typename T,
 		typename U
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(!std::is_same_v<T, U>)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(!std::is_same_v<T, U>)
 	>
 	static FORCEINLINE void SinCos(T* ScalarSin, T* ScalarCos, U Value)
 	{
@@ -843,9 +837,7 @@ public:
 	template <
 		typename T,
 		typename T2
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(std::is_floating_point_v<T> || std::is_floating_point_v<T2>)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(std::is_floating_point_v<T> || std::is_floating_point_v<T2>)
 	>
 	UE_NODISCARD static constexpr auto FindDeltaAngleDegrees(T A1, T2 A2) -> decltype(A1 * A2)
 	{
@@ -873,9 +865,7 @@ public:
 	template <
 		typename T,
 		typename T2
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(std::is_floating_point_v<T> || std::is_floating_point_v<T2>)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(std::is_floating_point_v<T> || std::is_floating_point_v<T2>)
 	>
 	UE_NODISCARD static constexpr auto FindDeltaAngleRadians(T A1, T2 A2) -> decltype(A1 * A2)
 	{
@@ -902,9 +892,7 @@ public:
 	/** Given a heading which may be outside the +/- PI range, 'unwind' it back into that range. */
 	template <
 		typename T
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(std::is_floating_point_v<T>)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(std::is_floating_point_v<T>)
 	>
 	UE_NODISCARD static constexpr T UnwindRadians(T A)
 	{
@@ -924,9 +912,7 @@ public:
 	/** Utility to ensure angle is between +/- 180 degrees by unwinding. */
 	template <
 		typename T
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(std::is_floating_point_v<T>)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(std::is_floating_point_v<T>)
 	>
 	UE_NODISCARD static constexpr T UnwindDegrees(T A)
 	{
@@ -1033,9 +1019,7 @@ public:
 	template <
 		typename T,
 		typename T2
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(std::is_floating_point_v<T>)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(std::is_floating_point_v<T>)
 	>
 	UE_NODISCARD static constexpr FORCEINLINE auto GetRangePct(T MinValue, T MaxValue, T2 Value)
 	{
@@ -1055,9 +1039,7 @@ public:
 	template <
 		typename T,
 		typename T2
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(std::is_floating_point_v<T>)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(std::is_floating_point_v<T>)
 	>
 	UE_NODISCARD static auto GetRangePct(UE::Math::TVector2<T> const& Range, T2 Value)
 	{
@@ -1068,9 +1050,7 @@ public:
 	template <
 		typename T,
 		typename T2
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(std::is_floating_point_v<T>)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(std::is_floating_point_v<T>)
 	>
 	UE_NODISCARD static auto GetRangeValue(UE::Math::TVector2<T> const& Range, T2 Pct)
 	{
@@ -1116,9 +1096,7 @@ public:
 	template <
 		typename T,
 		typename U
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(!TCustomLerp<T>::Value && (std::is_floating_point_v<U> || std::is_same_v<T, U>))
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(!TCustomLerp<T>::Value && (std::is_floating_point_v<U> || std::is_same_v<T, U>))
 	>
 	UE_NODISCARD static constexpr FORCEINLINE_DEBUGGABLE T Lerp( const T& A, const T& B, const U& Alpha )
 	{
@@ -1129,9 +1107,7 @@ public:
 	template <
 		typename T,
 		typename U
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(TCustomLerp<T>::Value)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(TCustomLerp<T>::Value)
 	>
 	UE_NODISCARD static FORCEINLINE_DEBUGGABLE T Lerp(const T& A, const T& B, const U& Alpha)
 	{
@@ -1143,9 +1119,7 @@ public:
 		typename T1,
 		typename T2,
 		typename T3
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(!std::is_same_v<T1, T2> && !TCustomLerp<T1>::Value && !TCustomLerp<T2>::Value)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(!std::is_same_v<T1, T2> && !TCustomLerp<T1>::Value && !TCustomLerp<T2>::Value)
 	>
 	UE_NODISCARD static auto Lerp( const T1& A, const T2& B, const T3& Alpha ) -> decltype(A * B)
 	{
@@ -1172,9 +1146,7 @@ public:
 		typename T1,
 		typename T2,
 		typename T3
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(!std::is_same_v<T1, T2>)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(!std::is_same_v<T1, T2>)
 	>
 	UE_NODISCARD static auto LerpStable( const T1& A, const T2& B, const T3& Alpha ) -> decltype(A * B)
 	{
@@ -1186,9 +1158,7 @@ public:
 	template <
 		typename T,
 		typename U
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(!TCustomLerp<T>::Value && (std::is_floating_point_v<U> || std::is_same_v<T, U>))
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(!TCustomLerp<T>::Value && (std::is_floating_point_v<U> || std::is_same_v<T, U>))
 	>
 	UE_NODISCARD static constexpr FORCEINLINE_DEBUGGABLE T BiLerp(const T& P00,const T& P10,const T& P01,const T& P11, const U& FracX, const U& FracY)
 	{
@@ -1203,9 +1173,7 @@ public:
 	template <
 		typename T,
 		typename U
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(TCustomLerp<T>::Value)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(TCustomLerp<T>::Value)
 	>
 	UE_NODISCARD static FORCEINLINE_DEBUGGABLE T BiLerp(const T& P00, const T& P10, const T& P01, const T& P11, const U& FracX, const U& FracY)
 	{
@@ -1224,9 +1192,7 @@ public:
 	template <
 		typename T,
 		typename U
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(!TCustomLerp<T>::Value && (std::is_floating_point_v<U> || std::is_same_v<T, U>))
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(!TCustomLerp<T>::Value && (std::is_floating_point_v<U> || std::is_same_v<T, U>))
 	>
 	UE_NODISCARD static constexpr FORCEINLINE_DEBUGGABLE T CubicInterp( const T& P0, const T& T0, const T& P1, const T& T1, const U& A )
 	{
@@ -1240,9 +1206,7 @@ public:
 	template <
 		typename T,
 		typename U
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(TCustomLerp<T>::Value)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(TCustomLerp<T>::Value)
 	>
 	UE_NODISCARD static FORCEINLINE_DEBUGGABLE T CubicInterp(const T& P0, const T& T0, const T& P1, const T& T1, const U& A)
 	{
@@ -1261,9 +1225,7 @@ public:
 	template <
 		typename T,
 		typename U
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(std::is_floating_point_v<U>)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(std::is_floating_point_v<U>)
 	>
 	UE_NODISCARD static constexpr FORCEINLINE_DEBUGGABLE T CubicInterpDerivative( const T& P0, const T& T0, const T& P1, const T& T1, const U& A )
 	{
@@ -1288,9 +1250,7 @@ public:
 	template <
 		typename T,
 		typename U
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(std::is_floating_point_v<U>)
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(std::is_floating_point_v<U>)
 	>
 	UE_NODISCARD static constexpr FORCEINLINE_DEBUGGABLE T CubicInterpSecondDerivative( const T& P0, const T& T0, const T& P1, const T& T1, const U& A )
 	{

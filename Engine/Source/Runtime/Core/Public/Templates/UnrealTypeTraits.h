@@ -23,16 +23,13 @@
 #include "Templates/IsTriviallyCopyConstructible.h"
 
 /*-----------------------------------------------------------------------------
-	Readability macro for enable_if in template definitions, future-proofed
+	Readability macro for a constraint in template definitions, future-proofed
 	for C++ 20 concepts. Usage:
 
 	template <
 		typename T,
-		typename U  // note - no trailing comma before the constraints block
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(std::is_integral_v<T>)
-			UE_CONSTRAINT(sizeof(U) <= 4)
-		UE_CONSTRAINTS_END
+		typename U  // note - no trailing comma before the constraint
+		UE_REQUIRES(std::is_integral_v<T> && sizeof(U) <= 4)
 	>
 	void IntegralUpTo32Bit(T Lhs, U Rhs) {}
  -----------------------------------------------------------------------------*/
@@ -40,10 +37,12 @@
     #define UE_CONSTRAINTS_BEGIN , std::enable_if_t<
     #define UE_CONSTRAINT(...) (__VA_ARGS__) &&
     #define UE_CONSTRAINTS_END true, int> = 0
+
+	#define UE_REQUIRES(...) , std::enable_if_t<(__VA_ARGS__), int> = 0
 #else
     namespace UE::Core::Private
     {
-        // Only needed for the UE_CONSTRAINT* macros to work
+        // Only needed for the UE_REQUIRES macro to work, to allow for a trailing > token after the macro
         template <bool B>
         concept BoolIdentityConcept = B;
     }
@@ -51,6 +50,8 @@
     #define UE_CONSTRAINTS_BEGIN > requires
     #define UE_CONSTRAINT(...) (__VA_ARGS__) &&
     #define UE_CONSTRAINTS_END UE::Core::Private::BoolIdentityConcept<true
+
+	#define UE_REQUIRES(...) > requires (__VA_ARGS__) && UE::Core::Private::BoolIdentityConcept<true
 #endif
 
 #define TEMPLATE_REQUIRES(...) typename TEnableIf<__VA_ARGS__, int>::type = 0

@@ -71,9 +71,7 @@ namespace UE::Core::Private::Tuple
 	{
 		template <
 			typename ArgType
-			UE_CONSTRAINTS_BEGIN
-				UE_CONSTRAINT(std::is_constructible_v<T, ArgType&&>)
-			UE_CONSTRAINTS_END
+			UE_REQUIRES(std::is_constructible_v<T, ArgType&&>)
 		>
 		explicit TTupleBaseElement(EForwardingConstructor, ArgType&& Arg)
 			: Value(Forward<ArgType>(Arg))
@@ -98,9 +96,7 @@ namespace UE::Core::Private::Tuple
 	{
 		template <
 			typename ArgType
-			UE_CONSTRAINTS_BEGIN
-				UE_CONSTRAINT(std::is_constructible_v<T, ArgType&&>)
-			UE_CONSTRAINTS_END
+			UE_REQUIRES(std::is_constructible_v<T, ArgType&&>)
 		>
 		explicit TTupleBaseElement(EForwardingConstructor, ArgType&& Arg)
 			: Key(Forward<ArgType>(Arg))
@@ -394,10 +390,7 @@ namespace UE::Core::Private::Tuple
 		template <
 			typename KeyArgType,
 			typename ValueArgType
-			UE_CONSTRAINTS_BEGIN
-				UE_CONSTRAINT(std::is_constructible_v<KeyType,   KeyArgType  &&>)
-				UE_CONSTRAINT(std::is_constructible_v<ValueType, ValueArgType&&>)
-			UE_CONSTRAINTS_END
+			UE_REQUIRES(std::is_constructible_v<KeyType, KeyArgType&&> && std::is_constructible_v<ValueType, ValueArgType&&>)
 		>
 		explicit TTupleBase(EForwardingConstructor, KeyArgType&& KeyArg, ValueArgType&& ValueArg)
 			: Key  (Forward<KeyArgType  >(KeyArg  ))
@@ -408,10 +401,7 @@ namespace UE::Core::Private::Tuple
 		template <
 			typename TupleType,
 			typename std::decay_t<TupleType>::DummyPairIdentifier* = nullptr
-			UE_CONSTRAINTS_BEGIN
-				UE_CONSTRAINT(std::is_constructible_v<KeyType,   decltype(DeclVal<TupleType&&>().Get<0>())>)
-				UE_CONSTRAINT(std::is_constructible_v<ValueType, decltype(DeclVal<TupleType&&>().Get<1>())>)
-			UE_CONSTRAINTS_END
+			UE_REQUIRES(std::is_constructible_v<KeyType, decltype(DeclVal<TupleType&&>().Get<0>())> && std::is_constructible_v<ValueType, decltype(DeclVal<TupleType&&>().Get<1>())>)
 		>
 		explicit TTupleBase(EOtherTupleConstructor, TupleType&& Other)
 			: Key  (Forward<TupleType>(Other).Get<0>())
@@ -687,9 +677,7 @@ public:
 	template <
 		typename... ArgTypes,
 		decltype(UE::Core::Private::Tuple::ConstructibleConceptCheck<Types...>(DeclVal<ArgTypes&&>()...))* = nullptr
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT((std::is_convertible_v<ArgTypes&&, Types> && ...))
-		UE_CONSTRAINTS_END
+		UE_REQUIRES((std::is_convertible_v<ArgTypes&&, Types> && ...))
 	>
 	TTuple(ArgTypes&&... Args)
 		: Super(UE::Core::Private::Tuple::ForwardingConstructor, Forward<ArgTypes>(Args)...)
@@ -699,9 +687,7 @@ public:
 	template <
 		typename... ArgTypes,
 		decltype(UE::Core::Private::Tuple::ConstructibleConceptCheck<Types...>(DeclVal<ArgTypes&&>()...))* = nullptr
-		UE_CONSTRAINTS_BEGIN
-			UE_CONSTRAINT(!(std::is_convertible_v<ArgTypes&&, Types> && ...))
-		UE_CONSTRAINTS_END
+		UE_REQUIRES(!(std::is_convertible_v<ArgTypes&&, Types> && ...))
 	>
 	explicit TTuple(ArgTypes&&... Args)
 		: Super(UE::Core::Private::Tuple::ForwardingConstructor, Forward<ArgTypes>(Args)...)
