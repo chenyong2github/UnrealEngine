@@ -96,9 +96,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual UPCGIntersectionData* IntersectWith(const UPCGSpatialData* InOther) const;
 
-	/** Returns a specialized data to project this on another data of equal or higher dimension */
+	/** Returns a specialized data to project this on another data of equal or higher dimension. Returns copy of this data if projection fails. */
 	UFUNCTION(BlueprintCallable, Category = SpatialData, meta=(AutoCreateRefTerm="InParams"))
-	virtual UPCGProjectionData* ProjectOn(const UPCGSpatialData* InOther, const FPCGProjectionParams& InParams = FPCGProjectionParams()) const;
+	virtual UPCGSpatialData* ProjectOn(const UPCGSpatialData* InOther, const FPCGProjectionParams& InParams = FPCGProjectionParams()) const;
 
 	/** Returns a specialized data to union this with another data */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)

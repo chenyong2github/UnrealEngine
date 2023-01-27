@@ -121,8 +121,21 @@ UPCGIntersectionData* UPCGSpatialData::IntersectWith(const UPCGSpatialData* InOt
 	return IntersectionData;
 }
 
-UPCGProjectionData* UPCGSpatialData::ProjectOn(const UPCGSpatialData* InOther, const FPCGProjectionParams& InParams) const
+UPCGSpatialData* UPCGSpatialData::ProjectOn(const UPCGSpatialData* InOther, const FPCGProjectionParams& InParams) const
 {
+	// Check necessary conditions. Fail to project -> return copy of projection source, i.e. projection not performed.
+	if (!InOther)
+	{
+		UE_LOG(LogPCG, Warning, TEXT("No projection target specified, no projection will occur"));
+		return DuplicateData();
+	}
+
+	if (GetDimension() > InOther->GetDimension())
+	{
+		UE_LOG(LogPCG, Error, TEXT("Dimension of projection source (%d) must be less than or equal to that of the projection target (%d)"), GetDimension(), InOther->GetDimension());
+		return DuplicateData();
+	}
+
 	UPCGProjectionData* ProjectionData = NewObject<UPCGProjectionData>();
 	ProjectionData->Initialize(this, InOther, InParams);
 

@@ -110,9 +110,9 @@ bool UPCGSplineData::SamplePoint(const FTransform& InTransform, const FBox& InBo
 	}
 }
 
-UPCGProjectionData* UPCGSplineData::ProjectOn(const UPCGSpatialData* InOther, const FPCGProjectionParams& InParams) const
+UPCGSpatialData* UPCGSplineData::ProjectOn(const UPCGSpatialData* InOther, const FPCGProjectionParams& InParams) const
 {
-	if(InOther->GetDimension() == 2)
+	if (InOther->GetDimension() == 2)
 	{
 		UPCGSplineProjectionData* SplineProjectionData = NewObject<UPCGSplineProjectionData>();
 		SplineProjectionData->Initialize(this, InOther, InParams);
