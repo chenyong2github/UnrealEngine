@@ -161,7 +161,7 @@ protected:
 	void ConditionallyUpdatePreview(const FGroupEdgeInserter::FGroupEdgeSplitPoint& NewEndPoint, 
 		int32 NewEndTopologyID, bool bNewEndIsCorner, int32 NewCommonGroupID, int32 NewBoundaryIndex);
 
-	void ClearPreview(bool bClearDrawnElements = true);
+	void ClearPreview(bool bClearDrawnElements);
 
 	void GetCornerTangent(int32 CornerID, int32 GroupID, int32 BoundaryIndex, FVector3d& TangentOut);
 
@@ -191,10 +191,9 @@ public:
 	{
 		UPolyEditInsertEdgeActivity* Activity = Cast<UPolyEditInsertEdgeActivity>(Object);
 		return bHaveDoneUndo || Activity->CurrentChangeStamp != ChangeStamp
-			|| Activity->ToolState != UPolyEditInsertEdgeActivity::EState::GettingEnd;
-		// TODO: this is a bit of a hack in that we should probably have a separate stamp
-		// for expiring these instead of letting the tool state help (they expire after
-		// each new insertion unlike the other changes, which expire on tool close).
+			// We only allow undo if we're looking for the next point or waiting for completion, i.e. when
+			// we have a start point to undo.
+			|| Activity->ToolState == UPolyEditInsertEdgeActivity::EState::GettingStart;
 	}
 	virtual FString ToString() const override
 	{
