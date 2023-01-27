@@ -723,7 +723,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 template <
 	typename ArrayType,
 	typename ArrayTypeNoRef = std::remove_reference_t<ArrayType>,
-	std::enable_if_t<TIsTArray<ArrayTypeNoRef>::Value>* = nullptr
+	std::enable_if_t<TIsTArray_V<ArrayTypeNoRef>>* = nullptr
 >
 decltype(auto) ToRawPtrTArrayUnsafe(ArrayType&& Array)
 {

@@ -3434,14 +3434,20 @@ struct TIsContiguousContainer<TArray<T, AllocatorType>>
 };
 
 /**
- * Traits class which determines whether or not a type is a TArray.
+ * Trait which determines whether or not a type is a TArray.
  */
-template <typename T> struct TIsTArray { enum { Value = false }; };
+template <typename T> constexpr bool TIsTArray_V = false;
 
-template <typename InElementType, typename InAllocatorType> struct TIsTArray<               TArray<InElementType, InAllocatorType>> { enum { Value = true }; };
-template <typename InElementType, typename InAllocatorType> struct TIsTArray<const          TArray<InElementType, InAllocatorType>> { enum { Value = true }; };
-template <typename InElementType, typename InAllocatorType> struct TIsTArray<      volatile TArray<InElementType, InAllocatorType>> { enum { Value = true }; };
-template <typename InElementType, typename InAllocatorType> struct TIsTArray<const volatile TArray<InElementType, InAllocatorType>> { enum { Value = true }; };
+template <typename InElementType, typename InAllocatorType> constexpr bool TIsTArray_V<               TArray<InElementType, InAllocatorType>> = true;
+template <typename InElementType, typename InAllocatorType> constexpr bool TIsTArray_V<const          TArray<InElementType, InAllocatorType>> = true;
+template <typename InElementType, typename InAllocatorType> constexpr bool TIsTArray_V<      volatile TArray<InElementType, InAllocatorType>> = true;
+template <typename InElementType, typename InAllocatorType> constexpr bool TIsTArray_V<const volatile TArray<InElementType, InAllocatorType>> = true;
+
+template <typename T>
+struct TIsTArray
+{
+	enum { Value = TIsTArray_V<T> };
+};
 
 
 //

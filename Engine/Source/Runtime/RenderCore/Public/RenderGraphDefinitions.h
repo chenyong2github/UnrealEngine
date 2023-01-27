@@ -757,6 +757,6 @@ using FRDGBufferInitialDataCallback = TFunction<const void*()>;
 using FRDGBufferInitialDataSizeCallback = TFunction<uint64()>;
 template <typename ArrayType, 
 	typename ArrayTypeNoRef = std::remove_reference_t<ArrayType>,
-	typename = typename TEnableIf<TIsTArray<ArrayTypeNoRef>::Value>::Type> using TRDGBufferArrayCallback = TFunction<const ArrayType&()>;
+	typename = typename TEnableIf<TIsTArray_V<ArrayTypeNoRef>>::Type> using TRDGBufferArrayCallback = TFunction<const ArrayType&()>;
 using FRDGBufferInitialDataFreeCallback = TFunction<void(const void* InData)>;
 using FRDGDispatchGroupCountCallback = TFunction<FIntVector()>;

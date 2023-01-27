@@ -366,7 +366,7 @@ public:
 	// returns true if the handle is of the given type
 	template <
 		typename T,
-		typename TEnableIf<TIsTArray<T>::Value>::Type* = nullptr
+		typename TEnableIf<TIsTArray_V<T>>::Type* = nullptr
 	>
 	bool IsType(bool bIsHiddenArgument = false) const
 	{

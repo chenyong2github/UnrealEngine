@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -156,7 +156,7 @@ namespace UE::Json
 
 	// Array
 	template <typename ContainerType>
-	typename TEnableIf<TIsTArray<ContainerType>::Value, bool>::Type
+	typename TEnableIf<TIsTArray_V<ContainerType>, bool>::Type
 	TryGet(const TSharedPtr<FJsonValue>& InJsonValue, ContainerType& OutValues)
 	{
 		using ValueType = typename ContainerType::ElementType;
@@ -179,7 +179,7 @@ namespace UE::Json
 	}
 
 	template <typename ContainerType>
-	constexpr typename TEnableIf<TIsTArray<ContainerType>::Value, bool>::Type
+	constexpr typename TEnableIf<TIsTArray_V<ContainerType>, bool>::Type
 	TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, ContainerType& OutValues)
 	{
 		if(const TSharedPtr<FJsonValue> JsonField = InJsonObject->TryGetField(InFieldName))
@@ -336,7 +336,7 @@ namespace UE::Json
 		!std::is_same_v<ValueType, TSharedPtr<typename ValueType::ElementType>> &&
 		!std::is_same_v<ValueType, TJsonReference<typename ValueType::ElementType>> &&
 		!TIsTMap<ValueType>::Value &&
-		!TIsTArray<ValueType>::Value &&
+		!TIsTArray_V<ValueType> &&
 		!TypeTraits::TIsStringLike<ValueType>::Value &&
 		!TIsPODType<ValueType>::Value &&
 		!TypeTraits::THasFromJson<ValueType>::Value, bool>::Type
@@ -351,7 +351,7 @@ namespace UE::Json
 		!std::is_same_v<ValueType, TSharedPtr<typename ValueType::ElementType>> &&
 		!std::is_same_v<ValueType, TJsonReference<typename ValueType::ElementType>> &&
 		!TIsTMap<ValueType>::Value &&
-		!TIsTArray<ValueType>::Value &&
+		!TIsTArray_V<ValueType> &&
 		!TypeTraits::TIsStringLike<ValueType>::Value &&
 		!TIsPODType<ValueType>::Value &&
 		!TypeTraits::THasFromJson<ValueType>::Value, bool>::Type

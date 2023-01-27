@@ -32,7 +32,7 @@ class FCompositeBuffer
 	using CanAppendBufferType = std::bool_constant<
 		std::is_same_v<FCompositeBuffer, BufferType> ||
 		std::is_same_v<FSharedBuffer, BufferType> ||
-		TIsTArray<BufferType>::Value>;
+		TIsTArray_V<BufferType>>;
 
 public:
 	/**
