@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include <type_traits>
+#include "HAL/Platform.h"
+
 class FShaderParametersMetadata;
 
 #define DECLARE_UNIFORM_BUFFER_STRUCT(StructTypeName, PrefixKeywords) \
