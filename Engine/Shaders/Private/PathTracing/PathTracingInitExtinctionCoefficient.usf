@@ -24,7 +24,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingInitExtinctionCoefficientRG)
 	float3 StartingSigmaT = 0.0;
 	for (;;)
 	{
-		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(true, 0.0);
+		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(PATHTRACER_SCATTER_CAMERA, 0.0);
 		TraceRay(
 			TLAS,
 			RayFlags,

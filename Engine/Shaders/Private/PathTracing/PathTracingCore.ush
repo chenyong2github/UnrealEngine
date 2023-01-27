@@ -300,7 +300,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 	}
 	for (;;)
 	{
-		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(bIsCameraRay, ApproximateCaustics ? PathState.PathRoughness : 0.0);
+		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(PathState.FirstScatterType, ApproximateCaustics ? PathState.PathRoughness : 0.0);
 		// Trace the ray
 		TraceRay(
 			TLAS,
@@ -692,7 +692,9 @@ struct FProbeResult
 FProbeResult TraceProbeRay(FRayDesc Ray)
 {
 	// Trace a short ray to see if we escaped the surface
-	FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(true, 1.0);
+	// NOTE: we leave these rays tagged as "camera" because we are interested in getting the same shading normal the camera saw (on the off chance the material does some ray-simplfiication)
+	//      Since the SSS code mostly runs on camera rays, this is a reasonable approximation
+	FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(PATHTRACER_SCATTER_CAMERA, 1.0);
 	// TODO: use smaller payload + flag to skip shading work? (only want smooth+geo normals)
 	//       however supporting blockers would require some shading ...
 	const uint RayFlags = 0;

@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#define PATH_TRACING 1
+
 #include "PathTracingCommon.ush"
+#include "PathTracingShaderUtils.ush"
 
 #include "/Engine/Generated/Material.ush"
 
@@ -14,6 +17,7 @@
 RAY_TRACING_ENTRY_MISS(PathTracingLightingMS, FPackedPathTracingPayload, Payload)
 {
 	Payload.SetMiss();
+	CurrentPayloadInputFlags = Payload.GetFlags();
 	float3 TranslatedWorldPosition = WorldRayOrigin(); // Shadow ray is traced from the shaded point
 	float3 Throughput = Payload.GetRayThroughput();
 	float3 LightFunctionMult = GetRayTracingLightFunction(TranslatedWorldPosition);

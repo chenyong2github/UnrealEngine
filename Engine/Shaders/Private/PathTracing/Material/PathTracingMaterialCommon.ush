@@ -6,7 +6,7 @@ PathTracingMaterialCommon.usf: Brdf utility functions
 
 #pragma once
 
-#include "../PathTracingCommon.ush"
+#include "/Engine/Private/MonteCarlo.ush"
 #include "/Engine/Private/BRDF.ush"
 
 float LobeColorToWeight(float3 C)

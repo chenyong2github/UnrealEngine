@@ -1779,14 +1779,15 @@ bool GetRayTracingQualitySwitch()
 #endif
 }
 
-bool GetPathTracingQualitySwitch()
-{
-#if (RAYHITGROUPSHADER || RAYMISSSHADER || RAYCALLABLESHADER) && PATH_TRACING && !SIMPLIFIED_MATERIAL_SHADER
-	return true;
-#else
-	return false;
+#if !PATH_TRACING
+// Default implementations for non-path traced shaders
+// The actual implementations used for the path tracer exist in PathTracingShaderUtils.h to minimize cruft in Common.ush
+bool GetPathTracingQualitySwitch() { return false;  }
+bool GetPathTracingIsShadow() { return false; }
+bool GetPathTracingIsIndirectDiffuse() { return false; }
+bool GetPathTracingIsIndirectSpecular() { return false; }
+bool GetPathTracingIsIndirectVolume() { return false; }
 #endif
-}
 
 bool GetLightmassReplaceState()
 {

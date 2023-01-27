@@ -9268,6 +9268,17 @@ int32 FHLSLMaterialTranslator::PathTracingQualitySwitchReplace(int32 Normal, int
 	return GenericSwitch(TEXT("GetPathTracingQualitySwitch()"), PathTraced, Normal);
 }
 
+int32 FHLSLMaterialTranslator::PathTracingRayTypeSwitch(int32 Main, int32 Shadow, int32 IndirectDiffuse, int32 IndirectSpecular, int32 IndirectVolume)
+{
+	// Generate a sequential series of switches so we can easily account for type promotion across the ports
+	// Any input port that does not have anything connected to it (INDEX_NONE) defaults back to Main
+	int32 TmpA = GenericSwitch(TEXT("GetPathTracingIsShadow()")          , Shadow           == INDEX_NONE ? Main : Shadow          , Main);
+	int32 TmpB = GenericSwitch(TEXT("GetPathTracingIsIndirectDiffuse()") , IndirectDiffuse  == INDEX_NONE ? Main : IndirectDiffuse , TmpA);
+	int32 TmpC = GenericSwitch(TEXT("GetPathTracingIsIndirectSpecular()"), IndirectSpecular == INDEX_NONE ? Main : IndirectSpecular, TmpB);
+	int32 TmpD = GenericSwitch(TEXT("GetPathTracingIsIndirectVolume()")  , IndirectVolume   == INDEX_NONE ? Main : IndirectVolume  , TmpC);
+	return TmpD;
+}
+
 int32 FHLSLMaterialTranslator::LightmassReplace(int32 Realtime, int32 Lightmass)
 {
 	return GenericSwitch(TEXT("GetLightmassReplaceState()"), Lightmass, Realtime);

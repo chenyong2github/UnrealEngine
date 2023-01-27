@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "Material/PathTracingMaterialCommon.ush"
 #include "../RayTracing/RayTracingCommon.ush"
 #include "../OctahedralCommon.ush"
 #include "/Engine/Shared/PathTracingDefinitions.h"
@@ -14,8 +15,12 @@
 #define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE                   (1 << 0) // Indicates that ray has hit the front face of a primitive. Set by closest hit shader.
 #define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RECEIVER               (1 << 1) // Indicates that ray has hit a primitive that receives decals. Set by closest hit shader.
 
-#define PATH_TRACING_PAYLOAD_INPUT_FLAG_CAMERA_RAY                    (1 << 0) // Indicates that this is a camera ray which can trigger a number of special behaviors in the closest hit shader
-#define PATH_TRACING_PAYLOAD_INPUT_FLAG_PATHTRACER_VISIBILITY         (1 << 1) // Indicates that this is a path tracer visibility ray (which supports material evaluation for transparent shadows and fake caustics)
+#define PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_MASK                 (7 << 0) // Reserve 3 bits for ray-mask
+#define PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_CAMERA                0       // Indicates that this is a camera ray which can trigger a number of special behaviors in the closest hit shader
+#define PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_SHADOW                1       // Indicates that this is a path tracer visibility ray (which supports material evaluation for transparent shadows and fake caustics)
+#define PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_INDIRECT_DIFFUSE      2
+#define PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_INDIRECT_SPECULAR     3
+#define PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_INDIRECT_VOLUME       4
 
 #define PATH_TRACING_PAYLOAD_NORMAL_BITS  32
 
@@ -73,11 +78,11 @@ struct FPackedPathTracingPayload : FMinimalPayload
 	uint GetPrimitiveLightingChannelMask() { return (PackedData[0] >> 29) & 0x7; }
 
 	// Flag methods
-	void SetCameraRay() { SetFlag(PATH_TRACING_PAYLOAD_INPUT_FLAG_CAMERA_RAY); }
-	bool IsCameraRay() { return (GetFlags() & PATH_TRACING_PAYLOAD_INPUT_FLAG_CAMERA_RAY) != 0; }
+	void SetCameraRay() { SetFlag(PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_CAMERA); }
+	bool IsCameraRay() { return (GetFlags() & PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_MASK) == PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_CAMERA; }
 
-	void SetVisibilityRay() { SetFlag(PATH_TRACING_PAYLOAD_INPUT_FLAG_PATHTRACER_VISIBILITY); }
-	bool IsVisibilityRay() { return (GetFlags() & PATH_TRACING_PAYLOAD_INPUT_FLAG_PATHTRACER_VISIBILITY) != 0; }
+	void SetVisibilityRay() { SetFlag(PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_SHADOW); }
+	bool IsVisibilityRay() { return (GetFlags() & PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_MASK) == PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_SHADOW; }
 
 	bool IsFrontFace() { return (GetFlags() & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE) != 0; }
 
@@ -266,13 +271,18 @@ struct FPathTracingPayload : FMinimalPayload
 	}
 };
 
-FPackedPathTracingPayload InitPathTracingPayload(bool bIsCameraRay, float PathRoughness)
+FPackedPathTracingPayload InitPathTracingPayload(uint ScatterType, float PathRoughness)
 {
 	FPackedPathTracingPayload Output = (FPackedPathTracingPayload)0;
 	Output.SetPathRoughness(PathRoughness);
-	if (bIsCameraRay)
+	switch (ScatterType)
 	{
-		Output.SetCameraRay();
+		case PATHTRACER_SCATTER_DIFFUSE:   Output.SetFlag(PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_INDIRECT_DIFFUSE);  break;
+		case PATHTRACER_SCATTER_SPECULAR:  
+		case PATHTRACER_SCATTER_REFRACT:   Output.SetFlag(PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_INDIRECT_SPECULAR); break;
+		case PATHTRACER_SCATTER_VOLUME:    Output.SetFlag(PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_INDIRECT_VOLUME);   break;
+		case PATHTRACER_SCATTER_CAMERA: 
+		default:                           Output.SetFlag(PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_CAMERA); break;
 	}
 	return Output;
 }

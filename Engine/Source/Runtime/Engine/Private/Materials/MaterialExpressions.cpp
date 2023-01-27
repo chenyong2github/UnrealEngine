@@ -110,6 +110,7 @@
 #include "Materials/MaterialExpressionGIReplace.h"
 #include "Materials/MaterialExpressionRayTracingQualitySwitch.h"
 #include "Materials/MaterialExpressionPathTracingQualitySwitch.h"
+#include "Materials/MaterialExpressionPathTracingRayTypeSwitch.h"
 #include "Materials/MaterialExpressionGetMaterialAttributes.h"
 #include "Materials/MaterialExpressionHairAttributes.h"
 #include "Materials/MaterialExpressionHairColor.h"
@@ -17919,6 +17920,67 @@ FStrataOperator* UMaterialExpressionPathTracingQualitySwitch::StrataGenerateMate
 	Compiler->Errorf(TEXT("Strata material topology must be statically define. We do not support topology update via dynamic evaluation such as `is pathtracing or not`. Only input to BSDFs or Operators can be controled this way."));
 	return nullptr;
 }
+#endif // WITH_EDITOR
+
+
+//
+// UMaterialExpressionPathTracingRayTypeSwitch
+//
+UMaterialExpressionPathTracingRayTypeSwitch::UMaterialExpressionPathTracingRayTypeSwitch(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionPathTracingRayTypeSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Main.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing PathTracingRayTypeSwitch input 'Main'"));
+	}
+	else
+	{
+		// compile all arguments (its ok if some of these are not connected, the will default to using Main)
+		int32 ArgMain = Main.Compile(Compiler);
+		int32 ArgShadow = Shadow.Compile(Compiler);
+		int32 ArgDiffuse = IndirectDiffuse.Compile(Compiler);
+		int32 ArgSpecular = IndirectSpecular.Compile(Compiler);
+		int32 ArgVolume = IndirectVolume.Compile(Compiler);
+
+		return Compiler->PathTracingRayTypeSwitch(ArgMain, ArgShadow, ArgDiffuse, ArgSpecular, ArgVolume);
+	}
+}
+
+bool UMaterialExpressionPathTracingRayTypeSwitch::IsResultMaterialAttributes(int32 OutputIndex)
+{
+	// Only check the Main expression since it must be connected. If the other plugs have something else connected that is not compatible,
+	// we would get an error during translation therefore it is sufficient to check the main plug only.
+	if (Main.Expression)
+	{
+		return Main.Expression->IsResultMaterialAttributes(OutputIndex);
+	}
+	return false;
+}
+
+void UMaterialExpressionPathTracingRayTypeSwitch::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("PathTracingRayTypeSwitch"));
+}
+
 #endif // WITH_EDITOR
 
 

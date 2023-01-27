@@ -986,6 +986,7 @@ protected:
 
 	virtual int32 RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced) override;
 	virtual int32 PathTracingQualitySwitchReplace(int32 Normal, int32 PathTraced) override;
+	virtual int32 PathTracingRayTypeSwitch(int32 Main, int32 Shadow, int32 IndirectDiffuse, int32 IndirectSpecular, int32 IndirectVolume) override;
 	virtual int32 LightmassReplace(int32 Realtime, int32 Lightmass) override;
 
 	virtual int32 VirtualTextureOutputReplace(int32 Default, int32 VirtualTexture) override;

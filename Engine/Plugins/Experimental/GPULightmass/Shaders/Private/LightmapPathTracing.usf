@@ -185,7 +185,7 @@ FPathTracingPayload TraceTransparentRay(FRayDesc Ray, bool IsCameraRay, bool Las
 	}
 	for (;;)
 	{
-		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(IsCameraRay, 1.0);
+		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(IsCameraRay ? PATHTRACER_SCATTER_CAMERA : PATHTRACER_SCATTER_DIFFUSE, 1.0);
 		// Trace the ray
 		TraceRay(
 			TLAS,
