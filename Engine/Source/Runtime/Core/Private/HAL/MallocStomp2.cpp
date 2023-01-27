@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HAL/MallocStomp2.h"
+
+#if WITH_MALLOC_STOMP2
 #include "Math/UnrealMathUtility.h"
+#include "Misc/Parse.h"
 #include "HAL/UnrealMemory.h"
 #include "HAL/IConsoleManager.h"
 #include "GenericPlatform/GenericPlatformMemory.h"
 #include "Algo/BinarySearch.h"
 
-#if WITH_MALLOC_STOMP2
 CORE_API FMallocStomp2* GMallocStomp2 = nullptr;
 CORE_API bool GMallocStomp2Enabled = false;
 
