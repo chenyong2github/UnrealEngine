@@ -406,17 +406,47 @@ inline void FRDGBuilder::AddDispatchHint()
 }
 
 template <typename TaskLambdaType>
-UE::Tasks::FTask FRDGBuilder::AddSetupTask(TaskLambdaType&& TaskLambda, bool bCondition)
+FORCEINLINE UE::Tasks::FTask FRDGBuilder::AddSetupTask(TaskLambdaType&& TaskLambda, bool bCondition)
+{
+	return AddSetupTask(MoveTemp(TaskLambda), nullptr, TArray<UE::Tasks::FTask>{}, UE::Tasks::ETaskPriority::Normal, bCondition);
+}
+
+template <typename TaskLambdaType>
+FORCEINLINE UE::Tasks::FTask FRDGBuilder::AddSetupTask(
+	TaskLambdaType&& TaskLambda,
+	UE::Tasks::FPipe* Pipe,
+	UE::Tasks::ETaskPriority Priority,
+	bool bCondition)
+{
+	return AddSetupTask(MoveTemp(TaskLambda), Pipe, TArray<UE::Tasks::FTask>{}, Priority, bCondition);
+}
+
+template <typename TaskLambdaType, typename PrerequisitesCollectionType>
+UE::Tasks::FTask FRDGBuilder::AddSetupTask(
+	TaskLambdaType&& TaskLambda,
+	UE::Tasks::FPipe* Pipe,
+	PrerequisitesCollectionType&& Prerequisites,
+	UE::Tasks::ETaskPriority Priority,
+	bool bCondition)
 {
 	UE::Tasks::FTask Task;
 
 	if (bParallelExecuteEnabled && bCondition)
 	{
-		Task = UE::Tasks::Launch(TEXT("FRDGBuilder::AddSetupTask"), [TaskLambda = MoveTemp(TaskLambda)] () mutable
+		auto OuterLambda = [TaskLambda = MoveTemp(TaskLambda)]() mutable
 		{
 			FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 			TaskLambda();
-		});
+		};
+
+		if (Pipe)
+		{
+			Task = Pipe->Launch(TEXT("FRDGBuilder::AddSetupTask"), MoveTemp(OuterLambda), MoveTemp(Prerequisites), Priority);
+		}
+		else
+		{
+			Task = UE::Tasks::Launch(TEXT("FRDGBuilder::AddSetupTask"), MoveTemp(OuterLambda), MoveTemp(Prerequisites), Priority);
+		}
 
 		ParallelSetupEvents.Emplace(Task);
 	}
