@@ -4,12 +4,12 @@
 
 #include "CoreTypes.h"
 #include "Misc/StaticAssertCompleteType.h"
-#include "Templates/RemoveCV.h"
 #include "Templates/LosesQualifiersFromTo.h"
+#include <type_traits>
 
 namespace UE::Core::Private::PointerIsConvertibleFromTo
 {
-	template <typename From, typename To, typename NoCVFrom = typename TRemoveCV<From>::Type, typename NoCVTo = typename TRemoveCV<To>::Type>
+	template <typename From, typename To, typename NoCVFrom = std::remove_cv_t<From>, typename NoCVTo = std::remove_cv_t<To>>
 	struct TImpl
 	{
 	private:

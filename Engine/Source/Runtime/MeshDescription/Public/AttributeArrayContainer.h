@@ -392,7 +392,7 @@ template <typename AttributeType>
 class TArrayAttribute
 {
 	template <typename T> friend class TArrayAttribute;
-	using ArrayType = typename TCopyQualifiersFromTo<AttributeType, TAttributeArrayContainer<typename TRemoveCV<AttributeType>::Type>>::Type;
+	using ArrayType = typename TCopyQualifiersFromTo<AttributeType, TAttributeArrayContainer<std::remove_cv_t<AttributeType>>>::Type;
 
 public:
 	explicit TArrayAttribute(ArrayType& InArray, int32 InIndex)
@@ -404,7 +404,7 @@ public:
 	 * Construct a TArrayAttribute<const T> from a TArrayAttribute<T>. 
 	 */
 	template <typename T = AttributeType, typename TEnableIf<std::is_same_v<T, const T>, int>::Type = 0>
-	TArrayAttribute(TArrayAttribute<typename TRemoveCV<T>::Type> InValue)
+	TArrayAttribute(TArrayAttribute<std::remove_cv_t<T>> InValue)
 		: Array(InValue.Array),
 		  Index(InValue.Index)
 	{}

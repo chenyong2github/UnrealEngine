@@ -49,7 +49,7 @@ private:
 	template <typename T>
 	struct TIsStringArgument
 	{
-		enum { Value = TAnd<TIsPointer<T>, TIsCharType<typename TRemoveCV<typename TRemovePointer<T>::Type>::Type>>::Value };
+		enum { Value = TAnd<TIsPointer<T>, TIsCharType<std::remove_cv_t<typename TRemovePointer<T>::Type>>>::Value };
 	};
 
 	template <typename T>
@@ -58,7 +58,7 @@ private:
 		return sizeof(T);
 	}
 
-	template <typename T, typename CharType = typename TRemoveCV<typename TRemovePointer<T>::Type>::Type>
+	template <typename T, typename CharType = std::remove_cv_t<typename TRemovePointer<T>::Type>>
 	static typename TEnableIf<TIsStringArgument<T>::Value, uint64>::Type GetArgumentEncodedSize(T Argument)
 	{
 		if (Argument != nullptr)
@@ -116,7 +116,7 @@ private:
 		PayloadPtr += sizeof(T);
 	}
 
-	template <typename T, typename CharType = typename TRemoveCV<typename TRemovePointer<T>::Type>::Type>
+	template <typename T, typename CharType = std::remove_cv_t<typename TRemovePointer<T>::Type>>
 	static typename TEnableIf<TIsStringArgument<T>::Value>::Type EncodeArgumentInternal(uint8*& TypeCodesPtr, uint8*& PayloadPtr, T Argument)
 	{
 		*TypeCodesPtr++ = FormatArgTypeCode_CategoryString | sizeof(CharType);

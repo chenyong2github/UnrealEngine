@@ -3,15 +3,15 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Templates/RemoveCV.h"
 #include "Templates/RemoveReference.h"
+#include <type_traits>
 
 namespace UE::Core::Private::Decay
 {
 	template <typename T>
 	struct TDecayNonReference
 	{
-		typedef typename TRemoveCV<T>::Type Type;
+		using Type = std::remove_cv_t<T>;
 	};
 
 	template <typename T>

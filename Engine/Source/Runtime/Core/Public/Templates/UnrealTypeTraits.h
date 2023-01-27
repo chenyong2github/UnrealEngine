@@ -476,8 +476,8 @@ struct TIsBitwiseConstructible
 		"TIsBitwiseConstructible is not designed to accept reference types");
 
 	static_assert(
-		std::is_same_v<T,   typename TRemoveCV<T  >::Type> &&
-		std::is_same_v<Arg, typename TRemoveCV<Arg>::Type>,
+		std::is_same_v<T,   std::remove_cv_t<T  >> &&
+		std::is_same_v<Arg, std::remove_cv_t<Arg>>,
 		"TIsBitwiseConstructible is not designed to accept qualified types");
 
 	// Assume no bitwise construction in general

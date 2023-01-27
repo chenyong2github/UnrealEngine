@@ -62,7 +62,7 @@ private:
 	DataType Data;
 
 	template <typename RangeType>
-	using TRangeElementType = typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<RangeType>()))>::Type>::Type;
+	using TRangeElementType = std::remove_cv_t<typename TRemovePointer<decltype(GetData(DeclVal<RangeType>()))>::Type>;
 
 	template <typename CharRangeType>
 	struct TIsRangeOfCharType : TIsCharType<TRangeElementType<CharRangeType>>
@@ -2246,8 +2246,8 @@ template<typename T>
 UE_NODISCARD typename TEnableIf<TIsArithmetic<T>::Value, FString>::Type
 LexToString(const T& Value)
 {
-	// TRemoveCV to remove potential volatile decorations. Removing const is pointless, but harmless because it's specified in the param declaration.
-	return FString::Printf( TFormatSpecifier<typename TRemoveCV<T>::Type>::GetFormatSpecifier(), Value );
+	// std::remove_cv_t to remove potential volatile decorations. Removing const is pointless, but harmless because it's specified in the param declaration.
+	return FString::Printf( TFormatSpecifier<std::remove_cv_t<T>>::GetFormatSpecifier(), Value );
 }
 
 template<typename CharType>

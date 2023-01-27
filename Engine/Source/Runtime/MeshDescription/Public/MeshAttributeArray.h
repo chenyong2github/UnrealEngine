@@ -729,7 +729,7 @@ struct TMeshAttributesRefType : TMeshAttributesRefTypeBase<T>
 	static const uint32 MaxExpectedExtent = 1;
 	using RefType = T;
 	using ConstRefType = const T;
-	using NonConstRefType = typename TRemoveCV<T>::Type;
+	using NonConstRefType = std::remove_cv_t<T>;
 };
 
 template <typename T>
@@ -739,7 +739,7 @@ struct TMeshAttributesRefType<TArrayView<T>> : TMeshAttributesRefTypeBase<T>
 	static const uint32 MaxExpectedExtent = 0xFFFFFFFF;
 	using RefType = TArrayView<T>;
 	using ConstRefType = TArrayView<const T>;
-	using NonConstRefType = TArrayView<typename TRemoveCV<T>::Type>;
+	using NonConstRefType = TArrayView<std::remove_cv_t<T>>;
 };
 
 template <typename T>
@@ -749,7 +749,7 @@ struct TMeshAttributesRefType<TArrayAttribute<T>> : TMeshAttributesRefTypeBase<T
 	static const uint32 MaxExpectedExtent = 0;
 	using RefType = TArrayAttribute<T>;
 	using ConstRefType = TArrayAttribute<const T>;
-	using NonConstRefType = TArrayAttribute<typename TRemoveCV<T>::Type>;
+	using NonConstRefType = TArrayAttribute<std::remove_cv_t<T>>;
 };
 
 
@@ -808,7 +808,7 @@ class TMeshAttributesRef
 
 public:
 	using BaseArrayType = typename TCopyQualifiersFromTo<AttributeType, FMeshAttributeArraySetBase>::Type;
-	using ArrayType = typename TCopyQualifiersFromTo<AttributeType, TMeshAttributeArraySet<typename TRemoveCV<AttributeType>::Type>>::Type;
+	using ArrayType = typename TCopyQualifiersFromTo<AttributeType, TMeshAttributeArraySet<std::remove_cv_t<AttributeType>>>::Type;
 
 	/** Constructor taking a pointer to a FMeshAttributeArraySetBase */
 	explicit TMeshAttributesRef(BaseArrayType* InArrayPtr = nullptr, uint32 InExtent = 1)
@@ -817,7 +817,7 @@ public:
 
 	/** Implicitly construct a TMeshAttributesRef-to-const from a regular one */
 	template <typename T = AttributeType, typename TEnableIf<std::is_same_v<T, const T>, int>::Type = 0>
-	TMeshAttributesRef(TMeshAttributesRef<ElementIDType, typename TRemoveCV<T>::Type> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<ElementIDType, std::remove_cv_t<T>> InRef)
 		: ArrayPtr(InRef.ArrayPtr)
 	{}
 
@@ -829,7 +829,7 @@ public:
 
 	/** Implicitly construct a TMeshAttributesRef-to-const from a TMeshAttributesArray */
 	template <typename T = ElementIDType, typename U = AttributeType, typename TEnableIf<std::is_same_v<U, const U>, int>::Type = 0, typename TEnableIf<!std::is_same_v<T, int32>, int>::Type = 0>
-	TMeshAttributesRef(TMeshAttributesRef<int32, typename TRemoveCV<U>::Type> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<int32, std::remove_cv_t<U>> InRef)
 		: ArrayPtr(InRef.ArrayPtr)
 	{}
 
@@ -1003,8 +1003,8 @@ class TMeshAttributesRef<ElementIDType, TArrayView<AttributeType>>
 
 public:
 	using BaseArrayType = typename TCopyQualifiersFromTo<AttributeType, FMeshAttributeArraySetBase>::Type;
-	using BoundedArrayType = typename TCopyQualifiersFromTo<AttributeType, TMeshAttributeArraySet<typename TRemoveCV<AttributeType>::Type>>::Type;
-	using UnboundedArrayType = typename TCopyQualifiersFromTo<AttributeType, TMeshUnboundedAttributeArraySet<typename TRemoveCV<AttributeType>::Type>>::Type;
+	using BoundedArrayType = typename TCopyQualifiersFromTo<AttributeType, TMeshAttributeArraySet<std::remove_cv_t<AttributeType>>>::Type;
+	using UnboundedArrayType = typename TCopyQualifiersFromTo<AttributeType, TMeshUnboundedAttributeArraySet<std::remove_cv_t<AttributeType>>>::Type;
 
 	/** Constructor taking a pointer to a TMeshAttributeArraySet */
 	explicit TMeshAttributesRef(BaseArrayType* InArrayPtr = nullptr, uint32 InExtent = 1)
@@ -1014,7 +1014,7 @@ public:
 
 	/** Implicitly construct a TMeshAttributesRef-to-const from a regular one */
 	template <typename T = AttributeType, typename TEnableIf<std::is_same_v<T, const T>, int>::Type = 0>
-	TMeshAttributesRef(TMeshAttributesRef<ElementIDType, TArrayView<typename TRemoveCV<T>::Type>> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<ElementIDType, TArrayView<std::remove_cv_t<T>>> InRef)
 		: ArrayPtr(InRef.ArrayPtr),
 		  Extent(InRef.Extent)
 	{}
@@ -1028,7 +1028,7 @@ public:
 
 	/** Implicitly construct a TMeshAttributesRef-to-const from a TMeshAttributesArray */
 	template <typename T = ElementIDType, typename U = AttributeType, typename TEnableIf<std::is_same_v<U, const U>, int>::Type = 0, typename TEnableIf<!std::is_same_v<T, int32>, int>::Type = 0>
-	TMeshAttributesRef(TMeshAttributesRef<int32, TArrayView<typename TRemoveCV<U>::Type>> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<int32, TArrayView<std::remove_cv_t<U>>> InRef)
 		: ArrayPtr(InRef.ArrayPtr),
 		  Extent(InRef.Extent)
 	{}
@@ -1270,7 +1270,7 @@ class TMeshAttributesRef<ElementIDType, TArrayAttribute<AttributeType>>
 
 public:
 	using BaseArrayType = typename TCopyQualifiersFromTo<AttributeType, FMeshAttributeArraySetBase>::Type;
-	using ArrayType = typename TCopyQualifiersFromTo<AttributeType, TMeshUnboundedAttributeArraySet<typename TRemoveCV<AttributeType>::Type>>::Type;
+	using ArrayType = typename TCopyQualifiersFromTo<AttributeType, TMeshUnboundedAttributeArraySet<std::remove_cv_t<AttributeType>>>::Type;
 
 	/** Constructor taking a pointer to a TMeshUnboundedAttributeArraySet */
 	explicit TMeshAttributesRef(BaseArrayType* InArrayPtr = nullptr, uint32 InExtent = 0)
@@ -1279,7 +1279,7 @@ public:
 
 	/** Implicitly construct a TMeshAttributesRef-to-const from a regular one */
 	template <typename T = AttributeType, typename TEnableIf<std::is_same_v<T, const T>, int>::Type = 0>
-	TMeshAttributesRef(TMeshAttributesRef<ElementIDType, TArrayAttribute<typename TRemoveCV<T>::Type>> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<ElementIDType, TArrayAttribute<std::remove_cv_t<T>>> InRef)
 		: ArrayPtr(InRef.ArrayPtr)
 	{}
 
@@ -1291,7 +1291,7 @@ public:
 
 	/** Implicitly construct a TMeshAttributesRef-to-const from a TMeshAttributesArray */
 	template <typename T = ElementIDType, typename U = AttributeType, typename TEnableIf<std::is_same_v<U, const U>, int>::Type = 0, typename TEnableIf<!std::is_same_v<T, int32>, int>::Type = 0>
-	TMeshAttributesRef(TMeshAttributesRef<int32, TArrayAttribute<typename TRemoveCV<U>::Type>> InRef)
+	TMeshAttributesRef(TMeshAttributesRef<int32, TArrayAttribute<std::remove_cv_t<U>>> InRef)
 		: ArrayPtr(InRef.ArrayPtr)
 	{}
 
@@ -2018,7 +2018,7 @@ public:
 
 		FMeshAttributeArraySetBase* ArraySetPtr = this->Map.FindChecked(AttributeName).Get();
 		uint32 ActualExtent = ArraySetPtr->GetExtent();
-		check(ArraySetPtr->HasType<typename TRemoveCV<RealAttributeType>::Type>());
+		check(ArraySetPtr->HasType<std::remove_cv_t<RealAttributeType>>());
 		check(ActualExtent >= TMeshAttributesRefType<AttributeType>::MinExpectedExtent && ActualExtent <= TMeshAttributesRefType<AttributeType>::MaxExpectedExtent);
 
 		TMeshAttributesRef<FElementID, NonConstRefType> Ref(ArraySetPtr, ActualExtent);
