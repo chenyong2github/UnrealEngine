@@ -318,10 +318,9 @@ USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
 			continue;
 		}
 
-		UStaticMesh* StaticMesh = Cast< UStaticMesh >( InfoCache.GetSingleAssetForPrim(
-			UE::FSdfPath{*PrototypePathStr},
-			UStaticMesh::StaticClass()
-		));
+		UStaticMesh* StaticMesh = InfoCache.GetSingleAssetForPrim<UStaticMesh>(
+			UE::FSdfPath{*PrototypePathStr}
+		);
 		UsdGeomPointInstancerTranslatorImpl::SetStaticMesh( StaticMesh, *HISMComponent );
 
 		// Evaluating point instancer can take a long time and is thread-safe. Move to async task while we work on something else.

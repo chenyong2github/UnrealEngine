@@ -1139,18 +1139,16 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 
 				if (bInResync && InfoCache)
 				{
-					UMaterialInterface* ExistingMaterial = Cast<UMaterialInterface>(InfoCache->GetSingleAssetForPrim(
-						AssetsPrimPath,
-						UMaterialInterface::StaticClass()
-					));
+					UMaterialInterface* ExistingMaterial = InfoCache->GetSingleAssetForPrim<UMaterialInterface>(
+						AssetsPrimPath
+					);
 
 					UE::FUsdPrim PrimToResync = GetOrLoadUsdStage().GetPrimAtPath(AssetsPrimPath);
 					LoadAssets(*TranslationContext, PrimToResync);
 
-					UMaterialInterface* NewMaterial = Cast<UMaterialInterface>(InfoCache->GetSingleAssetForPrim(
-						AssetsPrimPath,
-						UMaterialInterface::StaticClass()
-					));
+					UMaterialInterface* NewMaterial = InfoCache->GetSingleAssetForPrim<UMaterialInterface>(
+						AssetsPrimPath
+					);
 
 					// For UE-120185: If we recreated a material for a prim path we also need to update all components that were using it.
 					// This could be fleshed out further if other asset types require this refresh of "dependent components" but materials
@@ -1769,11 +1767,11 @@ TArray<UObject*> AUsdStageActor::GetGeneratedAssets(const FString& PrimPath)
 	// Prefer checking the prim directly, but also check its collapsed root if it is collapsed.
 	// This because we have some exception cases like USkeleton/UAnimSequences that can be found by querying the actual
 	// Skeleton/SKelAnimation prims even though they are collapsed into the SkelRoot prim.
-	TSet<TWeakObjectPtr<UObject>> AssetsSet = InfoCache->GetAssetsForPrim(UsdPath);
+	TSet<TWeakObjectPtr<UObject>> AssetsSet = InfoCache->GetAllAssetsForPrim(UsdPath);
 	if (AssetsSet.Num() == 0 && InfoCache->IsPathCollapsed(UsdPath, ECollapsingType::Assets))
 	{
 		UsdPath = InfoCache->UnwindToNonCollapsedPath(UsdPath, ECollapsingType::Assets);
-		AssetsSet = InfoCache->GetAssetsForPrim(UsdPath);
+		AssetsSet = InfoCache->GetAllAssetsForPrim(UsdPath);
 	}
 
 	TArray<UObject*> Assets;

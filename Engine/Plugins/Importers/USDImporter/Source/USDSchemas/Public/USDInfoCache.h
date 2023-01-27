@@ -4,6 +4,7 @@
 
 #include "Containers/Set.h"
 #include "CoreMinimal.h"
+#include "UObject/WeakObjectPtr.h"
 
 #include "UsdWrappers/SdfPath.h"
 
@@ -61,8 +62,41 @@ public:
 
 	TSet<TWeakObjectPtr<UObject>> RemoveAllAssetPrimLinks(const UE::FSdfPath& Path);
 
-	UObject* GetSingleAssetForPrim(const UE::FSdfPath& Path, const UClass* FilterClass = nullptr) const;
-	TSet<TWeakObjectPtr<UObject>> GetAssetsForPrim(const UE::FSdfPath& Path, const UClass* FilterClass = nullptr) const;
+	TSet<TWeakObjectPtr<UObject>> GetAllAssetsForPrim(const UE::FSdfPath& Path) const;
+
+	template<typename T = UObject>
+	T* GetSingleAssetForPrim(const UE::FSdfPath& Path) const
+	{
+		TSet<TWeakObjectPtr<UObject>> Assets = GetAllAssetsForPrim(Path);
+		for (const TWeakObjectPtr<UObject>& Asset : Assets)
+		{
+			if (T* CastAsset = Cast<T>(Asset.Get()))
+			{
+				return CastAsset;
+			}
+		}
+
+		return nullptr;
+	}
+
+	template<typename T>
+	TSet<T*> GetAssetsForPrim(const UE::FSdfPath& Path) const
+	{
+		TSet<TWeakObjectPtr<UObject>> Assets = GetAllAssetsForPrim(Path);
+
+		TSet<T*> CastAssets;
+		CastAssets.Reserve(Assets.Num());
+
+		for (const TWeakObjectPtr<UObject>& Asset : Assets)
+		{
+			if (T* CastAsset = Cast<T>(Asset.Get()))
+			{
+				CastAssets.Add(CastAsset);
+			}
+		}
+
+		return CastAssets;
+	}
 
 	UE::FSdfPath GetPrimForAsset(UObject* Asset) const;
 	TMap<UE::FSdfPath, TSet<TWeakObjectPtr<UObject>>> GetAllAssetPrimLinks() const;

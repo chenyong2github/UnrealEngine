@@ -1856,10 +1856,9 @@ void FUsdLevelSequenceHelperImpl::AddSkeletalTracks(const UUsdPrimTwin& PrimTwin
 	// but we may belong to a FUsdStageImportContext, and so there's no AUsdStageActor at all to use.
 	// At this point it doesn't matter much though, because we shouldn't need to uncollapse a SkelAnimation prim path anyway
 	const UE::FSdfPath PrimPath = SkelAnimationPrim.GetPrimPath();
-	UAnimSequence* Sequence = Cast<UAnimSequence>(InfoCache->GetSingleAssetForPrim(
-		PrimPath,
-		UAnimSequence::StaticClass()
-	));
+	UAnimSequence* Sequence = InfoCache->GetSingleAssetForPrim<UAnimSequence>(
+		PrimPath
+	);
 	if (!Sequence)
 	{
 		return;
@@ -1928,10 +1927,9 @@ void FUsdLevelSequenceHelperImpl::AddGeometryCacheTracks(const UUsdPrimTwin& Pri
 
 	// Fetch the geometry cache asset from the asset cache. If there's none, don't actually need to create track
 	const UE::FSdfPath PrimPath = Prim.GetPrimPath();
-	UGeometryCache* GeometryCache = Cast< UGeometryCache >(InfoCache->GetSingleAssetForPrim(
-		PrimPath,
-		UGeometryCache::StaticClass()
-	));
+	UGeometryCache* GeometryCache = InfoCache->GetSingleAssetForPrim<UGeometryCache>(
+		PrimPath
+	);
 	if (!GeometryCache)
 	{
 		return;
@@ -1997,10 +1995,9 @@ void FUsdLevelSequenceHelperImpl::AddGroomTracks(const UUsdPrimTwin& PrimTwin, c
 	// Fetch the groom cache asset from the asset cache. If there's none, don't actually need to create track
 	const FString PrimPath = Prim.GetPrimPath().GetString();
 	const FString GroomCachePath = FString::Printf(TEXT("%s_strands_cache"), *PrimPath);
-	UGroomCache* GroomCache = Cast<UGroomCache>(InfoCache->GetSingleAssetForPrim(
-		UE::FSdfPath{*GroomCachePath},
-		UGroomCache::StaticClass()
-	));
+	UGroomCache* GroomCache = InfoCache->GetSingleAssetForPrim<UGroomCache>(
+		UE::FSdfPath{*GroomCachePath}
+	);
 	if (!GroomCache)
 	{
 		return;
@@ -2253,10 +2250,9 @@ void FUsdLevelSequenceHelperImpl::UpdateControlRigTracks(UUsdPrimTwin& PrimTwin)
 	// but we may belong to a FUsdStageImportContext, and so there's no AUsdStageActor at all to use.
 	// At this point it doesn't matter much though, because we shouldn't need to uncollapse a SkelAnimation prim path anyway
 	const UE::FSdfPath SkelAnimationPrimPath = SkelAnimationPrim.GetPrimPath();
-	UAnimSequence* AnimSequence = Cast<UAnimSequence>(InfoCache->GetSingleAssetForPrim(
-		SkelAnimationPrimPath,
-		UAnimSequence::StaticClass()
-	));
+	UAnimSequence* AnimSequence = InfoCache->GetSingleAssetForPrim<UAnimSequence>(
+		SkelAnimationPrimPath
+	);
 
 	if (!SkelAnimationLayer)
 	{

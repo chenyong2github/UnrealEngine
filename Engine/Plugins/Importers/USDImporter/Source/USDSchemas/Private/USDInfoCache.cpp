@@ -627,31 +627,7 @@ TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::RemoveAllAssetPrimLinks(const UE::F
 	return Values;
 }
 
-UObject* FUsdInfoCache::GetSingleAssetForPrim(const UE::FSdfPath& Path, const UClass* FilterClass) const
-{
-	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
-	if (!ImplPtr)
-	{
-		return nullptr;
-	}
-	FReadScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
-
-	if (const TSet<TWeakObjectPtr<UObject>>* FoundAssets = ImplPtr->PrimPathToAssets.Find(Path))
-	{
-		for (const TWeakObjectPtr<UObject>& FoundAsset : *FoundAssets)
-		{
-			UObject* FoundAssetPtr = FoundAsset.Get();
-			if (FoundAssetPtr && (!FilterClass || FoundAssetPtr->IsA(FilterClass)))
-			{
-				return FoundAssetPtr;
-			}
-		}
-	}
-
-	return nullptr;
-}
-
-TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::GetAssetsForPrim(const UE::FSdfPath& Path, const UClass* FilterClass) const
+TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::GetAllAssetsForPrim(const UE::FSdfPath& Path) const
 {
 	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
 	if (!ImplPtr)

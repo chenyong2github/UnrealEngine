@@ -843,9 +843,8 @@ namespace UsdSkelRootTranslatorImpl
 
 		FString PrimName = UsdToUnreal::ConvertString( Prim.GetName() );
 
-		USkeletalMesh* SkeletalMesh = Cast< USkeletalMesh >(Context.InfoCache->GetSingleAssetForPrim(
-			UE::FSdfPath{Prim.GetPath()},
-			USkeletalMesh::StaticClass())
+		USkeletalMesh* SkeletalMesh = Context.InfoCache->GetSingleAssetForPrim<USkeletalMesh>(
+			UE::FSdfPath{Prim.GetPath()}
 		);
 		if ( !SkeletalMesh )
 		{
@@ -1415,10 +1414,9 @@ namespace UsdSkelRootTranslatorImpl
 					return false;
 				}
 
-				USkeletalMesh* SkeletalMesh = Cast< USkeletalMesh >(Context->InfoCache->GetSingleAssetForPrim(
-					PrimPath,
-					USkeletalMesh::StaticClass()
-				));
+				USkeletalMesh* SkeletalMesh = Context->InfoCache->GetSingleAssetForPrim<USkeletalMesh>(
+					PrimPath
+				);
 				if ( !SkeletalMesh )
 				{
 					return false;
@@ -1617,10 +1615,9 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 	UE::FUsdPrim SkelAnimPrim = UsdUtils::FindFirstAnimationSource( Prim );
 	if (SkelAnimPrim)
 	{
-		UAnimSequence* TargetAnimSequence = Cast< UAnimSequence >(Context->InfoCache->GetSingleAssetForPrim(
-			SkelAnimPrim.GetPrimPath(),
-			UAnimSequence::StaticClass()
-		));
+		UAnimSequence* TargetAnimSequence = Context->InfoCache->GetSingleAssetForPrim<UAnimSequence>(
+			SkelAnimPrim.GetPrimPath()
+		);
 		if ( TargetAnimSequence != SkeletalMeshComponent->AnimationData.AnimToPlay )
 		{
 			SkeletalMeshComponent->AnimationData.AnimToPlay = TargetAnimSequence;
@@ -1638,10 +1635,9 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 
 #if WITH_EDITOR
 	// Re-set the skeletal mesh if we created a new one (maybe the hash changed, a skinned UsdGeomMesh was hidden, etc.)
-	USkeletalMesh* TargetSkeletalMesh = Cast< USkeletalMesh >(Context->InfoCache->GetSingleAssetForPrim(
-		PrimPath,
-		USkeletalMesh::StaticClass()
-	));
+	USkeletalMesh* TargetSkeletalMesh = Context->InfoCache->GetSingleAssetForPrim<USkeletalMesh>(
+		PrimPath
+	);
 	if ( SkeletalMeshComponent->GetSkeletalMeshAsset() != TargetSkeletalMesh )
 	{
 		SkeletalMeshComponent->SetSkeletalMesh(TargetSkeletalMesh);

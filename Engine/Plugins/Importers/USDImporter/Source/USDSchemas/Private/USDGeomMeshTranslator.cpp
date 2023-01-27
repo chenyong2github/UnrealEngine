@@ -417,9 +417,9 @@ namespace UsdGeomMeshTranslatorImpl
 						TUsdStore< pxr::UsdPrim > MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath(MaterialPrimPath);
 						if (MaterialPrim.Get() && InfoCache)
 						{
-							Material = Cast<UMaterialInterface>(InfoCache->GetSingleAssetForPrim(
+							Material = InfoCache->GetSingleAssetForPrim<UMaterialInterface>(
 								UE::FSdfPath{MaterialPrim.Get().GetPrimPath()}
-							));
+							);
 						}
 					}
 
@@ -1570,10 +1570,9 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 	{
 		if (Context->InfoCache)
 		{
-			if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(Context->InfoCache->GetSingleAssetForPrim(
-				PrimPath,
-				UStaticMesh::StaticClass()
-			)))
+			if (UStaticMesh* StaticMesh = Context->InfoCache->GetSingleAssetForPrim<UStaticMesh>(
+				PrimPath
+			))
 			{
 				TArray<UMaterialInterface*> ExistingAssignments;
 				for (FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
@@ -1603,10 +1602,9 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 
 		if (Context->InfoCache && Context->AssetCache)
 		{
-			if (UGeometryCache* GeometryCache = Cast< UGeometryCache >(Context->InfoCache->GetSingleAssetForPrim(
-				PrimPath,
-				UGeometryCache::StaticClass()
-			)))
+			if (UGeometryCache* GeometryCache = Context->InfoCache->GetSingleAssetForPrim<UGeometryCache>(
+				PrimPath
+			))
 			{
 				// Geometry caches don't support LODs
 				const bool bAllowInterpretingLODs = false;
@@ -1683,10 +1681,9 @@ void FUsdGeomMeshTranslator::UpdateComponents(USceneComponent* SceneComponent)
 		UGeometryCache* GeometryCache = nullptr;
 		if (Context->InfoCache)
 		{
-			GeometryCache = Cast<UGeometryCache>(Context->InfoCache->GetSingleAssetForPrim(
-				PrimPath,
-				UGeometryCache::StaticClass()
-			));
+			GeometryCache = Context->InfoCache->GetSingleAssetForPrim<UGeometryCache>(
+				PrimPath
+			);
 		}
 
 		bool bShouldRegister = false;

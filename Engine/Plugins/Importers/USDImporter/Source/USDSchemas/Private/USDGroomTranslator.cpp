@@ -209,10 +209,9 @@ protected:
 					return false;
 				}
 
-				UGroomAsset* GroomAsset = Cast<UGroomAsset>(Context->InfoCache->GetSingleAssetForPrim(
-					PrimPath,
-					UGroomAsset::StaticClass()
-				));
+				UGroomAsset* GroomAsset = Context->InfoCache->GetSingleAssetForPrim<UGroomAsset>(
+					PrimPath
+				);
 				if (!GroomAsset)
 				{
 					return false;
@@ -398,10 +397,9 @@ void FUsdGroomTranslator::UpdateComponents(USceneComponent* SceneComponent)
 		UGroomAsset* Groom = nullptr;
 		if(Context->InfoCache)
 		{
-			Groom = Cast<UGroomAsset>(Context->InfoCache->GetSingleAssetForPrim(
-				PrimPath,
-				UGroomAsset::StaticClass()
-			));
+			Groom = Context->InfoCache->GetSingleAssetForPrim<UGroomAsset>(
+				PrimPath
+			);
 		}
 
 		bool bShouldRegister = false;
@@ -418,10 +416,9 @@ void FUsdGroomTranslator::UpdateComponents(USceneComponent* SceneComponent)
 
 			if (Groom)
 			{
-				UGroomCache* GroomCache = Cast<UGroomCache>(Context->InfoCache->GetSingleAssetForPrim(
-					UE::FSdfPath{*UsdGroomTranslatorUtils::GetStrandsGroomCachePrimPath(PrimPath)},
-					UGroomCache::StaticClass()
-				));
+				UGroomCache* GroomCache = Context->InfoCache->GetSingleAssetForPrim<UGroomCache>(
+					UE::FSdfPath{*UsdGroomTranslatorUtils::GetStrandsGroomCachePrimPath(PrimPath)}
+				);
 				if (GroomCache != GroomComponent->GroomCache.Get())
 				{
 					GroomComponent->SetGroomCache(GroomCache);

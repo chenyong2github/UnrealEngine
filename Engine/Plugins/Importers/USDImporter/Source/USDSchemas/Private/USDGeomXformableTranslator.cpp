@@ -556,10 +556,9 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 		bool bHasMultipleLODs = false;
 		if ( UStaticMeshComponent* StaticMeshComponent = Cast< UStaticMeshComponent >( SceneComponent ) )
 		{
-			UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->InfoCache->GetSingleAssetForPrim(
-				PrimPath,
-				UStaticMesh::StaticClass()
-			));
+			UStaticMesh* PrimStaticMesh = Context->InfoCache->GetSingleAssetForPrim<UStaticMesh>(
+				PrimPath
+			);
 
 			if ( PrimStaticMesh )
 			{

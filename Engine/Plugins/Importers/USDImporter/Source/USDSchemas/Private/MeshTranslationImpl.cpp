@@ -106,15 +106,13 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 					PrimPath += TwoSidedToken;
 				}
 
-				Material = Cast<UMaterialInterface>(InfoCache.GetSingleAssetForPrim(UE::FSdfPath{*PrimPath}, UMaterialInterface::StaticClass()));
+				Material = InfoCache.GetSingleAssetForPrim<UMaterialInterface>(UE::FSdfPath{*PrimPath});
 
 				// Need to create a two-sided material on-demand
 				if (!Material && Slot.bMeshIsDoubleSided)
 				{
 					// By now we parsed all materials so we must have the single-sided version of this material
-					UMaterialInstance* OneSidedMat = Cast<UMaterialInstance>(
-						InfoCache.GetSingleAssetForPrim(UE::FSdfPath{*Slot.MaterialSource}, UMaterialInterface::StaticClass())
-					);
+					UMaterialInstance* OneSidedMat = InfoCache.GetSingleAssetForPrim<UMaterialInstance>(UE::FSdfPath{*Slot.MaterialSource});
 					if (!OneSidedMat)
 					{
 						UE_LOG(LogUsd, Warning, TEXT("Failed to generate a two-sided material from the material prim at path '%s' as no single-sided material was generated for it."), *PrimPath);

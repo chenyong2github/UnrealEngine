@@ -201,10 +201,9 @@ namespace UsdGroomTranslatorUtils
 		}
 
 		// The GroomAsset should already be processed and cached by the USDGroomTranslator
-		UGroomAsset* GroomAsset = Cast<UGroomAsset>(InfoCache.GetSingleAssetForPrim(
-			UE::FSdfPath{*GroomPrimPath},
-			UGroomAsset::StaticClass()
-		));
+		UGroomAsset* GroomAsset = InfoCache.GetSingleAssetForPrim<UGroomAsset>(
+			UE::FSdfPath{*GroomPrimPath}
+		);
 		if (!GroomAsset)
 		{
 			return;
@@ -268,10 +267,9 @@ namespace UsdGroomTranslatorUtils
 			return;
 		}
 
-		UGroomAsset* GroomAsset = Cast<UGroomAsset>(InfoCache.GetSingleAssetForPrim(
-			UE::FSdfPath{*GroomPrimPath},
-			UGroomAsset::StaticClass()
-		));
+		UGroomAsset* GroomAsset = InfoCache.GetSingleAssetForPrim<UGroomAsset>(
+			UE::FSdfPath{*GroomPrimPath}
+		);
 		if (!GroomAsset)
 		{
 			return;
@@ -279,10 +277,9 @@ namespace UsdGroomTranslatorUtils
 
 		const FString PrimPath(UsdToUnreal::ConvertPath(Prim.GetPath()));
 		const FString GroomBindingPath = FString::Printf(TEXT("%s_groombinding"), *PrimPath);
-		UGroomBindingAsset* GroomBinding = Cast<UGroomBindingAsset>(InfoCache.GetSingleAssetForPrim(
-			UE::FSdfPath{*GroomBindingPath},
-			UGroomBindingAsset::StaticClass()
-		));
+		UGroomBindingAsset* GroomBinding = InfoCache.GetSingleAssetForPrim<UGroomBindingAsset>(
+			UE::FSdfPath{*GroomBindingPath}
+		);
 
 		// Set the GroomAsset and GroomBindingAsset on the child GroomComponent of SceneComponent that was set up in the translator
 		TArray<USceneComponent*> Children;
