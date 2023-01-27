@@ -1,6 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
@@ -24,14 +26,18 @@ namespace Jupiter.Implementation
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly Tracer _tracer;
         private readonly ILogger _logger;
+        private readonly IObjectService _objectService;
+        private readonly OrphanBlobCleanupRefs _blobCleanup;
 
         public RefCleanup(IOptionsMonitor<GCSettings> settings, IReferencesStore referencesStore,
-            IReplicationLog replicationLog, INamespacePolicyResolver namespacePolicyResolver, Tracer tracer, ILogger<RefCleanup> logger)
+            IReplicationLog replicationLog, INamespacePolicyResolver namespacePolicyResolver, IObjectService objectService,  OrphanBlobCleanupRefs blobCleanup, Tracer tracer, ILogger<RefCleanup> logger)
         {
             _settings = settings;
             _referencesStore = referencesStore;
             _replicationLog = replicationLog;
             _namespacePolicyResolver = namespacePolicyResolver;
+            _objectService = objectService;
+            _blobCleanup = blobCleanup;
             _tracer = tracer;
             _logger = logger;
         }
@@ -65,6 +71,11 @@ namespace Jupiter.Implementation
             DateTime cutoffTime = DateTime.Now.AddSeconds(-1 * _settings.CurrentValue.LastAccessCutoff.TotalSeconds);
             ulong consideredCount = 0;
             DateTime cleanupStart = DateTime.Now;
+            NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
+            string storagePool = policy.StoragePool;
+            List<NamespaceId> namespaces = await _objectService.GetNamespaces().ToListAsync(cancellationToken: cancellationToken);
+            List<NamespaceId> namespacesThatSharePool = namespaces.Where(ns => _namespacePolicyResolver.GetPoliciesForNs(ns).StoragePool == policy.StoragePool).ToList();
+
             await Parallel.ForEachAsync(_referencesStore.GetRecords(ns),
                 new ParallelOptions
                 {
@@ -96,11 +107,29 @@ namespace Jupiter.Implementation
                     bool storeDelete = false;
                     try
                     {
+                        List<BlobIdentifier> referencedBlobs = new List<BlobIdentifier>();
+                        try
+                        {
+                            referencedBlobs = await _objectService.GetReferencedBlobs(ns, bucket, name);
+
+                        }
+                        catch (ReferenceIsMissingBlobsException)
+                        {
+                            // ignore missing blobs
+                        }
                         storeDelete = await _referencesStore.Delete(ns, bucket, name);
                         if (storeDelete)
                         {
                             // insert a delete event into the transaction log
                             await _replicationLog.InsertDeleteEvent(ns, bucket, name, null);
+
+                            List<Task<bool>> deletedBlobs = new List<Task<bool>>();
+                            foreach (BlobIdentifier blob in referencedBlobs)
+                            {
+                                deletedBlobs.Add(_blobCleanup.GCBlob(storagePool, namespacesThatSharePool, blob, lastAccessTime, cancellationToken));
+                            }
+
+                            await Task.WhenAll(deletedBlobs);
                         }
                     }
                     catch (Exception e)

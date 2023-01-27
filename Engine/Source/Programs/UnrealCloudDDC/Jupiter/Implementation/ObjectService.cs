@@ -27,6 +27,8 @@ namespace Jupiter.Implementation
         Task<bool> Delete(NamespaceId ns, BucketId bucket, IoHashKey key);
         Task<long> DropNamespace(NamespaceId ns);
         Task<long> DeleteBucket(NamespaceId ns, BucketId bucket);
+
+        Task<List<BlobIdentifier>> GetReferencedBlobs(NamespaceId ns, BucketId bucket, IoHashKey key);
     }
 
     public class ObjectService : IObjectService
@@ -243,6 +245,26 @@ namespace Jupiter.Implementation
         public Task<long> DeleteBucket(NamespaceId ns, BucketId bucket)
         {
             return _referencesStore.DeleteBucket(ns, bucket);
+        }
+
+        public async Task<List<BlobIdentifier>> GetReferencedBlobs(NamespaceId ns, BucketId bucket, IoHashKey name)
+        {
+            byte[] blob;
+            ObjectRecord o = await _referencesStore.Get(ns, bucket, name, IReferencesStore.FieldFlags.IncludePayload);
+            if (o.InlinePayload != null && o.InlinePayload.Length != 0)
+            {
+                blob = o.InlinePayload;
+            }
+            else
+            {
+                BlobContents blobContents = await _blobService.GetObject(ns, o.BlobIdentifier);
+                blob = await blobContents.Stream.ToByteArray();
+            }
+
+            CbObject cbObject = new CbObject(blob);
+
+            List<BlobIdentifier> referencedBlobs = await _referenceResolver.GetReferencedBlobs(ns, cbObject).ToListAsync();
+            return referencedBlobs;
         }
     }
 }

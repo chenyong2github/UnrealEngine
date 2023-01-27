@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using Jupiter.Controllers;
 using Jupiter.Implementation;
@@ -43,13 +44,21 @@ namespace Jupiter.FunctionalTests.GC
         private readonly NamespaceId TestNamespace = new NamespaceId("test-namespace");
         private readonly BucketId DefaultBucket = new BucketId("default");
 
-        private readonly BlobIdentifier object0id = new BlobIdentifier("0000000000000000000000000000000000000000");
-        private readonly BlobIdentifier object1id = new BlobIdentifier("1111111111111111111111111111111111111111");
-        private readonly BlobIdentifier object2id = new BlobIdentifier("2222222222222222222222222222222222222222");
-        private readonly BlobIdentifier object3id = new BlobIdentifier("3333333333333333333333333333333333333333");
-        private readonly BlobIdentifier object4id = new BlobIdentifier("4444444444444444444444444444444444444444");
-        private readonly BlobIdentifier object5id = new BlobIdentifier("5555555555555555555555555555555555555555");
-        private readonly BlobIdentifier object6id = new BlobIdentifier("6666666666666666666666666666666666666666");
+        private static readonly byte[] s_objectContents0 = Encoding.ASCII.GetBytes("blob_00");
+        private static readonly byte[] s_objectContents1 = Encoding.ASCII.GetBytes("blob_11");
+        private static readonly byte[] s_objectContents2 = Encoding.ASCII.GetBytes("blob_22");
+        private static readonly byte[] s_objectContents3 = Encoding.ASCII.GetBytes("blob_33");
+        private static readonly byte[] s_objectContents4 = Encoding.ASCII.GetBytes("blob_44");
+        private static readonly byte[] s_objectContents5 = Encoding.ASCII.GetBytes("blob_55");
+        private static readonly byte[] s_objectContents6 = Encoding.ASCII.GetBytes("blob_66");
+
+        private readonly BlobIdentifier object0id = BlobIdentifier.FromBlob(s_objectContents0);
+        private readonly BlobIdentifier object1id = BlobIdentifier.FromBlob(s_objectContents1);
+        private readonly BlobIdentifier object2id = BlobIdentifier.FromBlob(s_objectContents2);
+        private readonly BlobIdentifier object3id = BlobIdentifier.FromBlob(s_objectContents3);
+        private readonly BlobIdentifier object4id = BlobIdentifier.FromBlob(s_objectContents4);
+        private readonly BlobIdentifier object5id = BlobIdentifier.FromBlob(s_objectContents5);
+        private readonly BlobIdentifier object6id = BlobIdentifier.FromBlob(s_objectContents6);
 
         private readonly IoHashKey object0Name = IoHashKey.FromName("object0");
         private readonly IoHashKey object1Name = IoHashKey.FromName("object1");
@@ -84,6 +93,15 @@ namespace Jupiter.FunctionalTests.GC
                 .UseStartup<JupiterStartup>()
             );
             _httpClient = _server.CreateClient();
+
+            IBlobService blobService = _server.Services.GetService<IBlobService>()!;
+            await blobService.PutObject(TestNamespace, s_objectContents0, object0id);
+            await blobService.PutObject(TestNamespace, s_objectContents1, object1id);
+            await blobService.PutObject(TestNamespace, s_objectContents2, object2id);
+            await blobService.PutObject(TestNamespace, s_objectContents3, object3id);
+            await blobService.PutObject(TestNamespace, s_objectContents4, object4id);
+            await blobService.PutObject(TestNamespace, s_objectContents5, object5id);
+            await blobService.PutObject(TestNamespace, s_objectContents6, object6id);
 
             IObjectService? objectService = _server.Services.GetService<IObjectService>()!;
             Assert.IsNotNull(objectService);
@@ -131,6 +149,16 @@ namespace Jupiter.FunctionalTests.GC
             cleanupResponse.EnsureSuccessStatusCode();
             RemovedRefRecordsResponse removedRefRecords = await cleanupResponse.Content.ReadAsAsync<RemovedRefRecordsResponse>();
             Assert.AreEqual(4, removedRefRecords.CountOfRemovedRecords);
+
+            IBlobService blobService = _server!.Services.GetService<IBlobService>()!;
+            // some blobs should have been collected during the GC while others should remain
+            Assert.IsFalse(await blobService.Exists(TestNamespace, object0id));
+            Assert.IsTrue(await blobService.Exists(TestNamespace, object1id));
+            Assert.IsFalse(await blobService.Exists(TestNamespace, object2id));
+            Assert.IsFalse(await blobService.Exists(TestNamespace, object3id));
+            Assert.IsTrue(await blobService.Exists(TestNamespace, object4id));
+            Assert.IsTrue(await blobService.Exists(TestNamespace, object5id));
+            Assert.IsFalse(await blobService.Exists(TestNamespace, object6id));
         }
 
         private static (BlobIdentifier, CbObject) GetCBWithAttachment(BlobIdentifier blobIdentifier)
