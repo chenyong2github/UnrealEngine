@@ -30,7 +30,7 @@ FAutoConsoleVariableRef CVarLumenMeshCardsMergeComponents(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenMeshCardsMergeInstances = 1;
+int32 GLumenMeshCardsMergeInstances = 0;
 FAutoConsoleVariableRef CVarLumenMeshCardsMergeInstances(
 	TEXT("r.LumenScene.SurfaceCache.MeshCardsMergeInstances"),
 	GLumenMeshCardsMergeInstances,

@@ -872,8 +872,6 @@ void UpdateLumenScenePrimitives(FRHIGPUMask GPUMask, FScene* Scene)
 
 			if (bAnyInstanceValid)
 			{
-				ensure(ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Num() == 0);
-
 				// First try to merge components
 				extern int32 GLumenMeshCardsMergeComponents;
 				if (GLumenMeshCardsMergeComponents != 0 
@@ -905,7 +903,6 @@ void UpdateLumenScenePrimitives(FRHIGPUMask GPUMask, FScene* Scene)
 					else
 					{
 						PrimitiveGroupIndex = LumenSceneData->PrimitiveGroups.AddSpan(1);
-						ensure(ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Num() == 0);
 						ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Add(PrimitiveGroupIndex);
 
 						FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData->PrimitiveGroups[PrimitiveGroupIndex];
@@ -996,12 +993,12 @@ void UpdateLumenScenePrimitives(FRHIGPUMask GPUMask, FScene* Scene)
 
 						if (!bMergedInstances)
 						{
-							ScenePrimitiveInfo->LumenPrimitiveGroupIndices.SetNum(NumInstances);
+							const uint32 PrimitiveGroupOffset = ScenePrimitiveInfo->LumenPrimitiveGroupIndices.AddDefaulted(NumInstances);
 
 							for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 							{
 								const int32 PrimitiveGroupIndex = LumenSceneData->PrimitiveGroups.AddSpan(1);
-								ScenePrimitiveInfo->LumenPrimitiveGroupIndices[InstanceIndex] = PrimitiveGroupIndex;
+								ScenePrimitiveInfo->LumenPrimitiveGroupIndices[PrimitiveGroupOffset + InstanceIndex] = PrimitiveGroupIndex;
 
 								const FInstanceSceneData& PrimitiveInstance = InstanceSceneData[InstanceIndex];
 								const FRenderBounds& RenderBoundingBox = SceneProxy->GetInstanceLocalBounds(InstanceIndex);
