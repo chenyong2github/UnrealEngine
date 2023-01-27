@@ -125,6 +125,7 @@ void UWorldPartitionLevelStreamingDynamic::BeginDestroy()
 	if (IsValid(RuntimeLevel))
 	{
 		RuntimeLevel->OnCleanupLevel.Remove(OnCleanupLevelDelegateHandle);
+		OnCleanupLevelDelegateHandle.Reset();
 	}
 	PackageReferencer.RemoveReferences();
 	Super::BeginDestroy();
@@ -500,7 +501,9 @@ void UWorldPartitionLevelStreamingDynamic::OnCleanupLevel()
 
 	if (RuntimeLevel)
 	{
+		check(OnCleanupLevelDelegateHandle.IsValid());
 		RuntimeLevel->OnCleanupLevel.Remove(OnCleanupLevelDelegateHandle);
+		OnCleanupLevelDelegateHandle.Reset();
 
 		// If reusing levels is enabled, trash world partition level/actor packages
 		// as it won't be done by ULevel::CleanupLevel
@@ -534,6 +537,10 @@ void UWorldPartitionLevelStreamingDynamic::OnCleanupLevel()
 		}
 
 		RuntimeLevel = nullptr;
+	}
+	else
+	{
+		check(!OnCleanupLevelDelegateHandle.IsValid());
 	}
 }
 

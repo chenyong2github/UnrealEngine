@@ -172,7 +172,13 @@ void FLevelStreamingGCHelper::PrepareStreamedOutLevelForGC(ULevel* InLevel)
 			Packages.Add(Package, &bIsAlreadyInSet);
 			if (!bIsAlreadyInSet)
 			{
-				ForEachObjectWithPackage(Package, [](UObject* PackageObject) { PackageObject->MarkAsGarbage(); return true; }, true, RF_NoFlags, EInternalObjectFlags::Garbage);
+				ForEachObjectWithPackage(Package, [](UObject* PackageObject)
+				{
+					PackageObject->ClearFlags(RF_Standalone);
+					PackageObject->MarkAsGarbage();
+					return true;
+				}, true, RF_NoFlags, EInternalObjectFlags::Garbage);
+
 				Package->MarkAsGarbage();
 			}
 		}, true, RF_NoFlags, EInternalObjectFlags::Garbage);
