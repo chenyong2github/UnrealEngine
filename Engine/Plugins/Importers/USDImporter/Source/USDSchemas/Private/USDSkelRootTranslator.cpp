@@ -1475,7 +1475,11 @@ namespace UsdSkelRootTranslatorImpl
 							// Bone/CurveCompressionSettings. Undoing that transaction would call UAnimSequence::Serialize with nullptr values for both, which crashes.
 							// Besides, this particular asset type is only ever created when we import to content folder assets (so never for realtime), and
 							// in that case we don't need it to be transactional anyway
-							AnimSequence = NewObject<UAnimSequence>( GetTransientPackage(), NAME_None, Context->ObjectFlags & ~EObjectFlags::RF_Transactional );
+							AnimSequence = NewObject<UAnimSequence>(
+								GetTransientPackage(),
+								NAME_None,
+								(Context->ObjectFlags & ~EObjectFlags::RF_Transactional) | EObjectFlags::RF_Transient
+							);
 							AnimSequence->SetSkeleton( SkeletalMesh->GetSkeleton() );
 
 							// This is read back in the USDImporter, so that if we ever import this AnimSequence we will always also import the SkeletalMesh for it

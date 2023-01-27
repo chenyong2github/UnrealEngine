@@ -262,7 +262,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 #if WITH_EDITOR
 		if ( GIsEditor ) // Also have to prevent Standalone game from going with MaterialInstanceConstants
 		{
-			if ( UMaterialInstanceConstant* NewMaterial = NewObject<UMaterialInstanceConstant>( GetTransientPackage(), InstanceName, Context->ObjectFlags ) )
+			if ( UMaterialInstanceConstant* NewMaterial = NewObject<UMaterialInstanceConstant>( GetTransientPackage(), InstanceName, Context->ObjectFlags | EObjectFlags::RF_Transient ) )
 			{
 				UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( NewMaterial, TEXT( "USDAssetImportData" ) );
 				ImportData->PrimPath = PrimPath.GetString();
