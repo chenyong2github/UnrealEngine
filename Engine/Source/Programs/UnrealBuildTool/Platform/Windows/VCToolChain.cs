@@ -1440,7 +1440,7 @@ namespace UnrealBuildTool
 				if (CompileEnvironment.bPreprocessOnly)
 				{
 					CompileAction.PreprocessedFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, SourceFile.Location.GetFileName() + ".i"));
-					CompileAction.ResponseFile = FileItem.GetItemByPath(CompileAction.PreprocessedFile.FullName + ".response");
+					CompileAction.ResponseFile = FileItem.GetItemByFileReference(GetResponseFileName(CompileEnvironment, CompileAction.PreprocessedFile));
 				}
 				else
 				{
@@ -1449,7 +1449,7 @@ namespace UnrealBuildTool
 					FileItem ObjectFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, ObjectLeafFilename));
 
 					CompileAction.ObjectFile = ObjectFile;
-					CompileAction.ResponseFile = FileItem.GetItemByPath(ObjectFile.FullName + ".response");
+					CompileAction.ResponseFile = FileItem.GetItemByFileReference(GetResponseFileName(CompileEnvironment, ObjectFile)); ;
 
 					if (Target.WindowsPlatform.ObjSrcMapFile != null)
 					{
@@ -1546,7 +1546,7 @@ namespace UnrealBuildTool
 
 					VCCompileAction CompileDepsAction = new VCCompileAction(CompileAction);
 					CompileDepsAction.ActionType = ActionType.GatherModuleDependencies;
-					CompileDepsAction.ResponseFile = FileItem.GetItemByPath(IfcDepsFile + ".response");
+					CompileDepsAction.ResponseFile = FileItem.GetItemByFileReference(GetResponseFileName(CompileEnvironment, IfcDepsFile));
 					CompileDepsAction.ObjectFile = null;
 					CompileDepsAction.DependencyListFile = IfcDepsFile;
 					CompileDepsAction.Arguments.Add($"/sourceDependencies:directives \"{IfcDepsFile.Location}\"");
@@ -1929,7 +1929,7 @@ namespace UnrealBuildTool
 				Arguments.Add($"\"{NormalizeCommandLinePath(RCFile)}\"");
 
 				// Create a response file for the resource compilier
-				FileItem ResponseFile = FileItem.GetItemByPath(CompiledResourceFile.FullName + ".response");
+				FileItem ResponseFile = FileItem.GetItemByFileReference(GetResponseFileName(CompileEnvironment, CompiledResourceFile));
 				Graph.CreateIntermediateTextFile(ResponseFile, Arguments);
 				CompileAction.PrerequisiteItems.Add(ResponseFile);
 

@@ -13,6 +13,9 @@ namespace UnrealBuildTool
 	abstract class UEToolChain
 	{
 		protected readonly ILogger Logger;
+		
+		// Return the extension for response files
+		public static string ResponseExt => ".rsp";
 
 		public UEToolChain(ILogger InLogger)
 		{
@@ -150,6 +153,18 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Get the name of the response file for the current compile environment and output file
+		/// </summary>
+		/// <param name="CompileEnvironment"></param>
+		/// <param name="OutputFile"></param>
+		/// <returns></returns>
+		public static FileReference GetResponseFileName(CppCompileEnvironment CompileEnvironment, FileItem OutputFile)
+		{
+			// Construct a relative path for the intermediate response file
+			return OutputFile.Location.ChangeExtension(OutputFile.Location.GetExtension() + ResponseExt);
+		}
+
+		/// <summary>
 		/// Get the name of the response file for the current linker environment and output file
 		/// </summary>
 		/// <param name="LinkEnvironment"></param>
@@ -158,7 +173,7 @@ namespace UnrealBuildTool
 		public static FileReference GetResponseFileName(LinkEnvironment LinkEnvironment, FileItem OutputFile)
 		{
 			// Construct a relative path for the intermediate response file
-			return FileReference.Combine(LinkEnvironment.IntermediateDirectory!, OutputFile.Location.GetFileName() + ".response");
+			return FileReference.Combine(LinkEnvironment.IntermediateDirectory!, OutputFile.Location.GetFileName() + ResponseExt);
 		}
 
 		public virtual ICollection<FileItem> PostBuild(ReadOnlyTargetRules Target, FileItem Executable, LinkEnvironment ExecutableLinkEnvironment, IActionGraphBuilder Graph)

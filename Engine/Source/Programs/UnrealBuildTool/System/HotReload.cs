@@ -1006,7 +1006,7 @@ namespace UnrealBuildTool
 				string NewFileNameWithoutExtension = Utils.GetFilenameWithoutAnyExtensions(HotReloadFile.FullName);
 
 				// Find the response file in the command line.  We'll need to make a copy of it with our new file name.
-				string ResponseFileExtension = ".response";
+				string ResponseFileExtension = UEToolChain.ResponseExt;
 				int ResponseExtensionIndex = Action.CommandArguments.IndexOf(ResponseFileExtension, StringComparison.InvariantCultureIgnoreCase);
 				if (ResponseExtensionIndex != -1)
 				{

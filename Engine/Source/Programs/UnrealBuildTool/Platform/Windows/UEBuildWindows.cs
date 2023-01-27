@@ -1319,6 +1319,7 @@ namespace UnrealBuildTool
 			return IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".exe")
 				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".dll")
 				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".dll.response")
+				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".dll.rsp")
 				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".lib")
 				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".pdb")
 				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".exp")

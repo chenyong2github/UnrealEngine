@@ -235,7 +235,7 @@ namespace UnrealBuildTool
 
 					if (a.PrerequisiteItems.Count() > 0)
 					{
-						Job["explicit_input_files"] = a.PrerequisiteItems.Where(i => !i.AbsolutePath.EndsWith(".response")).Select(i => new Dictionary<string, object>()
+						Job["explicit_input_files"] = a.PrerequisiteItems.Where(i => !(i.AbsolutePath.EndsWith(".rsp") || i.AbsolutePath.EndsWith(".response"))).Select(i => new Dictionary<string, object>()
 						{
 							["filename"] = i.AbsolutePath
 						}).ToList();

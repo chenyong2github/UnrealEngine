@@ -491,7 +491,7 @@ namespace UnrealBuildTool
 
 				CompileAction.ProducedItems.Add(ISPCIncludeHeaderFile);
 
-				FileReference ResponseFileName = new FileReference(ISPCIncludeHeaderFile.AbsolutePath + ".response");
+				FileReference ResponseFileName = GetResponseFileName(CompileEnvironment, ISPCIncludeHeaderFile);
 				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, Arguments.Select(x => Utils.ExpandVariables(x)));
 				CompileAction.CommandArguments = $"@\"{NormalizeCommandLinePath(ResponseFileName)}\"";
 				CompileAction.PrerequisiteItems.Add(ResponseFileItem);
@@ -697,7 +697,7 @@ namespace UnrealBuildTool
 
 				CompileAction.ProducedItems.UnionWith(CompiledISPCObjFiles);
 
-				FileReference ResponseFileName = new FileReference(CompiledISPCObjFileNoISA.AbsolutePath + ".response");
+				FileReference ResponseFileName = GetResponseFileName(CompileEnvironment, CompiledISPCObjFileNoISA);
 				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, Arguments.Select(x => Utils.ExpandVariables(x)));
 				CompileAction.CommandArguments = $"@\"{ResponseFileName}\"";
 				CompileAction.PrerequisiteItems.Add(ResponseFileItem);
@@ -732,7 +732,7 @@ namespace UnrealBuildTool
 							PostCompileArgs.Add($"-o \"{NormalizeCommandLinePath(FinalCompiledISPCObjFile)}\"");
 
 							// Write the args to a response file
-							FileReference PostCompileResponseFileName = new FileReference(FinalCompiledISPCObjFile.AbsolutePath + ".response");
+							FileReference PostCompileResponseFileName = GetResponseFileName(CompileEnvironment, FinalCompiledISPCObjFile);
 							FileItem PostCompileResponseFileItem = Graph.CreateIntermediateTextFile(PostCompileResponseFileName, PostCompileArgs.Select(x => Utils.ExpandVariables(x)));
 							PostCompileAction.CommandArguments = $"@\"{PostCompileResponseFileName}\"";
 							PostCompileAction.PrerequisiteItems.Add(PostCompileResponseFileItem);

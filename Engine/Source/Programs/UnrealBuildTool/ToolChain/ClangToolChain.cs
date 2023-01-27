@@ -1009,7 +1009,7 @@ namespace UnrealBuildTool
 			FileItem TargetFile = CompileAction.ProducedItems.First();
 
 			// Creates the path to the response file using the name of the output file and creates its contents.
-			FileReference ResponseFileName = new FileReference(TargetFile.AbsolutePath + ".response");
+			FileReference ResponseFileName = GetResponseFileName(CompileEnvironment, TargetFile);
 			List<string> ResponseFileContents = ExpandResponseFileContents(FileArguments);
 
 			if (RuntimePlatform.IsWindows)
@@ -1085,7 +1085,7 @@ namespace UnrealBuildTool
 				FileItem PreprocessTargetFile = PrepassAction.ProducedItems.First();
 
 				// Creates the path to the response file using the name of the output file and creates its contents.
-				FileReference PreprocessResponseFileName = new FileReference(PreprocessTargetFile.AbsolutePath + ".response");
+				FileReference PreprocessResponseFileName = GetResponseFileName(CompileEnvironment, PreprocessTargetFile);
 				List<string> PreprocessResponseFileContents = new();
 				PreprocessResponseFileContents.AddRange(PreprocessGlobalArguments);
 				PreprocessResponseFileContents.AddRange(PreprocessFileArguments);
