@@ -29,6 +29,7 @@ public:
 	/**
 	 * Public access to this section's internal data function
 	 */
+	FMovieSceneDoubleChannel& GetChannel() { return DoubleCurve; }
 	const FMovieSceneDoubleChannel& GetChannel() const { return DoubleCurve; }
 
 protected:

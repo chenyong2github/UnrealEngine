@@ -31,6 +31,7 @@ public:
 	/**
 	 * Public access to this section's internal data function
 	 */
+	FMovieSceneFloatChannel& GetChannel() { return FloatCurve; }
 	const FMovieSceneFloatChannel& GetChannel() const { return FloatCurve; }
 
 protected:
