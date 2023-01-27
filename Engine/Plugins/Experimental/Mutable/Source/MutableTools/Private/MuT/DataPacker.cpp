@@ -28,10 +28,6 @@
 #include "MuT/ASTOpMeshMorph.h"
 #include "MuT/ASTOpLayoutFromMesh.h"
 
-#include <cstdint>
-#include <memory>
-#include <utility>
-
 
 namespace mu
 {
@@ -49,7 +45,7 @@ namespace mu
         m_visited.SetNum( program.m_opAddress.Num() );
         if ( m_visited.Num() )
         {
-            memset( &m_visited[0], 0, m_visited.Num() );
+            FMemory::Memset( &m_visited[0], 0, m_visited.Num() );
         }
     }
 
@@ -95,7 +91,7 @@ namespace mu
                     OP_TYPE thisOpType = m_program.GetOpType(item.Value);
                     if ( m_opType == thisOpType )
                     {
-                        auto args = m_program.GetOpArgs<OP::ResourceConstantArgs>(item.Value);
+						OP::ResourceConstantArgs args = m_program.GetOpArgs<OP::ResourceConstantArgs>(item.Value);
                         if ( m_constant == args.value )
                         {
                             found = true;
@@ -179,7 +175,7 @@ namespace mu
                 case OP_TYPE::LA_CONDITIONAL:
                 case OP_TYPE::IN_CONDITIONAL:
                 {
-                    auto args = program.GetOpArgs<OP::ConditionalArgs>(at);
+					OP::ConditionalArgs args = program.GetOpArgs<OP::ConditionalArgs>(at);
 
                     // If the constant is present in only one of the 2 branches
                     bool foundYes = m_constSearch.Run( args.yes  );
@@ -235,7 +231,7 @@ namespace mu
                          &&
                          program.GetOpType(at) == m_opType )
                     {
-                        auto args = program.GetOpArgs<OP::MeshConstantArgs>(at);
+						OP::MeshConstantArgs args = program.GetOpArgs<OP::MeshConstantArgs>(at);
                         if ( args.value == m_constant )
                         {
                             // Accumulate the currently relevant parameters
@@ -248,7 +244,7 @@ namespace mu
                     }
                     else if ( program.GetOpType(at) == m_opType )
                     {
-                        auto args = program.GetOpArgs<OP::ResourceConstantArgs>(at);
+						OP::ResourceConstantArgs args = program.GetOpArgs<OP::ResourceConstantArgs>(at);
                         if ( args.value == m_constant )
                         {
                             // Accumulate the currently relevant parameters
@@ -336,7 +332,7 @@ namespace mu
             case OP_TYPE::IM_CONSTANT:
             {
                 // Remove unsupported formats
-                auto op = dynamic_cast<const ASTOpConstantResource*>(node.get());
+				const ASTOpConstantResource* op = dynamic_cast<const ASTOpConstantResource*>(node.get());
                 if (!m_supportedFormats.count(op))
                 {
 					TArray<bool> initial;
@@ -571,7 +567,7 @@ namespace mu
                 uint64_t newState = currentSemantics;
                 newState |= (UINT64_C(1)<<MBS_VERTEXINDEX);
                 RecurseWithState( op->source.child(), newState );
-                for( auto& r: op->removes )
+                for( const TPair<ASTChild, ASTChild>& r: op->removes )
                 {
                     RecurseWithState( r.Value.child(), newState );
                 }

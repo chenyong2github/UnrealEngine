@@ -32,6 +32,9 @@ namespace mu
 		/** Blend type used for the alpha channel if any. */
 		EBlendType blendTypeAlpha = EBlendType::BT_NONE;
 
+		/** Channel to use from the source color argument to apply blendTypeAlpha, if any. */
+		uint8 BlendAlphaSourceChannel = 0;
+
 		/** If true, use the alpha channel of the blended image as mask. Mask should be null.*/
 		bool bUseMaskFromBlended = false;
 

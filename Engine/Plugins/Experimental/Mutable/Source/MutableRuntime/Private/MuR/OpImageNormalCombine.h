@@ -61,7 +61,7 @@ namespace mu
 			(mu::clamp(static_cast<unsigned>((n.z() + 1.0f) * 0.5f * 255.0f), 0u, 255u) << 16);
 	}
 
-	inline void ImageNormalCombine(Image* pResult, const Image* pBase, vec3<float> col)
+	inline void ImageNormalCombine(Image* pResult, const Image* pBase, FVector4f col)
 	{
 		ImageLayerCombineColour<CombineNormal>(pResult, pBase, col);
 	}
@@ -71,7 +71,7 @@ namespace mu
 		ImageLayerCombine<CombineNormal>(pResult, pBase, pBlended, bOnlyFirstLOD);
 	}
 
-	inline void ImageNormalCombine(Image* pResult, const Image* pBase, const Image* pMask, vec3<float> col)
+	inline void ImageNormalCombine(Image* pResult, const Image* pBase, const Image* pMask, FVector4f col)
 	{
 		ImageLayerCombineColour<CombineNormal, CombineNormalMasked>(pResult, pBase, pMask, col);
 	}

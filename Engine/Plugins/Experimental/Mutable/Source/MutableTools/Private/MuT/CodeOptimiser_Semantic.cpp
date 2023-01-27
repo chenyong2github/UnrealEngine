@@ -69,9 +69,10 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
     bool SemanticOptimiserAST(
-            ASTOpList& roots,
-            const FModelOptimizationOptions& optimisationOptions
-            )
+		ASTOpList& roots,
+		const FModelOptimizationOptions& optimisationOptions,
+		int32 Pass
+	)
     {
         MUTABLE_CPUPROFILER_SCOPE(SemanticOptimiserAST);
 
@@ -80,7 +81,7 @@ namespace mu
         // TODO: isn't top down better suited?
         ASTOp::Traverse_BottomUp_Unique( roots, [&](Ptr<ASTOp>& n)
         {
-            auto o = n->OptimiseSemantic(optimisationOptions);
+            auto o = n->OptimiseSemantic(optimisationOptions, Pass);
 
             // If the returned value is null it means no change.
             if (o && o!=n)
@@ -95,7 +96,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    Ptr<ASTOp> ASTOpFixed::OptimiseSemantic( const FModelOptimizationOptions& options ) const
+    Ptr<ASTOp> ASTOpFixed::OptimiseSemantic( const FModelOptimizationOptions& options, int32 Pass) const
     {
         Ptr<ASTOp> at;
 
@@ -1317,6 +1318,23 @@ namespace mu
                 at = newOp;
                 break;
             }
+
+			case OP_TYPE::IM_SWIZZLE:
+			{
+				Ptr<ASTOpImageSwizzle> newOp = mu::Clone<ASTOpImageSwizzle>(sourceAt);
+				for (int s = 0; s < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++s)
+				{
+					Ptr<ASTOp> OldChannelOp = newOp->Sources[s].child();
+					if (OldChannelOp)
+					{
+						Ptr<ASTOpFixed> ChannelResize = mu::Clone<ASTOpFixed>(this);
+						ChannelResize->SetChild(ChannelResize->op.args.ImageResize.source, OldChannelOp);
+						newOp->Sources[s] = ChannelResize;
+					}
+				}
+				at = newOp;
+				break;
+			}
 
             case OP_TYPE::IM_COMPOSE:
             {

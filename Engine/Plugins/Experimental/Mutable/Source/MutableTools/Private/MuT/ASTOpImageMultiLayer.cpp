@@ -45,6 +45,7 @@ namespace mu
 				range == Other->range &&
 				blendType == Other->blendType &&
 				blendTypeAlpha == Other->blendTypeAlpha &&
+				BlendAlphaSourceChannel == Other->BlendAlphaSourceChannel &&
 				bUseMaskFromBlended == Other->bUseMaskFromBlended;
 		}
 		return false;
@@ -74,6 +75,7 @@ namespace mu
 		n->range.rangeSize = mapChild(range.rangeSize.child());
 		n->blendType = blendType;
 		n->blendTypeAlpha = blendTypeAlpha;
+		n->BlendAlphaSourceChannel = BlendAlphaSourceChannel;
 		n->bUseMaskFromBlended = bUseMaskFromBlended;
 		return n;
 	}
@@ -100,6 +102,7 @@ namespace mu
 
 			args.blendType = (uint8)blendType;
 			args.blendTypeAlpha = (uint8)blendTypeAlpha;
+			args.BlendAlphaSourceChannel = BlendAlphaSourceChannel;
 			args.bUseMaskFromBlended = bUseMaskFromBlended;
 
 			if (base) args.base = base->linkedAddress;

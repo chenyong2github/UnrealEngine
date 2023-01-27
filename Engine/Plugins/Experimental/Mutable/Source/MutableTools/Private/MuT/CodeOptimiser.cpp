@@ -792,7 +792,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeOptimiser::FullOptimiseAST( ASTOpList& roots )
+	void CodeOptimiser::FullOptimiseAST( ASTOpList& roots, int32 Pass )
 	{
 		bool modified = true;
 		int numIterations = 0;
@@ -808,7 +808,7 @@ namespace mu
 			// All kind of optimisations that depend on the meaning of each operation
 			// \TODO: We are doing it for all states.
 			UE_LOG(LogMutableCore, Verbose, TEXT(" - semantic optimiser"));
-			modified |= SemanticOptimiserAST( roots, m_options->GetPrivate()->m_optimisationOptions );
+			modified |= SemanticOptimiserAST( roots, m_options->GetPrivate()->m_optimisationOptions, Pass );
 			//AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
 			UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("ast size"), int64(ASTOp::CountNodes(roots)));
 			ASTOp::LogHistogram(roots);
@@ -1226,7 +1226,11 @@ namespace mu
 			// Main optimisation stage
 			{
 				MUTABLE_CPUPROFILER_SCOPE(MainStage);
-				FullOptimiseAST( roots );
+				FullOptimiseAST( roots, 0 );
+				UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("ast size"), int64(ASTOp::CountNodes(roots)));
+				ASTOp::LogHistogram(roots);
+
+				FullOptimiseAST(roots, 1);
 				UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("ast size"), int64(ASTOp::CountNodes(roots)));
 				ASTOp::LogHistogram(roots);
 			}

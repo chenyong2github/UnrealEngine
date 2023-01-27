@@ -119,7 +119,7 @@ namespace mu
 	}
 
 
-	mu::Ptr<ASTOp> ASTOpImageSwizzle::OptimiseSemantic(const FModelOptimizationOptions&) const
+	mu::Ptr<ASTOp> ASTOpImageSwizzle::OptimiseSemantic(const FModelOptimizationOptions&, int32 Pass) const
 	{
 		Ptr<ASTOpImageSwizzle> sat;
 
@@ -204,7 +204,7 @@ namespace mu
 		MUTABLE_CPUPROFILER_SCOPE(OptimiseSwizzleAST);
 
 		//! Basic optimisation first
-		Ptr<ASTOp> at = OptimiseSemantic(options);
+		Ptr<ASTOp> at = OptimiseSemantic(options, 0);
 		if (at)
 		{
 			return at;
@@ -303,15 +303,18 @@ namespace mu
 				// We move the swizzle down the two paths
 				Ptr<ASTOpImageLayer> nop = mu::Clone<ASTOpImageLayer>(channelSourceAt);
 
-				Ptr<ASTOpImageSwizzle> aOp = mu::Clone<ASTOpImageSwizzle>(this);
-				ReplaceAllSources(aOp, nop->base.child());
-				nop->base = aOp;
+				if (nop->Flags == 0)
+				{
+					Ptr<ASTOpImageSwizzle> aOp = mu::Clone<ASTOpImageSwizzle>(this);
+					ReplaceAllSources(aOp, nop->base.child());
+					nop->base = aOp;
 
-				Ptr<ASTOpImageSwizzle> bOp = mu::Clone<ASTOpImageSwizzle>(this);
-				ReplaceAllSources(bOp, nop->blend.child());
-				nop->blend = bOp;
+					Ptr<ASTOpImageSwizzle> bOp = mu::Clone<ASTOpImageSwizzle>(this);
+					ReplaceAllSources(bOp, nop->blend.child());
+					nop->blend = bOp;
 
-				at = nop;
+					at = nop;
+				}
 				break;
 			}
 
@@ -348,6 +351,16 @@ namespace mu
 				break;
 			}
 
+			case OP_TYPE::IM_INVERT:
+			{
+				Ptr<ASTOpFixed> NewInvert = mu::Clone<ASTOpFixed>(channelSourceAt);
+				Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
+				ReplaceAllSources(NewSwizzle, NewInvert->children[NewInvert->op.args.ImageInvert.base].child());
+				NewInvert->SetChild(NewInvert->op.args.ImageInvert.base, NewSwizzle);
+				at = NewInvert;
+				break;
+			}
+
 			case OP_TYPE::IM_RASTERMESH:
 			{
 				Ptr<ASTOpImageRasterMesh> NewRaster = mu::Clone<ASTOpImageRasterMesh>(channelSourceAt);
@@ -358,15 +371,15 @@ namespace mu
 				break;
 			}
 
-			case OP_TYPE::IM_RESIZE:
-			{
-				Ptr<ASTOpFixed> NewResize = mu::Clone<ASTOpFixed>(channelSourceAt);
-				Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
-				ReplaceAllSources(NewSwizzle, NewResize->children[NewResize->op.args.ImageResize.source].child());
-				NewResize->SetChild(NewResize->op.args.ImageResize.source, NewSwizzle);
-				at = NewResize;
-				break;
-			}
+			//case OP_TYPE::IM_RESIZE:
+			//{
+			//	Ptr<ASTOpFixed> NewResize = mu::Clone<ASTOpFixed>(channelSourceAt);
+			//	Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
+			//	ReplaceAllSources(NewSwizzle, NewResize->children[NewResize->op.args.ImageResize.source].child());
+			//	NewResize->SetChild(NewResize->op.args.ImageResize.source, NewSwizzle);
+			//	at = NewResize;
+			//	break;
+			//}
 
 			// This is not valid: binarize always forces format L8
 			//case OP_TYPE::IM_BINARISE:
@@ -442,6 +455,7 @@ namespace mu
 
 					Ptr<ASTOpImageMultiLayer> NewMultiLayer = mu::Clone<ASTOpImageMultiLayer>(ColorMultiLayer);
 					NewMultiLayer->blendTypeAlpha = AlphaMultiLayer->blendType;
+					NewMultiLayer->BlendAlphaSourceChannel = 3;
 					NewMultiLayer->base = NewBase;
 					NewMultiLayer->blend = NewBlended;
 
@@ -498,6 +512,7 @@ namespace mu
 
 					Ptr<ASTOpImageLayer> NewLayer = mu::Clone<ASTOpImageLayer>(ColorLayer);
 					NewLayer->blendTypeAlpha = AlphaLayer->blendType;
+					NewLayer->BlendAlphaSourceChannel = 3;
 					NewLayer->base = NewBase;
 					NewLayer->blend = NewBlended;
 
@@ -675,51 +690,51 @@ namespace mu
 			}
 
 			// Swizzle down compatible resizes.
-			if (!at && sourceType == OP_TYPE::IM_RESIZE)
-			{
-				const ASTOpFixed* FirstResize = dynamic_cast<const ASTOpFixed*>(Sources[0].child().get());
-				check(FirstResize);
+			//if (!at && sourceType == OP_TYPE::IM_RESIZE)
+			//{
+			//	const ASTOpFixed* FirstResize = dynamic_cast<const ASTOpFixed*>(Sources[0].child().get());
+			//	check(FirstResize);
 
-				bool bAreAllResizesCompatible = true;
-				for (int32 c = 1; c < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c)
-				{
-					if (Sources[c])
-					{
-						const ASTOpFixed* Typed = dynamic_cast<const ASTOpFixed*>(Sources[c].child().get());
-						check(Typed);
-						// Compare all args but the source image
-						OP::ImageResizeArgs ArgCopy = FirstResize->op.args.ImageResize;
-						ArgCopy.source = Typed->op.args.ImageResize.source;
+			//	bool bAreAllResizesCompatible = true;
+			//	for (int32 c = 1; c < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c)
+			//	{
+			//		if (Sources[c])
+			//		{
+			//			const ASTOpFixed* Typed = dynamic_cast<const ASTOpFixed*>(Sources[c].child().get());
+			//			check(Typed);
+			//			// Compare all args but the source image
+			//			OP::ImageResizeArgs ArgCopy = FirstResize->op.args.ImageResize;
+			//			ArgCopy.source = Typed->op.args.ImageResize.source;
 
-						if (FMemory::Memcmp(&ArgCopy, &Typed->op.args.ImageResize, sizeof(OP::ImageResizeArgs)) != 0)
-						{
-							bAreAllResizesCompatible = false;
-							break;
-						}
-					}
-				}
+			//			if (FMemory::Memcmp(&ArgCopy, &Typed->op.args.ImageResize, sizeof(OP::ImageResizeArgs)) != 0)
+			//			{
+			//				bAreAllResizesCompatible = false;
+			//				break;
+			//			}
+			//		}
+			//	}
 
-				if (bAreAllResizesCompatible)
-				{
-					// Move the swizzle down all the paths
-					Ptr<ASTOpFixed> NewResize = mu::Clone<ASTOpFixed>(FirstResize);
+			//	if (bAreAllResizesCompatible)
+			//	{
+			//		// Move the swizzle down all the paths
+			//		Ptr<ASTOpFixed> NewResize = mu::Clone<ASTOpFixed>(FirstResize);
 
-					Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
-					for (int c = 0; c < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c)
-					{
-						const ASTOpFixed* ChannelResize = dynamic_cast<const ASTOpFixed*>(Sources[c].child().get());
-						if (ChannelResize)
-						{
-							NewSwizzle->Sources[c] = ChannelResize->children[ChannelResize->op.args.ImageResize.source].child();
-						}
-					}
+			//		Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
+			//		for (int c = 0; c < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c)
+			//		{
+			//			const ASTOpFixed* ChannelResize = dynamic_cast<const ASTOpFixed*>(Sources[c].child().get());
+			//			if (ChannelResize)
+			//			{
+			//				NewSwizzle->Sources[c] = ChannelResize->children[ChannelResize->op.args.ImageResize.source].child();
+			//			}
+			//		}
 
-					NewResize->SetChild(NewResize->op.args.ImageResize.source, NewSwizzle);
+			//		NewResize->SetChild(NewResize->op.args.ImageResize.source, NewSwizzle);
 
-					at = NewResize;
-				}
+			//		at = NewResize;
+			//	}
 
-			}
+			//}
 
 			// Swizzle down compatible pixelformats.
 			if (!at && sourceType == OP_TYPE::IM_PIXELFORMAT && bSameChannelOrder)
@@ -775,27 +790,54 @@ namespace mu
 
 		}
 
+		// TODO \warning: probably wrong because it doesn't check if the layer colour is doing a separated alpha operation.
 		// Swizzle of RGB from a source + A from a layer colour
 		// This can be optimized to apply the layer colour on-base directly to the alpha channel to skip the swizzle
-		if ( !at 
-			&&
-			Sources[0] && Sources[0]==Sources[1] && Sources[0]==Sources[2]
-			&&
-			Sources[3] && Sources[3]->GetOpType()==OP_TYPE::IM_LAYERCOLOUR )
-		{
-			// Move the swizzle down all the paths
-			Ptr<ASTOpImageLayerColor> NewLayerColour = mu::Clone<ASTOpImageLayerColor>(Sources[3].child());
+		//if ( !at 
+		//	&&
+		//	Sources[0] && Sources[0]==Sources[1] && Sources[0]==Sources[2]
+		//	&&
+		//	Sources[3] && Sources[3]->GetOpType()==OP_TYPE::IM_LAYERCOLOUR
+		//	)
+		//{
+		//	// Move the swizzle down all the paths
+		//	Ptr<ASTOpImageLayerColor> NewLayerColour = mu::Clone<ASTOpImageLayerColor>(Sources[3].child());
 
-			Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
-			NewSwizzle->Sources[3] = NewLayerColour->base.child();
+		//	Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
+		//	NewSwizzle->Sources[3] = NewLayerColour->base.child();
 
-			NewLayerColour->blendTypeAlpha = NewLayerColour->blendType;
-			NewLayerColour->blendType = EBlendType::BT_NONE;
-			NewLayerColour->base = NewSwizzle;
+		//	NewLayerColour->blendTypeAlpha = NewLayerColour->blendType;
+		//	NewLayerColour->BlendAlphaSourceChannel = SourceChannels[3];
+		//	NewLayerColour->blendType = EBlendType::BT_NONE;
+		//	NewLayerColour->base = NewSwizzle;
 
-			at = NewLayerColour;
+		//	at = NewLayerColour;
 
-		}
+		//}
+
+		// Swizzle of RGB from a source + A from a layer
+		// This can be optimized to apply the layer on-base directly to the alpha channel to skip the swizzle
+		// \TODO: wrong: the new layer colour will always use the alpha from the colour, instead of the channel that the swizzle is selecting.
+		// \TODO: wrong: it ignores the possibility of separate alpha operation
+		//if (!at
+		//	&&
+		//	Sources[0] && Sources[0] == Sources[1] && Sources[0] == Sources[2]
+		//	&&
+		//	Sources[3] && Sources[3]->GetOpType() == OP_TYPE::IM_LAYER)
+		//{
+		//	// Move the swizzle down all the paths
+		//	Ptr<ASTOpImageLayer> NewLayer = mu::Clone<ASTOpImageLayer>(Sources[3].child());
+
+		//	Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
+		//	NewSwizzle->Sources[3] = NewLayer->base.child();
+
+		//	NewLayer->blendTypeAlpha = NewLayer->blendType;
+		//	NewLayer->BlendAlphaSourceChannel = SourceChannels[3];
+		//	NewLayer->blendType = EBlendType::BT_NONE;
+		//	NewLayer->base = NewSwizzle;
+
+		//	at = NewLayer;
+		//}
 
 		// Swizzle of RGB from a layer colour + A from a different source
 		// This can be optimized to apply the layer colour on-base directly to the rgb channel to skip the swizzle
@@ -807,7 +849,9 @@ namespace mu
 			&& 
 			(!Sources[2] || Sources[0] == Sources[2])
 			&&
-			Sources[0]->GetOpType() == OP_TYPE::IM_LAYERCOLOUR)
+			Sources[0]->GetOpType() == OP_TYPE::IM_LAYERCOLOUR
+			&& 
+			!(Sources[3]==Sources[0]) )
 		{
 			// Move the swizzle down all the rgb path
 			Ptr<ASTOpImageLayerColor> NewLayerColour = mu::Clone<ASTOpImageLayerColor>(Sources[0].child());
@@ -824,28 +868,119 @@ namespace mu
 			at = NewLayerColour;
 		}
 
-		// Swizzle of RGB from a binarise + A from a different source
-		// This can be optimized to apply the layer colour on-base directly to the rgb channel to skip the swizzle
-		// This is not valid because binarise always forces L8 format.
-		//if (!at
-		//	&&
-		//	Sources[0] && (!Sources[0] ||Sources[0] == Sources[1]) && (!Sources[2] || Sources[0] == Sources[2])
-		//	&&
-		//	Sources[0]->GetOpType() == OP_TYPE::IM_BINARISE)
-		//{
-		//	// Move the swizzle down all the rgb path
-		//	Ptr<ASTOpFixed> NewBinarise = mu::Clone<ASTOpFixed>(Sources[0].child());
-		//	check(NewBinarise);
+		// Swizzle getting an A from a saturate
+		// The saturate doesn't affect A channel so it can be removed.
+		if (!at)
+		{
+			Ptr<ASTOpImageSwizzle> NewSwizzle;
 
-		//	Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
-		//	NewSwizzle->Sources[0] = NewBinarise->children[NewBinarise->op.args.ImageBinarise.base].child();
-		//	NewSwizzle->Sources[1] = Sources[1] ? NewSwizzle->Sources[0].child() : nullptr;
-		//	NewSwizzle->Sources[2] = Sources[2] ? NewSwizzle->Sources[0].child() : nullptr;
+			for (int32 Channel = 0; Channel < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++Channel)
+			{
+				if (Sources[Channel] && SourceChannels[Channel]==3 && Sources[Channel]->GetOpType() == OP_TYPE::IM_SATURATE)
+				{
+					// Remove the saturate for this channel
+					if (!NewSwizzle)
+					{
+						NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
+					}
 
-		//	NewBinarise->SetChild(NewBinarise->op.args.ImageBinarise.base, NewSwizzle);
+					const ASTOpFixed* OldSaturate = dynamic_cast<const ASTOpFixed*>(Sources[Channel].child().get());
+					Ptr<ASTOp> OldSaturateBase = OldSaturate->children[OldSaturate->op.args.ImageSaturate.base].child();
 
-		//	at = NewBinarise;
-		//}
+					NewSwizzle->Sources[Channel] = OldSaturateBase;
+					at = NewSwizzle;
+				}
+			}
+		}
+
+		// Swizzle of RGB from a saturate + A from a different source
+		// This can be optimized to apply the saturate after the swizzle, since it doesn't touch A
+		if (!at
+			&&
+			Sources[0]->GetOpType() == OP_TYPE::IM_SATURATE 
+			&&
+			Sources[0]
+			&&
+			(Sources[0] == Sources[1]) && (Sources[0] == Sources[2])
+			&&
+			// Actually it would be enough with all the RGB channels to be present in any order
+			SourceChannels[0]==0 && SourceChannels[1] == 1 && SourceChannels[2] == 2
+			)
+		{
+			// Move the swizzle down 
+			Ptr<ASTOpFixed> NewSaturate = mu::Clone<ASTOpFixed>(Sources[0].child());
+			check(NewSaturate);
+
+			Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
+			Ptr<ASTOp> OldSaturateBase = NewSaturate->children[NewSaturate->op.args.ImageSaturate.base].child();
+			NewSwizzle->Sources[0] = OldSaturateBase;
+			NewSwizzle->Sources[1] = OldSaturateBase;
+			NewSwizzle->Sources[2] = OldSaturateBase;
+
+			// Remove the saturate from the alpha if it is there.
+			if (Sources[3] == Sources[0] && SourceChannels[3] == 3)
+			{
+				NewSwizzle->Sources[3] = OldSaturateBase;
+			}
+
+			NewSaturate->SetChild(NewSaturate->op.args.ImageSaturate.base, NewSwizzle);
+
+			at = NewSaturate;
+		}
+
+
+		// Swizzle with the same op as identity in RGB, a Layer op in the A that has one of the operands matching 
+		// the one in the swizzle RGB, but using its A. 
+		// The Layer operation can be flagged as alpha only and moved up the swizzle, then the swizzle is identity 
+		// and can be removed, so remove it here anyway.
+		// This is another very specific optimization case that happens with certain combination of operations.
+		// from:
+		//- SWIZZLE
+		//	r -> r from A
+		//	g -> g from A
+		//	b -> b from A
+		//	a -> (r or a) from LAYER
+		//		- 3 from A (on alpha only using flags)
+		//		- B
+		// to:
+		//- LAYER (on alpha only)
+		//	- A
+		//	- B
+		// In addition, if the blend operation done by LAYER is commutative, see if X is 3 from I instead.
+		if (!at
+			&&
+			(Sources[0] == Sources[1]) && (Sources[0] == Sources[2])
+			&&
+			SourceChannels[0] == 0 && SourceChannels[1] == 1 && SourceChannels[2] == 2
+			&&
+			Sources[3] && Sources[3]->GetOpType() == OP_TYPE::IM_LAYER
+			)
+		{
+			const ASTOpImageLayer* OldLayer = dynamic_cast<const ASTOpImageLayer*>(Sources[3].child().get());
+
+			// For now just check the case that we are observing in the working data: 
+			// A is in the blended of a multiply, and we take its alpha channel
+			// \TODO: Implement the other cases when we find instances of them.
+			if ( OldLayer->Flags==OP::ImageLayerArgs::FLAGS::F_BLENDED_RGB_FROM_ALPHA
+				&&
+				OldLayer->blend==Sources[0]
+				&& 
+				OldLayer->blendType==EBlendType::BT_MULTIPLY 
+				&&
+				OldLayer->blendTypeAlpha == EBlendType::BT_NONE 
+				&&
+				SourceChannels[3]==0)
+			{
+				Ptr<ASTOpImageLayer> NewLayer = mu::Clone<ASTOpImageLayer>(OldLayer);
+				NewLayer->blend = NewLayer->base.child();
+				NewLayer->base = Sources[0].child();
+				NewLayer->blendTypeAlpha = NewLayer->blendType;
+				NewLayer->blendType = EBlendType::BT_NONE;
+				NewLayer->Flags = OP::ImageLayerArgs::FLAGS::F_BASE_RGB_FROM_ALPHA;
+
+				at = NewLayer;
+			}
+		}
 
 
 		return at;

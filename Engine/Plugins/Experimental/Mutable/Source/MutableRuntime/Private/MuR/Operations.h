@@ -531,7 +531,13 @@ namespace mu
             ADDRESS mask;
             ADDRESS blended;
 			uint8 blendType;		// One of EBlendType
-			uint8 blendTypeAlpha;	// One of EBlendType
+
+			/** One of EBlendType. If this is different than NONE, it will be applied to the alpha with the channel BlendAlphaSourceChannel of the blended. */
+			uint8 blendTypeAlpha;
+
+			/** Channel to use from the source blended argument to apply blendTypeAlpha, if any. */
+			uint8 BlendAlphaSourceChannel;
+
 			uint8 flags;
 			typedef enum
             {
@@ -544,6 +550,8 @@ namespace mu
 				F_USE_MASK_FROM_BLENDED = 1 << 2,
 				/** Use the alpha channel of the base image as its RGB.*/
 				F_BASE_RGB_FROM_ALPHA = 1 << 3,
+				/** Use the alpha channel of the blended image as its RGB.*/
+				F_BLENDED_RGB_FROM_ALPHA = 1 << 4,
 			} FLAGS;
         };
 
@@ -555,7 +563,13 @@ namespace mu
             ADDRESS rangeSize;
             uint16 rangeId;
 			uint8 blendType;		// One of EBlendType
-			uint8 blendTypeAlpha;	// One of EBlendType
+			
+			/** One of EBlendType. If this is different than NONE, it will be applied to the alpha with the channel BlendAlphaSourceChannel of the blended. */
+			uint8 blendTypeAlpha;
+
+			/** Channel to use from the source color argument to apply blendTypeAlpha, if any. */
+			uint8 BlendAlphaSourceChannel;
+
 			uint8 bUseMaskFromBlended;	
 		};
 
@@ -565,8 +579,15 @@ namespace mu
             ADDRESS mask;
             ADDRESS colour;
 			uint8 blendType;		// One of EBlendType
-			uint8 blendTypeAlpha;	// One of EBlendType
-			uint8 flags;			// Like in ImageLayerArgs
+
+			/** One of EBlendType. If this is different than NONE, it will be applied to the alpha but with the channel BlendAlphaSourceChannel of the color. */
+			uint8 blendTypeAlpha;	
+
+			/** Channel to use from the source color argument to apply blendTypeAlpha, if any. */
+			uint8 BlendAlphaSourceChannel;
+
+			/** Like in ImageLayerArgs. */
+			uint8 flags;
 		};
 
         struct ImagePixelFormatArgs

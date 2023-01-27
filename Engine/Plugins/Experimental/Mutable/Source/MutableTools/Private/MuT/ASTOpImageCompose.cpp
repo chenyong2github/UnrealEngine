@@ -216,7 +216,7 @@ void ASTOpImageCompose::GetLayoutBlockSize(int* pBlockX, int* pBlockY)
 }
 
 
-mu::Ptr<ASTOp> ASTOpImageCompose::OptimiseSemantic(const FModelOptimizationOptions& options) const
+mu::Ptr<ASTOp> ASTOpImageCompose::OptimiseSemantic(const FModelOptimizationOptions& options, int32 Pass) const
 {
 	mu::Ptr<ASTOp> at;
 

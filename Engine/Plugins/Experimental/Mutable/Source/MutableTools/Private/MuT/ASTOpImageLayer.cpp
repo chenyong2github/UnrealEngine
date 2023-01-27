@@ -46,6 +46,7 @@ namespace mu
 				mask == Other->mask &&
 				blendType == Other->blendType &&
 				blendTypeAlpha == Other->blendTypeAlpha &&
+				BlendAlphaSourceChannel == Other->BlendAlphaSourceChannel &&
 				Flags == Other->Flags;
 		}
 		return false;
@@ -72,6 +73,7 @@ namespace mu
 		n->mask = mapChild(mask.child());
 		n->blendType = blendType;
 		n->blendTypeAlpha = blendTypeAlpha;
+		n->BlendAlphaSourceChannel = BlendAlphaSourceChannel;
 		n->Flags = Flags;
 		return n;
 	}
@@ -97,6 +99,7 @@ namespace mu
 
 			args.blendType = (uint8)blendType;
 			args.blendTypeAlpha = (uint8)blendTypeAlpha;
+			args.BlendAlphaSourceChannel = BlendAlphaSourceChannel;
 			args.flags = Flags;
 
 			if (base) args.base = base->linkedAddress;
@@ -173,7 +176,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	Ptr<ASTOp> ASTOpImageLayer::OptimiseSemantic(const FModelOptimizationOptions& options) const
+	Ptr<ASTOp> ASTOpImageLayer::OptimiseSemantic(const FModelOptimizationOptions& options, int32 Pass) const
 	{
 		Ptr<ASTOp> at;
 
@@ -182,19 +185,19 @@ namespace mu
 		auto maskAt = mask.child();
 
 		// Convert to image layer color if blend is plain
-		if (!at && blendAt->GetOpType() == OP_TYPE::IM_PLAINCOLOUR)
+		if (!at && blendAt && blendAt->GetOpType() == OP_TYPE::IM_PLAINCOLOUR)
 		{
-			bool bUseMaskFromBlendAlpha = (Flags & OP::ImageLayerArgs::F_USE_MASK_FROM_BLENDED);
-
-			const ASTOpFixed* BlendPlainColor = dynamic_cast<const ASTOpFixed*>(blendAt.get());
-
-			if (!bUseMaskFromBlendAlpha)
+			// TODO: May some blags be supported?
+			if (Flags == 0)
 			{
+				const ASTOpFixed* BlendPlainColor = dynamic_cast<const ASTOpFixed*>(blendAt.get());
+
 				Ptr<ASTOpImageLayerColor> NewLayerColor = new ASTOpImageLayerColor;
 				NewLayerColor->base = baseAt;
 				NewLayerColor->mask = maskAt;
 				NewLayerColor->blendType = blendType;
 				NewLayerColor->blendTypeAlpha = blendTypeAlpha;
+				NewLayerColor->BlendAlphaSourceChannel = BlendAlphaSourceChannel;
 				NewLayerColor->color = BlendPlainColor->children[BlendPlainColor->op.args.ImagePlainColour.colour].child();
 				at = NewLayerColor;
 			}
@@ -398,7 +401,7 @@ namespace mu
 			}
 
 			// Is the mask a swizzle expanding alpha from a texture?
-			if (maskAt && maskAt->GetOpType() == OP_TYPE::IM_SWIZZLE)
+			if (!at && maskAt && maskAt->GetOpType() == OP_TYPE::IM_SWIZZLE)
 			{
 				const ASTOpImageSwizzle* TypedBase = dynamic_cast<const ASTOpImageSwizzle*>(maskAt.get());
 				bool bAreAllAlpha = true;
@@ -414,6 +417,23 @@ namespace mu
 				if (bAreAllAlpha)
 				{
 					// TODO
+				}
+			}
+
+			// Is the blend a swizzle selecting alpha?
+			if (Pass>0 && !at && blendAt && blendAt->GetOpType() == OP_TYPE::IM_SWIZZLE && Flags==0)
+			{
+				const ASTOpImageSwizzle* TypedBlend = dynamic_cast<const ASTOpImageSwizzle*>(blendAt.get());
+				if (TypedBlend->Format==EImageFormat::IF_L_UBYTE
+					&&
+					TypedBlend->SourceChannels[0]==3)
+				{
+					Ptr<ASTOpImageLayer> nop = mu::Clone<ASTOpImageLayer>(this);
+					nop->Flags = Flags | OP::ImageLayerArgs::FLAGS::F_BLENDED_RGB_FROM_ALPHA;
+					nop->blend = TypedBlend->Sources[0].child();
+					auto Desc = nop->blend->GetImageDesc(true);
+					check(Desc.m_format==EImageFormat::IF_RGBA_UBYTE);
+					at = nop;					
 				}
 			}
 		}
@@ -623,7 +643,7 @@ namespace mu
 		}
 
 		// If we failed to optimize so far, see if it is worth optimizing the blended branch only.
-		if (!at)
+		if (!at && blendAt)
 		{
 			OP_TYPE BlendType = blendAt->GetOpType();
 			switch (BlendType)

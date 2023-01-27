@@ -175,11 +175,9 @@ public:
 				mu::OP::ImageMultiLayerArgs Args = Program.GetOpArgs<mu::OP::ImageMultiLayerArgs>(RowItem->MutableOperation);
 				OpName += TEXT(" rgb: ");
 				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendType)];
-				if (Args.blendTypeAlpha != int8(mu::EBlendType::BT_NONE))
-				{
-					OpName += TEXT(", a: ");
-					OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendTypeAlpha)];
-				}
+				OpName += TEXT(", a: ");
+				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendTypeAlpha)];
+				OpName += FString::Printf(TEXT(" a from %d "), Args.BlendAlphaSourceChannel);
 				OpName += FString::Printf(TEXT(" range-id: %d"), Args.rangeId);
 				OpName += FString::Printf(TEXT(" mask-from-alpha: %d"), int32(Args.bUseMaskFromBlended));
 				break;
@@ -190,11 +188,9 @@ public:
 				mu::OP::ImageLayerArgs Args = Program.GetOpArgs<mu::OP::ImageLayerArgs>(RowItem->MutableOperation);
 				OpName += TEXT(" rgb: ");
 				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendType)];
-				if (Args.blendTypeAlpha != int8(mu::EBlendType::BT_NONE))
-				{
-					OpName += TEXT(", a: ");
-					OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendTypeAlpha)];
-				}
+				OpName += TEXT(", a: ");
+				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendTypeAlpha)];
+				OpName += FString::Printf(TEXT(" a from %d "), Args.BlendAlphaSourceChannel);
 				OpName += FString::Printf(TEXT(" flags %d"),Args.flags);
 				break;
 			}
@@ -206,6 +202,8 @@ public:
 				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendType)];
 				OpName += TEXT(" a: ");
 				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendTypeAlpha)];
+				OpName += TEXT(" a from ");
+				OpName += FString::Printf(TEXT(" a from %d "), Args.BlendAlphaSourceChannel);
 				OpName += FString::Printf(TEXT(" flags %d"), Args.flags);
 				break;
 			}

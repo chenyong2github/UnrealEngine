@@ -449,7 +449,7 @@ namespace mu
 
         //!
         virtual Ptr<ASTOp> OptimiseSize() const { return nullptr; }
-        virtual Ptr<ASTOp> OptimiseSemantic(const FModelOptimizationOptions&) const { return nullptr; }
+        virtual Ptr<ASTOp> OptimiseSemantic(const FModelOptimizationOptions&, int32 Pass) const { return nullptr; }
         virtual Ptr<ASTOp> OptimiseSink(const FModelOptimizationOptions&, FOptimizeSinkContext& ) const { return nullptr; }
         virtual Ptr<ImageSizeExpression> GetImageSizeExpression() const
         {
@@ -986,7 +986,7 @@ namespace mu
 		FImageDesc GetImageDesc( bool returnBestOption, FGetImageDescContext* context ) const override;
         void GetLayoutBlockSize( int* pBlockX, int* pBlockY ) override;
         Ptr<ASTOp> OptimiseSize() const override;
-        Ptr<ASTOp> OptimiseSemantic(const FModelOptimizationOptions&) const override;
+        Ptr<ASTOp> OptimiseSemantic(const FModelOptimizationOptions&, int32 Pass) const override;
         Ptr<ASTOp> OptimiseSink(const FModelOptimizationOptions&, FOptimizeSinkContext&) const override;
         FBoolEvalResult EvaluateBool( ASTOpList& facts, FEvaluateBoolCache* cache ) const override;
         int EvaluateInt( ASTOpList& facts, bool &unknown ) const override;
