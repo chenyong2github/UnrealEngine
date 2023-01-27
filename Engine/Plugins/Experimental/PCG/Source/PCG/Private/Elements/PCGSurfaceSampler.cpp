@@ -30,7 +30,11 @@ namespace PCGSurfaceSampler
 {
 	bool FSurfaceSamplerSettings::Initialize(const UPCGSurfaceSamplerSettings* InSettings, FPCGContext* Context, const FBox& InputBounds)
 	{
-		check(Context);
+		if (!Context)
+		{
+			return false;
+		}
+
 		Settings = InSettings;
 
 		if (Settings)
