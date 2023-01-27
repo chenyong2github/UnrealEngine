@@ -1605,7 +1605,7 @@ URigVMNode* URigVMPin::GetNode() const
 URigVMGraph* URigVMPin::GetGraph() const
 {
 	URigVMNode* Node = GetNode();
-	if(Node)
+	if(IsValid(Node))
 	{
 		return Node->GetGraph();
 	}

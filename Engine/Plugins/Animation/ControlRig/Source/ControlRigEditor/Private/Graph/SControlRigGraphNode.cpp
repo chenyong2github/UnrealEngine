@@ -1650,7 +1650,8 @@ void SControlRigGraphNode::UpdatePinTreeView()
 				}
 			}
 
-			if(!PinInfo.bHasChildren && ExpanderSlotIndex != INDEX_NONE)
+			// The expander needs to be recreated to adjust for PinInfo.Index changes
+			if (FullPinHorizontalRowWidget->IsValidSlotIndex(ExpanderSlotIndex))
 			{
 				SHorizontalBox::FSlot& Slot = FullPinHorizontalRowWidget->GetSlot(ExpanderSlotIndex);
 				const TSharedRef<SWidget> Widget = Slot.GetWidget();

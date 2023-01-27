@@ -26,8 +26,11 @@ FString FRigVMCallstack::GetCallPath(bool bIncludeLast) const
 		}
 		else if (URigVMPin* Pin = Cast<URigVMPin>(Entry))
 		{
-			const bool bUseNodePath = Pin->GetGraph()->IsRootGraph();
-			Segments.Add(Pin->GetPinPath(bUseNodePath));
+			if (URigVMGraph* Graph = Pin->GetGraph())
+			{
+				const bool bUseNodePath = Graph->IsRootGraph();
+				Segments.Add(Pin->GetPinPath(bUseNodePath));
+			}
 		}
 	}
 

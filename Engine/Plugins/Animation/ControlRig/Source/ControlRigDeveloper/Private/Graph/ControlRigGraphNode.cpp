@@ -802,7 +802,8 @@ bool UControlRigGraphNode::ModelPinsChanged(bool bForce)
 		for(const auto& Pair : CachedPins)
 		{
 			URigVMPin* ModelPin = Pair.Key;
-			if(!PinListForPin(ModelPin).Contains(ModelPin))
+			const URigVMPin* RootPin = ModelPin->GetRootPin();
+			if(!PinListForPin(RootPin).Contains(RootPin))
 			{
 				PinsToRemove.Add(ModelPin);
 			}
