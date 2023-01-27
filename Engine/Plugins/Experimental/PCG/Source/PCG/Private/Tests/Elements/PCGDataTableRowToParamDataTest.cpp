@@ -40,6 +40,12 @@ CCC,"C Name","C String","333","3333","3.3","3.33","(X=3.0,Y=3.0)","(X=3.0,Y=3.0,
 	const UPCGParamData* Params = OutputParamData.IsEmpty() ? nullptr : Cast<UPCGParamData>(OutputParamData[0].Data);
 	UTEST_NOT_NULL("Output params", Params);
 
+	// For static analysis
+	if (!Params)
+	{
+		return false;
+	}
+
 	UTEST_NOT_NULL("Params has metadata", Params->Metadata.Get());
 
 	void* RowData = TestDataTable->FindRow<FPCGDataTableRowToParamDataTestStruct>(Settings->RowName, TEXT("FPCGDataTableRowToParamDataTest"));
@@ -100,6 +106,12 @@ CCC,"C Name","C String","333","3333","3.3","3.33","(X=3.0,Y=3.0)","(X=3.0,Y=3.0,
 
 	const UPCGParamData* Params = Context->OutputData.GetFirstParamsOnParamsPin();
 	UTEST_NOT_NULL("Output params", Params);
+
+	// For static analysis
+	if (!Params)
+	{
+		return false;
+	}
 
 	UTEST_NOT_NULL("Params has metadata", Params->Metadata.Get());
 
