@@ -388,6 +388,7 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraintsPhase1);
 
+		ConstraintSolver.PreApplyPositionConstraints(Dt);
 		ConstraintSolver.ApplyPositionConstraints(Dt);
 	}
 
@@ -395,6 +396,7 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraintsPhase2);
 
+		ConstraintSolver.PreApplyVelocityConstraints(Dt);
 		ConstraintSolver.ApplyVelocityConstraints(Dt);
 	}
 
@@ -402,6 +404,7 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraintsPhase3);
 
+		ConstraintSolver.PreApplyProjectionConstraints(Dt);
 		ConstraintSolver.ApplyProjectionConstraints(Dt);
 	}
 }
