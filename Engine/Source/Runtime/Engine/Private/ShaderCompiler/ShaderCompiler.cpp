@@ -1133,11 +1133,11 @@ static TAutoConsoleVariable<int32> CVarShadersValidation(
 
 static TAutoConsoleVariable<int32> CVarShadersRemoveDeadCode(
 	TEXT("r.Shaders.RemoveDeadCode"),
-	0,
-	TEXT("EXPERIMENTAL: Run a preprocessing step that removes unreferenced code before compiling shaders.\n")
+	1,
+	TEXT("Run a preprocessing step that removes unreferenced code before compiling shaders.\n")
 	TEXT("This can improve the compilation speed for shaders which include many large utility headers.\n")
-	TEXT("\t0: Keep all input source code (Default).\n")
-	TEXT("\t1: Remove unreferenced code before compilation\n"),
+	TEXT("\t0: Keep all input source code.\n")
+	TEXT("\t1: Remove unreferenced code before compilation (Default)\n"),
 	ECVF_ReadOnly);
 
 // note: this cvar is intended to be short-lived; when removing be sure to remove the associated code from

@@ -1104,7 +1104,7 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 	// Process TEXT macro.
 	TransformStringIntoCharacterArray(PreprocessedShader);
 
-	// Run the experimental shader minifier
+	// Run the shader minifier
 	#if UE_METAL_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
 	if (Input.Environment.CompilerFlags.Contains(CFLAG_RemoveDeadCode))
 	{
