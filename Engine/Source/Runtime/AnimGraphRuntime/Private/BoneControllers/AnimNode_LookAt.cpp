@@ -275,13 +275,13 @@ void FAnimNode_LookAt::Initialize_AnyThread(const FAnimationInitializeContext& C
 	LookUp_Axis.Initialize();
 	if (LookUp_Axis.Axis.IsZero())
 	{
-		UE_LOG(LogAnimation, Warning, TEXT("Zero-length look-up axis specified in LookAt node. Reverting to default."));
+		UE_LOG(LogAnimation, Warning, TEXT("Zero-length look-up axis specified in LookAt node. Reverting to default. Instance:%s"), *GetFullNameSafe(Context.GetAnimInstanceObject()));
 		LookUp_Axis.Axis = DefaultLookUpAxis;
 	}
 	LookAt_Axis.Initialize();
 	if (LookAt_Axis.Axis.IsZero())
 	{
-		UE_LOG(LogAnimation, Warning, TEXT("Zero-length look-at axis specified in LookAt node. Reverting to default."));
+		UE_LOG(LogAnimation, Warning, TEXT("Zero-length look-at axis specified in LookAt node. Reverting to default. Instance:%s"), *GetFullNameSafe(Context.GetAnimInstanceObject()));
 		LookAt_Axis.Axis = DefaultLookAtAxis;
 	}
 }
