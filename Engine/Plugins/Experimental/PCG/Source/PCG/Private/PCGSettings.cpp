@@ -233,11 +233,14 @@ void UPCGSettings::FillOverridableParamsPins(TArray<FPCGPinProperties>& OutPins)
 	// Adding the multi-pin connection for params.
 	// If it already exists (and is the correct type), we can keep it.
 	const EPCGDataType* PinType = InputPinsLabelsAndTypes.Find(PCGPinConstants::DefaultParamsLabel);
-	if (PinType && (*PinType != EPCGDataType::Param))
+	if (PinType)
 	{
-		const FString ParamsName = PCGPinConstants::DefaultParamsLabel.ToString();
-		UE_LOG(LogPCG, Error, TEXT("[%s-%s] While adding %s pin, we found another %s pin with not the same allowed type (Param). "
-			"Please rename this pin if you want to take advantage of automatic override. Until then it will probably break your graph."), *GraphName, *NodeName, *ParamsName, *ParamsName);
+		if (*PinType != EPCGDataType::Param)
+		{
+			const FString ParamsName = PCGPinConstants::DefaultParamsLabel.ToString();
+			UE_LOG(LogPCG, Error, TEXT("[%s-%s] While adding %s pin, we found another %s pin with not the same allowed type (Param). "
+				"Please rename this pin if you want to take advantage of automatic override. Until then it will probably break your graph."), *GraphName, *NodeName, *ParamsName, *ParamsName);
+		}
 	}
 	else
 	{
