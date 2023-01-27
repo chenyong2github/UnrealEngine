@@ -120,6 +120,9 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
 	virtual void PostInitProperties() override;
+#if WITH_EDITOR
+	virtual void PostEditUndo() override;
+#endif // WITH_EDITOR
 	//~End UObject interface
 
 	// TODO: check if we need this to be virtual, we don't really need if we're always caching
