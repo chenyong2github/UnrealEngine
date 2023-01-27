@@ -171,7 +171,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 DECLARE_GPU_STAT_NAMED(nDisplay_UVLightCards_Render, TEXT("nDisplay UVLightCards::Render"));
 
-bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCards(FRHICommandListImmediate& RHICmdList, FSceneInterface* InScene, FRenderTarget* InRenderTarget, float ProjectionPlaneSize)
+bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCards(FRHICommandListImmediate& RHICmdList, FSceneInterface* InScene, FRenderTarget* InRenderTarget, float ProjectionPlaneSize, bool bRenderFinalColor)
 {
 	check(IsInRenderingThread());
 
@@ -201,6 +201,12 @@ bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCard
 		EngineShowFlags.SetLumenReflections(0);
 		EngineShowFlags.SetLumenGlobalIllumination(0);
 		EngineShowFlags.SetGlobalIllumination(0);
+
+		EngineShowFlags.SetScreenSpaceAO(0);
+		EngineShowFlags.SetAmbientOcclusion(0);
+		EngineShowFlags.SetDeferredLighting(0);
+		EngineShowFlags.SetVirtualTexturePrimitives(0);
+		EngineShowFlags.SetRectLights(0);
 	}
 
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
@@ -253,7 +259,17 @@ bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCard
 	ViewInitOptions.BackgroundColor = FLinearColor::Black;
 
 	GetRendererModule().CreateAndInitSingleView(RHICmdList, &ViewFamily, &ViewInitOptions);
-	const FSceneView* View = ViewFamily.Views[0];
+	FViewInfo* View = (FViewInfo*)ViewFamily.Views[0];
+
+	if (!bRenderFinalColor)
+	{
+		ViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
+	}
+
+	ViewFamily.EngineShowFlags.SetToneCurve(false);
+	// This flags sets tonampper to output to ETonemapperOutputDevice::LinearNoToneCurve
+	View->FinalPostProcessSettings.bOverride_ToneCurveAmount = 1;
+	View->FinalPostProcessSettings.ToneCurveAmount = 0.0;
 
 	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(InRenderTarget->GetRenderTargetTexture(), TEXT("UVLightCardRenderTarget")));
 	FRenderTargetBinding OutputRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::EClear);

@@ -30,24 +30,44 @@ public:
 	virtual const FDisplayClusterViewport_RenderSettingsICVFX& GetRenderSettingsICVFX_RenderThread() const = 0;
 	virtual const FDisplayClusterViewport_PostRenderSettings& GetPostRenderSettings_RenderThread() const = 0;
 
+	/** Return viewport proxy contexts data. */
 	virtual const TArray<FDisplayClusterViewport_Context>& GetContexts_RenderThread() const = 0;
 
-	//  Return viewport scene proxy resources by type
+	/** Get viewport resources by type
+	 *
+	 * @param InResourceType - resource type (RTT, Shader, MIPS, etc)
+	 * @param OutResources   - [Out] RHI resources array for all contexts
+	 *
+	 * @return - true if success
+	 */
 	virtual bool GetResources_RenderThread(const EDisplayClusterViewportResourceType InResourceType, TArray<FRHITexture2D*>& OutResources) const = 0;
+
+	/** Get viewport resources with rects by type
+	 *
+	 * @param InResourceType - resource type (RTT, Shader, MIPS, etc)
+	 * @param OutResources   - [Out] RHI resources array for all contexts
+	 * @param OutRects       - [Out] RHI resources rects array for all contexts
+	 *
+	 * @return - true if success
+	 */
 	virtual bool GetResourcesWithRects_RenderThread(const EDisplayClusterViewportResourceType InResourceType, TArray<FRHITexture2D*>& OutResources, TArray<FIntRect>& OutRects) const = 0;
 
-	// Resolve resource contexts
+	/** Copy resource contexts by type
+	 *
+	 * @param RHICmdList         - RHIinterface
+	 * @param InputResourceType  - Input resource type (RTT, Shader, MIPS, etc)
+	 * @param OutputResourceType - Output resource type (RTT, Shader, MIPS, etc)
+	 * @param InContextNum       - [optional] the type of context to copy (by default, all contexts are copied).
+	 *
+	 * @return - true if success
+	 */
 	virtual bool ResolveResources_RenderThread(FRHICommandListImmediate& RHICmdList, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType, const int32 InContextNum = INDEX_NONE) const = 0;
 
+	/** Return output resource type (support preview, remap, etc). */
 	virtual EDisplayClusterViewportResourceType   GetOutputResourceType_RenderThread() const = 0;
 
 	virtual const class IDisplayClusterViewportManagerProxy& GetOwner_RenderThread() const = 0;
 
 	virtual void SetRenderSettings_RenderThread(const FDisplayClusterViewport_RenderSettings& InRenderSettings) const = 0;
 	virtual void SetContexts_RenderThread(const TArray<FDisplayClusterViewport_Context>& InContexts) const = 0;
-
-	virtual void OnResolvedSceneColor_RenderThread(class FRDGBuilder& GraphBuilder, const struct FSceneTextures& SceneTextures, const FDisplayClusterViewportProxy_Context& InProxyContext) = 0;
-
-	// Callback. After the viewfamily has finished rendering
-	virtual void PostRenderViewFamily_RenderThread(class FRDGBuilder& InGraphBuilder, class FSceneViewFamily& InViewFamily, const class FSceneView& InSceneView, const FDisplayClusterViewportProxy_Context& InProxyContext) = 0;
 };

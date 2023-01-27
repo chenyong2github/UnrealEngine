@@ -5,11 +5,15 @@
 #include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
 #include "Render/Viewport/DisplayClusterViewport.h"
 #include "Render/Viewport/DisplayClusterViewportManager.h"
+#include "Render/Viewport/DisplayClusterViewportManagerViewExtension.h"
 
 #include "Render/Viewport/Containers/DisplayClusterViewport_PostRenderSettings.h"
+#include "Render/Viewport/Configuration/DisplayClusterViewportConfiguration.h"
+
 #include "Render/Viewport/RenderTarget/DisplayClusterRenderTargetResource.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
-#include "Render/Viewport/Configuration/DisplayClusterViewportConfiguration.h"
+
+#include "Render/Viewport/LightCard/DisplayClusterViewportLightCardManagerProxy.h"
 
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 
@@ -39,9 +43,15 @@
 
 #include "ScreenRendering.h"
 #include "PostProcess/SceneFilterRendering.h"
+#include "PostProcess/PostProcessAA.h"
 #include "SceneRendering.h"
 #include "RenderGraphUtils.h"
 #include "RenderGraphResources.h"
+
+#include "ScreenPass.h"
+#include "PostProcess/PostProcessing.h"
+// for FPostProcessMaterialInputs
+#include "PostProcess/PostProcessMaterial.h"
 
 static TAutoConsoleVariable<int32> CVarDisplayClusterRenderOverscanResolve(
 	TEXT("nDisplay.render.overscan.resolve"),
@@ -51,11 +61,60 @@ static TAutoConsoleVariable<int32> CVarDisplayClusterRenderOverscanResolve(
 	ECVF_RenderThreadSafe
 );
 
+int32 GDisplayClusterShadersICVFXFXAALightCard = 2;
+static FAutoConsoleVariableRef CVarDisplayClusterShadersICVFXFXAALightCard(
+	TEXT("nDisplay.render.icvfx.fxaa.lightcard"),
+	GDisplayClusterShadersICVFXFXAALightCard,
+	TEXT("FXAA quality for lightcard (0 - disable).\n")
+	TEXT("1..6 - FXAA quality from Lowest Quality(Fastest) to Highest Quality(Slowest).\n"),
+	ECVF_RenderThreadSafe
+);
+
+int32 GDisplayClusterShadersICVFXFXAAChromakey = 2;
+static FAutoConsoleVariableRef CVarDisplayClusterShadersICVFXFXAAChromakey(
+	TEXT("nDisplay.render.icvfx.fxaa.chromakey"),
+	GDisplayClusterShadersICVFXFXAAChromakey,
+	TEXT("FXAA quality for chromakey (0 - disable).\n")
+	TEXT("1..6 - FXAA quality from Lowest Quality(Fastest) to Highest Quality(Slowest).\n"),
+	ECVF_RenderThreadSafe
+);
+
 ///////////////////////////////////////////////////////////////////////////////////////
 namespace DisplayClusterViewportProxyHelpers
 {
 	// The viewport override has the maximum depth. This protects against a link cycle
 	static const int32 DisplayClusterViewportProxyResourcesOverrideRecursionDepthMax = 4;
+
+	static bool GetFXAAQuality(const EDisplayClusterViewportCaptureMode InCaptureMode, EFXAAQuality& OutFXAAQuality)
+	{
+		// Get FXAA quality for current viewport
+		EFXAAQuality FXAAQuality = EFXAAQuality::MAX;
+
+		switch (InCaptureMode)
+		{
+		case EDisplayClusterViewportCaptureMode::Chromakey:
+			if (GDisplayClusterShadersICVFXFXAAChromakey > 0)
+			{
+				OutFXAAQuality = (EFXAAQuality)FMath::Clamp(GDisplayClusterShadersICVFXFXAAChromakey - 1, 0, (int32)EFXAAQuality::MAX - 1);
+				return true;
+			}
+			break;
+
+		case EDisplayClusterViewportCaptureMode::Lightcard:
+			if (GDisplayClusterShadersICVFXFXAALightCard > 0)
+			{
+				OutFXAAQuality = (EFXAAQuality)FMath::Clamp(GDisplayClusterShadersICVFXFXAALightCard - 1, 0, (int32)EFXAAQuality::MAX - 1);
+				return true;
+			}
+			break;
+
+		default:
+			break;
+		}
+
+		// No FXAA
+		return false;
+	}
 
 	/**
 	* Get viewport RHI resources
@@ -193,18 +252,40 @@ void FDisplayClusterViewportProxy::HandleResourceDelete_RenderThread(FDisplayClu
 bool FDisplayClusterViewportProxy::IsShouldOverrideViewportResource(const EDisplayClusterViewportResourceType InResourceType) const
 {
 	// Override resources from other viewport
-	if (RenderSettings.OverrideViewportId.IsEmpty() == false)
+	if (RenderSettings.IsViewportOverrided())
 	{
-		switch (InResourceType)
+		switch (RenderSettings.ViewportOverrideMode)
 		{
-		case EDisplayClusterViewportResourceType::InternalRenderTargetResource:
-		case EDisplayClusterViewportResourceType::InputShaderResource:
-		case EDisplayClusterViewportResourceType::MipsShaderResource:
-		case EDisplayClusterViewportResourceType::AdditionalTargetableResource:
-			return true;
+		case EDisplayClusterViewportOverrideMode::All:
+		{
+			switch (InResourceType)
+			{
+			case EDisplayClusterViewportResourceType::InternalRenderTargetResource:
+			case EDisplayClusterViewportResourceType::InputShaderResource:
+			case EDisplayClusterViewportResourceType::MipsShaderResource:
+			case EDisplayClusterViewportResourceType::AdditionalTargetableResource:
+				return true;
+
+			default:
+				break;
+			}
+		}
+		break;
+
+		case EDisplayClusterViewportOverrideMode::InernalRTT:
+		{
+			switch (InResourceType)
+			{
+			case EDisplayClusterViewportResourceType::InternalRenderTargetResource:
+				return true;
+
+			default:
+				break;
+			}
+		}
+		break;
 
 		default:
-			// By default use all output resources from this viewport
 			break;
 		}
 	}
@@ -218,6 +299,40 @@ bool FDisplayClusterViewportProxy::GetResources_RenderThread(const EDisplayClust
 	return ImplGetResources_RenderThread(InResourceType, OutResources, false);
 }
 
+const FDisplayClusterViewportProxy& FDisplayClusterViewportProxy::GetRenderingViewportProxy() const
+{
+	switch (RenderSettings.ViewportOverrideMode)
+	{
+	case EDisplayClusterViewportOverrideMode::All:
+	case EDisplayClusterViewportOverrideMode::InernalRTT:
+		if (FDisplayClusterViewportProxy const* OverrideViewportProxy = Owner->ImplFindViewport_RenderThread(RenderSettings.ViewportOverrideId))
+		{
+			return *OverrideViewportProxy;
+		}
+
+		break;
+	}
+
+	return *this;
+}
+
+bool FDisplayClusterViewportProxy::IsInputRenderTargetResourceExists() const
+{
+	if (PostRenderSettings.Replace.IsEnabled())
+	{
+		// Use external texture
+		return true;
+	}
+
+	if (EnumHasAnyFlags(RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::UVLightcard))
+	{
+		// Use external UVLightCard Resource
+		return true;
+	}
+
+	return !RenderTargets.IsEmpty();
+}
+
 bool FDisplayClusterViewportProxy::ImplGetResources_RenderThread(const EDisplayClusterViewportResourceType InResourceType, TArray<FRHITexture2D*>& OutResources, const int32 InRecursionDepth) const
 {
 	check(IsInRenderingThread());
@@ -227,10 +342,7 @@ bool FDisplayClusterViewportProxy::ImplGetResources_RenderThread(const EDisplayC
 	{
 		if (InRecursionDepth < DisplayClusterViewportProxyResourcesOverrideRecursionDepthMax)
 		{
-			if (FDisplayClusterViewportProxy const* OverrideViewportProxy = Owner->ImplFindViewport_RenderThread(RenderSettings.OverrideViewportId))
-			{
-				return OverrideViewportProxy->ImplGetResources_RenderThread(InResourceType, OutResources, InRecursionDepth + 1);
-			}
+			return GetRenderingViewportProxy().ImplGetResources_RenderThread(InResourceType, OutResources, InRecursionDepth + 1);
 		}
 
 		return false;
@@ -242,29 +354,63 @@ bool FDisplayClusterViewportProxy::ImplGetResources_RenderThread(const EDisplayC
 	{
 	case EDisplayClusterViewportResourceType::InternalRenderTargetResource:
 	{
+		bool bResult = false;
+
 		if (Contexts.Num() > 0)
 		{
-			for (int32 ContextIt = 0; ContextIt < Contexts.Num(); ContextIt++)
+
+			// 1. Replace RTT from configuration
+			if (!bResult && PostRenderSettings.Replace.IsEnabled())
 			{
+				bResult = true;
+
 				// Support texture replace:
-				if (PostRenderSettings.Replace.IsEnabled())
+				if (FRHITexture2D* ReplaceTextureRHI = PostRenderSettings.Replace.TextureRHI->GetTexture2D())
 				{
-					OutResources.Add(PostRenderSettings.Replace.TextureRHI->GetTexture2D());
-				}
-				else
-				{
-					if (ContextIt < RenderTargets.Num())
+					for (int32 ContextIndex = 0; ContextIndex < Contexts.Num(); ContextIndex++)
 					{
-						if (FDisplayClusterViewportRenderTargetResource* Input = RenderTargets[ContextIt])
+						OutResources.Add(ReplaceTextureRHI);
+					}
+				}
+			}
+
+			// 2. Replace RTT from UVLightCard:
+			if (!bResult && EnumHasAnyFlags(RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::UVLightcard))
+			{
+				bResult = true;
+				
+				// Get resources from external UV LightCard manager
+				TSharedPtr<FDisplayClusterViewportLightCardManagerProxy, ESPMode::ThreadSafe> LightCardManager = Owner->GetLightCardManagerProxy_RenderThread();
+				if (LightCardManager.IsValid())
+				{
+					if (FRHITexture* UVLightCardRHIResource = LightCardManager->GetUVLightCardRHIResource_RenderThread())
+					{
+						for (int32 ContextIndex = 0; ContextIndex < Contexts.Num(); ContextIndex++)
+						{
+							OutResources.Add(UVLightCardRHIResource);
+						}
+					}
+				}
+			}
+
+			// 3. Finally Use InternalRTT
+			if (!bResult)
+			{
+				for (int32 ContextIndex = 0; ContextIndex < Contexts.Num(); ContextIndex++)
+				{
+					if (RenderTargets.IsValidIndex(ContextIndex))
+					{
+						if (FDisplayClusterViewportRenderTargetResource* Input = RenderTargets[ContextIndex])
 						{
 							OutResources.Add(Input->GetViewportRenderTargetResourceRHI());
+							bResult = true;
 						}
 					}
 				}
 			}
 		}
 
-		if (Contexts.Num() != OutResources.Num())
+		if (!bResult || Contexts.Num() != OutResources.Num())
 		{
 			OutResources.Empty();
 		}
@@ -471,10 +617,7 @@ bool FDisplayClusterViewportProxy::ImplGetResourcesWithRects_RenderThread(const 
 	{
 		if (InRecursionDepth < DisplayClusterViewportProxyResourcesOverrideRecursionDepthMax)
 		{
-			if (FDisplayClusterViewportProxy const* OverrideViewportProxy = Owner->ImplFindViewport_RenderThread(RenderSettings.OverrideViewportId))
-			{
-				return OverrideViewportProxy->ImplGetResourcesWithRects_RenderThread(InResourceType, OutResources, OutResourceRects, InRecursionDepth + 1);
-			}
+			return GetRenderingViewportProxy().ImplGetResourcesWithRects_RenderThread(InResourceType, OutResources, OutResourceRects, InRecursionDepth + 1);
 		}
 
 		return false;
@@ -521,25 +664,66 @@ bool FDisplayClusterViewportProxy::ImplGetResourcesWithRects_RenderThread(const 
 	return true;
 }
 
-// Apply postprocess, generate mips, etc from settings in FDisplayClusterViewporDeferredUpdateSettings
 void FDisplayClusterViewportProxy::UpdateDeferredResources(FRHICommandListImmediate& RHICmdList) const
 {
 	check(IsInRenderingThread());
 
-	if (RenderTargets.Num() == 0 && PostRenderSettings.Replace.IsEnabled() == false)
-	{
-		// Internal RTT required for deferred update. Except when use 'Replace' as source
-		return;
-	}
-
-	if (RenderSettings.bFreezeRendering || RenderSettings.bSkipRendering || RenderSettings.OverrideViewportId.IsEmpty() == false)
+	if (RenderSettings.bFreezeRendering || RenderSettings.bSkipRendering)
 	{
 		// Disable deferred update
 		return;
 	}
 
-	// Pass 0: Resolve from RTT region to separated viewport context resource:
-	ResolveResources_RenderThread(RHICmdList, EDisplayClusterViewportResourceType::InternalRenderTargetResource, EDisplayClusterViewportResourceType::InputShaderResource);
+	if (RenderSettings.IsViewportOverrided() && RenderSettings.ViewportOverrideMode == EDisplayClusterViewportOverrideMode::All)
+	{
+		// Disable deferred update for clone viewports
+		return;
+	}
+
+	const FDisplayClusterViewportProxy& SourceViewportProxy = GetRenderingViewportProxy();
+	if(!SourceViewportProxy.IsInputRenderTargetResourceExists())
+	{
+		// No input RTT resource for deferred update
+		return;
+	}
+
+	bool bPass0Applied = false;
+
+	// Support OCIO on pass 0
+	if (OpenColorIO.IsValid() && OpenColorIO->IsEnabled_RenderThread())
+	{
+		TArray<FRHITexture2D*> Input, Output;
+		TArray<FIntRect> InputRects, OutputRects;
+		if (SourceViewportProxy.GetResourcesWithRects_RenderThread(EDisplayClusterViewportResourceType::InternalRenderTargetResource, Input, InputRects)
+			&& GetResourcesWithRects_RenderThread(EDisplayClusterViewportResourceType::InputShaderResource, Output, OutputRects)
+			&& Input.Num() == Output.Num())
+		{
+			FRDGBuilder GraphBuilder(RHICmdList);
+
+			for (int32 ContextNum = 0; ContextNum < Input.Num(); ContextNum++)
+			{
+				if (OpenColorIO->AddPass_RenderThread(
+					GraphBuilder,
+					SourceViewportProxy.GetContexts_RenderThread()[ContextNum],
+					Input[ContextNum], InputRects[ContextNum],
+					Output[ContextNum], OutputRects[ContextNum]))
+				{
+					bPass0Applied = true;
+				}
+			}
+
+			if (bPass0Applied)
+			{
+				GraphBuilder.Execute();
+			}
+		}
+	}
+	
+	if(!bPass0Applied)
+	{
+		// Pass 0: Resolve from RTT region to separated viewport context resource:
+		ResolveResources_RenderThread(RHICmdList, EDisplayClusterViewportResourceType::InternalRenderTargetResource, EDisplayClusterViewportResourceType::InputShaderResource);
+	}
 
 	// Pass 1: Generate blur postprocess effect for render target texture rect for all contexts
 	if (PostRenderSettings.PostprocessBlur.IsEnabled())
@@ -578,7 +762,7 @@ void FDisplayClusterViewportProxy::UpdateDeferredResources(FRHICommandListImmedi
 }
 
 template<class TScreenPixelShader>
-void ResampleCopyTextureImpl_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture, const FIntRect& SrcRect, const FIntRect& DstRect, const bool bCopyOnlyAlphaChannel)
+void ResampleCopyTextureImpl_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture, const FIntRect& SrcRect, const FIntRect& DstRect, const EDisplayClusterTextureCopyMode InCopyMode = EDisplayClusterTextureCopyMode::RGBA)
 {
 	// Texture format mismatch, use a shader to do the copy.
 	// #todo-renderpasses there's no explicit resolve here? Do we need one?
@@ -598,22 +782,26 @@ void ResampleCopyTextureImpl_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-		if(bCopyOnlyAlphaChannel)
+		switch (InCopyMode)
 		{
+		case EDisplayClusterTextureCopyMode::Alpha:
 			// Copy alpha channel from source to dest
-			// RT0ColorWriteMask,RT0ColorBlendOp,RT0ColorSrcBlend,RT0ColorDestBlend,RT0AlphaBlendOp,RT0AlphaSrcBlend,RT0AlphaDestBlend,
 			GraphicsPSOInit.BlendState = TStaticBlendState <CW_ALPHA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
-		}
-		else
-		{
-		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+			break;
+
+		case EDisplayClusterTextureCopyMode::RGB:
+			// Copy only RGB channels from source to dest
+			GraphicsPSOInit.BlendState = TStaticBlendState <CW_RGB, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
+			break;
+
+		case EDisplayClusterTextureCopyMode::RGBA:
+		default:
+			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+			break;
 		}
 
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-
-
 
 		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 		TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
@@ -660,7 +848,7 @@ void ImplResolveResource(FRHICommandListImmediate& RHICmdList, FRHITexture2D* In
 	if (bOutputIsPreviewResource)
 	{
 		// Preview require a normal alpha (re-invert)
-		ResampleCopyTextureImpl_RenderThread<FScreenPSInvertAlpha>(RHICmdList, InputResource, OutputResource, InputRect, OutputRect, false);
+		ResampleCopyTextureImpl_RenderThread<FScreenPSInvertAlpha>(RHICmdList, InputResource, OutputResource, InputRect, OutputRect);
 	}
 	else if (InputRect.Size() == OutputRect.Size() && InputResource->GetFormat() == OutputResource->GetFormat())
 	{
@@ -675,7 +863,7 @@ void ImplResolveResource(FRHICommandListImmediate& RHICmdList, FRHITexture2D* In
 	}
 	else
 	{
-		ResampleCopyTextureImpl_RenderThread<FScreenPS>(RHICmdList, InputResource, OutputResource, InputRect, OutputRect, false);
+		ResampleCopyTextureImpl_RenderThread<FScreenPS>(RHICmdList, InputResource, OutputResource, InputRect, OutputRect);
 	}
 }
 
@@ -762,10 +950,177 @@ bool FDisplayClusterViewportProxy::ImplResolveResources_RenderThread(FRHICommand
 	return false;
 }
 
-void FDisplayClusterViewportProxy::OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, const FDisplayClusterViewportProxy_Context& InProxyContext)
-{ }
+bool FDisplayClusterViewportProxy::CopyResource_RenderThread(FRDGBuilder& GraphBuilder, const EDisplayClusterTextureCopyMode InCopyMode, const int32 InContextNum, const EDisplayClusterViewportResourceType InSrcResourceType, const EDisplayClusterViewportResourceType InDestResourceType)
+{
+	TArray<FRHITexture2D*> SrcResources;
+	TArray<FIntRect> SrcResourceRects;
+	if (GetResourcesWithRects_RenderThread(InSrcResourceType, SrcResources, SrcResourceRects))
+	{
+		check(SrcResources.IsValidIndex(InContextNum));
+		check(SrcResourceRects.IsValidIndex(InContextNum));
 
-void FDisplayClusterViewportProxy::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily, const FSceneView& InSceneView, const FDisplayClusterViewportProxy_Context& InProxyContext)
+		const FIntRect SrcRect = SrcResourceRects[InContextNum];
+
+		FRDGTextureRef SrcTextureRef = RegisterExternalTexture(GraphBuilder, SrcResources[InContextNum]->GetTexture2D(), TEXT("DCViewportProxyCopySrcResource"));
+		GraphBuilder.SetTextureAccessFinal(SrcTextureRef, ERHIAccess::SRVGraphics);
+
+		return CopyResource_RenderThread(GraphBuilder, InCopyMode, InContextNum, SrcTextureRef, SrcRect, InDestResourceType);
+	}
+
+	return false;
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FDisplayClusterCopyTextureParameters, )
+RDG_TEXTURE_ACCESS(Input, ERHIAccess::CopySrc)
+RDG_TEXTURE_ACCESS(Output, ERHIAccess::CopyDest)
+END_SHADER_PARAMETER_STRUCT()
+
+bool FDisplayClusterViewportProxy::CopyResource_RenderThread(FRDGBuilder& GraphBuilder, const EDisplayClusterTextureCopyMode InCopyMode, const int32 InContextNum, FRDGTextureRef InSrcTextureRef, const FIntRect& InSrcRect, const EDisplayClusterViewportResourceType InDestResourceType)
+{
+	TArray<FRHITexture2D*> DestResources;
+	TArray<FIntRect> DestResourceRects;
+	if (HasBeenProduced(InSrcTextureRef) && GetResourcesWithRects_RenderThread(InDestResourceType, DestResources, DestResourceRects))
+	{
+		check(DestResources.IsValidIndex(InContextNum));
+		check(DestResourceRects.IsValidIndex(InContextNum));
+
+		FRDGTextureRef DestTextureRef = RegisterExternalTexture(GraphBuilder, DestResources[InContextNum]->GetTexture2D(), TEXT("DCViewportProxyCopyDestResource"));
+		const FIntRect DestRect = DestResourceRects[InContextNum];
+
+		FDisplayClusterCopyTextureParameters* PassParameters = GraphBuilder.AllocParameters<FDisplayClusterCopyTextureParameters>();
+		PassParameters->Input = InSrcTextureRef;
+		PassParameters->Output = DestTextureRef;
+		GraphBuilder.SetTextureAccessFinal(DestTextureRef, ERHIAccess::RTV);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("DisplayClusterViewportProxy_CopyResource(%s)", *GetId()),
+			PassParameters,
+			ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
+			[InCopyMode, InContextNum, InSrcTextureRef, InSrcRect, DestTextureRef, DestRect](FRHICommandListImmediate& RHICmdList)
+			{
+				ResampleCopyTextureImpl_RenderThread<FScreenPS>(RHICmdList, InSrcTextureRef->GetRHI(), DestTextureRef->GetRHI(), InSrcRect, DestRect, InCopyMode);
+			});
+
+		return true;
+	}
+
+	return false;
+}
+
+bool FDisplayClusterViewportProxy::CopyResource_RenderThread(FRDGBuilder& GraphBuilder, const EDisplayClusterTextureCopyMode InCopyMode, const int32 InContextNum, const EDisplayClusterViewportResourceType InSrcResourceType, FRDGTextureRef InDestTextureRef, const FIntRect& InDestRect)
+{
+	TArray<FRHITexture2D*> SrcResources;
+	TArray<FIntRect> SrcResourceRects;
+	if (HasBeenProduced(InDestTextureRef) && GetResourcesWithRects_RenderThread(InSrcResourceType, SrcResources, SrcResourceRects))
+	{
+		check(SrcResources.IsValidIndex(InContextNum));
+		check(SrcResourceRects.IsValidIndex(InContextNum));
+
+		FRDGTextureRef SrcTextureRef = RegisterExternalTexture(GraphBuilder, SrcResources[InContextNum]->GetTexture2D(), TEXT("DCViewportProxyCopySrcResource"));
+		const FIntRect SrcRect = SrcResourceRects[InContextNum];
+
+		FDisplayClusterCopyTextureParameters* PassParameters = GraphBuilder.AllocParameters<FDisplayClusterCopyTextureParameters>();
+		PassParameters->Input = SrcTextureRef;
+		PassParameters->Output = InDestTextureRef;
+		GraphBuilder.SetTextureAccessFinal(SrcTextureRef, ERHIAccess::RTV);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("DisplayClusterViewportProxy_CopyResource(%s)", *GetId()),
+			PassParameters,
+			ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
+			[InCopyMode, InContextNum, SrcTextureRef, SrcRect, InDestTextureRef, InDestRect](FRHICommandListImmediate& RHICmdList)
+			{
+				ResampleCopyTextureImpl_RenderThread<FScreenPS>(RHICmdList, SrcTextureRef->GetRHI(), InDestTextureRef->GetRHI(), SrcRect, InDestRect, InCopyMode);
+			});
+
+		return true;
+	}
+
+	return false;
+}
+
+bool FDisplayClusterViewportProxy::ShouldUseAlphaChannel_RenderThread() const
+{
+	// Chromakey and Light Cards use alpha channel
+	if (EnumHasAnyFlags(RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::Lightcard | EDisplayClusterViewportRuntimeICVFXFlags::Chromakey))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool FDisplayClusterViewportProxy::ShouldUsePostProcessPassAfterSSRInput() const
+{	
+	if (ShouldUseAlphaChannel_RenderThread())
+	{
+		return Owner->GetRenderFrameSettings_RenderThread().AlphaChannelCaptureMode == EDisplayClusterRenderFrameAlphaChannelCaptureMode::ThroughTonemapper;
+	}
+
+	return false;
+}
+
+bool FDisplayClusterViewportProxy::ShouldUsePostProcessPassAfterFXAA() const
+{
+	if (ShouldUseAlphaChannel_RenderThread())
+	{
+		return Owner->GetRenderFrameSettings_RenderThread().AlphaChannelCaptureMode == EDisplayClusterRenderFrameAlphaChannelCaptureMode::ThroughTonemapper;
+	}
+
+	return false;
+}
+
+void FDisplayClusterViewportProxy::OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, const FDisplayClusterViewportProxy_Context& InProxyContext)
+{
+	const uint32 InContextNum = InProxyContext.ContextNum;
+	if (ShouldUseAlphaChannel_RenderThread())
+	{
+		switch (Owner->GetRenderFrameSettings_RenderThread().AlphaChannelCaptureMode)
+		{
+		case EDisplayClusterRenderFrameAlphaChannelCaptureMode::FXAA:
+		case EDisplayClusterRenderFrameAlphaChannelCaptureMode::Copy:
+		case EDisplayClusterRenderFrameAlphaChannelCaptureMode::CopyAA:
+		{
+			const FIntRect SrcRect = GetFinalContextRect(EDisplayClusterViewportResourceType::InternalRenderTargetResource, Contexts[InContextNum].RenderTargetRect);
+			// Copy alpha channel from 'SceneTextures.Color.Resolve' to 'InputShaderResource'
+			CopyResource_RenderThread(GraphBuilder, EDisplayClusterTextureCopyMode::Alpha, InContextNum, SceneTextures.Color.Resolve, SrcRect, EDisplayClusterViewportResourceType::InputShaderResource);
+		}
+		break;
+
+		default:
+			break;
+		}
+	}
+}
+
+FScreenPassTexture FDisplayClusterViewportProxy::OnPostProcessPassAfterSSRInput_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs, const uint32 ContextNum)
+{
+	FScreenPassTexture OutScreenPassTexture = FDisplayClusterViewportManagerViewExtension::ReturnUntouchedSceneColorForPostProcessing(Inputs);
+	if (OutScreenPassTexture.IsValid())
+	{
+		// Copy alpha channel to 'InputShaderResource'
+		const FIntRect SrcRect = GetFinalContextRect(EDisplayClusterViewportResourceType::InternalRenderTargetResource, Contexts[ContextNum].RenderTargetRect);
+		CopyResource_RenderThread(GraphBuilder, EDisplayClusterTextureCopyMode::Alpha, ContextNum, OutScreenPassTexture.Texture, SrcRect, EDisplayClusterViewportResourceType::InputShaderResource);
+	}
+
+	return OutScreenPassTexture;
+}
+
+FScreenPassTexture FDisplayClusterViewportProxy::OnPostProcessPassAfterFXAA_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs, const uint32 ContextNum)
+{
+	FScreenPassTexture OutScreenPassTexture = FDisplayClusterViewportManagerViewExtension::ReturnUntouchedSceneColorForPostProcessing(Inputs);
+	if (OutScreenPassTexture.IsValid())
+	{
+		// Restore alpha channel after OCIO
+		// Copy alpha channel from 'InputShaderResource'
+		const FIntRect DestRect = GetFinalContextRect(EDisplayClusterViewportResourceType::InternalRenderTargetResource, Contexts[ContextNum].RenderTargetRect);
+		CopyResource_RenderThread(GraphBuilder, EDisplayClusterTextureCopyMode::Alpha, ContextNum, EDisplayClusterViewportResourceType::InputShaderResource, OutScreenPassTexture.Texture, DestRect);
+	}
+
+	return OutScreenPassTexture;
+}
+
+void FDisplayClusterViewportProxy::OnPostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily, const FSceneView& InSceneView, const FDisplayClusterViewportProxy_Context& InProxyContext)
 {
 	const uint32 InContextNum = InProxyContext.ContextNum;
 
@@ -781,6 +1136,12 @@ void FDisplayClusterViewportProxy::PostRenderViewFamily_RenderThread(FRDGBuilder
 	}
 #endif
 
+	if (Contexts.IsValidIndex(InContextNum))
+	{
+		Contexts[InContextNum].RenderThreadData.EngineDisplayGamma = InSceneView.Family->RenderTarget->GetDisplayGamma();
+		Contexts[InContextNum].RenderThreadData.EngineShowFlags = InSceneView.Family->EngineShowFlags;
+	}
+
 	if (!InProxyContext.ViewFamilyProfileDescription.IsEmpty())
 	{
 		static IDisplayClusterCallbacks& DCCallbacksAPI = IDisplayCluster::Get().GetCallbacks();
@@ -788,6 +1149,68 @@ void FDisplayClusterViewportProxy::PostRenderViewFamily_RenderThread(FRDGBuilder
 		{
 			// Now we can perform viewport notification
 			DCCallbacksAPI.OnDisplayClusterPostRenderViewFamily_RenderThread().Broadcast(GraphBuilder, InViewFamily, this);
+		}
+	}
+
+	if (ShouldUseAlphaChannel_RenderThread())
+	{
+		switch (Owner->GetRenderFrameSettings_RenderThread().AlphaChannelCaptureMode)
+		{
+		case EDisplayClusterRenderFrameAlphaChannelCaptureMode::FXAA:
+		{
+			// Restore alpha channed
+			EFXAAQuality FXAAQuality = EFXAAQuality::Q0;
+			if (GetFXAAQuality(RenderSettings.CaptureMode, FXAAQuality))
+			{
+				// Apply FXAA for RGB only
+				// Note: Add AA for alpha channel
+
+				// Copy Alpha channels back from'InputShaderResource' to 'InternalRenderTargetResource'
+				CopyResource_RenderThread(GraphBuilder, EDisplayClusterTextureCopyMode::Alpha, InContextNum, EDisplayClusterViewportResourceType::InputShaderResource, EDisplayClusterViewportResourceType::InternalRenderTargetResource);
+
+				checkSlow(InSceneView.bIsViewInfo);
+				const FViewInfo& ViewInfo = static_cast<const FViewInfo&>(InSceneView);
+
+				// 1. Copy RGB channels from 'InternalRenderTargetResource' to 'InputShaderResource'
+				CopyResource_RenderThread(GraphBuilder, EDisplayClusterTextureCopyMode::RGB, InContextNum, EDisplayClusterViewportResourceType::InternalRenderTargetResource, EDisplayClusterViewportResourceType::InputShaderResource);
+
+				check(InputShaderResources.IsValidIndex(InContextNum));
+				if (FDisplayClusterViewportTextureResource* InputResource = InputShaderResources[InContextNum])
+				{
+					// 2. FXAA render pass to 'InputShaderResource'
+					// Input is 'InputShaderResource'
+					FRDGTextureRef InputTexture = RegisterExternalTexture(GraphBuilder, InputResource->GetTextureRHI(), TEXT("DCViewportProxyFXAAResource"));
+					GraphBuilder.SetTextureAccessFinal(InputTexture, ERHIAccess::RTV);
+
+					FFXAAInputs PassInputs;
+					PassInputs.SceneColor = FScreenPassTexture(InputTexture);
+					PassInputs.Quality = FXAAQuality;
+
+					// 2.1. Do FXAA
+					FScreenPassTexture OutputColorTexture = AddFXAAPass(GraphBuilder, ViewInfo, PassInputs);
+
+					// 2.2. Copy FXAA result from 'OutputTexture' to the 'InternalRenderTargetResource'
+					if (OutputColorTexture.Texture)
+					{
+						const FIntVector OutputTextureSize = OutputColorTexture.Texture->Desc.GetSize();
+						const FIntRect SrcRect(FIntPoint(0, 0), FIntPoint(OutputTextureSize.X, OutputTextureSize.Y));
+
+						CopyResource_RenderThread(GraphBuilder, EDisplayClusterTextureCopyMode::RGB, InContextNum, OutputColorTexture.Texture, SrcRect, EDisplayClusterViewportResourceType::InternalRenderTargetResource);
+					}
+				}
+				break;
+			}
+			// don't break (FXAA not used, just copy alpha)
+		}
+
+		case EDisplayClusterRenderFrameAlphaChannelCaptureMode::Copy:
+		case EDisplayClusterRenderFrameAlphaChannelCaptureMode::CopyAA:
+			// Copy Alpha channels back from'InputShaderResource' to 'InternalRenderTargetResource'
+			CopyResource_RenderThread(GraphBuilder, EDisplayClusterTextureCopyMode::Alpha, InContextNum, EDisplayClusterViewportResourceType::InputShaderResource, EDisplayClusterViewportResourceType::InternalRenderTargetResource);
+			break;
+
+		default:
+			break;
 		}
 	}
 }

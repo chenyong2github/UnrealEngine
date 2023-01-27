@@ -450,29 +450,3 @@ UDisplayClusterConfigurationData* UDisplayClusterConfigurationData::CreateNewCon
 
 	return NewConfigData;
 }
-
-FDisplayClusterConfigurationICVFX_CameraRenderSettings::FDisplayClusterConfigurationICVFX_CameraRenderSettings()
-{
-	// Setup incamera defaults:
-	GenerateMips.bAutoGenerateMips = true;
-}
-
-FDisplayClusterConfigurationOCIOConfiguration::FDisplayClusterConfigurationOCIOConfiguration()
-{
-	OCIOConfiguration.bIsEnabled = true;
-}
-
-FDisplayClusterConfigurationOCIOProfile::FDisplayClusterConfigurationOCIOProfile()
-{
-	OCIOConfiguration.bIsEnabled = true;
-}
-
-FDisplayClusterConfigurationICVFX_CameraCustomFrustum::FDisplayClusterConfigurationICVFX_CameraCustomFrustum():
-	EstimatedOverscanResolution(ForceInitToZero), InnerFrustumResolution(ForceInitToZero), OverscanPixelsIncrease(0.f)
-{
-}
-
-FDisplayClusterConfigurationICVFX_CameraSettings::FDisplayClusterConfigurationICVFX_CameraSettings()
-{
-	AllNodesColorGrading.bEnableEntireClusterColorGrading = true;
-}

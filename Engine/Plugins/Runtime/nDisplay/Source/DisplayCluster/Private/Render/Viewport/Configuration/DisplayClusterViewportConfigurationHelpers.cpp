@@ -185,7 +185,7 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 
 	const FDisplayClusterConfigurationViewport_RenderSettings& InRenderSettings = InConfigurationViewport.RenderSettings;
 
-	// OCIO
+	// Update OCIO for Viewport
 	FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateBaseViewport(DstViewport, RootActor, InConfigurationViewport);
 
 	// Additional per-viewport PostProcess
@@ -229,7 +229,7 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 
 		if (InConfigurationViewport.ICVFX.bAllowICVFX)
 		{
-			TargetFlags |= ViewportICVFX_Enable;
+			EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::Enable);
 
 			EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode CameraRenderMode = InConfigurationViewport.ICVFX.CameraRenderMode;
 
@@ -243,20 +243,22 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 			{
 				// Disable camera frame render for this viewport
 			case EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode::Disabled:
-				TargetFlags |= ViewportICVFX_DisableCamera | ViewportICVFX_DisableChromakey | ViewportICVFX_DisableChromakeyMarkers;
+				EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::DisableCamera | EDisplayClusterViewportICVFXFlags::DisableChromakey | EDisplayClusterViewportICVFXFlags::DisableChromakeyMarkers);
 				break;
 
 				// Disable chromakey render for this viewport
 			case EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode::DisableChromakey:
-				TargetFlags |= ViewportICVFX_DisableChromakey | ViewportICVFX_DisableChromakeyMarkers;
+				EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::DisableChromakey | EDisplayClusterViewportICVFXFlags::DisableChromakeyMarkers);
 				break;
 
 				// Disable chromakey markers render for this viewport
 			case EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode::DisableChromakeyMarkers:
-				TargetFlags |= ViewportICVFX_DisableChromakeyMarkers;
+
+				EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::DisableChromakeyMarkers);
 				break;
-				// Use default rendering rules
+
 			default:
+				// Use default rendering rules
 				break;
 			}
 
@@ -264,18 +266,21 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 			{
 				// Render incamera frame over lightcard for this viewport
 			case EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode::Over:
-				TargetFlags |= ViewportICVFX_OverrideLightcardMode;
+
+				EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::OverrideLightcardMode);
 				DstViewport.RenderSettingsICVFX.ICVFX.LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Over;
 				break;
 
 				// Over lightcard over incamera frame  for this viewport
 			case EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode::Under:
-				TargetFlags |= ViewportICVFX_OverrideLightcardMode;
+
+				EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::OverrideLightcardMode);
 				DstViewport.RenderSettingsICVFX.ICVFX.LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Under;
 				break;
 
 			case EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode::Disabled:
-				TargetFlags |= ViewportICVFX_DisableLightcard;
+
+				EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::DisableLightcard);
 				break;
 
 			default:

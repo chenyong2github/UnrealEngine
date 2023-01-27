@@ -21,9 +21,8 @@ namespace DisplayClusterRenderTargetManager
 		switch (CaptureMode)
 		{
 		case EDisplayClusterViewportCaptureMode::Chromakey:
-			return EPixelFormat::PF_B8G8R8A8;
-
 		case EDisplayClusterViewportCaptureMode::Lightcard:
+			// The Chromakey and LightCard always uses PF_FloatRGBA for OCIO support.
 			return EPixelFormat::PF_FloatRGBA;
 
 		case EDisplayClusterViewportCaptureMode::MoviePipeline:

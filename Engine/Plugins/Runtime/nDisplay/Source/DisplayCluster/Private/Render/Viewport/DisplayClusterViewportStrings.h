@@ -14,10 +14,11 @@ namespace DisplayClusterViewportStrings
 	// ICVFXstrings
 	namespace icvfx
 	{
-		static constexpr const TCHAR* prefix         = TEXT("icvfx");
-		static constexpr const TCHAR* camera         = TEXT("incamera");
-		static constexpr const TCHAR* chromakey      = TEXT("chromakey");
-		static constexpr const TCHAR* lightcard      = TEXT("lightcard");
-		static constexpr const TCHAR* lightcard_OCIO = TEXT("lightcard_ocio");
+		static constexpr const TCHAR* prefix       = TEXT("icvfx");
+		static constexpr const TCHAR* camera       = TEXT("incamera");
+		static constexpr const TCHAR* chromakey    = TEXT("chromakey");
+		static constexpr const TCHAR* lightcard    = TEXT("lightcard");
+		static constexpr const TCHAR* uv_lightcard = TEXT("uv_lightcard");
+		
 	}
 };

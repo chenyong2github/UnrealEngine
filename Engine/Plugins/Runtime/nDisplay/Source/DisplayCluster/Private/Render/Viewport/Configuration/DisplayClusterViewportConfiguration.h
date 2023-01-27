@@ -48,7 +48,12 @@ private:
 
 	void ImplUpdateRenderFrameConfiguration(const FDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration);
 	void ImplPostUpdateRenderFrameConfiguration();
-	void ImplUpdateConfigurationVisibility(ADisplayClusterRootActor& InRootActor, const UDisplayClusterConfigurationData& InConfigurationData);
+
+	/** Hide DCRA components for nDisplay rendering.*/
+	void ImplUpdateConfigurationVisibility(ADisplayClusterRootActor& InRootActor, const UDisplayClusterConfigurationData& InConfigurationData) const;
+
+	/** Get alpha channel capture mode (for LightCard, ChromaKey).*/
+	EDisplayClusterRenderFrameAlphaChannelCaptureMode GetAlphaChannelCaptureMode() const;
 
 private:
 	FDisplayClusterViewportManager&    ViewportManager;

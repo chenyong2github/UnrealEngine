@@ -32,26 +32,33 @@ OutputPS Passthrough_PS(OutputVS IN)
 	return OUT;
 }
 
-float4 GetIcvfxOverlayColor(float2 OverlayUV)
+////////////////////////////////////////////////////////////////////////////////
+// LightCard
+////////////////////////////////////////////////////////////////////////////////
+float4 GetLightCardTextureColor(float2 InUV)
 {
-	float4 OverlayColor = OverlayTexture.Sample(OverlaySampler, OverlayUV).rgba;
-
-#if OVERLAY_ALPHA
-	OverlayColor.a = OverlayAlphaTexture.Sample(OverlayAlphaSampler, OverlayUV).a;
-#endif
-
-	return OverlayColor;
+	return LightCardTexture.Sample(LightCardSampler, InUV);
 }
 
-float3 ComposeIcvfxOverlay(float3 OutColor, float2 OverlayUV)
+float4 GetUVLightCardTextureColor(float2 InUV)
 {
+	float4 OutColor =UVLightCardTexture.Sample(UVLightCardSampler, InUV);
 
-	float4 OverlayColor = GetIcvfxOverlayColor(OverlayUV);
-	float3 FinalColor = OverlayColor.xyz + OutColor * OverlayColor.w;
-
-	return FinalColor;
+	// UVLightCard alpha not inverted
+	return float4(OutColor.xyz, 1 - OutColor.w);
 }
 
+float3 ComposeOverlayColor(float4 InColor, float4 InOverlayColor)
+{
+	return InOverlayColor.xyz + InColor.xyz * InOverlayColor.w;
+}
+
+float4 AddOverlayColor(float4 InColor, float4 InOverlayColor)
+{
+	return float4(ComposeOverlayColor(InColor, InOverlayColor), max(InColor.w, InOverlayColor.w));
+}
+
+////////////////////////////////////////////////////////////////////////////////
 float2 TileUV(float2 InUV, float InScale)
 {
     return frac(InUV * InScale);
@@ -174,13 +181,6 @@ float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
 	return CameraColor;
 }
 
-float3 GetUVLightCard(float3 SourceColor, float2 UV)
-{
-	// LightCardColor will have a pre-multiplied alpha, so use a pre-multiplied alpha compositing formula
-	float4 LightCardColor = UVLightCardMapTexture.Sample(UVLightCardMapSampler, UV);
-	return SourceColor.rgb * (1 - LightCardColor.a) + LightCardColor.rgb;
-}
-
 OutputPS IcvfxWarpPS(OutputVS IN)
 {
 	OutputPS OUT;
@@ -211,12 +211,11 @@ OutputPS IcvfxWarpPS(OutputVS IN)
 		float4 OutColor = float4(InputTexture.Sample(InputSampler, ViewportUV).rgb, 1.0f);
 	#endif
 
-	#if OVERLAY_UNDER
-		#if UV_LIGHT_CARDS
-			OutColor.xyz = GetUVLightCard(OutColor.xyz, IN.UV_Chromakey.xy);
-		#endif
-	
-		OutColor.xyz = ComposeIcvfxOverlay(OutColor.xyz, OverlayUV);
+	#if LIGHTCARD_UNDER
+		OutColor.xyz = ComposeOverlayColor(OutColor, GetLightCardTextureColor(OverlayUV));
+	#endif
+	#if UVLIGHTCARD_UNDER
+		OutColor.xyz = ComposeOverlayColor(OutColor, GetUVLightCardTextureColor(IN.UV_Chromakey.xy));
 	#endif
 	
 	#if INNER_CAMERA
@@ -224,12 +223,11 @@ OutputPS IcvfxWarpPS(OutputVS IN)
 		OutColor.xyz = lerp(OutColor.xyz, CameraColor.xyz, CameraColor.w);
 	#endif
 
-	#if OVERLAY_OVER
-		#if UV_LIGHT_CARDS
-			OutColor.xyz = GetUVLightCard(OutColor.xyz, IN.UV_Chromakey.xy);
-		#endif
-
-		OutColor.xyz = ComposeIcvfxOverlay(OutColor.xyz, OverlayUV);
+	#if LIGHTCARD_OVER
+		OutColor.xyz = ComposeOverlayColor(OutColor, GetLightCardTextureColor(OverlayUV));
+	#endif
+	#if UVLIGHTCARD_OVER
+		OutColor.xyz = ComposeOverlayColor(OutColor, GetUVLightCardTextureColor(IN.UV_Chromakey.xy));
 	#endif
 
 #else 
@@ -237,11 +235,15 @@ OutputPS IcvfxWarpPS(OutputVS IN)
 	#if INNER_CAMERA
 		float4 OutColor = GetInnerCameraColor(WarpedUV, IN);
 	#else
-		#if OVERLAY_OVER
-			float4 OutColor = GetIcvfxOverlayColor(OverlayUV);
-		#else
-			float4 OutColor = float4(0, 0, 0, 0);
+		float4 OutColor = float4(0, 0, 0, 0);
+
+		#if LIGHTCARD_OVER
+			OutColor = AddOverlayColor(OutColor, GetLightCardTextureColor(OverlayUV));
 		#endif
+		#if UVLIGHTCARD_OVER
+			OutColor = AddOverlayColor(OutColor, GetUVLightCardTextureColor(IN.UV_Chromakey.xy));
+		#endif
+
 	#endif
 #endif
 
@@ -251,4 +253,3 @@ OutputPS IcvfxWarpPS(OutputVS IN)
 	OUT.Color = ApplyBlending(OutColor.xyz, IN, OutColor.w);
 	return OUT;
 }
-

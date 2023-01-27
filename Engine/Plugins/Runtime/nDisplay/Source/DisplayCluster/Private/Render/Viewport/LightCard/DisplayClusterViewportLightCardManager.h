@@ -3,42 +3,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Render/Viewport/IDisplayClusterViewportLightCardManager.h"
-#include "UObject/GCObject.h"
 
-#include "RenderResource.h"
-#include "UnrealClient.h"
+#include "DisplayClusterViewportLightCardManagerProxy.h"
+#include "DisplayClusterViewportLightCardResource.h"
+
+#include "UObject/GCObject.h"
 
 class ADisplayClusterLightCardActor;
 class FDisplayClusterViewportManager;
-class FPreviewScene;
-class FSceneInterface;
 class UWorld;
 
-/** A render targetable texture resource used to render the UV light cards to */
-class FDisplayClusterLightCardMap : public FTexture, public FRenderTarget
-{
-public:
-	FDisplayClusterLightCardMap(uint32 InSize)
-		: Size(InSize)
-	{ }
-
-	virtual ~FDisplayClusterLightCardMap() = default;
-
-	virtual uint32 GetSizeX() const override { return Size; }
-	virtual uint32 GetSizeY() const override { return Size; }
-	virtual FIntPoint GetSizeXY() const override { return FIntPoint(Size, Size); }
-
-	virtual void InitDynamicRHI() override;
-
-	virtual FString GetFriendlyName() const override { return TEXT("DisplayClusterLightCardMap"); }
-
-private:
-	uint32 Size;
-};
-
-/** Manages the rendering of UV light cards for the viewport manager */
-class FDisplayClusterViewportLightCardManager : public IDisplayClusterViewportLightCardManager, public FGCObject
+/**
+ * Manages the rendering of UV light cards for the viewport manager (Game Thread object)
+ */
+class FDisplayClusterViewportLightCardManager
+	: public FGCObject
 {
 public:
 	FDisplayClusterViewportLightCardManager(FDisplayClusterViewportManager& InViewportManager);
@@ -52,16 +31,27 @@ public:
 	//~ End FGCObject interface
 
 public:
-	//~ Begin IDisplayClusterViewportLightCardManager interface
-	virtual FRHITexture* GetUVLightCardMap_RenderThread() const override;
-	//~ End IDisplayClusterViewportLightCardManager interface
+	/** Return true if UV LightCard is used in this frame. */
+	bool IsUVLightCardEnabled() const;
+
+	/** Get UV LightCard texture size. */
+	FIntPoint GetUVLightCardResourceSize() const;
+
+	/** Get proxy object. */
+	TSharedPtr<FDisplayClusterViewportLightCardManagerProxy, ESPMode::ThreadSafe> GetLightCardManagerProxy() const
+	{ return LightCardManagerProxy; }
 
 public:
+	/** Update internals for the new frame. */
 	void UpdateConfiguration();
 
+	/** Handle StartScene event: created and update internal resources. */
 	void HandleStartScene();
+
+	/** Handle EndScene event: release internal resources. */
 	void HandleEndScene();
 
+	/** Render internal resoures for current frame. */
 	void RenderFrame();
 
 private:
@@ -71,11 +61,24 @@ private:
 	/** Destroys the preview world used to render the UV light cards */
 	void DestroyPreviewWorld();
 
-	/** Initializes the UV light card map texture */
-	void InitializeUVLightCardMap();
+private:
+	/** Render UVLightCard */
+	void RenderUVLightCard();
+
+	/** Update the UV light card map texture */
+	void UpdateUVLightCardResource();
 
 	/** Releases the UV light card map texture */
-	void ReleaseUVLightCardMap();
+	void ReleaseUVLightCardResource();
+
+	/** Create the UV light card map texture */
+	void CreateUVLightCardResource(const FIntPoint& InResourceSize);
+
+	/** Update UVLightCard data game thread*/
+	void UpdateUVLightCardData();
+
+	/** Release UVLightCard data game thread*/
+	void ReleaseUVLightCardData();
 
 private:
 	/** A reference to the owning viewport manager */
@@ -84,30 +87,14 @@ private:
 	/** The preview world the UV light card proxies live in for rendering */
 	UWorld* PreviewWorld = nullptr;
 
-	/** The list of UV light card actors that are referenced by the root actor */
-	TArray<ADisplayClusterLightCardActor*> UVLightCards;
+private:
+	/** A list of primitive components that have been added to the preview scene for rendering in the current frame */
+	TArray<UPrimitiveComponent*> UVLightCardPrimitiveComponents;
 
 	/** The render target to which the UV light card map is rendered */
-	FDisplayClusterLightCardMap* UVLightCardMap = nullptr;
+	TSharedPtr<FDisplayClusterViewportLightCardResource, ESPMode::ThreadSafe> UVLightCardResource;
 
-	struct FProxyData
-	{
-		~FProxyData();
-
-		void InitializeUVLightCardMap_RenderThread(FDisplayClusterLightCardMap* InUVLightCardMap);
-		void ReleaseUVLightCardMap_RenderThread();
-
-		void RenderLightCardMap_RenderThread(FRHICommandListImmediate& RHICmdList, const bool bLoadedPrimitives, FSceneInterface* InSceneInterface);
-
-		FRHITexture* GetUVLightCardMap_RenderThread() const;
-
-	private:
-		/** The render thread copy of the pointer to the UV ligth card map */
-		FDisplayClusterLightCardMap* UVLightCardMap = nullptr;
-
-		/** A render thread flag that indicates the light card manager has UV light cards to render */
-		bool bHasUVLightCards = false;
-	};
-
-	TSharedPtr<FProxyData, ESPMode::ThreadSafe> ProxyData;
+private:
+	/** RenderThread Proxy object*/
+	TSharedPtr<FDisplayClusterViewportLightCardManagerProxy, ESPMode::ThreadSafe> LightCardManagerProxy;
 };

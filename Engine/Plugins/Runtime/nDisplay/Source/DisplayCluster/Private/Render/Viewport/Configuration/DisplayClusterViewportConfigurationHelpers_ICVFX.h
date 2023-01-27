@@ -18,7 +18,6 @@ struct FDisplayClusterConfigurationICVFX_ChromakeyMarkers;
 struct FDisplayClusterConfigurationICVFX_LightcardSettings;
 struct FDisplayClusterConfigurationICVFX_CameraCustomFrustum;
 struct FDisplayClusterConfigurationICVFX_CameraSettings;
-struct FOpenColorIODisplayConfiguration;
 
 struct FCameraContext_ICVFX
 {
@@ -31,13 +30,39 @@ struct FCameraContext_ICVFX
 class FDisplayClusterViewportConfigurationHelpers_ICVFX
 {
 public:
+	/* Get the ViewportManager object from DCRA. */
 	static FDisplayClusterViewportManager* GetViewportManager(ADisplayClusterRootActor& RootActor);
 
+	/* Find existing InnerFrustum viewport. */
 	static FDisplayClusterViewport* FindCameraViewport(ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent);
 
+	/* Return the new or existing InnerFrustum viewport. */
 	static FDisplayClusterViewport* GetOrCreateCameraViewport(ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent);
+
+	/* Return the new or existing Chromakey viewport. */
 	static FDisplayClusterViewport* GetOrCreateChromakeyViewport(ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent);
+	
+	/* Return the new or existing LightCard viewport. */
 	static FDisplayClusterViewport* GetOrCreateLightcardViewport(FDisplayClusterViewport& BaseViewport, ADisplayClusterRootActor& RootActor);
+
+	/* Return the new or existing UVLightCard viewport. */
+	static FDisplayClusterViewport* GetOrCreateUVLightcardViewport(FDisplayClusterViewport& BaseViewport, ADisplayClusterRootActor& RootActor);
+
+	/* Because UVLightCard viewports share the same outer texture (from LightCardManager), they can clone each other.
+	 * Except when the OCIO settings are not equal.
+	 * This function sets the InUVLightCardViewport rendering settings to minimize rendering costs.
+	 */
+	static void ReuseUVLightCardViewportWithinClusterNode(FDisplayClusterViewport& InUVLightCardViewport);
+
+	/* Returns true if the use of the LightCard viewport is allowed in InLightcardSettings.
+	 * These viewports also require visible LightCard actors to render.
+	 */
+	static bool IsShouldUseLightcard(const FDisplayClusterConfigurationICVFX_LightcardSettings& InLightcardSettings);
+
+	/* Returns true if the use of the UVLightCard viewport is allowed in InLightcardSettings.
+	 * These viewports also require visible UVLightCard actors to render.
+	 */
+	static bool IsShouldUseUVLightcard(FDisplayClusterViewportManager& InViewportManager, const FDisplayClusterConfigurationICVFX_LightcardSettings& InLightcardSettings);
 
 #if WITH_EDITOR
 	static TArray<FDisplayClusterViewport*> PreviewGetRenderedInCameraViewports(ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent, bool bGetChromakey = false);
@@ -56,8 +81,6 @@ public:
 	
 	static void UpdateCameraSettings_Chromakey(FDisplayClusterShaderParameters_ICVFX::FCameraSettings& InOutCameraSettings, const FDisplayClusterConfigurationICVFX_ChromakeySettings& InChromakeySettings, FDisplayClusterViewport* InChromakeyViewport);
 	static void UpdateCameraSettings_ChromakeyMarkers(FDisplayClusterShaderParameters_ICVFX::FCameraSettings& InOutCameraSettings, const FDisplayClusterConfigurationICVFX_ChromakeyMarkers& InChromakeyMarkers);
-
-	static bool IsShouldUseLightcard(const FDisplayClusterConfigurationICVFX_LightcardSettings& InLightcardSettings);
 
 	static void UpdateCameraCustomFrustum(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationICVFX_CameraCustomFrustum& InCameraCustomFrustum);
 	static void UpdateCameraViewportBufferRatio(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings);

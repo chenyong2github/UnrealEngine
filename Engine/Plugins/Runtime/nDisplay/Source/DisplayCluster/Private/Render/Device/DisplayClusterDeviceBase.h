@@ -17,9 +17,8 @@
 class IDisplayClusterPostProcess;
 class FDisplayClusterPresentationBase;
 class IDisplayClusterViewportManager;
-class IDisplayClusterViewportManagerProxy;
+class FDisplayClusterViewportManagerProxy;
 class FSceneView;
-
 
 /**
  * Abstract render device
@@ -45,6 +44,8 @@ public:
 	virtual IDisplayClusterPresentation* GetPresentation() const override;
 
 	virtual bool BeginNewFrame(FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame) override;
+
+	virtual void InitializeNewFrame() override;
 	virtual void FinalizeNewFrame() override;
 
 public:
@@ -116,8 +117,8 @@ protected:
 
 private:
 	// Runtime viewport manager api for game and render threads. Internal usage only
-	IDisplayClusterViewportManager*      ViewportManagerPtr = nullptr;
-	IDisplayClusterViewportManagerProxy* ViewportManagerProxyPtr = nullptr;
+	IDisplayClusterViewportManager* ViewportManager = nullptr;
+	TSharedPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ViewportManagerProxy;
 
 	EDisplayClusterRenderFrameMode RenderFrameMode = EDisplayClusterRenderFrameMode::Mono;
 	int32 DesiredNumberOfViews = 0;

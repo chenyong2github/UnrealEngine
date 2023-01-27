@@ -5,8 +5,11 @@
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/DisplayClusterViewportProxy.h"
 #include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
+#include "Render/Viewport/DisplayClusterViewport_OpenColorIO.h"
+#include "Render/Viewport/DisplayClusterViewportManagerViewExtension.h"
 
 #include "Render/Viewport/Configuration/DisplayClusterViewportConfiguration.h"
+#include "Render/Viewport/LightCard/DisplayClusterViewportLightCardManager.h"
 
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 
@@ -69,6 +72,7 @@ FDisplayClusterViewport::~FDisplayClusterViewport()
 	);
 
 	ViewportProxy.Reset();
+	OpenColorIO.Reset();
 
 	// Handle projection policy EndScene event
 	HandleEndScene();
@@ -91,53 +95,90 @@ const FDisplayClusterRenderFrameSettings& FDisplayClusterViewport::GetRenderFram
 	return Owner.GetRenderFrameSettings();
 }
 
-const TArray<FSceneViewExtensionRef> FDisplayClusterViewport::GatherActiveExtensions(FViewport* InViewport) const
+bool FDisplayClusterViewport::IsOpenColorIOEquals(const FDisplayClusterViewport& InViewport) const
 {
-	if (InViewport)
+	bool bEnabledOCIO_1 = OpenColorIO.IsValid();
+	bool bEnabledOCIO_2 = InViewport.OpenColorIO.IsValid();
+
+	if (bEnabledOCIO_1 == bEnabledOCIO_2)
 	{
-		FDisplayClusterSceneViewExtensionContext ViewExtensionContext(InViewport, &Owner, GetId());
-		return GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
-	}
-	else
-	{
-		UWorld* CurrentWorld = Owner.GetCurrentWorld();
-		if (CurrentWorld)
+		if (!bEnabledOCIO_1)
 		{
-			FDisplayClusterSceneViewExtensionContext ViewExtensionContext(CurrentWorld->Scene, &Owner, GetId());
-			return GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
+			// Both OCIO disabled
+			return true;
+		}
+
+		if (OpenColorIO->IsDisplayConfigurationEquals(InViewport.OpenColorIO->GetDisplayConfiguration()))
+		{
+			return true;
 		}
 	}
 
-	return TArray<FSceneViewExtensionRef>();
+	return false;
 }
 
-FSceneViewExtensionIsActiveFunctor FDisplayClusterViewport::GetSceneViewExtensionIsActiveFunctor() const
+const TArray<FSceneViewExtensionRef> FDisplayClusterViewport::GatherActiveExtensions(FViewport* InViewport) const
 {
-	FSceneViewExtensionIsActiveFunctor IsActiveFunction;
-	IsActiveFunction.IsActiveFunction = [this](const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context)
+	// Use VE from engine for default render and MRQ:
+	switch (RenderSettings.CaptureMode)
 	{
-		if (Context.IsA(FDisplayClusterSceneViewExtensionContext()))
+	case EDisplayClusterViewportCaptureMode::Default:
+	case EDisplayClusterViewportCaptureMode::MoviePipeline:
+		if (InViewport)
 		{
-			const FDisplayClusterSceneViewExtensionContext& DisplayContext = static_cast<const FDisplayClusterSceneViewExtensionContext&>(Context);
-
-			// Find exist viewport by name
-			IDisplayClusterViewport* PublicViewport = DisplayContext.ViewportManager->FindViewport(DisplayContext.ViewportId);
-			if (PublicViewport)
+			FDisplayClusterSceneViewExtensionContext ViewExtensionContext(InViewport, &Owner, GetId());
+			return GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
+		}
+		else
+		{
+			UWorld* CurrentWorld = Owner.GetCurrentWorld();
+			if (CurrentWorld)
 			{
-				FDisplayClusterViewport* Viewport = static_cast<FDisplayClusterViewport*>(PublicViewport);
-
-				if (Viewport->OpenColorIODisplayExtension.IsValid() && Viewport->OpenColorIODisplayExtension.Get() == SceneViewExtension)
-				{
-					// This viewport use this OCIO extension
-					return  TOptional<bool>(true);
-				}
+				FDisplayClusterSceneViewExtensionContext ViewExtensionContext(CurrentWorld->Scene, &Owner, GetId());
+				return GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
 			}
 		}
 
-		return TOptional<bool>(false);
-	};
+		// No extension found.
+		return TArray<FSceneViewExtensionRef>();
+		
+	default:
+		break;
+	}
 
-	return IsActiveFunction;
+	// Get custom VE:
+	TArray<FSceneViewExtensionRef> OutCustomExtensions;
+
+	// Initialize custom extensions:
+	switch (RenderSettings.CaptureMode)
+	{
+	case EDisplayClusterViewportCaptureMode::Chromakey:
+	case EDisplayClusterViewportCaptureMode::Lightcard:
+	{
+		// Chromakey and LightCard use only nDisplay VE for callback purposes (preserve alpha channel, etc).
+		TSharedPtr<FDisplayClusterViewportManagerViewExtension, ESPMode::ThreadSafe> ViewportManagerViewExtension = Owner.GetViewportManagerViewExtension();
+		if (ViewportManagerViewExtension.IsValid())
+		{
+			OutCustomExtensions.Add(ViewportManagerViewExtension->AsShared());
+		}
+	}
+	break;
+
+	default:
+		break;
+	}
+
+	// Sort extensions in order of priority (copied from FSceneViewExtensions::GatherActiveExtensions)
+	struct SortPriority
+	{
+		bool operator () (const FSceneViewExtensionRef& A, const FSceneViewExtensionRef& B) const
+		{
+			return A->GetPriority() > B->GetPriority();
+		}
+	};
+	Sort(OutCustomExtensions.GetData(), OutCustomExtensions.Num(), SortPriority());
+
+	return OutCustomExtensions;
 }
 
 bool FDisplayClusterViewport::HandleStartScene()
@@ -249,6 +290,11 @@ void FDisplayClusterViewport::SetupSceneView(uint32 ContextNum, class UWorld* Wo
 		return;
 	}
 
+	if (OpenColorIO.IsValid())
+	{
+		OpenColorIO->SetupSceneView(InOutViewFamily, InOutView);
+	}
+
 	if(Contexts[ContextNum].GPUIndex >= 0)
 	{
 		// Use custom GPUIndex for render
@@ -268,9 +314,7 @@ void FDisplayClusterViewport::SetupSceneView(uint32 ContextNum, class UWorld* Wo
 	{
 	case EDisplayClusterViewportCaptureMode::Chromakey:
 	case EDisplayClusterViewportCaptureMode::Lightcard:
-
 		InOutView.bAllowRayTracing = false;
-		
 		break;
 
 	default:
@@ -330,11 +374,11 @@ float FDisplayClusterViewport::GetClusterRenderTargetRatioMult(const FDisplayClu
 	float ClusterRenderTargetRatioMult = InFrameSettings.ClusterRenderTargetRatioMult;
 
 	// Support Outer viewport cluster rtt multiplier
-	if ((RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXTarget) != 0)
+	if (EnumHasAllFlags(RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::Target))
 	{
 		ClusterRenderTargetRatioMult *= InFrameSettings.ClusterICVFXOuterViewportRenderTargetRatioMult;
 	}
-	else if ((RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXIncamera) != 0)
+	else if (EnumHasAllFlags(RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InCamera))
 	{
 		ClusterRenderTargetRatioMult *= InFrameSettings.ClusterICVFXInnerViewportRenderTargetRatioMult;
 	}
@@ -368,12 +412,12 @@ float FDisplayClusterViewport::GetCustomBufferRatio(const FDisplayClusterRenderF
 	// Global multiplier
 	CustomBufferRatio *= InFrameSettings.ClusterBufferRatioMult;
 
-	if ((RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXTarget) != 0)
+	if (EnumHasAllFlags(RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::Target))
 	{
 		// Outer viewport
 		CustomBufferRatio *= InFrameSettings.ClusterICVFXOuterViewportBufferRatioMult;
 	}
-	else if ((RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXIncamera) != 0)
+	else if (EnumHasAllFlags(RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InCamera))
 	{
 		// Inner Frustum
 		CustomBufferRatio *= InFrameSettings.ClusterICVFXInnerFrustumBufferRatioMult;
@@ -382,18 +426,37 @@ float FDisplayClusterViewport::GetCustomBufferRatio(const FDisplayClusterRenderF
 	return CustomBufferRatio;
 }
 
+void FDisplayClusterViewport::ResetFrameContexts()
+{
+
+#if WITH_EDITOR
+	OutputPreviewTargetableResource.SafeRelease();
+#endif
+
+	// Discard resources that are not used in frame composition
+	RenderTargets.Empty();
+	OutputFrameTargetableResources.Empty();
+	AdditionalFrameTargetableResources.Empty();
+
+	// Release old contexts
+	Contexts.Empty();
+
+	// Free internal resources
+	InputShaderResources.Empty();
+	AdditionalTargetableResources.Empty();
+	MipsShaderResources.Empty();
+}
+
 bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex, const FDisplayClusterRenderFrameSettings& InFrameSettings)
 {
 	check(IsInGameThread());
 
-	uint32 FrameTargetsAmount = 2;
+	const uint32 FrameTargetsAmount = Owner.GetViewPerViewportAmount();
+
 	FIntRect     DesiredFrameTargetRect = RenderSettings.Rect;
 	{
 		switch (InFrameSettings.RenderMode)
 		{
-		case EDisplayClusterRenderFrameMode::Mono:
-			FrameTargetsAmount = 1;
-			break;
 		case EDisplayClusterRenderFrameMode::SideBySide:
 			AdjustRect(DesiredFrameTargetRect, 0.5f, 1.f);
 			break;
@@ -409,8 +472,6 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex
 			// Align each frame to zero
 			DesiredFrameTargetRect = FIntRect(FIntPoint(0, 0), DesiredFrameTargetRect.Size());
 
-			// Mono
-			FrameTargetsAmount = 1;
 			break;
 		}
 		default:
@@ -419,7 +480,7 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex
 	}
 
 	// Special case mono->stereo
-	uint32 ViewportContextAmount = RenderSettings.bForceMono ? 1 : FrameTargetsAmount;
+	const uint32 ViewportContextAmount = RenderSettings.bForceMono ? 1 : FrameTargetsAmount;
 
 #if WITH_EDITOR
 	OutputPreviewTargetableResource.SafeRelease();
@@ -534,10 +595,60 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex
 	}
 
 	bool bDisableInternalResources = false;
-	if (RenderSettings.bSkipRendering || RenderSettings.OverrideViewportId.IsEmpty() == false)
+	if (RenderSettings.bSkipRendering)
 	{
 		bDisableInternalResources = true;
 		bDisableRender = true;
+	}
+
+	if (RenderSettings.IsViewportOverrided())
+	{
+		switch (RenderSettings.ViewportOverrideMode)
+		{
+		case EDisplayClusterViewportOverrideMode::InernalRTT:
+			bDisableRender = true;
+			break;
+
+		case EDisplayClusterViewportOverrideMode::All:
+			bDisableRender = true;
+			bDisableInternalResources = true;
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	// UV LightCard viewport use unique whole-cluster texture from LC manager
+	if (EnumHasAllFlags(RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::UVLightcard))
+	{
+		// Use external texture from LightCardManager instead of rendering
+		bDisableRender = true;
+
+		// Use the UVLightCard viewport only when this type of lightcards has been defined
+		bool bUseUVLightCardViewport = false;
+
+		TSharedPtr<FDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> LightCardManager = Owner.GetLightCardManager();
+		if (LightCardManager.IsValid() && LightCardManager->IsUVLightCardEnabled())
+		{
+			// Custom viewport size from LC Manager
+			ContextSize = LightCardManager->GetUVLightCardResourceSize();
+
+			// Size must be not null
+			if (ContextSize.GetMin() > 1)
+			{
+				FrameTargetRect = RenderTargetRect = FIntRect(FIntPoint(0, 0), ContextSize);
+
+				// Allow to use this viewport
+				bUseUVLightCardViewport = true;
+			}
+		}
+
+		if(!bUseUVLightCardViewport)
+		{
+			// do not use UV LightCard viewport
+			return false;
+		}
 	}
 
 	//Add new contexts

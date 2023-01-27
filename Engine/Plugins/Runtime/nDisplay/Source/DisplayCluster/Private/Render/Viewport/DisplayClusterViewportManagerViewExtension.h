@@ -4,8 +4,11 @@
 #include "SceneViewExtension.h"
 #include "Render/Viewport/Containers/DisplayClusterViewportProxy_Context.h"
 
-class IDisplayClusterViewportManager;
-class IDisplayClusterViewportManagerProxy;
+class FDisplayClusterViewportManager;
+class FDisplayClusterViewportManagerProxy;
+class FDisplayClusterViewportProxy;
+
+#define DISPLAYCLUSTER_SCENE_VIEW_EXTENSION_PRIORITY -1
 
 /**
  * View extension applying an DC Viewport features
@@ -13,14 +16,14 @@ class IDisplayClusterViewportManagerProxy;
 class FDisplayClusterViewportManagerViewExtension : public FSceneViewExtensionBase
 {
 public:
-	FDisplayClusterViewportManagerViewExtension(const FAutoRegister& AutoRegister, const IDisplayClusterViewportManager* InViewportManager);
+	FDisplayClusterViewportManagerViewExtension(const FAutoRegister& AutoRegister, const FDisplayClusterViewportManager* InViewportManager);
 	virtual ~FDisplayClusterViewportManagerViewExtension();
 
 public:
 	//~ Begin ISceneViewExtension interface
 	virtual int32 GetPriority() const override
 	{
-		return -1;
+		return DISPLAYCLUSTER_SCENE_VIEW_EXTENSION_PRIORITY;
 	}
 
 	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override
@@ -34,30 +37,69 @@ public:
 
 	virtual void PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView) override;
 
+	virtual void SubscribeToPostProcessingPass(EPostProcessingPass PassId, FAfterPassCallbackDelegateArray& InOutPassCallbacks, bool bIsPassEnabled) override;
+
 	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 
 	virtual void PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) override;
 	virtual void PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) override;
 	//~End ISceneVIewExtension interface
 
+	/** PP Helper: Get output PP texture from inputs (OverrideOutput or SceneColor).
+	 *
+	 * @param InOutInputs - PP material inputs
+	 *
+	 * @return - Screen pass texture
+	 */
+	static FScreenPassTexture ReturnUntouchedSceneColorForPostProcessing(const FPostProcessMaterialInputs& InOutInputs);
+
 private:
-	/** Rendered callback (get scene textures to share) */
+	/** nDisplay VE Callback [subscribed to Renderer:ResolvedSceneColorCallbacks].
+	 *
+	 * @param GraphBuilder   - RDG interface
+	 * @param SceneTextures  - Scene textures (SceneColor, Depth, etc)
+	 *
+	 * @return - none
+	 */
 	void OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
 
+	/** Callback OnPostProcessPassAfterFXAA.
+	 *
+	 * @param GraphBuilder - RDG interface
+	 * @param View         - Scene View
+	 * @param Inputs       - PP Input resources
+	 *
+	 * @return - Screen pass texture
+	 */
+	FScreenPassTexture PostProcessPassAfterFXAA_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs);
+
+	/** Callback OnPostProcessPassAfterSSRInput.
+	 *
+	 * @param GraphBuilder - RDG interface
+	 * @param View         - Scene View
+	 * @param Inputs       - PP Input resources
+	 *
+	 * @return - Screen pass texture
+	 */
+	FScreenPassTexture PostProcessPassAfterSSRInput_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs);
+
+	/** Register callbacks to external modules (Renderer:ResolvedSceneColor). */
 	void RegisterCallbacks();
+
+	/** UnRegister callbacks to external modules (Renderer:ResolvedSceneColor). */
 	void UnregisterCallbacks();
 
 private:
 	FDelegateHandle ResolvedSceneColorCallbackHandle;
 
 private:
-	const IDisplayClusterViewportManager* ViewportManager;
-	const IDisplayClusterViewportManagerProxy* ViewportManagerProxy;
+	const FDisplayClusterViewportManager* ViewportManager;
+	const TSharedPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ViewportManagerProxy;
 
 	struct FViewportProxy
 	{
 		// The ViewportProxy must exist until this object is removed.
-		TSharedPtr<class IDisplayClusterViewportProxy, ESPMode::ThreadSafe> ViewportProxy;
+		TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe> ViewportProxy;
 
 		// The index of view in viewfamily collection
 		int32 ViewIndex = 0;
@@ -66,6 +108,6 @@ private:
 		FDisplayClusterViewportProxy_Context ViewportProxyContext;
 	};
 
-	TArray<FViewportProxy> Viewports;
-	
+	/** RenderThreadData:. Viewport proxies from rendered view family. */
+	TArray<FViewportProxy> ViewportProxies;
 };

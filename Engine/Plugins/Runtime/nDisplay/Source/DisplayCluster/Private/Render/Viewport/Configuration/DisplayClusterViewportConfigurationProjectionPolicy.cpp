@@ -31,7 +31,7 @@ void FDisplayClusterViewportConfigurationProjectionPolicy::Update()
 	for (FDisplayClusterViewport* ViewportIt : ViewportManager.ImplGetViewports())
 	{
 		// ignore ICVFX internal resources
-		if (ViewportIt && (ViewportIt->GetRenderSettingsICVFX().RuntimeFlags & ViewportRuntime_InternalResource) == 0)
+		if (ViewportIt && !EnumHasAnyFlags(ViewportIt->GetRenderSettingsICVFX().RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InternalResource))
 		{
 			// Support advanced logic for 'camera' projection policy
 			if (ViewportIt->ProjectionPolicy.IsValid() && ViewportIt->ProjectionPolicy->GetType().Compare(DisplayClusterProjectionStrings::projection::Camera) == 0)
@@ -115,7 +115,9 @@ bool FDisplayClusterViewportConfigurationProjectionPolicy::UpdateCameraPolicy_IC
 	FDisplayClusterViewport* ExistCameraViewport = FDisplayClusterViewportConfigurationHelpers_ICVFX::FindCameraViewport(RootActor, *InICVFXCameraComponent);
 	if (ExistCameraViewport)
 	{
-		DstViewport.RenderSettings.OverrideViewportId = ExistCameraViewport->GetId();
+		// Re-use camera RTT, and support OCIO:
+		const EDisplayClusterViewportOverrideMode ViewportOverrideMode = DstViewport.IsOpenColorIOEquals(*ExistCameraViewport) ? EDisplayClusterViewportOverrideMode::All : EDisplayClusterViewportOverrideMode::InernalRTT;
+		DstViewport.RenderSettings.SetViewportOverride(ExistCameraViewport->GetId(), ViewportOverrideMode);
 	}
 	else
 	{

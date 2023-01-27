@@ -447,7 +447,12 @@ void FDisplayClusterSpec::RegisterPropertyPropagationTests(bool bDoInstanceOverr
 		TArray({ GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings), GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, bEnableInnerFrustums) }));
 	
 	PROPAGATION_TEST_SIMPLE_NO_INSTANCE_OVERRIDE(ClusterConfig, false,
-		TArray({ GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings), GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, bUseOverallClusterOCIOConfiguration) }));
+		TArray({
+			GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings),
+			GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, ViewportOCIO),
+			GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_ViewportOCIO, AllViewportsOCIOConfiguration),
+			GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationOCIOConfiguration, bIsEnabled)
+			}));
 
 	// StageSettings.HideList
 	PROPAGATION_TEST_SIMPLE(ClusterConfig, FName("TestName"), FName("OverrideName"),
@@ -476,32 +481,104 @@ void FDisplayClusterSpec::RegisterPropertyPropagationTests(bool bDoInstanceOverr
 		TArray({ GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, RenderSettings), GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_RenderSettings, Overscan),
 			GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_Overscan, Right) }));
 
-	// StageSettings.AllViewportsOCIOConfiguration
+	// StageSettings.ViewportOCIO.AllViewportsOCIOConfiguration
 	Describe("AllViewportsOCIOConfiguration", [this, BeforeTestAction, bDoInstanceOverrideTest]()
 	{
 		PROPAGATION_TEST_OCIO_CONFIG(ClusterConfig,
-			TArray({ GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings), GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, AllViewportsOCIOConfiguration) }));
+			TArray({
+				GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, ViewportOCIO),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_ViewportOCIO, AllViewportsOCIOConfiguration)
+				}));
 	});
 
-	// StageSettings.PerViewportOCIOProfiles
+	// StageSettings.ViewportOCIO.PerViewportOCIOProfiles
 	Describe("PerViewportOCIOProfiles", [this, BeforeTestAction, bDoInstanceOverrideTest]()
 	{
 		BeforeEach([this]()
 		{
 			const bool bSuccessfullyEnabled = DisplayClusterTestUtils::SetBlueprintPropertyValue(AssetClusterConfig, ClusterAsset,
-				{ GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings), GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, PerViewportOCIOProfiles),
-					GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationOCIOProfile, bIsEnabled) },
+				{
+					GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings),
+					GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, ViewportOCIO),
+					GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_ViewportOCIO, PerViewportOCIOProfiles),
+					GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationOCIOProfile, bIsEnabled)
+				},
 				true);
+
 			TestTrue("Successfully enabled OCIO profile", bSuccessfullyEnabled);
 		});
 		
 		PROPAGATION_TEST_OCIO_CONFIG(ClusterConfig,
-			TArray({ GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings), GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, PerViewportOCIOProfiles) }));
+			TArray({
+				GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, ViewportOCIO),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_ViewportOCIO, PerViewportOCIOProfiles)
+				}));
 		
 		PROPAGATION_TEST_SIMPLE(ClusterConfig, FString("TestEntry"), FString("OverrideEntry"),
-			TArray({ GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings), GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, PerViewportOCIOProfiles),
-				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationOCIOProfile, ApplyOCIOToObjects) }));
+			TArray({
+				GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, ViewportOCIO),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_ViewportOCIO, PerViewportOCIOProfiles),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationOCIOProfile, ApplyOCIOToObjects)
+				}));
 	});
+
+	// Light Cards OCIO
+	{
+		// StageSettings.Lightcard.LightcardOCIO.CustomOCIO.AllViewportsOCIOConfiguration
+		Describe("Lightcard.AllViewportsOCIOConfiguration", [this, BeforeTestAction, bDoInstanceOverrideTest]()
+			{
+				PROPAGATION_TEST_OCIO_CONFIG(ClusterConfig,
+					TArray({
+						GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings),
+						GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, Lightcard),
+						GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_LightcardSettings, LightcardOCIO),
+						GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_LightcardOCIO, CustomOCIO),
+						GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_LightcardCustomOCIO, AllViewportsOCIOConfiguration)
+					}));
+			});
+
+		// StageSettings.Lightcard.LightcardOCIO.CustomOCIO.PerViewportOCIOProfiles
+		Describe("Lightcard.PerViewportOCIOProfiles", [this, BeforeTestAction, bDoInstanceOverrideTest]()
+			{
+				BeforeEach([this]()
+					{
+						const bool bSuccessfullyEnabled = DisplayClusterTestUtils::SetBlueprintPropertyValue(AssetClusterConfig, ClusterAsset,
+							{
+								GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings),
+								GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, Lightcard),
+								GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_LightcardSettings, LightcardOCIO),
+								GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_LightcardOCIO, CustomOCIO),
+								GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_LightcardCustomOCIO, PerViewportOCIOProfiles),
+								GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationOCIOProfile, bIsEnabled)
+							},
+							true);
+
+						TestTrue("Successfully enabled OCIO profile", bSuccessfullyEnabled);
+					});
+
+		PROPAGATION_TEST_OCIO_CONFIG(ClusterConfig,
+			TArray({
+				GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, Lightcard),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_LightcardSettings, LightcardOCIO),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_LightcardOCIO, CustomOCIO),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_LightcardCustomOCIO, PerViewportOCIOProfiles)
+				}));
+
+		PROPAGATION_TEST_SIMPLE(ClusterConfig, FString("TestEntry"), FString("OverrideEntry"),
+			TArray({
+				GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, StageSettings),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, Lightcard),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_LightcardSettings, LightcardOCIO),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_LightcardOCIO, CustomOCIO),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_LightcardCustomOCIO, PerViewportOCIOProfiles),
+				GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationOCIOProfile, ApplyOCIOToObjects)
+				}));
+			});
+	}
 	
 	// StageSettings.EntireClusterColorGrading
 	Describe("EntireClusterColorGrading", [this, BeforeTestAction, bDoInstanceOverrideTest]()

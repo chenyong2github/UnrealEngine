@@ -131,7 +131,7 @@ void FDisplayClusterViewportConfigurationHelpers_Visibility::UpdateHideList_ICVF
 				ViewportIt->VisibilitySettings.UpdateConfiguration(EDisplayClusterViewport_VisibilityMode::Hide, ActorLayerNames, AdditionalComponentsList);
 
 				// Support additional hide list for outer viewports
-				if ((ViewportIt->GetRenderSettingsICVFX().RuntimeFlags & ViewportRuntime_ICVFXTarget) != 0)
+				if (EnumHasAllFlags(ViewportIt->GetRenderSettingsICVFX().RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::Target))
 				{
 					ViewportIt->VisibilitySettings.AppendHideList(OuterActorLayerNames, OuterAdditionalComponentsList);
 				}

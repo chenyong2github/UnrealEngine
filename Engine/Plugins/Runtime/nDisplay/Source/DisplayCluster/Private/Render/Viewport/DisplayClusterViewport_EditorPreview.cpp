@@ -119,7 +119,6 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 			ViewInitOptions.OverlayColor = FLinearColor::Black;
 		}
 
-		ViewInitOptions.bIsSceneCapture = true;
 		ViewInitOptions.bSceneCaptureUsesRayTracing = false;
 		ViewInitOptions.bIsPlanarReflection = false;
 

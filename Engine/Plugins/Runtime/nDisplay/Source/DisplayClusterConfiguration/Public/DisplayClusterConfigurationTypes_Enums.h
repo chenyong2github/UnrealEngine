@@ -164,3 +164,16 @@ enum class EDisplayClusterConfigurationViewportCustomFrustumMode : uint8
 	Percent  UMETA(DisplayName = "Percentage"),
 	Pixels   UMETA(DisplayName = "Pixels")
 };
+
+UENUM()
+enum class EDisplayClusterConfigurationViewportLightcardOCIOMode : uint8
+{
+	/** Use nDisplay Viewport OCIO. */
+	nDisplay UMETA(DisplayName = "Use nDisplay Viewport OCIO"),
+
+	/** Use Custom Light Cards OCIO. */
+	Custom UMETA(DisplayName = "Use Custom Light Cards OCIO"),
+
+	/** None. */
+	None UMETA(DisplayName = "None"),
+};

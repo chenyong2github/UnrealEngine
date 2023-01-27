@@ -46,7 +46,7 @@ void FDisplayClusterViewportConfigurationBase::Update(const FString& ClusterNode
 		for (FDisplayClusterViewport* It : ViewportManager.ImplGetViewports())
 		{
 			// ignore ICVFX internal resources
-			if ((It->GetRenderSettingsICVFX().RuntimeFlags & ViewportRuntime_InternalResource) == 0)
+			if (!EnumHasAllFlags(It->GetRenderSettingsICVFX().RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InternalResource))
 			{
 				// Only viewports from cluster node in render
 				if (ClusterNodeId.IsEmpty() || It->GetClusterNodeId() == ClusterNodeId)
@@ -97,7 +97,7 @@ void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InV
 		for (FDisplayClusterViewport* It : ViewportManager.ImplGetViewports())
 		{
 			// ignore ICVFX internal resources
-			if ((It->GetRenderSettingsICVFX().RuntimeFlags & ViewportRuntime_InternalResource) == 0)
+			if (!EnumHasAllFlags(It->GetRenderSettingsICVFX().RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InternalResource))
 			{
 				if (InViewportNames.Find(It->GetId()) == INDEX_NONE)
 				{

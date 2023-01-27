@@ -33,7 +33,11 @@ private:
 	void ImplGetCameras();
 	EDisplayClusterViewportICVFXFlags ImplGetTargetViewports(FDisplayClusterViewportManager& ViewportManager, TArray<FDisplayClusterViewport*>& OutTargets);
 
+	/** Create a LightCard viewport for the  BaseViewport. */
 	bool CreateLightcardViewport(FDisplayClusterViewport& BaseViewport);
+
+	/** Create an UVLightCard viewport for the BaseViewport. */
+	bool CreateUVLightcardViewport(FDisplayClusterViewport& BaseViewport);
 
 	void UpdateHideList(FDisplayClusterViewportManager& ViewportManager);
 	void UpdateCameraHideList(FDisplayClusterViewportManager& ViewportManager);

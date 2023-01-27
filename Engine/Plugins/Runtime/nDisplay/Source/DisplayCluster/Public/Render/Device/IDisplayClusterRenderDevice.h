@@ -51,8 +51,27 @@ public:
 	virtual void EndScene()
 	{ }
 
-	// update settings from root actor config data, and build new frame structure
+	/**
+	* Update settings from root actor config data, and build new frame structure
+	* This function also updates all viewport settings from config.
+	* Must be called before the InitializeNewFrame() function.
+	*/
 	virtual bool BeginNewFrame(FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame) = 0;
+
+	/**
+	* Initialize internal data to render a new frame
+	* Initialize references to DCRA objects.
+	* Must be called before viewports start rendering
+	* [ This pair of functions InitializeNewFrame\FinalizeNewFrame should always be called together. ]
+	*/
+	virtual void InitializeNewFrame() = 0;
+
+	/**
+	* Finish rendering the frame and compose the viewports for the final RTT (Warp&Blend, OCIO, ICVFX, etc.)
+	* Release references to DCRA objects.
+	* Must be called after all viewports have been rendered.
+	* [ This pair of functions InitializeNewFrame\FinalizeNewFrame should always be called together. ]
+	*/
 	virtual void FinalizeNewFrame() = 0;
 
 	/**

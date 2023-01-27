@@ -250,8 +250,7 @@ void FDisplayClusterConfiguratorOCIOProfileCustomization::SetChildren(const TSha
 	if (!bIsDefaultDetailsDisplay)
 	{
 		TSharedPtr<IPropertyHandle> EnableOCIOHandle = GET_CHILD_HANDLE(FDisplayClusterConfigurationOCIOProfile, bIsEnabled);
-		TSharedPtr<IPropertyHandle> OCIOConfigurationHandle = GET_CHILD_HANDLE(FDisplayClusterConfigurationOCIOProfile, OCIOConfiguration);
-		TSharedPtr<IPropertyHandle> OCIOHandle = GET_CHILD_HANDLE(FOpenColorIODisplayConfiguration, ColorConfiguration);
+		TSharedPtr<IPropertyHandle> OCIOHandle = GET_CHILD_HANDLE(FDisplayClusterConfigurationOCIOProfile, ColorConfiguration);
 		TSharedPtr<IPropertyHandle> ArrayHandle = GET_CHILD_HANDLE(FDisplayClusterConfigurationOCIOProfile, ApplyOCIOToObjects);
 
 		EnableOCIOHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?

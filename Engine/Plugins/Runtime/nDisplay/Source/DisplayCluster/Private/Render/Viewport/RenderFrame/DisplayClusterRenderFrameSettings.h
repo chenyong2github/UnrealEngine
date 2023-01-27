@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameEnums.h"
+#include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettingsEnums.h"
 
 // Settings for render frame builder
 struct FDisplayClusterRenderFrameSettings
@@ -29,6 +30,9 @@ struct FDisplayClusterRenderFrameSettings
 		bool bPullData = true;
 
 	} CrossGPUTransfer;
+
+	// Alpha channel capture mode for viewports (Lightcard, chromakey)
+	EDisplayClusterRenderFrameAlphaChannelCaptureMode AlphaChannelCaptureMode;
 
 	// Some frame postprocess require additional render targetable resources
 	bool bShouldUseAdditionalFrameTargetableResource = false;

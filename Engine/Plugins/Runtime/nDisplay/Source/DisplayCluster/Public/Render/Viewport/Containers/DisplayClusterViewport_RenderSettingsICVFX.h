@@ -6,44 +6,54 @@
 
 #include "ShaderParameters/DisplayClusterShaderParameters_ICVFX.h"
 
-enum EDisplayClusterViewportICVFXFlags
+//***************************************************
+//* Runtime configuration from DCRA
+//***************************************************
+enum class EDisplayClusterViewportICVFXFlags : uint8
 {
-	ViewportICVFX_None = 0,
+	None = 0,
 
 	// Allow to use ICVFX for this viewport (Must be supported by projection policy)
-	ViewportICVFX_Enable = 1 << 0,
+	Enable = 1 << 0,
+
 	// Disable incamera render to this viewport
-	ViewportICVFX_DisableCamera = 1 << 1,
+	DisableCamera = 1 << 1,
+
 	// Disable chromakey render to this viewport
-	ViewportICVFX_DisableChromakey = 1 << 2,
+	DisableChromakey = 1 << 2,
+
 	// Disable chromakey markers render to this viewport
-	ViewportICVFX_DisableChromakeyMarkers = 1 << 3,
+	DisableChromakeyMarkers = 1 << 3,
+
 	// Disable lightcard render to this viewport
-	ViewportICVFX_DisableLightcard = 1 << 4,
+	DisableLightcard = 1 << 4,
+
 	// Use unique lightcard mode for this viewport from param 'OverrideLightcardMode'
-	ViewportICVFX_OverrideLightcardMode = 1 << 5,
+	OverrideLightcardMode = 1 << 5,
 };
 ENUM_CLASS_FLAGS(EDisplayClusterViewportICVFXFlags);
 
 //***************************************************
 //* This flag raised only from icvfx manager
 //***************************************************
-enum EDisplayClusterViewportRuntimeICVFXFlags
+enum class EDisplayClusterViewportRuntimeICVFXFlags: uint8
 {
-	ViewportRuntimeICVFX_None = 0,
+	None = 0,
 
 	// Enable use icvfx only from projection policy for this viewport.
-	ViewportRuntime_ICVFXTarget = 1 << 0,
+	Target = 1 << 0,
 
 	// viewport ICVFX usage
-	ViewportRuntime_ICVFXIncamera       = 1 << 1,
-	ViewportRuntime_ICVFXChromakey      = 1 << 2,
-	ViewportRuntime_ICVFXLightcard      = 1 << 3,
+	InCamera    = 1 << 1,
+	Chromakey   = 1 << 2,
+	Lightcard   = 1 << 3,
+	UVLightcard = 1 << 4,
 
 	// This viewport used as internal icvfx composing resource (created and deleted inside icvfx logic)
-	ViewportRuntime_InternalResource = 1 << 30,
+	InternalResource = 1 << 5,
+
 	// Mark unused icvfx dynamic viewports
-	ViewportRuntime_Unused = 1 << 31,
+	Unused = 1 << 6,
 };
 ENUM_CLASS_FLAGS(EDisplayClusterViewportRuntimeICVFXFlags);
 
@@ -51,10 +61,10 @@ class FDisplayClusterViewport_RenderSettingsICVFX
 {
 public:
 	// ICVFX logic flags
-	EDisplayClusterViewportICVFXFlags         Flags = ViewportICVFX_None;
+	EDisplayClusterViewportICVFXFlags         Flags = EDisplayClusterViewportICVFXFlags::None;
 
 	// Internal logic ICVFX flags
-	EDisplayClusterViewportRuntimeICVFXFlags  RuntimeFlags = ViewportRuntimeICVFX_None;
+	EDisplayClusterViewportRuntimeICVFXFlags  RuntimeFlags = EDisplayClusterViewportRuntimeICVFXFlags::None;
 
 	// Compact ICVFX viewport settings
 	FDisplayClusterShaderParameters_ICVFX ICVFX;
@@ -62,12 +72,12 @@ public:
 public:
 	inline void BeginUpdateSettings()
 	{
-		Flags = ViewportICVFX_None;
+		Flags = EDisplayClusterViewportICVFXFlags::None;
 
 		ICVFX.Reset();
 
 		// Reset target flag
-		RuntimeFlags &= ~(ViewportRuntime_ICVFXTarget);
+		EnumRemoveFlags(RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::Target);
 	}
 
 	// Implement copy ref and arrays

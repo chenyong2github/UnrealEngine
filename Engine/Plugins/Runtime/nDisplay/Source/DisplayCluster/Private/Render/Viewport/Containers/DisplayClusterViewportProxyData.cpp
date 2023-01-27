@@ -15,6 +15,8 @@ FDisplayClusterViewportProxyData::FDisplayClusterViewportProxyData(const FDispla
 
 	DstViewportProxy = SrcViewport->ViewportProxy;
 
+	OpenColorIO = SrcViewport->OpenColorIO;
+
 	RenderSettings = SrcViewport->RenderSettings;
 	RenderSettingsICVFX.SetParameters(SrcViewport->RenderSettingsICVFX);
 	PostRenderSettings.SetParameters(SrcViewport->PostRenderSettings);
@@ -47,6 +49,8 @@ void FDisplayClusterViewportProxyData::UpdateProxy_RenderThread() const
 {
 	check(IsInRenderingThread());
 	check(DstViewportProxy);
+
+	DstViewportProxy->OpenColorIO = OpenColorIO;
 
 	DstViewportProxy->OverscanSettings = OverscanSettings;
 

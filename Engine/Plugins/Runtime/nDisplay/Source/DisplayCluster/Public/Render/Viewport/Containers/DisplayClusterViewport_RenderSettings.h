@@ -4,21 +4,12 @@
 
 #include "CoreMinimal.h"
 
-enum class EDisplayClusterViewportCaptureMode : uint8
-{
-	// Use current scene format, no alpha
-	Default = 0,
+#include "DisplayClusterViewport_Enums.h"
 
-	// use small BGRA 8bit texture with alpha for masking
-	Chromakey,
-
-	// use hi-res float texture with alpha for compisiting
-	Lightcard,
-
-	// Special hi-res mode for movie pipeline
-	MoviePipeline,
-};
-
+/**
+ * nDisplay viewport render settings.
+ * These are runtime settings, updated every frame from the cluster configuration.
+ */
 class FDisplayClusterViewport_RenderSettings
 {
 public:
@@ -97,8 +88,12 @@ public:
 	// Special capture modes (chromakey, lightcard) change RTT format and render flags
 	EDisplayClusterViewportCaptureMode CaptureMode = EDisplayClusterViewportCaptureMode::Default;
 
-	// Override image from this viewport
-	FString OverrideViewportId;
+	// Override resources from this viewport
+	EDisplayClusterViewportOverrideMode ViewportOverrideMode = EDisplayClusterViewportOverrideMode::None;
+	FString ViewportOverrideId;
+
+	// Override all viewport resources
+	bool bOverrideWholeViewport= true;
 
 public:
 	// Reset runtime values from prev frame
@@ -112,7 +107,8 @@ public:
 
 		CaptureMode = EDisplayClusterViewportCaptureMode::Default;
 
-		OverrideViewportId.Empty();
+		ViewportOverrideMode = EDisplayClusterViewportOverrideMode::None;
+		ViewportOverrideId.Empty();
 	}
 
 	inline void FinishUpdateSettings()
@@ -123,6 +119,22 @@ public:
 	inline const FString& GetParentViewportId() const
 	{
 		return ParentViewportId;
+	}
+
+	inline bool IsViewportHasParent() const
+	{
+		return !ParentViewportId.IsEmpty();
+	}
+
+	inline void SetViewportOverride(const FString& InViewportOverrideId, const EDisplayClusterViewportOverrideMode InViewportOverrideMode = EDisplayClusterViewportOverrideMode::All)
+	{
+		ViewportOverrideMode = InViewportOverrideMode;
+		ViewportOverrideId = InViewportOverrideId;
+	}
+
+	inline bool IsViewportOverrided() const
+	{
+		return ViewportOverrideMode != EDisplayClusterViewportOverrideMode::None && !ViewportOverrideId.IsEmpty();
 	}
 
 	// Call this after UpdateSettings()

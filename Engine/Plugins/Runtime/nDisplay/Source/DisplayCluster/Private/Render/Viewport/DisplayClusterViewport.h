@@ -12,9 +12,10 @@
 
 #include "Render/Viewport/DisplayClusterViewport_CustomPostProcessSettings.h"
 #include "Render/Viewport/DisplayClusterViewport_VisibilitySettings.h"
+#include "Render/Viewport/DisplayClusterViewport_OpenColorIO.h"
 
+#include "SceneViewExtension.h"
 #include "SceneViewExtensionContext.h"
-#include "OpenColorIODisplayExtension.h"
 
 class FDisplayClusterViewportRenderTargetResource;
 class FDisplayClusterViewportTextureResource;
@@ -187,7 +188,20 @@ public:
 	// Active view extension for this viewport
 	const TArray<FSceneViewExtensionRef> GatherActiveExtensions(FViewport* InViewport) const;
 
+	/** Initialize viewport contexts and resources for new frame
+	 *
+	 * @param InStereoViewIndex - initial StereoViewIndex for this viewport
+	 * @param InFrameSettings   - New settings for current frame
+	 *
+	 * @return - true, if success
+	 */
 	bool UpdateFrameContexts(const uint32 InStereoViewIndex, const FDisplayClusterRenderFrameSettings& InFrameSettings);
+
+	/** Reset viewport contexts and resources. */
+	void ResetFrameContexts();
+
+	/** Compare OCIO with another viewport, return true if they are equal. */
+	bool IsOpenColorIOEquals(const FDisplayClusterViewport& InViewport) const;
 
 public:
 	FIntRect GetValidRect(const FIntRect& InRect, const TCHAR* DbgSourceName);
@@ -208,11 +222,8 @@ private:
 #endif
 
 public:
-	// Support OCIO:
-	FSceneViewExtensionIsActiveFunctor GetSceneViewExtensionIsActiveFunctor() const;
-
-	// OCIO wrapper
-	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OpenColorIODisplayExtension;
+	/** nDisplay OpenColorIO object. */
+	TSharedPtr<FDisplayClusterViewport_OpenColorIO, ESPMode::ThreadSafe> OpenColorIO;
 
 public:
 	// Projection policy instance that serves this viewport

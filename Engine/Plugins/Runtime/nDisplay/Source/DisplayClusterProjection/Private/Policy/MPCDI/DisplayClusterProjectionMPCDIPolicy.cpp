@@ -259,7 +259,7 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 	IDisplayClusterShaders& ShadersAPI = IDisplayClusterShaders::Get();
 
 	const FDisplayClusterViewport_RenderSettingsICVFX& SettingsICVFX = InViewportProxy->GetRenderSettingsICVFX_RenderThread();
-	if ((SettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXTarget) != 0)
+	if (EnumHasAllFlags(SettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::Target))
 	{
 		// This viewport used as icvfx target:
 		TArray<FDisplayClusterShaderParametersICVFX_ViewportResource*> ViewportResources;
@@ -316,12 +316,6 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 							}
 						}
 					}
-				}
-
-				TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> LightCardManager = RefViewportManagerProxy.GetLightCardManager_RenderThread();
-				if (LightCardManager.IsValid())
-				{
-					ShaderICVFX.UVLightCardMap = LightCardManager->GetUVLightCardMap_RenderThread();
 				}
 
 				// cleanup camera list for render

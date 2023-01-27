@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "StereoRendering.h"
+#include "ShowFlags.h"
 
 class FDisplayClusterViewport_Context
 {
@@ -67,8 +68,18 @@ public:
 
 	struct FRenderThreadData
 	{
+		FRenderThreadData()
+			: EngineShowFlags(ESFIM_All0)
+		{ }
+		
 		// GPUIndex used to render this context.
 		int32 GPUIndex = INDEX_NONE;
+
+		// Display gamma used to render this context
+		float EngineDisplayGamma = 2.2f;
+
+		// Engine flags used to render this context
+		FEngineShowFlags EngineShowFlags;
 	};
 
 	// This data updated only on rendering thread

@@ -120,6 +120,9 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 	FSceneInterface* PreviewScene = CurrentWorld->Scene;
 	FEngineShowFlags EngineShowFlags = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
 
+	// Handle special viewports game-thread logic at frame begin
+	InitializeNewFrame();
+
 	int32 ViewportIndex = 0;
 	bool bViewportsRenderPassDone = false;
 

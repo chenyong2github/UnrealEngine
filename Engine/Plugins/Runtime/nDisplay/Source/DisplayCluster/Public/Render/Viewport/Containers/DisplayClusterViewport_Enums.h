@@ -44,3 +44,31 @@ enum class EDisplayClusterViewportResourceType : uint8
 	OutputPreviewTargetableResource,
 #endif
 };
+
+enum class EDisplayClusterViewportCaptureMode : uint8
+{
+	// Use current scene format, no alpha
+	Default = 0,
+
+	// use small BGRA 8bit texture with alpha for masking
+	Chromakey,
+
+	// use hi-res float texture with alpha for compisiting
+	Lightcard,
+
+	// Special hi-res mode for movie pipeline
+	MoviePipeline,
+};
+
+enum class EDisplayClusterViewportOverrideMode : uint8
+{
+	// Do not override this viewport from the other one (Render viewport; create all resources)
+	None = 0,
+
+	// Override internalRTT from the other viewport (Don't render this viewport; Don't create RTT resource)
+	// Useful for custom PP on the same InRTT. (OCIO per-viewport\node)
+	InernalRTT,
+
+	// Override all - clone viewport (Dont render; Don't create resources;)
+	All
+};

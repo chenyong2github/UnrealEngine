@@ -100,7 +100,7 @@ public:
 
 	void AssignChromakeyToTargetViewport(FDisplayClusterViewport& DstViewport, UDisplayClusterICVFXCameraComponent& InCameraComponent)
 	{
-		if ((DstViewport.RenderSettingsICVFX.Flags & ViewportICVFX_DisableChromakey) != 0)
+		if (EnumHasAnyFlags(DstViewport.RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableChromakey))
 		{
 			// chromakey disabled for this viewport
 			return;
@@ -111,7 +111,7 @@ public:
 
 		FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_Chromakey(DstCameraData, CameraSettings.Chromakey, ChromakeyViewport);
 
-		if ((DstViewport.RenderSettingsICVFX.Flags & ViewportICVFX_DisableChromakeyMarkers) == 0)
+		if (!EnumHasAnyFlags(DstViewport.RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableChromakeyMarkers))
 		{
 			FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_ChromakeyMarkers(DstCameraData, CameraSettings.Chromakey.ChromakeyMarkers);
 		}
@@ -182,7 +182,10 @@ public:
 					ViewportIt->RenderSettingsICVFX.ICVFX.Cameras.Add(ShaderParametersCameraSettings);
 
 					// At lest one target must accept chromakey
-					bAllowChromakey |= (ViewportIt->RenderSettingsICVFX.Flags & ViewportICVFX_DisableChromakey) == 0;
+					if (!EnumHasAnyFlags(ViewportIt->RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableChromakey))
+					{
+						bAllowChromakey = true;
+					}
 				}
 			}
 
@@ -296,6 +299,26 @@ bool FDisplayClusterViewportConfigurationICVFX::CreateLightcardViewport(FDisplay
 	return false;
 }
 
+bool FDisplayClusterViewportConfigurationICVFX::CreateUVLightcardViewport(FDisplayClusterViewport& BaseViewport)
+{
+	FDisplayClusterViewport* UVLightCardViewport = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetOrCreateUVLightcardViewport(BaseViewport, RootActor);
+	if (UVLightCardViewport)
+	{
+		// Update UV LightCard viewport settings
+		FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportSetting(*UVLightCardViewport, BaseViewport, RootActor);
+
+		// Support projection policy update
+		FDisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(*UVLightCardViewport);
+
+		// Optimize: re-use UVLightCard viewports with equals OCIO
+		FDisplayClusterViewportConfigurationHelpers_ICVFX::ReuseUVLightCardViewportWithinClusterNode(*UVLightCardViewport);
+
+		return true;
+	}
+
+	return false;
+}
+
 void FDisplayClusterViewportConfigurationICVFX::Update()
 {
 	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
@@ -325,7 +348,7 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 
 			// If not all viewports disable camera:
 			// Collect all ICVFX cameras from stage
-			if ((TargetViewportsFlags & ViewportICVFX_DisableCamera) == 0)
+			if (!EnumHasAnyFlags(TargetViewportsFlags, EDisplayClusterViewportICVFXFlags::DisableCamera))
 			{
 				ImplGetCameras();
 			}
@@ -337,7 +360,7 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 				for (FDisplayClusterViewport* TargetIt : TargetViewports)
 				{
 					// Target viewpot must support camera render:
-					if ((TargetIt->RenderSettingsICVFX.Flags & ViewportICVFX_DisableCamera) == 0)
+					if (!EnumHasAnyFlags(TargetIt->RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableCamera))
 					{
 						// Add this target to all cameras visible on it
 						for (FDisplayClusterViewportConfigurationCameraICVFX& CameraIt : StageCameras)
@@ -362,17 +385,28 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 			}
 
 			// If not all viewports disable lightcard
-			if ((TargetViewportsFlags & ViewportICVFX_DisableLightcard) == 0)
+			if (!EnumHasAnyFlags(TargetViewportsFlags, EDisplayClusterViewportICVFXFlags::DisableLightcard))
 			{
 				// Allocate and assign lightcard resources
-				if (FDisplayClusterViewportConfigurationHelpers_ICVFX::IsShouldUseLightcard(StageSettings.Lightcard))
 				{
+
+					const bool bUseLightCard = FDisplayClusterViewportConfigurationHelpers_ICVFX::IsShouldUseLightcard(StageSettings.Lightcard);
+					const bool bUseUVLightCard = FDisplayClusterViewportConfigurationHelpers_ICVFX::IsShouldUseUVLightcard(*ViewportManager, StageSettings.Lightcard);
+
 					for (FDisplayClusterViewport* TargetIt : TargetViewports)
 					{
 						// only for support targets
-						if (TargetIt && (TargetIt->RenderSettingsICVFX.Flags & ViewportICVFX_DisableLightcard) == 0)
+						if (TargetIt && !EnumHasAnyFlags(TargetIt->RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableLightcard))
 						{
-							CreateLightcardViewport(*TargetIt);
+							if (bUseLightCard)
+							{
+								CreateLightcardViewport(*TargetIt);
+							}
+
+							if (bUseUVLightCard)
+							{
+								CreateUVLightcardViewport(*TargetIt);
+							}
 						}
 					}
 				}
@@ -398,11 +432,9 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 				// Freeze render for lightcards when outer viewports freezed
 				if (StageSettings.Lightcard.bIgnoreOuterViewportsFreezingForLightcards == false)
 				{
-					const EDisplayClusterViewportRuntimeICVFXFlags LightcardViewportMask = ViewportRuntime_ICVFXLightcard;
-
 					for (FDisplayClusterViewport* ViewportIt : ViewportManager->ImplGetViewports())
 					{
-						if (ViewportIt && (ViewportIt->RenderSettingsICVFX.RuntimeFlags & LightcardViewportMask) != 0)
+						if (ViewportIt && EnumHasAnyFlags(ViewportIt->RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::Lightcard | EDisplayClusterViewportRuntimeICVFXFlags::UVLightcard))
 						{
 							ViewportIt->RenderSettings.bFreezeRendering = true;
 						}
@@ -476,9 +508,9 @@ void FDisplayClusterViewportConfigurationICVFX::UpdateHideList(FDisplayClusterVi
 	// Collect viewports, that use ICVFX hide list
 	for (FDisplayClusterViewport* ViewportIt : ViewportManager.ImplGetViewports())
 	{
-		const bool bInternalResource = (ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_InternalResource) != 0;
-		const bool bIsInCamera = (ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXIncamera) != 0;
-		const bool bICVFX_Enable = (ViewportIt->RenderSettingsICVFX.Flags & ViewportICVFX_Enable) != 0;
+		const bool bInternalResource = EnumHasAnyFlags(ViewportIt->RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InternalResource);
+		const bool bIsInCamera = EnumHasAnyFlags(ViewportIt->RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InCamera);
+		const bool bICVFX_Enable = EnumHasAnyFlags(ViewportIt->RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::Enable);
 
 		if ((bICVFX_Enable && !bInternalResource)  || (bInternalResource && bIsInCamera))
 		{
@@ -495,10 +527,10 @@ void FDisplayClusterViewportConfigurationICVFX::ImplBeginReallocateViewports(FDi
 	for (FDisplayClusterViewport* ViewportIt : ViewportManager.ImplGetViewports())
 	{
 		// Runtime icvfx viewport support reallocate feature:
-		if ((ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_InternalResource) != 0)
+		if (EnumHasAllFlags(ViewportIt->RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InternalResource))
 		{
 			// Mark all dynamic ICVFX viewports for delete
-			ViewportIt->RenderSettingsICVFX.RuntimeFlags |= ViewportRuntime_Unused;
+			EnumAddFlags(ViewportIt->RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::Unused);
 		}
 	}
 }
@@ -510,7 +542,7 @@ void FDisplayClusterViewportConfigurationICVFX::ImplFinishReallocateViewports(FD
 	// Collect all unused viewports for remove
 	for (FDisplayClusterViewport* ViewportIt : ViewportManager.ImplGetViewports())
 	{
-		if ((ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_Unused) != 0)
+		if (EnumHasAllFlags(ViewportIt->RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::Unused))
 		{
 			UnusedViewports.Add(ViewportIt);
 		}
@@ -551,16 +583,16 @@ void FDisplayClusterViewportConfigurationICVFX::ImplGetCameras()
 
 EDisplayClusterViewportICVFXFlags FDisplayClusterViewportConfigurationICVFX::ImplGetTargetViewports(FDisplayClusterViewportManager& ViewportManager, TArray<class FDisplayClusterViewport*>& OutTargets)
 {
-	EDisplayClusterViewportICVFXFlags InvFlags = ViewportICVFX_None;
+	EDisplayClusterViewportICVFXFlags InvFlags = EDisplayClusterViewportICVFXFlags::None;
 
 	// Collect invertet disable flags from all target viewports
 	for (FDisplayClusterViewport* ViewportIt : ViewportManager.ImplGetViewports())
 	{
 		// Process only external viewports:
-		if ((ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_InternalResource) == 0)
+		if (!EnumHasAnyFlags(ViewportIt->RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InternalResource))
 		{
 			//Raise new projection target if possible
-			if (ViewportIt->RenderSettings.bEnable && (ViewportIt->RenderSettingsICVFX.Flags & ViewportICVFX_Enable) != 0)
+			if (ViewportIt->RenderSettings.bEnable && EnumHasAnyFlags(ViewportIt->RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::Enable))
 			{
 				if (ViewportIt->ProjectionPolicy.IsValid() && ViewportIt->ProjectionPolicy->ShouldSupportICVFX())
 				{
@@ -568,7 +600,7 @@ EDisplayClusterViewportICVFXFlags FDisplayClusterViewportConfigurationICVFX::Imp
 					OutTargets.Add(ViewportIt);
 
 					// proj policy support ICVFX, Use this viewport as icvfx target
-					ViewportIt->RenderSettingsICVFX.RuntimeFlags |= ViewportRuntime_ICVFXTarget;
+					EnumAddFlags(ViewportIt->RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::Target);
 
 					// Update targets use flags:
 					InvFlags |= ~(ViewportIt->RenderSettingsICVFX.Flags);

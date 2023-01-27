@@ -133,13 +133,13 @@ private:
 	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.ChromakeyRenderTexture", EditConditionPath = "CameraSettings.bEnable && CameraSettings.Chromakey.bEnable"))
 	FDisplayClusterEditorPropertyReference ChromakeyRenderTextureRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = OCIO, meta = (PropertyPath = "CameraSettings.AllNodesOCIOConfiguration.bIsEnabled", DisplayName = "Enable Inner Frustum OCIO", ToolTip = "Enable the application of an OpenColorIO configuration to all nodes."))
-	FDisplayClusterEditorPropertyReference OCIOConfigurationEnabledRef;
+	UPROPERTY(EditAnywhere, Transient, Category = OCIO, meta = (PropertyPath = "CameraSettings.CameraOCIO.AllNodesOCIOConfiguration.bIsEnabled", DisplayName = "Enable Inner Frustum OCIO"))
+	FDisplayClusterEditorPropertyReference EnableInnerFrustuOCIORef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = OCIO, meta = (PropertyPath = "CameraSettings.AllNodesOCIOConfiguration.OCIOConfiguration.ColorConfiguration", DisplayName = "All Nodes Color Configuration", ToolTip = "Apply this OpenColorIO configuration to all nodes.", EditConditionPath = "CameraSettings.AllNodesOCIOConfiguration.bIsEnabled"))
-	FDisplayClusterEditorPropertyReference OCIOColorConfiguratonRef;
+	UPROPERTY(EditAnywhere, Transient, Category = OCIO, meta = (PropertyPath = "CameraSettings.CameraOCIO.AllNodesOCIOConfiguration.ColorConfiguration", DisplayName = "All Nodes Color Configuration"))
+	FDisplayClusterEditorPropertyReference AllNodesOCIOConfigurationRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = OCIO, meta = (PropertyPath = "CameraSettings.PerNodeOCIOProfiles", EditConditionPath = "CameraSettings.AllNodesOCIOConfiguration.bIsEnabled"))
+	UPROPERTY(EditAnywhere, Transient, Category = OCIO, meta = (PropertyPath = "CameraSettings.CameraOCIO.PerNodeOCIOProfiles", DisplayName = "Per-Node OCIO Overrides"))
 	FDisplayClusterEditorPropertyReference PerNodeOCIOProfilesRef;
 
 	UPROPERTY(EditAnywhere, Transient, Category = "Inner Frustum Color Grading", meta = (PropertyPath = "CameraSettings.EnableInnerFrustumColorGrading", DisplayName = "Enable Inner Frustum Color Grading"))

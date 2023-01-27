@@ -9,10 +9,10 @@ public class DisplayCluster : ModuleRules
 	{
 		PublicDefinitions.Add("WITH_OCIO=0");
 
-		// [temporary] We need this to be able to use some private data types. This should
-		// be removed once we move the nD rendering pipeline to RDG.
-		string EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-		PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source", "Runtime", "Renderer", "Private"));
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"), //required for FPostProcessMaterialInputs
+			});
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {

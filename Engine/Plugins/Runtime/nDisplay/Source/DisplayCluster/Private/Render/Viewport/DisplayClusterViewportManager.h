@@ -20,7 +20,6 @@ class FDisplayClusterRenderFrameManager;
 class FDisplayClusterRenderFrame; 
 class FDisplayClusterViewportManagerProxy;
 class FDisplayClusterViewportLightCardManager;
-class IDisplayClusterViewportLightCardManager;
 class IDisplayClusterProjectionPolicy;
 
 class  UDisplayClusterConfigurationViewport;
@@ -54,6 +53,8 @@ public:
 	virtual bool UpdateCustomConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const TArray<FString>& InViewportNames, class ADisplayClusterRootActor* InRootActorPtr) override;
 
 	virtual bool BeginNewFrame(FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame) override;
+
+	virtual void InitializeNewFrame() override;
 	virtual void FinalizeNewFrame() override;
 
 	virtual FSceneViewFamily::ConstructionValues CreateViewFamilyConstructionValues(
@@ -92,8 +93,6 @@ public:
 		return TArrayView<IDisplayClusterViewport*>((IDisplayClusterViewport**)(ClusterNodeViewports.GetData()), ClusterNodeViewports.Num());
 	}
 
-	virtual TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> GetLightCardManager() const override;
-
 	virtual void MarkComponentGeometryDirty(const FName InComponentName = NAME_None) override;
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -125,6 +124,24 @@ public:
 
 	const FDisplayClusterRenderFrameSettings& GetRenderFrameSettings() const;
 
+	/** Return number of contexts per viewport. */
+	int32 GetViewPerViewportAmount() const;
+
+	/** Return initial StereoViewIndex for the input viewport. */
+	int32 FindFirstViewportStereoViewIndex(FDisplayClusterViewport* InViewport) const;
+
+	/** Returns true if the final color is renderable (to support preview in scene). */
+	bool ShouldRenderFinalColor() const;
+
+	/** Return nDisplay VE object. */
+	TSharedPtr<class FDisplayClusterViewportManagerViewExtension, ESPMode::ThreadSafe> GetViewportManagerViewExtension() const
+	{ return ViewportManagerViewExtension; }
+
+	/** Return LightCardManager object. */
+	TSharedPtr<FDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> GetLightCardManager() const
+	{ return LightCardManager; }
+
+	/** Return PostProcessManager object. */
 	TSharedPtr<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe> GetPostProcessManager() const
 	{ return PostProcessManager; }
 

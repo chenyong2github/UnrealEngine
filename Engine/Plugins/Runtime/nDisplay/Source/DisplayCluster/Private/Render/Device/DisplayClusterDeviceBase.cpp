@@ -170,10 +170,10 @@ EStereoscopicPass FDisplayClusterDeviceBase::GetViewPassForIndex(bool bStereoReq
 	{
 		if (IsInRenderingThread())
 		{
-			if (ViewportManagerProxyPtr)
+			if (ViewportManagerProxy.IsValid())
 			{
 				uint32 ViewportContextNum = 0;
-				IDisplayClusterViewportProxy* ViewportProxy = ViewportManagerProxyPtr->FindViewport_RenderThread(ViewIndex, &ViewportContextNum);
+				IDisplayClusterViewportProxy* ViewportProxy = ViewportManagerProxy->FindViewport_RenderThread(ViewIndex, &ViewportContextNum);
 				if (ViewportProxy)
 				{
 					const FDisplayClusterViewport_Context& Context = ViewportProxy->GetContexts_RenderThread()[ViewportContextNum];
@@ -183,10 +183,10 @@ EStereoscopicPass FDisplayClusterDeviceBase::GetViewPassForIndex(bool bStereoReq
 		}
 		else
 		{
-			if (ViewportManagerPtr)
+			if (ViewportManager)
 			{
 				uint32 ViewportContextNum = 0;
-				IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(ViewIndex, &ViewportContextNum);
+				IDisplayClusterViewport* ViewportPtr = ViewportManager->FindViewport(ViewIndex, &ViewportContextNum);
 				if (ViewportPtr)
 				{
 					const FDisplayClusterViewport_Context& Context = ViewportPtr->GetContexts()[ViewportContextNum];
@@ -203,7 +203,7 @@ void FDisplayClusterDeviceBase::AdjustViewRect(int32 ViewIndex, int32& X, int32&
 {
 	check(IsInGameThread());
 
-	if (ViewportManagerPtr == nullptr || ViewportManagerPtr->IsSceneOpened() == false)
+	if (ViewportManager == nullptr || ViewportManager->IsSceneOpened() == false)
 	{
 		return;
 	}
@@ -216,7 +216,7 @@ void FDisplayClusterDeviceBase::AdjustViewRect(int32 ViewIndex, int32& X, int32&
 	}
 
 	uint32 ViewportContextNum = 0;
-	IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(ViewIndex, &ViewportContextNum);
+	IDisplayClusterViewport* ViewportPtr = ViewportManager->FindViewport(ViewIndex, &ViewportContextNum);
 	if (ViewportPtr == nullptr)
 	{
 		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoViewIndex='%i' not found"), ViewIndex);
@@ -239,7 +239,7 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const int32 ViewIndex,
 	check(IsInGameThread());
 	check(WorldToMeters > 0.f);
 
-	if (ViewportManagerPtr == nullptr || ViewportManagerPtr->IsSceneOpened() == false)
+	if (ViewportManager == nullptr || ViewportManager->IsSceneOpened() == false)
 	{
 		return;
 	}
@@ -252,7 +252,7 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const int32 ViewIndex,
 	}
 
 	uint32 ViewportContextNum = 0;
-	IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(ViewIndex, &ViewportContextNum);
+	IDisplayClusterViewport* ViewportPtr = ViewportManager->FindViewport(ViewIndex, &ViewportContextNum);
 	if (ViewportPtr == nullptr)
 	{
 		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoViewIndex='%i' not found"), ViewIndex);
@@ -380,10 +380,10 @@ FMatrix FDisplayClusterDeviceBase::GetStereoProjectionMatrix(const int32 ViewInd
 	// ViewIndex == eSSE_MONOSCOPIC(-1) is a special case called for ISR culling math.
 	// Since nDisplay is not ISR compatible, we ignore this request. This won't be neccessary once
 	// we stop using nDisplay as a stereoscopic rendering device (IStereoRendering).
-	if (ViewportManagerPtr && ViewportManagerPtr->IsSceneOpened() && ViewIndex >= 0)
+	if (ViewportManager && ViewportManager->IsSceneOpened() && ViewIndex >= 0)
 	{
 		uint32 ViewportContextNum = 0;
-		IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(ViewIndex, &ViewportContextNum);
+		IDisplayClusterViewport* ViewportPtr = ViewportManager->FindViewport(ViewIndex, &ViewportContextNum);
 		if (ViewportPtr == nullptr)
 		{
 			UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoViewIndex='%i' not found"), ViewIndex);
@@ -403,59 +403,71 @@ bool FDisplayClusterDeviceBase::BeginNewFrame(FViewport* InViewport, UWorld* InW
 	check(IsInGameThread());
 	check(InViewport);
 
-	IDisplayClusterViewportManagerProxy* NewViewportManagerProxy = nullptr;
-
 	IDisplayCluster& DisplayCluster = IDisplayCluster::Get();
-	ADisplayClusterRootActor* RootActor = DisplayCluster.GetGameMgr()->GetRootActor();
-	if (RootActor)
+	if (ADisplayClusterRootActor* RootActor = DisplayCluster.GetGameMgr()->GetRootActor())
 	{
-		IDisplayClusterViewportManager* ViewportManager = RootActor->GetViewportManager();
-		if (ViewportManager)
+		if (IDisplayClusterViewportManager* ViewportManagerPtr = RootActor->GetViewportManager())
 		{
 			const FString LocalNodeId = DisplayCluster.GetConfigMgr()->GetLocalNodeId();
+
 			// Update local node viewports (update\create\delete) and build new render frame
-			if (ViewportManager->UpdateConfiguration(RenderFrameMode, LocalNodeId, RootActor))
+			if (ViewportManagerPtr->UpdateConfiguration(RenderFrameMode, LocalNodeId, RootActor))
 			{
-				if (ViewportManager->BeginNewFrame(InViewport, InWorld, OutRenderFrame))
+				if (ViewportManagerPtr->BeginNewFrame(InViewport, InWorld, OutRenderFrame))
 				{
-					// Begin use viewport manager for current frame
-					ViewportManagerPtr = ViewportManager;
-
-					// Send viewport manager proxy on render thread
-					NewViewportManagerProxy = ViewportManager->GetProxy();
-
 					// update total number of views for this frame (in multiple families)
 					DesiredNumberOfViews = OutRenderFrame.DesiredNumberOfViews;
+
+					return true;
 				}
 			}
 		}
 	}
 
-	// Update render thread viewport manager proxy
-	ENQUEUE_RENDER_COMMAND(DisplayClusterDevice_SetViewportManagerPtr)(
-		[DCRenderDevice = this, ViewportManagerProxy = NewViewportManagerProxy](FRHICommandListImmediate& RHICmdList)
-	{
-		DCRenderDevice->ViewportManagerProxyPtr = ViewportManagerProxy;
-	});
+	return false;
+}
 
-	return NewViewportManagerProxy != nullptr;
+void FDisplayClusterDeviceBase::InitializeNewFrame()
+{
+	IDisplayCluster& DisplayCluster = IDisplayCluster::Get();
+	if (ADisplayClusterRootActor* RootActor = DisplayCluster.GetGameMgr()->GetRootActor())
+	{
+		if (IDisplayClusterViewportManager* ViewportManagerPtr = RootActor->GetViewportManager())
+		{
+			// Begin use viewport manager for current frame
+			ViewportManager = ViewportManagerPtr;
+
+			// Initialize frame for render
+			ViewportManager->InitializeNewFrame();
+
+			FDisplayClusterViewportManagerProxy* ViewportManagerProxyPtr = static_cast<FDisplayClusterViewportManagerProxy*>(ViewportManager->GetProxy());
+
+			// Send viewport manager proxy on render thread
+			ENQUEUE_RENDER_COMMAND(DisplayClusterDevice_SetViewportManagerProxy)(
+				[DCRenderDevice = this, NewViewportManagerProxy = ViewportManagerProxyPtr->AsShared()](FRHICommandListImmediate& RHICmdList)
+				{
+					DCRenderDevice->ViewportManagerProxy = NewViewportManagerProxy;
+				});
+		}
+	}
 }
 
 void FDisplayClusterDeviceBase::FinalizeNewFrame()
 {
-	IDisplayCluster& DisplayCluster = IDisplayCluster::Get();
-	ADisplayClusterRootActor* RootActor = DisplayCluster.GetGameMgr()->GetRootActor();
-	if (RootActor)
+	if (ViewportManager)
 	{
-		IDisplayClusterViewportManager* ViewportManager = RootActor->GetViewportManager();
-		if (ViewportManager)
-		{
-			ViewportManager->FinalizeNewFrame();
-		}
+		ViewportManager->FinalizeNewFrame();
 	}
 
 	// reset viewport manager ptr on game thread
-	ViewportManagerPtr = nullptr;
+	ViewportManager = nullptr;
+
+	// Reset viewport manager proxy on render thread
+	ENQUEUE_RENDER_COMMAND(DisplayClusterDevice_ResetViewportManagerProxy)(
+		[DCRenderDevice = this](FRHICommandListImmediate& RHICmdList)
+		{
+			DCRenderDevice->ViewportManagerProxy.Reset();
+		});
 }
 
 DECLARE_GPU_STAT_NAMED(nDisplay_Device_RenderTexture, TEXT("nDisplay RenderDevice::RenderTexture"));
@@ -483,10 +495,10 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 			TransitionAndCopyTexture(RHICmdList, SrcTexture, BackBuffer, CopyInfo);
 		}
 
-		if (RenderFrameMode == EDisplayClusterRenderFrameMode::Stereo && ViewportManagerProxyPtr)
+		if (RenderFrameMode == EDisplayClusterRenderFrameMode::Stereo && ViewportManagerProxy.IsValid())
 		{
 			// QuadBufStereo: Copy RIGHT_EYE to backbuffer
-			ViewportManagerProxyPtr->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 1, 1, BackBuffer, WindowSize);
+			ViewportManagerProxy->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 1, 1, BackBuffer, WindowSize);
 		}
 
 		const bool bClearTextureEnabled = CVarClearTextureEnabled.GetValueOnRenderThread() != 0;
@@ -552,9 +564,9 @@ void FDisplayClusterDeviceBase::StartFinalPostprocessSettings(struct FPostProces
 	check(IsInGameThread());
 
 	// eSSP_FULL pass reserved for UE internal render
-	if (StereoPassType != EStereoscopicPass::eSSP_FULL && ViewportManagerPtr)
+	if (StereoPassType != EStereoscopicPass::eSSP_FULL && ViewportManager)
 	{
-		IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoViewIndex);
+		IDisplayClusterViewport* ViewportPtr = ViewportManager->FindViewport(StereoViewIndex);
 		if (ViewportPtr)
 		{
 			ViewportPtr->GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Start, StartPostProcessingSettings);
@@ -567,9 +579,9 @@ bool FDisplayClusterDeviceBase::OverrideFinalPostprocessSettings(struct FPostPro
 	check(IsInGameThread());
 
 	// eSSP_FULL pass reserved for UE internal render
-	if (StereoPassType != EStereoscopicPass::eSSP_FULL && ViewportManagerPtr)
+	if (StereoPassType != EStereoscopicPass::eSSP_FULL && ViewportManager)
 	{
-		IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoViewIndex);
+		IDisplayClusterViewport* ViewportPtr = ViewportManager->FindViewport(StereoViewIndex);
 		if (ViewportPtr)
 		{
 			return ViewportPtr->GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Override, OverridePostProcessingSettings, &BlendWeight);
@@ -584,9 +596,9 @@ void FDisplayClusterDeviceBase::EndFinalPostprocessSettings(struct FPostProcessS
 	check(IsInGameThread());
 
 	// eSSP_FULL pass reserved for UE internal render
-	if (StereoPassType != EStereoscopicPass::eSSP_FULL && ViewportManagerPtr && FinalPostProcessingSettings != nullptr)
+	if (StereoPassType != EStereoscopicPass::eSSP_FULL && ViewportManager && FinalPostProcessingSettings != nullptr)
 	{
-		IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoViewIndex);
+		IDisplayClusterViewport* ViewportPtr = ViewportManager->FindViewport(StereoViewIndex);
 		if (ViewportPtr)
 		{
 			ViewportPtr->GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Final, FinalPostProcessingSettings);

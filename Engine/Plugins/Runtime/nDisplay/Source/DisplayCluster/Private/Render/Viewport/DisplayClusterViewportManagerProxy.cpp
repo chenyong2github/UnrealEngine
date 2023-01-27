@@ -12,8 +12,8 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 
-#include "Render/Viewport/IDisplayClusterViewportLightCardManager.h"
 #include "Render/Viewport/LightCard/DisplayClusterViewportLightCardManager.h"
+#include "Render/Viewport/LightCard/DisplayClusterViewportLightCardManagerProxy.h"
 
 #include "Render/Viewport/DisplayClusterViewportProxy.h"
 #include "Render/Viewport/RenderTarget/DisplayClusterRenderTargetManager.h"
@@ -91,16 +91,12 @@ void FDisplayClusterViewportManagerProxy::Release_RenderThread()
 	}
 
 	if (PostProcessManager.IsValid())
-		{
+	{
 		PostProcessManager->Release();
 		PostProcessManager.Reset();
-		}
-
-	if (LightCardManager.IsValid())
-	{
-		LightCardManager->Release();
-		LightCardManager.Reset();
 	}
+
+	LightCardManagerProxy.Reset();
 
 	ViewportManagerViewExtension.Reset();
 }
@@ -109,7 +105,7 @@ void FDisplayClusterViewportManagerProxy::Initialize(FDisplayClusterViewportMana
 {
 	RenderTargetManager = InViewportManager.RenderTargetManager;
 	PostProcessManager = InViewportManager.PostProcessManager;
-	LightCardManager = InViewportManager.LightCardManager;
+	LightCardManagerProxy = InViewportManager.LightCardManager->GetLightCardManagerProxy();
 	ViewportManagerViewExtension = InViewportManager.ViewportManagerViewExtension;
 }
 
@@ -251,13 +247,17 @@ void FDisplayClusterViewportManagerProxy::ImplRenderFrame(FViewport* InViewport)
 		IDisplayCluster::Get().GetCallbacks().OnDisplayClusterProcessLatency_RenderThread().Broadcast(RHICmdList, ViewportManagerProxy, InViewport);
 	});
 
+	ENQUEUE_RENDER_COMMAND(DisplayClusterRenderFrame_UpdateDeferredResources)(
+		[ViewportManagerProxy = SharedThis(this), InViewport](FRHICommandListImmediate& RHICmdList)
+	{
+		// Update viewports resources: vp/texture overlay, OCIO, blur, nummips, etc
+		ViewportManagerProxy->UpdateDeferredResources_RenderThread(RHICmdList);
+	});
+
 	ENQUEUE_RENDER_COMMAND(DisplayClusterRenderFrame_WarpBlend)(
 		[InViewportManagerProxy = SharedThis(this), InViewport](FRHICommandListImmediate& RHICmdList)
 	{
 		const FDisplayClusterViewportManagerProxy* ViewportManagerProxy = &InViewportManagerProxy.Get();
-
-		// Update viewports resources: overlay, vp-overla, blur, nummips, etc
-		ViewportManagerProxy->UpdateDeferredResources_RenderThread(RHICmdList);
 
 		if (ViewportManagerProxy->PostProcessManager.IsValid())
 		{
@@ -312,7 +312,7 @@ void FDisplayClusterViewportManagerProxy::UpdateDeferredResources_RenderThread(F
 
 	for (const TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>& ViewportProxy : ClusterNodeViewportProxies)
 	{
-		if (ViewportProxy->RenderSettings.OverrideViewportId.IsEmpty())
+		if (!ViewportProxy->RenderSettings.IsViewportOverrided())
 		{
 			ViewportProxy->UpdateDeferredResources(RHICmdList);
 		}
@@ -358,6 +358,9 @@ void FDisplayClusterViewportManagerProxy::ImplClearFrameTargets_RenderThread(FRH
 	}
 }
 
+/**
+ * WarpBlend render pass. (internal)
+ */
 enum class EWarpPass : uint8
 {
 	Begin = 0,
@@ -620,12 +623,6 @@ bool FDisplayClusterViewportManagerProxy::ResolveFrameTargetToBackBuffer_RenderT
 	return false;
 }
 
-TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> FDisplayClusterViewportManagerProxy::GetLightCardManager_RenderThread() const
-{
-	return LightCardManager;
-}
-
-
 FDisplayClusterViewportProxy* FDisplayClusterViewportManagerProxy::ImplFindViewport_RenderThread(const FString& ViewportId) const
 {
 	check(IsInRenderingThread());
@@ -639,7 +636,7 @@ FDisplayClusterViewportProxy* FDisplayClusterViewportManagerProxy::ImplFindViewp
 	return (DesiredViewport != nullptr) ? DesiredViewport->Get() : nullptr;
 }
 
-IDisplayClusterViewportProxy* FDisplayClusterViewportManagerProxy::FindViewport_RenderThread(const int32 StereoViewIndex, uint32* OutContextNum) const
+FDisplayClusterViewportProxy* FDisplayClusterViewportManagerProxy::ImplFindViewport_RenderThread(const int32 StereoViewIndex, uint32* OutContextNum) const
 {
 	check(IsInRenderingThread());
 
