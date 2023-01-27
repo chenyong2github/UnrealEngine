@@ -20,6 +20,7 @@
 #include "StaticMeshAttributes.h"
 #include "DynamicMeshEditor.h"
 #include "Operations/MeshBoolean.h"
+#include "Materials/Material.h"
 
 #include "EngineGlobals.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
@@ -95,6 +96,13 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetCollectionAttributeDataTypedDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetCollectionAttributeDataTypedDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBoolArrayToFaceSelectionDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FAddMaterialToCollectionDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FReAssignMaterialInCollectionDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMaterialsInfoDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetMaterialFromMaterialsArrayDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetMaterialInMaterialsArrayDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeMaterialDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeMaterialsArrayDataflowNode);
 
 		// GeometryCollection
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("GeometryCollection", FLinearColor(0.55f, 0.45f, 1.0f), CDefaultNodeBodyTintColor);
@@ -153,11 +161,11 @@ void FPrintStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 {
 	FString Value = GetValue<FString>(Context, &String);
 
-	if (PrintToScreen)
+	if (bPrintToScreen)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, Duration, Color, Value);
 	}
-	if (PrintToLog)
+	if (bPrintToLog)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Text, %s"), *Value);
 	}
@@ -165,7 +173,7 @@ void FPrintStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 
 void FLogStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (PrintToLog)
+	if (bPrintToLog)
 	{
 		FString Value = GetValue<FString>(Context, &String);
 		UE_LOG(LogTemp, Warning, TEXT("[Dataflow Log] %s"), *Value);
@@ -372,7 +380,7 @@ void FRandomFloatDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 {
 	if (Out->IsA<float>(&Float))
 	{
-		if (Deterministic)
+		if (bDeterministic)
 		{
 			float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
 
@@ -393,7 +401,7 @@ void FRandomFloatInRangeDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 		float MinVal = GetValue<float>(Context, &Min);
 		float MaxVal = GetValue<float>(Context, &Max);
 
-		if (Deterministic)
+		if (bDeterministic)
 		{
 			float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
 
@@ -411,7 +419,7 @@ void FRandomUnitVectorDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 {
 	if (Out->IsA<FVector>(&Vector))
 	{
-		if (Deterministic)
+		if (bDeterministic)
 		{
 			float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
 
@@ -432,7 +440,7 @@ void FRandomUnitVectorInConeDataflowNode::Evaluate(Dataflow::FContext& Context, 
 		FVector ConeDirectionVal = GetValue<FVector>(Context, &ConeDirection);
 		float ConeHalfAngleVal = GetValue<float>(Context, &ConeHalfAngle);
 
-		if (Deterministic)
+		if (bDeterministic)
 		{
 			float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
 
@@ -677,7 +685,7 @@ void FTransformCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, con
 			UniformScale,
 			RotatePivot,
 			ScalePivot,
-			InvertTransformation);
+			bInvertTransformation);
 
 		GeometryCollection::Facades::FCollectionTransformFacade TransformFacade(InCollection);
 		TransformFacade.Transform(NewTransform);
@@ -728,7 +736,7 @@ void FTransformMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 				UniformScale,
 				RotatePivot,
 				ScalePivot,
-				InvertTransformation);
+				bInvertTransformation);
 
 			UE::Geometry::FDynamicMesh3& DynamicMesh = NewMesh->GetMeshRef();
 
@@ -781,7 +789,7 @@ void FBranchDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowO
 {
 	if (Out->IsA<TObjectPtr<UDynamicMesh>>(&Mesh))
 	{
-		bool InCondition = GetValue<bool>(Context, &Condition);
+		bool InCondition = GetValue<bool>(Context, &bCondition);
 
 		if (InCondition)
 		{
@@ -861,10 +869,10 @@ void FRemoveOnBreakDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
-		const bool& InEnableRemoval = GetValue(Context, &EnabledRemoval, true);
+		const bool& InEnableRemoval = GetValue(Context, &bEnabledRemoval, true);
 		const FVector2f& InPostBreakTimer = GetValue(Context, &PostBreakTimer);
 		const FVector2f& InRemovalTimer = GetValue(Context, &RemovalTimer);
-		const bool& InClusterCrumbling = GetValue(Context, &ClusterCrumbling);
+		const bool& InClusterCrumbling = GetValue(Context, &bClusterCrumbling);
 
 		// we are making a copy of the collection because we are modifying it 
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
@@ -916,7 +924,7 @@ void FSetAnchorStateDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 			InTransformSelection.AsArray(BoneIndices);
 			AnchoringFacade.SetAnchored(BoneIndices, bAnchored);
 
-			if (SetNotSelectedBonesToOppositeState)
+			if (bSetNotSelectedBonesToOppositeState)
 			{
 				InTransformSelection.Invert();
 				InTransformSelection.AsArray(BoneIndices);
@@ -1314,6 +1322,213 @@ void FBoolArrayToFaceSelectionDataflowNode::Evaluate(Dataflow::FContext& Context
 		NewFaceSelection.SetFromArray(InBoolAttributeData);
 
 		SetValue<FDataflowFaceSelection>(Context, NewFaceSelection, &FaceSelection);
+	}
+}
+
+
+void FAddMaterialToCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FManagedArrayCollection>(&Collection) || Out->IsA<TArray<TObjectPtr<UMaterial>>>(&Materials))
+	{
+		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		TArray<TObjectPtr<UMaterial>> InMaterials = GetValue<TArray<TObjectPtr<UMaterial>>>(Context, &Materials);
+		const FDataflowFaceSelection& InFaceSelection = GetValue<FDataflowFaceSelection>(Context, &FaceSelection);
+		TObjectPtr<UMaterial> InOutsideMaterial = GetValue<TObjectPtr<UMaterial>>(Context, &OutsideMaterial);
+		TObjectPtr<UMaterial> InInsideMaterial = GetValue<TObjectPtr<UMaterial>>(Context, &InsideMaterial);
+
+		int32 NewIndex;
+
+		if (InCollection.HasAttribute("Internal", FGeometryCollection::FacesGroup))
+		{
+			if (bAssignOutsideMaterial || bAssignInsideMaterial)
+			{
+				TManagedArray<int32>& MaterialIDs = InCollection.ModifyAttribute<int32>("MaterialID", FGeometryCollection::FacesGroup);
+
+				const TManagedArray<bool>& Internals = InCollection.GetAttribute<bool>("Internal", FGeometryCollection::FacesGroup);
+
+				if (bAssignOutsideMaterial)
+				{
+					NewIndex = InMaterials.Add(InOutsideMaterial);
+
+					// Update MaterialIdx for selected outside faces
+					for (int32 FaceIdx = 0; FaceIdx < InFaceSelection.Num(); ++FaceIdx)
+					{
+						if (!Internals[FaceIdx] && InFaceSelection.IsSelected(FaceIdx))
+						{
+							MaterialIDs[FaceIdx] = NewIndex;
+						}
+					}
+				}
+
+				if (bAssignInsideMaterial)
+				{
+					NewIndex = InMaterials.Add(InInsideMaterial);
+
+					// Update MaterialIdx for selected inside faces
+					for (int32 FaceIdx = 0; FaceIdx < InFaceSelection.Num(); ++FaceIdx)
+					{
+						if (Internals[FaceIdx] && InFaceSelection.IsSelected(FaceIdx))
+						{
+							MaterialIDs[FaceIdx] = NewIndex;
+						}
+					}
+				}
+			}
+		}
+
+		SetValue<TArray<TObjectPtr<UMaterial>>>(Context, MoveTemp(InMaterials), &Materials);
+		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+	}
+}
+
+
+void FReAssignMaterialInCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FDataflowFaceSelection& InFaceSelection = GetValue<FDataflowFaceSelection>(Context, &FaceSelection);
+		const TArray<TObjectPtr<UMaterial>>& InMaterials = GetValue<TArray<TObjectPtr<UMaterial>>>(Context, &Materials);
+		int32 InOutsideMaterialIdx = GetValue<int32>(Context, &OutsideMaterialIdx);
+		int32 InInsideMaterialIdx = GetValue<int32>(Context, &InsideMaterialIdx);
+
+		if (InMaterials.Num() > 0)
+		{
+			if (InCollection.HasAttribute("Internal", FGeometryCollection::FacesGroup))
+			{
+				if (bAssignOutsideMaterial || bAssignInsideMaterial)
+				{
+					TManagedArray<int32>& MaterialIDs = InCollection.ModifyAttribute<int32>("MaterialID", FGeometryCollection::FacesGroup);
+
+					const TManagedArray<bool>& Internals = InCollection.GetAttribute<bool>("Internal", FGeometryCollection::FacesGroup);
+
+					if (bAssignOutsideMaterial)
+					{
+						if (InOutsideMaterialIdx >= 0 && InOutsideMaterialIdx < InMaterials.Num())
+						{
+							// Update MaterialIdx for selected outside faces
+							for (int32 FaceIdx = 0; FaceIdx < InFaceSelection.Num(); ++FaceIdx)
+							{
+								if (!Internals[FaceIdx] && InFaceSelection.IsSelected(FaceIdx))
+								{
+									MaterialIDs[FaceIdx] = InOutsideMaterialIdx;
+								}
+							}
+						}
+					}
+
+					if (bAssignInsideMaterial)
+					{
+						if (InInsideMaterialIdx >= 0 && InInsideMaterialIdx < InMaterials.Num())
+						{
+							// Update MaterialIdx for selected inside faces
+							for (int32 FaceIdx = 0; FaceIdx < InFaceSelection.Num(); ++FaceIdx)
+							{
+								if (Internals[FaceIdx] && InFaceSelection.IsSelected(FaceIdx))
+								{
+									MaterialIDs[FaceIdx] = InInsideMaterialIdx;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// move the collection to the output to avoid making another copy
+		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+		SetValue<TArray<TObjectPtr<UMaterial>>>(Context, InMaterials, &Materials);
+	}
+}
+
+
+void FMaterialsInfoDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FString>(&String))
+	{
+		const TArray<TObjectPtr<UMaterial>>& InMaterials = GetValue<TArray<TObjectPtr<UMaterial>>>(Context, &Materials);
+
+		FString OutputStr;
+
+		OutputStr.Appendf(TEXT("\n----------------------------------------\n"));
+		OutputStr.Appendf(TEXT("Number of Materials: %d\n"), InMaterials.Num());
+
+		int32 Idx = 0;
+		for (TObjectPtr<UMaterial> Material : InMaterials)
+		{
+			OutputStr.Appendf(TEXT("%4d: %s\n"), Idx, *(Material->GetFullName()));
+
+			Idx++;
+		}
+
+		OutputStr.Appendf(TEXT("----------------------------------------\n"));
+
+		SetValue<FString>(Context, OutputStr, &String);
+	}
+}
+
+
+void FGetMaterialFromMaterialsArrayDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<TObjectPtr<UMaterial>>(&Material))
+	{
+		const TArray<TObjectPtr<UMaterial>>& InMaterials = GetValue<TArray<TObjectPtr<UMaterial>>>(Context, &Materials);
+		int32 InMaterialIdx = GetValue<int32>(Context, &MaterialIdx);
+
+		if (InMaterials.Num() > 0)
+		{
+			if (InMaterialIdx >= 0 && InMaterialIdx < InMaterials.Num())
+			{
+				SetValue<TObjectPtr<UMaterial>>(Context, InMaterials[InMaterialIdx], &Material);
+
+				return;
+			}
+		}
+
+		SetValue<TObjectPtr<UMaterial>>(Context, TObjectPtr<UMaterial>(), &Material);
+	}
+}
+
+
+void FSetMaterialInMaterialsArrayDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<TArray<TObjectPtr<UMaterial>>>(&Materials))
+	{
+		TArray<TObjectPtr<UMaterial>> InMaterials = GetValue<TArray<TObjectPtr<UMaterial>>>(Context, &Materials);
+		TObjectPtr<UMaterial> InMaterial = GetValue<TObjectPtr<UMaterial>>(Context, &Material);
+		int32 InMaterialIdx = GetValue<int32>(Context, &MaterialIdx);
+
+		if (Operation == ESetMaterialOperationTypeEnum::Dataflow_SetMaterialOperationType_Add)
+		{
+			InMaterials.Add(InMaterial);
+		}
+		else
+		{
+			if (InMaterialIdx >= 0 && InMaterialIdx < InMaterials.Num())
+			{
+				InMaterials.Insert(InMaterial, InMaterialIdx);
+			}
+		}
+
+		SetValue<TArray<TObjectPtr<UMaterial>>>(Context, MoveTemp(InMaterials), &Materials);
+	}
+}
+
+
+void FMakeMaterialDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<TObjectPtr<UMaterial>>(&Material))
+	{
+		SetValue<TObjectPtr<UMaterial>>(Context, InMaterial, &Material);
+	}
+}
+
+
+void FMakeMaterialsArrayDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<TArray<TObjectPtr<UMaterial>>>(&Materials))
+	{
+		SetValue<TArray<TObjectPtr<UMaterial>>>(Context, TArray<TObjectPtr<UMaterial>>(), &Materials);
 	}
 }
 
