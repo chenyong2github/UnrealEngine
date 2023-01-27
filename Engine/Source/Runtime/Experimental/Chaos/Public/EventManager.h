@@ -212,9 +212,15 @@ namespace Chaos
 		 */
 		virtual void DispatchConsumerData()
 		{
+			const PayloadType* Buffer = EventBuffer.Get()->GetConsumerBuffer();
+			if (IsEventDataEmpty(Buffer))
+			{
+				return;
+			}
+
 			for (FEventHandlerPtr Handler : HandlerArray)
 			{
-				Handler->HandleEvent(EventBuffer.Get()->GetConsumerBuffer());
+				Handler->HandleEvent(Buffer);
 			}
 		}
 

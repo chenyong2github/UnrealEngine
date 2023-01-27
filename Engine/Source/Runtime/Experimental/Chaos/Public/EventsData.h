@@ -197,4 +197,39 @@ namespace Chaos
 		FAllCrumblingData CrumblingData;
 		FIndicesByPhysicsProxy PhysicsProxyToCrumblingIndices;
 	};
+
+	template<typename PayloadType>
+	bool IsEventDataEmpty(const PayloadType* Buffer)
+	{
+		ensure(Buffer);
+
+		if constexpr (std::is_same_v<PayloadType, FCollisionEventData>)
+		{
+			return Buffer->CollisionData.AllCollisionsArray.IsEmpty();
+		}
+		else if constexpr (std::is_same_v<PayloadType, FBreakingEventData>)
+		{
+			return Buffer->BreakingData.AllBreakingsArray.IsEmpty();
+		}
+		else if constexpr (std::is_same_v<PayloadType, FTrailingEventData>)
+		{
+			return Buffer->TrailingData.AllTrailingsArray.IsEmpty();
+		}
+		else if constexpr (std::is_same_v<PayloadType, FRemovalEventData>)
+		{
+			return Buffer->RemovalData.AllRemovalArray.IsEmpty();
+		}
+		else if constexpr (std::is_same_v<PayloadType, FSleepingEventData>)
+		{
+			return Buffer->SleepingData.IsEmpty();
+		}
+		else if constexpr (std::is_same_v<PayloadType, FCrumblingEventData>)
+		{
+			return Buffer->CrumblingData.AllCrumblingsArray.IsEmpty();
+		}
+		else
+		{
+			return false;
+		}
+	}
 }
