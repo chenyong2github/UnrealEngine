@@ -424,12 +424,6 @@ public:
 		return MaterialSlotAllocator.GetMaxSize();
 	}
 
-	// TODO: Temp! Do not use - deprecated
-	const TRefCountPtr<FRDGPooledBuffer>& GetMaterialDepthDataBuffer() const
-	{
-		return MaterialDepthDataBuffer;
-	}
-
 private:
 	FNaniteMaterialEntryMap EntryMap;
 
