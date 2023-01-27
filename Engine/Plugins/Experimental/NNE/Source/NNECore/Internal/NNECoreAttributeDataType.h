@@ -5,6 +5,8 @@
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 
+#include "NNECoreAttributeDataType.generated.h"
+
 /**
  * Attribute data types
  * 

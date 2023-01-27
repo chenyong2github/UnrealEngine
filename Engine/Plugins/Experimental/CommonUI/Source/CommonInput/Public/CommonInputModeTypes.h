@@ -5,6 +5,8 @@
 #include "CoreTypes.h"
 #include "UObject/ObjectMacros.h"
 
+#include "CommonInputModeTypes.generated.h"
+
 UENUM(BlueprintType)
 enum class ECommonInputMode : uint8
 {

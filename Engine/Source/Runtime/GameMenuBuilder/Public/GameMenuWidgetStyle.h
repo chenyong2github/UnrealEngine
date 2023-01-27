@@ -16,7 +16,7 @@
 UENUM()
 namespace GameMenuLayoutType
 {
-	enum Type
+	enum Type : int
 	{
 		/* Single one page menu. */
 		Single,

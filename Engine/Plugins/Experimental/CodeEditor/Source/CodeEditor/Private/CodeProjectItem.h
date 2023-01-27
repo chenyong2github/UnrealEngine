@@ -8,7 +8,7 @@
 UENUM()
 namespace ECodeProjectItemType
 {
-	enum Type
+	enum Type : int
 	{
 		Project,
 		Folder,

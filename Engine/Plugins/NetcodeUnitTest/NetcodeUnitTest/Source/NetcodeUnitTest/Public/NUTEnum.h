@@ -6,6 +6,8 @@
 
 #include "NetcodeUnitTest.h"
 
+#include "NUTEnum.generated.h"
+
 /**
  * Flags for configuring the minimal client, what parts of the netcode should be enabled etc.
  */

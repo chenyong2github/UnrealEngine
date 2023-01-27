@@ -18,7 +18,7 @@ extern BINKMEDIAPLAYER_API FString BinkUE4CookOnTheFlyPath(FString path, const T
  * Enumerates available bink buffering modes.
  */
 UENUM()
-enum EBinkMediaPlayerBinkBufferModes
+enum EBinkMediaPlayerBinkBufferModes : int
 {
 	/** Stream the movie off the media during playback (caches about 1 second of video). */
 	BMASM_Bink_Stream UMETA(DisplayName="Stream"),
@@ -36,7 +36,7 @@ enum EBinkMediaPlayerBinkBufferModes
  * Enumerates available used to specify the sounds to open at playback w/ bink movies.
  */
 UENUM()
-enum EBinkMediaPlayerBinkSoundTrack
+enum EBinkMediaPlayerBinkSoundTrack : int
 {
 	/** Don't open any sound tracks snd_track_start not used. */
 	BMASM_Bink_Sound_None UMETA(DisplayName="None"),
@@ -66,7 +66,7 @@ enum EBinkMediaPlayerBinkSoundTrack
  * Enumerates available bink buffering modes.
  */
 UENUM()
-enum EBinkMediaPlayerBinkDrawStyle
+enum EBinkMediaPlayerBinkDrawStyle : int
 {
 	/** Renders movie to the destination texture (default UE4 functionality) */
 	BMASM_Bink_DS_RenderToTexture UMETA(DisplayName="Render to Texture"),

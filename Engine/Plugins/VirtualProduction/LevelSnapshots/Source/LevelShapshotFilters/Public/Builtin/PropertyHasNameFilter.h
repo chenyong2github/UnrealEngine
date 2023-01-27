@@ -9,7 +9,7 @@
 UENUM()
 namespace ENameMatchingRule
 {
-	enum Type
+	enum Type : int
 	{
 		/* The property name must match the given name exactly. */
 		MatchesExactly,

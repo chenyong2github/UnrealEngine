@@ -8,7 +8,7 @@
 #include "ExternalTextureMaterialExpression.generated.h"
 
 UENUM()
-enum EARKitTextureType
+enum EARKitTextureType : int
 {
 	TextureY,
 	TextureCbCr,

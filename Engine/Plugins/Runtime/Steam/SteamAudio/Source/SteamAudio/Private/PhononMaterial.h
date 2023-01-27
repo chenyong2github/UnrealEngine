@@ -8,6 +8,8 @@
 #include "UObject/ObjectMacros.h"
 #include "phonon.h"
 
+#include "PhononMaterial.generated.h"
+
 UENUM()
 enum class EPhononMaterial : uint8
 {

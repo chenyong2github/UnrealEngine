@@ -20,7 +20,7 @@ class UStaticMesh;
 	Chunks up to the depth DefaultImpactDamageDepth will take impact damage, unless IDO_On or IDO_Off is chosen.
 */
 UENUM()
-enum EImpactDamageOverride
+enum EImpactDamageOverride : int
 {
 	IDO_None,
 	IDO_On,

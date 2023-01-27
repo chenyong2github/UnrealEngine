@@ -9,7 +9,7 @@
 UENUM()
 namespace ERCProtocolBinding
 {
-	enum Op
+	enum Op : int
 	{
 		Added,
 

@@ -9,7 +9,7 @@
 #include "DatasmithDataprepFetcher.generated.h"
 
 UENUM()
-enum EMetadataKeyMatchingCriteria
+enum EMetadataKeyMatchingCriteria : int
 {
 	ExactMatch,
 	Contains

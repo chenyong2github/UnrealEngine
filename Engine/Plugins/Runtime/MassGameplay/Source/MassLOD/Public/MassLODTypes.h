@@ -35,7 +35,7 @@ namespace UE::Mass::ProcessorGroupNames
 UENUM()
 namespace EMassLOD
 {
-	enum Type
+	enum Type : int
 	{
 		High,
 		Medium,

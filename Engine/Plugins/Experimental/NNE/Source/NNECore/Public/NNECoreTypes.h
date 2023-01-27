@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
 
+#include "NNECoreTypes.generated.h"
+
 /**
  * The enum lists all tensor data types used in NNE 
  */

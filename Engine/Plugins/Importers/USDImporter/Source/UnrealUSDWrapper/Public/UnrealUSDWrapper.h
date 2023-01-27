@@ -21,6 +21,8 @@
 #include "USDIncludesEnd.h"
 #endif // #if USE_USD_SDK
 
+#include "UnrealUSDWrapper.generated.h"
+
 #if USE_USD_SDK
 PXR_NAMESPACE_OPEN_SCOPE
 	class GfMatrix4d;

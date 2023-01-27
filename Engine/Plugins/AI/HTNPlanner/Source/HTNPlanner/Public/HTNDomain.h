@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
+#include "HTNDomain.generated.h"
+
 #define WITH_HTN_DEBUG !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 HTNPLANNER_API DECLARE_LOG_CATEGORY_EXTERN(LogHTNPlanner, Warning, All);

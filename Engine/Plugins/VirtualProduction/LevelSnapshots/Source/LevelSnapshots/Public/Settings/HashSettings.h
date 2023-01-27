@@ -8,7 +8,7 @@
 UENUM()
 namespace EHashAlgorithmChooseBehavior
 {
-	enum Type
+	enum Type : int
 	{
 		/**
 		 * Use whichever algorithm is faster

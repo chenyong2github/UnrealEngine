@@ -8,6 +8,8 @@
 #include "MassEntityUtils.h"
 #include "MassEntityManager.h"
 
+#include "MassCommands.generated.h"
+
 /**
  * Enum used by MassBatchCommands to declare their "type". This data is later used to group commands so that command 
  * effects are applied in a controllable fashion 

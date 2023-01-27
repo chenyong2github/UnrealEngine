@@ -17,7 +17,7 @@ class UTexture2D;
 UENUM(meta=(ScriptName="TutorialContentType"))
 namespace ETutorialContent
 {
-	enum Type
+	enum Type : int
 	{
 		/** Blank - displays no content */
 		None,
@@ -37,7 +37,7 @@ namespace ETutorialContent
 UENUM()
 namespace ETutorialAnchorIdentifier
 {
-	enum Type
+	enum Type : int
 	{
 		/** No anchor */
 		None,

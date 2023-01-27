@@ -11,6 +11,8 @@
 #include "FMemoryResource.h"
 #include "TransformArrayView.h"
 
+#include "RigLogic.generated.h"
+
 class FRigInstance;
 class IDNAReader;
 

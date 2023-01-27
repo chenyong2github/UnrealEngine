@@ -8,7 +8,7 @@
 
 /** Enumeration of known Aruco dictionaries */
 UENUM(BlueprintType)
-enum EArucoDictionary
+enum EArucoDictionary : int
 {
 	DICT_4X4_50          UMETA(DisplayName = "DICT_4X4_50"),
 	DICT_4X4_100		 UMETA(DisplayName = "DICT_4X4_100"),

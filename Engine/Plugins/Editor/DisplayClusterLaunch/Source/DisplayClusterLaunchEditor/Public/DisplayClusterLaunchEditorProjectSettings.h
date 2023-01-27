@@ -7,7 +7,7 @@
 #include "DisplayClusterLaunchEditorProjectSettings.generated.h"
 
 UENUM()
-enum EDisplayClusterLaunchLogVerbosity
+enum EDisplayClusterLaunchLogVerbosity : int
 {
 	/** Always prints a fatal error to console (and log file) and crashes (even if logging is disabled) */
 	Fatal,

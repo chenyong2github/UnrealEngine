@@ -9,6 +9,8 @@
 #include "UObject/StructOnScope.h"
 #include "UObject/WeakFieldPtr.h"
 
+#include "IRemoteControlModule.generated.h"
+
 REMOTECONTROL_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteControl, Log, All);
 
 class IRemoteControlMaskingFactory;

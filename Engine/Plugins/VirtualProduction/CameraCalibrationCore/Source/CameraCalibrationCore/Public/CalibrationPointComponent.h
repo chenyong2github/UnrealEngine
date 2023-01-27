@@ -12,7 +12,7 @@
 
 /** Ways of visualizing the calibration points */
 UENUM(BlueprintType)
-enum ECalibrationPointVisualization
+enum ECalibrationPointVisualization : int
 {
 	CalibrationPointVisualizationCube    UMETA(DisplayName = "Cubes"),
 	CalibrationPointVisualizationPyramid UMETA(DisplayName = "Pyramids"),

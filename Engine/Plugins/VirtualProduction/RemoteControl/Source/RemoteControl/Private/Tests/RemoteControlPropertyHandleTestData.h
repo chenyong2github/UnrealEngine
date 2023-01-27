@@ -16,7 +16,7 @@ enum class ERemoteControlEnumClass : uint8
 UENUM()
 namespace ERemoteControlEnum
 {
-	enum Type
+	enum Type : int
 	{
 		E_One,
 		E_Two,

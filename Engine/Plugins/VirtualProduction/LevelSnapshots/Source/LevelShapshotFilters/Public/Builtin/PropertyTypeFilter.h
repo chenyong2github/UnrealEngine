@@ -10,7 +10,7 @@ UENUM()
 namespace EBlueprintPropertyType
 {
 	// Copied from EPropertyType
-	enum Type
+	enum Type : int
 	{
 		// Commented out unsupported types types
 		// Leave comments here so it is easier to see what was removed

@@ -13,6 +13,8 @@
 #include "MLDeformerModule.h"
 #include "MLDeformerModel.h"
 
+#include "MLDeformerEditorModel.generated.h"
+
 class UMLDeformerModel;
 class UMLDeformerInputInfo;
 class AAnimationEditorPreviewActor;

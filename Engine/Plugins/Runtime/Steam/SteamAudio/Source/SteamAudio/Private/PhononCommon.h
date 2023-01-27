@@ -8,6 +8,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
+#include "PhononCommon.generated.h"
+
 class UPhononGeometryComponent;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSteamAudio, Log, All);

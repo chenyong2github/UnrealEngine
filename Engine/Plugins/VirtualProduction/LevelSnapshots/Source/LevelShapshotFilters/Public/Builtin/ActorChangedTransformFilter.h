@@ -9,7 +9,7 @@
 UENUM()
 namespace ETransformReturnType
 {
-	enum Type
+	enum Type : int
 	{
 		/* Return true if the snapshot and world actor have different transforms */
 		IsValidWhenTransformChanged,

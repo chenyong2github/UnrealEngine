@@ -42,7 +42,7 @@ public:
 
 
 UENUM()
-enum TetMeshingMethod
+enum TetMeshingMethod : int
 {
 	IsoStuffing		UMETA(DisplayName = "IsoStuffing"),
 	TetWild			UMETA(DisplayName = "TetWild"),

@@ -9,7 +9,7 @@
 UENUM()
 namespace EActorToCheck
 {
-	enum Type
+	enum Type : int
 	{
 		/* Checks only the tags of the world actor */
 		WorldActor,
@@ -23,7 +23,7 @@ namespace EActorToCheck
 UENUM()
 namespace ETagCheckingBehavior
 {
-	enum Type
+	enum Type : int
 	{
 		/* Actor must have all tags to pass */
 		HasAllTags,

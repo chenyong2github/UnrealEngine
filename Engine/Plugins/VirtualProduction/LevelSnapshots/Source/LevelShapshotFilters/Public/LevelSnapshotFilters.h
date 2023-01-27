@@ -10,7 +10,7 @@
 UENUM(BlueprintType)
 namespace EFilterResult
 {
-	enum Type
+	enum Type : int
 	{
 		/* This actor / property will be included. 
 		 */

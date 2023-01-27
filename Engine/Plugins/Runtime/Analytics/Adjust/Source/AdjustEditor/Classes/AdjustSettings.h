@@ -8,7 +8,7 @@
 UENUM()
 namespace EAndroidAdjustLogging
 {
-	enum Type
+	enum Type : int
 	{
 		/** enable all logging */
 		verbose  UMETA(DisplayName = "VERBOSE"),

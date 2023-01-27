@@ -11,7 +11,7 @@ enum EPixelFormat : uint8;
  * Enumerates available bink buffering modes.
  */
 UENUM()
-enum EBinkMoviePlayerBinkBufferModes
+enum EBinkMoviePlayerBinkBufferModes : int
 {
 	/** Stream the movie off the media during playback (caches about 1 second of video). */
 	MP_Bink_Stream UMETA(DisplayName="Stream"),
@@ -29,7 +29,7 @@ enum EBinkMoviePlayerBinkBufferModes
  * Enumerates available used to specify the sounds to open at playback w/ bink movies.
  */
 UENUM()
-enum EBinkMoviePlayerBinkSoundTrack
+enum EBinkMoviePlayerBinkSoundTrack : int
 {
 	/** Don't open any sound tracks snd_track_start not used. */
 	MP_Bink_Sound_None UMETA(DisplayName="None"),

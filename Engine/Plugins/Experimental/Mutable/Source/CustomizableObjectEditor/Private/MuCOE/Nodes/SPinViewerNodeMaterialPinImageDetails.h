@@ -4,6 +4,8 @@
 
 #include "MuCOE/PinViewer/SPinViewerPinDetails.h"
 
+#include "SPinViewerNodeMaterialPinImageDetails.generated.h"
+
 class UCustomizableObjectNodeMaterialPinDataImage;
 enum class EPinMode;
 namespace ESelectInfo { enum Type : int; }

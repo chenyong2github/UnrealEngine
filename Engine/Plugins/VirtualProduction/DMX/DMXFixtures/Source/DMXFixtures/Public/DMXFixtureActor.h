@@ -21,7 +21,7 @@
 
 
 UENUM()
-enum EDMXFixtureQualityLevel
+enum EDMXFixtureQualityLevel : int
 {
 	LowQuality			UMETA(DisplayName = "Low"),
 	MediumQuality		UMETA(DisplayName = "Medium"),

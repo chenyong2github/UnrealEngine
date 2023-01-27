@@ -5,8 +5,10 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
+#include "MoviePlayerAttributes.generated.h"
+
 UENUM()
-enum EMovieScreenPlaybackType
+enum EMovieScreenPlaybackType : int
 {
     /** Normal playback mode.  Play each movie in the play list a single time */
     MT_MS_Normal UMETA(DisplayName = "Normal Playback"),
