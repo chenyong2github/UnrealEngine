@@ -3044,7 +3044,10 @@ public:
 
 	~FPreloader()
 	{
-		PreloadReady.Wait();
+		// This destructor is called during c++ global shutdown after main, and it is not valid to call TFuture::Wait
+		// after Engine shutdown. TaskGraph has already shutdown at this point, so we do not need to worry about the 
+		// Async thread still running and accessing *this.
+		// PreloadReady.Wait();
 	}
 
 	FCachePayload Consume()
