@@ -1,0 +1,7 @@
+Name,Statistic,TelemetryContext,TelemetryDataPoint,TelemetryUnit,BaselineWarningThreshold,BaselineErrorThreshold,
+Generated Scope for LoadAsset - /Game/System/DefaultEditorMap/L_DefaultEditorOverview,TotalDurationSeconds,Events,Load L_DefaultEditorOverview,Seconds,10%,,
+Generated Scope for PIE - /Game/System/DefaultEditorMap/L_DefaultEditorOverview,TotalDurationSeconds,Events,PIE L_DefaultEditorOverview,Seconds,10%,,
+Generated Scope for LoadAsset - /Game/System/FrontEnd/Maps/L_LyraFrontEnd,TotalDurationSeconds,Events,Load L_LyraFrontEnd,Seconds,10%,,
+Generated Scope for PIE - /Game/System/FrontEnd/Maps/L_LyraFrontEnd,TotalDurationSeconds,Events,PIE L_LyraFrontEnd,Seconds,10%,,
+Generated Scope for LoadAsset - /ShooterMaps/Maps/L_Expanse,TotalDurationSeconds,Events,Load L_Expanse,Seconds,10%,,
+Generated Scope for PIE - /ShooterMaps/Maps/L_Expanse,TotalDurationSeconds,Events,PIE L_Expanse,Seconds,10%,,
