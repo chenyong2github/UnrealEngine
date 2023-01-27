@@ -51,7 +51,7 @@ public:
 	TSharedPtr<IDNAReader> GetGeometryReader();
 #endif
 
-	UPROPERTY(VisibleAnywhere, Category = ImportSettings)
+	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category = ImportSettings)
 	FString DnaFileName;
 
 	bool Init(const FString& Filename);

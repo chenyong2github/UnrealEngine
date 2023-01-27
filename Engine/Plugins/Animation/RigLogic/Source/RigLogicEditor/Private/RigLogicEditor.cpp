@@ -16,7 +16,8 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Misc/Paths.h"
-
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/AssetData.h"
 
 
 IMPLEMENT_MODULE(FRigLogicEditor, RigLogicEditor)
@@ -31,6 +32,8 @@ void FRigLogicEditor::StartupModule()
 	TArray<FContentBrowserMenuExtender_SelectedAssets>& MenuExtenderDelegates = ContentBrowserModule.GetAllAssetViewContextMenuExtenders(); 
 	
 	MenuExtenderDelegates.Add(FContentBrowserMenuExtender_SelectedAssets::CreateStatic(&FRigLogicEditor::OnExtendSkelMeshWithDNASelectionMenu));
+
+	UObject::FAssetRegistryTag::OnGetExtraObjectTags.AddStatic(&GetAssetRegistryTagsForDNA);
 }
 
 
@@ -124,6 +127,30 @@ void FRigLogicEditor::ExecuteDNAReimport(class UObject* Mesh)
 			Notification->SetCompletionState(SNotificationItem::CS_Fail);
 		}
 	}
+}
+
+void FRigLogicEditor::GetAssetRegistryTagsForDNA(const class UObject* Object, TArray<UObject::FAssetRegistryTag>& OutTags)
+{
+ 	if(Object->GetClass()->IsChildOf(USkeletalMesh::StaticClass()))
+ 	{
+		FString DNAname = (LOCTEXT("DnaNotOnSkeletalMesh","No DNA Attached")).ToString();
+		USkeletalMesh* SkelMesh = const_cast<USkeletalMesh*>(Cast<USkeletalMesh>(Object));
+ 		const TArray<UAssetUserData*>* AssetDataArr = SkelMesh->GetAssetUserDataArray();
+ 		if(!AssetDataArr->IsEmpty())
+		{
+			UAssetUserData* UserData = SkelMesh->GetAssetUserDataOfClass(UDNAAsset::StaticClass());
+ 			if(UserData)
+ 			{	
+ 				const UDNAAsset* DNAAsset = Cast<UDNAAsset>(UserData);
+ 				if(DNAAsset)
+ 				{	
+					DNAname = DNAAsset->DnaFileName;
+					FPaths::NormalizeFilename(DNAname);
+ 				}
+ 			}
+ 		}
+		OutTags.Add(UObject::FAssetRegistryTag("DNA", DNAname, UObject::FAssetRegistryTag::TT_Alphabetical));
+ 	}
 }
 
 void FRigLogicEditor::ShutdownModule()
