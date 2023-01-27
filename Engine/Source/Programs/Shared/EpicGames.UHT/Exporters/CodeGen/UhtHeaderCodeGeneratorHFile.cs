@@ -42,8 +42,23 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				builder.Append(HeaderCopyright);
 				builder.Append("// IWYU pragma: private, include \"").Append(this.HeaderFile.IncludeFilePath).Append("\"\r\n");
-				builder.Append("#include \"UObject/ObjectMacros.h\"\r\n");
-				builder.Append("#include \"UObject/ScriptMacros.h\"\r\n");
+
+				// Attempt to limit the headers included. This is needed in the lower level engine code
+				// to get around circular header include issues.
+				{
+					if (HeaderFile.References.ExportTypes.Count > 0 && HeaderFile.References.ExportTypes.Find(x => x is not UhtEnum) == null)
+					{
+						builder.Append("#include \"Templates/IsUEnumClass.h\"\r\n");
+						builder.Append("#include \"UObject/ObjectMacros.h\"\r\n");
+						builder.Append("#include \"UObject/ReflectedTypeAccessors.h\"\r\n");
+					}
+					else
+					{
+						builder.Append("#include \"UObject/ObjectMacros.h\"\r\n");
+						builder.Append("#include \"UObject/ScriptMacros.h\"\r\n");
+					}
+				}
+				
 				if (headerInfo.NeedsPushModelHeaders)
 				{
 					builder.Append("#include \"Net/Core/PushModel/PushModelMacros.h\"\r\n");
