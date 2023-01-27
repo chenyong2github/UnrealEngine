@@ -23,6 +23,7 @@ namespace UE
 			static const FString& GetJointSpecializeTypeString();
 			static const FString& GetLodGroupSpecializeTypeString();
 			static const FString& GetSlotMaterialDependenciesString();
+			static const FString& GetMorphTargetCurveWeightsKey();
 		};
 
 	}//ns Interchange
@@ -196,6 +197,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Meshes")
 	bool RemoveSlotMaterialDependencyUid(const FString& SlotName);
 
+	/** Set MorphTarget with given weight. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
+	bool SetMorphTargetCurveWeight(const FString& MorphTargetName, const float& Weight);
+
+	/** Get MorphTargets and their weights. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
+	void GetMorphTargetCurveWeights(TMap<FString, float>& OutMorphTargetCurveWeights) const;
+
 private:
 
 	bool GetGlobalTransformInternal(const UE::Interchange::FAttributeKey LocalTransformKey
@@ -225,6 +234,9 @@ private:
 
 	//A scene node can have is own set of materials for the mesh it reference.
 	UE::Interchange::TMapAttributeHelper<FString, FString> SlotMaterialDependencies;
+
+	//A scene node can have different MorphTarget curve settings:
+	UE::Interchange::TMapAttributeHelper<FString, float> MorphTargetCurveWeights;
 
 	//mutable caches for global transforms
 	mutable TOptional<FTransform> CacheGlobalTransform;

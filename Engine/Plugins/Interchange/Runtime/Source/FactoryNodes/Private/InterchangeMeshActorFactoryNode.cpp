@@ -11,6 +11,7 @@
 UInterchangeMeshActorFactoryNode::UInterchangeMeshActorFactoryNode()
 {
 	SlotMaterialDependencies.Initialize(Attributes.ToSharedRef(), TEXT("__SlotMaterialDependencies__"));
+	MorphTargetCurveWeights.Initialize(Attributes.ToSharedRef(), TEXT("__MorphTargetCurves__Key"));
 }
 
 void UInterchangeMeshActorFactoryNode::GetSlotMaterialDependencies(TMap<FString, FString>& OutMaterialDependencies) const
@@ -33,3 +34,20 @@ bool UInterchangeMeshActorFactoryNode::RemoveSlotMaterialDependencyUid(const FSt
 	return SlotMaterialDependencies.RemoveKey(SlotName);
 }
 
+bool UInterchangeMeshActorFactoryNode::SetMorphTargetCurveWeight(const FString& MorphTargetName, const float& Weight)
+{
+	return MorphTargetCurveWeights.SetKeyValue(MorphTargetName, Weight);
+}
+
+void UInterchangeMeshActorFactoryNode::SetMorphTargetCurveWeights(const TMap<FString, float>& InMorphTargetCurveWeights)
+{
+	for (const TPair<FString, float>& MorphTargetCurve : InMorphTargetCurveWeights)
+	{
+		SetMorphTargetCurveWeight(MorphTargetCurve.Key, MorphTargetCurve.Value);
+	}
+}
+
+void UInterchangeMeshActorFactoryNode::GetMorphTargetCurveWeights(TMap<FString, float>& OutMorphTargetCurveWeights) const
+{
+	OutMorphTargetCurveWeights = MorphTargetCurveWeights.ToMap();
+}

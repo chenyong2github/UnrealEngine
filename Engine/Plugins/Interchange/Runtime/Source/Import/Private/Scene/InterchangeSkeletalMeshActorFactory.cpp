@@ -46,29 +46,33 @@ void UInterchangeSkeletalMeshActorFactory::SetupSkeletalMeshActor(const UInterch
 	SkeletalMeshComponent->UnregisterComponent();
 }
 
-void UInterchangeSkeletalMeshActorFactory::FinalizeObject_GameThread(const FSetupObjectParams& Arguments)
+void UInterchangeSkeletalMeshActorFactory::SetupObject_GameThread(const FSetupObjectParams& Arguments)
 {
-	// Set the skeletal mesh on the component in the post import callback, once the skeletal mesh has been fully imported.
-
 	if (ASkeletalMeshActor* SkeletalMeshActor = Cast<ASkeletalMeshActor>(Arguments.ImportedObject))
 	{
-		if (USkeletalMeshComponent * SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent())
+		if (USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent())
 		{
+			TArray<FString> TargetNodeUids;
+			Arguments.FactoryNode->GetTargetNodeUids(TargetNodeUids);
+			const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = TargetNodeUids.IsEmpty() ? nullptr : Cast<UInterchangeSkeletalMeshFactoryNode>(Arguments.NodeContainer->GetFactoryNode(TargetNodeUids[0]));
+			if (SkeletalMeshFactoryNode)
 			{
-				TArray<FString> TargetNodeUids;
-				Arguments.FactoryNode->GetTargetNodeUids(TargetNodeUids);
-				const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = TargetNodeUids.IsEmpty() ? nullptr : Cast<UInterchangeSkeletalMeshFactoryNode>(Arguments.NodeContainer->GetFactoryNode(TargetNodeUids[0]));
-				if (SkeletalMeshFactoryNode)
+				FSoftObjectPath ReferenceObject;
+				SkeletalMeshFactoryNode->GetCustomReferenceObject(ReferenceObject);
+				if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(ReferenceObject.TryLoad()))
 				{
-					FSoftObjectPath ReferenceObject;
-					SkeletalMeshFactoryNode->GetCustomReferenceObject(ReferenceObject);
-					if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(ReferenceObject.TryLoad()))
-					{
-						SkeletalMeshComponent->SetSkeletalMesh(SkeletalMesh);
+					SkeletalMeshComponent->SetSkeletalMesh(SkeletalMesh);
 
-						if (const UInterchangeMeshActorFactoryNode* MeshActorFactoryNode = Cast<UInterchangeMeshActorFactoryNode>(Arguments.FactoryNode))
+					if (const UInterchangeMeshActorFactoryNode* MeshActorFactoryNode = Cast<UInterchangeMeshActorFactoryNode>(Arguments.FactoryNode))
+					{
+						UE::Interchange::ActorHelper::ApplySlotMaterialDependencies(*Arguments.NodeContainer, *MeshActorFactoryNode, *SkeletalMeshComponent);
+
+						//Set Morph Target Curves:
+						TMap<FString, float> MorphTargetCurveWeights;
+						MeshActorFactoryNode->GetMorphTargetCurveWeights(MorphTargetCurveWeights);
+						for (const TPair<FString, float>& MorphTargetCurve : MorphTargetCurveWeights)
 						{
-							UE::Interchange::ActorHelper::ApplySlotMaterialDependencies(*Arguments.NodeContainer, *MeshActorFactoryNode, *SkeletalMeshComponent);
+							SkeletalMeshComponent->SetMorphTarget(*MorphTargetCurve.Key, MorphTargetCurve.Value);
 						}
 					}
 				}

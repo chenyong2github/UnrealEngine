@@ -46,6 +46,12 @@ namespace UE
 			static FString SlotMaterialDependenciesString(TEXT("__SlotMaterialDependencies__"));
 			return SlotMaterialDependenciesString;
 		}
+
+		const FString& FSceneNodeStaticData::GetMorphTargetCurveWeightsKey()
+		{
+			static FString MorphTargetCurvesKey(TEXT("__MorphTargetCurveWeights__Key"));
+			return MorphTargetCurvesKey;
+		}
 	}//ns Interchange
 }//ns UE
 
@@ -53,6 +59,7 @@ UInterchangeSceneNode::UInterchangeSceneNode()
 {
 	NodeSpecializeTypes.Initialize(Attributes, UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey().ToString());
 	SlotMaterialDependencies.Initialize(Attributes.ToSharedRef(), UE::Interchange::FSceneNodeStaticData::GetSlotMaterialDependenciesString());
+	MorphTargetCurveWeights.Initialize(Attributes.ToSharedRef(), UE::Interchange::FSceneNodeStaticData::GetMorphTargetCurveWeightsKey());
 }
 
 /**
@@ -376,3 +383,13 @@ bool UInterchangeSceneNode::RemoveSlotMaterialDependencyUid(const FString& SlotN
 	return SlotMaterialDependencies.RemoveKey(SlotName);
 }
 
+
+bool UInterchangeSceneNode::SetMorphTargetCurveWeight(const FString& MorphTargetName, const float& Weight)
+{
+	return MorphTargetCurveWeights.SetKeyValue(MorphTargetName, Weight);
+}
+
+void UInterchangeSceneNode::GetMorphTargetCurveWeights(TMap<FString, float>& OutMorphTargetCurveWeights) const
+{
+	OutMorphTargetCurveWeights = MorphTargetCurveWeights.ToMap();
+}

@@ -287,6 +287,10 @@ void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactory
 
 			UE::Interchange::MeshesUtilities::ApplySlotMaterialDependencies(*MeshActorFactoryNode, SlotMaterialDependencies, *BaseNodeContainer);
 
+			TMap<FString, float> MorphTargetCurveWeights;
+			SceneNode->GetMorphTargetCurveWeights(MorphTargetCurveWeights);
+			MeshActorFactoryNode->SetMorphTargetCurveWeights(MorphTargetCurveWeights);
+
 			MeshActorFactoryNode->AddFactoryDependencyUid(UInterchangeFactoryBaseNode::BuildFactoryNodeUid(MeshNode->GetUniqueID()));
 		}
 	}
