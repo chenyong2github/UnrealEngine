@@ -467,7 +467,7 @@ void UPCGLandscapeCache::Serialize(FArchive& Archive)
 	}
 }
 
-void UPCGLandscapeCache::Tick(float DeltaSeconds)
+void UPCGLandscapeCache::Initialize()
 {
 #if WITH_EDITOR
 	if (!bInitialized && GetWorld())
@@ -476,7 +476,14 @@ void UPCGLandscapeCache::Tick(float DeltaSeconds)
 		CacheLayerNames();
 		bInitialized = true;
 	}
-#else
+#endif
+}
+
+void UPCGLandscapeCache::Tick(float DeltaSeconds)
+{
+	Initialize();
+
+#if !WITH_EDITOR
 	// Important implementation note:
 	// If the threshold is too low, it could lead to some issues - namely the check(bDataLoaded) in the cache entries
 	// as we currently do not have a state in the landscape cache to know whether something is still under use.

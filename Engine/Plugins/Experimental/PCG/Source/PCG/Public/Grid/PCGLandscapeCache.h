@@ -100,6 +100,9 @@ public:
 	virtual void Serialize(FArchive& Archive) override;
 	//~End UObject interface
 
+	/** Initialize cache. Can be safely called multiple times. */
+	void Initialize();
+
 	void PrimeCache();
 	void ClearCache();
 	void Tick(float DeltaSeconds);

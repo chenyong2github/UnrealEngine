@@ -33,6 +33,21 @@ void APCGWorldActor::BeginCacheForCookedPlatformData(const ITargetPlatform* Targ
 }
 #endif
 
+
+void APCGWorldActor::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		if (LandscapeCacheObject.Get())
+		{
+			// Make sure landscape cache is ready to provide data immediately.
+			LandscapeCacheObject->Initialize();
+		}
+	}
+}
+
 void APCGWorldActor::BeginPlay()
 {
 	Super::BeginPlay();
