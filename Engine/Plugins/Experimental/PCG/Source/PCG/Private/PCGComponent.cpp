@@ -608,6 +608,12 @@ bool UPCGComponent::MoveResourcesToNewActor(AActor* InNewActor, bool bCreateChil
 		return false;
 	}
 
+	if (!GetOwner())
+	{
+		UE_LOG(LogPCG, Error, TEXT("[UPCGComponent::MoveResourcesToNewActor] Owner is null, child actor not created."));
+		return false;
+	}
+
 	check(InNewActor);
 	AActor* NewActor = InNewActor;
 
