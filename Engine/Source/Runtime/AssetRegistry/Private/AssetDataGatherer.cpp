@@ -2979,7 +2979,7 @@ struct FPreloadSettings
 
 		MonolithicCacheFilename = FPaths::ProjectIntermediateDir() / (bGatherDependsData ? TEXT("CachedAssetRegistry.bin") : TEXT("CachedAssetRegistryNoDeps.bin"));
 #if UE_EDITOR // See note on FPreloader for why we only allow preloading if UE_EDITOR
-		bMonolithicCacheActivatedDuringPreload = bAsyncEnabled && GIsEditor && (!IsRunningCommandlet() || IsRunningCookCommandlet());
+		bMonolithicCacheActivatedDuringPreload = bAsyncEnabled && UE::AssetRegistry::ShouldSearchAllAssetsAtStart();
 #else
 		bMonolithicCacheActivatedDuringPreload = false;
 #endif

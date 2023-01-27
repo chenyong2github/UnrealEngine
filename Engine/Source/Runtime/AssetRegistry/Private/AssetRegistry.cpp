@@ -7050,9 +7050,43 @@ void GetAssetForPackages(TConstArrayView<FName> PackageNames, TMap<FName, FAsset
 
 bool ShouldSearchAllAssetsAtStart()
 {
-	// If in the editor or cookcommandlet, we start the GlobalGatherer now
+	// If in the editor or cookcommandlet, or an allowlist commandlet, we start the GlobalGatherer now
 	// In the game or other commandlets, we do not construct it until project or commandlet code calls SearchAllAssets or ScanPathsSynchronous
-	bool bSearchAllAssetsAtStart = GIsEditor && (!IsRunningCommandlet() || IsRunningCookCommandlet());
+	bool bSearchAllAssetsAtStart = false;
+	if (GIsEditor)
+	{
+		if (!IsRunningCommandlet() || IsRunningCookCommandlet())
+		{
+			bSearchAllAssetsAtStart = true;
+		}
+		else
+		{
+			TArray<FString> CommandletsUsingAR;
+			GConfig->GetArray(TEXT("AssetRegistry"), TEXT("CommandletsUsingAR"), CommandletsUsingAR, GEngineIni);
+			FString CommandlineCommandlet;
+			FString CommandletToken(TEXT("commandlet"));
+			if (!CommandletsUsingAR.IsEmpty() &&
+				FParse::Value(FCommandLine::Get(), TEXT("-run="), CommandlineCommandlet))
+			{
+				if (CommandlineCommandlet.EndsWith(CommandletToken))
+				{
+					CommandlineCommandlet.LeftChopInline(CommandletToken.Len(), false /* bAllowShrinking */);
+				}
+				for (FString& CommandletUsingAR : CommandletsUsingAR)
+				{
+					if (CommandletUsingAR.EndsWith(CommandletToken))
+					{
+						CommandletUsingAR.LeftChopInline(CommandletToken.Len(), false /* bAllowShrinking */);
+					}
+					if (CommandletUsingAR == CommandlineCommandlet)
+					{
+						bSearchAllAssetsAtStart = true;
+						break;
+					}
+				}
+			}
+		}
+	}
 #if !UE_BUILD_SHIPPING
 	bool bCommandlineAllAssetsAtStart;
 	if (FParse::Bool(FCommandLine::Get(), TEXT("AssetGatherAll="), bCommandlineAllAssetsAtStart))
