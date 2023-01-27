@@ -421,8 +421,11 @@ void FBlueprintCompileReinstancer::GenerateFieldMappings(TMap<FFieldVariant, FFi
 		FieldMapping.Add(Func.Value, NewFunction);
 	}
 
-	UObject* NewCDO = ClassToReinstance->GetDefaultObject();
-	FieldMapping.Add(OriginalCDO, NewCDO);
+	if(!ClassToReinstance->bLayoutChanging)
+	{
+		UObject* NewCDO = ClassToReinstance->GetDefaultObject();
+		FieldMapping.Add(OriginalCDO, NewCDO);
+	}
 }
 
 void FBlueprintCompileReinstancer::AddReferencedObjects(FReferenceCollector& Collector)
