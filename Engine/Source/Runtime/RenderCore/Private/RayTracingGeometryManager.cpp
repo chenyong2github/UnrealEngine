@@ -2,7 +2,6 @@
 
 #include "RayTracingGeometryManager.h"
 
-#include "RHI.h"
 #include "RHIResources.h"
 #include "RHICommandList.h"
 

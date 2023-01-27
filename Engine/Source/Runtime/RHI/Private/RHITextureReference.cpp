@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RHITextureReference.h"
-#include "RHI.h"
 
 FRHITextureReference::FRHITextureReference()
 	: FRHITexture(RRT_TextureReference)

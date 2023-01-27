@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Misc/WildcardString.h"
+#include "UObject/NameTypes.h"
 
 
 class RENDERCORE_API IDumpGPUUploadServiceProvider

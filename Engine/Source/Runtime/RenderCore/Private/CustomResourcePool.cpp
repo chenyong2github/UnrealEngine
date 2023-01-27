@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CustomResourcePool.h"
+#include "CoreGlobals.h"
 
 ICustomResourcePool* GCustomResourcePool = nullptr;
 

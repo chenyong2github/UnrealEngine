@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UnifiedBuffer.h"
+#include "Containers/ResourceArray.h"
 #include "RHI.h"
 #include "ShaderParameters.h"
 #include "ShaderParameterStruct.h"
 #include "Shader.h"
-#include "ShaderParameterUtils.h"
 #include "GlobalShader.h"
-#include "RenderUtils.h"
 #include "RenderGraphUtils.h"
 #include "DataDrivenShaderPlatformInfo.h"
 

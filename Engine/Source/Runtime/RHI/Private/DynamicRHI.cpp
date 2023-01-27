@@ -5,7 +5,6 @@
 =============================================================================*/
 
 #include "DynamicRHI.h"
-#include "Containers/ClosableMpscQueue.h"
 #include "Misc/MessageDialog.h"
 #include "Experimental/Containers/HazardPointer.h"
 #include "Misc/OutputDeviceRedirector.h"
@@ -15,6 +14,7 @@
 #include "GenericPlatform/GenericPlatformDriver.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "PipelineStateCache.h"
+#include "RHI.h"
 #include "RHIFwd.h"
 #include "TextureProfiler.h"
 #include "DataDrivenShaderPlatformInfo.h"

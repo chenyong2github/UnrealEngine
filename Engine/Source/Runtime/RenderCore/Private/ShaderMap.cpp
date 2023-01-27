@@ -5,28 +5,15 @@
 =============================================================================*/
 
 #include "Shader.h"
+#include "Misc/App.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/StringBuilder.h"
-#include "Stats/StatsMisc.h"
 #include "VertexFactory.h"
-#include "ProfilingDebugging/DiagnosticTable.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
-#include "Interfaces/IShaderFormat.h"
 #include "ShaderCodeLibrary.h"
 #include "ShaderCore.h"
-#include "RenderUtils.h"
-#include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
 #include "UObject/RenderingObjectVersion.h"
-#include "UObject/FortniteMainBranchObjectVersion.h"
-#include "Misc/ScopeRWLock.h"
-#include "ProfilingDebugging/LoadTimeTracker.h"
 #include "DataDrivenShaderPlatformInfo.h"
-
-#if WITH_EDITORONLY_DATA
-#include "Interfaces/IShaderFormat.h"
-#endif
 
 static EShaderPermutationFlags GetCurrentShaderPermutationFlags()
 {

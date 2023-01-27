@@ -3,6 +3,7 @@
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/TracingProfiler.h"
+#include "RHI.h"
 #include "RenderCore.h"
 #include "RenderingThread.h"
 #include "GPUProfiler.h"

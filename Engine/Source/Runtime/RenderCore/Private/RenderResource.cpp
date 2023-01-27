@@ -5,12 +5,11 @@
 =============================================================================*/
 
 #include "RenderResource.h"
-#include "Misc/ScopedEvent.h"
 #include "Misc/App.h"
+#include "RHI.h"
 #include "RenderingThread.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "CoreGlobals.h"
-#include "RayTracingGeometryManager.h"
 #include "RenderGraphResources.h"
 #include "Containers/ResourceArray.h"
 #include "RenderCore.h"

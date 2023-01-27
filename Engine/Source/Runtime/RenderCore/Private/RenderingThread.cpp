@@ -7,8 +7,9 @@
 #include "RenderingThread.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
-#include "HAL/ExceptionHandling.h"
+#include "HAL/ExceptionHandling.h" // IWYU pragma: keep
 #include "HAL/PlatformApplicationMisc.h"
+#include "Misc/CommandLine.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/CoreStats.h"
 #include "Misc/TimeGuard.h"

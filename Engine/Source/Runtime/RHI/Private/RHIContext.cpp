@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RHIContext.h"
+#include "DynamicRHI.h"
 #include "RHI.h"
 #include "RHIStats.h"
 

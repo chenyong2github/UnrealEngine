@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ClearQuad.h"
+#include "RenderUtils.h"
 #include "Shader.h"
 #include "RHIStaticStates.h"
 #include "OneColorShader.h"
 #include "PipelineStateCache.h"
-#include "ClearReplacementShaders.h"
 #include "RendererInterface.h"
 #include "Logging/LogMacros.h"
 

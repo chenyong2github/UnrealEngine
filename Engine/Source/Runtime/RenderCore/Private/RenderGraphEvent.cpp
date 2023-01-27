@@ -4,6 +4,7 @@
 #include "RenderGraphBuilder.h"
 #include "RenderGraphPrivate.h"
 #include "RenderGraphPass.h"
+#include "RenderResource.h"
 
 class FRDGTimingPool : public FRenderResource
 {

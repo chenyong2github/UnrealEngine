@@ -9,6 +9,7 @@
 #include "ShaderCore.h"
 #include "ShaderParameters.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "ShaderParameterMacros.h"
 
 bool SupportShaderPrecisionModifier(EShaderPlatform Platform)
 {

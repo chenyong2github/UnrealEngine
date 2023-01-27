@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHI.h"
 #include "RenderResource.h"
 #include "RendererInterface.h"
 #include "RenderGraphResources.h"

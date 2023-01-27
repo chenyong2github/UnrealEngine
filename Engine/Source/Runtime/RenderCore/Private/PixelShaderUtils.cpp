@@ -8,7 +8,6 @@
 
 #include "CommonRenderResources.h"
 #include "DataDrivenShaderPlatformInfo.h"
-#include "RenderGraph.h"
 
 IMPLEMENT_SHADER_TYPE(, FPixelShaderUtils::FRasterizeToRectsVS, TEXT("/Engine/Private/RenderGraphUtilities.usf"), TEXT("RasterizeToRectsVS"), SF_Vertex);
 

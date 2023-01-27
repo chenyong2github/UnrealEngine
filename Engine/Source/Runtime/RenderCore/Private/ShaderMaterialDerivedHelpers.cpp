@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Misc/FileHelper.h"
-#include "Misc/CoreMisc.h"
-#include "ShaderCore.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
-#include "RenderUtils.h"
+#include "RHIFeatureLevel.h"
+#include "RHIFwd.h" // IWYU pragma: keep
 #include "ShaderMaterial.h"
-#include "GBufferInfo.h"
 
 
 FShaderGlobalDefines FetchRuntimeShaderGlobalDefines(EShaderPlatform TargetPlatform)

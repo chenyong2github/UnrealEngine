@@ -4,7 +4,6 @@
 #include "Containers/ConsumeAllMpmcQueue.h"
 #include "Experimental/Containers/HazardPointer.h"
 #include "Misc/MemStack.h"
-#include "RHI.h"
 #include "RHICommandList.h"
 #include "Stats/Stats.h"
 #include "TextureProfiler.h"

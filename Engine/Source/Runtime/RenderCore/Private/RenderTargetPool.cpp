@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderTargetPool.h"
-#include "RHIStaticStates.h"
-#include "Misc/OutputDeviceRedirector.h"
 #include "Hash/CityHash.h"
+#include "Misc/CoreMisc.h"
 #include "Trace/Trace.inl"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "RHI.h"
 #include "RenderCore.h"
+#include "RHICommandList.h"
 
 /** The global render targets pool. */
 TGlobalResource<FRenderTargetPool> GRenderTargetPool;

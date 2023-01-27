@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderGraphAllocator.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "RenderGraphPrivate.h"
 
 FRDGAllocator& FRDGAllocator::Get()

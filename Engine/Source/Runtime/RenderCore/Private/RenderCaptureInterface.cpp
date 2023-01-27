@@ -4,7 +4,6 @@
 #include "IRenderCaptureProvider.h"
 #include "RenderGraphBuilder.h"
 #include "RenderingThread.h"
-#include "RHI.h"
 
 namespace RenderCaptureInterface
 {

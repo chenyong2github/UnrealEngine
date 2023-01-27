@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderGraphValidation.h"
+#include "RenderGraphEvent.h"
 #include "RenderGraphPrivate.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
 #include "MultiGPU.h"
+#include "RenderGraphPass.h"
 
 #if RDG_ENABLE_DEBUG
 

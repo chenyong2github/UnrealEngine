@@ -2,7 +2,6 @@
 
 #include "GenerateMips.h"
 #include "RenderGraphUtils.h"
-#include "ShaderParameterUtils.h"
 #include "PipelineStateCache.h"
 #include "GlobalShader.h"
 #include "CommonRenderResources.h"

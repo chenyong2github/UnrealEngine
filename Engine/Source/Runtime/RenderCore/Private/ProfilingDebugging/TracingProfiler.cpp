@@ -5,12 +5,10 @@
 #if TRACING_PROFILER
 
 #include "GPUProfiler.h"
-#include "HAL/ConsoleManager.h"
 #include "HAL/FileManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/Paths.h"
-#include "RHI.h"
 #include "RenderingThread.h"
 #include "UObject/NameTypes.h"
 

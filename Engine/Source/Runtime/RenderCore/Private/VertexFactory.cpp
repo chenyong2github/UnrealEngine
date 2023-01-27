@@ -5,9 +5,8 @@
 =============================================================================*/
 
 #include "VertexFactory.h"
-#include "Serialization/MemoryWriter.h"
-#include "UObject/DebugSerializationFlags.h"
 #include "PipelineStateCache.h"
+#include "RHICommandList.h"
 #include "ShaderCompilerCore.h"
 #include "RenderUtils.h"
 #include "DataDrivenShaderPlatformInfo.h"

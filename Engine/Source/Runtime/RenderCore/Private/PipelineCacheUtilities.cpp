@@ -3,10 +3,10 @@
 
 #if UE_WITH_PIPELINE_CACHE_UTILITIES
 #include "Async/TaskGraphInterfaces.h"
+#include "Misc/Compression.h"
 #include "Misc/SecureHash.h"
 #include "Serialization/NameAsStringIndexProxyArchive.h"
 #include "Serialization/VarInt.h"
-#include "HAL/FileManagerGeneric.h"
 #include "PipelineFileCache.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
@@ -14,6 +14,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/FileHelper.h"
+#include "ShaderCodeLibrary.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPipelineCacheUtilities, Log, All);
 

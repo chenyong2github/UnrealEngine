@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VisualizeTexture.h"
+#include "Misc/App.h"
 #include "ShaderParameters.h"
+#include "Misc/WildcardString.h"
 #include "RHIStaticStates.h"
+#include "RenderingThread.h"
 #include "Shader.h"
-#include "StaticBoundShaderState.h"
 #include "RenderTargetPool.h"
 #include "GlobalShader.h"
 #include "PipelineStateCache.h"
-#include "CommonRenderResources.h"
 #include "PixelShaderUtils.h"
 #include "Misc/FileHelper.h"
 #include "RenderCore.h"

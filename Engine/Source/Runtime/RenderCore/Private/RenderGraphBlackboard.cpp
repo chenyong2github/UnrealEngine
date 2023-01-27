@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderGraphBlackboard.h"
+#include "Containers/Map.h"
 
 FString FRDGBlackboard::GetTypeName(const TCHAR* ClassName, const TCHAR* FileName, uint32 LineNumber)
 {

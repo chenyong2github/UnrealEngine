@@ -6,7 +6,6 @@
 
 #include "StaticBoundShaderState.h"
 #include "RenderingThread.h"
-#include "Shader.h"
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 

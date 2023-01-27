@@ -6,13 +6,11 @@
  */
  
 #include "ShaderPipelineCache.h"
-#include "RenderingThread.h"
-#include "HAL/FileManager.h"
+#include "Containers/List.h"
 #include "Misc/Paths.h"
-#include "Serialization/MemoryWriter.h"
-#include "Serialization/CustomVersion.h"
+#include "Misc/App.h"
 #include "Serialization/MemoryReader.h"
-#include "Shader.h"
+#include "RHICommandList.h"
 #include "RenderUtils.h"
 #include "Misc/EngineVersion.h"
 #include "PipelineStateCache.h"

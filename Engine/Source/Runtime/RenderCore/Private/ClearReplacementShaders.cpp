@@ -3,7 +3,6 @@
 
 #include "ClearReplacementShaders.h"
 #include "ShaderParameterUtils.h"
-#include "RendererInterface.h"
 
 IMPLEMENT_SHADER_TYPE4_WITH_TEMPLATE_PREFIX(template<>, RENDERCORE_API, FClearReplacementVS									, SF_Vertex);
 IMPLEMENT_SHADER_TYPE4_WITH_TEMPLATE_PREFIX(template<>, RENDERCORE_API, FClearReplacementVS_Bounds							, SF_Vertex);

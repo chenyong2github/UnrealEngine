@@ -6,22 +6,14 @@
 
 #include "GlobalShader.h"
 
-#include "Misc/MessageDialog.h"
-#include "HAL/FileManager.h"
-#include "Serialization/NameAsStringProxyArchive.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/Paths.h"
 #include "Serialization/MemoryWriter.h"
-#include "Serialization/MemoryReader.h"
-#include "Misc/ScopedSlowTask.h"
-#include "Misc/App.h"
-#include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Containers/StaticBitArray.h"
 #include "ShaderCodeLibrary.h"
-#include "StaticBoundShaderState.h"
 
 /** The global shader map. */
 FGlobalShaderMap* GGlobalShaderMap[SP_NumPlatforms] = {};

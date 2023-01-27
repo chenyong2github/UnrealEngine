@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderGraphResources.h"
-#include "RenderGraphPass.h"
 #include "RenderGraphPrivate.h"
-#include "RenderGraphResourcePool.h"
 
 inline bool SkipUAVBarrier(const FRDGSubresourceState& Previous, const FRDGSubresourceState& Next)
 {

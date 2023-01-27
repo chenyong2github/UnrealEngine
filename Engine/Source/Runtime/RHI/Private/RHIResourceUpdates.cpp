@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RHIResourceUpdates.h"
-#include "RHI.h"
 #include "RHICommandList.h"
 
 FRHIResourceUpdateBatcher::FRHIResourceUpdateBatcher(TArrayView<FRHIResourceUpdateInfo> InUpdateInfos)

@@ -8,7 +8,6 @@ PipelineStateCache.cpp: Pipeline state cache implementation.
 #include "Async/AsyncWork.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "PipelineFileCache.h"
-#include "Containers/ClosableMpscQueue.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/App.h"
 #include "Misc/TimeGuard.h"

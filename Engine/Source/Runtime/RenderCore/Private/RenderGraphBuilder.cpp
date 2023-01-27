@@ -3,6 +3,7 @@
 #include "RenderGraphBuilder.h"
 #include "RenderGraphPrivate.h"
 #include "RenderGraphTrace.h"
+#include "RenderGraphUtils.h"
 #include "RenderTargetPool.h"
 #include "RenderGraphResourcePool.h"
 #include "VisualizeTexture.h"

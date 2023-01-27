@@ -4,9 +4,9 @@
 
 #include "Containers/DynamicRHIResourceArray.h"
 #include "DataDrivenShaderPlatformInfo.h"
-#include "HAL/ConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Misc/CoreMisc.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h" // IWYU pragma: keep
 #include "PackedNormal.h"
 #include "PipelineStateCache.h"
 #include "RenderResource.h"

@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DumpGPU.h"
-#include "RenderGraph.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformMisc.h"
+#include "Misc/App.h"
 #include "Misc/FileHelper.h"
 #include "Misc/WildcardString.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/CoreDelegates.h"
+#include "RenderingThread.h"
 #include "Runtime/Launch/Resources/Version.h"
 #include "BuildSettings.h"
 #include "Serialization/JsonTypes.h"

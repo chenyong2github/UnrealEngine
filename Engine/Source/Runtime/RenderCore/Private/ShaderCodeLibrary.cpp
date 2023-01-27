@@ -7,22 +7,21 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #include "ShaderCodeLibrary.h"
 
 #include "Algo/Replace.h"
-#include "Async/AsyncFileHandle.h"
 #include "Async/ParallelFor.h"
 #include "Containers/HashTable.h"
 #include "Containers/Set.h"
 #include "Containers/StringView.h"
 #include "FileCache/FileCache.h"
-#include "HAL/FileManagerGeneric.h"
+#include "HAL/FileManager.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "HAL/PlatformSplash.h"
+#include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformSplash.h" // IWYU pragma: keep
 #include "Hash/CityHash.h"
 #include "Interfaces/IPluginManager.h"
 #include "Math/UnitConversion.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
-#include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
@@ -31,8 +30,7 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #include "Misc/StringBuilder.h"
 #include "PipelineFileCache.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
-#include "Serialization/LargeMemoryWriter.h"
-#include "Serialization/MemoryReader.h"
+#include "RenderingThread.h"
 #include "Shader.h"
 #include "ShaderCodeArchive.h"
 #include "ShaderPipelineCache.h"
@@ -41,10 +39,8 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 
 #if WITH_EDITORONLY_DATA
 #include "Interfaces/IShaderFormat.h"
-#include "Interfaces/IShaderFormatModule.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
-#include "Modules/ModuleManager.h"
 #endif
 
 #if WITH_EDITOR

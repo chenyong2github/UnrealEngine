@@ -5,6 +5,7 @@ DynamicBufferAllocator.cpp: Classes for allocating transient rendering data.
 ==============================================================================*/
 
 #include "DynamicBufferAllocator.h"
+#include "Math/Float16.h"
 #include "RenderResource.h"
 #include "Misc/ScopeLock.h"
 #include "RenderCore.h"

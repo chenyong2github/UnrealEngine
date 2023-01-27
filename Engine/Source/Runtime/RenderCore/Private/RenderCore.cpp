@@ -5,11 +5,13 @@
 =============================================================================*/
 
 #include "RenderCore.h"
+#include "DynamicRHI.h"
 #include "HAL/IConsoleManager.h"
-#include "UniformBuffer.h"
+#include "Misc/CommandLine.h"
 #include "Modules/ModuleManager.h"
-#include "Shader.h"
 #include "HDRHelper.h"
+#include "RHI.h"
+#include "RenderTimer.h"
 
 void UpdateShaderDevelopmentMode();
 

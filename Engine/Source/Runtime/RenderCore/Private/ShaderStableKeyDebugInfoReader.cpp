@@ -6,6 +6,7 @@
 
 #include "ShaderStableKeyDebugInfoReader.h"
 #include "PipelineCacheUtilities.h"
+#include "RHIResources.h"
 
 // Disable in Shipping just in case (also shaderpipelineutils aren't available there)
 #define UE_WITH_SHK_READER			(!UE_BUILD_SHIPPING)

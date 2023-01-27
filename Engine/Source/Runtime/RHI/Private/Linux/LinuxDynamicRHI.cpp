@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/App.h"
+#include "DynamicRHI.h"
 #include "Misc/MessageDialog.h"
 #include "RHI.h"
 #include "Modules/ModuleManager.h"

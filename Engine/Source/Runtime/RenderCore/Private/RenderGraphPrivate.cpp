@@ -2,6 +2,8 @@
 
 #include "RenderGraphPrivate.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "Misc/CommandLine.h"
+#include "RHICommandList.h"
 
 #if RDG_ENABLE_DEBUG
 

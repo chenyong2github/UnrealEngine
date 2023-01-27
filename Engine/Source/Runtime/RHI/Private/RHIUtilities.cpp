@@ -7,7 +7,6 @@ RHIUtilities.cpp:
 #include "RHIUtilities.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "HAL/PlatformStackWalk.h"
-#include "Containers/ClosableMpscQueue.h"
 #include "RHI.h"
 #include "GenericPlatform/GenericPlatformFramePacer.h"
 #include "HAL/Runnable.h"

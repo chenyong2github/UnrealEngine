@@ -6,7 +6,6 @@
 
 #include "ShaderParameters.h"
 #include "Containers/List.h"
-#include "UniformBuffer.h"
 #include "ShaderCore.h"
 #include "Shader.h"
 #include "VertexFactory.h"

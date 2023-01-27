@@ -3,9 +3,12 @@
 #include "GpuProfilerTrace.h"
 #include "GPUProfiler.h"
 #include "HAL/IConsoleManager.h"
+#include "ProfilingDebugging/MiscTrace.h"
 #include "Trace/Trace.inl"
+#include "RHI.h"
 #include "Trace/Detail/Field.h"
 #include "Trace/Detail/Important/ImportantLogScope.h"
+#include "Trace/Detail/LogScope.h"
 
 #if GPUPROFILERTRACE_ENABLED
 

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderGraphResourcePool.h"
+#include "RHICommandList.h"
 #include "RenderGraphResources.h"
+#include "RHITransientResourceAllocator.h"
 #include "Trace/Trace.inl"
 #include "ProfilingDebugging/CountersTrace.h"
 

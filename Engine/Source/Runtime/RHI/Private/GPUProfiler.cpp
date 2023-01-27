@@ -7,6 +7,7 @@
 #include "GPUProfiler.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/WildcardString.h"
+#include "RHI.h"
 
 #if !UE_BUILD_SHIPPING
 #include "VisualizerEvents.h"

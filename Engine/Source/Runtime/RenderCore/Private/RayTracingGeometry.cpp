@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RayTracingGeometry.h"
+#include "DynamicRHI.h"
 #include "HAL/IConsoleManager.h"
 #include "RayTracingGeometryManager.h"
 #include "RenderUtils.h"
 #include "RHIResourceUpdates.h"
-#include "RHITextureReference.h"
+#include "RHITextureReference.h" // IWYU pragma: keep
 
 int32 GVarDebugForceRuntimeBLAS = 0;
 FAutoConsoleVariableRef CVarDebugForceRuntimeBLAS(

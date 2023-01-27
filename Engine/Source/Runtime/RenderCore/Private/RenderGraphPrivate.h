@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include "Misc/ScopeExit.h"
 #include "RenderGraphDefinitions.h"
-#include "RenderGraphResources.h"
-#include "RenderTargetPool.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+#include "RHI.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRDG, Log, All);
 
