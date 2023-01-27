@@ -129,6 +129,16 @@ enum class EPropertyObjectReferenceType : uint32
 };
 ENUM_CLASS_FLAGS(EPropertyObjectReferenceType);
 
+enum class EPropertyMemoryAccess : uint8
+{
+	// Direct memory access - the associated pointer points to the memory at the reflected item.
+	Direct,
+
+	// Container access - the associated pointer points to the outer of the reflected item.
+	// Access via containers will use getter and setters, if present.
+	InContainer
+};
+
 namespace UEProperty_Private { class FProperty_DoNotUse; }
 
 /**
@@ -2751,102 +2761,108 @@ protected:
 
 	/* Helper functions for UObject property types that wrap the object pointer in a smart pointer */
 	template <typename T>
-	void GetWrappedUObjectPtrValues_InContainer(UObject** OutObjects, const void* ContainerAddress, int32 ArrayIndex, int32 ArrayCount) const
+	void GetWrappedUObjectPtrValues(UObject** OutObjects, const void* SrcAddress, EPropertyMemoryAccess SrcAccess, int32 ArrayIndex, int32 ArrayCount) const
 	{
 		// Ensure required range is valid
 		checkf(ArrayIndex >= 0 && ArrayCount >= 0 && ArrayIndex <= ArrayDim && ArrayCount <= ArrayDim && ArrayIndex <= ArrayDim - ArrayCount, TEXT("ArrayIndex (%d) and ArrayCount (%d) is invalid for an array of size %d"), ArrayIndex, ArrayCount, ArrayDim);
 
-		if (HasGetter())
+		if (SrcAccess == EPropertyMemoryAccess::InContainer)
 		{
-			if (ArrayCount == 1)
+			if (HasGetter())
 			{
-				// Slower but no mallocs. We can copy the value directly to the resulting param
-				T Value;
-				GetValue_InContainer(ContainerAddress, &Value);
-				*OutObjects = Value.Get();
-			}
-			else
-			{
-				// Malloc a temp value that is the size of the array. Getter will then copy the entire array to the temp value
-				T* ValueArray = (T*)AllocateAndInitializeValue();
-				FProperty::GetValue_InContainer(ContainerAddress, ValueArray);
-
-				// Grab the items we care about and free the temp array
-				int32 LocalElementSize = ElementSize;
-				for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
+				if (ArrayCount == 1)
 				{
-					OutObjects[OutIndex] = ValueArray[ArrayIndex + OutIndex].Get();
+					// Slower but no mallocs. We can copy the value directly to the resulting param
+					T Value;
+					GetValue_InContainer(SrcAddress, &Value);
+					*OutObjects = Value.Get();
 				}
-				DestroyAndFreeValue(ValueArray);
+				else
+				{
+					// Malloc a temp value that is the size of the array. Getter will then copy the entire array to the temp value
+					T* ValueArray = (T*)AllocateAndInitializeValue();
+					FProperty::GetValue_InContainer(SrcAddress, ValueArray);
+
+					// Grab the items we care about and free the temp array
+					int32 LocalElementSize = ElementSize;
+					for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
+					{
+						OutObjects[OutIndex] = ValueArray[ArrayIndex + OutIndex].Get();
+					}
+					DestroyAndFreeValue(ValueArray);
+				}
+
+				return;
 			}
+
+			SrcAddress = ContainerPtrToValuePtr<void>(SrcAddress, ArrayIndex);
+		}
+
+		// Fast path - direct memory access
+		if (ArrayCount == 1)
+		{
+			*OutObjects = GetObjectPropertyValue(SrcAddress);
 		}
 		else
 		{
-			// Fast path - direct memory access
-			const uint8* ObjAddress = (const uint8*)ContainerPtrToValuePtr<void>(ContainerAddress, ArrayIndex);
-
-			if (ArrayCount == 1)
+			int32 LocalElementSize = ElementSize;
+			for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
 			{
-				*OutObjects = GetObjectPropertyValue(ObjAddress);
-			}
-			else
-			{
-				int32 LocalElementSize = ElementSize;
-				for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
-				{
-					OutObjects[OutIndex] = GetObjectPropertyValue(ObjAddress + OutIndex * LocalElementSize);
-				}
+				OutObjects[OutIndex] = GetObjectPropertyValue((const uint8*)SrcAddress + OutIndex * LocalElementSize);
 			}
 		}
 	}
 	template <typename T>
-	void SetWrappedUObjectPtrValues_InContainer(void* ContainerAddress, UObject** InValues, int32 ArrayIndex, int32 ArrayCount) const
+	void SetWrappedUObjectPtrValues(void* DestAddress, EPropertyMemoryAccess DestAccess, UObject** InValues, int32 ArrayIndex, int32 ArrayCount) const
 	{
 		// Ensure required range is valid
 		checkf(ArrayIndex >= 0 && ArrayCount >= 0 && ArrayIndex <= ArrayDim && ArrayCount <= ArrayDim && ArrayIndex <= ArrayDim - ArrayCount, TEXT("ArrayIndex (%d) and ArrayCount (%d) is invalid for an array of size %d"), ArrayIndex, ArrayCount, ArrayDim);
 
-		if (HasSetter())
+		if (DestAccess == EPropertyMemoryAccess::InContainer)
 		{
-			if (ArrayCount == 1)
+			if (HasSetter())
 			{
-				// Slower but no mallocs. We can copy a local wrapped value directly to the resulting param
-				T WrappedValue(*InValues);
-				SetValue_InContainer(ContainerAddress, &WrappedValue);
-			}
-			else
-			{
-				// Malloc a temp value that is the size of the array. Getter will then copy the entire array to the temp value
-				T* ValueArray = (T*)AllocateAndInitializeValue();
-				FProperty::GetValue_InContainer(ContainerAddress, ValueArray);
-
-				// Replace the items we care about
-				int32 LocalElementSize = ElementSize;
-				for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
+				if (ArrayCount == 1)
 				{
-					ValueArray[ArrayIndex + OutIndex] = InValues[OutIndex];
+					// Slower but no mallocs. We can copy a local wrapped value directly to the resulting param
+					T WrappedValue(*InValues);
+					SetValue_InContainer(DestAddress, &WrappedValue);
+				}
+				else
+				{
+					// Malloc a temp value that is the size of the array. Getter will then copy the entire array to the temp value
+					T* ValueArray = (T*)AllocateAndInitializeValue();
+					FProperty::GetValue_InContainer(DestAddress, ValueArray);
+
+					// Replace the items we care about
+					int32 LocalElementSize = ElementSize;
+					for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
+					{
+						ValueArray[ArrayIndex + OutIndex] = InValues[OutIndex];
+					}
+
+					// Now copy the entire array back to the property using a setter
+					SetValue_InContainer(DestAddress, ValueArray);
+					DestroyAndFreeValue(ValueArray);
 				}
 
-				// Now copy the entire array back to the property using a setter
-				SetValue_InContainer(ContainerAddress, ValueArray);
-				DestroyAndFreeValue(ValueArray);
+				return;
 			}
+
+			DestAddress = ContainerPtrToValuePtr<void>(DestAddress, ArrayIndex);
+		}
+
+		// Fast path - direct memory access
+		if (ArrayCount == 1)
+		{
+			SetObjectPropertyValue(DestAddress, *InValues);
 		}
 		else
 		{
-			// Fast path - direct memory access
-			uint8* ObjAddress = (uint8*)ContainerPtrToValuePtr<void>(ContainerAddress, ArrayIndex);
-
-			if (ArrayCount == 1)
+			int32 LocalElementSize = ElementSize;
+			for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
 			{
-				SetObjectPropertyValue(ObjAddress, *InValues);
-			}
-			else
-			{
-				int32 LocalElementSize = ElementSize;
-				for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
-				{
-					SetObjectPropertyValue(ObjAddress + OutIndex * LocalElementSize, InValues[OutIndex]);
-				}
+				SetObjectPropertyValue((uint8*)DestAddress + OutIndex * LocalElementSize, InValues[OutIndex]);
 			}
 		}
 	}
