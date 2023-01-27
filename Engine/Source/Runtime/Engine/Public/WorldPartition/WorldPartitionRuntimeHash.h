@@ -43,26 +43,29 @@ public:
 	}
 
 	//~ Begin IWorldPartitionRuntimeCellOwner Interface
-	virtual UWorld* GetOwningWorld() const override { return OwningWorld.Get(); }
-	virtual UWorld* GetOuterWorld() const override { return OuterWorld.Get(); }
+	virtual UWorld* GetOwningWorld() const override final { return OwningWorld.Get(); }
+	virtual UWorld* GetOuterWorld() const override final { return OuterWorld.Get(); }
 	//~ End IWorldPartitionRuntimeCellOwner Interface
 
-	virtual class UWorld* GetWorld() const override { return GetOwningWorld(); }
+	virtual class UWorld* GetWorld() const override final { return GetOwningWorld(); }
 
-	virtual void ForEachStreamingCells(TFunctionRef<void(UWorldPartitionRuntimeCell&)> Func);
+	void ForEachStreamingCells(TFunctionRef<void(UWorldPartitionRuntimeCell&)> Func);
 	
-	virtual void OnStreamingObjectLoaded() {};
+	void OnStreamingObjectLoaded();
 
 #if WITH_EDITOR
-	virtual void PopulateGeneratorPackageForCook() {};
+	void PopulateGeneratorPackageForCook();
 #endif
 
-private:
+protected:
 	UPROPERTY();
 	TSoftObjectPtr<UWorld> OwningWorld;
 
 	UPROPERTY();
 	TSoftObjectPtr<UWorld> OuterWorld;
+
+	UPROPERTY();
+	TMap<FName, FName> CellToLevelStreamingPackage;
 };
 
 struct FWorldPartitionQueryCache
