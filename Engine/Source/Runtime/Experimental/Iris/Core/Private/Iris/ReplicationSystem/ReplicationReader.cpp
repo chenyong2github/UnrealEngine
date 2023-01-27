@@ -478,7 +478,10 @@ void FReplicationReader::ReadObject(FNetSerializationContext& Context)
 			goto ErrorHandling;
 		}
 
-		InternalIndex = NetRefHandleManager->GetInternalIndex(NetRefHandle);		 
+		InternalIndex = NetRefHandleManager->GetInternalIndex(NetRefHandle);
+		FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
+		ObjectData.bAllowDestroyInstanceFromRemote = EnumHasAnyFlags(CreateResult.Flags, EReplicationBridgeCreateNetRefHandleResultFlags::AllowDestroyInstanceFromRemote);
+
 		FReplicatedObjectInfo& ObjectInfo = StartReplication(InternalIndex);
 
 		ObjectInfo.bIsDeltaCompressionEnabled = bIsDeltaCompressed;
