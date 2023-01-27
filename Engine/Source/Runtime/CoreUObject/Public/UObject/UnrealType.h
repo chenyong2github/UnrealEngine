@@ -2756,25 +2756,7 @@ protected:
 		// Ensure required range is valid
 		checkf(ArrayIndex >= 0 && ArrayCount >= 0 && ArrayIndex <= ArrayDim && ArrayCount <= ArrayDim && ArrayIndex <= ArrayDim - ArrayCount, TEXT("ArrayIndex (%d) and ArrayCount (%d) is invalid for an array of size %d"), ArrayIndex, ArrayCount, ArrayDim);
 
-		if (!HasGetter())
-		{
-			// Fast path - direct memory access
-			const uint8* ObjAddress = (const uint8*)ContainerPtrToValuePtr<void>(ContainerAddress, ArrayIndex);
-
-			if (ArrayCount == 1)
-			{
-				*OutObjects = GetObjectPropertyValue(ObjAddress);
-			}
-			else
-			{
-				int32 LocalElementSize = ElementSize;
-				for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
-				{
-					OutObjects[OutIndex] = GetObjectPropertyValue(ObjAddress + OutIndex * LocalElementSize);
-				}
-			}
-		}
-		else
+		if (HasGetter())
 		{
 			if (ArrayCount == 1)
 			{
@@ -2798,6 +2780,24 @@ protected:
 				DestroyAndFreeValue(ValueArray);
 			}
 		}
+		else
+		{
+			// Fast path - direct memory access
+			const uint8* ObjAddress = (const uint8*)ContainerPtrToValuePtr<void>(ContainerAddress, ArrayIndex);
+
+			if (ArrayCount == 1)
+			{
+				*OutObjects = GetObjectPropertyValue(ObjAddress);
+			}
+			else
+			{
+				int32 LocalElementSize = ElementSize;
+				for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
+				{
+					OutObjects[OutIndex] = GetObjectPropertyValue(ObjAddress + OutIndex * LocalElementSize);
+				}
+			}
+		}
 	}
 	template <typename T>
 	void SetWrappedUObjectPtrValues_InContainer(void* ContainerAddress, UObject** InValues, int32 ArrayIndex, int32 ArrayCount) const
@@ -2805,25 +2805,7 @@ protected:
 		// Ensure required range is valid
 		checkf(ArrayIndex >= 0 && ArrayCount >= 0 && ArrayIndex <= ArrayDim && ArrayCount <= ArrayDim && ArrayIndex <= ArrayDim - ArrayCount, TEXT("ArrayIndex (%d) and ArrayCount (%d) is invalid for an array of size %d"), ArrayIndex, ArrayCount, ArrayDim);
 
-		if (!HasSetter())
-		{
-			// Fast path - direct memory access
-			uint8* ObjAddress = (uint8*)ContainerPtrToValuePtr<void>(ContainerAddress, ArrayIndex);
-
-			if (ArrayCount == 1)
-			{
-				SetObjectPropertyValue(ObjAddress, *InValues);
-			}
-			else
-			{
-				int32 LocalElementSize = ElementSize;
-				for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
-				{
-					SetObjectPropertyValue(ObjAddress + OutIndex * LocalElementSize, InValues[OutIndex]);
-				}
-			}
-		}
-		else
+		if (HasSetter())
 		{
 			if (ArrayCount == 1)
 			{
@@ -2847,6 +2829,24 @@ protected:
 				// Now copy the entire array back to the property using a setter
 				SetValue_InContainer(ContainerAddress, ValueArray);
 				DestroyAndFreeValue(ValueArray);
+			}
+		}
+		else
+		{
+			// Fast path - direct memory access
+			uint8* ObjAddress = (uint8*)ContainerPtrToValuePtr<void>(ContainerAddress, ArrayIndex);
+
+			if (ArrayCount == 1)
+			{
+				SetObjectPropertyValue(ObjAddress, *InValues);
+			}
+			else
+			{
+				int32 LocalElementSize = ElementSize;
+				for (int32 OutIndex = 0; OutIndex != ArrayCount; ++OutIndex)
+				{
+					SetObjectPropertyValue(ObjAddress + OutIndex * LocalElementSize, InValues[OutIndex]);
+				}
 			}
 		}
 	}
