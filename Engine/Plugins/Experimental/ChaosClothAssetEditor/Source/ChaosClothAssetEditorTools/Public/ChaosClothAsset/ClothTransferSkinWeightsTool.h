@@ -87,8 +87,9 @@ protected:
 public:
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
+	
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;	
 
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 	virtual void PostSetupTool(UInteractiveTool* Tool, const FToolBuilderState& SceneState) const override;
 };
 

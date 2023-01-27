@@ -158,16 +158,14 @@ bool UClothTransferSkinWeightsToolBuilder::CanBuildTool(const FToolBuilderState&
 	return ClothComponentSelected && SkeletalMeshComponentSelected;
 }
 
-UInteractiveTool* UClothTransferSkinWeightsToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+USingleSelectionMeshEditingTool* UClothTransferSkinWeightsToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
 	UClothTransferSkinWeightsTool* NewTool = NewObject<UClothTransferSkinWeightsTool>(SceneState.ToolManager);
-	
-	UToolTarget* Target = SceneState.TargetManager->BuildFirstSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTarget(Target);
-	NewTool->SetWorld(SceneState.World);
+
+	// Setting Target and World on the new tool is handled in USingleSelectionMeshEditingToolBuilder::InitializeNewTool
+
 	return NewTool;
 }
-
 
 void UClothTransferSkinWeightsToolBuilder::PostSetupTool(UInteractiveTool* Tool, const FToolBuilderState& SceneState) const
 {
