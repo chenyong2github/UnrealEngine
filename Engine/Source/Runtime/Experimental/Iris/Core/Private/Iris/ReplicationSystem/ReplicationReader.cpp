@@ -302,13 +302,13 @@ void FReplicationReader::EndReplication(uint32 InternalIndex, bool bTearOff, boo
 		Attachments.DropAllAttachments(ENetObjectAttachmentType::Normal, InternalIndex);
 
 		EReplicationBridgeDestroyInstanceReason DestroyReason = EReplicationBridgeDestroyInstanceReason::DoNotDestroy;
-		if (bDestroyInstance)
-		{
-			DestroyReason = EReplicationBridgeDestroyInstanceReason::Destroy;
-		}
-		else if (bTearOff)
+		if (bTearOff)
 		{
 			DestroyReason = EReplicationBridgeDestroyInstanceReason::TearOff;
+		}
+		else if (bDestroyInstance)
+		{
+			DestroyReason = EReplicationBridgeDestroyInstanceReason::Destroy;
 		}
 		EReplicationBridgeDestroyInstanceFlags DestroyFlags = (Data.bAllowDestroyInstanceFromRemote ? EReplicationBridgeDestroyInstanceFlags::AllowDestroyInstanceFromRemote : EReplicationBridgeDestroyInstanceFlags::None);
 		ReplicationBridge->DestroyNetObjectFromRemote(Data.RefHandle, DestroyReason, DestroyFlags);
