@@ -149,7 +149,12 @@ int32 GetBuildUniqueId()
 	if (!bStaticCheck)
 	{
 		bStaticCheck = true;
-		if (FParse::Value(FCommandLine::Get(), TEXT("BuildIdOverride="), BuildIdOverride) && BuildIdOverride != 0)
+		FString BuildIdOverrideCommandLineString;
+		if (FParse::Value(FCommandLine::Get(), TEXT("BuildIdOverride="), BuildIdOverrideCommandLineString))
+		{
+			BuildIdOverride = FCString::Atoi(*BuildIdOverrideCommandLineString);
+		}
+		if (BuildIdOverride != 0)
 		{
 			bUseBuildIdOverride = true;
 		}
