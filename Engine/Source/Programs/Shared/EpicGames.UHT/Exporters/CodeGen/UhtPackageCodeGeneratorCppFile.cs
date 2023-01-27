@@ -64,6 +64,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				// No need to generate output if we have no declarations
 				if (declarations.Length == 0)
 				{
+					if (SaveExportedHeaders)
+					{
+						// We need to create the directory, otherwise UBT will think that this module has not been properly updated and won't write a Timestamp file
+						System.IO.Directory.CreateDirectory(Package.Module.OutputDirectory);
+					}
 					return;
 				}
 				uint declarationsHash = UhtHash.GenenerateTextHash(declarations.ToString());
