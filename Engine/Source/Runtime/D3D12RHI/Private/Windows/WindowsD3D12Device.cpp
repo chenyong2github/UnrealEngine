@@ -419,8 +419,9 @@ static bool CheckDeviceForEmulatedAtomic64Support(IDXGIAdapter* Adapter, ID3D12D
 
 inline bool ShouldCheckBindlessSupport(EShaderPlatform ShaderPlatform)
 {
-	return RHIGetBindlessResourcesConfiguration(ShaderPlatform) != ERHIBindlessConfiguration::Disabled
-		|| RHIGetBindlessSamplersConfiguration(ShaderPlatform) != ERHIBindlessConfiguration::Disabled;
+	// Note: only checking against AllShaders allows the RayTracingOnly configuration to not raise the requirements for projects that aren't using RayTracing.
+	return RHIGetBindlessResourcesConfiguration(ShaderPlatform) == ERHIBindlessConfiguration::AllShaders
+		|| RHIGetBindlessSamplersConfiguration(ShaderPlatform) == ERHIBindlessConfiguration::AllShaders;
 }
 
 inline ERHIFeatureLevel::Type FindMaxRHIFeatureLevel(D3D_FEATURE_LEVEL InMaxFeatureLevel, D3D_SHADER_MODEL InMaxShaderModel, D3D12_RESOURCE_BINDING_TIER ResourceBindingTier, bool bSupportsWaveOps, bool bSupportsAtomic64)
