@@ -17,6 +17,12 @@ public:
 	virtual void NotifyContentBundleRemovedContent(const FContentBundleEditor* ContentBundle) = 0;
 	virtual void NotifyContentBundleChanged(const FContentBundleEditor* ContentBundle) = 0;
 
+	virtual TSharedPtr<FContentBundleEditor> GetEditorContentBundle(const FGuid& ContentBundleGuid) const = 0;
+	
+	virtual bool IsEditingContentBundle() const = 0;
+	virtual bool ActivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const = 0;
+	virtual bool DeactivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const = 0;
+
 protected:
 	static void SetInstance(IContentBundleEditorSubsystemInterface* InInstance);
 	static IContentBundleEditorSubsystemInterface* Instance;
