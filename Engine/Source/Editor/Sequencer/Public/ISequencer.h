@@ -376,7 +376,7 @@ public:
 	/** @return Returns whether sequencer will respond to changes and possibly create a key or track */
 	virtual bool IsAllowedToChange() const 
 	{
-		if (GetAllowEditsMode() == EAllowEditsMode::AllowLevelEditsOnly)
+		if (IsReadOnly() || GetAllowEditsMode() == EAllowEditsMode::AllowLevelEditsOnly)
 		{
 			return false;
 		}
