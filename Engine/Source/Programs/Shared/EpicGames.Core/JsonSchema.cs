@@ -297,12 +297,31 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		static string? GetPropertyDescription(Type type, string name, XmlDocument? xmlDoc)
 		{
+			return GetSummaryFromXmlDoc(type, "P", name, xmlDoc);
+		}
+
+		/// <summary>
+		/// Gets a description from Xml documentation file
+		/// </summary>
+		/// <param name="type">Type to retrieve summary for</param>
+		/// <param name="qualifier">Type of element to retrieve</param>
+		/// <param name="member">Name of the member</param>
+		/// <param name="xmlDoc">XML documentation file to search</param>
+		/// <returns>Summary string, or null if it's not available</returns>
+		static string? GetSummaryFromXmlDoc(Type type, string qualifier, string? member, XmlDocument? xmlDoc)
+		{
 			if (xmlDoc == null)
 			{
 				return null;
 			}
 
-			string selector = $"//member[@name='P:{type.FullName}.{name}']/summary";
+			string? fullName = type.FullName;
+			if (member != null)
+			{
+				fullName = $"{fullName}.{member}";
+			}
+
+			string selector = $"//member[@name='{qualifier}:{fullName}']/summary";
 
 			XmlNode? node = xmlDoc.SelectSingleNode(selector);
 			if (node == null)
@@ -336,7 +355,7 @@ namespace EpicGames.Core
 				case TypeCode.UInt64:
 					if (type.IsEnum)
 					{
-						return new JsonSchemaEnum(Enum.GetNames(type)) { Name = type.Name };
+						return CreateEnumSchemaType(type, xmlDoc);
 					}
 					else
 					{
@@ -367,6 +386,10 @@ namespace EpicGames.Core
 			if (type == typeof(TimeSpan))
 			{
 				return new JsonSchemaString();
+			}
+			if (type == typeof(Uri))
+			{
+				return new JsonSchemaString(JsonSchemaStringFormat.Uri);
 			}
 
 			Type[] interfaceTypes = type.GetInterfaces();
@@ -415,6 +438,20 @@ namespace EpicGames.Core
 			throw new Exception($"Unknown type for schema generation: {type}");
 		}
 
+		static JsonSchemaEnum CreateEnumSchemaType(Type type, XmlDocument? xmlDoc)
+		{
+			string[] names = Enum.GetNames(type);
+			string[] descriptions = new string[names.Length];
+
+			for (int idx = 0; idx < names.Length; idx++)
+			{
+				descriptions[idx] = GetSummaryFromXmlDoc(type, "F", names[idx], xmlDoc) ?? String.Empty;
+			}
+
+			string? enumDescription = GetSummaryFromXmlDoc(type, "T", null, xmlDoc);
+			return new JsonSchemaEnum(names, descriptions) { Name = type.Name, Description = enumDescription };
+		}
+
 		static void SetOneOfProperties(JsonSchemaOneOf obj, Type type, Type[] knownTypes, Dictionary<Type, JsonSchemaType> typeCache, XmlDocument? xmlDoc)
 		{
 			obj.Name = type.Name;
@@ -425,7 +462,7 @@ namespace EpicGames.Core
 				if (attribute != null)
 				{
 					JsonSchemaObject knownObject = new JsonSchemaObject();
-					knownObject.Properties.Add(new JsonSchemaProperty("type", "Type discriminator", new JsonSchemaEnum(new[] { attribute.Name })));
+					knownObject.Properties.Add(new JsonSchemaProperty("type", "Type discriminator", new JsonSchemaEnum(new[] { attribute.Name }, new[] { "Identifier for the derived type" })));
 					SetObjectProperties(knownObject, knownType, typeCache, xmlDoc);
 					obj.Types.Add(knownObject);
 				}
@@ -435,6 +472,7 @@ namespace EpicGames.Core
 		static void SetObjectProperties(JsonSchemaObject obj, Type type, Dictionary<Type, JsonSchemaType> typeCache, XmlDocument? xmlDoc)
 		{
 			obj.Name = type.Name;
+			obj.Description = GetSummaryFromXmlDoc(type, "T", null, xmlDoc);
 
 			PropertyInfo[] properties = type.GetProperties(BindingFlags.Instance | BindingFlags.Public);
 			foreach (PropertyInfo property in properties)

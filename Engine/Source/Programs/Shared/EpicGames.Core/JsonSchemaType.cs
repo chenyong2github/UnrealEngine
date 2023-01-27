@@ -16,6 +16,11 @@ namespace EpicGames.Core
 		public string? Name { get; set; }
 
 		/// <summary>
+		/// Description of this type
+		/// </summary>
+		public string? Description { get; set; }
+
+		/// <summary>
 		/// Write this type to the given archive
 		/// </summary>
 		/// <param name="writer"></param>
@@ -155,11 +160,17 @@ namespace EpicGames.Core
 		public List<string> Values { get; } = new List<string>();
 
 		/// <summary>
+		/// Descriptions for each enum value
+		/// </summary>
+		public List<string> Descriptions { get; } = new List<string>();
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JsonSchemaEnum(IEnumerable<string> values)
+		public JsonSchemaEnum(IEnumerable<string> values, IEnumerable<string> descriptions)
 		{
 			Values.AddRange(values);
+			Descriptions.AddRange(descriptions);
 		}
 
 		/// <inheritdoc/>
@@ -213,6 +224,11 @@ namespace EpicGames.Core
 		public string Name { get; set; }
 
 		/// <summary>
+		/// The camelcase name for this property
+		/// </summary>
+		public string CamelCaseName => Char.ToLowerInvariant(Name[0]) + Name.Substring(1);
+
+		/// <summary>
 		/// Description of the property
 		/// </summary>
 		public string? Description { get; set; }
@@ -238,8 +254,7 @@ namespace EpicGames.Core
 		/// <param name="writer"></param>
 		public void Write(IJsonSchemaWriter writer)
 		{
-			string camelCaseName = Char.ToLowerInvariant(Name[0]) + Name.Substring(1);
-			writer.WriteStartObject(camelCaseName);
+			writer.WriteStartObject(CamelCaseName);
 			writer.WriteType(Type);
 			if (Description != null)
 			{
