@@ -739,8 +739,6 @@ private:
 			{
 				FShaderCompileJob& Job = SingleJobs[JobIndex];
 				OutputFile << Job.Output;
-				bool bSucceeded = (bool)Job.bSucceeded;
-				OutputFile << bSucceeded;
 				UpdateFileSize(OutputFile, FileSizePosition);
 			}
 		}

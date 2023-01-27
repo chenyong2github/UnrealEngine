@@ -898,8 +898,6 @@ void CompileShader(const TArray<const IShaderFormat*>& ShaderFormats, FShaderCom
 #else
 	CompileShaderInternal(Compiler, Job, WorkingDirectory, CompileCount);
 #endif
-
-	Job.bSucceeded = Job.Output.bSucceeded;
 }
 
 void CompileShaderPipeline(const TArray<const IShaderFormat*>& ShaderFormats, FShaderPipelineCompileJob* PipelineJob, const FString& Dir, int32* CompileCount)
