@@ -50,6 +50,7 @@
 #include "ProfilingDebugging/BootProfiling.h"
 #if WITH_ENGINE
 #include "HAL/PlatformSplash.h"
+#include "SceneInterface.h"
 #include "StereoRenderUtils.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #endif
@@ -3053,6 +3054,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FAudioThread::SetUseThreadedAudio(bUseThreadedAudio);
 	}
 
+	// Ensure engine localization has loaded before we show the splash
+	FTextLocalizationManager::Get().WaitForAsyncTasks();
+
 	// Are we creating a slate application?
 	bool bSlateApplication = !IsRunningDedicatedServer() && (bIsRegularClient || bHasEditorToken);
 	if (bSlateApplication)
@@ -3605,7 +3609,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 		}
 #endif
 
-		BeginInitGameTextLocalization();
+		InitGameTextLocalization();
 
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Initial UObject load"), STAT_InitialUObjectLoad, STATGROUP_LoadTime);
 
@@ -3644,7 +3648,8 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			ProcessNewlyLoadedUObjects();
 		}
 
-		EndInitGameTextLocalization();
+		// Ensure game localization has loaded before we continue
+		FTextLocalizationManager::Get().WaitForAsyncTasks();
 
 		FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::ObjectSystemReady);
 
@@ -4240,6 +4245,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 #else // WITH_ENGINE
 	InitEngineTextLocalization();
 	InitGameTextLocalization();
+	FTextLocalizationManager::Get().WaitForAsyncTasks();
 #if USE_LOCALIZED_PACKAGE_CACHE
 	{
 		SCOPED_BOOT_TIMING("FPackageLocalizationManager::Get().InitializeFromDefaultCache");

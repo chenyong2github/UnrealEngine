@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/TaskGraphFwd.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "Containers/ContainerAllocationPolicies.h"
@@ -17,6 +18,7 @@
 #include "Internationalization/TextKey.h"
 #include "Misc/Crc.h"
 #include "Misc/EnumClassFlags.h"
+#include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
 
 #include <atomic>
@@ -31,7 +33,6 @@ enum class ETextLocalizationManagerInitializedFlags : uint8
 	None = 0,
 	Engine = 1<<0,
 	Game = 1<<1,
-	Initializing = 1<<2
 };
 ENUM_CLASS_FLAGS(ETextLocalizationManagerInitializedFlags);
 
@@ -41,8 +42,6 @@ class CORE_API FTextLocalizationManager
 	friend CORE_API void BeginPreInitTextLocalization();
 	friend CORE_API void BeginInitTextLocalization();
 	friend CORE_API void InitEngineTextLocalization();
-	friend CORE_API void BeginInitGameTextLocalization();
-	friend CORE_API void EndInitGameTextLocalization();
 	friend CORE_API void InitGameTextLocalization();
 
 private:
@@ -88,11 +87,6 @@ private:
 		return InitializedFlags != ETextLocalizationManagerInitializedFlags::None;
 	}
 
-	bool IsInitializing() const
-	{
-		return EnumHasAnyFlags(InitializedFlags.load(), ETextLocalizationManagerInitializedFlags::Initializing);
-	}
-
 	mutable FCriticalSection DisplayStringLookupTableCS;
 	FDisplayStringLookupTable DisplayStringLookupTable;
 
@@ -110,6 +104,9 @@ private:
 	friend class FLazySingleton;
 	
 public:
+
+	~FTextLocalizationManager();
+	UE_NONCOPYABLE(FTextLocalizationManager);
 
 	/** Singleton accessor */
 	static FTextLocalizationManager& Get();
@@ -183,8 +180,37 @@ public:
 	void UpdateFromLocalizationResource(const FString& LocalizationResourceFilePath);
 	void UpdateFromLocalizationResource(const FTextLocalizationResource& TextLocalizationResource);
 
-	/** Reloads resources for the current culture. */
+	/**
+	 * Wait for any current async tasks to finish.
+	 * 
+	 * Async tasks will be started for anything that loads localization data (eg, initialization, language changes, requests to refresh the localization data, requests 
+	 * to load additional localization data for chunked targets, or requests to load additional localization data for explicitly loaded plugins).
+	 * 
+	 * While the engine automatically waits at certain points during initialization, you may find that you need to add your own waits if you cause additional localization 
+	 * data to load post-initialization (eg, because you're using chunked localization targets or are explicitly loading plugins). A good place to add a wait in that case 
+	 * might be at the end of your loading screen, before showing your main menu or game world.
+	 */
+	void WaitForAsyncTasks();
+
+	/**
+	 * Reloads resources for the current culture.
+	 * @note The loading is async, see WaitUntilLoadingCompletes.
+	 */
 	void RefreshResources();
+
+	/**
+	 * Called when paths containing additional localization target data (LocRes) are mounted, to allow the display strings to dynamically update without waiting for a refresh.
+	 * @note The loading is async, see WaitUntilLoadingCompletes.
+	 * @see FCoreDelegates::GatherAdditionalLocResPathsCallback.
+	 */
+	void HandleLocalizationTargetsMounted(TArrayView<const FString> LocalizationTargetPaths);
+
+	 /**
+	  * Called when paths containing additional localization target data (LocRes) are unmounted, to allow the display strings to dynamically update without waiting for a refresh.
+	  * @note The loading is async, see WaitUntilLoadingCompletes.
+	  * @see FCoreDelegates::GatherAdditionalLocResPathsCallback.
+	  */
+	void HandleLocalizationTargetsUnmounted(TArrayView<const FString> LocalizationTargetPaths);
 
 	/**
 	 * Returns the current text revision number. This value can be cached when caching information from the text localization manager.
@@ -269,17 +295,30 @@ public:
 	FTextRevisionChangedEvent OnTextRevisionChangedEvent;
 
 private:
-	/** Callback for when a PAK file is loaded. Loads any chunk specific localization resources. */
+	/** Callback for when a PAK file is loaded. Async loads any chunk specific localization resources. */
 	void OnPakFileMounted(const IPakFile& PakFile);
 
-	/** Callback for changes in culture. Loads the new culture's localization resources. */
+	/** Callback for changes in culture. Async loads the new culture's localization resources. */
 	void OnCultureChanged();
 
 	/** Loads localization resources for the specified culture, optionally loading localization resources that are editor-specific or game-specific. */
-	void LoadLocalizationResourcesForCulture(const FString& CultureName, const ELocalizationLoadFlags LocLoadFlags);
+	void LoadLocalizationResourcesForCulture_Sync(TArrayView<const TSharedPtr<ILocalizedTextSource>> AvailableTextSources, const FString& CultureName, const ELocalizationLoadFlags LocLoadFlags);
+	void LoadLocalizationResourcesForCulture_Async(const FString& CultureName, const ELocalizationLoadFlags LocLoadFlags);
 
 	/** Loads localization resources for the specified prioritized cultures, optionally loading localization resources that are editor-specific or game-specific. */
-	void LoadLocalizationResourcesForPrioritizedCultures(TArrayView<const FString> PrioritizedCultureNames, const ELocalizationLoadFlags LocLoadFlags);
+	void LoadLocalizationResourcesForPrioritizedCultures_Sync(TArrayView<const TSharedPtr<ILocalizedTextSource>> AvailableTextSources, TArrayView<const FString> PrioritizedCultureNames, const ELocalizationLoadFlags LocLoadFlags);
+	void LoadLocalizationResourcesForPrioritizedCultures_Async(TArrayView<const FString> PrioritizedCultureNames, const ELocalizationLoadFlags LocLoadFlags);
+
+	/** Loads the specified localization targets for the specified prioritized cultures, optionally loading localization resources that are editor-specific or game-specific. */
+	void LoadLocalizationTargetsForPrioritizedCultures_Sync(TArrayView<const TSharedPtr<ILocalizedTextSource>> AvailableTextSources, TArrayView<const FString> LocalizationTargetPaths, TArrayView<const FString> PrioritizedCultureNames, const ELocalizationLoadFlags LocLoadFlags);
+	void LoadLocalizationTargetsForPrioritizedCultures_Async(TArrayView<const FString> LocalizationTargetPaths, TArrayView<const FString> PrioritizedCultureNames, const ELocalizationLoadFlags LocLoadFlags);
+
+	/** Loads the chunked localization resource data for the specified chunk */
+	void LoadChunkedLocalizationResources_Sync(TArrayView<const TSharedPtr<ILocalizedTextSource>> AvailableTextSources, const int32 ChunkId, const FString& PakFilename);
+	void LoadChunkedLocalizationResources_Async(const int32 ChunkId, const FString& PakFilename);
+
+	/** Queue the given task to run async (where possible), chained to any existing AsyncLocalizationTask */
+	void QueueAsyncTask(TUniqueFunction<void()>&& Task);
 
 	/** Updates display string entries and adds new display string entries based on provided native text. */
 	void UpdateFromNative(FTextLocalizationResource&& TextLocalizationResource, const bool bDirtyTextRevision = true);
@@ -297,8 +336,7 @@ private:
 	void LeetifyAllDisplayStrings();
 	/** A helper function that converts all of the display strings to show the localization key associated with the string when the keys culture is active. */
 	void KeyifyAllDisplayStrings();
-#endif 
-
+#endif
 
 	/** Array of registered localized text sources, sorted by priority (@see RegisterTextSource) */
 	TArray<TSharedPtr<ILocalizedTextSource>> LocalizedTextSources;
@@ -308,4 +346,7 @@ private:
 
 	/** The polyglot text source (this is also added to LocalizedTextSources, but we keep a pointer to it directly so we can add new polyglot data to it at runtime) */
 	TSharedPtr<class FPolyglotTextSource> PolyglotTextSource;
+
+	/** The latest async localization task (if any). Additional requests are chained to this so that they run in sequence */
+	FGraphEventRef AsyncLocalizationTask;
 };

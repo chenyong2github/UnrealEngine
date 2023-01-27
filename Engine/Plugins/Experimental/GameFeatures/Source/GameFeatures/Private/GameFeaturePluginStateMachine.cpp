@@ -2250,6 +2250,13 @@ struct FGameFeaturePluginState_Activating : public FGameFeaturePluginState
 
 		UGameFeaturesSubsystem::Get().OnGameFeatureActivating(StateProperties.GameFeatureData, StateProperties.PluginName, Context, StateProperties.PluginIdentifier.GetFullPluginURL());
 
+		// If this plugin caused localization data to load, wait for that here before marking it as active
+		if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(StateProperties.PluginName);
+			Plugin && Plugin->GetDescriptor().bExplicitlyLoaded && Plugin->GetDescriptor().LocalizationTargets.Num() > 0)
+		{
+			FTextLocalizationManager::Get().WaitForAsyncTasks();
+		}
+
 		StateStatus.SetTransition(EGameFeaturePluginState::Active);
 	}
 };

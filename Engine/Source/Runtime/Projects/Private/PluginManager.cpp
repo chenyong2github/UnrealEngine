@@ -26,6 +26,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "Algo/Accumulate.h"
 #include "Containers/VersePath.h"
+#include "Internationalization/TextLocalizationManager.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #if READ_TARGET_ENABLED_PLUGINS_FROM_RECEIPT
 #include "TargetReceipt.h"
@@ -337,6 +338,21 @@ namespace DiscoveredPluginMapUtils
 			return TopPluginPtr;
 		}
 		return nullptr;
+	}
+}
+
+namespace PluginLocalizationUtils
+{
+	void GetLocalizationPathsForPlugin(const TSharedRef<FPlugin>& Plugin, TArray<FString>& OutLocResPaths)
+	{
+		const FString PluginLocDir = Plugin->GetContentDir() / TEXT("Localization");
+		for (const FLocalizationTargetDescriptor& LocTargetDesc : Plugin->GetDescriptor().LocalizationTargets)
+		{
+			if (LocTargetDesc.ShouldLoadLocalizationTarget())
+			{
+				OutLocResPaths.Add(PluginLocDir / LocTargetDesc.Name);
+			}
+		}
 	}
 }
 
@@ -2308,14 +2324,7 @@ void FPluginManager::GetLocalizationPathsForEnabledPlugins( TArray<FString>& Out
 			continue;
 		}
 		
-		const FString PluginLocDir = Plugin->GetContentDir() / TEXT("Localization");
-		for (const FLocalizationTargetDescriptor& LocTargetDesc : Plugin->GetDescriptor().LocalizationTargets)
-		{
-			if (LocTargetDesc.ShouldLoadLocalizationTarget())
-			{
-				OutLocResPaths.Add(PluginLocDir / LocTargetDesc.Name);
-			}
-		}
+		PluginLocalizationUtils::GetLocalizationPathsForPlugin(Plugin, OutLocResPaths);
 	}
 }
 
@@ -2653,6 +2662,14 @@ void FPluginManager::MountPluginFromExternalSource(const TSharedRef<FPlugin>& Pl
 		}
 	}
 
+	// Notify that additional localization data should be loaded
+	if (Plugin->Descriptor.LocalizationTargets.Num() > 0)
+	{
+		TArray<FString> AdditionalLocResPaths;
+		PluginLocalizationUtils::GetLocalizationPathsForPlugin(Plugin, AdditionalLocResPaths);
+		FTextLocalizationManager::Get().HandleLocalizationTargetsMounted(AdditionalLocResPaths);
+	}
+
 	// If it's a code module, also load the modules for it
 	if (Plugin->Descriptor.Modules.Num() > 0)
 	{
@@ -2709,6 +2726,14 @@ bool FPluginManager::UnmountPluginFromExternalSource(const TSharedPtr<FPlugin>& 
 			*OutReason = LOCTEXT("UnloadPluginContainedModules", "Plugin contains modules and may be unsafe to unload");
 		}
 		return false;
+	}
+
+	// Notify that additional localization data should be unloaded
+	if (Plugin->Descriptor.LocalizationTargets.Num() > 0 && !IsEngineExitRequested())
+	{
+		TArray<FString> AdditionalLocResPaths;
+		PluginLocalizationUtils::GetLocalizationPathsForPlugin(Plugin.ToSharedRef(), AdditionalLocResPaths);
+		FTextLocalizationManager::Get().HandleLocalizationTargetsUnmounted(AdditionalLocResPaths);
 	}
 
 	if ((Plugin->CanContainContent() || Plugin->CanContainVerse()) && ensure(UnRegisterMountPointDelegate.IsBound()))

@@ -35,7 +35,14 @@ FSlateApplicationBase::FSlateApplicationBase()
 , bIsSlateAsleep(false)
 , CustomSafeZoneState(ECustomSafeZoneState::Unset)
 {
-
+	FTextLocalizationManager::Get().OnTextRevisionChangedEvent.AddLambda([]()
+	{
+		if (FSlateApplicationBase::IsInitialized())
+		{
+			// Redraw widgets when new localized text data is loaded
+			FSlateApplicationBase::Get().InvalidateAllWidgets(false);
+		}
+	});
 }
 
 void FSlateApplicationBase::GetDisplayMetrics(FDisplayMetrics& OutDisplayMetrics) 
