@@ -709,10 +709,7 @@ class FVulkanComputePipelineDescriptorInfo
 {
 public:
 	FVulkanComputePipelineDescriptorInfo()
-		: RemappingUBInfos(nullptr)
-		, RemappingGlobalInfos(nullptr)
-		, RemappingPackedUBInfos(nullptr)
-		, HasDescriptorsInSetMask(0)
+		: HasDescriptorsInSetMask(0)
 		, RemappingInfo(nullptr)
 		, bInitialized(false)
 	{
@@ -764,12 +761,12 @@ public:
 
 protected:
 	// Cached data from FDescriptorSetRemappingInfo
-	const FDescriptorSetRemappingInfo::FUBRemappingInfo*	RemappingUBInfos;
-	const FDescriptorSetRemappingInfo::FRemappingInfo*		RemappingGlobalInfos;
-	const uint16*											RemappingPackedUBInfos;
-	uint32													HasDescriptorsInSetMask;
-	const FDescriptorSetRemappingInfo*						RemappingInfo;
-	bool													bInitialized;
+	TArrayView<const FDescriptorSetRemappingInfo::FUBRemappingInfo>	RemappingUBInfos;
+	TArrayView<const FDescriptorSetRemappingInfo::FRemappingInfo>	RemappingGlobalInfos;
+	TArrayView<const uint16>										RemappingPackedUBInfos;
+	uint32															HasDescriptorsInSetMask;
+	const FDescriptorSetRemappingInfo*								RemappingInfo;
+	bool															bInitialized;
 
 	friend class FVulkanComputePipelineDescriptorState;
 };
@@ -783,9 +780,6 @@ public:
 		, RemappingInfo(nullptr)
 		, bInitialized(false)
 	{
-		FMemory::Memzero(RemappingUBInfos);
-		FMemory::Memzero(RemappingGlobalInfos);
-		FMemory::Memzero(RemappingPackedUBInfos);
 	}
 
 	inline bool GetDescriptorSetAndBindingIndex(const FVulkanShaderHeader::EType Type, const ShaderStage::EStage Stage, int32 ParameterIndex, uint8& OutDescriptorSet, uint32& OutBindingIndex) const
@@ -838,9 +832,9 @@ public:
 
 protected:
 	// Cached data from FDescriptorSetRemappingInfo
-	const FDescriptorSetRemappingInfo::FUBRemappingInfo*	RemappingUBInfos[ShaderStage::NumStages];
-	const FDescriptorSetRemappingInfo::FRemappingInfo*		RemappingGlobalInfos[ShaderStage::NumStages];
-	const uint16*											RemappingPackedUBInfos[ShaderStage::NumStages];
+	TArrayView<const FDescriptorSetRemappingInfo::FUBRemappingInfo>	RemappingUBInfos[ShaderStage::NumStages];
+	TArrayView<const FDescriptorSetRemappingInfo::FRemappingInfo>	RemappingGlobalInfos[ShaderStage::NumStages];
+	TArrayView<const uint16>										RemappingPackedUBInfos[ShaderStage::NumStages];
 	uint32													HasDescriptorsInSetMask;
 
 	const FDescriptorSetRemappingInfo*						RemappingInfo;

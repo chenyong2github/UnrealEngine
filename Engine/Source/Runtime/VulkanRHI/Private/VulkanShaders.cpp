@@ -848,9 +848,9 @@ void FVulkanComputePipelineDescriptorInfo::Initialize(const FDescriptorSetRemapp
 {
 	check(!bInitialized);
 
-	RemappingGlobalInfos = InRemappingInfo.StageInfos[0].Globals.GetData();
-	RemappingUBInfos = InRemappingInfo.StageInfos[0].UniformBuffers.GetData();
-	RemappingPackedUBInfos = InRemappingInfo.StageInfos[0].PackedUBBindingIndices.GetData();
+	RemappingGlobalInfos = InRemappingInfo.StageInfos[0].Globals;
+	RemappingUBInfos = InRemappingInfo.StageInfos[0].UniformBuffers;
+	RemappingPackedUBInfos = InRemappingInfo.StageInfos[0].PackedUBBindingIndices;
 
 	RemappingInfo = &InRemappingInfo;
 
@@ -878,9 +878,9 @@ void FVulkanGfxPipelineDescriptorInfo::Initialize(const FDescriptorSetRemappingI
 	for (int32 StageIndex = 0; StageIndex < ShaderStage::NumStages; ++StageIndex)
 	{
 		//#todo-rco: Enable this!
-		RemappingUBInfos[StageIndex] = InRemappingInfo.StageInfos[StageIndex].UniformBuffers.GetData();
-		RemappingGlobalInfos[StageIndex] = InRemappingInfo.StageInfos[StageIndex].Globals.GetData();
-		RemappingPackedUBInfos[StageIndex] = InRemappingInfo.StageInfos[StageIndex].PackedUBBindingIndices.GetData();
+		RemappingUBInfos[StageIndex] = InRemappingInfo.StageInfos[StageIndex].UniformBuffers;
+		RemappingGlobalInfos[StageIndex] = InRemappingInfo.StageInfos[StageIndex].Globals;
+		RemappingPackedUBInfos[StageIndex] = InRemappingInfo.StageInfos[StageIndex].PackedUBBindingIndices;
 	}
 
 	RemappingInfo = &InRemappingInfo;
