@@ -1249,6 +1249,11 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 			Id.AdditionalDefines.Add(TEXT("CompressAttributes"));
 		}
 
+		if (System->ShouldDisableExperimentalVM() || !GetDefault<UNiagaraSettings>()->bExperimentalVMEnabled)
+		{
+			Id.AdditionalDefines.Add(FNiagaraCompileOptions::ExperimentalVMDisabled);
+		}
+
 		for (const FNiagaraEmitterHandle& EmitterHandle: System->GetEmitterHandles())
 		{
 			FVersionedNiagaraEmitterData* HandleData = EmitterHandle.GetEmitterData();
