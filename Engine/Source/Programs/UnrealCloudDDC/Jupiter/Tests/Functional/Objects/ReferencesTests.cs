@@ -29,6 +29,7 @@ using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using ContentId = Jupiter.Implementation.ContentId;
 using EpicGames.AspNet;
+using Jupiter.Implementation.Objects;
 
 namespace Jupiter.FunctionalTests.References
 {
@@ -50,6 +51,12 @@ namespace Jupiter.FunctionalTests.References
         {
             IReferencesStore referencesStore = provider.GetService<IReferencesStore>()!;
             //verify we are using the expected store
+            //verify we are using the expected store
+            if (referencesStore is MemoryCachedReferencesStore memoryReferencesStore)
+            {
+                memoryReferencesStore.Clear();
+                referencesStore = memoryReferencesStore.GetUnderlyingStore();
+            }
             Assert.IsTrue(referencesStore.GetType() == typeof(ScyllaReferencesStore));
 
             IContentIdStore contentIdStore = provider.GetService<IContentIdStore>()!;
@@ -108,6 +115,11 @@ namespace Jupiter.FunctionalTests.References
         protected override async Task SeedDb(IServiceProvider provider)
         {
             IReferencesStore referencesStore = provider.GetService<IReferencesStore>()!;
+            if (referencesStore is MemoryCachedReferencesStore memoryReferencesStore)
+            {
+                memoryReferencesStore.Clear();
+                referencesStore = memoryReferencesStore.GetUnderlyingStore();
+            }
             //verify we are using the expected store
             Assert.IsTrue(referencesStore.GetType() == typeof(ScyllaReferencesStore));
 
@@ -166,6 +178,11 @@ namespace Jupiter.FunctionalTests.References
         protected override async Task SeedDb(IServiceProvider provider)
         {
             IReferencesStore referencesStore = provider.GetService<IReferencesStore>()!;
+            if (referencesStore is MemoryCachedReferencesStore memoryReferencesStore)
+            {
+                memoryReferencesStore.Clear();
+                referencesStore = memoryReferencesStore.GetUnderlyingStore();
+            }
             //verify we are using the expected store
             Assert.IsTrue(referencesStore.GetType() == typeof(MongoReferencesStore));
 
@@ -207,6 +224,11 @@ namespace Jupiter.FunctionalTests.References
         protected override async Task SeedDb(IServiceProvider provider)
         {
             IReferencesStore referencesStore = provider.GetService<IReferencesStore>()!;
+            if (referencesStore is MemoryCachedReferencesStore memoryReferencesStore)
+            {
+                memoryReferencesStore.Clear();
+                referencesStore = memoryReferencesStore.GetUnderlyingStore();
+            }
             //verify we are using the expected refs store
             Assert.IsTrue(referencesStore.GetType() == typeof(MemoryReferencesStore));
 

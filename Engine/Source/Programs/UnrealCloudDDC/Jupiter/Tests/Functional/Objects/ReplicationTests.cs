@@ -24,6 +24,7 @@ using Logger = Serilog.Core.Logger;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using EpicGames.AspNet;
+using Jupiter.Implementation.Objects;
 
 namespace Jupiter.FunctionalTests.References
 {
@@ -43,6 +44,11 @@ namespace Jupiter.FunctionalTests.References
         protected override async Task SeedDb(IServiceProvider provider)
         {
             IReferencesStore referencesStore = provider.GetService<IReferencesStore>()!;
+            if (referencesStore is MemoryCachedReferencesStore memoryReferencesStore)
+            {
+                memoryReferencesStore.Clear();
+                referencesStore = memoryReferencesStore.GetUnderlyingStore();
+            }
             Assert.IsTrue(referencesStore.GetType() == typeof(ScyllaReferencesStore));
 
             IReplicationLog replicationLog = provider.GetService<IReplicationLog>()!;
@@ -83,6 +89,11 @@ namespace Jupiter.FunctionalTests.References
         protected override async Task SeedDb(IServiceProvider provider)
         {
             IReferencesStore referencesStore = provider.GetService<IReferencesStore>()!;
+            if (referencesStore is MemoryCachedReferencesStore memoryReferencesStore)
+            {
+                memoryReferencesStore.Clear();
+                referencesStore = memoryReferencesStore.GetUnderlyingStore();
+            }
             //verify we are using the expected refs store
             Assert.IsTrue(referencesStore.GetType() == typeof(MemoryReferencesStore));
 

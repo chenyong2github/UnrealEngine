@@ -19,6 +19,7 @@ using Jupiter.Implementation;
 using Jupiter.Implementation.Blob;
 using Jupiter.Implementation.LeaderElection;
 using Jupiter.Common.Implementation;
+using Jupiter.Implementation.Objects;
 using Jupiter.Implementation.TransactionLog;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
@@ -406,19 +407,24 @@ namespace Jupiter
         private IReferencesStore ObjectStoreFactory(IServiceProvider provider)
         {
             UnrealCloudDDCSettings settings = provider.GetService<IOptionsMonitor<UnrealCloudDDCSettings>>()!.CurrentValue!;
-            switch (settings.ReferencesDbImplementation)
+            IReferencesStore store = settings.ReferencesDbImplementation switch
             {
-                case UnrealCloudDDCSettings.ReferencesDbImplementations.Memory:
-                    return ActivatorUtilities.CreateInstance<MemoryReferencesStore>(provider);
-                case UnrealCloudDDCSettings.ReferencesDbImplementations.Scylla:
-                    return ActivatorUtilities.CreateInstance<ScyllaReferencesStore>(provider);
-                case UnrealCloudDDCSettings.ReferencesDbImplementations.Mongo:
-                    return ActivatorUtilities.CreateInstance<MongoReferencesStore>(provider);
-                case UnrealCloudDDCSettings.ReferencesDbImplementations.Cache:
-                    return ActivatorUtilities.CreateInstance<CacheReferencesStore>(provider);
-                default:
-                    throw new NotImplementedException($"Unknown references db implementation: {settings.ReferencesDbImplementation}");
+                UnrealCloudDDCSettings.ReferencesDbImplementations.Memory => ActivatorUtilities.CreateInstance<MemoryReferencesStore>(provider),
+                UnrealCloudDDCSettings.ReferencesDbImplementations.Scylla => ActivatorUtilities.CreateInstance<ScyllaReferencesStore>(provider),
+                UnrealCloudDDCSettings.ReferencesDbImplementations.Mongo => ActivatorUtilities.CreateInstance<MongoReferencesStore>(provider),
+                UnrealCloudDDCSettings.ReferencesDbImplementations.Cache => ActivatorUtilities.CreateInstance<CacheReferencesStore>(provider),
+                _ => throw new NotImplementedException(
+                    $"Unknown references db implementation: {settings.ReferencesDbImplementation}")
+            };
+
+            MemoryCacheContentIdSettings memoryCacheSettings = provider.GetService<IOptionsMonitor<MemoryCacheContentIdSettings>>()!.CurrentValue;
+
+            if (memoryCacheSettings.Enabled)
+            {
+                store = ActivatorUtilities.CreateInstance<MemoryCachedReferencesStore>(provider, store);
             }
+
+            return store;
         }
         
         private ILeaderElection CreateLeaderElection(IServiceProvider provider)

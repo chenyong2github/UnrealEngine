@@ -33,7 +33,7 @@ namespace Jupiter.Implementation
 
         public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId, bool mustBeContentId)
         {
-			MemoryCache cache = GetCacheForNamespace(ns);
+            MemoryCache cache = GetCacheForNamespace(ns);
             if (cache.TryGetValue(contentId, out CachedContentIdEntry cachedResult))
             {
                 return cachedResult.ReferencedBlobs;
@@ -51,10 +51,10 @@ namespace Jupiter.Implementation
             return referencedBlobs;
         }
 
-		public Task Put(NamespaceId ns, ContentId contentId, BlobIdentifier blobIdentifier, int contentWeight)
+        public Task Put(NamespaceId ns, ContentId contentId, BlobIdentifier blobIdentifier, int contentWeight)
         {
             Task actualPutTask = _actualContentIdStore.Put(ns, contentId, blobIdentifier, contentWeight);
-			AddCacheEntry(ns, contentId, new BlobIdentifier[] {blobIdentifier});
+            AddCacheEntry(ns, contentId, new BlobIdentifier[] {blobIdentifier});
             return actualPutTask;
         }
 
@@ -62,10 +62,10 @@ namespace Jupiter.Implementation
         {
             MemoryCache cache = GetCacheForNamespace(ns);
 
-			CachedContentIdEntry cachedEntry = new CachedContentIdEntry
+            CachedContentIdEntry cachedEntry = new CachedContentIdEntry
             {
                 ReferencedBlobs = blobs
-			};
+            };
             using ICacheEntry entry = cache.CreateEntry(contentId);
             entry.Value = cachedEntry;
             entry.Size = cachedEntry.GetSize();
@@ -74,7 +74,7 @@ namespace Jupiter.Implementation
             {
                 entry.SlidingExpiration = TimeSpan.FromMinutes(_options.CurrentValue.SlidingExpirationMinutes);
             }
-		}
+        }
 
         private MemoryCache GetCacheForNamespace(NamespaceId ns)
         {

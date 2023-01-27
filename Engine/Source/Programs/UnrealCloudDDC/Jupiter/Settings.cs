@@ -130,6 +130,14 @@ namespace Jupiter
         public int SlidingExpirationMinutes { get; set; } = 120;
     }
 
+    public class MemoryCacheReferencesSettings : MemoryCacheOptions
+    {
+        public bool Enabled { get; set; } = true;
+
+        public bool EnableSlidingExpiry { get; set; } = true;
+        public int SlidingExpirationMinutes { get; set; } = 120;
+    }
+
 	public class AzureSettings
     {
         [Required] public string ConnectionString { get; set; } = string.Empty;

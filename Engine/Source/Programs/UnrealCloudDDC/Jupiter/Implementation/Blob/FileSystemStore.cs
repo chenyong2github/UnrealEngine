@@ -338,7 +338,6 @@ namespace Jupiter.Implementation
             UpdateLastWriteTime(filePath.FullName, DateTime.UnixEpoch);
         }
 
-
         /// <summary>
         /// Update the last modified/write time that is used for determining when file was last accessed
         /// 
