@@ -8,6 +8,7 @@
 #include "Chaos/ChaosCache.h"
 #include "ChaosSolversModule.h"
 #include "Components/BillboardComponent.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
 #include "Engine/Texture2D.h"
 #include "PBDRigidsSolver.h"
 #include "Features/IModularFeatures.h"
@@ -607,7 +608,7 @@ void AChaosCacheManager::OnStartFrameChanged(Chaos::FReal InTime)
 				Observed.Cache = CacheCollection->FindCache(Observed.CacheName);
 			}
 
-			if (!Observed.Cache || !Observed.BestFitAdapter || Observed.Cache->GetDuration()==0.0 || Observed.IsEnabled(CacheMode))
+			if (!Observed.Cache || !Observed.BestFitAdapter || Observed.Cache->GetDuration()==0.0 || !Observed.IsEnabled(CacheMode))
 			{
 				continue;
 			}
@@ -684,6 +685,14 @@ FObservedComponent& AChaosCacheManager::AddNewObservedComponent(UPrimitiveCompon
 
 	NewEntry.CacheName = MakeUniqueObjectName(CacheCollection, UChaosCache::StaticClass(), CacheName);
 
+	// make sure we keep track of the various flag that may be changed by the cahe to function
+	NewEntry.bIsSimulating = InComponent->IsSimulatingPhysics();
+	NewEntry.bHasNotifyBreaks = false;
+	if (UGeometryCollectionComponent* GeomComponent = Cast<UGeometryCollectionComponent>(InComponent))
+	{
+		NewEntry.bHasNotifyBreaks = GeomComponent->bNotifyBreaks;
+	}
+
 	return NewEntry;
 }
 
@@ -745,11 +754,21 @@ void AChaosCacheManager::SetObservedComponentProperties(const ECacheMode& NewCac
 		{
 			if (NewCacheMode == ECacheMode::Record)
 			{
-				PrimComp->BodyInstance.bSimulatePhysics = ObservedComponent.bIsSimulating;	
+				PrimComp->BodyInstance.bSimulatePhysics = ObservedComponent.bIsSimulating;
+				if (UGeometryCollectionComponent* GeomComponent = Cast<UGeometryCollectionComponent>(PrimComp))
+				{
+					// in record mode we need to have notify break on on the proxy 
+					GeomComponent->SetNotifyBreaks(true);
+				}
 			}
 			else
 			{
 				PrimComp->BodyInstance.bSimulatePhysics = false;
+				if (UGeometryCollectionComponent* GeomComponent = Cast<UGeometryCollectionComponent>(PrimComp))
+				{
+					// in playback modes we can restore the state of the notification 
+					GeomComponent->SetNotifyBreaks(ObservedComponent.bHasNotifyBreaks);
+				}
 			}
 		}
 	}

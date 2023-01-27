@@ -47,6 +47,7 @@ struct CHAOSCACHING_API FObservedComponent
 	FObservedComponent()
 		: CacheName(NAME_None)
 		, bIsSimulating(true)
+		, bHasNotifyBreaks(false)
 		, bPlaybackEnabled(true)
 		, Cache(nullptr)
 		, BestFitAdapter(nullptr)
@@ -57,6 +58,7 @@ struct CHAOSCACHING_API FObservedComponent
 	{
 		CacheName = OtherComponent.CacheName;
 		bIsSimulating = OtherComponent.bIsSimulating;
+		bHasNotifyBreaks = OtherComponent.bHasNotifyBreaks;
 		bPlaybackEnabled = OtherComponent.bPlaybackEnabled;
 		bTriggered = OtherComponent.bTriggered;
 		AbsoluteTime = OtherComponent.AbsoluteTime;
@@ -71,6 +73,7 @@ struct CHAOSCACHING_API FObservedComponent
 	{
 		CacheName = OtherComponent.CacheName;
 		bIsSimulating = OtherComponent.bIsSimulating;
+		bHasNotifyBreaks = OtherComponent.bHasNotifyBreaks;
 		bPlaybackEnabled = OtherComponent.bPlaybackEnabled;
 		bTriggered = OtherComponent.bTriggered;
 		AbsoluteTime = OtherComponent.AbsoluteTime;
@@ -100,6 +103,13 @@ struct CHAOSCACHING_API FObservedComponent
 	/** Capture of the initial state of the component before cache manager takes control. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Caching")
 	bool bIsSimulating;
+
+	/** 
+	* Capture the state of bNotifyBreaks of the component before cache manager takes control. 
+	* this is because when recording the cache needs the component to have bNotifyBreaks set on the component 
+	* to be able to properly record when clusters are breaking into smaller pieces
+	*/
+	bool bHasNotifyBreaks;
 
 	/** Post serialize function to transfer datas from the deprecated TObjectPtr -> TSoftObjectPtr */
 	void PostSerialize(const FArchive& Ar);
