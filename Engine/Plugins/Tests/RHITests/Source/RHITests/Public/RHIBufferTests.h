@@ -352,7 +352,7 @@ public:
 
 	static bool Test_RHICreateBuffer_Parallel(FRHICommandListImmediate& RHICmdList)
 	{
-		if (!GRHISupportsMultithreadedResources)
+		if (!GRHISupportsMultithreadedResources || RHICmdList.Bypass())
 		{
 			return true;
 		}
