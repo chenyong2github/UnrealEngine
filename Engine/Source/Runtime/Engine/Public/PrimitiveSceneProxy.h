@@ -745,7 +745,7 @@ public:
 	ENGINE_API void SetUsedMaterialForVerification(const TArray<UMaterialInterface*>& InUsedMaterialsForVerification);
 #endif
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !UE_BUILD_TEST
 	inline FLinearColor GetWireframeColor() const { return WireframeColor; }
 	inline FLinearColor GetLevelColor() const { return LevelColor; }
 	inline FLinearColor GetPropertyColor() const { return PropertyColor; }
@@ -1060,7 +1060,7 @@ protected:
 	ENGINE_API void EnableGPUSceneSupportFlags();
 
 private:
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !UE_BUILD_TEST
 	FLinearColor WireframeColor;
 	FLinearColor LevelColor;
 	FLinearColor PropertyColor;

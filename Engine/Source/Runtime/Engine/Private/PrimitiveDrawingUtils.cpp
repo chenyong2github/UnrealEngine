@@ -1565,7 +1565,7 @@ void ApplyViewModeOverrides(
 	FMeshElementCollector& Collector
 	)
 {
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !UE_BUILD_TEST
 
 	// If debug viewmodes are not allowed, skip all of the debug viewmode handling.
 	if (!AllowDebugViewmodes())
