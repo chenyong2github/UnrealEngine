@@ -112,6 +112,7 @@ void FPolyglotTextSource::AddPolyglotDataToResource(const FPolyglotTextData& InP
 	};
 
 	const int32 BaseResourcePriority = GetPriority() * -1; // Flip the priority as larger text source priorities are more important, but smaller text resource priorities are more important
+	const int32 NativeResourcePriority = BaseResourcePriority + InPrioritizedCultures.Num(); // Native resources always prioritize below any localized ones
 	const FString NativeCulture = InPolyglotTextData.ResolveNativeCulture();
 
 	// We skip loading the native text if we're transitioning to the native culture as there's no extra work that needs to be done
@@ -125,7 +126,7 @@ void FPolyglotTextSource::AddPolyglotDataToResource(const FPolyglotTextData& InP
 				InPolyglotTextData.GetKey(),
 				InPolyglotTextData.GetNativeString(),
 				LocalizedString,
-				BaseResourcePriority
+				NativeResourcePriority
 				);
 		}
 	}
@@ -143,7 +144,7 @@ void FPolyglotTextSource::AddPolyglotDataToResource(const FPolyglotTextData& InP
 					InPolyglotTextData.GetKey(),
 					InPolyglotTextData.GetNativeString(),
 					LocalizedString,
-					BaseResourcePriority
+					NativeResourcePriority
 					);
 			}
 		}
@@ -159,7 +160,7 @@ void FPolyglotTextSource::AddPolyglotDataToResource(const FPolyglotTextData& InP
 					InPolyglotTextData.GetKey(),
 					InPolyglotTextData.GetNativeString(),
 					LocalizedString,
-					BaseResourcePriority + LocalizedPriority + 1
+					BaseResourcePriority + LocalizedPriority
 					);
 			}
 		}
