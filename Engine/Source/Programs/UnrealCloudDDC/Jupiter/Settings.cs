@@ -133,6 +133,15 @@ namespace Jupiter
 	public class AzureSettings
     {
         [Required] public string ConnectionString { get; set; } = string.Empty;
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Modified by settings")]
+        // ReSharper disable once CollectionNeverUpdated.Global
+        public Dictionary<string, string> StoragePoolConnectionStrings { get; set; } = new Dictionary<string, string>();
+
+        
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Modified by settings")]
+        // ReSharper disable once CollectionNeverUpdated.Global
+        public Dictionary<string, string> StoragePoolContainerOverride { get; set; } = new Dictionary<string, string>();
     }
 
     public class FilesystemSettings

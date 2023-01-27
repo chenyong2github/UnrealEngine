@@ -51,31 +51,31 @@ namespace Jupiter.FunctionalTests.Storage
 
         protected override async Task Seed(IServiceProvider provider)
         {
-            string S3BucketName = $"tests-{TestNamespaceName}";
+            string s3BucketName = $"tests-{TestNamespaceName}";
 
             _s3 = provider.GetService<IAmazonS3>();
             Assert.IsNotNull(_s3);
-            if (await _s3!.DoesS3BucketExistAsync(S3BucketName))
+            if (await _s3!.DoesS3BucketExistAsync(s3BucketName))
             {
                 // if we have failed to run the cleanup for some reason we run it now
                 await Teardown(provider);
             }
 
-            await _s3.PutBucketAsync(S3BucketName);
-            await _s3.PutObjectAsync(new PutObjectRequest { BucketName = S3BucketName, Key = SmallFileHash.AsS3Key(), ContentBody = SmallFileContents });
-            await _s3.PutObjectAsync(new PutObjectRequest { BucketName = S3BucketName, Key = AnotherFileHash.AsS3Key(), ContentBody = AnotherFileContents });
-            await _s3.PutObjectAsync(new PutObjectRequest { BucketName = S3BucketName, Key = DeleteFileHash.AsS3Key(), ContentBody = DeletableFileContents });
-            await _s3.PutObjectAsync(new PutObjectRequest {BucketName = S3BucketName, Key = OldBlobFileHash.AsS3Key(), ContentBody = OldFileContents});
+            await _s3.PutBucketAsync(s3BucketName);
+            await _s3.PutObjectAsync(new PutObjectRequest { BucketName = s3BucketName, Key = SmallFileHash.AsS3Key(), ContentBody = SmallFileContents });
+            await _s3.PutObjectAsync(new PutObjectRequest { BucketName = s3BucketName, Key = AnotherFileHash.AsS3Key(), ContentBody = AnotherFileContents });
+            await _s3.PutObjectAsync(new PutObjectRequest { BucketName = s3BucketName, Key = DeleteFileHash.AsS3Key(), ContentBody = DeletableFileContents });
+            await _s3.PutObjectAsync(new PutObjectRequest {BucketName = s3BucketName, Key = OldBlobFileHash.AsS3Key(), ContentBody = OldFileContents});
         }
 
         protected override async Task Teardown(IServiceProvider provider)
         {
-            string S3BucketName = $"tests-{TestNamespaceName}";
-            ListObjectsResponse response = await _s3!.ListObjectsAsync(S3BucketName);
+            string s3BucketName = $"tests-{TestNamespaceName}";
+            ListObjectsResponse response = await _s3!.ListObjectsAsync(s3BucketName);
             List<KeyVersion> objectKeys = response.S3Objects.Select(o => new KeyVersion { Key = o.Key }).ToList();
-            await _s3.DeleteObjectsAsync(new DeleteObjectsRequest { BucketName = S3BucketName, Objects = objectKeys });
+            await _s3.DeleteObjectsAsync(new DeleteObjectsRequest { BucketName = s3BucketName, Objects = objectKeys });
 
-            await _s3.DeleteBucketAsync(S3BucketName);
+            await _s3.DeleteBucketAsync(s3BucketName);
         }
     }
 
@@ -83,6 +83,7 @@ namespace Jupiter.FunctionalTests.Storage
     public class AzureStorageTests : StorageTests
     {
         private AzureSettings? _settings;
+        private string? _connectionString;
 
         protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
         {
@@ -93,8 +94,8 @@ namespace Jupiter.FunctionalTests.Storage
         {
             _settings = provider.GetService<IOptionsMonitor<AzureSettings>>()!.CurrentValue;
 
-            string connectionString = AzureBlobStore.GetConnectionString(_settings, provider);
-            BlobContainerClient container = new BlobContainerClient(connectionString, TestNamespaceName.ToString());
+            _connectionString = _settings.ConnectionString;
+            BlobContainerClient container = new BlobContainerClient(_connectionString, DefaultContainerName);
 
             if (await container.ExistsAsync())
             {
@@ -124,10 +125,11 @@ namespace Jupiter.FunctionalTests.Storage
             await oldBlob.UploadAsync(oldBlobContentsSteam);
         }
 
+        private const string DefaultContainerName = "jupiter";
+
         protected override async Task Teardown(IServiceProvider provider)
         {
-            string connectionString = AzureBlobStore.GetConnectionString( _settings!, provider);
-            BlobContainerClient container = new BlobContainerClient(connectionString, TestNamespaceName.ToString());
+            BlobContainerClient container = new BlobContainerClient(_connectionString, DefaultContainerName);
 
             await container.DeleteAsync();
         }
@@ -138,7 +140,7 @@ namespace Jupiter.FunctionalTests.Storage
     public class FileSystemStoreTests : StorageTests
     {
         private readonly string _localTestDir;
-        private readonly NamespaceId FooNamespace = new NamespaceId("foo");
+        private readonly NamespaceId _fooNamespace = new NamespaceId("foo");
 
         public FileSystemStoreTests()
         {
@@ -221,7 +223,7 @@ namespace Jupiter.FunctionalTests.Storage
             List<NamespaceId> namespaces = await fsStore.ListNamespaces().ToListAsync();
             Assert.AreEqual(1, namespaces.Count);
             
-            await fsStore.PutObject(FooNamespace, Encoding.ASCII.GetBytes(SmallFileContents), SmallFileHash);
+            await fsStore.PutObject(_fooNamespace, Encoding.ASCII.GetBytes(SmallFileContents), SmallFileHash);
             
             namespaces = await fsStore.ListNamespaces().ToListAsync();
             Assert.AreEqual(2, namespaces.Count);
@@ -242,7 +244,7 @@ namespace Jupiter.FunctionalTests.Storage
             using CancellationTokenSource cts = new CancellationTokenSource();
             Assert.IsTrue(await fsStore.CleanupInternal(cts.Token, batchSize: 2) == 0); // No garbage to collect, should return false
             
-            FileInfo[] fooFiles = CreateFilesInNamespace(FooNamespace, 10);
+            FileInfo[] fooFiles = CreateFilesInNamespace(_fooNamespace, 10);
 
             Assert.AreEqual(10 * 100, await fsStore.CalculateDiskSpaceUsed());
 
@@ -266,15 +268,15 @@ namespace Jupiter.FunctionalTests.Storage
         [TestMethod]
         public void GetLeastRecentlyAccessedObjects()
         {
-            FileInfo[] fooFiles = CreateFilesInNamespace(FooNamespace, 10);
+            FileInfo[] fooFiles = CreateFilesInNamespace(_fooNamespace, 10);
             CreateFilesInNamespace(new NamespaceId("bar"), 10);
 
             FileSystemStore? fsStore = Server!.Services.GetService<FileSystemStore>();
             Assert.IsNotNull(fsStore);
 
-            Assert.AreEqual(10, (fsStore.GetLeastRecentlyAccessedObjects(FooNamespace)).ToArray().Length);
+            Assert.AreEqual(10, (fsStore.GetLeastRecentlyAccessedObjects(_fooNamespace)).ToArray().Length);
 
-            FileInfo[] results = fsStore.GetLeastRecentlyAccessedObjects(FooNamespace, 3).ToArray();
+            FileInfo[] results = fsStore.GetLeastRecentlyAccessedObjects(_fooNamespace, 3).ToArray();
             Assert.AreEqual(3, results.Length);
             Assert.AreEqual(fooFiles[7].LastAccessTime, results[2].LastAccessTime);
             Assert.AreEqual(fooFiles[8].LastAccessTime, results[1].LastAccessTime);
@@ -286,10 +288,10 @@ namespace Jupiter.FunctionalTests.Storage
         {
             FileSystemStore? fsStore = Server!.Services.GetService<FileSystemStore>();
             Assert.IsNotNull(fsStore);
-            await fsStore.PutObject(FooNamespace, Encoding.ASCII.GetBytes(SmallFileContents), SmallFileHash);
-            await fsStore.PutObject(FooNamespace, Encoding.ASCII.GetBytes(AnotherFileContents), AnotherFileHash);
+            await fsStore.PutObject(_fooNamespace, Encoding.ASCII.GetBytes(SmallFileContents), SmallFileHash);
+            await fsStore.PutObject(_fooNamespace, Encoding.ASCII.GetBytes(AnotherFileContents), AnotherFileHash);
             
-            Assert.AreEqual(SmallFileContents.Length + AnotherFileContents.Length, await fsStore.CalculateDiskSpaceUsed(FooNamespace));
+            Assert.AreEqual(SmallFileContents.Length + AnotherFileContents.Length, await fsStore.CalculateDiskSpaceUsed(_fooNamespace));
         }
         
         private FileInfo[] CreateFilesInNamespace(NamespaceId ns, int numFiles)

@@ -17,7 +17,7 @@ namespace Jupiter.Common.Implementation
 {
     public interface ISecretResolver
     {
-        string? Resolve(string value);
+        string Resolve(string value);
     }
 
     public class SecretResolver : ISecretResolver
@@ -31,7 +31,7 @@ namespace Jupiter.Common.Implementation
             _logger = logger;
         }
 
-        public string? Resolve(string value)
+        public string Resolve(string value)
         {
             int providerSeparator = value.IndexOf("!", StringComparison.Ordinal);
             if (providerSeparator != -1)
@@ -44,7 +44,7 @@ namespace Jupiter.Common.Implementation
             return value;
         }
 
-        private string? ResolveUsingProvider(string providerId, string providerPath, string originalValue)
+        private string ResolveUsingProvider(string providerId, string providerPath, string originalValue)
         {
             switch (providerId.ToUpperInvariant())
             {
@@ -58,7 +58,7 @@ namespace Jupiter.Common.Implementation
             }
         }
 
-        private string? ResolveAWSSecret(string providerPath)
+        private string ResolveAWSSecret(string providerPath)
         {
             SplitByFirstSeparator(providerPath, '|', out string arn, out string? key);
 
@@ -112,7 +112,7 @@ namespace Jupiter.Common.Implementation
         /// <param name="providerPath"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        private static string? ResolveAKVSecret(string providerPath)
+        private static string ResolveAKVSecret(string providerPath)
         {
             if (!SplitByFirstSeparator(providerPath, '|', out string vaultName, out string? secretName))
             {

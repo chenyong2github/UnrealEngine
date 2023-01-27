@@ -1,4 +1,6 @@
 # Unreleased
+* Azure blob storage now supports storage pools
+* Blobs will now be GCed when a ref is GCed (orphan blob GC can and should still be used for partial uploads)
 
 # 0.2.0
 * Improved handling of cassandra timeouts during ref GC.

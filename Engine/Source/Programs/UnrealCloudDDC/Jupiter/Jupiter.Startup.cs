@@ -515,8 +515,10 @@ namespace Jupiter
                         }, tags: new[] {"services"});*/
                         break;
                     case UnrealCloudDDCSettings.StorageBackendImplementations.Azure:
-                        AzureSettings azureSettings = provider.GetService<IOptionsMonitor<AzureSettings>>()!.CurrentValue;
-                        healthChecks.AddAzureBlobStorage(AzureBlobStore.GetConnectionString(azureSettings, provider), tags: new[] {"services"});
+                        // Health checks for Azure are disabled as the connection string will vary based on the namespace used
+                        /*AzureSettings azureSettings = provider.GetService<IOptionsMonitor<AzureSettings>>()!.CurrentValue;
+                        healthChecks.AddAzureBlobStorage(AzureBlobStore.GetConnectionString(azureSettings, provider), tags: new[] {"services"});*/
+                        
                         break;
 
                     case UnrealCloudDDCSettings.StorageBackendImplementations.FileSystem:
