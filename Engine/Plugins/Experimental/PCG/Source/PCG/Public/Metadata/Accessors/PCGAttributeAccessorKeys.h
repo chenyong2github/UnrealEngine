@@ -290,6 +290,41 @@ protected:
 
 /////////////////////////////////////////////////////////////////
 
+/**
+* Type erasing generic keys. Allow to store void* keys, if we are dealing with addresses instead
+* of plain objects.
+* We can't use FPCGAttributeAccessorKeysGeneric since it has a constructor taking a reference on a object,
+* and you can't have void&.
+*/
+class FPCGAttributeAccessorKeysGenericPtrs : public IPCGAttributeAccessorKeys
+{
+public:
+	FPCGAttributeAccessorKeysGenericPtrs(const TArrayView<void*>& InPtrs)
+		: IPCGAttributeAccessorKeys(/*bInReadOnly=*/ false)
+		, Ptrs(InPtrs)
+	{}
+
+	FPCGAttributeAccessorKeysGenericPtrs(const TArrayView<const void*>& InPtrs)
+		: IPCGAttributeAccessorKeys(/*bInReadOnly=*/ true)
+		, Ptrs(const_cast<void**>(InPtrs.GetData()), InPtrs.Num())
+	{}
+
+	virtual int32 GetNum() const override { return Ptrs.Num(); }
+
+protected:
+	virtual bool GetGenericObjectKeys(int32 InStart, TArrayView<void*>& OutObjects) override
+	{
+		return PCGAttributeAccessorKeys::GetKeys(Ptrs, InStart, OutObjects, [](void* Ptr) -> void* { return Ptr; });
+	}
+
+	virtual bool GetGenericObjectKeys(int32 InStart, TArrayView<const void*>& OutObjects) const override
+	{
+		return PCGAttributeAccessorKeys::GetKeys(Ptrs, InStart, OutObjects, [](const void* Ptr) -> const void* { return Ptr; });
+	}
+
+	TArrayView<void*> Ptrs;
+};
+
 template <typename ObjectType>
 inline bool IPCGAttributeAccessorKeys::GetKeys(int32 InStart, TArrayView<ObjectType*>& OutKeys)
 {

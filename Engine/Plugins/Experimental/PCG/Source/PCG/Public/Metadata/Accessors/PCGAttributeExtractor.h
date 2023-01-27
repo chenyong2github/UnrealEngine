@@ -15,6 +15,7 @@ namespace PCGAttributeExtractorConstants
 	const FName VectorZ = TEXT("Z");
 	const FName VectorW = TEXT("W");
 	const FName VectorLength = TEXT("Length");
+	const FName VectorSize = TEXT("Size");
 
 	const FName VectorExtractorNames[] =
 	{
@@ -22,7 +23,8 @@ namespace PCGAttributeExtractorConstants
 		VectorY,
 		VectorZ,
 		VectorW,
-		VectorLength
+		VectorLength,
+		VectorSize,
 	};
 
 	// Transform

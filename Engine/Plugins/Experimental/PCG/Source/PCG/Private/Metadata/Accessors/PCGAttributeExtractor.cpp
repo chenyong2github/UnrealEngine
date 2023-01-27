@@ -60,7 +60,7 @@ namespace PCGAttributeExtractor
 	template <typename VectorType>
 	TUniquePtr<IPCGAttributeAccessor> CreateVectorExtractor(TUniquePtr<IPCGAttributeAccessor> InAccessor, FName Name, bool& bOutSuccess)
 	{
-		if ((Name == PCGAttributeExtractorConstants::VectorLength) || (Name == TEXT("Size")))
+		if ((Name == PCGAttributeExtractorConstants::VectorLength) || (Name == PCGAttributeExtractorConstants::VectorSize))
 		{
 			bOutSuccess = true;
 			return MakeUnique<FPCGChainAccessor<double, VectorType>>(std::move(InAccessor),
@@ -95,10 +95,26 @@ namespace PCGAttributeExtractor
 		TArray<int32, TInlineAllocator<4>> Indexes;
 		for (const TCHAR Char : NameStr)
 		{
-			int32 Index = static_cast<int32>(Char) - static_cast<int32>(TEXT('x'));
-			if (Index < 0)
+			int32 Index = -1;
+
+			if (Char == TEXT('w') || Char == TEXT('W'))
 			{
-				Index = static_cast<int32>(Char) - static_cast<int32>(TEXT('X'));
+				Index = 3;
+			}
+			else
+			{
+				Index = static_cast<int32>(Char) - static_cast<int32>(TEXT('x'));
+				if (Index < 0)
+				{
+					Index = static_cast<int32>(Char) - static_cast<int32>(TEXT('X'));
+				}
+			}
+
+			// Safeguard, should be caught by not matching the regex above
+			if (!ensure(Index >= 0 && Index < 4))
+			{
+				bOutSuccess = false;
+				return InAccessor;
 			}
 
 			Indexes.Add(Index);
