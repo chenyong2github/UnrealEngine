@@ -3,6 +3,7 @@
 #pragma once
 
 #include "HAL/IConsoleManager.h"
+#include "Misc/CommandLine.h"
 #include "RHI.h"
 
 #if PLATFORM_ANDROID

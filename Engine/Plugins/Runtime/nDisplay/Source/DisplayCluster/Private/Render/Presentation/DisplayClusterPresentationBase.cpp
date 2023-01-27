@@ -3,6 +3,7 @@
 #include "Render/Presentation/DisplayClusterPresentationBase.h"
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
 
+#include "HAL/IConsoleManager.h"
 #include "IPDisplayCluster.h"
 #include "IDisplayClusterCallbacks.h"
 

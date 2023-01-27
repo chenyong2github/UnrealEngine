@@ -5,6 +5,7 @@
 	=============================================================================*/
 
 #include "D3D12RHIPrivate.h"
+#include "RHIUtilities.h"
 
 // MSFT: Need to make sure sampler state is thread safe
 // Cache of Sampler States; we store pointers to both as we don't want the TMap to be artificially

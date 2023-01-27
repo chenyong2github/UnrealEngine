@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RHIPoolAllocator.h"
+#include "HAL/IConsoleManager.h"
 
 static float GRHIPoolAllocatorDefragSizeFraction = 0.9f;
 static FAutoConsoleVariableRef CVarRHIPoolAllocatorDefragSizeFraction(

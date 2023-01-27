@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "RHI.h"
+#include "RHICommandList.h"
 #include "RenderResource.h"
 #include "Containers/DynamicRHIResourceArray.h"
 

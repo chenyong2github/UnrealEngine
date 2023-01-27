@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Serialization/MemoryWriter.h"
 #include "RHI.h"
+#include "RHIUtilities.h"
 #include "OpenGLDrv.h"
 
 GLint GMaxOpenGLTextureFilterAnisotropic = 1;

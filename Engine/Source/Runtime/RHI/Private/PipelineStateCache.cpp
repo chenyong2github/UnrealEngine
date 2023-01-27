@@ -15,6 +15,7 @@ PipelineStateCache.cpp: Pipeline state cache implementation.
 #include "Containers/DiscardableKeyValueCache.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "RHICommandList.h"
 #include "RHIFwd.h"
 #include "RHIImmutableSamplerState.h"
 #include "Stats/StatsTrace.h"

@@ -9,6 +9,8 @@
 #include "DSP/FloatArrayMath.h"
 #include "DSP/AudioFFT.h"
 #include "NiagaraDataInterfaceAudio.h"
+#include "RHIUtilities.h"
+
 #include "NiagaraDataInterfaceAudioSpectrum.generated.h"
 
 /** FNiagaraDataInterfaceProxySpectrum

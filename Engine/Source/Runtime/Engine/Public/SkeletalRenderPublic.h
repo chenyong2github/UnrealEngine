@@ -25,6 +25,7 @@ class FVertexFactory;
 class UMorphTarget;
 struct FSkelMeshRenderSection;
 struct FCachedGeometry;
+struct FRWBuffer;
 class FGPUSkinCacheEntry;
 class FMeshDeformerGeometry;
 class FRayTracingGeometry;

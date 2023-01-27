@@ -35,6 +35,7 @@
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
 #include "RHI.h"
+#include "RHIUtilities.h"
 #include "RenderGraphDefinitions.h"
 #include "RenderResource.h"
 #include "ShaderParameters.h"

@@ -3,6 +3,7 @@
 #include "NeuralNetworkInferenceUtilsGPU.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralTensorResourceArray.h"
+#include "RHIUtilities.h"
 
 #ifdef PLATFORM_WIN64
 	#include "ID3D12DynamicRHI.h"

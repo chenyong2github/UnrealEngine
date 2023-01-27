@@ -11,6 +11,7 @@
 #include "HAL/PlatformFramePacer.h"
 #include "IHeadMountedDisplayModule.h"
 #include "IHeadMountedDisplayVulkanExtensions.h"
+#include "RHIUtilities.h"
 
 #if PLATFORM_ANDROID
 // this path crashes within libvulkan during vkDestroySwapchainKHR on some versions of Android. See FORT-250079

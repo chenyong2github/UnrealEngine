@@ -21,6 +21,8 @@
 #include "Serialization/MemoryImage.h"
 #include "Stats/StatsTrace.h"
 #include "RHITextureReference.h"
+#include "RHIStats.h"
+#include "RHICommandList.h"
 
 #if RHI_ENABLE_RESOURCE_INFO
 #include "HAL/FileManager.h"

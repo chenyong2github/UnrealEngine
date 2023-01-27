@@ -2,6 +2,7 @@
 
 #include "WarpBlend/DisplayClusterWarpBlend.h"
 #include "WarpBlend/Math/DisplayClusterWarpBlendMath_Frustum.h"
+#include "HAL/IConsoleManager.h"
 
 // Select mpcdi frustum calc method
 static TAutoConsoleVariable<int32> CVarMPCDIFrustumMethod(

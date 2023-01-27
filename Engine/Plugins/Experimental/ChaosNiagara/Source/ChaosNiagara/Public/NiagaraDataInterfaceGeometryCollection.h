@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraDataInterface.h"
+#include "RHIUtilities.h"
 
 #include "NiagaraDataInterfaceGeometryCollection.generated.h"
 

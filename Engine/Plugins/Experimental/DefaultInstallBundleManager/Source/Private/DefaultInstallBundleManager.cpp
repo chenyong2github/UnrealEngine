@@ -7,6 +7,7 @@
 #include "InstallBundleManagerModule.h"
 
 
+#include "HAL/IConsoleManager.h"
 #include "Misc/Base64.h"
 #include "Misc/ConfigContext.h"
 #include "Misc/CommandLine.h"

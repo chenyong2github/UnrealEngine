@@ -12,6 +12,7 @@
 #include "HAL/Platform.h"
 #include "Misc/AssertionMacros.h"
 #include "RHI.h"
+#include "RHICommandList.h"
 #include "RHIDefinitions.h"
 #include "Serialization/Archive.h"
 #include "Serialization/MemoryLayout.h"

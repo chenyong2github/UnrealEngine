@@ -4,6 +4,7 @@
 
 #include "RenderResource.h"
 #include "RHI.h"
+#include "RHICommandList.h"
 
 class FTileTexCoordVertexBuffer : public FVertexBuffer
 {

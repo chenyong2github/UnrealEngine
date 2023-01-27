@@ -10,6 +10,7 @@
 #include "Misc/PackageName.h"
 #include "Serialization/BufferArchive.h"
 #include "RHIContext.h"
+#include "RHIUtilities.h"
 #include "RenderingThread.h"
 #include "Engine/Engine.h"
 #include "Engine/Canvas.h"

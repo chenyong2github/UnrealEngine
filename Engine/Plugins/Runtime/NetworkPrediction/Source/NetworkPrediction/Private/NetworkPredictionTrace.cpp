@@ -6,6 +6,8 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "NetworkPredictionLog.h"
+#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 
 // TODO:
 // Should update string tracing with UE::Trace::AnsiString

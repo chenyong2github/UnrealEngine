@@ -2,6 +2,7 @@
 
 #include "RHI.h"
 #include "Modules/ModuleManager.h"
+#include "Misc/App.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"

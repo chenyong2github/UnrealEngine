@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PathTracing.h"
+#include "HAL/IConsoleManager.h"
 #include "RHI.h"
 #include "PathTracingDenoiser.h"
 

@@ -7,6 +7,7 @@
 #include "D3D12RHIPrivate.h"
 #include "TextureProfiler.h"
 #include "ProfilingDebugging/MemoryTrace.h"
+#include "RHIUtilities.h"
 
 int64 FD3D12GlobalStats::GDedicatedVideoMemory = 0;
 int64 FD3D12GlobalStats::GDedicatedSystemMemory = 0;

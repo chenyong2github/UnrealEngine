@@ -5,6 +5,7 @@
 #include "Engine/Texture.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "RenderingThread.h"
+#include "RHIUtilities.h"
 
 FSlateTexture2DRHIRef::FSlateTexture2DRHIRef( FTexture2DRHIRef InRef, uint32 InWidth, uint32 InHeight )
 	: TSlateTexture( InRef )

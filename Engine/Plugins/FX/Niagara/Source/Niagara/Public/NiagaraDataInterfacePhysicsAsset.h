@@ -7,6 +7,7 @@
 #include "VectorVM.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "UObject/Interface.h"
+#include "RHIUtilities.h"
 
 #include "NiagaraDataInterfacePhysicsAsset.generated.h"
 

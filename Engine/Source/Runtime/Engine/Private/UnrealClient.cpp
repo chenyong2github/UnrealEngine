@@ -31,6 +31,7 @@
 #include "RenderGraphUtils.h"
 #include "DynamicResolutionState.h"
 #include "Stats/StatsTrace.h"
+#include "RHIUtilities.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogClient, Log, All);
 

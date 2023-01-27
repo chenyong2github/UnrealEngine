@@ -7,6 +7,7 @@
 #include "VulkanRHIPrivate.h"
 #include "VulkanPendingState.h"
 #include "VulkanDescriptorSets.h"
+#include "RHIUtilities.h"
 
 static FCriticalSection GSamplerHashLock;
 

@@ -7,6 +7,7 @@
 #include "NiagaraDataSetCompiledData.h"
 #include "Containers/DynamicRHIResourceArray.h"
 #include "RHI.h"
+#include "RHIUtilities.h"
 #include "VectorVM.h"
 #include "RenderingThread.h"
 

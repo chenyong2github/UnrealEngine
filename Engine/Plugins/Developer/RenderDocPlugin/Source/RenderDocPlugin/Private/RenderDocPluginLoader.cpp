@@ -10,6 +10,8 @@
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
+#include "HAL/IConsoleManager.h"
+#include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigUtilities.h"
 #include "RHI.h"

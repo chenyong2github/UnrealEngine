@@ -18,6 +18,7 @@
 #include "RHIFwd.h"
 #include "TextureProfiler.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RHICommandList.h"
 #include "RHIImmutableSamplerState.h"
 #include "RHIStrings.h"
 #include "Serialization/MemoryImage.h"

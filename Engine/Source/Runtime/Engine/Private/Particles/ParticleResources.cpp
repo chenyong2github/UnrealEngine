@@ -7,6 +7,7 @@
 #include "ParticleResources.h"
 #include "Containers/ClosableMpscQueue.h"
 #include "RHI.h"
+#include "RHICommandList.h"
 #include "Experimental/Containers/HazardPointer.h"
 
 /** The size of the scratch vertex buffer. */

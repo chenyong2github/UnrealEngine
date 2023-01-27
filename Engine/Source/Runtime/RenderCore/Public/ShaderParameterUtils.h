@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "RHI.h"
+#include "RHIUtilities.h"
 #include "ShaderParameters.h"
 #include "ShaderCore.h"
 #include "Misc/App.h"

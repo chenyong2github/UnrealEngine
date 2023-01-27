@@ -21,6 +21,7 @@
 #include "PipelineStateCache.h"
 #include "RHICoreShader.h"
 #include "RHIShaderParametersShared.h"
+#include "RHIUtilities.h"
 
 static const bool GUsesInvertedZ = true;
 

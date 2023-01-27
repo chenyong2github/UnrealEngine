@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "RHI.h"
+#include "RHIUtilities.h"
 
 /**
  * HLSL uses 32-bit arrays, while FNeuralTensor uses 64-bit ones. This auxiliary class wraps them both together to make sure we

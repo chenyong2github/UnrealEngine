@@ -9,6 +9,7 @@
 #include "MediaSource.h"
 #include "MediaTexture.h"
 #include "TextureResource.h"
+#include "RHIUtilities.h"
 
 
 FDisplayClusterMediaInputBase::FDisplayClusterMediaInputBase(const FString& InMediaId, const FString& InClusterNodeId, UMediaSource* InMediaSource)

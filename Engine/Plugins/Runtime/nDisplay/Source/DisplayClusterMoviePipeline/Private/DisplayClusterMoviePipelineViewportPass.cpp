@@ -15,6 +15,7 @@
 #include "Render/Viewport/IDisplayClusterViewportManagerProxy.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
+#include "RHIUtilities.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 namespace DisplayClusterMoviePipelineHelpers

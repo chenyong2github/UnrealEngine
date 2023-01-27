@@ -4,6 +4,7 @@
 #include "SlateGlobals.h"
 #include "Rendering/RenderingCommon.h"
 #include "RHI.h"
+#include "RHICommandList.h"
 
 DECLARE_MEMORY_STAT(TEXT("Index Buffer Memory (GPU)"), STAT_SlateIndexBufferMemory, STATGROUP_SlateMemory);
 

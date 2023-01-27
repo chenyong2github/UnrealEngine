@@ -13,6 +13,8 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Engine/TextureCube.h"
+#include "RHIUtilities.h"
+
 #if WITH_EDITOR
 #include "Components/SceneCaptureComponentCube.h"
 #include "UObject/UObjectIterator.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OptiXDenoiser.h"
+#include "HAL/IConsoleManager.h"
 #include "PathTracingDenoiser.h"
 #include <mutex>
 

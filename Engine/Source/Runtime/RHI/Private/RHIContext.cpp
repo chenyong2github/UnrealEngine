@@ -2,6 +2,7 @@
 
 #include "RHIContext.h"
 #include "RHI.h"
+#include "RHIStats.h"
 
 RHI_API void RHISetComputeShaderBackwardsCompatible(IRHIComputeContext* InContext, FRHIComputeShader* InShader)
 {

@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
+#include "HAL/IConsoleManager.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "PathTracingDenoiser.h"
-#include "RHI.h"
+#include "RHICommandList.h"
 #include "RHIResources.h"
+#include "RHITypes.h"
 
 #include "OpenImageDenoise/oidn.hpp"
 

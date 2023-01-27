@@ -15,6 +15,7 @@
 #include "ScopedTransaction.h"
 #include "BaseGizmos/BrushStampIndicator.h"
 #include "RenderingThread.h"
+#include "RHIUtilities.h"
 #include "TextureCompiler.h"
 #include "TexturePaintToolset.h"
 #include "TextureResource.h"

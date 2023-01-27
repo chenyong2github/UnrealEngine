@@ -2,6 +2,7 @@
 
 #include "Channels/RemoteSessionARSystemChannel.h"
 #include "ARTrackable.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Misc/PackageName.h"
 #include "RemoteSession.h"
 #include "BackChannel/IBackChannelConnection.h"

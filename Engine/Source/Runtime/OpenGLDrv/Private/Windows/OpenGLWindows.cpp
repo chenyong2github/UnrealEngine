@@ -6,6 +6,7 @@
 
 #include "OpenGLDrvPrivate.h"
 #include "Misc/ScopeLock.h"
+#include "RHIUtilities.h"
 
 /*------------------------------------------------------------------------------
 	OpenGL function pointers.

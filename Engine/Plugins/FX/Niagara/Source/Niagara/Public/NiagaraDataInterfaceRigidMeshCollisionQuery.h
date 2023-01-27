@@ -6,6 +6,8 @@
 #include "NiagaraDataInterface.h"
 #include "NiagaraCommon.h"
 #include "VectorVM.h"
+#include "RHIUtilities.h"
+
 #include "NiagaraDataInterfaceRigidMeshCollisionQuery.generated.h"
 
 // Forward declaration

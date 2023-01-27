@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "PipelineCacheUtilities.h"
+
 #if UE_WITH_PIPELINE_CACHE_UTILITIES
+#include "Async/TaskGraphInterfaces.h"
 #include "Misc/SecureHash.h"
 #include "Serialization/NameAsStringIndexProxyArchive.h"
 #include "Serialization/VarInt.h"

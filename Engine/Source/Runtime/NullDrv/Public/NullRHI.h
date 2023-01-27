@@ -6,6 +6,7 @@
 #include "Containers/ResourceArray.h"
 #include "Serialization/LargeMemoryData.h"
 #include "RHI.h"
+#include "RHITypes.h"
 
 struct Rect;
 

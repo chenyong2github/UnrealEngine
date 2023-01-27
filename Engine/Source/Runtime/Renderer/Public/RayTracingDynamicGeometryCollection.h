@@ -5,6 +5,7 @@
 #if RHI_RAYTRACING
 
 #include "RHI.h"
+#include "RHIUtilities.h"
 
 class FPrimitiveSceneProxy;
 class FScene;

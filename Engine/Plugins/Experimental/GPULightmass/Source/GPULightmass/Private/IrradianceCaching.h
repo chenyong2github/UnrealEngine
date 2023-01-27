@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
 #include "GlobalShader.h"
 #include "ShaderParameterStruct.h"
 #include "SceneView.h"
 #include "SceneRenderTargetParameters.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RHIUtilities.h"
 
 BEGIN_UNIFORM_BUFFER_STRUCT(FIrradianceCachingParameters, )
 	SHADER_PARAMETER(uint32, HashTableSize)

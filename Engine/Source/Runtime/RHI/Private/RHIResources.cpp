@@ -2,9 +2,10 @@
 
 #include "RHIResources.h"
 #include "Containers/ConsumeAllMpmcQueue.h"
-#include "RHI.h"
 #include "Experimental/Containers/HazardPointer.h"
 #include "Misc/MemStack.h"
+#include "RHI.h"
+#include "RHICommandList.h"
 #include "Stats/Stats.h"
 #include "TextureProfiler.h"
 

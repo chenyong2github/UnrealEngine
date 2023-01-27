@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RHICoreTransientResourceAllocator.h"
+#include "HAL/IConsoleManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/LowLevelMemStats.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+#include "RHICommandList.h"
 #include "RHICore.h"
 
 static int32 GRHITransientAllocatorMinimumHeapSize = 128;

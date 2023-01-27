@@ -6,7 +6,7 @@
 
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
-
+#include "Misc/App.h"
 
 #if WITH_EDITOR
 namespace MaterialInstance_Private

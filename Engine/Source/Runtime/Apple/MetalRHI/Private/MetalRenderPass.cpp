@@ -14,6 +14,7 @@
 #include "MetalProfiler.h"
 #include "MetalFrameAllocator.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RHIUtilities.h"
 
 #pragma mark - Private Console Variables -
 

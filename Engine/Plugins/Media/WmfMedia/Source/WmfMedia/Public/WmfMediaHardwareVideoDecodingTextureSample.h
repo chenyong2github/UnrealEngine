@@ -6,6 +6,7 @@
 
 #include "Player/WmfMediaTextureSample.h"
 #include "RHI.h"
+#include "RHICommandList.h"
 
 #include "IMediaTextureSampleConverter.h"
 #include "WmfMediaHardwareVideoDecodingRendering.h"

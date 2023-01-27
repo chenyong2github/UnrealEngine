@@ -7,6 +7,7 @@
 #include "Rendering/RenderingCommon.h"
 #include "SlateGlobals.h"
 #include "RHI.h"
+#include "RHICommandList.h"
 #include "RenderResource.h"
 #include "Containers/ResourceArray.h"
 

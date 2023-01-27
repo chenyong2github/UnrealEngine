@@ -12,6 +12,7 @@
 #include "RenderUtils.h"
 #include "GlobalRenderResources.h"
 #include "RHIShaderParametersShared.h"
+#include "RHIUtilities.h"
 
 static TAutoConsoleVariable<int32> GCVarSubmitOnDispatch(
 	TEXT("r.Vulkan.SubmitOnDispatch"),

@@ -8,6 +8,8 @@
 
 #include "Async/Async.h"
 #include "RenderingThread.h"
+#include "RHICommandList.h"
+#include "RHITypes.h"
 
 #include "libyuv/convert.h"
 #include "libyuv/video_common.h"

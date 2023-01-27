@@ -5,6 +5,7 @@
 #include "Containers/ResourceArray.h"
 #include "RenderResource.h"
 #include "RHI.h"
+#include "RHICommandList.h"
 
 class FPointCloudVertexResourceArray :
 	public FResourceArrayInterface

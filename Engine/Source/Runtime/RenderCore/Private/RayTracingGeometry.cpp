@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RayTracingGeometry.h"
+#include "HAL/IConsoleManager.h"
 #include "RayTracingGeometryManager.h"
 #include "RenderUtils.h"
 #include "RHIResourceUpdates.h"
+#include "RHITextureReference.h"
 
 int32 GVarDebugForceRuntimeBLAS = 0;
 FAutoConsoleVariableRef CVarDebugForceRuntimeBLAS(

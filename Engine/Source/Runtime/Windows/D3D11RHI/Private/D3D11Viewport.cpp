@@ -9,6 +9,7 @@
 #include "HDRHelper.h"
 #include "Engine/RendererSettings.h"
 #include "HAL/ThreadHeartBeat.h"
+#include "RHIUtilities.h"
 
 #ifndef D3D11_WITH_DWMAPI
 #define D3D11_WITH_DWMAPI	1

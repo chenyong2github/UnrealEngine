@@ -5,6 +5,7 @@
 #include "Engine/Texture.h"
 #include "RenderResource.h"
 #include "RHI.h"
+#include "RHITextureReference.h"
 
 /** 
 * Replaces the RHI reference of one texture with another.
