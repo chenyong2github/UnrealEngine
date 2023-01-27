@@ -4,6 +4,7 @@
 #include "Templates/EnableIf.h"
 #include "Dataflow/DataflowSelection.h"
 
+#define LOCTEXT_NAMESPACE "DataflowSelectionView"
 
 void FDataflowSelectionView::SetSupportedOutputTypes()
 {
