@@ -516,7 +516,7 @@ public:
 	// returns true if the handle is of the given type
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type * = nullptr
 	>
 	bool IsType(bool bIsHiddenArgument = false) const
 	{
@@ -526,7 +526,7 @@ public:
 	// returns true if the handle is of the given type
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type * = nullptr
 	>
 	bool IsTypeArray(bool bIsHiddenArgument = false) const
 	{
@@ -556,7 +556,7 @@ public:
 	// returns true if the handle is of the given type
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUClass, T>>::Type * = nullptr
 	>
 	bool IsType(bool bIsHiddenArgument = false) const
 	{
@@ -566,7 +566,7 @@ public:
 	// returns true if the handle is of the given type
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUClass, T>>::Type * = nullptr
 	>
 	bool IsTypeArray(bool bIsHiddenArgument = false) const
 	{
@@ -716,7 +716,7 @@ public:
 	// Returns true if this memory handle maps to a struct property
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type * = nullptr
 	>
 	bool IsStruct(bool bIsHiddenArgument = false) const
 	{
@@ -736,7 +736,7 @@ public:
 	// Returns true if this memory handle maps to a struct array property
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type * = nullptr
 	>
 	bool IsStructArray(bool bIsHiddenArgument = false) const
 	{
@@ -768,7 +768,7 @@ public:
 	// Returns true if this memory handle maps to an object property
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUClass, T>>::Type * = nullptr
 	>
 	bool IsObject(bool bIsHiddenArgument = false) const
 	{
@@ -778,7 +778,7 @@ public:
 	// Returns true if this memory handle maps to an objct array property
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUClass, T>>::Type * = nullptr
 	>
 	bool IsObjectArray(bool bIsHiddenArgument = false) const
 	{

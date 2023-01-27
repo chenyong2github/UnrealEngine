@@ -122,7 +122,7 @@ private:
  */
 template <typename T>
 typename TEnableIf<
-	!TModels<CInsertable<FArchive&>, T>::Value&& TModels<CInsertable<FStructuredArchiveSlot>, T>::Value,
+	!TModels_V<CInsertable<FArchive&>, T> && TModels_V<CInsertable<FStructuredArchiveSlot>, T>,
 	FArchive&
 >::Type operator<<(FArchive& Ar, T& Obj)
 {
@@ -139,8 +139,8 @@ typename TEnableIf<
  */
 template <typename T>
 typename TEnableIf<
-	TModels<CInsertable<FArchive&>, T>::Value &&
-	!TModels<CInsertable<FStructuredArchiveSlot>, T>::Value
+	TModels_V<CInsertable<FArchive&>, T> &&
+	!TModels_V<CInsertable<FStructuredArchiveSlot>, T>
 >::Type operator<<(FStructuredArchiveSlot Slot, T& Obj)
 {
 #if WITH_TEXT_ARCHIVE_SUPPORT

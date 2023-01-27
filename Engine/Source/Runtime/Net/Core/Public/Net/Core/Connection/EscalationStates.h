@@ -631,13 +631,13 @@ class TEscalationManager final : public FEscalationManager
 	};
 
 	// 'typename = typename TEnableIf' does not work here, unusually
-	template<typename T, typename TEnableIf<TModels<CHasEnumPreallocNum, T>::Value>::Type* = nullptr>
+	template<typename T, typename TEnableIf<TModels_V<CHasEnumPreallocNum, T>>::Type* = nullptr>
 	inline static constexpr int32 GetCounterNumPrealloc()
 	{
 		return FMath::Max((int32)T::NumPrealloc, (int32)T::Max);
 	}
 
-	template<typename T, typename TEnableIf<!TModels<CHasEnumPreallocNum, T>::Value>::Type* = nullptr>
+	template<typename T, typename TEnableIf<!TModels_V<CHasEnumPreallocNum, T>>::Type* = nullptr>
 	inline static constexpr int32 GetCounterNumPrealloc()
 	{
 		return (int32)T::Max;

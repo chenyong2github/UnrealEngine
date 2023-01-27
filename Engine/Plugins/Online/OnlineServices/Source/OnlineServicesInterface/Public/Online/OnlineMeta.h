@@ -17,7 +17,7 @@ struct CSuperDefined
 
 namespace Private {
 
-template <typename T, bool THasSuper = TModels<CSuperDefined, T>::Value>
+template <typename T, bool THasSuper = TModels_V<CSuperDefined, T>>
 struct TBaseClassHelper
 {
 };

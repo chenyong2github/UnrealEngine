@@ -127,13 +127,13 @@ struct CIsUpdatableElement
 	auto Requires(ElementT& InElem, const ElementT& InOtherElem) -> decltype(InElem.UpdateFrom(InOtherElem));
 };
 
-template<typename T, typename TEnableIf<!TModels<CIsUpdatableElement, T>::Value>::Type* = nullptr>
+template<typename T, typename TEnableIf<!TModels_V<CIsUpdatableElement, T>>::Type* = nullptr>
 static void UpdateElementHelper(T& InElem, const T& InFrom)
 {
 
 }
 
-template<typename T, typename TEnableIf<TModels<CIsUpdatableElement, T>::Value>::Type* = nullptr>
+template<typename T, typename TEnableIf<TModels_V<CIsUpdatableElement, T>>::Type* = nullptr>
 static void UpdateElementHelper(T& InElem, const T& InFrom)
 {
 	if (FAABBTreeCVars::UpdateDirtyElementPayloadData != 0)

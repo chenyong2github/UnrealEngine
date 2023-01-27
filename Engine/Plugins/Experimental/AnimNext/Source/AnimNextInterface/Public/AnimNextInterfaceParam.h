@@ -390,7 +390,7 @@ struct TParamTypeHelper
 {
 	FORCEINLINE static const UScriptStruct* GetStruct()
 	{
-		if constexpr (TModels<CHasStaticStruct, ValueType>::Value)
+		if constexpr (TModels_V<CHasStaticStruct, ValueType>)
 		{
 			return TBaseStructure<ValueType>::Get();
 		}

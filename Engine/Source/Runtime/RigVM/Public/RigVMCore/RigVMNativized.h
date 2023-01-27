@@ -328,7 +328,7 @@ public:
 
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type* = nullptr
 	>
 	static T GetStructConstant(const FString& InDefaultValue)
 	{
@@ -358,7 +358,7 @@ public:
 
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type* = nullptr
 	>
 	static TArray<T> GetStructArrayConstant(const FString& InDefaultValue)
 	{

@@ -175,7 +175,7 @@ const T* GetDefault();
 template<typename T>
 struct THasCustomDefaultObject
 {
-	static constexpr bool Value = TModels<CProvidesDefaultUObject, T>::Value;
+	static constexpr bool Value = TModels_V<CProvidesDefaultUObject, T>;
 };
 
 template<typename T>
@@ -321,7 +321,7 @@ namespace Freeze
 template<typename T>
 struct TUsePropertyFreezing
 {
-	static constexpr bool Value = (TModels<CStaticClassProvider, T>::Value || TModels<CStaticStructProvider, T>::Value);
+	static constexpr bool Value = (TModels_V<CStaticClassProvider, T> || TModels_V<CStaticStructProvider, T>);
 };
 
 template <typename T, bool bUsePropertyFreezing=TUsePropertyFreezing<T>::Value>
@@ -330,7 +330,7 @@ struct TGetFreezeImageHelper
 	static FORCEINLINE FTypeLayoutDesc::FWriteFrozenMemoryImageFunc* Do() { return &Freeze::DefaultWriteMemoryImage; }
 };
 
-template <typename T, bool bProvidesStaticStruct=TModels<CStaticStructProvider, T>::Value>
+template <typename T, bool bProvidesStaticStruct=TModels_V<CStaticStructProvider, T>>
 struct TGetFreezeImageFieldHelper
 {
 	static FORCEINLINE FFieldLayoutDesc::FWriteFrozenMemoryImageFunc* Do() { return &Freeze::DefaultWriteMemoryImageField; }
@@ -620,7 +620,7 @@ template<typename T>
 struct THasTypeLayout
 {
 	UE_STATIC_ONLY(THasTypeLayout);
-	static constexpr bool Value = TModels<CTypeLayout, T>::Value;
+	static constexpr bool Value = TModels_V<CTypeLayout, T>;
 };
 
 template<typename T>

@@ -246,7 +246,7 @@ namespace Private
 	{
 		using VariantType = TVariant<Ts...>;
 		static_assert((std::is_default_constructible<Ts>::value && ...), "Each type in TVariant template parameter pack must be default constructible in order to use FArchive serialization");
-		static_assert((TModels<CInsertable<FArchive&>, Ts>::Value && ...), "Each type in TVariant template parameter pack must be able to use operator<< with an FArchive");
+		static_assert((TModels_V<CInsertable<FArchive&>, Ts> && ...), "Each type in TVariant template parameter pack must be able to use operator<< with an FArchive");
 
 		/** Load the type at the specified index from the FArchive and emplace it into the TVariant */
 		static void Load(SIZE_T TypeIndex, FArchive& Ar, VariantType& OutVariant)

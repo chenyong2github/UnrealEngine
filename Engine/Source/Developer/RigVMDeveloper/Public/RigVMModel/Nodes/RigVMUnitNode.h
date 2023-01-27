@@ -58,7 +58,7 @@ public:
 	// Returns a copy of the struct with the current values
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type* = nullptr
 	>
 	T ConstructStructInstance() const
 	{

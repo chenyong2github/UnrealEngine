@@ -25,8 +25,9 @@
  * CIsComparable        - bad
  * CHasEqualsOperator   - bad
  *
- * Concepts can be checked using the TModels trait:
+ * Concepts can be checked using the TModels_V trait or TModels traits class:
  *
+ * TModels_V<Concept, [...arguments...]>
  * TModels<Concept, [...arguments...]>::Value
  *
  * The arguments are forwarded to the template parameters of the concept's Requires() function, which will attempt to
@@ -39,6 +40,21 @@
  * See the CContainerLvalueAddable example below.
  */
 
+namespace UE::Core::Private
+{
+	template <typename Concept, typename... Ts>
+	static char (&ModelsResolve(decltype(&Concept::template Requires<Ts...>)*))[2];
+
+	template <typename Concept, typename... Ts>
+	static char (&ModelsResolve(...))[1];
+}
+
+
+/**
+ * Trait which does concept checking.
+ */
+template <typename Concept, typename... Args>
+constexpr bool TModels_V = sizeof(UE::Core::Private::ModelsResolve<Concept, Args...>(0)) == 2;
 
 /**
  * Traits class which does concept checking.
@@ -46,24 +62,18 @@
 template <typename Concept, typename... Args>
 struct TModels
 {
-	template <typename... Ts>
-	static char (&Resolve(decltype(&Concept::template Requires<Ts...>)*))[2];
-
-	template <typename... Ts>
-	static char (&Resolve(...))[1];
-
-	static constexpr bool Value = sizeof(Resolve<Args...>(0)) == 2;
+	static constexpr bool Value = TModels_V<Concept, Args...>;
 };
 
 /**
  * Helper function which can be used as an expression in a concept to refine ('inherit') another concept.
- * It should be used as expression-based variant of the TModels traits class.  If the arguments model
+ * It should be used as expression-based variant of the TModels_V trait.  If the arguments model
  * the given concept, Refines<Concept, Args...> is a valid expression, otherwise it is not.
  *
  * See the CCopyablePointer example below.
  */
 template <typename Concept, typename... Args>
-auto Refines() -> int(&)[!!TModels<Concept, Args...>::Value * 2 - 1];
+auto Refines() -> int(&)[!!TModels_V<Concept, Args...> * 2 - 1];
 
 
 /************
@@ -80,8 +90,8 @@ auto Refines() -> int(&)[!!TModels<Concept, Args...>::Value * 2 - 1];
  *     );
  * };
  *
- * static_assert( TModels<CNegatable, int >::Value); // ints are negatable
- * static_assert(!TModels<CNegatable, int*>::Value); // pointers are not negatable
+ * static_assert( TModels_V<CNegatable, int >); // ints are negatable
+ * static_assert(!TModels_V<CNegatable, int*>); // pointers are not negatable
  */
 
 /**
@@ -96,9 +106,9 @@ auto Refines() -> int(&)[!!TModels<Concept, Args...>::Value * 2 - 1];
  *     );
  * };
  *
- * static_assert( TModels<CIncrementable, int  >::Value); // ints are incrementable
- * static_assert( TModels<CIncrementable, int* >::Value); // pointers are incrementable
- * static_assert(!TModels<CIncrementable, int[]>::Value); // arrays are not incrementable
+ * static_assert( TModels_V<CIncrementable, int  >); // ints are incrementable
+ * static_assert( TModels_V<CIncrementable, int* >); // pointers are incrementable
+ * static_assert(!TModels_V<CIncrementable, int[]>); // arrays are not incrementable
  */
 
 /**
@@ -115,8 +125,8 @@ auto Refines() -> int(&)[!!TModels<Concept, Args...>::Value * 2 - 1];
  *     );
  * };
  *
- * static_assert( TModels<CEqualityComparable, FArchive*, FArchiveUObject*>::Value); // base pointers are comparable with derived pointers
- * static_assert(!TModels<CEqualityComparable, int*,      float*          >::Value); // unrelated pointers are not comparable
+ * static_assert( TModels_V<CEqualityComparable, FArchive*, FArchiveUObject*>); // base pointers are comparable with derived pointers
+ * static_assert(!TModels_V<CEqualityComparable, int*,      float*          >); // unrelated pointers are not comparable
  */
 
 /**
@@ -130,7 +140,7 @@ auto Refines() -> int(&)[!!TModels<Concept, Args...>::Value * 2 - 1];
  *     );
  * };
  *
- * static_assert(TModels<CLvalueAddableContainer, TArray<TUniquePtr<int>>>::Value); // success, but...
+ * static_assert(TModels_V<CLvalueAddableContainer, TArray<TUniquePtr<int>>>); // success, but...
  *
  * TUniquePtr<int> Temp;
  * Array.Add(Temp); // compile error when TArray attempts to copy the TUniquePtr
@@ -149,8 +159,8 @@ auto Refines() -> int(&)[!!TModels<Concept, Args...>::Value * 2 - 1];
  *     );
  * };
  *
- * static_assert( TModels<CGroupSubtractable, int >::Value); // ints form a group under subtraction
- * static_assert(!TModels<CGroupSubtractable, int*>::Value); // pointers do not result in another pointer under subtraction and so do not form a group
+ * static_assert( TModels_V<CGroupSubtractable, int >); // ints form a group under subtraction
+ * static_assert(!TModels_V<CGroupSubtractable, int*>); // pointers do not result in another pointer under subtraction and so do not form a group
  */
 
 /**
@@ -185,9 +195,9 @@ auto Refines() -> int(&)[!!TModels<Concept, Args...>::Value * 2 - 1];
  *     );
  * };
  *
- * static_assert( TModels<CCopyablePointer, int*           >::Value); // raw pointers model this concept
- * static_assert( TModels<CCopyablePointer, TSharedPtr<int>>::Value); // TSharedPtrs model this concept
- * static_assert(!TModels<CCopyablePointer, TUniquePtr<int>>::Value); // TUniquePtrs are dereferenceable and bool-testable, but not copyable
- * static_assert(!TModels<CCopyablePointer, int            >::Value); // ints are copyable and bool-testable, but not dereferencable
- * static_assert(!TModels<CCopyablePointer, FString        >::Value); // FStrings are copyable and dereferencable (to get the const TCHAR*), but not bool-testable
+ * static_assert( TModels_V<CCopyablePointer, int*           >); // raw pointers model this concept
+ * static_assert( TModels_V<CCopyablePointer, TSharedPtr<int>>); // TSharedPtrs model this concept
+ * static_assert(!TModels_V<CCopyablePointer, TUniquePtr<int>>); // TUniquePtrs are dereferenceable and bool-testable, but not copyable
+ * static_assert(!TModels_V<CCopyablePointer, int            >); // ints are copyable and bool-testable, but not dereferencable
+ * static_assert(!TModels_V<CCopyablePointer, FString        >); // FStrings are copyable and dereferencable (to get the const TCHAR*), but not bool-testable
  */

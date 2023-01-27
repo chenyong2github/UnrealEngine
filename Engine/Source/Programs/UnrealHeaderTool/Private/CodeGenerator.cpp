@@ -1492,7 +1492,7 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 		if (ValueDef.IsStructOrStructStaticArray())
 		{
 			const FString& StructName = ValueDef.GetPropertyBase().ScriptStructDef->GetNameCPP();
-			Out.Logf(TEXT("%sstatic_assert(TModels<CGetTypeHashable, %s>::Value, \"The structure '%s' is used in a TSet but does not have a GetValueTypeHash defined\");\r\n"), Spaces, *StructName, *StructName);
+			Out.Logf(TEXT("%sstatic_assert(TModels_V<CGetTypeHashable, %s>, \"The structure '%s' is used in a TSet but does not have a GetValueTypeHash defined\");\r\n"), Spaces, *StructName, *StructName);
 		}
 
 		Out.Logf(

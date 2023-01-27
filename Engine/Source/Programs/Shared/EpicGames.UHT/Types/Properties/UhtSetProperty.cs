@@ -143,9 +143,9 @@ namespace EpicGames.UHT.Types
 			{
 				builder
 					.AppendTabs(tabs)
-					.Append("static_assert(TModels<CGetTypeHashable, ")
+					.Append("static_assert(TModels_V<CGetTypeHashable, ")
 					.Append(structProperty.ScriptStruct.SourceName)
-					.Append(">::Value, \"The structure '")
+					.Append(">, \"The structure '")
 					.Append(structProperty.ScriptStruct.SourceName)
 					.Append("' is used in a TSet but does not have a GetValueTypeHash defined\");\r\n");
 			}

@@ -113,13 +113,13 @@ private:
 template <typename OperationType>
 TObjectPtr<OperationType> UWebAPISubsystem::MakeOperation(const UWebAPIDeveloperSettings* InSettings)
 {
-	static_assert(TModels<CStaticClassProvider, OperationType>::Value, "OperationType should provide a StaticClass.");
+	static_assert(TModels_V<CStaticClassProvider, OperationType>, "OperationType should provide a StaticClass.");
 	return Cast<OperationType>(MakeOperation(InSettings, OperationType::StaticClass()));
 }
 
 template <typename OperationType>
 void UWebAPISubsystem::ReleaseOperation(const TObjectPtr<OperationType>& InOperation)
 {
-	static_assert(TModels<CStaticClassProvider, OperationType>::Value, "OperationType should provide a StaticClass.");
+	static_assert(TModels_V<CStaticClassProvider, OperationType>, "OperationType should provide a StaticClass.");
 	ReleaseOperation(OperationType::StaticClass(), InOperation);
 }

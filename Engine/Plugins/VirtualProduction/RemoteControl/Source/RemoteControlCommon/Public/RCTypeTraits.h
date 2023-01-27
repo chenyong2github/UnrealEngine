@@ -83,7 +83,7 @@ namespace RemoteControlTypeTraits
 
 	/** Ensures ValueType is a numeric type. */
 	template <typename ValueType>
-	using TNumericValueConstraint = TAnd<TModels<RemoteControlTypeTraits::Concepts::CNumerical, ValueType>>;
+	constexpr bool TNumericValueConstraint_V = TModels_V<RemoteControlTypeTraits::Concepts::CNumerical, ValueType>;
 }
 
 /** Various RemoteControl type traits */
@@ -100,10 +100,9 @@ struct TRemoteControlPropertyTypeTraits;
 template <typename ValueType>
 struct TRemoteControlTypeTraits<ValueType,
 	typename TEnableIf<
-		TAnd<
-			TIsArithmetic<ValueType>,
-			TNot<TIsFloatingPoint<ValueType>>,
-			TModels<RemoteControlTypeTraits::Concepts::CNumerical, ValueType>>::Value, void>::Type>
+		std::is_arithmetic_v<ValueType> &&
+		!std::is_floating_point_v<ValueType> &&
+		TModels_V<RemoteControlTypeTraits::Concepts::CNumerical, ValueType>, void>::Type>
 {
 	using Type = ValueType;
 
@@ -168,7 +167,7 @@ struct TRemoteControlPropertyTypeTraits<FNumericProperty>
 /** RemoteControlPropertyTypeTraits for any property with a TCppType  */
 template <typename InPropertyType>
 struct TRemoteControlPropertyTypeTraits<InPropertyType,
-	typename TEnableIf<TModels<RemoteControlTypeTraits::Concepts::CPropertyHasTCppType, InPropertyType>::Value, void>::Type>
+	typename TEnableIf<TModels_V<RemoteControlTypeTraits::Concepts::CPropertyHasTCppType, InPropertyType>, void>::Type>
 {
 	using PropertyType = InPropertyType;
 	using ValueType = typename InPropertyType::TCppType;

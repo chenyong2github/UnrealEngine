@@ -103,7 +103,7 @@ public:
 
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type * = nullptr
 	>
 	FRigStructScope(const T& InInstance)
 		: ScriptStruct(T::StaticStruct())
@@ -261,7 +261,7 @@ public:
 	// Adds a unit node using a template
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type * = nullptr
 	>
 	URigVMUnitNode* AddUnitNode(const T& InDefaults, const FName& InMethodName = TEXT("Execute"), const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false)
 	{

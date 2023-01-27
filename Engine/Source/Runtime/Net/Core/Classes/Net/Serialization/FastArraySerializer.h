@@ -227,7 +227,7 @@ private:
 	// Helper to always return a Type even if GetFastArrayItemTypePtr is not defined
 	static constexpr auto FastArrayTypePtr = []
 	{
-		if constexpr (TModels<CGetFastArrayItemTypeFuncable, FastArrayType>::Value)
+		if constexpr (TModels_V<CGetFastArrayItemTypeFuncable, FastArrayType>)
 		{
 			return FastArrayType::GetFastArrayItemTypePtr();
 		}
@@ -697,7 +697,7 @@ private:
 	
 		/** Conditionally invoke PostReplicatedReceive method depending on if is defined or not */
 		template<typename FastArrayType = SerializerType>
-		inline typename TEnableIf<TModels<CPostReplicatedReceiveFuncable, FastArrayType, const FFastArraySerializer::FPostReplicatedReceiveParameters>::Value, void>::Type CallPostReplicatedReceiveOrNot(int32 OldArraySize)
+		inline typename TEnableIf<TModels_V<CPostReplicatedReceiveFuncable, FastArrayType, const FFastArraySerializer::FPostReplicatedReceiveParameters>, void>::Type CallPostReplicatedReceiveOrNot(int32 OldArraySize)
 		{
 			FFastArraySerializer::FPostReplicatedReceiveParameters PostReceivedParameters;
 			PostReceivedParameters.OldArraySize = OldArraySize;
@@ -706,7 +706,7 @@ private:
 		}
 
 		template<typename FastArrayType = SerializerType>
-		inline typename TEnableIf<!TModels<CPostReplicatedReceiveFuncable, FastArrayType, const FFastArraySerializer::FPostReplicatedReceiveParameters>::Value, void>::Type CallPostReplicatedReceiveOrNot(int32) {}
+		inline typename TEnableIf<!TModels_V<CPostReplicatedReceiveFuncable, FastArrayType, const FFastArraySerializer::FPostReplicatedReceiveParameters>, void>::Type CallPostReplicatedReceiveOrNot(int32) {}
 
 		// Validate that deduced FastArrayItemType is valid and that it is the same as the specified one		
 		static_assert(std::is_same_v<typename TFastArrayTypeHelper<SerializerType>::FastArrayItemType, Type>, "Auto deduced FastArrayItemType is invalid or differs from the specified type. Make sure that the FastArraySerializer has a single replicated array property.");

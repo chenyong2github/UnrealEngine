@@ -100,7 +100,7 @@ public:
 		// "not equal" function.
 
 		// Two-argument constructor, enabled only if PropType is CInequalityComparable
-		template<typename Q = PropType, typename = typename TEnableIf<TModels<CInequalityComparable, Q>::Value>::Type>
+		template<typename Q = PropType, typename = typename TEnableIf<TModels_V<CInequalityComparable, Q>>::Type>
 		TPropertyWatcher(const PropType& Property,
 						 FChangedCallback OnChangedIn)
 			: Cached(),
@@ -110,7 +110,7 @@ public:
 		{}
 
 		// Two-argument constructor, enabled only if PropType is CInequalityComparable
-		template<typename Q = PropType, typename = typename TEnableIf<TModels<CInequalityComparable, Q>::Value>::Type>
+		template<typename Q = PropType, typename = typename TEnableIf<TModels_V<CInequalityComparable, Q>>::Type>
 		TPropertyWatcher(FValueGetter GetValueIn,
 						 FChangedCallback OnChangedIn)
 			: Cached(),

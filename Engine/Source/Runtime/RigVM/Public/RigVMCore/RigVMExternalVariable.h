@@ -472,7 +472,7 @@ struct RIGVM_API FRigVMExternalVariable
 
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type * = nullptr
 	>
 	static FRigVMExternalVariable Make(const FName& InName, T& InValue)
 	{
@@ -488,7 +488,7 @@ struct RIGVM_API FRigVMExternalVariable
 
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type * = nullptr
 	>
 	static FRigVMExternalVariable Make(const FName& InName, TArray<T>& InValue)
 	{
@@ -504,7 +504,7 @@ struct RIGVM_API FRigVMExternalVariable
 
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUClass, T>>::Type * = nullptr
 	>
 	static FRigVMExternalVariable Make(const FName& InName, T& InValue)
 	{
@@ -520,7 +520,7 @@ struct RIGVM_API FRigVMExternalVariable
 
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUClass, T>>::Type * = nullptr
 	>
 	static FRigVMExternalVariable Make(const FName& InName, TArray<T>& InValue)
 	{

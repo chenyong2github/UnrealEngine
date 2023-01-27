@@ -44,7 +44,7 @@ class TSampleProducer
 		);
 	};
 
-	static_assert(TModels<CSampleConsumer, ConsumerType>::Value, "ConsumerType must implement AddSample(double Val)");
+	static_assert(TModels_V<CSampleConsumer, ConsumerType>, "ConsumerType must implement AddSample(double Val)");
 
 public:
 	/**
@@ -77,7 +77,7 @@ protected:
 	 * @param Value		The measurement value being collected for sampling
 	 */
 
-	template<typename InnerConsumerType=ConsumerType, typename = typename TEnableIf<TModels<CPeekMeasurements, InnerConsumerType>::Value>::Type>
+	template<typename InnerConsumerType=ConsumerType, typename = typename TEnableIf<TModels_V<CPeekMeasurements, InnerConsumerType>>::Type>
 	inline void PeekMeasurement(double TimeVal, double Value)
 	{
 		if (Consumer != nullptr)
@@ -86,7 +86,7 @@ protected:
 		}
 	}
 
-	template<typename InnerConsumerType=ConsumerType, typename = typename TEnableIf<!TModels<CPeekMeasurements, InnerConsumerType>::Value>::Type, int32 UnusedParamForODR=0>
+	template<typename InnerConsumerType=ConsumerType, typename = typename TEnableIf<!TModels_V<CPeekMeasurements, InnerConsumerType>>::Type, int32 UnusedParamForODR=0>
 	inline void PeekMeasurement(double TimeVal, double Value)
 	{
 	}

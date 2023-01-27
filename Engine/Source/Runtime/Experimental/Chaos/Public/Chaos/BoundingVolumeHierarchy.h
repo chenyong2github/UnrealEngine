@@ -63,7 +63,7 @@ class TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 	static constexpr bool DefaultAllowMultipleSplitting = false;
 	static constexpr bool DefaultUseVelocity = false;
 	static constexpr T DefaultDt = 0;
-	using TPayloadType = typename TBVHLeafTraits<LEAF_TYPE, TModels<CComplexBVHLeaf, LEAF_TYPE>::Value>::TPayloadType;
+	using TPayloadType = typename TBVHLeafTraits<LEAF_TYPE, TModels_V<CComplexBVHLeaf, LEAF_TYPE>>::TPayloadType;
 
 	CHAOS_API TBoundingVolumeHierarchy()
 		: MObjects(nullptr)

@@ -380,7 +380,7 @@ struct CSerializablePtr
 };
 
 template <typename T>
-constexpr typename TEnableIf<TModels<CSerializablePtr, T>::Value, bool>::Type IsSerializablePtr()
+constexpr typename TEnableIf<TModels_V<CSerializablePtr, T>, bool>::Type IsSerializablePtr()
 {
 	return true;
 }

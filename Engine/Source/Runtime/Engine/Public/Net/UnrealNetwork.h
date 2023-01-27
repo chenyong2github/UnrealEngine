@@ -366,7 +366,7 @@ struct CGetFastArrayCreateReplicationFragmentFuncable
 
 #if UE_WITH_IRIS
 template<typename T>
-inline typename TEnableIf<TModels<CGetFastArrayCreateReplicationFragmentFuncable, T>::Value, const FDoRepLifetimeParams>::Type FixupParams(const FDoRepLifetimeParams& Params)
+inline typename TEnableIf<TModels_V<CGetFastArrayCreateReplicationFragmentFuncable, T>, const FDoRepLifetimeParams>::Type FixupParams(const FDoRepLifetimeParams& Params)
 {
 	// Use passed in CreateAndRegisterReplicationFragmentFunction if set
 	if (Params.CreateAndRegisterReplicationFragmentFunction)
@@ -381,7 +381,7 @@ inline typename TEnableIf<TModels<CGetFastArrayCreateReplicationFragmentFuncable
 #endif
 
 template<typename T>
-inline typename TEnableIf<!TModels<CGetFastArrayCreateReplicationFragmentFuncable, T>::Value, const FDoRepLifetimeParams&>::Type FixupParams(const FDoRepLifetimeParams& Params)
+inline typename TEnableIf<!TModels_V<CGetFastArrayCreateReplicationFragmentFuncable, T>, const FDoRepLifetimeParams&>::Type FixupParams(const FDoRepLifetimeParams& Params)
 {
 	return Params;
 }

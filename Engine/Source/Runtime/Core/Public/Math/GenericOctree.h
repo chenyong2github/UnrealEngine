@@ -1047,12 +1047,12 @@ private:
 
 	// Function overload set which calls the V2 version if it's supported or the old version if it's not
 	template <typename Semantics>
-	typename TEnableIf<!TModels<COctreeSemanticsV2, Semantics>::Value>::Type SetOctreeSemanticsElementId(const ElementType& Element, FOctreeElementId2 Id)
+	typename TEnableIf<!TModels_V<COctreeSemanticsV2, Semantics>>::Type SetOctreeSemanticsElementId(const ElementType& Element, FOctreeElementId2 Id)
 	{
 		Semantics::SetElementId(Element, Id);
 	}
 	template <typename Semantics>
-	typename TEnableIf<TModels<COctreeSemanticsV2, Semantics>::Value>::Type SetOctreeSemanticsElementId(const ElementType& Element, FOctreeElementId2 Id)
+	typename TEnableIf<TModels_V<COctreeSemanticsV2, Semantics>>::Type SetOctreeSemanticsElementId(const ElementType& Element, FOctreeElementId2 Id)
 	{
 		Semantics::SetElementId(static_cast<typename Semantics::FOctree&>(*this), Element, Id);
 	}
@@ -1784,12 +1784,12 @@ private:
 
 	// Function overload set which calls the V2 version if it's supported or the old version if it's not
 	template <typename Semantics>
-	typename TEnableIf<!TModels<COctreeSemanticsV2, Semantics>::Value>::Type SetOctreeSemanticsElementId(const ElementType& Element, FOctreeElementId Id)
+	typename TEnableIf<!TModels_V<COctreeSemanticsV2, Semantics>>::Type SetOctreeSemanticsElementId(const ElementType& Element, FOctreeElementId Id)
 	{
 		Semantics::SetElementId(Element, Id);
 	}
 	template <typename Semantics>
-	typename TEnableIf<TModels<COctreeSemanticsV2, Semantics>::Value>::Type SetOctreeSemanticsElementId(const ElementType& Element, FOctreeElementId Id)
+	typename TEnableIf<TModels_V<COctreeSemanticsV2, Semantics>>::Type SetOctreeSemanticsElementId(const ElementType& Element, FOctreeElementId Id)
 	{
 		Semantics::SetElementId(*this, Element, Id);
 	}

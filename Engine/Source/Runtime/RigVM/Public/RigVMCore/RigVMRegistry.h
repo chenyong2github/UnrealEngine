@@ -132,7 +132,7 @@ public:
 	// Returns the type index given a struct
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type * = nullptr
 	>
 	TRigVMTypeIndex GetTypeIndex(bool bAsArray = false) const
 	{
@@ -147,7 +147,7 @@ public:
 	// Returns the type index given an object
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUClass, T>>::Type * = nullptr
 	>
 	TRigVMTypeIndex GetTypeIndex(bool bAsArray = false) const
 	{

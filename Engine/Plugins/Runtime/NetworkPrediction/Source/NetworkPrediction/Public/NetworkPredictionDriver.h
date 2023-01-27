@@ -274,7 +274,7 @@ struct FNetworkPredictionDriverBase
 		auto Requires(InDriverType* Driver, SyncType* Sync, AuxType* Aux) -> decltype(Driver->InitializeSimulationState(Sync, Aux));
 	};
 
-	static constexpr bool HasInitializeSimulationState = TModels<CInitializeSimulationStateFuncable, DriverType, SyncType, AuxType>::Value;
+	static constexpr bool HasInitializeSimulationState = TModels_V<CInitializeSimulationStateFuncable, DriverType, SyncType, AuxType>;
 	
 	template<bool HasFunc=HasInitializeSimulationState>
 	static typename TEnableIf<HasFunc>::Type CallInitializeSimulationStateMemberFunc(DriverType* Driver, SyncType* Sync, AuxType* Aux)
@@ -308,7 +308,7 @@ struct FNetworkPredictionDriverBase
 		auto Requires(InDriverType* Driver, int32 TimeMS, InputType* InputCmd) -> decltype(Driver->ProduceInput(TimeMS, InputCmd));
 	};
 
-	static constexpr bool HasProduceInput = TModels<CProduceInputMemberFuncable, DriverType, int32, InputType>::Value;
+	static constexpr bool HasProduceInput = TModels_V<CProduceInputMemberFuncable, DriverType, int32, InputType>;
 
 	template<bool HasFunc=HasProduceInput>
 	static typename TEnableIf<HasFunc>::Type CallProduceInputMemberFunc(DriverType* Driver, int32 DeltaTimeMS, InputType* InputCmd)
@@ -339,7 +339,7 @@ struct FNetworkPredictionDriverBase
 		auto Requires(InDriverType* Driver, const SyncType* S, const AuxType* A) -> decltype(Driver->FinalizeFrame(S, A));
 	};
 
-	static constexpr bool HasFinalizeFrame = TModels<CFinalizeFrameMemberFuncable, DriverType, SyncType, AuxType>::Value;
+	static constexpr bool HasFinalizeFrame = TModels_V<CFinalizeFrameMemberFuncable, DriverType, SyncType, AuxType>;
 
 	template<bool HasFunc=HasFinalizeFrame>
 	static typename TEnableIf<HasFunc>::Type CallFinalizeFrameMemberFunc(DriverType* Driver, const SyncType* SyncState, const AuxType* AuxState)
@@ -379,7 +379,7 @@ struct FNetworkPredictionDriverBase
 		auto Requires(InDriverType* Driver, const SyncType* S, const AuxType* A) -> decltype(Driver->RestoreFrame(S, A));
 	};
 
-	static constexpr bool HasRestoreFrame = TModels<CRestoreFrameMemberFuncable, DriverType, SyncType, AuxType>::Value;
+	static constexpr bool HasRestoreFrame = TModels_V<CRestoreFrameMemberFuncable, DriverType, SyncType, AuxType>;
 
 	template<bool HasFunc=HasRestoreFrame>
 	static typename TEnableIf<HasFunc>::Type CallRestoreFrameMemberFunc(DriverType* Driver, const SyncType* SyncState, const AuxType* AuxState)
@@ -415,7 +415,7 @@ struct FNetworkPredictionDriverBase
 		auto Requires(InDriverType* Driver) -> decltype(Driver->CallServerRPC());
 	};
 
-	static constexpr bool HasCallServerRPC = TModels<CCallServerRPCMemberFuncable, DriverType>::Value;
+	static constexpr bool HasCallServerRPC = TModels_V<CCallServerRPCMemberFuncable, DriverType>;
 
 	template<bool HasFunc=HasCallServerRPC>
 	static typename TEnableIf<HasFunc>::Type CallServerRPCMemberFunc(DriverType* Driver)
@@ -504,7 +504,7 @@ struct FNetworkPredictionDriverBase
 		auto Requires(InDriverType* Driver, bool bHidden) -> decltype(Driver->SetHiddenForInterpolation(bHidden));
 	};
 	
-	static constexpr bool HasSetHiddenForInterpolation = TModels<CSetHiddenForInterpolationFuncable, DriverType>::Value;
+	static constexpr bool HasSetHiddenForInterpolation = TModels_V<CSetHiddenForInterpolationFuncable, DriverType>;
 
 	template<bool HasFunc=HasSetHiddenForInterpolation>
 	static typename TEnableIf<HasFunc>::Type CallSetHiddenForInterpolation(DriverType* Driver, bool bHide)
@@ -550,7 +550,7 @@ struct FNetworkPredictionDriverBase
 		auto Requires(InDriverType* Driver) -> decltype(Driver->GetPhysicsPrimitiveComponent());
 	};
 
-	static constexpr bool HasGetPrimitiveComp = TModels<CGetPhysicsPrimitiveComponentMemberFuncable, DriverType>::Value;
+	static constexpr bool HasGetPrimitiveComp = TModels_V<CGetPhysicsPrimitiveComponentMemberFuncable, DriverType>;
 	
 	template<bool HasFunc=HasGetPrimitiveComp>
 	static typename TEnableIf<HasFunc, UPrimitiveComponent*>::Type GetPhysicsPrimitiveComponent(DriverType* Driver)
@@ -592,7 +592,7 @@ struct FNetworkPredictionDriverBase
 		auto Requires(InDriverType* Driver) -> decltype(Driver->GetPhysicsBodyInstance());
 	};
 
-	static constexpr bool HasGetBodyInstance = TModels<CGetPhysicsBodyInstanceMemberFuncable, DriverType>::Value;
+	static constexpr bool HasGetBodyInstance = TModels_V<CGetPhysicsBodyInstanceMemberFuncable, DriverType>;
 
 	template<bool HasFunc=HasGetBodyInstance>
 	static typename TEnableIf<HasFunc, FBodyInstance*>::Type GetPhysicsBodyInstance(DriverType* Driver)

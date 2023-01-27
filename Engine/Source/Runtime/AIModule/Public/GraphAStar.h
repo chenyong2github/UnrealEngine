@@ -73,8 +73,8 @@ struct CQuery##ConditionalFunctionName	\
 	template<typename TemplateClass> auto Requires(TemplateClassParameter& Obj) -> decltype(Obj.ConditionalFunctionName());	\
 };	\
 template <typename TemplateClass> using ReturnType##ConditionalFunctionName = decltype((DeclVal<TemplateClass>().*DeclVal<decltype(&TemplateClass::ConditionalFunctionName)>())()); \
-template <typename TemplateClass> static FORCEINLINE typename TEnableIf< TModels<CQuery##ConditionalFunctionName, TemplateClass>::Value, ReturnType##ConditionalFunctionName<TemplateClass>>::Type ConditionalFunctionName(TemplateClassParameter & Obj) { return Obj.ConditionalFunctionName(); } \
-template <typename TemplateClass> static FORCEINLINE typename TEnableIf<!TModels<CQuery##ConditionalFunctionName, TemplateClass>::Value, ConditionalReturnType>::Type ConditionalFunctionName(TemplateClassParameter& Obj) { return DefaultImpl; }
+template <typename TemplateClass> static FORCEINLINE typename TEnableIf< TModels_V<CQuery##ConditionalFunctionName, TemplateClass>, ReturnType##ConditionalFunctionName<TemplateClass>>::Type ConditionalFunctionName(TemplateClassParameter & Obj) { return Obj.ConditionalFunctionName(); } \
+template <typename TemplateClass> static FORCEINLINE typename TEnableIf<!TModels_V<CQuery##ConditionalFunctionName, TemplateClass>, ConditionalReturnType>::Type ConditionalFunctionName(TemplateClassParameter& Obj) { return DefaultImpl; }
 #define DECLARE_OPTIONALLY_IMPLEMENTED_TEMPLATE_CLASS_FUNCTION( ConditionalReturnType, ConditionalFunctionName, DefaultImpl )  DECLARE_OPTIONALLY_IMPLEMENTED_TEMPLATE_CLASS_FUNCTION_IMPL( TemplateClass, TemplateClass, ConditionalReturnType, ConditionalFunctionName, DefaultImpl )
 #define DECLARE_OPTIONALLY_IMPLEMENTED_TEMPLATE_CLASS_FUNCTION_CONST( ConditionalReturnType, ConditionalFunctionName, DefaultImpl ) DECLARE_OPTIONALLY_IMPLEMENTED_TEMPLATE_CLASS_FUNCTION_IMPL( TemplateClass, const TemplateClass, ConditionalReturnType, ConditionalFunctionName, DefaultImpl )
 
@@ -84,8 +84,8 @@ struct CQuery##ConditionalFunctionName	\
 	template<typename TemplateClass> auto Requires(TemplateClassParameter& Obj, ConditionalParamType1 Param1) -> decltype(Obj.ConditionalFunctionName(Param1));	\
 };	\
 template <typename TemplateClass> using ReturnType##ConditionalFunctionName = decltype((DeclVal<TemplateClass>().*DeclVal<decltype(&TemplateClass::ConditionalFunctionName)>())(DeclVal<ConditionalParamType1>())); \
-template <typename TemplateClass> static FORCEINLINE typename TEnableIf< TModels<CQuery##ConditionalFunctionName, TemplateClass>::Value, ReturnType##ConditionalFunctionName<TemplateClass>>::Type ConditionalFunctionName(TemplateClassParameter & Obj, ConditionalParamType1 Param1) { return Obj.ConditionalFunctionName(Param1); } \
-template <typename TemplateClass> static FORCEINLINE typename TEnableIf<!TModels<CQuery##ConditionalFunctionName, TemplateClass>::Value, ConditionalReturnType>::Type ConditionalFunctionName(TemplateClassParameter& Obj, ConditionalParamType1 Param1) { return DefaultImpl; }
+template <typename TemplateClass> static FORCEINLINE typename TEnableIf< TModels_V<CQuery##ConditionalFunctionName, TemplateClass>, ReturnType##ConditionalFunctionName<TemplateClass>>::Type ConditionalFunctionName(TemplateClassParameter & Obj, ConditionalParamType1 Param1) { return Obj.ConditionalFunctionName(Param1); } \
+template <typename TemplateClass> static FORCEINLINE typename TEnableIf<!TModels_V<CQuery##ConditionalFunctionName, TemplateClass>, ConditionalReturnType>::Type ConditionalFunctionName(TemplateClassParameter& Obj, ConditionalParamType1 Param1) { return DefaultImpl; }
 #define DECLARE_OPTIONALLY_IMPLEMENTED_TEMPLATE_CLASS_FUNCTION_1PARAM( ConditionalReturnType, ConditionalFunctionName, ConditionalParamType1, DefaultImpl) DECLARE_OPTIONALLY_IMPLEMENTED_TEMPLATE_CLASS_FUNCTION_1PARAM_IMPL( TemplateClass, TemplateClass, ConditionalReturnType, ConditionalFunctionName, ConditionalParamType1, DefaultImpl) 
 #define DECLARE_OPTIONALLY_IMPLEMENTED_TEMPLATE_CLASS_FUNCTION_1PARAM_CONST( ConditionalReturnType, ConditionalFunctionName, ConditionalParamType1, DefaultImpl) DECLARE_OPTIONALLY_IMPLEMENTED_TEMPLATE_CLASS_FUNCTION_1PARAM_IMPL( TemplateClass, const TemplateClass, ConditionalReturnType, ConditionalFunctionName, ConditionalParamType1, DefaultImpl) 
 
@@ -95,8 +95,8 @@ struct CQuery##ConditionalFunctionName	\
 	template<typename TemplateClass> auto Requires(TemplateClassParameter& Obj, ConditionalParamType1 Param1, ConditionalParamType2 Param2) -> decltype(Obj.ConditionalFunctionName(Param1,Param2));	\
 };	\
 template <typename TemplateClass> using ReturnType##ConditionalFunctionName = decltype((DeclVal<TemplateClass>().*DeclVal<decltype(&TemplateClass::ConditionalFunctionName)>())(DeclVal<ConditionalParamType1>(), DeclVal<ConditionalParamType2>())); \
-template <typename TemplateClass> static FORCEINLINE typename TEnableIf< TModels<CQuery##ConditionalFunctionName, TemplateClass>::Value, ReturnType##ConditionalFunctionName<TemplateClass>>::Type ConditionalFunctionName(TemplateClassParameter & Obj, ConditionalParamType1 Param1, ConditionalParamType2 Param2) { return Obj.ConditionalFunctionName(Param1, Param2); } \
-template <typename TemplateClass> static FORCEINLINE typename TEnableIf<!TModels<CQuery##ConditionalFunctionName, TemplateClass>::Value, ConditionalReturnType>::Type ConditionalFunctionName(TemplateClassParameter& Obj, ConditionalParamType1 Param1, ConditionalParamType2 Param2) { return DefaultImpl; }
+template <typename TemplateClass> static FORCEINLINE typename TEnableIf< TModels_V<CQuery##ConditionalFunctionName, TemplateClass>, ReturnType##ConditionalFunctionName<TemplateClass>>::Type ConditionalFunctionName(TemplateClassParameter & Obj, ConditionalParamType1 Param1, ConditionalParamType2 Param2) { return Obj.ConditionalFunctionName(Param1, Param2); } \
+template <typename TemplateClass> static FORCEINLINE typename TEnableIf<!TModels_V<CQuery##ConditionalFunctionName, TemplateClass>, ConditionalReturnType>::Type ConditionalFunctionName(TemplateClassParameter& Obj, ConditionalParamType1 Param1, ConditionalParamType2 Param2) { return DefaultImpl; }
 #define DECLARE_OPTIONALLY_IMPLEMENTED_TEMPLATE_CLASS_FUNCTION_2PARAMS( ConditionalReturnType, ConditionalFunctionName, ConditionalParamType1, ConditionalParamType2, DefaultImpl) DECLARE_OPTIONALLY_IMPLEMENTED_TEMPLATE_CLASS_FUNCTION_2PARAMS_IMPL( TemplateClass, TemplateClass, ConditionalReturnType, ConditionalFunctionName, ConditionalParamType1, ConditionalParamType2, DefaultImpl)
 #define DECLARE_OPTIONALLY_IMPLEMENTED_TEMPLATE_CLASS_FUNCTION_2PARAMS_CONST( ConditionalReturnType, ConditionalFunctionName, ConditionalParamType1, ConditionalParamType2, DefaultImpl) DECLARE_OPTIONALLY_IMPLEMENTED_TEMPLATE_CLASS_FUNCTION_2PARAMS_IMPL(TemplateClass, const TemplateClass, ConditionalReturnType, ConditionalFunctionName, ConditionalParamType1, ConditionalParamType2, DefaultImpl)
 
@@ -105,8 +105,8 @@ struct CQuery##QueryFunctionName	\
 {	\
 	template<typename TemplateClass> auto Requires(const TemplateClass& Obj) -> decltype(Obj.ConditionalFunctionName());	\
 };	\
-template <typename TemplateClass> static FORCEINLINE typename TEnableIf< TModels<CQuery##QueryFunctionName, TemplateClass>::Value, QueryReturnType>::Type QueryFunctionName(const TemplateClass& Obj, QueryParam) { return QueryImpl; } \
-template <typename TemplateClass> static FORCEINLINE typename TEnableIf<!TModels<CQuery##QueryFunctionName, TemplateClass>::Value, QueryReturnType>::Type QueryFunctionName(const TemplateClass& Obj, QueryParam) { return QueryDefaultImpl; }
+template <typename TemplateClass> static FORCEINLINE typename TEnableIf< TModels_V<CQuery##QueryFunctionName, TemplateClass>, QueryReturnType>::Type QueryFunctionName(const TemplateClass& Obj, QueryParam) { return QueryImpl; } \
+template <typename TemplateClass> static FORCEINLINE typename TEnableIf<!TModels_V<CQuery##QueryFunctionName, TemplateClass>, QueryReturnType>::Type QueryFunctionName(const TemplateClass& Obj, QueryParam) { return QueryDefaultImpl; }
 
 template<bool DoRangeCheck>
 class FRangeChecklessAllocator : public FDefaultAllocator

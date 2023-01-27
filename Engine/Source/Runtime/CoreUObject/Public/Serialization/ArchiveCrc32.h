@@ -49,7 +49,7 @@ private:
 	* @param Value The value to serialize.
 	*/
 template <typename StructType>
-FORCEINLINE typename TEnableIf<TModels<CStaticStructProvider, StructType>::Value, FArchive&>::Type operator <<(FArchive& Ar, const StructType& Value)
+FORCEINLINE typename TEnableIf<TModels_V<CStaticStructProvider, StructType>, FArchive&>::Type operator <<(FArchive& Ar, const StructType& Value)
 {
 	StructType* MutableValue = const_cast<StructType*>(&Value);
 	StructType::StaticStruct()->SerializeItem(Ar, MutableValue, nullptr);

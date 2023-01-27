@@ -159,9 +159,8 @@ namespace RemoteControlTypeUtilities
 	/** Returns typed metadata for numeric property if it exists, otherwise returns the DefaultValue. */
 	template <typename PropertyType, typename ValueType>
 	constexpr static typename TEnableIf<
-		TAnd<
-			TIsDerivedFrom<PropertyType, FProperty>,
-			RemoteControlTypeTraits::TNumericValueConstraint<ValueType>>::Value, ValueType>::Type
+		std::is_base_of_v<FProperty, PropertyType> &&
+		RemoteControlTypeTraits::TNumericValueConstraint_V<ValueType>, ValueType>::Type
 	GetMetadataValue(const PropertyType* InProperty, const FName& InKey, const ValueType& InDefaultValue)
 	{
 #if WITH_EDITORONLY_DATA
@@ -188,9 +187,8 @@ namespace RemoteControlTypeUtilities
 	/** Returns typed metadata if it exists, otherwise returns the DefaultValue. */
 	template <typename PropertyType, typename ValueType>
 	constexpr static typename TEnableIf<
-		TAnd<
-			TIsDerivedFrom<PropertyType, FProperty>,
-			TNot<RemoteControlTypeTraits::TNumericValueConstraint<ValueType>>>::Value, ValueType>::Type
+		std::is_base_of_v<FProperty, PropertyType> &&
+		!RemoteControlTypeTraits::TNumericValueConstraint_V<ValueType>, ValueType>::Type
 	GetMetadataValue(const PropertyType* InProperty, const FName& InKey, const ValueType InDefaultValue)
 	{
 		return InDefaultValue;
@@ -349,7 +347,7 @@ namespace RemoteControlTypeUtilities
 	}
 
 	template <typename ValueType>
-	static typename TEnableIf<TNot<RemoteControlTypeTraits::TNumericValueConstraint<ValueType>>::Value, ValueType>::Type
+	static typename TEnableIf<!RemoteControlTypeTraits::TNumericValueConstraint_V<ValueType>, ValueType>::Type
 	GetDefaultRangeValueMin(const FProperty* InProperty)
 	{
 		check(InProperty);
@@ -358,7 +356,7 @@ namespace RemoteControlTypeUtilities
 	}
 
 	template <typename ValueType>
-	static typename TEnableIf<RemoteControlTypeTraits::TNumericValueConstraint<ValueType>::Value, ValueType>::Type
+	static typename TEnableIf<RemoteControlTypeTraits::TNumericValueConstraint_V<ValueType>, ValueType>::Type
 	GetDefaultRangeValueMin(const FProperty* InProperty)
 	{
 		check(InProperty);
@@ -382,7 +380,7 @@ namespace RemoteControlTypeUtilities
 	}
 
 	template <typename ValueType>
-	static typename TEnableIf<TNot<RemoteControlTypeTraits::TNumericValueConstraint<ValueType>>::Value, ValueType>::Type
+	static typename TEnableIf<!RemoteControlTypeTraits::TNumericValueConstraint_V<ValueType>, ValueType>::Type
 	GetDefaultRangeValueMax(const FProperty* InProperty)
 	{
 		check(InProperty);
@@ -391,7 +389,7 @@ namespace RemoteControlTypeUtilities
 	}
 
 	template <typename ValueType>
-	static typename TEnableIf<RemoteControlTypeTraits::TNumericValueConstraint<ValueType>::Value, ValueType>::Type
+	static typename TEnableIf<RemoteControlTypeTraits::TNumericValueConstraint_V<ValueType>::Value, ValueType>::Type
 	GetDefaultRangeValueMax(const FProperty* InProperty)
 	{
 		check(InProperty);
@@ -415,7 +413,7 @@ namespace RemoteControlTypeUtilities
 	}
 
 	template <typename ValueType>
-	static typename TEnableIf<TNot<RemoteControlTypeTraits::TNumericValueConstraint<ValueType>>::Value, ValueType>::Type
+	static typename TEnableIf<!RemoteControlTypeTraits::TNumericValueConstraint_V<ValueType>, ValueType>::Type
 	GetDefaultMappingValueMin(const FProperty* InProperty)
 	{
 		check(InProperty);
@@ -424,7 +422,7 @@ namespace RemoteControlTypeUtilities
 	}
 
 	template <typename ValueType>
-	static typename TEnableIf<RemoteControlTypeTraits::TNumericValueConstraint<ValueType>::Value, ValueType>::Type
+	static typename TEnableIf<RemoteControlTypeTraits::TNumericValueConstraint_V<ValueType>, ValueType>::Type
 	GetDefaultMappingValueMin(const FProperty* InProperty)
 	{
 		check(InProperty);
@@ -467,7 +465,7 @@ namespace RemoteControlTypeUtilities
 	}
 
 	template <typename ValueType>
-	static typename TEnableIf<TNot<RemoteControlTypeTraits::TNumericValueConstraint<ValueType>>::Value, ValueType>::Type
+	static typename TEnableIf<!RemoteControlTypeTraits::TNumericValueConstraint_V<ValueType>, ValueType>::Type
 	GetDefaultMappingValueMax(const FProperty* InProperty)
 	{
 		check(InProperty);
@@ -476,7 +474,7 @@ namespace RemoteControlTypeUtilities
 	}
 
 	template <typename ValueType>
-	static typename TEnableIf<RemoteControlTypeTraits::TNumericValueConstraint<ValueType>::Value, ValueType>::Type
+	static typename TEnableIf<RemoteControlTypeTraits::TNumericValueConstraint_V<ValueType>, ValueType>::Type
 	GetDefaultMappingValueMax(const FProperty* InProperty)
 	{
 		check(InProperty);

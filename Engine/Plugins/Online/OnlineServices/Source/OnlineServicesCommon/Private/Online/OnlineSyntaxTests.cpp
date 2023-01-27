@@ -144,10 +144,10 @@ END_ONLINE_STRUCT_META()
 /* Meta */ }
 
 // confirm that a couple concepts are working as expected
-static_assert(TModels<UE::Online::Meta::CSuperDefined, Test::FTestInterface>::Value);
-static_assert(!TModels<UE::Online::Meta::CSuperDefined, Test::ITestInterface>::Value);
-static_assert(!TModels<UE::Online::CLocalAccountIdDefined, Test::FTestOp::Params>::Value);
-static_assert(TModels<UE::Online::CLocalAccountIdDefined, Test::FTestUserOp::Params>::Value);
+static_assert(TModels_V<UE::Online::Meta::CSuperDefined, Test::FTestInterface>);
+static_assert(!TModels_V<UE::Online::Meta::CSuperDefined, Test::ITestInterface>);
+static_assert(!TModels_V<UE::Online::CLocalAccountIdDefined, Test::FTestOp::Params>);
+static_assert(TModels_V<UE::Online::CLocalAccountIdDefined, Test::FTestUserOp::Params>);
 
 /* UE::Online */ }
 

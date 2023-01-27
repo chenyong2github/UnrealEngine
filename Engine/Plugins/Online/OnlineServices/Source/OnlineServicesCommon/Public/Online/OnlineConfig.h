@@ -86,7 +86,7 @@ public:
 	template <typename T>
 	bool GetValue(const TCHAR* Key, T& Value)
 	{
-		if constexpr (TModels<Meta::COnlineMetadataAvailable, T>::Value)
+		if constexpr (TModels_V<Meta::COnlineMetadataAvailable, T>)
 		{
 			IOnlineConfigStructPtr ConfigStructPtr;
 			if (GetValue(Key, ConfigStructPtr))
@@ -118,7 +118,7 @@ public:
 	{
 		Value.Empty();
 
-		if constexpr (TModels<Meta::COnlineMetadataAvailable, T>::Value)
+		if constexpr (TModels_V<Meta::COnlineMetadataAvailable, T>)
 		{
 			TArray<IOnlineConfigStructPtr> ConfigStructPtrArray;
 			if (GetValue(Key, ConfigStructPtrArray) > 0)
@@ -206,7 +206,7 @@ public:
 	template <typename T>
 	bool GetValue(const TCHAR* Section, const TCHAR* Key, T& Value)
 	{
-		if constexpr (TModels<Meta::COnlineMetadataAvailable, T>::Value)
+		if constexpr (TModels_V<Meta::COnlineMetadataAvailable, T>)
 		{
 			IOnlineConfigStructPtr ConfigStructPtr;
 			if (GetValue(Section, Key, ConfigStructPtr))
@@ -237,7 +237,7 @@ public:
 	int32 GetValue(const TCHAR* Section, const TCHAR* Key, TArray<T>& Value)
 	{
 		int32 NumInitialElements = Value.Num();
-		if constexpr (TModels<Meta::COnlineMetadataAvailable, T>::Value)
+		if constexpr (TModels_V<Meta::COnlineMetadataAvailable, T>)
 		{
 			TArray<IOnlineConfigStructPtr> ConfigStructPtrArray;
 			if (GetValue(Section, Key, ConfigStructPtrArray) > 0)
@@ -363,7 +363,7 @@ bool LoadConfigValue(IOnlineConfigProvider& Provider, const TCHAR* Section, cons
  */
 template <typename T>
 auto LoadConfig(IOnlineConfigProvider& Provider, const FString& Section, T& Value)
-	-> std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, bool>
+	-> std::enable_if_t<TModels_V<Meta::COnlineMetadataAvailable, T>, bool>
 {
 	bool bLoadedValue = false;
 	Meta::VisitFields(Value,
@@ -386,7 +386,7 @@ auto LoadConfig(IOnlineConfigProvider& Provider, const FString& Section, T& Valu
  */
 template <typename T>
 auto LoadConfig(IOnlineConfigProvider& Provider, const TArray<FString>& SectionHeirarchy, T& Value)
-	-> std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, bool>
+	-> std::enable_if_t<TModels_V<Meta::COnlineMetadataAvailable, T>, bool>
 {
 	bool bLoadedValue = false;
 	for (const FString& Section : SectionHeirarchy)
@@ -409,7 +409,7 @@ auto LoadConfig(IOnlineConfigProvider& Provider, const TArray<FString>& SectionH
  */
 template <typename T>
 auto LoadConfig(IOnlineConfigProvider& Provider, const FString& Section, const TCHAR* Key, T& OutValue)
--> std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, bool>
+-> std::enable_if_t<TModels_V<Meta::COnlineMetadataAvailable, T>, bool>
 {
 	bool bLoadedValue = false;
 	IOnlineConfigStructPtr ConfigStructPtr;
@@ -442,7 +442,7 @@ auto LoadConfig(IOnlineConfigProvider& Provider, const FString& Section, const T
  */
 template <typename T>
 auto LoadConfig(IOnlineConfigProvider& Provider, const TArray<FString>& SectionHeirarchy, const TCHAR* Key, T& Value)
--> std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, bool>
+-> std::enable_if_t<TModels_V<Meta::COnlineMetadataAvailable, T>, bool>
 {
 	bool bLoadedValue = false;
 	for (const FString& Section : SectionHeirarchy)

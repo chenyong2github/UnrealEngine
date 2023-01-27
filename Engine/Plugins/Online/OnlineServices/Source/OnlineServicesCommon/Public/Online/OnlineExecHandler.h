@@ -122,8 +122,8 @@ template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TShar
 template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOptional<T>& Optional, IOnlineServices* Services = nullptr);
 template <typename... Ts> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TVariant<Ts...>& Variant, IOnlineServices* Services = nullptr);
 template <typename IdType> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOnlineId<IdType>& Value, IOnlineServices* Services = nullptr);
-template <typename T> std::enable_if_t<!TModels<Meta::COnlineMetadataAvailable, T>::Value, bool> ParseOnlineExecParams(const TCHAR*& Cmd, T& Value, IOnlineServices* Services = nullptr);
-template <typename T> std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, bool> ParseOnlineExecParams(const TCHAR*& Cmd, T& Value, IOnlineServices* Services = nullptr);
+template <typename T> std::enable_if_t<!TModels_V<Meta::COnlineMetadataAvailable, T>, bool> ParseOnlineExecParams(const TCHAR*& Cmd, T& Value, IOnlineServices* Services = nullptr);
+template <typename T> std::enable_if_t<TModels_V<Meta::COnlineMetadataAvailable, T>, bool> ParseOnlineExecParams(const TCHAR*& Cmd, T& Value, IOnlineServices* Services = nullptr);
 
 template<typename T, typename VariantObject>
 struct TOnlineVariantVisitInfo
@@ -829,7 +829,7 @@ inline bool ParseOnlineExecParams<OnlineIdHandleTags::FAccount>(const TCHAR*& Cm
 }
 
 template <typename T>
-std::enable_if_t<!TModels<Meta::COnlineMetadataAvailable, T>::Value, bool> ParseOnlineExecParams(const TCHAR*& Cmd, T& Value, IOnlineServices* Services)
+std::enable_if_t<!TModels_V<Meta::COnlineMetadataAvailable, T>, bool> ParseOnlineExecParams(const TCHAR*& Cmd, T& Value, IOnlineServices* Services)
 {
 	FString Token;
 	if (FParse::Token(Cmd, Token, true))
@@ -845,7 +845,7 @@ std::enable_if_t<!TModels<Meta::COnlineMetadataAvailable, T>::Value, bool> Parse
 }
 
 template <typename T>
-std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, bool> ParseOnlineExecParams(const TCHAR*& Cmd, T& Value, IOnlineServices* Services)
+std::enable_if_t<TModels_V<Meta::COnlineMetadataAvailable, T>, bool> ParseOnlineExecParams(const TCHAR*& Cmd, T& Value, IOnlineServices* Services)
 {
 	bool bSuccess = true;
 

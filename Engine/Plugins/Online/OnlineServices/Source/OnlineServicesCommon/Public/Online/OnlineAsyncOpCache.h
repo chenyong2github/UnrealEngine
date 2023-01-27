@@ -191,7 +191,7 @@ struct TMergeableOpParamsFuncs
 		Meta::VisitFields<typename OpType::Params>([&bResult, &First, &Second](const auto& Field)
 			{
 				constexpr bool bIsMutationFieldType = std::is_same_v<decltype(Field.Pointer), decltype(&OpType::Params::Mutations)>;
-				if constexpr (TModels<Private::COnlineGetTypeHashable, decltype(First.*Field.Pointer)>::Value || !bIsMutationFieldType)
+				if constexpr (TModels_V<Private::COnlineGetTypeHashable, decltype(First.*Field.Pointer)> || !bIsMutationFieldType)
 				{
 					if constexpr (bIsMutationFieldType)
 					{
@@ -214,7 +214,7 @@ struct TMergeableOpParamsFuncs
 		Meta::VisitFields<typename OpType::Params>([&Params, &CombinedHash](const auto& Field)
 			{
 				constexpr bool bIsMutationFieldType = std::is_same_v<decltype(Field.Pointer), decltype(&OpType::Params::Mutations)>;
-				if constexpr (TModels<Private::COnlineGetTypeHashable, decltype(Params.*Field.Pointer)>::Value || !bIsMutationFieldType)
+				if constexpr (TModels_V<Private::COnlineGetTypeHashable, decltype(Params.*Field.Pointer)> || !bIsMutationFieldType)
 				{
 					if constexpr (bIsMutationFieldType)
 					{
@@ -249,7 +249,7 @@ public:
 	{
 		TSharedRef<TOnlineAsyncOp<OpType>> Op = MakeShared<TOnlineAsyncOp<OpType>>(Services, MoveTemp(Params));
 
-		if constexpr (TModels<CLocalAccountIdDefined, typename OpType::Params>::Value)
+		if constexpr (TModels_V<CLocalAccountIdDefined, typename OpType::Params>)
 		{
 			// add LocalAccountId to the Op Data
 			Op->Data.template Set<decltype(Params.LocalAccountId)>(TEXT("LocalAccountId"), Op->GetParams().LocalAccountId);
@@ -265,7 +265,7 @@ public:
 		TSharedPtr<TOnlineAsyncOp<OpType>> Op;
 
 		// find existing op
-		if constexpr (TModels<CLocalAccountIdDefined, typename OpType::Params>::Value)
+		if constexpr (TModels_V<CLocalAccountIdDefined, typename OpType::Params>)
 		{
 			if (TUniquePtr<IWrappedOperation>* OpPtr = UserOperations.FindOrAdd(Params.LocalAccountId).Find(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(Params)))
 			{
@@ -298,7 +298,7 @@ public:
 					// remove from cache if operation was canceled
 					if (ThisOp.GetState() == EAsyncOpState::Cancelled)
 					{
-						if constexpr (TModels<CLocalAccountIdDefined, typename OpType::Params>::Value)
+						if constexpr (TModels_V<CLocalAccountIdDefined, typename OpType::Params>)
 						{
 							UserOperations.FindOrAdd(ThisOp.GetParams().LocalAccountId).Remove(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(ThisOp.GetParams()));
 						}
@@ -320,7 +320,7 @@ public:
 		TSharedPtr<TOnlineAsyncOp<OpType>> Op;
 
 		// find existing op
-		if constexpr (TModels<CLocalAccountIdDefined, typename OpType::Params>::Value)
+		if constexpr (TModels_V<CLocalAccountIdDefined, typename OpType::Params>)
 		{
 			if (TUniquePtr<IWrappedOperation>* OpPtr = UserOperations.FindOrAdd(Params.LocalAccountId).Find(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(Params)))
 			{
@@ -349,7 +349,7 @@ public:
 			// remove from cache once operation has started. It is no longer mergeable at that point
 			FOnlineEventDelegateHandle Handle = Op->OnStart().Add(GetSharedThis(), [this](const TOnlineAsyncOp<OpType>& ThisOp)
 				{
-					if constexpr (TModels<CLocalAccountIdDefined, typename OpType::Params>::Value)
+					if constexpr (TModels_V<CLocalAccountIdDefined, typename OpType::Params>)
 					{
 						UserOperations.FindOrAdd(ThisOp.GetParams().LocalAccountId).Remove(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(ThisOp.GetParams()));
 					}
@@ -382,7 +382,7 @@ private:
 
 		TSharedRef<TOnlineAsyncOp<OpType>> Op = WrappedOp->GetDataRef();
 
-		if constexpr (TModels<CLocalAccountIdDefined, typename OpType::Params>::Value)
+		if constexpr (TModels_V<CLocalAccountIdDefined, typename OpType::Params>)
 		{
 			// add LocalAccountId to the Op Data
 			Op->Data.template Set<decltype(Params.LocalAccountId)>(TEXT("LocalAccountId"), Op->GetParams().LocalAccountId);

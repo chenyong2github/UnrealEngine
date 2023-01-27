@@ -240,7 +240,7 @@ namespace
 	template <typename Container>
 	void CheckContainerSelfEquality(Container& Cont)
 	{
-		if constexpr (TModels<CEqualityComparable, Container>::Value)
+		if constexpr (TModels_V<CEqualityComparable, Container>)
 		{
 			check(Cont == Cont);
 		}

@@ -78,7 +78,7 @@ struct FFastArrayReplicationFragmentHelper
 	 * We only want to do this for FastArrays that define PostReplicatedReceive since it might require extra work to calculate the required parameters
 	 */
 	template<typename FastArrayType>
-	static inline typename TEnableIf<TModels<FFastArraySerializer::CPostReplicatedReceiveFuncable, FastArrayType, const FFastArraySerializer::FPostReplicatedReceiveParameters&>::Value, void>::Type CallPostReplicatedReceiveOrNot(FastArrayType& ArraySerializer, bool bHasUnresolvedReferences)
+	static inline typename TEnableIf<TModels_V<FFastArraySerializer::CPostReplicatedReceiveFuncable, FastArrayType, const FFastArraySerializer::FPostReplicatedReceiveParameters&>, void>::Type CallPostReplicatedReceiveOrNot(FastArrayType& ArraySerializer, bool bHasUnresolvedReferences)
 	{
 		FFastArraySerializer::FPostReplicatedReceiveParameters PostReceivedParameters;
 		PostReceivedParameters.bHasMoreUnmappedReferences = bHasUnresolvedReferences;
@@ -86,7 +86,7 @@ struct FFastArrayReplicationFragmentHelper
 	}
 
 	template<typename FastArrayType>
-	static inline typename TEnableIf<!TModels<FFastArraySerializer::CPostReplicatedReceiveFuncable, FastArrayType, const FFastArraySerializer::FPostReplicatedReceiveParameters&>::Value, void>::Type CallPostReplicatedReceiveOrNot(FastArrayType& ArraySerializer, bool bHasUnresolvedReferences) {}
+	static inline typename TEnableIf<!TModels_V<FFastArraySerializer::CPostReplicatedReceiveFuncable, FastArrayType, const FFastArraySerializer::FPostReplicatedReceiveParameters&>, void>::Type CallPostReplicatedReceiveOrNot(FastArrayType& ArraySerializer, bool bHasUnresolvedReferences) {}
 };
 
 class FFastArrayReplicationFragmentBase : public FReplicationFragment

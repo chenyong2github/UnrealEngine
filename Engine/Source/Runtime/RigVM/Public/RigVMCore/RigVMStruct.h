@@ -110,7 +110,7 @@ public:
 	/** Returns the name of the first variable given a type (or NAME_None if not found) */
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type * = nullptr
 	>
 	FName FindFirstVariableOfType() const
 	{
@@ -120,7 +120,7 @@ public:
 	/** Returns the name of the first variable given a type (or NAME_None if not found) */
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUClass, T>>::Type * = nullptr
 	>
 	FName FindFirstVariableOfType() const
 	{
@@ -213,7 +213,7 @@ public:
 	
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type * = nullptr
 	>
 	static FString ExportToFullyQualifiedText(const T& InStructValue)
 	{

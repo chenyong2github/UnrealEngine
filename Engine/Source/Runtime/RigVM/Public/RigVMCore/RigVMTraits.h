@@ -230,7 +230,7 @@ void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
 
 template <
 	typename T,
-	typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
+	typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type* = nullptr
 >
 void RigVMInitialize(void* InPtr, int32 InCount)
 {
@@ -240,7 +240,7 @@ void RigVMInitialize(void* InPtr, int32 InCount)
 
 template <
 	typename T,
-	typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
+	typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type* = nullptr
 >
 void RigVMDestroy(void* InPtr, int32 InCount)
 {
@@ -250,7 +250,7 @@ void RigVMDestroy(void* InPtr, int32 InCount)
 
 template <
 	typename T,
-	typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
+	typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type* = nullptr
 >
 void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
 {

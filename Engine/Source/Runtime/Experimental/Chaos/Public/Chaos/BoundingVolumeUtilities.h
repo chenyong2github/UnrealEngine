@@ -381,7 +381,7 @@ struct CParticleView
 
 //todo: how do we protect ourselves and make it const?
 template<typename ParticleView, typename T, int d>
-typename TEnableIf<TModels<CParticleView, ParticleView>::Value>::Type ComputeAllWorldSpaceBoundingBoxes(const ParticleView& Particles, const TArray<bool>& RequiresBounds, const bool bUseVelocity, const T Dt, TArray<TAABB<T, d>>& WorldSpaceBoxes)
+typename TEnableIf<TModels_V<CParticleView, ParticleView>>::Type ComputeAllWorldSpaceBoundingBoxes(const ParticleView& Particles, const TArray<bool>& RequiresBounds, const bool bUseVelocity, const T Dt, TArray<TAABB<T, d>>& WorldSpaceBoxes)
 {
 	WorldSpaceBoxes.AddUninitialized(Particles.Num());
 	ParticlesParallelFor(Particles, [&RequiresBounds, &WorldSpaceBoxes, bUseVelocity, Dt](const auto& Particle, int32 Index)
@@ -401,7 +401,7 @@ typename TEnableIf<TModels<CParticleView, ParticleView>::Value>::Type ComputeAll
 }
 
 template<typename ParticleView, typename T, int d>
-typename TEnableIf<!TModels<CParticleView, ParticleView>::Value>::Type ComputeAllWorldSpaceBoundingBoxes(const ParticleView& Particles, const TArray<bool>& RequiresBounds, const bool bUseVelocity, const T Dt, TArray<TAABB<T, d>>& WorldSpaceBoxes)
+typename TEnableIf<!TModels_V<CParticleView, ParticleView>>::Type ComputeAllWorldSpaceBoundingBoxes(const ParticleView& Particles, const TArray<bool>& RequiresBounds, const bool bUseVelocity, const T Dt, TArray<TAABB<T, d>>& WorldSpaceBoxes)
 {
 	WorldSpaceBoxes.AddUninitialized(Particles.Num());
 	ParticlesParallelFor(Particles, [&RequiresBounds, &WorldSpaceBoxes, bUseVelocity, Dt](const auto& Particle, int32 Index)

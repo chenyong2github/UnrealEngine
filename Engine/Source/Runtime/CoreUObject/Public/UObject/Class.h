@@ -1167,7 +1167,7 @@ public:
 				(TIsPODType<CPPSTRUCT>::Value ? CPF_IsPlainOldData : CPF_None)
 				| (TIsTriviallyDestructible<CPPSTRUCT>::Value ? CPF_NoDestructor : CPF_None)
 				| (TIsZeroConstructType<CPPSTRUCT>::Value ? CPF_ZeroConstructor : CPF_None)
-				| (TModels<CGetTypeHashable, CPPSTRUCT>::Value ? CPF_HasGetValueTypeHash : CPF_None),
+				| (TModels_V<CGetTypeHashable, CPPSTRUCT> ? CPF_HasGetValueTypeHash : CPF_None),
 				TTraits::WithNoInitConstructor,
 				TTraits::WithZeroConstructor,
 				!(TTraits::WithNoDestructor || TIsPODType<CPPSTRUCT>::Value),
@@ -1188,7 +1188,7 @@ public:
 				TTraits::WithAddStructReferencedObjects,
 				TTraits::WithSerializeFromMismatchedTag,
 				TTraits::WithStructuredSerializeFromMismatchedTag,
-				TModels<CGetTypeHashable, CPPSTRUCT>::Value,
+				TModels_V<CGetTypeHashable, CPPSTRUCT>,
 				TIsAbstract<CPPSTRUCT>::Value,
 #if WITH_EDITOR
 				TTraits::WithCanEditChange,
@@ -1448,7 +1448,7 @@ public:
 		{
 			ensure(HasGetTypeHash());
 
-			if constexpr (TModels<CGetTypeHashable, CPPSTRUCT>::Value)
+			if constexpr (TModels_V<CGetTypeHashable, CPPSTRUCT>)
 			{
 				return GetTypeHashHelper(*(const CPPSTRUCT*)Src);
 			}

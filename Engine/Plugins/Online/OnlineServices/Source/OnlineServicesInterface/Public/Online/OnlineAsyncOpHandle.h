@@ -74,7 +74,7 @@ namespace Private
 	};
 
 	template <typename T>
-	struct TSharedPtrHelper<T, std::enable_if_t<TModels<CAsSharedCallable, T>::Value && !TIsSharedPtrOrRef<T>::value, void>> : public TSharedPtrHelper2<T>
+	struct TSharedPtrHelper<T, std::enable_if_t<TModels_V<CAsSharedCallable, T> && !TIsSharedPtrOrRef<T>::value, void>> : public TSharedPtrHelper2<T>
 	{
 	};
 

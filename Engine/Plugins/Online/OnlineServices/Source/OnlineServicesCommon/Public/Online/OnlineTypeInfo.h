@@ -46,7 +46,7 @@ struct TOnlineTypeInfo
 			return true;
 		}
 
-		if constexpr (TModels<Meta::CSuperDefined, T>::Value)
+		if constexpr (TModels_V<Meta::CSuperDefined, T>)
 		{
 			return TOnlineTypeInfo<typename T::Super>::IsA(TypeName);
 		}

@@ -34,8 +34,8 @@ inline FString ToLogString(int64 Value);
 inline FString ToLogString(bool Value);
 inline FString ToLogString(float Value);
 inline FString ToLogString(double Value);
-template <typename T> std::enable_if_t<!TModels<Meta::COnlineMetadataAvailable, T>::Value, FString> ToLogString(const T& Value);
-template <typename T> std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, FString> ToLogString(const T& Value);
+template <typename T> std::enable_if_t<!TModels_V<Meta::COnlineMetadataAvailable, T>, FString> ToLogString(const T& Value);
+template <typename T> std::enable_if_t<TModels_V<Meta::COnlineMetadataAvailable, T>, FString> ToLogString(const T& Value);
 
 template <typename T>
 FString ToLogString(const TArray<T>& Array)
@@ -184,13 +184,13 @@ inline FString ToLogString(FPlatformUserId PlatformUserId)
 }
 
 template<typename T>
-std::enable_if_t<!TModels<Meta::COnlineMetadataAvailable, T>::Value, FString> ToLogString(const T& Value)
+std::enable_if_t<!TModels_V<Meta::COnlineMetadataAvailable, T>, FString> ToLogString(const T& Value)
 {
 	return LexToString(Value);
 }
 
 template<typename T>
-std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, FString> ToLogString(const T& Value)
+std::enable_if_t<TModels_V<Meta::COnlineMetadataAvailable, T>, FString> ToLogString(const T& Value)
 {
 	FString LogString;
 	LogString += TEXT("{ ");

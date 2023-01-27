@@ -474,7 +474,7 @@ public:
 	template<typename T>
 	FORCEINLINE T* GetStructRef()
 	{
-		static_assert(TModels<CStaticStructProvider, T>::Value, "Only USTRUCT types can be passed to GetStructRef");
+		static_assert(TModels_V<CStaticStructProvider, T>, "Only USTRUCT types can be passed to GetStructRef");
 
 		return (T*)(void*)(FVMReflection(*this)[TCHAR_TO_ANSI(*FString::Printf(TEXT("F%s"), *T::StaticStruct()->GetName()))]);
 	}

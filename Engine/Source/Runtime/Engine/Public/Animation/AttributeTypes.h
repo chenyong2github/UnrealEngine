@@ -93,11 +93,11 @@ namespace UE
 				
 				if constexpr (UE::Anim::TAttributeTypeTraits<AttributeType>::IsBlendable)	
 				{
-					static_assert(TModels<CBlendableAttribute, AttributeType>::Value, "Missing function implementations required for Attribute blending");
+					static_assert(TModels_V<CBlendableAttribute, AttributeType>, "Missing function implementations required for Attribute blending");
 
 					if  constexpr (UE::Anim::TAttributeTypeTraits<AttributeType>::RequiresNormalization)
 					{
-						static_assert(TModels<CNormalizedAttribute, AttributeType>::Value, "Missing function implementations required for Attribute normalization");
+						static_assert(TModels_V<CNormalizedAttribute, AttributeType>, "Missing function implementations required for Attribute normalization");
 					}
 					
 					if constexpr (!UE::Anim::TAttributeTypeTraits<AttributeType>::StepInterpolate)
