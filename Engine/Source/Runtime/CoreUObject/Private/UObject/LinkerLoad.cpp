@@ -6728,7 +6728,7 @@ bool FLinkerLoad::SerializeBulkData(FBulkData& BulkData, const FBulkDataSerializ
 {
 	using namespace UE::BulkData::Private;
 
-	if (ShouldSkipBulkData())
+	if (ShouldSkipBulkData() || IsTextFormat())
 	{
 		return false;
 	}
