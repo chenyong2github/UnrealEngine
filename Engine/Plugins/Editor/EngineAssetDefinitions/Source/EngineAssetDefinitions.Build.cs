@@ -17,6 +17,7 @@ public class EngineAssetDefinitions : ModuleRules
 			new string[]
 			{
 				"ContentBrowser",
+				"ContentBrowserData",
 				"AssetDefinition",
 				"UnrealEd",
 				"ToolMenus",
