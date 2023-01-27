@@ -809,6 +809,13 @@ const FMorphVertexBuffer* TGPUSkinVertexFactory<BoneInfluenceType>::GetMorphVert
 	return Data->MorphVertexBufferPool ? &Data->MorphVertexBufferPool->GetMorphVertexBufferForReading(bPrevious) : nullptr;
 }
 
+template <GPUSkinBoneInfluenceType BoneInfluenceType>
+uint32 TGPUSkinVertexFactory<BoneInfluenceType>::GetMorphVertexBufferUpdatedFrameNumber() const
+{
+	check(Data.IsValid());
+	return Data->MorphVertexBufferPool ? Data->MorphVertexBufferPool->GetUpdatedFrameNumber() : 0;
+}
+
 /*-----------------------------------------------------------------------------
 TGPUSkinAPEXClothVertexFactory
 -----------------------------------------------------------------------------*/
@@ -915,9 +922,10 @@ public:
 		const bool bIsMobile = IsMobilePlatform(ShaderPlatform);
 		if (!bIsMobile)
 		{
-			const FMorphVertexBuffer* MorphVertexBuffer = nullptr;
 			const auto* GPUSkinVertexFactory = (const FGPUBaseSkinVertexFactory*)VertexFactory;
-			MorphVertexBuffer = GPUSkinVertexFactory->GetMorphVertexBuffer(!View->Family->bWorldIsPaused);
+			bool bMorphUpdatedThisFrame = (View->Family->FrameNumber == GPUSkinVertexFactory->GetMorphVertexBufferUpdatedFrameNumber());
+			bool bPrevious = !View->Family->bWorldIsPaused && bMorphUpdatedThisFrame;
+			const FMorphVertexBuffer* MorphVertexBuffer = GPUSkinVertexFactory->GetMorphVertexBuffer(bPrevious);
 			ShaderBindings.Add(PreviousMorphBufferParameter, MorphVertexBuffer ? MorphVertexBuffer->GetSRV() : GNullVertexBuffer.VertexBufferSRV.GetReference());
 		}
 	}

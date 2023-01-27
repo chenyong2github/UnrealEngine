@@ -625,6 +625,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 		if(bMorphNeedsUpdate)
 		{
 			UpdateMorphVertexBuffer(RHICmdList, Mode, LOD, LODData, bGPUSkinCacheEnabled, MorphVertexBuffer);
+			LOD.MorphVertexBufferPool.SetUpdatedFrameNumber(FrameNumberToPrepare);
 		}
 	}
 	else

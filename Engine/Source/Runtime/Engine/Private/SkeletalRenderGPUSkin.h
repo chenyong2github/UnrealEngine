@@ -316,7 +316,9 @@ public:
 	void ReleaseResources();
 	SIZE_T GetResourceSize() const;
 	void EnableDoubleBuffer();
-	bool IsDoubleBuffered() const	{ return bDoubleBuffer; }
+	bool IsDoubleBuffered() const					{ return bDoubleBuffer; }
+	void SetUpdatedFrameNumber(uint32 FrameNumber)	{ UpdatedFrameNumber = FrameNumber; }
+	uint32 GetUpdatedFrameNumber() const			{ return UpdatedFrameNumber; }
 	void SetCurrentRevisionNumber(uint32 RevisionNumber);
 	const FMorphVertexBuffer& GetMorphVertexBufferForReading(bool bPrevious) const;
 	FMorphVertexBuffer& GetMorphVertexBufferForWriting();
@@ -332,6 +334,8 @@ private:
 	// RevisionNumber Tracker
 	uint32 PreviousRevisionNumber = 0;
 	uint32 CurrentRevisionNumber = 0;
+	// Frame number of the morph vertex buffer that is last updated
+	uint32 UpdatedFrameNumber = 0;
 };
 
 /**

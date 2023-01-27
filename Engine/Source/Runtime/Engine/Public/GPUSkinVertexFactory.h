@@ -391,6 +391,7 @@ public:
 	/** Morph vertex factory functions */
 	virtual void UpdateMorphVertexStream(const class FMorphVertexBuffer* MorphVertexBuffer) {}
 	virtual const class FMorphVertexBuffer* GetMorphVertexBuffer(bool bPrevious) const { return nullptr; }
+	virtual uint32 GetMorphVertexBufferUpdatedFrameNumber() const { return 0; }
 	/** Cloth vertex factory access. */
 	virtual class FGPUBaseSkinAPEXClothVertexFactory* GetClothVertexFactory() { return nullptr; }
 	virtual class FGPUBaseSkinAPEXClothVertexFactory const* GetClothVertexFactory() const { return nullptr; }
@@ -468,7 +469,7 @@ public:
 	/** FGPUBaseSkinVertexFactory overrides */
 	virtual void UpdateMorphVertexStream(const class FMorphVertexBuffer* MorphVertexBuffer) override;
 	virtual const class FMorphVertexBuffer* GetMorphVertexBuffer(bool bPrevious) const override;
-
+	virtual uint32 GetMorphVertexBufferUpdatedFrameNumber() const override;
 
 	// FRenderResource interface.
 	virtual void InitRHI() override;
