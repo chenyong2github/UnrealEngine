@@ -82,6 +82,9 @@ namespace UE::NavMesh::Private
 
 	static bool bUseTightBoundExpansion = true;
 	static FAutoConsoleVariableRef CVarUseTightBoundExpansion(TEXT("n.UseTightBoundExpansion"), bUseTightBoundExpansion, TEXT("Active by default. Use an expansion of one AgentRadius. Set to false to revert to the previous behavior (2 AgentRadius)."), ECVF_Default);
+
+	static bool bKeepSteepSlopeForSingleVoxelAgent = true;
+	static FAutoConsoleVariableRef CVarKeepSteepSlopeForSingleVoxelAgent(TEXT("n.KeepSteepSlopeForSingleVoxelAgent"), bKeepSteepSlopeForSingleVoxelAgent, TEXT("Active by default. Fix too wide filtering of steep slope in Recast Heightfield filtering when the agent radius is only 1 voxel. Set to false to revert to the previous behavior."), ECVF_Default);
 }
 
 static FOodleDataCompression::ECompressor GNavmeshTileCacheCompressor = FOodleDataCompression::ECompressor::Mermaid;
@@ -2942,7 +2945,8 @@ void FRecastTileGenerator::GenerateRecastFilter(FNavMeshBuildContext& BuildConte
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Navigation_FilterLedgeSpans)
 
-		rcFilterLedgeSpans(&BuildContext, TileConfig.walkableHeight, TileConfig.walkableClimb, *RasterContext.SolidHF);
+		const bool bFilterNeighborSlope = TileConfig.walkableRadius > 1 || !UE::NavMesh::Private::bKeepSteepSlopeForSingleVoxelAgent;
+		rcFilterLedgeSpans(&BuildContext, TileConfig.walkableHeight, TileConfig.walkableClimb, bFilterNeighborSlope, *RasterContext.SolidHF);
 	}
 	if (!TileConfig.bMarkLowHeightAreas)
 	{
@@ -2988,9 +2992,11 @@ ETimeSliceWorkResult FRecastTileGenerator::GenerateRecastFilterTimeSliced(FNavMe
 
 		bool DoIter = true;
 
+		const bool bFilterNeighborSlope = TileConfig.walkableRadius > 1 || !UE::NavMesh::Private::bKeepSteepSlopeForSingleVoxelAgent;
+
 		do
 		{
-			rcFilterLedgeSpans(&BuildContext, TileConfig.walkableHeight, TileConfig.walkableClimb, GenRecastFilterLedgeSpansYStart, TileTimeSliceSettings.FilterLedgeSpansMaxYProcess, *RasterContext.SolidHF);
+			rcFilterLedgeSpans(&BuildContext, TileConfig.walkableHeight, TileConfig.walkableClimb, bFilterNeighborSlope, GenRecastFilterLedgeSpansYStart, TileTimeSliceSettings.FilterLedgeSpansMaxYProcess, *RasterContext.SolidHF);
 
 			GenRecastFilterLedgeSpansYStart += TileTimeSliceSettings.FilterLedgeSpansMaxYProcess;
 

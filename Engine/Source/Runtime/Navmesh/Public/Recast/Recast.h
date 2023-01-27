@@ -1077,11 +1077,12 @@ NAVMESH_API void rcFilterLowHangingWalkableObstacles(rcContext* ctx, const int w
 ///  								be considered walkable. [Limit: >= 3] [Units: vx]
 ///  @param[in]		walkableClimb	Maximum ledge height that is considered to still be traversable. 
 ///  								[Limit: >=0] [Units: vx]
+///  @param[in]		filterNeighborSlope If set, a span having neighbors not within the walkable climb range will be marked as non walkable. //UE
 ///  @param[in,out]	solid			A fully built heightfield.  (All spans have been added.)
 ///  @param[in]		yStart			y coord to start at
 ///  @param[in]		maxYProcess	    Max y coords to process (yStart + maxYProcess can be more than solid.height and will be capped to solid.height)
 NAVMESH_API void rcFilterLedgeSpans(rcContext* ctx, const int walkableHeight,
-						const int walkableClimb, const int yStart, const int maxYProcess, rcHeightfield& solid);
+						const int walkableClimb, const bool filterNeighborSlope, const int yStart, const int maxYProcess, rcHeightfield& solid); //UE
 
 /// Marks spans that are ledges as not-walkable. 
 ///  @ingroup recast
@@ -1090,9 +1091,10 @@ NAVMESH_API void rcFilterLedgeSpans(rcContext* ctx, const int walkableHeight,
 ///  								be considered walkable. [Limit: >= 3] [Units: vx]
 ///  @param[in]		walkableClimb	Maximum ledge height that is considered to still be traversable. 
 ///  								[Limit: >=0] [Units: vx]
+///  @param[in]		filterNeighborSlope If set, a span having neighbors not within the walkable climb range will be marked as non walkable. //UE
 ///  @param[in,out]	solid			A fully built heightfield.  (All spans have been added.)
 NAVMESH_API void rcFilterLedgeSpans(rcContext* ctx, const int walkableHeight,
-						const int walkableClimb, rcHeightfield& solid);
+						const int walkableClimb, const bool filterNeighborSlope, rcHeightfield& solid); //UE
 
 /// Marks walkable spans as not walkable if the clearance above the span is less than the specified height. 
 ///  @ingroup recast
