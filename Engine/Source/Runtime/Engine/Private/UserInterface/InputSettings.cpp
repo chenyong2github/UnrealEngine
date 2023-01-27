@@ -516,6 +516,11 @@ FHardwareDeviceIdentifier::FHardwareDeviceIdentifier(const FName InClassName, co
 
 }
 
+uint32 GetTypeHash(const FHardwareDeviceIdentifier& InDevice)
+{
+	return HashCombine(GetTypeHash(InDevice.InputClassName), GetTypeHash(InDevice.HardwareDeviceIdentifier));
+}
+
 bool FHardwareDeviceIdentifier::IsValid() const
 {
 	return InputClassName.IsValid() && HardwareDeviceIdentifier.IsValid();

@@ -330,6 +330,8 @@ struct ENGINE_API FHardwareDeviceIdentifier
 	{
 		return Other.InputClassName == InputClassName && Other.HardwareDeviceIdentifier == HardwareDeviceIdentifier;
 	}
+
+	ENGINE_API friend uint32 GetTypeHash(const FHardwareDeviceIdentifier& InDevice);
 };
 
 /** Per-Platform input options */
