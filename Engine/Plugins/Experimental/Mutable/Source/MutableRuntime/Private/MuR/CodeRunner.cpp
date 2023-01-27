@@ -83,7 +83,7 @@ namespace mu
 		const TSharedPtr<const Model>& pModel,
 		const Parameters* pParams,
 		OP::ADDRESS at,
-		uint32 lodMask, uint8 executionOptions, FScheduledOp::EType Type )
+		uint32 lodMask, uint8 executionOptions, int32 InImageLOD, FScheduledOp::EType Type )
 		: m_pSettings(pSettings), m_pSystem(s), m_pModel(pModel), m_pParams(pParams), m_lodMask(lodMask)
 	{
 		ScheduledStagePerOp.resize(m_pModel->GetPrivate()->m_program.m_opAddress.Num());
@@ -93,6 +93,8 @@ namespace mu
 
 		FProgram& program = m_pModel->GetPrivate()->m_program;
 		m_romPendingOps.SetNum(program.m_roms.Num());
+
+		ImageLOD = InImageLOD;
 
 		// Push the root operation
 		FScheduledOp rootOp;

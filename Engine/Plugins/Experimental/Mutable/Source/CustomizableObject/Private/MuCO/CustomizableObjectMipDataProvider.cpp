@@ -101,7 +101,7 @@ namespace impl
 			{
 				MUTABLE_CPUPROFILER_SCOPE(GetImage);
 
-				Image = System->GetImage(InstanceID, MipImageID, OperationData->MipsToSkip);
+				Image = System->GetImage(InstanceID, MipImageID, OperationData->MipsToSkip, ImageRef.LOD);
 			}
 
 			check(Image);

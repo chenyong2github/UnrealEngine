@@ -1948,8 +1948,12 @@ namespace mu
 			Ptr<RangeIndex> Index = BuildCurrentOpRangeIndex(item, m_pParams, m_pModel.Get(), args.variable);
 
 			const EXTERNAL_IMAGE_ID Id = m_pParams->GetImageValue(args.variable, Index);
-			const uint8 MipmapsToSkip = item.ExecutionOptions;
-			
+
+			check(ImageLOD < TNumericLimits<uint8>::Max() && ImageLOD >= 0);
+			check(ImageLOD + static_cast<int32>(item.ExecutionOptions) < TNumericLimits<uint8>::Max());
+
+			const uint8 MipmapsToSkip = item.ExecutionOptions + static_cast<uint8>(ImageLOD);
+
 			Issued = MakeShared<FImageExternalLoadTask>(item, MipmapsToSkip, Id);
 
 			break;
@@ -2062,6 +2066,5 @@ namespace mu
 
 		return Issued;
 	}
-
 
 } // namespace mu

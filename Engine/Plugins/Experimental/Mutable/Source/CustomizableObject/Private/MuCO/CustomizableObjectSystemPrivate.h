@@ -317,6 +317,7 @@ struct FInstanceUpdateData
 		uint16 FullImageSizeX, FullImageSizeY;
 		mu::ImagePtrConst Image;
 		TWeakObjectPtr<UTexture2D> Cached;
+		int32 LOD;
 	};
 
 	struct FVector

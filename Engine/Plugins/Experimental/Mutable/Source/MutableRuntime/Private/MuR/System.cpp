@@ -290,7 +290,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	ImagePtrConst System::GetImage(Instance::ID instanceID, RESOURCE_ID imageId, int32 MipsToSkip)
+	ImagePtrConst System::GetImage(Instance::ID instanceID, RESOURCE_ID imageId, int32 MipsToSkip, int32 InImageLOD)
 	{
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 		MUTABLE_CPUPROFILER_SCOPE(SystemGetImage);
@@ -309,7 +309,7 @@ namespace mu
 			{
 				pResult = m_pD->BuildImage(pLiveInstance->m_pModel,
 					pLiveInstance->m_pOldParameters.get(),
-					res.m_rootAddress, MipsToSkip);
+					res.m_rootAddress, MipsToSkip, InImageLOD);
 
 				// We always need ot return something valid.
 				if (!pResult)
@@ -372,7 +372,7 @@ namespace mu
 				if (GetOpDataType(opType) == DT_IMAGE)
 				{
 					int8 executionOptions = 0;
-					CodeRunner Runner(m_pD->m_pSettings, m_pD, pLiveInstance->m_pModel, pLiveInstance->m_pOldParameters.get(), at, System::AllLODs, executionOptions, FScheduledOp::EType::ImageDesc);
+					CodeRunner Runner(m_pD->m_pSettings, m_pD, pLiveInstance->m_pModel, pLiveInstance->m_pOldParameters.get(), at, System::AllLODs, executionOptions, 0, FScheduledOp::EType::ImageDesc);
 					Runner.Run();
 					Runner.GetImageDescResult(OutDesc);
 				}
@@ -483,7 +483,7 @@ namespace mu
 		if (imageAddress)
 		{
 			m_pD->BeginBuild(pModel);
-			pResult = m_pD->BuildImage( pModel, pParams.get(), imageAddress, 0 );
+			pResult = m_pD->BuildImage( pModel, pParams.get(), imageAddress, 0, 0 );
 			m_pD->EndBuild();
 		}
 
@@ -639,10 +639,10 @@ namespace mu
 
 	//---------------------------------------------------------------------------------------------
 	void System::Private::RunCode(const TSharedPtr<const Model>& InModel,
-		const Parameters* InParameters, OP::ADDRESS InCodeRoot, uint32 InLODs, uint8 executionOptions)
+		const Parameters* InParameters, OP::ADDRESS InCodeRoot, uint32 InLODs, uint8 executionOptions, int32 InImageLOD)
 	{
 		CodeRunner Runner(m_pSettings, this, InModel, InParameters, InCodeRoot, InLODs, 
-			executionOptions, FScheduledOp::EType::Full);
+			executionOptions, InImageLOD, FScheduledOp::EType::Full);
 		Runner.Run();
 		bUnrecoverableError = Runner.bUnrecoverableError;
 	}
@@ -739,13 +739,13 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	Ptr<const Image> System::Private::BuildImage(const TSharedPtr<const Model>& pModel,
 		const Parameters* pParams,
-		OP::ADDRESS at, int MipsToSkip)
+		OP::ADDRESS at, int32 MipsToSkip, int32 InImageLOD)
 	{
 		mu::OP_TYPE opType = pModel->GetPrivate()->m_program.GetOpType(at);
 		if (GetOpDataType(opType) == DT_IMAGE)
 		{
 			m_memory->ClearCacheLayer0();
-			RunCode(pModel, pParams, at, System::AllLODs, uint8(MipsToSkip));
+			RunCode(pModel, pParams, at, System::AllLODs, uint8(MipsToSkip), InImageLOD);
 			if (bUnrecoverableError)
 			{
 				return nullptr;

@@ -44,7 +44,7 @@ namespace  mu
     public:
 		CodeRunner(const SettingsPtrConst&, class System::Private*, 
 			const TSharedPtr<const Model>&, const Parameters* pParams,
-			OP::ADDRESS at, uint32 lodMask, uint8 executionOptions, FScheduledOp::EType );
+			OP::ADDRESS at, uint32 lodMask, uint8 executionOptions, int32 InImageLOD, FScheduledOp::EType );
 
     protected:
 
@@ -114,6 +114,9 @@ namespace  mu
         //! It is not released until no operations are pending.
 		TArray< FScheduledOpData > m_heapData;
 		TArray< FImageDesc > m_heapImageDesc;
+
+		//! Only used for correct mip skipping with external images. Is the LOD for which the image is build.
+		int32 ImageLOD;
 
 	public:
 

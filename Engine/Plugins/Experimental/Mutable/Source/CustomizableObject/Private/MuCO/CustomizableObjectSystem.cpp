@@ -1350,6 +1350,8 @@ namespace impl
 							Image.ImageID = Instance->GetImageId(MutableLODIndex, ComponentIndex, InstanceSurfaceIndex, ImageIndex);
 							Image.FullImageSizeX = 0;
 							Image.FullImageSizeY = 0;
+							Image.LOD = MutableLODIndex;
+
 						}
 
 						// Vectors
@@ -1435,7 +1437,7 @@ namespace impl
 				int32 MinMipsInImage = FMath::Min(FullLODCount, UTexture::GetStaticMinTextureResidentMipCount());
 				int32 MaxMipsToSkip = FullLODCount - MinMipsInImage;
 				int32 MipsToSkip = FMath::Min(MaxMipsToSkip, OperationData->MipsToSkip);
-				Image.Image = System->GetImage(OperationData->InstanceID, Image.ImageID, MipsToSkip);
+				Image.Image = System->GetImage(OperationData->InstanceID, Image.ImageID, MipsToSkip, Image.LOD);
 
 				// We need one mip or the complete chain. Otherwise there was a bug.
 				check(Image.Image);
