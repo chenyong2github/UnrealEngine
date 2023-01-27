@@ -40,6 +40,7 @@ public:
 #if WITH_EDITOR
 	virtual void SetNumRows(uint32 NumRows) {}
 	virtual void DeleteRows(const TArray<uint32> & RowIndices) {}
+	virtual void MoveRow(int SourceIndex, int TargetIndex) {}
 	
 	virtual UScriptStruct* GetInputBaseType() const { return nullptr; };
 	virtual const UScriptStruct* GetInputType() const { return nullptr; };
@@ -57,6 +58,13 @@ public:
 		{\
 			RowValues.RemoveAt(Index);\
 		}\
+	}\
+	virtual void MoveRow(int SourceRowIndex, int TargetRowIndex)\
+	{\
+		auto RowData = RowValues[SourceRowIndex];\
+    	RowValues.RemoveAt(SourceRowIndex);\
+    	if (SourceRowIndex < TargetRowIndex) { TargetRowIndex--; }\
+    	RowValues.Insert(RowData, TargetRowIndex);\
 	}\
 	virtual UScriptStruct* GetInputBaseType() const override { return ParameterType::StaticStruct(); };\
 	virtual const UScriptStruct* GetInputType() const override { return InputValue.IsValid() ? InputValue.GetScriptStruct() : nullptr; };\

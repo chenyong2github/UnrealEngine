@@ -98,6 +98,7 @@ namespace UE::ChooserEditor
 		void UpdateTableRows();
 		void SelectColumn(int Index);
 		void DeleteColumn(int Index);
+		void MoveRow(int SourceRowIndex, int TargetIndex);
 	private:
 
 		FReply SelectRootProperties();

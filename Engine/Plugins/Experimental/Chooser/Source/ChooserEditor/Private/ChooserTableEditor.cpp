@@ -32,6 +32,7 @@
 #include "IDetailCustomization.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
+#include "Widgets/Layout/SSeparator.h"
 
 #define LOCTEXT_NAMESPACE "ChooserEditor"
 
@@ -408,7 +409,22 @@ public:
 				}),
 				&CacheBorder
 				);
-				return ResultWidget.ToSharedRef();
+				
+				return SNew(SOverlay)
+                		+ SOverlay::Slot()
+                		[
+                			ResultWidget.ToSharedRef()
+                		]
+                		+ SOverlay::Slot().VAlign(VAlign_Bottom)
+                		[
+                			SNew(SSeparator).SeparatorImage(FCoreStyle::Get().GetBrush("FocusRectangle"))
+                			.Visibility_Lambda([this]() { return bDragActive && !bDropAbove ? EVisibility::Visible : EVisibility::Hidden; })
+                		]
+                		+ SOverlay::Slot().VAlign(VAlign_Top)
+                		[
+                			SNew(SSeparator).SeparatorImage(FCoreStyle::Get().GetBrush("FocusRectangle"))
+                			.Visibility_Lambda([this]() { return bDragActive && bDropAbove ? EVisibility::Visible : EVisibility::Hidden; })
+                		];
 			}
 			else
 			{
@@ -436,14 +452,60 @@ public:
 			}
 		}
 		else if (RowIndex->RowIndex == Chooser->ResultsStructs.Num())
-        {
+		{
 			// on the row past the end, show an Add button in the result column
 			if (ColumnName == Result)
 			{
 				return Editor->GetCreateRowComboButton().ToSharedRef();
 			}
 		}
+
 		return SNullWidget::NullWidget;
+	}
+	
+	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
+	{
+		if (TSharedPtr<FChooserRowDragDropOp> Operation = DragDropEvent.GetOperationAs<FChooserRowDragDropOp>())
+		{
+			bDragActive = true;
+			float Center = MyGeometry.Position.Y + MyGeometry.Size.Y;
+			bDropAbove = DragDropEvent.GetScreenSpacePosition().Y < Center;
+		}
+	}
+	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override
+	{
+		bDragActive = false;
+	}
+	
+	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
+	{
+		if (TSharedPtr<FChooserRowDragDropOp> Operation = DragDropEvent.GetOperationAs<FChooserRowDragDropOp>())
+		{
+			float Center = MyGeometry.AbsolutePosition.Y + MyGeometry.Size.Y/2;
+			bDropAbove = DragDropEvent.GetScreenSpacePosition().Y < Center;
+			return FReply::Handled();
+		}
+		return FReply::Unhandled();
+	}
+	
+    virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
+	{
+		if (TSharedPtr<FChooserRowDragDropOp> Operation = DragDropEvent.GetOperationAs<FChooserRowDragDropOp>())
+		{
+			if (Chooser == Operation->ChooserEditor->GetChooser())
+			{
+				if (bDropAbove)
+				{
+					Editor->MoveRow(Operation->RowIndex, RowIndex->RowIndex);
+				}
+				else
+				{
+					Editor->MoveRow(Operation->RowIndex, RowIndex->RowIndex+1);
+				}
+				return FReply::Handled();		
+			}
+		}
+		return FReply::Unhandled();
 	}
 
 private:
@@ -451,6 +513,8 @@ private:
 	UChooserTable* Chooser;
 	FChooserTableEditor* Editor;
 	TSharedPtr<SBorder> CacheBorder;
+	bool bDragActive = false;
+	bool bDropAbove = false;
 };
 
 
@@ -473,6 +537,31 @@ FReply FChooserTableEditor::SelectRootProperties()
 	return FReply::Handled();
 }
 
+void FChooserTableEditor::MoveRow(int SourceRowIndex, int TargetRowIndex)
+{
+	UChooserTable* Chooser = Cast<UChooserTable>(EditingObjects[0]);
+	TargetRowIndex = FMath::Min(TargetRowIndex,Chooser->ResultsStructs.Num());
+	
+	const FScopedTransaction Transaction(LOCTEXT("Move Row", "Move Row"));
+	
+	Chooser->Modify(true);
+
+	for (FInstancedStruct& ColStruct : Chooser->ColumnsStructs)
+	{
+		FChooserColumnBase& Column = ColStruct.GetMutable<FChooserColumnBase>();
+		Column.MoveRow(SourceRowIndex, TargetRowIndex);
+	}
+	
+	FInstancedStruct Result = Chooser->ResultsStructs[SourceRowIndex];
+	Chooser->ResultsStructs.RemoveAt(SourceRowIndex);
+	if (SourceRowIndex < TargetRowIndex)
+	{
+		TargetRowIndex--;
+	}
+	Chooser->ResultsStructs.Insert(Result, TargetRowIndex);
+
+	UpdateTableRows();
+}
 
 void FChooserTableEditor::UpdateTableColumns()
 {

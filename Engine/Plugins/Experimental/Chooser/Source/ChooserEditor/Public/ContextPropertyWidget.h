@@ -35,8 +35,8 @@ namespace UE::ChooserEditor
 	
 		Args.OnCanAcceptPropertyOrChildren = FOnCanBindProperty::CreateLambda([](FProperty* InProperty)
 			{
-				// Make only editor visible properties visible for binding.
-				return InProperty->HasAnyPropertyFlags(CPF_Edit);
+				// Make only blueprint visible properties visible for binding.
+				return InProperty->HasAnyPropertyFlags(CPF_BlueprintVisible);
 			});	
 	
 		Args.OnAddBinding = FOnAddBinding::CreateLambda([TransactionObject, ContextProperty](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
