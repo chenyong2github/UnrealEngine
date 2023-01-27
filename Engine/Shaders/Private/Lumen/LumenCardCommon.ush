@@ -41,7 +41,7 @@ struct FLumenCardData
 #endif
 
 // Stride of a single cards's data in float4's, must match C++
-#define LUMEN_CARD_DATA_STRIDE 9
+#define LUMEN_CARD_DATA_STRIDE 10
 #define LUMEN_CARD_PAGE_DATA_STRIDE 5
 
 // Heightfields are a special case and they always have only one card
@@ -63,35 +63,39 @@ FLumenCardData GetLumenCardData(uint CardId)
 	float4 Vector6 = LumenCardDataBuffer[BaseOffset + 6];
 	float4 Vector7 = LumenCardDataBuffer[BaseOffset + 7];
 	float4 Vector8 = LumenCardDataBuffer[BaseOffset + 8];
+	float4 Vector9 = LumenCardDataBuffer[BaseOffset + 9];
 
-	CardData.WorldToLocalRotation[0] = Vector0.xyz;
-	CardData.WorldToLocalRotation[1] = Vector1.xyz;
-	CardData.WorldToLocalRotation[2] = Vector2.xyz;
-	CardData.Origin = float3(Vector0.w, Vector1.w, Vector2.w);
+	float3 TilePosition = Vector0.xyz;
+	float3 RelativeWorldPosition = float3(Vector1.w, Vector2.w, Vector3.w);
 
-	CardData.LocalExtent = abs(Vector3.xyz);
+	CardData.WorldToLocalRotation[0] = Vector1.xyz;
+	CardData.WorldToLocalRotation[1] = Vector2.xyz;
+	CardData.WorldToLocalRotation[2] = Vector3.xyz;
+	CardData.Origin = LWCHackToFloat(MakeLWCVector3(TilePosition, RelativeWorldPosition)); // LUMEN_LWC_TODO
 
-	uint Packed3W = asuint(Vector3.w);
-	CardData.ResLevelToResLevelXYBias.x = (Packed3W >> 0) & 0xFF;
-	CardData.ResLevelToResLevelXYBias.y = (Packed3W >> 8) & 0xFF;
-	CardData.AxisAlignedDirection = (Packed3W >> 16) & 0xF;
-	CardData.LightingChannelMask = (Packed3W >> 20) & 0xF;
-	CardData.bVisible = (Packed3W >> 24) & 1;
-	CardData.bHeightfield = (Packed3W >> 25) & 1;
+	CardData.LocalExtent = abs(Vector4.xyz);
+
+	uint Packed4W = asuint(Vector4.w);
+	CardData.ResLevelToResLevelXYBias.x = (Packed4W >> 0) & 0xFF;
+	CardData.ResLevelToResLevelXYBias.y = (Packed4W >> 8) & 0xFF;
+	CardData.AxisAlignedDirection = (Packed4W >> 16) & 0xF;
+	CardData.LightingChannelMask = (Packed4W >> 20) & 0xF;
+	CardData.bVisible = (Packed4W >> 24) & 1;
+	CardData.bHeightfield = (Packed4W >> 25) & 1;
 	 
-	CardData.SizeInPages.x = (asuint(Vector4.x) >> 0) & 0xFFFF;
-	CardData.SizeInPages.y = (asuint(Vector4.x) >> 16) & 0xFFFF;
-	CardData.PageTableOffset = asuint(Vector4.y);
-	CardData.HiResSizeInPages.x = (asuint(Vector4.z) >> 0) & 0xFFFF;
-	CardData.HiResSizeInPages.y = (asuint(Vector4.z) >> 16) & 0xFFFF;
-	CardData.HiResPageTableOffset = asuint(Vector4.w);
+	CardData.SizeInPages.x = (asuint(Vector5.x) >> 0) & 0xFFFF;
+	CardData.SizeInPages.y = (asuint(Vector5.x) >> 16) & 0xFFFF;
+	CardData.PageTableOffset = asuint(Vector5.y);
+	CardData.HiResSizeInPages.x = (asuint(Vector5.z) >> 0) & 0xFFFF;
+	CardData.HiResSizeInPages.y = (asuint(Vector5.z) >> 16) & 0xFFFF;
+	CardData.HiResPageTableOffset = asuint(Vector5.w);
 
-	CardData.MeshCardsToLocalRotation[0] = Vector5.xyz;
-	CardData.MeshCardsToLocalRotation[1] = Vector6.xyz;
-	CardData.MeshCardsToLocalRotation[2] = Vector7.xyz;
-	CardData.MeshCardsOrigin = float3(Vector5.w, Vector6.w, Vector7.w);
-	CardData.MeshCardsExtent = Vector8.xyz;
-	CardData.TexelSize = Vector8.w;
+	CardData.MeshCardsToLocalRotation[0] = Vector6.xyz;
+	CardData.MeshCardsToLocalRotation[1] = Vector7.xyz;
+	CardData.MeshCardsToLocalRotation[2] = Vector8.xyz;
+	CardData.MeshCardsOrigin = float3(Vector6.w, Vector7.w, Vector8.w);
+	CardData.MeshCardsExtent = Vector9.xyz;
+	CardData.TexelSize = Vector9.w;
 
 	return CardData;
 }
@@ -183,7 +187,7 @@ struct FCardVSToPS
 };
 
 // Stride of mesh cards data, must match C++
-#define LUMEN_MESH_CARDS_DATA_STRIDE 7
+#define LUMEN_MESH_CARDS_DATA_STRIDE 6
 #define LUMEN_INVALID_CARD_INDEX 0xFFFFFFFF
 #define LUMEN_INVALID_HEIGHTFIELD_OBJECT_INDEX 0xFFFFFFFF
 #define LUMEN_INVALID_MESH_CARDS_INDEX 0xFFFFFFFF
@@ -192,9 +196,6 @@ struct FLumenMeshCardsData
 {
 	float3 WorldOrigin;
 	float3x3 WorldToLocalRotation;
-
-	float3 MinMeshCardsPosition;
-	float3 MaxMeshCardsPosition;
 
 	uint NumCards;
 	uint CardOffset;
@@ -215,31 +216,29 @@ FLumenMeshCardsData GetLumenMeshCardsData(uint MeshCardsId)
 	float4 V0 = LumenCardScene.MeshCardsData[BaseOffset + 0];
 	float4 V1 = LumenCardScene.MeshCardsData[BaseOffset + 1];
 	float4 V2 = LumenCardScene.MeshCardsData[BaseOffset + 2];
+	float4 V3 = LumenCardScene.MeshCardsData[BaseOffset + 3];
 
-	MeshCardsData.WorldToLocalRotation[0] = V0.xyz;
-	MeshCardsData.WorldToLocalRotation[1] = V1.xyz;
-	MeshCardsData.WorldToLocalRotation[2] = V2.xyz;
-	MeshCardsData.WorldOrigin = float3(V0.w, V1.w, V2.w);
+	float3 TilePosition = V0.xyz;
+	float3 RelativeWorldPosition = float3(V1.w, V2.w, V3.w);
 
-	uint4 V3 = asuint(LumenCardScene.MeshCardsData[BaseOffset + 3]);
+	MeshCardsData.WorldToLocalRotation[0] = V1.xyz;
+	MeshCardsData.WorldToLocalRotation[1] = V2.xyz;
+	MeshCardsData.WorldToLocalRotation[2] = V3.xyz;
+	MeshCardsData.WorldOrigin = LWCHackToFloat(MakeLWCVector3(TilePosition, RelativeWorldPosition)); // LUMEN_LWC_TODO
+
 	uint4 V4 = asuint(LumenCardScene.MeshCardsData[BaseOffset + 4]);
+	uint4 V5 = asuint(LumenCardScene.MeshCardsData[BaseOffset + 5]);
 
-	MeshCardsData.CardOffset = V3.x;
-	MeshCardsData.NumCards = V3.y & 0xFFFF;
-	MeshCardsData.bHeightfield = V3.y & 0x10000 ? true : false;
-	MeshCardsData.bMostlyTwoSided = V3.y & 0x20000 ? true : false;
-	MeshCardsData.CardLookup[0] = V3.z;
-	MeshCardsData.CardLookup[1] = V3.w;
-	MeshCardsData.CardLookup[2] = V4.x;
-	MeshCardsData.CardLookup[3] = V4.y;
-	MeshCardsData.CardLookup[4] = V4.z;
-	MeshCardsData.CardLookup[5] = V4.w;
-
-	float4 V5 = LumenCardScene.MeshCardsData[BaseOffset + 5];
-	float4 V6 = LumenCardScene.MeshCardsData[BaseOffset + 6];
-
-	MeshCardsData.MinMeshCardsPosition = V5.xyz;
-	MeshCardsData.MaxMeshCardsPosition = V6.xyz;
+	MeshCardsData.CardOffset = V4.x;
+	MeshCardsData.NumCards = V4.y & 0xFFFF;
+	MeshCardsData.bHeightfield = V4.y & 0x10000 ? true : false;
+	MeshCardsData.bMostlyTwoSided = V4.y & 0x20000 ? true : false;
+	MeshCardsData.CardLookup[0] = V4.z;
+	MeshCardsData.CardLookup[1] = V4.w;
+	MeshCardsData.CardLookup[2] = V5.x;
+	MeshCardsData.CardLookup[3] = V5.y;
+	MeshCardsData.CardLookup[4] = V5.z;
+	MeshCardsData.CardLookup[5] = V5.w;
 
 	return MeshCardsData;
 }

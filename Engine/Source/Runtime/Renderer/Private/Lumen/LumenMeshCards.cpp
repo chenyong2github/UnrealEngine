@@ -147,7 +147,7 @@ class FLumenCardGPUData
 {
 public:
 	// Must match usf
-	enum { DataStrideInFloat4s = 9 };
+	enum { DataStrideInFloat4s = 10 };
 	enum { DataStrideInBytes = DataStrideInFloat4s * sizeof(FVector4f) };
 
 	static void PackSurfaceMipMap(const FLumenCard& Card, int32 ResLevel, uint32& PackedSizeInPages, uint32& PackedPageTableOffset)
@@ -171,9 +171,13 @@ public:
 	{
 		// Note: layout must match GetLumenCardData in usf
 
-		OutData[0] = FVector4f(Card.WorldOBB.AxisX[0], Card.WorldOBB.AxisY[0], Card.WorldOBB.AxisZ[0], Card.WorldOBB.Origin.X); // LWC_TODO
-		OutData[1] = FVector4f(Card.WorldOBB.AxisX[1], Card.WorldOBB.AxisY[1], Card.WorldOBB.AxisZ[1], Card.WorldOBB.Origin.Y); // LWC_TODO
-		OutData[2] = FVector4f(Card.WorldOBB.AxisX[2], Card.WorldOBB.AxisY[2], Card.WorldOBB.AxisZ[2], Card.WorldOBB.Origin.Z); // LWC_TODO
+		const FLargeWorldRenderPosition WorldPosition(Card.WorldOBB.Origin);
+		const FVector3f Offset = WorldPosition.GetOffset();
+
+		OutData[0] = WorldPosition.GetTile();
+		OutData[1] = FVector4f(Card.WorldOBB.AxisX[0], Card.WorldOBB.AxisY[0], Card.WorldOBB.AxisZ[0], Offset.X);
+		OutData[2] = FVector4f(Card.WorldOBB.AxisX[1], Card.WorldOBB.AxisY[1], Card.WorldOBB.AxisZ[1], Offset.Y);
+		OutData[3] = FVector4f(Card.WorldOBB.AxisX[2], Card.WorldOBB.AxisY[2], Card.WorldOBB.AxisZ[2], Offset.Z);
 
 		const FIntPoint ResLevelBias = Card.ResLevelToResLevelXYBias();
 		const uint32 LightingChannelMask = InPrimitiveGroup ? InPrimitiveGroup->LightingChannelMask : UINT32_MAX;
@@ -186,8 +190,8 @@ public:
 		Packed3W |= Card.bVisible && Card.IsAllocated() ? (1 << 24) : 0;
 		Packed3W |= Card.bHeightfield && Card.IsAllocated() ? (1 << 25) : 0;
 
-		OutData[3] = FVector4f(Card.WorldOBB.Extent.X, Card.WorldOBB.Extent.Y, Card.WorldOBB.Extent.Z, 0.0f);
-		OutData[3].W = *((float*)&Packed3W);
+		OutData[4] = FVector4f(Card.WorldOBB.Extent.X, Card.WorldOBB.Extent.Y, Card.WorldOBB.Extent.Z, 0.0f);
+		OutData[4].W = *((float*)&Packed3W);
 
 		// Map low-res level for diffuse
 		uint32 PackedSizeInPages = 0;
@@ -199,10 +203,10 @@ public:
 		uint32 PackedHiResPageTableOffset = 0;
 		PackSurfaceMipMap(Card, Card.MaxAllocatedResLevel, PackedHiResSizeInPages, PackedHiResPageTableOffset);
 
-		OutData[4].X = *((float*)&PackedSizeInPages);
-		OutData[4].Y = *((float*)&PackedPageTableOffset);
-		OutData[4].Z = *((float*)&PackedHiResSizeInPages);
-		OutData[4].W = *((float*)&PackedHiResPageTableOffset);
+		OutData[5].X = *((float*)&PackedSizeInPages);
+		OutData[5].Y = *((float*)&PackedPageTableOffset);
+		OutData[5].Z = *((float*)&PackedHiResSizeInPages);
+		OutData[5].W = *((float*)&PackedHiResPageTableOffset);
 
 		float AverageTexelSize = 100.0f;
 		if (Card.IsAllocated())
@@ -212,19 +216,19 @@ public:
 			AverageTexelSize = 0.5f * (Card.MeshCardsOBB.Extent.X / MipMapDesc.Resolution.X + Card.MeshCardsOBB.Extent.Y / MipMapDesc.Resolution.Y);
 		}
 
-		OutData[5] = FVector4f(Card.MeshCardsOBB.AxisX[0], Card.MeshCardsOBB.AxisY[0], Card.MeshCardsOBB.AxisZ[0], Card.MeshCardsOBB.Origin.X);
-		OutData[6] = FVector4f(Card.MeshCardsOBB.AxisX[1], Card.MeshCardsOBB.AxisY[1], Card.MeshCardsOBB.AxisZ[1], Card.MeshCardsOBB.Origin.Y);
-		OutData[7] = FVector4f(Card.MeshCardsOBB.AxisX[2], Card.MeshCardsOBB.AxisY[2], Card.MeshCardsOBB.AxisZ[2], Card.MeshCardsOBB.Origin.Z);
-		OutData[8] = FVector4f(Card.MeshCardsOBB.Extent, AverageTexelSize);
+		OutData[6] = FVector4f(Card.MeshCardsOBB.AxisX[0], Card.MeshCardsOBB.AxisY[0], Card.MeshCardsOBB.AxisZ[0], Card.MeshCardsOBB.Origin.X);
+		OutData[7] = FVector4f(Card.MeshCardsOBB.AxisX[1], Card.MeshCardsOBB.AxisY[1], Card.MeshCardsOBB.AxisZ[1], Card.MeshCardsOBB.Origin.Y);
+		OutData[8] = FVector4f(Card.MeshCardsOBB.AxisX[2], Card.MeshCardsOBB.AxisY[2], Card.MeshCardsOBB.AxisZ[2], Card.MeshCardsOBB.Origin.Z);
+		OutData[9] = FVector4f(Card.MeshCardsOBB.Extent, AverageTexelSize);
 
-		static_assert(DataStrideInFloat4s == 9, "Data stride doesn't match");
+		static_assert(DataStrideInFloat4s == 10, "Data stride doesn't match");
 	}
 };
 
 struct FLumenMeshCardsGPUData
 {
 	// Must match LUMEN_MESH_CARDS_DATA_STRIDE in LumenCardCommon.ush
-	enum { DataStrideInFloat4s = 7 };
+	enum { DataStrideInFloat4s = 6 };
 	enum { DataStrideInBytes = DataStrideInFloat4s * 16 };
 
 	static void FillData(const class FLumenMeshCards& RESTRICT MeshCards, FVector4f* RESTRICT OutData);
@@ -233,10 +237,14 @@ struct FLumenMeshCardsGPUData
 void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards, FVector4f* RESTRICT OutData)
 {
 	// Note: layout must match GetLumenMeshCardsData in usf
-	const FVector WorldOrigin = MeshCards.LocalToWorld.GetOrigin();
-	OutData[0] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::X), WorldOrigin.X)); // LWC_TODO
-	OutData[1] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::Y), WorldOrigin.Y)); // LWC_TODO
-	OutData[2] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::Z), WorldOrigin.Z)); // LWC_TODO
+
+	const FLargeWorldRenderPosition WorldOrigin(MeshCards.LocalToWorld.GetOrigin());
+	const FVector3f WorldOriginOffset = WorldOrigin.GetOffset();
+
+	OutData[0] = WorldOrigin.GetTile();
+	OutData[1] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::X), WorldOriginOffset.X));
+	OutData[2] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::Y), WorldOriginOffset.Y));
+	OutData[3] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::Z), WorldOriginOffset.Z));
 
 	uint32 PackedData[4];
 	PackedData[0] = MeshCards.FirstCardIndex;
@@ -245,22 +253,15 @@ void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards,
 	PackedData[1] |= MeshCards.bMostlyTwoSided ? 0x20000 : 0;
 	PackedData[2] = MeshCards.CardLookup[0];
 	PackedData[3] = MeshCards.CardLookup[1];
-	OutData[3] = *(FVector4f*)&PackedData;
+	OutData[4] = *(FVector4f*)&PackedData;
 
 	PackedData[0] = MeshCards.CardLookup[2];
 	PackedData[1] = MeshCards.CardLookup[3];
 	PackedData[2] = MeshCards.CardLookup[4];
 	PackedData[3] = MeshCards.CardLookup[5];
-	OutData[4] = *(FVector4f*)&PackedData;
+	OutData[5] = *(FVector4f*)&PackedData;
 
-	// Small (world space) epsilon to handle arithmetic errors during surface cache sampling
-	const float SamplingEps = 0.01f;
-	const FVector3f MinMeshCardsPosition = FVector3f(MeshCards.LocalBounds.Min) * MeshCards.LocalToWorldScale + SamplingEps;
-	const FVector3f MaxMeshCardsPosition = FVector3f(MeshCards.LocalBounds.Max) * MeshCards.LocalToWorldScale - SamplingEps;
-	OutData[5] = FVector4f(MinMeshCardsPosition, 0.0f);
-	OutData[6] = FVector4f(MaxMeshCardsPosition, 0.0f);
-
-	static_assert(DataStrideInFloat4s == 7, "Data stride doesn't match");
+	static_assert(DataStrideInFloat4s == 6, "Data stride doesn't match");
 }
 
 void Lumen::UpdateCardSceneBuffer(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries, const FSceneViewFamily& ViewFamily, FScene* Scene)
