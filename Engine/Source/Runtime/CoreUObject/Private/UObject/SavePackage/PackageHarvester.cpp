@@ -186,6 +186,8 @@ FPackageHarvester::FPackageHarvester(FSaveContext& InContext)
 	this->SetCookData(SaveContext.GetSaveArgs().ArchiveCookData);
 	this->SetSerializeContext(SaveContext.GetSerializeContext());
 	this->SetUseUnversionedPropertySerialization(SaveContext.IsSaveUnversionedProperties());
+
+	ResolveOverrides();
 }
 
 FPackageHarvester::FExportWithContext FPackageHarvester::PopExportToProcess()
@@ -571,6 +573,42 @@ FArchive& FPackageHarvester::operator<<(FName& Name)
 {
 	HarvestExportDataName(Name);
 	return *this;
+}
+
+bool FPackageHarvester::ShouldSkipProperty(const FProperty* InProperty) const
+{
+	const TSet<FProperty*>* Props = TransientPropertyOverrides.Find(CurrentExportDependencies.CurrentExport);
+	if (Props && Props->Contains(InProperty))
+	{
+		return true;
+	}
+	return false;
+}
+
+void FPackageHarvester::ResolveOverrides()
+{
+	for (auto& PairObjectOverrides : SaveContext.GetObjectSaveContext().SaveOverrides)
+	{
+		TSet<FProperty*> Props;
+		for (const FPropertySaveOverride& Override : PairObjectOverrides.Value.PropOverrides)
+		{
+			if (FProperty* Prop = Override.bMarkTransient ? CastField<FProperty>(Override.PropertyPath.GetTyped(FProperty::StaticClass())) : nullptr)
+			{
+				// We currently only support object property
+				if (ensureAlwaysMsgf(Prop->IsA<FObjectProperty>(), TEXT("Save Overrides supports only object property at the moment. Name: %s, Type: %s"), *Prop->GetName(), *Prop->GetClass()->GetName()))
+				{
+					// Harvest the name of the property, since it is only made transient for the purpose of the package harvest, it will be needed for the LinkerSave
+					HarvestExportDataName(Prop->GetFName());
+
+					Props.Add(Prop);
+				}
+			}
+		}
+		if (!Props.IsEmpty())
+		{
+			TransientPropertyOverrides.Add(PairObjectOverrides.Key, MoveTemp(Props));
+		}
+	}
 }
 
 void FPackageHarvester::HarvestDependency(UObject* InObj, bool bIsNative)

@@ -4,6 +4,7 @@
 
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
+#include "UObject/ObjectSaveOverride.h"
 
 class FPackagePath;
 class ITargetPlatform;
@@ -63,12 +64,13 @@ struct FObjectSaveContextData
 	/** Set to false if the save failed, before calling any PostSaves. */
 	bool bSaveSucceeded = true;
 
-
 	// Per-object Output variables; writable from PreSave functions, readable from PostSave functions
+
+	/** List of property overrides per object to apply to during save */
+	TMap<UObject*, FObjectSaveOverride> SaveOverrides;
 
 	/** A bool that can be set from PreSave to indicate PostSave needs to take some extra cleanup steps. */
 	bool bCleanupRequired = false;
-
 
 	// Variables set/read per call to PreSave/PostSave functions
 	/** PreSave contract enforcement; records whether PreSave is overridden. */
@@ -129,6 +131,15 @@ public:
 	 * will return false for all but the first PreSave.
 	 */
 	bool IsFirstConcurrentSave() const { return Data.bOuterConcurrentSave; }
+
+	/**
+	 * Add a save override to specific object. (i.e. mark certain properties transient for this save)
+	 * @note only object property are supported at the moment
+	 */
+	void AddSaveOverride(UObject* Target, FObjectSaveOverride InOverride)
+	{
+		Data.SaveOverrides.Add(Target, MoveTemp(InOverride));
+	}
 
 protected:
 	FObjectSaveContextData& Data;

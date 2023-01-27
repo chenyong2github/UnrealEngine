@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "Containers/Queue.h"
 #include "Serialization/ArchiveUObject.h"
@@ -90,7 +91,11 @@ public:
 	virtual FArchive& operator<<(FSoftObjectPath& Value) override;
 	virtual FArchive& operator<<(FName& Name) override;
 
+	virtual bool ShouldSkipProperty(const FProperty* InProperty) const;
+
 private:
+	void ResolveOverrides();
+
 	ESaveRealm GetObjectHarvestingRealm(UObject* InObject, EIllegalRefReason& OutReason) const;
 
 	void HarvestExport(UObject* InObject, ESaveRealm InContext);
@@ -112,6 +117,7 @@ private:
 
 	TQueue<FExportWithContext> ExportsToProcess;
 	FExportDependencies CurrentExportDependencies;
+	TMap<UObject*, TSet<FProperty*>> TransientPropertyOverrides;
 	ESaveRealm CurrentExportHarvestingRealm;
 	//@todo: bIsEditorOnlyExportOnStack can be probably be folded in CurrentExportHarvestingContext
 	bool bIsEditorOnlyExportOnStack;
