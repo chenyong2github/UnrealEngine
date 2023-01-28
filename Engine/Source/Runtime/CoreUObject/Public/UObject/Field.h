@@ -320,26 +320,23 @@ public:
 	}
 
 	template <typename T>
-	typename TEnableIf<TIsDerivedFrom<T, UObject>::IsDerived, T*>::Type Get() const
+	T* Get() const
 	{
 		static_assert(sizeof(T) > 0, "T must not be an incomplete type");
 		if (IsA(T::StaticClass()))
 		{
-			return static_cast<T*>(Container.Object);
+			if constexpr (std::is_base_of_v<UObject, T>)
+			{
+				return static_cast<T*>(Container.Object);
+			}
+			else
+			{
+				return static_cast<T*>(Container.Field);
+			}
 		}
 		return nullptr;
 	}
 
-	template <typename T>
-	typename TEnableIf<!TIsDerivedFrom<T, UObject>::IsDerived, T*>::Type Get() const
-	{
-		static_assert(sizeof(T) > 0, "T must not be an incomplete type");
-		if (IsA(T::StaticClass()))
-		{
-			return static_cast<T*>(Container.Field);
-		}
-		return nullptr;
-	}
 	UObject* ToUObject() const
 	{
 		if (bIsUObject)

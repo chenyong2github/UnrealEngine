@@ -94,39 +94,40 @@ public:
 		return !bIsUObject && Property.IsValid() && Property->IsA(InClass);
 	}
 	template <typename T>
-	typename TEnableIf<TIsDerivedFrom<T, UObject>::IsDerived, bool>::Type IsA() const
+	bool IsA() const
 	{
-		if (bIsUObject && Object.IsValid())
+		if constexpr (std::is_base_of_v<UObject, T>)
 		{
-			return Object->IsA(T::StaticClass());
+			if (bIsUObject && Object.IsValid())
+			{
+				return Object->IsA(T::StaticClass());
+			}
+		}
+		else
+		{
+			if (!bIsUObject && Property.IsValid())
+			{
+				return Property->IsA(T::StaticClass());
+			}
 		}
 		return false;
 	}
-
 	template <typename T>
-	typename TEnableIf<!TIsDerivedFrom<T, UObject>::IsDerived, bool>::Type IsA() const
+	T* Get() const
 	{
-		if (!bIsUObject && Property.IsValid())
+		if constexpr (std::is_base_of_v<UObject, T>)
 		{
-			return Property->IsA(T::StaticClass());
+			if (bIsUObject && Object.IsValid())
+			{
+				return Cast<T>(Object.Get());
+			}
 		}
-		return false;
-	}
-	template <typename T>
-	typename TEnableIf<TIsDerivedFrom<T, UObject>::IsDerived, T*>::Type Get() const
-	{
-		if (bIsUObject && Object.IsValid())
+		else
 		{
-			return Cast<T>(Object.Get());
-		}
-		return nullptr;
-	}
-	template <typename T>
-	typename TEnableIf<!TIsDerivedFrom<T, UObject>::IsDerived, T*>::Type Get() const
-	{
-		if (!bIsUObject && Property.IsValid())
-		{
-			return CastField<T>(Property.Get());
+			if (!bIsUObject && Property.IsValid())
+			{
+				return CastField<T>(Property.Get());
+			}
 		}
 		return nullptr;
 	}

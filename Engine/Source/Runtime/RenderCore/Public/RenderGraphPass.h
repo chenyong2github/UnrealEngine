@@ -596,15 +596,16 @@ public:
 
 private:
 	template<class T>
-	typename TEnableIf<!std::is_same_v<T, FRDGPass>, void>::Type ExecuteLambdaFunc(FRHIComputeCommandList& RHICmdList)
+	void ExecuteLambdaFunc(FRHIComputeCommandList& RHICmdList)
 	{
-		ExecuteLambda(static_cast<TRHICommandList&>(RHICmdList));
-	}
-
-	template<class T>
-	typename TEnableIf<std::is_same_v<T, FRDGPass>, void>::Type ExecuteLambdaFunc(FRHIComputeCommandList& RHICmdList)
-	{
-		ExecuteLambda(this, static_cast<TRHICommandList&>(RHICmdList));
+		if constexpr (std::is_same_v<T, FRDGPass>)
+		{
+			ExecuteLambda(this, static_cast<TRHICommandList&>(RHICmdList));
+		}
+		else
+		{
+			ExecuteLambda(static_cast<TRHICommandList&>(RHICmdList));
+		}
 	}
 
 	void Execute(FRHIComputeCommandList& RHICmdList) override

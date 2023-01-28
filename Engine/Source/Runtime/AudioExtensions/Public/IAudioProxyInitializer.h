@@ -135,25 +135,21 @@ public:
 
 namespace Audio
 {
-	// SFINAE used to optionally invoke subclasses of IAudioProxyDataFactory when we can.
-	template<typename UClassToUse, typename std::enable_if_t<std::is_base_of_v<IAudioProxyDataFactory, UClassToUse>, bool> = true>
+	template <typename UClassToUse>
 	IAudioProxyDataFactory* CastToProxyDataFactory(UObject* InObject)
 	{
-		if (InObject)
+		if constexpr (std::is_base_of_v<IAudioProxyDataFactory, UClassToUse>)
 		{
-			UClassToUse* DowncastObject = Cast<UClassToUse>(InObject);
-			if (ensureAlways(DowncastObject))
+			if (InObject)
 			{
-				return static_cast<IAudioProxyDataFactory*>(DowncastObject);
+				UClassToUse* DowncastObject = Cast<UClassToUse>(InObject);
+				if (ensureAlways(DowncastObject))
+				{
+					return static_cast<IAudioProxyDataFactory*>(DowncastObject);
+				}
 			}
 		}
 
-		return nullptr;
-	}
-
-	template<typename UClassToUse, typename std::enable_if_t<!std::is_base_of_v<IAudioProxyDataFactory, UClassToUse>, bool>::Type = true>
-	IAudioProxyDataFactory* CastToProxyDataFactory(UObject* InObject)
-	{
 		return nullptr;
 	}
 } // namespace Audio

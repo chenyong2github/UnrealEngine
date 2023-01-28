@@ -124,17 +124,18 @@ namespace DataprepSelectionSystemUtils
 	}
 
 	template<class FetchedDataType>
-	static typename TEnableIf<TIsFilterDataDisplayable<FetchedDataType>::Value>::Type UpdateReportedDataIfSupported(const FetchedDataType& FetchedData, FDataprepSelectionInfo& OutInfo)
+	static void UpdateReportedDataIfSupported(const FetchedDataType& FetchedData, FDataprepSelectionInfo& OutInfo)
 	{
-		OutInfo.FetchedData.Set<FetchedDataType>( FetchedData );
-		OutInfo.bWasDataFetchedAndCached = true;
-	}
-
-	template<class FetchedDataType>
-	static typename TEnableIf<!TIsFilterDataDisplayable<FetchedDataType>::Value>::Type UpdateReportedDataIfSupported(const FetchedDataType& FetchedData, FDataprepSelectionInfo& OutInfo)
-	{
-		// Do nothing since the data type is not supported
-		OutInfo.bWasDataFetchedAndCached = false;
+		if constexpr (TIsFilterDataDisplayable<FetchedDataType>::Value)
+		{
+			OutInfo.FetchedData.Set<FetchedDataType>( FetchedData );
+			OutInfo.bWasDataFetchedAndCached = true;
+		}
+		else
+		{
+			// Do nothing since the data type is not supported
+			OutInfo.bWasDataFetchedAndCached = false;
+		}
 	}
 
 	/**

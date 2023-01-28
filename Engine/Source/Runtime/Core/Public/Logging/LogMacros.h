@@ -161,25 +161,17 @@ private:
 	namespace UEAsserts_Private
 	{
 		template <int32 VerbosityToCheck, typename CategoryType>
-		FORCEINLINE
-			typename TEnableIf<
-				((VerbosityToCheck & ELogVerbosity::VerbosityMask) <= CategoryType::CompileTimeVerbosity &&
-				(VerbosityToCheck & ELogVerbosity::VerbosityMask) <= ELogVerbosity::COMPILED_IN_MINIMUM_VERBOSITY),
-				bool>::Type
-			IsLogActive(const CategoryType& Category)
+		FORCEINLINE bool IsLogActive(const CategoryType& Category)
 		{
-			return !Category.IsSuppressed((ELogVerbosity::Type)VerbosityToCheck);
-		}
-
-		template <int32 VerbosityToCheck, typename CategoryType>
-		FORCEINLINE
-			typename TEnableIf<
-				!((VerbosityToCheck & ELogVerbosity::VerbosityMask) <= CategoryType::CompileTimeVerbosity &&
-				(VerbosityToCheck & ELogVerbosity::VerbosityMask) <= ELogVerbosity::COMPILED_IN_MINIMUM_VERBOSITY),
-				bool>::Type
-			IsLogActive(const CategoryType& Category)
-		{
-			return false;
+			if constexpr (((VerbosityToCheck & ELogVerbosity::VerbosityMask) <= CategoryType::CompileTimeVerbosity &&
+				(VerbosityToCheck & ELogVerbosity::VerbosityMask) <= ELogVerbosity::COMPILED_IN_MINIMUM_VERBOSITY))
+			{
+				return !Category.IsSuppressed((ELogVerbosity::Type)VerbosityToCheck);
+			}
+			else
+			{
+				return false;
+			}
 		}
 	}
 

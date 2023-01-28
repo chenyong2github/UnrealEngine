@@ -34,16 +34,17 @@ public:
 	}
 
 	template <typename T>
-	typename TEnableIf<!TModels_V<CGetTypeHashable, T>, FHashBuilder&>::Type Append(const T& InData)
+	FHashBuilder& Append(const T& InData)
 	{
-		return AppendRaw(InData);
-	}
-
-	template <typename T>
-	typename TEnableIf<TModels_V<CGetTypeHashable, T>, FHashBuilder&>::Type Append(const T& InData)
-	{
-		Hash = HashCombineFast(Hash, GetTypeHash(InData));
-		return *this;
+		if constexpr (TModels_V<CGetTypeHashable, T>)
+		{
+			Hash = HashCombineFast(Hash, GetTypeHash(InData));
+			return *this;
+		}
+		else
+		{
+			return AppendRaw(InData);
+		}
 	}
 
 	template <typename T>

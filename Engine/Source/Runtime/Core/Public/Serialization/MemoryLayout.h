@@ -179,16 +179,17 @@ struct THasCustomDefaultObject
 };
 
 template<typename T>
-typename TEnableIf<THasCustomDefaultObject<T>::Value, const T*>::Type InternalGetDefaultObject()
+const T* InternalGetDefaultObject()
 {
-	return GetDefault<T>();
-}
-
-template<typename T>
-typename TEnableIf<!THasCustomDefaultObject<T>::Value, const T*>::Type InternalGetDefaultObject()
-{
-	static const T Default;
-	return &Default;
+	if constexpr (THasCustomDefaultObject<T>::Value)
+	{
+		return GetDefault<T>();
+	}
+	else
+	{
+		static const T Default;
+		return &Default;
+	}
 }
 
 template<typename T, ETypeLayoutInterface::Type InterfaceType>

@@ -559,7 +559,7 @@ template <typename T>
 struct TUseBitwiseSwap
 {
 	// We don't use bitwise swapping for 'register' types because this will force them into memory and be slower.
-	enum { Value = !TOrValue<__is_enum(T), TIsPointer<T>, TIsArithmetic<T>>::Value };
+	enum { Value = !std::is_enum_v<T> || std::is_pointer_v<T> || std::is_arithmetic_v<T> };
 };
 
 
@@ -567,23 +567,24 @@ struct TUseBitwiseSwap
  * Swap two values.  Assumes the types are trivially relocatable.
  */
 template <typename T>
-inline typename TEnableIf<TUseBitwiseSwap<T>::Value>::Type Swap(T& A, T& B)
+inline void Swap(T& A, T& B)
 {
-	if (LIKELY(&A != &B))
+	if constexpr (TUseBitwiseSwap<T>::Value)
 	{
-		TTypeCompatibleBytes<T> Temp;
-		FMemory::Memcpy(&Temp, &A, sizeof(T));
-		FMemory::Memcpy(&A, &B, sizeof(T));
-		FMemory::Memcpy(&B, &Temp, sizeof(T));
+		if (LIKELY(&A != &B))
+		{
+			TTypeCompatibleBytes<T> Temp;
+			FMemory::Memcpy(&Temp, &A, sizeof(T));
+			FMemory::Memcpy(&A, &B, sizeof(T));
+			FMemory::Memcpy(&B, &Temp, sizeof(T));
+		}
 	}
-}
-
-template <typename T>
-inline typename TEnableIf<!TUseBitwiseSwap<T>::Value>::Type Swap(T& A, T& B)
-{
-	T Temp = MoveTemp(A);
-	A = MoveTemp(B);
-	B = MoveTemp(Temp);
+	else
+	{
+		T Temp = MoveTemp(A);
+		A = MoveTemp(B);
+		B = MoveTemp(Temp);
+	}
 }
 
 template <typename T>

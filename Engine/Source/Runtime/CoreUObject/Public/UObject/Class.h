@@ -1535,14 +1535,16 @@ public:
 	static COREUOBJECT_API void DeferCppStructOps(FTopLevelAssetPath Target, ICppStructOps* InCppStructOps);
 
 	template<class CPPSTRUCT>
-	static typename TEnableIf<!DISABLE_ABSTRACT_CONSTRUCT>::Type DeferCppStructOps(FTopLevelAssetPath Target)
+	static void DeferCppStructOps(FTopLevelAssetPath Target)
 	{
-		DeferCppStructOps(Target, new UScriptStruct::TCppStructOps<CPPSTRUCT>);
-	}
-	template<class CPPSTRUCT>
-	static typename TEnableIf<DISABLE_ABSTRACT_CONSTRUCT>::Type DeferCppStructOps(FTopLevelAssetPath Target)
-	{
-		DeferCppStructOps(Target, nullptr);
+		if constexpr (DISABLE_ABSTRACT_CONSTRUCT)
+		{
+			DeferCppStructOps(Target, nullptr);
+		}
+		else
+		{
+			DeferCppStructOps(Target, new UScriptStruct::TCppStructOps<CPPSTRUCT>);
+		}
 	}
 
 	/** Look for the CppStructOps and hook it up **/

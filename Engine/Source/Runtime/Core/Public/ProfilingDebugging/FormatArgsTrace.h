@@ -52,22 +52,23 @@ private:
 		enum { Value = TAnd<TIsPointer<T>, TIsCharType<std::remove_cv_t<typename TRemovePointer<T>::Type>>>::Value };
 	};
 
-	template <typename T>
-	constexpr static typename TEnableIf<!TIsStringArgument<T>::Value, uint64>::Type GetArgumentEncodedSize(T Argument)
-	{
-		return sizeof(T);
-	}
-
 	template <typename T, typename CharType = std::remove_cv_t<typename TRemovePointer<T>::Type>>
-	static typename TEnableIf<TIsStringArgument<T>::Value, uint64>::Type GetArgumentEncodedSize(T Argument)
+	constexpr static uint64 GetArgumentEncodedSize(T Argument)
 	{
-		if (Argument != nullptr)
+		if constexpr (TIsStringArgument<T>::Value)
 		{
-			return (TCString<CharType>::Strlen(Argument) + 1) * sizeof(CharType);
+			if (Argument != nullptr)
+			{
+				return (TCString<CharType>::Strlen(Argument) + 1) * sizeof(CharType);
+			}
+			else
+			{
+				return sizeof(CharType);
+			}
 		}
 		else
 		{
-			return sizeof(CharType);
+			return sizeof(T);
 		}
 	}
 
@@ -83,54 +84,47 @@ private:
 	}
 
 	template <typename T>
-	static typename TEnableIf<TAnd<TNot<TIsFloatingPoint<T>>, TNot<TIsStringArgument<T>>>::Value>::Type EncodeArgumentInternal(uint8*& TypeCodesPtr, uint8*& PayloadPtr, T Argument)
+	static void EncodeArgumentInternal(uint8*& TypeCodesPtr, uint8*& PayloadPtr, T Argument)
 	{
-		*TypeCodesPtr++ = FormatArgTypeCode_CategoryInteger | sizeof(T);
-
-#if PLATFORM_SUPPORTS_UNALIGNED_LOADS
-		*reinterpret_cast<T*>(PayloadPtr) = Argument;
-#else
-		// For ARM targets, it's possible that using __packed here would be preferable
-		// but I have not checked the codegen -- it's possible that the compiler generates
-		// the same code for this fixed size memcpy
-		memcpy(PayloadPtr, &Argument, sizeof Argument);
-#endif
-
-		PayloadPtr += sizeof(T);
-	}
-
-	template <typename T>
-	static typename TEnableIf<TIsFloatingPoint<T>::Value>::Type EncodeArgumentInternal(uint8*& TypeCodesPtr, uint8*& PayloadPtr, T Argument)
-	{
-		*TypeCodesPtr++ = FormatArgTypeCode_CategoryFloatingPoint | sizeof(T);
-
-#if PLATFORM_SUPPORTS_UNALIGNED_LOADS
-		*reinterpret_cast<T*>(PayloadPtr) = Argument;
-#else
-		// For ARM targets, it's possible that using __packed here would be preferable
-		// but I have not checked the codegen -- it's possible that the compiler generates
-		// the same code for this fixed size memcpy
-		memcpy(PayloadPtr, &Argument, sizeof Argument);
-#endif
-
-		PayloadPtr += sizeof(T);
-	}
-
-	template <typename T, typename CharType = std::remove_cv_t<typename TRemovePointer<T>::Type>>
-	static typename TEnableIf<TIsStringArgument<T>::Value>::Type EncodeArgumentInternal(uint8*& TypeCodesPtr, uint8*& PayloadPtr, T Argument)
-	{
-		*TypeCodesPtr++ = FormatArgTypeCode_CategoryString | sizeof(CharType);
-		if (Argument != nullptr)
+		if constexpr (TIsStringArgument<T>::Value)
 		{
-			uint16 Length = (uint16)((TCString<CharType>::Strlen(Argument) + 1) * sizeof(CharType));
-			memcpy(PayloadPtr, Argument, Length);
-			PayloadPtr += Length;
+			using CharType = std::remove_cv_t<typename TRemovePointer<T>::Type>;
+
+			*TypeCodesPtr++ = FormatArgTypeCode_CategoryString | sizeof(CharType);
+			if (Argument != nullptr)
+			{
+				uint16 Length = (uint16)((TCString<CharType>::Strlen(Argument) + 1) * sizeof(CharType));
+				memcpy(PayloadPtr, Argument, Length);
+				PayloadPtr += Length;
+			}
+			else
+			{
+				CharType Terminator { 0 };
+				memcpy(PayloadPtr, &Terminator, sizeof(CharType));
+				PayloadPtr += sizeof(CharType);
+			}
 		}
 		else
 		{
-			CharType Terminator { 0 };
-			memcpy(PayloadPtr, &Terminator, sizeof(CharType));
-			PayloadPtr += sizeof(CharType);
+			if constexpr (std::is_floating_point_v<T>)
+			{
+				*TypeCodesPtr++ = FormatArgTypeCode_CategoryFloatingPoint | sizeof(T);
+			}
+			else
+			{
+				*TypeCodesPtr++ = FormatArgTypeCode_CategoryInteger | sizeof(T);
+			}
+
+#if PLATFORM_SUPPORTS_UNALIGNED_LOADS
+			*reinterpret_cast<T*>(PayloadPtr) = Argument;
+#else
+			// For ARM targets, it's possible that using __packed here would be preferable
+			// but I have not checked the codegen -- it's possible that the compiler generates
+			// the same code for this fixed size memcpy
+			memcpy(PayloadPtr, &Argument, sizeof Argument);
+#endif
+
+			PayloadPtr += sizeof(T);
 		}
 	}
 

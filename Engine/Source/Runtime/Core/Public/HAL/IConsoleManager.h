@@ -1682,29 +1682,31 @@ private:
 	EConsoleVariableFlags Flags = EConsoleVariableFlags::ECVF_Default;
 
 	template<class Y>
-	typename TEnableIf<!std::is_same_v<T, Y>, Y>::Type GetImpl() const
+	Y GetImpl() const
 	{
-		check(false);
-		return Y();
+		if constexpr (std::is_same_v<T, Y>)
+		{
+			return GetValueOnAnyThread();
+		}
+		else
+		{
+			check(false);
+			return Y();
+		}
 	}
 
 	template<class Y>
-	typename TEnableIf<std::is_same_v<T, Y>, Y>::Type GetImpl() const
+	TConsoleVariableData<T>* AsImpl()
 	{
-		return GetValueOnAnyThread();
-	}
-
-	template<class Y>
-	typename TEnableIf<!std::is_same_v<T, Y>, TConsoleVariableData<Y>*>::Type AsImpl()
-	{
-		check(false);
-		return nullptr;
-	}
-
-	template<class Y>
-	typename TEnableIf<std::is_same_v<T, Y>, TConsoleVariableData<T>*>::Type AsImpl()
-	{
-		return &Value;
+		if constexpr (std::is_same_v<T, Y>)
+		{
+			return &Value;
+		}
+		else
+		{
+			check(false);
+			return nullptr;
+		}
 	}
 };
 #endif // NO_CVARS
