@@ -377,7 +377,7 @@ public:
 	FORCEINLINE FString& Append(/* no const! */ CharType* Str)
 	{
 		checkSlow(Str);
-		AppendChars(Str, TCString<typename TRemoveConst<CharType>::Type>::Strlen(Str));
+		AppendChars(Str, TCString<std::remove_const_t<CharType>>::Strlen(Str));
 		return *this;
 	}
 

@@ -28,10 +28,10 @@ struct FConcertMessageContext
 
 	/** Utility to get the message data cast to the correct type */
 	template <typename T>
-	const typename TRemoveConst<T>::Type* GetMessage() const
+	const T* GetMessage() const
 	{
 		check(MessageType->IsChildOf(T::StaticStruct()));
-		return static_cast<const typename TRemoveConst<T>::Type*>(Message);
+		return static_cast<const T*>(Message);
 	}
 
 	FGuid SenderConcertEndpointId;

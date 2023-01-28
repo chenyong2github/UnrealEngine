@@ -185,7 +185,7 @@ namespace PyUtil
 		{
 			if (Prop)
 			{
-				((typename TRemoveConst<TPropType>::Type*)Prop)->AddReferencedObjects(Collector);
+				((std::remove_const_t<TPropType>*)Prop)->AddReferencedObjects(Collector);
 			}
 		}
 

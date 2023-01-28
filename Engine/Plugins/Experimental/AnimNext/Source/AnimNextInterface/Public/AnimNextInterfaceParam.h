@@ -170,7 +170,7 @@ struct TParamType
 {
 	FORCEINLINE static const FParamType& GetType()
 	{
-		return TParamTypeImpl<typename TRemoveConst<ValueType>::Type>::GetType();
+		return TParamTypeImpl<std::remove_const_t<ValueType>>::GetType();
 	}
 };
 

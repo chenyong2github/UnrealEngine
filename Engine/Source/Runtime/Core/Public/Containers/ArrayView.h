@@ -633,9 +633,9 @@ public:
 	 *          the subset of elements for which the functor returns true.
 	 */
 	template <typename Predicate>
-	TArray<typename TRemoveConst<ElementType>::Type> FilterByPredicate(Predicate Pred) const
+	TArray<std::remove_const_t<ElementType>> FilterByPredicate(Predicate Pred) const
 	{
-		TArray<typename TRemoveConst<ElementType>::Type> FilterResults;
+		TArray<std::remove_const_t<ElementType>> FilterResults;
 		for (const ElementType* RESTRICT Data = GetData(), *RESTRICT DataEnd = Data + ArrayNum; Data != DataEnd; ++Data)
 		{
 			if (::Invoke(Pred, *Data))

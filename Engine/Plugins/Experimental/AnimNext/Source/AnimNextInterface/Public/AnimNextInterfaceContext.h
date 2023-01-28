@@ -163,7 +163,7 @@ public:
 		}
 		else
 		{
-			using MutableValueType = typename TRemoveConst<ValueType>::Type;
+			using MutableValueType = std::remove_const_t<ValueType>;
 
 			// If non const set the mutable flag
 			if constexpr (TIsConst<ValueType>::Value == false)

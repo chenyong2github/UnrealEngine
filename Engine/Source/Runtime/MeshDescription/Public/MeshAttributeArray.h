@@ -2294,7 +2294,7 @@ void TAttributesSet<ElementIDType>::ForEachByType(ForEachFunc Func)
 {
 	for (auto& MapEntry : this->Map)
 	{
-		ForEachByTypeImpl::DispatchFunctor<ElementIDType, typename TRemoveConst<AttributeType>::Type, ForEachFunc>()(MapEntry.Key, Func, MapEntry.Value.Get());
+		ForEachByTypeImpl::DispatchFunctor<ElementIDType, std::remove_const_t<AttributeType>, ForEachFunc>()(MapEntry.Key, Func, MapEntry.Value.Get());
 	}
 }
 
@@ -2304,7 +2304,7 @@ void TAttributesSet<ElementIDType>::ForEachByType(ForEachFunc Func) const
 {
 	for (const auto& MapEntry : this->Map)
 	{
-		ForEachByTypeImpl::ConstDispatchFunctor<ElementIDType, typename TRemoveConst<AttributeType>::Type, ForEachFunc>()(MapEntry.Key, Func, MapEntry.Value.Get());
+		ForEachByTypeImpl::ConstDispatchFunctor<ElementIDType, std::remove_const_t<AttributeType>, ForEachFunc>()(MapEntry.Key, Func, MapEntry.Value.Get());
 	}
 }
 

@@ -475,7 +475,7 @@ protected:
 #define EXPOSE_REP_DATA_PROPERTY_NO_SETTER(Owner, PropertyType, PropertyName, PropertyAccess)	\
 public:	\
 	/** If the property is a POD or ptr type, we'll work with it by copy. Otherwise, by const ref */	\
-	using Mutable##PropertyName##Type = typename TRemoveConst<PropertyType>::Type;	\
+	using Mutable##PropertyName##Type = std::remove_const_t<PropertyType>;	\
 	using PropertyName##ArgType = typename TChooseClass<TOr<TIsPODType<PropertyType>, TIsPointer<PropertyType>>::Value, PropertyType, const Mutable##PropertyName##Type&>::Result;	\
 	\
 private:	\
@@ -494,7 +494,7 @@ private:	\
 	{	\
 		Compare##PropertyName(OldData.PropertyAccess); \
 	}	\
-	void Compare##PropertyName(const typename TRemoveConst<PropertyType>::Type& OldData) const	\
+	void Compare##PropertyName(const std::remove_const_t<PropertyType>& OldData) const	\
 	{	\
 		if (PropertyAccess != OldData)	\
 		{	\

@@ -259,7 +259,7 @@ public:
 
 	RetValType Execute(ParamTypes... Params) const final
 	{
-		using MutableUserClass = typename TRemoveConst<UserClass>::Type;
+		using MutableUserClass = std::remove_const_t<UserClass>;
 
 		// Verify that the user object is still valid.  We only have a weak reference to it.
 		TSharedPtr<UserClass, SPMode> SharedUserObject = UserObject.Pin();
@@ -280,7 +280,7 @@ public:
 		// Verify that the user object is still valid.  We only have a weak reference to it.
 		if (TSharedPtr<UserClass, SPMode> SharedUserObject = this->UserObject.Pin())
 		{
-			using MutableUserClass = typename TRemoveConst<UserClass>::Type;
+			using MutableUserClass = std::remove_const_t<UserClass>;
 
 			// Safely remove const to work around a compiler issue with instantiating template permutations for 
 			// overloaded functions that take a function pointer typedef as a member of a templated class.  In
@@ -395,7 +395,7 @@ public:
 
 	RetValType Execute(ParamTypes... Params) const final
 	{
-		using MutableUserClass = typename TRemoveConst<UserClass>::Type;
+		using MutableUserClass = std::remove_const_t<UserClass>;
 
 		// Safely remove const to work around a compiler issue with instantiating template permutations for 
 		// overloaded functions that take a function pointer typedef as a member of a templated class.  In
@@ -410,7 +410,7 @@ public:
 
 	bool ExecuteIfSafe(ParamTypes... Params) const final
 	{
-		using MutableUserClass = typename TRemoveConst<UserClass>::Type;
+		using MutableUserClass = std::remove_const_t<UserClass>;
 
 		// Safely remove const to work around a compiler issue with instantiating template permutations for 
 		// overloaded functions that take a function pointer typedef as a member of a templated class.  In
@@ -519,7 +519,7 @@ public:
 
 	RetValType Execute(ParamTypes... Params) const final
 	{
-		using MutableUserClass = typename TRemoveConst<UserClass>::Type;
+		using MutableUserClass = std::remove_const_t<UserClass>;
 
 		// Verify that the user object is still valid.  We only have a weak reference to it.
 		checkSlow(UserObject.IsValid());
@@ -538,7 +538,7 @@ public:
 	{
 		if (UserClass* ActualUserObject = this->UserObject.Get())
 		{
-			using MutableUserClass = typename TRemoveConst<UserClass>::Type;
+			using MutableUserClass = std::remove_const_t<UserClass>;
 
 			// Safely remove const to work around a compiler issue with instantiating template permutations for 
 			// overloaded functions that take a function pointer typedef as a member of a templated class.  In
@@ -751,7 +751,7 @@ private:
 	// We make this mutable to allow mutable lambdas to be bound and executed.  We don't really want to
 	// model the Functor as being a direct subobject of the delegate (which would maintain transivity of
 	// const - because the binding doesn't affect the substitutability of a copied delegate.
-	mutable typename TRemoveConst<FunctorType>::Type Functor;
+	mutable std::remove_const_t<FunctorType> Functor;
 };
 
 /**
@@ -851,5 +851,5 @@ private:
 	// We make this mutable to allow mutable lambdas to be bound and executed.  We don't really want to
 	// model the Functor as being a direct subobject of the delegate (which would maintain transivity of
 	// const - because the binding doesn't affect the substitutability of a copied delegate.
-	mutable typename TRemoveConst<FunctorType>::Type Functor;
+	mutable std::remove_const_t<FunctorType> Functor;
 };

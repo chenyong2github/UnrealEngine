@@ -11,7 +11,6 @@
 class FExpressionNode;
 class FExpressionToken;
 struct FOperatorFunctionID;
-template< class T > struct TRemoveConst;
 
 namespace Impl
 {
@@ -246,7 +245,7 @@ template<typename ContextType>
 template<typename OperatorType, typename FuncType>
 void TOperatorJumpTable<ContextType>::MapPreUnary(FuncType InFunc)
 {
-	typedef typename TRemoveConst<typename TRemoveReference<typename Impl::TCallableInfo<FuncType>::Arg1>::Type>::Type OperandType;
+	typedef std::remove_const_t<typename TRemoveReference<typename Impl::TCallableInfo<FuncType>::Arg1>::Type> OperandType;
 
 	FOperatorFunctionID ID = {
 		TGetExpressionNodeTypeId<OperatorType>::GetTypeId(),
@@ -261,7 +260,7 @@ template<typename ContextType>
 template<typename OperatorType, typename FuncType>
 void TOperatorJumpTable<ContextType>::MapPostUnary(FuncType InFunc)
 {
-	typedef typename TRemoveConst<typename TRemoveReference<typename Impl::TCallableInfo<FuncType>::Arg1>::Type>::Type OperandType;
+	typedef std::remove_const_t<typename TRemoveReference<typename Impl::TCallableInfo<FuncType>::Arg1>::Type> OperandType;
 
 	FOperatorFunctionID ID = {
 		TGetExpressionNodeTypeId<OperatorType>::GetTypeId(),
@@ -276,8 +275,8 @@ template<typename ContextType>
 template<typename OperatorType, typename FuncType>
 void TOperatorJumpTable<ContextType>::MapBinary(FuncType InFunc)
 {
-	typedef typename TRemoveConst<typename TRemoveReference<typename Impl::TCallableInfo<FuncType>::Arg1>::Type>::Type LeftOperandType;
-	typedef typename TRemoveConst<typename TRemoveReference<typename Impl::TCallableInfo<FuncType>::Arg2>::Type>::Type RightOperandType;
+	typedef std::remove_const_t<typename TRemoveReference<typename Impl::TCallableInfo<FuncType>::Arg1>::Type> LeftOperandType;
+	typedef std::remove_const_t<typename TRemoveReference<typename Impl::TCallableInfo<FuncType>::Arg2>::Type> RightOperandType;
 
 	FOperatorFunctionID ID = {
 		TGetExpressionNodeTypeId<OperatorType>::GetTypeId(),
@@ -292,7 +291,7 @@ template<typename ContextType>
 template<typename OperatorType, typename FuncType>
 void TOperatorJumpTable<ContextType>::MapShortCircuit(FuncType InFunc)
 {
-	typedef typename TRemoveConst<typename TRemoveReference<typename Impl::TCallableInfo<FuncType>::Arg1>::Type>::Type OperandType;
+	typedef std::remove_const_t<typename TRemoveReference<typename Impl::TCallableInfo<FuncType>::Arg1>::Type> OperandType;
 
 	FOperatorFunctionID ID = {
 		TGetExpressionNodeTypeId<OperatorType>::GetTypeId(),

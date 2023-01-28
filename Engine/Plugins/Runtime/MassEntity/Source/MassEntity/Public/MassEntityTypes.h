@@ -430,7 +430,7 @@ namespace UE::Mass
 	struct TMultiTypeList : TMultiTypeList<TOthers...>
 	{
 		using Super = TMultiTypeList<TOthers...>;
-		using FType = typename TRemoveConst<typename TRemoveReference<T>::Type>::Type;
+		using FType = std::remove_const_t<typename TRemoveReference<T>::Type>;
 		enum
 		{
 			Ordinal = Super::Ordinal + 1
@@ -448,7 +448,7 @@ namespace UE::Mass
 	template<typename T>
 	struct TMultiTypeList<T>
 	{
-		using FType = typename TRemoveConst<typename TRemoveReference<T>::Type>::Type;
+		using FType = std::remove_const_t<typename TRemoveReference<T>::Type>;
 		enum
 		{
 			Ordinal = 0
@@ -469,7 +469,7 @@ namespace UE::Mass
 	template<typename T, typename... TOthers>
 	struct TMultiArray : TMultiArray<TOthers...>
 	{
-		using FType = typename TRemoveConst<typename TRemoveReference<T>::Type>::Type;
+		using FType = std::remove_const_t<typename TRemoveReference<T>::Type>;
 		using Super = TMultiArray<TOthers...>;
 
 		enum
@@ -509,7 +509,7 @@ namespace UE::Mass
 	template<typename T>
 	struct TMultiArray<T>
 	{
-		using FType = typename TRemoveConst<typename TRemoveReference<T>::Type>::Type;
+		using FType = std::remove_const_t<typename TRemoveReference<T>::Type>;
 		enum { Ordinal = 0 };
 
 		SIZE_T GetAllocatedSize() const
