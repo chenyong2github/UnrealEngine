@@ -233,7 +233,7 @@ public:
 	TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> GetSimulationForHandle(const FNiagaraEmitterHandle& EmitterHandle);
 
 	FORCEINLINE UWorld* GetWorld() const { return World; }
-	FORCEINLINE UNiagaraSystem* GetSystem() const { return Asset.Get(); }
+	FORCEINLINE UNiagaraSystem* GetSystem() const { return System; }
 	FORCEINLINE USceneComponent* GetAttachComponent() { return AttachComponent.Get(); }
 	FORCEINLINE FNiagaraUserRedirectionParameterStore* GetOverrideParameters() { return OverrideParameters; }
 	FORCEINLINE const FNiagaraUserRedirectionParameterStore* GetOverrideParameters() const { return OverrideParameters; }
@@ -447,7 +447,7 @@ private:
 	TSharedPtr<class FNiagaraSystemSimulation, ESPMode::ThreadSafe> SystemSimulation;
 
 	UWorld* World;
-	TWeakObjectPtr<UNiagaraSystem> Asset;
+	UNiagaraSystem* System = nullptr;
 	FNiagaraUserRedirectionParameterStore* OverrideParameters;
 	TWeakObjectPtr<USceneComponent> AttachComponent;
 

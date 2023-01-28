@@ -1191,10 +1191,9 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 
 	ActiveNiagaraTickGroup = ActualTickGroup;
 
-	TArray<UNiagaraSystem*, TInlineAllocator<4>> DeadSystems;
-	for (TPair<UNiagaraSystem*, FNiagaraSystemSimulationRef>& SystemSim : SystemSimulations[ActualTickGroup])
+	for (auto SimIt=SystemSimulations[ActualTickGroup].CreateIterator(); SimIt; ++SimIt)
 	{
-		FNiagaraSystemSimulation*  Sim = &SystemSim.Value.Get();
+		FNiagaraSystemSimulation* Sim = &SimIt.Value().Get();
 
 		if (Sim->IsValid())
 		{
@@ -1202,16 +1201,12 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 		}
 		else
 		{
-			DeadSystems.Add(SystemSim.Key);
+			Sim->Destroy();
+			SimIt.RemoveCurrent();
 		}
 	}
 
 	ActiveNiagaraTickGroup = -1;
-
-	for (UNiagaraSystem* DeadSystem : DeadSystems)
-	{
-		SystemSimulations[ActualTickGroup].Remove(DeadSystem);
-	}
 
 	// Loop over all simulations that have been marked for post actor (i.e. ones whos TG is changing or have pending spawn systems)
 	if (GNiagaraSpawnPerTickGroup && (SimulationsWithPostActorWork.Num() > 0))

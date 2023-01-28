@@ -264,7 +264,7 @@ public:
 	bool Init(UNiagaraSystem* InSystem, UWorld* InWorld, bool bInIsSolo, ETickingGroup TickGroup);
 	void Destroy();
 
-	bool IsValid() const { return bCanExecute && World != nullptr; }
+	bool IsValid() const { return bCanExecute && World != nullptr && ::IsValid(System); }
 
 	/** First phase of system sim tick. Must run on GameThread. */
 	void Tick_GameThread(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);

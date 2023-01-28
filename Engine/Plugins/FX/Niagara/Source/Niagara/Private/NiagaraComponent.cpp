@@ -703,7 +703,13 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentTick);
 
-	FScopeCycleCounter SystemStatCounter(Asset ? Asset->GetStatID(true, false) : TStatId());
+	if (!::IsValid(Asset))
+	{
+		//-TODO: If our Asset is null or has become Garbage should we force deactive the component / ticking?
+		return;
+	}
+
+	FScopeCycleCounter SystemStatCounter(Asset->GetStatID(true, false));
 
 	if (bAwaitingActivationDueToNotReady)
 	{
