@@ -214,6 +214,12 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = SimCache, meta = (DisplayName = "Sim Cache Auxiliary File Base Path", ConfigRestartRequired = false))
 	FString SimCacheAuxiliaryFileBasePath;
 
+	/**
+	Max memory in megabytes for total CPU memory for cached volumetric data
+	*/
+	UPROPERTY(config, EditAnywhere, Category = SimCache, meta = (DisplayName = "Sim Cache Max CPU Memory For Volumetrics", ConfigRestartRequired = false))
+	int64 SimCacheMaxCPUMemoryVolumetrics;
+
 	UPROPERTY(config, EditAnywhere, Category = Scalability)
 	TArray<FNiagaraPlatformSetRedirect> PlatformSetRedirects;
 

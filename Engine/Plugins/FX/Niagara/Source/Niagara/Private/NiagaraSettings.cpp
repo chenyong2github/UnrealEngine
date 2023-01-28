@@ -14,6 +14,7 @@ UNiagaraSettings::UNiagaraSettings(const FObjectInitializer& ObjectInitlaizer)
 	NDICollisionQuery_AsyncGpuTraceProviderOrder.Add(ENDICollisionQuery_AsyncGpuTraceProvider::Type::GSDF);
 
 	SimCacheAuxiliaryFileBasePath = "{project_dir}/Saved/NiagaraSimCache";
+	SimCacheMaxCPUMemoryVolumetrics = 5000;
 }
 
 FName UNiagaraSettings::GetCategoryName() const
