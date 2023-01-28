@@ -646,7 +646,7 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 	FRDGBufferRef MultiViewIndices,
 	FRDGBufferRef MultiViewRectScaleOffsets,
 	FRDGBufferRef ViewsBuffer,
-	TArrayView<FTextureRenderTargetBinding> BasePassTextures
+	const FRenderTargetBindingSlots& BasePassRenderTargets
 )
 {
 	FNaniteShadingPassParameters Result;
@@ -710,47 +710,50 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 	Result.BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures);
 	Result.ActiveShadingBin = ~uint32(0);
 
-	// No possibility of read/write hazard due to fully resolved vbuffer/materials
-	const ERDGUnorderedAccessViewFlags OutTargetFlags = ERDGUnorderedAccessViewFlags::SkipBarrier;
-
-	if (BasePassTextures.Num() > 0)
+	if (UseComputeMaterials())
 	{
-		Result.OutTarget0UAV = GraphBuilder.CreateUAV(BasePassTextures[0].Texture, OutTargetFlags);
-	}
+		// No possibility of read/write hazard due to fully resolved vbuffer/materials
+		const ERDGUnorderedAccessViewFlags OutTargetFlags = ERDGUnorderedAccessViewFlags::SkipBarrier;
 
-	if (BasePassTextures.Num() > 1)
-	{
-		Result.OutTarget1UAV = GraphBuilder.CreateUAV(BasePassTextures[1].Texture, OutTargetFlags);
-	}
-
-	if (BasePassTextures.Num() > 2)
-	{
-		Result.OutTarget2UAV = GraphBuilder.CreateUAV(BasePassTextures[2].Texture, OutTargetFlags);
-	}
-
-	if (BasePassTextures.Num() > 3)
-	{
-		Result.OutTarget3UAV = GraphBuilder.CreateUAV(BasePassTextures[3].Texture, OutTargetFlags);
-	}
-
-	if (BasePassTextures.Num() > 4)
-	{
-		Result.OutTarget4UAV = GraphBuilder.CreateUAV(BasePassTextures[4].Texture, OutTargetFlags);
-	}
-
-	if (BasePassTextures.Num() > 5)
-	{
-		Result.OutTarget5UAV = GraphBuilder.CreateUAV(BasePassTextures[5].Texture, OutTargetFlags);
-	}
-
-	if (BasePassTextures.Num() > 6)
-	{
-		Result.OutTarget6UAV = GraphBuilder.CreateUAV(BasePassTextures[6].Texture, OutTargetFlags);
-	}
-
-	if (BasePassTextures.Num() > 7)
-	{
-		Result.OutTarget7UAV = GraphBuilder.CreateUAV(BasePassTextures[7].Texture, OutTargetFlags);
+		// TODO: Use RWTexture2DArray<float4>
+		for (uint32 TargetIndex = 0; TargetIndex < MaxSimultaneousRenderTargets; ++TargetIndex)
+		{
+			if (FRDGTexture* TargetTexture = BasePassRenderTargets.Output[TargetIndex].GetTexture())
+			{
+				if (TargetIndex == 0)
+				{
+					Result.OutTarget0UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+				}
+				else if (TargetIndex == 1)
+				{
+					Result.OutTarget1UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+				}
+				else if (TargetIndex == 2)
+				{
+					Result.OutTarget2UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+				}
+				else if (TargetIndex == 3)
+				{
+					Result.OutTarget3UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+				}
+				else if (TargetIndex == 4)
+				{
+					Result.OutTarget4UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+				}
+				else if (TargetIndex == 5)
+				{
+					Result.OutTarget5UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+				}
+				else if (TargetIndex == 6)
+				{
+					Result.OutTarget6UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+				}
+				else if (TargetIndex == 7)
+				{
+					Result.OutTarget7UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+				}
+			}
+		}
 	}
 
 	return Result;
@@ -762,6 +765,7 @@ void DispatchBasePass(
 	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& MaterialPassCommands,
 	const FSceneRenderer& SceneRenderer,
 	const FSceneTextures& SceneTextures,
+	const FRenderTargetBindingSlots& BasePassRenderTargets,
 	const FDBufferTextures& DBufferTextures,
 	const FScene& Scene,
 	const FViewInfo& View,
@@ -920,11 +924,6 @@ void DispatchBasePass(
 		}
 	}
 
-	TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets> BasePassTextures;
-	uint32 BasePassTextureCount = SceneTextures.GetGBufferRenderTargets(BasePassTextures, GBL_Default);// TODO: PassGBufferLayouts[PassIndex]);
-	Strata::AppendStrataMRTs(SceneRenderer, BasePassTextureCount, BasePassTextures);
-	TArrayView<FTextureRenderTargetBinding> BasePassTexturesView = MakeArrayView(BasePassTextures.GetData(), BasePassTextureCount);
-
 	const FNaniteVisibilityResults& VisibilityResults = RasterResults.VisibilityResults;
 	const bool bWPOInSecondPass = !IsUsingBasePassVelocity(View.GetShaderPlatform());
 
@@ -949,7 +948,7 @@ void DispatchBasePass(
 		MultiViewIndices,
 		MultiViewRectScaleOffsets,
 		ViewsBuffer,
-		BasePassTexturesView
+		BasePassRenderTargets
 	);
 
 	const FExclusiveDepthStencil MaterialDepthStencil = UseComputeDepthExport()
@@ -1063,6 +1062,7 @@ void DrawBasePass(
 	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& MaterialPassCommands,
 	const FSceneRenderer& SceneRenderer,
 	const FSceneTextures& SceneTextures,
+	const FRenderTargetBindingSlots& BasePassRenderTargets,
 	const FDBufferTextures& DBufferTextures,
 	const FScene& Scene,
 	const FViewInfo& View,
@@ -1076,6 +1076,7 @@ void DrawBasePass(
 			MaterialPassCommands,
 			SceneRenderer,
 			SceneTextures,
+			BasePassRenderTargets,
 			DBufferTextures,
 			Scene,
 			View,
@@ -1242,7 +1243,7 @@ void DrawBasePass(
 			MultiViewIndices,
 			MultiViewRectScaleOffsets,
 			ViewsBuffer,
-			{}
+			BasePassRenderTargets
 		);
 
 		const FExclusiveDepthStencil MaterialDepthStencil = UseComputeDepthExport()

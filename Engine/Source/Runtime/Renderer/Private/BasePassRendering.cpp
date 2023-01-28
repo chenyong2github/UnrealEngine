@@ -1404,6 +1404,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				View.NaniteMaterialPassCommands,
 				*this,
 				SceneTextures,
+				BasePassRenderTargets,
 				DBufferTextures,
 				*Scene,
 				View,

@@ -511,6 +511,7 @@ void DrawBasePass(
 	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& NaniteMaterialPassCommands,
 	const FSceneRenderer& SceneRenderer,
 	const FSceneTextures& SceneTextures,
+	const FRenderTargetBindingSlots& BasePassRenderTargets,
 	const FDBufferTextures& DBufferTextures,
 	const FScene& Scene,
 	const FViewInfo& View,
