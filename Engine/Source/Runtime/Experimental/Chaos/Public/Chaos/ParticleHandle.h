@@ -1121,6 +1121,16 @@ public:
 		PBDRigidParticles->ControlFlags(ParticleIdx).SetGravityEnabled(bEnabled);
 	}
 
+	inline int32 GravityGroupIndex() const
+	{
+		return ControlFlags().GetGravityGroupIndex();
+	}
+
+	inline void SetGravityGroupIndex(int32 GravityGroupIndex)
+	{
+		PBDRigidParticles->ControlFlags(ParticleIdx).SetGravityGroupIndex(GravityGroupIndex);
+	}
+
 	inline bool CCDEnabled() const
 	{
 		return ControlFlags().GetCCDEnabled();

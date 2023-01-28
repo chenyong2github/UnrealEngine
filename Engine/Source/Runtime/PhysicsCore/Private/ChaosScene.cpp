@@ -304,7 +304,8 @@ void FChaosSceneSimCallback::OnPreSimulate_Internal()
 {
 	if(const FChaosSceneCallbackInput* Input = GetConsumerInput_Internal())
 	{
-		static_cast<Chaos::FPBDRigidsSolver*>(GetSolver())->GetEvolution()->GetGravityForces().SetAcceleration(Input->Gravity);
+		// the "main" gravity is index 0
+		static_cast<Chaos::FPBDRigidsSolver*>(GetSolver())->GetEvolution()->GetGravityForces().SetAcceleration(Input->Gravity, 0);
 	}
 }
 

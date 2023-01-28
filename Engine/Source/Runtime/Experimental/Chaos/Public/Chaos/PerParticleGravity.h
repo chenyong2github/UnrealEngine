@@ -10,43 +10,52 @@ namespace Chaos
 	class FPerParticleGravity : public FPerParticleRule
 	{
 	public:
-		FPerParticleGravity()
-			: MAcceleration(FVec3(0, 0, (FReal)-980.665)) {}
-		FPerParticleGravity(const FVec3& G)
-			: MAcceleration(G) {}
-		FPerParticleGravity(const FVec3& Direction, const FReal Magnitude)
-			: MAcceleration(Direction * Magnitude) {}
-		virtual ~FPerParticleGravity() {}
+		static constexpr uint32 MaxGravityGroups = 8;
 
-		// TODO: Remove this - we should no longer be using indices directly.
-		//       This has been kept around for cloth, which uses it in
-		//       PBDEvolution.
-		template<class T_PARTICLES>
-		inline void ApplyHelper(T_PARTICLES& InParticles, const FReal Dt, const int Index) const
+		FPerParticleGravity()
 		{
-			InParticles.Acceleration(Index) += MAcceleration;
+			SetAllGravities(FVec3(0, 0, (FReal)-980.665));
 		}
-		inline void Apply(FPBDParticles& InParticles, const FReal Dt, const int Index) const override //-V762
+
+		FPerParticleGravity(const FVec3& G)
 		{
-			ApplyHelper(InParticles, Dt, Index);
+			SetAllGravities(G);
 		}
+		FPerParticleGravity(const FVec3& Direction, const FReal Magnitude)
+		{
+			SetAllGravities(Direction * Magnitude);
+		}
+		virtual ~FPerParticleGravity() {}
 
 		void Apply(TTransientPBDRigidParticleHandle<FReal, 3>& Particle, const FReal Dt) const override //-V762
 		{
 			if(Particle.GravityEnabled())
 			{
-				Particle.Acceleration() += MAcceleration;
+				Particle.Acceleration() += MAccelerations[Particle.GravityGroupIndex()];
 			}
 		}
 
-		void SetAcceleration(const FVec3& Acceleration)
-		{ MAcceleration = Acceleration; }
+		void SetAcceleration(const FVec3& Acceleration, int32 GroupIndex)
+		{ 
+			MAccelerations[GroupIndex] = Acceleration;
+		}
 
-		const FVec3& GetAcceleration() const
-		{ return MAcceleration; }
+		const FVec3& GetAcceleration(int32 GroupIndex) const
+		{
+			return MAccelerations[GroupIndex];
+		}
 
 	private:
-		FVec3 MAcceleration;
+		void SetAllGravities(const FVec3& Gravity)
+		{
+			for (int32 Index = 0; Index < MaxGravityGroups; Index++)
+			{
+				MAccelerations[Index] = Gravity;
+			}
+		}
+
+	private:
+		FVec3 MAccelerations[MaxGravityGroups];
 	};
 
 	template<class T, int d>

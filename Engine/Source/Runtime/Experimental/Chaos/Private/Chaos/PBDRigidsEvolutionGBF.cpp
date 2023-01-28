@@ -464,7 +464,8 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 		PreApplyCallback();
 	}
 
-	CollisionConstraints.SetGravity(GetGravityForces().GetAcceleration());
+	// todo(chaos) : we are using the main gravity ( index 0 ) we should revise this to account for the various gravities based on the constraint ? 
+	CollisionConstraints.SetGravity(GetGravityForces().GetAcceleration(0));
 
 	// Use the cache to update particles in islands that do not require resimming (not desynched)
 	{
