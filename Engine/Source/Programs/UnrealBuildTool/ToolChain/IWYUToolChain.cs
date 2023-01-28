@@ -14,7 +14,7 @@ namespace UnrealBuildTool
 	{
 		private List<string> CrossCompilingArguments = new();
 		private FileReference IWYUMappingFile;
-		private string RelativePathToIWYUDirectory = @"Restricted\NotForLicensees\Source\ThirdParty\IWYU";
+		private string RelativePathToIWYUDirectory = @"Binaries\ThirdParty\IWYU";
 
 		public static void ValidateTarget(TargetRules Target)
 		{
