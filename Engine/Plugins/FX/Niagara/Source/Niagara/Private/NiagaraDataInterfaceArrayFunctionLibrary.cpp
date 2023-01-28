@@ -6,7 +6,6 @@
 #include "NiagaraDataInterfaceArrayFloat.h"
 #include "NiagaraDataInterfaceArrayInt.h"
 #include "NiagaraDataInterfaceArrayImpl.h"
-#include "NiagaraDataInterfaceArrayImplHelpers.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemInstanceController.h"
