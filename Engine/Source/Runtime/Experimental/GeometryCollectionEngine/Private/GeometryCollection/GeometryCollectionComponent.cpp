@@ -286,6 +286,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, ChaosSolverActor(nullptr)
 	, InitializationState(ESimulationInitializationState::Unintialized)
 	, ObjectType(EObjectStateTypeEnum::Chaos_Object_Dynamic)
+	, GravityGroupIndex(0)
 	, bForceMotionBlur()
 	, EnableClustering(true)
 	, ClusterGroupIndex(0)
@@ -2630,6 +2631,7 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		SimulationParameters.bGenerateCrumblingData = bNotifyCrumblings;
 		SimulationParameters.bGenerateCrumblingChildrenData = bCrumblingEventIncludesChildren;
 		SimulationParameters.EnableGravity = BodyInstance.bEnableGravity;
+		SimulationParameters.GravityGroupIndex = GravityGroupIndex;
 		SimulationParameters.UseInertiaConditioning = BodyInstance.IsInertiaConditioningEnabled();
 		SimulationParameters.UseCCD = BodyInstance.bUseCCD;
 		SimulationParameters.LinearDamping = BodyInstance.LinearDamping;

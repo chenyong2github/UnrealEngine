@@ -200,6 +200,7 @@ struct FSimulationParameters
 		, bGenerateCrumblingData(false)
 		, bGenerateCrumblingChildrenData(false)
 		, EnableGravity(true)
+		, GravityGroupIndex(0)
 		, UseInertiaConditioning(true)
 		, UseCCD(false)
 		, LinearDamping(0.01f)
@@ -249,6 +250,7 @@ struct FSimulationParameters
 		, bGenerateCrumblingChildrenData(Other.bGenerateCrumblingChildrenData)
 		, Shared(Other.Shared)
 		, EnableGravity(Other.EnableGravity)
+		, GravityGroupIndex(Other.GravityGroupIndex)
 		, UseInertiaConditioning(Other.UseInertiaConditioning)
 		, UseCCD(Other.UseCCD)
 		, LinearDamping(Other.LinearDamping)
@@ -321,6 +323,7 @@ struct FSimulationParameters
 	FSharedSimulationParameters Shared;
 
 	bool EnableGravity;
+	int32 GravityGroupIndex;
 	bool UseInertiaConditioning;
 	bool UseCCD;
 	float LinearDamping;

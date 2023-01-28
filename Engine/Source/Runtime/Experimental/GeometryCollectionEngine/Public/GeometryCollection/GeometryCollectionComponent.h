@@ -718,6 +718,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
 	EObjectStateTypeEnum ObjectType;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
+	int32 GravityGroupIndex;
+
 	/** If ForceMotionBlur is on, motion blur will always be active, even if the GeometryCollection is at rest. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
 	bool bForceMotionBlur;
@@ -745,7 +748,7 @@ public:
 	FGeometryCollectionDamagePropagationData DamagePropagationData;
 
 	/** Whether or not collisions against this geometry collection will apply strain which could cause the geometry collection to fracture. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ChaosPhysics|Damage")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetEnableDamageFromCollision, Category = "ChaosPhysics|Damage")
 	bool bEnableDamageFromCollision;
 
 	/** Allow removal on sleep for the instance if the rest collection has it enabled */
