@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "InterchangeTaskImportObject.h"
 
+#if WITH_EDITOR
 #include "AssetToolsModule.h"
+#endif //WITH_EDITOR
 #include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
 #include "InterchangeAssetImportData.h"
@@ -121,6 +123,7 @@ namespace UE
 
 			bool CanImportClass(UClass* Class)
 			{
+#if WITH_EDITOR
 				if (!Class)
 				{
 					return true;
@@ -134,6 +137,7 @@ namespace UE
 						return false;
 					}
 				}
+#endif //WITH_EDITOR
 				return true;
 			}
 		}//ns Private

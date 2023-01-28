@@ -65,6 +65,7 @@
 #include "HAL/FileManager.h"
 #include "LODUtilities.h"
 #include "ComponentReregisterContext.h"
+#include "Animation/Skeleton.h"
 
 #define LOCTEXT_NAMESPACE "FBXSceneImportFactory"
 
