@@ -1597,24 +1597,26 @@ const FString& FPaths::GetRelativePathToRoot()
 	return StaticData.RelativePathToRoot;
 }
 
-void FPaths::CombineInternal(FString& OutPath, const FStringView* Paths, int32 NumPaths)
+FString FPaths::CombineInternal(const FStringView* Paths, int32 NumPaths)
 {
-	check(Paths != NULL && NumPaths > 0);
+	check(Paths && NumPaths > 0);
 
-	int32 OutStringSize = 0;
-
+	int32 CombinedPathLen = 0;
 	for (int32 i=0; i < NumPaths; ++i)
 	{
-		OutStringSize += Paths[i].Len() + 1;
+		CombinedPathLen += Paths[i].Len() + 1;
 	}
 
-	OutPath.Empty(OutStringSize);
-	OutPath += Paths[0];
+	FString CombinedPath;
+	CombinedPath.Reserve(CombinedPathLen);
+	CombinedPath += Paths[0];
 	
 	for (int32 i=1; i < NumPaths; ++i)
 	{
-		OutPath /= Paths[i];
+		CombinedPath /= Paths[i];
 	}
+
+	return CombinedPath;
 }
 
 bool FPaths::IsSamePath(const FString& PathA, const FString& PathB)
