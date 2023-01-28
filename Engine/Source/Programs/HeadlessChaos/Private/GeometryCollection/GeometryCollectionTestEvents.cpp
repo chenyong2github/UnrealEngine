@@ -30,6 +30,12 @@ namespace GeometryCollectionTest
 		FVector Data2;
 	};
 
+	template<typename PayloadType>
+	bool IsEventDataEmpty(const PayloadType* Buffer)
+	{
+		return false;
+	}
+
 	class MyEventHandler
 	{
 	public:
