@@ -120,11 +120,9 @@ private:
  *
  * @return  A reference to the same archive as Ar.
  */
-template <typename T>
-typename TEnableIf<
-	!TModels_V<CInsertable<FArchive&>, T> && TModels_V<CInsertable<FStructuredArchiveSlot>, T>,
-	FArchive&
->::Type operator<<(FArchive& Ar, T& Obj)
+template <typename T,
+	std::enable_if_t<!TModels_V<CInsertable<FArchive&>, T> && TModels_V<CInsertable<FStructuredArchiveSlot>, T>, int> = 0>
+FArchive& operator<<(FArchive& Ar, T& Obj)
 {
 	FStructuredArchiveFromArchive ArAdapt(Ar);
 	ArAdapt.GetSlot() << Obj;
@@ -137,11 +135,9 @@ typename TEnableIf<
  * @param  Slot  The slot to read from or write to.
  * @param  Obj   The object to read or write.
  */
-template <typename T>
-typename TEnableIf<
-	TModels_V<CInsertable<FArchive&>, T> &&
-	!TModels_V<CInsertable<FStructuredArchiveSlot>, T>
->::Type operator<<(FStructuredArchiveSlot Slot, T& Obj)
+template <typename T,
+	std::enable_if_t<TModels_V<CInsertable<FArchive&>, T> && !TModels_V<CInsertable<FStructuredArchiveSlot>, T>, int> = 0>
+void operator<<(FStructuredArchiveSlot Slot, T& Obj)
 {
 #if WITH_TEXT_ARCHIVE_SUPPORT
 	FArchiveFromStructuredArchive Adapter(Slot);

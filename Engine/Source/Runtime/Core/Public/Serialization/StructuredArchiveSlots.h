@@ -85,7 +85,7 @@ public:
 
 	template <
 		typename EnumType,
-		typename = typename TEnableIf<TIsEnumClass<EnumType>::Value>::Type
+		std::enable_if_t<TIsEnumClass<EnumType>::Value, int> = 0
 	>
 	FORCEINLINE void operator<<(EnumType& Value)
 	{

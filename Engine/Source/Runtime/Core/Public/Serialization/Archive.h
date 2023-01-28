@@ -2252,7 +2252,7 @@ FORCEINLINE FArchive& operator<<(FArchive& Ar, TEnumAsByte<TEnum>& Value)
 */
 template <
 	typename EnumType,
-	typename = typename TEnableIf<TIsEnumClass<EnumType>::Value>::Type
+	std::enable_if_t<TIsEnumClass<EnumType>::Value, int> = 0
 >
 FORCEINLINE FArchive& operator<<(FArchive& Ar, EnumType& Value)
 {
