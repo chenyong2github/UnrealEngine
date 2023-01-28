@@ -1050,14 +1050,20 @@ void FZenStoreWriter::MarkPackagesUpToDate(TArrayView<const FName> UpToDatePacka
 	}
 }
 
-FCbObject FZenStoreWriter::WriteMPCookMessageForPackage(FName PackageName)
+TFuture<FCbObject> FZenStoreWriter::WriteMPCookMessageForPackage(FName PackageName)
 {
+	// MPCOOKTODO: Replicate the other accumulated data in FZenStoreWriter
 	FCbWriter Writer;
 	Writer.BeginObject();
 	Writer.SetName("Manifest");
 	PackageStoreManifest.WritePackage(Writer, PackageName);
 	Writer.EndObject();
-	return Writer.Save().AsObject();
+	FCbObject Object = Writer.Save().AsObject();
+
+	TPromise<FCbObject> Promise;
+	Promise.SetValue(MoveTemp(Object));
+	return Promise.GetFuture();
+
 }
 
 bool FZenStoreWriter::TryReadMPCookMessageForPackage(FName PackageName, FCbObjectView Message)

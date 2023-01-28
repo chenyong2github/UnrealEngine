@@ -100,7 +100,7 @@ public:
 		Inner->UpdateSaveArguments(SaveArgs);
 	}
 	virtual bool IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousResult, FSavePackageArgs& SaveArgs) override;
-	virtual FCbObject WriteMPCookMessageForPackage(FName PackageName) override
+	virtual TFuture<FCbObject> WriteMPCookMessageForPackage(FName PackageName) override
 	{
 		return Inner->WriteMPCookMessageForPackage(PackageName);
 	}
@@ -236,7 +236,7 @@ public:
 	}
 	virtual void UpdateSaveArguments(FSavePackageArgs& SaveArgs) override;
 	virtual bool IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousResult, FSavePackageArgs& SaveArgs) override;
-	virtual FCbObject WriteMPCookMessageForPackage(FName PackageName) override
+	virtual TFuture<FCbObject> WriteMPCookMessageForPackage(FName PackageName) override
 	{
 		return Inner->WriteMPCookMessageForPackage(PackageName);
 	}

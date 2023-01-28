@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/Future.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "Cooker/CompactBinaryTCP.h"
@@ -54,13 +55,16 @@ public:
 	FName GetPackageName() const { return PackageName; }
 
 	void AddMessage(FCbObject Object);
+	void AddAsyncMessage(TFuture<FCbObject>&& ObjectFuture);
 	void AddPlatformMessage(const ITargetPlatform* Platform, FCbObject Object);
+	void AddAsyncPlatformMessage(const ITargetPlatform* Platform, TFuture<FCbObject>&& ObjectFuture);
 
 	uint8 PlatformToInt(const ITargetPlatform* Platform) const;
 	const ITargetPlatform* IntToPlatform(uint8 PlatformAsInt) const;
 
 private:
 	TArray<TPair<const ITargetPlatform*, FCbObject>> Messages;
+	TArray<TPair<const ITargetPlatform*, TFuture<FCbObject>>> AsyncMessages;
 	TConstArrayView<const ITargetPlatform*> Platforms;
 	TConstArrayView<FPlatformData> PlatformDatas;
 	FName PackageName;

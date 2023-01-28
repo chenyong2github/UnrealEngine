@@ -4,6 +4,7 @@
 
 #include "Async/AsyncWork.h"
 #include "HAL/FileManager.h"
+#include "Memory/MemoryView.h"
 #include "Misc/Paths.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinaryWriter.h"
@@ -599,6 +600,28 @@ FMD5Hash FMD5Hash::HashFileFromArchive( FArchive* Ar, TArray<uint8>* Buffer)
 
 	return Hash;
 }
+
+FCbWriter& FMD5Hash::WriteCompactBinary(FCbWriter& Writer) const
+{
+	// TODO: Should we write bIsValid as well?
+	Writer.AddBinary(MakeMemoryView(Bytes, GetSize()));
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FMD5Hash& OutHash)
+{
+	FMemoryView BinaryView = Field.AsBinaryView();
+	if (BinaryView.GetSize() != OutHash.GetSize())
+	{
+		OutHash.bIsValid = false;
+		return false;
+	}
+
+	FMemory::Memcpy(OutHash.Bytes, BinaryView.GetData(), OutHash.GetSize());
+	OutHash.bIsValid = true;
+	return true;
+}
+
 
 
 /*-----------------------------------------------------------------------------

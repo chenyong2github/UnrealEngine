@@ -188,6 +188,12 @@ private:
 	/** The bytes this hash comprises */
 	uint8 Bytes[16];
 
+	friend inline FCbWriter& operator<<(FCbWriter& Writer, const FMD5Hash& Hash) // Hidden friends must be inlined to be performant
+	{
+		return Hash.WriteCompactBinary(Writer);
+	}
+	CORE_API FCbWriter& WriteCompactBinary(FCbWriter& Writer) const;
+	friend CORE_API bool LoadFromCompactBinary(FCbFieldView Field, FMD5Hash& OutHash); // inlining not available because we don't want FCbFieldView defined
 	friend CORE_API FString LexToString(const FMD5Hash&);
 	friend CORE_API void LexFromString(FMD5Hash& Hash, const TCHAR*);
 };

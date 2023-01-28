@@ -3,6 +3,7 @@
 #include "PackageResultsMessage.h"
 
 #include "CookPackageData.h"
+#include "Misc/ScopeLock.h"
 
 namespace UE::Cook
 {
@@ -26,24 +27,94 @@ void FPackageRemoteResult::AddPackageMessage(const FGuid& MessageType, FCbObject
 	Messages.Add(UE::CompactBinaryTCP::FMarshalledMessage{ MessageType, MoveTemp(Object) });
 }
 
-void FPackageRemoteResult::AddPlatformMessage(const ITargetPlatform* TargetPlatform, const FGuid& MessageType, FCbObject&& Object)
+void FPackageRemoteResult::AddAsyncPackageMessage(const FGuid& MessageType, TFuture<FCbObject>&& ObjectFuture)
+{
+	FAsyncMessage& AsyncMessage = AsyncMessages.Emplace_GetRef();
+	AsyncMessage.MessageType = MessageType;
+	AsyncMessage.Future = MoveTemp(ObjectFuture);
+}
+
+void FPackageRemoteResult::AddPlatformMessage(const ITargetPlatform* TargetPlatform, const FGuid& MessageType,
+	FCbObject&& Object)
 {
 	check(TargetPlatform != nullptr);
-	int32 PlatformIndex = Platforms.IndexOfByPredicate([TargetPlatform](const FPlatformResult& Result)
+	FPlatformResult* Result = Platforms.FindByPredicate([TargetPlatform](const FPlatformResult& Result)
 		{ return Result.Platform == TargetPlatform; }
 	);
-	FPlatformResult* Result;
-	if (PlatformIndex != INDEX_NONE)
+	check(Result);
+	Result->Messages.Add(UE::CompactBinaryTCP::FMarshalledMessage{ MessageType, MoveTemp(Object) });
+}
+
+void FPackageRemoteResult::AddAsyncPlatformMessage(const ITargetPlatform* TargetPlatform, const FGuid& MessageType,
+	TFuture<FCbObject>&& ObjectFuture)
+{
+	check(TargetPlatform != nullptr);
+	FAsyncMessage& AsyncMessage = AsyncMessages.Emplace_GetRef();
+	AsyncMessage.MessageType = MessageType;
+	AsyncMessage.Future = MoveTemp(ObjectFuture);
+	AsyncMessage.TargetPlatform = TargetPlatform;
+}
+
+bool FPackageRemoteResult::IsComplete()
+{
+	FinalizeAsyncMessages();
+	FScopeLock AsyncWorkScopeLock(&AsyncSupport->AsyncWorkLock);
+	return bAsyncMessagesComplete;
+}
+
+TFuture<int> FPackageRemoteResult::GetCompletionFuture()
+{
+	FinalizeAsyncMessages();
+	return AsyncSupport->CompletionFuture.GetFuture();
+}
+
+void FPackageRemoteResult::FinalizeAsyncMessages()
+{
+	if (bAsyncMessagesFinalized)
 	{
-		Result = &Platforms[PlatformIndex];
+		return;
 	}
-	else
+	bAsyncMessagesFinalized = true;
+	AsyncSupport = MakeUnique<FAsyncSupport>();
+
+	if (AsyncMessages.IsEmpty())
 	{
-		Result = &Platforms.Emplace_GetRef();
-		Result->Platform = TargetPlatform;
+		bAsyncMessagesComplete = true;
+		AsyncSupport->CompletionFuture.EmplaceValue(0);
+		return;
 	}
 
-	Result->Messages.Add(UE::CompactBinaryTCP::FMarshalledMessage{ MessageType, MoveTemp(Object)});
+	// As of now we have no multithreading that accesses this. The first time it can occur is after calling the first Next.
+	NumIncompleteAsyncWork = AsyncMessages.Num();
+	for (FAsyncMessage& Message : AsyncMessages)
+	{
+		Message.Future.Next([this, Message = &Message](FCbObject Object)
+		{
+			bool bLocalAsyncMessagesComplete = false;
+			{
+				FScopeLock AsyncWorkScopeLock(&AsyncSupport->AsyncWorkLock);
+				check(!Message->bCompleted);
+				Message->bCompleted = true;
+				if (!Message->TargetPlatform)
+				{
+					AddPackageMessage(Message->MessageType, MoveTemp(Object));
+				}
+				else
+				{
+					AddPlatformMessage(Message->TargetPlatform, Message->MessageType, MoveTemp(Object));
+				}
+				if (--NumIncompleteAsyncWork == 0)
+				{
+					bAsyncMessagesComplete = true;
+					bLocalAsyncMessagesComplete = true;
+				}
+			}
+			if (bLocalAsyncMessagesComplete)
+			{
+				AsyncSupport->CompletionFuture.EmplaceValue(0);
+			}
+		});
+	}
 }
 
 void FPackageRemoteResult::SetPlatforms(TConstArrayView<ITargetPlatform*> OrderedSessionPlatforms)
@@ -72,8 +143,6 @@ void FPackageResultsMessage::Write(FCbWriter& Writer) const
 			{
 				Writer.BeginObject();
 				Writer << "S" << PlatformResult.bSuccessful;
-				Writer << "G" << PlatformResult.PackageGuid;
-				Writer << "D" << PlatformResult.TargetDomainDependencies;
 				WriteMessagesArray(Writer, PlatformResult.Messages);
 				Writer.EndObject();
 			}
@@ -130,8 +199,6 @@ bool FPackageResultsMessage::TryRead(FCbObjectView Object)
 			FCbObjectView PlatformObject = PlatformField.AsObjectView();
 
 			PlatformResult.bSuccessful = PlatformObject["S"].AsBool();
-			PlatformResult.PackageGuid = PlatformObject["G"].AsUuid();
-			PlatformResult.TargetDomainDependencies = FCbObject::Clone(PlatformObject["D"].AsObjectView());
 
 			if (!TryReadMessagesArray(PlatformObject, PlatformResult.Messages))
 			{

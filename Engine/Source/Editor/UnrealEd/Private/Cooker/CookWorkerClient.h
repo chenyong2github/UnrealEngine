@@ -6,8 +6,10 @@
 #include "Containers/Array.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "CookTypes.h"
+#include "HAL/CriticalSection.h"
 #include "IPAddress.h"
 #include "Misc/Guid.h"
+#include "Templates/UniquePtr.h"
 
 namespace UE::Cook { class FMPCollectorClientMessageContext; }
 namespace UE::Cook { class IMPCollector; }
@@ -117,10 +119,24 @@ private:
 		FHeartbeatMessage&& Message);
 
 private:
+	/**
+	 * A PendingResult constructed during ReportPromoteToSaveComplete that is not yet ready to 
+	 * send because it has some asynchronous messages still pending.
+	 */
+	struct FPendingResultNeedingAsyncWork
+	{
+		FPendingResultNeedingAsyncWork() = default;
+		FPendingResultNeedingAsyncWork(FPendingResultNeedingAsyncWork&&) = default;
+		FPendingResultNeedingAsyncWork& operator=(FPendingResultNeedingAsyncWork&&) = default;
+
+		TUniquePtr<FPackageRemoteResult> PendingResult;
+		TFuture<void> CompletionFuture;
+	};
+private:
+	// Variables Read/Write only from the Scheduler thread
 	TSharedPtr<FInternetAddr> DirectorAddr;
 	TUniquePtr<FInitialConfigMessage> InitialConfigMessage;
 	TArray<ITargetPlatform*> OrderedSessionPlatforms;
-	TArray<FPackageRemoteResult> PendingResults;
 	TArray<FDiscoveredPackage> PendingDiscoveredPackages;
 	TMap<FGuid, TRefCountPtr<IMPCollector>> Collectors;
 	UE::CompactBinaryTCP::FSendBuffer SendBuffer;
@@ -133,6 +149,11 @@ private:
 	EConnectStatus ConnectStatus = EConnectStatus::Uninitialized;
 	ECookMode::Type DirectorCookMode = ECookMode::CookByTheBook;
 	bool bHasRunFinished = false;
+
+	// Variables Read/Write only within PendingResultsLock
+	FCriticalSection PendingResultsLock;
+	TArray<TUniquePtr<FPackageRemoteResult>> PendingResults;
+	TMap<FPackageRemoteResult*, FPendingResultNeedingAsyncWork> PendingResultsNeedingAsyncWork;
 };
 
 }

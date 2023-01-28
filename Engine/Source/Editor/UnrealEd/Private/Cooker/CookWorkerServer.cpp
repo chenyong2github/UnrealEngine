@@ -1073,8 +1073,8 @@ void FPackageWriterMPCollector::ClientTickPackage(FMPCollectorClientTickPackageC
 		if (PlatformData.bSuccessful)
 		{
 			ICookedPackageWriter& PackageWriter = COTFS.FindOrCreatePackageWriter(PlatformData.TargetPlatform);
-			FCbObject Object = PackageWriter.WriteMPCookMessageForPackage(Context.GetPackageName());
-			Context.AddPlatformMessage(PlatformData.TargetPlatform, Object);
+			TFuture<FCbObject> ObjectFuture = PackageWriter.WriteMPCookMessageForPackage(Context.GetPackageName());
+			Context.AddAsyncPlatformMessage(PlatformData.TargetPlatform, MoveTemp(ObjectFuture));
 		}
 	}
 }

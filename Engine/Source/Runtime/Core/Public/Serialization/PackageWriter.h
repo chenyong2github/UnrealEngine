@@ -194,14 +194,20 @@ public:
 ENUM_CLASS_FLAGS(IPackageWriter::EWriteOptions);
 
 /** Struct containing hashes computed during cooked package writing. */
-struct FPackageHashes : FRefCountBase
+struct FPackageHashes : FThreadSafeRefCountedObject
 {
-	// Hashes for each chunk saved by the package.
+	/** Hashes for each chunk saved by the package. */
 	TMap<FIoChunkId, FIoHash> ChunkHashes;
 
-	// This is a hash representing the entire package. Note this is
-	// not consistently computed across PackageWriters!
+	/** This is a hash representing the entire package. Not consistently computed across PackageWriters! */
 	FMD5Hash PackageHash;
+
+	/**
+	 * A Future that is triggered after all packages have been stored on *this.
+	 * Left as an invalid TFuture when hashes are not async; caller should check for IsValid before
+	 * chaining with .Then or .Next.
+	 */
+	TFuture<int> CompletionFuture;
 };
 
 /** Interface for cooking that writes cooked packages to storage usable by the runtime game. */
@@ -329,12 +335,12 @@ public:
 		return false;
 	}
 	/**
-	 * Create a CompactBinary Object message that replicates all of the package data from package save that is
-	 * collected in memory and written at end of cook rather than being written to disk during package save.
+	 * Asynchronously create a CompactBinary Object message that replicates all of the package data from package save
+	 * that is collected in memory and written at end of cook rather than being written to disk during package save.
 	 * Used during MPCook to transfer this information from CookWorker to CookDirector. Called after CommitPackage,
 	 * and only on CookWorkers.
 	 */
-	virtual FCbObject WriteMPCookMessageForPackage(FName PackageName) = 0;
+	virtual TFuture<FCbObject> WriteMPCookMessageForPackage(FName PackageName) = 0;
 
 	/** Read PackageData written by WriteMPCookMessageForPackage on a CookWorker. Called only on CookDirector. */
 	virtual bool TryReadMPCookMessageForPackage(FName PackageName, FCbObjectView Message) = 0;

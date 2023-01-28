@@ -58,6 +58,21 @@ FCookWorkerClient::~FCookWorkerClient()
 		UE_LOG(LogCook, Warning, TEXT("CookWorker was destroyed before it finished Disconnect. The CookDirector may be missing some information."));
 	}
 	Sockets::CloseSocket(ServerSocket);
+
+	// Before destructing, wait on all of the Futures that could have async access to *this from a TaskThread
+	TArray<FPendingResultNeedingAsyncWork> LocalPendingResultsNeedingAsyncWork;
+	{
+		FScopeLock PendingResultsScopeLock(&PendingResultsLock);
+		for (TPair<FPackageRemoteResult*, FPendingResultNeedingAsyncWork>& Pair : PendingResultsNeedingAsyncWork)
+		{
+			LocalPendingResultsNeedingAsyncWork.Add(MoveTemp(Pair.Value));
+		}
+		PendingResultsNeedingAsyncWork.Empty();
+	}
+	for (FPendingResultNeedingAsyncWork& PendingResult : LocalPendingResultsNeedingAsyncWork)
+	{
+		PendingResult.CompletionFuture.Get();
+	}
 }
 
 bool FCookWorkerClient::TryConnect(FDirectorConnectionInfo&& ConnectInfo)
@@ -150,32 +165,36 @@ void FCookWorkerClient::ReportDemoteToIdle(const FPackageData& PackageData, ESup
 	{
 		return;
 	}
-	FPackageRemoteResult& Result = PendingResults.Emplace_GetRef();
-	Result.SetPackageName(PackageData.GetPackageName());
-	Result.SetSuppressCookReason(Reason);
+	TUniquePtr<FPackageRemoteResult> Result(new FPackageRemoteResult());
+	Result->SetPackageName(PackageData.GetPackageName());
+	Result->SetSuppressCookReason(Reason);
+
+	FScopeLock PendingResultsScopeLock(&PendingResultsLock);
+	PendingResults.Add(MoveTemp(Result));
 }
 
 void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
 {
-	FPackageRemoteResult& Result = PendingResults.Emplace_GetRef();
+	TUniquePtr<FPackageRemoteResult> ResultOwner(new FPackageRemoteResult());
+	FPackageRemoteResult* Result = ResultOwner.Get();
 
 	FName PackageName = PackageData.GetPackageName();
-	Result.SetPackageName(PackageName);
-	Result.SetSuppressCookReason(ESuppressCookReason::InvalidSuppressCookReason);
-	Result.SetPlatforms(OrderedSessionPlatforms);
+	Result->SetPackageName(PackageName);
+	Result->SetSuppressCookReason(ESuppressCookReason::InvalidSuppressCookReason);
+	Result->SetPlatforms(OrderedSessionPlatforms);
 
 	int32 NumPlatforms = OrderedSessionPlatforms.Num();
 	for (int32 PlatformIndex = 0; PlatformIndex < NumPlatforms; ++PlatformIndex)
 	{
 		ITargetPlatform* TargetPlatform = OrderedSessionPlatforms[PlatformIndex];
-		FPackageRemoteResult::FPlatformResult& PlatformResults = Result.GetPlatforms()[PlatformIndex];
+		FPackageRemoteResult::FPlatformResult& PlatformResults = Result->GetPlatforms()[PlatformIndex];
 		FPackageData::FPlatformData& PackagePlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
 		PlatformResults.SetSuccessful(PackagePlatformData.bCookSucceeded);
 	}
 
 	TArray<FMPCollectorClientTickPackageContext::FPlatformData, TInlineAllocator<1>> ContextPlatformDatas;
 	ContextPlatformDatas.Reserve(NumPlatforms);
-	for (FPackageRemoteResult::FPlatformResult& PlatformResult : Result.GetPlatforms())
+	for (FPackageRemoteResult::FPlatformResult& PlatformResult : Result->GetPlatforms())
 	{
 		ContextPlatformDatas.Add(FMPCollectorClientTickPackageContext::FPlatformData
 			{ PlatformResult.GetPlatform(), PlatformResult.IsSuccessful() });
@@ -189,23 +208,66 @@ void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
 	{
 		IMPCollector* Collector = CollectorPair.Value.GetReference();
 		Collector->ClientTickPackage(Context);
-		if (!Context.Messages.IsEmpty())
+		const FGuid& MessageType = CollectorPair.Key;
+		for (TPair<const ITargetPlatform*, FCbObject>& MessagePair : Context.Messages)
 		{
-			const FGuid& MessageType = CollectorPair.Key;
-			for (TPair<const ITargetPlatform*, FCbObject>& MessagePair : Context.Messages)
+			const ITargetPlatform* TargetPlatform = MessagePair.Key;
+			FCbObject Object = MoveTemp(MessagePair.Value);
+			if (!TargetPlatform)
 			{
-				const ITargetPlatform* TargetPlatform = MessagePair.Key;
-				FCbObject Object = MoveTemp(MessagePair.Value);
-				if (!TargetPlatform)
-				{
-					Result.AddPackageMessage(MessageType, MoveTemp(Object));
-				}
-				else
-				{
-					Result.AddPlatformMessage(TargetPlatform, MessageType, MoveTemp(Object));
-				}
+				Result->AddPackageMessage(MessageType, MoveTemp(Object));
 			}
-			Context.Messages.Reset();
+			else
+			{
+				Result->AddPlatformMessage(TargetPlatform, MessageType, MoveTemp(Object));
+			}
+		}
+		Context.Messages.Reset();
+		for (TPair<const ITargetPlatform*, TFuture<FCbObject>>& MessagePair : Context.AsyncMessages)
+		{
+			const ITargetPlatform* TargetPlatform = MessagePair.Key;
+			TFuture<FCbObject> ObjectFuture = MoveTemp(MessagePair.Value);
+			if (!TargetPlatform)
+			{
+				Result->AddAsyncPackageMessage(MessageType, MoveTemp(ObjectFuture));
+			}
+			else
+			{
+				Result->AddAsyncPlatformMessage(TargetPlatform, MessageType, MoveTemp(ObjectFuture));
+			}
+		}
+		Context.AsyncMessages.Reset();
+	}
+
+	++(Result->GetUserRefCount()); // Used to test whether the async Future still needs to access *this
+	TFuture<void> CompletionFuture = Result->GetCompletionFuture().Then(
+	[this, Result](TFuture<int>&& OldFuture)
+	{
+		FScopeLock PendingResultsScopeLock(&PendingResultsLock);
+		FPendingResultNeedingAsyncWork PendingResult;
+		PendingResultsNeedingAsyncWork.RemoveAndCopyValue(Result, PendingResult);
+
+		// Result might have not been added into PendingResultsNeedingAsyncWork yet, and also could have
+		// been removed by cancellation from e.g. CookWorkerClient destructor.
+		if (PendingResult.PendingResult)
+		{
+			PendingResults.Add(MoveTemp(PendingResult.PendingResult));
+		}
+		--(Result->GetUserRefCount());
+	});
+
+	{
+		FScopeLock PendingResultsScopeLock(&PendingResultsLock);
+		if (Result->GetUserRefCount() == 0)
+		{
+			// Result->GetCompletionFuture() has already been called
+			check(Result->IsComplete());
+			PendingResults.Add(MoveTemp(ResultOwner));
+		}
+		else
+		{
+			PendingResultsNeedingAsyncWork.Add(Result,
+				FPendingResultNeedingAsyncWork{ MoveTemp(ResultOwner), MoveTemp(CompletionFuture) });
 		}
 	}
 }
@@ -405,18 +467,29 @@ void FCookWorkerClient::PumpSendMessages()
 
 void FCookWorkerClient::SendPendingResults()
 {
-	if (!PendingResults.IsEmpty())
+	FPackageResultsMessage Message;
 	{
-		FPackageResultsMessage Message;
-		Message.Results = MoveTemp(PendingResults);
-		SendMessage(Message);
-		PendingResults.Reset();
+		FScopeLock PendingResultsScopeLock(&PendingResultsLock);
+		if (!PendingResults.IsEmpty())
+		{
+			Message.Results.Reserve(PendingResults.Num());
+			for (TUniquePtr<FPackageRemoteResult>& Result : PendingResults)
+			{
+				Message.Results.Add(MoveTemp(*Result));
+			}
+			PendingResults.Reset();
+		}
 	}
+	if (!Message.Results.IsEmpty())
+	{
+		SendMessage(Message);
+	}
+
 	if (!PendingDiscoveredPackages.IsEmpty())
 	{
-		FDiscoveredPackagesMessage Message;
-		Message.Packages = MoveTemp(PendingDiscoveredPackages);
-		SendMessage(Message);
+		FDiscoveredPackagesMessage DiscoveredMessage;
+		DiscoveredMessage.Packages = MoveTemp(PendingDiscoveredPackages);
+		SendMessage(DiscoveredMessage);
 		PendingDiscoveredPackages.Reset();
 	}
 }

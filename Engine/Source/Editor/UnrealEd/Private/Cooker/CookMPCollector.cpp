@@ -46,10 +46,21 @@ void FMPCollectorClientTickPackageContext::AddMessage(FCbObject Object)
 	Messages.Emplace(nullptr, MoveTemp(Object));
 }
 
+void FMPCollectorClientTickPackageContext::AddAsyncMessage(TFuture<FCbObject>&& ObjectFuture)
+{
+	AsyncMessages.Emplace(nullptr, MoveTemp(ObjectFuture));
+}
+
 void FMPCollectorClientTickPackageContext::AddPlatformMessage(const ITargetPlatform* TargetPlatform, FCbObject Object)
 {
 	check(TargetPlatform && Platforms.Contains(TargetPlatform));
 	Messages.Emplace(TargetPlatform, MoveTemp(Object));
+}
+
+void FMPCollectorClientTickPackageContext::AddAsyncPlatformMessage(const ITargetPlatform* TargetPlatform, TFuture<FCbObject>&& ObjectFuture)
+{
+	check(TargetPlatform && Platforms.Contains(TargetPlatform));
+	AsyncMessages.Emplace(TargetPlatform, MoveTemp(ObjectFuture));
 }
 
 uint8 FMPCollectorClientTickPackageContext::PlatformToInt(const ITargetPlatform* Platform) const

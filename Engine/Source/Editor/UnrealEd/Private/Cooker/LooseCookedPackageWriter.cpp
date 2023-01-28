@@ -10,6 +10,7 @@
 #include "Containers/Set.h"
 #include "Containers/StringView.h"
 #include "Cooker/AsyncIODelete.h"
+#include "Cooker/CompactBinaryTCP.h"
 #include "Cooker/CookPackageData.h"
 #include "Cooker/CookTypes.h"
 #include "HAL/FileManager.h"
@@ -62,7 +63,6 @@ FLooseCookedPackageWriter::FLooseCookedPackageWriter(const FString& InOutputPath
 	, PackageStoreManifest(InOutputPath)
 	, PluginsToRemap(InPluginsToRemap)
 	, AsyncIODelete(InAsyncIODelete)
-	, bIterateSharedBuild(false)
 {
 }
 
@@ -313,14 +313,20 @@ void FLooseCookedPackageWriter::AsyncSaveOutputFiles(FRecord& Record, FCommitCon
 	UE::SavePackageUtilities::IncrementOutstandingAsyncWrites();
 
 	TRefCountPtr<FPackageHashes> ThisPackageHashes;
+	TUniquePtr<TPromise<int>> PackageHashesCompletionPromise;
 	
 	if (EnumHasAnyFlags(Context.Info.WriteOptions, EWriteOptions::ComputeHash))
 	{
 		ThisPackageHashes = new FPackageHashes();
+		if (bProvidePerPackageResults)
+		{
+			PackageHashesCompletionPromise.Reset(new TPromise<int>());
+			ThisPackageHashes->CompletionFuture = PackageHashesCompletionPromise->GetFuture();
+		}
 
 		bool bAlreadyExisted = false;
 		{
-			FScopeLock ConcurrentSaveScopeLock(&ConcurrentSaveLock);
+			FScopeLock PackageHashesScopeLock(&PackageHashesLock);
 			TRefCountPtr<FPackageHashes>& ExistingPackageHashes = AllPackageHashes.FindOrAdd(Context.Info.PackageName);
 			// This calculation of bAlreadyExisted looks weird but we're finding the _refcount_, not the hashes. So if it gets
 			// constructed, it's not actually assigned a pointer.
@@ -333,7 +339,10 @@ void FLooseCookedPackageWriter::AsyncSaveOutputFiles(FRecord& Record, FCommitCon
 		}
 	}
 
-	UE::Tasks::Launch(TEXT("HashAndWriteLooseCookedFile"), [OutputFiles = MoveTemp(Context.OutputFiles), WriteOptions = Context.Info.WriteOptions, ThisPackageHashes = MoveTemp(ThisPackageHashes)]()
+	UE::Tasks::Launch(TEXT("HashAndWriteLooseCookedFile"),
+		[OutputFiles = MoveTemp(Context.OutputFiles), WriteOptions = Context.Info.WriteOptions,
+		ThisPackageHashes = MoveTemp(ThisPackageHashes), PackageHashesCompletionPromise=MoveTemp(PackageHashesCompletionPromise)]
+		() mutable
 		{
 			FMD5 AccumulatedHash;
 			for (const FWriteFileData& OutputFile : OutputFiles)
@@ -344,6 +353,13 @@ void FLooseCookedPackageWriter::AsyncSaveOutputFiles(FRecord& Record, FCommitCon
 			if (EnumHasAnyFlags(WriteOptions, EWriteOptions::ComputeHash))
 			{
 				ThisPackageHashes->PackageHash.Set(AccumulatedHash);
+			}
+
+			if (PackageHashesCompletionPromise)
+			{
+				// Note that setting this Promise might call arbitrary code from anything that subscribed
+				// to ThisPackageHashes->CompletionFuture.Then(). So don't call it inside a lock.
+				PackageHashesCompletionPromise->SetValue(0);
 			}
 
 			// This is used to release the game thread to access the hashes
@@ -525,6 +541,7 @@ void FLooseCookedPackageWriter::BeginCook(const FCookInfo& Info)
 	else
 	{
 		PackageStoreManifest.SetTrackPackageData(true);
+		bProvidePerPackageResults = true;
 	}
 	AllPackageHashes.Empty();
 }
@@ -705,19 +722,82 @@ void FLooseCookedPackageWriter::MarkPackagesUpToDate(TArrayView<const FName> UpT
 {
 }
 
-FCbObject FLooseCookedPackageWriter::WriteMPCookMessageForPackage(FName PackageName)
+TFuture<FCbObject> FLooseCookedPackageWriter::WriteMPCookMessageForPackage(FName PackageName)
 {
-	FCbWriter Writer;
-	Writer.BeginObject();
-	Writer.SetName("Manifest");
-	PackageStoreManifest.WritePackage(Writer, PackageName);
-	Writer.EndObject();
-	return Writer.Save().AsObject();
+	FCbWriter ManifestWriter;
+	PackageStoreManifest.WritePackage(ManifestWriter, PackageName);
+	FCbFieldIterator ManifestField = ManifestWriter.Save();
+
+	TRefCountPtr<FPackageHashes> PackageHashes;
+	{
+		FScopeLock PackageHashesScopeLock(&PackageHashesLock);
+		AllPackageHashes.RemoveAndCopyValue(PackageName, PackageHashes);
+	}
+
+	auto ComposeMessage = [ManifestField = MoveTemp(ManifestField)](FPackageHashes* PackageHashes)
+	{
+		FCbWriter Writer;
+		Writer.BeginObject();
+		Writer << "Manifest" << ManifestField;
+		if (PackageHashes)
+		{
+			Writer << "PackageHash" << PackageHashes->PackageHash;
+			Writer << "ChunkHashes" << PackageHashes->ChunkHashes;
+		}
+		Writer.EndObject();
+		return Writer.Save().AsObject();
+	};
+
+	if (PackageHashes && PackageHashes->CompletionFuture.IsValid())
+	{
+		TUniquePtr<TPromise<FCbObject>> Promise(new TPromise<FCbObject>());
+		TFuture<FCbObject> ResultFuture = Promise->GetFuture();
+		PackageHashes->CompletionFuture.Next(
+			[PackageHashes, Promise = MoveTemp(Promise), ComposeMessage = MoveTemp(ComposeMessage)]
+			(int)
+			{
+				Promise->SetValue(ComposeMessage(PackageHashes.GetReference()));
+			});
+		return ResultFuture;
+	}
+	else
+	{
+		TPromise<FCbObject> Promise;
+		Promise.SetValue(ComposeMessage(PackageHashes.GetReference()));
+		return Promise.GetFuture();
+	}
 }
 
 bool FLooseCookedPackageWriter::TryReadMPCookMessageForPackage(FName PackageName, FCbObjectView Message)
 {
-	return PackageStoreManifest.TryReadPackage(Message["Manifest"], PackageName);
+	if (!PackageStoreManifest.TryReadPackage(Message["Manifest"], PackageName))
+	{
+		return false;
+	}
+
+	bool bOk = true;
+	TRefCountPtr<FPackageHashes> ThisPackageHashes(new FPackageHashes());
+	if (LoadFromCompactBinary(Message["PackageHash"], ThisPackageHashes->PackageHash))
+	{
+		bOk = LoadFromCompactBinary(Message["ChunkHashes"], ThisPackageHashes->ChunkHashes) & bOk;
+		if (bOk)
+		{
+			bool bAlreadyExisted = false;
+			{
+				FScopeLock PackageHashesScopeLock(&PackageHashesLock);
+				TRefCountPtr<FPackageHashes>& ExistingPackageHashes = AllPackageHashes.FindOrAdd(PackageName);
+				bAlreadyExisted = ExistingPackageHashes.IsValid();
+				ExistingPackageHashes = ThisPackageHashes;
+			}
+			if (bAlreadyExisted)
+			{
+				UE_LOG(LogSavePackage, Error, TEXT("FLooseCookedPackageWriter encountered the same package twice in a cook! (%s)"),
+					*PackageName.ToString());
+			}
+		}
+	}
+
+	return bOk;
 }
 
 void FLooseCookedPackageWriter::RemoveCookedPackages()
