@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "ColorSpace/DMXPixelMappingColorSpace.h"
 
 #include "ColorSpace.h"
