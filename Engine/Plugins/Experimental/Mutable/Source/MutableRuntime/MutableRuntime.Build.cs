@@ -11,6 +11,7 @@ namespace UnrealBuildTool.Rules
 			ShortName = "MuR";
 
 			DefaultBuildSettings = BuildSettingsVersion.V2;
+			IWYUSupport = IWYUSupport.KeepAsIsForNow;
 			//bUseUnity = false;
 
 			PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
