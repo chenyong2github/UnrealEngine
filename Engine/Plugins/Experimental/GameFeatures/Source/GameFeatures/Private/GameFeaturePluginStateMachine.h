@@ -364,6 +364,8 @@ protected:
 	    returns False if it should just go directly to the Terminal state instead. */
 	bool ShouldVisitUninstallStateBeforeTerminal() const;
 
+	bool AllowIniLoading() const;
+
 private:
 	void CleanupDeferredUpdateCallbacks() const;
 

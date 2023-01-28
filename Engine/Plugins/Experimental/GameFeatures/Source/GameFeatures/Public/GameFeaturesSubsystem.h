@@ -281,6 +281,9 @@ struct GAMEFEATURES_API FInstallBundlePluginProtocolMetaData
 	/** If we want to set the Downloading state to pause because of user interaction */
 	bool bUserPauseDownload;
 
+	/** Allow the GFP to load INI files, should only be allowed for trusted content */
+	bool bAllowIniLoading;
+
 	/** Functions to convert to/from the URL FString representation of this metadata **/
 	FString ToString() const;
 	static bool FromString(const FString& URLString, FInstallBundlePluginProtocolMetaData& OutMetadata);
@@ -298,6 +301,7 @@ private:
 		//Missing InstallBundles on purpose as the default is just an empty TArray and should always be encoded
 		static const bool Default_bUninstallBeforeTerminate;
 		static const bool Default_bUserPauseDownload;
+		static const bool Default_bAllowIniLoading;
 		static const EInstallBundleRequestFlags Default_InstallBundleFlags;
 		static const EInstallBundleReleaseRequestFlags Default_ReleaseInstallBundleFlags;
 	};

@@ -346,9 +346,10 @@ namespace UE::GameFeatures
 	XOPTION(Bundles,					TEXT("Bundles"))					\
 	XOPTION(Version,					TEXT("V"))							\
 	XOPTION(Flags,						TEXT("Flags"))						\
-	XOPTION(ReleaseFlags,				TEXT("ReleaseFlags"))						\
+	XOPTION(ReleaseFlags,				TEXT("ReleaseFlags"))				\
 	XOPTION(UninstallBeforeTerminate,	TEXT("UninstallBeforeTerminate"))	\
-	XOPTION(UserPauseDownload,			TEXT("Paused"))
+	XOPTION(UserPauseDownload,			TEXT("Paused"))						\
+	XOPTION(AllowIniLoading,			TEXT("AllowIni"))
 
 #define INSTALL_BUNDLE_PROTOCOL_URL_OPTIONS_ENUM(inEnum, inString) inEnum,
 enum class EGameFeatureInstallBundleProtocolOptions : uint8
@@ -564,6 +565,25 @@ bool FGameFeaturePluginState::ShouldVisitUninstallStateBeforeTerminal() const
 		{
 			return false;
 		}
+	}
+}
+
+bool FGameFeaturePluginState::AllowIniLoading() const
+{
+	switch (StateProperties.GetPluginProtocol())
+	{
+	case (EGameFeaturePluginProtocol::InstallBundle):
+	{
+		//InstallBundleProtocol's have a MetaData that controlls if INI loading is allowed
+		//The protocol default is not to allow INI loading since the source is likely untrusted
+		return StateProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>().bAllowIniLoading;
+	}
+
+	//Default behavior is to allow INI loading
+	default:
+	{
+		return true;
+	}
 	}
 }
 
@@ -1945,22 +1965,26 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 		const FString BackupGameFeatureDataPath = FString::Printf(TEXT("/%s/%s.%s"), *StateProperties.PluginName, *StateProperties.PluginName, *StateProperties.PluginName);
 
 		FString PreferredGameFeatureDataPath = TEXT("/") + StateProperties.PluginName + TEXT("/GameFeatureData.GameFeatureData");
-		// Allow game feature location to be overriden globally and from within the plugin
-		FString OverrideIniPathName = StateProperties.PluginName + TEXT("_Override");
-		FString OverridePath = GConfig->GetStr(TEXT("GameFeatureData"), *OverrideIniPathName, GGameIni);
-		if (OverridePath.IsEmpty())
+
+		if (AllowIniLoading())
 		{
-			const FString SettingsOverride = PluginFolder / TEXT("Config") / TEXT("Settings.ini");
-			if (FPaths::FileExists(SettingsOverride))
+			// Allow game feature location to be overriden globally and from within the plugin
+			FString OverrideIniPathName = StateProperties.PluginName + TEXT("_Override");
+			FString OverridePath = GConfig->GetStr(TEXT("GameFeatureData"), *OverrideIniPathName, GGameIni);
+			if (OverridePath.IsEmpty())
 			{
-				GConfig->LoadFile(SettingsOverride);
-				OverridePath = GConfig->GetStr(TEXT("GameFeatureData"), TEXT("Override"), SettingsOverride);
-				GConfig->UnloadFile(SettingsOverride);
+				const FString SettingsOverride = PluginFolder / TEXT("Config") / TEXT("Settings.ini");
+				if (FPaths::FileExists(SettingsOverride))
+				{
+					GConfig->LoadFile(SettingsOverride);
+					OverridePath = GConfig->GetStr(TEXT("GameFeatureData"), TEXT("Override"), SettingsOverride);
+					GConfig->UnloadFile(SettingsOverride);
+				}
 			}
-		}
-		if (!OverridePath.IsEmpty())
-		{
-			PreferredGameFeatureDataPath = OverridePath;
+			if (!OverridePath.IsEmpty())
+			{
+				PreferredGameFeatureDataPath = OverridePath;
+			}
 		}
 		
 		auto LoadGameFeatureData = [](const FString& Path) -> UGameFeatureData*
@@ -1988,7 +2012,11 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 
 		if (StateProperties.GameFeatureData)
 		{
-			StateProperties.GameFeatureData->InitializeBasePluginIniFile(StateProperties.PluginInstalledFilename);
+			if (AllowIniLoading())
+			{
+				StateProperties.GameFeatureData->InitializeBasePluginIniFile(StateProperties.PluginInstalledFilename);
+			}
+
 			StateStatus.SetTransition(EGameFeaturePluginState::Registered);
 
 			check(StateProperties.AddedPrimaryAssetTypes.Num() == 0);
@@ -2246,7 +2274,10 @@ struct FGameFeaturePluginState_Activating : public FGameFeaturePluginState
 
 		FGameFeatureActivatingContext Context;
 
-		StateProperties.GameFeatureData->InitializeHierarchicalPluginIniFiles(StateProperties.PluginInstalledFilename);
+		if (AllowIniLoading())
+		{
+			StateProperties.GameFeatureData->InitializeHierarchicalPluginIniFiles(StateProperties.PluginInstalledFilename);
+		}
 
 		UGameFeaturesSubsystem::Get().OnGameFeatureActivating(StateProperties.GameFeatureData, StateProperties.PluginName, Context, StateProperties.PluginIdentifier.GetFullPluginURL());
 
@@ -2761,10 +2792,11 @@ void FInstallBundlePluginProtocolMetaData::ResetToDefaults()
 	VersionNum = FDefaultValues::CurrentVersionNum;
 	bUninstallBeforeTerminate = FDefaultValues::Default_bUninstallBeforeTerminate;
 	bUserPauseDownload = FDefaultValues::Default_bUserPauseDownload;
+	bAllowIniLoading = FDefaultValues::Default_bAllowIniLoading;
 	InstallBundleFlags = FDefaultValues::Default_InstallBundleFlags;
 	ReleaseInstallBundleFlags = FDefaultValues::Default_ReleaseInstallBundleFlags;
 
-	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 6, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
+	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 7, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
 }
 
 FString FInstallBundlePluginProtocolMetaData::ToString() const
@@ -2804,7 +2836,12 @@ FString FInstallBundlePluginProtocolMetaData::ToString() const
 		ReturnedString.Append(FString::Printf(TEXT("%s%s%s%s"), UE::GameFeatures::PluginURLStructureInfo::OptionSeperator, *LexToString(EGameFeatureInstallBundleProtocolOptions::UserPauseDownload), UE::GameFeatures::PluginURLStructureInfo::OptionAssignOperator, *LexToString(bUserPauseDownload)));
 	}
 
-	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 6, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
+	if (bAllowIniLoading != FDefaultValues::Default_bAllowIniLoading)
+	{
+		ReturnedString.Append(FString::Printf(TEXT("%s%s%s%s"), UE::GameFeatures::PluginURLStructureInfo::OptionSeperator, *LexToString(EGameFeatureInstallBundleProtocolOptions::AllowIniLoading), UE::GameFeatures::PluginURLStructureInfo::OptionAssignOperator, *LexToString(bAllowIniLoading)));
+	}
+
+	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 7, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
 
 	return ReturnedString;
 }
@@ -2939,6 +2976,21 @@ bool FInstallBundlePluginProtocolMetaData::FromString(const FString& URLString, 
 						break;
 					}
 
+					case EGameFeatureInstallBundleProtocolOptions::AllowIniLoading:
+					{
+						if (OptionStrings.Num() != 2)
+						{
+							bParseSuccess = false;
+							UE_LOG(LogGameFeatures, Warning, TEXT("Error parsing InstallBundle protocol options URL %s . Invalid AllowIniLoading Option!"), *URLString);
+						}
+						else
+						{
+							Metadata.bAllowIniLoading = OptionStrings[1].ToBool();
+						}
+
+						break;
+					}
+
 					case EGameFeatureInstallBundleProtocolOptions::Count:
 					default:
 					{
@@ -2958,7 +3010,7 @@ bool FInstallBundlePluginProtocolMetaData::FromString(const FString& URLString, 
 		UE_LOG(LogGameFeatures, Error, TEXT("Error parsing InstallBundle protocol options URL %s . No Bundle List Found!"), *URLString);
 	}
 
-	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 6, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
+	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 7, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
 
 	return bParseSuccess;
 }
@@ -3018,7 +3070,12 @@ bool FGameFeaturePluginStateMachineProperties::ValidateURLUpdate(const FGameFeat
 		const FInstallBundlePluginProtocolMetaData& NewMetaData = ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>();
 		const FInstallBundlePluginProtocolMetaData& OldMetaData = OldProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>();
 
-		if (!ensureMsgf((NewMetaData.InstallBundles == OldMetaData.InstallBundles), TEXT("Unexpected change in InstallBundles when updating URL: %s to %s"), *PluginIdentifier.GetFullPluginURL(), *OldProperties.PluginIdentifier.GetFullPluginURL()))
+		if (!ensureMsgf(NewMetaData.InstallBundles == OldMetaData.InstallBundles, TEXT("Unexpected change in InstallBundles when updating URL: %s to %s"), *PluginIdentifier.GetFullPluginURL(), *OldProperties.PluginIdentifier.GetFullPluginURL()))
+		{
+			bIsValidUpdate = false;
+		}
+
+		if (!ensureMsgf(NewMetaData.bAllowIniLoading == OldMetaData.bAllowIniLoading, TEXT("Unexpected change to AllowIniLoading when updating URL: %s to %s"), *PluginIdentifier.GetFullPluginURL(), *OldProperties.PluginIdentifier.GetFullPluginURL()))
 		{
 			bIsValidUpdate = false;
 		}
