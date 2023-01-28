@@ -11,6 +11,64 @@
 
 #include "NiagaraDataInterfaceArray.generated.h"
 
+template<typename TArrayType, class TOwnerType>
+struct FNDIArrayProxyImpl;
+
+#define NDIARRAY_GENERATE_BODY(CLASSNAME, TYPENAME, MEMBERNAME) \
+	using FProxyType = FNDIArrayProxyImpl<TYPENAME, CLASSNAME>; \
+	virtual void PostInitProperties() override; \
+	template<typename TFromArrayType> \
+	void SetVariantArrayData(TConstArrayView<TFromArrayType> InArrayData) \
+	{ \
+		MEMBERNAME = InArrayData; \
+	} \
+	template<typename TFromArrayType> \
+	void SetVariantArrayValue(int Index, const TFromArrayType& Value, bool bSizeToFit) \
+	{ \
+		const int NumRequired = Index + 1 - MEMBERNAME.Num(); \
+		if ( NumRequired > 0 && !bSizeToFit ) return; \
+		MEMBERNAME.AddDefaulted(FMath::Max(NumRequired, 0)); \
+		MEMBERNAME[Index] = Value; \
+	} \
+	TArray<TYPENAME>& GetArrayReference() { return MEMBERNAME; }
+
+#if WITH_EDITORONLY_DATA
+#define NDIARRAY_GENERATE_BODY_LWC(CLASSNAME, TYPENAME, MEMBERNAME) \
+		using FProxyType = FNDIArrayProxyImpl<TYPENAME, CLASSNAME>; \
+		virtual void PostInitProperties() override; \
+		virtual void PostLoad() override; \
+		virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override; \
+		virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override; \
+		virtual bool Equals(const UNiagaraDataInterface* Other) const override; \
+		template<typename TFromArrayType> \
+		void SetVariantArrayData(TConstArrayView<TFromArrayType> InArrayData) \
+		{ \
+			if constexpr (std::is_same_v<TFromArrayType, decltype(MEMBERNAME)::ElementType>) \
+			{ \
+				MEMBERNAME = InArrayData; \
+				GetProxyAs<FProxyType>()->template SetArrayData<decltype(MEMBERNAME)::ElementType>(InArrayData); \
+			} \
+			else \
+			{ \
+				MEMBERNAME.SetNumUninitialized(InArrayData.Num()); \
+				FNDIArrayImplHelper<TYPENAME>::CopyCpuToCpuMemory(MEMBERNAME.GetData(), InArrayData.GetData(), InArrayData.Num()); \
+				GetProxyAs<FProxyType>()->template SetArrayData<decltype(Internal##MEMBERNAME)::ElementType>(InArrayData); \
+			} \
+		} \
+		template<typename TFromArrayType> \
+		void SetVariantArrayValue(int Index, const TFromArrayType& Value, bool bSizeToFit) \
+		{ \
+			const int NumRequired = Index + 1 - MEMBERNAME.Num(); \
+			if ( NumRequired > 0 && !bSizeToFit ) return; \
+			MEMBERNAME.AddDefaulted(FMath::Max(NumRequired, 0)); \
+			MEMBERNAME[Index] = Value; \
+			GetProxyAs<FProxyType>()->template SetArrayData<decltype(MEMBERNAME)::ElementType>(MEMBERNAME); \
+		} \
+		TArray<TYPENAME>& GetArrayReference() { return Internal##MEMBERNAME; }
+#else
+	#define NDIARRAY_GENERATE_BODY_LWC(CLASSNAME, TYPENAME, MEMBERNAME) NDIARRAY_GENERATE_BODY(CLASSNAME, TYPENAME, Internal##MEMBERNAME)
+#endif
+
 struct INDIArrayProxyBase : public FNiagaraDataInterfaceProxyRW
 {
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters,)
