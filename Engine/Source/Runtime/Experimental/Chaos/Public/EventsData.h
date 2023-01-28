@@ -201,7 +201,10 @@ namespace Chaos
 	template<typename PayloadType>
 	bool IsEventDataEmpty(const PayloadType* Buffer)
 	{
-		ensure(Buffer);
+		if (!Buffer)
+		{
+			return false;
+		}
 
 		if constexpr (std::is_same_v<PayloadType, FCollisionEventData>)
 		{
