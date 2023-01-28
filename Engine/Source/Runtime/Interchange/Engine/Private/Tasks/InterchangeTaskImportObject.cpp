@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "InterchangeTaskImportObject.h"
 
+#include "AssetToolsModule.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
 #include "InterchangeAssetImportData.h"
@@ -10,6 +11,7 @@
 #include "InterchangeResult.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
+#include "Misc/NamePermissionList.h"
 #include "Misc/Paths.h"
 #include "PackageUtils/PackageUtils.h"
 #include "Stats/Stats.h"
@@ -117,6 +119,23 @@ namespace UE
 				return false;
 			}
 
+			bool CanImportClass(UClass* Class)
+			{
+				if (!Class)
+				{
+					return true;
+				}
+				IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
+				TSharedPtr<FPathPermissionList> AssetClassPermissionList = AssetTools.GetAssetClassPathPermissionList(EAssetClassAction::ImportAsset);
+				if (AssetClassPermissionList && AssetClassPermissionList->HasFiltering())
+				{
+					if (!AssetClassPermissionList->PassesFilter(Class->GetPathName()))
+					{
+						return false;
+					}
+				}
+				return true;
+			}
 		}//ns Private
 	}//ns Interchange
 }//ns UE
@@ -131,11 +150,12 @@ void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type C
 	check(AsyncHelper.IsValid());
 
 	//Verify if the task was cancel
-	if (AsyncHelper->bCancel)
+	if (AsyncHelper->bCancel
+		|| !FactoryNode
+		|| !UE::Interchange::Private::CanImportClass(FactoryNode->GetObjectClass()))
 	{
 		return;
 	}
-
 	//The create package thread must always execute on the game thread
 	check(IsInGameThread());
 
@@ -269,7 +289,9 @@ void UE::Interchange::FTaskImportObject_Async::DoTask(ENamedThreads::Type Curren
 	check(AsyncHelper.IsValid());
 
 	//Verify if the task was cancel
-	if (AsyncHelper->bCancel)
+	if (AsyncHelper->bCancel
+		|| !FactoryNode
+		|| !UE::Interchange::Private::CanImportClass(FactoryNode->GetObjectClass()))
 	{
 		return;
 	}

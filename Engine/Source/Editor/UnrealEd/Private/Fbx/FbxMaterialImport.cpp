@@ -38,7 +38,7 @@ using namespace UnFbx;
 
 UTexture* UnFbx::FFbxImporter::ImportTexture(FbxFileTexture* FbxTexture, bool bSetupAsNormalMap)
 {
-	if (!FbxTexture)
+	if (!FbxTexture || !CanImportClass(UTexture2D::StaticClass()))
 	{
 		return nullptr;
 	}
@@ -629,15 +629,6 @@ UMaterialInterface* UnFbx::FFbxImporter::CreateUnrealMaterial(const FbxSurfaceMa
 		return nullptr;
 	}
 
-	const FString BasePackageName = GetMaterialBasePackageName(GetMaterialFullName(FbxMaterial));
-	const FString Suffix(TEXT(""));
-	FString FinalPackageName;
-	FString FinalMaterialName;
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, Suffix, FinalPackageName, FinalMaterialName);
-
-	UPackage* Package = CreatePackage( *FinalPackageName);
-	
 	// Check if we can use the specified base material to instance from it
 	FBXImportOptions* FbxImportOptions = GetImportOptions();
 	bool bCanInstance = false;
@@ -669,8 +660,30 @@ UMaterialInterface* UnFbx::FFbxImporter::CreateUnrealMaterial(const FbxSurfaceMa
 		bCanInstance &= CanUseMaterialWithInstance(FbxMaterial, FbxSurfaceMaterial::sTransparentColor, FbxImportOptions->BaseOpacityTextureName, FbxImportOptions->BaseMaterial, OutUVSets);
 	}
 
+	//Make sure we can import the material class
+	if ( bCanInstance )
+	{
+		if (!CanImportClass(UMaterialInstanceConstant::StaticClass()))
+		{
+			return nullptr;
+		}
+	}
+	else if ( !CanImportClass(UMaterial::StaticClass()) )
+	{
+		return nullptr;
+	}
+
+	const FString BasePackageName = GetMaterialBasePackageName(GetMaterialFullName(FbxMaterial));
+	const FString Suffix(TEXT(""));
+	FString FinalPackageName;
+	FString FinalMaterialName;
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, Suffix, FinalPackageName, FinalMaterialName);
+
+	UPackage* Package = CreatePackage(*FinalPackageName);
 	UMaterialInterface* UnrealMaterialFinal = nullptr;
-	if (bCanInstance) {
+	if (bCanInstance)
+	{
 		auto MaterialInstanceFactory = NewObject<UMaterialInstanceConstantFactoryNew>();
 		MaterialInstanceFactory->InitialParent = FbxImportOptions->BaseMaterial;
 		UMaterialInstanceConstant* UnrealMaterialConstant = (UMaterialInstanceConstant*)MaterialInstanceFactory->FactoryCreateNew(UMaterialInstanceConstant::StaticClass(), Package, *FinalMaterialName, RF_Standalone | RF_Public, NULL, GWarn);

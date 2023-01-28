@@ -39,6 +39,8 @@
 #include "IMeshReductionInterfaces.h"
 #include "ObjectTools.h"
 #include "Misc/AutomationTest.h"
+#include "AssetToolsModule.h"
+#include "IAssetTools.h"
 
 DEFINE_LOG_CATEGORY(LogFbx);
 
@@ -647,6 +649,17 @@ void FFbxImporter::ReleaseScene()
 	CurPhase = NOTSTARTED;
 	bFirstMesh = true;
 	LastMergeBonesChoice = EAppReturnType::Ok;
+}
+
+bool FFbxImporter::CanImportClass(UClass* Class) const
+{
+	IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
+	TSharedPtr<FPathPermissionList> AssetClassPermissionList = AssetTools.GetAssetClassPathPermissionList(EAssetClassAction::ImportAsset);
+	if (Class && AssetClassPermissionList && AssetClassPermissionList->HasFiltering())
+	{
+		return AssetClassPermissionList->PassesFilter(Class->GetPathName());
+	}
+	return true;
 }
 
 FBXImportOptions* UnFbx::FFbxImporter::GetImportOptions() const

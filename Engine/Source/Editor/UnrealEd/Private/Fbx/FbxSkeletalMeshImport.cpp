@@ -1624,7 +1624,7 @@ void UnFbx::FFbxImporter::FillLastImportMaterialNames(TArray<FName> &LastImporte
 
 USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &ImportSkeletalMeshArgs)
 {
-	if (ImportSkeletalMeshArgs.NodeArray.Num() == 0)
+	if (ImportSkeletalMeshArgs.NodeArray.Num() == 0 || !CanImportClass(USkeletalMesh::StaticClass()))
 	{
 		return nullptr;
 	}
@@ -2045,7 +2045,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 
 		EARLY_RETURN_ON_CANCEL(false, CancelCleanup);
 
-		if ((!SkeletalMesh->GetResourceForRendering() || !SkeletalMesh->GetResourceForRendering()->LODRenderData.IsValidIndex(0)) && ImportOptions->bCreatePhysicsAsset)
+		if ((!SkeletalMesh->GetResourceForRendering() || !SkeletalMesh->GetResourceForRendering()->LODRenderData.IsValidIndex(0)) && ImportOptions->bCreatePhysicsAsset && CanImportClass(UPhysicsAsset::StaticClass()))
 		{
 			//We need to have a valid render data to create physic asset
 			SkeletalMesh->Build();
@@ -2056,7 +2056,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	if(ImportSkeletalMeshArgs.LodIndex == 0)
 	{
 		// see if we have skeleton set up
-		// if creating skeleton, create skeleeton
+		// if creating skeleton, create skeleton
 		USkeleton* Skeleton = ImportOptions->SkeletonForAnimation;
 		if (Skeleton == NULL)
 		{
@@ -2163,7 +2163,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 		// We create the physic asset after we create the skeleton since we need the skeleton to correctly build it
 		if (ImportOptions->bCreatePhysicsAsset)
 		{
-			if (SkeletalMesh->GetPhysicsAsset() == NULL)
+			if (SkeletalMesh->GetPhysicsAsset() == NULL && CanImportClass(UPhysicsAsset::StaticClass()))
 			{
 				FString ObjectName = FString::Printf(TEXT("%s_PhysicsAsset"), *SkeletalMesh->GetName());
 				UPhysicsAsset * NewPhysicsAsset = CreateAsset<UPhysicsAsset>(ImportSkeletalMeshArgs.InParent->GetName(), ObjectName, true);
@@ -2368,6 +2368,11 @@ UObject* UnFbx::FFbxImporter::CreateAssetOfClass(UClass* AssetClass, FString Par
 
 void UnFbx::FFbxImporter::SetupAnimationDataFromMesh(USkeletalMesh* SkeletalMesh, UObject* InParent, TArray<FbxNode*>& NodeArray, UFbxAnimSequenceImportData* TemplateImportData, const FString& Name)
 {
+	if (!CanImportClass(UAnimSequence::StaticClass()))
+	{
+		return;
+	}
+
 	USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
 
 	if (Scene->GetSrcObjectCount<FbxAnimStack>() > 0)
@@ -4464,6 +4469,11 @@ void UnFbx::FFbxImporter::ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMesh
 // Import Morph target
 void UnFbx::FFbxImporter::ImportFbxMorphTarget(TArray<FbxNode*> &SkelMeshNodeArray, USkeletalMesh* BaseSkelMesh, int32 LODIndex, FSkeletalMeshImportData &BaseSkeletalMeshImportData)
 {
+	if (!CanImportClass(UMorphTarget::StaticClass()))
+	{
+		return;
+	}
+
 	//Stack the PostEditChange call, it will call post edit change when it will go out of scope
 	FScopedSkeletalMeshPostEditChange ScopedPostEditChange(BaseSkelMesh);
 	FFbxScopedOperation ScopedImportOperation(this);

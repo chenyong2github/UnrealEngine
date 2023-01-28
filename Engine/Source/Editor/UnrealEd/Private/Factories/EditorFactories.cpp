@@ -380,6 +380,20 @@ public:
 	}
 };
 
+namespace UE::EditorFactories::Private
+{
+	bool CanImportClass(UClass* Class)
+	{
+		IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
+		TSharedPtr<FPathPermissionList> AssetClassPermissionList = AssetTools.GetAssetClassPathPermissionList(EAssetClassAction::ImportAsset);
+		if (Class && AssetClassPermissionList && AssetClassPermissionList->HasFiltering())
+		{
+			return AssetClassPermissionList->PassesFilter(Class->GetPathName());
+		}
+		return true;
+	}
+
+}
 /*------------------------------------------------------------------------------
 	UTexture2DFactoryNew implementation.
 ------------------------------------------------------------------------------*/
@@ -5986,7 +6000,12 @@ bool UReimportFbxStaticMeshFactory::FactoryCanImport(const FString& Filename)
 }
 
 bool UReimportFbxStaticMeshFactory::CanReimport( UObject* Obj, TArray<FString>& OutFilenames )
-{	
+{
+	if (!UE::EditorFactories::Private::CanImportClass(UStaticMesh::StaticClass()))
+	{
+		return false;
+	}
+
 	UStaticMesh* Mesh = Cast<UStaticMesh>(Obj);
 	if(Mesh)
 	{
@@ -6031,6 +6050,11 @@ void UReimportFbxStaticMeshFactory::SetReimportPaths( UObject* Obj, const TArray
 
 EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 {
+	if (!UE::EditorFactories::Private::CanImportClass(UStaticMesh::StaticClass()))
+	{
+		return EReimportResult::Failed;
+	}
+
 	UStaticMesh* Mesh = Cast<UStaticMesh>(Obj);
 	if( !Mesh )
 	{
@@ -6312,6 +6336,11 @@ bool UReimportFbxSkeletalMeshFactory::FactoryCanImport(const FString& Filename)
 
 bool UReimportFbxSkeletalMeshFactory::CanReimport( UObject* Obj, TArray<FString>& OutFilenames )
 {
+	if (!UE::EditorFactories::Private::CanImportClass(USkeletalMesh::StaticClass()))
+	{
+		return false;
+	}
+
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Obj);
 	TArray<FString> FactoryExtensions;
 	GetSupportedFileExtensions(FactoryExtensions);
@@ -6371,6 +6400,11 @@ void UReimportFbxSkeletalMeshFactory::SetReimportPaths( UObject* Obj, const FStr
 
 EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, int32 SourceFileIndex)
 {
+	if (!UE::EditorFactories::Private::CanImportClass(USkeletalMesh::StaticClass()))
+	{
+		return EReimportResult::Failed;
+	}
+
 	// Only handle valid skeletal meshes
 	if( !Obj || !Obj->IsA( USkeletalMesh::StaticClass() ))
 	{
@@ -6795,7 +6829,11 @@ bool UReimportFbxAnimSequenceFactory::FactoryCanImport(const FString& Filename)
 }
 
 bool UReimportFbxAnimSequenceFactory::CanReimport( UObject* Obj, TArray<FString>& OutFilenames )
-{	
+{
+	if (!UE::EditorFactories::Private::CanImportClass(UAnimSequence::StaticClass()))
+	{
+		return false;
+	}
 	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Obj);
 	if(AnimSequence)
 	{
@@ -6837,6 +6875,11 @@ void UReimportFbxAnimSequenceFactory::SetReimportPaths( UObject* Obj, const TArr
 
 EReimportResult::Type UReimportFbxAnimSequenceFactory::Reimport( UObject* Obj )
 {
+	if (!UE::EditorFactories::Private::CanImportClass(UAnimSequence::StaticClass()))
+	{
+		return EReimportResult::Failed;
+	}
+
 	// Only handle valid skeletal meshes
 	if( !Obj || !Obj->IsA( UAnimSequence::StaticClass() ) )
 	{

@@ -429,12 +429,17 @@ UObject* UFbxFactory::FactoryCreateFile
 			bool bCombineMeshes = ImportUI->StaticMeshImportData->bCombineMeshes;
 			bool bCombineMeshesLOD = false;
 
-			if ( ImportUI->MeshTypeToImport == FBXIT_SkeletalMesh )
+			const bool bCanImportStaticMesh = FbxImporter->CanImportClass(UStaticMesh::StaticClass());
+			//We can import skeletal mesh only if we can import skeleton or a skeleton was specified in the import options
+			const bool bCanImportSkeletalMesh = FbxImporter->CanImportClass(USkeletalMesh::StaticClass()) && (ImportOptions->SkeletonForAnimation || FbxImporter->CanImportClass(USkeleton::StaticClass()));
+			const bool bCanImportAnimSequence = FbxImporter->CanImportClass(UAnimSequence::StaticClass());
+
+			if (bCanImportStaticMesh && ImportUI->MeshTypeToImport == FBXIT_SkeletalMesh )
 			{
 				FbxImporter->FillFbxSkelMeshArrayInScene(RootNodeToImport, SkelMeshArray, false, (ImportOptions->bImportAsSkeletalGeometry || ImportOptions->bImportAsSkeletalSkinning));
 				InterestingNodeCount = SkelMeshArray.Num();
 			}
-			else if( ImportUI->MeshTypeToImport == FBXIT_StaticMesh )
+			else if(bCanImportSkeletalMesh && ImportUI->MeshTypeToImport == FBXIT_StaticMesh )
 			{
 				FbxImporter->ApplyTransformSettingsToFbxNode(RootNodeToImport, ImportUI->StaticMeshImportData);
 
@@ -475,7 +480,7 @@ UObject* UFbxFactory::FactoryCreateFile
 				int32 NodeIndex = 0;
 
 				int32 ImportedMeshCount = 0;
-				if ( ImportUI->MeshTypeToImport == FBXIT_StaticMesh )  // static mesh
+				if (bCanImportStaticMesh && ImportUI->MeshTypeToImport == FBXIT_StaticMesh )  // static mesh
 				{
 					UStaticMesh* NewStaticMesh = NULL;
 					if (bCombineMeshes)
@@ -628,7 +633,7 @@ UObject* UFbxFactory::FactoryCreateFile
 					CreatedObject = NewStaticMesh;
 
 				}
-				else if ( ImportUI->MeshTypeToImport == FBXIT_SkeletalMesh )// skeletal mesh
+				else if ( bCanImportSkeletalMesh && ImportUI->MeshTypeToImport == FBXIT_SkeletalMesh )// skeletal mesh
 				{
 					int32 TotalNumNodes = 0;
 
@@ -830,7 +835,7 @@ UObject* UFbxFactory::FactoryCreateFile
 							FFbxErrors::SkeletalMesh_NoMeshFoundOnRoot);
 					}
 				}
-				else if ( ImportUI->MeshTypeToImport == FBXIT_Animation )// animation
+				else if (bCanImportAnimSequence && ImportUI->MeshTypeToImport == FBXIT_Animation )// animation
 				{
 					if (ImportOptions->SkeletonForAnimation)
 					{

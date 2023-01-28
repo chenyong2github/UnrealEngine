@@ -630,6 +630,11 @@ public:
 	}
 
 	/**
+	 * The asset tool have a filter mecanism for ImportAsset, return true if the asset can be imported, false otherwise
+	 */
+	bool CanImportClass(UClass* Class) const;
+
+	/**
 	 * Detect if the FBX file has skeletal mesh model. If there is deformer definition, then there is skeletal mesh.
 	 * In this function, we don't need to import the scene. But the open process is time-consume if the file is large.
 	 *

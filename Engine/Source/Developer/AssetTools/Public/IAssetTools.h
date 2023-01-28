@@ -44,6 +44,8 @@ enum class EAssetClassAction : uint8
 	CreateAsset,
 	/** Whether an asset can be viewed in the content browser */
 	ViewAsset,
+	/** Whether an asset can be imported */
+	ImportAsset,
 	AllAssetActions
 };
 
