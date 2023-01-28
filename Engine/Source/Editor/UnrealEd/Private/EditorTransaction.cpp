@@ -1119,6 +1119,8 @@ void UTransBuffer::Initialize(SIZE_T InMaxMemory)
 	Reset( NSLOCTEXT("UnrealEd", "Startup", "Startup") );
 	CheckState();
 
+	FCoreUObjectDelegates::OnObjectsReinstanced.AddUObject(this, &UTransBuffer::OnObjectsReinstanced);
+
 	UE_LOG(LogInit, Log, TEXT("Transaction tracking system initialized") );
 }
 
@@ -1148,6 +1150,42 @@ void UTransBuffer::FinishDestroy()
 		UE_LOG(LogExit, Log, TEXT("Transaction tracking system shut down") );
 	}
 	Super::FinishDestroy();
+}
+
+void UTransBuffer::OnObjectsReinstanced(const TMap<UObject*, UObject*>& OldToNewInstances)
+{
+	if (OldToNewInstances.Num() == 0)
+	{
+		return;
+	}
+
+	class FReinstancingReferenceCollector : public FReferenceCollector
+	{
+	public:
+		virtual bool IsIgnoringArchetypeRef() const override
+		{
+			return false;
+		}
+
+		virtual bool IsIgnoringTransient() const override
+		{
+			return false;
+		}
+
+		virtual void HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty) override
+		{
+			if (UObject* NewObject = OldToNewInstancesPtr->FindRef(Object))
+			{
+				Object = NewObject;
+			}
+		}
+
+		const TMap<UObject*, UObject*>* OldToNewInstancesPtr = nullptr;
+	};
+
+	FReinstancingReferenceCollector Collector;
+	Collector.OldToNewInstancesPtr = &OldToNewInstances;
+	CallAddReferencedObjects(Collector);
 }
 
 void UTransBuffer::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)

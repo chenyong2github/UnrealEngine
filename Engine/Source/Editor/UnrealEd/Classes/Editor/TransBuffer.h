@@ -63,6 +63,8 @@ public:
 
 protected:
 	
+	void OnObjectsReinstanced(const TMap<UObject*, UObject*>& OldToNewInstances);
+
 	/** Implementation of the begin function. Used to create a specific transaction type */
 	template<typename TTransaction>
 	int32 BeginInternal( const TCHAR* SessionContext, const FText& Description )
