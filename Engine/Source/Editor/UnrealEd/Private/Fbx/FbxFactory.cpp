@@ -434,12 +434,12 @@ UObject* UFbxFactory::FactoryCreateFile
 			const bool bCanImportSkeletalMesh = FbxImporter->CanImportClass(USkeletalMesh::StaticClass()) && (ImportOptions->SkeletonForAnimation || FbxImporter->CanImportClass(USkeleton::StaticClass()));
 			const bool bCanImportAnimSequence = FbxImporter->CanImportClass(UAnimSequence::StaticClass());
 
-			if (bCanImportStaticMesh && ImportUI->MeshTypeToImport == FBXIT_SkeletalMesh )
+			if (bCanImportSkeletalMesh && ImportUI->MeshTypeToImport == FBXIT_SkeletalMesh )
 			{
 				FbxImporter->FillFbxSkelMeshArrayInScene(RootNodeToImport, SkelMeshArray, false, (ImportOptions->bImportAsSkeletalGeometry || ImportOptions->bImportAsSkeletalSkinning));
 				InterestingNodeCount = SkelMeshArray.Num();
 			}
-			else if(bCanImportSkeletalMesh && ImportUI->MeshTypeToImport == FBXIT_StaticMesh )
+			else if(bCanImportStaticMesh && ImportUI->MeshTypeToImport == FBXIT_StaticMesh )
 			{
 				FbxImporter->ApplyTransformSettingsToFbxNode(RootNodeToImport, ImportUI->StaticMeshImportData);
 

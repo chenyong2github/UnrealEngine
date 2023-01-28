@@ -14,7 +14,6 @@
 #include "Misc/SecureHash.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "Factories/FbxTextureImportData.h"
-
 #include "Materials/MaterialInterface.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Logging/TokenizedMessage.h"
@@ -41,6 +40,7 @@
 #include "Misc/AutomationTest.h"
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
+#include "Misc/NamePermissionList.h"
 
 DEFINE_LOG_CATEGORY(LogFbx);
 
