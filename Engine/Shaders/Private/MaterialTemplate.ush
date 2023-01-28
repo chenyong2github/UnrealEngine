@@ -130,7 +130,10 @@
 #if IS_NANITE_PASS
 	#define ALLOW_CLIP 0
 	#define clip(x)
-	#if COMPUTESHADER
+	#if COMPUTE_SHADED
+		// Threads are remapped into 2x2 quad layout, so quad read x/y/d work for ddx/ddy
+		#define fwidth(x) 0
+	#elif COMPUTESHADER
 		#define ddx(x) 0
 		#define ddy(x) 0
 		#define fwidth(x) 0

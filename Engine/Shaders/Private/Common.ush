@@ -28,6 +28,10 @@
 	#define MaterialFloat4x3 float4x3 
 #endif
 
+#ifndef COMPUTE_SHADED
+#define COMPUTE_SHADED 0
+#endif
+
 struct FloatDeriv
 {
 	float Value;
@@ -152,6 +156,9 @@ const static float3 Max111110BitsFloat3 = float3(Max11BitsFloat, Max11BitsFloat,
 // * USE_FORCE_TEXTURE_MIP : enable/disable manual MIP level selection
 // * FORCED_TEXTURE_MIP    : force a specific MIP level
 //
+#if COMPUTE_SHADED && !defined(USE_FORCE_TEXTURE_MIP)
+	#define USE_FORCE_TEXTURE_MIP 0
+#endif
 #if !PIXELSHADER && !defined(USE_FORCE_TEXTURE_MIP)
 	#define USE_FORCE_TEXTURE_MIP 1
 #endif
