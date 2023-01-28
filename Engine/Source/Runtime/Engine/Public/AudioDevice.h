@@ -842,9 +842,22 @@ public:
 	void ApplyInteriorSettings(FActiveSound& ActiveSound, FSoundParseParameters& ParseParams) const;
 
 	/**
+	 * Notifies subsystems an active sound is about to be deleted (called on audio thread) - Deprecated, see NotifyPendingDeleteInternal
+	 */
+	UE_DEPRECATED(5.3, "NotifyPending is deprecated in public scope. Use IActiveSoundUpdateInterface::OnNotifyPendingDelete instead.")
+	void NotifyPendingDelete(FActiveSound& ActiveSound) const {}
+
+protected:
+
+	/**
+	 * Notifies subsystems an active sound has been added (called on audio thread)
+	 */
+	void NotifyAddActiveSound(FActiveSound& ActiveSound) const;
+
+	/**
 	 * Notifies subsystems an active sound is about to be deleted (called on audio thread)
 	 */
-	void NotifyPendingDelete(FActiveSound& ActiveSound) const;
+	void NotifyPendingDeleteInternal(FActiveSound& ActiveSound) const;
 
 public:
 

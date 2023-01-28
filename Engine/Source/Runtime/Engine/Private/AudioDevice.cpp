@@ -3605,7 +3605,16 @@ void FAudioDevice::ApplyInteriorSettings(FActiveSound& ActiveSound, FSoundParseP
 	});
 }
 
-void FAudioDevice::NotifyPendingDelete(FActiveSound& ActiveSound) const
+void FAudioDevice::NotifyAddActiveSound(FActiveSound& ActiveSound) const
+{
+	SubsystemCollection.ForEachSubsystem<IActiveSoundUpdateInterface>([&ActiveSound](IActiveSoundUpdateInterface* ActiveSoundUpdate)
+	{
+		ActiveSoundUpdate->OnNotifyAddActiveSound(ActiveSound);
+		return true;
+	});
+}
+
+void FAudioDevice::NotifyPendingDeleteInternal(FActiveSound& ActiveSound) const
 {
 	SubsystemCollection.ForEachSubsystem<IActiveSoundUpdateInterface>([&ActiveSound](IActiveSoundUpdateInterface* ActiveSoundUpdate)
 	{
@@ -5206,6 +5215,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& InNewActiveSoun
 
 	InitSoundParams(*ActiveSound, MoveTemp(InDefaultParams));
 	ActiveSounds.Add(ActiveSound);
+	NotifyAddActiveSound(*ActiveSound);
 
 	if (ActiveSound->GetAudioComponentID() > 0)
 	{
@@ -5412,7 +5422,7 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 					Transmitter->Reset();
 				}
 
-				NotifyPendingDelete(*ActiveSound);
+				NotifyPendingDeleteInternal(*ActiveSound);
 				delete ActiveSound;
 			}
 		}
@@ -5472,7 +5482,7 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 					Transmitter->Reset();
 				}
 
-				NotifyPendingDelete(*ActiveSound);
+				NotifyPendingDeleteInternal(*ActiveSound);
 
 				// Remove from the list of pending sounds to stop
 				PendingSoundsToStop.Remove(ActiveSound);
