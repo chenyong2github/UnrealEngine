@@ -26,7 +26,6 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/IsArithmetic.h"
-#include "Templates/RemoveCV.h"
 #include "Templates/IsPODType.h"
 #include "Templates/IsTriviallyCopyConstructible.h"
 #include "Templates/UnrealTemplate.h"

@@ -15,7 +15,6 @@
 #include "Templates/EnableIf.h"
 #include "Templates/IsArithmetic.h"
 #include "Templates/IsEnum.h"
-#include "Templates/RemoveCV.h"
 #include "Templates/Models.h"
 
 #include "Templates/IsPODType.h"

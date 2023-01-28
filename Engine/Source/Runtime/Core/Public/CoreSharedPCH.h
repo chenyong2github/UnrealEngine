@@ -194,7 +194,6 @@
 #include "Templates/MemoryOps.h"
 #include "Templates/PointerIsConvertibleFromTo.h"
 #include "Templates/RefCounting.h"
-#include "Templates/RemoveCV.h"
 #include "Templates/RemoveExtent.h"
 #include "Templates/RemoveReference.h"
 #include "Templates/SharedPointer.h"

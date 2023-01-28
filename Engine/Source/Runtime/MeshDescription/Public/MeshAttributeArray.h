@@ -27,7 +27,6 @@
 #include "Templates/CopyQualifiersFromTo.h"
 #include "Templates/EnableIf.h"
 #include "Templates/IsArray.h"
-#include "Templates/RemoveCV.h"
 #include "Templates/Tuple.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"

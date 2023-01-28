@@ -19,7 +19,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "Misc/Char.h"
 #include "Templates/EnableIf.h"
 #include "Templates/AndOrNot.h"
-#include "Templates/RemoveCV.h"
 #include "Templates/IsArithmetic.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/IsIntegral.h"
