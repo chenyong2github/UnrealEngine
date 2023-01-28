@@ -17,6 +17,8 @@ void URevLimiterMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAu
 			bActive = false;
 			OnRevLimiterStateChanged.Broadcast(bActive);
 		}
+
+		Super::Update(Input, RuntimeInfo);
 		return;
 	}
 
@@ -47,6 +49,7 @@ void URevLimiterMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAu
 	if (Input.bGrounded)
 	{
 		TimeInAir = 0.0f;
+		Super::Update(Input, RuntimeInfo);
 		return;
 	}
 
@@ -61,10 +64,14 @@ void URevLimiterMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAu
 	{
 		Input.Throttle = 0.0f;
 	}
+
+	Super::Update(Input, RuntimeInfo);
 }
 
 void URevLimiterMotorSimComponent::Reset()
 {
+	Super::Reset();
+
 	TimeRemaining = 0.f;
 	TimeInAir = 0.f;
 }

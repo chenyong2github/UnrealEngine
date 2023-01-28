@@ -9,6 +9,7 @@ void URpmCurveMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudi
 {
 	if (Gears.Num() == 0)
 	{
+		Super::Update(Input, RuntimeInfo);
 		return;
 	}
 
@@ -53,6 +54,8 @@ void URpmCurveMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudi
 	{
 		RuntimeInfo.Rpm = TargetRpm;
 	}
+
+	Super::Update(Input, RuntimeInfo);
 }
 
 int32 URpmCurveMotorSimComponent::GetDesiredGearForSpeed(const float Speed) const

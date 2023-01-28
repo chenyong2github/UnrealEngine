@@ -17,6 +17,7 @@ void UBoostMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudioMo
 	if (Input.Boost <= 0.f)
 	{
 		ActiveTime = 0.0f;
+		Super::Update(Input, RuntimeInfo);
 		return;
 	}
 
@@ -29,8 +30,11 @@ void UBoostMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudioMo
 	}
 	
 	Input.Throttle = UKismetMathLibrary::Ease(InterpScale, 1.0, FMath::Min(ActiveTime / InterpTime, 1.0f), EEasingFunc::EaseIn, InterpExp);
+
+	Super::Update(Input, RuntimeInfo);
 }
 void UBoostMotorSimComponent::Reset()
 {
+	Super::Reset();
 	ActiveTime = 0.f;
 }

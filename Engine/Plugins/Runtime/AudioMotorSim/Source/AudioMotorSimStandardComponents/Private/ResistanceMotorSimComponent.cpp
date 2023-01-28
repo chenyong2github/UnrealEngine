@@ -22,4 +22,6 @@ void UResistanceMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAu
 		
 		Input.SurfaceFrictionModifier += ZFriction + SideFriction;
 	}
+
+	Super::Update(Input, RuntimeInfo);
 }

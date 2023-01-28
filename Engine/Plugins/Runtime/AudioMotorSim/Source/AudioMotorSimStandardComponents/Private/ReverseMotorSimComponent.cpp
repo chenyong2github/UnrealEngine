@@ -9,9 +9,12 @@ void UReverseMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudio
 {
 	if (Input.ForwardSpeed >= 0.f)
 	{
+		Super::Update(Input, RuntimeInfo);
 		return;
 	}
 
 	Input.MotorFrictionModifier *= ReverseEngineResistanceModifier;
+
+	Super::Update(Input, RuntimeInfo);
 }
 

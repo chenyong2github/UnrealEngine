@@ -71,7 +71,6 @@ public:
 	FOnGearChanged OnGearChangedEvent;
 
 	virtual void Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo) override;
-	virtual void Reset() override;
 
 private:
 	float CalcRpm(const float InGearRatio, const float InSpeed) const;

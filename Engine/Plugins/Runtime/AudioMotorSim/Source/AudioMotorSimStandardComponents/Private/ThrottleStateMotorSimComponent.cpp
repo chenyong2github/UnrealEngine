@@ -38,10 +38,14 @@ void UThrottleStateMotorSimComponent::Update(FAudioMotorSimInputContext& Input, 
 
     bPrevCarAccelerating = bCarAccelerating;
     bPrevCarIdling = bCarIdling;
+	
+	Super::Update(Input, RuntimeInfo);
 }
 
 void UThrottleStateMotorSimComponent::Reset()
 {
+	Super::Reset();
+
 	FullThrottleTime = 0.f;
 
 	bPrevCarAccelerating = false;

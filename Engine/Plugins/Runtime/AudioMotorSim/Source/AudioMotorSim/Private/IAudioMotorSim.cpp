@@ -18,9 +18,27 @@ UAudioMotorSimComponent::UAudioMotorSimComponent(const FObjectInitializer& Objec
 void UAudioMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo)
 {
 	BP_Update(Input, RuntimeInfo);
+
+#if WITH_EDITORONLY_DATA
+	CachedInput = Input;
+	CachedRuntimeInfo = RuntimeInfo;
+#endif
 }
 
 void UAudioMotorSimComponent::Reset()
 {
 	BP_Reset();
+
+#if WITH_EDITORONLY_DATA
+	CachedInput = FAudioMotorSimInputContext();
+	CachedRuntimeInfo = FAudioMotorSimRuntimeContext();
+#endif
 }
+
+#if WITH_EDITORONLY_DATA
+void UAudioMotorSimComponent::GetCachedData(FAudioMotorSimInputContext& OutInput, FAudioMotorSimRuntimeContext& OutRuntimeInfo)
+{
+	OutInput = CachedInput;
+	OutRuntimeInfo = CachedRuntimeInfo;
+}
+#endif

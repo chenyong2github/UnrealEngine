@@ -64,6 +64,8 @@ void UMotorPhysicsSimComponent::Update(FAudioMotorSimInputContext& Input, FAudio
 	}
 
 	RuntimeInfo.Rpm = FMath::FInterpTo(RuntimeInfo.Rpm, Rpm, Input.DeltaTime, RpmInterpSpeed);
+
+	Super::Update(Input, RuntimeInfo);
 }
 
 float UMotorPhysicsSimComponent::CalcRpm(const float InGearRatio, const float InSpeed) const
@@ -102,8 +104,4 @@ float UMotorPhysicsSimComponent::InterpGearRatio(const int32 InGear) const
 	}
 
 	return GearRatios[MaxGear] * FMath::Pow(InfiniteGearRatio, InGear - MaxGear);
-}
-
-void UMotorPhysicsSimComponent::Reset()
-{
 }

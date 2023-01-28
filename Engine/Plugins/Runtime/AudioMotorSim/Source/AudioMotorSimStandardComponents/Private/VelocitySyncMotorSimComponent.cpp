@@ -8,6 +8,7 @@ void UVelocitySyncMotorSimComponent::Update(FAudioMotorSimInputContext& Input, F
 {
 	if(Input.bClutchEngaged || !Input.bDriving || !Input.bGrounded)
 	{
+		Super::Update(Input, RuntimeInfo);
 		return;
 	}
 	
@@ -33,9 +34,13 @@ void UVelocitySyncMotorSimComponent::Update(FAudioMotorSimInputContext& Input, F
 		
 		InterpTimeLeft -= Input.DeltaTime;
 	}
+
+	Super::Update(Input, RuntimeInfo);
 }
 void UVelocitySyncMotorSimComponent::Reset()
 {
+	Super::Reset();
+
 	NoThrottleTimeElapsed = 0.f;
 	InterpTimeLeft = 0.f;
 }

@@ -12,8 +12,11 @@ USTRUCT(BlueprintType)
 struct FMotorSimEntry
 {
 	GENERATED_BODY()
-	
+
+	UPROPERTY(BlueprintReadOnly, Category = "MotorSim")
 	TScriptInterface<IAudioMotorSim> Sim;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "MotorSim")
 	int32 SortOrder = 0;
 };
 	
@@ -22,7 +25,7 @@ class AUDIOMOTORSIM_API UAudioMotorModelComponent : public UActorComponent
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(Transient)
+	UPROPERTY(BlueprintReadOnly, Transient, Category = "Model")
 	TArray<FMotorSimEntry> SimComponents;
 
 	UPROPERTY(Transient)
