@@ -584,10 +584,11 @@ struct FPoseSearchDatabaseAsyncCacheTask
 {
 	enum class EState
 	{
-		Prestarted,
-		Cancelled,
-		Ended,
-		Failed
+		Notstarted,	// key generation failed (not all the asset has been post loaded). It'll be retried to StartNewRequestIfNeeded the next Update
+		Prestarted,	// key has been successfully generated and we kicked the DDC get
+		Cancelled,	// the task has been cancelled
+		Ended,		// the task has ended successfully
+		Failed		// the task has ended unsuccessfully
 	};
 
 	// these methods MUST be protected by FPoseSearchDatabaseAsyncCacheTask::Mutex! and to make sure we pass the mutex as input param
@@ -622,7 +623,7 @@ private:
 	FIoHash DerivedDataKey = FIoHash::Zero;
 	TSet<TWeakObjectPtr<const UObject>> DatabaseDependencies; // @todo: make this const
 		
-	FThreadSafeCounter ThreadSafeState = int32(EState::Prestarted);
+	FThreadSafeCounter ThreadSafeState = int32(EState::Notstarted);
 	bool bBroadcastOnDerivedDataRebuild = false;
 };
 
@@ -656,31 +657,41 @@ void FPoseSearchDatabaseAsyncCacheTask::StartNewRequestIfNeeded(FCriticalSection
 
 	// composing the key
 	const FKeyBuilder KeyBuilder(Database.Get(), true);
-	const FIoHash NewDerivedDataKey(KeyBuilder.Finalize());
-	const bool bHasKeyChanged = NewDerivedDataKey != DerivedDataKey;
-	if (bHasKeyChanged)
+	if (KeyBuilder.AnyAssetNotReady())
 	{
-		DerivedDataKey = NewDerivedDataKey;
-
-		DatabaseDependencies.Reset();
-		for (const UObject* Dependency : KeyBuilder.GetDependencies())
+		DerivedDataKey = FIoHash::Zero;
+		SetState(EState::Notstarted);
+	
+		UE_LOG(LogPoseSearch, Log, TEXT("Delaying DDC until dependents post load  - %s"), *LexToString(DerivedDataKey), *Database->GetName());
+	}
+	else
+	{
+		const FIoHash NewDerivedDataKey(KeyBuilder.Finalize());
+		const bool bHasKeyChanged = NewDerivedDataKey != DerivedDataKey;
+		if (bHasKeyChanged)
 		{
-			DatabaseDependencies.Add(Dependency);
-		}
+			DerivedDataKey = NewDerivedDataKey;
 
-		SetState(EState::Prestarted);
-
-		UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BeginCache"), *LexToString(DerivedDataKey), *Database->GetName());
-
-		TArray<FCacheGetRequest> CacheRequests;
-		const FCacheKey CacheKey{ Bucket, DerivedDataKey };
-		CacheRequests.Add({ { Database->GetPathName() }, CacheKey, ECachePolicy::Default });
-
-		Owner = FRequestOwner(EPriority::Normal);
-		GetCache().Get(CacheRequests, Owner, [this](FCacheGetResponse&& Response)
+			DatabaseDependencies.Reset();
+			for (const UObject* Dependency : KeyBuilder.GetDependencies())
 			{
-				OnGetComplete(MoveTemp(Response));
-			});
+				DatabaseDependencies.Add(Dependency);
+			}
+
+			SetState(EState::Prestarted);
+
+			UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BeginCache"), *LexToString(DerivedDataKey), *Database->GetName());
+
+			TArray<FCacheGetRequest> CacheRequests;
+			const FCacheKey CacheKey{ Bucket, DerivedDataKey };
+			CacheRequests.Add({ { Database->GetPathName() }, CacheKey, ECachePolicy::Default });
+
+			Owner = FRequestOwner(EPriority::Normal);
+			GetCache().Get(CacheRequests, Owner, [this](FCacheGetResponse&& Response)
+				{
+					OnGetComplete(MoveTemp(Response));
+				});
+		}
 	}
 }
 
@@ -719,6 +730,11 @@ void FPoseSearchDatabaseAsyncCacheTask::Update(FCriticalSection& OuterMutex)
 	FScopeLock Lock(&OuterMutex);
 
 	check(GetState() != EState::Cancelled); // otherwise FPoseSearchDatabaseAsyncCacheTask should have been already removed
+
+	if (GetState() == EState::Notstarted)
+	{
+		StartNewRequestIfNeeded(OuterMutex);
+	}
 
 	if (GetState() == EState::Prestarted && Poll(OuterMutex))
 	{
@@ -1129,27 +1145,9 @@ bool FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(const UPoseSear
 			{
 				if (Task->GetState() == FPoseSearchDatabaseAsyncCacheTask::EState::Prestarted)
 				{
-					if (EnumHasAnyFlags(Flag, ERequestAsyncBuildFlag::WaitPreviousRequest))
-					{
-						Task->Wait(Mutex);
-					}
-					else
-					{
-						Task->Cancel(Mutex);
-					}
+					Task->Cancel(Mutex);
 				}
-
 				Task->StartNewRequestIfNeeded(Mutex);
-			}
-			else // if (EnumHasAnyFlags(Flag, ERequestAsyncBuildFlag::ContinueRequest))
-			{
-				if (Task->GetState() == FPoseSearchDatabaseAsyncCacheTask::EState::Prestarted)
-				{
-					if (EnumHasAnyFlags(Flag, ERequestAsyncBuildFlag::WaitPreviousRequest))
-					{
-						Task->Wait(Mutex);
-					}
-				}
 			}
 			break;
 		}
@@ -1162,9 +1160,13 @@ bool FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(const UPoseSear
 		Task = This.Tasks.Last().Get();
 	}
 
-	if (EnumHasAnyFlags(Flag, ERequestAsyncBuildFlag::WaitForCompletion) && Task->GetState() == FPoseSearchDatabaseAsyncCacheTask::EState::Prestarted)
+	if (EnumHasAnyFlags(Flag, ERequestAsyncBuildFlag::WaitForCompletion))
 	{
-		Task->Wait(Mutex);
+		check(Task->GetState() != FPoseSearchDatabaseAsyncCacheTask::EState::Notstarted);
+		if (Task->GetState() == FPoseSearchDatabaseAsyncCacheTask::EState::Prestarted)
+		{
+			Task->Wait(Mutex);
+		}
 	}
 
 	return Task->GetState() == FPoseSearchDatabaseAsyncCacheTask::EState::Ended;

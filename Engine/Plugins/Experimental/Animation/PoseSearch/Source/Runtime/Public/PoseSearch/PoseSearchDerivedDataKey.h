@@ -38,15 +38,16 @@ public:
 	using Super::IsSaving;
 	using Super::operator<<;
 
-	//~ Begin FArchive Interface
+	// Begin FArchive Interface
 	virtual void Seek(int64 InPos) override;
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
 	virtual void Serialize(void* Data, int64 Length) override;
 	virtual FArchive& operator<<(FName& Name) override;
 	virtual FArchive& operator<<(class UObject*& Object) override;
 	virtual FString GetArchiveName() const override;
-	//~ End FArchive Interface
+	// End FArchive Interface
 	
+	bool AnyAssetNotReady() const;
 	FIoHash Finalize() const;
 	const TSet<const UObject*>& GetDependencies() const;
 
@@ -61,11 +62,14 @@ protected:
 
 	HashBuilderType Hasher;
 
-	/** Set of objects that have already been serialized */
+	// Set of objects that have already been serialized
 	TSet<const UObject*> ObjectsAlreadySerialized;
 
-	/** Object currently being serialized */
+	// Object currently being serialized
 	const UObject* ObjectBeingSerialized = nullptr;
+
+	// true if some dependent assets are not ready (fully loaded)
+	bool bAnyAssetNotReady = false;
 };
 
 } // namespace UE::PoseSearch

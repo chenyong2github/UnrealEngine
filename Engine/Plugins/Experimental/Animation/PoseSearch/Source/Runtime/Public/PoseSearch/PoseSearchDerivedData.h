@@ -19,7 +19,6 @@ namespace UE::PoseSearch
 		NewRequest = 1 << 0,			// generates new key and kick off a task to get updated data (it'll cancel for eventual previous Database request, unless WaitPreviousRequest)
 		ContinueRequest = 1 << 1,		// make sure there's associated data to the Database (doesn't have to be up to date)
 		WaitForCompletion = 1 << 2,		// wait the termination of the NewRequest or ContinueRequest
-		WaitPreviousRequest = 1 << 3	// if NewRequest will WaitPreviousRequest
 	};
 	ENUM_CLASS_FLAGS(ERequestAsyncBuildFlag);
 
