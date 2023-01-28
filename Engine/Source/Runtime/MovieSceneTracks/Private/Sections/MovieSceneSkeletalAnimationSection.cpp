@@ -56,39 +56,43 @@ double FMovieSceneSkeletalAnimationParams::MapTimeToAnimation(const UMovieSceneS
 double FMovieSceneSkeletalAnimationParams::MapTimeToAnimation(FFrameNumber InSectionStartTime, FFrameNumber InSectionEndTime, FFrameTime InPosition, FFrameRate InFrameRate) const
 {
 	// Get Animation Length and frame time
-	const FFrameTime AnimationLength = GetSequenceLength() * InFrameRate;
-	const int32 LengthInFrames = AnimationLength.FrameNumber.Value + (int)(AnimationLength.GetSubFrame() + 0.5f) + 1;
-
-	// we only play end if we are not looping, and assuming we are looping if Length is greater than default length;
-	const bool bLooping = (InSectionEndTime.Value - InSectionStartTime.Value + StartFrameOffset + EndFrameOffset) > LengthInFrames;	
-
-	// Make sure InPosition FrameTime doesn't underflow InSectionStartTime or overflow InSectionEndTime
-	InPosition = FMath::Clamp(InPosition, FFrameTime(InSectionStartTime), FFrameTime(InSectionEndTime - 1));
-	
-	// Gather helper values
-	const float SectionPlayRate = PlayRate * Animation->RateScale;
-	const float AnimPlayRate = FMath::IsNearlyZero(SectionPlayRate) ? 1.0f : SectionPlayRate;
-	const double SeqLength = GetSequenceLength() - InFrameRate.AsSeconds(StartFrameOffset + EndFrameOffset);
-
-	// The Time from the beginning of InSectionStartTime to InPosition in seconds
-	double SecondsFromSectionStart = FFrameTime::FromDecimal((InPosition - InSectionStartTime).AsDecimal() * AnimPlayRate) / InFrameRate;
-
-	// Logic for reversed animation
-	if (bReverse)
+	if (Animation)
 	{
-		// Duration of this section 
-		double SectionDuration = (((InSectionEndTime - InSectionStartTime) * AnimPlayRate) / InFrameRate);
-		SecondsFromSectionStart = SectionDuration - SecondsFromSectionStart;
-	}
-	// Make sure Seconds is in range
-	if (SeqLength > 0.0 && (bLooping || !FMath::IsNearlyEqual(SecondsFromSectionStart, SeqLength, 1e-4)))
-	{
-		SecondsFromSectionStart = FMath::Fmod(SecondsFromSectionStart, SeqLength);
-	}
+		const FFrameTime AnimationLength = GetSequenceLength() * InFrameRate;
+		const int32 LengthInFrames = AnimationLength.FrameNumber.Value + (int)(AnimationLength.GetSubFrame() + 0.5f) + 1;
 
-	// Add the StartFrameOffset and FirstLoopStartFrameOffset to the current seconds in the section to get the right animation frame
-	SecondsFromSectionStart += InFrameRate.AsSeconds(StartFrameOffset) + InFrameRate.AsSeconds(FirstLoopStartFrameOffset);
-	return SecondsFromSectionStart;
+		// we only play end if we are not looping, and assuming we are looping if Length is greater than default length;
+		const bool bLooping = (InSectionEndTime.Value - InSectionStartTime.Value + StartFrameOffset + EndFrameOffset) > LengthInFrames;
+
+		// Make sure InPosition FrameTime doesn't underflow InSectionStartTime or overflow InSectionEndTime
+		InPosition = FMath::Clamp(InPosition, FFrameTime(InSectionStartTime), FFrameTime(InSectionEndTime - 1));
+
+		// Gather helper values
+		const float SectionPlayRate = PlayRate * Animation->RateScale;
+		const float AnimPlayRate = FMath::IsNearlyZero(SectionPlayRate) ? 1.0f : SectionPlayRate;
+		const double SeqLength = GetSequenceLength() - InFrameRate.AsSeconds(StartFrameOffset + EndFrameOffset);
+
+		// The Time from the beginning of InSectionStartTime to InPosition in seconds
+		double SecondsFromSectionStart = FFrameTime::FromDecimal((InPosition - InSectionStartTime).AsDecimal() * AnimPlayRate) / InFrameRate;
+
+		// Logic for reversed animation
+		if (bReverse)
+		{
+			// Duration of this section 
+			double SectionDuration = (((InSectionEndTime - InSectionStartTime) * AnimPlayRate) / InFrameRate);
+			SecondsFromSectionStart = SectionDuration - SecondsFromSectionStart;
+		}
+		// Make sure Seconds is in range
+		if (SeqLength > 0.0 && (bLooping || !FMath::IsNearlyEqual(SecondsFromSectionStart, SeqLength, 1e-4)))
+		{
+			SecondsFromSectionStart = FMath::Fmod(SecondsFromSectionStart, SeqLength);
+		}
+
+		// Add the StartFrameOffset and FirstLoopStartFrameOffset to the current seconds in the section to get the right animation frame
+		SecondsFromSectionStart += InFrameRate.AsSeconds(StartFrameOffset) + InFrameRate.AsSeconds(FirstLoopStartFrameOffset);
+		return SecondsFromSectionStart;
+	}
+	return 0.0;
 }
 
 UMovieSceneSkeletalAnimationSection::UMovieSceneSkeletalAnimationSection( const FObjectInitializer& ObjectInitializer )
