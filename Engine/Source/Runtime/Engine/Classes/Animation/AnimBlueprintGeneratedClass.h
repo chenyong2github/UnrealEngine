@@ -630,6 +630,11 @@ public:
 	static FName GetConstantsStructName();
 	static FName GetMutablesStructName();
 	
+#if WITH_EDITOR
+	virtual void PrepareToConformSparseClassData() override;
+	virtual void ConformSparseClassData(UObject* Object) override;
+#endif
+
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;
 	// End of UObject interface

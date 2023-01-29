@@ -685,6 +685,7 @@ public:
 
 #if WITH_EDITOR
 	virtual void MoveDataToSparseClassDataStruct() const {}
+	virtual bool ConformSparseClassDataStruct(UScriptStruct* SourceSparseClassDataStruct, void* SourceSparseClassData) const { return false; }
 #endif
 
 #if WITH_ENGINE

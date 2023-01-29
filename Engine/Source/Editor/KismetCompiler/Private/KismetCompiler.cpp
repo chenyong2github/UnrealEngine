@@ -5263,6 +5263,9 @@ void FKismetCompilerContext::PostCDOCompiled(const UObject::FPostCDOCompiledCont
 		return;
 	}
 
+	// Conform any sparse class data now that the CDO is ready
+	NewClass->ConformSparseClassData(NewClass->ClassDefaultObject);
+
 	// Notify the CDO that it has finished compiling
 	NewClass->ClassDefaultObject->PostCDOCompiled(Context);
 	if (!Context.bIsSkeletonOnly)

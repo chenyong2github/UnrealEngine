@@ -616,6 +616,18 @@ uint8* UAnimBlueprintGeneratedClass::GetPersistentUberGraphFrame(UObject* Obj, U
 	return Super::GetPersistentUberGraphFrame(Obj, FuncToCheck);
 }
 
+#if WITH_EDITOR
+void UAnimBlueprintGeneratedClass::PrepareToConformSparseClassData()
+{
+	// ABPGC sparse data is generated on compile, so there is nothing to conform
+}
+
+void UAnimBlueprintGeneratedClass::ConformSparseClassData(UObject* Object)
+{
+	// ABPGC sparse data is generated on compile, so there is nothing to conform
+}
+#endif
+
 void UAnimBlueprintGeneratedClass::PostLoadDefaultObject(UObject* Object)
 {
 	Super::PostLoadDefaultObject(Object);

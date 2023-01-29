@@ -739,6 +739,20 @@ public:
 	static void CreateComponentsForActor(const UClass* ThisClass, AActor* Actor);
 	static void CreateTimelineComponent(AActor* Actor, const UTimelineTemplate* TimelineTemplate);
 
+#if WITH_EDITOR
+	/**
+	 * Called during serialization to allow the class to stash any sparse class data that needs to 
+	 * be conformed against the archetype once the CDO is available.
+	 */
+	virtual void PrepareToConformSparseClassData();
+
+	/**
+	 * Called to conform any pending sparse class data stashed by PrepareToConformSparseClassData.
+	 * @note Called either prior to generating the CDO (compile-on-load) or after loading the CDO.
+	 */
+	virtual void ConformSparseClassData(UObject* Object);
+#endif
+
 	// IBlueprintPropertyGuidProvider interface
 	virtual FName FindBlueprintPropertyNameFromGuid(const FGuid& PropertyGuid) const override final;
 	virtual FGuid FindBlueprintPropertyGuidFromName(const FName PropertyName) const override final;
@@ -923,5 +937,10 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UClassCookedMetaData> CachedCookedMetaDataPtr;
+#endif // WITH_EDITORONLY_DATA
+
+#if WITH_EDITORONLY_DATA
+	TWeakObjectPtr<UScriptStruct> SparseClassDataPendingConformStruct = nullptr;
+	void* SparseClassDataPendingConform = nullptr;
 #endif // WITH_EDITORONLY_DATA
 };

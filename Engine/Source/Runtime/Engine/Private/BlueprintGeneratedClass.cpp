@@ -549,15 +549,14 @@ void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FStructur
 
 	if (UnderlyingArchive.IsLoading())
 	{
-		if (SparseClassDataStruct)
-		{
-			// TODO: We should make sure that this instance conforms to its archetype (keeping data where possible, potentially via 
-			// an explicit upgrade path for sparse data), as it may have changed since this BPGC was saved (UE-127121)
-		}
-		else
+		if (!SparseClassDataStruct)
 		{
 			SparseClassDataStruct = GetSparseClassDataArchetypeStruct();
 		}
+
+#if WITH_EDITOR
+		PrepareToConformSparseClassData();
+#endif
 	}
 }
 
@@ -580,7 +579,6 @@ void UBlueprintGeneratedClass::PostLoadDefaultObject(UObject* Object)
 	}
 
 #if WITH_EDITOR
-#if WITH_EDITORONLY_DATA
 	Object->MoveDataToSparseClassDataStruct();
 
 	if (Object->GetSparseClassDataStruct())
@@ -588,9 +586,76 @@ void UBlueprintGeneratedClass::PostLoadDefaultObject(UObject* Object)
 		// now that any data has been moved into the sparse data structure we can safely serialize it
 		bIsSparseClassDataSerializable = true;
 	}
-#endif
+
+	ConformSparseClassData(Object);
 #endif
 }
+
+#if WITH_EDITOR
+void UBlueprintGeneratedClass::PrepareToConformSparseClassData()
+{
+	checkf(SparseClassDataPendingConformStruct.IsExplicitlyNull() && SparseClassDataPendingConform == nullptr, TEXT("PrepareToConformSparseClassData was called while data was already pending conform!"));
+
+	if (SparseClassDataStruct)
+	{
+		UScriptStruct* SparseClassDataArchetypeStruct = GetSparseClassDataArchetypeStruct();
+
+		if (SparseClassDataStruct != SparseClassDataArchetypeStruct)
+		{
+			if (SparseClassDataArchetypeStruct)
+			{
+				SparseClassDataPendingConformStruct = SparseClassDataStruct;
+				SparseClassDataPendingConform = SparseClassData;
+
+				SparseClassDataStruct = SparseClassDataArchetypeStruct;
+				SparseClassData = nullptr;
+			}
+			else
+			{
+				CleanupSparseClassData();
+				SparseClassDataStruct = nullptr;
+			}
+		}
+	}
+}
+
+void UBlueprintGeneratedClass::ConformSparseClassData(UObject* Object)
+{
+	if (UScriptStruct* SparseClassDataPendingConformStructPtr = SparseClassDataPendingConformStruct.Get();
+		SparseClassDataPendingConformStructPtr && SparseClassDataPendingConform)
+	{
+		// Always allow the CDO first refusal at handling the conversion
+		if (!Object->ConformSparseClassDataStruct(SparseClassDataPendingConformStructPtr, SparseClassDataPendingConform))
+		{
+			UScriptStruct* SparseClassDataArchetypeStruct = GetSparseClassDataArchetypeStruct();
+
+			// Copy common properties if the structs are related types
+			UScriptStruct* SparseClassDataStructToCopy = nullptr;
+			if (SparseClassDataArchetypeStruct->IsChildOf(SparseClassDataPendingConformStructPtr))
+			{
+				SparseClassDataStructToCopy = SparseClassDataPendingConformStructPtr;
+			}
+			else if (SparseClassDataPendingConformStructPtr->IsChildOf(SparseClassDataArchetypeStruct))
+			{
+				SparseClassDataStructToCopy = SparseClassDataArchetypeStruct;
+			}
+			if (SparseClassDataStructToCopy)
+			{
+				SparseClassDataStructToCopy->CopyScriptStruct(GetOrCreateSparseClassData(), SparseClassDataPendingConform);
+			}
+		}
+
+		SparseClassDataPendingConformStructPtr->DestroyStruct(SparseClassDataPendingConform);
+	}
+
+	SparseClassDataPendingConformStruct = nullptr;
+	if (SparseClassDataPendingConform)
+	{
+		FMemory::Free(SparseClassDataPendingConform);
+		SparseClassDataPendingConform = nullptr;
+	}
+}
+#endif
 
 bool UBlueprintGeneratedClass::BuildCustomPropertyListForPostConstruction(FCustomPropertyListNode*& InPropertyList, UStruct* InStruct, const uint8* DataPtr, const uint8* DefaultDataPtr)
 {
