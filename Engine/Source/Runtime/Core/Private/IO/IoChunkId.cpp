@@ -41,11 +41,17 @@ FString LexToString(const EIoChunkType Type)
 FString LexToString(const FIoChunkId& Id)
 {
 	FString Output;
+	Id.ToString(Output);
+	return Output;
+}
+
+void FIoChunkId::ToString(FString& Output) const
+{
+	Output.Reset();
 	TArray<TCHAR, FString::AllocatorType>& CharArray = Output.GetCharArray();
 	CharArray.AddUninitialized(sizeof(FIoChunkId) * 2 + 1);
-	UE::String::BytesToHexLower(Id.Id, CharArray.GetData());
+	UE::String::BytesToHexLower(Id, CharArray.GetData());
 	CharArray.Last() = TCHAR('\0');
-	return Output;
 }
 
 FArchive& operator<<(FArchive& Ar, FIoChunkId& ChunkId)

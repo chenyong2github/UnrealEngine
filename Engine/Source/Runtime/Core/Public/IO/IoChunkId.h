@@ -73,6 +73,7 @@ public:
 		return Builder;
 	}
 
+	CORE_API void ToString(FString& Output) const;
 	friend CORE_API FString LexToString(const FIoChunkId& Id);
 
 	inline bool operator ==(const FIoChunkId& Rhs) const

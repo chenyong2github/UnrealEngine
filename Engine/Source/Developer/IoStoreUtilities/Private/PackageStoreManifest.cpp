@@ -107,18 +107,35 @@ FIoStatus FPackageStoreManifest::Save(const TCHAR* Filename) const
 	}
 	
 	Writer->WriteArrayStart(TEXT("Files"));
-	for (const auto& KV : FileNameByChunkIdMap)
+
+	// Convert FilePaths in ChunkIdMap to RelativePaths from the CookedOutput folder
+	// Sort by RelativePath for determinism
+	TArray<TPair<const FIoChunkId*, FString>> SortedFileNameByChunkIdMap;
+	SortedFileNameByChunkIdMap.Reserve(FileNameByChunkIdMap.Num());
+	for (const TPair<FIoChunkId, FString>& KV : FileNameByChunkIdMap)
 	{
-		Writer->WriteObjectStart();
 		FString RelativePath = KV.Value;
 		FPaths::MakePathRelativeTo(RelativePath, *CookedOutputPath);
-		Writer->WriteValue(TEXT("Path"), RelativePath);
-		Writer->WriteValue(TEXT("ChunkId"), ChunkIdToString(KV.Key));
+		SortedFileNameByChunkIdMap.Emplace(&KV.Key, MoveTemp(RelativePath));
+	}
+	SortedFileNameByChunkIdMap.Sort([]
+		(const TPair<const FIoChunkId*, FString>& A, const TPair<const FIoChunkId*, FString>& B)
+		{
+			return A.Value < B.Value;
+		});
+	for (const TPair<const FIoChunkId*, FString>& KV : SortedFileNameByChunkIdMap)
+	{
+		Writer->WriteObjectStart();
+		Writer->WriteValue(TEXT("Path"), KV.Value);
+		Writer->WriteValue(TEXT("ChunkId"), ChunkIdToString(*KV.Key));
 		Writer->WriteObjectEnd();
 	}
+	SortedFileNameByChunkIdMap.Empty();
 	Writer->WriteArrayEnd();
 
-	auto WritePackageInfoObject = [Writer, &ChunkIdToString](const FPackageInfo& PackageInfo, const TCHAR* Name = nullptr)
+	constexpr int32 ChunkIdStringsBufferSize = 10;
+	TArray<FString, TInlineAllocator<ChunkIdStringsBufferSize>> ChunkIdStringsBuffer;
+	auto WritePackageInfoObject = [Writer, &ChunkIdStringsBuffer](const FPackageInfo& PackageInfo, const TCHAR* Name = nullptr)
 	{
 		if (Name)
 		{
@@ -128,22 +145,54 @@ FIoStatus FPackageStoreManifest::Save(const TCHAR* Filename) const
 		{
 			Writer->WriteObjectStart();
 		}
+		auto AllocateChunkIdStrings = [&ChunkIdStringsBuffer](int32 Num)
+		{
+			if (ChunkIdStringsBuffer.Num() < Num)
+			{
+				if (ChunkIdStringsBuffer.Max() < Num)
+				{
+					ChunkIdStringsBuffer.SetNum(Num * 2 + ChunkIdStringsBufferSize, false /* bAllowShrinking */);
+				}
+				else
+				{
+					ChunkIdStringsBuffer.SetNum(ChunkIdStringsBuffer.Max(), false /* bAllowShrinking */);
+				}
+			}
+			return TArrayView<FString>(ChunkIdStringsBuffer.GetData(), Num);
+		};
 		Writer->WriteValue(TEXT("Name"), PackageInfo.PackageName.ToString());
 		if (!PackageInfo.ExportBundleChunkIds.IsEmpty())
 		{
-			Writer->WriteArrayStart(TEXT("ExportBundleChunkIds"));
+			// Determinism: Sort ExportBundleChunkIds by string
+			TArrayView<FString> ChunkIdStrings = AllocateChunkIdStrings(PackageInfo.ExportBundleChunkIds.Num());
+			int32 Index = 0;
 			for (const FIoChunkId& ChunkId : PackageInfo.ExportBundleChunkIds)
 			{
-				Writer->WriteValue(ChunkIdToString(ChunkId));
+				ChunkId.ToString(ChunkIdStrings[Index++]);
+			}
+			Algo::Sort(ChunkIdStrings);
+
+			Writer->WriteArrayStart(TEXT("ExportBundleChunkIds"));
+			for (const FString& ChunkIdString : ChunkIdStrings)
+			{
+				Writer->WriteValue(ChunkIdString);
 			}
 			Writer->WriteArrayEnd();
 		}
 		if (!PackageInfo.BulkDataChunkIds.IsEmpty())
 		{
-			Writer->WriteArrayStart(TEXT("BulkDataChunkIds"));
+			// Determinism: Sort BulkDataChunkIds by string
+			TArrayView<FString> ChunkIdStrings = AllocateChunkIdStrings(PackageInfo.BulkDataChunkIds.Num());
+			int32 Index = 0;
 			for (const FIoChunkId& ChunkId : PackageInfo.BulkDataChunkIds)
 			{
-				Writer->WriteValue(ChunkIdToString(ChunkId));
+				ChunkId.ToString(ChunkIdStrings[Index++]);
+			}
+
+			Writer->WriteArrayStart(TEXT("BulkDataChunkIds"));
+			for (const FString& ChunkIdString : ChunkIdStrings)
+			{
+				Writer->WriteValue(ChunkIdString);
 			}
 			Writer->WriteArrayEnd();
 		}
@@ -151,12 +200,24 @@ FIoStatus FPackageStoreManifest::Save(const TCHAR* Filename) const
 	};
 
 	Writer->WriteArrayStart(TEXT("Packages"));
-	for (const auto& PackageNameInfoPair : PackageInfoByNameMap)
+	// Sort PackageInfoByNameMap by PackageName
+	TArray<TPair<FName, const FPackageInfo*>> SortedPackageInfoByNameMap;
+	SortedPackageInfoByNameMap.Reserve(PackageInfoByNameMap.Num());
+	for (const TPair<FName, FPackageInfo>& KV : PackageInfoByNameMap)
 	{
-		const FPackageInfo& PackageInfo = PackageNameInfoPair.Value;
-		WritePackageInfoObject(PackageInfo);
+		SortedPackageInfoByNameMap.Emplace(KV.Key, &KV.Value);
+	}
+	SortedPackageInfoByNameMap.Sort([]
+	(const TPair<FName, const FPackageInfo*>& A, const TPair<FName, const FPackageInfo*>& B)
+		{
+			return A.Key.LexicalLess(B.Key);
+		});
+	for (const TPair<FName, const FPackageInfo*>& KV : SortedPackageInfoByNameMap)
+	{
+		WritePackageInfoObject(*KV.Value);
 	}
 	Writer->WriteArrayEnd();
+	ChunkIdStringsBuffer.Empty();
 
 	Writer->WriteObjectEnd();
 	Writer->Close();
