@@ -167,9 +167,14 @@ class ENGINE_API UKismetTextLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Utilities|Text")
 	static FText GetEmptyText();
 
-	/** Attempts to find existing Text using the representation found in the loc tables for the specified namespace and key. */
-	UFUNCTION(BlueprintPure, Category="Utilities|Text")
-	static bool FindTextInLocalizationTable(const FString& Namespace, const FString& Key, FText& OutText);
+	/**
+	 * Attempts to find existing Text using the representation found in the loc tables for the specified namespace and key.
+	 * @param Namespace The namespace of the text to find (if any).
+	 * @param Key The key of the text to find.
+	 * @param SourceString If set (not empty) then the found text must also have been created from this source string.
+	 */
+	UFUNCTION(BlueprintPure, Category="Utilities|Text", meta = (AdvancedDisplay = "SourceString"))
+	static bool FindTextInLocalizationTable(const FString& Namespace, const FString& Key, FText& OutText, const FString& SourceString = TEXT(""));
 
 	/** Returns true if A and B are linguistically equal (A == B). */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "Equal Exactly (Text)", CompactNodeTitle = "==="), Category="Utilities|Text")
