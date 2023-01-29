@@ -904,7 +904,7 @@ bool FTextHistory_Base::CanUpdateDisplayString()
 void FTextHistory_Base::UpdateDisplayString()
 {
 	check(!TextId.IsEmpty()); // CanUpdateDisplayString should prevent UpdateDisplayString being called
-	LocalizedString = FTextLocalizationManager::Get().GetDisplayString(TextId.GetNamespace(), TextId.GetKey(), &SourceString);
+	LocalizedString = FTextLocalizationManager::Get().GetDisplayString(TextId.GetNamespace(), TextId.GetKey(), SourceString.IsEmpty() ? nullptr : &SourceString);
 }
 
 bool FTextHistory_Base::StaticShouldReadFromBuffer(const TCHAR* Buffer)
