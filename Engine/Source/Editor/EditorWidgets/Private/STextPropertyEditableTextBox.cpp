@@ -1106,7 +1106,7 @@ FText STextPropertyEditableTextBox::GetTextValue() const
 		{
 			// We should always edit the source string, but if the source string matches the current 
 			// display string then we can avoid making a temporary text from the source string
-			if (!SourceString->Equals(TextValue.ToString(), ESearchCase::CaseSensitive))
+			if (!SourceString->IsEmpty() && !SourceString->Equals(TextValue.ToString(), ESearchCase::CaseSensitive))
 			{
 				TextValue = FText::AsCultureInvariant(*SourceString);
 			}
