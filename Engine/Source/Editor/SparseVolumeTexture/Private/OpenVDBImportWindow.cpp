@@ -17,6 +17,11 @@
 
 #define LOCTEXT_NAMESPACE "SOpenVDBImportWindow"
 
+#define VDB_GRID_ROW_NAME_GRID_INDEX TEXT("GridIndex")
+#define VDB_GRID_ROW_NAME_GRID_TYPE TEXT("GridType")
+#define VDB_GRID_ROW_NAME_GRID_NAME TEXT("GridName")
+#define VDB_GRID_ROW_NAME_GRID_DIMS TEXT("GridDims")
+
 static FText GetGridComboBoxItemText(TSharedPtr<FOpenVDBGridComponentInfo> InItem)
 {
 	return InItem ? FText::FromString(InItem->DisplayString) : LOCTEXT("NoneGrid", "<None>");
@@ -41,6 +46,10 @@ void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 {
 	PackedDataA = InArgs._PackedDataA;
 	PackedDataB = InArgs._PackedDataB;
+	DefaultAssignmentA = *PackedDataA;
+	DefaultAssignmentB = *PackedDataB;
+	bIsSequence = InArgs._NumFoundFiles > 1;
+	OpenVDBGridInfo = InArgs._OpenVDBGridInfo;
 	OpenVDBGridComponentInfo = InArgs._OpenVDBGridComponentInfo;
 	OpenVDBSupportedTargetFormats = InArgs._OpenVDBSupportedTargetFormats;
 	WidgetWindow = InArgs._WidgetWindow;
@@ -144,7 +153,16 @@ void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 			[
 				SAssignNew(ImportAsSequenceCheckBox, SCheckBox)
 				.ToolTipText(LOCTEXT("ImportAsSequenceCheckBoxTooltip", "Import multiple sequentially labeled .vdb files as a single animated SparseVirtualTexture sequence."))
-				.IsChecked(false)
+				.IsChecked(bIsSequence)
+			]
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			.Padding(2.0f)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(FString::Format(TEXT("Found {0} File(s)"), { InArgs._NumFoundFiles })))
 			]
 		]
 		+ SVerticalBox::Slot()
@@ -182,8 +200,19 @@ void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 			.Padding(FMargin(3))
 			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
-				SNew(STextBlock)
-				.Text(FText::FromString(InArgs._FileInfoString))
+				SNew(SListView<TSharedPtr<FOpenVDBGridInfo>>)
+				.ItemHeight(24)
+				.ScrollbarVisibility(EVisibility::Visible)
+				.ListItemsSource(OpenVDBGridInfo)
+				.OnGenerateRow(this, &SOpenVDBImportWindow::GenerateGridInfoItemRow)
+				.HeaderRow
+				(
+					SNew(SHeaderRow)
+					+ SHeaderRow::Column(VDB_GRID_ROW_NAME_GRID_INDEX).DefaultLabel(LOCTEXT("GridIndex", "Index")).FillWidth(0.05f)
+					+ SHeaderRow::Column(VDB_GRID_ROW_NAME_GRID_NAME).DefaultLabel(LOCTEXT("GridName", "Name")).FillWidth(0.15f)
+					+ SHeaderRow::Column(VDB_GRID_ROW_NAME_GRID_TYPE).DefaultLabel(LOCTEXT("GridType", "Type")).FillWidth(0.1f)
+					+ SHeaderRow::Column(VDB_GRID_ROW_NAME_GRID_DIMS).DefaultLabel(LOCTEXT("GridDims", "Dimensions")).FillWidth(0.25f)
+				)
 			]
 		]
 	);
@@ -268,6 +297,11 @@ EActiveTimerReturnType SOpenVDBImportWindow::SetFocusPostConstruct(double InCurr
 	return EActiveTimerReturnType::Stop;
 }
 
+TSharedRef<ITableRow> SOpenVDBImportWindow::GenerateGridInfoItemRow(TSharedPtr<FOpenVDBGridInfo> Item, const TSharedRef<STableViewBase>& OwnerTable)
+{
+	return SNew(SOpenVDBGridInfoTableRow, OwnerTable).OpenVDBGridInfo(Item);
+}
+
 bool SOpenVDBImportWindow::CanImport() const
 {
 	const FUintVector4& GridIndicesA = PackedDataA->SourceGridIndex;
@@ -302,42 +336,10 @@ void SOpenVDBImportWindow::SetDefaultGridAssignment()
 {
 	check(OpenVDBGridComponentInfo);
 
-	FSparseVolumeRawSourcePackedData* PackedData[] = { PackedDataA , PackedDataB };
-	for (FSparseVolumeRawSourcePackedData* Data : PackedData)
-	{
-		Data->Format = ESparseVolumePackedDataFormat::Float32;
-		Data->SourceGridIndex = FUintVector4(INDEX_NONE);
-		Data->SourceComponentIndex = FUintVector4(INDEX_NONE);
-		Data->bRemapInputForUnorm = false;
-	}
+	*PackedDataA = DefaultAssignmentA;
+	*PackedDataB = DefaultAssignmentB;
 
-	const TCHAR* SearchNames[] = { TEXT("density"), TEXT("heat"), TEXT("temperature"), TEXT("motion") };
-
-	// Try to find grids named like the SearchNames in the source file and assign them to the components of the output SVT.
-	uint32 CurrentOutputPackedData = 0;
-	uint32 CurrentOutputComponent = 0;
-	for (const TCHAR* SearchName : SearchNames)
-	{
-		for (const TSharedPtr<FOpenVDBGridComponentInfo>& GridComponent : *OpenVDBGridComponentInfo)
-		{
-			for (uint32 InputComponent = 0; InputComponent < 4; ++InputComponent)
-			{
-				if (GridComponent->Name == SearchName && GridComponent->ComponentIndex == InputComponent)
-				{
-					PackedData[CurrentOutputPackedData]->SourceGridIndex[CurrentOutputComponent] = GridComponent->Index;
-					PackedData[CurrentOutputPackedData]->SourceComponentIndex[CurrentOutputComponent] = GridComponent->ComponentIndex;
-					++CurrentOutputComponent;
-					if (CurrentOutputComponent == 4)
-					{
-						CurrentOutputComponent = 0;
-						++CurrentOutputPackedData;
-					}
-					break;
-				}
-			}
-		}
-	}
-
+	ImportAsSequenceCheckBox->SetIsChecked(bIsSequence ? ECheckBoxState::Checked : ECheckBoxState::Unchecked);
 	PackedDataAConfigurator->RefreshUIFromData();
 	PackedDataBConfigurator->RefreshUIFromData();
 }
@@ -563,6 +565,45 @@ void SOpenVDBPackedDataConfigurator::RefreshUIFromData()
 		ComponentPickers[i]->RefreshUIFromData();
 	}
 	RemapUnormCheckBox->SetIsChecked(PackedData->bRemapInputForUnorm);
+}
+
+void SOpenVDBGridInfoTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTableView)
+{
+	OpenVDBGridInfo = InArgs._OpenVDBGridInfo;
+	SMultiColumnTableRow<TSharedPtr<FOpenVDBGridInfo>>::Construct(FSuperRowType::FArguments(), OwnerTableView);
+}
+
+TSharedRef<SWidget> SOpenVDBGridInfoTableRow::GenerateWidgetForColumn(const FName& ColumnName)
+{
+	if (ColumnName == VDB_GRID_ROW_NAME_GRID_INDEX)
+	{
+		return SNew(SBox).Padding(2).VAlign(VAlign_Center)
+			[
+				SNew(STextBlock).Text(FText::FromString(FString::Format(TEXT("{0}."), { OpenVDBGridInfo->Index })))
+			];
+	}
+	else if (ColumnName == VDB_GRID_ROW_NAME_GRID_TYPE)
+	{
+		return SNew(SBox).Padding(2).VAlign(VAlign_Center)
+			[
+				SNew(STextBlock).Text(FText::FromString(OpenVDBGridTypeToString(OpenVDBGridInfo->Type)))
+			];
+	}
+	else if (ColumnName == VDB_GRID_ROW_NAME_GRID_NAME)
+	{
+		return SNew(SBox).Padding(2).VAlign(VAlign_Center)
+			[
+				SNew(STextBlock).Text(FText::FromString(OpenVDBGridInfo->Name))
+			];
+	}
+	else if (ColumnName == VDB_GRID_ROW_NAME_GRID_DIMS)
+	{
+		return SNew(SBox).Padding(2).VAlign(VAlign_Center)
+			[
+				SNew(STextBlock).Text(FText::FromString(OpenVDBGridInfo->VolumeActiveDim.ToString()))
+			];
+	}
+	return SNullWidget::NullWidget;
 }
 
 #undef LOCTEXT_NAMESPACE
