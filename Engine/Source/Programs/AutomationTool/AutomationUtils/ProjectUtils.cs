@@ -857,7 +857,7 @@ namespace AutomationTool
 
 					// Create an instance of this type
 					CommandUtils.LogVerbose("Creating target rules object: {0}", TargetType.Name);
-					TargetRules Rules = TargetRules.Create(TargetType, DummyTargetInfo, null, null, null, Log.Logger);
+					TargetRules Rules = TargetRules.Create(TargetType, DummyTargetInfo, null, null, null, null, Log.Logger);
 					CommandUtils.LogVerbose("Adding target: {0} ({1})", TargetType.Name, Rules.Type);
 
 					SingleTargetProperties TargetData = new SingleTargetProperties();

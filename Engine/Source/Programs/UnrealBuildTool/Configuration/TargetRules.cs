@@ -498,6 +498,11 @@ namespace UnrealBuildTool
 		internal FileReference? TargetSourceFile { get; set; }
 
 		/// <summary>
+		/// All target files that could be referenced by this target and will require updating the Makefile if changed
+		/// </summary>
+		internal HashSet<FileReference>? TargetFiles { get; set; }
+
+		/// <summary>
 		/// Logger for output relating to this target. Set before the constructor is run from <see cref="RulesCompiler"/>
 		/// </summary>
 		internal ILogger Logger { get; set; }
@@ -2248,10 +2253,11 @@ namespace UnrealBuildTool
 		/// <param name="TargetInfo">Target info</param>
 		/// <param name="BaseFile">Path to the file for the rules assembly</param>
 		/// <param name="PlatformFile">Path to the platform specific rules file</param>
+		/// <param name="TargetFiles">Path to all possible rules file</param>
 		/// <param name="DefaultBuildSettings"></param>
 		/// <param name="Logger">Logger for the new target rules</param>
 		/// <returns>Target instance</returns>
-		public static TargetRules Create(Type RulesType, TargetInfo TargetInfo, FileReference? BaseFile, FileReference? PlatformFile, BuildSettingsVersion? DefaultBuildSettings, ILogger Logger)
+		public static TargetRules Create(Type RulesType, TargetInfo TargetInfo, FileReference? BaseFile, FileReference? PlatformFile, IEnumerable<FileReference>? TargetFiles, BuildSettingsVersion? DefaultBuildSettings, ILogger Logger)
 		{
 			TargetRules Rules = (TargetRules)FormatterServices.GetUninitializedObject(RulesType);
 			if (DefaultBuildSettings.HasValue)
@@ -2264,6 +2270,9 @@ namespace UnrealBuildTool
 
 			// The platform/group-specific target file name
 			Rules.TargetSourceFile = PlatformFile;
+
+			// All target files for this target that could cause invalidation
+			Rules.TargetFiles = TargetFiles?.ToHashSet() ?? new();
 
 			// Initialize the logger
 			Rules.Logger = Logger;
@@ -2688,6 +2697,12 @@ namespace UnrealBuildTool
 		internal FileReference TargetSourceFile 
 		{
 			get { return Inner.TargetSourceFile!; }
+		}
+
+
+		internal ReadOnlyHashSet<FileReference> TargetFiles
+		{
+			get { return Inner.TargetFiles!; }
 		}
 
 		public UnrealTargetPlatform Platform

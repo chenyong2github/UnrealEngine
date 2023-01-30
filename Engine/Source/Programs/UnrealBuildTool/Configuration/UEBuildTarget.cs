@@ -2309,6 +2309,9 @@ namespace UnrealBuildTool
 			TargetToolChain.GetVersionInfo(Makefile.Diagnostics);
 			Rules.GetBuildSettingsInfo(Makefile.Diagnostics);
 
+			// Mark dependencies to other target rules files, as they can be referenced by this makefile
+			Makefile.InternalDependencies.UnionWith(Rules.TargetFiles.Select(x => FileItem.GetItemByFileReference(x)));
+
 			// Get any pre-build targets.
 			Makefile.PreBuildTargets = Rules.PreBuildTargets.ToArray();
 
