@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/Class.h"
 
 #include "AutomationState.generated.h"
 
