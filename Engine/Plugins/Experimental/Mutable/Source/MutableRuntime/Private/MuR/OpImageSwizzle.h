@@ -28,7 +28,7 @@ namespace mu
                                     format );
 
 		// Very slow generic implementations
-        size_t pixelCount = pDest->CalculatePixelCount();
+        int32 PixelCount = pDest->CalculatePixelCount();
 
         // Pixelcount should already match, but due to bugs it may not be the case. Try to detect it,
         // but avoid crashing below:
@@ -38,12 +38,12 @@ namespace mu
             if (pSources[c])
             {
                 size_t sourcePixelCount = pSources[c]->CalculatePixelCount();
-                if (pixelCount>sourcePixelCount)
+                if (PixelCount>sourcePixelCount)
                 {
                     check(false);
 
                     // Something went wrong
-                    pixelCount = sourcePixelCount;
+					PixelCount = sourcePixelCount;
                 }
             }
         }
@@ -89,9 +89,13 @@ namespace mu
 
 			bool filled = false;
 
+			constexpr int32 NumBatchElems = 4096*2;
+			const int32 NumBatches = FMath::DivideAndRoundUp(PixelCount, NumBatchElems);
+
 			if (pSources[i])
 			{
 				const uint8* pSourceBuf = pSources[i]->GetData() + channels[i];
+
 
 				switch (pSources[i]->GetFormat())
 				{
@@ -99,9 +103,15 @@ namespace mu
 					if (channels[i] < 1)
 					{
 						//for (size_t p = 0; p < pixelCount; ++p)
-						ParallelFor(pixelCount,[pDestBuf, pSourceBuf, NumDestChannels](int p)
+						ParallelFor(NumBatches,[pDestBuf, pSourceBuf, NumDestChannels, PixelCount, NumBatchElems ](int32 BatchId)
 							{
-								pDestBuf[p * NumDestChannels] = pSourceBuf[p];
+								const int32 BatchBegin = BatchId * NumBatchElems;
+								const int32 BatchEnd = FMath::Min(BatchBegin + NumBatchElems, PixelCount);
+
+								for (int32 p = BatchBegin; p < BatchEnd; ++p)
+								{
+									pDestBuf[p * NumDestChannels] = pSourceBuf[p];
+								}
 							});
 
 						filled = true;
@@ -111,9 +121,16 @@ namespace mu
 				case EImageFormat::IF_RGB_UBYTE:
 					if (channels[i] < 3)
 					{
-						ParallelFor(pixelCount, [pDestBuf, pSourceBuf, NumDestChannels](int p)
+
+						ParallelFor(NumBatches, [pDestBuf, pSourceBuf, NumDestChannels, PixelCount, NumBatchElems](int32 BatchId)
 							{
-								pDestBuf[p * NumDestChannels] = pSourceBuf[p * 3];
+								const int32 BatchBegin = BatchId * NumBatchElems;
+								const int32 BatchEnd = FMath::Min(BatchBegin + NumBatchElems, PixelCount);
+
+								for (int32 p = BatchBegin; p < BatchEnd; ++p)
+								{
+									pDestBuf[p * NumDestChannels] = pSourceBuf[p * 3];
+								}
 							});
 						filled = true;
 					}
@@ -122,9 +139,15 @@ namespace mu
 				case EImageFormat::IF_RGBA_UBYTE:
 					if (channels[i] < 4)
 					{
-						ParallelFor(pixelCount, [pDestBuf, pSourceBuf, NumDestChannels](int p)
+						ParallelFor(NumBatches, [pDestBuf, pSourceBuf, NumDestChannels, PixelCount, NumBatchElems](int32 BatchId)
 							{
-								pDestBuf[p * NumDestChannels] = pSourceBuf[p * 4];
+								const int32 BatchBegin = BatchId * NumBatchElems;
+								const int32 BatchEnd = FMath::Min(BatchBegin + NumBatchElems, PixelCount);
+
+								for (int32 p = BatchBegin; p < BatchEnd; ++p)
+								{
+									pDestBuf[p * NumDestChannels] = pSourceBuf[p * 4];
+								}
 							});
 						filled = true;
 					}
@@ -141,9 +164,14 @@ namespace mu
 					}
 					if (channels[i] < 4)
 					{
-						ParallelFor(pixelCount, [pDestBuf, pSourceBuf, NumDestChannels](int p)
+						ParallelFor(NumBatches, [pDestBuf, pSourceBuf, NumDestChannels, PixelCount, NumBatchElems](int32 BatchId)
 							{
-								pDestBuf[p * NumDestChannels] = pSourceBuf[p * 4];
+								const int32 BatchBegin = BatchId * NumBatchElems;
+								const int32 BatchEnd = FMath::Min(BatchBegin + NumBatchElems, PixelCount);
+								for (int32 p = BatchBegin; p < BatchEnd; ++p)
+								{
+									pDestBuf[p * NumDestChannels] = pSourceBuf[p * 4];
+								}
 							});
 						filled = true;
 					}
@@ -157,9 +185,14 @@ namespace mu
 			if (!filled)
 			{
 				// Source not set. Clear to 0
-				ParallelFor(pixelCount, [pDestBuf, NumDestChannels](int p)
+				ParallelFor(NumBatches, [pDestBuf, NumDestChannels, PixelCount, NumBatchElems](int32 BatchId)
 					{
-						pDestBuf[p * NumDestChannels] = 0;
+						const int32 BatchBegin = BatchId * NumBatchElems;
+						const int32 BatchEnd = FMath::Min(BatchBegin + NumBatchElems, PixelCount);
+						for (int32 p = BatchBegin; p < BatchEnd; ++p)
+						{
+							pDestBuf[p * NumDestChannels] = 0;
+						}
 					});
 			}
 		}

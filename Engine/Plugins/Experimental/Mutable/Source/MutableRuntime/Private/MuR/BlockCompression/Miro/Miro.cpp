@@ -7548,37 +7548,45 @@ namespace miro
 	void Generic_ASTCRGBAL_to_RGBA(uint32 sx, uint32 sy, const uint8* from, uint8* to)
 	{
 		init_astc_decompress();
+	
+		const int32 NumBlocksY = FMath::DivideAndRoundUp(sy, BLOCK_SIZE);
+		const int32 NumBlocksX = FMath::DivideAndRoundUp(sx, BLOCK_SIZE);
 
-		for (uint32 y = 0; y < sy; y += BLOCK_SIZE)
+		if (sx <= 0 || sy <= 0)
 		{
-			for (uint32 x = 0; x < sx; x += BLOCK_SIZE)
+			return;
+		}
+
+		//for (uint32 BlockY = 0; BlockY < NumBlocksY; ++BlockY)
+		ParallelFor(NumBlocksY, [NumBlocksX, sx, sy, from, to](int32 BlockY)
+		{
+			for (int32 BlockX = 0; BlockX < NumBlocksX; ++BlockX)
 			{
-				bool bIsSRGB = false;
-				uint8 Block[BLOCK_SIZE * BLOCK_SIZE *4 ];
-				bool bSuccess = astcdec::decompress( Block, from, bIsSRGB, BLOCK_SIZE, BLOCK_SIZE);
+				constexpr bool bIsSRGB = false;
+				uint8 Block[BLOCK_SIZE * BLOCK_SIZE * 4];
+
+				constexpr int32 CompressedBlockSize = 16;
+				const uint8* SrcBlockPtr = from + (BlockY * NumBlocksX + BlockX) * CompressedBlockSize;
+
+				bool bSuccess = astcdec::decompress(Block, SrcBlockPtr, bIsSRGB, BLOCK_SIZE, BLOCK_SIZE);
 				check(bSuccess);
 
 				for (uint32 py = 0; py < BLOCK_SIZE; py++)
 				{
 					for (uint32 px = 0; px < BLOCK_SIZE; px++)
 					{
-						uint32 xi = x + px;
-						uint32 yi = y + py;
+						uint32 xi = FMath::Min(BlockX * BLOCK_SIZE + px, sx - 1);
+						uint32 yi = FMath::Min(BlockY * BLOCK_SIZE + py, sy - 1);
 
-						if (xi < sx && yi < sy)
-						{
-							uint8* toPixel = to + (yi * sx + xi) * 4;
-							toPixel[0] = Block[py * BLOCK_SIZE * 4 + px * 4 + 0];
-							toPixel[1] = Block[py * BLOCK_SIZE * 4 + px * 4 + 1];
-							toPixel[2] = Block[py * BLOCK_SIZE * 4 + px * 4 + 2];
-							toPixel[3] = Block[py * BLOCK_SIZE * 4 + px * 4 + 3];
-						}
+						uint8* toPixel = to + (yi * sx + xi) * 4;
+						toPixel[0] = Block[py * BLOCK_SIZE * 4 + px * 4 + 0];
+						toPixel[1] = Block[py * BLOCK_SIZE * 4 + px * 4 + 1];
+						toPixel[2] = Block[py * BLOCK_SIZE * 4 + px * 4 + 2];
+						toPixel[3] = Block[py * BLOCK_SIZE * 4 + px * 4 + 3];
 					}
 				}
-
-				from += 16;
 			}
-		}
+		});
 	}
 
 
@@ -7588,21 +7596,29 @@ namespace miro
 	{
 		init_astc_decompress();
 
-		for (uint32 y = 0; y < sy; y += BLOCK_SIZE)
+		const int32 NumBlocksY = FMath::DivideAndRoundUp(sy, BLOCK_SIZE);
+		const int32 NumBlocksX = FMath::DivideAndRoundUp(sx, BLOCK_SIZE);
+
+		//for (uint32 BlockY = 0; BlockY < NumBlocksY; ++BlockY)
+		ParallelFor(NumBlocksY, [NumBlocksX, sx, sy, from, to](int32 BlockY)
 		{
-			for (uint32 x = 0; x < sx; x += BLOCK_SIZE)
+			for (int32 BlockX = 0; BlockX < NumBlocksX; ++BlockX)
 			{
-				bool bIsSRGB = false;
+				constexpr bool bIsSRGB = false;
 				uint8 Block[BLOCK_SIZE * BLOCK_SIZE * 4];
-				bool bSuccess = astcdec::decompress(Block, from, bIsSRGB, BLOCK_SIZE, BLOCK_SIZE);
+
+				constexpr int32 CompressedBlockSize = 16;
+				const uint8* SrcBlockPtr = from + (BlockY * NumBlocksX + BlockX) * CompressedBlockSize;
+
+				bool bSuccess = astcdec::decompress(Block, SrcBlockPtr, bIsSRGB, BLOCK_SIZE, BLOCK_SIZE);
 				check(bSuccess);
 
 				for (uint32 py = 0; py < BLOCK_SIZE; py++)
 				{
 					for (uint32 px = 0; px < BLOCK_SIZE; px++)
 					{
-						uint32 xi = x + px;
-						uint32 yi = y + py;
+						uint32 xi = BlockX * BLOCK_SIZE + px;
+						uint32 yi = BlockY * BLOCK_SIZE + py;
 
 						if (xi < sx && yi < sy)
 						{
@@ -7613,10 +7629,8 @@ namespace miro
 						}
 					}
 				}
-
-				from += 16;
 			}
-		}
+		});
 	}
 
 
