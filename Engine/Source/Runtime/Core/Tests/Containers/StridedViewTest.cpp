@@ -1,82 +1,83 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_TESTS
+
 #include "Containers/StridedView.h"
 #include "Misc/AutomationTest.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
 
 #include "Algo/Accumulate.h"
 #include "Containers/Array.h"
 #include "Math/Vector.h"
 
 #include <type_traits>
+#include "Tests/TestHarnessAdapter.h"
 
 namespace UE
 {
-namespace StridedViewTest
-{
-
-struct FMyStruct
-{
-	uint32  SomeData = 123;
-	FVector Position = FVector(5.0f, 6.0f, 7.0f);
-	uint32  MoreData = 890;
-};
-
-struct FMyStructDerived : FMyStruct
-{
-	FVector Normal = FVector(0.0f, 0.0f, 0.0f);
-};
-
-static void SetValue(TStridedView<FVector> Output, const FVector& Value)
-{
-	for (FVector& It : Output)
+	namespace StridedViewTest
 	{
-		It = Value;
-	}
-}
 
-static FVector ComputeSum(TStridedView<const FVector> Values)
-{
-	return Algo::Accumulate(Values, FVector(0.0f));
-}
+		struct FMyStruct
+		{
+			uint32  SomeData = 123;
+			FVector Position = FVector(5.0f, 6.0f, 7.0f);
+			uint32  MoreData = 890;
+		};
 
-static FVector ComputeMean(TStridedView<const FVector> Values)
-{
-	return ComputeSum(Values) / (float)Values.Num();
-}
+		struct FMyStructDerived : FMyStruct
+		{
+			FVector Normal = FVector(0.0f, 0.0f, 0.0f);
+		};
 
-static FVector ComputeMeanPosition(TArrayView<const FMyStruct> Structs)
-{
-	return ComputeMean(MakeStridedView(sizeof(FMyStruct), &Structs[0].Position, Structs.Num()));
-}
+		static void SetValue(TStridedView<FVector> Output, const FVector& Value)
+		{
+			for (FVector& It : Output)
+			{
+				It = Value;
+			}
+		}
 
-static FVector ComputeMeanPositionStrided(TStridedView<const FMyStruct> Structs)
-{
-	return ComputeMean(MakeStridedView(Structs.GetStride(), &Structs[0].Position, Structs.Num()));
-}
+		static FVector ComputeSum(TStridedView<const FVector> Values)
+		{
+			return Algo::Accumulate(Values, FVector(0.0f));
+		}
 
-static TStridedView<const FVector> TestCreateConstArrayView(const TArray<FVector>& VecsArray)
-{
-	return MakeStridedView(VecsArray);
-}
+		static FVector ComputeMean(TStridedView<const FVector> Values)
+		{
+			return ComputeSum(Values) / (float)Values.Num();
+		}
 
-static_assert(std::is_convertible_v<TStridedView<FMyStruct>, TStridedView<FMyStruct>>);
-static_assert(std::is_convertible_v<TStridedView<FMyStruct>, TStridedView<const FMyStruct>>);
-static_assert(!std::is_convertible_v<TStridedView<const FMyStruct>, TStridedView<FMyStruct>>);
-static_assert(!std::is_convertible_v<TStridedView<FMyStructDerived>, TStridedView<FMyStruct>>);
-static_assert(!std::is_convertible_v<TStridedView<FMyStruct>, TStridedView<FMyStructDerived>>);
-static_assert(std::is_convertible_v<TStridedView<const FMyStruct*>, TStridedView<const FMyStruct*>>);
-static_assert(std::is_convertible_v<TStridedView<const FMyStruct*>, TStridedView<const FMyStruct* const>>);
-static_assert(!std::is_convertible_v<TStridedView<const FMyStruct* const>, TStridedView<const FMyStruct*>>);
-static_assert(!std::is_convertible_v<TStridedView<const FMyStructDerived*>, TStridedView<const FMyStruct*>>);
-static_assert(!std::is_convertible_v<TStridedView<const FMyStruct*>, TStridedView<const FMyStructDerived*>>);
+		static FVector ComputeMeanPosition(TArrayView<const FMyStruct> Structs)
+		{
+			return ComputeMean(MakeStridedView(sizeof(FMyStruct), &Structs[0].Position, Structs.Num()));
+		}
 
-} // namespace StridedViewTest
+		static FVector ComputeMeanPositionStrided(TStridedView<const FMyStruct> Structs)
+		{
+			return ComputeMean(MakeStridedView(Structs.GetStride(), &Structs[0].Position, Structs.Num()));
+		}
+
+		static TStridedView<const FVector> TestCreateConstArrayView(const TArray<FVector>& VecsArray)
+		{
+			return MakeStridedView(VecsArray);
+		}
+
+		static_assert(std::is_convertible_v<TStridedView<FMyStruct>, TStridedView<FMyStruct>>);
+		static_assert(std::is_convertible_v<TStridedView<FMyStruct>, TStridedView<const FMyStruct>>);
+		static_assert(!std::is_convertible_v<TStridedView<const FMyStruct>, TStridedView<FMyStruct>>);
+		static_assert(!std::is_convertible_v<TStridedView<FMyStructDerived>, TStridedView<FMyStruct>>);
+		static_assert(!std::is_convertible_v<TStridedView<FMyStruct>, TStridedView<FMyStructDerived>>);
+		static_assert(std::is_convertible_v<TStridedView<const FMyStruct*>, TStridedView<const FMyStruct*>>);
+		static_assert(std::is_convertible_v<TStridedView<const FMyStruct*>, TStridedView<const FMyStruct* const>>);
+		static_assert(!std::is_convertible_v<TStridedView<const FMyStruct* const>, TStridedView<const FMyStruct*>>);
+		static_assert(!std::is_convertible_v<TStridedView<const FMyStructDerived*>, TStridedView<const FMyStruct*>>);
+		static_assert(!std::is_convertible_v<TStridedView<const FMyStruct*>, TStridedView<const FMyStructDerived*>>);
+
+	} // namespace StridedViewTest
 } // namespace UE
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStridedViewTest, "System.Core.Containers.StridedView.Misc", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FStridedViewTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FStridedViewTest, "System::Core::Containers::StridedView::Misc", "[ApplicationContextMask][SmokeFilter]")
 {
 	using namespace UE::StridedViewTest;
 
@@ -95,7 +96,7 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 
 		for (int32 i = 0; i < Num; ++i)
 		{
-			TestEqual(TEXT("Structs[i].Position"), Structs[i].Position, FVector((float)i));
+			CHECK_MESSAGE(TEXT("Structs[i].Position"), Structs[i].Position == FVector((float)i));
 		}
 
 		const FVector Multiplier = FVector(2.0f, 3.0f, 4.0f);
@@ -106,7 +107,7 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 
 		for (int32 i = 0; i < Num; ++i)
 		{
-			TestEqual(TEXT("Structs[i].Position"), Structs[i].Position, FVector((float)i) * Multiplier);
+			CHECK_MESSAGE(TEXT("Structs[i].Position"), (Structs[i].Position == (FVector((float)i) * Multiplier)));
 		}
 	}
 
@@ -127,43 +128,43 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 
 	{
 		FVector Avg = ComputeMeanPosition(MakeArrayView(Structs));
-		TestEqual(TEXT("ComputeMeanPosition(MakeArrayView(Structs))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMeanPosition(MakeArrayView(Structs))"), Avg == ExpectedAvg);
 	}
 
 	{
 		FVector Avg = ComputeMeanPositionStrided(MakeStridedView(Structs));
-		TestEqual(TEXT("ComputeMeanPositionStrided(MakeStridedView(Structs))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMeanPositionStrided(MakeStridedView(Structs))"), Avg == ExpectedAvg);
 	}
 
 	{
 		FVector Avg = ComputeMean(TStridedView<FVector>(sizeof(FMyStruct), &Structs[0].Position, Num));
-		TestEqual(TEXT("ComputeMean(TStridedView<FVector>(sizeof(FMyStruct), &Structs[0].Position, Num))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(TStridedView<FVector>(sizeof(FMyStruct), &Structs[0].Position, Num))"), Avg == ExpectedAvg);
 	}
 
 	{
 		FVector Avg = ComputeMean(TStridedView<const FVector>(sizeof(FMyStruct), &Structs[0].Position, Num));
-		TestEqual(TEXT("ComputeMean(TStridedView<const FVector>(sizeof(FMyStruct), &Structs[0].Position, Num))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(TStridedView<const FVector>(sizeof(FMyStruct), &Structs[0].Position, Num))"), Avg == ExpectedAvg);
 	}
 
 	{
 		FVector Avg = ComputeMean(MakeStridedView(sizeof(FMyStruct), &Structs[0].Position, Num));
-		TestEqual(TEXT("ComputeMean(MakeStridedView(sizeof(FMyStruct), &Structs[0].Position, Num))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(MakeStridedView(sizeof(FMyStruct), &Structs[0].Position, Num))"), Avg == ExpectedAvg);
 	}
 
 	{
 		FVector Avg = ComputeMean(MakeStridedView(MakeArrayView(Structs), &FMyStruct::Position));
-		TestEqual(TEXT("ComputeMean(MakeStridedView(MakeArrayView(Structs), &FMyStruct::Position))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(MakeStridedView(MakeArrayView(Structs), &FMyStruct::Position))"), Avg == ExpectedAvg);
 	}
 
 	{
 		FVector Avg = ComputeMean(MakeStridedView(Structs, &FMyStruct::Position));
-		TestEqual(TEXT("ComputeMean(MakeStridedView(Structs, &FMyStruct::Position))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(MakeStridedView(Structs, &FMyStruct::Position))"), Avg == ExpectedAvg);
 	}
 
 	{
 		TArray<FMyStruct> StructsArray = TArray<FMyStruct>(Structs, Num);
 		FVector Avg = ComputeMean(MakeStridedView(StructsArray, &FMyStruct::Position));
-		TestEqual(TEXT("ComputeMean(MakeStridedView(StructsArray, &FMyStruct::Position))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(MakeStridedView(StructsArray, &FMyStruct::Position))"), Avg == ExpectedAvg);
 	}
 
 	// Test support for trivial strided views (stride = sizeof(element))
@@ -176,7 +177,7 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 
 	{
 		FVector Avg = ComputeMean(MakeStridedView(Vecs));
-		TestEqual(TEXT("ComputeMean(MakeStridedView(Vecs))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(MakeStridedView(Vecs))"), Avg == ExpectedAvg);
 	}
 
 	{
@@ -184,7 +185,7 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 		auto VecsStridedView = MakeStridedView(VecsView);
 		static_assert(std::is_const_v<decltype(VecsStridedView)::ElementType>);
 		FVector Avg = ComputeMean(VecsStridedView);
-		TestEqual(TEXT("ComputeMean(MakeStridedView(VecsView))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(MakeStridedView(VecsView))"), Avg == ExpectedAvg);
 	}
 
 	{
@@ -192,7 +193,7 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 		auto VecsStridedView = TestCreateConstArrayView(VecsArray);
 		static_assert(std::is_const_v<decltype(VecsStridedView)::ElementType>);
 		FVector Avg = ComputeMean(VecsStridedView);
-		TestEqual(TEXT("ComputeMean(MakeStridedView(VecsArray))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(MakeStridedView(VecsArray))"), Avg == ExpectedAvg);
 	}
 
 	// Test smearing an element
@@ -200,11 +201,11 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 	{
 		FVector V = FVector(1.0f, 2.0f, 3.0f);
 		FVector Avg = ComputeMean(TStridedView<FVector>(0, &V, Num));
-		TestEqual(TEXT("ComputeMean(TStridedView<FVector>(0, &V, Num))"), Avg, V);
+		CHECK_MESSAGE(TEXT("ComputeMean(TStridedView<FVector>(0, &V, Num))"), Avg == V);
 
 		FVector Sum = ComputeSum(TStridedView<FVector>(0, &V, Num));
 		FVector ExpectedSum = V * (float)Num;
-		TestEqual(TEXT("ComputeSum(TStridedView<FVector>(0, &V, Num))"), Sum, ExpectedSum);
+		CHECK_MESSAGE(TEXT("ComputeSum(TStridedView<FVector>(0, &V, Num))"), Sum == ExpectedSum);
 	}
 
 	// Test iterating through derived struct
@@ -218,7 +219,7 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 		TStridedView<FVector> NormalsView(sizeof(FMyStructDerived), &StructsDerived[0].Normal, Num);
 		TStridedView<FVector> PositionsView(sizeof(FMyStruct), &Structs[0].Position, Num);
 
-		for (int32 i=0; i < PositionsViewDerived.Num(); ++i)
+		for (int32 i = 0; i < PositionsViewDerived.Num(); ++i)
 		{
 			PositionsViewDerived[i] = PositionsView[i];
 			NormalsView[i] = FVector(1.0f, 2.0f, 3.0f) * (float)i;
@@ -226,8 +227,8 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 
 		for (int32 i = 0; i < PositionsViewDerived.Num(); ++i)
 		{
-			TestEqual(TEXT("StructsDerived[i].Position"), StructsDerived[i].Position, Structs[i].Position);
-			TestEqual(TEXT("StructsDerived[i].Normal"), StructsDerived[i].Normal, FVector(1.0f, 2.0f, 3.0f) * (float)i);
+			CHECK_MESSAGE(TEXT("StructsDerived[i].Position"), StructsDerived[i].Position == Structs[i].Position);
+			CHECK_MESSAGE(TEXT("StructsDerived[i].Normal"), (StructsDerived[i].Normal == ( FVector(1.0f, 2.0f, 3.0f) * (float)i)));
 		}
 	}
 
@@ -241,17 +242,17 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 
 	{
 		FVector Avg = ComputeMean(TStridedView<FVector>(sizeof(FMyStructDerived), &StructsDerived[0].Position, Num));
-		TestEqual(TEXT("ComputeMean(TStridedView<FVector>(sizeof(FMyStructDerived), &StructsDerived[0].Position, Num))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(TStridedView<FVector>(sizeof(FMyStructDerived), &StructsDerived[0].Position, Num))"), Avg == ExpectedAvg);
 	}
 
 	{
 		FVector Avg = ComputeMean(TStridedView<const FVector>(sizeof(FMyStructDerived), &StructsDerived[0].Position, Num));
-		TestEqual(TEXT("ComputeMean(TStridedView<const FVector>(sizeof(FMyStructDerived), &StructsDerived[0].Position, Num))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(TStridedView<const FVector>(sizeof(FMyStructDerived), &StructsDerived[0].Position, Num))"), Avg == ExpectedAvg);
 	}
 
 	{
 		FVector Avg = ComputeMean(MakeStridedView(sizeof(FMyStructDerived), &StructsDerived[0].Position, Num));
-		TestEqual(TEXT("ComputeMean(MakeStridedView(sizeof(FMyStructDerived), &StructsDerived[0].Position, Num))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(MakeStridedView(sizeof(FMyStructDerived), &StructsDerived[0].Position, Num))"), Avg == ExpectedAvg);
 	}
 
 	{
@@ -267,45 +268,45 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 		TStridedView<FMyStruct> ViewDerivedAsBase(sizeof(StructsDerived[0]), &static_cast<FMyStruct&>(StructsDerived[0]), Num);
 		TStridedView<FMyStruct> ViewDerivedAsBase2 = MakeStridedViewOfBase<FMyStruct>(MakeArrayView(StructsDerived));
 
-		TestEqual(TEXT("ViewDerived.GetStride()"), ViewDerived.GetStride(), (int32)sizeof(FMyStructDerived));
-		TestEqual(TEXT("ViewDerivedAsBase.GetStride()"), ViewDerivedAsBase.GetStride(), (int32)sizeof(FMyStructDerived));
-		TestEqual(TEXT("ViewDerivedAsBase2.GetStride()"), ViewDerivedAsBase2.GetStride(), (int32)sizeof(FMyStructDerived));
+		CHECK_MESSAGE(TEXT("ViewDerived.GetStride()"), ViewDerived.GetStride() == (int32)sizeof(FMyStructDerived));
+		CHECK_MESSAGE(TEXT("ViewDerivedAsBase.GetStride()"), ViewDerivedAsBase.GetStride() == (int32)sizeof(FMyStructDerived));
+		CHECK_MESSAGE(TEXT("ViewDerivedAsBase2.GetStride()"), ViewDerivedAsBase2.GetStride() == (int32)sizeof(FMyStructDerived));
 
 		// Incorrect API usage : implicit conversion of derived view to base. Generates compile error (as expected).
 		// FVector Avg = ComputeMeanPositionStrided(ViewDerived);
 
 		FVector AvgDerivedAsBase = ComputeMeanPositionStrided(ViewDerivedAsBase);
-		TestEqual(TEXT("ComputeMeanPositionStrided(ViewDerivedAsBase)"), AvgDerivedAsBase, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMeanPositionStrided(ViewDerivedAsBase)"), AvgDerivedAsBase == ExpectedAvg);
 
 		FVector AvgDerivedAsBase2 = ComputeMeanPositionStrided(ViewDerivedAsBase2);
-		TestEqual(TEXT("ComputeMeanPositionStrided(ViewDerivedAsBase2)"), AvgDerivedAsBase2, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMeanPositionStrided(ViewDerivedAsBase2)"), AvgDerivedAsBase2 == ExpectedAvg);
 	}
 
 	{
 		TArrayView<FMyStructDerived> DerivedArrayView = MakeArrayView(StructsDerived);
 		TStridedView<FVector> View = MakeStridedView(DerivedArrayView, &FMyStructDerived::Position);
-		TestEqual(TEXT("MakeStridedView(MakeArrayView(StructsDerived), &FMyStructDerived::Position).GetStride()"), View.GetStride(), (int32)sizeof(StructsDerived[0]));
+		CHECK_MESSAGE(TEXT("MakeStridedView(MakeArrayView(StructsDerived), &FMyStructDerived::Position).GetStride()"), View.GetStride() == (int32)sizeof(StructsDerived[0]));
 		FVector Avg = ComputeMean(View);
-		TestEqual(TEXT("ComputeMean(MakeStridedView(MakeArrayView(StructsDerived), &FMyStructDerived::Position))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(MakeStridedView(MakeArrayView(StructsDerived), &FMyStructDerived::Position))"), Avg == ExpectedAvg);
 	}
 
 	{
 		TArrayView<FMyStructDerived> DerivedArrayView = MakeArrayView(StructsDerived);
 		TStridedView<FVector> View = MakeStridedView(DerivedArrayView, &FMyStruct::Position);
-		TestEqual(TEXT("MakeStridedView(MakeArrayView(StructsDerived), &FMyStruct::Position).GetStride()"), View.GetStride(), (int32)sizeof(StructsDerived[0]));
+		CHECK_MESSAGE(TEXT("MakeStridedView(MakeArrayView(StructsDerived), &FMyStruct::Position).GetStride()"), View.GetStride() == (int32)sizeof(StructsDerived[0]));
 		FVector Avg = ComputeMean(View);
-		TestEqual(TEXT("ComputeMean(MakeStridedView(MakeArrayView(StructsDerived), &FMyStruct::Position))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(MakeStridedView(MakeArrayView(StructsDerived), &FMyStruct::Position))"), Avg == ExpectedAvg);
 	}
 
 	{
 		FVector Avg = ComputeMean(MakeStridedView(StructsDerived, &FMyStructDerived::Position));
-		TestEqual(TEXT("ComputeMean(MakeStridedView(StructsDerived, &FMyStructDerived::Position))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(MakeStridedView(StructsDerived, &FMyStructDerived::Position))"), Avg == ExpectedAvg);
 	}
 
 	{
 		TArray<FMyStructDerived> StructsArrayDerived = TArray<FMyStructDerived>(StructsDerived, Num);
 		FVector Avg = ComputeMean(MakeStridedView(StructsArrayDerived, &FMyStructDerived::Position));
-		TestEqual(TEXT("ComputeMean(MakeStridedView(StructsArrayDerived, &FMyStructDerived::Position))"), Avg, ExpectedAvg);
+		CHECK_MESSAGE(TEXT("ComputeMean(MakeStridedView(StructsArrayDerived, &FMyStructDerived::Position))"), Avg == ExpectedAvg);
 	}
 
 	// Test iterating through nested fields
@@ -318,11 +319,10 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 			ExpectedSum += Structs[i].Position.Z;
 		}
 		FVector::FReal Sum = Algo::Accumulate(ViewOfZs, FVector::FReal(0));
-		TestEqual(TEXT("Algo::Accumulate(MakeStridedView((int32)sizeof(Structs[0]), &Structs[0].Position.Z, Num), 0.0f)"), Sum, ExpectedSum);
+		CHECK_MESSAGE(TEXT("Algo::Accumulate(MakeStridedView((int32)sizeof(Structs[0]), &Structs[0].Position.Z, Num), 0.0f)"), Sum == ExpectedSum);
 	}
 
-	return !HasAnyErrors();
 }
 
 
-#endif // WITH_DEV_AUTOMATION_TESTS
+#endif // WITH_TESTS

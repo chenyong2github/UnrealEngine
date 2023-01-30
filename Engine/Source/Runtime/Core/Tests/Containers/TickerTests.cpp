@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
+#if WITH_TESTS
 #include "CoreTypes.h"
 #include "Misc/AutomationTest.h"
 #include "Tests/Benchmark.h"
@@ -7,16 +7,16 @@
 #include "Tasks/Task.h"
 #include "Tests/Benchmark.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTSTickerTest, "System.Core.Containers.TSTicker", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+#include "Tests/TestHarnessAdapter.h"
+
 
 template<uint32 NumDelegates, uint32 NumTicks>
 void TickerPerfTest()
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		
-	FTicker Ticker;
+
+		FTicker Ticker;
 
 	TArray<FDelegateHandle> DelegateHandles;
 	DelegateHandles.Reserve(NumDelegates);
@@ -61,17 +61,17 @@ void TSTickerPerfTest()
 	}
 }
 
-bool FTSTickerTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FTSTickerTest,"System::Core::Containers::TSTicker", "[ApplicationContextMask][EngineFilter]")
 {
 	{	// a delegate returning false is executed once
 		FTSTicker Ticker;
 		bool bExecuted = false;
 		FTSTicker::FDelegateHandle DelegateHandle = Ticker.AddTicker(UE_SOURCE_LOCATION, 0.0f,
 			[&bExecuted](float DeltaTime)
-			{ 
+			{
 				check(!bExecuted);
-				bExecuted = true; 
-				return false; 
+		bExecuted = true;
+		return false;
 			}
 		);
 		Ticker.Tick(0.0f);
@@ -87,7 +87,7 @@ bool FTSTickerTest::RunTest(const FString& Parameters)
 			[&NumExecuted](float DeltaTime)
 			{
 				++NumExecuted;
-				return true;
+		return true;
 			}
 		);
 		Ticker.Tick(0.0f);
@@ -98,32 +98,32 @@ bool FTSTickerTest::RunTest(const FString& Parameters)
 
 	{	// a delegate removal while it's being ticked doesn't return until its execution finished
 		using namespace UE::Tasks;
-		
+
 		FTSTicker Ticker;
 
 		FTaskEvent DelegateResumeEvent{ UE_SOURCE_LOCATION };
-		FTSTicker::FDelegateHandle DelegateHandle = Ticker.AddTicker(UE_SOURCE_LOCATION, 0.0f, 
+		FTSTicker::FDelegateHandle DelegateHandle = Ticker.AddTicker(UE_SOURCE_LOCATION, 0.0f,
 			[&DelegateResumeEvent](float DeltaTime)
-			{ 
+			{
 				DelegateResumeEvent.Wait();
-				return false;
+		return false;
 			}
 		);
 
-		FTask RemoveTickerTask = Launch(UE_SOURCE_LOCATION, 
-			[&Ticker, &DelegateHandle] 
-			{ 
+		FTask RemoveTickerTask = Launch(UE_SOURCE_LOCATION,
+			[&Ticker, &DelegateHandle]
+			{
 				FPlatformProcess::Sleep(0.1f); // let the ticking start and the delegate block on the event
-				Ticker.RemoveTicker(DelegateHandle); 
+			Ticker.RemoveTicker(DelegateHandle);
 			}
-		);
+			);
 
-		FTask TickTask = Launch(UE_SOURCE_LOCATION, 
-			[&Ticker] 
-			{ 
-				Ticker.Tick(0.0); 
+		FTask TickTask = Launch(UE_SOURCE_LOCATION,
+			[&Ticker]
+			{
+				Ticker.Tick(0.0);
 			}
-		);
+			);
 
 		FPlatformProcess::Sleep(0.1f); // let workers pick up the tasks and start execution
 
@@ -159,13 +159,13 @@ bool FTSTickerTest::RunTest(const FString& Parameters)
 			[&Ticker, &bTicked](float)
 			{
 				Ticker.AddTicker(UE_SOURCE_LOCATION, 0.0f,
-					[&bTicked](float)
+				[&bTicked](float)
 					{
 						bTicked = true;
-						return false;
+		return false;
 					}
-				);
-				return false;
+		);
+		return false;
 			}
 		);
 		Ticker.Tick(0.0f);
@@ -177,17 +177,17 @@ bool FTSTickerTest::RunTest(const FString& Parameters)
 	{	// check that delegate is called in the same tick that it was added, for backward compatibility with the previous implementation
 		FTSTicker Ticker;
 		bool bTicked = false;
-		Ticker.AddTicker(UE_SOURCE_LOCATION, 0.0f, 
+		Ticker.AddTicker(UE_SOURCE_LOCATION, 0.0f,
 			[&Ticker, &bTicked](float)
-			{ 
-				Ticker.AddTicker(UE_SOURCE_LOCATION, 0.0f, 
-					[&bTicked](float) 
+			{
+				Ticker.AddTicker(UE_SOURCE_LOCATION, 0.0f,
+				[&bTicked](float)
 					{
 						bTicked = true;
-						return false;
+		return false;
 					}
-				);
-				return false; 
+		);
+		return false;
 			}
 		);
 		Ticker.Tick(0.0f);
@@ -209,7 +209,7 @@ bool FTSTickerTest::RunTest(const FString& Parameters)
 					Ticker.Tick(0.0f);
 				}
 			}
-		);
+			);
 
 		TArray<FTask> Tasks;
 		Tasks.Reserve(500);
@@ -232,11 +232,11 @@ bool FTSTickerTest::RunTest(const FString& Parameters)
 							{
 								FTSTicker::RemoveTicker(DelegateHandle);
 							}
-						);
+							);
 						RemoveTickerTask.Wait();
 					}
 				}
-			));
+				));
 		}
 
 		FPlatformProcess::Sleep(0.3f); // let it run for a while
@@ -248,7 +248,6 @@ bool FTSTickerTest::RunTest(const FString& Parameters)
 	UE_BENCHMARK(5, TickerPerfTest<100, 100>);
 	UE_BENCHMARK(5, TSTickerPerfTest<100, 100>);
 
-	return true;
 }
 
-#endif // WITH_DEV_AUTOMATION_TESTS
+#endif // WITH_TESTS

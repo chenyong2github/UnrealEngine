@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_TESTS
+
 #include "Misc/AutomationTest.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
-
 #include "Experimental/Containers/RobinHoodHashTable.h"
+#include "Tests/TestHarnessAdapter.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRobinHoodHashTableTest, "System.Core.Containers.RobinHoodShashTable.Basic", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FRobinHoodHashTableTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FRobinHoodHashTableTest, "System::Core::Containers::RobinHoodShashTable::Basic", "[ApplicationContextMask][SmokeFilter]")
 {
 	Experimental::TRobinHoodHashMap<int32, int32> Table;
 	static constexpr int32 N = 1999; // Some reasonable prime number of elements
@@ -17,7 +17,7 @@ bool FRobinHoodHashTableTest::RunTest(const FString& Parameters)
 	{
 		bool bAlreadyExists = false;
 		Table.FindOrAdd(Index, Index, bAlreadyExists);
-		TestEqual(TEXT("bAlreadyExists"), bAlreadyExists, false);
+		CHECK_MESSAGE(TEXT("bAlreadyExists"), bAlreadyExists == false);
 	}
 
 	// Confirm that everything was added
@@ -25,7 +25,7 @@ bool FRobinHoodHashTableTest::RunTest(const FString& Parameters)
 	{
 		bool bAlreadyExists = false;
 		Table.FindOrAdd(Index, Index, bAlreadyExists);
-		TestEqual(TEXT("bAlreadyExists"), bAlreadyExists, true);
+		CHECK_MESSAGE(TEXT("bAlreadyExists"), bAlreadyExists == true);
 	}
 
 	// Check that everything can be accessed via const Find()
@@ -35,12 +35,10 @@ bool FRobinHoodHashTableTest::RunTest(const FString& Parameters)
 		{
 			bool bAlreadyExists = false;
 			const int32* FoundPtr = TableConst.Find(Index);
-			TestNotNull(TEXT("FoundPtr"), FoundPtr);
-			TestEqual(TEXT("*FoundPtr"), *FoundPtr, Index);
+			CHECK_MESSAGE(TEXT("FoundPtr"), FoundPtr != nullptr);
+			CHECK_MESSAGE(TEXT("*FoundPtr"), *FoundPtr == Index);
 		}
 	}
-
-	return true;
 }
 
-#endif // WITH_DEV_AUTOMATION_TESTS
+#endif // WITH_TESTS
