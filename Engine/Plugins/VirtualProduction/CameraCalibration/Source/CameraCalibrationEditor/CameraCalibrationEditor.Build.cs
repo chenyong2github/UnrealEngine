@@ -11,6 +11,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"ApplicationCore",
 					"AppFramework",
+					"AssetDefinition",
 					"AssetRegistry",
 					"AssetTools",
 					"CameraCalibrationCore",

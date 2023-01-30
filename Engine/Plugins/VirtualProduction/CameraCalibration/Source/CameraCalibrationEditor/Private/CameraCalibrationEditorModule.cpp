@@ -8,12 +8,10 @@
 #include "AssetEditor/Curves/LensDataCurveModel.h"
 #include "AssetEditor/SCameraCalibrationCurveEditorView.h"
 #include "AssetToolsModule.h"
-#include "AssetTypeActions/AssetTypeActions_LensFile.h"
 #include "CameraCalibrationEditorLog.h"
 #include "CameraCalibrationSubsystem.h"
 #include "CameraCalibrationTypes.h"
 #include "IAssetTools.h"
-#include "IAssetTypeActions.h"
 #include "ICurveEditorModule.h"
 #include "IPlacementModeModule.h"
 #include "LensFile.h"
@@ -34,17 +32,6 @@ void FCameraCalibrationEditorModule::StartupModule()
 {
 	FCameraCalibrationCommands::Register();
 	FCameraCalibrationEditorStyle::Get();
-
-	// Register AssetTypeActions
-	auto RegisterAssetTypeAction = [this](const TSharedRef<IAssetTypeActions>& InAssetTypeAction)
-	{
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		RegisteredAssetTypeActions.Add(InAssetTypeAction);
-		AssetTools.RegisterAssetTypeActions(InAssetTypeAction);
-	};
-
-	// register asset type actions
-	RegisterAssetTypeAction(MakeShared<FAssetTypeActions_LensFile>());
 
 	{
 		const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
@@ -202,19 +189,6 @@ void FCameraCalibrationEditorModule::ShutdownModule()
 		FCameraCalibrationMenuEntry::Unregister();
 
 		FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
-
-		// Unregister AssetTypeActions
-		FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
-
-		if (AssetToolsModule != nullptr)
-		{
-			IAssetTools& AssetTools = AssetToolsModule->Get();
-
-			for (TSharedRef<IAssetTypeActions> Action : RegisteredAssetTypeActions)
-			{
-				AssetTools.UnregisterAssetTypeActions(Action);
-			}
-		}
 
 		FCameraCalibrationCommands::Unregister();
 
