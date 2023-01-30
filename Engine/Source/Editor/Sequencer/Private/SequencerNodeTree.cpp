@@ -271,16 +271,25 @@ void FSequencerNodeTree::SortAllNodesAndDescendants()
 
 void FSequencerNodeTree::AddFilter(TSharedPtr<FSequencerTrackFilter> TrackFilter)
 {
+	GetSequencer().GetSequencerSettings()->SetTrackFilterEnabled(TrackFilter->GetDisplayName().ToString(), true);
+
 	TrackFilters->Add(TrackFilter);
 }
 
 int32 FSequencerNodeTree::RemoveFilter(TSharedPtr<FSequencerTrackFilter> TrackFilter)
 {
+	GetSequencer().GetSequencerSettings()->SetTrackFilterEnabled(TrackFilter->GetDisplayName().ToString(), false);
+
 	return TrackFilters->Remove(TrackFilter);
 }
 
 void FSequencerNodeTree::RemoveAllFilters()
 {
+	for (TSharedPtr< FSequencerTrackFilter > TrackFilter : *TrackFilters)
+	{
+		GetSequencer().GetSequencerSettings()->SetTrackFilterEnabled(TrackFilter->GetDisplayName().ToString(), false);
+	}
+
 	TrackFilters->RemoveAll();
 	TrackFilterLevelFilter->ResetFilter();
 }

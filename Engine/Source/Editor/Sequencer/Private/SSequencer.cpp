@@ -1056,6 +1056,12 @@ void SSequencer::InitializeTrackFilters()
 		}
 	}
 
+	for (TSharedRef<FSequencerTrackFilter> TrackFilter : AllTrackFilters)
+	{
+		const bool bEnabled = GetSequencerSettings()->IsTrackFilterEnabled(TrackFilter->GetDisplayName().ToString());
+		SetTrackFilterEnabled(TrackFilter->GetDisplayName(), bEnabled);
+	}
+
 	// Sort by display name
 	AllTrackFilters.Sort([](const TSharedRef<FSequencerTrackFilter>& LHS, const TSharedRef<FSequencerTrackFilter>& RHS) { return LHS->GetDisplayName().ToString() < RHS->GetDisplayName().ToString(); });
 }

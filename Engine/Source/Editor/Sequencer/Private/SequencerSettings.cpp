@@ -962,3 +962,28 @@ void USequencerSettings::SetTreeViewWidth(float InTreeViewWidth)
 		SaveConfig();
 	}
 }
+
+bool USequencerSettings::IsTrackFilterEnabled(const FString& TrackFilter) const
+{
+	return TrackFilters.Contains(TrackFilter);
+}
+
+void USequencerSettings::SetTrackFilterEnabled(const FString & TrackFilter, bool bEnabled)
+{
+	if (bEnabled)
+	{
+		if (!TrackFilters.Contains(TrackFilter))
+		{
+			TrackFilters.Add(TrackFilter);
+			SaveConfig();
+		}
+	}
+	else
+	{
+		if (TrackFilters.Contains(TrackFilter))
+		{
+			TrackFilters.Remove(TrackFilter);
+			SaveConfig();
+		}
+	}
+}

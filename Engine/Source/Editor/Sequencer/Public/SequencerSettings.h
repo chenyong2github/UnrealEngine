@@ -412,6 +412,11 @@ public:
 	/** Sets the tree view width percentage */
 	void SetTreeViewWidth(float InTreeViewWidth);
 
+	/** Gets whether the given track filter is enabled */
+	bool IsTrackFilterEnabled(const FString& TrackFilter) const;
+	/** Sets whether the track filter should be enabled/disabled */
+	void SetTrackFilterEnabled(const FString& TrackFilter, bool bEnabled);
+
 protected:
 
 	/** The auto change mode (auto-key, auto-track or none). */
@@ -659,6 +664,10 @@ protected:
 	/** The tree view width percentage */
 	UPROPERTY(config, EditAnywhere, Category = General)
 	float TreeViewWidth;
+
+	/** The track filters that are enabled */
+	UPROPERTY(config, EditAnywhere, Category = General)
+	TArray<FString> TrackFilters;
 
 	FOnEvaluateSubSequencesInIsolationChanged OnEvaluateSubSequencesInIsolationChangedEvent;
 	FOnShowSelectedNodesOnlyChanged OnShowSelectedNodesOnlyChangedEvent;

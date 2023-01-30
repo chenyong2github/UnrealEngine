@@ -424,8 +424,6 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 				WeakSequencer.Pin()->ObjectImplicitlyAdded(ControlRig);
 			}
 			
-			FText Name = LOCTEXT("SequenceTrackFilter_ControlRigControls", "Control Rig Controls");
-			WeakSequencer.Pin()->SetTrackFilterEnabled(Name, true);
 			WeakSequencer.Pin()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 			if (!ControlRigEditMode)
 			{
