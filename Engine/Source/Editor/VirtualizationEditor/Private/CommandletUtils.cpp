@@ -31,6 +31,22 @@ TArray<FString> FindAllPackages()
 	return PackageNames;
 }
 
+TArray<FString> FindPackagesInDirectory(const FString& DirectoryToSearch)
+{
+	TArray<FString> FilesInPackageFolder;
+	FPackageName::FindPackagesInDirectory(FilesInPackageFolder, DirectoryToSearch);
+
+	TArray<FString> PackageNames;
+	PackageNames.Reserve(FilesInPackageFolder.Num());
+
+	for (const FString& BasePath : FilesInPackageFolder)
+	{
+		PackageNames.Add(FPaths::CreateStandardFilename(BasePath));
+	}
+
+	return PackageNames;
+}
+
 TArray<FString> DiscoverPackages(const FString& CmdlineParams)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(DiscoverPackages);
@@ -38,24 +54,13 @@ TArray<FString> DiscoverPackages(const FString& CmdlineParams)
 	FString PackageDir;
 	if (FParse::Value(*CmdlineParams, TEXT("PackageDir="), PackageDir) || FParse::Value(*CmdlineParams, TEXT("PackageFolder="), PackageDir))
 	{
-		TArray<FString> FilesInPackageFolder;
-		FPackageName::FindPackagesInDirectory(FilesInPackageFolder, PackageDir);
-
-		TArray<FString> PackageNames;
-		for (const FString& BasePath : FilesInPackageFolder)
-		{
-			PackageNames.Add(FPaths::CreateStandardFilename(BasePath));
-		}
-
-		return PackageNames;
+		return FindPackagesInDirectory(PackageDir);
 	}
 	else
 	{
 		return FindAllPackages();
 	}
 }
-
-
 
 TArray<FIoHash> FindVirtualizedPayloads(const TArray<FString>& PackagePaths)
 {

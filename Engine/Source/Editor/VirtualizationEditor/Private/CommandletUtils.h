@@ -9,12 +9,15 @@
 namespace UE::Virtualization
 {
 
-/** Parse all of the active mount points and find all .uasset/.umaps */
+/** Parse all of the active mount points and find all packages */
 TArray<FString> FindAllPackages();
+
+/** Finds all of the packages under a given directory including its subdirectories */
+TArray<FString> FindPackagesInDirectory(const FString& DirectoryToSearch);
 
 /**
  * Finds all of the packages under a the directory given by the provided command line.
- * If no commandline switch can be found then the function will return all avaliable 
+ * If no commandline switch can be found then the function will return all available 
  * packages.
  * Valid commandline switches:
  * '-PackageDir=...'
