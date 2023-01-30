@@ -2633,49 +2633,6 @@ public:
 	virtual FName GetID() const override;
 	virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph ) override;
 	virtual bool SameType(const FProperty* Other) const override;
-	/**
-	 * Copy the value for a single element of this property. To the script VM.
-	 * 
-	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET + INDEX * SIZE, where
-	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
-	 *									OFFSET = the Offset of this FProperty
-	 *									INDEX = the index that you want to copy.  for properties which are not arrays, this should always be 0
-	 *									SIZE = the ElementSize of this FProperty
-	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
-	 */
-	virtual void CopySingleValueToScriptVM( void* Dest, void const* Src ) const override;
-
-	/**
-	 * Copy the value for all elements of this property. To the script VM.
-	 * 
-	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET, where
-	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
-	 *									OFFSET = the Offset of this FProperty
-	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
-	 */
-	virtual void CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const override;
-
-	/**
-	 * Copy the value for a single element of this property. From the script VM.
-	 * 
-	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET + INDEX * SIZE, where
-	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
-	 *									OFFSET = the Offset of this FProperty
-	 *									INDEX = the index that you want to copy.  for properties which are not arrays, this should always be 0
-	 *									SIZE = the ElementSize of this FProperty
-	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
-	 */
-	virtual void CopySingleValueFromScriptVM( void* Dest, void const* Src ) const override;
-
-	/**
-	 * Copy the value for all elements of this property. From the script VM.
-	 * 
-	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET, where
-	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
-	 *									OFFSET = the Offset of this FProperty
-	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
-	 */
-	virtual void CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const override;
 	// End of FProperty interface
 
 	// FObjectPropertyBase interface
@@ -2992,6 +2949,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 public:
+	virtual void CopySingleValueToScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopySingleValueFromScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const override;
 	virtual void CopyCompleteValueToScriptVM_InContainer( void* OutValue, void const* InContainer ) const override;
 	virtual void CopyCompleteValueFromScriptVM_InContainer( void* OutContainer, void const* InValue ) const override;
 	// End of FProperty interface
@@ -3041,6 +3002,10 @@ class COREUOBJECT_API FObjectPtrProperty : public FObjectProperty
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual bool Identical(const void* A, const void* B, uint32 PortFlags) const override;
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
+	virtual void CopySingleValueToScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopySingleValueFromScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const override;
 	virtual void CopyCompleteValueToScriptVM_InContainer( void* OutValue, void const* InContainer ) const override;
 	virtual void CopyCompleteValueFromScriptVM_InContainer( void* OutContainer, void const* InValue ) const override;
 	// End of FProperty interface
@@ -3115,6 +3080,10 @@ protected:
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 public:
+	virtual void CopySingleValueToScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopySingleValueFromScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const override;
 	virtual void CopyCompleteValueToScriptVM_InContainer( void* OutValue, void const* InContainer ) const override;
 	virtual void CopyCompleteValueFromScriptVM_InContainer( void* OutContainer, void const* InValue ) const override;
 	// End of FProperty interface
@@ -3175,6 +3144,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
 	virtual void SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults ) const override;
 	virtual void EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper) override;
+	virtual void CopySingleValueToScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopySingleValueFromScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const override;
 	virtual void CopyCompleteValueToScriptVM_InContainer( void* OutValue, void const* InContainer ) const override;
 	virtual void CopyCompleteValueFromScriptVM_InContainer( void* OutContainer, void const* InValue ) const override;
 	// End of FProperty interface
@@ -3278,13 +3251,8 @@ public:
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 public:
+	// Note: FSoftObjectProperty does not override the Copy*VM functions, as ScriptVM should store Asset as a FSoftObjectPtr not as a UObject*.
 
-	// ScriptVM should store Asset as FSoftObjectPtr not as UObject.
-
-	virtual void CopySingleValueToScriptVM(void* Dest, void const* Src) const override;
-	virtual void CopyCompleteValueToScriptVM(void* Dest, void const* Src) const override;
-	virtual void CopySingleValueFromScriptVM(void* Dest, void const* Src) const override;
-	virtual void CopyCompleteValueFromScriptVM(void* Dest, void const* Src) const override;
 	// End of FObjectProperty interface
 };
 
@@ -3396,6 +3364,10 @@ class COREUOBJECT_API FClassPtrProperty : public FClassProperty
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual bool Identical(const void* A, const void* B, uint32 PortFlags) const override;
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
+	virtual void CopySingleValueToScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopySingleValueFromScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const override;
+	virtual void CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const override;
 	virtual void CopyCompleteValueToScriptVM_InContainer( void* OutValue, void const* InContainer ) const override;
 	virtual void CopyCompleteValueFromScriptVM_InContainer( void* OutContainer, void const* InValue ) const override;
 	// End of FProperty interface

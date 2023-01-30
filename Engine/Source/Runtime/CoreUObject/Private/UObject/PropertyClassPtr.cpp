@@ -87,6 +87,26 @@ uint32 FClassPtrProperty::GetValueTypeHashInternal(const void* Src) const
 	return GetTypeHash((FObjectPtr&)GetPropertyValue(Src));
 }
 
+void FClassPtrProperty::CopySingleValueToScriptVM( void* Dest, void const* Src ) const
+{
+	*(UObject**)Dest = ((const FObjectPtr*)Src)->Get();
+}
+
+void FClassPtrProperty::CopySingleValueFromScriptVM( void* Dest, void const* Src ) const
+{
+	*(FObjectPtr*)Dest = *(UObject**)Src;
+}
+
+void FClassPtrProperty::CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const
+{
+	GetWrappedUObjectPtrValues<FObjectPtr>((UObject**)Dest, Src, EPropertyMemoryAccess::Direct, 0, ArrayDim);
+}
+
+void FClassPtrProperty::CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const
+{
+	SetWrappedUObjectPtrValues<FObjectPtr>(Dest, EPropertyMemoryAccess::Direct, (UObject**)Src, 0, ArrayDim);
+}
+
 void FClassPtrProperty::CopyCompleteValueToScriptVM_InContainer(void* OutValue, void const* InContainer) const
 {
 	GetWrappedUObjectPtrValues<FObjectPtr>((UObject**)OutValue, InContainer, EPropertyMemoryAccess::InContainer, 0, ArrayDim);

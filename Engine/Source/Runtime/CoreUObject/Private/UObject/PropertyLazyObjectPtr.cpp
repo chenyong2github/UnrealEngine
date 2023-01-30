@@ -156,6 +156,26 @@ uint32 FLazyObjectProperty::GetValueTypeHashInternal(const void* Src) const
 	return GetTypeHash(GetPropertyValue(Src));
 }
 
+void FLazyObjectProperty::CopySingleValueToScriptVM( void* Dest, void const* Src ) const
+{
+	*(UObject**)Dest = ((const FLazyObjectPtr*)Src)->Get();
+}
+
+void FLazyObjectProperty::CopySingleValueFromScriptVM( void* Dest, void const* Src ) const
+{
+	*(FLazyObjectPtr*)Dest = *(UObject**)Src;
+}
+
+void FLazyObjectProperty::CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const
+{
+	GetWrappedUObjectPtrValues<FLazyObjectPtr>((UObject**)Dest, Src, EPropertyMemoryAccess::Direct, 0, ArrayDim);
+}
+
+void FLazyObjectProperty::CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const
+{
+	SetWrappedUObjectPtrValues<FLazyObjectPtr>(Dest, EPropertyMemoryAccess::Direct, (UObject**)Src, 0, ArrayDim);
+}
+
 void FLazyObjectProperty::CopyCompleteValueToScriptVM_InContainer(void* OutValue, void const* InContainer) const
 {
 	GetWrappedUObjectPtrValues<FLazyObjectPtr>((UObject**)OutValue, InContainer, EPropertyMemoryAccess::InContainer, 0, ArrayDim);

@@ -685,30 +685,3 @@ bool FObjectPropertyBase::SameType(const FProperty* Other) const
 	return (Super::SameType(Other) || (Other && Other->IsA<FObjectPropertyBase>() && ((FObjectPropertyBase*)Other)->AllowObjectTypeReinterpretationTo(this))) && 
 			 (PropertyClass == ((FObjectPropertyBase*)Other)->PropertyClass);
 }
-
-void FObjectPropertyBase::CopySingleValueToScriptVM( void* Dest, void const* Src ) const
-{
-	*(UObject**)Dest = GetObjectPropertyValue(Src);
-}
-
-void FObjectPropertyBase::CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const
-{
-	for (int32 Index = 0; Index < ArrayDim; Index++)
-	{
-		((UObject**)Dest)[Index] = GetObjectPropertyValue(((uint8*)Src) + Index * ElementSize);
-	}
-}
-
-void FObjectPropertyBase::CopySingleValueFromScriptVM( void* Dest, void const* Src ) const
-{
-	SetObjectPropertyValue(Dest, *(UObject**)Src);
-}
-
-void FObjectPropertyBase::CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const
-{
-	checkSlow(ElementSize == sizeof(UObject*)); // the idea that script pointers are the same size as weak pointers is maybe required, maybe not
-	for (int32 Index = 0; Index < ArrayDim; Index++)
-	{
-		SetObjectPropertyValue(((uint8*)Dest) + Index * ElementSize, ((UObject**)Src)[Index]);
-	}
-}

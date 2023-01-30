@@ -221,6 +221,26 @@ void FObjectProperty::SetObjectPropertyValue_InContainer(void* ContainerAddress,
 	}
 }
 
+void FObjectProperty::CopySingleValueToScriptVM(void* Dest, const void* Src) const
+{
+	*(UObject**)Dest = ((const FObjectPtr*)Src)->Get();
+}
+
+void FObjectProperty::CopySingleValueFromScriptVM(void* Dest, const void* Src) const
+{
+	*(FObjectPtr*)Dest = *(UObject**)Src;
+}
+
+void FObjectProperty::CopyCompleteValueToScriptVM(void* Dest, const void* Src) const
+{
+	GetWrappedUObjectPtrValues<FObjectPtr>((UObject**)Dest, Src, EPropertyMemoryAccess::Direct, 0, ArrayDim);
+}
+
+void FObjectProperty::CopyCompleteValueFromScriptVM(void* Dest, const void* Src) const
+{
+	SetWrappedUObjectPtrValues<FObjectPtr>(Dest, EPropertyMemoryAccess::Direct, (UObject**)Src, 0, ArrayDim);
+}
+
 void FObjectProperty::CopyCompleteValueToScriptVM_InContainer(void* OutValue, void const* InContainer) const
 {
 	GetWrappedUObjectPtrValues<FObjectPtr>((UObject**)OutValue, InContainer, EPropertyMemoryAccess::InContainer, 0, ArrayDim);

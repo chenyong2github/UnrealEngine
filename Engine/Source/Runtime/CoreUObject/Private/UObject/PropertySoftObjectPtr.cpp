@@ -267,24 +267,3 @@ uint32 FSoftObjectProperty::GetValueTypeHashInternal(const void* Src) const
 {
 	return GetTypeHash(GetPropertyValue(Src));
 }
-
-void FSoftObjectProperty::CopySingleValueToScriptVM(void* Dest, void const* Src) const
-{
-	CopySingleValue(Dest, Src);
-}
-
-void FSoftObjectProperty::CopyCompleteValueToScriptVM(void* Dest, void const* Src) const
-{
-	CopyCompleteValue(Dest, Src);
-}
-
-void FSoftObjectProperty::CopySingleValueFromScriptVM(void* Dest, void const* Src) const
-{
-	CopySingleValue(Dest, Src);
-}
-
-void FSoftObjectProperty::CopyCompleteValueFromScriptVM(void* Dest, void const* Src) const
-{
-	CopyCompleteValue(Dest, Src);
-}
-

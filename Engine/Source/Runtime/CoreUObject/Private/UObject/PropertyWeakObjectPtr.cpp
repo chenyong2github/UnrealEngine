@@ -118,6 +118,26 @@ uint32 FWeakObjectProperty::GetValueTypeHashInternal(const void* Src) const
 	return GetTypeHash(*(FWeakObjectPtr*)Src);
 }
 
+void FWeakObjectProperty::CopySingleValueToScriptVM( void* Dest, void const* Src ) const
+{
+	*(UObject**)Dest = ((const FWeakObjectPtr*)Src)->Get();
+}
+
+void FWeakObjectProperty::CopySingleValueFromScriptVM( void* Dest, void const* Src ) const
+{
+	*(FWeakObjectPtr*)Dest = *(UObject**)Src;
+}
+
+void FWeakObjectProperty::CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const
+{
+	GetWrappedUObjectPtrValues<FWeakObjectPtr>((UObject**)Dest, Src, EPropertyMemoryAccess::Direct, 0, ArrayDim);
+}
+
+void FWeakObjectProperty::CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const
+{
+	SetWrappedUObjectPtrValues<FWeakObjectPtr>(Dest, EPropertyMemoryAccess::Direct, (UObject**)Src, 0, ArrayDim);
+}
+
 void FWeakObjectProperty::CopyCompleteValueToScriptVM_InContainer(void* OutValue, void const* InContainer) const
 {
 	GetWrappedUObjectPtrValues<FWeakObjectPtr>((UObject**)OutValue, InContainer, EPropertyMemoryAccess::InContainer, 0, ArrayDim);
