@@ -1267,7 +1267,7 @@ public:
 	const FRHIUniformBufferLayout* GetLayoutPtr() const { return Layout; }
 
 #if VALIDATE_UNIFORM_BUFFER_LIFETIME
-	mutable int32 NumMeshCommandReferencesForDebugging = 0;
+	mutable std::atomic<int32> NumMeshCommandReferencesForDebugging = 0;
 #endif
 
 	const TArray<TRefCountPtr<FRHIResource>>& GetResourceTable() const { return ResourceTable; }

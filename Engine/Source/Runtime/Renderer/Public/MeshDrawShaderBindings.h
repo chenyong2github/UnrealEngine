@@ -301,10 +301,10 @@ private:
 		if (FoundIndex >= 0)
 		{
 #if VALIDATE_UNIFORM_BUFFER_LIFETIME
-			if (GetUniformBufferStart()[FoundIndex])
+			if (const FRHIUniformBuffer* Previous = GetUniformBufferStart()[FoundIndex])
 			{
-				GetUniformBufferStart()[FoundIndex]->NumMeshCommandReferencesForDebugging--;
-				check(GetUniformBufferStart()[FoundIndex]->NumMeshCommandReferencesForDebugging >= 0);
+				const int32 NumMeshCommandReferencesForDebugging = --Previous->NumMeshCommandReferencesForDebugging;
+				check(NumMeshCommandReferencesForDebugging >= 0);
 			}
 			Value->NumMeshCommandReferencesForDebugging++;
 #endif
