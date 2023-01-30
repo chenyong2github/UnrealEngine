@@ -113,7 +113,7 @@ struct ENGINE_API FSoundSubmixSendInfo
 	TObjectPtr<USoundSubmixBase> SoundSubmix;
 
 	// The amount of audio to send
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixSend)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixSend, meta = (DisplayName = "Manual Send Level"))
 	float SendLevel;
 
 	// Whether to disable the 0-1 clamp for manual SendLevel control

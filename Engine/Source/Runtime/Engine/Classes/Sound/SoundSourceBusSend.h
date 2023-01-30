@@ -44,7 +44,7 @@ struct ENGINE_API FSoundSourceBusSendInfo
 	TObjectPtr<UAudioBus> AudioBus;
 
 	// The amount of audio to send to the bus.
-	UPROPERTY(EditAnywhere, Category = BusSend)
+	UPROPERTY(EditAnywhere, Category = BusSend, meta = (DisplayName = "Manual Send Level"))
 	float SendLevel;
 
 	// The amount to send to the bus when sound is located at a distance equal to value specified in the min send distance.
@@ -71,7 +71,7 @@ struct ENGINE_API FSoundSourceBusSendInfo
 		: SourceBusSendLevelControlMethod(ESourceBusSendLevelControlMethod::Manual)
 		, SoundSourceBus(nullptr)
 		, AudioBus(nullptr)
-		, SendLevel(0.0f)
+		, SendLevel(1.0f)
 		, MinSendLevel(0.0f)
 		, MaxSendLevel(1.0f)
 		, MinSendDistance(100.0f)
