@@ -35,7 +35,7 @@ void FDisplayClusterAppExit::ExitApplication(const FString& Msg, EExitType ExitT
 				}
 				else
 				{
-					// For some reason UE4 generates crash info if FPlatformMisc::RequestExit gets called
+					// For some reason UE generates crash info if FPlatformMisc::RequestExit gets called
 					// from a thread other than GameThread. Since it may be called from the networking
 					// session threads (failover pipeline), we don't want to generate unnecessary crash reports.
 					AsyncTask(ENamedThreads::GameThread, []()
