@@ -161,7 +161,7 @@ static TAutoConsoleVariable<int32> CVarVTCsvStats(
 );
 static TAutoConsoleVariable<int32> CVarVTAsyncPageRequestTask(
 	TEXT("r.VT.AsyncPageRequestTask"),
-	1,
+	0,
 	TEXT("Performs VT page requests on an async task."),
 	ECVF_RenderThreadSafe
 );

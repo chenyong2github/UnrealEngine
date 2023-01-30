@@ -868,14 +868,8 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FRDGSystemTextures::Create(GraphBuilder);
 
-	TUniquePtr<FVirtualTextureUpdater> VirtualTextureUpdater;
-
 	if (bUseVirtualTexturing)
 	{
-		FVirtualTextureUpdateSettings Settings;
-		Settings.EnableThrottling(!ViewFamily.bOverrideVirtualTextureThrottle);
-
-		VirtualTextureUpdater = FVirtualTextureSystem::Get().BeginUpdate(GraphBuilder, FeatureLevel, Scene, Settings);
 		VirtualTextureFeedbackBegin(GraphBuilder, Views, SceneTexturesConfig.Extent);
 	}
 
@@ -931,6 +925,12 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (bUseVirtualTexturing)
 	{
+		FVirtualTextureUpdateSettings Settings;
+		Settings.EnableThrottling(!ViewFamily.bOverrideVirtualTextureThrottle);
+
+		TUniquePtr<FVirtualTextureUpdater> VirtualTextureUpdater;
+		VirtualTextureUpdater = FVirtualTextureSystem::Get().BeginUpdate(GraphBuilder, FeatureLevel, Scene, Settings);
+
 		FVirtualTextureSystem::Get().EndUpdate(GraphBuilder, MoveTemp(VirtualTextureUpdater), FeatureLevel);
 	}
 
