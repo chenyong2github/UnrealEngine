@@ -368,15 +368,20 @@ static void AssignLayerChunkDelegate(const FAssignLayerChunkMap* ChunkManifest, 
 {
 	OutChunkLayer = 0;
 
-	FConfigFile PlatformIniFile;
-	FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Game"), true, *Platform);
-	TArray<FString> ChunkLayerAssignmentArray;
-	PlatformIniFile.GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("ChunkLayerAssignment"), ChunkLayerAssignmentArray);
+	static TMap<FString, TUniquePtr<TMap<int32, int32>>> PlatformChunkLayerAssignments;
+	TUniquePtr<TMap<int32, int32>>& ChunkLayerAssignment = PlatformChunkLayerAssignments.FindOrAdd(Platform);
+	if (!ChunkLayerAssignment)
+	{
+		FConfigFile PlatformIniFile;
+		FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Game"), true, *Platform);
+		TArray<FString> ChunkLayerAssignmentArray;
+		PlatformIniFile.GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("ChunkLayerAssignment"), ChunkLayerAssignmentArray);
 
-	TMap<int32, int32> ChunkLayerAssignment;
-	ParseChunkLayerAssignment(ChunkLayerAssignmentArray, ChunkLayerAssignment);
+		ChunkLayerAssignment.Reset(new TMap<int32, int32>());
+		ParseChunkLayerAssignment(ChunkLayerAssignmentArray, *ChunkLayerAssignment);
+	}
 
-	int32* LayerId = ChunkLayerAssignment.Find(ChunkIndex);
+	int32* LayerId = ChunkLayerAssignment->Find(ChunkIndex);
 	if (LayerId)
 	{
 		OutChunkLayer = *LayerId;

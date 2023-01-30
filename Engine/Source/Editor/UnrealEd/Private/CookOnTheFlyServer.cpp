@@ -17,6 +17,7 @@
 #include "Async/ParallelFor.h"
 #include "Commandlets/AssetRegistryGenerator.h"
 #include "Commandlets/ShaderPipelineCacheToolsCommandlet.h"
+#include "Containers/DirectoryTree.h"
 #include "Containers/RingBuffer.h"
 #include "Cooker/AsyncIODelete.h"
 #include "Cooker/CookDirector.h"
@@ -5028,42 +5029,39 @@ void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(bool bWasDueToOOM, bo
 		// get loaded again.
 		PackageTracker->AddExpectedNeverLoadPackages(ExpectedFreedPackageNames);
 
-		// If some packages we expected to be freed were not freed, show the reference chains for why
-		// they were not freed.
-		TArray<UPackage*> PackagesReferencedOutsideOfCooker;
-		for (FWeakObjectPtr& WeakPtr : CookByTheBookOptions->SessionStartupObjects)
-		{
-			UObject* Object = WeakPtr.Get();
-			if (!Object)
-			{
-				continue;
-			}
-			UPackage* Package = Object->GetPackage();
-			ExpectedFreedPackageNames.Remove(Package->GetFName());
-		}
-		PackageTracker->ForEachLoadedPackage(
-			[this, &PackagesReferencedOutsideOfCooker](UPackage* Package)
-			{
-				if (ExpectedFreedPackageNames.Contains(Package->GetFName()))
-				{
-					PackagesReferencedOutsideOfCooker.Add(Package);
-				}
-			});
-		if (PackagesReferencedOutsideOfCooker.Num() > 0)
-		{
-			// Only show diagnostics if LLM is on. We could add a separate setting for this, but it's more convenient to combine it with the LLM enabled setting
+		// Only show diagnostics if LLM is on, because they are somewhat expensive. We could add a separate setting
+		// for this, but it's more convenient to combine it with the LLM enabled setting
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-			bool bShowDiagnostics = FLowLevelMemTracker::Get().IsEnabled();
+		bool bShowDiagnostics = FLowLevelMemTracker::Get().IsEnabled();
 #else
-			constexpr bool bShowDiagnostics = false;
+		constexpr bool bShowDiagnostics = false;
 #endif
-			if (bShowDiagnostics)
+		if (bShowDiagnostics)
+		{
+			// If some packages we expected to be freed were not freed, show the reference chains for why
+			// they were not freed.
+			TArray<UPackage*> PackagesReferencedOutsideOfCooker;
+			for (FWeakObjectPtr& WeakPtr : CookByTheBookOptions->SessionStartupObjects)
+			{
+				UObject* Object = WeakPtr.Get();
+				if (!Object)
+				{
+					continue;
+				}
+				UPackage* Package = Object->GetPackage();
+				ExpectedFreedPackageNames.Remove(Package->GetFName());
+			}
+			PackageTracker->ForEachLoadedPackage(
+				[this, &PackagesReferencedOutsideOfCooker](UPackage* Package)
+				{
+					if (ExpectedFreedPackageNames.Contains(Package->GetFName()))
+					{
+						PackagesReferencedOutsideOfCooker.Add(Package);
+					}
+				});
+			if (PackagesReferencedOutsideOfCooker.Num() > 0)
 			{
 				UE::Cook::DumpPackageReferencers(PackagesReferencedOutsideOfCooker);
-			}
-			else
-			{
-				GLog->Logf(TEXT("Soft Garbage Collect diagnostics are not displayed because llm is disabled. Run with -llm or -trace=memtag to see diagnostics."));
 			}
 		}
 	}
@@ -10208,33 +10206,22 @@ TArray<FName> UCookOnTheFlyServer::GetNeverCookPackageFileNames(TArrayView<const
 	TArray<FString> NeverCookPackagesPaths;
 	if (AssetRegistry->IsSearchAllAssets() && !AssetRegistry->IsLoadingAssets())
 	{
-		TArray<FString> NeverCookDirectoryLongPackageNames;
-		NeverCookDirectoryLongPackageNames.Reserve(NeverCookDirectories.Num());
+		TDirectoryTree<int32> NeverCookDirectoryTree;
 		for (const FString& LocalDirectory : NeverCookDirectories)
 		{
 			FString PackagePath;
 			if (FPackageName::TryConvertFilenameToLongPackageName(LocalDirectory, PackagePath))
 			{
-				NeverCookDirectoryLongPackageNames.Add(PackagePath);
+				NeverCookDirectoryTree.FindOrAdd(PackagePath);
 			}
 		}
 
 		FString PackageNameStr;
 		AssetRegistry->EnumerateAllPackages(
-			[&NeverCookPackagesPaths, &NeverCookDirectoryLongPackageNames, &PackageNameStr](FName PackageName, const FAssetPackageData& PackageData)
+			[&NeverCookPackagesPaths, &NeverCookDirectoryTree, &PackageNameStr](FName PackageName, const FAssetPackageData& PackageData)
 			{
 				PackageName.ToString(PackageNameStr);
-				bool bIsInNeverCook = false;
-				for (const FString& NeverCookLongPackageName : NeverCookDirectoryLongPackageNames)
-				{
-					if (FPathViews::IsParentPathOf(NeverCookLongPackageName, PackageNameStr))
-					{
-						bIsInNeverCook = true;
-						break;
-					}
-				}
-
-				if (bIsInNeverCook)
+				if (NeverCookDirectoryTree.ContainsPathOrParent(PackageNameStr))
 				{
 					FString LocalFileName;
 					if (PackageData.Extension != EPackageExtension::Unspecified && PackageData.Extension != EPackageExtension::Custom)

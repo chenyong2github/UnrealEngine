@@ -18,6 +18,7 @@
 #include "Misc/VarArgs.h"
 #include "Serialization/Archive.h"
 #include "String/HexToBytes.h"
+#include "String/Parse.h"
 #include "Templates/MemoryOps.h"
 #include "Templates/RemoveReference.h"
 #include "Templates/UnrealTemplate.h"
@@ -1277,39 +1278,10 @@ bool FString::IsNumeric() const
 	return FCString::IsNumeric(Data.GetData());
 }
 
-/**
- * Breaks up a delimited string into elements of a string array.
- *
- * @param	InArray		The array to fill with the string pieces
- * @param	pchDelim	The string to delimit on
- * @param	InCullEmpty	If 1, empty strings are not added to the array
- *
- * @return	The number of elements in InArray
- */
 int32 FString::ParseIntoArray( TArray<FString>& OutArray, const TCHAR* pchDelim, const bool InCullEmpty ) const
 {
-	// Make sure the delimit string is not null or empty
 	check(pchDelim);
-	OutArray.Reset();
-	const TCHAR *Start = **this;
-	const int32 DelimLength = FCString::Strlen(pchDelim);
-	if (Start && *Start != TEXT('\0') && DelimLength)
-	{
-		while( const TCHAR *At = FCString::Strstr(Start,pchDelim) )
-		{
-			if (!InCullEmpty || At-Start)
-			{
-				OutArray.Emplace(UE_PTRDIFF_TO_INT32(At-Start),Start);
-			}
-			Start = At + DelimLength;
-		}
-		if (!InCullEmpty || *Start)
-		{
-			OutArray.Emplace(Start);
-		}
-
-	}
-	return OutArray.Num();
+	return UE::String::ParseIntoArray(OutArray, *this, pchDelim, InCullEmpty);
 }
 
 bool FString::MatchesWildcard(const TCHAR* InWildcard, int32 InWildcardLen, ESearchCase::Type SearchCase) const

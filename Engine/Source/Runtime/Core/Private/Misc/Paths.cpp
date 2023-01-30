@@ -2,22 +2,24 @@
 
 // Core includes.
 #include "Misc/Paths.h"
-#include "UObject/NameTypes.h"
-#include "Logging/LogMacros.h"
+
+#include "Containers/StringView.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFile.h"
-#include "Misc/Parse.h"
-#include "Misc/ScopeLock.h"
-#include "Misc/CommandLine.h"
-#include "Internationalization/Text.h"
 #include "Internationalization/Internationalization.h"
-#include "Misc/Guid.h"
-#include "Misc/ConfigCacheIni.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogMacros.h"
 #include "Misc/App.h"
+#include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Misc/EngineVersion.h"
+#include "Misc/Guid.h"
 #include "Misc/LazySingleton.h"
-#include "Containers/StringView.h"
+#include "Misc/Parse.h"
+#include "Misc/ScopeLock.h"
+#include "String/Parse.h"
+#include "UObject/NameTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPaths, Log, All);
 
@@ -1295,10 +1297,12 @@ bool FPaths::MakePathRelativeTo( FString& InPath, const TCHAR* InRelativeTo )
 	Source.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 	Target.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 
-	TArray<FString> TargetArray;
-	Target.ParseIntoArray(TargetArray, TEXT("/"), true);
-	TArray<FString> SourceArray;
-	Source.ParseIntoArray(SourceArray, TEXT("/"), true);
+	TArray<FStringView, TInlineAllocator<16>> TargetArrayBuffer;
+	UE::String::ParseIntoArray(TargetArrayBuffer, Target, TEXT("/"), true);
+	TArrayView<FStringView> TargetArray(TargetArrayBuffer);
+	TArray<FStringView, TInlineAllocator<16>> SourceArrayBuffer;
+	UE::String::ParseIntoArray(SourceArrayBuffer, Source, TEXT("/"), true);
+	TArrayView<FStringView> SourceArray(SourceArrayBuffer);
 
 	if (TargetArray.Num() && SourceArray.Num())
 	{
@@ -1315,20 +1319,30 @@ bool FPaths::MakePathRelativeTo( FString& InPath, const TCHAR* InRelativeTo )
 
 	while (TargetArray.Num() && SourceArray.Num() && TargetArray[0] == SourceArray[0])
 	{
-		TargetArray.RemoveAt(0);
-		SourceArray.RemoveAt(0);
+		TargetArray.RightChopInline(1);
+		SourceArray.RightChopInline(1);
 	}
+
+	FStringView ParentDirSeparator = TEXTVIEW("../");
+	FStringView DirSeparator = TEXTVIEW("/");
+	int32 ResultsLen = SourceArray.Num() * ParentDirSeparator.Len() + (TargetArray.Num() - 1)* DirSeparator.Len();
+	for (const FStringView& TargetDir : TargetArray)
+	{
+		ResultsLen += TargetDir.Len();
+	}
+
 	FString Result;
+	Result.Reserve(ResultsLen);
 	for (int32 Index = 0; Index < SourceArray.Num(); Index++)
 	{
-		Result += TEXT("../");
+		Result += ParentDirSeparator;
 	}
 	for (int32 Index = 0; Index < TargetArray.Num(); Index++)
 	{
 		Result += TargetArray[Index];
 		if (Index + 1 < TargetArray.Num())
 		{
-			Result += TEXT("/");
+			Result += DirSeparator;
 		}
 	}
 	

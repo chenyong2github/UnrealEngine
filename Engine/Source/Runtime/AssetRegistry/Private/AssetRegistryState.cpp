@@ -16,6 +16,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
+#include "Misc/StringBuilder.h"
 #include "NameTableArchive.h"
 #include "PackageReader.h"
 #include "Serialization/ArrayReader.h"
@@ -211,7 +212,7 @@ void FAssetRegistryState::InitializeFromExistingAndPrune(const FAssetRegistrySta
 			bRemoveAssetData = true;
 		}
 		else if (Options.bFilterAssetDataWithNoTags && AssetData->TagsAndValues.Num() == 0 &&
-			!FPackageName::IsLocalizedPackage(AssetData->PackageName.ToString()))
+			!FPackageName::IsLocalizedPackage(WriteToString<256>(AssetData->PackageName)))
 		{
 			bRemoveAssetData = true;
 			bRemoveDependencyData = Options.bFilterDependenciesWithNoTags;
@@ -245,7 +246,7 @@ void FAssetRegistryState::InitializeFromExistingAndPrune(const FAssetRegistrySta
 		{
 			// Only add if also in asset data map, or script package
 			if (CachedAssetsByPackageName.Find(Pair.Key) ||
-				FPackageName::IsScriptPackage(Pair.Key.ToString()))
+				FPackageName::IsScriptPackage(WriteToString<256>(Pair.Key)))
 			{
 				FAssetPackageData* NewData = CreateOrGetAssetPackageData(Pair.Key);
 				*NewData = *Pair.Value;
@@ -269,7 +270,7 @@ void FAssetRegistryState::InitializeFromExistingAndPrune(const FAssetRegistrySta
 		else if (Id.IsPackage() &&
 			!CachedAssetsByPackageName.Contains(Id.PackageName) &&
 			!RequiredDependNodePackages.Contains(Id.PackageName) &&
-			!FPackageName::IsScriptPackage(Id.PackageName.ToString()))
+			!FPackageName::IsScriptPackage(WriteToString<256>(Id.PackageName)))
 		{
 			bRemoveDependsNode = true;
 		}
@@ -383,7 +384,7 @@ void FAssetRegistryState::InitializeFromExisting(const FAssetDataMap& AssetDataM
 	{
 		for (const TPair<FName, FAssetPackageData*>& Pair : AssetPackageDataMap)
 		{
-			bool bIsScriptPackage = FPackageName::IsScriptPackage(Pair.Key.ToString());
+			bool bIsScriptPackage = FPackageName::IsScriptPackage(WriteToString<256>(Pair.Key));
 			if (InInitializationMode == EInitializationMode::OnlyUpdateNew && CachedPackageData.Find(Pair.Key))
 			{
 				continue;
@@ -504,7 +505,7 @@ void FAssetRegistryState::PruneAssetData(const TSet<FName>& RequiredPackages, co
 			bRemoveAssetData = true;
 		}
 		else if (Options.bFilterAssetDataWithNoTags && AssetData->TagsAndValues.Num() == 0 &&
-			!FPackageName::IsLocalizedPackage(AssetData->PackageName.ToString()))
+			!FPackageName::IsLocalizedPackage(WriteToString<256>(AssetData->PackageName)))
 		{
 			bRemoveAssetData = true;
 			bRemoveDependencyData = Options.bFilterDependenciesWithNoTags;
@@ -551,7 +552,7 @@ void FAssetRegistryState::PruneAssetData(const TSet<FName>& RequiredPackages, co
 		else if (Id.IsPackage() &&
 			!CachedAssetsByPackageName.Contains(Id.PackageName) &&
 			!RequiredDependNodePackages.Contains(Id.PackageName) &&
-			!FPackageName::IsScriptPackage(Id.PackageName.ToString()))
+			!FPackageName::IsScriptPackage(WriteToString<256>(Id.PackageName)))
 		{
 			bRemoveDependsNode = true;
 		}

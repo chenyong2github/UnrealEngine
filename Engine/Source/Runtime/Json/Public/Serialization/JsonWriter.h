@@ -579,15 +579,12 @@ public:
 
 	virtual bool Close() override
 	{
-		FString Out;
-
+		OutString->Reset(Bytes.Num()/sizeof(TCHAR));
 		for (int32 i = 0; i < Bytes.Num(); i+=sizeof(TCHAR))
 		{
 			TCHAR* Char = static_cast<TCHAR*>(static_cast<void*>(&Bytes[i]));
-			Out += *Char;
+			*OutString += *Char;
 		}
-
-		*OutString = Out;
 
 		return TJsonWriter<TCHAR, PrintPolicy>::Close();
 	}
