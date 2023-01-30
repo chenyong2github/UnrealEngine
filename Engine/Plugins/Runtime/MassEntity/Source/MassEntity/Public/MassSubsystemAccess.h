@@ -192,11 +192,11 @@ protected:
 		{
 			if constexpr (DoesRequireWorld<T>())
 			{
-				SystemInstance = FetchSubsystemInstance<typename TRemoveConst<T>::Type>(World.Get());
+				SystemInstance = FetchSubsystemInstance<std::remove_const_t<T>>(World.Get());
 			}
 			else
 			{
-				SystemInstance = FetchSubsystemInstance<typename TRemoveConst<T>::Type>();
+				SystemInstance = FetchSubsystemInstance<std::remove_const_t<T>>();
 			}
 			Subsystems[SystemIndex] = SystemInstance;
 		}

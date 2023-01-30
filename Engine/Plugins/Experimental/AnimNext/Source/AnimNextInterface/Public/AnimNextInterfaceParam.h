@@ -449,7 +449,7 @@ public:
 protected:
 	void* GetDataForConstructor(ValueType* InValuePtrToWrap) const
 	{
-		using MutableValueType = typename TRemoveConst<ValueType>::Type;
+		using MutableValueType = std::remove_const_t<ValueType>;
 
 		// Support containers with Num() and GetData()
 		if constexpr (TModels<Private::CSizedContainerWithAccessibleDataAsRawPtr, ValueType>::Value)

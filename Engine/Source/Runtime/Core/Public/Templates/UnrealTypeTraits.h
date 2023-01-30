@@ -298,7 +298,7 @@ struct TCallTraitsParamTypeHelper<T*, true>
  *		MutablePtr = const_cast< RemoveConst< ConstPtrType >::Type >( ConstPtr );
  */
 template< class T >
-struct /*UE_DEPRECATED(5.3, "TRemoveConst has been deprecated, please use std::remove_const_t instead.")*/ TRemoveConst
+struct UE_DEPRECATED(5.3, "TRemoveConst has been deprecated, please use std::remove_const_t instead.") TRemoveConst
 {
 	using Type = std::remove_const_t<T>;
 };
