@@ -328,6 +328,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// RigVM generated class refactor
 		RigVMGeneratedClass,
 
+		// In certain cases, Blueprint pins with a PC_Object category would serialize a null PinSubCategoryObject
+		NullPinSubCategoryObjectFix,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

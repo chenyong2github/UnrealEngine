@@ -8,6 +8,7 @@
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/Interface.h"
 #include "UObject/PropertyPortFlags.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -2286,6 +2287,7 @@ void UK2Node_CallFunction::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	if (Ar.IsLoading())
 	{
@@ -2352,6 +2354,25 @@ void UK2Node_CallFunction::Serialize(FArchive& Ar)
 						}
 					}
 				}
+			}
+		}
+
+		for (int32 PinIndex = 0; PinIndex < Pins.Num(); ++PinIndex)
+		{
+			UEdGraphPin* Pin = Pins[PinIndex];
+			check(Pin);
+
+			bool bNeedsSubCategoryObjectRepair =
+				(Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object) &&
+				(Pin->PinType.PinSubCategory != UEdGraphSchema_K2::PSC_Self) &&
+				(Pin->PinType.PinSubCategoryObject == nullptr) &&
+				(Ar.CustomVer(FReleaseObjectVersion::GUID) < FUE5MainStreamObjectVersion::NullPinSubCategoryObjectFix);
+
+			// Prior to NullPinSubCategoryObjectFix, some object pins were serialized with a null PinSubCategoryObject.
+			// Going forward, this will be an error, so we'll attempt to repair the pin by assigning a class.
+			if (bNeedsSubCategoryObjectRepair)
+			{
+				Pin->PinType.PinSubCategoryObject = FunctionReference.GetMemberParentClass();
 			}
 		}
 

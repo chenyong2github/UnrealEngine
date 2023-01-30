@@ -88,7 +88,7 @@
 #include "BlueprintNodeBinder.h"
 #include "BlueprintComponentNodeSpawner.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "K2Node_CastByteToEnum.h"
 #include "K2Node_ClassDynamicCast.h"
 #include "K2Node_GetEnumeratorName.h"
@@ -112,7 +112,7 @@ enum class EBlueprintRealDisplayMode : uint8
 	Number
 };
 
-namespace UE::BlueprintDisplay::Private
+namespace UE::EdGraphSchemaK2::Private
 {
 	int32 LastRealNamingMode = -1;
 	int32 RealNamingMode = static_cast<int32>(EBlueprintRealDisplayMode::Float);
@@ -128,6 +128,51 @@ namespace UE::BlueprintDisplay::Private
 		const bool bResult = LastRealNamingMode != RealNamingMode;
 		LastRealNamingMode = RealNamingMode;
 		return bResult;
+	}
+
+	template <class... T>
+	constexpr bool TAlwaysFalse = false;
+
+	template <typename TProperty>
+	UClass* GetAuthoritativeClass(const TProperty& Property)
+	{
+		UClass* PropertyClass = nullptr;
+		if constexpr (std::is_same_v<TProperty, FObjectPropertyBase>)
+		{
+			PropertyClass = Property.PropertyClass;
+		}
+		else if constexpr (std::is_same_v<TProperty, FSoftObjectProperty>)
+		{
+			PropertyClass = Property.PropertyClass;
+		}
+		else if constexpr (std::is_same_v<TProperty, FInterfaceProperty>)
+		{
+			PropertyClass = Property.InterfaceClass;
+		}
+		else if constexpr (std::is_same_v<TProperty, FClassProperty>)
+		{
+			PropertyClass = Property.MetaClass;
+		}
+		else if constexpr (std::is_same_v<TProperty, FSoftClassProperty>)
+		{
+			PropertyClass = Property.MetaClass;
+		}
+		else
+		{
+			static_assert(TAlwaysFalse<TProperty>, "Invalid property used.");
+		}
+
+		if (PropertyClass && PropertyClass->ClassGeneratedBy)
+		{
+			PropertyClass = PropertyClass->GetAuthoritativeClass();
+		}
+
+		if (PropertyClass && FKismetEditorUtilities::IsClassABlueprintSkeleton(PropertyClass))
+		{
+			UE_LOG(LogBlueprint, Warning, TEXT("'%s' is a skeleton class. SubCategoryObject will serialize to a null value."), *PropertyClass->GetFullName());
+		}
+
+		return PropertyClass;
 	}
 }
 
@@ -3389,30 +3434,32 @@ void UEdGraphSchema_K2::CreateFunctionGraphTerminators(UEdGraph& Graph, const UF
 
 bool UEdGraphSchema_K2::GetPropertyCategoryInfo(const FProperty* TestProperty, FName& OutCategory, FName& OutSubCategory, UObject*& OutSubCategoryObject, bool& bOutIsWeakPointer)
 {
+	using namespace UE::EdGraphSchemaK2::Private;
+
 	if (const FInterfaceProperty* InterfaceProperty = CastField<const FInterfaceProperty>(TestProperty))
 	{
 		OutCategory = PC_Interface;
-		OutSubCategoryObject = InterfaceProperty->InterfaceClass;
+		OutSubCategoryObject = GetAuthoritativeClass(*InterfaceProperty);
 	}
 	else if (const FClassProperty* ClassProperty = CastField<const FClassProperty>(TestProperty))
 	{
 		OutCategory = PC_Class;
-		OutSubCategoryObject = ClassProperty->MetaClass;
+		OutSubCategoryObject = GetAuthoritativeClass(*ClassProperty);
 	}
 	else if (const FSoftClassProperty* SoftClassProperty = CastField<const FSoftClassProperty>(TestProperty))
 	{
 		OutCategory = PC_SoftClass;
-		OutSubCategoryObject = SoftClassProperty->MetaClass;
+		OutSubCategoryObject = GetAuthoritativeClass(*SoftClassProperty);
 	}
 	else if (const FSoftObjectProperty* SoftObjectProperty = CastField<const FSoftObjectProperty>(TestProperty))
 	{
 		OutCategory = PC_SoftObject;
-		OutSubCategoryObject = SoftObjectProperty->PropertyClass;
+		OutSubCategoryObject = GetAuthoritativeClass(*SoftObjectProperty);
 	}
 	else if (const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(TestProperty))
 	{
 		OutCategory = PC_Object;
-		OutSubCategoryObject = ObjectProperty->PropertyClass;
+		OutSubCategoryObject = GetAuthoritativeClass(*ObjectProperty);
 		bOutIsWeakPointer = TestProperty->IsA(FWeakObjectProperty::StaticClass());
 	}
 	else if (const FStructProperty* StructProperty = CastField<const FStructProperty>(TestProperty))
@@ -3725,7 +3772,7 @@ FText UEdGraphSchema_K2::GetCategoryText(const FName Category, const bool bForMe
 
 FText UEdGraphSchema_K2::GetCategoryText(FName Category, FName SubCategory, bool bForMenu)
 {
-	using namespace UE::BlueprintDisplay::Private;
+	using namespace UE::EdGraphSchemaK2::Private;
 
 	if (Category.IsNone())
 	{
@@ -3868,7 +3915,7 @@ FText UEdGraphSchema_K2::TerminalTypeToText(const FName Category, const FName Su
 	{
 		if (Category == UEdGraphSchema_K2::PC_Real)
 		{
-			using namespace UE::BlueprintDisplay::Private;
+			using namespace UE::EdGraphSchemaK2::Private;
 
 			switch (GetRealDisplayMode())
 			{
