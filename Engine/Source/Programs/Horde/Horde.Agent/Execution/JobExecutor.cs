@@ -1200,29 +1200,8 @@ namespace Horde.Agent.Execution
 
 			List<string> ignorePatterns = await ReadIgnorePatternsAsync(workspaceDir, jobLogger);
 
-			InterceptingLogger interceptedJobLogger = new (jobLogger, new [] { KnownLogEvents.Systemic_Xge_TaskMetadata.Id }, (level, id, state, exception) =>
-			{
-				if (state is JsonLogEvent jsonLogEvent)
-				{
-					try
-					{
-						LogEvent logEvent = LogEvent.Read(jsonLogEvent.Data.Span);
-						if (logEvent.TryGetProperty("agent", out string? agentName))
-						{
-							string taskName = logEvent.GetProperty<string>("name");
-							int duration = logEvent.GetProperty<int>("duration");
-							_logger.LogInformation("Executed XGE task {XgeTaskName} on agent {XgeAgent} for {Duration} ms", taskName, agentName, duration);	
-						}
-					}
-					catch (Exception e)
-					{
-						_logger.LogWarning(e, "Failed to log XGE task execution");
-					}
-				}
-			});
-
 			int exitCode;
-			using (LogParser filter = new LogParser(interceptedJobLogger, ignorePatterns))
+			using (LogParser filter = new LogParser(jobLogger, ignorePatterns))
 			{
 				await ExecuteCleanupScriptAsync(cleanupScript, filter, jobLogger);
 				try
