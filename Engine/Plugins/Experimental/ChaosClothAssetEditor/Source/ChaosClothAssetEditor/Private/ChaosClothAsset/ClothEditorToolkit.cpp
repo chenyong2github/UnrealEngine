@@ -798,6 +798,11 @@ void FChaosClothAssetEditorToolkit::ReinitializeGraphEditorWidget()
 	Args._EvaluateGraph = EvalLambda;
 
 	UChaosClothAsset* const ClothAsset = GetAsset();
+
+	if (!GraphEditor)
+	{
+		GraphEditor = CreateGraphEditorWidget();
+	}
 	GraphEditor->Construct(Args, ClothAsset);
 
 	GraphEditor->OnSelectionChangedMulticast.Clear();
