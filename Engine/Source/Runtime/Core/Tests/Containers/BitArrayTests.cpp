@@ -1239,13 +1239,11 @@ public:
 					ZeroesText[DisplayIndex] = TEXT('\0');
 					if (!bOnesMatchesExpected)
 					{
-						//-V571
 						CHECK_MESSAGE(FString::Printf(TEXT("SetRange bool BitWidth=%d WriteOffset=%d, Ones\nExpected=%s\nActual  =%s"), BitWidth, WriteOffset, OnesExpectedText, OnesText),
 							bOnesMatchesExpected);
 					}
 					else if (!bZeroesMatchesExpected)
 					{
-						//-V571
 						CHECK_MESSAGE(FString::Printf(TEXT("SetRange bool BitWidth=%d WriteOffset=%d, Zeroes\nExpected=%s\nActual  =%s"), BitWidth, WriteOffset, ZeroesExpectedText, ZeroesText),
 							bZeroesMatchesExpected);
 					}
@@ -2193,13 +2191,11 @@ public:
 						ZeroesText[DisplayIndex] = TEXT('\0');
 						if (!bOnesMatchesExpected)
 						{
-							//-V571
 							CHECK_MESSAGE(FString::Printf(TEXT("MemmoveBitsWordOrder BitWidth=%d ReadOffset=%d, WriteOffset=%d, Overlap=%d, Ones\nExpected=%s\nActual  =%s"), BitWidth, ReadOffset, WriteOffset, Overlap, OnesExpectedText, OnesText),
 								bOnesMatchesExpected);
 						}
 						else if (!bZeroesMatchesExpected)
 						{
-							//-V571
 							CHECK_MESSAGE(FString::Printf(TEXT("MemmoveBitsWordOrder BitWidth=%d ReadOffset=%d, WriteOffset=%d, Overlap=%d, Zeroes\nExpected=%s\nActual  =%s"), BitWidth, ReadOffset, WriteOffset, Overlap, ZeroesExpectedText, ZeroesText),
 								bZeroesMatchesExpected);
 						}

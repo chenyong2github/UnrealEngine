@@ -131,6 +131,7 @@ struct Catch::StringMaker<TTuple<KeyType, ValueType>>
 #define CHECK_NOT_EQUAL(Actual, Expected)\
 	CHECK(Actual != Expected)
 
+//-V:CHECK_MESSAGE:571
 #define CHECK_MESSAGE(What, Value) do { \
 	INFO(What); \
 	CHECK((Value)==true); \
@@ -142,6 +143,7 @@ struct Catch::StringMaker<TTuple<KeyType, ValueType>>
 #define REQUIRE_NOT_EQUAL(Actual, Expected)\
 	REQUIRE(Actual != Expected)
 
+//-V:REQUIRE_MESSAGE:571
 #define REQUIRE_MESSAGE(What, Value) do { \
 	INFO(What); \
 	REQUIRE((Value)==true); \
