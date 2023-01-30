@@ -235,7 +235,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 
 			FProviderEditScopeLock _(AllocationsProvider);
 			AllocationsProvider.SetCurrentThreadId(TraceThreadId, SystemThreadId);
-			AllocationsProvider.EditMarkAllocationAsHeap(Time, /*CallstackId,*/ Address, Heap, Flags);
+			AllocationsProvider.EditMarkAllocationAsHeap(Time, CallstackId, Address, Heap, Flags);
 			break;
 		}
 
@@ -254,7 +254,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 
 			FProviderEditScopeLock _(AllocationsProvider);
 			AllocationsProvider.SetCurrentThreadId(TraceThreadId, SystemThreadId);
-			AllocationsProvider.EditUnmarkAllocationAsHeap(Time, /*CallstackId,*/ Address, Heap);
+			AllocationsProvider.EditUnmarkAllocationAsHeap(Time, CallstackId, Address, Heap);
 			break;
 		}
 

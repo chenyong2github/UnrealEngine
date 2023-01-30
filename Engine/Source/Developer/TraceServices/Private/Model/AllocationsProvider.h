@@ -333,8 +333,8 @@ public:
 	void EditFree(double Time, uint32 CallstackId, uint64 Address, HeapId RootHeap);
 
 	void EditHeapSpec(HeapId Id, HeapId ParentId, const FStringView& Name, EMemoryTraceHeapFlags Flags);
-	void EditMarkAllocationAsHeap(double Time, uint64 Address, HeapId Heap, EMemoryTraceHeapAllocationFlags Flags);
-	void EditUnmarkAllocationAsHeap(double Time, uint64 Address, HeapId Heap);
+	void EditMarkAllocationAsHeap(double Time, uint32 CallstackId, uint64 Address, HeapId Heap, EMemoryTraceHeapAllocationFlags Flags);
+	void EditUnmarkAllocationAsHeap(double Time, uint32 CallstackId, uint64 Address, HeapId Heap);
 
 	void EditAddTagSpec(TagIdType Tag, TagIdType ParentTag, const TCHAR* Display) { EditAccessCheck(); TagTracker.AddTagSpec(Tag, ParentTag, Display); }
 	void EditPushTag(uint32 ThreadId, uint8 Tracker, TagIdType Tag);
@@ -390,9 +390,13 @@ private:
 	uint64 FreeCount = 0;
 	uint64 HeapCount = 0;
 
+	uint64 MiscWarnings = 0;
 	uint64 MiscErrors = 0;
+	uint64 HeapWarnings = 0;
 	uint64 HeapErrors = 0;
+	uint64 AllocWarnings = 0;
 	uint64 AllocErrors = 0;
+	uint64 FreeWarnings = 0;
 	uint64 FreeErrors = 0;
 
 	uint64 MaxAllocSize = 0;
