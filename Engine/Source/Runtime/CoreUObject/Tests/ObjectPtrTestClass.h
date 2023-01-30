@@ -26,6 +26,15 @@ public:
 };
 
 
+//test class with typed reference to another class
+class UObjectWithClassProperty : public UObject
+{
+	DECLARE_CLASS_INTRINSIC(UObjectWithClassProperty, UObject, CLASS_MatchedSerializers, TEXT("/Script/CoreUObject"))
+
+public:
+	TObjectPtr<UClass> ClassPtr;
+};
+
 //derived test class
 class UObjectPtrDerrivedTestClass : public UObjectPtrTestClass
 {

@@ -187,11 +187,11 @@ bool FClassProperty::SameType(const FProperty* Other) const
 
 bool FClassProperty::Identical( const void* A, const void* B, uint32 PortFlags ) const
 {
-	UObject* ObjectA = A ? GetObjectPropertyValue(A) : nullptr;
-	UObject* ObjectB = B ? GetObjectPropertyValue(B) : nullptr;
+	TObjectPtr<UObject> ObjectA = A ? GetObjectPtrPropertyValue(A) : TObjectPtr<UObject>();
+	TObjectPtr<UObject> ObjectB = B ? GetObjectPtrPropertyValue(B) : TObjectPtr<UObject>();
 
-	check(ObjectA == nullptr || ObjectA->IsA<UClass>());
-	check(ObjectB == nullptr || ObjectB->IsA<UClass>());
+	check(ObjectA == nullptr || ObjectA.IsA<UClass>());
+	check(ObjectB == nullptr || ObjectB.IsA<UClass>());
 	return (ObjectA == ObjectB);
 }
 

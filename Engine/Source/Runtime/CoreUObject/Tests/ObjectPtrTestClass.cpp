@@ -61,6 +61,14 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UObjectPtrTestClassWithRef, UObject,
 	});
 #endif
 
+IMPLEMENT_CORE_INTRINSIC_CLASS(UObjectWithClassProperty, UObject,
+	{
+		auto Property1 = new FClassPtrProperty(Class, TEXT("ClassPtr"), EObjectFlags::RF_NoFlags);
+		Property1->PropertyClass = UClass::StaticClass();
+		Class->AddCppProperty(Property1);
+	}
+);
+
 IMPLEMENT_CORE_INTRINSIC_CLASS(UObjectPtrDerrivedTestClass, UObjectPtrTestClass, {});
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UObjectPtrNotLazyTestClass, UObject, {});
