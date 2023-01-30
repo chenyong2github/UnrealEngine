@@ -8,9 +8,10 @@
 #include "UObject/Package.h"
 #include "Misc/ScopeExit.h"
 #include "UObject/UnrealType.h"
+#include "UObject/LinkerPlaceholderExportObject.h"
+#include "UObject/LinkerPlaceholderClass.h"
 #include "UObject/ObjectHandleTracking.h"
 #include "LowLevelTestsRunner/WarnFilterScope.h"
-
 
 TEST_CASE("UE::CoreUObject::FObjectProperty::CheckValidAddress")
 {
@@ -19,7 +20,7 @@ TEST_CASE("UE::CoreUObject::FObjectProperty::CheckValidAddress")
 	auto CallbackHandle = UE::CoreUObject::AddObjectHandleReadCallback([&bAllowRead](UObject* ReadObject)
 		{
 			if (!bAllowRead)
-			FAIL("Unexpected read during CheckValidObject");
+				FAIL("Unexpected read during CheckValidObject");
 		});
 	ON_SCOPE_EXIT
 	{
@@ -127,6 +128,92 @@ TEST_CASE("UE::CoreUObject::FObjectProperty::CheckValidAddressNonNullable")
 
 	//old value is required for non nullable properties
 	REQUIRE_CHECK(Property->CheckValidObject(&Obj->ObjectPtrNonNullable, nullptr));
+}
+
+class FMockArchive : public FArchive
+{
+public:
+	TFunction<void(FObjectPtr& Value)> OnFObjectPtr;
+	virtual FArchive& operator<<(FObjectPtr& Value)
+	{
+		if (OnFObjectPtr)
+			OnFObjectPtr(Value);
+		return *this;
+	}
+};
+
+template<typename T>
+static void TestSerializeItem(FName ObjectName)
+{
+	UClass* Class = T::StaticClass();
+	FObjectProperty* Property = CastField<FObjectProperty>(Class->FindPropertyByName(TEXT("ObjectPtr")));
+	REQUIRE(Property != nullptr);
+
+	UPackage* TestPackage = NewObject<UPackage>(nullptr, TEXT("TestPackageName"), RF_Transient);
+	TestPackage->AddToRoot();
+	ON_SCOPE_EXIT
+	{
+		TestPackage->RemoveFromRoot();
+	};
+	T* Obj = NewObject<T>(TestPackage, ObjectName);
+	UObjectPtrTestClass* Other = NewObject<UObjectPtrTestClass>(Obj, TEXT("Other"));
+	ULinkerPlaceholderExportObject* PlaceHolderExport = NewObject<ULinkerPlaceholderExportObject>(TestPackage, TEXT("PlaceHolderExport"));
+	ULinkerPlaceholderClass* PlaceHolderClass = NewObject<ULinkerPlaceholderClass>(TestPackage, TEXT("PlaceHolderClass"));
+	PlaceHolderClass->Bind(); //must call bind or crashes on shutdown
+
+	int ReadCount = 0;
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+	auto CallbackId = UE::CoreUObject::AddObjectHandleReadCallback([&ReadCount](UObject* ReadObject)
+		{
+			++ReadCount;
+		});
+	ON_SCOPE_EXIT
+	{
+		UE::CoreUObject::RemoveObjectHandleReadCallback(CallbackId);
+	};
+#endif
+	{
+		//verify that if the property is null no reads are triggered
+		FMockArchive MockArchive;
+		MockArchive.OnFObjectPtr = [&](FObjectPtr& Value)
+		{
+			Value = PlaceHolderExport;
+		};
+
+		FBinaryArchiveFormatter Formatter(MockArchive);
+		FStructuredArchive Ar(Formatter);
+		FStructuredArchiveSlot Slot = Ar.Open();
+		FObjectPtrProperty::StaticSerializeItem(Property, Slot, &Obj->ObjectPtr, nullptr);
+		CHECK(ReadCount == 0);
+		CHECK(*reinterpret_cast<ULinkerPlaceholderExportObject**>(&Obj->ObjectPtr) == PlaceHolderExport);
+
+	}
+	{
+		//verify that if the property is not null no reads are triggered
+		FMockArchive MockArchive;
+		MockArchive.OnFObjectPtr = [&](FObjectPtr& Value)
+		{
+			Value = PlaceHolderClass;
+		};
+
+		FBinaryArchiveFormatter Formatter(MockArchive);
+		FStructuredArchive Ar(Formatter);
+		FStructuredArchiveSlot Slot = Ar.Open();
+		Obj->ObjectPtr = Other;
+		FObjectPtrProperty::StaticSerializeItem(Property, Slot, &Obj->ObjectPtr, nullptr);
+		CHECK(ReadCount == 0);
+		CHECK(*reinterpret_cast<ULinkerPlaceholderClass**>(&Obj->ObjectPtr) == PlaceHolderClass);
+	}
+}
+
+TEST_CASE("UE::CoreUObject::FObjectPtrProperty::StaticSerializeItem")
+{
+	TestSerializeItem<UObjectPtrTestClassWithRef>(TEXT("Object1"));
+}
+
+TEST_CASE("UE::CoreUObject::FObjectProperty::StaticSerializeItem")
+{
+	TestSerializeItem<UObjectWithRawProperty>(TEXT("Object2"));
 }
 
 #endif

@@ -35,6 +35,17 @@ public:
 	TObjectPtr<UClass> ClassPtr;
 };
 
+//test class with raw pointer
+class UObjectWithRawProperty : public UObject
+{
+	DECLARE_CLASS_INTRINSIC(UObjectWithRawProperty, UObject, CLASS_MatchedSerializers, TEXT("/Script/CoreUObject"))
+
+public:
+	UObjectPtrTestClass* ObjectPtr;
+	UObjectPtrTestClass* ObjectPtrNonNullable;
+};
+
+
 //derived test class
 class UObjectPtrDerrivedTestClass : public UObjectPtrTestClass
 {

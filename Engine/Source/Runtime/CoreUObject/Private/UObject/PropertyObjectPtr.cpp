@@ -56,7 +56,7 @@ void FObjectPtrProperty::StaticSerializeItem(const FObjectPropertyBase* ObjectPr
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 	FObjectPtr* ObjectPtr = (FObjectPtr*)GetPropertyValuePtr(Value);
 	const bool IsHandleResolved = IsObjectHandleResolved(ObjectPtr->GetHandle());
-	UObject* CurrentValue = IsHandleResolved ? ObjectPtr->Get() : nullptr;
+	UObject* CurrentValue = IsHandleResolved && *ObjectPtr ? UE::CoreUObject::Private::ReadObjectHandlePointerNoCheck(ObjectPtr->GetHandle()) : nullptr;
 
 	if (UnderlyingArchive.IsObjectReferenceCollector())
 	{
@@ -77,14 +77,17 @@ void FObjectPtrProperty::StaticSerializeItem(const FObjectPropertyBase* ObjectPr
 		FObjectHandle CurrentHandle = ObjectPtr->GetHandle();
 		if ((OriginalHandle != CurrentHandle) && IsObjectHandleResolved(CurrentHandle))
 		{
-			UObject* ResolvedObject = ObjectPtr->Get();
 	#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-			if (ULinkerPlaceholderExportObject* PlaceholderVal = Cast<ULinkerPlaceholderExportObject>(ResolvedObject))
+			if (ObjectPtr->IsA<ULinkerPlaceholderExportObject>())
 			{
+				//resolve the handle with no read to avoid trigger a handle read. 
+				ULinkerPlaceholderExportObject* PlaceholderVal = static_cast<ULinkerPlaceholderExportObject*>(UE::CoreUObject::Private::ReadObjectHandlePointerNoCheck(CurrentHandle));
 				PlaceholderVal->AddReferencingPropertyValue(ObjectProperty, Value);
 			}
-			else if (ULinkerPlaceholderClass* PlaceholderClass = Cast<ULinkerPlaceholderClass>(ResolvedObject))
+			else if (ObjectPtr->IsA<ULinkerPlaceholderClass>())
 			{
+				//resolve the handle with no read to avoid trigger a handle read. 
+				ULinkerPlaceholderClass* PlaceholderClass = static_cast<ULinkerPlaceholderClass*>(UE::CoreUObject::Private::ReadObjectHandlePointerNoCheck(CurrentHandle));
 				PlaceholderClass->AddReferencingPropertyValue(ObjectProperty, Value);
 			}
 			// NOTE: we don't remove this from CurrentValue if it is a 

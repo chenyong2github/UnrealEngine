@@ -69,6 +69,19 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UObjectWithClassProperty, UObject,
 	}
 );
 
+IMPLEMENT_CORE_INTRINSIC_CLASS(UObjectWithRawProperty, UObject,
+	{
+		auto Property1 = new FObjectProperty(Class, TEXT("ObjectPtr"), EObjectFlags::RF_NoFlags);
+		Property1->PropertyClass = UClass::StaticClass();
+		Class->AddCppProperty(Property1);
+
+		auto Property2 = new FObjectPtrProperty(Class, TEXT("ObjectPtrNonNullable"), EObjectFlags::RF_NoFlags);
+		Property2->PropertyClass = UObjectPtrTestClass::StaticClass();
+		Property2->SetPropertyFlags(EPropertyFlags::CPF_NonNullable); //make non nullable
+		Class->AddCppProperty(Property2);
+	}
+);
+
 IMPLEMENT_CORE_INTRINSIC_CLASS(UObjectPtrDerrivedTestClass, UObjectPtrTestClass, {});
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UObjectPtrNotLazyTestClass, UObject, {});

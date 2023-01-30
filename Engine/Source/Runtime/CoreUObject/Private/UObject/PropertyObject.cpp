@@ -110,10 +110,16 @@ void FObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value
 	}
 	else
 	{
-		UObject* ObjectValue = GetObjectPropertyValue(Value);
+		TObjectPtr<UObject> ObjectValuePtr = GetObjectPtrPropertyValue(Value);
+		check(ObjectValuePtr.IsResolved());
+		UObject* ObjectValue = UE::CoreUObject::Private::ReadObjectHandlePointerNoCheck(ObjectValuePtr.GetHandle());
+
 		Slot << ObjectValue;
 
-		UObject* CurrentValue = GetObjectPropertyValue(Value);
+		TObjectPtr<UObject> CurrentValuePtr = GetObjectPtrPropertyValue(Value);
+		check(CurrentValuePtr.IsResolved());
+		UObject* CurrentValue = UE::CoreUObject::Private::ReadObjectHandlePointerNoCheck(CurrentValuePtr.GetHandle());
+
 		if (ObjectValue != CurrentValue)
 		{
 			SetObjectPropertyValue(Value, ObjectValue);
