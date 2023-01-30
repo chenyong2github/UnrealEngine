@@ -2062,7 +2062,7 @@ void DrawLumenMeshCapturePass(
 			UniformParameters->DbgBuffer32					= SystemTextures.Black;
 			UniformParameters->ShadingRate					= SystemTextures.Black;
 			UniformParameters->ShadingMask					= SystemTextures.Black;
-			UniformParameters->MaterialDepthTable			= GraphBuilder.GetPooledBuffer(GSystemTextures.GetDefaultBuffer(GraphBuilder, 4, 0u))->GetSRV();
+			UniformParameters->MaterialDepthTable			= GraphBuilder.GetPooledBuffer(GSystemTextures.GetDefaultBuffer(GraphBuilder, 4, 0u))->GetSRV(FRHIBufferSRVCreateInfo(PF_R32_UINT));
 
 			UniformParameters->MultiViewEnabled				= 1;
 			UniformParameters->MultiViewIndices				= GraphBuilder.CreateSRV(ViewIndexBuffer);
