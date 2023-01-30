@@ -1046,7 +1046,7 @@ namespace DepletableMpscQueueTests
 		Queue.Deplete([](void*) { checkNoEntry(); }); // empty
 	}
 
-	TEST_CASE_NAMED(FDepletableMpscQueueTest, "System::Core::Async::DepletableMpscQueueTest", "[ApplicationContextMask][EngineFilter]")
+	TEST_CASE_NAMED(FDepletableMpscQueueTest, "System::Core::Async::DepletableMpscQueueTest", "[.][ApplicationContextMask][EngineFilter]")
 	{
 		{
 			TDepletableMpmcQueue<int> Q;
