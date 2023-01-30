@@ -5,8 +5,10 @@
 #include "Chaos/AABB.h"
 #include "Chaos/Core.h"
 #include "Chaos/Triangle.h"
+#include "Chaos/Plane.h"
 #include "Chaos/Math/Poisson.h" // 3x3 row major matrix functions
 #include "GenericPlatform/GenericPlatformMath.h"
+#include <limits>
 
 
 namespace Chaos {
@@ -190,6 +192,8 @@ namespace Chaos {
 				(Sign(V1) != Sign(V2) || Sign(V2) != Sign(V3) || Sign(V3) != Sign(V4)));
 		}
 
+		// Note: this method will fail to project to the actual surface if Location is outside and the closest point is
+		// on an edge with an acute angle such that Location is outside both connected faces. FindClosestPointAndBary will work in this case.
 		TVec3<T> ProjectToSurface(const TArray<TTriangle<T>>& Tris, const TVec3<T>& Location) const
 		{
 			if (Inside(Tris, Location)) 
@@ -231,6 +235,93 @@ namespace Chaos {
 			}
 		}
 
+		// Tolerance should be small negative number or zero. It is used to compare barycentric coordinate values
+		TVec3<T> FindClosestPointAndBary(const TVec3<T>& Location, TVec4<T>& OutBary, const T Tolerance = 0) const
+		{
+			const TVec3<T> TetWeights = GetFirstThreeBarycentricCoordinates(Location);
+			if (TetWeights[0] >= Tolerance && TetWeights[1] >= Tolerance && TetWeights[2] >= Tolerance && TetWeights[0] + TetWeights[1] + TetWeights[2] <= 1 + Tolerance)
+			{
+				// Inside tetrahedron
+				OutBary = TVec4<T>(TetWeights[0], TetWeights[1], TetWeights[2], static_cast<T>(1.0) - TetWeights[0] - TetWeights[1] - TetWeights[2]);
+				checkSlow(TVec3<T>::DistSquared(Location, GetPointFromBarycentricCoordinates(OutBary)) < static_cast<T>(UE_SMALL_NUMBER));
+				return Location;
+			}
+			
+			// Test closest point is inside a face
+			const bool IsInverted = GetSignedVolume() <= 0;
+			static const TVec3<int32> InvertedTriangleIndices[4] =
+			{
+				TVec3<int32>(0,1,2),
+				TVec3<int32>(0,3,1),
+				TVec3<int32>(0,2,3),
+				TVec3<int32>(1,3,2)
+			};
+			static const TVec3<int32> NonInvertedTriangleIndices[4] =
+			{
+				TVec3<int32>(0,2,1),
+				TVec3<int32>(0,1,3),
+				TVec3<int32>(0,3,2),
+				TVec3<int32>(1,2,3)
+			};
+			const TVec3<int32>* FaceIndices = IsInverted ? InvertedTriangleIndices : NonInvertedTriangleIndices;
+			for (int32 FaceId = 0; FaceId < 4; ++FaceId)
+			{
+				const TVec3<int32>& TriIndices = FaceIndices[FaceId];
+				const TTriangle<T> Tri(X[TriIndices[0]], X[TriIndices[1]], X[TriIndices[2]]);
+				const TPlaneConcrete<T, 3> Plane = Tri.GetPlane(0);
+				const T Dist = TVec3<T>::DotProduct(Location - Plane.X(), Plane.Normal());
+				if (Dist >= 0)
+				{
+					// Point is on front-face side of tri.
+					const TVec3<T> ClosestPointOnPlane = Location - Dist * Plane.Normal();
+					const TVec2<T> TriBary = ComputeBarycentricInPlane(Tri[0], Tri[1], Tri[2], ClosestPointOnPlane);
+					if (TriBary[0] >= Tolerance && TriBary[1] >= Tolerance && TriBary[0] + TriBary[1] <= 1 + Tolerance)
+					{
+						OutBary = TVec4<T>(static_cast<T>(0.));
+						OutBary[TriIndices[1]] = TriBary[0];
+						OutBary[TriIndices[2]] = TriBary[1];
+						OutBary[TriIndices[0]] = static_cast<T>(1.) - TriBary[0] - TriBary[1];
+						checkSlow(TVec3<T>::DistSquared(ClosestPointOnPlane, GetPointFromBarycentricCoordinates(OutBary)) < static_cast<T>(UE_SMALL_NUMBER));
+						return ClosestPointOnPlane;
+					}
+				}
+			}
+
+			// Closest point is on an edge/vertex
+			static const TVec2<int32> EdgeIndices[6] =
+			{
+				TVec2<int32>(0,1),
+				TVec2<int32>(0,2),
+				TVec2<int32>(0,3),
+				TVec2<int32>(1,2),
+				TVec2<int32>(1,3),
+				TVec2<int32>(2,3)
+			};
+			TVec3<T> ClosestEdgePoint;
+			T ClosestEdgeAlpha(0);
+			int32 ClosestEdgeIndex = INDEX_NONE;
+			T ClosestEdgeDistSq = std::numeric_limits<T>::max();
+			for (int32 EdgeIndex = 0; EdgeIndex < 6; ++EdgeIndex)
+			{
+				T Alpha;
+				const TVec3<T> ClosestPoint = FindClosestPointAndAlphaOnLineSegment(X[EdgeIndices[EdgeIndex][0]], X[EdgeIndices[EdgeIndex][1]], Location, Alpha);
+				const T DistSq = TVec3<T>::DistSquared(Location, ClosestPoint);
+				if (DistSq < ClosestEdgeDistSq)
+				{
+					ClosestEdgeDistSq = DistSq;
+					ClosestEdgePoint = ClosestPoint;
+					ClosestEdgeAlpha = Alpha;
+					ClosestEdgeIndex = EdgeIndex;
+				}
+			}
+			checkSlow(ClosestEdgeIndex != INDEX_NONE);
+
+			OutBary = TVec4<T>(static_cast<T>(0.));
+			OutBary[EdgeIndices[ClosestEdgeIndex][0]] = static_cast<T>(1.) - ClosestEdgeAlpha;
+			OutBary[EdgeIndices[ClosestEdgeIndex][1]] = ClosestEdgeAlpha;
+			checkSlow(TVec3<T>::DistSquared(ClosestEdgePoint, GetPointFromBarycentricCoordinates(OutBary)) < static_cast<T>(UE_SMALL_NUMBER));
+			return ClosestEdgePoint;
+		}
 
 	private:
 		static T TripleProduct(const TVec3<T>& U, const TVec3<T>& V, const TVec3<T>& W)

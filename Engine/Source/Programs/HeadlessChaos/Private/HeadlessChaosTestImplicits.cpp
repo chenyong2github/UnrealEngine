@@ -256,6 +256,10 @@ namespace ChaosTest {
 		EXPECT_VECTOR_NEAR(Bary, FVector(.25, .25, .25), 0.001);
 		TVec3<double> Surf = Tet.ProjectToSurface(Tris, Pt);
 		EXPECT_VECTOR_NEAR(Surf, Tris[3].GetCentroid(), 0.001);
+		TVec4<double> ClosestBary;
+		TVec3<double> ClosestPoint = Tet.FindClosestPointAndBary(Pt, ClosestBary);
+		EXPECT_VECTOR_NEAR(ClosestPoint, Pt, 0.001);
+		EXPECT_VECTOR_NEAR(ClosestBary, TVec4<double>(0.25, 0.25, 0.25, 0.25), 0.001);
 
 		// Point
 		Pt = Tet[0];
@@ -267,6 +271,10 @@ namespace ChaosTest {
 		EXPECT_VECTOR_NEAR(Bary, FVector(1, 0, 0), 0.001);
 		Surf = Tet.ProjectToSurface(Tris, Pt);
 		EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+		ClosestPoint = Tet.FindClosestPointAndBary(Pt, ClosestBary);
+		EXPECT_VECTOR_NEAR(ClosestPoint, Pt, 0.001);
+		EXPECT_VECTOR_NEAR(ClosestBary, TVec4<double>(1, 0, 0, 0), 0.001);
+
 
 		Pt[0] -= 0.1;
 		Hit = Tet.Inside(Pt, 0.001);
@@ -274,8 +282,19 @@ namespace ChaosTest {
 		RobustHit = Tet.RobustInside(Pt, -0.001);
 		EXPECT_FALSE(RobustHit);
 		Surf = Tet.ProjectToSurface(Tris, Pt);
+		ClosestPoint = Tet.FindClosestPointAndBary(Pt, ClosestBary);
 		Pt[0] += 0.1;
 		EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+		EXPECT_VECTOR_NEAR(ClosestPoint, Tet[0], 0.001);
+		EXPECT_VECTOR_NEAR(ClosestBary, TVec4<double>(1, 0, 0, 0), 0.001);
+
+		Pt -= FVec3(0.1);
+		Surf = Tet.ProjectToSurface(Tris, Pt);
+		ClosestPoint = Tet.FindClosestPointAndBary(Pt, ClosestBary);
+		Pt += FVec3(0.1);
+		EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+		EXPECT_VECTOR_NEAR(ClosestPoint, Tet[0], 0.001);
+		EXPECT_VECTOR_NEAR(ClosestBary, TVec4<double>(1, 0, 0, 0), 0.001);
 
 		// Edge
 		Pt = TVec3<double>(0.5, 0, 0);
@@ -287,6 +306,9 @@ namespace ChaosTest {
 		EXPECT_VECTOR_NEAR(Bary, FVector(.5, .5, 0), 0.001);
 		Surf = Tet.ProjectToSurface(Tris, Pt);
 		EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+		ClosestPoint = Tet.FindClosestPointAndBary(Pt, ClosestBary);
+		EXPECT_VECTOR_NEAR(ClosestPoint, Pt, 0.001);
+		EXPECT_VECTOR_NEAR(ClosestBary, TVec4<double>(.5, .5, 0, 0), 0.001);
 
 		Pt[1] -= 0.1;
 		Hit = Tet.Inside(Pt, 0.001);
@@ -294,8 +316,21 @@ namespace ChaosTest {
 		RobustHit = Tet.RobustInside(Pt, -0.001);
 		EXPECT_FALSE(RobustHit);
 		Surf = Tet.ProjectToSurface(Tris, Pt);
+		ClosestPoint = Tet.FindClosestPointAndBary(Pt, ClosestBary);
 		Pt[1] += 0.1;
 		EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+		EXPECT_VECTOR_NEAR(ClosestPoint, Pt, 0.001);
+		EXPECT_VECTOR_NEAR(ClosestBary, TVec4<double>(.5, .5, 0, 0), 0.001);
+
+		// This is a test case where ProjectToSurface will fail but FindClosestPointAndBary will succeed
+		Pt = TVec3<double>(1, 0, 0);
+		Pt += TVec3<double>(.1, -.05, 0);
+		//Surf = Tet.ProjectToSurface(Tris, Pt);
+		ClosestPoint = Tet.FindClosestPointAndBary(Pt, ClosestBary);
+		Pt -= TVec3<double>(.1, -.05, 0);
+		//EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+		EXPECT_VECTOR_NEAR(ClosestPoint, Pt, 0.001);
+		EXPECT_VECTOR_NEAR(ClosestBary, TVec4<double>(0, 1, 0, 0), 0.001);
 
 		// Face
 		Pt = Tris[0].GetCentroid();
@@ -307,6 +342,9 @@ namespace ChaosTest {
 		EXPECT_VECTOR_NEAR(Bary, FVector(.3333, .3333, .3333), 0.001);
 		Surf = Tet.ProjectToSurface(Tris, Pt);
 		EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+		ClosestPoint = Tet.FindClosestPointAndBary(Pt, ClosestBary);
+		EXPECT_VECTOR_NEAR(ClosestPoint, Pt, 0.001);
+		EXPECT_VECTOR_NEAR(ClosestBary, TVec4<double>(.3333, .3333, .3333, 0), 0.001);
 
 		Pt += Tris[0].GetNormal() * 0.1;
 		Hit = Tet.Inside(Pt, 0.001);
@@ -314,8 +352,11 @@ namespace ChaosTest {
 		RobustHit = Tet.RobustInside(Pt, -0.001);
 		EXPECT_FALSE(RobustHit);
 		Surf = Tet.ProjectToSurface(Tris, Pt);
+		ClosestPoint = Tet.FindClosestPointAndBary(Pt, ClosestBary);
 		Pt -= Tris[0].GetNormal() * 0.1;
 		EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+		EXPECT_VECTOR_NEAR(ClosestPoint, Pt, 0.001);
+		EXPECT_VECTOR_NEAR(ClosestBary, TVec4<double>(.3333, .3333, .3333, 0), 0.001);
 
 		// Bounding Volume Hierarchy
 		// Put the center of the tet at the origin, and sweep point tests across it.

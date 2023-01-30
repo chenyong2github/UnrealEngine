@@ -367,19 +367,21 @@ TVector<T, 2> ComputeBarycentricInPlane(const TVector<T, d>& P0, const TVector<T
 }
 
 template<typename T, int d>
-const TVector<T, d> FindClosestPointOnLineSegment(const TVector<T, d>& P0, const TVector<T, d>& P1, const TVector<T, d>& P)
+const TVector<T, d> FindClosestPointAndAlphaOnLineSegment(const TVector<T, d>& P0, const TVector<T, d>& P1, const TVector<T, d>& P, T& OutAlpha)
 {
 	const TVector<T, d> P10 = P1 - P0;
 	const TVector<T, d> PP0 = P - P0;
 	const T Proj = TVector<T, d>::DotProduct(P10, PP0);
 	if (Proj < (T)0) //first check we're not behind
 	{
+		OutAlpha = (T)0;
 		return P0;
 	}
 
 	const T Denom2 = P10.SizeSquared();
 	if (Denom2 < (T)1e-4)
 	{
+		OutAlpha = (T)0;
 		return P0;
 	}
 
@@ -387,12 +389,20 @@ const TVector<T, d> FindClosestPointOnLineSegment(const TVector<T, d>& P0, const
 	const T NormalProj = Proj / Denom2;
 	if (NormalProj > (T)1) //too far forward
 	{
+		OutAlpha = (T)1;
 		return P1;
 	}
 
+	OutAlpha = NormalProj;
 	return P0 + NormalProj * P10; //somewhere on the line
 }
 
+template<typename T, int d>
+const TVector<T, d> FindClosestPointOnLineSegment(const TVector<T, d>& P0, const TVector<T, d>& P1, const TVector<T, d>& P)
+{
+	T AlphaUnused;
+	return FindClosestPointAndAlphaOnLineSegment(P0, P1, P, AlphaUnused);
+}
 
 template<typename T, int d>
 TVector<T, d> FindClosestPointOnTriangle(const TVector<T, d>& ClosestPointOnPlane, const TVector<T, d>& P0, const TVector<T, d>& P1, const TVector<T, d>& P2, const TVector<T, d>& P)
