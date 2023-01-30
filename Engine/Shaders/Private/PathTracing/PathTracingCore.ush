@@ -57,7 +57,6 @@ uint EnabledLightingContributions;
 float DecalRoughnessCutoff;
 float MeshDecalRoughnessCutoff;
 float MeshDecalBias;
-int MeshDecalsUseViewRay;
 float MaxPathIntensity;
 float MaxNormalBias;
 float FilterWidth;
@@ -192,38 +191,33 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance, bool bI
 	TotalRadiance += PathRadiance;
 }
 
-void ApplyDecal(inout FPathTracingPayload HitPayload, FDecalShaderParams Params)
+void ApplyDecal(inout FPathTracingPayload HitPayload, FDecalShaderPayload DecalPayload)
 {
-	const float DecalTransparency = Params.GetTransparency();
-	const uint DecalFlags = Params.GetFlags();
+	const float DecalTransparency = DecalPayload.GetTransparency();
+	const uint DecalFlags = DecalPayload.GetFlags();
 
 	if (DecalFlags & DECAL_WRITE_BASE_COLOR_FLAG)
 	{
-		HitPayload.BaseColor = HitPayload.BaseColor * DecalTransparency + Params.GetBaseColor();
+		HitPayload.BaseColor = HitPayload.BaseColor * DecalTransparency + DecalPayload.GetBaseColor();
 	}
 
 	if (DecalFlags & DECAL_WRITE_NORMAL_FLAG)
 	{
-		HitPayload.WorldNormal = HitPayload.WorldNormal * DecalTransparency + Params.GetWorldNormal();
+		HitPayload.WorldNormal = HitPayload.WorldNormal * DecalTransparency + DecalPayload.GetWorldNormal();
 	}
 
 	if (DecalFlags & DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG)
 	{
-		const float3 MetallicSpecularRoughness = Params.GetMetallicSpecularRoughness();
+		const float3 MetallicSpecularRoughness = DecalPayload.GetMetallicSpecularRoughness();
 
 		HitPayload.Metallic = HitPayload.Metallic * DecalTransparency + MetallicSpecularRoughness.x;
 		HitPayload.Specular = HitPayload.Specular * DecalTransparency + MetallicSpecularRoughness.y;
 		HitPayload.Roughness = HitPayload.Roughness * DecalTransparency + MetallicSpecularRoughness.z;
 	}
 
-	if (DecalFlags & DECAL_WRITE_AMBIENT_OCCLUSION_FLAG)
-	{
-		// TODO: DecalAO?
-	}
-
 	if (DecalFlags & DECAL_WRITE_EMISSIVE_FLAG)
 	{
-		HitPayload.Radiance += Params.GetEmissive();
+		HitPayload.Radiance += DecalPayload.GetEmissive();
 	}
 
 	// TODO: Payload.Opacity?
@@ -235,8 +229,8 @@ void TraceDecalRay(FRayDesc DecalRay, bool bReverseCulling, uint InstanceInclusi
 
 	for (;;)
 	{
-		FRayTracingDecalPayload DecalPayload = (FRayTracingDecalPayload)0;
-		DecalPayload.Params.SetInputTranslatedWorldPosition(HitPayload.TranslatedWorldPos);
+		FDecalShaderPayload DecalPayload = (FDecalShaderPayload)0;
+		DecalPayload.SetInputTranslatedWorldPosition(HitPayload.TranslatedWorldPos);
 
 		TraceRay(
 			DecalTLAS,
@@ -256,12 +250,12 @@ void TraceDecalRay(FRayDesc DecalRay, bool bReverseCulling, uint InstanceInclusi
 		if (bReverseCulling)
 		{
 			// also reverse normal
-			DecalPayload.Params.SetWorldNormal(-DecalPayload.Params.GetWorldNormal());
+			DecalPayload.SetWorldNormal(-DecalPayload.GetWorldNormal());
 		}
 		
-		ApplyDecal(HitPayload, DecalPayload.Params);
+		ApplyDecal(HitPayload, DecalPayload);
 		
-		DecalThroughput *= DecalPayload.Params.GetTransparency();
+		DecalThroughput *= DecalPayload.GetTransparency();
 
 		// prepare next step around the loop
 		// retrace the exact same ray with TMin one ulp past the hit we just found
@@ -489,21 +483,11 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		if (PathState.PathRoughness < MeshDecalRoughnessCutoff && HitPayload.IsDecalReceiver())
 		{
 			FRayDesc DecalRay = (FRayDesc)0;
-			if (MeshDecalsUseViewRay)
-			{
-				// go a bit further than the current hit, to handle decals partially inside the model
-				DecalRay.Direction = -PathState.Ray.Direction;
-				DecalRay.Origin = HitPayload.TranslatedWorldPos - DecalRay.Direction * MeshDecalBias;
-				DecalRay.TMin = 0.0f;
-				DecalRay.TMax = HitPayload.HitT + MeshDecalBias;
-			}
-			else
-			{
-				DecalRay.Direction = HitPayload.WorldGeoNormal;
-				DecalRay.Origin = HitPayload.TranslatedWorldPos - DecalRay.Direction * MeshDecalBias;
-				DecalRay.TMin = 0.0f;
-				DecalRay.TMax = MeshDecalBias * 2;
-			}
+			// go a bit further than the current hit, to handle decals partially inside the model
+			DecalRay.Direction = -PathState.Ray.Direction;
+			DecalRay.Origin = HitPayload.TranslatedWorldPos - DecalRay.Direction * MeshDecalBias;
+			DecalRay.TMin = 0.0f;
+			DecalRay.TMax = HitPayload.HitT + MeshDecalBias;
 
 			const bool bReverseCulling = true;
 			TraceDecalRay(DecalRay, bReverseCulling, InstanceInclusionMask, HitPayload, DecalThroughput);
@@ -519,14 +503,14 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			{
 				uint DecalId = GetDecalId(Index, DecalLoopCount);
 
-				FDecalShaderParams Params = (FDecalShaderParams)0;
-				Params.SetInputTranslatedWorldPosition(TranslatedWorldPos);
+				FDecalShaderPayload DecalPayload = (FDecalShaderPayload)0;
+				DecalPayload.SetInputTranslatedWorldPosition(TranslatedWorldPos);
 
-				CallShader(DecalId, Params);
+				CallShader(DecalId, DecalPayload);
 
-				ApplyDecal(HitPayload, Params);
+				ApplyDecal(HitPayload, DecalPayload);
 
-				DecalThroughput *= Params.GetTransparency();
+				DecalThroughput *= DecalPayload.GetTransparency();
 			}
 		}
 #endif

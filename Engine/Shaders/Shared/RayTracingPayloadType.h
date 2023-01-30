@@ -12,9 +12,8 @@
 #define RT_PAYLOAD_TYPE_PATHTRACING_MATERIAL	(1 << 5)	// FPackedPathTracingPayload
 #define RT_PAYLOAD_TYPE_LUMEN_MINIMAL			(1 << 6)	// FLumenMinimalPayload
 #define RT_PAYLOAD_TYPE_VFX   					(1 << 7)	// FVFXTracePayload
-#define RT_PAYLOAD_TYPE_DECALS					(1 << 8)	// FDecalShaderParams 
-#define RT_PAYLOAD_TYPE_MESH_DECALS				(1 << 9)	// FRayTracingDecalPayload 
-#define RT_PAYLOAD_TYPE_SPARSE_VOXEL			(1 << 10)	// FSparseVoxelPayload
+#define RT_PAYLOAD_TYPE_DECALS					(1 << 8)	// FDecalShaderPayload 
+#define RT_PAYLOAD_TYPE_SPARSE_VOXEL			(1 << 9)	// FSparseVoxelPayload
 
 #ifdef __cplusplus
 /**
@@ -39,7 +38,6 @@ enum ERayTracingPayloadType : uint // HLSL
 	LumenMinimal = RT_PAYLOAD_TYPE_LUMEN_MINIMAL,
 	VFX = RT_PAYLOAD_TYPE_VFX,
 	Decals = RT_PAYLOAD_TYPE_DECALS,
-	MeshDecals = RT_PAYLOAD_TYPE_MESH_DECALS,
 	SparseVoxel = RT_PAYLOAD_TYPE_SPARSE_VOXEL,
 };
 

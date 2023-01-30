@@ -913,12 +913,11 @@ CHECK_RT_PAYLOAD_SIZE(FPackedMaterialClosestHitPayload)
 #define DECAL_WRITE_NORMAL_FLAG							(1 << 1)
 #define DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG	(1 << 2)
 #define DECAL_WRITE_EMISSIVE_FLAG						(1 << 3)
-#define DECAL_WRITE_AMBIENT_OCCLUSION_FLAG				(1 << 4)
 
-#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_DECALS | RT_PAYLOAD_TYPE_MESH_DECALS)
-struct FDecalShaderParams
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_DECALS)
+struct FDecalShaderPayload : FMinimalPayload
 {
-	uint Data[15];
+	uint Data[14];
 
 	void SetInputTranslatedWorldPosition(float3 In)
 	{
@@ -960,34 +959,18 @@ struct FDecalShaderParams
 	}
 	float3 GetEmissive() { return float3(f16tof32(Data[10]), f16tof32(Data[10] >> 16), f16tof32(Data[11])); }
 
-	void SetAO(float In)
+	void SetTransparency(float In)
 	{
 		Data[12] = asuint(In);
 	}
-	float GetAO() { return asfloat(Data[12]); }
+	float GetTransparency() { return asfloat(Data[12]); }
 
-	void SetTransparency(float In)
-	{
-		Data[13] = asuint(In);
-	}
-	float GetTransparency() { return asfloat(Data[13]); }
-
-	void SetFlags(uint In) { Data[14] = In; }
-	uint GetFlags() { return Data[14]; }
+	void SetFlags(uint In) { Data[13] = In; }
+	uint GetFlags() { return Data[13]; }
 };
+CHECK_RT_PAYLOAD_SIZE(FDecalShaderPayload)
 #endif
 
-#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_DECALS)
-CHECK_RT_PAYLOAD_SIZE(FDecalShaderParams)
-#endif
-
-#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_MESH_DECALS)
-struct FRayTracingDecalPayload : FMinimalPayload
-{
-	FDecalShaderParams Params;
-};
-CHECK_RT_PAYLOAD_SIZE(FRayTracingDecalPayload)
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Tracing util functions

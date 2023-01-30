@@ -296,7 +296,7 @@ public:
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::MeshDecals;
+		return ERayTracingPayloadType::Decals;
 	}
 };
 
@@ -305,8 +305,6 @@ using FRayTracingDecalMaterialCHS_AHS = TRayTracingDecalMaterial<true>;
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FRayTracingDecalMaterialCHS, TEXT("/Engine/Private/RayTracing/RayTracingDecalMaterialShader.usf"), TEXT("closesthit=RayTracingDecalMaterialCHS"), SF_RayHitGroup);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FRayTracingDecalMaterialCHS_AHS, TEXT("/Engine/Private/RayTracing/RayTracingDecalMaterialShader.usf"), TEXT("closesthit=RayTracingDecalMaterialCHS anyhit=RayTracingDecalMaterialAHS"), SF_RayHitGroup);
-
-IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::MeshDecals, 64);
 
 FShaderType* GetRayTracingDecalMaterialShaderType(bool bUseAnyHitShader)
 {
@@ -332,7 +330,7 @@ class FDefaultOpaqueMeshDecalHitGroup : public FGlobalShader
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::MeshDecals;
+		return ERayTracingPayloadType::Decals;
 	}
 
 	using FParameters = FEmptyShaderParameters;
@@ -352,7 +350,7 @@ class FDefaultHiddenMeshDecalHitGroup : public FGlobalShader
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::MeshDecals;
+		return ERayTracingPayloadType::Decals;
 	}
 
 	using FParameters = FEmptyShaderParameters;

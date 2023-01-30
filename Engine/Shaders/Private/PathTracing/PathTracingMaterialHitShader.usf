@@ -116,35 +116,47 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	Payload.ShadingModelID = GetMaterialShadingModel(PixelMaterialInputs);
 
 #if MATERIALBLENDING_ALPHACOMPOSITE
-	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE;
+	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE;
 #elif MATERIALBLENDING_ALPHAHOLDOUT
-	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT;
+	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT;
 	HLSL_STATIC_ASSERT(MATERIAL_SHADINGMODEL_UNLIT == 1, "Alpha holdout blend mode requires unlit shading model");
 	Payload.ShadingModelID = SHADINGMODELID_UNLIT;
 #elif MATERIALBLENDING_TRANSLUCENT
-	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_TRANSLUCENT;
+	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_TRANSLUCENT;
 #elif MATERIALBLENDING_ADDITIVE
-	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ADDITIVE;
+	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_ADDITIVE;
 #elif MATERIALBLENDING_MODULATE
-	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_MODULATE;
+	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_MODULATE;
 	HLSL_STATIC_ASSERT(MATERIAL_SHADINGMODEL_UNLIT == 1, "Modulate blend mode requires unlit shading model");
 	Payload.ShadingModelID = SHADINGMODELID_UNLIT;
+#elif MATERIALBLENDING_MASKED && MATERIAL_DITHER_OPACITY_MASK
+	// dithering emulates real transparency, so switch to translucent
+	// NOTE: the raster path technically takes into account the opacity mask clip value, so the effective transparency should be:
+	//        saturate(MaskRaw - ClipValue + 0.5)
+	// (See derivation in DitheredOpacityMaskToOpacity)
+	// However this behavior is surprising to most users and does not exactly match the rasterizer anyway due to how the realtime AA
+	// code performs blending.
+	// Since the goal of dithered opacity is to emulate ordinary transparency, just use the mask input as opacity directly and
+	// ignore the configured clip value.
+	Payload.Opacity = saturate(GetMaterialMaskInputRaw(PixelMaterialInputs));
+	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_TRANSLUCENT;
+#elif MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED
+	Payload.Opacity = 1.0;
+	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
 #else
-	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
+#error Unknown material blending mode
 #endif
-
-	Payload.BlendingMode = MaterialBlendingMode;
 
 	// fetch primitive flags only once
 	// TODO: would be nice to keep this inside MaterialParameters as it is also needed there as well
 	const uint PrimitiveFlags = GetPrimitiveData(MaterialParameters.PrimitiveId).Flags;
 
 	Payload.PrimitiveLightingChannelMask = GetPrimitive_LightingChannelMask_FromFlags(PrimitiveFlags);
-
-	if ((PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0)
-	{
-		Payload.SetDecalReceiver();
-	}
 
 	Payload.HitT = RayTCurrent();
 	if (HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE)
@@ -207,29 +219,11 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	Payload.Specular = Specular;
 	Payload.Metallic = Metallic;
 	Payload.Roughness = Roughness;
-	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
 
 #if MATERIAL_USES_ANISOTROPY
 	Payload.WorldTangent = CalculateAnisotropyTangent(MaterialParameters, PixelMaterialInputs);
 	Payload.Anisotropy = GetMaterialAnisotropy(PixelMaterialInputs);
 #endif	
-
-#if MATERIALBLENDING_MASKED
-#if MATERIAL_DITHER_OPACITY_MASK
-	// dithering emulates real transparency, so switch to translucent
-	// NOTE: the raster path technically takes into account the opacity mask clip value, so the effective transparency should be:
-	//        saturate(MaskRaw - ClipValue + 0.5)
-	// (See derivation in DitheredOpacityMaskToOpacity)
-	// However this behavior is surprising to most users and does not exactly match the rasterizer anyway due to how the realtime AA
-	// code performs blending.
-	// Since the goal of dithered opacity is to emulate ordinary transparency, just use the mask input as opacity directly and
-	// ignore the configured clip value.
-	Payload.Opacity = saturate(GetMaterialMaskInputRaw(PixelMaterialInputs));
-	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_TRANSLUCENT;
-#else
-	// regular masked mode - accounted for in AHS
-#endif
-#endif // MATERIALBLENDING_MASKED
 
 #if HAIR_STRAND_MESH_FACTORY
 	Payload.WorldSmoothNormal = Payload.WorldNormal = Payload.WorldGeoNormal;
@@ -517,10 +511,16 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 				// keep the opacity from the material, it might indicate partial transparency
 				// so we should get a partial holdout
 			}
-			Payload.BlendingMode = MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT;
+			Payload.BlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT;
 			Payload.ShadingModelID = SHADINGMODELID_UNLIT;
 			Payload.Radiance = 0;
 		}
+	}
+
+	// Only opaque surfaces can recieve decals. This is both for compatibility with raster and improving performance when we have stacks of transparent surfaces
+	if ((Payload.BlendingMode == RAY_TRACING_BLEND_MODE_OPAQUE) && ((PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0))
+	{
+		Payload.SetDecalReceiver();
 	}
 
 	// adjust after everything else (because SSS profile case needs to decode the dual spec info from the unmodified roughness)

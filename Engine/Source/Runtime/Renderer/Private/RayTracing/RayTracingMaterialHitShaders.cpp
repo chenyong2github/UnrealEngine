@@ -648,11 +648,6 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 		? (ERayTracingPayloadType::PathTracingMaterial | ERayTracingPayloadType::Decals)
 		: ERayTracingPayloadType::RayTracingMaterial;
 
-	if (bSupportMeshDecals)
-	{
-		PayloadType |= ERayTracingPayloadType::MeshDecals;
-	}
-
 	FRayTracingPipelineStateInitializer Initializer;
 
 	Initializer.MaxPayloadSizeInBytes = GetRayTracingPayloadTypeMaxSize(PayloadType);
@@ -801,7 +796,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 						const FVisibleRayTracingMeshCommand VisibleMeshCommand = MeshCommands[CommandIndex];
 						const FRayTracingMeshCommand& MeshCommand = *VisibleMeshCommand.RayTracingMeshCommand;
 
-						const bool bIsMeshDecalShader = MeshCommand.MaterialShader->RayTracingPayloadType == (uint32)ERayTracingPayloadType::MeshDecals;
+						const bool bIsMeshDecalShader = MeshCommand.MaterialShader->RayTracingPayloadType == (uint32)ERayTracingPayloadType::Decals;
 
 						// TODO: Following check is disabled since FRayTracingMeshProcessor non-path-tracing code paths still don't assign the appropriate shader to decal mesh commands.
 						// We could also potentially use regular materials to approximate decals in ray tracing in some situations.
