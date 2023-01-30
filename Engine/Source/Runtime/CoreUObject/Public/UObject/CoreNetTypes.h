@@ -4,6 +4,10 @@
 
 #include "UObject/ObjectMacros.h"
 
+#if USE_COMPILED_IN_NATIVES 
+#include "CoreNetTypes.generated.h"
+#endif
+
 /** Whether or not caching of actor/subobject names to the stack should be enabled, for async demo recording crashdumps */
 #ifndef UE_NET_REPACTOR_NAME_DEBUG
 	#define UE_NET_REPACTOR_NAME_DEBUG 0
