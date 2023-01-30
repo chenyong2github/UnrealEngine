@@ -69,15 +69,28 @@ private:
 	TIoStatusOr<FIoBuffer> ReadOpLogUri(FStringBuilderBase& ChunkUri, uint64 Offset = 0, uint64 Size = ~0ull);
 
 	static const uint32 PoolEntryCount;
+	struct SaltGenerator
+	{
+		SaltGenerator();
+		inline int32_t Next()
+		{
+			const uint32_t A = ++GOpCounter;
+			return static_cast<int32_t>((A ^ (SaltBase + (A << 6) + (A >> 2))) & 0x7fffffffu);
+		}
+	private:
+		static std::atomic<uint32> GOpCounter;
+		const uint32_t SaltBase;
+	};
 #if UE_WITH_ZEN
 	UE::Zen::FScopeZenService ZenService;
 #endif
 	TUniquePtr<Zen::FZenHttpRequestPool> RequestPool;
+	SaltGenerator SaltGen;
 	FString OplogPath;
 	FString OplogNewEntryPath;
 	FString OplogPrepNewEntryPath;
 	FString TempDirPath;
-	uint64 StandaloneThresholdBytes = 1 * 1024 * 1024;
+	const uint64 StandaloneThresholdBytes = 1 * 1024 * 1024;
 	bool bAllowRead = false;
 	bool bAllowEdit = false;
 	bool bConnectionSucceeded = false;

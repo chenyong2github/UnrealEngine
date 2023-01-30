@@ -32,6 +32,13 @@ namespace UE {
 
 const uint32 FZenStoreHttpClient::PoolEntryCount = 32;
 
+std::atomic<uint32> FZenStoreHttpClient::SaltGenerator::GOpCounter(0);
+
+FZenStoreHttpClient::SaltGenerator::SaltGenerator()
+	: SaltBase(FWindowsPlatformProcess::GetCurrentProcessId() + 0x9e3779b9u)
+{
+}
+
 FZenStoreHttpClient::FZenStoreHttpClient()
 {
 	RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL(), PoolEntryCount);
@@ -248,8 +255,6 @@ void FZenStoreHttpClient::InitializeReadOnly(FStringView InProjectId, FStringVie
 	bAllowRead = true;
 }
 
-static std::atomic<uint32> GOpCounter;
-
 TIoStatusOr<uint64> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 {
 	check(bAllowEdit);
@@ -260,7 +265,7 @@ TIoStatusOr<uint64> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 		TRACE_CPUPROFILER_EVENT_SCOPE(Zen_AppendOp_Async);
 		FLargeMemoryWriter SerializedPackage;
 
-		const uint32 Salt = ++GOpCounter;
+		const int32 Salt = SaltGen.Next();
 		bool bIsUsingTempFiles = false;
 
 		UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
