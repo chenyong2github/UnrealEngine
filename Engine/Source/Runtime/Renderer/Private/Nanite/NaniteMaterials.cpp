@@ -776,18 +776,9 @@ void DispatchBasePass(
 
 	LLM_SCOPE_BYTAG(Nanite);
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::BasePass");
+	SCOPED_NAMED_EVENT(DispatchBasePass, FColor::Emerald);
 
-	auto& ShadingCommands = GraphBuilder.AllocArray<FNaniteShadingCommand>();
-	const TArray<TPimplPtr<FNaniteShadingCommand>>& SceneShadingCommands = Scene.NaniteShadingCommands[ENaniteMeshPass::BasePass];
-
-	ShadingCommands.Reserve(SceneShadingCommands.Num());
-	for (const TPimplPtr<FNaniteShadingCommand>& ShadingCommandPtr : SceneShadingCommands)
-	{
-		if (ShadingCommandPtr.IsValid())
-		{
-			ShadingCommands.Add(*ShadingCommandPtr);
-		}
-	}
+	const TArray<TPimplPtr<FNaniteShadingCommand>>& ShadingCommands = Scene.NaniteShadingCommands[ENaniteMeshPass::BasePass];
 
 	if (ShadingCommands.Num() == 0)
 	{
@@ -1013,25 +1004,25 @@ void DispatchBasePass(
 
 			uint32 ShadingBinTest = 0;
 
-			for (const FNaniteShadingCommand& ShadingCommand : ShadingCommands)
+			for (const TPimplPtr<FNaniteShadingCommand>& ShadingCommand : ShadingCommands)
 			{
 			#if WANTS_DRAW_MESH_EVENTS
-				SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, SWShading, GNaniteShowDrawEvents != 0, TEXT("%s"), GetShadingMaterialName(ShadingCommand.MaterialProxy));
+				SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, SWShading, GNaniteShowDrawEvents != 0, TEXT("%s"), GetShadingMaterialName(ShadingCommand->MaterialProxy));
 			#endif
 
-				PassData.X = ShadingCommand.ShadingBin;
+				PassData.X = ShadingCommand->ShadingBin;
 
-				const uint32 IndirectOffset = (ShadingCommand.ShadingBin * IndirectArgStride) + 20u; // 6th dword is the start of the dispatch args
+				const uint32 IndirectOffset = (ShadingCommand->ShadingBin * IndirectArgStride) + 20u; // 6th dword is the start of the dispatch args
 				FComputeShaderUtils::ValidateIndirectArgsBuffer(ShadingPassParameters->MaterialIndirectArgs, IndirectOffset);
 
 				FRHIBuffer* IndirectArgsBuffer = ShadingPassParameters->MaterialIndirectArgs->GetIndirectRHICallBuffer();
 
-				FRHIComputeShader* ComputeShaderRHI = ShadingCommand.ComputeShader.GetComputeShader();
+				FRHIComputeShader* ComputeShaderRHI = ShadingCommand->ComputeShader.GetComputeShader();
 
 				SetComputePipelineState(RHICmdList, ComputeShaderRHI);
-				ShadingCommand.ShaderBindings.SetOnCommandList(RHICmdList, ComputeShaderRHI);
+				ShadingCommand->ShaderBindings.SetOnCommandList(RHICmdList, ComputeShaderRHI);
 
-				ShadingCommand.ComputeShader->SetPassParameters(
+				ShadingCommand->ComputeShader->SetPassParameters(
 					RHICmdList,
 					ComputeShaderRHI,
 					ViewRect,
@@ -1047,7 +1038,7 @@ void DispatchBasePass(
 				);
 
 				RHICmdList.DispatchIndirectComputeShader(IndirectArgsBuffer, IndirectOffset);
-				UnsetShaderUAVs(RHICmdList, ShadingCommand.ComputeShader, ComputeShaderRHI);
+				UnsetShaderUAVs(RHICmdList, ShadingCommand->ComputeShader, ComputeShaderRHI);
 			}
 
 			RHICmdList.EndUAVOverlap(OutputTargets);
