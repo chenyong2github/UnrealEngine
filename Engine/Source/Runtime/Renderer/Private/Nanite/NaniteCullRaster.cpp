@@ -113,7 +113,7 @@ FAutoConsoleVariableRef CVarNaniteRasterSetupTask(
 	TEXT("")
 );
 
-int32 GNaniteRasterSetupCache = 0;
+int32 GNaniteRasterSetupCache = 1;
 FAutoConsoleVariableRef CVarNaniteRasterSetupCache(
 	TEXT("r.Nanite.RasterSetupCache"),
 	GNaniteRasterSetupCache,
@@ -2837,10 +2837,16 @@ FBinningData AddPass_Rasterize(
 				uint32& MaterialBitFlags = HeaderEntry.W;
 
 #if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
-				FNaniteRasterMaterialCacheKey RasterPipelineCacheKey(FeatureLevel);
-				RasterPipelineCacheKey.bForceDisableWPO    = RasterEntry.bForceDisableWPO;
-				RasterPipelineCacheKey.bUseMeshShader      = bUseMeshShader;
-				RasterPipelineCacheKey.bIsTwoSided         = RasterizerPass.RasterPipeline.bIsTwoSided;
+				FNaniteRasterMaterialCacheKey RasterPipelineCacheKey;
+				RasterPipelineCacheKey.FeatureLevel          = FeatureLevel;
+				RasterPipelineCacheKey.bForceDisableWPO      = RasterEntry.bForceDisableWPO;
+				RasterPipelineCacheKey.bUseMeshShader        = bUseMeshShader;
+				RasterPipelineCacheKey.bUsePrimitiveShader   = bUsePrimitiveShader;
+				RasterPipelineCacheKey.bUseAutoCullingShader = bUseAutoCullingShader;
+				RasterPipelineCacheKey.bVisualizeActive      = VisualizeActive;
+				RasterPipelineCacheKey.bHasVirtualShadowMap  = bHasVirtualShadowMap;
+				RasterPipelineCacheKey.bIsDepthOnly          = RasterMode == EOutputBufferMode::DepthOnly;
+				RasterPipelineCacheKey.bIsTwoSided           = RasterizerPass.RasterPipeline.bIsTwoSided;
 
 				FNaniteRasterMaterialCache  EmptyCache;
 				FNaniteRasterMaterialCache& RasterPipelineCache = GNaniteRasterSetupCache > 0 ? RasterEntry.CacheMap.FindOrAdd(RasterPipelineCacheKey) : EmptyCache;

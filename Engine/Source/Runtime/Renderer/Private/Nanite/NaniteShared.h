@@ -503,23 +503,19 @@ struct FNaniteRasterBin
 #if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
 struct FNaniteRasterMaterialCacheKey
 {
-	FNaniteRasterMaterialCacheKey()
-		: FNaniteRasterMaterialCacheKey(ERHIFeatureLevel::Num)
-	{}
-
-	FNaniteRasterMaterialCacheKey(ERHIFeatureLevel::Type InFeatureLevel)
-	{
-		FeatureLevel = InFeatureLevel;
-	}
-
 	union
 	{
 		struct
 		{
-			uint16 FeatureLevel : 8;
-			uint16 bForceDisableWPO : 1;
-			uint16 bUseMeshShader : 1;
-			uint16 bIsTwoSided : 1;
+			uint16 FeatureLevel          : 8;
+			uint16 bForceDisableWPO      : 1;
+			uint16 bUseMeshShader        : 1;
+			uint16 bUsePrimitiveShader   : 1;
+			uint16 bUseAutoCullingShader : 1;
+			uint16 bVisualizeActive      : 1;
+			uint16 bHasVirtualShadowMap  : 1;
+			uint16 bIsDepthOnly          : 1;
+			uint16 bIsTwoSided           : 1;
 		};
 
 		uint16 Packed = 0;
