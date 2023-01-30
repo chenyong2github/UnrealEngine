@@ -1155,6 +1155,13 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 						SelectControls(ControlRig, SelectedControls);
 					}
 				}
+
+				// make sure to pick the correct CR instance for the  Components to bind.
+				// In case of PIE + Spawnable Actor + CR component, sequencer should grab
+				// CR component's CR instance for evaluation, see comment in BindToSequencerInstance
+				// i.e. CR component should bind to the instance that it owns itself.
+				ControlRig = GetControlRig(Section, BoundObjects[0].Get());
+				
 				// ensure that pre animated state is saved, must be done before bind
 				Player.SavePreAnimatedState(*ControlRig, FMovieSceneControlRigParameterTemplate::GetAnimTypeID(), FControlRigParameterPreAnimatedTokenProducer(Operand.SequenceID));
 
