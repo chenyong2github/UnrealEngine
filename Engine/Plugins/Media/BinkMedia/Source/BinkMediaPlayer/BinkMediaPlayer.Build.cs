@@ -22,10 +22,7 @@ public class BinkMediaPlayer : ModuleRules
 		PublicDependencyModuleNames.Add("Projects");
 		//PublicDependencyModuleNames.Add("PixelStreaming");
 		
-		if (Target.Platform != UnrealTargetPlatform.TVOS)
-		{
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "BinkMediaPlayerSDK");
-		}
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "BinkMediaPlayerSDK");
 		
 		if (Target.bBuildEditor == true)
 		{
