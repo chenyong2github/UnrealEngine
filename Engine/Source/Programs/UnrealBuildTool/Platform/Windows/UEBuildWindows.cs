@@ -1122,7 +1122,7 @@ namespace UnrealBuildTool
 		/// Gets the default compiler which should be used, if it's not set explicitly by the target, command line, or config file.
 		/// </summary>
 		/// <returns>The default compiler version</returns>
-		internal static WindowsCompiler GetDefaultCompiler(FileReference? ProjectFile, UnrealArch Architecture, ILogger Logger)
+		internal static WindowsCompiler GetDefaultCompiler(FileReference? ProjectFile, UnrealArch Architecture, ILogger Logger, bool bSkipWarning=false)
 		{
 			// If there's no specific compiler set, try to pick the matching compiler for the selected IDE
 			if (ProjectFileGeneratorSettings.Format != null)
@@ -1179,24 +1179,27 @@ namespace UnrealBuildTool
 				return WindowsCompiler.VisualStudio2019;
 			}
 
-			// If we do have a Visual Studio installation, but we're missing just the C++ parts, warn about that.
-			if (TryGetVSInstallDirs(WindowsCompiler.VisualStudio2022, Logger) != null)
+			if (!bSkipWarning)
 			{
-				string ToolSetWarning = Architecture == UnrealArch.X64 ?
-					"MSVC v143 - VS 2022 C++ x64/x86 build tools (Latest)" :
-					"MSVC v143 - VS 2022 C++ ARM64 build tools (Latest)";
-				Logger.LogWarning("Visual Studio 2022 is installed, but is missing the C++ toolchain. Please verify that the \"{Component}\" component is selected in the Visual Studio 2022 installation options.", ToolSetWarning);
-			}
-			else if (TryGetVSInstallDirs(WindowsCompiler.VisualStudio2019, Logger) != null)
-			{
-				string ToolSetWarning = Architecture == UnrealArch.X64 ?
-					"MSVC v142 - VS 2019 C++ x64/x86 build tools (Latest)" :
-					"MSVC v142 - VS 2019 C++ ARM64 build tools (Latest)";
-				Logger.LogWarning("Visual Studio 2019 is installed, but is missing the C++ toolchain. Please verify that the \"{Component}\" component is selected in the Visual Studio 2019 installation options.", ToolSetWarning);
-			}
-			else
-			{
-				Logger.LogWarning("No Visual C++ installation was found. Please download and install Visual Studio 2022 or 2019 with C++ components.");
+				// If we do have a Visual Studio installation, but we're missing just the C++ parts, warn about that.
+				if (TryGetVSInstallDirs(WindowsCompiler.VisualStudio2022, Logger) != null)
+				{
+					string ToolSetWarning = Architecture == UnrealArch.X64 ?
+						"MSVC v143 - VS 2022 C++ x64/x86 build tools (Latest)" :
+						"MSVC v143 - VS 2022 C++ ARM64 build tools (Latest)";
+					Logger.LogWarning("Visual Studio 2022 is installed, but is missing the C++ toolchain. Please verify that the \"{Component}\" component is selected in the Visual Studio 2022 installation options.", ToolSetWarning);
+				}
+				else if (TryGetVSInstallDirs(WindowsCompiler.VisualStudio2019, Logger) != null)
+				{
+					string ToolSetWarning = Architecture == UnrealArch.X64 ?
+						"MSVC v142 - VS 2019 C++ x64/x86 build tools (Latest)" :
+						"MSVC v142 - VS 2019 C++ ARM64 build tools (Latest)";
+					Logger.LogWarning("Visual Studio 2019 is installed, but is missing the C++ toolchain. Please verify that the \"{Component}\" component is selected in the Visual Studio 2019 installation options.", ToolSetWarning);
+				}
+				else
+				{
+					Logger.LogWarning("No Visual C++ installation was found. Please download and install Visual Studio 2022 or 2019 with C++ components.");
+				}
 			}
 
 			// Finally, default to VS2022 anyway
