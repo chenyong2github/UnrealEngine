@@ -16,8 +16,7 @@ public class DX11Audio : ModuleRules
 				new string[] 
 				{
 					DirectXLibDir + "dxguid.lib",
-					DirectXLibDir + "xapobase.lib",
-					DirectXLibDir + "XAPOFX.lib"
+					DirectXLibDir + "xapobase.lib"
 				}
 			);
 		}
