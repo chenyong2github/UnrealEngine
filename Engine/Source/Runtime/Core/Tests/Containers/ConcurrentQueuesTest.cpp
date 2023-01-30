@@ -247,7 +247,7 @@ namespace UE { namespace ConcurrentQueuesTests
 		check(Produced == NumConcumed);
 	}
 
-	TEST_CASE_NAMED(FConcurrentQueuesTest, "System::Core::Async::ConcurrentQueuesTest", "[ApplicationContextMask][EngineFilter]")
+	TEST_CASE_NAMED(FConcurrentQueuesTest, "System::Core::Async::ConcurrentQueuesTest", "[.][ApplicationContextMask][EngineFilter]")
 	{
 		{	// test for support of not default constructible types
 			struct FNonDefaultConstructable
