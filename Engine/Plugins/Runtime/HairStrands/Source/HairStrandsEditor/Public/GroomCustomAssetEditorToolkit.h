@@ -123,6 +123,9 @@ private:
 	// create the custom components we need
 	void InitPreviewComponents();
 
+	// Initialized the content of the binding tab
+	void InitializeBindingAssetTabContent();
+
 	// return a pointer to the groom preview component
 	UGroomComponent*		GetPreview_GroomComponent() const;
 	USkeletalMeshComponent*	GetPreview_SkeletalMeshComponent() const;
@@ -168,6 +171,7 @@ private:
 	static const FName TabId_BindingProperties;
 
 
+	bool bIsTabManagerInitialized = false;
 	int32 ActiveGroomBindingIndex = -1;
 	FDelegateHandle PropertyListenDelegate;
 	TWeakObjectPtr<UGroomAsset> GroomAsset;
