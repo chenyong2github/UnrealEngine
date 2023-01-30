@@ -32,6 +32,9 @@ struct PCG_API FPCGCustomVersion
 		// Sampling shape and bounding shape inputs.
 		SplitVolumeSamplerNodeInputs = 7,
 
+		// Renamed spline input and added bounding shape input.
+		SplineSamplerUpdatedNodeInputs = 8,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

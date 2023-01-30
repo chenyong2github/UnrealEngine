@@ -67,7 +67,7 @@ const UPCGPointData* UPCGSplineData::CreatePointData(FPCGContext* Context) const
 	FPCGSplineSamplerParams SamplerParams;
 	SamplerParams.Mode = EPCGSplineSamplingMode::Distance;
 
-	PCGSplineSampler::SampleLineData(this, this, SamplerParams, Data);
+	PCGSplineSampler::SampleLineData(this, this, nullptr, SamplerParams, Data);
 
 	UE_LOG(LogPCG, Verbose, TEXT("Spline %s generated %d points"), *Spline->GetFName().ToString(), Data->GetPoints().Num());
 

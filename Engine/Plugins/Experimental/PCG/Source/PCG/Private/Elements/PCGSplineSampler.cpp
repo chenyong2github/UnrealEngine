@@ -2,6 +2,8 @@
 
 #include "Elements/PCGSplineSampler.h"
 
+#include "PCGContext.h"
+#include "PCGCustomVersion.h"
 #include "Data/PCGIntersectionData.h"
 #include "Data/PCGLandscapeSplineData.h"
 #include "Data/PCGPointData.h"
@@ -11,10 +13,17 @@
 #include "Helpers/PCGBlueprintHelpers.h"
 
 #include "Components/SplineComponent.h"
-#include "PCGContext.h"
 #include "Voronoi/Voronoi.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSplineSampler)
+
+#define LOCTEXT_NAMESPACE "PCGSplineSamplerElement"
+
+namespace PCGSplineSamplerConstants
+{
+	const FName SplineLabel = TEXT("Spline");
+	const FName BoundingShapeLabel = TEXT("Bounding Shape");
+}
 
 namespace PCGSplineSamplerHelpers
 {
@@ -413,17 +422,19 @@ namespace PCGSplineSampler
 
 	struct FDimensionSampler
 	{
-		FDimensionSampler(const UPCGPolyLineData* InLineData, const UPCGSpatialData* InSpatialData)
+		FDimensionSampler(const UPCGPolyLineData* InLineData, const UPCGSpatialData* InSpatialData, const UPCGSpatialData* InBoundingShapeData)
 		{
 			check(InLineData);
 			LineData = InLineData;
 			SpatialData = InSpatialData;
+			BoundingShapeData = InBoundingShapeData;
 		}
 
 		virtual void Sample(const FTransform& InTransform, const FBox& InBox, UPCGPointData* OutPointData)
 		{
-			FPCGPoint TrivialPoint;
-			if(SpatialData->SamplePoint(InTransform, InBox, TrivialPoint, OutPointData->Metadata))
+			FPCGPoint TrivialPoint, BoundsTestPoint;
+			if(SpatialData->SamplePoint(InTransform, InBox, TrivialPoint, OutPointData->Metadata)
+				&& (!BoundingShapeData || BoundingShapeData->SamplePoint(InTransform, InBox, BoundsTestPoint, nullptr)))
 			{
 				OutPointData->GetMutablePoints().Add(TrivialPoint);
 			}
@@ -431,12 +442,14 @@ namespace PCGSplineSampler
 
 		const UPCGPolyLineData* LineData;
 		const UPCGSpatialData* SpatialData;
+		const UPCGSpatialData* BoundingShapeData;
 	};
 
+	/** Samples in a volume surrounding the poly line. */
 	struct FVolumeSampler : public FDimensionSampler
 	{
-		FVolumeSampler(const UPCGPolyLineData* InLineData, const UPCGSpatialData* InSpatialData, const FPCGSplineSamplerParams& Params)
-			: FDimensionSampler(InLineData, InSpatialData)
+		FVolumeSampler(const UPCGPolyLineData* InLineData, const UPCGSpatialData* InSpatialData, const UPCGSpatialData* InBoundingShapeData, const FPCGSplineSamplerParams& Params)
+			: FDimensionSampler(InLineData, InSpatialData, InBoundingShapeData)
 		{
 			Fill = Params.Fill;
 			NumPlanarSteps = 1 + ((Params.Dimension == EPCGSplineSamplingDimension::OnVertical) ? 0 : Params.NumPlanarSubdivisions);
@@ -502,8 +515,10 @@ namespace PCGSplineSampler
 							FTransform TentativeTransform = InTransform;
 							TentativeTransform.SetLocation(TentativeLocation);
 
-							FPCGPoint OutPoint;
-							if (SpatialData->SamplePoint(TentativeTransform, SubBox, OutPoint, OutPointData->Metadata))
+							// Sample point and if successful check against bounding shape (if provided).
+							FPCGPoint OutPoint, BoundsTestPoint;
+							if (SpatialData->SamplePoint(TentativeTransform, SubBox, OutPoint, OutPointData->Metadata)
+								&& (!BoundingShapeData || BoundingShapeData->SamplePoint(TentativeTransform, SubBox, BoundsTestPoint, nullptr)))
 							{
 								OutPointData->GetMutablePoints().Add(OutPoint);
 							}
@@ -522,7 +537,7 @@ namespace PCGSplineSampler
 		int NumHeightSteps;
 	};
 
-	void SampleLineData(const UPCGPolyLineData* LineData, const UPCGSpatialData* SpatialData, const FPCGSplineSamplerParams& Params, UPCGPointData* OutPointData)
+	void SampleLineData(const UPCGPolyLineData* LineData, const UPCGSpatialData* SpatialData, const UPCGSpatialData* InBoundingShapeData, const FPCGSplineSamplerParams& Params, UPCGPointData* OutPointData)
 	{
 		check(LineData && OutPointData);
 
@@ -531,8 +546,8 @@ namespace PCGSplineSampler
 
 		FStepSampler* Sampler = ((Params.Mode == EPCGSplineSamplingMode::Subdivision) ? static_cast<FStepSampler*>(&SubdivisionSampler) : static_cast<FStepSampler*>(&DistanceSampler));
 
-		FDimensionSampler TrivialDimensionSampler(LineData, SpatialData);
-		FVolumeSampler VolumeSampler(LineData, SpatialData, Params);
+		FDimensionSampler TrivialDimensionSampler(LineData, SpatialData, InBoundingShapeData);
+		FVolumeSampler VolumeSampler(LineData, SpatialData, InBoundingShapeData, Params);
 
 		FDimensionSampler* ExtentsSampler = ((Params.Dimension == EPCGSplineSamplingDimension::OnSpline) ? &TrivialDimensionSampler : static_cast<FDimensionSampler*>(&VolumeSampler));
 
@@ -554,7 +569,7 @@ namespace PCGSplineSampler
 		}
 	}
  
-	void SampleInteriorData(const UPCGPolyLineData* LineData, const UPCGSpatialData* SpatialData, const FPCGSplineSamplerParams& Params, UPCGPointData* OutPointData)
+	void SampleInteriorData(const UPCGPolyLineData* LineData, const UPCGSpatialData* SpatialData, const UPCGSpatialData* InBoundingShape, const FPCGSplineSamplerParams& Params, UPCGPointData* OutPointData)
 	{
 		check(LineData && OutPointData);
 
@@ -880,17 +895,28 @@ namespace PCGSplineSampler
 	}
 }
 
-FPCGElementPtr UPCGSplineSamplerSettings::CreateElement() const
+#if WITH_EDITOR
+FText UPCGSplineSamplerSettings::GetNodeTooltipText() const
 {
-	return MakeShared<FPCGSplineSamplerElement>();
+	return LOCTEXT("SplineSamplerNodeTooltip", "Generates points along the given Spline, and within the Bounding Shape if provided.");
 }
+#endif
 
 TArray<FPCGPinProperties> UPCGSplineSamplerSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, /*EPCGDataType::Point |*/ EPCGDataType::Spline | EPCGDataType::LandscapeSpline);
+	PinProperties.Emplace(PCGSplineSamplerConstants::SplineLabel, EPCGDataType::PolyLine, /*bAllowMultipleConnections=*/true, /*bAllowMultipleData=*/true);
+	// Only one connection allowed, user can union multiple shapes.
+	PinProperties.Emplace(PCGSplineSamplerConstants::BoundingShapeLabel, EPCGDataType::Spatial, /*bInAllowMultipleConnections=*/false, /*bAllowMultipleData=*/false, LOCTEXT("SplineSamplerBoundingShapePinTooltip",
+		"Optional. All sampled points must be contained within this shape."
+	));
 
 	return PinProperties;
+}
+
+FPCGElementPtr UPCGSplineSamplerSettings::CreateElement() const
+{
+	return MakeShared<FPCGSplineSamplerElement>();
 }
 
 bool FPCGSplineSamplerElement::ExecuteInternal(FPCGContext* Context) const
@@ -900,13 +926,27 @@ bool FPCGSplineSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGSplineSamplerSettings* Settings = Context->GetInputSettings<UPCGSplineSamplerSettings>();
 	check(Settings);
 
-	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
+	TArray<FPCGTaggedData> SplineInputs = Context->InputData.GetInputsByPin(PCGSplineSamplerConstants::SplineLabel);
+
+	// Grab the Bounding Shape input if there is one.
+	TArray<FPCGTaggedData> BoundingShapeInputs = Context->InputData.GetInputsByPin(PCGSplineSamplerConstants::BoundingShapeLabel);
+	const UPCGSpatialData* BoundingShapeSpatialInput = nullptr;
+	if (BoundingShapeInputs.Num() > 0)
+	{
+		ensure(BoundingShapeInputs.Num() == 1);
+		BoundingShapeSpatialInput = Cast<UPCGSpatialData>(BoundingShapeInputs[0].Data);
+
+		if (!BoundingShapeSpatialInput)
+		{
+			PCGE_LOG(Warning, "Bounding Shape input is missing or of unsupported type and will not be used.");
+		}
+	}
 
 	const FPCGSplineSamplerParams& SamplerParams = Settings->SamplerParams;
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
-	for (FPCGTaggedData& Input : Inputs)
+	for (FPCGTaggedData& Input : SplineInputs)
 	{
 		const UPCGSpatialData* SpatialData = Cast<const UPCGSpatialData>(Input.Data);
 
@@ -932,14 +972,31 @@ bool FPCGSplineSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (SamplerParams.Dimension == EPCGSplineSamplingDimension::OnInterior)
 		{
-			PCGSplineSampler::SampleInteriorData(LineData, SpatialData, SamplerParams, SampledPointData);
+			PCGSplineSampler::SampleInteriorData(LineData, SpatialData, BoundingShapeSpatialInput, SamplerParams, SampledPointData);
 		}
 		else
 		{
-			PCGSplineSampler::SampleLineData(LineData, SpatialData, SamplerParams, SampledPointData);
+			PCGSplineSampler::SampleLineData(LineData, SpatialData, BoundingShapeSpatialInput, SamplerParams, SampledPointData);
 		}
 	}
 
 	return true;
 }
 
+#if WITH_EDITOR
+void UPCGSplineSamplerSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
+{
+	if (DataVersion < FPCGCustomVersion::SplineSamplerUpdatedNodeInputs && ensure(InOutNode))
+	{
+		if (InputPins.Num() > 0 && InputPins[0])
+		{
+			// First pin renamed in this version. Rename here so that edges won't get culled in UpdatePins later.
+			InputPins[0]->Properties.Label = PCGSplineSamplerConstants::SplineLabel;
+		}
+	}
+
+	Super::ApplyDeprecationBeforeUpdatePins(InOutNode, InputPins, OutputPins);
+}
+#endif // WITH_EDITOR
+
+#undef LOCTEXT_NAMESPACE
