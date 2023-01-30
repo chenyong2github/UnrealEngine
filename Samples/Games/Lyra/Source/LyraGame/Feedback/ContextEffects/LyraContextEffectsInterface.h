@@ -17,7 +17,7 @@ struct FFrame;
  *
  */
 UENUM()
-enum EEffectsContextMatchType
+enum EEffectsContextMatchType: int
 {
 	ExactMatch,
 	BestMatch
