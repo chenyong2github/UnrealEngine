@@ -767,7 +767,7 @@ FText FNiagaraScriptToolkit::GetVersionMenuLabel(FNiagaraAssetVersion Version) c
 
 bool FNiagaraScriptToolkit::IsEditScriptDifferentFromOriginalScript() const
 {
-	return OriginalNiagaraScript.Script->GetBaseChangeID() != EditedNiagaraScript.Script->GetBaseChangeID();
+	return OriginalNiagaraScript.Script->GetBaseChangeID(EditedNiagaraScript.Version) != EditedNiagaraScript.Script->GetBaseChangeID(EditedNiagaraScript.Version);
 }
 
 void FNiagaraScriptToolkit::OnApply()
