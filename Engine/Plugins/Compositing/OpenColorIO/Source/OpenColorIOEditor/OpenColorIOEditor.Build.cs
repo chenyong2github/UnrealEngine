@@ -8,6 +8,7 @@ namespace UnrealBuildTool.Rules
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"AssetDefinition",
 					"Core",
 					"CoreUObject",
 					"DesktopWidgets",

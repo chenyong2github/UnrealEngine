@@ -1,35 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetTypeActions_OpenColorIOConfiguration.h"
+#include "AssetDefinition_OpenColorIOConfiguration.h"
 
 #include "OpenColorIOConfiguration.h"
 
-#define LOCTEXT_NAMESPACE "AssetTypeActions_OpenColorIOConfiguration"
+#define LOCTEXT_NAMESPACE "AssetDefinition_OpenColorIOConfiguration"
 
 
 /* FAssetTypeActions_Base interface
 *****************************************************************************/
 
-FText FAssetTypeActions_OpenColorIOConfiguration::GetAssetDescription(const struct FAssetData& AssetData) const
+FText UAssetDefinition_OpenColorIOConfiguration::GetAssetDescription(const struct FAssetData& AssetData) const
 {
 	return FText::FromString(AssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UOpenColorIOConfiguration, ConfigurationFile)));
 }
 
 
-UClass* FAssetTypeActions_OpenColorIOConfiguration::GetSupportedClass() const
+TSoftClassPtr<UObject> UAssetDefinition_OpenColorIOConfiguration::GetAssetClass() const
 {
 	return UOpenColorIOConfiguration::StaticClass();
 }
 
 
-FText FAssetTypeActions_OpenColorIOConfiguration::GetName() const
+FText UAssetDefinition_OpenColorIOConfiguration::GetAssetDisplayName() const
 {
 	return LOCTEXT("AssetTypeActions_OpenColorIOConfiguration", "OpenColorIO Configuration");
 }
 
-FColor FAssetTypeActions_OpenColorIOConfiguration::GetTypeColor() const
+FLinearColor UAssetDefinition_OpenColorIOConfiguration::GetAssetColor() const
 {
-	return FColor::White;
+	return FLinearColor::White;
 }
 
 
