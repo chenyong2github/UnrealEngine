@@ -143,6 +143,13 @@ namespace VirtualTextureScalability
 		TEXT("Is anisotropic filtering for VTs enabled?"),
 		ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+	static TAutoConsoleVariable<int32> CVarVTMobileEnableManualTrilinearFiltering(
+		TEXT("r.VT.Mobile.ManualTrilinearFiltering"),
+		1,
+		TEXT("Whether to use a manual trilinear filtering for VTs on mobile platforms.\n")
+		TEXT("This more expensive filtering is used on mobile platforms that do not support Temporal Anti-Aliasing.\n"),
+		ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
 	static TAutoConsoleVariable<int32> CVarVTPageFreeThreshold(
 		TEXT("r.VT.PageFreeThreshold"),
 		60,
