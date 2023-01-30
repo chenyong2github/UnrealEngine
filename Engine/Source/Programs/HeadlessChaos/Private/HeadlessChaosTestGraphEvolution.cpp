@@ -30,7 +30,7 @@ namespace ChaosTest
 			// Bind the constraints to the evolution
 			Evolution.AddConstraintContainer(Constraints);
 
-			Evolution.GetGravityForces().SetAcceleration(FVec3(0));
+			Evolution.GetGravityForces().SetAcceleration(FVec3(0), 0);
 
 			// Create some particles and constraints connecting them in a chain: 0-1-2-3-...-N
 			ParticleHandles = Evolution.CreateDynamicParticles(NumParticles);

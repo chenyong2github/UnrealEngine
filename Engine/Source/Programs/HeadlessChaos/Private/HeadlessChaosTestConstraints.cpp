@@ -155,7 +155,7 @@ namespace ChaosTest {
 			InitEvolutionSettings(Evolution);
 
 			// disable gravity
-			Evolution.GetGravityForces().SetAcceleration(FVec3(0, 0, 0));
+			Evolution.GetGravityForces().SetAcceleration(FVec3(0, 0, 0), 0);
 
 			// chassis particle
 			auto* DynamicParticle = Evolution.CreateDynamicParticles(1)[0];
@@ -201,7 +201,7 @@ namespace ChaosTest {
 			InitEvolutionSettings(Evolution);
 
 			// disable gravity
-			Evolution.GetGravityForces().SetAcceleration(FVec3(0, 0, 0));
+			Evolution.GetGravityForces().SetAcceleration(FVec3(0, 0, 0), 0);
 
 			// chassis particle
 			auto* DynamicParticle = Evolution.CreateDynamicParticles(1)[0];
@@ -261,7 +261,7 @@ namespace ChaosTest {
 		Evolution.SetNumVelocityIterations(1);
 
 		// disable gravity
-		Evolution.GetGravityForces().SetAcceleration(FVec3(0, 0, -980.f));
+		Evolution.GetGravityForces().SetAcceleration(FVec3(0, 0, -980.f), 0);
 
 		float Mass = 1.0f;
 

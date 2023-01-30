@@ -501,7 +501,7 @@ namespace ChaosTest {
 
 				auto& Particle = Proxy->GetGameThreadAPI();
 				Particle.SetGravityEnabled(true);
-				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1), 0);
 
 				Particle.SetV(FVec3(0, 0, 0));
 
@@ -1458,7 +1458,7 @@ namespace ChaosTest {
 					{
 						if (PhysicsStep == 3)
 						{
-							Proxy->GetPhysicsThreadAPI()->SetAcceleration(FVec3(0, 0, 10) + Proxy->GetPhysicsThreadAPI()->Acceleration());
+							Proxy->GetPhysicsThreadAPI()->SetAcceleration(FVec3(0, 0, 10) + Proxy->GetPhysicsThreadAPI()->Acceleration(), 0);
 							Proxy->GetPhysicsThreadAPI()->SetAngularAcceleration(FVec3(0, 0, 10) + Proxy->GetPhysicsThreadAPI()->AngularAcceleration());
 						}
 
@@ -1684,7 +1684,7 @@ namespace ChaosTest {
 		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 				auto& Particle = Proxy->GetGameThreadAPI();
-				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1), 0);
 				Particle.SetGravityEnabled(true);
 				Particle.SetX(FVec3(0, 0, 100));
 
@@ -1829,7 +1829,7 @@ namespace ChaosTest {
 
 				{
 					auto& Particle = Proxy->GetGameThreadAPI();
-					Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+					Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1), 0);
 					Particle.SetGravityEnabled(true);
 					Particle.SetX(FVec3(0, 0, 100));
 
@@ -1989,7 +1989,7 @@ namespace ChaosTest {
 
 				{
 					auto& Particle = Proxy->GetGameThreadAPI();
-					Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+					Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1), 0);
 					Particle.SetGravityEnabled(true);
 					Particle.SetX(FVec3(0, 0, 100));
 
@@ -2113,7 +2113,7 @@ namespace ChaosTest {
 
 				{
 					auto& Particle = Proxy->GetGameThreadAPI();
-					Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+					Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1), 0);
 					Particle.SetGravityEnabled(false);
 					Particle.SetX(FVec3(0, 0, 0));
 					Particle.SetV(FVec3(0, 0, -1));
@@ -2217,7 +2217,7 @@ namespace ChaosTest {
 
 			{
 				auto& Particle = Proxy->GetGameThreadAPI();
-				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1), 0);
 				Particle.SetGravityEnabled(true);
 				Particle.SetX(FVec3(0, 0, 100));
 
@@ -2253,7 +2253,7 @@ namespace ChaosTest {
 
 			{
 				auto& Particle = Proxy->GetGameThreadAPI();
-				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1), 0);
 				Particle.SetGravityEnabled(true);
 				Particle.SetX(FVec3(0, 0, 100));
 				Particle.SetResimType(EResimType::ResimAsFollower);
@@ -3488,7 +3488,7 @@ namespace ChaosTest {
 				Dynamic.SetGeometry(Sphere);
 				Dynamic.SetGravityEnabled(true);
 				Solver->RegisterObject(DynamicProxy);
-				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1), 0);
 
 				Kinematic.SetGeometry(Box);
 				Solver->RegisterObject(KinematicProxy);
@@ -3596,7 +3596,7 @@ namespace ChaosTest {
 			Dynamic.SetGeometry(Sphere);
 			Dynamic.SetGravityEnabled(true);
 			Solver->RegisterObject(DynamicProxy);
-			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1), 0);
 
 			Kinematic.SetGeometry(Box);
 			Solver->RegisterObject(KinematicProxy);
@@ -3710,7 +3710,7 @@ namespace ChaosTest {
 			Dynamic.SetGeometry(Sphere);
 			Dynamic.SetGravityEnabled(true);
 			Solver->RegisterObject(DynamicProxy);
-			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1), 0);
 
 			Kinematic.SetGeometry(Box);
 			Solver->RegisterObject(KinematicProxy);
@@ -3964,7 +3964,7 @@ namespace ChaosTest {
 			Dynamic.SetGeometry(Box);
 			Dynamic.SetGravityEnabled(true);
 			Solver->RegisterObject(DynamicProxy);
-			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1), 0);
 			Dynamic.SetObjectState(EObjectStateType::Dynamic);
 
 			Storage.Add(DynamicProxy);
@@ -3999,7 +3999,7 @@ namespace ChaosTest {
 			Dynamic.SetGeometry(Box);
 			Dynamic.SetGravityEnabled(true);
 			Solver->RegisterObject(DynamicProxy);
-			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1), 0);
 			Dynamic.SetObjectState(EObjectStateType::Dynamic);
 			Dynamic.SetX(StartPos);
 			Dynamic.SetR(StartRotation);
@@ -4084,7 +4084,7 @@ namespace ChaosTest {
 			Dynamic.SetGeometry(Box);
 			Dynamic.SetGravityEnabled(true);
 			Solver->RegisterObject(DynamicProxy);
-			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, Gravity));
+			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, Gravity), 0);
 			Dynamic.SetObjectState(EObjectStateType::Dynamic);
 
 			Storage.Add(DynamicProxy);
@@ -4178,7 +4178,7 @@ namespace ChaosTest {
 
 		const auto InitLambda = [&SmallBox, &Box](auto& Solver, auto)
 		{
-			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -980));
+			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -980), 0);
 			TArray<FPhysicsActorHandle> Storage;
 			for (int Idx = 0; Idx < 5; ++Idx)
 			{
@@ -4245,7 +4245,7 @@ namespace ChaosTest {
 		const auto InitLambda = [&SmallBox, &Box, NumParticles](auto& Solver, const TArray<int32>* Mapping)
 		{
 			auto MappingHelper = [Mapping](const int32 Idx) { return Mapping ? (*Mapping)[Idx] : Idx; };
-			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -980));
+			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -980), 0);
 			TArray<FPhysicsActorHandle> Storage;
 			for (int Idx = 0; Idx < NumParticles; ++Idx)
 			{

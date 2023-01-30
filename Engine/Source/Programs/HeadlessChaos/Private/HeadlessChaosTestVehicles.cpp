@@ -1457,7 +1457,7 @@ namespace ChaosTest
 		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
 
 		float BodyMass = 1000.0f;
-		float Gravity = FMath::Abs(Evolution.GetGravityForces().GetAcceleration().Z);
+		float Gravity = FMath::Abs(Evolution.GetGravityForces().GetAcceleration(0).Z);
 
 		FSimpleSuspensionConfig Setup;
 		Setup.MaxLength = 20.0f;
