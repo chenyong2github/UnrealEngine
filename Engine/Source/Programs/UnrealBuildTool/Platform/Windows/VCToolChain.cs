@@ -2012,12 +2012,21 @@ namespace UnrealBuildTool
 			Action TouchAction = Graph.CreateAction(ActionType.BuildProject);
 			TouchAction.CommandDescription = "Touch";
 			TouchAction.CommandPath = BuildHostPlatform.Current.Shell;
-			TouchAction.CommandArguments = $"/C \"copy /b \"{OutputFile.FullName}\"+,, \"{OutputFile.FullName}\" 1>nul:\"";
 			TouchAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 			TouchAction.PrerequisiteItems.Add(ObjectFile);
 			TouchAction.ProducedItems.Add(FileItem.GetItemByFileReference(OutputFile));
 			TouchAction.StatusDescription = OutputFile.GetFileName();
 			TouchAction.bCanExecuteRemotely = false;
+
+			// Wine has an issue with copy /b <file>+,, <file> and does not correctly touch the file, and instead makes a copy of the file at the CWD
+			if (BuildHostPlatform.Current.IsRunningOnWine())
+			{
+				TouchAction.CommandArguments = $"/C \"copy /Y \"{OutputFile.FullName}\" \"%TMP%/{OutputFile.GetFileName()}\" && type \"%TMP%/{OutputFile.GetFileName()}\" > \"{OutputFile.FullName}\"\"";
+			}
+			else
+			{
+				TouchAction.CommandArguments = $"/C \"copy /b \"{OutputFile.FullName}\"+,, \"{OutputFile.FullName}\"\"";
+			}
 		}
 
 		/// <summary>

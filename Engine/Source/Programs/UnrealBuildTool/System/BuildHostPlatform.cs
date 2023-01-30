@@ -225,6 +225,15 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Determines if the UBT process is running through WINE
+		/// </summary>
+		/// <returns>Sequence of project file formats</returns>
+		public virtual bool IsRunningOnWine()
+		{
+			return false;
+		}
+
+		/// <summary>
 		/// Determines the default project file formats for this platform
 		/// </summary>
 		/// <returns>Sequence of project file formats</returns>
@@ -240,6 +249,24 @@ namespace UnrealBuildTool
 		public override ShellType ShellType => ShellType.Cmd;
 
 		public override string BinarySuffix => ".exe";
+
+		[DllImport("ntdll.dll", EntryPoint="wine_get_version", CallingConvention=CallingConvention.Cdecl, CharSet=CharSet.Ansi)]
+		private static extern string GetWineVersion();
+
+		public override bool IsRunningOnWine()
+		{
+			try
+			{
+				// if we dont throw an exception we are running in Wine
+				GetWineVersion();
+			}
+			catch
+			{
+				return false;
+			};
+
+			return true;
+		}
 
 		internal override IEnumerable<ProjectFileFormat> GetDefaultProjectFileFormats()
 		{
