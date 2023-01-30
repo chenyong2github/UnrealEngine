@@ -22,7 +22,7 @@ namespace Horde.Agent.Services
 	{
 		readonly ILogger _logger;
 		readonly IOptions<AgentSettings> _settings;
-		readonly SessionFactoryService _sessionFactoryService;
+		readonly ISessionFactory _sessionFactory;
 		readonly CapabilitiesService _capabilitiesService;
 		readonly LeaseHandler[] _leaseHandlers;
 		readonly IServiceProvider _serviceProvider;
@@ -30,10 +30,10 @@ namespace Horde.Agent.Services
 		/// <summary>
 		/// Constructor. Registers with the server and starts accepting connections.
 		/// </summary>
-		public WorkerService(IOptions<AgentSettings> settings, SessionFactoryService sessionFactoryService, CapabilitiesService capabilitiesService, IEnumerable<LeaseHandler> leaseHandlers, IServiceProvider serviceProvider, ILogger<WorkerService> logger)
+		public WorkerService(IOptions<AgentSettings> settings, ISessionFactory sessionFactory, CapabilitiesService capabilitiesService, IEnumerable<LeaseHandler> leaseHandlers, IServiceProvider serviceProvider, ILogger<WorkerService> logger)
 		{
 			_settings = settings;
-			_sessionFactoryService = sessionFactoryService;
+			_sessionFactory = sessionFactory;
 			_capabilitiesService = capabilitiesService;
 			_logger = logger;
 			_leaseHandlers = leaseHandlers.ToArray();
@@ -82,7 +82,7 @@ namespace Horde.Agent.Services
 						using Mutex singleInstanceMutex = new(false, "Global\\HordeAgent-DB828ACB-0AA5-4D32-A62A-21D4429B1014");
 						await WaitForMutexAsync(singleInstanceMutex, stoppingToken);
 
-						await using (ISession session = await _sessionFactoryService.CreateAsync(stoppingToken))
+						await using (ISession session = await _sessionFactory.CreateAsync(stoppingToken))
 						{
 							LeaseManager leaseManager = new LeaseManager(session, _capabilitiesService, _leaseHandlers, _settings, _logger);
 							result = await leaseManager.RunAsync(false, stoppingToken);

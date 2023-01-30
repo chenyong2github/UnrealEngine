@@ -1,14 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Agent.Services;
 using HordeCommon.Rpc;
-using HordeCommon.Rpc.Tasks;
+using HordeCommon.Rpc.Messages;
 using Microsoft.Extensions.Logging;
 using OpenTracing;
 using OpenTracing.Util;
@@ -23,8 +21,8 @@ namespace Horde.Agent.Execution
 		private readonly IWorkspaceMaterializer? _autoSdkWorkspace;
 		private readonly IWorkspaceMaterializer _workspace;
 
-		public WorkspaceExecutor(ISession session, string jobId, string batchId, string agentTypeName, IWorkspaceMaterializer? autoSdkWorkspace, IWorkspaceMaterializer workspace, IHttpClientFactory httpClientFactory, ILogger logger)
-			: base(session, jobId, batchId, agentTypeName, httpClientFactory, logger)
+		public WorkspaceExecutor(JobExecutorOptions options, IWorkspaceMaterializer? autoSdkWorkspace, IWorkspaceMaterializer workspace, ILogger logger)
+			: base(options, logger)
 		{
 			_autoSdkWorkspace = autoSdkWorkspace;
 			_workspace = workspace;
@@ -129,18 +127,15 @@ namespace Horde.Agent.Execution
 		}
 	}
 
-	class WorkspaceExecutorFactory : JobExecutorFactory
+	class WorkspaceExecutorFactory : IJobExecutorFactory
 	{
-		readonly IHttpClientFactory _httpClientFactory;
+		public string Name => WorkspaceExecutor.Name;
 
-		public override string Name => WorkspaceExecutor.Name;
-
-		public WorkspaceExecutorFactory(IHttpClientFactory httpClientFactory)
+		public WorkspaceExecutorFactory()
 		{
-			_httpClientFactory = httpClientFactory;
 		}
 
-		public override JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
+		public IJobExecutor CreateExecutor(AgentWorkspace workspaceInfo, AgentWorkspace? autoSdkWorkspaceInfo, JobExecutorOptions options)
 		{
 			throw new NotImplementedException("WorkspaceExecutor cannot be instantiated as there are no IWorkspaceMaterializer implementations yet");
 		}

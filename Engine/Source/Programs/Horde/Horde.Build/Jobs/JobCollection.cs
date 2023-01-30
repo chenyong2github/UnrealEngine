@@ -19,7 +19,9 @@ using Horde.Build.Streams;
 using Horde.Build.Telemetry;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
+using Horde.Common;
 using HordeCommon;
+using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Bson.IO;
@@ -253,7 +255,7 @@ namespace Horde.Build.Jobs
 			public DateTimeOffset? CreateTime { get; set; }
 
 			[BsonIgnoreIfNull]
-			public string? Executor { get; set; }
+			public JobOptions? JobOptions { get; set; }
 
 			[BsonIgnoreIfNull]
 			public DateTime? CreateTimeUtc { get; set; }
@@ -323,7 +325,7 @@ namespace Horde.Build.Jobs
 				AutoSubmit = options.AutoSubmit ?? false;
 				UpdateIssues = options.UpdateIssues ?? (options.StartedByUserId == null && ( options.PreflightChange == 0 || options.PreflightChange == null));
 				PromoteIssuesByDefault = options.PromoteIssuesByDefault ?? false;
-				Executor = options.Executor;
+				JobOptions = options.JobOptions;
 				CreateTimeUtc = createTimeUtc;
 				ChainedJobs.AddRange(options.JobTriggers.Select(x => new ChainedJobDocument(x)));
 				ShowUgsBadges = options.ShowUgsBadges;

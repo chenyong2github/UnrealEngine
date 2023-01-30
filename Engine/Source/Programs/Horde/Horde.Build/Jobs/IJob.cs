@@ -19,7 +19,9 @@ using Horde.Build.Streams;
 using Horde.Build.Ugs;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
+using Horde.Common;
 using HordeCommon;
+using HordeCommon.Rpc.Tasks;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -654,9 +656,9 @@ namespace Horde.Build.Jobs
 		public DateTime CreateTimeUtc { get; }
 
 		/// <summary>
-		/// Executor to use for this job
+		/// Options for executing the job
 		/// </summary>
-		public string? Executor { get; }
+		public JobOptions? JobOptions { get; }
 
 		/// <summary>
 		/// Largest value of the CombinedPriority value for batches in the ready state.

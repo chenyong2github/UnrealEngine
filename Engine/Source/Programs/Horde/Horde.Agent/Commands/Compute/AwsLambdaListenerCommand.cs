@@ -53,7 +53,7 @@ namespace Horde.Agent.Commands.Compute
 
 			TimeSpan maxWaitTime = TimeSpan.FromMilliseconds(request.MaxWaitTimeForLeaseMs);
 
-			await using ISession session = await _serviceProvider.GetRequiredService<ISessionFactoryService>().CreateAsync(cancellationToken);
+			await using ISession session = await _serviceProvider.GetRequiredService<ISessionFactory>().CreateAsync(cancellationToken);
 
 			LeaseManager manager = new LeaseManager(session, _serviceProvider);
 			bool isLeaseActive = false;

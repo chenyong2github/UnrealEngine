@@ -10,9 +10,12 @@ using EpicGames.Core;
 using Horde.Build.Acls;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Configuration;
+using Horde.Build.Jobs.Templates;
 using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
+using Horde.Common;
+using HordeCommon.Rpc.Tasks;
 
 namespace Horde.Build.Projects
 {
@@ -73,6 +76,11 @@ namespace Horde.Build.Projects
 		/// Categories to include in this project
 		/// </summary>
 		public List<ProjectCategoryConfig> Categories { get; set; } = new List<ProjectCategoryConfig>();
+
+		/// <summary>
+		/// Default settings for executing jobs
+		/// </summary>
+		public JobOptions JobOptions { get; set; } = new JobOptions();
 
 		/// <summary>
 		/// List of streams

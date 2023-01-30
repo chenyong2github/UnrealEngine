@@ -12,13 +12,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using EpicGames.Perforce;
 using EpicGames.Perforce.Managed;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using HordeCommon.Rpc;
 using HordeCommon.Rpc.Messages;
-using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
 using OpenTracing;
 using OpenTracing.Util;
@@ -29,20 +29,20 @@ namespace Horde.Agent.Execution
 	{
 		public const string Name = "Perforce";
 
-		protected AgentWorkspace? _autoSdkWorkspaceInfo;
 		protected AgentWorkspace _workspaceInfo;
+		protected AgentWorkspace? _autoSdkWorkspaceInfo;
 		protected DirectoryReference _rootDir;
 		protected DirectoryReference? _sharedStorageDir;
 
 		protected WorkspaceInfo? _autoSdkWorkspace;
 		protected WorkspaceInfo _workspace;
 
-		public PerforceExecutor(ISession session, string jobId, string batchId, string agentTypeName, AgentWorkspace? autoSdkWorkspaceInfo, AgentWorkspace workspaceInfo, DirectoryReference rootDir, IHttpClientFactory httpClientFactory, ILogger logger)
-			: base(session, jobId, batchId, agentTypeName, httpClientFactory, logger)
+		public PerforceExecutor(AgentWorkspace workspaceInfo, AgentWorkspace? autoSdkWorkspaceInfo, JobExecutorOptions options, ILogger logger)
+			: base(options, logger)
 		{
-			_autoSdkWorkspaceInfo = autoSdkWorkspaceInfo;
 			_workspaceInfo = workspaceInfo;
-			_rootDir = rootDir;
+			_autoSdkWorkspaceInfo = autoSdkWorkspaceInfo;
+			_rootDir = options.Session.WorkingDir;
 
 			_workspace = null!;
 		}
@@ -433,22 +433,20 @@ namespace Horde.Agent.Execution
 		}
 	}
 
-	class PerforceExecutorFactory : JobExecutorFactory
+	class PerforceExecutorFactory : IJobExecutorFactory
 	{
-		readonly IHttpClientFactory _httpClientFactory;
 		readonly ILogger<PerforceExecutor> _logger;
 
-		public override string Name => PerforceExecutor.Name;
+		public string Name => PerforceExecutor.Name;
 
-		public PerforceExecutorFactory(IHttpClientFactory httpClientFactory, ILogger<PerforceExecutor> logger)
+		public PerforceExecutorFactory(ILogger<PerforceExecutor> logger)
 		{
-			_httpClientFactory = httpClientFactory;
 			_logger = logger;
 		}
 
-		public override JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
+		public IJobExecutor CreateExecutor(AgentWorkspace workspaceInfo, AgentWorkspace? autoSdkWorkspaceInfo, JobExecutorOptions options)
 		{
-			return new PerforceExecutor(session, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, executeJobTask.AutoSdkWorkspace, executeJobTask.Workspace, session.WorkingDir, _httpClientFactory, _logger);
+			return new PerforceExecutor(workspaceInfo, autoSdkWorkspaceInfo, options, _logger);
 		}
 	}
 }

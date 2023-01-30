@@ -35,7 +35,7 @@ namespace Horde.Agent.Tests
 			_serviceCollection.AddLogging();
 			_serviceCollection.AddSingleton<CapabilitiesService>();
 			_serviceCollection.AddSingleton<LeaseHandler, TestTaskHandler>();
-			_serviceCollection.AddSingleton<ISessionFactoryService>(sp => new FakeServerSessionFactory(_fakeServer));
+			_serviceCollection.AddSingleton<ISessionFactory>(sp => new FakeServerSessionFactory(_fakeServer));
 		}
 
 		public void Dispose()

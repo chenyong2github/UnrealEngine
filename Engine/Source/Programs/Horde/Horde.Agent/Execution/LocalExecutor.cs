@@ -6,9 +6,11 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using HordeCommon.Rpc;
+using HordeCommon.Rpc.Messages;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -20,8 +22,8 @@ namespace Horde.Agent.Execution
 		private readonly LocalExecutorSettings _settings;
 		private readonly DirectoryReference _localWorkspaceDir;
 
-		public LocalExecutor(ISession session, string jobId, string batchId, string agentTypeName, LocalExecutorSettings settings, IHttpClientFactory httpClientFactory, ILogger logger) 
-			: base(session, jobId, batchId, agentTypeName, httpClientFactory, logger)
+		public LocalExecutor(JobExecutorOptions options, LocalExecutorSettings settings, ILogger logger) 
+			: base(options, logger)
 		{
 			_settings = settings;
 			if (settings.WorkspaceDir == null)
@@ -70,24 +72,22 @@ namespace Horde.Agent.Execution
 		}
 	}
 
-	class LocalExecutorFactory : JobExecutorFactory
+	class LocalExecutorFactory : IJobExecutorFactory
 	{
 		readonly LocalExecutorSettings _settings;
-		readonly IHttpClientFactory _httpClientFactory;
 		readonly ILogger<LocalExecutor> _logger;
 
-		public override string Name => "Local";
+		public string Name => "Local";
 
-		public LocalExecutorFactory(IOptions<LocalExecutorSettings> settings, IHttpClientFactory httpClientFactory, ILogger<LocalExecutor> logger)
+		public LocalExecutorFactory(IOptions<LocalExecutorSettings> settings, ILogger<LocalExecutor> logger)
 		{
 			_settings = settings.Value;
-			_httpClientFactory = httpClientFactory;
 			_logger = logger;
 		}
 
-		public override JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
+		public IJobExecutor CreateExecutor(AgentWorkspace workspaceInfo, AgentWorkspace? autoSdkWorkspaceInfo, JobExecutorOptions options)
 		{
-			return new LocalExecutor(session, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, _settings, _httpClientFactory, _logger);
+			return new LocalExecutor(options, _settings, _logger);
 		}
 	}
 }

@@ -22,19 +22,47 @@ using Grpc.Core;
 using Horde.Agent.Parser;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
+using Horde.Common;
 using Horde.Storage.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
+using HordeCommon.Rpc.Messages;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using OpenTracing;
 using OpenTracing.Util;
 
 namespace Horde.Agent.Execution
 {
-	abstract class JobExecutor
+	interface IJobExecutor
+	{
+		Task InitializeAsync(ILogger logger, CancellationToken cancellationToken);
+		Task<JobStepOutcome> RunAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken);
+		Task FinalizeAsync(ILogger logger, CancellationToken cancellationToken);
+	}
+
+	class JobExecutorOptions
+	{
+		public ISession Session { get; }
+		public IStorageClient Storage { get; }
+		public string JobId { get; }
+		public string BatchId { get; }
+		public string AgentType { get; }
+		public JobOptions JobOptions { get; }
+
+		public JobExecutorOptions(ISession session, IStorageClient storage, string jobId, string batchId, string agentType, JobOptions jobOptions)
+		{
+			Session = session;
+			Storage = storage;
+			JobId = jobId;
+			BatchId = batchId;
+			AgentType = agentType;
+			JobOptions = jobOptions;
+		}
+	}
+
+	abstract class JobExecutor : IJobExecutor
 	{
 		protected class ExportedNode
 		{
@@ -149,12 +177,10 @@ namespace Horde.Agent.Execution
 		protected string _batchId;
 		protected string _agentTypeName;
 
-		protected IHttpClientFactory _httpClientFactory;
-		
 		/// <summary>
 		/// Logger for the local agent process (as opposed to job logger)
 		/// </summary>
-		readonly protected ILogger _logger;
+		protected readonly ILogger _logger;
 
 		protected GetJobResponse _job;
 		protected GetStreamResponse _stream;
@@ -165,22 +191,25 @@ namespace Horde.Agent.Execution
 		protected bool _compileAutomationTool = true;
 
 		protected readonly ISession _session;
+		protected readonly IStorageClient _storage;
+		protected readonly JobOptions _jobOptions;
+
 		protected IRpcConnection RpcConnection => _session.RpcConnection;
 		protected Dictionary<string, string> _remapAgentTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
 		protected Dictionary<string, string> _envVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-		public bool UseNewLogger { get; private set; }
-
-		public JobExecutor(ISession session, string jobId, string batchId, string agentTypeName, IHttpClientFactory httpClientFactory, ILogger logger)
+		public JobExecutor(JobExecutorOptions options, ILogger logger)
 		{
-			_session = session;
+			_session = options.Session;
+			_storage = options.Storage;
 
-			_jobId = jobId;
-			_batchId = batchId;
-			_agentTypeName = agentTypeName;
+			_jobId = options.JobId;
+			_batchId = options.BatchId;
+			_agentTypeName = options.AgentType;
 
-			_httpClientFactory = httpClientFactory;
+			_jobOptions = options.JobOptions;
+
 			_logger = logger;
 
 			_job = null!;
@@ -245,10 +274,6 @@ namespace Horde.Agent.Execution
 				else if (argument.Equals("-Preprocess", StringComparison.OrdinalIgnoreCase))
 				{
 					_preprocessScript = true;
-				}
-				else if (argument.Equals("-UseNewLogger", StringComparison.OrdinalIgnoreCase))
-				{
-					UseNewLogger = true;
 				}
 				else if (argument.StartsWith(TargetArgumentPrefix, StringComparison.OrdinalIgnoreCase))
 				{
@@ -652,22 +677,17 @@ namespace Horde.Agent.Execution
 			arguments.AppendArgument("-SingleNode=", step.Name);
 //			Arguments.AppendArgument("-TokenSignature=", JobId.ToString());
 
-			bool manageSharedStorage = false;
 			foreach (string additionalArgument in _additionalArguments)
 			{
-				if (additionalArgument.Equals("-ManageSharedStorage", StringComparison.OrdinalIgnoreCase))
-				{
-					manageSharedStorage = true;
-				}
-				else if (!_preprocessScript || !additionalArgument.StartsWith("-set:", StringComparison.OrdinalIgnoreCase))
+				if (!_preprocessScript || !additionalArgument.StartsWith("-set:", StringComparison.OrdinalIgnoreCase))
 				{
 					arguments.AppendArgument(additionalArgument);
 				}
 			}
 
-			if (manageSharedStorage && sharedStorageDir != null)
+			if (_jobOptions.UseNewTempStorage ?? false)
 			{
-				return await ExecuteWithTempStorageAsync(step, workspaceDir, sharedStorageDir, arguments.ToString(), logger, cancellationToken);
+				return await ExecuteWithTempStorageAsync(step, workspaceDir, arguments.ToString(), logger, cancellationToken);
 			}
 			else
 			{
@@ -679,53 +699,12 @@ namespace Horde.Agent.Execution
 			}
 		}
 
-		private async Task<bool> ExecuteWithTempStorageAsync(BeginStepResponse step, DirectoryReference workspaceDir, DirectoryReference sharedStorageDir, string arguments, ILogger logger, CancellationToken cancellationToken)
+		private async Task<bool> ExecuteWithTempStorageAsync(BeginStepResponse step, DirectoryReference workspaceDir, string arguments, ILogger logger, CancellationToken cancellationToken)
 		{
 			DirectoryReference manifestDir = DirectoryReference.Combine(workspaceDir, "Engine", "Saved", "BuildGraph");
 
-			// Create the storage client
 			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions { });
-
-			using HttpClient httpClient = _httpClientFactory.CreateClient(HttpStorageClient.HttpClientName);
-			httpClient.BaseAddress = new Uri($"{_session.ServerUrl}/api/v1/storage/default");
-			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _session.Token);
-
-			using HttpClient redirectHttpClient = _httpClientFactory.CreateClient(HttpStorageClient.HttpClientName);
-
-			HttpStorageClient storage = new HttpStorageClient(CreateHttpClient, CreateHttpRedirectClient, logger);
-			//			FileStorageClient storage = new FileStorageClient(DirectoryReference.Combine(sharedStorageDir, "bundles"), cache, logger);
-			TreeReader reader = new TreeReader(storage, cache, logger);
-			logger.LogInformation("Using Horde-managed shared storage via {SharedStorageDir}", sharedStorageDir);
-
-			ILogger nextLogger = logger;
-			for(; ;)
-			{
-				if (nextLogger is JsonRpcLogger)
-				{
-					break;
-				}
-				else if (nextLogger is PerforceLogger perforceLogger)
-				{
-					nextLogger = perforceLogger.Inner;
-				}
-				else if (nextLogger is ForwardingLogger forwardingLogger)
-				{
-					nextLogger = forwardingLogger.Loggers[0];
-				}
-				else if (nextLogger is DefaultLoggerIndentHandler indentLogger)
-				{
-					nextLogger = indentLogger.Inner;
-				}
-				else
-				{
-					throw new Exception($"Unknown logger type: {nextLogger.GetType().Name}");
-				}
-			}
-
-			JsonRpcLogger rpcLogger = (JsonRpcLogger)nextLogger;
-			await using JsonRpcAndStorageLogSink sink = new JsonRpcAndStorageLogSink(RpcConnection, rpcLogger._logId, rpcLogger._sink, storage, logger);
-			await using JsonRpcLogger newRpcLogger = new JsonRpcLogger(sink, rpcLogger._logId, rpcLogger._warnings, rpcLogger._inner);
-			logger = newRpcLogger;
+			TreeReader reader = new TreeReader(_storage, cache, _logger);
 
 			// Create the mapping of tag names to file sets
 			Dictionary<string, HashSet<FileReference>> tagNameToFileSet = new Dictionary<string, HashSet<FileReference>>();
@@ -781,7 +760,7 @@ namespace Horde.Agent.Execution
 			}
 
 			// Run UAT
-			if (await ExecuteAutomationToolAsync(step, workspaceDir, arguments, storage, logger, cancellationToken) != 0)
+			if (await ExecuteAutomationToolAsync(step, workspaceDir, arguments, _storage, logger, cancellationToken) != 0)
 			{
 				return false;
 			}
@@ -833,7 +812,7 @@ namespace Horde.Agent.Execution
 
 			// Find a block name for all new outputs
 			Dictionary<FileReference, string> fileToBlockName = new Dictionary<FileReference, string>();
-			for(int idx = 0; idx < step.OutputNames.Count; idx++)
+			for (int idx = 0; idx < step.OutputNames.Count; idx++)
 			{
 				string tagName = step.OutputNames[idx];
 
@@ -888,7 +867,7 @@ namespace Horde.Agent.Execution
 				RefName refName = TempStorage.GetRefNameForNode(RefPrefix, step.Name);
 
 				TreeOptions treeOptions = new TreeOptions();
-				using TreeWriter treeWriter = new TreeWriter(storage, treeOptions, refName.Text);
+				using TreeWriter treeWriter = new TreeWriter(_storage, treeOptions, refName.Text);
 
 				TempStorageNode outputNode = new TempStorageNode();
 
@@ -930,19 +909,6 @@ namespace Horde.Agent.Execution
 			}
 
 			return true;
-		}
-
-		HttpClient CreateHttpClient()
-		{
-			HttpClient httpClient = _httpClientFactory.CreateClient(HttpStorageClient.HttpClientName);
-			httpClient.BaseAddress = new Uri($"{_session.ServerUrl}/api/v1/storage/default");
-			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _session.Token);
-			return httpClient;
-		}
-
-		HttpClient CreateHttpRedirectClient()
-		{
-			return _httpClientFactory.CreateClient(HttpStorageClient.HttpClientName);
 		}
 
 		protected async Task<int> ExecuteAutomationToolAsync(BeginStepResponse step, DirectoryReference workspaceDir, string arguments, IStorageClient? store, ILogger logger, CancellationToken cancellationToken)
@@ -1490,10 +1456,10 @@ namespace Horde.Agent.Execution
 		}
 	}
 
-	abstract class JobExecutorFactory
+	interface IJobExecutorFactory
 	{
-		public abstract string Name { get; }
+		string Name { get; }
 
-		public abstract JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse);
+		IJobExecutor CreateExecutor(AgentWorkspace workspaceInfo, AgentWorkspace? autoSdkWorkspaceInfo, JobExecutorOptions options);
 	}
 }

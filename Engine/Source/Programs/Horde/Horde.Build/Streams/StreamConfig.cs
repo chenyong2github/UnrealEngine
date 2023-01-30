@@ -21,7 +21,9 @@ using Horde.Build.Perforce;
 using Horde.Build.Projects;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
+using Horde.Common;
 using HordeCommon;
+using HordeCommon.Rpc.Tasks;
 
 namespace Horde.Build.Streams
 {
@@ -141,6 +143,11 @@ namespace Horde.Build.Streams
 		public string? TriageChannel { get; set; }
 
 		/// <summary>
+		/// Default settings for executing jobs
+		/// </summary>
+		public JobOptions JobOptions { get; set; } = new JobOptions();
+
+		/// <summary>
 		/// Legacy name for the default preflight template
 		/// </summary>
 		[Obsolete("Use DefaultPreflight instead")]
@@ -229,6 +236,7 @@ namespace Horde.Build.Streams
 		{
 			Id = id;
 			ProjectConfig = projectConfig;
+			JobOptions.MergeDefaults(projectConfig.JobOptions);
 
 			foreach (TemplateRefConfig template in Templates)
 			{
@@ -738,6 +746,7 @@ namespace Horde.Build.Streams
 		public void PostLoad(StreamConfig streamConfig)
 		{
 			StreamConfig = streamConfig;
+			JobOptions.MergeDefaults(streamConfig.JobOptions);
 
 			if (Id.IsEmpty)
 			{

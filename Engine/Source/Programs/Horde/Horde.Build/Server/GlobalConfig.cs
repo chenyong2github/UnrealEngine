@@ -23,7 +23,6 @@ using Horde.Build.Streams;
 using Horde.Build.Tools;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
-using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Server
 {

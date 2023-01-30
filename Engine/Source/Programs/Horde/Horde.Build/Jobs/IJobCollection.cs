@@ -13,7 +13,9 @@ using Horde.Build.Logs;
 using Horde.Build.Streams;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
+using Horde.Common;
 using HordeCommon;
+using HordeCommon.Rpc.Tasks;
 using MongoDB.Bson;
 
 namespace Horde.Build.Jobs
@@ -73,9 +75,9 @@ namespace Horde.Build.Jobs
 		public bool? PromoteIssuesByDefault { get; set; }
 
 		/// <summary>
-		/// The executor to use
+		/// Settings for agents executing the job
 		/// </summary>
-		public string? Executor { get; set; }
+		public JobOptions? JobOptions { get; set; }
 
 		/// <summary>
 		/// List of downstream job triggers
@@ -124,7 +126,7 @@ namespace Horde.Build.Jobs
 		/// </summary>
 		public CreateJobOptions(TemplateRefConfig templateRefConfig)
 		{
-			Executor = templateRefConfig.Executor;
+			JobOptions = templateRefConfig.JobOptions;
 			PromoteIssuesByDefault = templateRefConfig.PromoteIssuesByDefault;
 			if (templateRefConfig.ChainedJobs != null)
 			{

@@ -3,10 +3,13 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Reflection;
 using System.Text.Json.Serialization;
 using EpicGames.Core;
 using Horde.Build.Streams;
+using Horde.Common;
 using HordeCommon;
+using HordeCommon.Rpc.Tasks;
 
 namespace Horde.Build.Jobs.Templates
 {
@@ -453,9 +456,9 @@ namespace Horde.Build.Jobs.Templates
 		public List<ParameterData> Parameters { get; set; } = new List<ParameterData>();
 
 		/// <summary>
-		/// The executor to use for this job. Mainly used for debugging.
+		/// Default settings for jobs
 		/// </summary>
-		public string? Executor { get; set; }
+		public JobOptions JobOptions { get; set; } = new JobOptions();
 
 		/// <summary>
 		/// The cached hash of this template.

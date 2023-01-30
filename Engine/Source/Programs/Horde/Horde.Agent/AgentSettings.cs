@@ -187,11 +187,6 @@ namespace Horde.Agent
 		public bool EnableAwsEc2Support { get; set; } = true;
 
 		/// <summary>
-		/// Whether to enable the new storage-API based log system 
-		/// </summary>
-		public bool EnableNewLogger { get; set; }
-
-		/// <summary>
 		/// Option to use a local storage client rather than connecting through the server. Primarily for convenience when debugging / iterating locally.
 		/// </summary>
 		public bool UseLocalStorageClient { get; set; }

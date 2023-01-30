@@ -10,6 +10,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Amazon.EC2.Model;
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
@@ -19,6 +20,7 @@ using Horde.Agent.Leases.Handlers;
 using Horde.Agent.Parser;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
+using Horde.Common;
 using HordeCommon;
 using HordeCommon.Rpc;
 using HordeCommon.Rpc.Messages;
@@ -54,10 +56,15 @@ namespace Horde.Agent.Tests
 
 		class FakeServerLoggerFactory : IServerLoggerFactory
 		{
-			public IServerLogger CreateLogger(ISession session, string logId, string? jobId, string? batchId, string? stepId, bool? warnings = null) => new FakeServerLogger();
+			public IServerLogger CreateLogger(ISession session, string logId, string? jobId, string? batchId, string? stepId, bool? warnings = null, bool? useNewLogger = null) => new FakeServerLogger();
 		}
 
-		internal static JobExecutor NullExecutor = new SimpleTestExecutor(async (step, logger, cancellationToken) =>
+		class FakeSessionStorageFactory : IServerStorageFactory
+		{
+			public IStorageClient CreateStorageClient(ISession session) => null!;
+		}
+
+		internal static IJobExecutor NullExecutor = new SimpleTestExecutor(async (step, logger, cancellationToken) =>
 		{
 			await Task.Delay(1, cancellationToken);
 			return JobStepOutcome.Success;
@@ -68,6 +75,7 @@ namespace Horde.Agent.Tests
 			_serviceCollection = new ServiceCollection();
 			_serviceCollection.AddLogging();
 			_serviceCollection.AddSingleton<IServerLoggerFactory, FakeServerLoggerFactory>();
+			_serviceCollection.AddSingleton<IServerStorageFactory, FakeSessionStorageFactory>();
 
 			_serviceCollection.Configure<AgentSettings>(settings =>
 			{
@@ -96,7 +104,7 @@ namespace Horde.Agent.Tests
 				using CancellationTokenSource cancelSource = new CancellationTokenSource();
 				using CancellationTokenSource stepCancelSource = new CancellationTokenSource();
 
-				JobExecutor executor = new SimpleTestExecutor(async (stepResponse, logger, cancelToken) =>
+				IJobExecutor executor = new SimpleTestExecutor(async (stepResponse, logger, cancelToken) =>
 				{
 					cancelSource.CancelAfter(10);
 					await Task.Delay(5000, cancelToken);
@@ -111,7 +119,7 @@ namespace Horde.Agent.Tests
 				using CancellationTokenSource cancelSource = new CancellationTokenSource();
 				using CancellationTokenSource stepCancelSource = new CancellationTokenSource();
 
-				JobExecutor executor = new SimpleTestExecutor(async (stepResponse, logger, cancelToken) =>
+				IJobExecutor executor = new SimpleTestExecutor(async (stepResponse, logger, cancelToken) =>
 				{
 					stepCancelSource.CancelAfter(10);
 					await Task.Delay(5000, cancelToken);
@@ -135,7 +143,7 @@ namespace Horde.Agent.Tests
 			executeJobTask.BatchId = "batchId1";
 			executeJobTask.LogId = "logId1";
 			executeJobTask.JobName = "jobName1";
-			executeJobTask.Executor = SimpleTestExecutor.Name;
+			executeJobTask.JobOptions = new JobOptions { Executor = SimpleTestExecutor.Name };
 			executeJobTask.AutoSdkWorkspace = new AgentWorkspace();
 			executeJobTask.Workspace = new AgentWorkspace();
 
@@ -152,13 +160,13 @@ namespace Horde.Agent.Tests
 			GetStepResponse step2Res = new GetStepResponse(JobStepOutcome.Unspecified, JobStepState.Unspecified, true);
 			client.GetStepResponses[step2Req] = step2Res;
 
-			JobExecutor executor = new SimpleTestExecutor(async (step, logger, cancelToken) =>
+			SimpleTestExecutor executor = new SimpleTestExecutor(async (step, logger, cancelToken) =>
 			{
 				await Task.Delay(50, cancelToken);
 				return JobStepOutcome.Success;
 			});
 
-			_serviceCollection.AddSingleton<JobExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
+			_serviceCollection.AddSingleton<IJobExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
 			using ServiceProvider serviceProvider = _serviceCollection.BuildServiceProvider();
 
 			JobHandler jobHandler = serviceProvider.GetRequiredService<JobHandler>();
@@ -180,13 +188,13 @@ namespace Horde.Agent.Tests
 		[TestMethod]
 		public async Task PollForStepAbortFailureTest()
 		{
-			JobExecutor executor = new SimpleTestExecutor(async (step, logger, cancelToken) =>
+			IJobExecutor executor = new SimpleTestExecutor(async (step, logger, cancelToken) =>
 			{
 				await Task.Delay(50, cancelToken);
 				return JobStepOutcome.Success;
 			});
 
-			_serviceCollection.AddSingleton<JobExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
+			_serviceCollection.AddSingleton<IJobExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
 			using ServiceProvider serviceProvider = _serviceCollection.BuildServiceProvider();
 
 			JobHandler jobHandler = serviceProvider.GetRequiredService<JobHandler>();
@@ -218,13 +226,13 @@ namespace Horde.Agent.Tests
 		[TestMethod]
 		public async Task Shutdown()
 		{
-			JobExecutor executor = new SimpleTestExecutor(async (step, logger, cancellationToken) =>
+			IJobExecutor executor = new SimpleTestExecutor(async (step, logger, cancellationToken) =>
 			{
 				await Task.Delay(50, cancellationToken);
 				return JobStepOutcome.Success;
 			});
 
-			_serviceCollection.AddSingleton<JobExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
+			_serviceCollection.AddSingleton<IJobExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
 			using ServiceProvider serviceProvider = _serviceCollection.BuildServiceProvider();
 
 			using CancellationTokenSource cts = new ();
@@ -242,7 +250,7 @@ namespace Horde.Agent.Tests
 		}
 	}
 
-	internal class FakeServerSessionFactory : ISessionFactoryService
+	internal class FakeServerSessionFactory : ISessionFactory
 	{
 		readonly FakeHordeRpcServer _fakeServer;
 

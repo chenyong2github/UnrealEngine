@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using Horde.Agent.Parser;
 using Microsoft.Extensions.Logging;
-using EpicGames.Horde.Storage.Backends;
-using System.Net.Http;
-using Microsoft.Extensions.Options;
 using Horde.Agent.Utility;
+using EpicGames.Horde.Storage;
 
 namespace Horde.Agent.Services
 {
@@ -24,8 +20,9 @@ namespace Horde.Agent.Services
 		/// <param name="batchId">Job batch id</param>
 		/// <param name="stepId">The job step id</param>
 		/// <param name="warnings">Whether to suppress warnings</param>
+		/// <param name="useNewLogger">Whether to enable the new logger backend</param>
 		/// <returns>New logger instance</returns>
-		IServerLogger CreateLogger(ISession session, string logId, string? jobId, string? batchId, string? stepId, bool? warnings = null);
+		IServerLogger CreateLogger(ISession session, string logId, string? jobId, string? batchId, string? stepId, bool? warnings, bool? useNewLogger);
 	}
 
 	/// <summary>
@@ -40,10 +37,11 @@ namespace Horde.Agent.Services
 		/// <param name="session">The current session</param>
 		/// <param name="logId">The log identifier</param>
 		/// <param name="warnings">Whether to suppress warnings</param>
+		/// <param name="useNewLogger">Whether to enable the new logger backend</param>
 		/// <returns>New logger instance</returns>
-		public static IServerLogger CreateLogger(this IServerLoggerFactory service, ISession session, string logId, bool? warnings = null)
+		public static IServerLogger CreateLogger(this IServerLoggerFactory service, ISession session, string logId, bool? warnings, bool? useNewLogger)
 		{
-			return service.CreateLogger(session, logId, null, null, null, warnings);
+			return service.CreateLogger(session, logId, null, null, null, warnings, useNewLogger);
 		}
 	}
 
@@ -52,28 +50,26 @@ namespace Horde.Agent.Services
 	/// </summary>
 	class ServerLoggerFactory : IServerLoggerFactory
 	{
-		readonly IHttpClientFactory _httpClientFactory;
-		readonly IOptions<AgentSettings> _settings;
+		readonly IServerStorageFactory _storageClientFactory;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ServerLoggerFactory(IHttpClientFactory httpClientFactory, IOptions<AgentSettings> settings, ILogger<ServerLoggerFactory> logger)
+		public ServerLoggerFactory(IServerStorageFactory storageClientFactory, ILogger<ServerLoggerFactory> logger)
 		{
-			_httpClientFactory = httpClientFactory;
-			_settings = settings;
+			_storageClientFactory = storageClientFactory;
 			_logger = logger;
 		}
 
 		/// <inheritdoc/>
-		public IServerLogger CreateLogger(ISession session, string logId, string? jobId, string? batchId, string? stepId, bool? warnings = null)
+		public IServerLogger CreateLogger(ISession session, string logId, string? jobId, string? batchId, string? stepId, bool? warnings, bool? useNewLogger)
 		{
 #pragma warning disable CA2000 // Dispose objects before losing scope
 			IJsonRpcLogSink sink = new JsonRpcLogSink(session.RpcConnection, jobId, batchId, stepId, _logger);
-			if (_settings.Value.EnableNewLogger)
+			if (useNewLogger ?? false)
 			{
-				HttpStorageClient storageClient = new HttpStorageClient(_httpClientFactory,  new Uri(session.ServerUrl, $"api/v1/logs/{logId}/"), session.Token, _logger);
+				IStorageClient storageClient = _storageClientFactory.CreateStorageClient(session);
 				sink = new JsonRpcAndStorageLogSink(session.RpcConnection, logId, sink, storageClient, _logger);
 			}
 			return new JsonRpcLogger(sink, logId, warnings, _logger);
