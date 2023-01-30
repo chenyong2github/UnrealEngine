@@ -29,6 +29,9 @@ struct PCG_API FPCGCustomVersion
 		// Add param pin for all nodes that have override and were using the default input pin.
 		AddParamPinToOverridableNodes = 6,
 
+		// Sampling shape and bounding shape inputs.
+		SplitVolumeSamplerNodeInputs = 7,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

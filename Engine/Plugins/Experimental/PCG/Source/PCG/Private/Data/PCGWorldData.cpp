@@ -128,7 +128,7 @@ const UPCGPointData* UPCGWorldVolumetricData::CreatePointData(FPCGContext* Conte
 	PCGVolumeSampler::FVolumeSamplerSettings SamplerSettings;
 	SamplerSettings.VoxelSize = VoxelSize;
 
-	PCGVolumeSampler::SampleVolume(Context, this, SamplerSettings, Data, EffectiveBounds);
+	PCGVolumeSampler::SampleVolume(Context, this, nullptr, EffectiveBounds, SamplerSettings, Data);
 	UE_LOG(LogPCG, Verbose, TEXT("Volumetric world extracted %d points"), Data->GetPoints().Num());
 	
 	return Data;

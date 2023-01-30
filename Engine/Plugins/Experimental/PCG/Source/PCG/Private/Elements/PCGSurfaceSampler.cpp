@@ -8,13 +8,13 @@
 #include "PCGEdge.h"
 #include "PCGGraph.h"
 #include "PCGHelpers.h"
+#include "PCGPin.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
 #include "Math/RandomStream.h"
-#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSurfaceSampler)
 
@@ -232,7 +232,7 @@ FText UPCGSurfaceSamplerSettings::GetNodeTooltipText() const
 TArray<FPCGPinProperties> UPCGSurfaceSamplerSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGSurfaceSamplerConstants::SurfaceLabel, EPCGDataType::Surface, /*bAllowMultipleConnections=*/true, /*bAllowMultipleData=*/false, LOCTEXT("SurfaceSamplerSurfacePinTooltip",
+	PinProperties.Emplace(PCGSurfaceSamplerConstants::SurfaceLabel, EPCGDataType::Surface, /*bAllowMultipleConnections=*/true, /*bAllowMultipleData=*/true, LOCTEXT("SurfaceSamplerSurfacePinTooltip",
 		"The surface to sample with points. Points will be generated in the two dimensional footprint of the combined bounds of the Surface and the Bounding Shape (if any) "
 		"and then projected onto this surface. If this input is omitted then the network of shapes connected to the Bounding Shape pin will be inspected for a surface "
 		"shape to use to project the points onto."
@@ -336,7 +336,7 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		{
 			GeneratingShapes.Add(GeneratorFromBoundingShapeInput);
 
-			check(BoundingShapeInputs.Num() == 1);
+			check(BoundingShapeInputs.Num() > 0);
 			Outputs.Add(BoundingShapeInputs[0]);
 		}
 	}
@@ -369,15 +369,15 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		{
 			InputBounds = PCGHelpers::OverlapBounds(InputBounds, BoundingShapeBounds);
 		}
-		if (!InputBounds.IsValid)
-		{
-			PCGE_LOG(Warning, "Input data has invalid bounds");
-			continue;
-		}
 
 		PCGSurfaceSampler::FSurfaceSamplerSettings LoopData;
-		if (!LoopData.Initialize(Settings, Context, InputBounds))
+		if (!InputBounds.IsValid || !LoopData.Initialize(Settings, Context, InputBounds))
 		{
+			if (!InputBounds.IsValid)
+			{
+				PCGE_LOG(Verbose, "Input data has invalid bounds");
+			}
+
 			Outputs.RemoveAt(GenerationIndex);
 			GeneratingShapes.RemoveAt(GenerationIndex);
 			--GenerationIndex;
@@ -424,7 +424,7 @@ void UPCGSurfaceSamplerSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOu
 {
 	if (DataVersion < FPCGCustomVersion::SplitSamplerNodesInputs && ensure(InOutNode))
 	{
-		if (InputPins.Num() == 1)
+		if (InputPins.Num() > 0 && InputPins[0])
 		{
 			// The node will function the same if we move all connections from "In" to "Bounding Shape". To make this happen, rename "In" to
 			// "Bounding Shape" just prior to pin update and the edges will be moved over. In ApplyDeprecation we'll see if we can do better than
