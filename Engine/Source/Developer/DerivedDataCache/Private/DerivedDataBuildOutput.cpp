@@ -454,6 +454,16 @@ FBuildOutputBuilder CreateBuildOutput(const FSharedString& Name, const FUtf8Shar
 namespace UE::DerivedData
 {
 
+FUtf8StringBuilderBase& operator<<(FUtf8StringBuilderBase& Builder, EBuildOutputMessageLevel Level)
+{
+	return Builder << Private::LexToString(Level);
+}
+
+FUtf8StringBuilderBase& operator<<(FUtf8StringBuilderBase& Builder, EBuildOutputLogLevel Level)
+{
+	return Builder << Private::LexToString(Level);
+}
+
 FOptionalBuildOutput FBuildOutput::Load(
 	const FSharedString& Name,
 	const FUtf8SharedString& Function,

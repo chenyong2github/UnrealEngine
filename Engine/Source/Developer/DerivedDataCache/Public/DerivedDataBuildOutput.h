@@ -79,6 +79,8 @@ enum class EBuildOutputMessageLevel : uint8
 	Display,
 };
 
+UE_API FUtf8StringBuilderBase& operator<<(FUtf8StringBuilderBase& Builder, EBuildOutputMessageLevel Level);
+
 /** A build output message is diagnostic output from a build function and must be deterministic. */
 struct FBuildOutputMessage
 {
@@ -91,6 +93,8 @@ enum class EBuildOutputLogLevel : uint8
 	Error,
 	Warning,
 };
+
+UE_API FUtf8StringBuilderBase& operator<<(FUtf8StringBuilderBase& Builder, EBuildOutputLogLevel Level);
 
 /**
  * A build output log is a log message captured from a build function.
