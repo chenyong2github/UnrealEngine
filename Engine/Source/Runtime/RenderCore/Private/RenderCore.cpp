@@ -16,6 +16,7 @@
 void UpdateShaderDevelopmentMode();
 
 void InitRenderGraph();
+static void InitPixelRenderCounters();
 
 class FRenderCoreModule : public FDefaultModuleImpl
 {
@@ -27,6 +28,7 @@ public:
 		IConsoleManager::Get().RegisterConsoleVariableSink_Handle(FConsoleCommandDelegate::CreateStatic(&UpdateShaderDevelopmentMode));
 
 		InitRenderGraph();
+		InitPixelRenderCounters();
 	}
 };
 
@@ -250,6 +252,22 @@ void FInputLatencyTimer::GameThreadTick()
 		}
 	}
 #endif
+}
+
+FPixelRenderCounters GPixelRenderCounters;
+
+void TickPixelRenderCounters()
+{
+	check(IsInRenderingThread());
+	GPixelRenderCounters.PrevPixelRenderCount = GPixelRenderCounters.CurrentPixelRenderCount;
+	GPixelRenderCounters.PrevPixelDisplayCount = GPixelRenderCounters.CurrentPixelDisplayCount;
+	GPixelRenderCounters.CurrentPixelRenderCount = 0;
+	GPixelRenderCounters.CurrentPixelDisplayCount = 0;
+}
+
+void InitPixelRenderCounters()
+{
+	FCoreDelegates::OnBeginFrameRT.AddStatic(TickPixelRenderCounters);
 }
 
 // Can be optimized to avoid the virtual function call but it's compiled out for final release anyway

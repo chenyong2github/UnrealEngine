@@ -2867,6 +2867,12 @@ void FSceneRenderer::PrepareViewRectsForRendering(FRHICommandListImmediate& RHIC
 
 		check(View.ViewRect.Area() != 0);
 		check(View.VerifyMembersChecks());
+
+		if (!ViewFamily.EngineShowFlags.HitProxies && View.AntiAliasingMethod == AAM_TSR)
+		{
+			FIntPoint SecondaryViewRect = View.GetSecondaryViewRectSize();
+			GPixelRenderCounters.AddViewStatistics(View.ViewRect.Area(), SecondaryViewRect.X * SecondaryViewRect.Y);
+		}
 	}
 
 	// Shifts all view rects layout to the top left corner of the buffers, since post processing will just output the final

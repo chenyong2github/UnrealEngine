@@ -930,6 +930,33 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 
 			PushRows(/* RowsCount = */ 1);
 		}
+
+		// TSR history convergence rate
+		if (GPixelRenderCounters.GetPixelDisplayCount())
+		{
+			// Target 1 sample per pixel for the convergence speed measurment.
+			const float TargetSamplePerPixel = 1.0f;
+
+			// Ideal TSR uses it to render 1080p -> 4k at 60hz.
+			const float IdealConvergenceTime = TargetSamplePerPixel * FMath::Pow(1080.0f / 2160.0f, -2.0f) * (1000.0f / 60.0f);
+
+			// Compute the resolution fraction agregate.
+			uint32 PixelRenderCount = GPixelRenderCounters.GetPixelRenderCount();
+			uint32 PixelDisplayCount = GPixelRenderCounters.GetPixelDisplayCount();
+			float ResolutionFraction = FMath::Sqrt(float(PixelRenderCount) / float(PixelDisplayCount));
+			float ConvergenceSpeedMultiplier = FMath::Pow(ResolutionFraction, -2.0f);
+
+			// Compute how long it takes for the history to converge to 1spp.
+			float ConvergenceFrameCount = ConvergenceSpeedMultiplier * TargetSamplePerPixel;
+			float ConvergenceTime = FMath::Max(ConvergenceFrameCount, 1.0f) * FrameTime;
+
+			const FColor Color = (ConvergenceTime <= IdealConvergenceTime) ? StatGreen : ((ConvergenceTime < 2.0f * IdealConvergenceTime) ? StatOrange : StatRed);
+
+			DrawTitleString(TEXT("TSR -> 1spp"), NoUnitGraphColor);
+			DrawDefaultAvgCell(FString::Printf(STATUNIT_FORMAT_AVGTIME, ConvergenceTime), Color);
+
+			PushRows(/* RowsCount = */ 1);
+		}
 	}
 
 #if !UE_BUILD_SHIPPING
