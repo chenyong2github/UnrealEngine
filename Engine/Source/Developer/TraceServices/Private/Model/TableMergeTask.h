@@ -47,26 +47,28 @@ private:
 template <typename Variant, FTableMergeTask::Sign Operation>
 void FTableMergeTask::FillResultUsing(IUntypedTableReader& SourceTableReader) const
 {
+	const uint64 ColumnsMapCount = static_cast<uint64>(ColumnsMap.Num());
+
 	for (SourceTableReader.SetRowIndex(0); SourceTableReader.IsValid(); SourceTableReader.NextRow())
 	{
 		FImportTableRow& Row = TableC->AddRow();
-		Row.SetNumValues(ColumnsMap.Num());
+		Row.SetNumValues(ColumnsMapCount);
 
-		for (uint64 DestIndex = 0; DestIndex < ColumnsMap.Num(); ++DestIndex)
+		for (uint64 DestIndex = 0; DestIndex < ColumnsMapCount; ++DestIndex)
 		{
 			const ETableColumnType ColumnType = TableC->GetLayout().GetColumnType(DestIndex);
 
 			uint64 SourceIndex;
 			int64 Multiplier = 1;
-			if (const auto* Column = ColumnsMap[DestIndex].TryGet<FBoth>())
+			if (const auto* Column = ColumnsMap[static_cast<int32>(DestIndex)].TryGet<FBoth>())
 			{
 				SourceIndex = Column->ColIndex;
 			}
-			else if (const auto* ColumnA = ColumnsMap[DestIndex].TryGet<Variant>())
+			else if (const auto* ColumnA = ColumnsMap[static_cast<int32>(DestIndex)].TryGet<Variant>())
 			{
 				SourceIndex = ColumnA->ColIndex;
 			}
-			else if (const auto* ColumnM = ColumnsMap[DestIndex].TryGet<FMerged>())
+			else if (const auto* ColumnM = ColumnsMap[static_cast<int32>(DestIndex)].TryGet<FMerged>())
 			{
 				SourceIndex = ColumnM->ColIndex;
 				Multiplier = Operation == Sign::Negative ? -1 : 1;

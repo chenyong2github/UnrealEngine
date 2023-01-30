@@ -211,32 +211,32 @@ public:
 
 	uint64 GetColumnCount() const override
 	{
-		return Columns.Num();
+		return static_cast<uint64>(Columns.Num());
 	}
 
 	const TCHAR* GetColumnName(uint64 ColumnIndex) const override
 	{
-		return *Columns[(int32)ColumnIndex].Name;
+		return *Columns[static_cast<int32>(ColumnIndex)].Name;
 	}
 
 	ETableColumnType GetColumnType(uint64 ColumnIndex) const override
 	{
-		return Columns[(int32)ColumnIndex].Type;
+		return Columns[static_cast<int32>(ColumnIndex)].Type;
 	}
 
 	void SetColumnType(uint64 ColumnIndex, ETableColumnType ColumnType)
 	{
-		Columns[(int32)ColumnIndex].Type = ColumnType;
+		Columns[static_cast<int32>(ColumnIndex)].Type = ColumnType;
 	}
 
 	uint32 GetColumnDisplayHintFlags(uint64 ColumnIndex) const override
 	{
-		return Columns[(int32)ColumnIndex].DisplayHintFlags;
+		return Columns[static_cast<int32>(ColumnIndex)].DisplayHintFlags;
 	}
 
 	FColumnValueContainer GetColumnValue(const RowType& Row, uint64 ColumnIndex) const
 	{
-		return Columns[(int32)ColumnIndex].Projector(Row);
+		return Columns[static_cast<int32>(ColumnIndex)].Projector(Row);
 	}
 
 private:

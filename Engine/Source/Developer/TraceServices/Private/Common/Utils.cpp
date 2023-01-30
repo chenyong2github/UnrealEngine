@@ -18,8 +18,8 @@ void Table2Csv(const IUntypedTable& Table, const TCHAR* Filename)
 	check(OutputFile);
 	FString Header;
 	const ITableLayout& Layout = Table.GetLayout();
-	uint32 ColumnCount = static_cast<uint32>(Layout.GetColumnCount());
-	for (uint32 ColumnIndex = 0; ColumnIndex < ColumnCount; ++ColumnIndex)
+	const uint64 ColumnCount = Layout.GetColumnCount();
+	for (uint64 ColumnIndex = 0; ColumnIndex < ColumnCount; ++ColumnIndex)
 	{
 		Header += Layout.GetColumnName(ColumnIndex);
 		if (ColumnIndex < ColumnCount - 1)
@@ -37,7 +37,7 @@ void Table2Csv(const IUntypedTable& Table, const TCHAR* Filename)
 	for (; TableReader->IsValid(); TableReader->NextRow())
 	{
 		FString Line;
-		for (uint32 ColumnIndex = 0; ColumnIndex < ColumnCount; ++ColumnIndex)
+		for (uint64 ColumnIndex = 0; ColumnIndex < ColumnCount; ++ColumnIndex)
 		{
 			switch (Layout.GetColumnType(ColumnIndex))
 			{

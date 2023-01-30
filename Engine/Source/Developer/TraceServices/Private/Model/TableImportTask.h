@@ -19,11 +19,21 @@ struct FColumnValueContainer;
 class FImportTableRow
 {
 public:
-	FColumnValueContainer GetValue(uint32 Index) const { return Values[Index]; }
+	FColumnValueContainer GetValue(uint64 ColumnIndex) const
+	{
+		return Values[static_cast<int32>(ColumnIndex)];
+	}
 
 	template<typename T>
-	void SetValue(uint32 Index, T Value) { Values[Index] = Value; }
-	void SetNumValues(uint32 Size) { Values.AddUninitialized(Size); }
+	void SetValue(uint64 ColumnIndex, T Value)
+	{
+		Values[static_cast<int32>(ColumnIndex)] = Value;
+	}
+
+	void SetNumValues(uint64 NumColumns)
+	{
+		Values.AddUninitialized(static_cast<int32>(NumColumns));
+	}
 
 private:
 	TArray<FColumnValueContainer> Values;
