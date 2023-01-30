@@ -750,8 +750,16 @@ HRESULT CollectRewriteHelper(TranslationUnitDecl *tu, LPCSTR pEntryPoint,
     if (tuDecl->isImplicit())
       continue;
 
-    VarDecl *varDecl = dyn_cast_or_null<VarDecl>(tuDecl);
-    if (varDecl != nullptr) {
+    // UE Change Begin: Examine sub declarations of templates
+    if (TemplateDecl *tmplDecl = dyn_cast_or_null<TemplateDecl>(tuDecl)) {
+      tuDecl = tmplDecl->getTemplatedDecl();
+      if (tuDecl == nullptr) {
+        continue;
+      }
+    }
+    // UE Change End: Examine sub declarations of templates
+
+    if (VarDecl *varDecl = dyn_cast_or_null<VarDecl>(tuDecl)) {
       if (!bRemoveGlobals) {
         // Only remove static global when not remove global.
         if (!(varDecl->getStorageClass() == SC_Static ||
@@ -793,8 +801,7 @@ HRESULT CollectRewriteHelper(TranslationUnitDecl *tu, LPCSTR pEntryPoint,
       continue;
     }
 
-    FunctionDecl *fnDecl = dyn_cast_or_null<FunctionDecl>(tuDecl);
-    if (fnDecl != nullptr) {
+    if (FunctionDecl *fnDecl = dyn_cast_or_null<FunctionDecl>(tuDecl)) {
       FunctionDecl *fnDeclWithbody = getFunctionWithBody(fnDecl);
       // Add fnDecl without body which has a define somewhere.
       if (fnDecl->doesThisDeclarationHaveABody() || fnDeclWithbody) {
@@ -809,8 +816,19 @@ HRESULT CollectRewriteHelper(TranslationUnitDecl *tu, LPCSTR pEntryPoint,
 #endif
       // UE Change End: Workaround: Removing unused types not working properly.
       if (CXXRecordDecl *recordDecl = dyn_cast<CXXRecordDecl>(tagDecl)) {
-        for (CXXMethodDecl *methodDecl : recordDecl->methods()) {
-          unusedFunctions.insert(methodDecl);
+        for (Decl *memberDecl : recordDecl->decls()) {
+          // UE Change Begin: Examine sub declarations of templates
+          if (TemplateDecl *memberTmplDecl = dyn_cast_or_null<TemplateDecl>(memberDecl)) {
+            memberDecl = memberTmplDecl->getTemplatedDecl();
+            if (memberDecl == nullptr) {
+              continue;
+            }
+          }
+          if (CXXMethodDecl *memberMethodDecl =
+                  dyn_cast_or_null<CXXMethodDecl>(memberDecl)) {
+            unusedFunctions.insert( memberMethodDecl);
+          }
+          // UE Change End: Examine sub declarations of templates
         }
       }
     }
@@ -849,6 +867,11 @@ HRESULT CollectRewriteHelper(TranslationUnitDecl *tu, LPCSTR pEntryPoint,
   while (!pendingFunctions.empty()) {
     FunctionDecl *pendingDecl = pendingFunctions.pop_back_val();
     visitedFunctions.insert(pendingDecl);
+    // UE Change Begin: Mark template pattern as visited as well
+    if (FunctionDecl *primaryTmplFnDecl = pendingDecl->getTemplateInstantiationPattern()) {
+      visitedFunctions.insert(primaryTmplFnDecl);
+    }
+    // UE Change End: Mark template pattern as visited as well
     visitor.TraverseDecl(pendingDecl);
   }
 
@@ -1020,11 +1043,21 @@ static HRESULT DoRewriteUnused( TranslationUnitDecl *tu,
   for (FunctionDecl *unusedFn : helper.unusedFunctions) {
     // remove name of function to workaround assert when update lookup table.
     unusedFn->setDeclName(DeclarationName());
+    // UE Change Begin: Remove parent template declaration and not just sub declaration of templates
     if (CXXMethodDecl *methodDecl = dyn_cast<CXXMethodDecl>(unusedFn)) {
-      methodDecl->getParent()->removeDecl(unusedFn);
+      if (TemplateDecl *methodTmplDecl = methodDecl->getDescribedFunctionTemplate()) {
+        methodDecl->getParent()->removeDecl(methodTmplDecl);
+      } else {
+        methodDecl->getParent()->removeDecl(unusedFn);
+      }
     } else {
-      tu->removeDecl(unusedFn);
+      if (TemplateDecl *tmplDecl = unusedFn->getDescribedFunctionTemplate()) {
+        tu->removeDecl(tmplDecl);
+      } else {
+        tu->removeDecl(unusedFn);
+      }
     }
+    // UE Change End: Remove parent template declaration and not just sub declaration of templates
   }
 
   for (TypeDecl *unusedTy : helper.unusedTypes) {
@@ -1721,7 +1754,7 @@ public:
       std::unique_ptr<llvm::MemoryBuffer> pBuffer(llvm::MemoryBuffer::getMemBufferCopy(Data, fakeName));
       std::unique_ptr<ASTUnit::RemappedFile> pRemap(new ASTUnit::RemappedFile(fakeName, pBuffer.release()));
 
-	  // Parse compiler arguments
+      // Parse compiler arguments
       hlsl::options::DxcOpts opts;
       opts.HLSLVersion = hlsl::LangStd::v2015;
       hlsl::options::MainArgs optsArgs{static_cast<int>(argCount), pArgs, 0};
@@ -1775,7 +1808,7 @@ public:
       std::unique_ptr<llvm::MemoryBuffer> pBuffer(llvm::MemoryBuffer::getMemBufferCopy(Data, fName));
       std::unique_ptr<ASTUnit::RemappedFile> pRemap(new ASTUnit::RemappedFile(fName, pBuffer.release()));
 
-	  // Parse compiler arguments
+      // Parse compiler arguments
       hlsl::options::DxcOpts opts;
       opts.HLSLVersion = hlsl::LangStd::v2015;
       hlsl::options::MainArgs optsArgs{static_cast<int>(argCount), pArgs, 0};
