@@ -410,7 +410,7 @@ static void SetCacheDataShaderParameters(FRDGBuilder& GraphBuilder, const TArray
 	for (int32 SmIndex = 0; SmIndex < ShadowMaps.Num(); ++SmIndex)
 	{
 		TSharedPtr<FVirtualShadowMapCacheEntry> VirtualShadowMapCacheEntry = ShadowMaps[SmIndex].IsValid() ? ShadowMaps[SmIndex]->VirtualShadowMapCacheEntry : nullptr;
-		if (VirtualShadowMapCacheEntry != nullptr && VirtualShadowMapCacheEntry->IsValid())
+		if (VirtualShadowMapCacheEntry != nullptr && VirtualShadowMapCacheEntry->PrevVirtualShadowMapId != INDEX_NONE)
 		{
 			ShadowMapCacheData[SmIndex].PrevVirtualShadowMapId = VirtualShadowMapCacheEntry->PrevVirtualShadowMapId;
 			
@@ -483,7 +483,7 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 		if (CVarCacheStaticSeparate.GetValueOnRenderThread() != 0)
 		{
 			#if !DEBUG_ALLOW_STATIC_SEPARATE_WITHOUT_CACHING
-			if (CacheManager->IsValid())
+			if (CacheManager->IsCacheEnabled())
 			#endif
 			{
 				// Enable separate static caching in the second texture array element
@@ -1610,7 +1610,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 		PassParameters->bDynamicPageInvalidation = CVarDebugSkipDynamicPageInvalidation.GetValueOnRenderThread() == 0 ? 1 : 0;
 #endif
 
-		bool bCacheEnabled = CacheManager->IsValid();
+		bool bCacheEnabled = CacheManager->IsCacheDataAvailable();
 		if (bCacheEnabled)
 		{
 			SetCacheDataShaderParameters(GraphBuilder, ShadowMaps, CacheManager, PassParameters->CacheDataParameters);
@@ -2666,9 +2666,10 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 
 	FGPUScene& GPUScene = Scene.GPUScene;
 
-	FRDGBufferSRVRef PrevPageTableRDGSRV = CacheManager->IsValid() ? GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageTable, TEXT("Shadow.Virtual.PrevPageTable"))) : nullptr;
-	FRDGBufferSRVRef PrevPageFlagsRDGSRV = CacheManager->IsValid() ? GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageFlags, TEXT("Shadow.Virtual.PrevPageFlags"))) : nullptr;
-	FRDGBufferSRVRef PrevPageRectBoundsRDGSRV = CacheManager->IsValid() ? GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageRectBounds, TEXT("Shadow.Virtual.PrevPageRectBounds"))) : nullptr;
+	bool bIsCachingDataAvailable = CacheManager->IsCacheDataAvailable();
+	FRDGBufferSRVRef PrevPageTableRDGSRV = bIsCachingDataAvailable ? GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageTable, TEXT("Shadow.Virtual.PrevPageTable"))) : nullptr;
+	FRDGBufferSRVRef PrevPageFlagsRDGSRV = bIsCachingDataAvailable ? GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageFlags, TEXT("Shadow.Virtual.PrevPageFlags"))) : nullptr;
+	FRDGBufferSRVRef PrevPageRectBoundsRDGSRV = bIsCachingDataAvailable ? GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageRectBounds, TEXT("Shadow.Virtual.PrevPageRectBounds"))) : nullptr;
 
 	int32 HZBMode = CVarNonNaniteVsmUseHzb.GetValueOnRenderThread();
 	// When disabling Nanite, there may be stale data in the Nanite-HZB causing incorrect culling.
@@ -2679,7 +2680,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 
 	auto InitHZB = [&]()->FRDGTextureRef
 	{
-		if (HZBMode == 1 && CacheManager->IsValid())
+		if (HZBMode == 1 && bIsCachingDataAvailable)
 		{
 			return GraphBuilder.RegisterExternalTexture(CacheManager->PrevBuffers.HZBPhysical);
 		}
@@ -3265,21 +3266,24 @@ uint32 FVirtualShadowMapArray::AddRenderViews(const TSharedPtr<FVirtualShadowMap
 		Params.PrevViewMatrices = Params.ViewMatrices;
 		// TODO: MaxPixelsPerEdgeMultipler
 
-		// TODO: Clean this up - could be stored in a single structure for the whole clipmap
-		int32 HZBKey = Clipmap->GetHZBKey(ClipmapLevelIndex);
-
-		if (bSetHZBParams)
+		if (CacheEntry)
 		{
-			CacheManager->SetHZBViewParams(HZBKey, Params);
-		}
+			TSharedPtr<FVirtualShadowMapCacheEntry> LevelEntry = CacheEntry->ShadowMapEntries[Clipmap->GetClipmapLevel(ClipmapLevelIndex)];
 
-		// If we're going to generate a new HZB this frame, save the associated metadata
-		if (bUpdateHZBMetaData)
-		{
-			FVirtualShadowMapHZBMetadata& HZBMeta = HZBMetadata.FindOrAdd(HZBKey);
-			HZBMeta.TargetLayerIndex = Params.TargetLayerIndex;
-			HZBMeta.ViewMatrices = Params.ViewMatrices;
-			HZBMeta.ViewRect = Params.ViewRect;
+			if (bSetHZBParams)
+			{
+				LevelEntry->SetHZBViewParams(Params);
+			}
+
+			// If we're going to generate a new HZB this frame, save the associated metadata
+			if (bUpdateHZBMetaData)
+			{
+				FVirtualShadowMapHZBMetadata HZBMeta;
+				HZBMeta.TargetLayerIndex = Params.TargetLayerIndex;
+				HZBMeta.ViewMatrices = Params.ViewMatrices;
+				HZBMeta.ViewRect = Params.ViewRect;
+				LevelEntry->CurrentHZBMetadata = HZBMeta;
+			}
 		}
 
 		Nanite::FPackedView View = Nanite::CreatePackedView(Params);
@@ -3351,20 +3355,24 @@ uint32 FVirtualShadowMapArray::AddRenderViews(const FProjectedShadowInfo* Projec
 		Params.RangeBasedCullingDistance = ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetRadius();
 		// TODO: MaxPixelsPerEdgeMultipler
 
-		int32 HZBKey = ProjectedShadowInfo->GetLightSceneInfo().Id + (Index << 24);
-
-		if (bSetHZBParams)
+		if (CacheEntry)
 		{
-			CacheManager->SetHZBViewParams(HZBKey, Params);
-		}
+			TSharedPtr<FVirtualShadowMapCacheEntry> LevelEntry = CacheEntry->ShadowMapEntries[Index];
+			
+			if (bSetHZBParams)
+			{
+				LevelEntry->SetHZBViewParams(Params);
+			}
 
-		// If we're going to generate a new HZB this frame, save the associated metadata
-		if (bUpdateHZBMetaData)
-		{
-			FVirtualShadowMapHZBMetadata& HZBMeta = HZBMetadata.FindOrAdd(HZBKey);
-			HZBMeta.TargetLayerIndex = Params.TargetLayerIndex;
-			HZBMeta.ViewMatrices = Params.ViewMatrices;
-			HZBMeta.ViewRect = Params.ViewRect;
+			// If we're going to generate a new HZB this frame, save the associated metadata
+			if (bUpdateHZBMetaData)
+			{
+				FVirtualShadowMapHZBMetadata HZBMeta;
+				HZBMeta.TargetLayerIndex = Params.TargetLayerIndex;
+				HZBMeta.ViewMatrices = Params.ViewMatrices;
+				HZBMeta.ViewRect = Params.ViewRect;
+				LevelEntry->CurrentHZBMetadata = HZBMeta;
+			}
 		}
 
 		OutVirtualShadowViews.Add(Nanite::CreatePackedView(Params));

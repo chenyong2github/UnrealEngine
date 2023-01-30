@@ -362,7 +362,6 @@ public:
 	FRDGBufferRef StaticInvalidatingPrimitivesRDG = nullptr;
 
 	FRDGTextureRef HZBPhysical = nullptr;
-	TMap<int32, FVirtualShadowMapHZBMetadata> HZBMetadata;
 
 	// See Engine\Shaders\Private\VirtualShadowMaps\VirtualShadowMapStats.ush for definitions of the different stat indexes
 	static constexpr uint32 NumStats = 16;

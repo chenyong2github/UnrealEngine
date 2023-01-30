@@ -99,8 +99,6 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 
 	FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager = VirtualShadowMapArray.CacheManager;
 
-	const bool bCacheValid = VirtualShadowMapArrayCacheManager && VirtualShadowMapArrayCacheManager->IsValid();
-
 	const FMatrix FaceMatrix(
 		FPlane( 0, 0, 1, 0 ),
 		FPlane( 0, 1, 0, 0 ),
@@ -287,14 +285,6 @@ FViewMatrices FVirtualShadowMapClipmap::GetViewMatrices(int32 ClipmapIndex) cons
 	Initializer.ConstrainedViewRect = FIntRect(0, 0, FVirtualShadowMap::VirtualMaxResolutionXY, FVirtualShadowMap::VirtualMaxResolutionXY);
 
 	return FViewMatrices(Initializer);
-}
-
-int32 FVirtualShadowMapClipmap::GetHZBKey(int32 ClipmapLevelIndex) const
-{
-	int32 AbsoluteClipmapLevel = GetClipmapLevel(ClipmapLevelIndex);		// NOTE: Can be negative!
-	int32 ClipmapLevelKey = AbsoluteClipmapLevel + 128;
-	check(ClipmapLevelKey > 0 && ClipmapLevelKey < 256);
-	return GetLightSceneInfo().Id + (ClipmapLevelKey << 24);
 }
 
 FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionShaderData(int32 ClipmapIndex) const

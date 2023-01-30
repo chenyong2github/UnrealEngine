@@ -81,7 +81,10 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	double ViewRadiusZ,
 	const FVirtualShadowMapPerLightCacheEntry& PerLightEntry)
 {
-	bool bCacheValid = CurrentVirtualShadowMapId != INDEX_NONE;
+	PrevPageSpaceLocation = CurrentPageSpaceLocation;
+	PrevHZBMetadata = CurrentHZBMetadata;
+
+	bool bCacheValid = (CurrentVirtualShadowMapId != INDEX_NONE);
 	
 	if (bCacheValid && GClipmapPanning == 0)
 	{
@@ -130,11 +133,10 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 		Clipmap.ViewCenterZ = ViewCenterZ;
 		Clipmap.ViewRadiusZ = ViewRadiusZ;
 	}
-		
-	PrevPageSpaceLocation = CurrentPageSpaceLocation;
 	
 	CurrentVirtualShadowMapId = VirtualShadowMapId;
 	CurrentPageSpaceLocation = PageSpaceLocation;
+	// Current HZB metadata gets updated during rendering
 
 	Clipmap.PrevClipmapCornerOffset = Clipmap.CurrentClipmapCornerOffset;
 	Clipmap.CurrentClipmapCornerOffset = ClipmapCornerOffset;
@@ -145,6 +147,7 @@ void FVirtualShadowMapCacheEntry::UpdateLocal(int32 VirtualShadowMapId, const FV
 	// Swap previous frame data over.
 	PrevPageSpaceLocation = FInt64Point(0, 0);		// Not used for local lights
 	PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
+	PrevHZBMetadata = CurrentHZBMetadata;
 
 	// Not valid if it was never rendered
 	if (PerLightEntry.Prev.RenderedFrameNumber < 0)
@@ -160,7 +163,16 @@ void FVirtualShadowMapCacheEntry::UpdateLocal(int32 VirtualShadowMapId, const FV
 
 	CurrentVirtualShadowMapId = VirtualShadowMapId;
 	CurrentPageSpaceLocation = FInt64Point(0, 0);		// Not used for local lights
+	// Current HZB metadata gets updated during rendering
 }
+
+void FVirtualShadowMapCacheEntry::SetHZBViewParams(Nanite::FPackedViewParams& OutParams)
+{
+	OutParams.PrevTargetLayerIndex = PrevHZBMetadata.TargetLayerIndex;
+	OutParams.PrevViewMatrices = PrevHZBMetadata.ViewMatrices;
+	OutParams.Flags |= NANITE_VIEW_FLAG_HZBTEST;
+}
+
 
 void FVirtualShadowMapCacheEntry::Invalidate()
 {
@@ -188,7 +200,7 @@ void FVirtualShadowMapPerLightCacheEntry::UpdateClipmap(const FMatrix& WorldToLi
 	}
 }
 
-bool FVirtualShadowMapPerLightCacheEntry::UpdateLocal(const FProjectedShadowInitializer& InCacheKey, bool bIsDistantLight, bool bAllowInvalidation)
+bool FVirtualShadowMapPerLightCacheEntry::UpdateLocal(const FProjectedShadowInitializer& InCacheKey, bool bIsDistantLight, bool bCacheEnabled, bool bAllowInvalidation)
 {
 	Prev.bIsUncached = Current.bIsUncached;
 	Prev.bIsDistantLight = Current.bIsDistantLight;
@@ -196,14 +208,12 @@ bool FVirtualShadowMapPerLightCacheEntry::UpdateLocal(const FProjectedShadowInit
 	Prev.ScheduledFrameNumber = FMath::Max(Prev.ScheduledFrameNumber, Current.ScheduledFrameNumber);
 
 	// Check cache validity based of shadow setup
-	if (!LocalCacheKey.IsCachedShadowValid(InCacheKey))
+	// If it is a distant light, we want to let the time-share perform the invalidation.
+	if (!bCacheEnabled
+		|| (bAllowInvalidation && !LocalCacheKey.IsCachedShadowValid(InCacheKey)))
 	{
-		// If it is a distant light, we want to let the time-share perform the invalidation.
 		// TODO: track invalidation state somehow for later.
-		if (bAllowInvalidation)
-		{
-			Prev.RenderedFrameNumber = -1;
-		}
+		Prev.RenderedFrameNumber = -1;
 		//UE_LOG(LogRenderer, Display, TEXT("Invalidated!"));
 	}
 	LocalCacheKey = InCacheKey;
@@ -678,11 +688,6 @@ TSharedPtr<FVirtualShadowMapCacheEntry> FVirtualShadowMapPerLightCacheEntry::Fin
 
 TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FVirtualShadowMapArrayCacheManager::FindCreateLightCacheEntry(int32 LightSceneId, uint32 ViewUniqueID)
 {
-	if (CVarCacheVirtualSMs.GetValueOnRenderThread() == 0)
-	{
-		return nullptr;
-	}
-
 	const uint64 CacheKey = (uint64(ViewUniqueID) << 32U) | uint64(LightSceneId);
 
 	if (TSharedPtr<FVirtualShadowMapPerLightCacheEntry> *LightEntry = CacheEntries.Find(CacheKey))
@@ -790,10 +795,9 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 		{
 			bExtractHzbData = true;
 			GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.HZBPhysical, &PrevBuffers.HZBPhysical);
-			PrevBuffers.HZBMetadata = VirtualShadowMapArray.HZBMetadata;
 		}
 
-		if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
+		if (IsCacheEnabled())
 		{
 			bExtractHzbData = true;
 
@@ -836,14 +840,6 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 	}
 	else
 	{
-		// Caching is disabled
-		if (CVarCacheVirtualSMs.GetValueOnRenderThread() == 0)
-		{
-			// Make sure we empty out any resources associated with caching
-			PrevCacheEntries.Reset();
-			CacheEntries.Reset();
-		}
-
 		// Do nothing; maintain the data that we had
 		// This allows us to work around some cases where the renderer gets called multiple times in a given frame
 		// - such as scene captures - but does no shadow-related work in all but one of them. We do not want to drop
@@ -1001,15 +997,18 @@ void FVirtualShadowMapArrayCacheManager::ExtractStats(FRDGBuilder& GraphBuilder,
 	}
 }
 
-
-bool FVirtualShadowMapArrayCacheManager::IsValid()
+bool FVirtualShadowMapArrayCacheManager::IsCacheEnabled()
 {
-	return CVarCacheVirtualSMs.GetValueOnRenderThread() != 0
+	return CVarCacheVirtualSMs.GetValueOnRenderThread() != 0;
+}
+
+bool FVirtualShadowMapArrayCacheManager::IsCacheDataAvailable()
+{
+	return IsCacheEnabled()
 		&& PrevBuffers.PageTable
 		&& PrevBuffers.PageFlags
 		&& PrevBuffers.PhysicalPageMetaData;
 }
-
 
 bool FVirtualShadowMapArrayCacheManager::IsAccumulatingStats()
 {
@@ -1026,7 +1025,7 @@ void FVirtualShadowMapArrayCacheManager::ProcessRemovedOrUpdatedPrimitives(FRDGB
 	// Always incorporate any scene removals into the "recently removed" list
 	UpdateRecentlyRemoved(InvalidatingPrimitiveCollector.GetRemovedPrimitives());
 
-	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0 && PrevBuffers.PhysicalPageMetaData.IsValid())
+	if (IsCacheDataAvailable())
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Shadow.Virtual.ProcessRemovedOrUpdatedPrimitives");
 
@@ -1042,7 +1041,6 @@ void FVirtualShadowMapArrayCacheManager::ProcessRemovedOrUpdatedPrimitives(FRDGB
 
 void FVirtualShadowMapArrayCacheManager::OnSceneChange()
 {
-	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
 	{
 		const int32 MaxPersistentPrimitiveIndex = FMath::Max(1, Scene->GetMaxPersistentPrimitiveIndex());
 
@@ -1135,17 +1133,6 @@ TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> FVirtualShadowMapArrayC
 	FVirtualShadowMapUniformParameters* VersionedParameters = GraphBuilder.AllocParameters<FVirtualShadowMapUniformParameters>();
 	*VersionedParameters = PrevUniformParameters;
 	return GraphBuilder.CreateUniformBuffer(VersionedParameters);
-}
-
-void FVirtualShadowMapArrayCacheManager::SetHZBViewParams(int32 HZBKey, Nanite::FPackedViewParams& OutParams)
-{
-	FVirtualShadowMapHZBMetadata* PrevHZBMeta = PrevBuffers.HZBMetadata.Find(HZBKey);
-	if (PrevHZBMeta)
-	{
-		OutParams.PrevTargetLayerIndex = PrevHZBMeta->TargetLayerIndex;
-		OutParams.PrevViewMatrices = PrevHZBMeta->ViewMatrices;
-		OutParams.Flags |= NANITE_VIEW_FLAG_HZBTEST;
-	}
 }
 
 #if WITH_MGPU

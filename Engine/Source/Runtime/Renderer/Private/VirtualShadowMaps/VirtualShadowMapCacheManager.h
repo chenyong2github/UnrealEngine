@@ -20,10 +20,6 @@ namespace Nanite { struct FPackedViewParams; }
 class FVirtualShadowMapCacheEntry
 {
 public:
-	// True if the cache has been (re)populated, set to false on init and set to true once the cache update process has happened.
-	// Also set to false whenever key data was not valid and all cached data is invalidated.
-	bool IsValid() { return PrevVirtualShadowMapId != INDEX_NONE; }
-
 	void UpdateLocal(int32 VirtualShadowMapId, const FVirtualShadowMapPerLightCacheEntry &PerLightEntry);
 
 	void UpdateClipmap(int32 VirtualShadowMapId,
@@ -36,13 +32,17 @@ public:
 
 	void Invalidate();
 
+	void SetHZBViewParams(Nanite::FPackedViewParams& OutParams);
+
 	// Previous frame data
 	FInt64Point PrevPageSpaceLocation = FInt64Point(0, 0);
 	int32 PrevVirtualShadowMapId = INDEX_NONE;
+	FVirtualShadowMapHZBMetadata PrevHZBMetadata;
 
 	// Current frame data
 	FInt64Point CurrentPageSpaceLocation = FInt64Point(0, 0);
 	int32 CurrentVirtualShadowMapId = INDEX_NONE;
+	FVirtualShadowMapHZBMetadata CurrentHZBMetadata;
 
 	struct FClipmapInfo
 	{
@@ -86,7 +86,7 @@ public:
 	/**
 	 * Returns true if the cache entry is valid (has previous state).
 	 */
-	bool UpdateLocal(const FProjectedShadowInitializer &InCacheKey, bool bIsDistantLight, bool bAllowInvalidation);
+	bool UpdateLocal(const FProjectedShadowInitializer &InCacheKey, bool bIsDistantLight, bool bCacheEnabled, bool bAllowInvalidation);
 
 	/**
 	 * Mark as invalid, i.e., needing rendering.
@@ -167,7 +167,6 @@ struct FVirtualShadowMapArrayFrameData
 	TRefCountPtr<FRDGPooledBuffer>				PhysicalPageMetaData;
 
 	TRefCountPtr<IPooledRenderTarget>			HZBPhysical;
-	TMap<int32, FVirtualShadowMapHZBMetadata>	HZBMetadata;
 
 	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 };
@@ -207,10 +206,8 @@ public:
 	 */
 	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FindCreateLightCacheEntry(int32 LightSceneId, uint32 ViewUniqueID = 0U);
 
-	/*
-	 * Returns true if cached data is available.
-	 */
-	bool IsValid();
+	bool IsCacheEnabled();
+	bool IsCacheDataAvailable();
 
 	bool IsAccumulatingStats();
 
@@ -292,8 +289,6 @@ public:
 
 	FVirtualShadowMapArrayFrameData PrevBuffers;
 	FVirtualShadowMapUniformParameters PrevUniformParameters;
-			
-	void SetHZBViewParams(int32 HZBKey, Nanite::FPackedViewParams& OutParams);
 
 #if WITH_MGPU
 	void UpdateGPUMask(FRHIGPUMask GPUMask);
