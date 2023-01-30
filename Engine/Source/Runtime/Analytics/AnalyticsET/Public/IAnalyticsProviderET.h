@@ -123,6 +123,10 @@ public:
 	 * Updates the default URL endpoint and AltDomains.
 	 */
 	virtual void SetURLEndpoint(const FString& UrlEndpoint, const TArray<FString>& AltDomains) = 0;
+	/**
+	 * Sets a header to be included with analytics http requests
+	 */
+	virtual void SetHeader(const FString& HeaderName, const FString& HeaderValue) = 0;
 
 	typedef TFunction<void(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attrs, bool bJson)> OnEventRecorded;
 

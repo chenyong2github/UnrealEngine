@@ -78,6 +78,7 @@ public:
 	virtual void SetEventCallback(const OnEventRecorded& Callback) override;
 
 	virtual void SetURLEndpoint(const FString& UrlEndpoint, const TArray<FString>& AltDomains) override;
+	virtual void SetHeader(const FString& HeaderName, const FString& HeaderValue) override;
 	virtual void BlockUntilFlushed(float InTimeoutSec) override;
 	virtual void SetShouldRecordEventFunc(const ShouldRecordEventFunction& InShouldRecordEventFunc) override;
 	virtual ~FAnalyticsProviderET();
@@ -129,6 +130,8 @@ private:
 
 	TSharedPtr<class FHttpRetrySystem::FManager> HttpRetryManager;
 	FHttpRetrySystem::FRetryDomainsPtr RetryServers;
+	/** Http headers to add to requests */
+	TMap<FString, FString> HttpHeaders;
 };
 
 TSharedPtr<IAnalyticsProviderET> FAnalyticsET::CreateAnalyticsProvider(const Config& ConfigValues) const
@@ -321,6 +324,10 @@ TSharedRef<IHttpRequest, ESPMode::ThreadSafe> FAnalyticsProviderET::CreateReques
 		FHttpRetrySystem::FRetryResponseCodes(),
 		FHttpRetrySystem::FRetryVerbs(),
 		RetryServers);
+	for (const TPair<FString, FString>& HttpHeader : HttpHeaders)
+	{
+		HttpRequest->SetHeader(HttpHeader.Key, HttpHeader.Value);
+	}
 
 	return HttpRequest;
 }
@@ -596,6 +603,18 @@ void FAnalyticsProviderET::SetURLEndpoint(const FString& UrlEndpoint, const TArr
 	if (Config.APIServerET.IsEmpty())
 	{
 		UE_LOG(LogAnalytics, Warning, TEXT("AnalyticsET: APIServerET is empty for APIKey (%s), converting to a NULL provider!"), *Config.APIKeyET);
+	}
+}
+
+void FAnalyticsProviderET::SetHeader(const FString& HeaderName, const FString& HeaderValue)
+{
+	if (HeaderValue.IsEmpty())
+	{
+		HttpHeaders.Remove(HeaderName);
+	}
+	else
+	{
+		HttpHeaders.Emplace(HeaderName, HeaderValue);
 	}
 }
 
