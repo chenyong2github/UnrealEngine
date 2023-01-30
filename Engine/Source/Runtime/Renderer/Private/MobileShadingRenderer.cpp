@@ -626,30 +626,9 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	{
 		ReleaseMobileShadowProjectionOutputs();
 	}
-	
-	const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
-
+		
 	FRDGExternalAccessQueue ExternalAccessQueue;
 
-	if (bDynamicShadows)
-	{
-		// Setup dynamic shadows.
-		InitDynamicShadows(GraphBuilder, InstanceCullingManager, ExternalAccessQueue);
-	}
-	else
-	{
-		// TODO: only do this when CSM + static is required.
-		PrepareViewVisibilityLists();
-	}
-
-	SetupMobileBasePassAfterShadowInit(BasePassDepthStencilAccess, ViewCommandsPerView, InstanceCullingManager);
-
-	// if we kicked off ILC update via task, wait and finalize.
-	if (ILCTaskData.TaskRef.IsValid())
-	{
-		Scene->IndirectLightingCache.FinalizeCacheUpdates(Scene, *this, ILCTaskData);
-	}
-		
 	// initialize per-view uniform buffer.  Pass in shadow info as necessary.
 	for (int32 ViewIndex = Views.Num() - 1; ViewIndex >= 0; --ViewIndex)
 	{
@@ -672,6 +651,26 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		{
 			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, *Scene, Views[ViewIndex], ExternalAccessQueue);
 		}
+	}
+
+	const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
+	if (bDynamicShadows)
+	{
+		// Setup dynamic shadows.
+		InitDynamicShadows(GraphBuilder, InstanceCullingManager, ExternalAccessQueue);
+	}
+	else
+	{
+		// TODO: only do this when CSM + static is required.
+		PrepareViewVisibilityLists();
+	}
+
+	SetupMobileBasePassAfterShadowInit(BasePassDepthStencilAccess, ViewCommandsPerView, InstanceCullingManager);
+
+	// if we kicked off ILC update via task, wait and finalize.
+	if (ILCTaskData.TaskRef.IsValid())
+	{
+		Scene->IndirectLightingCache.FinalizeCacheUpdates(Scene, *this, ILCTaskData);
 	}
 
 	if (bRequiresDistanceField)
