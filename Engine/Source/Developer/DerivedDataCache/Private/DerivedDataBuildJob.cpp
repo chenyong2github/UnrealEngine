@@ -1195,7 +1195,7 @@ void FBuildJob::AppendExportPath(FStringBuilderBase& OutPath) const
 
 void FBuildJob::ExportBuild() const
 {
-	constexpr uint64 MaxMetaConstantSize = 16 * 1024;
+	static constexpr uint64 MaxMetaConstantSize = 16 * 1024;
 
 	TStringBuilder<256> ExportPath;
 	AppendExportPath(ExportPath);
