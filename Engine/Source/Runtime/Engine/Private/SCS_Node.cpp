@@ -345,6 +345,21 @@ void USCS_Node::PreloadChain()
 		if (ensureMsgf(ComponentTemplate->GetLinker(), TEXT("Failed to find linker for %s, likely a circular dependency"), *ComponentTemplate->GetPathName()))
 		{
 			ComponentTemplate->GetLinker()->Preload(ComponentTemplate);
+
+			TArray<UObject*> Children;
+			GetObjectsWithOuter(ComponentTemplate, Children, true, RF_LoadCompleted);
+			for (UObject* Obj : Children)
+			{
+				if (!Obj->HasAnyFlags(RF_WasLoaded))
+				{
+					continue;
+				}
+
+				if (FLinkerLoad* Linker = Obj->GetLinker())
+				{
+					Linker->Preload(Obj);
+				}
+			}
 		}
 	}
 
