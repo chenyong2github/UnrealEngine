@@ -723,7 +723,7 @@ namespace ClosableMpscQueueTests
 		UE_LOG(LogTemp, Display, TEXT("items queued %d"), NumProduced);
 	}
 
-	TEST_CASE_NAMED(FClosableMpscQueueTest, "System::Core::Async::ClosableMpscQueueTest", "[ApplicationContextMask][EngineFilter]")
+	TEST_CASE_NAMED(FClosableMpscQueueTest, "System::Core::Async::ClosableMpscQueueTest", "[.][ApplicationContextMask][EngineFilter]")
 	{
 		{
 			TClosableMpscQueue<int> Q;
