@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreTypes.h"
-#include "Misc/AutomationTest.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Containers/Array.h"
 #include "Containers/CircularQueue.h"
@@ -14,7 +13,10 @@
 
 #include <atomic>
 
-#if WITH_DEV_AUTOMATION_TESTS
+#if WITH_TESTS
+
+#include "Tests/TestHarnessAdapter.h"
+
 
 namespace UE { namespace ConcurrentQueuesTests
 {
@@ -245,9 +247,7 @@ namespace UE { namespace ConcurrentQueuesTests
 		check(Produced == NumConcumed);
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConcurrentQueuesTest, "System.Core.Async.ConcurrentQueuesTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FConcurrentQueuesTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FConcurrentQueuesTest, "System::Core::Async::ConcurrentQueuesTest", "[ApplicationContextMask][EngineFilter]")
 	{
 		{	// test for support of not default constructible types
 			struct FNonDefaultConstructable
@@ -479,8 +479,6 @@ namespace UE { namespace ConcurrentQueuesTests
 
 		UE_BENCHMARK(5, TestMpscQueue<100'000, TQueueAdapter<TQueue<uint32, EQueueMode::Mpsc>>>);
 		UE_BENCHMARK(5, TestMpscQueue<100'000, TMpscQueue<uint32>>);
-
-		return true;
 	}
 }
 
@@ -725,9 +723,7 @@ namespace ClosableMpscQueueTests
 		UE_LOG(LogTemp, Display, TEXT("items queued %d"), NumProduced);
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FClosableMpscQueueTest, "System.Core.Async.ClosableMpscQueueTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FClosableMpscQueueTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FClosableMpscQueueTest, "System::Core::Async::ClosableMpscQueueTest", "[ApplicationContextMask][EngineFilter]")
 	{
 		{
 			TClosableMpscQueue<int> Q;
@@ -794,8 +790,6 @@ namespace ClosableMpscQueueTests
 		UE_BENCHMARK(5, TestPerf<5'000'000, TClosableMpscQueueOnTQueue<void*>>);
 		UE_BENCHMARK(5, TestPerf<5'000'000, TClosableMpscQueueOnTMpscQueue<void*>>);
 		UE_BENCHMARK(5, TestPerf<5'000'000, TClosableLockFreePointerListUnorderedSingleConsumer_Adapter<void>>);
-
-		return true;
 	}
 }
 
@@ -1052,9 +1046,7 @@ namespace DepletableMpscQueueTests
 		Queue.Deplete([](void*) { checkNoEntry(); }); // empty
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDepletableMpscQueueTest, "System.Core.Async.DepletableMpscQueueTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FDepletableMpscQueueTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FDepletableMpscQueueTest, "System::Core::Async::DepletableMpscQueueTest", "[ApplicationContextMask][EngineFilter]")
 	{
 		{
 			TDepletableMpmcQueue<int> Q;
@@ -1144,9 +1136,7 @@ namespace DepletableMpscQueueTests
 		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TDepletableMpmcQueueOnTMpscQueue<void*>>);
 		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TDepletableMpmcQueueOnTClosableLockFreePointerListUnorderedSingleConsumer<void>>);
 		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TDepletableMpmcQueueOnTClosableMpscQueue<void*>>);
-
-		return true;
 	}
 }}
 
-#endif // WITH_DEV_AUTOMATION_TESTS
+#endif // WITH_TESTS
