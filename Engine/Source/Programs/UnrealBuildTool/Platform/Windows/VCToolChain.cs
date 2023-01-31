@@ -903,7 +903,8 @@ namespace UnrealBuildTool
 					break;
 				case CppStandardVersion.Cpp20:
 					Arguments.Add("/std:c++20");
-					
+					Arguments.Add("/Zc:preprocessor");
+
 					// warning C5054: operator ___: deprecated between enumerations of different types
 					// re: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p1120r0.html
 						
