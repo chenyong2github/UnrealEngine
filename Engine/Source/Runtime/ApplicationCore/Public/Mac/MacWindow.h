@@ -121,4 +121,6 @@ private:
 
 	/** Whether the window is yet to have its first Show() call. This is set false after first Show(). */
 	bool bIsFirstTimeVisible : 1;
+    
+    bool bIsMainEditorWindow : 1;
 };
