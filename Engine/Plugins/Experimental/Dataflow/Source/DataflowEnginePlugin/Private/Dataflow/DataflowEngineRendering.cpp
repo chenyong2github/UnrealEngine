@@ -10,6 +10,7 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "UDynamicMesh.h"
+#include "Dataflow/DataflowEnginePlugin.h"
 
 namespace Dataflow
 {
@@ -90,6 +91,19 @@ namespace Dataflow
 							for (int i = 0; i < Visited.Num(); i++) if (!Visited[i]) Vertices[i] = FVector3f(0);
 
 							RenderCollection.AddSurface(MoveTemp(Vertices), MoveTemp(Tris));
+							if (const TManagedArray<FLinearColor>* VertexColor = Collection.FindAttribute<FLinearColor>("Color", FGeometryCollection::VerticesGroup))
+							{
+								TManagedArray<FLinearColor>& RenderCollectionVertexColor = RenderCollection.ModifyVertexColor();
+								for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
+								{
+									RenderCollectionVertexColor[Idx] = (*VertexColor)[Idx];
+								}
+							}
+							else
+							{
+								TManagedArray<FLinearColor>& RenderCollectionVertexColor = RenderCollection.ModifyVertexColor();
+								RenderCollectionVertexColor.Fill(IDataflowEnginePlugin::SurfaceColor);
+							}
 						}
 					}
 				}

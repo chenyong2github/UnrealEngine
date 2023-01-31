@@ -27,7 +27,7 @@ namespace GeometryCollection::Facades
 		, IndicesStartAttribute(InCollection, "IndicesStart", FGeometryCollection::GeometryGroup)
 		, IndicesCountAttribute(InCollection, "IndicesCount", FGeometryCollection::GeometryGroup)
 		, GeometrySelectionAttribute(InCollection, "SelectionState", FGeometryCollection::GeometryGroup)
-
+		, VertexColorAttribute(InCollection, "Color", FGeometryCollection::VerticesGroup)
 	{}
 
 	FRenderingFacade::FRenderingFacade(const FManagedArrayCollection& InCollection)
@@ -47,6 +47,7 @@ namespace GeometryCollection::Facades
 		, IndicesStartAttribute(InCollection, "IndicesStart", FGeometryCollection::GeometryGroup, FGeometryCollection::FacesGroup)
 		, IndicesCountAttribute(InCollection, "IndicesCount", FGeometryCollection::GeometryGroup)
 		, GeometrySelectionAttribute(InCollection, "SelectionState", FGeometryCollection::GeometryGroup)
+		, VertexColorAttribute(InCollection, "Color", FGeometryCollection::VerticesGroup)
 	{}
 
 	//
@@ -70,6 +71,7 @@ namespace GeometryCollection::Facades
 		IndicesStartAttribute.Add();
 		IndicesCountAttribute.Add();
 		GeometrySelectionAttribute.Add();
+		VertexColorAttribute.Add();
 	}
 
 	bool FRenderingFacade::CanRenderSurface( ) const
@@ -86,7 +88,7 @@ namespace GeometryCollection::Facades
 			GeometryNameAttribute.IsValid() && GeometryHitProxyIndexAttribute.IsValid() &&
 			VertexStartAttribute.IsValid() && VertexCountAttribute.IsValid() &&
 			IndicesStartAttribute.IsValid() && IndicesCountAttribute.IsValid() &&
-			GeometrySelectionAttribute.IsValid();
+			GeometrySelectionAttribute.IsValid() && VertexColorAttribute.IsValid();
 	}
 
 	int32 FRenderingFacade::NumTriangles() const

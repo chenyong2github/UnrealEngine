@@ -1141,9 +1141,13 @@ struct FGetNumArrayElementsDataflowNode : public FDataflowNode
 	DATAFLOW_NODE_DEFINE_INTERNAL(FGetNumArrayElementsDataflowNode, "GetNumArrayElements", "Utilities|Array", "")
 
 public:
-	/** Array input */
-	UPROPERTY(meta = (DataflowInput))
+	/** FVector array input */
+	UPROPERTY(meta = (DataflowInput, DisplayName = "VectorArray"))
 	TArray<FVector> Points;
+
+	/** FVector3f array input */
+	UPROPERTY(meta = (DataflowInput, DisplayName = "Vector3fArray"))
+	TArray<FVector3f> Vector3fArray;
 
 	/** Number of elements in the array */
 	UPROPERTY(meta = (DataflowOutput))
@@ -1153,6 +1157,7 @@ public:
 		: FDataflowNode(InParam, InGuid)
 	{
 		RegisterInputConnection(&Points);
+		RegisterInputConnection(&Vector3fArray);
 		RegisterOutputConnection(&NumElements);
 	}
 
@@ -1893,7 +1898,7 @@ public:
 
 	/** Vector type attribute data */
 	UPROPERTY(meta = (DataflowOutput));
-	TArray<FVector> VectorAttributeData;
+	TArray<FVector3f> VectorAttributeData;
 
 	FGetCollectionAttributeDataTypedDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
@@ -1983,7 +1988,7 @@ struct FBoolArrayToFaceSelectionDataflowNode : public FDataflowNode
 
 public:
 	/** TArray<bool> data */
-	UPROPERTY(meta = (DataflowInput));
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic));
 	TArray<bool> BoolAttributeData;
 
 	UPROPERTY(meta = (DataflowOutput, DisplayName = "FaceSelection"))
@@ -2003,295 +2008,112 @@ public:
 
 /**
  *
- * Adds Outside/Inside Materials to Outside/Inside faces
- *
- */
-USTRUCT(meta = (DataflowGeometryCollection))
-struct FAddMaterialToCollectionDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FAddMaterialToCollectionDataflowNode, "AddMaterialToCollection", "GeometryCollection|Materials", "")
-
-public:
-	/** Collection to add material(s) to */
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
-	FManagedArrayCollection Collection;
-
-	/** Face selection, the material(s) will be added to the selected faces */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "FaceSelection", DataflowIntrinsic))
-	FDataflowFaceSelection FaceSelection;
-
-	/** Materials array storing the materials */
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Materials", DataflowIntrinsic))
-	TArray<TObjectPtr<UMaterial>> Materials;
-
-	/** Outside material to assign to the outside faces from the face selection */
-	UPROPERTY(EditAnywhere, Category = "Material", meta = (DataflowInput))
-	TObjectPtr<UMaterial> OutsideMaterial;
-
-	/** Inside material to assign to the inside faces from the face selection */
-	UPROPERTY(EditAnywhere, Category = "Material", meta = (DataflowInput))
-	TObjectPtr<UMaterial> InsideMaterial;
-
-	/** If true, the outside material will be assigned to the outside faces from the face selection */
-	UPROPERTY(EditAnywhere, Category = "Material", meta = (DisplayName = "Assign Outside Material to Outside Faces"))
-	bool bAssignOutsideMaterial = true;
-
-	/** If true, the inside material will be assigned to the inside faces from the face selection */
-	UPROPERTY(EditAnywhere, Category = "Material", meta = (DisplayName = "Assign Inside Material to Inside Faces"))
-	bool bAssignInsideMaterial = false;
-
-	FAddMaterialToCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Collection);
-		RegisterInputConnection(&Materials);
-		RegisterInputConnection(&FaceSelection);
-		RegisterInputConnection(&OutsideMaterial);
-		RegisterInputConnection(&InsideMaterial);
-		RegisterOutputConnection(&Collection, &Collection);
-		RegisterOutputConnection(&Materials, &Materials);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
- * Reassign existing material(s) to Outside/Inside faces
- *
- */
-USTRUCT(meta = (DataflowGeometryCollection))
-struct FReAssignMaterialInCollectionDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FReAssignMaterialInCollectionDataflowNode, "ReAssignMaterialInCollection", "GeometryCollection|Materials", "")
-
-public:
-	/** Collection for reassign the material(s) */
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
-	FManagedArrayCollection Collection;
-
-	/** Face selection, the material(s) will be assigned to the selected faces */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "FaceSelection", DataflowIntrinsic))
-	FDataflowFaceSelection FaceSelection;
-
-	/** Materials array storing the materials */
-	UPROPERTY(EditAnywhere, Category = "Material", meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Materials", DataflowIntrinsic))
-	TArray<TObjectPtr<UMaterial>> Materials;
-
-	/** Index of the material in the Materials array to assign to the outside faces from the face selection */
-	UPROPERTY(EditAnywhere, Category = "Material", meta = (DataflowInput, DisplayName = "Outside Material Index", ArrayClamp = "Materials"))
-	int32 OutsideMaterialIdx = -1;
-
-	/** Index of the material in the Materials array to assign to the inside faces from the face selection */
-	UPROPERTY(EditAnywhere, Category = "Material", meta = (DataflowInput, DisplayName = "Inside Material Index", ArrayClamp = "Materials"))
-	int32 InsideMaterialIdx = -1;
-
-	/** If true, the selected material from the Materials array will be assigned to the outside faces from the face selection */
-	UPROPERTY(EditAnywhere, Category = "Material", meta = (DisplayName = "Assign Outside Material to Outside Faces"))
-	bool bAssignOutsideMaterial = false;
-
-	/** If true, the selected material from the Materials array will be assigned to the inside faces from the face selection */
-	UPROPERTY(EditAnywhere, Category = "Material", meta = (DisplayName = "Assign Inside Material to Inside Faces"))
-	bool bAssignInsideMaterial = false;
-
-	FReAssignMaterialInCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Collection);
-		RegisterInputConnection(&Materials);
-		RegisterInputConnection(&FaceSelection);
-		RegisterInputConnection(&OutsideMaterialIdx);
-		RegisterInputConnection(&InsideMaterialIdx);
-		RegisterOutputConnection(&Collection, &Collection);
-		RegisterOutputConnection(&Materials, &Materials);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
- * Generates a formatted string of materials from the Materials array
- *
- */
-USTRUCT(meta = (DataflowGeometryCollection))
-struct FMaterialsInfoDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FMaterialsInfoDataflowNode, "MaterialsInfo", "GeometryCollection|Materials", "")
-
-public:
-	/** Materials array storing the materials */
-	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
-	TArray<TObjectPtr<UMaterial>> Materials;
-
-	/** Formatted string of the materials */
-	UPROPERTY(meta = (DataflowOutput))
-	FString String;
-
-	FMaterialsInfoDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Materials);
-		RegisterOutputConnection(&String);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
- * Get a Material from a Materials array
- *
- */
-USTRUCT(meta = (DataflowGeometryCollection))
-struct FGetMaterialFromMaterialsArrayDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FGetMaterialFromMaterialsArrayDataflowNode, "GetMaterialFromMaterialsArray", "Utilities|Materials", "")
-
-public:
-	/** Materials array storing the materials */
-	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
-	TArray<TObjectPtr<UMaterial>> Materials;
-
-	/** Selected material from the Materials array */
-	UPROPERTY(meta = (DataflowOutput))
-	TObjectPtr<UMaterial> Material;
-
-	/** Index in the Materials array for the selected material */
-	UPROPERTY(EditAnywhere, Category = "Material", meta = (DataflowInput, DisplayName = "Material Index"))
-	int32 MaterialIdx = 0;
-
-	FGetMaterialFromMaterialsArrayDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Materials);
-		RegisterInputConnection(&MaterialIdx);
-		RegisterOutputConnection(&Material);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-UENUM(BlueprintType)
-enum class ESetMaterialOperationTypeEnum : uint8
-{
-	Dataflow_SetMaterialOperationType_Add UMETA(DisplayName = "Add"),
-	Dataflow_SetMaterialOperationType_Insert UMETA(DisplayName = "Insert"),
-	//~~~
-	//256th entry
-	Dataflow_Max                UMETA(Hidden)
-};
-
-/**
- *
- * Set a Material in a Materials array
- *
- */
-USTRUCT(meta = (DataflowGeometryCollection))
-struct FSetMaterialInMaterialsArrayDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FSetMaterialInMaterialsArrayDataflowNode, "SetMaterialInMaterialsArray", "Utilities|Materials", "")
-
-public:
-	/** Materials array storing the materials */
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Materials", DataflowIntrinsic))
-	TArray<TObjectPtr<UMaterial>> Materials;
-
-	/** Material to add/insert to/in Materials array */
-	UPROPERTY(EditAnywhere, Category = "Material", meta = (DataflowInput))
-	TObjectPtr<UMaterial> Material;
-
-	/** Operation type for setting the material, add will add the new material to the end off Materials array, insert will insert the
-	new material into Materials array at the index specified by MaterialIdx	*/
-	UPROPERTY(EditAnywhere, Category = "Material")
-	ESetMaterialOperationTypeEnum Operation = ESetMaterialOperationTypeEnum::Dataflow_SetMaterialOperationType_Add;
-
-	/** Index for inserting a nem material into the Materials array */
-	UPROPERTY(EditAnywhere, Category = "Material", meta = (DataflowInput, DisplayName = "Material Index", EditCondition = "Operation == ESetMaterialOperationTypeEnum::Dataflow_SetMaterialOperationType_Insert", EditConditionHides))
-	int32 MaterialIdx = 0;
-
-	FSetMaterialInMaterialsArrayDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Materials);
-		RegisterInputConnection(&Material);
-		RegisterInputConnection(&MaterialIdx);
-		RegisterOutputConnection(&Materials, &Materials);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
- * Makes a material
+ * Converts a TArray<float> to a FDataflowVertexSelection
  *
  */
 USTRUCT()
-struct FMakeMaterialDataflowNode : public FDataflowNode
+struct FFloatArrayToVertexSelectionDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FMakeMaterialDataflowNode, "MakeMaterial", "Generators|Material", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FFloatArrayToVertexSelectionDataflowNode, "FloatArrayToVertexSelection", "Utilities|Array", "")
 
 public:
-	/** Material which will be outputed */
-	UPROPERTY(EditAnywhere, Category = "Material", meta = (DisplayName = "Material"))
-	TObjectPtr<UMaterial> InMaterial;
+	/** TArray<floatl> array */
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic));
+	TArray<float> FloatArray;
 
-	/** Output material */
-	UPROPERTY(meta = (DataflowOutput));
-	TObjectPtr<UMaterial> Material;
+	/** Comparison operation */
+	UPROPERTY(EditAnywhere, Category = "Compare");
+	ECompareOperationEnum Operation = ECompareOperationEnum::Dataflow_Compare_Greater;
 
-	FMakeMaterialDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Compare")
+	float Threshold = 0.f;
+
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "VertexSelection"))
+	FDataflowVertexSelection VertexSelection;
+
+	FFloatArrayToVertexSelectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterOutputConnection(&Material);
+		RegisterInputConnection(&FloatArray);
+		RegisterOutputConnection(&VertexSelection);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 
 };
+
 
 /**
  *
- * Makes an empty Materials array
+ * 
  *
  */
 USTRUCT()
-struct FMakeMaterialsArrayDataflowNode : public FDataflowNode
+struct FSetVertexColorInCollectionDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FMakeMaterialsArrayDataflowNode, "MakeMaterialsArray", "Generators|Material", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FSetVertexColorInCollectionDataflowNode, "SetVertexColorInCollection", "Collection|Utilities", "")
 
 public:
-	/** Output Matarials array */
-	UPROPERTY(meta = (DataflowOutput));
-	TArray<TObjectPtr<UMaterial>> Materials;
+	/** Collection */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
 
-	FMakeMaterialsArrayDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+	/**  */
+	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelection", DataflowIntrinsic))
+	FDataflowVertexSelection VertexSelection;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Color")
+	FLinearColor SelectedColor = FLinearColor(FColor::Yellow);
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Color", meta = (DisplayName = "NonSelected Color"))
+	FLinearColor NonSelectedColor = FLinearColor(FColor::Blue);
+
+	FSetVertexColorInCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterOutputConnection(&Materials);
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&VertexSelection);
+		RegisterOutputConnection(&Collection, &Collection);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 
 };
+
+
+/**
+ *
+ * Description for this node
+ *
+ */
+USTRUCT()
+struct FMakeTransformDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FMakeTransformDataflowNode, "MakeTransform", "Generators|Transform", "")
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Transform", meta = (DisplayName = "Transform"));
+	FTransform InTransform = FTransform::Identity;
+
+	UPROPERTY(meta = (DataflowOutput));
+	FTransform Transform = FTransform::Identity;
+
+	FMakeTransformDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterOutputConnection(&Transform);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
 
 
 namespace Dataflow

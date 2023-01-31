@@ -186,6 +186,7 @@ void FDataflowEngineSceneProxy::CreateMeshRenderThreadResources()
 		const TManagedArray<FVector3f>& Vertex = Facade.GetVertices();
 		const TManagedArray<int32>& SelectionArray = Facade.GetSelectionState();
 		const TManagedArray<int32>& GeomIndex = Facade.GetVertexToGeometryIndex();
+		const TManagedArray<FLinearColor>& VertexColor = Facade.GetVertexColor();
 
 		// The color stored in the vertices actually gets interpreted as a linear
 		// color by the material, whereas it is more convenient for the user of the
@@ -218,10 +219,9 @@ void FDataflowEngineSceneProxy::CreateMeshRenderThreadResources()
 		VertexBuffers.StaticMeshVertexBuffer.SetVertexUV(VertexBufferIndex + 2, 0, FVector2f(0, 0));
 
 		FColor SelectionColor = (State.Mode == FDataflowSelectionState::EMode::DSS_Dataflow_Object) ? IDataflowEnginePlugin::SelectionPrimaryColor : IDataflowEnginePlugin::SelectionLockedPrimaryColor;
-		FColor FaceColor = SelectionArray[GeomIndex[Indices[i][0]]] ? SelectionColor : IDataflowEnginePlugin::SurfaceColor;
-		VertexBuffers.ColorVertexBuffer.VertexColor(VertexBufferIndex + 0) = FaceColor;
-		VertexBuffers.ColorVertexBuffer.VertexColor(VertexBufferIndex + 1) = FaceColor;
-		VertexBuffers.ColorVertexBuffer.VertexColor(VertexBufferIndex + 2) = FaceColor;
+		VertexBuffers.ColorVertexBuffer.VertexColor(VertexBufferIndex + 0) = SelectionArray[GeomIndex[Indices[i][0]]] ? SelectionColor : VertexColor[Indices[i][0]].ToFColor(true);
+		VertexBuffers.ColorVertexBuffer.VertexColor(VertexBufferIndex + 1) = SelectionArray[GeomIndex[Indices[i][1]]] ? SelectionColor : VertexColor[Indices[i][1]].ToFColor(true);
+		VertexBuffers.ColorVertexBuffer.VertexColor(VertexBufferIndex + 2) = SelectionArray[GeomIndex[Indices[i][2]]] ? SelectionColor : VertexColor[Indices[i][2]].ToFColor(true);
 
 		IndexBuffer.Indices[IndexBufferIndex + 0] = VertexBufferIndex + 0;
 		IndexBuffer.Indices[IndexBufferIndex + 1] = VertexBufferIndex + 1;

@@ -89,6 +89,9 @@ namespace GeometryCollection::Facades
 		/** NumVertices */
 		int32 NumVertices() const { return VertexAttribute.Num(); }
 
+		/** GetVertexColorAttribute */
+		const TManagedArray<FLinearColor>& GetVertexColor() const { return VertexColorAttribute.Get(); }
+		TManagedArray<FLinearColor>& ModifyVertexColor() { check(!IsConst()); return VertexColorAttribute.Modify(); }
 
 		//
 		// Geometry Group Attributes
@@ -151,6 +154,7 @@ namespace GeometryCollection::Facades
 		TManagedArrayAccessor<int32> IndicesStartAttribute;
 		TManagedArrayAccessor<int32> IndicesCountAttribute;
 		TManagedArrayAccessor<int32> GeometrySelectionAttribute;
+		TManagedArrayAccessor<FLinearColor> VertexColorAttribute;
 
 
 	};
