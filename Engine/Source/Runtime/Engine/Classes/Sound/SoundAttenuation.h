@@ -542,4 +542,30 @@ namespace Audio
 
 		ENGINE_API Audio::FParameterInterfacePtr GetInterface();
 	} // namespace SpatializationInterface
+
+	namespace SourceOrientationInterface
+	{
+		ENGINE_API const extern FName Name;
+
+		namespace Inputs
+		{
+			ENGINE_API const extern FName Azimuth;
+			ENGINE_API const extern FName Elevation;
+		} // namespace Inputs
+
+		ENGINE_API Audio::FParameterInterfacePtr GetInterface();
+	} // namespace EmitterInterface
+
+	namespace ListenerOrientationInterface
+	{
+		ENGINE_API const extern FName Name;
+
+		namespace Inputs
+		{
+			ENGINE_API const extern FName Azimuth;
+			ENGINE_API const extern FName Elevation;
+		} // namespace Inputs
+
+		ENGINE_API Audio::FParameterInterfacePtr GetInterface();
+	} // namespace EmitterInterface
 } // namespace Audio

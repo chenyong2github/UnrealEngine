@@ -599,11 +599,15 @@ void FActiveSound::UpdateInterfaceParameters(const TArray<FListener>& InListener
 
 	FParameterInterfacePtr AttenuationInterface = AttenuationInterface::GetInterface();
 	FParameterInterfacePtr SpatializationInterface = SpatializationInterface::GetInterface();
+	FParameterInterfacePtr SourceOrientationInterface = SourceOrientationInterface::GetInterface();
+	FParameterInterfacePtr ListenerOrientationInterface = ListenerOrientationInterface::GetInterface();
 
 	const bool bImplementsAttenuation = Sound->ImplementsParameterInterface(AttenuationInterface);
 	const bool bImplementsSpatialization = Sound->ImplementsParameterInterface(SpatializationInterface);
+	const bool bImplementsSourceOrientation = Sound->ImplementsParameterInterface(SourceOrientationInterface);
+	const bool bImplementsListenerOrientation = Sound->ImplementsParameterInterface(ListenerOrientationInterface);
 
-	if (!bImplementsAttenuation && !bImplementsSpatialization)
+	if (false == (bImplementsAttenuation || bImplementsSpatialization || bImplementsSourceOrientation || bImplementsListenerOrientation))
 	{
 		return;
 	}
@@ -612,6 +616,7 @@ void FActiveSound::UpdateInterfaceParameters(const TArray<FListener>& InListener
 
 	const FListener& Listener = InListeners[ClosestListenerIndex];
 	const FVector SourceDirection = Transform.GetLocation() - Listener.Transform.GetLocation();
+	
 	if (bImplementsAttenuation)
 	{
 		const float Distance = SourceDirection.Size();
@@ -628,6 +633,33 @@ void FActiveSound::UpdateInterfaceParameters(const TArray<FListener>& InListener
 		{
 			{ SpatializationInterface::Inputs::Azimuth, Azimuth },
 			{ SpatializationInterface::Inputs::Elevation, Elevation }
+		});
+	}
+
+	if (bImplementsSourceOrientation)
+	{
+		const FVector ListenerDirectionNormal = Transform.InverseTransformVectorNoScale(-SourceDirection).GetSafeNormal();
+		const FVector2D ListenerAzimuthAndElevation = FMath::GetAzimuthAndElevation(ListenerDirectionNormal, FVector::ForwardVector, FVector::RightVector, FVector::UpVector);
+		const float Azimuth = FMath::RadiansToDegrees(ListenerAzimuthAndElevation.X);
+		const float Elevation = FMath::RadiansToDegrees(ListenerAzimuthAndElevation.Y);
+		ParamsToUpdate.Append(
+		{
+			{ SourceOrientationInterface::Inputs::Azimuth, Azimuth },
+			{ SourceOrientationInterface::Inputs::Elevation, Elevation }
+		});
+	}
+
+	if (bImplementsListenerOrientation)
+	{
+		const FVector ListenerDirectionNormal = Listener.Transform.GetRotation().GetForwardVector();
+		const FVector2D ListenerAzimuthAndElevation = FMath::GetAzimuthAndElevation(ListenerDirectionNormal, FVector::ForwardVector, FVector::RightVector, FVector::UpVector);
+		const float Azimuth = FMath::RadiansToDegrees(ListenerAzimuthAndElevation.X);
+		const float Elevation = FMath::RadiansToDegrees(ListenerAzimuthAndElevation.Y);
+		
+		ParamsToUpdate.Append(
+		{
+			{ ListenerOrientationInterface::Inputs::Azimuth, Azimuth },
+			{ ListenerOrientationInterface::Inputs::Elevation, Elevation }
 		});
 	}
 

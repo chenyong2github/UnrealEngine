@@ -282,6 +282,8 @@ void UAudioSettings::RegisterParameterInterfaces()
 		Audio::IAudioParameterInterfaceRegistry& InterfaceRegistry = Audio::IAudioParameterInterfaceRegistry::Get();
 		InterfaceRegistry.RegisterInterface(Audio::AttenuationInterface::GetInterface());
 		InterfaceRegistry.RegisterInterface(Audio::SpatializationInterface::GetInterface());
+		InterfaceRegistry.RegisterInterface(Audio::SourceOrientationInterface::GetInterface());
+		InterfaceRegistry.RegisterInterface(Audio::ListenerOrientationInterface::GetInterface());
 	}
 }
 
