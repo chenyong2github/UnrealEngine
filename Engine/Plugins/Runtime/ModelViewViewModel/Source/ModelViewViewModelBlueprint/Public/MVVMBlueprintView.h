@@ -88,10 +88,10 @@ public:
 	TArray<TObjectPtr<UEdGraph>> TemporaryGraph;
 
 private:
-	UPROPERTY(EditAnywhere, Category = "MVVM")
+	UPROPERTY(EditAnywhere, Category = "Viewmodel")
 	TArray<FMVVMBlueprintViewBinding> Bindings;
 
-	UPROPERTY(EditAnywhere, Category = "MVVM")
+	UPROPERTY(EditAnywhere, Category = "Viewmodel")
 	TArray<FMVVMBlueprintViewModelContext> AvailableViewModels;
 };
 

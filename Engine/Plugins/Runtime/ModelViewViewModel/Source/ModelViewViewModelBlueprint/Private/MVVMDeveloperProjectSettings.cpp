@@ -4,6 +4,13 @@
 
 #define LOCTEXT_NAMESPACE "MVVMDeveloperProjectSettings"
 
+UMVVMDeveloperProjectSettings::UMVVMDeveloperProjectSettings()
+{
+	AllowedExecutionMode.Add(EMVVMExecutionMode::Immediate);
+	AllowedExecutionMode.Add(EMVVMExecutionMode::Delayed);
+	AllowedExecutionMode.Add(EMVVMExecutionMode::Tick);
+}
+
 FName UMVVMDeveloperProjectSettings::GetCategoryName() const
 {
 	return TEXT("Plugins");

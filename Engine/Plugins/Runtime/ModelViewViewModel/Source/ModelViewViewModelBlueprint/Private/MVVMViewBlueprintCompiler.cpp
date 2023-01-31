@@ -6,6 +6,7 @@
 #include "Bindings/MVVMFieldPathHelper.h"
 #include "Components/Widget.h"
 #include "MVVMBlueprintView.h"
+#include "MVVMDeveloperProjectSettings.h"
 #include "HAL/IConsoleManager.h"
 #include "MVVMFunctionGraphHelper.h"
 #include "Templates/ValueOrError.h"
@@ -993,6 +994,14 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 			}
 			return MakeValue(FCompiledBindingLibraryCompiler::FFieldIdHandle());
 		};
+
+		if (Binding.bOverrideExecutionMode)
+		{
+			if (!GetDefault<UMVVMDeveloperProjectSettings>()->IsExecutionModeAllowed(Binding.OverrideExecutionMode))
+			{
+				AddErrorForBinding(Binding, LOCTEXT("NotAllowedExecutionMode", "The binding has a restricted execution mode."));
+			}
+		}
 
 		TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FText> AddFieldResult = AddFieldId(BindingSourceContext.SourceClass, true, Binding.BindingType, BindingSourceContext.FieldId.GetFieldName());
 		if (AddFieldResult.HasError())

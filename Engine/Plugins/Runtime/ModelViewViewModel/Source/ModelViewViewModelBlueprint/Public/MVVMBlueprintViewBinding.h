@@ -20,14 +20,14 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewConversionPath
 	GENERATED_BODY()
 
 	/** The Conversion function when converting the value from the destination to the source. */
-	UPROPERTY(EditAnywhere, Category = "MVVM", AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "Viewmodel", AdvancedDisplay)
 	FMemberReference DestinationToSourceFunction;
 	
 	UPROPERTY()
 	FName DestinationToSourceWrapper;
 
 	/** The Conversion function when converting the value from the source to the destination. */
-	UPROPERTY(EditAnywhere, Category = "MVVM", AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "Viewmodel", AdvancedDisplay)
 	FMemberReference SourceToDestinationFunction;
 
 	UPROPERTY()
@@ -42,40 +42,40 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewBinding
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "MVVM")
+	UPROPERTY(EditAnywhere, Category = "Viewmodel")
 	FMVVMBlueprintPropertyPath ViewModelPath;
 
-	UPROPERTY(EditAnywhere, Category = "MVVM")
+	UPROPERTY(EditAnywhere, Category = "Viewmodel")
 	FMVVMBlueprintPropertyPath WidgetPath;
 
 	/** */
-	UPROPERTY(EditAnywhere, Category = "MVVM")
+	UPROPERTY(EditAnywhere, Category = "Viewmodel")
 	EMVVMBindingMode BindingType = EMVVMBindingMode::OneWayToDestination;
 
 	UPROPERTY()
 	bool bOverrideExecutionMode = false;
 
-	UPROPERTY(EditAnywhere, Category = "MVVM", meta=(EditCondition="bOverrideExecutionMode"))
+	UPROPERTY(EditAnywhere, Category = "Viewmodel", meta=(EditCondition="bOverrideExecutionMode"))
 	EMVVMExecutionMode OverrideExecutionMode = EMVVMExecutionMode::Immediate;
 
 	/** */
-	UPROPERTY(EditAnywhere, Category = "MVVM")
+	UPROPERTY(EditAnywhere, Category = "Viewmodel")
 	FMVVMBlueprintViewConversionPath Conversion;
 
 	/** */
-	UPROPERTY(VisibleAnywhere, Category = "MVVM", Transient)
+	UPROPERTY(VisibleAnywhere, Category = "Viewmodel", Transient)
 	TArray<FText> Errors;
 
 	/** The unique ID of this binding. */
-	UPROPERTY(VisibleAnywhere, Category = "MVVM")
+	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
 	FGuid BindingId;
 
 	/** Whether the binding is enabled or disabled by default. The instance may enable the binding at runtime. */
-	UPROPERTY(EditAnywhere, Category = "MVVM")
+	UPROPERTY(EditAnywhere, Category = "Viewmodel")
 	bool bEnabled = true;
 
 	/** The binding is visible in the editor, but is not compiled and cannot be used at runtime. */
-	UPROPERTY(EditAnywhere, Category = "MVVM")
+	UPROPERTY(EditAnywhere, Category = "Viewmodel")
 	bool bCompile = true;
 
 	/**

@@ -7,6 +7,9 @@
 #include "Bindings/MVVMFieldPathHelper.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "MVVMGameSubsystem.h"
 #include "MVVMMessageLog.h"
 #include "MVVMSubsystem.h"
 
@@ -112,7 +115,20 @@ UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InVi
 		}
 		else if (GlobalViewModelInstance.IsValid())
 		{
-			UMVVMViewModelBase* FoundViewModelInstance = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetGlobalViewModelCollection()->FindViewModelInstance(GlobalViewModelInstance);
+			UMVVMViewModelCollectionObject* Collection = nullptr;
+			UMVVMViewModelBase* FoundViewModelInstance = nullptr;
+			if (const UWorld* World = InUserWidget->GetWorld())
+			{
+				if (const UGameInstance* GameInstance = World->GetGameInstance())
+				{
+					Collection = GameInstance->GetSubsystem<UMVVMGameSubsystem>()->GetGlobalViewModelCollection();
+					if (Collection)
+					{
+						FoundViewModelInstance = Collection->FindViewModelInstance(GlobalViewModelInstance);
+					}
+				}
+			}
+
 			if (FoundViewModelInstance != nullptr)
 			{
 				ensureMsgf(FoundViewModelInstance->IsA(GlobalViewModelInstance.ContextClass), TEXT("The Global View Model Instance is not of the expected type."));
@@ -122,7 +138,14 @@ UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InVi
 			else if (!bOptional)
 			{
 				UE::MVVM::FMessageLog Log(InUserWidget);
-				Log.Error(FText::Format(LOCTEXT("CreateInstanceFailedGlobal", "The viewmodel '{0}' was not found in the global view model collection."), FText::FromName(GlobalViewModelInstance.ContextName)));
+				if (Collection)
+				{
+					Log.Error(FText::Format(LOCTEXT("CreateInstanceFailedGlobal", "The source '{0}' was not found in the global view model collection."), FText::FromName(GlobalViewModelInstance.ContextName)));
+				}
+				else
+				{
+					Log.Error(FText::Format(LOCTEXT("CreateInstanceFailedGlobalInstance", "The source '{0}' will be invalid because the global view model collection could not be found."), FText::FromName(GlobalViewModelInstance.ContextName)));
+				}
 			}
 		}
 		else if (FieldPath.IsValid())

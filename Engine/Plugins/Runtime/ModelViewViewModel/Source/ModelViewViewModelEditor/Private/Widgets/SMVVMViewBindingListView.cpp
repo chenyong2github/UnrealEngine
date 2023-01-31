@@ -10,6 +10,7 @@
 #include "Misc/MessageDialog.h"
 #include "MVVMBlueprintView.h"
 #include "MVVMEditorSubsystem.h"
+#include "MVVMDeveloperProjectSettings.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "ScopedTransaction.h"
 #include "SEnumCombo.h"
@@ -406,11 +407,16 @@ public:
 					.HAlign(HAlign_Right)
 					.AutoWidth()
 					[
-						SNew(SEnumComboBox, StaticEnum<EMVVMExecutionMode>())
-						.ContentPadding(FMargin(4, 0))
-						.OnEnumSelectionChanged(this, &SBindingRow::OnExecutionModeSelectionChanged)
-						.CurrentValue(this, &SBindingRow::GetExecutioModeValue)
+						SNew(SComboButton)
+						.ContentPadding(FMargin(4.f, 0.f))
+						.OnGetMenuContent(this, &SBindingRow::OnGetExecutionModeMenuContent)
 						.IsEnabled(this, &SBindingRow::IsExecutionModeOverridden)
+						.ButtonContent()
+						[
+							SNew(STextBlock)
+							.Text(this, &SBindingRow::GetExecutioModeValue)
+							.ToolTipText(this, &SBindingRow::GetExecutioModeValueToolTip)
+						]
 					]
 				]
 			],
@@ -723,16 +729,47 @@ private:
 		}
 	}
 
-	void OnExecutionModeSelectionChanged(int32 Value, ESelectInfo::Type)
+	void OnExecutionModeSelectionChanged(EMVVMExecutionMode Value)
 	{
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
 			UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-			Subsystem->OverrideExecutionModeForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, static_cast<EMVVMExecutionMode>(Value));
-		}			
+			Subsystem->OverrideExecutionModeForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, Value);
+		}
 	}
 
-	int32 GetExecutioModeValue() const
+	TSharedRef<SWidget> OnGetExecutionModeMenuContent()
+	{
+		const bool bCloseAfterSelection = true;
+		FMenuBuilder MenuBuilder(bCloseAfterSelection, nullptr, nullptr, true);
+
+		UEnum* Enum = StaticEnum<EMVVMExecutionMode>();
+		for (int32 Index = 0; Index < Enum->NumEnums() - 1; Index++)
+		{
+			EMVVMExecutionMode Mode = static_cast<EMVVMExecutionMode>(Enum->GetValueByIndex(Index));
+			if (!GetDefault<UMVVMDeveloperProjectSettings>()->IsExecutionModeAllowed(Mode))
+			{
+				continue;
+			}
+
+			MenuBuilder.AddMenuEntry(
+				Enum->GetDisplayNameTextByIndex(Index),
+				Enum->GetToolTipTextByIndex(Index),
+				FSlateIcon(),
+				FUIAction
+				(
+					FExecuteAction::CreateLambda([this, Mode]()
+					{
+						OnExecutionModeSelectionChanged(Mode);
+					})
+				)
+			);
+		}
+
+		return MenuBuilder.MakeWidget();
+	}
+
+	FText GetExecutioModeValue() const
 	{
 		EMVVMExecutionMode ExecutionMode = CVarDefaultExecutionMode ? (EMVVMExecutionMode)CVarDefaultExecutionMode->GetInt() : EMVVMExecutionMode::Immediate;
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
@@ -742,7 +779,20 @@ private:
 				ExecutionMode = ViewBinding->OverrideExecutionMode;
 			}
 		}
-		return static_cast<int32>(ExecutionMode);
+		return StaticEnum<EMVVMExecutionMode>()->GetDisplayNameTextByValue(static_cast<int64>(ExecutionMode));
+	}
+	
+	FText GetExecutioModeValueToolTip() const
+	{
+		EMVVMExecutionMode ExecutionMode = CVarDefaultExecutionMode ? (EMVVMExecutionMode)CVarDefaultExecutionMode->GetInt() : EMVVMExecutionMode::Immediate;
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			if (ViewBinding->bOverrideExecutionMode)
+			{
+				ExecutionMode = ViewBinding->OverrideExecutionMode;
+			}
+		}
+		return StaticEnum<EMVVMExecutionMode>()->GetToolTipTextByIndex(static_cast<int64>(ExecutionMode));
 	}
 	
 	bool IsExecutionModeOverridden() const

@@ -36,7 +36,7 @@ private:
 };
 
 /** */
-UCLASS()
+UCLASS(NotBlueprintable, DisplayName = "Viewmodel World Subsytem")
 class UMVVMViewWorldSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()

@@ -23,7 +23,7 @@ class UK2Node_CallFunction;
 class UWidgetBlueprint;
 
 /** */
-UCLASS()
+UCLASS(DisplayName="Viewmodel Editor Subsystem")
 class MODELVIEWVIEWMODELEDITOR_API UMVVMEditorSubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()

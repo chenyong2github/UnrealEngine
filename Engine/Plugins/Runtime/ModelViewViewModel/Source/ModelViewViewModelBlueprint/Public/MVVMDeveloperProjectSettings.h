@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
+#include "Types/MVVMExecutionMode.h"
+
 #include "MVVMDeveloperProjectSettings.generated.h"
 
 /**
@@ -32,16 +34,27 @@ class MODELVIEWVIEWMODELBLUEPRINT_API UMVVMDeveloperProjectSettings : public UDe
 	GENERATED_BODY()
 
 public:
+	UMVVMDeveloperProjectSettings();
+
 	virtual FName GetCategoryName() const override;
 	virtual FText GetSectionText() const override;
 
 	bool IsPropertyAllowed(const FProperty* Property) const;
 	bool IsFunctionAllowed(const UFunction* Function) const;
 
+	bool IsExecutionModeAllowed(EMVVMExecutionMode ExecutionMode) const
+	{
+		return AllowedExecutionMode.Contains(ExecutionMode);
+	}
+
 private:
 	/** Permission list for filtering which properties are visible in UI. */
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
 	TMap<FSoftClassPath, FMVVMDeveloperProjectWidgetSettings> FieldSelectorPermissions;
+
+	/** Permission list for filtering which execution mode is allowed. */
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
+	TSet<EMVVMExecutionMode> AllowedExecutionMode;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

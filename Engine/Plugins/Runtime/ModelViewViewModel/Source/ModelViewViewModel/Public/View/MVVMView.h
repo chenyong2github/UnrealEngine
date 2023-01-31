@@ -48,13 +48,13 @@ public:
 	void ExecuteEveryTickBindings() const;
 
 // todo a way to identify a binding from outside. maybe a unique name in the editor?
-	//UFUNCTION(BlueprintCallable, Category = "MVVM")
+	//UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	//void SetLibraryBindingEnabled(FGuid ViewModelId, FMVVMBindingName BindingName, bool bEnable);
 
-	//UFUNCTION(BlueprintCallable, Category = "MVVM")
+	//UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	//bool IsLibraryBindingEnabled(FGuid ViewModelId, FMVVMBindingName BindingName) const;
 
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	bool SetViewModel(FName ViewModelName, TScriptInterface<INotifyFieldValueChanged> ViewModel);
 
 private:

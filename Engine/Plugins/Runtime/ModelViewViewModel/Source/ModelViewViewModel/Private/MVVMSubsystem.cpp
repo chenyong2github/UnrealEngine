@@ -4,6 +4,10 @@
 
 #include "Bindings/MVVMBindingHelper.h"
 #include "Blueprint/WidgetTree.h"
+#include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "MVVMGameSubsystem.h"
 #include "Templates/ValueOrError.h"
 #include "View/MVVMView.h"
 #include "Types/MVVMAvailableBinding.h"
@@ -15,13 +19,11 @@
 void UMVVMSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	GlobalViewModelCollection = NewObject<UMVVMViewModelCollectionObject>(this);
 }
 
 
 void UMVVMSubsystem::Deinitialize()
 {
-	GlobalViewModelCollection = nullptr;
 	Super::Deinitialize();
 }
 
@@ -289,6 +291,22 @@ FMVVMAvailableBinding UMVVMSubsystem::GetAvailableBinding(const UClass* Class, F
 FMVVMAvailableBinding UMVVMSubsystem::GetAvailableBindingForField(UE::MVVM::FMVVMConstFieldVariant FieldVariant, const UClass* Accessor)
 {
 	return UE::MVVM::Private::GetAvailableBinding(FieldVariant, Accessor);
+}
+
+
+UMVVMViewModelCollectionObject* UMVVMSubsystem::GetGlobalViewModelCollection(const UObject* WorldContextObject) const
+{
+	if (WorldContextObject)
+	{
+		if (const UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull))
+		{
+			if (const UGameInstance* GameInstance = World->GetGameInstance())
+			{
+				return GameInstance->GetSubsystem<UMVVMGameSubsystem>()->GetGlobalViewModelCollection();
+			}
+		}
+	}
+	return nullptr;
 }
 
 
