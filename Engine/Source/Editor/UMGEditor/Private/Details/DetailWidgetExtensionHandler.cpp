@@ -53,7 +53,7 @@ namespace Private
 		const bool bIsEditable = Property->HasAnyPropertyFlags(CPF_Edit | CPF_EditConst);
 		const bool bDoSignaturesMatch = DelegateProperty->SignatureFunction->GetReturnProperty()->SameType(Property);
 
-		if (!ensure(bIsEditable && bDoSignaturesMatch))
+		if (!bIsEditable || !bDoSignaturesMatch)
 		{
 			return false;
 		}
