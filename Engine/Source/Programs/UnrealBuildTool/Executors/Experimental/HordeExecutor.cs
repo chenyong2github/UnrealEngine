@@ -597,6 +597,40 @@ namespace UnrealBuildTool
 			return ActionTask;
 		}
 
+		private static async Task<ExecuteResults> ExecuteAction(Task<ExecuteResults>[] AntecedentTasks, LinkedAction Action, ManagedProcessGroup ProcessGroup, SemaphoreSlim MaxProcessSemaphore, CancellationToken CancellationToken)
+		{
+			Task? SemaphoreTask = null;
+			try
+			{
+				// Cancel tasks if any PrerequisiteActions fail, unless a PostBuildStep
+				if (Action.ActionType != ActionType.PostBuildStep && AntecedentTasks.Any(x => x.Result.ExitCode != 0))
+				{
+					throw new OperationCanceledException();
+				}
+
+				// Limit the number of concurrent processes that will run in parallel
+				SemaphoreTask = MaxProcessSemaphore.WaitAsync(CancellationToken);
+				await SemaphoreTask;
+				return await RunAction(Action, ProcessGroup, CancellationToken);
+			}
+			catch (OperationCanceledException)
+			{
+				return new ExecuteResults(new List<string>(), int.MaxValue);
+			}
+			catch (Exception Ex)
+			{
+				Log.WriteException(Ex, null);
+				return new ExecuteResults(new List<string>(), int.MaxValue);
+			}
+			finally
+			{
+				if (SemaphoreTask?.Status == TaskStatus.RanToCompletion)
+				{
+					MaxProcessSemaphore.Release();
+				}
+			}
+		}
+
 		private static HashSet<FileReference>? GatherDependencies(FileItem DependencyListFile, IEnumerable<FileItem> PrerequisiteItems)
 		{
 			DependencyListFile.ResetCachedInfo();

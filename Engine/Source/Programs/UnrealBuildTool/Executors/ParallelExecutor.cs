@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -160,6 +159,14 @@ namespace UnrealBuildTool
 			}
 		}
 
+		enum ActionStatus : byte
+		{
+			Queued,
+			Running,
+			Finished,
+			Error,
+		}
+
 		/// <summary>
 		/// Executes the specified actions locally.
 		/// </summary>
@@ -171,123 +178,157 @@ namespace UnrealBuildTool
 				return true;
 			}
 
-			int NumCompletedActions = 0;
 			int TotalActions = InputActions.Count();
+			int NumCompletedActions = 0;
+
 			int ActualNumParallelProcesses = Math.Min(TotalActions, NumParallelProcesses);
 
 			using ManagedProcessGroup ProcessGroup = new ManagedProcessGroup();
-			using SemaphoreSlim MaxProcessSemaphore = new SemaphoreSlim(ActualNumParallelProcesses, ActualNumParallelProcesses);
-			using ProgressWriter ProgressWriter = new ProgressWriter("Compiling C++ source code...", false, Logger);
-
-			Logger.LogInformation("Building {NumActions} {Actions} with {NumProcesses} {Processes}...", TotalActions, (TotalActions == 1 ? "action" : "actions"), ActualNumParallelProcesses, (ActualNumParallelProcesses == 1 ? "process" : "processes"));
-
-			Dictionary<LinkedAction, Task<ExecuteResults>> ExecuteTasks = new Dictionary<LinkedAction, Task<ExecuteResults>>();
-			List<Task> LogTasks = new List<Task>();
-
-			using LogIndentScope Indent = new LogIndentScope("  ");
-
 			CancellationTokenSource CancellationTokenSource = new CancellationTokenSource();
 			CancellationToken CancellationToken = CancellationTokenSource.Token;
+			using ProgressWriter ProgressWriter = new ProgressWriter("Compiling C++ source code...", false, Logger);
 
-			// Create a task for every action
-			foreach (LinkedAction Action in InputActions)
+			Dictionary<LinkedAction, Task<ExecuteResults>> ActionToTaskLookup = new();
+
+			Logger.LogInformation($"------ Building {TotalActions} action(s) started ------");
+
+			var Actions = new LinkedAction[TotalActions];
+			var ActionsStatus = new ActionStatus[TotalActions];
+			int Index = 0;
+			foreach (var Action in InputActions)
 			{
-				if (ExecuteTasks.ContainsKey(Action))
+				Actions[Index] = Action;
+				ActionsStatus[Index] = ActionStatus.Queued;
+				Action.SortIndex = Index++;
+			}
+
+			var ActiveTasks = new Task<ExecuteResults>[ActualNumParallelProcesses];
+			var ActiveActionIndices = new int[ActualNumParallelProcesses];
+			int ActiveTaskCount = 0;
+			bool Success = true;
+
+			int FirstQueuedAction = 0;
+
+			Task LastLoggingTask = Task.CompletedTask;
+
+			// Loop until all actions has been processed and finished
+			while (!CancellationTokenSource.IsCancellationRequested)
+			{
+				// Always fill up to allowed number of processes
+				while (ActiveTaskCount < ActualNumParallelProcesses)
 				{
-					continue;
+
+					// Always traverse from first not started/finished action. We always want to respect the sorting.
+					// Note that there might be multiple actions we need to search passed to find the one we can run next
+					int ActionToRunIndex = -1;
+					bool FoundFirstQueued = false;
+					for (int i= FirstQueuedAction; i!= Actions.Length; ++i)
+					{
+						if (ActionsStatus[i] != ActionStatus.Queued)
+						{
+							continue;
+						}
+
+						if (!FoundFirstQueued) // We found the first queued action, let's move our search start index
+						{
+							FirstQueuedAction = i;
+							FoundFirstQueued = true;
+						}
+
+						// Let's see if all prerequisite actions are finished
+						bool ReadyToRun = true;
+						bool HasError = false;
+						foreach (var Prereq in Actions[i].PrerequisiteActions)
+						{
+							ActionStatus PrereqStatus = ActionsStatus[Prereq.SortIndex];
+							ReadyToRun = ReadyToRun && PrereqStatus == ActionStatus.Finished;
+							HasError = HasError || PrereqStatus == ActionStatus.Error;
+						}
+
+						// Not ready, look for next queued action
+						if (!ReadyToRun)
+						{
+							// If Prereq has error, this action inherits the error
+							if (HasError)
+							{
+								ActionsStatus[i] = ActionStatus.Error;
+								continue;
+							}
+							continue;
+						}
+						ActionToRunIndex = i;
+						break;
+					}
+
+					// Didn't find an action we can run. Either there are none left or all depends on currently running actions
+					if (ActionToRunIndex == -1)
+					{
+						break;
+					}
+
+					// Start new action and add it to the ActiveTasks
+					var ActionToRun = Actions[ActionToRunIndex];
+					Task<ExecuteResults> NewTask = Task.Run(() => RunAction(ActionToRun, ProcessGroup, CancellationToken));
+					ActionToTaskLookup.Add(ActionToRun, NewTask);
+
+					ActiveTasks[ActiveTaskCount] = NewTask;
+					ActionsStatus[ActionToRunIndex] = ActionStatus.Running;
+					ActiveActionIndices[ActiveTaskCount] = ActionToRunIndex;
+					++ActiveTaskCount;
 				}
 
-				Task<ExecuteResults> ExecuteTask = CreateExecuteTask(Action, InputActions, ExecuteTasks, ProcessGroup, MaxProcessSemaphore, CancellationToken);
-				Task LogTask = ExecuteTask.ContinueWith(antecedent => LogCompletedAction(Action, antecedent, CancellationTokenSource, ProgressWriter, TotalActions, ref NumCompletedActions, Logger), CancellationToken);
-
-				ExecuteTasks.Add(Action, ExecuteTask);
-				LogTasks.Add(LogTask);
-			}
-
-			Task SummaryTask = Task.Factory.ContinueWhenAll(LogTasks.ToArray(), (AntecedentTasks) => TraceSummary(ExecuteTasks, ProcessGroup, Logger), CancellationToken);
-			SummaryTask.Wait();
-
-			// Return if all tasks succeeded
-			return ExecuteTasks.Values.All(x => x.Result.ExitCode == 0);
-		}
-
-		protected static Task<ExecuteResults> CreateExecuteTask(LinkedAction Action, IEnumerable<LinkedAction> InputActions, Dictionary<LinkedAction, Task<ExecuteResults>> ExecuteTasks, ManagedProcessGroup ProcessGroup, SemaphoreSlim MaxProcessSemaphore, CancellationToken CancellationToken)
-		{
-			List<LinkedAction> PrerequisiteActions = Action.PrerequisiteActions.Where(x => InputActions.Contains(x)).ToList();
-			if (PrerequisiteActions.Count == 0)
-			{
-				return Task.Factory.StartNew(
-					() => ExecuteAction(new Task<ExecuteResults>[0], Action, ProcessGroup, MaxProcessSemaphore, CancellationToken),
-					CancellationToken,
-					TaskCreationOptions.PreferFairness | TaskCreationOptions.LongRunning,
-					TaskScheduler.Current
-				).Unwrap();
-			}
-
-			// Create tasks for any preresquite actions if they don't exist already
-			List<Task<ExecuteResults>> PrerequisiteTasks = new List<Task<ExecuteResults>>();
-			foreach (var PrerequisiteAction in PrerequisiteActions)
-			{
-				if (!ExecuteTasks.ContainsKey(PrerequisiteAction))
+				// We tried starting new actions and none was added and none is running, that means that we are done!
+				if (ActiveTaskCount == 0)
 				{
-					ExecuteTasks.Add(PrerequisiteAction, CreateExecuteTask(PrerequisiteAction, InputActions, ExecuteTasks, ProcessGroup, MaxProcessSemaphore, CancellationToken));
-				}
-				PrerequisiteTasks.Add(ExecuteTasks[PrerequisiteAction]);
-			}
-
-			return Task.Factory.ContinueWhenAll(
-				PrerequisiteTasks.ToArray(),
-				(AntecedentTasks) => ExecuteAction(AntecedentTasks, Action, ProcessGroup, MaxProcessSemaphore, CancellationToken),
-				CancellationToken,
-				TaskContinuationOptions.PreferFairness | TaskContinuationOptions.LongRunning,
-				TaskScheduler.Current
-			).Unwrap();
-		}
-
-		protected static async Task WaitPrerequsiteActions(LinkedAction Action, Dictionary<LinkedAction, Task<ExecuteResults>> Tasks)
-		{
-			// Wait for all PrerequisiteActions to complete
-			ExecuteResults[] Results = await Task.WhenAll(Action.PrerequisiteActions.Select(x => Tasks[x]));
-
-			// Cancel tasks if any PrerequisiteActions fail, unless a PostBuildStep
-			if (Action.ActionType != ActionType.PostBuildStep && Results.Any(x => x.ExitCode != 0))
-			{
-				throw new OperationCanceledException();
-			}
-		}
-
-		protected static async Task<ExecuteResults> ExecuteAction(Task<ExecuteResults>[] AntecedentTasks, LinkedAction Action, ManagedProcessGroup ProcessGroup, SemaphoreSlim MaxProcessSemaphore, CancellationToken CancellationToken)
-		{
-			Task? SemaphoreTask = null;
-			try
-			{
-				// Cancel tasks if any PrerequisiteActions fail, unless a PostBuildStep
-				if (Action.ActionType != ActionType.PostBuildStep && AntecedentTasks.Any(x => x.Result.ExitCode != 0))
-				{
-					throw new OperationCanceledException();
+					break;
 				}
 
-				// Limit the number of concurrent processes that will run in parallel
-				SemaphoreTask = MaxProcessSemaphore.WaitAsync(CancellationToken);
-				await SemaphoreTask;
-				return await RunAction(Action, ProcessGroup, CancellationToken);
-			}
-			catch (OperationCanceledException)
-			{
-				return new ExecuteResults(new List<string>(), int.MaxValue);
-			}
-			catch (Exception Ex)
-			{
-				Log.WriteException(Ex, null);
-				return new ExecuteResults(new List<string>(), int.MaxValue);
-			}
-			finally
-			{
-				if (SemaphoreTask?.Status == TaskStatus.RanToCompletion)
+				// Wait for all tasks and continue if any is done.
+				Task<ExecuteResults>[] TasksToWaitOn = ActiveTasks;
+				if (ActiveTaskCount < ActiveTasks.Length)
 				{
-					MaxProcessSemaphore.Release();
+					TasksToWaitOn = new Task<ExecuteResults>[ActiveTaskCount];
+					Array.Copy(ActiveTasks, TasksToWaitOn, ActiveTaskCount);
 				}
+				int ActiveTaskIndex = Task.WaitAny(TasksToWaitOn, Timeout.Infinite, CancellationToken);
+
+				// Timeout? This should never happen.. We have a check here just in case
+				if (ActiveTaskIndex == -1)
+				{
+					Logger.LogError("Task timeout? This should never happen. Report to Epic if you see this");
+					Success = false;
+					break;
+				}
+
+				int FinishedActionIndex = ActiveActionIndices[ActiveTaskIndex];
+				LinkedAction FinishedAction = Actions[FinishedActionIndex];
+
+				Task<ExecuteResults> FinishedTask = ActiveTasks[ActiveTaskIndex];
+				bool ActionSuccess = FinishedTask.Result.ExitCode == 0;
+				ActionsStatus[FinishedActionIndex] = ActionSuccess ? ActionStatus.Finished : ActionStatus.Error;
+
+				// Log (chain log entries together so we don't get annoying overlapping logging)
+				LastLoggingTask = LastLoggingTask.ContinueWith((foo) =>
+				{
+					LogCompletedAction(FinishedAction, FinishedTask, CancellationTokenSource, ProgressWriter, TotalActions, ref NumCompletedActions, Logger);
+				});
+
+				// Swap finished task with last and pop last.
+				--ActiveTaskCount;
+				ActiveTasks[ActiveTaskIndex] = ActiveTasks[ActiveTaskCount];
+				ActiveActionIndices[ActiveTaskIndex] = ActiveActionIndices[ActiveTaskCount];
+
+				// Update Success status
+				Success = Success && ActionSuccess;
 			}
+
+			// Wait for last logging entry before showing summary
+			LastLoggingTask.Wait();
+
+			// Summary
+			TraceSummary(ActionToTaskLookup, ProcessGroup, Logger);
+
+			return Success;
 		}
 
 		protected static async Task<ExecuteResults> RunAction(LinkedAction Action, ManagedProcessGroup ProcessGroup, CancellationToken CancellationToken)
