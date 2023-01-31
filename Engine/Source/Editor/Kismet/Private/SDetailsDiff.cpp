@@ -33,7 +33,7 @@ static const FName DetailsMode = FName(TEXT("DetailsMode"));
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SDetailsDiff::Construct( const FArguments& InArgs)
 {
-	check(InArgs._AssetOld && InArgs._AssetNew);
+	check(InArgs._AssetOld || InArgs._AssetNew);
 	PanelOld.Object = InArgs._AssetOld;
 	PanelNew.Object = InArgs._AssetNew;
 	PanelOld.RevisionInfo = InArgs._OldRevision;
@@ -213,11 +213,11 @@ TSharedRef<SWidget> SDetailsDiff::DefaultEmptyPanel()
 		];
 }
 
-TSharedPtr<SWindow> SDetailsDiff::CreateDiffWindow(FText WindowTitle, UObject* OldObject, UObject* NewObject, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision)
+TSharedPtr<SWindow> SDetailsDiff::CreateDiffWindow(FText WindowTitle, const UObject* OldObject, const UObject* NewObject, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision)
 {
 	// sometimes we're comparing different revisions of one single asset (other 
 	// times we're comparing two completely separate assets altogether)
-	bool bIsSingleAsset = (NewObject->GetName() == OldObject->GetName());
+	bool bIsSingleAsset = !NewObject || !OldObject || (NewObject->GetName() == OldObject->GetName());
 
 	TSharedPtr<SWindow> Window = SNew(SWindow)
 		.Title(WindowTitle)
@@ -232,7 +232,7 @@ TSharedPtr<SWindow> SDetailsDiff::CreateDiffWindow(FText WindowTitle, UObject* O
 		.ParentWindow(Window));
 
 	// Make this window a child of the modal window if we've been spawned while one is active.
-	TSharedPtr<SWindow> ActiveModal = FSlateApplication::Get().GetActiveModalWindow();
+	const TSharedPtr<SWindow> ActiveModal = FSlateApplication::Get().GetActiveModalWindow();
 	if (ActiveModal.IsValid())
 	{
 		FSlateApplication::Get().AddWindowAsNativeChild(Window.ToSharedRef(), ActiveModal.ToSharedRef());
@@ -243,6 +243,27 @@ TSharedPtr<SWindow> SDetailsDiff::CreateDiffWindow(FText WindowTitle, UObject* O
 	}
 
 	return Window;
+}
+
+TSharedPtr<SWindow> SDetailsDiff::CreateDiffWindow(const UObject* OldObject, const UObject* NewObject,
+                                                   const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision, const UClass* ObjectClass)
+{
+	check(OldObject || NewObject);
+
+	// sometimes we're comparing different revisions of one single asset (other 
+	// times we're comparing two completely separate assets altogether)
+	const bool bIsSingleAsset = !OldObject || !NewObject || (NewObject->GetName() == OldObject->GetName());
+
+	FText WindowTitle = FText::Format(LOCTEXT("NamelessBlueprintDiff", "{0} Diff"), ObjectClass->GetDisplayNameText());
+	// if we're diffing one asset against itself 
+	if (bIsSingleAsset)
+	{
+		// identify the assumed single asset in the window's title
+		const FString BPName = NewObject? NewObject->GetName() : OldObject->GetName();
+		WindowTitle = FText::Format(LOCTEXT("NamedBlueprintDiff", "{0} - {1} Diff"), FText::FromString(BPName), ObjectClass->GetDisplayNameText());
+	}
+
+	return CreateDiffWindow(WindowTitle, OldObject, NewObject, OldRevision, NewRevision);
 }
 
 void SDetailsDiff::NextDiff()

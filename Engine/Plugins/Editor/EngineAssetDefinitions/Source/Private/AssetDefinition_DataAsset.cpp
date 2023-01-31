@@ -167,15 +167,12 @@ FText UAssetDefinition_DataAsset::GetAssetDisplayName(const FAssetData& AssetDat
 
 EAssetCommandResult UAssetDefinition_DataAsset::PerformAssetDiff(const FAssetDiffArgs& DiffArgs) const
 {
-	// sometimes we're comparing different revisions of one single asset (other 
-	// times we're comparing two completely separate assets altogether)
-	const bool bIsSingleAsset = (DiffArgs.OldAsset->GetFName() == DiffArgs.NewAsset->GetFName());
-	static const FText BasicWindowTitle = LOCTEXT("NamelessDataAssetDiff", "DataAsset Diff");
-
-	const FText WindowTitle = !bIsSingleAsset ? BasicWindowTitle : FText::Format(LOCTEXT("DataAsset Diff", "{0} - DataAsset Diff"), FText::FromString(DiffArgs.NewAsset->GetName()));
-
-	SDetailsDiff::CreateDiffWindow(WindowTitle, DiffArgs.OldAsset, DiffArgs.NewAsset, DiffArgs.OldRevision, DiffArgs.NewRevision);
+	if (DiffArgs.OldAsset == nullptr && DiffArgs.NewAsset == nullptr)
+	{
+		return EAssetCommandResult::Unhandled;
+	}
 	
+	SDetailsDiff::CreateDiffWindow(DiffArgs.OldAsset, DiffArgs.NewAsset, DiffArgs.OldRevision, DiffArgs.NewRevision, UDataAsset::StaticClass());
 	return EAssetCommandResult::Handled;
 }
 

@@ -1043,6 +1043,11 @@ FText DiffViewUtils::SCSDiffMessage(const FSCSDiffEntry& Difference, FText Objec
 
 FText DiffViewUtils::GetPanelLabel(const UObject* Asset, const FRevisionInfo& Revision, FText Label)
 {
+	if( !Asset )
+	{
+		return NSLOCTEXT("DiffViewUtils", "NoBlueprint", "None" );
+	}
+	
 	if( !Revision.Revision.IsEmpty() )
 	{
 		FText RevisionData;
@@ -1077,24 +1082,19 @@ FText DiffViewUtils::GetPanelLabel(const UObject* Asset, const FRevisionInfo& Re
 	}
 	else
 	{
-		if( Asset )
+		if (Label.IsEmpty())
 		{
-			if (Label.IsEmpty())
-			{
-				return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabelTwoLines", "{0}\n{1}")
-					, FText::FromString(Asset->GetName())
-					, NSLOCTEXT("DiffViewUtils", "LocalRevisionLabel", "Local Revision"));
-			}
-			else
-			{
-				return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabel", "{0}\n{1}\n{2}")
-					, Label
-					, FText::FromString(Asset->GetName())
-					, NSLOCTEXT("DiffViewUtils", "LocalRevisionLabel", "Local Revision"));
-			}
+			return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabelTwoLines", "{0}\n{1}")
+				, FText::FromString(Asset->GetName())
+				, NSLOCTEXT("DiffViewUtils", "LocalRevisionLabel", "Local Revision"));
 		}
-
-		return NSLOCTEXT("DiffViewUtils", "NoBlueprint", "None" );
+		else
+		{
+			return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabel", "{0}\n{1}\n{2}")
+				, Label
+				, FText::FromString(Asset->GetName())
+				, NSLOCTEXT("DiffViewUtils", "LocalRevisionLabel", "Local Revision"));
+		}
 	}
 }
 

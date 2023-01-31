@@ -23,9 +23,11 @@ EAssetCommandResult UAssetDefinitionDefault::OpenAssets(const FAssetOpenArgs& Op
 
 EAssetCommandResult UAssetDefinitionDefault::PerformAssetDiff(const FAssetDiffArgs& DiffArgs) const
 {
-	check(DiffArgs.OldAsset != nullptr);
-	check(DiffArgs.NewAsset != nullptr);
-
+	if (DiffArgs.OldAsset == nullptr && DiffArgs.NewAsset == nullptr)
+	{
+		return EAssetCommandResult::Unhandled;
+	}
+	
 	IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
 	// Dump assets to temp text files

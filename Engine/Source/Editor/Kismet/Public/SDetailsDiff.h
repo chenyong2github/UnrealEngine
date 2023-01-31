@@ -59,7 +59,10 @@ public:
 	static TSharedRef<SWidget> DefaultEmptyPanel();
 
 	/** Helper function to create a window that holds a diff widget */
-	static TSharedPtr<SWindow> CreateDiffWindow(FText WindowTitle, UObject* OldObject, UObject* NewObject, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision);
+	static TSharedPtr<SWindow> CreateDiffWindow(FText WindowTitle, const UObject* OldObject, const UObject* NewObject, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision);
+
+	/** Helper function to create a window that holds a diff widget (default window title) */
+	static TSharedPtr<SWindow> CreateDiffWindow(const UObject* OldObject, const UObject* NewObject, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision, const UClass* ObjectClass);
 
 protected:
 	/** Called when user clicks button to go to next difference */

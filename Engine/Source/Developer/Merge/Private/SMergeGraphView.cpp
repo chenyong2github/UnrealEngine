@@ -383,7 +383,7 @@ void SMergeGraphView::Construct(const FArguments InArgs
 	{
 		DetailsPanelContainer->AddSlot()
 		[
-			Panel.DetailsView.ToSharedRef()
+			Panel.GetDetailsWidget()
 		];
 	}
 

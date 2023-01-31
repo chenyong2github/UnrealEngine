@@ -98,22 +98,9 @@ uint32 FAssetTypeActions_EditorUtilityWidgetBlueprint::GetCategories()
 
 void FAssetTypeActions_EditorUtilityWidgetBlueprint::PerformAssetDiff(UObject* Asset1, UObject* Asset2, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision) const
 {
-	UBlueprint* OldBlueprint = CastChecked<UBlueprint>(Asset1);
-	UBlueprint* NewBlueprint = CastChecked<UBlueprint>(Asset2);
-
-	// sometimes we're comparing different revisions of one single asset (other 
-	// times we're comparing two completely separate assets altogether)
-	bool bIsSingleAsset = (NewBlueprint->GetName() == OldBlueprint->GetName());
-
-	FText WindowTitle = LOCTEXT("NamelessEditorUtilityWidgetBlueprintDiff", "Editor Utility Widget Blueprint Diff");
-	// if we're diffing one asset against itself 
-	if (bIsSingleAsset)
-	{
-		// identify the assumed single asset in the window's title
-		WindowTitle = FText::Format(LOCTEXT("EditorUtilityWidgetBlueprintDiff", "{0} - Editor Utility Widget Blueprint Diff"), FText::FromString(NewBlueprint->GetName()));
-	}
-
-	SBlueprintDiff::CreateDiffWindow(WindowTitle, OldBlueprint, NewBlueprint, OldRevision, NewRevision);
+	UBlueprint* OldBlueprint = Cast<UBlueprint>(Asset1);
+	UBlueprint* NewBlueprint = Cast<UBlueprint>(Asset2);
+	SBlueprintDiff::CreateDiffWindow(OldBlueprint, NewBlueprint, OldRevision, NewRevision, GetSupportedClass());
 }
 
 void FAssetTypeActions_EditorUtilityWidgetBlueprint::ExecuteRun(FWeakBlueprintPointerArray InObjects)

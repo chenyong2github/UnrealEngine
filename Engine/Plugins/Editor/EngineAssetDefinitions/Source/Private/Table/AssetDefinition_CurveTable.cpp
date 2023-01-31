@@ -23,18 +23,29 @@
 
 EAssetCommandResult UAssetDefinition_CurveTable::PerformAssetDiff(const FAssetDiffArgs& DiffArgs) const
 {
-	UCurveTable* OldCurveTable = CastChecked<UCurveTable>(DiffArgs.OldAsset);
-	UCurveTable* NewCurveTable = CastChecked<UCurveTable>(DiffArgs.NewAsset);
+	const UCurveTable* OldCurveTable = Cast<UCurveTable>(DiffArgs.OldAsset);
+	const UCurveTable* NewCurveTable = Cast<UCurveTable>(DiffArgs.NewAsset);
+
+	if (NewCurveTable == nullptr && OldCurveTable == nullptr)
+	{
+		return EAssetCommandResult::Unhandled;
+	}
+
 
 	// Build names for temp csv files
-	const FString RelOldTempFileName = FString::Printf(TEXT("%sTemp%s-%s.csv"), *FPaths::DiffDir(), *DiffArgs.OldAsset->GetName(), *DiffArgs.OldRevision.Revision);
+	const FString OldAssetName = DiffArgs.OldAsset ? DiffArgs.OldAsset->GetName() : DiffArgs.NewAsset->GetName();
+	const FString RelOldTempFileName = FString::Printf(TEXT("%sTemp%s-%s.csv"), *FPaths::DiffDir(), *OldAssetName, *DiffArgs.OldRevision.Revision);
 	const FString AbsoluteOldTempFileName = FPaths::ConvertRelativePathToFull(RelOldTempFileName);
-	const FString RelNewTempFileName = FString::Printf(TEXT("%sTemp%s-%s.csv"), *FPaths::DiffDir(), *DiffArgs.NewAsset->GetName(), *DiffArgs.NewRevision.Revision);
+	
+	const FString NewAssetName = DiffArgs.NewAsset ? DiffArgs.NewAsset->GetName() : DiffArgs.OldAsset->GetName();
+	const FString RelNewTempFileName = FString::Printf(TEXT("%sTemp%s-%s.csv"), *FPaths::DiffDir(), *NewAssetName, *DiffArgs.NewRevision.Revision);
 	const FString AbsoluteNewTempFileName = FPaths::ConvertRelativePathToFull(RelNewTempFileName);
 
 	// save temp files
-	const bool OldResult = FFileHelper::SaveStringToFile(OldCurveTable->GetTableAsCSV(), *AbsoluteOldTempFileName);
-	const bool NewResult = FFileHelper::SaveStringToFile(NewCurveTable->GetTableAsCSV(), *AbsoluteNewTempFileName);
+	const FString OldCurveCSV = OldCurveTable? OldCurveTable->GetTableAsCSV() : TEXT("");
+	const bool OldResult = FFileHelper::SaveStringToFile(OldCurveCSV, *AbsoluteOldTempFileName);
+	const FString NewCurveCSV = NewCurveTable? NewCurveTable->GetTableAsCSV() : TEXT("");
+	const bool NewResult = FFileHelper::SaveStringToFile(NewCurveCSV, *AbsoluteNewTempFileName);
 
 	if (OldResult && NewResult)
 	{

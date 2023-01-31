@@ -240,22 +240,10 @@ bool FAssetTypeActions_Blueprint::ShouldUseDataOnlyEditor( const UBlueprint* Blu
 
 void FAssetTypeActions_Blueprint::PerformAssetDiff(UObject* OldAsset, UObject* NewAsset, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision) const
 {
-	UBlueprint* OldBlueprint = CastChecked<UBlueprint>(OldAsset);
-	UBlueprint* NewBlueprint = CastChecked<UBlueprint>(NewAsset);
+	UBlueprint* OldBlueprint = Cast<UBlueprint>(OldAsset);
+	UBlueprint* NewBlueprint = Cast<UBlueprint>(NewAsset);
 
-	// sometimes we're comparing different revisions of one single asset (other 
-	// times we're comparing two completely separate assets altogether)
-	bool bIsSingleAsset = (NewBlueprint->GetName() == OldBlueprint->GetName());
-
-	FText WindowTitle = LOCTEXT("NamelessBlueprintDiff", "Blueprint Diff");
-	// if we're diffing one asset against itself 
-	if (bIsSingleAsset)
-	{
-		// identify the assumed single asset in the window's title
-		WindowTitle = FText::Format(LOCTEXT("Blueprint Diff", "{0} - Blueprint Diff"), FText::FromString(NewBlueprint->GetName()));
-	}
-
-	SBlueprintDiff::CreateDiffWindow(WindowTitle, OldBlueprint, NewBlueprint, OldRevision, NewRevision);
+	SBlueprintDiff::CreateDiffWindow(OldBlueprint, NewBlueprint, OldRevision, NewRevision, GetSupportedClass());
 }
 
 UThumbnailInfo* FAssetTypeActions_Blueprint::GetThumbnailInfo(UObject* Asset) const

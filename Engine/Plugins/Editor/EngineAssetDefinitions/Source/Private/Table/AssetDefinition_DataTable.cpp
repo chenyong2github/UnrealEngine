@@ -46,18 +46,28 @@ FText UAssetDefinition_DataTable::GetAssetDisplayName(const FAssetData& AssetDat
 // Attempts to export temporary CSV files and diff those. If that fails we fall back to diffing the data table assets directly.
 EAssetCommandResult UAssetDefinition_DataTable::PerformAssetDiff(const FAssetDiffArgs& DiffArgs) const
 {
-	const UDataTable* OldDataTable = CastChecked<UDataTable>(DiffArgs.OldAsset);
-	const UDataTable* NewDataTable = CastChecked<UDataTable>(DiffArgs.NewAsset);
+	const UDataTable* OldDataTable = Cast<UDataTable>(DiffArgs.OldAsset);
+	const UDataTable* NewDataTable = Cast<UDataTable>(DiffArgs.NewAsset);
 
+	if (OldDataTable == nullptr && NewDataTable == nullptr)
+	{
+		return EAssetCommandResult::Unhandled;
+	}
+	
 	// Build names for temp csv files
-	const FString RelOldTempFileName = FString::Printf(TEXT("%sTemp%s-%s.csv"), *FPaths::DiffDir(), *DiffArgs.OldAsset->GetName(), *DiffArgs.OldRevision.Revision);
+	const FString OldAssetName = DiffArgs.OldAsset ? DiffArgs.OldAsset->GetName() : DiffArgs.NewAsset->GetName();
+	const FString RelOldTempFileName = FString::Printf(TEXT("%sTemp%s-%s.csv"), *FPaths::DiffDir(), *OldAssetName, *DiffArgs.OldRevision.Revision);
 	const FString AbsoluteOldTempFileName = FPaths::ConvertRelativePathToFull(RelOldTempFileName);
-	const FString RelNewTempFileName = FString::Printf(TEXT("%sTemp%s-%s.csv"), *FPaths::DiffDir(), *DiffArgs.NewAsset->GetName(), *DiffArgs.NewRevision.Revision);
+	
+	const FString NewAssetName = DiffArgs.NewAsset ? DiffArgs.NewAsset->GetName() : DiffArgs.OldAsset->GetName();
+	const FString RelNewTempFileName = FString::Printf(TEXT("%sTemp%s-%s.csv"), *FPaths::DiffDir(), *NewAssetName, *DiffArgs.NewRevision.Revision);
 	const FString AbsoluteNewTempFileName = FPaths::ConvertRelativePathToFull(RelNewTempFileName);
 
 	// save temp files
-	const bool OldResult = FFileHelper::SaveStringToFile(OldDataTable->GetTableAsCSV(EDataTableExportFlags::UseSimpleText), *AbsoluteOldTempFileName);
-	const bool NewResult = FFileHelper::SaveStringToFile(NewDataTable->GetTableAsCSV(EDataTableExportFlags::UseSimpleText), *AbsoluteNewTempFileName);
+	const FString OldTableCSV = OldDataTable? OldDataTable->GetTableAsCSV() : TEXT("");
+	const bool OldResult = FFileHelper::SaveStringToFile(OldTableCSV, *AbsoluteOldTempFileName);
+	const FString NewTableCSV = NewDataTable? NewDataTable->GetTableAsCSV() : TEXT("");
+	const bool NewResult = FFileHelper::SaveStringToFile(NewTableCSV, *AbsoluteNewTempFileName);
 
 	if (OldResult && NewResult)
 	{

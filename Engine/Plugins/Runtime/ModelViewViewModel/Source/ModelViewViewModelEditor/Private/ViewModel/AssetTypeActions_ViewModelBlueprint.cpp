@@ -60,21 +60,9 @@ FText FAssetTypeActions_ViewModelBlueprint::GetAssetDescription( const FAssetDat
 
 void FAssetTypeActions_ViewModelBlueprint::PerformAssetDiff(UObject* Asset1, UObject* Asset2, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision) const
 {
-	UBlueprint* OldBlueprint = CastChecked<UBlueprint>(Asset1);
-	UBlueprint* NewBlueprint = CastChecked<UBlueprint>(Asset2);
-
-	// sometimes we're comparing different revisions of one single asset (other 
-	//times we're comparing two completely separate assets altogether)
-	bool bIsSingleAsset = (NewBlueprint->GetName() == OldBlueprint->GetName());
-
-	FText WindowTitle = LOCTEXT("NamelessViewmodelBlueprintDiff", "Viewmodel Blueprint Diff");
-	if (bIsSingleAsset)
-	{
-		// identify the assumed single asset in the window's title
-		WindowTitle = FText::Format(LOCTEXT("WidgetBlueprintDiff", "{0} - Viewmodel Blueprint Diff"), FText::FromString(NewBlueprint->GetName()));
-	}
-
-	SBlueprintDiff::CreateDiffWindow(WindowTitle, OldBlueprint, NewBlueprint, OldRevision, NewRevision);
+	UBlueprint* OldBlueprint = Cast<UBlueprint>(Asset1);
+	UBlueprint* NewBlueprint = Cast<UBlueprint>(Asset2);
+	SBlueprintDiff::CreateDiffWindow(OldBlueprint, NewBlueprint, OldRevision, NewRevision, GetSupportedClass());
 }
 
 } //namespace

@@ -2717,15 +2717,15 @@ void UAssetToolsImpl::DiffAgainstDepot( UObject* InObject, const FString& InPack
 
 void UAssetToolsImpl::DiffAssets(UObject* OldAsset, UObject* NewAsset, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision) const
 {
-	if(OldAsset == nullptr || NewAsset == nullptr)
+	if (OldAsset == nullptr && NewAsset == nullptr)
 	{
-		UE_LOG(LogAssetTools, Warning, TEXT("DiffAssets: One of the supplied assets was nullptr."));
+		UE_LOG(LogAssetTools, Warning, TEXT("DiffAssets: Both of the supplied assets were nullptr."));
 		return;
 	}
 
 	// Get class of both assets 
-	UClass* OldClass = OldAsset->GetClass();
-	UClass* NewClass = NewAsset->GetClass();
+	const UClass* OldClass = OldAsset ? OldAsset->GetClass() : NewAsset->GetClass();
+	const UClass* NewClass = NewAsset ? NewAsset->GetClass() : OldAsset->GetClass();
 	// If same class..
 	if(OldClass == NewClass)
 	{
@@ -2745,8 +2745,6 @@ void UAssetToolsImpl::DiffAssets(UObject* OldAsset, UObject* NewAsset, const str
 
 FString UAssetToolsImpl::DumpAssetToTempFile(UObject* Asset) const
 {
-	check(Asset);
-
 	// Clear the mark state for saving.
 	UnMarkAllObjects(EObjectMark(OBJECTMARK_TagExp | OBJECTMARK_TagImp));
 
@@ -2754,13 +2752,16 @@ FString UAssetToolsImpl::DumpAssetToTempFile(UObject* Asset) const
 	const FExportObjectInnerContext Context;
 
 	// Export asset to archive
-	UExporter::ExportToOutputDevice(&Context, Asset, nullptr, Archive, TEXT("copy"), 0, PPF_ExportsNotFullyQualified|PPF_Copy|PPF_Delimited, false, Asset->GetOuter());
-
+	if (Asset)
+	{
+		UExporter::ExportToOutputDevice(&Context, Asset, nullptr, Archive, TEXT("copy"), 0, PPF_ExportsNotFullyQualified|PPF_Copy|PPF_Delimited, false, Asset->GetOuter());
+	}
 	// Used to generate unique file names during a run
 	static int TempFileNum = 0;
 
 	// Build name for temp text file
-	FString RelTempFileName = FString::Printf(TEXT("%sText%s-%d.txt"), *FPaths::DiffDir(), *Asset->GetName(), TempFileNum++);
+	FString AssetName = Asset? Asset->GetName() : TEXT("empty");
+	FString RelTempFileName = FString::Printf(TEXT("%sText%s-%d.txt"), *FPaths::DiffDir(), *AssetName, TempFileNum++);
 	FString AbsoluteTempFileName = FPaths::ConvertRelativePathToFull(RelTempFileName);
 
 	// Save text into temp file

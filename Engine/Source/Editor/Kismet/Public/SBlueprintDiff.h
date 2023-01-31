@@ -100,6 +100,9 @@ struct KISMET_API FDiffPanel
 	void FocusDiff(UEdGraphPin& Pin);
 	void FocusDiff(UEdGraphNode& Node);
 
+	TSharedRef<SWidget> GetMyBlueprintWidget() const;
+	TSharedRef<SWidget> GetDetailsWidget() const;
+
 	/** The blueprint that owns the graph we are showing */
 	const UBlueprint*				Blueprint;
 
@@ -162,7 +165,10 @@ public:
 	static TSharedRef<SWidget> DefaultEmptyPanel();
 
 	/** Helper function to create a window that holds a diff widget */
-	static TSharedPtr<SWindow> CreateDiffWindow(FText WindowTitle, UBlueprint* OldBlueprint, UBlueprint* NewBlueprint, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision);
+	static TSharedPtr<SWindow> CreateDiffWindow(FText WindowTitle, const UBlueprint* OldBlueprint, const UBlueprint* NewBlueprint, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision);
+
+	/** Helper function to create a window that holds a diff widget that defaults a window title*/
+	static TSharedPtr<SWindow> CreateDiffWindow(const UBlueprint* OldBlueprint, const UBlueprint* NewBlueprint, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision, const UClass* BlueprintClass);
 
 protected:
 	/** Called when user clicks button to go to next difference */

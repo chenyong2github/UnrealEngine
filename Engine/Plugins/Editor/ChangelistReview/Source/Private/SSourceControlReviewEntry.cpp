@@ -10,6 +10,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "IAssetTools.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
 #include "Settings/EditorLoadingSavingSettings.h"
 #include "Styling/StarshipCoreStyle.h"
@@ -207,21 +208,35 @@ bool SSourceControlReviewEntry::CanDiff() const
 	return DiffMethod.IsBound();
 }
 
+static bool IsAssetPath(const FString& Path)
+{
+	if (Path.IsEmpty())
+	{
+		return false;
+	}
+	const EPackageExtension Extension = FPackagePath::ParseExtension(Path);
+	return Extension != EPackageExtension::Unspecified && Extension != EPackageExtension::Custom && Extension != EPackageExtension::EmptyString;
+}
+
 void SSourceControlReviewEntry::TryBindUAssetDiff()
 {
-	UObject* ReviewAsset = nullptr;
-	if (UPackage* ReviewFilePkg = LoadPackage(nullptr, ChangelistFileData.ReviewFileTempPath, LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
+	UObject* ReviewAsset = nullptr;	
+	if (IsAssetPath(ChangelistFileData.ReviewFileTempPath))
 	{
-		ReviewAsset = FindObject<UObject>(ReviewFilePkg, *ChangelistFileData.AssetName);
-		if(ReviewAsset && ReviewAsset->IsA<UObjectRedirector>())
+		if (UPackage* ReviewFilePkg = LoadPackage(nullptr, FPackagePath::FromLocalPath(ChangelistFileData.ReviewFileTempPath), LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
 		{
-			ReviewAsset = Cast<UObjectRedirector>(ReviewAsset)->DestinationObject;
+			ReviewAsset = FindObject<UObject>(ReviewFilePkg, *ChangelistFileData.AssetName);
+			if(ReviewAsset && ReviewAsset->IsA<UObjectRedirector>())
+			{
+				ReviewAsset = Cast<UObjectRedirector>(ReviewAsset)->DestinationObject;
+			}
 		}
 	}
+	
 	UObject* PreviousAsset = nullptr;
-	if (!ChangelistFileData.PreviousFileTempPath.IsEmpty())
+	if (IsAssetPath(ChangelistFileData.PreviousFileTempPath))
 	{
-		if (UPackage* PreviousFilePkg = LoadPackage(nullptr, ChangelistFileData.PreviousFileTempPath, LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
+		if (UPackage* PreviousFilePkg = LoadPackage(nullptr, FPackagePath::FromLocalPath(ChangelistFileData.PreviousFileTempPath), LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
 		{
 			if (ChangelistFileData.PreviousAssetName.IsEmpty())
 			{
@@ -239,50 +254,29 @@ void SSourceControlReviewEntry::TryBindUAssetDiff()
 		return;
 	}
 
-	auto MakeDefaultAsset = [this](UObject* OtherAsset)->UObject*
+	DiffMethod.BindLambda([this, PreviousAsset, ReviewAsset]
 	{
-		if (const UBlueprint* BlueprintReviewAsset = Cast<UBlueprint>(OtherAsset))
+		const UBlueprint* ReviewBlueprint = Cast<UBlueprint>(ReviewAsset);
+		const UBlueprint* PreviousBlueprint = Cast<UBlueprint>(PreviousAsset);
+		if ((ReviewBlueprint && !ReviewBlueprint->ParentClass) || (PreviousBlueprint && !PreviousBlueprint->ParentClass))
 		{
-			return GetOrCreateBlueprintForDiff(BlueprintReviewAsset->GeneratedClass, BlueprintReviewAsset->BlueprintType);
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangelistNotFoundError", "This Blueprint is missing its parent class. Diff results may be incomplete.\n\nDo you need to load this file's plugin/module?\nFor more details, search 'Can't find file.' in the log"));
 		}
-		else
-		{
-			//In case when file is not blueprint we are falling back on trying to create a UObject 
-			const FName EmptyObjectName = OtherAsset->GetFName();
-			const UClass* EmptyObjectAssetClass = OtherAsset->GetClass();
-			return NewObject<UObject>(OtherAsset, EmptyObjectAssetClass, EmptyObjectName, OtherAsset->GetFlags());
-		}
-	};
+		
+		FAssetToolsModule::GetModule().Get().DiffAssets(
+			PreviousAsset,
+			ReviewAsset,
+			GetPreviousFileRevisionInfo(),
+			GetReviewFileRevisionInfo()
+		);
+	});
+}
 
-	if (!ReviewAsset)
-	{
-		ReviewAsset = MakeDefaultAsset(PreviousAsset);
-	}
-
-	if (!PreviousAsset)
-	{
-		PreviousAsset = MakeDefaultAsset(ReviewAsset);
-	}
-
-	if (ReviewAsset && PreviousAsset)
-	{
-		DiffMethod.BindLambda([this, PreviousAsset, ReviewAsset]
-		{
-			const UBlueprint* ReviewBlueprint = Cast<UBlueprint>(ReviewAsset);
-			const UBlueprint* PreviousBlueprint = Cast<UBlueprint>(PreviousAsset);
-			if ((ReviewBlueprint && !ReviewBlueprint->ParentClass) || (PreviousBlueprint && !PreviousBlueprint->ParentClass))
-			{
-				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangelistNotFoundError", "This Blueprint is missing its parent class. Diff results may be incomplete.\n\nDo you need to load this file's plugin/module?\nFor more details, search 'Can't find file.' in the log"));
-			}
-			
-			FAssetToolsModule::GetModule().Get().DiffAssets(
-				PreviousAsset,
-				ReviewAsset,
-				GetPreviousFileRevisionInfo(),
-				GetReviewFileRevisionInfo()
-			);
-		});
-	}
+static FString MakeEmptyTempFile(const FString& AssetName, const FString& Revision)
+{
+	const FString Path = FString::Printf(TEXT("%sTemp%s-%s.empty"), *FPaths::DiffDir(), *AssetName, *Revision);
+	FFileHelper::SaveStringToFile(TEXT(""), *Path);
+	return Path;
 }
 
 void SSourceControlReviewEntry::TryBindTextDiff()
@@ -291,7 +285,22 @@ void SSourceControlReviewEntry::TryBindTextDiff()
 	{
 		const FString& DiffCommand = GetDefault<UEditorLoadingSavingSettings>()->TextDiffToolPath.FilePath;
 		const FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
-		AssetToolsModule.Get().CreateDiffProcess(DiffCommand, ChangelistFileData.PreviousFileTempPath.GetLocalFullPath(), ChangelistFileData.ReviewFileTempPath.GetLocalFullPath());
+		
+		FString OldFilePath = ChangelistFileData.PreviousFileTempPath;
+		FString NewFilePath = ChangelistFileData.ReviewFileTempPath;
+
+		// if this is an add or delete change, diff against an empty file
+		if (OldFilePath.IsEmpty())
+		{
+			const FString& PreviousAssetName = ChangelistFileData.PreviousAssetName.IsEmpty() ? ChangelistFileData.AssetName : ChangelistFileData.PreviousAssetName;
+			OldFilePath = MakeEmptyTempFile(PreviousAssetName, ChangelistFileData.PreviousFileRevisionNum);
+		}
+		if (NewFilePath.IsEmpty())
+		{
+			NewFilePath = MakeEmptyTempFile(ChangelistFileData.AssetName, ChangelistFileData.PreviousFileRevisionNum);
+		}
+		
+		AssetToolsModule.Get().CreateDiffProcess(DiffCommand, OldFilePath, NewFilePath);
 	});
 }
 

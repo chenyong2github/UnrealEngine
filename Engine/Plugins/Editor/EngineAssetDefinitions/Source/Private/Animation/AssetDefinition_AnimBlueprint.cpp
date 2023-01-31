@@ -121,23 +121,15 @@ TSharedPtr<SWidget> UAssetDefinition_AnimBlueprint::GetThumbnailOverlay(const FA
 
 EAssetCommandResult UAssetDefinition_AnimBlueprint::PerformAssetDiff(const FAssetDiffArgs& DiffArgs) const
 {
-	UBlueprint* OldBlueprint = CastChecked<UBlueprint>(DiffArgs.OldAsset);
-	UBlueprint* NewBlueprint = CastChecked<UBlueprint>(DiffArgs.NewAsset);
+	const UBlueprint* OldBlueprint = Cast<UBlueprint>(DiffArgs.OldAsset);
+	const UBlueprint* NewBlueprint = Cast<UBlueprint>(DiffArgs.NewAsset);
 
-	// sometimes we're comparing different revisions of one single asset (other 
-	// times we're comparing two completely separate assets altogether)
-	bool bIsSingleAsset = (NewBlueprint->GetName() == OldBlueprint->GetName());
-
-	FText WindowTitle = LOCTEXT("NamelessAnimationBlueprintDiff", "Animation Blueprint Diff");
-	// if we're diffing one asset against itself 
-	if (bIsSingleAsset)
+	if (NewBlueprint == nullptr && OldBlueprint == nullptr)
 	{
-		// identify the assumed single asset in the window's title
-		WindowTitle = FText::Format(LOCTEXT("AnimationBlueprintDiff", "{0} - Animation Blueprint Diff"), FText::FromString(NewBlueprint->GetName()));
+		return EAssetCommandResult::Unhandled;
 	}
-
-	SBlueprintDiff::CreateDiffWindow(WindowTitle, OldBlueprint, NewBlueprint, DiffArgs.OldRevision, DiffArgs.NewRevision);
-
+	
+	SBlueprintDiff::CreateDiffWindow(OldBlueprint, NewBlueprint, DiffArgs.OldRevision, DiffArgs.NewRevision, UAnimBlueprint::StaticClass());
 	return EAssetCommandResult::Handled;
 }
 

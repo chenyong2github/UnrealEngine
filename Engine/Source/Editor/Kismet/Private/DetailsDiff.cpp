@@ -34,7 +34,7 @@ FDetailsDiff::FDetailsDiff(const UObject* InObject, FOnDisplayedPropertiesChange
 	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	DetailsView = EditModule.CreateDetailView(DetailsViewArgs);
 	DetailsView->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateStatic([]{return false; }));
-	if (InObject->IsA<UBlueprint>())
+	if (InObject && InObject->IsA<UBlueprint>())
 	{
 		// create a custom property layout so that sections like interfaces will be included in the diff view
 		const FOnGetDetailCustomizationInstance LayoutOptionDetails = FOnGetDetailCustomizationInstance::CreateStatic(
@@ -89,6 +89,11 @@ TArray<FPropertySoftPath> FDetailsDiff::GetDisplayedProperties() const
 
 void FDetailsDiff::DiffAgainst(const FDetailsDiff& Newer, TArray< FSingleObjectDiffEntry > &OutDifferences, bool bSortByDisplayOrder) const
 {
+	if (!DisplayedObject || !Newer.DisplayedObject)
+	{
+		return;
+	}
+
 	TSharedPtr< class IDetailsView > OldDetailsView = DetailsView;
 	TSharedPtr< class IDetailsView > NewDetailsView = Newer.DetailsView;
 

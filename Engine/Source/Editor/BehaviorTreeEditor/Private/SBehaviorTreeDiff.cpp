@@ -223,8 +223,8 @@ void SBehaviorTreeDiff::Construct( const FArguments& InArgs )
 		]
 	];
 
-	PanelOld.GeneratePanel(PanelOld.BehaviorTree->BTGraph, FoundDiffs);
-	PanelNew.GeneratePanel(PanelNew.BehaviorTree->BTGraph, FoundDiffs);
+	PanelOld.GeneratePanel(PanelOld.BehaviorTree ? PanelOld.BehaviorTree->BTGraph : nullptr, FoundDiffs);
+	PanelNew.GeneratePanel(PanelNew.BehaviorTree ? PanelNew.BehaviorTree->BTGraph : nullptr, FoundDiffs);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -309,9 +309,14 @@ TSharedRef<SWidget> SBehaviorTreeDiff::GenerateDiffListWidget()
 void SBehaviorTreeDiff::BuildDiffSourceArray()
 {
 	FoundDiffs->Empty();
+	DiffListSource.Empty();
+	if (!PanelOld.BehaviorTree || !PanelNew.BehaviorTree)
+	{
+		return;
+	}
+	
 	FGraphDiffControl::DiffGraphs(PanelOld.BehaviorTree->BTGraph, PanelNew.BehaviorTree->BTGraph, *FoundDiffs);
 
-	DiffListSource.Empty();
 	for (auto DiffIt(FoundDiffs->CreateConstIterator()); DiffIt; ++DiffIt)
 	{
 		DiffListSource.Add(FSharedDiffOnGraph(new FTreeDiffResultItem(*DiffIt)));
@@ -546,7 +551,7 @@ FText SBehaviorTreeDiff::FBehaviorTreeDiffPanel::GetTitle() const
 		const FText RevisionText = FText::FromString(RevisionInfo.Revision);
 		const FText ChangelistText = FText::AsNumber(RevisionInfo.Changelist, &FNumberFormattingOptions::DefaultNoGrouping());
 
-		if (bShowAssetName)
+		if (bShowAssetName && BehaviorTree)
 		{
 			FString AssetName = BehaviorTree->GetName();
 			if(ISourceControlModule::Get().GetProvider().UsesChangelists())
@@ -574,7 +579,7 @@ FText SBehaviorTreeDiff::FBehaviorTreeDiffPanel::GetTitle() const
 			}
 		}
 	}
-	else if (bShowAssetName)
+	else if (bShowAssetName && BehaviorTree)
 	{
 		FString AssetName = BehaviorTree->GetName();
 		FText LocalizedFormat = LOCTEXT("NamedCurrentRevisionFmt", "{0} - Current Revision");

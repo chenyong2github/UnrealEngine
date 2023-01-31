@@ -35,17 +35,16 @@ UClass* FAssetTypeActions_ConversationDatabase::GetSupportedClass() const
 void FAssetTypeActions_ConversationDatabase::PerformAssetDiff(UObject* OldAsset, UObject* NewAsset, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision) const
 {
 	UConversationDatabase* OldBank = Cast<UConversationDatabase>(OldAsset);
-	check(OldBank != nullptr);
-
 	UConversationDatabase* NewBank = Cast<UConversationDatabase>(NewAsset);
-	check(NewBank != nullptr);
+	check(NewBank != nullptr || OldBank != nullptr);
 
 	// sometimes we're comparing different revisions of one single asset (other 
 	// times we're comparing two completely separate assets altogether)
-	const bool bIsSingleAsset = (NewBank->GetName() == OldBank->GetName());
+	const bool bIsSingleAsset = !NewBank || !OldBank || (NewBank->GetName() == OldBank->GetName());
 
+	const FString BankName = NewBank? NewBank->GetName() : OldBank->GetName();
 	const FText WindowTitle = bIsSingleAsset ?
-		FText::Format(LOCTEXT("Conversation Diff", "{0} - Conversation Diff"), FText::FromString(NewBank->GetName())) :
+		FText::Format(LOCTEXT("Conversation Diff", "{0} - Conversation Diff"), FText::FromString(BankName)) :
 		LOCTEXT("NamelessConversationDiff", "Conversation Diff");
 
 	const TSharedPtr<SWindow> Window = SNew(SWindow)

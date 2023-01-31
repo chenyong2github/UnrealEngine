@@ -164,37 +164,39 @@ FSCSDiffControl::FSCSDiffControl(const UBlueprint* InOldBlueprint, const UBluepr
 
 void FSCSDiffControl::GenerateTreeEntries(TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>>& OutTreeEntries, TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>>& OutRealDifferences)
 {
-	TArray< FSCSResolvedIdentifier > OldHierarchy = OldSCS.GetDisplayedHierarchy();
-	TArray< FSCSResolvedIdentifier > NewHierarchy = NewSCS.GetDisplayedHierarchy();
-	DiffUtils::CompareUnrelatedSCS(OldSCS.GetBlueprint(), OldHierarchy, NewSCS.GetBlueprint(), NewHierarchy, DifferingProperties);
-
-	const auto FocusSCSDifferenceEntry = [](FSCSDiffEntry Entry, FOnDiffEntryFocused InSelectionCallback, FSCSDiffControl* Owner)
-	{
-		InSelectionCallback.ExecuteIfBound();
-		if (Entry.TreeIdentifier.Name != NAME_None)
-		{
-			Owner->OldSCS.HighlightProperty(Entry.TreeIdentifier.Name, FPropertyPath());
-			Owner->NewSCS.HighlightProperty(Entry.TreeIdentifier.Name, FPropertyPath());
-		}
-	};
-
-	const auto CreateSCSDifferenceWidget = [](FSCSDiffEntry Entry, FText ObjectName) -> TSharedRef<SWidget>
-	{
-		return SNew(STextBlock)
-				.Text(DiffViewUtils::SCSDiffMessage(Entry, ObjectName))
-				.ColorAndOpacity(DiffViewUtils::Differs());
-	};
-
 	TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>> Children;
-	for (const FSCSDiffEntry& Difference : DifferingProperties.Entries)
+	if (OldSCS.GetBlueprint() && NewSCS.GetBlueprint())
 	{
-		TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
-			FOnDiffEntryFocused::CreateStatic(FocusSCSDifferenceEntry, Difference, SelectionCallback, this),
-			FGenerateDiffEntryWidget::CreateStatic(CreateSCSDifferenceWidget, Difference, RightRevision));
-		Children.Push(Entry);
-		OutRealDifferences.Push(Entry);
-	}
+		const TArray< FSCSResolvedIdentifier > OldHierarchy = OldSCS.GetDisplayedHierarchy();
+		const TArray< FSCSResolvedIdentifier > NewHierarchy = NewSCS.GetDisplayedHierarchy();
+		DiffUtils::CompareUnrelatedSCS(OldSCS.GetBlueprint(), OldHierarchy, NewSCS.GetBlueprint(), NewHierarchy, DifferingProperties);
 
+		const auto FocusSCSDifferenceEntry = [](FSCSDiffEntry Entry, FOnDiffEntryFocused InSelectionCallback, FSCSDiffControl* Owner)
+		{
+			InSelectionCallback.ExecuteIfBound();
+			if (Entry.TreeIdentifier.Name != NAME_None)
+			{
+				Owner->OldSCS.HighlightProperty(Entry.TreeIdentifier.Name, FPropertyPath());
+				Owner->NewSCS.HighlightProperty(Entry.TreeIdentifier.Name, FPropertyPath());
+			}
+		};
+
+		const auto CreateSCSDifferenceWidget = [](FSCSDiffEntry Entry, FText ObjectName) -> TSharedRef<SWidget>
+		{
+			return SNew(STextBlock)
+					.Text(DiffViewUtils::SCSDiffMessage(Entry, ObjectName))
+					.ColorAndOpacity(DiffViewUtils::Differs());
+		};
+
+		for (const FSCSDiffEntry& Difference : DifferingProperties.Entries)
+		{
+			TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
+				FOnDiffEntryFocused::CreateStatic(FocusSCSDifferenceEntry, Difference, SelectionCallback, this),
+				FGenerateDiffEntryWidget::CreateStatic(CreateSCSDifferenceWidget, Difference, RightRevision));
+			Children.Push(Entry);
+			OutRealDifferences.Push(Entry);
+		}
+	}
 	const bool bHasDifferences = Children.Num() != 0;
 	if (!bHasDifferences)
 	{
@@ -249,7 +251,6 @@ void FDetailsDiffControl::GenerateTreeEntries(TArray<TSharedPtr<FBlueprintDiffer
 {
 	for (const FSingleObjectDiffEntry& Difference : DifferingProperties)
 	{
-			
 		TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
 			FOnDiffEntryFocused::CreateSP(TSharedFromThis<FDetailsDiffControl>::AsShared(), &FDetailsDiffControl::OnSelectDiffEntry, Difference.Identifier),
 			FGenerateDiffEntryWidget::CreateStatic(&GenerateObjectDiffWidget, Difference, RightRevision));
@@ -397,9 +398,13 @@ void FClassSettingsDiffControl::GenerateTreeEntries(TArray<TSharedPtr<FBlueprint
 /////////////////////////////////////////////////////////////////////////////
 /// FBlueprintTypeDiffControl
 
-FBlueprintTypeDiffControl::FBlueprintTypeDiffControl(const UBlueprint* InBlueprintOld, const UBlueprint* InBlueprintNew, FOnDiffEntryFocused InSelectionCallback): BlueprintOld(InBlueprintOld), BlueprintNew(InBlueprintNew), SelectionCallback(InSelectionCallback), bDiffSucceeded(false)
+FBlueprintTypeDiffControl::FBlueprintTypeDiffControl(const UBlueprint* InBlueprintOld, const UBlueprint* InBlueprintNew, FOnDiffEntryFocused InSelectionCallback)
+	: BlueprintOld(InBlueprintOld)
+	, BlueprintNew(InBlueprintNew)
+	, SelectionCallback(InSelectionCallback)
+	, bDiffSucceeded(false)
 {
-	check(InBlueprintNew && InBlueprintOld);
+	check(InBlueprintNew || InBlueprintOld);
 }
 
 void FBlueprintTypeDiffControl::GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences)
@@ -472,7 +477,7 @@ TSharedRef<SWidget> FBlueprintTypeDiffControl::GenerateCategoryWidget(bool bHasR
 		Color = DiffViewUtils::Differs();
 	}
 
-	FText Label = BlueprintNew->GetClass()->GetDisplayNameText();
+	const FText Label = (BlueprintNew ? BlueprintNew : BlueprintOld)->GetClass()->GetDisplayNameText();
 
 	return SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
@@ -485,6 +490,11 @@ TSharedRef<SWidget> FBlueprintTypeDiffControl::GenerateCategoryWidget(bool bHasR
 
 void FBlueprintTypeDiffControl::BuildDiffSourceArray()
 {
+	if (!BlueprintNew || !BlueprintOld)
+	{
+		return;
+	}
+	
 	TArray<FDiffSingleResult> BlueprintDiffResults;
 	FDiffResults BlueprintDiffs(&BlueprintDiffResults);
 	if (BlueprintNew->FindDiffs(BlueprintOld, BlueprintDiffs))

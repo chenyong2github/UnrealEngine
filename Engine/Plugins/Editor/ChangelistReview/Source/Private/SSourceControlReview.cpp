@@ -50,7 +50,7 @@ const UClass* FChangelistFileData::GetIconClass()
 	{
 		CachedIconClass = nullptr;
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		const FString TempPackageName = ReviewFileTempPath.GetPackageName();
+		const FString TempPackageName = FPackagePath::FromLocalPath(ReviewFileTempPath).GetPackageName();
 		if (!TempPackageName.IsEmpty())
 		{
 			TArray<FAssetData> OutAssetData;
@@ -374,9 +374,6 @@ void SSourceControlReview::OnChangelistLoadComplete(const FSourceControlOperatio
 	while (ChangelistRecord.Contains(RecordFileMapKey) && ChangelistRecord.Contains(RecordRevisionMapKey))
 	{
 		const FString &FileDepotPath = ChangelistRecord[RecordFileMapKey];
-		
-		//For each 1 file we are loading 2 revisions so files to load is always incremented by two per file
-		FilesToLoad++; 
 
 		const bool bIsShelved = ChangelistRecord[ReviewHelpers::ChangelistStatusKey] == ReviewHelpers::ChangelistPendingStatusKey;
 		const int32 AssetRevision = FCString::Atoi(*ChangelistRecord[RecordRevisionMapKey]);
@@ -402,22 +399,27 @@ void SSourceControlReview::OnChangelistLoadComplete(const FSourceControlOperatio
 		const int32 PreviousAssetRevision = bIsShelved && (ChangelistFileData->FileSourceControlAction == ESourceControlAction::Delete || ChangelistFileData->FileSourceControlAction == ESourceControlAction::Edit) ? AssetRevision : AssetRevision - 1;
 		const FString PreviousAssetRevisionStr = FString::FromInt(PreviousAssetRevision);
 		
-		// retrieve files directly from source control into a temp location
-		TSharedRef<FGetFile> GetFileToReviewCommand = ISourceControlOperation::Create<FGetFile>(Changelist, ChangelistRecord[RecordRevisionMapKey], ChangelistRecord[RecordFileMapKey], bIsShelved);
-
 		TWeakPtr<SSourceControlReview> WeakReviewWidget = SharedThis(this);
-		const auto GetFileCommandResponse = [WeakReviewWidget, ChangelistFileData](const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult, FPackagePath* OutFilePath)
+		const auto GetFileCommandResponse = [WeakReviewWidget, ChangelistFileData](const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult, FString* OutFilePath)
 		{
 			if (WeakReviewWidget.IsValid())
 			{
 				const TSharedRef<FGetFile, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FGetFile>(InOperation);
-				*OutFilePath = FPackagePath::FromLocalPath(Operation->GetOutPackageFilename());
+				*OutFilePath = Operation->GetOutPackageFilename();
 				WeakReviewWidget.Pin()->OnGetFileFromSourceControl(ChangelistFileData);
 			}
 		};
-		
-		ISourceControlModule::Get().GetProvider().Execute(GetFileToReviewCommand, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateLambda(GetFileCommandResponse, &ChangelistFileData->ReviewFileTempPath));
 
+		// retrieve files directly from source control into a temp location
+		if (ChangelistFileData->FileSourceControlAction != ESourceControlAction::Delete)
+		{
+			FilesToLoad++;
+			
+			TSharedRef<FGetFile> GetFileToReviewCommand = ISourceControlOperation::Create<FGetFile>(Changelist, ChangelistRecord[RecordRevisionMapKey], ChangelistRecord[RecordFileMapKey], bIsShelved);
+
+			ISourceControlModule::Get().GetProvider().Execute(GetFileToReviewCommand, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateLambda(GetFileCommandResponse, &ChangelistFileData->ReviewFileTempPath));
+		}
+		
 		if (ChangelistFileData->FileSourceControlAction != ESourceControlAction::Add && ChangelistFileData->FileSourceControlAction != ESourceControlAction::Branch)
 		{
 			FilesToLoad++;
@@ -607,7 +609,7 @@ void SSourceControlReview::OnGetFileFromSourceControl(TSharedPtr<FChangelistFile
 		{
 			if(FileData)
 			{
-				ChangelistFilePaths.Add(FileData->ReviewFileTempPath.GetLocalFullPath());
+				ChangelistFilePaths.Add(FileData->ReviewFileTempPath);
 			}
 		}
 		
@@ -856,7 +858,7 @@ void SSourceControlReview::FixupRedirectors()
 	TMap<FString, TWeakPtr<FChangelistFileData>> RedirectorsFound;
 	for (TSharedPtr<FChangelistFileData> ChangelistFile : ChangelistFiles)
 	{
-		if (FLinkerLoad* ReviewFileLoad = LoadPackageLinker(nullptr, ChangelistFile->ReviewFileTempPath, LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
+		if (FLinkerLoad* ReviewFileLoad = LoadPackageLinker(nullptr, FPackagePath::FromLocalPath(ChangelistFile->ReviewFileTempPath), LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
 		{
 			if (IsObjectRedirector(ReviewFileLoad, ChangelistFile->AssetName))
 			{

@@ -44,14 +44,26 @@ namespace SourceControlReview
 
 		bool IsDataValidForEntry() const
 		{
-			return FileSourceControlAction != ESourceControlAction::Unset && !ReviewFileTempPath.IsEmpty() &&
-				(!PreviousFileTempPath.IsEmpty() || FileSourceControlAction == ESourceControlAction::Add || FileSourceControlAction == ESourceControlAction::Branch);
+			if (FileSourceControlAction == ESourceControlAction::Unset)
+			{
+				return false;
+			}
+			if (ReviewFileTempPath.IsEmpty() && FileSourceControlAction != ESourceControlAction::Delete)
+			{
+				return false;
+			}
+			if (PreviousFileTempPath.IsEmpty() && FileSourceControlAction != ESourceControlAction::Add && FileSourceControlAction != ESourceControlAction::Branch)
+			{
+				return false;
+			}
+			
+			return true;
 		}
 
 		FString AssetName;
 
 		// path where the temporary asset was downloaded to
-		FPackagePath ReviewFileTempPath;
+		FString ReviewFileTempPath;
 
 		FString ReviewFileRevisionNum;
 
@@ -60,7 +72,7 @@ namespace SourceControlReview
 		FString PreviousAssetName;
 
 		// path where the temporary asset was downloaded to
-		FPackagePath PreviousFileTempPath;
+		FString PreviousFileTempPath;
 
 		FString PreviousFileRevisionNum;
 

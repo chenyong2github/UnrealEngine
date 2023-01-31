@@ -94,47 +94,48 @@ TSharedPtr<SWidget> FControlRigBlueprintActions::GetThumbnailOverlay(const FAsse
 
 void FControlRigBlueprintActions::PerformAssetDiff(UObject* OldAsset, UObject* NewAsset, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision) const
 {
-	UBlueprint* OldBlueprint = CastChecked<UBlueprint>(OldAsset);
-	UBlueprint* NewBlueprint = CastChecked<UBlueprint>(NewAsset);
+	UBlueprint* OldBlueprint = Cast<UBlueprint>(OldAsset);
+	UBlueprint* NewBlueprint = Cast<UBlueprint>(NewAsset);
 
 	static const FText DiffWindowMessage = LOCTEXT("ControlRigDiffWindow", "Opening a diff window will close the control rig editor. {0}.\nAre you sure?");
 	
 	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
-	for (IAssetEditorInstance* Editor : AssetEditorSubsystem->FindEditorsForAsset(OldAsset))
+	if (OldAsset)
 	{
-		const EAppReturnType::Type Answer = FMessageDialog::Open( EAppMsgType::YesNo,
-				FText::Format(DiffWindowMessage, FText::FromString(OldBlueprint->GetName())));
-		if(Answer == EAppReturnType::No)
+		for (IAssetEditorInstance* Editor : AssetEditorSubsystem->FindEditorsForAsset(OldAsset))
 		{
-		   return;
+			const EAppReturnType::Type Answer = FMessageDialog::Open( EAppMsgType::YesNo,
+					FText::Format(DiffWindowMessage, FText::FromString(OldBlueprint->GetName())));
+			if(Answer == EAppReturnType::No)
+			{
+			   return;
+			}
 		}
 	}
-	for (IAssetEditorInstance* Editor : AssetEditorSubsystem->FindEditorsForAsset(NewAsset))
+	if (NewAsset)
 	{
-		const EAppReturnType::Type Answer = FMessageDialog::Open( EAppMsgType::YesNo,
-				FText::Format(DiffWindowMessage, FText::FromString(NewBlueprint->GetName())));
-		if(Answer == EAppReturnType::No)
+		for (IAssetEditorInstance* Editor : AssetEditorSubsystem->FindEditorsForAsset(NewAsset))
 		{
-			return;
+			const EAppReturnType::Type Answer = FMessageDialog::Open( EAppMsgType::YesNo,
+					FText::Format(DiffWindowMessage, FText::FromString(NewBlueprint->GetName())));
+			if(Answer == EAppReturnType::No)
+			{
+				return;
+			}
 		}
+	}
+
+	if (OldAsset)
+	{
+		AssetEditorSubsystem->CloseAllEditorsForAsset(OldAsset);
 	}
 	
-	AssetEditorSubsystem->CloseAllEditorsForAsset(OldAsset);
-	AssetEditorSubsystem->CloseAllEditorsForAsset(NewAsset);
-
-	// sometimes we're comparing different revisions of one single asset (other 
-	// times we're comparing two completely separate assets altogether)
-	bool bIsSingleAsset = (NewBlueprint->GetName() == OldBlueprint->GetName());
-
-	FText WindowTitle = LOCTEXT("ControlRigBlueprintDiff", "Control Rig Blueprint Diff");
-	// if we're diffing one asset against itself 
-	if (bIsSingleAsset)
+	if (NewAsset)
 	{
-		// identify the assumed single asset in the window's title
-		WindowTitle = FText::Format(LOCTEXT("Control Rig Diff", "{0} - Control Rig Diff"), FText::FromString(NewBlueprint->GetName()));
+		AssetEditorSubsystem->CloseAllEditorsForAsset(NewAsset);
 	}
 
-	SBlueprintDiff::CreateDiffWindow(WindowTitle, OldBlueprint, NewBlueprint, OldRevision, NewRevision);
+	SBlueprintDiff::CreateDiffWindow(OldBlueprint, NewBlueprint, OldRevision, NewRevision, GetSupportedClass());
 }
 
 void FControlRigBlueprintActions::ExtendSketalMeshToolMenu()

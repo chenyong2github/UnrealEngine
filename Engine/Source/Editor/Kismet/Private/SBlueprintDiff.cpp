@@ -157,19 +157,19 @@ bool DiffWidgetUtils::HasPrevDifference(SListView< TSharedPtr< FDiffSingleResult
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SBlueprintDiff::Construct( const FArguments& InArgs)
 {
-	check(InArgs._BlueprintOld && InArgs._BlueprintNew);
+	check(InArgs._BlueprintOld || InArgs._BlueprintNew);
 	PanelOld.Blueprint = InArgs._BlueprintOld;
 	PanelNew.Blueprint = InArgs._BlueprintNew;
 	PanelOld.RevisionInfo = InArgs._OldRevision;
 	PanelNew.RevisionInfo = InArgs._NewRevision;
 
 	// Create a skeleton if we don't have one, this is true for revision history diffs
-	if (!PanelOld.Blueprint->SkeletonGeneratedClass)
+	if (PanelOld.Blueprint && !PanelOld.Blueprint->SkeletonGeneratedClass)
 	{
 		FKismetEditorUtilities::GenerateBlueprintSkeleton(const_cast<UBlueprint*>(PanelOld.Blueprint));
 	}
 	
-	if (!PanelNew.Blueprint->SkeletonGeneratedClass)
+	if (PanelNew.Blueprint && !PanelNew.Blueprint->SkeletonGeneratedClass)
 	{
 		FKismetEditorUtilities::GenerateBlueprintSkeleton(const_cast<UBlueprint*>(PanelNew.Blueprint));
 	}
@@ -349,8 +349,14 @@ void SBlueprintDiff::Construct( const FArguments& InArgs)
 	SetCurrentMode(MyBlueprintMode);
 
 	// Bind to blueprint changed events as they may be real in memory blueprints that will be modified
-	const_cast<UBlueprint*>(PanelNew.Blueprint)->OnChanged().AddSP(this, &SBlueprintDiff::OnBlueprintChanged);
-	const_cast<UBlueprint*>(PanelOld.Blueprint)->OnChanged().AddSP(this, &SBlueprintDiff::OnBlueprintChanged);
+	if (PanelNew.Blueprint)
+	{
+		const_cast<UBlueprint*>(PanelNew.Blueprint)->OnChanged().AddSP(this, &SBlueprintDiff::OnBlueprintChanged);
+	}
+	if (PanelOld.Blueprint)
+	{
+		const_cast<UBlueprint*>(PanelOld.Blueprint)->OnChanged().AddSP(this, &SBlueprintDiff::OnBlueprintChanged);
+	}
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -427,11 +433,11 @@ TSharedRef<SWidget> SBlueprintDiff::DefaultEmptyPanel()
 		];
 }
 
-TSharedPtr<SWindow> SBlueprintDiff::CreateDiffWindow(FText WindowTitle, UBlueprint* OldBlueprint, UBlueprint* NewBlueprint, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision)
+TSharedPtr<SWindow> SBlueprintDiff::CreateDiffWindow(FText WindowTitle, const UBlueprint* OldBlueprint, const UBlueprint* NewBlueprint, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision)
 {
 	// sometimes we're comparing different revisions of one single asset (other 
 	// times we're comparing two completely separate assets altogether)
-	bool bIsSingleAsset = (NewBlueprint->GetName() == OldBlueprint->GetName());
+	bool bIsSingleAsset = !OldBlueprint || !NewBlueprint || (NewBlueprint->GetName() == OldBlueprint->GetName());
 
 	TSharedPtr<SWindow> Window = SNew(SWindow)
 		.Title(WindowTitle)
@@ -446,7 +452,7 @@ TSharedPtr<SWindow> SBlueprintDiff::CreateDiffWindow(FText WindowTitle, UBluepri
 		.ParentWindow(Window));
 
 	// Make this window a child of the modal window if we've been spawned while one is active.
-	TSharedPtr<SWindow> ActiveModal = FSlateApplication::Get().GetActiveModalWindow();
+	const TSharedPtr<SWindow> ActiveModal = FSlateApplication::Get().GetActiveModalWindow();
 	if (ActiveModal.IsValid())
 	{
 		FSlateApplication::Get().AddWindowAsNativeChild(Window.ToSharedRef(), ActiveModal.ToSharedRef());
@@ -457,6 +463,27 @@ TSharedPtr<SWindow> SBlueprintDiff::CreateDiffWindow(FText WindowTitle, UBluepri
 	}
 
 	return Window;
+}
+
+TSharedPtr<SWindow> SBlueprintDiff::CreateDiffWindow(const UBlueprint* OldBlueprint, const UBlueprint* NewBlueprint,
+                                                     const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision, const UClass* BlueprintClass)
+{
+	check(OldBlueprint || NewBlueprint);
+
+	// sometimes we're comparing different revisions of one single asset (other 
+	// times we're comparing two completely separate assets altogether)
+	const bool bIsSingleAsset = !OldBlueprint || !NewBlueprint || (NewBlueprint->GetName() == OldBlueprint->GetName());
+
+	FText WindowTitle = FText::Format(LOCTEXT("NamelessBlueprintDiff", "{0} Diff"), BlueprintClass->GetDisplayNameText());
+	// if we're diffing one asset against itself 
+	if (bIsSingleAsset)
+	{
+		// identify the assumed single asset in the window's title
+		const FString BPName = NewBlueprint? NewBlueprint->GetName() : OldBlueprint->GetName();
+		WindowTitle = FText::Format(LOCTEXT("NamedBlueprintDiff", "{0} - {1} Diff"), FText::FromString(BPName), BlueprintClass->GetDisplayNameText());
+	}
+
+	return CreateDiffWindow(WindowTitle, OldBlueprint, NewBlueprint, OldRevision, NewRevision);
 }
 
 void SBlueprintDiff::NextDiff()
@@ -650,9 +677,13 @@ void FDiffPanel::GeneratePanel(UEdGraph* Graph, TSharedPtr<TArray<FDiffSingleRes
 	GraphEditorBox->SetContent(Widget.ToSharedRef());
 }
 
-TSharedRef<SWidget> FDiffPanel::GenerateMyBlueprintWidget()
+TSharedRef<class SWidget> FDiffPanel::GenerateMyBlueprintWidget()
 {
-	return SAssignNew(MyBlueprint, SMyBlueprint, TWeakPtr<FBlueprintEditor>(), Blueprint);
+	if (Blueprint)
+	{
+		return SAssignNew(MyBlueprint, SMyBlueprint, TWeakPtr<FBlueprintEditor>(), Blueprint);
+	}
+	return SNew(STextBlock).Text(LOCTEXT("NullBlueprint","Missing Blueprint"));
 }
 
 FGraphPanelSelectionSet FDiffPanel::GetSelectedNodes() const
@@ -702,6 +733,18 @@ void FDiffPanel::FocusDiff(UEdGraphNode& Node)
 	{
 		GraphEditor.Pin()->JumpToNode(&Node, false);
 	}
+}
+
+TSharedRef<SWidget> FDiffPanel::GetMyBlueprintWidget() const
+{
+	// if this panel is displaying a null object, return an empty boarder instead of a MyBlueprint
+	return MyBlueprint ? (TSharedRef<SWidget>)MyBlueprint.ToSharedRef() : TSharedRef<SWidget>(SNew(SBorder));
+}
+
+TSharedRef<SWidget> FDiffPanel::GetDetailsWidget() const
+{
+	// if this panel is displaying a null object, return an empty boarder instead of a details view
+	return DetailsView ? (TSharedRef<SWidget>)DetailsView.ToSharedRef() : TSharedRef<SWidget>(SNew(SBorder));
 }
 
 FDiffPanel& SBlueprintDiff::GetDiffPanelForNode(UEdGraphNode& Node)
@@ -788,16 +831,21 @@ void SBlueprintDiff::GenerateDifferencesList()
 			.ShowLocalVariables(true);
 	};
 
-	PanelOld.GenerateMyBlueprintWidget();
-	PanelOld.DetailsView = CreateInspector(PanelOld.MyBlueprint);
-	PanelOld.MyBlueprint->SetInspector(PanelOld.DetailsView);
-	PanelNew.GenerateMyBlueprintWidget();
-	PanelNew.DetailsView = CreateInspector(PanelNew.MyBlueprint);
-	PanelNew.MyBlueprint->SetInspector(PanelNew.DetailsView);
-
 	TArray<UEdGraph*> GraphsOld, GraphsNew;
-	PanelOld.Blueprint->GetAllGraphs(GraphsOld);
-	PanelNew.Blueprint->GetAllGraphs(GraphsNew);
+	if (PanelOld.Blueprint)
+	{
+		PanelOld.GenerateMyBlueprintWidget();
+		PanelOld.DetailsView = CreateInspector(PanelOld.MyBlueprint);
+		PanelOld.MyBlueprint->SetInspector(PanelOld.DetailsView);
+		PanelOld.Blueprint->GetAllGraphs(GraphsOld);
+	}
+	if (PanelNew.Blueprint)
+	{
+		PanelNew.GenerateMyBlueprintWidget();
+		PanelNew.DetailsView = CreateInspector(PanelNew.MyBlueprint);
+		PanelNew.MyBlueprint->SetInspector(PanelNew.DetailsView);
+		PanelNew.Blueprint->GetAllGraphs(GraphsNew);
+	}
 
 	//Add Graphs that exist in both blueprints, or in blueprint 1 only
 	for (UEdGraph* GraphOld : GraphsOld)
@@ -831,8 +879,8 @@ void SBlueprintDiff::GenerateDifferencesList()
 	}
 
 	bool bHasComponents = false;
-	UClass* BlueprintClassOld = PanelOld.Blueprint->GeneratedClass;
-	UClass* BlueprintClassNew = PanelNew.Blueprint->GeneratedClass;
+	UClass* BlueprintClassOld = PanelOld.Blueprint ? PanelOld.Blueprint->GeneratedClass : PanelNew.Blueprint->GeneratedClass;
+	UClass* BlueprintClassNew = PanelNew.Blueprint ? PanelNew.Blueprint->GeneratedClass : PanelOld.Blueprint->GeneratedClass;
 	const bool bIsOldClassActor = BlueprintClassOld && BlueprintClassOld->IsChildOf<AActor>();
 	const bool bIsNewClassActor = BlueprintClassNew && BlueprintClassNew->IsChildOf<AActor>();
 	if (bIsOldClassActor || bIsNewClassActor)
@@ -841,7 +889,8 @@ void SBlueprintDiff::GenerateDifferencesList()
 	}
 
 	// If this isn't a normal blueprint type, add the type panel
-	if (PanelOld.Blueprint->GetClass() != UBlueprint::StaticClass())
+	const UClass* RepresentativeClass = PanelOld.Blueprint ? PanelOld.Blueprint->GetClass() : PanelNew.Blueprint->GetClass();
+	if (RepresentativeClass != UBlueprint::StaticClass())
 	{
 		ModePanels.Add(BlueprintTypeMode, GenerateBlueprintTypePanel());
 	}
@@ -849,7 +898,7 @@ void SBlueprintDiff::GenerateDifferencesList()
 	// Now that we have done the diffs, create the panel widgets
 	ModePanels.Add(MyBlueprintMode, GenerateMyBlueprintPanel());
 	ModePanels.Add(GraphMode, GenerateGraphPanel());
-	if (PanelOld.Blueprint->ParentClass && PanelNew.Blueprint->ParentClass)
+	if ((PanelOld.Blueprint && PanelOld.Blueprint->ParentClass) || (PanelNew.Blueprint && PanelNew.Blueprint->ParentClass))
 	{
 		ModePanels.Add(DefaultsMode, GenerateDefaultsPanel());
 	}
@@ -925,11 +974,11 @@ SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateMyBlueprintPanel()
 				.PhysicalSplitterHandleSize(10.0f)
 				+ SSplitter::Slot()
 				[
-					PanelOld.MyBlueprint.ToSharedRef()
+					PanelOld.GetMyBlueprintWidget()
 				]
 				+ SSplitter::Slot()
 				[
-					PanelNew.MyBlueprint.ToSharedRef()
+					PanelNew.GetMyBlueprintWidget()
 				]
 			]
 			+ SSplitter::Slot()
@@ -939,11 +988,11 @@ SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateMyBlueprintPanel()
 				.PhysicalSplitterHandleSize(10.0f)
 				+SSplitter::Slot()
 				[
-					PanelOld.DetailsView.ToSharedRef()
+					PanelOld.GetDetailsWidget()
 				]
 				+ SSplitter::Slot()
 				[
-					PanelNew.DetailsView.ToSharedRef()
+					PanelNew.GetDetailsWidget()
 				]
 			]
 		]
@@ -989,11 +1038,11 @@ SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateGraphPanel()
 				.PhysicalSplitterHandleSize(10.0f)
 				+SSplitter::Slot()
 				[
-					PanelOld.DetailsView.ToSharedRef()
+					PanelOld.GetDetailsWidget()
 				]
 				+ SSplitter::Slot()
 				[
-					PanelNew.DetailsView.ToSharedRef()
+					PanelNew.GetDetailsWidget()
 				]
 			]
 		]
@@ -1125,8 +1174,14 @@ void SBlueprintDiff::SetCurrentMode(FName NewMode)
 	if (FoundControl)
 	{
 		// Reset inspector view
-		PanelOld.DetailsView->ShowDetailsForObjects(TArray<UObject*>());
-		PanelNew.DetailsView->ShowDetailsForObjects(TArray<UObject*>());
+		if (PanelOld.DetailsView)
+		{
+			PanelOld.DetailsView->ShowDetailsForObjects(TArray<UObject*>());
+		}
+		if (PanelNew.DetailsView)
+		{
+			PanelNew.DetailsView->ShowDetailsForObjects(TArray<UObject*>());
+		}
 
 		ModeContents->SetContent(FoundControl->Widget.ToSharedRef());
 	}

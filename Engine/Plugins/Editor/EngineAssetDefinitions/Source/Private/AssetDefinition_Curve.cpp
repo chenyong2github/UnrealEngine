@@ -36,20 +36,25 @@ EAssetCommandResult UAssetDefinition_Curve::PerformAssetDiff(const FAssetDiffArg
 	UCurveBase* OldCurve = Cast<UCurveBase>(DiffArgs.OldAsset);
 	UCurveBase* NewCurve = Cast<UCurveBase>(DiffArgs.NewAsset);
 
-	if (!ensure(OldCurve != nullptr && NewCurve != nullptr))
+	if (NewCurve == nullptr && OldCurve == nullptr)
 	{
 		return EAssetCommandResult::Unhandled;
 	}
 
 	// Build names for temp json files
-	const FString RelOldTempFileName = FString::Printf(TEXT("%sTemp%s-%s.json"), *FPaths::DiffDir(), *DiffArgs.OldAsset->GetName(), *DiffArgs.OldRevision.Revision);
+	const FString OldAssetName = DiffArgs.OldAsset ? DiffArgs.OldAsset->GetName() : DiffArgs.NewAsset->GetName();
+	const FString RelOldTempFileName = FString::Printf(TEXT("%sTemp%s-%s.json"), *FPaths::DiffDir(), *OldAssetName, *DiffArgs.OldRevision.Revision);
 	const FString AbsoluteOldTempFileName = FPaths::ConvertRelativePathToFull(RelOldTempFileName);
-	const FString RelNewTempFileName = FString::Printf(TEXT("%sTemp%s-%s.json"), *FPaths::DiffDir(), *DiffArgs.NewAsset->GetName(), *DiffArgs.NewRevision.Revision);
+	
+	const FString NewAssetName = DiffArgs.NewAsset ? DiffArgs.NewAsset->GetName() : DiffArgs.OldAsset->GetName();
+	const FString RelNewTempFileName = FString::Printf(TEXT("%sTemp%s-%s.json"), *FPaths::DiffDir(), *NewAssetName, *DiffArgs.NewRevision.Revision);
 	const FString AbsoluteNewTempFileName = FPaths::ConvertRelativePathToFull(RelNewTempFileName);
 
 	// save temp files
-	const bool OldResult = FFileHelper::SaveStringToFile(OldCurve->ExportAsJSONString(), *AbsoluteOldTempFileName);
-	const bool NewResult = FFileHelper::SaveStringToFile(NewCurve->ExportAsJSONString(), *AbsoluteNewTempFileName);
+	const FString OldJson = OldCurve ? OldCurve->ExportAsJSONString() : TEXT("");
+	const bool OldResult = FFileHelper::SaveStringToFile(OldJson, *AbsoluteOldTempFileName);
+	const FString NewJson = NewCurve ? NewCurve->ExportAsJSONString() : TEXT("");
+	const bool NewResult = FFileHelper::SaveStringToFile(NewJson, *AbsoluteNewTempFileName);
 
 	if (OldResult && NewResult)
 	{
