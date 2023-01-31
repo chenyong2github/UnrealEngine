@@ -379,6 +379,13 @@ void UK2Node_SpawnActorFromClass::FixupScaleMethodPin()
 		return;
 	}
 
+	// For the sake of cook determinism, leave the scale method as ESpawnActorScaleMethod::SelectDefaultAtRuntime when cooking.
+	// This shouldn't impact runtime behavior.
+	if (IsRunningCookCommandlet())
+	{
+		return;
+	}
+
 	if (GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::SpawnActorFromClassTransformScaleMethod)
 	{
         if (UEdGraphPin* const ScaleMethodPin = TryGetScaleMethodPin())
