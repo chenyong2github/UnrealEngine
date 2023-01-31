@@ -30,6 +30,7 @@
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "GeometryCollection/GeometryCollectionISMPoolActor.h"
 #include "GeometryCollection/GeometryCollectionISMPoolComponent.h"
+#include "GeometryCollection/GeometryCollectionISMPoolSubSystem.h"
 #include "Math/Sphere.h"
 #include "Modules/ModuleManager.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -317,6 +318,8 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, bEnableRunTimeDataCollection(false)
 	, RunTimeDataCollectionGuid(FGuid::NewGuid())
 #endif
+	, ISMPool(nullptr)
+	, bAutoAssignISMPool(false)
 	, bEnableReplication(false)
 	, bEnableAbandonAfterLevel(true)
 	, AbandonedCollisionProfileName(UCollisionProfile::CustomCollisionProfileName)
@@ -2375,6 +2378,23 @@ void UGeometryCollectionComponent::AsyncPhysicsTickComponent(float DeltaTime, fl
 
 void UGeometryCollectionComponent::OnRegister()
 {
+	// important : we shoudl assign this as soon as possible to avoid the scene proxy from being created
+	AssignedISMPool = nullptr;
+	if (bChaos_GC_UseISMPool && GetWorld()->IsGameWorld())
+	{
+		if (bAutoAssignISMPool)
+		{
+			if (UGeometryCollectionISMPoolSubSystem* ISMPoolSubSystem = UWorld::GetSubsystem<UGeometryCollectionISMPoolSubSystem>(GetWorld()))
+			{
+				AssignedISMPool = ISMPoolSubSystem->FindISMPoolActor(*this);
+			}
+		}
+		else
+		{
+			AssignedISMPool = ISMPool;
+		}
+	}
+
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::OnRegister()[%p]"), this,RestCollection );
 	ResetDynamicCollection();
 
@@ -2392,6 +2412,12 @@ void UGeometryCollectionComponent::OnRegister()
 	InitializeEmbeddedGeometry();
 
 	Super::OnRegister();
+}
+
+void UGeometryCollectionComponent::OnUnregister()
+{
+	Super::OnUnregister();
+	AssignedISMPool = nullptr;
 }
 
 void UGeometryCollectionComponent::ResetDynamicCollection()
@@ -4065,7 +4091,7 @@ void UGeometryCollectionComponent::InitializeEmbeddedGeometry()
 
 bool UGeometryCollectionComponent::CanUseISMPool() const 
 {
-	return bChaos_GC_UseISMPool && ISMPool && GetWorld()->IsGameWorld();
+	return bChaos_GC_UseISMPool && AssignedISMPool && GetWorld()->IsGameWorld();
 }
 
 void UGeometryCollectionComponent::RegisterToISMPool()
@@ -4074,7 +4100,7 @@ void UGeometryCollectionComponent::RegisterToISMPool()
 
 	if (CanUseISMPool())
 	{
-		if (UGeometryCollectionISMPoolComponent* ISMPoolComp = ISMPool->GetISMPoolComp())
+		if (UGeometryCollectionISMPoolComponent* ISMPoolComp = AssignedISMPool->GetISMPoolComp())
 		{
 			bool bCanRenderComponent = true;
 			if (RestCollection)
@@ -4136,7 +4162,7 @@ void UGeometryCollectionComponent::RegisterToISMPool()
 
 				// root proxy if available 
 				// TODO : if ISM pool is not available : uses a standard static mesh component
-				if (UObject* RootMeshProxyObject = RestCollection->RootProxy.ResolveObject())
+				if (UObject* RootMeshProxyObject = RestCollection->RootProxy.TryLoad())
 				{
 					if (UStaticMesh* RootMeshProxy = Cast<UStaticMesh>(RootMeshProxyObject))
 					{
@@ -4159,23 +4185,23 @@ void UGeometryCollectionComponent::RegisterToISMPool()
 
 void UGeometryCollectionComponent::UnregisterFromISMPool()
 {
-	if (ISMPool)
+	if (AssignedISMPool)
 	{
-		if (UGeometryCollectionISMPoolComponent* ISMPoolComp = ISMPool->GetISMPoolComp())
+		if (UGeometryCollectionISMPoolComponent* ISMPoolComp = AssignedISMPool->GetISMPoolComp())
 		{
 			ISMPoolComp->DestroyMeshGroup(ISMPoolMeshGroupIndex);
 			ISMPoolMeshGroupIndex = INDEX_NONE;
 			ISMPoolRootProxyMeshId = INDEX_NONE;
 		}
+		SetVisibility(true);
 	}
-	SetVisibility(true);
 }
 
 void UGeometryCollectionComponent::RefreshISMPoolInstances()
 {
 	if (CanUseISMPool())
 	{
-		if (UGeometryCollectionISMPoolComponent* ISMPoolComp = ISMPool->GetISMPoolComp())
+		if (UGeometryCollectionISMPoolComponent* ISMPoolComp = AssignedISMPool->GetISMPoolComp())
 		{
 			if (RestCollection)
 			{
