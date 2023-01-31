@@ -63,6 +63,7 @@ public class NiagaraEditor : ModuleRules
 				"ImageWrapper",
 				"AssetDefinition",
 				"ContentBrowser",
+				"ToolWidgets",
 				"AssetTools"
 			}
 		);

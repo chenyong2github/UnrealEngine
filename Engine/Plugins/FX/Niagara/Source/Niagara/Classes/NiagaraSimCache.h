@@ -250,10 +250,15 @@ struct FNiagaraSimCacheLayout
 	TArray<FNiagaraSimCacheDataBuffersLayout> EmitterLayouts;
 };
 
-struct FNiagaraSimCacheWriteResult
+struct FNiagaraSimCacheFeedbackContext
 {
-	bool bSuccess = false;
-	FString ErrorMsg;
+	FNiagaraSimCacheFeedbackContext() = default;
+	explicit FNiagaraSimCacheFeedbackContext(bool bInAutoLogIssues) : bAutoLogIssues(bInAutoLogIssues) {}
+	NIAGARA_API ~FNiagaraSimCacheFeedbackContext();
+
+	bool bAutoLogIssues = true;
+	TArray<FString> Errors;
+	TArray<FString> Warnings;
 };
 
 UCLASS(Experimental, BlueprintType)
@@ -290,8 +295,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache)
 	ENiagaraSimCacheAttributeCaptureMode GetAttributeCaptureMode() const { return CreateParameters.AttributeCaptureMode; }
 
-	bool BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent);
-	FNiagaraSimCacheWriteResult WriteFrame(UNiagaraComponent* NiagaraComponent);
+	bool BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent * NiagaraComponent);
+	bool BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent, FNiagaraSimCacheFeedbackContext& FeedbackContext);
+	bool WriteFrame(UNiagaraComponent* NiagaraComponent);
+	bool WriteFrame(UNiagaraComponent* NiagaraComponent, FNiagaraSimCacheFeedbackContext& FeedbackContext);
 	bool EndWrite();
 
 	bool CanRead(UNiagaraSystem* NiagaraSystem);

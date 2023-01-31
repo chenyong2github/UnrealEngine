@@ -17,6 +17,14 @@ class USceneCaptureComponent2D;
 class FAdvancedPreviewScene;
 class FCanvas;
 
+struct FNiagaraBakerFeedbackContext
+{
+	bool HasIssues() const { return Errors.Num() + Warnings.Num() > 0; }
+
+	TArray<FString>	Errors;
+	TArray<FString>	Warnings;
+};
+
 struct FNiagaraBakerOutputBinding
 {
 	FName	BindingName;
@@ -79,9 +87,9 @@ public:
 	virtual FIntPoint GetGeneratedSize(UNiagaraBakerOutput* BakerOutput, FIntPoint InAvailableSize) const { return FIntPoint::ZeroValue; }
 	virtual void RenderGenerated(UNiagaraBakerOutput* BakerOutput, const FNiagaraBakerRenderer& BakerRenderer, UTextureRenderTarget2D* RenderTarget, TOptional<FString>& OutErrorString) const = 0;
 
-	virtual bool BeginBake(UNiagaraBakerOutput* InBakerOutput) = 0;
-	virtual void BakeFrame(UNiagaraBakerOutput* InBakerOutput, int FrameIndex, const FNiagaraBakerRenderer& BakerRenderer) = 0;
-	virtual void EndBake(UNiagaraBakerOutput* InBakerOutput) = 0;
+	virtual bool BeginBake(FNiagaraBakerFeedbackContext& FeedbackContext, UNiagaraBakerOutput* InBakerOutput) = 0;
+	virtual void BakeFrame(FNiagaraBakerFeedbackContext& FeedbackContext, UNiagaraBakerOutput* InBakerOutput, int FrameIndex, const FNiagaraBakerRenderer& BakerRenderer) = 0;
+	virtual void EndBake(FNiagaraBakerFeedbackContext& FeedbackContext, UNiagaraBakerOutput* InBakerOutput) = 0;
 };
 
 class FNiagaraBakerRenderer : FGCObject

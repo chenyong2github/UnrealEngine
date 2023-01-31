@@ -6,6 +6,7 @@
 #include "UObject/Interface.h"
 #include "NiagaraSimCacheCustomStorageInterface.generated.h"
 
+struct FNiagaraSimCacheFeedbackContext;
 class FNiagaraSystemInstance;
 
 // Interface for UObjects to implement renderable mesh
@@ -29,13 +30,13 @@ public:
 	Returning nullptr means you are not going to cache any data for the simulation.
 	The object returned will be stored directly into the cache file, so you are expected to manage the size of the object and store data appropriately.
 	*/
-	virtual UObject* SimCacheBeginWrite(UObject* SimCache, FNiagaraSystemInstance* NiagaraSystemInstance, const void* OptionalPerInstanceData) const { return nullptr; }
+	virtual UObject* SimCacheBeginWrite(UObject* SimCache, FNiagaraSystemInstance* NiagaraSystemInstance, const void* OptionalPerInstanceData, FNiagaraSimCacheFeedbackContext& FeedbackContext) const { return nullptr; }
 
 	/**
 	Called when we are ready to write data into the simulation cache.
 	This is always called in sequence, i.e. 0, 1, 2, etc, we will never jump around frames.
 	*/
-	virtual bool SimCacheWriteFrame(UObject* StorageObject, int FrameIndex, FNiagaraSystemInstance* SystemInstance, const void* OptionalPerInstanceData) const { return true; }
+	virtual bool SimCacheWriteFrame(UObject* StorageObject, int FrameIndex, FNiagaraSystemInstance* SystemInstance, const void* OptionalPerInstanceData, FNiagaraSimCacheFeedbackContext& FeedbackContext) const { return true; }
 
 	/**
 	Called when we complete writing data into the simulation cache.

@@ -556,7 +556,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::GetExposedVariableValue(const FNia
 	return false;
 }
 
-UObject* UNiagaraDataInterfaceRenderTargetVolume::SimCacheBeginWrite(UObject* InSimCache, FNiagaraSystemInstance* NiagaraSystemInstance, const void* OptionalPerInstanceData) const
+UObject* UNiagaraDataInterfaceRenderTargetVolume::SimCacheBeginWrite(UObject* InSimCache, FNiagaraSystemInstance* NiagaraSystemInstance, const void* OptionalPerInstanceData, FNiagaraSimCacheFeedbackContext& FeedbackContext) const
 {
 	if (NDIRenderTargetVolumeLocal::GSimCacheUseOpenVDB)
 	{		
@@ -569,7 +569,7 @@ UObject* UNiagaraDataInterfaceRenderTargetVolume::SimCacheBeginWrite(UObject* In
 
 		if (GetDefault<UNiagaraSettings>()->SimCacheAuxiliaryFileBasePath == "")
 		{
-			UE_LOG(LogNiagara, Error, TEXT("You must set SimCacheAuxiliaryFileBasePath in project settings"));
+			FeedbackContext.Errors.Emplace(TEXT("UNiagaraDataInterfaceRenderTargetVolume - You must set SimCacheAuxiliaryFileBasePath in project settings"));
 			return nullptr;
 		}
 
@@ -590,7 +590,7 @@ UObject* UNiagaraDataInterfaceRenderTargetVolume::SimCacheBeginWrite(UObject* In
 		{
 			if (!PlatformFile.CreateDirectoryTree(*FileDirectory))
 			{
-				UE_LOG(LogNiagara, Error, TEXT("Cannot Create Directory : %s"), *FileDirectory);
+				FeedbackContext.Errors.Emplace(FString::Printf(TEXT("Cannot Create Directory : %s"), *FileDirectory));
 				return nullptr;
 			}
 		}
@@ -619,12 +619,11 @@ UObject* UNiagaraDataInterfaceRenderTargetVolume::SimCacheBeginWrite(UObject* In
 	return nullptr;
 }
 
-bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheWriteFrame(UObject* StorageObject, int FrameIndex, FNiagaraSystemInstance* SystemInstance, const void* OptionalPerInstanceData) const
+bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheWriteFrame(UObject* StorageObject, int FrameIndex, FNiagaraSystemInstance* SystemInstance, const void* OptionalPerInstanceData, FNiagaraSimCacheFeedbackContext& FeedbackContext) const
 {
 	check(OptionalPerInstanceData);
 
 	const FRenderTargetVolumeRWInstanceData_GameThread* InstanceData_GT = reinterpret_cast<const FRenderTargetVolumeRWInstanceData_GameThread*>(OptionalPerInstanceData);
-
 
 	if (InstanceData_GT->TargetTexture)
 	{

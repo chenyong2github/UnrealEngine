@@ -34,7 +34,7 @@ public:
 
 	TSharedPtr<class SWidget> GetWidget();
 
-	void RenderBaker();
+	FNiagaraBakerFeedbackContext RenderBaker();
 
 	void SetDisplayTimeFromNormalized(float NormalizeTime);
 

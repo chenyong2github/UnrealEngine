@@ -19,6 +19,22 @@
 UNiagaraSimCache::FOnCacheBeginWrite	UNiagaraSimCache::OnCacheBeginWrite;
 UNiagaraSimCache::FOnCacheEndWrite		UNiagaraSimCache::OnCacheEndWrite;
 
+FNiagaraSimCacheFeedbackContext::~FNiagaraSimCacheFeedbackContext()
+{
+	if (bAutoLogIssues)
+	{
+		for (const FString& Warning : Warnings)
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("SimCache Warning: %s"), *Warning);
+		}
+
+		for (const FString& Error : Errors)
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("SimCache Error: %s"), *Error);
+		}
+	}
+}
+
 UNiagaraSimCache::UNiagaraSimCache(const FObjectInitializer& ObjectInitializer)
 {
 }
@@ -30,6 +46,12 @@ bool UNiagaraSimCache::IsReadyForFinishDestroy()
 
 bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent)
 {
+	FNiagaraSimCacheFeedbackContext FeedbackContext;
+	return BeginWrite(InCreateParameters, NiagaraComponent, FeedbackContext);
+}
+
+bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent, FNiagaraSimCacheFeedbackContext& FeedbackContext)
+{
 	check(PendingCommandsInFlight == 0);
 
 	OnCacheBeginWrite.Broadcast(this);
@@ -37,6 +59,7 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 	FNiagaraSimCacheHelper Helper(NiagaraComponent);
 	if (Helper.HasValidSimulation() == false)
 	{
+		FeedbackContext.Errors.Emplace(FString::Printf(TEXT("No valid simulation data for %s"), *GetPathNameSafe(Helper.NiagaraSystem)));
 		return false;
 	}
 
@@ -71,6 +94,7 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 		// Invalid as the user specified nothing to actual capture
 		if (CreateParameters.ExplicitCaptureAttributes.IsEmpty())
 		{
+			FeedbackContext.Errors.Emplace(FString::Printf(TEXT("Missing attributes to capture when in explicit capture mode %s"), *GetPathNameSafe(Helper.NiagaraSystem)));
 			SoftNiagaraSystem.Reset();
 			return false;
 		}
@@ -153,7 +177,7 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 				if (INiagaraSimCacheCustomStorageInterface* SimCacheCustomStorageInterface = Cast<INiagaraSimCacheCustomStorageInterface>(DataInterface))
 				{
 					const void* PerInstanceData = Helper.SystemInstance->FindDataInterfaceInstanceData(DataInterface);
-					if (UObject* DICacheStorage = SimCacheCustomStorageInterface->SimCacheBeginWrite(this, Helper.SystemInstance, PerInstanceData))
+					if (UObject* DICacheStorage = SimCacheCustomStorageInterface->SimCacheBeginWrite(this, Helper.SystemInstance, PerInstanceData, FeedbackContext))
 					{
 						DataInterfaceStorage.FindOrAdd(Variable) = DICacheStorage;
 					}
@@ -162,39 +186,76 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 			}
 		);
 	}
+
+#if WITH_EDITORONLY_DATA
+	// Check all our bindings are ok
+	for ( const FNiagaraEmitterHandle& EmitterHandle : Helper.NiagaraSystem->GetEmitterHandles() )
+	{
+		EmitterHandle.GetInstance().GetEmitterData()->ForEachEnabledRenderer(
+			[&](UNiagaraRendererProperties* RenderProperties)
+			{
+				for (FNiagaraVariableBase BoundAttribute : RenderProperties->GetBoundAttributes())
+				{
+					if (!BoundAttribute.IsDataInterface())
+					{
+						continue;
+					}
+
+					UNiagaraDataInterface* DataInterfaceCDO = CastChecked<UNiagaraDataInterface>(BoundAttribute.GetType().GetClass()->GetDefaultObject());
+					if (DataInterfaceCDO->PerInstanceDataSize() == 0)
+					{
+						continue;
+					}
+
+					if (!DataInterfaceStorage.Contains(BoundAttribute))
+					{
+						FeedbackContext.Warnings.Emplace(FString::Printf(TEXT("Material Data Interface Binding '%s : %s' did not store any data or does not support sim caching, baked result may be incorrect."), *DataInterfaceCDO->GetClass()->GetName(), *BoundAttribute.GetName().ToString()));
+					}
+				}
+			}
+		);
+	}
+#endif
+
 	return true;
 }
 
-FNiagaraSimCacheWriteResult UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
+bool UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
 {
-	FNiagaraSimCacheWriteResult Result;
+	FNiagaraSimCacheFeedbackContext FeedbackContext;
+	return WriteFrame(NiagaraComponent, FeedbackContext);
+}
+
+bool UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent, FNiagaraSimCacheFeedbackContext& FeedbackContext)
+{
 	FNiagaraSimCacheHelper Helper(NiagaraComponent);
 	if (Helper.HasValidSimulationData() == false)
 	{
 		SoftNiagaraSystem.Reset();
-		Result.ErrorMsg = FString::Printf(TEXT("No valid simulation data for %s"), *GetPathNameSafe(Helper.NiagaraSystem));
-		return Result;
+		FeedbackContext.Errors.Emplace(FString::Printf(TEXT("No valid simulation data for %s"), *GetPathNameSafe(Helper.NiagaraSystem)));
+		return false;
 	}
 
 	if ( SoftNiagaraSystem.Get() != Helper.NiagaraSystem )
 	{
-		Result.ErrorMsg = FString::Printf(TEXT("System %s != System %s"), *GetPathNameSafe(SoftNiagaraSystem.Get()), *GetPathNameSafe(Helper.NiagaraSystem));
+		FeedbackContext.Errors.Emplace(FString::Printf(TEXT("System %s != System %s"), *GetPathNameSafe(SoftNiagaraSystem.Get()), *GetPathNameSafe(Helper.NiagaraSystem)));
 		SoftNiagaraSystem.Reset();
-		return Result;
+		return false;
 	}
 
 	// Simulation is complete nothing to cache
 	if ( Helper.SystemInstance->IsComplete() )
 	{
-		Result.ErrorMsg = FString::Printf(TEXT("System already completed its simulation. %s"), *Helper.SystemInstance->GetCrashReporterTag());
-		return Result;
+		FeedbackContext.Errors.Emplace(FString::Printf(TEXT("System already completed its simulation. %s"), *Helper.SystemInstance->GetCrashReporterTag()));
+		return false;
 	}
 
 	// Is the simulation running?  If not nothing to cache yet
 	if ( Helper.SystemInstance->SystemInstanceState != ENiagaraSystemInstanceState::Running )
 	{
-		Result.ErrorMsg = FString::Printf(TEXT("System is not running, so there is no data to cache. %s"), *Helper.SystemInstance->GetCrashReporterTag());
-		return Result;
+		// This warning will trigger way to often and isn't that useful
+		//	FeedbackContext.Errors.Emplace(FString::Printf(TEXT("System is not running, so there is no data to cache. %s"), *Helper.SystemInstance->GetCrashReporterTag()));
+		return false;
 	}
 
 	// First frame we are about to cache?
@@ -206,16 +267,16 @@ FNiagaraSimCacheWriteResult UNiagaraSimCache::WriteFrame(UNiagaraComponent* Niag
 	// If our tick counter hasn't moved then we won't capture a frame as there's nothing new to process
 	else if (CaptureTickCount == Helper.SystemInstance->GetTickCount())
 	{
-		Result.ErrorMsg = FString::Printf(TEXT("System was not ticked since the last capture. %s"), *Helper.SystemInstance->GetCrashReporterTag());
-		return Result;
+		FeedbackContext.Errors.Emplace(FString::Printf(TEXT("System was not ticked since the last capture. %s"), *Helper.SystemInstance->GetCrashReporterTag()));
+		return false;
 	}
 
 	// If the tick counter is lower than the previous value then the system was reset so we won't capture
 	if ( Helper.SystemInstance->GetTickCount() < CaptureTickCount )
 	{
-		Result.ErrorMsg = FString::Printf(TEXT("System was was reset since the last capture, skipping further cache writes. %s"), *Helper.SystemInstance->GetCrashReporterTag());
+		FeedbackContext.Errors.Emplace(FString::Printf(TEXT("System was was reset since the last capture, skipping further cache writes. %s"), *Helper.SystemInstance->GetCrashReporterTag()));
 		SoftNiagaraSystem.Reset();
-		return Result;
+		return false;
 	}
 
 	DurationSeconds = Helper.SystemInstance->GetAge() - StartSeconds;
@@ -289,7 +350,7 @@ FNiagaraSimCacheWriteResult UNiagaraSimCache::WriteFrame(UNiagaraComponent* Niag
 				{
 					INiagaraSimCacheCustomStorageInterface* SimCacheCustomStorageInterface = CastChecked<INiagaraSimCacheCustomStorageInterface>(DataInterface);
 					const void* PerInstanceData = Helper.SystemInstance->FindDataInterfaceInstanceData(DataInterface);
-					if (!SimCacheCustomStorageInterface->SimCacheWriteFrame(StorageObject, FrameIndex, Helper.SystemInstance, PerInstanceData))
+					if (!SimCacheCustomStorageInterface->SimCacheWriteFrame(StorageObject, FrameIndex, Helper.SystemInstance, PerInstanceData, FeedbackContext))
 					{
 						bDataInterfacesSucess = false;
 						DataInterfaceName += FString::Printf(TEXT("%s "), *DataInterface->GetName());
@@ -302,13 +363,12 @@ FNiagaraSimCacheWriteResult UNiagaraSimCache::WriteFrame(UNiagaraComponent* Niag
 		// A data interface failed to write information
 		if (bDataInterfacesSucess == false)
 		{
-			Result.ErrorMsg = FString::Printf(TEXT("Data interface(s) %s failed to write information for system %s"), *DataInterfaceName, *Helper.SystemInstance->GetCrashReporterTag());
+			FeedbackContext.Errors.Emplace(FString::Printf(TEXT("Data interface(s) %s failed to write information for system %s"), *DataInterfaceName, *Helper.SystemInstance->GetCrashReporterTag()));
 			SoftNiagaraSystem.Reset();
-			return Result;
+			return false;
 		}
 	}
-	Result.bSuccess = true;
-	return Result;
+	return true;
 }
 
 bool UNiagaraSimCache::EndWrite()

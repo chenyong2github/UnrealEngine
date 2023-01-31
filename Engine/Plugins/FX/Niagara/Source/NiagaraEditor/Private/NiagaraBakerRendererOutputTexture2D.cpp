@@ -118,7 +118,7 @@ void FNiagaraBakerRendererOutputTexture2D::RenderGenerated(UNiagaraBakerOutput* 
 	Canvas.Flush_GameThread();
 }
 
-bool FNiagaraBakerRendererOutputTexture2D::BeginBake(UNiagaraBakerOutput* InBakerOutput)
+bool FNiagaraBakerRendererOutputTexture2D::BeginBake(FNiagaraBakerFeedbackContext& FeedbackContext, UNiagaraBakerOutput* InBakerOutput)
 {
 	UNiagaraBakerOutputTexture2D* BakerOutput = CastChecked<UNiagaraBakerOutputTexture2D>(InBakerOutput);
 	if ( !BakerOutput->bGenerateAtlas && !BakerOutput->bGenerateFrames && !BakerOutput->bExportFrames )
@@ -141,7 +141,7 @@ bool FNiagaraBakerRendererOutputTexture2D::BeginBake(UNiagaraBakerOutput* InBake
 	return true;
 }
 
-void FNiagaraBakerRendererOutputTexture2D::BakeFrame(UNiagaraBakerOutput* InBakerOutput, int FrameIndex, const FNiagaraBakerRenderer& BakerRenderer)
+void FNiagaraBakerRendererOutputTexture2D::BakeFrame(FNiagaraBakerFeedbackContext& FeedbackContext, UNiagaraBakerOutput* InBakerOutput, int FrameIndex, const FNiagaraBakerRenderer& BakerRenderer)
 {
 	UNiagaraBakerOutputTexture2D* BakerOutput = CastChecked<UNiagaraBakerOutputTexture2D>(InBakerOutput);
 	UNiagaraBakerSettings* BakerSettings = BakerRenderer.GetBakerSettings();
@@ -195,7 +195,7 @@ void FNiagaraBakerRendererOutputTexture2D::BakeFrame(UNiagaraBakerOutput* InBake
 	}
 }
 
-void FNiagaraBakerRendererOutputTexture2D::EndBake(UNiagaraBakerOutput* InBakerOutput)
+void FNiagaraBakerRendererOutputTexture2D::EndBake(FNiagaraBakerFeedbackContext& FeedbackContext, UNiagaraBakerOutput* InBakerOutput)
 {
 	UNiagaraBakerOutputTexture2D* BakerOutput = CastChecked<UNiagaraBakerOutputTexture2D>(InBakerOutput);
 

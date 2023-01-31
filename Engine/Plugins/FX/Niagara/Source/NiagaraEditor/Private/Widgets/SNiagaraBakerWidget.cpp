@@ -11,6 +11,7 @@
 #include "NiagaraSystem.h"
 #include "ViewModels/NiagaraBakerViewModel.h"
 
+#include "Dialog/SMessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -1011,7 +1012,26 @@ FReply SNiagaraBakerWidget::OnCapture()
 {
 	if (auto ViewModel = WeakViewModel.Pin())
 	{
-		ViewModel->RenderBaker();
+		const FNiagaraBakerFeedbackContext FeedbackContext = ViewModel->RenderBaker();
+		if (FeedbackContext.HasIssues())
+		{
+			FString IssuesString;
+			for (const FString& Error : FeedbackContext.Errors)
+			{
+				IssuesString.Appendf(TEXT("Error: %s\n\n"), *Error);
+			}
+			for (const FString& Warning : FeedbackContext.Warnings)
+			{
+				IssuesString.Appendf(TEXT("Warning: %s\n\n"), *Warning);
+			}
+
+			TSharedRef<SMessageDialog> IssuesDialog = SNew(SMessageDialog)
+				.Title(FText(LOCTEXT("BakerIssuesDialogTitle", "Baker Issues")))
+				.Message(FText::FromString(IssuesString))
+				.Buttons({SCustomDialog::FButton(LOCTEXT("Ok", "Ok"))});
+
+			IssuesDialog->Show();
+		}
 	}
 	return FReply::Handled();
 }

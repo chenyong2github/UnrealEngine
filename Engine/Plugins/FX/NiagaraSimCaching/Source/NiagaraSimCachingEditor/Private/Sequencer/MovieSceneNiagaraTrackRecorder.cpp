@@ -231,12 +231,7 @@ void UMovieSceneNiagaraTrackRecorder::RecordSampleImpl(const FQualifiedFrameTime
 
 	if (NiagaraCacheSection.IsValid() && SystemToRecord.IsValid())
 	{
-		FNiagaraSimCacheWriteResult Result = NiagaraCacheSection->Params.SimCache->WriteFrame(SystemToRecord.Get());
-		if (!Result.bSuccess)
-		{
-			UE_LOG(LogNiagaraSimCachingEditor, Warning, TEXT("Error trying to write sim cache: %s"), *Result.ErrorMsg);
-		}
-		else
+		if ( NiagaraCacheSection->Params.SimCache->WriteFrame(SystemToRecord.Get()) )
 		{
 			// Expand the section to the new length
 			NiagaraCacheSection->SetEndFrame(CurrentFrame);

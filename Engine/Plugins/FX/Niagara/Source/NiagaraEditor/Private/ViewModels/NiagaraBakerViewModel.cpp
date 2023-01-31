@@ -579,20 +579,23 @@ void FNiagaraBakerViewModel::SetFramesOnY(int32 Value)
 	}
 }
 
-void FNiagaraBakerViewModel::RenderBaker()
+FNiagaraBakerFeedbackContext FNiagaraBakerViewModel::RenderBaker()
 {
+	FNiagaraBakerFeedbackContext FeedbackContext;
+
 	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
 	UNiagaraSystem* NiagaraSystem = BakerRenderer->GetNiagaraSystem();
 	if ( BakerSettings == nullptr || NiagaraSystem == nullptr )
 	{
-		return;
+		FeedbackContext.Errors.Emplace(TEXT("Nothing to bake as we don't have valid settings or system to bake with."));
+		return FeedbackContext;
 	}
 
 	if ( BakerSettings->Outputs.Num() == 0 )
 	{
-		//-TODO: Message no outputs
 		NiagaraSystem->SetBakerGeneratedSettings(nullptr);
-		return;
+		FeedbackContext.Errors.Emplace(TEXT("Nothing to bake as we have no outputs."));
+		return FeedbackContext;
 	}
 
 	// Create output renderers
@@ -606,16 +609,16 @@ void FNiagaraBakerViewModel::RenderBaker()
 		OutputRenderers.Emplace(FNiagaraBakerRenderer::GetOutputRenderer(Output->GetClass()));
 		if ( FNiagaraBakerOutputRenderer* OutputRenderer = OutputRenderers.Last().Get() )
 		{
-			bHasValidRenderer |= OutputRenderer->BeginBake(Output);
+			bHasValidRenderer |= OutputRenderer->BeginBake(FeedbackContext, Output);
 		}
 	}
 
 	// Early out if we have no valid renderers
 	if ( !bHasValidRenderer )
 	{
-		//-TODO: No valid renderers
 		NiagaraSystem->SetBakerGeneratedSettings(nullptr);
-		return;
+		FeedbackContext.Errors.Emplace(TEXT("Nothing to bake as all outputs will not genreate any data."));
+		return FeedbackContext;
 	}
 
 	// Render frames
@@ -652,7 +655,7 @@ void FNiagaraBakerViewModel::RenderBaker()
 			{
 				if (OutputRenderers[i].IsValid())
 				{
-					OutputRenderers[i]->BakeFrame(BakerSettings->Outputs[i], iFrame, *BakerRenderer.Get());
+					OutputRenderers[i]->BakeFrame(FeedbackContext, BakerSettings->Outputs[i], iFrame, *BakerRenderer.Get());
 				}
 			}
 		}
@@ -683,7 +686,7 @@ void FNiagaraBakerViewModel::RenderBaker()
 			{
 				SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("FinishBakeFormat", "Finish Bake for Output '{0}'"), FText::FromString(BakerSettings->Outputs[i]->OutputName)));
 
-				OutputRenderers[i]->EndBake(BakerSettings->Outputs[i]);
+				OutputRenderers[i]->EndBake(FeedbackContext, BakerSettings->Outputs[i]);
 			}
 		}
 	}
@@ -693,6 +696,8 @@ void FNiagaraBakerViewModel::RenderBaker()
 
 	// GC to cleanup any transient objects we created or ones we have ditched
 	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+
+	return FeedbackContext;
 }
 
 #undef LOCTEXT_NAMESPACE
