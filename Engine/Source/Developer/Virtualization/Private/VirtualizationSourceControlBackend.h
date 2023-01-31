@@ -102,7 +102,7 @@ private:
 	bool FindSubmissionWorkingDir(const FString& ConfigEntry);
 
 	/** Will display a FMessage notification to the user on the next valid engine tick to try and keep them aware of connection failures */
-	void OnConnectionError();
+	void OnConnectionError(FText Message);
 
 	/** A source control connection owned by the backend*/
 	TUniquePtr<ISourceControlProvider> SCCProvider;
