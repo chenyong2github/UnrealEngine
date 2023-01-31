@@ -290,11 +290,11 @@ void UStaticMeshToolTarget::CommitMeshDescription(UStaticMesh* StaticMeshIn, con
 
 	if (EditingLODIn == EMeshLODIdentifier::HiResSource)
 	{
-		verify(StaticMeshIn->ModifyHiResMeshDescription());
+		StaticMeshIn->ModifyHiResMeshDescription();
 	}
 	else
 	{
-		verify(StaticMeshIn->ModifyMeshDescription((int32)EditingLODIn));
+		StaticMeshIn->ModifyMeshDescription((int32)EditingLODIn);
 	}
 
 	FCommitterParams CommitterParams;
