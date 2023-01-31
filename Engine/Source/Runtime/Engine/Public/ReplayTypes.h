@@ -210,6 +210,8 @@ struct ENGINE_API FNetworkDemoHeader
 
 	FNetworkDemoHeader();
 
+	void SetDefaultNetworkVersions();
+
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FNetworkDemoHeader(const FNetworkDemoHeader&) = default;
 	FNetworkDemoHeader& operator=(const FNetworkDemoHeader&) = default;

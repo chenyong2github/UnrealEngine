@@ -701,6 +701,8 @@ void UDemoNetDriver::InitDefaults()
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		LevelIntervals.Reserve(512);
+
+		ReplayHelper.PlaybackDemoHeader.SetDefaultNetworkVersions();
 	}
 
 	RecordBuildConsiderAndPrioritizeTimeSlice = CVarDemoMaximumRepPrioritizeTime.GetValueOnGameThread();

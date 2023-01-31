@@ -21,9 +21,9 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FNetworkDemoHeader::FNetworkDemoHeader() :
 	Magic(NETWORK_DEMO_MAGIC),
 	Version((uint32)FReplayCustomVersion::CustomVersions),
-	NetworkChecksum(FNetworkVersion::GetLocalNetworkVersion()),
-	EngineNetworkProtocolVersion(FNetworkVersion::GetEngineNetworkProtocolVersion()),
-	GameNetworkProtocolVersion(FNetworkVersion::GetGameNetworkProtocolVersion()),
+	NetworkChecksum(0),
+	EngineNetworkProtocolVersion(FEngineNetworkCustomVersion::LatestVersion),
+	GameNetworkProtocolVersion(FGameNetworkCustomVersion::LatestVersion),
 	Guid(),
 	MinRecordHz(0.0f),
 	MaxRecordHz(0.0f),
@@ -36,8 +36,15 @@ FNetworkDemoHeader::FNetworkDemoHeader() :
 	PackageVersionUE(GPackageFileUEVersion),
 	PackageVersionLicenseeUE(GPackageFileLicenseeUEVersion)
 {
-	CustomVersions = FNetworkVersion::GetNetworkCustomVersions();
+}
 
+void FNetworkDemoHeader::SetDefaultNetworkVersions()
+{
+	NetworkChecksum = FNetworkVersion::GetLocalNetworkVersion();
+	EngineNetworkProtocolVersion = FNetworkVersion::GetEngineNetworkProtocolVersion();
+	GameNetworkProtocolVersion = FNetworkVersion::GetGameNetworkProtocolVersion();
+
+	CustomVersions = FNetworkVersion::GetNetworkCustomVersions();
 	CustomVersions.SetVersion(FReplayCustomVersion::Guid, FReplayCustomVersion::LatestVersion, TEXT("Replay"));
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

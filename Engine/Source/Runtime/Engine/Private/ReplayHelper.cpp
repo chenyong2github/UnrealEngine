@@ -208,6 +208,7 @@ void FReplayHelper::WriteNetworkDemoHeader(UNetConnection* Connection)
 	if (FArchive* FileAr = ReplayStreamer->GetHeaderArchive())
 	{
 		FNetworkDemoHeader DemoHeader;
+		DemoHeader.SetDefaultNetworkVersions();
 
 		DemoHeader.LevelNamesAndTimes = LevelNamesAndTimes;
 
@@ -409,6 +410,7 @@ bool FReplayHelper::ReadPlaybackDemoHeader(FString& Error)
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PlaybackDemoHeader = FNetworkDemoHeader();
+	PlaybackDemoHeader.SetDefaultNetworkVersions();
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FArchive* FileAr = ReplayStreamer->GetHeaderArchive();
