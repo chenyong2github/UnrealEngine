@@ -795,7 +795,7 @@ FGBufferData MobileFetchAndDecodeGBuffer(in float2 UV, in float2 PixelPos)
 {
 	FGBufferData GBuffer = (FGBufferData)0;
 #if (MOBILE_DEFERRED_SHADING && IS_MOBILE_DEFERREDSHADING_SUBPASS && PIXELSHADER)
-	float SceneDepth = 0;
+	float SceneDepth = 0; 
 	half4 GBufferA = 0;
 	half4 GBufferB = 0;
 	half4 GBufferC = 0;
