@@ -6,12 +6,26 @@
 #include "NiagaraDataInterfaceArrayFloat.h"
 #include "NiagaraDataInterfaceArrayInt.h"
 #include "NiagaraDataInterfaceArrayImpl.h"
+#include "NiagaraDataInterfaceArrayImplHelpers.h"
+#include "NiagaraDataInterfaceArrayNiagaraID.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemInstanceController.h"
 #include "NiagaraFunctionLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceArrayFunctionLibrary)
+
+NDIARRAY_GENERATE_IMPL(UNiagaraDataInterfaceArrayFloat, float, FloatData)
+NDIARRAY_GENERATE_IMPL_LWC(UNiagaraDataInterfaceArrayFloat2, FVector2f, FloatData)
+NDIARRAY_GENERATE_IMPL_LWC(UNiagaraDataInterfaceArrayFloat3, FVector3f, FloatData)
+NDIARRAY_GENERATE_IMPL(UNiagaraDataInterfaceArrayPosition, FNiagaraPosition, PositionData)
+NDIARRAY_GENERATE_IMPL_LWC(UNiagaraDataInterfaceArrayFloat4, FVector4f, FloatData)
+NDIARRAY_GENERATE_IMPL(UNiagaraDataInterfaceArrayColor, FLinearColor, ColorData)
+NDIARRAY_GENERATE_IMPL_LWC(UNiagaraDataInterfaceArrayQuat, FQuat4f, QuatData)
+NDIARRAY_GENERATE_IMPL(UNiagaraDataInterfaceArrayInt32, int32, IntData)
+NDIARRAY_GENERATE_IMPL_LWC(UNiagaraDataInterfaceArrayUInt8, uint8, IntData)
+NDIARRAY_GENERATE_IMPL(UNiagaraDataInterfaceArrayBool, bool, BoolData)
+NDIARRAY_GENERATE_IMPL(UNiagaraDataInterfaceArrayNiagaraID, FNiagaraID, IntData)
 
 // If / when we share user parameter UObjects we will need to make this per instance which introduces some tricky things about allocating before the instance is active
 template<typename TArrayType, typename TDataInterace>

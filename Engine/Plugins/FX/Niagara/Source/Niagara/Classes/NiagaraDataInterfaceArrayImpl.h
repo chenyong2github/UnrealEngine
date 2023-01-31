@@ -19,47 +19,44 @@
 //////////////////////////////////////////////////////////////////////////
 // Helpers
 
-#define NDIARRAY_GENERATE_BODY(CLASSNAME, TYPENAME, MEMBERNAME) \
-	using FProxyType = FNDIArrayProxyImpl<TYPENAME, CLASSNAME>; \
-	virtual void PostInitProperties() override \
+#define NDIARRAY_GENERATE_IMPL(CLASSNAME, TYPENAME, MEMBERNAME) \
+	void CLASSNAME::PostInitProperties() \
 	{ \
 		Proxy.Reset(new FProxyType(this)); \
 		Super::PostInitProperties(); \
 	} \
 	template<typename TFromArrayType> \
-	void SetVariantArrayData(TConstArrayView<TFromArrayType> InArrayData) \
+	void CLASSNAME::SetVariantArrayData(TConstArrayView<TFromArrayType> InArrayData) \
 	{ \
 		MEMBERNAME = InArrayData; \
 	} \
 	template<typename TFromArrayType> \
-	void SetVariantArrayValue(int Index, const TFromArrayType& Value, bool bSizeToFit) \
+	void CLASSNAME::SetVariantArrayValue(int Index, const TFromArrayType& Value, bool bSizeToFit) \
 	{ \
 		const int NumRequired = Index + 1 - MEMBERNAME.Num(); \
 		if ( NumRequired > 0 && !bSizeToFit ) return; \
 		MEMBERNAME.AddDefaulted(FMath::Max(NumRequired, 0)); \
 		MEMBERNAME[Index] = Value; \
-	} \
-	TArray<TYPENAME>& GetArrayReference() { return MEMBERNAME; }
+	}
 
 #if WITH_EDITORONLY_DATA
-	#define NDIARRAY_GENERATE_BODY_LWC(CLASSNAME, TYPENAME, MEMBERNAME) \
-		using FProxyType = FNDIArrayProxyImpl<TYPENAME, CLASSNAME>; \
-		virtual void PostInitProperties() override \
+	#define NDIARRAY_GENERATE_IMPL_LWC(CLASSNAME, TYPENAME, MEMBERNAME) \
+		void CLASSNAME::PostInitProperties() \
 		{ \
 			Super::PostInitProperties(); \
 			Proxy.Reset(new FProxyType(this)); \
 		} \
-		virtual void PostLoad() override \
+		void CLASSNAME::PostLoad() \
 		{ \
 			Super::PostLoad(); \
 			GetProxyAs<FProxyType>()->template SetArrayData<decltype(MEMBERNAME)::ElementType>(MakeArrayView(MEMBERNAME)); \
 		} \
-		virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override \
+		void CLASSNAME::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) \
 		{ \
 			Super::PostEditChangeProperty(PropertyChangedEvent); \
 			GetProxyAs<FProxyType>()->template SetArrayData<decltype(MEMBERNAME)::ElementType>(MakeArrayView(MEMBERNAME)); \
 		} \
-		virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override \
+		bool CLASSNAME::CopyToInternal(UNiagaraDataInterface* Destination) const \
 		{ \
 			if ( Super::CopyToInternal(Destination) == false ) \
 			{ \
@@ -72,7 +69,7 @@
 			} \
 			return TypedDestination != nullptr;  \
 		} \
-		virtual bool Equals(const UNiagaraDataInterface* Other) const override \
+		bool CLASSNAME::Equals(const UNiagaraDataInterface* Other) const \
 		{ \
 			const CLASSNAME* TypedOther = Cast<const CLASSNAME>(Other); \
 			return \
@@ -81,7 +78,7 @@
 				TypedOther->MEMBERNAME == MEMBERNAME; \
 		} \
 		template<typename TFromArrayType> \
-		void SetVariantArrayData(TConstArrayView<TFromArrayType> InArrayData) \
+		void CLASSNAME::SetVariantArrayData(TConstArrayView<TFromArrayType> InArrayData) \
 		{ \
 			if constexpr (std::is_same_v<TFromArrayType, decltype(MEMBERNAME)::ElementType>) \
 			{ \
@@ -96,17 +93,16 @@
 			} \
 		} \
 		template<typename TFromArrayType> \
-		void SetVariantArrayValue(int Index, const TFromArrayType& Value, bool bSizeToFit) \
+		void CLASSNAME::SetVariantArrayValue(int Index, const TFromArrayType& Value, bool bSizeToFit) \
 		{ \
 			const int NumRequired = Index + 1 - MEMBERNAME.Num(); \
 			if ( NumRequired > 0 && !bSizeToFit ) return; \
 			MEMBERNAME.AddDefaulted(FMath::Max(NumRequired, 0)); \
 			MEMBERNAME[Index] = Value; \
 			GetProxyAs<FProxyType>()->template SetArrayData<decltype(MEMBERNAME)::ElementType>(MEMBERNAME); \
-		} \
-		TArray<TYPENAME>& GetArrayReference() { return Internal##MEMBERNAME; }
+		}
 #else
-	#define NDIARRAY_GENERATE_BODY_LWC(CLASSNAME, TYPENAME, MEMBERNAME) NDIARRAY_GENERATE_BODY(CLASSNAME, TYPENAME, Internal##MEMBERNAME)
+	#define NDIARRAY_GENERATE_IMPL_LWC(CLASSNAME, TYPENAME, MEMBERNAME) NDIARRAY_GENERATE_IMPL(CLASSNAME, TYPENAME, Internal##MEMBERNAME)
 #endif
 
 template<typename TArrayType>
