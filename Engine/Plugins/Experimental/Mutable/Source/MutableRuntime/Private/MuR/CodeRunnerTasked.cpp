@@ -47,12 +47,7 @@
 DECLARE_CYCLE_STAT(TEXT("MutableCoreTask"), STAT_MutableCoreTask, STATGROUP_Game);
 
 
-int32 CoreRunnerTaskPriority =
-#ifdef PLATFORM_SWITCH // Required due to low end platforms hitches. Mutable is occupying all threads with long tasks preventing Niagara from executing its time sensitive tasks.
-		5;
-#else
-		0;
-#endif
+int32 CoreRunnerTaskPriority = 5;
 
 static FAutoConsoleVariableRef CVarCoreRunnerTaskPriority(
 	TEXT("mutable.CoreRunnerTaskPriority"),

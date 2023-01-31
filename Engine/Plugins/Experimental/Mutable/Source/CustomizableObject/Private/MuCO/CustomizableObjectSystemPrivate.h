@@ -600,7 +600,7 @@ public:
 			MoveTemp(TaskBody),
 			TStatId{},
 			&Prerequisites, 
-			ENamedThreads::AnyThread);
+			ENamedThreads::AnyBackgroundHiPriTask);
 		LastMutableTask->SetDebugName(DebugName);
 
 		return LastMutableTask;
