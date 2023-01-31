@@ -244,8 +244,11 @@ FStrataDeferredLighting StrataIndirectLighting(
 		const float4 InSpecularLighting			= InputSpecularLighting;
 	#endif
 
-		// STRATA_TODO: Override the BSDF F0/DiffuseColor when bVisualizeDiffuseIndirect is set
 		FStrataBSDF BSDF = UnpackStrataBSDF(MaterialBuffer, StrataAddressing, StrataPixelHeader);
+		if (bVisualizeDiffuseIndirect)
+		{
+			StrataSetBSDFDiffuseColor(BSDF, float3(0.18f, 0.18f, 0.18f));
+		}
 
 		// Create the BSDF context
 		FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);

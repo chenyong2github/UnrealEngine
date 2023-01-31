@@ -2794,6 +2794,17 @@ float3 StrataGetBSDFDiffuseColor(in FStrataBSDF BSDF)
 	return 0.f;
 }
 
+void StrataSetBSDFDiffuseColor(inout FStrataBSDF BSDF, float3 InColor)
+{
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB: 			SLAB_DIFFUSEALBEDO(BSDF) = InColor; break;
+	case STRATA_BSDF_TYPE_HAIR: 			HAIR_BASECOLOR(BSDF) = InColor; break;
+	case STRATA_BSDF_TYPE_EYE: 				EYE_DIFFUSEALBEDO(BSDF) = InColor; break;
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER: SLW_BASECOLOR(BSDF) = InColor; break;
+	}
+}
+
 float3 StrataGetBSDFSpecularF0(in FStrataBSDF BSDF)
 {
 	switch (BSDF_GETTYPE(BSDF))
