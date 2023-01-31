@@ -48,6 +48,11 @@ ACineCameraRigRail::ACineCameraRigRail(const FObjectInitializer& ObjectInitializ
 
 void ACineCameraRigRail::UpdateRailComponents()
 {
+	if (CineSplineComponent == nullptr)
+	{
+		return;
+	}
+
 	if (!GetWorld())
 	{
 		return;
