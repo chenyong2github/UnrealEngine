@@ -1678,8 +1678,7 @@ void UGenerateStaticMeshLODProcess::WriteDerivedStaticMeshAsset()
 
 	// do we need to do a post edit change here??
 
-	// is this necessary? 
-	GeneratedStaticMesh->CreateNavCollision(/*bIsUpdate=*/true);
+	GeneratedStaticMesh->RecreateNavCollision();
 
 	GeneratedStaticMesh->GetOutermost()->GetMetaData()->SetValue(GeneratedStaticMesh, TEXT("StaticMeshLOD.IsGeneratedMesh"), TEXT("true"));
 	GeneratedStaticMesh->GetOutermost()->GetMetaData()->SetValue(GeneratedStaticMesh, TEXT("StaticMeshLOD.SourceAssetPath"), *GetSourceAssetPath());
@@ -1871,8 +1870,7 @@ void UGenerateStaticMeshLODProcess::UpdateSourceStaticMeshAsset(bool bSetNewHDSo
 
 	// do we need to do a post edit change here??
 
-	// is this necessary? 
-	SourceStaticMesh->CreateNavCollision(/*bIsUpdate=*/true);
+	SourceStaticMesh->RecreateNavCollision();
 
 	// save UUID used for generated Assets
 	SourceStaticMesh->GetOutermost()->GetMetaData()->SetValue(SourceStaticMesh, TEXT("StaticMeshLOD.GenerationGUID"), *DerivedAssetGUIDKey);

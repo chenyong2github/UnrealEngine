@@ -1851,6 +1851,11 @@ public:
 	 */
 	ENGINE_API void CreateNavCollision(const bool bIsUpdate = false);
 
+	/**
+	 * Delete current NavCollision and create a new one if needed
+	 */
+	ENGINE_API void RecreateNavCollision();
+
 	/** Configures this SM as bHasNavigationData = false and clears stored NavCollision */
 	ENGINE_API void MarkAsNotHavingNavigationData();
 

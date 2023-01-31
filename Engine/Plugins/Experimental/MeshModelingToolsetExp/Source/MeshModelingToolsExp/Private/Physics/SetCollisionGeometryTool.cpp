@@ -370,8 +370,7 @@ void USetCollisionGeometryTool::OnShutdown(EToolShutdownType ShutdownType)
 			// rebuild physics meshes
 			BodySetup->CreatePhysicsMeshes();
 
-			// rebuild nav collision (? StaticMeshEditor does this)
-			StaticMesh->CreateNavCollision(/*bIsUpdate=*/true);
+			StaticMesh->RecreateNavCollision();
 
 			// update physics state on all components using this StaticMesh
 			for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)

@@ -170,8 +170,7 @@ static void SetStaticMeshSimpleCollision(UStaticMesh* StaticMeshAsset, const FKA
 		// rebuild physics meshes
 		BodySetup->CreatePhysicsMeshes();
 
-		// rebuild nav collision (? StaticMeshEditor does this)
-		StaticMeshAsset->CreateNavCollision(/*bIsUpdate=*/true);
+		StaticMeshAsset->RecreateNavCollision();
 
 		// update physics state on all components using this StaticMesh
 		for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)

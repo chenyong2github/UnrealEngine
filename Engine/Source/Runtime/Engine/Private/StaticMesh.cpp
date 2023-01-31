@@ -7361,6 +7361,12 @@ void UStaticMesh::CreateNavCollision(const bool bIsUpdate)
 	}
 }
 
+void UStaticMesh::RecreateNavCollision()
+{
+	SetNavCollision(nullptr);
+	CreateNavCollision();
+}
+
 void UStaticMesh::SetNavCollision(UNavCollisionBase* InNavCollision)
 {
 	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::NavCollision);
