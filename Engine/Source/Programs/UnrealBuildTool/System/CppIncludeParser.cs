@@ -19,7 +19,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Reader">Stream to read from</param>
 		/// <param name="Writer">Stream to write directives to</param>
-		public static void CopyIncludeDirectives(StreamReader Reader, StringWriter Writer)
+		public static void CopyIncludeDirectives(StreamReader Reader, StringBuilder Writer)
 		{
 			StringBuilder Token = new StringBuilder();
 			while(TryReadToken(Reader, Token))
@@ -69,7 +69,7 @@ namespace UnrealBuildTool
 							break;
 						}
 
-						Writer.WriteLine("#include {0}", IncludeFile);
+						Writer.Append("#include ").AppendLine(IncludeFile);
 					}
 					else
 					{
