@@ -105,7 +105,11 @@ public:
 		return FString::Printf(TEXT("%s_InstanceOf_%s"), *InOuterPackageName, *InPackageName);
 	}
 
+	void FixupSoftObjectPath(FSoftObjectPath& InOutSoftObjectPath) const;
+
 private:
+	void BuildPackageMapping(FName Original, FName Instanced);
+
 	/** Used internally by the linker to try to fix references on relocated packages. */
 	FName RelocatePackage(const FName& PackageName) const
 	{
@@ -117,6 +121,7 @@ private:
 	}
 
 	friend class FLinkerLoad;
+	friend struct FAsyncPackage2;
 
 	/** Map of original package name to their instance counterpart. */
 	TMap<FName, FName> PackageMapping;
@@ -129,4 +134,7 @@ private:
 	TSet<FName> Tags;
 	/** Remap soft object paths */
 	bool bSoftObjectPathRemappingEnabled = true;
+
+	FString GeneratedPackagesFolder;
+	FString InstancedPackageSuffix;
 };

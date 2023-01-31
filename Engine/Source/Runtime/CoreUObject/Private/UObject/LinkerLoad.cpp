@@ -1005,7 +1005,7 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const FPackagePath& InPackagePath, 
 	FName PackageNameToLoad = GetPackagePath().GetPackageFName();
 	if (LinkerRoot->GetFName() != PackageNameToLoad)
 	{
-		InstancingContext.AddPackageMapping(PackageNameToLoad, LinkerRoot->GetFName());
+		InstancingContext.BuildPackageMapping(PackageNameToLoad, LinkerRoot->GetFName());
 	}
 
 	TRACE_LOADTIME_NEW_LINKER(this);
@@ -6644,22 +6644,7 @@ bool FLinkerLoad::IsSoftObjectRemappingEnabled() const
 
 void FLinkerLoad::FixupSoftObjectPathForInstancedPackage(FSoftObjectPath& InOutSoftObjectPath)
 {
-	if (IsSoftObjectRemappingEnabled())
-	{
-		// Try remapping AssetPathName before remapping LongPackageName
-		if (FSoftObjectPath RemappedAssetPath = InstancingContext.RemapPath(InOutSoftObjectPath); RemappedAssetPath != InOutSoftObjectPath)
-		{
-			InOutSoftObjectPath = RemappedAssetPath;
-		}
-		else
-		{
-			FName LongPackageName = InOutSoftObjectPath.GetLongPackageFName();
-			if (FName RemappedPackage = InstancingContext.RemapPackage(LongPackageName); RemappedPackage != LongPackageName)
-			{
-				InOutSoftObjectPath = FSoftObjectPath(RemappedPackage, InOutSoftObjectPath.GetAssetFName(), InOutSoftObjectPath.GetSubPathString());
-			}
-		}
-	}
+	InstancingContext.FixupSoftObjectPath(InOutSoftObjectPath);
 }
 
 #if WITH_EDITORONLY_DATA

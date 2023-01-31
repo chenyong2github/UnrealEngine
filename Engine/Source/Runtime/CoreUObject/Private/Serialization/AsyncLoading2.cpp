@@ -1508,13 +1508,6 @@ public:
 	}
 };
 
-struct FAsyncPackageInstanceContext
-{
-	TArray<TTuple<FString, FString>, TInlineAllocator<2>> InstancedPackageMappings;
-	FString GeneratedPackagesFolder;
-	FString InstancedPackageSuffix;
-};
-
 class FExportArchive final : public FArchive
 {
 public:
@@ -1867,7 +1860,7 @@ private:
 	FPackageImportStore* ImportStore = nullptr;
 	TArray<FExternalReadCallback>* ExternalReadDependencies;
 	const FAsyncPackageHeaderData* HeaderData = nullptr;
-	const FAsyncPackageInstanceContext* InstanceContext = nullptr;
+	const FLinkerInstancingContext* InstanceContext = nullptr;
 	TArrayView<const FExportObject> Exports;
 	UObject* CurrentExport = nullptr;
 	uint64 CookedSerialOffset = 0;
@@ -1878,44 +1871,9 @@ private:
 
 	void FixupSoftObjectPathForInstancedPackage(FSoftObjectPath& InOutSoftObjectPath)
 	{
-		if (InstanceContext && InstanceContext->InstancedPackageMappings.Num() > 0)
+		if (InstanceContext)
 		{
-			FNameBuilder TmpSoftObjectPathBuilder;
-			InOutSoftObjectPath.ToString(TmpSoftObjectPathBuilder);
-
-			// Is this a basic package remapping?
-			for (const TTuple<FString, FString>& InstancedPackageMapping : InstanceContext->InstancedPackageMappings)
-			{
-				FStringView TmpSoftObjectPathView = TmpSoftObjectPathBuilder.ToView();
-				if (TmpSoftObjectPathView.StartsWith(InstancedPackageMapping.Key) && (TmpSoftObjectPathView.Len() == InstancedPackageMapping.Key.Len() || TmpSoftObjectPathView[InstancedPackageMapping.Key.Len()] == TEXT('.')))
-				{
-					TmpSoftObjectPathBuilder.ReplaceAt(0, InstancedPackageMapping.Key.Len(), InstancedPackageMapping.Value);
-					InOutSoftObjectPath.SetPath(TmpSoftObjectPathBuilder.ToView());
-					return;
-				}
-			}
-
-			// Is this a generated package reference that we care about?
-			if (!InstanceContext->GeneratedPackagesFolder.IsEmpty())
-			{
-				check(!InstanceContext->InstancedPackageSuffix.IsEmpty());
-
-				// Does this package path start with the generated folder path?
-				FStringView TmpSoftObjectPathView = TmpSoftObjectPathBuilder.ToView();
-				if (TmpSoftObjectPathView.StartsWith(InstanceContext->GeneratedPackagesFolder))
-				{
-					// ... and is that generated folder path immediately preceding the package name?
-					if (const int32 ExtraSlashIndex = TmpSoftObjectPathView.Find(TEXTVIEW("/"), InstanceContext->GeneratedPackagesFolder.Len()); ExtraSlashIndex == INDEX_NONE)
-					{
-						FNameBuilder PackageNameBuilder;
-						PackageNameBuilder.Append(InOutSoftObjectPath.GetLongPackageName());
-						PackageNameBuilder.Append(InstanceContext->InstancedPackageSuffix);
-						FTopLevelAssetPath SuffixTopLevelAsset(FName(PackageNameBuilder.ToString()), InOutSoftObjectPath.GetAssetFName());
-						InOutSoftObjectPath = FSoftObjectPath(SuffixTopLevelAsset, InOutSoftObjectPath.GetSubPathString());
-						return;
-					}
-				}
-			}
+			InstanceContext->FixupSoftObjectPath(InOutSoftObjectPath);
 		}
 	}
 };
@@ -2768,7 +2726,7 @@ private:
 	TArray<FCompletionCallback, TInlineAllocator<2>> CompletionCallbacks;
 
 	/** Set when the package is being loaded as an instance; null otherwise. */
-	TUniquePtr<FAsyncPackageInstanceContext> InstanceContext;
+	TUniquePtr<FLinkerInstancingContext> InstanceContext;
 
 public:
 
@@ -5400,43 +5358,8 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_ProcessPackageSummary(FAsync
 		FName PackageNameToLoad = Package->Desc.PackagePathToLoad.GetPackageFName();
 		if (Package->Desc.UPackageName != PackageNameToLoad)
 		{
-			Package->InstanceContext = MakeUnique<FAsyncPackageInstanceContext>();
-			Package->InstanceContext->InstancedPackageMappings.Add(MakeTuple(PackageNameToLoad.ToString(), Package->Desc.UPackageName.ToString()));
-
-			// Stash the suffix used for this instance so we can also apply it to generated packages
-			if (Package->InstanceContext->InstancedPackageMappings[0].Value.StartsWith(Package->InstanceContext->InstancedPackageMappings[0].Key))
-			{
-				Package->InstanceContext->InstancedPackageSuffix = Package->InstanceContext->InstancedPackageMappings[0].Value.Mid(Package->InstanceContext->InstancedPackageMappings[0].Key.Len());
-			}
-
-			// Is this a generated partitioned map package? If so, we'll also need to handle re-mapping paths to our persistent map package
-			if (!Package->InstanceContext->InstancedPackageSuffix.IsEmpty())
-			{
-				check(Package->InstanceContext->InstancedPackageMappings.Num() == 1);
-
-				const FStringView GeneratedFolderName = TEXTVIEW("/_Generated_/");
-				const FStringView PackageNameToLoadView = Package->InstanceContext->InstancedPackageMappings[0].Key;
-
-				// Does this package path include the generated folder?
-				if (const int32 GeneratedFolderStartIndex = PackageNameToLoadView.Find(GeneratedFolderName); GeneratedFolderStartIndex != INDEX_NONE)
-				{
-					// ... and is that generated folder immediately preceding the package name?
-					const int32 GeneratedFolderEndIndex = GeneratedFolderStartIndex + GeneratedFolderName.Len();
-					if (const int32 ExtraSlashIndex = PackageNameToLoadView.Find(TEXTVIEW("/"), GeneratedFolderEndIndex); ExtraSlashIndex == INDEX_NONE)
-					{
-						Package->InstanceContext->GeneratedPackagesFolder = PackageNameToLoadView.Left(GeneratedFolderEndIndex);
-
-						FString PersistentPackageName = FString(PackageNameToLoadView.Left(GeneratedFolderStartIndex));
-						FString PersistentPackageInstanceName = PersistentPackageName + Package->InstanceContext->InstancedPackageSuffix;
-						Package->InstanceContext->InstancedPackageMappings.Add(MakeTuple(MoveTemp(PersistentPackageName), MoveTemp(PersistentPackageInstanceName)));
-					}
-				}
-				if (Package->InstanceContext->GeneratedPackagesFolder.IsEmpty())
-				{
-					Package->InstanceContext->GeneratedPackagesFolder =  PackageNameToLoadView;
-					Package->InstanceContext->GeneratedPackagesFolder += GeneratedFolderName;
-				}
-			}
+			Package->InstanceContext = MakeUnique<FLinkerInstancingContext>();
+			Package->InstanceContext->BuildPackageMapping(PackageNameToLoad, Package->Desc.UPackageName);
 		}
 
 		TRACE_LOADTIME_PACKAGE_SUMMARY(Package, Package->HeaderData.PackageName, Package->HeaderData.PackageSummary->HeaderSize, Package->HeaderData.ImportMap.Num(), Package->HeaderData.ExportMap.Num());
