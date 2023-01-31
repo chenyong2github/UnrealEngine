@@ -211,5 +211,5 @@ template<class T>
 TArray<const UDataLayerInstance*> UDataLayerSubsystem::GetDataLayerInstances(const TArray<T>& InDataLayerIdentifiers, const ULevel* InLevelContext /* = nullptr */) const
 {
 	const UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(GetWorld());
-	return DataLayerManager ? DataLayerManager->GetDataLayerInstances(InDataLayerIdentifiers, InLevelContext) : TArray<const UDataLayerInstance*>();
+	return DataLayerManager ? DataLayerManager->GetDataLayerInstances(InDataLayerIdentifiers) : TArray<const UDataLayerInstance*>();
 }
