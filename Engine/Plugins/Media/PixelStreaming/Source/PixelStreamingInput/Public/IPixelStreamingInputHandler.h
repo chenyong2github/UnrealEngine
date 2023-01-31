@@ -77,6 +77,12 @@ public:
 	virtual void RegisterMessageHandler(const FString& MessageType, const TFunction<void(FMemoryReader)>& Handler) = 0;
 
 	/**
+	 * @brief Register a custom function to execute when command JSON is received over the data channel: "{ type: "Command", YourCommand: YourCommandValue }".
+	 * Note: You can also override the default Pixel Streaming command handlers by setting handlers with the same name as those already used, e.g. "Stat.FPS".
+	 */
+	virtual void SetCommandHandler(const FString& CommandName, const TFunction<void(FString, FString)>& Handler) = 0;
+
+	/**
 	 * @brief Find the function to be called whenever the specified message type is received.
 	 *
 	 * @param MessageType The human readable identifier for the message

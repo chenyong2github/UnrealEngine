@@ -507,14 +507,14 @@ namespace UE::PixelStreaming
 																														EType::Uint8 
 																														}));
 		
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRButtonPressed", FPixelStreamingInputMessage(112,// Handedness,   ButtonIdx,      IsRepeat
+																												{ EType::Uint8, EType::Uint8, EType::Uint8 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRButtonTouched", FPixelStreamingInputMessage(113,// Handedness,   ButtonIdx,      IsRepeat
+																												{ EType::Uint8, EType::Uint8, EType::Uint8 }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRButtonReleased", FPixelStreamingInputMessage(114,// Handedness,   ButtonIdx,     IsRepeat
+																												{ EType::Uint8, EType::Uint8, EType::Uint8 }));
+
 		// clang-format on
-		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRButtonPressed", FPixelStreamingInputMessage(112, // Handedness,   ButtonIdx,      IsRepeat
-																												{ EType::Uint8, EType::Uint8, EType::Uint8 }));
-		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRButtonTouched", FPixelStreamingInputMessage(113, // Handedness,   ButtonIdx,      IsRepeat
-																												{ EType::Uint8, EType::Uint8, EType::Uint8 }));
-		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRButtonReleased", FPixelStreamingInputMessage(114, // Handedness,   ButtonIdx,     IsRepeat
-																					 							{ EType::Uint8, EType::Uint8, EType::Uint8 }));
-																												
 		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRAnalog", FPixelStreamingInputMessage(115, { EType::Uint8, EType::Uint8, EType::Double }));
 
 		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("XRSystem", FPixelStreamingInputMessage(116, { EType::Uint8 }));
@@ -544,83 +544,39 @@ namespace UE::PixelStreaming
 			FPixelStreamingInputMessage(50),
 			[this](FMemoryReader Ar) { HandleUIInteraction(Ar); });
 
-		// The current handler is the function that will currently be executed if a message with type "Command" is received
-		TFunction<void(FMemoryReader)> BaseOnCommandHandler = InputModule.FindMessageHandler("Command");
-		// We then create our new handler which will execute the "base" handler
-		TFunction<void(FMemoryReader)> ExtendedOnCommandHandler = [this, BaseOnCommandHandler](FMemoryReader Ar) {
-			// and then perform out extended functionality after.
-			// equivalent to the super::DoSomeFunc pattern
-			BaseOnCommandHandler(Ar);
-
-			// In this case, the base handler handles raw console commands. Our extended functionality parses the commands
-			// for PS specific parameters
-			HandleOnCommand(Ar);
-		};
-
-		// Handle receiving commands from peers
-		InputModule.RegisterMessage(EPixelStreamingMessageDirection::ToStreamer, "Command", FPixelStreamingInputMessage(51), ExtendedOnCommandHandler);
-		// Handle sending commands to peers
-		InputModule.OnSendMessage.AddRaw(this, &UE::PixelStreaming::FPixelStreamingModule::HandleSendCommand);
-	}
-
-	void FPixelStreamingModule::HandleOnCommand(FMemoryReader Ar)
-	{
-		FString Res;
-		Res.GetCharArray().SetNumUninitialized(Ar.TotalSize() / 2 + 1);
-		Ar.Serialize(Res.GetCharArray().GetData(), Ar.TotalSize());
-		FString Descriptor = Res.Mid(1);
-		bool bSuccess = false;
-
-		/**
-		 * Encoder Settings
-		 */
-		FString MinQPString;
-		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Encoder.MinQP"), MinQPString, bSuccess);
-		if (bSuccess)
-		{
+		TSharedPtr<IPixelStreamingInputHandler> InputHandler = InputModule.GetInputHandler();
+		// Set Encoder.MinQP CVar
+		InputHandler->SetCommandHandler(TEXT("Encoder.MinQP"), [](FString Descriptor, FString MinQPString) {
 			int MinQP = FCString::Atoi(*MinQPString);
 			UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMinQP->Set(MinQP, ECVF_SetByCommandline);
-			return;
-		}
+		});
 
-		FString MaxQPString;
-		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Encoder.MaxQP"), MaxQPString, bSuccess);
-		if (bSuccess)
-		{
+		// Set Encoder.MaxQP CVar
+		InputHandler->SetCommandHandler(TEXT("Encoder.MaxQP"), [](FString Descriptor, FString MaxQPString) {
 			int MaxQP = FCString::Atoi(*MaxQPString);
 			UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMaxQP->Set(MaxQP, ECVF_SetByCommandline);
-			return;
-		}
+		});
 
-		/**
-		 * WebRTC Settings
-		 */
-		FString FPSString;
-		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("WebRTC.Fps"), FPSString, bSuccess);
-		if (bSuccess)
-		{
+		// Set WebRTC max FPS
+		InputHandler->SetCommandHandler(TEXT("WebRTC.Fps"), [](FString Descriptor, FString FPSString) {
 			int FPS = FCString::Atoi(*FPSString);
 			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCFps->Set(FPS, ECVF_SetByCommandline);
-			return;
-		}
+		});
 
-		FString MinBitrateString;
-		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("WebRTC.MinBitrate"), MinBitrateString, bSuccess);
-		if (bSuccess)
-		{
+		// Set MinBitrate
+		InputHandler->SetCommandHandler(TEXT("WebRTC.MinBitrate"), [](FString Descriptor, FString MinBitrateString) {
 			int MinBitrate = FCString::Atoi(*MinBitrateString);
 			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCMinBitrate->Set(MinBitrate, ECVF_SetByCommandline);
-			return;
-		}
+		});
 
-		FString MaxBitrateString;
-		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("WebRTC.MaxBitrate"), MaxBitrateString, bSuccess);
-		if (bSuccess)
-		{
+		// Set MaxBitrate
+		InputHandler->SetCommandHandler(TEXT("WebRTC.MaxBitrate"), [](FString Descriptor, FString MaxBitrateString) {
 			int MaxBitrate = FCString::Atoi(*MaxBitrateString);
 			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCMaxBitrate->Set(MaxBitrate, ECVF_SetByCommandline);
-			return;
-		}
+		});
+
+		// Handle sending commands to peers
+		InputModule.OnSendMessage.AddRaw(this, &UE::PixelStreaming::FPixelStreamingModule::HandleSendCommand);
 	}
 
 	void FPixelStreamingModule::HandleSendCommand(FMemoryReader Ar)

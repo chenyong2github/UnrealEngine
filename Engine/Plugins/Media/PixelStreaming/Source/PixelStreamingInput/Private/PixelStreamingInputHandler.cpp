@@ -166,6 +166,8 @@ namespace UE::PixelStreamingInput
 		FPixelStreamingInputConverter::GamepadInputToFKey.Add(MakeTuple(13, Action::Click), EKeys::Gamepad_DPad_Down);
 		FPixelStreamingInputConverter::GamepadInputToFKey.Add(MakeTuple(14, Action::Click), EKeys::Gamepad_DPad_Left);
 		FPixelStreamingInputConverter::GamepadInputToFKey.Add(MakeTuple(15, Action::Click), EKeys::Gamepad_DPad_Right);
+
+		PopulateDefaultCommandHandlers();
 	}
 
 	FPixelStreamingInputHandler::~FPixelStreamingInputHandler()
@@ -999,38 +1001,27 @@ namespace UE::PixelStreamingInput
 		IPixelStreamingHMDModule::Get().SetActiveXRSystem(static_cast<XRSystem>(ActiveSystem));
 	}
 
-	/**
-	 * Command receive handling
-	 */
-	void FPixelStreamingInputHandler::HandleOnCommand(FMemoryReader Ar)
+	void FPixelStreamingInputHandler::SetCommandHandler(const FString& CommandName, const TFunction<void(FString, FString)>& Handler)
 	{
-		FString Res;
-		Res.GetCharArray().SetNumUninitialized(Ar.TotalSize() / 2 + 1);
-		Ar.Serialize(Res.GetCharArray().GetData(), Ar.TotalSize());
+		CommandHandlers.Add(CommandName, Handler);
+	}
 
-		FString Descriptor = Res.Mid(MessageHeaderOffset);
-		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("Command: %s"), *Descriptor);
+	void FPixelStreamingInputHandler::PopulateDefaultCommandHandlers()
+	{
 
-		bool bSuccess = false;
+		// Execute console commands if passed "ConsoleCommand" and -PixelStreamingAllowConsoleCommands is on.
+		CommandHandlers.Add(TEXT("ConsoleCommand"), [](FString Descriptor, FString ConsoleCommand) {
+			if (!UE::PixelStreamingInput::Settings::CVarPixelStreamingInputAllowConsoleCommands.GetValueOnAnyThread())
+			{
+				return;
+			}
+			GEngine->Exec(GEngine->GetWorld(), *ConsoleCommand); });
 
-		FString ConsoleCommand;
-		ExtractJsonFromDescriptor(Descriptor, TEXT("ConsoleCommand"), ConsoleCommand, bSuccess);
-		if (bSuccess && Settings::CVarPixelStreamingInputAllowConsoleCommands.GetValueOnAnyThread())
-		{
-			GEngine->Exec(GEngine->GetWorld(), *ConsoleCommand);
-			return;
-		}
-
-		/**
-		 * Allowed Console commands
-		 */
-		FString WidthString;
-		FString HeightString;
-		ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Width"), WidthString, bSuccess);
-		if (bSuccess)
-		{
-			ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
-
+		// Change width/height if sent { "Resolution.Width": 1920, "Resolution.Height": 1080 }
+		CommandHandlers.Add(TEXT("Resolution.Width"), [](FString Descriptor, FString WidthString) {
+			bool bSuccess = false;
+			FString HeightString;
+			UE::PixelStreamingInput::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
 			if (bSuccess)
 			{
 				int Width = FCString::Atoi(*WidthString);
@@ -1042,20 +1033,39 @@ namespace UE::PixelStreamingInput
 
 				FString ChangeResCommand = FString::Printf(TEXT("r.SetRes %dx%d"), Width, Height);
 				GEngine->Exec(GEngine->GetWorld(), *ChangeResCommand);
+			} });
+
+		// Response to "Stat.FPS" by calling "stat fps"
+		CommandHandlers.Add(TEXT("Stat.FPS"), [](FString Descriptor, FString FPSCommand) {
+			FString StatFPSCommand = FString::Printf(TEXT("stat fps"));
+			GEngine->Exec(GEngine->GetWorld(), *StatFPSCommand); });
+	}
+
+	/**
+	 * Command handling
+	 */
+	void FPixelStreamingInputHandler::HandleOnCommand(FMemoryReader Ar)
+	{
+		FString Res;
+		Res.GetCharArray().SetNumUninitialized(Ar.TotalSize() / 2 + 1);
+		Ar.Serialize(Res.GetCharArray().GetData(), Ar.TotalSize());
+
+		FString Descriptor = Res.Mid(MessageHeaderOffset);
+		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("Command: %s"), *Descriptor);
+
+		// Iterate each command handler and see if the command we got matches any of the bound command names.
+		for (auto& CommandHandlersPair : CommandHandlers)
+		{
+			FString CommandValue;
+			bool bSuccess = false;
+			UE::PixelStreamingInput::ExtractJsonFromDescriptor(Descriptor, CommandHandlersPair.Key, CommandValue, bSuccess);
+			if (bSuccess)
+			{
+				// Execute bound command handler with descriptor and parsed command value
+				CommandHandlersPair.Value(Descriptor, CommandValue);
 				return;
 			}
 		}
-
-		FString StatFPSString;
-		UE::PixelStreamingInput::ExtractJsonFromDescriptor(Descriptor, TEXT("Stat.FPS"), StatFPSString, bSuccess);
-		if (bSuccess)
-		{
-			FString StatFPSCommand = FString::Printf(TEXT("stat fps"));
-			GEngine->Exec(GEngine->GetWorld(), *StatFPSCommand);
-			return;
-		}
-
-		// Remaining settings are handled in the Pixel Streaming module
 	}
 
 	/**
