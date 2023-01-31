@@ -170,6 +170,7 @@ FActorSpawnParameters::FActorSpawnParameters()
 , bNoFail(false)
 , bDeferConstruction(false)
 , bAllowDuringConstructionScript(false)
+, bForceGloballyUniqueName(false)
 #if WITH_EDITOR
 , bTemporaryEditorActor(false)
 , bHideFromSceneOutliner(false)
