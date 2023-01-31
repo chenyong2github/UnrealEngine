@@ -32,7 +32,6 @@ class UObject;
 #define GARBAGE_COLLECTION_KEEPFLAGS	(GIsEditor ? RF_Standalone : RF_NoFlags)
 
 #define	ENABLE_GC_DEBUG_OUTPUT					1
-#define PERF_DETAILED_PER_CLASS_GC_STATS				(LOOKING_FOR_PERF_ISSUES || 0) 
 
 /** UObject pointer checks are disabled by default in shipping and test builds as they add roughly 20% overhead to GC times */
 #ifndef ENABLE_GC_OBJECT_CHECKS

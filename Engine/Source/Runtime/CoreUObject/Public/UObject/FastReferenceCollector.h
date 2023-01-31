@@ -565,6 +565,8 @@ StoleContext:
 					continue;
 				}
 
+				Processor.BeginTimingObject(CurrentObject);
+
 				uint32 TokenStreamIndex = 0;
 				// Keep track of index to reference info. Used to avoid LHSs.
 				uint32 ReferenceTokenStreamIndex = 0;
@@ -1088,6 +1090,7 @@ StoleContext:
 					} // switch (Type)
 				} // while (true)
 TokensDone:
+				Processor.UpdateDetailedStats(CurrentObject);
 				check(StackEntry == Stack.GetBottomFrame());
 			} // for (FPrefetchingObjectIterator)
 
@@ -1132,11 +1135,7 @@ StoleARO:
 			CurrentObjects = MakeArrayView(Block->Objects, BlockSize);
 		} // while (true)
 		
-	#if PERF_DETAILED_PER_CLASS_GC_STATS
-		// Detailed per class stats should not be performed when parallel GC is running
-		check(!IsParallel());
 		Processor.LogDetailedStatsSummary();
-	#endif
 	}
 };
 
@@ -1182,7 +1181,11 @@ class FSimpleReferenceProcessorBase
 {
 public:
 	static constexpr EGCOptions Options = UE::GC::DefaultOptions;
-	void UpdateDetailedStats(UObject* CurrentObject, uint32 DeltaCycles) {}
+
+	// These functions are implemented in the GC collectors to generate detail stats on objects considered by GC.
+	// They are generally not needed for other reference collection tasks.
+	void BeginTimingObject(UObject* CurrentObject) {}
+	void UpdateDetailedStats(UObject* CurrentObject) {}
 	void LogDetailedStatsSummary() {}
 
 	// Implement this in your derived class, don't make this virtual as it will affect performance!
