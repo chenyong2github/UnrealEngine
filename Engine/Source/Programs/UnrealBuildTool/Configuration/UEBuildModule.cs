@@ -555,10 +555,7 @@ namespace UnrealBuildTool
 		private void AddIncludePaths(HashSet<DirectoryReference> IncludePaths, HashSet<DirectoryReference> IncludePathsToAdd)
 		{
 			// Need to check whether directories exist to avoid bloating compiler command line with generated code directories
-			foreach(DirectoryReference IncludePathToAdd in IncludePathsToAdd)
-			{
-				IncludePaths.Add(IncludePathToAdd);
-			}
+			IncludePaths.UnionWith(IncludePathsToAdd);
 		}
 
 		/// <summary>
@@ -958,7 +955,7 @@ namespace UnrealBuildTool
 		/// <param name="bIncludeDynamicallyLoaded">True if dynamically loaded modules (and all of their dependent modules) should be included.</param>
 		/// <param name="bForceCircular">True if circular dependencies should be processed</param>
 		/// <param name="bOnlyDirectDependencies">True to return only this module's direct dependencies</param>
-		public virtual void GetAllDependencyModules(List<UEBuildModule> ReferencedModules, HashSet<UEBuildModule> IgnoreReferencedModules, bool bIncludeDynamicallyLoaded, bool bForceCircular, bool bOnlyDirectDependencies)
+		public void GetAllDependencyModules(List<UEBuildModule> ReferencedModules, HashSet<UEBuildModule> IgnoreReferencedModules, bool bIncludeDynamicallyLoaded, bool bForceCircular, bool bOnlyDirectDependencies)
 		{
 			List<UEBuildModule> AllDependencyModules = new List<UEBuildModule>(PrivateDependencyModules!.Count + PublicDependencyModules!.Count + (bIncludeDynamicallyLoaded ? DynamicallyLoadedModules!.Count : 0));
 			AllDependencyModules.AddRange(PrivateDependencyModules!);
@@ -970,13 +967,11 @@ namespace UnrealBuildTool
 
 			foreach (UEBuildModule DependencyModule in AllDependencyModules)
 			{
-				if (!IgnoreReferencedModules.Contains(DependencyModule))
+				// Don't follow circular back-references!
+				if (bForceCircular || !HasCircularDependencyOn(DependencyModule.Name))
 				{
-					// Don't follow circular back-references!
-					if (bForceCircular || !HasCircularDependencyOn(DependencyModule.Name))
+					if (IgnoreReferencedModules.Add(DependencyModule))
 					{
-						IgnoreReferencedModules.Add(DependencyModule);
-
 						if (!bOnlyDirectDependencies)
 						{
 							// Recurse into dependent modules first

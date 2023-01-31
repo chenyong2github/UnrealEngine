@@ -380,10 +380,8 @@ namespace UnrealBuildTool
 
 			foreach (UEBuildModule Module in Modules)
 			{
-				if (!IgnoreReferencedModules.Contains(Module))
+				if (IgnoreReferencedModules.Add(Module))
 				{
-					IgnoreReferencedModules.Add(Module);
-
 					Module.GetAllDependencyModules(ReferencedModules, IgnoreReferencedModules, bIncludeDynamicallyLoaded, bForceCircular, bOnlyDirectDependencies: false);
 
 					ReferencedModules.Add(Module);
@@ -727,17 +725,21 @@ namespace UnrealBuildTool
 					if (Target.LinkType == TargetLinkType.Monolithic)
 					{
 						Graph.SetOutputItemsForModule(Module.Name, LinkInputFiles.ToArray());
-					}
 
-					// NOTE: Because of 'Shared PCHs', in monolithic builds the same PCH file may appear as a link input
-					// multiple times for a single binary.  We'll check for that here, and only add it once.  This avoids
-					// a linker warning about redundant .obj files. 
-					foreach (FileItem LinkInputFile in LinkInputFiles)
-					{
-						if (!BinaryLinkEnvironment.InputFiles.Contains(LinkInputFile))
+						// NOTE: Because of 'Shared PCHs', in monolithic builds the same PCH file may appear as a link input
+						// multiple times for a single binary.  We'll check for that here, and only add it once.  This avoids
+						// a linker warning about redundant .obj files. 
+						foreach (FileItem LinkInputFile in LinkInputFiles)
 						{
-							BinaryLinkEnvironment.InputFiles.Add(LinkInputFile);
+							if (!BinaryLinkEnvironment.InputFiles.Contains(LinkInputFile))
+							{
+								BinaryLinkEnvironment.InputFiles.Add(LinkInputFile);
+							}
 						}
+					}
+					else
+					{
+						BinaryLinkEnvironment.InputFiles.AddRange(LinkInputFiles);
 					}
 
 					// Force a reference to initialize module for this binary
