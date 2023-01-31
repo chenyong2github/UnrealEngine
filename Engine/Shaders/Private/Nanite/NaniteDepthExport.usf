@@ -33,13 +33,19 @@ RWTexture2D<uint>			SceneStencil;
 
 RWTexture2D<float4>			Velocity;
 
+#if SHADING_MASK_EXPORT
 RWTexture2D<uint>			ShadingMask;
+#endif
+
+#if MATERIAL_DEPTH_EXPORT
 RWStructuredBuffer<uint>	MaterialHTile;
 RWTexture2D<float>			MaterialDepth;
+#endif
 
 ByteAddressBuffer			MaterialSlotTable;
+#if MATERIAL_DEPTH_EXPORT
 ByteAddressBuffer			MaterialDepthTable;
-ByteAddressBuffer			MaterialHitProxyTable;
+#endif
 
 uint EncodeTileMinMaxDepth(float MinDepth, float MaxDepth, uint PlatformConfig)
 {
@@ -95,7 +101,9 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 		uint SceneZMask = ToScalarMemory(BitFieldExtractU32(SceneHTile[TileIndex], 4u, 0u));
 		float SceneDepthValue = DecompressDepthValue(SceneDepth, SceneZMask, PixelPos.xy, ThreadIndex, SceneDepthValue, PlatformConfig);
 		
+	#if MATERIAL_DEPTH_EXPORT
 		float MaterialDepthValue = 0.0f;
+	#endif
 
 		bool NanitePixelVisible = false;
 
@@ -124,7 +132,9 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 			#else
 				const uint ShadingBin = GetMaterialShadingBin(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 			#endif
+			#if MATERIAL_DEPTH_EXPORT
 				MaterialDepthValue = asfloat(GetMaterialDepthId(ShadingBin, MaterialDepthTable));
+			#endif
 
 				const bool bIsDecalReceiver = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
 				const bool bHasDistanceField = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_DISTANCE_FIELD_REPRESENTATION) != 0;
@@ -177,7 +187,7 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 				}
 			#endif
 
-			#if MATERIAL_DATA_EXPORT
+			#if SHADING_MASK_EXPORT
 				ShadingMask[PixelPos.xy] = PackShadingMask(
 					ShadingBin,
 					bIsDecalReceiver,
@@ -188,7 +198,7 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 			}
 		}
 
-	#if MATERIAL_DATA_EXPORT
+	#if MATERIAL_DEPTH_EXPORT
 		MaterialDepth[PixelPos.xy] = MaterialDepthValue;
 
 		const float TileMinMaterialDepth = WaveActiveMin(MaterialDepthValue);

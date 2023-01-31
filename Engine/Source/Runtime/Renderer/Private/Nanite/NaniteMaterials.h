@@ -9,10 +9,6 @@
 
 static constexpr uint32 NANITE_MAX_MATERIALS = 64;
 
-// TODO: Until RHIs no longer set stencil ref to 0 on a PSO change, this optimization 
-// is actually worse (forces a context roll per unique material draw, back to back).
-#define NANITE_MATERIAL_STENCIL 0
-
 struct FNaniteMaterialPassCommand;
 struct FLumenMeshCaptureMaterialPass;
 class  FLumenCardPassUniformParameters;
@@ -484,8 +480,7 @@ void EmitDepthTargets(
 	FRDGTextureRef VisBuffer64,
 	FRDGTextureRef VelocityBuffer,
 	FRDGTextureRef& OutMaterialDepth,
-	FRDGTextureRef& OutShadingMask,
-	bool bStencilMask
+	FRDGTextureRef& OutShadingMask
 );
 
 void EmitCustomDepthStencilTargets(
