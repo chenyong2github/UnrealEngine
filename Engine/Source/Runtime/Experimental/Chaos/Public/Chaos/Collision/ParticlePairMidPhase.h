@@ -241,12 +241,14 @@ namespace Chaos
 
 		/**
 		 * @brief Visit all the collisions
+		 * @param Visitor functor with signature ECollisionVisitorResult(FPBDCollisionConstaint& Constraint)
 		*/
 		template<typename TLambda>
 		ECollisionVisitorResult VisitCollisions(const TLambda& Visitor, const bool bOnlyActive = true);
 
 		/**
 		 * @brief Visit all the collisions
+		 * @param Visitor functor with signature ECollisionVisitorResult(const FPBDCollisionConstaint& Constraint)
 		*/
 		template<typename TLambda>
 		ECollisionVisitorResult VisitConstCollisions(const TLambda& Visitor, const bool bOnlyActive = true) const;
@@ -395,6 +397,7 @@ namespace Chaos
 		 * @brief Call a lambda on each active collision constraint
 		 * This includes sleeping constraints, but skips constraints that are were not used on the last awake tick
 		 * but are still kept around as an optimization.
+		 * @param Visitor functor with signature ECollisionVisitorResult(FPBDCollisionConstaint& Constraint)
 		*/
 		template<typename TLambda>
 		ECollisionVisitorResult VisitCollisions(const TLambda& Visitor, const bool bOnlyActive = true);
@@ -402,6 +405,7 @@ namespace Chaos
 
 		/**
 		 * @brief Call a lambda on each active collision constraint
+		 * @param Visitor functor with signature ECollisionVisitorResult(const FPBDCollisionConstaint& Constraint)
 		 */
 		template<typename TLambda>
 		ECollisionVisitorResult VisitConstCollisions(const TLambda& Visitor, const bool bOnlyActive = true) const;

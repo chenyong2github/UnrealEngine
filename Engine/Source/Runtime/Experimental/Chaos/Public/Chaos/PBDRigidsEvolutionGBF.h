@@ -130,17 +130,21 @@ namespace Chaos
 
 		/**
 		 * User has moved a particle
+		 * Does not change velocity.
+		 * Will wake the particle if this is a move (i.e., bIsTeleport is false)
 		 */
-		CHAOS_API void SetParticleTransform(FGeometryParticleHandle* InParticle, const FVec3& InPos, const FRotation3& InRot, const bool bIsTeleport)
-		{
-			const FVec3 PrevX = InParticle->X();
-			const FRotation3 PrevR = InParticle->R();
+		CHAOS_API void SetParticleTransform(FGeometryParticleHandle* InParticle, const FVec3& InPos, const FRotation3& InRot, const bool bIsTeleport);
 
-			FGenericParticleHandle(InParticle)->SetTransform(InPos, InRot);
+		/**
+		 * Move a particle to a new location with a sweep and stop and the first opposing contact.
+		 * Does not change velocity.
+		 * Will wake the particle if this is a move (i.e., bIsTeleport is false)
+		 */
+		CHAOS_API virtual void SetParticleTransformSwept(FGeometryParticleHandle* InParticle, const FVec3& InPos, const FRotation3& InRot, const bool bIsTeleport);
 
-			OnParticleMoved(InParticle, PrevX, PrevR, bIsTeleport);
-		}
-
+		/**
+		 * Called when a particle is moved. We need to reset some friction properties, sleeping properties, etc
+		 */
 		CHAOS_API void OnParticleMoved(FGeometryParticleHandle* InParticle, const FVec3& PrevX, const FRotation3& PrevR, const bool bIsTeleport);
 
 

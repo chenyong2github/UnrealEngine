@@ -2,8 +2,8 @@
 #pragma once
 
 #include "Chaos/Collision/CollisionConstraintAllocator.h"
-#include "Chaos/Collision/CollisionConstraintFlags.h"
 #include "Chaos/Collision/CollisionContext.h"
+#include "Chaos/Collision/CollisionFilter.h"
 #include "Chaos/Collision/StatsData.h"
 #include "Chaos/ISpatialAccelerationCollection.h"
 #include "Chaos/ParticleHandleFwd.h"
@@ -23,14 +23,20 @@ namespace Chaos
 
 	namespace Private
 	{
+
 		/**
 		 * Check whether the two particles are allowed to collide, and also whether we should flip their order.
 		 */
-		inline bool ParticlePairCollisionAllowed(const FGeometryParticleHandle* Particle1, const FGeometryParticleHandle* Particle2, const FIgnoreCollisionManager& IgnoreCollisionManager, const bool bIsResimming,  bool& bOutSwapOrder)
+		inline bool ParticlePairCollisionAllowed(
+			const FGeometryParticleHandle* Particle1, 
+			const FGeometryParticleHandle* Particle2, 
+			const FIgnoreCollisionManager& IgnoreCollisionManager, 
+			const bool bIsResimming,  
+			bool& bOutSwapOrder)
 		{
 			bOutSwapOrder = false;
 
-			if (Particle1 == Particle2)
+			if (!ParticlePairBroadPhaseFilter(Particle1, Particle2, &IgnoreCollisionManager))
 			{
 				return false;
 			}
@@ -38,71 +44,23 @@ namespace Chaos
 			bool bIsKinematic1 = true;
 			bool bIsDynamicAwake1 = false;
 			bool bIsDynamicAsleep1 = false;
-			bool bUseIgnoreCollisionManager1 = false;
-			bool bDisabled1 = false;
-			int32 CollisionGroup1 = 0;
 			const FPBDRigidParticleHandle* Rigid1 = Particle1->CastToRigidParticle();
 			if (Rigid1 != nullptr)
 			{
 				bIsKinematic1 = Rigid1->IsKinematic();
 				bIsDynamicAsleep1 = !bIsKinematic1 && Rigid1->IsSleeping();
 				bIsDynamicAwake1 = !bIsKinematic1 && !bIsDynamicAsleep1;
-				bUseIgnoreCollisionManager1 = Rigid1->UseIgnoreCollisionManager();
-				bDisabled1 = Rigid1->Disabled();
-				CollisionGroup1 = Rigid1->CollisionGroup();
 			}
 
 			bool bIsKinematic2 = true;
 			bool bIsDynamicAwake2 = false;
 			bool bIsDynamicAsleep2 = false;
-			bool bUseIgnoreCollisionManager2 = false;
-			bool bDisabled2 = false;
-			int32 CollisionGroup2 = 0;
 			const FPBDRigidParticleHandle* Rigid2 = Particle2->CastToRigidParticle();
 			if (Rigid2 != nullptr)
 			{
 				bIsKinematic2 = Rigid2->IsKinematic();
 				bIsDynamicAsleep2 = !bIsKinematic2 && Rigid2->IsSleeping();
 				bIsDynamicAwake2 = !bIsKinematic2 && !bIsDynamicAsleep2;
-				bUseIgnoreCollisionManager2 = Rigid2->UseIgnoreCollisionManager();
-				bDisabled2 = Rigid2->Disabled();
-				CollisionGroup2 = Rigid2->CollisionGroup();
-			}
-
-			// @todo(chaos): This should not be happening if the disabled particles are removed from the active particles list, but GeometryCollection may leave them there
-			//check(!bDisabled2);
-			if (bDisabled1 || bDisabled2)
-			{
-				return false;
-			}
-
-			// At least one particle needs to be dynamic to generate a collision response
-			if (bIsKinematic1 && bIsKinematic2)
-			{
-				return false;
-			}
-			check((Rigid1 != nullptr) || (Rigid2 != nullptr));
-
-			// Is this particle interaction governed by the IgnoreCollisionManager? If so, check to see if interaction is allowed
-			if (bUseIgnoreCollisionManager1 || bUseIgnoreCollisionManager2)
-			{
-				if (IgnoreCollisionManager.IgnoresCollision(Particle1, Particle2))
-				{
-					return false;
-				}
-			}
-
-			// CollisionGroups are used by geometry collections for high-level collision filtering
-			// CollisionGroup == 0 : Collide_With_Everything
-			// CollisionGroup == INDEX_NONE : Disabled collisions
-			// CollisionGroup1 != CollisionGroup2 : Disabled collisions (if other conditions not met)
-			if (CollisionGroup1 == INDEX_NONE || CollisionGroup2 == INDEX_NONE)
-			{
-				return false;
-			}
-			if ((CollisionGroup1 != 0) && (CollisionGroup2 != 0) && (CollisionGroup1 != CollisionGroup2))
-			{
-				return false;
 			}
 
 			// In both cases (resim or not) we will generate (1) dynamic-(sleeping,kinematic(steady+moving),static) pairs + (2) sleeping-moving kinematic ones

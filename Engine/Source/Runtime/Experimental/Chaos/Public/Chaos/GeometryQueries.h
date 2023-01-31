@@ -119,6 +119,7 @@ namespace Chaos
 		return false;
 	}
 
+	// @todo(chaos): This does not handle Unions
 	template <typename SweptGeometry>
 	bool SweepQuery(const FImplicitObject& A, const FRigidTransform3& ATM, const SweptGeometry& B, const FRigidTransform3& BTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal, const FReal Thickness, const bool bComputeMTD)
 	{
@@ -248,4 +249,17 @@ namespace Chaos
 
 		return bResult;
 	}
+
+
+	// @todo(chaos): This does not handle Unions
+	inline bool SweepQuery(const FImplicitObject& A, const FRigidTransform3& ATM, const FImplicitObject& B, const FRigidTransform3& BTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal, const FReal Thickness, const bool bComputeMTD)
+	{
+		return Chaos::Utilities::CastHelper(B, BTM,
+			[&A, &ATM, &Dir, &Length, &OutTime, &OutPosition, &OutNormal, &OutFaceIndex, &OutFaceNormal, &Thickness, &bComputeMTD]
+			(const auto& BInner, const FTransform& BInnerTM) -> bool
+			{
+				return SweepQuery(A, ATM, BInner, BInnerTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal, Thickness, bComputeMTD);
+			});
+	}
+
 }

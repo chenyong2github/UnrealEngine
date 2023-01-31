@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/PBDRigidsEvolutionGBF.h"
+#include "Chaos/Collision/SimSweep.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
 #include "Chaos/Framework/Parallel.h"
@@ -936,6 +937,46 @@ void FPBDRigidsEvolutionGBF::DestroyTransientConstraints(FGeometryParticleHandle
 	}
 }
 
+CHAOS_API void FPBDRigidsEvolutionGBF::SetParticleTransform(FGeometryParticleHandle* InParticle, const FVec3& InPos, const FRotation3& InRot, const bool bIsTeleport)
+{
+	const FVec3 PrevX = InParticle->X();
+	const FRotation3 PrevR = InParticle->R();
+
+	FGenericParticleHandle(InParticle)->SetTransform(InPos, InRot);
+
+	OnParticleMoved(InParticle, PrevX, PrevR, bIsTeleport);
+}
+
+
+void FPBDRigidsEvolutionGBF::SetParticleTransformSwept(FGeometryParticleHandle* InParticle, const FVec3& InPos, const FRotation3& InRot, const bool bIsTeleport)
+{
+	// If the rotation has changed, we need to adjust the initial sweep position to account for the fact that the
+	// particle will have moved in a straight line through its center of mass. This is important when we have shapes
+	// that are not centerd on their center of mass (either it's multi-shape body, or the user modified the CoM).
+	const FVec3 CoMOffset = FConstGenericParticleHandle(InParticle)->CenterOfMass();
+	const FVec3 EndCoM = InPos + InRot * CoMOffset;
+	const FVec3 StartCoM = InParticle->X() + InParticle->R() * CoMOffset;
+	FVec3 SweepDir = EndCoM - StartCoM;
+	const FReal SweepLength = SweepDir.SafeNormalize();
+	const FVec3 SweepStart = InPos - SweepDir * SweepLength;
+
+	FReal TOI = FReal(1.0);
+	if (SweepLength > UE_SMALL_NUMBER)
+	{
+		Private::FSimSweepParticleHit Hit;
+		if (Private::SimSweepParticleFirstHit(GetSpatialAcceleration(), &GetBroadPhase().GetIgnoreCollisionManager(), InParticle, SweepStart, InRot, SweepDir, SweepLength, Hit))
+		{
+			TOI = Hit.HitTOI;
+		}
+	}
+
+	if (TOI > 0)
+	{
+		const FVec3 NewPos = FMath::Lerp(SweepStart, InPos, TOI);
+		SetParticleTransform(InParticle, NewPos, InRot, bIsTeleport);
+	}
+}
+
 void FPBDRigidsEvolutionGBF::OnParticleMoved(FGeometryParticleHandle* InParticle, const FVec3& PrevX, const FRotation3& PrevR, const bool bIsTeleport)
 {
 	// When a particle is moved, we need to tell the collisions because they cache friction state and 
@@ -961,6 +1002,11 @@ void FPBDRigidsEvolutionGBF::OnParticleMoved(FGeometryParticleHandle* InParticle
 				const FVec3 DV = (PrevX - Rigid->X()) * InvDt;
 				const FReal SmoothRate = FMath::Clamp(CVars::SmoothedPositionLerpRate, 0.0f, 1.0f);
 				Rigid->VSmooth() = FMath::Lerp(Rigid->VSmooth(), Rigid->V() + DV, SmoothRate);
+			}
+
+			if (Rigid->IsSleeping())
+			{
+				SetParticleObjectState(Rigid, EObjectStateType::Dynamic);
 			}
 		}
 	}

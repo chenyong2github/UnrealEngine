@@ -14,9 +14,6 @@
 
 namespace Chaos
 {
-	// @todo(chaos): remove these when FIgnoreCollisionManager is split into Core and Proxy classes (see todo comments below)
-	class FPBDRigidsSolver;
-
 	/**
 	 * @brief Flags for user-control over per-particle collision behaviour
 	 * @todo(chaos): move SmoothEdgeCollisions to FRigidParticleControlFlags and remove ECollisionConstraintFlags

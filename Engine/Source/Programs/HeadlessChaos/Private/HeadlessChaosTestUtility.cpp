@@ -164,12 +164,11 @@ namespace ChaosTest {
 		Particle->P() = Particle->X();
 		Particle->Q() = Particle->R();
 
-		// Inertia assumes cube so is imcorrect for rectangular boxes
-		FReal MaxScale = Scale.GetMax();
-		FReal ScaleSq = MaxScale * MaxScale;
+		// Assume unit mass - this gets scaled externally by the actual mass
+		const FVec3 ScaleSq = Scale * Scale;
 		Particle->M() = 1.0;
 		Particle->InvM() = 1.0;
-		Particle->I() = TVec3<FRealSingle>(ScaleSq / 6.0);
+		Particle->I() = (1.0 / 12.0) * TVec3<FRealSingle>(ScaleSq.Y + ScaleSq.Z, ScaleSq.X + ScaleSq.Z, ScaleSq.X + ScaleSq.Y);
 		Particle->InvI() = TVec3<FRealSingle>(6.0 / ScaleSq);
 
 		Particle->SetDynamicGeometry(MakeUnique<TBox<FReal, 3>>(-Scale / 2.0, Scale / 2.0, Margin));
@@ -186,8 +185,7 @@ namespace ChaosTest {
 		Particle->CollisionParticles()->X(CollisionIndex++) = FVec3(-Scale[0] / 2.0, +Scale[1] / 2.0, +Scale[2] / 2.0);
 		Particle->CollisionParticles()->X(CollisionIndex++) = FVec3(+Scale[0] / 2.0, +Scale[1] / 2.0, +Scale[2] / 2.0);
 
-		// This is needed for calculating contacts (Bounds are bigger than they need to be, even allowing for rotation)
-		Particle->SetLocalBounds(FAABB3(FVec3(-MaxScale), FVec3(MaxScale)));
+		Particle->SetLocalBounds(Particle->Geometry()->BoundingBox());
 		Particle->UpdateWorldSpaceState(FRigidTransform3::Identity, FVec3(0));
 		Particle->SetHasBounds(true);
 
@@ -408,9 +406,8 @@ namespace ChaosTest {
 	void InitStaticParticleBox(FGeometryParticleHandle* Particle, const FVec3& Scale, TArray<TVec3<int32>>* OutElements)
 	{
 		Particle->X() = FVec3(0, 0, 0);
-		Particle->R() = FRotation3::MakeFromEuler(FVec3(0, 0, 0)).GetNormalized();
+		Particle->R() = FRotation3::FromIdentity();
 
-		check(Scale.X == Scale.Y && Scale.X == Scale.Z);
 		FReal ScaleSq = Scale.X * Scale.X;
 
 		Particle->SetDynamicGeometry(MakeUnique<TBox<FReal, 3>>(-Scale / 2.0, Scale / 2.0));

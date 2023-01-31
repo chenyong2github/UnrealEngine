@@ -483,7 +483,7 @@ namespace Chaos
 			}
 
 			/**
-			 * @brief Iterate over all collisions, including sleeping ones
+			 * @brief Iterate over all collisions (read-only), including sleeping ones
 			 * Visitor signature: ECollisionVisitorResult(const FPBDCollisionConstraint&)
 			*/
 			template<typename TLambda>
@@ -492,6 +492,22 @@ namespace Chaos
 				for (const FParticlePairMidPhasePtr& MidPhase : ParticlePairMidPhases)
 				{
 					if (MidPhase->VisitConstCollisions(Visitor) == ECollisionVisitorResult::Stop)
+					{
+						return;
+					}
+				}
+			}
+
+			/**
+			 * @brief Iterate over all collisions (write-enabled), including sleeping ones
+			 * Visitor signature: ECollisionVisitorResult(FPBDCollisionConstraint&)
+			*/
+			template<typename TLambda>
+			void VisitCollisions(const TLambda& Visitor) const
+			{
+				for (const FParticlePairMidPhasePtr& MidPhase : ParticlePairMidPhases)
+				{
+					if (MidPhase->VisitCollisions(Visitor) == ECollisionVisitorResult::Stop)
 					{
 						return;
 					}
