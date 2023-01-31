@@ -1490,6 +1490,10 @@ void FImgMediaLoader::NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int
 			SkipFramesCounter--;
 		}
 	}
+	
+	// Make sure the frame is no longer cancelled, otherwise we might end up cancelling this frame
+	// later on inadvertently!
+	Reader->UncancelFrame(FrameNumber);
 
 	WorkPool.Push(&CompletedWork);
 

@@ -31,6 +31,7 @@ public:
 	virtual bool GetFrameInfo(const FString& ImagePath, FImgMediaFrameInfo& OutInfo) override;
 	virtual bool ReadFrame(int32 FrameId, const TMap<int32, FImgMediaTileSelection>& InMipTiles, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame) override;
 	virtual void CancelFrame(int32 FrameNumber) override;
+	virtual void UncancelFrame(int32 FrameNumber) override;
 
 public:
 	/** Gets reader type (GPU vs CPU) depending on size of EXR and its compression. */

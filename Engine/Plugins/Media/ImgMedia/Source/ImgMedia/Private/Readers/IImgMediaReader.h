@@ -131,6 +131,12 @@ public:
 	virtual void CancelFrame(int32 FrameNumber) = 0;
 
 	/**
+	 * Makes sure a frame that was passed to CancelFrame is no longer marked to be cancelled.
+	 * @param FrameNumber Frame that was passed to CancelFrame.
+	 */
+	virtual void UncancelFrame(int32 FrameNumber) = 0;
+
+	/**
 	 * For some readers this function allows to pre-allocate enough memory to support the
 	 * maximum number of frames with as much efficiency as possible.
 	 *

@@ -331,6 +331,12 @@ void FExrImgMediaReader::CancelFrame(int32 FrameNumber)
 	CanceledFrames.Add(FrameNumber);
 }
 
+void FExrImgMediaReader::UncancelFrame(int32 FrameNumber)
+{
+	FScopeLock RegionScopeLock(&CanceledFramesCriticalSection);
+	CanceledFrames.Remove(FrameNumber);
+}
+
 /** Gets reader type (GPU vs CPU) depending on size of EXR and its compression. */
 TSharedPtr<IImgMediaReader, ESPMode::ThreadSafe> FExrImgMediaReader::GetReader(const TSharedRef <FImgMediaLoader, ESPMode::ThreadSafe>& InLoader, FString FirstImageInSequencePath)
 {
