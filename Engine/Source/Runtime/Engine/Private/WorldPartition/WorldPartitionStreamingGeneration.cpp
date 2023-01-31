@@ -1023,22 +1023,24 @@ void UWorldPartition::FlushStreaming()
 
 void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly)
 {
-	FStreamingGenerationLogErrorHandler LogErrorHandler;
+	ForEachActorDescContainer([this, &SourceControlHelper, bCreateActorsOnly](UActorDescContainer* ActorDescContainer)
+	{
+		FStreamingGenerationLogErrorHandler LogErrorHandler;
+		FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
+		StreamingGeneratorParams.ErrorHandler = &LogErrorHandler;
+		StreamingGeneratorParams.bEnableStreaming = IsStreamingEnabled();
+		StreamingGeneratorParams.FilteredClasses.Add(AWorldPartitionHLOD::StaticClass());
+		StreamingGeneratorParams.IsValidGrid = [this](FName GridName) { return RuntimeHash->IsValidGrid(GridName); };
 
-	FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
-	StreamingGeneratorParams.ErrorHandler = &LogErrorHandler;
-	StreamingGeneratorParams.bEnableStreaming = IsStreamingEnabled();
-	StreamingGeneratorParams.FilteredClasses.Add(AWorldPartitionHLOD::StaticClass());
-	StreamingGeneratorParams.IsValidGrid = [this](FName GridName) { return RuntimeHash->IsValidGrid(GridName); };
+		FWorldPartitionStreamingGenerator StreamingGenerator(StreamingGeneratorParams);
+		StreamingGenerator.PreparationPhase(ActorDescContainer);
 
-	FWorldPartitionStreamingGenerator StreamingGenerator(StreamingGeneratorParams);
-	StreamingGenerator.PreparationPhase(ActorDescContainer);
+		TUniquePtr<FArchive> LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(TEXT("HLOD"));
+		FHierarchicalLogArchive HierarchicalLogAr(*LogFileAr);
+		StreamingGenerator.DumpStateLog(HierarchicalLogAr);
 
-	TUniquePtr<FArchive> LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(TEXT("HLOD"));
-	FHierarchicalLogArchive HierarchicalLogAr(*LogFileAr);
-	StreamingGenerator.DumpStateLog(HierarchicalLogAr);
-
-	RuntimeHash->GenerateHLOD(SourceControlHelper, StreamingGenerator.GetStreamingGenerationContext(), bCreateActorsOnly);
+		RuntimeHash->GenerateHLOD(SourceControlHelper, StreamingGenerator.GetStreamingGenerationContext(), bCreateActorsOnly);
+	});	
 }
 
 void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const

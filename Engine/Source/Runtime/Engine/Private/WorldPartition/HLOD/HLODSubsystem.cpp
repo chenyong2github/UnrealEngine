@@ -776,7 +776,7 @@ static void DumpHLODStats(UWorld* World)
 	Output.Logf(TEXT("%s" LINE_TERMINATOR_ANSI), *StatHeader);
 
 	// Write one line per HLOD actor desc
-	for (FActorDescList::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition->GetActorDescContainer()); HLODIterator; ++HLODIterator)
+	for (FActorDescContainerCollection::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
 	{
 		const FString StatLine = FString::JoinBy(StatsToWrite, TEXT(","), [&HLODIterator](const TPair<FName, FGetStatFunc>& Pair) { return Pair.Value(**HLODIterator); });
 		Output.Logf(TEXT("%s" LINE_TERMINATOR_ANSI), *StatLine);
