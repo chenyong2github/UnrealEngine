@@ -1327,7 +1327,7 @@ bool FPaths::MakePathRelativeTo( FString& InPath, const TCHAR* InRelativeTo )
 
 	FStringView ParentDirSeparator = TEXTVIEW("../");
 	FStringView DirSeparator = TEXTVIEW("/");
-	int32 ResultsLen = SourceArray.Num() * ParentDirSeparator.Len() + (TargetArray.Num() - 1)* DirSeparator.Len();
+	int32 ResultsLen = SourceArray.Num() * ParentDirSeparator.Len() + (FMath::Max(TargetArray.Num(),1) - 1)*DirSeparator.Len();
 	for (const FStringView& TargetDir : TargetArray)
 	{
 		ResultsLen += TargetDir.Len();
