@@ -307,22 +307,24 @@ public:
 };
 
 enum class ERayTracingPayloadType : uint32; // actual enum is defined in /Shaders/Shared/RayTracingPayloadType.h
+typedef uint32(*TRaytracingPayloadSizeFunction)();
 ENUM_CLASS_FLAGS(ERayTracingPayloadType);
 
 RENDERCORE_API uint32 GetRayTracingPayloadTypeMaxSize(ERayTracingPayloadType PayloadType);
-RENDERCORE_API void RegisterRayTracingPayloadType(ERayTracingPayloadType PayloadType, uint32 PayloadSize);
+RENDERCORE_API void RegisterRayTracingPayloadType(ERayTracingPayloadType PayloadType, uint32 PayloadSize, TRaytracingPayloadSizeFunction PayloadSizeFunction);
 
 struct FRegisterRayTracingPayloadTypeHelper
 {
-	FRegisterRayTracingPayloadTypeHelper(ERayTracingPayloadType PayloadType, uint32 PayloadSize)
+	FRegisterRayTracingPayloadTypeHelper(ERayTracingPayloadType PayloadType, uint32 PayloadSize, TRaytracingPayloadSizeFunction PayloadSizeFunction)
 	{
-		RegisterRayTracingPayloadType(PayloadType, PayloadSize);
+		RegisterRayTracingPayloadType(PayloadType, PayloadSize, PayloadSizeFunction);
 	}
 };
 
 #define IMPLEMENT_RT_PAYLOAD_TYPE_CONCAT2( x, y ) x##y
 #define IMPLEMENT_RT_PAYLOAD_TYPE_CONCAT( x, y ) IMPLEMENT_RT_PAYLOAD_TYPE_CONCAT2( x, y )
-#define IMPLEMENT_RT_PAYLOAD_TYPE(PayloadType, PayloadSize)  static FRegisterRayTracingPayloadTypeHelper IMPLEMENT_RT_PAYLOAD_TYPE_CONCAT(PayloadHelper, __COUNTER__) = FRegisterRayTracingPayloadTypeHelper(PayloadType, PayloadSize);
+#define IMPLEMENT_RT_PAYLOAD_TYPE(PayloadType, PayloadSize)  static FRegisterRayTracingPayloadTypeHelper IMPLEMENT_RT_PAYLOAD_TYPE_CONCAT(PayloadHelper, __COUNTER__) = FRegisterRayTracingPayloadTypeHelper(PayloadType, PayloadSize, nullptr);
+#define IMPLEMENT_RT_PAYLOAD_TYPE_FUNCTION(PayloadType, PayloadSizeFunction)  static FRegisterRayTracingPayloadTypeHelper IMPLEMENT_RT_PAYLOAD_TYPE_CONCAT(PayloadHelper, __COUNTER__) = FRegisterRayTracingPayloadTypeHelper(PayloadType, 0u, PayloadSizeFunction);
 
 class RENDERCORE_API FShaderMapResource : public FRenderResource, public FDeferredCleanupInterface
 {

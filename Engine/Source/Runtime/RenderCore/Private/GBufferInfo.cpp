@@ -19,14 +19,6 @@ static const int32 EGBufferFormat_HighPrecisionNormals = 3;
 /** Forces all GBuffers to 16 bits per channel. Intended as profiling for best quality. */
 static const int32 EGBufferFormat_Force16BitsPerChannel = 5;
 
-
-// Strata::IsEnabled is only accessible in the Renderer module
-bool RenderCore_IsStrataEnabled()
-{
-	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Strata"));
-	return CVar->GetInt() > 0;
-}
-
 static bool IsGBufferPackingEqual(const FGBufferPacking& Lhs, const FGBufferPacking& Rhs)
 {
 	return
@@ -257,8 +249,7 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 	int32 TargetSeparatedMainDirLight = -1;
 
 	// Strata outputs material data through UAV. Only SceneColor, PrecalcShadow & Velocity data are still emitted through RenderTargets
-	const bool bStrata = RenderCore_IsStrataEnabled();
-	if (bStrata)
+	if (Strata::IsStrataEnabled())
 	{
 		TargetGBufferA = -1;
 		TargetGBufferB = -1;

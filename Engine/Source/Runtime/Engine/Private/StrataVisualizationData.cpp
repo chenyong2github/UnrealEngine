@@ -4,39 +4,11 @@
 #include "HAL/IConsoleManager.h"
 #include "Materials/Material.h"
 #include "Misc/ConfigCacheIni.h"
+#include "RenderUtils.h"
 
 #define LOCTEXT_NAMESPACE "FStrataVisualizationData"
 
 static FStrataVisualizationData GStrataVisualizationData;
-
-bool Engine_IsStrataEnabled();
-
-static bool Engine_IsStrataDBufferPassEnabled()
-{
-	static const auto CVarStrataGBufferFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat")); 
-	const uint32 StrataNormalQuality = CVarStrataGBufferFormat && CVarStrataGBufferFormat->GetValueOnAnyThread() > 1 ? 1 : 0;
-
-	// DBuffer pass is only available if high quality normal is disabled, or if we are on a console.
-	// That is because in high quality normals requires a uint2 UAV which is only supported on some graphic cards on PC 
-	// and this is an unknown when compiling shaders at this stage.
-	// !!! If this is changed, please update all sites reading r.Strata.DBufferPass !!!
-	const bool bDBufferPassSupported = StrataNormalQuality == 0;	// We do not have access to platform to check if we are on console here. Visualize is likely used on PC editor so we can only visualize DBuffer if NormalQuality is 0.
-
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata.DBufferPass"));
-	return CVar && CVar->GetValueOnAnyThread() > 0 && bDBufferPassSupported;
-}
-
-static bool Engine_IsStrataRoughRefractionEnabled()
-{
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata.OpaqueMaterialRoughRefraction"));
-	return CVar && CVar->GetValueOnAnyThread() > 0;
-}
-
-static bool Engine_IsStrataAdvancedDebugShaderEnabled()
-{
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata.Debug.AdvancedVisualizationShaders"));
-	return CVar && CVar->GetValueOnAnyThread() > 0;
-}
 
 static FString ConfigureConsoleCommand(FStrataVisualizationData::TModeMap& ModeMap)
 {
@@ -92,7 +64,7 @@ static void AddVisualizationMode(
 
 void FStrataVisualizationData::Initialize()
 {
-	if (!bIsInitialized && Engine_IsStrataEnabled())
+	if (!bIsInitialized && Strata::IsStrataEnabled())
 	{
 		TModeMap AllModeMap;
 
@@ -123,7 +95,7 @@ void FStrataVisualizationData::Initialize()
 			LOCTEXT("AdvancedMaterialPropertiesDesc", "Visualizes Strata advanced material properties"),
 			FViewMode::AdvancedMaterialProperties,
 			true,
-			Engine_IsStrataAdvancedDebugShaderEnabled(),
+			Strata::IsAdvancedVisualizationEnabled(),
 			LOCTEXT("IsStrataAdvancedDebugShaderEnabled", "Strata advanced debugging r.Strata.Debug.AdvancedVisualizationShaders is disabled"));
 
 		AddVisualizationMode(
@@ -143,7 +115,7 @@ void FStrataVisualizationData::Initialize()
 			LOCTEXT("DecalClassificationDesc", "Visualizes Strata decal classification"),
 			FViewMode::DecalClassification,
 			true,
-			Engine_IsStrataDBufferPassEnabled(),
+			false, // Disable for now, as it is not important, and is mainly used for debugging
 			LOCTEXT("IsStrataDBufferPassEnabled", "Strata tiled DBuffer pass (r.Strata.DBufferPass and r.Strata.DBufferPass.DedicatedTiles) is disabled"));
 
 		AddVisualizationMode(
@@ -153,7 +125,7 @@ void FStrataVisualizationData::Initialize()
 			LOCTEXT("RoughRefractionClassificationDesc", "Visualizes Strata rough refraction classification"),
 			FViewMode::RoughRefractionClassification,
 			true,
-			Engine_IsStrataRoughRefractionEnabled(),
+			Strata::IsOpaqueRoughRefractionEnabled(),
 			LOCTEXT("IsStrataRoughRefractionEnabled", "Strata rough refraction r.Strata.OpaqueMaterialRoughRefraction is disabled"));
 
 		AddVisualizationMode(

@@ -71,8 +71,6 @@ IMPLEMENT_TYPE_LAYOUT(FMaterialTextureParameterInfo);
 IMPLEMENT_TYPE_LAYOUT(FMaterialExternalTextureParameterInfo);
 IMPLEMENT_TYPE_LAYOUT(FMaterialVirtualTextureStack);
 
-bool Engine_IsStrataEnabled();
-
 struct FAllowCachingStaticParameterValues
 {
 	FAllowCachingStaticParameterValues(FMaterial& InMaterial)
@@ -1877,7 +1875,7 @@ bool FMaterialResource::IsStrataMaterial() const
 {
 	// We no longer support both types of material (Strata and non strata) so no need to check if FrontMaterial is plugged in.
 	// We simply consider all material as Strata when Strata is enabled.
-	return Engine_IsStrataEnabled();
+	return Strata::IsStrataEnabled();
 }
 
 bool FMaterialResource::HasMaterialPropertyConnected(EMaterialProperty In) const
@@ -1890,7 +1888,7 @@ bool FMaterialResource::HasMaterialPropertyConnected(EMaterialProperty In) const
 		Material->MaterialDomain == MD_Surface || 
 		Material->MaterialDomain == MD_Volume;
 
-	if (Engine_IsStrataEnabled() && bIsStrataSupportedDomain)
+	if (Strata::IsStrataEnabled() && bIsStrataSupportedDomain)
 	{
 		if (In == MP_AmbientOcclusion)
 		{
@@ -2257,7 +2255,7 @@ void FMaterial::SetupMaterialEnvironment(
 		OutEnvironment.CompilerFlags.Add(CFLAG_UsesExternalTexture);
 	}
 
-	if (!Engine_IsStrataEnabled())
+	if (!Strata::IsStrataEnabled())
 	{
 		switch(GetBlendMode())
 		{
@@ -4263,7 +4261,7 @@ int32 UMaterialInterface::CompileProperty(FMaterialCompiler* Compiler, EMaterial
 		Result = FMaterialAttributeDefinitionMap::CompileDefaultExpression(Compiler, Property);
 	}
 
-	if (Result == INDEX_NONE && Property == MP_FrontMaterial && Engine_IsStrataEnabled())
+	if (Result == INDEX_NONE && Property == MP_FrontMaterial && Strata::IsStrataEnabled())
 	{
 		Result = Compiler->StrataCreateAndRegisterNullMaterial();
 	}
@@ -4956,7 +4954,7 @@ FMaterialShaderParameters::FMaterialShaderParameters(const FMaterial* InMaterial
 	bShouldCastDynamicShadows = InMaterial->ShouldCastDynamicShadows();
 	bWritesEveryPixel = InMaterial->WritesEveryPixel(false);
 	bWritesEveryPixelShadowPass = InMaterial->WritesEveryPixel(true);
-	if (Engine_IsStrataEnabled())
+	if (Strata::IsStrataEnabled())
 	{
 		bHasDiffuseAlbedoConnected  = InMaterial->HasMaterialPropertyConnected(MP_DiffuseColor);
 		bHasF0Connected = InMaterial->HasMaterialPropertyConnected(MP_SpecularColor);

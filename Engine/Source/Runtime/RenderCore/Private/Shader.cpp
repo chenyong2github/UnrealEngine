@@ -109,8 +109,6 @@ static TLinkedList<FShaderPipelineType*>*	GShaderPipelineList = nullptr;
 
 static FSHAHash ShaderSourceDefaultHash; //will only be read (never written) for the cooking case
 
-bool RenderCore_IsStrataEnabled();
-
 /**
  * Find the shader pipeline type with the given name.
  * @return NULL if no type matched.
@@ -209,6 +207,7 @@ namespace {
 
 uint32 RegisteredRayTracingPayloads = 0;
 uint32 RayTracingPayloadSizes[32] = {};
+TRaytracingPayloadSizeFunction RayTracingPayloadSizeFunctions[32] = {};
 
 bool IsRayTracingPayloadRegistered(ERayTracingPayloadType PayloadType)
 {
@@ -1919,63 +1918,37 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 	}
 
+	if (Strata::IsStrataEnabled())
 	{
-		const bool bStrataEnabled = RenderCore_IsStrataEnabled();
-		if (bStrataEnabled)
 		{
 			KeyString += TEXT("_STRATA");
 		}
 
-		if (bStrataEnabled)
 		{
-			// We enforce at least 20 bytes per pixel because this is the minimal Strata GBuffer footprint of the simplest material.
-			const uint32 MinStrataBytePerPixel = 20u;
-			const uint32 MaxStrataBytePerPixel = IsMobilePlatform(Platform) ? 24u : 256u;
-			static FShaderPlatformCachedIniValue<int32> CVarBudget(TEXT("r.Strata.BytesPerPixel"));
-			const uint32 BytesPerPixel = FMath::Clamp(uint32(CVarBudget.Get(Platform)), MinStrataBytePerPixel, MaxStrataBytePerPixel);
-			KeyString += FString::Printf(TEXT("_BUDGET%u"), BytesPerPixel);
+			KeyString += FString::Printf(TEXT("_BUDGET%u"), Strata::GetBytePerPixel(Platform));
 		}
 
-		if (bStrataEnabled)
+		if (Strata::IsDBufferPassEnabled(Platform))
 		{
-			static const auto CVarStrataGBufferFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
-			const uint32 StrataNormalQuality = CVarStrataGBufferFormat && CVarStrataGBufferFormat->GetValueOnAnyThread() > 1 ? 1 : 0;
-
-			// DBuffer pass is only available if high quality normal is disabled, or if we are on a console.
-			// That is because in high quality normals requires a uint2 UAV which is only supported on some graphic cards on PC 
-			// and this is an unknown when compiling shaders at this stage.
-			// !!! If this is changed, please update all sites reading r.Strata.DBufferPass !!!
-			const bool bDBufferPassSupported = StrataNormalQuality == 0 || (StrataNormalQuality > 0 && IsConsolePlatform(Platform));
-
-			static FShaderPlatformCachedIniValue<int32> CVarDBufferPass(TEXT("r.Strata.DBufferPass"));
-			const int32 StrataDBufferPass = CVarDBufferPass.Get(Platform);
-			if (StrataDBufferPass>0)
-			{
-				KeyString += FString::Printf(TEXT("_DBUFFERPASS"));
-			}
+			KeyString += FString::Printf(TEXT("_DBUFFERPASS"));
 		}
 
-		static const auto CVarBackCompatibility = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.StrataBackCompatibility"));
-		if (bStrataEnabled && CVarBackCompatibility && CVarBackCompatibility->GetValueOnAnyThread()>0)
+		if (Strata::IsBackCompatibilityEnabled())
 		{
 			KeyString += FString::Printf(TEXT("_BACKCOMPAT"));
 		}
 
-		static const auto CVarOpaqueRoughRefrac = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata.OpaqueMaterialRoughRefraction"));
-		if (bStrataEnabled && CVarOpaqueRoughRefrac && CVarOpaqueRoughRefrac->GetValueOnAnyThread() > 0)
+		if (Strata::IsOpaqueRoughRefractionEnabled())
 		{
 			KeyString += FString::Printf(TEXT("_ROUGHDIFF"));
 		}
 
-		static const auto CVarStrataGBufferFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
-		const uint32 StrataNormalQuality = CVarStrataGBufferFormat && CVarStrataGBufferFormat->GetValueOnAnyThread() > 1 ? 1 : 0;
-		if (bStrataEnabled && StrataNormalQuality > 0)
+		if (Strata::GetNormalQuality() > 0)
 		{
 			KeyString += FString::Printf(TEXT("_STRTNRMQ"));
 		}
 
-		static const auto CVarAdvancedDebug = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata.Debug.AdvancedVisualizationShaders"));
-		if (bStrataEnabled && CVarAdvancedDebug && CVarAdvancedDebug->GetValueOnAnyThread() > 0)
+		if (Strata::IsAdvancedVisualizationEnabled())
 		{
 			KeyString += FString::Printf(TEXT("_ADVDEBUG"));
 		}
@@ -2191,14 +2164,15 @@ EShaderPermutationFlags GetShaderPermutationFlags(const FPlatformTypeLayoutParam
 	return Result;
 }
 
-void RegisterRayTracingPayloadType(ERayTracingPayloadType PayloadType, uint32 PayloadSize)
+void RegisterRayTracingPayloadType(ERayTracingPayloadType PayloadType, uint32 PayloadSize, TRaytracingPayloadSizeFunction PayloadSizeFunction)
 {
 	// Make sure we haven't registered this payload type yet
 	uint32 PayloadTypeInt = static_cast<uint32>(PayloadType);
 	checkf(FMath::CountBits(PayloadTypeInt) == 1, TEXT("PayloadType should have only 1 bit set -- got %u"), PayloadTypeInt);
 	checkf(!IsRayTracingPayloadRegistered(PayloadType), TEXT("Payload type %u has already been registered"), PayloadTypeInt);
 	int32 PayloadIndex = FPlatformMath::CountTrailingZeros(PayloadTypeInt);
-	RayTracingPayloadSizes[PayloadIndex] = PayloadSize;
+	RayTracingPayloadSizeFunctions[PayloadIndex] = PayloadSizeFunction;
+	RayTracingPayloadSizes[PayloadIndex] = PayloadSizeFunction ? 0u : PayloadSize;
 	RegisteredRayTracingPayloads |= PayloadTypeInt;
 }
 
@@ -2210,7 +2184,15 @@ uint32 GetRayTracingPayloadTypeMaxSize(ERayTracingPayloadType PayloadType)
 	for (uint32 PayloadTypeInt = static_cast<uint32>(PayloadType); PayloadTypeInt;)
 	{
 		const int32 PayloadIndex = FPlatformMath::CountTrailingZeros(PayloadTypeInt);
-		Result = FMath::Max(Result, RayTracingPayloadSizes[PayloadIndex]);
+		if (RayTracingPayloadSizeFunctions[PayloadIndex] != nullptr)
+		{
+			Result = FMath::Max(Result, RayTracingPayloadSizeFunctions[PayloadIndex]());
+		}
+		else
+		{
+			Result = FMath::Max(Result, RayTracingPayloadSizes[PayloadIndex]);
+		}
+
 		// remove bit we just processed
 		PayloadTypeInt &= ~(1u << PayloadIndex);
 	}

@@ -159,9 +159,6 @@ constexpr uint32 StencilBit_Fast   = 0x08; // In sync with SceneRenderTargets.h 
 constexpr uint32 StencilBit_Single = 0x10; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_SINGLEPATH)
 constexpr uint32 StencilBit_Complex= 0x20; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_COMPLEX)
 
-bool IsStrataEnabled();
-bool IsStrataDbufferPassEnabled(const EShaderPlatform Platform);
-
 FIntPoint GetStrataTextureResolution(const FViewInfo& View, const FIntPoint& InResolution);
 
 void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer);
@@ -180,7 +177,6 @@ void AddStrataDBufferPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures
 
 void AddStrataStencilPass(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views, const FMinimalSceneTextures& SceneTextures);
 
-bool IsStrataOpaqueMaterialRoughRefractionEnabled();
 void AddStrataOpaqueRoughRefractionPasses(
 	FRDGBuilder& GraphBuilder,
 	FSceneTextures& SceneTextures,

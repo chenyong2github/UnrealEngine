@@ -2013,7 +2013,6 @@ void UMaterialInstance::InitStaticPermutation(EMaterialShaderPrecompileMode Prec
 	FMaterial::DeferredDeleteArray(ResourcesToFree);
 }
 
-bool Engine_IsStrataEnabled();
 EBlendMode ConvertLegacyBlendMode(EBlendMode InBlendMode, FMaterialShadingModelField InShadingModels);
 
 static void SanitizeBlendMode(TEnumAsByte<EBlendMode>& InBlendMode)
@@ -2104,8 +2103,7 @@ void UMaterialInstance::UpdateOverridableBaseProperties()
 		}
 	}
 
-	const bool bIsStratEnabled = Engine_IsStrataEnabled();
-	if (bIsStratEnabled)
+	if (Strata::IsStrataEnabled())
 	{
 		BasePropertyOverrides.BlendMode = ConvertLegacyBlendMode(BasePropertyOverrides.BlendMode, ShadingModels);
 		BlendMode = ConvertLegacyBlendMode(Parent->GetBlendMode(), ShadingModels);
@@ -3830,7 +3828,7 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	}
 
 	// If BLEND_TranslucentColoredTransmittance is selected while Strata is not enabled, force BLEND_Translucent blend mode
-	if (!Engine_IsStrataEnabled())
+	if (!Strata::IsStrataEnabled())
 	{
 		SanitizeBlendMode(BlendMode);
 		SanitizeBlendMode(BasePropertyOverrides.BlendMode);

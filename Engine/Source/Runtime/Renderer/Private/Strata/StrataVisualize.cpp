@@ -11,18 +11,6 @@
 #include "IndirectLightRendering.h"
 #include "StrataVisualizationData.h"
 
-
-static TAutoConsoleVariable<int32> CVarStrataDebugAdvancedVisualizationShaders(
-	TEXT("r.Strata.Debug.AdvancedVisualizationShaders"),
-	0,
-	TEXT("Enable advanced strata material debug visualization shaders. Base pass shaders can output such advanced data."),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe);
-
-bool IsStrataAdvancedVisualizationShadersEnabled()
-{
-	return CVarStrataDebugAdvancedVisualizationShaders.GetValueOnRenderThread() > 0;
-}
-
 namespace Strata
 {
 // Forward declarations
@@ -285,7 +273,6 @@ static void AddVisualizeMaterialCountPasses(FRDGBuilder & GraphBuilder, const FV
 }
 
 float GetStrataTileOverflowRatio(const FViewInfo& View);
-bool IsClassificationCoord8bits();
 bool IsClassificationAsync();
 bool SupportsCMask(const FStaticShaderPlatform InPlatform);
 bool DoesStrataTileOverflowUseMaterialData();
@@ -298,16 +285,16 @@ static void AddVisualizeSystemInfoPasses(FRDGBuilder& GraphBuilder, const FViewI
 	ShaderPrint::RequestSpaceForCharacters(1024);
 
 	FStrataSystemInfoCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStrataSystemInfoCS::FParameters>();
-	PassParameters->bAdvancedDebugEnabled = IsStrataAdvancedVisualizationShadersEnabled() ? 1u : 0u;
+	PassParameters->bAdvancedDebugEnabled = IsAdvancedVisualizationEnabled() ? 1u : 0u;
 	PassParameters->bEnergyConservation = View.ViewState ? View.ViewState->ShadingEnergyConservationData.bEnergyConservation : false;;
 	PassParameters->bEnergyPreservation = View.ViewState ? View.ViewState->ShadingEnergyConservationData.bEnergyPreservation : false;;
-	PassParameters->bDbufferPass = IsStrataDbufferPassEnabled(View.GetShaderPlatform()) ? 1 : 0;
+	PassParameters->bDbufferPass = IsDBufferPassEnabled(View.GetShaderPlatform()) ? 1 : 0;
 	PassParameters->ClassificationCMask = SupportsCMask(View.GetShaderPlatform()) ? 1 : 0;
 	PassParameters->ClassificationAsync = IsClassificationAsync() ? 1 : 0;
-	PassParameters->Classification8bits = IsClassificationCoord8bits() ? 1 : 0;
+	PassParameters->Classification8bits = Is8bitTileCoordEnabled() ? 1 : 0;
 	PassParameters->TileOverflowRatio = GetStrataTileOverflowRatio(View);
 	PassParameters->bTileOverflowUseMaterialData = DoesStrataTileOverflowUseMaterialData() ? 1 : 0;
-	PassParameters->bRoughRefraction = IsStrataOpaqueMaterialRoughRefractionEnabled() ? 1 : 0;
+	PassParameters->bRoughRefraction = IsOpaqueRoughRefractionEnabled() ? 1 : 0;
 	PassParameters->ClassificationTileDrawIndirectBuffer = GraphBuilder.CreateSRV(View.StrataViewData.ClassificationTileDrawIndirectBuffer, PF_R32_UINT);
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
@@ -321,7 +308,7 @@ static void AddVisualizeSystemInfoPasses(FRDGBuilder& GraphBuilder, const FViewI
 // Draw each material layer independently
 static void AddVisualizeAdvancedMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor, EShaderPlatform Platform)
 {
-	if (!IsStrataAdvancedVisualizationShadersEnabled())
+	if (!IsAdvancedVisualizationEnabled())
 	{
 		return;
 	}
@@ -426,7 +413,7 @@ FScreenPassTexture AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const FViewIn
 		}
 		else if (DebugMode == FStrataVisualizationData::FViewMode::DecalClassification)
 		{
-			if (IsStrataDbufferPassEnabled(View.GetShaderPlatform()))
+			if (IsDBufferPassEnabled(View.GetShaderPlatform()))
 			{
 				AddStrataInternalClassificationTilePass(GraphBuilder, View, nullptr, &ScreenPassSceneColor.Texture, EStrataTileType::EDecalSimple, bDebugPass);
 				AddStrataInternalClassificationTilePass(GraphBuilder, View, nullptr, &ScreenPassSceneColor.Texture, EStrataTileType::EDecalSingle, bDebugPass);
@@ -435,7 +422,7 @@ FScreenPassTexture AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const FViewIn
 		}
 		else if (DebugMode == FStrataVisualizationData::FViewMode::RoughRefractionClassification)
 		{
-			if (IsStrataOpaqueMaterialRoughRefractionEnabled())
+			if (IsOpaqueRoughRefractionEnabled())
 			{
 				AddStrataInternalClassificationTilePass(GraphBuilder, View, nullptr, &ScreenPassSceneColor.Texture, EStrataTileType::EOpaqueRoughRefraction, bDebugPass);
 				AddStrataInternalClassificationTilePass(GraphBuilder, View, nullptr, &ScreenPassSceneColor.Texture, EStrataTileType::EOpaqueRoughRefractionSSSWithout, bDebugPass);

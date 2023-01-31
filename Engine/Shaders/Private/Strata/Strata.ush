@@ -1638,18 +1638,14 @@ FStrataData GetStrataSingleLayerWaterBSDF(
 ///////////////////////////////////////////////////////////////////////////////
 // Raytracing material buffer
 
+// Data payload size is determined based on Strata.BytesPerPixel settings
 #ifndef STRATA_RT_PAYLOAD_NUM_UINTS
- // When STRATA_NORMAL_QUALITY == 1, PackedTopLayerData is a uint2. To keep FPackedMaterialClosestHitPayload 
- // at 64 bytes (see declaration in BuiltInRayTracingShaders.cpp), we make data payload 4 bytes shorter)
- #define STRATA_RT_PAYLOAD_NUM_UINTS  (10 - STRATA_NORMAL_QUALITY)
+#error STRATA_RT_PAYLOAD_NUM_UINTS needs to be defined
 #endif
 
 struct FStrataRaytracingPayload
 {
-	// Total size: 40 bytes. (assuming the default value of STRATA_RT_PAYLOAD_NUM_UINTS)
-	// If this changes, update FPackedMaterialClosestHitPayload in RayTracingCommon.ush 
-	// and ensure the payload size is smaller than the maximum size
-	STRATA_TOP_LAYER_TYPE PackedTopLayerData; //
+	STRATA_TOP_LAYER_TYPE PackedTopLayerData;
 	uint Data[STRATA_RT_PAYLOAD_NUM_UINTS];
 };
 

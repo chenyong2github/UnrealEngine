@@ -302,8 +302,6 @@ FUObjectAnnotationSparseBool GMaterialFunctionsThatNeedSamplerFixup;
 FUObjectAnnotationSparseBool GMaterialFunctionsThatNeedFeatureLevelSM6Fix;
 #endif // #if WITH_EDITOR
 
-bool Engine_IsStrataEnabled();
-
 /** Returns whether the given expression class is allowed. */
 bool IsAllowedExpressionType(const UClass* const Class, const bool bMaterialFunction)
 {
@@ -2034,7 +2032,7 @@ void UMaterialExpression::ConnectToPreviewMaterial(UMaterial* InMaterial, int32 
 {
 	if (InMaterial && OutputIndex >= 0 && OutputIndex < Outputs.Num())
 	{
-		if (Engine_IsStrataEnabled())
+		if (Strata::IsStrataEnabled())
 		{
 			if (IsResultStrataMaterial(0))
 			{
@@ -20758,8 +20756,7 @@ int32  UMaterialExpressionClearCoatNormalCustomOutput::Compile(class FMaterialCo
 	}
 	else
 	{
-		const bool bStrata = Engine_IsStrataEnabled();
-		if (!bStrata)
+		if (!Strata::IsStrataEnabled())
 		{
 			return CompilerError(Compiler, TEXT("Input missing"));
 		}
@@ -21807,8 +21804,7 @@ int32 UMaterialExpressionSingleLayerWaterMaterialOutput::Compile(class FMaterial
 {
 	int32 CodeInput = INDEX_NONE;
 
-	static const auto CVarStrata = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
-	const bool bStrata = CVarStrata ? CVarStrata->GetValueOnAnyThread() > 0 : false;
+	const bool bStrata = Strata::IsStrataEnabled();
 
 	if (!ScatteringCoefficients.IsConnected() && !AbsorptionCoefficients.IsConnected() && !PhaseG.IsConnected()
 		&& !bStrata)

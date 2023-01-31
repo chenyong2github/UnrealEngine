@@ -15,8 +15,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogMaterialEditorStrataWidget, Log, All);
 
-bool Editor_IsStrataEnabled();
-
 void SMaterialEditorStrataWidget::Construct(const FArguments& InArgs, TWeakPtr<FMaterialEditor> InMaterialEditorPtr)
 {
 	MaterialEditorPtr = InMaterialEditorPtr;
@@ -30,7 +28,7 @@ void SMaterialEditorStrataWidget::Construct(const FArguments& InArgs, TWeakPtr<F
 		.Padding(5.0f)
 		.ToolTipText(LOCTEXT("CheckBoxForceFullSimplificationToolTip", "This will force full simplification of the material."));	// Just a test, needs to be more explicit
 
-	if (Editor_IsStrataEnabled())
+	if (Strata::IsStrataEnabled())
 	{
 		this->ChildSlot
 		[

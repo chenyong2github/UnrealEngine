@@ -477,3 +477,25 @@ extern RENDERCORE_API bool IsRayTracingAllowed();
 // Returns the ray tracing mode if ray tracing is allowed.
 // This function may only be called at runtime, never during cooking.
 extern RENDERCORE_API ERayTracingMode GetRayTracingMode();
+
+namespace Strata
+{
+	RENDERCORE_API bool IsStrataEnabled();
+	RENDERCORE_API bool IsRoughDiffuseEnabled();
+	RENDERCORE_API bool IsBackCompatibilityEnabled();
+	RENDERCORE_API bool IsDBufferPassEnabled(EShaderPlatform InPlatform);
+	RENDERCORE_API bool IsOpaqueRoughRefractionEnabled();
+	RENDERCORE_API bool IsAdvancedVisualizationEnabled();
+	RENDERCORE_API bool Is8bitTileCoordEnabled();
+
+	RENDERCORE_API uint32 GetRayTracingMaterialPayloadSizeInBytes();
+	RENDERCORE_API uint32 GetRayTracingMaterialPayloadSizeInBytes(EShaderPlatform InPlatform);
+
+	RENDERCORE_API uint32 GetBytePerPixel();
+	RENDERCORE_API uint32 GetBytePerPixel(EShaderPlatform InPlatform);
+
+	RENDERCORE_API uint32 GetNormalQuality();
+
+	RENDERCORE_API uint32 GetShadingQuality();
+	RENDERCORE_API uint32 GetShadingQuality(EShaderPlatform InPlatform);
+}

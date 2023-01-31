@@ -1352,7 +1352,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				check(Strata::IsStrataEnabled());
 
 				// Rough refraction targets
-				if (Strata::IsStrataOpaqueMaterialRoughRefractionEnabled())
+				if (Strata::IsOpaqueRoughRefractionEnabled())
 				{
 					PassParameters->OutOpaqueRoughRefractionSceneColor = GraphBuilder.CreateUAV(Scene->StrataSceneData.SeparatedOpaqueRoughRefractionSceneColor);
 					PassParameters->OutSubSurfaceSceneColor = GraphBuilder.CreateUAV(Scene->StrataSceneData.SeparatedSubSurfaceSceneColor);
@@ -1438,7 +1438,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
 				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
-				if (Strata::IsStrataOpaqueMaterialRoughRefractionEnabled())
+				if (Strata::IsOpaqueRoughRefractionEnabled())
 				{
 					PassParameters->RenderTargets[1] = FRenderTargetBinding(Scene->StrataSceneData.SeparatedOpaqueRoughRefractionSceneColor, ERenderTargetLoadAction::ELoad);
 					PassParameters->RenderTargets[2] = FRenderTargetBinding(Scene->StrataSceneData.SeparatedSubSurfaceSceneColor, ERenderTargetLoadAction::ELoad);
@@ -1618,7 +1618,7 @@ static void AddSkyReflectionPass(
 	}
 
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, ERenderTargetLoadAction::ELoad);
-	if (Strata::IsStrataOpaqueMaterialRoughRefractionEnabled())
+	if (Strata::IsOpaqueRoughRefractionEnabled())
 	{
 		PassParameters->RenderTargets[1] = FRenderTargetBinding(Scene->StrataSceneData.SeparatedOpaqueRoughRefractionSceneColor, ERenderTargetLoadAction::ELoad);
 		PassParameters->RenderTargets[2] = FRenderTargetBinding(Scene->StrataSceneData.SeparatedSubSurfaceSceneColor, ERenderTargetLoadAction::ELoad);
@@ -1684,7 +1684,7 @@ static void AddSkyReflectionPass(
 			}
 			else
 			{
-				if (Strata::IsStrataOpaqueMaterialRoughRefractionEnabled())
+				if (Strata::IsOpaqueRoughRefractionEnabled())
 				{
 					GraphicsPSOInit.BlendState = TStaticBlendState<
 						CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One,

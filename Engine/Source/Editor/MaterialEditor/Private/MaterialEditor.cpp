@@ -178,12 +178,6 @@ static TAutoConsoleVariable<int32> CVarMaterialEdUseDevShaders(
 	TEXT("Toggles whether the material editor will use shaders that include extra overhead incurred by the editor. Material editor must be re-opened if changed at runtime."),
 	ECVF_RenderThreadSafe);
 
-bool Editor_IsStrataEnabled()
-{
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
-	return CVar && CVar->GetValueOnAnyThread() > 0;
-}
-
 ///////////////////////////
 // FMatExpressionPreview //
 ///////////////////////////
@@ -282,7 +276,7 @@ int32 FMatExpressionPreview::CompilePropertyAndSetMaterialProperty(EMaterialProp
 	// needs to be called in this function!!
 	Compiler->SetMaterialProperty(Property, OverrideShaderFrequency, bUsePreviousFrameTime);
 
-	if(Editor_IsStrataEnabled())
+	if(Strata::IsStrataEnabled())
 	{
 		// Set the Strata export mode to material preview
 		Compiler->SetStrataMaterialExportType(SME_MaterialPreview, EStrataMaterialExportContext::SMEC_Opaque, 0);

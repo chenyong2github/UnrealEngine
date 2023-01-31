@@ -123,12 +123,6 @@ static TAutoConsoleVariable<int32> CVarMaterialParameterLegacyChecks(
 	TEXT("Note that this can be slow"),
 	ECVF_RenderThreadSafe);
 
-bool Engine_IsStrataEnabled()
-{
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
-	return CVar && CVar->GetValueOnAnyThread() > 0;
-}
-
 namespace MaterialImpl
 {
 	// Filtered list of properties that we follow on mobile platforms.
@@ -2175,7 +2169,7 @@ EMaterialShadingModel UMaterial::GetMaterialShadingModelFromString(const TCHAR* 
 
 const TCHAR* UMaterial::GetBlendModeString(EBlendMode InBlendMode)
 {
-	const bool bStrataEnabled = Engine_IsStrataEnabled();
+	const bool bStrataEnabled = Strata::IsStrataEnabled();
 	switch (InBlendMode)
 	{
 	case BLEND_Opaque:							return TEXT("BLEND_Opaque");
@@ -3073,8 +3067,7 @@ EBlendMode ConvertLegacyBlendMode(EBlendMode InBlendMode, FMaterialShadingModelF
 void UMaterial::ConvertMaterialToStrataMaterial()
 {
 #if WITH_EDITOR
-	const bool bStrataEnabled = Engine_IsStrataEnabled();
-	if (!bStrataEnabled)
+	if (!Strata::IsStrataEnabled())
 	{
 		return;
 	}
@@ -4284,7 +4277,7 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 	{
 		const UMaterialEditorOnlyData* EditorOnly = GetEditorOnlyData();
 		FString PropertyName = InProperty->GetName();
-		const bool bStrataEnabled = Engine_IsStrataEnabled();
+		const bool bStrataEnabled = Strata::IsStrataEnabled();
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, PhysMaterial) || PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, PhysMaterialMask))
 		{
@@ -4503,7 +4496,7 @@ void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyCh
 	bCanMaskedBeAssumedOpaque = !EditorOnly->OpacityMask.Expression && !(EditorOnly->OpacityMask.UseConstant && EditorOnly->OpacityMask.Constant < 0.999f) && !bUseMaterialAttributes;
 
 	// If BLEND_TranslucentColoredTransmittance is selected while Strata is not enabled, force BLEND_Translucent blend mode
-	if (!Engine_IsStrataEnabled() && BlendMode == BLEND_TranslucentColoredTransmittance)
+	if (!Strata::IsStrataEnabled() && BlendMode == BLEND_TranslucentColoredTransmittance)
 	{
 		BlendMode = BLEND_Translucent;
 	}
@@ -4726,10 +4719,9 @@ void UMaterial::UpdateExpressionParameterName(UMaterialExpression* Expression)
 void UMaterial::RebuildShadingModelField()
 {
 	ShadingModels.ClearShadingModels();
-	const bool bStrataEnabled = Engine_IsStrataEnabled();
 	UMaterialEditorOnlyData* EditorOnly = GetEditorOnlyData();
 
-	if (bStrataEnabled && EditorOnly->FrontMaterial.IsConnected())
+	if (Strata::IsStrataEnabled() && EditorOnly->FrontMaterial.IsConnected())
 	{
 		FStrataMaterialInfo StrataMaterialInfo;
 		check(EditorOnly->FrontMaterial.Expression);
@@ -6451,7 +6443,7 @@ void UMaterial::SetShadingModel(EMaterialShadingModel NewModel)
 bool UMaterial::IsPropertySupported(EMaterialProperty InProperty) const
 {
 	bool bSupported = true;
-	if (Engine_IsStrataEnabled())
+	if (Strata::IsStrataEnabled())
 	{
 		bSupported = false;
 		switch (InProperty)
@@ -6505,7 +6497,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	bool bIsThinSurface,
 	bool bIsSupported)
 {
-	const bool bStrataEnabled = Engine_IsStrataEnabled();
+	const bool bStrataEnabled = Strata::IsStrataEnabled();
 
 	if (Domain == MD_PostProcess)
 	{

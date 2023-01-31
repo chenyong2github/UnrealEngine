@@ -14,26 +14,14 @@
 #include "ShaderCompiler.h"
 
 
-static TAutoConsoleVariable<int32> CVarStrataOpaqueMaterialRoughRefraction(
-	TEXT("r.Strata.OpaqueMaterialRoughRefraction"),
-	0,
-	TEXT("Enable Strata opaque material rough refractions effect from top layers over layers below."),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<float> CVarStrataOpaqueMaterialRoughRefractionBlurScale(
 	TEXT("r.Strata.OpaqueMaterialRoughRefraction.BlurScale"),
 	1.0f,
 	TEXT("Scale opaque rough refraction strengh for debug purposes."),
 	ECVF_RenderThreadSafe);
 
-
 namespace Strata
 {
-
-bool IsStrataOpaqueMaterialRoughRefractionEnabled()
-{
-	return IsStrataEnabled() && CVarStrataOpaqueMaterialRoughRefraction.GetValueOnAnyThread() > 0;
-}
 
 class FOpaqueRoughRefractionPS : public FGlobalShader
 {
@@ -77,7 +65,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 	TArrayView<const FViewInfo> Views)
 {
 	const uint32 ViewCount = Views.Num();
-	const bool bOpaqueRoughRefractionEnabled = IsStrataOpaqueMaterialRoughRefractionEnabled() && ViewCount > 0;
+	const bool bOpaqueRoughRefractionEnabled = IsOpaqueRoughRefractionEnabled() && ViewCount > 0;
 	RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, bOpaqueRoughRefractionEnabled, "Strata::OpaqueRoughRefraction");
 	if (!bOpaqueRoughRefractionEnabled)
 	{

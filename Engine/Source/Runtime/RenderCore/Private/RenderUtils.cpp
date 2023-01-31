@@ -1087,8 +1087,6 @@ RENDERCORE_API FBufferRHIRef& GetUnitCubeAABBVertexBuffer()
 }
 #endif // RHI_RAYTRACING
 
-bool RenderCore_IsStrataEnabled();
-
 RENDERCORE_API void QuantizeSceneBufferSize(const FIntPoint& InBufferSize, FIntPoint& OutBufferSize)
 {
 	// Ensure sizes are dividable by STRATA_TILE_SIZE (==8) 2d tiles to make it more convenient.
@@ -1099,7 +1097,7 @@ RENDERCORE_API void QuantizeSceneBufferSize(const FIntPoint& InBufferSize, FIntP
 	const uint32 LegacyDividableBy = 4;
 	static_assert(LegacyDividableBy % 4 == 0, "A lot of graphic algorithms where previously assuming DividableBy == 4");
 
-	const uint32 DividableBy = RenderCore_IsStrataEnabled() ? StrataDividableBy : LegacyDividableBy;
+	const uint32 DividableBy = Strata::IsStrataEnabled() ? StrataDividableBy : LegacyDividableBy;
 
 	const uint32 Mask = ~(DividableBy - 1);
 	OutBufferSize.X = (InBufferSize.X + DividableBy - 1) & Mask;
@@ -1504,4 +1502,171 @@ bool IsRayTracingEnabled(EShaderPlatform ShaderPlatform)
 ERayTracingMode GetRayTracingMode()
 {
 	return IsRayTracingAllowed() ? GRayTracingMode : ERayTracingMode::Disabled;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Strata settings interface
+
+static TAutoConsoleVariable<int32> CVarStrata(
+	TEXT("r.Strata"),
+	0,
+	TEXT("Enable Strata materials (Beta)."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarStrataBytePerPixel(
+	TEXT("r.Strata.BytesPerPixel"),
+	80,
+	TEXT("Strata allocated byte per pixel to store materials data. Higher value means more complex material can be represented."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarStrataBackCompatibility(
+	TEXT("r.StrataBackCompatibility"),
+	0,
+	TEXT("Disables Strata multiple scattering and replaces Chan diffuse by Lambert."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarStrataOpaqueMaterialRoughRefraction(
+	TEXT("r.Strata.OpaqueMaterialRoughRefraction"),
+	0,
+	TEXT("Enable Strata opaque material rough refractions effect from top layers over layers below."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarStrataShadingQuality(
+	TEXT("r.Strata.ShadingQuality"),
+	1,
+	TEXT("Define Strata shading quality (1: accurate lighting, 2: approximate lighting). This variable is read-only."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarStrataDBufferPass(
+	TEXT("r.Strata.DBufferPass"),
+	0,
+	TEXT("Apply DBuffer after the base-pass as a separate pass. Read only because when this is changed, it will require the recompilation of all shaders."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+// Transition render settings that will disapear when strata gets enabled
+static TAutoConsoleVariable<int32> CVarMaterialRoughDiffuse(
+	TEXT("r.Material.RoughDiffuse"),
+	0,
+	TEXT("Enable rough diffuse material."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarStrataRoughDiffuse(
+	TEXT("r.Strata.RoughDiffuse"),
+	1,
+	TEXT("Enable Strata rough diffuse model (works only if r.Material.RoughDiffuse is enabled in the project settings). Togglable at runtime"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarStrataDebugAdvancedVisualizationShaders(
+	TEXT("r.Strata.Debug.AdvancedVisualizationShaders"),
+	0,
+	TEXT("Enable advanced strata material debug visualization shaders. Base pass shaders can output such advanced data."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarStrataTileCoord8Bits(
+	TEXT("r.Strata.TileCoord8bits"),
+	0,
+	TEXT("Format of tile coord. This variable is read-only."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+namespace Strata
+{
+	bool IsStrataEnabled()
+	{
+		return CVarStrata.GetValueOnAnyThread() > 0;
+	}
+
+	static uint32 InternalGetBytePerPixel(uint32 InBytePerPixel)
+	{	
+		// We enforce at least 20 bytes per pixel because this is the minimal Strata GBuffer footprint of the simplest material.
+		const uint32 MinStrataBytePerPixel = 20u;
+		const uint32 MaxStrataBytePerPixel = /*IsMobilePlatform(GMaxRHI InPlatform) ? 24u : */256u; // STRATA_TODO
+		return FMath::Clamp(InBytePerPixel, MinStrataBytePerPixel, MaxStrataBytePerPixel);
+	}
+
+	uint32 GetBytePerPixel()
+	{
+		return InternalGetBytePerPixel(CVarStrataBytePerPixel.GetValueOnAnyThread());
+	}
+
+	uint32 GetBytePerPixel(EShaderPlatform InPlatform)
+	{
+		// Variant for shader compilation per platform
+		static FShaderPlatformCachedIniValue<int32> CVarBudget(TEXT("r.Strata.BytesPerPixel"));
+		return InternalGetBytePerPixel(CVarBudget.Get(InPlatform));
+	}
+
+	static uint32 InternalGetRayTracingMaterialPayloadSizeInBytes(uint32 InBytePerPixels, uint32 InNormalQuality)
+	{
+		// If Strata is enabled, resize the payload accordingly to the byte per pixel request
+		const uint32 HeaderPayload = sizeof(uint32) * (5u); // See FPackedMaterialClosestHitPayload in RayTracingCommon.ush
+		const uint32 TopNormalPayload = sizeof(uint32) * (InNormalQuality == 1 ? 2u : 1u);
+
+		return HeaderPayload + TopNormalPayload + InBytePerPixels;
+	}
+
+	uint32 GetNormalQuality()
+	{
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
+		return CVar && CVar->GetValueOnAnyThread() > 1 ? 1 : 0;
+	}
+
+	uint32 GetRayTracingMaterialPayloadSizeInBytes()
+	{
+		return InternalGetRayTracingMaterialPayloadSizeInBytes(GetBytePerPixel(), GetNormalQuality());
+	}
+
+	uint32 GetRayTracingMaterialPayloadSizeInBytes(EShaderPlatform InPlatform)
+	{
+		return InternalGetRayTracingMaterialPayloadSizeInBytes(GetBytePerPixel(InPlatform), GetNormalQuality());
+	}
+
+	bool IsBackCompatibilityEnabled()
+	{
+		return CVarStrataBackCompatibility.GetValueOnAnyThread() > 0 ? 1 : 0;
+	}
+	
+	bool IsRoughDiffuseEnabled()
+	{
+		return CVarStrataRoughDiffuse.GetValueOnAnyThread() > 0;
+	}
+
+	bool Is8bitTileCoordEnabled()
+	{
+		return CVarStrataTileCoord8Bits.GetValueOnAnyThread() > 0 ? 1 : 0;
+	}
+
+	uint32 GetShadingQuality()
+	{
+		return CVarStrataShadingQuality.GetValueOnAnyThread();
+	}
+
+	uint32 GetShadingQuality(EShaderPlatform InPlatform)
+
+	{
+		static FShaderPlatformCachedIniValue<int32> CVarStrataShadingQualityPlatform(TEXT("r.Strata.ShadingQuality"));
+		return CVarStrataShadingQualityPlatform.Get(InPlatform);
+	}
+	
+	bool IsDBufferPassEnabled(EShaderPlatform InPlatform)
+	{
+		// DBuffer pass is only available if high quality normal is disabled, or if we are on a console.
+		// That is because in high quality normals requires a uint2 UAV which is only supported on some graphic cards on PC 
+		// and this is an unknown when compiling shaders at this stage.
+		// !!! If this is changed, please update all sites reading r.Strata.DBufferPass !!!
+		const uint32 StrataNormalQuality = GetNormalQuality();
+		const bool bDBufferPassSupported = StrataNormalQuality == 0 || (StrataNormalQuality > 0 && IsConsolePlatform(InPlatform));
+		
+		static FShaderPlatformCachedIniValue<int32> CVarStrataDBufferPassPlatform(TEXT("r.Strata.DBufferPass"));
+		return IsStrataEnabled() && IsUsingDBuffers(InPlatform) && bDBufferPassSupported && CVarStrataDBufferPassPlatform.Get(InPlatform) > 0;
+	}
+
+	bool IsOpaqueRoughRefractionEnabled()
+	{
+		return IsStrataEnabled() && CVarStrataOpaqueMaterialRoughRefraction.GetValueOnAnyThread() > 0;
+	}
+
+	bool IsAdvancedVisualizationEnabled()
+	{
+		return CVarStrataDebugAdvancedVisualizationShaders.GetValueOnAnyThread() > 0;
+	}
 }

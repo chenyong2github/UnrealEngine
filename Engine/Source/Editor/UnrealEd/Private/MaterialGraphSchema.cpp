@@ -43,6 +43,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "MaterialEditorActions.h"
 #include "MaterialGraphNode_Knot.h"
+#include "RenderUtils.h"
 
 #define LOCTEXT_NAMESPACE "MaterialGraphSchema"
 
@@ -914,12 +915,6 @@ TSharedPtr<FEdGraphSchemaAction> UMaterialGraphSchema::GetCreateCommentAction() 
 	return TSharedPtr<FEdGraphSchemaAction>(static_cast<FEdGraphSchemaAction*>(new FMaterialGraphSchemaAction_NewComment));
 }
 
-bool UnrealEd_IsStrataEnabled()
-{
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
-	return CVar && CVar->GetValueOnAnyThread() > 0;
-}
-
 void UMaterialGraphSchema::GetMaterialFunctionActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
 {
 	// Get type of dragged pin
@@ -1003,7 +998,7 @@ void UMaterialGraphSchema::GetMaterialFunctionActions(FGraphActionMenuBuilder& A
 					{
 						if (Category.ToString().Contains("Strata"))
 						{
-							bSkipMaterialFunction = !UnrealEd_IsStrataEnabled();
+							bSkipMaterialFunction = !Strata::IsStrataEnabled();
 							break;
 						}
 					}

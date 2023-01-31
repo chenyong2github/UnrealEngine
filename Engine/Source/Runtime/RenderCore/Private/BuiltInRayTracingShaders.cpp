@@ -3,13 +3,19 @@
 #include "BuiltInRayTracingShaders.h"
 #include "ShaderParameterUtils.h"
 #include "PipelineStateCache.h"
+#include "RendererInterface.h"
 
 #if RHI_RAYTRACING
 
 #include "RayTracingPayloadType.h"
 
+uint32 GetRaytracingMaterialPayloadSize()
+{
+	return Strata::IsStrataEnabled() ? Strata::GetRayTracingMaterialPayloadSizeInBytes() : 64u;
+}
+
 IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::Default, 24);
-IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::RayTracingMaterial, 64);
+IMPLEMENT_RT_PAYLOAD_TYPE_FUNCTION(ERayTracingPayloadType::RayTracingMaterial, GetRaytracingMaterialPayloadSize);
 
 IMPLEMENT_GLOBAL_SHADER( FDefaultPayloadMS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "DefaultPayloadMS", SF_RayMiss);
 IMPLEMENT_GLOBAL_SHADER( FPackedMaterialClosestHitPayloadMS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "PackedMaterialClosestHitPayloadMS", SF_RayMiss);

@@ -42,18 +42,15 @@
 #include "Engine/Texture.h"
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
 #include "Curves/CurveLinearColorAtlas.h"
-
+#include "RenderUtils.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditor"
-
-bool Editor_IsStrataEnabled();
 
 // Update the blend mode names based on what is supported in legacy mode or Strata mode
 UEnum* GetBlendModeEnum()
 {
-	const bool bStrataEnabled = Editor_IsStrataEnabled();
 	UEnum* BlendModeEnum = StaticEnum<EBlendMode>();
-	if (bStrataEnabled)
+	if (Strata::IsStrataEnabled())
 	{
 		// BLEND_Translucent & BLEND_TranslucentGreyTransmittance are mapped onto the same enum index
 		BlendModeEnum->SetMetaData(TEXT("DisplayName"), TEXT("TranslucentGreyTransmittance"), BLEND_Translucent);
@@ -831,7 +828,7 @@ void FMaterialDetailCustomization::CustomizeDetails( IDetailLayoutBuilder& Detai
 				}
 			}
 
-			if (!Editor_IsStrataEnabled())
+			if (!Strata::IsStrataEnabled())
 			{
 				if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterial, bIsThinSurface))
 				{

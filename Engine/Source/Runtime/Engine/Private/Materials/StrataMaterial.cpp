@@ -4,8 +4,7 @@
 #include "MaterialCompiler.h"
 #include "Materials/MaterialInterface.h"
 #include "StrataDefinitions.h"
-
-
+#include "RenderUtils.h"
 
 FString GetStrataBSDFName(uint8 BSDFType)
 {
@@ -48,11 +47,9 @@ FStrataRegisteredSharedLocalBasis StrataCompilationInfoCreateSharedLocalBasis(FM
 	return Compiler->StrataCompilationInfoRegisterSharedLocalBasis(NormalCodeChunk, TangentCodeChunk);
 }
 
-bool Engine_IsStrataEnabled();
-
 inline bool IsStrataEnabled()
 {
-	static bool bStrataEnabled = Engine_IsStrataEnabled();
+	static bool bStrataEnabled = Strata::IsStrataEnabled();
 	return bStrataEnabled;
 }
 

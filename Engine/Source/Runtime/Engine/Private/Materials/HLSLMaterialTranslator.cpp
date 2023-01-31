@@ -126,18 +126,7 @@ static inline bool IsDebugTextureSampleEnabled()
 	return IsAnalyticDerivEnabled() && (GDebugTextureSampleEnabled != 0);
 }
 
-bool Engine_IsStrataEnabled();
-
 #define DEBUG_STRATA_TREE_STACK 0
-
-static uint32 GetStrataBytePerPixel(EShaderPlatform InPlatform)
-{
-	// We enforce at least 20 bytes per pixel because this is the minimal Strata GBuffer footprint of the simplest material.
-	const uint32 MinStrataBytePerPixel = 20u;
-	const uint32 MaxStrataBytePerPixel = IsMobilePlatform(InPlatform) ? 24u : 256u;
-	static FShaderPlatformCachedIniValue<int32> CVarBudget(TEXT("r.Strata.BytesPerPixel"));	
-	return FMath::Clamp(uint32(CVarBudget.Get(InPlatform)), MinStrataBytePerPixel, MaxStrataBytePerPixel);
-}
 
 /** @return the vector type containing a given number of components. */
 static inline EMaterialValueType GetVectorType(uint32 NumComponents)
@@ -793,7 +782,7 @@ bool FHLSLMaterialTranslator::Translate()
 		//
 		// Process the strata tree representing the material topology.
 		//
-		const bool bStrataEnabled = Engine_IsStrataEnabled();
+		const bool bStrataEnabled = Strata::IsStrataEnabled();
 		FStrataMaterialInput* FrontMaterialInput = Material->GetMaterialInterface() ? &Material->GetMaterialInterface()->GetMaterial()->GetEditorOnlyData()->FrontMaterial : nullptr;
 		UMaterialExpression* FrontMaterialExpr = FrontMaterialInput ? FrontMaterialInput->GetTracedInput().Expression : nullptr;
 		if (bStrataEnabled && FrontMaterialExpr)
@@ -2052,7 +2041,7 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 		// Now write some feedback to the user
 		{
 			// Output some debug info as comment in code and in the material stat window
-			const uint32 StrataBytePerPixel = GetStrataBytePerPixel(InPlatform);
+			const uint32 StrataBytePerPixel = Strata::GetBytePerPixel(InPlatform);
 
 			OutEnvironment.SetDefine(TEXT("STRATA_CLAMPED_BSDF_COUNT"), StrataMaterialBSDFCount);
 
@@ -10461,7 +10450,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 
 	StrataSimplificationStatus.bRunFullSimplification = StrataCompilationConfig.bFullSimplify && !bStrataUsesConversionFromLegacy;
 
-	const uint32 StrataBytePerPixel = GetStrataBytePerPixel(Platform);
+	const uint32 StrataBytePerPixel = Strata::GetBytePerPixel(Platform);
 	do 
 	{
 		// Reset some data for simplifiucation iteration

@@ -2197,7 +2197,7 @@ static FDeferredLightPS::FParameters GetDeferredLightPSParameters(
 	Out.ShadowMaskBits = ShadowMaskBits ? ShadowMaskBits : GSystemTextures.GetZeroUIntDummy(GraphBuilder);
 	// PS - Render Targets
 	Out.RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
-	if (Strata::IsStrataOpaqueMaterialRoughRefractionEnabled())
+	if (Strata::IsOpaqueRoughRefractionEnabled())
 	{
 		Out.RenderTargets[1] = FRenderTargetBinding(Scene->StrataSceneData.SeparatedOpaqueRoughRefractionSceneColor, ERenderTargetLoadAction::ELoad);
 		Out.RenderTargets[2] = FRenderTargetBinding(Scene->StrataSceneData.SeparatedSubSurfaceSceneColor, ERenderTargetLoadAction::ELoad);
@@ -2243,7 +2243,7 @@ static void InternalRenderLight(
 		// Set the device viewport for the view.
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
-		if (Strata::IsStrataOpaqueMaterialRoughRefractionEnabled())
+		if (Strata::IsOpaqueRoughRefractionEnabled())
 		{
 			GraphicsPSOInit.BlendState = TStaticBlendState<
 				CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One,

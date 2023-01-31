@@ -81,12 +81,6 @@ FCategorizedMaterialExpressionNode* MaterialExpressionClasses::GetCategoryNode(c
 	return NULL;
 }
 
-bool MaterialEditor_IsStrataEnabled()
-{
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
-	return CVar && CVar->GetValueOnAnyThread() > 0;
-}
-
 void MaterialExpressionClasses::InitMaterialExpressionClasses()
 {
 	if(!bInitialized)
@@ -182,7 +176,7 @@ void MaterialExpressionClasses::InitMaterialExpressionClasses()
 
 							// Skip adding Strata node to the context menu if Strata is disabled
 							// STRATA_TODO: remove this when Strata becomes the only shading path
-							if ((Class->IsChildOf(UMaterialExpressionStrataBSDF::StaticClass()) || Class->IsChildOf(UMaterialExpressionStrataUtilityBase::StaticClass())) && !MaterialEditor_IsStrataEnabled())
+							if ((Class->IsChildOf(UMaterialExpressionStrataBSDF::StaticClass()) || Class->IsChildOf(UMaterialExpressionStrataUtilityBase::StaticClass())) && !Strata::IsStrataEnabled())
 							{
 								continue;
 							}

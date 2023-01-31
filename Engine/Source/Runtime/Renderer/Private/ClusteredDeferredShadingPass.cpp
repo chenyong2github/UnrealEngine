@@ -176,7 +176,7 @@ static void InternalAddClusteredDeferredShadingPass(
 	{
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(View.HairStrandsViewData.VisibilityData.SampleLightingTexture, ERenderTargetLoadAction::ELoad);
 	}
-	if (Strata::IsStrataOpaqueMaterialRoughRefractionEnabled())
+	if (Strata::IsOpaqueRoughRefractionEnabled())
 	{
 		check(StrataSceneData);
 		PassParameters->RenderTargets[1] = FRenderTargetBinding(StrataSceneData->SeparatedOpaqueRoughRefractionSceneColor, ERenderTargetLoadAction::ELoad);
@@ -212,7 +212,7 @@ static void InternalAddClusteredDeferredShadingPass(
 			InRHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 			// Additive blend to accumulate lighting contributions.
-			if (Strata::IsStrataOpaqueMaterialRoughRefractionEnabled())
+			if (Strata::IsOpaqueRoughRefractionEnabled())
 			{
 				GraphicsPSOInit.BlendState = TStaticBlendState<
 					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One,

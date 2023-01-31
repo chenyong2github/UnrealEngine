@@ -39,9 +39,6 @@ bool NeedsVelocityDepth(EShaderPlatform TargetPlatform)
 		|| FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(TargetPlatform);
 }
 
-// Strata::IsEnabled is only accessible in the Renderer module
-bool Engine_IsStrataEnabled();
-
 #if WITH_EDITOR
 
 static int FetchCompileInt(const FShaderCompilerEnvironment& OutEnvironment, const char* SrcName)
@@ -1122,8 +1119,7 @@ static FString CreateGBufferDecodeFunctionDirect(const FGBufferInfo& BufferInfo)
 	// Default initialization in case no gbuffer data are generated when Strata is enabled to 
 	// prevent shader compiler error (division by zero, variable not-initialized) with passes 
 	// not converted to Strata and still using Gbuffer data
-	const bool bStrata = Engine_IsStrataEnabled();
-	if (bStrata)
+	if (Strata::IsStrataEnabled())
 	{
 		FullStr += TEXT("\tRet.WorldNormal = float3(0,0,1);\n");
 		FullStr += TEXT("\tRet.Depth = 0.f;\n");

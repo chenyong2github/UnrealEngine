@@ -6296,58 +6296,47 @@ void GlobalBeginCompileShader(
 	}
 
 	{
-		static IConsoleVariable* CVarStrata = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Strata"));
-		const bool bStrata = CVarStrata && CVarStrata->GetInt() != 0;
+		const bool bStrata = Strata::IsStrataEnabled();
 		Input.Environment.SetDefine(TEXT("STRATA_ENABLED"), bStrata ? 1 : 0);
 
 		// Force rough diffuse to be disable on platform which explicitly disable it from their settings
 		if (bStrata && IsConsolePlatform(Target.GetPlatform()))
 		{
-			static FShaderPlatformCachedIniValue<int32> CVarStrataRoughDiffuse(TEXT("r.Strata.RoughDiffuse"));
-			const bool bStrataRoughDiffuse = CVarStrataRoughDiffuse.Get(Target.GetPlatform()) != 0;
+			const bool bStrataRoughDiffuse = Strata::IsRoughDiffuseEnabled();
 			Input.Environment.SetDefine(TEXT("STRATA_DIFFUSE_CHAN"), bStrataRoughDiffuse ? 1 : 0);
 		}
 
 		// Force rough diffuse to be disable on platform which explicitly disable it from their settings
 		if (bStrata)
 		{
-			static FShaderPlatformCachedIniValue<int32> CVarStrataShadingQuality(TEXT("r.Strata.ShadingQuality"));
-			const uint32 StrataShadingQuality = CVarStrataShadingQuality.Get(Target.GetPlatform());
-			Input.Environment.SetDefine(TEXT("STRATA_SHADING_QUALITY"), FMath::Max(StrataShadingQuality, 1u));
+			const uint32 StrataShadingQuality = Strata::GetShadingQuality(Target.GetPlatform());
+			Input.Environment.SetDefine(TEXT("STRATA_SHADING_QUALITY"), StrataShadingQuality);
 			if (StrataShadingQuality > 1)
 			{
 				Input.Environment.SetDefine(TEXT("USE_ACHROMATIC_BXDF_ENERGY"), 1u);
 			}
 
 			static const auto CVarStrataGBufferFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
-			const uint32 StrataNormalQuality = CVarStrataGBufferFormat && CVarStrataGBufferFormat->GetValueOnAnyThread() > 1 ? 1 : 0;
+			const uint32 StrataNormalQuality = Strata::GetNormalQuality();
 			Input.Environment.SetDefine(TEXT("STRATA_NORMAL_QUALITY"), StrataNormalQuality);
 
-			static FShaderPlatformCachedIniValue<int32> CVarStrataTileCoord8Bits(TEXT("r.Strata.TileCoord8bits"));
-			const uint32 StrataTileCoord8Bits = CVarStrataTileCoord8Bits.Get(Target.GetPlatform());
-			Input.Environment.SetDefine(TEXT("USE_8BIT_TILE_COORD"), StrataTileCoord8Bits > 0 ? 1 : 0);
+			const uint32 StrataUintPerPixel = Strata::GetBytePerPixel(Target.GetPlatform()) / 4u;
+			Input.Environment.SetDefine(TEXT("STRATA_RT_PAYLOAD_NUM_UINTS"), StrataUintPerPixel);
 
-			// DBuffer pass is only available if high quality normal is disabled, or if we are on a console.
-			// That is because in high quality normals requires a uint2 UAV which is only supported on some graphic cards on PC 
-			// and this is an unknown when compiling shaders at this stage.
-			// !!! If this is changed, please update all sites reading r.Strata.DBufferPass !!!
-			const bool bDBufferPassSupported = StrataNormalQuality == 0 || (StrataNormalQuality > 0 && IsConsolePlatform(Target.GetPlatform()));
+			const bool bTileCoord8Bits = Strata::Is8bitTileCoordEnabled();
+			Input.Environment.SetDefine(TEXT("USE_8BIT_TILE_COORD"), bTileCoord8Bits ? 1 : 0);
 
-			static FShaderPlatformCachedIniValue<int32> CVarStrataDBufferPass(TEXT("r.Strata.DBufferPass"));
-			const uint32 StrataDBufferPass = bDBufferPassSupported ? CVarStrataDBufferPass.Get(Target.GetPlatform()) : 0;
-			Input.Environment.SetDefine(TEXT("STRATA_USE_DBUFFER_PASS"), StrataDBufferPass > 0 ? 1 : 0);
+			const bool bStrataDBufferPass = Strata::IsDBufferPassEnabled(Target.GetPlatform());
+			Input.Environment.SetDefine(TEXT("STRATA_USE_DBUFFER_PASS"), bStrataDBufferPass ? 1 : 0);
 		}
 
-		static IConsoleVariable* CVarBackCompatibility = IConsoleManager::Get().FindConsoleVariable(TEXT("r.StrataBackCompatibility"));
-		const bool bStrataBackCompatibility = CVarBackCompatibility && CVarBackCompatibility->GetInt() > 0;
+		const bool bStrataBackCompatibility = bStrata && Strata::IsBackCompatibilityEnabled();
 		Input.Environment.SetDefine(TEXT("PROJECT_STRATA_BACKCOMPATIBILITY"), bStrataBackCompatibility ? 1 : 0);
 
-		static IConsoleVariable* CVarOpaqueRoughRefrac = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Strata.OpaqueMaterialRoughRefraction"));
-		const bool bStrataOpaqueRoughRefrac = bStrata && CVarOpaqueRoughRefrac && CVarOpaqueRoughRefrac->GetInt() != 0;
+		const bool bStrataOpaqueRoughRefrac = bStrata && Strata::IsOpaqueRoughRefractionEnabled();
 		Input.Environment.SetDefine(TEXT("STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED"), bStrataOpaqueRoughRefrac ? 1 : 0);
 
-		static IConsoleVariable* CVarAdvDebug = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Strata.Debug.AdvancedVisualizationShaders"));
-		const bool bStrataAdvDebug = bStrata && CVarAdvDebug && CVarAdvDebug->GetInt() != 0;
+		const bool bStrataAdvDebug = bStrata && Strata::IsAdvancedVisualizationEnabled();
 		Input.Environment.SetDefine(TEXT("STRATA_ADVANCED_DEBUG_ENABLED"), bStrataAdvDebug ? 1 : 0);
 	}
 

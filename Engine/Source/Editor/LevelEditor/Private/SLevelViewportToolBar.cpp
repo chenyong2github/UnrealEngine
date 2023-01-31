@@ -52,8 +52,6 @@
 
 #define LOCTEXT_NAMESPACE "LevelViewportToolBar"
 
-bool LevelEditor_IsStrataEnabled();
-
 /** Override the view menu, just so we can specify the level viewport as active when the button is clicked */
 class SLevelEditorViewportViewMenu : public SEditorViewportViewMenu
 {
@@ -1619,7 +1617,7 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 						);
 	}
 
-	if (LevelEditor_IsStrataEnabled())
+	if (Strata::IsStrataEnabled())
 	{
 		FToolMenuSection& Section = Menu->FindOrAddSection("ViewMode");
 		Section.AddSubMenu(
