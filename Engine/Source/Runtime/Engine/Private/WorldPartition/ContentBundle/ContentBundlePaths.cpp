@@ -48,11 +48,11 @@ FString ContentBundlePaths::GetRelativeLevelFolder(const FContentBundleBase& Con
 FString ContentBundlePaths::MakeExternalActorPackagePath(const FString& ContentBundleExternalActorFolder, const FString& ActorName)
 {
 	const FString ContentBundleExternalActor = ULevel::GetActorPackageName(ContentBundleExternalActorFolder, EActorPackagingScheme::Reduced, *ActorName);
-	check(IsAContentBundlePackagePath(ContentBundleExternalActor));
+	check(IsAContentBundleExternalActorPackagePath(ContentBundleExternalActor));
 	return ContentBundleExternalActor;
 }
 
-bool ContentBundlePaths::IsAContentBundlePackagePath(FStringView InPackagePath)
+bool ContentBundlePaths::IsAContentBundleExternalActorPackagePath(FStringView InPackagePath)
 {
 	return GetContentBundleGuidFromExternalActorPackagePath(InPackagePath).IsValid();
 }
@@ -106,7 +106,7 @@ FStringView ContentBundlePaths::GetActorPathRelativeToExternalActors(FStringView
 	return FStringView();
 }
 
-bool ContentBundlePaths::BuildContentBundleRootPath(const FString& InContenBundleMountPoint, const FGuid& InContentBundleGuid, FString& OutContentBundleRootPath)
+bool ContentBundlePaths::BuildContentBundleExternalActorPath(const FString& InContenBundleMountPoint, const FGuid& InContentBundleGuid, FString& OutContentBundleRootPath)
 {
 	if (InContenBundleMountPoint.IsEmpty() || !InContentBundleGuid.IsValid())
 	{
@@ -125,10 +125,10 @@ bool ContentBundlePaths::BuildContentBundleRootPath(const FString& InContenBundl
 	return true;
 }
 
-bool ContentBundlePaths::BuildActorDescContainerPackgePath(const FString& InContenBundleMountPoint, const FGuid& InContentBundleGuid, const FString& InLevelPackagePath, FString& OutContainerPackagePath)
+bool ContentBundlePaths::BuildActorDescContainerPackagePath(const FString& InContenBundleMountPoint, const FGuid& InContentBundleGuid, const FString& InLevelPackagePath, FString& OutContainerPackagePath)
 {
 	FString ContentBundleRootPath;
-	if (!BuildContentBundleRootPath(InContenBundleMountPoint, InContentBundleGuid, ContentBundleRootPath))
+	if (!BuildContentBundleExternalActorPath(InContenBundleMountPoint, InContentBundleGuid, ContentBundleRootPath))
 	{
 		return false;
 	}
@@ -146,6 +146,26 @@ bool ContentBundlePaths::BuildActorDescContainerPackgePath(const FString& InCont
 	}
 
 	return false;
+}
+
+FStringView ContentBundlePaths::GetRelativePath(FStringView InContentBundlePath)
+{
+	uint32 ContentBundleFolderIdx = UE::String::FindFirst(InContentBundlePath, GetContentBundleFolder(), ESearchCase::IgnoreCase);
+	if (ContentBundleFolderIdx != INDEX_NONE)
+	{
+		FStringView RelativeContentBundlePath = InContentBundlePath.RightChop(ContentBundleFolderIdx + GetContentBundleFolder().Len());
+		uint32 ContentBundleGuidEndIdx = UE::String::FindFirst(RelativeContentBundlePath, TEXT("/"), ESearchCase::IgnoreCase);
+		if (ContentBundleGuidEndIdx != INDEX_NONE)
+		{
+			return RelativeContentBundlePath.RightChop(ContentBundleGuidEndIdx + 1); // + 1 to remove the "/"
+		}
+	}
+	return FStringView();
+}
+
+bool ContentBundlePaths::IsAContentBundlePath(FStringView InContentBundlePath)
+{
+	return GetRelativePath(InContentBundlePath).Len() > 0;
 }
 
 #endif

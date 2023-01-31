@@ -39,17 +39,24 @@ namespace ContentBundlePaths
 	FString GetRelativeLevelFolder(const FContentBundleBase& ContentBundle);
 
 #if WITH_EDITOR
-	// return format is /{MountPoint}/{ExternalActorFolder}/{ContentBundleFolder}/{ContentBundleUID}/
-	ENGINE_API bool BuildContentBundleRootPath(const FString& InContenBundleMountPoint, const FGuid& InContentBundleGuid, FString& OutContentBundleRootPath);
+	// return format is /{MountPoint}/{ContentBundleFolder}/{ContentBundleUID}/
+	ENGINE_API bool BuildContentBundleExternalActorPath(const FString& InContenBundleMountPoint, const FGuid& InContentBundleGuid, FString& OutContentBundleRootPath);
 
-	// return format is /{MountPoint}/{ExternalActorFolder}/{ContentBundleFolder}/{ContentBundleUID}/{LevelPath}/
-	ENGINE_API bool BuildActorDescContainerPackgePath(const FString& InContenBundleMountPoint, const FGuid& InContentBundleGuid, const FString& InLevelPackagePath, FString& OutContainerPackagePath);
+	// return format is /{MountPoint}/{ContentBundleFolder}/{ContentBundleUID}/{LevelPath}/
+	ENGINE_API bool BuildActorDescContainerPackagePath(const FString& InContenBundleMountPoint, const FGuid& InContentBundleGuid, const FString& InLevelPackagePath, FString& OutContainerPackagePath);
+
+	// InContentBundlePath format is : */{ContentBundleFolder}/{ContentBundleUID}/{RelativePath}
+	// return format is {RelativePath}, empty otherwise
+	ENGINE_API FStringView GetRelativePath(FStringView InContentBundlePath);
+
+	// return true if InPackage follow format : */{ContentBundleFolder}/{ContentBundleUID}/*, false otherwise
+	ENGINE_API bool IsAContentBundlePath(FStringView InContentBundlePath);
 
 	// return an ExternalActor path following the format : /{MountPoint}/{ExternalActorFolder}/{ContentBundleFolder}/{ContentBundleUID}/{LevelPath}/{ExternalActorPackagePath}
 	ENGINE_API FString MakeExternalActorPackagePath(const FString& ContentBundleExternalActorFolder, const FString& ActorName);
 
-	// return true if InPackage follow format : //{MountPoint}/{ExternalActorFolder}/{ContentBundleFolder}/{ContentBundleUID}/, false otherwise
-	ENGINE_API bool IsAContentBundlePackagePath(FStringView InPackagePath);
+	// return true if InPackage follow format : //{MountPoint}/{ExternalActorFolder}/{ContentBundleFolder}/{ContentBundleUID}/*, false otherwise
+	ENGINE_API bool IsAContentBundleExternalActorPackagePath(FStringView InPackagePath);
 
 	// InContentBundleExternalActorPackagePath format is : /{MountPoint}/{ExternalActorFolder}/{ContentBundleFolder}/{ContentBundleUID}/{LevelPath}/{ExternalActorPackagePath}
 	// return format is /{LevelPath}/{ExternalActorPackagePath}, empty otherwise

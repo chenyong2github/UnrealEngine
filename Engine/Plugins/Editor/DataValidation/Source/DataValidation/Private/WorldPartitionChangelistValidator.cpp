@@ -184,13 +184,13 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 		for (const FAssetData& ActorData : ActorsData)
 		{
 			FString ActorPackagePath = ActorData.PackagePath.ToString();
-			if (ContentBundlePaths::IsAContentBundlePackagePath(ActorPackagePath))
+			if (ContentBundlePaths::IsAContentBundleExternalActorPackagePath(ActorPackagePath))
 			{
 				FStringView ContentBundleMountPoint = FPathViews::GetMountPointNameFromPath(ActorPackagePath);
 				FGuid ContentBundleGuid = ContentBundlePaths::GetContentBundleGuidFromExternalActorPackagePath(ActorPackagePath);
 				
 				FString ContentBundleContainerPackagePath;
-				verify(ContentBundlePaths::BuildActorDescContainerPackgePath(FString(ContentBundleMountPoint), ContentBundleGuid, MapPath.GetPackageName().ToString(), ContentBundleContainerPackagePath));
+				verify(ContentBundlePaths::BuildActorDescContainerPackagePath(FString(ContentBundleMountPoint), ContentBundleGuid, MapPath.GetPackageName().ToString(), ContentBundleContainerPackagePath));
 
 				RegisterContainerToValidate(World, FName(*ContentBundleContainerPackagePath), ContainersToValidate);
 			}

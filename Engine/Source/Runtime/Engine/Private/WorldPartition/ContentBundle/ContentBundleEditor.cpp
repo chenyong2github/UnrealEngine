@@ -50,7 +50,7 @@ void FContentBundleEditor::DoUninitialize()
 void FContentBundleEditor::DoInjectContent()
 {
 	FString ActorDescContainerPackage;
-	bool bCreatedContainerPath = ContentBundlePaths::BuildActorDescContainerPackgePath(GetDescriptor()->GetPackageRoot(), GetDescriptor()->GetGuid(), GetInjectedWorld()->GetPackage()->GetName(), ActorDescContainerPackage);
+	bool bCreatedContainerPath = ContentBundlePaths::BuildActorDescContainerPackagePath(GetDescriptor()->GetPackageRoot(), GetDescriptor()->GetGuid(), GetInjectedWorld()->GetPackage()->GetName(), ActorDescContainerPackage);
 	if (bCreatedContainerPath)
 	{
 		UnsavedActorMonitor = NewObject<UContentBundleUnsavedActorMonitor>(GetTransientPackage(), NAME_None, RF_Transactional);
