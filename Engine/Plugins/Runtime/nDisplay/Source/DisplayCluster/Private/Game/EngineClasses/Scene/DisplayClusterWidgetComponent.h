@@ -17,11 +17,18 @@ public:
 	UDisplayClusterWidgetComponent();
 	virtual ~UDisplayClusterWidgetComponent() override;
 
+	void SetWidgetScale(float NewValue);
+	float GetWidgetScale() const { return WidgetScale; }
 private:
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 
+	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+
 #if WITH_EDITOR
 	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
 #endif
+
+private:
+	float WidgetScale = 1.f;
 };

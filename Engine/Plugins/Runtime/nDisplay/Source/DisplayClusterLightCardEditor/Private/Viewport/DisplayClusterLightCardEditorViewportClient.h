@@ -14,6 +14,7 @@
 #include "DisplayClusterLightCardEditorHelper.h"
 #include "StageActor/DisplayClusterWeakStageActorPtr.h"
 
+class UWidgetComponent;
 class ADisplayClusterRootActor;
 class FDisplayClusterLightCardEditor;
 class SDisplayClusterLightCardEditorViewport;
@@ -325,13 +326,14 @@ private:
 
 	TArray<FActorProxy> ActorProxies;
 	TArray<TWeakObjectPtr<UBillboardComponent>> BillboardComponentProxies;
+	TArray<TWeakObjectPtr<UWidgetComponent>> WidgetComponentProxies;
 	TArray<FDisplayClusterWeakStageActorPtr> SelectedActors;
 
-	/** Billboards are accessed from the render thread and game thread */
-	FCriticalSection BillboardComponentCS;
+	/** Billboards and widgets are accessed from the render thread and game thread for sprite rendering */
+	FCriticalSection SpriteComponentCS;
 
-	/** View matrices set per tick if there are any billboard components */
-	FViewMatrices BillboardViewMatrices;
+	/** View matrices set per tick if there are any sprites being rendered */
+	FViewMatrices SpriteViewMatrices;
 
 	/** The actor in the selected actor list that was selected last */
 	FDisplayClusterWeakStageActorPtr LastSelectedActor;

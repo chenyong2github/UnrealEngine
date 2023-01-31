@@ -34,6 +34,7 @@ public class DisplayClusterLightCardEditor : ModuleRules
 				"SceneOutliner",
 				"Slate",
 				"SlateCore",
+				"UMG",
 				"UnrealEd",
 				"ToolMenus",
 				"ToolWidgets",

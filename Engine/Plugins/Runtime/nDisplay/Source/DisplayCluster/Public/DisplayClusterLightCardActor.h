@@ -82,6 +82,9 @@ public:
 	/** Returns the current static mesh used by this light card */
 	UStaticMesh* GetStaticMesh() const;
 
+	/** Return the label component */
+	UDisplayClusterLabelComponent* GetLabelComponent() const { return LabelComponent; }
+	
 	/** Sets a new static mesh for the light card */
 	void SetStaticMesh(UStaticMesh* InStaticMesh);
 
@@ -300,9 +303,5 @@ protected:
 	/** Indicates this light card should be considered a flag */
 	UPROPERTY()
 	bool bIsLightCardFlag = false;
-	
-private:
-	/** Stores the user translucency value when labels are displayed */
-	TOptional<int32> SavedTranslucencySortPriority;
 	
 };

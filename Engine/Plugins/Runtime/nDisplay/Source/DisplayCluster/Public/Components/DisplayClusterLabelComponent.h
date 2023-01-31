@@ -33,14 +33,17 @@ public:
 
 	/** Set the widget scale */
 	void SetWidgetScale(float NewValue);
-	
+
+	/** Return the widget scale */
+	float GetWidgetScale() const;
+
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
 	                           FActorComponentTickFunction* ThisTickFunction) override;
 
 	virtual void OnRegister() override;
 
 	/** Returns the widget component */
-	UDisplayClusterWidgetComponent* GetWidgetComponent() const;
+	UWidgetComponent* GetWidgetComponent() const;
 
 #if WITH_EDITOR
 public:

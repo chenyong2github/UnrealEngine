@@ -30,6 +30,7 @@
 #include "Components/PostProcessComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkyLightComponent.h"
+#include "Components/WidgetComponent.h"
 #include "Debug/DebugDrawService.h"
 #include "Editor/UnrealEdEngine.h"
 #include "EditorModeManager.h"
@@ -56,6 +57,7 @@
 #include "TextureResource.h"
 #include "UnrealEdGlobals.h"
 #include "UnrealWidget.h"
+#include "Components/DisplayClusterLabelComponent.h"
 #include "Components/DisplayClusterStageGeometryComponent.h"
 #include "Widgets/Docking/SDockTab.h"
 
@@ -327,7 +329,7 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 
 	Canvas->Clear(FLinearColor::Black);
 
-	FSceneViewInitOptions BillboardSceneViewInitOptions;
+	FSceneViewInitOptions SpriteSceneViewInitOptions;
 	
 	if (!bDisableCustomRenderer)
 	{
@@ -341,24 +343,24 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 
 		GetSceneViewInitOptions(RenderSettings.ViewInitOptions);
 
-		BillboardSceneViewInitOptions = RenderSettings.ViewInitOptions;
+		SpriteSceneViewInitOptions = RenderSettings.ViewInitOptions;
 		
 		IDisplayClusterScenePreview::Get().Render(PreviewRendererId, RenderSettings, *Canvas);
 	}
 	else
 	{
-		if (BillboardComponentProxies.Num() > 0)
+		if (BillboardComponentProxies.Num() > 0 || WidgetComponentProxies.Num() > 0)
 		{
-			GetSceneViewInitOptions(BillboardSceneViewInitOptions);
+			GetSceneViewInitOptions(SpriteSceneViewInitOptions);
 		}
 		
 		GetRendererModule().BeginRenderingViewFamily(Canvas, &ViewFamily);
 	}
 
-	if (BillboardComponentProxies.Num() > 0)
+	if (BillboardComponentProxies.Num() > 0 || WidgetComponentProxies.Num() > 0)
 	{
-		FScopeLock Lock(&BillboardComponentCS);
-		BillboardViewMatrices = FViewMatrices(BillboardSceneViewInitOptions);
+		FScopeLock Lock(&SpriteComponentCS);
+		SpriteViewMatrices = FViewMatrices(SpriteSceneViewInitOptions);
 	}
 
 	if (View)
@@ -473,7 +475,7 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(const FSceneView* View, 
 	// we can't render the gizmo over the icons in that case. Canvas items drawn onto the viewport will draw onto the
 	// back buffer after the entire custom render pipeline is drawn.
 	{
-		FScopeLock Lock(&BillboardComponentCS);
+		FScopeLock Lock(&SpriteComponentCS);
 		for (const TWeakObjectPtr<UBillboardComponent>& BillboardComponent : BillboardComponentProxies)
 		{
 			if (!BillboardComponent.IsValid())
@@ -491,7 +493,7 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(const FSceneView* View, 
 			
 			FSpriteProxy SpriteProxy = FSpriteProxy::FromBillboard(BillboardComponent.Get());
 		
-			FVector ProjectedLocation = ProjectWorldPosition(SpriteProxy.WorldPosition, BillboardViewMatrices);
+			FVector ProjectedLocation = ProjectWorldPosition(SpriteProxy.WorldPosition, SpriteViewMatrices);
 		
 			PDI->SetHitProxy(new HActor(BillboardComponent->GetOwner(), BillboardComponent.Get()));
 		
@@ -532,6 +534,43 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(const FSceneView* View, 
 			}
 
 			PDI->SetHitProxy(nullptr);
+		}
+	}
+
+	if (!bIsUVProjection) // Labels not currently supported in UV mode
+	{
+		FScopeLock Lock(&SpriteComponentCS);
+		for (const TWeakObjectPtr<UWidgetComponent>& WidgetComponent : WidgetComponentProxies)
+		{
+			if (!WidgetComponent.IsValid())
+			{
+				continue;
+			}
+			
+			if (UTextureRenderTarget2D* RenderTarget = WidgetComponent->GetRenderTarget())
+			{
+				if (const FTextureResource* Resource = RenderTarget->GetResource())
+				{
+					const FVector2D Size = WidgetComponent->GetDrawSize();
+					const float UL = Size.X;
+					const float VL = Size.Y;
+
+					// Labels can appear large by default, especially in dome projection mode
+					const float ScaleModifier = ProjectionMode == EDisplayClusterMeshProjectionType::Azimuthal ? 0.125f : 0.25f;
+
+					const UDisplayClusterLightCardEditorProjectSettings* Settings = GetDefault<UDisplayClusterLightCardEditorProjectSettings>();
+					const float ViewedSizeX = (Settings->LightCardLabelScale * UL) * ScaleModifier;
+					const float ViewedSizeY = (Settings->LightCardLabelScale * VL) * ScaleModifier;
+
+					const FVector ProjectedLocation = ProjectWorldPosition(WidgetComponent->GetComponentLocation(), SpriteViewMatrices);
+				
+					PDI->SetHitProxy(new HActor(WidgetComponent->GetOwner(), WidgetComponent.Get()));
+					PDI->DrawSprite(ProjectedLocation, ViewedSizeX, ViewedSizeY,
+						Resource, FLinearColor::White,
+						SDPG_World, 0, 0, 0, 0, SE_BLEND_Masked);
+					PDI->SetHitProxy(nullptr);
+				}
+			}
 		}
 	}
 		
@@ -1150,10 +1189,25 @@ AActor* FDisplayClusterLightCardEditorViewportClient::CreateStageActorProxy(AAct
 		TArray<UBillboardComponent*> BillboardComponents;
 		ActorProxy->GetComponents<UBillboardComponent>(BillboardComponents);
 
-		FScopeLock Lock(&BillboardComponentCS);
+		FScopeLock Lock(&SpriteComponentCS);
 		BillboardComponentProxies.Append(BillboardComponents);
 	}
 
+	// Label widgets
+	{
+		TArray<UDisplayClusterLabelComponent*> LabelComponents;
+		ActorProxy->GetComponents<UDisplayClusterLabelComponent>(LabelComponents);
+
+		FScopeLock Lock(&SpriteComponentCS);
+		
+		for (UDisplayClusterLabelComponent* LabelComponent : LabelComponents)
+		{
+			UWidgetComponent* WidgetComponent = LabelComponent->GetWidgetComponent();
+			WidgetComponent->SetTickWhenOffscreen(true);
+			WidgetComponentProxies.Add(WidgetComponent);
+		}
+	}
+	
 	FActorProxy ActorProxyStruct(InLevelInstance, ActorProxy);
 	ActorProxies.Add(ActorProxyStruct);
 	ProjectionHelper->VerifyAndFixActorOrigin(InLevelInstance);
@@ -1745,7 +1799,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransformFromLevel
 void FDisplayClusterLightCardEditorViewportClient::DestroyProxies(
 	EDisplayClusterLightCardEditorProxyType ProxyType)
 {
-	FScopeLock Lock(&BillboardComponentCS);
+	FScopeLock Lock(&SpriteComponentCS);
 
 	// Clear the primitives from the scene renderer based on the type of proxy that is being destroyed
 	switch (ProxyType)
@@ -1813,7 +1867,7 @@ void FDisplayClusterLightCardEditorViewportClient::DestroyProxy(AActor* Actor)
 				return OtherProxy == ActualProxy;
 			});
 		
-			FScopeLock Lock(&BillboardComponentCS);
+			FScopeLock Lock(&SpriteComponentCS);
 		
 			UWorld* PreviewWorld = PreviewScene->GetWorld();
 			check(PreviewWorld);
@@ -1823,6 +1877,11 @@ void FDisplayClusterLightCardEditorViewportClient::DestroyProxy(AActor* Actor)
 			BillboardComponentProxies.RemoveAll([ActualProxy](const TWeakObjectPtr<UBillboardComponent>& BillboardComponent)
 			{
 				return !BillboardComponent.IsValid() || BillboardComponent->GetOwner() == ActualProxy;
+			});
+
+			WidgetComponentProxies.RemoveAll([ActualProxy](const TWeakObjectPtr<UWidgetComponent>& WidgetComponent)
+			{
+				return !WidgetComponent.IsValid() || WidgetComponent->GetOwner() == ActualProxy;
 			});
 		}
 	}

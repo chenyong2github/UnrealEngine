@@ -21,7 +21,7 @@ UDisplayClusterLabelComponent::UDisplayClusterLabelComponent()
 	// Keeps this visible even if its clipping through the owner.
 	// Requires the owner have a transparent blend mode on its material.
 	WidgetComponent->SetBlendMode(EWidgetBlendMode::Transparent);
-	WidgetComponent->SetTranslucentSortPriority(1.f);
+	WidgetComponent->SetTranslucencySortDistanceOffset(-1000.f);
 	WidgetComponent->SetUsingAbsoluteScale(true);
 	WidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	WidgetComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
@@ -41,6 +41,12 @@ void UDisplayClusterLabelComponent::SetRootActor(ADisplayClusterRootActor* InAct
 void UDisplayClusterLabelComponent::SetWidgetScale(float NewValue)
 {
 	WidgetScale = NewValue;
+	WidgetComponent->SetWidgetScale(WidgetScale);
+}
+
+float UDisplayClusterLabelComponent::GetWidgetScale() const
+{
+	return WidgetScale;
 }
 
 void UDisplayClusterLabelComponent::TickComponent(float DeltaTime, ELevelTick TickType,
@@ -66,7 +72,7 @@ void UDisplayClusterLabelComponent::OnRegister()
 	WidgetComponent->SetWidgetClass(WidgetClass.LoadSynchronous());
 }
 
-UDisplayClusterWidgetComponent* UDisplayClusterLabelComponent::GetWidgetComponent() const
+UWidgetComponent* UDisplayClusterLabelComponent::GetWidgetComponent() const
 {
 	return WidgetComponent.Get();
 }
@@ -102,27 +108,36 @@ void UDisplayClusterLabelComponent::UpdateWidgetComponent()
 			// be set from the DCRA instead
 			SetRootActor(LightCardActor->GetRootActorOwner().Get());
 		}
-		
-		const USceneComponent* Viewpoint = RootActor.IsValid() ? RootActor->GetCommonViewPoint() : nullptr;
-		if (Viewpoint != nullptr)
+
+#if WITH_EDITOR
+		const bool bInGame = GEditor == nullptr;
+#else
+		constexpr bool bInGame = true;
+#endif
+
+		if (bInGame)
 		{
-			const FTransform LightCardTransform = LightCardActor->GetStageActorTransform();
-			const FVector LightCardLocation = LightCardTransform.GetLocation();
-			const FVector DestinationPoint = Viewpoint->GetComponentLocation();
+			const USceneComponent* Viewpoint = RootActor.IsValid() ? RootActor->GetCommonViewPoint() : nullptr;
+			if (Viewpoint != nullptr)
+			{
+				const FTransform LightCardTransform = LightCardActor->GetStageActorTransform();
+				const FVector LightCardLocation = LightCardTransform.GetLocation();
+				const FVector DestinationPoint = Viewpoint->GetComponentLocation();
 
-			// Keep the text facing up.
-			FRotator Rotation = UKismetMathLibrary::FindLookAtRotation(LightCardLocation, DestinationPoint);
-			Rotation.Roll = 0.f;
+				// Keep the text facing up.
+				FRotator Rotation = UKismetMathLibrary::FindLookAtRotation(LightCardLocation, DestinationPoint);
+				Rotation.Roll = 0.f;
 			
-			WidgetComponent->SetWorldRotation(Rotation);
+				WidgetComponent->SetWorldRotation(Rotation);
 
-			// Keep the label the same size regardless of distance to the view origin.
-			const float Distance = (DestinationPoint - LightCardLocation).Length();
+				// Keep the label the same size regardless of distance to the view origin.
+				const float Distance = (DestinationPoint - LightCardLocation).Length();
 
-			const float BaseLabelScale = 0.0025f;
-			const FVector VectorScale(Distance * BaseLabelScale * WidgetScale);
+				const float BaseLabelScale = 0.0025f;
+				const FVector VectorScale(Distance * BaseLabelScale * WidgetScale);
 			
-			WidgetComponent->SetWorldScale3D(VectorScale);
+				WidgetComponent->SetWorldScale3D(VectorScale);
+			}
 		}
 	}
 	else
@@ -143,7 +158,7 @@ void UDisplayClusterLabelComponent::UpdateWidgetComponent()
 	}
 
 #if WITH_EDITOR
-	WidgetComponent->SetVisibleInSceneCaptureOnly(GEditor != nullptr);
+	WidgetComponent->SetHiddenInSceneCapture(true);
 #endif
 }
 
