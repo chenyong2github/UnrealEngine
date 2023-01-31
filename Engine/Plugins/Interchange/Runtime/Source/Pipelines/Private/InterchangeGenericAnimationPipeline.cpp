@@ -644,11 +644,10 @@ void UInterchangeGenericAnimationPipeline::CreateAnimSequenceFactoryNode(UInterc
 		return;
 	}
 
-	FString SkeletalMeshNodeUid;
+	FString SkeletalMeshFactoryNodeUid;
 	const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = nullptr;
-	if (TrackNode.GetCustomSkeletalMeshNodeUid(SkeletalMeshNodeUid))
+	if (SkeletonFactoryNode->GetCustomSkeletalMeshFactoryNodeUid(SkeletalMeshFactoryNodeUid))
 	{
-		const FString SkeletalMeshFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(SkeletalMeshNodeUid);
 		SkeletalMeshFactoryNode = Cast<const UInterchangeSkeletalMeshFactoryNode>(BaseNodeContainer->GetFactoryNode(SkeletalMeshFactoryNodeUid));
 	}
 

@@ -171,16 +171,6 @@ bool UInterchangeSkeletalAnimationTrackNode::SetCustomSkeletonNodeUid(const FStr
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(SkeletonNodeUid, FString);
 }
 
-bool UInterchangeSkeletalAnimationTrackNode::GetCustomSkeletalMeshNodeUid(FString& AttributeValue) const
-{
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(SkeletalMeshNodeUid, FString);
-}
-
-bool UInterchangeSkeletalAnimationTrackNode::SetCustomSkeletalMeshNodeUid(const FString& AttributeValue)
-{
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(SkeletalMeshNodeUid, FString);
-}
-
 bool UInterchangeSkeletalAnimationTrackNode::GetCustomAnimationSampleRate(double& AttributeValue) const
 {
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(AnimationSampleRate, double);

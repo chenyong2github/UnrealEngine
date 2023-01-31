@@ -515,23 +515,47 @@ namespace UE::Interchange::Private
 
 			//Import morph target curves
 			{
+				TMap<FString, FString> MorphTargetNodeAnimationPayloads;
+				AnimSequenceFactoryNode->GetMorphTargetNodeAnimationPayloadKeys(MorphTargetNodeAnimationPayloads);
+
 				TMap<FString, TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>>> AnimationCurvesPayloads;
 				TMap<FString, FString> AnimationCurveMorphTargetNodeNames;
-				//Import morph target curves (FRichCurve is what anim api )
-				TArray<FString> AnimatedMorphTargetUids;
-				AnimSequenceFactoryNode->GetAnimatedMorphTargetDependencies(AnimatedMorphTargetUids);
-				for (const FString& MorphTargetUid : AnimatedMorphTargetUids)
+
+				if (MorphTargetNodeAnimationPayloads.Num() > 0)
 				{
-					if (const UInterchangeMeshNode* MorphTargetNode = Cast<UInterchangeMeshNode>(NodeContainer->GetNode(MorphTargetUid)))
+					for (const TPair<FString, FString>& MorphTargetNodeUidAnimationPayload : MorphTargetNodeAnimationPayloads)
 					{
-						TOptional<FString> PayloadKey = MorphTargetNode->GetAnimationCurvePayLoadKey();
-						if (PayloadKey.IsSet())
+						FString PayloadKey = MorphTargetNodeUidAnimationPayload.Value;
+						if (PayloadKey.Len() == 0)
 						{
-							AnimationCurvesPayloads.Add(PayloadKey.GetValue(), AnimSequenceTranslatorPayloadInterface->GetAnimationCurvePayloadData(PayloadKey.GetValue()));
-							AnimationCurveMorphTargetNodeNames.Add(PayloadKey.GetValue(), MorphTargetNode->GetDisplayLabel());
+							continue;
+						}
+						if (const UInterchangeMeshNode* MorphTargetNode = Cast<UInterchangeMeshNode>(NodeContainer->GetNode(MorphTargetNodeUidAnimationPayload.Key)))
+						{
+							AnimationCurvesPayloads.Add(PayloadKey, AnimSequenceTranslatorPayloadInterface->GetAnimationCurvePayloadData(PayloadKey));
+							AnimationCurveMorphTargetNodeNames.Add(PayloadKey, MorphTargetNode->GetDisplayLabel());
 						}
 					}
 				}
+				else
+				{
+					//Import morph target curves (FRichCurve is what anim api )
+					TArray<FString> AnimatedMorphTargetUids;
+					AnimSequenceFactoryNode->GetAnimatedMorphTargetDependencies(AnimatedMorphTargetUids);
+					for (const FString& MorphTargetUid : AnimatedMorphTargetUids)
+					{
+						if (const UInterchangeMeshNode* MorphTargetNode = Cast<UInterchangeMeshNode>(NodeContainer->GetNode(MorphTargetUid)))
+						{
+							TOptional<FString> PayloadKey = MorphTargetNode->GetAnimationCurvePayLoadKey();
+							if (PayloadKey.IsSet())
+							{
+								AnimationCurvesPayloads.Add(PayloadKey.GetValue(), AnimSequenceTranslatorPayloadInterface->GetAnimationCurvePayloadData(PayloadKey.GetValue()));
+								AnimationCurveMorphTargetNodeNames.Add(PayloadKey.GetValue(), MorphTargetNode->GetDisplayLabel());
+							}
+						}
+					}
+				}
+
 				for (TPair<FString, TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>>>& CurveNameAndPayload : AnimationCurvesPayloads)
 				{
 					TOptional<UE::Interchange::FAnimationCurvePayloadData> AnimationCurvePayload = CurveNameAndPayload.Value.Get();

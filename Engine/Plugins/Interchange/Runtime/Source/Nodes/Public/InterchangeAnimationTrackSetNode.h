@@ -403,14 +403,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
 	bool SetCustomSkeletonNodeUid(const FString& AttributeValue);
 
-	/** Get the skeletal mesh node unique id. Return false if the attribute is not set. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
-	bool GetCustomSkeletalMeshNodeUid(FString& AttributeValue) const;
-
-	/** Set the skeletal mesh node unique id. Return false if the attribute cannot be set. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
-	bool SetCustomSkeletalMeshNodeUid(const FString& AttributeValue);
-
 	/**
 	 * Set the animation sample rate. Return false if the attribute cannot be set.
 	 */
@@ -473,7 +465,6 @@ public:
 
 private:
 	const UE::Interchange::FAttributeKey Macro_CustomSkeletonNodeUidKey = UE::Interchange::FAttributeKey(TEXT("SkeletonNodeUid"));
-	const UE::Interchange::FAttributeKey Macro_CustomSkeletalMeshNodeUidKey = UE::Interchange::FAttributeKey(TEXT("SkeletalMeshNodeUid"));
 	const UE::Interchange::FAttributeKey Macro_CustomAnimationSampleRateKey = UE::Interchange::FAttributeKey(TEXT("AnimationSampleRate"));
 	const UE::Interchange::FAttributeKey Macro_CustomAnimationStartTimeKey = UE::Interchange::FAttributeKey(TEXT("AnimationStartTime"));
 	const UE::Interchange::FAttributeKey Macro_CustomAnimationStopTimeKey = UE::Interchange::FAttributeKey(TEXT("AnimationStopTime"));
