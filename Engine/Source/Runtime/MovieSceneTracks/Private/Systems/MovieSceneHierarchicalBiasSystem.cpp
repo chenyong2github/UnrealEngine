@@ -44,10 +44,20 @@ struct FHierarchicalBiasTask
 		return MaxBiasByChannel.Num() != 0;
 	}
 
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> RootInstanceHandles, TRead<FMovieSceneBlendChannelID> BlendChannels, TReadOptional<int16> OptHBiases)
+	void ForEachAllocation(FEntityAllocationIteratorItem Iterator, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> RootInstanceHandles, TRead<FMovieSceneBlendChannelID> BlendChannels, TReadOptional<int16> OptHBiases)
 	{
-		const int32 Num = Allocation->Num();
-		if (OptHBiases)
+		const int32 Num = Iterator.GetAllocation()->Num();
+
+		const bool bIgnoreBias = Iterator.GetAllocationType().Contains(FBuiltInComponentTypes::Get()->Tags.IgnoreHierarchicalBias);
+		if (bIgnoreBias)
+		{
+			for (int32 Index = 0; Index < Num; ++Index)
+			{
+				FBlendChannelSequenceKey Key{ RootInstanceHandles[Index], BlendChannels[Index] };
+				ActiveContributorsByChannel.Add(Key, EntityIDs[Index]);
+			}
+		}
+		else if (OptHBiases)
 		{
 			for (int32 Index = 0; Index < Num; ++Index)
 			{

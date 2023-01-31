@@ -376,6 +376,9 @@ public:
 		// A tag specifying that an entity wants to restore state on completioon
 		FComponentTypeID RestoreState;
 
+		// A tag that specifies this entity should always contribute to the output, regardless of hbias
+		FComponentTypeID IgnoreHierarchicalBias;
+
 		FComponentTypeID AbsoluteBlend;
 		FComponentTypeID RelativeBlend;
 		FComponentTypeID AdditiveBlend;
