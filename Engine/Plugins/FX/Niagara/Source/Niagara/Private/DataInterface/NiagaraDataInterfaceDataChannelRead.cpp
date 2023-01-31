@@ -13,6 +13,7 @@
 #include "NiagaraDataChannel.h"
 #include "NiagaraDataChannelHandler.h"
 #include "NiagaraDataChannelDefinitions.h"
+#include "NiagaraDataChannelManager.h"
 
 #include "NiagaraRenderer.h"
 #include "NiagaraGPUSystemTick.h"

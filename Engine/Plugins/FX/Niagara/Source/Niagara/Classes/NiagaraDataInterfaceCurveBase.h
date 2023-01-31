@@ -7,34 +7,7 @@
 #include "StaticMeshResources.h"
 #include "Curves/RichCurve.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraStats.h"
 #include "NiagaraDataInterfaceCurveBase.generated.h"
-
-/** Base class for curve data proxy data. */
-struct FNiagaraDataInterfaceProxyCurveBase : public FNiagaraDataInterfaceProxy
-{
-	virtual ~FNiagaraDataInterfaceProxyCurveBase()
-	{
-		check(IsInRenderingThread());
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, CurveLUT.NumBytes);
-		CurveLUT.Release();
-	}
-
-	float LUTMinTime = 0.0f;
-	float LUTMaxTime = 0.0f;
-	float LUTInvTimeRange = 0.0f;
-	uint32 CurveLUTNumMinusOne = 0;
-	uint32 LUTOffset = INDEX_NONE;
-	FReadBuffer CurveLUT;
-
-	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
-	{
-		return 0;
-	}
-
-	// @todo REMOVEME
-	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override { check(false); }
-};
 
 /** Base class for curve data interfaces which facilitates handling the curve data in a standardized way. */
 UCLASS(EditInlineNew, abstract)
@@ -113,39 +86,8 @@ public:
 #endif
 
 public:
-	UNiagaraDataInterfaceCurveBase()
-		: LUTMinTime(0.0f)
-		, LUTMaxTime(1.0f)
-		, LUTInvTimeRange(1.0f)
-		, bUseLUT(true)
-		, bExposeCurve(false)
-#if WITH_EDITORONLY_DATA
-		, bOptimizeLUT(true)
-		, bOverrideOptimizeThreshold(false)
-		, HasEditorData(true)
-		, OptimizeThreshold(DefaultOptimizeThreshold)
-#endif
-		, ExposedName(TEXT("Curve"))
-	{
-		Proxy.Reset(new FNiagaraDataInterfaceProxyCurveBase());
-	}
-
-	UNiagaraDataInterfaceCurveBase(FObjectInitializer const& ObjectInitializer)
-		: LUTMinTime(0.0f)
-		, LUTMaxTime(1.0f)
-		, LUTInvTimeRange(1.0f)
-		, bUseLUT(true)
-		, bExposeCurve(false)
-#if WITH_EDITORONLY_DATA
-		, bOptimizeLUT(true)
-		, bOverrideOptimizeThreshold(false)
-		, HasEditorData(true)
-		, OptimizeThreshold(DefaultOptimizeThreshold)
-#endif
-		, ExposedName(TEXT("Curve"))
-	{
-		Proxy.Reset(new FNiagaraDataInterfaceProxyCurveBase());
-	}
+	UNiagaraDataInterfaceCurveBase();
+	UNiagaraDataInterfaceCurveBase(FObjectInitializer const& ObjectInitializer);
 
 	enum
 	{

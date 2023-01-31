@@ -5,7 +5,7 @@
 #include "NiagaraCommon.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraParameterStore.h"
-#include "NiagaraStats.h"
+#include "RHIUtilities.h"
 #include "VectorVM.h"
 #include "NiagaraDataInterfaceSpline.generated.h"
 
@@ -36,29 +36,7 @@ struct FNDISpline_InstanceData_RenderThread
 	FReadBuffer SplineScalesLUT;
 	FReadBuffer SplineRotationsLUT;
 
-	void Reset()
-	{
-		check(IsInRenderingThread());
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, SplinePositionsLUT.NumBytes);
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, SplineScalesLUT.NumBytes);
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, SplineRotationsLUT.NumBytes);
-		SplinePositionsLUT.Release();
-		SplineScalesLUT.Release();
-		SplineRotationsLUT.Release();
-
-		SplineTransform = FMatrix44f::Identity;
-		SplineTransformRotationMat = FMatrix44f::Identity;
-		SplineTransformInverse = FMatrix44f::Identity;
-		SplineTransformInverseTranspose = FMatrix44f::Identity;
-		SplineTransformRotation = FQuat4f::Identity;
-
-		DefaultUpVector = FVector3f::ZAxisVector;
-
-		SplineLength = 0.0f;
-		SplineDistanceStep = 0.0f;
-		InvSplineDistanceStep = 0.0f;
-		MaxIndex = INDEX_NONE;
-	}
+	void Reset();
 };
 
 

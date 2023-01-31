@@ -19,6 +19,7 @@
 #include "NiagaraStats.h"
 #include "NiagaraComponentPool.h"
 #include "NiagaraComponent.h"
+#include "NiagaraDataChannelManager.h"
 #include "NiagaraEffectType.h"
 #include "NiagaraDebugHud.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
@@ -302,7 +303,7 @@ FNiagaraWorldManager::FNiagaraWorldManager()
 	: World(nullptr)
 	, ActiveNiagaraTickGroup(-1)
 	, bAppHasFocus(true)
-	, DataChannelManager(this)
+	, DataChannelManager(new FNiagaraDataChannelManager(this))
 {
 }
 
@@ -339,7 +340,7 @@ void FNiagaraWorldManager::Init(UWorld* InWorld)
 	//Possibly a later hook we can use.
 	//PrimePoolForAllSystems();
 
-	DataChannelManager.Init();
+	DataChannelManager->Init();
 
 #if WITH_NIAGARA_DEBUGGER
 	NiagaraDebugHud.Reset(new FNiagaraDebugHud(World));
@@ -444,7 +445,7 @@ void FNiagaraWorldManager::AddReferencedObjects(FReferenceCollector& Collector)
 
 	Collector.AddReferencedObjects(CullProxyMap);
 
-	DataChannelManager.AddReferencedObjects(Collector);
+	DataChannelManager->AddReferencedObjects(Collector);
 }
 
 FString FNiagaraWorldManager::GetReferencerName() const
@@ -613,7 +614,7 @@ void FNiagaraWorldManager::OnWorldBeginTearDown()
 {
 	bIsTearingDown = true;
 	ComponentPool->Cleanup(World);
-	DataChannelManager.Cleanup();
+	DataChannelManager->Cleanup();
 }
 
 void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResources)
@@ -621,7 +622,7 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 	DeferredMethods.ExecuteAndClear();
 	ComponentPool->Cleanup(World);
 
-	DataChannelManager.Cleanup();
+	DataChannelManager->Cleanup();
 
 	for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
 	{
@@ -1073,7 +1074,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	DeltaSeconds *= DebugPlaybackRate;
 
 	//Tick DataChannel Manager.
-	DataChannelManager.Tick(DeltaSeconds, TickGroup);
+	DataChannelManager->Tick(DeltaSeconds, TickGroup);
 
 	// We do book keeping in the first tick group
 	if ( TickGroup == NiagaraFirstTickGroup )

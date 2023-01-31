@@ -9,6 +9,7 @@
 #include "NiagaraDebugVis.h"
 #include "NiagaraEvents.h"
 #include "NiagaraSettings.h"
+#include "NiagaraDataChannelManager.h"
 #include "NiagaraDataInterfaceCurlNoise.h"
 #include "UObject/Class.h"
 #include "UObject/ObjectRedirector.h"

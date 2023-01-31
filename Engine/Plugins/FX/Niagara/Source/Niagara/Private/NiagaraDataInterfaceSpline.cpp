@@ -5,6 +5,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraShaderParametersBuilder.h"
+#include "NiagaraStats.h"
 #include "NiagaraSystemInstance.h"
 #include "Internationalization/Internationalization.h"
 #include "ShaderParameterUtils.h"
@@ -25,6 +26,30 @@ struct FNiagaraSplineDIFunctionVersion
 		LatestVersion = VersionPlusOne - 1
 	};
 };
+
+void FNDISpline_InstanceData_RenderThread::Reset()
+{
+	check(IsInRenderingThread());
+	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, SplinePositionsLUT.NumBytes);
+	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, SplineScalesLUT.NumBytes);
+	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, SplineRotationsLUT.NumBytes);
+	SplinePositionsLUT.Release();
+	SplineScalesLUT.Release();
+	SplineRotationsLUT.Release();
+
+	SplineTransform = FMatrix44f::Identity;
+	SplineTransformRotationMat = FMatrix44f::Identity;
+	SplineTransformInverse = FMatrix44f::Identity;
+	SplineTransformInverseTranspose = FMatrix44f::Identity;
+	SplineTransformRotation = FQuat4f::Identity;
+
+	DefaultUpVector = FVector3f::ZAxisVector;
+
+	SplineLength = 0.0f;
+	SplineDistanceStep = 0.0f;
+	InvSplineDistanceStep = 0.0f;
+	MaxIndex = INDEX_NONE;
+}
 
 namespace NDISplineLocal
 {

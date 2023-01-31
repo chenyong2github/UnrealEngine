@@ -21,10 +21,10 @@
 #include "NiagaraScalabilityManager.h"
 #include "NiagaraDebuggerCommon.h"
 #include "NiagaraDeferredMethodQueue.h"
-#include "NiagaraDataChannelManager.h"
 
 #include "NiagaraWorldManager.generated.h"
 
+class FNiagaraDataChannelManager;
 class UWorld;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
@@ -218,7 +218,7 @@ public:
 	NIAGARA_API static void SetScalabilityCullingMode(ENiagaraScalabilityCullingMode NewMode);
 	NIAGARA_API static ENiagaraScalabilityCullingMode GetScalabilityCullingMode() { return ScalabilityCullingMode; }
 
-	FNiagaraDataChannelManager& GetDataChannelManager(){ return DataChannelManager; }
+	FNiagaraDataChannelManager& GetDataChannelManager(){ return *DataChannelManager; }
 
 	/** Waits for all currently in flight async work to be completed. */
 	void WaitForAsyncWork();
@@ -335,7 +335,7 @@ private:
 	/** A global flag for all scalability culling */
 	static ENiagaraScalabilityCullingMode ScalabilityCullingMode;
 
-	FNiagaraDataChannelManager DataChannelManager;
+	TUniquePtr<FNiagaraDataChannelManager> DataChannelManager;
 };
 
 

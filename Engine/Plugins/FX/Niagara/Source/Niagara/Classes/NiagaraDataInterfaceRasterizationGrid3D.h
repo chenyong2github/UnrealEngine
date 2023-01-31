@@ -6,7 +6,7 @@
 #include "NiagaraDataInterfaceRW.h"
 #include "NiagaraRenderGraphUtils.h"
 #include "ClearQuad.h"
-#include "NiagaraStats.h"
+#include "RHIUtilities.h"
 
 #include "NiagaraDataInterfaceRasterizationGrid3D.generated.h"
 

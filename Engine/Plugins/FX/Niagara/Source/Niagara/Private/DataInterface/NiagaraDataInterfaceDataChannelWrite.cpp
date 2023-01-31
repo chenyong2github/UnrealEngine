@@ -15,6 +15,7 @@
 #include "NiagaraDataChannel.h"
 #include "NiagaraDataChannelHandler.h"
 #include "NiagaraDataChannelDefinitions.h"
+#include "NiagaraDataChannelManager.h"
 
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceDataChannelWrite"

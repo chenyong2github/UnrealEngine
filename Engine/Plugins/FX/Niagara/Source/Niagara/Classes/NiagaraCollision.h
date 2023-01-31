@@ -3,12 +3,9 @@
 #pragma once
 
 #include "NiagaraEvents.h"
-#include "NiagaraStats.h"
 #include "WorldCollision.h"
 
 #include "NiagaraCollision.generated.h"
-
-DECLARE_CYCLE_STAT(TEXT("Collision"), STAT_NiagaraCollision, STATGROUP_Niagara);
 
 class FNiagaraDataSet;
 

@@ -3,6 +3,7 @@
 #include "NiagaraDataChannelDefinitions.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraDataChannel.h"
+#include "NiagaraDataChannelManager.h"
 #include "DataInterface/NiagaraDataInterfaceDataChannelWrite.h"
 #include "DataInterface/NiagaraDataInterfaceDataChannelRead.h"
 #include "DataInterface/NiagaraDataInterfaceDataChannelSpawn.h"

@@ -6,7 +6,6 @@
 #include "ClearQuad.h"
 #include "NiagaraComponent.h"
 #include "NiagaraRenderGraphUtils.h"
-#include "NiagaraStats.h"
 #include "NiagaraDataInterfaceRWUtils.h"
 
 #include "NiagaraDataInterfaceGrid2DCollection.generated.h"
