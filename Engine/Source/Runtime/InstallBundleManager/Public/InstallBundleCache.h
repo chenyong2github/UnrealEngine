@@ -63,7 +63,8 @@ public:
 
 	void RemoveBundle(EInstallBundleSourceType Source, FName BundleName);
 
-	TOptional<FInstallBundleCacheBundleInfo> GetBundleInfo(EInstallBundleSourceType Source, FName BundleName) const;
+	TOptional<FInstallBundleCacheBundleInfo> GetBundleInfo(FName BundleName) const;
+	TOptional<FInstallBundleCacheBundleInfo> GetBundleInfo(EInstallBundleSourceType Source, FName BundleName) const;	
 
 	// Return the total size of the cache
 	uint64 GetSize() const;

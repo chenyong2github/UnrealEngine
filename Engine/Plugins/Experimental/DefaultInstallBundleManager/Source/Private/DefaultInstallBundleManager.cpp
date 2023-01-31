@@ -919,12 +919,27 @@ void FDefaultInstallBundleManager::TryReserveCache(FContentRequestRef Request)
 
 	if (!bSuccess)
 	{
-		// Release from any caches that were reserved
+		LOG_INSTALL_BUNDLE_MAN_OVERRIDE(Request->LogVerbosityOverride, Display, TEXT("Failed to reserve cache for Request %s"), *Request->BundleName.ToString());
+
 		for (const TPair<FName, EInstallBundleCacheReserveResult>& Pair : ReserveResults)
 		{
 			if (Pair.Value == EInstallBundleCacheReserveResult::Success)
 			{
+				// Release from any caches that were reserved
 				verify(BundleCaches.FindChecked(Pair.Key)->Release(Request->BundleName));
+			}
+			else if (Pair.Value == EInstallBundleCacheReserveResult::Fail_CacheFull)
+			{
+				// Dump useful info
+				GetCacheStats(FInstallBundleSourceOrCache(Pair.Key), EInstallBundleCacheDumpToLog::Default, Request->GetLogVerbosityOverride());
+
+				TSharedRef<FInstallBundleCache> Cache = BundleCaches.FindChecked(Pair.Key);
+				if (TOptional<FInstallBundleCacheBundleInfo> CacheBundleInfo = Cache->GetBundleInfo(Request->BundleName))
+				{
+					LOG_INSTALL_BUNDLE_MAN_OVERRIDE(Request->LogVerbosityOverride, Display, TEXT("* Reserve attempt for request %s"), *Request->BundleName.ToString());
+					LOG_INSTALL_BUNDLE_MAN_OVERRIDE(Request->LogVerbosityOverride, Display, TEXT("* \tfull size: %" UINT64_FMT), CacheBundleInfo->FullInstallSize)
+					LOG_INSTALL_BUNDLE_MAN_OVERRIDE(Request->LogVerbosityOverride, Display, TEXT("* \tcurrent size: %" UINT64_FMT), CacheBundleInfo->CurrentInstallSize)
+				}
 			}
 		}
 

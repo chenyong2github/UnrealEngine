@@ -46,10 +46,25 @@ void FInstallBundleCache::RemoveBundle(EInstallBundleSourceType Source, FName Bu
 	}
 }
 
+TOptional<FInstallBundleCacheBundleInfo> FInstallBundleCache::GetBundleInfo(FName BundleName) const
+{
+	TOptional<FInstallBundleCacheBundleInfo> Ret;
+
+	if (FBundleCacheInfo* Info = CacheInfo.Find(BundleName))
+	{
+		FInstallBundleCacheBundleInfo& OutInfo = Ret.Emplace();
+		OutInfo.BundleName = BundleName;
+		OutInfo.FullInstallSize = Info->FullInstallSize;
+		OutInfo.CurrentInstallSize = Info->CurrentInstallSize;
+		OutInfo.TimeStamp = Info->TimeStamp;
+		OutInfo.AgeScalar = Info->AgeScalar;
+	}
+
+	return Ret;
+}
+
 TOptional<FInstallBundleCacheBundleInfo> FInstallBundleCache::GetBundleInfo(EInstallBundleSourceType Source, FName BundleName) const
 {
-	CSV_SCOPED_TIMING_STAT(InstallBundleManager, FInstallBundleCache_GetBundleInfo);
-
 	TOptional<FInstallBundleCacheBundleInfo> Ret;
 
 	const TMap<EInstallBundleSourceType, FPerSourceBundleCacheInfo>* SourcesMap = PerSourceCacheInfo.Find(BundleName);

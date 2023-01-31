@@ -89,7 +89,7 @@ namespace UE::GameFeatures
 #define GAME_FEATURE_PLUGIN_STATE_LEX_TO_STRING(inEnum, inText)  \
     case(EGameFeaturePluginState::inEnum):                       \
     {                                                            \
-        return TEXT("#inEnum");                                  \
+        return TEXT(#inEnum);                                    \
     }                                                            
 
 namespace GameFeaturePluginStatePrivate
