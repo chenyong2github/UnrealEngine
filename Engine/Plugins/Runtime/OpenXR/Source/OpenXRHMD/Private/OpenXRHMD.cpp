@@ -70,6 +70,12 @@ static TAutoConsoleVariable<bool> CVarOpenXRForceStereoLayerEmulation(
 	TEXT("Force the emulation of stereo layers instead of using native ones (if supported).\n"),
 	ECVF_Default);
 
+static TAutoConsoleVariable<bool> CVarOpenXRDoNotCopyEmulatedLayersToSpectatorScreen(
+	TEXT("xr.OpenXRDoNotCopyEmulatedLayersToSpectatorScreen"),
+	false,
+	TEXT("If face locked stereo layers emulation is active, avoid copying the face locked stereo layers to the spectator screen.\n"),
+	ECVF_Default);
+
 namespace {
 	static TSet<XrEnvironmentBlendMode> SupportedBlendModes{ XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND, XR_ENVIRONMENT_BLEND_MODE_ADDITIVE, XR_ENVIRONMENT_BLEND_MODE_OPAQUE };
 	static TSet<XrViewConfigurationType> SupportedViewConfigurations{ XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO };
@@ -3656,7 +3662,9 @@ void FOpenXRHMD::RenderTexture_RenderThread(class FRHICommandListImmediate& RHIC
 {
 	if (SpectatorScreenController)
 	{
-		SpectatorScreenController->RenderSpectatorScreen_RenderThread(RHICmdList, BackBuffer, SrcTexture, WindowSize);
+		const bool bShouldPassLayersTexture = PipelinedLayerStateRendering.EmulatedLayerState.bIsFaceLockedLayerEmulationActive && PipelinedLayerStateRendering.EmulatedLayerState.EmulationSwapchain && !CVarOpenXRDoNotCopyEmulatedLayersToSpectatorScreen.GetValueOnRenderThread();
+		const FTexture2DRHIRef LayersTexture = bShouldPassLayersTexture ? PipelinedLayerStateRendering.EmulatedLayerState.EmulationSwapchain->GetTextureRef() : nullptr;
+		SpectatorScreenController->RenderSpectatorScreen_RenderThread(RHICmdList, BackBuffer, SrcTexture, LayersTexture, WindowSize);
 	}
 }
 

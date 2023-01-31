@@ -33,7 +33,8 @@ public:
 	// Implementation methods called by HMD
 	virtual void BeginRenderViewFamily();
 	virtual void UpdateSpectatorScreenMode_RenderThread();
-	virtual void RenderSpectatorScreen_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FTexture2DRHIRef RenderTarget, FVector2D WindowSize);
+	virtual void RenderSpectatorScreen_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FTexture2DRHIRef SrcTexture, FVector2D WindowSize);
+	virtual void RenderSpectatorScreen_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FTexture2DRHIRef SrcTexture, FTexture2DRHIRef LayersTexture, FVector2D WindowSize);
 
 protected:
 	friend struct FRHISetSpectatorScreenTexture;
@@ -74,5 +75,9 @@ protected:
 	};
 
 private:
+	void CopyEmulatedLayers(FRHICommandListImmediate& RHICmdList, FTexture2DRHIRef TargetTexture, const FIntRect SrcRect, const FIntRect DstRect);
+
 	FHeadMountedDisplayBase* HMDDevice;
+	// Face locked stereo layers are composited to a single texture which has to be copied over to the spectator screen.
+	FTexture2DRHIRef StereoLayersTexture;
 };
