@@ -173,6 +173,9 @@ private:
 	/* Format of video track */
 	FMovieTrackFormat VideoTrackFormat;
 
+	/* Caches the audio device from the HMD. */
+	FString HMDAudioOutputDevice;
+
 	/** True when there was an error related to creating a media sink (MESessionTopologySet event received with status MF_E_CANNOT_CREATE_SINK) */
 	bool bFailedToCreateMediaSink;
 };
