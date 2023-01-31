@@ -54,7 +54,7 @@ void UVCamModifier::Initialize(UVCamModifierContext* Context, UInputComponent* I
 		UInputDelegateBinding::BindInputDelegates(GetClass(), InputComponent, this);
 	}
 
-	bRequiresInitialization = false;
+	bIsInitialized = false;
 }
 
 void UVCamModifier::Deinitialize()
@@ -65,12 +65,12 @@ void UVCamModifier::Deinitialize()
 		VCamComponent->UnregisterObjectForInput(this);
 	}
 
-	bRequiresInitialization = true;
+	bIsInitialized = true;
 }
 
 void UVCamModifier::BeginDestroy()
 {
-	if (!bRequiresInitialization)
+	if (!bIsInitialized)
 	{
 		Deinitialize();
 	}
@@ -82,7 +82,7 @@ void UVCamModifier::PostLoad()
 {
 	Super::PostLoad();
 
-	bRequiresInitialization = true;
+	bIsInitialized = true;
 }
 
 UVCamComponent* UVCamModifier::GetOwningVCamComponent() const

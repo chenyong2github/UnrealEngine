@@ -12,6 +12,8 @@
 #include "GameplayTagContainer.h"
 #include "Roles/LiveLinkCameraTypes.h"
 #include "VCamInputSettings.h"
+#include "VCamSubsystem.h"
+#include "Input/VCamInputDeviceConfig.h"
 #include "Util/VCamViewportLocker.h"
 
 #if WITH_EDITOR
@@ -22,6 +24,7 @@
 
 #include "VCamComponent.generated.h"
 
+class UInputVCamSubsystem;
 class UVCamOutputProviderBase;
 DECLARE_LOG_CATEGORY_EXTERN(LogVCamComponent, Log, All);
 
@@ -37,6 +40,25 @@ class FLevelEditorViewportClient;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnComponentReplaced, UVCamComponent*, NewComponent);
 
+/**
+ * Provides a modular system for editing a UCineCameraComponent using user widgets.
+ * This component must be attached as a direct child of UCineCameraComponent.
+ *
+ * This component implements a Model-View-Controller architecture where modifiers are the model, output providers the view, and
+ * this component the controller.
+ *
+ * There are three aspects to this component:
+ * - Modifiers implement logic for changing properties on the UCineCameraComponent. Modifiers contain ConnectionPoints.
+ *   ConnectionPoints can optionally expose UInputActions (Enhanced Input) that can be invoked by widgets.
+ * - Output providers create and render widgets (possibly streaming them). Usually output providers create UVCamWidgets, which
+ *   are special widgets that can connect to ConnectionPoints. Widgets interact with modifiers in two ways:
+ *     - Simple: trigger input actions that modifiers are subscribed to and expose via connections.
+ *     - Advanced: query whether modifiers implement certain custom defined interfaces.
+ *       UVCamWidget Connections can be configured with required and optional interfaces.
+ * - UVCamSubsystems exist for as long as a UVCamComponent is enabled (this is comparable to ULocalPlayerSubsystem).
+ *   One notable such system is the UInputVCamSubsystem which allows UVCamComponents to bind to input devices similarly to how
+ *   APlayerControllers do in shipped games.
+ */
 UCLASS(Blueprintable, ClassGroup = VCam, HideCategories=(Mobility), meta=(BlueprintSpawnableComponent))
 class VCAMCORE_API UVCamComponent : public USceneComponent
 {
@@ -127,7 +149,6 @@ public:
 	FKey GetPlayerMappedKey(const FName MappingName) const;
 
 
-	
 	/** Sets whether the VCamComponent will update every frame */
 	UFUNCTION(BlueprintSetter)
 	void SetEnabled(bool bNewEnabled);
@@ -316,7 +337,31 @@ public:
 	const FVCamInputProfile& GetInputProfile() const { return InputProfile; }
 	UFUNCTION(BlueprintCallable, BlueprintInternalUseOnly, Category="VirtualCamera")
 	void SetInputProfile(const FVCamInputProfile& NewInputProfile);
+
+	/** Gets the current input device settings being used (if this component is enabled) or that will be used (if not enabled). */
+	UFUNCTION(BlueprintPure, Category = "VCam Input")
+	const FVCamInputDeviceConfig& GetInputDeviceSettings() const;
+	/** Propagates devices settings all the way to the player input. Causes input to be filtered / consumed differently. */
+	UFUNCTION(BlueprintCallable, BlueprintInternalUseOnly, Category="VirtualCamera")
+	void SetInputDeviceSettings(const FVCamInputDeviceConfig& NewInputProfile);
+
 	
+	/******************** Subsystem Queries ********************/
+
+	/** Gets all subsystems implementing this interface */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
+	TArray<UVCamSubsystem*> GetSubsystemArray(const TSubclassOf<UVCamSubsystem>& Class) const;
+
+	/** Gets the subsystem responsible for input handling. */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
+	UInputVCamSubsystem* GetInputVCamSubsystem() const;
+	
+	template <typename TSubsystemClass>
+	TSubsystemClass* GetSubsystem(const TSubclassOf<TSubsystemClass>& SubsystemClass) const { return SubsystemCollection.GetSubsystem(SubsystemClass); }
+	
+	template <typename TSubsystemClass>
+	const TArray<TSubsystemClass*>& GetSubsystemArray(const TSubclassOf<TSubsystemClass>& SubsystemClass) const { return SubsystemCollection.GetSubsystemArray(SubsystemClass); }
+
 private:
 	
 	/** Whether the VCamComponent will update every frame */
@@ -379,6 +424,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintGetter = "GetInputProfile", BlueprintSetter = "SetInputProfile", Category = "VirtualCamera")
 	FVCamInputProfile InputProfile;
 
+	UPROPERTY(EditAnywhere, BlueprintGetter = "GetInputDeviceSettings", BlueprintSetter = "SetInputDeviceSettings", Category = "VirtualCamera")
+	FVCamInputDeviceConfig InputDeviceSettings;
+
 	/** List of Output Providers (executed in order) */
 	UPROPERTY(EditAnywhere, Instanced, Category = "VirtualCamera")
 	TArray<TObjectPtr<UVCamOutputProviderBase>> OutputProviders;
@@ -410,7 +458,17 @@ private:
 	/** Variable used for pausing update on editor objects while PIE is running */
 	bool bIsEditorObjectButPIEIsRunning = false;
 
-	bool bIsInputRegistered = false;
+	/** Initialize and deinitialize calls match our  */
+	FSubsystemCollection<UVCamSubsystem> SubsystemCollection;
+
+	void EnsureInitialized();
+	virtual void Initialize();
+	virtual void Deinitialize();
+
+	void SyncInputSettings();
+	
+	void TickModifierStack(float DeltaTime);
+	void TickOutputProviders(float DeltaTime);
 	
 	static void CopyLiveLinkDataToCamera(const FLiveLinkCameraBlueprintData& LiveLinkData, UCineCameraComponent* CameraComponent);
 
@@ -418,7 +476,6 @@ private:
 	void UpdateActorViewportLocks();
 	void UnlockAllViewports();
 	void DestroyOutputProvider(UVCamOutputProviderBase* Provider);
-	void ResetAllOutputProviders();
 
 	// Use the Saved Modifier Stack from PreEditChange to find the modified entry and then ensure the modified entry's name is unique
 	// If a new modifier has been created then its name will be defaulted to BaseName
@@ -456,31 +513,21 @@ private:
 	double PreviousUpdateTime = 0;
 #endif
 
-	/** Is the camera currently in a role assigned to the session. */
-	bool IsCameraInVPRole() const;
 
 	/** Send the current camera state via Multi-user if connected and in a */
 	void SendCameraDataViaMultiUser();
-
-	/** Are we in a multi-user session. */
-	bool IsMultiUserSession() const;
-
-	/** Can the modifier stack be evaluated. */
-	bool CanEvaluateModifierStack() const;
-
-	/** Output Providers should only update outside of MU or if we have the correct VP Role */
+	
+	/** Can return false if we're in a multi-user session and the user configured us not to update. */
 	bool ShouldUpdateOutputProviders() const;
+	/** Can return false if we're in a multi-user session and the user configured us not to update. */
+	bool ShouldEvaluateModifierStack() const;
+	bool IsMultiUserSession() const;
+	bool IsCameraInVPRole() const;
 
 	// When another component replaces us, get a notification so we can clean up
 	void NotifyComponentWasReplaced(UVCamComponent* ReplacementComponent);
 
-	/*
-	 * Gets the input interface for the currently active input method.
-	 * Will switch between editor and player based input as needed
-	 */
-	IEnhancedInputSubsystemInterface* GetEnhancedInputSubsystemInterface() const;
-
 	/** Utility functions for registering and unregistering our input component with the correct input system */
-	void RegisterInputComponent();
-	void UnregisterInputComponent();
+	virtual void RegisterInputComponent();
+	virtual void UnregisterInputComponent();
 };

@@ -39,9 +39,10 @@ public:
 	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;
 	virtual void PostLoad() override;
+	virtual UWorld* GetWorld() const override;
 	//~ End UObject Interface
 
-	bool IsInitialized() const { return bRequiresInitialization; };
+	bool IsInitialized() const { return !bIsInitialized; };
 
 	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
 	UVCamComponent* GetOwningVCamComponent() const;
@@ -51,7 +52,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
 	void SetEnabled(bool bNewEnabled);
-
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera", meta=(ReturnDisplayName="Enabled"))
 	bool IsEnabled() const;
 
@@ -59,7 +59,6 @@ public:
 	// Returns a bool for whether 
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera", meta=(ReturnDisplayName="Success"))
 	bool SetStackEntryName(FName NewName);
-
 	// Gets the name of the modifier in the associated modifier stack
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera", meta=(ReturnDisplayName="Name"))
 	FName GetStackEntryName() const;
@@ -75,12 +74,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VCam Connection Points")
 	TMap<FName, FVCamModifierConnectionPoint> ConnectionPoints;
 
-	virtual UWorld* GetWorld() const override;
-	
 private:
+	
 	FModifierStackEntry* GetCorrespondingStackEntry() const;
 
-	bool bRequiresInitialization = true;
+	UPROPERTY(Transient)
+	bool bIsInitialized = true;
 };
 
 UCLASS(EditInlineNew)

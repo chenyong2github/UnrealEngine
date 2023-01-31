@@ -19,6 +19,7 @@
 #include "ILiveLinkClient.h"
 #include "InputMappingContext.h"
 #include "PlayerMappableKeySettings.h"
+#include "Input/InputVCamSubsystem.h"
 #include "Roles/LiveLinkCameraRole.h"
 #include "Roles/LiveLinkTransformRole.h"
 
@@ -99,27 +100,7 @@ UVCamComponent::UVCamComponent()
 
 void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
-	bLockViewportToCamera_DEPRECATED = false;
-	UnlockAllViewports();
-
-	for (UVCamOutputProviderBase* Provider : OutputProviders)
-	{
-		if (Provider && Provider->IsInitialized())
-		{
-			Provider->Deinitialize();
-		}
-	}
-
-	for (FModifierStackEntry& ModifierEntry : ModifierStack)
-	{
-		TObjectPtr<UVCamModifier>& Modifier = ModifierEntry.GeneratedModifier;
-		if (Modifier && !Modifier->IsInitialized())
-		{
-			Modifier->Deinitialize();
-		}
-	}
-
-	UnregisterInputComponent();
+	Deinitialize();
 
 #if WITH_EDITOR
 	// Remove all event listeners
@@ -190,98 +171,43 @@ void UVCamComponent::NotifyComponentWasReplaced(UVCamComponent* ReplacementCompo
 	DestroyComponent();
 }
 
-IEnhancedInputSubsystemInterface* UVCamComponent::GetEnhancedInputSubsystemInterface() const
-{
-	if (const UWorld* World = GetWorld(); IsValid(World) && World->IsGameWorld())
-	{
-		
-		if (const ULocalPlayer* FirstLocalPlayer = World->GetFirstLocalPlayerFromController())
-		{
-			return ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(FirstLocalPlayer);
-		}
-	}
-#if WITH_EDITOR
-	else if (GEditor)
-	{
-		return GEditor->GetEditorSubsystem<UEnhancedInputEditorSubsystem>();
-	}
-#endif
-	return nullptr;
-}
-
 void UVCamComponent::RegisterInputComponent()
 {
 	// Ensure we start from a clean slate
 	UnregisterInputComponent();
 	
-	if (const UWorld* World = GetWorld(); IsValid(World) && World->IsGameWorld())
+	if (UInputVCamSubsystem* InputSubsystem = GetInputVCamSubsystem())
 	{
-		if (APlayerController* PC = World->GetFirstPlayerController())
-		{
-			PC->PushInputComponent(InputComponent);
-			bIsInputRegistered = true;
-		}
+		InputSubsystem->PushInputComponent(InputComponent);
 	}
-#if WITH_EDITOR
-	else if (GEditor)
-	{
-		if (UEnhancedInputEditorSubsystem* EditorInputSubsystem = GEditor->GetEditorSubsystem<UEnhancedInputEditorSubsystem>())
-		{
-			EditorInputSubsystem->PushInputComponent(InputComponent);
-			EditorInputSubsystem->StartConsumingInput();
-			bIsInputRegistered = true;
-		}
-	}
-#endif
 }
 
 void UVCamComponent::UnregisterInputComponent()
 {
-	// Removes the component from both editor and runtime input systems if possible
-	//
-	// Note: Despite the functions being called "Pop" it's actually just removing our specific input component from
-	// the stack rather than blindly popping the top component
-	if (const UWorld* World = GetWorld(); IsValid(World) && World->IsGameWorld())
+	if (UInputVCamSubsystem* InputSubsystem = GetInputVCamSubsystem())
 	{
-		if (APlayerController* PC = World->GetFirstPlayerController())
-		{
-			PC->PopInputComponent(InputComponent);
-		}
+		// Note: Despite the functions being called "Pop" it's actually just removing our specific input component from
+		// the stack rather than blindly popping the top component
+		InputSubsystem->PopInputComponent(InputComponent);
 	}
-#if WITH_EDITOR
-	if (GEditor)
-	{
-		if (UEnhancedInputEditorSubsystem* EditorInputSubsystem = GEditor->GetEditorSubsystem<UEnhancedInputEditorSubsystem>())
-		{
-			EditorInputSubsystem->PopInputComponent(InputComponent);
-		}
-	}
-#endif
+	
 	AppliedInputContexts.Reset();
-	bIsInputRegistered = false;
 }
 
 bool UVCamComponent::CanUpdate() const
 {
+	const bool bShouldUpdate = bEnabled && !bIsEditorObjectButPIEIsRunning;
+	
+	// This prevents us updating in asset editors or invalid worlds
+	constexpr int ValidWorldTypes = EWorldType::Game | EWorldType::PIE | EWorldType::Editor;
 	UWorld* World = GetWorld();
-	if (bEnabled && IsValid(this) && !bIsEditorObjectButPIEIsRunning && World)
-	{
-		// Check that we only update in a valid world type
-		// This prevents us updating in asset editors or invalid worlds
-		constexpr int ValidWorldTypes = EWorldType::Game | EWorldType::PIE | EWorldType::Editor;
-		if ((World->WorldType & ValidWorldTypes) != EWorldType::None)
-		{
-			if (const USceneComponent* ParentComponent = GetAttachParent())
-			{
-				if (ParentComponent->IsA<UCineCameraComponent>())
-				{
-					// Component is valid to use if it is enabled, has a parent and that parent is a CineCamera derived component
-					return true;
-				}
-			}
-		}
-	}
-	return false;
+	const bool bIsSupportedWorld = World && (World->WorldType & ValidWorldTypes) != EWorldType::None;
+
+	// Modifiers requires a cine camera component
+	const USceneComponent* ParentComponent = GetAttachParent();
+	const bool bHasValidComponent = ParentComponent->IsA<UCineCameraComponent>();
+	
+	return bShouldUpdate && bIsSupportedWorld && bHasValidComponent;
 
 }
 
@@ -398,12 +324,9 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	FProperty* Property = PropertyChangedEvent.MemberProperty;
 	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		static FName NAME_Enabled = GET_MEMBER_NAME_CHECKED(UVCamComponent, bEnabled);
-		static FName NAME_ModifierStack = GET_MEMBER_NAME_CHECKED(UVCamComponent, ModifierStack);
-		static FName NAME_InputProfile = GET_MEMBER_NAME_CHECKED(UVCamComponent, InputProfile);
 		const FName PropertyName = Property->GetFName();
-
-		if (PropertyName == NAME_Enabled)
+		
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UVCamComponent, bEnabled))
 		{
 			// Only act here if we are a struct (like FModifierStackEntry)
 			if (!Property->GetOwner<UClass>())
@@ -411,14 +334,18 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 				SetEnabled(bEnabled);
 			}
 		}
-		else if (PropertyName == NAME_ModifierStack)
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UVCamComponent, ModifierStack))
 		{
 			ValidateModifierStack();
 			SavedModifierStack.Empty();
 		}
-		else if (PropertyName == NAME_InputProfile)
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UVCamComponent, InputProfile))
 		{
 			ApplyInputProfile();
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UVCamComponent, InputDeviceSettings))
+		{
+			SetInputDeviceSettings(InputDeviceSettings);
 		}
 
 		for (const UVCamOutputProviderBase* OutputProvider : OutputProviders)
@@ -518,7 +445,7 @@ void UVCamComponent::OnTargetViewportEdited()
 
 void UVCamComponent::AddInputMappingContext(const UVCamModifier* Modifier)
 {
-	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
 	{
 		const int32 InputPriority = Modifier->InputContextPriority;
 		const UInputMappingContext* IMC = Modifier->InputMappingContext;
@@ -536,7 +463,7 @@ void UVCamComponent::AddInputMappingContext(const UVCamModifier* Modifier)
 
 void UVCamComponent::RemoveInputMappingContext(const UVCamModifier* Modifier)
 {
-	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
 	{
 		const UInputMappingContext* IMC = Modifier->InputMappingContext;
 		if (IsValid(IMC))
@@ -549,7 +476,7 @@ void UVCamComponent::RemoveInputMappingContext(const UVCamModifier* Modifier)
 
 void UVCamComponent::AddInputMappingContext(UInputMappingContext* Context, int32 Priority)
 {
-	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
 	{
 		if (IsValid(Context))
 		{
@@ -561,7 +488,7 @@ void UVCamComponent::AddInputMappingContext(UInputMappingContext* Context, int32
 
 void UVCamComponent::RemoveInputMappingContext(UInputMappingContext* Context)
 {
-	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
 	{
 		if (IsValid(Context))
 		{
@@ -609,7 +536,7 @@ bool UVCamComponent::AddInputProfileWithCurrentlyActiveMappings(const FName Prof
 		TargetInputProfile = &VCamInputSettings->InputProfiles.Add(ProfileName);
 	}
 
-	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
 	{
 		TArray<FEnhancedActionKeyMapping> PlayerMappableActionKeyMappings;
 		for (const UInputMappingContext* MappingContext : AppliedInputContexts)
@@ -663,7 +590,7 @@ bool UVCamComponent::SaveCurrentInputProfileToSettings(const FName ProfileName) 
 
 TArray<FEnhancedActionKeyMapping> UVCamComponent::GetAllPlayerMappableActionKeyMappings() const
 {
-	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
 	{
 		return EnhancedInputSubsystemInterface->GetAllPlayerMappableActionKeyMappings();
 	}
@@ -672,25 +599,18 @@ TArray<FEnhancedActionKeyMapping> UVCamComponent::GetAllPlayerMappableActionKeyM
 
 FKey UVCamComponent::GetPlayerMappedKey(const FName MappingName) const
 {
-	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
 	{
 		return EnhancedInputSubsystemInterface->GetPlayerMappedKeyInSlot(MappingName);
 	}
 	return EKeys::Invalid;
 }
 
-
 void UVCamComponent::Update()
 {
 	if (!CanUpdate())
 	{
 		return;
-	}
-
-	// Ensure we register for input if we've not previously registered
-	if (!bIsInputRegistered)
-	{
-		RegisterInputComponent();
 	}
 
 	// If requested then disable the component if we're spawned by sequencer
@@ -705,72 +625,38 @@ void UVCamComponent::Update()
 			return;
 		}
 	}
+	
 	UCineCameraComponent* CameraComponent = GetTargetCamera();
-
 	if (!CameraComponent)
 	{
 		UE_LOG(LogVCamComponent, Error, TEXT("Parent component wasn't valid for Update"));
 		return;
 	}
 
+	EnsureInitialized();
+#if WITH_EDITOR
+	// Somebody may have externally changed subsystem from out under us (user code). Let's make sure the details panel updates.
+	SyncInputSettings();
+#endif
+	
 	const float DeltaTime = GetDeltaTime();
-
-	if (CanEvaluateModifierStack())
+	if (ShouldEvaluateModifierStack())
 	{
 		// Ensure the actor lock reflects the state of the lock property
-		// This is needed as UActorComponent::ConsolidatedPostEditChange will cause the component to be reconstructed on PostEditChange
-		// if the component is inherited
+		// This is needed as UActorComponent::ConsolidatedPostEditChange will cause the component to be reconstructed on PostEditChange if the component is inherited
 		UpdateActorViewportLocks();
 		
 		FLiveLinkCameraBlueprintData InitialLiveLinkData;
 		GetLiveLinkDataForCurrentFrame(InitialLiveLinkData);
-
 		CopyLiveLinkDataToCamera(InitialLiveLinkData, CameraComponent);
 
-		for (FModifierStackEntry& ModifierStackEntry : ModifierStack)
-		{
-			if (UVCamModifier* Modifier = ModifierStackEntry.GeneratedModifier; IsValid(Modifier))
-			{
-				if (ModifierStackEntry.bEnabled)
-				{
-					// Initialize the Modifier if required
-					if (Modifier->IsInitialized())
-					{
-						Modifier->Initialize(ModifierContext, InputComponent);
-						AddInputMappingContext(Modifier);
-					}
-
-					Modifier->Apply(ModifierContext, CameraComponent, DeltaTime);
-				}
-				else
-				{
-					// If the modifier is initialized but not enabled then we deinitialize it
-					if (!Modifier->IsInitialized())
-					{
-						Modifier->Deinitialize();
-					}
-				}
-			}
-		}
-
+		TickModifierStack(DeltaTime);
 		SendCameraDataViaMultiUser();
 	}
 
 	if (ShouldUpdateOutputProviders())
 	{
-		for (UVCamOutputProviderBase* Provider : OutputProviders)
-		{
-			if (Provider)
-			{
-				// Initialize the Provider if required
-				if (!Provider->IsInitialized())
-				{
-					Provider->Initialize();
-				}
-
-				Provider->Tick(DeltaTime);
-			}
-		}
+		TickOutputProviders(DeltaTime);
 	}
 }
 
@@ -780,23 +666,7 @@ void UVCamComponent::SetEnabled(bool bNewEnabled)
 	// NOTE this must be done BEFORE setting the actual bEnabled variable because OutputProviderBase now checks the component enabled state
 	if (!bNewEnabled)
 	{
-		for (UVCamOutputProviderBase* Provider : OutputProviders)
-		{
-			if (IsValid(Provider))
-			{
-				Provider->Deinitialize();
-			}
-		}
-
-		// There's no need to call Initialize if we are being enabled as they'll get automatically intialized
-		// the next time that the stack is evaluated
-		for (FModifierStackEntry& ModifierEntry : ModifierStack)
-		{
-			if (IsValid(ModifierEntry.GeneratedModifier))
-			{
-				ModifierEntry.GeneratedModifier->Deinitialize();
-			}
-		}
+		Deinitialize();
 	}
 
 	bEnabled = bNewEnabled;
@@ -805,19 +675,7 @@ void UVCamComponent::SetEnabled(bool bNewEnabled)
 	// NOTE this must be done AFTER setting the actual bEnabled variable because OutputProviderBase now checks the component enabled state
 	if (bNewEnabled)
 	{
-		if (ShouldUpdateOutputProviders() && CanUpdate())
-		{
-			for (UVCamOutputProviderBase* Provider : OutputProviders)
-			{
-				if (IsValid(Provider))
-				{
-					Provider->Initialize();
-				}
-			}
-		}
-
-		// Register the input component now we're enabled
-		RegisterInputComponent();
+		Initialize();
 	}
 }
 
@@ -1128,6 +986,37 @@ void UVCamComponent::SetInputProfile(const FVCamInputProfile& NewInputProfile)
 	ApplyInputProfile();
 }
 
+const FVCamInputDeviceConfig& UVCamComponent::GetInputDeviceSettings() const
+{
+	// This input system exists while this component is enabled.
+	// User code may call SetInputSettings directly on the subsystem - we want to capture that case. 
+	if (UInputVCamSubsystem* InputSubsystem = GetInputVCamSubsystem())
+	{
+		return InputSubsystem->GetInputSettings();
+	}
+	
+	return InputDeviceSettings;
+}
+
+void UVCamComponent::SetInputDeviceSettings(const FVCamInputDeviceConfig& NewInputProfile)
+{
+	InputDeviceSettings = NewInputProfile;
+	if (UInputVCamSubsystem* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
+	{
+		EnhancedInputSubsystemInterface->SetInputSettings(InputDeviceSettings);
+	}
+}
+
+TArray<UVCamSubsystem*> UVCamComponent::GetSubsystemArray(const TSubclassOf<UVCamSubsystem>& Class) const
+{
+	return SubsystemCollection.GetSubsystemArray<UVCamSubsystem>(Class);
+}
+
+UInputVCamSubsystem* UVCamComponent::GetInputVCamSubsystem() const
+{
+	return SubsystemCollection.GetSubsystem<UInputVCamSubsystem>(UInputVCamSubsystem::StaticClass());
+}
+
 void UVCamComponent::GetLiveLinkDataForCurrentFrame(FLiveLinkCameraBlueprintData& LiveLinkData)
 {
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
@@ -1182,7 +1071,7 @@ void UVCamComponent::UnregisterObjectForInput(UObject* Object) const
 
 TArray<FEnhancedActionKeyMapping> UVCamComponent::GetPlayerMappableKeys() const
 {
-	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
 	{
 		return EnhancedInputSubsystemInterface->GetAllPlayerMappableActionKeyMappings();
 	}
@@ -1191,7 +1080,7 @@ TArray<FEnhancedActionKeyMapping> UVCamComponent::GetPlayerMappableKeys() const
 
 void UVCamComponent::InjectInputForAction(const UInputAction* Action, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
 {
-	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
 	{
 		EnhancedInputSubsystemInterface->InjectInputForAction( Action, RawValue, Modifiers, Triggers);
 	}
@@ -1199,7 +1088,7 @@ void UVCamComponent::InjectInputForAction(const UInputAction* Action, FInputActi
 
 void UVCamComponent::InjectInputVectorForAction(const UInputAction* Action, FVector Value, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
 {
-	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
 	{
 		EnhancedInputSubsystemInterface->InjectInputVectorForAction(Action, Value, Modifiers, Triggers);
 	}
@@ -1207,7 +1096,7 @@ void UVCamComponent::InjectInputVectorForAction(const UInputAction* Action, FVec
 
 void UVCamComponent::ApplyInputProfile()
 {
-	IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface();
+	IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem();
 	if (EnhancedInputSubsystemInterface)
 	{
 		EnhancedInputSubsystemInterface->RemoveAllPlayerMappedKeys();
@@ -1221,6 +1110,129 @@ void UVCamComponent::ApplyInputProfile()
 			{
 				EnhancedInputSubsystemInterface->AddPlayerMappedKeyInSlot(MappingName, NewKey);
 			}
+		}
+	}
+}
+
+void UVCamComponent::EnsureInitialized()
+{
+	if (!SubsystemCollection.IsInitialized())
+	{
+		Initialize();
+	}
+}
+
+void UVCamComponent::Initialize()
+{
+	SubsystemCollection.Initialize(this);
+	// 1. Input is required
+	RegisterInputComponent();
+
+	// 2. Output provider overlay widgets will access the modifiers, so let's init them first
+	const bool bInitModifiers = ShouldEvaluateModifierStack() && CanUpdate(); 
+	if (bInitModifiers)
+	{
+		for (FModifierStackEntry& ModifierStackEntry : ModifierStack)
+		{
+			if (UVCamModifier* Modifier = ModifierStackEntry.GeneratedModifier
+				; IsValid(Modifier) && ModifierStackEntry.bEnabled && !Modifier->IsInitialized())
+			{
+				Modifier->Initialize(ModifierContext, InputComponent);
+			}
+		}
+	}
+
+	// 3. Output providers
+	const bool bInitOutputProviders = bInitModifiers && ShouldUpdateOutputProviders();
+	if (bInitOutputProviders)
+	{
+		for (UVCamOutputProviderBase* Provider : OutputProviders)
+		{
+			if (IsValid(Provider))
+			{
+				Provider->Initialize();
+			}
+		}
+	}
+}
+
+void UVCamComponent::Deinitialize()
+{
+	for (UVCamOutputProviderBase* Provider : OutputProviders)
+	{
+		if (IsValid(Provider))
+		{
+			Provider->Deinitialize();
+		}
+	}
+
+	for (FModifierStackEntry& ModifierEntry : ModifierStack)
+	{
+		if (IsValid(ModifierEntry.GeneratedModifier))
+		{
+			ModifierEntry.GeneratedModifier->Deinitialize();
+		}
+	}
+
+	// Viewports may be manipulated by output providers or modifiers
+	UnlockAllViewports();
+	
+	UnregisterInputComponent();
+	SubsystemCollection.Deinitialize();
+}
+
+void UVCamComponent::SyncInputSettings()
+{
+	if (UInputVCamSubsystem* InputSubsystem = GetInputVCamSubsystem())
+	{
+		SetInputDeviceSettings(InputDeviceSettings);
+	}
+}
+
+void UVCamComponent::TickModifierStack(const float DeltaTime)
+{
+	UCineCameraComponent* CameraComponent = GetTargetCamera();
+	check(CameraComponent);
+	
+	for (FModifierStackEntry& ModifierStackEntry : ModifierStack)
+	{
+		if (UVCamModifier* Modifier = ModifierStackEntry.GeneratedModifier; IsValid(Modifier))
+		{
+			if (ModifierStackEntry.bEnabled)
+			{
+				if (!Modifier->IsInitialized())
+				{
+					Modifier->Initialize(ModifierContext, InputComponent);
+					AddInputMappingContext(Modifier);
+				}
+
+				Modifier->Apply(ModifierContext, CameraComponent, DeltaTime);
+			}
+			else
+			{
+				// If the modifier is initialized but not enabled then we deinitialize it
+				if (!Modifier->IsInitialized())
+				{
+					Modifier->Deinitialize();
+				}
+			}
+		}
+	}
+}
+
+void UVCamComponent::TickOutputProviders(float DeltaTime)
+{
+	for (UVCamOutputProviderBase* Provider : OutputProviders)
+	{
+		if (Provider)
+		{
+			// Initialize the Provider if required
+			if (!Provider->IsInitialized())
+			{
+				Provider->Initialize();
+			}
+
+			Provider->Tick(DeltaTime);
 		}
 	}
 }
@@ -1287,26 +1299,6 @@ void UVCamComponent::DestroyOutputProvider(UVCamOutputProviderBase* Provider)
 		// Begin Destroy will deinitialize if needed
 		Provider->ConditionalBeginDestroy();
 		Provider = nullptr;
-	}
-}
-
-void UVCamComponent::ResetAllOutputProviders()
-{
-	for (UVCamOutputProviderBase* Provider : OutputProviders)
-	{
-		if (Provider)
-		{
-			// Initialization will also recover active state 
-			Provider->Deinitialize();
-
-			// We only Initialize a provider if they're able to be updated
-			// If they later become able to be updated then they will be
-			// Initialized inside the Update() loop
-			if (ShouldUpdateOutputProviders())
-			{
-				Provider->Initialize();
-			}
-		}
 	}
 }
 
@@ -1439,23 +1431,13 @@ void UVCamComponent::OnMapChanged(UWorld* World, EMapChangeType ChangeType)
 void UVCamComponent::OnBeginPIE(const bool bInIsSimulating)
 {
 	UWorld* World = GetWorld();
-
-	if (!World)
+	if (World && World->WorldType == EWorldType::Editor)
 	{
-		return;
-	}
-
-	if (World->WorldType == EWorldType::Editor)
-	{
-		// Deinitialize all output providers in the editor world
-		for (UVCamOutputProviderBase* Provider : OutputProviders)
-		{
-			if (Provider)
-			{
-				Provider->Deinitialize();
-			}
-		}
-
+		// Reasons:
+		// 1. Output providers, like pixel streaming, may interfere
+		// 2. Input will interfere
+		Deinitialize();
+		
 		// Ensure the Editor components do not update during PIE
 		bIsEditorObjectButPIEIsRunning = true;
 	}
@@ -1472,19 +1454,13 @@ void UVCamComponent::OnEndPIE(const bool bInIsSimulating)
 
 	if (World->WorldType == EWorldType::PIE)
 	{
-		// Disable all output providers in the PIE world
-		for (UVCamOutputProviderBase* Provider : OutputProviders)
-		{
-			if (Provider)
-			{
-				Provider->Deinitialize();
-			}
-		}
+		// If Update is called (should not happen), disabling instead of Deinitialize to ensure Update() will be skipped
+		SetEnabled(false);
 	}
 	else if (World->WorldType == EWorldType::Editor)
 	{
-		// Allow the Editor components to start updating again
 		bIsEditorObjectButPIEIsRunning = false;
+		Initialize();
 	}
 }
 
@@ -1610,32 +1586,18 @@ void UVCamComponent::SendCameraDataViaMultiUser()
 #endif
 }
 
-bool UVCamComponent::IsCameraInVPRole() const
-{
-#if WITH_EDITOR
-	UVPSettings* Settings = UVPSettings::GetVPSettings();
-	// We are in a valid camera role if the user has not assigned a role or the current VPSettings role matches the
-	// assigned role.
-	//
-	UVirtualProductionRolesSubsystem* VPRolesSubsystem = GEngine->GetEngineSubsystem<UVirtualProductionRolesSubsystem>();
-	return !Role.IsValid() || (VPRolesSubsystem && VPRolesSubsystem->HasActiveRole(Role));
-#else
-	return true;
-#endif
-}
-
-bool UVCamComponent::CanEvaluateModifierStack() const
-{
-	return !IsMultiUserSession() || (IsMultiUserSession() && IsCameraInVPRole());
-}
-
 bool UVCamComponent::ShouldUpdateOutputProviders() const
 {
 	// We should only update output providers in 3 situations
 	// - We're not in Multi User
 	// - We have the virtual camera role
 	// - We have explicitly set that we want to run Output Providers even when not in the camera role
-	return !IsMultiUserSession() || IsCameraInVPRole() || !bDisableOutputOnMultiUserReceiver;
+	return ShouldEvaluateModifierStack() || !bDisableOutputOnMultiUserReceiver;
+}
+
+bool UVCamComponent::ShouldEvaluateModifierStack() const
+{
+	return !IsMultiUserSession() || IsCameraInVPRole();
 }
 
 bool UVCamComponent::IsMultiUserSession() const
@@ -1644,6 +1606,18 @@ bool UVCamComponent::IsMultiUserSession() const
 	return WeakSession.IsValid();
 #else
 	return false;
+#endif
+}
+
+bool UVCamComponent::IsCameraInVPRole() const
+{
+#if WITH_EDITOR
+	// We are in a valid camera role if the user has not assigned a role or the current VPSettings role matches the
+	// assigned role.
+	UVirtualProductionRolesSubsystem* VPRolesSubsystem = GEngine->GetEngineSubsystem<UVirtualProductionRolesSubsystem>();
+	return !Role.IsValid() || (VPRolesSubsystem && VPRolesSubsystem->HasActiveRole(Role));
+#else
+	return true;
 #endif
 }
 
