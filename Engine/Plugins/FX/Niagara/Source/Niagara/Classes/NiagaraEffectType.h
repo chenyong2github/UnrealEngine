@@ -24,8 +24,8 @@ enum class ENiagaraCullReaction
 	DeactivateResume UMETA(DisplayName = "Asleep"),
 	/** The system instance will be deactivated and particles killed immediately. Will reactivate when it passes cull tests again. */
 	DeactivateImmediateResume UMETA(DisplayName = "Asleep and Clear"),
-	/** The system instance will be paused but will resume ticking when it passes cull tests again. */
-	//PauseResume,
+	/** The system instance will be paused, maintaining it's current state, but will resume ticking when it passes cull tests again. */
+	PauseResume UMETA(DisplayName = "Pause"),
 };
 
 /** Controls how often should we update scalability states for these effects. */

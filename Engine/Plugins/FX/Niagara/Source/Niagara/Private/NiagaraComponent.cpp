@@ -486,6 +486,7 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bForceLocalPlayerEffect(false)
 	, bIsCulledByScalability(false)
 	, bDuringUpdateContextReset(false)
+	, bDesiredPauseState(false)
 	//, bIsChangingAutoAttachment(false)
 	, ScalabilityManagerHandle(INDEX_NONE)
 	, ForceUpdateTransformTime(0.0f)
@@ -923,19 +924,58 @@ void UNiagaraComponent::AdvanceSimulationByTime(float SimulateTime, float TickDe
 
 void UNiagaraComponent::SetPaused(bool bInPaused)
 {
-	if (SystemInstanceController.IsValid())
+	bDesiredPauseState = bInPaused;
+
+	bool bIsActuallyActive = SystemInstanceController.IsValid() &&
+		SystemInstanceController->GetRequestedExecutionState() == ENiagaraExecutionState::Active &&
+		SystemInstanceController->GetActualExecutionState() == ENiagaraExecutionState::Active;
+
+	if(!bIsActuallyActive)
 	{
-		SystemInstanceController->SetPaused(bInPaused);
+		//Don't allow pausing when the system is not active.
+		//Activate/Deactivate should clear the pause state.
+		return;
 	}
+
+	if(bIsActuallyActive && !bInPaused)
+	{
+		//If we're active and we unpause, try to re-register with the scalability manager
+		RegisterWithScalabilityManager();
+	}
+	else 
+	{
+		//If we're being paused externally, unregister from scalability.
+		UnregisterWithScalabilityManager();
+	}
+	
+	SetPausedInternal(bDesiredPauseState, false);
 }
 
 bool UNiagaraComponent::IsPaused()const
 {
+	//check the system instance is actually in the right state. 
+	//In cases where we don't have a system instance or we're culled by scalability, the instance can have a differnt internal state to the user's desired state.
+	check(SystemInstanceController.IsValid() == false || bIsCulledByScalability || SystemInstanceController->IsPaused() == bDesiredPauseState);
+	return bDesiredPauseState;
+}
+
+void UNiagaraComponent::SetPausedInternal(bool bInPaused, bool bIsScalabilityCull)
+{
+	if(bIsScalabilityCull)
+	{
+		bIsCulledByScalability = bInPaused;
+	}
+	
 	if (SystemInstanceController.IsValid())
 	{
-		return SystemInstanceController->IsPaused();
+		bool bShouldPauseFromScalability = false;
+		check(GetAsset());
+		if(UNiagaraEffectType* FXType = GetAsset()->GetEffectType())
+		{
+			bShouldPauseFromScalability = FXType->CullReaction == ENiagaraCullReaction::PauseResume && bIsCulledByScalability;
+		}
+		SystemInstanceController->SetPaused(bShouldPauseFromScalability || bDesiredPauseState);
 	}
-	return false;
 }
 
 UNiagaraDataInterface* UNiagaraComponent::GetDataInterface(const FString& Name)
@@ -1137,6 +1177,13 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 
 	bIsCulledByScalability = false;
 	
+	//Ensure we're not paused. Non-scalability activate calls should override pause state.
+	if(bIsScalabilityCull == false)
+	{
+		bDesiredPauseState = false;
+		SetPausedInternal(false, false);
+	}
+
 	//Update our owner scalability state but don't register with the manager.
 	ResolveOwnerAllowsScalability(false);
 	
@@ -1174,6 +1221,10 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	{
 		return;
 	}
+	
+	//Unpause on activate if needed.
+	checkf(!(bIsCulledByScalability && IsPaused()), TEXT("We should never be paused when being re-activated by scalability. We unregister from the manager when paused so we should never get here."));
+	SetPausedInternal(false, false);
 
 	DestroyCullProxy();
 
@@ -1268,6 +1319,12 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 			ScopedComponentTickEnabled.bTickEnabled = true;
 		}
 	}
+
+	if(bIsScalabilityCull)
+	{
+		//If this is an activate call from a scalability cull we may need to begin in a paused state if someone paused us while we were culled from scalability.
+		SetPausedInternal(bDesiredPauseState, false);
+	}
 }
 
 void UNiagaraComponent::Deactivate()
@@ -1294,6 +1351,10 @@ void UNiagaraComponent::DeactivateInternal(bool bIsScalabilityCull /* = false */
 		// Unregister with the scalability manager if this is a genuine deactivation from outside.
 		// The scalability manager itself can call this function when culling systems.
 		UnregisterWithScalabilityManager();
+	
+		//Ensure we're not paused.
+		bDesiredPauseState = false;
+		SetPausedInternal(false, false);
 	}
 
 	if (IsActive() && SystemInstanceController)

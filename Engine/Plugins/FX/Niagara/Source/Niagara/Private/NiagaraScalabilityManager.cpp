@@ -378,6 +378,7 @@ bool FNiagaraScalabilityManager::ApplyScalabilityState(int32 ComponentIndex, ENi
 			case ENiagaraCullReaction::DeactivateImmediate:			Component->DeactivateImmediateInternal(false); bContinueIteration = false;  break; //We don't increment CompIdx here as this call will remove an entry from ManagedObjects;
 			case ENiagaraCullReaction::DeactivateResume:			Component->DeactivateInternal(true); break;
 			case ENiagaraCullReaction::DeactivateImmediateResume:	Component->DeactivateImmediateInternal(true); break;
+			case ENiagaraCullReaction::PauseResume:					Component->SetPausedInternal(true,true); break;
 			};
 		}
 		else
@@ -386,7 +387,14 @@ bool FNiagaraScalabilityManager::ApplyScalabilityState(int32 ComponentIndex, ENi
 			{
 				UE_LOG(LogNiagara, Error, TEXT("Niagara Component is incorrectly still registered with the scalability manager. %d - %s "), (int32)CullReaction, *Component->GetAsset()->GetFullName());
 			}
-			Component->ActivateInternal(false, true);
+			else if(CullReaction == ENiagaraCullReaction::PauseResume)
+			{
+				Component->SetPausedInternal(false, true);
+			}
+			else
+			{
+				Component->ActivateInternal(false, true);
+			}
 		}
 
 		//TODO: Beyond culling by hard limits here we could progressively scale down fx by biasing detail levels they use. Could also introduce some budgeting here like N at lvl 0, M at lvl 1 etc.

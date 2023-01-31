@@ -218,6 +218,8 @@ private:
 	void ActivateInternal(bool bReset, bool bIsScalabilityCull);
 	void DeactivateInternal(bool bIsScalabilityCull);
 	void DeactivateImmediateInternal(bool bIsScalabilityCull);
+	void SetPausedInternal(bool bInPaused, bool bIsScalabilityCull);	
+
 
 	bool ShouldPreCull();
 	void RegisterWithScalabilityManager();
@@ -813,6 +815,9 @@ private:
 
 	/** True if we're currently inside an update context reset. This will prevent us from doing some completion work such as releaseing to the pool or auto destroy etc during a reset. */
 	uint32 bDuringUpdateContextReset : 1;
+
+	/** Stores the current state for pause/unpause desired by the use. Allows us to pause/unpause correctly while also pausing/unpausing via scalability. */
+	uint32 bDesiredPauseState : 1;
 
 	/** Restore relative transform from auto attachment and optionally detach from parent (regardless of whether it was an auto attachment). */
 	void CancelAutoAttachment(bool bDetachFromParent);
