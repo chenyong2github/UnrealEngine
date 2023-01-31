@@ -72,6 +72,12 @@ public:
 	virtual void SetAdvancedMode(bool bInAdvancedMode) override;
 
 	/**
+	 * Returns the documentation URL override.
+	 */
+	virtual FString GetDocURLOverride() const override;
+	virtual void SetDocURLOverride(const FString& InDocURLOverride) override;
+
+	/**
 	 * Convert the specified map to a world partition map.
 	 */
 	virtual bool ConvertMap(const FString& InLongPackageName) override;

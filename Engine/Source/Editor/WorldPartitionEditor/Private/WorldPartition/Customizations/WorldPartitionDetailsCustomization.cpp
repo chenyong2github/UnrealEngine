@@ -181,7 +181,14 @@ void FWorldPartitionDetails::HandleWorldPartitionEnableStreamingChanged(ECheckBo
 
 			if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionEnableStreamingDialolg", "Please refer to our documentation for how to set up streaming.\n\nWould you like to open it now? ")) == EAppReturnType::Yes)
 			{
-				IDocumentation::Get()->Open(TEXT("world-partition-in-unreal-engine"), FDocumentationSourceInfo(TEXT("worldpartition")));
+				if (GetDefault<UWorldPartitionEditorSettings>()->DocURLOverride.IsEmpty())
+				{
+					IDocumentation::Get()->Open(TEXT("world-partition-in-unreal-engine"), FDocumentationSourceInfo(TEXT("worldpartition")));
+				}
+				else
+				{
+					FPlatformProcess::LaunchURL(*GetDefault<UWorldPartitionEditorSettings>()->DocURLOverride, nullptr, nullptr);
+				}
 			}
 
 			WorldPartition->bStreamingWasEnabled = true;
