@@ -269,14 +269,6 @@ public:
 	  */
 	virtual void EndCook(const FCookInfo& Info) = 0;
 
-	struct FCookedPackageInfo
-	{
-		FName PackageName;
-		FMD5Hash Hash;
-		FGuid PackageGuid;
-		int64 DiskSize = -1;
-	};
-
 	/**
 	 * Returns an AssetRegistry describing the previous cook results. This doesn't mean a cook saved off
 	 * to another directory - it means the AssetRegistry that's living in the directory we are about

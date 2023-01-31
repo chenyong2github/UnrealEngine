@@ -22,7 +22,7 @@ public:
 			FIoHash Hash;
 		};
 
-		ICookedPackageWriter::FCookedPackageInfo CookInfo;
+		FName PackageName;
 		TArray<FAttachment> Attachments;
 		bool bUpToDate = false;
 	};
