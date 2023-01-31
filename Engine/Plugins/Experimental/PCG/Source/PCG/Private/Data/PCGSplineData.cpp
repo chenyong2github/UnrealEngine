@@ -58,6 +58,27 @@ FTransform UPCGSplineData::GetTransformAtDistance(int SegmentIndex, FVector::FRe
 	return Spline->GetTransformAtDistanceAlongSpline(Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance, ESplineCoordinateSpace::World, /*bUseScale=*/true);
 }
 
+FVector::FReal UPCGSplineData::GetCurvatureAtDistance(int SegmentIndex, FVector::FReal Distance) const
+{
+	const float FullDistance = Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance;
+	const float Param = Spline->SplineCurves.ReparamTable.Eval(FullDistance, 0.0f);
+
+	// Since we need the first derivative (e.g. very similar to direction) to have its norm, we'll get the value directly
+	const FVector FirstDerivative = Spline->SplineCurves.Position.EvalDerivative(Param, FVector::ZeroVector);
+	const FVector::FReal FirstDerivativeLength = FMath::Max(FirstDerivative.Length(), UE_DOUBLE_SMALL_NUMBER);
+	const FVector ForwardVector = FirstDerivative / FirstDerivativeLength;
+	const FVector SecondDerivative = Spline->SplineCurves.Position.EvalSecondDerivative(Param, FVector::ZeroVector);
+	// Orthogonalize the second derivative and obtain the curvature vector
+	const FVector CurvatureVector = SecondDerivative - (SecondDerivative | ForwardVector) * ForwardVector;
+	
+	// Finally, the curvature is the ratio of the norms of the curvature vector over the first derivative norm
+	const FVector::FReal Curvature = CurvatureVector.Length() / FirstDerivativeLength;
+
+	// Compute sign based on sign of curvature vs. right axis
+	const FVector RightVector = Spline->GetRightVectorAtSplineInputKey(Param, ESplineCoordinateSpace::Local);
+	return FMath::Sign(RightVector | CurvatureVector) * Curvature;
+}
+
 const UPCGPointData* UPCGSplineData::CreatePointData(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSplineData::CreatePointData);
@@ -180,7 +201,7 @@ bool UPCGSplineProjectionData::SamplePoint(const FTransform& InTransform, const 
 
 			if (OutMetadata)
 			{
-				if (SplinePoint.MetadataEntry != PCGInvalidEntryKey && SurfacePoint.MetadataEntry)
+				if (SplinePoint.MetadataEntry != PCGInvalidEntryKey && SurfacePoint.MetadataEntry != PCGInvalidEntryKey)
 				{
 					OutMetadata->MergePointAttributesSubset(SplinePoint, OutMetadata, GetSpline()->Metadata, SurfacePoint, OutMetadata, GetSurface()->Metadata, OutPoint, ProjectionParams.AttributeMergeOperation);
 				}

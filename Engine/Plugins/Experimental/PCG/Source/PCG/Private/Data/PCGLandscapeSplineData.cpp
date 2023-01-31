@@ -121,6 +121,77 @@ FTransform UPCGLandscapeSplineData::GetTransformAtDistance(int SegmentIndex, FVe
 	return FTransform();
 }
 
+FVector::FReal UPCGLandscapeSplineData::GetCurvatureAtDistance(int SegmentIndex, FVector::FReal Distance) const
+{
+	check(Spline.IsValid());
+	check(SegmentIndex >= 0 && SegmentIndex < Spline->GetSegments().Num());
+
+	const ULandscapeSplineSegment* Segment = Spline->GetSegments()[SegmentIndex];
+	check(Segment);
+
+	const FLandscapeSplineSegmentConnection& Start = Segment->Connections[0];
+	const FLandscapeSplineSegmentConnection& End = Segment->Connections[1];
+
+	const TArray<FLandscapeSplineInterpPoint>& InterpPoints = Segment->GetPoints();
+
+	// Need at least three points to compute the curvature
+	if (InterpPoints.Num() < 3)
+	{
+		return 0;
+	}
+
+	FVector::FReal Length = FMath::Max(0, Distance);
+
+	for (int PointIndex = 1; PointIndex < InterpPoints.Num(); ++PointIndex)
+	{
+		const FLandscapeSplineInterpPoint& PreviousPoint = InterpPoints[PointIndex - 1];
+		const FLandscapeSplineInterpPoint& CurrentPoint = InterpPoints[PointIndex];
+
+		const FVector::FReal SegmentLength = (CurrentPoint.Center - PreviousPoint.Center).Length();
+		if (SegmentLength > Length || PointIndex == InterpPoints.Num() - 1)
+		{
+			FVector FirstDerivative = FVector::ZeroVector;
+			FVector SecondDerivative = FVector::ZeroVector;
+
+			// Compute curvature using finite differences - here h is 1 because that's the only base unit we have.
+			// Warning: precision will be poor
+			// if last point -> use backward 2nd derivative
+			if (PointIndex == InterpPoints.Num() - 1)
+			{
+				const FLandscapeSplineInterpPoint& PreviousPreviousPoint = InterpPoints[PointIndex - 2];
+
+				// f'(x) = (f(x) - f(x-h)) / h
+				FirstDerivative = (CurrentPoint.Center - PreviousPoint.Center);
+				// f''(x) = (f(x) - 2f(x - h) + f(x - 2h)) / h2
+				SecondDerivative = (CurrentPoint.Center - 2 * PreviousPoint.Center + PreviousPreviousPoint.Center);
+			}
+			// otherwise -> use central 2nd derivative
+			else
+			{
+				const FLandscapeSplineInterpPoint& NextPoint = InterpPoints[PointIndex + 1];
+
+				// f'(x) ~= (f(x+h) - f(x-h)) / 2h
+				FirstDerivative = (NextPoint.Center - PreviousPoint.Center) / 2.0;
+				// f''(x) = (f(x+h) - 2f(x) + f(x-h)) / h2
+				SecondDerivative = NextPoint.Center - 2 * CurrentPoint.Center + PreviousPoint.Center;
+			}
+
+			const FVector::FReal FirstDerivativeLength = FMath::Max(FirstDerivative.Length(), UE_DOUBLE_SMALL_NUMBER);
+			const FVector ForwardVector = FirstDerivative / FirstDerivativeLength;
+			const FVector CurvatureVector = SecondDerivative - (SecondDerivative | ForwardVector) * ForwardVector;
+			const FVector::FReal Curvature = CurvatureVector.Length() / FirstDerivativeLength;
+
+			return FMath::Sign(CurvatureVector | (CurrentPoint.Right - CurrentPoint.Center)) * Curvature;
+		}
+		else
+		{
+			Length -= SegmentLength;
+		}
+	}
+
+	return 0;
+}
+
 const UPCGPointData* UPCGLandscapeSplineData::CreatePointData(FPCGContext* Context) const
 {
 	check(Spline.IsValid());

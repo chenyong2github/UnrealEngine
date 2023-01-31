@@ -25,6 +25,7 @@ public:
 	virtual int GetNumSegments() const override;
 	virtual FVector::FReal GetSegmentLength(int SegmentIndex) const override;
 	virtual FTransform GetTransformAtDistance(int SegmentIndex, FVector::FReal Distance, FBox* OutBounds = nullptr) const override;
+	virtual FVector::FReal GetCurvatureAtDistance(int SegmentIndex, FVector::FReal Distance) const override;
 	//~End UPCGPolyLineData interface
 
 	//~Begin UPCGSpatialDataWithPointCache interface

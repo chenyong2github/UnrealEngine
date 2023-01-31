@@ -309,30 +309,40 @@ namespace PCGSplineSamplerHelpers
 
 namespace PCGSplineSampler
 {
+	struct FSamplerResult
+	{
+		FTransform Transform;
+		FBox Box = FBox::BuildAABB(FVector::ZeroVector, FVector::OneVector);
+		FVector::FReal Curvature = 0;
+		FVector::FReal PreviousDeltaAngle = 0;
+		FVector::FReal NextDeltaAngle = 0;
+	};
+
 	struct FStepSampler
 	{
-		FStepSampler(const UPCGPolyLineData* InLineData)
-			: LineData(InLineData)
+		FStepSampler(const UPCGPolyLineData* InLineData, const FPCGSplineSamplerParams& Params)
+			: LineData(InLineData), bComputeCurvature(Params.bComputeCurvature)
 		{
 			check(LineData);
 			CurrentSegmentIndex = 0;
 		}
 
-		virtual void Step(FTransform& OutTransform, FBox& OutBox) = 0;
+		virtual void Step(FSamplerResult& OutSamplerResult) = 0;
 
 		bool IsDone() const
 		{
 			return CurrentSegmentIndex >= LineData->GetNumSegments();
 		}
 
-		const UPCGPolyLineData* LineData;
-		int CurrentSegmentIndex;
+		const UPCGPolyLineData* LineData = nullptr;
+		int CurrentSegmentIndex = 0;
+		bool bComputeCurvature = false;
 	};
 
 	struct FSubdivisionStepSampler : public FStepSampler
 	{
 		FSubdivisionStepSampler(const UPCGPolyLineData* InLineData, const FPCGSplineSamplerParams& Params)
-			: FStepSampler(InLineData)
+			: FStepSampler(InLineData, Params)
 		{
 			NumSegments = LineData->GetNumSegments();
 			SubdivisionsPerSegment = Params.SubdivisionsPerSegment;
@@ -341,12 +351,19 @@ namespace PCGSplineSampler
 			SubpointIndex = 0;
 		}
 
-		virtual void Step(FTransform& OutTransform, FBox& OutBox) override
+		virtual void Step(FSamplerResult& OutResult) override
 		{
 			const FVector::FReal SegmentLength = LineData->GetSegmentLength(CurrentSegmentIndex);
 			const FVector::FReal SegmentStep = SegmentLength / (SubdivisionsPerSegment + 1);
 
+			FBox& OutBox = OutResult.Box;
+			FTransform& OutTransform = OutResult.Transform;
 			OutTransform = LineData->GetTransformAtDistance(CurrentSegmentIndex, SubpointIndex * SegmentStep, &OutBox);
+
+			if (bComputeCurvature)
+			{
+				OutResult.Curvature = LineData->GetCurvatureAtDistance(CurrentSegmentIndex, SubpointIndex * SegmentStep);
+			}
 
 			if (SubpointIndex == 0)
 			{
@@ -386,19 +403,26 @@ namespace PCGSplineSampler
 	struct FDistanceStepSampler : public FStepSampler
 	{
 		FDistanceStepSampler(const UPCGPolyLineData* InLineData, const FPCGSplineSamplerParams& Params)
-			: FStepSampler(InLineData)
+			: FStepSampler(InLineData, Params)
 		{
 			DistanceIncrement = Params.DistanceIncrement;
 			CurrentDistance = 0;
 		}
 
-		virtual void Step(FTransform& OutTransform, FBox& OutBox) override
+		virtual void Step(FSamplerResult& OutResult) override
 		{
 			FVector::FReal CurrentSegmentLength = LineData->GetSegmentLength(CurrentSegmentIndex);
+			FTransform& OutTransform = OutResult.Transform;
+			FBox& OutBox = OutResult.Box;
 			OutTransform = LineData->GetTransformAtDistance(CurrentSegmentIndex, CurrentDistance, &OutBox);
 
 			OutBox.Min.X *= DistanceIncrement / OutTransform.GetScale3D().X;
 			OutBox.Max.X *= DistanceIncrement / OutTransform.GetScale3D().X;
+
+			if (bComputeCurvature)
+			{
+				OutResult.Curvature = LineData->GetCurvatureAtDistance(CurrentSegmentIndex, CurrentDistance);
+			}
 
 			CurrentDistance += DistanceIncrement;
 			while(CurrentDistance > CurrentSegmentLength)
@@ -422,42 +446,100 @@ namespace PCGSplineSampler
 
 	struct FDimensionSampler
 	{
-		FDimensionSampler(const UPCGPolyLineData* InLineData, const UPCGSpatialData* InSpatialData, const UPCGSpatialData* InBoundingShapeData)
+		FDimensionSampler(const UPCGPolyLineData* InLineData, const UPCGSpatialData* InSpatialData, const UPCGSpatialData* InBoundingShapeData, const FPCGSplineSamplerParams& InParams, UPCGPointData* OutPointData)
+			: Params(InParams)
 		{
 			check(InLineData);
 			LineData = InLineData;
 			SpatialData = InSpatialData;
 			BoundingShapeData = InBoundingShapeData;
+
+			// Initialize metadata accessors if needed
+			if (OutPointData && OutPointData->Metadata && (Params.bComputeDirectionDelta || Params.bComputeCurvature))
+			{
+				auto FindOrCreateAttribute = [](const FName& AttributeName, UPCGMetadata* Metadata)
+				{
+					FPCGMetadataAttribute<double>* Attribute = Metadata->FindOrCreateAttribute(AttributeName, 0.0, true, true);
+					if (Attribute->GetTypeId() != PCG::Private::MetadataTypes<double>::Id)
+					{
+						Metadata->DeleteAttribute(AttributeName);
+						Attribute = Metadata->CreateAttribute<double>(AttributeName, 0.0, true, true);
+					}
+
+					return Attribute;
+				};
+
+				if (Params.bComputeDirectionDelta)
+				{
+					NextDirectionDeltaAttribute = FindOrCreateAttribute(Params.NextDirectionDeltaAttribute, OutPointData->Metadata);
+					bSetMetadata |= (NextDirectionDeltaAttribute != nullptr);
+				}
+
+				if (Params.bComputeCurvature)
+				{
+					CurvatureAttribute = FindOrCreateAttribute(Params.CurvatureAttribute, OutPointData->Metadata);
+					bSetMetadata |= (CurvatureAttribute != nullptr);
+				}
+			}
 		}
 
-		virtual void Sample(const FTransform& InTransform, const FBox& InBox, UPCGPointData* OutPointData)
+		virtual ~FDimensionSampler() = default;
+
+		virtual void SetMetadata(const FSamplerResult& InResult, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata)
+		{
+			if (bSetMetadata)
+			{
+				OutMetadata->InitializeOnSet(OutPoint.MetadataEntry);
+			}
+
+			if (NextDirectionDeltaAttribute)
+			{
+				NextDirectionDeltaAttribute->SetValue(OutPoint.MetadataEntry, InResult.NextDeltaAngle);
+			}
+
+			if (CurvatureAttribute)
+			{
+				CurvatureAttribute->SetValue(OutPoint.MetadataEntry, InResult.Curvature);
+			}
+		}
+
+		virtual void Sample(const FSamplerResult& InResult, UPCGPointData* OutPointData)
 		{
 			FPCGPoint TrivialPoint, BoundsTestPoint;
-			if(SpatialData->SamplePoint(InTransform, InBox, TrivialPoint, OutPointData->Metadata)
-				&& (!BoundingShapeData || BoundingShapeData->SamplePoint(InTransform, InBox, BoundsTestPoint, nullptr)))
+			if(SpatialData->SamplePoint(InResult.Transform, InResult.Box, TrivialPoint, OutPointData->Metadata)
+				&& (!BoundingShapeData || BoundingShapeData->SamplePoint(InResult.Transform, InResult.Box, BoundsTestPoint, nullptr)))
 			{
+				SetMetadata(InResult, TrivialPoint, OutPointData->Metadata);
 				OutPointData->GetMutablePoints().Add(TrivialPoint);
 			}
 		}
 
-		const UPCGPolyLineData* LineData;
-		const UPCGSpatialData* SpatialData;
-		const UPCGSpatialData* BoundingShapeData;
+		const FPCGSplineSamplerParams Params;
+		const UPCGPolyLineData* LineData = nullptr;
+		const UPCGSpatialData* SpatialData = nullptr;
+		const UPCGSpatialData* BoundingShapeData = nullptr;
+
+		bool bSetMetadata = false;
+		FPCGMetadataAttribute<double>* NextDirectionDeltaAttribute = nullptr;
+		FPCGMetadataAttribute<double>* CurvatureAttribute = nullptr;
 	};
 
 	/** Samples in a volume surrounding the poly line. */
 	struct FVolumeSampler : public FDimensionSampler
 	{
-		FVolumeSampler(const UPCGPolyLineData* InLineData, const UPCGSpatialData* InSpatialData, const UPCGSpatialData* InBoundingShapeData, const FPCGSplineSamplerParams& Params)
-			: FDimensionSampler(InLineData, InSpatialData, InBoundingShapeData)
+		FVolumeSampler(const UPCGPolyLineData* InLineData, const UPCGSpatialData* InSpatialData, const UPCGSpatialData* InBoundingShapeData, const FPCGSplineSamplerParams& Params, UPCGPointData* OutPointData)
+			: FDimensionSampler(InLineData, InSpatialData, InBoundingShapeData, Params, OutPointData)
 		{
 			Fill = Params.Fill;
 			NumPlanarSteps = 1 + ((Params.Dimension == EPCGSplineSamplingDimension::OnVertical) ? 0 : Params.NumPlanarSubdivisions);
 			NumHeightSteps = 1 + ((Params.Dimension == EPCGSplineSamplingDimension::OnHorizontal) ? 0 : Params.NumHeightSubdivisions);
 		}
 
-		virtual void Sample(const FTransform& InTransform, const FBox& InBox, UPCGPointData* OutPointData) override
+		virtual void Sample(const FSamplerResult& InResult, UPCGPointData* OutPointData) override
 		{
+			const FTransform& InTransform = InResult.Transform;
+			const FBox& InBox = InResult.Box;
+
 			// We're assuming that we can scale against the origin in this method so this should always be true.
 			// We will also assume that we can separate the curve into 4 ellipse sections for radius checks
 			check(InBox.Max.Y > 0 && InBox.Min.Y < 0 && InBox.Max.Z > 0 && InBox.Min.Z < 0);
@@ -520,6 +602,7 @@ namespace PCGSplineSampler
 							if (SpatialData->SamplePoint(TentativeTransform, SubBox, OutPoint, OutPointData->Metadata)
 								&& (!BoundingShapeData || BoundingShapeData->SamplePoint(TentativeTransform, SubBox, BoundsTestPoint, nullptr)))
 							{
+								SetMetadata(InResult, OutPoint, OutPointData->Metadata);
 								OutPointData->GetMutablePoints().Add(OutPoint);
 							}
 						}
@@ -546,20 +629,45 @@ namespace PCGSplineSampler
 
 		FStepSampler* Sampler = ((Params.Mode == EPCGSplineSamplingMode::Subdivision) ? static_cast<FStepSampler*>(&SubdivisionSampler) : static_cast<FStepSampler*>(&DistanceSampler));
 
-		FDimensionSampler TrivialDimensionSampler(LineData, SpatialData, InBoundingShapeData);
-		FVolumeSampler VolumeSampler(LineData, SpatialData, InBoundingShapeData, Params);
+		FDimensionSampler TrivialDimensionSampler(LineData, SpatialData, InBoundingShapeData, Params, OutPointData);
+		FVolumeSampler VolumeSampler(LineData, SpatialData, InBoundingShapeData, Params, OutPointData);
 
 		FDimensionSampler* ExtentsSampler = ((Params.Dimension == EPCGSplineSamplingDimension::OnSpline) ? &TrivialDimensionSampler : static_cast<FDimensionSampler*>(&VolumeSampler));
 
-		FTransform SeedTransform;
+		bool bHasPreviousPoint = false;
+		FSamplerResult Results[2];
+		FSamplerResult* PreviousResult = &Results[0];
+		FSamplerResult* CurrentResult = &Results[1];
 
-		while (!Sampler->IsDone())
+		if (!Sampler->IsDone())
 		{
-			FBox SeedBox = FBox::BuildAABB(FVector::ZeroVector, FVector::OneVector);
-			// Get seed transform/box
-			Sampler->Step(SeedTransform, SeedBox);
-			// From seed point, sample in other dimensions as needed
-			ExtentsSampler->Sample(SeedTransform, SeedBox, OutPointData);
+			Sampler->Step(*PreviousResult);
+			bHasPreviousPoint = true;
+		}
+		
+		while(!Sampler->IsDone())
+		{
+			// Sample point on spline proper
+			Sampler->Step(*CurrentResult);
+
+			// Get unsigned angle difference between the two points
+			const FVector::FReal DeltaSinAngle = ((CurrentResult->Transform.GetUnitAxis(EAxis::X) ^ PreviousResult->Transform.GetUnitAxis(EAxis::X)) | PreviousResult->Transform.GetUnitAxis(EAxis::Z));
+			// Normalize value to be between -1 and 1
+			FVector::FReal DeltaAngle = FMath::Asin(DeltaSinAngle) / UE_HALF_PI;
+
+			PreviousResult->NextDeltaAngle = DeltaAngle;
+			CurrentResult->PreviousDeltaAngle = -DeltaAngle;
+			// Perform samples "around" the spline depending on the settings
+			ExtentsSampler->Sample(*PreviousResult, OutPointData);
+
+			// Prepare for next iteration
+			Swap(PreviousResult, CurrentResult);
+			*CurrentResult = FSamplerResult();
+		}
+		
+		if (bHasPreviousPoint)
+		{
+			ExtentsSampler->Sample(*PreviousResult, OutPointData);
 		}
 
 		// Finally, set seed on points based on position
