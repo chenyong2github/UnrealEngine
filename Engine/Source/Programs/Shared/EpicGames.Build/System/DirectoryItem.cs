@@ -448,5 +448,27 @@ namespace UnrealBuildBase
 			// Use lambda that doesn't require anything to be captured thus eliminating an allocation.
 			Writer.WriteObjectReference<DirectoryItem>(DirectoryItem, (BinaryArchiveWriter Writer, DirectoryItem DirectoryItem) => Writer.WriteDirectoryReference(DirectoryItem.Location));
 		}
+
+		/// <summary>
+		/// Writes a directory reference  to a binary archive
+		/// </summary>
+		/// <param name="writer">The writer to output data to</param>
+		/// <param name="directory">The item to write</param>
+		public static void WriteCompactDirectoryReference(this BinaryArchiveWriter Writer, DirectoryReference Directory)
+		{
+			DirectoryItem Item = DirectoryItem.GetItemByDirectoryReference(Directory);
+			Writer.WriteDirectoryItem(Item);
+		}
+
+		/// <summary>
+		/// Reads a directory reference from a binary archive
+		/// </summary>
+		/// <param name="reader">Reader to serialize data from</param>
+		/// <returns>New directory reference instance</returns>
+		public static DirectoryReference ReadCompactDirectoryReference(this BinaryArchiveReader Reader)
+		{
+			return Reader.ReadDirectoryItem()!.Location;
+		}
+
 	}
 }

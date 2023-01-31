@@ -344,8 +344,8 @@ namespace UnrealBuildTool
 			CreatePchFile = Reader.ReadFileItem();
 			UsingPchFile = Reader.ReadFileItem();
 			PchThroughHeaderFile = Reader.ReadFileItem();
-			IncludePaths = Reader.ReadList(() => Reader.ReadDirectoryReference())!;
-			SystemIncludePaths = Reader.ReadList(() => Reader.ReadDirectoryReference())!;
+			IncludePaths = Reader.ReadList(() => Reader.ReadCompactDirectoryReference())!;
+			SystemIncludePaths = Reader.ReadList(() => Reader.ReadCompactDirectoryReference())!;
 			Definitions = Reader.ReadList(() => Reader.ReadString())!;
 			ForceIncludeFiles = Reader.ReadList(() => Reader.ReadFileItem())!;
 			Arguments = Reader.ReadList(() => Reader.ReadString())!;
@@ -375,8 +375,8 @@ namespace UnrealBuildTool
 			Writer.WriteFileItem(CreatePchFile);
 			Writer.WriteFileItem(UsingPchFile);
 			Writer.WriteFileItem(PchThroughHeaderFile);
-			Writer.WriteList(IncludePaths, Item => Writer.WriteDirectoryReference(Item));
-			Writer.WriteList(SystemIncludePaths, Item => Writer.WriteDirectoryReference(Item));
+			Writer.WriteList(IncludePaths, Item => Writer.WriteCompactDirectoryReference(Item));
+			Writer.WriteList(SystemIncludePaths, Item => Writer.WriteCompactDirectoryReference(Item));
 			Writer.WriteList(Definitions, Item => Writer.WriteString(Item));
 			Writer.WriteList(ForceIncludeFiles, Item => Writer.WriteFileItem(Item));
 			Writer.WriteList(Arguments, Item => Writer.WriteString(Item));
