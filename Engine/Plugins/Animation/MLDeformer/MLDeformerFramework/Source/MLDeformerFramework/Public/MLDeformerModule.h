@@ -17,8 +17,5 @@ namespace UE::MLDeformer
 		: public IModuleInterface
 	{
 	public:
-		// IModuleInterface overrides.
-		virtual void StartupModule() override;
-		// ~END IModuleInterface overrides.
 	};
 }	// namespace UE::MLDeformer
