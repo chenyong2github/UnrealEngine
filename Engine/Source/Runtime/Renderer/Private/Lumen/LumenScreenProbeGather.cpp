@@ -961,6 +961,7 @@ class FScreenProbeTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER(FVector4f,HistoryUVMinMax)
 		SHADER_PARAMETER(FIntVector4,HistoryViewportMinMax)
 		SHADER_PARAMETER(FVector4f, EffectiveResolution)
+		SHADER_PARAMETER(FVector4f, HistoryEffectiveResolution)
 		SHADER_PARAMETER(uint32, bIsStrataTileHistoryValid)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DiffuseIndirect)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BackfaceDiffuseIndirect)
@@ -1391,7 +1392,11 @@ void UpdateHistoryScreenProbeGather(
 
 		ensureMsgf(SceneTextures.Velocity->Desc.Format != PF_G16R16, TEXT("Lumen requires 3d velocity.  Update Velocity format code."));
 
+		// If the scene render targets reallocate, toss the history so we don't read uninitialized data
 		const FIntPoint EffectiveResolution = Strata::GetStrataTextureResolution(View, SceneTextures.Config.Extent);
+		const FIntPoint HistoryEffectiveResolution = ScreenProbeGatherState.HistoryEffectiveResolution;
+		const bool bSceneTextureExtentMatchHistory = ScreenProbeGatherState.HistorySceneTexturesExtent == SceneTextures.Config.Extent;
+
 		const FIntRect NewHistoryViewRect = View.ViewRect;
 
 		if (*DiffuseIndirectHistoryState
@@ -1399,8 +1404,7 @@ void UpdateHistoryScreenProbeGather(
 			&& !View.bCameraCut 
 			&& !View.bPrevTransformsReset
 			&& !GLumenScreenProbeClearHistoryEveryFrame
-			// If the scene render targets reallocate, toss the history so we don't read uninitialized data
-			&& (*DiffuseIndirectHistoryState)->GetDesc().Extent == EffectiveResolution
+			&& bSceneTextureExtentMatchHistory
 			&& ScreenProbeGatherState.LumenGatherCvars == GLumenGatherCvars
 			&& !bPropagateGlobalLightingChange)
 		{
@@ -1463,6 +1467,7 @@ void UpdateHistoryScreenProbeGather(
 						PassParameters->NormalHistory = bRejectBasedOnNormal ? GraphBuilder.RegisterExternalTexture(NormalHistoryState) : nullptr;
 						PassParameters->BSDFTileHistory = BSDFTileHistory;
 						PassParameters->EffectiveResolution = FVector4f(EffectiveResolution.X, EffectiveResolution.Y, 1.0f / EffectiveResolution.X, 1.0f / EffectiveResolution.Y);
+						PassParameters->HistoryEffectiveResolution = FVector4f(HistoryEffectiveResolution.X, HistoryEffectiveResolution.Y, 1.0f / HistoryEffectiveResolution.X, 1.0f / HistoryEffectiveResolution.Y);
 
 						PassParameters->HistoryDistanceThreshold = GLumenScreenProbeHistoryDistanceThreshold;
 						PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
@@ -1593,6 +1598,8 @@ void UpdateHistoryScreenProbeGather(
 			*DiffuseIndirectHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
 			ScreenProbeGatherState.LumenGatherCvars = GLumenGatherCvars;
 			ScreenProbeGatherState.StrataMaxBSDFCount = View.StrataViewData.MaxBSDFCount;
+			ScreenProbeGatherState.HistoryEffectiveResolution = EffectiveResolution;
+			ScreenProbeGatherState.HistorySceneTexturesExtent = SceneTextures.Config.Extent;
 
 			if (bRejectBasedOnNormal)
 			{

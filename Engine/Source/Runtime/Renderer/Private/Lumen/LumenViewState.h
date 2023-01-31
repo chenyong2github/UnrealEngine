@@ -54,6 +54,8 @@ public:
 	TRefCountPtr<IPooledRenderTarget> ProbeHistoryScreenProbeRadiance;
 	TRefCountPtr<IPooledRenderTarget> ImportanceSamplingHistoryScreenProbeRadiance;
 	FLumenGatherCvarState LumenGatherCvars;
+	FIntPoint HistorySceneTexturesExtent;
+	FIntPoint HistoryEffectiveResolution;
 	uint32 StrataMaxBSDFCount;
 
 	FScreenProbeGatherTemporalState()
@@ -62,6 +64,8 @@ public:
 		DiffuseIndirectHistoryScreenPositionScaleBias = FVector4f(0, 0, 0, 0);
 		ProbeHistoryViewRect = FIntRect(0, 0, 0, 0);
 		ProbeHistoryScreenPositionScaleBias = FVector4f(0, 0, 0, 0);
+		HistorySceneTexturesExtent = FIntPoint(0,0);
+		HistoryEffectiveResolution = FIntPoint(0,0);
 		StrataMaxBSDFCount = 0;
 	}
 
@@ -110,6 +114,8 @@ class FReflectionTemporalState
 public:
 	FIntRect HistoryViewRect;
 	FVector4f HistoryScreenPositionScaleBias;
+	FIntPoint HistorySceneTexturesExtent;
+	FIntPoint HistoryEffectiveResolution;
 	uint32 StrataMaxBSDFCount;
 	TRefCountPtr<IPooledRenderTarget> SpecularIndirectHistoryRT;
 	TRefCountPtr<IPooledRenderTarget> NumFramesAccumulatedRT;
@@ -120,6 +126,8 @@ public:
 	{
 		HistoryViewRect = FIntRect(0, 0, 0, 0);
 		HistoryScreenPositionScaleBias = FVector4f(0, 0, 0, 0);
+		HistorySceneTexturesExtent = FIntPoint(0,0);
+		HistoryEffectiveResolution = FIntPoint(0,0);
 		StrataMaxBSDFCount = 0;
 	}
 

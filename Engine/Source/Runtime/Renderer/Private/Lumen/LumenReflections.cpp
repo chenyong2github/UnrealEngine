@@ -482,11 +482,12 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryNumFramesAccumulated)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolveVariance)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolveVarianceHistory)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, BSDFTileHistory)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, HistoryBSDFTile)
 		SHADER_PARAMETER(float,HistoryDistanceThreshold)
 		SHADER_PARAMETER(float,PrevInvPreExposure)
 		SHADER_PARAMETER(float,MaxFramesAccumulated)
 		SHADER_PARAMETER(FVector4f, EffectiveResolution)
+		SHADER_PARAMETER(FVector4f, HistoryEffectiveResolution)
 		SHADER_PARAMETER(FVector4f,HistoryScreenPositionScaleBias)
 		SHADER_PARAMETER(FVector4f,HistoryUVMinMax)
 		SHADER_PARAMETER(uint32, bIsStrataTileHistoryValid)
@@ -811,7 +812,6 @@ void UpdateHistoryReflections(
 	FRDGTextureDesc NumHistoryFramesAccumulatedDesc = FRDGTextureDesc::Create2D(EffectiveResolution, PF_G8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef NewNumHistoryFramesAccumulated = GraphBuilder.CreateTexture(NumHistoryFramesAccumulatedDesc, TEXT("Lumen.Reflections.NumHistoryFramesAccumulated"));
 
-
 	if (GLumenReflectionTemporalFilter
 		&& View.ViewState
 		&& View.ViewState->Lumen.ReflectionState.SpecularIndirectHistoryRT
@@ -819,9 +819,14 @@ void UpdateHistoryReflections(
 		&& !View.bCameraCut 
 		&& !View.bPrevTransformsReset
 		// If the scene render targets reallocate, toss the history so we don't read uninitialized data
-		&& View.ViewState->Lumen.ReflectionState.SpecularIndirectHistoryRT->GetDesc().Extent == EffectiveResolution
-		&& (!bUseBilaterialFilter || View.ViewState->Lumen.ReflectionState.ResolveVarianceHistoryRT->GetDesc().Extent == EffectiveResolution))
+		&& View.ViewState->Lumen.ReflectionState.HistorySceneTexturesExtent == SceneTextures.Config.Extent
+		&& (!bUseBilaterialFilter || View.ViewState->Lumen.ReflectionState.HistorySceneTexturesExtent == SceneTextures.Config.Extent))
 	{
+		// Sanity check
+		const FIntPoint HistoryEffectiveResolution = View.ViewState->Lumen.ReflectionState.HistoryEffectiveResolution;
+		check(View.ViewState->Lumen.ReflectionState.SpecularIndirectHistoryRT->GetDesc().Extent == HistoryEffectiveResolution);
+		check(View.ViewState->Lumen.ReflectionState.ResolveVarianceHistoryRT == nullptr || View.ViewState->Lumen.ReflectionState.ResolveVarianceHistoryRT->GetDesc().Extent == HistoryEffectiveResolution);
+
 		FReflectionTemporalState& ReflectionTemporalState = View.ViewState->Lumen.ReflectionState;
 		TRefCountPtr<IPooledRenderTarget>* SpecularIndirectHistoryState = &ReflectionTemporalState.SpecularIndirectHistoryRT;
 		TRefCountPtr<IPooledRenderTarget>* NumFramesAccumulatedState = &ReflectionTemporalState.NumFramesAccumulatedRT;
@@ -846,14 +851,15 @@ void UpdateHistoryReflections(
 			PassParameters->SpecularIndirectHistory = OldSpecularIndirectHistory;
 			PassParameters->HistoryNumFramesAccumulated = GraphBuilder.RegisterExternalTexture(*NumFramesAccumulatedState);
 			PassParameters->DepthHistory = OldDepthHistory;
-			PassParameters->BSDFTileHistory = BSDFTileHistory;
+			PassParameters->HistoryBSDFTile = BSDFTileHistory;
 			PassParameters->HistoryDistanceThreshold = GLumenReflectionHistoryDistanceThreshold;
 			PassParameters->PrevInvPreExposure = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 			PassParameters->HistoryScreenPositionScaleBias = *HistoryScreenPositionScaleBias;
 			PassParameters->bIsStrataTileHistoryValid = bOverflowTileHistoryValid ? 1u : 0u;
 
-			// Effective resolution containing the primarty & overflow space (if any)
+			// Effective resolution containing the primary & overflow space (if any)
 			PassParameters->EffectiveResolution = FVector4f(EffectiveResolution.X, EffectiveResolution.Y, 1.f / EffectiveResolution.X, 1.f / EffectiveResolution.Y);
+			PassParameters->HistoryEffectiveResolution = FVector4f(HistoryEffectiveResolution.X, HistoryEffectiveResolution.Y, 1.f / HistoryEffectiveResolution.X, 1.f / HistoryEffectiveResolution.Y);
 
 			// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
 			const FVector2f InvBufferSize(1.0f / SceneTextures.Config.Extent.X, 1.0f / SceneTextures.Config.Extent.Y);
@@ -919,6 +925,8 @@ void UpdateHistoryReflections(
 		FReflectionTemporalState& ReflectionTemporalState = View.ViewState->Lumen.ReflectionState;
 		ReflectionTemporalState.HistoryViewRect = View.ViewRect;
 		ReflectionTemporalState.HistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
+		ReflectionTemporalState.HistoryEffectiveResolution = EffectiveResolution;
+		ReflectionTemporalState.HistorySceneTexturesExtent = SceneTextures.Config.Extent;
 		ReflectionTemporalState.StrataMaxBSDFCount = View.StrataViewData.MaxBSDFCount;
 
 		// Queue updating the view state's render target reference with the new values
