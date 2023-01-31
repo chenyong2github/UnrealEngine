@@ -15,7 +15,8 @@ public class UnrealVirtualizationTool : ModuleRules
 				"Projects",
 				"ApplicationCore",
 				"SourceControl",
-				"PerforceSourceControl"
+				"PerforceSourceControl",
+				"DesktopPlatform"
 			});
 
 		PublicIncludePaths.Add("Runtime/Launch/Public");
