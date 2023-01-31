@@ -848,15 +848,39 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 
 		// Reconstruct a new node, same as PCGNode, but without any edges in the new graph 
 		TObjectPtr<UPCGNode> NewNode = NewPCGGraph->ReconstructNewNode(PCGNode);
+
+		// Safeguard: We should have a 1 for 1 matching between pins labels between the original node
+		// and the copied node. If for some reason we don't (perhaps the node was not updated correctly after pins were added/removed)
+		// we will log an error and try to connect as best as we can (probably breaking some edges on the process).
+
+		auto Mapping = [&PinMapping, PCGNode](const TArray<UPCGPin*>& OriginalPins, const TArray<UPCGPin*>& NewPins)
+		{
+			TSet<FName> UnmatchedOriginal;
+			TMap<FName, UPCGPin*> NewMapping;
+
+			for (UPCGPin* NewPin : NewPins)
+			{
+				NewMapping.Emplace(NewPin->Properties.Label, NewPin);
+			}
+
+			for (UPCGPin* OriginalPin : OriginalPins)
+			{
+				FName PinLabel = OriginalPin->Properties.Label;
+				if (UPCGPin** NewPinPtr = NewMapping.Find(PinLabel))
+				{
+					PinMapping.Emplace(OriginalPin, *NewPinPtr);
+				}
+				else if (OriginalPin->IsConnected())
+				{
+					// It is only problematic if the pin was connected
+					UE_LOG(LogPCG, Error, TEXT("[CollapseInSubgraph - %s] %s pin %s does not exist anymore. Edges will be broken."),
+						*PCGNode->GetNodeTitle().ToString(), (OriginalPin->IsOutputPin() ? TEXT("Output") : TEXT("Input")), *PinLabel.ToString());
+				}
+			}
+		};
 		
-		for (int i = 0; i < PCGNode->GetInputPins().Num(); ++i)
-		{
-			PinMapping.Emplace(PCGNode->GetInputPins()[i], NewNode->GetInputPins()[i]);
-		}
-		for (int i = 0; i < PCGNode->GetOutputPins().Num(); ++i)
-		{
-			PinMapping.Emplace(PCGNode->GetOutputPins()[i], NewNode->GetOutputPins()[i]);
-		}
+		Mapping(PCGNode->GetInputPins(), NewNode->GetInputPins());
+		Mapping(PCGNode->GetOutputPins(), NewNode->GetOutputPins());
 	}
 
 	// Also duplicate the extra nodes and assign them to the new graph

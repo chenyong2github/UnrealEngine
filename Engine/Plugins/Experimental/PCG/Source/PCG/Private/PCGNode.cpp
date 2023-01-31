@@ -705,15 +705,16 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 				for (int32 RemovedPinIndex = PinsToRemove.Num() - 1; RemovedPinIndex >= 0; --RemovedPinIndex)
 				{
 					const int32 PinIndex = Pins.IndexOfByKey(PinsToRemove[RemovedPinIndex]);
-					check(PinIndex >= 0);
-
-					if (bRemoveFromAllNames)
+					if (PinIndex >= 0)
 					{
-						AllPinNames.Remove(Pins[PinIndex]->Properties.Label);
-					}
+						if (bRemoveFromAllNames)
+						{
+							AllPinNames.Remove(Pins[PinIndex]->Properties.Label);
+						}
 
-					bAppliedEdgeChanges |= Pins[PinIndex]->BreakAllEdges();
-					Pins.RemoveAt(PinIndex);
+						bAppliedEdgeChanges |= Pins[PinIndex]->BreakAllEdges();
+						Pins.RemoveAt(PinIndex);
+					}
 				}
 			};
 
