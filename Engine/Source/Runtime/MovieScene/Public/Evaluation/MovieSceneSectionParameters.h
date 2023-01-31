@@ -4,7 +4,49 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "Misc/EnumClassFlags.h"
 #include "MovieSceneSectionParameters.generated.h"
+
+/**
+ * Flag structure that can be applied to any sub-section allowing control over various
+ * behaviors for the nested sub-sequence.
+ */
+UENUM(BlueprintType)
+enum class EMovieSceneSubSectionFlags
+{
+	None = 0,
+
+	/*~ Begin mutually exclusive */
+	/** When set, everything within the sub-section (including further sub-sections) should be keep-state. Mutually exclusive with OverrideRestoreState. */
+	OverrideKeepState = 1 << 0,
+	/** When set, everything within the sub-section (including further sub-sections) should be restore-state. Mutually exclusive with OverrideKeepState. */
+	OverrideRestoreState = 1 << 1,
+	/*~ End mutually exclusive */
+
+	/** Everything inside this sub-sequence should ignore hierarchical bias and always be relevant */
+	IgnoreHierarchicalBias = 1 << 2,
+
+	AnyRestoreStateOverride = OverrideKeepState | OverrideRestoreState,
+};
+ENUM_CLASS_FLAGS(EMovieSceneSubSectionFlags)
+
+namespace UE::MovieScene
+{
+	/** Accumulate parent and chld sub-section flags ensuring that flags are inherited correctly. */
+	inline EMovieSceneSubSectionFlags AccumulateChildSubSectionFlags(EMovieSceneSubSectionFlags ParentFlags, EMovieSceneSubSectionFlags ChildFlags)
+	{
+		if (EnumHasAnyFlags(ParentFlags, EMovieSceneSubSectionFlags::AnyRestoreStateOverride))
+		{
+			// If the parent has any uninheritable flags based on the parent, ensure the child has the parent's flags
+			return (ChildFlags & ~EMovieSceneSubSectionFlags::AnyRestoreStateOverride) | ParentFlags;
+		}
+		else
+		{
+			return ChildFlags | ParentFlags;
+		}
+	}
+
+} // namespace UE::MovieScene
 
 USTRUCT(BlueprintType)
 struct FMovieSceneSectionParameters
@@ -47,6 +89,10 @@ public:
 	/** Hierachical bias. Higher bias will take precedence. */
 	UPROPERTY(config, BlueprintReadWrite, EditAnywhere, Category="Sequence")
 	int32 HierarchicalBias;
+
+	/** Sub-section flags defining how to deal with this sub-sequence */
+	UPROPERTY(config, BlueprintReadWrite, EditAnywhere, Category="Sequence")
+	EMovieSceneSubSectionFlags Flags;
 
 	UPROPERTY()
 	float StartOffset_DEPRECATED;

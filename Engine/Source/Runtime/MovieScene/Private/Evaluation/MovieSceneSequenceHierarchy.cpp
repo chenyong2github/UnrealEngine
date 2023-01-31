@@ -26,6 +26,7 @@ FMovieSceneSubSequenceData::FMovieSceneSubSequenceData(const UMovieSceneSubSecti
 	, ParentFirstLoopStartFrameOffset(InSubSection.Parameters.FirstLoopStartFrameOffset)
 	, bCanLoop(InSubSection.Parameters.bCanLoop)
 	, HierarchicalBias(InSubSection.Parameters.HierarchicalBias)
+	, AccumulatedFlags(InSubSection.Parameters.Flags)
 #if WITH_EDITORONLY_DATA
 	, SectionPath(*InSubSection.GetPathNameInMovieScene())
 #endif

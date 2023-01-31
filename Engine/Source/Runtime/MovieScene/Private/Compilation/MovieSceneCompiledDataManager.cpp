@@ -160,6 +160,8 @@ struct FGatherParameters
 
 		SubParams.LocalClampRange           = SubData.RootToSequenceTransform.TransformRangeUnwarped(SubParams.RootClampRange);
 
+		SubParams.AccumulatedFlags          = UE::MovieScene::AccumulateChildSubSectionFlags(AccumulatedFlags, SubData.AccumulatedFlags);
+
 		return SubParams;
 	}
 
@@ -194,6 +196,9 @@ struct FGatherParameters
 
 	/** Current accumulated hierarchical bias */
 	int16 HierarchicalBias;
+
+	/** Current accumulated sub-section flags */
+	EMovieSceneSubSectionFlags AccumulatedFlags;
 
 	EMovieSceneServerClientMask NetworkMask;
 };
@@ -1458,6 +1463,7 @@ bool UMovieSceneCompiledDataManager::GenerateSubSequenceData(UMovieSceneSubTrack
 		NewSubData.PlayRange               = TRange<FFrameNumber>::Intersection(InnerClampRange, NewSubData.PlayRange.Value);
 		NewSubData.RootToSequenceTransform = NewSubData.RootToSequenceTransform * Params.RootToSequenceTransform;
 		NewSubData.HierarchicalBias        = Params.HierarchicalBias + NewSubData.HierarchicalBias;
+		NewSubData.AccumulatedFlags        = Params.AccumulatedFlags;
 
 		// Add the sub data to the root hierarchy
 		InOutHierarchy->Add(NewSubData, InnerSequenceID, ParentSequenceID);

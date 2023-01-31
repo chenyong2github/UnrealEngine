@@ -619,6 +619,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 				Params.RootInstanceHandle = InstanceHandle;
 				Params.DefaultCompletionMode = SubSequence->DefaultCompletionMode;
 				Params.HierarchicalBias = SubData->HierarchicalBias;
+				Params.SubSectionFlags = SubData->AccumulatedFlags;
 				Params.bPreRoll  = bIsPreRoll;
 				Params.bPostRoll = bIsPostRoll;
 				Params.bDynamicWeighting = bDynamicWeighting.Get(false); // Always inherit dynamic weighting flags

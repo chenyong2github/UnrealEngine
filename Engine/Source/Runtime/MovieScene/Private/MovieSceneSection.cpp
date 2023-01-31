@@ -315,8 +315,17 @@ void UMovieSceneSection::BuildDefaultComponents(UMovieSceneEntitySystemLinker* E
 
 	const bool bHasEasing = (Easing.GetEaseInDuration() > 0 || Easing.GetEaseOutDuration() > 0);
 
-	const bool bShouldRestoreState = (EvalOptions.CompletionMode == EMovieSceneCompletionMode::RestoreState) ||
-		( EvalOptions.CompletionMode == EMovieSceneCompletionMode::ProjectDefault && Params.Sequence.DefaultCompletionMode == EMovieSceneCompletionMode::RestoreState);
+	// Should restore state if we're not forcing keep state and any one of the following:
+	// - We're forcing restore state
+	// - This section is set to restore state
+	// - This section is set to the default, and the default is restore state
+	const bool bForceKeepState     = EnumHasAnyFlags(Params.Sequence.SubSectionFlags, EMovieSceneSubSectionFlags::OverrideKeepState);
+	const bool bShouldRestoreState = bForceKeepState == false &&
+		(
+			EnumHasAnyFlags(Params.Sequence.SubSectionFlags, EMovieSceneSubSectionFlags::OverrideRestoreState) ||
+			(EvalOptions.CompletionMode == EMovieSceneCompletionMode::RestoreState) ||
+			(EvalOptions.CompletionMode == EMovieSceneCompletionMode::ProjectDefault && Params.Sequence.DefaultCompletionMode == EMovieSceneCompletionMode::RestoreState)
+		);
 
 	TComponentTypeID<FEasingComponentData> EasingComponentID = Components->Easing;
 	FComponentTypeID RestoreStateTag = Components->Tags.RestoreState;
@@ -342,17 +351,18 @@ void UMovieSceneSection::BuildDefaultComponents(UMovieSceneEntitySystemLinker* E
 
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()
-		.AddConditional(Components->BlenderType,                BlenderSystemClass, BlenderSystemClass.Get() != nullptr)
-		.AddConditional(Components->Easing,                     FEasingComponentData{ decltype(FEasingComponentData::Section)(this) }, bHasEasing)
-		.AddConditional(Components->HierarchicalBias,           Params.Sequence.HierarchicalBias, Params.Sequence.HierarchicalBias != 0)
-		.AddConditional(Components->Interrogation.InputKey,     Params.InterrogationKey, Params.InterrogationKey.IsValid())
-		.AddConditional(Components->Interrogation.Instance,     Params.InterrogationInstance, Params.InterrogationInstance.IsValid())
-		.AddConditional(Components->EvalTime,                   Params.EntityMetaData ? Params.EntityMetaData->ForcedTime : 0, bHasForcedTime)
-		.AddTagConditional(Components->Tags.RestoreState,       bShouldRestoreState)
-		.AddTagConditional(Components->Tags.FixedTime,          bHasForcedTime)
-		.AddTagConditional(Components->Tags.SectionPreRoll,     bHasSectionPreRoll)
-		.AddTagConditional(Components->Tags.PreRoll,            bHasSequencePreRoll || bHasSectionPreRoll)
-		.AddTagConditional(BlendTag,                            BlendTag != FComponentTypeID::Invalid())
+		.AddConditional(Components->BlenderType,                    BlenderSystemClass, BlenderSystemClass.Get() != nullptr)
+		.AddConditional(Components->Easing,                         FEasingComponentData{ decltype(FEasingComponentData::Section)(this) }, bHasEasing)
+		.AddConditional(Components->HierarchicalBias,               Params.Sequence.HierarchicalBias, Params.Sequence.HierarchicalBias != 0)
+		.AddConditional(Components->Interrogation.InputKey,         Params.InterrogationKey, Params.InterrogationKey.IsValid())
+		.AddConditional(Components->Interrogation.Instance,         Params.InterrogationInstance, Params.InterrogationInstance.IsValid())
+		.AddConditional(Components->EvalTime,                       Params.EntityMetaData ? Params.EntityMetaData->ForcedTime : 0, bHasForcedTime)
+		.AddTagConditional(Components->Tags.RestoreState,           bShouldRestoreState)
+		.AddTagConditional(Components->Tags.IgnoreHierarchicalBias, EnumHasAnyFlags(Params.Sequence.SubSectionFlags, EMovieSceneSubSectionFlags::IgnoreHierarchicalBias))
+		.AddTagConditional(Components->Tags.FixedTime,              bHasForcedTime)
+		.AddTagConditional(Components->Tags.SectionPreRoll,         bHasSectionPreRoll)
+		.AddTagConditional(Components->Tags.PreRoll,                bHasSequencePreRoll || bHasSectionPreRoll)
+		.AddTagConditional(BlendTag,                                BlendTag != FComponentTypeID::Invalid())
 	);
 
 	if (BlendTag == Components->Tags.AdditiveFromBaseBlend)

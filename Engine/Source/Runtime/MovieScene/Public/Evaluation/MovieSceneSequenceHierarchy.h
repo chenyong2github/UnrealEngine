@@ -146,6 +146,10 @@ struct FMovieSceneSubSequenceData
 	UPROPERTY()
 	int16 HierarchicalBias;
 
+	/** Flags accumulated from parent->child for each sub-section that led to the inclusion of this sub-sequence */
+	UPROPERTY()
+	EMovieSceneSubSectionFlags AccumulatedFlags;
+
 	/** Instance data that should be used for any tracks contained immediately within this sub sequence */
 	UPROPERTY()
 	FMovieSceneSequenceInstanceDataPtr InstanceData;

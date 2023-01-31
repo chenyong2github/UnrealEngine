@@ -4,6 +4,7 @@
 
 #include "Containers/Array.h"
 #include "Containers/ContainerAllocationPolicies.h"
+#include "Evaluation/MovieSceneSectionParameters.h"
 #include "EntitySystem/MovieSceneEntityBuilder.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
@@ -68,6 +69,7 @@ struct FEntityImportSequenceParams
 		: HierarchicalBias(0)
 		, SequenceID(MovieSceneSequenceID::Root)
 		, DefaultCompletionMode(EMovieSceneCompletionMode::KeepState)
+		, SubSectionFlags(EMovieSceneSubSectionFlags::None)
 		, bPreRoll(false)
 		, bPostRoll(false)
 		, bDynamicWeighting(false)
@@ -80,6 +82,7 @@ struct FEntityImportSequenceParams
 	FRootInstanceHandle RootInstanceHandle;
 
 	EMovieSceneCompletionMode DefaultCompletionMode;
+	EMovieSceneSubSectionFlags SubSectionFlags;
 
 	bool bPreRoll : 1;
 	bool bPostRoll : 1;
