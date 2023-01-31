@@ -3821,6 +3821,12 @@ FLinearColor UKismetMathLibrary::Divide_LinearColorLinearColor(FLinearColor A, F
 	return A / B;
 }
 
+KISMET_MATH_FORCEINLINE
+FString UKismetMathLibrary::ToHex_LinearColor(FLinearColor InColor)
+{
+	return InColor.ToFColor(true).ToHex();
+}
+
 
 KISMET_MATH_FORCEINLINE
 FString UKismetMathLibrary::SelectString(const FString& A, const FString& B, bool bSelectA)

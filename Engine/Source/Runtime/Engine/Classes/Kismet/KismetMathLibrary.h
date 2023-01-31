@@ -3241,7 +3241,10 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	/** Element-wise multiplication of two linear colors (R/R, G/G, B/B, A/A) */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "LinearColor / LinearColor", CompactNodeTitle = "/", ScriptMethod = "Divide", ScriptOperator = "/;/=", Keywords = "/ divide"), Category="Math|Color")
 	static FLinearColor Divide_LinearColorLinearColor(FLinearColor A, FLinearColor B);
-
+	
+	/** Converts this color value to a hexadecimal string. The format of the string is RRGGBBAA. */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToHex"), Category = "Math|Color")
+	static FString ToHex_LinearColor(FLinearColor InColor);
 
 	//
 	// Plane functions.
