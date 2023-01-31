@@ -155,12 +155,12 @@ static bool AreAndroidOpenGLRemoteCompileServicesAvailable()
 	{
 		const FString* ConfigRulesDisableProgramCompileServices = FAndroidMisc::GetConfigRulesVariable(TEXT("DisableProgramCompileServices"));
 		bool bConfigRulesDisableProgramCompileServices = ConfigRulesDisableProgramCompileServices && ConfigRulesDisableProgramCompileServices->Equals("true", ESearchCase::IgnoreCase);
-		static const auto CVarProgramLRU = IConsoleManager::Get().FindConsoleVariable(TEXT("r.OpenGL.EnableProgramLRUCache"));
+		static const auto CVarBinaryProgramCache = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProgramBinaryCache.Enable"));
 		static const auto CVarNumRemoteProgramCompileServices = IConsoleManager::Get().FindConsoleVariable(TEXT("Android.OpenGL.NumRemoteProgramCompileServices"));
 
-		RemoteCompileService = !bConfigRulesDisableProgramCompileServices && OpenGLRemoteGLProgramCompileJNI.bAllFound && (CVarProgramLRU->GetInt() != 0) && (CVarNumRemoteProgramCompileServices->GetInt() > 0);
+		RemoteCompileService = !bConfigRulesDisableProgramCompileServices && OpenGLRemoteGLProgramCompileJNI.bAllFound && (CVarBinaryProgramCache->GetInt() != 0) && (CVarNumRemoteProgramCompileServices->GetInt() > 0);
 		FGenericCrashContext::SetEngineData(TEXT("Android.PSOService"), RemoteCompileService == 0? TEXT("disabled") : TEXT("enabled"));
-		UE_CLOG(!RemoteCompileService, LogRHI, Log, TEXT("Remote PSO services disabled: (%d, %d, %d, %d)"), bConfigRulesDisableProgramCompileServices, OpenGLRemoteGLProgramCompileJNI.bAllFound, CVarProgramLRU->GetInt(), CVarNumRemoteProgramCompileServices->GetInt());
+		UE_CLOG(!RemoteCompileService, LogRHI, Log, TEXT("Remote PSO services disabled: (%d, %d, %d, %d)"), bConfigRulesDisableProgramCompileServices, OpenGLRemoteGLProgramCompileJNI.bAllFound, CVarBinaryProgramCache->GetInt(), CVarNumRemoteProgramCompileServices->GetInt());
 	}
 	return RemoteCompileService;
 }

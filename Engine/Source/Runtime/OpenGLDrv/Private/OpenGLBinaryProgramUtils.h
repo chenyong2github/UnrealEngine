@@ -11,16 +11,11 @@ class FOpenGLProgramBinary
 {
 public:
 	FOpenGLProgramBinary() {};
-	FOpenGLProgramBinary(TArray<uint8>&& ProgramMemory) : DataView(ProgramMemory.GetData(), ProgramMemory.Num()), OwnedData(MoveTemp(ProgramMemory))
+	FOpenGLProgramBinary(TArray<uint8>&& ProgramMemory) : OwnedData(MoveTemp(ProgramMemory)), DataView(OwnedData) 
 	{
 		INC_MEMORY_STAT_BY(STAT_OpenGLShaderLRUProgramMemory, DataView.Num());
 		check(IsOwned());
 		check(IsValid());
-	}
-
-	FOpenGLProgramBinary(FOpenGLProgramBinary&& Src)
-	{
-		*this = MoveTemp(Src);
 	}
 
 	// No ownership, just a view to a region within the mmapped PSO cache.
@@ -31,12 +26,9 @@ public:
 		check(IsValid());
 	}
 
-	FOpenGLProgramBinary& operator= (FOpenGLProgramBinary&& rhs)
-	{
-		Swap(DataView, rhs.DataView);
-		Swap(OwnedData, rhs.OwnedData);
-		return *this;
-	}
+	FOpenGLProgramBinary& operator= (FOpenGLProgramBinary&& rhs) = default;
+
+	FOpenGLProgramBinary(FOpenGLProgramBinary&& Src) = default;
 
 	~FOpenGLProgramBinary()
 	{
@@ -55,10 +47,10 @@ public:
 	bool IsOwned() const { return OwnedData.Num() > 0; }
 	const TArrayView<const uint8> GetDataView() const { return DataView; }
 private:
+	// The data when programs are owned.
+	TArray<uint8> OwnedData;
 	// a view to the raw program binary, either points to OwnedData or an array view within the mmapped prebuilt PSO cache.
 	TArrayView<const uint8> DataView;
-	// We may own the data where programs are not 
-	TArray<uint8> OwnedData;
 };
 
 namespace UE

@@ -338,6 +338,12 @@ public:
 		static_assert(TIsGLProxyObject_V<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>, "Wrong type past");
 		return static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
 	}
+	template<typename TRHIType>
+	static FORCEINLINE const typename TOpenGLResourceTraits<TRHIType>::TConcreteType* ResourceCastProxy(const TRHIType* Resource)
+	{
+		static_assert(TIsGLProxyObject_V<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>, "Wrong type past");
+		return static_cast<const typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
+	}
 
 	// If using a Proxy object return the contained GL object rather than the proxy itself.
 	template<typename TRHIType>
@@ -864,6 +870,7 @@ public:
 			false);
 	}
 
+	bool LinkComputeShader(FRHIComputeShader* ComputeShaderRHI, FOpenGLComputeShader* ComputeShader);
 	class FOpenGLLinkedProgram* GetLinkedComputeProgram(FRHIComputeShader* ComputeShaderRHI);
 
 	FBoundShaderStateRHIRef RHICreateBoundShaderState_OnThisThread(FRHIVertexDeclaration* VertexDeclaration, FRHIVertexShader* VertexShader, FRHIPixelShader* PixelShader, FRHIGeometryShader* GeometryShader, bool FromPSOFileCache);
@@ -903,6 +910,7 @@ private:
 
 	void PrepareGFXBoundShaderState(const FGraphicsPipelineStateInitializer& Initializer);
 
+	FOpenGLLinkedProgram* LinkProgram(const class FOpenGLLinkedProgramConfiguration& Config);
 
 	/** called once per frame, used for resource processing */
 	void EndFrameTick();
