@@ -39,7 +39,7 @@ namespace Chaos
 		VectorRegister4Float XAxisHalfExtent;
 		VectorRegister4Float YAxisHalfExtent;
 		VectorRegister4Float ZAxisHalfExtent;
-		static constexpr int EdgeNum = 3;
+		static constexpr int32 EdgeNum = 3;
 		VectorRegister4Float Edges[EdgeNum];
 	};
 
@@ -55,7 +55,7 @@ namespace Chaos
 
 	private:
 		void Initialize(const FRigidTransform3& Transform, const FVec3f& HalfExtentsf);
-		bool ComputeEdgeOverlap(const VectorRegister4Float& TriangleEdge, const VectorRegister4Float& TriangleVertex, const VectorRegister4Float& Centroid, const VectorRegister4Float& Normal, const VectorRegister4Float& LocalClosest) const;
+		bool ComputeEdgeOverlap(const VectorRegister4Float& TriangleEdge, const VectorRegister4Float& TriangleVertex, const VectorRegister4Float& Centroid) const;
 
 		VectorRegister4Float Position;
 		VectorRegister4Float HalfExtents;
@@ -63,6 +63,12 @@ namespace Chaos
 		const static VectorRegister4Float SignX;
 		const static VectorRegister4Float SignY;
 		const static VectorRegister4Float SignZ;
+		static constexpr int32 EdgeNum = 3;
+		constexpr static VectorRegister4Float Edges[EdgeNum] = {
+			MakeVectorRegisterFloatConstant(1.f, 0.f, 0.f, 0.f),
+			MakeVectorRegisterFloatConstant(0.f, 1.f, 0.f, 0.f),
+			MakeVectorRegisterFloatConstant(0.f, 0.f, 1.f, 0.f)
+		};
 	};
 }
 
