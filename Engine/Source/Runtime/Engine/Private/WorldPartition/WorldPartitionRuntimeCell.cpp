@@ -21,7 +21,9 @@ UWorldPartitionRuntimeCell::UWorldPartitionRuntimeCell(const FObjectInitializer&
 	, DebugStreamingPriority(-1.f)
 #endif
 	, RuntimeCellData(nullptr)
-{}
+{
+	check(HasAnyFlags(RF_ClassDefaultObject) || GetOuter()->Implements<UWorldPartitionRuntimeCellOwner>());
+}
 
 #if WITH_EDITOR
 void UWorldPartitionRuntimeCell::PostDuplicate(bool bDuplicateForPIE)

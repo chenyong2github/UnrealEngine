@@ -30,9 +30,6 @@ class ENGINE_API UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartiti
 	virtual bool IsLoading() const override;
 	//~End UWorldPartitionRuntimeCell Interface
 
-	UWorld* GetOwningWorld() const;
-	UWorld* GetOuterWorld() const;
-
 	//~Begin IWorldPartitionCell Interface
 	FName GetLevelPackageName() const override;
 	//~End IWorldPartitionCell Interface

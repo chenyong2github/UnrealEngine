@@ -55,9 +55,11 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRunti
 
 	UnsavedActorsContainer = InCell.UnsavedActorsContainer;
 
-	Initialize(GetTypedOuter<UWorld>(), InCell.GetPackages());
+	IWorldPartitionRuntimeCellOwner* CellOwner = InCell.GetCellOwner();
+	Initialize(CellOwner->GetOuterWorld(), InCell.GetPackages());
 #else
-	OuterWorldPartition = GetTypedOuter<UWorld>()->GetWorldPartition();
+	IWorldPartitionRuntimeCellOwner* CellOwner = InCell.GetCellOwner();
+	OuterWorldPartition = CellOwner->GetOuterWorld()->GetWorldPartition();
 #endif
 
 	UpdateShouldSkipMakingVisibilityTransactionRequest();
@@ -643,7 +645,7 @@ bool UWorldPartitionLevelStreamingDynamic::CanChangeVisibility(bool bMakeVisible
 
 			if (!bAlwaysAllowVisibilityChange)
 			{
-				if (const UWorldPartition* WorldPartition = RuntimeLevelStreamingCell->GetTypedOuter<UWorldPartition>())
+				if (const UWorldPartition* WorldPartition = RuntimeLevelStreamingCell->GetCellOwner()->GetWorldPartition())
 				{
 					if (UHLODSubsystem* HLODSubsystem = GetWorld()->GetSubsystem<UHLODSubsystem>())
 					{
