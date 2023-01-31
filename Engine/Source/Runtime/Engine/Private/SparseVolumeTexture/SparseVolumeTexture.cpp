@@ -277,19 +277,63 @@ USparseVolumeTexture::USparseVolumeTexture(const FObjectInitializer& ObjectIniti
 {
 }
 
-void USparseVolumeTexture::GetFrameUVScaleBias(int32 FrameIndex, FVector* OutScale, FVector* OutBias) const
+FVector4 USparseVolumeTexture::GetUniformParameter(int32 Index) const
+{
+	const FSparseVolumeTextureSceneProxy* Proxy = GetSparseVolumeTextureSceneProxy();
+	if (Proxy)
+	{
+		const FSparseVolumeAssetHeader& Header = Proxy->GetHeader();
+		switch (Index)
+		{
+		case ESparseVolumeTexture_TileSize:
+		{
+			return FVector4(float(SPARSE_VOLUME_TILE_RES), 0.0f, 0.0f, 0.0f);
+		}
+		case ESparseVolumeTexture_PageTableSize:
+		{
+			return FVector4(Header.PageTableVolumeResolution.X, Header.PageTableVolumeResolution.Y, Header.PageTableVolumeResolution.Z, 0.0f);
+		}
+		case ESparseVolumeTexture_UVScale: // fallthrough
+		case ESparseVolumeTexture_UVBias:
+		{
+			FVector Scale;
+			FVector Bias;
+			GetFrameUVScaleBias(&Scale, &Bias);
+			return (Index == ESparseVolumeTexture_UVScale) ? FVector4(Scale) : FVector4(Bias);
+		}
+		default:
+		{
+			break;
+		}
+		}
+		checkNoEntry();
+		return FVector4(ForceInitToZero);
+	}
+
+	// 0 while waiting for the proxy
+	return FVector4(ForceInitToZero);
+}
+
+void USparseVolumeTexture::GetFrameUVScaleBias(FVector* OutScale, FVector* OutBias) const
 {
 	*OutScale = FVector::One();
 	*OutBias = FVector::Zero();
-	const FSparseVolumeTextureSceneProxy* Proxy = GetSparseVolumeTextureSceneProxy(FrameIndex);
+	const FSparseVolumeTextureSceneProxy* Proxy = GetSparseVolumeTextureSceneProxy();
 	if (Proxy)
 	{
 		const FSparseVolumeAssetHeader& Header = Proxy->GetHeader();
 		const FBox VolumeBounds = GetVolumeBounds();
 		check(VolumeBounds.GetVolume() > 0.0);
-		const FBox FrameBounds = FBox(FVector(Header.SourceVolumeAABBMin), FVector(Header.SourceVolumeAABBMin + Header.PageTableVolumeResolution * SPARSE_VOLUME_TILE_RES)); // AABB of current frame
+		const FBox FrameBounds = FBox(FVector(Header.SourceVolumeAABBMin), FVector(Header.SourceVolumeAABBMin + Header.SourceVolumeResolution)); // AABB of current frame
+		const FBox FrameBoundsPadded = FBox(FVector(Header.SourceVolumeAABBMin), FVector(Header.SourceVolumeAABBMin + Header.PageTableVolumeResolution * SPARSE_VOLUME_TILE_RES)); // padded to multiple of page size
+		const FVector FrameExtent = FrameBounds.GetExtent();
 
-		*OutScale = VolumeBounds.GetExtent() / FrameBounds.GetExtent();
+		// 3D UV coordinates are specified in [0, 1]. Before addressing the page tables which might have padding,
+		// since source volume resolution might not align to tile resolution, we have to rescale the uv so that [0,1] maps to the source texture boundaries.
+		const FVector UVToPhysical = FrameExtent / FrameBoundsPadded.GetExtent();
+
+		*OutScale = VolumeBounds.GetExtent() / FrameExtent;
+		*OutScale *= UVToPhysical;
 		*OutBias = -((FrameBounds.Min - VolumeBounds.Min) / (VolumeBounds.Max - VolumeBounds.Min) * *OutScale);
 	}
 }
@@ -298,13 +342,14 @@ UE::Shader::EValueType USparseVolumeTexture::GetUniformParameterType(int32 Index
 {
 	switch (Index)
 	{
-	case ESparseVolumeTexture_PhysicalUVToPageUV:	return UE::Shader::EValueType::Float3;
 	case ESparseVolumeTexture_TileSize:				return UE::Shader::EValueType::Float1;
 	case ESparseVolumeTexture_PageTableSize:		return UE::Shader::EValueType::Float3;
+	case ESparseVolumeTexture_UVScale:				return UE::Shader::EValueType::Float3;
+	case ESparseVolumeTexture_UVBias:				return UE::Shader::EValueType::Float3;
 	default:
 		break;
 	}
-	check(0);
+	checkNoEntry();
 	return UE::Shader::EValueType::Float4;
 }
 
@@ -407,47 +452,17 @@ void UStaticSparseVolumeTexture::PostEditChangeProperty(FPropertyChangedEvent& P
 }
 #endif // WITH_EDITOR
 
-const FSparseVolumeAssetHeader* UStaticSparseVolumeTexture::GetSparseVolumeTextureHeader(int32 FrameIndex) const
+const FSparseVolumeAssetHeader* UStaticSparseVolumeTexture::GetSparseVolumeTextureHeader() const
 {
 	return &StaticFrame.SparseVolumeTextureRuntime.Header;
 }
-FSparseVolumeTextureSceneProxy* UStaticSparseVolumeTexture::GetSparseVolumeTextureSceneProxy(int32 FrameIndex)
+FSparseVolumeTextureSceneProxy* UStaticSparseVolumeTexture::GetSparseVolumeTextureSceneProxy()
 { 
 	return &StaticFrame.SparseVolumeTextureSceneProxy; 
 }
-const FSparseVolumeTextureSceneProxy* UStaticSparseVolumeTexture::GetSparseVolumeTextureSceneProxy(int32 FrameIndex) const
+const FSparseVolumeTextureSceneProxy* UStaticSparseVolumeTexture::GetSparseVolumeTextureSceneProxy() const
 { 
 	return &StaticFrame.SparseVolumeTextureSceneProxy; 
-}
-
-FVector4 UStaticSparseVolumeTexture::GetUniformParameter(int32 Index, int32 FrameIndex) const
-{
-	const FSparseVolumeTextureSceneProxy* Proxy = GetSparseVolumeTextureSceneProxy(0);
-	if (Proxy)
-	{
-		const FSparseVolumeAssetHeader& Header = Proxy->GetHeader();
-		switch (Index)
-		{
-		case ESparseVolumeTexture_PhysicalUVToPageUV:
-		{
-			// 3d uv coordinates are specified in [0, 1]. Before addressing the page tables which might have padding,
-			// since source volume resolution might not align to tile resolution, we have to rescale the uv so that [0,1] maps to the source texture boundaries.
-			FVector3f PhysicalUVToPageUV = FVector3f(Header.SourceVolumeResolution)/ FVector3f(Header.PageTableVolumeResolution * SPARSE_VOLUME_TILE_RES);
-			return FVector4(PhysicalUVToPageUV.X, PhysicalUVToPageUV.Y, PhysicalUVToPageUV.Z, 0.0f);
-		}
-		case ESparseVolumeTexture_PageTableSize:
-		{
-			return FVector4(Header.PageTableVolumeResolution.X, Header.PageTableVolumeResolution.Y, Header.PageTableVolumeResolution.Z, 0.0f);
-		}
-		case ESparseVolumeTexture_TileSize:				return FVector4(float(SPARSE_VOLUME_TILE_RES), 0.0f, 0.0f, 0.0f);
-		default:
-			break;
-		}
-		check(0);
-		return FVector4(ForceInitToZero);
-	}
-	// 0 while waiting for the proxy
-	return FVector4(ForceInitToZero);
 }
 
 FBox UStaticSparseVolumeTexture::GetVolumeBounds() const
@@ -678,63 +693,31 @@ void UAnimatedSparseVolumeTexture::PostEditChangeProperty(FPropertyChangedEvent&
 }
 #endif // WITH_EDITOR
 
-const FSparseVolumeAssetHeader* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureHeader(int32 FrameIndex) const
+const FSparseVolumeAssetHeader* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureHeader() const
 {
 	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using its first frame.
 	check(AnimationFrames.Num() >= 1);
-	FrameIndex = FrameIndex % GetFrameCountToLoad();
+	const int32 FrameIndex = PreviewFrameIndex % GetFrameCountToLoad();
 	const FSparseVolumeTextureFrame& Frame = AnimationFrames[FrameIndex];
 	return &Frame.SparseVolumeTextureRuntime.Header;
 }
 
-FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureSceneProxy(int32 FrameIndex)
+FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureSceneProxy()
 {
 	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using its first frame.
 	check(AnimationFrames.Num() >= 1);
-	FrameIndex = FrameIndex % GetFrameCountToLoad();
+	const int32 FrameIndex = PreviewFrameIndex % GetFrameCountToLoad();
 	FSparseVolumeTextureFrame& Frame = AnimationFrames[FrameIndex];
 	return &Frame.SparseVolumeTextureSceneProxy;
 }
 
-const FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureSceneProxy(int32 FrameIndex) const
+const FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureSceneProxy() const
 {
 	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using its first frame.
 	check(AnimationFrames.Num() >= 1);
-	FrameIndex = FrameIndex % GetFrameCountToLoad();
+	const int32 FrameIndex = PreviewFrameIndex % GetFrameCountToLoad();
 	const FSparseVolumeTextureFrame& Frame = AnimationFrames[FrameIndex];
 	return &Frame.SparseVolumeTextureSceneProxy;
-}
-
-FVector4 UAnimatedSparseVolumeTexture::GetUniformParameter(int32 Index, int32 FrameIndex) const
-{
-	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using its first frame.
-	const FSparseVolumeTextureSceneProxy* Proxy = GetSparseVolumeTextureSceneProxy(FrameIndex);
-	if (Proxy)
-	{
-		const FSparseVolumeAssetHeader& Header = Proxy->GetHeader();
-		switch (Index)
-		{
-		case ESparseVolumeTexture_PhysicalUVToPageUV:
-		{
-			// 3d uv coordinates are specified in [0, 1]. Before addressing the page tables which might have padding,
-			// since source volume resolution might not align to tile resolution, we have to rescale the uv so that [0,1] maps to the source texture boundaries.
-			FVector3f PhysicalUVToPageUV = FVector3f(Header.SourceVolumeResolution) / FVector3f(Header.PageTableVolumeResolution * SPARSE_VOLUME_TILE_RES);
-			return FVector4(PhysicalUVToPageUV.X, PhysicalUVToPageUV.Y, PhysicalUVToPageUV.Z, 0.0f);
-		}
-		case ESparseVolumeTexture_PageTableSize:
-		{
-			return FVector4(Header.PageTableVolumeResolution.X, Header.PageTableVolumeResolution.Y, Header.PageTableVolumeResolution.Z, 0.0f);
-		}
-		case ESparseVolumeTexture_TileSize:				return FVector4(float(SPARSE_VOLUME_TILE_RES), 0.0f, 0.0f, 0.0f);
-		default:
-			break;
-		}
-		check(0);
-		return FVector4(ForceInitToZero);
-	}
-
-	// 0 while waiting for the proxy
-	return FVector4(ForceInitToZero);
 }
 
 FBox UAnimatedSparseVolumeTexture::GetVolumeBounds() const
@@ -742,12 +725,20 @@ FBox UAnimatedSparseVolumeTexture::GetVolumeBounds() const
 	return VolumeBounds;
 }
 
-const FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureFrameSceneProxy(int32 FrameIndex) const
+FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureFrameSceneProxy(int32 FrameIndex)
 {
 	check(AnimationFrames.Num() >= 1);
 	FrameIndex = FrameIndex % GetFrameCountToLoad();
 	// SVT_TODO when streaming is enabled, this will likely change.
 	return &AnimationFrames[FrameIndex].SparseVolumeTextureSceneProxy;
+}
+
+const FSparseVolumeAssetHeader* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureFrameHeader(int32 FrameIndex) const
+{
+	check(AnimationFrames.Num() >= 1);
+	FrameIndex = FrameIndex % GetFrameCountToLoad();
+	// SVT_TODO when streaming is enabled, this will likely change.
+	return &AnimationFrames[FrameIndex].SparseVolumeTextureRuntime.Header;
 }
 
 int32 UAnimatedSparseVolumeTexture::GetFrameCountToLoad() const
@@ -850,6 +841,129 @@ void UAnimatedSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataAndCreateScenePro
 	// Runtime data is now valid, create the render thread proxy
 	Frame.SparseVolumeTextureSceneProxy.InitialiseRuntimeData(Frame.SparseVolumeTextureRuntime);
 	BeginInitResource(&Frame.SparseVolumeTextureSceneProxy);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+USparseVolumeTextureFrame::USparseVolumeTextureFrame(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+USparseVolumeTextureFrame* USparseVolumeTextureFrame::CreateFrame(USparseVolumeTexture* Texture, int32 FrameIndex)
+{
+	USparseVolumeTextureFrame* Frame = NewObject<USparseVolumeTextureFrame>();
+	FSparseVolumeTextureSceneProxy* Proxy = nullptr;
+	if (Texture->IsA<UAnimatedSparseVolumeTexture>())
+	{
+		UAnimatedSparseVolumeTexture* AnimatedSVT = CastChecked<UAnimatedSparseVolumeTexture>(Texture);
+		check(AnimatedSVT);
+		Proxy = AnimatedSVT->GetSparseVolumeTextureFrameSceneProxy(FrameIndex);
+	}
+	else
+	{
+		Proxy = Texture->GetSparseVolumeTextureSceneProxy();
+	}
+
+	Frame->Init(Proxy, Texture->GetSparseVolumeTextureHeader(), Texture->GetVolumeBounds());
+
+	return Frame;
+}
+
+void USparseVolumeTextureFrame::Init(FSparseVolumeTextureSceneProxy* InSceneProxy, const FSparseVolumeAssetHeader* InAssetHeader, const FBox& InVolumeBounds)
+{
+	SceneProxy = InSceneProxy;
+	AssetHeader = InAssetHeader;
+	VolumeBounds = InVolumeBounds;
+}
+
+const FSparseVolumeAssetHeader* USparseVolumeTextureFrame::GetSparseVolumeTextureHeader() const
+{
+	return AssetHeader;
+}
+
+FSparseVolumeTextureSceneProxy* USparseVolumeTextureFrame::GetSparseVolumeTextureSceneProxy()
+{
+	return SceneProxy;
+}
+
+const FSparseVolumeTextureSceneProxy* USparseVolumeTextureFrame::GetSparseVolumeTextureSceneProxy() const
+{
+	return SceneProxy;
+}
+
+FBox USparseVolumeTextureFrame::GetVolumeBounds() const
+{
+	return VolumeBounds;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+UAnimatedSparseVolumeTextureController::UAnimatedSparseVolumeTextureController(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+void UAnimatedSparseVolumeTextureController::SetSparseVolumeTexture(USparseVolumeTexture* Texture)
+{
+	if (Texture == SparseVolumeTexture)
+	{
+		return;
+	}
+
+	SparseVolumeTexture = Texture;
+	bIsPlaying = bIsPlaying && (SparseVolumeTexture != nullptr);
+	Time = 0.0f;
+}
+
+void UAnimatedSparseVolumeTextureController::Play()
+{
+	bIsPlaying = true;
+}
+
+void UAnimatedSparseVolumeTextureController::Pause()
+{
+	bIsPlaying = false;
+}
+
+void UAnimatedSparseVolumeTextureController::Stop()
+{
+	if (bIsPlaying)
+	{
+		bIsPlaying = false;
+		Time = 0.0f;
+	}
+}
+
+bool UAnimatedSparseVolumeTextureController::IsPlaying()
+{
+	return bIsPlaying;
+}
+
+USparseVolumeTextureFrame* UAnimatedSparseVolumeTextureController::Update(float DeltaTime)
+{
+	if (!SparseVolumeTexture)
+	{
+		return nullptr;
+	}
+
+	const int32 FrameCount = SparseVolumeTexture->GetFrameCount();
+	const float AnimationDuration = FrameCount / (FrameRate + UE_SMALL_NUMBER);
+
+	// Update animation time
+	if (bIsPlaying)
+	{
+		Time = FMath::Fmod(Time + DeltaTime, AnimationDuration + UE_SMALL_NUMBER);
+	}
+
+	// Compute (fractional) index of frame to sample
+	const float FrameIndexF = FMath::Fmod(Time * FrameRate, (float)FrameCount);
+	const int32 FrameIndex = (int32)FrameIndexF;
+
+	// Create and initialize a USparseVolumeTextureFrame which holds the frame to sample and can be bound to shaders
+	USparseVolumeTextureFrame* Frame = USparseVolumeTextureFrame::CreateFrame(SparseVolumeTexture, FrameIndex);
+
+	return Frame;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////

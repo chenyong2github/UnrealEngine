@@ -1203,7 +1203,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 					// 1 is tile data A
 					// 2 is tile data B
 
-					const FSparseVolumeTextureSceneProxy* SVTextureProxy = SVTexture->GetSparseVolumeTextureSceneProxy(0 /*SVT_TODO*/);
+					const FSparseVolumeTextureSceneProxy* SVTextureProxy = SVTexture->GetSparseVolumeTextureSceneProxy();
 					if (SVTextureProxy)
 					{
 						if (LayerIndex == 0)

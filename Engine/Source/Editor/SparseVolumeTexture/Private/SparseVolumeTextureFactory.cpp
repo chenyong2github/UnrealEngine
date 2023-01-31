@@ -454,7 +454,6 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 	}
 
 	// Utility function for computing the bounding box encompassing the bounds of all frames in the SVT.
-	// Accounts for padding caused by rounding up to a multiple of the page resolution.
 	auto ExpandVolumeBounds = [](const FOpenVDBImportOptions& ImportOptions, const TArray<FOpenVDBGridInfo>& GridInfoArray, FBox& VolumeBounds)
 	{
 		const FSparseVolumeRawSourcePackedData* PackedData[] = { &ImportOptions.PackedDataA, &ImportOptions.PackedDataB };
@@ -470,11 +469,9 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 					VolumeBounds.Min.Y = FMath::Min(VolumeBounds.Min.Y, GridInfo.VolumeActiveAABBMin.Y);
 					VolumeBounds.Min.Z = FMath::Min(VolumeBounds.Min.Z, GridInfo.VolumeActiveAABBMin.Z);
 
-					const FVector PageTableVolumeResolution = FMath::DivideAndRoundUp(GridInfo.VolumeActiveDim, FVector(SPARSE_VOLUME_TILE_RES));
-					const FVector Max = GridInfo.VolumeActiveAABBMin + (PageTableVolumeResolution * SPARSE_VOLUME_TILE_RES);
-					VolumeBounds.Max.X = FMath::Max(VolumeBounds.Max.X, Max.X);
-					VolumeBounds.Max.Y = FMath::Max(VolumeBounds.Max.Y, Max.Y);
-					VolumeBounds.Max.Z = FMath::Max(VolumeBounds.Max.Z, Max.Z);
+					VolumeBounds.Max.X = FMath::Max(VolumeBounds.Max.X, GridInfo.VolumeActiveAABBMax.X);
+					VolumeBounds.Max.Y = FMath::Max(VolumeBounds.Max.Y, GridInfo.VolumeActiveAABBMax.Y);
+					VolumeBounds.Max.Z = FMath::Max(VolumeBounds.Max.Z, GridInfo.VolumeActiveAABBMax.Z);
 				}
 			}
 		}

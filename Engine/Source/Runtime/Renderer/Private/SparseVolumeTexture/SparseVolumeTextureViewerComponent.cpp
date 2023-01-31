@@ -160,13 +160,13 @@ void USparseVolumeTextureViewerComponent::SendRenderTransformCommand()
 		FVector UVScale = FVector::One();
 		FVector UVBias = FVector::Zero();
 		
-		if (SparseVolumeTexturePreview)
+		if (SparseVolumeTextureFrame)
 		{
-			const FVector VolumeBoundsExtent = SparseVolumeTexturePreview->GetVolumeBounds().GetExtent();
+			const FVector VolumeBoundsExtent = SparseVolumeTextureFrame->GetVolumeBounds().GetExtent();
 			const double MaxBoundsDim = FMath::Max(FMath::Max(VolumeBoundsExtent.X, VolumeBoundsExtent.Y), VolumeBoundsExtent.Z);
 			VolumeExtent = VolumeBoundsExtent / MaxBoundsDim * SVTViewerDefaultVolumeExtent;
 
-			SparseVolumeTexturePreview->GetFrameUVScaleBias(FrameIndex, &UVScale, &UVBias);
+			SparseVolumeTextureFrame->GetFrameUVScaleBias(&UVScale, &UVBias);
 		}
 
 		const FTransform ToWorldTransform = GetComponentTransform();
@@ -199,18 +199,24 @@ void USparseVolumeTextureViewerComponent::SendRenderTransformCommand()
 
 void USparseVolumeTextureViewerComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
-	if (bAnimate)
+	if (SparseVolumeTexturePreview)
 	{
-		const int32 NumFrames = SparseVolumeTexturePreview->GetFrameCount();
-		const float AnimationDuration = NumFrames / FrameRate;
-		FrameIndex = int32((AnimationTime / (AnimationDuration + SMALL_NUMBER)) * float(SparseVolumeTexturePreview->GetFrameCount()));
-		AnimationTime = FMath::Fmod(AnimationTime + DeltaTime, (AnimationDuration + SMALL_NUMBER));
+		if (bAnimate)
+		{
+			const int32 NumFrames = SparseVolumeTexturePreview->GetFrameCount();
+			const float AnimationDuration = NumFrames / (FrameRate + UE_SMALL_NUMBER);
+			AnimationTime = FMath::Fmod(AnimationTime + DeltaTime, (AnimationDuration + UE_SMALL_NUMBER));
+			FrameIndex = int32(AnimationTime * FrameRate);
+		}
+		else
+		{
+			FrameIndex = int32(AnimationFrame * float(SparseVolumeTexturePreview->GetFrameCount()));
+		}
+
+		SparseVolumeTextureFrame = USparseVolumeTextureFrame::CreateFrame(SparseVolumeTexturePreview, FrameIndex);
+
+		MarkRenderStateDirty();
 	}
-	else if(SparseVolumeTexturePreview)
-	{
-		FrameIndex = int32(AnimationFrame * float(SparseVolumeTexturePreview->GetFrameCount()));
-	}
-	MarkRenderStateDirty();
 }
 
 /*=============================================================================

@@ -25859,7 +25859,8 @@ int32 UMaterialExpressionSparseVolumeTextureSample::Compile(class FMaterialCompi
 		// SVT_TODO Send parameters and do all the following math in shared functions (one to sample the page table and one to sample the attribute from the page table sample output)
 
 		int32 UVW = CompileWithDefaultFloat3(Compiler, Coordinates, 0.0f, 0.0f, 0.0f);
-		int32 UVWPageTable = Compiler->Mul(UVW, UniformCodeChunkIndex[ESparseVolumeTexture_PhysicalUVToPageUV]);
+		int32 UVWScaled = Compiler->Mul(UVW, UniformCodeChunkIndex[ESparseVolumeTexture_UVScale]);
+		int32 UVWPageTable = Compiler->Add(UVWScaled, UniformCodeChunkIndex[ESparseVolumeTexture_UVBias]);
 		int32 CoordPageTable = Compiler->Mul(UVWPageTable, UniformCodeChunkIndex[ESparseVolumeTexture_PageTableSize]);
 
 		// Code chunks have the same ID when they map to the same string of code. PackedPhysicalTileCoord will automatically end up being the same code chunk used

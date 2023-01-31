@@ -44,6 +44,8 @@ class USparseVolumeTextureViewerComponent : public UPrimitiveComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Asset Preview", meta = (UIMin = 0, UIMax = 7, ClampMin = 0, ClampMax = 7))
 	int32 ComponentToVisualize;
 
+	TObjectPtr<class USparseVolumeTextureFrame> SparseVolumeTextureFrame;
+
 	//~ Begin UPrimitiveComponent Interface.
 	virtual bool SupportsStaticLighting() const override { return false; }
 	//~ End UPrimitiveComponent Interface.
