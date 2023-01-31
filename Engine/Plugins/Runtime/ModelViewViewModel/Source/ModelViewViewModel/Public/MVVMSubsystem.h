@@ -61,11 +61,9 @@ public:
 	/** @return The AvailableBinding from a field. */
 	static FMVVMAvailableBinding GetAvailableBindingForField(UE::MVVM::FMVVMConstFieldVariant Variant, const UClass* Accessor);
 
-	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
-	UMVVMViewModelCollectionObject* GetGlobalViewModelCollection() const
-	{
-		return GlobalViewModelCollection;
-	}
+	UE_DEPRECATED(5.3, "GetGlobalViewModelCollection has been deprecated, please use the game instance subsystem.")
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel", meta=(DeprecatedFunction, DeprecatedMessage = "This version of GetGlobalViewModelCollection has been deprecated, please use GetGlobalViewModelCollection from the Viewmodel Game subsystem."))
+	UMVVMViewModelCollectionObject* GetGlobalViewModelCollection() const;
 
 	struct FConstDirectionalBindingArgs
 	{
@@ -100,10 +98,6 @@ public:
 	UE_NODISCARD TValueOrError<bool, FText> IsBindingValid(FConstDirectionalBindingArgs Args) const;
 	UE_NODISCARD TValueOrError<bool, FText> IsBindingValid(FDirectionalBindingArgs Args) const;
 	UE_NODISCARD TValueOrError<bool, FText> IsBindingValid(FBindingArgs Args) const;
-
-private:
-	UPROPERTY(Transient)
-	TObjectPtr<UMVVMViewModelCollectionObject> GlobalViewModelCollection;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

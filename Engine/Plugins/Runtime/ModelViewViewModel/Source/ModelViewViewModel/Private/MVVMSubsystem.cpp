@@ -15,13 +15,11 @@
 void UMVVMSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	GlobalViewModelCollection = NewObject<UMVVMViewModelCollectionObject>(this);
 }
 
 
 void UMVVMSubsystem::Deinitialize()
 {
-	GlobalViewModelCollection = nullptr;
 	Super::Deinitialize();
 }
 
@@ -289,6 +287,12 @@ FMVVMAvailableBinding UMVVMSubsystem::GetAvailableBinding(const UClass* Class, F
 FMVVMAvailableBinding UMVVMSubsystem::GetAvailableBindingForField(UE::MVVM::FMVVMConstFieldVariant FieldVariant, const UClass* Accessor)
 {
 	return UE::MVVM::Private::GetAvailableBinding(FieldVariant, Accessor);
+}
+
+
+UMVVMViewModelCollectionObject* UMVVMSubsystem::GetGlobalViewModelCollection() const
+{
+	return nullptr;
 }
 
 
