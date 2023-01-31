@@ -38,9 +38,8 @@ public:
 	bool GetActorIsRuntimeOnly() const;
 	bool GetActorIsHLODRelevant() const;
 	FName GetHLODLayer() const;
-	const TArray<FName>& GetDataLayers() const;
 	const TArray<FName>& GetDataLayerInstanceNames() const;
-	const TArray<FName>& GetRuntimeDataLayers() const;
+	const TArray<FName>& GetRuntimeDataLayerInstanceNames() const;
 	const TArray<FName>& GetTags() const;
 	FName GetActorPackage() const;
 	
@@ -79,8 +78,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	void SetForcedNonSpatiallyLoaded();
 	void SetInvalidRuntimeGrid();
 	void SetInvalidDataLayers();
-	void SetRuntimeDataLayers(TArray<FName>& InRuntimeDataLayers);
+	void SetRuntimeDataLayerInstanceNames(TArray<FName>& InRuntimeDataLayerInstanceNames);
 	void SetRuntimeReferences(TArray<FGuid>& InRuntimeReferences);
+	void SetDataLayerInstanceNames(const TArray<FName>& InDataLayerInstanceNames);
 
 	AActor* GetActor() const;
 
@@ -101,7 +101,8 @@ protected:
 	bool bIsForcedNonSpatiallyLoaded;
 	bool bInvalidDataLayers;
 	bool bInvalidRuntimeGrid;
-	TOptional<TArray<FName>> RuntimeDataLayers;
+	TOptional<TArray<FName>> ResolvedDataLayerInstanceNames;
+	TOptional<TArray<FName>> RuntimeDataLayerInstanceNames;
 	TOptional<TArray<FGuid>> RuntimeReferences;
 };
 #endif

@@ -20,9 +20,6 @@ class ENGINE_API UWorldPartitionSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
-protected:
-	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
-
 public:
 	UWorldPartitionSubsystem();
 
@@ -65,13 +62,18 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FWorldPartitionStreamingSourceProviderFilter, const IWorldPartitionStreamingSourceProvider*);
 	FWorldPartitionStreamingSourceProviderFilter& OnIsStreamingSourceProviderFiltered() { return IsStreamingSourceProviderFiltered; }
 
-#if WITH_EDITOR
 	void ForEachWorldPartition(TFunctionRef<bool(UWorldPartition*)> Func);
 
+#if WITH_EDITOR
 	static bool IsRunningConvertWorldPartitionCommandlet();
 
 	TSet<FWorldPartitionActorDesc*> SelectedActorDescs;
 #endif
+
+protected:
+	//~ Begin USubsystem Interface.
+	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
+	//~ End USubsystem Interface.
 
 private:
 

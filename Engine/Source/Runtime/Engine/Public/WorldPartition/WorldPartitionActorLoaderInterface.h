@@ -73,5 +73,9 @@ public:
 	};
 
 	virtual ILoaderAdapter* GetLoaderAdapter() =0;
+
+private:
+	static bool PassDataLayersFilter(class UWorld* InWorld, const TArray<FName>& InDataLayerInstanceNames);
+	friend class ILoaderAdapter;
 #endif
 };

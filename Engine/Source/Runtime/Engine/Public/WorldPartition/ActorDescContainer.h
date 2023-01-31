@@ -42,12 +42,10 @@ public:
 	};
 
 	UE_DEPRECATED(5.1, "UActorDescContainer::Initialize is deprecated, UActorDescContainer::Initialize with UActorDescContainer::FInitializeParams should be used instead.")
-	void Initialize(UWorld* World, FName InPackageName);
+	void Initialize(UWorld* InWorld, FName InPackageName);
 	void Initialize(const FInitializeParams& InitParams);
 	void Update();
 	void Uninitialize();
-	
-	virtual UWorld* GetWorld() const override;
 
 #if WITH_EDITOR
 	bool IsInitialized() const { return bContainerInitialized; }
@@ -62,7 +60,9 @@ public:
 	FGuid GetContentBundleGuid() const { return ContentBundleGuid; }
 	void SetContentBundleGuid(const FGuid& InGetContentBundleGuid) { ContentBundleGuid = InGetContentBundleGuid; }
 
+	bool IsTemplateContainer() const;
 	bool IsMainPartitionContainer() const;
+	UWorldPartition* GetWorldPartition() const;
 
 	FString GetExternalActorPath() const;
 
@@ -72,10 +72,7 @@ public:
 	void LoadAllActors(TArray<FWorldPartitionReference>& OutReferences);
 
 	bool IsActorDescHandled(const AActor* Actor) const;
-#endif
 
-#if WITH_EDITOR
-public:
 	DECLARE_EVENT_OneParam(UWorldPartition, FActorDescAddedEvent, FWorldPartitionActorDesc*);
 	FActorDescAddedEvent OnActorDescAddedEvent;
 	
@@ -91,19 +88,9 @@ public:
 	bool HasInvalidActors() const { return InvalidActors.Num() > 0; }
 	const TArray<TUniquePtr<FWorldPartitionActorDesc>>& GetInvalidActors() const { return InvalidActors; }
 	void ClearInvalidActors() { InvalidActors.Empty(); }
-#endif
 
-	UPROPERTY(Transient)
-	TObjectPtr<UWorld> World;
-
-protected:
-	//~ Begin UObject Interface
-	virtual void BeginDestroy() override;
-	//~ End UObject Interface
-
-#if WITH_EDITOR
 	//~ Begin FActorDescList Interface
-	virtual void AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc) override;
+	virtual void AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc, UWorld* InWorldContext) override;
 	virtual void RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc) override;
 	//~ End FActorDescList Interface
 
@@ -122,7 +109,15 @@ protected:
 	TArray<TUniquePtr<FWorldPartitionActorDesc>> InvalidActors;
 #endif
 
+protected:
+	//~ Begin UObject Interface
+	virtual void BeginDestroy() override;
+	//~ End UObject Interface
+
 private:
+	// GetWorld() should never be called on an ActorDescContainer to avoid any confusion as it can be used as a template
+	virtual UWorld* GetWorld() const override { check(false); return nullptr; }
+
 #if WITH_EDITOR
 	bool ShouldRegisterDelegates();
 	void RegisterEditorDelegates();

@@ -5,7 +5,8 @@
 #include "GlobalRenderResources.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Engine/Canvas.h"
 #include "Algo/AllOf.h"
 
@@ -60,10 +61,20 @@ FAutoConsoleCommand FWorldPartitionDebugHelper::DebugFilterByDataLayerCommand(
 			UWorld* World = Context.World();
 			if (World && World->IsGameWorld())
 			{
-				TArray<UDataLayerInstance*> DataLayers = UDataLayerSubsystem::ConvertArgsToDataLayers(World, InArgs);
-				for (UDataLayerInstance* DataLayer : DataLayers)
+				if (UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
 				{
-					DebugDataLayerFilter.Add(DataLayer->GetDataLayerFName());
+					WorldPartitionSubsystem->ForEachWorldPartition([&InArgs](UWorldPartition* WorldPartition)
+					{
+						if (UDataLayerManager* DataLayerManager = WorldPartition->GetDataLayerManager())
+						{
+							TArray<UDataLayerInstance*> DataLayerInstances = DataLayerManager->ConvertArgsToDataLayers(InArgs);
+							for (UDataLayerInstance* DataLayerInstance : DataLayerInstances)
+							{
+								DebugDataLayerFilter.Add(DataLayerInstance->GetDataLayerFName());
+							}
+						}
+						return true;
+					});
 				}
 			}
 		}

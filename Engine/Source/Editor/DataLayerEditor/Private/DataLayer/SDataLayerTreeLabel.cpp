@@ -35,7 +35,6 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 
 struct FSlateBrush;
@@ -169,15 +168,14 @@ FSlateFontInfo SDataLayerTreeLabel::GetDisplayNameFont() const
 
 FText SDataLayerTreeLabel::GetDisplayText() const
 {
-	const UDataLayerInstance* DataLayer = DataLayerPtr.Get();
+	const UDataLayerInstance* DataLayerInstance = DataLayerPtr.Get();
 	bool bIsDataLayerActive = false;
 	FText SuffixText = FText::GetEmpty();
 	if (!bInEditingMode)
 	{
-		if (DataLayer && DataLayer->IsRuntime() && DataLayer->GetWorld()->IsPlayInEditor())
+		if (DataLayerInstance && DataLayerInstance->IsRuntime() && DataLayerInstance->GetWorld()->IsPlayInEditor())
 		{
-			const UDataLayerSubsystem* DataLayerSubsystem = DataLayer->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-			SuffixText = FText::Format(LOCTEXT("DataLayerRuntimeState", " ({0})"), FTextStringHelper::CreateFromBuffer(GetDataLayerRuntimeStateName(DataLayerSubsystem->GetDataLayerEffectiveRuntimeState(DataLayer))));
+			SuffixText = FText::Format(LOCTEXT("DataLayerRuntimeState", " ({0})"), FTextStringHelper::CreateFromBuffer(GetDataLayerRuntimeStateName(DataLayerInstance->GetEffectiveRuntimeState())));
 		}
 		else if (IsInActorEditorContext())
 		{
@@ -185,9 +183,9 @@ FText SDataLayerTreeLabel::GetDisplayText() const
 		}
 	}
 
-	if (DataLayer)
+	if (DataLayerInstance)
 	{
-		if (const UDataLayerInstanceWithAsset* DataLayerInstanceWithAsset = Cast<UDataLayerInstanceWithAsset>(DataLayer))
+		if (const UDataLayerInstanceWithAsset* DataLayerInstanceWithAsset = Cast<UDataLayerInstanceWithAsset>(DataLayerInstance))
 		{
 			if (!DataLayerInstanceWithAsset->GetAsset())
 			{
@@ -195,7 +193,7 @@ FText SDataLayerTreeLabel::GetDisplayText() const
 			}
 		}
 
-		return FText::Format(LOCTEXT("DataLayerDisplayText", "{0}{1}"), FText::FromString(DataLayer->GetDataLayerShortName()), SuffixText);
+		return FText::Format(LOCTEXT("DataLayerDisplayText", "{0}{1}"), FText::FromString(DataLayerInstance->GetDataLayerShortName()), SuffixText);
 	}
 	
 	static const FText DataLayerDeleted = LOCTEXT("DataLayerLabelForMissingDataLayer", "(Deleted Data Layer)");
@@ -255,15 +253,14 @@ FSlateColor SDataLayerTreeLabel::GetForegroundColor() const
 		return BaseColor.GetValue();
 	}
 
-	const UDataLayerInstance* DataLayer = DataLayerPtr.Get();
-	if (DataLayer)
+	const UDataLayerInstance* DataLayerInstance = DataLayerPtr.Get();
+	if (DataLayerInstance)
 	{
-		if (DataLayer->GetWorld()->IsPlayInEditor())
+		if (DataLayerInstance->GetWorld()->IsPlayInEditor())
 		{
-			if (DataLayer->IsRuntime())
+			if (DataLayerInstance->IsRuntime())
 			{
-				const UDataLayerSubsystem* DataLayerSubsystem = DataLayer->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-				EDataLayerRuntimeState State = DataLayerSubsystem->GetDataLayerEffectiveRuntimeState(DataLayer);
+				EDataLayerRuntimeState State = DataLayerInstance->GetEffectiveRuntimeState();
 				switch (State)
 				{
 				case EDataLayerRuntimeState::Activated:
@@ -279,12 +276,12 @@ FSlateColor SDataLayerTreeLabel::GetForegroundColor() const
 				return FSceneOutlinerCommonLabelData::DarkColor;
 			}
 		}
-		else if (DataLayer->IsLocked())
+		else if (DataLayerInstance->IsLocked())
 		{
 			return FSceneOutlinerCommonLabelData::DarkColor;
 		}
 	}
-	if (!DataLayer || !DataLayer->GetWorld())
+	if (!DataLayerInstance || !DataLayerInstance->GetWorld())
 	{
 		return FLinearColor(0.2f, 0.2f, 0.25f);
 	}

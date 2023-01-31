@@ -9,7 +9,7 @@ FWorldPartitionActorDesc* FActorDescList::AddActor(const AActor* InActor)
 	FWorldPartitionActorDesc* NewActorDesc = InActor->CreateActorDesc().Release();
 	check(NewActorDesc);
 
-	AddActorDescriptor(NewActorDesc);
+	AddActorDescriptor(NewActorDesc, InActor->GetWorld());
 
 	return NewActorDesc;
 }
@@ -67,7 +67,7 @@ void FActorDescList::Empty()
 	ActorDescList.Empty();
 }
 
-void FActorDescList::AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc)
+void FActorDescList::AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc, UWorld* InWorldContext)
 {
 	check(ActorDesc);
 

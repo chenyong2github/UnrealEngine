@@ -108,9 +108,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	inline bool GetActorIsHLODRelevant() const { return bActorIsHLODRelevant; }
 	inline FName GetHLODLayer() const { return HLODLayer; }
 	inline const TArray<FName>& GetDataLayers() const { return DataLayers; }
-	inline const TArray<FName>& GetDataLayerInstanceNames() const { return DataLayerInstanceNames; }
+	inline bool HasResolvedDataLayerInstanceNames() const { return ResolvedDataLayerInstanceNames.IsSet(); }
+	const TArray<FName>& GetDataLayerInstanceNames() const;
 	inline const TArray<FName>& GetTags() const { return Tags; }
-	inline void SetDataLayerInstanceNames(const TArray<FName>& InDataLayerInstanceNames) { DataLayerInstanceNames = InDataLayerInstanceNames; }
+	inline void SetDataLayerInstanceNames(const TArray<FName>& InDataLayerInstanceNames) { ResolvedDataLayerInstanceNames = InDataLayerInstanceNames; }
 	inline FName GetActorPackage() const { return ActorPackage; }
 	inline FSoftObjectPath GetActorSoftPath() const { return ActorPath; }
 	inline FName GetActorLabel() const { return ActorLabel; }
@@ -202,7 +203,7 @@ public:
 		return Container;
 	}
 
-	virtual void SetContainer(UActorDescContainer* InContainer)
+	virtual void SetContainer(UActorDescContainer* InContainer, UWorld* InWorldContext)
 	{
 		check(!Container || !InContainer);
 		Container = InContainer;
@@ -240,13 +241,7 @@ public:
 protected:
 	FWorldPartitionActorDesc();
 
-	virtual void TransferFrom(const FWorldPartitionActorDesc* From)
-	{
-		Container = From->Container;
-		SoftRefCount = From->SoftRefCount;
-		HardRefCount = From->HardRefCount;
-		bIsForcedNonSpatiallyLoaded = From->bIsForcedNonSpatiallyLoaded;
-	}
+	virtual void TransferFrom(const FWorldPartitionActorDesc* From);
 
 	virtual void TransferWorldData(const FWorldPartitionActorDesc* From)
 	{
@@ -287,7 +282,7 @@ protected:
 	UClass*							ActorNativeClass;
 	mutable TWeakObjectPtr<AActor>	ActorPtr;
 	UActorDescContainer*			Container;
-	TArray<FName>					DataLayerInstanceNames;
+	TOptional<TArray<FName>>		ResolvedDataLayerInstanceNames; // Can only resolve in ActorDesc if Container is not used as a template
 	bool							bIsForcedNonSpatiallyLoaded;
 
 	static TMap<TSubclassOf<AActor>, FActorDescDeprecator> Deprecators;

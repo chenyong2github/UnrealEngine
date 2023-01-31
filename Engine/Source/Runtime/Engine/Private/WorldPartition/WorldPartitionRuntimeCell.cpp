@@ -5,7 +5,7 @@
 #include "Engine/Level.h"
 #include "Misc/HierarchicalLogArchive.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/DataLayersID.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
@@ -95,27 +95,23 @@ FLinearColor UWorldPartitionRuntimeCell::GetDebugStreamingPriorityColor() const
 	return FLinearColor::Transparent;
 }
 
+bool UWorldPartitionRuntimeCell::HasAnyDataLayerInEffectiveRuntimeState(EDataLayerRuntimeState InState) const
+{
+	const UDataLayerManager* DataLayerManager = HasDataLayers() ? UDataLayerManager::GetDataLayerManager(this) : nullptr;
+	return DataLayerManager ? DataLayerManager->IsAnyDataLayerInEffectiveRuntimeState(GetDataLayers(), InState) : false;
+}
+
 TArray<const UDataLayerInstance*> UWorldPartitionRuntimeCell::GetDataLayerInstances() const
 {
-	if (const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
-	{
-		return DataLayerSubsystem->GetDataLayerInstances(GetDataLayers());
-	}
-
-	return TArray<const UDataLayerInstance*>();
+	const UDataLayerManager* DataLayerManager = HasDataLayers() ? UDataLayerManager::GetDataLayerManager(this) : nullptr;
+	return DataLayerManager ? DataLayerManager->GetDataLayerInstances(GetDataLayers()) : TArray<const UDataLayerInstance*>();
 }
 
 bool UWorldPartitionRuntimeCell::ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const
 {
-	if (const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
-	{
-		if (const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerAsset))
-		{
-			return ContainsDataLayer(DataLayerInstance);
-		}
-	}
-
-	return false;
+	const UDataLayerManager* DataLayerManager = HasDataLayers() ? UDataLayerManager::GetDataLayerManager(this) : nullptr;
+	const UDataLayerInstance* DataLayerInstance = DataLayerManager ? DataLayerManager->GetDataLayerInstance(DataLayerAsset) : nullptr;
+	return DataLayerInstance ? ContainsDataLayer(DataLayerInstance) : false;
 }
 
 bool UWorldPartitionRuntimeCell::ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const

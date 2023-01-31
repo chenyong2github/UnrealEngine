@@ -21,7 +21,7 @@
 #include "LevelInstance/LevelInstanceEditorPivotActor.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
 #include "Misc/ScopedSlowTask.h"
@@ -1028,35 +1028,39 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 			if (bIsPartitioned)
 			{
 				UWorldPartition* WorldPartition = InLevel->GetWorldPartition();
+				// Validations
 				check(WorldPartition);
-
-				// Make sure that the world partition can be used by a Level Instance
 				check(WorldPartition->CanBeUsedByLevelInstance());
+				check(!WorldPartition->IsStreamingEnabled());
+				check(InLevel->IsUsingActorFolders());
 
 				// Make sure new level's AWorldDataLayers contains all the necessary Data Layer Instances before moving actors
-				if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+				TSet<TObjectPtr<const UDataLayerAsset>> SourceDataLayerAssets;
+				for (AActor* ActorToMove : ActorsToMove)
 				{
-					TSet<TObjectPtr<const UDataLayerAsset>> SourceDataLayerAssets;
-					for (AActor* ActorToMove : ActorsToMove)
+					if (UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(ActorToMove))
 					{
 						// Use the raw asset list as we don't want parent DataLayers
-						SourceDataLayerAssets.Append(ActorToMove->GetDataLayerAssets());
-					}
-					AWorldDataLayers* WorldDataLayers = InLevel->GetWorldDataLayers();
-					check(WorldDataLayers);
-
-					for (const UDataLayerAsset* SourceDataLayerAsset : SourceDataLayerAssets)
-					{
-						if (UDataLayerInstanceWithAsset* SourceDataLayerInstance = Cast<UDataLayerInstanceWithAsset>(DataLayerSubsystem->GetDataLayerInstanceFromAsset(SourceDataLayerAsset)))
+						for (const TObjectPtr<const UDataLayerAsset>& DataLayerAsset : ActorToMove->GetDataLayerAssets())
 						{
-							UDataLayerInstanceWithAsset* DataLayerInstanceWithAsset = WorldDataLayers->CreateDataLayer<UDataLayerInstanceWithAsset>(SourceDataLayerAsset);
+							// Validate that there's a valid Data Layer Instance for this asset in the source level
+							if (DataLayerManager->GetDataLayerInstanceFromAsset(DataLayerAsset))
+							{
+								SourceDataLayerAssets.Add(DataLayerAsset);
+							}
 						}
 					}
 				}
 
-				// Validation
-				check(InLevel->IsUsingActorFolders());
-				check(!WorldPartition->IsStreamingEnabled());
+				if (!SourceDataLayerAssets.IsEmpty())
+				{
+					AWorldDataLayers* WorldDataLayers = InLevel->GetWorldDataLayers();
+					check(WorldDataLayers);
+					for (const UDataLayerAsset* SourceDataLayerAsset : SourceDataLayerAssets)
+					{
+						WorldDataLayers->CreateDataLayer<UDataLayerInstanceWithAsset>(SourceDataLayerAsset);
+					}
+				}
 			}
 		}));
 
@@ -1506,7 +1510,7 @@ UActorDescContainer* ULevelInstanceSubsystem::FActorDescContainerInstanceManager
 		ExistingContainerInstance->UpdateBounds();
 	}
 
-	check(ActorDescContainer->GetWorld() == InWorld);
+	check(ActorDescContainer->IsTemplateContainer());
 	return ActorDescContainer;
 }
 
@@ -1965,11 +1969,15 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ILevelInstanceInterface*
 	LevelInstancesToLoadOrUpdate.Remove(LevelInstance);
 	// Unload right away
 	UnloadLevelInstance(LevelInstance->GetLevelInstanceID());
-		
+	
+	// When editing a Level Instance, push a new empty actor editor context
+	UActorEditorContextSubsystem::Get()->PushContext();
+
 	// Load Edit LevelInstance level
 	ULevelStreamingLevelInstanceEditor* LevelStreaming = ULevelStreamingLevelInstanceEditor::Load(LevelInstance);
 	if (!LevelStreaming)
 	{
+		UActorEditorContextSubsystem::Get()->PopContext();
 		LevelInstance->LoadLevelInstance();
 		return false;
 	}
@@ -2009,9 +2017,6 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ILevelInstanceInterface*
 	
 	// Edit can't be undone
 	GEditor->ResetTransaction(LOCTEXT("LevelInstanceEditResetTrans", "Edit Level Instance"));
-
-	// When editing a Level Instance, push a new empty actor editor context
-	UActorEditorContextSubsystem::Get()->PushContext();
 
 	ResetLoadersForWorldAsset(LevelInstance->GetWorldAsset().GetLongPackageName());
 

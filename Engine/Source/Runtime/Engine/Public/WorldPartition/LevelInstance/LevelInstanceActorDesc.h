@@ -35,16 +35,17 @@ protected:
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 	virtual void TransferFrom(const FWorldPartitionActorDesc* From) override;
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void SetContainer(UActorDescContainer* InContainer) override;
+	virtual void SetContainer(UActorDescContainer* InContainer, UWorld* InWorldContext) override;
 
 	FName LevelPackage;
 	FTransform LevelInstanceTransform;
 	ELevelInstanceRuntimeBehavior DesiredRuntimeBehavior;
 
 	TWeakObjectPtr<UActorDescContainer> LevelInstanceContainer;
+	TWeakObjectPtr<UWorld> LevelInstanceContainerWorldContext;
 
 private:
-	void RegisterContainerInstance(UWorld* InWorld);
+	void RegisterContainerInstance(UWorld* InWorldContext);
 	void UnregisterContainerInstance();
 	void UpdateBounds();
 };

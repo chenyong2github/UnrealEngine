@@ -52,6 +52,7 @@ class AServerStreamingLevelsVisibility;
 class AWorldDataLayers;
 class AWorldSettings;
 class UWorldPartition;
+class UDataLayerManager;
 class Error;
 class FConstPawnIterator;
 class FRegisterComponentContext;
@@ -2688,6 +2689,14 @@ public:
 	 * @return UWorldPartition object associated with this world
 	 */
 	UWorldPartition* GetWorldPartition() const;
+
+	/**
+	 * Returns the UDataLayerManager associated with this world.
+	 *
+	 * @return UDataLayerManager object associated with this world
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Utilities|WorldPartition")
+	UDataLayerManager* GetDataLayerManager() const;
 
 	/**
 	* Returns true if world contains an associated UWorldPartition object.

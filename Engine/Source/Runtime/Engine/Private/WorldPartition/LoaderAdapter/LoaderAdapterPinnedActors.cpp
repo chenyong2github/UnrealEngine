@@ -21,8 +21,7 @@ FText FLoaderAdapterPinnedActors::GetUnloadedReason(FWorldPartitionActorDesc* In
 	if (InActorDesc)
 	{
 		UActorDescContainer* ActorDescContainer = InActorDesc->GetContainer();
-		UWorld* World = ActorDescContainer != nullptr ? ActorDescContainer->GetWorld() : nullptr;
-		UWorldPartition* WorldPartition = World != nullptr ? World->GetWorldPartition() : nullptr;
+		UWorldPartition* WorldPartition = ActorDescContainer != nullptr ? ActorDescContainer->GetWorldPartition() : nullptr;
 		bool bShouldBeLoaded = !InActorDesc->GetIsSpatiallyLoaded() && !InActorDesc->GetActorIsRuntimeOnly();
 		if (WorldPartition && (bShouldBeLoaded || WorldPartition->IsActorPinned(InActorDesc->GetGuid())))
 		{
@@ -54,11 +53,10 @@ bool FLoaderAdapterPinnedActors::SupportsPinning(FWorldPartitionActorDesc* InAct
 		}
 		else if (InActorDesc->GetContentBundleGuid().IsValid())
 		{
-			const UWorld* ContainerWorld = Container->GetWorld();
-			const UWorldPartition* ContainerWorldPartition = ContainerWorld ? ContainerWorld->GetWorldPartition() : nullptr;
+			const UWorldPartition* ContainerWorldPartition = Container->GetWorldPartition();
 			if (ContainerWorldPartition && ContainerWorldPartition->IsMainWorldPartition())
 			{
-				return InActorDesc->GetActorSoftPath().GetAssetPath().GetPackageName() == ContainerWorld->GetPackage()->GetFName();
+				return InActorDesc->GetActorSoftPath().GetAssetPath().GetPackageName() == ContainerWorldPartition->GetTypedOuter<UWorld>()->GetPackage()->GetFName();
 			}
 		}
 	}

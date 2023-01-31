@@ -5,7 +5,7 @@
 
 #if WITH_EDITOR
 
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 
 /*
  * FDataLayerEditorContext
@@ -13,15 +13,15 @@
 FDataLayerEditorContext::FDataLayerEditorContext(UWorld* InWorld, const TArray<FName>& InDataLayerInstances)
 	: Hash(FDataLayerEditorContext::EmptyHash)
 {
-	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(InWorld);
-	if (!DataLayerSubsystem)
+	UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(InWorld);
+	if (!DataLayerManager)
 	{
 		return;
 	}
 
 	for (const FName& DataLayerInstanceName : InDataLayerInstances)
 	{
-		if (const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerInstanceName))
+		if (const UDataLayerInstance* DataLayerInstance = DataLayerManager->GetDataLayerInstance(DataLayerInstanceName))
 		{
 			DataLayerInstances.AddUnique(DataLayerInstance->GetDataLayerFName());
 		}

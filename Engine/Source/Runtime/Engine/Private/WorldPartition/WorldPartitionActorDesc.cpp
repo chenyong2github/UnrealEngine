@@ -18,7 +18,7 @@
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/ContentBundle/ContentBundlePaths.h"
@@ -68,14 +68,15 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	{
 		TArray<FName> LocalDataLayerAssetPaths;
 		TArray<FName> LocalDataLayerInstanceNames;
-		ULevel* Level = InActor->GetLevel();
-		if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(InActor->GetWorld()))
+		// Use Actor's DataLayerManager since the fixup is relative to this level
+		UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(InActor);
+		if (ensure(DataLayerManager))
 		{
 			LocalDataLayerAssetPaths.Reserve(InActor->GetDataLayerAssets().Num());
 			for (const TObjectPtr<const UDataLayerAsset>& DataLayerAsset : InActor->GetDataLayerAssets())
 			{
 				// Pass Actor Level when resolving the DataLayerInstance as FWorldPartitionActorDesc always represents the state of the actor local to its outer level
-				if (DataLayerAsset && DataLayerSubsystem->GetDataLayerInstance(DataLayerAsset, Level))
+				if (DataLayerAsset && DataLayerManager->GetDataLayerInstance(DataLayerAsset))
 				{
 					LocalDataLayerAssetPaths.Add(*DataLayerAsset->GetPathName());
 				}
@@ -83,7 +84,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			// Pass Actor Level when resolving the DataLayerInstance as FWorldPartitionActorDesc always represents the state of the actor local to its outer level
-			LocalDataLayerInstanceNames = DataLayerSubsystem->GetDataLayerInstanceNames(InActor->GetActorDataLayers(), Level);
+			LocalDataLayerInstanceNames = DataLayerManager->GetDataLayerInstanceNames(InActor->GetActorDataLayers());
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
@@ -97,7 +98,21 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 		DataLayers = bIsUsingDataLayerAsset ? MoveTemp(LocalDataLayerAssetPaths) : MoveTemp(LocalDataLayerInstanceNames);
 
 		// Init DataLayers transient info
-		DataLayerInstanceNames = FDataLayerUtils::ResolvedDataLayerInstanceNames(this, TArray<const FWorldDataLayersActorDesc*>(), InActor->GetWorld());
+		if (ensure(DataLayerManager))
+		{
+			// There are valid cases where the DataLayerManager can't resolve transient data layer instance names.
+			// One case is when committing changes on a level instance, FWorldPartitionActorDesc::Init is called when saving 
+			// the child actors.
+			if (DataLayerManager->CanResolveDataLayers())
+			{
+				// Here we process a loaded actor, so resolving makes sense as long as the actordesc is not reused as a template
+				ResolvedDataLayerInstanceNames = FDataLayerUtils::ResolvedDataLayerInstanceNames(DataLayerManager, this);
+			}
+			else
+			{
+				check(!HasResolvedDataLayerInstanceNames());
+			}
+		}
 	}
 
 	Tags = InActor->Tags;
@@ -214,6 +229,24 @@ void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
 	// Append data
 	OutData = MoveTemp(HeaderData);
 	OutData.Append(PayloadData);
+}
+
+const TArray<FName>& FWorldPartitionActorDesc::GetDataLayerInstanceNames() const
+{
+	static TArray<FName> EmptyDataLayers;
+	if (ensure(HasResolvedDataLayerInstanceNames()))
+	{
+		return ResolvedDataLayerInstanceNames.GetValue();
+	}
+	return EmptyDataLayers;
+}
+
+void FWorldPartitionActorDesc::TransferFrom(const FWorldPartitionActorDesc* From)
+{
+	Container = From->Container;
+	SoftRefCount = From->SoftRefCount;
+	HardRefCount = From->HardRefCount;
+	bIsForcedNonSpatiallyLoaded = From->bIsForcedNonSpatiallyLoaded;
 }
 
 void FWorldPartitionActorDesc::RegisterActorDescDeprecator(TSubclassOf<AActor> ActorClass, const FActorDescDeprecator& Deprecator)

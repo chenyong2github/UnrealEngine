@@ -7,7 +7,7 @@
 #include "Engine/World.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
 #include "Materials/MaterialInterface.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "Misc/Paths.h"
 #include "WorldPartition/WorldPartition.h"
 #include "RenderUtils.h"
@@ -729,11 +729,11 @@ static void DumpHLODStats(UWorld* World)
 		});
 	};
 
-	const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(World);
+	const UDataLayerManager* DataLayerManager = WorldPartition->GetDataLayerManager();
 
-	auto GetDataLayerShortName = [DataLayerSubsystem](FName DataLayerInstanceName)
+	auto GetDataLayerShortName = [DataLayerManager](FName DataLayerInstanceName)
 	{ 
-		UDataLayerInstance* DataLayerInstance = DataLayerSubsystem ? DataLayerSubsystem->GetDataLayerInstance(DataLayerInstanceName) : nullptr;
+		const UDataLayerInstance* DataLayerInstance = DataLayerManager ? DataLayerManager->GetDataLayerInstance(DataLayerInstanceName) : nullptr;
 		return DataLayerInstance ? DataLayerInstance->GetDataLayerShortName() : DataLayerInstanceName.ToString();
 	};
 

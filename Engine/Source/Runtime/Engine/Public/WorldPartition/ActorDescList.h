@@ -151,7 +151,7 @@ public:
 	};
 
 protected:
-	virtual void AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
+	virtual void AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc, UWorld* InWorldContext);
 	virtual void RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
 	TUniquePtr<FWorldPartitionActorDesc>* GetActorDescriptor(const FGuid& ActorGuid);
 

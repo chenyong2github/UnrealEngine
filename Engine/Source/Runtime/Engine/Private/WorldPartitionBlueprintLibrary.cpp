@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionBlueprintLibrary.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionBlueprintLibrary)
 
@@ -260,4 +261,9 @@ bool UWorldPartitionBlueprintLibrary::GetIntersectingActorDescs(const FBox& InBo
 	}
 #endif
 	return false;
+}
+
+UDataLayerManager* UWorldPartitionBlueprintLibrary::GetDataLayerManager(class UObject* WorldContextObject)
+{
+	return UDataLayerManager::GetDataLayerManager(WorldContextObject);
 }

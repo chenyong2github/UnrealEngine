@@ -65,7 +65,7 @@
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/WorldPartitionActorDescUtils.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/ContentBundle/ContentBundlePaths.h"
 
 DEFINE_LOG_CATEGORY(LogActor);
@@ -6135,8 +6135,8 @@ TArray<const UDataLayerInstance*> AActor::GetDataLayerInstances() const
 }
 
 // Returns all valid DataLayerInstances for this actor including those inherited from their parent level instance actor.
-// If bUseLevelContext is true, the actor level will be passed down to the DataLayerSubsystem which will use it 
-// to narrow down the resolving of valid datalayers for this particular level.
+// If bUseLevelContext is true, the actor level will be used to find the associated DataLayerManager which will be used 
+// to resolve valid datalayers for this particular level.
 TArray<const UDataLayerInstance*> AActor::GetDataLayerInstancesInternal(bool bUseLevelContext, bool bIncludeParentDataLayers) const
 {
 	if (UseWorldPartitionRuntimeCellDataLayers())
@@ -6149,13 +6149,12 @@ TArray<const UDataLayerInstance*> AActor::GetDataLayerInstancesInternal(bool bUs
 	if (SupportsDataLayer())
 	{
 		TArray<const UDataLayerInstance*> DataLayerInstances;
-		ULevel* OuterLevel = bUseLevelContext ? GetLevel() : nullptr;
-		if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+		if (UDataLayerManager* DataLayerManager = bUseLevelContext ? UDataLayerManager::GetDataLayerManager(this) : UDataLayerManager::GetDataLayerManager(GetWorld()))
 		{
-			DataLayerInstances += DataLayerSubsystem->GetDataLayerInstances(DataLayerAssets, OuterLevel);
+			DataLayerInstances += DataLayerManager->GetDataLayerInstances(DataLayerAssets);
 
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			DataLayerInstances += DataLayerSubsystem->GetDataLayerInstances(DataLayers, OuterLevel);
+			DataLayerInstances += DataLayerManager->GetDataLayerInstances(DataLayers);
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 

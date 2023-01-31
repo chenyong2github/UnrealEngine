@@ -5,21 +5,21 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ActorDescContainer)
 
 #if WITH_EDITOR
-#include "AssetRegistry/ARFilter.h"
 #include "Editor.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Level.h"
-#include "WorldPartition/WorldPartition.h"
-#include "Modules/ModuleManager.h"
-#include "WorldPartition/WorldPartitionActorDescUtils.h"
 #include "UObject/ObjectSaveContext.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Modules/ModuleManager.h"
+#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionActorDescUtils.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 
 UActorDescContainer::FActorDescContainerInitializeDelegate UActorDescContainer::OnActorDescContainerInitialized;
 #endif
 
 UActorDescContainer::UActorDescContainer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, World(nullptr)
 #if WITH_EDITOR
 	, bContainerInitialized(false)
 #endif
@@ -34,8 +34,10 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UActorDescContainer::Initialize);
 
-	check(!World || World == InitParams.World);
-	World = InitParams.World;
+	// @todo_ow: We need to pass the world context to AddActorDescriptor for FLevelInstanceActorDesc::RegisterContainerInstance to resolve the ULevelInstanceSubsystem.
+	// A better solution would be for ActorDescContainers to always be outered to an OwningWorldPartition (with the downside of not sharing between 2 instanced WorldPartition).
+	// With this, we could always find the owning WorldPartition and of course the owning world (GetOwningWorldPartition()->GetWorld()).
+	UWorld* OwningWorld = InitParams.World;
 
 #if WITH_EDITOR
 	check(!bContainerInitialized);
@@ -70,7 +72,7 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 
 			if (ActorDesc.IsValid() && ActorDesc->GetNativeClass().IsValid() && (!InitParams.FilterActorDesc || InitParams.FilterActorDesc(ActorDesc.Get())))
 			{
-				AddActorDescriptor(ActorDesc.Release());
+				AddActorDescriptor(ActorDesc.Release(), OwningWorld);
 			}
 			else
 			{
@@ -92,8 +94,6 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 
 void UActorDescContainer::Update()
 {
-	check(World);
-
 #if WITH_EDITOR
 	check(bContainerInitialized);
 	TArray<FAssetData> Assets;
@@ -110,6 +110,9 @@ void UActorDescContainer::Update()
 	Filter.PackagePaths.Add(*ContainerExternalActorsPath);
 
 	AssetRegistry.GetAssets(Filter, Assets);
+
+	UWorld* OwningWorld = GetWorldPartition() ? GetWorldPartition()->GetWorld() : nullptr;
+	check(OwningWorld);
 
 	TSet<FGuid> ActorGuids;
 	for (const FAssetData& Asset : Assets)
@@ -132,7 +135,7 @@ void UActorDescContainer::Update()
 			else
 			{
 				FWorldPartitionActorDesc* ActorDescPtr = NewActorDesc.Release();
-				AddActorDescriptor(ActorDescPtr);
+				AddActorDescriptor(ActorDescPtr, OwningWorld);
 				OnActorDescAdded(ActorDescPtr);
 			}
 		}
@@ -175,16 +178,6 @@ void UActorDescContainer::Uninitialize()
 		ActorDescPtr.Reset();
 	}
 #endif
-	World = nullptr;
-}
-
-UWorld* UActorDescContainer::GetWorld() const
-{
-	if (World)
-	{
-		return World;
-	}
-	return Super::GetWorld();
 }
 
 void UActorDescContainer::BeginDestroy()
@@ -213,18 +206,36 @@ bool UActorDescContainer::IsActorDescHandled(const AActor* Actor) const
 
 bool UActorDescContainer::IsMainPartitionContainer() const
 {
-	return GetWorld() != nullptr && GetWorld()->GetWorldPartition()->GetActorDescContainer() == this;
+	return GetWorldPartition() && GetWorldPartition()->GetActorDescContainer() == this;
 }
 
-void UActorDescContainer::AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc)
+bool UActorDescContainer::IsTemplateContainer() const
 {
-	FActorDescList::AddActorDescriptor(ActorDesc);
-	ActorDesc->SetContainer(this);
+	bool bIsTemplate = GetOuter() == GetTransientPackage();
+	check(bIsTemplate || GetWorldPartition());
+	return bIsTemplate;
+}
+
+UWorldPartition* UActorDescContainer::GetWorldPartition() const
+{
+	UWorldPartition* OuterWorldPartition = GetTypedOuter<UWorldPartition>();
+	check(OuterWorldPartition || IsTemplateContainer());
+	return OuterWorldPartition;
+}
+
+void UActorDescContainer::AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc, UWorld* InWorldContext)
+{
+	FActorDescList::AddActorDescriptor(ActorDesc, InWorldContext);
+	ActorDesc->SetContainer(this, InWorldContext);
+	if (const UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(InWorldContext))
+	{
+		DataLayerManager->ResolveActorDescDataLayers(ActorDesc);
+	}
 }
 
 void UActorDescContainer::RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc)
 {
-	ActorDesc->SetContainer(nullptr);
+	ActorDesc->SetContainer(nullptr, nullptr);
 	FActorDescList::RemoveActorDescriptor(ActorDesc);
 }
 
@@ -323,7 +334,10 @@ bool UActorDescContainer::ShouldRegisterDelegates()
 	UWorld* OuterWorld = GetTypedOuter<UWorld>();
 	// No need to register delegates for level instances
 	bool bIsInstance = OuterWorld && OuterWorld->IsInstanced() && !OuterWorld->GetPackage()->HasAnyPackageFlags(PKG_NewlyCreated);
-	return GEditor && !IsTemplate() && World && !World->IsGameWorld() && !bIsInstance;
+	UWorld* OwningWorld = GetWorldPartition() ? GetWorldPartition()->GetWorld() : nullptr;
+	// Template container will always register
+	bool bShouldRegisterForWorld = (OwningWorld && !OwningWorld->IsGameWorld()) || (IsTemplateContainer());
+	return GEditor && !IsTemplate() && !bIsInstance && bShouldRegisterForWorld;
 }
 
 void UActorDescContainer::RegisterEditorDelegates()
@@ -350,7 +364,7 @@ void UActorDescContainer::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDes
 {
 	OnActorDescAddedEvent.Broadcast(NewActorDesc);
 
-	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>())
+	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
 		WorldPartition->OnActorDescAdded(NewActorDesc);
 	}
@@ -360,7 +374,7 @@ void UActorDescContainer::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc
 {
 	OnActorDescRemovedEvent.Broadcast(ActorDesc);
 
-	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>())
+	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
 		WorldPartition->OnActorDescRemoved(ActorDesc);
 	}
@@ -368,7 +382,7 @@ void UActorDescContainer::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc
 
 void UActorDescContainer::OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc)
 {
-	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>())
+	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
 		WorldPartition->OnActorDescUpdating(ActorDesc);
 	}
@@ -376,8 +390,12 @@ void UActorDescContainer::OnActorDescUpdating(FWorldPartitionActorDesc* ActorDes
 
 void UActorDescContainer::OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc)
 {
-	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>())
+	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
+		if (const UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(WorldPartition))
+		{
+			DataLayerManager->ResolveActorDescDataLayers(ActorDesc);
+		}
 		WorldPartition->OnActorDescUpdated(ActorDesc);
 	}
 }
@@ -386,7 +404,7 @@ const FLinkerInstancingContext* UActorDescContainer::GetInstancingContext() cons
 {
 	const FLinkerInstancingContext* InstancingContext = nullptr;
 
-	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>())
+	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
 		WorldPartition->GetInstancingContext(InstancingContext);
 	}
@@ -396,7 +414,7 @@ const FLinkerInstancingContext* UActorDescContainer::GetInstancingContext() cons
 
 const FTransform& UActorDescContainer::GetInstanceTransform() const
 {
-	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>())
+	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
 		return WorldPartition->GetInstanceTransform();
 	}

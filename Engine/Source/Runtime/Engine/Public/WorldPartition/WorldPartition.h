@@ -32,6 +32,7 @@ class UWorldPartitionRuntimeCell;
 class UWorldPartitionRuntimeHash;
 class UWorldPartitionStreamingPolicy;
 class IWorldPartitionCell;
+class UDataLayerManager;
 class IStreamingGenerationErrorHandler;
 class FLoaderAdapterAlwaysLoadedActors;
 class FLoaderAdapterActorList;
@@ -285,6 +286,8 @@ public:
 	void DisableStreamingIn();
 	void EnableStreamingIn();
 
+	UDataLayerManager* GetDataLayerManager() const;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(DuplicateTransient)
 	TObjectPtr<UWorldPartitionEditorHash> EditorHash;
@@ -359,6 +362,9 @@ private:
 	mutable TOptional<bool> bCachedUseMakingVisibleTransactionRequests;
 	mutable TOptional<bool> bCachedIsServerStreamingEnabled;
 	mutable TOptional<bool> bCachedIsServerStreamingOutEnabled;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UDataLayerManager> DataLayerManager;
 
 	UPROPERTY(Transient)
 	mutable TObjectPtr<UWorldPartitionStreamingPolicy> StreamingPolicy;

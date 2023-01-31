@@ -45,8 +45,6 @@ class ENGINE_API AWorldDataLayers : public AInfo
 
 public:
 	virtual void PostLoad() override;
-	virtual void PreRegisterAllComponents() override;
-	virtual void PostUnregisterAllComponents() override;
 	virtual void RewindForReplay() override;
 	virtual void BeginPlay() override;
 
@@ -89,11 +87,11 @@ public:
 	// Allows overriding of DataLayers with PlayFromHere
 	template<class T>
 	void OverwriteDataLayerRuntimeStates(const TArray<T>* InActiveDataLayers, const TArray<T>* InLoadedDataLayers );
-#endif
 
 	bool IsSubWorldDataLayers() const;
-	bool IsTheMainWorldDataLayers() const;
 	bool IsRuntimeRelevant() const;
+#endif
+
 	static FName GetWorldPartionWorldDataLayersName() { return FName(TEXT("WorldDataLayers")); } // reserved for ULevel::WorldDataLayers
 	
 	void DumpDataLayers(FOutputDevice& OutputDevice) const;
@@ -159,7 +157,7 @@ public:
 	UE_DEPRECATED(5.1, "Convert UDataLayers to UDataLayerAsset and UDataLayerInstance using DataLayerToAssetCommandLet")
 	const UDataLayerInstance* GetDataLayerFromLabel(const FName& InDataLayerLabel) const;
 
-	UE_DEPRECATED(5.1, "Use UDataLayerSubsystem::GetUserLoadedInEditorStates insteaed")
+	UE_DEPRECATED(5.3, "This function has been deprecated.")
 	void GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersLoadedInEditor, TArray<FName>& OutDataLayersNotLoadedInEditor) const {}
 
 	//~ End Deprecated

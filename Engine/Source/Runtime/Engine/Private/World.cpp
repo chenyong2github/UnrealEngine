@@ -50,6 +50,7 @@
 #include "Engine/Console.h"
 #include "Engine/WorldComposition.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "GameFramework/GameNetworkManager.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -5604,6 +5605,12 @@ UWorldPartition* UWorld::GetWorldPartition() const
 {
 	AWorldSettings* WorldSettings = GetWorldSettings(/*bCheckStreamingPersistent*/false, /*bChecked*/false);
 	return WorldSettings ? WorldSettings->GetWorldPartition() : nullptr;
+}
+
+UDataLayerManager* UWorld::GetDataLayerManager() const
+{
+	UWorldPartition* WorldPartition = GetWorldPartition();
+	return WorldPartition ? WorldPartition->GetDataLayerManager() : nullptr;
 }
 
 UModel* UWorld::GetModel() const

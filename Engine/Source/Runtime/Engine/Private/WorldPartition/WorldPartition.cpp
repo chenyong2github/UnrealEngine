@@ -12,6 +12,7 @@
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionReplay.h"
 #include "WorldPartition/HLOD/HLODSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "GameFramework/WorldSettings.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
@@ -34,8 +35,6 @@
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
 #include "WorldPartition/WorldPartitionMiniMapHelper.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/LoaderAdapter/LoaderAdapterShape.h"
 #include "WorldPartition/LoaderAdapter/LoaderAdapterPinnedActors.h"
@@ -124,10 +123,10 @@ FAutoConsoleVariableRef UWorldPartition::CVarUseMakingInvisibleTransactionReques
 TMap<FName, FString> GetDataLayersDumpString(const UWorldPartition* WorldPartition)
 {
 	TMap<FName, FString> DataLayersDumpString;
-	const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(WorldPartition->GetWorld());
-	DataLayerSubsystem->ForEachDataLayer([&DataLayersDumpString](const UDataLayerInstance* DataLayer)
+	const UDataLayerManager* DataLayerManager = WorldPartition->GetDataLayerManager();
+	DataLayerManager->ForEachDataLayerInstance([&DataLayersDumpString](const UDataLayerInstance* DataLayerInstance)
 	{
-		DataLayersDumpString.FindOrAdd(DataLayer->GetDataLayerFName()) = FString::Format(TEXT("{0}{1})"), { DataLayer->GetDataLayerShortName(), DataLayer->GetDataLayerFName().ToString() });
+		DataLayersDumpString.FindOrAdd(DataLayerInstance->GetDataLayerFName()) = FString::Format(TEXT("{0}{1})"), { DataLayerInstance->GetDataLayerShortName(), DataLayerInstance->GetDataLayerFName().ToString() });
 		return true;
 	});
 	
@@ -277,6 +276,7 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 #endif
 	, InitState(EWorldPartitionInitState::Uninitialized)
 	, bStreamingInEnabled(true)
+	, DataLayerManager(nullptr)
 	, StreamingPolicy(nullptr)
 	, Replay(nullptr)
 {
@@ -434,6 +434,9 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	check(InWorld);
 	World = InWorld;
+
+	DataLayerManager = NewObject<UDataLayerManager>(this, TEXT("DataLayerManager"), RF_Transient);
+	DataLayerManager->Initialize();
 
 	if (!InTransform.Equals(FTransform::Identity))
 	{
@@ -729,6 +732,12 @@ void UWorldPartition::Uninitialize()
 		EditorHash = nullptr;
 #endif		
 
+		if (DataLayerManager)
+		{
+			DataLayerManager->DeInitialize();
+			DataLayerManager = nullptr;
+		}
+
 		InitState = EWorldPartitionInitState::Uninitialized;
 
 		FWorldPartitionEvents::BroadcastWorldPartitionUninitialized(World, this);
@@ -738,6 +747,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		World = nullptr;
 	}
+}
+
+UDataLayerManager* UWorldPartition::GetDataLayerManager() const
+{
+	return DataLayerManager;
 }
 
 bool UWorldPartition::IsInitialized() const

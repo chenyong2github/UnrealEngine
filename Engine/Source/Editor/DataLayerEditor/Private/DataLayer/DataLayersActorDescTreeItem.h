@@ -8,6 +8,7 @@
 #include "ActorDescTreeItem.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/ActorDescContainerCollection.h"
+#include "WorldPartition/WorldPartition.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Misc/ArchiveMD5.h"
 #include "Misc/SecureHash.h"
@@ -49,7 +50,7 @@ public:
 		if (ActorDescHandle.IsValid())
 		{
 			UActorDescContainer* Container = ActorDescHandle->GetContainer();
-			UWorld* OwningWorld = Container->GetWorld();
+			UWorld* OwningWorld = Container->GetWorldPartition()->GetWorld();
 			ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(OwningWorld);
 			ULevel* Level = Container->GetTypedOuter<UWorld>()->PersistentLevel;
 			if (LevelInstanceSubsystem && Level)
@@ -82,7 +83,8 @@ public:
 	{
 		if (InContainer)
 		{
-			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(InContainer->GetWorld()))
+			UWorld* OwningWorld = InContainer->GetWorldPartition()->GetWorld();
+			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(OwningWorld))
 			{
 				ULevel* Level = InContainer->GetTypedOuter<UWorld>()->PersistentLevel;
 				return LevelInstanceSubsystem->GetParentLevelInstanceActors(Level);

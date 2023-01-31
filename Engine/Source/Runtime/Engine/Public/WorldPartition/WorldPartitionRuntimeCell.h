@@ -190,6 +190,8 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	virtual FName GetLevelPackageName() const override;
 	//~End IWorldPartitionCell Interface
 
+	bool HasAnyDataLayerInEffectiveRuntimeState(EDataLayerRuntimeState InState) const;
+
 	bool GetBlockOnSlowLoading() const { return bBlockOnSlowLoading; }
 #if WITH_EDITOR
 	bool NeedsActorToCellRemapping() const;

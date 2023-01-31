@@ -10,6 +10,7 @@
 
 class FWorldPartitionActorDesc;
 class UWorldPartition;
+class UDataLayerManager;
 
 /**
  * Snapshot of an actor descriptor, which represents the state of an actor on disk.
@@ -139,4 +140,10 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="World Partition")
 	static bool GetIntersectingActorDescs(const FBox& InBox, TArray<FActorDesc>& OutActorDescs);
+
+	/**
+	 * Returns the Data Layer Manager for this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "World Partition", meta = (WorldContext = "WorldContextObject"))
+	static UDataLayerManager* GetDataLayerManager(class UObject* WorldContextObject);
 };

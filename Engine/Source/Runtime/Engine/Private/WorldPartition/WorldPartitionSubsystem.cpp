@@ -5,7 +5,7 @@
 #include "UnrealEngine.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 #include "Engine/Canvas.h"
 #include "Engine/CoreSettings.h"
@@ -163,12 +163,13 @@ void UWorldPartitionSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
+// We allow creating UWorldPartitionSubsystem for inactive worlds as WorldPartition initialization is necessary 
+// because DataLayerManager is required to be initialized when duplicating a partitioned world.
 bool UWorldPartitionSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
 	return Super::DoesSupportWorldType(WorldType) || WorldType == EWorldType::Inactive;
 }
 
-#if WITH_EDITOR
 void UWorldPartitionSubsystem::ForEachWorldPartition(TFunctionRef<bool(UWorldPartition*)> Func)
 {
 	for (UWorldPartition* WorldPartition : RegisteredWorldPartitions)
@@ -179,7 +180,6 @@ void UWorldPartitionSubsystem::ForEachWorldPartition(TFunctionRef<bool(UWorldPar
 		}
 	}
 }
-#endif
 
 void UWorldPartitionSubsystem::OnWorldPartitionInitialized(UWorldPartition* InWorldPartition)
 {
@@ -474,10 +474,12 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 		WorldPartition->DrawStreamingStatusLegend(Canvas, CurrentOffset);
 	}
 
-	UDataLayerSubsystem* DataLayerSubsystem = WorldPartition->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-	if (DataLayerSubsystem && (GDrawDataLayers || GDrawDataLayersLoadTime || GDrawRuntimeHash2D))
+	if (GDrawDataLayers || GDrawDataLayersLoadTime || GDrawRuntimeHash2D)
 	{
-		DataLayerSubsystem->DrawDataLayersStatus(Canvas, CurrentOffset);
+		if (UDataLayerManager* DataLayerManager = WorldPartition->GetDataLayerManager())
+		{
+			DataLayerManager->DrawDataLayersStatus(Canvas, CurrentOffset);
+		}
 	}
 
 	UContentBundleManager* ContentBundleManager = GetWorld()->ContentBundleManager;

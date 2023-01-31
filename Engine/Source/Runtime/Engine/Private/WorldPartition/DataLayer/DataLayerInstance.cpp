@@ -3,6 +3,7 @@
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 #include "UObject/UnrealType.h"
+#include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
@@ -111,6 +112,11 @@ bool UDataLayerInstance::IsLocked() const
 	}
 
 	return IsRuntime() && !GetOuterAWorldDataLayers()->GetAllowRuntimeDataLayerEditing();
+}
+
+bool UDataLayerInstance::IsReadOnly() const
+{
+	return GetWorld()->IsGameWorld();
 }
 
 const TCHAR* UDataLayerInstance::GetDataLayerIconName() const
@@ -272,6 +278,27 @@ void UDataLayerInstance::AddChild(UDataLayerInstance* InDataLayer)
 	Modify();
 	checkSlow(!Children.Contains(InDataLayer));
 	Children.Add(InDataLayer);
+}
+
+EDataLayerRuntimeState UDataLayerInstance::GetRuntimeState() const
+{
+	return GetOuterAWorldDataLayers()->GetDataLayerRuntimeStateByName(GetDataLayerFName());
+}
+
+EDataLayerRuntimeState UDataLayerInstance::GetEffectiveRuntimeState() const
+{
+	return GetOuterAWorldDataLayers()->GetDataLayerEffectiveRuntimeStateByName(GetDataLayerFName());
+}
+
+bool UDataLayerInstance::SetRuntimeState(EDataLayerRuntimeState InState, bool bInIsRecursive) const
+{
+	if (GetOuterAWorldDataLayers()->HasAuthority())
+	{
+		GetOuterAWorldDataLayers()->SetDataLayerRuntimeState(this, InState, bInIsRecursive);
+		return true;
+	}
+	UE_LOG(LogWorldPartition, Error, TEXT("SetDataLayerRuntimeState can only execute on authority"));
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

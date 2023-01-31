@@ -13,7 +13,7 @@
 #include "Misc/Paths.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationNullErrorHandler.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationLogErrorHandler.h"
@@ -140,7 +140,7 @@ class FWorldPartitionStreamingGenerator
 						// Main container will get inherited properties from the actor descriptors
 						ActorSetInstance.RuntimeGrid = ReferenceActorDescView.GetRuntimeGrid();
 						ActorSetInstance.bIsSpatiallyLoaded = ReferenceActorDescView.GetIsSpatiallyLoaded();
-						ActorSetInstance.DataLayers = UDataLayerSubsystem::GetRuntimeDataLayerInstances(ContainerDescriptor.Container->GetWorld(), ReferenceActorDescView.GetRuntimeDataLayers());
+						ActorSetInstance.DataLayers = StreamingGenerator->GetRuntimeDataLayerInstances(ReferenceActorDescView.GetRuntimeDataLayerInstanceNames());
 					}
 					else
 					{
@@ -149,9 +149,8 @@ class FWorldPartitionStreamingGenerator
 						ActorSetInstance.bIsSpatiallyLoaded = ContainerInstanceDescriptor.bIsSpatiallyLoaded;
 
 						TSet<FName> CombinedDataLayers = ContainerInstanceDescriptor.RuntimeDataLayers;
-						CombinedDataLayers.Append(ReferenceActorDescView.GetRuntimeDataLayers());
-
-						ActorSetInstance.DataLayers = UDataLayerSubsystem::GetRuntimeDataLayerInstances(ContainerDescriptor.Container->GetWorld(), CombinedDataLayers.Array());						
+						CombinedDataLayers.Append(ReferenceActorDescView.GetRuntimeDataLayerInstanceNames());
+						ActorSetInstance.DataLayers = StreamingGenerator->GetRuntimeDataLayerInstances(CombinedDataLayers.Array());
 					}
 
 					ActorSetInstance.Bounds.Init();
@@ -237,12 +236,22 @@ class FWorldPartitionStreamingGenerator
 
 	void ResolveRuntimeDataLayers(FWorldPartitionActorDescView& ActorDescView, const FActorDescViewMap& ActorDescViewMap)
 	{
-		TArray<FName> RuntimeDataLayerInstanceNames;
-		RuntimeDataLayerInstanceNames.Reserve(ActorDescView.GetDataLayers().Num());
+		const UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(WorldPartitionContext);
 
-		if (FDataLayerUtils::ResolveRuntimeDataLayerInstanceNames(ActorDescView, ActorDescViewMap, RuntimeDataLayerInstanceNames))
+		// Resolve DataLayerInstanceNames of ActorDescView only when necessary (i.e. when container is a template)
+		if (!ActorDescView.GetActorDesc()->HasResolvedDataLayerInstanceNames())
 		{
-			ActorDescView.SetRuntimeDataLayers(RuntimeDataLayerInstanceNames);
+			// Build a WorldDataLayerActorDescs if DataLayerManager can't resolve Data Layers (i.e. when validating changelists and World is not loaded)
+			const bool bDataLayerManagerCanResolve = DataLayerManager && DataLayerManager->CanResolveDataLayers();
+			const TArray<const FWorldDataLayersActorDesc*> WorldDataLayerActorDescs = !bDataLayerManagerCanResolve ? FDataLayerUtils::FindWorldDataLayerActorDescs(ActorDescViewMap) : TArray<const FWorldDataLayersActorDesc*>();
+			const TArray<FName> DataLayerInstanceNames = FDataLayerUtils::ResolvedDataLayerInstanceNames(DataLayerManager, ActorDescView.GetActorDesc(), WorldDataLayerActorDescs);
+			ActorDescView.SetDataLayerInstanceNames(DataLayerInstanceNames);
+		}
+
+		TArray<FName> RuntimeDataLayerInstanceNames;
+		if (FDataLayerUtils::ResolveRuntimeDataLayerInstanceNames(DataLayerManager, ActorDescView, ActorDescViewMap, RuntimeDataLayerInstanceNames))
+		{
+			ActorDescView.SetRuntimeDataLayerInstanceNames(RuntimeDataLayerInstanceNames);
 		}
 	}
 
@@ -290,7 +299,7 @@ class FWorldPartitionStreamingGenerator
 
 			// Pretend that this actor descriptor belongs to the original container, even if it's not present. It's essentially a proxy
 			// descriptor on top an existing one and at this point no code should require to access the container to resolve it anyways.
-			ModifiedActorDesc->SetContainer(const_cast<UActorDescContainer*>(InContainer));
+			ModifiedActorDesc->SetContainer(const_cast<UActorDescContainer*>(InContainer), InActor->GetWorld());
 
 			return ModifiedActorDesc;
 		};
@@ -346,7 +355,7 @@ class FWorldPartitionStreamingGenerator
 		// Append new unsaved actors for the persistent level
 		if (bHandleUnsavedActors)
 		{
-			for (AActor* Actor : InContainer->GetWorld()->PersistentLevel->Actors)
+			for (AActor* Actor : InContainer->GetWorldPartition()->GetWorld()->PersistentLevel->Actors)
 			{
 				if (IsValid(Actor) && Actor->IsPackageExternal() && Actor->IsMainPackageActor() && !Actor->IsEditorOnly() && (Actor->GetContentBundleGuid() == InContainer->GetContentBundleGuid()) && !InContainer->GetActorDesc(Actor->GetActorGuid()))
 				{
@@ -390,7 +399,7 @@ class FWorldPartitionStreamingGenerator
 			}
 
 			// Data layers are accumulated down the hierarchy chain, since level instances supports data layers assignation on actors
-			InOutRuntimeDataLayers.Append(InParentActorDescView.GetRuntimeDataLayers());
+			InOutRuntimeDataLayers.Append(InParentActorDescView.GetRuntimeDataLayerInstanceNames());
 		};
 
 		// Parse actor containers
@@ -510,19 +519,19 @@ class FWorldPartitionStreamingGenerator
 		if (bIsMainContainer)
 		{
 			TArray<FGuid> LevelScriptReferences;
-			if (UWorld* World = ContainerDescriptor.Container->GetWorld())
+			if (WorldPartitionContext)
 			{
 				// Gather all references to external actors from the level script and make them always loaded
-				if (ULevelScriptBlueprint* LevelScriptBlueprint = World->PersistentLevel->GetLevelScriptBlueprint(true))
+				if (ULevelScriptBlueprint* LevelScriptBlueprint = WorldPartitionContext->GetTypedOuter<UWorld>()->PersistentLevel->GetLevelScriptBlueprint(true))
 				{
 					TArray<AActor*> LevelScriptExternalActorReferences = ActorsReferencesUtils::GetExternalActorReferences(LevelScriptBlueprint);
 					Algo::Transform(LevelScriptExternalActorReferences, LevelScriptReferences, [](const AActor* Actor) { return Actor->GetActorGuid(); });
 				}
 
 				// Validate data layers
-				if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(World))
+				if (UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(WorldPartitionContext))
 				{
-					DataLayerSubsystem->ForEachDataLayer([this](const UDataLayerInstance* DataLayerInstance)
+					DataLayerManager->ForEachDataLayerInstance([this](const UDataLayerInstance* DataLayerInstance)
 					{
 						DataLayerInstance->Validate(ErrorHandler);
 						return true;
@@ -544,7 +553,7 @@ class FWorldPartitionStreamingGenerator
 						ActorDescView->SetForcedNonSpatiallyLoaded();
 					}
 
-					if (ActorDescView->GetRuntimeDataLayers().Num())
+					if (ActorDescView->GetRuntimeDataLayerInstanceNames().Num())
 					{
 						ErrorHandler->OnInvalidReferenceLevelScriptDataLayers(*ActorDescView);
 						ActorDescView->SetInvalidDataLayers();
@@ -583,10 +592,10 @@ class FWorldPartitionStreamingGenerator
 				// Validate grid placement
 				auto IsReferenceDataLayersValid = [](const FWorldPartitionActorDescView& RefererActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
 				{
-					if (RefererActorDescView.GetRuntimeDataLayers().Num() == ReferenceActorDescView.GetRuntimeDataLayers().Num())
+					if (RefererActorDescView.GetRuntimeDataLayerInstanceNames().Num() == ReferenceActorDescView.GetRuntimeDataLayerInstanceNames().Num())
 					{
-						const TSet<FName> RefererActorDescDataLayers(RefererActorDescView.GetRuntimeDataLayers());
-						const TSet<FName> ReferenceActorDescDataLayers(ReferenceActorDescView.GetRuntimeDataLayers());
+						const TSet<FName> RefererActorDescDataLayers(RefererActorDescView.GetRuntimeDataLayerInstanceNames());
+						const TSet<FName> ReferenceActorDescDataLayers(ReferenceActorDescView.GetRuntimeDataLayerInstanceNames());
 
 						return RefererActorDescDataLayers.Includes(ReferenceActorDescDataLayers);
 					}
@@ -796,11 +805,13 @@ public:
 	struct FWorldPartitionStreamingGeneratorParams
 	{
 		FWorldPartitionStreamingGeneratorParams()
-			: ModifiedActorsDescList(nullptr)
+			: WorldPartitionContext(nullptr)
+			, ModifiedActorsDescList(nullptr)
 			, ErrorHandler(&NullErrorHandler)
 			, bEnableStreaming(false)
 		{}
 
+		const UWorldPartition* WorldPartitionContext;
 		FActorDescList* ModifiedActorsDescList;
 		IStreamingGenerationErrorHandler* ErrorHandler;
 		bool bEnableStreaming;
@@ -812,7 +823,8 @@ public:
 	};
 
 	FWorldPartitionStreamingGenerator(const FWorldPartitionStreamingGeneratorParams& Params)
-		: bEnableStreaming(Params.bEnableStreaming)
+		: WorldPartitionContext(Params.WorldPartitionContext)
+		, bEnableStreaming(Params.bEnableStreaming)
 		, ModifiedActorsDescList(Params.ModifiedActorsDescList)
 		, FilteredClasses(Params.FilteredClasses)
 		, IsValidGrid(Params.IsValidGrid)
@@ -929,7 +941,15 @@ public:
 		return StreamingGenerationContext.Get();
 	}
 
+	TArray<const UDataLayerInstance*> GetRuntimeDataLayerInstances(const TArray<FName>& RuntimeDataLayers) const
+	{
+		static TArray<const UDataLayerInstance*> EmptyArray;
+		UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(WorldPartitionContext);
+		return DataLayerManager ? DataLayerManager->GetRuntimeDataLayerInstances(RuntimeDataLayers) : EmptyArray;
+	}
+
 private:
+	const UWorldPartition* WorldPartitionContext;
 	bool bEnableStreaming;
 	FActorDescList* ModifiedActorsDescList;
 	TArray<TSubclassOf<AActor>> FilteredClasses;
@@ -983,6 +1003,7 @@ bool UWorldPartition::GenerateContainerStreaming(const UActorDescContainer* InAc
 	FHierarchicalLogArchive HierarchicalLogAr(*LogFileAr);
 
 	FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
+	StreamingGeneratorParams.WorldPartitionContext = this;
 	StreamingGeneratorParams.ModifiedActorsDescList = ModifiedActorsDescList;
 	StreamingGeneratorParams.IsValidGrid = [this](FName GridName) { return RuntimeHash->IsValidGrid(GridName); };
 	StreamingGeneratorParams.ErrorHandler = ErrorHandler;
@@ -1032,6 +1053,7 @@ void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bo
 
 		FStreamingGenerationLogErrorHandler LogErrorHandler;
 		FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
+		StreamingGeneratorParams.WorldPartitionContext = this;
 		StreamingGeneratorParams.ErrorHandler = &LogErrorHandler;
 		StreamingGeneratorParams.bEnableStreaming = IsStreamingEnabled();
 		StreamingGeneratorParams.FilteredClasses.Add(AWorldPartitionHLOD::StaticClass());
@@ -1053,6 +1075,7 @@ void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHand
 	FActorDescList ModifiedActorDescList;
 
 	FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
+	StreamingGeneratorParams.WorldPartitionContext = this;
 	StreamingGeneratorParams.ModifiedActorsDescList = &ModifiedActorDescList;
 	StreamingGeneratorParams.ErrorHandler = ErrorHandler;
 	StreamingGeneratorParams.IsValidGrid = [this](FName GridName) { return RuntimeHash->IsValidGrid(GridName); };
@@ -1069,6 +1092,7 @@ void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHand
 
 	ForEachActorDescContainer([this, &StreamingGeneratorParams](const UActorDescContainer* InActorDescContainer)
 	{
+		check(StreamingGeneratorParams.WorldPartitionContext == InActorDescContainer->GetWorldPartition());
 		FWorldPartitionStreamingGenerator StreamingGenerator(StreamingGeneratorParams);
 		StreamingGenerator.PreparationPhase(InActorDescContainer);
 	});
@@ -1090,7 +1114,8 @@ void UWorldPartition::CheckForErrors(const FCheckForErrorsParams& Params)
 	FActorDescList ModifiedActorDescList;
 
 	FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
-	StreamingGeneratorParams.ModifiedActorsDescList = Params.ActorDescContainer->GetWorld() ? &ModifiedActorDescList : nullptr;
+	StreamingGeneratorParams.WorldPartitionContext = Params.ActorDescContainer->GetWorldPartition();
+	StreamingGeneratorParams.ModifiedActorsDescList = !Params.ActorDescContainer->IsTemplateContainer() ? &ModifiedActorDescList : nullptr;
 	StreamingGeneratorParams.ErrorHandler = Params.ErrorHandler;
 	StreamingGeneratorParams.IsValidGrid = [](FName GridName) { return true; };
 	StreamingGeneratorParams.bEnableStreaming = Params.bEnableStreaming;

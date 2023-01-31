@@ -73,7 +73,7 @@ public:
 	static FText GetDataLayerText(const UDataLayerInstance* InDataLayer);
 
 	virtual bool IsLocked() const;
-	virtual bool IsReadOnly() const { return false; }
+	virtual bool IsReadOnly() const;
 	virtual bool CanEditChange(const FProperty* InProperty) const;
 	virtual bool AddActor(AActor* Actor) const { return false; }
 	virtual bool RemoveActor(AActor* Actor) const { return false; }
@@ -118,6 +118,9 @@ public:
 	const UDataLayerInstance* GetParent() const { return Parent; }
 	UDataLayerInstance* GetParent() { return Parent; }
 
+	EDataLayerRuntimeState GetRuntimeState() const;
+	EDataLayerRuntimeState GetEffectiveRuntimeState() const;
+
 	const TArray<TObjectPtr<UDataLayerInstance>>& GetChildren() const { return Children; }
 	void ForEachChild(TFunctionRef<bool(const UDataLayerInstance*)> Operation) const;
 
@@ -132,6 +135,9 @@ public:
 
 private:
 	void AddChild(UDataLayerInstance* DataLayer);
+	bool SetRuntimeState(EDataLayerRuntimeState InState, bool bInIsRecursive = false) const;
+	friend class UDataLayerManager;
+
 #if WITH_EDITOR
 	void RemoveChild(UDataLayerInstance* DataLayer);
 #endif

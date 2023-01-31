@@ -12,7 +12,7 @@
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "EditorSupportDelegates.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
@@ -1632,91 +1632,96 @@ TArray<FName> AActor::GetDataLayerInstanceNames() const
 }
 
 TArray<const UDataLayerInstance*> AActor::GetDataLayerInstancesForLevel() const
-	{
+{
 	const bool bUseLevelContext = true;
 	return GetDataLayerInstancesInternal(bUseLevelContext);
 }
 
 void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 {
-	if (!GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
+	if (IsTemplate())
 	{
-		if (!SupportsDataLayer())
-		{
-			DataLayerAssets.Empty();
-			DataLayers.Empty();
-			return;
-		}
+		return;
+	}
 
-		if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+	if (!SupportsDataLayer())
+	{
+		DataLayerAssets.Empty();
+		DataLayers.Empty();
+		return;
+	}
+
+	// Don't fixup in game world
+	UWorld* World = GetWorld();
+	if ((GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor)) ||
+		(World && (World->IsGameWorld() || (World->WorldType == EWorldType::Inactive))))
+	{ 
+		return;
+	}
+
+	// Use Actor's DataLayerManager since the fixup is relative to this level
+	UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(this);
+	if (!DataLayerManager || !DataLayerManager->CanResolveDataLayers())
+	{
+		return;
+	}
+	
+	if (bRevertChangesOnLockedDataLayer)
+	{
+		// Since it's not possible to prevent changes of particular elements of an array, rollback change on locked DataLayers.
+		TSet<const UDataLayerAsset*> PreEdit(PreEditChangeDataLayers);
+		TSet<const UDataLayerAsset*> PostEdit(DataLayerAssets);
+
+		auto DifferenceContainsLockedDataLayers = [DataLayerManager](const TSet<const UDataLayerAsset*>& A, const TSet<const UDataLayerAsset*>& B)
 		{
-			if (!DataLayerSubsystem->CanResolveDataLayers())
+			TSet<const UDataLayerAsset*> Diff = A.Difference(B);
+			for (const UDataLayerAsset* DataLayerAsset : Diff)
 			{
-				return;
-			}
-
-			ULevel* Level = GetLevel();
-
-				if (bRevertChangesOnLockedDataLayer)
+				const UDataLayerInstance* DataLayerInstance = DataLayerManager->GetDataLayerInstance(DataLayerAsset);
+				if (DataLayerInstance && DataLayerInstance->IsLocked())
 				{
-					// Since it's not possible to prevent changes of particular elements of an array, rollback change on locked DataLayers.
-					TSet<const UDataLayerAsset*> PreEdit(PreEditChangeDataLayers);
-					TSet<const UDataLayerAsset*> PostEdit(DataLayerAssets);
-
-				auto DifferenceContainsLockedDataLayers = [DataLayerSubsystem, Level](const TSet<const UDataLayerAsset*>& A, const TSet<const UDataLayerAsset*>& B)
-					{
-						TSet<const UDataLayerAsset*> Diff = A.Difference(B);
-						for (const UDataLayerAsset* DataLayerAsset : Diff)
-						{
-						// We pass Actor Level when resolving the DataLayerInstance as we do the fixup relative to this level
-						const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerAsset, Level);
-							if (DataLayerInstance && DataLayerInstance->IsLocked())
-							{
-								return true;
-							}
-						}
-						return false;
-					};
-					
-					if (DifferenceContainsLockedDataLayers(PreEdit, PostEdit) || 
-						DifferenceContainsLockedDataLayers(PostEdit, PreEdit))
-					{
-						DataLayerAssets = PreEditChangeDataLayers;
-					}
+					return true;
 				}
-
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			auto CleanupDataLayers = [this, DataLayerSubsystem, Level](auto& DataLayerArray)
-				{
-					using ArrayType = typename TRemoveReference<decltype(DataLayerArray)>::Type;
-					
-					ArrayType ExistingDataLayer;
-					for (int32 Index = 0; Index < DataLayerArray.Num();)
-					{
-					// We pass Actor Level when resolving the DataLayerInstance as we do the fixup relative to this level
-						auto& DataLayer = DataLayerArray[Index];
-					if (!DataLayerSubsystem->GetDataLayerInstance(DataLayer, Level) || ExistingDataLayer.Contains(DataLayer))
-						{
-							DataLayerArray.RemoveAtSwap(Index);
-						}
-						else
-						{
-							ExistingDataLayer.Add(DataLayer);
-							++Index;
-						}
-					}
-				};
-
-				// Only invalidate DataLayerAssets on cook. In Editor we want to be able to re-resolve if the asset gets readded to the WorldDataLayers actor
-				if (IsRunningCookCommandlet())
-				{
-					CleanupDataLayers(DataLayerAssets);
-				}
-				CleanupDataLayers(DataLayers);
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
+			return false;
+		};
+					
+		if (DifferenceContainsLockedDataLayers(PreEdit, PostEdit) || 
+			DifferenceContainsLockedDataLayers(PostEdit, PreEdit))
+		{
+			DataLayerAssets = PreEditChangeDataLayers;
 		}
 	}
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	auto CleanupDataLayers = [this, DataLayerManager](auto& DataLayerArray)
+	{
+		using ArrayType = typename TRemoveReference<decltype(DataLayerArray)>::Type;
+					
+		ArrayType ExistingDataLayer;
+		for (int32 Index = 0; Index < DataLayerArray.Num();)
+		{
+			auto& DataLayer = DataLayerArray[Index];
+			if (!DataLayerManager->GetDataLayerInstance(DataLayer) || ExistingDataLayer.Contains(DataLayer))
+			{
+				DataLayerArray.RemoveAtSwap(Index);
+			}
+			else
+			{
+				ExistingDataLayer.Add(DataLayer);
+				++Index;
+			}
+		}
+	};
+
+	// Only invalidate DataLayerAssets on cook. In Editor we want to be able to re-resolve if the asset gets readded to the WorldDataLayers actor
+	if (IsRunningCookCommandlet())
+	{
+		CleanupDataLayers(DataLayerAssets);
+	}
+	CleanupDataLayers(DataLayers);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
 
 bool AActor::IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& PropertyChangedEvent) const
 {

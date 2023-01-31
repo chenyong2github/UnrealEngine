@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "Engine/Level.h"
 #include "Misc/StringFormatArg.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "UObject/UnrealType.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataLayerInstanceWithAsset)
@@ -36,6 +36,10 @@ void UDataLayerInstanceWithAsset::OnCreated(const UDataLayerAsset* Asset)
 
 bool UDataLayerInstanceWithAsset::IsReadOnly() const
 {
+	if (Super::IsReadOnly())
+	{
+		return true;
+	}
 	return GetOuterAWorldDataLayers()->IsSubWorldDataLayers();
 }
 
@@ -50,8 +54,8 @@ bool UDataLayerInstanceWithAsset::IsLocked() const
 
 bool UDataLayerInstanceWithAsset::AddActor(AActor* Actor) const
 {	
-	check(GetWorld()->GetSubsystem<UDataLayerSubsystem>()->GetDataLayerInstance(DataLayerAsset) != nullptr);
 	check(GetTypedOuter<ULevel>() == Actor->GetLevel()); // Make sure the instance is part of the same world as the actor.
+	check(UDataLayerManager::GetDataLayerManager(Actor)->GetDataLayerInstance(DataLayerAsset) != nullptr); // Make sure the DataLayerInstance exists for this level
 	return Actor->AddDataLayer(DataLayerAsset);
 }
 
@@ -70,24 +74,28 @@ bool UDataLayerInstanceWithAsset::Validate(IStreamingGenerationErrorHandler* Err
 		return false;
 	}
 
-	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld());
-	DataLayerSubsystem->ForEachDataLayer([&bIsValid, this, ErrorHandler](UDataLayerInstance* DataLayerInstance)
+	// Get the DataLayerManager for this DataLayerInstance which will be the one of its outer world
+	UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(this);
+	if (ensure(DataLayerManager))
 	{
-		if (DataLayerInstance != this)
+		DataLayerManager->ForEachDataLayerInstance([&bIsValid, this, ErrorHandler](UDataLayerInstance* DataLayerInstance)
 		{
-			if (UDataLayerInstanceWithAsset* DataLayerInstanceWithAsset = Cast<UDataLayerInstanceWithAsset>(DataLayerInstance))
+			if (DataLayerInstance != this)
 			{
-				if (DataLayerInstanceWithAsset->GetAsset() == GetAsset())
+				if (UDataLayerInstanceWithAsset* DataLayerInstanceWithAsset = Cast<UDataLayerInstanceWithAsset>(DataLayerInstance))
 				{
-					ErrorHandler->OnDataLayerAssetConflict(this, DataLayerInstanceWithAsset);
-					bIsValid = false;
-					return false;
+					if (DataLayerInstanceWithAsset->GetAsset() == GetAsset())
+					{
+						ErrorHandler->OnDataLayerAssetConflict(this, DataLayerInstanceWithAsset);
+						bIsValid = false;
+						return false;
+					}
 				}
 			}
-		}
-
-		return true;
-	}, GetOuterAWorldDataLayers()->GetLevel()); // Resolve DataLayerInstances based on outer level
+	
+			return true;
+		});
+	}
 
 	bIsValid &= Super::Validate(ErrorHandler);
 

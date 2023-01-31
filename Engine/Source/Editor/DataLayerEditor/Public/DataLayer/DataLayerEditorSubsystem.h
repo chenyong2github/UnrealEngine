@@ -110,9 +110,6 @@ public:
 	void AddToActorEditorContext(UDataLayerInstance* InDataLayerInstance);
 	void RemoveFromActorEditorContext(UDataLayerInstance* InDataLayerInstance);
 
-	void OnWorldDataLayersPostRegister(AWorldDataLayers* WorldDataLayers);
-	void OnWorldDataLayersPreUnregister(AWorldDataLayers* WorldDataLayers);
-
 	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<const UDataLayerAsset*> DataLayerAssets) const;
 
 	template<class DataLayerType, typename ...Args>

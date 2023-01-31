@@ -11,7 +11,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
@@ -119,19 +119,27 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::PassActorDescFilter(co
 	return !Actor->GetActorIsRuntimeOnly();
 }
 
+// Helper added to since the nested class IWorldPartitionActorLoaderInterface::ILoaderAdapter can't be friend of UDataLayerManager.
+bool IWorldPartitionActorLoaderInterface::PassDataLayersFilter(UWorld* InWorld, const TArray<FName>& InDataLayerInstanceNames)
+{
+	check(!IsRunningCookCommandlet());
+	UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(InWorld);
+	return DataLayerManager ? DataLayerManager->ResolveIsLoadedInEditor(InDataLayerInstanceNames) : true;
+}
+
 bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::PassDataLayersFilter(const FWorldPartitionHandle& Actor) const
 {
 	UWorld* OwningWorld = World->PersistentLevel->GetWorld();
-	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(OwningWorld))
+	if (UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(OwningWorld))
 	{
 		FWorldPartitionActorViewProxy ActorDescProxy(*Actor);
 
 		if (IsRunningCookCommandlet())
 		{
 			// When running cook commandlet, dont allow loading of actors with runtime loaded data layers
-			for (const FName& DataLayerInstanceName : ActorDescProxy.GetDataLayers())
+			for (const FName& DataLayerInstanceName : ActorDescProxy.GetDataLayerInstanceNames())
 			{
-				const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerInstanceName);
+				const UDataLayerInstance* DataLayerInstance = DataLayerManager->GetDataLayerInstance(DataLayerInstanceName);
 				if (DataLayerInstance && DataLayerInstance->IsRuntime())
 				{
 					return false;
@@ -140,7 +148,7 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::PassDataLayersFilter(c
 		}
 		else
 		{
-			return DataLayerSubsystem->ResolveIsLoadedInEditor(ActorDescProxy.GetDataLayers());
+			return IWorldPartitionActorLoaderInterface::PassDataLayersFilter(OwningWorld, ActorDescProxy.GetDataLayerInstanceNames());
 		}
 	}
 

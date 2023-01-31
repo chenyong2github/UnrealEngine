@@ -8,8 +8,11 @@
 #include "WorldPartition/DataLayer/DataLayerEditorContext.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "EngineUtils.h"
+
+#if WITH_EDITOR
+#include "WorldPartition/DataLayer/DataLayerManager.h"
+#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ActorPartitionSubsystem)
 
@@ -418,12 +421,13 @@ APartitionActor* UActorPartitionSubsystem::GetActor(const TSubclassOf<APartition
 	const uint32 GridSize = InGridSize > 0 ? InGridSize : InActorClass->GetDefaultObject<APartitionActor>()->GetDefaultGridSize(GetWorld());
 	
 	UWorld* World = GetWorld();
+	const UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(World);
 	
-	auto WrappedInActorCreated = [World, InActorCreated](APartitionActor* PartitionActor)
+	auto WrappedInActorCreated = [DataLayerManager, InActorCreated](APartitionActor* PartitionActor)
 	{
-		if(UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>())
+		if(DataLayerManager)
 		{
-			for (UDataLayerInstance* DataLayer : DataLayerSubsystem->GetActorEditorContextDataLayers())
+			for (UDataLayerInstance* DataLayer : DataLayerManager->GetActorEditorContextDataLayers())
 			{
 				PartitionActor->AddDataLayer(DataLayer);
 			}
@@ -431,8 +435,7 @@ APartitionActor* UActorPartitionSubsystem::GetActor(const TSubclassOf<APartition
 		InActorCreated(PartitionActor);
 	};
 
-	UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>();
-	FActorPartitionIdentifier ActorPartitionId(InActorClass, InGuid, DataLayerSubsystem ? DataLayerSubsystem->GetDataLayerEditorContextHash() : FDataLayerEditorContext::EmptyHash);
+	FActorPartitionIdentifier ActorPartitionId(InActorClass, InGuid, DataLayerManager ? DataLayerManager->GetDataLayerEditorContextHash() : FDataLayerEditorContext::EmptyHash);
 	TMap<FActorPartitionIdentifier, TWeakObjectPtr<APartitionActor>>* ActorsPerId = PartitionedActors.Find(InCellCoords);
 	APartitionActor* FoundActor = nullptr;
 	if (!ActorsPerId)

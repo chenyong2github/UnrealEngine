@@ -79,20 +79,37 @@ FName FWorldPartitionActorDescView::GetHLODLayer() const
 	return ActorDesc->GetHLODLayer();
 }
 
-const TArray<FName>& FWorldPartitionActorDescView::GetDataLayers() const
+void FWorldPartitionActorDescView::SetDataLayerInstanceNames(const TArray<FName>& InDataLayerInstanceNames)
 {
-	static TArray<FName> EmptyDataLayers;
-	return bInvalidDataLayers ? EmptyDataLayers : ActorDesc->GetDataLayerInstanceNames();
+	check(!ActorDesc->HasResolvedDataLayerInstanceNames());
+	ResolvedDataLayerInstanceNames = InDataLayerInstanceNames;
 }
 
 const TArray<FName>& FWorldPartitionActorDescView::GetDataLayerInstanceNames() const
 {
+	static TArray<FName> EmptyDataLayers;
+	if (bInvalidDataLayers)
+	{
+		return EmptyDataLayers;
+	}
+	else if (ResolvedDataLayerInstanceNames.IsSet())
+	{
+		return ResolvedDataLayerInstanceNames.GetValue();
+	}
 	return ActorDesc->GetDataLayerInstanceNames();
 }
-const TArray<FName>& FWorldPartitionActorDescView::GetRuntimeDataLayers() const
+
+const TArray<FName>& FWorldPartitionActorDescView::GetRuntimeDataLayerInstanceNames() const
 {
 	static TArray<FName> EmptyDataLayers;
-	return (bInvalidDataLayers || !RuntimeDataLayers.IsSet()) ? EmptyDataLayers : RuntimeDataLayers.GetValue();
+	if (!bInvalidDataLayers)
+	{
+		if (ensure(RuntimeDataLayerInstanceNames.IsSet()))
+		{
+			return RuntimeDataLayerInstanceNames.GetValue();
+		}
+	}
+	return EmptyDataLayers;
 }
 
 const TArray<FName>& FWorldPartitionActorDescView::GetTags() const
@@ -217,9 +234,9 @@ void FWorldPartitionActorDescView::SetInvalidDataLayers()
 	}
 }
 
-void FWorldPartitionActorDescView::SetRuntimeDataLayers(TArray<FName>& InRuntimeDataLayers)
+void FWorldPartitionActorDescView::SetRuntimeDataLayerInstanceNames(TArray<FName>& InRuntimeDataLayerInstanceNames)
 {
-	RuntimeDataLayers = InRuntimeDataLayers;
+	RuntimeDataLayerInstanceNames = InRuntimeDataLayerInstanceNames;
 }
 
 void FWorldPartitionActorDescView::SetRuntimeReferences(TArray<FGuid>& InRuntimeReferences)
