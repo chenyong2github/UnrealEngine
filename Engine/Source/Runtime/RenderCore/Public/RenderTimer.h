@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreGlobals.h"
 #include "HAL/PlatformTime.h"
 
 /** Timer helper class. **/
