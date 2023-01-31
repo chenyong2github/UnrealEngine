@@ -431,6 +431,9 @@ public:
 	// return true, if preview enabled for this actor
 	bool IsPreviewEnabled() const;
 
+	/** Gets whether the preview output is displayed onto the stage actor's screen meshes */
+	bool IsPreviewDrawnToScreens() const;
+
 	void Constructor_Editor();
 	void Destructor_Editor();
 

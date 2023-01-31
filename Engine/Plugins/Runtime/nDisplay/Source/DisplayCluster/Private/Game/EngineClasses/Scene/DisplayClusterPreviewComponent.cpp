@@ -102,7 +102,7 @@ bool UDisplayClusterPreviewComponent::InitializePreviewComponent(ADisplayCluster
 
 bool UDisplayClusterPreviewComponent::IsPreviewEnabled() const
 {
-	return (ViewportConfig && RootActor && RootActor->IsPreviewEnabled());
+	return (ViewportConfig && RootActor && RootActor->IsPreviewDrawnToScreens());
 }
 
 void UDisplayClusterPreviewComponent::RestorePreviewMeshMaterial()
@@ -163,7 +163,7 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewMesh()
 
 	UpdatePreviewMeshReference();
 
-	if (IsPreviewEnabled())
+	if (IsPreviewEnabled() || OverrideTexture)
 	{
 		check(ViewportConfig);
 

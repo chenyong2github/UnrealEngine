@@ -219,6 +219,14 @@ bool ADisplayClusterRootActor::IsPreviewEnabled() const
 	return bPreviewEnable || !PreviewEnableOverriders.IsEmpty();
 }
 
+bool ADisplayClusterRootActor::IsPreviewDrawnToScreens() const
+{
+	// The preview output is drawn to the screen when preview rendering is enabled (either manually or through an override) AND when
+	// the bPreviewEnable flag is specifically set to true. 
+	return IsPreviewEnabled() && bPreviewEnable;
+}
+
+
 // Return all RTT RHI resources for preview
 void ADisplayClusterRootActor::GetPreviewRenderTargetableTextures(const TArray<FString>& InViewportNames, TArray<FTextureRHIRef>& OutTextures)
 {
