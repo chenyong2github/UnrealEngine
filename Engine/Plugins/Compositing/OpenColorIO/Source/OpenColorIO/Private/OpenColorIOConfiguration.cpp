@@ -11,6 +11,7 @@
 #include "Modules/ModuleManager.h"
 #include "OpenColorIOColorTransform.h"
 #include "OpenColorIOModule.h"
+#include "OpenColorIONativeConfiguration.h"
 #include "OpenColorIOSettings.h"
 #include "TextureResource.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -49,6 +50,7 @@ namespace OCIODirectoryWatcher
 
 UOpenColorIOConfiguration::UOpenColorIOConfiguration(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, NativeConfig(MakePimpl<FOpenColorIONativeConfiguration>())
 {
 	
 }
@@ -145,7 +147,7 @@ bool UOpenColorIOConfiguration::Validate() const
 	if (!ConfigurationFile.FilePath.IsEmpty())
 	{
 		//When loading the configuration file, if any errors are detected, it will throw an exception. Thus, our pointer won't be valid.
-		return LoadedConfig != nullptr;
+		return NativeConfig->Get() != nullptr;
 	}
 
 	return false;
@@ -168,6 +170,7 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 	CleanupTransforms();
 	LoadConfiguration();
 
+	OCIO_NAMESPACE::ConstConfigRcPtr LoadedConfig = NativeConfig->Get();
 	if (!LoadedConfig)
 	{
 		return;
@@ -280,6 +283,11 @@ void UOpenColorIOConfiguration::ConfigPathChangedEvent(const TArray<FFileChangeD
 	}
 
 #endif
+}
+
+FOpenColorIONativeConfiguration* UOpenColorIOConfiguration::GetNativeConfig_Internal() const
+{
+	return NativeConfig.Get();
 }
 
 void UOpenColorIOConfiguration::StartDirectoryWatch(const FString& FilePath)
@@ -593,13 +601,11 @@ void UOpenColorIOConfiguration::LoadConfiguration()
 			FString ConfigurationFilePath = ConfigurationFile.FilePath;
 			if (ConfigurationFilePath.StartsWith(TEXT("ocio://")))
 			{
-				LoadedConfig = OCIO_NAMESPACE::Config::CreateFromFile(StringCast<ANSICHAR>(*ConfigurationFilePath).Get());
+				NativeConfig->Set(OCIO_NAMESPACE::Config::CreateFromFile(StringCast<ANSICHAR>(*ConfigurationFilePath).Get()));
 				UE_LOG(LogOpenColorIO, Verbose, TEXT("Loaded built-in OCIO configuration file %s"), *ConfigurationFilePath);
 			}
 			else
 			{
-				LoadedConfig.reset();
-
 				FString FullPath;
 				if (ConfigurationFilePath.Contains(TEXT("{Engine}")))
 				{
@@ -620,11 +626,14 @@ void UOpenColorIOConfiguration::LoadConfiguration()
 				if (NewConfig)
 				{
 					UE_LOG(LogOpenColorIO, Verbose, TEXT("Loaded OCIO configuration file %s"), *FullPath);
-					LoadedConfig = NewConfig;
+					NativeConfig->Set(NewConfig);
+					
 					StartDirectoryWatch(FullPath);
 				}
 				else
 				{
+					NativeConfig->Set(nullptr);
+
 					UE_LOG(LogOpenColorIO, Error, TEXT("Could not load OCIO configuration file %s. Verify that the path is good or that the file is valid."), *ConfigurationFile.FilePath);
 				}
 			}

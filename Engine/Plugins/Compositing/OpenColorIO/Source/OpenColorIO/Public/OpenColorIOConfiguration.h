@@ -11,13 +11,10 @@
 #include "RHIDefinitions.h"
 #endif
 
-#if WITH_EDITOR && WITH_OCIO
-#include "OpenColorIO/OpenColorIO.h"
-#endif
-
 #include "OpenColorIOConfiguration.generated.h"
 
 
+class FOpenColorIONativeConfiguration;
 class FOpenColorIOTransformResource;
 class FTextureResource;
 class UOpenColorIOColorTransform;
@@ -58,13 +55,8 @@ public:
 	*/
 	void ConfigPathChangedEvent(const TArray<FFileChangeData>& InFileChanges, const FString InFileMountPath);
 
-#if WITH_EDITORONLY_DATA && WITH_OCIO
-	OCIO_NAMESPACE::ConstConfigRcPtr GetLoadedConfiguration() const { return LoadedConfig; }
-
-	UE_DEPRECATED(5.2, "GetLoadedConfigurationFile is deprecated, please use GetLoadedConfiguration instead.")
-	OCIO_NAMESPACE::ConstConfigRcPtr GetLoadedConfigurationFile() const { return GetLoadedConfiguration(); }
-#endif
-
+	/** Internal only: Replacement for previous `GetLoadedConfiguration()` and `GetLoadedConfigurationFile()` functions, returning the private implementation of the native OCIO config. */
+	FOpenColorIONativeConfiguration* GetNativeConfig_Internal() const;
 protected:
 
 	const TObjectPtr<UOpenColorIOColorTransform>* FindTransform(const FOpenColorIOColorConversionSettings& InSettings) const;
@@ -118,10 +110,6 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UOpenColorIOColorTransform>> ColorTransforms;
 
-#if WITH_EDITORONLY_DATA && WITH_OCIO
-	OCIO_NAMESPACE::ConstConfigRcPtr LoadedConfig;
-#endif //WITH_EDITORONLY_DATA
-
 private:
 	struct FOCIOConfigWatchedDirInfo
 	{
@@ -137,4 +125,7 @@ private:
 
 	/** Information about the currently watched directory. Helps us manage the directory change events. */
 	FOCIOConfigWatchedDirInfo WatchedDirectoryInfo;
+
+	/** Private implementation of the native OpenColorIO config object. */
+	TPimplPtr<FOpenColorIONativeConfiguration> NativeConfig;
 };
