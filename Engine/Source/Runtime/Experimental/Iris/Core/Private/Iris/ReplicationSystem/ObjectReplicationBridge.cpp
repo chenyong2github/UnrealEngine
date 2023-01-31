@@ -752,6 +752,9 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 		if (const FReplicationInstanceProtocol* InstanceProtocol = ObjectData.InstanceProtocol)
 		{
 			const EReplicationInstanceProtocolTraits InstanceTraits = InstanceProtocol->InstanceTraits;
+			const bool bNeedsPoll = EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPoll);
+			bool bIsDirtyObject = DirtyObjects.GetBit(InternalObjectIndex);
+
 			// Call per-instance PreUpdate function
 			if (PreUpdateInstanceFunction && EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPreSendUpdate))
 			{
@@ -761,15 +764,24 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 #endif
 				(*PreUpdateInstanceFunction)(ObjectData.RefHandle, ReplicatedInstances[InternalObjectIndex], this);
 				++Stats.PreUpdatedObjectCount;
+
+				// Pre update may dirty push based properties. Detect it.
+				if ((bNeedsPoll & !bIsDirtyObject))
+				{
+					bIsDirtyObject = FGlobalDirtyNetObjectTracker::IsNetObjectStateDirty(ObjectData.NetHandle);
+					if (bIsDirtyObject)
+					{
+						DirtyObjects.SetBit(bIsDirtyObject);
+					}
+				}
 			}
 
-			const bool bIsDirtyObject = DirtyObjects.GetBit(InternalObjectIndex);
 			const bool bIsNewInScope = !PrevScopableObjects.GetBit(InternalObjectIndex);
 			const bool bIsGCAffectedObject = GarbageCollectionAffectedObjects.GetBit(InternalObjectIndex);			
 			GarbageCollectionAffectedObjects.ClearBit(InternalObjectIndex);
 
 			// Early out if the instance does not require polling
-			if (!EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPoll))
+			if (!bNeedsPoll)
 			{
 				return;
 			}

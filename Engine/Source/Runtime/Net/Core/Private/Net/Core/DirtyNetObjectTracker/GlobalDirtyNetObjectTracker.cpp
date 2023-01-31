@@ -38,6 +38,16 @@ void FGlobalDirtyNetObjectTracker::MarkNetObjectStateDirty(FNetHandle NetHandle)
 	}
 }
 
+bool FGlobalDirtyNetObjectTracker::IsNetObjectStateDirty(FNetHandle NetHandle)
+{
+	if (Instance)
+	{
+		return Instance->DirtyObjects.Find(NetHandle) != nullptr;
+	}
+
+	return false;
+}
+
 FGlobalDirtyNetObjectTracker::FPollHandle FGlobalDirtyNetObjectTracker::CreatePoller()
 {
 	if (Instance)

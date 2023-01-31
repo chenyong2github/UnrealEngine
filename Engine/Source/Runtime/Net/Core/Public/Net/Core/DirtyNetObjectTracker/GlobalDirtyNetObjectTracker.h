@@ -50,6 +50,9 @@ public:
 	/** Marks an object as dirty. Assumes Init() has been called. */
 	NETCORE_API static void MarkNetObjectStateDirty(FNetHandle);
 
+	/** Returns true if an object has been marked as dirty since the last reset. Assumes Init() has been called. */
+	NETCORE_API static bool IsNetObjectStateDirty(FNetHandle);
+
 	/** Create a poller which is assumed to call PollDirtyNetObjects(). Assumes Init() has been called. */
 	NETCORE_API static FPollHandle CreatePoller();
 
