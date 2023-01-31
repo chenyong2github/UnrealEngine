@@ -585,7 +585,7 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	FInstanceCullingManager& InstanceCullingManager = *GraphBuilder.AllocObject<FInstanceCullingManager>(Scene->GPUScene.IsEnabled(), GraphBuilder);
 
 	// Find the visible primitives.
-	InitViews(GraphBuilder, SceneTexturesConfig, InstanceCullingManager);
+	InitViews(GraphBuilder, SceneTexturesConfig, InstanceCullingManager, nullptr);
 
 	GEngine->GetPreRenderDelegateEx().Broadcast(GraphBuilder);
 
@@ -633,7 +633,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	FLumenSceneFrameTemporaries LumenFrameTemporaries;
 	FILCUpdatePrimTaskData ILCTaskData;
 	FRDGExternalAccessQueue ExternalAccessQueue;
-	BeginInitViews(GraphBuilder, SceneTexturesConfig, FExclusiveDepthStencil::DepthWrite_StencilWrite, ILCTaskData, InstanceCullingManager);
+	BeginInitViews(GraphBuilder, SceneTexturesConfig, FExclusiveDepthStencil::DepthWrite_StencilWrite, ILCTaskData, InstanceCullingManager, nullptr);
 
 	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
 

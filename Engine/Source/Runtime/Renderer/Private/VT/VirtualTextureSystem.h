@@ -80,10 +80,14 @@ struct FVirtualTextureUpdateSettings
 class FVirtualTextureUpdater
 {
 private:
-	FVirtualTextureUpdater() = default;
-
+	FVirtualTextureUpdateSettings Settings;
+	FConcurrentLinearBulkObjectAllocator Allocator;
+	FUniqueRequestList* MergedRequestList = nullptr;
 	FVirtualTextureFeedback::FMapResult FeedbackMapResult;
 	UE::Tasks::FTask AsyncTask;
+	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
+	uint32 NumProcessedLoadRequests = 0;
+	bool bAsyncTaskAllowed = false;
 
 	friend FVirtualTextureSystem;
 };
@@ -100,6 +104,7 @@ public:
 	void Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene, const FVirtualTextureUpdateSettings& Settings);
 
 	TUniquePtr<FVirtualTextureUpdater> BeginUpdate(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene, const FVirtualTextureUpdateSettings& Settings);
+	void WaitForTasks(FVirtualTextureUpdater* Updater);
 	void EndUpdate(FRDGBuilder& GraphBuilder, TUniquePtr<FVirtualTextureUpdater>&& Updater, ERHIFeatureLevel::Type FeatureLevel);
 
 	void ReleasePendingResources();
@@ -154,6 +159,8 @@ private:
 	FVirtualTextureSystem();
 	~FVirtualTextureSystem();
 
+	void BeginUpdate(FRDGBuilder& GraphBuilder, FVirtualTextureUpdater* Updater);
+
 	void AllocateResources(FRDGBuilder& GraphBuilder);
 	void DestroyPendingVirtualTextures(bool bForceDestroyAll);
 	void ReleasePendingSpaces();
@@ -164,10 +171,15 @@ private:
 	
 	void SubmitRequestsFromLocalTileList(FRHICommandList& RHICmdList, TArray<FVirtualTextureLocalTile>& OutDeferredTiles, const TSet<FVirtualTextureLocalTile>& LocalTileList, EVTProducePageFlags Flags, ERHIFeatureLevel::Type FeatureLevel);
 
+	void GatherFeedbackRequests(FConcurrentLinearBulkObjectAllocator& Allocator, const FVirtualTextureUpdateSettings& Settings, const FVirtualTextureFeedback::FMapResult& FeedbackResult, FUniqueRequestList* MergedRequestList);
+	void GatherLockedTileRequests(FUniqueRequestList* MergedRequestList);
+	void GatherPackedTileRequests(FConcurrentLinearBulkObjectAllocator& Allocator, const FVirtualTextureUpdateSettings& Settings, FUniqueRequestList* MergedRequestList);
+
 	void SubmitPreMappedRequests(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);
 
-	void BeginSubmitRequests(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FConcurrentLinearBulkObjectAllocator& Allocator, FVirtualTextureUpdateSettings const& Settings, FUniqueRequestList* RequestList, bool bAsync);
-	void EndSubmitRequests(FRDGBuilder& GraphBuilder);
+	void SubmitThrottledRequests(FRHICommandList& RHICmdList, FVirtualTextureUpdater* Updater, bool bContinuousUpdates);
+	void SubmitRequests(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FConcurrentLinearBulkObjectAllocator& Allocator, FVirtualTextureUpdateSettings const& Settings, FUniqueRequestList* RequestList, bool bAsync);
+	void FinalizeRequests(FRDGBuilder& GraphBuilder);
 
 	void GatherRequests(FUniqueRequestList* MergedRequestList, const FUniquePageList* UniquePageList, uint32 FrameRequested, FConcurrentLinearBulkObjectAllocator& Allocator, FVirtualTextureUpdateSettings const& Settings);
 
@@ -226,6 +238,7 @@ private:
 	TArray<uint32> RequestedPackedTiles;
 
 	TArray<FVirtualTextureLocalTile> TilesToLock;
+	TArray<FVirtualTextureLocalTile> TilesToLockForNextFrame;
 	FTexturePageLocks TileLocks;
 
 	TSet<FVirtualTextureLocalTile> ContinuousUpdateTilesToProduce;

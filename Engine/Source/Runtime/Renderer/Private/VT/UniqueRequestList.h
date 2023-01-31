@@ -91,6 +91,17 @@ public:
 		ContinuousUpdateRequestHash.Clear();
 	}
 
+	inline void Reset()
+	{
+		Initialize();
+		NumLoadRequests = 0;
+		NumLockRequests = 0;
+		NumMappingRequests = 0;
+		NumDirectMappingRequests = 0;
+		NumContinuousUpdateRequests = 0;
+		NumAdaptiveAllocationRequests = 0;
+	}
+
 	inline uint32 GetNumLoadRequests() const { return NumLoadRequests; }
 	inline uint32 GetNumMappingRequests() const { return NumMappingRequests; }
 	inline uint32 GetNumDirectMappingRequests() const { return NumDirectMappingRequests; }

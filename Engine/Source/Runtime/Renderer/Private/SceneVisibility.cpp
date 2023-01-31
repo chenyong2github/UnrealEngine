@@ -54,6 +54,7 @@
 #include "RenderCore.h"
 #include "StaticMeshBatch.h"
 #include "UnrealEngine.h"
+#include "VT/VirtualTextureSystem.h"
 
 #if !UE_BUILD_SHIPPING
 #include "ViewDebug.h"
@@ -4606,7 +4607,8 @@ void FSceneRenderer::ComputeViewVisibility(
 	FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
 	FGlobalDynamicVertexBuffer& DynamicVertexBuffer,
 	FGlobalDynamicReadBuffer& DynamicReadBuffer, 
-	FInstanceCullingManager& InstanceCullingManager)
+	FInstanceCullingManager& InstanceCullingManager,
+	FVirtualTextureUpdater* VirtualTextureUpdater)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime);
 	SCOPED_NAMED_EVENT(FSceneRenderer_ComputeViewVisibility, FColor::Magenta);
@@ -4920,6 +4922,11 @@ void FSceneRenderer::ComputeViewVisibility(
 
 	PreGatherDynamicMeshElements();
 
+	// Sync the virtual texture update task before gathering dynamic mesh elements. Render proxies can register new
+	// materials which require evaluating uniform expression caches, which can contain virtual textures. Newly allocated
+	// virtual textures are processed later.
+	FVirtualTextureSystem::Get().WaitForTasks(VirtualTextureUpdater);
+
 	{
 		SCOPED_NAMED_EVENT(FSceneRenderer_GatherDynamicMeshElements, FColor::Yellow);
 		// Gather FMeshBatches from scene proxies
@@ -5217,7 +5224,7 @@ void FDeferredShadingSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBu
  * Initialize scene's views.
  * Check visibility, build visible mesh commands, etc.
  */
-void FDeferredShadingSceneRenderer::BeginInitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager)
+void FDeferredShadingSceneRenderer::BeginInitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager, FVirtualTextureUpdater* VirtualTextureUpdater)
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViews, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsTime);
@@ -5253,7 +5260,7 @@ void FDeferredShadingSceneRenderer::BeginInitViews(FRDGBuilder& GraphBuilder, co
 	FViewVisibleCommandsPerView ViewCommandsPerView;
 	ViewCommandsPerView.SetNum(Views.Num());
 
-	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBufferForInitViews, DynamicVertexBufferForInitViews, DynamicReadBufferForInitViews, InstanceCullingManager);
+	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBufferForInitViews, DynamicVertexBufferForInitViews, DynamicReadBufferForInitViews, InstanceCullingManager, VirtualTextureUpdater);
 
 	// This must happen before we start initialising and using views.
 	if (Scene)

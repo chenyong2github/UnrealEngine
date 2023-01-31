@@ -229,6 +229,8 @@ uint32 FVirtualTextureProducerCollection::RemoveAllCallbacks(const void* Baton)
 
 void FVirtualTextureProducerCollection::NotifyRequestsCompleted()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureSystem::NotifyRequestsComplete);
+
 	for (FProducerEntry& Entry : Producers)
 	{
 		if (Entry.Producer.Description.bNotifyCompleted)

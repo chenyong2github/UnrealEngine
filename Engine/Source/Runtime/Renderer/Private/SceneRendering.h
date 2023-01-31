@@ -58,6 +58,7 @@ class FSceneTextureShaderParameters;
 class FLumenSceneData;
 class FShadowSceneRenderer;
 class FGlobalShaderMap;
+class FVirtualTextureUpdater;
 
 struct FCloudRenderContext;
 struct FSceneWithoutWaterTextures;
@@ -2392,7 +2393,8 @@ protected:
 
 	/** Computes which primitives are visible and relevant for each view. */
 	void ComputeViewVisibility(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView, 
-		FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager);
+		FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager,
+		FVirtualTextureUpdater* VirtualTextureUpdater);
 
 	virtual void ComputeLightVisibility();
 
@@ -2580,7 +2582,7 @@ protected:
 	/** Build visibility lists on CSM receivers and non-csm receivers. */
 	void BuildCSMVisibilityState(FLightSceneInfo* LightSceneInfo);
 
-	void InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesConfig& SceneTexturesConfig, FInstanceCullingManager& InstanceCullingManager);
+	void InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesConfig& SceneTexturesConfig, FInstanceCullingManager& InstanceCullingManager, FVirtualTextureUpdater* VirtualTextureUpdater);
 
 	void RenderPrePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 	void RenderMaskedPrePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
