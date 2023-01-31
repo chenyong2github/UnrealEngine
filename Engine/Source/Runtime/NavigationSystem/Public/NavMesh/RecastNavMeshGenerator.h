@@ -444,6 +444,7 @@ protected:
 	void AddVoxelCache(TNavStatArray<uint8>& RawVoxelCache, const rcSpanCache* CachedVoxels, const int32 NumCachedVoxels) const;
 
 	void DumpAsyncData();
+	void DumpSyncData();
 
 #if RECAST_INTERNAL_DEBUG_DATA
 	bool IsTileDebugActive() const;
