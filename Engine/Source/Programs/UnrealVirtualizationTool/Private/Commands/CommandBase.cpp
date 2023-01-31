@@ -129,7 +129,7 @@ bool FCommand::TryConnectToSourceControl(FStringView ClientSpecName)
 	}
 	else
 	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to create a perforce connection"));
+		UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to instantiate a perforce revision control connection"));
 		return false;
 	}
 }
