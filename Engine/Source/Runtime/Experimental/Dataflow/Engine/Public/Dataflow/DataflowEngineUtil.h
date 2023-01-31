@@ -4,6 +4,7 @@
 
 #include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Dataflow/DataflowEngineTypes.h"
 #include "Math/Transform.h"
 #include "ReferenceSkeleton.h"
 #include "Templates/Casts.h"
@@ -38,6 +39,34 @@ namespace Dataflow
 				}
 			}
 			return nullptr;
+		}
+
+		template<class T>
+		const T FindOverrideProperty(const UObject* Owner, FName PropertyName, FString ArrayKey, const T & Default = T())
+		{
+			if (Owner && Owner->GetClass())
+			{
+				if (FArrayProperty* ArrayProperty = FindFProperty<FArrayProperty>(Owner->GetClass(), PropertyName))
+				{
+					if (FStructProperty* ArrayInnerProperty = CastFieldChecked<FStructProperty>(ArrayProperty->Inner))
+					{
+						if (ArrayInnerProperty->Struct == FStringValuePair::StaticStruct())
+						{
+							if (const TArray<FStringValuePair>* ContainerData = ArrayProperty->ContainerPtrToValuePtr< TArray<FStringValuePair> >(Owner))
+							{
+								for (const FStringValuePair& Pair : *ContainerData)
+								{
+									if (Pair.Key.Equals(ArrayKey))
+									{
+										return Pair.Value;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			return Default;
 		}
 	}
 

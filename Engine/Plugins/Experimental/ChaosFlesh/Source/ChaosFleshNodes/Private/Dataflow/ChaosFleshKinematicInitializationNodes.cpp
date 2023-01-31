@@ -184,6 +184,7 @@ void FKinematicInitializationDataflowNode::Evaluate(Dataflow::FContext& Context,
 							Kinematics.AddKinematicBinding(Kinematics.SetBoneBindings(Index, BoundVerts, BoundWeights));
 						}
 					}
+					GeometryCollection::Facades::FVertexBoneWeightsFacade(InCollection).AddBoneWeightsFromKinematicBindings();
 				}
 			}
 

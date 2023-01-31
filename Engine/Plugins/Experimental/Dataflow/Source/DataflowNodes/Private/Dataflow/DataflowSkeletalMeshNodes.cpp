@@ -3,6 +3,7 @@
 #include "Dataflow/DataflowSkeletalMeshNodes.h"
 #include "Dataflow/DataflowCore.h"
 #include "Dataflow/DataflowEngine.h"
+#include "Dataflow/DataflowEngineTypes.h"
 #include "Logging/LogMacros.h"
 #include "UObject/UnrealTypePrivate.h"
 #include "Animation/Skeleton.h"
@@ -73,7 +74,16 @@ void FSkeletalMeshBoneDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 
 		if( InDataType InSkeletalMesh = GetValue<InDataType>(Context, &SkeletalMesh) )
 		{
-			int32 Index = InSkeletalMesh->GetRefSkeleton().FindBoneIndex(BoneName);
+			FName LocalBoneName = BoneName;
+			if (LocalBoneName.IsNone())
+			{
+				if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
+				{
+					LocalBoneName = FName(Dataflow::Reflection::FindOverrideProperty< FString >(EngineContext->Owner, PropertyName, FString("BoneName")));
+				}
+			}
+
+			int32 Index = InSkeletalMesh->GetRefSkeleton().FindBoneIndex(LocalBoneName);
 			SetValue<int>(Context, Index, &BoneIndexOut);
 		}
 

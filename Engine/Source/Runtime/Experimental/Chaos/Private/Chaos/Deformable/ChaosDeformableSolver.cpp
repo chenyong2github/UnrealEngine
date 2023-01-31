@@ -4,6 +4,7 @@
 #include "Chaos/Deformable/ChaosDeformableSolverTypes.h"
 #include "Chaos/Deformable/ChaosDeformableSolverProxy.h"
 
+#include "Chaos/DebugDrawQueue.h"
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/PBDAltitudeSpringConstraints.h"
 #include "Chaos/PBDBendingConstraints.h"
@@ -33,9 +34,16 @@
 
 DECLARE_CYCLE_STAT(TEXT("DeformableSolver.Advance"), STAT_DeformableSolver_Advance, STATGROUP_Chaos);
 
+
+
 DEFINE_LOG_CATEGORY_STATIC(LogChaosDeformableSolver, Log, All);
 namespace Chaos::Softs
 {
+	FDeformableDebugParams GDeformableDebugParams;
+
+	FAutoConsoleVariableRef CVarDeformableDebugParamsDrawTetrahedralParticles(TEXT("p.Chaos.DebugDraw.Deformable.TetrahedralParticle"), GDeformableDebugParams.bDoDrawTetrahedralParticles, TEXT("Debug draw the deformable solvers tetrahedron. [def: false]"));
+
+
 	FCriticalSection FDeformableSolver::InitializationMutex;
 	FCriticalSection FDeformableSolver::RemovalMutex;
 	FCriticalSection FDeformableSolver::PackageOutputMutex;
@@ -218,6 +226,28 @@ namespace Chaos::Softs
 		}
 	}
 
+	void FDeformableSolver::DebugDrawTetrahedralParticles(FFleshThreadingProxy& Proxy)
+	{
+#if WITH_EDITOR
+		auto ChaosTet = [](FIntVector4 V, int32 dp) { return Chaos::TVec4<int32>(dp + V.X, dp + V.Y, dp + V.Z, dp + V.W); };
+		auto ChaosVert = [](FVector3d V) { return Chaos::FVec3(V.X, V.Y, V.Z); };
+		auto DoubleVert = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
+
+		const FIntVector2& Range = Proxy.GetSolverParticleRange();
+		const FManagedArrayCollection& Rest = Proxy.GetRestCollection();
+		const TManagedArray<FIntVector4>& Tetrahedron = Rest.GetAttribute<FIntVector4>("Tetrahedron", "Tetrahedral");
+		if (uint32 NumElements = Tetrahedron.Num())
+		{
+			const Chaos::Softs::FSolverParticles& P = Evolution->Particles();
+			for (uint32 edx = 0; edx < NumElements; ++edx)
+			{
+				auto T = ChaosTet(Tetrahedron[edx], Range[0]);
+				Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(
+					DoubleVert(P.X(T[0])), FColor::Blue, false, -1.0f, 0, 5);
+			}
+		}
+#endif
+	}
 
 	void FDeformableSolver::InitializeTetrahedralConstraint(FFleshThreadingProxy& Proxy)
 	{
@@ -342,6 +372,7 @@ namespace Chaos::Softs
 						FTransform GlobalTransform = Proxy->GetInitialTransform();
 						const FIntVector2& Range = Proxy->GetSolverParticleRange();
 						const FManagedArrayCollection& Rest = Proxy->GetRestCollection();
+
 						if (Rest.FindAttributeTyped<FVector3f>("Vertex", FGeometryCollection::VerticesGroup))
 						{
 							const TManagedArray<FVector3f>& Vertex = Rest.GetAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
@@ -605,7 +636,27 @@ namespace Chaos::Softs
 			PushOutputPackage(Frame, MoveTemp(OutputBuffers));
 		}
 
-
+		{
+#if WITH_EDITOR
+			// debug draw
+	
+			//p.Chaos.DebugDraw.Enabled 1
+			if (GDeformableDebugParams.IsDebugDrawingEnabled())
+			{
+				for (TPair< FThreadingProxy::FKey, TUniquePtr<FThreadingProxy> >& BaseProxyPair : Proxies)
+				{
+					if (FFleshThreadingProxy* Proxy = BaseProxyPair.Value->As<FFleshThreadingProxy>())
+					{
+						if (GDeformableDebugParams.bDoDrawTetrahedralParticles)
+						{
+							//p.Chaos.DebugDraw.Deformable.TetrahedralParticles 1
+							DebugDrawTetrahedralParticles(*Proxy);
+						}
+					}
+				}
+			}
+#endif
+		}
 
 		EventPreBuffer.Broadcast(DeltaTime);
 	}

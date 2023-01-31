@@ -54,22 +54,53 @@ namespace GeometryCollection::Facades
 
 	//
 	//  Add Weights from Selection 
-	//  ... ... (Impressionist physbam)
 	//
 
 	void FVertexBoneWeightsFacade::AddBoneWeightsFromKinematicBindings() {
-		check(!IsConst()); DefineSchema(); if (IsValid()) {
-			TArray<float> Weights; TArray<int32> Indices;
+		check(!IsConst());
+		DefineSchema();
+
+		if (IsValid())
+		{
+			TArray<float> Weights;
+			TArray<int32> Indices;
+
 			int32 NumBones = ParentAttribute.Num(), NumVertices = BoneIndexAttribute.Num();
 			TManagedArray< TArray<int32> >& IndicesArray = BoneIndexAttribute.Modify();
 			TManagedArray< TArray<float> >& WeightsArray = BoneWeightAttribute.Modify();
+
 			GeometryCollection::Facades::FKinematicBindingFacade BindingFacade(ConstCollection);
-			for (int32 Kdx = BindingFacade.NumKinematicBindings() - 1; 0 <= Kdx; Kdx--) {
-				int32 Bone; TArray<int32> OutBoneVerts; TArray<float> OutBoneWeights;
+			for (int32 Kdx = BindingFacade.NumKinematicBindings() - 1; 0 <= Kdx; Kdx--)
+			{
+				int32 Bone;
+				TArray<int32> OutBoneVerts;
+				TArray<float> OutBoneWeights;
+
 				BindingFacade.GetBoneBindings(BindingFacade.GetKinematicBindingKey(Kdx), Bone, OutBoneVerts, OutBoneWeights);
-				if (0 <= Bone && Bone < NumBones) for (int32 Vdx = 0; Vdx < OutBoneVerts.Num(); Vdx++) {
-					int32 Vert = OutBoneVerts[Vdx]; float Weight = OutBoneWeights[Vdx];
-					if (0 <= Vert && Vert < NumVertices && !IndicesArray[Vert].Contains(Bone)) { IndicesArray[Vert].Add(Bone); WeightsArray[Vert].Add(Weight); }}}}}
+
+				if (0 <= Bone && Bone < NumBones)
+				{
+					for (int32 Vdx = 0; Vdx < OutBoneVerts.Num(); Vdx++)
+					{
+						int32 Vert = OutBoneVerts[Vdx]; float Weight = OutBoneWeights[Vdx];
+						if (0 <= Vert && Vert < NumVertices && !IndicesArray[Vert].Contains(Bone))
+						{
+							int32 BoneIndex = IndicesArray[Vert].Find(Bone);
+							if (BoneIndex == INDEX_NONE)
+							{
+								IndicesArray[Vert].Add(Bone);
+								WeightsArray[Vert].Add(Weight);
+							}
+							else if (0 <= BoneIndex && BoneIndex < WeightsArray[Vert].Num())
+							{
+								WeightsArray[Vert][BoneIndex] = Weight;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
 };
 

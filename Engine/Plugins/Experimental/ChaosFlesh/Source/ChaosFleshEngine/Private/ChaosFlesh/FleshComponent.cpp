@@ -4,7 +4,10 @@
 
 #include "Animation/SkeletalMeshActor.h"
 #include "Animation/Skeleton.h"
+#include "Chaos/DebugDrawQueue.h"
 #include "ChaosFlesh/FleshCollection.h"
+#include "ChaosFlesh/ChaosDeformableSolverActor.h"
+#include "ChaosFlesh/ChaosDeformableSolverComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Dataflow/DataflowEngineUtil.h"
 #include "Engine/SkeletalMesh.h"
@@ -20,6 +23,8 @@ UFleshComponent::UFleshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.TickGroup = TG_LastDemotable;
+
 	bTickInEditor = true;
 	DynamicCollection = ObjectInitializer.CreateDefaultSubobject<UFleshDynamicAsset>(this, TEXT("Flesh Dynamic Asset"));
 	Mesh = ObjectInitializer.CreateDefaultSubobject<UProceduralMeshComponent>(this, TEXT("Flesh Visualization Component"));
@@ -55,6 +60,13 @@ void UFleshComponent::BeginPlay()
 		if (USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent())
 		{
 			PrimaryComponentTick.AddPrerequisite(SkeletalMeshComponent, SkeletalMeshComponent->PrimaryComponentTick);
+		}
+	}
+	if (PrimarySolver)
+	{
+		if (UDeformableSolverComponent* DeformableSolverComponent = PrimarySolver->GetDeformableSolverComponent())
+		{
+			PrimaryComponentTick.AddPrerequisite(DeformableSolverComponent, DeformableSolverComponent->PrimaryComponentTick);
 		}
 	}
 }
@@ -165,6 +177,7 @@ UDeformablePhysicsComponent::FDataMapValue UFleshComponent::NewDeformableData()
 
 void UFleshComponent::UpdateFromSimualtion(const FDataMapValue* SimualtionBuffer)
 {
+	FTransform CurrTransform = GetComponentTransform();
 	if (const FFleshThreadingProxy::FFleshOutputBuffer* FleshBuffer = (*SimualtionBuffer)->As<FFleshThreadingProxy::FFleshOutputBuffer>())
 	{
 		if (GetDynamicCollection())
@@ -179,9 +192,12 @@ void UFleshComponent::UpdateFromSimualtion(const FDataMapValue* SimualtionBuffer
 			for (int i = DynamicVertex.Num() - 1; i >= 0; i--)
 			{
 				DynamicVertex[i] = UEVertf(GetComponentTransform().InverseTransformPosition(UEVertd(SimulationVertex[i])));
+				//DynamicVertex[i] = UEVertf(PrevTransform.InverseTransformPosition(UEVertd(SimulationVertex[i])));
+				//Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(UEVertd(SimulationVertex[i]), FColor::Red, false, -1.0f, 0, 5);
 			}
 		}
 	}
+	//PrevTransform = this->GetComponentTransform();
 }
 
 void UFleshComponent::UpdateLocalBounds()

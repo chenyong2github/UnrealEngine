@@ -5,6 +5,7 @@
 #include "Chaos/Deformable/ChaosDeformableSolverProxy.h"
 #include "Chaos/Deformable/ChaosDeformableSolverTypes.h"
 #include "ChaosFlesh/ChaosDeformableSolverThreading.h"
+#include "ChaosFlesh/ChaosDeformableTypes.h"
 #include "ChaosFlesh/FleshComponent.h"
 #include "Components/SceneComponent.h"
 #include "UObject/ObjectMacros.h"
@@ -29,6 +30,7 @@ public:
 	typedef Chaos::Softs::FDeformableSolver FDeformableSolver;
 
 	~UDeformableSolverComponent();
+	void UpdateTickGroup();
 
 #if WITH_EDITOR
 	TArray< TObjectPtr<AActor> > PreEditChangeDeformableActors;
@@ -57,7 +59,11 @@ public:
 	/* Properties */
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Chaos)
-	TArray< TObjectPtr<AActor> > DeformableActors;
+		TArray< TObjectPtr<AActor> > DeformableActors;
+
+	/** ObjectType defines how to initialize the rigid objects state, Kinematic, Sleeping, Dynamic. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly , Category = Chaos)
+		EDeformableExecutionModel ExecutionModel = EDeformableExecutionModel::Chaos_Deformable_DuringPhysics;
 
 	UPROPERTY(EditAnywhere, Category = Chaos)
 		int32 NumSubSteps = 2;

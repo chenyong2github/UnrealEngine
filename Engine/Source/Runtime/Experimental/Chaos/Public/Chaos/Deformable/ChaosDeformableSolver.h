@@ -130,6 +130,9 @@ namespace Chaos::Softs
 		void WriteTrisGEO(const FSolverParticles& Particles, const TArray<TVec3<int32>>& Mesh);
 		void WriteFrame(FThreadingProxy&, const FSolverReal DeltaTime);
 
+		/*Debug Drawing*/
+		void DebugDrawTetrahedralParticles(FFleshThreadingProxy& Proxy);
+
 		/*Game Thread API*/
 		bool HasObject(UObject* InObject) const { return InitializedObjects_External.Contains(InObject); }
 		void AddProxy(FThreadingProxy* InObject);

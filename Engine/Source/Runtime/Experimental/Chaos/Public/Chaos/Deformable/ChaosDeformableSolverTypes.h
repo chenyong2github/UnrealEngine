@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/DebugDrawQueue.h"
 #include "Chaos/Deformable/ChaosDeformableSolverProxy.h"
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "CoreMinimal.h"
@@ -118,6 +119,23 @@ namespace Chaos::Softs
 //	protected:
 //#endif
 		FPhysicsThreadAccessor() {}
+	};
+
+
+	struct CHAOS_API FDeformableDebugParams
+	{				
+		bool bDoDrawTetrahedralParticles = false;
+
+
+		bool IsDebugDrawingEnabled()
+		{ 
+#if WITH_EDITOR
+			// p.Chaos.DebugDraw.Enabled 1
+			return Chaos::FDebugDrawQueue::GetInstance().IsDebugDrawingEnabled();
+#else
+			return false;
+#endif
+		}
 	};
 
 

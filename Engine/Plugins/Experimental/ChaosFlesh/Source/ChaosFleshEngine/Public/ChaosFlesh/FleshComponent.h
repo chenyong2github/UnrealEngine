@@ -82,5 +82,7 @@ private:
 
 	bool bBoundsNeedsUpdate = true;
 	FBoxSphereBounds BoundingBox = FBoxSphereBounds(ForceInitToZero);
+
+	FTransform PrevTransform = FTransform::Identity;
 };
 

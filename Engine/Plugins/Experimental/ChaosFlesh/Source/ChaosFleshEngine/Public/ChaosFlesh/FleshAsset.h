@@ -7,12 +7,14 @@
 #include "ChaosFlesh/FleshCollection.h"
 #include "UObject/ObjectMacros.h"
 #include "Dataflow/DataflowNodeParameters.h"
+#include "Dataflow/DataflowEngineTypes.h"
 
 #include "FleshAsset.generated.h"
 
 class UFleshAsset;
 class UDataflow;
 class USkeletalMesh;
+class USkeleton;
 
 
 /**
@@ -103,11 +105,24 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 	FString DataflowTerminal = "FleshAssetTerminal";
 
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	TArray<FStringValuePair> Overrides;
+
 	//
 	// SkeletalMesh
 	//
 	UPROPERTY(EditAnywhere, Category = "Animation")
 	TObjectPtr<USkeletalMesh> SkeletalMesh;
+
+	UPROPERTY(EditAnywhere, Category = "Animation")
+	TObjectPtr<USkeleton> Skeleton;
+
+	//
+	// SkeletalMesh
+	//
+	UPROPERTY(EditAnywhere, Category = "Geometry")
+	TObjectPtr<UStaticMesh> StaticMesh;
+
 
 
 #if WITH_EDITORONLY_DATA

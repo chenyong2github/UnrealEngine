@@ -77,6 +77,9 @@ public:
 	UPROPERTY(meta = (DataflowOutput, DisplayName = "Index"))
 	int BoneIndexOut = INDEX_NONE;
 
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	FName PropertyName = "Overrides";
+
 	FSkeletalMeshBoneDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{

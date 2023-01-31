@@ -20,18 +20,51 @@ UDeformableSolverComponent::UDeformableSolverComponent(const FObjectInitializer&
 	PrimaryComponentTick.bCanEverTick = true;
 	bTickInEditor = false;
 
-	PrimaryComponentTick.bCanEverTick = true;
-	PrimaryComponentTick.bTickEvenWhenPaused = false;
-	PrimaryComponentTick.TickGroup = TG_PrePhysics;
-
-	DeformableEndTickFunction.TickGroup = TG_PostPhysics;
-	DeformableEndTickFunction.bCanEverTick = true;
-	DeformableEndTickFunction.bStartWithTickEnabled = true;
+	UpdateTickGroup();
 }
 
 UDeformableSolverComponent::~UDeformableSolverComponent()
 {
 }
+
+void UDeformableSolverComponent::UpdateTickGroup()
+{
+	//
+	// OR THIS SolverData->PreSolveHandle  = Solver->AddPreAdvanceCallback(FSolverPreAdvance::FDelegate::CreateUObject(this, &AChaosCacheManager::HandlePreSolve, Solver));
+	// see : CacheManagerActor.cpp::348
+	
+	//
+	if (ExecutionModel == EDeformableExecutionModel::Chaos_Deformable_PrePhysics)
+	{
+		PrimaryComponentTick.TickGroup = TG_PrePhysics;
+		DeformableEndTickFunction.TickGroup = TG_PrePhysics;
+	}
+	else if (ExecutionModel == EDeformableExecutionModel::Chaos_Deformable_PostPhysics)
+	{
+		PrimaryComponentTick.TickGroup = TG_PostPhysics;
+		DeformableEndTickFunction.TickGroup = TG_LastDemotable;
+	}
+	else //EDeformableExecutionModel::Chaos_Deformable_DuringPhysics
+	{
+		PrimaryComponentTick.TickGroup = TG_PrePhysics;
+		DeformableEndTickFunction.TickGroup = TG_PostPhysics;
+	}
+
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bTickEvenWhenPaused = false;
+
+	if (bDoThreadedAdvance)
+	{
+		DeformableEndTickFunction.bCanEverTick = true;
+		DeformableEndTickFunction.bStartWithTickEnabled = true;
+	}
+	else
+	{
+		DeformableEndTickFunction.bCanEverTick = false;
+		DeformableEndTickFunction.bStartWithTickEnabled = false;
+	}
+}
+
 
 UDeformableSolverComponent::FDeformableSolver::FGameThreadAccess
 UDeformableSolverComponent::GameThreadAccess()
@@ -122,33 +155,35 @@ void UDeformableSolverComponent::UpdateDeformableEndTickState(bool bRegister)
 {
 	UE_LOG(LogDeformableSolverComponentInternal, Verbose, TEXT("UDeformableSolverComponent::RegiUpdateDeformableEndTickStatesterEndPhysicsTick"));
 	bRegister &= PrimaryComponentTick.IsTickFunctionRegistered();
-
-	if (bRegister != DeformableEndTickFunction.IsTickFunctionRegistered())
+	if (bDoThreadedAdvance)
 	{
-		if (bRegister)
+		if (bRegister != DeformableEndTickFunction.IsTickFunctionRegistered())
 		{
-			UWorld* World = GetWorld();
-			if (World->EndPhysicsTickFunction.IsTickFunctionRegistered() && SetupActorComponentTickFunction(&DeformableEndTickFunction))
+			if (bRegister)
 			{
-				DeformableEndTickFunction.DeformableSolverComponent = this;
-				// Make sure our EndPhysicsTick gets called after physics simulation is finished
-				if (World != nullptr)
+				UWorld* World = GetWorld();
+				if (World->EndPhysicsTickFunction.IsTickFunctionRegistered() && SetupActorComponentTickFunction(&DeformableEndTickFunction))
 				{
-					DeformableEndTickFunction.AddPrerequisite(World, World->EndPhysicsTickFunction);
+					DeformableEndTickFunction.DeformableSolverComponent = this;
+					// Make sure our EndPhysicsTick gets called after physics simulation is finished
+					if (World != nullptr)
+					{
+						DeformableEndTickFunction.AddPrerequisite(this, PrimaryComponentTick);
+					}
 				}
 			}
-		}
-		else
-		{
-			DeformableEndTickFunction.UnRegisterTickFunction();
+			else
+			{
+				DeformableEndTickFunction.UnRegisterTickFunction();
+			}
 		}
 	}
-}
+	else if(DeformableEndTickFunction.IsTickFunctionRegistered())
+	{
+		DeformableEndTickFunction.UnRegisterTickFunction();
+	}
 
-//bool UDeformableSolverComponent::ShouldWaitForDeformableInTickFunction() const
-//{
-//	return bWaitForParallelDeformableTask || (CVarDeformablePhysicsTickWaitForParallelDeformableTask.GetValueOnAnyThread() != 0);
-//}
+}
 
 void UDeformableSolverComponent::BeginPlay()
 {
@@ -161,24 +196,25 @@ void UDeformableSolverComponent::TickComponent(float DeltaTime, enum ELevelTick 
 	UE_LOG(LogDeformableSolverComponentInternal, Verbose, TEXT("UDeformableSolverComponent::TickComponent"));
 	TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolverComponent_TickComponent);
 
+	UpdateTickGroup();
+
 	UpdateDeformableEndTickState(IsSimulatable());
 
 	UpdateFromGameThread(DeltaTime);
 
 	if (bDoThreadedAdvance)
 	{
-		//ParallelDeformableTask = TGraphTask<FParallelDeformableTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this, DeltaTime);
-		//if (ShouldWaitForDeformableInTickFunction())
-		{ // see FParallelClothCompletionTask
-			FGraphEventArray Prerequisites;
-			Prerequisites.Add(ParallelDeformableTask);
-			FGraphEventRef DeformableCompletionEvent = TGraphTask<FParallelDeformableTask>::CreateTask(&Prerequisites, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this, DeltaTime);
-			ThisTickFunction->GetCompletionHandle()->DontCompleteUntil(DeformableCompletionEvent);
-		}
+		// see FParallelClothCompletionTask
+		FGraphEventArray Prerequisites;
+		Prerequisites.Add(ParallelDeformableTask);
+		FGraphEventRef DeformableCompletionEvent = TGraphTask<FParallelDeformableTask>::CreateTask(&Prerequisites, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this, DeltaTime);
+		ThisTickFunction->GetCompletionHandle()->DontCompleteUntil(DeformableCompletionEvent);
 	}
 	else
 	{
 		Simulate(DeltaTime);
+
+		UpdateFromSimulation(DeltaTime);
 	}
 
 
