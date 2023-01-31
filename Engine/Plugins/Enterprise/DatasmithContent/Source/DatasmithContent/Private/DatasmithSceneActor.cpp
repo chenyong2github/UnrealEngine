@@ -28,6 +28,18 @@ ADatasmithSceneActor::ADatasmithSceneActor()
 #endif // WITH_EDITOR
 }
 
+void ADatasmithSceneActor::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+#if WITH_EDITOR
+	if (!IsTemplate())
+	{
+		UnregisterDelegates();
+	}
+#endif
+}
+
 #if WITH_EDITOR
 
 void ADatasmithSceneActor::RegisterDelegates()
@@ -65,16 +77,6 @@ void ADatasmithSceneActor::UnregisterDelegates()
 }
 
 #endif
-
-ADatasmithSceneActor::~ADatasmithSceneActor()
-{
-#if WITH_EDITOR
-	if (!IsTemplate())
-	{
-		UnregisterDelegates();
-	}
-#endif // WITH_EDITOR
-}
 
 #if WITH_EDITOR
 

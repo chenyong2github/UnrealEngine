@@ -17,14 +17,15 @@ public:
 
 	ADatasmithSceneActor();
 
-	virtual ~ADatasmithSceneActor();
-
 	UPROPERTY(VisibleAnywhere, Category="Datasmith")
 	TObjectPtr<class UDatasmithScene> Scene;
 
 	/** Map of all the actors related to this Datasmith Scene */
 	UPROPERTY(VisibleAnywhere, Category="Datasmith", AdvancedDisplay)
 	TMap< FName, TSoftObjectPtr< AActor > > RelatedActors;
+
+	// Clean up delegates before destruction 
+	void BeginDestroy() override;
 
 private:
 #if WITH_EDITOR
