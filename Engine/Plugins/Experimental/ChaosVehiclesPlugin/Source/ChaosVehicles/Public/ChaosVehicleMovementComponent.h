@@ -817,6 +817,10 @@ class CHAOSVEHICLES_API UChaosVehicleMovementComponent : public UPawnMovementCom
 	UPROPERTY(EditAnywhere, Category = VehicleSetup)
 	uint8 bReverseAsBrake : 1;
 
+	/** If true, when reversing the throttle will behave like a brake while the vehicle moving in a backwards direction - requires bReverseAsBrake to be enabled for operation */
+	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta = (EditCondition = "bReverseAsBrake"))
+	uint8 bThrottleAsBrake : 1;
+
 public:
 	/** Mass to set the vehicle chassis to. It's much easier to tweak vehicle settings when
 	 * the mass doesn't change due to tweaks with the physics asset. [kg] */

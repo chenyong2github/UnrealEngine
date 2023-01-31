@@ -88,7 +88,7 @@ FAutoConsoleCommand CVarCommandVehiclesPrevDebugPage(
 
 FString FWheelStatus::ToString() const
 {
-	return FString::Printf(TEXT("bInContact:%s ContactPoint:%s PhysMaterial:%s NormSuspensionLength:%f SpringForce:%f SlipAngle:%f bIsSlipping:%s SlipMagnitude:%f bIsSkidding:%s SkidMagnitude:%f SkidNormal:%s"),
+	return FString::Printf(TEXT("bInContact:%s ContactPoint:%s PhysMaterial:%s NormSuspensionLength:%f SpringForce:%f SlipAngle:%f bIsSlipping:%s SlipMagnitude:%f bIsSkidding:%s SkidMagnitude:%f SkidNormal:%s DriveTorque:%f BrakeTorque:%f ABSActive:%s"),
 		bInContact == true ? TEXT("True") : TEXT("False"),
 		*ContactPoint.ToString(),
 		PhysMaterial.IsValid() ? *PhysMaterial->GetName() : TEXT("None"),
@@ -99,7 +99,10 @@ FString FWheelStatus::ToString() const
 		SlipMagnitude,
 		bIsSkidding == true ? TEXT("True") : TEXT("False"),
 		SkidMagnitude,
-		*SkidNormal.ToString());
+		*SkidNormal.ToString(),
+		DriveTorque,
+		BrakeTorque,
+		bABSActivated == true ? TEXT("True") : TEXT("False"));
 }
 
 void FWheelState::CaptureState(int WheelIdx, const FVector& WheelOffset, const FBodyInstance* TargetInstance)
@@ -1050,6 +1053,10 @@ void UChaosWheeledVehicleSimulation::FillOutputState(FChaosVehicleAsyncOutput& O
 		WheelsOut.SpringForce = VehicleSuspension[WheelIdx].GetSuspensionForce();
 		WheelsOut.NormalizedSuspensionLength = VehicleSuspension[WheelIdx].GetNormalizedLength();
 
+		WheelsOut.DriveTorque = Chaos::TorqueCmToM(VehicleWheels[WheelIdx].GetDriveTorque());
+		WheelsOut.BrakeTorque = Chaos::TorqueCmToM(VehicleWheels[WheelIdx].GetBrakeTorque());
+
+		WheelsOut.bABSActivated = VehicleWheels[WheelIdx].IsABSActivated();
 		WheelsOut.bBlockingHit = WheelState.TraceResult[WheelIdx].bBlockingHit;
 		WheelsOut.ImpactPoint = WheelState.TraceResult[WheelIdx].ImpactPoint;
 		WheelsOut.PhysMaterial = WheelState.TraceResult[WheelIdx].PhysMaterial;
@@ -2182,6 +2189,9 @@ void UChaosWheeledVehicleMovementComponent::FillWheelOutputState()
 				{
 					State.SkidNormal = FVector::ZeroVector;
 				}
+				State.DriveTorque = PWheel.DriveTorque;
+				State.BrakeTorque = PWheel.BrakeTorque;
+				State.bABSActivated = PWheel.bABSActivated;
 			}
 		}
 	}
@@ -2189,7 +2199,7 @@ void UChaosWheeledVehicleMovementComponent::FillWheelOutputState()
 
 
 void UChaosWheeledVehicleMovementComponent::BreakWheelStatus(const struct FWheelStatus& Status, bool& bInContact, FVector& ContactPoint, UPhysicalMaterial*& PhysMaterial
-	, float& NormalizedSuspensionLength, float& SpringForce, float& SlipAngle, bool& bIsSlipping, float& SlipMagnitude, bool& bIsSkidding, float& SkidMagnitude, FVector& SkidNormal)
+	, float& NormalizedSuspensionLength, float& SpringForce, float& SlipAngle, bool& bIsSlipping, float& SlipMagnitude, bool& bIsSkidding, float& SkidMagnitude, FVector& SkidNormal, float& DriveTorque, float& BrakeTorque, bool& bABSActivated)
 {
 	bInContact = Status.bInContact;
 	ContactPoint = Status.ContactPoint;
@@ -2202,10 +2212,13 @@ void UChaosWheeledVehicleMovementComponent::BreakWheelStatus(const struct FWheel
 	bIsSkidding = Status.bIsSkidding;
 	SkidMagnitude = Status.SkidMagnitude;
 	SkidNormal = Status.SkidNormal;
+	DriveTorque = Status.DriveTorque;
+	BrakeTorque = Status.BrakeTorque;
+	bABSActivated = Status.bABSActivated;
 }
 
 FWheelStatus UChaosWheeledVehicleMovementComponent::MakeWheelStatus(bool bInContact, FVector& ContactPoint, UPhysicalMaterial* PhysMaterial
-	, float NormalizedSuspensionLength, float SpringForce, float SlipAngle, bool bIsSlipping, float SlipMagnitude, bool bIsSkidding, float SkidMagnitude, FVector& SkidNormal)
+	, float NormalizedSuspensionLength, float SpringForce, float SlipAngle, bool bIsSlipping, float SlipMagnitude, bool bIsSkidding, float SkidMagnitude, FVector& SkidNormal, float DriveTorque, float BrakeTorque, bool bABSActivated)
 {
 	FWheelStatus Status;
 	Status.bInContact = bInContact;
@@ -2219,6 +2232,9 @@ FWheelStatus UChaosWheeledVehicleMovementComponent::MakeWheelStatus(bool bInCont
 	Status.bIsSkidding = bIsSkidding;
 	Status.SkidMagnitude = SkidMagnitude;
 	Status.SkidNormal = SkidNormal;
+	Status.DriveTorque = DriveTorque;
+	Status.BrakeTorque = BrakeTorque;
+	Status.bABSActivated = bABSActivated;
 
 	return Status;
 }

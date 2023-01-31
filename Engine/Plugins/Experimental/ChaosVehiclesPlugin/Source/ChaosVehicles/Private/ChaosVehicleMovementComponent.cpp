@@ -958,16 +958,13 @@ void UChaosVehicleMovementComponent::CalcThrottleBrakeInput(float& ThrottleOut, 
 	{
 		if (RawThrottleInput > 0.f)
 		{
-		// Note: Removed this condition to support wheel spinning when rolling backareds with accelerator pressed, rather than braking
-		// Should this case be another checkbox option??
-		//	
-		//	// car moving backwards but player wants to move forwards...
-		//	// if vehicle is moving backwards, then press brake
-		//	if (VehicleState.ForwardSpeed < -WrongDirectionThreshold)
-		//	{
-		//		BrakeOut = 1.0f;
-		//		ThrottleOut = 0.0f;
-		//	}
+			// car moving backwards but player wants to move forwards...
+			// if vehicle is moving backwards, then press brake	
+			if (bThrottleAsBrake && VehicleState.ForwardSpeed < -WrongDirectionThreshold)
+			{
+				BrakeOut = 1.0f;
+				ThrottleOut = 0.0f;
+			}
 
 		}
 		else if (RawBrakeInput > 0.f)
@@ -1812,7 +1809,10 @@ void UChaosVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 					PVehicleOutput->Wheels[WheelIdx].SuspensionOffset = FMath::Lerp(Current.SuspensionOffset, Next.SuspensionOffset, OutputInterpAlpha);
 					PVehicleOutput->Wheels[WheelIdx].SpringForce = FMath::Lerp(Current.SpringForce, Next.SpringForce, OutputInterpAlpha);
 					PVehicleOutput->Wheels[WheelIdx].NormalizedSuspensionLength = FMath::Lerp(Current.NormalizedSuspensionLength, Next.NormalizedSuspensionLength, OutputInterpAlpha);
+					PVehicleOutput->Wheels[WheelIdx].DriveTorque = FMath::Lerp(Current.DriveTorque, Next.DriveTorque, OutputInterpAlpha);
+					PVehicleOutput->Wheels[WheelIdx].BrakeTorque = FMath::Lerp(Current.BrakeTorque, Next.BrakeTorque, OutputInterpAlpha);
 
+					PVehicleOutput->Wheels[WheelIdx].bABSActivated = Current.bABSActivated;
 					PVehicleOutput->Wheels[WheelIdx].bBlockingHit = Current.bBlockingHit;
 					PVehicleOutput->Wheels[WheelIdx].ImpactPoint = FMath::Lerp(Current.ImpactPoint, Next.ImpactPoint, OutputInterpAlpha);
 					PVehicleOutput->Wheels[WheelIdx].PhysMaterial = Current.PhysMaterial;
@@ -1847,7 +1847,10 @@ void UChaosVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 					PVehicleOutput->Wheels[WheelIdx].SuspensionOffset = Current.SuspensionOffset;
 					PVehicleOutput->Wheels[WheelIdx].SpringForce = Current.SpringForce;
 					PVehicleOutput->Wheels[WheelIdx].NormalizedSuspensionLength = Current.NormalizedSuspensionLength;
+					PVehicleOutput->Wheels[WheelIdx].DriveTorque = Current.DriveTorque;
+					PVehicleOutput->Wheels[WheelIdx].BrakeTorque = Current.BrakeTorque;
 
+					PVehicleOutput->Wheels[WheelIdx].bABSActivated = Current.bABSActivated;
 					PVehicleOutput->Wheels[WheelIdx].bBlockingHit = Current.bBlockingHit;
 					PVehicleOutput->Wheels[WheelIdx].ImpactPoint = Current.ImpactPoint;
 					PVehicleOutput->Wheels[WheelIdx].PhysMaterial = Current.PhysMaterial;

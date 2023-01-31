@@ -46,6 +46,7 @@ namespace Chaos
 		, AvailableGrip(0.f)
 		, InputForces(FVector::ZeroVector)
 		, bClipping(false)
+		, bABSActivated(false)
 	{
 
 	}
@@ -84,11 +85,13 @@ namespace Chaos
 
 		float FinalLongitudinalForce = 0.f;
 		float FinalLateralForce = 0.f;
+		float ABSGripThresholdSpeed = 5.0f;
 
 		// currently just letting the brake override the throttle
 		bool Braking = BrakeTorque > FMath::Abs(DriveTorque);
 		bool WheelLocked = false;
 		float SlipOmega = 0.0f;
+		bABSActivated = 0.0f;
 
 		// are we actually touching the ground
 		if (ForceIntoSurface > SMALL_NUMBER)
@@ -100,6 +103,10 @@ namespace Chaos
 				{
 					float Sign = (AppliedLinearBrakeForce > 0.0f) ? 1.0f : -1.0f;
 					AppliedLinearBrakeForce = AvailableGrip * TractionControlAndABSScaling * Sign;
+					if (FMath::Abs(GroundVelocityVector.X) > ABSGripThresholdSpeed)
+					{
+						bABSActivated = true;
+					}
 				}
 			}
 
@@ -201,8 +208,15 @@ namespace Chaos
 		}
 		else
 		{ 
-			float GroundOmega = GroundVelocityVector.X / FMath::Max(Re, KINDA_SMALL_NUMBER);
-			Omega += ((GroundOmega - Omega + SlipOmega));
+			if (bInContact)
+			{
+				float GroundOmega = GroundVelocityVector.X / FMath::Max(Re, KINDA_SMALL_NUMBER);
+				Omega += ((GroundOmega - Omega + SlipOmega));
+			}
+			else
+			{
+				Omega += SlipOmega;
+			}
 		}
 
 		// Wheel angular position integrated

@@ -123,6 +123,18 @@ struct CHAOSVEHICLES_API FWheelStatus
 	UPROPERTY()
 	FVector SkidNormal;
 
+	/** Drive torque currently applied at wheel */
+	UPROPERTY()
+	float DriveTorque;
+
+	/** Brake torque currently applied at wheel */
+	UPROPERTY()
+	float BrakeTorque;
+
+	/** Is the ABS currently engaged - useful for audio Q's */
+	UPROPERTY()
+	bool bABSActivated;
+
 	FWheelStatus()
 	{
 		Init();
@@ -151,6 +163,7 @@ struct CHAOSVEHICLES_API FWheelStatus
 		SkidNormal = FVector::ZeroVector;
 		ContactPoint = FVector::ZeroVector;
 		bIsValid = false;
+		bABSActivated = false;
 	}
 
 	FString ToString() const;
@@ -673,11 +686,11 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 
 	UFUNCTION(BlueprintPure, Category = "Vehicles")
 	static void BreakWheelStatus(const struct FWheelStatus& Status, bool& bInContact, FVector& ContactPoint, UPhysicalMaterial*& PhysMaterial
-			, float& NormalizedSuspensionLength, float& SpringForce, float& SlipAngle, bool& bIsSlipping, float& SlipMagnitude, bool& bIsSkidding, float& SkidMagnitude, FVector& SkidNormal);
+			, float& NormalizedSuspensionLength, float& SpringForce, float& SlipAngle, bool& bIsSlipping, float& SlipMagnitude, bool& bIsSkidding, float& SkidMagnitude, FVector& SkidNormal, float& DriveTorque, float& BrakeTorque, bool& bABSActivated);
 
 	UFUNCTION(BlueprintPure, Category = "Vehicles")
 	static FWheelStatus MakeWheelStatus(bool bInContact, FVector& ContactPoint, UPhysicalMaterial* PhysMaterial
-			, float NormalizedSuspensionLength, float SpringForce, float SlipAngle, bool bIsSlipping, float SlipMagnitude, bool bIsSkidding, float SkidMagnitude, FVector& SkidNormal);
+			, float NormalizedSuspensionLength, float SpringForce, float SlipAngle, bool bIsSlipping, float SlipMagnitude, bool bIsSkidding, float SkidMagnitude, FVector& SkidNormal, float DriveTorque, float BrakeTorque, bool bABSActivated);
 
 	UFUNCTION(BlueprintPure, Category = "Vehicles")
 	static void BreakWheeledSnapshot(const struct FWheeledSnaphotData& Snapshot, FTransform& Transform, FVector& LinearVelocity

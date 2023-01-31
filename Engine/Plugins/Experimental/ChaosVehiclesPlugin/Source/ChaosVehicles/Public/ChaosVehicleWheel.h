@@ -97,6 +97,10 @@ class UChaosWheeledVehicleMovementComponent;
 		UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
 		float WheelWidth;
 
+		/** Mass of the wheel Kg */
+		UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
+		float WheelMass;
+
 		/** Tyre Cornering Ability */
 		UPROPERTY(EditAnywhere, Category = Wheel)
 		float CorneringStiffness;
@@ -338,6 +342,7 @@ class UChaosWheeledVehicleMovementComponent;
 			//PWheelConfig.WheelMass = this->WheelMass;
 			PWheelConfig.WheelRadius = this->WheelRadius;
 			PWheelConfig.WheelWidth = this->WheelWidth;
+			PWheelConfig.WheelMass = this->WheelMass;
 			PWheelConfig.MaxSteeringAngle = this->MaxSteerAngle;
 			PWheelConfig.MaxBrakeTorque = this->MaxBrakeTorque;
 			PWheelConfig.HandbrakeTorque = this->MaxHandBrakeTorque;

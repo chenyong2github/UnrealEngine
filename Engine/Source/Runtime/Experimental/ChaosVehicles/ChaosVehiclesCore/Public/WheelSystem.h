@@ -325,6 +325,10 @@ public:
 	{
 		return (FMath::Abs(GetSkidMagnitude()) > Setup().SkidThreshold);
 	}
+	bool IsABSActivated() const
+	{
+		return bABSActivated;
+	}
 
 	float GetSteeringAngle() const
 	{
@@ -467,6 +471,8 @@ public:
 	float AvailableGrip;
 	FVector InputForces;
 	bool bClipping;
+	bool bABSActivated;
+
 };
 
 
