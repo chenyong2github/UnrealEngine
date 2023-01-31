@@ -33,7 +33,7 @@
 #endif 
 
 float4x4 TranslatedWorldToLight;
-float3 LightFunctionParameters2;
+float2 LightFunctionParameters2;
 
 half ComputeLightFunctionMultiplier(float3 TranslatedWorldPosition)
 {
