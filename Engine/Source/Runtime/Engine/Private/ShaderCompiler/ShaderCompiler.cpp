@@ -3069,7 +3069,7 @@ FShaderCompilerStats* GShaderCompilerStats = nullptr;
 void FShaderCompilerStats::WriteStats(FOutputDevice* Ar)
 {
 #if ALLOW_DEBUG_FILES
-	static TCHAR DebugText[] = TEXT("Wrote shader compile stats to file '%s'.");
+	constexpr static const TCHAR DebugText[] = TEXT("Wrote shader compile stats to file '%s'.");
 	{
 		FlushRenderingCommands();
 

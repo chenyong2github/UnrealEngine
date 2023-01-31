@@ -7,15 +7,9 @@
 #include "CoreGlobals.h"
 
 
-void FWindowsPlatformAtomics::HandleAtomicsFailure( const TCHAR* InFormat, ... )
-{	
+void FWindowsPlatformAtomics::HandleAtomicsFailure(const TCHAR* InFormat, ...)
+{
 	TCHAR TempStr[1024];
-	va_list Ptr;
-
-	va_start( Ptr, InFormat );	
-	FCString::GetVarArgs( TempStr, UE_ARRAY_COUNT(TempStr), InFormat, Ptr );
-	va_end( Ptr );
-
-	UE_LOG(LogWindows, Log,  TempStr );
-	check( 0 );
+	GET_VARARGS(TempStr, UE_ARRAY_COUNT(TempStr), UE_ARRAY_COUNT(TempStr) - 1, InFormat, InFormat);
+	UE_LOG(LogWindows, Fatal, TEXT("%s"), TempStr);
 }

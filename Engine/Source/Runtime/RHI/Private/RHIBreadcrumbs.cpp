@@ -152,7 +152,7 @@ void FRHIBreadcrumbStack::WriteRenderBreadcrumbs(FCrashContextExtendedWriter& Wr
 	TCHAR StaticBreadcrumbName[MAX_BREADCRUMB_NAME_STRING];
 	FCString::Snprintf(StaticBreadcrumbName, MAX_BREADCRUMB_NAME_STRING, TEXT("Breadcrumbs_%s_%d"), ThreadName, BreadcrumbId++);
 	Writer.AddString(StaticBreadcrumbName, StaticBreadcrumbStackString);
-	UE_LOG(LogRHI, Error, StaticBreadcrumbStackString);
+	UE_LOG(LogRHI, Error, TEXT("%s"), StaticBreadcrumbStackString);
 }
 #endif
 

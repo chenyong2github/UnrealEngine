@@ -54,17 +54,16 @@ void FMessageDialog::Debugf( const FText& Message, const FText* OptTitle )
 void FMessageDialog::ShowLastError()
 {
 	uint32 LastError = FPlatformMisc::GetLastError();
-
-	TCHAR TempStr[MAX_SPRINTF] = {};
 	TCHAR ErrorBuffer[1024];
-	FCString::Sprintf( TempStr, TEXT("GetLastError : %d\n\n%s"), LastError, FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, 0) );
-	if( FApp::IsUnattended() == true )
+	if (FApp::IsUnattended())
 	{
-		UE_LOG(LogOutputDevice, Fatal, TempStr);
+		UE_LOG(LogOutputDevice, Fatal, TEXT("GetLastError : %d\n\n%s"), LastError, FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, 0));
 	}
 	else
 	{
-		FPlatformMisc::MessageBoxExt( EAppMsgType::Ok, TempStr, *NSLOCTEXT("MessageDialog", "DefaultSystemErrorTitle", "System Error").ToString() );
+		TCHAR TempStr[MAX_SPRINTF] = {};
+		FCString::Sprintf(TempStr, TEXT("GetLastError : %d\n\n%s"), LastError, FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, 0));
+		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, TempStr, *NSLOCTEXT("MessageDialog", "DefaultSystemErrorTitle", "System Error").ToString());
 	}
 }
 

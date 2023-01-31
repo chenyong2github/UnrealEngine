@@ -531,7 +531,7 @@ namespace UEAsserts_Private
 		const int32 TempStrSize = 4096;
 		TCHAR TempStr[TempStrSize];
 		GET_VARARGS(TempStr, TempStrSize, TempStrSize - 1, FormattedMsg, FormattedMsg);
-		UE_LOG(LogCore, Error, TempStr);
+		UE_LOG(LogCore, Error, TEXT("%s"), TempStr);
 	}
 }
 #endif
