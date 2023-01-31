@@ -460,6 +460,8 @@ public:
 		CacheClipmapInfluenceRadius = 0.0f;
 		CacheMostlyStaticSeparately = 1;
 		LastUsedSceneDataForFullUpdate = nullptr;
+
+		HasPendingStreamingReadbackBuffers.AddZeroed(MaxPendingStreamingReadbackBuffers);
 	}
 
 	FInt64Vector FullUpdateOriginInPages;
@@ -469,6 +471,11 @@ public:
 	FVector3f CachedClipmapCenter;
 	float CachedClipmapExtent;
 	float CacheClipmapInfluenceRadius;
+
+	TArray<FRHIGPUBufferReadback*> HasPendingStreamingReadbackBuffers;
+	uint32 MaxPendingStreamingReadbackBuffers = 4;
+	uint32 ReadbackBuffersWriteIndex = 0;
+	uint32 ReadbackBuffersNumPending = 0;
 
 	FGlobalDistanceFieldCacheTypeState Cache[GDF_Num];
 
@@ -634,6 +641,7 @@ struct FPersistentGlobalDistanceFieldData : public FThreadSafeRefCountedObject
 {
 	// Array of ClipmapIndex
 	TArray<int32> DeferredUpdates[GDF_Num];
+	TArray<int32> DeferredUpdatesForMeshSDFStreaming[GDF_Num];
 
 	int32	UpdateFrame = 0;
 	bool	bFirstFrame = true;
@@ -1961,6 +1969,11 @@ public:
 		}
 
 		return false;
+	}
+
+	bool HasPendingStreaming() const
+	{
+		return ReadRequests.Num() > 0;
 	}
 
 	inline bool CanUse16BitObjectIndices() const

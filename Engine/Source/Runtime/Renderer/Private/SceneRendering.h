@@ -715,6 +715,15 @@ public:
 	FVector Extent;
 };
 
+enum class EGlobalSDFFullRecaptureReason
+{
+	None,
+	TooManyUpdateBounds,
+	HeightfieldStreaming,
+	MeshSDFStreaming,
+	NoViewState
+};
+
 class FGlobalDistanceFieldClipmap
 {
 public:
@@ -724,7 +733,7 @@ public:
 	/** Offset applied to UVs so that only new or dirty areas of the volume texture have to be updated. */
 	FVector ScrollOffset;
 
-	/** Legacy regions in the volume texture to update. Used only by heighfield composition. */
+	EGlobalSDFFullRecaptureReason FullRecaptureReason = EGlobalSDFFullRecaptureReason::None;
 
 	// Bounds in the volume texture to update.
 	TArray<FClipmapUpdateBounds, TInlineAllocator<64>> UpdateBounds;

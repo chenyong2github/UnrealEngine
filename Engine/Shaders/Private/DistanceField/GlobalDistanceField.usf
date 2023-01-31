@@ -38,6 +38,9 @@ StructuredBuffer<uint> CullGridObjectArray;
 
 RWStructuredBuffer<uint> RWObjectIndexBuffer;
 RWStructuredBuffer<uint> RWObjectIndexNumBuffer;
+
+RWStructuredBuffer<uint> RWHasPendingStreaming;
+
 float3 ClipmapTranslatedWorldCenter;
 float3 ClipmapWorldExtent;
 float InfluenceRadius;
@@ -74,6 +77,16 @@ void CullObjectsToClipmapCS(
 				uint DestIndex;
 				InterlockedAdd(RWObjectIndexNumBuffer[0], 1U, DestIndex);
 				RWObjectIndexBuffer[DestIndex] = ObjectIndex;
+
+#if READBACK_HAS_PENDING_STREAMING
+				FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
+				uint NumMips = LoadDFAssetData(DFObjectData.AssetIndex, 0).NumMips;
+
+				if (NumMips == 1)
+				{
+					RWHasPendingStreaming[0] = 1;
+				}
+#endif
 			}
 		}
 	}
