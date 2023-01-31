@@ -144,13 +144,13 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectExport& E)
 
 	if (BaseArchive.UEVer() < VER_UE4_64BIT_EXPORTMAP_SERIALSIZES)
 	{
-		int32 SerialSize = E.SerialSize;
+		int32 SerialSize = (int32)E.SerialSize;
 		Record << SA_VALUE(TEXT("SerialSize"), SerialSize);
 		E.SerialSize = (int64)SerialSize;
 
-		int32 SerialOffset = E.SerialOffset;
+		int32 SerialOffset = (int32)E.SerialOffset;
 		Record << SA_VALUE(TEXT("SerialOffset"), SerialOffset);
-		E.SerialOffset = SerialOffset;
+		E.SerialOffset = (int64)SerialOffset;
 	}
 	else
 	{
