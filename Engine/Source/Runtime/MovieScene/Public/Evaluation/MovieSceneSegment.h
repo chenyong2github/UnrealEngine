@@ -23,6 +23,9 @@ enum class ESectionEvaluationFlags : uint8
 	PreRoll		= 0x01,
 	/** Segment resides inside the 'post-roll' time for the section */
 	PostRoll	= 0x02,
+
+	ForceKeepState = 0x04,
+	ForceRestoreState = 0x08,
 };
 ENUM_CLASS_FLAGS(ESectionEvaluationFlags);
 

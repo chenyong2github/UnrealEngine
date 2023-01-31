@@ -198,8 +198,13 @@ void FMovieSceneEvaluationTrack::EvaluateStatic(TArrayView<const FMovieSceneFiel
 
 		Context.ApplySectionPrePostRoll(bIsPreRoll, bIsPostRoll);
 
+		EMovieSceneCompletionMode CompletionMode =
+			EnumHasAnyFlags(FieldEntry.Flags, ESectionEvaluationFlags::ForceRestoreState) ? EMovieSceneCompletionMode::RestoreState :
+			EnumHasAnyFlags(FieldEntry.Flags, ESectionEvaluationFlags::ForceKeepState)    ? EMovieSceneCompletionMode::KeepState :
+			Template->GetCompletionMode();
+
 		PersistentData.DeriveSectionKey(FieldEntry.ChildIndex);
-		ExecutionTokens.SetCurrentScope(FMovieSceneEvaluationScope(PersistentData.GetSectionKey(), Template->GetCompletionMode()));
+		ExecutionTokens.SetCurrentScope(FMovieSceneEvaluationScope(PersistentData.GetSectionKey(), CompletionMode));
 		ExecutionTokens.SetContext(Context);
 
 		Template->Evaluate(Operand, Context, PersistentData, ExecutionTokens);
@@ -226,8 +231,13 @@ void FMovieSceneEvaluationTrack::EvaluateSwept(TArrayView<const FMovieSceneField
 		{
 			const FMovieSceneEvalTemplate& Template = *ChildTemplates[ChildIndex];
 
+			EMovieSceneCompletionMode CompletionMode =
+				EnumHasAnyFlags(Entry.Flags, ESectionEvaluationFlags::ForceRestoreState) ? EMovieSceneCompletionMode::RestoreState :
+				EnumHasAnyFlags(Entry.Flags, ESectionEvaluationFlags::ForceKeepState)    ? EMovieSceneCompletionMode::KeepState :
+				Template.GetCompletionMode();
+
 			PersistentData.DeriveSectionKey(ChildIndex);
-			ExecutionTokens.SetCurrentScope(FMovieSceneEvaluationScope(PersistentData.GetSectionKey(), Template.GetCompletionMode()));
+			ExecutionTokens.SetCurrentScope(FMovieSceneEvaluationScope(PersistentData.GetSectionKey(), CompletionMode));
 			ExecutionTokens.SetContext(Context);
 
 			Template.EvaluateSwept(
