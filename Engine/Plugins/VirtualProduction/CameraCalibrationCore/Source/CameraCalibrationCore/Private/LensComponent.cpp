@@ -142,6 +142,7 @@ void ULensComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 			case EDistortionSource::Manual:
 			{
 				LensDistortionHandler->SetDistortionState(DistortionState);
+				LensDistortionHandler->SetCameraFilmback(CineCameraComponent->Filmback);
 
 				//Recompute overscan factor for the distortion state
 				float OverscanFactor = LensDistortionHandler->ComputeOverscanFactor();
@@ -591,10 +592,13 @@ void ULensComponent::SetLensModel(TSubclassOf<ULensModel> Model)
 
 	if (LensModel)
 	{
-		const uint32 NumDistortionParameters = LensModel->GetDefaultObject<ULensModel>()->GetNumParameters();
-		DistortionState.DistortionInfo.Parameters.Init(0.0f, NumDistortionParameters);
+		LensModel->GetDefaultObject<ULensModel>()->GetDefaultParameterArray(DistortionState.DistortionInfo.Parameters);
 
 		CreateDistortionHandler();
+	}
+	else
+	{
+		DistortionState.DistortionInfo.Parameters.Empty();
 	}
 }
 
@@ -699,8 +703,7 @@ void ULensComponent::ClearDistortionState()
 	FLensDistortionState ZeroDistortionState;
 	if (LensModel)
 	{
-		const uint32 NumDistortionParameters = LensModel->GetDefaultObject<ULensModel>()->GetNumParameters();
-		ZeroDistortionState.DistortionInfo.Parameters.SetNumZeroed(NumDistortionParameters);
+		LensModel->GetDefaultObject<ULensModel>()->GetDefaultParameterArray(ZeroDistortionState.DistortionInfo.Parameters);
 	}
 	DistortionState = ZeroDistortionState;
 }

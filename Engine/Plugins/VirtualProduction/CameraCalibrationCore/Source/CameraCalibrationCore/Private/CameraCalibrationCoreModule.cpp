@@ -12,6 +12,7 @@
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/Paths.h"
+#include "Models/AnamorphicLensModel.h"
 #include "Models/SphericalLensModel.h"
 #include "Modules/ModuleManager.h"
 #include "ShaderCore.h"
@@ -119,6 +120,7 @@ void FCameraCalibrationCoreModule::RegisterDistortionModels()
 		// Register all lens models defined in this module
 		UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
 		SubSystem->RegisterDistortionModel(USphericalLensModel::StaticClass());
+		SubSystem->RegisterDistortionModel(UAnamorphicLensModel::StaticClass());
 	};
 
 	if (FApp::CanEverRender())
@@ -142,6 +144,7 @@ void FCameraCalibrationCoreModule::UnregisterDistortionModels()
 		if (UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>())
 		{
 			SubSystem->UnregisterDistortionModel(USphericalLensModel::StaticClass());
+			SubSystem->UnregisterDistortionModel(UAnamorphicLensModel::StaticClass());
 		}
 	}
 }

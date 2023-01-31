@@ -42,6 +42,17 @@ void ULensDistortionModelHandlerBase::SetDistortionState(const FLensDistortionSt
 	}	
 }
 
+void ULensDistortionModelHandlerBase::SetCameraFilmback(const FCameraFilmbackSettings& InCameraFilmback)
+{
+	if (CameraFilmback != InCameraFilmback)
+	{
+		CameraFilmback = InCameraFilmback;
+		InterpretDistortionParameters();
+
+		bIsDirty = true;
+	}
+}
+
 void ULensDistortionModelHandlerBase::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -56,8 +67,7 @@ void ULensDistortionModelHandlerBase::PostInitProperties()
 	{
 		if (LensModelClass)
 		{
-			const uint32 NumDistortionParameters = LensModelClass->GetDefaultObject<ULensModel>()->GetNumParameters();
-			CurrentState.DistortionInfo.Parameters.Init(0.0f, NumDistortionParameters);
+			LensModelClass->GetDefaultObject<ULensModel>()->GetDefaultParameterArray(CurrentState.DistortionInfo.Parameters);
 		}
 
 		const FIntPoint DisplacementMapResolution = GetDefault<UCameraCalibrationSettings>()->GetDisplacementMapResolution();

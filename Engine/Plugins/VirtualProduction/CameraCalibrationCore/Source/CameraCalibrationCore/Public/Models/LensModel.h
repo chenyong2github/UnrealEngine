@@ -30,6 +30,9 @@ public:
 	/** Get the struct of distortion parameters supported by this model */
 	virtual UScriptStruct* GetParameterStruct() const PURE_VIRTUAL(ULensModel::GetParameterStruct, return nullptr;);
 
+	/** Returns an array of floats representing the default values of each property in the parameter struct */
+	void GetDefaultParameterArray(TArray<float>& OutParameterValues) const;
+
 #if WITH_EDITOR
 	/** Get the names of each float parameters supported by this model */
 	virtual TArray<FText> GetParameterDisplayNames() const;

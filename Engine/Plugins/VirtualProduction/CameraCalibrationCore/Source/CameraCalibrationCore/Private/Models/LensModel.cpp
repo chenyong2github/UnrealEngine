@@ -35,6 +35,12 @@ TArray<FText> ULensModel::GetParameterDisplayNames() const
 
 #endif //WITH_EDITOR
 
+void ULensModel::GetDefaultParameterArray(TArray<float>& OutParameterValues) const
+{
+	FStructOnScope StructOnScope{ GetParameterStruct() };
+	ToArray<FStructOnScope>(StructOnScope, OutParameterValues);
+}
+
 uint32 ULensModel::GetNumParameters() const
 {
 	UScriptStruct* TypeStruct = GetParameterStruct();

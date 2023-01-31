@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CineCameraSettings.h"
 #include "CoreMinimal.h"
 #include "LensData.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -69,6 +70,9 @@ public:
 
 	/** Get the current distortion state (the lens model and properties that mathematically represent the distortion characteristics */
 	FLensDistortionState GetCurrentDistortionState() const { return CurrentState; }
+
+	/** Specify the filmback settings of the CineCamera that is being used for distortion */
+	void SetCameraFilmback(const FCameraFilmbackSettings& InCameraFilmback);
 
 	/** Get the post-process MID for the currently specified lens model */
 	UMaterialInstanceDynamic* GetDistortionMID() const { return DistortionPostProcessMID; }
@@ -150,6 +154,10 @@ protected:
 	/** Current state as set by the most recent call to Update() */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Distortion", meta = (ShowOnlyInnerProperties))
 	FLensDistortionState CurrentState;
+
+	/** Filmback settings of the camera that is being used for distortion */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
+	FCameraFilmbackSettings CameraFilmback;
 
 	/** Display name, used to identify handler in-editor details panels */
 	UPROPERTY(VisibleAnywhere, Category = "Distortion")
