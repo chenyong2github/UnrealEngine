@@ -442,6 +442,7 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FixupIDs);
 
+		// Here we remap SoftObjectPaths so that they are mapped from the PersistentLevel Package to the Cell Packages using the mapping built by the policy
 		if (OuterWorld->IsPlayInEditor())
 		{
 			int32 PIEInstanceID = GetPackage()->GetPIEInstanceID();
