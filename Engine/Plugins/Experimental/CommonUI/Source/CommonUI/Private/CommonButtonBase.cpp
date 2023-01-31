@@ -1034,8 +1034,8 @@ void UCommonButtonBase::UpdateInputActionWidget()
 		{
 			InputActionWidget->SetInputAction(TriggeredInputAction);
 		}
-		// Visualize the default click action when neither input action is bound and when the widget is hovered
-		else if (bShouldUseFallbackDefaultInputAction)
+		// Visualize the default click action when neither input action is bound and when the widget is enabled and hovered
+		else if (bShouldUseFallbackDefaultInputAction && bButtonEnabled)
 		{
 			FDataTableRowHandle HoverStateHandle;
 			if (IsHovered())
@@ -1525,6 +1525,7 @@ void UCommonButtonBase::EnableButton()
 
 		if (InputActionWidget)
 		{
+			UpdateInputActionWidget();
 			InputActionWidget->SetIsEnabled(bButtonEnabled);
 		}
 	}
@@ -1543,6 +1544,7 @@ void UCommonButtonBase::DisableButton()
 
 		if (InputActionWidget)
 		{
+			UpdateInputActionWidget();
 			InputActionWidget->SetIsEnabled(bButtonEnabled);
 		}
 	}
