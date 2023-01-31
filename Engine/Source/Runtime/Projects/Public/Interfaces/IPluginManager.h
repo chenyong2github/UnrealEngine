@@ -416,6 +416,13 @@ public:
 	virtual bool UnmountExplicitlyLoadedPlugin(const FString& PluginName, FText* OutReason) = 0;
 
 	/**
+	 * Tries to get a list of plugin dependencies for a given plugin. Returns false if the plugin provided was not found
+	 */
+	virtual bool GetPluginDependencies(const FString& PluginName, TArray<FPluginReferenceDescriptor>& PluginDependencies) = 0;
+	virtual bool GetPluginDependencies_FromFileName(const FString& PluginFileName, TArray<FPluginReferenceDescriptor>& PluginDependencies) = 0;
+	virtual bool GetPluginDependencies_FromDescriptor(const FPluginReferenceDescriptor& PluginDescriptor, TArray<FPluginReferenceDescriptor>& PluginDependencies) = 0;
+
+	/**
 	* Does a reverse lookup to try to figure out what the UObject package name is for a plugin
 	*/
 	virtual FName PackageNameFromModuleName(FName ModuleName) = 0;

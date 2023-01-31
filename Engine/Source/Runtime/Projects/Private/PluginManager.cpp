@@ -2701,6 +2701,39 @@ bool FPluginManager::UnmountExplicitlyLoadedPlugin(const FString& PluginName, FT
 	return UnmountPluginFromExternalSource(Plugin, OutReason);
 }
 
+bool FPluginManager::GetPluginDependencies(const FString& PluginName, TArray<FPluginReferenceDescriptor>& PluginDependencies)
+{
+	const TSharedPtr<FPlugin> Plugin = FindPluginInstance(PluginName);
+	if (Plugin.IsValid())
+	{
+		PluginDependencies = Plugin->Descriptor.Plugins;
+		return true;
+	}
+	return false;
+}
+
+bool FPluginManager::GetPluginDependencies_FromFileName(const FString& PluginFileName, TArray<FPluginReferenceDescriptor>& PluginDependencies)
+{
+	const TSharedRef<FPlugin>* DescribedPlugin = DiscoveredPluginMapUtils::FindPluginInMap_FromFileName(AllPlugins, PluginFileName);
+	if (DescribedPlugin)
+	{
+		PluginDependencies = (*DescribedPlugin)->Descriptor.Plugins;
+		return true;
+	}
+	return false;
+}
+
+bool FPluginManager::GetPluginDependencies_FromDescriptor(const FPluginReferenceDescriptor& PluginDescriptor, TArray<FPluginReferenceDescriptor>& PluginDependencies)
+{
+	const TSharedRef<FPlugin>* DescribedPlugin = DiscoveredPluginMapUtils::FindPluginInMap_FromDescriptor(AllPlugins, PluginDescriptor);
+	if (DescribedPlugin)
+	{
+		PluginDependencies = (*DescribedPlugin)->Descriptor.Plugins;
+		return true;
+	}
+	return false;
+}
+
 bool FPluginManager::UnmountPluginFromExternalSource(const TSharedPtr<FPlugin>& Plugin, FText* OutReason)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UnmountPluginFromExternalSource);
