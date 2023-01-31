@@ -205,19 +205,22 @@ namespace UnrealBuildTool
 
 	class HoloLensArchitectureConfig : UnrealArchitectureConfig
 	{
-		// we need to get the compiler the Target will use, before the target is created, when making projectfiles especially,
-		// so we duplicate some logic elsewhere in this file
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "CompilerVersion")]
-		[XmlConfigFile(Category = "HoloLensPlatform")]
+		/// <summary>
+		/// Duplicating the commandline param so that we can apply the cmdline to this object in BuildMode and GenProjFilesMode
+		/// </summary>
 		[CommandLine("-2019", Value = nameof(WindowsCompiler.VisualStudio2019))]
 		[CommandLine("-2022", Value = nameof(WindowsCompiler.VisualStudio2022))]
 		[CommandLine("-Compiler=")]
-		private WindowsCompiler Compiler = WindowsCompiler.Default;
+		private WindowsCompiler CommandLineCompiler = WindowsCompiler.Default;
 
 		private WindowsCompiler GetCompiler(FileReference? ProjectFile, UnrealArch Architecture)
 		{
+			// we don't have access to the commandline Arguments here, so we can't run it on the HoloLensPlatform object now
+			// we count on the Mode applying the Arguments to this object (and all ArchConfig objects) so that CommandLineCompiler
+			// is set below if needed
 			HoloLensTargetRules HoloLensPlatform = new();
 			ConfigCache.ReadSettings(ProjectFile?.Directory, UnrealTargetPlatform.HoloLens, HoloLensPlatform);
+			XmlConfig.ApplyTo(HoloLensPlatform);
 
 			// HoloLensPlatform has logic that the value in ReadSettings will override whatever the commandline specified version is,
 			// which is hard to say if it's desired, but need to stay consistent (could move this into a function)
@@ -226,9 +229,9 @@ namespace UnrealBuildTool
 				return HoloLensPlatform.Compiler;
 			}
 
-			if (Compiler != WindowsCompiler.Default)
+			if (CommandLineCompiler != WindowsCompiler.Default)
 			{
-				return Compiler;
+				return CommandLineCompiler;
 			}
 
 			// get the default compiler, but don't spit out a nasty warning if it doesn't exist
@@ -251,7 +254,10 @@ namespace UnrealBuildTool
 
 			bool bHasArmToolchain = MicrosoftPlatformSDK.HasValidCompiler(GetCompiler(ProjectFile, UnrealArch.Arm64), UnrealArch.Arm64, Logger);
 			bool bHasX64Toolchain = MicrosoftPlatformSDK.HasValidCompiler(GetCompiler(ProjectFile, UnrealArch.X64), UnrealArch.X64, Logger);
-	
+
+			Log.TraceLog($"HoloLens Arm: Desired Compiler: {GetCompiler(ProjectFile, UnrealArch.Arm64)}, Valid: {bHasArmToolchain}");
+			Log.TraceLog($"HoloLens X64: Desired Compiler: {GetCompiler(ProjectFile, UnrealArch.X64)}, Valid: {bHasX64Toolchain}");
+
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.HoloLens);
 			if (Ini.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bBuildForEmulation", out bBuildForEmulation) && bBuildForEmulation)
 			{

@@ -55,6 +55,16 @@ namespace UnrealBuildTool
 			return UEBuildPlatform.GetBuildPlatform(Platform).ArchitectureConfig;
 		}
 
+		/// <summary>
+		/// Get all known ArchitectureConfig objects
+		/// </summary>
+		/// <returns></returns>
+		public static IEnumerable<UnrealArchitectureConfig> AllConfigs()
+		{
+			// return ArchConfigs for platforms that have a BuildPlatform (which is where the Configs are stored)
+			return UnrealTargetPlatform.GetValidPlatforms().Where(x => UEBuildPlatform.TryGetBuildPlatform(x, out _)).Select(x => UEBuildPlatform.GetBuildPlatform(x).ArchitectureConfig);
+		}
+
 
 		/// <summary>
 		/// The multi-architecture mode for this platform (potentially single-architecture)

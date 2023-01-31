@@ -69,6 +69,12 @@ namespace UnrealBuildTool
 			// Apply the XML config to this class
 			XmlConfig.ApplyTo(this);
 
+			// Apply to architecture configs that need to read commandline arguments and didn't have the Arguments passed in during construction
+			foreach (UnrealArchitectureConfig Config in UnrealArchitectureConfig.AllConfigs())
+			{
+				Arguments.ApplyTo(Config);
+			}
+
 			// set up logging (taken from BuildMode)
 			FileReference LogFile = FileReference.Combine(Unreal.EngineProgramSavedDirectory, "UnrealBuildTool", "Log_GPF.txt");
 			Log.AddFileWriter("DefaultLogTraceListener", LogFile);
