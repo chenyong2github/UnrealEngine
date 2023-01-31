@@ -319,6 +319,12 @@ struct ENGINE_API FHardwareDeviceIdentifier
 
 	/** Returns true if this hardware device Identifier has valid names */
 	bool IsValid() const;
+
+	/**
+	 * Returns a string containing the Input Class Name and HardwareDeviceIdentifier properties
+	 * concatenated together.
+	 */
+	FString ToString() const;
 	
 	/** An Invalid Hardware Device Identifier. */
 	static FHardwareDeviceIdentifier Invalid;
@@ -362,6 +368,10 @@ public:
 	static const TArray<FName>& GetAllHardwareDeviceNames();
 #endif	// WITH_EDITOR
 
+
+	/** Returns the first matching FHardwareDeviceIdentifier that has the given HardwareDeviceIdentifier.  */
+	const FHardwareDeviceIdentifier* GetHardwareDeviceForClassName(const FName InHardwareDeviceIdentifier) const;
+	
 	/** Add the given hardware device identifier to this platform's settings. */
 	void AddHardwareDeviceIdentifier(const FHardwareDeviceIdentifier& InHardwareDevice);
 

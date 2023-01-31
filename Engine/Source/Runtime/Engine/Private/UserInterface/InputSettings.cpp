@@ -526,6 +526,11 @@ bool FHardwareDeviceIdentifier::IsValid() const
 	return InputClassName.IsValid() && HardwareDeviceIdentifier.IsValid();
 }
 
+FString FHardwareDeviceIdentifier::ToString() const
+{
+	return FString::Printf(TEXT("%s::%s"), *InputClassName.ToString(), *HardwareDeviceIdentifier.ToString());
+}
+
 //////////////////////////////////////////////////////////////////
 // UInputPlatformSettings
 
@@ -540,6 +545,15 @@ UInputPlatformSettings::UInputPlatformSettings()
 UInputPlatformSettings* UInputPlatformSettings::Get()
 {
 	return UPlatformSettingsManager::Get().GetSettingsForPlatform<UInputPlatformSettings>();
+}
+
+const FHardwareDeviceIdentifier* UInputPlatformSettings::GetHardwareDeviceForClassName(const FName InHardwareDeviceIdentifier) const
+{
+	return HardwareDevices.FindByPredicate(
+		[InHardwareDeviceIdentifier](const FHardwareDeviceIdentifier& Hardware)
+		{
+			return Hardware.HardwareDeviceIdentifier == InHardwareDeviceIdentifier;
+		});
 }
 
 void UInputPlatformSettings::AddHardwareDeviceIdentifier(const FHardwareDeviceIdentifier& InHardwareDevice)
