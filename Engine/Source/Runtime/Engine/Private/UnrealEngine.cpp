@@ -2120,6 +2120,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_UnitTime"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender(), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatUnitTime)));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Raw"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender(), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatRaw)));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_ParticlePerf"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatParticlePerf), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatParticlePerf), bIsRHS));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_TSR"), TEXT("STATCAT_Engine"), FText::FromString(TEXT("Same as stat unit, but with additional TSR settings.")), FEngineStatRender(), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatTSR)));
 #endif // !UE_BUILD_SHIPPING
 
 	// Let any listeners know about the new stats
@@ -17191,6 +17192,7 @@ bool UEngine::ToggleStatDetailed(UWorld* World, FCommonViewportClient* ViewportC
 		DetailedStats.Add(TEXT("UnitGraph"));
 		DetailedStats.Add(TEXT("Raw"));
 		DetailedStats.Add(TEXT("Version"));
+		DetailedStats.Add(TEXT("TSR"));
 	}
 
 	// If any of the detailed stats are inactive, take this as enabling all, unless 'Skip' is specifically specified
@@ -17795,6 +17797,36 @@ bool UEngine::ToggleStatRaw(UWorld* World, FCommonViewportClient* ViewportClient
 	}
 	return true;
 }
+
+// TSR statistics
+bool UEngine::ToggleStatTSR(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
+{
+	if (ViewportClient == nullptr)
+	{
+		// Ignore if all Viewports are closed.
+		return false;
+	}
+	const bool bShowTSR = ViewportClient->IsStatEnabled(TEXT("TSR"));
+	if (bShowTSR)
+	{
+		// Force Unit to Active
+		SetEngineStat(World, ViewportClient, TEXT("Unit"), true);
+
+		// Force TSR to true as Unit will have Toggled it back to false
+		SetEngineStat(World, ViewportClient, TEXT("TSR"), true);
+	}
+	else
+	{
+		const bool bShowDetailed = ViewportClient->IsStatEnabled(TEXT("Detailed"));
+		if (bShowDetailed)
+		{
+			// Since we're turning this off, we also need to toggle off detailed too
+			ExecEngineStat(World, ViewportClient, TEXT("Detailed -Skip"));
+		}
+	}
+	return true;
+}
+
 #endif
 
 #if !UE_BUILD_SHIPPING

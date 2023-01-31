@@ -28,6 +28,7 @@
 #include "Performance/EnginePerformanceTargets.h"
 #include "Elements/Framework/TypedElementList.h"
 #include "EngineUtils.h"
+#include "RenderCounters.h"
 #include "RenderGraphUtils.h"
 #include "DynamicResolutionState.h"
 #include "Stats/StatsTrace.h"
@@ -511,6 +512,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 	float Max_InputLatencyTime = 0.0f;
 
 	const bool bShowUnitMaxTimes = InViewport->GetClient() ? InViewport->GetClient()->IsStatEnabled(TEXT("UnitMax")) : false;
+	const bool bShowTSRStatistics = InViewport->GetClient() ? InViewport->GetClient()->IsStatEnabled(TEXT("TSR")) : false;
 #if !UE_BUILD_SHIPPING
 	const bool bShowRawUnitTimes = InViewport->GetClient() ? InViewport->GetClient()->IsStatEnabled(TEXT("Raw")) : false;
 	RenderThreadTimes[CurrentIndex] = bShowRawUnitTimes ? RawRenderThreadTime : RenderThreadTime;
@@ -936,31 +938,46 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 			PushRows(/* RowsCount = */ 1);
 		}
 
-		// TSR history convergence rate
-		if (GPixelRenderCounters.GetPixelDisplayCount())
+		if (bShowTSRStatistics && GPixelRenderCounters.GetPixelDisplayCount())
 		{
-			// Target 1 sample per pixel for the convergence speed measurment.
-			const float TargetSamplePerPixel = 1.0f;
+			const uint32 PixelRenderCount = GPixelRenderCounters.GetPixelRenderCount();
+			const uint32 PixelDisplayCount = GPixelRenderCounters.GetPixelDisplayCount();
 
-			// Ideal TSR uses it to render 1080p -> 4k at 60hz.
-			const float IdealConvergenceTime = TargetSamplePerPixel * FMath::Pow(1080.0f / 2160.0f, -2.0f) * (1000.0f / 60.0f);
+			// TSR input feed in pixel/s
+			{
+				const FColor Color = (PixelRenderCount < 1280 * 720) ? StatRed : ((PixelRenderCount < 1920 * 1080) ? StatOrange : StatGreen);
 
-			// Compute the resolution fraction agregate.
-			uint32 PixelRenderCount = GPixelRenderCounters.GetPixelRenderCount();
-			uint32 PixelDisplayCount = GPixelRenderCounters.GetPixelDisplayCount();
-			float ResolutionFraction = FMath::Sqrt(float(PixelRenderCount) / float(PixelDisplayCount));
-			float ConvergenceSpeedMultiplier = FMath::Pow(ResolutionFraction, -2.0f);
+				float TSRFeed = PixelRenderCount * (1000.0f / FrameTime);
 
-			// Compute how long it takes for the history to converge to 1spp.
-			float ConvergenceFrameCount = ConvergenceSpeedMultiplier * TargetSamplePerPixel;
-			float ConvergenceTime = FMath::Max(ConvergenceFrameCount, 1.0f) * FrameTime;
+				DrawTitleString(TEXT("TSR feed"), NoUnitGraphColor);
+				DrawDefaultAvgCell(FString::Printf(TEXT("%.2f MP/s"), float(TSRFeed) / 1000000.0f), Color);
 
-			const FColor Color = (ConvergenceTime <= IdealConvergenceTime) ? StatGreen : ((ConvergenceTime < 2.0f * IdealConvergenceTime) ? StatOrange : StatRed);
+				PushRows(/* RowsCount = */ 1);
+			}
 
-			DrawTitleString(TEXT("TSR -> 1spp"), NoUnitGraphColor);
-			DrawDefaultAvgCell(FString::Printf(STATUNIT_FORMAT_AVGTIME, ConvergenceTime), Color);
+			// TSR history convergence rate
+			{
+				// Target 1 sample per pixel for the convergence speed measurment.
+				const float TargetSamplePerPixel = 1.0f;
 
-			PushRows(/* RowsCount = */ 1);
+				// Ideal TSR uses it to render 1080p -> 4k at 60hz.
+				const float IdealConvergenceTime = TargetSamplePerPixel * FMath::Pow(1080.0f / 2160.0f, -2.0f) * (1000.0f / 60.0f);
+
+				// Compute the resolution fraction agregate.
+				float ResolutionFraction = FMath::Sqrt(float(PixelRenderCount) / float(PixelDisplayCount));
+				float ConvergenceSpeedMultiplier = FMath::Pow(ResolutionFraction, -2.0f);
+
+				// Compute how long it takes for the history to converge to 1spp.
+				float ConvergenceFrameCount = ConvergenceSpeedMultiplier * TargetSamplePerPixel;
+				float ConvergenceTime = FMath::Max(ConvergenceFrameCount, 1.0f) * FrameTime;
+
+				const FColor Color = (ConvergenceTime <= IdealConvergenceTime) ? StatGreen : ((ConvergenceTime < 2.0f * IdealConvergenceTime) ? StatOrange : StatRed);
+
+				DrawTitleString(TEXT("TSR 1spp"), NoUnitGraphColor);
+				DrawDefaultAvgCell(FString::Printf(STATUNIT_FORMAT_AVGTIME, ConvergenceTime), Color);
+
+				PushRows(/* RowsCount = */ 1);
+			}
 		}
 	}
 

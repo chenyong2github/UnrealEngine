@@ -12,6 +12,7 @@
 #include "HDRHelper.h"
 #include "RHI.h"
 #include "RenderTimer.h"
+#include "RenderCounters.h"
 
 void UpdateShaderDevelopmentMode();
 
