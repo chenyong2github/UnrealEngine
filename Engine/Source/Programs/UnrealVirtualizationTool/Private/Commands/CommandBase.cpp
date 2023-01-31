@@ -125,7 +125,17 @@ bool FCommand::TryConnectToSourceControl(FStringView ClientSpecName)
 	if (SCCProvider.IsValid())
 	{
 		SCCProvider->Init(true);
-		return true;
+
+		if (SCCProvider->IsAvailable())
+		{
+			return true;
+		}
+		else
+		{
+			UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to establish a perforce connection"));
+			return false;
+		}
+		
 	}
 	else
 	{
