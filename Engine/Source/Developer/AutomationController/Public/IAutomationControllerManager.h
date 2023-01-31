@@ -272,6 +272,14 @@ public:
 	virtual FString GetGameInstanceName(const int32 ClusterIndex, const int32 DeviceIndex) const = 0;
 
 	/**
+	 * Get a device name.
+	 *
+	 * @param ClusterIndex The cluster Index.
+	 * @param DeviceIndex The Device Index.
+	 */
+	virtual FString GetDeviceName(const int32 ClusterIndex, const int32 DeviceIndex) const = 0;
+
+	/**
 	 * Sets whether all visible tests are enabled or not.
 	 */
 	virtual void SetVisibleTestsEnabled(const bool bEnabled) = 0;

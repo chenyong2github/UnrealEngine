@@ -223,7 +223,7 @@ void FAutomationReportManager::AddResultReport(TSharedPtr< IAutomationReport > I
 				}
 
 				// Create the log string
-				FString Info = FString::Printf( TEXT("DeviceName: %s, Platform: %s, Test Name: %s, Test Duration: %s, Status: %s" ),
+				FString Info = FString::Printf( TEXT("GameInstance: %s, Platform: %s, Test Name: %s, Test Duration: %s, Status: %s" ),
 					*InReport->GetGameInstanceName( ClusterIndex ),
 					*FModuleManager::GetModuleChecked< IAutomationControllerModule >( "AutomationController" ).GetAutomationController()->GetDeviceTypeName( ClusterIndex ),
 					*InReport->GetDisplayNameWithDecoration(),

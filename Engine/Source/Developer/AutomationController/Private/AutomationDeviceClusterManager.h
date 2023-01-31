@@ -104,6 +104,9 @@ public:
 	/** Returns the name of a device within a cluster. */
 	FString GetClusterDeviceName(const int32 ClusterIndex, const int32 DeviceIndex) const;
 
+	/** Returns the instance of the game within a cluster. */
+	FString GetClusterGameInstance(const int32 ClusterIndex, const int32 DeviceIndex) const;
+
 	/** Returns the name of a device within a cluster. */
 	const FAutomationDeviceInfo& GetDeviceInfo(const int32 ClusterIndex, const int32 DeviceIndex) const;
 

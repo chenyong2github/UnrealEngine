@@ -771,7 +771,7 @@ void FAutomationControllerManager::ExecuteNextTask( int32 ClusterIndex, OUT bool
 						for (int32 AddressIndex = 0; AddressIndex < DeviceAddresses.Num(); ++AddressIndex)
 						{
 							FAutomationTestResults TestResults;
-							TestResults.GameInstance = DeviceClusterManager.GetClusterDeviceName(ClusterIndex, DeviceIndex);
+							TestResults.GameInstance = DeviceClusterManager.GetClusterGameInstance(ClusterIndex, DeviceIndex);
 							TestResults.State = EAutomationState::InProcess;
 							GameInstances.Add(TestResults.GameInstance);
 							NextTest->SetResults(ClusterIndex, CurrentTestPass, TestResults);
@@ -1124,10 +1124,11 @@ void FAutomationControllerManager::UpdateTests()
 
 					FAutomationTestResults TestResults;
 					TestResults.State = EAutomationState::Fail;
-					TestResults.GameInstance = DeviceClusterManager.GetClusterDeviceName(ClusterIndex, DeviceIndex);
-					TestResults.AddEvent(FAutomationEvent(EAutomationEventType::Error, FString::Printf(TEXT("Timeout waiting for device %s"), *TestResults.GameInstance)));
+					TestResults.GameInstance = DeviceClusterManager.GetClusterGameInstance(ClusterIndex, DeviceIndex);
+					FString DeviceName = DeviceClusterManager.GetClusterDeviceName(ClusterIndex, DeviceIndex);
+					TestResults.AddEvent(FAutomationEvent(EAutomationEventType::Error, FString::Printf(TEXT("Timeout waiting for device %s"), *DeviceName)));
 
-					UE_LOG(LogAutomationController, Error, TEXT("Removing test and marking failure after timeout waiting for device %s LastPingTime was greater than %.1f"), *TestResults.GameInstance, GameInstanceLostTimerSeconds);
+					UE_LOG(LogAutomationController, Error, TEXT("Removing test and marking failure after timeout waiting for device %s LastPingTime was greater than %.1f"), *DeviceName, GameInstanceLostTimerSeconds);
 
 					// Set the results
 					Report->SetResults(ClusterIndex, CurrentTestPass, TestResults);
@@ -1510,7 +1511,7 @@ void FAutomationControllerManager::HandleRunTestsReplyMessage(const FAutomationW
 
 		verify(DeviceClusterManager.FindDevice(Context->GetSender(), ClusterIndex, DeviceIndex));
 
-		TestResults.GameInstance = DeviceClusterManager.GetClusterDeviceName(ClusterIndex, DeviceIndex);
+		TestResults.GameInstance = DeviceClusterManager.GetClusterGameInstance(ClusterIndex, DeviceIndex);
 		TestResults.SetEvents(Message.Entries, Message.WarningTotal, Message.ErrorTotal);
 
 		// Verify this device thought it was busy

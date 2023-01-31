@@ -206,12 +206,14 @@ FString FAutomationDeviceClusterManager::GetClusterDeviceType(const int32 Cluste
 	return Clusters[ClusterIndex].DeviceTypeName;
 }
 
-
 FString FAutomationDeviceClusterManager::GetClusterDeviceName(const int32 ClusterIndex, const int32 DeviceIndex) const
 {
-	check((ClusterIndex >= 0) && (ClusterIndex < Clusters.Num()));
-	check((DeviceIndex >= 0) && (DeviceIndex < Clusters[ClusterIndex].Devices.Num()));
-	return Clusters[ClusterIndex].Devices[DeviceIndex].Info.Instance;
+	return GetDeviceInfo(ClusterIndex, DeviceIndex).DeviceName;
+}
+
+FString FAutomationDeviceClusterManager::GetClusterGameInstance(const int32 ClusterIndex, const int32 DeviceIndex) const
+{
+	return GetDeviceInfo(ClusterIndex, DeviceIndex).Instance;
 }
 
 const FAutomationDeviceInfo& FAutomationDeviceClusterManager::GetDeviceInfo(const int32 ClusterIndex, const int32 DeviceIndex) const
