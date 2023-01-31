@@ -160,6 +160,9 @@ namespace UnrealBuildTool
 		/// <inheritdoc/>
 		public bool bUseActionHistory => true;
 
+		/// <inheritdoc/>
+		public bool bIsHighPriority { get => CreatePchFile != null; }
+
 		#endregion
 
 		#region Implementation of IAction

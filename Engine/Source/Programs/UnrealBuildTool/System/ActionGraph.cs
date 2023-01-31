@@ -17,6 +17,7 @@ using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Reflection;
 
 namespace UnrealBuildTool
 {
@@ -43,7 +44,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Actions">List of actions in the graph</param>
 		/// <param name="Logger">Logger for output</param>
-		public static void Link(List<LinkedAction> Actions, ILogger Logger)
+		/// <param name="Sort">Optional sorting of actions</param>
+		public static void Link(List<LinkedAction> Actions, ILogger Logger, bool Sort = true)
 		{
 			// Build a map from item to its producing action
 			Dictionary<FileItem, LinkedAction> ItemToProducingAction = new Dictionary<FileItem, LinkedAction>();
@@ -72,7 +74,10 @@ namespace UnrealBuildTool
 			}
 
 			// Sort the action graph
-			SortActionList(Actions);
+			if (Sort)
+			{
+				SortActionList(Actions);
+			}
 		}
 
 		/// <summary>
@@ -389,12 +394,9 @@ namespace UnrealBuildTool
 				// Figure out which executor to use
 				ActionExecutor Executor = SelectExecutor(BuildConfiguration, ActionsToExecute.Count, TargetDescriptors, Logger);
 
-				// Ensure actions are ordered
-				IOrderedEnumerable<LinkedAction> OrderedActionsToExecute = ActionsToExecute.OrderByDescending(x => x.NumTotalDependentActions).ThenByDescending(x => x.PrerequisiteItems.Count());
-
 				// Execute the build
 				Stopwatch Timer = Stopwatch.StartNew();
-				if (!Executor.ExecuteActions(OrderedActionsToExecute, Logger))
+				if (!Executor.ExecuteActions(ActionsToExecute, Logger))
 				{
 					throw new CompilationResultException(CompilationResult.OtherCompilationError);
 				}
@@ -432,19 +434,40 @@ namespace UnrealBuildTool
 		/// </summary>
 		static void SortActionList(List<LinkedAction> Actions)
 		{
-			// Clear the current dependent count
+			// Clear the current dependent count and SortIndex if there is any
 			foreach (LinkedAction Action in Actions)
 			{
 				Action.NumTotalDependentActions = 0;
+				Action.SortIndex = 0;
 			}
 
-			// Increment all the dependencies
-			Actions.AsParallel().ForAll((Action) =>
+			// Increment all the dependencies plus propagate high priority flag
+			Parallel.ForEach(Actions, (Action) =>
 			{
-				Action.IncrementDependentCount(new HashSet<LinkedAction>());
+				Action.IncrementDependentCount(new HashSet<LinkedAction>(), Action.bIsHighPriority);
 			});
 
 			// Sort actions by number of actions depending on them, descending. Secondary sort criteria is file size.
+			Actions.Sort(LinkedAction.Compare);
+
+			// Now when everything is sorted we want to move link actions and actions that can't run remotely to as early as possible
+			// Find the last prereq action and set the sort index to the same. since action has at least one more dependency it will end up after in the next sorting call
+			int I = 0;
+			foreach (LinkedAction Action in Actions)
+			{
+				Action.SortIndex = ++I;
+				if ((!Action.bCanExecuteRemotely || Action.ActionType == ActionType.Link) && Action.PrerequisiteActions.Count > 0)
+				{
+					int LastSortIndex = 0;
+					foreach (var Prereq in Action.PrerequisiteActions)
+					{
+						LastSortIndex = Math.Max(LastSortIndex, Prereq.SortIndex);
+					}
+					Action.SortIndex = LastSortIndex;
+				}
+			}
+
+			// Sort again now when we have set sorting index and will put link actions earlier
 			Actions.Sort(LinkedAction.Compare);
 		}
 

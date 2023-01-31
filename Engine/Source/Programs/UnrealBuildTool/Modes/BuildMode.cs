@@ -464,8 +464,8 @@ namespace UnrealBuildTool
 					GatherOutputItems(TargetDescriptors[TargetIdx], Makefiles[TargetIdx], MergedOutputItems);
 				}
 
-				// Link all the actions together
-				ActionGraph.Link(MergedActions, Logger);
+				// Link all the actions together (No need sorting, we'll do that later again)
+				ActionGraph.Link(MergedActions, Logger, Sort: false);
 
 				// Get all the actions that are prerequisites for these targets. This forms the list of actions that we want executed.
 				List<LinkedAction> PrerequisiteActions = ActionGraph.GatherPrerequisiteActions(MergedActions, MergedOutputItems);

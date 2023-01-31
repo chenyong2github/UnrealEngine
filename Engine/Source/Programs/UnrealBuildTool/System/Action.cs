@@ -127,6 +127,12 @@ namespace UnrealBuildTool
 		/// Whether changes in the command line used to generate these produced items should invalidate the action
 		/// </summary>
 		bool bUseActionHistory { get; }
+
+		/// <summary>
+		/// True if this action should be scheduled early. Some actions can take a long time (pch) and need to start very early
+		/// If set to true it will propagate high priority to all its prerequisite tasks
+		/// </summary>
+		bool bIsHighPriority { get; }
 	}
 
 	/// <summary>
@@ -222,6 +228,9 @@ namespace UnrealBuildTool
 		/// <inheritdoc/>
 		public bool bUseActionHistory { get; set; } = true;
 
+		/// <inheritdoc/>
+		public bool bIsHighPriority { get; set; } = false;
+
 		IEnumerable<FileItem> IExternalAction.PrerequisiteItems => PrerequisiteItems;
 		IEnumerable<FileItem> IExternalAction.ProducedItems => ProducedItems;
 		IEnumerable<FileItem> IExternalAction.DeleteItems => DeleteItems;
@@ -256,6 +265,7 @@ namespace UnrealBuildTool
 			bShouldOutputStatusDescription = InOther.bShouldOutputStatusDescription;
 			bProducesImportLibrary = InOther.bProducesImportLibrary;
 			bUseActionHistory = InOther.bUseActionHistory;
+			bIsHighPriority = InOther.bIsHighPriority;
 		}
 
 		public Action(BinaryArchiveReader Reader)
@@ -277,6 +287,8 @@ namespace UnrealBuildTool
 			DeleteItems = Reader.ReadSortedSet(() => Reader.ReadFileItem())!;
 			DependencyListFile = Reader.ReadFileItem();
 			bUseActionHistory = Reader.ReadBool();
+			bIsHighPriority = Reader.ReadBool();
+
 		}
 
 		/// <summary>
@@ -301,6 +313,7 @@ namespace UnrealBuildTool
 			Writer.WriteSortedSet(DeleteItems, Item => Writer.WriteFileItem(Item));
 			Writer.WriteFileItem(DependencyListFile);
 			Writer.WriteBool(bUseActionHistory);
+			Writer.WriteBool(bIsHighPriority);
 		}
 
 		/// <summary>
@@ -529,6 +542,17 @@ namespace UnrealBuildTool
 		public int NumTotalDependentActions = 0;
 
 		/// <summary>
+		/// Additional field used for sorting that can be used to control sorting of link actions from outside
+		/// </summary>
+		public int SortIndex = 0;
+
+		/// <summary>
+		/// True if this action should be scheduled early. Some actions can take a long time (pch) and need to start very early
+		/// If set to 1 it will propagate high priority to all its prerequisite tasks. (Note it is an int to be able to do interlocked operations)
+		/// </summary>
+		public int IsHighPriority;
+
+		/// <summary>
 		/// If set, will be output whenever the group differs to the last executed action. Set when executing multiple targets at once.
 		/// </summary>
 		public List<string> GroupNames = new List<string>();
@@ -552,6 +576,7 @@ namespace UnrealBuildTool
 		public bool bShouldOutputStatusDescription => Inner.bShouldOutputStatusDescription;
 		public bool bProducesImportLibrary => Inner.bProducesImportLibrary;
 		public bool bUseActionHistory => Inner.bUseActionHistory;
+		public bool bIsHighPriority => IsHighPriority != 0;
 
 		#endregion
 
@@ -564,31 +589,46 @@ namespace UnrealBuildTool
 		{
 			this.Inner = Inner;
 			this.Target = Target;
+			this.IsHighPriority = Inner.bIsHighPriority ? 1 : 0;
 		}
 
 		/// <summary>
 		/// Increment the number of dependents, recursively
 		/// </summary>
 		/// <param name="VisitedActions">Set of visited actions</param>
-		public void IncrementDependentCount(HashSet<LinkedAction> VisitedActions)
+		/// <param name="bIsHighPriority">Propagate high priority to this and prerequisite actions</param>
+		public void IncrementDependentCount(HashSet<LinkedAction> VisitedActions, bool bIsHighPriority)
 		{
 			if (VisitedActions.Add(this))
 			{
+				if (bIsHighPriority)
+					Interlocked.Exchange(ref IsHighPriority, 1);
+
 				Interlocked.Increment(ref NumTotalDependentActions);
 				foreach (LinkedAction PrerequisiteAction in PrerequisiteActions)
 				{
-					PrerequisiteAction.IncrementDependentCount(VisitedActions);
+					PrerequisiteAction.IncrementDependentCount(VisitedActions, bIsHighPriority);
 				}
 			}
 		}
 
 		/// <summary>
-		/// Compares two actions based on total number of dependent items, descending.
+		/// Compares two actions based on total number of sort index, priority and dependent items, descending.
 		/// </summary>
 		/// <param name="A">Action to compare</param>
 		/// <param name="B">Action to compare</param>
 		public static int Compare(LinkedAction A, LinkedAction B)
 		{
+			if (A.SortIndex != B.SortIndex)
+			{
+				return Math.Sign(A.SortIndex - B.SortIndex);
+			}
+			
+			if (A.IsHighPriority != B.IsHighPriority)
+			{
+				return B.IsHighPriority - A.IsHighPriority;
+			}
+
 			// Primary sort criteria is total number of dependent files, up to max depth.
 			if (B.NumTotalDependentActions != A.NumTotalDependentActions)
 			{
