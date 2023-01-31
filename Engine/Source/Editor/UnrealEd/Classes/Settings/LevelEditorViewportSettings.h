@@ -8,6 +8,7 @@
 #include "UObject/SoftObjectPath.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Engine/World.h"
 #include "Viewports.h"
 #include "Editor/UnrealEdTypes.h"
 #include "LevelEditorViewportSettings.generated.h"
@@ -247,6 +248,15 @@ struct UNREALED_API FSnapToSurfaceSettings
 	/** Whether objects should match the rotation of the surfaces they snap to */
 	UPROPERTY(config)
 	bool bSnapRotation;
+};
+
+USTRUCT()
+struct UNREALED_API FLevelEditorViewporEditorViews
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	TArray<FLevelViewportInfo> LevelViewportsInfo;
 };
 
 /**
@@ -569,6 +579,10 @@ public:
 	/** When dropping a texture in the viewport, determines which material parameter to assign for each found texture type. Only relevant if MaterialForDroppedTextures is assigned. */
 	UPROPERTY(EditAnywhere, config, Category = Behavior)
 	TMap<EMaterialKind, FName> MaterialParamsForDroppedTextures;
+
+	/** Store the last camera settings for all the viewport of each world loaded in the editor. */
+	UPROPERTY(config)
+	TMap<TSoftObjectPtr<UWorld>, FLevelEditorViewporEditorViews> EditorViews;
 
 private:
 

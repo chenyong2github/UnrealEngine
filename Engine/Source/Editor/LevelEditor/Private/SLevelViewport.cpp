@@ -1211,6 +1211,11 @@ void SLevelViewport::OnMapChanged( UWorld* World, EMapChangeType MapChangeType )
 	{
 		if( MapChangeType == EMapChangeType::LoadMap )
 		{
+			if (FLevelEditorViewporEditorViews* PerUserEditorViews = GetMutableDefault<ULevelEditorViewportSettings>()->EditorViews.Find(World))
+			{
+				World->EditorViews = PerUserEditorViews->LevelViewportsInfo;
+			}
+
 			if (World->EditorViews[LevelViewportClient->ViewportType].CamOrthoZoom == 0.0f)
 			{
 				World->EditorViews[LevelViewportClient->ViewportType].CamOrthoZoom = DEFAULT_ORTHOZOOM;
@@ -1237,7 +1242,7 @@ void SLevelViewport::OnMapChanged( UWorld* World, EMapChangeType MapChangeType )
 				}
 			}
 		}
-		else if( MapChangeType == EMapChangeType::SaveMap )
+		else if( (MapChangeType == EMapChangeType::SaveMap) || (MapChangeType == EMapChangeType::TearDownWorld))
 		{
 			//@todo there could potentially be more than one of the same viewport type.  This effectively takes the last one of a specific type
 			World->EditorViews[LevelViewportClient->ViewportType] = 
@@ -1245,9 +1250,12 @@ void SLevelViewport::OnMapChanged( UWorld* World, EMapChangeType MapChangeType )
 					LevelViewportClient->GetViewLocation(),
 					LevelViewportClient->GetViewRotation(), 
 					LevelViewportClient->GetOrthoZoom() );
+
+			GetMutableDefault<ULevelEditorViewportSettings>()->EditorViews.FindOrAdd(World).LevelViewportsInfo = World->EditorViews;
+			GetMutableDefault<ULevelEditorViewportSettings>()->SaveConfig();
 		}
 		else if( MapChangeType == EMapChangeType::NewMap )
-		{
+		{		
 		
 			ResetNewLevelViewFlags();
 
