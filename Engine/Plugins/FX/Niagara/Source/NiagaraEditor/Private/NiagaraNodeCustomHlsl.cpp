@@ -632,12 +632,7 @@ void UNiagaraNodeCustomHlsl::RebuildSignatureFromPins()
 		Sig.Outputs.Add(Schema->PinToNiagaraVariable(Pin, false));
 	}
 
-	//Allow signature to have variadic params so we still get the add pins.
-	Sig.RequiredInputs = Sig.Inputs.Num();
-	Sig.RequiredOutputs = Sig.Outputs.Num();
-
 	Signature = Sig;
-
 }
 
 #undef LOCTEXT_NAMESPACE

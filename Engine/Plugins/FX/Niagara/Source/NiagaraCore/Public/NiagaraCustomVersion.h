@@ -184,6 +184,8 @@ struct FNiagaraCustomVersion
 
 		AddVariadicParametersToGPUFunctionInfo, // Adds list of variadic parameters to the information about GPU functions.
 
+		DynamicPinNodeFixup, // Some data fixup for NiagaraNodeWithDynamicPins.
+
 		// DO NOT ADD A NEW VERSION UNLESS YOU HAVE TALKED TO THE NIAGARA LEAD. Mismanagement of these versions can lead to data loss if it is adjusted in multiple streams simultaneously.
 		// -----<new versions can be added above this line>  -------------------------------------------------
 		VersionPlusOne,

@@ -101,6 +101,47 @@ void UNiagaraNodeFunctionCall::PostLoad()
 			FNiagaraStackGraphUtilities::PopulateFunctionCallNameBindings(*this);
 		}
 	}
+	else
+	{
+		//Perform some fix up due to a bug with dynamic pins and add pins.
+		//Rebuild the dynamic pins and ensure we have add pins where needed.		
+		const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+		if (NiagaraVer < FNiagaraCustomVersion::DynamicPinNodeFixup && AllowDynamicPins())
+		{
+			DynamicPins.Empty();
+			bool bFoundInputAdd = false;
+			bool bFoundOutputAdd = false;
+			for (const UEdGraphPin* Pin : Pins)
+			{
+				if (IsAddPin(Pin))
+				{
+					if (Pin->Direction == EGPD_Input)
+					{
+						bFoundInputAdd = true;
+					}
+					else
+					{
+						bFoundOutputAdd = true;
+					}
+				}
+				else
+				{
+					DynamicPins.Add(Pin->PinId);
+				}
+			}
+
+			if (!bFoundInputAdd)
+			{
+				CreateAddPin(EGPD_Input);
+			}
+
+			if (!bFoundOutputAdd)
+			{
+				CreateAddPin(EGPD_Output);
+			}
+		}
+	}
+
 
 	// Allow data interfaces an opportunity to intercept changes
 	if (Signature.IsValid() && Signature.bMemberFunction)
@@ -391,7 +432,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 
 		if (AllowDynamicPins())
 		{
-			if(Signature.IsValid())
+			if(Signature.IsValid() && (Signature.VariadicInput() || Signature.VariadicOutput()))
 			{
 				if(Signature.VariadicInput())
 				{
