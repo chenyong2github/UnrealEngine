@@ -38,6 +38,20 @@ namespace OutputLogModule
 {
 	static const FName OutputLogTabName = FName(TEXT("OutputLog"));
 	static const FName DeviceOutputLogTabName = FName(TEXT("DeviceOutputLog"));
+
+	bool bHideConsole = false;
+	FAutoConsoleVariableRef CVarHideConsoleCommand(
+		TEXT("OutputLogModule.HideConsole"), 
+		bHideConsole, 
+		TEXT("Whether debug console widgets should be hidden (false by default)"), 
+		FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* /*CVar*/)
+			{
+				if (bHideConsole)
+				{
+					FOutputLogModule::Get().CloseDebugConsole();
+				}
+			}),
+		ECVF_ReadOnly);
 }
 
 /** This class is to capture all log output even if the log window is closed */
@@ -168,10 +182,16 @@ FOutputLogModule& FOutputLogModule::Get()
 	return FModuleManager::Get().LoadModuleChecked<FOutputLogModule>(OutputLog);
 }
 
+bool FOutputLogModule::ShouldHideConsole() const
+{
+	return OutputLogModule::bHideConsole;
+}
+
 TSharedRef<SWidget> FOutputLogModule::MakeConsoleInputBox(TSharedPtr<SMultiLineEditableTextBox>& OutExposedEditableTextBox, const FSimpleDelegate& OnCloseConsole, const FSimpleDelegate& OnConsoleCommandExecuted) const
 {
 	TSharedRef<SConsoleInputBox> NewConsoleInputBox =
 		SNew(SConsoleInputBox)
+		.Visibility(MakeAttributeLambda([](){ return FOutputLogModule::Get().ShouldHideConsole() ? EVisibility::Collapsed : EVisibility::Visible; }))
 		.OnCloseConsole(OnCloseConsole)
 		.OnConsoleCommandExecuted(OnConsoleCommandExecuted);
 
@@ -207,6 +227,11 @@ TSharedRef<SWidget> FOutputLogModule::MakeOutputLogWidget(const FOutputLogCreati
 
 void FOutputLogModule::ToggleDebugConsoleForWindow(const TSharedRef<SWindow>& Window, const EDebugConsoleStyle::Type InStyle, const FDebugConsoleDelegates& DebugConsoleDelegates)
 {
+	if (ShouldHideConsole())
+	{
+		return;
+	}
+
 	bool bShouldOpen = true;
 	// Close an existing console box, if there is one
 	TSharedPtr< SWidget > PinnedDebugConsole(DebugConsole.Pin());

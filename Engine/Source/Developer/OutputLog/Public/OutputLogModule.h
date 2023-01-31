@@ -42,6 +42,9 @@ public:
 
 	static OUTPUTLOG_API FOutputLogModule& Get();
 
+	/** Returns whether debug console widgets should be hidden */
+	virtual bool ShouldHideConsole() const;
+
 	/** Generates a console input box widget.  Remember, this widget will become invalid if the
 		output log DLL is unloaded on the fly. */
 	virtual TSharedRef<SWidget> MakeConsoleInputBox(TSharedPtr<SMultiLineEditableTextBox>& OutExposedEditableTextBox, const FSimpleDelegate& OnCloseConsole, const FSimpleDelegate& OnConsoleCommandExecuted) const;

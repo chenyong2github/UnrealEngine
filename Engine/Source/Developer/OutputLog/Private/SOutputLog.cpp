@@ -1208,6 +1208,7 @@ void SOutputLog::Construct( const FArguments& InArgs, bool bCreateDrawerDockButt
 		.AutoHeight()
 		[
 			SAssignNew(ConsoleInputBox, SConsoleInputBox)
+			.Visibility(MakeAttributeLambda([]() { return  FOutputLogModule::Get().ShouldHideConsole() ? EVisibility::Collapsed : EVisibility::Visible; }))
 			.OnConsoleCommandExecuted(this, &SOutputLog::OnConsoleCommandExecuted)
 			.OnCloseConsole(InArgs._OnCloseConsole)
 			// Always place suggestions above the input line for the output log widget

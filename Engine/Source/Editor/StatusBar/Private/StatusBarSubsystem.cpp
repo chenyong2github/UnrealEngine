@@ -26,6 +26,7 @@
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "OutputLogSettings.h"
 #include "SOneTimeIndustryQuery.h"
+#include "Types/SlateAttributeMetaData.h"
 
 #define LOCTEXT_NAMESPACE "StatusBar"
 
@@ -462,19 +463,37 @@ TSharedRef<SWidget> UStatusBarSubsystem::MakeStatusBarWidget(FName StatusBarName
 	FSimpleDelegate OnConsoleCommandExecuted;
 
 	TSharedPtr<SMultiLineEditableTextBox> ConsoleEditBox;
-	TSharedRef<SWidget> OutputLog = 
+	TSharedPtr<SWidget> OutputLog;
+	{
+		TSharedRef<SWidget> ConsoleInputBox = OutputLogModule.MakeConsoleInputBox(ConsoleEditBox, OnConsoleClosed, OnConsoleCommandExecuted);
+
+		auto IsConsoleInputBoxBorderVisible = [ConsoleInputBoxWeak = ConsoleInputBox.ToWeakPtr()]()
+		{
+			if (TSharedPtr<SWidget> ConsoleInputBox = ConsoleInputBoxWeak.Pin())
+			{
+				FSlateAttributeMetaData::UpdateOnlyVisibilityAttributes(*ConsoleInputBox, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
+				if (ConsoleInputBox->GetVisibility() == EVisibility::Collapsed)
+				{
+					return EVisibility::Collapsed;
+				}
+			}
+			return EVisibility::Visible;
+		};
+
+		OutputLog =
 			SNew(SBorder)
 			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 			.VAlign(VAlign_Center)
 			.Padding(FMargin(6.0f, 0.0f))
+			.Visibility(MakeAttributeLambda(IsConsoleInputBoxBorderVisible))
 			[
 				SNew(SBox)
 				.WidthOverride(350.f)
 				[
-					OutputLogModule.MakeConsoleInputBox(ConsoleEditBox, OnConsoleClosed, OnConsoleCommandExecuted)
+					ConsoleInputBox
 				]
 			];
-	
+	}
 
 	FWidgetDrawerConfig OutputLogDrawer(StatusBarDrawerIds::OutputLog);
 
