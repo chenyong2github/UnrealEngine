@@ -931,15 +931,22 @@ namespace UnrealBuildTool
 				CompileAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
 			}
 
+			string FileName = SourceFile.Name;
+			if (CompileEnvironment.CollidingNames != null && CompileEnvironment.CollidingNames.Contains(SourceFile))
+			{
+				string HashString = ContentHash.MD5(SourceFile.AbsolutePath.Substring(Unreal.RootDirectory.FullName.Length)).GetHashCode().ToString("X4");
+				FileName = Path.GetFileNameWithoutExtension(FileName) + "_" + HashString + Path.GetExtension(FileName);
+			}
+
 			FileItem OutputFile;
 			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
 			{
-				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(SourceFile.AbsolutePath, ".gch")));
+				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(FileName, ".gch")));
 				CompileResult.PrecompiledHeaderFile = OutputFile;
 			}
 			else if (CompileEnvironment.bPreprocessOnly)
 			{
-				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(SourceFile.AbsolutePath, ".i")));
+				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(FileName, ".i")));
 				CompileResult.ObjectFiles.Add(OutputFile);
 
 				// Clang does EITHER pre-process or object file.
@@ -952,7 +959,7 @@ namespace UnrealBuildTool
 			else
 			{
 				string ObjectFileExtension = (CompileEnvironment.AdditionalArguments != null && CompileEnvironment.AdditionalArguments.Contains("-emit-llvm")) ? ".bc" : ".o";
-				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(SourceFile.AbsolutePath, ObjectFileExtension)));
+				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(FileName, ObjectFileExtension)));
 				CompileResult.ObjectFiles.Add(OutputFile);
 			}
 
@@ -967,7 +974,7 @@ namespace UnrealBuildTool
 				// Generate the timing info
 				if (CompileEnvironment.bPrintTimingInfo)
 				{
-					FileItem TraceFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(SourceFile.AbsolutePath, ".json")));
+					FileItem TraceFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(FileName, ".json")));
 					Arguments.Add("-ftime-trace");
 					CompileAction.ProducedItems.Add(TraceFile);
 				}
@@ -975,7 +982,7 @@ namespace UnrealBuildTool
 				// Generate the included header dependency list
 				if (!PreprocessDepends)
 				{
-					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(SourceFile.AbsolutePath, ".d")));
+					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(FileName, ".d")));
 					Arguments.Add(GetDepencenciesListFileArgument(DependencyListFile));
 					CompileAction.DependencyListFile = DependencyListFile;
 					CompileAction.ProducedItems.Add(DependencyListFile);
@@ -983,7 +990,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(SourceFile.AbsolutePath, ".analysis")));
+				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(FileName, ".analysis")));
 			}
 
 			// Add the parameters needed to compile the output file to the command-line.
@@ -992,7 +999,27 @@ namespace UnrealBuildTool
 
 		protected virtual List<string> ExpandResponseFileContents(List<string> ResponseFileContents)
         {
-			return ResponseFileContents.Select(x => Utils.ExpandVariables(x)).ToList();
+			// This code is optimized for the scenario where ResponseFile has no variables to expand
+			List<string> NewList = ResponseFileContents;
+			for (int I=0; I!=NewList.Count; ++I)
+			{
+				string Line = ResponseFileContents[I];
+				string NewLine = Utils.ExpandVariables(Line);
+				if (NewLine == Line)
+				{
+					continue;
+				}
+
+				lock (ResponseFileContents)
+				{
+					if (NewList == ResponseFileContents)
+					{
+						NewList = new List<string>(ResponseFileContents);
+					}
+				}
+				NewList[I] = NewLine;
+			}
+			return NewList;
 		}
 
 		protected virtual Action CompileCPPFile(CppCompileEnvironment CompileEnvironment, FileItem SourceFile, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph, IReadOnlyCollection<string> GlobalArguments, CPPOutput Result)
@@ -1021,7 +1048,9 @@ namespace UnrealBuildTool
 				// >>>> xxx-clang.exe': The filename or extension is too long.  (0xCE)
 				// Clang processes and modifies the response file contents and this makes the final cmd line size hard for us to predict.
 				// To be conservative we add a dummy define to inflate the response file size and force clang to use the response file mode when we are close to the limit.
-				int CmdLineLength = Info.Clang.ToString().Length + string.Join(' ', ResponseFileContents).Length;
+				int CmdLineLength = Info.Clang.ToString().Length;
+				foreach (string Line in ResponseFileContents)
+					CmdLineLength += 1 + Line.Length;
 				bool bIsInDangerZone = CmdLineLength >= ClangCmdlineDangerZone && CmdLineLength <= ClangCmdLineMaxSize;
 				if (bIsInDangerZone)
 				{

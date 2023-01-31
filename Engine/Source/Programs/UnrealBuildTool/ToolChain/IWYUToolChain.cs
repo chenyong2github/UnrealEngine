@@ -60,16 +60,6 @@ namespace UnrealBuildTool
 		protected override string GetFileNameFromExtension(string AbsolutePath, string Extension)
 		{
 			string FileName = Path.GetFileName(AbsolutePath);
-			if (AbsolutePath.EndsWith(".h"))
-			{
-				string HashString = ContentHash.MD5(AbsolutePath).GetHashCode().ToString("X4");
-				FileName = Path.GetFileNameWithoutExtension(FileName) + "_" + HashString + ".h";
-
-				if (Extension != ".d" && Extension != ".o")
-				{
-					throw new NotImplementedException($"Files with extension {Extension} not handled by IWYUToolChain");
-				}
-			}
 
 			if (Extension == ".o")
 			{
@@ -125,6 +115,11 @@ namespace UnrealBuildTool
 							CommandLineArgs += $"-Xiwyu --check_also={InlinedFile.FullName.Replace('\\', '/')} ";
 						}
 					}
+				}
+				else
+				{
+					// We want to build header files first
+					Action.bIsHighPriority = true;
 				}
 
 				Action.CommandArguments = CommandLineArgs + Action.CommandArguments;

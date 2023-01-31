@@ -770,33 +770,8 @@ namespace UnrealBuildTool
 			// IWYU needs to build all headers separate from cpp files to produce proper recommendations for includes
 			if (Target.bIWYU)
 			{
-				// Find FileItems for module's pch files
-				FileItem? PrivatePchFileItem = null;
-				if (Rules.PrivatePCHHeaderFile != null)
-					PrivatePchFileItem = FileItem.GetItemByFileReference(FileReference.Combine(ModuleDirectory, Rules.PrivatePCHHeaderFile));
-				FileItem? SharedPchFileItem = null;
-				if (Rules.SharedPCHHeaderFile != null)
-					SharedPchFileItem = FileItem.GetItemByFileReference(FileReference.Combine(ModuleDirectory, Rules.SharedPCHHeaderFile));
-
 				// Collect the headers that should be built
-				List<FileItem> HeaderFileItems = new();
-				foreach (FileItem HeaderFileItem in InputFiles.HeaderFiles)
-				{
-					// We don't want to build pch files in iwyu, skip those.
-					if (HeaderFileItem == PrivatePchFileItem || HeaderFileItem == SharedPchFileItem)
-					{
-						continue;
-					}
-
-					// If file is skipped by header units it means they can't be compiled by themselves and we must skip them too
-					if (CompileEnvironment.MetadataCache.GetHeaderUnitType(HeaderFileItem) != HeaderUnitType.Valid)
-					{
-						continue;
-					}
-
-					HeaderFileItems.Add(HeaderFileItem);
-				}
-
+				List<FileItem> HeaderFileItems = GetCompilableHeaders(InputFiles, CompileEnvironment);
 				if (HeaderFileItems.Count > 0)
 				{
 					if (Target.bIWYUHeadersOnly)
@@ -810,6 +785,51 @@ namespace UnrealBuildTool
 			}
 
 			return LinkInputFiles;
+		}
+
+		List<FileItem> GetCompilableHeaders(InputFileCollection InputFiles, CppCompileEnvironment CompileEnvironment)
+		{
+			// Find FileItems for module's pch files
+			FileItem? PrivatePchFileItem = null;
+			if (Rules.PrivatePCHHeaderFile != null)
+				PrivatePchFileItem = FileItem.GetItemByFileReference(FileReference.Combine(ModuleDirectory, Rules.PrivatePCHHeaderFile));
+			FileItem? SharedPchFileItem = null;
+			if (Rules.SharedPCHHeaderFile != null)
+				SharedPchFileItem = FileItem.GetItemByFileReference(FileReference.Combine(ModuleDirectory, Rules.SharedPCHHeaderFile));
+
+			Dictionary<string, FileItem> NameToFileItem = new();
+
+			HashSet<FileItem> CollidingFiles = new();
+
+			// Collect the headers that should be built
+			List<FileItem> HeaderFileItems = new();
+			foreach (FileItem HeaderFileItem in InputFiles.HeaderFiles)
+			{
+				// We don't want to build pch files in iwyu, skip those.
+				if (HeaderFileItem == PrivatePchFileItem || HeaderFileItem == SharedPchFileItem)
+				{
+					continue;
+				}
+
+				// If file is skipped by header units it means they can't be compiled by themselves and we must skip them too
+				if (CompileEnvironment.MetadataCache.GetHeaderUnitType(HeaderFileItem) != HeaderUnitType.Valid)
+				{
+					continue;
+				}
+
+				if (!NameToFileItem.TryAdd(HeaderFileItem.Name, HeaderFileItem))
+				{
+					CollidingFiles.Add(NameToFileItem[HeaderFileItem.Name]);
+					CollidingFiles.Add(HeaderFileItem);
+				}
+
+				HeaderFileItems.Add(HeaderFileItem);
+			}
+
+			if (CollidingFiles.Count != 0)
+				CompileEnvironment.CollidingNames = CollidingFiles;
+
+			return HeaderFileItems;
 		}
 
 		/// <summary>

@@ -468,6 +468,11 @@ namespace UnrealBuildTool
 		public Dictionary<FileItem, List<FileItem>> FileInlineGenCPPMap = new();
 
 		/// <summary>
+		/// FileItems with colliding names. (Which means they would overwrite each other in intermediate folder
+		/// </summary>
+		public HashSet<FileItem>? CollidingNames;
+
+		/// <summary>
 		/// The C++ preprocessor definitions to use.
 		/// </summary>
 		public List<string> Definitions = new List<string>();
@@ -628,6 +633,7 @@ namespace UnrealBuildTool
 			bCheckSystemHeadersForModification = Other.bCheckSystemHeadersForModification;
 			ForceIncludeFiles.AddRange(Other.ForceIncludeFiles);
 			AdditionalPrerequisites.AddRange(Other.AdditionalPrerequisites);
+			CollidingNames = Other.CollidingNames;
 			FileInlineGenCPPMap = new Dictionary<FileItem, List<FileItem>>(Other.FileInlineGenCPPMap);
 			Definitions.AddRange(Other.Definitions);
 			AdditionalArguments = Other.AdditionalArguments;
