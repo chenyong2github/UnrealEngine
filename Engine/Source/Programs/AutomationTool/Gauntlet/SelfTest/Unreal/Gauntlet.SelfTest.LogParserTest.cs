@@ -129,13 +129,16 @@ namespace Gauntlet.SelfTest
 	[TestGroup("Framework")]
 	class LogParserTestFatalError : TestUnrealLogParserBase
 	{
+		private int IncompleteLineLength = "0x0000000000236999  [Unknown File]".Length;
 		public override void TickTest()
 		{
 			HashSet<string> Platforms = new HashSet<string>();
 			Platforms.Add("Win64");
+			Platforms.Add("Linux");
 			Platforms.Add(Gauntlet.Globals.Params.ParseValue("Platform", "Win64"));
 			foreach (var Platform in Platforms)
 			{
+				Log.Info("Processing log: {Path}", Platform + "FatalError" + ".txt");
 				UnrealLogParser Parser = new UnrealLogParser(GetFileContents(Platform + "FatalError" + ".txt"));
 
 				UnrealLog.CallstackMessage FatalError = Parser.GetFatalError();
@@ -143,6 +146,15 @@ namespace Gauntlet.SelfTest
 				if (FatalError == null || FatalError.Callstack.Length == 0 || string.IsNullOrEmpty(FatalError.Message))
 				{
 					throw new TestException("LogParser returned incorrect assert info for {0}", Platform);
+				}
+				else
+				{
+					int IncompleteCallstackLineCount = FatalError.Callstack.Where(L => L.Length <= IncompleteLineLength).Count();
+					if(IncompleteCallstackLineCount > 0)
+					{
+						string Lines = string.Join("\n", FatalError.Callstack.Where(L => L.Length <= IncompleteLineLength));
+						throw new TestException("LogParser returned some incomplete callstack lines for {0}:\n{1}", Platform, Lines);
+					}
 				}
 			}			
 

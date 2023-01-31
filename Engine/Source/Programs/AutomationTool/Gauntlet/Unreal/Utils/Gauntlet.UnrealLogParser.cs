@@ -28,7 +28,8 @@ namespace Gauntlet
 			Verbose,
 			VeryVerbose,
 			Warning,
-			Error
+			Error,
+			Fatal
 		}
 
 		/// <summary>
@@ -810,7 +811,7 @@ namespace Gauntlet
 						// module address is optional, must be in quotes() after address
 						// Note - Unreal callstacks are always meant to omit all three with placeholders for missing values, but
 						// we'll assume that may not happen...
-						Match CSMatch = Regex.Match(Line, @"(0[xX][0-9A-f]{8,16})(?:\s+\(0[xX][0-9A-f]{8,16}\))?(?:\s+([^\s]+))?(?:\s+\[(.*?)\])?", RegexOptions.IgnoreCase);
+						Match CSMatch = Regex.Match(Line, @"(0[xX][0-9A-f]{8,16})(?:\s+\(0[xX][0-9A-f]{8,16}\))?\s+(.+)\s+\[(.*?)\]$", RegexOptions.IgnoreCase);
 
 						if (CSMatch.Success)
 						{
@@ -848,7 +849,7 @@ namespace Gauntlet
 
 					if (Backtrace.Count > 0)
 					{
-						NewTrace.Callstack = Backtrace.ToArray();
+						NewTrace.Callstack = Backtrace.Distinct().ToArray();
 					}
 					else
 					{

@@ -14,11 +14,11 @@ namespace Gauntlet
 	public class TestGauntlet : BuildCommand
 	{
 
-		[AutoParamWithNames("", "Test", "Tests")]
-		public string Tests;
+		[AutoParamWithNames("Test", "Tests")]
+		public string Tests = "";
 
-		[AutoParamWithNames("", "Group")]
-		public string Group;
+		[AutoParamWithNames("Group")]
+		public string Group = "";
 
 		[AutoParam(false)]
 		public bool Verbose;
