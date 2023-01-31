@@ -142,8 +142,7 @@ enum class EModulationDestination : uint8
 	/* Cutoff Frequency of a highpass filter */
 	Highpass,
 
-	
-	COUNT
+	Count UMETA(Hidden)
 };
 
 /**

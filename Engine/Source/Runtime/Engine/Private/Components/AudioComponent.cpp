@@ -1758,7 +1758,7 @@ void UAudioComponent::SetModulationRouting(const TSet<USoundModulatorBase*>& Mod
 		break;
 	default:
 	{
-		static_assert(static_cast<int32>(EModulationDestination::COUNT) == 4, "Possible missing ELiteralType case coverage.");
+		static_assert(static_cast<int32>(EModulationDestination::Count) == 4, "Possible missing ELiteralType case coverage.");
 		ensureMsgf(false, TEXT("Failed to set input node default: Literal type not supported"));
 		return;
 	}
@@ -1798,7 +1798,7 @@ TSet<USoundModulatorBase*> UAudioComponent::GetModulators(const EModulationDesti
 		break;
 	default:
 	{
-		static_assert(static_cast<int32>(EModulationDestination::COUNT) == 4, "Possible missing ELiteralType case coverage.");
+		static_assert(static_cast<int32>(EModulationDestination::Count) == 4, "Possible missing ELiteralType case coverage.");
 		ensureMsgf(false, TEXT("Failed to set input node default: Literal type not supported"));
 		return TSet<USoundModulatorBase*>();
 	}
