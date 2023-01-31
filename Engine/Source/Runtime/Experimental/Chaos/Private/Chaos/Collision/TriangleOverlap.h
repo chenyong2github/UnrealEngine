@@ -39,6 +39,8 @@ namespace Chaos
 		VectorRegister4Float XAxisHalfExtent;
 		VectorRegister4Float YAxisHalfExtent;
 		VectorRegister4Float ZAxisHalfExtent;
+		static constexpr int EdgeNum = 3;
+		VectorRegister4Float Edges[EdgeNum];
 	};
 
 	class FAABBSimd

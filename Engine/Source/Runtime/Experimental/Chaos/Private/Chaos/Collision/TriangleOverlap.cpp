@@ -344,65 +344,59 @@ namespace Chaos
 		YAxisHalfExtent = VectorMultiply(YAxis, YHalfExtent);
 		ZAxisHalfExtent = VectorMultiply(ZAxis, ZHalfExtent);
 
-	}
-	namespace
-	{
-		FORCEINLINE_DEBUGGABLE bool HasToComputeEdge(const VectorRegister4Float& BoxNormal1, const VectorRegister4Float& BoxNormal2, const VectorRegister4Float& BoxEdge, const VectorRegister4Float& TriNormal, const VectorRegister4Float& TriEdge)
+		const VectorRegister4Float PosPoint = VectorAdd(VectorAdd(XAxisHalfExtent, YAxisHalfExtent), ZAxisHalfExtent);
+
+		VectorRegister4Float OtherPoints[3];
+		OtherPoints[0] = VectorAdd(VectorAdd(VectorNegate(XAxisHalfExtent), YAxisHalfExtent), ZAxisHalfExtent);
+		OtherPoints[1] = VectorAdd(VectorAdd(XAxisHalfExtent, VectorNegate(YAxisHalfExtent)), ZAxisHalfExtent);
+		OtherPoints[2] = VectorAdd(VectorAdd(XAxisHalfExtent, YAxisHalfExtent), VectorNegate(ZAxisHalfExtent));
+
+		for (int32 i = 0; i < 3; i++)
 		{
-			const FRealSingle TriNormBoxEdge = VectorDot3Scalar(TriNormal, BoxEdge);		// TriNormal | BoxEdge
-			const FRealSingle BoxNorm1TriEdge = VectorDot3Scalar(BoxNormal1, TriEdge);		// BoxNormalA | TriEdge
-			const FRealSingle BoxNorm2TriEdge = VectorDot3Scalar(BoxNormal2, TriEdge);		// BoxNormalB | TriEdge
-
-			return ((BoxNorm1TriEdge * BoxNorm2TriEdge) < 0.0f) && (((TriNormBoxEdge * BoxNorm2TriEdge) > 0.0f || (TriNormBoxEdge * BoxNorm1TriEdge) > 0.0f));
+			Edges[i] = VectorSubtract(OtherPoints[i], PosPoint);
 		}
+
 	}
 
-	FORCEINLINE_DEBUGGABLE bool FBoxSimd::ComputeEdge(const VectorRegister4Float& Normal, const VectorRegister4Float& PlaneVertex, const VectorRegister4Float& Edge, const VectorRegister4Float& Centroid) const
+	FORCEINLINE_DEBUGGABLE bool FBoxSimd::ComputeEdge(const VectorRegister4Float& Normal, const VectorRegister4Float& TriangleVertex, const VectorRegister4Float& Edge, const VectorRegister4Float& Centroid) const
 	{
-		const VectorRegister4Float PlaneNormal = VectorNormalize(VectorCross(Normal, Edge));
-		const VectorRegister4Float XComp = VectorSelect(VectorCompareGT(VectorDot3(PlaneNormal, XAxisHalfExtent), VectorZeroFloat()), XAxisHalfExtent, VectorNegate(XAxisHalfExtent));
-		const VectorRegister4Float YComp = VectorSelect(VectorCompareGT(VectorDot3(PlaneNormal, YAxisHalfExtent), VectorZeroFloat()), YAxisHalfExtent, VectorNegate(YAxisHalfExtent));
-		const VectorRegister4Float ZComp = VectorSelect(VectorCompareGT(VectorDot3(PlaneNormal, ZAxisHalfExtent), VectorZeroFloat()), ZAxisHalfExtent, VectorNegate(ZAxisHalfExtent));
+		const VectorRegister4Float PlaneNormal = VectorNormalize(VectorCross(Edge, Normal));
+		VectorRegister4Float XComp = VectorSelect(VectorCompareGT(VectorDot3(PlaneNormal, XAxisHalfExtent), VectorZeroFloat()), VectorNegate(XAxisHalfExtent), XAxisHalfExtent);
+		VectorRegister4Float YComp = VectorSelect(VectorCompareGT(VectorDot3(PlaneNormal, YAxisHalfExtent), VectorZeroFloat()), VectorNegate(YAxisHalfExtent), YAxisHalfExtent);
+		VectorRegister4Float ZComp = VectorSelect(VectorCompareGT(VectorDot3(PlaneNormal, ZAxisHalfExtent), VectorZeroFloat()), VectorNegate(ZAxisHalfExtent), ZAxisHalfExtent);
 
 		const VectorRegister4Float LocalClosest = VectorAdd(VectorAdd(XComp, YComp), ZComp);
 		const VectorRegister4Float ClosestPoint = VectorAdd(LocalClosest, Position);
 
-		FRealSingle Dist = VectorDot3Scalar(VectorSubtract(PlaneVertex, ClosestPoint), PlaneNormal);
-		if (Dist > 0.0)
+		FRealSingle DistClos = VectorDot3Scalar(VectorSubtract(ClosestPoint, TriangleVertex), PlaneNormal);
+		if (DistClos > 0.0)
 		{
 			return false;
 		}
 
 		// Triangle edge vs box edges 
-		VectorRegister4Float OtherClosests[3];
-		OtherClosests[0] = VectorAdd(VectorAdd(VectorNegate(XComp), YComp), ZComp);
-		OtherClosests[1] = VectorAdd(VectorAdd(XComp, VectorNegate(YComp)), ZComp);
-		OtherClosests[2] = VectorAdd(VectorAdd(XComp, YComp), VectorNegate(ZComp));
-
-		VectorRegister4Float BoxEdges[3];
-		VectorRegister4Float BoxEdgeNormals[3];
-		for (int32 i = 0; i < 3; i++)
+		for (int32 i = 0; i < EdgeNum; i++)
 		{
-			const VectorRegister4Float OtherClosest = VectorAdd(OtherClosests[i], Position);
-			BoxEdges[i] = VectorSubtract(OtherClosest, ClosestPoint);
-			BoxEdgeNormals[i] = VectorNegate(BoxEdges[i]);
-		}
-
-		for (int32 i = 0; i < 3; i++)
-		{
-			if (HasToComputeEdge(BoxEdgeNormals[(i + 1) % 3], BoxEdgeNormals[(i + 2) % 3], BoxEdges[i], Normal, Edge))
+			VectorRegister4Float Axis = VectorCross(Edges[i], Edge);
+			const FRealSingle Sign = VectorDot3Scalar(VectorSubtract(TriangleVertex, Centroid), Axis);
+			if (Sign < 0.0f)
 			{
-				VectorRegister4Float Axis = VectorCross(BoxEdges[i], Edge);
-				const FRealSingle Sign = VectorDot3Scalar(VectorSubtract(PlaneVertex, Centroid), Axis);
-				if (Sign < 0.0f)
-				{
-					Axis = VectorNegate(Axis);
-				}
-				const FRealSingle Separation = VectorDot3Scalar(VectorSubtract(ClosestPoint, PlaneVertex), Axis);
-				if (Separation > UE_KINDA_SMALL_NUMBER)
-				{
-					return false;
-				}
+				Axis = VectorNegate(Axis);
+			}
+
+			const VectorRegister4Float XCompCurrent = VectorSelect(VectorCompareGT(VectorDot3(Axis, XAxisHalfExtent), VectorZeroFloat()), VectorNegate(XAxisHalfExtent), XAxisHalfExtent);
+			const VectorRegister4Float YCompCurrent = VectorSelect(VectorCompareGT(VectorDot3(Axis, YAxisHalfExtent), VectorZeroFloat()), VectorNegate(YAxisHalfExtent), YAxisHalfExtent);
+			const VectorRegister4Float ZCompCurrent = VectorSelect(VectorCompareGT(VectorDot3(Axis, ZAxisHalfExtent), VectorZeroFloat()), VectorNegate(ZAxisHalfExtent), ZAxisHalfExtent);
+
+			VectorRegister4Float LocalBoxVertex = VectorAdd(VectorAdd(XCompCurrent, YCompCurrent), ZCompCurrent);
+			const VectorRegister4Float BoxVertex = VectorAdd(LocalBoxVertex, Position);
+
+			const VectorRegister4Float SepVector = VectorSubtract(BoxVertex, TriangleVertex);
+			FRealSingle SeparationMin = VectorDot3Scalar(SepVector, Axis);
+
+			if (SeparationMin > UE_KINDA_SMALL_NUMBER)
+			{
+				return false;
 			}
 		}
 		return true;
@@ -564,6 +558,18 @@ namespace Chaos
 		Position = MakeVectorRegisterFloatFromDouble(VectorLoadDouble3(&Translation.X));
 
 		HalfExtents = VectorLoadFloat3(&HalfExtentsf.X);
+	}
+
+	namespace
+	{
+		FORCEINLINE_DEBUGGABLE bool HasToComputeEdge(const VectorRegister4Float& BoxNormal1, const VectorRegister4Float& BoxNormal2, const VectorRegister4Float& BoxEdge, const VectorRegister4Float& TriNormal, const VectorRegister4Float& TriEdge)
+		{
+			const FRealSingle TriNormBoxEdge = VectorDot3Scalar(TriNormal, BoxEdge);		// TriNormal | BoxEdge
+			const FRealSingle BoxNorm1TriEdge = VectorDot3Scalar(BoxNormal1, TriEdge);		// BoxNormalA | TriEdge
+			const FRealSingle BoxNorm2TriEdge = VectorDot3Scalar(BoxNormal2, TriEdge);		// BoxNormalB | TriEdge
+
+			return ((BoxNorm1TriEdge * BoxNorm2TriEdge) < 0.0f) && (((TriNormBoxEdge * BoxNorm2TriEdge) > 0.0f || (TriNormBoxEdge * BoxNorm1TriEdge) > 0.0f));
+		}
 	}
 
 	FORCEINLINE_DEBUGGABLE bool FAABBSimd::ComputeEdgeOverlap(const VectorRegister4Float& TriangleEdge, const VectorRegister4Float& TriangleVertex, const VectorRegister4Float& Centroid, const VectorRegister4Float& Normal, const VectorRegister4Float& LocalClosest) const

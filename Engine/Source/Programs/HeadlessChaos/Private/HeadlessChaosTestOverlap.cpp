@@ -740,6 +740,34 @@ namespace ChaosTest
 				// Box test
 				const TBox<FReal, 3> Box = TBox<FReal, 3>({ -1.0, -1.0, -2.0 }, { 1.0, 1.0, 2.0 });
 				{
+					// Consistency test
+					for (FReal X = 0.0; X < 10.0; X += 1.0)
+					{
+						for (FReal Y = 0.0; Y < 10.0; Y += 1.0)
+						{
+							for (FReal Z = 0.0; Z < 10.0; Z += 1.0)
+							{
+								const FRigidTransform3 QueryTM(FVec3(X, Y, Z), FQuat(FVec3(1.0, 0.0, 0.0), 3.1415926 / 3.0));
+								bool bResult = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0);
+								bool bResultMTD = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0, &MTDInfo);
+								EXPECT_EQ(bResult, bResultMTD);
+
+								const FRigidTransform3 QueryIdTM(FVec3(X, Y, Z), FQuat::Identity);
+								bResult = TriangleMesh->OverlapGeom(Box, QueryIdTM, 0.0);
+								bResultMTD = TriangleMesh->OverlapGeom(Box, QueryIdTM, 0.0, &MTDInfo);
+								EXPECT_EQ(bResult, bResultMTD);
+							}
+						}
+					}
+				}
+				{
+					const FRigidTransform3 QueryTM(FVec3(7.0, 0.0, 10.0), FQuat(FVec3(0.0, 1.0, 0.0), 3.1415926 / 4.0));
+					bool bResult = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0, nullptr);
+					EXPECT_EQ(bResult, false);
+					bool bResultMTD = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0, &MTDInfo);
+					EXPECT_EQ(bResult, bResultMTD);
+				}
+				{
 					const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
 					bool bResult = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0);
 					EXPECT_EQ(bResult, true);
