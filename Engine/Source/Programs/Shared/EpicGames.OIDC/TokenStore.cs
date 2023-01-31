@@ -95,9 +95,14 @@ namespace EpicGames.OIDC
 				Directory.CreateDirectory(fi.Directory!.FullName);
 			}
 
-			using FileStream fs = fi.Open(FileMode.Create, FileAccess.Write);
-			using Utf8JsonWriter writer = new Utf8JsonWriter(fs);
-			JsonSerializer.Serialize<TokenStoreState>(writer, new TokenStoreState(_crypt.IV, _providerToRefreshToken));
+			string tempFile = Path.GetTempFileName();
+			{
+				using FileStream fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write);
+				using Utf8JsonWriter writer = new Utf8JsonWriter(fs);
+				JsonSerializer.Serialize<TokenStoreState>(writer, new TokenStoreState(_crypt.IV, _providerToRefreshToken));
+			}
+
+			File.Move(tempFile, fi.FullName, true);
 		}
 
 		public bool TryGetRefreshToken(string oidcProvider, out string refreshToken)

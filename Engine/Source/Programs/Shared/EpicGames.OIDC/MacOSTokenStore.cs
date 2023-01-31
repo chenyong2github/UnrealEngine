@@ -95,6 +95,7 @@ namespace EpicGames.OIDC
 				itemIdentifier,
 				"-s",
 				OidcTokenIdentifier,
+				"-U",
 				"-w",
 				dataToEncrypt
 			});
