@@ -106,7 +106,7 @@ namespace UnrealBuildTool.Rules
 
 				PrivateIncludePaths.Add("ElectraPlayerRuntime/Private/Runtime/Decoder/Apple");
 			}
-			else if (Target.Platform == UnrealTargetPlatform.IOS )
+			else if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
 			{
 				PublicFrameworks.AddRange(
 				new string[] {

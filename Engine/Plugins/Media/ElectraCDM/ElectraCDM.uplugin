@@ -19,7 +19,7 @@
 			"Name": "ElectraCDM",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostEngineInit",
-			"PlatformAllowList": [ "Win64", "Mac", "IOS", "Android", "Linux" ],
+			"PlatformAllowList": [ "Win64", "Mac", "IOS", "TVOS", "Android", "Linux" ],
 			"TargetDenyList": [ "Server" ]
 		},
 	]

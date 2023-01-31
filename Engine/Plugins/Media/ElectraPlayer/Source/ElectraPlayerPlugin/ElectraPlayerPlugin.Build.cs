@@ -43,7 +43,7 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("MetalRHI");
 			}
 
-			if (Target.Platform == UnrealTargetPlatform.IOS )
+			if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
 			{
 				PrivateDependencyModuleNames.Add("MetalRHI");
 			}

@@ -64,7 +64,7 @@ namespace UnrealBuildTool.Rules
 
 				PublicIncludePaths.Add("$(ModuleDir)/Public/Windows");
 			}
-			else if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS)
+			else if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
 			{
 				PrivateDependencyModuleNames.Add("MetalRHI");
 				PublicIncludePaths.Add("$(ModuleDir)/Public/Apple");
