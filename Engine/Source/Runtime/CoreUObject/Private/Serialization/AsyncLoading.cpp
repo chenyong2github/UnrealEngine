@@ -30,6 +30,7 @@
 #include "UObject/PackageResourceManager.h"
 #include "Serialization/DeferredMessageLog.h"
 #include "UObject/UObjectThreadContext.h"
+#include "UObject/ObjectSerializeAccessScope.h"
 #include "UObject/LinkerManager.h"
 #include "Misc/Paths.h"
 #include "Serialization/AsyncLoadingThread.h"
@@ -3523,6 +3524,7 @@ void FAsyncPackage::EventDrivenSerializeExport(int32 LocalExportIndex)
 			else
 			{
 				UE_SCOPED_IO_ACTIVITY(*Object->GetName());
+				UE_SERIALIZE_ACCCESS_SCOPE(Object);
 				Object->Serialize(ExportArchive);
 			}
 		}

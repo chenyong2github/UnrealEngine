@@ -34,6 +34,7 @@
 #include "UObject/LinkerPlaceholderExportObject.h"
 #include "UObject/LinkerPlaceholderFunction.h"
 #include "UObject/LinkerManager.h"
+#include "UObject/ObjectSerializeAccessScope.h"
 #include "Serialization/DeferredMessageLog.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Serialization/AsyncLoading.h"
@@ -1116,6 +1117,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 #if WITH_EDITOR
 		if (LoadProgressScope)
 		{
+			UE_SERIALIZE_ACCCESS_SCOPE_SUSPEND();
 			static const FTextFormat LoadingFileTextFormat = NSLOCTEXT("Core", "LoadingFileWithFilename", "Loading file: {CleanFilename}...");
 			FFormatNamedArguments FeedbackArgs;
 			FeedbackArgs.Add( TEXT("CleanFilename"), FText::FromString( FPaths::GetCleanFilename( *GetDebugName() ) ) );
@@ -1292,6 +1294,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 #if WITH_EDITOR
 	if (LoadProgressScope)
 	{
+		UE_SERIALIZE_ACCCESS_SCOPE_SUSPEND();
 		LoadProgressScope->EnterProgressFrame(1);
 	}
 #endif
@@ -1847,6 +1850,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FixupImportMap()
 #if WITH_EDITOR
 		if (LoadProgressScope)
 		{
+			UE_SERIALIZE_ACCCESS_SCOPE_SUSPEND();
 			LoadProgressScope->EnterProgressFrame(1);
 		}
 #endif
@@ -2581,6 +2585,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FindExistingExports()
 #if WITH_EDITOR
 		if (LoadProgressScope)
 		{
+			UE_SERIALIZE_ACCCESS_SCOPE_SUSPEND();
 			LoadProgressScope->EnterProgressFrame(1);
 		}
 		if( GIsEditor && GIsRunning )
@@ -2619,7 +2624,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FinalizeCreation(TMap<TPair<FName, FPack
 #if WITH_EDITOR
 		if (LoadProgressScope)
 		{
-		LoadProgressScope->EnterProgressFrame(1);
+			UE_SERIALIZE_ACCCESS_SCOPE_SUSPEND();
+			LoadProgressScope->EnterProgressFrame(1);
 		}
 #endif
 
@@ -2850,6 +2856,7 @@ void FLinkerLoad::Verify()
 #if WITH_EDITOR
 				if (SlowTask)
 				{
+					UE_SERIALIZE_ACCCESS_SCOPE_SUSPEND();
 					static const FText LoadingImportText = NSLOCTEXT("Core", "LinkerLoad_LoadingImportName", "Loading Import '{0}'");
 					SlowTask->EnterProgressFrame(1, FText::Format(LoadingImportText, FText::FromString(Import.ObjectName.ToString())));
 				}
@@ -3350,6 +3357,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 #if WITH_EDITOR
 		if (SlowTask)
 		{
+			UE_SERIALIZE_ACCCESS_SCOPE_SUSPEND();
 			SlowTask->EnterProgressFrame(30);
 		}
 #endif
@@ -3429,6 +3437,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 #if WITH_EDITOR
 		if (SlowTask)
 		{
+			UE_SERIALIZE_ACCCESS_SCOPE_SUSPEND();
 			SlowTask->EnterProgressFrame(30);
 		}
 #endif
@@ -3467,6 +3476,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 #if WITH_EDITOR
 		if (SlowTask)
 		{
+			UE_SERIALIZE_ACCCESS_SCOPE_SUSPEND();
 			SlowTask->EnterProgressFrame(40);
 		}
 #endif
@@ -3547,6 +3557,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 #if WITH_EDITOR
 		if (SlowTask)
 		{
+			UE_SERIALIZE_ACCCESS_SCOPE_SUSPEND();
 			SlowTask->EnterProgressFrame(50);
 		}
 #endif
@@ -3605,6 +3616,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 #if WITH_EDITOR
 		if (SlowTask)
 		{
+			UE_SERIALIZE_ACCCESS_SCOPE_SUSPEND();
 			SlowTask->EnterProgressFrame(50);
 		}
 #endif
@@ -4038,6 +4050,7 @@ void FLinkerLoad::LoadAllObjects(bool bForcePreload)
 #if WITH_EDITOR
 		if (SlowTask)
 		{
+			UE_SERIALIZE_ACCCESS_SCOPE_SUSPEND();
 			SlowTask->EnterProgressFrame(1);
 		}
 #endif
@@ -4534,6 +4547,7 @@ void FLinkerLoad::Preload( UObject* Object )
 						else
 #endif
 						{
+							UE_SERIALIZE_ACCCESS_SCOPE(Object);
 							Object->Serialize(*this);
 						}
 

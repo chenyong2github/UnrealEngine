@@ -57,6 +57,7 @@ namespace UE::CoreUObject
 	struct FObjectHandleTrackingCallbackId
 	{
 		int32 Id = -1;
+		bool IsValid() { return Id != -1; }
 	};
 
 	/**

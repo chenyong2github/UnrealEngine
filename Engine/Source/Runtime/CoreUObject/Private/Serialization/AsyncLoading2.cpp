@@ -57,6 +57,7 @@
 #include "Serialization/MemoryReader.h"
 #include "UObject/UObjectClusters.h"
 #include "UObject/LinkerInstancingContext.h"
+#include "UObject/ObjectSerializeAccessScope.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/AssetMetadataTrace.h"
 #include "Async/Async.h"
@@ -5925,6 +5926,7 @@ bool FAsyncPackage2::EventDrivenSerializeExport(const FAsyncPackageHeaderData& H
 	else
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(SerializeObject);
+		UE_SERIALIZE_ACCCESS_SCOPE(Object);
 		Object->Serialize(Ar);
 	}
 	Ar.TemplateForGetArchetypeFromLoader = nullptr;
