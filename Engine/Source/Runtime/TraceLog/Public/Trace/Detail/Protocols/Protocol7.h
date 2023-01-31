@@ -39,16 +39,16 @@ struct EKnownEventUids
 		AuxDataTerminal,		// same as Protocol5
 		EnterScope,				// same as Protocol5
 		LeaveScope,				// same as Protocol5
-		EnterScope_TA,			// new in Protocol7
-		LeaveScope_TA,			// new in Protocol7
+		EnterScope_TA,			// new in Protocol7, absolute timestamps
+		LeaveScope_TA,			// new in Protocol7, absolute timestamps
+		EnterScope_TB,			// new in Protocol7, timestamps relative to BaseTimestamp
+		LeaveScope_TB,			// new in Protocol7, timestamps relative to BaseTimestamp
 		_Unused1,
 		_Unused2,
 		_Unused3,
 		_Unused4,
 		_Unused5,
 		_Unused6,
-		_Unused7,
-		_Unused8,
 		_WellKnownNum,			// same as Protocol5
 	};
 	static const uint16 User = _WellKnownNum;

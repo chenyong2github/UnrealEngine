@@ -76,7 +76,7 @@ UE_TRACE_EVENT_END()
 ////////////////////////////////////////////////////////////////////////////////
 static volatile bool			GInitialized;		// = false;
 FStatistics						GTraceStatistics;	// = {};
-uint64							GStartCycle;		// = 0;
+TRACELOG_API uint64				GStartCycle;		// = 0;
 TRACELOG_API uint32 volatile	GLogSerial;			// = 0;
 // Counter of calls to Writer_WorkerUpdate to enable regular flushing of output buffers
 static uint32					GUpdateCounter;		// = 0;

@@ -18,6 +18,7 @@ namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
+extern TRACELOG_API uint64			GStartCycle;
 extern TRACELOG_API uint32 volatile	GLogSerial;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -165,18 +166,16 @@ inline FScopedStampedLogScope::~FScopedStampedLogScope()
 		return;
 	}
 
-	uint8 LeaveUid = uint8(EKnownEventUids::LeaveScope_TA << EKnownEventUids::_UidShift);
-	uint64 Stamp = TimeGetTimestamp();
+	uint64 Stamp = TimeGetTimestamp() - GStartCycle;
 
 	FWriteBuffer* Buffer = Writer_GetBuffer();
-	if (UNLIKELY(int32((uint8*)Buffer - Buffer->Cursor) < int32(sizeof(LeaveUid)) + int32(sizeof(Stamp))))
+	if (UNLIKELY(int32((uint8*)Buffer - Buffer->Cursor) < int32(sizeof(Stamp))))
 	{
 		Buffer = Writer_NextBuffer();
 	}
 
-	Buffer->Cursor[0] = LeaveUid;
-	Buffer->Cursor += sizeof(LeaveUid);
-
+	Stamp <<= 8;
+	Stamp += uint8(EKnownEventUids::LeaveScope_TB) << EKnownEventUids::_UidShift;
 	memcpy((uint64*)(Buffer->Cursor), &Stamp, sizeof(Stamp));
 	Buffer->Cursor += sizeof(Stamp);
 
@@ -224,19 +223,17 @@ FORCENOINLINE auto FLogScope::ScopedEnter()
 template <class EventType>
 FORCENOINLINE auto FLogScope::ScopedStampedEnter()
 {
-	uint8 EnterUid = uint8(EKnownEventUids::EnterScope_TA << EKnownEventUids::_UidShift);
 	uint64 Stamp;
 
 	FWriteBuffer* Buffer = Writer_GetBuffer();
-	if (UNLIKELY(int32((uint8*)Buffer - Buffer->Cursor) < int32(sizeof(EnterUid)) + int32(sizeof(Stamp))))
+	if (UNLIKELY(int32((uint8*)Buffer - Buffer->Cursor) < int32(sizeof(Stamp))))
 	{
 		Buffer = Writer_NextBuffer();
 	}
 
-	Buffer->Cursor[0] = EnterUid;
-	Buffer->Cursor += sizeof(EnterUid);
-
-	Stamp = TimeGetTimestamp();
+	Stamp = TimeGetTimestamp() - GStartCycle;
+	Stamp <<= 8;
+	Stamp += uint8(EKnownEventUids::EnterScope_TB) << EKnownEventUids::_UidShift;
 	memcpy((uint64*)(Buffer->Cursor), &Stamp, sizeof(Stamp));
 	Buffer->Cursor += sizeof(Stamp);
 

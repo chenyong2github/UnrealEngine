@@ -1815,9 +1815,11 @@ public:
 	void				EnterScope();
 	void				EnterScope(uint64 RelativeTimestamp);
 	void				EnterScopeA(uint64 AbsoluteTimestamp);
+	void				EnterScopeB(uint64 BaseRelativeTimestamp);
 	void				LeaveScope();
 	void				LeaveScope(uint64 RelativeTimestamp);
 	void				LeaveScopeA(uint64 AbsoluteTimestamp);
+	void				LeaveScopeB(uint64 BaseRelativeTimestamp);
 
 private:
 	void				DispatchLeaveScope();
@@ -1932,6 +1934,12 @@ void FAnalysisBridge::EnterScopeA(uint64 Timestamp)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void FAnalysisBridge::EnterScopeB(uint64 Timestamp)
+{
+	ThreadInfo->ScopeRoutes.Push(~Timestamp);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FAnalysisBridge::LeaveScope()
 {
 	State.Timing.EventTimestamp = 0;
@@ -1951,6 +1959,14 @@ void FAnalysisBridge::LeaveScope(uint64 Timestamp)
 void FAnalysisBridge::LeaveScopeA(uint64 Timestamp)
 {
 	Timestamp -= State.Timing.BaseTimestamp;
+	State.Timing.EventTimestamp = Timestamp;
+	DispatchLeaveScope();
+	State.Timing.EventTimestamp = 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisBridge::LeaveScopeB(uint64 Timestamp)
+{
 	State.Timing.EventTimestamp = Timestamp;
 	DispatchLeaveScope();
 	State.Timing.EventTimestamp = 0;
@@ -3706,6 +3722,7 @@ void FProtocol5Stage::SetSizeIfKnownEvent(uint32 Uid, uint32& InOutEventSize)
 	case EKnownUids::EnterScope_T:
 	case EKnownUids::LeaveScope_T:
 		InOutEventSize = 7;
+		break;
 	};
 }
 
@@ -3861,6 +3878,12 @@ void FProtocol7Stage::SetSizeIfKnownEvent(uint32 Uid, uint32& InOutEventSize)
 	case EKnownUids::EnterScope_TA:
 	case EKnownUids::LeaveScope_TA:
 		InOutEventSize = 8;
+		break;
+
+	case EKnownUids::EnterScope_TB:
+	case EKnownUids::LeaveScope_TB:
+		InOutEventSize = 7;
+		break;
 	};
 }
 
@@ -3889,6 +3912,20 @@ bool FProtocol7Stage::DispatchKnownEvent(const FMachineContext& Context, uint32 
 	{
 		uint64 AbsoluteTimestamp = *(uint64*)Cursor->Data;
 		Context.Bridge.LeaveScopeA(AbsoluteTimestamp);
+		return true;
+	}
+
+	case EKnownUids::EnterScope_TB:
+	{
+		uint64 BaseRelativeTimestamp = *(uint64*)(Cursor->Data - 1) >> 8;
+		Context.Bridge.EnterScopeB(BaseRelativeTimestamp);
+		return true;
+	}
+
+	case EKnownUids::LeaveScope_TB:
+	{
+		uint64 BaseRelativeTimestamp = *(uint64*)(Cursor->Data - 1) >> 8;
+		Context.Bridge.LeaveScopeB(BaseRelativeTimestamp);
 		return true;
 	}
 
