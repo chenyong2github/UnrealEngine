@@ -47,6 +47,7 @@
 #include "LevelEditorViewport.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/STextComboBox.h"
+#include "ToolMenus.h"
 
 
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeToolkit"
@@ -112,19 +113,12 @@ FModelingToolsEditorModeToolkit::~FModelingToolsEditorModeToolkit()
 {
 	if (IsHosted())
 	{
-		if (SelectionPaletteOverlayWidget.IsValid())
-		{
-			GetToolkitHost()->RemoveViewportOverlayWidget(SelectionPaletteOverlayWidget.ToSharedRef());
-			SelectionPaletteOverlayWidget.Reset();
-		}
-
 		if (GizmoNumericalUIOverlayWidget.IsValid())
 		{
 			GetToolkitHost()->RemoveViewportOverlayWidget(GizmoNumericalUIOverlayWidget.ToSharedRef());
 			GizmoNumericalUIOverlayWidget.Reset();
 		}
 	}
-
 	UModelingToolsEditorModeSettings* Settings = GetMutableDefault<UModelingToolsEditorModeSettings>();
 	Settings->OnModified.Remove(AssetSettingsModifiedHandle);
 	GetScriptableEditorMode()->GetInteractiveToolsContext(EToolsContextScope::EdMode)->OnToolNotificationMessage.RemoveAll(this);
@@ -233,14 +227,6 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 	// it can be bound to the buttons there.
 	MakeGizmoNumericalUIOverlayWidget();
 	GetToolkitHost()->AddViewportOverlayWidget(GizmoNumericalUIOverlayWidget.ToSharedRef());
-
-	const UModelingToolsEditorModeSettings* ModelingModeSettings = GetDefault<UModelingToolsEditorModeSettings>();
-	bool bEnableSelectionUI = ModelingModeSettings && ModelingModeSettings->bEnableMeshSelections;
-	if ( bEnableSelectionUI )
-	{
-		MakeSelectionPaletteOverlayWidget();
-		GetToolkitHost()->AddViewportOverlayWidget(SelectionPaletteOverlayWidget.ToSharedRef());
-	}
 }
 
 void FModelingToolsEditorModeToolkit::AddReferencedObjects(FReferenceCollector& Collector)
@@ -968,8 +954,6 @@ void FModelingToolsEditorModeToolkit::ClearWarning()
 	ToolWarningArea->SetText(FText());
 	ToolWarningArea->SetVisibility(EVisibility::Collapsed);
 }
-
-
 
 FName FModelingToolsEditorModeToolkit::GetToolkitFName() const
 {

@@ -9,6 +9,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SNullWidget.h"
+#include "Toolkits/IToolkit.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditorToolBox"
 
@@ -20,6 +21,8 @@ const FName UAssetEditorUISubsystem::VerticalToolbarID = TEXT("VerticalModeToolb
 
 FAssetEditorModeUILayer::FAssetEditorModeUILayer(const IToolkitHost* InToolkitHost)
 	: ToolkitHost(InToolkitHost)
+	, ModeCommands( new FUICommandList() )
+
 {
 	RequestedTabInfo.Add(UAssetEditorUISubsystem::VerticalToolbarID, FMinorTabConfig(UAssetEditorUISubsystem::VerticalToolbarID));
 	RequestedTabInfo.Add(UAssetEditorUISubsystem::TopLeftTabID, FMinorTabConfig(UAssetEditorUISubsystem::TopLeftTabID));
@@ -35,7 +38,6 @@ void FAssetEditorModeUILayer::OnToolkitHostingStarted(const TSharedRef<IToolkit>
 	GetTabManager()->UnregisterTabSpawner(UAssetEditorUISubsystem::VerticalToolbarID);
 	GetTabManager()->UnregisterTabSpawner(UAssetEditorUISubsystem::TopRightTabID);
 	GetTabManager()->UnregisterTabSpawner(UAssetEditorUISubsystem::BottomRightTabID);
-
 }
 
 void FAssetEditorModeUILayer::OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit)
@@ -98,6 +100,11 @@ void FAssetEditorModeUILayer::RegisterModeTabSpawner(const FName TabID)
 void FAssetEditorModeUILayer::SetModePanelInfo(const FName InTabSpawnerID, const FMinorTabConfig& InTabInfo)
 {
 	RequestedTabInfo.Emplace(InTabSpawnerID, InTabInfo);
+}
+
+void FAssetEditorModeUILayer::SetSecondaryModeToolbarName(FName InName)
+{
+	SecondaryModeToolbarName = InName;
 }
 
 TMap<FName, TWeakPtr<SDockTab>> FAssetEditorModeUILayer::GetSpawnedTabs()

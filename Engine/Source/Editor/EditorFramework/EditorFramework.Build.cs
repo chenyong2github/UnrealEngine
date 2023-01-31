@@ -15,7 +15,8 @@ public class EditorFramework : ModuleRules
 				"RenderCore",
 				"Slate",
 				"SlateCore",
-				"WorkspaceMenuStructure"
+				"WorkspaceMenuStructure",
+				"ToolMenus"
 			}
 		);
 

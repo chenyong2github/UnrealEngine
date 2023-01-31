@@ -18,6 +18,7 @@ class IDetailsView;
 struct FDetailsViewArgs;
 class FAssetEditorModeUILayer;
 class SBorder;
+class UToolMenu;
 
 /**
  * Base class for all toolkits (abstract).
@@ -88,8 +89,6 @@ protected:
 	/** The workspace menu category of this toolkit */
 	TSharedPtr<FWorkspaceItem> WorkspaceMenuCategory;
 };
-
-
 
 /**
  * This FModeToolkit just creates a basic UI panel that allows various InteractiveTools to
@@ -162,6 +161,12 @@ public:
 	FName GetCurrentPalette() const;
 	void SetModeSettingsObject(UObject* InSettingsObject);
 	virtual void InvokeUI();
+
+	/**
+	 * Override this function to extend the secondary mode toolbar (that appears below the main toolbar) for your mode by
+	 * filling in the UToolMenu that is passed in
+	 */
+	virtual void ExtendSecondaryModeToolbar(UToolMenu *InModeToolbarMenu) {}
 
 	/**
 	 * Force the Mode Toolbar/Palette to be repopulated with the current ToolPaletteNames

@@ -223,7 +223,14 @@ FModeToolkit::~FModeToolkit()
 void FModeToolkit::SetModeUILayer(const TSharedPtr<FAssetEditorModeUILayer> InLayer)
 {
 	ModeUILayer = InLayer;
+
+	//TODO: Maybe Mode Toolbar Commands should be separate from the Toolkit Commands? Or the ModeUILayer should be
+	// responsible for a generic set of "Mode Commands"
+	ModeUILayer.Pin()->GetModeCommands()->Append(GetToolkitCommands());
 	ModeUILayer.Pin()->ToolkitHostReadyForUI().BindSP(this, &FModeToolkit::InvokeUI);
+
+	ModeUILayer.Pin()->RegisterSecondaryModeToolbarExtension().BindSP(this, &FModeToolkit::ExtendSecondaryModeToolbar);
+
 }
 
 void FModeToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager)

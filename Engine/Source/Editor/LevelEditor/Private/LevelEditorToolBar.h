@@ -24,8 +24,16 @@ public:
 	 * @return	New widget
 	 */
 	static TSharedRef< SWidget > MakeLevelEditorToolBar( const TSharedRef<FUICommandList>& InCommandList, const TSharedRef<SLevelEditor> InLevelEditor );
-
 	static void RegisterLevelEditorToolBar( const TSharedRef<FUICommandList>& InCommandList, const TSharedRef<SLevelEditor> InLevelEditor );
+
+	/**
+	 * Static: Creates a widget for the secondary tool bar which is displayed below the main toolbar
+	 *
+	 * @return	New widget
+	 */
+	static TSharedRef< SWidget > MakeLevelEditorSecondaryModeToolbar(TSharedRef<FUICommandList> InCommandList, TMap<FName, TSharedPtr<FLevelEditorModeUILayer>>& ModeUILayers );
+	static void RegisterLevelEditorSecondaryModeToolbar();
+	static FName GetSecondaryModeToolbarName();
 
 protected:
 
@@ -89,5 +97,8 @@ private:
 
 	static FText GetActiveModeName(TWeakPtr<SLevelEditor> LevelEditorPtr);
 	static const FSlateBrush* GetActiveModeIcon(TWeakPtr<SLevelEditor> LevelEditorPtr);
+
+private:
+	static FName SecondaryModeToolbarName;
 
 };

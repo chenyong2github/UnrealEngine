@@ -372,6 +372,9 @@ private:
 
 	TMap<FName, TSharedPtr<FLevelEditorModeUILayer>> ModeUILayers;
 
+	/** Pointer to the widget that houses the level editor's mode toolbar */
+	TSharedPtr<SBorder> SecondaryModeToolbarWidget;
+	
 	/** Viewport context menu title, cached each time the element selection set changes */
 	FText CachedViewportContextMenuTitle;
 };

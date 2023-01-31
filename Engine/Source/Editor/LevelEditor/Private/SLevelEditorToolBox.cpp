@@ -24,6 +24,7 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "Misc/Attribute.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditorToolBox"
 
@@ -65,6 +66,13 @@ void FLevelEditorModeUILayer::OnToolkitHostingStarted(const TSharedRef<IToolkit>
 		Toolkit->RegisterTabSpawners(ToolkitHost->GetTabManager().ToSharedRef());
 		RegisterModeTabSpawners();
 		OnToolkitHostReadyForUI.ExecuteIfBound();
+
+		// Set up an owner for the current scope so that we can cleanly clean up the toolbar extension on hosting finish
+		FToolMenuOwnerScoped Owner(Toolkit->GetToolkitFName());
+
+		UToolMenu* SecondaryModeToolbar = UToolMenus::Get()->ExtendMenu(GetSecondaryModeToolbarName());
+
+		OnRegisterSecondaryModeToolbarExtension.ExecuteIfBound(SecondaryModeToolbar);
 	}
 
 }
@@ -74,6 +82,8 @@ void FLevelEditorModeUILayer::OnToolkitHostingFinished(const TSharedRef<IToolkit
 	if (HostedToolkit.IsValid() && HostedToolkit.Pin() == Toolkit)
 	{
 		FAssetEditorModeUILayer::OnToolkitHostingFinished(Toolkit);
+
+		UToolMenus::Get()->UnregisterOwnerByName(Toolkit->GetToolkitFName());
 	}
 }
 

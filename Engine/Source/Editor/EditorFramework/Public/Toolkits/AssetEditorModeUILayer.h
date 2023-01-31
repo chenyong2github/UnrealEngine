@@ -24,6 +24,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "ToolMenuDelegates.h"
 
 #include "AssetEditorModeUILayer.generated.h"
 
@@ -68,6 +69,10 @@ public:
 	virtual TSharedPtr<FWorkspaceItem> GetModeMenuCategory() const;
 	virtual void SetModePanelInfo(const FName InTabSpawnerID, const FMinorTabConfig& InTabInfo);
 	virtual TMap<FName, TWeakPtr<SDockTab>> GetSpawnedTabs();
+
+	/** Called by the Toolkit Host to set the name of the ModeToolbar this mode will extend */
+	virtual void SetSecondaryModeToolbarName(FName InName);
+	
 	virtual FSimpleDelegate& ToolkitHostReadyForUI()
 	{
 		return OnToolkitHostReadyForUI;
@@ -79,6 +84,19 @@ public:
 	virtual const FName GetStatusBarName() const
 	{
 		return ToolkitHost->GetStatusBarName();
+	}
+	virtual const FName GetSecondaryModeToolbarName() const
+	{
+		return SecondaryModeToolbarName;
+	}
+	virtual const TSharedRef<FUICommandList> GetModeCommands() const
+	{
+		return ModeCommands;
+	}
+	/* Called by the mode toolkit to extend the toolbar */
+	virtual FNewToolMenuDelegate& RegisterSecondaryModeToolbarExtension()
+	{
+		return OnRegisterSecondaryModeToolbarExtension;
 	}
 
 protected:
@@ -100,4 +118,13 @@ protected:
 	TMap<FName, TWeakPtr<SDockTab>> SpawnedTabs;
 	FSimpleDelegate OnToolkitHostReadyForUI;
 	FSimpleDelegate OnToolkitHostShutdownUI;
+
+	/* The name of the mode toolbar that this mode will extend (appears below the main toolbar) */
+	FName SecondaryModeToolbarName;
+
+	/* Delegate called to actually extend the mode toolbar */
+	FNewToolMenuDelegate OnRegisterSecondaryModeToolbarExtension;
+
+	/* A list of commands this ModeUILayer is aware of, currently only passed into the Mode Toolbar */
+	TSharedRef<FUICommandList> ModeCommands;
 };

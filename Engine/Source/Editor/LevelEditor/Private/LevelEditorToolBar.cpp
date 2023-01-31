@@ -64,6 +64,8 @@
 #include "PlatformInfo.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
+FName FLevelEditorToolBar::SecondaryModeToolbarName("LevelEditor.SecondaryToolbar");
+
 namespace PreviewModeFunctionality
 {
 	FText GetPreviewModeText()
@@ -1507,6 +1509,36 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 		SettingsSection.AddEntry(SettingsEntry);
 	}
 #undef LOCTEXT_NAMESPACE
+}
+
+FName FLevelEditorToolBar::GetSecondaryModeToolbarName()
+{
+	return SecondaryModeToolbarName;
+}
+
+TSharedRef< SWidget > FLevelEditorToolBar::MakeLevelEditorSecondaryModeToolbar( TSharedRef<FUICommandList> InCommandList, TMap<FName, TSharedPtr<FLevelEditorModeUILayer>>& ModeUILayers )
+{
+	FToolMenuContext MenuContext(InCommandList);
+
+	for(const TPair<FName, TSharedPtr<FLevelEditorModeUILayer>>& ModeUILayer : ModeUILayers)
+	{
+		MenuContext.AppendCommandList(ModeUILayer.Value->GetModeCommands());
+	}
+
+	return SNew(SBorder)
+	.Padding(0)
+	.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
+	.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
+	[
+		UToolMenus::Get()->GenerateWidget(SecondaryModeToolbarName, MenuContext)
+	];
+
+}
+
+void FLevelEditorToolBar::RegisterLevelEditorSecondaryModeToolbar()
+{
+	UToolMenu* ModesToolbar = UToolMenus::Get()->RegisterMenu(SecondaryModeToolbarName, NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+	ModesToolbar->StyleName = "SecondaryToolbar";
 }
 
 /**

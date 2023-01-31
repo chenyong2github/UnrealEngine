@@ -181,6 +181,7 @@ void SLevelEditor::RegisterMenus()
 {
 	FLevelEditorMenu::RegisterLevelEditorMenus();
 	FLevelEditorToolBar::RegisterLevelEditorToolBar(LevelEditorCommands.ToSharedRef(), SharedThis(this));
+	FLevelEditorToolBar::RegisterLevelEditorSecondaryModeToolbar();
 }
 
 void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
@@ -304,6 +305,13 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 	TSharedRef<SWidget> ContentArea = RestoreContentArea( OwnerTab, OwnerWindow );
 
 	FLevelEditorMenu::MakeLevelEditorMenu(LevelEditorCommands, SharedThis(this));
+
+	SecondaryModeToolbarWidget =
+		SNew(SBorder)
+		.Padding(0)
+		.BorderImage(FAppStyle::Get().GetBrush( "NoBorder" ));
+	
+	SecondaryModeToolbarWidget->SetContent(FLevelEditorToolBar::MakeLevelEditorSecondaryModeToolbar(LevelEditorCommands.ToSharedRef(), ModeUILayers));
 		
 	ChildSlot
 	[
@@ -313,6 +321,12 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 		.AutoHeight()
 		[
 			FLevelEditorToolBar::MakeLevelEditorToolBar(LevelEditorCommands.ToSharedRef(), SharedThis(this))
+		]
+		+SVerticalBox::Slot()
+		.Padding(FMargin(0.0f,0.0f,0.0f,2.0f))
+		.AutoHeight()
+		[
+			SecondaryModeToolbarWidget.ToSharedRef()
 		]
 		+SVerticalBox::Slot()
 		.Padding(4.0f, 2.f, 4.f, 2.f)
@@ -579,10 +593,13 @@ void SLevelEditor::OnToolkitHostingStarted( const TSharedRef< class IToolkit >& 
 	//   Otherwise, it's going to be a huge cluster trying to distinguish tabs for different assets of the same type
 	//   of editor
 	TSharedPtr<FLevelEditorModeUILayer> ModeUILayer = MakeShareable(new FLevelEditorModeUILayer(this));
+	ModeUILayer->SetSecondaryModeToolbarName(FLevelEditorToolBar::GetSecondaryModeToolbarName());
 	HostedToolkits.Add( Toolkit );
 	ModeUILayer->OnToolkitHostingStarted(Toolkit);
 
 	ModeUILayers.Add(Toolkit->GetToolkitFName(), ModeUILayer);
+	
+	SecondaryModeToolbarWidget->SetContent(FLevelEditorToolBar::MakeLevelEditorSecondaryModeToolbar(LevelEditorCommands.ToSharedRef(), ModeUILayers));
 }
 
 void SLevelEditor::OnToolkitHostingFinished( const TSharedRef< class IToolkit >& Toolkit )
@@ -594,6 +611,8 @@ void SLevelEditor::OnToolkitHostingFinished( const TSharedRef< class IToolkit >&
 		ModeUILayer->OnToolkitHostingFinished(Toolkit);
 	}
 	HostedToolkits.Remove( Toolkit );
+
+	SecondaryModeToolbarWidget->SetContent(FLevelEditorToolBar::MakeLevelEditorSecondaryModeToolbar(LevelEditorCommands.ToSharedRef(), ModeUILayers));
 
 	// @todo toolkit minor: If user clicks X on all opened world-centric toolkit tabs, should we exit that toolkit automatically?
 	//   Feel 50/50 about this.  It's totally valid to use the "Save" menu even after closing tabs, etc.  Plus, you can spawn the tabs back up using the tab area down-down menu.
