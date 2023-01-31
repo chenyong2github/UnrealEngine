@@ -6,6 +6,7 @@
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/ContentBundle/ContentBundleLog.h"
+#include "Engine/World.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
