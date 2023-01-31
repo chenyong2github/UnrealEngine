@@ -391,6 +391,16 @@ namespace EpicGames.Horde.Storage
 			TreeNodeRef rootRef = new TreeNodeRef(root);
 			await writer.WriteAsync(rootRef, cancellationToken);
 			await writer.FlushAsync(cancellationToken);
+
+			if (rootRef.Handle == null)
+			{
+				throw new InvalidOperationException("Invalid handle in root ref during flush");
+			}
+			else if (!rootRef.Handle.Locator.IsValid())
+			{
+				throw new InvalidOperationException("Missing locator in root ref after flush");
+			}
+
 			return rootRef.Handle!;
 		}
 	}
