@@ -6,6 +6,7 @@
 #include "Containers/ChunkedArray.h"
 #include "Containers/Map.h"
 #include "Containers/StringFwd.h"
+#include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
 #include "Misc/AES.h"
