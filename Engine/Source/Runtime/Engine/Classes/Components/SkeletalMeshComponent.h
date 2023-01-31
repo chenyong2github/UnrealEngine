@@ -585,7 +585,7 @@ public:
 	uint8 bHasValidBodies:1;
 
 
-	/** Enables blending in of physics bodies whether Simulate or not*/
+	/** Forces use of the physics bodies irrespective of whether they are simulated or using the physics blend weight */
 	UPROPERTY(transient)
 	uint8 bBlendPhysics:1;
 

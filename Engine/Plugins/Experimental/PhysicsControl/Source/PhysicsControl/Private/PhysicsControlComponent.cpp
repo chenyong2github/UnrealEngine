@@ -157,12 +157,16 @@ void UPhysicsControlComponent::TickComponent(
 			Implementation->ApplyKinematicTarget(BodyModifier);
 			break;
 		case EPhysicsMovementType::Simulated:
-			BodyInstance->SetInstanceSimulatePhysics(true, false, true);
+			BodyInstance->SetInstanceSimulatePhysics(true, true, true);
 			break;
 		default:
 			UE_LOG(LogPhysicsControlComponent, Warning, TEXT("Invalid movement type %d"), BodyModifier.MovementType);
 			break;
 		}
+		// We always overwrite the physics blend weight, since the functions above can still modify
+		// it (even though they all use the "maintain physics blending" option), since there is an
+		// expectation that zero blend weight means to disable physics.
+		BodyInstance->PhysicsBlendWeight = BodyModifier.PhysicsBlendWeight;
 
 		UBodySetup* BodySetup = BodyInstance->GetBodySetup();
 		if (BodySetup)
@@ -1289,11 +1293,13 @@ FName UPhysicsControlComponent::CreateBodyModifier(
 	const EPhysicsMovementType    MovementType,
 	const ECollisionEnabled::Type CollisionType,
 	const float                   GravityMultiplier,
+	const float                   PhysicsBlendWeight,
 	const bool                    bUseSkeletalAnimation)
 {
 	const FName Name = Implementation->GetUniqueBodyModifierName(BoneName);
 	if (CreateNamedBodyModifier(
-		Name, MeshComponent, BoneName, Set, MovementType, CollisionType, GravityMultiplier, bUseSkeletalAnimation))
+		Name, MeshComponent, BoneName, Set, MovementType, CollisionType, 
+		GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation))
 	{
 		return Name;
 	}
@@ -1309,6 +1315,7 @@ bool UPhysicsControlComponent::CreateNamedBodyModifier(
 	const EPhysicsMovementType    MovementType,
 	const ECollisionEnabled::Type CollisionType,
 	const float                   GravityMultiplier,
+	const float                   PhysicsBlendWeight,
 	const bool                    bUseSkeletalAnimation)
 {
 	if (Implementation->FindBodyModifier(Name))
@@ -1325,7 +1332,8 @@ bool UPhysicsControlComponent::CreateNamedBodyModifier(
 
 	FPhysicsBodyModifier& Modifier = Implementation->PhysicsBodyModifiers.Add(
 		Name, FPhysicsBodyModifier(
-			MeshComponent, BoneName, MovementType, CollisionType, GravityMultiplier, bUseSkeletalAnimation));
+			MeshComponent, BoneName, MovementType, CollisionType, 
+			GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation));
 
 	USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(MeshComponent);
 	if (SkeletalMeshComponent)
@@ -1348,6 +1356,7 @@ TArray<FName> UPhysicsControlComponent::CreateBodyModifiersFromSkeletalMeshBelow
 	const EPhysicsMovementType    MovementType,
 	const ECollisionEnabled::Type CollisionType,
 	const float                   GravityMultiplier,
+	const float                   PhysicsBlendWeight,
 	const bool                    bUseSkeletalAnimation)
 {
 	TArray<FName> Result;
@@ -1361,7 +1370,7 @@ TArray<FName> UPhysicsControlComponent::CreateBodyModifiersFromSkeletalMeshBelow
 		BoneName, bIncludeSelf, /*bSkipCustomType=*/false,
 		[
 			this, PhysicsAsset, SkeletalMeshComponent, Set, MovementType, CollisionType,
-			GravityMultiplier, bUseSkeletalAnimation, &Result
+			GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation, &Result
 		](const FBodyInstance* BI)
 		{
 			if (USkeletalBodySetup* BodySetup = Cast<USkeletalBodySetup>(BI->BodySetup.Get()))
@@ -1369,7 +1378,7 @@ TArray<FName> UPhysicsControlComponent::CreateBodyModifiersFromSkeletalMeshBelow
 				const FName BoneName = PhysicsAsset->SkeletalBodySetups[BI->InstanceBodyIndex]->BoneName;
 				const FName BodyModifierName = CreateBodyModifier(
 					SkeletalMeshComponent, BoneName, Set, MovementType, 
-					CollisionType, GravityMultiplier, bUseSkeletalAnimation);
+					CollisionType, GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation);
 				Result.Add(BodyModifierName);
 			}
 		});
@@ -1384,6 +1393,7 @@ TMap<FName, FPhysicsControlNames> UPhysicsControlComponent::CreateBodyModifiersF
 	const EPhysicsMovementType                   MovementType,
 	const ECollisionEnabled::Type                CollisionType,
 	const float                                  GravityMultiplier,
+	const float                                  PhysicsBlendWeight,
 	const bool                                   bUseSkeletalAnimation)
 {
 	TMap<FName, FPhysicsControlNames> Result;
@@ -1410,7 +1420,7 @@ TMap<FName, FPhysicsControlNames> UPhysicsControlComponent::CreateBodyModifiersF
 		{
 			const FName BodyModifierName = CreateBodyModifier(
 				BonesInLimb.SkeletalMeshComponent, BoneName, LimbName, MovementType, 
-				CollisionType, GravityMultiplier, bUseSkeletalAnimation);
+				CollisionType, GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation);
 			if (!BodyModifierName.IsNone())
 			{
 				LimbResult.Names.Add(BodyModifierName);
@@ -1569,6 +1579,39 @@ void UPhysicsControlComponent::SetBodyModifiersInSetGravityMultiplier(
 }
 
 //======================================================================================================================
+bool UPhysicsControlComponent::SetBodyModifierPhysicsBlendWeight(
+	const FName Name,
+	const float PhysicsBlendWeight)
+{
+	FPhysicsBodyModifier* PhysicsBodyModifier = Implementation->FindBodyModifier(Name);
+	if (PhysicsBodyModifier)
+	{
+		PhysicsBodyModifier->PhysicsBlendWeight = PhysicsBlendWeight;
+		return true;
+	}
+	return false;
+}
+
+//======================================================================================================================
+void UPhysicsControlComponent::SetBodyModifiersPhysicsBlendWeight(
+	const TArray<FName>& Names,
+	const float          PhysicsBlendWeight)
+{
+	for (FName Name : Names)
+	{
+		SetBodyModifierPhysicsBlendWeight(Name, PhysicsBlendWeight);
+	}
+}
+
+//======================================================================================================================
+void UPhysicsControlComponent::SetBodyModifiersInSetPhysicsBlendWeight(
+	const FName SetName,
+	const float PhysicsBlendWeight)
+{
+	SetBodyModifiersPhysicsBlendWeight(GetBodyModifierNamesInSet(SetName), PhysicsBlendWeight);
+}
+
+//======================================================================================================================
 bool UPhysicsControlComponent::SetBodyModifierUseSkeletalAnimation(
 	const FName Name,
 	const bool  bUseSkeletalAnimation)
@@ -1624,7 +1667,8 @@ void UPhysicsControlComponent::CreateControlsAndBodyModifiersFromLimbBones(
 	const FPhysicsControlSettings               ParentSpaceControlSettings,
 	const bool                                  bEnableParentSpaceControls,
 	const EPhysicsMovementType                  PhysicsMovementType,
-	const float                                 GravityMultiplier)
+	const float                                 GravityMultiplier,
+	const float                                 PhysicsBlendWeight)
 {
 	TMap<FName, FPhysicsControlLimbBones> LimbBones = 
 		GetLimbBonesFromSkeletalMesh(SkeletalMeshComponent, LimbSetupData);
@@ -1638,7 +1682,8 @@ void UPhysicsControlComponent::CreateControlsAndBodyModifiersFromLimbBones(
 		ParentSpaceControlData, ParentSpaceControlSettings, bEnableParentSpaceControls);
 
 	LimbBodyModifiers = CreateBodyModifiersFromLimbBones(
-		AllBodyModifiers, LimbBones, PhysicsMovementType, ECollisionEnabled::QueryAndPhysics, GravityMultiplier, true);
+		AllBodyModifiers, LimbBones, PhysicsMovementType, ECollisionEnabled::QueryAndPhysics, 
+		GravityMultiplier, PhysicsBlendWeight, true);
 }
 
 //======================================================================================================================
@@ -1850,12 +1895,13 @@ void UPhysicsControlComponent::DebugDraw(FPrimitiveDrawInterface* PDI) const
 				FString ComponentName = Record.MeshComponent ? Record.MeshComponent->GetName() : TEXT("None");
 
 				FString Text = FString::Printf(
-					TEXT("%s: %s: %s %s GravityMultiplier %f"),
+					TEXT("%s: %s: %s %s GravityMultiplier %f BlendWeight %f"),
 					*Name.ToString(),
 					*ComponentName,
 					*UEnum::GetValueAsString(Record.MovementType),
 					*UEnum::GetValueAsString(Record.CollisionType),
-					Record.GravityMultiplier);
+					Record.GravityMultiplier,
+					Record.PhysicsBlendWeight);
 
 				GEngine->AddOnScreenDebugMessage(-1, 0.0f, 
 					Record.MovementType == EPhysicsMovementType::Simulated ? FColor::Green : FColor::Red, Text);

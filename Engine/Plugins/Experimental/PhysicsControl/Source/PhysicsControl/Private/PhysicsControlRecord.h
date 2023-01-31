@@ -62,12 +62,14 @@ struct FPhysicsBodyModifier
 		EPhysicsMovementType       InMovementType,
 		ECollisionEnabled::Type    InCollisionType,
 		float                      InGravityMultiplier,
+		float                      InPhysicsBlendWeight,
 		bool                       InUseSkeletalAnimation)
 		: MeshComponent(InMeshComponent)
 		, BoneName(InBoneName)
 		, MovementType(InMovementType)
 		, CollisionType(InCollisionType)
 		, GravityMultiplier(InGravityMultiplier)
+		, PhysicsBlendWeight(InPhysicsBlendWeight)
 		, KinematicTargetPosition(FVector::ZeroVector)
 		, KinematicTargetOrientation(FQuat::Identity)
 		, bUseSkeletalAnimation(InUseSkeletalAnimation)
@@ -90,6 +92,11 @@ struct FPhysicsBodyModifier
 	 * setting this to 1 will not enable gravity.
 	 */
 	float GravityMultiplier = 1.0f;
+
+	/**
+	 * Blend weight (between 0 and 1) that is used to set/override the one in the body instance
+	 */
+	float PhysicsBlendWeight = 1.0f;
 
 	/** 
 	 * The target position when kinematic. Note that this is applied on top of any animation 

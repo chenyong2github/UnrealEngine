@@ -762,6 +762,7 @@ public:
 		const EPhysicsMovementType    MovementType = EPhysicsMovementType::Simulated,
 		const ECollisionEnabled::Type CollisionType = ECollisionEnabled::QueryAndPhysics,
 		const float                   GravityMultiplier = 1.0f,
+		const float                   PhysicsBlendWeight = 1.0f,
 		const bool                    bUseSkeletalAnimation = true);
 
 	/**
@@ -788,6 +789,7 @@ public:
 		const EPhysicsMovementType    MovementType = EPhysicsMovementType::Simulated,
 		const ECollisionEnabled::Type CollisionType = ECollisionEnabled::QueryAndPhysics,
 		const float                   GravityMultiplier = 1.0f,
+		const float                   PhysicsBlendWeight = 1.0f,
 		const bool                    bUseSkeletalAnimation = true);
 
 	/**
@@ -814,6 +816,7 @@ public:
 		const EPhysicsMovementType    MovementType = EPhysicsMovementType::Simulated,
 		const ECollisionEnabled::Type CollisionType = ECollisionEnabled::QueryAndPhysics,
 		const float                   GravityMultiplier = 1.0f,
+		const float                   PhysicsBlendWeight = 1.0f,
 		const bool                    bUseSkeletalAnimation = true);
 
 
@@ -839,6 +842,7 @@ public:
 		const EPhysicsMovementType                   MovementType = EPhysicsMovementType::Simulated,
 		const ECollisionEnabled::Type                CollisionType = ECollisionEnabled::QueryAndPhysics,
 		const float                                  GravityMultiplier = 1.0f,
+		const float                                  PhysicsBlendWeight = 1.0f,
 		const bool                                   bUseSkeletalAnimation = true);
 
 	/**
@@ -995,6 +999,42 @@ public:
 		const float GravityMultiplier = 1.0f);
 
 	/**
+	 * Sets the physics blend weight for a body modifier
+	 *
+	 * @param Name The name of the body modifier to access. 
+	 * @param PhysicsBlendWeight The amount of gravity to apply when simulating
+	 * @return true if the body modifier was found, false if not
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	bool SetBodyModifierPhysicsBlendWeight(
+		const FName Name,
+		const float PhysicsBlendWeight = 1.0f);
+
+	/**
+	 * Sets the physics blend weight for body modifiers
+	 *
+	 * @param Names The names of the body modifiers to access. Note that if you have these in a FPhysicsControlNameArray
+	 *              then it can be split.
+	 * @param PhysicsBlendWeight The amount of gravity to apply when simulating
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetBodyModifiersPhysicsBlendWeight(
+		const TArray<FName>& Names,
+		const float          PhysicsBlendWeight = 1.0f);
+
+	/**
+	 * Sets the physics blend weight for body modifiers
+	 *
+	 * @param Set The set of body modifiers to modify. Standard sets will include "All" and things like
+	 *        "ArmLeft", depending on how body modifiers have been created.
+	 * @param PhysicsBlendWeight The amount of gravity to apply when simulating
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetBodyModifiersInSetPhysicsBlendWeight(
+		const FName Set,
+		const float PhysicsBlendWeight = 1.0f);
+
+	/**
 	 * Sets whether a body modifier should use skeletal animation for its kinematic targets
 	 *
 	 * @param Name The name of the body modifier to access. 
@@ -1065,8 +1105,9 @@ public:
 		const FPhysicsControlSettings               ParentSpaceControlSettings,
 		const bool                                  bEnableParentSpaceControls,
 		const EPhysicsMovementType                  PhysicsMovementType = EPhysicsMovementType::Static,
-		const float                                 GravityMultiplier = 1.0f
-	);
+		const float                                 GravityMultiplier = 1.0f,
+		const float                                 PhysicsBlendWeight = 1.0f
+		);
 
 	/**
 	 * Adds a Control to a Set. This will add a new set if necessary. For example, you might
