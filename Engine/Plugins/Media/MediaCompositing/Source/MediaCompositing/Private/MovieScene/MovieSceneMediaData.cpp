@@ -47,7 +47,7 @@ void FMovieSceneMediaData::SeekOnOpen(FTimespan Time)
 }
 
 
-void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InPlayerProxy, int32 InProxyTextureIndex)
+void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InPlayerProxy, int32 InProxyLayerIndex, int32 InProxyTextureIndex)
 {
 	// Ensure we don't already have a media player set. Setup should only be called once
 	check(!MediaPlayer);
@@ -66,17 +66,13 @@ void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InP
 	MediaPlayer->OnMediaEvent().AddRaw(this, &FMovieSceneMediaData::HandleMediaPlayerEvent);
 	MediaPlayer->AddToRoot();
 	ProxyMediaTexture.Reset();
+	ProxyLayerIndex = InProxyLayerIndex;
 	ProxyTextureIndex = InProxyTextureIndex;
 
 	// Do we have a valid proxy object?
 	if ((InPlayerProxy != nullptr) && (InPlayerProxy->Implements<UMediaPlayerProxyInterface>()))
 	{
 		PlayerProxy = InPlayerProxy;
-		IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(PlayerProxy);
-		if (PlayerProxyInterface != nullptr)
-		{
-			ProxyMediaTexture = PlayerProxyInterface->ProxyGetMediaTexture(ProxyTextureIndex);
-		}
 	}
 	else
 	{
@@ -105,6 +101,14 @@ void FMovieSceneMediaData::StartUsingProxyMediaTexture()
 {
 	if (PlayerProxy != nullptr)
 	{
+		if (ProxyMediaTexture == nullptr)
+		{
+			IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(PlayerProxy);
+			if (PlayerProxyInterface != nullptr)
+			{
+				ProxyMediaTexture = PlayerProxyInterface->ProxyGetMediaTexture(ProxyLayerIndex, ProxyTextureIndex);
+			}
+		}
 		if (ProxyMediaTexture != nullptr)
 		{
 			ProxyMediaTexture->SetMediaPlayer(MediaPlayer);
@@ -122,6 +126,12 @@ void FMovieSceneMediaData::StopUsingProxyMediaTexture()
 			{
 				ProxyMediaTexture->SetMediaPlayer(nullptr);
 			}
+			IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(PlayerProxy);
+			if (PlayerProxyInterface != nullptr)
+			{
+				PlayerProxyInterface->ProxyReleaseMediaTexture(ProxyLayerIndex, ProxyTextureIndex);
+			}
+			ProxyMediaTexture = nullptr;
 		}
 	}
 }

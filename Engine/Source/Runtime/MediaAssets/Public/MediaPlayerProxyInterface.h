@@ -56,41 +56,20 @@ public:
 	/**
 	 * Get the media source for a given index.
 	 */
-	virtual UMediaSource* GetMediaSourceFromIndex(int32 Index) const = 0;
-
-	/**
-	 * Close the player.
-	 */
-	virtual void ProxyClose() = 0;
+	virtual UMediaSource* ProxyGetMediaSourceFromIndex(int32 Index) const = 0;
 
 	/**
 	 * Get a media texture that we can assign a media player to.
 	 */
-	virtual UMediaTexture* ProxyGetMediaTexture(int32 TextureIndex) = 0;
+	virtual UMediaTexture* ProxyGetMediaTexture(int32 LayerIndex, int32 TextureIndex) = 0;
 
 	/**
-	 * Gets the number of media textures we can get with ProxyGetMediaTexture.
+	 * Release a media texture that was retrieved from ProxyGetMediaTexture.
 	 */
-	virtual int32 ProxyGetNumberOfMediaTextures() const = 0;
-
-	/**
-	 * Ask if a specific track in the playlist is playing.
-	 */
-	virtual bool ProxyIsPlaylistIndexPlaying(int32 Index) const = 0;
-
-	/**
-	 * Open a specific track in the playlist.
-	 */
-	virtual void ProxyOpenPlaylistIndex(int32 Index) = 0;
+	virtual void ProxyReleaseMediaTexture(int32 LayerIndex, int32 TextureIndex) = 0;
 
 	/**
 	 * Set the blend value for a texture that was retrieved from ProxyGetMediaTexture.
 	 */
-	virtual void ProxySetTextureBlend(int32 TextureIndex, float Blend) = 0;
-
-	/**
-	 * Set the player to play on open.
-	 */
-	virtual void ProxySetPlayOnOpen(bool bInPlayOnOpen) = 0;
-	
+	virtual void ProxySetTextureBlend(int32 LayerIndex, int32 TextureIndex, float Blend) = 0;
 };

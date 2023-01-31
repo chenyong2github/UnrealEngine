@@ -251,14 +251,10 @@ public:
 	virtual bool SetProxyRate(float Rate) override;
 	virtual bool IsExternalControlAllowed() override;
 	virtual const FMediaSourceCacheSettings& GetCacheSettings() const override;
-	virtual UMediaSource* GetMediaSourceFromIndex(int32 Index) const override;
-	virtual void ProxyClose() override;
-	virtual UMediaTexture* ProxyGetMediaTexture(int32 TextureIndex) override;
-	virtual int32 ProxyGetNumberOfMediaTextures() const override;
-	virtual bool ProxyIsPlaylistIndexPlaying(int32 Index) const override;
-	virtual void ProxyOpenPlaylistIndex(int32 Index) override;
-	virtual void ProxySetPlayOnOpen(bool bInPlayOnOpen) override;
-	virtual void ProxySetTextureBlend(int32 TextureIndex, float Blend) override;
+	virtual UMediaSource* ProxyGetMediaSourceFromIndex(int32 Index) const override;
+	virtual UMediaTexture* ProxyGetMediaTexture(int32 LayerIndex, int32 TextureIndex) override;
+	virtual void ProxyReleaseMediaTexture(int32 LayerIndex, int32 TextureIndex) override;
+	virtual void ProxySetTextureBlend(int32 LayerIndex, int32 TextureIndex, float Blend) override;
 
 private:
 	/**
@@ -321,6 +317,9 @@ private:
 	UPROPERTY()
 	float LetterboxAspectRatio = 0.0f;
 
+	/** Number of textures we have per layer in the material. */
+	const int32 MatNumTexPerLayer = 2;
+
 	UPROPERTY()
 	FVector2D MeshRange = FVector2D(360.0f, 180.0f);
 
@@ -347,6 +346,14 @@ private:
 	bool bWantsToPlayWhenVisible = false;
 	/** True if we should resume where we left off when we open the media. */
 	bool bResumeWhenOpened = false;
+
+	/**
+	 * Contains all of our layers.
+	 * Each layer contains which textures it has.
+	 * int32 is an index into MediaTextures.
+	 * -1 signifies no entry.
+	 */
+	TArray<TArray<int32>> TextureLayers;
 
 	/**
 	 * Plays a media source.
@@ -419,4 +426,9 @@ private:
 	 * Sets up the textures we have.
 	 */
 	void SetUpTextures(UE::MediaPlateComponent::ESetUpTexturesFlags Flags);
+
+	/**
+	 * Sets textures in our material according to the layer assignments.
+	 */
+	void UpdateTextureLayers();
 };

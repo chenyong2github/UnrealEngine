@@ -143,7 +143,7 @@ UMediaSource* UMovieSceneMediaSection::GetMediaSourceOrProxy(IMovieScenePlayer& 
 					IMediaPlayerProxyInterface* Proxy = Cast<IMediaPlayerProxyInterface>(Component);
 					if (Proxy != nullptr)
 					{
-						OutMediaSource = Proxy->GetMediaSourceFromIndex(InMediaSourceProxyIndex);
+						OutMediaSource = Proxy->ProxyGetMediaSourceFromIndex(InMediaSourceProxyIndex);
 						break;
 					}
 				}

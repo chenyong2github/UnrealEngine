@@ -39,6 +39,11 @@ public:
 	UObject* GetPlayerProxy() { return PlayerProxy.Get(); }
 
 	/**
+	 * Get the layer index we are using (when using a proxy).
+	 */
+	int32 GetProxyLayerIndex() { return ProxyLayerIndex; }
+
+	/**
 	 * Get the texture index we are using (when using a proxy).
 	 */
 	int32 GetProxyTextureIndex() { return ProxyTextureIndex; }
@@ -51,7 +56,7 @@ public:
 	void SeekOnOpen(FTimespan Time);
 
 	/** Set up this persistent data object. */
-	void Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InPlayerProxy, int32 InProxyTextureIndex);
+	void Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InPlayerProxy, int32 InProxyLayerIndex, int32 InProxyTextureIndex);
 
 	/**
 	 * Called from FMovieSceneMediaSectionTemplate::Initialize.
@@ -86,6 +91,8 @@ private:
 	TWeakObjectPtr<UObject> PlayerProxy;
 	/** Media texture allocated from the proxy. */
 	TWeakObjectPtr<UMediaTexture> ProxyMediaTexture;
+	/** Layer that this section should reside in. */
+	int32 ProxyLayerIndex;
 	/** Index of texture allocated from the proxy. */
 	int32 ProxyTextureIndex;
 

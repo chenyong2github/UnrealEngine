@@ -202,21 +202,18 @@ UMediaTexture* UMediaPlateComponent::GetMediaTexture(int32 Index)
 	}
 	else
 	{
-		UE_LOG(LogMediaPlate, Warning, TEXT("Texture index %d not available."), Index);
+		UE_CALL_ONCE([Index](){
+			UE_LOG(LogMediaPlate, Warning, TEXT("Material does not support texture index %d. Either remove the number of cross fades or change the material."), Index);
+		});
 	}
 	return MediaTexture;
 }
 
 void UMediaPlateComponent::Open()
 {
-	ProxyOpenPlaylistIndex(0);
-}
-
-void UMediaPlateComponent::ProxyOpenPlaylistIndex(int32 Index)
-{
 	bIsMediaPlatePlaying = true;
 	CurrentRate = bPlayOnOpen ? 1.0f : 0.0f;
-	PlaylistIndex = Index;
+	PlaylistIndex = 0;
 
 	if (IsVisible())
 	{
@@ -226,7 +223,7 @@ void UMediaPlateComponent::ProxyOpenPlaylistIndex(int32 Index)
 			UMediaSource* MediaSource = nullptr;
 			if (MediaPlaylist != nullptr)
 			{
-				MediaSource = MediaPlaylist->Get(Index);
+				MediaSource = MediaPlaylist->Get(PlaylistIndex);
 			}
 			bIsPlaying = PlayMediaSource(MediaSource, bPlayOnOpen);
 		}
@@ -617,7 +614,7 @@ const FMediaSourceCacheSettings& UMediaPlateComponent::GetCacheSettings() const
 	return CacheSettings;
 }
 
-UMediaSource* UMediaPlateComponent::GetMediaSourceFromIndex(int32 Index) const
+UMediaSource* UMediaPlateComponent::ProxyGetMediaSourceFromIndex(int32 Index) const
 {
 	UMediaSource* MediaSource = nullptr;
 	if (MediaPlaylist != nullptr)
@@ -627,32 +624,53 @@ UMediaSource* UMediaPlateComponent::GetMediaSourceFromIndex(int32 Index) const
 	return MediaSource;
 }
 
-void UMediaPlateComponent::ProxyClose()
+UMediaTexture* UMediaPlateComponent::ProxyGetMediaTexture(int32 LayerIndex, int32 TextureIndex)
 {
-	Close();
+	UMediaTexture* MediaTexture = GetMediaTexture(TextureIndex);
+
+	if (TextureLayers.Num() < LayerIndex + 1)
+	{
+		TextureLayers.SetNum(LayerIndex + 1);
+	}
+
+	// Fill up an empty slot if there is one.
+	bool bIsTextureSet = false;
+	for (int32 Index = 0; Index < TextureLayers[LayerIndex].Num(); ++Index)
+	{
+		if (TextureLayers[LayerIndex][Index] < 0)
+		{
+			TextureLayers[LayerIndex][Index] = TextureIndex;
+			bIsTextureSet = true;
+			break;
+		}
+	}
+	if (bIsTextureSet == false)
+	{
+		TextureLayers[LayerIndex].Add(TextureIndex);
+	}
+
+	UpdateTextureLayers();
+
+	return MediaTexture;
 }
 
-UMediaTexture* UMediaPlateComponent::ProxyGetMediaTexture(int32 TextureIndex)
+void UMediaPlateComponent::ProxyReleaseMediaTexture(int32 LayerIndex, int32 TextureIndex)
 {
-	return GetMediaTexture(TextureIndex);
+	ProxySetTextureBlend(LayerIndex, TextureIndex, 0.0f);
+
+	for (int32 Index = 0; Index < TextureLayers[LayerIndex].Num(); ++Index)
+	{
+		if (TextureLayers[LayerIndex][Index] == TextureIndex)
+		{
+			TextureLayers[LayerIndex][Index] = -1;
+			break;
+		}
+	}
+	
+	UpdateTextureLayers();
 }
 
-int32 UMediaPlateComponent::ProxyGetNumberOfMediaTextures() const
-{
-	return MediaTextures.Num();
-}
-
-bool UMediaPlateComponent::ProxyIsPlaylistIndexPlaying(int32 Index) const
-{
-	return bIsMediaPlatePlaying && (Index == PlaylistIndex);
-}
-
-void UMediaPlateComponent::ProxySetPlayOnOpen(bool bInPlayOnOpen)
-{
-	bPlayOnOpen = bInPlayOnOpen;
-}
-
-void UMediaPlateComponent::ProxySetTextureBlend(int32 TextureIndex, float Blend)
+void UMediaPlateComponent::ProxySetTextureBlend(int32 LayerIndex, int32 TextureIndex, float Blend)
 {
 	if (AMediaPlate* MediaPlate = GetOwner<AMediaPlate>())
 	{
@@ -661,10 +679,25 @@ void UMediaPlateComponent::ProxySetTextureBlend(int32 TextureIndex, float Blend)
 			UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Material);
 			if (MID != nullptr)
 			{
-				static const FString BaseBlendName = TEXT("Blend");
-				FString BlendName = BaseBlendName;
-				BlendName.AppendInt(TextureIndex);
-				MID->SetScalarParameterValue(FName(*BlendName), Blend);
+				int32 MatNumLayers = MediaTextures.Num() / MatNumTexPerLayer;
+				if (LayerIndex < MatNumLayers)
+				{
+					const TArray<int32>& Layer = TextureLayers[LayerIndex];
+					for (int32 LayerTexIndex = 0;
+						(LayerTexIndex < MatNumTexPerLayer) && (LayerTexIndex < Layer.Num());
+						LayerTexIndex++)
+					{
+						if (Layer[LayerTexIndex] == TextureIndex)
+						{
+							int32 MatTexIndex = LayerIndex * MatNumTexPerLayer + LayerTexIndex;
+							static const FString BaseBlendName = TEXT("Blend");
+							FString BlendName = BaseBlendName;
+							BlendName.AppendInt(MatTexIndex);
+							MID->SetScalarParameterValue(FName(*BlendName), Blend);
+							break;
+						}
+					}
+				}
 			}
 		}
 	}
@@ -925,6 +958,47 @@ void UMediaPlateComponent::SetUpTextures(UE::MediaPlateComponent::ESetUpTextures
 		}
 	}
 }
+
+void UMediaPlateComponent::UpdateTextureLayers()
+{
+	if (AMediaPlate* MediaPlate = GetOwner<AMediaPlate>())
+	{
+		if (UMaterialInterface* Material = MediaPlate->GetCurrentMaterial())
+		{
+			UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Material);
+			if (MID != nullptr)
+			{
+				// Go through each layer.
+				int32 MatNumLayers = MediaTextures.Num() / MatNumTexPerLayer;
+				static const FString BaseTextureName = TEXT("MediaTexture");
+				int32 NumLayers = FMath::Min(MatNumLayers, TextureLayers.Num());
+				for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
+				{
+					// Go through each texture in the layer.
+					const TArray<int32>& Layer = TextureLayers[LayerIndex];
+					int32 NumTex = FMath::Min(MatNumTexPerLayer, Layer.Num());
+					for (int32 LayerTexIndex = 0; LayerTexIndex < NumTex; LayerTexIndex++)
+					{
+						// Set the texture in the material according to the layer data.
+						int32 TextureIndex = Layer[LayerTexIndex];
+						if (TextureIndex >= 0)
+						{
+							int32 MatTexIndex = LayerIndex * MatNumTexPerLayer + LayerTexIndex;
+							FString TextureName = BaseTextureName;
+							if (MatTexIndex != 0)
+							{
+								TextureName.AppendInt(MatTexIndex);
+							}
+							MID->SetTextureParameterValue(FName(*TextureName), MediaTextures[TextureIndex]);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+
 #if WITH_EDITOR
 
 void UMediaPlateComponent::SetVisibleMipsTilesCalculations(EMediaTextureVisibleMipsTiles InVisibleMipsTilesCalculations)

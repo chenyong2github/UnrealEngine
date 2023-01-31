@@ -142,7 +142,7 @@ struct FMediaSectionExecutionToken
 				(PlayerProxy);
 			if (PlayerProxyInterface != nullptr)
 			{
-				PlayerProxyInterface->ProxySetTextureBlend(SectionData.GetProxyTextureIndex(), ProxyTextureBlend);
+				PlayerProxyInterface->ProxySetTextureBlend(SectionData.GetProxyLayerIndex(), SectionData.GetProxyTextureIndex(), ProxyTextureBlend);
 				// Can we control the player?
 				if (PlayerProxyInterface->IsExternalControlAllowed() == false)
 				{
@@ -367,8 +367,14 @@ void FMovieSceneMediaSectionTemplate::Initialize(const FMovieSceneEvaluationOper
 	FMovieSceneMediaData* SectionData = PersistentData.FindSectionData<FMovieSceneMediaData>();
 	if (SectionData == nullptr)
 	{
-		int32 ProxyTextureIndex = (MediaSection != nullptr) ? MediaSection->TextureIndex : 0;
-		
+		int32 ProxyTextureIndex = 0;
+		int32 ProxyLayerIndex = 0;
+		if (MediaSection != nullptr)
+		{
+			ProxyTextureIndex = MediaSection->TextureIndex;
+			ProxyLayerIndex = MediaSection->GetRowIndex();
+		}
+
 		// Are we overriding the media player?
 		UMediaPlayer* MediaPlayer = Params.MediaPlayer;
 		UObject* PlayerProxy = nullptr;
@@ -387,18 +393,6 @@ void FMovieSceneMediaSectionTemplate::Initialize(const FMovieSceneEvaluationOper
 						if (BoundObject != nullptr)
 						{
 							MediaAssetsModule->GetPlayerFromObject(BoundObject, PlayerProxy);
-							if (PlayerProxy != nullptr)
-							{
-								IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(PlayerProxy);
-								if (PlayerProxyInterface != nullptr)
-								{
-									int32 NumberOfTextures = PlayerProxyInterface->ProxyGetNumberOfMediaTextures();
-									if (NumberOfTextures > 0)
-									{
-										ProxyTextureIndex %= NumberOfTextures;
-									}
-								}
-							}
 							break;
 						}
 					}
@@ -408,7 +402,7 @@ void FMovieSceneMediaSectionTemplate::Initialize(const FMovieSceneEvaluationOper
 
 		// Add section data.
 		SectionData = &PersistentData.AddSectionData<FMovieSceneMediaData>();
-		SectionData->Setup(MediaPlayer, PlayerProxy, ProxyTextureIndex);
+		SectionData->Setup(MediaPlayer, PlayerProxy, ProxyLayerIndex, ProxyTextureIndex);
 	}
 
 	if (!ensure(SectionData != nullptr))
@@ -508,7 +502,7 @@ void FMovieSceneMediaSectionTemplate::TearDown(FPersistentEvaluationData& Persis
 		IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(PlayerProxy);
 		if (PlayerProxyInterface != nullptr)
 		{
-			PlayerProxyInterface->ProxySetTextureBlend(SectionData->GetProxyTextureIndex(), 0.0f);
+			PlayerProxyInterface->ProxySetTextureBlend(SectionData->GetProxyLayerIndex(), SectionData->GetProxyTextureIndex(), 0.0f);
 		}
 	}
 
