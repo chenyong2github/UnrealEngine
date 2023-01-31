@@ -633,6 +633,27 @@ namespace UnrealBuildTool
 			set { OptimizeCodeOverride = value; }
 		}
 
+		private OptimizationMode? OptimizationLevelOverride = null;
+
+		/// <summary>
+		/// Allows fine tuning optimization level for speed and\or code size. This requires a private PCH (or NoPCHs, which is not recommended)
+		/// </summary>
+		public OptimizationMode OptimizationLevel
+		{
+			get
+			{
+				if (OptimizationLevelOverride.HasValue)
+				{
+					return OptimizationLevelOverride.Value;
+				}
+				else
+				{
+					return Target.OptimizationLevel;
+				}
+			}
+			set { OptimizationLevelOverride = value; }
+		}
+
 		/// <summary>
 		/// Explicit private PCH for this module. Implies that this module will not use a shared PCH.
 		/// </summary>

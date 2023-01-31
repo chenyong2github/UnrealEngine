@@ -397,7 +397,7 @@ namespace UnrealBuildTool
 							continue;
 						}
 
-						CppCompileEnvironment ModuleCompileEnvironment = Module.CreateModuleCompileEnvironment(CurrentTarget.Rules, BinaryCompileEnvironment);
+						CppCompileEnvironment ModuleCompileEnvironment = Module.CreateModuleCompileEnvironment(CurrentTarget.Rules, BinaryCompileEnvironment, Logger);
 						foreach (DirectoryReference Dir in Module.ModuleDirectories)
 						{
 							BrowseConfigurationFolders.Add(Dir.ToString());
