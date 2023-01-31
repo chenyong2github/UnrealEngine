@@ -738,7 +738,6 @@ namespace mu
         AccumulateImageFormatsAST accFormat;
         accFormat.Run( roots );
 
-		// TEMP: Disabled for RLE bug
         // See if we can convert some constants to more efficient formats
         ASTOp::Traverse_BottomUp_Unique_NonReentrant( roots, [&](Ptr<ASTOp>& n)
         {
@@ -746,10 +745,33 @@ namespace mu
             {
 				ASTOpConstantResource* typed = dynamic_cast<ASTOpConstantResource*>(n.get());
                 Ptr<const Image> pOld = static_cast<const Image*>(typed->GetValue().get());
-                if ( accFormat.m_supportedFormats[typed][(size_t)EImageFormat::IF_L_UBIT_RLE] )
+
+				// See if there is a better format for this image
+				FVector4f PlainColor;
+				if ( pOld->IsPlainColour(PlainColor) )
+				{
+					// It is more efficient to just have an instruction for it instead, to avoid the overhead
+					// of data loading.
+					Ptr<ASTOpFixed> NewColor = new ASTOpFixed;
+					NewColor->op.type = OP_TYPE::CO_CONSTANT;
+					NewColor->op.args.ColourConstant.value[0] = PlainColor[0];
+					NewColor->op.args.ColourConstant.value[1] = PlainColor[1];
+					NewColor->op.args.ColourConstant.value[2] = PlainColor[2];
+					NewColor->op.args.ColourConstant.value[3] = PlainColor[3];
+
+					Ptr<ASTOpFixed> NewPlain = new ASTOpFixed;
+					NewPlain->op.type = OP_TYPE::IM_PLAINCOLOUR;
+					NewPlain->SetChild( NewPlain->op.args.ImagePlainColour.colour, NewColor );
+					NewPlain->op.args.ImagePlainColour.format = pOld->GetFormat();
+					NewPlain->op.args.ImagePlainColour.size[0] = pOld->GetSizeX();
+					NewPlain->op.args.ImagePlainColour.size[1] = pOld->GetSizeY();
+
+					ASTOp::Replace(n, NewPlain);
+
+				}
+				else if ( accFormat.m_supportedFormats[typed][(size_t)EImageFormat::IF_L_UBIT_RLE] )
                 {
-                    ImagePtr pNew =
-                        ImagePixelFormat( imageCompressionQuality, pOld.get(), EImageFormat::IF_L_UBIT_RLE );
+                    ImagePtr pNew = ImagePixelFormat( imageCompressionQuality, pOld.get(), EImageFormat::IF_L_UBIT_RLE );
 
                     // Only replace if the compression was worth!
                     size_t oldSize = pOld->GetDataSize();
@@ -761,8 +783,7 @@ namespace mu
                 }
                 else if ( accFormat.m_supportedFormats[typed][(size_t)EImageFormat::IF_L_UBYTE_RLE] )
                 {
-                    ImagePtr pNew =
-                        ImagePixelFormat( imageCompressionQuality, pOld.get(), EImageFormat::IF_L_UBYTE_RLE );
+                    ImagePtr pNew = ImagePixelFormat( imageCompressionQuality, pOld.get(), EImageFormat::IF_L_UBYTE_RLE );
 
                     // Only replace if the compression was worth!
                     size_t oldSize = pOld->GetDataSize();

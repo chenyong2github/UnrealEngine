@@ -13,6 +13,7 @@
 #include "MuR/OpImageResize.h"
 #include "MuR/OpImageMipmap.h"
 
+#define MUTABLE_MAX_RUNTIME_PARAMETERS_PER_STATE	64
 
 namespace mu
 {
@@ -92,6 +93,7 @@ namespace mu
             //! parameters of this state, with a mask of relevant runtime parameters.
             //! The mask has a bit on for every runtime parameter in the m_runtimeParameters
             //! vector.
+			//! The uint64 is linked to MUTABLE_MAX_RUNTIME_PARAMETERS_PER_STATE
 			TArray< TPair<OP::ADDRESS,uint64> > m_dynamicResources;
 
             //!
@@ -114,16 +116,19 @@ namespace mu
                 arch >> m_dynamicResources;
             }
 
-            //! Returns the parameters mask
+            /** Returns the mask of parameters (from the runtime parameter list of this state) including the parameters that 
+			* are relevant for the dynamic resource at the given address.
+			*/
             uint64 IsDynamic( OP::ADDRESS at ) const
             {
                 uint64 res = 0;
 
-                for ( int32 i=0; !res && i<m_dynamicResources.Num(); ++i )
+                for ( int32 i=0; i<m_dynamicResources.Num(); ++i )
                 {
                     if ( m_dynamicResources[i].Key==at )
                     {
                         res = m_dynamicResources[i].Value;
+						break;
                     }
                 }
 

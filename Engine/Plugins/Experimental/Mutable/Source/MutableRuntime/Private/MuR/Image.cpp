@@ -588,26 +588,86 @@ namespace mu
         {
             switch( m_format )
             {
-            case EImageFormat::IF_L_UBYTE:
-            {
-                const uint8_t* pData = &m_data[0];
-                uint8_t v = pData[0];
+			case EImageFormat::IF_L_UBYTE:
+			{
+				const uint8* pData = m_data.GetData();
+				uint8 v = pData[0];
 
-                for ( int p=0; res && p<pixelCount; ++p )
-                {
-                    uint8_t nv = *pData++;
-                    res &= ( nv==v );
-                }
+				for (int p = 0; res && p < pixelCount; ++p)
+				{
+					uint8 nv = *pData++;
+					res &= (nv == v);
+				}
 
-                if (res)
-                {
-                    colour[0] = colour[1] = colour[2] = float(v)/255.0f;
-                    colour[3] = 1.0f;
-                }
-                break;
-            }
+				if (res)
+				{
+					colour[0] = colour[1] = colour[2] = float(v) / 255.0f;
+					colour[3] = 1.0f;
+				}
+				break;
+			}
 
-            default:
+			case EImageFormat::IF_RGB_UBYTE:
+			{
+				const uint8* pData = m_data.GetData();
+				uint8 r = pData[0];
+				uint8 g = pData[1];
+				uint8 b = pData[2];
+
+				for (int p = 0; res && p < pixelCount; ++p)
+				{
+					uint8 nr = *pData++;
+					uint8 ng = *pData++;
+					uint8 nb = *pData++;
+					res &= (nr == r) && (ng==g) && (nb==b);
+				}
+
+				if (res)
+				{
+					colour[0] = r / 255.0f;
+					colour[0] = g / 255.0f;
+					colour[0] = b / 255.0f;
+					colour[3] = 1.0f;
+				}
+				break;
+			}
+
+			case EImageFormat::IF_RGBA_UBYTE:
+			case EImageFormat::IF_BGRA_UBYTE:
+			{
+				const uint32* pData = reinterpret_cast<const uint32*>(m_data.GetData());
+				uint32 v = pData[0];
+
+				for (int p = 0; res && p < pixelCount; ++p)
+				{
+					uint32 nv = *pData++;
+					res &= (nv == v);
+				}
+
+				if (res)
+				{
+					const uint8* pByteData = m_data.GetData();
+					if (m_format == EImageFormat::IF_RGBA_UBYTE)
+					{
+						colour[0] = float(pByteData[0]) / 255.0f;
+						colour[1] = float(pByteData[1]) / 255.0f;
+						colour[2] = float(pByteData[2]) / 255.0f;
+					}
+					else
+					{
+						colour[0] = float(pByteData[2]) / 255.0f;
+						colour[1] = float(pByteData[1]) / 255.0f;
+						colour[2] = float(pByteData[0]) / 255.0f;
+					}
+					colour[3] = float(pByteData[3]) / 255.0f;
+				}
+				break;
+			}
+
+			// TODO: Other formats could also be implemented. For compressed types,
+			// the compressed block could be compared and only uncompress if all are the same to
+			// check if all pixels in the block are also equal.
+			default:
                 res = false;
                 break;
             }

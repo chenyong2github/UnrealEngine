@@ -481,14 +481,12 @@ namespace mu
         {
             m_states.Emplace( s, &node );
 
-            // \todo move this 32 constant to a macro or constexpr with a meaningful name and location
-            if ( s.m_runtimeParams.Num() > 32 )
+            if ( s.m_runtimeParams.Num() > MUTABLE_MAX_RUNTIME_PARAMETERS_PER_STATE )
             {
-                char temp[256];
-                mutable_snprintf( temp, 256,
-                                  "State [%s] has more than 32 runtime parameters. Their update may fail.",
+                FString Msg = FString::Printf( TEXT("State [%s] has more than %d runtime parameters. Their update may fail."),
+								  MUTABLE_MAX_RUNTIME_PARAMETERS_PER_STATE,
                                   s.m_name.c_str() );
-                m_pErrorLog->GetPrivate()->Add( temp, ELMT_ERROR, node.m_errorContext );
+                m_pErrorLog->GetPrivate()->Add(Msg, ELMT_ERROR, node.m_errorContext );
             }
         }
 

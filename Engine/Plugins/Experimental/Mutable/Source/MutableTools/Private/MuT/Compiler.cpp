@@ -283,7 +283,7 @@ namespace mu
             // Generate the mask of dynamic resources
             for ( const auto& a: s.m_dynamicResources )
             {
-                uint64_t relevantMask = 0;
+                uint64 relevantMask = 0;
                 for ( const auto& b: a.Value )
                 {
                     // Find the index in the model parameter list
@@ -298,11 +298,11 @@ namespace mu
                     check(paramIndex>=0);
 
                     // Find the position in the state data vector.
-                    int32 it = s.state.m_runtimeParameters.Find( paramIndex );
+                    int32 IndexInRuntimeList = s.state.m_runtimeParameters.Find( paramIndex );
 
-                    if ( it!=INDEX_NONE )
+                    if (IndexInRuntimeList !=INDEX_NONE )
                     {
-                        relevantMask |= uint64_t(1) << it;
+                        relevantMask |= uint64(1) << IndexInRuntimeList;
                     }
                 }
 
