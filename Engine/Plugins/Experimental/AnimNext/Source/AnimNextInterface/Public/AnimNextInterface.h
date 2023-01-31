@@ -34,7 +34,7 @@ static bool GetDataSafe(const TScriptInterface<InterfaceType> AnimNextInterface,
 //		else
 //		{
 //			// Support containers with Num() and GetData()
-//			if constexpr (TModels<Private::CSizedContainerWithAccessibleDataAsRawPtr, ValueType>::Value)
+//			if constexpr (TModels_V<Private::CSizedContainerWithAccessibleDataAsRawPtr, ValueType>)
 //			{
 //				TWrapParam<ValueType::ElementType> WrappedResult(Result.GetData(), Result.Num());
 //				const FContext ResultHolder = InContext.WithResult(WrappedResult);
@@ -66,7 +66,7 @@ static bool GetDataSafe(const TScriptInterface<InterfaceType> AnimNextInterface,
 		else
 		{
 			// Support containers with Num() and GetData()
-			if constexpr (TModels<Private::CSizedContainerWithAccessibleDataAsRawPtr, ValueType>::Value)
+			if constexpr (TModels_V<Private::CSizedContainerWithAccessibleDataAsRawPtr, ValueType>)
 			{
 				TWrapParam<typename ValueType::ElementType> WrappedResult(Result.GetData(), Result.Num());
 				return AnimNextInterface.GetInterface()->GetData(InContext, WrappedResult);

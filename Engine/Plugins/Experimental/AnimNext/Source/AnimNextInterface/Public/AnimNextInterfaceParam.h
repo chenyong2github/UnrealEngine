@@ -452,7 +452,7 @@ protected:
 		using MutableValueType = std::remove_const_t<ValueType>;
 
 		// Support containers with Num() and GetData()
-		if constexpr (TModels<Private::CSizedContainerWithAccessibleDataAsRawPtr, ValueType>::Value)
+		if constexpr (TModels_V<Private::CSizedContainerWithAccessibleDataAsRawPtr, ValueType>)
 		{
 			return (void*)(InValuePtrToWrap->GetData());
 		}
@@ -467,7 +467,7 @@ protected:
 		FParam::EFlags NewFlags = FParam::EFlags::None;
 
 		// Add batched flags or not
-		if constexpr (TModels<Private::CSizedContainerWithAccessibleDataAsRawPtr, ValueType>::Value)
+		if constexpr (TModels_V<Private::CSizedContainerWithAccessibleDataAsRawPtr, ValueType>)
 		{
 			NewFlags |= (InValuePtrToWrap->Num() > 1) ? FParam::EFlags::Batched : FParam::EFlags::None;
 		}

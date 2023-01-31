@@ -231,7 +231,7 @@ public:
 	// Returns a dispatch factory given its static struct (or nullptr)
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type * = nullptr
 	>
 	FRigVMDispatchFactory* FindOrAddDispatchFactory()
 	{
@@ -244,7 +244,7 @@ public:
 	// Returns a dispatch factory's singleton function name if that exists
 	template <
 		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+		typename TEnableIf<TModels_V<CRigVMUStruct, T>>::Type * = nullptr
 	>
 	FString FindOrAddSingletonDispatchFunction()
 	{
