@@ -1602,7 +1602,8 @@ static void ParsePackageAssetsFromZen(FCookedPackageStore& PackageStore, TArray<
 		TIoStatusOr<FIoBuffer> HeaderBuffer = PackageStore.ReadPackageHeaderFromZen(Package->GlobalPackageId);
 		Package->UExpSize = Package->UAssetSize - HeaderBuffer.ValueOrDie().DataSize();
 		Package->UAssetSize = HeaderBuffer.ValueOrDie().DataSize();
-		Package->OptimizedPackage = PackageStoreOptimizer.CreatePackageFromPackageStoreHeader(Package->PackageName, HeaderBuffer.ValueOrDie(), *Package->PackageStoreEntry);
+		const FPackageStoreEntryResource* PackageStoreEntry = Package->PackageStoreEntry;
+		Package->OptimizedPackage = PackageStoreOptimizer.CreatePackageFromZenPackageHeader(Package->PackageName, HeaderBuffer.ValueOrDie(), PackageStoreEntry->ExportInfo.ExportBundleCount, PackageStoreEntry->ImportedPackageIds);
 		check(Package->OptimizedPackage->GetId() == Package->GlobalPackageId);
 	}, EParallelForFlags::Unbalanced);
 }
