@@ -116,7 +116,7 @@ public class TVOSPlatform : IOSPlatform
 						TargetConfiguration,
 						(SC.IsCodeBasedProject ? SC.ProjectRoot : SC.EngineRoot),
 						!SC.IsCodeBasedProject,
-						(SC.IsCodeBasedProject ? SC.StageExecutables[0] : "UnrealGame"),
+						(SC.IsCodeBasedProject ? TargetName : "UnrealGame"),
 						Params.Client,
 						SC.ShortProjectName,
 						SC.EngineRoot,
