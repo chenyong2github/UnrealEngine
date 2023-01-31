@@ -7,7 +7,6 @@
 
 class UDataLayerInstance;
 class UDataLayerAsset;
-class IWorldPartitionRuntimeCellOwner;
 
 UINTERFACE()
 class ENGINE_API UWorldPartitionCell : public UInterface
@@ -38,8 +37,6 @@ public:
 	virtual FBox GetCellBounds() const = 0;
 	/** Returns the associated level package name. */
 	virtual FName GetLevelPackageName() const = 0;
-	/** Returns cell owner */
-	virtual IWorldPartitionRuntimeCellOwner* GetCellOwner() const = 0;
 
 #if WITH_EDITOR
 	/** Returns the referenced actor packages. */

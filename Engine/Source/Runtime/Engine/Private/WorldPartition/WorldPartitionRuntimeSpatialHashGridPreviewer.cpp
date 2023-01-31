@@ -3,6 +3,7 @@
 #include "WorldPartition/WorldPartitionRuntimeSpatialHashGridPreviewer.h"
 #include "Materials/Material.h"
 #include "WorldPartition/RuntimeSpatialHash/RuntimeSpatialHashGridHelper.h"
+#include "Engine/World.h"
 #include "Engine/PostProcessVolume.h"
 #include "Materials/MaterialInstanceDynamic.h"
 

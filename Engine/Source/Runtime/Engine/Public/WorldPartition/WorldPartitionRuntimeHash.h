@@ -4,12 +4,12 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "Engine/World.h"
 #include "WorldPartition.h"
 #include "WorldPartitionActorDescView.h"
 #include "WorldPartition/ActorDescList.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
-#include "WorldPartition/WorldPartitionRuntimeCellOwner.h"
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartition/WorldPartitionStreamingGeneration.h"
 #include "WorldPartition/WorldPartitionStreamingGenerationContext.h"
@@ -31,7 +31,7 @@ enum class EWorldPartitionStreamingPerformance : uint8
 };
 
 UCLASS(Abstract)
-class ENGINE_API URuntimeHashExternalStreamingObjectBase : public UObject, public IWorldPartitionRuntimeCellOwner
+class ENGINE_API URuntimeHashExternalStreamingObjectBase : public UObject
 {
 	GENERATED_BODY()
 
@@ -42,16 +42,14 @@ public:
 		OuterWorld = InOuterWorld;
 	}
 
-	//~ Begin IWorldPartitionRuntimeCellOwner Interface
-	virtual UWorld* GetOwningWorld() const override final { return OwningWorld.Get(); }
-	virtual UWorld* GetOuterWorld() const override final { return OuterWorld.Get(); }
-	//~ End IWorldPartitionRuntimeCellOwner Interface
+	UWorld* GetOwningWorld() const { return OwningWorld.Get(); }
+	UWorld* GetOuterWorld() const { return OuterWorld.Get(); }
 
 	virtual class UWorld* GetWorld() const override final { return GetOwningWorld(); }
 
 	void ForEachStreamingCells(TFunctionRef<void(UWorldPartitionRuntimeCell&)> Func);
 	
-	void OnStreamingObjectLoaded();
+	void OnStreamingObjectLoaded(UWorld* InjectedWorld);
 
 #if WITH_EDITOR
 	void PopulateGeneratorPackageForCook();
@@ -78,8 +76,8 @@ private:
 	TMap<const UWorldPartitionRuntimeCell*, double> CellToSourceMinSqrDistances;
 };
 
-UCLASS(Abstract, Config=Engine, AutoExpandCategories=(WorldPartition), Within = WorldPartition)
-class ENGINE_API UWorldPartitionRuntimeHash : public UObject, public IWorldPartitionRuntimeCellOwner
+UCLASS(Abstract, Config=Engine, AutoExpandCategories=(WorldPartition), Within=WorldPartition)
+class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -140,11 +138,6 @@ public:
 
 	UE_DEPRECATED(5.1, "GetStreamingCells is deprecated, use ForEachStreamingCells instead.")
 	bool GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutActivateCells, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutLoadCells) const;
-
-	//~ Begin IWorldPartitionRuntimeCellOwner Interface
-	virtual UWorld* GetOwningWorld() const override { return GetWorld(); }
-	virtual UWorld* GetOuterWorld() const override { return GetTypedOuter<UWorld>(); }
-	//~ End IWorldPartitionRuntimeCellOwner Interface
 
 	// Streaming interface
 	virtual void ForEachStreamingCells(TFunctionRef<bool(const UWorldPartitionRuntimeCell*)> Func) const {}

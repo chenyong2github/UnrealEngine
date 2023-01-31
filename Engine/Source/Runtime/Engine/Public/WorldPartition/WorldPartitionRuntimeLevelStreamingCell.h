@@ -9,6 +9,8 @@
 #endif
 #include "WorldPartitionRuntimeLevelStreamingCell.generated.h"
 
+class UWorld;
+
 UCLASS()
 class ENGINE_API UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeCell
 {
@@ -29,6 +31,9 @@ class ENGINE_API UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartiti
 	virtual EStreamingStatus GetStreamingStatus() const override;
 	virtual bool IsLoading() const override;
 	//~End UWorldPartitionRuntimeCell Interface
+
+	UWorld* GetOwningWorld() const;
+	UWorld* GetOuterWorld() const;
 
 	//~Begin IWorldPartitionCell Interface
 	FName GetLevelPackageName() const override;

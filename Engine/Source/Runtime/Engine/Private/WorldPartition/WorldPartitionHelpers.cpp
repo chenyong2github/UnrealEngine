@@ -5,7 +5,6 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartitionRuntimeCellInterface.h"
-#include "WorldPartition/WorldPartitionRuntimeCellOwner.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
 #include "Algo/AnyOf.h"
@@ -34,17 +33,6 @@ UWorldPartition* FWorldPartitionHelpers::GetWorldPartition(const UObject* InObje
 		{
 			return GetWorldPartition(Cast<UObject>(Cell));
 		}
-	}
-	else if (const IWorldPartitionCell* Cell = Cast<const IWorldPartitionCell>(InObject))
-	{
-		if (const IWorldPartitionRuntimeCellOwner* CellOwner = Cell->GetCellOwner())
-		{
-			return GetWorldPartition(Cast<UObject>(CellOwner));
-		}
-	}
-	else if (const IWorldPartitionRuntimeCellOwner* CellOwner = Cast<const IWorldPartitionRuntimeCellOwner>(InObject))
-	{
-		OuterWorld = CellOwner->GetOuterWorld();
 	}
 	else if (const ULevel* OuterLevel = InObject->GetTypedOuter<ULevel>())
 	{
