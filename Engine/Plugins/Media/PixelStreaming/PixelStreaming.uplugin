@@ -20,7 +20,7 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
 			"PlatformAllowList": [ "Win64", "Linux" ],
-			"TargetDenyList": [ "Server" ]
+			"TargetDenyList": [ ]
 		},
 		{
 			"Name": "PixelStreamingServers",

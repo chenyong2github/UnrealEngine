@@ -73,6 +73,11 @@ namespace UE::PixelStreaming
 	 */
 	void FPixelStreamingModule::StartupModule()
 	{
+#if UE_SERVER
+		// Hack to no-op the rest of the module so Blueprints can still work
+		return;
+#endif
+
 		// Initialise all settings from command line args etc
 		Settings::InitialiseSettings();
 
