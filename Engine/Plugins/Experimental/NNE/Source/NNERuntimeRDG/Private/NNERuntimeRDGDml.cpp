@@ -1898,7 +1898,7 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 	for (int32 Idx = 0; Idx < InputTensorIndices.Num(); ++Idx)
 	{
 		FTensorBufferParamsDml* Params = GraphBuilder.AllocParameters<FTensorBufferParamsDml>();
-		Params->Buffer = AllTensorRDGs[InputTensorIndices[Idx]]->GetBuffer();
+		Params->Buffer = AllTensorRDGRefs[InputTensorIndices[Idx]]->GetBuffer();
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("FModel_Dispatch_GetInputBuffer"),
@@ -1919,7 +1919,7 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 	for (int32 Idx = 0; Idx < OutputTensorIndices.Num(); ++Idx)
 	{
 		FTensorBufferParamsDml* Params = GraphBuilder.AllocParameters<FTensorBufferParamsDml>();
-		Params->Buffer = AllTensorRDGs[OutputTensorIndices[Idx]]->GetBuffer();
+		Params->Buffer = AllTensorRDGRefs[OutputTensorIndices[Idx]]->GetBuffer();
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("FModel_Dispatch_GetOutputBuffer"),

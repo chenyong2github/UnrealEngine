@@ -310,7 +310,7 @@ private:
 //
 void BuildShapeForModel(bool ConvertToVariadicShape, const NNECore::FTensorShape& InShape, TArray<int32>& OutShape)
 {
-	OutShape.Empty();
+	OutShape.Reset();
 	for (int32 Idx = 0; Idx < InShape.Rank(); ++Idx)
 	{
 		int32 Dim = static_cast<int32>(InShape.GetData()[Idx]);

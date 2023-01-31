@@ -52,7 +52,7 @@ namespace UE::NNECore::Internal
 
 	template <class T> int FModelBase<T>::SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes)
 	{
-		InputTensorShapes.Empty();
+		InputTensorShapes.Reset(InInputShapes.Num());
 
 		if (InInputShapes.Num() != InputSymbolicTensors.Num())
 		{

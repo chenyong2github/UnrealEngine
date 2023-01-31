@@ -137,7 +137,7 @@ void UNNEModelData::Serialize(FArchive& Ar)
 	// Recreate each model data when cooking
 	if (Ar.IsCooking() && Ar.IsSaving())
 	{
-		ModelData.Empty();
+		ModelData.Reset();
 		
 		TArrayView<TWeakInterfacePtr<INNERuntime>> Runtimes = UE::NNECore::GetAllRuntimes();
 		for (int i = 0; i < Runtimes.Num(); i++)

@@ -35,68 +35,21 @@ FOperatorHlsl* OpCreate(const FString& OpName, TConstArrayView<NNECore::FTensorD
 	return Op;
 }
 
-template<class OperatorRef>
-void InternAddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorHLSLRef> AllTensorHLSLRefs, TConstArrayView<TArray<uint32>> OperatorInputTensorIndices,
-	TConstArrayView<TArray<uint32>> OperatorOutputTensorIndices, TArrayView<OperatorRef> Operators)
+} // namespace ModelUtils
+
+bool FModel::AddWeightsToRDGGraph(FRDGBuilder& RDGBuilder)
 {
-	static constexpr int32 MaxExpectedInput = 10;
-	TArray<FTensorRDGRef, TInlineAllocator<MaxExpectedInput>> InputTensors;
+	check(WeightTensorRDGs.Num() == WeightsExternalRDGResources.Num());
 
-	static constexpr int32 MaxExpectedOutput = 2;
-	TArray<FTensorRDGRef, TInlineAllocator<MaxExpectedOutput>> OutputTensors;
-
-	// Add passes for all operators
-	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)
+	for (int32 Idx = 0; Idx < WeightsExternalRDGResources.Num(); ++Idx)
 	{
-		InputTensors.Empty();
-		for (int32 i : OperatorInputTensorIndices[Idx])
-		{
-			InputTensors.Add(AllTensorHLSLRefs[i]);
-		}
-		OutputTensors.Empty();
-		for (int32 i : OperatorOutputTensorIndices[Idx])
-		{
-			OutputTensors.Add(AllTensorHLSLRefs[i]);
-		}
-
-		Operators[Idx]->Dispatch(GraphBuilder, InputTensors, OutputTensors);
-	}
-}
-
-int ApplyBinding(TArray<FTensorHLSL>& OutTensorsHLSL, TConstArrayView<NNECore::FTensorBindingRDG> InBindings, bool bIsInput)
-{
-	check(OutTensorsHLSL.Num() == InBindings.Num());
-	
-	for (int32 Idx = 0; Idx < InBindings.Num(); ++Idx)
-	{
-		const NNECore::FTensorBindingRDG& Binding = InBindings[Idx];
-		FTensorHLSL& Tensor = OutTensorsHLSL[Idx];
-		
-		if (Binding.Buffer == nullptr)
-		{
-			return -1;
-		}
-		Tensor.SetBuffer(Binding.Buffer);
-	}
-
-	return 0;
-}
-
-bool ApplyWeights(FRDGBuilder& GraphBuilder, TArray<FTensorHLSL>& OutTensorsHLSL, TArray<TRefCountPtr<FRDGPooledBuffer>> ExternalWeightsRDG)
-{
-	check(OutTensorsHLSL.Num() == ExternalWeightsRDG.Num());
-
-	for (int32 Idx = 0; Idx < ExternalWeightsRDG.Num(); ++Idx)
-	{
-		const TRefCountPtr<FRDGPooledBuffer>& PooledBuffer = ExternalWeightsRDG[Idx];
-		FTensorHLSL& Tensor = OutTensorsHLSL[Idx];
-		FRDGBufferRef Buffer = GraphBuilder.RegisterExternalBuffer(PooledBuffer);
+		const TRefCountPtr<FRDGPooledBuffer>& PooledBuffer = WeightsExternalRDGResources[Idx];
+		FTensorRDG& Tensor = WeightTensorRDGs[Idx];
+		FRDGBufferRef Buffer = RDGBuilder.RegisterExternalBuffer(PooledBuffer);
 		Tensor.SetBuffer(Buffer);
 	}
 
 	return true;
-}
-
 }
 
 bool FModel::Init(TConstArrayView<uint8> ModelData)
@@ -152,96 +105,35 @@ bool FModel::Init(TConstArrayView<uint8> ModelData)
 	return true;
 }
 
-int FModel::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InputShapes)
+void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 {
-	int Res = FModelRDG::SetInputTensorShapes(InputShapes);
-	if (Res < 0) return Res;
+	static constexpr int32 MaxExpectedInput = 10;
+	TArray<FTensorRDGRef, TInlineAllocator<MaxExpectedInput>> InputTensors;
 
-	auto ConvertTensors = [this] (TArray<FTensorHLSLRef> &TensorRefs, TArray<FTensorHLSL> &Tensors, const FTensorRDGArray &TensorRDGs, const TArray<int32>& TensorIndices)
+	static constexpr int32 MaxExpectedOutput = 2;
+	TArray<FTensorRDGRef, TInlineAllocator<MaxExpectedOutput>> OutputTensors;
+
+	// Add passes for all operators
+	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)
 	{
-		Tensors.Empty();
-		Tensors.SetNum(TensorRDGs.Num());
-
-		for (int32 i = 0; i < TensorIndices.Num(); ++i)
+		InputTensors.Reset(OperatorInputTensorIndices.Num());
+		for (int32 i : OperatorInputTensorIndices[Idx])
 		{
-			const int32 Idx = TensorIndices[i];
-			Tensors[i] = FTensorHLSL(TensorRDGs[i]);
-			AllTensorHLSLRefs[Idx]= &Tensors[i];
+			InputTensors.Add(AllTensorRDGRefs[i]);
 		}
-	};
-
-	AllTensorHLSLRefs.Empty();
-	AllTensorHLSLRefs.SetNumUninitialized(AllTensorRDGs.Num());
-	ConvertTensors(AllTensorHLSLRefs, InputTensorHLSLs, InputTensorRDGs, InputTensorIndices);
-	ConvertTensors(AllTensorHLSLRefs, OutputTensorHLSLs, OutputTensorRDGs, OutputTensorIndices);
-	ConvertTensors(AllTensorHLSLRefs, IntermediateTensorHLSLs, IntermediateTensorRDGs, IntermediateTensorIndices);
-	for (int32 i = 0; i < WeightTensorIndices.Num(); ++i)
-	{
-		const int32 Idx = WeightTensorIndices[i];
-		AllTensorHLSLRefs[Idx] = &WeightTensorHLSLs[i];
-	}
-
-	return 0;
-}
-
-int FModel::EnqueueRDG(FRDGBuilder& GraphBuilder, TConstArrayView<NNECore::FTensorBindingRDG> InInputBindings, TConstArrayView<NNECore::FTensorBindingRDG> InOutputBindings)
-{
-	check(IsInRenderingThread());
-
-	int Res;
-
-	// Verify the model inputs were prepared
-	if (InputTensorShapes.Num() == 0)
-	{
-		UE_LOG(LogNNE, Error, TEXT("EnqueueRDG(): Input shapes are not set, please call SetInputTensorShapes."));
-		return -1;
-	}
-
-	Res = ModelUtils::ApplyBinding(InputTensorHLSLs, InInputBindings, true);
-	if (Res != 0)
-	{
-		UE_LOG(LogNNE, Warning, TEXT("Invalid input tensor binding for tensor index:%d"), Res);
-		return -1;
-	}
-
-	Res = ModelUtils::ApplyBinding(OutputTensorHLSLs, InOutputBindings, false);
-	if (Res != 0)
-	{
-		UE_LOG(LogNNE, Warning, TEXT("Invalid output tensor binding for tensor index:%d"), Res);
-		return -1;
-	}
-
-	if (!ModelUtils::ApplyWeights(GraphBuilder, WeightTensorHLSLs, WeightsExternalRDGResources))
-	{
-		UE_LOG(LogNNE, Warning, TEXT("Could not register the weights for graph execution."));
-		return -1;
-	}
-
-	// Create RDG buffers where not yet present
-	for (FTensorHLSLRef Tensor : AllTensorHLSLRefs)
-	{
-		if (!Tensor->HasBuffer())
+		OutputTensors.Reset(OperatorOutputTensorIndices.Num());
+		for (int32 i : OperatorOutputTensorIndices[Idx])
 		{
-			FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateBufferDesc(Tensor->GetElemByteSize(), Tensor->GetVolume());
-			if (Tensor->HasDownloadBuffer())
-			{
-				BufferDesc.Usage = EBufferUsageFlags(BufferDesc.Usage | BUF_SourceCopy);
-			}
-
-			const FRDGBufferRef TensorBuffer = GraphBuilder.CreateBuffer(BufferDesc, *Tensor->GetName(), ERDGBufferFlags::None);
-			
-			Tensor->SetBuffer(TensorBuffer);
+			OutputTensors.Add(AllTensorRDGRefs[i]);
 		}
+
+		Operators[Idx]->Dispatch(GraphBuilder, InputTensors, OutputTensors);
 	}
-
-	ModelUtils::InternAddDispatchOps_RenderThread<FOperatorHlsl*>(GraphBuilder, AllTensorHLSLRefs, OperatorInputTensorIndices, OperatorOutputTensorIndices, Operators);
-
-	return 0;
 }
 
 int FModel::PrepareTensorShapesAndData()
 {
-	check(AllTensorRDGs.Num() == AllSymbolicTensorDescs.Num());
+	check(AllTensorRDGRefs.Num() == AllSymbolicTensorDescs.Num());
 	
 	if (Operators.Num() == 0)
 	{
@@ -272,19 +164,19 @@ int FModel::PrepareTensorShapesAndData()
 	// This loop could be abstracted to a different system as it apply on FTensorRef & IPrepareOperator witch are RDG agnostics.
 	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)
 	{
-		InputTensors.Empty();
-		OutputTensors.Empty();
+		InputTensors.Reset();
+		OutputTensors.Reset();
 
 		//Operator inputs
 		for (int32 i : OperatorInputTensorIndices[Idx])
 		{
 			checkf(AllInitializedTensors[i] == true, TEXT("Input tensor %d for operator %d should have been initialized."), i, Idx);
-			InputTensors.Emplace(AllTensorRDGs[i]);
+			InputTensors.Emplace(AllTensorRDGRefs[i]);
 		}
 		//Operator outputs
 		for (int32 i : OperatorOutputTensorIndices[Idx])
 		{
-			OutputTensors.Emplace(AllTensorRDGs[i]);
+			OutputTensors.Emplace(AllTensorRDGRefs[i]);
 			checkf(AllInitializedTensors[i] == false, TEXT("Output tensor %d for operator %d should not have been initialized yet."), i, Idx);
 			checkCode(AllInitializedTensors[i] = true);
 		}
@@ -296,7 +188,7 @@ int FModel::PrepareTensorShapesAndData()
 			//Operator could not prepare the output tensors, meaning we can't allocate
 			//output buffer before running the model. This runtime does not support this.
 			UE_LOG(LogNNE, Warning, TEXT("Could not deduce tensor shapes for this model during shape inference, HLSL runtime wont support the model as it need to precompute all shapes for performance reasons."));
-			AllTensorRDGs.Empty();
+			AllTensorRDGRefs.Reset(AllSymbolicTensorDescs.Num());
 			return -1;
 		}
 	}
@@ -315,22 +207,13 @@ bool FModel::PrepareWeights()
 {
 	if (!WeightsExternalRDGResources.IsEmpty())
 	{
-		check(WeightsExternalRDGResources.Num() == WeightTensorHLSLs.Num())
+		check(WeightsExternalRDGResources.Num() == WeightTensorRDGs.Num())
 		return true;
-	}
-
-	//Convert to HLSL tensor
-	//This copy the weight. To be improved.
-	check(WeightTensorHLSLs.IsEmpty());
-	WeightTensorHLSLs.SetNum(WeightTensorRDGs.Num());
-	for (int32 Idx = 0; Idx < WeightTensorRDGs.Num(); ++Idx)
-	{
-		WeightTensorHLSLs[Idx] = FTensorHLSL(WeightTensorRDGs[Idx]);
 	}
 
 	//Upload to GPU
 	FEvent* Signal = FGenericPlatformProcess::GetSynchEventFromPool(false);
-	WeightsExternalRDGResources.SetNum(WeightTensorHLSLs.Num());
+	WeightsExternalRDGResources.SetNum(WeightTensorRDGs.Num());
 
 	ENQUEUE_RENDER_COMMAND(FModel_PrepareWeights)
 	(
@@ -344,16 +227,18 @@ bool FModel::PrepareWeights()
 
 			FRDGBuilder	RDGBuilder(RHICmdList);
 
-			for (int32 i = 0; i < WeightTensorHLSLs.Num(); ++i)
+			for (int32 i = 0; i < WeightTensorRDGs.Num(); ++i)
 			{
-				FTensorHLSL& Tensor = WeightTensorHLSLs[i];
+				FTensorRDG& Tensor = WeightTensorRDGs[i];
 				check(!Tensor.HasBuffer());
 				check(Tensor.HasPreparedData());
 				FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateBufferDesc(Tensor.GetElemByteSize(), Tensor.GetVolume());
 				const FRDGBufferRef TransientRDGBuffer = RDGBuilder.CreateBuffer(BufferDesc, *Tensor.GetName(), ERDGBufferFlags::None);
+				const uint8* TensorData = Tensor.GetPreparedData<uint8>().GetData();
+				
 				WeightsExternalRDGResources[i] = RDGBuilder.ConvertToExternalBuffer(TransientRDGBuffer);
 				Tensor.SetBuffer(TransientRDGBuffer);
-				Tensor.EnqueueUploadRdg(RDGBuilder);
+				RDGBuilder.QueueBufferUpload(TransientRDGBuffer, TensorData, Tensor.GetDataSize(), ERDGInitialDataFlags::NoCopy);
 			}
 
 			RDGBuilder.Execute();

@@ -4,7 +4,6 @@
 
 #include "NNERuntimeRDGModel.h"
 #include "NNECoreTypes.h"
-#include "NNERuntimeRDGTensorHlsl.h"
 
 class FRDGBuilder;
 
@@ -21,25 +20,17 @@ public:
 
 	bool Init(TConstArrayView<uint8> ModelData);
 
-	virtual int SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InputShapes) override;
-	virtual int EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<NNECore::FTensorBindingRDG> InInputBindings, TConstArrayView<NNECore::FTensorBindingRDG> InOutputBindings) override;
-
 protected:
 
-	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) override { };
 	virtual int PrepareTensorShapesAndData() override;
+	virtual bool AddWeightsToRDGGraph(FRDGBuilder& RDGBuilder) override;
+	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) override;
 
 	bool PrepareWeights();
 
 private:
 
 	TArray<FOperatorHlsl*>	Operators;
-
-	TArray<FTensorHLSLRef> AllTensorHLSLRefs;
-	TArray<FTensorHLSL> InputTensorHLSLs;
-	TArray<FTensorHLSL> OutputTensorHLSLs;
-	TArray<FTensorHLSL> IntermediateTensorHLSLs;
-	TArray<FTensorHLSL> WeightTensorHLSLs;
 	TArray<TRefCountPtr<FRDGPooledBuffer>> WeightsExternalRDGResources;
 };
 

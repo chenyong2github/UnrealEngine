@@ -62,7 +62,7 @@ namespace UE::NNECore::Internal
 		void SetPreparedData(TConstArrayView<uint8> Data)
 		{
 			checkf(Data.Num() == DataSize, TEXT("Incorrect data size, it should match tensor shape and data type."));
-			PreparedData.Empty();
+			PreparedData.Reset();
 			PreparedData.Append(Data);
 		}
 

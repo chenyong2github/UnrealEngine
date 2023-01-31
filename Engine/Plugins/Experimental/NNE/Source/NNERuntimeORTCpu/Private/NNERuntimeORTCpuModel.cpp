@@ -160,9 +160,9 @@ namespace UE::NNERuntimeORTCpu::Private
 	
 	int FModelCPU::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes)
 	{
-		InputTensors.Empty();
-		OutputTensors.Empty();
-		OutputTensorShapes.Empty();
+		InputTensors.Reset();
+		OutputTensors.Reset();
+		OutputTensorShapes.Reset();
 
 		// Verify input shape are valid for the model and set InputTensorShapes
 		if (FModelBase<IModelCPU>::SetInputTensorShapes(InInputShapes) != 0)
@@ -192,8 +192,8 @@ namespace UE::NNERuntimeORTCpu::Private
 		}
 		if (OutputTensors.Num() != OutputSymbolicTensors.Num())
 		{
-			OutputTensors.Empty();
-			OutputTensorShapes.Empty();
+			OutputTensors.Reset();
+			OutputTensorShapes.Reset();
 		}
 
 		return 0;

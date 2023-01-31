@@ -119,8 +119,8 @@ namespace UE::NNEQA::Private
 	static void FillInputTensorBindingsCPU(TConstArrayView<NNECore::Internal::FTensor> Tensors, TConstArrayView<FTests::FTensorData> TensorsData,
 		TArray<TArray<char>>& OutMemBuffers, TArray<NNECore::FTensorBindingCPU>& OutBindings)
 	{
-		OutBindings.Empty();
-		OutMemBuffers.Empty();
+		OutBindings.Reset();
+		OutMemBuffers.Reset();
 		check(TensorsData.Num() == 0 || Tensors.Num() == TensorsData.Num());
 
 		for (int Index = 0; Index < Tensors.Num(); ++Index)
@@ -144,8 +144,8 @@ namespace UE::NNEQA::Private
 
 	static void FillOutputTensorBindingsCPU(TConstArrayView<NNECore::Internal::FTensor> Tensors, TArray<TArray<char>>& OutMemBuffers, TArray<NNECore::FTensorBindingCPU>& OutBindings)
 	{
-		OutBindings.Empty();
-		OutMemBuffers.Empty();
+		OutBindings.Reset();
+		OutMemBuffers.Reset();
 		for (int Index = 0; Index < Tensors.Num(); ++Index)
 		{
 			TArray<char>& MemBuffer = OutMemBuffers.Emplace_GetRef();
@@ -381,7 +381,7 @@ namespace UE::NNEQA::Private
 	bool RunTestInference(const FNNEModelRaw& ONNXModelData, const FTests::FTestSetup& TestSetup,
 		const FString& RuntimeName, TArray<NNECore::Internal::FTensor>& OutOutputTensors, TArray<TArray<char>>& OutOutputMemBuffers)
 	{
-		OutOutputMemBuffers.Empty();
+		OutOutputMemBuffers.Reset();
 
 		TUniquePtr<FModelQA> InferenceModel = FModelQA::MakeModelQA(ONNXModelData, RuntimeName);
 		if (!InferenceModel.IsValid())

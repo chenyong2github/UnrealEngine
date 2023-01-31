@@ -98,7 +98,7 @@ bool FModelRDG::LoadModel(TConstArrayView<uint8> ModelData, FNNERuntimeFormat& F
 
 int FModelRDG::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes)
 {
-	OutputTensorShapes.Empty();
+	OutputTensorShapes.Reset(OutputTensorIndices.Num());
 
 	//Verify input shape are valid for the model and set InputTensorShapes
 	if (FModelBase<NNECore::IModelRDG>::SetInputTensorShapes(InInputShapes) != 0)
@@ -106,10 +106,10 @@ int FModelRDG::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInp
 		return -1;
 	}
 
-	//Allocate and prime all AllTensorRDGs with concrete shapes defaulting variables dimension to 1 if needed
-	AllTensorRDGs.Init(nullptr, AllSymbolicTensorDescs.Num());
+	//Allocate and prime all AllTensorRDGRefs with concrete shapes defaulting variables dimension to 1 if needed
+	AllTensorRDGRefs.Init(nullptr, AllSymbolicTensorDescs.Num());
 
-	InputTensorRDGs.Empty();
+	InputTensorRDGs.Reset(InputTensorIndices.Num());
 	for (int32 i = 0; i < InputTensorIndices.Num(); ++i)
 	{
 		const int32 Idx = InputTensorIndices[i];
@@ -117,17 +117,17 @@ int FModelRDG::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInp
 		const NNECore::FTensorShape& TensorShape = InputTensorShapes[i];
 
 		InputTensorRDGs.Emplace(FTensorRDG::Make(TensorDesc, TensorShape, nullptr));
-		AllTensorRDGs[Idx] = &InputTensorRDGs[i];
+		AllTensorRDGRefs[Idx] = &InputTensorRDGs[i];
 	}
 
 	for (int32 i = 0; i < WeightTensorIndices.Num(); ++i)
 	{
 		const int32 Idx = WeightTensorIndices[i];
 
-		AllTensorRDGs[Idx] = &WeightTensorRDGs[i];
+		AllTensorRDGRefs[Idx] = &WeightTensorRDGs[i];
 	}
 
-	IntermediateTensorRDGs.Empty();
+	IntermediateTensorRDGs.Reset(IntermediateTensorIndices.Num());
 	for (int32 i = 0; i < IntermediateTensorIndices.Num(); ++i)
 	{
 		const int32 Idx = IntermediateTensorIndices[i];
@@ -135,10 +135,10 @@ int FModelRDG::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInp
 		const NNECore::FTensorShape TensorShape = NNECore::FTensorShape::MakeFromSymbolic(TensorDesc.GetShape());
 
 		IntermediateTensorRDGs.Emplace(FTensorRDG::Make(TensorDesc, TensorShape, nullptr));
-		AllTensorRDGs[Idx] = &IntermediateTensorRDGs[i];
+		AllTensorRDGRefs[Idx] = &IntermediateTensorRDGs[i];
 	}
 
-	OutputTensorRDGs.Empty();
+	OutputTensorRDGs.Reset(OutputTensorIndices.Num());
 	for (int32 i = 0; i < OutputTensorIndices.Num(); ++i)
 	{
 		const int32 Idx = OutputTensorIndices[i];
@@ -146,13 +146,13 @@ int FModelRDG::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInp
 		const NNECore::FTensorShape TensorShape = NNECore::FTensorShape::MakeFromSymbolic(TensorDesc.GetShape());
 
 		OutputTensorRDGs.Emplace(FTensorRDG::Make(TensorDesc, TensorShape, nullptr));
-		AllTensorRDGs[Idx] = &OutputTensorRDGs[i];
+		AllTensorRDGRefs[Idx] = &OutputTensorRDGs[i];
 	}
 
 	checkCode(
-		for (int i = 0; i < AllTensorRDGs.Num(); ++i)
+		for (int i = 0; i < AllTensorRDGRefs.Num(); ++i)
 		{
-			checkf(AllTensorRDGs[i] != nullptr, TEXT("Tensor at index %d, was not allocated for model preparation."), i);
+			checkf(AllTensorRDGRefs[i] != nullptr, TEXT("Tensor at index %d, was not allocated for model preparation."), i);
 		};
 	);
 
@@ -163,25 +163,25 @@ int FModelRDG::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInp
 	}
 
 	checkCode(
-		for (int i = 0; i < AllTensorRDGs.Num(); ++i)
+		for (int i = 0; i < AllTensorRDGRefs.Num(); ++i)
 		{
-			checkf(AllTensorRDGs[i] != nullptr, TEXT("Tensor at index %d, was not allocated after model preparation."), i);
-			checkf(AllTensorRDGs[i]->GetShape().IsCompatibleWith(AllSymbolicTensorDescs[i].GetShape()), TEXT("Tensor at index %d have a shape incompatible with model definition."), i);
+			checkf(AllTensorRDGRefs[i] != nullptr, TEXT("Tensor at index %d, was not allocated after model preparation."), i);
+			checkf(AllTensorRDGRefs[i]->GetShape().IsCompatibleWith(AllSymbolicTensorDescs[i].GetShape()), TEXT("Tensor at index %d have a shape incompatible with model definition."), i);
 		};
 	);
 
 	//Set OutputTensorShapes for the model from preparation result
 	for (int32 OutputIndices : OutputTensorIndices)
 	{
-		OutputTensorShapes.Emplace(AllTensorRDGs[OutputIndices]->GetShape());
+		OutputTensorShapes.Emplace(AllTensorRDGRefs[OutputIndices]->GetShape());
 	}
 
-	check(InputTensorIndices.Num() + OutputTensorIndices.Num() + WeightTensorIndices.Num() + IntermediateTensorIndices.Num() == AllTensorRDGs.Num());
+	check(InputTensorIndices.Num() + OutputTensorIndices.Num() + WeightTensorIndices.Num() + IntermediateTensorIndices.Num() == AllTensorRDGRefs.Num());
 	check(InputTensorShapes.Num() == InputSymbolicTensors.Num());
 	check(OutputTensorShapes.Num() == OutputSymbolicTensors.Num());
 	check(WeightTensorIndices.Num() == WeightTensorRDGs.Num());
-	check(AllTensorRDGs.Num() == AllSymbolicTensorDescs.Num());
-
+	check(AllTensorRDGRefs.Num() == AllSymbolicTensorDescs.Num());
+	
 	return 0;
 }
 
@@ -211,16 +211,16 @@ int FModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<NNECore::FTen
 	}
 
 	Res = SetTensors(RDGBuilder, InputTensorRDGs, InInputBindings);
-	if (Res != 0)
+	if (Res != -1)
 	{
-		UE_LOG(LogNNE, Warning, TEXT("Invalid input tensor binding type for tensor index:%d"), Res);
+		UE_LOG(LogNNE, Warning, TEXT("Invalid buffer (was nullptr) for input tensor binding at index %d"), Res);
 		return -1;
 	}
 
 	Res = SetTensors(RDGBuilder, OutputTensorRDGs, InOutputBindings);
-	if (Res != 0)
+	if (Res != -1)
 	{
-		UE_LOG(LogNNE, Warning, TEXT("Invalid output tensor binding type for tensor index:%d"), Res);
+		UE_LOG(LogNNE, Warning, TEXT("Invalid buffer (was nullptr) for output tensor binding at index %d"), Res);
 		return -1;
 	}
 
@@ -233,14 +233,17 @@ int FModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<NNECore::FTen
 		TensorRDG.SetBuffer(TensorBuffer);
 	}
 
-	//Note: DirectML uses RHI buffers instead of RDG buffers
-	//For now weights tensors are not uploaded to GPU thus GetBuffer will return nullptr for them.
-	//checkCode(for (const FTensorRDG* TensorRDG : AllTensorRDGs) { if (TensorRDG != nullptr) { check(TensorRDG->GetBuffer() != nullptr); } });
+	if (AddWeightsToRDGGraph(RDGBuilder))
+	{
+		//Note: DirectML uses RHI buffers instead of RDG buffers
+		//For now weights tensors are not uploaded to GPU thus GetBuffer will return nullptr for them.
+		checkCode(for (const FTensorRDG* TensorRDG : AllTensorRDGRefs) { if (TensorRDG != nullptr) { check(TensorRDG->GetBuffer() != nullptr); } });	
+	}
 
 	//Insert weights tensors
 	for (int32 i = 0; i < WeightTensorIndices.Num(); ++i)
 	{
-		AllTensorRDGs[WeightTensorIndices[i]] = &WeightTensorRDGs[i];
+		AllTensorRDGRefs[WeightTensorIndices[i]] = &WeightTensorRDGs[i];
 	}
 
 	// We can now dispatch operators
@@ -252,15 +255,19 @@ int FModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<NNECore::FTen
 int FModelRDG::SetTensors(FRDGBuilder& GraphBuilder, FTensorRDGArray& InTensorRDGs, TConstArrayView<NNECore::FTensorBindingRDG> InBindings)
 {
 	check(InBindings.Num() == InTensorRDGs.Num());
-
+	
 	for (int32 Idx = 0; Idx < InBindings.Num(); ++Idx)
 	{
 		FTensorRDG& TensorRDG = InTensorRDGs[Idx];
 		const NNECore::FTensorBindingRDG& Binding = InBindings[Idx];
+		if (Binding.Buffer == nullptr)
+		{
+			return Idx;
+		}
 		TensorRDG.SetBuffer(Binding.Buffer);
 	}
 
-	return 0;
+	return -1;
 }
 
 }

@@ -25,6 +25,7 @@ namespace UE::NNERuntimeRDG::Private
 		int SetTensors(FRDGBuilder& GraphBuilder, FTensorRDGArray& InTensorRDGs, TConstArrayView<NNECore::FTensorBindingRDG> InBindings);
 
 		virtual int PrepareTensorShapesAndData() = 0;
+		virtual bool AddWeightsToRDGGraph(FRDGBuilder& RDGBuilder) { return false; }
 		virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) = 0;
 
 		//Tensor descriptor
@@ -41,7 +42,7 @@ namespace UE::NNERuntimeRDG::Private
 		TArray<TArray<uint32>>		OperatorOutputTensorIndices;
 
 		//RDG Tensors
-		FTensorRDGRefArray			AllTensorRDGs;
+		FTensorRDGRefArray			AllTensorRDGRefs;
 		FTensorRDGArray				InputTensorRDGs;
 		FTensorRDGArray				OutputTensorRDGs;
 		FTensorRDGArray				IntermediateTensorRDGs;
