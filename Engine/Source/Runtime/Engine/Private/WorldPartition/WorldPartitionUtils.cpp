@@ -9,6 +9,7 @@
 #include "WorldPartition/ContentBundle/ContentBundleEditor.h"
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 #include "WorldPartition/WorldPartitionLog.h"
+#include "Engine/World.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
 
