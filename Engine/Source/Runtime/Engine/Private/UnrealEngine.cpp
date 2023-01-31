@@ -231,6 +231,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "HDRHelper.h"
 
 #if WITH_DUMPGPU
+#include "RenderGraphBuilder.h"
 #endif
 
 #if WITH_DUMPGPU
