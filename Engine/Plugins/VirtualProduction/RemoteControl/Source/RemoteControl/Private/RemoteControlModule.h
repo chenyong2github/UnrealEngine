@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "IRemoteControlModule.h"
 #include "AssetRegistry/AssetData.h"
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "Factories/IRemoteControlMaskingFactory.h"
 #include "IRemoteControlInterceptionFeature.h"
+#include "IRemoteControlModule.h"
 
 /**
  * Implementation of the RemoteControl interface
@@ -24,6 +24,7 @@ public:
 	//~ Begin IRemoteControlModule
 	virtual FOnPresetRegistered& OnPresetRegistered() override;
 	virtual FOnPresetUnregistered& OnPresetUnregistered() override;
+	virtual FOnError& OnError() override;
 	virtual bool RegisterPreset(FName Name, URemoteControlPreset* Preset) override;
 	virtual void UnregisterPreset(FName Name) override;
 	virtual bool RegisterEmbeddedPreset(URemoteControlPreset* Preset, bool bReplaceExisting) override;
@@ -149,6 +150,9 @@ private:
 
 	/** Delegate for preset unregistration */
 	FOnPresetUnregistered OnPresetUnregisteredDelegate;
+
+	/** Delegate for errors to allow external custom handling. */
+	FOnError OnErrorDelegate;
 
 	/** RC Processor feature instance */
 	TUniquePtr<IRemoteControlInterceptionFeatureProcessor> RCIProcessor;

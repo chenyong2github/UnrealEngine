@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteControlWebSocketServer.h"
+
 #include "Containers/Ticker.h"
-#include "WebRemoteControlInternalUtils.h"
 #include "IPAddress.h"
 #include "IRemoteControlModule.h"
 #include "IWebSocketNetworkingModule.h"
 #include "RemoteControlRequest.h"
-#include "Sockets.h"
 #include "SocketSubsystem.h"
+#include "Sockets.h"
+#include "WebRemoteControlInternalUtils.h"
 #include "WebSocketNetworkingDelegates.h"
 
 #define LOCTEXT_NAMESPACE "RCWebSocketServer"
@@ -54,6 +55,11 @@ namespace RemoteControlWebSocketServer
 			}
 			Message.MessageName = MoveTemp(Request.MessageName);
 			ParsedMessage = MoveTemp(Message);
+		}
+
+		if (!ErrorText.IsEmpty())
+		{
+			IRemoteControlModule::BroadcastError(ErrorText);
 		}
 
 		return ParsedMessage;

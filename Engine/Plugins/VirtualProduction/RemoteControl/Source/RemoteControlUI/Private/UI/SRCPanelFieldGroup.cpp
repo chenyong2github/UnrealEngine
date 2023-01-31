@@ -4,21 +4,22 @@
 
 #include "Commands/RemoteControlCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IRemoteControlModule.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "RemoteControlPanelStyle.h"
 #include "RemoteControlPreset.h"
-#include "ScopedTransaction.h"
 #include "SDropTarget.h"
-#include "SRCPanelTreeNode.h"
-#include "SRCPanelExposedField.h"
 #include "SRCPanelDragHandle.h"
+#include "SRCPanelExposedField.h"
+#include "SRCPanelTreeNode.h"
 #include "SRemoteControlPanel.h"
-#include "Styling/SlateColor.h"
+#include "ScopedTransaction.h"
 #include "Styling/SlateBrush.h"
+#include "Styling/SlateColor.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
 
@@ -255,6 +256,7 @@ bool SRCPanelGroup::OnVerifyItemLabelChanged(const FText& InLabel, FText& OutErr
 	if (TentativeName != Name && !!Preset->Layout.GetGroupByName(TentativeName))
 	{
 		OutErrorMessage = LOCTEXT("NameAlreadyExists", "This name already exists.");
+		IRemoteControlModule::BroadcastError(OutErrorMessage.ToString());
 		return false;
 	}
 

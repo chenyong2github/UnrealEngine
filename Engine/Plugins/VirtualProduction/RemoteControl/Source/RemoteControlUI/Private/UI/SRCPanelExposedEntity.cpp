@@ -13,6 +13,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameFramework/Actor.h"
+#include "IRemoteControlModule.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Modules/ModuleManager.h"
 #include "RemoteControlBinding.h"
@@ -36,9 +37,8 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Notifications/SPopUpErrorText.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
 
@@ -391,6 +391,7 @@ bool SRCPanelExposedEntity::OnVerifyItemLabelChanged(const FText& InLabel, FText
 		if (InLabel.ToString() != CachedLabel.ToString() && RCPreset->GetExposedEntityId(*InLabel.ToString()).IsValid())
 		{
 			OutErrorMessage = LOCTEXT("NameAlreadyExists", "This name already exists.");
+			IRemoteControlModule::BroadcastError(OutErrorMessage.ToString());
 			return false;
 		}
 	}

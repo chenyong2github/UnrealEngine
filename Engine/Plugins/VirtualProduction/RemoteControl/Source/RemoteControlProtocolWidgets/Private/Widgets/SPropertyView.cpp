@@ -7,8 +7,10 @@
 #include "Editor.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
-#include "SRCProtocolShared.h"
+#include "IRemoteControlModule.h"
 #include "Modules/ModuleManager.h"
+#include "RemoteControlProtocolWidgetsModule.h"
+#include "SRCProtocolShared.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -145,6 +147,7 @@ void SPropertyView::ConstructInternal()
 	else
 	{
 		const FText ErrorText = LOCTEXT("InvalidObject", "Error: Not a valid Object");
+		IRemoteControlModule::BroadcastError(ErrorText.ToString());
 		ChildSlot
 		[
 			SNew(SVerticalBox)

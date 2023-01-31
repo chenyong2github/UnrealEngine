@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma  once
 
 #include "CoreMinimal.h"
@@ -243,6 +244,16 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPresetUnregistered, FName /*PresetName*/);
 	UE_DEPRECATED(4.27, "OnPresetUnregistered is deprecated.")
 	virtual FOnPresetUnregistered& OnPresetUnregistered() = 0;
+
+	/** Delegate triggered when an error occurs, which aren't necessarily written to UE LOG */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnError, const FString& /*Message*/, ELogVerbosity::Type /*Verbosity*/);
+	virtual FOnError& OnError() = 0;
+
+	/** Broadcast an error to the OnError delegate */
+	static void BroadcastError(const FString& Message, ELogVerbosity::Type Verbosity = ELogVerbosity::Error)
+	{
+		Get().OnError().Broadcast(Message, Verbosity);
+	}
 
 	/**
 	 * Register the preset with the module, enabling using the preset remotely using its name.

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "RemoteControlPresetActorFactory.h"
+
 #include "AssetRegistry/AssetData.h"
 #include "Engine/Level.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -21,6 +23,7 @@ bool URemoteControlPresetActorFactory::CanCreateActorFrom( const FAssetData& Ass
 	if (AssetData.IsValid() && !AssetData.GetClass()->IsChildOf(URemoteControlPreset::StaticClass()))
 	{
 		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoRemoteControlPresetAsset", "A valid remote control preset asset must be specified.");
+		IRemoteControlModule::BroadcastError(OutErrorMsg.ToString());
 		return false;
 	}
 

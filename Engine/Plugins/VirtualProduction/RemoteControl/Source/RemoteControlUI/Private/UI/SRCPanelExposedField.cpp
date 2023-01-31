@@ -6,6 +6,7 @@
 #include "EditorFontGlyphs.h"
 #include "IDetailTreeNode.h"
 #include "IRCProtocolBindingList.h"
+#include "IRemoteControlModule.h"
 #include "IRemoteControlProtocolModule.h"
 #include "IRemoteControlProtocolWidgetsModule.h"
 #include "IRemoteControlUIModule.h"
@@ -20,17 +21,17 @@
 #include "SResetToDefaultPropertyEditor.h"
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
-#include "Styling/SlateBrush.h"
 #include "Styling/RemoteControlStyles.h"
+#include "Styling/SlateBrush.h"
 #include "UObject/Object.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Masks/SRCProtocolMask.h"
-#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SNullWidget.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/SNullWidget.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
 
@@ -455,6 +456,7 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 					}
 
 					FText ErrorText = FText::Format(LOCTEXT("ExposedPropertyInvalidErrorMessage", "Could not find property {0} on object {1}"), FText::FromString(PropertyName), FText::FromString(TargetName));
+					IRemoteControlModule::BroadcastError(ErrorText.ToString());
 					
 					return MakeFieldWidget(CreateInvalidWidget(ErrorText));
 				}

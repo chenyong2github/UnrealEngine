@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebRemoteControlInternalUtils.h"
+
 #include "HttpServerRequest.h"
 #include "Misc/Base64.h"
 #include "Serialization/JsonReader.h"
 #include "UObject/StructOnScope.h"
-
 
 namespace RemotePayloadSerializer
 {
@@ -164,7 +164,10 @@ bool DeserializeCall(const FHttpServerRequest& InRequest, FRCCall& OutCall, cons
 
 	if (!bSuccess)
 	{
-		UE_LOG(LogRemoteControl, Error, TEXT("Web Remote Call deserialization error: %s"), *ErrorText);
+		const FString FormattedMsg = FString::Printf(TEXT("Web Remote Call deserialization error: %s"), *ErrorText);
+		UE_LOG(LogRemoteControl, Error, TEXT("%s"), *FormattedMsg);
+		IRemoteControlModule::BroadcastError(FormattedMsg);
+
 		TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(ErrorText, Response->Body);
 		InCompleteCallback(MoveTemp(Response));
@@ -226,7 +229,10 @@ bool DeserializeObjectRef(const FHttpServerRequest& InRequest, FRCObjectReferenc
 
 	if (!ErrorText.IsEmpty())
 	{
-		UE_LOG(LogRemoteControl, Error, TEXT("Web Remote Object Access error: %s"), *ErrorText);
+		const FString FormattedMsg = FString::Printf(TEXT("Web Remote Object Access error: %s"), *ErrorText);
+		UE_LOG(LogRemoteControl, Error, TEXT("%s"), *FormattedMsg);
+		IRemoteControlModule::BroadcastError(FormattedMsg);
+
 		TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(ErrorText, Response->Body);
 		InCompleteCallback(MoveTemp(Response));
@@ -301,7 +307,10 @@ bool WebRemoteControlInternalUtils::GetStructParametersDelimiters(TConstArrayVie
 
 	if (!ErrorText.IsEmpty())
 	{
-		UE_LOG(LogRemoteControl, Error, TEXT("Web Remote Control deserialization error: %s"), *ErrorText);
+		const FString FormattedMsg = FString::Printf(TEXT("Web Remote Control deserialization error: %s"), *ErrorText);
+		UE_LOG(LogRemoteControl, Error, TEXT("%s"), *FormattedMsg);
+		IRemoteControlModule::BroadcastError(FormattedMsg);
+
 		if (OutErrorText)
 		{
 			*OutErrorText = MoveTemp(ErrorText);
@@ -370,7 +379,10 @@ bool WebRemoteControlInternalUtils::GetBatchRequestStructDelimiters(TConstArrayV
 
 	if (!ErrorText.IsEmpty())
 	{
-		UE_LOG(LogRemoteControl, Error, TEXT("Web Remote Control deserialization error: %s"), *ErrorText);
+		const FString FormattedMsg = FString::Printf(TEXT("Web Remote Control deserialization error: %s"), *ErrorText);
+		UE_LOG(LogRemoteControl, Error, TEXT("%s"), *FormattedMsg);
+		IRemoteControlModule::BroadcastError(FormattedMsg);
+
 		if (OutErrorText)
 		{
 			*OutErrorText = MoveTemp(ErrorText);
@@ -450,7 +462,10 @@ bool WebRemoteControlInternalUtils::GetBatchWebSocketRequestStructDelimiters(TCo
 
 	if (!ErrorText.IsEmpty())
 	{
-		UE_LOG(LogRemoteControl, Error, TEXT("Web Remote Control deserialization error: %s"), *ErrorText);
+		const FString FormattedMsg = FString::Printf(TEXT("Web Remote Control deserialization error: %s"), *ErrorText);
+		UE_LOG(LogRemoteControl, Error, TEXT("%s"), *FormattedMsg);
+		IRemoteControlModule::BroadcastError(FormattedMsg);
+		
 		if (OutErrorText)
 		{
 			*OutErrorText = MoveTemp(ErrorText);
@@ -508,9 +523,13 @@ bool WebRemoteControlInternalUtils::IsRequestContentType(const FHttpServerReques
 		}
 	}
 
+	const FString ErrorText = FString::Printf(TEXT("Request content type must be %s"), *InContentType);
+	IRemoteControlModule::Get().BroadcastError(ErrorText);
+
 	if (OutErrorText)
 	{
-		*OutErrorText = FString::Printf(TEXT("Request content type must be %s"), *InContentType);
+		*OutErrorText = ErrorText;
 	}
+	
 	return false;
 }

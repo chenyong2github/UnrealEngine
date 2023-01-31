@@ -15,12 +15,12 @@
 #include "IStructSerializerBackend.h"
 #include "Misc/ScopeExit.h"
 #include "RCPropertyUtilities.h"
-#include "RCVirtualPropertyContainer.h"
 #include "RCVirtualProperty.h"
+#include "RCVirtualPropertyContainer.h"
 #include "RemoteControlFieldPath.h"
+#include "RemoteControlInstanceMaterial.h"
 #include "RemoteControlInterceptionHelpers.h"
 #include "RemoteControlInterceptionProcessor.h"
-#include "RemoteControlInstanceMaterial.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlSettings.h"
 #include "SceneInterface.h"
@@ -65,6 +65,7 @@ namespace RemoteControlUtil
 	const FName NAME_BlueprintGetter(TEXT("BlueprintGetter"));
 	const FName NAME_BlueprintSetter(TEXT("BlueprintSetter"));
 	const FName NAME_AllowPrivateAccess(TEXT("AllowPrivateAccess"));
+	const FName NAME_RelativeLocation(TEXT("RelativeLocation"));
 
 	bool CompareFunctionName(const FString& FunctionName, const FString& ScriptName)
 	{
@@ -644,6 +645,11 @@ IRemoteControlModule::FOnPresetUnregistered& FRemoteControlModule::OnPresetUnreg
 	return OnPresetUnregisteredDelegate;
 }
 
+IRemoteControlModule::FOnError& FRemoteControlModule::OnError()
+{
+	return OnErrorDelegate;
+}
+
 /** Register the preset with the module, enabling using the preset remotely using its name. */
 bool FRemoteControlModule::RegisterPreset(FName Name, URemoteControlPreset* Preset)
 {
@@ -840,10 +846,16 @@ bool FRemoteControlModule::ResolveCall(const FString& ObjectPath, const FString&
 		bSuccess = false;
 	}
 
+	if (!bSuccess && !ErrorText.IsEmpty())
+	{
+		IRemoteControlModule::BroadcastError(ErrorText);
+	}
+
 	if (OutErrorText && !ErrorText.IsEmpty())
 	{
 		*OutErrorText = MoveTemp(ErrorText);
 	}
+	
 	return bSuccess;
 }
 
@@ -977,6 +989,11 @@ bool FRemoteControlModule::ResolveObject(ERCAccess AccessType, const FString& Ob
 		bSuccess = false;
 	}
 
+	if (!bSuccess && !ErrorText.IsEmpty())
+	{
+		IRemoteControlModule::BroadcastError(ErrorText);
+	}
+
 	if (OutErrorText && !ErrorText.IsEmpty())
 	{
 		*OutErrorText = MoveTemp(ErrorText);
@@ -1036,6 +1053,11 @@ bool FRemoteControlModule::ResolveObjectProperty(ERCAccess AccessType, UObject* 
 	{
 		ErrorText = FString::Printf(TEXT("Can't resolve object '%s' properties '%s' : %s while saving or garbage collecting."), *Object->GetPathName(), *PropertyPath.GetFieldName().ToString());
 		bSuccess = false;
+	}
+
+	if (!bSuccess && !ErrorText.IsEmpty())
+	{
+		IRemoteControlModule::BroadcastError(ErrorText);
 	}
 
 	if (OutErrorText && !ErrorText.IsEmpty())
@@ -1393,7 +1415,7 @@ void FRemoteControlModule::RefreshEditorPostSetObjectProperties(const FRCObjectR
 	{
 		if (FProperty* Property = ObjectAccess.Property.Get())
 		{
-			if(Property->GetName() == "RelativeLocation")
+			if(Property->GetFName() == RemoteControlUtil::NAME_RelativeLocation)
 			{
 				if (AActor* Actor = SceneComponent->GetOwner())
 				{
