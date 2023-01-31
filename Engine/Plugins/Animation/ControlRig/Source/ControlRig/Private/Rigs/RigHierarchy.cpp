@@ -2454,6 +2454,10 @@ void URigHierarchy::Notify(ERigHierarchyNotification InNotifType, const FRigBase
 	if(QueuedNotifications.IsEmpty())
 	{
 		ModifiedEvent.Broadcast(InNotifType, this, InElement);
+		if(ModifiedEventDynamic.IsBound())
+		{
+			ModifiedEventDynamic.Broadcast(InNotifType, this, InElement->GetKey());
+		}
 	}
 	else
 	{
@@ -2626,6 +2630,10 @@ void URigHierarchy::SendQueuedNotifications()
 	}
 
 	ModifiedEvent.Broadcast(ERigHierarchyNotification::InteractionBracketOpened, this, nullptr);
+	if(ModifiedEventDynamic.IsBound())
+	{
+		ModifiedEventDynamic.Broadcast(ERigHierarchyNotification::InteractionBracketOpened, this, FRigElementKey());
+	}
 
 	// finally send all of the notifications
 	// (they have been added in the reverse order to the array)
@@ -2636,10 +2644,18 @@ void URigHierarchy::SendQueuedNotifications()
 		if(Element)
 		{
 			ModifiedEvent.Broadcast(Entry.Type, this, Element);
+			if(ModifiedEventDynamic.IsBound())
+			{
+				ModifiedEventDynamic.Broadcast(Entry.Type, this, Element->GetKey());
+			}
 		}
 	}
 
 	ModifiedEvent.Broadcast(ERigHierarchyNotification::InteractionBracketClosed, this, nullptr);
+	if(ModifiedEventDynamic.IsBound())
+	{
+		ModifiedEventDynamic.Broadcast(ERigHierarchyNotification::InteractionBracketClosed, this, FRigElementKey());
+	}
 }
 
 FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,
