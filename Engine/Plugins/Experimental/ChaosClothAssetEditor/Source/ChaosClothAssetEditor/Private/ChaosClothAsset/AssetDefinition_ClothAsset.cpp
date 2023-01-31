@@ -28,6 +28,8 @@ namespace ClothAssetDefinitionHelpers
 			{
 				const FString PackageName = ClothAsset->GetOutermost()->GetName();
 				NewDataflowAssetDialogConfig.DefaultPath = FPackageName::GetLongPackagePath(PackageName);
+				const FString ClothName = ClothAsset->GetName();
+				NewDataflowAssetDialogConfig.DefaultAssetName = ClothName + "_Dataflow";
 				NewDataflowAssetDialogConfig.AssetClassNames.Add(DataflowClass->GetClassPathName());
 				NewDataflowAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
 				NewDataflowAssetDialogConfig.DialogTitleOverride = LOCTEXT("NewDataflowAssetDialogTitle", "Save Dataflow Asset As");
