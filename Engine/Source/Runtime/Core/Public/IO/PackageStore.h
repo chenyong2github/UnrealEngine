@@ -224,7 +224,7 @@ public:
 	CORE_API static FPackageStore& Get();
 
 	/* Mount a package store backend. */
-	CORE_API void Mount(TSharedRef<IPackageStoreBackend> Backend);
+	CORE_API void Mount(TSharedRef<IPackageStoreBackend> Backend, int32 Priority = 0);
 
 	/* Returns the package store entry data with export info and imported packages for the specified package ID. */
 	CORE_API EPackageStoreEntryStatus GetPackageStoreEntry(FPackageId PackageId, FPackageStoreEntry& OutPackageStoreEntry);
@@ -240,7 +240,9 @@ private:
 	friend class FPackageStoreReadScope;
 
 	TSharedRef<FPackageStoreBackendContext> BackendContext;
-	TArray<TSharedRef<IPackageStoreBackend>> Backends;
+	
+	using FBackendAndPriority = TTuple<int32, TSharedRef<IPackageStoreBackend>>;
+	TArray<FBackendAndPriority> Backends;
 
 	static thread_local int32 ThreadReadCount;
 };

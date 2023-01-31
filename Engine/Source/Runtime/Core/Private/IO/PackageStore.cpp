@@ -12,6 +12,7 @@
 #include "Serialization/Archive.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
+#include "Templates/Greater.h"
 
 FArchive& operator<<(FArchive& Ar, FPackageStoreExportInfo& ExportInfo)
 {
@@ -132,9 +133,9 @@ FPackageStoreReadScope::FPackageStoreReadScope(FPackageStore& InPackageStore)
 {
 	if (!PackageStore.ThreadReadCount)
 	{
-		for (const TSharedRef<IPackageStoreBackend>& Backend : PackageStore.Backends)
+		for (const FPackageStore::FBackendAndPriority& Backend : PackageStore.Backends)
 		{
-			Backend->BeginRead();
+			Backend.Value->BeginRead();
 		}
 	}
 	++PackageStore.ThreadReadCount;
@@ -145,9 +146,9 @@ FPackageStoreReadScope::~FPackageStoreReadScope()
 	check(PackageStore.ThreadReadCount > 0);
 	if (--PackageStore.ThreadReadCount == 0)
 	{
-		for (const TSharedRef<IPackageStoreBackend>& Backend : PackageStore.Backends)
+		for (const FPackageStore::FBackendAndPriority& Backend : PackageStore.Backends)
 		{
-			Backend->EndRead();
+			Backend.Value->EndRead();
 		}
 	}
 }
@@ -165,19 +166,20 @@ FPackageStore& FPackageStore::Get()
 }
 
 
-void FPackageStore::Mount(TSharedRef<IPackageStoreBackend> Backend)
+void FPackageStore::Mount(TSharedRef<IPackageStoreBackend> Backend, int32 Priority)
 {
 	check(IsInGameThread());
-	Backends.Add(Backend);
+	int32 Index = Algo::LowerBoundBy(Backends, Priority, &FBackendAndPriority::Key, TGreater<>());
+	Backends.Insert(MakeTuple(Priority, Backend), Index);
 	Backend->OnMounted(BackendContext);
 }
 
 EPackageStoreEntryStatus FPackageStore::GetPackageStoreEntry(FPackageId PackageId, FPackageStoreEntry& OutPackageStoreEntry)
 {
 	check(ThreadReadCount);
-	for (const TSharedRef<IPackageStoreBackend>& Backend : Backends)
+	for (const FBackendAndPriority& Backend : Backends)
 	{
-		EPackageStoreEntryStatus Status = Backend->GetPackageStoreEntry(PackageId, OutPackageStoreEntry);
+		EPackageStoreEntryStatus Status = Backend.Value->GetPackageStoreEntry(PackageId, OutPackageStoreEntry);
 		if (Status >= EPackageStoreEntryStatus::Pending)
 		{
 			return Status;
@@ -189,9 +191,9 @@ EPackageStoreEntryStatus FPackageStore::GetPackageStoreEntry(FPackageId PackageI
 bool FPackageStore::GetPackageRedirectInfo(FPackageId PackageId, FName& OutSourcePackageName, FPackageId& OutRedirectedToPackageId)
 {
 	check(ThreadReadCount);
-	for (const TSharedRef<IPackageStoreBackend>& Backend : Backends)
+	for (const FBackendAndPriority& Backend : Backends)
 	{
-		if (Backend->GetPackageRedirectInfo(PackageId, OutSourcePackageName, OutRedirectedToPackageId))
+		if (Backend.Value->GetPackageRedirectInfo(PackageId, OutSourcePackageName, OutRedirectedToPackageId))
 		{
 			return true;
 		}

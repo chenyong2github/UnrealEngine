@@ -840,7 +840,7 @@ public:
 	CORE_API						FIoDispatcher();
 	CORE_API						~FIoDispatcher();
 
-	CORE_API void					Mount(TSharedRef<IIoDispatcherBackend> Backend);
+	CORE_API void					Mount(TSharedRef<IIoDispatcherBackend> Backend, int32 Priority = 0);
 
 	CORE_API FIoBatch				NewBatch();
 
