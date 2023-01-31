@@ -323,6 +323,33 @@ TArray<FString> ParseEntries(const FString& Data)
 }
 
 /** 
+ * FPackagePath has strict requirements on how file paths are formated in order for it to be
+ * able to accept them. In theory the paths that the virtualization system are given are
+ * already in a good shape but as we do not know where they come from we cannot trust them.
+ * This utility will iterate over a list of untrusted filepaths and call various FPaths methods
+ * on them to make sure that they are all correct.
+ */
+TArray<FString> SanitizeFilePaths(TConstArrayView<FString> FilePaths)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(SanitizeFilePaths);
+
+	TArray<FString> SanitizedPaths;
+	SanitizedPaths.Reserve(FilePaths.Num());
+
+	for (const FString& Path : FilePaths)
+	{
+		FString SanitizedPath = Path;
+
+		FPaths::NormalizeFilename(SanitizedPath);
+		FPaths::RemoveDuplicateSlashes(SanitizedPath);
+
+		SanitizedPaths.Emplace(MoveTemp(SanitizedPath));
+	}
+
+	return SanitizedPaths;
+}
+
+/** 
  * Utility to make 'StorageType ==  EStorageType::Cache' checks easier while EStorageType::Local continues to exist.
  * When the deprecated value is removed this can also be removed and code calling it can just check for EStorageType::Cache */
 bool IsCacheType(EStorageType StorageType)
@@ -846,7 +873,8 @@ FVirtualizationResult FVirtualizationManager::TryVirtualizePackages(TConstArrayV
 
 	if (IsEnabled() && IsPushingEnabled(EStorageType::Persistent))
 	{
-		UE::Virtualization::VirtualizePackages(PackagePaths, Options, Result);
+		const TArray<FString> SanitizedPaths = SanitizeFilePaths(PackagePaths);
+		UE::Virtualization::VirtualizePackages(SanitizedPaths, Options, Result);
 
 		if (Result.WasSuccessful() && !VirtualizationProcessTag.IsEmpty())
 		{
@@ -861,7 +889,8 @@ FRehydrationResult FVirtualizationManager::TryRehydratePackages(TConstArrayView<
 {
 	FRehydrationResult Result;
 
-	UE::Virtualization::RehydratePackages(PackagePaths, Options, Result);
+	const TArray<FString> SanitizedPaths = SanitizeFilePaths(PackagePaths);
+	UE::Virtualization::RehydratePackages(SanitizedPaths, Options, Result);
 
 	return Result;
 }
