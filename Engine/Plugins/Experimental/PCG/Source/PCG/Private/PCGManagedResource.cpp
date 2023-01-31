@@ -130,6 +130,7 @@ void UPCGManagedComponent::PostEditImport()
 			{
 				GeneratedComponent = Component;
 				bFoundMatch = true;
+				break;
 			}
 		}
 
