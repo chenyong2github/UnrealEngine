@@ -119,6 +119,13 @@ public:
 	}
 	// END EPIC MOD
 
+	// BEGIN EPIC MOD
+	void AddPage(void *page)
+	{
+		m_virtualMemoryRange.AddPage(page);
+	}
+	// END EPIC MOD
+
 private:
 	Process::Handle m_processHandle;
 	Process::Id m_processId;

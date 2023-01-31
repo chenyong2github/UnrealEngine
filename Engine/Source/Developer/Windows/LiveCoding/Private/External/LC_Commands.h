@@ -353,6 +353,20 @@ namespace commands
 		Process::Id processId;
 	};
 
-	static const uint32_t COUNT = DisableCompileFinishNotification::ID + 1u;
+	// This is a version of EnableModules that includes support for lazy modules and pre-reserved page addresses.
+	struct EnableModulesEx
+	{
+		static const uint32_t ID = DisableCompileFinishNotification::ID + 1u;
+
+		Process::Id processId;
+		unsigned int moduleCount;
+		unsigned int lazyLoadModuleCount;
+		unsigned int reservedPagesCount;
+		void* token;
+
+		// this command always contains an array of 'ModuleData x moduleCount + ModuleData x lazyLoadModuleCount + sizeof(uintptr_t) * reservedPagesCount' as payload
+	};
+
+	static const uint32_t COUNT = EnableModulesEx::ID + 1u;
 	// END EPIC MOD
 }

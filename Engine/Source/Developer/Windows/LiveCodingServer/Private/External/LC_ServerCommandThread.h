@@ -134,6 +134,10 @@ private:
 		DECLARE_ACTION(DisableCompileFinishNotification);
 		// END EPIC MOD
 
+		// BEGIN EPIC MOD
+		DECLARE_ACTION(EnableModulesEx);
+		// END EPIC MOD
+
 		#undef DECLARE_ACTION
 	};
 

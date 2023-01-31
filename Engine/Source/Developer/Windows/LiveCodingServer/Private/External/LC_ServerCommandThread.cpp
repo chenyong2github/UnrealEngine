@@ -1460,6 +1460,9 @@ Thread::ReturnValue ServerCommandThread::CommandThread(DuplexPipeServer* pipe, E
 	commandMap.RegisterAction<actions::SetReinstancingFlow>();
 	commandMap.RegisterAction<actions::DisableCompileFinishNotification>();
 	// END EPIC MOD
+	// BEGIN EPIC MOD
+	commandMap.RegisterAction<actions::EnableModulesEx>();
+	// END EPIC MOD
 
 	for (;;)
 	{
@@ -2106,6 +2109,160 @@ bool ServerCommandThread::actions::EnableModules::Execute(const CommandType* com
 	return true;
 }
 
+// BEGIN EPIC MOD
+bool ServerCommandThread::actions::EnableModulesEx::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void* payload, size_t payloadSize)
+{
+	pipe->SendAck();
+
+	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
+
+	// protect against several client DLLs calling into this action at the same time.
+	// this ensures that all modules are loaded serialized per process.
+	CriticalSection::ScopedLock lock(&commandThread->m_actionCS);
+
+	telemetry::Scope moduleLoadingScope("Module loading ex");
+
+	// Locate the process
+	LiveProcess* liveProcess = nullptr;
+	for (LiveProcess* process : commandThread->m_liveProcesses)
+	{
+		if (process->GetProcessId() == command->processId)
+		{
+			liveProcess = process;
+			break;
+		}
+	}
+
+	// set up virtual drives before loading anything, otherwise files won't be detected and therefore discarded
+	AddVirtualDrive();
+
+	scheduler::TaskBase* rootTask = scheduler::CreateEmptyTask();
+	types::vector<scheduler::Task<LiveModule*>*> loadModuleTasks;
+
+	const unsigned int moduleCount = command->moduleCount;
+	loadModuleTasks.reserve(moduleCount);
+
+	memoryStream::Reader payloadStream(payload, payloadSize);
+	for (unsigned int i = 0u; i < moduleCount; ++i)
+	{
+		const commands::ModuleData moduleData = payloadStream.Read<commands::ModuleData>();
+		scheduler::Task<LiveModule*>* task = commandThread->LoadModule(command->processId, moduleData.base, moduleData.path, rootTask);
+
+		// the module could have failed to load
+		if (task)
+		{
+			loadModuleTasks.push_back(task);
+		}
+	}
+
+	const unsigned int lazyModuleCount = command->lazyLoadModuleCount;
+	unsigned int loadedLazyModules = 0;
+	for (unsigned int i = 0u; i < lazyModuleCount; ++i)
+	{
+		const commands::ModuleData moduleData = payloadStream.Read<commands::ModuleData>();
+
+		// Check if this module is already enabled - it may have been lazy-loaded, then fully loaded, by a restarted process. If so, translate this into a call to EnableModules.
+		bool isEnabled = false;
+		const std::wstring modulePath = Filesystem::NormalizePath(moduleData.path).GetString();
+		for (LiveModule* module : commandThread->m_liveModules)
+		{
+			if (module->GetModuleName() == modulePath)
+			{
+				scheduler::Task<LiveModule*>* task = commandThread->LoadModule(command->processId, moduleData.base, moduleData.path, rootTask);
+				if (task)
+				{
+					loadModuleTasks.push_back(task);
+				}
+				isEnabled = true;
+				break;
+			}
+		}
+		
+		if (!isEnabled && liveProcess != nullptr)
+		{
+			liveProcess->AddLazyLoadedModule(modulePath, static_cast<Windows::HMODULE>(moduleData.base));
+			LC_LOG_DEV("Registered module %S for lazy-loading", modulePath.c_str());
+			++loadedLazyModules;
+		}
+	}
+
+	const unsigned int reservedPagesCount = command->reservedPagesCount;
+	for (unsigned int i = 0u; i < reservedPagesCount; ++i)
+	{
+		const uintptr_t page = payloadStream.Read<uintptr_t>();
+		if (liveProcess != nullptr)
+		{
+			liveProcess->AddPage(reinterpret_cast<void*>(page));
+		}
+	}
+
+	// wait for all tasks to finish
+	scheduler::RunTask(rootTask);
+	scheduler::WaitForTask(rootTask);
+
+	const size_t loadModuleTaskCount = loadModuleTasks.size();
+	commandThread->m_liveModules.reserve(loadModuleTaskCount);
+
+	size_t loadedTranslationUnits = 0u;
+
+	// update all live modules loaded by the tasks
+	for (size_t i = 0u; i < loadModuleTaskCount; ++i)
+	{
+		scheduler::Task<LiveModule*>* task = loadModuleTasks[i];
+		LiveModule* liveModule = task->GetResult();
+
+		commandThread->m_liveModules.push_back(liveModule);
+
+		// update directory cache for this live module
+		liveModule->UpdateDirectoryCache(commandThread->m_directoryCache);
+
+		// update the number of loaded translation units
+		loadedTranslationUnits += liveModule->GetCompilandDatabase()->compilands.size();
+	}
+
+	scheduler::DestroyTasks(loadModuleTasks);
+	scheduler::DestroyTask(rootTask);
+
+	// dump memory statistics
+	{
+		LC_LOG_INDENT_TELEMETRY;
+		g_symbolAllocator.PrintStats();
+		g_immutableStringAllocator.PrintStats();
+		g_contributionAllocator.PrintStats();
+		g_compilandAllocator.PrintStats();
+		g_dependencyAllocator.PrintStats();
+	}
+
+	if (+commandThread->m_compileThread == nullptr || Thread::Current::GetId() != Thread::GetId(commandThread->m_compileThread))
+	{
+		if (loadModuleTaskCount > 0u)
+		{
+			LC_SUCCESS_USER("Loaded %zu module(s), %zu lazy load module(s), and %zu reserved page ranges (%.3fs, %zu translation units)", 
+				loadModuleTaskCount, loadedLazyModules, reservedPagesCount, moduleLoadingScope.ReadSeconds(), loadedTranslationUnits);
+		}
+
+		// tell user we are ready, but only once to not clutter the log
+		{
+			static bool showedOnce = false;
+			if (!showedOnce)
+			{
+				showedOnce = true;
+				const int shortcut = appSettings::g_compileShortcut->GetValue();
+				const std::wstring& shortcutText = shortcut::ConvertShortcutToText(shortcut);
+				LC_SUCCESS_USER("Live coding ready - Save changes and press %S to re-compile code", shortcutText.c_str());
+			}
+		}
+	}
+
+	// remove virtual drives once we're finished
+	RemoveVirtualDrive();
+
+	// tell server we are finished
+	pipe->SendCommandAndWaitForAck(commands::EnableModulesFinished{ command->token }, nullptr, 0u);
+
+	return true;
+}
+// END EPIC MOD
 
 bool ServerCommandThread::actions::DisableModules::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void* payload, size_t payloadSize)
 {

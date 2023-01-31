@@ -359,6 +359,19 @@ LPP_DLL_API(void) LppDisableCompileFinishNotification()
 }
 // END EPIC MOD
 
+// BEGIN EPIC MOD
+LPP_DLL_API(void*) LppEnableModulesEx(const wchar_t* moduleNames[], unsigned int moduleCount, const wchar_t* lazyLoadModuleNames[], unsigned int lazyLoadModuleCount, const uintptr_t* reservedPages, unsigned int reservedPagesCount)
+{
+	if (!CheckForStartup())
+	{
+		return nullptr;
+	}
+
+	return g_startupThread->EnableModulesEx(moduleNames, moduleCount, lazyLoadModuleNames, lazyLoadModuleCount, reservedPages, reservedPagesCount);
+}
+// END EPIC MOD
+
+
 LPP_DLL_API(void) LppApplySettingBool(const char* settingName, int value)
 {
 	if (!CheckForStartup())

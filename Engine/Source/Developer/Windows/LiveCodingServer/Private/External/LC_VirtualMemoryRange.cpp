@@ -115,3 +115,12 @@ void VirtualMemoryRange::FreePages(const void* addressStart, const void* address
 		}
 	}
 }
+
+
+// BEGIN EPIC MOD
+void VirtualMemoryRange::AddPage(void* page)
+{
+	m_pageData.emplace_back(PageData{ page });
+}
+// END EPIC MOD
+

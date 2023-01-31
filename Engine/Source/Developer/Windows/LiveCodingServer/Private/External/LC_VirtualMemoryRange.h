@@ -21,6 +21,10 @@ public:
 	void ReservePages(const void* addressStart, const void* addressEnd, size_t alignment);
 	void FreePages(const void* addressStart, const void* addressEnd);
 
+	// BEGIN EPIC MOD
+	void AddPage(void* page);
+	// END EPIC MOD
+
 private:
 	struct PageData
 	{

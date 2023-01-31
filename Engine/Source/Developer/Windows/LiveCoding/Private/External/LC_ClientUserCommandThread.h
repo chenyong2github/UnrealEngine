@@ -100,6 +100,10 @@ public:
 	void DisableCompileFinishNotification();
 	// END EPIC MOD
 
+	// BEGIN EPIC MOD
+	void* EnableModulesEx(const wchar_t* moduleNames[], unsigned int moduleCount, const wchar_t* lazyLoadModuleNames[], unsigned int lazyLoadModuleCount, const uintptr_t* reservedPages, unsigned int reservedPagesCount);
+	// END EPIC MOD
+
 	void ApplySettingBool(const char* settingName, int value);
 	void ApplySettingInt(const char* settingName, int value);
 	void ApplySettingString(const char* settingName, const wchar_t* value);

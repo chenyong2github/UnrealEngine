@@ -410,6 +410,22 @@ void ClientStartupThread::DisableCompileFinishNotification()
 }
 // END EPIC MOD
 
+// BEGIN EPIC MOD
+void* ClientStartupThread::EnableModulesEx(const wchar_t* moduleNames[], unsigned int moduleCount, const wchar_t* lazyLoadModuleNames[], unsigned int lazyLoadModuleCount, const uintptr_t* reservedPages, unsigned int reservedPagesCount)
+{
+	// we cannot wait for commands in the user command thread as long as startup hasn't finished
+	Join();
+
+	if (m_userCommandThread)
+	{
+		return m_userCommandThread->EnableModulesEx(moduleNames, moduleCount, lazyLoadModuleNames, lazyLoadModuleCount, reservedPages, reservedPagesCount);
+	}
+
+	return nullptr;
+}
+// END EPIC MOD
+
+
 void ClientStartupThread::ApplySettingBool(const char* settingName, int value)
 {
 	// wait for the startup thread to finish initialization

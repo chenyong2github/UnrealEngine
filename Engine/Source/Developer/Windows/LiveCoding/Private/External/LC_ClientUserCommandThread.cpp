@@ -575,6 +575,74 @@ void ClientUserCommandThread::DisableCompileFinishNotification()
 }
 // END EPIC MOD
 
+// BEGIN EPIC MOD
+namespace
+{
+	std::vector<Windows::HMODULE> GatherModuleHandles(const wchar_t* moduleNames[], unsigned int moduleCount)
+	{
+		std::vector<Windows::HMODULE> moduleHandles;
+		moduleHandles.reserve(moduleCount);
+
+		for (unsigned int i = 0u; i < moduleCount; ++i)
+		{
+			Windows::HMODULE module = ::GetModuleHandleW(moduleNames[i]);
+			if (module)
+			{
+				moduleHandles.push_back(module);
+			}
+			else
+			{
+				LC_ERROR_USER("Cannot enable module %S because it is not loaded by this process.", moduleNames[i]);
+			}
+		}
+		return moduleHandles;
+	}
+
+	void AppendModuleHandles(ProxyCommand<commands::EnableModulesEx>* proxy, const std::vector<Windows::HMODULE>& moduleHandles)
+	{
+		for (Windows::HMODULE moduleHandle : moduleHandles)
+		{
+			commands::ModuleData moduleData = {};
+			moduleData.base = moduleHandle;
+			::GetModuleFileNameW(moduleHandle, moduleData.path, MAX_PATH);
+			proxy->m_payload.Write(moduleData);
+		}
+	}
+}
+
+void* ClientUserCommandThread::EnableModulesEx(const wchar_t* moduleNames[], unsigned int moduleCount, const wchar_t* lazyLoadModuleNames[], unsigned int lazyLoadModuleCount, const uintptr_t* reservedPages, unsigned int reservedPagesCount)
+{
+	std::vector<Windows::HMODULE> moduleHandles = GatherModuleHandles(moduleNames, moduleCount);
+	std::vector<Windows::HMODULE> lazyLoadModuleHandles = GatherModuleHandles(lazyLoadModuleNames, lazyLoadModuleCount);
+	if (moduleHandles.size() == 0 && lazyLoadModuleHandles.size() == 0)
+	{
+		return nullptr;
+	}
+
+	ProxyCommand<commands::EnableModulesEx>* proxy = new ProxyCommand<commands::EnableModulesEx>(true,
+		sizeof(commands::ModuleData) * moduleHandles.size() +
+		sizeof(commands::ModuleData) * lazyLoadModuleHandles.size() +
+		sizeof(uintptr_t) * reservedPagesCount);
+
+	proxy->m_command.processId = Process::Current::GetId();
+	proxy->m_command.moduleCount = static_cast<unsigned int>(moduleHandles.size());
+	proxy->m_command.lazyLoadModuleCount = static_cast<unsigned int>(lazyLoadModuleHandles.size());
+	proxy->m_command.reservedPagesCount = reservedPagesCount;
+	proxy->m_command.token = new Event(nullptr, Event::Type::AUTO_RESET);
+	AppendModuleHandles(proxy, moduleHandles);
+	AppendModuleHandles(proxy, lazyLoadModuleHandles);
+	for (unsigned int i = 0; i < reservedPagesCount; ++i)
+	{
+		proxy->m_payload.Write(reservedPages[i]);
+	}
+
+	PushUserCommand(proxy);
+
+	return proxy->m_command.token;
+
+}
+// END EPIC MOD
+
 void ClientUserCommandThread::InstallExceptionHandler(void)
 {
 	// BEGIN EPIC MOD - Using internal CrashReporter

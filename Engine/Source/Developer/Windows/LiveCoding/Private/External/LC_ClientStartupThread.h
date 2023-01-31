@@ -85,6 +85,10 @@ public:
 	void DisableCompileFinishNotification();
 	// END EPIC MOD
 
+	// BEGIN EPIC MOD
+	void* EnableModulesEx(const wchar_t* moduleNames[], unsigned int moduleCount, const wchar_t* lazyLoadModuleNames[], unsigned int lazyLoadModuleCount, const uintptr_t* reservedPages, unsigned int reservedPagesCount);
+	// END EPIC MOD
+
 private:
 	Thread::ReturnValue ThreadFunction(const std::wstring& groupName, RunMode::Enum runMode);
 
