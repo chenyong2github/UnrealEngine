@@ -131,7 +131,7 @@ public:
 	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (NoResetToDefault))
 	bool bEmissiveMap = false;
 
-	// Whether to generate a texture for the Emissive property
+	// Whether to generate a texture for the Opacity property
 	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (NoResetToDefault))
 	bool bOpacityMap = false;
 
