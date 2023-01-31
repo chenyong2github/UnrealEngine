@@ -65,9 +65,9 @@ struct CORE_API FNetworkVersion
 	static uint32 GetNetworkCompatibleChangelist();
 	static uint32 GetReplayCompatibleChangelist();
 
-	UE_DEPRECATED(5.2, "Please use GetCompatibleNetworkProtocolVersion instead.")
+	UE_DEPRECATED(5.2, "Please use GetNetworkProtocolVersion instead.")
 	static uint32 GetEngineNetworkProtocolVersion();
-	UE_DEPRECATED(5.2, "Please use GetCompatibleNetworkProtocolVersion instead.")
+	UE_DEPRECATED(5.2, "Please use GetNetworkProtocolVersion instead.")
 	static uint32 GetGameNetworkProtocolVersion();
 
 	UE_DEPRECATED(5.2, "Please use GetCompatibleNetworkProtocolVersion instead.")
@@ -168,11 +168,4 @@ protected:
 	static uint32	EngineCompatibleNetworkProtocolVersion;
 	UE_DEPRECATED(5.2, "Now storing this value in CompatibleNetworkCustomVersions, do not use directly.")
 	static uint32	GameCompatibleNetworkProtocolVersion;
-
-private:
-	static FCustomVersionContainer NetworkCustomVersions;
-	static FCustomVersionContainer CompatibleNetworkCustomVersions;
-
-	static bool bInitializedCustomVersions;
-	static void InitCustomVersions();
 };
