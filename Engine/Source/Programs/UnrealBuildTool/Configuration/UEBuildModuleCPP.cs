@@ -745,8 +745,8 @@ namespace UnrealBuildTool
 			// Write a mapping of unity object file to standalone object file for live coding
 			if(Rules.Target.bWithLiveCoding)
 			{
-				FileReference UnityManifestFile = FileReference.Combine(IntermediateDirectory, "LiveCodingInfo.json");
-				using (JsonWriter Writer = new JsonWriter(UnityManifestFile))
+				StringWriter StringWriter = new();
+				using (JsonWriter Writer = new JsonWriter(StringWriter))
 				{
 					Writer.WriteObjectStart();
 					Writer.WriteObjectStart("RemapUnityFiles");
@@ -762,6 +762,9 @@ namespace UnrealBuildTool
 					Writer.WriteObjectEnd();
 					Writer.WriteObjectEnd();
 				}
+
+				FileReference UnityManifestFile = FileReference.Combine(IntermediateDirectory, "LiveCodingInfo.json");
+				Graph.CreateIntermediateTextFile(UnityManifestFile, StringWriter.ToString());
 			}
 
 			// IWYU needs to build all headers separate from cpp files to produce proper recommendations for includes
@@ -1433,7 +1436,7 @@ namespace UnrealBuildTool
 			}
 
 			// Create the item
-			FileItem WrapperFile = Graph.CreateIntermediateTextFile(OutputFile, WrapperContents.ToString());
+			FileItem WrapperFile = Graph.CreateIntermediateTextFile(OutputFile, WrapperContents.ToString(), AllowAsync: false);
 
 			// Touch it if the included file is newer, to make sure our timestamp dependency checking is accurate.
 			if (IncludedFile.LastWriteTimeUtc > WrapperFile.LastWriteTimeUtc)

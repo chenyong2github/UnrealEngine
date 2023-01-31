@@ -56,13 +56,13 @@ namespace UnrealBuildTool
 			}
 
 			/// <inheritdoc/>
-			public void CreateIntermediateTextFile(FileItem FileItem, string Contents)
+			public void CreateIntermediateTextFile(FileItem FileItem, string Contents, bool AllowAsync)
 			{
 				Utils.WriteFileIfChanged(FileItem, Contents, Logger);
 			}
 
 			/// <inheritdoc/>
-			public void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines)
+			public void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines, bool AllowAsync = true)
 			{
 				Utils.WriteFileIfChanged(FileItem, ContentLines, Logger);
 				CapturedTextFiles.Add(new Tuple<FileItem, IEnumerable<string>>(FileItem, ContentLines));

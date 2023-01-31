@@ -2734,6 +2734,9 @@ namespace UnrealBuildTool
 				WritePublicHeader(Binary, Header, GlobalCompileEnvironment, Logger);
 			}
 
+			// Wait for makefile tasks to finish (tasks writing files to disk etc)
+			MakefileBuilder.WaitOnWriteTasks();
+
 			// Clean any stale modules which exist in multiple output directories. This can lead to the wrong DLL being loaded on Windows.
 			CleanStaleModules(Logger);
 

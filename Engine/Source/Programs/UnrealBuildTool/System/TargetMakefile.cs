@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.UHT.Utils;
 using Microsoft.Extensions.Logging;
@@ -68,12 +69,13 @@ namespace UnrealBuildTool
 		private readonly ILogger Logger;
 		public TargetMakefile Makefile { get; }
 
+		private List<Task> WriteTasks = new();
+
 		public TargetMakefileBuilder(TargetMakefile InMakefile, ILogger InLogger)
 		{
 			Logger = InLogger;
 			Makefile = InMakefile;
 		}
-
 
 		/// <inheritdoc/>
 		public void AddAction(IExternalAction Action)
@@ -82,25 +84,39 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		public void CreateIntermediateTextFile(FileItem FileItem, string Contents)
+		public void CreateIntermediateTextFile(FileItem FileItem, string Contents, bool AllowAsync = true)
 		{
-			// Write the file
-			Utils.WriteFileIfChanged(FileItem.Location, Contents, Logger);
+			if (AllowAsync)
+			{
+				WriteTasks.Add(Task.Run(() =>
+				{
+					Utils.WriteFileIfChanged(FileItem.Location, Contents, Logger);
+				}));
+			}
+			else
+			{
+				Utils.WriteFileIfChanged(FileItem.Location, Contents, Logger);
+			}
 
-			// Reset the file info, in case it already knows about the old file
 			Makefile.InternalDependencies.Add(FileItem);
-			FileItem.ResetCachedInfo();
 		}
 
 		/// <inheritdoc/>
-		public void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines)
+		public void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines, bool AllowAsync = true)
 		{
-			// Write the file
-			Utils.WriteFileIfChanged(FileItem, ContentLines, Logger);
-
+			if (AllowAsync)
+			{
+				WriteTasks.Add(Task.Run(() =>
+				{
+					Utils.WriteFileIfChanged(FileItem, ContentLines, Logger);
+				}));
+			}
+			else
+			{
+				Utils.WriteFileIfChanged(FileItem.Location, ContentLines, Logger);
+			}
 			// Reset the file info, in case it already knows about the old file
 			Makefile.InternalDependencies.Add(FileItem);
-			FileItem.ResetCachedInfo();
 		}
 
 		/// <inheritdoc/>
@@ -140,6 +156,11 @@ namespace UnrealBuildTool
 		public void SetOutputItemsForModule(string ModuleName, FileItem[] OutputItems)
 		{
 			Makefile.ModuleNameToOutputItems[ModuleName] = OutputItems;
+		}
+
+		internal void WaitOnWriteTasks()
+		{
+			Task.WaitAll(WriteTasks.ToArray());
 		}
 	}
 
@@ -566,6 +587,12 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Run task that parse file system and find plugin files etc. (this can run in parallel with make file creation)
+			Task<FileReference[]> EnumPluginsTask = Task.Run(() =>
+			{
+				return PluginsBase.EnumerateUbtPlugins(ProjectFile).ToArray();
+			});
+
 			TargetMakefile Makefile;
 			using (GlobalTracer.Instance.BuildSpan("Loading makefile").StartActive())
 			{
@@ -631,7 +658,7 @@ namespace UnrealBuildTool
 
 				// Check to see if the number of plugins changed
 				{
-					FileReference[]? Plugins = PluginsBase.EnumerateUbtPlugins(ProjectFile)?.ToArray();
+					FileReference[] Plugins = EnumPluginsTask.Result;
 
 					if ((Plugins != null) != (Makefile.UbtPlugins != null) ||
 						(Plugins != null && !Enumerable.SequenceEqual(Plugins, Makefile.UbtPlugins!)))
