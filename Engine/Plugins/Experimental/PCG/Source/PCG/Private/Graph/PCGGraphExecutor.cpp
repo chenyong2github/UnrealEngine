@@ -16,6 +16,7 @@
 #include "Metadata/PCGMetadata.h"
 
 #include "Async/Async.h"
+#include "GameFramework/Actor.h"
 
 #if WITH_EDITOR
 #include "Editor.h"

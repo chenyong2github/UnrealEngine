@@ -7,6 +7,8 @@
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 #include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 
+#include "UObject/UnrealType.h" // IWYU pragma: keep
+
 enum class EPCGMetadataTypes : uint8;
 
 class UPCGData;

@@ -2,6 +2,8 @@
 
 #include "Helpers/PCGPropertyHelpers.h"
 
+#include "UObject/Field.h"
+
 EPCGMetadataTypes PCGPropertyHelpers::GetMetadataTypeFromProperty(const FProperty* InProperty)
 {
 	if (!InProperty)

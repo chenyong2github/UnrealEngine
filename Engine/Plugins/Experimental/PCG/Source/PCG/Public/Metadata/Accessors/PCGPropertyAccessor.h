@@ -4,6 +4,9 @@
 
 #include "IPCGAttributeAccessorTpl.h"
 
+#include "Containers/UnrealString.h" // IWYU pragma: keep
+#include "UObject/SoftObjectPath.h" // IWYU pragma: keep
+#include "UObject/UnrealType.h" // IWYU pragma: keep
 
 class FEnumProperty;
 

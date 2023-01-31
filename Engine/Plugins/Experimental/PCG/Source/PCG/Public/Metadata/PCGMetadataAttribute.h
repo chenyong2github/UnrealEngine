@@ -4,6 +4,7 @@
 
 #include "PCGMetadataCommon.h"
 
+#include "UObject/ObjectPtr.h" // IWYU pragma: keep
 
 class UPCGMetadata;
 
