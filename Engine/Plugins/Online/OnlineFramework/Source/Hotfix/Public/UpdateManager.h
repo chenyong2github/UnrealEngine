@@ -287,6 +287,12 @@ protected:
 	virtual void PostInitProperties() override;
 	virtual void PostReloadConfig(FProperty* PropertyThatWasLoaded) override;
 
+	/** Amount of time to wait before starting an update check. */
+	UPROPERTY(Config)
+	float UpdateCheckStartDelay;
+	/** Amount of time to wait before returning a cached response when updates are started. */
+	UPROPERTY(Config)
+	float UpdateCheckCachedResponseDelay;
 	/** Amount of time to wait between the internal hotfix check completing and advancing to the next stage */
 	UPROPERTY(Config)
 	float HotfixCheckCompleteDelay;

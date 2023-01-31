@@ -49,7 +49,9 @@ private:
 };
 
 UUpdateManager::UUpdateManager()
-	: HotfixCheckCompleteDelay(0.1f)
+	: UpdateCheckStartDelay(0.2f)
+	, UpdateCheckCachedResponseDelay(0.1f)
+	, HotfixCheckCompleteDelay(0.1f)
 	, UpdateCheckCompleteDelay(0.5f)
 	, HotfixAvailabilityCheckCompleteDelay(0.1f)
 	, UpdateCheckAvailabilityCompleteDelay(0.1f)
@@ -167,7 +169,7 @@ UUpdateManager::EUpdateStartResult UUpdateManager::StartUpdateCheckInternal(cons
 			};
 
 			// Give the UI state widget a chance to start listening for delegates
-			StartCheckInternalTimerHandle = DelayResponse(StartDelegate, 0.2f);
+			StartCheckInternalTimerHandle = DelayResponse(StartDelegate, UpdateCheckStartDelay);
 			Result = EUpdateStartResult::UpdateStarted;
 		}
 		else
@@ -179,7 +181,7 @@ UUpdateManager::EUpdateStartResult UUpdateManager::StartUpdateCheckInternal(cons
 				StartCheckInternalTimerHandle.Reset();
 			};
 
-			StartCheckInternalTimerHandle = DelayResponse(StartDelegate, 0.1f);
+			StartCheckInternalTimerHandle = DelayResponse(StartDelegate, UpdateCheckCachedResponseDelay);
 			Result = EUpdateStartResult::UpdateCached;
 		}
 	}
