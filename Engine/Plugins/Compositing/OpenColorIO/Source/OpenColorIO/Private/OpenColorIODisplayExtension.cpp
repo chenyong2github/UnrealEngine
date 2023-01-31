@@ -34,7 +34,10 @@ bool FOpenColorIODisplayExtension::IsActiveThisFrame_Internal(const FSceneViewEx
 {
 	if (Context.Viewport && LinkedViewportClient == Context.Viewport->GetClient() && DisplayConfiguration.bIsEnabled)
 	{
-		return DisplayConfiguration.ColorConfiguration.IsValid();
+		if (DisplayConfiguration.ColorConfiguration.IsValid())
+		{
+			return DisplayConfiguration.ColorConfiguration.ConfigurationSource->IsTransformReady(DisplayConfiguration.ColorConfiguration);
+		}
 	}
 
 	return false;

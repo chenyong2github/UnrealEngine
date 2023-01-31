@@ -68,6 +68,11 @@ public:
 	 */
 	bool GetRenderResources(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, TSortedMap<int32, FTextureResource*>& OutTextureResources);
 
+	/**
+	 * Returns true if shader/texture resources have finished compiling and are ready for use (to be called on the game thread).
+	 */
+	bool AreRenderResourcesReady() const;
+
 	UE_DEPRECATED(5.1, "GetShaderAndLUTResouces is deprecated, please use GetRenderResources instead.")
 	bool GetShaderAndLUTResouces(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource);
 

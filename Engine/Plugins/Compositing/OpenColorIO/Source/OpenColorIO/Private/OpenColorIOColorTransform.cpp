@@ -463,6 +463,53 @@ bool UOpenColorIOColorTransform::GetRenderResources(ERHIFeatureLevel::Type InFea
 	return OutShaderResource != nullptr;
 }
 
+bool UOpenColorIOColorTransform::AreRenderResourcesReady() const
+{
+	check(IsInGameThread());
+
+	int32 NumShadersRequired = 0;
+	int32 NumShadersReady = 0;
+	for (const FOpenColorIOTransformResource* Resource : ColorTransformResources)
+	{
+		if (Resource)
+		{
+			NumShadersRequired++;
+
+			if (Resource->IsCompilationFinished())
+			{
+				NumShadersReady++;
+			}
+		}
+	}
+
+	// Transform shaders are always required, and the all of the required ones should have finished compiling.
+	if (NumShadersRequired == 0 || NumShadersRequired != NumShadersReady)
+	{
+		return false;
+	}
+
+	// Textures are optional, depending on the transform.
+	for (const TPair<int32, TObjectPtr<UTexture>>& TexturePair : Textures)
+	{
+		const TObjectPtr<UTexture>& Texture = TexturePair.Value;
+
+		if (Texture->GetResource() == nullptr)
+		{
+			return false;
+		}
+
+#if WITH_EDITOR
+		// Note: this check is valid the first time a texture is created, but wouldn't be relevant if we updated existing textures.
+		if (Texture->IsCompiling())
+		{
+			return false;
+		}
+#endif
+	}
+
+	return true;
+}
+
 bool UOpenColorIOColorTransform::GetShaderAndLUTResouces(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource)
 {
 	TSortedMap<int32, FTextureResource*> OutTextureResources;

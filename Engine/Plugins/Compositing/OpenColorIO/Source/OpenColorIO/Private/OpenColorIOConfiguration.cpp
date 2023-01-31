@@ -59,29 +59,24 @@ void UOpenColorIOConfiguration::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-bool UOpenColorIOConfiguration::GetRenderResources(ERHIFeatureLevel::Type InFeatureLevel, const FOpenColorIOColorConversionSettings& InSettings, FOpenColorIOTransformResource*& OutShaderResource, TSortedMap<int32, FTextureResource*>& OutTextureResources)
+bool UOpenColorIOConfiguration::IsTransformReady(const FOpenColorIOColorConversionSettings& InSettings)
 {
-	TObjectPtr<UOpenColorIOColorTransform>* TransformPtr = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransform)
+	if (const TObjectPtr<UOpenColorIOColorTransform>* TransformPtr = FindTransform(InSettings))
 	{
-		EOpenColorIOViewTransformDirection DisplayViewDirection;
-
-		if (InTransform->GetDisplayViewDirection(DisplayViewDirection))
-		{
-			return InTransform->SourceColorSpace == InSettings.SourceColorSpace.ColorSpaceName && InTransform->Display == InSettings.DestinationDisplayView.Display && InTransform->View == InSettings.DestinationDisplayView.View && InSettings.DisplayViewDirection == DisplayViewDirection;
-		}
-		else
-		{
-			return InTransform->SourceColorSpace == InSettings.SourceColorSpace.ColorSpaceName && InTransform->DestinationColorSpace == InSettings.DestinationColorSpace.ColorSpaceName;
-		}
-	});
-
-	if (TransformPtr == nullptr)
-	{
-		return false;
+		return (*TransformPtr)->AreRenderResourcesReady();
 	}
 
-	UOpenColorIOColorTransform* Transform = *TransformPtr;
-	return Transform->GetRenderResources(InFeatureLevel, OutShaderResource, OutTextureResources);
+	return false;
+}
+
+bool UOpenColorIOConfiguration::GetRenderResources(ERHIFeatureLevel::Type InFeatureLevel, const FOpenColorIOColorConversionSettings& InSettings, FOpenColorIOTransformResource*& OutShaderResource, TSortedMap<int32, FTextureResource*>& OutTextureResources)
+{
+	if (const TObjectPtr<UOpenColorIOColorTransform>* TransformPtr = FindTransform(InSettings))
+	{
+		return (*TransformPtr)->GetRenderResources(InFeatureLevel, OutShaderResource, OutTextureResources);
+	}
+
+	return false;
 }
 
 bool UOpenColorIOConfiguration::GetShaderAndLUTResources(ERHIFeatureLevel::Type InFeatureLevel, const FString& InSourceColorSpace, const FString& InDestinationColorSpace, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource)
@@ -323,6 +318,23 @@ void UOpenColorIOConfiguration::StopDirectoryWatch()
 		}
 	}
 #endif
+}
+
+const TObjectPtr<UOpenColorIOColorTransform>* UOpenColorIOConfiguration::FindTransform(const FOpenColorIOColorConversionSettings& InSettings) const
+{
+	return ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransform)
+		{
+			EOpenColorIOViewTransformDirection DisplayViewDirection;
+			
+			if (InTransform->GetDisplayViewDirection(DisplayViewDirection))
+			{
+				return InTransform->SourceColorSpace == InSettings.SourceColorSpace.ColorSpaceName && InTransform->Display == InSettings.DestinationDisplayView.Display && InTransform->View == InSettings.DestinationDisplayView.View && InSettings.DisplayViewDirection == DisplayViewDirection;
+			}
+			else
+			{
+				return InTransform->SourceColorSpace == InSettings.SourceColorSpace.ColorSpaceName && InTransform->DestinationColorSpace == InSettings.DestinationColorSpace.ColorSpaceName;
+			}
+		});
 }
 
 void UOpenColorIOConfiguration::CreateColorTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace)
