@@ -2921,11 +2921,13 @@ void FConcertSyncSessionDatabase::ScheduleAsyncWrite(const FName& InPackageName,
 	SharedStream->AsyncTask = Async(EAsyncExecution::TaskGraph, [InDstPackageBlobPathname,SharedStream]()
 	{
 		TUniquePtr<FArchive> DstAr(IFileManager::Get().CreateFileWriter(*InDstPackageBlobPathname));
+		ensureMsgf(DstAr, TEXT("ConcertSyncSessionDatabase: Unable to open a file for writing. Ensure you have enough disk space and long paths are enabled."));
+
 		FConcertPackageDataStream& InPackageDataStream = SharedStream->PackageStream;
 		FMemoryReader PackageBlobAr(SharedStream->PackageData);
 		InPackageDataStream.DataAr = &PackageBlobAr;
 		SharedStream->Result = PackageDataUtil::WritePackage(InPackageDataStream, DstAr.Get());
-		return !DstAr->IsError();
+		return DstAr && !DstAr->IsError();
 	});
 }
 
