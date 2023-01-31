@@ -168,36 +168,38 @@ FAssetIndexer::FSampleInfo FAssetIndexer::GetSampleInfo(float SampleTime) const
 	else
 	{
 		Sample.ClipTime = SamplingParam.WrappedParam;
-
-		const FTransform RootMotionLast = IndexingContext.AssetSampler->GetTotalRootTransform();
-		float RootDistanceLast = IndexingContext.AssetSampler->GetTotalRootDistance();
-
-		// Determine how to accumulate motion for every cycle of the anim. If the sample
-		// had to be clamped, this motion will end up not getting applied below.
-		// Also invert the accumulation direction if the requested sample was wrapped backwards.
-		FTransform RootMotionPerCycle = RootMotionLast;
-		
-		if (SampleTime < 0.0f)
-		{
-			RootMotionPerCycle = RootMotionPerCycle.Inverse();
-		}
+		Sample.RootTransform = FTransform::Identity;
 
 		// Find the remaining motion deltas after wrapping
 		FTransform RootMotionRemainder = Sample.Clip->ExtractRootTransform(Sample.ClipTime);
 
-		// Invert motion deltas if we wrapped backwards
-		if (SampleTime < 0.0f)
+		const bool bNegativeSampleTime = SampleTime < 0.f;
+		if (SamplingParam.NumCycles > 0 || bNegativeSampleTime)
 		{
-			RootMotionRemainder.SetToRelativeTransform(RootMotionLast);
-		}
+			const FTransform RootMotionLast = IndexingContext.AssetSampler->GetTotalRootTransform();
 
-		Sample.RootTransform = FTransform::Identity;
+			// Determine how to accumulate motion for every cycle of the anim. If the sample
+			// had to be clamped, this motion will end up not getting applied below.
+			// Also invert the accumulation direction if the requested sample was wrapped backwards.
+			FTransform RootMotionPerCycle = RootMotionLast;
 
-		// Note if the sample was clamped, no motion will be applied here because NumCycles will be zero
-		int32 CyclesRemaining = SamplingParam.NumCycles;
-		while (CyclesRemaining--)
-		{
-			Sample.RootTransform = RootMotionPerCycle * Sample.RootTransform;
+			if (bNegativeSampleTime)
+			{
+				RootMotionPerCycle = RootMotionPerCycle.Inverse();
+			}
+			
+			// Invert motion deltas if we wrapped backwards
+			if (bNegativeSampleTime)
+			{
+				RootMotionRemainder.SetToRelativeTransform(RootMotionLast);
+			}
+
+			// Note if the sample was clamped, no motion will be applied here because NumCycles will be zero
+			int32 CyclesRemaining = SamplingParam.NumCycles;
+			while (CyclesRemaining--)
+			{
+				Sample.RootTransform = RootMotionPerCycle * Sample.RootTransform;
+			}
 		}
 
 		Sample.RootTransform = RootMotionRemainder * Sample.RootTransform;

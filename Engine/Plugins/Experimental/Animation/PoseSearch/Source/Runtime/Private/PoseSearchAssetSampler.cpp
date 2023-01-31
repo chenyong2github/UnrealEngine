@@ -14,71 +14,6 @@ namespace UE::PoseSearch
 //////////////////////////////////////////////////////////////////////////
 // Root motion extrapolation
 
-// Uses distance delta between NextRootDistanceIndex and NextRootDistanceIndex - 1 and extrapolates it to ExtrapolationTime
-static float ExtrapolateAccumulatedRootDistance(
-	int32 SamplingRate,
-	TConstArrayView<float> AccumulatedRootDistance,
-	int32 NextRootDistanceIndex, 
-	float ExtrapolationTime,
-	const FPoseSearchExtrapolationParameters& ExtrapolationParameters)
-{
-	check(NextRootDistanceIndex > 0 && NextRootDistanceIndex < AccumulatedRootDistance.Num());
-
-	const float DistanceDelta =
-		AccumulatedRootDistance[NextRootDistanceIndex] -
-		AccumulatedRootDistance[NextRootDistanceIndex - 1];
-	const float Speed = DistanceDelta * SamplingRate;
-	const float ExtrapolationSpeed = Speed >= ExtrapolationParameters.LinearSpeedThreshold ?
-		Speed : 0.0f;
-	const float ExtrapolatedDistance = ExtrapolationSpeed * ExtrapolationTime;
-
-	return ExtrapolatedDistance;
-}
-
-static float ExtractAccumulatedRootDistance(
-	int32 SamplingRate,
-	TConstArrayView<float> AccumulatedRootDistance,
-	float PlayLength,
-	float Time,
-	const FPoseSearchExtrapolationParameters& ExtrapolationParameters)
-{
-	const float ClampedTime = FMath::Clamp(Time, 0.0f, PlayLength);
-
-	// Find the distance sample that corresponds with the time and split into whole and partial parts
-	float IntegralDistanceSample;
-	float DistanceAlpha = FMath::Modf(ClampedTime * SamplingRate, &IntegralDistanceSample);
-	float DistanceIdx = (int32)IntegralDistanceSample;
-
-	// Verify the distance offset and any residual portion would be in bounds
-	check(DistanceIdx + (DistanceAlpha > 0.0f ? 1 : 0) < AccumulatedRootDistance.Num());
-
-	// Look up the distance and interpolate between distance samples if necessary
-	float Distance = AccumulatedRootDistance[DistanceIdx];
-	if (DistanceAlpha > 0.0f)
-	{
-		float NextDistance = AccumulatedRootDistance[DistanceIdx + 1];
-		Distance = FMath::Lerp(Distance, NextDistance, DistanceAlpha);
-	}
-
-	const float ExtrapolationTime = Time - ClampedTime;
-
-	if (ExtrapolationTime != 0.0f)
-	{
-		// If extrapolationTime is not zero, we extrapolate the beginning or the end of the animation to estimate
-		// the root distance.
-		const int32 DistIdx = (ExtrapolationTime > 0.0f) ? AccumulatedRootDistance.Num() - 1 : 1;
-		const float ExtrapolatedDistance = ExtrapolateAccumulatedRootDistance(
-			SamplingRate,
-			AccumulatedRootDistance,
-			DistIdx,
-			ExtrapolationTime,
-			ExtrapolationParameters);
-		Distance += ExtrapolatedDistance;
-	}
-
-	return Distance;
-}
-
 static FTransform ExtrapolateRootMotion(
 	FTransform SampleToExtrapolate,
 	float SampleStart, 
@@ -185,33 +120,6 @@ void FSequenceBaseSampler::Init(const FInput& InInput)
 
 void FSequenceBaseSampler::Process()
 {
-	ProcessRootDistance();
-}
-
-float FSequenceBaseSampler::GetTimeFromRootDistance(float Distance) const
-{
-	int32 NextSampleIdx = 1;
-	int32 PrevSampleIdx = 0;
-	if (Distance > 0.0f)
-	{
-		// Search for the distance value. Because the values will be extrapolated if necessary
-		// LowerBound might go past the end of the array, in which case the last valid index is used
-		int32 ClipDistanceLowerBoundIndex = Algo::LowerBound(AccumulatedRootDistance, Distance);
-		NextSampleIdx = FMath::Min(
-			ClipDistanceLowerBoundIndex,
-			AccumulatedRootDistance.Num() - 1);
-
-		// Compute distance interpolation amount
-		PrevSampleIdx = FMath::Max(0, NextSampleIdx - 1);
-	}
-
-	float NextDistance = AccumulatedRootDistance[NextSampleIdx];
-	float PrevDistance = AccumulatedRootDistance[PrevSampleIdx];
-	float DistanceSampleAlpha = FMath::GetRangePct(PrevDistance, NextDistance, Distance);
-
-	// Convert to time
-	float ClipTime = (float(NextSampleIdx) - (1.0f - DistanceSampleAlpha)) / Input.RootDistanceSamplingRate;
-	return ClipTime;
 }
 
 float FSequenceBaseSampler::GetPlayLength() const
@@ -229,6 +137,14 @@ void FSequenceBaseSampler::ExtractPose(const FAnimExtractContext& ExtractionCtx,
 	Input.SequenceBase->GetAnimationPose(OutAnimPoseData, ExtractionCtx);
 }
 
+FTransform FSequenceBaseSampler::GetTotalRootTransform() const
+{
+	const FTransform InitialRootTransform = Input.SequenceBase->ExtractRootTrackTransform(0.f, nullptr);
+	const FTransform LastRootTransform = Input.SequenceBase->ExtractRootTrackTransform(Input.SequenceBase->GetPlayLength(), nullptr);
+	const FTransform TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
+	return TotalRootTransform;
+}
+
 FTransform FSequenceBaseSampler::ExtractRootTransform(float Time) const
 {
 	FTransform RootTransform = FTransform::Identity;
@@ -236,59 +152,50 @@ FTransform FSequenceBaseSampler::ExtractRootTransform(float Time) const
 
 	if (IsLoopable())
 	{
-		FTransform LoopableRootTransform = SequenceBase->ExtractRootMotion(0.0f, Time, true);
-		return LoopableRootTransform;
-	}
-
-	const float ExtrapolationSampleTime = Input.ExtrapolationParameters.SampleTime;
-
-	const float PlayLength = SequenceBase->GetPlayLength();
-	const float ClampedTime = FMath::Clamp(Time, 0.0f, PlayLength);
-	const float ExtrapolationTime = Time - ClampedTime;
-
-	// If Time is less than zero, ExtrapolationTime will be negative. In this case, we extrapolate the beginning of the 
-	// animation to estimate where the root would be at Time
-	if (ExtrapolationTime < -SMALL_NUMBER)
-	{
-		FTransform SampleToExtrapolate = SequenceBase->ExtractRootMotionFromRange(0.0f, ExtrapolationSampleTime);
-
-		const FTransform ExtrapolatedRootMotion = ExtrapolateRootMotion(
-			SampleToExtrapolate,
-			0.0f, ExtrapolationSampleTime,
-			ExtrapolationTime,
-			Input.ExtrapolationParameters);
-		RootTransform = ExtrapolatedRootMotion;
+		RootTransform = SequenceBase->ExtractRootMotion(0.0f, Time, true);
 	}
 	else
 	{
-		RootTransform = SequenceBase->ExtractRootMotionFromRange(0.0f, ClampedTime);
+		const float ExtrapolationSampleTime = Input.ExtrapolationParameters.SampleTime;
 
-		// If Time is greater than PlayLength, ExtrapolationTIme will be a positive number. In this case, we extrapolate
-		// the end of the animation to estimate where the root would be at Time
-		if (ExtrapolationTime > SMALL_NUMBER)
+		const float PlayLength = SequenceBase->GetPlayLength();
+		const float ClampedTime = FMath::Clamp(Time, 0.0f, PlayLength);
+		const float ExtrapolationTime = Time - ClampedTime;
+
+		// If Time is less than zero, ExtrapolationTime will be negative. In this case, we extrapolate the beginning of the 
+		// animation to estimate where the root would be at Time
+		if (ExtrapolationTime < -SMALL_NUMBER)
 		{
-			FTransform SampleToExtrapolate = SequenceBase->ExtractRootMotionFromRange(PlayLength - ExtrapolationSampleTime, PlayLength);
+			FTransform SampleToExtrapolate = SequenceBase->ExtractRootMotionFromRange(0.0f, ExtrapolationSampleTime);
 
 			const FTransform ExtrapolatedRootMotion = ExtrapolateRootMotion(
 				SampleToExtrapolate,
-				PlayLength - ExtrapolationSampleTime, PlayLength,
+				0.0f, ExtrapolationSampleTime,
 				ExtrapolationTime,
 				Input.ExtrapolationParameters);
-			RootTransform = ExtrapolatedRootMotion * RootTransform;
+			RootTransform = ExtrapolatedRootMotion;
+		}
+		else
+		{
+			RootTransform = SequenceBase->ExtractRootMotionFromRange(0.0f, ClampedTime);
+
+			// If Time is greater than PlayLength, ExtrapolationTIme will be a positive number. In this case, we extrapolate
+			// the end of the animation to estimate where the root would be at Time
+			if (ExtrapolationTime > SMALL_NUMBER)
+			{
+				FTransform SampleToExtrapolate = SequenceBase->ExtractRootMotionFromRange(PlayLength - ExtrapolationSampleTime, PlayLength);
+
+				const FTransform ExtrapolatedRootMotion = ExtrapolateRootMotion(
+					SampleToExtrapolate,
+					PlayLength - ExtrapolationSampleTime, PlayLength,
+					ExtrapolationTime,
+					Input.ExtrapolationParameters);
+				RootTransform = ExtrapolatedRootMotion * RootTransform;
+			}
 		}
 	}
 
 	return RootTransform;
-}
-
-float FSequenceBaseSampler::ExtractRootDistance(float Time) const
-{
-	return ExtractAccumulatedRootDistance(
-		Input.RootDistanceSamplingRate,
-		AccumulatedRootDistance,
-		Input.SequenceBase->GetPlayLength(),
-		Time,
-		Input.ExtrapolationParameters);
 }
 
 void FSequenceBaseSampler::ExtractPoseSearchNotifyStates(
@@ -324,46 +231,6 @@ void FSequenceBaseSampler::ExtractPoseSearchNotifyStates(
 	}
 }
 
-void FSequenceBaseSampler::ProcessRootDistance()
-{
-	const UAnimSequenceBase* SequenceBase = Input.SequenceBase.Get();
-	
-	// Note the distance sampling interval is independent of the schema's sampling interval
-	const float DistanceSamplingInterval = 1.0f / Input.RootDistanceSamplingRate;
-
-	const FTransform InitialRootTransform = SequenceBase->ExtractRootTrackTransform(0.0f, nullptr);
-
-	uint32 NumDistanceSamples = FMath::CeilToInt(SequenceBase->GetPlayLength() * Input.RootDistanceSamplingRate) + 1;
-	AccumulatedRootDistance.Reserve(NumDistanceSamples);
-
-	// Build a distance lookup table by sampling root motion at a fixed rate and accumulating
-	// absolute translation deltas. During indexing we'll bsearch this table and interpolate
-	// between samples in order to convert distance offsets to time offsets.
-	// See also FAssetIndexer::AddTrajectoryDistanceFeatures().
-
-	double TotalAccumulatedRootDistance = 0.0;
-	FTransform LastRootTransform = InitialRootTransform;
-	float SampleTime = 0.0f;
-	for (int32 SampleIdx = 0; SampleIdx != NumDistanceSamples; ++SampleIdx)
-	{
-		SampleTime = FMath::Min(SampleIdx * DistanceSamplingInterval, SequenceBase->GetPlayLength());
-
-		FTransform RootTransform = SequenceBase->ExtractRootTrackTransform(SampleTime, nullptr);
-		FTransform LocalRootMotion = RootTransform.GetRelativeTransform(LastRootTransform);
-		LastRootTransform = RootTransform;
-
-		TotalAccumulatedRootDistance += LocalRootMotion.GetTranslation().Size();
-		AccumulatedRootDistance.Add((float)TotalAccumulatedRootDistance);
-	}
-
-	// Verify we sampled the final frame of the clip
-	check(SampleTime == SequenceBase->GetPlayLength());
-
-	// Also emit root motion summary info to help with sample wrapping in FAssetIndexer::GetSampleInfo()
-	TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
-	TotalRootDistance = AccumulatedRootDistance.Last();
-}
-
 const UAnimationAsset* FSequenceBaseSampler::GetAsset() const
 {
 	return Input.SequenceBase.Get();
@@ -384,33 +251,6 @@ void FBlendSpaceSampler::Process()
 
 	ProcessPlayLength();
 	ProcessRootTransform();
-	ProcessRootDistance();
-}
-
-float FBlendSpaceSampler::GetTimeFromRootDistance(float Distance) const
-{
-	int32 NextSampleIdx = 1;
-	int32 PrevSampleIdx = 0;
-	if (Distance > 0.0f)
-	{
-		// Search for the distance value. Because the values will be extrapolated if necessary
-		// LowerBound might go past the end of the array, in which case the last valid index is used
-		int32 ClipDistanceLowerBoundIndex = Algo::LowerBound(AccumulatedRootDistance, Distance);
-		NextSampleIdx = FMath::Min(
-			ClipDistanceLowerBoundIndex,
-			AccumulatedRootDistance.Num() - 1);
-
-		// Compute distance interpolation amount
-		PrevSampleIdx = FMath::Max(0, NextSampleIdx - 1);
-	}
-
-	float NextDistance = AccumulatedRootDistance[NextSampleIdx];
-	float PrevDistance = AccumulatedRootDistance[PrevSampleIdx];
-	float DistanceSampleAlpha = FMath::GetRangePct(PrevDistance, NextDistance, Distance);
-
-	// Convert to time
-	float ClipTime = (float(NextSampleIdx) - (1.0f - DistanceSampleAlpha)) / Input.RootDistanceSamplingRate;
-	return ClipTime;
 }
 
 bool FBlendSpaceSampler::IsLoopable() const
@@ -439,64 +279,63 @@ void FBlendSpaceSampler::ExtractPose(const FAnimExtractContext& ExtractionCtx, F
 	Input.BlendSpace->GetAnimationPose(BlendSamples, ExtractionCtx, OutAnimPoseData);
 }
 
+FTransform FBlendSpaceSampler::GetTotalRootTransform() const
+{
+	const FTransform InitialRootTransform = ExtractBlendSpaceRootTrackTransform(0.f);
+	const FTransform LastRootTransform = ExtractBlendSpaceRootTrackTransform(PlayLength);
+	const FTransform TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
+	return TotalRootTransform;
+}
+
 FTransform FBlendSpaceSampler::ExtractRootTransform(float Time) const
 {
+	FTransform RootTransform = FTransform::Identity;
 	if (IsLoopable())
 	{
-		FTransform LoopableRootTransform = ExtractBlendSpaceRootMotion(0.0f, Time, true);
-		return LoopableRootTransform;
-	}
-
-	const float ExtrapolationSampleTime = Input.ExtrapolationParameters.SampleTime;
-
-	const float ClampedTime = FMath::Clamp(Time, 0.0f, PlayLength);
-	const float ExtrapolationTime = Time - ClampedTime;
-
-	FTransform RootTransform = FTransform::Identity;
-
-	// If Time is less than zero, ExtrapolationTime will be negative. In this case, we extrapolate the beginning of the 
-	// animation to estimate where the root would be at Time
-	if (ExtrapolationTime < -SMALL_NUMBER)
-	{
-		FTransform SampleToExtrapolate = ExtractBlendSpaceRootMotionFromRange(0.0f, ExtrapolationSampleTime);
-
-		const FTransform ExtrapolatedRootMotion = ExtrapolateRootMotion(
-			SampleToExtrapolate,
-			0.0f, ExtrapolationSampleTime,
-			ExtrapolationTime,
-			Input.ExtrapolationParameters);
-		RootTransform = ExtrapolatedRootMotion;
+		RootTransform = ExtractBlendSpaceRootMotion(0.0f, Time, true);
 	}
 	else
 	{
-		RootTransform = ExtractBlendSpaceRootMotionFromRange(0.0f, ClampedTime);
+		const float ExtrapolationSampleTime = Input.ExtrapolationParameters.SampleTime;
 
-		// If Time is greater than PlayLength, ExtrapolationTIme will be a positive number. In this case, we extrapolate
-		// the end of the animation to estimate where the root would be at Time
-		if (ExtrapolationTime > SMALL_NUMBER)
+		const float ClampedTime = FMath::Clamp(Time, 0.0f, PlayLength);
+		const float ExtrapolationTime = Time - ClampedTime;
+
+
+		// If Time is less than zero, ExtrapolationTime will be negative. In this case, we extrapolate the beginning of the 
+		// animation to estimate where the root would be at Time
+		if (ExtrapolationTime < -SMALL_NUMBER)
 		{
-			FTransform SampleToExtrapolate = ExtractBlendSpaceRootMotionFromRange(PlayLength - ExtrapolationSampleTime, PlayLength);
+			FTransform SampleToExtrapolate = ExtractBlendSpaceRootMotionFromRange(0.0f, ExtrapolationSampleTime);
 
 			const FTransform ExtrapolatedRootMotion = ExtrapolateRootMotion(
 				SampleToExtrapolate,
-				PlayLength - ExtrapolationSampleTime, PlayLength,
+				0.0f, ExtrapolationSampleTime,
 				ExtrapolationTime,
 				Input.ExtrapolationParameters);
-			RootTransform = ExtrapolatedRootMotion * RootTransform;
+			RootTransform = ExtrapolatedRootMotion;
+		}
+		else
+		{
+			RootTransform = ExtractBlendSpaceRootMotionFromRange(0.0f, ClampedTime);
+
+			// If Time is greater than PlayLength, ExtrapolationTIme will be a positive number. In this case, we extrapolate
+			// the end of the animation to estimate where the root would be at Time
+			if (ExtrapolationTime > SMALL_NUMBER)
+			{
+				FTransform SampleToExtrapolate = ExtractBlendSpaceRootMotionFromRange(PlayLength - ExtrapolationSampleTime, PlayLength);
+
+				const FTransform ExtrapolatedRootMotion = ExtrapolateRootMotion(
+					SampleToExtrapolate,
+					PlayLength - ExtrapolationSampleTime, PlayLength,
+					ExtrapolationTime,
+					Input.ExtrapolationParameters);
+				RootTransform = ExtrapolatedRootMotion * RootTransform;
+			}
 		}
 	}
 
 	return RootTransform;
-}
-
-float FBlendSpaceSampler::ExtractRootDistance(float Time) const
-{
-	return ExtractAccumulatedRootDistance(
-		Input.RootDistanceSamplingRate,
-		AccumulatedRootDistance,
-		PlayLength,
-		Time,
-		Input.ExtrapolationParameters);
 }
 
 static int32 GetHighestWeightSample(const TArray<struct FBlendSampleData>& SampleDataList)
@@ -571,16 +410,12 @@ FTransform FBlendSpaceSampler::ExtractBlendSpaceRootTrackTransform(float Time) c
 {
 	checkf(AccumulatedRootTransform.Num() > 0, TEXT("ProcessRootTransform must be run first"));
 
-	int32 Index = Time * Input.RootTransformSamplingRate;
-	int32 FirstIndexClamped = FMath::Clamp(Index + 0, 0, AccumulatedRootTransform.Num() - 1);
-	int32 SecondIndexClamped = FMath::Clamp(Index + 1, 0, AccumulatedRootTransform.Num() - 1);
-	float Alpha = FMath::Fmod(Time * Input.RootTransformSamplingRate, 1.0f);
+	const int32 Index = Time * Input.RootTransformSamplingRate;
+	const int32 FirstIndexClamped = FMath::Clamp(Index + 0, 0, AccumulatedRootTransform.Num() - 1);
+	const int32 SecondIndexClamped = FMath::Clamp(Index + 1, 0, AccumulatedRootTransform.Num() - 1);
+	const float Alpha = FMath::Fmod(Time * Input.RootTransformSamplingRate, 1.0f);
 	FTransform OutputTransform;
-	OutputTransform.Blend(
-		AccumulatedRootTransform[FirstIndexClamped],
-		AccumulatedRootTransform[SecondIndexClamped],
-		Alpha);
-
+	OutputTransform.Blend(AccumulatedRootTransform[FirstIndexClamped], AccumulatedRootTransform[SecondIndexClamped], Alpha);
 	return OutputTransform;
 }
 
@@ -713,45 +548,6 @@ void FBlendSpaceSampler::ProcessRootTransform()
 
 		AccumulatedRootTransform[SampleIdx] = RootMotionAccumulation;
 	}
-}
-
-void FBlendSpaceSampler::ProcessRootDistance()
-{
-	checkf(AccumulatedRootTransform.Num() > 0, TEXT("ProcessRootTransform must be run first"));
-
-	// Note the distance sampling interval is independent of the schema's sampling interval
-	const float DistanceSamplingInterval = 1.0f / Input.RootDistanceSamplingRate;
-
-	const FTransform InitialRootTransform = FTransform::Identity;
-
-	uint32 NumDistanceSamples = FMath::CeilToInt(PlayLength * Input.RootDistanceSamplingRate) + 1;
-	AccumulatedRootDistance.Reserve(NumDistanceSamples);
-
-	// Build a distance lookup table by sampling root motion at a fixed rate and accumulating
-	// absolute translation deltas. During indexing we'll bsearch this table and interpolate
-	// between samples in order to convert distance offsets to time offsets.
-	// See also FAssetIndexer::AddTrajectoryDistanceFeatures().
-	double TotalAccumulatedRootDistance = 0.0;
-	FTransform LastRootTransform = InitialRootTransform;
-	float SampleTime = 0.0f;
-	for (int32 SampleIdx = 0; SampleIdx != NumDistanceSamples; ++SampleIdx)
-	{
-		SampleTime = FMath::Min(SampleIdx * DistanceSamplingInterval, PlayLength);
-
-		FTransform RootTransform = ExtractBlendSpaceRootTrackTransform(SampleTime);
-		FTransform LocalRootMotion = RootTransform.GetRelativeTransform(LastRootTransform);
-		LastRootTransform = RootTransform;
-
-		TotalAccumulatedRootDistance += LocalRootMotion.GetTranslation().Size();
-		AccumulatedRootDistance.Add((float)TotalAccumulatedRootDistance);
-	}
-
-	// Verify we sampled the final frame of the clip
-	check(SampleTime == PlayLength);
-
-	// Also emit root motion summary info to help with sample wrapping in FAssetIndexer::GetSampleInfo()
-	TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
-	TotalRootDistance = AccumulatedRootDistance.Last(); 
 }
 
 const UAnimationAsset* FBlendSpaceSampler::GetAsset() const

@@ -63,21 +63,11 @@ public:
 	virtual float GetPlayLength() const = 0;
 	virtual bool IsLoopable() const = 0;
 
-	// Gets the time associated with a particular root distance traveled
-	virtual float GetTimeFromRootDistance(float Distance) const = 0;
-
-	// Gets the total root distance traveled 
-	virtual float GetTotalRootDistance() const = 0;
-
 	// Gets the final root transformation at the end of the asset's playback time
 	virtual FTransform GetTotalRootTransform() const = 0;
 
 	// Extracts pose for this asset for a given context
 	virtual void ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const = 0;
-
-	// Extracts the accumulated root distance at the given time, using the extremities of the sequence to extrapolate 
-	// beyond the sequence limits when Time is less than zero or greater than the sequence length
-	virtual float ExtractRootDistance(float Time) const = 0;
 
 	// Extracts root transform at the given time, using the extremities of the sequence to extrapolate beyond the 
 	// sequence limits when Time is less than zero or greater than the sequence length.
@@ -99,7 +89,6 @@ public:
 	struct FInput
 	{
 		TWeakObjectPtr<const UAnimSequenceBase> SequenceBase;
-		int32 RootDistanceSamplingRate = 60;
 		FPoseSearchExtrapolationParameters ExtrapolationParameters;
 	} Input;
 
@@ -109,23 +98,12 @@ public:
 	virtual float GetPlayLength() const override;
 	virtual bool IsLoopable() const override;
 
-	virtual float GetTimeFromRootDistance(float Distance) const override;
-
-	virtual float GetTotalRootDistance() const override { return TotalRootDistance; }
-	virtual FTransform GetTotalRootTransform() const override { return TotalRootTransform; }
+	virtual FTransform GetTotalRootTransform() const override;
 
 	virtual void ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const override;
-	virtual float ExtractRootDistance(float Time) const override;
 	virtual FTransform ExtractRootTransform(float Time) const override;
 	virtual void ExtractPoseSearchNotifyStates(float Time, TArray<class UAnimNotifyState_PoseSearchBase*>& NotifyStates) const override;
 	virtual const UAnimationAsset* GetAsset() const override;
-
-private:
-	float TotalRootDistance = 0.0f;
-	FTransform TotalRootTransform = FTransform::Identity;
-	TArray<float> AccumulatedRootDistance;
-
-	void ProcessRootDistance();
 };
 
 struct POSESEARCH_API FBlendSpaceSampler : public IAssetSampler
@@ -135,8 +113,7 @@ public:
 	{
 		FBoneContainer BoneContainer;
 		TWeakObjectPtr<const UBlendSpace> BlendSpace;
-		int32 RootDistanceSamplingRate = 60;
-		int32 RootTransformSamplingRate = 60;
+		int32 RootTransformSamplingRate = 30;
 		FPoseSearchExtrapolationParameters ExtrapolationParameters;
 		FVector BlendParameters;
 	} Input;
@@ -147,13 +124,9 @@ public:
 	virtual float GetPlayLength() const override { return PlayLength; }
 	virtual bool IsLoopable() const override;
 
-	virtual float GetTimeFromRootDistance(float Distance) const override;
-
-	virtual float GetTotalRootDistance() const override { return TotalRootDistance; }
-	virtual FTransform GetTotalRootTransform() const override { return TotalRootTransform; }
+	virtual FTransform GetTotalRootTransform() const override;
 
 	virtual void ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const override;
-	virtual float ExtractRootDistance(float Time) const override;
 	virtual FTransform ExtractRootTransform(float Time) const override;
 	virtual void ExtractPoseSearchNotifyStates(float Time, TArray<class UAnimNotifyState_PoseSearchBase*>& NotifyStates) const override;
 
@@ -161,13 +134,9 @@ public:
 
 private:
 	float PlayLength = 0.0f;
-	float TotalRootDistance = 0.0f;
-	FTransform TotalRootTransform = FTransform::Identity;
-	TArray<float> AccumulatedRootDistance;
 	TArray<FTransform> AccumulatedRootTransform;
 
 	void ProcessPlayLength();
-	void ProcessRootDistance();
 	void ProcessRootTransform();
 
 	// Extracts the pre-computed blend space root transform. ProcessRootTransform must be run first.
