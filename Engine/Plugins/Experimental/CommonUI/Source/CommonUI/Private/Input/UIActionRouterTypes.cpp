@@ -1263,7 +1263,11 @@ void FActivatableTreeRoot::FocusLeafmostNode()
 
 	FActivatableTreeNodePtr PinnedLeafmostNode = LeafmostActiveNode.Pin();
 	UCommonActivatableWidget* LeafWidget = PinnedLeafmostNode->GetWidget();
-	check(LeafWidget);
+	
+	if (!ensureMsgf(LeafWidget != nullptr, TEXT("Unable to focus leafmost node because the TWeakObjectPtr LeafWidget is nullptr")))
+	{
+		return;
+	}
 
 	const int32 OwnerSlateId = GetOwnerUserIndex();
 	ULocalPlayer& LocalPlayer = *GetActionRouter().GetLocalPlayerChecked();
