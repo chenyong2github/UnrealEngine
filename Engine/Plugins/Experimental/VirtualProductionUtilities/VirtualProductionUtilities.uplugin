@@ -38,16 +38,6 @@
 			"Name": "VPMaterialsEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostDefault"
-		},
-		{
-			"Name": "VPSpline",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "VPSplineEditor",
-			"Type": "Editor",
-			"LoadingPhase": "PostEngineInit"
 		}
 	],
 	"Plugins": [
