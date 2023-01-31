@@ -759,23 +759,19 @@ void UNavigationSystemV1::PostInitProperties()
 
 void UNavigationSystemV1::ConstructNavOctree()
 {
-	DefaultOctreeController.Reset();
+	// Default values to keep previous behavior.
+	FVector NavOctreeCenter = FVector::ZeroVector;
+	float NavOctreeRadius = 64000;
 
 	const FBox Bounds = GetNavigableWorldBounds();
 	if(Bounds.IsValid)
 	{
-		DefaultOctreeController.NavOctree = MakeShareable(new FNavigationOctree(Bounds.GetCenter(), 0.5*Bounds.GetSize().Length()));
+		NavOctreeCenter = Bounds.GetCenter();
+		NavOctreeRadius = Bounds.GetExtent().GetAbsMax();
 	}
-	else
-	{
-		// Fallback to previous default behavior.
-		DefaultOctreeController.NavOctree = MakeShareable(new FNavigationOctree(FVector(0, 0, 0), 64000));
-	}
-	
-	DefaultOctreeController.NavOctree->SetDataGatheringMode(DataGatheringMode);
-#if !UE_BUILD_SHIPPING	
-	DefaultOctreeController.NavOctree->SetGatheringNavModifiersTimeLimitWarning(GatheringNavModifiersWarningLimitTime);
-#endif // !UE_BUILD_SHIPPING	
+
+	FNavigationDataHandler NavHandler(DefaultOctreeController, DefaultDirtyAreasController);
+	NavHandler.ConstructNavOctree(NavOctreeCenter, NavOctreeRadius, DataGatheringMode, GatheringNavModifiersWarningLimitTime);
 }
 
 bool UNavigationSystemV1::ConditionalPopulateNavOctree()
