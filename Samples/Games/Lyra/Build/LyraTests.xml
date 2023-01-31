@@ -15,6 +15,8 @@
 	<Property Name="Versioned" Value="$(IsBuildMachine)" />
 	<Property Name="PublishHashedStagingData" Value="$(IsBuildMachine)" />
 
+	<Property Name="IncludeEpicWebHelperInToolCompile" Value="true" />
+
 	<Option Name="UploadArtifactId" DefaultValue="" Description="ID of the artifact to chunked and uploaded. Upload is ignored if no ID is specified." />
 	<Option Name="UploadTargetPlatform" DefaultValue="" Description="Platform build to upload, i.e. Win64" />
 	<Option Name="UploadConfiguration" DefaultValue="" Description="Configuration to upload, if applicable." />
