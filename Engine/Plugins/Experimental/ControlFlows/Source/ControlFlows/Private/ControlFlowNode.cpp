@@ -115,6 +115,7 @@ void FControlFlowNode_RequiresCallback::Execute()
 	}
 	else
 	{
+		bWasBoundOnExecution = false;
 		ContinueFlow();
 	}
 }
@@ -138,6 +139,7 @@ void FControlFlowNode_Task::Execute()
 	}
 	else
 	{
+		bWasBoundOnExecution = false;
 		ContinueFlow();
 	}
 }
