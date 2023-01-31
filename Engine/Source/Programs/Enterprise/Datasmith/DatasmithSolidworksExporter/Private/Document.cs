@@ -452,6 +452,7 @@ namespace DatasmithSolidworks
 				// other event handling is not suspended to register changes in the model
 				DocumentSyncer?.Pause();
 
+				DatasmithDirectLink?.CloseCurrentSource();
 				DatasmithDirectLink?.Dispose();  // aka 'Close DirectLink Connection'
 				DatasmithDirectLink = null;
 			}
@@ -483,5 +484,6 @@ namespace DatasmithSolidworks
 				Addin.Instance.LogStatusBarMessage($"Exporting file {FileName}...{InMessage}");
 			}
 		}
+
 	}
 }

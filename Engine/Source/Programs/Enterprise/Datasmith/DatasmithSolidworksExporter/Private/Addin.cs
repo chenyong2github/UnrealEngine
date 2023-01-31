@@ -171,6 +171,8 @@ namespace DatasmithSolidworks
 			}
 		}
 
+		private bool bDatasmithFacadeDirectLinkInitialized = false;
+
 		public bool ConnectToSW(object InThisSW, int InCookie)
 		{
 			SolidworksApp = (ISldWorks)InThisSW;
@@ -187,16 +189,31 @@ namespace DatasmithSolidworks
 
 			FDatasmithFacadeElement.SetCoordinateSystemType(FDatasmithFacadeElement.ECoordinateSystemType.RightHandedZup);
 
-			FDatasmithFacadeDirectLink.Init();
+			if (!bDatasmithFacadeDirectLinkInitialized)
+			{
+				FDatasmithFacadeDirectLink.Init();
+				bDatasmithFacadeDirectLinkInitialized = true;
+			}
 
 			FMaterial.InitializeMaterialTypes();
+
+			OnActiveDocChange();
 
 			return true;
 		}
 
 		public bool DisconnectFromSW()
 		{
-			FDatasmithFacadeDirectLink.Shutdown();
+			// Disabled Shutdown as Initing again crashes if the plugin is re-enabled in SW
+			// FDatasmithFacadeDirectLink.Shutdown it is required to have plugin dll unloaded but Solidworks doesn't unload the plugin assembly when plugin is disabled
+			// So, something like this doesn't work:
+			// if (bDatasmithFacadeDirectLinkInitialized)
+			// {
+			// 	FDatasmithFacadeDirectLink.Shutdown();
+			// 	bDatasmithFacadeDirectLinkInitialized = false;
+			// }
+			// At least make sure to close current connection
+			CurrentDocument?.MakeActive(false);
 
 			DetachEventHandlers();
 			DestroyToolbarCommands();
