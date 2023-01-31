@@ -88,13 +88,9 @@ public:
 
 		if (View.bShouldBindInstancedViewUB)
 		{
-			// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
-			const FSceneView* InstancedView = View.GetInstancedSceneView();
-			if (InstancedView)
-			{
-				const auto& InstancedViewUniformBufferParameter = GetUniformBufferParameter<FInstancedViewUniformShaderParameters>();
-				SetUniformBufferParameter(RHICmdList, ShaderRHI, InstancedViewUniformBufferParameter, InstancedView->ViewUniformBuffer);
-			}
+			// When drawing an instanced stereo scene, the instanced view UB should be taken from the same view where it will contains a copy of both left and eye values (see FViewInfo::CreateViewUniformBuffers).
+			const auto& InstancedViewUniformBufferParameter = GetUniformBufferParameter<FInstancedViewUniformShaderParameters>();
+			SetUniformBufferParameter(RHICmdList, ShaderRHI, InstancedViewUniformBufferParameter, View.GetInstancedViewUniformBuffer());
 		}
 	}
 

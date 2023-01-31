@@ -1656,8 +1656,17 @@ public:
 	/** Get all secondary views associated with the primary view. */
 	TArray<const FSceneView*> GetSecondaryViews() const;
 
+	/** Returns uniform buffer that is used to access (first) instanced view's properties. Note: it is not the same as that view's ViewUniformBuffer, albeit it contains all relevant data from it. */
+	const TUniformBufferRef<FInstancedViewUniformShaderParameters>& GetInstancedViewUniformBuffer() const
+	{
+		return InstancedViewUniformBuffer;
+	}
+
 protected:
 	FSceneViewStateInterface* EyeAdaptationViewState = nullptr;
+
+	/** Instanced view uniform buffer held on the primary view. */
+	TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedViewUniformBuffer;
 };
 
 //////////////////////////////////////////////////////////////////////////
