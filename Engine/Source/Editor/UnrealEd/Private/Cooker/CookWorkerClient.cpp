@@ -266,8 +266,10 @@ void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
 		}
 		else
 		{
-			PendingResultsNeedingAsyncWork.Add(Result,
-				FPendingResultNeedingAsyncWork{ MoveTemp(ResultOwner), MoveTemp(CompletionFuture) });
+			FPendingResultNeedingAsyncWork Work;
+			Work.PendingResult = MoveTemp(ResultOwner);
+			Work.CompletionFuture = MoveTemp(CompletionFuture);
+			PendingResultsNeedingAsyncWork.Add(Result, MoveTemp(Work));
 		}
 	}
 }
