@@ -572,7 +572,6 @@ private:
 	const FSceneViewFamily& ViewFamily;
 	float MinResolutionFraction = 0.5f;
 	float MaxResolutionFraction = 1.0f;
-
 };
 
 } // namespace
@@ -582,7 +581,10 @@ void FRDGParallelCommandListSet::SetStateOnCommandList(FRHICommandList& RHICmdLi
 {
 	FParallelCommandListSet::SetStateOnCommandList(RHICmdList);
 	Bindings.SetOnCommandList(RHICmdList);
-	SceneRenderer.SetStereoViewport(RHICmdList, View, ViewportScale);
+	if (bHasRenderPasses)
+	{
+		FSceneRenderer::SetStereoViewport(RHICmdList, View, ViewportScale);
+	}
 }
 
 FFastVramConfig::FFastVramConfig()
@@ -680,12 +682,13 @@ bool FFastVramConfig::UpdateBufferFlagFromCVar(TAutoConsoleVariable<int32>& CVar
 FFastVramConfig GFastVRamConfig;
 
 
-FParallelCommandListSet::FParallelCommandListSet(const FRDGPass* InPass, TStatId InExecuteStat, const FViewInfo& InView, FRHICommandListImmediate& InParentCmdList)
+FParallelCommandListSet::FParallelCommandListSet(const FRDGPass* InPass, TStatId InExecuteStat, const FViewInfo& InView, FRHICommandListImmediate& InParentCmdList, bool bInHasRenderPasses)
 	: Pass(InPass)
 	, View(InView)
 	, ParentCmdList(InParentCmdList)
 	, ExecuteStat(InExecuteStat)
 	, NumAlloc(0)
+	, bHasRenderPasses(bInHasRenderPasses)
 {
 	Width = CVarRHICmdWidth.GetValueOnRenderThread();
 	MinDrawsPerCommandList = CVarRHICmdMinDrawsPerParallelCmdList.GetValueOnRenderThread();
@@ -745,7 +748,11 @@ void FParallelCommandListSet::Dispatch(bool bHighPriority)
 
 		// #todo-renderpasses PS4 breaks if this isn't here. Why?
 		SetStateOnCommandList(ParentCmdList);
-		ParentCmdList.EndRenderPass();
+		
+		if (bHasRenderPasses)
+		{
+			ParentCmdList.EndRenderPass();
+		}
 	}
 	else
 	{
@@ -5161,7 +5168,7 @@ TSharedRef<ISceneViewExtension, ESPMode::ThreadSafe> GetRendererViewExtension()
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-void FSceneRenderer::SetStereoViewport(FRHICommandList& RHICmdList, const FViewInfo& View, float ViewportScale) const
+void FSceneRenderer::SetStereoViewport(FRHICommandList& RHICmdList, const FViewInfo& View, float ViewportScale)
 {
 	if (View.IsInstancedStereoPass())
 	{

@@ -346,6 +346,12 @@ FORCEINLINE static FRHIRenderPassInfo GetRenderPassInfo(TParameterStruct* Parame
 	return FRDGParameterStruct(Parameters, TParameterStruct::FTypeInfo::GetStructMetadata()).GetRenderPassInfo();
 }
 
+template <typename TParameterStruct>
+FORCEINLINE static bool HasRenderPassInfo(TParameterStruct* Parameters)
+{
+	return FRDGParameterStruct(Parameters, TParameterStruct::FTypeInfo::GetStructMetadata()).HasRenderTargets();
+}
+
 /** Helper function to get RHI global uniform buffers out of a pass parameters struct. */
 template <typename TParameterStruct>
 FORCEINLINE static FUniformBufferStaticBindings GetStaticUniformBuffers(TParameterStruct* Parameters)

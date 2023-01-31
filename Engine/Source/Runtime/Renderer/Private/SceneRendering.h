@@ -570,18 +570,28 @@ class FParallelCommandListBindings
 public:
 	template <typename ParameterStructType>
 	FParallelCommandListBindings(ParameterStructType* ParameterStruct)
-		: RenderPassInfo(GetRenderPassInfo(ParameterStruct))
-		, StaticUniformBuffers(GetStaticUniformBuffers(ParameterStruct))
-	{}
+		: StaticUniformBuffers(GetStaticUniformBuffers(ParameterStruct))
+		, bHasRenderPassInfo(HasRenderPassInfo(ParameterStruct))
+	{
+		if (bHasRenderPassInfo)
+		{
+			RenderPassInfo = GetRenderPassInfo(ParameterStruct);
+		}
+	}
 
 	inline void SetOnCommandList(FRHICommandList& RHICmdList) const
 	{
-		RHICmdList.BeginRenderPass(RenderPassInfo, TEXT("Parallel"));
+		if (bHasRenderPassInfo)
+		{
+			RHICmdList.BeginRenderPass(RenderPassInfo, TEXT("Parallel"));
+		}
+
 		RHICmdList.SetStaticUniformBuffers(StaticUniformBuffers);
 	}
 
 	FRHIRenderPassInfo RenderPassInfo;
 	FUniformBufferStaticBindings StaticUniformBuffers;
+	bool bHasRenderPassInfo;
 };
 
 class FParallelCommandListSet
@@ -594,15 +604,19 @@ public:
 	int32 Width;
 	int32 NumAlloc;
 	int32 MinDrawsPerCommandList;
+
 private:
 	TArray<FRHICommandListImmediate::FQueuedCommandList, SceneRenderingAllocator> QueuedCommandLists;
+
 protected:
 	//this must be called by deriving classes virtual destructor because it calls the virtual SetStateOnCommandList.
 	//C++ will not do dynamic dispatch of virtual calls from destructors so we can't call it in the base class.
 	void Dispatch(bool bHighPriority = false);
 	FRHICommandList* AllocCommandList();
+	bool bHasRenderPasses;
+
 public:
-	FParallelCommandListSet(const FRDGPass* InPass, TStatId InExecuteStat, const FViewInfo& InView, FRHICommandListImmediate& InParentCmdList);
+	FParallelCommandListSet(const FRDGPass* InPass, TStatId InExecuteStat, const FViewInfo& InView, FRHICommandListImmediate& InParentCmdList, bool bHasRenderPasses = true);
 	virtual ~FParallelCommandListSet();
 
 	int32 NumParallelCommandLists() const
@@ -629,12 +643,10 @@ public:
 		const FRDGPass* InPass,
 		FRHICommandListImmediate& InParentCmdList,
 		TStatId InStatId,
-		const FSceneRenderer& InSceneRenderer,
 		const FViewInfo& InView,
 		const FParallelCommandListBindings& InBindings,
 		float InViewportScale = 1.0f)
-		: FParallelCommandListSet(InPass, InStatId, InView, InParentCmdList)
-		, SceneRenderer(InSceneRenderer)
+		: FParallelCommandListSet(InPass, InStatId, InView, InParentCmdList, InBindings.bHasRenderPassInfo)
 		, Bindings(InBindings)
 		, ViewportScale(InViewportScale)
 	{}
@@ -652,7 +664,6 @@ public:
 	}
 
 private:
-	const FSceneRenderer& SceneRenderer;
 	FParallelCommandListBindings Bindings;
 	float ViewportScale;
 	bool bHighPriority = false;
@@ -2184,7 +2195,7 @@ public:
 	void  RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, FCloudRenderContext& CloudRC, FInstanceCullingManager& InstanceCullingManager);
 
 	/** Sets the stereo-compatible RHI viewport. If the view doesn't requires stereo rendering, the standard viewport is set. */
-	void SetStereoViewport(FRHICommandList& RHICmdList, const FViewInfo& View, float ViewportScale = 1.0f) const;
+	static void SetStereoViewport(FRHICommandList& RHICmdList, const FViewInfo& View, float ViewportScale = 1.0f);
 
 	/** Whether distance field global data structures should be prepared for features that use it. */
 	bool ShouldPrepareForDistanceFieldShadows() const;
