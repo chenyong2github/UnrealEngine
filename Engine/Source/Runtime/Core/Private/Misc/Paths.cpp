@@ -18,7 +18,7 @@
 #include "Misc/LazySingleton.h"
 #include "Misc/Parse.h"
 #include "Misc/ScopeLock.h"
-#include "String/Parse.h"
+#include "String/ParseTokens.h"
 #include "UObject/NameTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPaths, Log, All);
@@ -1297,11 +1297,13 @@ bool FPaths::MakePathRelativeTo( FString& InPath, const TCHAR* InRelativeTo )
 	Source.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 	Target.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 
+	const UE::String::EParseTokensOptions ParseOptions = UE::String::EParseTokensOptions::IgnoreCase |
+		UE::String::EParseTokensOptions::SkipEmpty;
 	TArray<FStringView, TInlineAllocator<16>> TargetArrayBuffer;
-	UE::String::ParseIntoArray(TargetArrayBuffer, Target, TEXT("/"), true);
+	UE::String::ParseTokens(Target, TEXTVIEW("/"), TargetArrayBuffer, ParseOptions);
 	TArrayView<FStringView> TargetArray(TargetArrayBuffer);
 	TArray<FStringView, TInlineAllocator<16>> SourceArrayBuffer;
-	UE::String::ParseIntoArray(SourceArrayBuffer, Source, TEXT("/"), true);
+	UE::String::ParseTokens(Source, TEXTVIEW("/"), SourceArrayBuffer, ParseOptions);
 	TArrayView<FStringView> SourceArray(SourceArrayBuffer);
 
 	if (TargetArray.Num() && SourceArray.Num())

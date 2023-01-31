@@ -18,7 +18,7 @@
 #include "Misc/VarArgs.h"
 #include "Serialization/Archive.h"
 #include "String/HexToBytes.h"
-#include "String/Parse.h"
+#include "String/ParseTokens.h"
 #include "Templates/MemoryOps.h"
 #include "Templates/RemoveReference.h"
 #include "Templates/UnrealTemplate.h"
@@ -1281,7 +1281,17 @@ bool FString::IsNumeric() const
 int32 FString::ParseIntoArray( TArray<FString>& OutArray, const TCHAR* pchDelim, const bool InCullEmpty ) const
 {
 	check(pchDelim);
-	return UE::String::ParseIntoArray(OutArray, *this, pchDelim, InCullEmpty);
+	OutArray.Reset();
+	// TODO Legacy behavior: if DelimLength is 0 we return an empty array. Can we change this to return { Text }?
+	if (pchDelim[0] != '\0')
+	{
+		UE::String::EParseTokensOptions ParseOptions = UE::String::EParseTokensOptions::IgnoreCase |
+			(InCullEmpty ? UE::String::EParseTokensOptions::SkipEmpty : UE::String::EParseTokensOptions::None);
+		UE::String::ParseTokens(FStringView(*this), FStringView(pchDelim),
+			[&OutArray](FStringView Token) { OutArray.Emplace(Token); },
+			ParseOptions);
+	}
+	return OutArray.Num();
 }
 
 bool FString::MatchesWildcard(const TCHAR* InWildcard, int32 InWildcardLen, ESearchCase::Type SearchCase) const
