@@ -3,12 +3,22 @@
 #include "SSourceControlChangelistRows.h"
 
 #include "ISourceControlModule.h"
+#include "PackageTools.h"
+#include "SourceControlHelpers.h"
 #include "UncontrolledChangelistsModule.h"
 #include "SourceControlOperations.h"
+#include "UnsavedAssetsTrackerModule.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Algo/Transform.h"
+#include "Async/Async.h"
+#include "RevisionControlStyle/RevisionControlStyle.h"
+#include "Styling/SlateStyleRegistry.h"
+#include "Styling/StarshipCoreStyle.h"
+#include "Widgets/Images/SThrobber.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelistRow"
 
@@ -35,6 +45,18 @@ FText SourceControlFileViewColumn::LastModifiedTimestamp::GetToolTipText() { ret
 FName SourceControlFileViewColumn::CheckedOutByUser::Id() { return TEXT("CheckedOutByUser"); }
 FText SourceControlFileViewColumn::CheckedOutByUser::GetDisplayText() { return LOCTEXT("CheckedOutByUser_Column", "User"); }
 FText SourceControlFileViewColumn::CheckedOutByUser::GetToolTipText() { return LOCTEXT("CheckedOutByUser_Column_Tooltip", "Displays the other user(s) that checked out the file/asset, if any"); }
+
+FName SourceControlFileViewColumn::Changelist::Id() { return TEXT("Changelist"); }
+FText SourceControlFileViewColumn::Changelist::GetDisplayText() { return LOCTEXT("Changelist_Column", "Changelist"); }
+FText SourceControlFileViewColumn::Changelist::GetToolTipText() { return LOCTEXT("Changelist_Column_Tooltip", "Displays the changelist the asset/file belongs to, if any"); }
+
+FName SourceControlFileViewColumn::Dirty::Id() { return TEXT("Dirty"); }
+FText SourceControlFileViewColumn::Dirty::GetDisplayText() { return LOCTEXT("Dirty_Column", "Unsaved"); }
+FText SourceControlFileViewColumn::Dirty::GetToolTipText() { return LOCTEXT("Dirty_Column_Tooltip", "Displays whether the asset/file has unsaved changes"); }
+
+FName SourceControlFileViewColumn::Discard::Id() { return TEXT("Discard"); }
+FText SourceControlFileViewColumn::Discard::GetDisplayText() { return LOCTEXT("Discard_Column", "Discard Unsaved Changes"); }
+FText SourceControlFileViewColumn::Discard::GetToolTipText() { return LOCTEXT("Discard_Column_Tooltip", "Provides option to discard unsaved changes to an asset/file"); }
 
 FText FormatChangelistFileCountText(int32 DisplayedCount, int32 TotalCount)
 {
@@ -240,6 +262,39 @@ FReply SUncontrolledChangelistTableRow::OnDrop(const FGeometry& InGeometry, cons
 	}
 
 	return FReply::Handled();
+}
+
+void SUnsavedAssetsTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwner)
+{
+	STableRow<FChangelistTreeItemPtr>::Construct(
+		STableRow<FChangelistTreeItemPtr>::FArguments()
+		.Style(FAppStyle::Get(), "TableView.Row")
+		.Content()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("Assets.Unsaved"))
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("SourceControl_Unsaved", "Unsaved"))
+			]
+			+SHorizontalBox::Slot() // Files/Offline file count.
+			.Padding(4, 0, 4, 0)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text_Lambda([] { return FText::Format(FText::FromString("({0})"), FUnsavedAssetsTrackerModule::Get().GetUnsavedAssetNum()); })
+			]
+		], InOwner);
 }
 
 
@@ -462,6 +517,74 @@ TSharedRef<SWidget> SOfflineFileTableRow::GenerateWidgetForColumn(const FName& C
 	{
 		return SNew(STextBlock)
 			.Text(FText::GetEmpty());
+	}
+	else if (ColumnId == SourceControlFileViewColumn::Dirty::Id())
+	{
+		if (FUnsavedAssetsTrackerModule::Get().IsAssetUnsaved(GetFilename().ToString()))
+		{
+			return SNew(SBox)
+				.WidthOverride(16) // Small Icons are usually 16x16
+				.HAlign(HAlign_Center)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::GetBrush(FName("SourceControl.OfflineFile_Small")))
+				];
+		}
+		return SNew(SBox)
+			.WidthOverride(16); // Small Icons are usually 16x16
+	}
+	else if (ColumnId == SourceControlFileViewColumn::Discard::Id())
+	{
+		FString Filename = TreeItem->GetFullPathname();
+		if (!FUnsavedAssetsTrackerModule::Get().IsAssetUnsaved(Filename))
+		{
+			return SNew(SBox)
+				.WidthOverride(16); // Small Icons are usually 16x16
+		}
+
+		TSharedRef<SWidgetSwitcher> DiscardSwitcher = SNew(SWidgetSwitcher);
+
+		TSharedRef<SImage> DiscardButton = SNew(SImage)
+				.DesiredSizeOverride(FVector2D{ 16.0f })
+				.Image(FAppStyle::Get().GetBrush("Icons.XCircle"))
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.OnMouseButtonDown_Lambda([this, DiscardSwitcher] (const FGeometry&, const FPointerEvent&) -> FReply
+				{
+					DiscardSwitcher->SetActiveWidgetIndex(1);
+					Async(EAsyncExecution::TaskGraphMainThread,
+						[this]
+						{
+							TArray<FString> PackageToReload { TreeItem->GetPackageName().ToString() };
+							const bool bAllowReloadWorld = true;
+							const bool bInteractive = false;
+							USourceControlHelpers::ApplyOperationAndReloadPackages(
+								PackageToReload,
+								[](const TArray<FString>&) -> bool { return true; },
+								bAllowReloadWorld,
+								bInteractive
+							);
+						},
+						[] {  });
+					
+					return FReply::Handled();
+				});
+
+		DiscardSwitcher->AddSlot()[
+			DiscardButton
+		];
+		DiscardSwitcher->AddSlot()[
+			SNew(SCircularThrobber)
+			.Radius(7.5f)
+		];
+		
+		return
+			SNew(SBox)
+			.WidthOverride(16) // Small Icons are usually 16x16
+			.Padding(FMargin{1, 0})
+			.ToolTipText(LOCTEXT("UnsavedAsset_DiscardChanges", "Discard unsaved changes"))
+			[
+				DiscardSwitcher
+			];
 	}
 	else
 	{

@@ -205,6 +205,11 @@ void IFileViewTreeItem::SetLastModifiedDateTime(const FDateTime& Timestamp)
 
 //////////////////////////////////////////////////////////////////////////
 
+FString FUnsavedAssetsTreeItem::GetDisplayString() const
+{
+	return "";
+}
+
 FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyPaths, bool bIsShelvedFile)
 	: IFileViewTreeItem(bIsShelvedFile ? IChangelistTreeItem::ShelvedFile : IChangelistTreeItem::File)
 	, FileState(InFileState)

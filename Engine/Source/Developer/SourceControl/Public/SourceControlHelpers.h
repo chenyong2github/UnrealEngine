@@ -354,10 +354,11 @@ public:
 	 * @param	InPackagesToApplyOperation			The files/packages to apply the operation
 	 * @param	InOperation							The function to apply
 	 * @param	bReloadWorld						Reload the world
+	 * @param	bInteractive						Whether to prompt user when discarding changes
 	 * @return true if succeeded.
 	 */
 	static bool ApplyOperationAndReloadPackages(const TArray<FString>& InPackagesToApplyOperation, 
-		const TFunctionRef<bool(const TArray<FString>&)>& InOperation, bool bReloadWorld = false);
+		const TFunctionRef<bool(const TArray<FString>&)>& InOperation, bool bReloadWorld = false, bool bInteractive = true);
 
 	/**
      * Reverts the provided files then reloads packages.

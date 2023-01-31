@@ -16,6 +16,7 @@ public class SourceControlWindows : ModuleRules
 				"SlateCore",
 				"SourceControl", 
 				"UncontrolledChangelists",
+				"UnsavedAssetsTracker",
 				"AssetTools",
 				"ToolWidgets",
 				"EditorFramework",

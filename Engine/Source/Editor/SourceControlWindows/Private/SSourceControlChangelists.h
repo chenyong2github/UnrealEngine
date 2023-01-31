@@ -17,7 +17,9 @@
 #include "Widgets/Views/STreeView.h"
 
 class FChangelistGroupTreeItem;
+class SExpandableArea;
 class SExpandableChangelistArea;
+class SWidgetSwitcher;
 class SSearchBox;
 class USourceControlSettings;
 
@@ -41,8 +43,9 @@ private:
 	enum class ERefreshFlags
 	{
 		SourceControlChangelists = 1 << 0,
+		UnsavedAssets            = 1 << 1,
 		UncontrolledChangelists  = 1 << 2,
-		All = SourceControlChangelists | UncontrolledChangelists,
+		All = SourceControlChangelists | UnsavedAssets | UncontrolledChangelists,
 	};
 	FRIEND_ENUM_CLASS_FLAGS(ERefreshFlags)
 
@@ -65,6 +68,7 @@ private:
 	TSharedRef<SWidget> MakeToolBar();
 	TSharedRef<STreeView<FChangelistTreeItemPtr>> CreateChangelistTreeView(TArray<TSharedPtr<IChangelistTreeItem>>& ItemSources);
 	TSharedRef<SListView<FChangelistTreeItemPtr>> CreateChangelistFilesView();
+	TSharedRef<SListView<FChangelistTreeItemPtr>> CreateUnsavedAssetsFilesView();
 
 	TSharedRef<ITableRow> OnGenerateRow(FChangelistTreeItemPtr InTreeItem, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnGetChangelistChildren(FChangelistTreeItemPtr InParent, TArray<FChangelistTreeItemPtr>& OutChildren);
@@ -81,6 +85,7 @@ private:
 	void OnUncontrolledChangelistSearchTextChanged(const FText& InFilterText);
 	void OnFileSearchTextChanged(const FText& InFilterText);
 	void PopulateItemSearchStrings(const IChangelistTreeItem& Item, TArray<FString>& OutStrings);
+	void OnUnsavedAssetChanged(const FString& Filepath);
 
 	FReply OnFilesDragged(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent);
 
@@ -88,6 +93,7 @@ private:
 	void RequestFileStatusRefresh(const IChangelistTreeItem& Changelist);
 	void RequestFileStatusRefresh(TSet<FString>&& Pathnames);
 	void OnRefreshUI(ERefreshFlags RefreshFlags);
+	void OnRefreshUnsavedAssetsWidgets(int64 CurrUpdateNum, const TFunction<void(TSharedPtr<IFileViewTreeItem>&)>& AddItemToFileView);
 	void OnRefreshSourceControlWidgets(int64 CurreUpdateNum, const TFunction<void(TSharedPtr<IFileViewTreeItem>&)>& AddItemToFileView);
 	void OnRefreshUncontrolledChangelistWidgets(int64 CurreUpdateNum, const TFunction<void(TSharedPtr<IFileViewTreeItem>&)>& AddItemToFileView);
 	void ClearChangelistsTree();
@@ -196,6 +202,10 @@ private:
 	void OnPackageSaved(const FString& PackageFilename, UPackage* Package, FObjectPostSaveContext ObjectSaveContext);
 
 private:
+	TSharedPtr<SExpandableChangelistArea> UnsavedAssetsExpandableArea;
+	TSharedPtr<STreeView<FChangelistTreeItemPtr>> UnsavedAssetsTreeView;
+	TArray<TSharedPtr<IChangelistTreeItem>> UnsavedAssetsTreeNode;
+	
 	TSharedPtr<SExpandableChangelistArea> ChangelistExpandableArea;
 	TSharedPtr<STreeView<FChangelistTreeItemPtr>> ChangelistTreeView;
 	TArray<TSharedPtr<IChangelistTreeItem>> ChangelistTreeNodes;
@@ -203,10 +213,15 @@ private:
 	TSharedPtr<SExpandableChangelistArea> UncontrolledChangelistExpandableArea;
 	TSharedPtr<STreeView<FChangelistTreeItemPtr>> UncontrolledChangelistTreeView;
 	TArray<TSharedPtr<IChangelistTreeItem>> UncontrolledChangelistTreeNodes;
-
+	
 	TSharedPtr<SListView<FChangelistTreeItemPtr>> FileListView;
 	TArray<TSharedPtr<IChangelistTreeItem>> FileListNodes;
 	TArray<FName> FileViewHiddenColumnsList;
+
+	TSharedPtr<SListView<FChangelistTreeItemPtr>> UnsavedAssetsFileListView;
+	TSharedPtr<SWidgetSwitcher> FileListViewSwitcher;
+	
+	SListView<FChangelistTreeItemPtr>& GetActiveFileListView() const;
 
 	TMap<TSharedPtr<void>, TSharedPtr<IChangelistTreeItem>> SourceControlItemCache;
 	TMap<TSharedPtr<void>, TSharedPtr<IChangelistTreeItem>> UncontrolledChangelistItemCache;

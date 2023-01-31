@@ -26,6 +26,9 @@ struct FAssetData;
  * > UncontrolledChangelist
  *     File
  *     Offline File
+ *
+ * > UnsavedAssets
+ *     Offline File
  */
 struct IChangelistTreeItem : TSharedFromThis<IChangelistTreeItem>
 {
@@ -37,6 +40,7 @@ struct IChangelistTreeItem : TSharedFromThis<IChangelistTreeItem>
 		ShelvedChangelist,       // Node displaying shelved files as children.
 		ShelvedFile,             // Node displaying a shelved file information.
 		OfflineFile,             // Node displaying an offline file information.
+		UnsavedAssets,           // Node displaying unsaved asset category
 	};
 
 	virtual ~IChangelistTreeItem() = default;
@@ -201,6 +205,16 @@ struct FUncontrolledChangelistTreeItem : public IChangelistTreeItem
 	FUncontrolledChangelistStateRef UncontrolledChangelistState;
 };
 
+/** Displays a changelist icon/number/description. */
+struct FUnsavedAssetsTreeItem : public IChangelistTreeItem
+{
+	FUnsavedAssetsTreeItem()
+		: IChangelistTreeItem(IChangelistTreeItem::UnsavedAssets)
+	{
+	}
+
+	FString GetDisplayString() const;
+};
 
 /** Displays a set of files under a changelist or uncontrolled changelist. */
 struct FFileTreeItem : public IFileViewTreeItem
