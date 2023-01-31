@@ -46,3 +46,17 @@ namespace HairAttribute
 		extern HAIRSTRANDSCORE_API const FName Width;			// float
 	}
 }
+
+enum class EHairAttribute : uint8
+{
+	RootUV,
+	ClumpID,
+	PrecomputedGuideWeights,
+	Color,
+	Roughness,
+	AO,
+	Count
+};
+
+HAIRSTRANDSCORE_API bool HasHairAttribute(uint32 In, EHairAttribute InAttribute);
+HAIRSTRANDSCORE_API void SetHairAttribute(uint32& Out, EHairAttribute InAttribute);

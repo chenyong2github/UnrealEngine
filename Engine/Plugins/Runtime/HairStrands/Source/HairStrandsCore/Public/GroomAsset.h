@@ -369,9 +369,7 @@ struct FHairDescriptionGroup
 	FHairGroupInfo		Info;
 	FHairStrandsDatas	Strands;
 	FHairStrandsDatas	Guides;
-
-	bool  bCanUseClosestGuidesAndWeights = false;
-	bool  bHasUVData = false;
+	uint32				Attributes = 0;
 };
 
 struct FHairDescriptionGroups

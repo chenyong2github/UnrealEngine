@@ -2079,6 +2079,7 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 			++GroupIndex;
 		}
 
+		// Transfer requires root UV embedded into the groom asset. It is not possible to read safely hair description here to extra this data.
 		const bool bNeedTransferPosition = SourceMeshData->IsValid();
 
 		// Create mapping between the source & target using their UV

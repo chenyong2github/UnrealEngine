@@ -94,12 +94,19 @@ public:
 	void Serialize(FArchive& Ar);
 
 	// #ueent_todo: Expose "remove" operations to allow editing HairDescription
+	bool HasAttribute(EHairAttribute InAttribute) const;
 
+	UE_DEPRECATED(5.3, "HasRootUV accessor is deprecated. Use HasAttribute instead")
 	bool HasRootUV() const;
+	UE_DEPRECATED(5.3, "HasClumpID accessor is deprecated. Use HasAttribute instead")
 	bool HasClumpID() const;
+	UE_DEPRECATED(5.3, "HasGuideWeights accessor is deprecated. Use HasAttribute instead")
 	bool HasGuideWeights() const;
+	UE_DEPRECATED(5.3, "HasColorAttributes accessor is deprecated. Use HasAttribute instead")
 	bool HasColorAttributes() const;
+	UE_DEPRECATED(5.3, "HasRoughnessAttributes accessor is deprecated. Use HasAttribute instead")
 	bool HasRoughnessAttributes() const;
+	UE_DEPRECATED(5.3, "HasAOAttributes accessor is deprecated. Use HasAttribute instead")
 	bool HasAOAttributes() const;
 
 private:

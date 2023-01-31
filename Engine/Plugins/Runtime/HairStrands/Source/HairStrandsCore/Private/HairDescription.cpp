@@ -66,6 +66,41 @@ bool FHairDescription::IsValid() const
 	return (NumStrands > 0) && (NumVertices > 0);
 }
 
+bool FHairDescription::HasAttribute(EHairAttribute InAttribute) const
+{
+	// If a new optional attribute is added, please add its UI/text description here
+	static_assert(uint32(EHairAttribute::Count) == 6);
+
+	switch (InAttribute)
+	{
+	case EHairAttribute::RootUV:		return StrandAttributes().GetAttributesRef<FVector2f>(HairAttribute::Strand::RootUV).IsValid();
+	case EHairAttribute::ClumpID:		return StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::ClumpID).IsValid();
+	case EHairAttribute::Color:			return VertexAttributes().GetAttributesRef<FVector3f>(HairAttribute::Vertex::Color).IsValid();
+	case EHairAttribute::Roughness:		return VertexAttributes().GetAttributesRef<float>(HairAttribute::Vertex::Roughness).IsValid();
+	case EHairAttribute::AO:			return VertexAttributes().GetAttributesRef<float>(HairAttribute::Vertex::AO).IsValid();
+	case EHairAttribute::PrecomputedGuideWeights:
+	{
+		return
+			// Single
+			(StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::ClosestGuides).IsValid() &&
+				StrandAttributes().GetAttributesRef<float>(HairAttribute::Strand::GuideWeights).IsValid())
+			||
+			// Triplet
+			(StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::ClosestGuides).IsValid() &&
+				StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::GuideWeights).IsValid());
+	}
+	}
+	return false;
+}
+
+// Deprecated named accessors. Use HasAttribute() instead
+// These accessors are defined here to ease mirror logic with BuildHairDescriptionGroups, if any type/attributes changes
+bool FHairDescription::HasRootUV() const { return HasAttribute(EHairAttribute::RootUV); }
+bool FHairDescription::HasClumpID() const { return HasAttribute(EHairAttribute::ClumpID); }
+bool FHairDescription::HasGuideWeights() const { return HasAttribute(EHairAttribute::PrecomputedGuideWeights); }
+bool FHairDescription::HasColorAttributes() const { return HasAttribute(EHairAttribute::Color); }
+bool FHairDescription::HasRoughnessAttributes() const { return HasAttribute(EHairAttribute::Roughness); }
+bool FHairDescription::HasAOAttributes() const { return HasAttribute(EHairAttribute::AO); }
 
 void FHairDescription::Serialize(FArchive& Ar)
 {

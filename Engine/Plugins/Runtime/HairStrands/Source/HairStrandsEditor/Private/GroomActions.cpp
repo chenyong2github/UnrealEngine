@@ -176,7 +176,11 @@ void FGroomActions::ExecuteRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) 
 			
 				const uint32 GroupCount = GroomAsset->GetNumHairGroups();
 				UGroomHairGroupsPreview* GroupsPreview = NewObject<UGroomHairGroupsPreview>();
-				{					
+				{
+					FHairDescription HairDescription = GroomAsset->GetHairDescription();
+					FHairDescriptionGroups HairDescriptionGroups;
+					FGroomBuilder::BuildHairDescriptionGroups(HairDescription, HairDescriptionGroups);
+
 					for (uint32 GroupIndex = 0; GroupIndex < GroupCount; GroupIndex++)
 					{
 						FGroomHairGroupPreview& OutGroup = GroupsPreview->Groups.AddDefaulted_GetRef();
@@ -184,6 +188,7 @@ void FGroomActions::ExecuteRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) 
 						OutGroup.GroupName	= GroomAsset->HairGroupsInfo[GroupIndex].GroupName;
 						OutGroup.CurveCount = GroomAsset->HairGroupsData[GroupIndex].Strands.BulkData.GetNumCurves();
 						OutGroup.GuideCount = GroomAsset->HairGroupsData[GroupIndex].Guides.BulkData.GetNumCurves();
+						OutGroup.Attributes = HairDescriptionGroups.HairGroups[GroupIndex].Attributes;
 						OutGroup.InterpolationSettings = GroomAsset->HairGroupsInterpolation[GroupIndex];
 						OutGroup.InterpolationSettings.RiggingSettings.bCanEditRigging = true;
 					}
@@ -249,6 +254,7 @@ void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>
 		{
 			// Duplicate the options to prevent dirtying the asset when they are modified but the rebuild is cancelled
 			UGroomCreateBindingOptions* CurrentOptions = NewObject<UGroomCreateBindingOptions>();
+			CurrentOptions->GroomAsset = GroomAsset;
 			TSharedPtr<SGroomCreateBindingOptionsWindow> GroomOptionWindow = SGroomCreateBindingOptionsWindow::DisplayCreateBindingOptions(CurrentOptions);
 
 			if (!GroomOptionWindow->ShouldCreate())

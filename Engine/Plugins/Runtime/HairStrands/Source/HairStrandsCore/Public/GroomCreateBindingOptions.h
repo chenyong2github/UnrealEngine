@@ -12,6 +12,10 @@ class HAIRSTRANDSCORE_API UGroomCreateBindingOptions : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
+	/** Groom asset */
+	UPROPERTY()
+	TWeakObjectPtr<UGroomAsset> GroomAsset;
+
 	/** Type of mesh to create groom binding for */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BuildSettings)
 	EGroomBindingMeshType GroomBindingType;

@@ -19,6 +19,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Editor.h"
 #include "GroomBindingAsset.h"
+#include "GroomAsset.h"
 
 #define LOCTEXT_NAMESPACE "GroomCreateBindingOptionsWindow"
 
@@ -26,6 +27,36 @@ void SGroomCreateBindingOptionsWindow::Construct(const FArguments& InArgs)
 {
 	BindingOptions = InArgs._BindingOptions;
 	WidgetWindow = InArgs._WidgetWindow;
+
+	const FSlateFontInfo AttributeFont = FAppStyle::GetFontStyle("CurveEd.InfoFont");
+	const FSlateFontInfo AttributeResultFont = FAppStyle::GetFontStyle("CurveEd.InfoFont");
+	const FLinearColor AttributeColor(0.0f, 0.80f, 0.0f);
+	const FText TrueText = LOCTEXT("GroomBindingOptionsWindow_AttributeTrue", "True");
+	const FText FalseText = LOCTEXT("GroomBindingOptionsWindow_AttributeFalse", "False");
+
+	bool bHasRootUV = false;
+	FText HasRootUVText = FalseText;
+	FLinearColor ValidationColor(1, 1, 1);
+
+	// Check if UV transfer are possible
+	BindingOptions->GroomAsset->ConditionalPostLoad();
+	if (UGroomAsset* GroomAsset = BindingOptions->GroomAsset.Get())
+	{
+		const FHairDescription HairDescription = GroomAsset->GetHairDescription();
+		bHasRootUV = HairDescription.HasAttribute(EHairAttribute::RootUV);
+	}
+
+	if (bHasRootUV)
+	{
+		HasRootUVText = TrueText;
+		if (FProperty* TransferProperty = FindFProperty<FProperty>(BindingOptions->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomCreateBindingOptions, SourceSkeletalMesh))) { TransferProperty->SetMetaData(TEXT("Category"), TEXT("Conversion")); }
+		if (FProperty* TransferProperty = FindFProperty<FProperty>(BindingOptions->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomCreateBindingOptions, MatchingSection))) { TransferProperty->SetMetaData(TEXT("Category"), TEXT("Conversion")); }
+	}
+	else
+	{
+		if (FProperty* TransferProperty = FindFProperty<FProperty>(BindingOptions->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomCreateBindingOptions, SourceSkeletalMesh))) { TransferProperty->SetMetaData(TEXT("Category"), TEXT("Hidden")); }
+		if (FProperty* TransferProperty = FindFProperty<FProperty>(BindingOptions->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomCreateBindingOptions, MatchingSection)))   { TransferProperty->SetMetaData(TEXT("Category"), TEXT("Hidden")); }
+	}
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FDetailsViewArgs DetailsViewArgs;
@@ -37,6 +68,36 @@ void SGroomCreateBindingOptionsWindow::Construct(const FArguments& InArgs)
 	this->ChildSlot
 	[
 		SNew(SVerticalBox)
+
+		// Root UV
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2)
+		[
+			SNew(SBorder)
+			.Padding(FMargin(3))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Font(AttributeFont)
+					.Text(LOCTEXT("GroomOptionsWindow_HasRootUV", "Root UV: "))
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(5, 0, 0, 0)
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(AttributeResultFont)
+					.Text(HasRootUVText)
+					.ColorAndOpacity(AttributeColor)
+				]
+			]
+		]
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()

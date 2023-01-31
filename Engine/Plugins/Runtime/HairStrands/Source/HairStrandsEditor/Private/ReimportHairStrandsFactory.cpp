@@ -384,7 +384,7 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 				OutGroup.GroupID	= Group.Info.GroupID;
 				OutGroup.CurveCount = Group.Info.NumCurves;
 				OutGroup.GuideCount = Group.Info.NumGuides;
-				OutGroup.bHasPrecomputedWeights = Group.Strands.StrandsCurves.HasPrecomputedWeights();
+				OutGroup.Attributes = Group.Attributes;
 
 				if (OutGroup.GroupID < OutDescription.HairGroups.Num())
 				{

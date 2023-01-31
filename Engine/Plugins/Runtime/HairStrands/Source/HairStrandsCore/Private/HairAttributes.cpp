@@ -35,3 +35,14 @@ namespace HairAttribute
 	const FName Groom::Tool("groom_tool");
 	const FName Groom::Properties("groom_properties");
 }
+
+static_assert(uint32(EHairAttribute::Count) < 32u);
+bool HasHairAttribute(uint32 In, EHairAttribute InAttribute)
+{ 
+	return (In & (1u << uint32(InAttribute))) != 0; 
+}
+
+void SetHairAttribute(uint32& Out, EHairAttribute InAttribute) 
+{ 
+	Out |= (1u << uint32(InAttribute)); 
+}
