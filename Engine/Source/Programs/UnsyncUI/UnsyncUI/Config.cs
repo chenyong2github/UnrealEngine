@@ -184,10 +184,10 @@ namespace UnsyncUI
 				});
 			}
 
-			public ISourceBlock<BuildModel> EnumerateBuilds(CancellationToken cancelToken)
+			public (Task, ISourceBlock<BuildModel>) EnumerateBuilds(CancellationToken cancelToken)
 			{
 				var pipe = new BufferBlock<BuildModel>();
-				Task.Run(async () =>
+				var task = Task.Run(async () =>
 				{
 					try
 					{
@@ -205,7 +205,7 @@ namespace UnsyncUI
 					}
 				});
 
-				return pipe;
+				return (task, pipe);
 			}
 		}
 

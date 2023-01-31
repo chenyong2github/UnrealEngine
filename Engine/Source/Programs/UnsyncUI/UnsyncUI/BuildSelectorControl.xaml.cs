@@ -212,6 +212,16 @@ namespace UnsyncUI
 		private bool firstRefresh = true;
 		private Action<IEnumerable<(string DstPath, string[] Exclusions, BuildPlatformModel Model)>> onBuildsSelected;
 
+		private string statusString = null;
+		public string StatusString
+		{
+			get => statusString;
+			set
+			{
+				SetProperty(ref statusString, value);
+			}
+		}
+
 		public Config.Project Definition { get; }
 		public string Name => Definition.Name;
 
@@ -370,12 +380,13 @@ namespace UnsyncUI
 
 			Builds.Clear();
 			SelectedBuild = null;
+			StatusString = null;
 
 			try
 			{
 				var timer = new Stopwatch();
 				timer.Start();
-				var buildsPipe = Definition.EnumerateBuilds(cts.Token);
+				var (task, buildsPipe) = Definition.EnumerateBuilds(cts.Token);
 
 				while (await buildsPipe.OutputAvailableAsync(cts.Token))
 				{
@@ -383,14 +394,23 @@ namespace UnsyncUI
 				}
 
 				timer.Stop();
-				Debug.WriteLine($"Search took {timer.Elapsed.TotalSeconds} seconds.");
-			}
-			catch (IOException)
-			{
-				// @todo show an error message
+
+				if (task.IsFaulted)
+				{
+					throw task.Exception.InnerException;
+				}
+				else
+				{
+					Debug.WriteLine($"Search took {timer.Elapsed.TotalSeconds} seconds.");
+				}
 			}
 			catch (OperationCanceledException)
 			{ }
+			catch (Exception ex)
+			{
+				Debug.WriteLine($"Directory enumeration failed with exception: {ex}");
+				StatusString = ex.Message;
+			}
 			finally
 			{
 				OnRefreshBuildsClicked.Enabled = true;

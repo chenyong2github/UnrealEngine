@@ -71,6 +71,10 @@
 			</Grid>
 		</GroupBox>
 
+		<TextBlock TextAlignment="Center" VerticalAlignment="Center" Visibility="{Binding Path=StatusString, Converter={StaticResource VisConv_Collapsed}}">
+			<Run Text="{Binding Path=StatusString, Mode=OneWay}"/>
+		</TextBlock>
+
 		<!-- Platforms Groupbox -->
 		<GroupBox Grid.Row="1" MinHeight="62" DataContext="{Binding SelectedItem, ElementName=SelectedBuild}" Visibility="{Binding SelectedItem, ElementName=SelectedBuild, Converter={StaticResource VisConv_Collapsed}}">
 			
@@ -142,7 +146,7 @@
 		<GroupBox Grid.Row="2">
 			<GroupBox.Header>
 				<Grid>
-					<TextBlock Margin="4" Visibility="{Binding Path=!ResetDestinationClicked.Enabled, Converter={StaticResource VisConv_Collapsed}}">
+					<TextBlock Margin="4" Visibility="{Binding Path=ResetDestinationClicked.Enabled, Converter={StaticResource VisConv_Collapsed_Inv}}">
 						<Run Text="Destination"/>
 					</TextBlock>
 					<TextBlock Margin="4" Visibility="{Binding Path=ResetDestinationClicked.Enabled, Converter={StaticResource VisConv_Collapsed}}">
