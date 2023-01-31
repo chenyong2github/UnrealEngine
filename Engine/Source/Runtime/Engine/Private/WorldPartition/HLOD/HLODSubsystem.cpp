@@ -105,7 +105,7 @@ namespace FHLODSubsystem
 	    } // If not find it through the cell
 	    else if (const UWorldPartitionRuntimeCell* RuntimeCell = GetActorRuntimeCell(InWorldPartitionHLOD))
 	    {
-		    return RuntimeCell->GetCellOwner()->GetOuterWorld()->GetWorldPartition();
+		    return RuntimeCell->GetTypedOuter<UWorldPartition>();
 	    }
     
 	    return nullptr;
@@ -290,7 +290,7 @@ UHLODSubsystem::FCellData* UHLODSubsystem::GetCellData(const UWorldPartitionRunt
 		return nullptr;
 	}
 
-	const UWorldPartition* WorldPartition = InCell->GetCellOwner()->GetOuterWorld()->GetWorldPartition();
+	const UWorldPartition* WorldPartition = InCell->GetTypedOuter<UWorldPartition>();
 	check(WorldPartition);
 	FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(WorldPartition);
 	if (WorldPartitionHLODRuntimeData)

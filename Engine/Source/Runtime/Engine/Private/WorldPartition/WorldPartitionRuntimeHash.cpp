@@ -30,19 +30,20 @@ void URuntimeHashExternalStreamingObjectBase::ForEachStreamingCells(TFunctionRef
 	}
 }
 
-void URuntimeHashExternalStreamingObjectBase::OnStreamingObjectLoaded()
+void URuntimeHashExternalStreamingObjectBase::OnStreamingObjectLoaded(UWorld* InjectedWorld)
 {
 	bool bIsACookedObject = !CellToLevelStreamingPackage.IsEmpty();
 	if (bIsACookedObject)
 	{
-		// Cooked streaming object's Cells do not have LevelStreaming and are outered to the streaming object.
-		// Create their level streaming now and re-outered to the runtime hash.
+		// Outer the streaming object back to the runtime hash.
+		Rename(nullptr, InjectedWorld->GetWorldPartition()->RuntimeHash);
+
+		// Cooked streaming object's Cells do not have LevelStreaming.
 		ForEachStreamingCells([this](UWorldPartitionRuntimeCell& Cell)
 		{
 			UWorldPartitionRuntimeLevelStreamingCell* RuntimeCell = CastChecked<UWorldPartitionRuntimeLevelStreamingCell>(&Cell);
 
 			FName LevelStreamingPackage = CellToLevelStreamingPackage.FindChecked(RuntimeCell->GetFName());
-			RuntimeCell->Rename(nullptr, GetOuterWorld()->GetWorldPartition()->RuntimeHash);
 			RuntimeCell->CreateAndSetLevelStreaming(*LevelStreamingPackage.ToString());
 		});
 	}
