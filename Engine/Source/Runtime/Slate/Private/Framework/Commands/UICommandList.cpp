@@ -53,6 +53,8 @@ void FUICommandList::MapAction( const TSharedPtr< const FUICommandInfo > InUICom
 
 void FUICommandList::MapAction( const TSharedPtr< const FUICommandInfo > InUICommandInfo, const FUIAction& InUIAction )
 {
+	LLM_SCOPE_BYTAG(UI_Slate);
+
 	if (!ensure(InUICommandInfo.IsValid()))
 	{
 		return;
@@ -64,6 +66,8 @@ void FUICommandList::MapAction( const TSharedPtr< const FUICommandInfo > InUICom
 
 void FUICommandList::MapAction(const TSharedPtr< const FUICommandInfo > InUICommandInfo, const FUIAction& InUIAction, const FUIActionContext& InUIActionContext)
 {
+	LLM_SCOPE_BYTAG(UI_Slate);
+	
 	if (!ensure(InUICommandInfo.IsValid()))
 	{
 		return;
@@ -76,6 +80,8 @@ void FUICommandList::MapAction(const TSharedPtr< const FUICommandInfo > InUIComm
 
 void FUICommandList::Append( const TSharedRef<FUICommandList>& InCommandsToAppend )
 {
+	LLM_SCOPE_BYTAG(UI_Slate);
+	
 	check( &InCommandsToAppend.Get() != this );
 
 	// Clear out any invalid parents or children

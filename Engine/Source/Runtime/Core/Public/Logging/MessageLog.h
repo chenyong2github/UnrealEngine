@@ -10,8 +10,11 @@
 #include "Logging/TokenizedMessage.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
+#include "HAL/LowLevelMemTracker.h"
 
 class IMessageLog;
+
+LLM_DECLARE_TAG_API(EngineMisc_MessageLog, CORE_API);
 
 class FMessageLog
 {

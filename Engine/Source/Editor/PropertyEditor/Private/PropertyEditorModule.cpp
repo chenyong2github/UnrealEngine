@@ -253,6 +253,8 @@ TSharedPtr<FAssetThumbnailPool> FPropertyEditorModule::GetThumbnailPool()
 
 TSharedRef<IDetailsView> FPropertyEditorModule::CreateDetailView( const FDetailsViewArgs& DetailsViewArgs )
 {
+	LLM_SCOPE(ELLMTag::UI);
+
 	// Compact the list of detail view instances
 	for( int32 ViewIndex = 0; ViewIndex < AllDetailViews.Num(); ++ViewIndex )
 	{

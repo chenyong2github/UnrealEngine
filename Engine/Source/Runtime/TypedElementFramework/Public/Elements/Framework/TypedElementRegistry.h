@@ -638,6 +638,7 @@ private:
 		{
 			FWriteScopeLock RegisteredElementTypesLock(RegisteredElementTypesRW);
 
+			LLM_SCOPE(ELLMTag::EngineMisc);
 			RegisteredElementTypesNameToId.Add(InRegisteredElementType->TypeName, InRegisteredElementType->TypeId);
 			RegisteredElementTypes[InRegisteredElementType->TypeId - 1] = MoveTemp(InRegisteredElementType);
 		}

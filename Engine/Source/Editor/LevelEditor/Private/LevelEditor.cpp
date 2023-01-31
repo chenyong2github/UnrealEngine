@@ -49,6 +49,7 @@
 #define LOCTEXT_NAMESPACE "LevelEditor"
 
 IMPLEMENT_MODULE( FLevelEditorModule, LevelEditor );
+LLM_DEFINE_TAG(LevelEditor);
 
 const FName LevelEditorApp = FName(TEXT("LevelEditorApp"));
 const FName MainFrame("MainFrame");
@@ -195,6 +196,8 @@ private:
 
 TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& InArgs )
 {
+	LLM_SCOPE_BYTAG(LevelEditor);
+	
 	TSharedRef<SDockTab> LevelEditorTab = SNew(SDockTab)
 		.TabRole(ETabRole::MajorTab)
 		.ContentPadding(FMargin(0))

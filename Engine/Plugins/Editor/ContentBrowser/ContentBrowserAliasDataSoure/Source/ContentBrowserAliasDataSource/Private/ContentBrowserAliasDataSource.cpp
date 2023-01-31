@@ -832,6 +832,7 @@ FContentBrowserItemData UContentBrowserAliasDataSource::CreateAssetFileItem(cons
 	// See UContentBrowserAliasDataSource::DoesItemPassFilter for more information on how this could fail
 	if (AliasData)
 	{
+		LLM_SCOPE(ELLMTag::UI);
 		FName VirtualizedPath;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		TryConvertInternalPathToVirtual(AliasData->ObjectPath.ToFName(), VirtualizedPath);

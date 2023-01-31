@@ -440,6 +440,8 @@ bool UStatusBarSubsystem::ToggleContentBrowser(TSharedRef<SWindow> ParentWindow)
 
 TSharedRef<SWidget> UStatusBarSubsystem::MakeStatusBarWidget(FName StatusBarName, const TSharedRef<SDockTab>& InParentTab)
 {
+	LLM_SCOPE(ELLMTag::UI);
+
 	CreateContentBrowserIfNeeded();
 
 	TSharedRef<SStatusBar> StatusBar =

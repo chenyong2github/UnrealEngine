@@ -36,6 +36,7 @@ TStrongObjectPtr<UTypedElementRegistry>& GetTypedElementRegistryInstance()
 
 UTypedElementRegistry::UTypedElementRegistry()
 {
+	LLM_SCOPE(ELLMTag::EngineMisc);
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		FCoreDelegates::OnBeginFrame.AddUObject(this, &UTypedElementRegistry::OnBeginFrame);
@@ -174,6 +175,8 @@ void UTypedElementRegistry::RegisterElementTypeImpl(const FName InElementTypeNam
 
 void UTypedElementRegistry::RegisterElementInterfaceImpl(const FName InElementTypeName, UObject* InElementInterface, const TSubclassOf<UInterface>& InBaseInterfaceType, const bool InAllowOverride)
 {
+	LLM_SCOPE(ELLMTag::EngineMisc);
+
 	checkf(InElementInterface->GetClass()->ImplementsInterface(InBaseInterfaceType), TEXT("Interface '%s' of type '%s' does not derive from '%s'!"), *InElementInterface->GetPathName(), *InElementInterface->GetClass()->GetName(), *InBaseInterfaceType->GetName());
 
 	FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromName(InElementTypeName);
@@ -202,6 +205,7 @@ void UTypedElementRegistry::ProcessDeferredElementsToDestroy()
 
 	FReadScopeLock RegisteredElementTypesLock(RegisteredElementTypesRW);
 
+	LLM_SCOPE(ELLMTag::EngineMisc);
 	for (TUniquePtr<FRegisteredElementType>& RegisteredElementType : RegisteredElementTypes)
 	{
 		if (RegisteredElementType)

@@ -10,6 +10,8 @@ FMessageLog::FMessageSelectionChanged FMessageLog::MessageSelectionChanged;
 
 #define LOCTEXT_NAMESPACE "MessageLog"
 
+LLM_DEFINE_TAG(EngineMisc_MessageLog);
+
 class FBasicMessageLog : public IMessageLog, public TSharedFromThis<FBasicMessageLog>
 {
 public:
@@ -94,6 +96,8 @@ private:
 FMessageLog::FMessageLog( const FName& InLogName )
 	: bSuppressLoggingToOutputLog(false)
 {
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
+	
 	if(GetLog.IsBound())
 	{
 		MessageLog = GetLog.Execute(InLogName);
@@ -106,11 +110,15 @@ FMessageLog::FMessageLog( const FName& InLogName )
 
 FMessageLog::~FMessageLog()
 {
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
+	
 	Flush();
 }
 
 const TSharedRef<FTokenizedMessage>& FMessageLog::AddMessage( const TSharedRef<FTokenizedMessage>& InMessage )
 {
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
+	
 	Messages.Add(InMessage);
 
 	return InMessage;
@@ -118,11 +126,15 @@ const TSharedRef<FTokenizedMessage>& FMessageLog::AddMessage( const TSharedRef<F
 
 void FMessageLog::AddMessages( const TArray< TSharedRef<FTokenizedMessage> >& InMessages )
 {
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
+	
 	Messages.Append(InMessages);
 }
 
 TSharedRef<FTokenizedMessage> FMessageLog::Message( EMessageSeverity::Type InSeverity, const FText& InMessage )
 {
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
+	
 	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(InSeverity, InMessage);
 	Messages.Add(Message);
 	return Message;
@@ -135,6 +147,8 @@ TSharedRef<FTokenizedMessage> FMessageLog::CriticalError( const FText& InMessage
 	checkf(false, 
 		TEXT("[Deprecated] FMessageLog::CriticalError has been deprecated. Please update callsites. The original error message: \n%s"), 
 		*InMessage.ToString());
+
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
 	
 	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error, InMessage);
 	Messages.Add(Message);
@@ -143,6 +157,8 @@ TSharedRef<FTokenizedMessage> FMessageLog::CriticalError( const FText& InMessage
 
 TSharedRef<FTokenizedMessage> FMessageLog::Error( const FText& InMessage )
 {
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
+	
 	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error, InMessage);
 	Messages.Add(Message);
 	return Message;
@@ -150,6 +166,8 @@ TSharedRef<FTokenizedMessage> FMessageLog::Error( const FText& InMessage )
 
 TSharedRef<FTokenizedMessage> FMessageLog::PerformanceWarning( const FText& InMessage )
 {
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
+	
 	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::PerformanceWarning, InMessage);
 #if !PLATFORM_UNIX  // @todo: these are too spammy for now on Linux
 	Messages.Add(Message);
@@ -159,6 +177,8 @@ TSharedRef<FTokenizedMessage> FMessageLog::PerformanceWarning( const FText& InMe
 
 TSharedRef<FTokenizedMessage> FMessageLog::Warning( const FText& InMessage )
 {
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
+	
 	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Warning, InMessage);
 #if !PLATFORM_UNIX // @todo: these are too spammy for now on Linux
 	Messages.Add(Message); // TODO These are too spammy for now
@@ -168,6 +188,8 @@ TSharedRef<FTokenizedMessage> FMessageLog::Warning( const FText& InMessage )
 
 TSharedRef<FTokenizedMessage> FMessageLog::Info( const FText& InMessage )
 {
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
+	
 	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Info, InMessage);
 	Messages.Add(Message);
 	return Message;
@@ -175,12 +197,16 @@ TSharedRef<FTokenizedMessage> FMessageLog::Info( const FText& InMessage )
 
 int32 FMessageLog::NumMessages( EMessageSeverity::Type InSeverityFilter )
 {
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
+	
 	Flush();
 	return MessageLog->NumMessages(InSeverityFilter);
 }
 
 void FMessageLog::Open( EMessageSeverity::Type InSeverityFilter, bool bOpenEvenIfEmpty )
 {
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
+	
 	Flush();
 	if(bOpenEvenIfEmpty)
 	{
@@ -194,18 +220,24 @@ void FMessageLog::Open( EMessageSeverity::Type InSeverityFilter, bool bOpenEvenI
 
 void FMessageLog::Notify( const FText& InMessage, EMessageSeverity::Type InSeverityFilter, bool bForce )
 {
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
+	
 	Flush();
 	MessageLog->NotifyIfAnyMessages(InMessage, InSeverityFilter, bForce);
 }
 
 void FMessageLog::NewPage( const FText& InLabel )
 {
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
+	
 	Flush();
 	MessageLog->NewPage(InLabel);
 }
 
 void FMessageLog::SetCurrentPage(const FText& InLabel)
 {
+	LLM_SCOPE_BYTAG(EngineMisc_MessageLog);
+	
 	Flush();
 	MessageLog->SetCurrentPage(InLabel);
 }
