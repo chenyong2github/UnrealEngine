@@ -712,34 +712,29 @@ namespace UnrealBuildTool
 				BinaryCompileEnvironment.bUseSharedBuildEnvironment = false;
 			}
 
+			HashSet<FileItem> InputFilesLookup = new();
+
 			foreach (UEBuildModule Module in Modules)
 			{
-				List<FileItem> LinkInputFiles;
 				if (Module.Binary == null || Module.Binary == this)
 				{
 					// Compile each module.
 					Logger.LogDebug("Compile module: {ModuleName}", Module.Name);
-					LinkInputFiles = Module.Compile(Target, ToolChain, BinaryCompileEnvironment, SpecificFilesToCompile, WorkingSet, Graph, Logger);
+					List<FileItem> LinkInputFiles = Module.Compile(Target, ToolChain, BinaryCompileEnvironment, SpecificFilesToCompile, WorkingSet, Graph, Logger);
 
 					// Save the module outputs. In monolithic builds, this is just the object files.
 					if (Target.LinkType == TargetLinkType.Monolithic)
 					{
 						Graph.SetOutputItemsForModule(Module.Name, LinkInputFiles.ToArray());
-
-						// NOTE: Because of 'Shared PCHs', in monolithic builds the same PCH file may appear as a link input
-						// multiple times for a single binary.  We'll check for that here, and only add it once.  This avoids
-						// a linker warning about redundant .obj files. 
-						foreach (FileItem LinkInputFile in LinkInputFiles)
-						{
-							if (!BinaryLinkEnvironment.InputFiles.Contains(LinkInputFile))
-							{
-								BinaryLinkEnvironment.InputFiles.Add(LinkInputFile);
-							}
-						}
 					}
-					else
+
+					// Sometimes the same link input file is added multiple times, so make sure to filter out the dups
+					foreach (FileItem LinkInputFile in LinkInputFiles)
 					{
-						BinaryLinkEnvironment.InputFiles.AddRange(LinkInputFiles);
+						if (InputFilesLookup.Add(LinkInputFile))
+						{
+							BinaryLinkEnvironment.InputFiles.Add(LinkInputFile);
+						}
 					}
 
 					// Force a reference to initialize module for this binary
