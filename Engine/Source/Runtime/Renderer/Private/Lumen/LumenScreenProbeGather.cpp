@@ -1321,45 +1321,61 @@ void InterpolateAndIntegrate(
 	}
 	else // No tile classification
 	{	
-		FScreenProbeIntegrateCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeIntegrateCS::FParameters>();
-		PassParameters->RWDiffuseIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(DiffuseIndirect));
-		PassParameters->RWBackfaceDiffuseIndirect = bSupportBackfaceDiffuse ? GraphBuilder.CreateUAV(FRDGTextureUAVDesc(BackfaceDiffuseIndirect)) : nullptr;
-		PassParameters->RWRoughSpecularIndirect =  GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RoughSpecularIndirect));
-		PassParameters->GatherParameters = GatherParameters;
-
-		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
-		if (!PassParameters->GatherParameters.ScreenProbeRadianceSHAmbient)
+		auto ScreenProbeIntegrate = [&](bool bOverflow)
 		{
-			PassParameters->GatherParameters.ScreenProbeRadianceSHAmbient = SystemTextures.Black;
-			PassParameters->GatherParameters.ScreenProbeRadianceSHDirectional = SystemTextures.Black;
+			FScreenProbeIntegrateCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeIntegrateCS::FParameters>();
+			PassParameters->RWDiffuseIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(DiffuseIndirect));
+			PassParameters->RWBackfaceDiffuseIndirect = bSupportBackfaceDiffuse ? GraphBuilder.CreateUAV(FRDGTextureUAVDesc(BackfaceDiffuseIndirect)) : nullptr;
+			PassParameters->RWRoughSpecularIndirect =  GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RoughSpecularIndirect));
+			PassParameters->GatherParameters = GatherParameters;
+
+			const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+			if (!PassParameters->GatherParameters.ScreenProbeRadianceSHAmbient)
+			{
+				PassParameters->GatherParameters.ScreenProbeRadianceSHAmbient = SystemTextures.Black;
+				PassParameters->GatherParameters.ScreenProbeRadianceSHDirectional = SystemTextures.Black;
+			}
+
+			PassParameters->ScreenProbeParameters = ScreenProbeParameters;
+			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+			PassParameters->FullResolutionJitterWidth = LumenScreenProbeGather::GetScreenProbeFullResolutionJitterWidth(View);
+			PassParameters->ReflectionsCompositeParameters = ReflectionsCompositeParameters;
+			PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
+			PassParameters->ApplyMaterialAO = GLumenScreenProbeMaterialAO;
+			PassParameters->MaxAOMultibounceAlbedo = GLumenMaxShortRangeAOMultibounceAlbedo;
+			PassParameters->ScreenSpaceBentNormalParameters = ScreenSpaceBentNormalParameters;
+			PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
+			PassParameters->ViewportTileDimensions = FIntPoint(0, 0);
+			PassParameters->ViewportTileDimensionsWithOverflow = FIntPoint(0, 0);
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+
+			FScreenProbeIntegrateCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set< FScreenProbeIntegrateCS::FOverflowTile >(bOverflow);
+			PermutationVector.Set< FScreenProbeIntegrateCS::FTileClassificationMode >((uint32)EScreenProbeIntegrateTileClassification::Num);
+			PermutationVector.Set< FScreenProbeIntegrateCS::FShortRangeAO >(bApplyShortRangeAO);
+			PermutationVector.Set< FScreenProbeIntegrateCS::FDirectLighting >(bRenderDirectLighting && !GLumenScreenProbeInjectLightsToProbes);
+			PermutationVector.Set< FScreenProbeIntegrateCS::FSupportBackfaceDiffuse >(bSupportBackfaceDiffuse);
+			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeIntegrateCS>(PermutationVector);
+
+			const FIntPoint OverflowViewRect = View.StrataViewData.OverflowTileCount * STRATA_TILE_SIZE;
+			FIntPoint DispatchViewRect = bOverflow ? OverflowViewRect : View.ViewRect.Size();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("Integrate%s", bOverflow ? TEXT("(Overflow)") : TEXT("")),
+				ComputePassFlags,
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(DispatchViewRect, GScreenProbeIntegrateTileSize));
+		};
+
+		ScreenProbeIntegrate(false);
+		if (Strata::IsStrataEnabled())
+		{
+			ScreenProbeIntegrate(true);
 		}
 
-		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
-		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-		PassParameters->FullResolutionJitterWidth = LumenScreenProbeGather::GetScreenProbeFullResolutionJitterWidth(View);
-		PassParameters->ReflectionsCompositeParameters = ReflectionsCompositeParameters;
-		PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
-		PassParameters->ApplyMaterialAO = GLumenScreenProbeMaterialAO;
-		PassParameters->MaxAOMultibounceAlbedo = GLumenMaxShortRangeAOMultibounceAlbedo;
-		PassParameters->ScreenSpaceBentNormalParameters = ScreenSpaceBentNormalParameters;
-		PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
-		PassParameters->ViewportTileDimensions = FIntPoint(0, 0);
-
-		FScreenProbeIntegrateCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FScreenProbeIntegrateCS::FTileClassificationMode >((uint32)EScreenProbeIntegrateTileClassification::Num);
-		PermutationVector.Set< FScreenProbeIntegrateCS::FShortRangeAO >(bApplyShortRangeAO);
-		PermutationVector.Set< FScreenProbeIntegrateCS::FDirectLighting >(bRenderDirectLighting && !GLumenScreenProbeInjectLightsToProbes);
-		PermutationVector.Set< FScreenProbeIntegrateCS::FSupportBackfaceDiffuse >(bSupportBackfaceDiffuse);
-		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeIntegrateCS>(PermutationVector);
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("Integrate"),
-			ComputePassFlags,
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), GScreenProbeIntegrateTileSize));
 	}
 }
 

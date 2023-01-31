@@ -1141,6 +1141,12 @@ void ScreenProbeIntegrateCS(
 	DispatchThreadId = TileCoord * INTEGRATE_TILE_SIZE + GroupThreadId;
 #endif
 
+	// In Screen probe reference mode (i.e. without classification, the full overflow space is dispatched.
+	// We add Strata.OverflowTileOffset, as GetLumenMaterialCoordForScreenProbeGather() expects DispatchThreadId to be PixelCoord in 'Flatten' space.
+#if INTEGRATE_TILE_CLASSIFICATION_MODE == TILE_CLASSIFICATION_DISABLED && STRATA_ENABLED && PERMUTATION_OVERFLOW_TILE
+	DispatchThreadId += Strata.OverflowTileOffset * INTEGRATE_TILE_SIZE;
+#endif
+
 	const FLumenMaterialCoord Coord = GetLumenMaterialCoordForScreenProbeGather(DispatchThreadId, false /* Does not add offset as DispatchThreadId/TileCoord already contains +OverflowTileOffset */);
 	FLumenMaterialData Material = ReadMaterialData(Coord, MaxRoughnessToTrace);
 	{
