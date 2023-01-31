@@ -504,6 +504,11 @@ void FPCGGraphExecutor::Execute()
 					Task.Element->GetDependenciesCrc(TaskInput, TaskSettings, Task.SourceComponent.Get(), DependenciesCrc);
 				}
 
+				if (bGraphCacheDebuggingEnabled && !bCacheable && Task.SourceComponent.Get() && Task.Node)
+				{
+					UE_LOG(LogPCG, Warning, TEXT("[%s] %s\t\tCACHING DISABLED"), *Task.SourceComponent->GetOwner()->GetName(), *Task.Node->GetNodeTitle().ToString());
+				}
+
 				FPCGDataCollection CachedOutput;
 				const bool bResultAlreadyInCache = bCacheable && DependenciesCrc.IsValid() && GraphCache.GetFromCache(Task.Node, Task.Element.Get(), DependenciesCrc, TaskInput, TaskSettings, Task.SourceComponent.Get(), CachedOutput);
 #if WITH_EDITOR
@@ -531,11 +536,6 @@ void FPCGGraphExecutor::Execute()
 					bAnyTaskEnded = true;
 
 					continue;
-				}
-
-				if (bGraphCacheDebuggingEnabled && Task.SourceComponent.Get() && Task.Node)
-				{
-					UE_LOG(LogPCG, Log, TEXT("         [%s] %s\t\tACTIVETASK"), *Task.SourceComponent->GetOwner()->GetName(), *Task.Node->GetNodeTitle().ToString());
 				}
 
 				// Allocate context if not previously done

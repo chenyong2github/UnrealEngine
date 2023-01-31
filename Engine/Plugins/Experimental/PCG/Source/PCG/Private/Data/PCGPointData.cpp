@@ -2,11 +2,13 @@
 
 #include "Data/PCGPointData.h"
 
-#include "Data/PCGSpatialData.h"
 #include "PCGHelpers.h"
 #include "Metadata/PCGMetadataAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 
 #include "GameFramework/Actor.h"
+#include "Serialization/ArchiveCrc32.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPointData)
 
@@ -248,6 +250,68 @@ const UPCGPointData::PointOctree& UPCGPointData::GetOctree() const
 	}
 
 	return Octree;
+}
+
+void UPCGPointData::AddToCrc(FArchiveCrc32& Ar) const
+{
+	uint32 ThisType = static_cast<uint32>(GetDataType());
+	Ar << ThisType;
+
+	if (Points.Num() == 0)
+	{
+		return;
+	}
+
+	// Crc point data.
+	{
+		// Create copy so we can zero-out the metadata keys which are non-deterministic.
+		TArray<FPCGPoint> PointsCopy = Points;
+		for (FPCGPoint& Point : PointsCopy)
+		{
+			Point.MetadataEntry = 0;
+		}
+
+		Ar.Serialize(PointsCopy.GetData(), PointsCopy.Num() * PointsCopy.GetTypeSize());
+	}
+
+	// Crc metadata.
+	if (const UPCGMetadata* PCGMetadata = ConstMetadata())
+	{
+		FPCGAttributeAccessorKeysPoints AccessorKeys(Points);
+
+		TArray<FName> AttributeNames;
+		{
+			TArray<EPCGMetadataTypes> AttributeTypes;
+			PCGMetadata->GetAttributes(AttributeNames, AttributeTypes);
+		}
+
+		// Attribute names might come in different orders for e.g. if edge order changes.
+		Algo::Sort(AttributeNames, [this](const FName& A, const FName& B) { return A.LexicalLess(B); });
+
+		for (FName AttributeName : AttributeNames)
+		{
+			Ar << AttributeName;
+
+			if (const FPCGMetadataAttributeBase* Attribute = PCGMetadata->GetConstAttribute(AttributeName))
+			{
+				for (const FPCGPoint& Point : Points)
+				{
+					auto Callback = [Attribute, PCGMetadata, &Ar, &Point](auto ValueWithType)
+					{
+						using AttributeType = decltype(ValueWithType);
+
+						if (const FPCGMetadataAttribute<AttributeType>* TypedAttribute = static_cast<const FPCGMetadataAttribute<AttributeType>*>(Attribute))
+						{
+							ValueWithType = TypedAttribute->GetValueFromItemKey(Point.MetadataEntry);
+							Ar << ValueWithType;
+						}
+					};
+
+					PCGMetadataAttribute::CallbackWithRightType(Attribute->GetTypeId(), Callback);
+				}
+			}
+		}
+	}
 }
 
 FBox UPCGPointData::GetBounds() const

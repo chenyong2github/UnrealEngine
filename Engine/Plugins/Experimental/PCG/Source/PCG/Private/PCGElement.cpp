@@ -17,9 +17,13 @@ static TAutoConsoleVariable<bool> CVarPCGValidatePointMetadata(
 	true,
 	TEXT("Controls whether we validate that the metadata entry keys on the output point data are consistent"));
 
+static TAutoConsoleVariable<bool> CVarCacheUseDependenciesCrc(
+	TEXT("pcg.Cache.UseDependenciesCrc"),
+	false,
+	TEXT("If element is cacheable, use dependencies crc instead of calculating crc from output data."));
+
 bool IPCGElement::Execute(FPCGContext* Context) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::Execute);
 	check(Context && Context->NumAvailableTasks > 0 && Context->CurrentPhase < EPCGExecutionPhase::Done);
 	check(Context->bIsRunningOnMainThread || !CanExecuteOnlyOnMainThread(Context));
 
@@ -32,12 +36,14 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 		{
 			case EPCGExecutionPhase::NotExecuted: // Fall-through
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(EPCGExecutionPhase::NotExecuted);
 				PreExecute(Context);
 				break;
 			}
 
 			case EPCGExecutionPhase::PrepareData:
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(EPCGExecutionPhase::PrepareData);
 				// Will override the settings if there is any override.
 				Context->OverrideSettings();
 
@@ -54,6 +60,7 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 			case EPCGExecutionPhase::Execute:
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(EPCGExecutionPhase::Execute);
 				if (ExecuteInternal(Context))
 				{
 					Context->CurrentPhase = EPCGExecutionPhase::PostExecute;
@@ -67,6 +74,7 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 			case EPCGExecutionPhase::PostExecute:
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(EPCGExecutionPhase::PostExecute);
 				PostExecute(Context);
 				break;
 			}
@@ -175,20 +183,24 @@ void IPCGElement::PostExecute(FPCGContext* Context) const
 			Context->OutputData.TaggedData[TaggedDataIdx].Tags.Append(Settings->TagsAppliedOnOutput);
 		}
 	}
+	
+	// Output data crc.
+	{
+		if (CVarCacheUseDependenciesCrc.GetValueOnAnyThread() && IsCacheableInstance(SettingsInterface))
+		{
+			// If cacheable, then assume that the dependencies Crc is a good Crc to use from the output data - assumes changes
+			// in inputs and settings are 1:1 with changes in output. In general this is not the case as some settings changes will
+			// have no impact on the output. And since we are unlikely to do full Crc's of landscapes, a landscape data may produce
+			// a different Crc on each regenerate, triggering unnecessary executions.
+			Context->OutputData.Crc = Context->DependenciesCrc;
+		}
+		else
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::PostExecute::CRC);
 
-	if (IsCacheableInstance(SettingsInterface))
-	{
-		// If cacheable, then assume that the dependencies Crc is a good Crc to use from the output data - assumes changes
-		// in inputs and settings are 1:1 with changes in output. In general this is not the case as some settings changes will
-		// have no impact on the output. And since we are unlikely to do full Crc's of landscapes, a landscape data may produce
-		// a different Crc on each regenerate, triggering unnecessary executions. Removing this branch (always doing a full Crc)
-		// would avoid such triggers propagating.
-		Context->OutputData.Crc = Context->DependenciesCrc;
-	}
-	else
-	{
-		// Compute Crc from output data
-		Context->OutputData.Crc = Context->OutputData.ComputeCrc();
+			// Compute Crc from output data
+			Context->OutputData.Crc = Context->OutputData.ComputeCrc();
+		}
 	}
 
 	// Additional debug things (check for duplicates),

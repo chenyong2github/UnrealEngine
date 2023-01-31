@@ -30,7 +30,7 @@ public:
 	virtual EPCGDataType GetDataType() const { return EPCGDataType::None; }
 
 	/** Computes a Crc for this data. */
-	FPCGCrc ComputeCrc() const;
+	FPCGCrc GetOrComputeCrc() const;
 
 	/** Contributes to Crc. Fallback implementation that writes object instance UID. */
 	virtual void AddToCrc(FArchiveCrc32& Ar) const;
@@ -38,6 +38,9 @@ public:
 	/** Unique ID for this object instance. */
 	UPROPERTY(Transient)
 	uint64 UID = 0;
+
+	/** CRC for this object instance. */
+	mutable FPCGCrc Crc;
 
 private:
 	/** Serves unique ID values to instances of this object. */

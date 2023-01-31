@@ -10,7 +10,7 @@
 #include "Misc/ScopeRWLock.h"
 
 static TAutoConsoleVariable<bool> CVarCacheDebugging(
-	TEXT("pcg.CacheDebugging"),
+	TEXT("pcg.Cache.EnableDebugging"),
 	false,
 	TEXT("Enable various features for debugging the graph cache system."));
 
@@ -91,16 +91,19 @@ void FPCGGraphCache::StoreInCache(const IPCGElement* InElement, const FPCGCrc& I
 		return;
 	}
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphCache::StoreInCache);
-	FWriteScopeLock ScopedWriteLock(CacheLock);
-
-	FPCGGraphCacheEntries* Entries = CacheData.Find(InElement);
-	if(!Entries)
 	{
-		Entries = &(CacheData.Add(InElement));
-	}
+		TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphCache::StoreInCache);
+		FWriteScopeLock ScopedWriteLock(CacheLock);
 
-	Entries->Emplace(InDependenciesCrc, InOutput, *RootSet);
+		FPCGGraphCacheEntries* Entries = CacheData.Find(InElement);
+		if (!Entries)
+		{
+			Entries = &(CacheData.Add(InElement));
+		}
+
+
+		Entries->Emplace(InDependenciesCrc, InOutput, *RootSet);
+	}
 }
 
 void FPCGGraphCache::ClearCache()
