@@ -62,6 +62,10 @@ protected: // Common SourceControl Code
 	 * @return True if the provider was created, otherwise false.
 	 */
 	bool TryConnectToSourceControl(FStringView ClientSpecName);
+	bool TryConnectToSourceControl()
+	{
+		return TryConnectToSourceControl(FStringView());
+	}
 
 	bool TryCheckOutFilesForProject(FStringView ClientSpecName, FStringView ProjectRoot, const TArray<FString>& ProjectPackages);
 	

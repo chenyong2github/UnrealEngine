@@ -283,7 +283,7 @@ FString FCommand::FindClientSpecForChangelist(FStringView ChangelistNumber)
 	UE_LOG(LogVirtualizationTool, Display, TEXT("\tAttempting to find the workspace for '%.*s'"),
 		ChangelistNumber.Len(), ChangelistNumber.GetData());
 
-	if (!TryConnectToSourceControl(FStringView()))
+	if (!TryConnectToSourceControl())
 	{
 		return FString();
 	}
