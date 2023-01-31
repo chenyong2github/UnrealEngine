@@ -71,11 +71,16 @@ namespace Gauntlet
 			/// </summary>
 			public TimeSpan			TestDuration { get { return (TimeTestEnded - TimeSetupEnded); } }
 
+			/// <summary>
+			/// Creates TestExecutionInfo instance from an ITestNode. Sets FirstReadyCheckTime, copies the node
+			/// and sets CancellationReason to empty string.
+			/// </summary>
+			/// <param name="InNode"></param>
 			public TestExecutionInfo(ITestNode InNode)
 			{
 				FirstReadyCheckTime = TimeSetupBegan = TimeSetupEnded = TimeTestEnded = DateTime.MinValue;
 				TestNode = InNode;
-				CancellationReason = "";
+				CancellationReason = string.Empty;
 			}
 
 			public override string ToString()
@@ -333,6 +338,8 @@ namespace Gauntlet
 					// Tick all running tests
 					foreach (TestExecutionInfo TestInfo in RunningTests)
 					{
+						// TickTest contains logic for determining run time, timeouts, cancellations, and many other
+						// parts of the test process. If overriding TickTest in your Test class, be sure to call base.TickTest.
 						TestResult Result = TickTest(TestInfo);
 
 						// invalid = no result yet

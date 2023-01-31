@@ -1,10 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Gauntlet
 {
@@ -32,7 +28,7 @@ namespace Gauntlet
 		/// <summary>
 		/// Return the name of this test
 		/// </summary>
-		public abstract string Name { get;  }
+		public abstract string Name { get; }
 
 		/// <summary>
 		/// Returns true if the test has encountered warnings. Test is expected to list any warnings it considers appropriate in the summary
@@ -60,11 +56,11 @@ namespace Gauntlet
 		public virtual bool LogWarningsAndErrorsAfterSummary { get; protected set; } = true;
 
 		/// <summary>
-		/// 
+		/// Default BaseTest Constructor
 		/// </summary>
 		public BaseTest()
 		{
-			InnerStatus = TestStatus.NotStarted;
+			SetTestStatus(TestStatus.NotStarted);
 		}
 
 		/// <summary>
@@ -76,8 +72,8 @@ namespace Gauntlet
 		/// <summary>
 		/// Set the test result value of the test.
 		/// </summary>
-		/// <param name="testResult">New result that the Test should have.</param>
-		public abstract void SetTestResult(TestResult testResult);
+		/// <param name="InTestResult">New result that the Test should have.</param>
+		public abstract void SetTestResult(TestResult InTestResult);
 
 		/// <summary>
 		/// Add a new test event to be rolled up into the summary at the end of this test.
@@ -101,7 +97,7 @@ namespace Gauntlet
 		/// <returns></returns>
 		public virtual IEnumerable<string> GetWarnings()
 		{
-			return new string[0];
+			return System.Array.Empty<string>();
 		}
 
 		/// <summary>
@@ -110,7 +106,7 @@ namespace Gauntlet
 		/// <returns></returns>
 		public virtual IEnumerable<string> GetErrors()
 		{
-			return new string[0];
+			return System.Array.Empty<string>();
 		}
 
 		public virtual string GetRunLocalCommand(string LaunchingBuildCommand)
@@ -121,12 +117,21 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Updates the test status to the passed in value
+		/// </summary>
+		/// <param name="InStatus"></param>
+		protected void SetTestStatus(TestStatus InStatus)
+		{
+			InnerStatus = InStatus;
+		}
+
+		/// <summary>
 		/// Mark the test as started
 		/// </summary>
 		/// <returns></returns>
 		protected void MarkTestStarted()
 		{
-			InnerStatus = TestStatus.InProgress;
+			SetTestStatus(TestStatus.InProgress);
 			SetTestResult(TestResult.Invalid);
 		}
 
@@ -136,7 +141,7 @@ namespace Gauntlet
 		/// <returns></returns>
 		protected void MarkTestComplete()
 		{
-			InnerStatus = TestStatus.Complete;
+			SetTestStatus(TestStatus.Complete);
 		}
 
 		/// <summary>
@@ -173,7 +178,7 @@ namespace Gauntlet
 		public virtual bool RestartTest()
 		{
 			CleanupTest();
-			return StartTest(0,1);
+			return StartTest(0, 1);
 		}
 
 		/// <summary>
@@ -218,7 +223,7 @@ namespace Gauntlet
 		/// Output all defined commandline information for this test to the gauntlet window and exit test early.
 		/// </summary>
 		public virtual void DisplayCommandlineHelp()
-		{ 
+		{
 		}
 	}
 }
