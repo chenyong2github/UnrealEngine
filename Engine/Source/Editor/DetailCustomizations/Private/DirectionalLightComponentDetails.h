@@ -16,12 +16,4 @@ public:
 
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
-
-private:
-
-	bool IsLightMovable() const;
-	bool IsLightStationary() const;
-
-	TSharedPtr<IPropertyHandle> MobilityProperty;
-
 };

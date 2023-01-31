@@ -188,6 +188,21 @@ void ComputeShadowCullingVolume(bool bReverseCulling, const FVector* CascadeFrus
 	ConvexVolumeOut = FConvexVolume(Planes);
 }
 
+float ComputeWholeSceneDynamicShadowRadius(EComponentMobility::Type Mobility, float DynamicShadowDistanceMovableLight, float DynamicShadowDistanceStationaryLight)
+{
+	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+	const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnGameThread() != 0);
+
+	if (Mobility == EComponentMobility::Movable || !bAllowStaticLighting)
+	{
+		return DynamicShadowDistanceMovableLight;
+	}
+	else
+	{
+		return DynamicShadowDistanceStationaryLight;
+	}
+}
+
 /**
  * The scene info for a directional light.
  */
@@ -326,14 +341,7 @@ public:
 	{
 		LightShaftOverrideDirection.Normalize();
 
-		if(Component->Mobility == EComponentMobility::Movable)
-		{
-			WholeSceneDynamicShadowRadius = Component->DynamicShadowDistanceMovableLight;
-		}
-		else
-		{
-			WholeSceneDynamicShadowRadius = Component->DynamicShadowDistanceStationaryLight;
-		}
+		WholeSceneDynamicShadowRadius = ComputeWholeSceneDynamicShadowRadius(Component->Mobility, Component->DynamicShadowDistanceMovableLight, Component->DynamicShadowDistanceStationaryLight);
 
 		const float FarCascadeSize = Component->FarShadowDistance - WholeSceneDynamicShadowRadius;
 
@@ -1065,12 +1073,17 @@ bool UDirectionalLightComponent::CanEditChange(const FProperty* InProperty) cons
 {
 	if (InProperty)
 	{
+		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+		const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnGameThread() != 0);
+
 		FString PropertyName = InProperty->GetName();
-		
-		bool bShadowCascades = CastShadows
+
+		const float WholeSceneDynamicShadowRadius = ComputeWholeSceneDynamicShadowRadius(Mobility, DynamicShadowDistanceMovableLight, DynamicShadowDistanceStationaryLight);
+
+		const bool bShadowCascades = CastShadows
 			&& CastDynamicShadows 
-			&& ((DynamicShadowDistanceMovableLight > 0 && Mobility == EComponentMobility::Movable)
-			|| (DynamicShadowDistanceStationaryLight > 0 && Mobility == EComponentMobility::Stationary));
+			&& WholeSceneDynamicShadowRadius > 0
+			&& Mobility != EComponentMobility::Static;
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, bUseInsetShadowsForMovableObjects))
 		{
@@ -1079,14 +1092,20 @@ bool UDirectionalLightComponent::CanEditChange(const FProperty* InProperty) cons
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, DynamicShadowDistanceMovableLight))
 		{
-			return CastShadows && CastDynamicShadows;
+			const bool bUseMovableLightDistance = (Mobility == EComponentMobility::Movable) || (Mobility == EComponentMobility::Stationary && !bAllowStaticLighting);
+			return CastShadows && CastDynamicShadows && bUseMovableLightDistance;
+		}
+
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, DynamicShadowDistanceStationaryLight))
+		{
+			const bool bUseStationaryLightDistance = (Mobility == EComponentMobility::Stationary) && bAllowStaticLighting;
+			return CastShadows && CastDynamicShadows && bUseStationaryLightDistance;
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, DynamicShadowCascades)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CascadeDistributionExponent)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CascadeTransitionFraction)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, ShadowDistanceFadeoutFraction)
-			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, bUseInsetShadowsForMovableObjects)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, FarShadowCascadeCount))
 		{
 			return bShadowCascades;
