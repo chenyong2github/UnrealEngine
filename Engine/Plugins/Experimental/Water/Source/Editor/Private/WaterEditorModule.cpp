@@ -6,6 +6,8 @@
 #include "PropertyEditorModule.h"
 #include "WaterLandscapeBrush.h"
 #include "EngineUtils.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
+#include "Modules/ModuleManager.h"
 #include "Landscape.h"
 #include "Logging/MessageLog.h"
 #include "WaterZoneActor.h"
@@ -19,7 +21,7 @@
 #include "WaterZoneActorFactory.h"
 #include "WaterBodyActorDetailCustomization.h"
 #include "WaterBrushManagerFactory.h"
-#include "AssetTypeActions_WaterWaves.h"
+#include "AssetDefinition_WaterWaves.h"
 #include "WaterBrushCacheContainer.h"
 #include "WaterBodyBrushCacheContainerThumbnailRenderer.h"
 #include "WaterWavesEditorToolkit.h"
@@ -43,19 +45,6 @@ void FWaterEditorModule::StartupModule()
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
 	PropertyModule.RegisterCustomClassLayout(TEXT("WaterBody"), FOnGetDetailCustomizationInstance::CreateStatic(&FWaterBodyActorDetailCustomization::MakeInstance));
-
-	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	WaterAssetCategory = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("Water")), LOCTEXT("WaterAssetCategory", "Water"));
-
-	// Helper lambda for registering asset type actions for automatic cleanup on shutdown
-	auto RegisterAssetTypeAction = [&](TSharedRef<IAssetTypeActions> Action)
-	{
-		AssetTools.RegisterAssetTypeActions(Action);
-		CreatedAssetTypeActions.Add(Action);
-	};
-
-	// Register type actions
-	RegisterAssetTypeAction(MakeShareable(new FAssetTypeActions_WaterWaves));
 
 	GEngine->OnLevelActorAdded().AddRaw(this, &FWaterEditorModule::OnLevelActorAddedToWorld);
 
@@ -108,16 +97,6 @@ void FWaterEditorModule::ShutdownModule()
 			GUnrealEd->UnregisterComponentVisualizer(ClassName);
 		}
 	}
-
-	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
-	{
-		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		for (auto CreatedAssetTypeAction : CreatedAssetTypeActions)
-		{
-			AssetTools.UnregisterAssetTypeActions(CreatedAssetTypeAction.ToSharedRef());
-		}
-	}
-	CreatedAssetTypeActions.Empty();
 
 	FEditorDelegates::OnMapOpened.RemoveAll(this);
 

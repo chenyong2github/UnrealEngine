@@ -21,6 +21,7 @@ public class WaterEditor : ModuleRules
 				"SlateCore",
 				"Slate",
 				"UnrealEd",
+				"AssetDefinition",
 				"Water",
                 "Projects",
 				"PropertyEditor",
