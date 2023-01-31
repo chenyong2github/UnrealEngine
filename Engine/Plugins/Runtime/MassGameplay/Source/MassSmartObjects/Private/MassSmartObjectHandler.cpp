@@ -201,13 +201,13 @@ bool FMassSmartObjectHandler::StartUsingSmartObject(
 		return false;
 	}
 
+	User.InteractionStatus = EMassSmartObjectInteractionStatus::InProgress;
+	User.InteractionHandle = ClaimHandle;
+
 	// Activate behavior
 	const FMassEntityView EntityView(EntityManager, Entity);
 	const FMassBehaviorEntityContext Context(EntityView, SmartObjectSubsystem);
 	BehaviorDefinition->Activate(ExecutionContext.Defer(), Context);
-
-	User.InteractionStatus = EMassSmartObjectInteractionStatus::InProgress;
-	User.InteractionHandle = ClaimHandle;
 
 	return true;
 }
