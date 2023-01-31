@@ -10,10 +10,12 @@
 #include "GameFramework/Actor.h"
 #include "Algo/NoneOf.h"
 #include "Algo/AnyOf.h"
+#include "Misc/ScopedSlowTask.h"
 
 
 using namespace UE::Geometry;
 
+#define LOCTEXT_NAMESPACE "RenderCaptureFunctions"
 
 
 
@@ -203,30 +205,15 @@ bool FSceneCapturePhotoSetSampler::IsValidCorrespondence(const FMeshMapEvaluator
 
 
 
-
-
-
-
-TUniquePtr<FSceneCapturePhotoSet> UE::Geometry::CapturePhotoSet(
-	const TArray<TObjectPtr<AActor>>& Actors,
-	const FRenderCaptureOptions& Options,
-	FRenderCaptureUpdate& Update,
-	bool bAllowCancel)
+namespace UE::Geometry
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(CapturePhotoSet);
+namespace
+{
 
-	TUniquePtr<FSceneCapturePhotoSet> SceneCapture = MakeUnique<FSceneCapturePhotoSet>();
-
-	Update = UpdatePhotoSets(SceneCapture, Actors, Options, bAllowCancel);
-
-	return SceneCapture;
-}
-
-FRenderCaptureUpdate UE::Geometry::UpdatePhotoSets(
+void UpdateSceneCaptureSettings(
 	const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
-	const TArray<TObjectPtr<AActor>>& Actors,
-	const FRenderCaptureOptions& Options,
-	bool bAllowCancel)
+	const TArray<AActor*>& Actors,
+	const FRenderCaptureOptions& Options)
 {
 	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::DeviceDepth, Options.bBakeDeviceDepth);
 	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::BaseColor,   Options.bBakeBaseColor);
@@ -264,8 +251,42 @@ FRenderCaptureUpdate UE::Geometry::UpdatePhotoSets(
 		true, true, true, true, true);
 
 	SceneCapture->SetSpatialPhotoParams(SpatialParams);
+}
 
-	SceneCapture->SetAllowCancel(bAllowCancel);
+} // namespace
+} // namespace UE::Geometry
+
+
+
+TUniquePtr<FSceneCapturePhotoSet> UE::Geometry::CapturePhotoSet(
+	const TArray<TObjectPtr<AActor>>& Actors,
+	const FRenderCaptureOptions& Options,
+	FRenderCaptureUpdate& Update,
+	bool bAllowCancel)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(CapturePhotoSet);
+
+	TUniquePtr<FSceneCapturePhotoSet> SceneCapture = MakeUnique<FSceneCapturePhotoSet>();
+
+	Update = UpdatePhotoSets(SceneCapture, Actors, Options, bAllowCancel);
+
+	return SceneCapture;
+}
+
+FRenderCaptureUpdate UE::Geometry::UpdatePhotoSets(
+	const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
+	const TArray<TObjectPtr<AActor>>& Actors,
+	const FRenderCaptureOptions& Options,
+	bool bAllowCancel)
+{
+	FScopedSlowTask Progress(0.f, LOCTEXT("CapturingScene", "Capturing Scene..."));
+	Progress.MakeDialog(bAllowCancel);
+
+	// Cache previous SceneCapture settings so these can be restored if the computation is cancelled
+	const FRenderCaptureOptions ComputedOptions = GetComputedPhotoSetOptions(SceneCapture);
+	const TArray<AActor*> ComputedActors = SceneCapture->GetCaptureSceneActors();
+
+	UpdateSceneCaptureSettings(SceneCapture, Actors, Options);
 
 	// If the provided Options required some photo sets to recompute they will have been cleared by this point.
 	// The updated photo sets are the ones where the photo sets are empty here but are not empty after the Compute call
@@ -282,7 +303,14 @@ FRenderCaptureUpdate UE::Geometry::UpdatePhotoSets(
 	Update.bUpdatedSubsurfaceColor = (SceneCapture->GetSubsurfaceColorPhotoSet().Num() == 0);
 	Update.bUpdatedDeviceDepth     = (SceneCapture->GetDeviceDepthPhotoSet().Num()     == 0);
 
+	SceneCapture->SetAllowCancel(bAllowCancel);
+
 	SceneCapture->Compute();
+
+	if (SceneCapture->Cancelled())
+	{
+		UpdateSceneCaptureSettings(SceneCapture, ComputedActors, ComputedOptions);
+	}
 
 	Update.bUpdatedBaseColor       = (SceneCapture->GetBaseColorPhotoSet().Num()       == 0) != Update.bUpdatedBaseColor;
 	Update.bUpdatedRoughness       = (SceneCapture->GetRoughnessPhotoSet().Num()       == 0) != Update.bUpdatedRoughness;
@@ -293,7 +321,7 @@ FRenderCaptureUpdate UE::Geometry::UpdatePhotoSets(
 	Update.bUpdatedEmissive        = (SceneCapture->GetEmissivePhotoSet().Num()        == 0) != Update.bUpdatedEmissive;
 	Update.bUpdatedOpacity         = (SceneCapture->GetOpacityPhotoSet().Num()         == 0) != Update.bUpdatedOpacity;
 	Update.bUpdatedSubsurfaceColor = (SceneCapture->GetSubsurfaceColorPhotoSet().Num() == 0) != Update.bUpdatedSubsurfaceColor;
-	Update.bUpdatedDeviceDepth     = (SceneCapture->GetDeviceDepthPhotoSet().Num()     == 0) != Update.bUpdatedDeviceDepth ;
+	Update.bUpdatedDeviceDepth     = (SceneCapture->GetDeviceDepthPhotoSet().Num()     == 0) != Update.bUpdatedDeviceDepth;
 
 	return Update;
 }
@@ -704,3 +732,6 @@ void UE::Geometry::GetTexturesFromRenderCaptureBaker(const TUniquePtr<FMeshMapBa
 		}
 	}
 }
+
+
+#undef LOCTEXT_NAMESPACE

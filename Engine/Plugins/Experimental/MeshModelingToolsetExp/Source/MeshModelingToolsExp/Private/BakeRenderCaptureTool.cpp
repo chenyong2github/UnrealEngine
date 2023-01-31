@@ -22,7 +22,6 @@
 #include "Baking/BakingTypes.h"
 #include "Sampling/MeshImageBakingCache.h"
 #include "Sampling/MeshMapBaker.h"
-#include "Misc/ScopedSlowTask.h"
 #include "Sampling/RenderCaptureMapEvaluator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BakeRenderCaptureTool)
@@ -839,32 +838,25 @@ FRenderCaptureUpdate UBakeRenderCaptureTool::UpdateSceneCapture()
 
 	if (!SceneCapture)
 	{
-		constexpr bool bAllowCancel = false;
-
-		FScopedSlowTask Progress(1.f, LOCTEXT("CapturingScene", "Capturing Scene..."));
-		Progress.EnterProgressFrame(1.f);
-		Progress.MakeDialog(bAllowCancel);
-
 		const FRenderCaptureOptions Options = MakeRenderCaptureOptions(*RenderCaptureProperties);
+
+		constexpr bool bAllowCancel = false;
 		SceneCapture = CapturePhotoSet(Actors, Options, Update, bAllowCancel);
 	}
 	else
 	{
-		constexpr bool bAllowCancel = true;
-
-		FScopedSlowTask Progress(1.f, LOCTEXT("CapturingScene", "Capturing Scene..."));
-		Progress.EnterProgressFrame(1.f);
-		Progress.MakeDialog(bAllowCancel);
-
 		// Get already computed options from the existing SceneCapture so we can restore them if the capture is cancelled
 		const FRenderCaptureOptions ComputedOptions = GetComputedPhotoSetOptions(SceneCapture);
 
 		const FRenderCaptureOptions Options = MakeRenderCaptureOptions(*RenderCaptureProperties);
+
+		constexpr bool bAllowCancel = true;
 		Update = UpdatePhotoSets(SceneCapture, Actors, Options, bAllowCancel);
 
 		if (SceneCapture->Cancelled())
 		{
 			// Restore the settings present before the change that invoked the scene capture recompute
+			// Note UpdatePhotoSets will have restored the SceneCapture settings to their values prior to the cancel
 			RenderCaptureProperties->bBaseColorMap      = ComputedOptions.bBakeBaseColor;
 			RenderCaptureProperties->bNormalMap         = ComputedOptions.bBakeNormalMap;
 			RenderCaptureProperties->bMetallicMap       = ComputedOptions.bBakeMetallic;

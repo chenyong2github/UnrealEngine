@@ -273,6 +273,8 @@ void FSceneCapturePhotoSet::Compute()
 {
 	check(this->TargetWorld != nullptr);
 
+	bWasCancelled = false;
+
 	FScopedSlowTask Progress(PhotoSetParams.Num(), LOCTEXT("ComputingViewpoints", "Computing Viewpoints..."));
 	Progress.MakeDialog(bAllowCancel);
 
@@ -472,7 +474,9 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 	const TArray<FVector3d>& Directions)
 {
 	check(this->TargetWorld != nullptr);
-	
+
+	bWasCancelled = false;
+
 	FScopedSlowTask Progress(Directions.Num(), LOCTEXT("ComputingViewpoints", "Computing Viewpoints..."));
 	Progress.MakeDialog(bAllowCancel);
 

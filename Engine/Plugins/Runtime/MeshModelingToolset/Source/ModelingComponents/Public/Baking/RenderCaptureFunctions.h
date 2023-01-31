@@ -139,6 +139,9 @@ struct MODELINGCOMPONENTS_API FRenderCaptureUpdate
 };
 
 
+/**
+ * This function computes the SceneCapture for the first time
+ */
 MODELINGCOMPONENTS_API
 TUniquePtr<FSceneCapturePhotoSet> CapturePhotoSet(
 	const TArray<TObjectPtr<AActor>>& Actors,
@@ -154,6 +157,10 @@ TUniquePtr<FSceneCapturePhotoSet> CapturePhotoSet(
 * - If the given Options enable a new capture channel then the new photos set are captured and added to the SceneCapture
 * - If the given Actors are different the ones cached in the SceneCapture, or if the given Options changes a parameter
 *   affecting all photo sets (e.g., photo resolution), then all the photo sets are cleared and recomputed
+*   
+* If the SceneCapture computation is cancelled then its state will be identical to how it looked prior to calling this
+* function, which means that queries of the SceneCapture settings (e.g., via the GetXXX() API) will return results which
+* are consistent with the internal photo sets.
 */
 MODELINGCOMPONENTS_API
 FRenderCaptureUpdate UpdatePhotoSets(
