@@ -4447,6 +4447,11 @@ bool FEngineLoop::LoadStartupCoreModules()
 		FModuleManager::Get().LoadModule(TEXT("Networking"));
 	}
 
+	// Enable the live coding module if it's a developer build
+#if WITH_LIVE_CODING
+	FModuleManager::Get().LoadModule("LiveCoding");
+#endif
+
 	SlowTask.EnterProgressFrame(10);
 	FPlatformApplicationMisc::LoadStartupModules();
 

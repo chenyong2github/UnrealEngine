@@ -8,6 +8,7 @@
 #include "Modules/ModuleManager.h"
 #include "Templates/SharedPointer.h"
 #include "Internationalization/Text.h"
+#include "Async/TaskGraphFwd.h"
 #include <atomic>
 
 struct IConsoleCommand;
@@ -63,11 +64,13 @@ private:
 	bool StartLiveCoding(ELiveCodingStartupMode StartupMode);
 	void OnModulesChanged(FName ModuleName, EModuleChangeReason Reason);
 	void UpdateModules(bool bAllowStarting);
+	void ReservePagesTask();
 	bool ShouldPreloadModule(const TSet<FName>& PreloadedFileNames, const FString& FullFilePath) const;
 	bool IsReinstancingEnabled() const;
 	void WaitForStartup();
 	bool HasStarted(bool bAllowStarting) const;
 	void ShowConsole(bool bAllowStarting);
+	void SetBuildArguments();
 
 #if WITH_EDITOR
 	void ShowNotification(bool Success, const FText& Title, const FText* SubText);
@@ -86,14 +89,16 @@ private:
 	TSharedPtr<ISettingsSection> SettingsSection;
 	bool bSettingsEnabledLastTick = false;
 	bool bEnableReinstancingLastTick = false;
+	bool bBuildArgumentsSet = false;
 	std::atomic<EState> State = EState::NotRunning;
-	bool bUpdateModulesInTick = false;
+	std::atomic<bool> bUpdateModulesInTick = false;
 	bool bHasReinstancingOccurred = false;
 	bool bHasPatchBeenLoaded = false;
 	ELiveCodingCompileResult LastResults = ELiveCodingCompileResult::Success;
 	TSet<FName> ConfiguredModules;
 	TArray<void*> LppPendingTokens;
 	void* CallbackCookie = nullptr;
+	FString LastKnownTargetName = FString();
 
 	FText EnableErrorText;
 
@@ -115,8 +120,12 @@ private:
 		FName FullName;
 		bool bLoaded;
 	};
+	FCriticalSection SetBuildArgumentsCs;
 	FCriticalSection ModuleChangeCs;
 	TArray<ModuleChange> ModuleChanges;
+	TArray<uintptr_t> ReservedPages;
+	int LastReservePagesModuleCount = 0;
+	FGraphEventRef ReservePagesTaskRef;
 
 #if WITH_EDITOR
 	TUniquePtr<FReload> Reload;

@@ -2080,11 +2080,6 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	// Record large world coordinate state
 	CSV_METADATA(TEXT("LargeWorldCoordinates"), TEXT("1"));	// LWC_TODO: Remove
 
-	// Enable the live coding module if it's a developer build
-#if WITH_LIVE_CODING
-	FModuleManager::Get().LoadModule("LiveCoding");
-#endif
-
 	// Finish asset manager loading
 	if (AssetManager)
 	{
