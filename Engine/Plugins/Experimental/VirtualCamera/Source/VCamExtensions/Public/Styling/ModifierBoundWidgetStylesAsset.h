@@ -23,22 +23,22 @@ public:
 
 	/** Retrieves all meta data that is associated for a given modifier. */
 	UFUNCTION(BlueprintPure, Category = "Virtual Camera")
-	TArray<UWidgetStyleData*> GetStylesForModifier(UVCamComponent* VCamComponent, FName ModifierId) const;
+	TArray<UWidgetStyleData*> GetStylesForModifier(UVCamModifier* Modifier) const;
 
 	/** Retrieves all meta data that is associated for a given modifier and a sub-category name. */
 	UFUNCTION(BlueprintPure, Category = "Virtual Camera")
-	TArray<UWidgetStyleData*> GetStylesForCategoryInModifier(UVCamComponent* VCamComponent, FName ModifierId, FName Category) const;
+	TArray<UWidgetStyleData*> GetStylesForConnectionPoint(UVCamModifier* Modifier, FName ConnectionPoint) const;
 
 	/** Retrieves all meta data that is associated with a given a category name; this data is not associated with any kind of modifier. */
 	UFUNCTION(BlueprintPure, Category = "Virtual Camera")
-	TArray<UWidgetStyleData*> GetStylesForCategoryWithoutModifier(FName Category) const;
+	TArray<UWidgetStyleData*> GetStylesForName(FName Category) const;
 
 	UFUNCTION(BlueprintPure, Category = "Virtual Camera", meta = (DeterminesOutputType = "Class"))
-	UWidgetStyleData* GetStyleForModifierByClass(UVCamComponent* VCamComponent, FName ModifierId, TSubclassOf<UWidgetStyleData> Class) const;
+	UWidgetStyleData* GetStyleForModifierByClass(UVCamModifier* Modifier, TSubclassOf<UWidgetStyleData> Class) const;
 	
 	UFUNCTION(BlueprintPure, Category = "Virtual Camera", meta = (DeterminesOutputType = "Class"))
-	UWidgetStyleData* GetStyleForCategoryByClassInModifier(UVCamComponent* VCamComponent, FName ModifierId, FName Category, TSubclassOf<UWidgetStyleData> Class) const;
+	UWidgetStyleData* GetStyleForConnectionPointByClass(UVCamModifier* Modifier, FName ConnectionPoint, TSubclassOf<UWidgetStyleData> Class) const;
 	
 	UFUNCTION(BlueprintPure, Category = "Virtual Camera", meta = (DeterminesOutputType = "Class"))
-	UWidgetStyleData* GetStyleForCategoryWithoutModifier( FName Category, TSubclassOf<UWidgetStyleData> Class) const;
+	UWidgetStyleData* GetStyleForNameByClass(FName Name, TSubclassOf<UWidgetStyleData> Class) const;
 };

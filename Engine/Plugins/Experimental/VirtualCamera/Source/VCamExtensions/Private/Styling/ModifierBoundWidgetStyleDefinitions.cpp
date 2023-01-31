@@ -19,44 +19,44 @@ namespace UE::VCamExtensions::Private
 	}
 }
 
-TArray<UWidgetStyleData*> UModifierBoundWidgetStyleDefinitions::GetStylesForModifier_Implementation(UVCamComponent* VCamComponent, FName ModifierId) const
+TArray<UWidgetStyleData*> UModifierBoundWidgetStyleDefinitions::GetStylesForModifier_Implementation(UVCamModifier* Modifier) const
 {
 	unimplemented();
 	return {};
 }
 
-TArray<UWidgetStyleData*> UModifierBoundWidgetStyleDefinitions::GetStylesForCategoryInModifier_Implementation(UVCamComponent* VCamComponent, FName ModifierId, FName Category) const
+TArray<UWidgetStyleData*> UModifierBoundWidgetStyleDefinitions::GetStylesForConnectionPoint_Implementation(UVCamModifier* Modifier, FName ConnectionPoint) const
 {
 	unimplemented();
 	return {};
 }
 
-TArray<UWidgetStyleData*> UModifierBoundWidgetStyleDefinitions::GetStylesForCategoryWithoutModifier_Implementation(FName Category) const
+TArray<UWidgetStyleData*> UModifierBoundWidgetStyleDefinitions::GetStylesForName_Implementation(FName Category) const
 {
 	unimplemented();
 	return {};
 }
 
-UWidgetStyleData* UModifierBoundWidgetStyleDefinitions::GetStyleForModifierByClass(UVCamComponent* VCamComponent, FName ModifierId, TSubclassOf<UWidgetStyleData> Class) const
+UWidgetStyleData* UModifierBoundWidgetStyleDefinitions::GetStyleForModifierByClass(UVCamModifier* Modifier, TSubclassOf<UWidgetStyleData> Class) const
 {
 	return UE::VCamExtensions::Private::Filter(
-		GetStylesForModifier(VCamComponent, ModifierId),
+		GetStylesForModifier(Modifier),
 		Class
 		);
 }
 
-UWidgetStyleData* UModifierBoundWidgetStyleDefinitions::GetStyleForCategoryByClassInModifier(UVCamComponent* VCamComponent, FName ModifierId, FName Category, TSubclassOf<UWidgetStyleData> Class) const
+UWidgetStyleData* UModifierBoundWidgetStyleDefinitions::GetStyleForConnectionPointByClass(UVCamModifier* Modifier, FName ConnectionPoint, TSubclassOf<UWidgetStyleData> Class) const
 {
 	return UE::VCamExtensions::Private::Filter(
-		GetStylesForCategoryInModifier(VCamComponent, ModifierId, Category),
+		GetStylesForConnectionPoint(Modifier, ConnectionPoint),
 		Class
 		);
 }
 
-UWidgetStyleData* UModifierBoundWidgetStyleDefinitions::GetStyleForCategoryWithoutModifier(FName Category, TSubclassOf<UWidgetStyleData> Class) const
+UWidgetStyleData* UModifierBoundWidgetStyleDefinitions::GetStyleForNameByClass(FName Category, TSubclassOf<UWidgetStyleData> Class) const
 {
 	return UE::VCamExtensions::Private::Filter(
-			GetStylesForCategoryWithoutModifier(Category),
-			Class
-			);
+		GetStylesForName(Category),
+		Class
+		);
 }

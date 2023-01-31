@@ -4,18 +4,10 @@
 
 #include "ModifierBoundWidgetStyleDefinitions.h"
 #include "Modifier/VCamModifier.h"
+#include "WidgetStyleDataArray.h"
 #include "ClassBasedWidgetStyleDefinitions.generated.h"
 
 class UWidgetStyleData;
-
-USTRUCT()
-struct VCAMEXTENSIONS_API FWidgetStyleDataArray
-{
-	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere, Instanced, Category = "Virtual Camera")
-	TArray<TObjectPtr<UWidgetStyleData>> Styles;
-};
 
 USTRUCT()
 struct VCAMEXTENSIONS_API FWidgetStyleDataConfig
@@ -41,7 +33,7 @@ struct VCAMEXTENSIONS_API FPerModifierClassWidgetSytleData
 
 	/** Meta data that is attached to a custom name, such as a connection point or group name (if using e.g. UClassBasedModifierHierarchyRules) */
 	UPROPERTY(EditAnywhere, Category = "Virtual Camera")
-	TMap<FName, FWidgetStyleDataConfig> CategorizedStyles;
+	TMap<FName, FWidgetStyleDataConfig> ConnectionPointStyles;
 };
 
 /**
@@ -61,8 +53,8 @@ public:
 	TMap<FName, FWidgetStyleDataArray> CategoriesWithoutModifier;
 	
 	//~ Begin UModifierMetaDataRules Interface
-	virtual TArray<UWidgetStyleData*> GetStylesForModifier_Implementation(UVCamComponent* VCamComponent, FName ModifierId) const override;
-	virtual TArray<UWidgetStyleData*> GetStylesForCategoryInModifier_Implementation(UVCamComponent* VCamComponent, FName ModifierId, FName ConnectionPointId) const override;
-	virtual TArray<UWidgetStyleData*> GetStylesForCategoryWithoutModifier_Implementation(FName Category) const override;
+	virtual TArray<UWidgetStyleData*> GetStylesForModifier_Implementation(UVCamModifier* Modifier) const override;
+	virtual TArray<UWidgetStyleData*> GetStylesForConnectionPoint_Implementation(UVCamModifier* Modifier, FName ConnectionPointId) const override;
+	virtual TArray<UWidgetStyleData*> GetStylesForName_Implementation(FName Category) const override;
 	//~ End UModifierMetaDataRules Interface
 };

@@ -5,32 +5,32 @@
 #include "Styling/ClassBasedWidgetStyleDefinitions.h"
 #include "Styling/ModifierBoundWidgetStyleDefinitions.h"
 
-TArray<UWidgetStyleData*> UModifierBoundWidgetStylesAsset::GetStylesForModifier(UVCamComponent* VCamComponent, FName ModifierId) const
+TArray<UWidgetStyleData*> UModifierBoundWidgetStylesAsset::GetStylesForModifier(UVCamModifier* Modifier) const
 {
-	return Rules ? Rules->GetStylesForModifier(VCamComponent, ModifierId) : TArray<UWidgetStyleData*>{};
+	return Rules ? Rules->GetStylesForModifier(Modifier) : TArray<UWidgetStyleData*>{};
 }
 
-TArray<UWidgetStyleData*> UModifierBoundWidgetStylesAsset::GetStylesForCategoryInModifier(UVCamComponent* VCamComponent, FName ModifierId, FName Category) const
+TArray<UWidgetStyleData*> UModifierBoundWidgetStylesAsset::GetStylesForConnectionPoint(UVCamModifier* Modifier, FName ConnectionPoint) const
 {
-	return Rules ? Rules->GetStylesForCategoryInModifier(VCamComponent, ModifierId, Category) : TArray<UWidgetStyleData*>{};
+	return Rules ? Rules->GetStylesForConnectionPoint(Modifier, ConnectionPoint) : TArray<UWidgetStyleData*>{};
 }
 
-TArray<UWidgetStyleData*> UModifierBoundWidgetStylesAsset::GetStylesForCategoryWithoutModifier(FName Category) const
+TArray<UWidgetStyleData*> UModifierBoundWidgetStylesAsset::GetStylesForName(FName Category) const
 {
-	return Rules ? Rules->GetStylesForCategoryWithoutModifier(Category) : TArray<UWidgetStyleData*>{};
+	return Rules ? Rules->GetStylesForName(Category) : TArray<UWidgetStyleData*>{};
 }
 
-UWidgetStyleData* UModifierBoundWidgetStylesAsset::GetStyleForModifierByClass(UVCamComponent* VCamComponent, FName ModifierId, TSubclassOf<UWidgetStyleData> Class) const
+UWidgetStyleData* UModifierBoundWidgetStylesAsset::GetStyleForModifierByClass(UVCamModifier* Modifier, TSubclassOf<UWidgetStyleData> Class) const
 {
-	return Rules ? Rules->GetStyleForModifierByClass(VCamComponent, ModifierId, Class) : nullptr;
+	return Rules ? Rules->GetStyleForModifierByClass(Modifier, Class) : nullptr;
 }
 
-UWidgetStyleData* UModifierBoundWidgetStylesAsset::GetStyleForCategoryByClassInModifier(UVCamComponent* VCamComponent, FName ModifierId, FName Category, TSubclassOf<UWidgetStyleData> Class) const
+UWidgetStyleData* UModifierBoundWidgetStylesAsset::GetStyleForConnectionPointByClass(UVCamModifier* Modifier, FName ConnectionPoint, TSubclassOf<UWidgetStyleData> Class) const
 {
-	return Rules ? Rules->GetStyleForCategoryByClassInModifier(VCamComponent, ModifierId, Category, Class) : nullptr;
+	return Rules ? Rules->GetStyleForConnectionPointByClass(Modifier, ConnectionPoint, Class) : nullptr;
 }
 
-UWidgetStyleData* UModifierBoundWidgetStylesAsset::GetStyleForCategoryWithoutModifier(FName Category, TSubclassOf<UWidgetStyleData> Class) const
+UWidgetStyleData* UModifierBoundWidgetStylesAsset::GetStyleForNameByClass(FName Name, TSubclassOf<UWidgetStyleData> Class) const
 {
-	return Rules ? Rules->GetStyleForCategoryWithoutModifier(Category, Class) : nullptr;
+	return Rules ? Rules->GetStyleForNameByClass(Name, Class) : nullptr;
 }

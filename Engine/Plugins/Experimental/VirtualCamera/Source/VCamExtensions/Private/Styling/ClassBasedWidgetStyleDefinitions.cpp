@@ -5,26 +5,16 @@
 #include "VCamComponent.h"
 #include "Algo/ForEach.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogClassBasedModifierMetaDataRules, All, All);
-
 namespace UE::VCamExtensions::Private
 {
 	static TArray<UWidgetStyleData*> AccumulateMetaDataRecursively(
 		const TMap<TSubclassOf<UVCamModifier>, FPerModifierClassWidgetSytleData>& Config,
-		UVCamComponent* VCamComponent, 
-		FName ModifierId,
+		UVCamModifier* Modifier,
 		TFunctionRef<const FWidgetStyleDataConfig*(const FPerModifierClassWidgetSytleData& ClassConfig)> RetrieveConfig)
 	{
 		TArray<UWidgetStyleData*> Result;
-		if (!IsValid(VCamComponent))
-		{
-			return Result;
-		}
-
-		UVCamModifier* Modifier = VCamComponent->GetModifierByName(ModifierId);
 		if (!Modifier)
 		{
-			UE_LOG(LogClassBasedModifierMetaDataRules, Warning, TEXT("Unknown modifier %s (on component %s)"), *ModifierId.ToString(), *VCamComponent->GetPathName());
 			return Result;
 		}
 
@@ -53,31 +43,29 @@ namespace UE::VCamExtensions::Private
 }
 
 
-TArray<UWidgetStyleData*> UClassBasedWidgetStyleDefinitions::GetStylesForModifier_Implementation(UVCamComponent* VCamComponent, FName ModifierId) const
+TArray<UWidgetStyleData*> UClassBasedWidgetStyleDefinitions::GetStylesForModifier_Implementation(UVCamModifier* Modifier) const
 {
 	return UE::VCamExtensions::Private::AccumulateMetaDataRecursively(
 		Config,
-		VCamComponent,
-		ModifierId,
+		Modifier,
 		[](const FPerModifierClassWidgetSytleData& ClassConfig)
 		{
 			return &ClassConfig.ModifierStyles;
 		});
 }
 
-TArray<UWidgetStyleData*> UClassBasedWidgetStyleDefinitions::GetStylesForCategoryInModifier_Implementation(UVCamComponent* VCamComponent, FName ModifierId, FName ConnectionPointId) const
+TArray<UWidgetStyleData*> UClassBasedWidgetStyleDefinitions::GetStylesForConnectionPoint_Implementation(UVCamModifier* Modifier, FName ConnectionPointId) const
 {
 	return UE::VCamExtensions::Private::AccumulateMetaDataRecursively(
 		Config,
-		VCamComponent,
-		ModifierId,
+		Modifier,
 		[ConnectionPointId](const FPerModifierClassWidgetSytleData& ClassConfig)
 		{
-			return ClassConfig.CategorizedStyles.Find(ConnectionPointId);
+			return ClassConfig.ConnectionPointStyles.Find(ConnectionPointId);
 		});
 }
 
-TArray<UWidgetStyleData*> UClassBasedWidgetStyleDefinitions::GetStylesForCategoryWithoutModifier_Implementation(FName Category) const
+TArray<UWidgetStyleData*> UClassBasedWidgetStyleDefinitions::GetStylesForName_Implementation(FName Category) const
 {
 	const FWidgetStyleDataArray* Result = CategoriesWithoutModifier.Find(Category);
 	return Result
