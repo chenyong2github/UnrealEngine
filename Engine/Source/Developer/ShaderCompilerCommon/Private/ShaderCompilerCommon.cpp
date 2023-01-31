@@ -1142,7 +1142,7 @@ void TransformStringIntoCharacterArray(FString& PreprocessedShaderSource)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& Input, uint32 CCFlags)
+FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& Input, uint32 CCFlags = 0)
 {
 	FString Text(TEXT("-directcompile -format="));
 	Text += Input.ShaderFormat.GetPlainNameString();
@@ -1439,38 +1439,6 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 	}
 }
 
-
-FString GetDumpDebugUSFContents(const FShaderCompilerInput& Input, const FString& Source, uint32 HlslCCFlags)
-{
-	UE::ShaderCompilerCommon::FDebugShaderDataOptions DebugDataOptions;
-	DebugDataOptions.HlslCCFlags = HlslCCFlags;
-	return UE::ShaderCompilerCommon::GetDebugShaderContents(Input, Source, DebugDataOptions);
-}
-
-void DumpDebugUSF(const FShaderCompilerInput& Input, const ANSICHAR* Source, uint32 HlslCCFlags, const TCHAR* OverrideBaseFilename)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FString NewSource = Source ? Source : "";
-	FString Contents = GetDumpDebugUSFContents(Input, NewSource, HlslCCFlags);
-	DumpDebugUSF(Input, NewSource, HlslCCFlags, OverrideBaseFilename);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-void DumpDebugUSF(const FShaderCompilerInput& Input, const FString& Source, uint32 HlslCCFlags, const TCHAR* OverrideBaseFilename)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FString BaseSourceFilename = (OverrideBaseFilename && *OverrideBaseFilename) ? OverrideBaseFilename : *Input.GetSourceFilename();
-	FString Filename = Input.DumpDebugInfoPath / BaseSourceFilename;
-
-	if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*Filename)))
-	{
-		FString Contents = GetDumpDebugUSFContents(Input, Source, HlslCCFlags);
-		FileWriter->Serialize(TCHAR_TO_ANSI(*Contents), Contents.Len());
-		FileWriter->Close();
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 namespace UE::ShaderCompilerCommon
 {
 	void DumpDebugShaderData(const FShaderCompilerInput& Input, const FString& PreprocessedSource, const FDebugShaderDataOptions& Options)
@@ -1480,22 +1448,14 @@ namespace UE::ShaderCompilerCommon
 			FString Prefix = (Options.FilenamePrefix && *Options.FilenamePrefix) ? Options.FilenamePrefix : FString();
 			FString BaseSourceFilename = Prefix + ((Options.OverrideBaseFilename && *Options.OverrideBaseFilename) ? Options.OverrideBaseFilename : *Input.GetSourceFilename());
 
-			FString ModifiedPreprocessedSource = GetDebugShaderContents(Input, PreprocessedSource, Options);
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			// note: DumpDebugUSF should be internalized once the deprecation window ends 
-			// (i.e. still should remain in this file but not be declared in the header)
-			// until that time we need to disable deprecation warnings here.
-			DumpDebugUSF(Input, ModifiedPreprocessedSource, Options.HlslCCFlags, *BaseSourceFilename);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			UE::ShaderCompilerCommon::FDebugShaderDataOptions DebugDataOptions;
+			DebugDataOptions.HlslCCFlags = Options.HlslCCFlags;
+			FString Contents = UE::ShaderCompilerCommon::GetDebugShaderContents(Input, PreprocessedSource, DebugDataOptions);
+			FFileHelper::SaveStringToFile(Contents, *(Input.DumpDebugInfoPath / BaseSourceFilename));
 
 			if (Input.bGenerateDirectCompileFile && !Options.bSkipDirectCompileTxt)
 			{
-				// note: CreateShaderCompileWorkerDirectCommandLine should be internalized once the deprecation window ends
-				// (i.e. still should remain in this file but not be declared in the header)
-				// until that time we need to disable deprecation warnings here.
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				FFileHelper::SaveStringToFile(CreateShaderCompilerWorkerDirectCommandLine(Input), *(Input.DumpDebugInfoPath / FString::Printf(TEXT("%sDirectCompile.txt"), *Prefix)));
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
 	}
@@ -1511,12 +1471,7 @@ namespace UE::ShaderCompilerCommon
 		Contents += TEXT("\n");
 		Contents += CrossCompiler::CreateResourceTableFromEnvironment(Input.Environment);
 		Contents += TEXT("#if 0 /*DIRECT COMPILE*/\n");
-		// note: CreateShaderCompileWorkerDirectCommandLine should be internalized once the deprecation window ends
-		// (i.e. still should remain in this file but not be declared in the header)
-		// until that time we need to disable deprecation warnings here.
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS	
 		Contents += CreateShaderCompilerWorkerDirectCommandLine(Input, Options.HlslCCFlags);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Contents += TEXT("\n#endif /*DIRECT COMPILE*/\n");
 		if (!Input.DebugDescription.IsEmpty())
 		{

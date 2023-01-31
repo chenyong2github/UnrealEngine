@@ -2805,10 +2805,6 @@ const FMemoryImageString* FMaterialShaderMap::GetShaderSource(const FVertexFacto
 	return nullptr;
 }
 
-const FMemoryImageString* FMaterialShaderMap::GetShaderSource(const FName VertexFactoryName, const FName ShaderTypeName) const
-{
-	return GetShaderSource(FindVertexFactoryType(VertexFactoryName), FindShaderTypeByName(ShaderTypeName), /* PermutationId */ 0);
-}
 #endif // WITH_EDITOR
 
 void FMaterialShaderMap::GetShaderList(TMap<FShaderId, TShaderRef<FShader>>& OutShaders) const
