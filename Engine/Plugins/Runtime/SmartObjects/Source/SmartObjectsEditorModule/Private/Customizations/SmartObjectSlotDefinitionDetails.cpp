@@ -29,7 +29,7 @@ void FSmartObjectSlotDefinitionDetails::CustomizeHeader(TSharedRef<class IProper
 		]
 		.ValueContent()
 		[
-			StructPropertyHandle->CreatePropertyValueWidget()
+			StructPropertyHandle->CreatePropertyValueWidget(/*bDisplayDefaultPropertyButtons*/false)
 		]
 		.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FSmartObjectSlotDefinitionDetails::OnCopy)))
 		.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FSmartObjectSlotDefinitionDetails::OnPaste)));
