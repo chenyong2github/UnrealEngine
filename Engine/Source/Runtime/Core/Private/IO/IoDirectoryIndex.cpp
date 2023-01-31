@@ -20,12 +20,12 @@ namespace IoDirectoryIndexUtils
 {
 
 // See PakFileUtilities.cpp 
-FString GetLongestPath(const TArray<FString>& Filenames)
+static FString GetLongestPath(const TArray<FStringView>& Filenames)
 {
 	FString LongestPath;
 	int32 MaxNumDirectories = 0;
 
-	for (const FString& Filename : Filenames)
+	for (const FStringView& Filename : Filenames)
 	{
 		int32 NumDirectories = 0;
 		for (int32 Index = 0; Index < Filename.Len(); Index++)
@@ -45,12 +45,12 @@ FString GetLongestPath(const TArray<FString>& Filenames)
 }
 
 // See PakFileUtilities.cpp 
-FString GetCommonRootPath(const TArray<FString>& Filenames)
+FString GetCommonRootPath(const TArray<FStringView>& Filenames)
 {
 	FString Root = GetLongestPath(Filenames);
-	for (const FString& Filename : Filenames)
+	for (const FStringView& Filename : Filenames)
 	{
-		FString Path = FPaths::GetPath(Filename) + TEXT("/");
+		FString Path = FPaths::GetPath(FString(Filename)) + TEXT("/");
 		int32 CommonSeparatorIndex = -1;
 		int32 SeparatorIndex = Path.Find(TEXT("/"), ESearchCase::CaseSensitive);
 		while (SeparatorIndex >= 0)
@@ -78,7 +78,7 @@ FString GetCommonRootPath(const TArray<FString>& Filenames)
 }
 
 // See IPlatformFilePak.h
-bool SplitPathInline(FString& InOutPath, FString& OutFilename)
+static bool SplitPathInline(FStringView& InOutPath, FStringView& OutFilename)
 {
 	// FPaths::GetPath doesn't handle our / at the end of directories, so we have to do string manipulation ourselves
 	// The manipulation is less complicated than GetPath deals with, since we have normalized/path/strings, we have relative paths only, and we don't care about extensions
@@ -92,7 +92,7 @@ bool SplitPathInline(FString& InOutPath, FString& OutFilename)
 		if (InOutPath[0] == TEXT('/'))
 		{
 			// The root directory; it has no parent.
-			OutFilename.Empty();
+			OutFilename = FStringView();
 			return false;
 		}
 		else
@@ -108,7 +108,7 @@ bool SplitPathInline(FString& InOutPath, FString& OutFilename)
 		if (InOutPath[InOutPath.Len() - 1] == TEXT('/'))
 		{
 			// The input was a Directory; remove the trailing / since we don't keep those on the CleanFilename
-			InOutPath.LeftChopInline(1, false /* bAllowShrinking */);
+			InOutPath.LeftChopInline(1);
 		}
 
 		int32 Offset = 0;
@@ -116,7 +116,7 @@ bool SplitPathInline(FString& InOutPath, FString& OutFilename)
 		{
 			int32 FilenameStart = Offset + 1;
 			OutFilename = InOutPath.Mid(FilenameStart);
-			InOutPath.LeftInline(FilenameStart, false /* bAllowShrinking */); // The Parent Directory keeps the / at the end
+			InOutPath.LeftInline(FilenameStart); // The Parent Directory keeps the / at the end
 		}
 		else
 		{
@@ -181,13 +181,13 @@ void FIoDirectoryIndexWriter::SetMountPoint(FString InMountPoint)
 	MountPoint = MoveTemp(InMountPoint);
 }
 
-uint32 FIoDirectoryIndexWriter::AddFile(const FString& InFileName)
+uint32 FIoDirectoryIndexWriter::AddFile(const FStringView& InFileName)
 {
 	uint32 Directory = 0; //Root
 
-	FString RelativePathFromMount = InFileName.Mid(MountPoint.Len());
-	FString RelativeDirectoryFromMount = RelativePathFromMount;
-	FString CleanFileName;
+	FStringView RelativePathFromMount = InFileName.Mid(MountPoint.Len());
+	FStringView RelativeDirectoryFromMount = RelativePathFromMount;
+	FStringView CleanFileName;
 	IoDirectoryIndexUtils::SplitPathInline(RelativeDirectoryFromMount, CleanFileName);
 
 	FStringView Path = RelativeDirectoryFromMount;
@@ -213,12 +213,20 @@ void FIoDirectoryIndexWriter::SetFileUserData(uint32 InFileEntryIndex, uint32 In
 
 void FIoDirectoryIndexWriter::Flush(TArray<uint8>& OutBuffer, FAES::FAESKey EncryptionKey)
 {
+	TArray<FString> StringTable;
+	StringTable.Reserve(Strings.Num());
+	for (FString& String : Strings)
+	{
+		StringTable.Emplace(MoveTemp(String));
+	}
+	Strings.Empty();
+
 	//TODO: Sort entries based on directory hierarchy
 	FIoDirectoryIndexResource DirectoryIndex;
 	DirectoryIndex.MountPoint = MoveTemp(MountPoint);
 	DirectoryIndex.DirectoryEntries = MoveTemp(DirectoryEntries);
 	DirectoryIndex.FileEntries = MoveTemp(FileEntries);
-	DirectoryIndex.StringTable = MoveTemp(Strings);
+	DirectoryIndex.StringTable = MoveTemp(StringTable);
 	
 	FMemoryWriter Ar(OutBuffer);
 	Ar << DirectoryIndex;
@@ -281,17 +289,15 @@ uint32 FIoDirectoryIndexWriter::CreateDirectory(const FStringView& DirectoryName
 
 uint32 FIoDirectoryIndexWriter::GetNameIndex(const FStringView& String)
 {
-	FString Tmp(String);
-
-	if (const uint32* Index = StringToIndex.Find(Tmp))
+	if (const uint32* Index = StringToIndex.Find(String))
 	{
 		return *Index;
 	}
 	else
 	{
-		const uint32 NewIndex = Strings.Num();
-		Strings.Emplace(Tmp);
-		StringToIndex.Add(Tmp, NewIndex);
+		const uint32 NewIndex = Strings.Add();
+		const FString& NewString = Strings[NewIndex] = FString(String);
+		StringToIndex.Add(NewString, NewIndex);
 		return NewIndex;
 	}
 }

@@ -1122,6 +1122,13 @@ static void AssignPackagesDiskOrder(
 		});
 	}
 
+	// Keep these containers outside of inner loops to reuse allocated memory across iterations
+	// No need to allocate & free them on every single iteration, just reset element count before using them
+	TSet<FCluster*> ClustersToRead;
+	TSet<FLegacyCookedPackage*> VisitedDeps;
+	TArray<FLegacyCookedPackage*> DepQueue;
+	TArray<FCluster*> OrderedClustersToRead;
+
 	int32 ClusterSequence = 0;
 	TMap<FLegacyCookedPackage*, FCluster*> PackageToCluster;
 	for (FPackageAndOrder& Entry : SortedPackages)
@@ -1177,10 +1184,11 @@ static void AssignPackagesDiskOrder(
 			for (FLegacyCookedPackage* Package : Cluster->Packages)
 			{
 				int64 BytesToRead = 0;
-				TSet<FCluster*> ClustersToRead;
 
-				TSet<FLegacyCookedPackage*> VisitedDeps;
-				TArray<FLegacyCookedPackage*> DepQueue;
+				ClustersToRead.Reset();
+				VisitedDeps.Reset();
+				DepQueue.Reset();
+
 				DepQueue.Push(Package);
 				while (DepQueue.Num() > 0)
 				{
@@ -1201,11 +1209,15 @@ static void AssignPackagesDiskOrder(
 							{
 								DepQueue.Push(FindReferencedPackage);
 							}
-		}
-	}
+						}
+					}
 				}
 
-				TArray<FCluster*> OrderedClustersToRead = ClustersToRead.Array();
+				OrderedClustersToRead.Reset(ClustersToRead.Num());
+				for (FCluster* ClusterToRead : ClustersToRead)
+				{
+					OrderedClustersToRead.Add(ClusterToRead);
+				}
 				Algo::SortBy(OrderedClustersToRead, [](FCluster* C) { return C->ClusterSequence; }, TLess<int32>());
 
 				int32 NumClustersToRead = 1; // Could replace with "min seeks"

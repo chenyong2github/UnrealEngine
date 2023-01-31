@@ -581,9 +581,13 @@ public:
 		return nullptr;
 	}
 
-	void GetFileNamesToIndex(TArray<FString>& OutFileNames) const
+	void GetFileNamesToIndex(TArray<FStringView>& OutFileNames) const
 	{
-		ChunkIdToFileName.GenerateValueArray(OutFileNames);
+		OutFileNames.Empty(ChunkIdToFileName.Num());
+		for (auto& ChinkIdAndFileName : ChunkIdToFileName)
+		{
+			OutFileNames.Emplace(ChinkIdAndFileName.Value);
+		}
 	}
 
 	const FString* GetFileName(const FIoChunkId& ChunkId) const
@@ -1159,7 +1163,7 @@ public:
 		if (ContainerSettings.IsIndexed())
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(BuildIndex);
-			TArray<FString> FilesToIndex;
+			TArray<FStringView> FilesToIndex;
 			Toc.GetFileNamesToIndex(FilesToIndex);
 			
 			FString MountPoint = IoDirectoryIndexUtils::GetCommonRootPath(FilesToIndex);
