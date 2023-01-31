@@ -305,7 +305,7 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewSubgraphElement::PerformAction(UEdG
 	UPCGSettings* DefaultNodeSettings = nullptr;
 	UPCGNode* NewPCGNode = PCGGraph->AddNodeOfType(UPCGSubgraphSettings::StaticClass(), DefaultNodeSettings);
 	UPCGSubgraphSettings* DefaultSubgraphSettings = CastChecked<UPCGSubgraphSettings>(DefaultNodeSettings);
-	DefaultSubgraphSettings->Subgraph = Subgraph;
+	DefaultSubgraphSettings->SetSubgraph(Subgraph);
 
 	NewPCGNode->UpdateAfterSettingsChangeDuringCreation();
 

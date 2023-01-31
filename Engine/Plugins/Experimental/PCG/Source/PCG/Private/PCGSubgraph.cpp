@@ -8,6 +8,24 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSubgraph)
 
+namespace PCGSubgraphSettings
+{
+	void RemoveAdvancedModeOnConnectedPins(const UPCGGraph* Subgraph, TArray<FPCGPinProperties>& InOutPinProperties, const bool bIsInput)
+	{
+		const UPCGNode* SubgraphNode = bIsInput ? Subgraph->GetInputNode() : Subgraph->GetOutputNode();
+		check(SubgraphNode);
+
+		for (FPCGPinProperties& PinProperties : InOutPinProperties)
+		{
+			const UPCGPin* Pin = bIsInput ? SubgraphNode->GetOutputPin(PinProperties.Label) : SubgraphNode->GetInputPin(PinProperties.Label);
+			if (ensure(Pin) && Pin->IsConnected())
+			{
+				PinProperties.bAdvancedPin = false;
+			}
+		}
+	}
+}
+
 void UPCGBaseSubgraphSettings::PostLoad()
 {
 	Super::PostLoad();
@@ -18,6 +36,25 @@ void UPCGBaseSubgraphSettings::PostLoad()
 		Subgraph->OnGraphChangedDelegate.AddUObject(this, &UPCGSubgraphSettings::OnSubgraphChanged);
 	}
 #endif
+}
+
+void UPCGBaseSubgraphSettings::SetSubgraph(UPCGGraph* InGraph)
+{
+#if WITH_EDITOR
+	if (UPCGGraph* Subgraph = GetSubgraph())
+	{
+		Subgraph->OnGraphChangedDelegate.RemoveAll(this);
+	}
+#endif // WITH_EDITOR
+
+	SetSubgraphInternal(InGraph);
+
+#if WITH_EDITOR
+	if (UPCGGraph* Subgraph = GetSubgraph())
+	{
+		Subgraph->OnGraphChangedDelegate.AddUObject(this, &UPCGSubgraphSettings::OnSubgraphChanged);
+	}
+#endif // WITH_EDITOR
 }
 
 void UPCGBaseSubgraphSettings::BeginDestroy()
@@ -85,7 +122,9 @@ TArray<FPCGPinProperties> UPCGBaseSubgraphSettings::InputPinProperties() const
 {
 	if (UPCGGraph* Subgraph = GetSubgraph())
 	{
-		return Subgraph->GetInputNode()->InputPinProperties();
+		TArray<FPCGPinProperties> InputPins = Subgraph->GetInputNode()->InputPinProperties();
+		PCGSubgraphSettings::RemoveAdvancedModeOnConnectedPins(Subgraph, InputPins, /*bIsInput=*/true);
+		return InputPins;
 	}
 	else
 	{
@@ -97,7 +136,9 @@ TArray<FPCGPinProperties> UPCGBaseSubgraphSettings::OutputPinProperties() const
 {
 	if (UPCGGraph* Subgraph = GetSubgraph())
 	{
-		return Subgraph->GetOutputNode()->OutputPinProperties();
+		TArray<FPCGPinProperties> OutputPins = Subgraph->GetOutputNode()->OutputPinProperties();
+		PCGSubgraphSettings::RemoveAdvancedModeOnConnectedPins(Subgraph, OutputPins, /*bIsInput=*/false);
+		return OutputPins;
 	}
 	else
 	{

@@ -16,6 +16,9 @@ class PCG_API UPCGBaseSubgraphSettings : public UPCGSettings
 public:
 	virtual UPCGGraph* GetSubgraph() const { return nullptr; }
 
+	// Use this method from the outside to set the subgraph, as it will connect editor callbacks
+	virtual void SetSubgraph(UPCGGraph* InGraph);
+
 protected:
 	//~Begin UObject interface implementation
 	virtual void PostLoad() override;
@@ -33,6 +36,8 @@ protected:
 	TArray<FPCGPinProperties> InputPinProperties() const override;
 	TArray<FPCGPinProperties> OutputPinProperties() const override;
 	//~End UPCGSettings interface
+
+	virtual void SetSubgraphInternal(UPCGGraph* InGraph) {}
 
 #if WITH_EDITOR
 	void OnSubgraphChanged(UPCGGraph* InGraph, EPCGChangeType ChangeType);
@@ -64,6 +69,7 @@ protected:
 public:
 	virtual UPCGGraph* GetSubgraph() const override { return Subgraph; }
 protected:
+	virtual void SetSubgraphInternal(UPCGGraph* InGraph) override { Subgraph = InGraph; }
 #if WITH_EDITOR
 	virtual bool IsStructuralProperty(const FName& InPropertyName) const override;
 #endif
