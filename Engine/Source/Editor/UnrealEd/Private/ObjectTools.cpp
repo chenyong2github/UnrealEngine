@@ -4329,7 +4329,10 @@ namespace ObjectTools
 	 * @param	out_Descriptions	Array of format descriptions associated with the current factory; should equal the number of extensions
 	 * @param	out_Extensions		Array of format extensions associated with the current factory; should equal the number of descriptions
 	 */
-	void InternalGetFormatInfo(const TArray<FString>& Formats, TArray<FString>& out_Descriptions, TArray<FString>& out_Extensions )
+	void InternalGetFormatInfo(const TArray<FString>& Formats
+		, TArray<FString>& out_Descriptions
+		, TArray<FString>& out_Extensions
+		, const TArray<FString>& SupportedExtensions)
 	{
 		// Iterate over each formats.
 		for ( TArray<FString>::TConstIterator FormatIter( Formats ); FormatIter; ++FormatIter )
@@ -4343,6 +4346,18 @@ namespace ObjectTools
 			for ( int32 ComponentIndex = 0; ComponentIndex < FormatComponents.Num(); ComponentIndex += 2 )
 			{
 				check( FormatComponents.IsValidIndex( ComponentIndex + 1 ) );
+
+				//If we have a valid SupportedExtensions array, skip any extension not in the SupportedExtension array.
+				if (SupportedExtensions.Num() > 0)
+				{
+					FString& RefExtension = FormatComponents[ComponentIndex];
+					if (!SupportedExtensions.FindByPredicate([&RefExtension](const FString& Item){return Item.Equals(RefExtension, ESearchCase::IgnoreCase);}))
+					{
+						//Skip this extension
+						continue;
+					}
+				}
+
 				out_Extensions.Add( FormatComponents[ComponentIndex] );
 				out_Descriptions.Add( FormatComponents[ComponentIndex + 1] );
 			}
@@ -4356,12 +4371,16 @@ namespace ObjectTools
 	 * @param	out_Filetypes	File types supported by the provided factory, concatenated into a string
 	 * @param	out_Extensions	Extensions supported by the provided factory, concatenated into a string
 	 */
-	void GenerateFactoryFileExtensions( UFactory* InFactory, FString& out_Filetypes, FString& out_Extensions, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory )
+	void GenerateFactoryFileExtensions( UFactory* InFactory
+		, FString& out_Filetypes
+		, FString& out_Extensions
+		, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory
+		, const TArray<FString>& SupportedExtensions)
 	{
 		// Place the factory in an array and call the overloaded version of this function
 		TArray<UFactory*> FactoryArray;
 		FactoryArray.Add( InFactory );
-		GenerateFactoryFileExtensions( FactoryArray, out_Filetypes, out_Extensions, out_FilterIndexToFactory );
+		GenerateFactoryFileExtensions( FactoryArray, out_Filetypes, out_Extensions, out_FilterIndexToFactory, SupportedExtensions );
 	}
 
 	/**
@@ -4371,7 +4390,11 @@ namespace ObjectTools
 	 * @param	out_Filetypes	File types supported by the provided factory, concatenated into a string
 	 * @param	out_Extensions	Extensions supported by the provided factory, concatenated into a string
 	 */
-	void GenerateFactoryFileExtensions( const TArray<UFactory*>& InFactories, FString& out_Filetypes, FString& out_Extensions, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory )
+	void GenerateFactoryFileExtensions( const TArray<UFactory*>& InFactories
+		, FString& out_Filetypes
+		, FString& out_Extensions
+		, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory
+		, const TArray<FString>& SupportedExtensions)
 	{
 		// Store all the descriptions and their corresponding extensions in a map
 		TMultiMap<FString, FString> DescToExtensionMap;
@@ -4385,7 +4408,7 @@ namespace ObjectTools
 
 			TArray<FString> Descriptions;
 			TArray<FString> Extensions;
-			InternalGetFormatInfo( CurFactory->GetFormats(), Descriptions, Extensions);
+			InternalGetFormatInfo( CurFactory->GetFormats(), Descriptions, Extensions, SupportedExtensions);
 			check( Descriptions.Num() == Extensions.Num() );
 
 			// Make sure to only store each key, value pair once
@@ -4497,19 +4520,26 @@ namespace ObjectTools
 		}
 	}
 
-	void AppendFormatsFileExtensions(const TArray<FString>& InFormats, FString& out_FileTypes, FString& out_Extensions)
+	void AppendFormatsFileExtensions(const TArray<FString>& InFormats
+		, FString& out_FileTypes
+		, FString& out_Extensions
+		, const TArray<FString>& SupportedExtensions)
 	{
 		TArray<FString> Descriptions;
 		TArray<FString> Extensions;
-		InternalGetFormatInfo(InFormats, Descriptions, Extensions);
+		InternalGetFormatInfo(InFormats, Descriptions, Extensions, SupportedExtensions);
 		InternalAppendFileExtensions(Descriptions, Extensions, out_FileTypes, out_Extensions);
 	}
 
-	void AppendFormatsFileExtensions(const TArray<FString>& InFormats, FString& out_FileTypes, FString& out_Extensions, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory)
+	void AppendFormatsFileExtensions(const TArray<FString>& InFormats
+		, FString& out_FileTypes
+		, FString& out_Extensions
+		, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory
+		, const TArray<FString>& SupportedExtensions)
 	{
 		TArray<FString> Descriptions;
 		TArray<FString> Extensions;
-		InternalGetFormatInfo(InFormats, Descriptions, Extensions);
+		InternalGetFormatInfo(InFormats, Descriptions, Extensions, SupportedExtensions);
 		InternalAppendFileExtensions(Descriptions, Extensions, out_FileTypes, out_Extensions);
 		uint32 MaxKeyNumber = 0;
 		TSet<uint32> Keys;
@@ -4531,12 +4561,15 @@ namespace ObjectTools
 	/**
 	 * Generates a list of file types for a given class.
 	 */
-	void AppendFactoryFileExtensions ( UFactory* InFactory, FString& out_Filetypes, FString& out_Extensions )
+	void AppendFactoryFileExtensions ( UFactory* InFactory
+		, FString& out_Filetypes
+		, FString& out_Extensions
+		, const TArray<FString>& SupportedExtensions)
 	{
 		check(InFactory);
 		TArray<FString> Descriptions;
 		TArray<FString> Extensions;
-		InternalGetFormatInfo( InFactory->GetFormats(), Descriptions, Extensions);
+		InternalGetFormatInfo( InFactory->GetFormats(), Descriptions, Extensions, SupportedExtensions);
 		InternalAppendFileExtensions( Descriptions, Extensions, out_Filetypes, out_Extensions);
 	}
 

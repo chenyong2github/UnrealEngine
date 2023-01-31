@@ -570,6 +570,9 @@ public:
 	/** Get asset class permission list for content browser and other systems */
 	virtual const TSharedRef<FPathPermissionList>& GetAssetClassPathPermissionList(EAssetClassAction AssetClassAction) const = 0;
 
+	/** Get extension list allowed for importer */
+	virtual const TArray<FString>& GetSupportedImportExtension() const = 0;
+
 	/** Which BlueprintTypes are allowed to be created. An empty list should allow everything. */
 	virtual TSet<EBlueprintType>& GetAllowedBlueprintTypes() = 0;
 

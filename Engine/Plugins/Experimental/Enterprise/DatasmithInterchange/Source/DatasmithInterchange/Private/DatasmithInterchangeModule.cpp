@@ -24,6 +24,7 @@
 #include "Logging/LogMacros.h"
 
 #if WITH_EDITOR
+#include "AssetToolsModule.h"
 #include "DatasmithImporterModule.h"
 #include "DatasmithUtils.h"
 #include "DesktopPlatformModule.h"
@@ -132,8 +133,8 @@ void FDatasmithInterchangeModule::OnImportInterchange()
 	FString Extensions;
 
 	FString DefaultLocation(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_IMPORT));
-
-	ObjectTools::AppendFormatsFileExtensions(Formats, FileTypes, Extensions);
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
+	ObjectTools::AppendFormatsFileExtensions(Formats, FileTypes, Extensions, AssetTools.GetSupportedImportExtension());
 
 	const FString FormatString = FString::Printf(TEXT("All Files (%s)|%s|%s"), *Extensions, *Extensions, *FileTypes);
 	const FString Title = LOCTEXT("BrowseSourceDialogTitle", "Select Datasmith Source File").ToString();

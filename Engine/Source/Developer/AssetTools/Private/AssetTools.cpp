@@ -1287,6 +1287,9 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 		}
 	}
 
+	
+	GConfig->GetArray(TEXT("AssetTools"), TEXT("SupportedImportExtensions"), SupportedImportExtensionArray, GEditorIni);
+
 	TArray<FString> DenyListedViewPath;
 	GConfig->GetArray(TEXT("AssetTools"), TEXT("DenyListAssetPaths"), DenyListedViewPath, GEditorIni);
 	for (const FString& Path : DenyListedViewPath)
@@ -5591,6 +5594,11 @@ const TSharedRef<FPathPermissionList>& UAssetToolsImpl::GetAssetClassPathPermiss
 	return Empty;
 }
 
+const TArray<FString>& UAssetToolsImpl::GetSupportedImportExtension() const
+{
+	return SupportedImportExtensionArray;
+}
+
 TSet<EBlueprintType>& UAssetToolsImpl::GetAllowedBlueprintTypes()
 {
 	return AllowedBlueprintTypes;
@@ -5637,14 +5645,13 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsWithDialogImplementation(const FSt
 	}
 
 	TMultiMap<uint32, UFactory*> FilterIndexToFactory;
-
 	// Generate the file types and extensions represented by the selected factories
-	ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, FilterIndexToFactory);
+	ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, FilterIndexToFactory, GetSupportedImportExtension());
 
 	if (UInterchangeManager::IsInterchangeImportEnabled())
 	{
 		TArray<FString> InterchangeFileExtensions = UInterchangeManager::GetInterchangeManager().GetSupportedFormats(EInterchangeTranslatorType::Assets);
-		ObjectTools::AppendFormatsFileExtensions(InterchangeFileExtensions, FileTypes, AllExtensions, FilterIndexToFactory);
+		ObjectTools::AppendFormatsFileExtensions(InterchangeFileExtensions, FileTypes, AllExtensions, FilterIndexToFactory, GetSupportedImportExtension());
 	}
 
 	FileTypes = FString::Printf(TEXT("All Files (%s)|%s|%s"), *AllExtensions, *AllExtensions, *FileTypes);

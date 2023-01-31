@@ -488,8 +488,13 @@ namespace ObjectTools
 	 * @param	InFactory		Factory whose supported file types and extensions should be retrieved
 	 * @param	out_Filetypes	File types supported by the provided factory, concatenated into a string
 	 * @param	out_Extensions	Extensions supported by the provided factory, concatenated into a string
+	 * @param   SupportedExtensions			If not null only extension in the list can be added
 	 */
-	UNREALED_API void GenerateFactoryFileExtensions( const UFactory* InFactory, FString& out_Filetypes, FString& out_Extensions, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory );
+	UNREALED_API void GenerateFactoryFileExtensions( const UFactory* InFactory
+		, FString& out_Filetypes
+		, FString& out_Extensions
+		, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory
+		, const TArray<FString>& SupportedExtensions = TArray<FString>());
 
 	/**
 	 * Populates two strings with all of the file types and extensions the provided factories support.
@@ -497,13 +502,22 @@ namespace ObjectTools
 	 * @param	InFactories		Factories whose supported file types and extensions should be retrieved
 	 * @param	out_Filetypes	File types supported by the provided factory, concatenated into a string
 	 * @param	out_Extensions	Extensions supported by the provided factory, concatenated into a string
+	 * @param   SupportedExtensions			If not null only extension in the list can be added
 	 */
-	UNREALED_API void GenerateFactoryFileExtensions( const TArray<UFactory*>& InFactories, FString& out_Filetypes, FString& out_Extensions, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory );
+	UNREALED_API void GenerateFactoryFileExtensions( const TArray<UFactory*>& InFactories
+		, FString& out_Filetypes
+		, FString& out_Extensions
+		, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory
+		, const TArray<FString>& SupportedExtensions = TArray<FString>());
 
 	/**
 	 * Generates a list of file types for a given class.
+	 * @param   SupportedExtensions			If not null only extension in the list can be added
 	 */
-	UNREALED_API void AppendFactoryFileExtensions( UFactory* InFactory, FString& out_Filetypes, FString& out_Extensions );
+	UNREALED_API void AppendFactoryFileExtensions( UFactory* InFactory
+		, FString& out_Filetypes
+		, FString& out_Extensions
+		, const TArray<FString>& SupportedExtensions = TArray<FString>());
 
 	/**
 	 * Populates two strings with all of the file types and extensions the format list provides.
@@ -511,8 +525,12 @@ namespace ObjectTools
 	 * @param	InFormats		Array of supported file types. Each entry needs to be of the form "ext;Description" where ext is the file extension. 
 	 * @param	out_FileTypes	File types supported by the provided array of formats, concatenated into a string
 	 * @param	out_Extensions	Extensions supported by the provided array of formats, concatenated into a string
+	 * @param   SupportedExtensions			If not null only extension in the list can be added
 	 */
-	UNREALED_API void AppendFormatsFileExtensions(const TArray<FString>& InFormats, FString& out_FileTypes, FString& out_Extensions);
+	UNREALED_API void AppendFormatsFileExtensions(const TArray<FString>& InFormats
+		, FString& out_FileTypes
+		, FString& out_Extensions
+		, const TArray<FString>& SupportedExtensions = TArray<FString>());
 
 	/**
 	 * Populates two strings with all of the file types and extensions the format list provides.
@@ -521,8 +539,13 @@ namespace ObjectTools
 	 * @param	out_FileTypes	File types supported by the provided array of formats, concatenated into a string
 	 * @param	out_Extensions	Extensions supported by the provided array of formats, concatenated into a string
 	 * @param	out_FilterIndexToFactory	Add INDEX_NONE entry for all provided Formats
+	 * @param   SupportedExtensions			If not null only extension in the list can be added
 	 */
-	UNREALED_API void AppendFormatsFileExtensions(const TArray<FString>& InFormats, FString& out_FileTypes, FString& out_Extensions, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory);
+	UNREALED_API void AppendFormatsFileExtensions(const TArray<FString>& InFormats
+		, FString& out_FileTypes
+		, FString& out_Extensions
+		, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory
+		, const TArray<FString>& SupportedExtensions = TArray<FString>());
 
 	/**
 	 * Iterates over all classes and assembles a list of non-abstract UExport-derived type instances.
