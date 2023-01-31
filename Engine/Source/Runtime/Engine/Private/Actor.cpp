@@ -144,10 +144,10 @@ void AActor::InitializeDefaults()
 	bHiddenEdLevel = false;
 	bActorLabelEditable = true;
 	SpriteScale = 1.0f;
-	bEnableAutoLODGeneration = true;
 	bOptimizeBPComponentData = false;
 	bForceExternalActorLevelReferenceForPIE = false;
 #endif // WITH_EDITORONLY_DATA
+	bEnableAutoLODGeneration = true;
 	NetCullDistanceSquared = 225000000.0f;
 	NetDriverName = NAME_GameNetDriver;
 	NetDormancy = DORM_Awake;
