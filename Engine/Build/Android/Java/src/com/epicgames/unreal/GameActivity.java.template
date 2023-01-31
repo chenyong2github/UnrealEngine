@@ -694,8 +694,15 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		if(!TextUtils.isEmpty(tempCommandLine)) {
 			Log.debug("Using alternative commandline source");
 			// remember full commandline for regex checks by configrules
-			CommandLineFull = tempCommandLine;
-			parseCommandLineParams(tempCommandLine);
+			CommandLineFull += tempCommandLine;
+			parseCommandLineParams(CommandLineFull);
+			return;
+		}
+
+		if (CommandLineFull != "")
+		{
+			//if command line was provided via adb shell then skip reading cmd line from file
+			parseCommandLineParams(CommandLineFull);
 			return;
 		}
 
@@ -1427,7 +1434,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			else if (SourceType.equals("SRC_CommandLine"))
 			{
 				bSourceIsCommandLine = true;
-				Source = CommandLineFull;;
+				Source = CommandLineFull;
 			}
 			else if (variables.containsKey(SourceType))
 			{
@@ -2341,6 +2348,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			getWindow().getDecorView().setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
 		}
 
+		boolean bIsShipping = nativeIsShippingBuild();
+
 		// create splashscreen dialog (if launched by SplashActivity)
 		_extrasBundle = getIntent().getExtras();
 		if (_extrasBundle != null)
@@ -2391,6 +2400,12 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				e.printStackTrace();
 			}
 
+			String CmdLine = _extrasBundle.getString("cmdline");
+			if (CmdLine != null && !bIsShipping)
+			{
+				CommandLineFull = CmdLine;
+			}
+
 			if (UseDisplayCutout)
 			{
 				// will not be true if not Android Pie or later
@@ -2414,7 +2429,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 
 		// Check for target sdk.  If 23 or higher then warn that permission handling may mean features don't work if user denies them.
-		boolean bIsShipping = nativeIsShippingBuild();
 		if (ANDROID_BUILD_VERSION >= 23 && targetSdkVersion >= 23) //23 is the API level (Marshmallow) where runtime permission handling is available
 		{
 			Log.debug("Target SDK is " + targetSdkVersion + ".  This may cause issues if permissions are denied by the user." );	

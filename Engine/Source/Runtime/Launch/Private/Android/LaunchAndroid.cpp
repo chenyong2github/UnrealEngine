@@ -164,6 +164,7 @@ extern bool AndroidThunkCpp_VirtualInputIgnoreClick(int, int);
 extern bool AndroidThunkCpp_IsVirtuaKeyboardShown();
 extern bool AndroidThunkCpp_IsWebViewShown();
 extern void AndroidThunkCpp_RestartApplication(const FString& IntentString);
+extern FString AndroidThunkCpp_GetIntentExtrasString(const FString& Key);
 
 // Base path for file accesses
 extern FString GFilePathBase;
@@ -280,60 +281,73 @@ static void InitCommandLine()
 	// initialize the command line to an empty string
 	FCommandLine::Set(TEXT(""));
 
-	AAssetManager* AssetMgr = AndroidThunkCpp_GetAssetManager();
-	AAsset* asset = AAssetManager_open(AssetMgr, TCHAR_TO_UTF8(TEXT("UECommandLine.txt")), AASSET_MODE_BUFFER);
-	if (nullptr != asset)
+#if !UE_BUILD_SHIPPING
+	FString CmdLine = AndroidThunkCpp_GetIntentExtrasString(TEXT("cmdline"));
+	if (!CmdLine.IsEmpty())
 	{
-		const void* FileContents = AAsset_getBuffer(asset);
-		int32 FileLength = AAsset_getLength(asset);
+		CmdLine.TrimEndInline();
+		FCommandLine::Append(*CmdLine);
 
-		char CommandLine[CMD_LINE_MAX];
-		FileLength = (FileLength < CMD_LINE_MAX - 1) ? FileLength : CMD_LINE_MAX - 1;
-		memcpy(CommandLine, FileContents, FileLength);
-		CommandLine[FileLength] = '\0';
-
-		AAsset_close(asset);
-
-		// chop off trailing spaces
-		while (*CommandLine && isspace(CommandLine[strlen(CommandLine) - 1]))
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("adb am start command line override: %s"), FCommandLine::Get());
+	}
+	else
+#endif
+	{
+		AAssetManager* AssetMgr = AndroidThunkCpp_GetAssetManager();
+		AAsset* asset = AAssetManager_open(AssetMgr, TCHAR_TO_UTF8(TEXT("UECommandLine.txt")), AASSET_MODE_BUFFER);
+		if (nullptr != asset)
 		{
-			CommandLine[strlen(CommandLine) - 1] = 0;
+			const void* FileContents = AAsset_getBuffer(asset);
+			int32 FileLength = AAsset_getLength(asset);
+
+			char CommandLine[CMD_LINE_MAX];
+			FileLength = (FileLength < CMD_LINE_MAX - 1) ? FileLength : CMD_LINE_MAX - 1;
+			memcpy(CommandLine, FileContents, FileLength);
+			CommandLine[FileLength] = '\0';
+
+			AAsset_close(asset);
+
+			// chop off trailing spaces
+			while (*CommandLine && isspace(CommandLine[strlen(CommandLine) - 1]))
+			{
+				CommandLine[strlen(CommandLine) - 1] = 0;
+			}
+
+			FCommandLine::Append(UTF8_TO_TCHAR(CommandLine));
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("APK Commandline: %s"), FCommandLine::Get());
 		}
 
-		FCommandLine::Append(UTF8_TO_TCHAR(CommandLine));
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("APK Commandline: %s"), FCommandLine::Get());
-	}
-
-	// read in the command line text file from the sdcard if it exists
-	FString CommandLineFilePath = GFilePathBase + FString("/UnrealGame/") + (!FApp::IsProjectNameEmpty() ? FApp::GetProjectName() : FPlatformProcess::ExecutableName()) + FString("/UECommandLine.txt");
-	FILE* CommandLineFile = fopen(TCHAR_TO_UTF8(*CommandLineFilePath), "r");
-	if(CommandLineFile == NULL)
-	{
-		// if that failed, try the lowercase version
-		CommandLineFilePath = CommandLineFilePath.Replace(TEXT("UECommandLine.txt"), TEXT("uecommandline.txt"));
-		CommandLineFile = fopen(TCHAR_TO_UTF8(*CommandLineFilePath), "r");
-	}
-
-	if(CommandLineFile)
-	{
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Using override commandline file: %s"), *CommandLineFilePath);
-
-		char CommandLine[CMD_LINE_MAX];
-		fgets(CommandLine, UE_ARRAY_COUNT(CommandLine) - 1, CommandLineFile);
-
-		fclose(CommandLineFile);
-
-		// chop off trailing spaces
-		while (*CommandLine && isspace(CommandLine[strlen(CommandLine) - 1]))
+		// read in the command line text file from the sdcard if it exists
+		FString CommandLineFilePath = GFilePathBase + FString("/UnrealGame/") + (!FApp::IsProjectNameEmpty() ? FApp::GetProjectName() : FPlatformProcess::ExecutableName()) + FString("/UECommandLine.txt");
+		FILE* CommandLineFile = fopen(TCHAR_TO_UTF8(*CommandLineFilePath), "r");
+		if (CommandLineFile == NULL)
 		{
-			CommandLine[strlen(CommandLine) - 1] = 0;
+			// if that failed, try the lowercase version
+			CommandLineFilePath = CommandLineFilePath.Replace(TEXT("UECommandLine.txt"), TEXT("uecommandline.txt"));
+			CommandLineFile = fopen(TCHAR_TO_UTF8(*CommandLineFilePath), "r");
 		}
 
-		// initialize the command line to an empty string
-		FCommandLine::Set(TEXT(""));
+		if (CommandLineFile)
+		{
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Using override commandline file: %s"), *CommandLineFilePath);
 
-		FCommandLine::Append(UTF8_TO_TCHAR(CommandLine));
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Override Commandline: %s"), FCommandLine::Get());
+			char CommandLine[CMD_LINE_MAX];
+			fgets(CommandLine, UE_ARRAY_COUNT(CommandLine) - 1, CommandLineFile);
+
+			fclose(CommandLineFile);
+
+			// chop off trailing spaces
+			while (*CommandLine && isspace(CommandLine[strlen(CommandLine) - 1]))
+			{
+				CommandLine[strlen(CommandLine) - 1] = 0;
+			}
+
+			// initialize the command line to an empty string
+			FCommandLine::Set(TEXT(""));
+
+			FCommandLine::Append(UTF8_TO_TCHAR(CommandLine));
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Override Commandline: %s"), FCommandLine::Get());
+		}
 	}
 
 #if !UE_BUILD_SHIPPING
