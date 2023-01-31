@@ -22,13 +22,18 @@ public class UEOgg : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
+			string BinDir = "$(EngineDir)/Binaries/ThirdParty/Ogg/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 			LibDir = Path.Combine(OggLibPath, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
-			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libogg_64.lib"));
+			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
+			{
+				LibDir = Path.Combine(LibDir, Target.Architecture.WindowsLibDir);
+				BinDir = BinDir + "/" + Target.Architecture.WindowsLibDir;
+			}
 
 			PublicDelayLoadDLLs.Add("libogg_64.dll");
-
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Ogg/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libogg_64.dll");
+			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libogg_64.lib"));
+			RuntimeDependencies.Add(BinDir + "/libogg_64.dll");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
